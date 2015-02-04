@@ -100,7 +100,6 @@ struct net2280_ep {
 	dma_addr_t				td_dma;	/* of dummy */
 	struct net2280				*dev;
 	unsigned long				irqs;
-	unsigned is_halt:1, dma_started:1;
 
 	/* analogous to a host-side qh */
 	struct list_head			queue;
@@ -126,7 +125,7 @@ static inline void allow_status(struct net2280_ep *ep)
 	ep->stopped = 1;
 }
 
-static void allow_status_338x(struct net2280_ep *ep)
+static inline void allow_status_338x(struct net2280_ep *ep)
 {
 	/*
 	 * Control Status Phase Handshake was set by the chip when the setup
@@ -165,8 +164,8 @@ struct net2280 {
 					u2_enable:1,
 					ltm_enable:1,
 					wakeup_enable:1,
-					selfpowered:1,
-					addressed_state:1;
+					addressed_state:1,
+					bug7734_patched:1;
 	u16				chiprev;
 	int enhanced_mode;
 	int n_ep;
@@ -355,23 +354,6 @@ static inline void start_out_naking(struct net2280_ep *ep)
 	/* synch with device */
 	readl(&ep->regs->ep_rsp);
 }
-
-#ifdef DEBUG
-static inline void assert_out_naking(struct net2280_ep *ep, const char *where)
-{
-	u32	tmp = readl(&ep->regs->ep_stat);
-
-	if ((tmp & BIT(NAK_OUT_PACKETS)) == 0) {
-		ep_dbg(ep->dev, "%s %s %08x !NAK\n",
-				ep->ep.name, where, tmp);
-		writel(BIT(SET_NAK_OUT_PACKETS),
-			&ep->regs->ep_rsp);
-	}
-}
-#define ASSERT_OUT_NAKING(ep) assert_out_naking(ep, __func__)
-#else
-#define ASSERT_OUT_NAKING(ep) do {} while (0)
-#endif
 
 static inline void stop_out_naking(struct net2280_ep *ep)
 {

@@ -108,7 +108,7 @@ struct s3c_hsotg_req;
  * @halted: Set if the endpoint has been halted.
  * @periodic: Set if this is a periodic ep, such as Interrupt
  * @isochronous: Set if this is a isochronous ep
- * @sent_zlp: Set if we've sent a zero-length packet.
+ * @send_zlp: Set if we need to send a zero-length packet.
  * @total_data: The total number of data bytes done.
  * @fifo_size: The size of the FIFO (for periodic IN endpoints)
  * @fifo_load: The amount of data loaded into the FIFO (periodic IN)
@@ -149,7 +149,7 @@ struct s3c_hsotg_ep {
 	unsigned int            halted:1;
 	unsigned int            periodic:1;
 	unsigned int            isochronous:1;
-	unsigned int            sent_zlp:1;
+	unsigned int            send_zlp:1;
 
 	char                    name[10];
 };
@@ -158,14 +158,12 @@ struct s3c_hsotg_ep {
  * struct s3c_hsotg_req - data transfer request
  * @req: The USB gadget request
  * @queue: The list of requests for the endpoint this is queued for.
- * @in_progress: Has already had size/packets written to core
- * @mapped: DMA buffer for this request has been mapped via dma_map_single().
+ * @saved_req_buf: variable to save req.buf when bounce buffers are used.
  */
 struct s3c_hsotg_req {
 	struct usb_request      req;
 	struct list_head        queue;
-	unsigned char           in_progress;
-	unsigned char           mapped;
+	void *saved_req_buf;
 };
 
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
@@ -191,6 +189,22 @@ enum dwc2_lx_state {
 	DWC2_L1,	/* LPM sleep state */
 	DWC2_L2,	/* USB suspend state */
 	DWC2_L3,	/* Off state */
+};
+
+/*
+ * Gadget periodic tx fifo sizes as used by legacy driver
+ * EP0 is not included
+ */
+#define DWC2_G_P_LEGACY_TX_FIFO_SIZE {256, 256, 256, 256, 768, 768, 768, \
+					   768, 0, 0, 0, 0, 0, 0, 0}
+
+/* Gadget ep0 states */
+enum dwc2_ep0_state {
+	DWC2_EP0_SETUP,
+	DWC2_EP0_DATA_IN,
+	DWC2_EP0_DATA_OUT,
+	DWC2_EP0_STATUS_IN,
+	DWC2_EP0_STATUS_OUT,
 };
 
 /**
@@ -381,7 +395,7 @@ struct dwc2_core_params {
  * @power_optimized     Are power optimizations enabled?
  * @num_dev_ep          Number of device endpoints available
  * @num_dev_perio_in_ep Number of device periodic IN endpoints
- *                      avaialable
+ *                      available
  * @dev_token_q_depth   Device Mode IN Token Sequence Learning Queue
  *                      Depth
  *                       0 to 30
@@ -433,6 +447,9 @@ struct dwc2_hw_params {
 	unsigned utmi_phy_data_width:2;
 	u32 snpsid;
 };
+
+/* Size of control and EP0 buffers */
+#define DWC2_CTRL_BUFF_SIZE 8
 
 /**
  * struct dwc2_hsotg - Holds the state of the driver, including the non-periodic
@@ -552,14 +569,20 @@ struct dwc2_hw_params {
  * @num_of_eps:         Number of available EPs (excluding EP0)
  * @debug_root:         Root directrory for debugfs.
  * @debug_file:         Main status file for debugfs.
+ * @debug_testmode:     Testmode status file for debugfs.
  * @debug_fifo:         FIFO status file for debugfs.
  * @ep0_reply:          Request used for ep0 reply.
  * @ep0_buff:           Buffer for EP0 reply data, if needed.
  * @ctrl_buff:          Buffer for EP0 control requests.
  * @ctrl_req:           Request for EP0 control packets.
- * @setup:              NAK management for EP0 SETUP
+ * @ep0_state:          EP0 control transfers state
+ * @test_mode:          USB test mode requested by the host
  * @last_rst:           Time of last reset
  * @eps:                The endpoints being supplied to the gadget framework
+ * @g_using_dma:          Indicate if dma usage is enabled
+ * @g_rx_fifo_sz:         Contains rx fifo size value
+ * @g_np_g_tx_fifo_sz:      Contains Non-Periodic tx fifo size value
+ * @g_tx_fifo_sz:         Contains tx fifo size value per endpoints
  */
 struct dwc2_hsotg {
 	struct device *dev;
@@ -591,6 +614,7 @@ struct dwc2_hsotg {
 
 	struct dentry *debug_root;
 	struct dentry *debug_file;
+	struct dentry *debug_testmode;
 	struct dentry *debug_fifo;
 
 	/* DWC OTG HW Release versions */
@@ -684,15 +708,21 @@ struct dwc2_hsotg {
 
 	struct usb_request *ep0_reply;
 	struct usb_request *ctrl_req;
-	u8 ep0_buff[8];
-	u8 ctrl_buff[8];
+	void *ep0_buff;
+	void *ctrl_buff;
+	enum dwc2_ep0_state ep0_state;
+	u8 test_mode;
 
 	struct usb_gadget gadget;
 	unsigned int enabled:1;
 	unsigned int connected:1;
-	unsigned int setup:1;
 	unsigned long last_rst;
-	struct s3c_hsotg_ep *eps;
+	struct s3c_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
+	struct s3c_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
+	u32 g_using_dma;
+	u32 g_rx_fifo_sz;
+	u32 g_np_g_tx_fifo_sz;
+	u32 g_tx_fifo_sz[MAX_EPS_CHANNELS];
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
 
@@ -969,7 +999,8 @@ extern int s3c_hsotg_remove(struct dwc2_hsotg *hsotg);
 extern int s3c_hsotg_suspend(struct dwc2_hsotg *dwc2);
 extern int s3c_hsotg_resume(struct dwc2_hsotg *dwc2);
 extern int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq);
-extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2);
+extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
+		bool reset);
 extern void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg);
 extern void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2);
 #else
@@ -981,7 +1012,8 @@ static inline int s3c_hsotg_resume(struct dwc2_hsotg *dwc2)
 { return 0; }
 static inline int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
-static inline void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2) {}
+static inline void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
+		bool reset) {}
 static inline void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
 static inline void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
 #endif

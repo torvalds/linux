@@ -1214,7 +1214,7 @@ static ssize_t f_ss_opts_pattern_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->pattern);
+	result = sprintf(page, "%u", opts->pattern);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1258,7 +1258,7 @@ static ssize_t f_ss_opts_isoc_interval_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->isoc_interval);
+	result = sprintf(page, "%u", opts->isoc_interval);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1302,7 +1302,7 @@ static ssize_t f_ss_opts_isoc_maxpacket_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->isoc_maxpacket);
+	result = sprintf(page, "%u", opts->isoc_maxpacket);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1346,7 +1346,7 @@ static ssize_t f_ss_opts_isoc_mult_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->isoc_mult);
+	result = sprintf(page, "%u", opts->isoc_mult);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1390,7 +1390,7 @@ static ssize_t f_ss_opts_isoc_maxburst_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->isoc_maxburst);
+	result = sprintf(page, "%u", opts->isoc_maxburst);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1434,7 +1434,7 @@ static ssize_t f_ss_opts_bulk_buflen_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->bulk_buflen);
+	result = sprintf(page, "%u", opts->bulk_buflen);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1473,7 +1473,7 @@ static ssize_t f_ss_opts_int_interval_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->int_interval);
+	result = sprintf(page, "%u", opts->int_interval);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1517,7 +1517,7 @@ static ssize_t f_ss_opts_int_maxpacket_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->int_maxpacket);
+	result = sprintf(page, "%u", opts->int_maxpacket);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1561,7 +1561,7 @@ static ssize_t f_ss_opts_int_mult_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->int_mult);
+	result = sprintf(page, "%u", opts->int_mult);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1605,7 +1605,7 @@ static ssize_t f_ss_opts_int_maxburst_show(struct f_ss_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->int_maxburst);
+	result = sprintf(page, "%u", opts->int_maxburst);
 	mutex_unlock(&opts->lock);
 
 	return result;

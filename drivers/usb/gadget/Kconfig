@@ -423,6 +423,17 @@ config USB_CONFIGFS_F_HID
 
 	  For more information, see Documentation/usb/gadget_hid.txt.
 
+config USB_CONFIGFS_F_UVC
+	bool "USB Webcam function"
+	depends on USB_CONFIGFS
+	depends on VIDEO_DEV
+	select VIDEOBUF2_VMALLOC
+	select USB_F_UVC
+	help
+	  The Webcam function acts as a composite USB Audio and Video Class
+	  device. It provides a userspace API to process UVC control requests
+	  and stream video data to the host.
+
 source "drivers/usb/gadget/legacy/Kconfig"
 
 endchoice
