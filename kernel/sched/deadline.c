@@ -912,6 +912,7 @@ static void yield_task_dl(struct rq *rq)
 		rq->curr->dl.dl_yielded = 1;
 		p->dl.runtime = 0;
 	}
+	update_rq_clock(rq);
 	update_curr_dl(rq);
 }
 
