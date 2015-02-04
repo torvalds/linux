@@ -30,7 +30,7 @@ ifeq ($(wildcard $(src)/linux/license/gpl/*),)
     ifeq ($(CONFIG_MALI400_PROFILING),y)
         $(error Profiling is incompatible with non-GPL license)
     endif
-    ifeq ($(CONFIG_PM_RUNTIME),y)
+    ifeq ($(CONFIG_PM),y)
         $(error Runtime PM is incompatible with non-GPL license)
     endif
     ifeq ($(CONFIG_DMA_SHARED_BUFFER),y)

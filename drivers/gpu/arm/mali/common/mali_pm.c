@@ -27,7 +27,7 @@ static mali_bool mali_power_on = MALI_FALSE;
 
 _mali_osk_errcode_t mali_pm_initialize(void)
 {
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_set_autosuspend_delay(&(mali_platform_device->dev), 1000);
 	pm_runtime_use_autosuspend(&(mali_platform_device->dev));
 	pm_runtime_enable(&(mali_platform_device->dev));
@@ -38,7 +38,7 @@ _mali_osk_errcode_t mali_pm_initialize(void)
 
 void mali_pm_terminate(void)
 {
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_disable(&(mali_platform_device->dev));
 #endif
 	mali_pm_domain_terminate();
