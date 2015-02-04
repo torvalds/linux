@@ -1128,8 +1128,10 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
 		return 0;
 
-	if (iwl_mvm_is_radio_killed(mvm))
+	if (iwl_mvm_is_radio_killed(mvm)) {
+		ret = 0;
 		goto out;
+	}
 
 	if (mvm->scan_status != IWL_MVM_SCAN_SCHED &&
 	    (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) ||
@@ -1148,16 +1150,14 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 		IWL_DEBUG_SCAN(mvm, "Send stop %sscan failed %d\n",
 			       sched ? "offloaded " : "", ret);
 		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
-		return ret;
+		goto out;
 	}
 
 	IWL_DEBUG_SCAN(mvm, "Successfully sent stop %sscan\n",
 		       sched ? "offloaded " : "");
 
 	ret = iwl_wait_notification(&mvm->notif_wait, &wait_scan_done, 1 * HZ);
-	if (ret)
-		return ret;
-
+out:
 	/*
 	 * Clear the scan status so the next scan requests will succeed. This
 	 * also ensures the Rx handler doesn't do anything, as the scan was
@@ -1167,7 +1167,6 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 	if (mvm->scan_status == IWL_MVM_SCAN_OS)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 
-out:
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 
 	if (notify) {
@@ -1177,7 +1176,7 @@ out:
 			ieee80211_scan_completed(mvm->hw, true);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void iwl_mvm_unified_scan_fill_tx_cmd(struct iwl_mvm *mvm,
