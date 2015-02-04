@@ -750,7 +750,7 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 	/* Are we beyond EOF? */
 	if (etype == -1) {
 		int ret;
-		isBeyondEOF = 1;
+		isBeyondEOF = true;
 		if (count) {
 			if (c)
 				laarr[0] = laarr[1];
@@ -792,7 +792,7 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 		endnum = c + 1;
 		lastblock = 1;
 	} else {
-		isBeyondEOF = 0;
+		isBeyondEOF = false;
 		endnum = startnum = ((count > 2) ? 2 : count);
 
 		/* if the current extent is in position 0,
