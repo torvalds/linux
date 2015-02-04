@@ -687,7 +687,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	struct musb_hdrc_config	*config;
 	struct platform_device *musb;
 	struct device_node *dn = parent->dev.of_node;
-	int ret;
+	int ret, val;
 
 	memset(resources, 0, sizeof(resources));
 	res = platform_get_resource_byname(parent, IORESOURCE_MEM, "mc");
@@ -739,7 +739,10 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	pdata.mode = get_musb_port_mode(dev);
 	/* DT keeps this entry in mA, musb expects it as per USB spec */
 	pdata.power = get_int_prop(dn, "mentor,power") / 2;
-	config->multipoint = of_property_read_bool(dn, "mentor,multipoint");
+
+	ret = of_property_read_u32(dn, "mentor,multipoint", &val);
+	if (!ret && val)
+		config->multipoint = true;
 
 	ret = platform_device_add_data(musb, &pdata, sizeof(pdata));
 	if (ret) {
