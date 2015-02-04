@@ -642,12 +642,9 @@ static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
 		goto out_err;
 	}
 
-	/* Every TPM 2.x command has a higher ordinal than TPM 1.x commands.
-	 * Therefore, we can use an idempotent TPM 2.x command to probe TPM 2.x.
-	 */
-	rc = tpm2_gen_interrupt(chip, true);
-	if (rc == 0 || rc == TPM2_RC_INITIALIZE)
-		chip->flags |= TPM_CHIP_FLAG_TPM2;
+	rc = tpm2_probe(chip);
+	if (rc)
+		goto out_err;
 
 	vendor = ioread32(chip->vendor.iobase + TPM_DID_VID(0));
 	chip->vendor.manufacturer_id = vendor;
@@ -750,7 +747,7 @@ static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
 
 			/* Generate Interrupts */
 			if (chip->flags & TPM_CHIP_FLAG_TPM2)
-				tpm2_gen_interrupt(chip, false);
+				tpm2_gen_interrupt(chip);
 			else
 				tpm_gen_interrupt(chip);
 
