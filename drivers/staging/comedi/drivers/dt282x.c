@@ -685,14 +685,7 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	} else {
-		/* external trigger */
-		/* should be level/edge, hi/lo specification here */
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 4000);
 
