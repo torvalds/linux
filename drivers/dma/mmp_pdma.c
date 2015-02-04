@@ -219,6 +219,9 @@ static irqreturn_t mmp_pdma_int_handler(int irq, void *dev_id)
 
 	while (dint) {
 		i = __ffs(dint);
+		/* only handle interrupts belonging to pdma driver*/
+		if (i >= pdev->dma_channels)
+			break;
 		dint &= (dint - 1);
 		phy = &pdev->phy[i];
 		ret = mmp_pdma_chan_handler(irq, phy);
