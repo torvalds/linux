@@ -393,7 +393,6 @@ static int omap_hdmi_audio_remove(struct platform_device *pdev)
 static struct platform_driver hdmi_audio_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = omap_hdmi_audio_probe,
 	.remove = omap_hdmi_audio_remove,
