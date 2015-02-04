@@ -118,6 +118,12 @@
 		compatible = "auo,b116xw03";
 		power-supply = <&tps65090_fet6>;
 		backlight = <&backlight>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&bridge_out>;
+			};
+		};
 	};
 };
 
@@ -137,7 +143,14 @@
 	samsung,link-rate = <0x06>;
 	samsung,lane-count = <2>;
 	samsung,hpd-gpio = <&gpx2 6 0>;
-	bridge = <&ps8625>;
+
+	ports {
+		port@0 {
+			dp_out: endpoint {
+				remote-endpoint = <&bridge_in>;
+			};
+		};
+	};
 };
 
 &fimd {
@@ -595,8 +608,22 @@
 		sleep-gpios = <&gpx3 5 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpy7 7 GPIO_ACTIVE_HIGH>;
 		lane-count = <2>;
-		panel = <&panel>;
 		use-external-pwm;
+
+		ports {
+			port@0 {
+				bridge_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+
+			port@1 {
+				bridge_in: endpoint {
+					remote-endpoint = <&dp_out>;
+				};
+			};
+		};
+
 	};
 };
 
