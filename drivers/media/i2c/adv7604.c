@@ -109,6 +109,7 @@ struct adv7604_chip_info {
 	unsigned int cable_det_mask;
 	unsigned int tdms_lock_mask;
 	unsigned int fmt_change_digital_mask;
+	unsigned int cp_csc;
 
 	const struct adv7604_format_info *formats;
 	unsigned int nformats;
@@ -2241,7 +2242,7 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 			((reg_io_0x02 & 0x04) ^ (reg_io_0x02 & 0x01)) ?
 				"enabled" : "disabled");
 	v4l2_info(sd, "Color space conversion: %s\n",
-			csc_coeff_sel_rb[cp_read(sd, 0xfc) >> 4]);
+			csc_coeff_sel_rb[cp_read(sd, info->cp_csc) >> 4]);
 
 	if (!is_digital_input(sd))
 		return 0;
@@ -2545,6 +2546,7 @@ static const struct adv7604_chip_info adv7604_chip_info[] = {
 		.tdms_lock_mask = 0xe0,
 		.cable_det_mask = 0x1e,
 		.fmt_change_digital_mask = 0xc1,
+		.cp_csc = 0xfc,
 		.formats = adv7604_formats,
 		.nformats = ARRAY_SIZE(adv7604_formats),
 		.set_termination = adv7604_set_termination,
@@ -2578,6 +2580,7 @@ static const struct adv7604_chip_info adv7604_chip_info[] = {
 		.tdms_lock_mask = 0x43,
 		.cable_det_mask = 0x01,
 		.fmt_change_digital_mask = 0x03,
+		.cp_csc = 0xf4,
 		.formats = adv7611_formats,
 		.nformats = ARRAY_SIZE(adv7611_formats),
 		.set_termination = adv7611_set_termination,
