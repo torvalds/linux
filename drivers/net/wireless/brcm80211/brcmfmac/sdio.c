@@ -2538,8 +2538,7 @@ static void brcmf_sdio_bus_stop(struct device *dev)
 	brcmu_pktq_flush(&bus->txq, true, NULL, NULL);
 
 	/* Clear any held glomming stuff */
-	if (bus->glomd)
-		brcmu_pkt_buf_free_skb(bus->glomd);
+	brcmu_pkt_buf_free_skb(bus->glomd);
 	brcmf_sdio_free_glom(bus);
 
 	/* Clear rx control and wake any waiters */

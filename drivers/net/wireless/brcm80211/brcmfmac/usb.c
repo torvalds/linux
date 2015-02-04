@@ -421,7 +421,7 @@ fail:
 	brcmf_err("fail!\n");
 	while (!list_empty(q)) {
 		req = list_entry(q->next, struct brcmf_usbreq, list);
-		if (req && req->urb)
+		if (req)
 			usb_free_urb(req->urb);
 		list_del(q->next);
 	}
