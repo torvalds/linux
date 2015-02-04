@@ -17,6 +17,8 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 
+#include "cpsw.h"
+
 #define AM33XX_CTRL_MAC_LO_REG(offset, id) ((offset) + 0x8 * (id))
 #define AM33XX_CTRL_MAC_HI_REG(offset, id) ((offset) + 0x8 * (id) + 0x4)
 
