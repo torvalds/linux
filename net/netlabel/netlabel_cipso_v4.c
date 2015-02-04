@@ -324,8 +324,7 @@ static int netlbl_cipsov4_add_std(struct genl_info *info,
 	return 0;
 
 add_std_failure:
-	if (doi_def)
-		cipso_v4_doi_free(doi_def);
+	cipso_v4_doi_free(doi_def);
 	return ret_val;
 }
 
