@@ -23,6 +23,7 @@
 #define GDP_RGB565      0x00
 #define GDP_RGB888      0x01
 #define GDP_RGB888_32   0x02
+#define GDP_XBGR8888    (GDP_RGB888_32 | BIGNOTLITTLE | ALPHASWITCH)
 #define GDP_ARGB8565    0x04
 #define GDP_ARGB8888    0x05
 #define GDP_ABGR8888	(GDP_ARGB8888 | BIGNOTLITTLE | ALPHASWITCH)
@@ -106,6 +107,7 @@ struct sti_gdp {
 
 static const uint32_t gdp_supported_formats[] = {
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB4444,
@@ -133,6 +135,8 @@ static int sti_gdp_fourcc2format(int fourcc)
 	switch (fourcc) {
 	case DRM_FORMAT_XRGB8888:
 		return GDP_RGB888_32;
+	case DRM_FORMAT_XBGR8888:
+		return GDP_XBGR8888;
 	case DRM_FORMAT_ARGB8888:
 		return GDP_ARGB8888;
 	case DRM_FORMAT_ABGR8888:
