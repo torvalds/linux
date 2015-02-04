@@ -2366,11 +2366,28 @@ static struct attribute *bmc_dev_attrs[] = {
 	&dev_attr_additional_device_support.attr,
 	&dev_attr_manufacturer_id.attr,
 	&dev_attr_product_id.attr,
+	&dev_attr_aux_firmware_revision.attr,
+	&dev_attr_guid.attr,
 	NULL
 };
 
+static umode_t bmc_dev_attr_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct bmc_device *bmc = to_bmc_device(dev);
+	umode_t mode = attr->mode;
+
+	if (attr == &dev_attr_aux_firmware_revision.attr)
+		return bmc->id.aux_firmware_revision_set ? mode : 0;
+	if (attr == &dev_attr_guid.attr)
+		return bmc->guid_set ? mode : 0;
+	return mode;
+}
+
 static struct attribute_group bmc_dev_attr_group = {
 	.attrs		= bmc_dev_attrs,
+	.is_visible	= bmc_dev_attr_is_visible,
 };
 
 static const struct attribute_group *bmc_dev_attr_groups[] = {
@@ -2393,13 +2410,6 @@ cleanup_bmc_device(struct kref *ref)
 {
 	struct bmc_device *bmc = container_of(ref, struct bmc_device, usecount);
 
-	if (bmc->id.aux_firmware_revision_set)
-		device_remove_file(&bmc->pdev.dev,
-				   &dev_attr_aux_firmware_revision);
-	if (bmc->guid_set)
-		device_remove_file(&bmc->pdev.dev,
-				   &dev_attr_guid);
-
 	platform_device_unregister(&bmc->pdev);
 }
 
@@ -2418,33 +2428,6 @@ static void ipmi_bmc_unregister(ipmi_smi_t intf)
 	kref_put(&bmc->usecount, cleanup_bmc_device);
 	intf->bmc = NULL;
 	mutex_unlock(&ipmidriver_mutex);
-}
-
-static int create_bmc_files(struct bmc_device *bmc)
-{
-	int err;
-
-	if (bmc->id.aux_firmware_revision_set) {
-		err = device_create_file(&bmc->pdev.dev,
-					 &dev_attr_aux_firmware_revision);
-		if (err)
-			goto out;
-	}
-	if (bmc->guid_set) {
-		err = device_create_file(&bmc->pdev.dev,
-					 &dev_attr_guid);
-		if (err)
-			goto out_aux_firm;
-	}
-
-	return 0;
-
-out_aux_firm:
-	if (bmc->id.aux_firmware_revision_set)
-		device_remove_file(&bmc->pdev.dev,
-				   &dev_attr_aux_firmware_revision);
-out:
-	return err;
 }
 
 static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
@@ -2532,15 +2515,6 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 			 * Don't go to out_err, you can only do that if
 			 * the device is registered already.
 			 */
-			return rv;
-		}
-
-		rv = create_bmc_files(bmc);
-		if (rv) {
-			mutex_lock(&ipmidriver_mutex);
-			platform_device_unregister(&bmc->pdev);
-			mutex_unlock(&ipmidriver_mutex);
-
 			return rv;
 		}
 
