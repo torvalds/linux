@@ -57,9 +57,9 @@
  */
 
 /* settings for DTC3181E card with only Mustek scanner attached */
-#define USLEEP_POLL	1
-#define USLEEP_SLEEP	20
-#define USLEEP_WAITLONG	500
+#define USLEEP_POLL	msecs_to_jiffies(10)
+#define USLEEP_SLEEP	msecs_to_jiffies(200)
+#define USLEEP_WAITLONG	msecs_to_jiffies(5000)
 
 #define AUTOPROBE_IRQ
 
