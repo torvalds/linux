@@ -1,18 +1,18 @@
 /*
- * PQ3 eTSEC2 device tree stub [ @ offsets 0x24000/0xb0000 ]
+ * QorIQ QMan rev3 device tree stub [ controller @ offset 0x318000 ]
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2014 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *	 notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
+ *	 notice, this list of conditions and the following disclaimer in the
+ *	 documentation and/or other materials provided with the distribution.
  *     * Neither the name of Freescale Semiconductor nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
+ *	 names of its contributors may be used to endorse or promote products
+ *	 derived from this software without specific prior written permission.
  *
  *
  * ALTERNATIVELY, this software may be distributed under the terms of the
@@ -32,30 +32,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-mdio@24000 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	compatible = "fsl,etsec2-mdio";
-	reg = <0x24000 0x1000 0xb0030 0x4>;
-};
-
-ethernet@b0000 {
-	#address-cells = <1>;
-	#size-cells = <1>;
-	device_type = "network";
-	model = "eTSEC";
-	compatible = "fsl,etsec2";
-	fsl,num_rx_queues = <0x8>;
-	fsl,num_tx_queues = <0x8>;
-	fsl,magic-packet;
-	local-mac-address = [ 00 00 00 00 00 00 ];
-	ranges;
-
-	queue-group@b0000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		reg = <0xb0000 0x1000>;
-		interrupts = <29 2 0 0 30 2 0 0 34 2 0 0>;
-	};
+qman: qman@318000 {
+	compatible = "fsl,qman";
+	reg = <0x318000 0x2000>;
+	interrupts = <16 2 1 3>;
+	fsl,qman-portals = <&qportals>;
+	memory-region = <&qman_fqd &qman_pfdr>;
 };
