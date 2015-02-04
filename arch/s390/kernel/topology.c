@@ -7,14 +7,14 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/workqueue.h>
-#include <linux/bootmem.h>
 #include <linux/cpuset.h>
 #include <linux/device.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
@@ -334,50 +334,6 @@ void topology_expect_change(void)
 	set_topology_timer();
 }
 
-static int __init early_parse_topology(char *p)
-{
-	if (strncmp(p, "off", 3))
-		return 0;
-	topology_enabled = 0;
-	return 0;
-}
-early_param("topology", early_parse_topology);
-
-static void __init alloc_masks(struct sysinfo_15_1_x *info,
-			       struct mask_info *mask, int offset)
-{
-	int i, nr_masks;
-
-	nr_masks = info->mag[TOPOLOGY_NR_MAG - offset];
-	for (i = 0; i < info->mnest - offset; i++)
-		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
-	nr_masks = max(nr_masks, 1);
-	for (i = 0; i < nr_masks; i++) {
-		mask->next = alloc_bootmem_align(
-			roundup_pow_of_two(sizeof(struct mask_info)),
-			roundup_pow_of_two(sizeof(struct mask_info)));
-		mask = mask->next;
-	}
-}
-
-void __init s390_init_cpu_topology(void)
-{
-	struct sysinfo_15_1_x *info;
-	int i;
-
-	if (!MACHINE_HAS_TOPOLOGY)
-		return;
-	tl_info = alloc_bootmem_pages(PAGE_SIZE);
-	info = tl_info;
-	store_topology(info);
-	pr_info("The CPU configuration topology of the machine is:");
-	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
-		printk(KERN_CONT " %d", info->mag[i]);
-	printk(KERN_CONT " / %d\n", info->mnest);
-	alloc_masks(info, &socket_info, 1);
-	alloc_masks(info, &book_info, 2);
-}
-
 static int cpu_management;
 
 static ssize_t dispatching_show(struct device *dev,
@@ -481,6 +437,15 @@ static const struct cpumask *cpu_book_mask(int cpu)
 	return &cpu_topology[cpu].book_mask;
 }
 
+static int __init early_parse_topology(char *p)
+{
+	if (strncmp(p, "off", 3))
+		return 0;
+	topology_enabled = 0;
+	return 0;
+}
+early_param("topology", early_parse_topology);
+
 static struct sched_domain_topology_level s390_topology[] = {
 	{ cpu_thread_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
 	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
@@ -488,6 +453,42 @@ static struct sched_domain_topology_level s390_topology[] = {
 	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
 	{ NULL, },
 };
+
+static void __init alloc_masks(struct sysinfo_15_1_x *info,
+			       struct mask_info *mask, int offset)
+{
+	int i, nr_masks;
+
+	nr_masks = info->mag[TOPOLOGY_NR_MAG - offset];
+	for (i = 0; i < info->mnest - offset; i++)
+		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
+	nr_masks = max(nr_masks, 1);
+	for (i = 0; i < nr_masks; i++) {
+		mask->next = kzalloc(sizeof(*mask->next), GFP_KERNEL);
+		mask = mask->next;
+	}
+}
+
+static int __init s390_topology_init(void)
+{
+	struct sysinfo_15_1_x *info;
+	int i;
+
+	if (!MACHINE_HAS_TOPOLOGY)
+		return 0;
+	tl_info = (struct sysinfo_15_1_x *)__get_free_page(GFP_KERNEL);
+	info = tl_info;
+	store_topology(info);
+	pr_info("The CPU configuration topology of the machine is:");
+	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
+		printk(KERN_CONT " %d", info->mag[i]);
+	printk(KERN_CONT " / %d\n", info->mnest);
+	alloc_masks(info, &socket_info, 1);
+	alloc_masks(info, &book_info, 2);
+	set_sched_topology(s390_topology);
+	return 0;
+}
+early_initcall(s390_topology_init);
 
 static int __init topology_init(void)
 {
@@ -498,10 +499,3 @@ static int __init topology_init(void)
 	return device_create_file(cpu_subsys.dev_root, &dev_attr_dispatching);
 }
 device_initcall(topology_init);
-
-static int __init early_topology_init(void)
-{
-	set_sched_topology(s390_topology);
-	return 0;
-}
-early_initcall(early_topology_init);
