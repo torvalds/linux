@@ -28,6 +28,7 @@
 #define DRIVER_NAME "mxs_phy"
 
 #define HW_USBPHY_PWD				0x00
+#define HW_USBPHY_TX				0x10
 #define HW_USBPHY_CTRL				0x30
 #define HW_USBPHY_CTRL_SET			0x34
 #define HW_USBPHY_CTRL_CLR			0x38
@@ -38,6 +39,8 @@
 #define HW_USBPHY_IP				0x90
 #define HW_USBPHY_IP_SET			0x94
 #define HW_USBPHY_IP_CLR			0x98
+
+#define HW_USBPHY_TX_D_CAL_MASK			0xf
 
 #define BM_USBPHY_CTRL_SFTRST			BIT(31)
 #define BM_USBPHY_CTRL_CLKGATE			BIT(30)
@@ -175,6 +178,7 @@ struct mxs_phy {
 	int port_id;
 	struct regulator *phy_3p0;
 	bool hardware_control_phy2_clk;
+	u32 tx_d_cal;
 };
 
 static inline bool is_imx6q_phy(struct mxs_phy *mxs_phy)
@@ -200,6 +204,7 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 {
 	int ret;
 	void __iomem *base = mxs_phy->phy.io_priv;
+	u32 val;
 
 	ret = stmp_reset_block(base + HW_USBPHY_CTRL);
 	if (ret)
@@ -234,6 +239,13 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 
 	if (mxs_phy->data->flags & MXS_PHY_NEED_IP_FIX)
 		writel(BM_USBPHY_IP_FIX, base + HW_USBPHY_IP_SET);
+
+	/* Change D_CAL if necessary */
+	if (mxs_phy->tx_d_cal) {
+		val = readl(base + HW_USBPHY_TX);
+		val &= ~HW_USBPHY_TX_D_CAL_MASK;
+		writel(val | mxs_phy->tx_d_cal, base + HW_USBPHY_TX);
+	}
 
 	return 0;
 }
@@ -597,6 +609,16 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	if (mxs_phy->data->flags & MXS_PHY_HARDWARE_CONTROL_PHY2_CLK)
 		mxs_phy->hardware_control_phy2_clk = true;
+
+	if (of_find_property(np, "tx-d-cal", NULL)) {
+		ret = of_property_read_u32(np, "tx-d-cal",
+			&mxs_phy->tx_d_cal);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"failed to get tx-d-cal value\n");
+			return ret;
+		}
+	}
 
 	platform_set_drvdata(pdev, mxs_phy);
 
