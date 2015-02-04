@@ -15,6 +15,7 @@
 
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/edma.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -534,7 +535,7 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 	return vchan_tx_prep(&echan->vchan, &edesc->vdesc, tx_flags);
 }
 
-struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
+static struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
 	struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	size_t len, unsigned long tx_flags)
 {
