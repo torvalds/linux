@@ -2636,7 +2636,7 @@ static inline u64 heads_to_leaves(struct btrfs_root *root, u64 heads)
  * Takes the number of bytes to be csumm'ed and figures out how many leaves it
  * would require to store the csums for that many bytes.
  */
-static u64 csum_bytes_to_leaves(struct btrfs_root *root, u64 csum_bytes)
+u64 btrfs_csum_bytes_to_leaves(struct btrfs_root *root, u64 csum_bytes)
 {
 	u64 csum_size;
 	u64 num_csums_per_leaf;
@@ -2665,7 +2665,7 @@ int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
 	if (num_heads > 1)
 		num_bytes += (num_heads - 1) * root->nodesize;
 	num_bytes <<= 1;
-	num_bytes += csum_bytes_to_leaves(root, csum_bytes) * root->nodesize;
+	num_bytes += btrfs_csum_bytes_to_leaves(root, csum_bytes) * root->nodesize;
 	global_rsv = &root->fs_info->global_block_rsv;
 
 	/*
@@ -5098,13 +5098,12 @@ static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes,
 	    BTRFS_I(inode)->csum_bytes == 0)
 		return 0;
 
-	old_csums = csum_bytes_to_leaves(root, BTRFS_I(inode)->csum_bytes);
-
+	old_csums = btrfs_csum_bytes_to_leaves(root, BTRFS_I(inode)->csum_bytes);
 	if (reserve)
 		BTRFS_I(inode)->csum_bytes += num_bytes;
 	else
 		BTRFS_I(inode)->csum_bytes -= num_bytes;
-	num_csums = csum_bytes_to_leaves(root, BTRFS_I(inode)->csum_bytes);
+	num_csums = btrfs_csum_bytes_to_leaves(root, BTRFS_I(inode)->csum_bytes);
 
 	/* No change, no need to reserve more */
 	if (old_csums == num_csums)

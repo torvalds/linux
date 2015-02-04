@@ -4163,6 +4163,21 @@ out:
 	return err;
 }
 
+static int truncate_space_check(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				u64 bytes_deleted)
+{
+	int ret;
+
+	bytes_deleted = btrfs_csum_bytes_to_leaves(root, bytes_deleted);
+	ret = btrfs_block_rsv_add(root, &root->fs_info->trans_block_rsv,
+				  bytes_deleted, BTRFS_RESERVE_NO_FLUSH);
+	if (!ret)
+		trans->bytes_reserved += bytes_deleted;
+	return ret;
+
+}
+
 /*
  * this can truncate away extent items, csum items and directory items.
  * It starts at a high offset and removes keys until it can't find
@@ -4201,6 +4216,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	u64 bytes_deleted = 0;
 	bool be_nice = 0;
 	bool should_throttle = 0;
+	bool should_end = 0;
 
 	BUG_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
 
@@ -4396,6 +4412,8 @@ delete:
 		} else {
 			break;
 		}
+		should_throttle = 0;
+
 		if (found_extent &&
 		    (test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
 		     root == root->fs_info->tree_root)) {
@@ -4409,17 +4427,24 @@ delete:
 			if (btrfs_should_throttle_delayed_refs(trans, root))
 				btrfs_async_run_delayed_refs(root,
 					trans->delayed_ref_updates * 2, 0);
+			if (be_nice) {
+				if (truncate_space_check(trans, root,
+							 extent_num_bytes)) {
+					should_end = 1;
+				}
+				if (btrfs_should_throttle_delayed_refs(trans,
+								       root)) {
+					should_throttle = 1;
+				}
+			}
 		}
 
 		if (found_type == BTRFS_INODE_ITEM_KEY)
 			break;
 
-		should_throttle =
-			btrfs_should_throttle_delayed_refs(trans, root);
-
 		if (path->slots[0] == 0 ||
 		    path->slots[0] != pending_del_slot ||
-		    (be_nice && should_throttle)) {
+		    should_throttle || should_end) {
 			if (pending_del_nr) {
 				ret = btrfs_del_items(trans, root, path,
 						pending_del_slot,
@@ -4432,7 +4457,7 @@ delete:
 				pending_del_nr = 0;
 			}
 			btrfs_release_path(path);
-			if (be_nice && should_throttle) {
+			if (should_throttle) {
 				unsigned long updates = trans->delayed_ref_updates;
 				if (updates) {
 					trans->delayed_ref_updates = 0;
@@ -4440,6 +4465,14 @@ delete:
 					if (ret && !err)
 						err = ret;
 				}
+			}
+			/*
+			 * if we failed to refill our space rsv, bail out
+			 * and let the transaction restart
+			 */
+			if (should_end) {
+				err = -EAGAIN;
+				goto error;
 			}
 			goto search_again;
 		} else {
@@ -4460,7 +4493,7 @@ error:
 
 	btrfs_free_path(path);
 
-	if (be_nice && btrfs_should_throttle_delayed_refs(trans, root)) {
+	if (be_nice && bytes_deleted > 32 * 1024 * 1024) {
 		unsigned long updates = trans->delayed_ref_updates;
 		if (updates) {
 			trans->delayed_ref_updates = 0;

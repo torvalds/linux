@@ -3297,6 +3297,9 @@ static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
 }
 
 /* extent-tree.c */
+
+u64 btrfs_csum_bytes_to_leaves(struct btrfs_root *root, u64 csum_bytes);
+
 static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
 						 unsigned num_items)
 {
