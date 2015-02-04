@@ -83,8 +83,6 @@ _mali_osk_errcode_t mali_platform_powerdown(u32 cores);
 _mali_osk_errcode_t mali_platform_powerup(u32 cores);
 #endif
 
-void mali_set_runtime_resume_params(int clk, int volt);
-
 #ifdef __cplusplus
 }
 #endif

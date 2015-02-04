@@ -25,32 +25,15 @@
 
 #include <asm/io.h>
 
-typedef struct mali_runtime_resumeTag {
-	int clk;
-	int vol;
-} mali_runtime_resume_table;
-
-mali_runtime_resume_table mali_runtime_resume = {400, 1100000};
-
-static struct clk *sclk_g3d_clock = NULL;
 
 /* Please take special care when lowering the voltage value, since it can *
  * cause system stability problems (random oops, etc.)                    */
 unsigned int mali_gpu_vol = 1125000; /* 1.1125 V */
 
-#ifdef CONFIG_REGULATOR
-struct regulator *g3d_regulator = NULL;
-#endif
+static struct regulator *g3d_regulator = NULL;
+static struct clk *sclk_g3d_clock = NULL;
+static _mali_osk_mutex_t *mali_dvfs_lock = NULL;
 
-
-mali_io_address clk_register_map = 0;
-_mali_osk_mutex_t *mali_dvfs_lock = 0;
-
-void mali_set_runtime_resume_params(int clk, int volt)
-{
-	mali_runtime_resume.clk = clk;
-	mali_runtime_resume.vol = volt;
-}
 
 #ifdef CONFIG_REGULATOR
 static int mali_regulator_set_voltage(int min_uV, int max_uV)
@@ -127,7 +110,10 @@ static int mali_platform_init_clk(void)
 		goto err_regulator;
 	}
 
-	regulator_enable(g3d_regulator);
+	if (regulator_enable(g3d_regulator)) {
+		MALI_PRINT_ERROR(("Mali platform: failed to enable g3d regulator\n"));
+		goto err_regulator;
+	}
 	MALI_DEBUG_PRINT(3, ("Mali platform: g3d regulator enabled\n"));
 
 	if (mali_regulator_set_voltage(mali_gpu_vol, mali_gpu_vol)) {
@@ -145,14 +131,13 @@ err_regulator:
 	return 1;
 }
 
-_mali_osk_errcode_t mali_platform_init()
+_mali_osk_errcode_t mali_platform_init(void)
 {
 	MALI_CHECK(mali_platform_init_clk() == 0, _MALI_OSK_ERR_FAULT);
-
 	MALI_SUCCESS;
 }
 
-_mali_osk_errcode_t mali_platform_deinit()
+_mali_osk_errcode_t mali_platform_deinit(void)
 {
 	if (sclk_g3d_clock) {
 		clk_disable_unprepare(sclk_g3d_clock);
