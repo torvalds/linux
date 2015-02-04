@@ -422,7 +422,7 @@ static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 	dev_maps = rcu_dereference(dev->xps_maps);
 	if (dev_maps) {
 		map = rcu_dereference(
-		    dev_maps->cpu_map[raw_smp_processor_id()]);
+		    dev_maps->cpu_map[skb->sender_cpu - 1]);
 		if (map) {
 			if (map->len == 1)
 				queue_index = map->queues[0];
@@ -467,6 +467,11 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 				    void *accel_priv)
 {
 	int queue_index = 0;
+
+#ifdef CONFIG_XPS
+	if (skb->sender_cpu == 0)
+		skb->sender_cpu = raw_smp_processor_id() + 1;
+#endif
 
 	if (dev->real_num_tx_queues != 1) {
 		const struct net_device_ops *ops = dev->netdev_ops;

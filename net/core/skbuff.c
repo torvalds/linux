@@ -825,6 +825,9 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	CHECK_SKB_FIELD(napi_id);
 #endif
+#ifdef CONFIG_XPS
+	CHECK_SKB_FIELD(sender_cpu);
+#endif
 #ifdef CONFIG_NET_SCHED
 	CHECK_SKB_FIELD(tc_index);
 #ifdef CONFIG_NET_CLS_ACT
@@ -4169,6 +4172,7 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 	skb->ignore_df = 0;
 	skb_dst_drop(skb);
 	skb->mark = 0;
+	skb->sender_cpu = 0;
 	skb_init_secmark(skb);
 	secpath_reset(skb);
 	nf_reset(skb);
