@@ -755,8 +755,9 @@
 		compatible = "samsung,exynos5250-mixer";
 		reg = <0x14450000 0x10000>;
 		interrupts = <0 94 0>;
-		clocks = <&clock CLK_MIXER>, <&clock CLK_SCLK_HDMI>;
-		clock-names = "mixer", "sclk_hdmi";
+		clocks = <&clock CLK_MIXER>, <&clock CLK_HDMI>,
+			 <&clock CLK_SCLK_HDMI>;
+		clock-names = "mixer", "hdmi", "sclk_hdmi";
 	};
 
 	dp_phy: video-phy@10040720 {
