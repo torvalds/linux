@@ -90,6 +90,9 @@ static unsigned int cpg_div6_clock_calc_div(unsigned long rate,
 {
 	unsigned int div;
 
+	if (!rate)
+		rate = 1;
+
 	div = DIV_ROUND_CLOSEST(parent_rate, rate);
 	return clamp_t(unsigned int, div, 1, 64);
 }
