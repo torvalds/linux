@@ -454,7 +454,7 @@ void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 						FIXP_2PI) >> (31 - FIXP_N);
 
 		dev->sdr_fixp_src_phase += src_phase_step;
-		dev->sdr_fixp_mod_phase += mod_phase_step;
+		dev->sdr_fixp_mod_phase += mod_phase_step / 4;
 
 		/*
 		 * Transfer phases to [0 / 2xPI] in order to avoid variable
