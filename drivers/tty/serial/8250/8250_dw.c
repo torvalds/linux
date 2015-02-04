@@ -608,3 +608,4 @@ module_platform_driver(dw8250_platform_driver);
 MODULE_AUTHOR("Jamie Iles");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Synopsys DesignWare 8250 serial port driver");
+MODULE_ALIAS("platform:dw-apb-uart");
