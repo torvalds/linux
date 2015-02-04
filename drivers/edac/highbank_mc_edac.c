@@ -124,6 +124,13 @@ static ssize_t highbank_mc_inject_ctrl(struct device *dev,
 
 static DEVICE_ATTR(inject_ctrl, S_IWUSR, NULL, highbank_mc_inject_ctrl);
 
+static struct attribute *highbank_dev_attrs[] = {
+	&dev_attr_inject_ctrl.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(highbank_dev);
+
 struct hb_mc_settings {
 	int	err_offset;
 	int	int_offset;
@@ -231,7 +238,7 @@ static int highbank_mc_probe(struct platform_device *pdev)
 	dimm->mtype = MEM_DDR3;
 	dimm->edac_mode = EDAC_SECDED;
 
-	res = edac_mc_add_mc(mci);
+	res = edac_mc_add_mc_with_groups(mci, highbank_dev_groups);
 	if (res < 0)
 		goto err;
 
@@ -242,8 +249,6 @@ static int highbank_mc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unable to request irq %d\n", irq);
 		goto err2;
 	}
-
-	device_create_file(&mci->dev, &dev_attr_inject_ctrl);
 
 	devres_close_group(&pdev->dev, NULL);
 	return 0;
@@ -259,7 +264,6 @@ static int highbank_mc_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 
-	device_remove_file(&mci->dev, &dev_attr_inject_ctrl);
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
 	return 0;
