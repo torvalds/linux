@@ -2184,6 +2184,8 @@ static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 		p = rb_next(p);
 		if (req->r_got_unsafe)
 			continue;
+		if (req->r_attempts > 0)
+			continue; /* only new requests */
 		if (req->r_session &&
 		    req->r_session->s_mds == mds) {
 			dout(" kicking tid %llu\n", req->r_tid);
@@ -2517,6 +2519,7 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 		dout("forward tid %llu to mds%d (we resend)\n", tid, next_mds);
 		BUG_ON(req->r_err);
 		BUG_ON(req->r_got_result);
+		req->r_attempts = 0;
 		req->r_num_fwd = fwd_seq;
 		req->r_resend_mds = next_mds;
 		put_request_session(req);
@@ -2648,6 +2651,7 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 				   struct ceph_mds_session *session)
 {
 	struct ceph_mds_request *req, *nreq;
+	struct rb_node *p;
 	int err;
 
 	dout("replay_unsafe_requests mds%d\n", session->s_mds);
@@ -2658,6 +2662,28 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 		if (!err) {
 			ceph_msg_get(req->r_request);
 			ceph_con_send(&session->s_con, req->r_request);
+		}
+	}
+
+	/*
+	 * also re-send old requests when MDS enters reconnect stage. So that MDS
+	 * can process completed request in clientreplay stage.
+	 */
+	p = rb_first(&mdsc->request_tree);
+	while (p) {
+		req = rb_entry(p, struct ceph_mds_request, r_node);
+		p = rb_next(p);
+		if (req->r_got_unsafe)
+			continue;
+		if (req->r_attempts == 0)
+			continue; /* only old requests */
+		if (req->r_session &&
+		    req->r_session->s_mds == session->s_mds) {
+			err = __prepare_send_request(mdsc, req, session->s_mds);
+			if (!err) {
+				ceph_msg_get(req->r_request);
+				ceph_con_send(&session->s_con, req->r_request);
+			}
 		}
 	}
 	mutex_unlock(&mdsc->mutex);
@@ -2977,9 +3003,6 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 				mutex_unlock(&s->s_mutex);
 				s->s_state = CEPH_MDS_SESSION_RESTARTING;
 			}
-
-			/* kick any requests waiting on the recovering mds */
-			kick_requests(mdsc, i);
 		} else if (oldstate == newstate) {
 			continue;  /* nothing new with this mds */
 		}
