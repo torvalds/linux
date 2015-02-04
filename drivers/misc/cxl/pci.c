@@ -598,6 +598,8 @@ static int cxl_read_afu_descriptor(struct cxl_afu *afu)
 
 static int cxl_afu_descriptor_looks_ok(struct cxl_afu *afu)
 {
+	int i;
+
 	if (afu->psa && afu->adapter->ps_size <
 			(afu->pp_offset + afu->pp_size*afu->max_procs_virtualised)) {
 		dev_err(&afu->dev, "per-process PSA can't fit inside the PSA!\n");
@@ -606,6 +608,13 @@ static int cxl_afu_descriptor_looks_ok(struct cxl_afu *afu)
 
 	if (afu->pp_psa && (afu->pp_size < PAGE_SIZE))
 		dev_warn(&afu->dev, "AFU uses < PAGE_SIZE per-process PSA!");
+
+	for (i = 0; i < afu->crs_num; i++) {
+		if ((cxl_afu_cr_read32(afu, i, 0) == 0)) {
+			dev_err(&afu->dev, "ABORTING: AFU configuration record %i is invalid\n", i);
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
