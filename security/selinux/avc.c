@@ -517,11 +517,6 @@ out:
 	return rc;
 }
 
-static inline int avc_sidcmp(u32 x, u32 y)
-{
-	return (x == y || x == SECSID_WILD || y == SECSID_WILD);
-}
-
 /**
  * avc_update_node Update an AVC entry
  * @event : Updating event
