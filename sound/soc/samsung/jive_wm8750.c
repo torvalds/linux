@@ -61,20 +61,6 @@ static int jive_hw_params(struct snd_pcm_substream *substream,
 	s3c_i2sv2_iis_calc_rate(&div, NULL, params_rate(params),
 				s3c_i2sv2_get_clock(cpu_dai));
 
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-				  SND_SOC_DAIFMT_NB_NF |
-				  SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
-	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-				  SND_SOC_DAIFMT_NB_NF |
-				  SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
 	/* set the codec system clock for DAC and ADC */
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8750_SYSCLK, clk,
 				     SND_SOC_CLOCK_IN);
@@ -121,6 +107,8 @@ static struct snd_soc_dai_link jive_dai = {
 	.platform_name	= "s3c2412-i2s",
 	.codec_name	= "wm8750.0-001a",
 	.init		= jive_wm8750_init,
+	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			  SND_SOC_DAIFMT_CBS_CFS,
 	.ops		= &jive_ops,
 };
 
