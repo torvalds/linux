@@ -89,6 +89,7 @@ struct vop {
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
 	bool vsync_work_pending;
+	struct completion dsp_hold_completion;
 
 	const struct vop_data *data;
 
@@ -382,6 +383,36 @@ static bool is_alpha_support(uint32_t format)
 	}
 }
 
+static void vop_dsp_hold_valid_irq_enable(struct vop *vop)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	vop_mask_write(vop, INTR_CTRL0, DSP_HOLD_VALID_INTR_MASK,
+		       DSP_HOLD_VALID_INTR_EN(1));
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
+static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	vop_mask_write(vop, INTR_CTRL0, DSP_HOLD_VALID_INTR_MASK,
+		       DSP_HOLD_VALID_INTR_EN(0));
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
 static void vop_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
@@ -454,26 +485,36 @@ static void vop_disable(struct drm_crtc *crtc)
 
 	drm_vblank_off(crtc->dev, vop->pipe);
 
-	disable_irq(vop->irq);
-
 	/*
-	 * TODO: Since standby doesn't take effect until the next vblank,
-	 * when we turn off dclk below, the vop is probably still active.
+	 * Vop standby will take effect at end of current frame,
+	 * if dsp hold valid irq happen, it means standby complete.
+	 *
+	 * we must wait standby complete when we want to disable aclk,
+	 * if not, memory bus maybe dead.
 	 */
+	reinit_completion(&vop->dsp_hold_completion);
+	vop_dsp_hold_valid_irq_enable(vop);
+
 	spin_lock(&vop->reg_lock);
 
 	VOP_CTRL_SET(vop, standby, 1);
 
 	spin_unlock(&vop->reg_lock);
 
-	vop->is_enabled = false;
-	/*
-	 * disable dclk to stop frame scan, so we can safely detach iommu,
-	 */
-	clk_disable(vop->dclk);
+	wait_for_completion(&vop->dsp_hold_completion);
 
+	vop_dsp_hold_valid_irq_disable(vop);
+
+	disable_irq(vop->irq);
+
+	vop->is_enabled = false;
+
+	/*
+	 * vop standby complete, so iommu detach is safe.
+	 */
 	rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
 
+	clk_disable(vop->dclk);
 	clk_disable(vop->aclk);
 	clk_disable(vop->hclk);
 }
@@ -1086,6 +1127,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 	struct vop *vop = data;
 	uint32_t intr0_reg, active_irqs;
 	unsigned long flags;
+	int ret = IRQ_NONE;
 
 	/*
 	 * INTR_CTRL0 register has interrupt status, enable and clear bits, we
@@ -1104,15 +1146,23 @@ static irqreturn_t vop_isr(int irq, void *data)
 	if (!active_irqs)
 		return IRQ_NONE;
 
-	/* Only Frame Start Interrupt is enabled; other irqs are spurious. */
-	if (!(active_irqs & FS_INTR)) {
-		DRM_ERROR("Unknown VOP IRQs: %#02x\n", active_irqs);
-		return IRQ_NONE;
+	if (active_irqs & DSP_HOLD_VALID_INTR) {
+		complete(&vop->dsp_hold_completion);
+		active_irqs &= ~DSP_HOLD_VALID_INTR;
+		ret = IRQ_HANDLED;
 	}
 
-	drm_handle_vblank(vop->drm_dev, vop->pipe);
+	if (active_irqs & FS_INTR) {
+		drm_handle_vblank(vop->drm_dev, vop->pipe);
+		active_irqs &= ~FS_INTR;
+		ret = (vop->vsync_work_pending) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+	}
 
-	return (vop->vsync_work_pending) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+	/* Unhandled irqs are spurious. */
+	if (active_irqs)
+		DRM_ERROR("Unknown VOP IRQs: %#02x\n", active_irqs);
+
+	return ret;
 }
 
 static int vop_create_crtc(struct vop *vop)
@@ -1194,6 +1244,7 @@ static int vop_create_crtc(struct vop *vop)
 		goto err_cleanup_crtc;
 	}
 
+	init_completion(&vop->dsp_hold_completion);
 	crtc->port = port;
 	vop->pipe = drm_crtc_index(crtc);
 	rockchip_register_crtc_funcs(drm_dev, &private_crtc_funcs, vop->pipe);
