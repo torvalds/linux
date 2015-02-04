@@ -1762,11 +1762,6 @@ static struct snd_pcm_ops fsi_pcm_ops = {
 #define PREALLOC_BUFFER		(32 * 1024)
 #define PREALLOC_BUFFER_MAX	(32 * 1024)
 
-static void fsi_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int fsi_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	return snd_pcm_lib_preallocate_pages_for_all(
@@ -1818,7 +1813,6 @@ static struct snd_soc_dai_driver fsi_soc_dai[] = {
 static struct snd_soc_platform_driver fsi_soc_platform = {
 	.ops		= &fsi_pcm_ops,
 	.pcm_new	= fsi_pcm_new,
-	.pcm_free	= fsi_pcm_free,
 };
 
 static const struct snd_soc_component_driver fsi_soc_component = {
