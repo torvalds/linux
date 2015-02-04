@@ -20,6 +20,8 @@
 #include <sound/jack.h>
 #include <sound/soc.h>
 
+#include "ts3a227e.h"
+
 struct ts3a227e {
 	struct regmap *regmap;
 	struct snd_soc_jack *jack;
