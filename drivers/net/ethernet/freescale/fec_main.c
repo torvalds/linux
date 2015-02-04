@@ -2596,12 +2596,9 @@ static void fec_enet_free_queue(struct net_device *ndev)
 		}
 
 	for (i = 0; i < fep->num_rx_queues; i++)
-		if (fep->rx_queue[i])
-			kfree(fep->rx_queue[i]);
-
+		kfree(fep->rx_queue[i]);
 	for (i = 0; i < fep->num_tx_queues; i++)
-		if (fep->tx_queue[i])
-			kfree(fep->tx_queue[i]);
+		kfree(fep->tx_queue[i]);
 }
 
 static int fec_enet_alloc_queue(struct net_device *ndev)
