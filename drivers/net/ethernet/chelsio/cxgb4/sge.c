@@ -43,6 +43,9 @@
 #include <linux/export.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
+#ifdef CONFIG_NET_RX_BUSY_POLL
+#include <net/busy_poll.h>
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 #include "cxgb4.h"
 #include "t4_regs.h"
 #include "t4_values.h"
@@ -1720,6 +1723,7 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->truesize += skb->data_len;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
+	skb_mark_napi_id(skb, &rxq->rspq.napi);
 	if (rxq->rspq.netdev->features & NETIF_F_RXHASH)
 		skb_set_hash(skb, (__force u32)pkt->rsshdr.hash_val,
 			     PKT_HASH_TYPE_L3);
@@ -1763,6 +1767,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	csum_ok = pkt->csum_calc && !pkt->err_vec &&
 		  (q->netdev->features & NETIF_F_RXCSUM);
 	if ((pkt->l2info & htonl(RXF_TCP_F)) &&
+	    !(cxgb_poll_busy_polling(q)) &&
 	    (q->netdev->features & NETIF_F_GRO) && csum_ok && !pkt->ip_frag) {
 		do_gro(rxq, si, pkt);
 		return 0;
@@ -1801,6 +1806,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(pkt->vlan));
 		rxq->stats.vlan_ex++;
 	}
+	skb_mark_napi_id(skb, &q->napi);
 	netif_receive_skb(skb);
 	return 0;
 }
@@ -1963,6 +1969,38 @@ static int process_responses(struct sge_rspq *q, int budget)
 	return budget - budget_left;
 }
 
+#ifdef CONFIG_NET_RX_BUSY_POLL
+int cxgb_busy_poll(struct napi_struct *napi)
+{
+	struct sge_rspq *q = container_of(napi, struct sge_rspq, napi);
+	unsigned int params, work_done;
+	u32 val;
+
+	if (!cxgb_poll_lock_poll(q))
+		return LL_FLUSH_BUSY;
+
+	work_done = process_responses(q, 4);
+	params = QINTR_TIMER_IDX(TIMERREG_COUNTER0_X) | QINTR_CNT_EN;
+	q->next_intr_params = params;
+	val = CIDXINC_V(work_done) | SEINTARM_V(params);
+
+	/* If we don't have access to the new User GTS (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(!q->bar2_addr))
+		t4_write_reg(q->adap, MYPF_REG(SGE_PF_GTS_A),
+			     val | INGRESSQID_V((u32)q->cntxt_id));
+	else {
+		writel(val | INGRESSQID_V(q->bar2_qid),
+		       q->bar2_addr + SGE_UDB_GTS);
+		wmb();
+	}
+
+	cxgb_poll_unlock_poll(q);
+	return work_done;
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
+
 /**
  *	napi_rx_handler - the NAPI handler for Rx processing
  *	@napi: the napi instance
@@ -1978,9 +2016,13 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 {
 	unsigned int params;
 	struct sge_rspq *q = container_of(napi, struct sge_rspq, napi);
-	int work_done = process_responses(q, budget);
+	int work_done;
 	u32 val;
 
+	if (!cxgb_poll_lock_napi(q))
+		return budget;
+
+	work_done = process_responses(q, budget);
 	if (likely(work_done < budget)) {
 		int timer_index;
 
@@ -2018,6 +2060,7 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 		       q->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
+	cxgb_poll_unlock_napi(q);
 	return work_done;
 }
 
@@ -2341,6 +2384,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		goto err;
 
 	netif_napi_add(dev, &iq->napi, napi_rx_handler, 64);
+	napi_hash_add(&iq->napi);
 	iq->cur_desc = iq->desc;
 	iq->cidx = 0;
 	iq->gen = 1;
@@ -2598,6 +2642,7 @@ static void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
 		   rq->cntxt_id, fl_id, 0xffff);
 	dma_free_coherent(adap->pdev_dev, (rq->size + 1) * rq->iqe_len,
 			  rq->desc, rq->phys_addr);
+	napi_hash_del(&rq->napi);
 	netif_napi_del(&rq->napi);
 	rq->netdev = NULL;
 	rq->cntxt_id = rq->abs_id = 0;

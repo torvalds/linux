@@ -59,6 +59,7 @@
 
 /* GTS register */
 #define SGE_TIMERREGS			6
+#define TIMERREG_COUNTER0_X		0
 
 /* T5 and later support a new BAR2-based doorbell mechanism for Egress Queues.
  * The User Doorbells are each 128 bytes in length with a Simple Doorbell at
