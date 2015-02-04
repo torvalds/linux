@@ -49,7 +49,8 @@
 /*
  * Some extra ELF definitions
  */
-#define PT_MIPS_REGINFO 0x70000000	/* Register usage information */
+#define PT_MIPS_REGINFO 	0x70000000	/* Register usage information */
+#define PT_MIPS_ABIFLAGS	0x70000003	/* Records ABI related flags  */
 
 /* -------------------------------------------------------------------- */
 
@@ -354,6 +355,7 @@ int main(int argc, char *argv[])
 		case PT_NOTE:
 		case PT_PHDR:
 		case PT_MIPS_REGINFO:
+		case PT_MIPS_ABIFLAGS:
 			continue;
 
 		case PT_LOAD:
