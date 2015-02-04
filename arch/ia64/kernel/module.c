@@ -305,14 +305,12 @@ plt_target (struct plt_entry *plt)
 #endif /* !USE_BRL */
 
 void
-module_free (struct module *mod, void *module_region)
+module_arch_freeing_init (struct module *mod)
 {
-	if (mod && mod->arch.init_unw_table &&
-	    module_region == mod->module_init) {
+	if (mod->arch.init_unw_table) {
 		unw_remove_unwind_table(mod->arch.init_unw_table);
 		mod->arch.init_unw_table = NULL;
 	}
-	vfree(module_region);
 }
 
 /* Have we already seen one of these relocations? */

@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
+#include "kfd_pm4_headers.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -169,9 +170,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd->shared_resources = *gpu_resources;
 
 	/* calculate max size of mqds needed for queues */
-	size = max_num_of_processes *
-		max_num_of_queues_per_process *
-		kfd->device_info->mqd_size_aligned;
+	size = max_num_of_queues_per_device *
+			kfd->device_info->mqd_size_aligned;
 
 	/* add another 512KB for all other allocations on gart */
 	size += 512 * 1024;
@@ -190,13 +190,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			"Error adding device (%x:%x) to topology\n",
 			kfd->pdev->vendor, kfd->pdev->device);
 		goto kfd_topology_add_device_error;
-	}
-
-	if (kfd_interrupt_init(kfd)) {
-		dev_err(kfd_device,
-			"Error initializing interrupts for device (%x:%x)\n",
-			kfd->pdev->vendor, kfd->pdev->device);
-		goto kfd_interrupt_error;
 	}
 
 	if (!device_iommu_pasid_init(kfd)) {
@@ -237,8 +230,6 @@ dqm_start_error:
 device_queue_manager_error:
 	amd_iommu_free_device(kfd->pdev);
 device_iommu_pasid_error:
-	kfd_interrupt_exit(kfd);
-kfd_interrupt_error:
 	kfd_topology_remove_device(kfd);
 kfd_topology_add_device_error:
 	kfd2kgd->fini_sa_manager(kfd->kgd);
@@ -254,7 +245,6 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 	if (kfd->init_complete) {
 		device_queue_manager_uninit(kfd->dqm);
 		amd_iommu_free_device(kfd->pdev);
-		kfd_interrupt_exit(kfd);
 		kfd_topology_remove_device(kfd);
 	}
 
@@ -296,13 +286,5 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 /* This is called directly from KGD at ISR. */
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 {
-	if (kfd->init_complete) {
-		spin_lock(&kfd->interrupt_lock);
-
-		if (kfd->interrupts_active
-		    && enqueue_ih_ring_entry(kfd, ih_ring_entry))
-			schedule_work(&kfd->interrupt_work);
-
-		spin_unlock(&kfd->interrupt_lock);
-	}
+	/* Process interrupts / schedule work as necessary */
 }

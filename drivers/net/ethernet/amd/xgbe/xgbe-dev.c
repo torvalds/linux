@@ -2079,10 +2079,10 @@ static void xgbe_config_flow_control_threshold(struct xgbe_prv_data *pdata)
 
 	for (i = 0; i < pdata->rx_q_count; i++) {
 		/* Activate flow control when less than 4k left in fifo */
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, RFA, 2);
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFA, 2);
 
 		/* De-activate flow control when more than 6k left in fifo */
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, RFD, 4);
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFD, 4);
 	}
 }
 

@@ -628,9 +628,9 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 		ret = of_property_read_string_index(np, "dma-names", i, &str);
 		if (ret)
 			goto err;
-		if (!strncmp(str, "tx", 2))
+		if (strstarts(str, "tx"))
 			is_tx = 1;
-		else if (!strncmp(str, "rx", 2))
+		else if (strstarts(str, "rx"))
 			is_tx = 0;
 		else {
 			dev_err(dev, "Wrong dmatype %s\n", str);

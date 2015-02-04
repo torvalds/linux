@@ -1669,7 +1669,6 @@ static void hdmi_mode_apply(struct hdmi_context *hdata)
 
 static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 {
-	u8 buffer[2];
 	u32 reg;
 
 	clk_disable_unprepare(hdata->res.sclk_hdmi);
@@ -1677,11 +1676,8 @@ static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 	clk_prepare_enable(hdata->res.sclk_hdmi);
 
 	/* operation mode */
-	buffer[0] = 0x1f;
-	buffer[1] = 0x00;
-
-	if (hdata->hdmiphy_port)
-		i2c_master_send(hdata->hdmiphy_port, buffer, 2);
+	hdmiphy_reg_writeb(hdata, HDMIPHY_MODE_SET_DONE,
+				HDMI_PHY_ENABLE_MODE_SET);
 
 	if (hdata->type == HDMI_TYPE13)
 		reg = HDMI_V13_PHY_RSTOUT;

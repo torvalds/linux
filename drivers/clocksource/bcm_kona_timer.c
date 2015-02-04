@@ -68,9 +68,8 @@ static void kona_timer_disable_and_clear(void __iomem *base)
 }
 
 static void
-kona_timer_get_counter(void *timer_base, uint32_t *msw, uint32_t *lsw)
+kona_timer_get_counter(void __iomem *timer_base, uint32_t *msw, uint32_t *lsw)
 {
-	void __iomem *base = IOMEM(timer_base);
 	int loop_limit = 4;
 
 	/*
@@ -86,9 +85,9 @@ kona_timer_get_counter(void *timer_base, uint32_t *msw, uint32_t *lsw)
 	 */
 
 	while (--loop_limit) {
-		*msw = readl(base + KONA_GPTIMER_STCHI_OFFSET);
-		*lsw = readl(base + KONA_GPTIMER_STCLO_OFFSET);
-		if (*msw == readl(base + KONA_GPTIMER_STCHI_OFFSET))
+		*msw = readl(timer_base + KONA_GPTIMER_STCHI_OFFSET);
+		*lsw = readl(timer_base + KONA_GPTIMER_STCLO_OFFSET);
+		if (*msw == readl(timer_base + KONA_GPTIMER_STCHI_OFFSET))
 			break;
 	}
 	if (!loop_limit) {

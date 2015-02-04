@@ -163,7 +163,7 @@ bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 
 void bpf_jit_binary_free(struct bpf_binary_header *hdr)
 {
-	module_free(NULL, hdr);
+	module_memfree(hdr);
 }
 #endif /* CONFIG_BPF_JIT */
 

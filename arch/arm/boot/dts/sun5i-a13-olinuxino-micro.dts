@@ -54,6 +54,10 @@
 	model = "Olimex A13-Olinuxino Micro";
 	compatible = "olimex,a13-olinuxino-micro", "allwinner,sun5i-a13";
 
+	aliases {
+		serial0 = &uart1;
+	};
+
 	soc@01c00000 {
 		mmc0: mmc@01c0f000 {
 			pinctrl-names = "default";

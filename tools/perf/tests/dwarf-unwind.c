@@ -11,6 +11,9 @@
 #include "thread.h"
 #include "callchain.h"
 
+/* For bsearch. We try to unwind functions in shared object. */
+#include <stdlib.h>
+
 static int mmap_handler(struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
 			struct perf_sample *sample __maybe_unused,
@@ -28,7 +31,7 @@ static int init_live_machine(struct machine *machine)
 						  mmap_handler, machine, true);
 }
 
-#define MAX_STACK 6
+#define MAX_STACK 8
 
 static int unwind_entry(struct unwind_entry *entry, void *arg)
 {
@@ -37,6 +40,8 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	static const char *funcs[MAX_STACK] = {
 		"test__arch_unwind_sample",
 		"unwind_thread",
+		"compare",
+		"bsearch",
 		"krava_3",
 		"krava_2",
 		"krava_1",
@@ -88,10 +93,37 @@ static int unwind_thread(struct thread *thread)
 	return err;
 }
 
+static int global_unwind_retval = -INT_MAX;
+
+__attribute__ ((noinline))
+static int compare(void *p1, void *p2)
+{
+	/* Any possible value should be 'thread' */
+	struct thread *thread = *(struct thread **)p1;
+
+	if (global_unwind_retval == -INT_MAX)
+		global_unwind_retval = unwind_thread(thread);
+
+	return p1 - p2;
+}
+
 __attribute__ ((noinline))
 static int krava_3(struct thread *thread)
 {
-	return unwind_thread(thread);
+	struct thread *array[2] = {thread, thread};
+	void *fp = &bsearch;
+	/*
+	 * make _bsearch a volatile function pointer to
+	 * prevent potential optimization, which may expand
+	 * bsearch and call compare directly from this function,
+	 * instead of libc shared object.
+	 */
+	void *(*volatile _bsearch)(void *, void *, size_t,
+			size_t, int (*)(void *, void *));
+
+	_bsearch = fp;
+	_bsearch(array, &thread, 2, sizeof(struct thread **), compare);
+	return global_unwind_retval;
 }
 
 __attribute__ ((noinline))

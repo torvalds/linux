@@ -72,6 +72,8 @@
 
 #define IWL_PLCP_QUIET_THRESH 1
 #define IWL_ACTIVE_QUIET_TIME 10
+#define IWL_DENSE_EBS_SCAN_RATIO 5
+#define IWL_SPARSE_EBS_SCAN_RATIO 1
 
 struct iwl_mvm_scan_params {
 	u32 max_out_time;
@@ -171,15 +173,21 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_ssid_ie *cmd_ssid,
  * already included in the probe template, so we need to set only
  * req->n_ssids - 1 bits in addition to the first bit.
  */
-static u16 iwl_mvm_get_active_dwell(enum ieee80211_band band, int n_ssids)
+static u16 iwl_mvm_get_active_dwell(struct iwl_mvm *mvm,
+				    enum ieee80211_band band, int n_ssids)
 {
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BASIC_DWELL)
+		return 10;
 	if (band == IEEE80211_BAND_2GHZ)
 		return 20  + 3 * (n_ssids + 1);
 	return 10  + 2 * (n_ssids + 1);
 }
 
-static u16 iwl_mvm_get_passive_dwell(enum ieee80211_band band)
+static u16 iwl_mvm_get_passive_dwell(struct iwl_mvm *mvm,
+				     enum ieee80211_band band)
 {
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BASIC_DWELL)
+			return 110;
 	return band == IEEE80211_BAND_2GHZ ? 100 + 20 : 100 + 10;
 }
 
@@ -331,7 +339,8 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 		 */
 		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			u32 passive_dwell =
-				iwl_mvm_get_passive_dwell(IEEE80211_BAND_2GHZ);
+				iwl_mvm_get_passive_dwell(mvm,
+							  IEEE80211_BAND_2GHZ);
 			params->max_out_time = passive_dwell;
 		} else {
 			params->passive_fragmented = true;
@@ -348,8 +357,8 @@ not_bound:
 			params->dwell[band].passive = frag_passive_dwell;
 		else
 			params->dwell[band].passive =
-				iwl_mvm_get_passive_dwell(band);
-		params->dwell[band].active = iwl_mvm_get_active_dwell(band,
+				iwl_mvm_get_passive_dwell(mvm, band);
+		params->dwell[band].active = iwl_mvm_get_active_dwell(mvm, band,
 								      n_ssids);
 	}
 }
@@ -1098,6 +1107,12 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 		return iwl_umac_scan_stop(mvm, IWL_UMAC_SCAN_UID_SCHED_SCAN,
 					  notify);
 
+	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
+		return 0;
+
+	if (iwl_mvm_is_radio_killed(mvm))
+		goto out;
+
 	if (mvm->scan_status != IWL_MVM_SCAN_SCHED &&
 	    (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) ||
 	     mvm->scan_status != IWL_MVM_SCAN_OS)) {
@@ -1134,6 +1149,7 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 	if (mvm->scan_status == IWL_MVM_SCAN_OS)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 
+out:
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 
 	if (notify) {
@@ -1290,18 +1306,6 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 	cmd->scan_prio = cpu_to_le32(IWL_SCAN_PRIORITY_HIGH);
 	cmd->iter_num = cpu_to_le32(1);
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT &&
-	    mvm->last_ebs_successful) {
-		cmd->channel_opt[0].flags =
-			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
-				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
-				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
-		cmd->channel_opt[1].flags =
-			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
-				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
-				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
-	}
-
 	if (iwl_mvm_rrm_scan_needed(mvm))
 		cmd->scan_flags |=
 			cpu_to_le32(IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
@@ -1376,6 +1380,22 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 	cmd->schedule[1].iterations = 0;
 	cmd->schedule[1].full_scan_mul = 0;
 
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SINGLE_SCAN_EBS &&
+	    mvm->last_ebs_successful) {
+		cmd->channel_opt[0].flags =
+			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
+				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+		cmd->channel_opt[0].non_ebs_ratio =
+			cpu_to_le16(IWL_DENSE_EBS_SCAN_RATIO);
+		cmd->channel_opt[1].flags =
+			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
+				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+		cmd->channel_opt[1].non_ebs_ratio =
+			cpu_to_le16(IWL_SPARSE_EBS_SCAN_RATIO);
+	}
+
 	for (i = 1; i <= req->req.n_ssids; i++)
 		ssid_bitmap |= BIT(i);
 
@@ -1448,6 +1468,8 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 
 	if (iwl_mvm_scan_pass_all(mvm, req))
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL;
+	else
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
 
 	if (req->n_ssids == 1 && req->ssids[0].ssid_len != 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;
@@ -1473,6 +1495,22 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 	cmd->schedule[1].delay = cpu_to_le16(req->interval / MSEC_PER_SEC);
 	cmd->schedule[1].iterations = 0xff;
 	cmd->schedule[1].full_scan_mul = IWL_FULL_SCAN_MULTIPLIER;
+
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT &&
+	    mvm->last_ebs_successful) {
+		cmd->channel_opt[0].flags =
+			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
+				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+		cmd->channel_opt[0].non_ebs_ratio =
+			cpu_to_le16(IWL_DENSE_EBS_SCAN_RATIO);
+		cmd->channel_opt[1].flags =
+			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
+				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+		cmd->channel_opt[1].non_ebs_ratio =
+			cpu_to_le16(IWL_SPARSE_EBS_SCAN_RATIO);
+	}
 
 	iwl_mvm_lmac_scan_cfg_channels(mvm, req->channels, req->n_channels,
 				       ssid_bitmap, cmd);

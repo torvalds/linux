@@ -1271,6 +1271,12 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 		spin_unlock_irq(&host->lock);
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
 		spin_lock_irq(&host->lock);
+
+		if (mode != MMC_POWER_OFF)
+			sdhci_writeb(host, SDHCI_POWER_ON, SDHCI_POWER_CONTROL);
+		else
+			sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
+
 		return;
 	}
 

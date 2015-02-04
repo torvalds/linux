@@ -131,7 +131,7 @@ STATIC int
 xfs_fs_get_dqblk(
 	struct super_block	*sb,
 	struct kqid		qid,
-	struct fs_disk_quota	*fdq)
+	struct qc_dqblk		*qdq)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
@@ -141,14 +141,14 @@ xfs_fs_get_dqblk(
 		return -ESRCH;
 
 	return xfs_qm_scall_getquota(mp, from_kqid(&init_user_ns, qid),
-				      xfs_quota_type(qid.type), fdq);
+				      xfs_quota_type(qid.type), qdq);
 }
 
 STATIC int
 xfs_fs_set_dqblk(
 	struct super_block	*sb,
 	struct kqid		qid,
-	struct fs_disk_quota	*fdq)
+	struct qc_dqblk		*qdq)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
@@ -160,7 +160,7 @@ xfs_fs_set_dqblk(
 		return -ESRCH;
 
 	return xfs_qm_scall_setqlim(mp, from_kqid(&init_user_ns, qid),
-				     xfs_quota_type(qid.type), fdq);
+				     xfs_quota_type(qid.type), qdq);
 }
 
 const struct quotactl_ops xfs_quotactl_operations = {

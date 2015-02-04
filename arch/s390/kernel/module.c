@@ -55,14 +55,10 @@ void *module_alloc(unsigned long size)
 }
 #endif
 
-/* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
+void module_arch_freeing_init(struct module *mod)
 {
-	if (mod) {
-		vfree(mod->arch.syminfo);
-		mod->arch.syminfo = NULL;
-	}
-	vfree(module_region);
+	vfree(mod->arch.syminfo);
+	mod->arch.syminfo = NULL;
 }
 
 static void check_rela(Elf_Rela *rela, struct module *me)

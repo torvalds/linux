@@ -179,11 +179,6 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 		destroy_stream(efw, &efw->tx_stream);
 		goto end;
 	}
-	/*
-	 * Fireworks ignores MIDI messages in more than first 8 data
-	 * blocks of an received AMDTP packet.
-	 */
-	efw->rx_stream.rx_blocks_for_midi = 8;
 
 	/* set IEC61883 compliant mode (actually not fully compliant...) */
 	err = snd_efw_command_set_tx_mode(efw, SND_EFW_TRANSPORT_MODE_IEC61883);

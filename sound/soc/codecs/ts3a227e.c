@@ -254,6 +254,7 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c,
 	struct ts3a227e *ts3a227e;
 	struct device *dev = &i2c->dev;
 	int ret;
+	unsigned int acc_reg;
 
 	ts3a227e = devm_kzalloc(&i2c->dev, sizeof(*ts3a227e), GFP_KERNEL);
 	if (ts3a227e == NULL)
@@ -282,6 +283,11 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(ts3a227e->regmap, TS3A227E_REG_INTERRUPT_DISABLE,
 			   INTB_DISABLE | ADC_COMPLETE_INT_DISABLE,
 			   ADC_COMPLETE_INT_DISABLE);
+
+	/* Read jack status because chip might not trigger interrupt at boot. */
+	regmap_read(ts3a227e->regmap, TS3A227E_REG_ACCESSORY_STATUS, &acc_reg);
+	ts3a227e_new_jack_state(ts3a227e, acc_reg);
+	ts3a227e_jack_report(ts3a227e);
 
 	return 0;
 }
