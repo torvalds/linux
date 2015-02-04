@@ -224,7 +224,7 @@ out:
 static int udf_release_file(struct inode *inode, struct file *filp)
 {
 	if (filp->f_mode & FMODE_WRITE &&
-	    atomic_read(&inode->i_writecount) > 1) {
+	    atomic_read(&inode->i_writecount) == 1) {
 		/*
 		 * Grab i_mutex to avoid races with writes changing i_size
 		 * while we are running.
