@@ -256,7 +256,7 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	struct resource *resource;
 	wifi_adapter_info_t *adapter;
 #ifdef CONFIG_DTS
-	int irq, gpio;
+//	int irq, gpio;
 #endif /* CONFIG_DTS */
 
 	/* Android style wifi platform data device ("bcmdhd_wlan" or "bcm4329_wlan")
@@ -282,6 +282,7 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 		return -1;
 	}
 
+#if 0
 	/* This is to get the irq for the OOB */
 	gpio = of_get_gpio(pdev->dev.of_node, 0);
 
@@ -299,6 +300,7 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	/* need to change the flags according to our requirement */
 	adapter->intr_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL |
 		IORESOURCE_IRQ_SHAREABLE;
+#endif
 #endif /* CONFIG_DTS */
 
 	wifi_plat_dev_probe_ret = dhd_wifi_platform_load();
@@ -461,12 +463,12 @@ static int wifi_ctrlfunc_register_drv(void)
 
 void wifi_ctrlfunc_unregister_drv(void)
 {
-	struct device *dev1, *dev2;
-
 #ifdef CONFIG_DTS
 	DHD_ERROR(("unregister wifi platform drivers\n"));
 	platform_driver_unregister(&wifi_platform_dev_driver);
 #else
+	struct device *dev1, *dev2;
+
 	dev1 = bus_find_device(&platform_bus_type, NULL, WIFI_PLAT_NAME, wifi_platdev_match);
 	dev2 = bus_find_device(&platform_bus_type, NULL, WIFI_PLAT_NAME2, wifi_platdev_match);
 	if (!dts_enabled)

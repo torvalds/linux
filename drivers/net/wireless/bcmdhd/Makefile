@@ -10,7 +10,8 @@ DHDCFLAGS += -Wall -Wstrict-prototypes -Dlinux -DLINUX -DBCMDRIVER            \
 	-DKEEP_ALIVE -DCSCAN -DPKT_FILTER_SUPPORT                             \
 	-DEMBEDDED_PLATFORM -DPNO_SUPPORT                                     \
 	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT                           \
-	-DENABLE_INSMOD_NO_FW_LOAD -DCUSTOMER_HW2 -DGET_CUSTOM_MAC_ENABLE
+	-DCUSTOMER_HW2 -DGET_CUSTOM_MAC_ENABLE	\
+	-DCONFIG_DTS
 
 #################
 # Common feature
@@ -93,7 +94,7 @@ DHDCFLAGS += -DWL_IFACE_COMB_NUM_CHANNELS
 # m: module type driver
 # y: built-in type driver
 ##########################
-DRIVER_TYPE ?= y
+DRIVER_TYPE ?= m
 
 #########################
 # Chip dependent feature
@@ -148,7 +149,8 @@ ifneq ($(CONFIG_BCM4339),)
 endif
 
 ifneq ($(CONFIG_BCMDHD_SDIO),)
-  DHDCFLAGS += -DBDC -DOOB_INTR_ONLY -DDHD_BCMEVENTS -DMMC_SDIO_ABORT
+ # DHDCFLAGS += -DBDC -DOOB_INTR_ONLY -DDHD_BCMEVENTS -DMMC_SDIO_ABORT
+  DHDCFLAGS += -DBDC -DSDIO_ISR_THREAD -DDHD_BCMEVENTS -DMMC_SDIO_ABORT
   DHDCFLAGS += -DBCMSDIO -DBCMLXSDMMC -DUSE_SDIOFIFO_IOVAR
 endif
 

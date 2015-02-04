@@ -59,7 +59,7 @@ static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
 #endif /* !defined(OOB_INTR_ONLY) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
-extern int sdio_reset_comm(struct mmc_card *card);
+static int sdio_reset_comm(struct mmc_card *card);
 
 #define DEFAULT_SDIO_F2_BLKSIZE		512
 #ifndef CUSTOM_SDIO_F2_BLKSIZE
@@ -91,6 +91,12 @@ DHD_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 #define MMC_SDIO_ABORT_RETRY_LIMIT 5
 
 int sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, uint32 regaddr, int regsize, uint32 *data);
+
+/* workaround to simply return 0 as suggested by Broadcom */
+static int sdio_reset_comm(struct mmc_card *card)
+{
+	return 0;
+}
 
 static int
 sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
