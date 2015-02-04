@@ -131,6 +131,9 @@ static const u16 mgmt_events[] = {
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
 
+#define ZERO_KEY "\x00\x00\x00\x00\x00\x00\x00\x00" \
+		 "\x00\x00\x00\x00\x00\x00\x00\x00"
+
 struct pending_cmd {
 	struct list_head list;
 	u16 opcode;
@@ -3633,9 +3636,15 @@ unlock:
 static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 			       void *data, u16 len)
 {
+	struct mgmt_addr_info *addr = data;
 	int err;
 
 	BT_DBG("%s ", hdev->name);
+
+	if (!bdaddr_type_is_valid(addr->type))
+		return cmd_complete(sk, hdev->id, MGMT_OP_ADD_REMOTE_OOB_DATA,
+				    MGMT_STATUS_INVALID_PARAMS, addr,
+				    sizeof(*addr));
 
 	hci_dev_lock(hdev);
 
@@ -3663,28 +3672,53 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 				   status, &cp->addr, sizeof(cp->addr));
 	} else if (len == MGMT_ADD_REMOTE_OOB_EXT_DATA_SIZE) {
 		struct mgmt_cp_add_remote_oob_ext_data *cp = data;
-		u8 *rand192, *hash192;
+		u8 *rand192, *hash192, *rand256, *hash256;
 		u8 status;
 
-		if (cp->addr.type != BDADDR_BREDR) {
-			err = cmd_complete(sk, hdev->id,
-					   MGMT_OP_ADD_REMOTE_OOB_DATA,
-					   MGMT_STATUS_INVALID_PARAMS,
-					   &cp->addr, sizeof(cp->addr));
-			goto unlock;
-		}
-
 		if (bdaddr_type_is_le(cp->addr.type)) {
+			/* Enforce zero-valued 192-bit parameters as
+			 * long as legacy SMP OOB isn't implemented.
+			 */
+			if (memcmp(cp->rand192, ZERO_KEY, 16) ||
+			    memcmp(cp->hash192, ZERO_KEY, 16)) {
+				err = cmd_complete(sk, hdev->id,
+						   MGMT_OP_ADD_REMOTE_OOB_DATA,
+						   MGMT_STATUS_INVALID_PARAMS,
+						   addr, sizeof(*addr));
+				goto unlock;
+			}
+
 			rand192 = NULL;
 			hash192 = NULL;
 		} else {
-			rand192 = cp->rand192;
-			hash192 = cp->hash192;
+			/* In case one of the P-192 values is set to zero,
+			 * then just disable OOB data for P-192.
+			 */
+			if (!memcmp(cp->rand192, ZERO_KEY, 16) ||
+			    !memcmp(cp->hash192, ZERO_KEY, 16)) {
+				rand192 = NULL;
+				hash192 = NULL;
+			} else {
+				rand192 = cp->rand192;
+				hash192 = cp->hash192;
+			}
+		}
+
+		/* In case one of the P-256 values is set to zero, then just
+		 * disable OOB data for P-256.
+		 */
+		if (!memcmp(cp->rand256, ZERO_KEY, 16) ||
+		    !memcmp(cp->hash256, ZERO_KEY, 16)) {
+			rand256 = NULL;
+			hash256 = NULL;
+		} else {
+			rand256 = cp->rand256;
+			hash256 = cp->hash256;
 		}
 
 		err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr,
 					      cp->addr.type, hash192, rand192,
-					      cp->hash256, cp->rand256);
+					      hash256, rand256);
 		if (err < 0)
 			status = MGMT_STATUS_FAILED;
 		else
@@ -3862,6 +3896,9 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status,
 
 	hci_discovery_set_state(hdev, DISCOVERY_FINDING);
 
+	/* If the scan involves LE scan, pick proper timeout to schedule
+	 * hdev->le_scan_disable that will stop it.
+	 */
 	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_LE:
 		timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
@@ -3878,9 +3915,23 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status,
 		break;
 	}
 
-	if (timeout)
+	if (timeout) {
+		/* When service discovery is used and the controller has
+		 * a strict duplicate filter, it is important to remember
+		 * the start and duration of the scan. This is required
+		 * for restarting scanning during the discovery phase.
+		 */
+		if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER,
+			     &hdev->quirks) &&
+		    (hdev->discovery.uuid_count > 0 ||
+		     hdev->discovery.rssi != HCI_RSSI_INVALID)) {
+			hdev->discovery.scan_start = jiffies;
+			hdev->discovery.scan_duration = timeout;
+		}
+
 		queue_delayed_work(hdev->workqueue,
 				   &hdev->le_scan_disable, timeout);
+	}
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -4691,9 +4742,16 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		 * Dual-mode controllers shall operate with the public
 		 * address as its identity address for BR/EDR and LE. So
 		 * reject the attempt to create an invalid configuration.
+		 *
+		 * The same restrictions applies when secure connections
+		 * has been enabled. For BR/EDR this is a controller feature
+		 * while for LE it is a host stack feature. This means that
+		 * switching BR/EDR back on when secure connections has been
+		 * enabled is not a supported transaction.
 		 */
 		if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
-		    bacmp(&hdev->static_addr, BDADDR_ANY)) {
+		    (bacmp(&hdev->static_addr, BDADDR_ANY) ||
+		     test_bit(HCI_SC_ENABLED, &hdev->dev_flags))) {
 			err = cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
 					 MGMT_STATUS_REJECTED);
 			goto unlock;
@@ -4736,11 +4794,57 @@ unlock:
 	return err;
 }
 
+static void sc_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+{
+	struct pending_cmd *cmd;
+	struct mgmt_mode *cp;
+
+	BT_DBG("%s status %u", hdev->name, status);
+
+	hci_dev_lock(hdev);
+
+	cmd = mgmt_pending_find(MGMT_OP_SET_SECURE_CONN, hdev);
+	if (!cmd)
+		goto unlock;
+
+	if (status) {
+		cmd_status(cmd->sk, cmd->index, cmd->opcode,
+			   mgmt_status(status));
+		goto remove;
+	}
+
+	cp = cmd->param;
+
+	switch (cp->val) {
+	case 0x00:
+		clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
+		break;
+	case 0x01:
+		set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
+		break;
+	case 0x02:
+		set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+		set_bit(HCI_SC_ONLY, &hdev->dev_flags);
+		break;
+	}
+
+	send_settings_rsp(cmd->sk, MGMT_OP_SET_SECURE_CONN, hdev);
+	new_settings(hdev, cmd->sk);
+
+remove:
+	mgmt_pending_remove(cmd);
+unlock:
+	hci_dev_unlock(hdev);
+}
+
 static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 			   void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
 	struct pending_cmd *cmd;
+	struct hci_request req;
 	u8 val;
 	int err;
 
@@ -4750,6 +4854,12 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 	    !test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
 				  MGMT_STATUS_NOT_SUPPORTED);
+
+	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+	    lmp_sc_capable(hdev) &&
+	    !test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
+				  MGMT_STATUS_REJECTED);
 
 	if (cp->val != 0x00 && cp->val != 0x01 && cp->val != 0x02)
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
@@ -4804,16 +4914,13 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 		goto failed;
 	}
 
-	err = hci_send_cmd(hdev, HCI_OP_WRITE_SC_SUPPORT, 1, &val);
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_WRITE_SC_SUPPORT, 1, &val);
+	err = hci_req_run(&req, sc_enable_complete);
 	if (err < 0) {
 		mgmt_pending_remove(cmd);
 		goto failed;
 	}
-
-	if (cp->val == 0x02)
-		set_bit(HCI_SC_ONLY, &hdev->dev_flags);
-	else
-		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
 
 failed:
 	hci_dev_unlock(hdev);
@@ -6262,14 +6369,16 @@ static int powered_update_hci(struct hci_dev *hdev)
 
 	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
 	    !lmp_host_ssp_capable(hdev)) {
-		u8 ssp = 1;
+		u8 mode = 0x01;
 
-		hci_req_add(&req, HCI_OP_WRITE_SSP_MODE, 1, &ssp);
-	}
+		hci_req_add(&req, HCI_OP_WRITE_SSP_MODE, sizeof(mode), &mode);
 
-	if (bredr_sc_enabled(hdev) && !lmp_host_sc_capable(hdev)) {
-		u8 sc = 0x01;
-		hci_req_add(&req, HCI_OP_WRITE_SC_SUPPORT, sizeof(sc), &sc);
+		if (bredr_sc_enabled(hdev) && !lmp_host_sc_capable(hdev)) {
+			u8 support = 0x01;
+
+			hci_req_add(&req, HCI_OP_WRITE_SC_SUPPORT,
+				    sizeof(support), &support);
+		}
 	}
 
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags) &&
@@ -6989,43 +7098,6 @@ void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 	hci_req_run(&req, NULL);
 }
 
-void mgmt_sc_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
-{
-	struct cmd_lookup match = { NULL, hdev };
-	bool changed = false;
-
-	if (status) {
-		u8 mgmt_err = mgmt_status(status);
-
-		if (enable) {
-			if (test_and_clear_bit(HCI_SC_ENABLED,
-					       &hdev->dev_flags))
-				new_settings(hdev, NULL);
-			clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
-		}
-
-		mgmt_pending_foreach(MGMT_OP_SET_SECURE_CONN, hdev,
-				     cmd_status_rsp, &mgmt_err);
-		return;
-	}
-
-	if (enable) {
-		changed = !test_and_set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
-	} else {
-		changed = test_and_clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
-		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
-	}
-
-	mgmt_pending_foreach(MGMT_OP_SET_SECURE_CONN, hdev,
-			     settings_rsp, &match);
-
-	if (changed)
-		new_settings(hdev, match.sk);
-
-	if (match.sk)
-		sock_put(match.sk);
-}
-
 static void sk_lookup(struct pending_cmd *cmd, void *data)
 {
 	struct cmd_lookup *match = data;
@@ -7096,28 +7168,21 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 		cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
 			   mgmt_status(status));
 	} else {
+		struct mgmt_rp_read_local_oob_data rp;
+		size_t rp_size = sizeof(rp);
+
+		memcpy(rp.hash192, hash192, sizeof(rp.hash192));
+		memcpy(rp.rand192, rand192, sizeof(rp.rand192));
+
 		if (bredr_sc_enabled(hdev) && hash256 && rand256) {
-			struct mgmt_rp_read_local_oob_ext_data rp;
-
-			memcpy(rp.hash192, hash192, sizeof(rp.hash192));
-			memcpy(rp.rand192, rand192, sizeof(rp.rand192));
-
 			memcpy(rp.hash256, hash256, sizeof(rp.hash256));
 			memcpy(rp.rand256, rand256, sizeof(rp.rand256));
-
-			cmd_complete(cmd->sk, hdev->id,
-				     MGMT_OP_READ_LOCAL_OOB_DATA, 0,
-				     &rp, sizeof(rp));
 		} else {
-			struct mgmt_rp_read_local_oob_data rp;
-
-			memcpy(rp.hash, hash192, sizeof(rp.hash));
-			memcpy(rp.rand, rand192, sizeof(rp.rand));
-
-			cmd_complete(cmd->sk, hdev->id,
-				     MGMT_OP_READ_LOCAL_OOB_DATA, 0,
-				     &rp, sizeof(rp));
+			rp_size -= sizeof(rp.hash256) + sizeof(rp.rand256);
 		}
+
+		cmd_complete(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA, 0,
+			     &rp, rp_size);
 	}
 
 	mgmt_pending_remove(cmd);
@@ -7190,6 +7255,21 @@ static bool eir_has_uuids(u8 *eir, u16 eir_len, u16 uuid_count, u8 (*uuids)[16])
 	return false;
 }
 
+static void restart_le_scan(struct hci_dev *hdev)
+{
+	/* If controller is not scanning we are done. */
+	if (!test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+		return;
+
+	if (time_after(jiffies + DISCOV_LE_RESTART_DELAY,
+		       hdev->discovery.scan_start +
+		       hdev->discovery.scan_duration))
+		return;
+
+	queue_delayed_work(hdev->workqueue, &hdev->le_scan_restart,
+			   DISCOV_LE_RESTART_DELAY);
+}
+
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u32 flags,
 		       u8 *eir, u16 eir_len, u8 *scan_rsp, u8 scan_rsp_len)
@@ -7212,14 +7292,18 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	/* When using service discovery with a RSSI threshold, then check
 	 * if such a RSSI threshold is specified. If a RSSI threshold has
-	 * been specified, then all results with a RSSI smaller than the
-	 * RSSI threshold will be dropped.
+	 * been specified, and HCI_QUIRK_STRICT_DUPLICATE_FILTER is not set,
+	 * then all results with a RSSI smaller than the RSSI threshold will be
+	 * dropped. If the quirk is set, let it through for further processing,
+	 * as we might need to restart the scan.
 	 *
 	 * For BR/EDR devices (pre 1.2) providing no RSSI during inquiry,
 	 * the results are also dropped.
 	 */
 	if (hdev->discovery.rssi != HCI_RSSI_INVALID &&
-	    (rssi < hdev->discovery.rssi || rssi == HCI_RSSI_INVALID))
+	    (rssi == HCI_RSSI_INVALID ||
+	    (rssi < hdev->discovery.rssi &&
+	     !test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks))))
 		return;
 
 	/* Make sure that the buffer is big enough. The 5 extra bytes
@@ -7238,7 +7322,8 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	 * However when using service discovery, the value 127 will be
 	 * returned when the RSSI is not available.
 	 */
-	if (rssi == HCI_RSSI_INVALID && !hdev->discovery.report_invalid_rssi)
+	if (rssi == HCI_RSSI_INVALID && !hdev->discovery.report_invalid_rssi &&
+	    link_type == ACL_LINK)
 		rssi = 0;
 
 	bacpy(&ev->addr.bdaddr, bdaddr);
@@ -7253,12 +7338,20 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		 * kept and checking possible scan response data
 		 * will be skipped.
 		 */
-		if (hdev->discovery.uuid_count > 0)
+		if (hdev->discovery.uuid_count > 0) {
 			match = eir_has_uuids(eir, eir_len,
 					      hdev->discovery.uuid_count,
 					      hdev->discovery.uuids);
-		else
+			/* If duplicate filtering does not report RSSI changes,
+			 * then restart scanning to ensure updated result with
+			 * updated RSSI values.
+			 */
+			if (match && test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER,
+					      &hdev->quirks))
+				restart_le_scan(hdev);
+		} else {
 			match = true;
+		}
 
 		if (!match && !scan_rsp_len)
 			return;
@@ -7291,6 +7384,14 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 						     hdev->discovery.uuid_count,
 						     hdev->discovery.uuids))
 				return;
+
+			/* If duplicate filtering does not report RSSI changes,
+			 * then restart scanning to ensure updated result with
+			 * updated RSSI values.
+			 */
+			if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER,
+				     &hdev->quirks))
+				restart_le_scan(hdev);
 		}
 
 		/* Append scan response data to event */
@@ -7303,6 +7404,14 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		if (hdev->discovery.uuid_count > 0 && !match)
 			return;
 	}
+
+	/* Validate the reported RSSI value against the RSSI threshold once more
+	 * incase HCI_QUIRK_STRICT_DUPLICATE_FILTER forced a restart of LE
+	 * scanning.
+	 */
+	if (hdev->discovery.rssi != HCI_RSSI_INVALID &&
+	    rssi < hdev->discovery.rssi)
+		return;
 
 	ev->eir_len = cpu_to_le16(eir_len + scan_rsp_len);
 	ev_size = sizeof(*ev) + eir_len + scan_rsp_len;

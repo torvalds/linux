@@ -620,7 +620,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 
 		oob_data = hci_find_remote_oob_data(hdev, &hcon->dst,
 						    bdaddr_type);
-		if (oob_data) {
+		if (oob_data && oob_data->present) {
 			set_bit(SMP_FLAG_OOB, &smp->flags);
 			oob_flag = SMP_OOB_PRESENT;
 			memcpy(smp->rr, oob_data->rand256, 16);

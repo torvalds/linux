@@ -156,6 +156,35 @@ static const struct file_operations uuids_fops = {
 	.release	= single_release,
 };
 
+static int remote_oob_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+	struct oob_data *data;
+
+	hci_dev_lock(hdev);
+	list_for_each_entry(data, &hdev->remote_oob_data, list) {
+		seq_printf(f, "%pMR (type %u) %u %*phN %*phN %*phN %*phN\n",
+			   &data->bdaddr, data->bdaddr_type, data->present,
+			   16, data->hash192, 16, data->rand192,
+			   16, data->hash256, 19, data->rand256);
+	}
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int remote_oob_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, remote_oob_show, inode->i_private);
+}
+
+static const struct file_operations remote_oob_fops = {
+	.open		= remote_oob_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int conn_info_min_age_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -212,6 +241,24 @@ static int conn_info_max_age_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(conn_info_max_age_fops, conn_info_max_age_get,
 			conn_info_max_age_set, "%llu\n");
 
+static ssize_t use_debug_keys_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = test_bit(HCI_USE_DEBUG_KEYS, &hdev->dev_flags) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static const struct file_operations use_debug_keys_fops = {
+	.open		= simple_open,
+	.read		= use_debug_keys_read,
+	.llseek		= default_llseek,
+};
+
 static ssize_t sc_only_mode_read(struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos)
 {
@@ -238,16 +285,25 @@ void hci_debugfs_create_common(struct hci_dev *hdev)
 			   &hdev->manufacturer);
 	debugfs_create_u8("hci_version", 0444, hdev->debugfs, &hdev->hci_ver);
 	debugfs_create_u16("hci_revision", 0444, hdev->debugfs, &hdev->hci_rev);
+	debugfs_create_u8("hardware_error", 0444, hdev->debugfs,
+			  &hdev->hw_error_code);
+
 	debugfs_create_file("device_list", 0444, hdev->debugfs, hdev,
 			    &device_list_fops);
 	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
 			    &blacklist_fops);
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
+	debugfs_create_file("remote_oob", 0400, hdev->debugfs, hdev,
+			    &remote_oob_fops);
 
 	debugfs_create_file("conn_info_min_age", 0644, hdev->debugfs, hdev,
 			    &conn_info_min_age_fops);
 	debugfs_create_file("conn_info_max_age", 0644, hdev->debugfs, hdev,
 			    &conn_info_max_age_fops);
+
+	if (lmp_ssp_capable(hdev) || lmp_le_capable(hdev))
+		debugfs_create_file("use_debug_keys", 0444, hdev->debugfs,
+				    hdev, &use_debug_keys_fops);
 
 	if (lmp_sc_capable(hdev) || lmp_le_capable(hdev))
 		debugfs_create_file("sc_only_mode", 0444, hdev->debugfs,
@@ -353,6 +409,24 @@ static int voice_setting_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(voice_setting_fops, voice_setting_get,
 			NULL, "0x%4.4llx\n");
+
+static ssize_t ssp_debug_mode_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = hdev->ssp_debug_mode ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static const struct file_operations ssp_debug_mode_fops = {
+	.open		= simple_open,
+	.read		= ssp_debug_mode_read,
+	.llseek		= default_llseek,
+};
 
 static int auto_accept_delay_set(void *data, u64 val)
 {
@@ -474,9 +548,12 @@ void hci_debugfs_create_bredr(struct hci_dev *hdev)
 	debugfs_create_file("voice_setting", 0444, hdev->debugfs, hdev,
 			    &voice_setting_fops);
 
-	if (lmp_ssp_capable(hdev))
+	if (lmp_ssp_capable(hdev)) {
+		debugfs_create_file("ssp_debug_mode", 0444, hdev->debugfs,
+				    hdev, &ssp_debug_mode_fops);
 		debugfs_create_file("auto_accept_delay", 0644, hdev->debugfs,
 				    hdev, &auto_accept_delay_fops);
+	}
 
 	if (lmp_sniff_capable(hdev)) {
 		debugfs_create_file("idle_timeout", 0644, hdev->debugfs,
