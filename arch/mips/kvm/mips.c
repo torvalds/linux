@@ -18,6 +18,7 @@
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
+#include <asm/pgtable.h>
 
 #include <linux/kvm_host.h>
 
@@ -385,7 +386,13 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	kvm_guest_enter();
 
+	/* Disable hardware page table walking while in guest */
+	htw_stop();
+
 	r = __kvm_mips_vcpu_run(run, vcpu);
+
+	/* Re-enable HTW before enabling interrupts */
+	htw_start();
 
 	kvm_guest_exit();
 	local_irq_enable();
@@ -1002,6 +1009,9 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	enum emulation_result er = EMULATE_DONE;
 	int ret = RESUME_GUEST;
 
+	/* re-enable HTW before enabling interrupts */
+	htw_start();
+
 	/* Set a default exit reason */
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
@@ -1135,6 +1145,9 @@ skip_emul:
 			trace_kvm_exit(vcpu, SIGNAL_EXITS);
 		}
 	}
+
+	/* Disable HTW before returning to guest or host */
+	htw_stop();
 
 	return ret;
 }
