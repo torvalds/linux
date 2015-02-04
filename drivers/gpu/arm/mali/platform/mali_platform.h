@@ -93,7 +93,7 @@ void mali_gpu_utilization_handler(u32 utilization);
 void mali_utilization_suspend(void);
 
 #ifdef CONFIG_REGULATOR
-int mali_regulator_get_usecount(void);
+unsigned int mali_regulator_get_usecount(void);
 void mali_regulator_disable(void);
 void mali_regulator_enable(void);
 void mali_regulator_set_voltage(int min_uV, int max_uV);
