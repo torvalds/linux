@@ -1237,7 +1237,7 @@ static void default_attr(struct vc_data *vc)
 
 struct rgb { u8 r; u8 g; u8 b; };
 
-struct rgb rgb_from_256(int i)
+static struct rgb rgb_from_256(int i)
 {
 	struct rgb c;
 	if (i < 8) {            /* Standard colours. */
