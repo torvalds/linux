@@ -974,7 +974,8 @@ nomem:
  *	0	Success
  *	!0	Failure
  */
-int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
+int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
+				 const struct attribute_group **groups)
 {
 	int i, err;
 
@@ -998,6 +999,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 
 	mci->dev.parent = mci_pdev;
 	mci->dev.bus = mci->bus;
+	mci->dev.groups = groups;
 	dev_set_name(&mci->dev, "mc%d", mci->mc_idx);
 	dev_set_drvdata(&mci->dev, mci);
 	pm_runtime_forbid(&mci->dev);
