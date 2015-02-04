@@ -17,7 +17,7 @@
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
+#ifdef CONFIG_SERIAL_EARLYCON
 
 static unsigned int __initdata arc_base_baud;
 
