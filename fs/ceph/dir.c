@@ -670,14 +670,17 @@ int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry)
 		/*
 		 * We created the item, then did a lookup, and found
 		 * it was already linked to another inode we already
-		 * had in our cache (and thus got spliced).  Link our
-		 * dentry to that inode, but don't hash it, just in
-		 * case the VFS wants to dereference it.
+		 * had in our cache (and thus got spliced). To not
+		 * confuse VFS (especially when inode is a directory),
+		 * we don't link our dentry to that inode, return an
+		 * error instead.
+		 *
+		 * This event should be rare and it happens only when
+		 * we talk to old MDS. Recent MDS does not send traceless
+		 * reply for request that creates new inode.
 		 */
-		BUG_ON(!result->d_inode);
-		d_instantiate(dentry, result->d_inode);
 		d_drop(result);
-		return 0;
+		return -ESTALE;
 	}
 	return PTR_ERR(result);
 }
