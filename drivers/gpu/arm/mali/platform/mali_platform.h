@@ -17,10 +17,6 @@
 #define __MALI_PLATFORM_H__
 
 #include "mali_osk.h"
-#ifndef USING_MALI_PMM
-/* @brief System power up/down cores that can be passed into mali_platform_powerdown/up() */
-#define MALI_PLATFORM_SYSTEM  0
-#endif
 
 #ifdef __cplusplus
 extern "C" {
