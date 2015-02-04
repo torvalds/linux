@@ -2663,34 +2663,6 @@ static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 	return true;
 }
 
-static int set_mc_sysfs_attrs(struct mem_ctl_info *mci)
-{
-	struct amd64_pvt *pvt = mci->pvt_info;
-	int rc;
-
-	rc = amd64_create_sysfs_dbg_files(mci);
-	if (rc < 0)
-		return rc;
-
-	if (pvt->fam >= 0x10) {
-		rc = amd64_create_sysfs_inject_files(mci);
-		if (rc < 0)
-			return rc;
-	}
-
-	return 0;
-}
-
-static void del_mc_sysfs_attrs(struct mem_ctl_info *mci)
-{
-	struct amd64_pvt *pvt = mci->pvt_info;
-
-	amd64_remove_sysfs_dbg_files(mci);
-
-	if (pvt->fam >= 0x10)
-		amd64_remove_sysfs_inject_files(mci);
-}
-
 static void setup_mci_misc_attrs(struct mem_ctl_info *mci,
 				 struct amd64_family_type *fam)
 {
@@ -2778,6 +2750,16 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 	return fam_type;
 }
 
+static const struct attribute_group *amd64_edac_attr_groups[] = {
+#ifdef CONFIG_EDAC_DEBUG
+	&amd64_edac_dbg_group,
+#endif
+#ifdef CONFIG_EDAC_AMD64_ERROR_INJECTION
+	&amd64_edac_inj_group,
+#endif
+	NULL
+};
+
 static int init_one_instance(struct pci_dev *F2)
 {
 	struct amd64_pvt *pvt = NULL;
@@ -2844,13 +2826,9 @@ static int init_one_instance(struct pci_dev *F2)
 		mci->edac_cap = EDAC_FLAG_NONE;
 
 	ret = -ENODEV;
-	if (edac_mc_add_mc(mci)) {
+	if (edac_mc_add_mc_with_groups(mci, amd64_edac_attr_groups)) {
 		edac_dbg(1, "failed edac_mc_add_mc()\n");
 		goto err_add_mc;
-	}
-	if (set_mc_sysfs_attrs(mci)) {
-		edac_dbg(1, "failed edac_mc_add_mc()\n");
-		goto err_add_sysfs;
 	}
 
 	/* register stuff with EDAC MCE */
@@ -2865,8 +2843,6 @@ static int init_one_instance(struct pci_dev *F2)
 
 	return 0;
 
-err_add_sysfs:
-	edac_mc_del_mc(mci->pdev);
 err_add_mc:
 	edac_mc_free(mci);
 
@@ -2940,7 +2916,6 @@ static void remove_one_instance(struct pci_dev *pdev)
 	mci = find_mci_by_dev(&pdev->dev);
 	WARN_ON(!mci);
 
-	del_mc_sysfs_attrs(mci);
 	/* Remove from EDAC CORE tracking list */
 	mci = edac_mc_del_mc(&pdev->dev);
 	if (!mci)
