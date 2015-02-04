@@ -1713,4 +1713,19 @@ static inline struct ip_options_rcu *tcp_v4_save_options(struct sk_buff *skb)
 	return dopt;
 }
 
+/* locally generated TCP pure ACKs have skb->truesize == 2
+ * (check tcp_send_ack() in net/ipv4/tcp_output.c )
+ * This is much faster than dissecting the packet to find out.
+ * (Think of GRE encapsulations, IPv4, IPv6, ...)
+ */
+static inline bool skb_is_tcp_pure_ack(const struct sk_buff *skb)
+{
+	return skb->truesize == 2;
+}
+
+static inline void skb_set_tcp_pure_ack(struct sk_buff *skb)
+{
+	skb->truesize = 2;
+}
+
 #endif	/* _TCP_H */

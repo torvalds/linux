@@ -52,6 +52,7 @@
 #include <net/pkt_sched.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
+#include <net/tcp.h>
 
 /*
  * Per flow structure, dynamically allocated
@@ -445,7 +446,9 @@ begin:
 		goto begin;
 	}
 
-	if (unlikely(f->head && now < f->time_next_packet)) {
+	skb = f->head;
+	if (unlikely(skb && now < f->time_next_packet &&
+		     !skb_is_tcp_pure_ack(skb))) {
 		head->first = f->next;
 		fq_flow_set_throttled(q, f);
 		goto begin;
@@ -464,10 +467,13 @@ begin:
 		goto begin;
 	}
 	prefetch(&skb->end);
-	f->time_next_packet = now;
 	f->credit -= qdisc_pkt_len(skb);
 
 	if (f->credit > 0 || !q->rate_enable)
+		goto out;
+
+	/* Do not pace locally generated ack packets */
+	if (skb_is_tcp_pure_ack(skb))
 		goto out;
 
 	rate = q->flow_max_rate;

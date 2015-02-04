@@ -948,7 +948,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 
 	skb_orphan(skb);
 	skb->sk = sk;
-	skb->destructor = tcp_wfree;
+	skb->destructor = skb_is_tcp_pure_ack(skb) ? sock_wfree : tcp_wfree;
 	skb_set_hash_from_sk(skb, sk);
 	atomic_add(skb->truesize, &sk->sk_wmem_alloc);
 
@@ -3264,6 +3264,14 @@ void tcp_send_ack(struct sock *sk)
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(buff, MAX_TCP_HEADER);
 	tcp_init_nondata_skb(buff, tcp_acceptable_seq(sk), TCPHDR_ACK);
+
+	/* We do not want pure acks influencing TCP Small Queues or fq/pacing
+	 * too much.
+	 * SKB_TRUESIZE(max(1 .. 66, MAX_TCP_HEADER)) is unfortunately ~784
+	 * We also avoid tcp_wfree() overhead (cache line miss accessing
+	 * tp->tsq_flags) by using regular sock_wfree()
+	 */
+	skb_set_tcp_pure_ack(buff);
 
 	/* Send it off, this clears delayed acks for us. */
 	skb_mstamp_get(&buff->skb_mstamp);
