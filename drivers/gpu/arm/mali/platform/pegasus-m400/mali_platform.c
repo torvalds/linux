@@ -83,7 +83,7 @@ unsigned int mali_regulator_get_usecount(void)
 	struct regulator_dev *rdev;
 
 	if ( IS_ERR_OR_NULL(g3d_regulator) ) {
-		MALI_DEBUG_PRINT(1, ("Mali platform: getting regulator use count failed\n") );
+		MALI_PRINT_ERROR(("Mali platform: getting regulator use count failed\n"));
 		return 0;
 	}
 	rdev = g3d_regulator->rdev;
@@ -98,7 +98,7 @@ void mali_regulator_disable(void)
 		return;
 	}
 	regulator_disable(g3d_regulator);
-	MALI_DEBUG_PRINT(1, ("regulator_disable -> use cnt: %d \n",mali_regulator_get_usecount()));
+	MALI_DEBUG_PRINT(3, ("regulator_disable -> use cnt: %d \n",mali_regulator_get_usecount()));
 }
 
 void mali_regulator_enable(void)
@@ -110,7 +110,7 @@ void mali_regulator_enable(void)
 		return;
 	}
 	regulator_enable(g3d_regulator);
-	MALI_DEBUG_PRINT(1, ("regulator_enable -> use cnt: %d \n",mali_regulator_get_usecount()));
+	MALI_DEBUG_PRINT(3, ("regulator_enable -> use cnt: %d \n",mali_regulator_get_usecount()));
 }
 
 void mali_regulator_set_voltage(int min_uV, int max_uV)
@@ -137,7 +137,7 @@ void mali_regulator_set_voltage(int min_uV, int max_uV)
 }
 #endif
 
-static mali_bool mali_clk_enable(void)
+static int mali_platform_clk_enable(void)
 {
 	struct device *dev = &mali_platform_device->dev;
 	unsigned long rate;
@@ -145,14 +145,14 @@ static mali_bool mali_clk_enable(void)
 	sclk_g3d_clock = clk_get(dev, "sclk_g3d");
 	if (IS_ERR(sclk_g3d_clock)) {
 		MALI_PRINT_ERROR(("Mali platform: failed to get source g3d clock\n"));
-		return MALI_FALSE;
+		return 1;
 	}
 
 	_mali_osk_mutex_wait(mali_dvfs_lock);
 
 	if (clk_prepare_enable(sclk_g3d_clock) < 0) {
 		MALI_PRINT_ERROR(("Mali platform: failed to enable source g3d clock\n"));
-		return MALI_FALSE;
+		return 1;
 	}
 
 	rate = clk_get_rate(sclk_g3d_clock);
@@ -161,25 +161,19 @@ static mali_bool mali_clk_enable(void)
 
 	_mali_osk_mutex_signal(mali_dvfs_lock);
 
-	return MALI_TRUE;
+	return 0;
 }
 
-static mali_bool init_mali_clock(void)
+static int mali_platform_init_clk(void)
 {
-	static mali_bool initialized = MALI_FALSE;
-	mali_bool ret = MALI_TRUE;
+	static int initialized = 0;
 
-	if (initialized)
-		return ret; // already initialized
+	if (initialized) return 1;
 
 	mali_dvfs_lock = _mali_osk_mutex_init(0, 0);
-	if (mali_dvfs_lock == NULL)
-		return _MALI_OSK_ERR_FAULT;
+	if (mali_dvfs_lock == NULL) return 1;
 
-	if (mali_clk_enable() == MALI_FALSE)
-		return MALI_FALSE;
-
-	MALI_PRINT(("init_mali_clock\n"));
+	if (mali_platform_clk_enable()) return 1;
 
 #ifdef CONFIG_REGULATOR
 #ifdef USING_MALI_PMM
@@ -189,8 +183,7 @@ static mali_bool init_mali_clock(void)
 #endif
 
 	if (IS_ERR(g3d_regulator)) {
-		MALI_DEBUG_PRINT(1, ("Mali platform: failed to get g3d regulator\n") );
-		ret = MALI_FALSE;
+		MALI_PRINT_ERROR(("Mali platform: failed to get g3d regulator\n"));
 		goto err_regulator;
 	}
 
@@ -199,20 +192,19 @@ static mali_bool init_mali_clock(void)
 	mali_regulator_set_voltage(mali_gpu_vol, mali_gpu_vol);
 #endif
 
-	MALI_DEBUG_PRINT(2, ("MALI Clock is set at mali driver\n"));
-	initialized = MALI_TRUE;
-	return MALI_TRUE;
+	initialized = 1;
+	return 0;
 
 #ifdef CONFIG_REGULATOR
 err_regulator:
 	regulator_put(g3d_regulator);
 #endif
-	return ret;
+	return 1;
 }
 
 _mali_osk_errcode_t mali_platform_init()
 {
-	MALI_CHECK(init_mali_clock(), _MALI_OSK_ERR_FAULT);
+	MALI_CHECK(mali_platform_init_clk() == 0, _MALI_OSK_ERR_FAULT);
 #ifdef CONFIG_MALI_DVFS
 	if (!clk_register_map)
 		clk_register_map = _mali_osk_mem_mapioregion(CLK_DIV_STAT_G3D, 0x20, CLK_DESC);
