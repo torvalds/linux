@@ -711,7 +711,7 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 					__be32 flowlabel, bool autolabel)
 {
 	if (!flowlabel && (autolabel || net->ipv6.sysctl.auto_flowlabels)) {
-		__be32 hash;
+		u32 hash;
 
 		hash = skb_get_hash(skb);
 
@@ -721,7 +721,7 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 		 */
 		hash ^= hash >> 12;
 
-		flowlabel = hash & IPV6_FLOWLABEL_MASK;
+		flowlabel = (__force __be32)hash & IPV6_FLOWLABEL_MASK;
 	}
 
 	return flowlabel;
