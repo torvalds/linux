@@ -624,7 +624,8 @@ cleanup:
 	return ret;
 }
 
-int rndis_filter_set_offload_params(struct hv_device *hdev,
+static int
+rndis_filter_set_offload_params(struct hv_device *hdev,
 				struct ndis_offload_params *req_offloads)
 {
 	struct netvsc_device *nvdev = hv_get_drvdata(hdev);
@@ -699,7 +700,7 @@ u8 netvsc_hash_key[HASH_KEYLEN] = {
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
 };
 
-int rndis_filter_set_rss_param(struct rndis_device *rdev, int num_queue)
+static int rndis_filter_set_rss_param(struct rndis_device *rdev, int num_queue)
 {
 	struct net_device *ndev = rdev->net_dev->ndev;
 	struct rndis_request *request;

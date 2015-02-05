@@ -685,9 +685,9 @@ static u32 netvsc_get_next_send_section(struct netvsc_device *net_device)
 	return ret_val;
 }
 
-u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
-			    unsigned int section_index,
-			    struct hv_netvsc_packet *packet)
+static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
+				   unsigned int section_index,
+				   struct hv_netvsc_packet *packet)
 {
 	char *start = net_device->send_buf;
 	char *dest = (start + (section_index * net_device->send_section_size));
