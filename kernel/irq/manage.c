@@ -68,14 +68,20 @@ static void __synchronize_hardirq(struct irq_desc *desc)
  *	Do not use this for shutdown scenarios where you must be sure
  *	that all parts (hardirq and threaded handler) have completed.
  *
+ *	Returns: false if a threaded handler is active.
+ *
  *	This function may be called - with care - from IRQ context.
  */
-void synchronize_hardirq(unsigned int irq)
+bool synchronize_hardirq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (desc)
+	if (desc) {
 		__synchronize_hardirq(desc);
+		return !atomic_read(&desc->threads_active);
+	}
+
+	return true;
 }
 EXPORT_SYMBOL(synchronize_hardirq);
 
@@ -439,6 +445,32 @@ void disable_irq(unsigned int irq)
 		synchronize_irq(irq);
 }
 EXPORT_SYMBOL(disable_irq);
+
+/**
+ *	disable_hardirq - disables an irq and waits for hardirq completion
+ *	@irq: Interrupt to disable
+ *
+ *	Disable the selected interrupt line.  Enables and Disables are
+ *	nested.
+ *	This function waits for any pending hard IRQ handlers for this
+ *	interrupt to complete before returning. If you use this function while
+ *	holding a resource the hard IRQ handler may need you will deadlock.
+ *
+ *	When used to optimistically disable an interrupt from atomic context
+ *	the return value must be checked.
+ *
+ *	Returns: false if a threaded handler is active.
+ *
+ *	This function may be called - with care - from IRQ context.
+ */
+bool disable_hardirq(unsigned int irq)
+{
+	if (!__disable_irq_nosync(irq))
+		return synchronize_hardirq(irq);
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(disable_hardirq);
 
 void __enable_irq(struct irq_desc *desc, unsigned int irq)
 {
