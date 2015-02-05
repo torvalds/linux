@@ -631,8 +631,9 @@ static int wlan_platdata_parse_dt(struct device *dev,
     if (ret) {
         LOG("%s: Can not read wifi_chip_type, set default to rkwifi.\n", __func__);
         strcpy(wifi_chip_type_string, "rkwifi");
+    } else {
+        strcpy(wifi_chip_type_string, strings);
     }
-    strcpy(wifi_chip_type_string, strings);
     LOG("%s: wifi_chip_type = %s\n", __func__, wifi_chip_type_string);
 
 	if(cpu_is_rk3036() || cpu_is_rk312x()){
