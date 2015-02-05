@@ -1867,6 +1867,27 @@ static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
 	mutex_unlock(&set->tag_list_lock);
 }
 
+/*
+ * It is the actual release handler for mq, but we do it from
+ * request queue's release handler for avoiding use-after-free
+ * and headache because q->mq_kobj shouldn't have been introduced,
+ * but we can't group ctx/kctx kobj without it.
+ */
+void blk_mq_release(struct request_queue *q)
+{
+	struct blk_mq_hw_ctx *hctx;
+	unsigned int i;
+
+	/* hctx kobj stays in hctx */
+	queue_for_each_hw_ctx(q, hctx, i)
+		kfree(hctx);
+
+	kfree(q->queue_hw_ctx);
+
+	/* ctx kobj stays in queue_ctx */
+	free_percpu(q->queue_ctx);
+}
+
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 {
 	struct blk_mq_hw_ctx **hctxs;
@@ -2000,10 +2021,8 @@ void blk_mq_free_queue(struct request_queue *q)
 
 	percpu_ref_exit(&q->mq_usage_counter);
 
-	kfree(q->queue_hw_ctx);
 	kfree(q->mq_map);
 
-	q->queue_hw_ctx = NULL;
 	q->mq_map = NULL;
 
 	mutex_lock(&all_q_mutex);

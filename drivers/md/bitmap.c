@@ -72,6 +72,19 @@ __acquires(bitmap->lock)
 	/* this page has not been allocated yet */
 
 	spin_unlock_irq(&bitmap->lock);
+	/* It is possible that this is being called inside a
+	 * prepare_to_wait/finish_wait loop from raid5c:make_request().
+	 * In general it is not permitted to sleep in that context as it
+	 * can cause the loop to spin freely.
+	 * That doesn't apply here as we can only reach this point
+	 * once with any loop.
+	 * When this function completes, either bp[page].map or
+	 * bp[page].hijacked.  In either case, this function will
+	 * abort before getting to this point again.  So there is
+	 * no risk of a free-spin, and so it is safe to assert
+	 * that sleeping here is allowed.
+	 */
+	sched_annotate_sleep();
 	mappage = kzalloc(PAGE_SIZE, GFP_NOIO);
 	spin_lock_irq(&bitmap->lock);
 
