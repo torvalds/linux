@@ -133,7 +133,9 @@ struct gfs_configuration {
 	struct usb_configuration c;
 	int (*eth)(struct usb_configuration *c);
 	int num;
-} gfs_configurations[] = {
+};
+
+static struct gfs_configuration gfs_configurations[] = {
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{
 		.eth		= bind_rndis_config,
@@ -278,7 +280,7 @@ static void *functionfs_acquire_dev(struct ffs_dev *dev)
 	if (!try_module_get(THIS_MODULE))
 		return ERR_PTR(-ENOENT);
 	
-	return 0;
+	return NULL;
 }
 
 static void functionfs_release_dev(struct ffs_dev *dev)
