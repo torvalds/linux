@@ -90,11 +90,13 @@
                                                AR_WOW_BEACON_FAIL |	\
                                                AR_WOW_KEEP_ALIVE_FAIL))
 
+#define AR_WOW2_PATTERN_EN(x)           ((x & 0xff) << 0)
 #define AR_WOW2_PATTERN_FOUND_SHIFT     8
 #define AR_WOW2_PATTERN_FOUND(x)        (x & (0xff << AR_WOW2_PATTERN_FOUND_SHIFT))
 #define AR_WOW2_PATTERN_FOUND_MASK      ((0xff) << AR_WOW2_PATTERN_FOUND_SHIFT)
 
 #define AR_WOW_STATUS2(x)               (x & AR_WOW2_PATTERN_FOUND_MASK)
+#define AR_WOW_CLEAR_EVENTS2(x)         (x & ~(AR_WOW2_PATTERN_EN(0xff)))
 
 #define AR_WOW_AIFS_CNT(x)              (x & 0xff)
 #define AR_WOW_SLOT_CNT(x)              ((x & 0xff) << 8)

@@ -230,10 +230,12 @@ u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 		AR_PMCTRL_PWR_STATE_D1D3);
 
 	/*
-	 * clear all events
+	 * Clear all events.
 	 */
 	REG_WRITE(ah, AR_WOW_PATTERN,
 		  AR_WOW_CLEAR_EVENTS(REG_READ(ah, AR_WOW_PATTERN)));
+	REG_WRITE(ah, AR_MAC_PCU_WOW4,
+		  AR_WOW_CLEAR_EVENTS2(REG_READ(ah, AR_MAC_PCU_WOW4)));
 
 	/*
 	 * restore the beacon threshold to init value
@@ -251,6 +253,7 @@ u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 		ath9k_hw_configpcipowersave(ah, false);
 
 	ah->wow.wow_event_mask = 0;
+	ah->wow.wow_event_mask2 = 0;
 
 	return wow_status;
 }
