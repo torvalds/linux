@@ -352,6 +352,8 @@ static struct sst_machines sst_acpi_bytcr[] = {
 static struct sst_machines sst_acpi_chv[] = {
 	{"10EC5670", "cht-bsw", "cht-bsw-rt5672", NULL, "fw_sst_22a8.bin",
 						&chv_platform_data },
+	{"10EC5645", "cht-bsw", "cht-bsw-rt5645", NULL, "fw_sst_22a8.bin",
+						&chv_platform_data },
 	{},
 };
 

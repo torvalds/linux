@@ -94,6 +94,8 @@
 /* Mailbox */
 #define IPC_MAX_MAILBOX_BYTES	256
 
+#define INVALID_STREAM_HW_ID	0xffffffff
+
 /* Global Message - Types and Replies */
 enum ipc_glb_type {
 	IPC_GLB_GET_FW_VERSION = 0,		/* Retrieves firmware version */
@@ -275,7 +277,6 @@ struct sst_hsw {
 	/* FW config */
 	struct sst_hsw_ipc_fw_ready fw_ready;
 	struct sst_hsw_ipc_fw_version version;
-	struct sst_module *scratch;
 	bool fw_done;
 	struct sst_fw *sst_fw;
 
@@ -651,11 +652,11 @@ static void hsw_notification_work(struct work_struct *work)
 	}
 
 	/* tell DSP that notification has been handled */
-	sst_dsp_shim_update_bits_unlocked(hsw->dsp, SST_IPCD,
+	sst_dsp_shim_update_bits(hsw->dsp, SST_IPCD,
 		SST_IPCD_BUSY | SST_IPCD_DONE, SST_IPCD_DONE);
 
 	/* unmask busy interrupt */
-	sst_dsp_shim_update_bits_unlocked(hsw->dsp, SST_IMRX, SST_IMRX_BUSY, 0);
+	sst_dsp_shim_update_bits(hsw->dsp, SST_IMRX, SST_IMRX_BUSY, 0);
 }
 
 static struct ipc_message *reply_find_msg(struct sst_hsw *hsw, u32 header)
@@ -1208,6 +1209,7 @@ struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
 		return NULL;
 
 	spin_lock_irqsave(&sst->spinlock, flags);
+	stream->reply.stream_hw_id = INVALID_STREAM_HW_ID;
 	list_add(&stream->node, &hsw->stream_list);
 	stream->notify_position = notify_position;
 	stream->pdata = data;
@@ -2132,7 +2134,6 @@ void sst_hsw_dsp_free(struct device *dev, struct sst_pdata *pdata)
 	dma_free_coherent(hsw->dsp->dma_dev, SST_HSW_DX_CONTEXT_SIZE,
 			hsw->dx_context, hsw->dx_context_paddr);
 	sst_dsp_free(hsw->dsp);
-	kfree(hsw->scratch);
 	kthread_stop(hsw->tx_thread);
 	kfree(hsw->msg);
 }

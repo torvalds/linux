@@ -517,8 +517,8 @@ static int soc_dapm_update_bits(struct snd_soc_dapm_context *dapm,
 {
 	if (!dapm->component)
 		return -EIO;
-	return snd_soc_component_update_bits_async(dapm->component, reg,
-		mask, value);
+	return snd_soc_component_update_bits(dapm->component, reg,
+					     mask, value);
 }
 
 static int soc_dapm_test_bits(struct snd_soc_dapm_context *dapm,
@@ -2127,15 +2127,10 @@ static ssize_t dapm_widget_show(struct device *dev,
 
 static DEVICE_ATTR(dapm_widget, 0444, dapm_widget_show, NULL);
 
-int snd_soc_dapm_sys_add(struct device *dev)
-{
-	return device_create_file(dev, &dev_attr_dapm_widget);
-}
-
-static void snd_soc_dapm_sys_remove(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_dapm_widget);
-}
+struct attribute *soc_dapm_dev_attrs[] = {
+	&dev_attr_dapm_widget.attr,
+	NULL
+};
 
 static void dapm_free_path(struct snd_soc_dapm_path *path)
 {
@@ -3144,8 +3139,6 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	}
 
 	w->dapm = dapm;
-	if (dapm->component)
-		w->codec = dapm->component->codec;
 	INIT_LIST_HEAD(&w->sources);
 	INIT_LIST_HEAD(&w->sinks);
 	INIT_LIST_HEAD(&w->list);
@@ -3830,7 +3823,6 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_ignore_suspend);
  */
 void snd_soc_dapm_free(struct snd_soc_dapm_context *dapm)
 {
-	snd_soc_dapm_sys_remove(dapm->dev);
 	dapm_debugfs_cleanup(dapm);
 	dapm_free_widgets(dapm);
 	list_del(&dapm->list);

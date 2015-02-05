@@ -33,6 +33,25 @@ Required SoC Specific Properties:
   "iis" is the i2s bus clock and i2s_opclk0, i2s_opclk1 are sources of the root
   clk. i2s0 has internal mux to select the source of root clk and i2s1 and i2s2
   doesn't have any such mux.
+- #clock-cells: should be 1, this property must be present if the I2S device
+  is a clock provider in terms of the common clock bindings, described in
+  ../clock/clock-bindings.txt.
+- clock-output-names: from the common clock bindings, names of the CDCLK
+  I2S output clocks, suggested values are "i2s_cdclk0", "i2s_cdclk1",
+  "i2s_cdclk3" for the I2S0, I2S1, I2S2 devices recpectively.
+
+There are following clocks available at the I2S device nodes:
+ CLK_I2S_CDCLK    - the CDCLK (CODECLKO) gate clock,
+ CLK_I2S_RCLK_PSR - the RCLK prescaler divider clock (corresponding to the
+		    IISPSR register),
+ CLK_I2S_RCLK_SRC - the RCLKSRC mux clock (corresponding to RCLKSRC bit in
+		    IISMOD register).
+
+Refer to the SoC datasheet for availability of the above clocks.
+The CLK_I2S_RCLK_PSR and CLK_I2S_RCLK_SRC clocks are usually only available
+in the IIS Multi Audio Interface (I2S0).
+Note: Old DTs may not have the #clock-cells, clock-output-names properties
+and then not use the I2S node as a clock supplier.
 
 Optional SoC Specific Properties:
 
@@ -40,6 +59,7 @@ Optional SoC Specific Properties:
   sub system(used in secondary sound source).
 - pinctrl-0: Should specify pin control groups used for this controller.
 - pinctrl-names: Should contain only one value - "default".
+
 
 Example:
 
@@ -54,6 +74,8 @@ i2s0: i2s@03830000 {
 		<&clock_audss EXYNOS_I2S_BUS>,
 		<&clock_audss EXYNOS_SCLK_I2S>;
 	clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+	#clock-cells;
+	clock-output-names = "i2s_cdclk0";
 	samsung,idma-addr = <0x03000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s0_bus>;

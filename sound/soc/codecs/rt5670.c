@@ -500,7 +500,7 @@ static const struct snd_kcontrol_new rt5670_snd_controls[] = {
 static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 	int idx = -EINVAL;
 
@@ -517,9 +517,10 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
 	unsigned int val;
 
-	val = snd_soc_read(source->codec, RT5670_GLB_CLK);
+	val = snd_soc_read(codec, RT5670_GLB_CLK);
 	val &= RT5670_SCLK_SRC_MASK;
 	if (val == RT5670_SCLK_SRC_PLL1)
 		return 1;
@@ -530,6 +531,7 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 static int is_using_asrc(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
 	unsigned int reg, shift, val;
 
 	switch (source->shift) {
@@ -565,7 +567,7 @@ static int is_using_asrc(struct snd_soc_dapm_widget *source,
 		return 0;
 	}
 
-	val = (snd_soc_read(source->codec, reg) >> shift) & 0xf;
+	val = (snd_soc_read(codec, reg) >> shift) & 0xf;
 	switch (val) {
 	case 1:
 	case 2:
@@ -589,6 +591,89 @@ static int can_use_asrc(struct snd_soc_dapm_widget *source,
 
 	return 0;
 }
+
+
+/**
+ * rt5670_sel_asrc_clk_src - select ASRC clock source for a set of filters
+ * @codec: SoC audio codec device.
+ * @filter_mask: mask of filters.
+ * @clk_src: clock source
+ *
+ * The ASRC function is for asynchronous MCLK and LRCK. Also, since RT5670 can
+ * only support standard 32fs or 64fs i2s format, ASRC should be enabled to
+ * support special i2s clock format such as Intel's 100fs(100 * sampling rate).
+ * ASRC function will track i2s clock and generate a corresponding system clock
+ * for codec. This function provides an API to select the clock source for a
+ * set of filters specified by the mask. And the codec driver will turn on ASRC
+ * for these filters if ASRC is selected as their clock source.
+ */
+int rt5670_sel_asrc_clk_src(struct snd_soc_codec *codec,
+			    unsigned int filter_mask, unsigned int clk_src)
+{
+	unsigned int asrc2_mask = 0, asrc2_value = 0;
+	unsigned int asrc3_mask = 0, asrc3_value = 0;
+
+	if (clk_src > RT5670_CLK_SEL_SYS3)
+		return -EINVAL;
+
+	if (filter_mask & RT5670_DA_STEREO_FILTER) {
+		asrc2_mask |= RT5670_DA_STO_CLK_SEL_MASK;
+		asrc2_value = (asrc2_value & ~RT5670_DA_STO_CLK_SEL_MASK)
+				| (clk_src <<  RT5670_DA_STO_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5670_DA_MONO_L_FILTER) {
+		asrc2_mask |= RT5670_DA_MONOL_CLK_SEL_MASK;
+		asrc2_value = (asrc2_value & ~RT5670_DA_MONOL_CLK_SEL_MASK)
+				| (clk_src <<  RT5670_DA_MONOL_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5670_DA_MONO_R_FILTER) {
+		asrc2_mask |= RT5670_DA_MONOR_CLK_SEL_MASK;
+		asrc2_value = (asrc2_value & ~RT5670_DA_MONOR_CLK_SEL_MASK)
+				| (clk_src <<  RT5670_DA_MONOR_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5670_AD_STEREO_FILTER) {
+		asrc2_mask |= RT5670_AD_STO1_CLK_SEL_MASK;
+		asrc2_value = (asrc2_value & ~RT5670_AD_STO1_CLK_SEL_MASK)
+				| (clk_src <<  RT5670_AD_STO1_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5670_AD_MONO_L_FILTER) {
+		asrc3_mask |= RT5670_AD_MONOL_CLK_SEL_MASK;
+		asrc3_value = (asrc3_value & ~RT5670_AD_MONOL_CLK_SEL_MASK)
+				| (clk_src <<  RT5670_AD_MONOL_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5670_AD_MONO_R_FILTER)  {
+		asrc3_mask |= RT5670_AD_MONOR_CLK_SEL_MASK;
+		asrc3_value = (asrc3_value & ~RT5670_AD_MONOR_CLK_SEL_MASK)
+				| (clk_src <<  RT5670_AD_MONOR_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5670_UP_RATE_FILTER) {
+		asrc3_mask |= RT5670_UP_CLK_SEL_MASK;
+		asrc3_value = (asrc3_value & ~RT5670_UP_CLK_SEL_MASK)
+				| (clk_src <<  RT5670_UP_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5670_DOWN_RATE_FILTER) {
+		asrc3_mask |= RT5670_DOWN_CLK_SEL_MASK;
+		asrc3_value = (asrc3_value & ~RT5670_DOWN_CLK_SEL_MASK)
+				| (clk_src <<  RT5670_DOWN_CLK_SEL_SFT);
+	}
+
+	if (asrc2_mask)
+		snd_soc_update_bits(codec, RT5670_ASRC_2,
+				    asrc2_mask, asrc2_value);
+
+	if (asrc3_mask)
+		snd_soc_update_bits(codec, RT5670_ASRC_3,
+				    asrc3_mask, asrc3_value);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt5670_sel_asrc_clk_src);
 
 /* Digital Mixer */
 static const struct snd_kcontrol_new rt5670_sto1_adc_l_mix[] = {
@@ -1148,7 +1233,7 @@ static const struct snd_kcontrol_new rt5670_vad_adc_mux =
 static int rt5670_hp_power_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -1184,7 +1269,7 @@ static int rt5670_hp_power_event(struct snd_soc_dapm_widget *w,
 static int rt5670_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -1234,7 +1319,7 @@ static int rt5670_hp_event(struct snd_soc_dapm_widget *w,
 static int rt5670_bst1_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1257,7 +1342,7 @@ static int rt5670_bst1_event(struct snd_soc_dapm_widget *w,
 static int rt5670_bst2_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:

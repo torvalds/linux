@@ -405,7 +405,7 @@ int snd_soc_dapm_mux_update_power(struct snd_soc_dapm_context *dapm,
 		struct snd_soc_dapm_update *update);
 
 /* dapm sys fs - used by the core */
-int snd_soc_dapm_sys_add(struct device *dev);
+extern struct attribute *soc_dapm_dev_attrs[];
 void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 				struct dentry *parent);
 
@@ -525,7 +525,6 @@ struct snd_soc_dapm_widget {
 	enum snd_soc_dapm_type id;
 	const char *name;		/* widget name */
 	const char *sname;	/* stream name */
-	struct snd_soc_codec *codec;
 	struct list_head list;
 	struct snd_soc_dapm_context *dapm;
 

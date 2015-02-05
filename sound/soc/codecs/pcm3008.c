@@ -32,7 +32,7 @@ static int pcm3008_dac_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct pcm3008_setup_data *setup = codec->dev->platform_data;
 
 	gpio_set_value_cansleep(setup->pdda_pin,
@@ -45,7 +45,7 @@ static int pcm3008_adc_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct pcm3008_setup_data *setup = codec->dev->platform_data;
 
 	gpio_set_value_cansleep(setup->pdad_pin,
