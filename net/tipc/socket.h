@@ -1,6 +1,6 @@
 /* net/tipc/socket.h: Include file for TIPC socket code
  *
- * Copyright (c) 2014, Ericsson AB
+ * Copyright (c) 2014-2015, Ericsson AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

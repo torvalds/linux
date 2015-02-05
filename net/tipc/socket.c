@@ -1,7 +1,7 @@
 /*
  * net/tipc/socket.c: TIPC socket API
  *
- * Copyright (c) 2001-2007, 2012-2014, Ericsson AB
+ * Copyright (c) 2001-2007, 2012-2015, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -778,48 +778,42 @@ new_mtu:
 
 /* tipc_sk_mcast_rcv - Deliver multicast message to all destination sockets
  */
-void tipc_sk_mcast_rcv(struct net *net, struct sk_buff *buf)
+void tipc_sk_mcast_rcv(struct net *net, struct sk_buff *skb)
 {
-	struct tipc_msg *msg = buf_msg(buf);
-	struct tipc_port_list dports = {0, NULL, };
-	struct tipc_port_list *item;
-	struct sk_buff *b;
-	uint i, last, dst = 0;
+	struct tipc_msg *msg = buf_msg(skb);
+	struct tipc_plist dports;
+	struct sk_buff *cskb;
+	u32 portid;
 	u32 scope = TIPC_CLUSTER_SCOPE;
-	struct sk_buff_head msgs;
+	struct sk_buff_head msgq;
+	uint hsz = skb_headroom(skb) + msg_hdr_sz(msg);
+
+	skb_queue_head_init(&msgq);
+	tipc_plist_init(&dports);
 
 	if (in_own_node(net, msg_orignode(msg)))
 		scope = TIPC_NODE_SCOPE;
 
 	if (unlikely(!msg_mcast(msg))) {
 		pr_warn("Received non-multicast msg in multicast\n");
-		kfree_skb(buf);
 		goto exit;
 	}
 	/* Create destination port list: */
 	tipc_nametbl_mc_translate(net, msg_nametype(msg), msg_namelower(msg),
 				  msg_nameupper(msg), scope, &dports);
-	last = dports.count;
-	if (!last) {
-		kfree_skb(buf);
-		return;
-	}
-
-	for (item = &dports; item; item = item->next) {
-		for (i = 0; i < PLSIZE && ++dst <= last; i++) {
-			b = (dst != last) ? skb_clone(buf, GFP_ATOMIC) : buf;
-			if (!b) {
-				pr_warn("Failed do clone mcast rcv buffer\n");
-				continue;
-			}
-			msg_set_destport(msg, item->ports[i]);
-			skb_queue_head_init(&msgs);
-			skb_queue_tail(&msgs, b);
-			tipc_sk_rcv(net, &msgs);
+	portid = tipc_plist_pop(&dports);
+	for (; portid; portid = tipc_plist_pop(&dports)) {
+		cskb = __pskb_copy(skb, hsz, GFP_ATOMIC);
+		if (!cskb) {
+			pr_warn("Failed do clone mcast rcv buffer\n");
+			continue;
 		}
+		msg_set_destport(buf_msg(cskb), portid);
+		skb_queue_tail(&msgq, cskb);
 	}
+	tipc_sk_rcv(net, &msgq);
 exit:
-	tipc_port_list_free(&dports);
+	kfree_skb(skb);
 }
 
 /**

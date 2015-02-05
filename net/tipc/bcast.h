@@ -1,7 +1,7 @@
 /*
  * net/tipc/bcast.h: Include file for TIPC broadcast code
  *
- * Copyright (c) 2003-2006, 2014, Ericsson AB
+ * Copyright (c) 2003-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -41,22 +41,6 @@
 #include "link.h"
 #include "node.h"
 
-#define TIPC_BCLINK_RESET	1
-#define PLSIZE			32
-#define	BCBEARER		MAX_BEARERS
-
-/**
- * struct tipc_port_list - set of node local destination ports
- * @count: # of ports in set (only valid for first entry in list)
- * @next: pointer to next entry in list
- * @ports: array of port references
- */
-struct tipc_port_list {
-	int count;
-	struct tipc_port_list *next;
-	u32 ports[PLSIZE];
-};
-
 /**
  * struct tipc_bcbearer_pair - a pair of bearers used by broadcast link
  * @primary: pointer to primary bearer
@@ -70,6 +54,9 @@ struct tipc_bcbearer_pair {
 	struct tipc_bearer *primary;
 	struct tipc_bearer *secondary;
 };
+
+#define TIPC_BCLINK_RESET	1
+#define	BCBEARER		MAX_BEARERS
 
 /**
  * struct tipc_bcbearer - bearer used by broadcast link
@@ -125,9 +112,6 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a,
 {
 	return !memcmp(nm_a, nm_b, sizeof(*nm_a));
 }
-
-void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port);
-void tipc_port_list_free(struct tipc_port_list *pl_ptr);
 
 int tipc_bclink_init(struct net *net);
 void tipc_bclink_stop(struct net *net);

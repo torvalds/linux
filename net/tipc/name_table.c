@@ -1,7 +1,7 @@
 /*
  * net/tipc/name_table.c: TIPC name table code
  *
- * Copyright (c) 2000-2006, 2014, Ericsson AB
+ * Copyright (c) 2000-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2014, Wind River Systems
  * All rights reserved.
  *
@@ -618,7 +618,7 @@ not_found:
  * Returns non-zero if any off-node ports overlap
  */
 int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
-			      u32 limit, struct tipc_port_list *dports)
+			      u32 limit, struct tipc_plist *dports)
 {
 	struct name_seq *seq;
 	struct sub_seq *sseq;
@@ -643,7 +643,7 @@ int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
 		info = sseq->info;
 		list_for_each_entry(publ, &info->node_list, node_list) {
 			if (publ->scope <= limit)
-				tipc_port_list_add(dports, publ->ref);
+				tipc_plist_push(dports, publ->ref);
 		}
 
 		if (info->cluster_list_size != info->node_list_size)
@@ -1211,4 +1211,42 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	cb->args[3] = done;
 
 	return skb->len;
+}
+
+void tipc_plist_push(struct tipc_plist *pl, u32 port)
+{
+	struct tipc_plist *nl;
+
+	if (likely(!pl->port)) {
+		pl->port = port;
+		return;
+	}
+	if (pl->port == port)
+		return;
+	list_for_each_entry(nl, &pl->list, list) {
+		if (nl->port == port)
+			return;
+	}
+	nl = kmalloc(sizeof(*nl), GFP_ATOMIC);
+	if (nl) {
+		nl->port = port;
+		list_add(&nl->list, &pl->list);
+	}
+}
+
+u32 tipc_plist_pop(struct tipc_plist *pl)
+{
+	struct tipc_plist *nl;
+	u32 port = 0;
+
+	if (likely(list_empty(&pl->list))) {
+		port = pl->port;
+		pl->port = 0;
+		return port;
+	}
+	nl = list_first_entry(&pl->list, typeof(*nl), list);
+	port = nl->port;
+	list_del(&nl->list);
+	kfree(nl);
+	return port;
 }
