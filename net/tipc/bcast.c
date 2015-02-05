@@ -283,10 +283,11 @@ exit:
  *
  * RCU and node lock set
  */
-void tipc_bclink_update_link_state(struct net *net, struct tipc_node *n_ptr,
+void tipc_bclink_update_link_state(struct tipc_node *n_ptr,
 				   u32 last_sent)
 {
 	struct sk_buff *buf;
+	struct net *net = n_ptr->net;
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	/* Ignore "stale" link state info */
@@ -317,7 +318,7 @@ void tipc_bclink_update_link_state(struct net *net, struct tipc_node *n_ptr,
 		struct sk_buff *skb = skb_peek(&n_ptr->bclink.deferred_queue);
 		u32 to = skb ? buf_seqno(skb) - 1 : n_ptr->bclink.last_sent;
 
-		tipc_msg_init(net, msg, BCAST_PROTOCOL, STATE_MSG,
+		tipc_msg_init(tn->own_addr, msg, BCAST_PROTOCOL, STATE_MSG,
 			      INT_H_SIZE, n_ptr->addr);
 		msg_set_non_seq(msg, 1);
 		msg_set_mc_netid(msg, tn->net_id);
@@ -954,6 +955,8 @@ int tipc_bclink_init(struct net *net)
 	bcl->bearer_id = MAX_BEARERS;
 	rcu_assign_pointer(tn->bearer_list[MAX_BEARERS], &bcbearer->bearer);
 	bcl->state = WORKING_WORKING;
+	bcl->pmsg = (struct tipc_msg *)&bcl->proto_msg;
+	msg_set_prevnode(bcl->pmsg, tn->own_addr);
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 	tn->bcbearer = bcbearer;
 	tn->bclink = bclink;

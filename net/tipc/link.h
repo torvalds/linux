@@ -278,6 +278,10 @@ static inline u32 lesser(u32 left, u32 right)
 	return less_eq(left, right) ? left : right;
 }
 
+static inline u32 link_own_addr(struct tipc_link *l)
+{
+	return msg_prevnode(l->pmsg);
+}
 
 /*
  * Link status checking routines

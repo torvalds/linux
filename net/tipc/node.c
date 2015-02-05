@@ -204,7 +204,7 @@ void tipc_node_abort_sock_conns(struct net *net, struct list_head *conns)
 	struct sk_buff *buf;
 
 	list_for_each_entry_safe(conn, safe, conns, list) {
-		buf = tipc_msg_create(net, TIPC_CRITICAL_IMPORTANCE,
+		buf = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
 				      TIPC_CONN_MSG, SHORT_H_SIZE, 0,
 				      tn->own_addr, conn->peer_node,
 				      conn->port, conn->peer_port,

@@ -70,25 +70,23 @@ struct sk_buff *tipc_buf_acquire(u32 size)
 	return skb;
 }
 
-void tipc_msg_init(struct net *net, struct tipc_msg *m, u32 user, u32 type,
-		   u32 hsize, u32 destnode)
+void tipc_msg_init(u32 own_node, struct tipc_msg *m, u32 user, u32 type,
+		   u32 hsize, u32 dnode)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-
 	memset(m, 0, hsize);
 	msg_set_version(m);
 	msg_set_user(m, user);
 	msg_set_hdr_sz(m, hsize);
 	msg_set_size(m, hsize);
-	msg_set_prevnode(m, tn->own_addr);
+	msg_set_prevnode(m, own_node);
 	msg_set_type(m, type);
 	if (hsize > SHORT_H_SIZE) {
-		msg_set_orignode(m, tn->own_addr);
-		msg_set_destnode(m, destnode);
+		msg_set_orignode(m, own_node);
+		msg_set_destnode(m, dnode);
 	}
 }
 
-struct sk_buff *tipc_msg_create(struct net *net, uint user, uint type,
+struct sk_buff *tipc_msg_create(uint user, uint type,
 				uint hdr_sz, uint data_sz, u32 dnode,
 				u32 onode, u32 dport, u32 oport, int errcode)
 {
@@ -100,9 +98,8 @@ struct sk_buff *tipc_msg_create(struct net *net, uint user, uint type,
 		return NULL;
 
 	msg = buf_msg(buf);
-	tipc_msg_init(net, msg, user, type, hdr_sz, dnode);
+	tipc_msg_init(onode, msg, user, type, hdr_sz, dnode);
 	msg_set_size(msg, hdr_sz + data_sz);
-	msg_set_prevnode(msg, onode);
 	msg_set_origport(msg, oport);
 	msg_set_destport(msg, dport);
 	msg_set_errcode(msg, errcode);
@@ -195,7 +192,7 @@ err:
  *
  * Returns message data size or errno: -ENOMEM, -EFAULT
  */
-int tipc_msg_build(struct net *net, struct tipc_msg *mhdr, struct msghdr *m,
+int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int pktmax, struct sk_buff_head *list)
 {
 	int mhsz = msg_hdr_sz(mhdr);
@@ -227,8 +224,8 @@ int tipc_msg_build(struct net *net, struct tipc_msg *mhdr, struct msghdr *m,
 	}
 
 	/* Prepare reusable fragment header */
-	tipc_msg_init(net, &pkthdr, MSG_FRAGMENTER, FIRST_FRAGMENT, INT_H_SIZE,
-		      msg_destnode(mhdr));
+	tipc_msg_init(msg_prevnode(mhdr), &pkthdr, MSG_FRAGMENTER,
+		      FIRST_FRAGMENT, INT_H_SIZE, msg_destnode(mhdr));
 	msg_set_size(&pkthdr, pktmax);
 	msg_set_fragm_no(&pkthdr, pktno);
 
@@ -338,7 +335,7 @@ bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu)
  * Replaces buffer if successful
  * Returns true if success, otherwise false
  */
-bool tipc_msg_make_bundle(struct net *net, struct sk_buff_head *list,
+bool tipc_msg_make_bundle(struct sk_buff_head *list,
 			  struct sk_buff *skb, u32 mtu, u32 dnode)
 {
 	struct sk_buff *bskb;
@@ -362,7 +359,8 @@ bool tipc_msg_make_bundle(struct net *net, struct sk_buff_head *list,
 
 	skb_trim(bskb, INT_H_SIZE);
 	bmsg = buf_msg(bskb);
-	tipc_msg_init(net, bmsg, MSG_BUNDLER, 0, INT_H_SIZE, dnode);
+	tipc_msg_init(msg_prevnode(msg), bmsg, MSG_BUNDLER, 0,
+		      INT_H_SIZE, dnode);
 	msg_set_seqno(bmsg, msg_seqno(msg));
 	msg_set_ack(bmsg, msg_ack(msg));
 	msg_set_bcast_ack(bmsg, msg_bcast_ack(msg));
@@ -379,10 +377,9 @@ bool tipc_msg_make_bundle(struct net *net, struct sk_buff_head *list,
  * Consumes buffer if failure
  * Returns true if success, otherwise false
  */
-bool tipc_msg_reverse(struct net *net, struct sk_buff *buf, u32 *dnode,
+bool tipc_msg_reverse(u32 own_addr,  struct sk_buff *buf, u32 *dnode,
 		      int err)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_msg *msg = buf_msg(buf);
 	uint imp = msg_importance(msg);
 	struct tipc_msg ohdr;
@@ -402,7 +399,7 @@ bool tipc_msg_reverse(struct net *net, struct sk_buff *buf, u32 *dnode,
 	msg_set_errcode(msg, err);
 	msg_set_origport(msg, msg_destport(&ohdr));
 	msg_set_destport(msg, msg_origport(&ohdr));
-	msg_set_prevnode(msg, tn->own_addr);
+	msg_set_prevnode(msg, own_addr);
 	if (!msg_short(msg)) {
 		msg_set_orignode(msg, msg_destnode(&ohdr));
 		msg_set_destnode(msg, msg_orignode(&ohdr));

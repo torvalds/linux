@@ -101,13 +101,12 @@ static const struct nla_policy tipc_nl_prop_policy[TIPC_NLA_PROP_MAX + 1] = {
  */
 #define START_CHANGEOVER 100000u
 
-static void link_handle_out_of_seq_msg(struct net *net,
-				       struct tipc_link *l_ptr,
-				       struct sk_buff *buf);
-static void tipc_link_proto_rcv(struct net *net, struct tipc_link *l_ptr,
-				struct sk_buff *buf);
-static int  tipc_link_tunnel_rcv(struct net *net, struct tipc_node *n_ptr,
-				 struct sk_buff **buf);
+static void link_handle_out_of_seq_msg(struct tipc_link *link,
+				       struct sk_buff *skb);
+static void tipc_link_proto_rcv(struct tipc_link *link,
+				struct sk_buff *skb);
+static int  tipc_link_tunnel_rcv(struct tipc_node *node,
+				 struct sk_buff **skb);
 static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tol);
 static void link_state_event(struct tipc_link *l_ptr, u32 event);
 static void link_reset_statistics(struct tipc_link *l_ptr);
@@ -303,7 +302,7 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 
 	l_ptr->pmsg = (struct tipc_msg *)&l_ptr->proto_msg;
 	msg = l_ptr->pmsg;
-	tipc_msg_init(n_ptr->net, msg, LINK_PROTOCOL, RESET_MSG, INT_H_SIZE,
+	tipc_msg_init(tn->own_addr, msg, LINK_PROTOCOL, RESET_MSG, INT_H_SIZE,
 		      l_ptr->addr);
 	msg_set_size(msg, sizeof(l_ptr->proto_msg));
 	msg_set_session(msg, (tn->random & 0xffff));
@@ -379,12 +378,11 @@ void tipc_link_delete_list(struct net *net, unsigned int bearer_id,
 static bool link_schedule_user(struct tipc_link *link, u32 oport,
 			       uint chain_sz, uint imp)
 {
-	struct net *net = link->owner->net;
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct sk_buff *buf;
 
-	buf = tipc_msg_create(net, SOCK_WAKEUP, 0, INT_H_SIZE, 0, tn->own_addr,
-			      tn->own_addr, oport, 0, 0);
+	buf = tipc_msg_create(SOCK_WAKEUP, 0, INT_H_SIZE, 0,
+			      link_own_addr(link), link_own_addr(link),
+			      oport, 0, 0);
 	if (!buf)
 		return false;
 	TIPC_SKB_CB(buf)->chain_sz = chain_sz;
@@ -778,7 +776,7 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 		} else if (tipc_msg_bundle(outqueue, skb, mtu)) {
 			link->stats.sent_bundled++;
 			continue;
-		} else if (tipc_msg_make_bundle(net, outqueue, skb, mtu,
+		} else if (tipc_msg_make_bundle(outqueue, skb, mtu,
 						link->addr)) {
 			link->stats.sent_bundled++;
 			link->stats.sent_bundles++;
@@ -877,7 +875,7 @@ static void tipc_link_sync_xmit(struct tipc_link *link)
 		return;
 
 	msg = buf_msg(skb);
-	tipc_msg_init(link->owner->net, msg, BCAST_PROTOCOL, STATE_MSG,
+	tipc_msg_init(link_own_addr(link), msg, BCAST_PROTOCOL, STATE_MSG,
 		      INT_H_SIZE, link->addr);
 	msg_set_last_bcast(msg, link->owner->bclink.acked);
 	__tipc_link_xmit_skb(link, skb);
@@ -1207,7 +1205,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		/* Process the incoming packet */
 		if (unlikely(!link_working_working(l_ptr))) {
 			if (msg_user(msg) == LINK_PROTOCOL) {
-				tipc_link_proto_rcv(net, l_ptr, skb);
+				tipc_link_proto_rcv(l_ptr, skb);
 				link_retrieve_defq(l_ptr, &head);
 				tipc_node_unlock(n_ptr);
 				continue;
@@ -1227,7 +1225,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 
 		/* Link is now in state WORKING_WORKING */
 		if (unlikely(seq_no != mod(l_ptr->next_in_no))) {
-			link_handle_out_of_seq_msg(net, l_ptr, skb);
+			link_handle_out_of_seq_msg(l_ptr, skb);
 			link_retrieve_defq(l_ptr, &head);
 			tipc_node_unlock(n_ptr);
 			continue;
@@ -1275,7 +1273,7 @@ static int tipc_link_prepare_input(struct net *net, struct tipc_link *l,
 	msg = buf_msg(*buf);
 	switch (msg_user(msg)) {
 	case CHANGEOVER_PROTOCOL:
-		if (tipc_link_tunnel_rcv(net, n, buf))
+		if (tipc_link_tunnel_rcv(n, buf))
 			res = 0;
 		break;
 	case MSG_FRAGMENTER:
@@ -1375,14 +1373,13 @@ u32 tipc_link_defer_pkt(struct sk_buff_head *list, struct sk_buff *skb)
 /*
  * link_handle_out_of_seq_msg - handle arrival of out-of-sequence packet
  */
-static void link_handle_out_of_seq_msg(struct net *net,
-				       struct tipc_link *l_ptr,
+static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 				       struct sk_buff *buf)
 {
 	u32 seq_no = buf_seqno(buf);
 
 	if (likely(msg_user(buf_msg(buf)) == LINK_PROTOCOL)) {
-		tipc_link_proto_rcv(net, l_ptr, buf);
+		tipc_link_proto_rcv(l_ptr, buf);
 		return;
 	}
 
@@ -1507,10 +1504,9 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
  * Note that network plane id propagates through the network, and may
  * change at any time. The node with lowest address rules
  */
-static void tipc_link_proto_rcv(struct net *net, struct tipc_link *l_ptr,
+static void tipc_link_proto_rcv(struct tipc_link *l_ptr,
 				struct sk_buff *buf)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	u32 rec_gap = 0;
 	u32 max_pkt_info;
 	u32 max_pkt_ack;
@@ -1522,7 +1518,7 @@ static void tipc_link_proto_rcv(struct net *net, struct tipc_link *l_ptr,
 		goto exit;
 
 	if (l_ptr->net_plane != msg_net_plane(msg))
-		if (tn->own_addr > msg_prevnode(msg))
+		if (link_own_addr(l_ptr) > msg_prevnode(msg))
 			l_ptr->net_plane = msg_net_plane(msg);
 
 	switch (msg_type(msg)) {
@@ -1625,7 +1621,7 @@ static void tipc_link_proto_rcv(struct net *net, struct tipc_link *l_ptr,
 
 		/* Protocol message before retransmits, reduce loss risk */
 		if (l_ptr->owner->bclink.recv_permitted)
-			tipc_bclink_update_link_state(net, l_ptr->owner,
+			tipc_bclink_update_link_state(l_ptr->owner,
 						      msg_last_bcast(msg));
 
 		if (rec_gap || (msg_probe(msg))) {
@@ -1690,7 +1686,7 @@ void tipc_link_failover_send_queue(struct tipc_link *l_ptr)
 	if (!tunnel)
 		return;
 
-	tipc_msg_init(l_ptr->owner->net, &tunnel_hdr, CHANGEOVER_PROTOCOL,
+	tipc_msg_init(link_own_addr(l_ptr), &tunnel_hdr, CHANGEOVER_PROTOCOL,
 		      ORIGINAL_MSG, INT_H_SIZE, l_ptr->addr);
 	msg_set_bearer_id(&tunnel_hdr, l_ptr->peer_bearer_id);
 	msg_set_msgcnt(&tunnel_hdr, msgcount);
@@ -1748,7 +1744,7 @@ void tipc_link_dup_queue_xmit(struct tipc_link *l_ptr,
 	struct sk_buff *skb;
 	struct tipc_msg tunnel_hdr;
 
-	tipc_msg_init(l_ptr->owner->net, &tunnel_hdr, CHANGEOVER_PROTOCOL,
+	tipc_msg_init(link_own_addr(l_ptr), &tunnel_hdr, CHANGEOVER_PROTOCOL,
 		      DUPLICATE_MSG, INT_H_SIZE, l_ptr->addr);
 	msg_set_msgcnt(&tunnel_hdr, skb_queue_len(&l_ptr->outqueue));
 	msg_set_bearer_id(&tunnel_hdr, l_ptr->peer_bearer_id);
@@ -1802,7 +1798,7 @@ static struct sk_buff *buf_extract(struct sk_buff *skb, u32 from_pos)
 /* tipc_link_dup_rcv(): Receive a tunnelled DUPLICATE_MSG packet.
  * Owner node is locked.
  */
-static void tipc_link_dup_rcv(struct net *net, struct tipc_link *l_ptr,
+static void tipc_link_dup_rcv(struct tipc_link *l_ptr,
 			      struct sk_buff *t_buf)
 {
 	struct sk_buff *buf;
@@ -1817,7 +1813,7 @@ static void tipc_link_dup_rcv(struct net *net, struct tipc_link *l_ptr,
 	}
 
 	/* Add buffer to deferred queue, if applicable: */
-	link_handle_out_of_seq_msg(net, l_ptr, buf);
+	link_handle_out_of_seq_msg(l_ptr, buf);
 }
 
 /*  tipc_link_failover_rcv(): Receive a tunnelled ORIGINAL_MSG packet
@@ -1869,7 +1865,7 @@ exit:
  *  returned to the active link for delivery upwards.
  *  Owner node is locked.
  */
-static int tipc_link_tunnel_rcv(struct net *net, struct tipc_node *n_ptr,
+static int tipc_link_tunnel_rcv(struct tipc_node *n_ptr,
 				struct sk_buff **buf)
 {
 	struct sk_buff *t_buf = *buf;
@@ -1887,7 +1883,7 @@ static int tipc_link_tunnel_rcv(struct net *net, struct tipc_node *n_ptr,
 		goto exit;
 
 	if (msg_type(t_msg) == DUPLICATE_MSG)
-		tipc_link_dup_rcv(net, l_ptr, t_buf);
+		tipc_link_dup_rcv(l_ptr, t_buf);
 	else if (msg_type(t_msg) == ORIGINAL_MSG)
 		*buf = tipc_link_failover_rcv(l_ptr, t_buf);
 	else
