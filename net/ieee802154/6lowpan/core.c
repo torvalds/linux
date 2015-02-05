@@ -126,6 +126,7 @@ static void lowpan_setup(struct net_device *dev)
 	dev->header_ops		= &lowpan_header_ops;
 	dev->ml_priv		= &lowpan_mlme;
 	dev->destructor		= free_netdev;
+	dev->features		|= NETIF_F_NETNS_LOCAL;
 }
 
 static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -148,10 +149,11 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 
 	pr_debug("adding new link\n");
 
-	if (!tb[IFLA_LINK])
+	if (!tb[IFLA_LINK] ||
+	    !net_eq(dev_net(dev), &init_net))
 		return -EINVAL;
 	/* find and hold real wpan device */
-	real_dev = dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
+	real_dev = dev_get_by_index(dev_net(dev), nla_get_u32(tb[IFLA_LINK]));
 	if (!real_dev)
 		return -ENODEV;
 	if (real_dev->type != ARPHRD_IEEE802154) {
