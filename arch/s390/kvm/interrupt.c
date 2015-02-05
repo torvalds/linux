@@ -484,7 +484,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_pgm_info pgm_info;
-	int rc = 0;
+	int rc = 0, nullifying = false;
 	u16 ilc = get_ilc(vcpu);
 
 	spin_lock(&li->lock);
@@ -509,6 +509,8 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	case PGM_LX_TRANSLATION:
 	case PGM_PRIMARY_AUTHORITY:
 	case PGM_SECONDARY_AUTHORITY:
+		nullifying = true;
+		/* fall through */
 	case PGM_SPACE_SWITCH:
 		rc = put_guest_lc(vcpu, pgm_info.trans_exc_code,
 				  (u64 *)__LC_TRANS_EXC_CODE);
@@ -521,6 +523,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	case PGM_EXTENDED_AUTHORITY:
 		rc = put_guest_lc(vcpu, pgm_info.exc_access_id,
 				  (u8 *)__LC_EXC_ACCESS_ID);
+		nullifying = true;
 		break;
 	case PGM_ASCE_TYPE:
 	case PGM_PAGE_TRANSLATION:
@@ -534,6 +537,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 				   (u8 *)__LC_EXC_ACCESS_ID);
 		rc |= put_guest_lc(vcpu, pgm_info.op_access_id,
 				   (u8 *)__LC_OP_ACCESS_ID);
+		nullifying = true;
 		break;
 	case PGM_MONITOR:
 		rc = put_guest_lc(vcpu, pgm_info.mon_class_nr,
@@ -551,6 +555,15 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 		rc |= put_guest_lc(vcpu, pgm_info.exc_access_id,
 				   (u8 *)__LC_EXC_ACCESS_ID);
 		break;
+	case PGM_STACK_FULL:
+	case PGM_STACK_EMPTY:
+	case PGM_STACK_SPECIFICATION:
+	case PGM_STACK_TYPE:
+	case PGM_STACK_OPERATION:
+	case PGM_TRACE_TABEL:
+	case PGM_CRYPTO_OPERATION:
+		nullifying = true;
+		break;
 	}
 
 	if (pgm_info.code & PGM_PER) {
@@ -563,6 +576,9 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 		rc |= put_guest_lc(vcpu, pgm_info.per_access_id,
 				   (u8 *) __LC_PER_ACCESS_ID);
 	}
+
+	if (nullifying && vcpu->arch.sie_block->icptcode == ICPT_INST)
+		kvm_s390_rewind_psw(vcpu, ilc);
 
 	rc |= put_guest_lc(vcpu, ilc, (u16 *) __LC_PGM_ILC);
 	rc |= put_guest_lc(vcpu, pgm_info.code,
