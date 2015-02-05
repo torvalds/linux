@@ -2035,7 +2035,7 @@ const struct ethtool_ops macb_ethtool_ops = {
 };
 EXPORT_SYMBOL_GPL(macb_ethtool_ops);
 
-const struct ethtool_ops gem_ethtool_ops = {
+static const struct ethtool_ops gem_ethtool_ops = {
 	.get_settings		= macb_get_settings,
 	.set_settings		= macb_set_settings,
 	.get_regs_len		= macb_get_regs_len,
@@ -2046,7 +2046,6 @@ const struct ethtool_ops gem_ethtool_ops = {
 	.get_strings		= gem_get_ethtool_strings,
 	.get_sset_count		= gem_get_sset_count,
 };
-EXPORT_SYMBOL_GPL(gem_ethtool_ops);
 
 int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
