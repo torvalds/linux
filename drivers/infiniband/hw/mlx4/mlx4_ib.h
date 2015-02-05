@@ -134,10 +134,17 @@ struct mlx4_ib_fmr {
 	struct mlx4_fmr         mfmr;
 };
 
+#define MAX_REGS_PER_FLOW 2
+
+struct mlx4_flow_reg_id {
+	u64 id;
+	u64 mirror;
+};
+
 struct mlx4_ib_flow {
 	struct ib_flow ibflow;
 	/* translating DMFS verbs sniffer rule to FW API requires two reg IDs */
-	u64 reg_id[2];
+	struct mlx4_flow_reg_id reg_id[MAX_REGS_PER_FLOW];
 };
 
 struct mlx4_ib_wq {
@@ -527,6 +534,7 @@ struct mlx4_ib_dev {
 	struct mlx4_ib_qp      *qp1_proxy[MLX4_MAX_PORTS];
 	/* lock when destroying qp1_proxy and getting netdev events */
 	struct mutex		qp1_proxy_lock[MLX4_MAX_PORTS];
+	u8			bond_next_port;
 };
 
 struct ib_event_work {
@@ -620,6 +628,13 @@ static inline struct mlx4_ib_srq *to_mibsrq(struct mlx4_srq *msrq)
 static inline struct mlx4_ib_ah *to_mah(struct ib_ah *ibah)
 {
 	return container_of(ibah, struct mlx4_ib_ah, ibah);
+}
+
+static inline u8 mlx4_ib_bond_next_port(struct mlx4_ib_dev *dev)
+{
+	dev->bond_next_port = (dev->bond_next_port + 1) % dev->num_ports;
+
+	return dev->bond_next_port + 1;
 }
 
 int mlx4_ib_init_sriov(struct mlx4_ib_dev *dev);

@@ -1160,6 +1160,91 @@ err_set_port:
 	return err ? err : count;
 }
 
+int mlx4_bond(struct mlx4_dev *dev)
+{
+	int ret = 0;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	mutex_lock(&priv->bond_mutex);
+
+	if (!mlx4_is_bonded(dev))
+		ret = mlx4_do_bond(dev, true);
+	else
+		ret = 0;
+
+	mutex_unlock(&priv->bond_mutex);
+	if (ret)
+		mlx4_err(dev, "Failed to bond device: %d\n", ret);
+	else
+		mlx4_dbg(dev, "Device is bonded\n");
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mlx4_bond);
+
+int mlx4_unbond(struct mlx4_dev *dev)
+{
+	int ret = 0;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	mutex_lock(&priv->bond_mutex);
+
+	if (mlx4_is_bonded(dev))
+		ret = mlx4_do_bond(dev, false);
+
+	mutex_unlock(&priv->bond_mutex);
+	if (ret)
+		mlx4_err(dev, "Failed to unbond device: %d\n", ret);
+	else
+		mlx4_dbg(dev, "Device is unbonded\n");
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mlx4_unbond);
+
+
+int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
+{
+	u8 port1 = v2p->port1;
+	u8 port2 = v2p->port2;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int err;
+
+	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP))
+		return -ENOTSUPP;
+
+	mutex_lock(&priv->bond_mutex);
+
+	/* zero means keep current mapping for this port */
+	if (port1 == 0)
+		port1 = priv->v2p.port1;
+	if (port2 == 0)
+		port2 = priv->v2p.port2;
+
+	if ((port1 < 1) || (port1 > MLX4_MAX_PORTS) ||
+	    (port2 < 1) || (port2 > MLX4_MAX_PORTS) ||
+	    (port1 == 2 && port2 == 1)) {
+		/* besides boundary checks cross mapping makes
+		 * no sense and therefore not allowed */
+		err = -EINVAL;
+	} else if ((port1 == priv->v2p.port1) &&
+		 (port2 == priv->v2p.port2)) {
+		err = 0;
+	} else {
+		err = mlx4_virt2phy_port_map(dev, port1, port2);
+		if (!err) {
+			mlx4_dbg(dev, "port map changed: [%d][%d]\n",
+				 port1, port2);
+			priv->v2p.port1 = port1;
+			priv->v2p.port2 = port2;
+		} else {
+			mlx4_err(dev, "Failed to change port mape: %d\n", err);
+		}
+	}
+
+	mutex_unlock(&priv->bond_mutex);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_port_map_set);
+
 static int mlx4_load_fw(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -2638,6 +2723,7 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 	spin_lock_init(&priv->ctx_lock);
 
 	mutex_init(&priv->port_mutex);
+	mutex_init(&priv->bond_mutex);
 
 	INIT_LIST_HEAD(&priv->pgdir_list);
 	mutex_init(&priv->pgdir_mutex);
@@ -2933,6 +3019,9 @@ slave_start:
 		if (err)
 			goto err_port;
 	}
+
+	priv->v2p.port1 = 1;
+	priv->v2p.port2 = 2;
 
 	err = mlx4_register_device(dev);
 	if (err)

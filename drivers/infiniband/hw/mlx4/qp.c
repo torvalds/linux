@@ -40,6 +40,7 @@
 #include <rdma/ib_addr.h>
 #include <rdma/ib_mad.h>
 
+#include <linux/mlx4/driver.h>
 #include <linux/mlx4/qp.h>
 
 #include "mlx4_ib.h"
@@ -93,17 +94,6 @@ enum {
 #ifndef ETH_ALEN
 #define ETH_ALEN        6
 #endif
-static inline u64 mlx4_mac_to_u64(u8 *addr)
-{
-	u64 mac = 0;
-	int i;
-
-	for (i = 0; i < ETH_ALEN; i++) {
-		mac <<= 8;
-		mac |= addr[i];
-	}
-	return mac;
-}
 
 static const __be32 mlx4_ib_opcode[] = {
 	[IB_WR_SEND]				= cpu_to_be32(MLX4_OPCODE_SEND),
@@ -1915,6 +1905,22 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		goto out;
 	}
 
+	if (mlx4_is_bonded(dev->dev) && (attr_mask & IB_QP_PORT)) {
+		if ((cur_state == IB_QPS_RESET) && (new_state == IB_QPS_INIT)) {
+			if ((ibqp->qp_type == IB_QPT_RC) ||
+			    (ibqp->qp_type == IB_QPT_UD) ||
+			    (ibqp->qp_type == IB_QPT_UC) ||
+			    (ibqp->qp_type == IB_QPT_RAW_PACKET) ||
+			    (ibqp->qp_type == IB_QPT_XRC_INI)) {
+				attr->port_num = mlx4_ib_bond_next_port(dev);
+			}
+		} else {
+			/* no sense in changing port_num
+			 * when ports are bonded */
+			attr_mask &= ~IB_QP_PORT;
+		}
+	}
+
 	if ((attr_mask & IB_QP_PORT) &&
 	    (attr->port_num == 0 || attr->port_num > dev->num_ports)) {
 		pr_debug("qpn 0x%x: invalid port number (%d) specified "
@@ -1964,6 +1970,9 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	}
 
 	err = __mlx4_ib_modify_qp(ibqp, attr, attr_mask, cur_state, new_state);
+
+	if (mlx4_is_bonded(dev->dev) && (attr_mask & IB_QP_PORT))
+		attr->port_num = 1;
 
 out:
 	mutex_unlock(&qp->mutex);

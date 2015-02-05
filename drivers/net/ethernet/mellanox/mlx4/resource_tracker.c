@@ -2944,6 +2944,9 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 	qp_type	= (be32_to_cpu(qp_ctx->flags) >> 16) & 0xff;
 	optpar	= be32_to_cpu(*(__be32 *) inbox->buf);
 
+	if (slave != mlx4_master_func_num(dev))
+		qp_ctx->params2 &= ~MLX4_QP_BIT_FPP;
+
 	switch (qp_type) {
 	case MLX4_QP_ST_RC:
 	case MLX4_QP_ST_XRC:
