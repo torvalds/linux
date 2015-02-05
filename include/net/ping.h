@@ -59,7 +59,7 @@ extern struct pingv6_ops pingv6_ops;
 
 struct pingfakehdr {
 	struct icmphdr icmph;
-	struct iovec *iov;
+	struct msghdr *msg;
 	sa_family_t family;
 	__wsum wcheck;
 };

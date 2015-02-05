@@ -2487,19 +2487,18 @@ static inline int skb_put_padto(struct sk_buff *skb, unsigned int len)
 }
 
 static inline int skb_add_data(struct sk_buff *skb,
-			       char __user *from, int copy)
+			       struct iov_iter *from, int copy)
 {
 	const int off = skb->len;
 
 	if (skb->ip_summed == CHECKSUM_NONE) {
-		int err = 0;
-		__wsum csum = csum_and_copy_from_user(from, skb_put(skb, copy),
-							    copy, 0, &err);
-		if (!err) {
+		__wsum csum = 0;
+		if (csum_and_copy_from_iter(skb_put(skb, copy), copy,
+					    &csum, from) == copy) {
 			skb->csum = csum_block_add(skb->csum, csum, off);
 			return 0;
 		}
-	} else if (!copy_from_user(skb_put(skb, copy), from, copy))
+	} else if (copy_from_iter(skb_put(skb, copy), copy, from) == copy)
 		return 0;
 
 	__skb_trim(skb, off);
@@ -2696,8 +2695,7 @@ int skb_vlan_push(struct sk_buff *skb, __be16 vlan_proto, u16 vlan_tci);
 
 static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
 {
-	/* XXX: stripping const */
-	return memcpy_fromiovec(data, (struct iovec *)msg->msg_iter.iov, len);
+	return copy_from_iter(data, len, &msg->msg_iter) == len ? 0 : -EFAULT;
 }
 
 static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)

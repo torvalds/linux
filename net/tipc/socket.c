@@ -733,6 +733,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	struct net *net = sock_net(sk);
 	struct tipc_msg *mhdr = &tipc_sk(sk)->phdr;
 	struct sk_buff_head head;
+	struct iov_iter save = msg->msg_iter;
 	uint mtu;
 	int rc;
 
@@ -758,8 +759,10 @@ new_mtu:
 			rc = dsz;
 			break;
 		}
-		if (rc == -EMSGSIZE)
+		if (rc == -EMSGSIZE) {
+			msg->msg_iter = save;
 			goto new_mtu;
+		}
 		if (rc != -ELINKCONG)
 			break;
 		tipc_sk(sk)->link_cong = 1;
@@ -895,6 +898,7 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct sk_buff_head head;
 	struct sk_buff *skb;
 	struct tipc_name_seq *seq = &dest->addr.nameseq;
+	struct iov_iter save;
 	u32 mtu;
 	long timeo;
 	int rc;
@@ -963,6 +967,7 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 		msg_set_hdr_sz(mhdr, BASIC_H_SIZE);
 	}
 
+	save = m->msg_iter;
 new_mtu:
 	mtu = tipc_node_get_mtu(net, dnode, tsk->portid);
 	__skb_queue_head_init(&head);
@@ -980,8 +985,10 @@ new_mtu:
 			rc = dsz;
 			break;
 		}
-		if (rc == -EMSGSIZE)
+		if (rc == -EMSGSIZE) {
+			m->msg_iter = save;
 			goto new_mtu;
+		}
 		if (rc != -ELINKCONG)
 			break;
 		tsk->link_cong = 1;
@@ -1052,6 +1059,7 @@ static int tipc_send_stream(struct kiocb *iocb, struct socket *sock,
 	long timeo;
 	u32 dnode;
 	uint mtu, send, sent = 0;
+	struct iov_iter save;
 
 	/* Handle implied connection establishment */
 	if (unlikely(dest)) {
@@ -1078,6 +1086,7 @@ static int tipc_send_stream(struct kiocb *iocb, struct socket *sock,
 	dnode = tsk_peer_node(tsk);
 
 next:
+	save = m->msg_iter;
 	mtu = tsk->max_pkt;
 	send = min_t(uint, dsz - sent, TIPC_MAX_USER_MSG_SIZE);
 	__skb_queue_head_init(&head);
@@ -1097,6 +1106,7 @@ next:
 			if (rc == -EMSGSIZE) {
 				tsk->max_pkt = tipc_node_get_mtu(net, dnode,
 								 portid);
+				m->msg_iter = save;
 				goto next;
 			}
 			if (rc != -ELINKCONG)

@@ -1803,27 +1803,25 @@ static inline void sk_nocaps_add(struct sock *sk, netdev_features_t flags)
 }
 
 static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
-					   char __user *from, char *to,
+					   struct iov_iter *from, char *to,
 					   int copy, int offset)
 {
 	if (skb->ip_summed == CHECKSUM_NONE) {
-		int err = 0;
-		__wsum csum = csum_and_copy_from_user(from, to, copy, 0, &err);
-		if (err)
-			return err;
+		__wsum csum = 0;
+		if (csum_and_copy_from_iter(to, copy, &csum, from) != copy)
+			return -EFAULT;
 		skb->csum = csum_block_add(skb->csum, csum, offset);
 	} else if (sk->sk_route_caps & NETIF_F_NOCACHE_COPY) {
-		if (!access_ok(VERIFY_READ, from, copy) ||
-		    __copy_from_user_nocache(to, from, copy))
+		if (copy_from_iter_nocache(to, copy, from) != copy)
 			return -EFAULT;
-	} else if (copy_from_user(to, from, copy))
+	} else if (copy_from_iter(to, copy, from) != copy)
 		return -EFAULT;
 
 	return 0;
 }
 
 static inline int skb_add_data_nocache(struct sock *sk, struct sk_buff *skb,
-				       char __user *from, int copy)
+				       struct iov_iter *from, int copy)
 {
 	int err, offset = skb->len;
 
@@ -1835,7 +1833,7 @@ static inline int skb_add_data_nocache(struct sock *sk, struct sk_buff *skb,
 	return err;
 }
 
-static inline int skb_copy_to_page_nocache(struct sock *sk, char __user *from,
+static inline int skb_copy_to_page_nocache(struct sock *sk, struct iov_iter *from,
 					   struct sk_buff *skb,
 					   struct page *page,
 					   int off, int copy)
