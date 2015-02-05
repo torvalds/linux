@@ -2624,13 +2624,10 @@ static ssize_t file_store(struct device *dev, struct device_attribute *attr,
 	return fsg_store_file(curlun, filesem, buf, count);
 }
 
-static DEVICE_ATTR_RW(ro);
 static DEVICE_ATTR_RW(nofua);
-static DEVICE_ATTR_RW(file);
-
-static struct device_attribute dev_attr_ro_cdrom = __ATTR_RO(ro);
-static struct device_attribute dev_attr_file_nonremovable = __ATTR_RO(file);
-
+/* mode wil be set in fsg_lun_attr_is_visible() */
+static DEVICE_ATTR(ro, 0, ro_show, ro_store);
+static DEVICE_ATTR(file, 0, file_show, file_store);
 
 /****************************** FSG COMMON ******************************/
 
@@ -2745,40 +2742,10 @@ error_release:
 }
 EXPORT_SYMBOL_GPL(fsg_common_set_num_buffers);
 
-static inline void fsg_common_remove_sysfs(struct fsg_lun *lun)
-{
-	device_remove_file(&lun->dev, &dev_attr_nofua);
-	/*
-	 * device_remove_file() =>
-	 *
-	 * here the attr (e.g. dev_attr_ro) is only used to be passed to:
-	 *
-	 *	sysfs_remove_file() =>
-	 *
-	 *	here e.g. both dev_attr_ro_cdrom and dev_attr_ro are in
-	 *	the same namespace and
-	 *	from here only attr->name is passed to:
-	 *
-	 *		sysfs_hash_and_remove()
-	 *
-	 *		attr->name is the same for dev_attr_ro_cdrom and
-	 *		dev_attr_ro
-	 *		attr->name is the same for dev_attr_file and
-	 *		dev_attr_file_nonremovable
-	 *
-	 * so we don't differentiate between removing e.g. dev_attr_ro_cdrom
-	 * and dev_attr_ro
-	 */
-	device_remove_file(&lun->dev, &dev_attr_ro);
-	device_remove_file(&lun->dev, &dev_attr_file);
-}
-
 void fsg_common_remove_lun(struct fsg_lun *lun, bool sysfs)
 {
-	if (sysfs) {
-		fsg_common_remove_sysfs(lun);
+	if (sysfs)
 		device_unregister(&lun->dev);
-	}
 	fsg_lun_close(lun);
 	kfree(lun);
 }
@@ -2877,41 +2844,35 @@ int fsg_common_set_cdev(struct fsg_common *common,
 }
 EXPORT_SYMBOL_GPL(fsg_common_set_cdev);
 
-static inline int fsg_common_add_sysfs(struct fsg_common *common,
-				       struct fsg_lun *lun)
+static struct attribute *fsg_lun_dev_attrs[] = {
+	&dev_attr_ro.attr,
+	&dev_attr_file.attr,
+	&dev_attr_nofua.attr,
+	NULL
+};
+
+static umode_t fsg_lun_dev_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int idx)
 {
-	int rc;
+	struct device *dev = kobj_to_dev(kobj);
+	struct fsg_lun *lun = fsg_lun_from_dev(dev);
 
-	rc = device_register(&lun->dev);
-	if (rc) {
-		put_device(&lun->dev);
-		return rc;
-	}
-
-	rc = device_create_file(&lun->dev,
-				lun->cdrom
-			      ? &dev_attr_ro_cdrom
-			      : &dev_attr_ro);
-	if (rc)
-		goto error;
-	rc = device_create_file(&lun->dev,
-				lun->removable
-			      ? &dev_attr_file
-			      : &dev_attr_file_nonremovable);
-	if (rc)
-		goto error;
-	rc = device_create_file(&lun->dev, &dev_attr_nofua);
-	if (rc)
-		goto error;
-
-	return 0;
-
-error:
-	/* removing nonexistent files is a no-op */
-	fsg_common_remove_sysfs(lun);
-	device_unregister(&lun->dev);
-	return rc;
+	if (attr == &dev_attr_ro.attr)
+		return lun->cdrom ? S_IRUGO : (S_IWUSR | S_IRUGO);
+	if (attr == &dev_attr_file.attr)
+		return lun->removable ? (S_IWUSR | S_IRUGO) : S_IRUGO;
+	return attr->mode;
 }
+
+static const struct attribute_group fsg_lun_dev_group = {
+	.attrs = fsg_lun_dev_attrs,
+	.is_visible = fsg_lun_dev_is_visible,
+};
+
+static const struct attribute_group *fsg_lun_dev_groups[] = {
+	&fsg_lun_dev_group,
+	NULL
+};
 
 int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 			  unsigned int id, const char *name,
@@ -2949,13 +2910,15 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 	} else {
 		lun->dev.release = fsg_lun_release;
 		lun->dev.parent = &common->gadget->dev;
+		lun->dev.groups = fsg_lun_dev_groups;
 		dev_set_drvdata(&lun->dev, &common->filesem);
 		dev_set_name(&lun->dev, "%s", name);
 		lun->name = dev_name(&lun->dev);
 
-		rc = fsg_common_add_sysfs(common, lun);
+		rc = device_register(&lun->dev);
 		if (rc) {
 			pr_info("failed to register LUN%d: %d\n", id, rc);
+			put_device(&lun->dev);
 			goto error_sysfs;
 		}
 	}
@@ -2988,10 +2951,8 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 	return 0;
 
 error_lun:
-	if (common->sysfs) {
-		fsg_common_remove_sysfs(lun);
+	if (common->sysfs)
 		device_unregister(&lun->dev);
-	}
 	fsg_lun_close(lun);
 	common->luns[id] = NULL;
 error_sysfs:
@@ -3077,8 +3038,6 @@ static void fsg_common_release(struct kref *ref)
 			struct fsg_lun *lun = *lun_it;
 			if (!lun)
 				continue;
-			if (common->sysfs)
-				fsg_common_remove_sysfs(lun);
 			fsg_lun_close(lun);
 			if (common->sysfs)
 				device_unregister(&lun->dev);
