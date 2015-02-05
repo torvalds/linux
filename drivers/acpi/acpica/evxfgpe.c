@@ -194,12 +194,21 @@ ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
  * RETURN:      Status
  *
  * DESCRIPTION: Enable or disable an individual GPE. This function bypasses
- *              the reference count mechanism used in the acpi_enable_gpe and
- *              acpi_disable_gpe interfaces -- and should be used with care.
+ *              the reference count mechanism used in the acpi_enable_gpe(),
+ *              acpi_disable_gpe() interfaces.
+ *              This API is typically used by the GPE raw handler mode driver
+ *              to switch between the polling mode and the interrupt mode after
+ *              the driver has enabled the GPE.
+ *              The APIs should be invoked in this order:
+ *               acpi_enable_gpe()            <- Ensure the reference count > 0
+ *               acpi_set_gpe(ACPI_GPE_DISABLE) <- Enter polling mode
+ *               acpi_set_gpe(ACPI_GPE_ENABLE) <- Leave polling mode
+ *               acpi_disable_gpe()           <- Decrease the reference count
  *
- * Note: Typically used to disable a runtime GPE for short period of time,
- * then re-enable it, without disturbing the existing reference counts. This
- * is useful, for example, in the Embedded Controller (EC) driver.
+ * Note: If a GPE is shared by 2 silicon components, then both the drivers
+ *       should support GPE polling mode or disabling the GPE for long period
+ *       for one driver may break the other. So use it with care since all
+ *       firmware _Lxx/_Exx handlers currently rely on the GPE interrupt mode.
  *
  ******************************************************************************/
 acpi_status acpi_set_gpe(acpi_handle gpe_device, u32 gpe_number, u8 action)
@@ -225,7 +234,7 @@ acpi_status acpi_set_gpe(acpi_handle gpe_device, u32 gpe_number, u8 action)
 	switch (action) {
 	case ACPI_GPE_ENABLE:
 
-		status = acpi_ev_enable_gpe(gpe_event_info);
+		status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_ENABLE);
 		break;
 
 	case ACPI_GPE_DISABLE:
