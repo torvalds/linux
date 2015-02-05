@@ -727,9 +727,10 @@ _load_ucode_intel_bsp(struct mc_saved_data *mc_saved_data,
 
 	ret = load_microcode(mc_saved_data, mc_saved_in_initrd,
 			     initrd_start_early, uci);
+	if (ret != UCODE_OK)
+		return;
 
-	if (ret == UCODE_OK)
-		apply_microcode_early(uci, true);
+	apply_microcode_early(uci, true);
 }
 
 void __init
@@ -769,6 +770,7 @@ void load_ucode_intel_ap(void)
 	struct ucode_cpu_info uci;
 	unsigned long *mc_saved_in_initrd_p;
 	unsigned long initrd_start_addr;
+	enum ucode_state ret;
 #ifdef CONFIG_X86_32
 	unsigned long *initrd_start_p;
 
@@ -791,8 +793,12 @@ void load_ucode_intel_ap(void)
 		return;
 
 	collect_cpu_info_early(&uci);
-	load_microcode(mc_saved_data_p, mc_saved_in_initrd_p,
-		       initrd_start_addr, &uci);
+	ret = load_microcode(mc_saved_data_p, mc_saved_in_initrd_p,
+			     initrd_start_addr, &uci);
+
+	if (ret != UCODE_OK)
+		return;
+
 	apply_microcode_early(&uci, true);
 }
 
