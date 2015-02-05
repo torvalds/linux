@@ -377,9 +377,11 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 	};
 
 	dst = ip6_route_output(dev_net(dev), NULL, &fl6);
-	if (IS_ERR(dst))
+	if (dst->error) {
+		ret = dst->error;
+		dst_release(dst);
 		goto err;
-
+	}
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
 	err = ip6_local_out(skb);

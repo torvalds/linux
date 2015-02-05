@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
+#include "kfd_pm4_headers.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -169,9 +170,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd->shared_resources = *gpu_resources;
 
 	/* calculate max size of mqds needed for queues */
-	size = max_num_of_processes *
-		max_num_of_queues_per_process *
-		kfd->device_info->mqd_size_aligned;
+	size = max_num_of_queues_per_device *
+			kfd->device_info->mqd_size_aligned;
 
 	/* add another 512KB for all other allocations on gart */
 	size += 512 * 1024;

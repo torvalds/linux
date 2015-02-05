@@ -55,6 +55,12 @@
 	model = "LeMaker Banana Pi";
 	compatible = "lemaker,bananapi", "allwinner,sun7i-a20";
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart3;
+		serial2 = &uart7;
+	};
+
 	soc@01c00000 {
 		spi0: spi@01c05000 {
 			pinctrl-names = "default";

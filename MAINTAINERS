@@ -708,6 +708,16 @@ X:	drivers/iio/*/adjd*
 F:	drivers/staging/iio/*/ad*
 F:	staging/iio/trigger/iio-trig-bfin-timer.c
 
+ANDROID DRIVERS
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+M:	Arve Hjønnevåg <arve@android.com>
+M:	Riley Andrews <riandrews@android.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/gregkh/staging.git
+L:	devel@driverdev.osuosl.org
+S:	Supported
+F:	drivers/android/
+F:	drivers/staging/android/
+
 AOA (Apple Onboard Audio) ALSA DRIVER
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -4942,6 +4952,16 @@ S:	Odd fixes
 F:	Documentation/input/multi-touch-protocol.txt
 F:	drivers/input/input-mt.c
 K:	\b(ABS|SYN)_MT_
+
+INTEL ASoC BDW/HSW DRIVERS
+M:	Jie Yang <yang.jie@linux.intel.com>
+L:	alsa-devel@alsa-project.org
+S:	Supported
+F:	sound/soc/intel/sst-haswell*
+F:	sound/soc/intel/sst-dsp*
+F:	sound/soc/intel/sst-firmware.c
+F:	sound/soc/intel/broadwell.c
+F:	sound/soc/intel/haswell.c
 
 INTEL C600 SERIES SAS CONTROLLER DRIVER
 M:	Intel SCU Linux support <intel-linux-scu@intel.com>
@@ -10166,6 +10186,7 @@ USERSPACE I/O (UIO)
 M:	"Hans J. Koch" <hjk@hansjkoch.de>
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/char-misc.git
 F:	Documentation/DocBook/uio-howto.tmpl
 F:	drivers/uio/
 F:	include/linux/uio*.h
