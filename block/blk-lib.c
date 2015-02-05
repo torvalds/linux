@@ -286,7 +286,6 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
  * @discard:	whether to discard the block range
  *
  * Description:
-
  *  Zero-fill a block range.  If the discard flag is set and the block
  *  device guarantees that subsequent READ operations to the block range
  *  in question will return zeroes, the blocks will be discarded. Should
@@ -303,26 +302,15 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 			 sector_t nr_sects, gfp_t gfp_mask, bool discard)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
-	unsigned char bdn[BDEVNAME_SIZE];
 
-	if (discard && blk_queue_discard(q) && q->limits.discard_zeroes_data) {
+	if (discard && blk_queue_discard(q) && q->limits.discard_zeroes_data &&
+	    blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, 0) == 0)
+		return 0;
 
-		if (!blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, 0))
-			return 0;
-
-		bdevname(bdev, bdn);
-		pr_warn("%s: DISCARD failed. Manually zeroing.\n", bdn);
-	}
-
-	if (bdev_write_same(bdev)) {
-
-		if (!blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
-					     ZERO_PAGE(0)))
-			return 0;
-
-		bdevname(bdev, bdn);
-		pr_warn("%s: WRITE SAME failed. Manually zeroing.\n", bdn);
-	}
+	if (bdev_write_same(bdev) &&
+	    blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
+				    ZERO_PAGE(0)) == 0)
+		return 0;
 
 	return __blkdev_issue_zeroout(bdev, sector, nr_sects, gfp_mask);
 }
