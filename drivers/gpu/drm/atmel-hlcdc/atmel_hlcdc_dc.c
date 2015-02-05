@@ -222,6 +222,8 @@ static void atmel_hlcdc_fb_output_poll_changed(struct drm_device *dev)
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = atmel_hlcdc_fb_create,
 	.output_poll_changed = atmel_hlcdc_fb_output_poll_changed,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
@@ -318,6 +320,8 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 		dev_err(dev->dev, "failed to initialize mode setting\n");
 		goto err_periph_clk_disable;
 	}
+
+	drm_mode_config_reset(dev);
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret < 0) {
