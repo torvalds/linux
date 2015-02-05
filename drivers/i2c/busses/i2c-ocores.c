@@ -12,6 +12,7 @@
  * kind, whether express or implied.
  */
 
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -35,6 +36,7 @@ struct ocores_i2c {
 	int pos;
 	int nmsgs;
 	int state; /* see STATE_ */
+	struct clk *clk;
 	int ip_clock_khz;
 	int bus_clock_khz;
 	void (*setreg)(struct ocores_i2c *i2c, int reg, u8 value);
@@ -339,7 +341,21 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 							&clock_frequency);
 	i2c->bus_clock_khz = 100;
 
-	if (of_property_read_u32(np, "opencores,ip-clock-frequency", &val)) {
+	i2c->clk = devm_clk_get(&pdev->dev, NULL);
+
+	if (!IS_ERR(i2c->clk)) {
+		int ret = clk_prepare_enable(i2c->clk);
+
+		if (ret) {
+			dev_err(&pdev->dev,
+				"clk_prepare_enable failed: %d\n", ret);
+			return ret;
+		}
+		i2c->ip_clock_khz = clk_get_rate(i2c->clk) / 1000;
+		if (clock_frequency_present)
+			i2c->bus_clock_khz = clock_frequency / 1000;
+	} else if (of_property_read_u32(np, "opencores,ip-clock-frequency",
+					&val)) {
 		if (!clock_frequency_present) {
 			dev_err(&pdev->dev,
 				"Missing required parameter 'opencores,ip-clock-frequency'\n");
@@ -477,6 +493,9 @@ static int ocores_i2c_remove(struct platform_device *pdev)
 	/* remove adapter & data */
 	i2c_del_adapter(&i2c->adap);
 
+	if (!IS_ERR(i2c->clk))
+		clk_disable_unprepare(i2c->clk);
+
 	return 0;
 }
 
@@ -489,6 +508,8 @@ static int ocores_i2c_suspend(struct device *dev)
 	/* make sure the device is disabled */
 	oc_setreg(i2c, OCI2C_CONTROL, ctrl & ~(OCI2C_CTRL_EN|OCI2C_CTRL_IEN));
 
+	if (!IS_ERR(i2c->clk))
+		clk_disable_unprepare(i2c->clk);
 	return 0;
 }
 
@@ -496,6 +517,16 @@ static int ocores_i2c_resume(struct device *dev)
 {
 	struct ocores_i2c *i2c = dev_get_drvdata(dev);
 
+	if (!IS_ERR(i2c->clk)) {
+		int ret = clk_prepare_enable(i2c->clk);
+
+		if (ret) {
+			dev_err(dev,
+				"clk_prepare_enable failed: %d\n", ret);
+			return ret;
+		}
+		i2c->ip_clock_khz = clk_get_rate(i2c->clk) / 1000;
+	}
 	return ocores_init(dev, i2c);
 }
 
