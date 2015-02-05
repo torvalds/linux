@@ -706,6 +706,16 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 
 		/* Send the error out to userspace via KVM_RUN */
 		return rc;
+	case H_LOGICAL_CI_LOAD:
+		ret = kvmppc_h_logical_ci_load(vcpu);
+		if (ret == H_TOO_HARD)
+			return RESUME_HOST;
+		break;
+	case H_LOGICAL_CI_STORE:
+		ret = kvmppc_h_logical_ci_store(vcpu);
+		if (ret == H_TOO_HARD)
+			return RESUME_HOST;
+		break;
 	case H_SET_MODE:
 		ret = kvmppc_h_set_mode(vcpu, kvmppc_get_gpr(vcpu, 4),
 					kvmppc_get_gpr(vcpu, 5),
@@ -740,6 +750,8 @@ static int kvmppc_hcall_impl_hv(unsigned long cmd)
 	case H_CONFER:
 	case H_REGISTER_VPA:
 	case H_SET_MODE:
+	case H_LOGICAL_CI_LOAD:
+	case H_LOGICAL_CI_STORE:
 #ifdef CONFIG_KVM_XICS
 	case H_XIRR:
 	case H_CPPR:
