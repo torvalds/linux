@@ -3456,7 +3456,7 @@ enum ADAPTIVE_KEY_MODE {
 	LAYFLAT_MODE
 };
 
-const int adaptive_keyboard_modes[] = {
+static const int adaptive_keyboard_modes[] = {
 	HOME_MODE,
 /*	WEB_BROWSER_MODE = 2,
 	WEB_CONFERENCE_MODE = 3, */
