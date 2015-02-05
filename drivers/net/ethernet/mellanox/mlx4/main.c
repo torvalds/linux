@@ -251,7 +251,8 @@ static void mlx4_enable_cqe_eqe_stride(struct mlx4_dev *dev)
 		if (mlx4_is_master(dev))
 			dev_cap->function_caps |= MLX4_FUNC_CAP_EQE_CQE_STRIDE;
 	} else {
-		mlx4_dbg(dev, "Disabling CQE stride cacheLine unsupported\n");
+		if (cache_line_size() != 32  && cache_line_size() != 64)
+			mlx4_dbg(dev, "Disabling CQE stride, cacheLine size unsupported\n");
 		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_CQE_STRIDE;
 		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
 	}

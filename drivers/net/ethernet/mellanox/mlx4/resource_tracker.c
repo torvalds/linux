@@ -2541,7 +2541,7 @@ int mlx4_SW2HW_MPT_wrapper(struct mlx4_dev *dev, int slave,
 	/* Make sure that the PD bits related to the slave id are zeros. */
 	pd = mr_get_pd(inbox->buf);
 	pd_slave = (pd >> 17) & 0x7f;
-	if (pd_slave != 0 && pd_slave != slave) {
+	if (pd_slave != 0 && --pd_slave != slave) {
 		err = -EPERM;
 		goto ex_abort;
 	}
