@@ -531,6 +531,13 @@ static ssize_t hso_sysfs_show_porttype(struct device *dev,
 }
 static DEVICE_ATTR(hsotype, S_IRUGO, hso_sysfs_show_porttype, NULL);
 
+static struct attribute *hso_serial_dev_attrs[] = {
+	&dev_attr_hsotype.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(hso_serial_dev);
+
 static int hso_urb_to_index(struct hso_serial *serial, struct urb *urb)
 {
 	int idx;
@@ -2236,9 +2243,6 @@ static int hso_stop_serial_device(struct hso_device *hso_dev)
 
 static void hso_serial_tty_unregister(struct hso_serial *serial)
 {
-	if (serial->parent->dev)
-		device_remove_file(serial->parent->dev, &dev_attr_hsotype);
-
 	tty_unregister_device(tty_drv, serial->minor);
 }
 
@@ -2274,11 +2278,10 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 		goto exit;
 
 	/* register our minor number */
-	serial->parent->dev = tty_port_register_device(&serial->port, tty_drv,
-			minor, &serial->parent->interface->dev);
+	serial->parent->dev = tty_port_register_device_attr(&serial->port,
+			tty_drv, minor, &serial->parent->interface->dev,
+			serial->parent, hso_serial_dev_groups);
 	dev = serial->parent->dev;
-	dev_set_drvdata(dev, serial->parent);
-	i = device_create_file(dev, &dev_attr_hsotype);
 
 	/* fill in specific data for later use */
 	serial->minor = minor;
