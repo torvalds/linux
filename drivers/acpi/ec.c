@@ -121,6 +121,7 @@ struct transaction {
 };
 
 static int acpi_ec_query(struct acpi_ec *ec, u8 *data);
+static void advance_transaction(struct acpi_ec *ec);
 
 struct acpi_ec *boot_ec, *first_ec;
 EXPORT_SYMBOL(first_ec);
@@ -132,7 +133,7 @@ static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
 static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
 
 /* --------------------------------------------------------------------------
- *                           Transaction Management
+ *                           EC Registers
  * -------------------------------------------------------------------------- */
 
 static inline u8 acpi_ec_read_status(struct acpi_ec *ec)
@@ -191,6 +192,64 @@ static const char *acpi_ec_cmd_string(u8 cmd)
 #define acpi_ec_cmd_string(cmd)		"UNDEF"
 #endif
 
+/* --------------------------------------------------------------------------
+ *                           GPE Registers
+ * -------------------------------------------------------------------------- */
+
+static inline bool acpi_ec_is_gpe_raised(struct acpi_ec *ec)
+{
+	acpi_event_status gpe_status = 0;
+
+	(void)acpi_get_gpe_status(NULL, ec->gpe, &gpe_status);
+	return (gpe_status & ACPI_EVENT_FLAG_SET) ? true : false;
+}
+
+static inline void acpi_ec_enable_gpe(struct acpi_ec *ec, bool open)
+{
+	if (open)
+		acpi_enable_gpe(NULL, ec->gpe);
+	else
+		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
+	if (acpi_ec_is_gpe_raised(ec)) {
+		/*
+		 * On some platforms, EN=1 writes cannot trigger GPE. So
+		 * software need to manually trigger a pseudo GPE event on
+		 * EN=1 writes.
+		 */
+		pr_debug("***** Polling quirk *****\n");
+		advance_transaction(ec);
+	}
+}
+
+static inline void acpi_ec_disable_gpe(struct acpi_ec *ec, bool close)
+{
+	if (close)
+		acpi_disable_gpe(NULL, ec->gpe);
+	else
+		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
+}
+
+static inline void acpi_ec_clear_gpe(struct acpi_ec *ec)
+{
+	/*
+	 * GPE STS is a W1C register, which means:
+	 * 1. Software can clear it without worrying about clearing other
+	 *    GPEs' STS bits when the hardware sets them in parallel.
+	 * 2. As long as software can ensure only clearing it when it is
+	 *    set, hardware won't set it in parallel.
+	 * So software can clear GPE in any contexts.
+	 * Warning: do not move the check into advance_transaction() as the
+	 * EC commands will be sent without GPE raised.
+	 */
+	if (!acpi_ec_is_gpe_raised(ec))
+		return;
+	acpi_clear_gpe(NULL, ec->gpe);
+}
+
+/* --------------------------------------------------------------------------
+ *                           Transaction Management
+ * -------------------------------------------------------------------------- */
+
 static void acpi_ec_submit_query(struct acpi_ec *ec)
 {
 	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
@@ -227,6 +286,12 @@ static void advance_transaction(struct acpi_ec *ec)
 
 	pr_debug("===== %s (%d) =====\n",
 		 in_interrupt() ? "IRQ" : "TASK", smp_processor_id());
+	/*
+	 * By always clearing STS before handling all indications, we can
+	 * ensure a hardware STS 0->1 change after this clearing can always
+	 * trigger a GPE interrupt.
+	 */
+	acpi_ec_clear_gpe(ec);
 	status = acpi_ec_read_status(ec);
 	t = ec->curr;
 	if (!t)
@@ -378,7 +443,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 	/* disable GPE during transaction if storm is detected */
 	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
 		/* It has to be disabled, so that it doesn't trigger. */
-		acpi_disable_gpe(NULL, ec->gpe);
+		acpi_ec_disable_gpe(ec, false);
 	}
 
 	status = acpi_ec_transaction_unlocked(ec, t);
@@ -386,7 +451,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
 		msleep(1);
 		/* It is safe to enable the GPE outside of the transaction. */
-		acpi_enable_gpe(NULL, ec->gpe);
+		acpi_ec_enable_gpe(ec, false);
 	} else if (t->irq_count > ec_storm_threshold) {
 		pr_info("GPE storm detected(%d GPEs), "
 			"transactions will use polling mode\n",
@@ -693,7 +758,7 @@ static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
 	spin_lock_irqsave(&ec->lock, flags);
 	advance_transaction(ec);
 	spin_unlock_irqrestore(&ec->lock, flags);
-	return ACPI_INTERRUPT_HANDLED | ACPI_REENABLE_GPE;
+	return ACPI_INTERRUPT_HANDLED;
 }
 
 /* --------------------------------------------------------------------------
@@ -812,13 +877,13 @@ static int ec_install_handlers(struct acpi_ec *ec)
 
 	if (test_bit(EC_FLAGS_HANDLERS_INSTALLED, &ec->flags))
 		return 0;
-	status = acpi_install_gpe_handler(NULL, ec->gpe,
+	status = acpi_install_gpe_raw_handler(NULL, ec->gpe,
 				  ACPI_GPE_EDGE_TRIGGERED,
 				  &acpi_ec_gpe_handler, ec);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	acpi_enable_gpe(NULL, ec->gpe);
+	acpi_ec_enable_gpe(ec, true);
 	status = acpi_install_address_space_handler(ec->handle,
 						    ACPI_ADR_SPACE_EC,
 						    &acpi_ec_space_handler,
@@ -833,7 +898,7 @@ static int ec_install_handlers(struct acpi_ec *ec)
 			pr_err("Fail in evaluating the _REG object"
 				" of EC device. Broken bios is suspected.\n");
 		} else {
-			acpi_disable_gpe(NULL, ec->gpe);
+			acpi_ec_disable_gpe(ec, true);
 			acpi_remove_gpe_handler(NULL, ec->gpe,
 				&acpi_ec_gpe_handler);
 			return -ENODEV;
@@ -848,7 +913,7 @@ static void ec_remove_handlers(struct acpi_ec *ec)
 {
 	if (!test_bit(EC_FLAGS_HANDLERS_INSTALLED, &ec->flags))
 		return;
-	acpi_disable_gpe(NULL, ec->gpe);
+	acpi_ec_disable_gpe(ec, true);
 	if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
 				ACPI_ADR_SPACE_EC, &acpi_ec_space_handler)))
 		pr_err("failed to remove space handler\n");
