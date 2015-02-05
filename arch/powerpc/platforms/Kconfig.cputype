@@ -2,6 +2,7 @@ config PPC64
 	bool "64-bit kernel"
 	default n
 	select HAVE_VIRT_CPU_ACCOUNTING
+	select ZLIB_DEFLATE
 	help
 	  This option selects whether a 32-bit or a 64-bit kernel
 	  will be built.

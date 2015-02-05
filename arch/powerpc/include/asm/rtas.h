@@ -343,8 +343,12 @@ extern int early_init_dt_scan_rtas(unsigned long node,
 extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 
 #ifdef CONFIG_PPC_PSERIES
+extern unsigned long last_rtas_event;
+extern int clobbering_unread_rtas_event(void);
 extern int pseries_devicetree_update(s32 scope);
 extern void post_mobility_fixup(void);
+#else
+static inline int clobbering_unread_rtas_event(void) { return 0; }
 #endif
 
 #ifdef CONFIG_PPC_RTAS_DAEMON
