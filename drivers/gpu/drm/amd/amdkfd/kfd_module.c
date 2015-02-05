@@ -95,10 +95,10 @@ static int __init kfd_module_init(void)
 	}
 
 	/* Verify module parameters */
-	if ((max_num_of_queues_per_device < 0) ||
+	if ((max_num_of_queues_per_device < 1) ||
 		(max_num_of_queues_per_device >
 			KFD_MAX_NUM_OF_QUEUES_PER_DEVICE)) {
-		pr_err("kfd: max_num_of_queues_per_device must be between 0 to KFD_MAX_NUM_OF_QUEUES_PER_DEVICE\n");
+		pr_err("kfd: max_num_of_queues_per_device must be between 1 to KFD_MAX_NUM_OF_QUEUES_PER_DEVICE\n");
 		return -1;
 	}
 

@@ -315,7 +315,11 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 	BUG_ON(!pqm);
 
 	pqn = get_queue_by_qid(pqm, qid);
-	BUG_ON(!pqn);
+	if (!pqn) {
+		pr_debug("amdkfd: No queue %d exists for update operation\n",
+				qid);
+		return -EFAULT;
+	}
 
 	pqn->q->properties.queue_address = p->queue_address;
 	pqn->q->properties.queue_size = p->queue_size;
