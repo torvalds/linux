@@ -231,23 +231,23 @@ static acpi_status resource_to_addr(struct acpi_resource *resource,
 	case ACPI_RESOURCE_TYPE_MEMORY24:
 		memory24 = &resource->data.memory24;
 		addr->resource_type = ACPI_MEMORY_RANGE;
-		addr->minimum = memory24->minimum;
-		addr->address_length = memory24->address_length;
-		addr->maximum = addr->minimum + addr->address_length - 1;
+		addr->address.minimum = memory24->minimum;
+		addr->address.address_length = memory24->address_length;
+		addr->address.maximum = addr->address.minimum + addr->address.address_length - 1;
 		return AE_OK;
 	case ACPI_RESOURCE_TYPE_MEMORY32:
 		memory32 = &resource->data.memory32;
 		addr->resource_type = ACPI_MEMORY_RANGE;
-		addr->minimum = memory32->minimum;
-		addr->address_length = memory32->address_length;
-		addr->maximum = addr->minimum + addr->address_length - 1;
+		addr->address.minimum = memory32->minimum;
+		addr->address.address_length = memory32->address_length;
+		addr->address.maximum = addr->address.minimum + addr->address.address_length - 1;
 		return AE_OK;
 	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
 		fixed_memory32 = &resource->data.fixed_memory32;
 		addr->resource_type = ACPI_MEMORY_RANGE;
-		addr->minimum = fixed_memory32->address;
-		addr->address_length = fixed_memory32->address_length;
-		addr->maximum = addr->minimum + addr->address_length - 1;
+		addr->address.minimum = fixed_memory32->address;
+		addr->address.address_length = fixed_memory32->address_length;
+		addr->address.maximum = addr->address.minimum + addr->address.address_length - 1;
 		return AE_OK;
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
@@ -256,7 +256,7 @@ static acpi_status resource_to_addr(struct acpi_resource *resource,
 		if (ACPI_SUCCESS(status) &&
 		    (addr->resource_type == ACPI_MEMORY_RANGE ||
 		    addr->resource_type == ACPI_IO_RANGE) &&
-		    addr->address_length > 0) {
+		    addr->address.address_length > 0) {
 			return AE_OK;
 		}
 		break;
@@ -298,8 +298,8 @@ static acpi_status setup_resource(struct acpi_resource *acpi_res, void *data)
 	} else
 		return AE_OK;
 
-	start = addr.minimum + addr.translation_offset;
-	orig_end = end = addr.maximum + addr.translation_offset;
+	start = addr.address.minimum + addr.address.translation_offset;
+	orig_end = end = addr.address.maximum + addr.address.translation_offset;
 
 	/* Exclude non-addressable range or non-addressable portion of range */
 	end = min(end, (u64)iomem_resource.end);
@@ -320,7 +320,7 @@ static acpi_status setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->flags = flags;
 	res->start = start;
 	res->end = end;
-	info->res_offset[info->res_num] = addr.translation_offset;
+	info->res_offset[info->res_num] = addr.address.translation_offset;
 	info->res_num++;
 
 	if (!pci_use_crs)

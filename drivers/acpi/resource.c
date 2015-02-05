@@ -202,22 +202,22 @@ bool acpi_dev_resource_address_space(struct acpi_resource *ares,
 	if (ACPI_FAILURE(status))
 		return false;
 
-	res->start = addr.minimum;
-	res->end = addr.maximum;
+	res->start = addr.address.minimum;
+	res->end = addr.address.maximum;
 	window = addr.producer_consumer == ACPI_PRODUCER;
 
 	switch(addr.resource_type) {
 	case ACPI_MEMORY_RANGE:
-		len = addr.maximum - addr.minimum + 1;
+		len = addr.address.maximum - addr.address.minimum + 1;
 		res->flags = acpi_dev_memresource_flags(len,
 						addr.info.mem.write_protect,
 						window);
 		break;
 	case ACPI_IO_RANGE:
-		io_decode = addr.granularity == 0xfff ?
+		io_decode = addr.address.granularity == 0xfff ?
 				ACPI_DECODE_10 : ACPI_DECODE_16;
-		res->flags = acpi_dev_ioresource_flags(addr.minimum,
-						       addr.maximum,
+		res->flags = acpi_dev_ioresource_flags(addr.address.minimum,
+						       addr.address.maximum,
 						       io_decode, window);
 		break;
 	case ACPI_BUS_NUMBER_RANGE:
@@ -253,22 +253,22 @@ bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
 
 	ext_addr = &ares->data.ext_address64;
 
-	res->start = ext_addr->minimum;
-	res->end = ext_addr->maximum;
+	res->start = ext_addr->address.minimum;
+	res->end = ext_addr->address.maximum;
 	window = ext_addr->producer_consumer == ACPI_PRODUCER;
 
 	switch(ext_addr->resource_type) {
 	case ACPI_MEMORY_RANGE:
-		len = ext_addr->maximum - ext_addr->minimum + 1;
+		len = ext_addr->address.maximum - ext_addr->address.minimum + 1;
 		res->flags = acpi_dev_memresource_flags(len,
 					ext_addr->info.mem.write_protect,
 					window);
 		break;
 	case ACPI_IO_RANGE:
-		io_decode = ext_addr->granularity == 0xfff ?
+		io_decode = ext_addr->address.granularity == 0xfff ?
 				ACPI_DECODE_10 : ACPI_DECODE_16;
-		res->flags = acpi_dev_ioresource_flags(ext_addr->minimum,
-						       ext_addr->maximum,
+		res->flags = acpi_dev_ioresource_flags(ext_addr->address.minimum,
+						       ext_addr->address.maximum,
 						       io_decode, window);
 		break;
 	case ACPI_BUS_NUMBER_RANGE:
