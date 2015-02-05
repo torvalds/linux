@@ -94,6 +94,9 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	m->cp_hqd_pipe_priority = 1;
 	m->cp_hqd_queue_priority = 15;
 
+	if (q->format == KFD_QUEUE_FORMAT_AQL)
+		m->cp_hqd_iq_rptr = AQL_ENABLE;
+
 	*mqd = m;
 	if (gart_addr != NULL)
 		*gart_addr = addr;
@@ -187,7 +190,6 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_vmid = q->vmid;
 
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
-		m->cp_hqd_iq_rptr = AQL_ENABLE;
 		m->cp_hqd_pq_control |= NO_UPDATE_RPTR;
 	}
 

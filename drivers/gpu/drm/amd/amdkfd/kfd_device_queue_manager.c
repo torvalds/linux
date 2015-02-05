@@ -167,7 +167,8 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	}
 
 	list_add(&q->list, &qpd->queues_list);
-	dqm->queue_count++;
+	if (q->properties.is_active)
+		dqm->queue_count++;
 
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
 		dqm->sdma_queue_count++;
@@ -313,7 +314,8 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 	list_del(&q->list);
 	if (list_empty(&qpd->queues_list))
 		deallocate_vmid(dqm, qpd, q);
-	dqm->queue_count--;
+	if (q->properties.is_active)
+		dqm->queue_count--;
 
 	/*
 	 * Unconditionally decrement this counter, regardless of the queue's
@@ -1018,7 +1020,8 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 		dqm->sdma_queue_count--;
 
 	list_del(&q->list);
-	dqm->queue_count--;
+	if (q->properties.is_active)
+		dqm->queue_count--;
 
 	execute_queues_cpsch(dqm, false);
 
