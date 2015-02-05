@@ -2631,7 +2631,7 @@ static int __init init(void)
 		return -EINVAL;
 
 	if (mod_data.num < 1 || mod_data.num > MAX_NUM_UDC) {
-		pr_err("Number of emulated UDC must be in range of 1…%d\n",
+		pr_err("Number of emulated UDC must be in range of 1...%d\n",
 				MAX_NUM_UDC);
 		return -EINVAL;
 	}
