@@ -49,7 +49,7 @@ int tipc_sock_create_local(struct net *net, int type, struct socket **res);
 void tipc_sock_release_local(struct socket *sock);
 int tipc_sock_accept_local(struct socket *sock, struct socket **newsock,
 			   int flags);
-int tipc_sk_rcv(struct net *net, struct sk_buff *buf);
+int tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq);
 struct sk_buff *tipc_sk_socks_show(struct net *net);
 void tipc_sk_mcast_rcv(struct net *net, struct sk_buff *buf);
 void tipc_sk_reinit(struct net *net);

@@ -45,6 +45,7 @@
  * Note: Some items are also used with TIPC internal message headers
  */
 #define TIPC_VERSION              2
+struct plist;
 
 /*
  * Payload message users are defined in TIPC's public API:
@@ -759,10 +760,82 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
 bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu);
 bool tipc_msg_make_bundle(struct sk_buff_head *list,
 			  struct sk_buff *skb, u32 mtu, u32 dnode);
+bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos);
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, u32 *dnode,
 			  int *err);
 struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
+
+/* tipc_skb_peek_port(): find a destination port, ignoring all destinations
+ *                       up to and including 'filter'.
+ * Note: ignoring previously tried destinations minimizes the risk of
+ *       contention on the socket lock
+ * @list: list to be peeked in
+ * @filter: last destination to be ignored from search
+ * Returns a destination port number, of applicable.
+ */
+static inline u32 tipc_skb_peek_port(struct sk_buff_head *list, u32 filter)
+{
+	struct sk_buff *skb;
+	u32 dport = 0;
+	bool ignore = true;
+
+	spin_lock_bh(&list->lock);
+	skb_queue_walk(list, skb) {
+		dport = msg_destport(buf_msg(skb));
+		if (!filter || skb_queue_is_last(list, skb))
+			break;
+		if (dport == filter)
+			ignore = false;
+		else if (!ignore)
+			break;
+	}
+	spin_unlock_bh(&list->lock);
+	return dport;
+}
+
+/* tipc_skb_dequeue(): unlink first buffer with dest 'dport' from list
+ * @list: list to be unlinked from
+ * @dport: selection criteria for buffer to unlink
+ */
+static inline struct sk_buff *tipc_skb_dequeue(struct sk_buff_head *list,
+					       u32 dport)
+{
+	struct sk_buff *_skb, *tmp, *skb = NULL;
+
+	spin_lock_bh(&list->lock);
+	skb_queue_walk_safe(list, _skb, tmp) {
+		if (msg_destport(buf_msg(_skb)) == dport) {
+			__skb_unlink(_skb, list);
+			skb = _skb;
+			break;
+		}
+	}
+	spin_unlock_bh(&list->lock);
+	return skb;
+}
+
+/* tipc_skb_queue_tail(): add buffer to tail of list;
+ * @list: list to be appended to
+ * @skb: buffer to append. Always appended
+ * @dport: the destination port of the buffer
+ * returns true if dport differs from previous destination
+ */
+static inline bool tipc_skb_queue_tail(struct sk_buff_head *list,
+				       struct sk_buff *skb, u32 dport)
+{
+	struct sk_buff *_skb = NULL;
+	bool rv = false;
+
+	spin_lock_bh(&list->lock);
+	_skb = skb_peek_tail(list);
+	if (!_skb || (msg_destport(buf_msg(_skb)) != dport) ||
+	    (skb_queue_len(list) > 32))
+		rv = true;
+	__skb_queue_tail(list, skb);
+	spin_unlock_bh(&list->lock);
+	return rv;
+}
 
 #endif

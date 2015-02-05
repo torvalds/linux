@@ -189,10 +189,8 @@ static void bclink_retransmit_pkt(struct tipc_net *tn, u32 after, u32 to)
 void tipc_bclink_wakeup_users(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(&tn->bclink->link.waiting_sks)))
-		tipc_sk_rcv(net, skb);
+	tipc_sk_rcv(net, &tn->bclink->link.wakeupq);
 }
 
 /**
@@ -271,9 +269,8 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 		tipc_link_push_packets(tn->bcl);
 		bclink_set_last_sent(net);
 	}
-	if (unlikely(released && !skb_queue_empty(&tn->bcl->waiting_sks)))
+	if (unlikely(released && !skb_queue_empty(&tn->bcl->wakeupq)))
 		n_ptr->action_flags |= TIPC_WAKEUP_BCAST_USERS;
-
 exit:
 	tipc_bclink_unlock(net);
 }
@@ -450,6 +447,9 @@ void tipc_bclink_rcv(struct net *net, struct sk_buff *buf)
 	u32 next_in;
 	u32 seqno;
 	int deferred = 0;
+	int pos = 0;
+	struct sk_buff *iskb;
+	struct sk_buff_head msgs;
 
 	/* Screen out unwanted broadcast messages */
 	if (msg_mc_netid(msg) != tn->net_id)
@@ -506,7 +506,8 @@ receive:
 			bcl->stats.recv_bundled += msg_msgcnt(msg);
 			tipc_bclink_unlock(net);
 			tipc_node_unlock(node);
-			tipc_link_bundle_rcv(net, buf);
+			while (tipc_msg_extract(buf, &iskb, &pos))
+				tipc_sk_mcast_rcv(net, iskb);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
 			tipc_buf_append(&node->bclink.reasm_buf, &buf);
 			if (unlikely(!buf && !node->bclink.reasm_buf))
@@ -527,7 +528,9 @@ receive:
 			bclink_accept_pkt(node, seqno);
 			tipc_bclink_unlock(net);
 			tipc_node_unlock(node);
-			tipc_named_rcv(net, buf);
+			skb_queue_head_init(&msgs);
+			skb_queue_tail(&msgs, buf);
+			tipc_named_rcv(net, &msgs);
 		} else {
 			tipc_bclink_lock(net);
 			bclink_accept_pkt(node, seqno);
@@ -944,10 +947,9 @@ int tipc_bclink_init(struct net *net)
 	spin_lock_init(&bclink->lock);
 	__skb_queue_head_init(&bcl->outqueue);
 	__skb_queue_head_init(&bcl->deferred_queue);
-	skb_queue_head_init(&bcl->waiting_sks);
+	skb_queue_head_init(&bcl->wakeupq);
 	bcl->next_out_no = 1;
 	spin_lock_init(&bclink->node.lock);
-	__skb_queue_head_init(&bclink->node.waiting_sks);
 	bcl->owner = &bclink->node;
 	bcl->owner->net = net;
 	bcl->max_pkt = MAX_PKT_DEFAULT_MCAST;

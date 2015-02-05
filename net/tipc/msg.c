@@ -327,6 +327,40 @@ bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu)
 }
 
 /**
+ *  tipc_msg_extract(): extract bundled inner packet from buffer
+ *  @skb: linear outer buffer, to be extracted from.
+ *  @iskb: extracted inner buffer, to be returned
+ *  @pos: position of msg to be extracted. Returns with pointer of next msg
+ *  Consumes outer buffer when last packet extracted
+ *  Returns true when when there is an extracted buffer, otherwise false
+ */
+bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
+{
+	struct tipc_msg *msg = buf_msg(skb);
+	int imsz;
+	struct tipc_msg *imsg = (struct tipc_msg *)(msg_data(msg) + *pos);
+
+	/* Is there space left for shortest possible message? */
+	if (*pos > (msg_data_sz(msg) - SHORT_H_SIZE))
+		goto none;
+	imsz = msg_size(imsg);
+
+	/* Is there space left for current message ? */
+	if ((*pos + imsz) > msg_data_sz(msg))
+		goto none;
+	*iskb = tipc_buf_acquire(imsz);
+	if (!*iskb)
+		goto none;
+	skb_copy_to_linear_data(*iskb, imsg, imsz);
+	*pos += align(imsz);
+	return true;
+none:
+	kfree_skb(skb);
+	*iskb = NULL;
+	return false;
+}
+
+/**
  * tipc_msg_make_bundle(): Create bundle buf and append message to its tail
  * @list: the buffer chain
  * @skb: buffer to be appended and replaced
