@@ -2109,8 +2109,7 @@ int xenvif_kthread_guest_rx(void *data)
 		 */
 		if (unlikely(vif->disabled && queue->id == 0)) {
 			xenvif_carrier_off(vif);
-			xenvif_rx_queue_purge(queue);
-			continue;
+			break;
 		}
 
 		if (!skb_queue_empty(&queue->rx_queue))
