@@ -204,6 +204,36 @@ static irqreturn_t pcf857x_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/*
+ * NOP functions
+ */
+static void noop(struct irq_data *data) { }
+
+static unsigned int noop_ret(struct irq_data *data)
+{
+	return 0;
+}
+
+static int pcf857x_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct pcf857x *gpio = irq_data_get_irq_chip_data(data);
+
+	irq_set_irq_wake(gpio->client->irq, on);
+	return 0;
+}
+
+static struct irq_chip pcf857x_irq_chip = {
+	.name		= "pcf857x",
+	.irq_startup	= noop_ret,
+	.irq_shutdown	= noop,
+	.irq_enable	= noop,
+	.irq_disable	= noop,
+	.irq_ack	= noop,
+	.irq_mask	= noop,
+	.irq_unmask	= noop,
+	.irq_set_wake	= pcf857x_irq_set_wake,
+};
+
 /*-------------------------------------------------------------------------*/
 
 static int pcf857x_probe(struct i2c_client *client,
@@ -317,8 +347,9 @@ static int pcf857x_probe(struct i2c_client *client,
 
 	/* Enable irqchip if we have an interrupt */
 	if (client->irq) {
-		status = gpiochip_irqchip_add(&gpio->chip, &dummy_irq_chip, 0,
-					      handle_level_irq, IRQ_TYPE_NONE);
+		status = gpiochip_irqchip_add(&gpio->chip, &pcf857x_irq_chip,
+					      0, handle_level_irq,
+					      IRQ_TYPE_NONE);
 		if (status) {
 			dev_err(&client->dev, "cannot add irqchip\n");
 			goto fail_irq;
@@ -331,7 +362,7 @@ static int pcf857x_probe(struct i2c_client *client,
 		if (status)
 			goto fail_irq;
 
-		gpiochip_set_chained_irqchip(&gpio->chip, &dummy_irq_chip,
+		gpiochip_set_chained_irqchip(&gpio->chip, &pcf857x_irq_chip,
 					     client->irq, NULL);
 	}
 
