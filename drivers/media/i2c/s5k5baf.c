@@ -374,6 +374,8 @@ static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
 	count -= S5K5BAG_FW_TAG_LEN;
 
 	d = devm_kzalloc(dev, count * sizeof(u16), GFP_KERNEL);
+	if (!d)
+		return -ENOMEM;
 
 	for (i = 0; i < count; ++i)
 		d[i] = le16_to_cpu(data[i]);
