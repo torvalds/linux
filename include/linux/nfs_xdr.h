@@ -285,6 +285,7 @@ struct nfs4_layoutcommit_data {
 	struct nfs_fattr fattr;
 	struct list_head lseg_list;
 	struct rpc_cred *cred;
+	struct inode *inode;
 	struct nfs4_layoutcommit_args args;
 	struct nfs4_layoutcommit_res res;
 };
