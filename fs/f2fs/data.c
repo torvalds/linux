@@ -666,6 +666,9 @@ void f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	void **slot;
 	unsigned int found;
 
+	if (!test_opt(sbi, EXTENT_CACHE))
+		return;
+
 	if (available_free_memory(sbi, EXTENT_CACHE))
 		return;
 
@@ -714,6 +717,9 @@ void f2fs_destroy_extent_tree(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct extent_tree *et;
 
+	if (!test_opt(sbi, EXTENT_CACHE))
+		return;
+
 	down_read(&sbi->extent_tree_lock);
 	et = radix_tree_lookup(&sbi->extent_tree_root, inode->i_ino);
 	if (!et) {
@@ -749,6 +755,9 @@ out:
 static bool f2fs_lookup_extent_cache(struct inode *inode, pgoff_t pgofs,
 							struct extent_info *ei)
 {
+	if (test_opt(F2FS_I_SB(inode), EXTENT_CACHE))
+		return f2fs_lookup_extent_tree(inode, pgofs, ei);
+
 	return lookup_extent_info(inode, pgofs, ei);
 }
 
@@ -764,6 +773,10 @@ void f2fs_update_extent_cache(struct dnode_of_data *dn)
 
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
 							dn->ofs_in_node;
+
+	if (test_opt(F2FS_I_SB(dn->inode), EXTENT_CACHE))
+		return f2fs_update_extent_tree(dn->inode, fofs,
+							dn->data_blkaddr);
 
 	if (update_extent_info(dn->inode, fofs, dn->data_blkaddr))
 		sync_inode_page(dn);
