@@ -896,6 +896,7 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 	/* Remove the handler */
 
 	handler = gpe_event_info->dispatch.handler;
+	gpe_event_info->dispatch.handler = NULL;
 
 	/* Restore Method node (if any), set dispatch flags */
 
