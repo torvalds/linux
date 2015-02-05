@@ -545,6 +545,8 @@
             /* Used Pen Down GPIO(IRQ GPIO) Select */
             pendown-gpio = "GPIOY_8";
 
+	    ti,moving-average = <1>;
+	    ti,mv-avg-length = <20>;
 	    ti,swap-xy = <1>;
             ti,x-min = <0>;
             ti,x-max = <8000>;
