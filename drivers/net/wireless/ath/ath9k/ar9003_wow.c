@@ -44,6 +44,9 @@ static void ath9k_hw_set_powermode_wow_sleep(struct ath_hw *ah)
 			REG_CLR_BIT(ah, AR_DIRECT_CONNECT, AR_DC_TSF2_ENABLE);
 	}
 
+	if (ath9k_hw_mci_is_enabled(ah))
+		REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
+
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_ON_INT);
 }
 
@@ -406,6 +409,9 @@ void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 	REG_SET_BIT(ah, AR_PCIE_PHY_REG3, BIT(13));
 
 	ath9k_hw_wow_set_arwr_reg(ah);
+
+	if (ath9k_hw_mci_is_enabled(ah))
+		REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
 
 	/* HW WoW */
 	REG_CLR_BIT(ah, AR_PCU_MISC_MODE3, BIT(5));
