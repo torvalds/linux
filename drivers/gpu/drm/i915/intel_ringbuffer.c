@@ -882,6 +882,16 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
+	if (INTEL_REVID(dev) == SKL_REVID_A0) {
+		/*
+		* WaDisableDgMirrorFixInHalfSliceChicken5:skl
+		* This is a pre-production w/a.
+		*/
+		I915_WRITE(GEN9_HALF_SLICE_CHICKEN5,
+			I915_READ(GEN9_HALF_SLICE_CHICKEN5) &
+			~GEN9_DG_MIRROR_FIX_ENABLE);
+	}
+
 	return 0;
 }
 
