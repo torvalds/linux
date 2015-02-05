@@ -274,7 +274,7 @@ free_buffer:
 	return ret;
 }
 
-void proc_thermal_remove(struct proc_thermal_device *proc_priv)
+static void proc_thermal_remove(struct proc_thermal_device *proc_priv)
 {
 	int340x_thermal_zone_remove(proc_priv->int340x_zone);
 	sysfs_remove_group(&proc_priv->dev->kobj,
