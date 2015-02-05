@@ -882,6 +882,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
+	/* Syncing dependencies between camera and graphics */
+	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
+			  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
+
 	if (INTEL_REVID(dev) == SKL_REVID_A0) {
 		/*
 		* WaDisableDgMirrorFixInHalfSliceChicken5:skl
