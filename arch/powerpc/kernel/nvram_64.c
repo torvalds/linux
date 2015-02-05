@@ -376,7 +376,7 @@ static int zip_oops(size_t text_len)
 	}
 	oops_hdr->version = cpu_to_be16(OOPS_HDR_VERSION);
 	oops_hdr->report_length = cpu_to_be16(zipped_len);
-	oops_hdr->timestamp = cpu_to_be64(get_seconds());
+	oops_hdr->timestamp = cpu_to_be64(ktime_get_real_seconds());
 	return 0;
 }
 
@@ -423,7 +423,7 @@ static int nvram_pstore_write(enum pstore_type_id type,
 
 	oops_hdr->version = cpu_to_be16(OOPS_HDR_VERSION);
 	oops_hdr->report_length = cpu_to_be16(size);
-	oops_hdr->timestamp = cpu_to_be64(get_seconds());
+	oops_hdr->timestamp = cpu_to_be64(ktime_get_real_seconds());
 
 	if (compressed)
 		err_type = ERR_TYPE_KERNEL_PANIC_GZ;
@@ -721,7 +721,7 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 		err_type = ERR_TYPE_KERNEL_PANIC;
 		oops_hdr->version = cpu_to_be16(OOPS_HDR_VERSION);
 		oops_hdr->report_length = cpu_to_be16(text_len);
-		oops_hdr->timestamp = cpu_to_be64(get_seconds());
+		oops_hdr->timestamp = cpu_to_be64(ktime_get_real_seconds());
 	}
 
 	(void) nvram_write_os_partition(&oops_log_partition, oops_buf,
