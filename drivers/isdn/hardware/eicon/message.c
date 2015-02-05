@@ -1474,7 +1474,7 @@ static byte connect_res(dword Id, word Number, DIVA_CAPI_ADAPTER *a,
 					add_ai(plci, &parms[5]);
 					sig_req(plci, REJECT, 0);
 				}
-				else if (Reject == 1 || Reject > 9)
+				else if (Reject == 1 || Reject >= 9)
 				{
 					add_ai(plci, &parms[5]);
 					sig_req(plci, HANGUP, 0);

@@ -244,7 +244,8 @@ extern int mlx4_log_num_mgm_entry_size;
 extern int log_mtts_per_seg;
 extern int mlx4_internal_err_reset;
 
-#define MLX4_MAX_NUM_SLAVES	(MLX4_MAX_NUM_PF + MLX4_MAX_NUM_VF)
+#define MLX4_MAX_NUM_SLAVES	(min(MLX4_MAX_NUM_PF + MLX4_MAX_NUM_VF, \
+				     MLX4_MFUNC_MAX))
 #define ALL_SLAVES 0xff
 
 struct mlx4_bitmap {

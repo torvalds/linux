@@ -671,6 +671,9 @@ static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_add
 	return __ipv6_addr_diff(a1, a2, sizeof(struct in6_addr));
 }
 
+u32 __ipv6_select_ident(u32 hashrnd, struct in6_addr *dst,
+			struct in6_addr *src);
+void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt);
 void ipv6_proxy_select_ident(struct sk_buff *skb);
 
 int ip6_dst_hoplimit(struct dst_entry *dst);
@@ -708,7 +711,7 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 					__be32 flowlabel, bool autolabel)
 {
 	if (!flowlabel && (autolabel || net->ipv6.sysctl.auto_flowlabels)) {
-		__be32 hash;
+		u32 hash;
 
 		hash = skb_get_hash(skb);
 
@@ -718,7 +721,7 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 		 */
 		hash ^= hash >> 12;
 
-		flowlabel = hash & IPV6_FLOWLABEL_MASK;
+		flowlabel = (__force __be32)hash & IPV6_FLOWLABEL_MASK;
 	}
 
 	return flowlabel;

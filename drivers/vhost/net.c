@@ -528,9 +528,9 @@ static void handle_rx(struct vhost_net *net)
 		.msg_controllen = 0,
 		.msg_flags = MSG_DONTWAIT,
 	};
-	struct virtio_net_hdr hdr = {
-		.flags = 0,
-		.gso_type = VIRTIO_NET_HDR_GSO_NONE
+	struct virtio_net_hdr_mrg_rxbuf hdr = {
+		.hdr.flags = 0,
+		.hdr.gso_type = VIRTIO_NET_HDR_GSO_NONE
 	};
 	size_t total_len = 0;
 	int err, mergeable;
@@ -614,11 +614,11 @@ static void handle_rx(struct vhost_net *net)
 			       vq->iov->iov_base);
 			break;
 		}
-		/* Supply (or replace) ->num_buffers if VIRTIO_NET_F_MRG_RXBUF
-		 * TODO: Should check and handle checksum.
-		 */
+		/* TODO: Should check and handle checksum. */
+
+		hdr.num_buffers = cpu_to_vhost16(vq, headcount);
 		if (likely(mergeable) &&
-		    copy_to_iter(&headcount, 2, &fixup) != 2) {
+		    copy_to_iter(&hdr.num_buffers, 2, &fixup) != 2) {
 			vq_err(vq, "Failed num_buffers write");
 			vhost_discard_vq_desc(vq, headcount);
 			break;

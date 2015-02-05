@@ -2625,10 +2625,10 @@ static void vxlan_sock_work(struct work_struct *work)
 	dev_put(vxlan->dev);
 }
 
-static int vxlan_newlink(struct net *net, struct net_device *dev,
+static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
-	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
+	struct vxlan_net *vn = net_generic(src_net, vxlan_net_id);
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_rdst *dst = &vxlan->default_dst;
 	__u32 vni;
@@ -2638,7 +2638,7 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 	if (!data[IFLA_VXLAN_ID])
 		return -EINVAL;
 
-	vxlan->net = dev_net(dev);
+	vxlan->net = src_net;
 
 	vni = nla_get_u32(data[IFLA_VXLAN_ID]);
 	dst->remote_vni = vni;
@@ -2674,7 +2674,7 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 	if (data[IFLA_VXLAN_LINK] &&
 	    (dst->remote_ifindex = nla_get_u32(data[IFLA_VXLAN_LINK]))) {
 		struct net_device *lowerdev
-			 = __dev_get_by_index(net, dst->remote_ifindex);
+			 = __dev_get_by_index(src_net, dst->remote_ifindex);
 
 		if (!lowerdev) {
 			pr_info("ifindex %d does not exist\n", dst->remote_ifindex);
@@ -2761,7 +2761,7 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 	if (data[IFLA_VXLAN_GBP])
 		vxlan->flags |= VXLAN_F_GBP;
 
-	if (vxlan_find_vni(net, vni, use_ipv6 ? AF_INET6 : AF_INET,
+	if (vxlan_find_vni(src_net, vni, use_ipv6 ? AF_INET6 : AF_INET,
 			   vxlan->dst_port, vxlan->flags)) {
 		pr_info("duplicate VNI %u\n", vni);
 		return -EEXIST;

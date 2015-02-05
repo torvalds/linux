@@ -1438,7 +1438,7 @@ static void netlink_undo_bind(int group, long unsigned int groups,
 
 	for (undo = 0; undo < group; undo++)
 		if (test_bit(undo, &groups))
-			nlk->netlink_unbind(sock_net(sk), undo);
+			nlk->netlink_unbind(sock_net(sk), undo + 1);
 }
 
 static int netlink_bind(struct socket *sock, struct sockaddr *addr,
@@ -1476,7 +1476,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 		for (group = 0; group < nlk->ngroups; group++) {
 			if (!test_bit(group, &groups))
 				continue;
-			err = nlk->netlink_bind(net, group);
+			err = nlk->netlink_bind(net, group + 1);
 			if (!err)
 				continue;
 			netlink_undo_bind(group, groups, sk);

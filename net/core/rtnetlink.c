@@ -2937,12 +2937,16 @@ static int rtnl_bridge_notify(struct net_device *dev)
 	if (err < 0)
 		goto errout;
 
+	if (!skb->len)
+		goto errout;
+
 	rtnl_notify(skb, net, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
 	return 0;
 errout:
 	WARN_ON(err == -EMSGSIZE);
 	kfree_skb(skb);
-	rtnl_set_sk_err(net, RTNLGRP_LINK, err);
+	if (err)
+		rtnl_set_sk_err(net, RTNLGRP_LINK, err);
 	return err;
 }
 

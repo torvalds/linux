@@ -223,6 +223,45 @@ TRACE_EVENT(kvm_hvc,
 		  __entry->vcpu_pc, __entry->r0, __entry->imm)
 );
 
+TRACE_EVENT(kvm_set_way_flush,
+	    TP_PROTO(unsigned long vcpu_pc, bool cache),
+	    TP_ARGS(vcpu_pc, cache),
+
+	    TP_STRUCT__entry(
+		    __field(	unsigned long,	vcpu_pc		)
+		    __field(	bool,		cache		)
+	    ),
+
+	    TP_fast_assign(
+		    __entry->vcpu_pc		= vcpu_pc;
+		    __entry->cache		= cache;
+	    ),
+
+	    TP_printk("S/W flush at 0x%016lx (cache %s)",
+		      __entry->vcpu_pc, __entry->cache ? "on" : "off")
+);
+
+TRACE_EVENT(kvm_toggle_cache,
+	    TP_PROTO(unsigned long vcpu_pc, bool was, bool now),
+	    TP_ARGS(vcpu_pc, was, now),
+
+	    TP_STRUCT__entry(
+		    __field(	unsigned long,	vcpu_pc		)
+		    __field(	bool,		was		)
+		    __field(	bool,		now		)
+	    ),
+
+	    TP_fast_assign(
+		    __entry->vcpu_pc		= vcpu_pc;
+		    __entry->was		= was;
+		    __entry->now		= now;
+	    ),
+
+	    TP_printk("VM op at 0x%016lx (cache was %s, now %s)",
+		      __entry->vcpu_pc, __entry->was ? "on" : "off",
+		      __entry->now ? "on" : "off")
+);
+
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH

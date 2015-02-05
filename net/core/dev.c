@@ -2379,7 +2379,6 @@ EXPORT_SYMBOL(skb_checksum_help);
 
 __be16 skb_network_protocol(struct sk_buff *skb, int *depth)
 {
-	unsigned int vlan_depth = skb->mac_len;
 	__be16 type = skb->protocol;
 
 	/* Tunnel gso handlers can set protocol to ethernet. */
@@ -2393,35 +2392,7 @@ __be16 skb_network_protocol(struct sk_buff *skb, int *depth)
 		type = eth->h_proto;
 	}
 
-	/* if skb->protocol is 802.1Q/AD then the header should already be
-	 * present at mac_len - VLAN_HLEN (if mac_len > 0), or at
-	 * ETH_HLEN otherwise
-	 */
-	if (type == htons(ETH_P_8021Q) || type == htons(ETH_P_8021AD)) {
-		if (vlan_depth) {
-			if (WARN_ON(vlan_depth < VLAN_HLEN))
-				return 0;
-			vlan_depth -= VLAN_HLEN;
-		} else {
-			vlan_depth = ETH_HLEN;
-		}
-		do {
-			struct vlan_hdr *vh;
-
-			if (unlikely(!pskb_may_pull(skb,
-						    vlan_depth + VLAN_HLEN)))
-				return 0;
-
-			vh = (struct vlan_hdr *)(skb->data + vlan_depth);
-			type = vh->h_vlan_encapsulated_proto;
-			vlan_depth += VLAN_HLEN;
-		} while (type == htons(ETH_P_8021Q) ||
-			 type == htons(ETH_P_8021AD));
-	}
-
-	*depth = vlan_depth;
-
-	return type;
+	return __vlan_get_protocol(skb, type, depth);
 }
 
 /**
@@ -5375,7 +5346,7 @@ void netdev_bonding_info_change(struct net_device *dev,
 }
 EXPORT_SYMBOL(netdev_bonding_info_change);
 
-void netdev_adjacent_add_links(struct net_device *dev)
+static void netdev_adjacent_add_links(struct net_device *dev)
 {
 	struct netdev_adjacent *iter;
 
@@ -5400,7 +5371,7 @@ void netdev_adjacent_add_links(struct net_device *dev)
 	}
 }
 
-void netdev_adjacent_del_links(struct net_device *dev)
+static void netdev_adjacent_del_links(struct net_device *dev)
 {
 	struct netdev_adjacent *iter;
 
@@ -6713,7 +6684,7 @@ struct netdev_queue *dev_ingress_queue_create(struct net_device *dev)
 	if (!queue)
 		return NULL;
 	netdev_init_one_queue(dev, queue, NULL);
-	queue->qdisc = &noop_qdisc;
+	RCU_INIT_POINTER(queue->qdisc, &noop_qdisc);
 	queue->qdisc_sleeping = &noop_qdisc;
 	rcu_assign_pointer(dev->ingress_queue, queue);
 #endif
