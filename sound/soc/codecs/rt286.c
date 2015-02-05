@@ -305,6 +305,8 @@ static int rt286_jack_detect(struct rt286_priv *rt286, bool *hp, bool *mic)
 	*hp = false;
 	*mic = false;
 
+	if (!rt286->codec)
+		return -EINVAL;
 	if (rt286->pdata.cbj_en) {
 		regmap_read(rt286->regmap, RT286_GET_HP_SENSE, &buf);
 		*hp = buf & 0x80000000;
