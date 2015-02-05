@@ -652,11 +652,11 @@ static void hsw_notification_work(struct work_struct *work)
 	}
 
 	/* tell DSP that notification has been handled */
-	sst_dsp_shim_update_bits_unlocked(hsw->dsp, SST_IPCD,
+	sst_dsp_shim_update_bits(hsw->dsp, SST_IPCD,
 		SST_IPCD_BUSY | SST_IPCD_DONE, SST_IPCD_DONE);
 
 	/* unmask busy interrupt */
-	sst_dsp_shim_update_bits_unlocked(hsw->dsp, SST_IMRX, SST_IMRX_BUSY, 0);
+	sst_dsp_shim_update_bits(hsw->dsp, SST_IMRX, SST_IMRX_BUSY, 0);
 }
 
 static struct ipc_message *reply_find_msg(struct sst_hsw *hsw, u32 header)
@@ -1230,6 +1230,11 @@ int sst_hsw_stream_free(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	struct sst_dsp *sst = hsw->dsp;
 	unsigned long flags;
 
+	if (!stream) {
+		dev_warn(hsw->dev, "warning: stream is NULL, no stream to free, ignore it.\n");
+		return 0;
+	}
+
 	/* dont free DSP streams that are not commited */
 	if (!stream->commited)
 		goto out;
@@ -1417,6 +1422,16 @@ int sst_hsw_stream_commit(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	u32 header;
 	int ret;
 
+	if (!stream) {
+		dev_warn(hsw->dev, "warning: stream is NULL, no stream to commit, ignore it.\n");
+		return 0;
+	}
+
+	if (stream->commited) {
+		dev_warn(hsw->dev, "warning: stream is already committed, ignore it.\n");
+		return 0;
+	}
+
 	trace_ipc_request("stream alloc", stream->host_id);
 
 	header = IPC_GLB_TYPE(IPC_GLB_ALLOCATE_STREAM);
@@ -1521,6 +1536,11 @@ int sst_hsw_stream_pause(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
 {
 	int ret;
 
+	if (!stream) {
+		dev_warn(hsw->dev, "warning: stream is NULL, no stream to pause, ignore it.\n");
+		return 0;
+	}
+
 	trace_ipc_request("stream pause", stream->reply.stream_hw_id);
 
 	ret = sst_hsw_stream_operations(hsw, IPC_STR_PAUSE,
@@ -1537,6 +1557,11 @@ int sst_hsw_stream_resume(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
 {
 	int ret;
 
+	if (!stream) {
+		dev_warn(hsw->dev, "warning: stream is NULL, no stream to resume, ignore it.\n");
+		return 0;
+	}
+
 	trace_ipc_request("stream resume", stream->reply.stream_hw_id);
 
 	ret = sst_hsw_stream_operations(hsw, IPC_STR_RESUME,
@@ -1551,6 +1576,11 @@ int sst_hsw_stream_resume(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
 int sst_hsw_stream_reset(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 {
 	int ret, tries = 10;
+
+	if (!stream) {
+		dev_warn(hsw->dev, "warning: stream is NULL, no stream to reset, ignore it.\n");
+		return 0;
+	}
 
 	/* dont reset streams that are not commited */
 	if (!stream->commited)
