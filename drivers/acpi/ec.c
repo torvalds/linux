@@ -71,6 +71,7 @@ enum ec_command {
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
 #define ACPI_EC_MSI_UDELAY	550	/* Wait 550us for MSI EC */
+#define ACPI_EC_UDELAY_POLL	1000	/* Wait 1ms for EC transaction polling */
 #define ACPI_EC_CLEAR_MAX	100	/* Maximum number of events to query
 					 * when trying to clear the EC */
 
@@ -118,6 +119,7 @@ struct transaction {
 	u8 wlen;
 	u8 rlen;
 	u8 flags;
+	unsigned long timestamp;
 };
 
 static int acpi_ec_query(struct acpi_ec *ec, u8 *data);
@@ -155,6 +157,7 @@ static inline u8 acpi_ec_read_data(struct acpi_ec *ec)
 {
 	u8 x = inb(ec->data_addr);
 
+	ec->curr->timestamp = jiffies;
 	pr_debug("EC_DATA(R) = 0x%2.2x\n", x);
 	return x;
 }
@@ -163,12 +166,14 @@ static inline void acpi_ec_write_cmd(struct acpi_ec *ec, u8 command)
 {
 	pr_debug("EC_SC(W) = 0x%2.2x\n", command);
 	outb(command, ec->command_addr);
+	ec->curr->timestamp = jiffies;
 }
 
 static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 {
 	pr_debug("EC_DATA(W) = 0x%2.2x\n", data);
 	outb(data, ec->data_addr);
+	ec->curr->timestamp = jiffies;
 }
 
 #ifdef DEBUG
@@ -359,6 +364,7 @@ static void start_transaction(struct acpi_ec *ec)
 {
 	ec->curr->irq_count = ec->curr->wi = ec->curr->ri = 0;
 	ec->curr->flags = 0;
+	ec->curr->timestamp = jiffies;
 	advance_transaction(ec);
 }
 
@@ -370,20 +376,25 @@ static int ec_poll(struct acpi_ec *ec)
 	while (repeat--) {
 		unsigned long delay = jiffies +
 			msecs_to_jiffies(ec_delay);
+		unsigned long usecs = ACPI_EC_UDELAY_POLL;
 		do {
 			/* don't sleep with disabled interrupts */
 			if (EC_FLAGS_MSI || irqs_disabled()) {
-				udelay(ACPI_EC_MSI_UDELAY);
+				usecs = ACPI_EC_MSI_UDELAY;
+				udelay(usecs);
 				if (ec_transaction_completed(ec))
 					return 0;
 			} else {
 				if (wait_event_timeout(ec->wait,
 						ec_transaction_completed(ec),
-						msecs_to_jiffies(1)))
+						usecs_to_jiffies(usecs)))
 					return 0;
 			}
 			spin_lock_irqsave(&ec->lock, flags);
-			advance_transaction(ec);
+			if (time_after(jiffies,
+					ec->curr->timestamp +
+					usecs_to_jiffies(usecs)))
+				advance_transaction(ec);
 			spin_unlock_irqrestore(&ec->lock, flags);
 		} while (time_before(jiffies, delay));
 		pr_debug("controller reset, restart transaction\n");
