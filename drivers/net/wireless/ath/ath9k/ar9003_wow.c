@@ -252,6 +252,13 @@ u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 	if (ah->is_pciexpress)
 		ath9k_hw_configpcipowersave(ah, false);
 
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah) || AR_SREV_9485(ah)) {
+		u32 dc = REG_READ(ah, AR_DIRECT_CONNECT);
+
+		if (!(dc & AR_DC_TSF2_ENABLE))
+			ath9k_hw_gen_timer_start_tsf2(ah);
+	}
+
 	ah->wow.wow_event_mask = 0;
 	ah->wow.wow_event_mask2 = 0;
 
