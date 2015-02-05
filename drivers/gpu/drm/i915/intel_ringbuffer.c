@@ -875,6 +875,13 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 
 static int gen9_init_workarounds(struct intel_engine_cs *ring)
 {
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* WaDisablePartialInstShootdown:skl */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
+			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
+
 	return 0;
 }
 
