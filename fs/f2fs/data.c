@@ -395,6 +395,9 @@ static void __detach_extent_node(struct f2fs_sb_info *sbi,
 	rb_erase(&en->rb_node, &et->root);
 	et->count--;
 	atomic_dec(&sbi->total_ext_node);
+
+	if (et->cached_en == en)
+		et->cached_en = NULL;
 }
 
 static struct extent_node *__lookup_extent_tree(struct extent_tree *et,
@@ -403,15 +406,24 @@ static struct extent_node *__lookup_extent_tree(struct extent_tree *et,
 	struct rb_node *node = et->root.rb_node;
 	struct extent_node *en;
 
+	if (et->cached_en) {
+		struct extent_info *cei = &et->cached_en->ei;
+
+		if (cei->fofs <= fofs && cei->fofs + cei->len > fofs)
+			return et->cached_en;
+	}
+
 	while (node) {
 		en = rb_entry(node, struct extent_node, rb_node);
 
-		if (fofs < en->ei.fofs)
+		if (fofs < en->ei.fofs) {
 			node = node->rb_left;
-		else if (fofs >= en->ei.fofs + en->ei.len)
+		} else if (fofs >= en->ei.fofs + en->ei.len) {
 			node = node->rb_right;
-		else
+		} else {
+			et->cached_en = en;
 			return en;
+		}
 	}
 	return NULL;
 }
@@ -587,6 +599,7 @@ static void f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 		memset(et, 0, sizeof(struct extent_tree));
 		et->ino = ino;
 		et->root = RB_ROOT;
+		et->cached_en = NULL;
 		rwlock_init(&et->lock);
 		atomic_set(&et->refcount, 0);
 		et->count = 0;
