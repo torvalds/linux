@@ -9241,7 +9241,6 @@ F:	drivers/net/ethernet/dlink/sundance.c
 
 SUPERH
 L:	linux-sh@vger.kernel.org
-W:	http://www.linux-sh.org
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
 S:	Orphan
 F:	Documentation/sh/
