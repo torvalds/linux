@@ -74,8 +74,6 @@ static void ath9k_wow_create_keep_alive_pattern(struct ath_hw *ah)
 	for (i = 0; i < KAL_NUM_DESC_WORDS; i++)
 		REG_WRITE(ah, (AR_WOW_KA_DESC_WORD2 + i * 4), ctl[i]);
 
-	REG_WRITE(ah, (AR_WOW_KA_DESC_WORD2 + i * 4), ctl[i]);
-
 	data_word[0] = (KAL_FRAME_TYPE << 2) | (KAL_FRAME_SUB_TYPE << 4) |
 		       (KAL_TO_DS << 8) | (KAL_DURATION_ID << 16);
 	data_word[1] = (ap_mac_addr[3] << 24) | (ap_mac_addr[2] << 16) |
@@ -88,9 +86,11 @@ static void ath9k_wow_create_keep_alive_pattern(struct ath_hw *ah)
 		       (ap_mac_addr[1] << 8) | (ap_mac_addr[0]);
 	data_word[5] = (ap_mac_addr[5] << 8) | (ap_mac_addr[4]);
 
-	if (AR_SREV_9462_20(ah)) {
-		/* AR9462 2.0 has an extra descriptor word (time based
-		 * discard) compared to other chips */
+	if (AR_SREV_9462_20_OR_LATER(ah) || AR_SREV_9565(ah)) {
+		/*
+		 * AR9462 2.0 and AR9565 have an extra descriptor word
+		 * (time based discard) compared to other chips.
+		 */
 		REG_WRITE(ah, (AR_WOW_KA_DESC_WORD2 + (12 * 4)), 0);
 		wow_ka_data_word0 = AR_WOW_TXBUF(13);
 	} else {
@@ -99,7 +99,6 @@ static void ath9k_wow_create_keep_alive_pattern(struct ath_hw *ah)
 
 	for (i = 0; i < KAL_NUM_DATA_WORDS; i++)
 		REG_WRITE(ah, (wow_ka_data_word0 + i*4), data_word[i]);
-
 }
 
 int ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
