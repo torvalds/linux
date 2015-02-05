@@ -1111,6 +1111,11 @@ xfs_fs_statfs(
 					statp->f_files,
 					mp->m_maxicount);
 
+	/* If sb_icount overshot maxicount, report actual allocation */
+	statp->f_files = max_t(typeof(statp->f_files),
+					statp->f_files,
+					sbp->sb_icount);
+
 	/* make sure statp->f_ffree does not underflow */
 	ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
 	statp->f_ffree = max_t(__int64_t, ffree, 0);
