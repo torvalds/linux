@@ -828,9 +828,12 @@ static int wl1273_fm_set_seek(struct wl1273_device *radio,
 	if (r)
 		goto out;
 
+	/* wait for the FR IRQ */
 	wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(1000));
-	if (!(radio->irq_received & WL1273_BL_EVENT))
+	if (!(radio->irq_received & WL1273_BL_EVENT)) {
+		r = -ETIMEDOUT;
 		goto out;
+	}
 
 	radio->irq_received &= ~WL1273_BL_EVENT;
 
@@ -856,7 +859,9 @@ static int wl1273_fm_set_seek(struct wl1273_device *radio,
 	if (r)
 		goto out;
 
-	wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(1000));
+	/* wait for the FR IRQ */
+	if (!wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(1000)))
+		r = -ETIMEDOUT;
 out:
 	dev_dbg(radio->dev, "%s: Err: %d\n", __func__, r);
 	return r;
