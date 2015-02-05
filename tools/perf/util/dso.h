@@ -195,6 +195,20 @@ bool is_kernel_module(const char *pathname, bool *compressed);
 bool decompress_to_file(const char *ext, const char *filename, int output_fd);
 bool dso__needs_decompress(struct dso *dso);
 
+struct kmod_path {
+	char *name;
+	char *ext;
+	bool  comp;
+	bool  kmod;
+};
+
+int __kmod_path__parse(struct kmod_path *m, const char *path,
+		     bool alloc_name, bool alloc_ext);
+
+#define kmod_path__parse(__m, __p)      __kmod_path__parse(__m, __p, false, false)
+#define kmod_path__parse_name(__m, __p) __kmod_path__parse(__m, __p, true , false)
+#define kmod_path__parse_ext(__m, __p)  __kmod_path__parse(__m, __p, false, true)
+
 /*
  * The dso__data_* external interface provides following functions:
  *   dso__data_fd

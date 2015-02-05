@@ -167,6 +167,10 @@ static struct test {
 		.func = test__fdarray__add,
 	},
 	{
+		.desc = "Test kmod_path__parse function",
+		.func = test__kmod_path__parse,
+	},
+	{
 		.func = NULL,
 	},
 };

@@ -30,6 +30,7 @@ perf-y += keep-tracking.o
 perf-y += code-reading.o
 perf-y += sample-parsing.o
 perf-y += parse-no-sample-id-all.o
+perf-y += kmod-path.o
 
 perf-$(CONFIG_X86) += perf-time-to-tsc.o
 
