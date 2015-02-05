@@ -1739,7 +1739,7 @@ static int filter_rcv(struct sock *sk, struct sk_buff **skb)
  * @sk: socket
  * @skb: message
  *
- * Caller must hold socket lock, but not port lock.
+ * Caller must hold socket lock
  *
  * Returns 0
  */
@@ -1805,27 +1805,31 @@ int tipc_sk_rcv(struct net *net, struct sk_buff *skb)
 	struct tipc_net *tn;
 	struct sock *sk;
 	u32 dport = msg_destport(buf_msg(skb));
-	int err;
+	int err = -TIPC_ERR_NO_PORT;
 	u32 dnode;
 
-	/* Validate destination and message */
+	/* Find destination */
 	tsk = tipc_sk_lookup(net, dport);
-	if (unlikely(!tsk)) {
-		err = tipc_msg_eval(net, skb, &dnode);
-		goto exit;
+	if (likely(tsk)) {
+		sk = &tsk->sk;
+		spin_lock_bh(&sk->sk_lock.slock);
+		err = tipc_sk_enqueue_skb(sk, &skb);
+		spin_unlock_bh(&sk->sk_lock.slock);
+		sock_put(sk);
 	}
-	sk = &tsk->sk;
-
-	spin_lock_bh(&sk->sk_lock.slock);
-	err = tipc_sk_enqueue_skb(sk, &skb);
-	spin_unlock_bh(&sk->sk_lock.slock);
-	sock_put(sk);
-exit:
-	if (unlikely(skb)) {
-		tn = net_generic(net, tipc_net_id);
-		if (!err || tipc_msg_reverse(tn->own_addr, skb, &dnode, -err))
-			tipc_link_xmit_skb(net, skb, dnode, 0);
+	if (likely(!skb))
+		return 0;
+	if (tipc_msg_lookup_dest(net, skb, &dnode, &err))
+		goto xmit;
+	if (!err) {
+		dnode = msg_destnode(buf_msg(skb));
+		goto xmit;
 	}
+	tn = net_generic(net, tipc_net_id);
+	if (!tipc_msg_reverse(tn->own_addr, skb, &dnode, -err))
+		return -EHOSTUNREACH;
+xmit:
+	tipc_link_xmit_skb(net, skb, dnode, dport);
 	return err ? -EHOSTUNREACH : 0;
 }
 

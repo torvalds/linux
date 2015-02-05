@@ -411,43 +411,43 @@ bool tipc_msg_reverse(u32 own_addr,  struct sk_buff *buf, u32 *dnode,
 	return true;
 exit:
 	kfree_skb(buf);
+	*dnode = 0;
 	return false;
 }
 
 /**
- * tipc_msg_eval: determine fate of message that found no destination
- * @buf: the buffer containing the message.
- * @dnode: return value: next-hop node, if message to be forwarded
- * @err: error code to use, if message to be rejected
- *
+ * tipc_msg_lookup_dest(): try to find new destination for named message
+ * @skb: the buffer containing the message.
+ * @dnode: return value: next-hop node, if destination found
+ * @err: return value: error code to use, if message to be rejected
  * Does not consume buffer
- * Returns 0 (TIPC_OK) if message ok and we can try again, -TIPC error
- * code if message to be rejected
+ * Returns true if a destination is found, false otherwise
  */
-int tipc_msg_eval(struct net *net, struct sk_buff *buf, u32 *dnode)
+bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb,
+			  u32 *dnode, int *err)
 {
-	struct tipc_msg *msg = buf_msg(buf);
+	struct tipc_msg *msg = buf_msg(skb);
 	u32 dport;
 
-	if (msg_type(msg) != TIPC_NAMED_MSG)
-		return -TIPC_ERR_NO_PORT;
-	if (skb_linearize(buf))
-		return -TIPC_ERR_NO_NAME;
-	if (msg_data_sz(msg) > MAX_FORWARD_SIZE)
-		return -TIPC_ERR_NO_NAME;
+	if (!msg_isdata(msg))
+		return false;
+	if (!msg_named(msg))
+		return false;
+	*err = -TIPC_ERR_NO_NAME;
+	if (skb_linearize(skb))
+		return false;
 	if (msg_reroute_cnt(msg) > 0)
-		return -TIPC_ERR_NO_NAME;
-
+		return false;
 	*dnode = addr_domain(net, msg_lookup_scope(msg));
 	dport = tipc_nametbl_translate(net, msg_nametype(msg),
-				       msg_nameinst(msg),
-				       dnode);
+				       msg_nameinst(msg), dnode);
 	if (!dport)
-		return -TIPC_ERR_NO_NAME;
+		return false;
 	msg_incr_reroute_cnt(msg);
 	msg_set_destnode(msg, *dnode);
 	msg_set_destport(msg, dport);
-	return TIPC_OK;
+	*err = TIPC_OK;
+	return true;
 }
 
 /* tipc_msg_reassemble() - clone a buffer chain of fragments and
