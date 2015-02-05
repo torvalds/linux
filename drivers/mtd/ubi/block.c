@@ -409,9 +409,9 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	}
 
 	dev->rq = blk_mq_init_queue(&dev->tag_set);
-	if (!dev->rq) {
+	if (IS_ERR(dev->rq)) {
 		dev_err(disk_to_dev(gd), "blk_mq_init_queue failed");
-		ret = -ENODEV;
+		ret = PTR_ERR(dev->rq);
 		goto out_free_tags;
 	}
 	blk_queue_max_segments(dev->rq, UBI_MAX_SG_COUNT);
