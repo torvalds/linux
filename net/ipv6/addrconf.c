@@ -4572,6 +4572,22 @@ static int inet6_set_iftoken(struct inet6_dev *idev, struct in6_addr *token)
 	return 0;
 }
 
+static const struct nla_policy inet6_af_policy[IFLA_INET6_MAX + 1] = {
+	[IFLA_INET6_ADDR_GEN_MODE]	= { .type = NLA_U8 },
+	[IFLA_INET6_TOKEN]		= { .len = sizeof(struct in6_addr) },
+};
+
+static int inet6_validate_link_af(const struct net_device *dev,
+				  const struct nlattr *nla)
+{
+	struct nlattr *tb[IFLA_INET6_MAX + 1];
+
+	if (dev && !__in6_dev_get(dev))
+		return -EAFNOSUPPORT;
+
+	return nla_parse_nested(tb, IFLA_INET6_MAX, nla, inet6_af_policy);
+}
+
 static int inet6_set_link_af(struct net_device *dev, const struct nlattr *nla)
 {
 	int err = -EINVAL;
@@ -5393,6 +5409,7 @@ static struct rtnl_af_ops inet6_ops = {
 	.family		  = AF_INET6,
 	.fill_link_af	  = inet6_fill_link_af,
 	.get_link_af_size = inet6_get_link_af_size,
+	.validate_link_af = inet6_validate_link_af,
 	.set_link_af	  = inet6_set_link_af,
 };
 
