@@ -258,9 +258,9 @@ static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
 	if (is_inode_flag_set(fi, FI_NO_EXTENT))
 		return 0;
 
-	read_lock(&fi->ext.ext_lock);
+	read_lock(&fi->ext_lock);
 	if (fi->ext.len == 0) {
-		read_unlock(&fi->ext.ext_lock);
+		read_unlock(&fi->ext_lock);
 		return 0;
 	}
 
@@ -284,10 +284,10 @@ static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
 			bh_result->b_size = UINT_MAX;
 
 		stat_inc_read_hit(inode->i_sb);
-		read_unlock(&fi->ext.ext_lock);
+		read_unlock(&fi->ext_lock);
 		return 1;
 	}
-	read_unlock(&fi->ext.ext_lock);
+	read_unlock(&fi->ext_lock);
 	return 0;
 }
 
@@ -309,7 +309,7 @@ void update_extent_cache(struct dnode_of_data *dn)
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
 							dn->ofs_in_node;
 
-	write_lock(&fi->ext.ext_lock);
+	write_lock(&fi->ext_lock);
 
 	start_fofs = fi->ext.fofs;
 	end_fofs = fi->ext.fofs + fi->ext.len - 1;
@@ -366,7 +366,7 @@ void update_extent_cache(struct dnode_of_data *dn)
 		need_update = true;
 	}
 end_update:
-	write_unlock(&fi->ext.ext_lock);
+	write_unlock(&fi->ext_lock);
 	if (need_update)
 		sync_inode_page(dn);
 	return;
