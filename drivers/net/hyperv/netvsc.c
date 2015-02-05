@@ -716,7 +716,7 @@ int netvsc_send(struct hv_device *device,
 	u64 req_id;
 	unsigned int section_index = NETVSC_INVALID_INDEX;
 	u32 msg_size = 0;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	u16 q_idx = packet->q_idx;
 
 
@@ -743,8 +743,6 @@ int netvsc_send(struct hv_device *device,
 							   packet);
 			skb = (struct sk_buff *)
 			      (unsigned long)packet->send_completion_tid;
-			if (skb)
-				dev_kfree_skb_any(skb);
 			packet->page_buf_cnt = 0;
 		}
 	}
@@ -808,6 +806,13 @@ int netvsc_send(struct hv_device *device,
 	} else {
 		netdev_err(ndev, "Unable to send packet %p ret %d\n",
 			   packet, ret);
+	}
+
+	if (ret != 0) {
+		if (section_index != NETVSC_INVALID_INDEX)
+			netvsc_free_send_slot(net_device, section_index);
+	} else if (skb) {
+		dev_kfree_skb_any(skb);
 	}
 
 	return ret;
