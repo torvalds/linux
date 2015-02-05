@@ -273,13 +273,33 @@ enum {
 
 #define MAX_DIR_RA_PAGES	4	/* maximum ra pages of dir */
 
+/* vector size for gang look-up from extent cache that consists of radix tree */
+#define EXT_TREE_VEC_SIZE	64
+
 /* for in-memory extent cache entry */
-#define F2FS_MIN_EXTENT_LEN	16	/* minimum extent length */
+#define F2FS_MIN_EXTENT_LEN	64	/* minimum extent length */
+
+/* number of extent info in extent cache we try to shrink */
+#define EXTENT_CACHE_SHRINK_NUMBER	128
 
 struct extent_info {
-	unsigned int fofs;	/* start offset in a file */
-	u32 blk;		/* start block address of the extent */
-	unsigned int len;	/* length of the extent */
+	unsigned int fofs;		/* start offset in a file */
+	u32 blk;			/* start block address of the extent */
+	unsigned int len;		/* length of the extent */
+};
+
+struct extent_node {
+	struct rb_node rb_node;		/* rb node located in rb-tree */
+	struct list_head list;		/* node in global extent list of sbi */
+	struct extent_info ei;		/* extent info */
+};
+
+struct extent_tree {
+	nid_t ino;			/* inode number */
+	struct rb_root root;		/* root of extent info rb-tree */
+	rwlock_t lock;			/* protect extent info rb-tree */
+	atomic_t refcount;		/* reference count of rb-tree */
+	unsigned int count;		/* # of extent node in rb-tree*/
 };
 
 /*
@@ -566,6 +586,14 @@ struct f2fs_sb_info {
 	/* for directory inode management */
 	struct list_head dir_inode_list;	/* dir inode list */
 	spinlock_t dir_inode_lock;		/* for dir inode list lock */
+
+	/* for extent tree cache */
+	struct radix_tree_root extent_tree_root;/* cache extent cache entries */
+	struct rw_semaphore extent_tree_lock;	/* locking extent radix tree */
+	struct list_head extent_list;		/* lru list for shrinker */
+	spinlock_t extent_lock;			/* locking extent lru list */
+	int total_ext_tree;			/* extent tree count */
+	atomic_t total_ext_node;		/* extent info count */
 
 	/* basic filesystem units */
 	unsigned int log_sectors_per_block;	/* log2 sectors per block */
