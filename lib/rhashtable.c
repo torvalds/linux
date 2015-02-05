@@ -392,6 +392,8 @@ int rhashtable_expand(struct rhashtable *ht)
 		}
 	}
 
+	synchronize_rcu();
+
 	bucket_table_free(old_tbl);
 	return 0;
 }
