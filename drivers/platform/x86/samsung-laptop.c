@@ -1461,7 +1461,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	samsung_sabi_diag(samsung);
 
 	/* Try to find one of the signatures in memory to find the header */
-	for (i = 0; sabi_configs[i].test_string != 0; ++i) {
+	for (i = 0; sabi_configs[i].test_string != NULL; ++i) {
 		samsung->config = &sabi_configs[i];
 		loca = find_signature(samsung->f0000_segment,
 				      samsung->config->test_string);
