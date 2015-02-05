@@ -3041,17 +3041,24 @@ static ssize_t show_tty_active(struct device *dev,
 }
 static DEVICE_ATTR(active, S_IRUGO, show_tty_active, NULL);
 
+static struct attribute *vt_dev_attrs[] = {
+	&dev_attr_active.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(vt_dev);
+
 int __init vty_init(const struct file_operations *console_fops)
 {
 	cdev_init(&vc0_cdev, console_fops);
 	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
 		panic("Couldn't register /dev/tty0 driver\n");
-	tty0dev = device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+	tty0dev = device_create_with_groups(tty_class, NULL,
+					    MKDEV(TTY_MAJOR, 0), NULL,
+					    vt_dev_groups, "tty0");
 	if (IS_ERR(tty0dev))
 		tty0dev = NULL;
-	else
-		WARN_ON(device_create_file(tty0dev, &dev_attr_active) < 0);
 
 	vcs_init();
 
@@ -3423,42 +3430,26 @@ static ssize_t show_name(struct device *dev, struct device_attribute *attr,
 
 }
 
-static struct device_attribute device_attrs[] = {
-	__ATTR(bind, S_IRUGO|S_IWUSR, show_bind, store_bind),
-	__ATTR(name, S_IRUGO, show_name, NULL),
+static DEVICE_ATTR(bind, S_IRUGO|S_IWUSR, show_bind, store_bind);
+static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+
+static struct attribute *con_dev_attrs[] = {
+	&dev_attr_bind.attr,
+	&dev_attr_name.attr,
+	NULL
 };
+
+ATTRIBUTE_GROUPS(con_dev);
 
 static int vtconsole_init_device(struct con_driver *con)
 {
-	int i;
-	int error = 0;
-
 	con->flag |= CON_DRIVER_FLAG_ATTR;
-	dev_set_drvdata(con->dev, con);
-	for (i = 0; i < ARRAY_SIZE(device_attrs); i++) {
-		error = device_create_file(con->dev, &device_attrs[i]);
-		if (error)
-			break;
-	}
-
-	if (error) {
-		while (--i >= 0)
-			device_remove_file(con->dev, &device_attrs[i]);
-		con->flag &= ~CON_DRIVER_FLAG_ATTR;
-	}
-
-	return error;
+	return 0;
 }
 
 static void vtconsole_deinit_device(struct con_driver *con)
 {
-	int i;
-
-	if (con->flag & CON_DRIVER_FLAG_ATTR) {
-		for (i = 0; i < ARRAY_SIZE(device_attrs); i++)
-			device_remove_file(con->dev, &device_attrs[i]);
-		con->flag &= ~CON_DRIVER_FLAG_ATTR;
-	}
+	con->flag &= ~CON_DRIVER_FLAG_ATTR;
 }
 
 /**
@@ -3621,11 +3612,11 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 	if (retval)
 		goto err;
 
-	con_driver->dev = device_create(vtconsole_class, NULL,
-						MKDEV(0, con_driver->node),
-						NULL, "vtcon%i",
-						con_driver->node);
-
+	con_driver->dev =
+		device_create_with_groups(vtconsole_class, NULL,
+					  MKDEV(0, con_driver->node),
+					  con_driver, con_dev_groups,
+					  "vtcon%i", con_driver->node);
 	if (IS_ERR(con_driver->dev)) {
 		printk(KERN_WARNING "Unable to create device for %s; "
 		       "errno = %ld\n", con_driver->desc,
@@ -3739,10 +3730,11 @@ static int __init vtconsole_class_init(void)
 		struct con_driver *con = &registered_con_driver[i];
 
 		if (con->con && !con->dev) {
-			con->dev = device_create(vtconsole_class, NULL,
-							 MKDEV(0, con->node),
-							 NULL, "vtcon%i",
-							 con->node);
+			con->dev =
+				device_create_with_groups(vtconsole_class, NULL,
+							  MKDEV(0, con->node),
+							  con, con_dev_groups,
+							  "vtcon%i", con->node);
 
 			if (IS_ERR(con->dev)) {
 				printk(KERN_WARNING "Unable to create "
