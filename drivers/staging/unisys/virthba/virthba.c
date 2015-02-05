@@ -479,7 +479,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	 * instance - this virthba that has just been created is an
 	 * instance of a scsi host adapter. This scsi_host_alloc
 	 * function allocates a new Scsi_Host struct & performs basic
-	 * initializatoin.  The host is not published to the scsi
+	 * initialization.  The host is not published to the scsi
 	 * midlayer until scsi_add_host is called.
 	 */
 	DBGINF("calling scsi_host_alloc.\n");
