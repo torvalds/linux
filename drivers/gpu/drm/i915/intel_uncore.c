@@ -166,7 +166,8 @@ fw_domains_reset(struct drm_i915_private *dev_priv, enum forcewake_domains fw_do
 	struct intel_uncore_forcewake_domain *d;
 	enum forcewake_domain_id id;
 
-	WARN_ON(dev_priv->uncore.fw_domains == 0);
+	if (dev_priv->uncore.fw_domains == 0)
+		return;
 
 	for_each_fw_domain_mask(d, fw_domains, dev_priv, id)
 		fw_domain_reset(d);
@@ -997,6 +998,9 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (INTEL_INFO(dev_priv->dev)->gen <= 5)
+		return;
+
 	if (IS_GEN9(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
@@ -1069,6 +1073,9 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE, FORCEWAKE_ACK);
 	}
+
+	/* All future platforms are expected to require complex power gating */
+	WARN_ON(dev_priv->uncore.fw_domains == 0);
 }
 
 void intel_uncore_init(struct drm_device *dev)
