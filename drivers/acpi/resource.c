@@ -444,12 +444,7 @@ EXPORT_SYMBOL_GPL(acpi_dev_resource_interrupt);
  */
 void acpi_dev_free_resource_list(struct list_head *list)
 {
-	struct resource_list_entry *rentry, *re;
-
-	list_for_each_entry_safe(rentry, re, list, node) {
-		list_del(&rentry->node);
-		kfree(rentry);
-	}
+	resource_list_free(list);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_free_resource_list);
 
@@ -464,16 +459,16 @@ struct res_proc_context {
 static acpi_status acpi_dev_new_resource_entry(struct resource_win *win,
 					       struct res_proc_context *c)
 {
-	struct resource_list_entry *rentry;
+	struct resource_entry *rentry;
 
-	rentry = kmalloc(sizeof(*rentry), GFP_KERNEL);
+	rentry = resource_list_create_entry(NULL, 0);
 	if (!rentry) {
 		c->error = -ENOMEM;
 		return AE_NO_MEMORY;
 	}
-	rentry->res = win->res;
+	*rentry->res = win->res;
 	rentry->offset = win->offset;
-	list_add_tail(&rentry->node, c->list);
+	resource_list_add_tail(rentry, c->list);
 	c->count++;
 	return AE_OK;
 }
@@ -534,7 +529,7 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
  * returned as the final error code.
  *
  * The resultant struct resource objects are put on the list pointed to by
- * @list, that must be empty initially, as members of struct resource_list_entry
+ * @list, that must be empty initially, as members of struct resource_entry
  * objects.  Callers of this routine should use %acpi_dev_free_resource_list() to
  * free that list.
  *
