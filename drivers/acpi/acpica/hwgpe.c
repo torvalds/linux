@@ -150,7 +150,7 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 
 	status = acpi_hw_write(enable_mask, &gpe_register_info->enable_address);
 	if (ACPI_SUCCESS(status) && (action & ACPI_GPE_SAVE_MASK)) {
-		gpe_register_info->enable_mask = enable_mask;
+		gpe_register_info->enable_mask = (u8)enable_mask;
 	}
 	return (status);
 }
