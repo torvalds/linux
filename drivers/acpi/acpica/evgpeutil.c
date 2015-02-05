@@ -167,8 +167,8 @@ u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info)
  ******************************************************************************/
 
 acpi_status
-acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-		       struct acpi_gpe_block_info *gpe_block, void *context)
+acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info * gpe_xrupt_info,
+		       struct acpi_gpe_block_info * gpe_block, void *context)
 {
 	struct acpi_gpe_device_info *info = context;
 

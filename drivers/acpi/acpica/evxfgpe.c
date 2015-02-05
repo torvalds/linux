@@ -604,7 +604,6 @@ ACPI_EXPORT_SYMBOL(acpi_enable_all_runtime_gpes)
  *              all GPE blocks.
  *
  ******************************************************************************/
-
 acpi_status acpi_enable_all_wakeup_gpes(void)
 {
 	acpi_status status;

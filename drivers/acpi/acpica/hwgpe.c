@@ -54,6 +54,10 @@ acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				struct acpi_gpe_block_info *gpe_block,
 				void *context);
 
+static acpi_status
+acpi_hw_gpe_enable_write(u8 enable_mask,
+			 struct acpi_gpe_register_info *gpe_register_info);
+
 /******************************************************************************
  *
  * FUNCTION:	acpi_hw_get_gpe_register_bit
