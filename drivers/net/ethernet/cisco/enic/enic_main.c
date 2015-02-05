@@ -89,7 +89,7 @@ MODULE_DEVICE_TABLE(pci, enic_id_table);
  *  coalescing timer values
  *  {rx_rate in Mbps, mapping percentage of the range}
  */
-struct enic_intr_mod_table mod_table[ENIC_MAX_COALESCE_TIMERS + 1] = {
+static struct enic_intr_mod_table mod_table[ENIC_MAX_COALESCE_TIMERS + 1] = {
 	{4000,  0},
 	{4400, 10},
 	{5060, 20},
@@ -106,7 +106,7 @@ struct enic_intr_mod_table mod_table[ENIC_MAX_COALESCE_TIMERS + 1] = {
 /* This table helps the driver to pick different ranges for rx coalescing
  * timer depending on the link speed.
  */
-struct enic_intr_mod_range mod_range[ENIC_MAX_LINK_SPEEDS] = {
+static struct enic_intr_mod_range mod_range[ENIC_MAX_LINK_SPEEDS] = {
 	{0,  0}, /* 0  - 4  Gbps */
 	{0,  3}, /* 4  - 10 Gbps */
 	{3,  6}, /* 10 - 40 Gbps */
@@ -1303,7 +1303,7 @@ static void enic_set_rx_cpu_rmap(struct enic *enic)
 #endif /* CONFIG_RFS_ACCEL */
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
-int enic_busy_poll(struct napi_struct *napi)
+static int enic_busy_poll(struct napi_struct *napi)
 {
 	struct net_device *netdev = napi->dev;
 	struct enic *enic = netdev_priv(netdev);
