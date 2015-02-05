@@ -328,7 +328,10 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 {
 	acpi_status status;
 	struct acpi_gpe_block_info *gpe_block;
+	struct acpi_namespace_node *gpe_device;
 	struct acpi_gpe_register_info *gpe_register_info;
+	struct acpi_gpe_event_info *gpe_event_info;
+	u32 gpe_number;
 	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
 	u8 enabled_status_byte;
 	u32 status_reg;
@@ -356,6 +359,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 
 	gpe_block = gpe_xrupt_list->gpe_block_list_head;
 	while (gpe_block) {
+		gpe_device = gpe_block->node;
+
 		/*
 		 * Read all of the 8-bit GPE status and enable registers in this GPE
 		 * block, saving all of them. Find all currently active GP events.
@@ -431,16 +436,33 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 
 				/* Examine one GPE bit */
 
+				gpe_event_info =
+				    &gpe_block->
+				    event_info[((acpi_size) i *
+						ACPI_GPE_REGISTER_WIDTH) + j];
+				gpe_number =
+				    j + gpe_register_info->base_gpe_number;
+
 				if (enabled_status_byte & (1 << j)) {
+
+					/* Invoke global event handler if present */
+
+					acpi_gpe_count++;
+					if (acpi_gbl_global_event_handler) {
+						acpi_gbl_global_event_handler
+						    (ACPI_EVENT_TYPE_GPE,
+						     gpe_device, gpe_number,
+						     acpi_gbl_global_event_handler_context);
+					}
+
 					/*
 					 * Found an active GPE. Dispatch the event to a handler
 					 * or method.
 					 */
 					int_status |=
-					    acpi_ev_gpe_dispatch(gpe_block->
-								 node,
-								 &gpe_block->
-								 event_info[((acpi_size) i * ACPI_GPE_REGISTER_WIDTH) + j], j + gpe_register_info->base_gpe_number);
+					    acpi_ev_gpe_dispatch(gpe_device,
+								 gpe_event_info,
+								 gpe_number);
 				}
 			}
 		}
@@ -644,15 +666,6 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	u32 return_value;
 
 	ACPI_FUNCTION_TRACE(ev_gpe_dispatch);
-
-	/* Invoke global event handler if present */
-
-	acpi_gpe_count++;
-	if (acpi_gbl_global_event_handler) {
-		acpi_gbl_global_event_handler(ACPI_EVENT_TYPE_GPE, gpe_device,
-					      gpe_number,
-					      acpi_gbl_global_event_handler_context);
-	}
 
 	/*
 	 * Always disable the GPE so that it does not keep firing before
