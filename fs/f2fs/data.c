@@ -1007,21 +1007,19 @@ inline_data:
 		goto out;
 	}
 
-	if (dn.data_blkaddr == NEW_ADDR) {
+	if (f2fs_has_inline_data(inode)) {
+		err = f2fs_read_inline_data(inode, page);
+		if (err) {
+			page_cache_release(page);
+			goto fail;
+		}
+	} else if (dn.data_blkaddr == NEW_ADDR) {
 		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
 	} else {
-		if (f2fs_has_inline_data(inode)) {
-			err = f2fs_read_inline_data(inode, page);
-			if (err) {
-				page_cache_release(page);
-				goto fail;
-			}
-		} else {
-			err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr,
-							READ_SYNC);
-			if (err)
-				goto fail;
-		}
+		err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr,
+					   READ_SYNC);
+		if (err)
+			goto fail;
 
 		lock_page(page);
 		if (unlikely(!PageUptodate(page))) {

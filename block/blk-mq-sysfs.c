@@ -390,16 +390,15 @@ static void blk_mq_sysfs_init(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx;
-	int i, j;
+	int i;
 
 	kobject_init(&q->mq_kobj, &blk_mq_ktype);
 
-	queue_for_each_hw_ctx(q, hctx, i) {
+	queue_for_each_hw_ctx(q, hctx, i)
 		kobject_init(&hctx->kobj, &blk_mq_hw_ktype);
 
-		hctx_for_each_ctx(hctx, ctx, j)
-			kobject_init(&ctx->kobj, &blk_mq_ctx_ktype);
-	}
+	queue_for_each_ctx(q, ctx, i)
+		kobject_init(&ctx->kobj, &blk_mq_ctx_ktype);
 }
 
 /* see blk_register_queue() */

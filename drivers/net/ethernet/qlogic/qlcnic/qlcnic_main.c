@@ -504,9 +504,11 @@ static void qlcnic_del_vxlan_port(struct net_device *netdev,
 	adapter->flags |= QLCNIC_DEL_VXLAN_PORT;
 }
 
-static bool qlcnic_gso_check(struct sk_buff *skb, struct net_device *dev)
+static netdev_features_t qlcnic_features_check(struct sk_buff *skb,
+					       struct net_device *dev,
+					       netdev_features_t features)
 {
-	return vxlan_gso_check(skb);
+	return vxlan_features_check(skb, features);
 }
 #endif
 
@@ -531,7 +533,7 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 #ifdef CONFIG_QLCNIC_VXLAN
 	.ndo_add_vxlan_port	= qlcnic_add_vxlan_port,
 	.ndo_del_vxlan_port	= qlcnic_del_vxlan_port,
-	.ndo_gso_check		= qlcnic_gso_check,
+	.ndo_features_check	= qlcnic_features_check,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,

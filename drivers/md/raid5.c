@@ -2917,8 +2917,11 @@ static int fetch_block(struct stripe_head *sh, struct stripe_head_state *s,
 	     (sh->raid_conf->level <= 5 && s->failed && fdev[0]->towrite &&
 	      (!test_bit(R5_Insync, &dev->flags) || test_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) &&
 	      !test_bit(R5_OVERWRITE, &fdev[0]->flags)) ||
-	     (sh->raid_conf->level == 6 && s->failed && s->to_write &&
-	      s->to_write - s->non_overwrite < sh->raid_conf->raid_disks - 2 &&
+	     ((sh->raid_conf->level == 6 ||
+	       sh->sector >= sh->raid_conf->mddev->recovery_cp)
+	      && s->failed && s->to_write &&
+	      (s->to_write - s->non_overwrite <
+	       sh->raid_conf->raid_disks - sh->raid_conf->max_degraded) &&
 	      (!test_bit(R5_Insync, &dev->flags) || test_bit(STRIPE_PREREAD_ACTIVE, &sh->state))))) {
 		/* we would like to get this block, possibly by computing it,
 		 * otherwise read it if the backing disk is insync

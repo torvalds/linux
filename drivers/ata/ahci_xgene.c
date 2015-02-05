@@ -188,7 +188,7 @@ static unsigned int xgene_ahci_read_id(struct ata_device *dev,
 	 *
 	 * Clear reserved bit 8 (DEVSLP bit) as we don't support DEVSLP
 	 */
-	id[ATA_ID_FEATURE_SUPP] &= ~(1 << 8);
+	id[ATA_ID_FEATURE_SUPP] &= cpu_to_le16(~(1 << 8));
 
 	return 0;
 }

@@ -442,19 +442,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		if ((f->type == AUDIT_LOGINUID) && (f->val == AUDIT_UID_UNSET)) {
 			f->type = AUDIT_LOGINUID_SET;
 			f->val = 0;
-		}
-
-		if ((f->type == AUDIT_PID) || (f->type == AUDIT_PPID)) {
-			struct pid *pid;
-			rcu_read_lock();
-			pid = find_vpid(f->val);
-			if (!pid) {
-				rcu_read_unlock();
-				err = -ESRCH;
-				goto exit_free;
-			}
-			f->val = pid_nr(pid);
-			rcu_read_unlock();
+			entry->rule.pflags |= AUDIT_LOGINUID_LEGACY;
 		}
 
 		err = audit_field_valid(entry, f);
@@ -630,6 +618,13 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 			data->buflen += data->values[i] =
 				audit_pack_string(&bufp, krule->filterkey);
 			break;
+		case AUDIT_LOGINUID_SET:
+			if (krule->pflags & AUDIT_LOGINUID_LEGACY && !f->val) {
+				data->fields[i] = AUDIT_LOGINUID;
+				data->values[i] = AUDIT_UID_UNSET;
+				break;
+			}
+			/* fallthrough if set */
 		default:
 			data->values[i] = f->val;
 		}
@@ -646,6 +641,7 @@ static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 	int i;
 
 	if (a->flags != b->flags ||
+	    a->pflags != b->pflags ||
 	    a->listnr != b->listnr ||
 	    a->action != b->action ||
 	    a->field_count != b->field_count)
@@ -764,6 +760,7 @@ struct audit_entry *audit_dupe_rule(struct audit_krule *old)
 	new = &entry->rule;
 	new->vers_ops = old->vers_ops;
 	new->flags = old->flags;
+	new->pflags = old->pflags;
 	new->listnr = old->listnr;
 	new->action = old->action;
 	for (i = 0; i < AUDIT_BITMASK_SIZE; i++)

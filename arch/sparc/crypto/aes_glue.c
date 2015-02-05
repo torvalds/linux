@@ -499,6 +499,6 @@ module_exit(aes_sparc64_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("AES Secure Hash Algorithm, sparc64 aes opcode accelerated");
 
-MODULE_ALIAS("aes");
+MODULE_ALIAS_CRYPTO("aes");
 
 #include "crop_devid.c"

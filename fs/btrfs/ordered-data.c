@@ -220,6 +220,7 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	INIT_LIST_HEAD(&entry->work_list);
 	init_completion(&entry->completion);
 	INIT_LIST_HEAD(&entry->log_list);
+	INIT_LIST_HEAD(&entry->trans_list);
 
 	trace_btrfs_ordered_extent_add(inode, entry);
 
@@ -443,6 +444,8 @@ void btrfs_get_logged_extents(struct inode *inode,
 		ordered = rb_entry(n, struct btrfs_ordered_extent, rb_node);
 		if (!list_empty(&ordered->log_list))
 			continue;
+		if (test_bit(BTRFS_ORDERED_LOGGED, &ordered->flags))
+			continue;
 		list_add_tail(&ordered->log_list, logged_list);
 		atomic_inc(&ordered->refs);
 	}
@@ -472,7 +475,8 @@ void btrfs_submit_logged_extents(struct list_head *logged_list,
 	spin_unlock_irq(&log->log_extents_lock[index]);
 }
 
-void btrfs_wait_logged_extents(struct btrfs_root *log, u64 transid)
+void btrfs_wait_logged_extents(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *log, u64 transid)
 {
 	struct btrfs_ordered_extent *ordered;
 	int index = transid % 2;
@@ -497,7 +501,8 @@ void btrfs_wait_logged_extents(struct btrfs_root *log, u64 transid)
 		wait_event(ordered->wait, test_bit(BTRFS_ORDERED_IO_DONE,
 						   &ordered->flags));
 
-		btrfs_put_ordered_extent(ordered);
+		if (!test_and_set_bit(BTRFS_ORDERED_LOGGED, &ordered->flags))
+			list_add_tail(&ordered->trans_list, &trans->ordered);
 		spin_lock_irq(&log->log_extents_lock[index]);
 	}
 	spin_unlock_irq(&log->log_extents_lock[index]);

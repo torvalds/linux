@@ -106,11 +106,6 @@
 				reg = <0x11100 0x20>;
 			};
 
-			system-controller@18200 {
-				compatible = "marvell,armada-370-xp-system-controller";
-				reg = <0x18200 0x100>;
-			};
-
 			pinctrl {
 				compatible = "marvell,mv88f6710-pinctrl";
 				reg = <0x18000 0x38>;
@@ -203,6 +198,11 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupts = <91>;
+			};
+
+			system-controller@18200 {
+				compatible = "marvell,armada-370-xp-system-controller";
+				reg = <0x18200 0x100>;
 			};
 
 			gateclk: clock-gating-control@18220 {

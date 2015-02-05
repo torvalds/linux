@@ -4449,7 +4449,7 @@ void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm)
 	 * zap all shadow pages.
 	 */
 	if (unlikely(kvm_current_mmio_generation(kvm) == 0)) {
-		printk_ratelimited(KERN_INFO "kvm: zapping shadow pages for mmio generation wraparound\n");
+		printk_ratelimited(KERN_DEBUG "kvm: zapping shadow pages for mmio generation wraparound\n");
 		kvm_mmu_invalidate_zap_all_pages(kvm);
 	}
 }

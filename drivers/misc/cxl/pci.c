@@ -502,7 +502,7 @@ static struct cxl_afu *cxl_alloc_afu(struct cxl *adapter, int slice)
 	afu->dev.release = cxl_release_afu;
 	afu->slice = slice;
 	idr_init(&afu->contexts_idr);
-	spin_lock_init(&afu->contexts_lock);
+	mutex_init(&afu->contexts_lock);
 	spin_lock_init(&afu->afu_cntl_lock);
 	mutex_init(&afu->spa_mutex);
 

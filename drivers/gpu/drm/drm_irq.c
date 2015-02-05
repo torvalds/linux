@@ -1029,7 +1029,8 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
 
-	BUG_ON(atomic_read(&vblank->refcount) == 0);
+	if (WARN_ON(atomic_read(&vblank->refcount) == 0))
+		return;
 
 	if (WARN_ON(crtc >= dev->num_crtcs))
 		return;

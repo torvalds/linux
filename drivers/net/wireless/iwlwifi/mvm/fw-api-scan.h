@@ -672,6 +672,7 @@ struct iwl_scan_channel_opt {
  * @IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED: all passive scans will be fragmented
  * @IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED: insert WFA vendor-specific TPC report
  *	and DS parameter set IEs into probe requests.
+ * @IWL_MVM_LMAC_SCAN_FLAG_MATCH: Send match found notification on matches
  */
 enum iwl_mvm_lmac_scan_flags {
 	IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL		= BIT(0),
@@ -681,6 +682,7 @@ enum iwl_mvm_lmac_scan_flags {
 	IWL_MVM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS	= BIT(4),
 	IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED	= BIT(5),
 	IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED	= BIT(6),
+	IWL_MVM_LMAC_SCAN_FLAG_MATCH		= BIT(9),
 };
 
 enum iwl_scan_priority {

@@ -23,6 +23,7 @@ enum iser_ib_op_code {
 enum iser_conn_state {
 	ISER_CONN_INIT,
 	ISER_CONN_UP,
+	ISER_CONN_FULL_FEATURE,
 	ISER_CONN_TERMINATING,
 	ISER_CONN_DOWN,
 };
@@ -81,6 +82,12 @@ struct isert_data_buf {
 	enum dma_data_direction dma_dir;
 };
 
+enum {
+	DATA = 0,
+	PROT = 1,
+	SIG = 2,
+};
+
 struct isert_rdma_wr {
 	struct list_head	wr_list;
 	struct isert_cmd	*isert_cmd;
@@ -90,6 +97,7 @@ struct isert_rdma_wr {
 	int			send_wr_num;
 	struct ib_send_wr	*send_wr;
 	struct ib_send_wr	s_send_wr;
+	struct ib_sge		ib_sg[3];
 	struct isert_data_buf	data;
 	struct isert_data_buf	prot;
 	struct fast_reg_descriptor *fr_desc;
@@ -120,11 +128,13 @@ struct isert_conn {
 	atomic_t		post_send_buf_count;
 	u32			responder_resources;
 	u32			initiator_depth;
+	bool			pi_support;
 	u32			max_sge;
 	char			*login_buf;
 	char			*login_req_buf;
 	char			*login_rsp_buf;
 	u64			login_req_dma;
+	int			login_req_len;
 	u64			login_rsp_dma;
 	unsigned int		conn_rx_desc_head;
 	struct iser_rx_desc	*conn_rx_descs;
@@ -132,13 +142,13 @@ struct isert_conn {
 	struct iscsi_conn	*conn;
 	struct list_head	conn_accept_node;
 	struct completion	conn_login_comp;
+	struct completion	login_req_comp;
 	struct iser_tx_desc	conn_login_tx_desc;
 	struct rdma_cm_id	*conn_cm_id;
 	struct ib_pd		*conn_pd;
 	struct ib_mr		*conn_mr;
 	struct ib_qp		*conn_qp;
 	struct isert_device	*conn_device;
-	struct work_struct	conn_logout_work;
 	struct mutex		conn_mutex;
 	struct completion	conn_wait;
 	struct completion	conn_wait_comp_err;
@@ -147,10 +157,10 @@ struct isert_conn {
 	int			conn_fr_pool_size;
 	/* lock to protect fastreg pool */
 	spinlock_t		conn_lock;
+	struct work_struct	release_work;
 #define ISERT_COMP_BATCH_COUNT	8
 	int			conn_comp_batch;
 	struct llist_head	conn_comp_llist;
-	bool                    disconnect;
 };
 
 #define ISERT_MAX_CQ 64
@@ -182,6 +192,7 @@ struct isert_device {
 };
 
 struct isert_np {
+	struct iscsi_np         *np;
 	struct semaphore	np_sem;
 	struct rdma_cm_id	*np_cm_id;
 	struct mutex		np_accept_mutex;

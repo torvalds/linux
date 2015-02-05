@@ -1760,7 +1760,7 @@ static enum reg_request_treatment
 reg_process_hint_driver(struct wiphy *wiphy,
 			struct regulatory_request *driver_request)
 {
-	const struct ieee80211_regdomain *regd;
+	const struct ieee80211_regdomain *regd, *tmp;
 	enum reg_request_treatment treatment;
 
 	treatment = __reg_process_hint_driver(driver_request);
@@ -1780,7 +1780,10 @@ reg_process_hint_driver(struct wiphy *wiphy,
 			reg_free_request(driver_request);
 			return REG_REQ_IGNORE;
 		}
+
+		tmp = get_wiphy_regdom(wiphy);
 		rcu_assign_pointer(wiphy->regd, regd);
+		rcu_free_regdom(tmp);
 	}
 
 
@@ -1839,11 +1842,8 @@ __reg_process_hint_country_ie(struct wiphy *wiphy,
 			return REG_REQ_IGNORE;
 		return REG_REQ_ALREADY_SET;
 	}
-	/*
-	 * Two consecutive Country IE hints on the same wiphy.
-	 * This should be picked up early by the driver/stack
-	 */
-	if (WARN_ON(regdom_changes(country_ie_request->alpha2)))
+
+	if (regdom_changes(country_ie_request->alpha2))
 		return REG_REQ_OK;
 	return REG_REQ_ALREADY_SET;
 }

@@ -155,6 +155,7 @@ struct acpi_video_bus {
 	u8 dos_setting;
 	struct acpi_video_enumerated_device *attached_array;
 	u8 attached_count;
+	u8 child_count;
 	struct acpi_video_bus_cap cap;
 	struct acpi_video_bus_flags flags;
 	struct list_head video_device_list;
@@ -502,6 +503,23 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY 15 Notebook PC"),
+		},
+	},
+
+	{
+	 .callback = video_disable_native_backlight,
+	 .ident = "SAMSUNG 870Z5E/880Z5E/680Z5E",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "870Z5E/880Z5E/680Z5E"),
+		},
+	},
+	{
+	 .callback = video_disable_native_backlight,
+	 .ident = "SAMSUNG 370R4E/370R4V/370R5E/3570RE/370R5V",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "370R4E/370R4V/370R5E/3570RE/370R5V"),
 		},
 	},
 	{}
@@ -1159,8 +1177,12 @@ static bool acpi_video_device_in_dod(struct acpi_video_device *device)
 	struct acpi_video_bus *video = device->video;
 	int i;
 
-	/* If we have a broken _DOD, no need to test */
-	if (!video->attached_count)
+	/*
+	 * If we have a broken _DOD or we have more than 8 output devices
+	 * under the graphics controller node that we can't proper deal with
+	 * in the operation region code currently, no need to test.
+	 */
+	if (!video->attached_count || video->child_count > 8)
 		return true;
 
 	for (i = 0; i < video->attached_count; i++) {
@@ -1413,6 +1435,7 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 			dev_err(&dev->dev, "Can't attach device\n");
 			break;
 		}
+		video->child_count++;
 	}
 	return status;
 }

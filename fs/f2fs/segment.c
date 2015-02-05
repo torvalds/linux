@@ -1004,6 +1004,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 						range->len < sbi->blocksize)
 		return -EINVAL;
 
+	cpc.trimmed = 0;
 	if (end <= MAIN_BLKADDR(sbi))
 		goto out;
 
@@ -1015,7 +1016,6 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	cpc.trim_start = start_segno;
 	cpc.trim_end = end_segno;
 	cpc.trim_minlen = range->minlen >> sbi->log_blocksize;
-	cpc.trimmed = 0;
 
 	/* do checkpoint to issue discard commands safely */
 	write_checkpoint(sbi, &cpc);

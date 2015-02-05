@@ -52,6 +52,7 @@
 #include <linux/pci.h>
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
+#include <linux/crypto.h>
 
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
@@ -487,4 +488,4 @@ module_exit(adf_unregister_ctl_device_driver);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel");
 MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
-MODULE_ALIAS("intel_qat");
+MODULE_ALIAS_CRYPTO("intel_qat");

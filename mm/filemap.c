@@ -1046,8 +1046,7 @@ EXPORT_SYMBOL(find_lock_entry);
  * @mapping: the address_space to search
  * @offset: the page index
  * @fgp_flags: PCG flags
- * @cache_gfp_mask: gfp mask to use for the page cache data page allocation
- * @radix_gfp_mask: gfp mask to use for radix tree node allocation
+ * @gfp_mask: gfp mask to use for the page cache data page allocation
  *
  * Looks up the page cache slot at @mapping & @offset.
  *
@@ -1056,11 +1055,9 @@ EXPORT_SYMBOL(find_lock_entry);
  * FGP_ACCESSED: the page will be marked accessed
  * FGP_LOCK: Page is return locked
  * FGP_CREAT: If page is not present then a new page is allocated using
- *		@cache_gfp_mask and added to the page cache and the VM's LRU
- *		list. If radix tree nodes are allocated during page cache
- *		insertion then @radix_gfp_mask is used. The page is returned
- *		locked and with an increased refcount. Otherwise, %NULL is
- *		returned.
+ *		@gfp_mask and added to the page cache and the VM's LRU
+ *		list. The page is returned locked and with an increased
+ *		refcount. Otherwise, %NULL is returned.
  *
  * If FGP_LOCK or FGP_CREAT are specified then the function may sleep even
  * if the GFP flags specified for FGP_CREAT are atomic.
@@ -1068,7 +1065,7 @@ EXPORT_SYMBOL(find_lock_entry);
  * If there is a page cache page, it is returned with an increased refcount.
  */
 struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
-	int fgp_flags, gfp_t cache_gfp_mask, gfp_t radix_gfp_mask)
+	int fgp_flags, gfp_t gfp_mask)
 {
 	struct page *page;
 
@@ -1105,13 +1102,11 @@ no_page:
 	if (!page && (fgp_flags & FGP_CREAT)) {
 		int err;
 		if ((fgp_flags & FGP_WRITE) && mapping_cap_account_dirty(mapping))
-			cache_gfp_mask |= __GFP_WRITE;
-		if (fgp_flags & FGP_NOFS) {
-			cache_gfp_mask &= ~__GFP_FS;
-			radix_gfp_mask &= ~__GFP_FS;
-		}
+			gfp_mask |= __GFP_WRITE;
+		if (fgp_flags & FGP_NOFS)
+			gfp_mask &= ~__GFP_FS;
 
-		page = __page_cache_alloc(cache_gfp_mask);
+		page = __page_cache_alloc(gfp_mask);
 		if (!page)
 			return NULL;
 
@@ -1122,7 +1117,8 @@ no_page:
 		if (fgp_flags & FGP_ACCESSED)
 			__SetPageReferenced(page);
 
-		err = add_to_page_cache_lru(page, mapping, offset, radix_gfp_mask);
+		err = add_to_page_cache_lru(page, mapping, offset,
+				gfp_mask & GFP_RECLAIM_MASK);
 		if (unlikely(err)) {
 			page_cache_release(page);
 			page = NULL;
@@ -2443,8 +2439,7 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
 		fgp_flags |= FGP_NOFS;
 
 	page = pagecache_get_page(mapping, index, fgp_flags,
-			mapping_gfp_mask(mapping),
-			GFP_KERNEL);
+			mapping_gfp_mask(mapping));
 	if (page)
 		wait_for_stable_page(page);
 

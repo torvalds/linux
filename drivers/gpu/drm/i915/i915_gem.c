@@ -4193,7 +4193,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
 
 	ret = i915_mutex_lock_interruptible(dev);
@@ -4248,6 +4248,9 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_pin *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
@@ -5141,7 +5144,7 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
 	if (!mutex_is_locked(mutex))
 		return false;
 
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_MUTEXES)
+#if defined(CONFIG_SMP) && !defined(CONFIG_DEBUG_MUTEXES)
 	return mutex->owner == task;
 #else
 	/* Since UP may be pre-empted, we cannot assume that we own the lock */

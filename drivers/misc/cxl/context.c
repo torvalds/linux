@@ -34,7 +34,8 @@ struct cxl_context *cxl_context_alloc(void)
 /*
  * Initialises a CXL context.
  */
-int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
+int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
+		     struct address_space *mapping)
 {
 	int i;
 
@@ -42,6 +43,8 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 	ctx->afu = afu;
 	ctx->master = master;
 	ctx->pid = NULL; /* Set in start work ioctl */
+	mutex_init(&ctx->mapping_lock);
+	ctx->mapping = mapping;
 
 	/*
 	 * Allocate the segment table before we put it in the IDR so that we
@@ -82,12 +85,12 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 	 * Allocating IDR! We better make sure everything's setup that
 	 * dereferences from it.
 	 */
+	mutex_lock(&afu->contexts_lock);
 	idr_preload(GFP_KERNEL);
-	spin_lock(&afu->contexts_lock);
 	i = idr_alloc(&ctx->afu->contexts_idr, ctx, 0,
 		      ctx->afu->num_procs, GFP_NOWAIT);
-	spin_unlock(&afu->contexts_lock);
 	idr_preload_end();
+	mutex_unlock(&afu->contexts_lock);
 	if (i < 0)
 		return i;
 
@@ -147,6 +150,12 @@ static void __detach_context(struct cxl_context *ctx)
 	afu_release_irqs(ctx);
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
 	wake_up_all(&ctx->wq);
+
+	/* Release Problem State Area mapping */
+	mutex_lock(&ctx->mapping_lock);
+	if (ctx->mapping)
+		unmap_mapping_range(ctx->mapping, 0, 0, 1);
+	mutex_unlock(&ctx->mapping_lock);
 }
 
 /*
@@ -168,21 +177,22 @@ void cxl_context_detach_all(struct cxl_afu *afu)
 	struct cxl_context *ctx;
 	int tmp;
 
-	rcu_read_lock();
-	idr_for_each_entry(&afu->contexts_idr, ctx, tmp)
+	mutex_lock(&afu->contexts_lock);
+	idr_for_each_entry(&afu->contexts_idr, ctx, tmp) {
 		/*
 		 * Anything done in here needs to be setup before the IDR is
 		 * created and torn down after the IDR removed
 		 */
 		__detach_context(ctx);
-	rcu_read_unlock();
+	}
+	mutex_unlock(&afu->contexts_lock);
 }
 
 void cxl_context_free(struct cxl_context *ctx)
 {
-	spin_lock(&ctx->afu->contexts_lock);
+	mutex_lock(&ctx->afu->contexts_lock);
 	idr_remove(&ctx->afu->contexts_idr, ctx->pe);
-	spin_unlock(&ctx->afu->contexts_lock);
+	mutex_unlock(&ctx->afu->contexts_lock);
 	synchronize_rcu();
 
 	free_page((u64)ctx->sstp);

@@ -137,37 +137,38 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
  */
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u32 scd_q_msk)
 {
-	struct iwl_txfifo_flush_cmd flush_cmd;
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_TXFIFO_FLUSH,
-		.len = { sizeof(struct iwl_txfifo_flush_cmd), },
-		.data = { &flush_cmd, },
+	struct iwl_txfifo_flush_cmd_v3 flush_cmd_v3 = {
+		.flush_control = cpu_to_le16(IWL_DROP_ALL),
+	};
+	struct iwl_txfifo_flush_cmd_v2 flush_cmd_v2 = {
+		.flush_control = cpu_to_le16(IWL_DROP_ALL),
 	};
 
-	memset(&flush_cmd, 0, sizeof(flush_cmd));
+	u32 queue_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
+			    IWL_SCD_BE_MSK | IWL_SCD_BK_MSK | IWL_SCD_MGMT_MSK;
 
-	flush_cmd.queue_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
-				  IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
-				  IWL_SCD_MGMT_MSK;
 	if ((priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
-		flush_cmd.queue_control |= IWL_PAN_SCD_VO_MSK |
-					   IWL_PAN_SCD_VI_MSK |
-					   IWL_PAN_SCD_BE_MSK |
-					   IWL_PAN_SCD_BK_MSK |
-					   IWL_PAN_SCD_MGMT_MSK |
-					   IWL_PAN_SCD_MULTICAST_MSK;
+		queue_control |= IWL_PAN_SCD_VO_MSK | IWL_PAN_SCD_VI_MSK |
+				 IWL_PAN_SCD_BE_MSK | IWL_PAN_SCD_BK_MSK |
+				 IWL_PAN_SCD_MGMT_MSK |
+				 IWL_PAN_SCD_MULTICAST_MSK;
 
 	if (priv->nvm_data->sku_cap_11n_enable)
-		flush_cmd.queue_control |= IWL_AGG_TX_QUEUE_MSK;
+		queue_control |= IWL_AGG_TX_QUEUE_MSK;
 
 	if (scd_q_msk)
-		flush_cmd.queue_control = cpu_to_le32(scd_q_msk);
+		queue_control = scd_q_msk;
 
-	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n",
-		       flush_cmd.queue_control);
-	flush_cmd.flush_control = cpu_to_le16(IWL_DROP_ALL);
+	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n", queue_control);
+	flush_cmd_v3.queue_control = cpu_to_le32(queue_control);
+	flush_cmd_v2.queue_control = cpu_to_le16((u16)queue_control);
 
-	return iwl_dvm_send_cmd(priv, &cmd);
+	if (IWL_UCODE_API(priv->fw->ucode_ver) > 2)
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_TXFIFO_FLUSH, 0,
+					    sizeof(flush_cmd_v3),
+					    &flush_cmd_v3);
+	return iwl_dvm_send_cmd_pdu(priv, REPLY_TXFIFO_FLUSH, 0,
+				    sizeof(flush_cmd_v2), &flush_cmd_v2);
 }
 
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv)

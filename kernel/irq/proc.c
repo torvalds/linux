@@ -15,6 +15,23 @@
 
 #include "internals.h"
 
+/*
+ * Access rules:
+ *
+ * procfs protects read/write of /proc/irq/N/ files against a
+ * concurrent free of the interrupt descriptor. remove_proc_entry()
+ * immediately prevents new read/writes to happen and waits for
+ * already running read/write functions to complete.
+ *
+ * We remove the proc entries first and then delete the interrupt
+ * descriptor from the radix tree and free it. So it is guaranteed
+ * that irq_to_desc(N) is valid as long as the read/writes are
+ * permitted by procfs.
+ *
+ * The read from /proc/interrupts is a different problem because there
+ * is no protection. So the lookup and the access to irqdesc
+ * information must be protected by sparse_irq_lock.
+ */
 static struct proc_dir_entry *root_irq_dir;
 
 #ifdef CONFIG_SMP
@@ -437,9 +454,10 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 
+	irq_lock_sparse();
 	desc = irq_to_desc(i);
 	if (!desc)
-		return 0;
+		goto outsparse;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	for_each_online_cpu(j)
@@ -479,6 +497,8 @@ int show_interrupts(struct seq_file *p, void *v)
 	seq_putc(p, '\n');
 out:
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
+outsparse:
+	irq_unlock_sparse();
 	return 0;
 }
 #endif

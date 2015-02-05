@@ -277,6 +277,7 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 				  u64 cmd, u64 pe_state)
 {
 	u64 state;
+	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
 
 	WARN_ON(!ctx->afu->enabled);
 
@@ -286,6 +287,10 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 	smp_mb();
 	cxl_p1n_write(ctx->afu, CXL_PSL_LLCMD_An, cmd | ctx->pe);
 	while (1) {
+		if (time_after_eq(jiffies, timeout)) {
+			dev_warn(&ctx->afu->dev, "WARNING: Process Element Command timed out!\n");
+			return -EBUSY;
+		}
 		state = be64_to_cpup(ctx->afu->sw_command_status);
 		if (state == ~0ULL) {
 			pr_err("cxl: Error adding process element to AFU\n");
@@ -610,13 +615,6 @@ static inline int detach_process_native_dedicated(struct cxl_context *ctx)
 	return 0;
 }
 
-/*
- * TODO: handle case when this is called inside a rcu_read_lock() which may
- * happen when we unbind the driver (ie. cxl_context_detach_all()) .  Terminate
- * & remove use a mutex lock and schedule which will not good with lock held.
- * May need to write do_process_element_cmd() that handles outstanding page
- * faults synchronously.
- */
 static inline int detach_process_native_afu_directed(struct cxl_context *ctx)
 {
 	if (!ctx->pe_inserted)

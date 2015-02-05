@@ -43,8 +43,8 @@
 static void
 assert_device_not_suspended(struct drm_i915_private *dev_priv)
 {
-	WARN(HAS_RUNTIME_PM(dev_priv->dev) && dev_priv->pm.suspended,
-	     "Device suspended\n");
+	WARN_ONCE(HAS_RUNTIME_PM(dev_priv->dev) && dev_priv->pm.suspended,
+		  "Device suspended\n");
 }
 
 static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)

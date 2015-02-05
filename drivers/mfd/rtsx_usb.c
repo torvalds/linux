@@ -681,20 +681,8 @@ static void rtsx_usb_disconnect(struct usb_interface *intf)
 #ifdef CONFIG_PM
 static int rtsx_usb_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	struct rtsx_ucr *ucr =
-		(struct rtsx_ucr *)usb_get_intfdata(intf);
-
 	dev_dbg(&intf->dev, "%s called with pm message 0x%04x\n",
 			__func__, message.event);
-
-	/*
-	 * Call to make sure LED is off during suspend to save more power.
-	 * It is NOT a permanent state and could be turned on anytime later.
-	 * Thus no need to call turn_on when resunming.
-	 */
-	mutex_lock(&ucr->dev_mutex);
-	rtsx_usb_turn_off_led(ucr);
-	mutex_unlock(&ucr->dev_mutex);
 
 	return 0;
 }

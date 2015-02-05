@@ -228,6 +228,49 @@ int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 }
 EXPORT_SYMBOL(pci_bus_alloc_resource);
 
+/*
+ * The @idx resource of @dev should be a PCI-PCI bridge window.  If this
+ * resource fits inside a window of an upstream bridge, do nothing.  If it
+ * overlaps an upstream window but extends outside it, clip the resource so
+ * it fits completely inside.
+ */
+bool pci_bus_clip_resource(struct pci_dev *dev, int idx)
+{
+	struct pci_bus *bus = dev->bus;
+	struct resource *res = &dev->resource[idx];
+	struct resource orig_res = *res;
+	struct resource *r;
+	int i;
+
+	pci_bus_for_each_resource(bus, r, i) {
+		resource_size_t start, end;
+
+		if (!r)
+			continue;
+
+		if (resource_type(res) != resource_type(r))
+			continue;
+
+		start = max(r->start, res->start);
+		end = min(r->end, res->end);
+
+		if (start > end)
+			continue;	/* no overlap */
+
+		if (res->start == start && res->end == end)
+			return false;	/* no change */
+
+		res->start = start;
+		res->end = end;
+		dev_printk(KERN_DEBUG, &dev->dev, "%pR clipped to %pR\n",
+				 &orig_res, res);
+
+		return true;
+	}
+
+	return false;
+}
+
 void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
 
 /**

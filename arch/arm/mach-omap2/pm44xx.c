@@ -160,26 +160,6 @@ static inline int omap4_init_static_deps(void)
 	struct clockdomain *ducati_clkdm, *l3_2_clkdm;
 	int ret = 0;
 
-	if (omap_rev() == OMAP4430_REV_ES1_0) {
-		WARN(1, "Power Management not supported on OMAP4430 ES1.0\n");
-		return -ENODEV;
-	}
-
-	pr_err("Power Management for TI OMAP4.\n");
-	/*
-	 * OMAP4 chip PM currently works only with certain (newer)
-	 * versions of bootloaders. This is due to missing code in the
-	 * kernel to properly reset and initialize some devices.
-	 * http://www.spinics.net/lists/arm-kernel/msg218641.html
-	 */
-	pr_warn("OMAP4 PM: u-boot >= v2012.07 is required for full PM support\n");
-
-	ret = pwrdm_for_each(pwrdms_setup, NULL);
-	if (ret) {
-		pr_err("Failed to setup powerdomains\n");
-		return ret;
-	}
-
 	/*
 	 * The dynamic dependency between MPUSS -> MEMIF and
 	 * MPUSS -> L4_PER/L3_* and DUCATI -> L3_* doesn't work as
@@ -271,6 +251,15 @@ int __init omap4_pm_init(void)
 	}
 
 	pr_info("Power Management for TI OMAP4+ devices.\n");
+
+	/*
+	 * OMAP4 chip PM currently works only with certain (newer)
+	 * versions of bootloaders. This is due to missing code in the
+	 * kernel to properly reset and initialize some devices.
+	 * http://www.spinics.net/lists/arm-kernel/msg218641.html
+	 */
+	if (cpu_is_omap44xx())
+		pr_warn("OMAP4 PM: u-boot >= v2012.07 is required for full PM support\n");
 
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {

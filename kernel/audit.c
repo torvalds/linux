@@ -429,7 +429,7 @@ static void kauditd_send_skb(struct sk_buff *skb)
  * This function doesn't consume an skb as might be expected since it has to
  * copy it anyways.
  */
-static void kauditd_send_multicast_skb(struct sk_buff *skb)
+static void kauditd_send_multicast_skb(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	struct sk_buff		*copy;
 	struct audit_net	*aunet = net_generic(&init_net, audit_net_id);
@@ -448,11 +448,11 @@ static void kauditd_send_multicast_skb(struct sk_buff *skb)
 	 * no reason for new multicast clients to continue with this
 	 * non-compliance.
 	 */
-	copy = skb_copy(skb, GFP_KERNEL);
+	copy = skb_copy(skb, gfp_mask);
 	if (!copy)
 		return;
 
-	nlmsg_multicast(sock, copy, 0, AUDIT_NLGRP_READLOG, GFP_KERNEL);
+	nlmsg_multicast(sock, copy, 0, AUDIT_NLGRP_READLOG, gfp_mask);
 }
 
 /*
@@ -1949,7 +1949,7 @@ void audit_log_end(struct audit_buffer *ab)
 		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 
 		nlh->nlmsg_len = ab->skb->len;
-		kauditd_send_multicast_skb(ab->skb);
+		kauditd_send_multicast_skb(ab->skb, ab->gfp_mask);
 
 		/*
 		 * The original kaudit unicast socket sends up messages with
