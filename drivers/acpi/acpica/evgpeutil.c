@@ -324,7 +324,7 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 								 ACPI_GPE_REGISTER_WIDTH)
 								+ j];
 
-			if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
+			if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
 			    ACPI_GPE_DISPATCH_HANDLER) {
 
 				/* Delete an installed handler block */
@@ -333,10 +333,8 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				gpe_event_info->dispatch.handler = NULL;
 				gpe_event_info->flags &=
 				    ~ACPI_GPE_DISPATCH_MASK;
-			} else
-			    if ((gpe_event_info->
-				 flags & ACPI_GPE_DISPATCH_MASK) ==
-				ACPI_GPE_DISPATCH_NOTIFY) {
+			} else if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags)
+				   == ACPI_GPE_DISPATCH_NOTIFY) {
 
 				/* Delete the implicit notification device list */
 

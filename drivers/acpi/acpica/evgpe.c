@@ -503,7 +503,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 
 	/* Do the correct dispatch - normal method or implicit notify */
 
-	switch (gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) {
+	switch (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags)) {
 	case ACPI_GPE_DISPATCH_NOTIFY:
 		/*
 		 * Implicit notify.
@@ -707,7 +707,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	 * If there is neither a handler nor a method, leave the GPE
 	 * disabled.
 	 */
-	switch (gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) {
+	switch (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags)) {
 	case ACPI_GPE_DISPATCH_HANDLER:
 
 		/* Invoke the installed handler (at interrupt level) */

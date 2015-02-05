@@ -225,7 +225,7 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 
 	/* GPE currently handled? */
 
-	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) !=
+	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) !=
 	    ACPI_GPE_DISPATCH_NONE) {
 		local_event_status |= ACPI_EVENT_FLAG_HAS_HANDLER;
 	}

@@ -757,6 +757,7 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_DISPATCH_HANDLER       (u8) 0x02
 #define ACPI_GPE_DISPATCH_NOTIFY        (u8) 0x03
 #define ACPI_GPE_DISPATCH_MASK          (u8) 0x03
+#define ACPI_GPE_DISPATCH_TYPE(flags)   ((u8) ((flags) & ACPI_GPE_DISPATCH_MASK))
 
 #define ACPI_GPE_LEVEL_TRIGGERED        (u8) 0x04
 #define ACPI_GPE_EDGE_TRIGGERED         (u8) 0x00

@@ -132,7 +132,7 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 	 */
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
 	if (gpe_event_info) {
-		if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) !=
+		if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) !=
 		    ACPI_GPE_DISPATCH_NONE) {
 			status = acpi_ev_add_gpe_reference(gpe_event_info);
 		} else {
@@ -313,7 +313,7 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	 * known as an "implicit notify". Note: The GPE is assumed to be
 	 * level-triggered (for windows compatibility).
 	 */
-	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
+	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
 	    ACPI_GPE_DISPATCH_NONE) {
 		/*
 		 * This is the first device for implicit notify on this GPE.
@@ -327,7 +327,7 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	 * If we already have an implicit notify on this GPE, add
 	 * this device to the notify list.
 	 */
-	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
+	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
 	    ACPI_GPE_DISPATCH_NOTIFY) {
 
 		/* Ensure that the device is not already in the list */
