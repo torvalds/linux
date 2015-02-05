@@ -348,9 +348,11 @@ static bool hashtable_chain_unzip(struct rhashtable *ht,
 	return !rht_is_a_nulls(p);
 }
 
-static void link_old_to_new(struct bucket_table *new_tbl,
+static void link_old_to_new(struct rhashtable *ht, struct bucket_table *new_tbl,
 			    unsigned int new_hash, struct rhash_head *entry)
 {
+	ASSERT_BUCKET_LOCK(ht, new_tbl, new_hash);
+
 	rcu_assign_pointer(*bucket_tail(new_tbl, new_hash), entry);
 }
 
@@ -406,7 +408,7 @@ int rhashtable_expand(struct rhashtable *ht)
 		lock_buckets(new_tbl, old_tbl, new_hash);
 		rht_for_each(he, old_tbl, old_hash) {
 			if (head_hashfn(ht, new_tbl, he) == new_hash) {
-				link_old_to_new(new_tbl, new_hash, he);
+				link_old_to_new(ht, new_tbl, new_hash, he);
 				break;
 			}
 		}
@@ -492,6 +494,7 @@ int rhashtable_shrink(struct rhashtable *ht)
 
 		rcu_assign_pointer(*bucket_tail(new_tbl, new_hash),
 				   tbl->buckets[new_hash]);
+		ASSERT_BUCKET_LOCK(ht, tbl, new_hash + new_tbl->size);
 		rcu_assign_pointer(*bucket_tail(new_tbl, new_hash),
 				   tbl->buckets[new_hash + new_tbl->size]);
 
@@ -556,6 +559,8 @@ static void __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 {
 	struct rhash_head *head = rht_dereference_bucket(tbl->buckets[hash],
 							 tbl, hash);
+
+	ASSERT_BUCKET_LOCK(ht, tbl, hash);
 
 	if (rht_is_a_nulls(head))
 		INIT_RHT_NULLS_HEAD(obj->next, ht, hash);
@@ -641,6 +646,7 @@ restart:
 			continue;
 		}
 
+		ASSERT_BUCKET_LOCK(ht, tbl, hash);
 		rcu_assign_pointer(*pprev, obj->next);
 
 		ret = true;
