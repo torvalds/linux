@@ -108,10 +108,8 @@ static void __evdev_flush_queue(struct evdev_client *client, unsigned int type)
 	client->head = head;
 }
 
-/* queue SYN_DROPPED event and flush queue if flush parameter is true */
-static void evdev_queue_syn_dropped(struct evdev_client *client, bool flush)
+static void __evdev_queue_syn_dropped(struct evdev_client *client)
 {
-	unsigned long flags;
 	struct input_event ev;
 	ktime_t time;
 
@@ -126,11 +124,6 @@ static void evdev_queue_syn_dropped(struct evdev_client *client, bool flush)
 	ev.code = SYN_DROPPED;
 	ev.value = 0;
 
-	spin_lock_irqsave(&client->buffer_lock, flags);
-
-	if (flush)
-		client->packet_head = client->head = client->tail;
-
 	client->buffer[client->head++] = ev;
 	client->head &= client->bufsize - 1;
 
@@ -139,12 +132,21 @@ static void evdev_queue_syn_dropped(struct evdev_client *client, bool flush)
 		client->tail = (client->head - 1) & (client->bufsize - 1);
 		client->packet_head = client->tail;
 	}
+}
 
+static void evdev_queue_syn_dropped(struct evdev_client *client)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&client->buffer_lock, flags);
+	__evdev_queue_syn_dropped(client);
 	spin_unlock_irqrestore(&client->buffer_lock, flags);
 }
 
 static int evdev_set_clk_type(struct evdev_client *client, unsigned int clkid)
 {
+	unsigned long flags;
+
 	if (client->clk_type == clkid)
 		return 0;
 
@@ -163,8 +165,18 @@ static int evdev_set_clk_type(struct evdev_client *client, unsigned int clkid)
 		return -EINVAL;
 	}
 
-	/* Flush pending events and queue SYN_DROPPED event.*/
-	evdev_queue_syn_dropped(client, true);
+	/*
+	 * Flush pending events and queue SYN_DROPPED event,
+	 * but only if the queue is not empty.
+	 */
+	spin_lock_irqsave(&client->buffer_lock, flags);
+
+	if (client->head != client->tail) {
+		client->packet_head = client->head = client->tail;
+		__evdev_queue_syn_dropped(client);
+	}
+
+	spin_unlock_irqrestore(&client->buffer_lock, flags);
 
 	return 0;
 }
@@ -803,7 +815,7 @@ static int evdev_handle_get_val(struct evdev_client *client,
 
 	ret = bits_to_user(mem, maxbit, maxlen, p, compat);
 	if (ret < 0)
-		evdev_queue_syn_dropped(client, false);
+		evdev_queue_syn_dropped(client);
 
 	kfree(mem);
 
