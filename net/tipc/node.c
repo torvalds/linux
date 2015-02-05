@@ -194,28 +194,6 @@ void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port)
 	tipc_node_unlock(node);
 }
 
-void tipc_node_abort_sock_conns(struct net *net, struct list_head *conns)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct tipc_sock_conn *conn, *safe;
-	struct sk_buff *skb;
-	struct sk_buff_head skbs;
-
-	skb_queue_head_init(&skbs);
-	list_for_each_entry_safe(conn, safe, conns, list) {
-		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
-				      TIPC_CONN_MSG, SHORT_H_SIZE, 0,
-				      tn->own_addr, conn->peer_node,
-				      conn->port, conn->peer_port,
-				      TIPC_ERR_NO_NODE);
-		if (likely(skb))
-			skb_queue_tail(&skbs, skb);
-		list_del(&conn->list);
-		kfree(conn);
-	}
-	tipc_sk_rcv(net, &skbs);
-}
-
 /**
  * tipc_node_link_up - handle addition of link
  *
@@ -377,7 +355,11 @@ static void node_established_contact(struct tipc_node *n_ptr)
 static void node_lost_contact(struct tipc_node *n_ptr)
 {
 	char addr_string[16];
-	u32 i;
+	struct tipc_sock_conn *conn, *safe;
+	struct list_head *conns = &n_ptr->conn_sks;
+	struct sk_buff *skb;
+	struct tipc_net *tn = net_generic(n_ptr->net, tipc_net_id);
+	uint i;
 
 	pr_debug("Lost contact with %s\n",
 		 tipc_addr_string_fill(addr_string, n_ptr->addr));
@@ -413,11 +395,25 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 
 	n_ptr->action_flags &= ~TIPC_WAIT_OWN_LINKS_DOWN;
 
-	/* Notify subscribers and prevent re-contact with node until
-	 * cleanup is done.
-	 */
-	n_ptr->action_flags |= TIPC_WAIT_PEER_LINKS_DOWN |
-			       TIPC_NOTIFY_NODE_DOWN;
+	/* Prevent re-contact with node until cleanup is done */
+	n_ptr->action_flags |= TIPC_WAIT_PEER_LINKS_DOWN;
+
+	/* Notify publications from this node */
+	n_ptr->action_flags |= TIPC_NOTIFY_NODE_DOWN;
+
+	/* Notify sockets connected to node */
+	list_for_each_entry_safe(conn, safe, conns, list) {
+		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
+				      SHORT_H_SIZE, 0, tn->own_addr,
+				      conn->peer_node, conn->port,
+				      conn->peer_port, TIPC_ERR_NO_NODE);
+		if (likely(skb)) {
+			skb_queue_tail(n_ptr->inputq, skb);
+			n_ptr->action_flags |= TIPC_MSG_EVT;
+		}
+		list_del(&conn->list);
+		kfree(conn);
+	}
 }
 
 struct sk_buff *tipc_node_get_nodes(struct net *net, const void *req_tlv_area,
@@ -566,13 +562,12 @@ int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 addr,
 void tipc_node_unlock(struct tipc_node *node)
 {
 	struct net *net = node->net;
-	LIST_HEAD(nsub_list);
-	LIST_HEAD(conn_sks);
 	u32 addr = 0;
 	u32 flags = node->action_flags;
 	u32 link_id = 0;
+	struct list_head *publ_list;
 	struct sk_buff_head *inputq = node->inputq;
-	struct sk_buff_head *namedq = node->inputq;
+	struct sk_buff_head *namedq;
 
 	if (likely(!flags || (flags == TIPC_MSG_EVT))) {
 		node->action_flags = 0;
@@ -585,11 +580,8 @@ void tipc_node_unlock(struct tipc_node *node)
 	addr = node->addr;
 	link_id = node->link_id;
 	namedq = node->namedq;
+	publ_list = &node->publ_list;
 
-	if (flags & TIPC_NOTIFY_NODE_DOWN) {
-		list_replace_init(&node->publ_list, &nsub_list);
-		list_replace_init(&node->conn_sks, &conn_sks);
-	}
 	node->action_flags &= ~(TIPC_MSG_EVT | TIPC_NOTIFY_NODE_DOWN |
 				TIPC_NOTIFY_NODE_UP | TIPC_NOTIFY_LINK_UP |
 				TIPC_NOTIFY_LINK_DOWN |
@@ -598,11 +590,8 @@ void tipc_node_unlock(struct tipc_node *node)
 
 	spin_unlock_bh(&node->lock);
 
-	if (!list_empty(&conn_sks))
-		tipc_node_abort_sock_conns(net, &conn_sks);
-
-	if (!list_empty(&nsub_list))
-		tipc_publ_notify(net, &nsub_list, addr);
+	if (flags & TIPC_NOTIFY_NODE_DOWN)
+		tipc_publ_notify(net, publ_list, addr);
 
 	if (flags & TIPC_WAKEUP_BCAST_USERS)
 		tipc_bclink_wakeup_users(net);
