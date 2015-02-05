@@ -474,51 +474,14 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 {
 	struct acpi_gpe_event_info *gpe_event_info = context;
 	acpi_status status;
-	struct acpi_gpe_event_info *local_gpe_event_info;
 	struct acpi_evaluate_info *info;
 	struct acpi_gpe_notify_info *notify;
 
 	ACPI_FUNCTION_TRACE(ev_asynch_execute_gpe_method);
 
-	/* Allocate a local GPE block */
-
-	local_gpe_event_info =
-	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_event_info));
-	if (!local_gpe_event_info) {
-		ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY, "while handling a GPE"));
-		return_VOID;
-	}
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
-	if (ACPI_FAILURE(status)) {
-		ACPI_FREE(local_gpe_event_info);
-		return_VOID;
-	}
-
-	/* Must revalidate the gpe_number/gpe_block */
-
-	if (!acpi_ev_valid_gpe_event(gpe_event_info)) {
-		status = acpi_ut_release_mutex(ACPI_MTX_EVENTS);
-		ACPI_FREE(local_gpe_event_info);
-		return_VOID;
-	}
-
-	/*
-	 * Take a snapshot of the GPE info for this level - we copy the info to
-	 * prevent a race condition with remove_handler/remove_block.
-	 */
-	ACPI_MEMCPY(local_gpe_event_info, gpe_event_info,
-		    sizeof(struct acpi_gpe_event_info));
-
-	status = acpi_ut_release_mutex(ACPI_MTX_EVENTS);
-	if (ACPI_FAILURE(status)) {
-		ACPI_FREE(local_gpe_event_info);
-		return_VOID;
-	}
-
 	/* Do the correct dispatch - normal method or implicit notify */
 
-	switch (local_gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) {
+	switch (gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) {
 	case ACPI_GPE_DISPATCH_NOTIFY:
 		/*
 		 * Implicit notify.
@@ -531,7 +494,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 		 * June 2012: Expand implicit notify mechanism to support
 		 * notifies on multiple device objects.
 		 */
-		notify = local_gpe_event_info->dispatch.notify_list;
+		notify = gpe_event_info->dispatch.notify_list;
 		while (ACPI_SUCCESS(status) && notify) {
 			status =
 			    acpi_ev_queue_notify_request(notify->device_node,
@@ -555,7 +518,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 			 * _Lxx/_Exx control method that corresponds to this GPE
 			 */
 			info->prefix_node =
-			    local_gpe_event_info->dispatch.method_node;
+			    gpe_event_info->dispatch.method_node;
 			info->flags = ACPI_IGNORE_RETURN_VALUE;
 
 			status = acpi_ns_evaluate(info);
@@ -565,25 +528,27 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"while evaluating GPE method [%4.4s]",
-					acpi_ut_get_node_name
-					(local_gpe_event_info->dispatch.
-					 method_node)));
+					acpi_ut_get_node_name(gpe_event_info->
+							      dispatch.
+							      method_node)));
 		}
 		break;
 
 	default:
 
-		return_VOID;	/* Should never happen */
+		goto error_exit;	/* Should never happen */
 	}
 
 	/* Defer enabling of GPE until all notify handlers are done */
 
 	status = acpi_os_execute(OSL_NOTIFY_HANDLER,
-				 acpi_ev_asynch_enable_gpe,
-				 local_gpe_event_info);
-	if (ACPI_FAILURE(status)) {
-		ACPI_FREE(local_gpe_event_info);
+				 acpi_ev_asynch_enable_gpe, gpe_event_info);
+	if (ACPI_SUCCESS(status)) {
+		return_VOID;
 	}
+
+error_exit:
+	acpi_ev_asynch_enable_gpe(gpe_event_info);
 	return_VOID;
 }
 
@@ -611,7 +576,6 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_enable_gpe(void *context)
 	(void)acpi_ev_finish_gpe(gpe_event_info);
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
-	ACPI_FREE(gpe_event_info);
 	return;
 }
 

@@ -108,53 +108,6 @@ unlock_and_exit:
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ev_valid_gpe_event
- *
- * PARAMETERS:  gpe_event_info              - Info for this GPE
- *
- * RETURN:      TRUE if the gpe_event is valid
- *
- * DESCRIPTION: Validate a GPE event. DO NOT CALL FROM INTERRUPT LEVEL.
- *              Should be called only when the GPE lists are semaphore locked
- *              and not subject to change.
- *
- ******************************************************************************/
-
-u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info)
-{
-	struct acpi_gpe_xrupt_info *gpe_xrupt_block;
-	struct acpi_gpe_block_info *gpe_block;
-
-	ACPI_FUNCTION_ENTRY();
-
-	/* No need for spin lock since we are not changing any list elements */
-
-	/* Walk the GPE interrupt levels */
-
-	gpe_xrupt_block = acpi_gbl_gpe_xrupt_list_head;
-	while (gpe_xrupt_block) {
-		gpe_block = gpe_xrupt_block->gpe_block_list_head;
-
-		/* Walk the GPE blocks on this interrupt level */
-
-		while (gpe_block) {
-			if ((&gpe_block->event_info[0] <= gpe_event_info) &&
-			    (&gpe_block->event_info[gpe_block->gpe_count] >
-			     gpe_event_info)) {
-				return (TRUE);
-			}
-
-			gpe_block = gpe_block->next;
-		}
-
-		gpe_xrupt_block = gpe_xrupt_block->next;
-	}
-
-	return (FALSE);
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ev_get_gpe_device
  *
  * PARAMETERS:  GPE_WALK_CALLBACK
@@ -167,8 +120,8 @@ u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info)
  ******************************************************************************/
 
 acpi_status
-acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info * gpe_xrupt_info,
-		       struct acpi_gpe_block_info * gpe_block, void *context)
+acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+		       struct acpi_gpe_block_info *gpe_block, void *context)
 {
 	struct acpi_gpe_device_info *info = context;
 
