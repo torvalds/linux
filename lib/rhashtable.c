@@ -415,12 +415,6 @@ int rhashtable_expand(struct rhashtable *ht)
 		unlock_buckets(new_tbl, old_tbl, new_hash);
 	}
 
-	/* Publish the new table pointer. Lookups may now traverse
-	 * the new table, but they will not benefit from any
-	 * additional efficiency until later steps unzip the buckets.
-	 */
-	rcu_assign_pointer(ht->tbl, new_tbl);
-
 	/* Unzip interleaved hash chains */
 	while (!complete && !ht->being_destroyed) {
 		/* Wait for readers. All new readers will see the new
@@ -445,6 +439,7 @@ int rhashtable_expand(struct rhashtable *ht)
 		}
 	}
 
+	rcu_assign_pointer(ht->tbl, new_tbl);
 	synchronize_rcu();
 
 	bucket_table_free(old_tbl);
@@ -627,14 +622,14 @@ bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *obj)
 {
 	struct bucket_table *tbl, *new_tbl, *old_tbl;
 	struct rhash_head __rcu **pprev;
-	struct rhash_head *he;
+	struct rhash_head *he, *he2;
 	unsigned int hash, new_hash;
 	bool ret = false;
 
 	rcu_read_lock();
 	tbl = old_tbl = rht_dereference_rcu(ht->tbl, ht);
 	new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
-	new_hash = head_hashfn(ht, new_tbl, obj);
+	new_hash = obj_raw_hashfn(ht, rht_obj(ht, obj));
 
 	lock_buckets(new_tbl, old_tbl, new_hash);
 restart:
@@ -647,8 +642,21 @@ restart:
 		}
 
 		ASSERT_BUCKET_LOCK(ht, tbl, hash);
-		rcu_assign_pointer(*pprev, obj->next);
 
+		if (unlikely(new_tbl != tbl)) {
+			rht_for_each_continue(he2, he->next, tbl, hash) {
+				if (head_hashfn(ht, tbl, he2) == hash) {
+					rcu_assign_pointer(*pprev, he2);
+					goto found;
+				}
+			}
+
+			INIT_RHT_NULLS_HEAD(*pprev, ht, hash);
+		} else {
+			rcu_assign_pointer(*pprev, obj->next);
+		}
+
+found:
 		ret = true;
 		break;
 	}
