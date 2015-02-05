@@ -94,13 +94,7 @@ static u32 obj_raw_hashfn(const struct rhashtable *ht, const void *ptr)
 
 static u32 key_hashfn(struct rhashtable *ht, const void *key, u32 len)
 {
-	struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
-	u32 hash;
-
-	hash = ht->p.hashfn(key, len, ht->p.hash_rnd);
-	hash >>= HASH_RESERVED_SPACE;
-
-	return rht_bucket_index(tbl, hash);
+	return ht->p.hashfn(key, len, ht->p.hash_rnd) >> HASH_RESERVED_SPACE;
 }
 
 static u32 head_hashfn(const struct rhashtable *ht,
