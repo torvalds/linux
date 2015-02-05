@@ -1223,14 +1223,26 @@ out:
 static int i915_hangcheck_info(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
-	struct drm_i915_private *dev_priv = to_i915(node->minor->dev);
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
+	u64 acthd[I915_NUM_RINGS];
+	u32 seqno[I915_NUM_RINGS];
 	int i;
 
 	if (!i915.enable_hangcheck) {
 		seq_printf(m, "Hangcheck disabled\n");
 		return 0;
 	}
+
+	intel_runtime_pm_get(dev_priv);
+
+	for_each_ring(ring, dev_priv, i) {
+		seqno[i] = ring->get_seqno(ring, false);
+		acthd[i] = intel_ring_get_active_head(ring);
+	}
+
+	intel_runtime_pm_put(dev_priv);
 
 	if (delayed_work_pending(&dev_priv->gpu_error.hangcheck_work)) {
 		seq_printf(m, "Hangcheck active, fires in %dms\n",
@@ -1242,14 +1254,14 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	for_each_ring(ring, dev_priv, i) {
 		seq_printf(m, "%s:\n", ring->name);
 		seq_printf(m, "\tseqno = %x [current %x]\n",
-			   ring->hangcheck.seqno, ring->get_seqno(ring, false));
-		seq_printf(m, "\taction = %d\n", ring->hangcheck.action);
-		seq_printf(m, "\tscore = %d\n", ring->hangcheck.score);
+			   ring->hangcheck.seqno, seqno[i]);
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
 			   (long long)ring->hangcheck.acthd,
-			   (long long)intel_ring_get_active_head(ring));
+			   (long long)acthd[i]);
 		seq_printf(m, "\tmax ACTHD = 0x%08llx\n",
 			   (long long)ring->hangcheck.max_acthd);
+		seq_printf(m, "\tscore = %d\n", ring->hangcheck.score);
+		seq_printf(m, "\taction = %d\n", ring->hangcheck.action);
 	}
 
 	return 0;
