@@ -78,7 +78,8 @@ static void i8xx_fbc_enable(struct drm_crtc *crtc)
 
 	dev_priv->fbc.enabled = true;
 
-	cfb_pitch = dev_priv->fbc.size / FBC_LL_SIZE;
+	/* Note: fbc.threshold == 1 for i8xx */
+	cfb_pitch = dev_priv->fbc.uncompressed_size / FBC_LL_SIZE;
 	if (fb->pitches[0] < cfb_pitch)
 		cfb_pitch = fb->pitches[0];
 
