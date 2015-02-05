@@ -843,13 +843,7 @@ int acpi_ioapic_registered(acpi_handle handle, u32 gsi_base)
 
 static int __init acpi_parse_sbf(struct acpi_table_header *table)
 {
-	struct acpi_table_boot *sb;
-
-	sb = (struct acpi_table_boot *)table;
-	if (!sb) {
-		printk(KERN_WARNING PREFIX "Unable to map SBF\n");
-		return -ENODEV;
-	}
+	struct acpi_table_boot *sb = (struct acpi_table_boot *)table;
 
 	sbf_port = sb->cmos_index;	/* Save CMOS port */
 
@@ -863,13 +857,7 @@ static struct resource *hpet_res __initdata;
 
 static int __init acpi_parse_hpet(struct acpi_table_header *table)
 {
-	struct acpi_table_hpet *hpet_tbl;
-
-	hpet_tbl = (struct acpi_table_hpet *)table;
-	if (!hpet_tbl) {
-		printk(KERN_WARNING PREFIX "Unable to map HPET\n");
-		return -ENODEV;
-	}
+	struct acpi_table_hpet *hpet_tbl = (struct acpi_table_hpet *)table;
 
 	if (hpet_tbl->address.space_id != ACPI_SPACE_MEM) {
 		printk(KERN_WARNING PREFIX "HPET timers must be located in "
