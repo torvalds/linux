@@ -1112,7 +1112,7 @@ out_cancel:
  *    to half the AG size to avoid alignment extending the extent beyond the
  *    limits of the AG.
  */
-int
+static int
 xfs_ioctl_setattr_check_extsize(
 	struct xfs_inode	*ip,
 	struct fsxattr		*fa)
@@ -1155,7 +1155,7 @@ xfs_ioctl_setattr_check_extsize(
 	return 0;
 }
 
-int
+static int
 xfs_ioctl_setattr_check_projid(
 	struct xfs_inode	*ip,
 	struct fsxattr		*fa)
