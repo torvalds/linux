@@ -902,6 +902,9 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 				  GEN9_ENABLE_YV12_BUGFIX);
 	}
 
+	/* Wa4x4STCOptimizationDisable:skl */
+	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
+
 	return 0;
 }
 
