@@ -263,20 +263,20 @@ static void f2fs_map_bh(struct super_block *sb, pgoff_t pgofs,
 		bh_result->b_size = UINT_MAX;
 }
 
-static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
-					struct extent_info *ei)
+static bool lookup_extent_info(struct inode *inode, pgoff_t pgofs,
+							struct extent_info *ei)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	pgoff_t start_fofs, end_fofs;
 	block_t start_blkaddr;
 
 	if (is_inode_flag_set(fi, FI_NO_EXTENT))
-		return 0;
+		return false;
 
 	read_lock(&fi->ext_lock);
 	if (fi->ext.len == 0) {
 		read_unlock(&fi->ext_lock);
-		return 0;
+		return false;
 	}
 
 	stat_inc_total_hit(inode->i_sb);
@@ -289,29 +289,22 @@ static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
 		*ei = fi->ext;
 		stat_inc_read_hit(inode->i_sb);
 		read_unlock(&fi->ext_lock);
-		return 1;
+		return true;
 	}
 	read_unlock(&fi->ext_lock);
-	return 0;
+	return false;
 }
 
-void update_extent_cache(struct dnode_of_data *dn)
+static bool update_extent_info(struct inode *inode, pgoff_t fofs,
+								block_t blkaddr)
 {
-	struct f2fs_inode_info *fi = F2FS_I(dn->inode);
-	pgoff_t fofs, start_fofs, end_fofs;
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	pgoff_t start_fofs, end_fofs;
 	block_t start_blkaddr, end_blkaddr;
 	int need_update = true;
 
-	f2fs_bug_on(F2FS_I_SB(dn->inode), dn->data_blkaddr == NEW_ADDR);
-
-	/* Update the page address in the parent node */
-	__set_data_blkaddr(dn);
-
 	if (is_inode_flag_set(fi, FI_NO_EXTENT))
-		return;
-
-	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
-							dn->ofs_in_node;
+		return false;
 
 	write_lock(&fi->ext_lock);
 
@@ -326,16 +319,16 @@ void update_extent_cache(struct dnode_of_data *dn)
 
 	/* Initial extent */
 	if (fi->ext.len == 0) {
-		if (dn->data_blkaddr != NULL_ADDR) {
+		if (blkaddr != NULL_ADDR) {
 			fi->ext.fofs = fofs;
-			fi->ext.blk = dn->data_blkaddr;
+			fi->ext.blk = blkaddr;
 			fi->ext.len = 1;
 		}
 		goto end_update;
 	}
 
 	/* Front merge */
-	if (fofs == start_fofs - 1 && dn->data_blkaddr == start_blkaddr - 1) {
+	if (fofs == start_fofs - 1 && blkaddr == start_blkaddr - 1) {
 		fi->ext.fofs--;
 		fi->ext.blk--;
 		fi->ext.len++;
@@ -343,7 +336,7 @@ void update_extent_cache(struct dnode_of_data *dn)
 	}
 
 	/* Back merge */
-	if (fofs == end_fofs + 1 && dn->data_blkaddr == end_blkaddr + 1) {
+	if (fofs == end_fofs + 1 && blkaddr == end_blkaddr + 1) {
 		fi->ext.len++;
 		goto end_update;
 	}
@@ -370,9 +363,30 @@ void update_extent_cache(struct dnode_of_data *dn)
 	}
 end_update:
 	write_unlock(&fi->ext_lock);
-	if (need_update)
+	return need_update;
+}
+
+static bool f2fs_lookup_extent_cache(struct inode *inode, pgoff_t pgofs,
+							struct extent_info *ei)
+{
+	return lookup_extent_info(inode, pgofs, ei);
+}
+
+void f2fs_update_extent_cache(struct dnode_of_data *dn)
+{
+	struct f2fs_inode_info *fi = F2FS_I(dn->inode);
+	pgoff_t fofs;
+
+	f2fs_bug_on(F2FS_I_SB(dn->inode), dn->data_blkaddr == NEW_ADDR);
+
+	/* Update the page address in the parent node */
+	__set_data_blkaddr(dn);
+
+	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
+							dn->ofs_in_node;
+
+	if (update_extent_info(dn->inode, fofs, dn->data_blkaddr))
 		sync_inode_page(dn);
-	return;
 }
 
 struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
@@ -668,7 +682,7 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 	/* Get the page offset from the block offset(iblock) */
 	pgofs =	(pgoff_t)(iblock >> (PAGE_CACHE_SHIFT - blkbits));
 
-	if (check_extent_cache(inode, pgofs, &ei)) {
+	if (f2fs_lookup_extent_cache(inode, pgofs, &ei)) {
 		f2fs_map_bh(inode->i_sb, pgofs, &ei, bh_result);
 		goto out;
 	}
@@ -835,7 +849,7 @@ int do_write_data_page(struct page *page, struct f2fs_io_info *fio)
 		set_inode_flag(F2FS_I(inode), FI_UPDATE_WRITE);
 	} else {
 		write_data_page(page, &dn, fio);
-		update_extent_cache(&dn);
+		f2fs_update_extent_cache(&dn);
 		set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
 	}
 out_writepage:
