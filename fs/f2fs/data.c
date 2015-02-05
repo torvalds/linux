@@ -273,9 +273,6 @@ static bool lookup_extent_info(struct inode *inode, pgoff_t pgofs,
 	pgoff_t start_fofs, end_fofs;
 	block_t start_blkaddr;
 
-	if (is_inode_flag_set(fi, FI_NO_EXTENT))
-		return false;
-
 	read_lock(&fi->ext_lock);
 	if (fi->ext.len == 0) {
 		read_unlock(&fi->ext_lock);
@@ -305,9 +302,6 @@ static bool update_extent_info(struct inode *inode, pgoff_t fofs,
 	pgoff_t start_fofs, end_fofs;
 	block_t start_blkaddr, end_blkaddr;
 	int need_update = true;
-
-	if (is_inode_flag_set(fi, FI_NO_EXTENT))
-		return false;
 
 	write_lock(&fi->ext_lock);
 
@@ -542,9 +536,6 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 	struct extent_tree *et;
 	struct extent_node *en;
 
-	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
-		return false;
-
 	trace_f2fs_lookup_extent_tree_start(inode, pgofs);
 
 	down_read(&sbi->extent_tree_lock);
@@ -585,9 +576,6 @@ static void f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 	struct extent_node *den = NULL;
 	struct extent_info ei, dei;
 	unsigned int endofs;
-
-	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
-		return;
 
 	trace_f2fs_update_extent_tree(inode, fofs, blkaddr);
 
@@ -780,6 +768,9 @@ out:
 static bool f2fs_lookup_extent_cache(struct inode *inode, pgoff_t pgofs,
 							struct extent_info *ei)
 {
+	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
+		return false;
+
 	if (test_opt(F2FS_I_SB(inode), EXTENT_CACHE))
 		return f2fs_lookup_extent_tree(inode, pgofs, ei);
 
@@ -795,6 +786,9 @@ void f2fs_update_extent_cache(struct dnode_of_data *dn)
 
 	/* Update the page address in the parent node */
 	__set_data_blkaddr(dn);
+
+	if (is_inode_flag_set(fi, FI_NO_EXTENT))
+		return;
 
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
 							dn->ofs_in_node;
