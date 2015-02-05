@@ -127,6 +127,14 @@ static size_t oops_data_sz;
 static struct z_stream_s stream;
 
 #ifdef CONFIG_PSTORE
+#ifdef CONFIG_PPC_POWERNV
+static struct nvram_os_partition skiboot_partition = {
+	.name = "ibm,skiboot",
+	.index = -1,
+	.os_partition = false
+};
+#endif
+
 #ifdef CONFIG_PPC_PSERIES
 static struct nvram_os_partition of_config_partition = {
 	.name = "of-config",
@@ -477,6 +485,16 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 		time->tv_nsec = 0;
 		break;
 #endif
+#ifdef CONFIG_PPC_POWERNV
+	case PSTORE_TYPE_PPC_OPAL:
+		sig = NVRAM_SIG_FW;
+		part = &skiboot_partition;
+		*type = PSTORE_TYPE_PPC_OPAL;
+		*id = PSTORE_TYPE_PPC_OPAL;
+		time->tv_sec = 0;
+		time->tv_nsec = 0;
+		break;
+#endif
 	default:
 		return 0;
 	}
@@ -552,8 +570,11 @@ static int nvram_pstore_init(void)
 {
 	int rc = 0;
 
-	nvram_type_ids[2] = PSTORE_TYPE_PPC_RTAS;
-	nvram_type_ids[3] = PSTORE_TYPE_PPC_OF;
+	if (machine_is(pseries)) {
+		nvram_type_ids[2] = PSTORE_TYPE_PPC_RTAS;
+		nvram_type_ids[3] = PSTORE_TYPE_PPC_OF;
+	} else
+		nvram_type_ids[2] = PSTORE_TYPE_PPC_OPAL;
 
 	nvram_pstore_info.buf = oops_data;
 	nvram_pstore_info.bufsize = oops_data_sz;
