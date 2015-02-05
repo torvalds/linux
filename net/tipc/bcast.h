@@ -97,6 +97,8 @@ struct tipc_bclink {
 	struct tipc_link link;
 	struct tipc_node node;
 	unsigned int flags;
+	struct sk_buff_head arrvq;
+	struct sk_buff_head inputq;
 	struct tipc_node_map bcast_nodes;
 	struct tipc_node *retransmit_to;
 };
@@ -134,5 +136,6 @@ uint  tipc_bclink_get_mtu(void);
 int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list);
 void tipc_bclink_wakeup_users(struct net *net);
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg);
+void tipc_bclink_input(struct net *net);
 
 #endif

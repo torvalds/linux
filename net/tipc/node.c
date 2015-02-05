@@ -582,10 +582,10 @@ void tipc_node_unlock(struct tipc_node *node)
 	namedq = node->namedq;
 	publ_list = &node->publ_list;
 
-	node->action_flags &= ~(TIPC_MSG_EVT | TIPC_NOTIFY_NODE_DOWN |
-				TIPC_NOTIFY_NODE_UP | TIPC_NOTIFY_LINK_UP |
-				TIPC_NOTIFY_LINK_DOWN |
-				TIPC_WAKEUP_BCAST_USERS |
+	node->action_flags &= ~(TIPC_MSG_EVT |
+				TIPC_NOTIFY_NODE_DOWN | TIPC_NOTIFY_NODE_UP |
+				TIPC_NOTIFY_LINK_DOWN | TIPC_NOTIFY_LINK_UP |
+				TIPC_WAKEUP_BCAST_USERS | TIPC_BCAST_MSG_EVT |
 				TIPC_NAMED_MSG_EVT);
 
 	spin_unlock_bh(&node->lock);
@@ -612,6 +612,9 @@ void tipc_node_unlock(struct tipc_node *node)
 
 	if (flags & TIPC_NAMED_MSG_EVT)
 		tipc_named_rcv(net, namedq);
+
+	if (flags & TIPC_BCAST_MSG_EVT)
+		tipc_bclink_input(net);
 }
 
 /* Caller should hold node lock for the passed node */

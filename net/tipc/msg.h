@@ -767,6 +767,23 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, u32 *dnode,
 			  int *err);
 struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
 
+/* tipc_skb_peek(): peek and reserve first buffer in list
+ * @list: list to be peeked in
+ * Returns pointer to first buffer in list, if any
+ */
+static inline struct sk_buff *tipc_skb_peek(struct sk_buff_head *list,
+					    spinlock_t *lock)
+{
+	struct sk_buff *skb;
+
+	spin_lock_bh(lock);
+	skb = skb_peek(list);
+	if (skb)
+		skb_get(skb);
+	spin_unlock_bh(lock);
+	return skb;
+}
+
 /* tipc_skb_peek_port(): find a destination port, ignoring all destinations
  *                       up to and including 'filter'.
  * Note: ignoring previously tried destinations minimizes the risk of

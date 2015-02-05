@@ -1,7 +1,7 @@
 /*
  * net/tipc/node.h: Include file for TIPC node management routines
  *
- * Copyright (c) 2000-2006, 2014, Ericsson AB
+ * Copyright (c) 2000-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2005, 2010-2014, Wind River Systems
  * All rights reserved.
  *
@@ -63,7 +63,8 @@ enum {
 	TIPC_WAKEUP_BCAST_USERS		= (1 << 5),
 	TIPC_NOTIFY_LINK_UP		= (1 << 6),
 	TIPC_NOTIFY_LINK_DOWN		= (1 << 7),
-	TIPC_NAMED_MSG_EVT		= (1 << 8)
+	TIPC_NAMED_MSG_EVT		= (1 << 8),
+	TIPC_BCAST_MSG_EVT		= (1 << 9)
 };
 
 /**
@@ -74,6 +75,7 @@ enum {
  * @oos_state: state tracker for handling OOS b'cast messages
  * @deferred_queue: deferred queue saved OOS b'cast message received from node
  * @reasm_buf: broadcast reassembly queue head from node
+ * @inputq_map: bitmap indicating which inqueues should be kicked
  * @recv_permitted: true if node is allowed to receive b'cast messages
  */
 struct tipc_node_bclink {
@@ -84,6 +86,7 @@ struct tipc_node_bclink {
 	u32 deferred_size;
 	struct sk_buff_head deferred_queue;
 	struct sk_buff *reasm_buf;
+	int inputq_map;
 	bool recv_permitted;
 };
 
