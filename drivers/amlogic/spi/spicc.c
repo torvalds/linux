@@ -254,12 +254,6 @@ static int spicc_setup(struct spi_device *spi)
     return 0;
 }
 
-static void spicc_cleanup(struct spi_device *spi)
-{
-    if (spi->modalias)
-        kfree(spi->modalias);
-}
-
 static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 {
     struct spi_device *spi = m->spi;
@@ -334,9 +328,10 @@ static void spicc_work(struct work_struct *work)
 	spin_unlock_irqrestore(&spicc->lock, flags);
 }
 
-static ssize_t store_test(struct class *class, struct class_attribute *attr,	const char *buf, size_t count)
+static 	ssize_t spicc_test (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct spicc *spicc = container_of(class, struct spicc, cls);
+	struct spicc *spicc = dev_get_drvdata(dev);
+
 	unsigned int i, cs_gpio, speed, mode, num;
 	u8 wbuf[4]={0}, rbuf[128]={0};
 	unsigned long flags;
@@ -384,9 +379,16 @@ static ssize_t store_test(struct class *class, struct class_attribute *attr,	con
 	return count;
 }
 
-static struct class_attribute spicc_class_attrs[] = {
-    __ATTR(test,  S_IWUSR, NULL,    store_test),
-    __ATTR_NULL
+static	DEVICE_ATTR(test, S_IRWXUGO, NULL, spicc_test);
+
+static struct attribute *spicc_sysfs_entries[] = {
+	&dev_attr_test.attr,
+	NULL
+};
+
+static struct attribute_group spicc_attr_group = {
+	.name   = NULL,
+	.attrs  = spicc_sysfs_entries,
 };
 
 static int spicc_probe(struct platform_device *pdev)
@@ -394,6 +396,7 @@ static int spicc_probe(struct platform_device *pdev)
 	struct spicc_platform_data *pdata;
 	struct spi_master	*master;
 	struct spicc *spicc;
+	struct resource *res;
 	int i, gpio, ret;
 	
 #ifdef CONFIG_OF
@@ -429,12 +432,11 @@ static int spicc_probe(struct platform_device *pdev)
 	}
  	dev_info(&pdev->dev, "num_chipselect = %d\n", pdata->num_chipselect);
 
-	pdata->cs_gpios = kzalloc(sizeof(int)*pdata->num_chipselect, GFP_KERNEL);
+	pdata->cs_gpios = devm_kzalloc(&pdev->dev, sizeof(int)*pdata->num_chipselect, GFP_KERNEL);
 	for (i=0; i<pdata->num_chipselect; i++) {
 		ret = of_property_read_string_index(pdev->dev.of_node, "cs_gpios", i, &prop_name);
 		if(ret || IS_ERR(prop_name) || ((gpio = amlogic_gpio_name_map_num(prop_name)) < 0)) {
 			dev_err(&pdev->dev, "match cs_gpios[%d](%s) failed!\n", i, prop_name);
-            kzfree(pdata->cs_gpios);
 			return -ENODEV;
 		}
 		else {
@@ -443,7 +445,14 @@ static int spicc_probe(struct platform_device *pdev)
 		}
 	} 	
 
-    pdata->regs = (struct spicc_regs __iomem *)of_iomap(pdev->dev.of_node, 0);
+    if(!(res = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+        dev_err(&pdev->dev, "Could not get memory resource!\n");
+        return  -ENODEV;
+    }
+    if((pdata->regs = devm_request_and_ioremap(&pdev->dev, res)) == NULL)   {
+        dev_err(&pdev->dev, "Could not request/map memory region!\n");
+        return  -ENODEV;
+    }
 	dev_info(&pdev->dev, "regs = %p\n", pdata->regs);
 #else
 	pdata = (struct spicc_platform_data *)pdev->dev.platform_data
@@ -453,7 +462,6 @@ static int spicc_probe(struct platform_device *pdev)
 		gpio = pdata->cs_gpios[i];
 		if (amlogic_gpio_request(gpio, "spicc_cs")) {
 			dev_err(&pdev->dev, "request chipselect gpio(%d) failed!\n", i);
-            kzfree(pdata->cs_gpios);
 			return -ENODEV;
 		}
 		amlogic_gpio_direction_output(gpio, 1, "spicc_cs");
@@ -474,11 +482,10 @@ static int spicc_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = BIT(32 - 1) | BIT(16 - 1) | BIT(8 - 1);
 
 	/* the spi->mode bits understood by this driver: */
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_NO_CS;
 
 	master->setup = spicc_setup;
 	master->transfer = spicc_transfer;
-	master->cleanup = spicc_cleanup;
 
 	spicc = spi_master_get_devdata(master);
 	spicc->master = master;	
@@ -497,12 +504,10 @@ static int spicc_probe(struct platform_device *pdev)
 	spicc_hw_init(spicc);
 
     /*setup class*/
-    spicc->cls.name = kzalloc(10, GFP_KERNEL);
-    sprintf((char*)spicc->cls.name, "spicc%d", master->bus_num);
-    spicc->cls.class_attrs = spicc_class_attrs;
-    if ((ret = class_register(&spicc->cls)) < 0) {
-        dev_err(&pdev->dev, "register class failed! (%d)\n", ret);
-    }
+	if(sysfs_create_group(&pdev->dev.kobj, &spicc_attr_group) < 0)	{
+		dev_err(&pdev->dev, "failed to create sysfs group !!\n");
+		goto    err;
+	}
 
 	ret = spi_register_master(master);
 
@@ -520,11 +525,20 @@ err:
 
 static int spicc_remove(struct platform_device *pdev)
 {
-	struct spicc *spicc;
+    struct spicc *spicc = dev_get_drvdata(&pdev->dev);
+    struct spi_master *master = spicc->master;
+    int i;
 
-	spicc = (struct spicc *)dev_get_drvdata(&pdev->dev);
-	spi_unregister_master(spicc->master);
-	destroy_workqueue(spicc->wq);
+    flush_work(&spicc->work);    flush_workqueue(spicc->wq);
+    destroy_workqueue(spicc->wq);
+
+    spi_unregister_master(spicc->master);
+
+	sysfs_remove_group(&pdev->dev.kobj, &spicc_attr_group);
+
+    for(i = 0; i < master->num_chipselect; i++) {
+        if(master->cs_gpios[i]) amlogic_gpio_free(master->cs_gpios[i], "spicc_cs");
+    }
 
 #ifdef CONFIG_OF
 	if(spicc->pinctrl) {
@@ -533,6 +547,11 @@ static int spicc_remove(struct platform_device *pdev)
 #else
     pinmux_clr(&spicc->pinctrl);
 #endif
+
+    spi_master_put(master);
+
+    dev_info(&pdev->dev, "SPICC remove OK \n");
+
 	return 0;
 }
 
@@ -565,7 +584,7 @@ static void __exit spicc_exit(void)
 	platform_driver_unregister(&spicc_driver);
 }
 
-subsys_initcall(spicc_init);
+module_init(spicc_init);
 module_exit(spicc_exit);
 
 MODULE_DESCRIPTION("Amlogic SPICC driver");

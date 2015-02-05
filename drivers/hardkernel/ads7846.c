@@ -44,6 +44,8 @@
     #include <linux/of.h>
 #endif
 
+#include <linux/slab.h>
+
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
  * tested on other ads7846 devices (OSK/Mistral, Lubbock, Spitz).
@@ -140,6 +142,11 @@ struct ads7846 {
 	u16			debounce_max;
 	u16			debounce_tol;
 	u16			debounce_rep;
+
+	bool			moving_average;
+	u16			*mv_avg_queuex;
+	u16			*mv_avg_queuey;
+	u8			mv_avg_length;
 
 	u16			penirq_recheck_delay_usecs;
 
@@ -899,8 +906,13 @@ static irqreturn_t ads7846_hard_irq(int irq, void *handle)
 static irqreturn_t ads7846_irq(int irq, void *handle)
 {
 	struct ads7846 *ts = handle;
-
+	int sumx = 0;
+	int sumy = 0;
+	int cnt = 0;
+	int index = 0;
+	int i = 0;
 	/* Start with a small delay before checking pendown state */
+
 	msleep(TS_POLL_DELAY);
 
 	while (!ts->stopped && get_pendown_state(ts)) {
@@ -908,15 +920,36 @@ static irqreturn_t ads7846_irq(int irq, void *handle)
 		/* pen is down, continue with the measurement */
 		ads7846_read_state(ts);
 
-		if (!ts->stopped)
-			ads7846_report_state(ts);
+		if (!ts->stopped) {
+			if (ts->moving_average) {
+				if (index > ts->mv_avg_length)
+					index = 0;
 
+				ts->mv_avg_queuex[index] = ts->packet->tc.x;
+				ts->mv_avg_queuey[index] = ts->packet->tc.y;
+				for (i = 0; i < cnt + 1; i++) {
+					sumx += ts->mv_avg_queuex[i];
+					sumy += ts->mv_avg_queuey[i];
+				}
+				ts->packet->tc.x = sumx/(cnt + 1);
+				ts->packet->tc.y = sumy/(cnt + 1);
+				index++;
+				cnt++;
+				if (cnt > ts->mv_avg_length)
+					cnt = ts->mv_avg_length;
+				sumx = 0;
+				sumy = 0;
+			}
+			ads7846_report_state(ts);
+		}
 		wait_event_timeout(ts->wait, ts->stopped,
 				   msecs_to_jiffies(TS_POLL_PERIOD));
 	}
 
 	if (ts->pendown) {
 		struct input_dev *input = ts->input;
+
+		cnt = 0;
 
 		input_report_key(input, BTN_TOUCH, 0);
 		input_report_abs(input, ABS_PRESSURE, 0);
@@ -1271,6 +1304,10 @@ static const struct ads7846_platform_data *ads7846_probe_dt(struct device *dev)
 	of_property_read_u16(node, "ti,penirq-recheck-delay-usecs",
 			     &pdata->penirq_recheck_delay_usecs);
 
+	pdata->moving_average = of_property_read_bool(node, "ti,moving-average");
+	of_property_read_u32(node, "ti,mv-avg-length", &read_u32_value);
+	pdata->mv_avg_length = read_u32_value;
+
 	of_property_read_u32(node, "ti,x-plate-ohms", &read_u32_value);
 	pdata->x_plate_ohms = read_u32_value;
 	of_property_read_u32(node, "ti,y-plate-ohms", &read_u32_value);
@@ -1387,6 +1424,11 @@ static int ads7846_probe(struct spi_device *spi)
 	ts->vref_mv = pdata->vref_mv;
 	ts->swap_xy = pdata->swap_xy;
 
+	if (pdata->moving_average) {
+		ts->moving_average = pdata->moving_average;
+		ts->mv_avg_length = pdata->mv_avg_length;
+	}
+
 	if (pdata->filter != NULL) {
 		if (pdata->filter_init != NULL) {
 			err = pdata->filter_init(pdata, &ts->filter_data);
@@ -1496,6 +1538,8 @@ static int ads7846_probe(struct spi_device *spi)
 	irq_flags |= IRQF_ONESHOT;
 #endif
 
+	ts->mv_avg_queuex = kmalloc(ts->mv_avg_length * sizeof(u16), GFP_KERNEL);
+	ts->mv_avg_queuey = kmalloc(ts->mv_avg_length * sizeof(u16), GFP_KERNEL);
 	err = request_threaded_irq(spi->irq, ads7846_hard_irq, ads7846_irq,
 				   irq_flags, spi->dev.driver->name, ts);
 	if (err && !pdata->irq_flags) {
@@ -1603,6 +1647,8 @@ static int ads7846_remove(struct spi_device *spi)
 		ts->filter_cleanup(ts->filter_data);
 
 	kfree(ts->packet);
+	kfree(ts->mv_avg_queuex);
+	kfree(ts->mv_avg_queuey);
 	kfree(ts);
 
 	dev_dbg(&spi->dev, "unregistered touchscreen\n");
