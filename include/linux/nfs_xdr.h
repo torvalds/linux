@@ -310,6 +310,7 @@ struct nfs4_layoutreturn {
 	struct nfs4_layoutreturn_res res;
 	struct rpc_cred *cred;
 	struct nfs_client *clp;
+	struct inode *inode;
 	int rpc_status;
 };
 
