@@ -6216,6 +6216,9 @@ enum skl_disp_power_wells {
 #define   GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC	(1<<5)
 #define   GEN8_SAMPLER_POWER_BYPASS_DIS	(1<<1)
 
+#define GEN9_HALF_SLICE_CHICKEN7	0xe194
+#define   GEN9_ENABLE_YV12_BUGFIX	(1<<4)
+
 /* Audio */
 #define G4X_AUD_VID_DID			(dev_priv->info.display_mmio_offset + 0x62020)
 #define   INTEL_AUDIO_DEVCL		0x808629FB

@@ -896,6 +896,12 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 			~GEN9_DG_MIRROR_FIX_ENABLE);
 	}
 
+	if (INTEL_REVID(dev) >= SKL_REVID_C0) {
+		/* WaEnableYV12BugFixInHalfSliceChicken7:skl */
+		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
+				  GEN9_ENABLE_YV12_BUGFIX);
+	}
+
 	return 0;
 }
 
