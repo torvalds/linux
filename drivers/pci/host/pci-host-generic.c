@@ -149,14 +149,14 @@ static int gen_pci_parse_request_of_pci_ranges(struct gen_pci *pci)
 	struct device *dev = pci->host.dev.parent;
 	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
-	struct pci_host_bridge_window *win;
+	struct resource_entry *win;
 
 	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources,
 					       &iobase);
 	if (err)
 		return err;
 
-	list_for_each_entry(win, &pci->resources, list) {
+	resource_list_for_each_entry(win, &pci->resources) {
 		struct resource *parent, *res = win->res;
 
 		switch (resource_type(res)) {

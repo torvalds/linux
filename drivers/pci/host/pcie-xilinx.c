@@ -737,7 +737,7 @@ static int xilinx_pcie_parse_and_add_res(struct xilinx_pcie_port *port)
 	resource_size_t offset;
 	struct of_pci_range_parser parser;
 	struct of_pci_range range;
-	struct pci_host_bridge_window *win;
+	struct resource_entry *win;
 	int err = 0, mem_resno = 0;
 
 	/* Get the ranges */
@@ -807,7 +807,7 @@ static int xilinx_pcie_parse_and_add_res(struct xilinx_pcie_port *port)
 
 free_resources:
 	release_child_resources(&iomem_resource);
-	list_for_each_entry(win, &port->resources, list)
+	resource_list_for_each_entry(win, &port->resources)
 		devm_kfree(dev, win->res);
 	pci_free_resource_list(&port->resources);
 
