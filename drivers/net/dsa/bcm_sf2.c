@@ -233,6 +233,24 @@ static void bcm_sf2_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
 	core_writel(priv, reg, CORE_EEE_EN_CTRL);
 }
 
+static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	u32 reg;
+
+	if (!enable)
+		return;
+
+	reg = reg_readl(priv, REG_SPHY_CNTRL);
+	reg |= PHY_RESET;
+	reg &= ~(EXT_PWR_DOWN | IDDQ_BIAS);
+	reg_writel(priv, reg, REG_SPHY_CNTRL);
+	udelay(21);
+	reg = reg_readl(priv, REG_SPHY_CNTRL);
+	reg &= ~PHY_RESET;
+	reg_writel(priv, reg, REG_SPHY_CNTRL);
+}
+
 static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 			      struct phy_device *phy)
 {
@@ -771,7 +789,6 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	unsigned int port;
-	u32 reg;
 	int ret;
 
 	ret = bcm_sf2_sw_rst(priv);
@@ -780,17 +797,8 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 		return ret;
 	}
 
-	/* Reinitialize the single GPHY */
-	if (priv->hw_params.num_gphy == 1) {
-		reg = reg_readl(priv, REG_SPHY_CNTRL);
-		reg |= PHY_RESET;
-		reg &= ~(EXT_PWR_DOWN | IDDQ_BIAS);
-		reg_writel(priv, reg, REG_SPHY_CNTRL);
-		udelay(21);
-		reg = reg_readl(priv, REG_SPHY_CNTRL);
-		reg &= ~PHY_RESET;
-		reg_writel(priv, reg, REG_SPHY_CNTRL);
-	}
+	if (priv->hw_params.num_gphy == 1)
+		bcm_sf2_gphy_enable_set(ds, true);
 
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
 		if ((1 << port) & ds->phys_port_mask)
