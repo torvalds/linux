@@ -197,11 +197,6 @@ struct exynos_drm_crtc_ops {
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 };
 
-enum exynos_crtc_mode {
-	CRTC_MODE_NORMAL,	/* normal mode */
-	CRTC_MODE_BLANK,	/* The private plane of crtc is blank */
-};
-
 /*
  * Exynos specific crtc structure.
  *
@@ -215,7 +210,6 @@ enum exynos_crtc_mode {
  *	we can refer to the crtc to current hardware interrupt occurred through
  *	this pipe value.
  * @dpms: store the crtc dpms value
- * @mode: store the crtc mode value
  * @ops: pointer to callbacks for exynos drm specific functionality
  * @ctx: A pointer to the crtc's implementation specific context
  */
@@ -224,7 +218,6 @@ struct exynos_drm_crtc {
 	enum exynos_drm_output_type	type;
 	unsigned int			pipe;
 	unsigned int			dpms;
-	enum exynos_crtc_mode		mode;
 	wait_queue_head_t		pending_flip_queue;
 	atomic_t			pending_flip;
 	struct exynos_drm_crtc_ops	*ops;
@@ -265,7 +258,6 @@ struct exynos_drm_private {
 	 */
 	struct drm_crtc *crtc[MAX_CRTC];
 	struct drm_property *plane_zpos_property;
-	struct drm_property *crtc_mode_property;
 
 	unsigned long da_start;
 	unsigned long da_space_size;

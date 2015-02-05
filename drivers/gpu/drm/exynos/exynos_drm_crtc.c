@@ -232,69 +232,11 @@ static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 	kfree(exynos_crtc);
 }
 
-static int exynos_drm_crtc_set_property(struct drm_crtc *crtc,
-					struct drm_property *property,
-					uint64_t val)
-{
-	struct drm_device *dev = crtc->dev;
-	struct exynos_drm_private *dev_priv = dev->dev_private;
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-
-	if (property == dev_priv->crtc_mode_property) {
-		enum exynos_crtc_mode mode = val;
-
-		if (mode == exynos_crtc->mode)
-			return 0;
-
-		exynos_crtc->mode = mode;
-
-		switch (mode) {
-		case CRTC_MODE_NORMAL:
-			exynos_drm_crtc_commit(crtc);
-			break;
-		case CRTC_MODE_BLANK:
-			exynos_plane_dpms(crtc->primary, DRM_MODE_DPMS_OFF);
-			break;
-		default:
-			break;
-		}
-
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
 static struct drm_crtc_funcs exynos_crtc_funcs = {
 	.set_config	= drm_crtc_helper_set_config,
 	.page_flip	= exynos_drm_crtc_page_flip,
 	.destroy	= exynos_drm_crtc_destroy,
-	.set_property	= exynos_drm_crtc_set_property,
 };
-
-static const struct drm_prop_enum_list mode_names[] = {
-	{ CRTC_MODE_NORMAL, "normal" },
-	{ CRTC_MODE_BLANK, "blank" },
-};
-
-static void exynos_drm_crtc_attach_mode_property(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct exynos_drm_private *dev_priv = dev->dev_private;
-	struct drm_property *prop;
-
-	prop = dev_priv->crtc_mode_property;
-	if (!prop) {
-		prop = drm_property_create_enum(dev, 0, "mode", mode_names,
-						ARRAY_SIZE(mode_names));
-		if (!prop)
-			return;
-
-		dev_priv->crtc_mode_property = prop;
-	}
-
-	drm_object_attach_property(&crtc->base, prop, 0);
-}
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 					       int pipe,
@@ -337,8 +279,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 		goto err_crtc;
 
 	drm_crtc_helper_add(crtc, &exynos_crtc_helper_funcs);
-
-	exynos_drm_crtc_attach_mode_property(crtc);
 
 	return exynos_crtc;
 
