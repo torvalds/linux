@@ -20,11 +20,25 @@
 #include "reg_wow.h"
 #include "hw-ops.h"
 
+static void ath9k_hw_set_sta_powersave(struct ath_hw *ah)
+{
+	if (!ath9k_hw_mci_is_enabled(ah))
+		goto set;
+	/*
+	 * If MCI is being used, set PWR_SAV only when MCI's
+	 * PS state is disabled.
+	 */
+	if (ar9003_mci_state(ah, MCI_STATE_GET_WLAN_PS_STATE) != MCI_PS_DISABLE)
+		return;
+set:
+	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
+}
+
 static void ath9k_hw_set_powermode_wow_sleep(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
+	ath9k_hw_set_sta_powersave(ah);
 
 	/* set rx disable bit */
 	REG_WRITE(ah, AR_CR, AR_CR_RXD);

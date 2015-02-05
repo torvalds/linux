@@ -188,6 +188,13 @@ enum mci_bt_state {
 	MCI_BT_CAL
 };
 
+enum mci_ps_state {
+	MCI_PS_DISABLE,
+	MCI_PS_ENABLE,
+	MCI_PS_ENABLE_OFF,
+	MCI_PS_ENABLE_ON
+};
+
 /* Type of state query */
 enum mci_state_type {
 	MCI_STATE_ENABLE,
