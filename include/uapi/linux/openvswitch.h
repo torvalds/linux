@@ -599,6 +599,12 @@ struct ovs_action_hash {
  * @OVS_ACTION_ATTR_SET: Replaces the contents of an existing header.  The
  * single nested %OVS_KEY_ATTR_* attribute specifies a header to modify and its
  * value.
+ * @OVS_ACTION_ATTR_SET_MASKED: Replaces the contents of an existing header.  A
+ * nested %OVS_KEY_ATTR_* attribute specifies a header to modify, its value,
+ * and a mask.  For every bit set in the mask, the corresponding bit value
+ * is copied from the value to the packet header field, rest of the bits are
+ * left unchanged.  The non-masked value bits must be passed in as zeroes.
+ * Masking is not supported for the %OVS_KEY_ATTR_TUNNEL attribute.
  * @OVS_ACTION_ATTR_PUSH_VLAN: Push a new outermost 802.1Q header onto the
  * packet.
  * @OVS_ACTION_ATTR_POP_VLAN: Pop the outermost 802.1Q header off the packet.
@@ -617,6 +623,9 @@ struct ovs_action_hash {
  * Only a single header can be set with a single %OVS_ACTION_ATTR_SET.  Not all
  * fields within a header are modifiable, e.g. the IPv4 protocol and fragment
  * type may not be changed.
+ *
+ * @OVS_ACTION_ATTR_SET_TO_MASKED: Kernel internal masked set action translated
+ * from the @OVS_ACTION_ATTR_SET.
  */
 
 enum ovs_action_attr {
@@ -631,8 +640,19 @@ enum ovs_action_attr {
 	OVS_ACTION_ATTR_HASH,	      /* struct ovs_action_hash. */
 	OVS_ACTION_ATTR_PUSH_MPLS,    /* struct ovs_action_push_mpls. */
 	OVS_ACTION_ATTR_POP_MPLS,     /* __be16 ethertype. */
+	OVS_ACTION_ATTR_SET_MASKED,   /* One nested OVS_KEY_ATTR_* including
+				       * data immediately followed by a mask.
+				       * The data must be zero for the unmasked
+				       * bits. */
 
-	__OVS_ACTION_ATTR_MAX
+	__OVS_ACTION_ATTR_MAX,	      /* Nothing past this will be accepted
+				       * from userspace. */
+
+#ifdef __KERNEL__
+	OVS_ACTION_ATTR_SET_TO_MASKED, /* Kernel module internal masked
+					* set action converted from
+					* OVS_ACTION_ATTR_SET. */
+#endif
 };
 
 #define OVS_ACTION_ATTR_MAX (__OVS_ACTION_ATTR_MAX - 1)
