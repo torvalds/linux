@@ -22,7 +22,7 @@
 
 /* DCBx version control
  */
-char *dcb_ver_array[] = {
+static const char * const dcb_ver_array[] = {
 	"Unknown",
 	"DCBx-CIN",
 	"DCBx-CEE 1.01",
