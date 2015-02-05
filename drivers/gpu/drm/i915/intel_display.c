@@ -2371,6 +2371,7 @@ intel_alloc_plane_obj(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_gem_object *obj = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
+	struct drm_framebuffer *fb = crtc->base.primary->fb;
 	u32 base = plane_config->base;
 
 	if (plane_config->size == 0)
@@ -2383,16 +2384,16 @@ intel_alloc_plane_obj(struct intel_crtc *crtc,
 
 	obj->tiling_mode = plane_config->tiling;
 	if (obj->tiling_mode == I915_TILING_X)
-		obj->stride = crtc->base.primary->fb->pitches[0];
+		obj->stride = fb->pitches[0];
 
-	mode_cmd.pixel_format = crtc->base.primary->fb->pixel_format;
-	mode_cmd.width = crtc->base.primary->fb->width;
-	mode_cmd.height = crtc->base.primary->fb->height;
-	mode_cmd.pitches[0] = crtc->base.primary->fb->pitches[0];
+	mode_cmd.pixel_format = fb->pixel_format;
+	mode_cmd.width = fb->width;
+	mode_cmd.height = fb->height;
+	mode_cmd.pitches[0] = fb->pitches[0];
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (intel_framebuffer_init(dev, to_intel_framebuffer(crtc->base.primary->fb),
+	if (intel_framebuffer_init(dev, to_intel_framebuffer(fb),
 				   &mode_cmd, obj)) {
 		DRM_DEBUG_KMS("intel fb init failed\n");
 		goto out_unref_obj;
