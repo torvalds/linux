@@ -1370,25 +1370,6 @@ static int f2fs_set_node_page_dirty(struct page *page)
 	return 0;
 }
 
-static void f2fs_invalidate_node_page(struct page *page, unsigned int offset,
-				      unsigned int length)
-{
-	struct inode *inode = page->mapping->host;
-	if (PageDirty(page))
-		dec_page_count(F2FS_I_SB(inode), F2FS_DIRTY_NODES);
-	ClearPagePrivate(page);
-}
-
-static int f2fs_release_node_page(struct page *page, gfp_t wait)
-{
-	/* If this is dirty page, keep PagePrivate */
-	if (PageDirty(page))
-		return 0;
-
-	ClearPagePrivate(page);
-	return 1;
-}
-
 /*
  * Structure of the f2fs node operations
  */
@@ -1396,8 +1377,8 @@ const struct address_space_operations f2fs_node_aops = {
 	.writepage	= f2fs_write_node_page,
 	.writepages	= f2fs_write_node_pages,
 	.set_page_dirty	= f2fs_set_node_page_dirty,
-	.invalidatepage	= f2fs_invalidate_node_page,
-	.releasepage	= f2fs_release_node_page,
+	.invalidatepage	= f2fs_invalidate_page,
+	.releasepage	= f2fs_release_page,
 };
 
 static struct free_nid *__lookup_free_nid_list(struct f2fs_nm_info *nm_i,
