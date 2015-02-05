@@ -132,4 +132,36 @@
 #define DRM_FORMAT_YUV444	fourcc_code('Y', 'U', '2', '4') /* non-subsampled Cb (1) and Cr (2) planes */
 #define DRM_FORMAT_YVU444	fourcc_code('Y', 'V', '2', '4') /* non-subsampled Cr (1) and Cb (2) planes */
 
+
+/*
+ * Format Modifiers:
+ *
+ * Format modifiers describe, typically, a re-ordering or modification
+ * of the data in a plane of an FB.  This can be used to express tiled/
+ * swizzled formats, or compression, or a combination of the two.
+ *
+ * The upper 8 bits of the format modifier are a vendor-id as assigned
+ * below.  The lower 56 bits are assigned as vendor sees fit.
+ */
+
+/* Vendor Ids: */
+#define DRM_FORMAT_MOD_NONE           0
+#define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
+#define DRM_FORMAT_MOD_VENDOR_AMD     0x02
+#define DRM_FORMAT_MOD_VENDOR_NV      0x03
+#define DRM_FORMAT_MOD_VENDOR_SAMSUNG 0x04
+#define DRM_FORMAT_MOD_VENDOR_QCOM    0x05
+/* add more to the end as needed */
+
+#define fourcc_mod_code(vendor, val) \
+	((((u64)DRM_FORMAT_MOD_VENDOR_## vendor) << 56) | (val & 0x00ffffffffffffffL))
+
+/*
+ * Format Modifier tokens:
+ *
+ * When adding a new token please document the layout with a code comment,
+ * similar to the fourcc codes above. drm_fourcc.h is considered the
+ * authoritative source for all of these.
+ */
+
 #endif /* DRM_FOURCC_H */
