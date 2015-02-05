@@ -153,7 +153,7 @@ struct f2fs_orphan_block {
  */
 struct f2fs_extent {
 	__le32 fofs;		/* start file offset of the extent */
-	__le32 blk_addr;	/* start block address of the extent */
+	__le32 blk;		/* start block address of the extent */
 	__le32 len;		/* lengh of the extent */
 } __packed;
 

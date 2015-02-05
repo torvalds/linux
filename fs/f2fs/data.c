@@ -268,7 +268,7 @@ static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
 
 	start_fofs = fi->ext.fofs;
 	end_fofs = fi->ext.fofs + fi->ext.len - 1;
-	start_blkaddr = fi->ext.blk_addr;
+	start_blkaddr = fi->ext.blk;
 
 	if (pgofs >= start_fofs && pgofs <= end_fofs) {
 		unsigned int blkbits = inode->i_sb->s_blocksize_bits;
@@ -313,8 +313,8 @@ void update_extent_cache(struct dnode_of_data *dn)
 
 	start_fofs = fi->ext.fofs;
 	end_fofs = fi->ext.fofs + fi->ext.len - 1;
-	start_blkaddr = fi->ext.blk_addr;
-	end_blkaddr = fi->ext.blk_addr + fi->ext.len - 1;
+	start_blkaddr = fi->ext.blk;
+	end_blkaddr = fi->ext.blk + fi->ext.len - 1;
 
 	/* Drop and initialize the matched extent */
 	if (fi->ext.len == 1 && fofs == start_fofs)
@@ -324,7 +324,7 @@ void update_extent_cache(struct dnode_of_data *dn)
 	if (fi->ext.len == 0) {
 		if (dn->data_blkaddr != NULL_ADDR) {
 			fi->ext.fofs = fofs;
-			fi->ext.blk_addr = dn->data_blkaddr;
+			fi->ext.blk = dn->data_blkaddr;
 			fi->ext.len = 1;
 		}
 		goto end_update;
@@ -333,7 +333,7 @@ void update_extent_cache(struct dnode_of_data *dn)
 	/* Front merge */
 	if (fofs == start_fofs - 1 && dn->data_blkaddr == start_blkaddr - 1) {
 		fi->ext.fofs--;
-		fi->ext.blk_addr--;
+		fi->ext.blk--;
 		fi->ext.len++;
 		goto end_update;
 	}
@@ -351,8 +351,7 @@ void update_extent_cache(struct dnode_of_data *dn)
 			fi->ext.len = fofs - start_fofs;
 		} else {
 			fi->ext.fofs = fofs + 1;
-			fi->ext.blk_addr = start_blkaddr +
-					fofs - start_fofs + 1;
+			fi->ext.blk = start_blkaddr + fofs - start_fofs + 1;
 			fi->ext.len -= fofs - start_fofs + 1;
 		}
 	} else {

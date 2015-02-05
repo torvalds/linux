@@ -278,7 +278,7 @@ enum {
 
 struct extent_info {
 	unsigned int fofs;	/* start offset in a file */
-	u32 blk_addr;		/* start block address of the extent */
+	u32 blk;		/* start block address of the extent */
 	unsigned int len;	/* length of the extent */
 };
 
@@ -320,7 +320,7 @@ static inline void get_extent_info(struct extent_info *ext,
 					struct f2fs_extent i_ext)
 {
 	ext->fofs = le32_to_cpu(i_ext.fofs);
-	ext->blk_addr = le32_to_cpu(i_ext.blk_addr);
+	ext->blk = le32_to_cpu(i_ext.blk);
 	ext->len = le32_to_cpu(i_ext.len);
 }
 
@@ -328,7 +328,7 @@ static inline void set_raw_extent(struct extent_info *ext,
 					struct f2fs_extent *i_ext)
 {
 	i_ext->fofs = cpu_to_le32(ext->fofs);
-	i_ext->blk_addr = cpu_to_le32(ext->blk_addr);
+	i_ext->blk = cpu_to_le32(ext->blk);
 	i_ext->len = cpu_to_le32(ext->len);
 }
 
