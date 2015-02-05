@@ -24,9 +24,16 @@ config DRM_EXYNOS_FIMD
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
 
+config DRM_EXYNOS7_DECON
+	bool "Exynos DRM DECON"
+	depends on DRM_EXYNOS
+	select FB_MODE_HELPERS
+	help
+	  Choose this option if you want to use Exynos DECON for DRM.
+
 config DRM_EXYNOS_DPI
 	bool "EXYNOS DRM parallel output support"
-	depends on DRM_EXYNOS_FIMD
+	depends on (DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON)
 	select DRM_PANEL
 	default n
 	help
@@ -34,7 +41,7 @@ config DRM_EXYNOS_DPI
 
 config DRM_EXYNOS_DSI
 	bool "EXYNOS DRM MIPI-DSI driver support"
-	depends on DRM_EXYNOS_FIMD
+	depends on (DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON)
 	select DRM_MIPI_DSI
 	select DRM_PANEL
 	default n
@@ -43,7 +50,7 @@ config DRM_EXYNOS_DSI
 
 config DRM_EXYNOS_DP
 	bool "EXYNOS DRM DP driver support"
-	depends on DRM_EXYNOS_FIMD && ARCH_EXYNOS && (DRM_PTN3460=n || DRM_PTN3460=y || DRM_PTN3460=DRM_EXYNOS)
+	depends on (DRM_EXYNOS_FIMD || DRM_EXYNOS7DECON) && ARCH_EXYNOS && (DRM_PTN3460=n || DRM_PTN3460=y || DRM_PTN3460=DRM_EXYNOS)
 	default DRM_EXYNOS
 	select DRM_PANEL
 	help
