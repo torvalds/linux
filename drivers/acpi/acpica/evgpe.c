@@ -473,7 +473,7 @@ unlock_and_exit:
 static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 {
 	struct acpi_gpe_event_info *gpe_event_info = context;
-	acpi_status status;
+	acpi_status status = AE_OK;
 	struct acpi_evaluate_info *info;
 	struct acpi_gpe_notify_info *notify;
 
