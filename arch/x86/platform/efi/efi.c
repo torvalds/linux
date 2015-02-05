@@ -491,7 +491,8 @@ void __init efi_init(void)
 	if (efi_memmap_init())
 		return;
 
-	print_efi_memmap();
+	if (efi_enabled(EFI_DBG))
+		print_efi_memmap();
 }
 
 void __init efi_late_init(void)
@@ -939,6 +940,8 @@ static int __init arch_parse_efi_cmdline(char *str)
 {
 	if (parse_option_str(str, "old_map"))
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
+	if (parse_option_str(str, "debug"))
+		set_bit(EFI_DBG, &efi.flags);
 
 	return 0;
 }
