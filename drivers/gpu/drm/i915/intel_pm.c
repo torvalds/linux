@@ -56,12 +56,14 @@ static void gen9_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/*
-	 * WaDisableSDEUnitClockGating:skl
-	 * This seems to be a pre-production w/a.
-	 */
-	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
-		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+	if (INTEL_REVID(dev) == SKL_REVID_A0) {
+		/*
+		 * WaDisableSDEUnitClockGating:skl
+		 * This seems to be a pre-production w/a.
+		 */
+		I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
+			   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+	}
 
 	/* Wa4x4STCOptimizationDisable:skl */
 	I915_WRITE(CACHE_MODE_1,
