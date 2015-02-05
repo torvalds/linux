@@ -41,7 +41,9 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 	/* only uses low memory */
 	avail_ram = val.totalram - val.totalhigh;
 
-	/* give 25%, 25%, 50%, 50% memory for each components respectively */
+	/*
+	 * give 25%, 25%, 50%, 50%, 50% memory for each components respectively
+	 */
 	if (type == FREE_NIDS) {
 		mem_size = (nm_i->fcnt * sizeof(struct free_nid)) >>
 							PAGE_CACHE_SHIFT;
@@ -61,6 +63,11 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 		for (i = 0; i <= UPDATE_INO; i++)
 			mem_size += (sbi->im[i].ino_num *
 				sizeof(struct ino_entry)) >> PAGE_CACHE_SHIFT;
+		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
+	} else if (type == EXTENT_CACHE) {
+		mem_size = (sbi->total_ext_tree * sizeof(struct extent_tree) +
+				atomic_read(&sbi->total_ext_node) *
+				sizeof(struct extent_node)) >> PAGE_CACHE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
 	} else {
 		if (sbi->sb->s_bdi->dirty_exceeded)

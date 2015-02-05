@@ -352,6 +352,33 @@ static inline void set_raw_extent(struct extent_info *ext,
 	i_ext->len = cpu_to_le32(ext->len);
 }
 
+static inline void set_extent_info(struct extent_info *ei, unsigned int fofs,
+						u32 blk, unsigned int len)
+{
+	ei->fofs = fofs;
+	ei->blk = blk;
+	ei->len = len;
+}
+
+static inline bool __is_extent_mergeable(struct extent_info *back,
+						struct extent_info *front)
+{
+	return (back->fofs + back->len == front->fofs &&
+			back->blk + back->len == front->blk);
+}
+
+static inline bool __is_back_mergeable(struct extent_info *cur,
+						struct extent_info *back)
+{
+	return __is_extent_mergeable(back, cur);
+}
+
+static inline bool __is_front_mergeable(struct extent_info *cur,
+						struct extent_info *front)
+{
+	return __is_extent_mergeable(cur, front);
+}
+
 struct f2fs_nm_info {
 	block_t nat_blkaddr;		/* base disk address of NAT */
 	nid_t max_nid;			/* maximum possible node ids */
@@ -1541,12 +1568,17 @@ void f2fs_submit_page_mbio(struct f2fs_sb_info *, struct page *,
 						struct f2fs_io_info *);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_reserve_block(struct dnode_of_data *, pgoff_t);
+void f2fs_shrink_extent_tree(struct f2fs_sb_info *, int);
+void f2fs_destroy_extent_tree(struct inode *);
 void f2fs_update_extent_cache(struct dnode_of_data *);
 struct page *find_data_page(struct inode *, pgoff_t, bool);
 struct page *get_lock_data_page(struct inode *, pgoff_t);
 struct page *get_new_data_page(struct inode *, struct page *, pgoff_t, bool);
 int do_write_data_page(struct page *, struct f2fs_io_info *);
 int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *, u64, u64);
+void init_extent_cache_info(struct f2fs_sb_info *);
+int __init create_extent_cache(void);
+void destroy_extent_cache(void);
 void f2fs_invalidate_page(struct page *, unsigned int, unsigned int);
 int f2fs_release_page(struct page *, gfp_t);
 
