@@ -258,6 +258,7 @@ struct intel_plane_state {
 };
 
 struct intel_initial_plane_config {
+	struct intel_framebuffer *fb;
 	unsigned int tiling;
 	int size;
 	u32 base;

@@ -2371,7 +2371,7 @@ intel_alloc_plane_obj(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_gem_object *obj = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	struct drm_framebuffer *fb = crtc->base.primary->fb;
+	struct drm_framebuffer *fb = &plane_config->fb->base;
 	u32 base = plane_config->base;
 
 	if (plane_config->size == 0)
@@ -2435,16 +2435,16 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 	struct intel_crtc *i;
 	struct drm_i915_gem_object *obj;
 
-	if (!intel_crtc->base.primary->fb)
+	if (!plane_config->fb)
 		return;
 
 	if (intel_alloc_plane_obj(intel_crtc, plane_config)) {
+		intel_crtc->base.primary->fb = &plane_config->fb->base;
 		update_state_fb(intel_crtc->base.primary);
 		return;
 	}
 
-	kfree(intel_crtc->base.primary->fb);
-	intel_crtc->base.primary->fb = NULL;
+	kfree(plane_config->fb);
 
 	/*
 	 * Failed to alloc the obj, check to see if we should share
@@ -6653,7 +6653,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 		      fb->bits_per_pixel, base, fb->pitches[0],
 		      plane_config->size);
 
-	crtc->base.primary->fb = fb;
+	plane_config->fb = intel_fb;
 }
 
 static void chv_crtc_clock_get(struct intel_crtc *crtc,
@@ -7690,7 +7690,7 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 		      fb->bits_per_pixel, base, fb->pitches[0],
 		      plane_config->size);
 
-	crtc->base.primary->fb = fb;
+	plane_config->fb = intel_fb;
 	return;
 
 error:
@@ -7781,7 +7781,7 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 		      fb->bits_per_pixel, base, fb->pitches[0],
 		      plane_config->size);
 
-	crtc->base.primary->fb = fb;
+	plane_config->fb = intel_fb;
 }
 
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
