@@ -204,6 +204,15 @@ config CHARGER_DA9150
 	  This driver can also be built as a module. If so, the module will be
 	  called da9150-charger.
 
+config AXP288_FUEL_GAUGE
+	tristate "X-Powers AXP288 Fuel Gauge"
+	depends on MFD_AXP20X && IIO
+	help
+	  Say yes here to have support for X-Power power management IC (PMIC)
+	  Fuel Gauge. The device provides battery statistics and status
+	  monitoring as well as alerts for battery over/under voltage and
+	  over/under temperature.
+
 config BATTERY_MAX17040
 	tristate "Maxim MAX17040 Fuel Gauge"
 	depends on I2C
