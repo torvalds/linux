@@ -1,8 +1,8 @@
 /*
- *  ec.c - ACPI Embedded Controller Driver (v2.2)
+ *  ec.c - ACPI Embedded Controller Driver (v3)
  *
- *  Copyright (C) 2001-2014 Intel Corporation
- *    Author: 2014       Lv Zheng <lv.zheng@intel.com>
+ *  Copyright (C) 2001-2015 Intel Corporation
+ *    Author: 2014, 2015 Lv Zheng <lv.zheng@intel.com>
  *            2006, 2007 Alexey Starikovskiy <alexey.y.starikovskiy@intel.com>
  *            2006       Denis Sadykov <denis.m.sadykov@intel.com>
  *            2004       Luming Yu <luming.yu@intel.com>
