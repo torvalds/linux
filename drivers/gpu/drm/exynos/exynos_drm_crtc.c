@@ -66,8 +66,6 @@ static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 
 	if (exynos_crtc->ops->commit)
 		exynos_crtc->ops->commit(exynos_crtc);
-
-	exynos_plane_dpms(crtc->primary, DRM_MODE_DPMS_ON);
 }
 
 static bool
