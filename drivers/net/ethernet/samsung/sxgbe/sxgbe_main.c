@@ -365,6 +365,26 @@ static int sxgbe_init_rx_buffers(struct net_device *dev,
 
 	return 0;
 }
+
+/**
+ * sxgbe_free_rx_buffers - free what sxgbe_init_rx_buffers() allocated
+ * @dev: net device structure
+ * @rx_ring: ring to be freed
+ * @rx_rsize: ring size
+ * Description:  this function initializes the DMA RX descriptor
+ */
+static void sxgbe_free_rx_buffers(struct net_device *dev,
+				  struct sxgbe_rx_norm_desc *p, int i,
+				  unsigned int dma_buf_sz,
+				  struct sxgbe_rx_queue *rx_ring)
+{
+	struct sxgbe_priv_data *priv = netdev_priv(dev);
+
+	kfree_skb(rx_ring->rx_skbuff[i]);
+	dma_unmap_single(priv->device, rx_ring->rx_skbuff_dma[i],
+			 dma_buf_sz, DMA_FROM_DEVICE);
+}
+
 /**
  * init_tx_ring - init the TX descriptor ring
  * @dev: net device structure
@@ -457,7 +477,7 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 	/* RX ring is not allcoated */
 	if (rx_ring == NULL) {
 		netdev_err(dev, "No memory for RX queue\n");
-		goto error;
+		return -ENOMEM;
 	}
 
 	/* assign queue number */
@@ -469,23 +489,21 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 					      &rx_ring->dma_rx_phy, GFP_KERNEL);
 
 	if (rx_ring->dma_rx == NULL)
-		goto error;
+		return -ENOMEM;
 
 	/* allocate memory for RX skbuff array */
 	rx_ring->rx_skbuff_dma = kmalloc_array(rx_rsize,
 					       sizeof(dma_addr_t), GFP_KERNEL);
 	if (!rx_ring->rx_skbuff_dma) {
-		dma_free_coherent(priv->device,
-				  rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
-				  rx_ring->dma_rx, rx_ring->dma_rx_phy);
-		goto error;
+		ret = -ENOMEM;
+		goto err_free_dma_rx;
 	}
 
 	rx_ring->rx_skbuff = kmalloc_array(rx_rsize,
 					   sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!rx_ring->rx_skbuff) {
-		kfree(rx_ring->rx_skbuff_dma);
-		goto error;
+		ret = -ENOMEM;
+		goto err_free_skbuff_dma;
 	}
 
 	/* initialise the buffers */
@@ -495,7 +513,7 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 		ret = sxgbe_init_rx_buffers(dev, p, desc_index,
 					    bfsize, rx_ring);
 		if (ret)
-			goto err_init_rx_buffers;
+			goto err_free_rx_buffers;
 	}
 
 	/* initalise counters */
@@ -505,11 +523,22 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 
 	return 0;
 
-err_init_rx_buffers:
-	while (--desc_index >= 0)
-		free_rx_ring(priv->device, rx_ring, desc_index);
-error:
-	return -ENOMEM;
+err_free_rx_buffers:
+	while (--desc_index >= 0) {
+		struct sxgbe_rx_norm_desc *p;
+
+		p = rx_ring->dma_rx + desc_index;
+		sxgbe_free_rx_buffers(dev, p, desc_index, bfsize, rx_ring);
+	}
+	kfree(rx_ring->rx_skbuff);
+err_free_skbuff_dma:
+	kfree(rx_ring->rx_skbuff_dma);
+err_free_dma_rx:
+	dma_free_coherent(priv->device,
+			  rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
+			  rx_ring->dma_rx, rx_ring->dma_rx_phy);
+
+	return ret;
 }
 /**
  * free_tx_ring - free the TX descriptor ring
