@@ -13,7 +13,6 @@
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/printk.h>
-#include "clk.h"
 
 static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 {
@@ -39,7 +38,7 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 		}
 		if (clkspec.np == node && !clk_supplier)
 			return 0;
-		pclk = of_clk_get_by_clkspec(&clkspec);
+		pclk = of_clk_get_from_provider(&clkspec);
 		if (IS_ERR(pclk)) {
 			pr_warn("clk: couldn't get parent clock %d for %s\n",
 				index, node->full_name);
@@ -54,7 +53,7 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 			rc = 0;
 			goto err;
 		}
-		clk = of_clk_get_by_clkspec(&clkspec);
+		clk = of_clk_get_from_provider(&clkspec);
 		if (IS_ERR(clk)) {
 			pr_warn("clk: couldn't get parent clock %d for %s\n",
 				index, node->full_name);
@@ -98,7 +97,7 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 			if (clkspec.np == node && !clk_supplier)
 				return 0;
 
-			clk = of_clk_get_by_clkspec(&clkspec);
+			clk = of_clk_get_from_provider(&clkspec);
 			if (IS_ERR(clk)) {
 				pr_warn("clk: couldn't get clock %d for %s\n",
 					index, node->full_name);
