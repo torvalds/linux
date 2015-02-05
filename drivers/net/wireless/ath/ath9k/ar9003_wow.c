@@ -186,18 +186,17 @@ u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 	u32 val = 0, rval;
 
 	/*
-	 * read the WoW status register to know
-	 * the wakeup reason
+	 * Read the WoW status register to know
+	 * the wakeup reason.
 	 */
 	rval = REG_READ(ah, AR_WOW_PATTERN);
 	val = AR_WOW_STATUS(rval);
 
 	/*
-	 * mask only the WoW events that we have enabled. Sometimes
+	 * Mask only the WoW events that we have enabled. Sometimes
 	 * we have spurious WoW events from the AR_WOW_PATTERN
 	 * register. This mask will clean it up.
 	 */
-
 	val &= ah->wow.wow_event_mask;
 
 	if (val) {
@@ -209,6 +208,15 @@ u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 			wow_status |= AH_WOW_LINK_CHANGE;
 		if (val & AR_WOW_BEACON_FAIL)
 			wow_status |= AH_WOW_BEACON_MISS;
+	}
+
+	rval = REG_READ(ah, AR_MAC_PCU_WOW4);
+	val = AR_WOW_STATUS2(rval);
+	val &= ah->wow.wow_event_mask2;
+
+	if (val) {
+		if (AR_WOW2_PATTERN_FOUND(val))
+			wow_status |= AH_WOW_USER_PATTERN_EN;
 	}
 
 	/*
