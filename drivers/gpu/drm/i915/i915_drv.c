@@ -1365,8 +1365,6 @@ static int intel_runtime_suspend(struct device *device)
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev)))
 		return -ENODEV;
 
-	assert_force_wake_inactive(dev_priv);
-
 	DRM_DEBUG_KMS("Suspending device\n");
 
 	/*
@@ -1404,7 +1402,8 @@ static int intel_runtime_suspend(struct device *device)
 		return ret;
 	}
 
-	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
+	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
+	intel_uncore_forcewake_reset(dev, false);
 	dev_priv->pm.suspended = true;
 
 	/*
@@ -1431,6 +1430,8 @@ static int intel_runtime_suspend(struct device *device)
 		 */
 		intel_opregion_notify_adapter(dev, PCI_D3hot);
 	}
+
+	assert_forcewakes_inactive(dev_priv);
 
 	DRM_DEBUG_KMS("Device suspended\n");
 	return 0;
@@ -1641,6 +1642,14 @@ static int __init i915_init(void)
 		return 0;
 #endif
 	}
+
+	/*
+	 * FIXME: Note that we're lying to the DRM core here so that we can get access
+	 * to the atomic ioctl and the atomic properties.  Only plane operations on
+	 * a single CRTC will actually work.
+	 */
+	if (i915.nuclear_pageflip)
+		driver.driver_features |= DRIVER_ATOMIC;
 
 	return drm_pci_init(&driver, &i915_pci_driver);
 }

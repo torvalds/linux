@@ -75,7 +75,7 @@ static int vlv_sideband_rw(struct drm_i915_private *dev_priv, u32 devfn,
 	return 0;
 }
 
-u32 vlv_punit_read(struct drm_i915_private *dev_priv, u8 addr)
+u32 vlv_punit_read(struct drm_i915_private *dev_priv, u32 addr)
 {
 	u32 val = 0;
 
@@ -89,7 +89,7 @@ u32 vlv_punit_read(struct drm_i915_private *dev_priv, u8 addr)
 	return val;
 }
 
-void vlv_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
+void vlv_punit_write(struct drm_i915_private *dev_priv, u32 addr, u32 val)
 {
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 

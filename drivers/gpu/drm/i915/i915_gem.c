@@ -39,8 +39,7 @@
 #include <linux/dma-buf.h>
 
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
-static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj,
-						   bool force);
+static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 static __must_check int
 i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 			       bool readonly);
@@ -1516,7 +1515,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 
 	/* Pinned buffers may be scanout, so flush the cache */
 	if (obj->pin_display)
-		i915_gem_object_flush_cpu_write_domain(obj, true);
+		i915_gem_object_flush_cpu_write_domain(obj);
 
 	drm_gem_object_unreference(&obj->base);
 unlock:
@@ -2414,7 +2413,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
 	struct intel_ringbuffer *ringbuf;
-	u32 request_ring_position, request_start;
+	u32 request_start;
 	int ret;
 
 	request = ring->outstanding_lazy_request;
@@ -2422,8 +2421,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 		return -ENOMEM;
 
 	if (i915.enable_execlists) {
-		struct intel_context *ctx = request->ctx;
-		ringbuf = ctx->engine[ring->id].ringbuf;
+		ringbuf = request->ctx->engine[ring->id].ringbuf;
 	} else
 		ringbuf = ring->buffer;
 
@@ -2436,7 +2434,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 * what.
 	 */
 	if (i915.enable_execlists) {
-		ret = logical_ring_flush_all_caches(ringbuf);
+		ret = logical_ring_flush_all_caches(ringbuf, request->ctx);
 		if (ret)
 			return ret;
 	} else {
@@ -2450,10 +2448,10 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
-	request_ring_position = intel_ring_get_tail(ringbuf);
+	request->postfix = intel_ring_get_tail(ringbuf);
 
 	if (i915.enable_execlists) {
-		ret = ring->emit_request(ringbuf);
+		ret = ring->emit_request(ringbuf, request);
 		if (ret)
 			return ret;
 	} else {
@@ -2463,7 +2461,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	}
 
 	request->head = request_start;
-	request->tail = request_ring_position;
+	request->tail = intel_ring_get_tail(ringbuf);
 
 	/* Whilst this request exists, batch_obj will be on the
 	 * active_list, and so will hold the active reference. Only when this
@@ -2650,13 +2648,17 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 	 * pinned in place.
 	 */
 	while (!list_empty(&ring->execlist_queue)) {
-		struct intel_ctx_submit_request *submit_req;
+		struct drm_i915_gem_request *submit_req;
 
 		submit_req = list_first_entry(&ring->execlist_queue,
-				struct intel_ctx_submit_request,
+				struct drm_i915_gem_request,
 				execlist_link);
 		list_del(&submit_req->execlist_link);
 		intel_runtime_pm_put(dev_priv);
+
+		if (submit_req->ctx != ring->default_context)
+			intel_lr_context_unpin(ring, submit_req->ctx);
+
 		i915_gem_context_unreference(submit_req->ctx);
 		kfree(submit_req);
 	}
@@ -2783,7 +2785,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 		 * of tail of the request to update the last known position
 		 * of the GPU head.
 		 */
-		ringbuf->last_retired_head = request->tail;
+		ringbuf->last_retired_head = request->postfix;
 
 		i915_gem_free_request(request);
 	}
@@ -3634,11 +3636,14 @@ i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * snooping behaviour occurs naturally as the result of our domain
 	 * tracking.
 	 */
-	if (!force && cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
+	if (!force && cpu_cache_is_coherent(obj->base.dev, obj->cache_level)) {
+		obj->cache_dirty = true;
 		return false;
+	}
 
 	trace_i915_gem_object_clflush(obj);
 	drm_clflush_sg(obj->pages);
+	obj->cache_dirty = false;
 
 	return true;
 }
@@ -3674,15 +3679,14 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 
 /** Flushes the CPU write domain for the object if it's dirty. */
 static void
-i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj,
-				       bool force)
+i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 {
 	uint32_t old_write_domain;
 
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
 		return;
 
-	if (i915_gem_clflush_object(obj, force))
+	if (i915_gem_clflush_object(obj, obj->pin_display))
 		i915_gem_chipset_flush(obj->base.dev);
 
 	old_write_domain = obj->base.write_domain;
@@ -3729,7 +3733,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	i915_gem_object_flush_cpu_write_domain(obj, false);
+	i915_gem_object_flush_cpu_write_domain(obj);
 
 	/* Serialise direct access to this object with the barriers for
 	 * coherent writes from the GPU, by effectively invalidating the
@@ -3821,27 +3825,11 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		vma->node.color = cache_level;
 	obj->cache_level = cache_level;
 
-	if (cpu_write_needs_clflush(obj)) {
-		u32 old_read_domains, old_write_domain;
-
-		/* If we're coming from LLC cached, then we haven't
-		 * actually been tracking whether the data is in the
-		 * CPU cache or not, since we only allow one bit set
-		 * in obj->write_domain and have been skipping the clflushes.
-		 * Just set it to the CPU cache for now.
-		 */
-		i915_gem_object_retire(obj);
-		WARN_ON(obj->base.write_domain & ~I915_GEM_DOMAIN_CPU);
-
-		old_read_domains = obj->base.read_domains;
-		old_write_domain = obj->base.write_domain;
-
-		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
-		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-
-		trace_i915_gem_object_change_domain(obj,
-						    old_read_domains,
-						    old_write_domain);
+	if (obj->cache_dirty &&
+	    obj->base.write_domain != I915_GEM_DOMAIN_CPU &&
+	    cpu_write_needs_clflush(obj)) {
+		if (i915_gem_clflush_object(obj, true))
+			i915_gem_chipset_flush(obj->base.dev);
 	}
 
 	return 0;
@@ -3991,7 +3979,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	if (ret)
 		goto err_unpin_display;
 
-	i915_gem_object_flush_cpu_write_domain(obj, true);
+	i915_gem_object_flush_cpu_write_domain(obj);
 
 	old_write_domain = obj->base.write_domain;
 	old_read_domains = obj->base.read_domains;
@@ -4620,7 +4608,7 @@ i915_gem_suspend(struct drm_device *dev)
 	i915_gem_stop_ringbuffers(dev);
 	mutex_unlock(&dev->struct_mutex);
 
-	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
+	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 	flush_delayed_work(&dev_priv->mm.idle_work);
 
@@ -5111,7 +5099,7 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
 	if (!mutex_is_locked(mutex))
 		return false;
 
-#if defined(CONFIG_SMP) && !defined(CONFIG_DEBUG_MUTEXES)
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_MUTEXES)
 	return mutex->owner == task;
 #else
 	/* Since UP may be pre-empted, we cannot assume that we own the lock */

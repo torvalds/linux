@@ -55,7 +55,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150117"
+#define DRIVER_DATE		"20150130"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -184,6 +184,10 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_VGA,
 	POWER_DOMAIN_AUDIO,
 	POWER_DOMAIN_PLLS,
+	POWER_DOMAIN_AUX_A,
+	POWER_DOMAIN_AUX_B,
+	POWER_DOMAIN_AUX_C,
+	POWER_DOMAIN_AUX_D,
 	POWER_DOMAIN_INIT,
 
 	POWER_DOMAIN_NUM,
@@ -499,8 +503,8 @@ struct drm_i915_error_state {
 
 struct intel_connector;
 struct intel_encoder;
-struct intel_crtc_config;
-struct intel_plane_config;
+struct intel_crtc_state;
+struct intel_initial_plane_config;
 struct intel_crtc;
 struct intel_limit;
 struct dpll;
@@ -538,10 +542,11 @@ struct drm_i915_display_funcs {
 	/* Returns the active state of the crtc, and if the crtc is active,
 	 * fills out the pipe-config with the hw state. */
 	bool (*get_pipe_config)(struct intel_crtc *,
-				struct intel_crtc_config *);
-	void (*get_plane_config)(struct intel_crtc *,
-				 struct intel_plane_config *);
-	int (*crtc_compute_clock)(struct intel_crtc *crtc);
+				struct intel_crtc_state *);
+	void (*get_initial_plane_config)(struct intel_crtc *,
+					 struct intel_initial_plane_config *);
+	int (*crtc_compute_clock)(struct intel_crtc *crtc,
+				  struct intel_crtc_state *crtc_state);
 	void (*crtc_enable)(struct drm_crtc *crtc);
 	void (*crtc_disable)(struct drm_crtc *crtc);
 	void (*off)(struct drm_crtc *crtc);
@@ -574,11 +579,28 @@ struct drm_i915_display_funcs {
 	void (*enable_backlight)(struct intel_connector *connector);
 };
 
+enum forcewake_domain_id {
+	FW_DOMAIN_ID_RENDER = 0,
+	FW_DOMAIN_ID_BLITTER,
+	FW_DOMAIN_ID_MEDIA,
+
+	FW_DOMAIN_ID_COUNT
+};
+
+enum forcewake_domains {
+	FORCEWAKE_RENDER = (1 << FW_DOMAIN_ID_RENDER),
+	FORCEWAKE_BLITTER = (1 << FW_DOMAIN_ID_BLITTER),
+	FORCEWAKE_MEDIA	= (1 << FW_DOMAIN_ID_MEDIA),
+	FORCEWAKE_ALL = (FORCEWAKE_RENDER |
+			 FORCEWAKE_BLITTER |
+			 FORCEWAKE_MEDIA)
+};
+
 struct intel_uncore_funcs {
 	void (*force_wake_get)(struct drm_i915_private *dev_priv,
-							int fw_engine);
+							enum forcewake_domains domains);
 	void (*force_wake_put)(struct drm_i915_private *dev_priv,
-							int fw_engine);
+							enum forcewake_domains domains);
 
 	uint8_t  (*mmio_readb)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
 	uint16_t (*mmio_readw)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
@@ -601,14 +623,31 @@ struct intel_uncore {
 	struct intel_uncore_funcs funcs;
 
 	unsigned fifo_count;
-	unsigned forcewake_count;
+	enum forcewake_domains fw_domains;
 
-	unsigned fw_rendercount;
-	unsigned fw_mediacount;
-	unsigned fw_blittercount;
-
-	struct timer_list force_wake_timer;
+	struct intel_uncore_forcewake_domain {
+		struct drm_i915_private *i915;
+		enum forcewake_domain_id id;
+		unsigned wake_count;
+		struct timer_list timer;
+		u32 reg_set;
+		u32 val_set;
+		u32 val_clear;
+		u32 reg_ack;
+		u32 reg_post;
+		u32 val_reset;
+	} fw_domain[FW_DOMAIN_ID_COUNT];
 };
+
+/* Iterate over initialised fw domains */
+#define for_each_fw_domain_mask(domain__, mask__, dev_priv__, i__) \
+	for ((i__) = 0, (domain__) = &(dev_priv__)->uncore.fw_domain[0]; \
+	     (i__) < FW_DOMAIN_ID_COUNT; \
+	     (i__)++, (domain__) = &(dev_priv__)->uncore.fw_domain[i__]) \
+		if (((mask__) & (dev_priv__)->uncore.fw_domains) & (1 << (i__)))
+
+#define for_each_fw_domain(domain__, dev_priv__, i__) \
+	for_each_fw_domain_mask(domain__, FORCEWAKE_ALL, dev_priv__, i__)
 
 #define DEV_INFO_FOR_EACH_FLAG(func, sep) \
 	func(is_mobile) sep \
@@ -653,6 +692,7 @@ struct intel_device_info {
 	int trans_offsets[I915_MAX_TRANSCODERS];
 	int palette_offsets[I915_MAX_PIPES];
 	int cursor_offsets[I915_MAX_PIPES];
+	unsigned int eu_total;
 };
 
 #undef DEFINE_FLAG
@@ -725,7 +765,7 @@ struct intel_context {
 	struct {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
-		int unpin_count;
+		int pin_count;
 	} engine[I915_NUM_RINGS];
 
 	struct list_head link;
@@ -776,11 +816,33 @@ struct i915_fbc {
 	} no_fbc_reason;
 };
 
-struct i915_drrs {
-	struct intel_connector *connector;
+/**
+ * HIGH_RR is the highest eDP panel refresh rate read from EDID
+ * LOW_RR is the lowest eDP panel refresh rate found from EDID
+ * parsing for same resolution.
+ */
+enum drrs_refresh_rate_type {
+	DRRS_HIGH_RR,
+	DRRS_LOW_RR,
+	DRRS_MAX_RR, /* RR count */
+};
+
+enum drrs_support_type {
+	DRRS_NOT_SUPPORTED = 0,
+	STATIC_DRRS_SUPPORT = 1,
+	SEAMLESS_DRRS_SUPPORT = 2
 };
 
 struct intel_dp;
+struct i915_drrs {
+	struct mutex mutex;
+	struct delayed_work work;
+	struct intel_dp *dp;
+	unsigned busy_frontbuffer_bits;
+	enum drrs_refresh_rate_type refresh_rate_type;
+	enum drrs_support_type type;
+};
+
 struct i915_psr {
 	struct mutex lock;
 	bool sink_support;
@@ -1283,14 +1345,13 @@ struct i915_gpu_error {
 	/* Hang gpu twice in this window and your context gets banned */
 #define DRM_I915_CTX_BAN_PERIOD DIV_ROUND_UP(8*DRM_I915_HANGCHECK_PERIOD, 1000)
 
-	struct timer_list hangcheck_timer;
+	struct workqueue_struct *hangcheck_wq;
+	struct delayed_work hangcheck_work;
 
 	/* For reset and error_state handling. */
 	spinlock_t lock;
 	/* Protected by the above dev->gpu_error.lock. */
 	struct drm_i915_error_state *first_error;
-	struct work_struct work;
-
 
 	unsigned long missed_irq_rings;
 
@@ -1358,12 +1419,6 @@ struct ddi_vbt_port_info {
 	uint8_t supports_dvi:1;
 	uint8_t supports_hdmi:1;
 	uint8_t supports_dp:1;
-};
-
-enum drrs_support_type {
-	DRRS_NOT_SUPPORTED = 0,
-	STATIC_DRRS_SUPPORT = 1,
-	SEAMLESS_DRRS_SUPPORT = 2
 };
 
 enum psr_lines_to_wait {
@@ -1999,6 +2054,7 @@ struct drm_i915_gem_object {
 	 */
 	unsigned long gt_ro:1;
 	unsigned int cache_level:3;
+	unsigned int cache_dirty:1;
 
 	unsigned int has_dma_mapping:1;
 
@@ -2071,7 +2127,14 @@ struct drm_i915_gem_request {
 	/** Position in the ringbuffer of the start of the request */
 	u32 head;
 
-	/** Position in the ringbuffer of the end of the request */
+	/**
+	 * Position in the ringbuffer of the start of the postfix.
+	 * This is required to calculate the maximum available ringbuffer
+	 * space without overwriting the postfix.
+	 */
+	 u32 postfix;
+
+	/** Position in the ringbuffer of the end of the whole request */
 	u32 tail;
 
 	/** Context related to this request */
@@ -2091,6 +2154,26 @@ struct drm_i915_gem_request {
 	struct list_head client_list;
 
 	uint32_t uniq;
+
+	/**
+	 * The ELSP only accepts two elements at a time, so we queue
+	 * context/tail pairs on a given queue (ring->execlist_queue) until the
+	 * hardware is available. The queue serves a double purpose: we also use
+	 * it to keep track of the up to 2 contexts currently in the hardware
+	 * (usually one in execution and the other queued up by the GPU): We
+	 * only remove elements from the head of the queue when the hardware
+	 * informs us that an element has been completed.
+	 *
+	 * All accesses to the queue are mediated by a spinlock
+	 * (ring->execlist_lock).
+	 */
+
+	/** Execlist link in the submission queue.*/
+	struct list_head execlist_link;
+
+	/** Execlists no. of times this request has been sent to the ELSP */
+	int elsp_submitted;
+
 };
 
 void i915_gem_request_free(struct kref *req_ref);
@@ -2372,7 +2455,8 @@ struct drm_i915_cmd_table {
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev) || \
-				 IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+				 IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev) || \
+				 IS_SKYLAKE(dev))
 #define HAS_RUNTIME_PM(dev)	(IS_GEN6(dev) || IS_HASWELL(dev) || \
 				 IS_BROADWELL(dev) || IS_VALLEYVIEW(dev))
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
@@ -2443,6 +2527,7 @@ struct i915_params {
 	int use_mmio_flip;
 	bool mmio_debug;
 	bool verbose_state_checks;
+	bool nuclear_pageflip;
 };
 extern struct i915_params i915 __read_mostly;
 
@@ -2487,6 +2572,12 @@ extern void intel_uncore_init(struct drm_device *dev);
 extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
 extern void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore);
+const char *intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id);
+void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
+				enum forcewake_domains domains);
+void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
+				enum forcewake_domains domains);
+void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
 
 void
 i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
@@ -3118,20 +3209,12 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 					    struct drm_device *dev,
 					    struct intel_display_error_state *error);
 
-/* On SNB platform, before reading ring registers forcewake bit
- * must be set to prevent GT core from power down and stale values being
- * returned.
- */
-void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine);
-void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
-void assert_force_wake_inactive(struct drm_i915_private *dev_priv);
-
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val);
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u32 mbox, u32 val);
 
 /* intel_sideband.c */
-u32 vlv_punit_read(struct drm_i915_private *dev_priv, u8 addr);
-void vlv_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val);
+u32 vlv_punit_read(struct drm_i915_private *dev_priv, u32 addr);
+void vlv_punit_write(struct drm_i915_private *dev_priv, u32 addr, u32 val);
 u32 vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr);
 u32 vlv_gpio_nc_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_gpio_nc_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
@@ -3152,15 +3235,8 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 u32 vlv_flisdsi_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 
-int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val);
-int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
-
-#define FORCEWAKE_RENDER	(1 << 0)
-#define FORCEWAKE_MEDIA		(1 << 1)
-#define FORCEWAKE_BLITTER	(1 << 2)
-#define FORCEWAKE_ALL		(FORCEWAKE_RENDER | FORCEWAKE_MEDIA | \
-					FORCEWAKE_BLITTER)
-
+int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
+int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 
 #define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)
 #define I915_WRITE8(reg, val)	dev_priv->uncore.funcs.mmio_writeb(dev_priv, (reg), (val), true)

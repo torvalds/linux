@@ -24,23 +24,218 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/i915_drm.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_mipi_dsi.h>
 #include <linux/slab.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
-#include "intel_dsi_cmd.h"
 
-/* the sub-encoders aka panel drivers */
-static const struct intel_dsi_device intel_dsi_devices[] = {
+static const struct {
+	u16 panel_id;
+	struct drm_panel * (*init)(struct intel_dsi *intel_dsi, u16 panel_id);
+} intel_dsi_drivers[] = {
 	{
 		.panel_id = MIPI_DSI_GENERIC_PANEL_ID,
-		.name = "vbt-generic-dsi-vid-mode-display",
-		.dev_ops = &vbt_generic_dsi_display_ops,
+		.init = vbt_panel_init,
 	},
 };
+
+static void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
+{
+	struct drm_encoder *encoder = &intel_dsi->base.base;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 mask;
+
+	mask = LP_CTRL_FIFO_EMPTY | HS_CTRL_FIFO_EMPTY |
+		LP_DATA_FIFO_EMPTY | HS_DATA_FIFO_EMPTY;
+
+	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & mask) == mask, 100))
+		DRM_ERROR("DPI FIFOs are not empty\n");
+}
+
+static void write_data(struct drm_i915_private *dev_priv, u32 reg,
+		       const u8 *data, u32 len)
+{
+	u32 i, j;
+
+	for (i = 0; i < len; i += 4) {
+		u32 val = 0;
+
+		for (j = 0; j < min_t(u32, len - i, 4); j++)
+			val |= *data++ << 8 * j;
+
+		I915_WRITE(reg, val);
+	}
+}
+
+static void read_data(struct drm_i915_private *dev_priv, u32 reg,
+		      u8 *data, u32 len)
+{
+	u32 i, j;
+
+	for (i = 0; i < len; i += 4) {
+		u32 val = I915_READ(reg);
+
+		for (j = 0; j < min_t(u32, len - i, 4); j++)
+			*data++ = val >> 8 * j;
+	}
+}
+
+static ssize_t intel_dsi_host_transfer(struct mipi_dsi_host *host,
+				       const struct mipi_dsi_msg *msg)
+{
+	struct intel_dsi_host *intel_dsi_host = to_intel_dsi_host(host);
+	struct drm_device *dev = intel_dsi_host->intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum port port = intel_dsi_host->port;
+	struct mipi_dsi_packet packet;
+	ssize_t ret;
+	const u8 *header, *data;
+	u32 data_reg, data_mask, ctrl_reg, ctrl_mask;
+
+	ret = mipi_dsi_create_packet(&packet, msg);
+	if (ret < 0)
+		return ret;
+
+	header = packet.header;
+	data = packet.payload;
+
+	if (msg->flags & MIPI_DSI_MSG_USE_LPM) {
+		data_reg = MIPI_LP_GEN_DATA(port);
+		data_mask = LP_DATA_FIFO_FULL;
+		ctrl_reg = MIPI_LP_GEN_CTRL(port);
+		ctrl_mask = LP_CTRL_FIFO_FULL;
+	} else {
+		data_reg = MIPI_HS_GEN_DATA(port);
+		data_mask = HS_DATA_FIFO_FULL;
+		ctrl_reg = MIPI_HS_GEN_CTRL(port);
+		ctrl_mask = HS_CTRL_FIFO_FULL;
+	}
+
+	/* note: this is never true for reads */
+	if (packet.payload_length) {
+
+		if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & data_mask) == 0, 50))
+			DRM_ERROR("Timeout waiting for HS/LP DATA FIFO !full\n");
+
+		write_data(dev_priv, data_reg, packet.payload,
+			   packet.payload_length);
+	}
+
+	if (msg->rx_len) {
+		I915_WRITE(MIPI_INTR_STAT(port), GEN_READ_DATA_AVAIL);
+	}
+
+	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & ctrl_mask) == 0, 50)) {
+		DRM_ERROR("Timeout waiting for HS/LP CTRL FIFO !full\n");
+	}
+
+	I915_WRITE(ctrl_reg, header[2] << 16 | header[1] << 8 | header[0]);
+
+	/* ->rx_len is set only for reads */
+	if (msg->rx_len) {
+		data_mask = GEN_READ_DATA_AVAIL;
+		if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & data_mask) == data_mask, 50))
+			DRM_ERROR("Timeout waiting for read data.\n");
+
+		read_data(dev_priv, data_reg, msg->rx_buf, msg->rx_len);
+	}
+
+	/* XXX: fix for reads and writes */
+	return 4 + packet.payload_length;
+}
+
+static int intel_dsi_host_attach(struct mipi_dsi_host *host,
+				 struct mipi_dsi_device *dsi)
+{
+	return 0;
+}
+
+static int intel_dsi_host_detach(struct mipi_dsi_host *host,
+				 struct mipi_dsi_device *dsi)
+{
+	return 0;
+}
+
+static const struct mipi_dsi_host_ops intel_dsi_host_ops = {
+	.attach = intel_dsi_host_attach,
+	.detach = intel_dsi_host_detach,
+	.transfer = intel_dsi_host_transfer,
+};
+
+static struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
+						  enum port port)
+{
+	struct intel_dsi_host *host;
+	struct mipi_dsi_device *device;
+
+	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	if (!host)
+		return NULL;
+
+	host->base.ops = &intel_dsi_host_ops;
+	host->intel_dsi = intel_dsi;
+	host->port = port;
+
+	/*
+	 * We should call mipi_dsi_host_register(&host->base) here, but we don't
+	 * have a host->dev, and we don't have OF stuff either. So just use the
+	 * dsi framework as a library and hope for the best. Create the dsi
+	 * devices by ourselves here too. Need to be careful though, because we
+	 * don't initialize any of the driver model devices here.
+	 */
+	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	if (!device) {
+		kfree(host);
+		return NULL;
+	}
+
+	device->host = &host->base;
+	host->device = device;
+
+	return host;
+}
+
+/*
+ * send a video mode command
+ *
+ * XXX: commands with data in MIPI_DPI_DATA?
+ */
+static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
+			enum port port)
+{
+	struct drm_encoder *encoder = &intel_dsi->base.base;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 mask;
+
+	/* XXX: pipe, hs */
+	if (hs)
+		cmd &= ~DPI_LP_MODE;
+	else
+		cmd |= DPI_LP_MODE;
+
+	/* clear bit */
+	I915_WRITE(MIPI_INTR_STAT(port), SPL_PKT_SENT_INTERRUPT);
+
+	/* XXX: old code skips write if control unchanged */
+	if (cmd == I915_READ(MIPI_DPI_CONTROL(port)))
+		DRM_ERROR("Same special packet %02x twice in a row.\n", cmd);
+
+	I915_WRITE(MIPI_DPI_CONTROL(port), cmd);
+
+	mask = SPL_PKT_SENT_INTERRUPT;
+	if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & mask) == mask, 100))
+		DRM_ERROR("Video mode command 0x%08x send failed.\n", cmd);
+
+	return 0;
+}
 
 static void band_gap_reset(struct drm_i915_private *dev_priv)
 {
@@ -54,12 +249,6 @@ static void band_gap_reset(struct drm_i915_private *dev_priv)
 	vlv_flisdsi_write(dev_priv, 0x08, 0x0000);
 
 	mutex_unlock(&dev_priv->dpio_lock);
-}
-
-static struct intel_dsi *intel_attached_dsi(struct drm_connector *connector)
-{
-	return container_of(intel_attached_encoder(connector),
-			    struct intel_dsi, base);
 }
 
 static inline bool is_vid_mode(struct intel_dsi *intel_dsi)
@@ -78,14 +267,13 @@ static void intel_dsi_hot_plug(struct intel_encoder *encoder)
 }
 
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_config *config)
+				     struct intel_crtc_state *config)
 {
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
-	struct drm_display_mode *adjusted_mode = &config->adjusted_mode;
-	struct drm_display_mode *mode = &config->requested_mode;
+	struct drm_display_mode *adjusted_mode = &config->base.adjusted_mode;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -94,10 +282,6 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
 	adjusted_mode->flags = 0;
-
-	if (intel_dsi->dev.dev_ops->mode_fixup)
-		return intel_dsi->dev.dev_ops->mode_fixup(&intel_dsi->dev,
-							  mode, adjusted_mode);
 
 	return true;
 }
@@ -197,23 +381,24 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	enum port port;
 
 	DRM_DEBUG_KMS("\n");
 
-	if (is_cmd_mode(intel_dsi))
-		I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(port), 8 * 4);
-	else {
+	if (is_cmd_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports)
+			I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(port), 8 * 4);
+	} else {
 		msleep(20); /* XXX */
-		dpi_send_cmd(intel_dsi, TURN_ON, DPI_LP_MODE_EN);
+		for_each_dsi_port(port, intel_dsi->ports)
+			dpi_send_cmd(intel_dsi, TURN_ON, false, port);
 		msleep(100);
 
-		if (intel_dsi->dev.dev_ops->enable)
-			intel_dsi->dev.dev_ops->enable(&intel_dsi->dev);
+		drm_panel_enable(intel_dsi->panel);
 
-		wait_for_dsi_fifo_empty(intel_dsi);
+		for_each_dsi_port(port, intel_dsi->ports)
+			wait_for_dsi_fifo_empty(intel_dsi, port);
 
 		intel_dsi_port_enable(encoder);
 	}
@@ -226,6 +411,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	enum pipe pipe = intel_crtc->pipe;
+	enum port port;
 	u32 tmp;
 
 	DRM_DEBUG_KMS("\n");
@@ -237,7 +423,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	I915_WRITE(DPLL(pipe), tmp);
 
 	/* update the hw state for DPLL */
-	intel_crtc->config.dpll_hw_state.dpll = DPLL_INTEGRATED_CLOCK_VLV |
+	intel_crtc->config->dpll_hw_state.dpll = DPLL_INTEGRATED_CLOCK_VLV |
 		DPLL_REFA_CLK_ENABLE_VLV;
 
 	tmp = I915_READ(DSPCLK_GATE_D);
@@ -249,13 +435,10 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	msleep(intel_dsi->panel_on_delay);
 
-	if (intel_dsi->dev.dev_ops->panel_reset)
-		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
+	drm_panel_prepare(intel_dsi->panel);
 
-	if (intel_dsi->dev.dev_ops->send_otp_cmds)
-		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
-
-	wait_for_dsi_fifo_empty(intel_dsi);
+	for_each_dsi_port(port, intel_dsi->ports)
+		wait_for_dsi_fifo_empty(intel_dsi, port);
 
 	/* Enable port in pre-enable phase itself because as per hw team
 	 * recommendation, port should be enabled befor plane & pipe */
@@ -275,12 +458,14 @@ static void intel_dsi_enable_nop(struct intel_encoder *encoder)
 static void intel_dsi_pre_disable(struct intel_encoder *encoder)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
 
 	DRM_DEBUG_KMS("\n");
 
 	if (is_vid_mode(intel_dsi)) {
 		/* Send Shutdown command to the panel in LP mode */
-		dpi_send_cmd(intel_dsi, SHUTDOWN, DPI_LP_MODE_EN);
+		for_each_dsi_port(port, intel_dsi->ports)
+			dpi_send_cmd(intel_dsi, SHUTDOWN, false, port);
 		msleep(10);
 	}
 }
@@ -296,7 +481,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 
 	if (is_vid_mode(intel_dsi)) {
-		wait_for_dsi_fifo_empty(intel_dsi);
+		for_each_dsi_port(port, intel_dsi->ports)
+			wait_for_dsi_fifo_empty(intel_dsi, port);
 
 		intel_dsi_port_disable(encoder);
 		msleep(2);
@@ -322,10 +508,10 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	}
 	/* if disable packets are sent before sending shutdown packet then in
 	 * some next enable sequence send turn on packet error is observed */
-	if (intel_dsi->dev.dev_ops->disable)
-		intel_dsi->dev.dev_ops->disable(&intel_dsi->dev);
+	drm_panel_disable(intel_dsi->panel);
 
-	wait_for_dsi_fifo_empty(intel_dsi);
+	for_each_dsi_port(port, intel_dsi->ports)
+		wait_for_dsi_fifo_empty(intel_dsi, port);
 }
 
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
@@ -387,8 +573,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 	val &= ~DPOUNIT_CLOCK_GATE_DISABLE;
 	I915_WRITE(DSPCLK_GATE_D, val);
 
-	if (intel_dsi->dev.dev_ops->disable_panel_power)
-		intel_dsi->dev.dev_ops->disable_panel_power(&intel_dsi->dev);
+	drm_panel_unprepare(intel_dsi->panel);
 
 	msleep(intel_dsi->panel_off_delay);
 	msleep(intel_dsi->panel_pwr_cycle_delay);
@@ -437,7 +622,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 }
 
 static void intel_dsi_get_config(struct intel_encoder *encoder,
-				 struct intel_crtc_config *pipe_config)
+				 struct intel_crtc_state *pipe_config)
 {
 	u32 pclk;
 	DRM_DEBUG_KMS("\n");
@@ -452,7 +637,7 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	if (!pclk)
 		return;
 
-	pipe_config->adjusted_mode.crtc_clock = pclk;
+	pipe_config->base.adjusted_mode.crtc_clock = pclk;
 	pipe_config->port_clock = pclk;
 }
 
@@ -462,7 +647,6 @@ intel_dsi_mode_valid(struct drm_connector *connector,
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
-	struct intel_dsi *intel_dsi = intel_attached_dsi(connector);
 
 	DRM_DEBUG_KMS("\n");
 
@@ -478,7 +662,7 @@ intel_dsi_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	return intel_dsi->dev.dev_ops->mode_valid(&intel_dsi->dev, mode);
+	return MODE_OK;
 }
 
 /* return txclkesc cycles in terms of divider and duration in us */
@@ -511,7 +695,7 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
-	unsigned int bpp = intel_crtc->config.pipe_bpp;
+	unsigned int bpp = intel_crtc->config->pipe_bpp;
 	unsigned int lane_count = intel_dsi->lane_count;
 
 	u16 hactive, hfp, hsync, hbp, vfp, vsync, vbp;
@@ -566,9 +750,9 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config.adjusted_mode;
+		&intel_crtc->config->base.adjusted_mode;
 	enum port port;
-	unsigned int bpp = intel_crtc->config.pipe_bpp;
+	unsigned int bpp = intel_crtc->config->pipe_bpp;
 	u32 val, tmp;
 	u16 mode_hdisplay;
 
@@ -727,20 +911,7 @@ static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
 static enum drm_connector_status
 intel_dsi_detect(struct drm_connector *connector, bool force)
 {
-	struct intel_dsi *intel_dsi = intel_attached_dsi(connector);
-	struct intel_encoder *intel_encoder = &intel_dsi->base;
-	enum intel_display_power_domain power_domain;
-	enum drm_connector_status connector_status;
-	struct drm_i915_private *dev_priv = intel_encoder->base.dev->dev_private;
-
-	DRM_DEBUG_KMS("\n");
-	power_domain = intel_display_port_power_domain(intel_encoder);
-
-	intel_display_power_get(dev_priv, power_domain);
-	connector_status = intel_dsi->dev.dev_ops->detect(&intel_dsi->dev);
-	intel_display_power_put(dev_priv, power_domain);
-
-	return connector_status;
+	return connector_status_connected;
 }
 
 static int intel_dsi_get_modes(struct drm_connector *connector)
@@ -766,7 +937,7 @@ static int intel_dsi_get_modes(struct drm_connector *connector)
 	return 1;
 }
 
-static void intel_dsi_destroy(struct drm_connector *connector)
+static void intel_dsi_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
@@ -776,8 +947,20 @@ static void intel_dsi_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
+static void intel_dsi_encoder_destroy(struct drm_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+
+	if (intel_dsi->panel) {
+		drm_panel_detach(intel_dsi->panel);
+		/* XXX: Logically this call belongs in the panel driver. */
+		drm_panel_remove(intel_dsi->panel);
+	}
+	intel_encoder_destroy(encoder);
+}
+
 static const struct drm_encoder_funcs intel_dsi_funcs = {
-	.destroy = intel_encoder_destroy,
+	.destroy = intel_dsi_encoder_destroy,
 };
 
 static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs = {
@@ -789,8 +972,10 @@ static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs 
 static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_dsi_detect,
-	.destroy = intel_dsi_destroy,
+	.destroy = intel_dsi_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.atomic_get_property = intel_connector_atomic_get_property,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 void intel_dsi_init(struct drm_device *dev)
@@ -800,9 +985,9 @@ void intel_dsi_init(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	struct drm_display_mode *fixed_mode = NULL;
+	struct drm_display_mode *scan, *fixed_mode = NULL;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct intel_dsi_device *dsi;
+	enum port port;
 	unsigned int i;
 
 	DRM_DEBUG_KMS("\n");
@@ -851,7 +1036,11 @@ void intel_dsi_init(struct drm_device *dev)
 	intel_connector->unregister = intel_connector_unregister;
 
 	/* Pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI port C */
-	if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
+	if (dev_priv->vbt.dsi.config->dual_link) {
+		/* XXX: does dual link work on either pipe? */
+		intel_encoder->crtc_mask = (1 << PIPE_A);
+		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
+	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
 		intel_encoder->crtc_mask = (1 << PIPE_A);
 		intel_dsi->ports = (1 << PORT_A);
 	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIC) {
@@ -859,15 +1048,25 @@ void intel_dsi_init(struct drm_device *dev)
 		intel_dsi->ports = (1 << PORT_C);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(intel_dsi_devices); i++) {
-		dsi = &intel_dsi_devices[i];
-		intel_dsi->dev = *dsi;
+	/* Create a DSI host (and a device) for each port. */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		struct intel_dsi_host *host;
 
-		if (dsi->dev_ops->init(&intel_dsi->dev))
+		host = intel_dsi_host_init(intel_dsi, port);
+		if (!host)
+			goto err;
+
+		intel_dsi->dsi_hosts[port] = host;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(intel_dsi_drivers); i++) {
+		intel_dsi->panel = intel_dsi_drivers[i].init(intel_dsi,
+							     intel_dsi_drivers[i].panel_id);
+		if (intel_dsi->panel)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(intel_dsi_devices)) {
+	if (!intel_dsi->panel) {
 		DRM_DEBUG_KMS("no device found\n");
 		goto err;
 	}
@@ -887,13 +1086,23 @@ void intel_dsi_init(struct drm_device *dev)
 
 	drm_connector_register(connector);
 
-	fixed_mode = dsi->dev_ops->get_modes(&intel_dsi->dev);
+	drm_panel_attach(intel_dsi->panel, connector);
+
+	mutex_lock(&dev->mode_config.mutex);
+	drm_panel_get_modes(intel_dsi->panel);
+	list_for_each_entry(scan, &connector->probed_modes, head) {
+		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
+			fixed_mode = drm_mode_duplicate(dev, scan);
+			break;
+		}
+	}
+	mutex_unlock(&dev->mode_config.mutex);
+
 	if (!fixed_mode) {
 		DRM_DEBUG_KMS("no fixed mode\n");
 		goto err;
 	}
 
-	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 
 	return;

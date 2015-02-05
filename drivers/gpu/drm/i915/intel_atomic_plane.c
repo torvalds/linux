@@ -37,31 +37,58 @@
 #include "intel_drv.h"
 
 /**
+ * intel_create_plane_state - create plane state object
+ * @plane: drm plane
+ *
+ * Allocates a fresh plane state for the given plane and sets some of
+ * the state values to sensible initial values.
+ *
+ * Returns: A newly allocated plane state, or NULL on failure
+ */
+struct intel_plane_state *
+intel_create_plane_state(struct drm_plane *plane)
+{
+	struct intel_plane_state *state;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	state->base.plane = plane;
+	state->base.rotation = BIT(DRM_ROTATE_0);
+
+	return state;
+}
+
+/**
  * intel_plane_duplicate_state - duplicate plane state
  * @plane: drm plane
  *
  * Allocates and returns a copy of the plane state (both common and
  * Intel-specific) for the specified plane.
  *
- * Returns: The newly allocated plane state, or NULL or failure.
+ * Returns: The newly allocated plane state, or NULL on failure.
  */
 struct drm_plane_state *
 intel_plane_duplicate_state(struct drm_plane *plane)
 {
-	struct intel_plane_state *state;
+	struct drm_plane_state *state;
+	struct intel_plane_state *intel_state;
 
-	if (plane->state)
-		state = kmemdup(plane->state, sizeof(*state), GFP_KERNEL);
+	if (WARN_ON(!plane->state))
+		intel_state = intel_create_plane_state(plane);
 	else
-		state = kzalloc(sizeof(*state), GFP_KERNEL);
+		intel_state = kmemdup(plane->state, sizeof(*intel_state),
+				      GFP_KERNEL);
 
-	if (!state)
+	if (!intel_state)
 		return NULL;
 
-	if (state->base.fb)
-		drm_framebuffer_reference(state->base.fb);
+	state = &intel_state->base;
+	if (state->fb)
+		drm_framebuffer_reference(state->fb);
 
-	return &state->base;
+	return state;
 }
 
 /**
@@ -91,6 +118,15 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	intel_crtc = to_intel_crtc(crtc);
 
 	/*
+	 * Both crtc and plane->crtc could be NULL if we're updating a
+	 * property while the plane is disabled.  We don't actually have
+	 * anything driver-specific we need to test in that case, so
+	 * just return success.
+	 */
+	if (!crtc)
+		return 0;
+
+	/*
 	 * The original src/dest coordinates are stored in state->base, but
 	 * we want to keep another copy internal to our driver that we can
 	 * clip/modify ourselves.
@@ -108,9 +144,9 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	intel_state->clip.x1 = 0;
 	intel_state->clip.y1 = 0;
 	intel_state->clip.x2 =
-		intel_crtc->active ? intel_crtc->config.pipe_src_w : 0;
+		intel_crtc->active ? intel_crtc->config->pipe_src_w : 0;
 	intel_state->clip.y2 =
-		intel_crtc->active ? intel_crtc->config.pipe_src_h : 0;
+		intel_crtc->active ? intel_crtc->config->pipe_src_h : 0;
 
 	/*
 	 * Disabling a plane is always okay; we just need to update
@@ -150,3 +186,61 @@ const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
 	.atomic_update = intel_plane_atomic_update,
 };
 
+/**
+ * intel_plane_atomic_get_property - fetch plane property value
+ * @plane: plane to fetch property for
+ * @state: state containing the property value
+ * @property: property to look up
+ * @val: pointer to write property value into
+ *
+ * The DRM core does not store shadow copies of properties for
+ * atomic-capable drivers.  This entrypoint is used to fetch
+ * the current value of a driver-specific plane property.
+ */
+int
+intel_plane_atomic_get_property(struct drm_plane *plane,
+				const struct drm_plane_state *state,
+				struct drm_property *property,
+				uint64_t *val)
+{
+	struct drm_mode_config *config = &plane->dev->mode_config;
+
+	if (property == config->rotation_property) {
+		*val = state->rotation;
+	} else {
+		DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * intel_plane_atomic_set_property - set plane property value
+ * @plane: plane to set property for
+ * @state: state to update property value in
+ * @property: property to set
+ * @val: value to set property to
+ *
+ * Writes the specified property value for a plane into the provided atomic
+ * state object.
+ *
+ * Returns 0 on success, -EINVAL on unrecognized properties
+ */
+int
+intel_plane_atomic_set_property(struct drm_plane *plane,
+				struct drm_plane_state *state,
+				struct drm_property *property,
+				uint64_t val)
+{
+	struct drm_mode_config *config = &plane->dev->mode_config;
+
+	if (property == config->rotation_property) {
+		state->rotation = val;
+	} else {
+		DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}

@@ -182,7 +182,7 @@ static void snb_fbc_blit_update(struct drm_device *dev)
 
 	/* Blitter is part of Media powerwell on VLV. No impact of
 	 * his param in other platforms for now */
-	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_MEDIA);
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_MEDIA);
 
 	blt_ecoskpd = I915_READ(GEN6_BLITTER_ECOSKPD);
 	blt_ecoskpd |= GEN6_BLITTER_FBC_NOTIFY <<
@@ -195,7 +195,7 @@ static void snb_fbc_blit_update(struct drm_device *dev)
 	I915_WRITE(GEN6_BLITTER_ECOSKPD, blt_ecoskpd);
 	POSTING_READ(GEN6_BLITTER_ECOSKPD);
 
-	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_MEDIA);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_MEDIA);
 }
 
 static void ilk_fbc_enable(struct drm_crtc *crtc)
@@ -542,7 +542,7 @@ void intel_fbc_update(struct drm_device *dev)
 	intel_crtc = to_intel_crtc(crtc);
 	fb = crtc->primary->fb;
 	obj = intel_fb_obj(fb);
-	adjusted_mode = &intel_crtc->config.adjusted_mode;
+	adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 
 	if (i915.enable_fbc < 0) {
 		if (set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT))
@@ -572,8 +572,8 @@ void intel_fbc_update(struct drm_device *dev)
 		max_width = 2048;
 		max_height = 1536;
 	}
-	if (intel_crtc->config.pipe_src_w > max_width ||
-	    intel_crtc->config.pipe_src_h > max_height) {
+	if (intel_crtc->config->pipe_src_w > max_width ||
+	    intel_crtc->config->pipe_src_h > max_height) {
 		if (set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE))
 			DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		goto out_disable;
@@ -595,7 +595,7 @@ void intel_fbc_update(struct drm_device *dev)
 		goto out_disable;
 	}
 	if (INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
-	    to_intel_plane(crtc->primary)->rotation != BIT(DRM_ROTATE_0)) {
+	    crtc->primary->state->rotation != BIT(DRM_ROTATE_0)) {
 		if (set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED_MODE))
 			DRM_DEBUG_KMS("Rotation unsupported, disabling\n");
 		goto out_disable;

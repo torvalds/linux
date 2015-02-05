@@ -1380,13 +1380,35 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
+	if (((args->flags & I915_EXEC_RING_MASK) != I915_EXEC_BSD) &&
+	    ((args->flags & I915_EXEC_BSD_MASK) != 0)) {
+		DRM_DEBUG("execbuf with non bsd ring but with invalid "
+			"bsd dispatch flags: %d\n", (int)(args->flags));
+		return -EINVAL;
+	} 
+
 	if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_DEFAULT)
 		ring = &dev_priv->ring[RCS];
 	else if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_BSD) {
 		if (HAS_BSD2(dev)) {
 			int ring_id;
-			ring_id = gen8_dispatch_bsd_ring(dev, file);
-			ring = &dev_priv->ring[ring_id];
+
+			switch (args->flags & I915_EXEC_BSD_MASK) {
+			case I915_EXEC_BSD_DEFAULT:
+				ring_id = gen8_dispatch_bsd_ring(dev, file);
+				ring = &dev_priv->ring[ring_id];
+				break;
+			case I915_EXEC_BSD_RING1:
+				ring = &dev_priv->ring[VCS];
+				break;
+			case I915_EXEC_BSD_RING2:
+				ring = &dev_priv->ring[VCS2];
+				break;
+			default:
+				DRM_DEBUG("execbuf with unknown bsd ring: %d\n",
+					  (int)(args->flags & I915_EXEC_BSD_MASK));
+				return -EINVAL;
+			}
 		} else
 			ring = &dev_priv->ring[VCS];
 	} else

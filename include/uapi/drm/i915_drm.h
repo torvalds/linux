@@ -346,6 +346,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_CMD_PARSER_VERSION	 28
 #define I915_PARAM_HAS_COHERENT_PHYS_GTT 29
 #define I915_PARAM_MMAP_VERSION          30
+#define I915_PARAM_HAS_BSD2		 31
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -750,7 +751,13 @@ struct drm_i915_gem_execbuffer2 {
  */
 #define I915_EXEC_HANDLE_LUT		(1<<12)
 
-#define __I915_EXEC_UNKNOWN_FLAGS -(I915_EXEC_HANDLE_LUT<<1)
+/** Used for switching BSD rings on the platforms with two BSD rings */
+#define I915_EXEC_BSD_MASK		(3<<13)
+#define I915_EXEC_BSD_DEFAULT		(0<<13) /* default ping-pong mode */
+#define I915_EXEC_BSD_RING1		(1<<13)
+#define I915_EXEC_BSD_RING2		(2<<13)
+
+#define __I915_EXEC_UNKNOWN_FLAGS -(1<<15)
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \
