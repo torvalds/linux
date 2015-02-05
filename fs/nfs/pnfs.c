@@ -948,7 +948,7 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
 	struct nfs4_layoutreturn *lrp;
 	int status = 0;
 
-	lrp = kzalloc(sizeof(*lrp), GFP_KERNEL);
+	lrp = kzalloc(sizeof(*lrp), GFP_NOFS);
 	if (unlikely(lrp == NULL)) {
 		status = -ENOMEM;
 		spin_lock(&ino->i_lock);
