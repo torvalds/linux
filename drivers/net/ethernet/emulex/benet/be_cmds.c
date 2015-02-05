@@ -2747,7 +2747,7 @@ err:
 	return status;
 }
 
-int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain)
+static int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_set_qos *req;
