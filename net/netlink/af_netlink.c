@@ -2886,99 +2886,97 @@ EXPORT_SYMBOL(nlmsg_notify);
 #ifdef CONFIG_PROC_FS
 struct nl_seq_iter {
 	struct seq_net_private p;
+	struct rhashtable_iter hti;
 	int link;
-	int hash_idx;
 };
 
-static struct sock *netlink_seq_socket_idx(struct seq_file *seq, loff_t pos)
+static int netlink_walk_start(struct nl_seq_iter *iter)
 {
-	struct nl_seq_iter *iter = seq->private;
-	int i, j;
-	struct netlink_sock *nlk;
-	struct sock *s;
-	loff_t off = 0;
+	int err;
 
-	for (i = 0; i < MAX_LINKS; i++) {
-		struct rhashtable *ht = &nl_table[i].hash;
-		const struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
-
-		for (j = 0; j < tbl->size; j++) {
-			struct rhash_head *node;
-
-			rht_for_each_entry_rcu(nlk, node, tbl, j, node) {
-				s = (struct sock *)nlk;
-
-				if (sock_net(s) != seq_file_net(seq))
-					continue;
-				if (off == pos) {
-					iter->link = i;
-					iter->hash_idx = j;
-					return s;
-				}
-				++off;
-			}
-		}
+	err = rhashtable_walk_init(&nl_table[iter->link].hash, &iter->hti);
+	if (err) {
+		iter->link = MAX_LINKS;
+		return err;
 	}
-	return NULL;
+
+	err = rhashtable_walk_start(&iter->hti);
+	return err == -EAGAIN ? 0 : err;
 }
 
-static void *netlink_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(RCU)
+static void netlink_walk_stop(struct nl_seq_iter *iter)
 {
-	rcu_read_lock();
-	return *pos ? netlink_seq_socket_idx(seq, *pos - 1) : SEQ_START_TOKEN;
+	rhashtable_walk_stop(&iter->hti);
+	rhashtable_walk_exit(&iter->hti);
+}
+
+static void *__netlink_seq_next(struct seq_file *seq)
+{
+	struct nl_seq_iter *iter = seq->private;
+	struct netlink_sock *nlk;
+
+	do {
+		for (;;) {
+			int err;
+
+			nlk = rhashtable_walk_next(&iter->hti);
+
+			if (IS_ERR(nlk)) {
+				if (PTR_ERR(nlk) == -EAGAIN)
+					continue;
+
+				return nlk;
+			}
+
+			if (nlk)
+				break;
+
+			netlink_walk_stop(iter);
+			if (++iter->link >= MAX_LINKS)
+				return NULL;
+
+			err = netlink_walk_start(iter);
+			if (err)
+				return ERR_PTR(err);
+		}
+	} while (sock_net(&nlk->sk) != seq_file_net(seq));
+
+	return nlk;
+}
+
+static void *netlink_seq_start(struct seq_file *seq, loff_t *posp)
+{
+	struct nl_seq_iter *iter = seq->private;
+	void *obj = SEQ_START_TOKEN;
+	loff_t pos;
+	int err;
+
+	iter->link = 0;
+
+	err = netlink_walk_start(iter);
+	if (err)
+		return ERR_PTR(err);
+
+	for (pos = *posp; pos && obj && !IS_ERR(obj); pos--)
+		obj = __netlink_seq_next(seq);
+
+	return obj;
 }
 
 static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct rhashtable *ht;
-	const struct bucket_table *tbl;
-	struct rhash_head *node;
-	struct netlink_sock *nlk;
-	struct nl_seq_iter *iter;
-	struct net *net;
-	int i, j;
-
 	++*pos;
-
-	if (v == SEQ_START_TOKEN)
-		return netlink_seq_socket_idx(seq, 0);
-
-	net = seq_file_net(seq);
-	iter = seq->private;
-	nlk = v;
-
-	i = iter->link;
-	ht = &nl_table[i].hash;
-	tbl = rht_dereference_rcu(ht->tbl, ht);
-	rht_for_each_entry_rcu_continue(nlk, node, nlk->node.next, tbl, iter->hash_idx, node)
-		if (net_eq(sock_net((struct sock *)nlk), net))
-			return nlk;
-
-	j = iter->hash_idx + 1;
-
-	do {
-
-		for (; j < tbl->size; j++) {
-			rht_for_each_entry_rcu(nlk, node, tbl, j, node) {
-				if (net_eq(sock_net((struct sock *)nlk), net)) {
-					iter->link = i;
-					iter->hash_idx = j;
-					return nlk;
-				}
-			}
-		}
-
-		j = 0;
-	} while (++i < MAX_LINKS);
-
-	return NULL;
+	return __netlink_seq_next(seq);
 }
 
 static void netlink_seq_stop(struct seq_file *seq, void *v)
-	__releases(RCU)
 {
-	rcu_read_unlock();
+	struct nl_seq_iter *iter = seq->private;
+
+	if (iter->link >= MAX_LINKS)
+		return;
+
+	netlink_walk_stop(iter);
 }
 
 

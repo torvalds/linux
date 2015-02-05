@@ -130,31 +130,50 @@ static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 			  struct nft_set_iter *iter)
 {
 	struct rhashtable *priv = nft_set_priv(set);
-	const struct bucket_table *tbl;
 	const struct nft_hash_elem *he;
+	struct rhashtable_iter hti;
 	struct nft_set_elem elem;
-	unsigned int i;
+	int err;
 
-	tbl = rht_dereference_rcu(priv->tbl, priv);
-	for (i = 0; i < tbl->size; i++) {
-		struct rhash_head *pos;
+	err = rhashtable_walk_init(priv, &hti);
+	iter->err = err;
+	if (err)
+		return;
 
-		rht_for_each_entry_rcu(he, pos, tbl, i, node) {
-			if (iter->count < iter->skip)
-				goto cont;
-
-			memcpy(&elem.key, &he->key, sizeof(elem.key));
-			if (set->flags & NFT_SET_MAP)
-				memcpy(&elem.data, he->data, sizeof(elem.data));
-			elem.flags = 0;
-
-			iter->err = iter->fn(ctx, set, iter, &elem);
-			if (iter->err < 0)
-				return;
-cont:
-			iter->count++;
-		}
+	err = rhashtable_walk_start(&hti);
+	if (err && err != -EAGAIN) {
+		iter->err = err;
+		goto out;
 	}
+
+	while ((he = rhashtable_walk_next(&hti))) {
+		if (IS_ERR(he)) {
+			err = PTR_ERR(he);
+			if (err != -EAGAIN) {
+				iter->err = err;
+				goto out;
+			}
+		}
+
+		if (iter->count < iter->skip)
+			goto cont;
+
+		memcpy(&elem.key, &he->key, sizeof(elem.key));
+		if (set->flags & NFT_SET_MAP)
+			memcpy(&elem.data, he->data, sizeof(elem.data));
+		elem.flags = 0;
+
+		iter->err = iter->fn(ctx, set, iter, &elem);
+		if (iter->err < 0)
+			goto out;
+
+cont:
+		iter->count++;
+	}
+
+out:
+	rhashtable_walk_stop(&hti);
+	rhashtable_walk_exit(&hti);
 }
 
 static unsigned int nft_hash_privsize(const struct nlattr * const nla[])

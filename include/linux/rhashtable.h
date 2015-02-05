@@ -18,6 +18,7 @@
 #ifndef _LINUX_RHASHTABLE_H
 #define _LINUX_RHASHTABLE_H
 
+#include <linux/compiler.h>
 #include <linux/list_nulls.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
@@ -111,6 +112,7 @@ struct rhashtable_params {
  * @p: Configuration parameters
  * @run_work: Deferred worker to expand/shrink asynchronously
  * @mutex: Mutex to protect current/future table swapping
+ * @walkers: List of active walkers
  * @being_destroyed: True if table is set up for destruction
  */
 struct rhashtable {
@@ -121,7 +123,34 @@ struct rhashtable {
 	struct rhashtable_params	p;
 	struct work_struct		run_work;
 	struct mutex                    mutex;
+	struct list_head		walkers;
 	bool                            being_destroyed;
+};
+
+/**
+ * struct rhashtable_walker - Hash table walker
+ * @list: List entry on list of walkers
+ * @resize: Resize event occured
+ */
+struct rhashtable_walker {
+	struct list_head list;
+	bool resize;
+};
+
+/**
+ * struct rhashtable_iter - Hash table iterator, fits into netlink cb
+ * @ht: Table to iterate through
+ * @p: Current pointer
+ * @walker: Associated rhashtable walker
+ * @slot: Current slot
+ * @skip: Number of entries to skip in slot
+ */
+struct rhashtable_iter {
+	struct rhashtable *ht;
+	struct rhash_head *p;
+	struct rhashtable_walker *walker;
+	unsigned int slot;
+	unsigned int skip;
 };
 
 static inline unsigned long rht_marker(const struct rhashtable *ht, u32 hash)
@@ -178,6 +207,12 @@ bool rhashtable_lookup_compare_insert(struct rhashtable *ht,
 				      struct rhash_head *obj,
 				      bool (*compare)(void *, void *),
 				      void *arg);
+
+int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter);
+void rhashtable_walk_exit(struct rhashtable_iter *iter);
+int rhashtable_walk_start(struct rhashtable_iter *iter) __acquires(RCU);
+void *rhashtable_walk_next(struct rhashtable_iter *iter);
+void rhashtable_walk_stop(struct rhashtable_iter *iter) __releases(RCU);
 
 void rhashtable_destroy(struct rhashtable *ht);
 
