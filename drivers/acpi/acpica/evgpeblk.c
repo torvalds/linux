@@ -478,6 +478,8 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			     ACPI_GPE_DISPATCH_NONE)
 			    || (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
 				ACPI_GPE_DISPATCH_HANDLER)
+			    || (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
+				ACPI_GPE_DISPATCH_RAW_HANDLER)
 			    || (gpe_event_info->flags & ACPI_GPE_CAN_WAKE)) {
 				continue;
 			}

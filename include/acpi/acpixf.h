@@ -569,6 +569,14 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 							  address,
 							  void *context))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_install_gpe_raw_handler(acpi_handle
+							      gpe_device,
+							      u32 gpe_number,
+							      u32 type,
+							      acpi_gpe_handler
+							      address,
+							      void *context))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_remove_gpe_handler(acpi_handle gpe_device,
 							 u32 gpe_number,
 							 acpi_gpe_handler

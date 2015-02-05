@@ -324,8 +324,10 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 								 ACPI_GPE_REGISTER_WIDTH)
 								+ j];
 
-			if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
-			    ACPI_GPE_DISPATCH_HANDLER) {
+			if ((ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
+			     ACPI_GPE_DISPATCH_HANDLER) ||
+			    (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
+			     ACPI_GPE_DISPATCH_RAW_HANDLER)) {
 
 				/* Delete an installed handler block */
 
