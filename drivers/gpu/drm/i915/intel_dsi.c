@@ -360,12 +360,11 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 		I915_WRITE(MIPI_DEVICE_READY(port), ULPS_STATE_ENTER);
 		usleep_range(2500, 3000);
 
-		val = I915_READ(MIPI_PORT_CTRL(port));
-
 		/* Enable MIPI PHY transparent latch
 		 * Common bit for both MIPI Port A & MIPI Port C
 		 * No similar bit in MIPI Port C reg
 		 */
+		val = I915_READ(MIPI_PORT_CTRL(PORT_A));
 		I915_WRITE(MIPI_PORT_CTRL(PORT_A), val | LP_OUTPUT_HOLD);
 		usleep_range(1000, 1500);
 
@@ -543,10 +542,10 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 							== 0x00000), 30))
 			DRM_ERROR("DSI LP not going Low\n");
 
-		val = I915_READ(MIPI_PORT_CTRL(port));
 		/* Disable MIPI PHY transparent latch
 		 * Common bit for both MIPI Port A & MIPI Port C
 		 */
+		val = I915_READ(MIPI_PORT_CTRL(PORT_A));
 		I915_WRITE(MIPI_PORT_CTRL(PORT_A), val & ~LP_OUTPUT_HOLD);
 		usleep_range(1000, 1500);
 
