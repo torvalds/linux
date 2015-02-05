@@ -103,6 +103,7 @@ struct tipc_stats {
  * @media_addr: media address to use when sending messages over link
  * @timer: link timer
  * @owner: pointer to peer node
+ * @refcnt: reference counter for permanent references (owner node & timer)
  * @flags: execution state flags for link endpoint instance
  * @checkpoint: reference point for triggering link continuity checking
  * @peer_session: link session # being used by peer end of link
@@ -142,6 +143,7 @@ struct tipc_link {
 	struct tipc_media_addr media_addr;
 	struct timer_list timer;
 	struct tipc_node *owner;
+	struct kref ref;
 
 	/* Management and link supervision data */
 	unsigned int flags;
@@ -200,6 +202,7 @@ struct tipc_port;
 struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 			      struct tipc_bearer *b_ptr,
 			      const struct tipc_media_addr *media_addr);
+void tipc_link_delete(struct tipc_link *link);
 void tipc_link_delete_list(struct net *net, unsigned int bearer_id,
 			   bool shutting_down);
 void tipc_link_failover_send_queue(struct tipc_link *l_ptr);

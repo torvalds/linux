@@ -96,14 +96,14 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	struct tipc_node *n_ptr, *temp_node;
 
 	spin_lock_bh(&tn->node_list_lock);
-
+	n_ptr = tipc_node_find(net, addr);
+	if (n_ptr)
+		goto exit;
 	n_ptr = kzalloc(sizeof(*n_ptr), GFP_ATOMIC);
 	if (!n_ptr) {
-		spin_unlock_bh(&tn->node_list_lock);
 		pr_warn("Node creation failed, no memory\n");
-		return NULL;
+		goto exit;
 	}
-
 	n_ptr->addr = addr;
 	n_ptr->net = net;
 	spin_lock_init(&n_ptr->lock);
@@ -123,9 +123,8 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 	n_ptr->action_flags = TIPC_WAIT_PEER_LINKS_DOWN;
 	n_ptr->signature = INVALID_NODE_SIG;
-
 	tn->num_nodes++;
-
+exit:
 	spin_unlock_bh(&tn->node_list_lock);
 	return n_ptr;
 }
@@ -406,6 +405,10 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		l_ptr->reset_checkpoint = l_ptr->next_in_no;
 		l_ptr->exp_msg_count = 0;
 		tipc_link_reset_fragments(l_ptr);
+
+		/* Link marked for deletion after failover? => do it now */
+		if (l_ptr->flags & LINK_STOPPED)
+			tipc_link_delete(l_ptr);
 	}
 
 	n_ptr->action_flags &= ~TIPC_WAIT_OWN_LINKS_DOWN;

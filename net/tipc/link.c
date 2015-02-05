@@ -127,6 +127,21 @@ static unsigned int align(unsigned int i)
 	return (i + 3) & ~3u;
 }
 
+static void tipc_link_release(struct kref *kref)
+{
+	kfree(container_of(kref, struct tipc_link, ref));
+}
+
+static void tipc_link_get(struct tipc_link *l_ptr)
+{
+	kref_get(&l_ptr->ref);
+}
+
+static void tipc_link_put(struct tipc_link *l_ptr)
+{
+	kref_put(&l_ptr->ref, tipc_link_release);
+}
+
 static void link_init_max_pkt(struct tipc_link *l_ptr)
 {
 	struct tipc_node *node = l_ptr->owner;
@@ -222,11 +237,13 @@ static void link_timeout(unsigned long data)
 		tipc_link_push_packets(l_ptr);
 
 	tipc_node_unlock(l_ptr->owner);
+	tipc_link_put(l_ptr);
 }
 
 static void link_set_timer(struct tipc_link *link, unsigned long time)
 {
-	mod_timer(&link->timer, jiffies + time);
+	if (!mod_timer(&link->timer, jiffies + time))
+		tipc_link_get(link);
 }
 
 /**
@@ -267,7 +284,7 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 		pr_warn("Link creation failed, no memory\n");
 		return NULL;
 	}
-
+	kref_init(&l_ptr->ref);
 	l_ptr->addr = peer;
 	if_name = strchr(b_ptr->name, ':') + 1;
 	sprintf(l_ptr->name, "%u.%u.%u:%s-%u.%u.%u:unknown",
@@ -305,46 +322,48 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 	skb_queue_head_init(&l_ptr->waiting_sks);
 
 	link_reset_statistics(l_ptr);
-
 	tipc_node_attach_link(n_ptr, l_ptr);
-
 	setup_timer(&l_ptr->timer, link_timeout, (unsigned long)l_ptr);
-
 	link_state_event(l_ptr, STARTING_EVT);
 
 	return l_ptr;
+}
+
+/**
+ * link_delete - Conditional deletion of link.
+ *               If timer still running, real delete is done when it expires
+ * @link: link to be deleted
+ */
+void tipc_link_delete(struct tipc_link *link)
+{
+	tipc_link_reset_fragments(link);
+	tipc_node_detach_link(link->owner, link);
+	tipc_link_put(link);
 }
 
 void tipc_link_delete_list(struct net *net, unsigned int bearer_id,
 			   bool shutting_down)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct tipc_link *l_ptr;
-	struct tipc_node *n_ptr;
+	struct tipc_link *link;
+	struct tipc_node *node;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(n_ptr, &tn->node_list, list) {
-		tipc_node_lock(n_ptr);
-		l_ptr = n_ptr->links[bearer_id];
-		if (l_ptr) {
-			tipc_link_reset(l_ptr);
-			if (shutting_down || !tipc_node_is_up(n_ptr)) {
-				tipc_node_detach_link(l_ptr->owner, l_ptr);
-				tipc_link_reset_fragments(l_ptr);
-				tipc_node_unlock(n_ptr);
-
-				/* Nobody else can access this link now: */
-				del_timer_sync(&l_ptr->timer);
-				kfree(l_ptr);
-			} else {
-				/* Detach/delete when failover is finished: */
-				l_ptr->flags |= LINK_STOPPED;
-				tipc_node_unlock(n_ptr);
-				del_timer_sync(&l_ptr->timer);
-			}
+	list_for_each_entry_rcu(node, &tn->node_list, list) {
+		tipc_node_lock(node);
+		link = node->links[bearer_id];
+		if (!link) {
+			tipc_node_unlock(node);
 			continue;
 		}
-		tipc_node_unlock(n_ptr);
+		tipc_link_reset(link);
+		if (del_timer(&link->timer))
+			tipc_link_put(link);
+		link->flags |= LINK_STOPPED;
+		/* Delete link now, or when failover is finished: */
+		if (shutting_down || !tipc_node_is_up(node))
+			tipc_link_delete(link);
+		tipc_node_unlock(node);
 	}
 	rcu_read_unlock();
 }
@@ -630,7 +649,9 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			break;
 		case STARTING_EVT:
 			l_ptr->flags |= LINK_STARTED;
-			/* fall through */
+			l_ptr->fsm_msg_cnt++;
+			link_set_timer(l_ptr, cont_intv);
+			break;
 		case TIMEOUT_EVT:
 			tipc_link_proto_xmit(l_ptr, RESET_MSG, 0, 0, 0, 0, 0);
 			l_ptr->fsm_msg_cnt++;
@@ -1837,10 +1858,8 @@ static struct sk_buff *tipc_link_failover_rcv(struct tipc_link *l_ptr,
 		}
 	}
 exit:
-	if ((l_ptr->exp_msg_count == 0) && (l_ptr->flags & LINK_STOPPED)) {
-		tipc_node_detach_link(l_ptr->owner, l_ptr);
-		kfree(l_ptr);
-	}
+	if ((!l_ptr->exp_msg_count) && (l_ptr->flags & LINK_STOPPED))
+		tipc_link_delete(l_ptr);
 	return buf;
 }
 
