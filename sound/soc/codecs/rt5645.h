@@ -1120,50 +1120,27 @@
 #define RT5645_DMIC_2_M_NOR			(0x0 << 8)
 #define RT5645_DMIC_2_M_ASYN			(0x1 << 8)
 
+/* ASRC clock source selection (0x84, 0x85) */
+#define RT5645_CLK_SEL_SYS			(0x0)
+#define RT5645_CLK_SEL_I2S1_ASRC		(0x1)
+#define RT5645_CLK_SEL_I2S2_ASRC		(0x2)
+#define RT5645_CLK_SEL_SYS2			(0x5)
+
 /* ASRC Control 2 (0x84) */
-#define RT5645_MDA_L_M_MASK			(0x1 << 15)
-#define RT5645_MDA_L_M_SFT			15
-#define RT5645_MDA_L_M_NOR			(0x0 << 15)
-#define RT5645_MDA_L_M_ASYN			(0x1 << 15)
-#define RT5645_MDA_R_M_MASK			(0x1 << 14)
-#define RT5645_MDA_R_M_SFT			14
-#define RT5645_MDA_R_M_NOR			(0x0 << 14)
-#define RT5645_MDA_R_M_ASYN			(0x1 << 14)
-#define RT5645_MAD_L_M_MASK			(0x1 << 13)
-#define RT5645_MAD_L_M_SFT			13
-#define RT5645_MAD_L_M_NOR			(0x0 << 13)
-#define RT5645_MAD_L_M_ASYN			(0x1 << 13)
-#define RT5645_MAD_R_M_MASK			(0x1 << 12)
-#define RT5645_MAD_R_M_SFT			12
-#define RT5645_MAD_R_M_NOR			(0x0 << 12)
-#define RT5645_MAD_R_M_ASYN			(0x1 << 12)
-#define RT5645_ADC_M_MASK			(0x1 << 11)
-#define RT5645_ADC_M_SFT			11
-#define RT5645_ADC_M_NOR			(0x0 << 11)
-#define RT5645_ADC_M_ASYN			(0x1 << 11)
-#define RT5645_STO_DAC_M_MASK			(0x1 << 5)
-#define RT5645_STO_DAC_M_SFT			5
-#define RT5645_STO_DAC_M_NOR			(0x0 << 5)
-#define RT5645_STO_DAC_M_ASYN			(0x1 << 5)
-#define RT5645_I2S1_R_D_MASK			(0x1 << 4)
-#define RT5645_I2S1_R_D_SFT			4
-#define RT5645_I2S1_R_D_DIS			(0x0 << 4)
-#define RT5645_I2S1_R_D_EN			(0x1 << 4)
-#define RT5645_I2S2_R_D_MASK			(0x1 << 3)
-#define RT5645_I2S2_R_D_SFT			3
-#define RT5645_I2S2_R_D_DIS			(0x0 << 3)
-#define RT5645_I2S2_R_D_EN			(0x1 << 3)
-#define RT5645_PRE_SCLK_MASK			(0x3)
-#define RT5645_PRE_SCLK_SFT			0
-#define RT5645_PRE_SCLK_512			(0x0)
-#define RT5645_PRE_SCLK_1024			(0x1)
-#define RT5645_PRE_SCLK_2048			(0x2)
+#define RT5645_DA_STO_CLK_SEL_MASK		(0xf << 12)
+#define RT5645_DA_STO_CLK_SEL_SFT		12
+#define RT5645_DA_MONOL_CLK_SEL_MASK		(0xf << 8)
+#define RT5645_DA_MONOL_CLK_SEL_SFT		8
+#define RT5645_DA_MONOR_CLK_SEL_MASK		(0xf << 4)
+#define RT5645_DA_MONOR_CLK_SEL_SFT		4
+#define RT5645_AD_STO1_CLK_SEL_MASK		(0xf << 0)
+#define RT5645_AD_STO1_CLK_SEL_SFT		0
 
 /* ASRC Control 3 (0x85) */
-#define RT5645_I2S1_RATE_MASK			(0xf << 12)
-#define RT5645_I2S1_RATE_SFT			12
-#define RT5645_I2S2_RATE_MASK			(0xf << 8)
-#define RT5645_I2S2_RATE_SFT			8
+#define RT5645_AD_MONOL_CLK_SEL_MASK		(0xf << 4)
+#define RT5645_AD_MONOL_CLK_SEL_SFT		4
+#define RT5645_AD_MONOR_CLK_SEL_MASK		(0xf << 0)
+#define RT5645_AD_MONOR_CLK_SEL_SFT		0
 
 /* ASRC Control 4 (0x89) */
 #define RT5645_I2S1_PD_MASK			(0x7 << 12)
@@ -2188,6 +2165,19 @@ enum {
 	CODEC_TYPE_RT5645,
 	CODEC_TYPE_RT5650,
 };
+
+/* filter mask */
+enum {
+	RT5645_DA_STEREO_FILTER = 0x1,
+	RT5645_DA_MONO_L_FILTER = (0x1 << 1),
+	RT5645_DA_MONO_R_FILTER = (0x1 << 2),
+	RT5645_AD_STEREO_FILTER = (0x1 << 3),
+	RT5645_AD_MONO_L_FILTER = (0x1 << 4),
+	RT5645_AD_MONO_R_FILTER = (0x1 << 5),
+};
+
+int rt5645_sel_asrc_clk_src(struct snd_soc_codec *codec,
+		unsigned int filter_mask, unsigned int clk_src);
 
 struct rt5645_priv {
 	struct snd_soc_codec *codec;
