@@ -2091,19 +2091,20 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 	if (qp->real_qp == qp) {
 		ret = ib_resolve_eth_l2_attrs(qp, attr, &cmd.attr_mask);
 		if (ret)
-			goto out;
+			goto release_qp;
 		ret = qp->device->modify_qp(qp, attr,
 			modify_qp_mask(qp->qp_type, cmd.attr_mask), &udata);
 	} else {
 		ret = ib_modify_qp(qp, attr, modify_qp_mask(qp->qp_type, cmd.attr_mask));
 	}
 
-	put_qp_read(qp);
-
 	if (ret)
-		goto out;
+		goto release_qp;
 
 	ret = in_len;
+
+release_qp:
+	put_qp_read(qp);
 
 out:
 	kfree(attr);
