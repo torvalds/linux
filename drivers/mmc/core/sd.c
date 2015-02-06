@@ -388,17 +388,8 @@ static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 {
 	int host_drv_type = SD_DRIVER_TYPE_B;
 	int card_drv_type = SD_DRIVER_TYPE_B;
-	int drive_strength;
+	int drive_strength, drv_type;
 	int err;
-
-	/*
-	 * If the host doesn't support any of the Driver Types A,C or D,
-	 * or there is no board specific handler then default Driver
-	 * Type B is used.
-	 */
-	if (!(card->host->caps & (MMC_CAP_DRIVER_TYPE_A | MMC_CAP_DRIVER_TYPE_C
-	    | MMC_CAP_DRIVER_TYPE_D)))
-		return 0;
 
 	if (!card->host->ops->select_drive_strength)
 		return 0;
@@ -430,20 +421,22 @@ static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 	mmc_host_clk_hold(card->host);
 	drive_strength = card->host->ops->select_drive_strength(
 		card->sw_caps.uhs_max_dtr,
-		host_drv_type, card_drv_type);
+		host_drv_type, card_drv_type, &drv_type);
 	mmc_host_clk_release(card->host);
 
-	err = mmc_sd_switch(card, 1, 2, drive_strength, status);
-	if (err)
-		return err;
-
-	if ((status[15] & 0xF) != drive_strength) {
-		pr_warn("%s: Problem setting drive strength!\n",
-			mmc_hostname(card->host));
-		return 0;
+	if (drive_strength) {
+		err = mmc_sd_switch(card, 1, 2, drive_strength, status);
+		if (err)
+			return err;
+		if ((status[15] & 0xF) != drive_strength) {
+			pr_warn("%s: Problem setting drive strength!\n",
+				mmc_hostname(card->host));
+			return 0;
+		}
 	}
 
-	mmc_set_driver_type(card->host, drive_strength);
+	if (drv_type)
+		mmc_set_driver_type(card->host, drv_type);
 
 	return 0;
 }
