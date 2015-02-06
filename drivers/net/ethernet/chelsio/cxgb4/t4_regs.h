@@ -1183,8 +1183,30 @@
 #define RSVDSPACEINT_F    RSVDSPACEINT_V(1U)
 
 /* registers for module TP */
+#define DBGLAWHLF_S    23
+#define DBGLAWHLF_V(x) ((x) << DBGLAWHLF_S)
+#define DBGLAWHLF_F    DBGLAWHLF_V(1U)
+
+#define DBGLAWPTR_S    16
+#define DBGLAWPTR_M    0x7fU
+#define DBGLAWPTR_G(x) (((x) >> DBGLAWPTR_S) & DBGLAWPTR_M)
+
+#define DBGLAENABLE_S    12
+#define DBGLAENABLE_V(x) ((x) << DBGLAENABLE_S)
+#define DBGLAENABLE_F    DBGLAENABLE_V(1U)
+
+#define DBGLARPTR_S    0
+#define DBGLARPTR_M    0x7fU
+#define DBGLARPTR_V(x) ((x) << DBGLARPTR_S)
+
+#define TP_DBG_LA_DATAL_A	0x7ed8
+#define TP_DBG_LA_CONFIG_A	0x7ed4
 #define TP_OUT_CONFIG_A		0x7d04
 #define TP_GLOBAL_CONFIG_A	0x7d08
+
+#define DBGLAMODE_S	14
+#define DBGLAMODE_M	0x3U
+#define DBGLAMODE_G(x)	(((x) >> DBGLAMODE_S) & DBGLAMODE_M)
 
 #define FIVETUPLELOOKUP_S    17
 #define FIVETUPLELOOKUP_M    0x3U

@@ -221,6 +221,7 @@ struct sge_params {
 struct tp_params {
 	unsigned int ntxchan;        /* # of Tx channels */
 	unsigned int tre;            /* log2 of core clocks per TP tick */
+	unsigned int la_mask;        /* what events are recorded by TP LA */
 	unsigned short tx_modq_map;  /* TX modulation scheduler queue to */
 				     /* channel map */
 
@@ -1174,6 +1175,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
 void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log);
 void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
 			    unsigned int mask, unsigned int val);
+void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr);
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6);
 void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,

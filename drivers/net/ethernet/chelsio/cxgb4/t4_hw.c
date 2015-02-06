@@ -4782,3 +4782,50 @@ restart:
 	}
 	return ret;
 }
+
+/**
+ *	t4_tp_read_la - read TP LA capture buffer
+ *	@adap: the adapter
+ *	@la_buf: where to store the LA data
+ *	@wrptr: the HW write pointer within the capture buffer
+ *
+ *	Reads the contents of the TP LA buffer with the most recent entry at
+ *	the end	of the returned data and with the entry at @wrptr first.
+ *	We leave the LA in the running state we find it in.
+ */
+void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr)
+{
+	bool last_incomplete;
+	unsigned int i, cfg, val, idx;
+
+	cfg = t4_read_reg(adap, TP_DBG_LA_CONFIG_A) & 0xffff;
+	if (cfg & DBGLAENABLE_F)			/* freeze LA */
+		t4_write_reg(adap, TP_DBG_LA_CONFIG_A,
+			     adap->params.tp.la_mask | (cfg ^ DBGLAENABLE_F));
+
+	val = t4_read_reg(adap, TP_DBG_LA_CONFIG_A);
+	idx = DBGLAWPTR_G(val);
+	last_incomplete = DBGLAMODE_G(val) >= 2 && (val & DBGLAWHLF_F) == 0;
+	if (last_incomplete)
+		idx = (idx + 1) & DBGLARPTR_M;
+	if (wrptr)
+		*wrptr = idx;
+
+	val &= 0xffff;
+	val &= ~DBGLARPTR_V(DBGLARPTR_M);
+	val |= adap->params.tp.la_mask;
+
+	for (i = 0; i < TPLA_SIZE; i++) {
+		t4_write_reg(adap, TP_DBG_LA_CONFIG_A, DBGLARPTR_V(idx) | val);
+		la_buf[i] = t4_read_reg64(adap, TP_DBG_LA_DATAL_A);
+		idx = (idx + 1) & DBGLARPTR_M;
+	}
+
+	/* Wipe out last entry if it isn't valid */
+	if (last_incomplete)
+		la_buf[TPLA_SIZE - 1] = ~0ULL;
+
+	if (cfg & DBGLAENABLE_F)                    /* restore running state */
+		t4_write_reg(adap, TP_DBG_LA_CONFIG_A,
+			     cfg | adap->params.tp.la_mask);
+}

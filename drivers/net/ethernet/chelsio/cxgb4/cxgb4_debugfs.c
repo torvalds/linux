@@ -315,6 +315,253 @@ static const struct file_operations cim_obq_fops = {
 	.release = seq_release_private
 };
 
+struct field_desc {
+	const char *name;
+	unsigned int start;
+	unsigned int width;
+};
+
+static void field_desc_show(struct seq_file *seq, u64 v,
+			    const struct field_desc *p)
+{
+	char buf[32];
+	int line_size = 0;
+
+	while (p->name) {
+		u64 mask = (1ULL << p->width) - 1;
+		int len = scnprintf(buf, sizeof(buf), "%s: %llu", p->name,
+				    ((unsigned long long)v >> p->start) & mask);
+
+		if (line_size + len >= 79) {
+			line_size = 8;
+			seq_puts(seq, "\n        ");
+		}
+		seq_printf(seq, "%s ", buf);
+		line_size += len + 1;
+		p++;
+	}
+	seq_putc(seq, '\n');
+}
+
+static struct field_desc tp_la0[] = {
+	{ "RcfOpCodeOut", 60, 4 },
+	{ "State", 56, 4 },
+	{ "WcfState", 52, 4 },
+	{ "RcfOpcSrcOut", 50, 2 },
+	{ "CRxError", 49, 1 },
+	{ "ERxError", 48, 1 },
+	{ "SanityFailed", 47, 1 },
+	{ "SpuriousMsg", 46, 1 },
+	{ "FlushInputMsg", 45, 1 },
+	{ "FlushInputCpl", 44, 1 },
+	{ "RssUpBit", 43, 1 },
+	{ "RssFilterHit", 42, 1 },
+	{ "Tid", 32, 10 },
+	{ "InitTcb", 31, 1 },
+	{ "LineNumber", 24, 7 },
+	{ "Emsg", 23, 1 },
+	{ "EdataOut", 22, 1 },
+	{ "Cmsg", 21, 1 },
+	{ "CdataOut", 20, 1 },
+	{ "EreadPdu", 19, 1 },
+	{ "CreadPdu", 18, 1 },
+	{ "TunnelPkt", 17, 1 },
+	{ "RcfPeerFin", 16, 1 },
+	{ "RcfReasonOut", 12, 4 },
+	{ "TxCchannel", 10, 2 },
+	{ "RcfTxChannel", 8, 2 },
+	{ "RxEchannel", 6, 2 },
+	{ "RcfRxChannel", 5, 1 },
+	{ "RcfDataOutSrdy", 4, 1 },
+	{ "RxDvld", 3, 1 },
+	{ "RxOoDvld", 2, 1 },
+	{ "RxCongestion", 1, 1 },
+	{ "TxCongestion", 0, 1 },
+	{ NULL }
+};
+
+static int tp_la_show(struct seq_file *seq, void *v, int idx)
+{
+	const u64 *p = v;
+
+	field_desc_show(seq, *p, tp_la0);
+	return 0;
+}
+
+static int tp_la_show2(struct seq_file *seq, void *v, int idx)
+{
+	const u64 *p = v;
+
+	if (idx)
+		seq_putc(seq, '\n');
+	field_desc_show(seq, p[0], tp_la0);
+	if (idx < (TPLA_SIZE / 2 - 1) || p[1] != ~0ULL)
+		field_desc_show(seq, p[1], tp_la0);
+	return 0;
+}
+
+static int tp_la_show3(struct seq_file *seq, void *v, int idx)
+{
+	static struct field_desc tp_la1[] = {
+		{ "CplCmdIn", 56, 8 },
+		{ "CplCmdOut", 48, 8 },
+		{ "ESynOut", 47, 1 },
+		{ "EAckOut", 46, 1 },
+		{ "EFinOut", 45, 1 },
+		{ "ERstOut", 44, 1 },
+		{ "SynIn", 43, 1 },
+		{ "AckIn", 42, 1 },
+		{ "FinIn", 41, 1 },
+		{ "RstIn", 40, 1 },
+		{ "DataIn", 39, 1 },
+		{ "DataInVld", 38, 1 },
+		{ "PadIn", 37, 1 },
+		{ "RxBufEmpty", 36, 1 },
+		{ "RxDdp", 35, 1 },
+		{ "RxFbCongestion", 34, 1 },
+		{ "TxFbCongestion", 33, 1 },
+		{ "TxPktSumSrdy", 32, 1 },
+		{ "RcfUlpType", 28, 4 },
+		{ "Eread", 27, 1 },
+		{ "Ebypass", 26, 1 },
+		{ "Esave", 25, 1 },
+		{ "Static0", 24, 1 },
+		{ "Cread", 23, 1 },
+		{ "Cbypass", 22, 1 },
+		{ "Csave", 21, 1 },
+		{ "CPktOut", 20, 1 },
+		{ "RxPagePoolFull", 18, 2 },
+		{ "RxLpbkPkt", 17, 1 },
+		{ "TxLpbkPkt", 16, 1 },
+		{ "RxVfValid", 15, 1 },
+		{ "SynLearned", 14, 1 },
+		{ "SetDelEntry", 13, 1 },
+		{ "SetInvEntry", 12, 1 },
+		{ "CpcmdDvld", 11, 1 },
+		{ "CpcmdSave", 10, 1 },
+		{ "RxPstructsFull", 8, 2 },
+		{ "EpcmdDvld", 7, 1 },
+		{ "EpcmdFlush", 6, 1 },
+		{ "EpcmdTrimPrefix", 5, 1 },
+		{ "EpcmdTrimPostfix", 4, 1 },
+		{ "ERssIp4Pkt", 3, 1 },
+		{ "ERssIp6Pkt", 2, 1 },
+		{ "ERssTcpUdpPkt", 1, 1 },
+		{ "ERssFceFipPkt", 0, 1 },
+		{ NULL }
+	};
+	static struct field_desc tp_la2[] = {
+		{ "CplCmdIn", 56, 8 },
+		{ "MpsVfVld", 55, 1 },
+		{ "MpsPf", 52, 3 },
+		{ "MpsVf", 44, 8 },
+		{ "SynIn", 43, 1 },
+		{ "AckIn", 42, 1 },
+		{ "FinIn", 41, 1 },
+		{ "RstIn", 40, 1 },
+		{ "DataIn", 39, 1 },
+		{ "DataInVld", 38, 1 },
+		{ "PadIn", 37, 1 },
+		{ "RxBufEmpty", 36, 1 },
+		{ "RxDdp", 35, 1 },
+		{ "RxFbCongestion", 34, 1 },
+		{ "TxFbCongestion", 33, 1 },
+		{ "TxPktSumSrdy", 32, 1 },
+		{ "RcfUlpType", 28, 4 },
+		{ "Eread", 27, 1 },
+		{ "Ebypass", 26, 1 },
+		{ "Esave", 25, 1 },
+		{ "Static0", 24, 1 },
+		{ "Cread", 23, 1 },
+		{ "Cbypass", 22, 1 },
+		{ "Csave", 21, 1 },
+		{ "CPktOut", 20, 1 },
+		{ "RxPagePoolFull", 18, 2 },
+		{ "RxLpbkPkt", 17, 1 },
+		{ "TxLpbkPkt", 16, 1 },
+		{ "RxVfValid", 15, 1 },
+		{ "SynLearned", 14, 1 },
+		{ "SetDelEntry", 13, 1 },
+		{ "SetInvEntry", 12, 1 },
+		{ "CpcmdDvld", 11, 1 },
+		{ "CpcmdSave", 10, 1 },
+		{ "RxPstructsFull", 8, 2 },
+		{ "EpcmdDvld", 7, 1 },
+		{ "EpcmdFlush", 6, 1 },
+		{ "EpcmdTrimPrefix", 5, 1 },
+		{ "EpcmdTrimPostfix", 4, 1 },
+		{ "ERssIp4Pkt", 3, 1 },
+		{ "ERssIp6Pkt", 2, 1 },
+		{ "ERssTcpUdpPkt", 1, 1 },
+		{ "ERssFceFipPkt", 0, 1 },
+		{ NULL }
+	};
+	const u64 *p = v;
+
+	if (idx)
+		seq_putc(seq, '\n');
+	field_desc_show(seq, p[0], tp_la0);
+	if (idx < (TPLA_SIZE / 2 - 1) || p[1] != ~0ULL)
+		field_desc_show(seq, p[1], (p[0] & BIT(17)) ? tp_la2 : tp_la1);
+	return 0;
+}
+
+static int tp_la_open(struct inode *inode, struct file *file)
+{
+	struct seq_tab *p;
+	struct adapter *adap = inode->i_private;
+
+	switch (DBGLAMODE_G(t4_read_reg(adap, TP_DBG_LA_CONFIG_A))) {
+	case 2:
+		p = seq_open_tab(file, TPLA_SIZE / 2, 2 * sizeof(u64), 0,
+				 tp_la_show2);
+		break;
+	case 3:
+		p = seq_open_tab(file, TPLA_SIZE / 2, 2 * sizeof(u64), 0,
+				 tp_la_show3);
+		break;
+	default:
+		p = seq_open_tab(file, TPLA_SIZE, sizeof(u64), 0, tp_la_show);
+	}
+	if (!p)
+		return -ENOMEM;
+
+	t4_tp_read_la(adap, (u64 *)p->data, NULL);
+	return 0;
+}
+
+static ssize_t tp_la_write(struct file *file, const char __user *buf,
+			   size_t count, loff_t *pos)
+{
+	int err;
+	char s[32];
+	unsigned long val;
+	size_t size = min(sizeof(s) - 1, count);
+	struct adapter *adap = FILE_DATA(file)->i_private;
+
+	if (copy_from_user(s, buf, size))
+		return -EFAULT;
+	s[size] = '\0';
+	err = kstrtoul(s, 0, &val);
+	if (err)
+		return err;
+	if (val > 0xffff)
+		return -EINVAL;
+	adap->params.tp.la_mask = val << 16;
+	t4_set_reg_field(adap, TP_DBG_LA_CONFIG_A, 0xffff0000U,
+			 adap->params.tp.la_mask);
+	return count;
+}
+
+static const struct file_operations tp_la_fops = {
+	.owner   = THIS_MODULE,
+	.open    = tp_la_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private,
+	.write   = tp_la_write
+};
+
 /* Show the PM memory stats.  These stats include:
  *
  * TX:
@@ -1619,6 +1866,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "obq_ulp3", &cim_obq_fops, S_IRUSR, 3 },
 		{ "obq_sge",  &cim_obq_fops, S_IRUSR, 4 },
 		{ "obq_ncsi", &cim_obq_fops, S_IRUSR, 5 },
+		{ "tp_la", &tp_la_fops, S_IRUSR, 0 },
 		{ "sensors", &sensors_debugfs_fops, S_IRUSR, 0 },
 		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
