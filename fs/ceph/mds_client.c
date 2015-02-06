@@ -3140,7 +3140,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 		    di->lease_renew_from &&
 		    di->lease_renew_after == 0) {
 			unsigned long duration =
-				le32_to_cpu(h->duration_ms) * HZ / 1000;
+				msecs_to_jiffies(le32_to_cpu(h->duration_ms));
 
 			di->lease_seq = seq;
 			dentry->d_time = di->lease_renew_from + duration;
