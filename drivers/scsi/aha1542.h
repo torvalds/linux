@@ -138,7 +138,5 @@ static int aha1542_biosparam(struct scsi_device *, struct block_device *,
 		sector_t, int *);
 
 #define AHA1542_MAILBOXES 8
-#define AHA1542_SCATTER 16
-#define AHA1542_CMDLUN 1
 
 #endif
