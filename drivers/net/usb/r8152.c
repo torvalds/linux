@@ -1643,7 +1643,7 @@ static int rx_bottom(struct r8152 *tp, int budget)
 {
 	unsigned long flags;
 	struct list_head *cursor, *next, rx_queue;
-	int work_done = 0;
+	int ret = 0, work_done = 0;
 
 	if (!skb_queue_empty(&tp->rx_queue)) {
 		while (work_done < budget) {
@@ -1734,7 +1734,18 @@ find_next_rx:
 		}
 
 submit:
-		r8152_submit_rx(tp, agg, GFP_ATOMIC);
+		if (!ret) {
+			ret = r8152_submit_rx(tp, agg, GFP_ATOMIC);
+		} else {
+			urb->actual_length = 0;
+			list_add_tail(&agg->list, next);
+		}
+	}
+
+	if (!list_empty(&rx_queue)) {
+		spin_lock_irqsave(&tp->rx_lock, flags);
+		list_splice_tail(&rx_queue, &tp->rx_done);
+		spin_unlock_irqrestore(&tp->rx_lock, flags);
 	}
 
 out1:
