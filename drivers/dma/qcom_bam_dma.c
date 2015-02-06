@@ -1113,7 +1113,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 
 	if (!bdev->channels) {
 		ret = -ENOMEM;
-		goto err_disable_clk;
+		goto err_tasklet_kill;
 	}
 
 	/* allocate and initialize channels */
@@ -1125,7 +1125,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	ret = devm_request_irq(bdev->dev, bdev->irq, bam_dma_irq,
 			IRQF_TRIGGER_HIGH, "bam_dma", bdev);
 	if (ret)
-		goto err_disable_clk;
+		goto err_bam_channel_exit;
 
 	/* set max dma segment size */
 	bdev->common.dev = bdev->dev;
@@ -1133,7 +1133,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	ret = dma_set_max_seg_size(bdev->common.dev, BAM_MAX_DATA_SIZE);
 	if (ret) {
 		dev_err(bdev->dev, "cannot set maximum segment size\n");
-		goto err_disable_clk;
+		goto err_bam_channel_exit;
 	}
 
 	platform_set_drvdata(pdev, bdev);
@@ -1157,7 +1157,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	ret = dma_async_device_register(&bdev->common);
 	if (ret) {
 		dev_err(bdev->dev, "failed to register dma async device\n");
-		goto err_disable_clk;
+		goto err_bam_channel_exit;
 	}
 
 	ret = of_dma_controller_register(pdev->dev.of_node, bam_dma_xlate,
@@ -1169,8 +1169,14 @@ static int bam_dma_probe(struct platform_device *pdev)
 
 err_unregister_dma:
 	dma_async_device_unregister(&bdev->common);
+err_bam_channel_exit:
+	for (i = 0; i < bdev->num_channels; i++)
+		tasklet_kill(&bdev->channels[i].vc.task);
+err_tasklet_kill:
+	tasklet_kill(&bdev->task);
 err_disable_clk:
 	clk_disable_unprepare(bdev->bamclk);
+
 	return ret;
 }
 
