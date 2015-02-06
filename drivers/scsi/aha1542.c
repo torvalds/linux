@@ -91,14 +91,11 @@ static inline bool wait_mask(u16 port, u8 mask, u8 allof, u8 noneof, int timeout
 
 static int aha1542_outb(unsigned int base, u8 val)
 {
-	while (1) {
-		if (!wait_mask(STATUS(base), CDF, 0, CDF, 0))
-			return 1;
-		if (inb(STATUS(base)) & CDF)
-			continue;
-		outb(val, DATA(base));
-		return 0;
-	}
+	if (!wait_mask(STATUS(base), CDF, 0, CDF, 0))
+		return 1;
+	outb(val, DATA(base));
+
+	return 0;
 }
 
 static int aha1542_out(unsigned int base, u8 *buf, int len)
