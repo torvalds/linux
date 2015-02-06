@@ -50,15 +50,6 @@
 		};
 	};
 
-	dm816x_pinmux: pinmux@44e10800 {
-		compatible = "pinctrl-single";
-		reg = <0x48140800 0x50a>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pinctrl-single,register-width = <16>;
-		pinctrl-single,function-mask = <0xf>;
-	};
-
 	/*
 	 * XXX: Use a flat representation of the dm816x interconnect.
 	 * The real dm816x interconnect network is quite complex. Since
@@ -89,11 +80,28 @@
 		};
 
 		scrm: scrm@48140000 {
-			compatible = "ti,dm816-scrm";
+			compatible = "ti,dm816-scrm", "simple-bus";
 			reg = <0x48140000 0x21000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x48140000 0x21000>;
+
+			dm816x_pinmux: pinmux@800 {
+				compatible = "pinctrl-single";
+				reg = <0x800 0x50a>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pinctrl-single,register-width = <16>;
+				pinctrl-single,function-mask = <0xf>;
+			};
+
+			/* Device Configuration Registers */
+			scm_conf: syscon@600 {
+				compatible = "syscon";
+				reg = <0x600 0x110>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+			};
 
 			scrm_clocks: clocks {
 				#address-cells = <1>;
@@ -102,11 +110,6 @@
 
 			scrm_clockdomains: clockdomains {
 			};
-		};
-
-		cm: syscon@44e10000 {
-			compatible = "ti,am33xx-controlmodule", "syscon";
-			reg = <0x44e10000 0x800>;
 		};
 
 		edma: edma@49000000 {
@@ -213,6 +216,7 @@
 			reg = <0x4a100000 0x800
 			       0x4a100900 0x3700>;
 			clocks = <&sysclk24_ck>;
+			syscon = <&scm_conf>;
 			ti,davinci-ctrl-reg-offset = <0>;
 			ti,davinci-ctrl-mod-reg-offset = <0x900>;
 			ti,davinci-ctrl-ram-offset = <0x2000>;
@@ -226,6 +230,7 @@
 			ti,hwmods = "emac1";
 			reg = <0x4a120000 0x4000>;
 			clocks = <&sysclk24_ck>;
+			syscon = <&scm_conf>;
 			ti,davinci-ctrl-reg-offset = <0>;
 			ti,davinci-ctrl-mod-reg-offset = <0x900>;
 			ti,davinci-ctrl-ram-offset = <0x2000>;
