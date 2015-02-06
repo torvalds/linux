@@ -427,7 +427,7 @@ static void sdio_select_driver_type(struct mmc_card *card)
 	 * information and let the hardware specific code
 	 * return what is possible given the options
 	 */
-	drive_strength = card->host->ops->select_drive_strength(
+	drive_strength = card->host->ops->select_drive_strength(card,
 		card->sw_caps.uhs_max_dtr,
 		host_drv_type, card_drv_type, &drv_type);
 
