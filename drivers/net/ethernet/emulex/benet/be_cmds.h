@@ -1091,6 +1091,9 @@ struct be_cmd_req_query_fw_cfg {
 	u32 rsvd[31];
 };
 
+/* ASIC revisions */
+#define ASIC_REV_B0		0x10
+
 struct be_cmd_resp_query_fw_cfg {
 	struct be_cmd_resp_hdr hdr;
 	u32 be_config_number;
@@ -1259,6 +1262,11 @@ struct flash_file_hdr_g2 {
 	u32 num_imgs;
 	u8 build[24];
 };
+
+/* First letter of the build version of the image */
+#define BLD_STR_UFI_TYPE_BE2	'2'
+#define BLD_STR_UFI_TYPE_BE3	'3'
+#define BLD_STR_UFI_TYPE_SH	'4'
 
 struct flash_file_hdr_g3 {
 	u8 sign[52];

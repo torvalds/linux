@@ -4058,6 +4058,7 @@ static int be_flash_BEx(struct be_adapter *adapter,
 		pflashcomp = gen2_flash_types;
 		filehdr_size = sizeof(struct flash_file_hdr_g2);
 		num_comp = ARRAY_SIZE(gen2_flash_types);
+		img_hdrs_size = 0;
 	}
 
 	/* Get flash section info*/
@@ -4331,98 +4332,99 @@ static int lancer_fw_download(struct be_adapter *adapter,
 	return 0;
 }
 
-#define UFI_TYPE2		2
-#define UFI_TYPE3		3
-#define UFI_TYPE3R		10
-#define UFI_TYPE4		4
+#define BE2_UFI		2
+#define BE3_UFI		3
+#define BE3R_UFI	10
+#define SH_UFI		4
+
 static int be_get_ufi_type(struct be_adapter *adapter,
 			   struct flash_file_hdr_g3 *fhdr)
 {
-	if (!fhdr)
-		goto be_get_ufi_exit;
+	if (!fhdr) {
+		dev_err(&adapter->pdev->dev, "Invalid FW UFI file");
+		return -1;
+	}
 
-	if (skyhawk_chip(adapter) && fhdr->build[0] == '4')
-		return UFI_TYPE4;
-	else if (BE3_chip(adapter) && fhdr->build[0] == '3') {
-		if (fhdr->asic_type_rev == 0x10)
-			return UFI_TYPE3R;
-		else
-			return UFI_TYPE3;
-	} else if (BE2_chip(adapter) && fhdr->build[0] == '2')
-		return UFI_TYPE2;
+	/* First letter of the build version is used to identify
+	 * which chip this image file is meant for.
+	 */
+	switch (fhdr->build[0]) {
+	case BLD_STR_UFI_TYPE_SH:
+		return SH_UFI;
+	case BLD_STR_UFI_TYPE_BE3:
+		return (fhdr->asic_type_rev == ASIC_REV_B0) ? BE3R_UFI :
+								BE3_UFI;
+	case BLD_STR_UFI_TYPE_BE2:
+		return BE2_UFI;
+	default:
+		return -1;
+	}
+}
 
-be_get_ufi_exit:
-	dev_err(&adapter->pdev->dev,
-		"UFI and Interface are not compatible for flashing\n");
-	return -1;
+/* Check if the flash image file is compatible with the adapter that
+ * is being flashed.
+ * BE3 chips with asic-rev B0 must be flashed only with BE3R_UFI type.
+ */
+static bool be_check_ufi_compatibility(struct be_adapter *adapter,
+				       struct flash_file_hdr_g3 *fhdr)
+{
+	int ufi_type = be_get_ufi_type(adapter, fhdr);
+
+	switch (ufi_type) {
+	case SH_UFI:
+		return skyhawk_chip(adapter);
+	case BE3R_UFI:
+		return BE3_chip(adapter);
+	case BE3_UFI:
+		return (BE3_chip(adapter) && adapter->asic_rev < ASIC_REV_B0);
+	case BE2_UFI:
+		return BE2_chip(adapter);
+	default:
+		return false;
+	}
 }
 
 static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 {
+	struct device *dev = &adapter->pdev->dev;
 	struct flash_file_hdr_g3 *fhdr3;
-	struct image_hdr *img_hdr_ptr = NULL;
+	struct image_hdr *img_hdr_ptr;
+	int status = 0, i, num_imgs;
 	struct be_dma_mem flash_cmd;
-	const u8 *p;
-	int status = 0, i = 0, num_imgs = 0, ufi_type = 0;
 
-	flash_cmd.size = sizeof(struct be_cmd_write_flashrom);
-	flash_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, flash_cmd.size,
-					  &flash_cmd.dma, GFP_KERNEL);
-	if (!flash_cmd.va) {
-		status = -ENOMEM;
-		goto be_fw_exit;
+	fhdr3 = (struct flash_file_hdr_g3 *)fw->data;
+	if (!be_check_ufi_compatibility(adapter, fhdr3)) {
+		dev_err(dev, "Flash image is not compatible with adapter\n");
+		return -EINVAL;
 	}
 
-	p = fw->data;
-	fhdr3 = (struct flash_file_hdr_g3 *)p;
-
-	ufi_type = be_get_ufi_type(adapter, fhdr3);
+	flash_cmd.size = sizeof(struct be_cmd_write_flashrom);
+	flash_cmd.va = dma_alloc_coherent(dev, flash_cmd.size, &flash_cmd.dma,
+					  GFP_KERNEL);
+	if (!flash_cmd.va)
+		return -ENOMEM;
 
 	num_imgs = le32_to_cpu(fhdr3->num_imgs);
 	for (i = 0; i < num_imgs; i++) {
 		img_hdr_ptr = (struct image_hdr *)(fw->data +
 				(sizeof(struct flash_file_hdr_g3) +
 				 i * sizeof(struct image_hdr)));
-		if (le32_to_cpu(img_hdr_ptr->imageid) == 1) {
-			switch (ufi_type) {
-			case UFI_TYPE4:
-				status = be_flash_skyhawk(adapter, fw,
-							  &flash_cmd, num_imgs);
-				break;
-			case UFI_TYPE3R:
-				status = be_flash_BEx(adapter, fw, &flash_cmd,
-						      num_imgs);
-				break;
-			case UFI_TYPE3:
-				/* Do not flash this ufi on BE3-R cards */
-				if (adapter->asic_rev < 0x10)
-					status = be_flash_BEx(adapter, fw,
-							      &flash_cmd,
-							      num_imgs);
-				else {
-					status = -EINVAL;
-					dev_err(&adapter->pdev->dev,
-						"Can't load BE3 UFI on BE3R\n");
-				}
-			}
-		}
+		if (!BE2_chip(adapter) &&
+		    le32_to_cpu(img_hdr_ptr->imageid) != 1)
+			continue;
+
+		if (skyhawk_chip(adapter))
+			status = be_flash_skyhawk(adapter, fw, &flash_cmd,
+						  num_imgs);
+		else
+			status = be_flash_BEx(adapter, fw, &flash_cmd,
+					      num_imgs);
 	}
 
-	if (ufi_type == UFI_TYPE2)
-		status = be_flash_BEx(adapter, fw, &flash_cmd, 0);
-	else if (ufi_type == -1)
-		status = -EINVAL;
+	dma_free_coherent(dev, flash_cmd.size, flash_cmd.va, flash_cmd.dma);
+	if (!status)
+		dev_info(dev, "Firmware flashed successfully\n");
 
-	dma_free_coherent(&adapter->pdev->dev, flash_cmd.size, flash_cmd.va,
-			  flash_cmd.dma);
-	if (status) {
-		dev_err(&adapter->pdev->dev, "Firmware load error\n");
-		goto be_fw_exit;
-	}
-
-	dev_info(&adapter->pdev->dev, "Firmware flashed successfully\n");
-
-be_fw_exit:
 	return status;
 }
 
