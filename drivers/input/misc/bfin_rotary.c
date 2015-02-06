@@ -34,6 +34,10 @@ struct bfin_rot {
 	unsigned int down_key;
 	unsigned int button_key;
 	unsigned int rel_code;
+
+	unsigned short mode;
+	unsigned short debounce;
+
 	unsigned short cnt_config;
 	unsigned short cnt_imask;
 	unsigned short cnt_debounce;
@@ -90,6 +94,35 @@ static irqreturn_t bfin_rotary_isr(int irq, void *dev_id)
 	writew(-1, rotary->base + CNT_STATUS_OFF); /* Clear STATUS */
 
 	return IRQ_HANDLED;
+}
+
+static int bfin_rotary_open(struct input_dev *input)
+{
+	struct bfin_rot *rotary = input_get_drvdata(input);
+	unsigned short val;
+
+	if (rotary->mode & ROT_DEBE)
+		writew(rotary->debounce & DPRESCALE,
+			rotary->base + CNT_DEBOUNCE_OFF);
+
+	writew(rotary->mode & ~CNTE, rotary->base + CNT_CONFIG_OFF);
+
+	val = UCIE | DCIE;
+	if (rotary->button_key)
+		val |= CZMIE;
+	writew(val, rotary->base + CNT_IMASK_OFF);
+
+	writew(rotary->mode | CNTE, rotary->base + CNT_CONFIG_OFF);
+
+	return 0;
+}
+
+static void bfin_rotary_close(struct input_dev *input)
+{
+	struct bfin_rot *rotary = input_get_drvdata(input);
+
+	writew(0, rotary->base + CNT_CONFIG_OFF);
+	writew(0, rotary->base + CNT_IMASK_OFF);
 }
 
 static void bfin_rotary_free_action(void *data)
@@ -151,6 +184,9 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 	rotary->button_key = pdata->rotary_button_key;
 	rotary->rel_code = pdata->rotary_rel_code;
 
+	rotary->mode = pdata->mode;
+	rotary->debounce = pdata->debounce;
+
 	input->name = pdev->name;
 	input->phys = "bfin-rotary/input0";
 	input->dev.parent = &pdev->dev;
@@ -161,6 +197,9 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 	input->id.vendor = 0x0001;
 	input->id.product = 0x0001;
 	input->id.version = 0x0100;
+
+	input->open = bfin_rotary_open;
+	input->close = bfin_rotary_close;
 
 	if (rotary->up_key) {
 		__set_bit(EV_KEY, input->evbit);
@@ -175,6 +214,9 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 		__set_bit(EV_KEY, input->evbit);
 		__set_bit(rotary->button_key, input->keybit);
 	}
+
+	/* Quiesce the device before requesting irq */
+	bfin_rotary_close(input);
 
 	rotary->irq = platform_get_irq(pdev, 0);
 	if (rotary->irq < 0) {
@@ -196,35 +238,8 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	if (pdata->rotary_button_key)
-		writew(CZMIE, rotary->base + CNT_IMASK_OFF);
-
-	if (pdata->mode & ROT_DEBE)
-		writew(pdata->debounce & DPRESCALE,
-			rotary->base + CNT_DEBOUNCE_OFF);
-
-	if (pdata->mode)
-		writew(readw(rotary->base + CNT_CONFIG_OFF) |
-			(pdata->mode & ~CNTE),
-			rotary->base + CNT_CONFIG_OFF);
-
-	writew(readw(rotary->base + CNT_IMASK_OFF) | UCIE | DCIE,
-		rotary->base + CNT_IMASK_OFF);
-	writew(readw(rotary->base + CNT_CONFIG_OFF) | CNTE,
-		rotary->base + CNT_CONFIG_OFF);
-
 	platform_set_drvdata(pdev, rotary);
 	device_init_wakeup(&pdev->dev, 1);
-
-	return 0;
-}
-
-static int bfin_rotary_remove(struct platform_device *pdev)
-{
-	struct bfin_rot *rotary = platform_get_drvdata(pdev);
-
-	writew(0, rotary->base + CNT_CONFIG_OFF);
-	writew(0, rotary->base + CNT_IMASK_OFF);
 
 	return 0;
 }
@@ -267,7 +282,6 @@ static SIMPLE_DEV_PM_OPS(bfin_rotary_pm_ops,
 
 static struct platform_driver bfin_rotary_device_driver = {
 	.probe		= bfin_rotary_probe,
-	.remove		= bfin_rotary_remove,
 	.driver		= {
 		.name	= "bfin-rotary",
 		.pm	= &bfin_rotary_pm_ops,
