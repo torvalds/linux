@@ -3072,7 +3072,7 @@ static inline __wsum null_compute_pseudo(struct sk_buff *skb, int proto)
 
 #define skb_checksum_validate_zero_check(skb, proto, check,		\
 					 compute_pseudo)		\
-	__skb_checksum_validate_(skb, proto, true, true, check, compute_pseudo)
+	__skb_checksum_validate(skb, proto, true, true, check, compute_pseudo)
 
 #define skb_checksum_simple_validate(skb)				\
 	__skb_checksum_validate(skb, 0, true, false, 0, null_compute_pseudo)
