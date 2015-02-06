@@ -85,6 +85,8 @@ struct sw_flow *ovs_flow_alloc(void)
 
 	flow->sf_acts = NULL;
 	flow->mask = NULL;
+	flow->id.unmasked_key = NULL;
+	flow->id.ufid_len = 0;
 	flow->stats_last_writer = NUMA_NO_NODE;
 
 	/* Initialize the default stat node. */
