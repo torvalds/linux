@@ -1185,11 +1185,16 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 	}
 
 	spin_lock(&fs_info->qgroup_lock);
-	qgroup->lim_flags = limit->flags;
-	qgroup->max_rfer = limit->max_rfer;
-	qgroup->max_excl = limit->max_excl;
-	qgroup->rsv_rfer = limit->rsv_rfer;
-	qgroup->rsv_excl = limit->rsv_excl;
+	if (limit->flags & BTRFS_QGROUP_LIMIT_MAX_RFER)
+		qgroup->max_rfer = limit->max_rfer;
+	if (limit->flags & BTRFS_QGROUP_LIMIT_MAX_EXCL)
+		qgroup->max_excl = limit->max_excl;
+	if (limit->flags & BTRFS_QGROUP_LIMIT_RSV_RFER)
+		qgroup->rsv_rfer = limit->rsv_rfer;
+	if (limit->flags & BTRFS_QGROUP_LIMIT_RSV_EXCL)
+		qgroup->rsv_excl = limit->rsv_excl;
+	qgroup->lim_flags |= limit->flags;
+
 	spin_unlock(&fs_info->qgroup_lock);
 
 	ret = update_qgroup_limit_item(trans, quota_root, qgroup);
