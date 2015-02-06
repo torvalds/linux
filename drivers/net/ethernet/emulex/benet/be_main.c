@@ -1104,6 +1104,43 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
+static inline bool be_in_all_promisc(struct be_adapter *adapter)
+{
+	return (adapter->if_flags & BE_IF_FLAGS_ALL_PROMISCUOUS) ==
+			BE_IF_FLAGS_ALL_PROMISCUOUS;
+}
+
+static int be_set_vlan_promisc(struct be_adapter *adapter)
+{
+	struct device *dev = &adapter->pdev->dev;
+	int status;
+
+	if (adapter->if_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS)
+		return 0;
+
+	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_VLAN_PROMISCUOUS, ON);
+	if (!status) {
+		dev_info(dev, "Enabled VLAN promiscuous mode\n");
+		adapter->if_flags |= BE_IF_FLAGS_VLAN_PROMISCUOUS;
+	} else {
+		dev_err(dev, "Failed to enable VLAN promiscuous mode\n");
+	}
+	return status;
+}
+
+static int be_clear_vlan_promisc(struct be_adapter *adapter)
+{
+	struct device *dev = &adapter->pdev->dev;
+	int status;
+
+	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_VLAN_PROMISCUOUS, OFF);
+	if (!status) {
+		dev_info(dev, "Disabling VLAN promiscuous mode\n");
+		adapter->if_flags &= ~BE_IF_FLAGS_VLAN_PROMISCUOUS;
+	}
+	return status;
+}
+
 /*
  * A max of 64 (BE_NUM_VLANS_SUPPORTED) vlans can be configured in BE.
  * If the user configures more, place BE in vlan promiscuous mode.
@@ -1116,11 +1153,11 @@ static int be_vid_config(struct be_adapter *adapter)
 	int status = 0;
 
 	/* No need to further configure vids if in promiscuous mode */
-	if (adapter->promiscuous)
+	if (be_in_all_promisc(adapter))
 		return 0;
 
 	if (adapter->vlans_added > be_max_vlans(adapter))
-		goto set_vlan_promisc;
+		return be_set_vlan_promisc(adapter);
 
 	/* Construct VLAN Table to give to HW */
 	for_each_set_bit(i, adapter->vids, VLAN_N_VID)
@@ -1128,32 +1165,14 @@ static int be_vid_config(struct be_adapter *adapter)
 
 	status = be_cmd_vlan_config(adapter, adapter->if_handle, vids, num);
 	if (status) {
+		dev_err(dev, "Setting HW VLAN filtering failed\n");
 		/* Set to VLAN promisc mode as setting VLAN filter failed */
 		if (addl_status(status) ==
 				MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES)
-			goto set_vlan_promisc;
-		dev_err(dev, "Setting HW VLAN filtering failed\n");
-	} else if (adapter->flags & BE_FLAGS_VLAN_PROMISC) {
-		status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_VLAN_PROMISCUOUS,
-					  OFF);
-		if (!status) {
-			dev_info(dev, "Disabling VLAN Promiscuous mode\n");
-			adapter->flags &= ~BE_FLAGS_VLAN_PROMISC;
-		}
+			return be_set_vlan_promisc(adapter);
+	} else if (adapter->if_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
+		status = be_clear_vlan_promisc(adapter);
 	}
-
-	return status;
-
-set_vlan_promisc:
-	if (adapter->flags & BE_FLAGS_VLAN_PROMISC)
-		return 0;
-
-	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_VLAN_PROMISCUOUS, ON);
-	if (!status) {
-		dev_info(dev, "Enable VLAN Promiscuous mode\n");
-		adapter->flags |= BE_FLAGS_VLAN_PROMISC;
-	} else
-		dev_err(dev, "Failed to enable VLAN Promiscuous mode\n");
 	return status;
 }
 
@@ -1195,80 +1214,99 @@ static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return be_vid_config(adapter);
 }
 
-static void be_clear_promisc(struct be_adapter *adapter)
+static void be_clear_all_promisc(struct be_adapter *adapter)
 {
-	adapter->promiscuous = false;
-	adapter->flags &= ~(BE_FLAGS_VLAN_PROMISC | BE_FLAGS_MCAST_PROMISC);
-
 	be_cmd_rx_filter(adapter, BE_IF_FLAGS_ALL_PROMISCUOUS, OFF);
+	adapter->if_flags &= ~BE_IF_FLAGS_ALL_PROMISCUOUS;
+}
+
+static void be_set_all_promisc(struct be_adapter *adapter)
+{
+	be_cmd_rx_filter(adapter, BE_IF_FLAGS_ALL_PROMISCUOUS, ON);
+	adapter->if_flags |= BE_IF_FLAGS_ALL_PROMISCUOUS;
+}
+
+static void be_set_mc_promisc(struct be_adapter *adapter)
+{
+	int status;
+
+	if (adapter->if_flags & BE_IF_FLAGS_MCAST_PROMISCUOUS)
+		return;
+
+	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_MCAST_PROMISCUOUS, ON);
+	if (!status)
+		adapter->if_flags |= BE_IF_FLAGS_MCAST_PROMISCUOUS;
+}
+
+static void be_set_mc_list(struct be_adapter *adapter)
+{
+	int status;
+
+	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_MULTICAST, ON);
+	if (!status)
+		adapter->if_flags &= ~BE_IF_FLAGS_MCAST_PROMISCUOUS;
+	else
+		be_set_mc_promisc(adapter);
+}
+
+static void be_set_uc_list(struct be_adapter *adapter)
+{
+	struct netdev_hw_addr *ha;
+	int i = 1; /* First slot is claimed by the Primary MAC */
+
+	for (; adapter->uc_macs > 0; adapter->uc_macs--, i++)
+		be_cmd_pmac_del(adapter, adapter->if_handle,
+				adapter->pmac_id[i], 0);
+
+	if (netdev_uc_count(adapter->netdev) > be_max_uc(adapter)) {
+		be_set_all_promisc(adapter);
+		return;
+	}
+
+	netdev_for_each_uc_addr(ha, adapter->netdev) {
+		adapter->uc_macs++; /* First slot is for Primary MAC */
+		be_cmd_pmac_add(adapter, (u8 *)ha->addr, adapter->if_handle,
+				&adapter->pmac_id[adapter->uc_macs], 0);
+	}
+}
+
+static void be_clear_uc_list(struct be_adapter *adapter)
+{
+	int i;
+
+	for (i = 1; i < (adapter->uc_macs + 1); i++)
+		be_cmd_pmac_del(adapter, adapter->if_handle,
+				adapter->pmac_id[i], 0);
+	adapter->uc_macs = 0;
 }
 
 static void be_set_rx_mode(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	int status;
 
 	if (netdev->flags & IFF_PROMISC) {
-		be_cmd_rx_filter(adapter, BE_IF_FLAGS_ALL_PROMISCUOUS, ON);
-		adapter->promiscuous = true;
-		goto done;
+		be_set_all_promisc(adapter);
+		return;
 	}
 
-	/* BE was previously in promiscuous mode; disable it */
-	if (adapter->promiscuous) {
-		be_clear_promisc(adapter);
+	/* Interface was previously in promiscuous mode; disable it */
+	if (be_in_all_promisc(adapter)) {
+		be_clear_all_promisc(adapter);
 		if (adapter->vlans_added)
 			be_vid_config(adapter);
 	}
 
 	/* Enable multicast promisc if num configured exceeds what we support */
 	if (netdev->flags & IFF_ALLMULTI ||
-	    netdev_mc_count(netdev) > be_max_mc(adapter))
-		goto set_mcast_promisc;
-
-	if (netdev_uc_count(netdev) != adapter->uc_macs) {
-		struct netdev_hw_addr *ha;
-		int i = 1; /* First slot is claimed by the Primary MAC */
-
-		for (; adapter->uc_macs > 0; adapter->uc_macs--, i++) {
-			be_cmd_pmac_del(adapter, adapter->if_handle,
-					adapter->pmac_id[i], 0);
-		}
-
-		if (netdev_uc_count(netdev) > be_max_uc(adapter)) {
-			be_cmd_rx_filter(adapter, BE_IF_FLAGS_ALL_PROMISCUOUS,
-					 ON);
-			adapter->promiscuous = true;
-			goto done;
-		}
-
-		netdev_for_each_uc_addr(ha, adapter->netdev) {
-			adapter->uc_macs++; /* First slot is for Primary MAC */
-			be_cmd_pmac_add(adapter, (u8 *)ha->addr,
-					adapter->if_handle,
-					&adapter->pmac_id[adapter->uc_macs], 0);
-		}
-	}
-
-	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_MULTICAST, ON);
-	if (!status) {
-		if (adapter->flags & BE_FLAGS_MCAST_PROMISC)
-			adapter->flags &= ~BE_FLAGS_MCAST_PROMISC;
-		goto done;
-	}
-
-set_mcast_promisc:
-	if (adapter->flags & BE_FLAGS_MCAST_PROMISC)
+	    netdev_mc_count(netdev) > be_max_mc(adapter)) {
+		be_set_mc_promisc(adapter);
 		return;
+	}
 
-	/* Set to MCAST promisc mode if setting MULTICAST address fails
-	 * or if num configured exceeds what we support
-	 */
-	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_MCAST_PROMISCUOUS, ON);
-	if (!status)
-		adapter->flags |= BE_FLAGS_MCAST_PROMISC;
-done:
-	return;
+	if (netdev_uc_count(netdev) != adapter->uc_macs)
+		be_set_uc_list(adapter);
+
+	be_set_mc_list(adapter);
 }
 
 static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
@@ -2947,11 +2985,7 @@ static int be_close(struct net_device *netdev)
 	be_tx_compl_clean(adapter);
 
 	be_rx_qs_destroy(adapter);
-
-	for (i = 1; i < (adapter->uc_macs + 1); i++)
-		be_cmd_pmac_del(adapter, adapter->if_handle,
-				adapter->pmac_id[i], 0);
-	adapter->uc_macs = 0;
+	be_clear_uc_list(adapter);
 
 	for_all_evt_queues(adapter, eqo, i) {
 		if (msix_enabled(adapter))
@@ -3235,14 +3269,9 @@ static void be_cancel_worker(struct be_adapter *adapter)
 
 static void be_mac_clear(struct be_adapter *adapter)
 {
-	int i;
-
 	if (adapter->pmac_id) {
-		for (i = 0; i < (adapter->uc_macs + 1); i++)
-			be_cmd_pmac_del(adapter, adapter->if_handle,
-					adapter->pmac_id[i], 0);
-		adapter->uc_macs = 0;
-
+		be_cmd_pmac_del(adapter, adapter->if_handle,
+				adapter->pmac_id[0], 0);
 		kfree(adapter->pmac_id);
 		adapter->pmac_id = NULL;
 	}
@@ -3526,7 +3555,7 @@ static void be_setup_init(struct be_adapter *adapter)
 	adapter->phy.link_speed = -1;
 	adapter->if_handle = -1;
 	adapter->be3_native = false;
-	adapter->promiscuous = false;
+	adapter->if_flags = 0;
 	if (be_physfn(adapter))
 		adapter->cmd_privileges = MAX_PRIVILEGES;
 	else

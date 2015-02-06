@@ -364,8 +364,6 @@ enum vf_state {
 #define BE_FLAGS_LINK_STATUS_INIT		BIT(1)
 #define BE_FLAGS_SRIOV_ENABLED			BIT(2)
 #define BE_FLAGS_WORKER_SCHEDULED		BIT(3)
-#define BE_FLAGS_VLAN_PROMISC			BIT(4)
-#define BE_FLAGS_MCAST_PROMISC			BIT(5)
 #define BE_FLAGS_NAPI_ENABLED			BIT(6)
 #define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		BIT(7)
 #define BE_FLAGS_VXLAN_OFFLOADS			BIT(8)
@@ -449,8 +447,6 @@ struct be_adapter {
 
 	struct be_drv_stats drv_stats;
 	struct be_aic_obj aic_obj[MAX_EVT_QS];
-	u16 vlans_added;
-	unsigned long vids[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
 	u16 recommended_prio;	/* Recommended Priority */
 	struct be_dma_mem rx_filter; /* Cmd DMA mem for rx-filter */
@@ -466,8 +462,15 @@ struct be_adapter {
 	/* Ethtool knobs and info */
 	char fw_ver[FW_VER_LEN];
 	char fw_on_flash[FW_VER_LEN];
+
+	/* IFACE filtering fields */
 	int if_handle;		/* Used to configure filtering */
+	u32 if_flags;		/* Interface filtering flags */
 	u32 *pmac_id;		/* MAC addr handle used by BE card */
+	u32 uc_macs;		/* Count of secondary UC MAC programmed */
+	unsigned long vids[BITS_TO_LONGS(VLAN_N_VID)];
+	u16 vlans_added;
+
 	u32 beacon_state;	/* for set_phys_id */
 
 	bool eeh_error;
@@ -475,7 +478,6 @@ struct be_adapter {
 	bool hw_error;
 
 	u32 port_num;
-	bool promiscuous;
 	u8 mc_type;
 	u32 function_mode;
 	u32 function_caps;
@@ -508,7 +510,6 @@ struct be_adapter {
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;
-	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	u16 asic_rev;
 	u16 qnq_vid;
 	u32 msg_enable;
