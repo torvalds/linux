@@ -36,29 +36,30 @@
 /* I/O Port interface 4.2 */
 /* READ */
 #define STATUS(base) base
-#define STST	0x80		/* Self Test in Progress */
-#define DIAGF	0x40		/* Internal Diagnostic Failure */
-#define INIT	0x20		/* Mailbox Initialization Required */
-#define IDLE	0x10		/* SCSI Host Adapter Idle */
-#define CDF	0x08		/* Command/Data Out Port Full */
-#define DF	0x04		/* Data In Port Full */
-#define INVDCMD	0x01		/* Invalid H A Command */
-#define STATMASK 0xfd		/* 0x02 is reserved */
+#define STST	BIT(7)		/* Self Test in Progress */
+#define DIAGF	BIT(6)		/* Internal Diagnostic Failure */
+#define INIT	BIT(5)		/* Mailbox Initialization Required */
+#define IDLE	BIT(4)		/* SCSI Host Adapter Idle */
+#define CDF	BIT(3)		/* Command/Data Out Port Full */
+#define DF	BIT(2)		/* Data In Port Full */
+/* BIT(1) is reserved */
+#define INVDCMD	BIT(0)		/* Invalid H A Command */
+#define STATMASK (STST | DIAGF | INIT | IDLE | CDF | DF | INVDCMD)
 
 #define INTRFLAGS(base) (STATUS(base)+2)
-#define ANYINTR	0x80		/* Any Interrupt */
-#define SCRD	0x08		/* SCSI Reset Detected */
-#define HACC	0x04		/* HA Command Complete */
-#define MBOA	0x02		/* MBO Empty */
-#define MBIF	0x01		/* MBI Full */
-#define INTRMASK 0x8f
+#define ANYINTR	BIT(7)		/* Any Interrupt */
+#define SCRD	BIT(3)		/* SCSI Reset Detected */
+#define HACC	BIT(2)		/* HA Command Complete */
+#define MBOA	BIT(1)		/* MBO Empty */
+#define MBIF	BIT(0)		/* MBI Full */
+#define INTRMASK (ANYINTR | SCRD | HACC | MBOA | MBIF)
 
 /* WRITE */
 #define CONTROL(base) STATUS(base)
-#define HRST	0x80		/* Hard Reset */
-#define SRST	0x40		/* Soft Reset */
-#define IRST	0x20		/* Interrupt Reset */
-#define SCRST	0x10		/* SCSI Bus Reset */
+#define HRST	BIT(7)		/* Hard Reset */
+#define SRST	BIT(6)		/* Soft Reset */
+#define IRST	BIT(5)		/* Interrupt Reset */
+#define SCRST	BIT(4)		/* SCSI Bus Reset */
 
 /* READ/WRITE */
 #define DATA(base) (STATUS(base)+1)
