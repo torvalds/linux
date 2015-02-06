@@ -256,7 +256,6 @@ static void tun_flow_delete(struct tun_struct *tun, struct tun_flow_entry *e)
 {
 	tun_debug(KERN_INFO, tun, "delete flow: hash %u index %u\n",
 		  e->rxhash, e->queue_index);
-	sock_rps_reset_flow_hash(e->rps_rxhash);
 	hlist_del_rcu(&e->hash_link);
 	kfree_rcu(e, rcu);
 	--tun->flow_count;
@@ -373,10 +372,8 @@ unlock:
  */
 static inline void tun_flow_save_rps_rxhash(struct tun_flow_entry *e, u32 hash)
 {
-	if (unlikely(e->rps_rxhash != hash)) {
-		sock_rps_reset_flow_hash(e->rps_rxhash);
+	if (unlikely(e->rps_rxhash != hash))
 		e->rps_rxhash = hash;
-	}
 }
 
 /* We try to identify a flow through its rxhash first. The reason that

@@ -65,7 +65,7 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 					mutex_unlock(&sock_flow_mutex);
 					return -ENOMEM;
 				}
-
+				rps_cpu_mask = roundup_pow_of_two(nr_cpu_ids) - 1;
 				sock_table->mask = size - 1;
 			} else
 				sock_table = orig_sock_table;

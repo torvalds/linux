@@ -644,38 +644,38 @@ struct rps_dev_flow_table {
 /*
  * The rps_sock_flow_table contains mappings of flows to the last CPU
  * on which they were processed by the application (set in recvmsg).
+ * Each entry is a 32bit value. Upper part is the high order bits
+ * of flow hash, lower part is cpu number.
+ * rps_cpu_mask is used to partition the space, depending on number of
+ * possible cpus : rps_cpu_mask = roundup_pow_of_two(nr_cpu_ids) - 1
+ * For example, if 64 cpus are possible, rps_cpu_mask = 0x3f,
+ * meaning we use 32-6=26 bits for the hash.
  */
 struct rps_sock_flow_table {
-	unsigned int mask;
-	u16 ents[0];
+	u32	mask;
+	u32	ents[0];
 };
-#define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (sizeof(struct rps_sock_flow_table) + \
-    ((_num) * sizeof(u16)))
+#define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (offsetof(struct rps_sock_flow_table, ents[_num]))
 
 #define RPS_NO_CPU 0xffff
+
+extern u32 rps_cpu_mask;
+extern struct rps_sock_flow_table __rcu *rps_sock_flow_table;
 
 static inline void rps_record_sock_flow(struct rps_sock_flow_table *table,
 					u32 hash)
 {
 	if (table && hash) {
-		unsigned int cpu, index = hash & table->mask;
+		unsigned int index = hash & table->mask;
+		u32 val = hash & ~rps_cpu_mask;
 
 		/* We only give a hint, preemption can change cpu under us */
-		cpu = raw_smp_processor_id();
+		val |= raw_smp_processor_id();
 
-		if (table->ents[index] != cpu)
-			table->ents[index] = cpu;
+		if (table->ents[index] != val)
+			table->ents[index] = val;
 	}
 }
-
-static inline void rps_reset_sock_flow(struct rps_sock_flow_table *table,
-				       u32 hash)
-{
-	if (table && hash)
-		table->ents[hash & table->mask] = RPS_NO_CPU;
-}
-
-extern struct rps_sock_flow_table __rcu *rps_sock_flow_table;
 
 #ifdef CONFIG_RFS_ACCEL
 bool rps_may_expire_flow(struct net_device *dev, u16 rxq_index, u32 flow_id,

@@ -857,18 +857,6 @@ static inline void sock_rps_record_flow_hash(__u32 hash)
 #endif
 }
 
-static inline void sock_rps_reset_flow_hash(__u32 hash)
-{
-#ifdef CONFIG_RPS
-	struct rps_sock_flow_table *sock_flow_table;
-
-	rcu_read_lock();
-	sock_flow_table = rcu_dereference(rps_sock_flow_table);
-	rps_reset_sock_flow(sock_flow_table, hash);
-	rcu_read_unlock();
-#endif
-}
-
 static inline void sock_rps_record_flow(const struct sock *sk)
 {
 #ifdef CONFIG_RPS
@@ -876,28 +864,18 @@ static inline void sock_rps_record_flow(const struct sock *sk)
 #endif
 }
 
-static inline void sock_rps_reset_flow(const struct sock *sk)
-{
-#ifdef CONFIG_RPS
-	sock_rps_reset_flow_hash(sk->sk_rxhash);
-#endif
-}
-
 static inline void sock_rps_save_rxhash(struct sock *sk,
 					const struct sk_buff *skb)
 {
 #ifdef CONFIG_RPS
-	if (unlikely(sk->sk_rxhash != skb->hash)) {
-		sock_rps_reset_flow(sk);
+	if (unlikely(sk->sk_rxhash != skb->hash))
 		sk->sk_rxhash = skb->hash;
-	}
 #endif
 }
 
 static inline void sock_rps_reset_rxhash(struct sock *sk)
 {
 #ifdef CONFIG_RPS
-	sock_rps_reset_flow(sk);
 	sk->sk_rxhash = 0;
 #endif
 }
