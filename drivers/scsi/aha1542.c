@@ -53,56 +53,30 @@
 #else
 #define DEB(x)
 #endif
+#define MAXBOARDS 4
 
-/*
-   static const char RCSid[] = "$Header: /usr/src/linux/kernel/blk_drv/scsi/RCS/aha1542.c,v 1.1 1992/07/24 06:27:38 root Exp root $";
- */
-
-/* The adaptec can be configured for quite a number of addresses, but
-   I generally do not want the card poking around at random.  We allow
-   two addresses - this allows people to use the Adaptec with a Midi
-   card, which also used 0x330 -- can be overridden with LILO! */
-
-#define MAXBOARDS 4		/* Increase this and the sizes of the
-				   arrays below, if you need more.. */
-
-/* Boards 3,4 slots are reserved for ISAPnP scans */
-
-static unsigned int bases[MAXBOARDS] = {0x330, 0x334, 0, 0};
-
-/* set by aha1542_setup according to the command line; they also may
-   be marked __initdata, but require zero initializers then */
-
-static int setup_called[MAXBOARDS];
-static int setup_buson[MAXBOARDS];
-static int setup_busoff[MAXBOARDS];
-static int setup_dmaspeed[MAXBOARDS] = { -1, -1, -1, -1 };
-
-/*
- * LILO/Module params:  aha1542=<PORTBASE>[,<BUSON>,<BUSOFF>[,<DMASPEED>]]
- *
- * Where:  <PORTBASE> is any of the valid AHA addresses:
- *                      0x130, 0x134, 0x230, 0x234, 0x330, 0x334
- *         <BUSON>  is the time (in microsecs) that AHA spends on the AT-bus
- *                  when transferring data.  1542A power-on default is 11us,
- *                  valid values are in range: 2..15 (decimal)
- *         <BUSOFF> is the time that AHA spends OFF THE BUS after while
- *                  it is transferring data (not to monopolize the bus).
- *                  Power-on default is 4us, valid range: 1..64 microseconds.
- *         <DMASPEED> Default is jumper selected (1542A: on the J1),
- *                  but experimenter can alter it with this.
- *                  Valid values: 5, 6, 7, 8, 10 (MB/s)
- *                  Factory default is 5 MB/s.
- */
-
-#if defined(MODULE)
-static bool isapnp = 0;
-static int aha1542[] = {0x330, 11, 4, -1};
-module_param_array(aha1542, int, NULL, 0);
+static bool isapnp = 1;
 module_param(isapnp, bool, 0);
-#else
-static int isapnp = 1;
-#endif
+MODULE_PARM_DESC(isapnp, "enable PnP support (default=1)");
+
+static int io[MAXBOARDS] = { 0x330, 0x334, 0, 0 };
+module_param_array(io, int, NULL, 0);
+MODULE_PARM_DESC(io, "base IO address of controller (0x130,0x134,0x230,0x234,0x330,0x334, default=0x330,0x334)");
+
+/* time AHA spends on the AT-bus during data transfer */
+static int bus_on[MAXBOARDS] = { -1, -1, -1, -1 }; /* power-on default: 11us */
+module_param_array(bus_on, int, NULL, 0);
+MODULE_PARM_DESC(bus_on, "bus on time [us] (2-15, default=-1 [HW default: 11])");
+
+/* time AHA spends off the bus (not to monopolize it) during data transfer  */
+static int bus_off[MAXBOARDS] = { -1, -1, -1, -1 }; /* power-on default: 4us */
+module_param_array(bus_off, int, NULL, 0);
+MODULE_PARM_DESC(bus_off, "bus off time [us] (1-64, default=-1 [HW default: 4])");
+
+/* default is jumper selected (J1 on 1542A), factory default = 5 MB/s */
+static int dma_speed[MAXBOARDS] = { -1, -1, -1, -1 };
+module_param_array(dma_speed, int, NULL, 0);
+MODULE_PARM_DESC(dma_speed, "DMA speed [MB/s] (5,6,7,8,10, default=-1 [by jumper])");
 
 #define BIOS_TRANSLATION_1632 0	/* Used by some old 1542A boards */
 #define BIOS_TRANSLATION_6432 1	/* Default case these days */
@@ -792,101 +766,48 @@ static int aha1542_query(int base_io, int *transl)
 	return 0;
 }
 
-#ifndef MODULE
-static char *setup_str[MAXBOARDS] __initdata;
-static int setup_idx = 0;
-
-static void __init aha1542_setup(char *str, int *ints)
+static u8 dma_speed_hw(int dma_speed)
 {
-	const char *ahausage = "aha1542: usage: aha1542=<PORTBASE>[,<BUSON>,<BUSOFF>[,<DMASPEED>]]\n";
-	int setup_portbase;
-
-	if (setup_idx >= MAXBOARDS) {
-		printk(KERN_ERR "aha1542: aha1542_setup called too many times! Bad LILO params ?\n");
-		printk(KERN_ERR "   Entryline 1: %s\n", setup_str[0]);
-		printk(KERN_ERR "   Entryline 2: %s\n", setup_str[1]);
-		printk(KERN_ERR "   This line:   %s\n", str);
-		return;
+	switch (dma_speed) {
+	case 5:
+		return 0x00;
+	case 6:
+		return 0x04;
+	case 7:
+		return 0x01;
+	case 8:
+		return 0x02;
+	case 10:
+		return 0x03;
 	}
-	if (ints[0] < 1 || ints[0] > 4) {
-		printk(KERN_ERR "aha1542: %s\n", str);
-		printk(ahausage);
-		printk(KERN_ERR "aha1542: Wrong parameters may cause system malfunction.. We try anyway..\n");
-	}
-	setup_called[setup_idx] = ints[0];
-	setup_str[setup_idx] = str;
 
-	setup_portbase = ints[0] >= 1 ? ints[1] : 0;	/* Preserve the default value.. */
-	setup_buson[setup_idx] = ints[0] >= 2 ? ints[2] : 7;
-	setup_busoff[setup_idx] = ints[0] >= 3 ? ints[3] : 5;
-	if (ints[0] >= 4) 
-	{
-		int atbt = -1;
-		switch (ints[4]) {
-		case 5:
-			atbt = 0x00;
-			break;
-		case 6:
-			atbt = 0x04;
-			break;
-		case 7:
-			atbt = 0x01;
-			break;
-		case 8:
-			atbt = 0x02;
-			break;
-		case 10:
-			atbt = 0x03;
-			break;
-		default:
-			printk(KERN_ERR "aha1542: %s\n", str);
-			printk(ahausage);
-			printk(KERN_ERR "aha1542: Valid values for DMASPEED are 5-8, 10 MB/s.  Using jumper defaults.\n");
-			break;
-		}
-		setup_dmaspeed[setup_idx] = atbt;
-	}
-	if (setup_portbase != 0)
-		bases[setup_idx] = setup_portbase;
-
-	++setup_idx;
+	return 0xff;	/* invalid */
 }
-
-static int __init do_setup(char *str)
-{
-	int ints[5];
-
-	int count=setup_idx;
-
-	get_options(str, ARRAY_SIZE(ints), ints);
-	aha1542_setup(str,ints);
-
-	return count<setup_idx;
-}
-
-__setup("aha1542=",do_setup);
-#endif
 
 /* Set the Bus on/off-times as not to ruin floppy performance */
 static void aha1542_set_bus_times(int indx)
 {
-	unsigned int base_io = bases[indx];
-	u8 oncmd[] = {CMD_BUSON_TIME, 7};
-	u8 offcmd[] = {CMD_BUSOFF_TIME, 5};
+	unsigned int base_io = io[indx];
 
-	if (setup_called[indx]) {
-		oncmd[1] = setup_buson[indx];
-		offcmd[1] = setup_busoff[indx];
+	if (bus_on[indx] > 0) {
+		u8 oncmd[] = { CMD_BUSON_TIME, clamp(bus_on[indx], 2, 15) };
+
+		aha1542_intr_reset(base_io);
+		if (aha1542_out(base_io, oncmd, 2))
+			goto fail;
 	}
-	aha1542_intr_reset(base_io);
-	if (aha1542_out(base_io, oncmd, 2))
-		goto fail;
-	aha1542_intr_reset(base_io);
-	if (aha1542_out(base_io, offcmd, 2))
-		goto fail;
-	if (setup_dmaspeed[indx] >= 0) {
-		u8 dmacmd[] = {CMD_DMASPEED, 0};
-		dmacmd[1] = setup_dmaspeed[indx];
+
+	if (bus_off[indx] > 0) {
+		u8 offcmd[] = { CMD_BUSOFF_TIME, clamp(bus_off[indx], 1, 64) };
+
+		aha1542_intr_reset(base_io);
+		if (aha1542_out(base_io, offcmd, 2))
+			goto fail;
+	}
+
+	if (dma_speed_hw(dma_speed[indx]) != 0xff) {
+		u8 dmacmd[] = { CMD_DMASPEED, dma_speed_hw(dma_speed[indx]) };
+
 		aha1542_intr_reset(base_io);
 		if (aha1542_out(base_io, dmacmd, 2))
 			goto fail;
@@ -901,7 +822,7 @@ fail:
 /* return non-zero on detection */
 static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct device *pdev, int indx)
 {
-	unsigned int base_io = bases[indx];
+	unsigned int base_io = io[indx];
 	struct Scsi_Host *shpnt;
 	struct aha1542_hostdata *aha1542;
 
@@ -1207,19 +1128,19 @@ static int aha1542_pnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *i
 	int indx;
 	struct Scsi_Host *sh;
 
-	for (indx = 0; indx < ARRAY_SIZE(bases); indx++) {
-		if (bases[indx])
+	for (indx = 0; indx < ARRAY_SIZE(io); indx++) {
+		if (io[indx])
 			continue;
 
 		if (pnp_activate_dev(pdev) < 0)
 			continue;
 
-		bases[indx] = pnp_port_start(pdev, 0);
+		io[indx] = pnp_port_start(pdev, 0);
 
 		/* The card can be queried for its DMA, we have
 		   the DMA set up that is enough */
 
-		printk(KERN_INFO "ISAPnP found an AHA1535 at I/O 0x%03X\n", bases[indx]);
+		printk(KERN_INFO "ISAPnP found an AHA1535 at I/O 0x%03X\n", io[indx]);
 	}
 
 	sh = aha1542_hw_init(&driver_template, &pdev->dev, indx);
@@ -1248,32 +1169,6 @@ static int pnp_registered;
 static int __init aha1542_init(void)
 {
 	int ret = 0;
-#ifdef MODULE
-	int atbt = -1;
-
-	bases[0] = aha1542[0];
-	setup_buson[0] = aha1542[1];
-	setup_busoff[0] = aha1542[2];
-
-	switch (aha1542[3]) {
-	case 5:
-		atbt = 0x00;
-		break;
-	case 6:
-		atbt = 0x04;
-		break;
-	case 7:
-		atbt = 0x01;
-		break;
-	case 8:
-		atbt = 0x02;
-		break;
-	case 10:
-		atbt = 0x03;
-		break;
-	};
-	setup_dmaspeed[0] = atbt;
-#endif
 
 #ifdef CONFIG_PNP
 	if (isapnp) {
