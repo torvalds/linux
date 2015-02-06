@@ -217,6 +217,13 @@ static const char i40e_gstrings_test[][ETH_GSTRING_LEN] = {
 
 #define I40E_TEST_LEN (sizeof(i40e_gstrings_test) / ETH_GSTRING_LEN)
 
+static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
+	"NPAR",
+};
+
+#define I40E_PRIV_FLAGS_STR_LEN \
+	(sizeof(i40e_priv_flags_strings) / ETH_GSTRING_LEN)
+
 /**
  * i40e_partition_setting_complaint - generic complaint for MFP restriction
  * @pf: the PF struct
@@ -1036,6 +1043,7 @@ static void i40e_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(pf->pdev),
 		sizeof(drvinfo->bus_info));
+	drvinfo->n_priv_flags = I40E_PRIV_FLAGS_STR_LEN;
 }
 
 static void i40e_get_ringparam(struct net_device *netdev,
@@ -1223,6 +1231,8 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 		} else {
 			return I40E_VSI_STATS_LEN(netdev);
 		}
+	case ETH_SS_PRIV_FLAGS:
+		return I40E_PRIV_FLAGS_STR_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1395,6 +1405,13 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 			p += ETH_GSTRING_LEN;
 		}
 		/* BUG_ON(p - data != I40E_STATS_LEN * ETH_GSTRING_LEN); */
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
+			memcpy(data, i40e_priv_flags_strings[i],
+			       ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
 		break;
 	}
 }
@@ -2341,6 +2358,29 @@ static int i40e_set_channels(struct net_device *dev,
 		return -EINVAL;
 }
 
+/**
+ * i40e_get_priv_flags - report device private flags
+ * @dev: network interface device structure
+ *
+ * The get string set count and the string set should be matched for each
+ * flag returned.  Add new strings for each flag to the i40e_priv_flags_strings
+ * array.
+ *
+ * Returns a u32 bitmap of flags.
+ **/
+u32 i40e_get_priv_flags(struct net_device *dev)
+{
+	struct i40e_netdev_priv *np = netdev_priv(dev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	u32 ret_flags = 0;
+
+	ret_flags |= pf->hw.func_caps.npar_enable ?
+		I40E_PRIV_FLAGS_NPAR_FLAG : 0;
+
+	return ret_flags;
+}
+
 static const struct ethtool_ops i40e_ethtool_ops = {
 	.get_settings		= i40e_get_settings,
 	.set_settings		= i40e_set_settings,
@@ -2372,6 +2412,7 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.get_channels		= i40e_get_channels,
 	.set_channels		= i40e_set_channels,
 	.get_ts_info		= i40e_get_ts_info,
+	.get_priv_flags		= i40e_get_priv_flags,
 };
 
 void i40e_set_ethtool_ops(struct net_device *netdev)
