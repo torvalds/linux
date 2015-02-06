@@ -94,16 +94,19 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 
 	i40e_debug(hw, mask,
 		   "AQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
-		   aq_desc->opcode, aq_desc->flags, aq_desc->datalen,
-		   aq_desc->retval);
+		   le16_to_cpu(aq_desc->opcode),
+		   le16_to_cpu(aq_desc->flags),
+		   le16_to_cpu(aq_desc->datalen),
+		   le16_to_cpu(aq_desc->retval));
 	i40e_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
-		   aq_desc->cookie_high, aq_desc->cookie_low);
+		   le32_to_cpu(aq_desc->cookie_high),
+		   le32_to_cpu(aq_desc->cookie_low));
 	i40e_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
-		   aq_desc->params.internal.param0,
-		   aq_desc->params.internal.param1);
+		   le32_to_cpu(aq_desc->params.internal.param0),
+		   le32_to_cpu(aq_desc->params.internal.param1));
 	i40e_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
-		   aq_desc->params.external.addr_high,
-		   aq_desc->params.external.addr_low);
+		   le32_to_cpu(aq_desc->params.external.addr_high),
+		   le32_to_cpu(aq_desc->params.external.addr_low));
 
 	if ((buffer != NULL) && (aq_desc->datalen != 0)) {
 		memset(data, 0, sizeof(data));
@@ -116,15 +119,19 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 			if ((i % 16) == 15) {
 				i40e_debug(hw, mask,
 					   "\t0x%04X  %08X %08X %08X %08X\n",
-					   i - 15, data[0], data[1], data[2],
-					   data[3]);
+					   i - 15, le32_to_cpu(data[0]),
+					   le32_to_cpu(data[1]),
+					   le32_to_cpu(data[2]),
+					   le32_to_cpu(data[3]));
 				memset(data, 0, sizeof(data));
 			}
 		}
 		if ((i % 16) != 0)
 			i40e_debug(hw, mask, "\t0x%04X  %08X %08X %08X %08X\n",
-				   i - (i % 16), data[0], data[1], data[2],
-				   data[3]);
+				   i - (i % 16), le32_to_cpu(data[0]),
+				   le32_to_cpu(data[1]),
+				   le32_to_cpu(data[2]),
+				   le32_to_cpu(data[3]));
 	}
 }
 
