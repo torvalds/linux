@@ -128,7 +128,10 @@ static void setup_mailboxes(int base_io, struct Scsi_Host *shpnt);
 static int aha1542_restart(struct Scsi_Host *shost);
 static void aha1542_intr_handle(struct Scsi_Host *shost);
 
-#define aha1542_intr_reset(base)  outb(IRST, CONTROL(base))
+static inline void aha1542_intr_reset(u16 base)
+{
+	outb(IRST, CONTROL(base));
+}
 
 #define WAIT(port, mask, allof, noneof)					\
  { register int WAITbits;						\
