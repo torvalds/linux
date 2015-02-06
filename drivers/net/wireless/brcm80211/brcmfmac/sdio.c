@@ -3971,7 +3971,7 @@ brcmf_sdio_watchdog(unsigned long data)
 		/* Reschedule the watchdog */
 		if (bus->wd_timer_valid)
 			mod_timer(&bus->timer,
-				  jiffies + BRCMF_WD_POLL_MS * HZ / 1000);
+				  jiffies + msecs_to_jiffies(BRCMF_WD_POLL_MS));
 	}
 }
 
@@ -4290,13 +4290,13 @@ void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 			   dynamically changed or in the first instance
 			 */
 			bus->timer.expires =
-				jiffies + BRCMF_WD_POLL_MS * HZ / 1000;
+				jiffies + msecs_to_jiffies(BRCMF_WD_POLL_MS);
 			add_timer(&bus->timer);
 
 		} else {
 			/* Re arm the timer, at last watchdog period */
 			mod_timer(&bus->timer,
-				jiffies + BRCMF_WD_POLL_MS * HZ / 1000);
+				jiffies + msecs_to_jiffies(BRCMF_WD_POLL_MS));
 		}
 
 		bus->wd_timer_valid = true;
