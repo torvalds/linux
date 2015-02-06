@@ -153,6 +153,7 @@ struct tcp_sock {
  	u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
 	u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
 	u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
+	u32	last_oow_ack_time;  /* timestamp of last out-of-window ACK */
 
 	u32	tsoffset;	/* timestamp offset */
 
