@@ -189,7 +189,7 @@
 	io-domains {
 		compatible = "rockchip,rk3368-io-voltage-domain";
 		rockchip,grf = <&grf>;
-		rockchip,pmu = <&pmu_grf>;
+		rockchip,pmugrf = <&pmugrf>;
 
 		/*GRF_IO_VSEL*/
 		dvp-supply = <&ldo7_reg>;      /*DVPIO_VDD*/

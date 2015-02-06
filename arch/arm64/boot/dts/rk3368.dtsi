@@ -133,9 +133,14 @@
 		      <0x0 0xffb72000 0 0x1000>;
 	};
 
-	pmu_grf: syscon@ff738000 {
-		compatible = "rockchip,rk3368-pmu-grf", "rockchip,pmu-grf", "syscon";
-		reg = <0x0 0xff738000 0x0 0x100>;
+	pmu: syscon@ff730000 {
+		compatible = "rockchip,rk3368-pmu", "rockchip,pmu", "syscon";
+		reg = <0x0 0xff730000 0x0 0x1000>;
+	};
+
+	pmugrf: syscon@ff738000 {
+		compatible = "rockchip,rk3368-pmugrf", "rockchip,pmugrf", "syscon";
+		reg = <0x0 0xff738000 0x0 0x1000>;
 	};
 
 	sgrf: syscon@ff740000 {
@@ -747,7 +752,7 @@
 	lcdc: lcdc@ff930000 {
 		 compatible = "rockchip,rk3368-lcdc";
 		 rockchip,grf = <&grf>;
-		 rockchip,pmu = <&pmu_grf>;
+		 rockchip,pmugrf = <&pmugrf>;
 		 rockchip,prop = <PRMRY>;
 		 rockchip,pwr18 = <0>;
 		 rockchip,iommu-enabled = <0>;
@@ -1265,7 +1270,7 @@
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3368-pinctrl";
 		rockchip,grf = <&grf>;
-		rockchip,pmu = <&pmu_grf>;
+		rockchip,pmugrf = <&pmugrf>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
