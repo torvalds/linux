@@ -79,6 +79,16 @@ static inline void __cpu_disable_lazy_restore(unsigned int cpu)
 	per_cpu(fpu_owner_task, cpu) = NULL;
 }
 
+/*
+ * Used to indicate that the FPU state in memory is newer than the FPU
+ * state in registers, and the FPU state should be reloaded next time the
+ * task is run. Only safe on the current task, or non-running tasks.
+ */
+static inline void task_disable_lazy_fpu_restore(struct task_struct *tsk)
+{
+	tsk->thread.fpu.last_cpu = ~0;
+}
+
 static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
 {
 	return new == this_cpu_read_stable(fpu_owner_task) &&
