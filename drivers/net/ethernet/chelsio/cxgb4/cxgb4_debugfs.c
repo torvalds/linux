@@ -663,6 +663,33 @@ static const struct file_operations pm_stats_debugfs_fops = {
 	.write   = pm_stats_clear
 };
 
+static int cctrl_tbl_show(struct seq_file *seq, void *v)
+{
+	static const char * const dec_fac[] = {
+		"0.5", "0.5625", "0.625", "0.6875", "0.75", "0.8125", "0.875",
+		"0.9375" };
+
+	int i;
+	u16 incr[NMTUS][NCCTRL_WIN];
+	struct adapter *adap = seq->private;
+
+	t4_read_cong_tbl(adap, incr);
+
+	for (i = 0; i < NCCTRL_WIN; ++i) {
+		seq_printf(seq, "%2d: %4u %4u %4u %4u %4u %4u %4u %4u\n", i,
+			   incr[0][i], incr[1][i], incr[2][i], incr[3][i],
+			   incr[4][i], incr[5][i], incr[6][i], incr[7][i]);
+		seq_printf(seq, "%8u %4u %4u %4u %4u %4u %4u %4u %5u %s\n",
+			   incr[8][i], incr[9][i], incr[10][i], incr[11][i],
+			   incr[12][i], incr[13][i], incr[14][i], incr[15][i],
+			   adap->params.a_wnd[i],
+			   dec_fac[adap->params.b_wnd[i]]);
+	}
+	return 0;
+}
+
+DEFINE_SIMPLE_DEBUGFS_FILE(cctrl_tbl);
+
 /* Format a value in a unit that differs from the value's native unit by the
  * given factor.
  */
@@ -1990,6 +2017,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "ulprx_la", &ulprx_la_fops, S_IRUSR, 0 },
 		{ "sensors", &sensors_debugfs_fops, S_IRUSR, 0 },
 		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
+		{ "cctrl", &cctrl_tbl_debugfs_fops, S_IRUSR, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
 #endif

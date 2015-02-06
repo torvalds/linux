@@ -2419,6 +2419,27 @@ void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log)
 }
 
 /**
+ *	t4_read_cong_tbl - reads the congestion control table
+ *	@adap: the adapter
+ *	@incr: where to store the alpha values
+ *
+ *	Reads the additive increments programmed into the HW congestion
+ *	control table.
+ */
+void t4_read_cong_tbl(struct adapter *adap, u16 incr[NMTUS][NCCTRL_WIN])
+{
+	unsigned int mtu, w;
+
+	for (mtu = 0; mtu < NMTUS; ++mtu)
+		for (w = 0; w < NCCTRL_WIN; ++w) {
+			t4_write_reg(adap, TP_CCTRL_TABLE_A,
+				     ROWINDEX_V(0xffff) | (mtu << 5) | w);
+			incr[mtu][w] = (u16)t4_read_reg(adap,
+						TP_CCTRL_TABLE_A) & 0x1fff;
+		}
+}
+
+/**
  *	t4_tp_wr_bits_indirect - set/clear bits in an indirect TP register
  *	@adap: the adapter
  *	@addr: the indirect TP register address

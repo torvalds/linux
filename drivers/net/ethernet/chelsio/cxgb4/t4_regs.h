@@ -1292,6 +1292,9 @@
 #define KEEPALIVEMAXR2_V(x) ((x) << KEEPALIVEMAXR2_S)
 #define KEEPALIVEMAXR2_G(x) (((x) >> KEEPALIVEMAXR2_S) & KEEPALIVEMAXR2_M)
 
+#define ROWINDEX_S    16
+#define ROWINDEX_V(x) ((x) << ROWINDEX_S)
+
 #define TP_CCTRL_TABLE_A	0x7ddc
 #define TP_MTU_TABLE_A		0x7de4
 
