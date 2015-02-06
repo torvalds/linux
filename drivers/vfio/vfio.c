@@ -710,6 +710,7 @@ void *vfio_del_group_dev(struct device *dev)
 	struct vfio_group *group = device->group;
 	void *device_data = device->device_data;
 	struct vfio_unbound_dev *unbound;
+	unsigned int i = 0;
 
 	/*
 	 * The group exists so long as we have a device reference.  Get
@@ -737,8 +738,27 @@ void *vfio_del_group_dev(struct device *dev)
 
 	vfio_device_put(device);
 
-	/* TODO send a signal to encourage this to be released */
-	wait_event(vfio.release_q, !vfio_dev_present(group, dev));
+	/*
+	 * If the device is still present in the group after the above
+	 * 'put', then it is in use and we need to request it from the
+	 * bus driver.  The driver may in turn need to request the
+	 * device from the user.  We send the request on an arbitrary
+	 * interval with counter to allow the driver to take escalating
+	 * measures to release the device if it has the ability to do so.
+	 */
+	do {
+		device = vfio_group_get_device(group, dev);
+		if (!device)
+			break;
+
+		if (device->ops->request)
+			device->ops->request(device_data, i++);
+
+		vfio_device_put(device);
+
+	} while (wait_event_interruptible_timeout(vfio.release_q,
+						  !vfio_dev_present(group, dev),
+						  HZ * 10) <= 0);
 
 	vfio_group_put(group);
 
