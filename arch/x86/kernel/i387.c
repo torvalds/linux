@@ -106,8 +106,12 @@ void unlazy_fpu(struct task_struct *tsk)
 {
 	preempt_disable();
 	if (__thread_has_fpu(tsk)) {
-		__save_init_fpu(tsk);
-		__thread_fpu_end(tsk);
+		if (use_eager_fpu()) {
+			__save_fpu(tsk);
+		} else {
+			__save_init_fpu(tsk);
+			__thread_fpu_end(tsk);
+		}
 	}
 	preempt_enable();
 }
