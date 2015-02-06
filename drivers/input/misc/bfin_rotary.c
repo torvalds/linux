@@ -210,8 +210,7 @@ static int bfin_rotary_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int bfin_rotary_suspend(struct device *dev)
+static int __maybe_unused bfin_rotary_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct bfin_rot *rotary = platform_get_drvdata(pdev);
@@ -226,7 +225,7 @@ static int bfin_rotary_suspend(struct device *dev)
 	return 0;
 }
 
-static int bfin_rotary_resume(struct device *dev)
+static int __maybe_unused bfin_rotary_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct bfin_rot *rotary = platform_get_drvdata(pdev);
@@ -244,20 +243,15 @@ static int bfin_rotary_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops bfin_rotary_pm_ops = {
-	.suspend	= bfin_rotary_suspend,
-	.resume		= bfin_rotary_resume,
-};
-#endif
+static SIMPLE_DEV_PM_OPS(bfin_rotary_pm_ops,
+			 bfin_rotary_suspend, bfin_rotary_resume);
 
 static struct platform_driver bfin_rotary_device_driver = {
 	.probe		= bfin_rotary_probe,
 	.remove		= bfin_rotary_remove,
 	.driver		= {
 		.name	= "bfin-rotary",
-#ifdef CONFIG_PM
 		.pm	= &bfin_rotary_pm_ops,
-#endif
 	},
 };
 module_platform_driver(bfin_rotary_device_driver);
