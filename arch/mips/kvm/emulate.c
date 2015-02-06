@@ -912,7 +912,13 @@ unsigned int kvm_mips_config1_wrmask(struct kvm_vcpu *vcpu)
 unsigned int kvm_mips_config3_wrmask(struct kvm_vcpu *vcpu)
 {
 	/* Config4 is optional */
-	return MIPS_CONF_M;
+	unsigned int mask = MIPS_CONF_M;
+
+	/* Permit MSA to be present if MSA is supported */
+	if (kvm_mips_guest_can_have_msa(&vcpu->arch))
+		mask |= MIPS_CONF3_MSA;
+
+	return mask;
 }
 
 /**
@@ -938,6 +944,10 @@ unsigned int kvm_mips_config4_wrmask(struct kvm_vcpu *vcpu)
 unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu)
 {
 	unsigned int mask = 0;
+
+	/* Permit MSAEn changes if MSA supported and enabled */
+	if (kvm_mips_guest_has_msa(&vcpu->arch))
+		mask |= MIPS_CONF5_MSAEN;
 
 	/*
 	 * Permit guest FPU mode changes if FPU is enabled and the relevant
@@ -1126,6 +1136,18 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 					kvm_drop_fpu(vcpu);
 
 				/*
+				 * If MSA state is already live, it is undefined
+				 * how it interacts with FR=0 FPU state, and we
+				 * don't want to hit reserved instruction
+				 * exceptions trying to save the MSA state later
+				 * when CU=1 && FR=1, so play it safe and save
+				 * it first.
+				 */
+				if (change & ST0_CU1 && !(val & ST0_FR) &&
+				    vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA)
+					kvm_lose_fpu(vcpu);
+
+				/*
 				 * Propagate CU1 (FPU enable) changes
 				 * immediately if the FPU context is already
 				 * loaded. When disabling we leave the context
@@ -1160,7 +1182,7 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 				val = old_val ^ change;
 
 
-				/* Handle changes in FPU modes */
+				/* Handle changes in FPU/MSA modes */
 				preempt_disable();
 
 				/*
@@ -1170,6 +1192,17 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 				if (change & MIPS_CONF5_FRE &&
 				    vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU)
 					change_c0_config5(MIPS_CONF5_FRE, val);
+
+				/*
+				 * Propagate MSAEn changes immediately if the
+				 * MSA context is already loaded. When disabling
+				 * we leave the context loaded so it can be
+				 * quickly enabled again in the near future.
+				 */
+				if (change & MIPS_CONF5_MSAEN &&
+				    vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA)
+					change_c0_config5(MIPS_CONF5_MSAEN,
+							  val);
 
 				preempt_enable();
 
