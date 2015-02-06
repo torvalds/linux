@@ -11,23 +11,18 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/isa.h>
 #include <linux/pnp.h>
-#include <linux/blkdev.h>
 #include <linux/slab.h>
-
+#include <linux/io.h>
 #include <asm/dma.h>
-#include <asm/io.h>
-
-#include "scsi.h"
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include "aha1542.h"
-#include <linux/stat.h>
 
 #ifdef DEBUG
 #define DEB(x) x
