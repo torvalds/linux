@@ -3942,7 +3942,8 @@ static int be_check_flash_crc(struct be_adapter *adapter, const u8 *p,
 	int status;
 	u8 crc[4];
 
-	status = be_cmd_get_flash_crc(adapter, crc, img_optype, img_size - 4);
+	status = be_cmd_get_flash_crc(adapter, crc, img_optype, img_offset,
+				      img_size - 4);
 	if (status)
 		return status;
 
@@ -3958,13 +3959,13 @@ static int be_check_flash_crc(struct be_adapter *adapter, const u8 *p,
 }
 
 static int be_flash(struct be_adapter *adapter, const u8 *img,
-		    struct be_dma_mem *flash_cmd, int optype, int img_size)
+		    struct be_dma_mem *flash_cmd, int optype, int img_size,
+		    u32 img_offset)
 {
+	u32 flash_op, num_bytes, total_bytes = img_size, bytes_sent = 0;
 	struct be_cmd_write_flashrom *req = flash_cmd->va;
-	u32 total_bytes, flash_op, num_bytes;
 	int status;
 
-	total_bytes = img_size;
 	while (total_bytes) {
 		num_bytes = min_t(u32, 32*1024, total_bytes);
 
@@ -3985,12 +3986,15 @@ static int be_flash(struct be_adapter *adapter, const u8 *img,
 		memcpy(req->data_buf, img, num_bytes);
 		img += num_bytes;
 		status = be_cmd_write_flashrom(adapter, flash_cmd, optype,
-					       flash_op, num_bytes);
+					       flash_op, img_offset +
+					       bytes_sent, num_bytes);
 		if (base_status(status) == MCC_STATUS_ILLEGAL_REQUEST &&
 		    optype == OPTYPE_PHY_FW)
 			break;
 		else if (status)
 			return status;
+
+		bytes_sent += num_bytes;
 	}
 	return 0;
 }
@@ -4103,7 +4107,7 @@ static int be_flash_BEx(struct be_adapter *adapter,
 			return -1;
 
 		status = be_flash(adapter, p, flash_cmd, pflashcomp[i].optype,
-				  pflashcomp[i].size);
+				  pflashcomp[i].size, 0);
 		if (status) {
 			dev_err(dev, "Flashing section type 0x%x failed\n",
 				pflashcomp[i].img_type);
@@ -4170,12 +4174,12 @@ static int be_flash_skyhawk(struct be_adapter *adapter,
 			    struct be_dma_mem *flash_cmd, int num_of_images)
 {
 	int img_hdrs_size = num_of_images * sizeof(struct image_hdr);
+	bool crc_match, old_fw_img, flash_offset_support = true;
 	struct device *dev = &adapter->pdev->dev;
 	struct flash_section_info *fsec = NULL;
 	u32 img_offset, img_size, img_type;
+	u16 img_optype, flash_optype;
 	int status, i, filehdr_size;
-	bool crc_match, old_fw_img;
-	u16 img_optype;
 	const u8 *p;
 
 	filehdr_size = sizeof(struct flash_file_hdr_g3);
@@ -4185,6 +4189,7 @@ static int be_flash_skyhawk(struct be_adapter *adapter,
 		return -EINVAL;
 	}
 
+retry_flash:
 	for (i = 0; i < le32_to_cpu(fsec->fsec_hdr.num_images); i++) {
 		img_offset = le32_to_cpu(fsec->fsec_entry[i].offset);
 		img_size   = le32_to_cpu(fsec->fsec_entry[i].pad_size);
@@ -4194,6 +4199,12 @@ static int be_flash_skyhawk(struct be_adapter *adapter,
 
 		if (img_optype == 0xFFFF)
 			continue;
+
+		if (flash_offset_support)
+			flash_optype = OPTYPE_OFFSET_SPECIFIED;
+		else
+			flash_optype = img_optype;
+
 		/* Don't bother verifying CRC if an old FW image is being
 		 * flashed
 		 */
@@ -4202,16 +4213,26 @@ static int be_flash_skyhawk(struct be_adapter *adapter,
 
 		status = be_check_flash_crc(adapter, fw->data, img_offset,
 					    img_size, filehdr_size +
-					    img_hdrs_size, img_optype,
+					    img_hdrs_size, flash_optype,
 					    &crc_match);
-		/* The current FW image on the card does not recognize the new
-		 * FLASH op_type. The FW download is partially complete.
-		 * Reboot the server now to enable FW image to recognize the
-		 * new FLASH op_type. To complete the remaining process,
-		 * download the same FW again after the reboot.
-		 */
 		if (base_status(status) == MCC_STATUS_ILLEGAL_REQUEST ||
 		    base_status(status) == MCC_STATUS_ILLEGAL_FIELD) {
+			/* The current FW image on the card does not support
+			 * OFFSET based flashing. Retry using older mechanism
+			 * of OPTYPE based flashing
+			 */
+			if (flash_optype == OPTYPE_OFFSET_SPECIFIED) {
+				flash_offset_support = false;
+				goto retry_flash;
+			}
+
+			/* The current FW image on the card does not recognize
+			 * the new FLASH op_type. The FW download is partially
+			 * complete. Reboot the server now to enable FW image
+			 * to recognize the new FLASH op_type. To complete the
+			 * remaining process, download the same FW again after
+			 * the reboot.
+			 */
 			dev_err(dev, "Flash incomplete. Reset the server\n");
 			dev_err(dev, "Download FW image again after reset\n");
 			return -EAGAIN;
@@ -4229,7 +4250,19 @@ flash:
 		if (p + img_size > fw->data + fw->size)
 			return -1;
 
-		status = be_flash(adapter, p, flash_cmd, img_optype, img_size);
+		status = be_flash(adapter, p, flash_cmd, flash_optype, img_size,
+				  img_offset);
+
+		/* The current FW image on the card does not support OFFSET
+		 * based flashing. Retry using older mechanism of OPTYPE based
+		 * flashing
+		 */
+		if (base_status(status) == MCC_STATUS_ILLEGAL_FIELD &&
+		    flash_optype == OPTYPE_OFFSET_SPECIFIED) {
+			flash_offset_support = false;
+			goto retry_flash;
+		}
+
 		/* For old FW images ignore ILLEGAL_FIELD error or errors on
 		 * UFI_DIR region
 		 */

@@ -1172,6 +1172,7 @@ struct be_cmd_resp_get_beacon_state {
 #define OPTYPE_REDBOOT			1
 #define OPTYPE_BIOS			2
 #define OPTYPE_PXE_BIOS			3
+#define OPTYPE_OFFSET_SPECIFIED		7
 #define OPTYPE_FCOE_BIOS		8
 #define OPTYPE_ISCSI_BACKUP		9
 #define OPTYPE_FCOE_FW_ACTIVE		10
@@ -2255,7 +2256,8 @@ int be_cmd_read_port_transceiver_data(struct be_adapter *adapter,
 				      u8 page_num, u8 *data);
 int be_cmd_query_cable_type(struct be_adapter *adapter);
 int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
-			  u32 flash_oper, u32 flash_opcode, u32 buf_size);
+			  u32 flash_oper, u32 flash_opcode, u32 img_offset,
+			  u32 buf_size);
 int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			    u32 data_size, u32 data_offset,
 			    const char *obj_name, u32 *data_written,
@@ -2265,7 +2267,7 @@ int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			   u32 *data_read, u32 *eof, u8 *addn_status);
 int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			  u16 optype, int offset);
+			 u16 img_optype, u32 img_offset, u32 crc_offset);
 int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
 			    struct be_dma_mem *nonemb_cmd);
 int be_cmd_fw_init(struct be_adapter *adapter);

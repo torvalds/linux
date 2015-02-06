@@ -2436,7 +2436,8 @@ err_unlock:
 }
 
 int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
-			  u32 flash_type, u32 flash_opcode, u32 buf_size)
+			  u32 flash_type, u32 flash_opcode, u32 img_offset,
+			  u32 buf_size)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_write_flashrom *req;
@@ -2457,6 +2458,9 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			       cmd);
 
 	req->params.op_type = cpu_to_le32(flash_type);
+	if (flash_type == OPTYPE_OFFSET_SPECIFIED)
+		req->params.offset = cpu_to_le32(img_offset);
+
 	req->params.op_code = cpu_to_le32(flash_opcode);
 	req->params.data_buf_size = cpu_to_le32(buf_size);
 
@@ -2477,10 +2481,10 @@ err_unlock:
 }
 
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			 u16 optype, int offset)
+			 u16 img_optype, u32 img_offset, u32 crc_offset)
 {
-	struct be_mcc_wrb *wrb;
 	struct be_cmd_read_flash_crc *req;
+	struct be_mcc_wrb *wrb;
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
@@ -2496,9 +2500,13 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 			       OPCODE_COMMON_READ_FLASHROM, sizeof(*req),
 			       wrb, NULL);
 
-	req->params.op_type = cpu_to_le32(optype);
+	req->params.op_type = cpu_to_le32(img_optype);
+	if (img_optype == OPTYPE_OFFSET_SPECIFIED)
+		req->params.offset = cpu_to_le32(img_offset + crc_offset);
+	else
+		req->params.offset = cpu_to_le32(crc_offset);
+
 	req->params.op_code = cpu_to_le32(FLASHROM_OPER_REPORT);
-	req->params.offset = cpu_to_le32(offset);
 	req->params.data_buf_size = cpu_to_le32(0x4);
 
 	status = be_mcc_notify_wait(adapter);
