@@ -659,12 +659,12 @@ static bool ipgre_netlink_encap_parms(struct nlattr *data[],
 
 	if (data[IFLA_GRE_ENCAP_SPORT]) {
 		ret = true;
-		ipencap->sport = nla_get_u16(data[IFLA_GRE_ENCAP_SPORT]);
+		ipencap->sport = nla_get_be16(data[IFLA_GRE_ENCAP_SPORT]);
 	}
 
 	if (data[IFLA_GRE_ENCAP_DPORT]) {
 		ret = true;
-		ipencap->dport = nla_get_u16(data[IFLA_GRE_ENCAP_DPORT]);
+		ipencap->dport = nla_get_be16(data[IFLA_GRE_ENCAP_DPORT]);
 	}
 
 	return ret;
@@ -786,10 +786,10 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (nla_put_u16(skb, IFLA_GRE_ENCAP_TYPE,
 			t->encap.type) ||
-	    nla_put_u16(skb, IFLA_GRE_ENCAP_SPORT,
-			t->encap.sport) ||
-	    nla_put_u16(skb, IFLA_GRE_ENCAP_DPORT,
-			t->encap.dport) ||
+	    nla_put_be16(skb, IFLA_GRE_ENCAP_SPORT,
+			 t->encap.sport) ||
+	    nla_put_be16(skb, IFLA_GRE_ENCAP_DPORT,
+			 t->encap.dport) ||
 	    nla_put_u16(skb, IFLA_GRE_ENCAP_FLAGS,
 			t->encap.flags))
 		goto nla_put_failure;
