@@ -387,8 +387,7 @@ out:
 static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 {
 	int host_drv_type = SD_DRIVER_TYPE_B;
-	int card_drv_type = SD_DRIVER_TYPE_B;
-	int drive_strength, drv_type;
+	int card_drv_type, drive_strength, drv_type;
 	int err;
 
 	if (!card->host->ops->select_drive_strength)
@@ -403,14 +402,7 @@ static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 	if (card->host->caps & MMC_CAP_DRIVER_TYPE_D)
 		host_drv_type |= SD_DRIVER_TYPE_D;
 
-	if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_A)
-		card_drv_type |= SD_DRIVER_TYPE_A;
-
-	if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_C)
-		card_drv_type |= SD_DRIVER_TYPE_C;
-
-	if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_D)
-		card_drv_type |= SD_DRIVER_TYPE_D;
+	card_drv_type = card->sw_caps.sd3_drv_type | SD_DRIVER_TYPE_B;
 
 	/*
 	 * The drive strength that the hardware can support
