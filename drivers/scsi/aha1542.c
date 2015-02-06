@@ -154,12 +154,6 @@ static inline void aha1542_intr_reset(u16 base)
    }									\
  }
 
-static void aha1542_stat(void)
-{
-/*	int s = inb(STATUS), i = inb(INTRFLAGS);
-	printk("status=%x intrflags=%x\n", s, i, WAITnexttimeout-WAITtimeout); */
-}
-
 /* This is a bit complicated, but we need to make sure that an interrupt
    routine does not send something out while we are in the middle of this.
    Fortunately, it is only at boot time that multi-byte messages
@@ -196,7 +190,6 @@ fail:
 	if (got_lock)
 		spin_unlock_irqrestore(&aha1542_lock, flags);
 	printk(KERN_ERR "aha1542_out failed(%d): ", len + 1);
-	aha1542_stat();
 	return 1;
 }
 
@@ -217,7 +210,6 @@ static int aha1542_in(unsigned int base, u8 *cmdp, int len)
 fail:
 	spin_unlock_irqrestore(&aha1542_lock, flags);
 	printk(KERN_ERR "aha1542_in failed(%d): ", len + 1);
-	aha1542_stat();
 	return 1;
 }
 
@@ -590,7 +582,6 @@ static int aha1542_queuecommand_lck(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *
 		printk(KERN_DEBUG "aha1542_queuecommand: dev %d cmd %02x pos %d len %d ", target, *cmd, i, bufflen);
 	else
 		printk(KERN_DEBUG "aha1542_command: dev %d cmd %02x pos %d len %d ", target, *cmd, i, bufflen);
-	aha1542_stat();
 	printk(KERN_DEBUG "aha1542_queuecommand: dumping scsi cmd:");
 	for (i = 0; i < SCpnt->cmd_len; i++)
 		printk("%02x ", cmd[i]);
@@ -691,12 +682,10 @@ static int aha1542_queuecommand_lck(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *
 #endif
 
 	if (done) {
-		DEB(printk("aha1542_queuecommand: now waiting for interrupt ");
-		    aha1542_stat());
+		DEB(printk("aha1542_queuecommand: now waiting for interrupt "));
 		SCpnt->scsi_done = done;
 		mb[mbo].status = 1;
 		aha1542_out(SCpnt->device->host->io_port, &ahacmd, 1);	/* start scsi command */
-		DEB(aha1542_stat());
 	} else
 		printk("aha1542_queuecommand: done can't be NULL\n");
 
@@ -1017,10 +1006,7 @@ fail:
 				printk(", DMA priority %d", dma_chan);
 			printk("\n");
 
-			DEB(aha1542_stat());
 			setup_mailboxes(base_io, shpnt);
-
-			DEB(aha1542_stat());
 
 			DEB(printk("aha1542_detect: enable interrupt channel %d\n", irq_level));
 			spin_lock_irqsave(&aha1542_lock, flags);
