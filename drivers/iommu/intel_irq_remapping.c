@@ -631,7 +631,7 @@ static int __init intel_enable_irq_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
-	int setup = 0;
+	bool setup = false;
 	int eim = 0;
 
 	if (x2apic_supported()) {
@@ -697,7 +697,7 @@ static int __init intel_enable_irq_remapping(void)
 	 */
 	for_each_iommu(iommu, drhd) {
 		iommu_set_irq_remapping(iommu, eim);
-		setup = 1;
+		setup = true;
 	}
 
 	if (!setup)
@@ -856,7 +856,7 @@ static int __init parse_ioapics_under_ir(void)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
-	int ir_supported = 0;
+	bool ir_supported = false;
 	int ioapic_idx;
 
 	for_each_iommu(iommu, drhd)
@@ -864,7 +864,7 @@ static int __init parse_ioapics_under_ir(void)
 			if (ir_parse_ioapic_hpet_scope(drhd->hdr, iommu))
 				return -1;
 
-			ir_supported = 1;
+			ir_supported = true;
 		}
 
 	if (!ir_supported)
@@ -917,7 +917,7 @@ static void disable_irq_remapping(void)
 static int reenable_irq_remapping(int eim)
 {
 	struct dmar_drhd_unit *drhd;
-	int setup = 0;
+	bool setup = false;
 	struct intel_iommu *iommu = NULL;
 
 	for_each_iommu(iommu, drhd)
@@ -933,7 +933,7 @@ static int reenable_irq_remapping(int eim)
 
 		/* Set up interrupt remapping for iommu.*/
 		iommu_set_irq_remapping(iommu, eim);
-		setup = 1;
+		setup = true;
 	}
 
 	if (!setup)
