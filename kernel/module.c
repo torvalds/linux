@@ -3356,6 +3356,9 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	module_bug_cleanup(mod);
 	mutex_unlock(&module_mutex);
 
+	/* Free lock-classes: */
+	lockdep_free_key_range(mod->module_core, mod->core_size);
+
 	/* we can't deallocate the module until we clear memory protection */
 	unset_module_init_ro_nx(mod);
 	unset_module_core_ro_nx(mod);
