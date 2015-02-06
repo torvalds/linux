@@ -6406,12 +6406,13 @@ out:
 
 static inline int vcpu_block(struct kvm *kvm, struct kvm_vcpu *vcpu)
 {
-	srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
-	kvm_vcpu_block(vcpu);
-	vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
-
-	if (!kvm_check_request(KVM_REQ_UNHALT, vcpu))
-		return 1;
+	if (!kvm_arch_vcpu_runnable(vcpu)) {
+		srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
+		kvm_vcpu_block(vcpu);
+		vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
+		if (!kvm_check_request(KVM_REQ_UNHALT, vcpu))
+			return 1;
+	}
 
 	kvm_apic_accept_events(vcpu);
 	switch(vcpu->arch.mp_state) {
