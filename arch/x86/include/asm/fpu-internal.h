@@ -67,6 +67,24 @@ extern void finit_soft_fpu(struct i387_soft_struct *soft);
 static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
 #endif
 
+/*
+ * Must be run with preemption disabled: this clears the fpu_owner_task,
+ * on this CPU.
+ *
+ * This will disable any lazy FPU state restore of the current FPU state,
+ * but if the current thread owns the FPU, it will still be saved by.
+ */
+static inline void __cpu_disable_lazy_restore(unsigned int cpu)
+{
+	per_cpu(fpu_owner_task, cpu) = NULL;
+}
+
+static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
+{
+	return new == this_cpu_read_stable(fpu_owner_task) &&
+		cpu == new->thread.fpu.last_cpu;
+}
+
 static inline int is_ia32_compat_frame(void)
 {
 	return config_enabled(CONFIG_IA32_EMULATION) &&
@@ -397,24 +415,6 @@ static inline void drop_init_fpu(struct task_struct *tsk)
  *    necessary.
  */
 typedef struct { int preload; } fpu_switch_t;
-
-/*
- * Must be run with preemption disabled: this clears the fpu_owner_task,
- * on this CPU.
- *
- * This will disable any lazy FPU state restore of the current FPU state,
- * but if the current thread owns the FPU, it will still be saved by.
- */
-static inline void __cpu_disable_lazy_restore(unsigned int cpu)
-{
-	per_cpu(fpu_owner_task, cpu) = NULL;
-}
-
-static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
-{
-	return new == this_cpu_read_stable(fpu_owner_task) &&
-		cpu == new->thread.fpu.last_cpu;
-}
 
 static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct task_struct *new, int cpu)
 {
