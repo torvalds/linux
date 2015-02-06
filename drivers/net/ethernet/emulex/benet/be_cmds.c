@@ -1886,7 +1886,7 @@ err:
 	return status;
 }
 
-int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
+static int __be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_dma_mem *mem = &adapter->rx_filter;
@@ -1906,30 +1906,12 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 			       wrb, mem);
 
 	req->if_id = cpu_to_le32(adapter->if_handle);
-	if (flags & IFF_PROMISC) {
-		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS |
-						 BE_IF_FLAGS_VLAN_PROMISCUOUS |
-						 BE_IF_FLAGS_MCAST_PROMISCUOUS);
-		if (value == ON)
-			req->if_flags =
-				cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS |
-					    BE_IF_FLAGS_VLAN_PROMISCUOUS |
-					    BE_IF_FLAGS_MCAST_PROMISCUOUS);
-	} else if (flags & IFF_ALLMULTI) {
-		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
-		req->if_flags =	cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
-	} else if (flags & BE_FLAGS_VLAN_PROMISC) {
-		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_VLAN_PROMISCUOUS);
+	req->if_flags_mask = cpu_to_le32(flags);
+	req->if_flags = (value == ON) ? req->if_flags_mask : 0;
 
-		if (value == ON)
-			req->if_flags =
-				cpu_to_le32(BE_IF_FLAGS_VLAN_PROMISCUOUS);
-	} else {
+	if (flags & BE_IF_FLAGS_MULTICAST) {
 		struct netdev_hw_addr *ha;
 		int i = 0;
-
-		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_MULTICAST);
-		req->if_flags =	cpu_to_le32(BE_IF_FLAGS_MULTICAST);
 
 		/* Reset mcast promisc mode if already set by setting mask
 		 * and not setting flags field
@@ -1942,22 +1924,24 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
 	}
 
-	if ((req->if_flags_mask & cpu_to_le32(be_if_cap_flags(adapter))) !=
-	    req->if_flags_mask) {
-		dev_warn(&adapter->pdev->dev,
-			 "Cannot set rx filter flags 0x%x\n",
-			 req->if_flags_mask);
-		dev_warn(&adapter->pdev->dev,
-			 "Interface is capable of 0x%x flags only\n",
-			 be_if_cap_flags(adapter));
-	}
-	req->if_flags_mask &= cpu_to_le32(be_if_cap_flags(adapter));
-
 	status = be_mcc_notify_wait(adapter);
-
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
+}
+
+int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
+{
+	struct device *dev = &adapter->pdev->dev;
+
+	if ((flags & be_if_cap_flags(adapter)) != flags) {
+		dev_warn(dev, "Cannot set rx filter flags 0x%x\n", flags);
+		dev_warn(dev, "Interface is capable of 0x%x flags only\n",
+			 be_if_cap_flags(adapter));
+	}
+	flags &= be_if_cap_flags(adapter);
+
+	return __be_cmd_rx_filter(adapter, flags, value);
 }
 
 /* Uses synchrounous mcc */

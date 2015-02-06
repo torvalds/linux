@@ -586,6 +586,10 @@ enum be_if_flags {
 			 BE_IF_FLAGS_PASS_L3L4_ERRORS | BE_IF_FLAGS_MULTICAST |\
 			 BE_IF_FLAGS_UNTAGGED)
 
+#define BE_IF_FLAGS_ALL_PROMISCUOUS	(BE_IF_FLAGS_PROMISCUOUS | \
+					 BE_IF_FLAGS_VLAN_PROMISCUOUS |\
+					 BE_IF_FLAGS_MCAST_PROMISCUOUS)
+
 /* An RX interface is an object with one or more MAC addresses and
  * filtering capabilities. */
 struct be_cmd_req_if_create {
