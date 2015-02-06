@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -385,8 +385,7 @@ int i40e_fcoe_vsi_init(struct i40e_vsi *vsi, struct i40e_vsi_context *ctxt)
 	ctxt->flags = I40E_AQ_VSI_TYPE_PF;
 
 	/* FCoE VSI would need the following sections */
-	info->valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID |
-					    I40E_AQ_VSI_PROP_QUEUE_OPT_VALID);
+	info->valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_QUEUE_OPT_VALID);
 
 	/* FCoE VSI does not need these sections */
 	info->valid_sections &= cpu_to_le16(~(I40E_AQ_VSI_PROP_SECURITY_VALID |
@@ -395,7 +394,12 @@ int i40e_fcoe_vsi_init(struct i40e_vsi *vsi, struct i40e_vsi_context *ctxt)
 					    I40E_AQ_VSI_PROP_INGRESS_UP_VALID |
 					    I40E_AQ_VSI_PROP_EGRESS_UP_VALID));
 
-	info->switch_id = cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+	if (i40e_is_vsi_uplink_mode_veb(vsi)) {
+		info->valid_sections |=
+				cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+		info->switch_id =
+				cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+	}
 	enabled_tc = i40e_get_fcoe_tc_map(pf);
 	i40e_vsi_setup_queue_map(vsi, ctxt, enabled_tc, true);
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -752,7 +752,7 @@ void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
  *
  * disable switch loop back or die - no point in a return value
  **/
-static void i40e_disable_pf_switch_lb(struct i40e_pf *pf)
+void i40e_disable_pf_switch_lb(struct i40e_pf *pf)
 {
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	struct i40e_vsi_context ctxt;
@@ -891,7 +891,6 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 	}
 	pf->num_alloc_vfs = num_alloc_vfs;
 
-	i40e_enable_pf_switch_lb(pf);
 err_alloc:
 	if (ret)
 		i40e_free_vfs(pf);

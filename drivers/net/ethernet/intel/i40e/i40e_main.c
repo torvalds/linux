@@ -5872,6 +5872,26 @@ static void i40e_verify_eeprom(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_config_bridge_mode - Configure the HW bridge mode
+ * @veb: pointer to the bridge instance
+ *
+ * Configure the loop back mode for the LAN VSI that is downlink to the
+ * specified HW bridge instance. It is expected this function is called
+ * when a new HW bridge is instantiated.
+ **/
+static void i40e_config_bridge_mode(struct i40e_veb *veb)
+{
+	struct i40e_pf *pf = veb->pf;
+
+	dev_info(&pf->pdev->dev, "enabling bridge mode: %s\n",
+		 veb->bridge_mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
+	if (veb->bridge_mode & BRIDGE_MODE_VEPA)
+		i40e_disable_pf_switch_lb(pf);
+	else
+		i40e_enable_pf_switch_lb(pf);
+}
+
+/**
  * i40e_reconstitute_veb - rebuild the VEB and anything connected to it
  * @veb: pointer to the VEB instance
  *
@@ -5917,8 +5937,7 @@ static int i40e_reconstitute_veb(struct i40e_veb *veb)
 	if (ret)
 		goto end_reconstitute;
 
-	/* Enable LB mode for the main VSI now that it is on a VEB */
-	i40e_enable_pf_switch_lb(pf);
+	i40e_config_bridge_mode(veb);
 
 	/* create the remaining VSIs attached to this VEB */
 	for (v = 0; v < pf->num_alloc_vsi; v++) {
@@ -7737,6 +7756,118 @@ static int i40e_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	return err;
 }
 
+#ifdef HAVE_BRIDGE_ATTRIBS
+/**
+ * i40e_ndo_bridge_setlink - Set the hardware bridge mode
+ * @dev: the netdev being configured
+ * @nlh: RTNL message
+ *
+ * Inserts a new hardware bridge if not already created and
+ * enables the bridging mode requested (VEB or VEPA). If the
+ * hardware bridge has already been inserted and the request
+ * is to change the mode then that requires a PF reset to
+ * allow rebuild of the components with required hardware
+ * bridge mode enabled.
+ **/
+static int i40e_ndo_bridge_setlink(struct net_device *dev,
+				   struct nlmsghdr *nlh)
+{
+	struct i40e_netdev_priv *np = netdev_priv(dev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_veb *veb = NULL;
+	struct nlattr *attr, *br_spec;
+	int i, rem;
+
+	/* Only for PF VSI for now */
+	if (vsi->seid != pf->vsi[pf->lan_vsi]->seid)
+		return -EOPNOTSUPP;
+
+	/* Find the HW bridge for PF VSI */
+	for (i = 0; i < I40E_MAX_VEB && !veb; i++) {
+		if (pf->veb[i] && pf->veb[i]->seid == vsi->uplink_seid)
+			veb = pf->veb[i];
+	}
+
+	br_spec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
+
+	nla_for_each_nested(attr, br_spec, rem) {
+		__u16 mode;
+
+		if (nla_type(attr) != IFLA_BRIDGE_MODE)
+			continue;
+
+		mode = nla_get_u16(attr);
+		if ((mode != BRIDGE_MODE_VEPA) &&
+		    (mode != BRIDGE_MODE_VEB))
+			return -EINVAL;
+
+		/* Insert a new HW bridge */
+		if (!veb) {
+			veb = i40e_veb_setup(pf, 0, vsi->uplink_seid, vsi->seid,
+					     vsi->tc_config.enabled_tc);
+			if (veb) {
+				veb->bridge_mode = mode;
+				i40e_config_bridge_mode(veb);
+			} else {
+				/* No Bridge HW offload available */
+				return -ENOENT;
+			}
+			break;
+		} else if (mode != veb->bridge_mode) {
+			/* Existing HW bridge but different mode needs reset */
+			veb->bridge_mode = mode;
+			i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * i40e_ndo_bridge_getlink - Get the hardware bridge mode
+ * @skb: skb buff
+ * @pid: process id
+ * @seq: RTNL message seq #
+ * @dev: the netdev being configured
+ * @filter_mask: unused
+ *
+ * Return the mode in which the hardware bridge is operating in
+ * i.e VEB or VEPA.
+ **/
+#ifdef HAVE_BRIDGE_FILTER
+static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
+				   struct net_device *dev,
+				   u32 __always_unused filter_mask)
+#else
+static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
+				   struct net_device *dev)
+#endif /* HAVE_BRIDGE_FILTER */
+{
+	struct i40e_netdev_priv *np = netdev_priv(dev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_veb *veb = NULL;
+	int i;
+
+	/* Only for PF VSI for now */
+	if (vsi->seid != pf->vsi[pf->lan_vsi]->seid)
+		return -EOPNOTSUPP;
+
+	/* Find the HW bridge for the PF VSI */
+	for (i = 0; i < I40E_MAX_VEB && !veb; i++) {
+		if (pf->veb[i] && pf->veb[i]->seid == vsi->uplink_seid)
+			veb = pf->veb[i];
+	}
+
+	if (!veb)
+		return 0;
+
+	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, veb->bridge_mode);
+}
+#endif /* HAVE_BRIDGE_ATTRIBS */
+
 const struct net_device_ops i40e_netdev_ops = {
 	.ndo_open		= i40e_open,
 	.ndo_stop		= i40e_close,
@@ -7771,6 +7902,10 @@ const struct net_device_ops i40e_netdev_ops = {
 #endif
 	.ndo_get_phys_port_id	= i40e_get_phys_port_id,
 	.ndo_fdb_add		= i40e_ndo_fdb_add,
+#ifdef HAVE_BRIDGE_ATTRIBS
+	.ndo_bridge_getlink	= i40e_ndo_bridge_getlink,
+	.ndo_bridge_setlink	= i40e_ndo_bridge_setlink,
+#endif /* HAVE_BRIDGE_ATTRIBS */
 };
 
 /**
@@ -7883,6 +8018,30 @@ static void i40e_vsi_delete(struct i40e_vsi *vsi)
 }
 
 /**
+ * i40e_is_vsi_uplink_mode_veb - Check if the VSI's uplink bridge mode is VEB
+ * @vsi: the VSI being queried
+ *
+ * Returns 1 if HW bridge mode is VEB and return 0 in case of VEPA mode
+ **/
+int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi)
+{
+	struct i40e_veb *veb;
+	struct i40e_pf *pf = vsi->back;
+
+	/* Uplink is not a bridge so default to VEB */
+	if (vsi->veb_idx == I40E_NO_VEB)
+		return 1;
+
+	veb = pf->veb[vsi->veb_idx];
+	/* Uplink is a bridge in VEPA mode */
+	if (veb && (veb->bridge_mode & BRIDGE_MODE_VEPA))
+		return 0;
+
+	/* Uplink is a bridge in VEB mode */
+	return 1;
+}
+
+/**
  * i40e_add_vsi - Add a VSI to the switch
  * @vsi: the VSI being configured
  *
@@ -7969,10 +8128,12 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		ctxt.uplink_seid = vsi->uplink_seid;
 		ctxt.connection_type = I40E_AQ_VSI_CONN_TYPE_NORMAL;
 		ctxt.flags = I40E_AQ_VSI_TYPE_PF;
-		ctxt.info.valid_sections |=
+		if (i40e_is_vsi_uplink_mode_veb(vsi)) {
+			ctxt.info.valid_sections |=
 				cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
-		ctxt.info.switch_id =
+			ctxt.info.switch_id =
 				cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+		}
 		i40e_vsi_setup_queue_map(vsi, &ctxt, enabled_tc, true);
 		break;
 
@@ -7983,13 +8144,15 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		ctxt.connection_type = I40E_AQ_VSI_CONN_TYPE_NORMAL;
 		ctxt.flags = I40E_AQ_VSI_TYPE_VMDQ2;
 
-		ctxt.info.valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
-
 		/* This VSI is connected to VEB so the switch_id
 		 * should be set to zero by default.
 		 */
-		ctxt.info.switch_id = 0;
-		ctxt.info.switch_id |= cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+		if (i40e_is_vsi_uplink_mode_veb(vsi)) {
+			ctxt.info.valid_sections |=
+				cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+			ctxt.info.switch_id =
+				cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+		}
 
 		/* Setup the VSI tx/rx queue map for TC0 only for now */
 		i40e_vsi_setup_queue_map(vsi, &ctxt, enabled_tc, true);
@@ -8002,12 +8165,15 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		ctxt.connection_type = I40E_AQ_VSI_CONN_TYPE_NORMAL;
 		ctxt.flags = I40E_AQ_VSI_TYPE_VF;
 
-		ctxt.info.valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
-
 		/* This VSI is connected to VEB so the switch_id
 		 * should be set to zero by default.
 		 */
-		ctxt.info.switch_id = cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+		if (i40e_is_vsi_uplink_mode_veb(vsi)) {
+			ctxt.info.valid_sections |=
+				cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+			ctxt.info.switch_id =
+				cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+		}
 
 		ctxt.info.valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_VLAN_VALID);
 		ctxt.info.port_vlan_flags |= I40E_AQ_VSI_PVLAN_MODE_ALL;
@@ -8365,7 +8531,7 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 					 __func__);
 				return NULL;
 			}
-			i40e_enable_pf_switch_lb(pf);
+			i40e_config_bridge_mode(veb);
 		}
 		for (i = 0; i < I40E_MAX_VEB && !veb; i++) {
 			if (pf->veb[i] && pf->veb[i]->seid == vsi->uplink_seid)
