@@ -126,6 +126,7 @@ struct ccb {		/* Command Control Block 5.3 */
 					/* REQUEST SENSE */
 };
 
+#define AHA1542_REGION_SIZE 4
 #define AHA1542_MAILBOXES 8
 
 #endif
