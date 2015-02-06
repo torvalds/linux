@@ -3256,10 +3256,10 @@ static void r8153_init(struct r8152 *tp)
 
 	ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, USB_LPM_CTRL);
 	ocp_data &= ~LPM_TIMER_MASK;
-	if (tp->udev->speed == USB_SPEED_SUPER)
-		ocp_data |= LPM_TIMER_500US;
-	else
+	if (tp->version == RTL_VER_04 && tp->udev->speed != USB_SPEED_SUPER)
 		ocp_data |= LPM_TIMER_500MS;
+	else
+		ocp_data |= LPM_TIMER_500US;
 	ocp_write_byte(tp, MCU_TYPE_USB, USB_LPM_CTRL, ocp_data);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_AFE_CTRL2);
