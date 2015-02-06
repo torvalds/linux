@@ -3027,7 +3027,7 @@ int prealloc_file_extent_cluster(struct inode *inode,
 	mutex_lock(&inode->i_mutex);
 
 	ret = btrfs_check_data_free_space(inode, cluster->end +
-					  1 - cluster->start);
+					  1 - cluster->start, 0);
 	if (ret)
 		goto out;
 

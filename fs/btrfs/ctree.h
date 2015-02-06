@@ -3448,7 +3448,7 @@ enum btrfs_reserve_flush_enum {
 	BTRFS_RESERVE_FLUSH_ALL,
 };
 
-int btrfs_check_data_free_space(struct inode *inode, u64 bytes);
+int btrfs_check_data_free_space(struct inode *inode, u64 bytes, u64 write_bytes);
 void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes);
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root);

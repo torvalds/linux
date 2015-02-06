@@ -94,10 +94,6 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 			 struct btrfs_fs_info *fs_info, u64 srcid, u64 objectid,
 			 struct btrfs_qgroup_inherit *inherit);
-int btrfs_qgroup_update_reserved_bytes(struct btrfs_fs_info *fs_info,
-				       u64 ref_root,
-				       u64 num_bytes,
-				       int sign);
 int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes);
 void btrfs_qgroup_free(struct btrfs_root *root, u64 num_bytes);
 

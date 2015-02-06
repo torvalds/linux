@@ -3331,7 +3331,7 @@ again:
 	num_pages *= 16;
 	num_pages *= PAGE_CACHE_SIZE;
 
-	ret = btrfs_check_data_free_space(inode, num_pages);
+	ret = btrfs_check_data_free_space(inode, num_pages, num_pages);
 	if (ret)
 		goto out_put;
 
@@ -3851,7 +3851,7 @@ u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data)
  * This will check the space that the inode allocates from to make sure we have
  * enough space for bytes.
  */
-int btrfs_check_data_free_space(struct inode *inode, u64 bytes)
+int btrfs_check_data_free_space(struct inode *inode, u64 bytes, u64 write_bytes)
 {
 	struct btrfs_space_info *data_sinfo;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -3969,7 +3969,7 @@ commit_trans:
 					      data_sinfo->flags, bytes, 1);
 		return -ENOSPC;
 	}
-	ret = btrfs_qgroup_reserve(root, bytes);
+	ret = btrfs_qgroup_reserve(root, write_bytes);
 	if (ret)
 		goto out;
 	data_sinfo->bytes_may_use += bytes;
@@ -3995,7 +3995,6 @@ void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes)
 	data_sinfo = root->fs_info->data_sinfo;
 	spin_lock(&data_sinfo->lock);
 	WARN_ON(data_sinfo->bytes_may_use < bytes);
-	btrfs_qgroup_free(root, bytes);
 	data_sinfo->bytes_may_use -= bytes;
 	trace_btrfs_space_reservation(root->fs_info, "space_info",
 				      data_sinfo->flags, bytes, 0);
@@ -5243,8 +5242,6 @@ void btrfs_subvolume_release_metadata(struct btrfs_root *root,
 				      u64 qgroup_reserved)
 {
 	btrfs_block_rsv_release(root, rsv, (u64)-1);
-	if (qgroup_reserved)
-		btrfs_qgroup_free(root, qgroup_reserved);
 }
 
 /**
@@ -5478,11 +5475,8 @@ out_fail:
 			to_free = 0;
 	}
 	spin_unlock(&BTRFS_I(inode)->lock);
-	if (dropped) {
-		if (root->fs_info->quota_enabled)
-			btrfs_qgroup_free(root, dropped * root->nodesize);
+	if (dropped)
 		to_free += btrfs_calc_trans_metadata_size(root, dropped);
-	}
 
 	if (to_free) {
 		btrfs_block_rsv_release(root, block_rsv, to_free);
@@ -5524,9 +5518,6 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 
 	trace_btrfs_space_reservation(root->fs_info, "delalloc",
 				      btrfs_ino(inode), to_free, 0);
-	if (root->fs_info->quota_enabled) {
-		btrfs_qgroup_free(root, dropped * root->nodesize);
-	}
 
 	btrfs_block_rsv_release(root, &root->fs_info->delalloc_block_rsv,
 				to_free);
@@ -5551,7 +5542,7 @@ int btrfs_delalloc_reserve_space(struct inode *inode, u64 num_bytes)
 {
 	int ret;
 
-	ret = btrfs_check_data_free_space(inode, num_bytes);
+	ret = btrfs_check_data_free_space(inode, num_bytes, num_bytes);
 	if (ret)
 		return ret;
 
@@ -5727,12 +5718,8 @@ static int pin_down_extent(struct btrfs_root *root,
 
 	set_extent_dirty(root->fs_info->pinned_extents, bytenr,
 			 bytenr + num_bytes - 1, GFP_NOFS | __GFP_NOFAIL);
-	if (reserved) {
-		btrfs_qgroup_update_reserved_bytes(root->fs_info,
-						   root->root_key.objectid,
-						   num_bytes, -1);
+	if (reserved)
 		trace_btrfs_reserved_extent_free(root, bytenr, num_bytes);
-	}
 	return 0;
 }
 
@@ -6470,9 +6457,6 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		btrfs_put_block_group(cache);
 		trace_btrfs_reserved_extent_free(root, buf->start, buf->len);
 		pin = 0;
-		btrfs_qgroup_update_reserved_bytes(root->fs_info,
-						   root->root_key.objectid,
-						   buf->len, -1);
 	}
 out:
 	if (pin)
@@ -7205,9 +7189,6 @@ static int __btrfs_free_reserved_extent(struct btrfs_root *root,
 			ret = btrfs_discard_extent(root, start, len, NULL);
 		btrfs_add_free_space(cache, start, len);
 		btrfs_update_reserved_bytes(cache, len, RESERVE_FREE, delalloc);
-		btrfs_qgroup_update_reserved_bytes(root->fs_info,
-						   root->root_key.objectid,
-						   len, -1);
 	}
 
 	btrfs_put_block_group(cache);
@@ -7446,9 +7427,6 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 	BUG_ON(ret); /* logic error */
 	ret = alloc_reserved_file_extent(trans, root, 0, root_objectid,
 					 0, owner, offset, ins, 1);
-	btrfs_qgroup_update_reserved_bytes(root->fs_info,
-					   root->root_key.objectid,
-					   ins->offset, 1);
 	btrfs_put_block_group(block_group);
 	return ret;
 }
@@ -7594,10 +7572,6 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		unuse_block_rsv(root->fs_info, block_rsv, blocksize);
 		return ERR_PTR(ret);
 	}
-
-	btrfs_qgroup_update_reserved_bytes(root->fs_info,
-					   root_objectid,
-					   ins.offset, 1);
 
 	buf = btrfs_init_new_buffer(trans, root, ins.objectid, level);
 	BUG_ON(IS_ERR(buf)); /* -ENOMEM */
