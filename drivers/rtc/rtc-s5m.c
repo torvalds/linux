@@ -48,8 +48,6 @@ struct s5m_rtc_reg_config {
 	unsigned int alarm0;
 	/* First register for alarm 1, seconds */
 	unsigned int alarm1;
-	/* SMPL/WTSR register */
-	unsigned int smpl_wtsr;
 	/*
 	 * Register for update flag (UDR). Typically setting UDR field to 1
 	 * will enable update of time or alarm register. Then it will be
@@ -67,7 +65,6 @@ static const struct s5m_rtc_reg_config s5m_rtc_regs = {
 	.ctrl			= S5M_ALARM1_CONF,
 	.alarm0			= S5M_ALARM0_SEC,
 	.alarm1			= S5M_ALARM1_SEC,
-	.smpl_wtsr		= S5M_WTSR_SMPL_CNTL,
 	.rtc_udr_update		= S5M_RTC_UDR_CON,
 	.rtc_udr_mask		= S5M_RTC_UDR_MASK,
 };
@@ -82,7 +79,6 @@ static const struct s5m_rtc_reg_config s2mps_rtc_regs = {
 	.ctrl			= S2MPS_RTC_CTRL,
 	.alarm0			= S2MPS_ALARM0_SEC,
 	.alarm1			= S2MPS_ALARM1_SEC,
-	.smpl_wtsr		= S2MPS_WTSR_SMPL_CNTL,
 	.rtc_udr_update		= S2MPS_RTC_UDR_CON,
 	.rtc_udr_mask		= S2MPS_RTC_WUDR_MASK,
 };
@@ -96,7 +92,6 @@ struct s5m_rtc_info {
 	int irq;
 	int device_type;
 	int rtc_24hr_mode;
-	bool wtsr_smpl;
 	const struct s5m_rtc_reg_config	*regs;
 };
 
@@ -597,28 +592,6 @@ static const struct rtc_class_ops s5m_rtc_ops = {
 	.alarm_irq_enable = s5m_rtc_alarm_irq_enable,
 };
 
-static void s5m_rtc_enable_wtsr(struct s5m_rtc_info *info, bool enable)
-{
-	int ret;
-	ret = regmap_update_bits(info->regmap, info->regs->smpl_wtsr,
-				 WTSR_ENABLE_MASK,
-				 enable ? WTSR_ENABLE_MASK : 0);
-	if (ret < 0)
-		dev_err(info->dev, "%s: fail to update WTSR reg(%d)\n",
-			__func__, ret);
-}
-
-static void s5m_rtc_enable_smpl(struct s5m_rtc_info *info, bool enable)
-{
-	int ret;
-	ret = regmap_update_bits(info->regmap, info->regs->smpl_wtsr,
-				 SMPL_ENABLE_MASK,
-				 enable ? SMPL_ENABLE_MASK : 0);
-	if (ret < 0)
-		dev_err(info->dev, "%s: fail to update SMPL reg(%d)\n",
-			__func__, ret);
-}
-
 static int s5m8767_rtc_init_reg(struct s5m_rtc_info *info)
 {
 	u8 data[2];
@@ -715,7 +688,6 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->s5m87xx = s5m87xx;
 	info->device_type = s5m87xx->device_type;
-	info->wtsr_smpl = s5m87xx->wtsr_smpl;
 
 	if (s5m87xx->irq_data) {
 		info->irq = regmap_irq_get_virq(s5m87xx->irq_data, alarm_irq);
@@ -730,11 +702,6 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 
 	ret = s5m8767_rtc_init_reg(info);
-
-	if (info->wtsr_smpl) {
-		s5m_rtc_enable_wtsr(info, true);
-		s5m_rtc_enable_smpl(info, true);
-	}
 
 	device_init_wakeup(&pdev->dev, 1);
 
@@ -768,36 +735,10 @@ err:
 	return ret;
 }
 
-static void s5m_rtc_shutdown(struct platform_device *pdev)
-{
-	struct s5m_rtc_info *info = platform_get_drvdata(pdev);
-	int i;
-	unsigned int val = 0;
-	if (info->wtsr_smpl) {
-		for (i = 0; i < 3; i++) {
-			s5m_rtc_enable_wtsr(info, false);
-			regmap_read(info->regmap, info->regs->smpl_wtsr, &val);
-			pr_debug("%s: WTSR_SMPL reg(0x%02x)\n", __func__, val);
-			if (val & WTSR_ENABLE_MASK)
-				pr_emerg("%s: fail to disable WTSR\n",
-					 __func__);
-			else {
-				pr_info("%s: success to disable WTSR\n",
-					__func__);
-				break;
-			}
-		}
-	}
-	/* Disable SMPL when power off */
-	s5m_rtc_enable_smpl(info, false);
-}
-
 static int s5m_rtc_remove(struct platform_device *pdev)
 {
 	struct s5m_rtc_info *info = platform_get_drvdata(pdev);
 
-	/* Perform also all shutdown steps when removing */
-	s5m_rtc_shutdown(pdev);
 	i2c_unregister_device(info->i2c);
 
 	return 0;
@@ -842,7 +783,6 @@ static struct platform_driver s5m_rtc_driver = {
 	},
 	.probe		= s5m_rtc_probe,
 	.remove		= s5m_rtc_remove,
-	.shutdown	= s5m_rtc_shutdown,
 	.id_table	= s5m_rtc_id,
 };
 
