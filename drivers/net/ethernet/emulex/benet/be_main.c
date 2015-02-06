@@ -854,6 +854,11 @@ dma_err:
 	return 0;
 }
 
+static inline int qnq_async_evt_rcvd(struct be_adapter *adapter)
+{
+	return adapter->flags & BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
+}
+
 static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 					     struct sk_buff *skb,
 					     bool *skip_hw_vlan)
@@ -2526,6 +2531,106 @@ static void be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 	}
 }
 
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static inline bool be_lock_napi(struct be_eq_obj *eqo)
+{
+	bool status = true;
+
+	spin_lock(&eqo->lock); /* BH is already disabled */
+	if (eqo->state & BE_EQ_LOCKED) {
+		WARN_ON(eqo->state & BE_EQ_NAPI);
+		eqo->state |= BE_EQ_NAPI_YIELD;
+		status = false;
+	} else {
+		eqo->state = BE_EQ_NAPI;
+	}
+	spin_unlock(&eqo->lock);
+	return status;
+}
+
+static inline void be_unlock_napi(struct be_eq_obj *eqo)
+{
+	spin_lock(&eqo->lock); /* BH is already disabled */
+
+	WARN_ON(eqo->state & (BE_EQ_POLL | BE_EQ_NAPI_YIELD));
+	eqo->state = BE_EQ_IDLE;
+
+	spin_unlock(&eqo->lock);
+}
+
+static inline bool be_lock_busy_poll(struct be_eq_obj *eqo)
+{
+	bool status = true;
+
+	spin_lock_bh(&eqo->lock);
+	if (eqo->state & BE_EQ_LOCKED) {
+		eqo->state |= BE_EQ_POLL_YIELD;
+		status = false;
+	} else {
+		eqo->state |= BE_EQ_POLL;
+	}
+	spin_unlock_bh(&eqo->lock);
+	return status;
+}
+
+static inline void be_unlock_busy_poll(struct be_eq_obj *eqo)
+{
+	spin_lock_bh(&eqo->lock);
+
+	WARN_ON(eqo->state & (BE_EQ_NAPI));
+	eqo->state = BE_EQ_IDLE;
+
+	spin_unlock_bh(&eqo->lock);
+}
+
+static inline void be_enable_busy_poll(struct be_eq_obj *eqo)
+{
+	spin_lock_init(&eqo->lock);
+	eqo->state = BE_EQ_IDLE;
+}
+
+static inline void be_disable_busy_poll(struct be_eq_obj *eqo)
+{
+	local_bh_disable();
+
+	/* It's enough to just acquire napi lock on the eqo to stop
+	 * be_busy_poll() from processing any queueus.
+	 */
+	while (!be_lock_napi(eqo))
+		mdelay(1);
+
+	local_bh_enable();
+}
+
+#else /* CONFIG_NET_RX_BUSY_POLL */
+
+static inline bool be_lock_napi(struct be_eq_obj *eqo)
+{
+	return true;
+}
+
+static inline void be_unlock_napi(struct be_eq_obj *eqo)
+{
+}
+
+static inline bool be_lock_busy_poll(struct be_eq_obj *eqo)
+{
+	return false;
+}
+
+static inline void be_unlock_busy_poll(struct be_eq_obj *eqo)
+{
+}
+
+static inline void be_enable_busy_poll(struct be_eq_obj *eqo)
+{
+}
+
+static inline void be_disable_busy_poll(struct be_eq_obj *eqo)
+{
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
+
 int be_poll(struct napi_struct *napi, int budget)
 {
 	struct be_eq_obj *eqo = container_of(napi, struct be_eq_obj, napi);
@@ -3018,6 +3123,19 @@ static int be_setup_wol(struct be_adapter *adapter, bool enable)
 
 	dma_free_coherent(&adapter->pdev->dev, cmd.size, cmd.va, cmd.dma);
 	return status;
+}
+
+static void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
+{
+	u32 addr;
+
+	addr = jhash(adapter->netdev->dev_addr, ETH_ALEN, 0);
+
+	mac[5] = (u8)(addr & 0xFF);
+	mac[4] = (u8)((addr >> 8) & 0xFF);
+	mac[3] = (u8)((addr >> 16) & 0xFF);
+	/* Use the OUI from the current MAC address */
+	memcpy(mac, adapter->netdev->dev_addr, 3);
 }
 
 /*
@@ -3662,6 +3780,17 @@ int be_update_queues(struct be_adapter *adapter)
 		status = be_open(netdev);
 
 	return status;
+}
+
+static inline int fw_major_num(const char *fw_ver)
+{
+	int fw_major = 0, i;
+
+	i = sscanf(fw_ver, "%d.", &fw_major);
+	if (i != 1)
+		return 0;
+
+	return fw_major;
 }
 
 static int be_setup(struct be_adapter *adapter)
@@ -4938,6 +5067,26 @@ static char *mc_name(struct be_adapter *adapter)
 static inline char *func_name(struct be_adapter *adapter)
 {
 	return be_physfn(adapter) ? "PF" : "VF";
+}
+
+static inline char *nic_name(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case OC_DEVICE_ID1:
+		return OC_NAME;
+	case OC_DEVICE_ID2:
+		return OC_NAME_BE;
+	case OC_DEVICE_ID3:
+	case OC_DEVICE_ID4:
+		return OC_NAME_LANCER;
+	case BE_DEVICE_ID2:
+		return BE3_NAME;
+	case OC_DEVICE_ID5:
+	case OC_DEVICE_ID6:
+		return OC_NAME_SH;
+	default:
+		return BE_NAME;
+	}
 }
 
 static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)

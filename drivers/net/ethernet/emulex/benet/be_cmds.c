@@ -3241,6 +3241,24 @@ err:
 	return status;
 }
 
+static bool be_is_wol_excluded(struct be_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+
+	if (!be_physfn(adapter))
+		return true;
+
+	switch (pdev->subsystem_device) {
+	case OC_SUBSYS_DEVICE_ID1:
+	case OC_SUBSYS_DEVICE_ID2:
+	case OC_SUBSYS_DEVICE_ID3:
+	case OC_SUBSYS_DEVICE_ID4:
+		return true;
+	default:
+		return false;
+	}
+}
+
 int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter)
 {
 	struct be_mcc_wrb *wrb;
