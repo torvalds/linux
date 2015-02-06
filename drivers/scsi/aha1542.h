@@ -1,35 +1,5 @@
-#ifndef _AHA1542_H
-
-/* $Id: aha1542.h,v 1.1 1992/07/24 06:27:38 root Exp root $
- *
- * Header file for the adaptec 1542 driver for Linux
- *
- * $Log: aha1542.h,v $
- * Revision 1.1  1992/07/24  06:27:38  root
- * Initial revision
- *
- * Revision 1.2  1992/07/04  18:41:49  root
- * Replaced distribution with current drivers
- *
- * Revision 1.3  1992/06/23  23:58:20  root
- * Fixes.
- *
- * Revision 1.2  1992/05/26  22:13:23  root
- * Changed bug that prevented DMA above first 2 mbytes.
- *
- * Revision 1.1  1992/05/22  21:00:29  root
- * Initial revision
- *
- * Revision 1.1  1992/04/24  18:01:50  root
- * Initial revision
- *
- * Revision 1.1  1992/04/02  03:23:13  drew
- * Initial revision
- *
- * Revision 1.3  1992/01/27  14:46:29  tthorn
- * *** empty log message ***
- *
- */
+#ifndef _AHA1542_H_
+#define _AHA1542_H_
 
 #include <linux/types.h>
 
@@ -129,4 +99,4 @@ struct ccb {		/* Command Control Block 5.3 */
 #define AHA1542_REGION_SIZE 4
 #define AHA1542_MAILBOXES 8
 
-#endif
+#endif /* _AHA1542_H_ */
