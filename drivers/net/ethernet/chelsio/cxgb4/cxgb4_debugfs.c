@@ -813,6 +813,41 @@ static const struct file_operations mps_tcam_debugfs_fops = {
 	.release = seq_release,
 };
 
+/* Display various sensor information.
+ */
+static int sensors_show(struct seq_file *seq, void *v)
+{
+	struct adapter *adap = seq->private;
+	u32 param[7], val[7];
+	int ret;
+
+	/* Note that if the sensors haven't been initialized and turned on
+	 * we'll get values of 0, so treat those as "<unknown>" ...
+	 */
+	param[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DIAG) |
+		    FW_PARAMS_PARAM_Y_V(FW_PARAM_DEV_DIAG_TMP));
+	param[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DIAG) |
+		    FW_PARAMS_PARAM_Y_V(FW_PARAM_DEV_DIAG_VDD));
+	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2,
+			      param, val);
+
+	if (ret < 0 || val[0] == 0)
+		seq_puts(seq, "Temperature: <unknown>\n");
+	else
+		seq_printf(seq, "Temperature: %dC\n", val[0]);
+
+	if (ret < 0 || val[1] == 0)
+		seq_puts(seq, "Core VDD:    <unknown>\n");
+	else
+		seq_printf(seq, "Core VDD:    %dmV\n", val[1]);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_DEBUGFS_FILE(sensors);
+
 #if IS_ENABLED(CONFIG_IPV6)
 static int clip_tbl_open(struct inode *inode, struct file *file)
 {
@@ -1584,6 +1619,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "obq_ulp3", &cim_obq_fops, S_IRUSR, 3 },
 		{ "obq_sge",  &cim_obq_fops, S_IRUSR, 4 },
 		{ "obq_ncsi", &cim_obq_fops, S_IRUSR, 5 },
+		{ "sensors", &sensors_debugfs_fops, S_IRUSR, 0 },
 		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
