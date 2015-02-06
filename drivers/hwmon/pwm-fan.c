@@ -33,21 +33,15 @@ struct pwm_fan_ctx {
 	unsigned char pwm_value;
 };
 
-static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
-		       const char *buf, size_t count)
+static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 {
-	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
-	unsigned long pwm, duty;
-	ssize_t ret;
-
-	if (kstrtoul(buf, 10, &pwm) || pwm > MAX_PWM)
-		return -EINVAL;
-
-	mutex_lock(&ctx->lock);
+	unsigned long duty;
+	int ret;
 
 	if (ctx->pwm_value == pwm)
-		goto exit_set_pwm_no_change;
+		return 0;
 
+	mutex_lock(&ctx->lock);
 	if (pwm == 0) {
 		pwm_disable(ctx->pwm);
 		goto exit_set_pwm;
@@ -66,11 +60,26 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 
 exit_set_pwm:
 	ctx->pwm_value = pwm;
-exit_set_pwm_no_change:
-	ret = count;
 exit_set_pwm_err:
 	mutex_unlock(&ctx->lock);
 	return ret;
+}
+
+static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
+{
+	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
+	unsigned long pwm;
+	int ret;
+
+	if (kstrtoul(buf, 10, &pwm) || pwm > MAX_PWM)
+		return -EINVAL;
+
+	ret = __set_pwm(ctx, pwm);
+	if (ret)
+		return ret;
+
+	return count;
 }
 
 static ssize_t show_pwm(struct device *dev,
