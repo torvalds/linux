@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -228,73 +228,20 @@ static void i40e_partition_setting_complaint(struct i40e_pf *pf)
 }
 
 /**
- * i40e_get_settings - Get Link Speed and Duplex settings
+ * i40e_get_settings_link_up - Get the Link settings for when link is up
+ * @hw: hw structure
+ * @ecmd: ethtool command to fill in
  * @netdev: network interface device structure
- * @ecmd: ethtool command
  *
- * Reports speed/duplex settings based on media_type
  **/
-static int i40e_get_settings(struct net_device *netdev,
-			     struct ethtool_cmd *ecmd)
+static void i40e_get_settings_link_up(struct i40e_hw *hw,
+				      struct ethtool_cmd *ecmd,
+				      struct net_device *netdev)
 {
-	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_pf *pf = np->vsi->back;
-	struct i40e_hw *hw = &pf->hw;
 	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
-	bool link_up = hw_link_info->link_info & I40E_AQ_LINK_UP;
 	u32 link_speed = hw_link_info->link_speed;
 
-	/* hardware is either in 40G mode or 10G mode
-	 * NOTE: this section initializes supported and advertising
-	 */
-	if (!link_up) {
-		/* link is down and the driver needs to fall back on
-		 * device ID to determine what kinds of info to display,
-		 * it's mostly a guess that may change when link is up
-		 */
-		switch (hw->device_id) {
-		case I40E_DEV_ID_QSFP_A:
-		case I40E_DEV_ID_QSFP_B:
-		case I40E_DEV_ID_QSFP_C:
-			/* pluggable QSFP */
-			ecmd->supported = SUPPORTED_40000baseSR4_Full |
-					  SUPPORTED_40000baseCR4_Full |
-					  SUPPORTED_40000baseLR4_Full;
-			ecmd->advertising = ADVERTISED_40000baseSR4_Full |
-					    ADVERTISED_40000baseCR4_Full |
-					    ADVERTISED_40000baseLR4_Full;
-			break;
-		case I40E_DEV_ID_KX_B:
-			/* backplane 40G */
-			ecmd->supported = SUPPORTED_40000baseKR4_Full;
-			ecmd->advertising = ADVERTISED_40000baseKR4_Full;
-			break;
-		case I40E_DEV_ID_KX_C:
-			/* backplane 10G */
-			ecmd->supported = SUPPORTED_10000baseKR_Full;
-			ecmd->advertising = ADVERTISED_10000baseKR_Full;
-			break;
-		case I40E_DEV_ID_10G_BASE_T:
-			ecmd->supported = SUPPORTED_10000baseT_Full |
-					  SUPPORTED_1000baseT_Full |
-					  SUPPORTED_100baseT_Full;
-			ecmd->advertising = ADVERTISED_10000baseT_Full |
-					    ADVERTISED_1000baseT_Full |
-					    ADVERTISED_100baseT_Full;
-			break;
-		default:
-			/* all the rest are 10G/1G */
-			ecmd->supported = SUPPORTED_10000baseT_Full |
-					  SUPPORTED_1000baseT_Full;
-			ecmd->advertising = ADVERTISED_10000baseT_Full |
-					    ADVERTISED_1000baseT_Full;
-			break;
-		}
-
-		/* skip phy_type use as it is zero when link is down */
-		goto no_valid_phy_type;
-	}
-
+	/* Initialize supported and advertised settings based on phy settings */
 	switch (hw_link_info->phy_type) {
 	case I40E_PHY_TYPE_40GBASE_CR4:
 	case I40E_PHY_TYPE_40GBASE_CR4_CU:
@@ -303,6 +250,10 @@ static int i40e_get_settings(struct net_device *netdev,
 		ecmd->advertising = ADVERTISED_Autoneg |
 				    ADVERTISED_40000baseCR4_Full;
 		break;
+	case I40E_PHY_TYPE_XLAUI:
+	case I40E_PHY_TYPE_XLPPI:
+		ecmd->supported = SUPPORTED_40000baseCR4_Full;
+		break;
 	case I40E_PHY_TYPE_40GBASE_KR4:
 		ecmd->supported = SUPPORTED_Autoneg |
 				  SUPPORTED_40000baseKR4_Full;
@@ -310,8 +261,6 @@ static int i40e_get_settings(struct net_device *netdev,
 				    ADVERTISED_40000baseKR4_Full;
 		break;
 	case I40E_PHY_TYPE_40GBASE_SR4:
-	case I40E_PHY_TYPE_XLPPI:
-	case I40E_PHY_TYPE_XLAUI:
 		ecmd->supported = SUPPORTED_40000baseSR4_Full;
 		break;
 	case I40E_PHY_TYPE_40GBASE_LR4:
@@ -333,20 +282,40 @@ static int i40e_get_settings(struct net_device *netdev,
 	case I40E_PHY_TYPE_10GBASE_LR:
 	case I40E_PHY_TYPE_1000BASE_SX:
 	case I40E_PHY_TYPE_1000BASE_LX:
-		ecmd->supported = SUPPORTED_10000baseT_Full;
-		ecmd->supported |= SUPPORTED_1000baseT_Full;
+		ecmd->supported = SUPPORTED_10000baseT_Full |
+				  SUPPORTED_1000baseT_Full;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
+			ecmd->advertising |= ADVERTISED_10000baseT_Full;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
+			ecmd->advertising |= ADVERTISED_1000baseT_Full;
 		break;
-	case I40E_PHY_TYPE_10GBASE_CR1_CU:
-	case I40E_PHY_TYPE_10GBASE_CR1:
+	case I40E_PHY_TYPE_1000BASE_KX:
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_1000baseKX_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_1000baseKX_Full;
+		break;
 	case I40E_PHY_TYPE_10GBASE_T:
+	case I40E_PHY_TYPE_1000BASE_T:
+	case I40E_PHY_TYPE_100BASE_TX:
 		ecmd->supported = SUPPORTED_Autoneg |
 				  SUPPORTED_10000baseT_Full |
 				  SUPPORTED_1000baseT_Full |
 				  SUPPORTED_100baseT_Full;
+		ecmd->advertising = ADVERTISED_Autoneg;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
+			ecmd->advertising |= ADVERTISED_10000baseT_Full;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
+			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_100MB)
+			ecmd->advertising |= ADVERTISED_100baseT_Full;
+		break;
+	case I40E_PHY_TYPE_10GBASE_CR1_CU:
+	case I40E_PHY_TYPE_10GBASE_CR1:
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_10000baseT_Full;
 		ecmd->advertising = ADVERTISED_Autoneg |
-				    ADVERTISED_10000baseT_Full |
-				    ADVERTISED_1000baseT_Full |
-				    ADVERTISED_100baseT_Full;
+				    ADVERTISED_10000baseT_Full;
 		break;
 	case I40E_PHY_TYPE_XAUI:
 	case I40E_PHY_TYPE_XFI:
@@ -354,34 +323,14 @@ static int i40e_get_settings(struct net_device *netdev,
 	case I40E_PHY_TYPE_10GBASE_SFPP_CU:
 		ecmd->supported = SUPPORTED_10000baseT_Full;
 		break;
-	case I40E_PHY_TYPE_1000BASE_KX:
-	case I40E_PHY_TYPE_1000BASE_T:
-		ecmd->supported = SUPPORTED_Autoneg |
-				  SUPPORTED_10000baseT_Full |
-				  SUPPORTED_1000baseT_Full |
-				  SUPPORTED_100baseT_Full;
-		ecmd->advertising = ADVERTISED_Autoneg |
-				    ADVERTISED_10000baseT_Full |
-				    ADVERTISED_1000baseT_Full |
-				    ADVERTISED_100baseT_Full;
-		break;
-	case I40E_PHY_TYPE_100BASE_TX:
-		ecmd->supported = SUPPORTED_Autoneg |
-				  SUPPORTED_10000baseT_Full |
-				  SUPPORTED_1000baseT_Full |
-				  SUPPORTED_100baseT_Full;
-		ecmd->advertising = ADVERTISED_Autoneg |
-				    ADVERTISED_10000baseT_Full |
-				    ADVERTISED_1000baseT_Full |
-				    ADVERTISED_100baseT_Full;
-		break;
 	case I40E_PHY_TYPE_SGMII:
 		ecmd->supported = SUPPORTED_Autoneg |
 				  SUPPORTED_1000baseT_Full |
 				  SUPPORTED_100baseT_Full;
-		ecmd->advertising = ADVERTISED_Autoneg |
-				    ADVERTISED_1000baseT_Full |
-				    ADVERTISED_100baseT_Full;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
+			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_100MB)
+			ecmd->advertising |= ADVERTISED_100baseT_Full;
 		break;
 	default:
 		/* if we got here and link is up something bad is afoot */
@@ -389,8 +338,118 @@ static int i40e_get_settings(struct net_device *netdev,
 			    hw_link_info->phy_type);
 	}
 
-no_valid_phy_type:
-	/* this is if autoneg is enabled or disabled */
+	/* Set speed and duplex */
+	switch (link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		/* need a SPEED_40000 in ethtool.h */
+		ethtool_cmd_speed_set(ecmd, 40000);
+		break;
+	case I40E_LINK_SPEED_10GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_10000);
+		break;
+	case I40E_LINK_SPEED_1GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_1000);
+		break;
+	case I40E_LINK_SPEED_100MB:
+		ethtool_cmd_speed_set(ecmd, SPEED_100);
+		break;
+	default:
+		break;
+	}
+	ecmd->duplex = DUPLEX_FULL;
+}
+
+/**
+ * i40e_get_settings_link_down - Get the Link settings for when link is down
+ * @hw: hw structure
+ * @ecmd: ethtool command to fill in
+ *
+ * Reports link settings that can be determined when link is down
+ **/
+static void i40e_get_settings_link_down(struct i40e_hw *hw,
+					struct ethtool_cmd *ecmd)
+{
+	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
+
+	/* link is down and the driver needs to fall back on
+	 * device ID to determine what kinds of info to display,
+	 * it's mostly a guess that may change when link is up
+	 */
+	switch (hw->device_id) {
+	case I40E_DEV_ID_QSFP_A:
+	case I40E_DEV_ID_QSFP_B:
+	case I40E_DEV_ID_QSFP_C:
+		/* pluggable QSFP */
+		ecmd->supported = SUPPORTED_40000baseSR4_Full |
+				  SUPPORTED_40000baseCR4_Full |
+				  SUPPORTED_40000baseLR4_Full;
+		ecmd->advertising = ADVERTISED_40000baseSR4_Full |
+				    ADVERTISED_40000baseCR4_Full |
+				    ADVERTISED_40000baseLR4_Full;
+		break;
+	case I40E_DEV_ID_KX_B:
+		/* backplane 40G */
+		ecmd->supported = SUPPORTED_40000baseKR4_Full;
+		ecmd->advertising = ADVERTISED_40000baseKR4_Full;
+		break;
+	case I40E_DEV_ID_KX_C:
+		/* backplane 10G */
+		ecmd->supported = SUPPORTED_10000baseKR_Full;
+		ecmd->advertising = ADVERTISED_10000baseKR_Full;
+		break;
+	case I40E_DEV_ID_10G_BASE_T:
+		ecmd->supported = SUPPORTED_10000baseT_Full |
+				  SUPPORTED_1000baseT_Full |
+				  SUPPORTED_100baseT_Full;
+		/* Figure out what has been requested */
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
+			ecmd->advertising |= ADVERTISED_10000baseT_Full;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
+			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_100MB)
+			ecmd->advertising |= ADVERTISED_100baseT_Full;
+		break;
+	default:
+		/* all the rest are 10G/1G */
+		ecmd->supported = SUPPORTED_10000baseT_Full |
+				  SUPPORTED_1000baseT_Full;
+		/* Figure out what has been requested */
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
+			ecmd->advertising |= ADVERTISED_10000baseT_Full;
+		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
+			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		break;
+	}
+
+	/* With no link speed and duplex are unknown */
+	ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+	ecmd->duplex = DUPLEX_UNKNOWN;
+}
+
+/**
+ * i40e_get_settings - Get Link Speed and Duplex settings
+ * @netdev: network interface device structure
+ * @ecmd: ethtool command
+ *
+ * Reports speed/duplex settings based on media_type
+ **/
+static int i40e_get_settings(struct net_device *netdev,
+			     struct ethtool_cmd *ecmd)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
+	bool link_up = hw_link_info->link_info & I40E_AQ_LINK_UP;
+
+	if (link_up)
+		i40e_get_settings_link_up(hw, ecmd, netdev);
+	else
+		i40e_get_settings_link_down(hw, ecmd);
+
+	/* Now set the settings that don't rely on link being up/down */
+
+	/* Set autoneg settings */
 	ecmd->autoneg = ((hw_link_info->an_info & I40E_AQ_AN_COMPLETED) ?
 			  AUTONEG_ENABLE : AUTONEG_DISABLE);
 
@@ -423,11 +482,13 @@ no_valid_phy_type:
 		break;
 	}
 
+	/* Set transceiver */
 	ecmd->transceiver = XCVR_EXTERNAL;
 
+	/* Set flow control settings */
 	ecmd->supported |= SUPPORTED_Pause;
 
-	switch (hw->fc.current_mode) {
+	switch (hw->fc.requested_mode) {
 	case I40E_FC_FULL:
 		ecmd->advertising |= ADVERTISED_Pause;
 		break;
@@ -442,30 +503,6 @@ no_valid_phy_type:
 		ecmd->advertising &= ~(ADVERTISED_Pause |
 				       ADVERTISED_Asym_Pause);
 		break;
-	}
-
-	if (link_up) {
-		switch (link_speed) {
-		case I40E_LINK_SPEED_40GB:
-			/* need a SPEED_40000 in ethtool.h */
-			ethtool_cmd_speed_set(ecmd, 40000);
-			break;
-		case I40E_LINK_SPEED_10GB:
-			ethtool_cmd_speed_set(ecmd, SPEED_10000);
-			break;
-		case I40E_LINK_SPEED_1GB:
-			ethtool_cmd_speed_set(ecmd, SPEED_1000);
-			break;
-		case I40E_LINK_SPEED_100MB:
-			ethtool_cmd_speed_set(ecmd, SPEED_100);
-			break;
-		default:
-			break;
-		}
-		ecmd->duplex = DUPLEX_FULL;
-	} else {
-		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
-		ecmd->duplex = DUPLEX_UNKNOWN;
 	}
 
 	return 0;
@@ -600,6 +637,8 @@ static int i40e_set_settings(struct net_device *netdev,
 		config.eeer = abilities.eeer_val;
 		config.low_power_ctrl = abilities.d3_lpan;
 
+		/* save the requested speeds */
+		hw->phy.link_info.requested_speeds = config.link_speed;
 		/* set link and auto negotiation so changes take effect */
 		config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
 		/* If link is up put link down */
