@@ -1044,6 +1044,7 @@ static int mmc_select_hs400(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 	int err = 0;
+	u8 val;
 
 	/*
 	 * HS400 mode requires 8-bit bus width
@@ -1059,8 +1060,10 @@ static int mmc_select_hs400(struct mmc_card *card)
 	mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
 	mmc_set_bus_speed(card);
 
+	val = EXT_CSD_TIMING_HS |
+	      card->drive_strength << EXT_CSD_DRV_STR_SHIFT;
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS,
+			   EXT_CSD_HS_TIMING, val,
 			   card->ext_csd.generic_cmd6_time,
 			   true, true, true);
 	if (err) {
@@ -1079,8 +1082,10 @@ static int mmc_select_hs400(struct mmc_card *card)
 		return err;
 	}
 
+	val = EXT_CSD_TIMING_HS400 |
+	      card->drive_strength << EXT_CSD_DRV_STR_SHIFT;
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS400,
+			   EXT_CSD_HS_TIMING, val,
 			   card->ext_csd.generic_cmd6_time,
 			   true, true, true);
 	if (err) {
@@ -1119,6 +1124,7 @@ int mmc_hs400_to_hs200(struct mmc_card *card)
 	bool send_status = true;
 	unsigned int max_dtr;
 	int err;
+	u8 val;
 
 	if (host->caps & MMC_CAP_WAIT_WHILE_BUSY)
 		send_status = false;
@@ -1128,8 +1134,10 @@ int mmc_hs400_to_hs200(struct mmc_card *card)
 	mmc_set_clock(host, max_dtr);
 
 	/* Switch HS400 to HS DDR */
+	val = EXT_CSD_TIMING_HS |
+	      card->drive_strength << EXT_CSD_DRV_STR_SHIFT;
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_HS_TIMING,
-			   EXT_CSD_TIMING_HS, card->ext_csd.generic_cmd6_time,
+			   val, card->ext_csd.generic_cmd6_time,
 			   true, send_status, true);
 	if (err)
 		goto out_err;
@@ -1158,10 +1166,11 @@ int mmc_hs400_to_hs200(struct mmc_card *card)
 	}
 
 	/* Switch HS to HS200 */
+	val = EXT_CSD_TIMING_HS200 |
+	      card->drive_strength << EXT_CSD_DRV_STR_SHIFT;
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_HS_TIMING,
-			   EXT_CSD_TIMING_HS200,
-			   card->ext_csd.generic_cmd6_time, true, send_status,
-			   true);
+			   val, card->ext_csd.generic_cmd6_time, true,
+			   send_status, true);
 	if (err)
 		goto out_err;
 
@@ -1183,6 +1192,23 @@ out_err:
 	return err;
 }
 
+static void mmc_select_driver_type(struct mmc_card *card)
+{
+	int card_drv_type, drive_strength, drv_type;
+
+	card_drv_type = card->ext_csd.raw_driver_strength |
+			mmc_driver_type_mask(0);
+
+	drive_strength = mmc_select_drive_strength(card,
+						   card->ext_csd.hs200_max_dtr,
+						   card_drv_type, &drv_type);
+
+	card->drive_strength = drive_strength;
+
+	if (drv_type)
+		mmc_set_driver_type(card->host, drv_type);
+}
+
 /*
  * For device supporting HS200 mode, the following sequence
  * should be done before executing the tuning process.
@@ -1194,6 +1220,7 @@ static int mmc_select_hs200(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 	int err = -EINVAL;
+	u8 val;
 
 	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_2V)
 		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
@@ -1205,14 +1232,18 @@ static int mmc_select_hs200(struct mmc_card *card)
 	if (err)
 		goto err;
 
+	mmc_select_driver_type(card);
+
 	/*
 	 * Set the bus width(4 or 8) with host's support and
 	 * switch to HS200 mode if bus width is set successfully.
 	 */
 	err = mmc_select_bus_width(card);
 	if (!IS_ERR_VALUE(err)) {
+		val = EXT_CSD_TIMING_HS200 |
+		      card->drive_strength << EXT_CSD_DRV_STR_SHIFT;
 		err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS200,
+				   EXT_CSD_HS_TIMING, val,
 				   card->ext_csd.generic_cmd6_time,
 				   true, true, true);
 		if (!err)
