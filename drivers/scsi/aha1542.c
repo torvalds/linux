@@ -191,13 +191,13 @@ fail:
 /* Only used at boot time, so we do not need to worry about latency as much
    here */
 
-static int aha1542_in(unsigned int base, u8 *cmdp, int len)
+static int aha1542_in(unsigned int base, u8 *cmdp, int len, int timeout)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&aha1542_lock, flags);
 	while (len--) {
-		if (!wait_mask(STATUS(base), DF, DF, 0, 0))
+		if (!wait_mask(STATUS(base), DF, DF, 0, timeout))
 			goto fail;
 		*cmdp++ = inb(DATA(base));
 	}
@@ -205,27 +205,8 @@ static int aha1542_in(unsigned int base, u8 *cmdp, int len)
 	return 0;
 fail:
 	spin_unlock_irqrestore(&aha1542_lock, flags);
-	printk(KERN_ERR "aha1542_in failed(%d): ", len + 1);
-	return 1;
-}
-
-/* Similar to aha1542_in, except that we wait a very short period of time.
-   We use this if we know the board is alive and awake, but we are not sure
-   if the board will respond to the command we are about to send or not */
-static int aha1542_in1(unsigned int base, u8 *cmdp, int len)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&aha1542_lock, flags);
-	while (len--) {
-		if (!wait_mask(STATUS(base), DF, DF, 0, 100))
-			goto fail;
-		*cmdp++ = inb(DATA(base));
-	}
-	spin_unlock_irqrestore(&aha1542_lock, flags);
-	return 0;
-fail:
-	spin_unlock_irqrestore(&aha1542_lock, flags);
+	if (timeout == 0)
+		printk(KERN_ERR "aha1542_in failed(%d): ", len + 1);
 	return 1;
 }
 
@@ -730,7 +711,7 @@ static int aha1542_getconfig(int base_io, unsigned char *irq_level, unsigned cha
 		i = inb(DATA(base_io));
 	};
 	aha1542_out(base_io, inquiry_cmd, 1);
-	aha1542_in(base_io, inquiry_result, 3);
+	aha1542_in(base_io, inquiry_result, 3, 0);
 	if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
 		goto fail;
 	while (0) {
@@ -800,7 +781,7 @@ static int aha1542_mbenable(int base)
 
 	mbenable_cmd[0] = CMD_EXTBIOS;
 	aha1542_out(base, mbenable_cmd, 1);
-	if (aha1542_in1(base, mbenable_result, 2))
+	if (aha1542_in(base, mbenable_result, 2, 100))
 		return retval;
 	if (!wait_mask(INTRFLAGS(base), INTRMASK, HACC, 0, 100))
 		goto fail;
@@ -837,7 +818,7 @@ static int aha1542_query(int base_io, int *transl)
 		i = inb(DATA(base_io));
 	};
 	aha1542_out(base_io, inquiry_cmd, 1);
-	aha1542_in(base_io, inquiry_result, 4);
+	aha1542_in(base_io, inquiry_result, 4, 0);
 	if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
 		goto fail;
 	while (0) {
