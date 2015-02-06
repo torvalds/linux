@@ -947,6 +947,7 @@
 
 /* registers for module CIM */
 #define CIM_BOOT_CFG_A 0x7b00
+#define CIM_PF_MAILBOX_CTRL_SHADOW_COPY_A 0x290
 
 #define  BOOTADDR_M	0xffffff00U
 
