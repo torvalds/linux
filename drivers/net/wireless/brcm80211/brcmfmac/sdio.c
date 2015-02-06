@@ -515,6 +515,7 @@ struct brcmf_sdio {
 	bool txoff;		/* Transmit flow-controlled */
 	struct brcmf_sdio_count sdcnt;
 	bool sr_enabled; /* SaveRestore enabled */
+	bool sleeping;
 
 	u8 tx_hdrlen;		/* sdio bus header length for tx packet */
 	bool txglom;		/* host tx glomming enable flag */
@@ -1013,12 +1014,12 @@ brcmf_sdio_bus_sleep(struct brcmf_sdio *bus, bool sleep, bool pendok)
 
 	brcmf_dbg(SDIO, "Enter: request %s currently %s\n",
 		  (sleep ? "SLEEP" : "WAKE"),
-		  (bus->sdiodev->sleeping ? "SLEEP" : "WAKE"));
+		  (bus->sleeping ? "SLEEP" : "WAKE"));
 
 	/* If SR is enabled control bus state with KSO */
 	if (bus->sr_enabled) {
 		/* Done if we're already in the requested state */
-		if (sleep == bus->sdiodev->sleeping)
+		if (sleep == bus->sleeping)
 			goto end;
 
 		/* Going to sleep */
@@ -1065,9 +1066,7 @@ end:
 	} else {
 		brcmf_sdio_clkctl(bus, CLK_AVAIL, pendok);
 	}
-	bus->sdiodev->sleeping = sleep;
-	if (sleep)
-		wake_up(&bus->sdiodev->idle_wait);
+	bus->sleeping = sleep;
 	brcmf_dbg(SDIO, "new state %s\n",
 		  (sleep ? "SLEEP" : "WAKE"));
 done:
@@ -2603,21 +2602,6 @@ static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 	return ret;
 }
 
-static int brcmf_sdio_pm_resume_wait(struct brcmf_sdio_dev *sdiodev)
-{
-#ifdef CONFIG_PM_SLEEP
-	int retry;
-
-	/* Wait for possible resume to complete */
-	retry = 0;
-	while ((atomic_read(&sdiodev->suspend)) && (retry++ != 50))
-		msleep(20);
-	if (atomic_read(&sdiodev->suspend))
-		return -EIO;
-#endif
-	return 0;
-}
-
 static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 {
 	u32 newstatus = 0;
@@ -2627,9 +2611,6 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	int err = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
-
-	if (brcmf_sdio_pm_resume_wait(bus->sdiodev))
-		return;
 
 	sdio_claim_host(bus->sdiodev->func[1]);
 
@@ -2862,11 +2843,7 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 		qcount[prec] = pktq_plen(&bus->txq, prec);
 #endif
 
-	if (atomic_read(&bus->dpc_tskcnt) == 0) {
-		atomic_inc(&bus->dpc_tskcnt);
-		queue_work(bus->brcmf_wq, &bus->datawork);
-	}
-
+	brcmf_sdio_trigger_dpc(bus);
 	return ret;
 }
 
@@ -2964,11 +2941,8 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	bus->ctrl_frame_buf = msg;
 	bus->ctrl_frame_len = msglen;
 	bus->ctrl_frame_stat = true;
-	if (atomic_read(&bus->dpc_tskcnt) == 0) {
-		atomic_inc(&bus->dpc_tskcnt);
-		queue_work(bus->brcmf_wq, &bus->datawork);
-	}
 
+	brcmf_sdio_trigger_dpc(bus);
 	wait_event_interruptible_timeout(bus->ctrl_wait, !bus->ctrl_frame_stat,
 					 msecs_to_jiffies(CTL_DONE_TIMEOUT));
 
@@ -3548,6 +3522,14 @@ done:
 	return err;
 }
 
+void brcmf_sdio_trigger_dpc(struct brcmf_sdio *bus)
+{
+	if (atomic_read(&bus->dpc_tskcnt) == 0) {
+		atomic_inc(&bus->dpc_tskcnt);
+		queue_work(bus->brcmf_wq, &bus->datawork);
+	}
+}
+
 void brcmf_sdio_isr(struct brcmf_sdio *bus)
 {
 	brcmf_dbg(TRACE, "Enter\n");
@@ -3602,9 +3584,8 @@ static bool brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 							    SDIO_CCCR_INTx,
 							    NULL);
 				sdio_release_host(bus->sdiodev->func[1]);
-				intstatus =
-				    devpend & (INTR_STATUS_FUNC1 |
-					       INTR_STATUS_FUNC2);
+				intstatus = devpend & (INTR_STATUS_FUNC1 |
+						       INTR_STATUS_FUNC2);
 			}
 
 			/* If there is something, make like the ISR and
@@ -3666,6 +3647,11 @@ static void brcmf_sdio_dataworker(struct work_struct *work)
 	while (atomic_read(&bus->dpc_tskcnt)) {
 		atomic_set(&bus->dpc_tskcnt, 0);
 		brcmf_sdio_dpc(bus);
+	}
+	if (brcmf_sdiod_freezing(bus->sdiodev)) {
+		brcmf_sdiod_change_state(bus->sdiodev, BRCMF_SDIOD_DOWN);
+		brcmf_sdiod_try_freeze(bus->sdiodev);
+		brcmf_sdiod_change_state(bus->sdiodev, BRCMF_SDIOD_DATA);
 	}
 }
 
@@ -3944,13 +3930,19 @@ static int
 brcmf_sdio_watchdog_thread(void *data)
 {
 	struct brcmf_sdio *bus = (struct brcmf_sdio *)data;
+	int wait;
 
 	allow_signal(SIGTERM);
 	/* Run until signal received */
+	brcmf_sdiod_freezer_count(bus->sdiodev);
 	while (1) {
 		if (kthread_should_stop())
 			break;
-		if (!wait_for_completion_interruptible(&bus->watchdog_wait)) {
+		brcmf_sdiod_freezer_uncount(bus->sdiodev);
+		wait = wait_for_completion_interruptible(&bus->watchdog_wait);
+		brcmf_sdiod_freezer_count(bus->sdiodev);
+		brcmf_sdiod_try_freeze(bus->sdiodev);
+		if (!wait) {
 			brcmf_sdio_bus_watchdog(bus);
 			/* Count the tick for reference */
 			bus->sdcnt.tickcnt++;
@@ -4089,6 +4081,7 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
 	struct brcmf_sdio *bus;
+	struct workqueue_struct *wq;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -4117,12 +4110,16 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 			bus->sgentry_align = sdiodev->pdata->sd_sgentry_align;
 	}
 
-	INIT_WORK(&bus->datawork, brcmf_sdio_dataworker);
-	bus->brcmf_wq = create_singlethread_workqueue("brcmf_wq");
-	if (bus->brcmf_wq == NULL) {
+	/* single-threaded workqueue */
+	wq = alloc_ordered_workqueue("brcmf_wq/%s", WQ_MEM_RECLAIM,
+				     dev_name(&sdiodev->func[1]->dev));
+	if (!wq) {
 		brcmf_err("insufficient memory to create txworkqueue\n");
 		goto fail;
 	}
+	brcmf_sdiod_freezer_count(sdiodev);
+	INIT_WORK(&bus->datawork, brcmf_sdio_dataworker);
+	bus->brcmf_wq = wq;
 
 	/* attempt to attach to the dongle */
 	if (!(brcmf_sdio_probe_attach(bus))) {
@@ -4143,7 +4140,8 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	/* Initialize watchdog thread */
 	init_completion(&bus->watchdog_wait);
 	bus->watchdog_tsk = kthread_run(brcmf_sdio_watchdog_thread,
-					bus, "brcmf_watchdog");
+					bus, "brcmf_wdog/%s",
+					dev_name(&sdiodev->func[1]->dev));
 	if (IS_ERR(bus->watchdog_tsk)) {
 		pr_warn("brcmf_watchdog thread failed to start\n");
 		bus->watchdog_tsk = NULL;
@@ -4303,3 +4301,15 @@ void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 		bus->save_ms = wdtick;
 	}
 }
+
+int brcmf_sdio_sleep(struct brcmf_sdio *bus, bool sleep)
+{
+	int ret;
+
+	sdio_claim_host(bus->sdiodev->func[1]);
+	ret = brcmf_sdio_bus_sleep(bus, sleep, false);
+	sdio_release_host(bus->sdiodev->func[1]);
+
+	return ret;
+}
+

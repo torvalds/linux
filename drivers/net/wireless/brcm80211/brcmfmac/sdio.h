@@ -175,15 +175,13 @@ struct brcmf_sdreg {
 };
 
 struct brcmf_sdio;
+struct brcmf_sdiod_freezer;
 
 struct brcmf_sdio_dev {
 	struct sdio_func *func[SDIO_MAX_FUNCS];
 	u8 num_funcs;			/* Supported funcs on client */
 	u32 sbwad;			/* Save backplane window address */
 	struct brcmf_sdio *bus;
-	atomic_t suspend;		/* suspend flag */
-	bool sleeping;
-	wait_queue_head_t idle_wait;
 	struct device *dev;
 	struct brcmf_bus *bus_if;
 	struct brcmfmac_sdio_platform_data *pdata;
@@ -201,6 +199,7 @@ struct brcmf_sdio_dev {
 	char nvram_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
 	bool wowl_enabled;
 	enum brcmf_sdiod_state state;
+	struct brcmf_sdiod_freezer *freezer;
 };
 
 /* sdio core registers */
@@ -343,6 +342,28 @@ int brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 
 /* Issue an abort to the specified function */
 int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
+void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
+			      enum brcmf_sdiod_state state);
+#ifdef CONFIG_PM_SLEEP
+bool brcmf_sdiod_freezing(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdiod_try_freeze(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdiod_freezer_count(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdiod_freezer_uncount(struct brcmf_sdio_dev *sdiodev);
+#else
+static inline bool brcmf_sdiod_freezing(struct brcmf_sdio_dev *sdiodev)
+{
+	return false;
+}
+static inline void brcmf_sdiod_try_freeze(struct brcmf_sdio_dev *sdiodev)
+{
+}
+static inline void brcmf_sdiod_freezer_count(struct brcmf_sdio_dev *sdiodev)
+{
+}
+static inline void brcmf_sdiod_freezer_uncount(struct brcmf_sdio_dev *sdiodev)
+{
+}
+#endif /* CONFIG_PM_SLEEP */
 
 struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdio_remove(struct brcmf_sdio *bus);
@@ -350,8 +371,7 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus);
 
 void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 void brcmf_sdio_wowl_config(struct device *dev, bool enabled);
-
-void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
-			      enum brcmf_sdiod_state state);
+int brcmf_sdio_sleep(struct brcmf_sdio *bus, bool sleep);
+void brcmf_sdio_trigger_dpc(struct brcmf_sdio *bus);
 
 #endif /* BRCMFMAC_SDIO_H */
