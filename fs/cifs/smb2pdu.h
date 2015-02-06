@@ -136,9 +136,6 @@ struct smb2_transform_hdr {
 	__u64  SessionId;
 } __packed;
 
-/* Encryption Algorithms */
-#define SMB2_ENCRYPTION_AES128_CCM	cpu_to_le16(0x0001)
-
 /*
  *	SMB2 flag definitions
  */
@@ -221,6 +218,32 @@ struct smb2_negotiate_req {
 #define SMB2_NT_FIND			0x00100000
 #define SMB2_LARGE_FILES		0x00200000
 
+#define SMB311_SALT_SIZE			32
+/* Hash Algorithm Types */
+#define SMB2_PREAUTH_INTEGRITY_SHA512	0x0001
+
+struct smb2_preauth_neg_context {
+	__le16	ContextType; /* 1 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__le16	HashAlgorithmCount; /* 1 */
+	__le16	SaltLength;
+	__le16	HashAlgorithms; /* HashAlgorithms[0] since only one defined */
+	__u8	Salt[SMB311_SALT_SIZE];
+} __packed;
+
+/* Encryption Algorithms Ciphers */
+#define SMB2_ENCRYPTION_AES128_CCM	cpu_to_le16(0x0001)
+#define SMB2_ENCRYPTION_AES128_GCM	cpu_to_le16(0x0002)
+
+struct smb2_encryption_neg_context {
+	__le16	ContextType; /* 2 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__le16	CipherCount; /* 1 for time being, only AES-128-CCM */
+	__le16	Ciphers; /* Ciphers[0] since only one used now */
+} __packed;
+
 struct smb2_negotiate_rsp {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 65 */
@@ -240,10 +263,14 @@ struct smb2_negotiate_rsp {
 	__u8   Buffer[1];	/* variable length GSS security buffer */
 } __packed;
 
+/* Flags */
+#define SMB2_SESSION_REQ_FLAG_BINDING		0x01
+#define SMB2_SESSION_REQ_FLAG_ENCRYPT_DATA	0x04
+
 struct smb2_sess_setup_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 25 */
-	__u8   VcNumber;
+	__u8   Flags;
 	__u8   SecurityMode;
 	__le32 Capabilities;
 	__le32 Channel;
@@ -278,10 +305,13 @@ struct smb2_logoff_rsp {
 	__le16 Reserved;
 } __packed;
 
+/* Flags/Reserved for SMB3.1.1 */
+#define SMB2_SHAREFLAG_CLUSTER_RECONNECT	0x0001
+
 struct smb2_tree_connect_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 9 */
-	__le16 Reserved;
+	__le16 Reserved; /* Flags in SMB3.1.1 */
 	__le16 PathOffset;
 	__le16 PathLength;
 	__u8   Buffer[1];	/* variable length */
