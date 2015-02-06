@@ -271,15 +271,12 @@ static int aha1542_test_port(int bse, struct Scsi_Host *shpnt)
 	u8 inquiry_result[4];
 	u8 *cmdp;
 	int len;
-	volatile int debug = 0;
 
 	/* Quick and dirty test for presence of the card. */
 	if (inb(STATUS(bse)) == 0xff)
 		return 0;
 
 	/* Reset the adapter. I ought to make a hard reset, but it's not really necessary */
-
-	/*  DEB(printk("aha1542_test_port called \n")); */
 
 	/* In case some other card was probing here, reset interrupts */
 	aha1542_intr_reset(bse);	/* reset interrupts, so they don't block */
@@ -288,23 +285,19 @@ static int aha1542_test_port(int bse, struct Scsi_Host *shpnt)
 
 	mdelay(20);		/* Wait a little bit for things to settle down. */
 
-	debug = 1;
 	/* Expect INIT and IDLE, any of the others are bad */
 	if (!wait_mask(STATUS(bse), STATMASK, INIT | IDLE, STST | DIAGF | INVDCMD | DF | CDF, 0))
 		return 0;
 
-	debug = 2;
 	/* Shouldn't have generated any interrupts during reset */
 	if (inb(INTRFLAGS(bse)) & INTRMASK)
 		return 0;
-
 
 	/* Perform a host adapter inquiry instead so we do not need to set
 	   up the mailboxes ahead of time */
 
 	aha1542_outb(bse, CMD_INQUIRY);
 
-	debug = 3;
 	len = 4;
 	cmdp = &inquiry_result[0];
 
@@ -314,24 +307,18 @@ static int aha1542_test_port(int bse, struct Scsi_Host *shpnt)
 		*cmdp++ = inb(DATA(bse));
 	}
 
-	debug = 8;
 	/* Reading port should reset DF */
 	if (inb(STATUS(bse)) & DF)
 		return 0;
 
-	debug = 9;
 	/* When HACC, command is completed, and we're though testing */
 	if (!wait_mask(INTRFLAGS(bse), HACC, HACC, 0, 0))
 		return 0;
-	/* now initialize adapter */
 
-	debug = 10;
 	/* Clear interrupts */
 	outb(IRST, CONTROL(bse));
 
-	debug = 11;
-
-	return debug;		/* 1 = ok */
+	return 1;
 }
 
 static int aha1542_restart(struct Scsi_Host *shost)
