@@ -66,6 +66,7 @@ struct vfio_domain {
 	struct list_head	next;
 	struct list_head	group_list;
 	int			prot;		/* IOMMU_CACHE */
+	bool			fgsp;		/* Fine-grained super pages */
 };
 
 struct vfio_dma {
@@ -350,8 +351,8 @@ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
 		iommu_unmap(d->domain, dma->iova, dma->size);
 
 	while (iova < end) {
-		size_t unmapped;
-		phys_addr_t phys;
+		size_t unmapped, len;
+		phys_addr_t phys, next;
 
 		phys = iommu_iova_to_phys(domain->domain, iova);
 		if (WARN_ON(!phys)) {
@@ -359,7 +360,19 @@ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
 			continue;
 		}
 
-		unmapped = iommu_unmap(domain->domain, iova, PAGE_SIZE);
+		/*
+		 * To optimize for fewer iommu_unmap() calls, each of which
+		 * may require hardware cache flushing, try to find the
+		 * largest contiguous physical memory chunk to unmap.
+		 */
+		for (len = PAGE_SIZE;
+		     !domain->fgsp && iova + len < end; len += PAGE_SIZE) {
+			next = iommu_iova_to_phys(domain->domain, iova + len);
+			if (next != phys + len)
+				break;
+		}
+
+		unmapped = iommu_unmap(domain->domain, iova, len);
 		if (WARN_ON(!unmapped))
 			break;
 
@@ -665,6 +678,39 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 	return 0;
 }
 
+/*
+ * We change our unmap behavior slightly depending on whether the IOMMU
+ * supports fine-grained superpages.  IOMMUs like AMD-Vi will use a superpage
+ * for practically any contiguous power-of-two mapping we give it.  This means
+ * we don't need to look for contiguous chunks ourselves to make unmapping
+ * more efficient.  On IOMMUs with coarse-grained super pages, like Intel VT-d
+ * with discrete 2M/1G/512G/1T superpages, identifying contiguous chunks
+ * significantly boosts non-hugetlbfs mappings and doesn't seem to hurt when
+ * hugetlbfs is in use.
+ */
+static void vfio_test_domain_fgsp(struct vfio_domain *domain)
+{
+	struct page *pages;
+	int ret, order = get_order(PAGE_SIZE * 2);
+
+	pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
+	if (!pages)
+		return;
+
+	ret = iommu_map(domain->domain, 0, page_to_phys(pages), PAGE_SIZE * 2,
+			IOMMU_READ | IOMMU_WRITE | domain->prot);
+	if (!ret) {
+		size_t unmapped = iommu_unmap(domain->domain, 0, PAGE_SIZE);
+
+		if (unmapped == PAGE_SIZE)
+			iommu_unmap(domain->domain, PAGE_SIZE, PAGE_SIZE);
+		else
+			domain->fgsp = true;
+	}
+
+	__free_pages(pages, order);
+}
+
 static int vfio_iommu_type1_attach_group(void *iommu_data,
 					 struct iommu_group *iommu_group)
 {
@@ -757,6 +803,8 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 				goto out_domain;
 		}
 	}
+
+	vfio_test_domain_fgsp(domain);
 
 	/* replay mappings on new domains */
 	ret = vfio_iommu_replay(iommu, domain);
