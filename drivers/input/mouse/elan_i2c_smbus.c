@@ -70,7 +70,7 @@ static int elan_smbus_initialize(struct i2c_client *client)
 
 	/* compare hello packet */
 	if (memcmp(values, check, ETP_SMBUS_HELLOPACKET_LEN)) {
-		dev_err(&client->dev, "hello packet fail [%*px]\n",
+		dev_err(&client->dev, "hello packet fail [%*ph]\n",
 			ETP_SMBUS_HELLOPACKET_LEN, values);
 		return -ENXIO;
 	}
