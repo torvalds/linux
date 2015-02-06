@@ -124,10 +124,6 @@ static DEFINE_SPINLOCK(aha1542_lock);
 
 #define WAITnexttimeout 3000000
 
-static void setup_mailboxes(int base_io, struct Scsi_Host *shpnt);
-static int aha1542_restart(struct Scsi_Host *shost);
-static void aha1542_intr_handle(struct Scsi_Host *shost);
-
 static inline void aha1542_intr_reset(u16 base)
 {
 	outb(IRST, CONTROL(base));
@@ -368,16 +364,20 @@ fail:
 	return 0;		/* 0 = not ok */
 }
 
-/* A quick wrapper for do_aha1542_intr_handle to grab the spin lock */
-static irqreturn_t do_aha1542_intr_handle(int dummy, void *dev_id)
+static int aha1542_restart(struct Scsi_Host *shost)
 {
-	unsigned long flags;
-	struct Scsi_Host *shost = dev_id;
+	struct aha1542_hostdata *aha1542 = shost_priv(shost);
+	int i;
+	int count = 0;
 
-	spin_lock_irqsave(shost->host_lock, flags);
-	aha1542_intr_handle(shost);
-	spin_unlock_irqrestore(shost->host_lock, flags);
-	return IRQ_HANDLED;
+	for (i = 0; i < AHA1542_MAILBOXES; i++)
+		if (aha1542->SCint[i] &&
+		    !(aha1542->SCint[i]->device->soft_reset)) {
+			count++;
+		}
+	printk(KERN_DEBUG "Potential to restart %d stalled commands...\n", count);
+
+	return 0;
 }
 
 /* A "high" level interrupt handler */
@@ -537,6 +537,18 @@ static void aha1542_intr_handle(struct Scsi_Host *shost)
 		my_done(SCtmp);
 		number_serviced++;
 	};
+}
+
+/* A quick wrapper for do_aha1542_intr_handle to grab the spin lock */
+static irqreturn_t do_aha1542_intr_handle(int dummy, void *dev_id)
+{
+	unsigned long flags;
+	struct Scsi_Host *shost = dev_id;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	aha1542_intr_handle(shost);
+	spin_unlock_irqrestore(shost->host_lock, flags);
+	return IRQ_HANDLED;
 }
 
 static int aha1542_queuecommand_lck(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
@@ -1078,21 +1090,6 @@ static int aha1542_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static int aha1542_restart(struct Scsi_Host *shost)
-{
-	struct aha1542_hostdata *aha1542 = shost_priv(shost);
-	int i;
-	int count = 0;
-
-	for (i = 0; i < AHA1542_MAILBOXES; i++)
-		if (aha1542->SCint[i] &&
-		    !(aha1542->SCint[i]->device->soft_reset)) {
-			count++;
-		}
-	printk(KERN_DEBUG "Potential to restart %d stalled commands...\n", count);
-
-	return 0;
-}
 
 /*
  * This is a device reset.  This is handled by sending a special command
