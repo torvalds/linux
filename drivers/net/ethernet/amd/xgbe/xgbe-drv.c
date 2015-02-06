@@ -337,12 +337,13 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 		dma_ch_isr = XGMAC_DMA_IOREAD(channel, DMA_CH_SR);
 		DBGPR("  DMA_CH%u_ISR = %08x\n", i, dma_ch_isr);
 
-		/* If we get a TI or RI interrupt that means per channel DMA
-		 * interrupts are not enabled, so we use the private data napi
-		 * structure, not the per channel napi structure
+		/* The TI or RI interrupt bits may still be set even if using
+		 * per channel DMA interrupts. Check to be sure those are not
+		 * enabled before using the private data napi structure.
 		 */
-		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, TI) ||
-		    XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RI)) {
+		if (!pdata->per_channel_irq &&
+		    (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, TI) ||
+		     XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RI))) {
 			if (napi_schedule_prep(&pdata->napi)) {
 				/* Disable Tx and Rx interrupts */
 				xgbe_disable_rx_tx_ints(pdata);
