@@ -206,7 +206,7 @@ int  rndis_set_param_vendor(struct rndis_params *params, u32 vendorID,
 			    const char *vendorDescr);
 int  rndis_set_param_medium(struct rndis_params *params, u32 medium,
 			     u32 speed);
-void rndis_add_hdr (struct sk_buff *skb);
+void rndis_add_hdr(struct sk_buff *skb);
 int rndis_rm_hdr(struct gether *port, struct sk_buff *skb,
 			struct sk_buff_head *list);
 u8   *rndis_get_next_response(struct rndis_params *params, u32 *length);
