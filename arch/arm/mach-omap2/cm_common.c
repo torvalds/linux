@@ -361,7 +361,7 @@ int __init omap_cm_init(void)
 		if (data->flags & CM_NO_CLOCKS)
 			continue;
 
-		ret = omap2_clk_provider_init(np, data->index, data->mem);
+		ret = omap2_clk_provider_init(np, data->index, NULL, data->mem);
 		if (ret)
 			return ret;
 	}
