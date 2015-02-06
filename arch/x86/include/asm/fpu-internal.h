@@ -458,7 +458,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 		task_disable_lazy_fpu_restore(old);
 		if (fpu.preload) {
 			new->thread.fpu_counter++;
-			if (!use_eager_fpu() && fpu_lazy_restore(new, cpu))
+			if (fpu_lazy_restore(new, cpu))
 				fpu.preload = 0;
 			else
 				prefetch(new->thread.fpu.state);
