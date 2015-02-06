@@ -321,22 +321,6 @@ static int aha1542_test_port(int bse, struct Scsi_Host *shpnt)
 	return 1;
 }
 
-static int aha1542_restart(struct Scsi_Host *shost)
-{
-	struct aha1542_hostdata *aha1542 = shost_priv(shost);
-	int i;
-	int count = 0;
-
-	for (i = 0; i < AHA1542_MAILBOXES; i++)
-		if (aha1542->SCint[i] &&
-		    !(aha1542->SCint[i]->device->soft_reset)) {
-			count++;
-		}
-	printk(KERN_DEBUG "Potential to restart %d stalled commands...\n", count);
-
-	return 0;
-}
-
 /* A "high" level interrupt handler */
 static void aha1542_intr_handle(struct Scsi_Host *shost)
 {
@@ -347,7 +331,6 @@ static void aha1542_intr_handle(struct Scsi_Host *shost)
 	unsigned long flags;
 	Scsi_Cmnd *SCtmp;
 	int flag;
-	int needs_restart;
 	struct mailbox *mb = aha1542->mb;
 	struct ccb *ccb = aha1542->ccb;
 
@@ -369,7 +352,6 @@ static void aha1542_intr_handle(struct Scsi_Host *shost)
 	};
 #endif
 	number_serviced = 0;
-	needs_restart = 0;
 
 	while (1 == 1) {
 		flag = inb(INTRFLAGS(shost->io_port));
@@ -383,10 +365,8 @@ static void aha1542_intr_handle(struct Scsi_Host *shost)
 				printk("MBOF ");
 			if (flag & HACC)
 				printk("HACC ");
-			if (flag & SCRD) {
-				needs_restart = 1;
+			if (flag & SCRD)
 				printk("SCRD ");
-			}
 		}
 		aha1542_intr_reset(shost->io_port);
 
@@ -406,12 +386,8 @@ static void aha1542_intr_handle(struct Scsi_Host *shost)
 		if (mb[mbi].status == 0) {
 			spin_unlock_irqrestore(&aha1542_lock, flags);
 			/* Hmm, no mail.  Must have read it the last time around */
-			if (!number_serviced && !needs_restart)
+			if (!number_serviced)
 				printk(KERN_WARNING "aha1542.c: interrupt received, but no mail.\n");
-			/* We detected a reset.  Restart all pending commands for
-			   devices that use the hard reset option */
-			if (needs_restart)
-				aha1542_restart(shost);
 			return;
 		};
 
