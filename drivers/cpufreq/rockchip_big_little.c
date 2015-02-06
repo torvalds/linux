@@ -507,7 +507,7 @@ static struct cpufreq_driver cpufreq_driver = {
 	.get = cpufreq_bl_get_rate,
 	.init = cpufreq_bl_init,
 	.exit = cpufreq_bl_exit,
-	.name = "rockchip-big-little",
+	.name = "rockchip-bl",
 	.have_governor_per_policy = true,
 	.attr = cpufreq_attr,
 };
