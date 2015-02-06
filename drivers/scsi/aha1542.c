@@ -867,6 +867,40 @@ static int __init do_setup(char *str)
 __setup("aha1542=",do_setup);
 #endif
 
+/* Set the Bus on/off-times as not to ruin floppy performance */
+static void aha1542_set_bus_times(int indx)
+{
+	unsigned int base_io = bases[indx];
+	u8 oncmd[] = {CMD_BUSON_TIME, 7};
+	u8 offcmd[] = {CMD_BUSOFF_TIME, 5};
+
+	if (setup_called[indx]) {
+		oncmd[1] = setup_buson[indx];
+		offcmd[1] = setup_busoff[indx];
+	}
+	aha1542_intr_reset(base_io);
+	aha1542_out(base_io, oncmd, 2);
+	if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
+		goto fail;
+	aha1542_intr_reset(base_io);
+	aha1542_out(base_io, offcmd, 2);
+	if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
+		goto fail;
+	if (setup_dmaspeed[indx] >= 0) {
+		u8 dmacmd[] = {CMD_DMASPEED, 0};
+		dmacmd[1] = setup_dmaspeed[indx];
+		aha1542_intr_reset(base_io);
+		aha1542_out(base_io, dmacmd, 2);
+		if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
+			goto fail;
+	}
+	aha1542_intr_reset(base_io);
+	return;
+fail:
+	printk(KERN_ERR "setting bus on/off-time failed\n");
+	aha1542_intr_reset(base_io);
+}
+
 /* return non-zero on detection */
 static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct device *pdev, int indx)
 {
@@ -897,37 +931,8 @@ static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct
 
 			base_io = bases[indx];
 
-			/* Set the Bus on/off-times as not to ruin floppy performance */
-			{
-				u8 oncmd[] = {CMD_BUSON_TIME, 7};
-				u8 offcmd[] = {CMD_BUSOFF_TIME, 5};
+			aha1542_set_bus_times(indx);
 
-				if (setup_called[indx]) {
-					oncmd[1] = setup_buson[indx];
-					offcmd[1] = setup_busoff[indx];
-				}
-				aha1542_intr_reset(base_io);
-				aha1542_out(base_io, oncmd, 2);
-				if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
-					goto fail;
-				aha1542_intr_reset(base_io);
-				aha1542_out(base_io, offcmd, 2);
-				if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
-					goto fail;
-				if (setup_dmaspeed[indx] >= 0) {
-					u8 dmacmd[] = {CMD_DMASPEED, 0};
-					dmacmd[1] = setup_dmaspeed[indx];
-					aha1542_intr_reset(base_io);
-					aha1542_out(base_io, dmacmd, 2);
-					if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
-						goto fail;
-				}
-				while (0) {
-fail:
-					printk(KERN_ERR "aha1542_detect: setting bus on/off-time failed\n");
-				}
-				aha1542_intr_reset(base_io);
-			}
 			if (aha1542_query(base_io, &trans))
 				goto unregister;
 
