@@ -39,16 +39,30 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 
 static int kvm_trap_emul_handle_cop_unusable(struct kvm_vcpu *vcpu)
 {
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_run *run = vcpu->run;
 	uint32_t __user *opc = (uint32_t __user *) vcpu->arch.pc;
 	unsigned long cause = vcpu->arch.host_cp0_cause;
 	enum emulation_result er = EMULATE_DONE;
 	int ret = RESUME_GUEST;
 
-	if (((cause & CAUSEF_CE) >> CAUSEB_CE) == 1)
-		er = kvm_mips_emulate_fpu_exc(cause, opc, run, vcpu);
-	else
+	if (((cause & CAUSEF_CE) >> CAUSEB_CE) == 1) {
+		/* FPU Unusable */
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch) ||
+		    (kvm_read_c0_guest_status(cop0) & ST0_CU1) == 0) {
+			/*
+			 * Unusable/no FPU in guest:
+			 * deliver guest COP1 Unusable Exception
+			 */
+			er = kvm_mips_emulate_fpu_exc(cause, opc, run, vcpu);
+		} else {
+			/* Restore FPU state */
+			kvm_own_fpu(vcpu);
+			er = EMULATE_DONE;
+		}
+	} else {
 		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
+	}
 
 	switch (er) {
 	case EMULATE_DONE:
@@ -348,6 +362,24 @@ static int kvm_trap_emul_handle_trap(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+static int kvm_trap_emul_handle_fpe(struct kvm_vcpu *vcpu)
+{
+	struct kvm_run *run = vcpu->run;
+	uint32_t __user *opc = (uint32_t __user *)vcpu->arch.pc;
+	unsigned long cause = vcpu->arch.host_cp0_cause;
+	enum emulation_result er = EMULATE_DONE;
+	int ret = RESUME_GUEST;
+
+	er = kvm_mips_emulate_fpe_exc(cause, opc, run, vcpu);
+	if (er == EMULATE_DONE) {
+		ret = RESUME_GUEST;
+	} else {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		ret = RESUME_HOST;
+	}
+	return ret;
+}
+
 static int kvm_trap_emul_handle_msa_disabled(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
@@ -576,6 +608,7 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.handle_res_inst = kvm_trap_emul_handle_res_inst,
 	.handle_break = kvm_trap_emul_handle_break,
 	.handle_trap = kvm_trap_emul_handle_trap,
+	.handle_fpe = kvm_trap_emul_handle_fpe,
 	.handle_msa_disabled = kvm_trap_emul_handle_msa_disabled,
 
 	.vm_init = kvm_trap_emul_vm_init,
