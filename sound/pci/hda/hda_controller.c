@@ -657,6 +657,9 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		azx_writel(chip, SSYNC, azx_readl(chip, SSYNC) & ~sbits);
 	if (start) {
 		azx_timecounter_init(substream, 0, 0);
+		snd_pcm_gettime(substream->runtime, &substream->runtime->trigger_tstamp);
+		substream->runtime->trigger_tstamp_latched = true;
+
 		if (nsync > 1) {
 			cycle_t cycle_last;
 
