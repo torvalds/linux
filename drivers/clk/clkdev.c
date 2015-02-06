@@ -29,6 +29,20 @@ static DEFINE_MUTEX(clocks_mutex);
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
 
+static struct clk *__of_clk_get_by_clkspec(struct of_phandle_args *clkspec,
+					 const char *dev_id, const char *con_id)
+{
+	struct clk *clk;
+
+	if (!clkspec)
+		return ERR_PTR(-EINVAL);
+
+	of_clk_lock();
+	clk = __of_clk_get_from_provider(clkspec, dev_id, con_id);
+	of_clk_unlock();
+	return clk;
+}
+
 /**
  * of_clk_get_by_clkspec() - Lookup a clock form a clock provider
  * @clkspec: pointer to a clock specifier data structure
@@ -39,22 +53,11 @@ static DEFINE_MUTEX(clocks_mutex);
  */
 struct clk *of_clk_get_by_clkspec(struct of_phandle_args *clkspec)
 {
-	struct clk *clk;
-
-	if (!clkspec)
-		return ERR_PTR(-EINVAL);
-
-	of_clk_lock();
-	clk = __of_clk_get_from_provider(clkspec);
-
-	if (!IS_ERR(clk) && !__clk_get(clk))
-		clk = ERR_PTR(-ENOENT);
-
-	of_clk_unlock();
-	return clk;
+	return __of_clk_get_by_clkspec(clkspec, NULL, __func__);
 }
 
-static struct clk *__of_clk_get(struct device_node *np, int index)
+static struct clk *__of_clk_get(struct device_node *np, int index,
+			       const char *dev_id, const char *con_id)
 {
 	struct of_phandle_args clkspec;
 	struct clk *clk;
@@ -68,7 +71,7 @@ static struct clk *__of_clk_get(struct device_node *np, int index)
 	if (rc)
 		return ERR_PTR(rc);
 
-	clk = of_clk_get_by_clkspec(&clkspec);
+	clk = __of_clk_get_by_clkspec(&clkspec, dev_id, con_id);
 	of_node_put(clkspec.np);
 
 	return clk;
@@ -76,12 +79,7 @@ static struct clk *__of_clk_get(struct device_node *np, int index)
 
 struct clk *of_clk_get(struct device_node *np, int index)
 {
-	struct clk *clk = __of_clk_get(np, index);
-
-	if (!IS_ERR(clk))
-		clk = __clk_create_clk(__clk_get_hw(clk), np->full_name, NULL);
-
-	return clk;
+	return __of_clk_get(np, index, np->full_name, NULL);
 }
 EXPORT_SYMBOL(of_clk_get);
 
@@ -102,12 +100,10 @@ static struct clk *__of_clk_get_by_name(struct device_node *np,
 		 */
 		if (name)
 			index = of_property_match_string(np, "clock-names", name);
-		clk = __of_clk_get(np, index);
+		clk = __of_clk_get(np, index, dev_id, name);
 		if (!IS_ERR(clk)) {
-			clk = __clk_create_clk(__clk_get_hw(clk), dev_id, name);
 			break;
-		}
-		else if (name && index >= 0) {
+		} else if (name && index >= 0) {
 			if (PTR_ERR(clk) != -EPROBE_DEFER)
 				pr_err("ERROR: could not get clock %s:%s(%i)\n",
 					np->full_name, name ? name : "", index);
@@ -209,16 +205,15 @@ struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 	if (!cl)
 		goto out;
 
-	if (!__clk_get(cl->clk)) {
+	clk = __clk_create_clk(__clk_get_hw(cl->clk), dev_id, con_id);
+	if (IS_ERR(clk))
+		goto out;
+
+	if (!__clk_get(clk)) {
+		__clk_free_clk(clk);
 		cl = NULL;
 		goto out;
 	}
-
-#if defined(CONFIG_COMMON_CLK)
-	clk = __clk_create_clk(__clk_get_hw(cl->clk), dev_id, con_id);
-#else
-	clk = cl->clk;
-#endif
 
 out:
 	mutex_unlock(&clocks_mutex);

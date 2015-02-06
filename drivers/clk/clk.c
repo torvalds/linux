@@ -2382,7 +2382,7 @@ struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
 	return clk;
 }
 
-static void __clk_free_clk(struct clk *clk)
+void __clk_free_clk(struct clk *clk)
 {
 	clk_prepare_lock();
 	hlist_del(&clk->child_node);
@@ -2894,7 +2894,8 @@ void of_clk_del_provider(struct device_node *np)
 }
 EXPORT_SYMBOL_GPL(of_clk_del_provider);
 
-struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec)
+struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec,
+				       const char *dev_id, const char *con_id)
 {
 	struct of_clk_provider *provider;
 	struct clk *clk = ERR_PTR(-EPROBE_DEFER);
@@ -2903,8 +2904,17 @@ struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec)
 	list_for_each_entry(provider, &of_clk_providers, link) {
 		if (provider->node == clkspec->np)
 			clk = provider->get(clkspec, provider->data);
-		if (!IS_ERR(clk))
+		if (!IS_ERR(clk)) {
+			clk = __clk_create_clk(__clk_get_hw(clk), dev_id,
+					       con_id);
+
+			if (!IS_ERR(clk) && !__clk_get(clk)) {
+				__clk_free_clk(clk);
+				clk = ERR_PTR(-ENOENT);
+			}
+
 			break;
+		}
 	}
 
 	return clk;
@@ -2915,7 +2925,7 @@ struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec)
 	struct clk *clk;
 
 	mutex_lock(&of_clk_mutex);
-	clk = __of_clk_get_from_provider(clkspec);
+	clk = __of_clk_get_from_provider(clkspec, NULL, __func__);
 	mutex_unlock(&of_clk_mutex);
 
 	return clk;
