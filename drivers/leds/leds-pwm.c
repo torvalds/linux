@@ -121,9 +121,6 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 		return ret;
 	}
 
-	if (child)
-		led_data->period = pwm_get_period(led_data->pwm);
-
 	led_data->can_sleep = pwm_can_sleep(led_data->pwm);
 	if (led_data->can_sleep)
 		INIT_WORK(&led_data->work, led_pwm_work);
