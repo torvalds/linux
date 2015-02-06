@@ -652,9 +652,11 @@
                 dev_name = "pinmux";
                 #pinmux-cells=<2>;
 
-        ao_uart_pins:ao_uart{
+                ao_uart_pins:ao_uart{
                         amlogic,setmask=<10 0x1800>;
                         amlogic,pins="GPIOAO_0", "GPIOAO_1";
+                        amlogic,pullup=<1>;
+                        amlogic,pullupen=<1>;
                 };
 
 //              a_uart_pins:a_uart{
