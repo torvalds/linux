@@ -2664,7 +2664,10 @@ void __clk_put(struct clk *clk)
 	clk_prepare_lock();
 
 	hlist_del(&clk->child_node);
-	clk_core_set_rate_nolock(clk->core, clk->core->req_rate);
+	if (clk->min_rate > clk->core->req_rate ||
+	    clk->max_rate < clk->core->req_rate)
+		clk_core_set_rate_nolock(clk->core, clk->core->req_rate);
+
 	owner = clk->core->owner;
 	kref_put(&clk->core->ref, __clk_release);
 
