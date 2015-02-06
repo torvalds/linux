@@ -552,8 +552,10 @@ static void rhashtable_wakeup_worker(struct rhashtable *ht)
 static void __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 				struct bucket_table *tbl, u32 hash)
 {
-	struct rhash_head *head = rht_dereference_bucket(tbl->buckets[hash],
-							 tbl, hash);
+	struct rhash_head *head;
+
+	hash = rht_bucket_index(tbl, hash);
+	head = rht_dereference_bucket(tbl->buckets[hash], tbl, hash);
 
 	ASSERT_BUCKET_LOCK(ht, tbl, hash);
 
@@ -593,7 +595,7 @@ void rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj)
 
 	tbl = rht_dereference_rcu(ht->future_tbl, ht);
 	old_tbl = rht_dereference_rcu(ht->tbl, ht);
-	hash = head_hashfn(ht, tbl, obj);
+	hash = obj_raw_hashfn(ht, rht_obj(ht, obj));
 
 	lock_buckets(tbl, old_tbl, hash);
 	__rhashtable_insert(ht, obj, tbl, hash);
@@ -627,8 +629,8 @@ bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *obj)
 	bool ret = false;
 
 	rcu_read_lock();
-	tbl = old_tbl = rht_dereference_rcu(ht->tbl, ht);
-	new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
+	old_tbl = rht_dereference_rcu(ht->tbl, ht);
+	tbl = new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
 	new_hash = obj_raw_hashfn(ht, rht_obj(ht, obj));
 
 	lock_buckets(new_tbl, old_tbl, new_hash);
@@ -643,15 +645,19 @@ restart:
 
 		ASSERT_BUCKET_LOCK(ht, tbl, hash);
 
-		if (unlikely(new_tbl != tbl)) {
-			rht_for_each_continue(he2, he->next, tbl, hash) {
+		if (old_tbl->size > new_tbl->size && tbl == old_tbl &&
+		    !rht_is_a_nulls(obj->next) &&
+		    head_hashfn(ht, tbl, obj->next) != hash) {
+			rcu_assign_pointer(*pprev, (struct rhash_head *) rht_marker(ht, hash));
+		} else if (unlikely(old_tbl->size < new_tbl->size && tbl == new_tbl)) {
+			rht_for_each_continue(he2, obj->next, tbl, hash) {
 				if (head_hashfn(ht, tbl, he2) == hash) {
 					rcu_assign_pointer(*pprev, he2);
 					goto found;
 				}
 			}
 
-			INIT_RHT_NULLS_HEAD(*pprev, ht, hash);
+			rcu_assign_pointer(*pprev, (struct rhash_head *) rht_marker(ht, hash));
 		} else {
 			rcu_assign_pointer(*pprev, obj->next);
 		}
@@ -666,8 +672,8 @@ found:
 	 * resizing. Thus traversing both is fine and the added cost is
 	 * very rare.
 	 */
-	if (tbl != new_tbl) {
-		tbl = new_tbl;
+	if (tbl != old_tbl) {
+		tbl = old_tbl;
 		goto restart;
 	}
 
@@ -835,7 +841,7 @@ bool rhashtable_lookup_compare_insert(struct rhashtable *ht,
 	rcu_read_lock();
 	old_tbl = rht_dereference_rcu(ht->tbl, ht);
 	new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
-	new_hash = head_hashfn(ht, new_tbl, obj);
+	new_hash = obj_raw_hashfn(ht, rht_obj(ht, obj));
 
 	lock_buckets(new_tbl, old_tbl, new_hash);
 
