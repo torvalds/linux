@@ -1119,6 +1119,10 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		ret = kvm_mips_callbacks->handle_break(vcpu);
 		break;
 
+	case T_MSADIS:
+		ret = kvm_mips_callbacks->handle_msa_disabled(vcpu);
+		break;
+
 	default:
 		kvm_err("Exception Code: %d, not yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#lx\n",
 			exccode, opc, kvm_get_inst(opc, vcpu), badvaddr,
