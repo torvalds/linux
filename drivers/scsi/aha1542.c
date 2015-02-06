@@ -418,15 +418,7 @@ static int aha1542_queuecommand_lck(struct scsi_cmnd *cmd, void (*done) (struct 
 	int mbo;
 	struct mailbox *mb = aha1542->mb;
 	struct ccb *ccb = aha1542->ccb;
-#ifdef DEBUG
-	int i;
 
-	if (target > 1) {
-		cmd->result = DID_TIME_OUT << 16;
-		done(cmd);
-		return 0;
-	}
-#endif
 	if (*cmd->cmnd == REQUEST_SENSE) {
 		/* Don't do the command - we have the sense data already */
 		cmd->result = 0;
@@ -434,19 +426,16 @@ static int aha1542_queuecommand_lck(struct scsi_cmnd *cmd, void (*done) (struct 
 		return 0;
 	}
 #ifdef DEBUG
-	if (*cmd->cmnd == READ_10 || *cmd->cmnd == WRITE_10)
-		i = xscsi2int(cmd->cmnd + 2);
-	else if (*cmd->cmnd == READ_6 || *cmd->cmnd == WRITE_6)
-		i = scsi2int(cmd->cmnd + 2);
-	else
-		i = -1;
-	if (done)
-		shost_printk(KERN_DEBUG, sh, "aha1542_queuecommand: dev %d cmd %02x pos %d len %d ", target, *cmd->cmnd, i, bufflen);
-	else
-		shost_printk(KERN_DEBUG, sh, "aha1542_command: dev %d cmd %02x pos %d len %d ", target, *cmd->cmnd, i, bufflen);
-	print_hex_dump_bytes("command: ", DUMP_PREFIX_NONE, cmd->cmnd, cmd->cmd_len);
-	if (*cmd->cmnd == WRITE_10 || *cmd->cmnd == WRITE_6)
-		return 0;	/* we are still testing, so *don't* write */
+	{
+		int i = -1;
+		if (*cmd->cmnd == READ_10 || *cmd->cmnd == WRITE_10)
+			i = xscsi2int(cmd->cmnd + 2);
+		else if (*cmd->cmnd == READ_6 || *cmd->cmnd == WRITE_6)
+			i = scsi2int(cmd->cmnd + 2);
+		shost_printk(KERN_DEBUG, sh, "aha1542_queuecommand: dev %d cmd %02x pos %d len %d",
+						target, *cmd->cmnd, i, bufflen);
+		print_hex_dump_bytes("command: ", DUMP_PREFIX_NONE, cmd->cmnd, cmd->cmd_len);
+	}
 #endif
 	/* Use the outgoing mailboxes in a round-robin fashion, because this
 	   is how the host adapter will scan for them */
