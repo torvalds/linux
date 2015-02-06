@@ -1050,10 +1050,6 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 	if (vif == cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif)
 		vif = cfg->p2p.bss_idx[P2PAPI_BSSCFG_PRIMARY].vif;
 
-	/* Arm scan timeout timer */
-	mod_timer(&cfg->escan_timeout, jiffies +
-			WL_ESCAN_TIMER_INTERVAL_MS * HZ / 1000);
-
 	escan_req = false;
 	if (request) {
 		/* scan bss */
@@ -1112,12 +1108,14 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 		}
 	}
 
+	/* Arm scan timeout timer */
+	mod_timer(&cfg->escan_timeout, jiffies +
+			WL_ESCAN_TIMER_INTERVAL_MS * HZ / 1000);
+
 	return 0;
 
 scan_out:
 	clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
-	if (timer_pending(&cfg->escan_timeout))
-		del_timer_sync(&cfg->escan_timeout);
 	cfg->scan_request = NULL;
 	return err;
 }
