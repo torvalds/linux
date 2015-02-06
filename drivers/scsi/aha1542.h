@@ -100,12 +100,6 @@ static inline void any2scsi(u8 *p, u32 v)
 
 #define scsi2int(up) ( (((long)*(up)) << 16) + (((long)(up)[1]) << 8) + ((long)(up)[2]) )
 
-#define xany2scsi(up, p)	\
-(up)[0] = ((long)(p)) >> 24;	\
-(up)[1] = ((long)(p)) >> 16;	\
-(up)[2] = ((long)(p)) >> 8;	\
-(up)[3] = ((long)(p));
-
 #define xscsi2int(up) ( (((long)(up)[0]) << 24) + (((long)(up)[1]) << 16) \
 		      + (((long)(up)[2]) <<  8) +  ((long)(up)[3]) )
 
