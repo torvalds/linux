@@ -362,6 +362,24 @@ static int kvm_trap_emul_handle_trap(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+static int kvm_trap_emul_handle_msa_fpe(struct kvm_vcpu *vcpu)
+{
+	struct kvm_run *run = vcpu->run;
+	uint32_t __user *opc = (uint32_t __user *)vcpu->arch.pc;
+	unsigned long cause = vcpu->arch.host_cp0_cause;
+	enum emulation_result er = EMULATE_DONE;
+	int ret = RESUME_GUEST;
+
+	er = kvm_mips_emulate_msafpe_exc(cause, opc, run, vcpu);
+	if (er == EMULATE_DONE) {
+		ret = RESUME_GUEST;
+	} else {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		ret = RESUME_HOST;
+	}
+	return ret;
+}
+
 static int kvm_trap_emul_handle_fpe(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
@@ -380,16 +398,36 @@ static int kvm_trap_emul_handle_fpe(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+/**
+ * kvm_trap_emul_handle_msa_disabled() - Guest used MSA while disabled in root.
+ * @vcpu:	Virtual CPU context.
+ *
+ * Handle when the guest attempts to use MSA when it is disabled.
+ */
 static int kvm_trap_emul_handle_msa_disabled(struct kvm_vcpu *vcpu)
 {
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_run *run = vcpu->run;
 	uint32_t __user *opc = (uint32_t __user *) vcpu->arch.pc;
 	unsigned long cause = vcpu->arch.host_cp0_cause;
 	enum emulation_result er = EMULATE_DONE;
 	int ret = RESUME_GUEST;
 
-	/* No MSA supported in guest, guest reserved instruction exception */
-	er = kvm_mips_emulate_ri_exc(cause, opc, run, vcpu);
+	if (!kvm_mips_guest_has_msa(&vcpu->arch) ||
+	    (kvm_read_c0_guest_status(cop0) & (ST0_CU1 | ST0_FR)) == ST0_CU1) {
+		/*
+		 * No MSA in guest, or FPU enabled and not in FR=1 mode,
+		 * guest reserved instruction exception
+		 */
+		er = kvm_mips_emulate_ri_exc(cause, opc, run, vcpu);
+	} else if (!(kvm_read_c0_guest_config5(cop0) & MIPS_CONF5_MSAEN)) {
+		/* MSA disabled by guest, guest MSA disabled exception */
+		er = kvm_mips_emulate_msadis_exc(cause, opc, run, vcpu);
+	} else {
+		/* Restore MSA/FPU state */
+		kvm_own_msa(vcpu);
+		er = EMULATE_DONE;
+	}
 
 	switch (er) {
 	case EMULATE_DONE:
@@ -608,6 +646,7 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.handle_res_inst = kvm_trap_emul_handle_res_inst,
 	.handle_break = kvm_trap_emul_handle_break,
 	.handle_trap = kvm_trap_emul_handle_trap,
+	.handle_msa_fpe = kvm_trap_emul_handle_msa_fpe,
 	.handle_fpe = kvm_trap_emul_handle_fpe,
 	.handle_msa_disabled = kvm_trap_emul_handle_msa_disabled,
 

@@ -50,7 +50,9 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "resvd_inst",	  VCPU_STAT(resvd_inst_exits),	 KVM_STAT_VCPU },
 	{ "break_inst",	  VCPU_STAT(break_inst_exits),	 KVM_STAT_VCPU },
 	{ "trap_inst",	  VCPU_STAT(trap_inst_exits),	 KVM_STAT_VCPU },
+	{ "msa_fpe",	  VCPU_STAT(msa_fpe_exits),	 KVM_STAT_VCPU },
 	{ "fpe",	  VCPU_STAT(fpe_exits),		 KVM_STAT_VCPU },
+	{ "msa_disabled", VCPU_STAT(msa_disabled_exits), KVM_STAT_VCPU },
 	{ "flush_dcache", VCPU_STAT(flush_dcache_exits), KVM_STAT_VCPU },
 	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll), KVM_STAT_VCPU },
 	{ "halt_wakeup",  VCPU_STAT(halt_wakeup),	 KVM_STAT_VCPU },
@@ -1256,6 +1258,12 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		ret = kvm_mips_callbacks->handle_trap(vcpu);
 		break;
 
+	case T_MSAFPE:
+		++vcpu->stat.msa_fpe_exits;
+		trace_kvm_exit(vcpu, MSA_FPE_EXITS);
+		ret = kvm_mips_callbacks->handle_msa_fpe(vcpu);
+		break;
+
 	case T_FPE:
 		++vcpu->stat.fpe_exits;
 		trace_kvm_exit(vcpu, FPE_EXITS);
@@ -1263,6 +1271,8 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 
 	case T_MSADIS:
+		++vcpu->stat.msa_disabled_exits;
+		trace_kvm_exit(vcpu, MSA_DISABLED_EXITS);
 		ret = kvm_mips_callbacks->handle_msa_disabled(vcpu);
 		break;
 

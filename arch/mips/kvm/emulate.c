@@ -2179,6 +2179,41 @@ enum emulation_result kvm_mips_emulate_trap_exc(unsigned long cause,
 	return er;
 }
 
+enum emulation_result kvm_mips_emulate_msafpe_exc(unsigned long cause,
+						  uint32_t *opc,
+						  struct kvm_run *run,
+						  struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct kvm_vcpu_arch *arch = &vcpu->arch;
+	enum emulation_result er = EMULATE_DONE;
+
+	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
+		/* save old pc */
+		kvm_write_c0_guest_epc(cop0, arch->pc);
+		kvm_set_c0_guest_status(cop0, ST0_EXL);
+
+		if (cause & CAUSEF_BD)
+			kvm_set_c0_guest_cause(cop0, CAUSEF_BD);
+		else
+			kvm_clear_c0_guest_cause(cop0, CAUSEF_BD);
+
+		kvm_debug("Delivering MSAFPE @ pc %#lx\n", arch->pc);
+
+		kvm_change_c0_guest_cause(cop0, (0xff),
+					  (T_MSAFPE << CAUSEB_EXCCODE));
+
+		/* Set PC to the exception entry point */
+		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+
+	} else {
+		kvm_err("Trying to deliver MSAFPE when EXL is already set\n");
+		er = EMULATE_FAIL;
+	}
+
+	return er;
+}
+
 enum emulation_result kvm_mips_emulate_fpe_exc(unsigned long cause,
 					       uint32_t *opc,
 					       struct kvm_run *run,
@@ -2208,6 +2243,41 @@ enum emulation_result kvm_mips_emulate_fpe_exc(unsigned long cause,
 
 	} else {
 		kvm_err("Trying to deliver FPE when EXL is already set\n");
+		er = EMULATE_FAIL;
+	}
+
+	return er;
+}
+
+enum emulation_result kvm_mips_emulate_msadis_exc(unsigned long cause,
+						  uint32_t *opc,
+						  struct kvm_run *run,
+						  struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct kvm_vcpu_arch *arch = &vcpu->arch;
+	enum emulation_result er = EMULATE_DONE;
+
+	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
+		/* save old pc */
+		kvm_write_c0_guest_epc(cop0, arch->pc);
+		kvm_set_c0_guest_status(cop0, ST0_EXL);
+
+		if (cause & CAUSEF_BD)
+			kvm_set_c0_guest_cause(cop0, CAUSEF_BD);
+		else
+			kvm_clear_c0_guest_cause(cop0, CAUSEF_BD);
+
+		kvm_debug("Delivering MSADIS @ pc %#lx\n", arch->pc);
+
+		kvm_change_c0_guest_cause(cop0, (0xff),
+					  (T_MSADIS << CAUSEB_EXCCODE));
+
+		/* Set PC to the exception entry point */
+		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+
+	} else {
+		kvm_err("Trying to deliver MSADIS when EXL is already set\n");
 		er = EMULATE_FAIL;
 	}
 
@@ -2421,6 +2491,7 @@ enum emulation_result kvm_mips_check_privilege(unsigned long cause,
 		case T_BREAK:
 		case T_RES_INST:
 		case T_TRAP:
+		case T_MSAFPE:
 		case T_FPE:
 		case T_MSADIS:
 			break;
