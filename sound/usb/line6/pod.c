@@ -397,7 +397,6 @@ static struct snd_kcontrol_new pod_control_monitor = {
 static void line6_pod_disconnect(struct usb_line6 *line6)
 {
 	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6;
-	struct device *dev = line6->ifcdev;
 
 	del_timer_sync(&pod->startup_timer);
 	cancel_work_sync(&pod->startup_work);
