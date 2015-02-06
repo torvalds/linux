@@ -7279,8 +7279,12 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	/* Set default capability flags */
 	pf->flags = I40E_FLAG_RX_CSUM_ENABLED |
 		    I40E_FLAG_MSI_ENABLED     |
-		    I40E_FLAG_MSIX_ENABLED    |
-		    I40E_FLAG_RX_PS_ENABLED;
+		    I40E_FLAG_MSIX_ENABLED;
+
+	if (iommu_present(&pci_bus_type))
+		pf->flags |= I40E_FLAG_RX_PS_ENABLED;
+	else
+		pf->flags |= I40E_FLAG_RX_1BUF_ENABLED;
 
 	/* Set default ITR */
 	pf->rx_itr_default = I40E_ITR_DYNAMIC | I40E_ITR_RX_DEF;
