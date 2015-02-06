@@ -393,7 +393,7 @@ struct Vmxnet3_DriverInfo {
 };
 
 
-#define VMXNET3_REV1_MAGIC  0xbabefee1
+#define VMXNET3_REV1_MAGIC  3133079265u
 
 /*
  * QueueDescPA must be 128 bytes aligned. It points to an array of
