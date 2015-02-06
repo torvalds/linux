@@ -78,7 +78,6 @@ static int dma_speed[MAXBOARDS] = { -1, -1, -1, -1 };
 module_param_array(dma_speed, int, NULL, 0);
 MODULE_PARM_DESC(dma_speed, "DMA speed [MB/s] (5,6,7,8,10, default=-1 [by jumper])");
 
-#define BIOS_TRANSLATION_1632 0	/* Used by some old 1542A boards */
 #define BIOS_TRANSLATION_6432 1	/* Default case these days */
 #define BIOS_TRANSLATION_25563 2	/* Big disk case */
 
@@ -1048,24 +1047,20 @@ static int aha1542_host_reset(Scsi_Cmnd *SCpnt)
 }
 
 static int aha1542_biosparam(struct scsi_device *sdev,
-		struct block_device *bdev, sector_t capacity, int *ip)
+		struct block_device *bdev, sector_t capacity, int geom[])
 {
 	struct aha1542_hostdata *aha1542 = shost_priv(sdev->host);
-	int translation_algorithm;
-	int size = capacity;
 
-	translation_algorithm = aha1542->bios_translation;
-
-	if ((size >> 11) > 1024 && translation_algorithm == BIOS_TRANSLATION_25563) {
+	if (capacity >= 0x200000 &&
+			aha1542->bios_translation == BIOS_TRANSLATION_25563) {
 		/* Please verify that this is the same as what DOS returns */
-		ip[0] = 255;
-		ip[1] = 63;
-		ip[2] = size / 255 / 63;
+		geom[0] = 255;	/* heads */
+		geom[1] = 63;	/* sectors */
 	} else {
-		ip[0] = 64;
-		ip[1] = 32;
-		ip[2] = size >> 11;
+		geom[0] = 64;	/* heads */
+		geom[1] = 32;	/* sectors */
 	}
+	geom[2] = sector_div(capacity, geom[0] * geom[1]);	/* cylinders */
 
 	return 0;
 }
