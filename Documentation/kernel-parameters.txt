@@ -1469,6 +1469,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		       no_hwp
 		         Do not enable hardware P state control (HWP)
 			 if available.
+		hwp_only
+			Only load intel_pstate on systems which support
+			hardware P state control (HWP) if available.
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)
