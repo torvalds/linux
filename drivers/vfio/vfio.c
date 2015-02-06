@@ -274,6 +274,7 @@ static void vfio_group_release(struct kref *kref)
 {
 	struct vfio_group *group = container_of(kref, struct vfio_group, kref);
 	struct vfio_unbound_dev *unbound, *tmp;
+	struct iommu_group *iommu_group = group->iommu_group;
 
 	WARN_ON(!list_empty(&group->device_list));
 
@@ -287,6 +288,7 @@ static void vfio_group_release(struct kref *kref)
 	list_del(&group->vfio_next);
 	vfio_free_group_minor(group->minor);
 	vfio_group_unlock_and_free(group);
+	iommu_group_put(iommu_group);
 }
 
 static void vfio_group_put(struct vfio_group *group)
@@ -625,6 +627,12 @@ int vfio_add_group_dev(struct device *dev,
 			iommu_group_put(iommu_group);
 			return PTR_ERR(group);
 		}
+	} else {
+		/*
+		 * A found vfio_group already holds a reference to the
+		 * iommu_group.  A created vfio_group keeps the reference.
+		 */
+		iommu_group_put(iommu_group);
 	}
 
 	device = vfio_group_get_device(group, dev);
@@ -633,21 +641,19 @@ int vfio_add_group_dev(struct device *dev,
 		     dev_name(dev), iommu_group_id(iommu_group));
 		vfio_device_put(device);
 		vfio_group_put(group);
-		iommu_group_put(iommu_group);
 		return -EBUSY;
 	}
 
 	device = vfio_group_create_device(group, dev, ops, device_data);
 	if (IS_ERR(device)) {
 		vfio_group_put(group);
-		iommu_group_put(iommu_group);
 		return PTR_ERR(device);
 	}
 
 	/*
-	 * Added device holds reference to iommu_group and vfio_device
-	 * (which in turn holds reference to vfio_group).  Drop extra
-	 * group reference used while acquiring device.
+	 * Drop all but the vfio_device reference.  The vfio_device holds
+	 * a reference to the vfio_group, which holds a reference to the
+	 * iommu_group.
 	 */
 	vfio_group_put(group);
 
@@ -702,7 +708,6 @@ void *vfio_del_group_dev(struct device *dev)
 {
 	struct vfio_device *device = dev_get_drvdata(dev);
 	struct vfio_group *group = device->group;
-	struct iommu_group *iommu_group = group->iommu_group;
 	void *device_data = device->device_data;
 	struct vfio_unbound_dev *unbound;
 
@@ -736,8 +741,6 @@ void *vfio_del_group_dev(struct device *dev)
 	wait_event(vfio.release_q, !vfio_dev_present(group, dev));
 
 	vfio_group_put(group);
-
-	iommu_group_put(iommu_group);
 
 	return device_data;
 }
