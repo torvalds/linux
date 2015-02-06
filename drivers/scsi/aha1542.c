@@ -756,38 +756,36 @@ static u8 dma_speed_hw(int dma_speed)
 }
 
 /* Set the Bus on/off-times as not to ruin floppy performance */
-static void aha1542_set_bus_times(int indx)
+static void aha1542_set_bus_times(struct Scsi_Host *sh, int bus_on, int bus_off, int dma_speed)
 {
-	unsigned int base_io = io[indx];
+	if (bus_on > 0) {
+		u8 oncmd[] = { CMD_BUSON_TIME, clamp(bus_on, 2, 15) };
 
-	if (bus_on[indx] > 0) {
-		u8 oncmd[] = { CMD_BUSON_TIME, clamp(bus_on[indx], 2, 15) };
-
-		aha1542_intr_reset(base_io);
-		if (aha1542_out(base_io, oncmd, 2))
+		aha1542_intr_reset(sh->io_port);
+		if (aha1542_out(sh->io_port, oncmd, 2))
 			goto fail;
 	}
 
-	if (bus_off[indx] > 0) {
-		u8 offcmd[] = { CMD_BUSOFF_TIME, clamp(bus_off[indx], 1, 64) };
+	if (bus_off > 0) {
+		u8 offcmd[] = { CMD_BUSOFF_TIME, clamp(bus_off, 1, 64) };
 
-		aha1542_intr_reset(base_io);
-		if (aha1542_out(base_io, offcmd, 2))
+		aha1542_intr_reset(sh->io_port);
+		if (aha1542_out(sh->io_port, offcmd, 2))
 			goto fail;
 	}
 
-	if (dma_speed_hw(dma_speed[indx]) != 0xff) {
-		u8 dmacmd[] = { CMD_DMASPEED, dma_speed_hw(dma_speed[indx]) };
+	if (dma_speed_hw(dma_speed) != 0xff) {
+		u8 dmacmd[] = { CMD_DMASPEED, dma_speed_hw(dma_speed) };
 
-		aha1542_intr_reset(base_io);
-		if (aha1542_out(base_io, dmacmd, 2))
+		aha1542_intr_reset(sh->io_port);
+		if (aha1542_out(sh->io_port, dmacmd, 2))
 			goto fail;
 	}
-	aha1542_intr_reset(base_io);
+	aha1542_intr_reset(sh->io_port);
 	return;
 fail:
 	printk(KERN_ERR "setting bus on/off-time failed\n");
-	aha1542_intr_reset(base_io);
+	aha1542_intr_reset(sh->io_port);
 }
 
 /* return non-zero on detection */
@@ -817,7 +815,7 @@ static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct
 	if (!aha1542_test_port(sh))
 		goto unregister;
 
-	aha1542_set_bus_times(indx);
+	aha1542_set_bus_times(sh, bus_on[indx], bus_off[indx], dma_speed[indx]);
 	if (aha1542_query(sh))
 		goto unregister;
 	if (aha1542_getconfig(sh) == -1)
