@@ -185,6 +185,8 @@ static int aha1542_out(unsigned int base, u8 *cmdp, int len)
 		outb(*cmdp++, DATA(base));
 	}
 	spin_unlock_irqrestore(&aha1542_lock, flags);
+	if (!wait_mask(INTRFLAGS(base), INTRMASK, HACC, 0, 0))
+		return 1;
 
 	return 0;
 }
@@ -650,8 +652,7 @@ static void setup_mailboxes(int bse, struct Scsi_Host *shpnt)
 	};
 	aha1542_intr_reset(bse);	/* reset interrupts, so they don't block */
 	any2scsi((cmd + 2), isa_virt_to_bus(mb));
-	aha1542_out(bse, cmd, 5);
-	if (!wait_mask(INTRFLAGS(bse), INTRMASK, HACC, 0, 0))
+	if (aha1542_out(bse, cmd, 5))
 		printk(KERN_ERR "aha1542_detect: failed setting up mailboxes\n");
 	aha1542_intr_reset(bse);
 }
@@ -744,8 +745,7 @@ static int aha1542_mbenable(int base)
 		if ((mbenable_result[0] & 0x08) && (mbenable_result[1] & 0x03))
 			retval = BIOS_TRANSLATION_25563;
 
-		aha1542_out(base, mbenable_cmd, 3);
-		if (!wait_mask(INTRFLAGS(base), INTRMASK, HACC, 0, 0))
+		if (aha1542_out(base, mbenable_cmd, 3))
 			goto fail;
 	};
 	while (0) {
@@ -879,19 +879,16 @@ static void aha1542_set_bus_times(int indx)
 		offcmd[1] = setup_busoff[indx];
 	}
 	aha1542_intr_reset(base_io);
-	aha1542_out(base_io, oncmd, 2);
-	if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
+	if (aha1542_out(base_io, oncmd, 2))
 		goto fail;
 	aha1542_intr_reset(base_io);
-	aha1542_out(base_io, offcmd, 2);
-	if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
+	if (aha1542_out(base_io, offcmd, 2))
 		goto fail;
 	if (setup_dmaspeed[indx] >= 0) {
 		u8 dmacmd[] = {CMD_DMASPEED, 0};
 		dmacmd[1] = setup_dmaspeed[indx];
 		aha1542_intr_reset(base_io);
-		aha1542_out(base_io, dmacmd, 2);
-		if (!wait_mask(INTRFLAGS(base_io), INTRMASK, HACC, 0, 0))
+		if (aha1542_out(base_io, dmacmd, 2))
 			goto fail;
 	}
 	aha1542_intr_reset(base_io);
