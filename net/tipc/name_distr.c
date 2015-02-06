@@ -71,13 +71,14 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
 static struct sk_buff *named_prepare_buf(struct net *net, u32 type, u32 size,
 					 u32 dest)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE + size);
 	struct tipc_msg *msg;
 
 	if (buf != NULL) {
 		msg = buf_msg(buf);
-		tipc_msg_init(net, msg, NAME_DISTRIBUTOR, type, INT_H_SIZE,
-			      dest);
+		tipc_msg_init(tn->own_addr, msg, NAME_DISTRIBUTOR, type,
+			      INT_H_SIZE, dest);
 		msg_set_size(msg, INT_H_SIZE + size);
 	}
 	return buf;
@@ -380,25 +381,34 @@ void tipc_named_process_backlog(struct net *net)
 }
 
 /**
- * tipc_named_rcv - process name table update message sent by another node
+ * tipc_named_rcv - process name table update messages sent by another node
  */
-void tipc_named_rcv(struct net *net, struct sk_buff *buf)
+void tipc_named_rcv(struct net *net, struct sk_buff_head *inputq)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct tipc_msg *msg = buf_msg(buf);
-	struct distr_item *item = (struct distr_item *)msg_data(msg);
-	u32 count = msg_data_sz(msg) / ITEM_SIZE;
-	u32 node = msg_orignode(msg);
+	struct tipc_msg *msg;
+	struct distr_item *item;
+	uint count;
+	u32 node;
+	struct sk_buff *skb;
+	int mtype;
 
 	spin_lock_bh(&tn->nametbl_lock);
-	while (count--) {
-		if (!tipc_update_nametbl(net, item, node, msg_type(msg)))
-			tipc_named_add_backlog(item, msg_type(msg), node);
-		item++;
+	for (skb = skb_dequeue(inputq); skb; skb = skb_dequeue(inputq)) {
+		msg = buf_msg(skb);
+		mtype = msg_type(msg);
+		item = (struct distr_item *)msg_data(msg);
+		count = msg_data_sz(msg) / ITEM_SIZE;
+		node = msg_orignode(msg);
+		while (count--) {
+			if (!tipc_update_nametbl(net, item, node, mtype))
+				tipc_named_add_backlog(item, mtype, node);
+			item++;
+		}
+		kfree_skb(skb);
+		tipc_named_process_backlog(net);
 	}
-	tipc_named_process_backlog(net);
 	spin_unlock_bh(&tn->nametbl_lock);
-	kfree_skb(buf);
 }
 
 /**

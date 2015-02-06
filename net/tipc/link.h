@@ -131,8 +131,10 @@ struct tipc_stats {
  * @next_in_no: next sequence number to expect for inbound messages
  * @deferred_queue: deferred queue saved OOS b'cast message received from node
  * @unacked_window: # of inbound messages rx'd without ack'ing back to peer
+ * @inputq: buffer queue for messages to be delivered upwards
+ * @namedq: buffer queue for name table messages to be delivered upwards
  * @next_out: ptr to first unsent outbound message in queue
- * @waiting_sks: linked list of sockets waiting for link congestion to abate
+ * @wakeupq: linked list of wakeup msgs waiting for link congestion to abate
  * @long_msg_seq_no: next identifier to use for outbound fragmented messages
  * @reasm_buf: head of partially reassembled inbound message fragments
  * @stats: collects statistics regarding link activity
@@ -184,10 +186,12 @@ struct tipc_link {
 	u32 next_in_no;
 	struct sk_buff_head deferred_queue;
 	u32 unacked_window;
+	struct sk_buff_head inputq;
+	struct sk_buff_head namedq;
 
 	/* Congestion handling */
 	struct sk_buff *next_out;
-	struct sk_buff_head waiting_sks;
+	struct sk_buff_head wakeupq;
 
 	/* Fragmentation/reassembly */
 	u32 long_msg_seq_no;
@@ -228,7 +232,6 @@ int tipc_link_xmit(struct net *net, struct sk_buff_head *list, u32 dest,
 		   u32 selector);
 int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 		     struct sk_buff_head *list);
-void tipc_link_bundle_rcv(struct net *net, struct sk_buff *buf);
 void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int prob,
 			  u32 gap, u32 tolerance, u32 priority, u32 acked_mtu);
 void tipc_link_push_packets(struct tipc_link *l_ptr);
@@ -244,6 +247,7 @@ int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[]);
+void link_prepare_wakeup(struct tipc_link *l);
 
 /*
  * Link sequence number manipulation routines (uses modulo 2**16 arithmetic)
@@ -278,6 +282,10 @@ static inline u32 lesser(u32 left, u32 right)
 	return less_eq(left, right) ? left : right;
 }
 
+static inline u32 link_own_addr(struct tipc_link *l)
+{
+	return msg_prevnode(l->pmsg);
+}
 
 /*
  * Link status checking routines

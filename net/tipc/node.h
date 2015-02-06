@@ -1,7 +1,7 @@
 /*
  * net/tipc/node.h: Include file for TIPC node management routines
  *
- * Copyright (c) 2000-2006, 2014, Ericsson AB
+ * Copyright (c) 2000-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2005, 2010-2014, Wind River Systems
  * All rights reserved.
  *
@@ -55,14 +55,16 @@
  * TIPC_DISTRIBUTE_NAME: publish or withdraw link state name type
  */
 enum {
+	TIPC_MSG_EVT                    = 1,
 	TIPC_WAIT_PEER_LINKS_DOWN	= (1 << 1),
 	TIPC_WAIT_OWN_LINKS_DOWN	= (1 << 2),
 	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
 	TIPC_NOTIFY_NODE_UP		= (1 << 4),
-	TIPC_WAKEUP_USERS		= (1 << 5),
-	TIPC_WAKEUP_BCAST_USERS		= (1 << 6),
-	TIPC_NOTIFY_LINK_UP		= (1 << 7),
-	TIPC_NOTIFY_LINK_DOWN		= (1 << 8)
+	TIPC_WAKEUP_BCAST_USERS		= (1 << 5),
+	TIPC_NOTIFY_LINK_UP		= (1 << 6),
+	TIPC_NOTIFY_LINK_DOWN		= (1 << 7),
+	TIPC_NAMED_MSG_EVT		= (1 << 8),
+	TIPC_BCAST_MSG_EVT		= (1 << 9)
 };
 
 /**
@@ -73,6 +75,7 @@ enum {
  * @oos_state: state tracker for handling OOS b'cast messages
  * @deferred_queue: deferred queue saved OOS b'cast message received from node
  * @reasm_buf: broadcast reassembly queue head from node
+ * @inputq_map: bitmap indicating which inqueues should be kicked
  * @recv_permitted: true if node is allowed to receive b'cast messages
  */
 struct tipc_node_bclink {
@@ -83,6 +86,7 @@ struct tipc_node_bclink {
 	u32 deferred_size;
 	struct sk_buff_head deferred_queue;
 	struct sk_buff *reasm_buf;
+	int inputq_map;
 	bool recv_permitted;
 };
 
@@ -92,6 +96,9 @@ struct tipc_node_bclink {
  * @lock: spinlock governing access to structure
  * @net: the applicable net namespace
  * @hash: links to adjacent nodes in unsorted hash chain
+ * @inputq: pointer to input queue containing messages for msg event
+ * @namedq: pointer to name table input queue with name table messages
+ * @curr_link: the link holding the node lock, if any
  * @active_links: pointers to active links to node
  * @links: pointers to all links to node
  * @action_flags: bit mask of different types of node actions
@@ -109,10 +116,12 @@ struct tipc_node {
 	spinlock_t lock;
 	struct net *net;
 	struct hlist_node hash;
+	struct sk_buff_head *inputq;
+	struct sk_buff_head *namedq;
 	struct tipc_link *active_links[2];
 	u32 act_mtus[2];
 	struct tipc_link *links[MAX_BEARERS];
-	unsigned int action_flags;
+	int action_flags;
 	struct tipc_node_bclink bclink;
 	struct list_head list;
 	int link_cnt;
@@ -120,7 +129,6 @@ struct tipc_node {
 	u32 signature;
 	u32 link_id;
 	struct list_head publ_list;
-	struct sk_buff_head waiting_sks;
 	struct list_head conn_sks;
 	struct rcu_head rcu;
 };

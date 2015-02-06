@@ -1,7 +1,7 @@
 /*
  * net/tipc/bcast.h: Include file for TIPC broadcast code
  *
- * Copyright (c) 2003-2006, 2014, Ericsson AB
+ * Copyright (c) 2003-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -41,22 +41,6 @@
 #include "link.h"
 #include "node.h"
 
-#define TIPC_BCLINK_RESET	1
-#define PLSIZE			32
-#define	BCBEARER		MAX_BEARERS
-
-/**
- * struct tipc_port_list - set of node local destination ports
- * @count: # of ports in set (only valid for first entry in list)
- * @next: pointer to next entry in list
- * @ports: array of port references
- */
-struct tipc_port_list {
-	int count;
-	struct tipc_port_list *next;
-	u32 ports[PLSIZE];
-};
-
 /**
  * struct tipc_bcbearer_pair - a pair of bearers used by broadcast link
  * @primary: pointer to primary bearer
@@ -70,6 +54,9 @@ struct tipc_bcbearer_pair {
 	struct tipc_bearer *primary;
 	struct tipc_bearer *secondary;
 };
+
+#define TIPC_BCLINK_RESET	1
+#define	BCBEARER		MAX_BEARERS
 
 /**
  * struct tipc_bcbearer - bearer used by broadcast link
@@ -110,6 +97,8 @@ struct tipc_bclink {
 	struct tipc_link link;
 	struct tipc_node node;
 	unsigned int flags;
+	struct sk_buff_head arrvq;
+	struct sk_buff_head inputq;
 	struct tipc_node_map bcast_nodes;
 	struct tipc_node *retransmit_to;
 };
@@ -126,9 +115,6 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a,
 	return !memcmp(nm_a, nm_b, sizeof(*nm_a));
 }
 
-void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port);
-void tipc_port_list_free(struct tipc_port_list *pl_ptr);
-
 int tipc_bclink_init(struct net *net);
 void tipc_bclink_stop(struct net *net);
 void tipc_bclink_set_flags(struct net *tn, unsigned int flags);
@@ -139,7 +125,7 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked);
 void tipc_bclink_rcv(struct net *net, struct sk_buff *buf);
 u32  tipc_bclink_get_last_sent(struct net *net);
 u32  tipc_bclink_acks_missing(struct tipc_node *n_ptr);
-void tipc_bclink_update_link_state(struct net *net, struct tipc_node *n_ptr,
+void tipc_bclink_update_link_state(struct tipc_node *node,
 				   u32 last_sent);
 int  tipc_bclink_stats(struct net *net, char *stats_buf, const u32 buf_size);
 int  tipc_bclink_reset_stats(struct net *net);
@@ -150,5 +136,6 @@ uint  tipc_bclink_get_mtu(void);
 int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list);
 void tipc_bclink_wakeup_users(struct net *net);
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg);
+void tipc_bclink_input(struct net *net);
 
 #endif
