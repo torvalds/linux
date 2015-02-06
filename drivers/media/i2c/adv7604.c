@@ -1253,13 +1253,19 @@ static inline bool no_lock_cp(struct v4l2_subdev *sd)
 	return io_read(sd, 0x12) & 0x01;
 }
 
+static inline bool in_free_run(struct v4l2_subdev *sd)
+{
+	return cp_read(sd, 0xff) & 0x10;
+}
+
 static int adv7604_g_input_status(struct v4l2_subdev *sd, u32 *status)
 {
 	*status = 0;
 	*status |= no_power(sd) ? V4L2_IN_ST_NO_POWER : 0;
 	*status |= no_signal(sd) ? V4L2_IN_ST_NO_SIGNAL : 0;
-	if (no_lock_cp(sd))
-		*status |= is_digital_input(sd) ? V4L2_IN_ST_NO_SYNC : V4L2_IN_ST_NO_H_LOCK;
+	if (!in_free_run(sd) && no_lock_cp(sd))
+		*status |= is_digital_input(sd) ?
+			   V4L2_IN_ST_NO_SYNC : V4L2_IN_ST_NO_H_LOCK;
 
 	v4l2_dbg(1, debug, sd, "%s: status = 0x%x\n", __func__, *status);
 
@@ -2200,7 +2206,7 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "STDI locked: %s\n", no_lock_stdi(sd) ? "false" : "true");
 	v4l2_info(sd, "CP locked: %s\n", no_lock_cp(sd) ? "false" : "true");
 	v4l2_info(sd, "CP free run: %s\n",
-			(!!(cp_read(sd, 0xff) & 0x10) ? "on" : "off"));
+			(in_free_run(sd)) ? "on" : "off");
 	v4l2_info(sd, "Prim-mode = 0x%x, video std = 0x%x, v_freq = 0x%x\n",
 			io_read(sd, 0x01) & 0x0f, io_read(sd, 0x00) & 0x3f,
 			(io_read(sd, 0x01) & 0x70) >> 4);
