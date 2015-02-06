@@ -1,28 +1,9 @@
-/* $Id: aha1542.c,v 1.1 1992/07/24 06:27:38 root Exp root $
- *  linux/kernel/aha1542.c
+/*
+ *  Driver for Adaptec AHA-1542 SCSI host adapters
  *
  *  Copyright (C) 1992  Tommy Thorn
  *  Copyright (C) 1993, 1994, 1995 Eric Youngdale
- *
- *  Modified by Eric Youngdale
- *        Use request_irq and request_dma to help prevent unexpected conflicts
- *        Set up on-board DMA controller, such that we do not have to
- *        have the bios enabled to use the aha1542.
- *  Modified by David Gentzel
- *        Don't call request_dma if dma mask is 0 (for BusLogic BT-445S VL-Bus
- *        controller).
- *  Modified by Matti Aarnio
- *        Accept parameters from LILO cmd-line. -- 1-Oct-94
- *  Modified by Mike McLagan <mike.mclagan@linux.org>
- *        Recognise extended mode on AHA1542CP, different bit than 1542CF
- *        1-Jan-97
- *  Modified by Bjorn L. Thordarson and Einar Thor Einarsson
- *        Recognize that DMA0 is valid DMA channel -- 13-Jul-98
- *  Modified by Chris Faulhaber <jedgar@fxp.org>
- *        Added module command-line options
- *        19-Jul-99
- *  Modified by Adam Fritzler
- *        Added proper detection of the AHA-1640 (MCA, now deleted)
+ *  Copyright (C) 2015 Ondrej Zary
  */
 
 #include <linux/module.h>
