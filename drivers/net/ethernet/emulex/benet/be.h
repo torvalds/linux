@@ -368,6 +368,7 @@ enum vf_state {
 #define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		BIT(7)
 #define BE_FLAGS_VXLAN_OFFLOADS			BIT(8)
 #define BE_FLAGS_SETUP_DONE			BIT(9)
+#define BE_FLAGS_EVT_INCOMPATIBLE_SFP		BIT(10)
 
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2
@@ -377,6 +378,8 @@ enum vf_state {
 #define LANCER_DELETE_FW_DUMP			0x2
 
 struct phy_info {
+/* From SFF-8472 spec */
+#define SFP_VENDOR_NAME_LEN			17
 	u8 transceiver;
 	u8 autoneg;
 	u8 fc_autoneg;
@@ -390,6 +393,8 @@ struct phy_info {
 	u32 advertising;
 	u32 supported;
 	u8 cable_type;
+	u8 vendor_name[SFP_VENDOR_NAME_LEN];
+	u8 vendor_pn[SFP_VENDOR_NAME_LEN];
 };
 
 struct be_resources {
@@ -478,6 +483,7 @@ struct be_adapter {
 	bool hw_error;
 
 	u32 port_num;
+	char port_name;
 	u8 mc_type;
 	u32 function_mode;
 	u32 function_caps;

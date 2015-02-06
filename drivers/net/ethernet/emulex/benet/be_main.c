@@ -3682,7 +3682,9 @@ static int be_get_config(struct be_adapter *adapter)
 	if (status)
 		return status;
 
-	 if (be_physfn(adapter)) {
+	be_cmd_query_port_name(adapter);
+
+	if (be_physfn(adapter)) {
 		status = be_cmd_get_active_profile(adapter, &profile_id);
 		if (!status)
 			dev_info(&adapter->pdev->dev,
@@ -5052,6 +5054,20 @@ static void be_func_recovery_task(struct work_struct *work)
 				      msecs_to_jiffies(1000));
 }
 
+static void be_log_sfp_info(struct be_adapter *adapter)
+{
+	int status;
+
+	status = be_cmd_query_sfp_info(adapter);
+	if (!status) {
+		dev_err(&adapter->pdev->dev,
+			"Unqualified SFP+ detected on %c from %s part no: %s",
+			adapter->port_name, adapter->phy.vendor_name,
+			adapter->phy.vendor_pn);
+	}
+	adapter->flags &= ~BE_FLAGS_EVT_INCOMPATIBLE_SFP;
+}
+
 static void be_worker(struct work_struct *work)
 {
 	struct be_adapter *adapter =
@@ -5089,6 +5105,9 @@ static void be_worker(struct work_struct *work)
 	}
 
 	be_eqd_update(adapter);
+
+	if (adapter->flags & BE_FLAGS_EVT_INCOMPATIBLE_SFP)
+		be_log_sfp_info(adapter);
 
 reschedule:
 	adapter->work_counter++;
@@ -5158,10 +5177,9 @@ static inline char *nic_name(struct pci_dev *pdev)
 
 static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 {
-	int status = 0;
 	struct be_adapter *adapter;
 	struct net_device *netdev;
-	char port_name;
+	int status = 0;
 
 	dev_info(&pdev->dev, "%s version is %s\n", DRV_NAME, DRV_VER);
 
@@ -5255,10 +5273,8 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	schedule_delayed_work(&adapter->func_recovery_work,
 			      msecs_to_jiffies(1000));
 
-	be_cmd_query_port_name(adapter, &port_name);
-
 	dev_info(&pdev->dev, "%s: %s %s port %c\n", nic_name(pdev),
-		 func_name(adapter), mc_name(adapter), port_name);
+		 func_name(adapter), mc_name(adapter), adapter->port_name);
 
 	return 0;
 

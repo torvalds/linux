@@ -102,6 +102,8 @@ struct be_mcc_compl {
 #define ASYNC_EVENT_PVID_STATE		0x3
 #define ASYNC_EVENT_CODE_QNQ		0x6
 #define ASYNC_DEBUG_EVENT_TYPE_QNQ	1
+#define ASYNC_EVENT_CODE_SLIPORT	0x11
+#define ASYNC_EVENT_PORT_MISCONFIG	0x9
 
 enum {
 	LINK_DOWN	= 0x0,
@@ -166,6 +168,15 @@ struct be_async_event_qnq {
 	u16 vlan_tag;
 	u32 event_tag;
 	u8 rsvd1[4];
+	u32 flags;
+} __packed;
+
+#define INCOMPATIBLE_SFP		0x3
+/* async event indicating misconfigured port */
+struct be_async_event_misconfig_port {
+	u32 event_data_word1;
+	u32 event_data_word2;
+	u32 rsvd0;
 	u32 flags;
 } __packed;
 
@@ -1028,6 +1039,8 @@ enum {
 #define	SFP_PLUS_SFF_8472_COMP		0x5E
 #define	SFP_PLUS_CABLE_TYPE_OFFSET	0x8
 #define	SFP_PLUS_COPPER_CABLE		0x4
+#define SFP_VENDOR_NAME_OFFSET		0x14
+#define SFP_VENDOR_PN_OFFSET		0x28
 
 #define PAGE_DATA_LEN   256
 struct be_cmd_resp_port_type {
@@ -2259,6 +2272,7 @@ int be_cmd_get_beacon_state(struct be_adapter *adapter, u8 port_num,
 int be_cmd_read_port_transceiver_data(struct be_adapter *adapter,
 				      u8 page_num, u8 *data);
 int be_cmd_query_cable_type(struct be_adapter *adapter);
+int be_cmd_query_sfp_info(struct be_adapter *adapter);
 int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			  u32 flash_oper, u32 flash_opcode, u32 img_offset,
 			  u32 buf_size);
@@ -2326,7 +2340,7 @@ int lancer_initiate_dump(struct be_adapter *adapter);
 int lancer_delete_dump(struct be_adapter *adapter);
 bool dump_present(struct be_adapter *adapter);
 int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
-int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
+int be_cmd_query_port_name(struct be_adapter *adapter);
 int be_cmd_get_func_config(struct be_adapter *adapter,
 			   struct be_resources *res);
 int be_cmd_get_profile_config(struct be_adapter *adapter,
