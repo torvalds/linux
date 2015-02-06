@@ -211,7 +211,7 @@ static int klp_verify_vmlinux_symbol(const char *name, unsigned long addr)
 	if (kallsyms_on_each_symbol(klp_verify_callback, &args))
 		return 0;
 
-	pr_err("symbol '%s' not found at specified address 0x%016lx, kernel mismatch?",
+	pr_err("symbol '%s' not found at specified address 0x%016lx, kernel mismatch?\n",
 		name, addr);
 	return -EINVAL;
 }
