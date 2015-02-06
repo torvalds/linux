@@ -108,7 +108,7 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 	struct dentry *dentry = file->f_path.dentry;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 
-	DPRINTK("file=%p dentry=%p %pD", file, dentry, dentry);
+	DPRINTK("file=%p dentry=%p %pd", file, dentry, dentry);
 
 	if (autofs4_oz_mode(sbi))
 		goto out;
