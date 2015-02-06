@@ -254,8 +254,10 @@ u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj)
 	return lrca >> 12;
 }
 
-static uint64_t execlists_ctx_descriptor(struct drm_i915_gem_object *ctx_obj)
+static uint64_t execlists_ctx_descriptor(struct intel_engine_cs *ring,
+					 struct drm_i915_gem_object *ctx_obj)
 {
+	struct drm_device *dev = ring->dev;
 	uint64_t desc;
 	uint64_t lrca = i915_gem_obj_ggtt_offset(ctx_obj);
 
@@ -272,6 +274,13 @@ static uint64_t execlists_ctx_descriptor(struct drm_i915_gem_object *ctx_obj)
 	 * signalling between Command Streamers */
 	/* desc |= GEN8_CTX_FORCE_RESTORE; */
 
+	/* WaEnableForceRestoreInCtxtDescForVCS:skl */
+	if (IS_GEN9(dev) &&
+	    INTEL_REVID(dev) <= SKL_REVID_B0 &&
+	    (ring->id == BCS || ring->id == VCS ||
+	    ring->id == VECS || ring->id == VCS2))
+		desc |= GEN8_CTX_FORCE_RESTORE;
+
 	return desc;
 }
 
@@ -286,13 +295,13 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 
 	/* XXX: You must always write both descriptors in the order below. */
 	if (ctx_obj1)
-		temp = execlists_ctx_descriptor(ctx_obj1);
+		temp = execlists_ctx_descriptor(ring, ctx_obj1);
 	else
 		temp = 0;
 	desc[1] = (u32)(temp >> 32);
 	desc[0] = (u32)temp;
 
-	temp = execlists_ctx_descriptor(ctx_obj0);
+	temp = execlists_ctx_descriptor(ring, ctx_obj0);
 	desc[3] = (u32)(temp >> 32);
 	desc[2] = (u32)temp;
 
