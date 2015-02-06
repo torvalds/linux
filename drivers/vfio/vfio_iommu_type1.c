@@ -265,6 +265,7 @@ static long vfio_pin_pages(unsigned long vaddr, long npage,
 	unsigned long limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	bool lock_cap = capable(CAP_IPC_LOCK);
 	long ret, i;
+	bool rsvd;
 
 	if (!current->mm)
 		return -ENODEV;
@@ -273,10 +274,9 @@ static long vfio_pin_pages(unsigned long vaddr, long npage,
 	if (ret)
 		return ret;
 
-	if (is_invalid_reserved_pfn(*pfn_base))
-		return 1;
+	rsvd = is_invalid_reserved_pfn(*pfn_base);
 
-	if (!lock_cap && current->mm->locked_vm + 1 > limit) {
+	if (!rsvd && !lock_cap && current->mm->locked_vm + 1 > limit) {
 		put_pfn(*pfn_base, prot);
 		pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
 			limit << PAGE_SHIFT);
@@ -284,7 +284,8 @@ static long vfio_pin_pages(unsigned long vaddr, long npage,
 	}
 
 	if (unlikely(disable_hugepages)) {
-		vfio_lock_acct(1);
+		if (!rsvd)
+			vfio_lock_acct(1);
 		return 1;
 	}
 
@@ -296,12 +297,14 @@ static long vfio_pin_pages(unsigned long vaddr, long npage,
 		if (ret)
 			break;
 
-		if (pfn != *pfn_base + i || is_invalid_reserved_pfn(pfn)) {
+		if (pfn != *pfn_base + i ||
+		    rsvd != is_invalid_reserved_pfn(pfn)) {
 			put_pfn(pfn, prot);
 			break;
 		}
 
-		if (!lock_cap && current->mm->locked_vm + i + 1 > limit) {
+		if (!rsvd && !lock_cap &&
+		    current->mm->locked_vm + i + 1 > limit) {
 			put_pfn(pfn, prot);
 			pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n",
 				__func__, limit << PAGE_SHIFT);
@@ -309,7 +312,8 @@ static long vfio_pin_pages(unsigned long vaddr, long npage,
 		}
 	}
 
-	vfio_lock_acct(i);
+	if (!rsvd)
+		vfio_lock_acct(i);
 
 	return i;
 }
