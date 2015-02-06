@@ -668,6 +668,13 @@ static struct platform_device bfin_sport1_uart_device = {
 #if IS_ENABLED(CONFIG_INPUT_BFIN_ROTARY)
 #include <linux/platform_data/bfin_rotary.h>
 
+static const u16 per_cnt[] = {
+	P_CNT_CUD,
+	P_CNT_CDG,
+	P_CNT_CZM,
+	0
+};
+
 static struct bfin_rotary_platform_data bfin_rotary_data = {
 	/*.rotary_up_key     = KEY_UP,*/
 	/*.rotary_down_key   = KEY_DOWN,*/
@@ -676,6 +683,7 @@ static struct bfin_rotary_platform_data bfin_rotary_data = {
 	.debounce	   = 10,	/* 0..17 */
 	.mode		   = ROT_QUAD_ENC | ROT_DEBE,
 	.pm_wakeup	   = 1,
+	.pin_list	   = per_cnt,
 };
 
 static struct resource bfin_rotary_resources[] = {

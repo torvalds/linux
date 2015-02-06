@@ -16,13 +16,6 @@
 
 #include <asm/portmux.h>
 
-static const u16 per_cnt[] = {
-	P_CNT_CUD,
-	P_CNT_CDG,
-	P_CNT_CZM,
-	0
-};
-
 struct bfin_rot {
 	struct input_dev *input;
 	int irq;
@@ -90,7 +83,8 @@ static irqreturn_t bfin_rotary_isr(int irq, void *dev_id)
 
 static int bfin_rotary_probe(struct platform_device *pdev)
 {
-	struct bfin_rotary_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	const struct bfin_rotary_platform_data *pdata =
+					dev_get_platdata(&pdev->dev);
 	struct bfin_rot *rotary;
 	struct input_dev *input;
 	int error;
@@ -101,10 +95,13 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	error = peripheral_request_list(per_cnt, dev_name(&pdev->dev));
-	if (error) {
-		dev_err(&pdev->dev, "requesting peripherals failed\n");
-		return error;
+	if (pdata->pin_list) {
+		error = peripheral_request_list(pdata->pin_list,
+						dev_name(&pdev->dev));
+		if (error) {
+			dev_err(&pdev->dev, "requesting peripherals failed\n");
+			return error;
+		}
 	}
 
 	rotary = kzalloc(sizeof(struct bfin_rot), GFP_KERNEL);
@@ -189,13 +186,16 @@ out2:
 out1:
 	input_free_device(input);
 	kfree(rotary);
-	peripheral_free_list(per_cnt);
+	if (pdata->pin_list)
+		peripheral_free_list(pdata->pin_list);
 
 	return error;
 }
 
 static int bfin_rotary_remove(struct platform_device *pdev)
 {
+	const struct bfin_rotary_platform_data *pdata =
+					dev_get_platdata(&pdev->dev);
 	struct bfin_rot *rotary = platform_get_drvdata(pdev);
 
 	bfin_write_CNT_CONFIG(0);
@@ -203,7 +203,9 @@ static int bfin_rotary_remove(struct platform_device *pdev)
 
 	free_irq(rotary->irq, rotary);
 	input_unregister_device(rotary->input);
-	peripheral_free_list(per_cnt);
+
+	if (pdata->pin_list)
+		peripheral_free_list(pdata->pin_list);
 
 	kfree(rotary);
 
