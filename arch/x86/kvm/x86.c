@@ -6186,7 +6186,7 @@ void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 }
 
 /*
- * Returns 1 to let __vcpu_run() continue the guest execution loop without
+ * Returns 1 to let vcpu_run() continue the guest execution loop without
  * exiting to the userspace.  Otherwise, the value will be returned to the
  * userspace.
  */
@@ -6404,42 +6404,46 @@ out:
 	return r;
 }
 
+static inline int vcpu_block(struct kvm *kvm, struct kvm_vcpu *vcpu)
+{
+	srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
+	kvm_vcpu_block(vcpu);
+	vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
 
-static int __vcpu_run(struct kvm_vcpu *vcpu)
+	if (!kvm_check_request(KVM_REQ_UNHALT, vcpu))
+		return 1;
+
+	kvm_apic_accept_events(vcpu);
+	switch(vcpu->arch.mp_state) {
+	case KVM_MP_STATE_HALTED:
+		vcpu->arch.pv.pv_unhalted = false;
+		vcpu->arch.mp_state =
+			KVM_MP_STATE_RUNNABLE;
+	case KVM_MP_STATE_RUNNABLE:
+		vcpu->arch.apf.halted = false;
+		break;
+	case KVM_MP_STATE_INIT_RECEIVED:
+		break;
+	default:
+		return -EINTR;
+		break;
+	}
+	return 1;
+}
+
+static int vcpu_run(struct kvm_vcpu *vcpu)
 {
 	int r;
 	struct kvm *kvm = vcpu->kvm;
 
 	vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
 
-	r = 1;
-	while (r > 0) {
+	for (;;) {
 		if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE &&
 		    !vcpu->arch.apf.halted)
 			r = vcpu_enter_guest(vcpu);
-		else {
-			srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
-			kvm_vcpu_block(vcpu);
-			vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
-			if (kvm_check_request(KVM_REQ_UNHALT, vcpu)) {
-				kvm_apic_accept_events(vcpu);
-				switch(vcpu->arch.mp_state) {
-				case KVM_MP_STATE_HALTED:
-					vcpu->arch.pv.pv_unhalted = false;
-					vcpu->arch.mp_state =
-						KVM_MP_STATE_RUNNABLE;
-				case KVM_MP_STATE_RUNNABLE:
-					vcpu->arch.apf.halted = false;
-					break;
-				case KVM_MP_STATE_INIT_RECEIVED:
-					break;
-				default:
-					r = -EINTR;
-					break;
-				}
-			}
-		}
-
+		else
+			r = vcpu_block(kvm, vcpu);
 		if (r <= 0)
 			break;
 
@@ -6451,6 +6455,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			r = -EINTR;
 			vcpu->run->exit_reason = KVM_EXIT_INTR;
 			++vcpu->stat.request_irq_exits;
+			break;
 		}
 
 		kvm_check_async_pf_completion(vcpu);
@@ -6459,6 +6464,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			r = -EINTR;
 			vcpu->run->exit_reason = KVM_EXIT_INTR;
 			++vcpu->stat.signal_exits;
+			break;
 		}
 		if (need_resched()) {
 			srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
@@ -6590,7 +6596,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	} else
 		WARN_ON(vcpu->arch.pio.count || vcpu->mmio_needed);
 
-	r = __vcpu_run(vcpu);
+	r = vcpu_run(vcpu);
 
 out:
 	post_kvm_run_save(vcpu);
