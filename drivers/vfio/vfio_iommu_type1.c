@@ -351,8 +351,10 @@ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
 	domain = d = list_first_entry(&iommu->domain_list,
 				      struct vfio_domain, next);
 
-	list_for_each_entry_continue(d, &iommu->domain_list, next)
+	list_for_each_entry_continue(d, &iommu->domain_list, next) {
 		iommu_unmap(d->domain, dma->iova, dma->size);
+		cond_resched();
+	}
 
 	while (iova < end) {
 		size_t unmapped, len;
@@ -384,6 +386,8 @@ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
 					     unmapped >> PAGE_SHIFT,
 					     dma->prot, false);
 		iova += unmapped;
+
+		cond_resched();
 	}
 
 	vfio_lock_acct(-unlocked);
@@ -528,6 +532,8 @@ static int vfio_iommu_map(struct vfio_iommu *iommu, dma_addr_t iova,
 			    map_try_harder(d, iova, pfn, npage, prot))
 				goto unwind;
 		}
+
+		cond_resched();
 	}
 
 	return 0;
