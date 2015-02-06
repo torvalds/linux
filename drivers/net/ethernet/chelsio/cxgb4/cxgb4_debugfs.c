@@ -562,6 +562,41 @@ static const struct file_operations tp_la_fops = {
 	.write   = tp_la_write
 };
 
+static int ulprx_la_show(struct seq_file *seq, void *v, int idx)
+{
+	const u32 *p = v;
+
+	if (v == SEQ_START_TOKEN)
+		seq_puts(seq, "      Pcmd        Type   Message"
+			 "                Data\n");
+	else
+		seq_printf(seq, "%08x%08x  %4x  %08x  %08x%08x%08x%08x\n",
+			   p[1], p[0], p[2], p[3], p[7], p[6], p[5], p[4]);
+	return 0;
+}
+
+static int ulprx_la_open(struct inode *inode, struct file *file)
+{
+	struct seq_tab *p;
+	struct adapter *adap = inode->i_private;
+
+	p = seq_open_tab(file, ULPRX_LA_SIZE, 8 * sizeof(u32), 1,
+			 ulprx_la_show);
+	if (!p)
+		return -ENOMEM;
+
+	t4_ulprx_read_la(adap, (u32 *)p->data);
+	return 0;
+}
+
+static const struct file_operations ulprx_la_fops = {
+	.owner   = THIS_MODULE,
+	.open    = ulprx_la_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
 /* Show the PM memory stats.  These stats include:
  *
  * TX:
@@ -1867,6 +1902,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "obq_sge",  &cim_obq_fops, S_IRUSR, 4 },
 		{ "obq_ncsi", &cim_obq_fops, S_IRUSR, 5 },
 		{ "tp_la", &tp_la_fops, S_IRUSR, 0 },
+		{ "ulprx_la", &ulprx_la_fops, S_IRUSR, 0 },
 		{ "sensors", &sensors_debugfs_fops, S_IRUSR, 0 },
 		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
 #if IS_ENABLED(CONFIG_IPV6)

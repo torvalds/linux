@@ -1263,6 +1263,21 @@ int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
 	return t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), NULL);
 }
 
+void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < 8; i++) {
+		u32 *p = la_buf + i;
+
+		t4_write_reg(adap, ULP_RX_LA_CTL_A, i);
+		j = t4_read_reg(adap, ULP_RX_LA_WRPTR_A);
+		t4_write_reg(adap, ULP_RX_LA_RDPTR_A, j);
+		for (j = 0; j < ULPRX_LA_SIZE; j++, p += 8)
+			*p = t4_read_reg(adap, ULP_RX_LA_RDDATA_A);
+	}
+}
+
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
 		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
 		     FW_PORT_CAP_ANEG)
