@@ -108,8 +108,7 @@ void unlazy_fpu(struct task_struct *tsk)
 	if (__thread_has_fpu(tsk)) {
 		__save_init_fpu(tsk);
 		__thread_fpu_end(tsk);
-	} else
-		tsk->thread.fpu_counter = 0;
+	}
 	preempt_enable();
 }
 EXPORT_SYMBOL(unlazy_fpu);
