@@ -25,6 +25,7 @@ char *kvm_mips_exit_types_str[MAX_KVM_MIPS_EXIT_TYPES] = {
 	"System Call",
 	"Reserved Inst",
 	"Break Inst",
+	"Trap Inst",
 	"D-Cache Flushes",
 };
 

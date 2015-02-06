@@ -119,6 +119,7 @@ struct kvm_vcpu_stat {
 	u32 syscall_exits;
 	u32 resvd_inst_exits;
 	u32 break_inst_exits;
+	u32 trap_inst_exits;
 	u32 flush_dcache_exits;
 	u32 halt_successful_poll;
 	u32 halt_wakeup;
@@ -138,6 +139,7 @@ enum kvm_mips_exit_types {
 	SYSCALL_EXITS,
 	RESVD_INST_EXITS,
 	BREAK_INST_EXITS,
+	TRAP_INST_EXITS,
 	FLUSH_DCACHE_EXITS,
 	MAX_KVM_MIPS_EXIT_TYPES
 };
@@ -579,6 +581,7 @@ struct kvm_mips_callbacks {
 	int (*handle_syscall)(struct kvm_vcpu *vcpu);
 	int (*handle_res_inst)(struct kvm_vcpu *vcpu);
 	int (*handle_break)(struct kvm_vcpu *vcpu);
+	int (*handle_trap)(struct kvm_vcpu *vcpu);
 	int (*handle_msa_disabled)(struct kvm_vcpu *vcpu);
 	int (*vm_init)(struct kvm *kvm);
 	int (*vcpu_init)(struct kvm_vcpu *vcpu);
@@ -712,6 +715,11 @@ extern enum emulation_result kvm_mips_emulate_bp_exc(unsigned long cause,
 						     uint32_t *opc,
 						     struct kvm_run *run,
 						     struct kvm_vcpu *vcpu);
+
+extern enum emulation_result kvm_mips_emulate_trap_exc(unsigned long cause,
+						       uint32_t *opc,
+						       struct kvm_run *run,
+						       struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu,
 							 struct kvm_run *run);
