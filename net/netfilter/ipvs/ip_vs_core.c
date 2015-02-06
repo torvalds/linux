@@ -119,24 +119,24 @@ ip_vs_in_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 		struct ip_vs_service *svc;
 
 		s = this_cpu_ptr(dest->stats.cpustats);
-		s->ustats.inpkts++;
 		u64_stats_update_begin(&s->syncp);
-		s->ustats.inbytes += skb->len;
+		s->cnt.inpkts++;
+		s->cnt.inbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 
 		rcu_read_lock();
 		svc = rcu_dereference(dest->svc);
 		s = this_cpu_ptr(svc->stats.cpustats);
-		s->ustats.inpkts++;
 		u64_stats_update_begin(&s->syncp);
-		s->ustats.inbytes += skb->len;
+		s->cnt.inpkts++;
+		s->cnt.inbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 		rcu_read_unlock();
 
 		s = this_cpu_ptr(ipvs->tot_stats.cpustats);
-		s->ustats.inpkts++;
 		u64_stats_update_begin(&s->syncp);
-		s->ustats.inbytes += skb->len;
+		s->cnt.inpkts++;
+		s->cnt.inbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 	}
 }
@@ -153,24 +153,24 @@ ip_vs_out_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 		struct ip_vs_service *svc;
 
 		s = this_cpu_ptr(dest->stats.cpustats);
-		s->ustats.outpkts++;
 		u64_stats_update_begin(&s->syncp);
-		s->ustats.outbytes += skb->len;
+		s->cnt.outpkts++;
+		s->cnt.outbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 
 		rcu_read_lock();
 		svc = rcu_dereference(dest->svc);
 		s = this_cpu_ptr(svc->stats.cpustats);
-		s->ustats.outpkts++;
 		u64_stats_update_begin(&s->syncp);
-		s->ustats.outbytes += skb->len;
+		s->cnt.outpkts++;
+		s->cnt.outbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 		rcu_read_unlock();
 
 		s = this_cpu_ptr(ipvs->tot_stats.cpustats);
-		s->ustats.outpkts++;
 		u64_stats_update_begin(&s->syncp);
-		s->ustats.outbytes += skb->len;
+		s->cnt.outpkts++;
+		s->cnt.outbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 	}
 }
@@ -183,13 +183,19 @@ ip_vs_conn_stats(struct ip_vs_conn *cp, struct ip_vs_service *svc)
 	struct ip_vs_cpu_stats *s;
 
 	s = this_cpu_ptr(cp->dest->stats.cpustats);
-	s->ustats.conns++;
+	u64_stats_update_begin(&s->syncp);
+	s->cnt.conns++;
+	u64_stats_update_end(&s->syncp);
 
 	s = this_cpu_ptr(svc->stats.cpustats);
-	s->ustats.conns++;
+	u64_stats_update_begin(&s->syncp);
+	s->cnt.conns++;
+	u64_stats_update_end(&s->syncp);
 
 	s = this_cpu_ptr(ipvs->tot_stats.cpustats);
-	s->ustats.conns++;
+	u64_stats_update_begin(&s->syncp);
+	s->cnt.conns++;
+	u64_stats_update_end(&s->syncp);
 }
 
 
