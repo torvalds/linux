@@ -6,7 +6,7 @@
  * Copyright (C) 2006 Texas Instruments.
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
- * Copyright (C) 2011 Intel corporation.
+ * Copyright (C) 2011, 2015 Intel Corporation.
  *
  * ----------------------------------------------------------------------------
  *
@@ -97,7 +97,7 @@ static struct dw_scl_sda_cfg hsw_config = {
 	.sda_hold = 0x9,
 };
 
-static struct  dw_pci_controller  dw_pci_controllers[] = {
+static struct dw_pci_controller dw_pci_controllers[] = {
 	[medfield_0] = {
 		.bus_num     = 0,
 		.bus_cfg   = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
@@ -232,7 +232,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	dev->functionality = controller->functionality |
 				DW_DEFAULT_FUNCTIONALITY;
 
-	dev->master_cfg =  controller->bus_cfg;
+	dev->master_cfg = controller->bus_cfg;
 	if (controller->scl_sda_cfg) {
 		cfg = controller->scl_sda_cfg;
 		dev->ss_hcnt = cfg->ss_hcnt;
@@ -299,7 +299,7 @@ MODULE_ALIAS("i2c_designware-pci");
 
 static const struct pci_device_id i2_designware_pci_ids[] = {
 	/* Medfield */
-	{ PCI_VDEVICE(INTEL, 0x0817), medfield_3,},
+	{ PCI_VDEVICE(INTEL, 0x0817), medfield_3 },
 	{ PCI_VDEVICE(INTEL, 0x0818), medfield_4 },
 	{ PCI_VDEVICE(INTEL, 0x0819), medfield_5 },
 	{ PCI_VDEVICE(INTEL, 0x082C), medfield_0 },
@@ -317,7 +317,7 @@ static const struct pci_device_id i2_designware_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x9c61), haswell },
 	{ PCI_VDEVICE(INTEL, 0x9c62), haswell },
 	/* Braswell / Cherrytrail */
-	{ PCI_VDEVICE(INTEL, 0x22C1), baytrail,},
+	{ PCI_VDEVICE(INTEL, 0x22C1), baytrail },
 	{ PCI_VDEVICE(INTEL, 0x22C2), baytrail },
 	{ PCI_VDEVICE(INTEL, 0x22C3), baytrail },
 	{ PCI_VDEVICE(INTEL, 0x22C4), baytrail },
