@@ -67,6 +67,7 @@
 		tcb0 = &tcb0;
 		tcb1 = &tcb1;
 		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 	};
 	cpus {
@@ -839,6 +840,25 @@
 				status = "disabled";
 			};
 
+			i2c1: i2c@f8018000 {
+				compatible = "atmel,at91sam9x5-i2c";
+				reg = <0xf8018000 0x4000>;
+				interrupts = <33 IRQ_TYPE_LEVEL_HIGH 6>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1))
+					AT91_XDMAC_DT_PERID(4)>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1))
+					AT91_XDMAC_DT_PERID(5)>;
+				dma-names = "tx", "rx";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&twi1_clk>;
+				status = "disabled";
+			};
+
 			tcb0: timer@f801c000 {
 				compatible = "atmel,at91sam9x5-tcb";
 				reg = <0xf801c000 0x100>;
@@ -1187,6 +1207,14 @@
 						atmel,pins =
 							<AT91_PIOA 30 AT91_PERIPH_A AT91_PINCTRL_NONE
 							 AT91_PIOA 31 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+				};
+
+				i2c1 {
+					pinctrl_i2c1: i2c1-0 {
+						atmel,pins =
+							<AT91_PIOE 29 AT91_PERIPH_C AT91_PINCTRL_NONE	/* TWD1, conflicts with UART0 RX and DIBP */
+							 AT91_PIOE 30 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* TWCK1, conflicts with UART0 TX and DIBN */
 					};
 				};
 
