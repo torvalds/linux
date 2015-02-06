@@ -92,11 +92,15 @@ static irqreturn_t bfin_rotary_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void bfin_rotary_free_action(void *data)
+{
+	peripheral_free_list(data);
+}
+
 static int bfin_rotary_probe(struct platform_device *pdev)
 {
-	const struct bfin_rotary_platform_data *pdata =
-					dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
+	const struct bfin_rotary_platform_data *pdata = dev_get_platdata(dev);
 	struct bfin_rot *rotary;
 	struct resource *res;
 	struct input_dev *input;
@@ -112,24 +116,33 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 		error = peripheral_request_list(pdata->pin_list,
 						dev_name(&pdev->dev));
 		if (error) {
-			dev_err(&pdev->dev, "requesting peripherals failed\n");
+			dev_err(dev, "requesting peripherals failed: %d\n",
+				error);
+			return error;
+		}
+
+		error = devm_add_action(dev, bfin_rotary_free_action,
+					pdata->pin_list);
+		if (error) {
+			dev_err(dev, "setting cleanup action failed: %d\n",
+				error);
+			peripheral_free_list(pdata->pin_list);
 			return error;
 		}
 	}
 
-	rotary = kzalloc(sizeof(struct bfin_rot), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!rotary || !input) {
-		error = -ENOMEM;
-		goto out1;
-	}
+	rotary = devm_kzalloc(dev, sizeof(struct bfin_rot), GFP_KERNEL);
+	if (!rotary)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rotary->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(rotary->base)) {
-		error = PTR_ERR(rotary->base);
-		goto out1;
-	}
+	if (IS_ERR(rotary->base))
+		return PTR_ERR(rotary->base);
+
+	input = devm_input_allocate_device(dev);
+	if (!input)
+		return -ENOMEM;
 
 	rotary->input = input;
 
@@ -137,10 +150,6 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 	rotary->down_key = pdata->rotary_down_key;
 	rotary->button_key = pdata->rotary_button_key;
 	rotary->rel_code = pdata->rotary_rel_code;
-
-	error = rotary->irq = platform_get_irq(pdev, 0);
-	if (error < 0)
-		goto out1;
 
 	input->name = pdev->name;
 	input->phys = "bfin-rotary/input0";
@@ -167,20 +176,24 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 		__set_bit(rotary->button_key, input->keybit);
 	}
 
-	error = request_irq(rotary->irq, bfin_rotary_isr,
-			    0, dev_name(&pdev->dev), rotary);
+	rotary->irq = platform_get_irq(pdev, 0);
+	if (rotary->irq < 0) {
+		dev_err(dev, "No rotary IRQ specified\n");
+		return -ENOENT;
+	}
+
+	error = devm_request_irq(dev, rotary->irq, bfin_rotary_isr,
+				 0, dev_name(dev), rotary);
 	if (error) {
-		dev_err(&pdev->dev,
-			"unable to claim irq %d; error %d\n",
+		dev_err(dev, "unable to claim irq %d; error %d\n",
 			rotary->irq, error);
-		goto out1;
+		return error;
 	}
 
 	error = input_register_device(input);
 	if (error) {
-		dev_err(&pdev->dev,
-			"unable to register input device (%d)\n", error);
-		goto out2;
+		dev_err(dev, "unable to register input device (%d)\n", error);
+		return error;
 	}
 
 	if (pdata->rotary_button_key)
@@ -204,34 +217,14 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 
 	return 0;
-
-out2:
-	free_irq(rotary->irq, rotary);
-out1:
-	input_free_device(input);
-	kfree(rotary);
-	if (pdata->pin_list)
-		peripheral_free_list(pdata->pin_list);
-
-	return error;
 }
 
 static int bfin_rotary_remove(struct platform_device *pdev)
 {
-	const struct bfin_rotary_platform_data *pdata =
-					dev_get_platdata(&pdev->dev);
 	struct bfin_rot *rotary = platform_get_drvdata(pdev);
 
 	writew(0, rotary->base + CNT_CONFIG_OFF);
 	writew(0, rotary->base + CNT_IMASK_OFF);
-
-	free_irq(rotary->irq, rotary);
-	input_unregister_device(rotary->input);
-
-	if (pdata->pin_list)
-		peripheral_free_list(pdata->pin_list);
-
-	kfree(rotary);
 
 	return 0;
 }
