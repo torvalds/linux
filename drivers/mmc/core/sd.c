@@ -389,6 +389,8 @@ static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 	int card_drv_type, drive_strength, drv_type;
 	int err;
 
+	card->drive_strength = 0;
+
 	card_drv_type = card->sw_caps.sd3_drv_type | SD_DRIVER_TYPE_B;
 
 	drive_strength = mmc_select_drive_strength(card,
@@ -404,6 +406,7 @@ static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 				mmc_hostname(card->host));
 			return 0;
 		}
+		card->drive_strength = drive_strength;
 	}
 
 	if (drv_type)
