@@ -682,9 +682,20 @@ static u32 skb_wrb_cnt(struct sk_buff *skb)
 
 static inline void wrb_fill(struct be_eth_wrb *wrb, u64 addr, int len)
 {
-	wrb->frag_pa_hi = upper_32_bits(addr);
-	wrb->frag_pa_lo = addr & 0xFFFFFFFF;
-	wrb->frag_len = len & ETH_WRB_FRAG_LEN_MASK;
+	wrb->frag_pa_hi = cpu_to_le32(upper_32_bits(addr));
+	wrb->frag_pa_lo = cpu_to_le32(lower_32_bits(addr));
+	wrb->frag_len = cpu_to_le32(len & ETH_WRB_FRAG_LEN_MASK);
+	wrb->rsvd0 = 0;
+}
+
+/* A dummy wrb is just all zeros. Using a separate routine for dummy-wrb
+ * to avoid the swap and shift/mask operations in wrb_fill().
+ */
+static inline void wrb_fill_dummy(struct be_eth_wrb *wrb)
+{
+	wrb->frag_pa_hi = 0;
+	wrb->frag_pa_lo = 0;
+	wrb->frag_len = 0;
 	wrb->rsvd0 = 0;
 }
 
@@ -765,16 +776,16 @@ static void unmap_tx_frag(struct device *dev, struct be_eth_wrb *wrb,
 			  bool unmap_single)
 {
 	dma_addr_t dma;
+	u32 frag_len = le32_to_cpu(wrb->frag_len);
 
-	be_dws_le_to_cpu(wrb, sizeof(*wrb));
 
-	dma = (u64)wrb->frag_pa_hi << 32 | (u64)wrb->frag_pa_lo;
-	if (wrb->frag_len) {
+	dma = (u64)le32_to_cpu(wrb->frag_pa_hi) << 32 |
+		(u64)le32_to_cpu(wrb->frag_pa_lo);
+	if (frag_len) {
 		if (unmap_single)
-			dma_unmap_single(dev, dma, wrb->frag_len,
-					 DMA_TO_DEVICE);
+			dma_unmap_single(dev, dma, frag_len, DMA_TO_DEVICE);
 		else
-			dma_unmap_page(dev, dma, wrb->frag_len, DMA_TO_DEVICE);
+			dma_unmap_page(dev, dma, frag_len, DMA_TO_DEVICE);
 	}
 }
 
@@ -806,7 +817,6 @@ static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
 		map_single = true;
 		wrb = queue_head_node(txq);
 		wrb_fill(wrb, busaddr, len);
-		be_dws_cpu_to_le(wrb, sizeof(*wrb));
 		queue_head_inc(txq);
 		copied += len;
 	}
@@ -820,7 +830,6 @@ static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
 			goto dma_err;
 		wrb = queue_head_node(txq);
 		wrb_fill(wrb, busaddr, skb_frag_size(frag));
-		be_dws_cpu_to_le(wrb, sizeof(*wrb));
 		queue_head_inc(txq);
 		copied += skb_frag_size(frag);
 	}
@@ -846,7 +855,7 @@ dma_err:
 		wrb = queue_head_node(txq);
 		unmap_tx_frag(dev, wrb, map_single);
 		map_single = false;
-		copied -= wrb->frag_len;
+		copied -= le32_to_cpu(wrb->frag_len);
 		adapter->drv_stats.dma_map_errors++;
 		queue_head_inc(txq);
 	}
@@ -1037,7 +1046,7 @@ static void be_xmit_flush(struct be_adapter *adapter, struct be_tx_obj *txo)
 
 	/* compose a dummy wrb if there are odd set of wrbs to notify */
 	if (!lancer_chip(adapter) && (txo->pend_wrb_cnt & 1)) {
-		wrb_fill(queue_head_node(txq), 0, 0);
+		wrb_fill_dummy(queue_head_node(txq));
 		queue_head_inc(txq);
 		atomic_inc(&txq->used);
 		txo->pend_wrb_cnt++;
