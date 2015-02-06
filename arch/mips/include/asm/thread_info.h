@@ -36,6 +36,7 @@ struct thread_info {
 						 */
 	struct restart_block	restart_block;
 	struct pt_regs		*regs;
+	long			syscall;	/* syscall number */
 };
 
 /*

@@ -2656,27 +2656,21 @@ config TRAD_SIGNALS
 	bool
 
 config MIPS32_COMPAT
-	bool "Kernel support for Linux/MIPS 32-bit binary compatibility"
-	depends on 64BIT
-	help
-	  Select this option if you want Linux/MIPS 32-bit binary
-	  compatibility. Since all software available for Linux/MIPS is
-	  currently 32-bit you should say Y here.
+	bool
 
 config COMPAT
 	bool
-	depends on MIPS32_COMPAT
-	select ARCH_WANT_OLD_COMPAT_IPC
-	default y
 
 config SYSVIPC_COMPAT
 	bool
-	depends on COMPAT && SYSVIPC
-	default y
 
 config MIPS32_O32
 	bool "Kernel support for o32 binaries"
-	depends on MIPS32_COMPAT
+	depends on 64BIT
+	select ARCH_WANT_OLD_COMPAT_IPC
+	select COMPAT
+	select MIPS32_COMPAT
+	select SYSVIPC_COMPAT if SYSVIPC
 	help
 	  Select this option if you want to run o32 binaries.  These are pure
 	  32-bit binaries as used by the 32-bit Linux/MIPS port.  Most of
@@ -2686,7 +2680,10 @@ config MIPS32_O32
 
 config MIPS32_N32
 	bool "Kernel support for n32 binaries"
-	depends on MIPS32_COMPAT
+	depends on 64BIT
+	select COMPAT
+	select MIPS32_COMPAT
+	select SYSVIPC_COMPAT if SYSVIPC
 	help
 	  Select this option if you want to run n32 binaries.  These are
 	  64-bit binaries using 32-bit quantities for addressing and certain

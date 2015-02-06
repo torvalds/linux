@@ -19,8 +19,8 @@ enum {
 int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 		     bool is_interp, struct arch_elf_state *state)
 {
-	struct elfhdr *ehdr = _ehdr;
-	struct elf_phdr *phdr = _phdr;
+	struct elf32_hdr *ehdr = _ehdr;
+	struct elf32_phdr *phdr = _phdr;
 	struct mips_elf_abiflags_v0 abiflags;
 	int ret;
 
@@ -48,7 +48,7 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 	return 0;
 }
 
-static inline unsigned get_fp_abi(struct elfhdr *ehdr, int in_abi)
+static inline unsigned get_fp_abi(struct elf32_hdr *ehdr, int in_abi)
 {
 	/* If the ABI requirement is provided, simply return that */
 	if (in_abi != -1)
@@ -65,7 +65,7 @@ static inline unsigned get_fp_abi(struct elfhdr *ehdr, int in_abi)
 int arch_check_elf(void *_ehdr, bool has_interpreter,
 		   struct arch_elf_state *state)
 {
-	struct elfhdr *ehdr = _ehdr;
+	struct elf32_hdr *ehdr = _ehdr;
 	unsigned fp_abi, interp_fp_abi, abi0, abi1;
 
 	/* Ignore non-O32 binaries */
