@@ -949,7 +949,7 @@ isert_post_recv(struct isert_conn *isert_conn, u32 count)
 		isert_err("ib_post_recv() failed with ret: %d\n", ret);
 		isert_conn->post_recv_buf_count -= count;
 	} else {
-		isert_dbg("isert_post_recv(): Posted %d RX buffers\n", count);
+		isert_dbg("Posted %d RX buffers\n", count);
 		isert_conn->conn_rx_desc_head = rx_head;
 	}
 	return ret;
@@ -1711,8 +1711,7 @@ isert_put_cmd(struct isert_cmd *isert_cmd, bool comp_err)
 		 * associated cmd->se_cmd needs to be released.
 		 */
 		if (cmd->se_cmd.se_tfo != NULL) {
-			isert_dbg("Calling transport_generic_free_cmd from"
-				 " isert_put_cmd for 0x%02x\n",
+			isert_dbg("Calling transport_generic_free_cmd for 0x%02x\n",
 				 cmd->iscsi_opcode);
 			transport_generic_free_cmd(&cmd->se_cmd, 0);
 			break;
@@ -3138,7 +3137,7 @@ accept_wait:
 	spin_lock_bh(&np->np_thread_lock);
 	if (np->np_thread_state >= ISCSI_NP_THREAD_RESET) {
 		spin_unlock_bh(&np->np_thread_lock);
-		isert_dbg("np_thread_state %d for isert_accept_np\n",
+		isert_dbg("np_thread_state %d\n",
 			 np->np_thread_state);
 		/**
 		 * No point in stalling here when np_thread
