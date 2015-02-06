@@ -864,6 +864,28 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
 }
 
 /**
+ * check_gva_range - test a range of guest virtual addresses for accessibility
+ */
+int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
+		    unsigned long length, int is_write)
+{
+	unsigned long gpa;
+	unsigned long currlen;
+	int rc = 0;
+
+	ipte_lock(vcpu);
+	while (length > 0 && !rc) {
+		currlen = min(length, PAGE_SIZE - (gva % PAGE_SIZE));
+		rc = guest_translate_address(vcpu, gva, ar, &gpa, is_write);
+		gva += currlen;
+		length -= currlen;
+	}
+	ipte_unlock(vcpu);
+
+	return rc;
+}
+
+/**
  * kvm_s390_check_low_addr_prot_real - check for low-address protection
  * @gra: Guest real address
  *

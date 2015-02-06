@@ -157,6 +157,8 @@ int read_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 
 int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
 			    ar_t ar, unsigned long *gpa, int write);
+int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
+		    unsigned long length, int is_write);
 
 int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 		 unsigned long len, int write);

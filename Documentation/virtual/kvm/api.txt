@@ -2716,6 +2716,52 @@ The fields in each entry are defined as follows:
    eax, ebx, ecx, edx: the values returned by the cpuid instruction for
          this function/index combination
 
+4.89 KVM_S390_MEM_OP
+
+Capability: KVM_CAP_S390_MEM_OP
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_mem_op (in)
+Returns: = 0 on success,
+         < 0 on generic error (e.g. -EFAULT or -ENOMEM),
+         > 0 if an exception occurred while walking the page tables
+
+Read or write data from/to the logical (virtual) memory of a VPCU.
+
+Parameters are specified via the following structure:
+
+struct kvm_s390_mem_op {
+	__u64 gaddr;		/* the guest address */
+	__u64 flags;		/* flags */
+	__u32 size;		/* amount of bytes */
+	__u32 op;		/* type of operation */
+	__u64 buf;		/* buffer in userspace */
+	__u8 ar;		/* the access register number */
+	__u8 reserved[31];	/* should be set to 0 */
+};
+
+The type of operation is specified in the "op" field. It is either
+KVM_S390_MEMOP_LOGICAL_READ for reading from logical memory space or
+KVM_S390_MEMOP_LOGICAL_WRITE for writing to logical memory space. The
+KVM_S390_MEMOP_F_CHECK_ONLY flag can be set in the "flags" field to check
+whether the corresponding memory access would create an access exception
+(without touching the data in the memory at the destination). In case an
+access exception occurred while walking the MMU tables of the guest, the
+ioctl returns a positive error number to indicate the type of exception.
+This exception is also raised directly at the corresponding VCPU if the
+flag KVM_S390_MEMOP_F_INJECT_EXCEPTION is set in the "flags" field.
+
+The start address of the memory region has to be specified in the "gaddr"
+field, and the length of the region in the "size" field. "buf" is the buffer
+supplied by the userspace application where the read data should be written
+to for KVM_S390_MEMOP_LOGICAL_READ, or where the data that should be written
+is stored for a KVM_S390_MEMOP_LOGICAL_WRITE. "buf" is unused and can be NULL
+when KVM_S390_MEMOP_F_CHECK_ONLY is specified. "ar" designates the access
+register number to be used.
+
+The "reserved" field is meant for future extensions. It is not used by
+KVM with the currently defined set of flags.
+
 5. The kvm_run structure
 ------------------------
 
