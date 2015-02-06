@@ -1070,7 +1070,7 @@ static int aha1542_dev_reset(Scsi_Cmnd * SCpnt)
 	return SUCCESS;
 }
 
-static int aha1542_bus_reset(Scsi_Cmnd * SCpnt)
+static int aha1542_reset(Scsi_Cmnd *SCpnt, u8 reset_cmd)
 {
 	struct aha1542_hostdata *aha1542 = shost_priv(SCpnt->device->host);
 	int i;
@@ -1081,7 +1081,7 @@ static int aha1542_bus_reset(Scsi_Cmnd * SCpnt)
 	 * we do this?  Try this first, and we can add that later
 	 * if it turns out to be useful.
 	 */
-	outb(SCRST, CONTROL(SCpnt->device->host->io_port));
+	outb(reset_cmd, CONTROL(SCpnt->device->host->io_port));
 
 	/*
 	 * Wait for the thing to settle down a bit.  Unfortunately
@@ -1091,7 +1091,6 @@ static int aha1542_bus_reset(Scsi_Cmnd * SCpnt)
 	 * we are pretty desperate anyways.
 	 */
 	ssleep(4);
-
 	spin_lock_irq(SCpnt->device->host->host_lock);
 
 	if (!wait_mask(STATUS(SCpnt->device->host->io_port),
@@ -1099,7 +1098,12 @@ static int aha1542_bus_reset(Scsi_Cmnd * SCpnt)
 		spin_unlock_irq(SCpnt->device->host->host_lock);
 		return FAILED;
 	}
-
+	/*
+	 * We need to do this too before the 1542 can interact with
+	 * us again after host reset.
+	 */
+	if (reset_cmd & HRST)
+		setup_mailboxes(SCpnt->device->host->io_port, SCpnt->device->host);
 	/*
 	 * Now try to pick up the pieces.  For all pending commands,
 	 * free any internal data structures, and basically clear things
@@ -1112,7 +1116,6 @@ static int aha1542_bus_reset(Scsi_Cmnd * SCpnt)
 		if (aha1542->SCint[i] != NULL) {
 			Scsi_Cmnd *SCtmp;
 			SCtmp = aha1542->SCint[i];
-
 
 			if (SCtmp->device->soft_reset) {
 				/*
@@ -1134,71 +1137,14 @@ static int aha1542_bus_reset(Scsi_Cmnd * SCpnt)
 	return SUCCESS;
 }
 
-static int aha1542_host_reset(Scsi_Cmnd * SCpnt)
+static int aha1542_bus_reset(Scsi_Cmnd *SCpnt)
 {
-	struct aha1542_hostdata *aha1542 = shost_priv(SCpnt->device->host);
-	int i;
+	return aha1542_reset(SCpnt, SCRST);
+}
 
-	/* 
-	 * This does a scsi reset for all devices on the bus.
-	 * In principle, we could also reset the 1542 - should
-	 * we do this?  Try this first, and we can add that later
-	 * if it turns out to be useful.
-	 */
-	outb(HRST | SCRST, CONTROL(SCpnt->device->host->io_port));
-
-	/*
-	 * Wait for the thing to settle down a bit.  Unfortunately
-	 * this is going to basically lock up the machine while we
-	 * wait for this to complete.  To be 100% correct, we need to
-	 * check for timeout, and if we are doing something like this
-	 * we are pretty desperate anyways.
-	 */
-	ssleep(4);
-	spin_lock_irq(SCpnt->device->host->host_lock);
-
-	if (!wait_mask(STATUS(SCpnt->device->host->io_port),
-	     STATMASK, INIT | IDLE, STST | DIAGF | INVDCMD | DF | CDF, 0)) {
-		spin_unlock_irq(SCpnt->device->host->host_lock);
-		return FAILED;
-	}
-	/*
-	 * We need to do this too before the 1542 can interact with
-	 * us again.
-	 */
-	setup_mailboxes(SCpnt->device->host->io_port, SCpnt->device->host);
-
-	/*
-	 * Now try to pick up the pieces.  For all pending commands,
-	 * free any internal data structures, and basically clear things
-	 * out.  We do not try and restart any commands or anything - 
-	 * the strategy handler takes care of that crap.
-	 */
-	printk(KERN_WARNING "Sent BUS RESET to scsi host %d\n", SCpnt->device->host->host_no);
-
-	for (i = 0; i < AHA1542_MAILBOXES; i++) {
-		if (aha1542->SCint[i] != NULL) {
-			Scsi_Cmnd *SCtmp;
-			SCtmp = aha1542->SCint[i];
-
-			if (SCtmp->device->soft_reset) {
-				/*
-				 * If this device implements the soft reset option,
-				 * then it is still holding onto the command, and
-				 * may yet complete it.  In this case, we don't
-				 * flush the data.
-				 */
-				continue;
-			}
-			kfree(SCtmp->host_scribble);
-			SCtmp->host_scribble = NULL;
-			aha1542->SCint[i] = NULL;
-			aha1542->mb[i].status = 0;
-		}
-	}
-
-	spin_unlock_irq(SCpnt->device->host->host_lock);
-	return SUCCESS;
+static int aha1542_host_reset(Scsi_Cmnd *SCpnt)
+{
+	return aha1542_reset(SCpnt, HRST | SCRST);
 }
 
 static int aha1542_biosparam(struct scsi_device *sdev,
