@@ -69,11 +69,22 @@ static int sram_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&reserve_list);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	virt_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(virt_base))
-		return PTR_ERR(virt_base);
+	if (!res) {
+		dev_err(&pdev->dev, "found no memory resource\n");
+		return -EINVAL;
+	}
 
 	size = resource_size(res);
+
+	if (!devm_request_mem_region(&pdev->dev,
+			res->start, size, pdev->name)) {
+		dev_err(&pdev->dev, "could not request region for resource\n");
+		return -EBUSY;
+	}
+
+	virt_base = devm_ioremap_wc(&pdev->dev, res->start, size);
+	if (IS_ERR(virt_base))
+		return PTR_ERR(virt_base);
 
 	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
 	if (!sram)
