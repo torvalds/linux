@@ -109,6 +109,10 @@ DEFINE_PER_CPU(unsigned int, asid_cache) = MM_CTXT_FIRST_CYCLE;
 static inline void __tlb_entry_erase(void)
 {
 	write_aux_reg(ARC_REG_TLBPD1, 0);
+
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_TLBPD1HI, 0);
+
 	write_aux_reg(ARC_REG_TLBPD0, 0);
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
@@ -182,7 +186,7 @@ static void utlb_invalidate(void)
 
 }
 
-static void tlb_entry_insert(unsigned int pd0, unsigned int pd1)
+static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 {
 	unsigned int idx;
 
@@ -225,10 +229,14 @@ static void tlb_entry_erase(unsigned int vaddr_n_asid)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBDeleteEntry);
 }
 
-static void tlb_entry_insert(unsigned int pd0, unsigned int pd1)
+static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 {
 	write_aux_reg(ARC_REG_TLBPD0, pd0);
 	write_aux_reg(ARC_REG_TLBPD1, pd1);
+
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_TLBPD1HI, (u64)pd1 >> 32);
+
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBInsertEntry);
 }
 
@@ -249,6 +257,10 @@ noinline void local_flush_tlb_all(void)
 
 	/* Load PD0 and PD1 with template for a Blank Entry */
 	write_aux_reg(ARC_REG_TLBPD1, 0);
+
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_TLBPD1HI, 0);
+
 	write_aux_reg(ARC_REG_TLBPD0, 0);
 
 	for (entry = 0; entry < num_tlb; entry++) {
@@ -503,7 +515,8 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 {
 	unsigned long flags;
 	unsigned int asid_or_sasid, rwx;
-	unsigned long pd0, pd1;
+	unsigned long pd0;
+	pte_t pd1;
 
 	/*
 	 * create_tlb() assumes that current->mm == vma->mm, since
@@ -785,10 +798,11 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 			  IS_USED_CFG(CONFIG_TRANSPARENT_HUGEPAGE));
 
 	n += scnprintf(buf + n, len - n,
-		      "MMU [v%x]\t: %dK PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d\n",
+		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d %s%s\n",
 		       p_mmu->ver, p_mmu->pg_sz_k, super_pg,
 		       p_mmu->sets * p_mmu->ways, p_mmu->sets, p_mmu->ways,
-		       p_mmu->u_dtlb, p_mmu->u_itlb);
+		       p_mmu->u_dtlb, p_mmu->u_itlb,
+		       IS_AVAIL2(p_mmu->pae, "PAE40 ", CONFIG_ARC_HAS_PAE40));
 
 	return buf;
 }
@@ -820,6 +834,9 @@ void arc_mmu_init(void)
 	    mmu->s_pg_sz_m != TO_MB(HPAGE_PMD_SIZE))
 		panic("MMU Super pg size != Linux HPAGE_PMD_SIZE (%luM)\n",
 		      (unsigned long)TO_MB(HPAGE_PMD_SIZE));
+
+	if (IS_ENABLED(CONFIG_ARC_HAS_PAE40) && !mmu->pae)
+		panic("Hardware doesn't support PAE40\n");
 
 	/* Enable the MMU */
 	write_aux_reg(ARC_REG_PID, MMU_ENABLE);

@@ -253,6 +253,10 @@ void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
 	}
 }
 
+/*
+ * For ARC700 MMUv3 I-cache and D-cache flushes
+ * Also reused for HS38 aliasing I-cache configuration
+ */
 static inline
 void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 			  unsigned long sz, const int op)
@@ -289,6 +293,16 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 	if (full_page)
 		write_aux_reg(aux_tag, paddr);
 
+	/*
+	 * This is technically for MMU v4, using the MMU v3 programming model
+	 * Special work for HS38 aliasing I-cache configuratino with PAE40
+	 *   - upper 8 bits of paddr need to be written into PTAG_HI
+	 *   - (and needs to be written before the lower 32 bits)
+	 * Note that PTAG_HI is hoisted outside the line loop
+	 */
+	if (is_pae40_enabled() && op == OP_INV_IC)
+		write_aux_reg(ARC_REG_IC_PTAG_HI, (u64)paddr >> 32);
+
 	while (num_lines-- > 0) {
 		if (!full_page) {
 			write_aux_reg(aux_tag, paddr);
@@ -301,11 +315,17 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 }
 
 /*
- * In HS38x (MMU v4), although icache is VIPT, only paddr is needed for cache
- * maintenance ops (in IVIL reg), as long as icache doesn't alias.
+ * In HS38x (MMU v4), I-cache is VIPT (can alias), D-cache is PIPT
+ * Here's how cache ops are implemented
  *
- * For Aliasing icache, vaddr is also needed (in IVIL), while paddr is
- * specified in PTAG (similar to MMU v3)
+ *  - D-cache: only paddr needed (in DC_IVDL/DC_FLDL)
+ *  - I-cache Non Aliasing: Despite VIPT, only paddr needed (in IC_IVIL)
+ *  - I-cache Aliasing: Both vaddr and paddr needed (in IC_IVIL, IC_PTAG
+ *    respectively, similar to MMU v3 programming model, hence
+ *    __cache_line_loop_v3() is used)
+ *
+ * If PAE40 is enabled, independent of aliasing considerations, the higher bits
+ * needs to be written into PTAG_HI
  */
 static inline
 void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
@@ -334,6 +354,22 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	}
 
 	num_lines = DIV_ROUND_UP(sz, L1_CACHE_BYTES);
+
+	/*
+	 * For HS38 PAE40 configuration
+	 *   - upper 8 bits of paddr need to be written into PTAG_HI
+	 *   - (and needs to be written before the lower 32 bits)
+	 */
+	if (is_pae40_enabled()) {
+		if (cacheop == OP_INV_IC)
+			/*
+			 * Non aliasing I-cache in HS38,
+			 * aliasing I-cache handled in __cache_line_loop_v3()
+			 */
+			write_aux_reg(ARC_REG_IC_PTAG_HI, (u64)paddr >> 32);
+		else
+			write_aux_reg(ARC_REG_DC_PTAG_HI, (u64)paddr >> 32);
+	}
 
 	while (num_lines-- > 0) {
 		write_aux_reg(aux_cmd, paddr);

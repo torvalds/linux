@@ -223,12 +223,16 @@ ex_saved_reg1:
 	; (2) y = x & (PTRS_PER_PTE - 1) -> to get index
 	; (3) z = (pgtbl + y * 4)
 
+#ifdef CONFIG_ARC_HAS_PAE40
+#define PTE_SIZE_LOG	3	/* 8 == 2 ^ 3 */
+#else
 #define PTE_SIZE_LOG	2	/* 4 == 2 ^ 2 */
+#endif
 
 	; multiply in step (3) above avoided by shifting lesser in step (1)
 	lsr     r0, r2, ( PAGE_SHIFT - PTE_SIZE_LOG )
 	and     r0, r0, ( (PTRS_PER_PTE - 1) << PTE_SIZE_LOG )
-	ld.aw   r0, [r1, r0]		; r0: PTE
+	ld.aw   r0, [r1, r0]            ; r0: PTE (lower word only for PAE40)
 					; r1: PTE ptr
 
 2:
@@ -247,6 +251,7 @@ ex_saved_reg1:
 ;-----------------------------------------------------------------
 ; Convert Linux PTE entry into TLB entry
 ; A one-word PTE entry is programmed as two-word TLB Entry [PD0:PD1] in mmu
+;    (for PAE40, two-words PTE, while three-word TLB Entry [PD0:PD1:PD1HI])
 ; IN: r0 = PTE, r1 = ptr to PTE
 
 .macro CONV_PTE_TO_TLB
@@ -259,6 +264,10 @@ ex_saved_reg1:
 	or  r3, r3, r2
 
 	sr  r3, [ARC_REG_TLBPD1]    	; paddr[31..13] | Kr Kw Kx Ur Uw Ux | C
+#ifdef	CONFIG_ARC_HAS_PAE40
+	ld	r3, [r1, 4]		; paddr[39..32]
+	sr	r3, [ARC_REG_TLBPD1HI]
+#endif
 
 	and r2, r0, PTE_BITS_IN_PD0 ; Extract other PTE flags: (V)alid, (G)lb
 

@@ -49,7 +49,7 @@ pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t ptep)
 
 static inline int __get_order_pgd(void)
 {
-	return get_order(PTRS_PER_PGD * 4);
+	return get_order(PTRS_PER_PGD * sizeof(pgd_t));
 }
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
@@ -87,7 +87,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 static inline int __get_order_pte(void)
 {
-	return get_order(PTRS_PER_PTE * 4);
+	return get_order(PTRS_PER_PTE * sizeof(pte_t));
 }
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
@@ -110,7 +110,7 @@ pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	pte_pg = (pgtable_t)__get_free_pages(GFP_KERNEL | __GFP_REPEAT, __get_order_pte());
 	if (!pte_pg)
 		return 0;
-	memzero((void *)pte_pg, PTRS_PER_PTE * 4);
+	memzero((void *)pte_pg, PTRS_PER_PTE * sizeof(pte_t));
 	page = virt_to_page(pte_pg);
 	if (!pgtable_page_ctor(page)) {
 		__free_page(page);

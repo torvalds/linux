@@ -453,6 +453,21 @@ config HIGHMEM
 	  kernel. Enable this to potentially allow access to rest of 2G and PAE
 	  in future
 
+config ARC_HAS_PAE40
+	bool "Support for the 40-bit Physical Address Extension"
+	default n
+	depends on ISA_ARCV2
+	select HIGHMEM
+	help
+	  Enable access to physical memory beyond 4G, only supported on
+	  ARC cores with 40 bit Physical Addressing support
+
+config ARCH_PHYS_ADDR_T_64BIT
+	def_bool ARC_HAS_PAE40
+
+config ARCH_DMA_ADDR_T_64BIT
+	bool
+
 config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"
 	default y

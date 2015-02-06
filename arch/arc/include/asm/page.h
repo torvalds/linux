@@ -56,7 +56,11 @@ typedef struct {
 
 #else /* !STRICT_MM_TYPECHECKS */
 
+#ifdef CONFIG_ARC_HAS_PAE40
+typedef unsigned long long pte_t;
+#else
 typedef unsigned long pte_t;
+#endif
 typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
