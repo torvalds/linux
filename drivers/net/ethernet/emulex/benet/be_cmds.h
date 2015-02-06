@@ -1093,6 +1093,7 @@ struct be_cmd_req_query_fw_cfg {
 
 /* ASIC revisions */
 #define ASIC_REV_B0		0x10
+#define ASIC_REV_P2		0x11
 
 struct be_cmd_resp_query_fw_cfg {
 	struct be_cmd_resp_hdr hdr;

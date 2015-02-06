@@ -4336,6 +4336,7 @@ static int lancer_fw_download(struct be_adapter *adapter,
 #define BE3_UFI		3
 #define BE3R_UFI	10
 #define SH_UFI		4
+#define SH_P2_UFI	11
 
 static int be_get_ufi_type(struct be_adapter *adapter,
 			   struct flash_file_hdr_g3 *fhdr)
@@ -4350,7 +4351,8 @@ static int be_get_ufi_type(struct be_adapter *adapter,
 	 */
 	switch (fhdr->build[0]) {
 	case BLD_STR_UFI_TYPE_SH:
-		return SH_UFI;
+		return (fhdr->asic_type_rev == ASIC_REV_P2) ? SH_P2_UFI :
+								SH_UFI;
 	case BLD_STR_UFI_TYPE_BE3:
 		return (fhdr->asic_type_rev == ASIC_REV_B0) ? BE3R_UFI :
 								BE3_UFI;
@@ -4364,6 +4366,7 @@ static int be_get_ufi_type(struct be_adapter *adapter,
 /* Check if the flash image file is compatible with the adapter that
  * is being flashed.
  * BE3 chips with asic-rev B0 must be flashed only with BE3R_UFI type.
+ * Skyhawk chips with asic-rev P2 must be flashed only with SH_P2_UFI type.
  */
 static bool be_check_ufi_compatibility(struct be_adapter *adapter,
 				       struct flash_file_hdr_g3 *fhdr)
@@ -4371,8 +4374,11 @@ static bool be_check_ufi_compatibility(struct be_adapter *adapter,
 	int ufi_type = be_get_ufi_type(adapter, fhdr);
 
 	switch (ufi_type) {
-	case SH_UFI:
+	case SH_P2_UFI:
 		return skyhawk_chip(adapter);
+	case SH_UFI:
+		return (skyhawk_chip(adapter) &&
+			adapter->asic_rev < ASIC_REV_P2);
 	case BE3R_UFI:
 		return BE3_chip(adapter);
 	case BE3_UFI:
