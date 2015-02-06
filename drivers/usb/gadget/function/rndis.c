@@ -25,6 +25,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/idr.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
@@ -57,10 +58,13 @@ MODULE_PARM_DESC (rndis_debug, "enable debugging");
 #define rndis_debug		0
 #endif
 
-#define RNDIS_MAX_CONFIGS	1
+#ifdef CONFIG_USB_GADGET_DEBUG_FILES
 
+#define	NAME_TEMPLATE "driver/rndis-%03d"
 
-static rndis_params rndis_per_dev_params[RNDIS_MAX_CONFIGS];
+#endif /* CONFIG_USB_GADGET_DEBUG_FILES */
+
+static DEFINE_IDA(rndis_ida);
 
 /* Driver Version */
 static const __le32 rndis_driver_version = cpu_to_le32(1);
@@ -69,6 +73,11 @@ static const __le32 rndis_driver_version = cpu_to_le32(1);
 static rndis_resp_t *rndis_add_response(struct rndis_params *params,
 					u32 length);
 
+#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+
+static const struct file_operations rndis_proc_fops;
+
+#endif /* CONFIG_USB_GADGET_DEBUG_FILES */
 
 /* supported OIDs */
 static const u32 oid_supported_list[] =
@@ -850,38 +859,93 @@ int rndis_msg_parser(struct rndis_params *params, u8 *buf)
 }
 EXPORT_SYMBOL_GPL(rndis_msg_parser);
 
+static inline int rndis_get_nr(void)
+{
+	return ida_simple_get(&rndis_ida, 0, 0, GFP_KERNEL);
+}
+
+static inline void rndis_put_nr(int nr)
+{
+	ida_simple_remove(&rndis_ida, nr);
+}
+
 struct rndis_params *rndis_register(void (*resp_avail)(void *v), void *v)
 {
+	struct rndis_params *params;
 	u8 i;
 
 	if (!resp_avail)
 		return ERR_PTR(-EINVAL);
 
-	for (i = 0; i < RNDIS_MAX_CONFIGS; i++) {
-		if (!rndis_per_dev_params[i].used) {
-			rndis_per_dev_params[i].used = 1;
-			rndis_per_dev_params[i].resp_avail = resp_avail;
-			rndis_per_dev_params[i].v = v;
-			pr_debug("%s: configNr = %d\n", __func__, i);
-			return &rndis_per_dev_params[i];
+	i = rndis_get_nr();
+	if (i < 0) {
+		pr_debug("failed\n");
+
+		return ERR_PTR(-ENODEV);
+	}
+
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	if (!params) {
+		rndis_put_nr(i);
+
+		return ERR_PTR(-ENOMEM);
+	}
+
+#ifdef	CONFIG_USB_GADGET_DEBUG_FILES
+	{
+		struct proc_dir_entry *proc_entry;
+		char name[20];
+
+		sprintf(name, NAME_TEMPLATE, i);
+		proc_entry = proc_create_data(name, 0660, NULL,
+					      &rndis_proc_fops, params);
+		if (!proc_entry) {
+			kfree(params);
+			rndis_put_nr(i);
+
+			return ERR_PTR(-EIO);
 		}
 	}
-	pr_debug("failed\n");
+#endif
 
-	return ERR_PTR(-ENODEV);
+	params->confignr = i;
+	params->used = 1;
+	params->state = RNDIS_UNINITIALIZED;
+	params->media_state = RNDIS_MEDIA_STATE_DISCONNECTED;
+	params->resp_avail = resp_avail;
+	params->v = v;
+	INIT_LIST_HEAD(&(params->resp_queue));
+	pr_debug("%s: configNr = %d\n", __func__, i);
+
+	return params;
 }
 EXPORT_SYMBOL_GPL(rndis_register);
 
 void rndis_deregister(struct rndis_params *params)
 {
+	u8 i;
+
 	pr_debug("%s:\n", __func__);
 
 	if (!params)
 		return;
-	params->used = 0;
+
+	i = params->confignr;
+
+#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+	{
+		u8 i;
+		char name[20];
+
+		sprintf(name, NAME_TEMPLATE, i);
+		remove_proc_entry(name, NULL);
+	}
+#endif
+
+	kfree(params);
+	rndis_put_nr(i);
 }
 EXPORT_SYMBOL_GPL(rndis_deregister);
-
 int rndis_set_param_dev(struct rndis_params *params, struct net_device *dev,
 			u16 *cdc_filter)
 {
@@ -1114,54 +1178,4 @@ static const struct file_operations rndis_proc_fops = {
 
 #define	NAME_TEMPLATE "driver/rndis-%03d"
 
-static struct proc_dir_entry *rndis_connect_state [RNDIS_MAX_CONFIGS];
-
 #endif /* CONFIG_USB_GADGET_DEBUG_FILES */
-
-
-int rndis_init(void)
-{
-	u8 i;
-
-	for (i = 0; i < RNDIS_MAX_CONFIGS; i++) {
-#ifdef	CONFIG_USB_GADGET_DEBUG_FILES
-		char name [20];
-
-		sprintf(name, NAME_TEMPLATE, i);
-		rndis_connect_state[i] = proc_create_data(name, 0660, NULL,
-					&rndis_proc_fops,
-					(void *)(rndis_per_dev_params + i));
-		if (!rndis_connect_state[i]) {
-			pr_debug("%s: remove entries", __func__);
-			while (i) {
-				sprintf(name, NAME_TEMPLATE, --i);
-				remove_proc_entry(name, NULL);
-			}
-			pr_debug("\n");
-			return -EIO;
-		}
-#endif
-		rndis_per_dev_params[i].confignr = i;
-		rndis_per_dev_params[i].used = 0;
-		rndis_per_dev_params[i].state = RNDIS_UNINITIALIZED;
-		rndis_per_dev_params[i].media_state
-				= RNDIS_MEDIA_STATE_DISCONNECTED;
-		INIT_LIST_HEAD(&(rndis_per_dev_params[i].resp_queue));
-	}
-
-	return 0;
-}
-
-void rndis_exit(void)
-{
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
-	u8 i;
-	char name[20];
-
-	for (i = 0; i < RNDIS_MAX_CONFIGS; i++) {
-		sprintf(name, NAME_TEMPLATE, i);
-		remove_proc_entry(name, NULL);
-	}
-#endif
-}
-

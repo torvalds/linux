@@ -1012,26 +1012,6 @@ static struct usb_function *rndis_alloc(struct usb_function_instance *fi)
 	return &rndis->port.func;
 }
 
-DECLARE_USB_FUNCTION(rndis, rndis_alloc_inst, rndis_alloc);
-
-static int __init rndis_mod_init(void)
-{
-	int ret;
-
-	ret = rndis_init();
-	if (ret)
-		return ret;
-
-	return usb_function_register(&rndisusb_func);
-}
-module_init(rndis_mod_init);
-
-static void __exit rndis_mod_exit(void)
-{
-	usb_function_unregister(&rndisusb_func);
-	rndis_exit();
-}
-module_exit(rndis_mod_exit);
-
+DECLARE_USB_FUNCTION_INIT(rndis, rndis_alloc_inst, rndis_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");
