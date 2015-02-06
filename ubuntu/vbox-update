@@ -1,0 +1,49 @@
+#!/bin/bash
+#
+# vbox-update <dkms top level>
+
+#
+# NOTE: update vbox/BOM if you get the source from anywhere other than
+# the archive.
+#
+# To update:
+#  TMP=$HOME/tmp
+#  wget -O $TMP/virtualbox-guest-dkms.deb http://ports.ubuntu.com/pool/multiverse/v/virtualbox/virtualbox-guest-dkms_4.3.22-dfsg-1_all.deb
+#  dpkg-deb -R $TMP/virtualbox-guest-dkms.deb $TMP/virtualbox-guest-update
+#  vbox-update $TMP/virtualbox-guest-update
+#
+# To test build:
+#  fakeroot debian/rules prepare-generic
+#  make O=debian/build/build-generic/ ubuntu/vbox/vboxguest/vboxguest.ko ubuntu/vbox/vboxvideo/vboxvideo.ko ubuntu/vbox/vboxsf/vboxsf.ko
+#
+
+if [ "$#" -ne 1 ]; then
+	echo "Usage: $0 <unpacked vbox dkms guest directory>" 1>&2
+	exit 1
+fi
+vbox="$1"
+
+# Update vbox ...
+git rm -rf vbox
+mkdir vbox
+cp -rp "$vbox/usr/src/"*/* vbox
+
+# Work out what version this represents.
+ver=`awk '($1 == "Version:") { print $2 }' <"$vbox/DEBIAN/control"`
+
+# Fix up the KBUILD_EXTMOD as we are not building externally.
+for make in vbox/*/Makefile
+do
+	sed -i -e '1iKBUILD_EXTMOD=${srctree}/ubuntu/vbox' $make
+done
+
+# Record the version number and nominal source.
+{
+	echo "Source: http://ports.ubuntu.com/pool/multiverse/v/virtualbox/virtualbox-guest-dkms_${ver}_all.deb"
+	echo "Version: $ver"
+} >vbox/BOM
+
+git add vbox
+{
+	echo "UBUNTU: ubuntu: vbox -- update to $ver"
+} | git commit -s -F -
