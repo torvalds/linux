@@ -51,6 +51,13 @@ struct atmel_hlcdc_plane_state {
 
 	u8 alpha;
 
+	bool disc_updated;
+
+	int disc_x;
+	int disc_y;
+	int disc_w;
+	int disc_h;
+
 	/* These fields are private and should not be touched */
 	int bpp[ATMEL_HLCDC_MAX_PLANES];
 	unsigned int offsets[ATMEL_HLCDC_MAX_PLANES];
@@ -428,6 +435,104 @@ static void atmel_hlcdc_plane_update_buffers(struct atmel_hlcdc_plane *plane,
 	}
 }
 
+int
+atmel_hlcdc_plane_prepare_disc_area(struct drm_crtc_state *c_state)
+{
+	int disc_x = 0, disc_y = 0, disc_w = 0, disc_h = 0;
+	const struct atmel_hlcdc_layer_cfg_layout *layout;
+	struct atmel_hlcdc_plane_state *primary_state;
+	struct drm_plane_state *primary_s;
+	struct atmel_hlcdc_plane *primary;
+	struct drm_plane *ovl;
+
+	primary = drm_plane_to_atmel_hlcdc_plane(c_state->crtc->primary);
+	layout = &primary->layer.desc->layout;
+	if (!layout->disc_pos || !layout->disc_size)
+		return 0;
+
+	primary_s = drm_atomic_get_plane_state(c_state->state,
+					       &primary->base);
+	if (IS_ERR(primary_s))
+		return PTR_ERR(primary_s);
+
+	primary_state = drm_plane_state_to_atmel_hlcdc_plane_state(primary_s);
+
+	drm_atomic_crtc_state_for_each_plane(ovl, c_state) {
+		struct atmel_hlcdc_plane_state *ovl_state;
+		struct drm_plane_state *ovl_s;
+
+		if (ovl == c_state->crtc->primary)
+			continue;
+
+		ovl_s = drm_atomic_get_plane_state(c_state->state, ovl);
+		if (IS_ERR(ovl_s))
+			return PTR_ERR(ovl_s);
+
+		ovl_state = drm_plane_state_to_atmel_hlcdc_plane_state(ovl_s);
+
+		if (!ovl_s->fb ||
+		    atmel_hlcdc_format_embeds_alpha(ovl_s->fb->pixel_format) ||
+		    ovl_state->alpha != 255)
+			continue;
+
+		/* TODO: implement a smarter hidden area detection */
+		if (ovl_state->crtc_h * ovl_state->crtc_w < disc_h * disc_w)
+			continue;
+
+		disc_x = ovl_state->crtc_x;
+		disc_y = ovl_state->crtc_y;
+		disc_h = ovl_state->crtc_h;
+		disc_w = ovl_state->crtc_w;
+	}
+
+	if (disc_x == primary_state->disc_x &&
+	    disc_y == primary_state->disc_y &&
+	    disc_w == primary_state->disc_w &&
+	    disc_h == primary_state->disc_h)
+		return 0;
+
+
+	primary_state->disc_x = disc_x;
+	primary_state->disc_y = disc_y;
+	primary_state->disc_w = disc_w;
+	primary_state->disc_h = disc_h;
+	primary_state->disc_updated = true;
+
+	return 0;
+}
+
+static void
+atmel_hlcdc_plane_update_disc_area(struct atmel_hlcdc_plane *plane,
+				   struct atmel_hlcdc_plane_state *state)
+{
+	const struct atmel_hlcdc_layer_cfg_layout *layout =
+						&plane->layer.desc->layout;
+	int disc_surface = 0;
+
+	if (!state->disc_updated)
+		return;
+
+	disc_surface = state->disc_h * state->disc_w;
+
+	atmel_hlcdc_layer_update_cfg(&plane->layer, layout->general_config,
+				ATMEL_HLCDC_LAYER_DISCEN,
+				disc_surface ? ATMEL_HLCDC_LAYER_DISCEN : 0);
+
+	if (!disc_surface)
+		return;
+
+	atmel_hlcdc_layer_update_cfg(&plane->layer,
+				     layout->disc_pos,
+				     0xffffffff,
+				     state->disc_x | (state->disc_y << 16));
+
+	atmel_hlcdc_layer_update_cfg(&plane->layer,
+				     layout->disc_size,
+				     0xffffffff,
+				     (state->disc_w - 1) |
+				     ((state->disc_h - 1) << 16));
+}
+
 static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 					  struct drm_plane_state *s)
 {
@@ -628,6 +733,7 @@ static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
 	atmel_hlcdc_plane_update_general_settings(plane, state);
 	atmel_hlcdc_plane_update_format(plane, state);
 	atmel_hlcdc_plane_update_buffers(plane, state);
+	atmel_hlcdc_plane_update_disc_area(plane, state);
 
 	atmel_hlcdc_layer_update_commit(&plane->layer);
 }
@@ -772,6 +878,8 @@ atmel_hlcdc_plane_atomic_duplicate_state(struct drm_plane *p)
 	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
 	if (!copy)
 		return NULL;
+
+	copy->disc_updated = false;
 
 	if (copy->base.fb)
 		drm_framebuffer_reference(copy->base.fb);

@@ -212,7 +212,7 @@ static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
 	if (atmel_hlcdc_dc_mode_valid(crtc->dc, &s->adjusted_mode) != MODE_OK)
 		return -EINVAL;
 
-	return 0;
+	return atmel_hlcdc_plane_prepare_disc_area(s);
 }
 
 static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c)
