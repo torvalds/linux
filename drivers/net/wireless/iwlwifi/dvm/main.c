@@ -1228,11 +1228,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 	trans_cfg.rx_buf_size_8k = iwlwifi_mod_params.amsdu_size_8K;
-	if (!iwlwifi_mod_params.wd_disable)
-		trans_cfg.queue_watchdog_timeout =
-			priv->cfg->base_params->wd_timeout;
-	else
-		trans_cfg.queue_watchdog_timeout = IWL_WATCHDOG_DISABLED;
+	trans_cfg.cmd_q_wdg_timeout = IWL_WATCHDOG_DISABLED;
+
 	trans_cfg.command_names = iwl_dvm_cmd_strings;
 	trans_cfg.cmd_fifo = IWLAGN_CMD_FIFO_NUM;
 

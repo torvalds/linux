@@ -308,16 +308,41 @@ enum {
 #define LQ_FLAG_DYNAMIC_BW_POS          6
 #define LQ_FLAG_DYNAMIC_BW_MSK          (1 << LQ_FLAG_DYNAMIC_BW_POS)
 
-/* Single Stream Parameters
- * SS_STBC/BFER_ALLOWED - Controls whether STBC or Beamformer (BFER) is allowed
- * ucode will make a smart decision between SISO/STBC/BFER
- * SS_PARAMS_VALID - if not set ignore the ss_params field.
+/* Single Stream Tx Parameters (lq_cmd->ss_params)
+ * Flags to control a smart FW decision about whether BFER/STBC/SISO will be
+ * used for single stream Tx.
  */
-enum {
-	RS_SS_STBC_ALLOWED = BIT(0),
-	RS_SS_BFER_ALLOWED = BIT(1),
-	RS_SS_PARAMS_VALID = BIT(31),
-};
+
+/* Bit 0-1: Max STBC streams allowed. Can be 0-3.
+ * (0) - No STBC allowed
+ * (1) - 2x1 STBC allowed (HT/VHT)
+ * (2) - 4x2 STBC allowed (HT/VHT)
+ * (3) - 3x2 STBC allowed (HT only)
+ * All our chips are at most 2 antennas so only (1) is valid for now.
+ */
+#define LQ_SS_STBC_ALLOWED_POS          0
+#define LQ_SS_STBC_ALLOWED_MSK		(3 << LQ_SS_STBC_ALLOWED_MSK)
+
+/* 2x1 STBC is allowed */
+#define LQ_SS_STBC_1SS_ALLOWED		(1 << LQ_SS_STBC_ALLOWED_POS)
+
+/* Bit 2: Beamformer (VHT only) is allowed */
+#define LQ_SS_BFER_ALLOWED_POS		2
+#define LQ_SS_BFER_ALLOWED		(1 << LQ_SS_BFER_ALLOWED_POS)
+
+/* Bit 3: Force BFER or STBC for testing
+ * If this is set:
+ * If BFER is allowed then force the ucode to choose BFER else
+ * If STBC is allowed then force the ucode to choose STBC over SISO
+ */
+#define LQ_SS_FORCE_POS			3
+#define LQ_SS_FORCE			(1 << LQ_SS_FORCE_POS)
+
+/* Bit 31: ss_params field is valid. Used for FW backward compatibility
+ * with other drivers which don't support the ss_params API yet
+ */
+#define LQ_SS_PARAMS_VALID_POS		31
+#define LQ_SS_PARAMS_VALID		(1 << LQ_SS_PARAMS_VALID_POS)
 
 /**
  * struct iwl_lq_cmd - link quality command

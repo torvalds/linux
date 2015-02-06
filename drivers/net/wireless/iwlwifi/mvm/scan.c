@@ -704,7 +704,8 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 	}
 
-	mvm->last_ebs_successful = !ebs_status;
+	if (ebs_status)
+		mvm->last_ebs_successful = false;
 
 	return 0;
 }
@@ -1682,10 +1683,10 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 
 	band = &mvm->nvm_data->bands[IEEE80211_BAND_2GHZ];
 	for (i = 0; i < band->n_channels; i++, j++)
-		scan_config->channel_array[j] = band->channels[i].center_freq;
+		scan_config->channel_array[j] = band->channels[i].hw_value;
 	band = &mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
 	for (i = 0; i < band->n_channels; i++, j++)
-		scan_config->channel_array[j] = band->channels[i].center_freq;
+		scan_config->channel_array[j] = band->channels[i].hw_value;
 
 	cmd.data[0] = scan_config;
 	cmd.len[0] = cmd_size;
@@ -1862,6 +1863,13 @@ int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	flags |= IWL_UMAC_SCAN_GEN_FLAGS_PASS_ALL;
 
 	cmd->general_flags = cpu_to_le32(flags);
+
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SINGLE_SCAN_EBS &&
+	    mvm->last_ebs_successful)
+		cmd->channel_flags = IWL_SCAN_CHANNEL_FLAG_EBS |
+				     IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				     IWL_SCAN_CHANNEL_FLAG_CACHE_ADD;
+
 	cmd->n_channels = req->req.n_channels;
 
 	for (i = 0; i < req->req.n_ssids; i++)
@@ -2025,7 +2033,9 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		       notif->ebs_status == IWL_SCAN_EBS_SUCCESS ?
 				"success" : "failed");
 
-	mvm->last_ebs_successful = !notif->ebs_status;
+	if (notif->ebs_status)
+		mvm->last_ebs_successful = false;
+
 	mvm->scan_uid[uid_idx] = 0;
 
 	if (!sched) {
@@ -2058,9 +2068,13 @@ static bool iwl_scan_umac_done_check(struct iwl_notif_wait_data *notif_wait,
 
 	/*
 	 * Clear scan uid of scans that was aborted from above and completed
-	 * in FW so the RX handler does nothing.
+	 * in FW so the RX handler does nothing. Set last_ebs_successful here if
+	 * needed.
 	 */
 	scan_done->mvm->scan_uid[uid_idx] = 0;
+
+	if (notif->ebs_status)
+		scan_done->mvm->last_ebs_successful = false;
 
 	return !iwl_mvm_find_scan_type(scan_done->mvm, scan_done->type);
 }

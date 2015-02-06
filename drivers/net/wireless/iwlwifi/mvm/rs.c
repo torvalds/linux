@@ -39,6 +39,7 @@
 #include "sta.h"
 #include "iwl-op-mode.h"
 #include "mvm.h"
+#include "debugfs.h"
 
 #define RS_NAME "iwl-mvm-rs"
 
@@ -1805,7 +1806,7 @@ static bool rs_stbc_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	/* Our chip supports Tx STBC and the peer is an HT/VHT STA which
 	 * supports STBC of at least 1*SS
 	 */
-	if (!lq_sta->stbc)
+	if (!lq_sta->stbc_capable)
 		return false;
 
 	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
@@ -2626,7 +2627,7 @@ static void rs_ht_init(struct iwl_mvm *mvm,
 	if (mvm->cfg->ht_params->stbc &&
 	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
 	    (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC))
-		lq_sta->stbc = true;
+		lq_sta->stbc_capable = true;
 
 	lq_sta->is_vht = false;
 }
@@ -2645,7 +2646,12 @@ static void rs_vht_init(struct iwl_mvm *mvm,
 	if (mvm->cfg->ht_params->stbc &&
 	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
 	    (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK))
-		lq_sta->stbc = true;
+		lq_sta->stbc_capable = true;
+
+	if ((mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BEAMFORMER) &&
+	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
+	    (vht_cap->cap & IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE))
+		lq_sta->bfer_capable = true;
 
 	lq_sta->is_vht = true;
 }
@@ -2778,11 +2784,12 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		rs_get_max_rate_from_mask(lq_sta->active_mimo2_rate);
 
 	IWL_DEBUG_RATE(mvm,
-		       "RATE MASK: LEGACY=%lX SISO=%lX MIMO2=%lX VHT=%d LDPC=%d STBC=%d\n",
+		       "LEGACY=%lX SISO=%lX MIMO2=%lX VHT=%d LDPC=%d STBC=%d BFER=%d\n",
 		       lq_sta->active_legacy_rate,
 		       lq_sta->active_siso_rate,
 		       lq_sta->active_mimo2_rate,
-		       lq_sta->is_vht, lq_sta->ldpc, lq_sta->stbc);
+		       lq_sta->is_vht, lq_sta->ldpc, lq_sta->stbc_capable,
+		       lq_sta->bfer_capable);
 	IWL_DEBUG_RATE(mvm, "MAX RATE: LEGACY=%d SISO=%d MIMO2=%d\n",
 		       lq_sta->max_legacy_rate_idx,
 		       lq_sta->max_siso_rate_idx,
@@ -2916,23 +2923,15 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 	u8 valid_tx_ant = 0;
 	struct iwl_lq_cmd *lq_cmd = &lq_sta->lq;
 	bool toggle_ant = false;
-	bool stbc_allowed = false;
 
 	memcpy(&rate, initial_rate, sizeof(rate));
 
 	valid_tx_ant = iwl_mvm_get_valid_tx_ant(mvm);
 
-	stbc_allowed = rs_stbc_allow(mvm, sta, lq_sta);
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LQ_SS_PARAMS) {
-		u32 ss_params = RS_SS_PARAMS_VALID;
-
-		if (stbc_allowed)
-			ss_params |= RS_SS_STBC_ALLOWED;
-		lq_cmd->ss_params = cpu_to_le32(ss_params);
-	} else {
-		/* TODO: remove old API when min FW API hits 14 */
-		rate.stbc = stbc_allowed;
-	}
+	/* TODO: remove old API when min FW API hits 14 */
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LQ_SS_PARAMS) &&
+	    rs_stbc_allow(mvm, sta, lq_sta))
+		rate.stbc = true;
 
 	if (is_siso(&rate)) {
 		num_rates = IWL_MVM_RS_INITIAL_SISO_NUM_RATES;
@@ -2980,6 +2979,142 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 
 }
 
+struct rs_bfer_active_iter_data {
+	struct ieee80211_sta *exclude_sta;
+	struct iwl_mvm_sta *bfer_mvmsta;
+};
+
+static void rs_bfer_active_iter(void *_data,
+				struct ieee80211_sta *sta)
+{
+	struct rs_bfer_active_iter_data *data = _data;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_lq_cmd *lq_cmd = &mvmsta->lq_sta.lq;
+	u32 ss_params = le32_to_cpu(lq_cmd->ss_params);
+
+	if (sta == data->exclude_sta)
+		return;
+
+	/* The current sta has BFER allowed */
+	if (ss_params & LQ_SS_BFER_ALLOWED) {
+		WARN_ON_ONCE(data->bfer_mvmsta != NULL);
+
+		data->bfer_mvmsta = mvmsta;
+	}
+}
+
+static int rs_bfer_priority(struct iwl_mvm_sta *sta)
+{
+	int prio = -1;
+	enum nl80211_iftype viftype = ieee80211_vif_type_p2p(sta->vif);
+
+	switch (viftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		prio = 3;
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		prio = 2;
+		break;
+	case NL80211_IFTYPE_STATION:
+		prio = 1;
+		break;
+	default:
+		WARN_ONCE(true, "viftype %d sta_id %d", viftype, sta->sta_id);
+		prio = -1;
+	}
+
+	return prio;
+}
+
+/* Returns >0 if sta1 has a higher BFER priority compared to sta2 */
+static int rs_bfer_priority_cmp(struct iwl_mvm_sta *sta1,
+				struct iwl_mvm_sta *sta2)
+{
+	int prio1 = rs_bfer_priority(sta1);
+	int prio2 = rs_bfer_priority(sta2);
+
+	if (prio1 > prio2)
+		return 1;
+	if (prio1 < prio2)
+		return -1;
+	return 0;
+}
+
+static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
+				struct ieee80211_sta *sta,
+				struct iwl_lq_sta *lq_sta,
+				const struct rs_rate *initial_rate)
+{
+	struct iwl_lq_cmd *lq_cmd = &lq_sta->lq;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct rs_bfer_active_iter_data data = {
+		.exclude_sta = sta,
+		.bfer_mvmsta = NULL,
+	};
+	struct iwl_mvm_sta *bfer_mvmsta = NULL;
+	u32 ss_params = LQ_SS_PARAMS_VALID;
+
+	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
+		goto out;
+
+	/* Check if forcing the decision is configured.
+	 * Note that SISO is forced by not allowing STBC or BFER
+	 */
+	if (lq_sta->ss_force == RS_SS_FORCE_STBC)
+		ss_params |= (LQ_SS_STBC_1SS_ALLOWED | LQ_SS_FORCE);
+	else if (lq_sta->ss_force == RS_SS_FORCE_BFER)
+		ss_params |= (LQ_SS_BFER_ALLOWED | LQ_SS_FORCE);
+
+	if (lq_sta->ss_force != RS_SS_FORCE_NONE) {
+		IWL_DEBUG_RATE(mvm, "Forcing single stream Tx decision %d\n",
+			       lq_sta->ss_force);
+		goto out;
+	}
+
+	if (lq_sta->stbc_capable)
+		ss_params |= LQ_SS_STBC_1SS_ALLOWED;
+
+	if (!lq_sta->bfer_capable)
+		goto out;
+
+	ieee80211_iterate_stations_atomic(mvm->hw,
+					  rs_bfer_active_iter,
+					  &data);
+	bfer_mvmsta = data.bfer_mvmsta;
+
+	/* This code is safe as it doesn't run concurrently for different
+	 * stations. This is guaranteed by the fact that calls to
+	 * ieee80211_tx_status wouldn't run concurrently for a single HW.
+	 */
+	if (!bfer_mvmsta) {
+		IWL_DEBUG_RATE(mvm, "No sta with BFER allowed found. Allow\n");
+
+		ss_params |= LQ_SS_BFER_ALLOWED;
+		goto out;
+	}
+
+	IWL_DEBUG_RATE(mvm, "Found existing sta %d with BFER activated\n",
+		       bfer_mvmsta->sta_id);
+
+	/* Disallow BFER on another STA if active and we're a higher priority */
+	if (rs_bfer_priority_cmp(mvmsta, bfer_mvmsta) > 0) {
+		struct iwl_lq_cmd *bfersta_lq_cmd = &bfer_mvmsta->lq_sta.lq;
+		u32 bfersta_ss_params = le32_to_cpu(bfersta_lq_cmd->ss_params);
+
+		bfersta_ss_params &= ~LQ_SS_BFER_ALLOWED;
+		bfersta_lq_cmd->ss_params = cpu_to_le32(bfersta_ss_params);
+		iwl_mvm_send_lq_cmd(mvm, bfersta_lq_cmd, false);
+
+		ss_params |= LQ_SS_BFER_ALLOWED;
+		IWL_DEBUG_RATE(mvm,
+			       "Lower priority BFER sta found (%d). Switch BFER\n",
+			       bfer_mvmsta->sta_id);
+	}
+out:
+	lq_cmd->ss_params = cpu_to_le32(ss_params);
+}
+
 static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 			   struct ieee80211_sta *sta,
 			   struct iwl_lq_sta *lq_sta,
@@ -3005,6 +3140,9 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 		return;
 
 	rs_build_rates_table(mvm, sta, lq_sta, initial_rate);
+
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LQ_SS_PARAMS)
+		rs_set_lq_ss_params(mvm, sta, lq_sta, initial_rate);
 
 	if (num_of_ant(initial_rate->ant) == 1)
 		lq_cmd->single_stream_ant_msk = initial_rate->ant;
@@ -3379,9 +3517,73 @@ static const struct file_operations rs_sta_dbgfs_drv_tx_stats_ops = {
 	.llseek = default_llseek,
 };
 
+static ssize_t iwl_dbgfs_ss_force_read(struct file *file,
+				       char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct iwl_lq_sta *lq_sta = file->private_data;
+	char buf[12];
+	int bufsz = sizeof(buf);
+	int pos = 0;
+	static const char * const ss_force_name[] = {
+		[RS_SS_FORCE_NONE] = "none",
+		[RS_SS_FORCE_STBC] = "stbc",
+		[RS_SS_FORCE_BFER] = "bfer",
+		[RS_SS_FORCE_SISO] = "siso",
+	};
+
+	pos += scnprintf(buf+pos, bufsz-pos, "%s\n",
+			 ss_force_name[lq_sta->ss_force]);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
+					size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = lq_sta->pers.drv;
+	int ret = 0;
+
+	if (!strncmp("none", buf, 4)) {
+		lq_sta->ss_force = RS_SS_FORCE_NONE;
+	} else if (!strncmp("siso", buf, 4)) {
+		lq_sta->ss_force = RS_SS_FORCE_SISO;
+	} else if (!strncmp("stbc", buf, 4)) {
+		if (lq_sta->stbc_capable) {
+			lq_sta->ss_force = RS_SS_FORCE_STBC;
+		} else {
+			IWL_ERR(mvm,
+				"can't force STBC. peer doesn't support\n");
+			ret = -EINVAL;
+		}
+	} else if (!strncmp("bfer", buf, 4)) {
+		if (lq_sta->bfer_capable) {
+			lq_sta->ss_force = RS_SS_FORCE_BFER;
+		} else {
+			IWL_ERR(mvm,
+				"can't force BFER. peer doesn't support\n");
+			ret = -EINVAL;
+		}
+	} else {
+		IWL_ERR(mvm, "valid values none|siso|stbc|bfer\n");
+		ret = -EINVAL;
+	}
+	return ret ?: count;
+}
+
+#define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
+	_MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz, struct iwl_lq_sta)
+#define MVM_DEBUGFS_ADD_FILE_RS(name, parent, mode) do {		\
+		if (!debugfs_create_file(#name, mode, parent, lq_sta,	\
+					 &iwl_dbgfs_##name##_ops))	\
+			goto err;					\
+	} while (0)
+
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(ss_force, 32);
+
 static void rs_add_debugfs(void *mvm, void *mvm_sta, struct dentry *dir)
 {
 	struct iwl_lq_sta *lq_sta = mvm_sta;
+
 	debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
 			    lq_sta, &rs_sta_dbgfs_scale_table_ops);
 	debugfs_create_file("rate_stats_table", S_IRUSR, dir,
@@ -3392,6 +3594,11 @@ static void rs_add_debugfs(void *mvm, void *mvm_sta, struct dentry *dir)
 			  &lq_sta->tx_agg_tid_en);
 	debugfs_create_u8("reduced_tpc", S_IRUSR | S_IWUSR, dir,
 			  &lq_sta->pers.dbg_fixed_txp_reduction);
+
+	MVM_DEBUGFS_ADD_FILE_RS(ss_force, dir, S_IRUSR | S_IWUSR);
+	return;
+err:
+	IWL_ERR((struct iwl_mvm *)mvm, "Can't create debugfs entity\n");
 }
 
 static void rs_remove_debugfs(void *mvm, void *mvm_sta)
