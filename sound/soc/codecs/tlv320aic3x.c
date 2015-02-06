@@ -1046,7 +1046,7 @@ static int aic3x_prepare(struct snd_pcm_substream *substream,
 		delay += aic3x->tdm_delay;
 
 	/* Configure data delay */
-	snd_soc_write(codec, AIC3X_ASD_INTF_CTRLC, aic3x->tdm_delay);
+	snd_soc_write(codec, AIC3X_ASD_INTF_CTRLC, delay);
 
 	return 0;
 }

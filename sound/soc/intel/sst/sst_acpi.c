@@ -350,7 +350,7 @@ static struct sst_machines sst_acpi_bytcr[] = {
 
 /* Cherryview-based platforms: CherryTrail and Braswell */
 static struct sst_machines sst_acpi_chv[] = {
-	{"10EC5670", "cht-bsw", "cht-bsw-rt5672", NULL, "fw_sst_22a8.bin",
+	{"10EC5670", "cht-bsw", "cht-bsw-rt5672", NULL, "intel/fw_sst_22a8.bin",
 						&chv_platform_data },
 	{},
 };
