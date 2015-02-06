@@ -867,7 +867,7 @@ static int aha1542_reset(struct scsi_cmnd *cmd, u8 reset_cmd)
 	outb(reset_cmd, CONTROL(cmd->device->host->io_port));
 
 	if (!wait_mask(STATUS(cmd->device->host->io_port),
-	     STATMASK, INIT | IDLE, STST | DIAGF | INVDCMD | DF | CDF, 0)) {
+	     STATMASK, IDLE, STST | DIAGF | INVDCMD | DF | CDF, 0)) {
 		spin_unlock_irqrestore(sh->host_lock, flags);
 		return FAILED;
 	}
