@@ -131,7 +131,7 @@ struct ccb {			/* Command Control Block 5.3 */
 				/* REQUEST SENSE */
 };
 
-static int aha1542_detect(struct scsi_host_template *);
+static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct device *pdev, int indx);
 static int aha1542_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 static int aha1542_bus_reset(Scsi_Cmnd * SCpnt);
 static int aha1542_dev_reset(Scsi_Cmnd * SCpnt);
