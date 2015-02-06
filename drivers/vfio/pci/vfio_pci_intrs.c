@@ -817,6 +817,16 @@ static int vfio_pci_set_err_trigger(struct vfio_pci_device *vdev,
 	return vfio_pci_set_ctx_trigger_single(&vdev->err_trigger, flags, data);
 }
 
+static int vfio_pci_set_req_trigger(struct vfio_pci_device *vdev,
+				    unsigned index, unsigned start,
+				    unsigned count, uint32_t flags, void *data)
+{
+	if (index != VFIO_PCI_REQ_IRQ_INDEX || start != 0 || count != 1)
+		return -EINVAL;
+
+	return vfio_pci_set_ctx_trigger_single(&vdev->req_trigger, flags, data);
+}
+
 int vfio_pci_set_irqs_ioctl(struct vfio_pci_device *vdev, uint32_t flags,
 			    unsigned index, unsigned start, unsigned count,
 			    void *data)
@@ -856,6 +866,12 @@ int vfio_pci_set_irqs_ioctl(struct vfio_pci_device *vdev, uint32_t flags,
 		case VFIO_IRQ_SET_ACTION_TRIGGER:
 			if (pci_is_pcie(vdev->pdev))
 				func = vfio_pci_set_err_trigger;
+			break;
+		}
+	case VFIO_PCI_REQ_IRQ_INDEX:
+		switch (flags & VFIO_IRQ_SET_ACTION_TYPE_MASK) {
+		case VFIO_IRQ_SET_ACTION_TRIGGER:
+			func = vfio_pci_set_req_trigger;
 			break;
 		}
 	}
