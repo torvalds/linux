@@ -155,11 +155,17 @@
 /* watchdog polling interval in ms */
 #define BRCMF_WD_POLL_MS	10
 
-/* The state of the bus */
-enum brcmf_sdio_state {
-	BRCMF_STATE_DOWN,	/* Device available, still initialising */
-	BRCMF_STATE_DATA,	/* Ready for data transfers, DPC enabled */
-	BRCMF_STATE_NOMEDIUM	/* No medium access to dongle possible */
+/**
+ * enum brcmf_sdiod_state - the state of the bus.
+ *
+ * @BRCMF_SDIOD_DOWN: Device can be accessed, no DPC.
+ * @BRCMF_SDIOD_DATA: Ready for data transfers, DPC enabled.
+ * @BRCMF_SDIOD_NOMEDIUM: No medium access to dongle possible.
+ */
+enum brcmf_sdiod_state {
+	BRCMF_SDIOD_DOWN,
+	BRCMF_SDIOD_DATA,
+	BRCMF_SDIOD_NOMEDIUM
 };
 
 struct brcmf_sdreg {
@@ -194,7 +200,7 @@ struct brcmf_sdio_dev {
 	char fw_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
 	char nvram_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
 	bool wowl_enabled;
-	enum brcmf_sdio_state state;
+	enum brcmf_sdiod_state state;
 };
 
 /* sdio core registers */
@@ -344,5 +350,8 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus);
 
 void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 void brcmf_sdio_wowl_config(struct device *dev, bool enabled);
+
+void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
+			      enum brcmf_sdiod_state state);
 
 #endif /* BRCMFMAC_SDIO_H */

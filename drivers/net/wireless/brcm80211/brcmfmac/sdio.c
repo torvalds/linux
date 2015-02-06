@@ -1909,7 +1909,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 	bus->rxpending = true;
 
 	for (rd->seq_num = bus->rx_seq, rxleft = maxframes;
-	     !bus->rxskip && rxleft && bus->sdiodev->state == BRCMF_STATE_DATA;
+	     !bus->rxskip && rxleft && bus->sdiodev->state == BRCMF_SDIOD_DATA;
 	     rd->seq_num++, rxleft--) {
 
 		/* Handle glomming separately */
@@ -2415,7 +2415,7 @@ static uint brcmf_sdio_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	}
 
 	/* Deflow-control stack if needed */
-	if ((bus->sdiodev->state == BRCMF_STATE_DATA) &&
+	if ((bus->sdiodev->state == BRCMF_SDIOD_DATA) &&
 	    bus->txoff && (pktq_len(&bus->txq) < TXLOW)) {
 		bus->txoff = false;
 		brcmf_txflowblock(bus->sdiodev->dev, false);
@@ -2503,7 +2503,7 @@ static void brcmf_sdio_bus_stop(struct device *dev)
 		bus->watchdog_tsk = NULL;
 	}
 
-	if (sdiodev->state != BRCMF_STATE_NOMEDIUM) {
+	if (sdiodev->state != BRCMF_SDIOD_NOMEDIUM) {
 		sdio_claim_host(sdiodev->func[1]);
 
 		/* Enable clock for device interrupts */
@@ -2755,7 +2755,7 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 		brcmf_sdio_sendfromq(bus, framecnt);
 	}
 
-	if ((bus->sdiodev->state != BRCMF_STATE_DATA) || (err != 0)) {
+	if ((bus->sdiodev->state != BRCMF_SDIOD_DATA) || (err != 0)) {
 		brcmf_err("failed backplane access over SDIO, halting operation\n");
 		atomic_set(&bus->intstatus, 0);
 	} else if (atomic_read(&bus->intstatus) ||
@@ -3411,7 +3411,7 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus,
 	}
 
 	/* Allow full data communication using DPC from now on. */
-	bus->sdiodev->state = BRCMF_STATE_DATA;
+	brcmf_sdiod_change_state(bus->sdiodev, BRCMF_SDIOD_DATA);
 	bcmerror = 0;
 
 err:
@@ -3557,7 +3557,7 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus)
 		return;
 	}
 
-	if (bus->sdiodev->state != BRCMF_STATE_DATA) {
+	if (bus->sdiodev->state != BRCMF_SDIOD_DATA) {
 		brcmf_err("bus is down. we have nothing to do\n");
 		return;
 	}
@@ -3623,7 +3623,7 @@ static bool brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 	}
 #ifdef DEBUG
 	/* Poll for console output periodically */
-	if (bus->sdiodev->state == BRCMF_STATE_DATA &&
+	if (bus->sdiodev->state == BRCMF_SDIOD_DATA &&
 	    bus->console_interval != 0) {
 		bus->console.count += BRCMF_WD_POLL_MS;
 		if (bus->console.count >= bus->console_interval) {
@@ -4242,7 +4242,7 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 			destroy_workqueue(bus->brcmf_wq);
 
 		if (bus->ci) {
-			if (bus->sdiodev->state != BRCMF_STATE_NOMEDIUM) {
+			if (bus->sdiodev->state != BRCMF_SDIOD_NOMEDIUM) {
 				sdio_claim_host(bus->sdiodev->func[1]);
 				brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
 				/* Leave the device in state where it is
@@ -4277,7 +4277,7 @@ void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 	}
 
 	/* don't start the wd until fw is loaded */
-	if (bus->sdiodev->state != BRCMF_STATE_DATA)
+	if (bus->sdiodev->state != BRCMF_SDIOD_DATA)
 		return;
 
 	if (wdtick) {
