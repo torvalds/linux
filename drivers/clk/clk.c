@@ -86,7 +86,7 @@ struct clk {
 	const char *con_id;
 	unsigned long min_rate;
 	unsigned long max_rate;
-	struct hlist_node child_node;
+	struct hlist_node clks_node;
 };
 
 /***           locking             ***/
@@ -862,10 +862,10 @@ static void clk_core_get_boundaries(struct clk_core *clk,
 	*min_rate = 0;
 	*max_rate = ULONG_MAX;
 
-	hlist_for_each_entry(clk_user, &clk->clks, child_node)
+	hlist_for_each_entry(clk_user, &clk->clks, clks_node)
 		*min_rate = max(*min_rate, clk_user->min_rate);
 
-	hlist_for_each_entry(clk_user, &clk->clks, child_node)
+	hlist_for_each_entry(clk_user, &clk->clks, clks_node)
 		*max_rate = min(*max_rate, clk_user->max_rate);
 }
 
@@ -2422,7 +2422,7 @@ struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
 	clk->max_rate = ULONG_MAX;
 
 	clk_prepare_lock();
-	hlist_add_head(&clk->child_node, &hw->core->clks);
+	hlist_add_head(&clk->clks_node, &hw->core->clks);
 	clk_prepare_unlock();
 
 	return clk;
@@ -2431,7 +2431,7 @@ struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
 void __clk_free_clk(struct clk *clk)
 {
 	clk_prepare_lock();
-	hlist_del(&clk->child_node);
+	hlist_del(&clk->clks_node);
 	clk_prepare_unlock();
 
 	kfree(clk);
@@ -2711,7 +2711,7 @@ void __clk_put(struct clk *clk)
 
 	clk_prepare_lock();
 
-	hlist_del(&clk->child_node);
+	hlist_del(&clk->clks_node);
 	if (clk->min_rate > clk->core->req_rate ||
 	    clk->max_rate < clk->core->req_rate)
 		clk_core_set_rate_nolock(clk->core, clk->core->req_rate);
