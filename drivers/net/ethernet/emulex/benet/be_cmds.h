@@ -44,10 +44,10 @@ struct be_mcc_wrb {
 	} payload;
 };
 
-#define CQE_FLAGS_VALID_MASK 		(1 << 31)
-#define CQE_FLAGS_ASYNC_MASK 		(1 << 30)
-#define CQE_FLAGS_COMPLETED_MASK 	(1 << 28)
-#define CQE_FLAGS_CONSUMED_MASK 	(1 << 27)
+#define CQE_FLAGS_VALID_MASK		BIT(31)
+#define CQE_FLAGS_ASYNC_MASK		BIT(30)
+#define CQE_FLAGS_COMPLETED_MASK	BIT(28)
+#define CQE_FLAGS_CONSUMED_MASK		BIT(27)
 
 /* Completion Status */
 enum mcc_base_status {

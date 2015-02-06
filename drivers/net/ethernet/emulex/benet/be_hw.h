@@ -75,7 +75,7 @@
  * atomically without having to arbitrate for the PCI Interrupt Disable bit
  * with the OS.
  */
-#define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
+#define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	BIT(29) /* bit 29 */
 
 /********* PCI Function Capability *********/
 #define BE_FUNCTION_CAPS_RSS			0x2
@@ -224,7 +224,7 @@ struct amap_eth_hdr_wrb {
 } __packed;
 
 #define TX_HDR_WRB_COMPL		1		/* word 2 */
-#define TX_HDR_WRB_EVT			(1 << 1)	/* word 2 */
+#define TX_HDR_WRB_EVT			BIT(1)		/* word 2 */
 #define TX_HDR_WRB_NUM_SHIFT		13		/* word 2: bits 13:17 */
 #define TX_HDR_WRB_NUM_MASK		0x1F		/* word 2: bits 13:17 */
 
