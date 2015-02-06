@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/clk/at91_pmc.h>
@@ -41,6 +42,7 @@ static struct {
 } at91_pm_data;
 
 static void (*at91_pm_standby)(void);
+void __iomem *at91_ramc_base[2];
 
 static int at91_pm_valid_state(suspend_state_t state)
 {
@@ -224,6 +226,43 @@ void at91_pm_set_standby(void (*at91_standby)(void))
 	}
 }
 
+static struct of_device_id ramc_ids[] = {
+	{ .compatible = "atmel,at91rm9200-sdramc", .data = at91rm9200_standby },
+	{ .compatible = "atmel,at91sam9260-sdramc", .data = at91sam9_sdram_standby },
+	{ .compatible = "atmel,at91sam9g45-ddramc", .data = at91_ddr_standby },
+	{ .compatible = "atmel,sama5d3-ddramc", .data = at91_ddr_standby },
+	{ /*sentinel*/ }
+};
+
+static void at91_dt_ramc(void)
+{
+	struct device_node *np;
+	const struct of_device_id *of_id;
+	int idx = 0;
+	const void *standby = NULL;
+
+	for_each_matching_node_and_match(np, ramc_ids, &of_id) {
+		at91_ramc_base[idx] = of_iomap(np, 0);
+		if (!at91_ramc_base[idx])
+			panic(pr_fmt("unable to map ramc[%d] cpu registers\n"), idx);
+
+		if (!standby)
+			standby = of_id->data;
+
+		idx++;
+	}
+
+	if (!idx)
+		panic(pr_fmt("unable to find compatible ram controller node in dtb\n"));
+
+	if (!standby) {
+		pr_warn("ramc no standby function available\n");
+		return;
+	}
+
+	at91_pm_set_standby(standby);
+}
+
 #ifdef CONFIG_AT91_SLOW_CLOCK
 static void __init at91_pm_sram_init(void)
 {
@@ -280,8 +319,10 @@ static void __init at91_pm_init(void)
 	suspend_set_ops(&at91_pm_ops);
 }
 
-void __init at91_rm9200_pm_init(void)
+void __init at91rm9200_pm_init(void)
 {
+	at91_dt_ramc();
+
 	/*
 	 * AT91RM9200 SDRAM low-power mode cannot be used with self-refresh.
 	 */
@@ -293,22 +334,25 @@ void __init at91_rm9200_pm_init(void)
 	at91_pm_init();
 }
 
-void __init at91_sam9260_pm_init(void)
+void __init at91sam9260_pm_init(void)
 {
+	at91_dt_ramc();
 	at91_pm_data.memctrl = AT91_MEMCTRL_SDRAMC;
 	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP;
 	return at91_pm_init();
 }
 
-void __init at91_sam9g45_pm_init(void)
+void __init at91sam9g45_pm_init(void)
 {
+	at91_dt_ramc();
 	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP;
 	at91_pm_data.memctrl = AT91_MEMCTRL_DDRSDR;
 	return at91_pm_init();
 }
 
-void __init at91_sam9x5_pm_init(void)
+void __init at91sam9x5_pm_init(void)
 {
+	at91_dt_ramc();
 	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP;
 	at91_pm_data.memctrl = AT91_MEMCTRL_DDRSDR;
 	return at91_pm_init();
