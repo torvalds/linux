@@ -31,6 +31,12 @@ config POWER_RESET_RESTART
 	  Instead they restart, and u-boot holds the SoC until the
 	  user presses a key. u-boot then boots into Linux.
 
+config POWER_RESET_ROCKCHIP
+	bool "Rockchip reset driver"
+	depends on POWER_RESET && MFD_SYSCON && ARCH_ROCKCHIP
+	help
+	  Restart support for Rockchip SoCs.
+
 config POWER_RESET_VEXPRESS
 	bool "ARM Versatile Express power-off and reset driver"
 	depends on ARM || ARM64

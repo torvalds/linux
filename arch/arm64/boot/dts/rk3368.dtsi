@@ -144,6 +144,11 @@
 
 	};
 
+	cru: syscon@ff760000 {
+		compatible = "rockchip,rk3368-cru", "rockchip,cru", "syscon";
+		reg = <0x0 0xff760000 0x0 0x1000>;
+	};
+
 	grf: syscon@ff770000 {
 		compatible = "rockchip,rk3368-grf", "rockchip,grf", "syscon";
 		reg = <0x0 0xff770000 0x0 0x1000>;
@@ -1913,5 +1918,11 @@
                                                 <3 GPIO_D3 RK_FUNC_1 &pcfg_pull_none>;
                         };
 		};
+	};
+
+	reboot {
+		compatible = "rockchip,rk3368-reboot";
+		rockchip,cru = <&cru>;
+		rockchip,pmugrf = <&pmugrf>;
 	};
 };
