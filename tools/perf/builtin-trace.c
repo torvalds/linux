@@ -2625,7 +2625,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (trace.summary_only)
 		trace.summary = trace.summary_only;
 
-	if (!trace.trace_syscalls && !trace.trace_pgfaults) {
+	if (!trace.trace_syscalls && !trace.trace_pgfaults &&
+	    trace.evlist->nr_entries == 0 /* Was --events used? */) {
 		pr_err("Please specify something to trace.\n");
 		return -1;
 	}
