@@ -236,7 +236,7 @@ int init_fpu(struct task_struct *tsk)
 	if (tsk_used_math(tsk)) {
 		if (cpu_has_fpu && tsk == current)
 			unlazy_fpu(tsk);
-		tsk->thread.fpu.last_cpu = ~0;
+		task_disable_lazy_fpu_restore(tsk);
 		return 0;
 	}
 
