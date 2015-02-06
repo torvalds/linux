@@ -1741,6 +1741,11 @@ static int i40e_get_rss_hash_opts(struct i40e_pf *pf, struct ethtool_rxnfc *cmd)
 {
 	cmd->data = 0;
 
+	if (pf->vsi[pf->lan_vsi]->rxnfc.data != 0) {
+		cmd->data = pf->vsi[pf->lan_vsi]->rxnfc.data;
+		cmd->flow_type = pf->vsi[pf->lan_vsi]->rxnfc.flow_type;
+		return 0;
+	}
 	/* Report default options for RSS on i40e */
 	switch (cmd->flow_type) {
 	case TCP_V4_FLOW:
@@ -2011,6 +2016,9 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	wr32(hw, I40E_PFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
 	i40e_flush(hw);
+
+	/* Save setting for future output/update */
+	pf->vsi[pf->lan_vsi]->rxnfc = *nfc;
 
 	return 0;
 }
