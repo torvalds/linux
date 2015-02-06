@@ -385,6 +385,9 @@ struct i40e_pf {
 	bool ptp_tx;
 	bool ptp_rx;
 	u16 rss_table_size;
+	/* These are only valid in NPAR modes */
+	u32 npar_max_bw;
+	u32 npar_min_bw;
 };
 
 struct i40e_mac_filter {
@@ -732,4 +735,8 @@ int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr);
 int i40e_ptp_get_ts_config(struct i40e_pf *pf, struct ifreq *ifr);
 void i40e_ptp_init(struct i40e_pf *pf);
 void i40e_ptp_stop(struct i40e_pf *pf);
+
+i40e_status i40e_get_npar_bw_setting(struct i40e_pf *pf);
+i40e_status i40e_set_npar_bw_setting(struct i40e_pf *pf);
+i40e_status i40e_commit_npar_bw_setting(struct i40e_pf *pf);
 #endif /* _I40E_H_ */

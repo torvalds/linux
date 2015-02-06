@@ -3354,6 +3354,47 @@ i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 }
 
 /**
+ * i40e_aq_alternate_read
+ * @hw: pointer to the hardware structure
+ * @reg_addr0: address of first dword to be read
+ * @reg_val0: pointer for data read from 'reg_addr0'
+ * @reg_addr1: address of second dword to be read
+ * @reg_val1: pointer for data read from 'reg_addr1'
+ *
+ * Read one or two dwords from alternate structure. Fields are indicated
+ * by 'reg_addr0' and 'reg_addr1' register numbers. If 'reg_val1' pointer
+ * is not passed then only register at 'reg_addr0' is read.
+ *
+ **/
+i40e_status i40e_aq_alternate_read(struct i40e_hw *hw,
+				   u32 reg_addr0, u32 *reg_val0,
+				   u32 reg_addr1, u32 *reg_val1)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_alternate_write *cmd_resp =
+		(struct i40e_aqc_alternate_write *)&desc.params.raw;
+	i40e_status status;
+
+	if (!reg_val0)
+		return I40E_ERR_PARAM;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_alternate_read);
+	cmd_resp->address0 = cpu_to_le32(reg_addr0);
+	cmd_resp->address1 = cpu_to_le32(reg_addr1);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, NULL);
+
+	if (!status) {
+		*reg_val0 = le32_to_cpu(cmd_resp->data0);
+
+		if (reg_val1)
+			*reg_val1 = le32_to_cpu(cmd_resp->data1);
+	}
+
+	return status;
+}
+
+/**
  * i40e_aq_resume_port_tx
  * @hw: pointer to the hardware structure
  * @cmd_details: pointer to command details structure or NULL
@@ -3416,4 +3457,80 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
 		hw->bus.speed = i40e_bus_speed_unknown;
 		break;
 	}
+}
+
+/**
+ * i40e_read_bw_from_alt_ram
+ * @hw: pointer to the hardware structure
+ * @max_bw: pointer for max_bw read
+ * @min_bw: pointer for min_bw read
+ * @min_valid: pointer for bool that is true if min_bw is a valid value
+ * @max_valid: pointer for bool that is true if max_bw is a valid value
+ *
+ * Read bw from the alternate ram for the given pf
+ **/
+i40e_status i40e_read_bw_from_alt_ram(struct i40e_hw *hw,
+				      u32 *max_bw, u32 *min_bw,
+				      bool *min_valid, bool *max_valid)
+{
+	i40e_status status;
+	u32 max_bw_addr, min_bw_addr;
+
+	/* Calculate the address of the min/max bw registers */
+	max_bw_addr = I40E_ALT_STRUCT_FIRST_PF_OFFSET +
+		      I40E_ALT_STRUCT_MAX_BW_OFFSET +
+		      (I40E_ALT_STRUCT_DWORDS_PER_PF * hw->pf_id);
+	min_bw_addr = I40E_ALT_STRUCT_FIRST_PF_OFFSET +
+		      I40E_ALT_STRUCT_MIN_BW_OFFSET +
+		      (I40E_ALT_STRUCT_DWORDS_PER_PF * hw->pf_id);
+
+	/* Read the bandwidths from alt ram */
+	status = i40e_aq_alternate_read(hw, max_bw_addr, max_bw,
+					min_bw_addr, min_bw);
+
+	if (*min_bw & I40E_ALT_BW_VALID_MASK)
+		*min_valid = true;
+	else
+		*min_valid = false;
+
+	if (*max_bw & I40E_ALT_BW_VALID_MASK)
+		*max_valid = true;
+	else
+		*max_valid = false;
+
+	return status;
+}
+
+/**
+ * i40e_aq_configure_partition_bw
+ * @hw: pointer to the hardware structure
+ * @bw_data: Buffer holding valid pfs and bw limits
+ * @cmd_details: pointer to command details
+ *
+ * Configure partitions guaranteed/max bw
+ **/
+i40e_status i40e_aq_configure_partition_bw(struct i40e_hw *hw,
+			struct i40e_aqc_configure_partition_bw_data *bw_data,
+			struct i40e_asq_cmd_details *cmd_details)
+{
+	i40e_status status;
+	struct i40e_aq_desc desc;
+	u16 bwd_size = sizeof(*bw_data);
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_configure_partition_bw);
+
+	/* Indirect command */
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_RD);
+
+	if (bwd_size > I40E_AQ_LARGE_BUF)
+		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
+
+	desc.datalen = cpu_to_le16(bwd_size);
+
+	status = i40e_asq_send_command(hw, &desc, bw_data, bwd_size,
+				       cmd_details);
+
+	return status;
 }

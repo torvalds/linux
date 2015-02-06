@@ -7254,6 +7254,128 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 }
 
 /**
+ * i40e_get_npar_bw_setting - Retrieve BW settings for this PF partition
+ * @pf: board private structure
+ **/
+i40e_status i40e_get_npar_bw_setting(struct i40e_pf *pf)
+{
+	i40e_status status;
+	bool min_valid, max_valid;
+	u32 max_bw, min_bw;
+
+	status = i40e_read_bw_from_alt_ram(&pf->hw, &max_bw, &min_bw,
+					   &min_valid, &max_valid);
+
+	if (!status) {
+		if (min_valid)
+			pf->npar_min_bw = min_bw;
+		if (max_valid)
+			pf->npar_max_bw = max_bw;
+	}
+
+	return status;
+}
+
+/**
+ * i40e_set_npar_bw_setting - Set BW settings for this PF partition
+ * @pf: board private structure
+ **/
+i40e_status i40e_set_npar_bw_setting(struct i40e_pf *pf)
+{
+	struct i40e_aqc_configure_partition_bw_data bw_data;
+	i40e_status status;
+
+	/* Set the valid bit for this pf */
+	bw_data.pf_valid_bits = cpu_to_le16(1 << pf->hw.pf_id);
+	bw_data.max_bw[pf->hw.pf_id] = pf->npar_max_bw & I40E_ALT_BW_VALUE_MASK;
+	bw_data.min_bw[pf->hw.pf_id] = pf->npar_min_bw & I40E_ALT_BW_VALUE_MASK;
+
+	/* Set the new bandwidths */
+	status = i40e_aq_configure_partition_bw(&pf->hw, &bw_data, NULL);
+
+	return status;
+}
+
+/**
+ * i40e_commit_npar_bw_setting - Commit BW settings for this PF partition
+ * @pf: board private structure
+ **/
+i40e_status i40e_commit_npar_bw_setting(struct i40e_pf *pf)
+{
+	/* Commit temporary BW setting to permanent NVM image */
+	enum i40e_admin_queue_err last_aq_status;
+	i40e_status ret;
+	u16 nvm_word;
+
+	if (pf->hw.partition_id != 1) {
+		dev_info(&pf->pdev->dev,
+			 "Commit BW only works on partition 1! This is partition %d",
+			 pf->hw.partition_id);
+		ret = I40E_NOT_SUPPORTED;
+		goto bw_commit_out;
+	}
+
+	/* Acquire NVM for read access */
+	ret = i40e_acquire_nvm(&pf->hw, I40E_RESOURCE_READ);
+	last_aq_status = pf->hw.aq.asq_last_status;
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "Cannot acquire NVM for read access, err %d: aq_err %d\n",
+			 ret, last_aq_status);
+		goto bw_commit_out;
+	}
+
+	/* Read word 0x10 of NVM - SW compatibility word 1 */
+	ret = i40e_aq_read_nvm(&pf->hw,
+			       I40E_SR_NVM_CONTROL_WORD,
+			       0x10, sizeof(nvm_word), &nvm_word,
+			       false, NULL);
+	/* Save off last admin queue command status before releasing
+	 * the NVM
+	 */
+	last_aq_status = pf->hw.aq.asq_last_status;
+	i40e_release_nvm(&pf->hw);
+	if (ret) {
+		dev_info(&pf->pdev->dev, "NVM read error, err %d aq_err %d\n",
+			 ret, last_aq_status);
+		goto bw_commit_out;
+	}
+
+	/* Wait a bit for NVM release to complete */
+	msleep(50);
+
+	/* Acquire NVM for write access */
+	ret = i40e_acquire_nvm(&pf->hw, I40E_RESOURCE_WRITE);
+	last_aq_status = pf->hw.aq.asq_last_status;
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "Cannot acquire NVM for write access, err %d: aq_err %d\n",
+			 ret, last_aq_status);
+		goto bw_commit_out;
+	}
+	/* Write it back out unchanged to initiate update NVM,
+	 * which will force a write of the shadow (alt) RAM to
+	 * the NVM - thus storing the bandwidth values permanently.
+	 */
+	ret = i40e_aq_update_nvm(&pf->hw,
+				 I40E_SR_NVM_CONTROL_WORD,
+				 0x10, sizeof(nvm_word),
+				 &nvm_word, true, NULL);
+	/* Save off last admin queue command status before releasing
+	 * the NVM
+	 */
+	last_aq_status = pf->hw.aq.asq_last_status;
+	i40e_release_nvm(&pf->hw);
+	if (ret)
+		dev_info(&pf->pdev->dev,
+			 "BW settings NOT SAVED, err %d aq_err %d\n",
+			 ret, last_aq_status);
+bw_commit_out:
+
+	return ret;
+}
+
+/**
  * i40e_sw_init - Initialize general software structures (struct i40e_pf)
  * @pf: board private structure to initialize
  *
@@ -7306,6 +7428,13 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	if (pf->hw.func_caps.npar_enable || pf->hw.func_caps.mfp_mode_1) {
 		pf->flags |= I40E_FLAG_MFP_ENABLED;
 		dev_info(&pf->pdev->dev, "MFP mode Enabled\n");
+		if (i40e_get_npar_bw_setting(pf))
+			dev_warn(&pf->pdev->dev,
+				 "Could not get NPAR bw settings\n");
+		else
+			dev_info(&pf->pdev->dev,
+				 "Min BW = %8.8x, Max BW = %8.8x\n",
+				 pf->npar_min_bw, pf->npar_max_bw);
 	}
 
 	/* FW/NVM is not yet fixed in this regard */

@@ -1401,6 +1401,19 @@ struct i40e_lldp_variables {
 	u16 crc8;
 };
 
+/* Offsets into Alternate Ram */
+#define I40E_ALT_STRUCT_FIRST_PF_OFFSET		0   /* in dwords */
+#define I40E_ALT_STRUCT_DWORDS_PER_PF		64   /* in dwords */
+#define I40E_ALT_STRUCT_OUTER_VLAN_TAG_OFFSET	0xD  /* in dwords */
+#define I40E_ALT_STRUCT_USER_PRIORITY_OFFSET	0xC  /* in dwords */
+#define I40E_ALT_STRUCT_MIN_BW_OFFSET		0xE  /* in dwords */
+#define I40E_ALT_STRUCT_MAX_BW_OFFSET		0xF  /* in dwords */
+
+/* Alternate Ram Bandwidth Masks */
+#define I40E_ALT_BW_VALUE_MASK		0xFF
+#define I40E_ALT_BW_RELATIVE_MASK	0x40000000
+#define I40E_ALT_BW_VALID_MASK		0x80000000
+
 /* RSS Hash Table Size */
 #define I40E_PFQF_CTL_0_HASHLUTSIZE_512	0x00010000
 #endif /* _I40E_TYPE_H_ */
