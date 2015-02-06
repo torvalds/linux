@@ -168,7 +168,7 @@ static void aha1542_stat(void)
    routine does not send something out while we are in the middle of this.
    Fortunately, it is only at boot time that multi-byte messages
    are ever sent. */
-static int aha1542_out(unsigned int base, unchar * cmdp, int len)
+static int aha1542_out(unsigned int base, u8 *cmdp, int len)
 {
 	unsigned long flags = 0;
 	int got_lock;
@@ -207,7 +207,7 @@ fail:
 /* Only used at boot time, so we do not need to worry about latency as much
    here */
 
-static int aha1542_in(unsigned int base, unchar *cmdp, int len)
+static int aha1542_in(unsigned int base, u8 *cmdp, int len)
 {
 	unsigned long flags;
 
@@ -228,7 +228,7 @@ fail:
 /* Similar to aha1542_in, except that we wait a very short period of time.
    We use this if we know the board is alive and awake, but we are not sure
    if the board will respond to the command we are about to send or not */
-static int aha1542_in1(unsigned int base, unchar *cmdp, int len)
+static int aha1542_in1(unsigned int base, u8 *cmdp, int len)
 {
 	unsigned long flags;
 
@@ -302,9 +302,9 @@ static int makecode(unsigned hosterr, unsigned scsierr)
 
 static int aha1542_test_port(int bse, struct Scsi_Host *shpnt)
 {
-	unchar inquiry_cmd[] = {CMD_INQUIRY};
-	unchar inquiry_result[4];
-	unchar *cmdp;
+	u8 inquiry_cmd[] = {CMD_INQUIRY};
+	u8 inquiry_result[4];
+	u8 *cmdp;
 	int len;
 	volatile int debug = 0;
 
@@ -542,11 +542,11 @@ static void aha1542_intr_handle(struct Scsi_Host *shost)
 static int aha1542_queuecommand_lck(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 {
 	struct aha1542_hostdata *aha1542 = shost_priv(SCpnt->device->host);
-	unchar ahacmd = CMD_START_SCSI;
-	unchar direction;
-	unchar *cmd = (unchar *) SCpnt->cmnd;
-	unchar target = SCpnt->device->id;
-	unchar lun = SCpnt->device->lun;
+	u8 ahacmd = CMD_START_SCSI;
+	u8 direction;
+	u8 *cmd = (u8 *) SCpnt->cmnd;
+	u8 target = SCpnt->device->id;
+	u8 lun = SCpnt->device->lun;
 	unsigned long flags;
 	int bufflen = scsi_bufflen(SCpnt);
 	int mbo;
@@ -674,7 +674,7 @@ static int aha1542_queuecommand_lck(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *
 		int i;
 		printk(KERN_DEBUG "aha1542_command: sending.. ");
 		for (i = 0; i < sizeof(ccb[mbo]) - 10; i++)
-			printk("%02x ", ((unchar *) & ccb[mbo])[i]);
+			printk("%02x ", ((u8 *) &ccb[mbo])[i]);
 	};
 #endif
 
@@ -701,7 +701,7 @@ static void setup_mailboxes(int bse, struct Scsi_Host *shpnt)
 	struct mailbox *mb = aha1542->mb;
 	struct ccb *ccb = aha1542->ccb;
 
-	unchar cmd[5] = { CMD_MBINIT, AHA1542_MAILBOXES, 0, 0, 0};
+	u8 cmd[5] = { CMD_MBINIT, AHA1542_MAILBOXES, 0, 0, 0};
 
 	for (i = 0; i < AHA1542_MAILBOXES; i++) {
 		mb[i].status = mb[AHA1542_MAILBOXES + i].status = 0;
@@ -720,8 +720,8 @@ fail:
 
 static int aha1542_getconfig(int base_io, unsigned char *irq_level, unsigned char *dma_chan, unsigned char *scsi_id)
 {
-	unchar inquiry_cmd[] = {CMD_RETCONF};
-	unchar inquiry_result[3];
+	u8 inquiry_cmd[] = {CMD_RETCONF};
+	u8 inquiry_result[3];
 	int i;
 	i = inb(STATUS(base_io));
 	if (i & DF) {
@@ -789,8 +789,8 @@ fail:
 
 static int aha1542_mbenable(int base)
 {
-	static unchar mbenable_cmd[3];
-	static unchar mbenable_result[2];
+	static u8 mbenable_cmd[3];
+	static u8 mbenable_result[2];
 	int retval;
 
 	retval = BIOS_TRANSLATION_6432;
@@ -824,8 +824,8 @@ fail:
 /* Query the board to find out if it is a 1542 or a 1740, or whatever. */
 static int aha1542_query(int base_io, int *transl)
 {
-	unchar inquiry_cmd[] = {CMD_INQUIRY};
-	unchar inquiry_result[4];
+	u8 inquiry_cmd[] = {CMD_INQUIRY};
+	u8 inquiry_result[4];
 	int i;
 	i = inb(STATUS(base_io));
 	if (i & DF) {
@@ -968,8 +968,8 @@ static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct
 
 			/* Set the Bus on/off-times as not to ruin floppy performance */
 			{
-				unchar oncmd[] = {CMD_BUSON_TIME, 7};
-				unchar offcmd[] = {CMD_BUSOFF_TIME, 5};
+				u8 oncmd[] = {CMD_BUSON_TIME, 7};
+				u8 offcmd[] = {CMD_BUSOFF_TIME, 5};
 
 				if (setup_called[indx]) {
 					oncmd[1] = setup_buson[indx];
@@ -982,7 +982,7 @@ static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct
 				aha1542_out(base_io, offcmd, 2);
 				WAIT(INTRFLAGS(base_io), INTRMASK, HACC, 0);
 				if (setup_dmaspeed[indx] >= 0) {
-					unchar dmacmd[] = {CMD_DMASPEED, 0};
+					u8 dmacmd[] = {CMD_DMASPEED, 0};
 					dmacmd[1] = setup_dmaspeed[indx];
 					aha1542_intr_reset(base_io);
 					aha1542_out(base_io, dmacmd, 2);
@@ -1103,11 +1103,11 @@ static int aha1542_dev_reset(Scsi_Cmnd * SCpnt)
 	struct aha1542_hostdata *aha1542 = shost_priv(SCpnt->device->host);
 	unsigned long flags;
 	struct mailbox *mb = aha1542->mb;
-	unchar target = SCpnt->device->id;
-	unchar lun = SCpnt->device->lun;
+	u8 target = SCpnt->device->id;
+	u8 lun = SCpnt->device->lun;
 	int mbo;
 	struct ccb *ccb = aha1542->ccb;
-	unchar ahacmd = CMD_START_SCSI;
+	u8 ahacmd = CMD_START_SCSI;
 
 	spin_lock_irqsave(&aha1542_lock, flags);
 	mbo = aha1542->aha1542_last_mbo_used + 1;

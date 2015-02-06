@@ -80,14 +80,14 @@
 
 /* Mailbox Definition 5.2.1 and 5.2.2 */
 struct mailbox {
-  unchar status;		/* Command/Status */
-  unchar ccbptr[3];		/* msb, .., lsb */
+	u8 status;	/* Command/Status */
+	u8 ccbptr[3];	/* msb, .., lsb */
 };
 
 /* This is used with scatter-gather */
 struct chain {
-  unchar datalen[3];		/* Size of this part of chain */
-  unchar dataptr[3];		/* Location of data */
+	u8 datalen[3];	/* Size of this part of chain */
+	u8 dataptr[3];	/* Location of data */
 };
 
 /* These belong in scsi.h also */
@@ -106,23 +106,23 @@ static inline void any2scsi(u8 *p, u32 v)
 #define MAX_CDB 12
 #define MAX_SENSE 14
 
-struct ccb {			/* Command Control Block 5.3 */
-  unchar op;			/* Command Control Block Operation Code */
-  unchar idlun;			/* op=0,2:Target Id, op=1:Initiator Id */
-				/* Outbound data transfer, length is checked*/
-				/* Inbound data transfer, length is checked */
-				/* Logical Unit Number */
-  unchar cdblen;		/* SCSI Command Length */
-  unchar rsalen;		/* Request Sense Allocation Length/Disable */
-  unchar datalen[3];		/* Data Length (msb, .., lsb) */
-  unchar dataptr[3];		/* Data Pointer */
-  unchar linkptr[3];		/* Link Pointer */
-  unchar commlinkid;		/* Command Linking Identifier */
-  unchar hastat;		/* Host Adapter Status (HASTAT) */
-  unchar tarstat;		/* Target Device Status */
-  unchar reserved[2];
-  unchar cdb[MAX_CDB+MAX_SENSE];/* SCSI Command Descriptor Block */
-				/* REQUEST SENSE */
+struct ccb {		/* Command Control Block 5.3 */
+	u8 op;		/* Command Control Block Operation Code */
+	u8 idlun;	/* op=0,2:Target Id, op=1:Initiator Id */
+			/* Outbound data transfer, length is checked*/
+			/* Inbound data transfer, length is checked */
+			/* Logical Unit Number */
+	u8 cdblen;	/* SCSI Command Length */
+	u8 rsalen;	/* Request Sense Allocation Length/Disable */
+	u8 datalen[3];	/* Data Length (msb, .., lsb) */
+	u8 dataptr[3];	/* Data Pointer */
+	u8 linkptr[3];	/* Link Pointer */
+	u8 commlinkid;	/* Command Linking Identifier */
+	u8 hastat;	/* Host Adapter Status (HASTAT) */
+	u8 tarstat;	/* Target Device Status */
+	u8 reserved[2];
+	u8 cdb[MAX_CDB+MAX_SENSE];	/* SCSI Command Descriptor Block */
+					/* REQUEST SENSE */
 };
 
 static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct device *pdev, int indx);
