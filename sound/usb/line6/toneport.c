@@ -343,6 +343,20 @@ static void toneport_remove_leds(struct usb_line6_toneport *toneport)
 	}
 }
 
+static bool toneport_has_source_select(struct usb_line6_toneport *toneport)
+{
+	switch (toneport->type) {
+	case LINE6_TONEPORT_UX1:
+	case LINE6_TONEPORT_UX2:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_PODSTUDIO_UX2:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 /*
 	Setup Toneport device.
 */
@@ -360,17 +374,10 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 	toneport_send_cmd(usbdev, 0x0301, 0x0000);
 
 	/* initialize source select: */
-	switch (toneport->type) {
-	case LINE6_TONEPORT_UX1:
-	case LINE6_TONEPORT_UX2:
-	case LINE6_PODSTUDIO_UX1:
-	case LINE6_PODSTUDIO_UX2:
+	if (toneport_has_source_select(toneport))
 		toneport_send_cmd(usbdev,
 				  toneport_source_info[toneport->source].code,
 				  0x0000);
-	default:
-		break;
-	}
 
 	if (toneport_has_led(toneport->type))
 		toneport_update_led(toneport);
@@ -421,20 +428,13 @@ static int toneport_init(struct usb_line6 *line6,
 		return err;
 
 	/* register source select control: */
-	switch (toneport->type) {
-	case LINE6_TONEPORT_UX1:
-	case LINE6_TONEPORT_UX2:
-	case LINE6_PODSTUDIO_UX1:
-	case LINE6_PODSTUDIO_UX2:
+	if (toneport_has_source_select(toneport)) {
 		err =
 		    snd_ctl_add(line6->card,
 				snd_ctl_new1(&toneport_control_source,
 					     line6->line6pcm));
 		if (err < 0)
 			return err;
-
-	default:
-		break;
 	}
 
 	line6_read_serial_number(line6, &toneport->serial_number);
