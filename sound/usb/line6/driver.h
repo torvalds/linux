@@ -18,8 +18,6 @@
 
 #include "midi.h"
 
-#define DRIVER_NAME "line6usb"
-
 #define USB_INTERVALS_PER_SECOND 1000
 
 /* Fallback USB interval and max packet size values */
@@ -168,6 +166,7 @@ extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 
 int line6_probe(struct usb_interface *interface,
 		const struct usb_device_id *id,
+		const char *driver_name,
 		const struct line6_properties *properties,
 		int (*private_init)(struct usb_line6 *, const struct usb_device_id *id),
 		size_t data_size);

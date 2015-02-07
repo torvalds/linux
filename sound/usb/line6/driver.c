@@ -480,6 +480,7 @@ static int line6_init_cap_control(struct usb_line6 *line6)
 */
 int line6_probe(struct usb_interface *interface,
 		const struct usb_device_id *id,
+		const char *driver_name,
 		const struct line6_properties *properties,
 		int (*private_init)(struct usb_line6 *, const struct usb_device_id *id),
 		size_t data_size)
@@ -511,7 +512,7 @@ int line6_probe(struct usb_interface *interface,
 	line6->ifcdev = &interface->dev;
 
 	strcpy(card->id, properties->id);
-	strcpy(card->driver, DRIVER_NAME);
+	strcpy(card->driver, driver_name);
 	strcpy(card->shortname, properties->name);
 	sprintf(card->longname, "Line 6 %s at USB %s", properties->name,
 		dev_name(line6->ifcdev));

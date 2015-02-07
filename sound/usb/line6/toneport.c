@@ -557,7 +557,7 @@ static const struct line6_properties toneport_properties_table[] = {
 static int toneport_probe(struct usb_interface *interface,
 			  const struct usb_device_id *id)
 {
-	return line6_probe(interface, id,
+	return line6_probe(interface, id, "Line6-TonePort",
 			   &toneport_properties_table[id->driver_info],
 			   toneport_init, sizeof(struct usb_line6_toneport));
 }
