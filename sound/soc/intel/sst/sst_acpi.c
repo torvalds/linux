@@ -47,7 +47,7 @@ struct sst_machines {
 	char board[32];
 	char machine[32];
 	void (*machine_quirk)(void);
-	char firmware[32];
+	char firmware[FW_NAME_SIZE];
 	struct sst_platform_info *pdata;
 
 };
