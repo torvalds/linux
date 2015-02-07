@@ -57,6 +57,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/io.h>
 #include "lm75.h"
 
@@ -3199,6 +3200,26 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 		pwm6pin = false;
 	} else if (data->kind == nct6776) {
 		bool gpok = superio_inb(sioreg, 0x27) & 0x80;
+		const char *board_vendor, *board_name;
+
+		board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
+		board_name = dmi_get_system_info(DMI_BOARD_NAME);
+
+		if (board_name && board_vendor &&
+		    !strcmp(board_vendor, "ASRock")) {
+			/*
+			 * Auxiliary fan monitoring is not enabled on ASRock
+			 * Z77 Pro4-M if booted in UEFI Ultra-FastBoot mode.
+			 * Observed with BIOS version 2.00.
+			 */
+			if (!strcmp(board_name, "Z77 Pro4-M")) {
+				if ((data->sio_reg_enable & 0xe0) != 0xe0) {
+					data->sio_reg_enable |= 0xe0;
+					superio_outb(sioreg, SIO_REG_ENABLE,
+						     data->sio_reg_enable);
+				}
+			}
+		}
 
 		if (data->sio_reg_enable & 0x80)
 			fan3pin = gpok;
