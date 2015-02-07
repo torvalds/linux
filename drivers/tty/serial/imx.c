@@ -1320,7 +1320,7 @@ static void imx_flush_buffer(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	struct scatterlist *sgl = &sport->tx_sgl[0];
 	unsigned long temp;
-	int i = 100, ubir, ubmr, ubrc, uts;
+	int i = 100, ubir, ubmr, uts;
 
 	if (!sport->dma_chan_tx)
 		return;
@@ -1345,7 +1345,6 @@ static void imx_flush_buffer(struct uart_port *port)
 	 */
 	ubir = readl(sport->port.membase + UBIR);
 	ubmr = readl(sport->port.membase + UBMR);
-	ubrc = readl(sport->port.membase + UBRC);
 	uts = readl(sport->port.membase + IMX21_UTS);
 
 	temp = readl(sport->port.membase + UCR2);
@@ -1358,7 +1357,6 @@ static void imx_flush_buffer(struct uart_port *port)
 	/* Restore the registers */
 	writel(ubir, sport->port.membase + UBIR);
 	writel(ubmr, sport->port.membase + UBMR);
-	writel(ubrc, sport->port.membase + UBRC);
 	writel(uts, sport->port.membase + IMX21_UTS);
 }
 
