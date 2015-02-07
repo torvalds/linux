@@ -991,7 +991,7 @@ static bool vxlan_snoop(struct net_device *dev,
 		if (net_ratelimit())
 			netdev_info(dev,
 				    "%pM migrated from %pIS to %pIS\n",
-				    src_mac, &rdst->remote_ip, &src_ip);
+				    src_mac, &rdst->remote_ip.sa, &src_ip->sa);
 
 		rdst->remote_ip = *src_ip;
 		f->updated = jiffies;
