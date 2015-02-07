@@ -880,12 +880,11 @@ struct nct6775_data {
 	u16 have_temp;
 	u16 have_temp_fixed;
 	u16 have_in;
-#ifdef CONFIG_PM
+
 	/* Remember extra register values over suspend/resume */
 	u8 vbat;
 	u8 fandiv1;
 	u8 fandiv2;
-#endif
 };
 
 struct nct6775_sio_data {
@@ -3989,8 +3988,7 @@ static void nct6791_enable_io_mapping(int sioaddr)
 	}
 }
 
-#ifdef CONFIG_PM
-static int nct6775_suspend(struct device *dev)
+static int __maybe_unused nct6775_suspend(struct device *dev)
 {
 	struct nct6775_data *data = nct6775_update_device(dev);
 
@@ -4005,7 +4003,7 @@ static int nct6775_suspend(struct device *dev)
 	return 0;
 }
 
-static int nct6775_resume(struct device *dev)
+static int __maybe_unused nct6775_resume(struct device *dev)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int i, j, err = 0;
@@ -4066,22 +4064,12 @@ abort:
 	return err;
 }
 
-static const struct dev_pm_ops nct6775_dev_pm_ops = {
-	.suspend = nct6775_suspend,
-	.resume = nct6775_resume,
-	.freeze = nct6775_suspend,
-	.restore = nct6775_resume,
-};
-
-#define NCT6775_DEV_PM_OPS	(&nct6775_dev_pm_ops)
-#else
-#define NCT6775_DEV_PM_OPS	NULL
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(nct6775_dev_pm_ops, nct6775_suspend, nct6775_resume);
 
 static struct platform_driver nct6775_driver = {
 	.driver = {
 		.name	= DRVNAME,
-		.pm	= NCT6775_DEV_PM_OPS,
+		.pm	= &nct6775_dev_pm_ops,
 	},
 	.probe		= nct6775_probe,
 };
