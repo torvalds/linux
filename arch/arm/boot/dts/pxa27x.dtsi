@@ -53,6 +53,13 @@
 			status = "disabled";
 		};
 
+		pxa27x_udc: udc@40600000 {
+			compatible = "marvell,pxa270-udc";
+			reg = <0x40600000 0x10000>;
+			interrupts = <11>;
+			clocks = <&clks CLK_USB>;
+			status = "disabled";
+		};
 	};
 
 	clocks {
