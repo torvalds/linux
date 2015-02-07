@@ -768,7 +768,7 @@ static ssize_t set_battery_life_extender(struct device *dev,
 	struct samsung_laptop *samsung = dev_get_drvdata(dev);
 	int ret, value;
 
-	if (!count || sscanf(buf, "%i", &value) != 1)
+	if (!count || kstrtoint(buf, 0, &value) != 0)
 		return -EINVAL;
 
 	ret = write_battery_life_extender(samsung, !!value);
@@ -837,7 +837,7 @@ static ssize_t set_usb_charge(struct device *dev,
 	struct samsung_laptop *samsung = dev_get_drvdata(dev);
 	int ret, value;
 
-	if (!count || sscanf(buf, "%i", &value) != 1)
+	if (!count || kstrtoint(buf, 0, &value) != 0)
 		return -EINVAL;
 
 	ret = write_usb_charge(samsung, !!value);
