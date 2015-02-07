@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/clk-provider.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -125,27 +126,9 @@ struct resource eseries_tmio_resources[] = {
 };
 
 /* Some e-series hardware cannot control the 32K clock */
-static void clk_32k_dummy(struct clk *clk)
-{
-}
-
-static const struct clkops clk_32k_dummy_ops = {
-	.enable         = clk_32k_dummy,
-	.disable        = clk_32k_dummy,
-};
-
-static struct clk tmio_dummy_clk = {
-	.ops	= &clk_32k_dummy_ops,
-	.rate	= 32768,
-};
-
-static struct clk_lookup eseries_clkregs[] = {
-	INIT_CLKREG(&tmio_dummy_clk, NULL, "CLK_CK32K"),
-};
-
 static void __init eseries_register_clks(void)
 {
-	clkdev_add_table(eseries_clkregs, ARRAY_SIZE(eseries_clkregs));
+	clk_register_fixed_rate(NULL, "CLK_CK32K", NULL, CLK_IS_ROOT, 32768);
 }
 
 #ifdef CONFIG_MACH_E330
