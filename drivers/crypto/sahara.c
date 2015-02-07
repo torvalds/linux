@@ -602,6 +602,8 @@ static int sahara_aes_process(struct ablkcipher_request *req)
 	reinit_completion(&dev->dma_completion);
 
 	ret = sahara_hw_descriptor_create(dev);
+	if (ret)
+		return -EINVAL;
 
 	timeout = wait_for_completion_timeout(&dev->dma_completion,
 				msecs_to_jiffies(SAHARA_TIMEOUT_MS));
