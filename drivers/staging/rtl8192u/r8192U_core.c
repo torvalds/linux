@@ -4476,13 +4476,10 @@ static void query_rxdesc_status(struct sk_buff *skb,
 		skb_pull(skb, stats->RxBufShift + stats->RxDrvInfoSize);
 	}
 
-	/* for debug 2008.5.29 */
-
-	//added by vivi, for MP, 20080108
-	stats->RxIs40MHzPacket = driver_info->BW;
-	if (stats->RxDrvInfoSize != 0)
+	if (driver_info) {
+		stats->RxIs40MHzPacket = driver_info->BW;
 		TranslateRxSignalStuff819xUsb(skb, stats, driver_info);
-
+	}
 }
 
 static void rtl8192_rx_nomal(struct sk_buff *skb)
