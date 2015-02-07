@@ -576,6 +576,7 @@ static int sahara_aes_process(struct ablkcipher_request *req)
 	struct sahara_ctx *ctx;
 	struct sahara_aes_reqctx *rctx;
 	int ret;
+	unsigned long timeout;
 
 	/* Request is ready to be dispatched by the device */
 	dev_dbg(dev->device,
@@ -602,9 +603,9 @@ static int sahara_aes_process(struct ablkcipher_request *req)
 
 	ret = sahara_hw_descriptor_create(dev);
 
-	ret = wait_for_completion_timeout(&dev->dma_completion,
+	timeout = wait_for_completion_timeout(&dev->dma_completion,
 				msecs_to_jiffies(SAHARA_TIMEOUT_MS));
-	if (!ret) {
+	if (!timeout) {
 		dev_err(dev->device, "AES timeout\n");
 		return -ETIMEDOUT;
 	}
@@ -1045,6 +1046,7 @@ static int sahara_sha_process(struct ahash_request *req)
 	struct sahara_dev *dev = dev_ptr;
 	struct sahara_sha_reqctx *rctx = ahash_request_ctx(req);
 	int ret = -EINPROGRESS;
+	unsigned long timeout;
 
 	ret = sahara_sha_prepare_request(req);
 	if (!ret)
@@ -1070,9 +1072,9 @@ static int sahara_sha_process(struct ahash_request *req)
 
 	sahara_write(dev, dev->hw_phys_desc[0], SAHARA_REG_DAR);
 
-	ret = wait_for_completion_timeout(&dev->dma_completion,
+	timeout = wait_for_completion_timeout(&dev->dma_completion,
 				msecs_to_jiffies(SAHARA_TIMEOUT_MS));
-	if (!ret) {
+	if (!timeout) {
 		dev_err(dev->device, "SHA timeout\n");
 		return -ETIMEDOUT;
 	}
