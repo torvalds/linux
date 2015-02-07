@@ -56,7 +56,6 @@
 #include <mach/smemc.h>
 
 #include "generic.h"
-#include "clock.h"
 #include "devices.h"
 
 static unsigned long lubbock_pin_config[] __initdata = {

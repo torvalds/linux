@@ -40,7 +40,6 @@
 
 #include "devices.h"
 #include "generic.h"
-#include "clock.h"
 
 /* Only e800 has 128MB RAM */
 void __init eseries_fixup(struct tag *tags, char **cmdline)

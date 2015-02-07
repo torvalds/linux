@@ -38,7 +38,6 @@
 
 #include "generic.h"
 #include "devices.h"
-#include "clock.h"
 
 /*
  * Various clock factors driven by the CCCR register.
