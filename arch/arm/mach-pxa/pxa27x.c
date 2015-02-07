@@ -477,8 +477,12 @@ static int __init pxa27x_init(void)
 		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
 		register_syscore_ops(&pxa2xx_clock_syscore_ops);
 
-		pxa_register_device(&pxa27x_device_gpio, &pxa27x_gpio_info);
-		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
+		if (!of_have_populated_dt()) {
+			pxa_register_device(&pxa27x_device_gpio,
+					    &pxa27x_gpio_info);
+			ret = platform_add_devices(devices,
+						   ARRAY_SIZE(devices));
+		}
 	}
 
 	return ret;
