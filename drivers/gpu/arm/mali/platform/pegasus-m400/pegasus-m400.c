@@ -31,9 +31,13 @@
  * cause system stability problems (random oops, etc.)                    */
 unsigned int mali_gpu_vol = 1125000; /* 1.1125 V */
 
-static struct regulator *g3d_regulator = NULL;
 static struct clk *sclk_g3d_clock = NULL;
+static struct clk *g3d_clock = NULL;
+
+static struct regulator *g3d_regulator = NULL;
 static _mali_osk_mutex_t *mali_dvfs_lock = NULL;
+
+
 
 
 #ifdef CONFIG_REGULATOR
@@ -72,6 +76,12 @@ static int mali_platform_clk_enable(void)
 		return 1;
 	}
 
+	g3d_clock = clk_get(dev, "g3d");
+	if (IS_ERR(g3d_clock)) {
+		MALI_PRINT_ERROR(("Mali platform: failed to get g3d clock\n"));
+		return 1;
+	}
+
 	_mali_osk_mutex_wait(mali_dvfs_lock);
 
 	if (clk_prepare_enable(sclk_g3d_clock) < 0) {
@@ -79,7 +89,16 @@ static int mali_platform_clk_enable(void)
 		return 1;
 	}
 
+	if (clk_prepare_enable(g3d_clock) < 0) {
+		MALI_PRINT_ERROR(("Mali platform: failed to enable g3d clock\n"));
+		return 1;
+	}
+
 	rate = clk_get_rate(sclk_g3d_clock);
+
+	MALI_PRINT(("Mali platform: source g3d clock rate = %u MHz\n", rate / 1000000));
+
+	rate = clk_get_rate(g3d_clock);
 
 	MALI_PRINT(("Mali platform: g3d clock rate = %u MHz\n", rate / 1000000));
 
@@ -140,6 +159,12 @@ _mali_osk_errcode_t mali_platform_init(void)
 
 _mali_osk_errcode_t mali_platform_deinit(void)
 {
+	if (g3d_clock) {
+		clk_disable_unprepare(g3d_clock);
+		clk_put(g3d_clock);
+		g3d_clock = NULL;
+	}
+
 	if (sclk_g3d_clock) {
 		clk_disable_unprepare(sclk_g3d_clock);
 		clk_put(sclk_g3d_clock);
