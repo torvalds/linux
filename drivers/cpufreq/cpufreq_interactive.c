@@ -1185,8 +1185,10 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		if (rc) {
 			kfree(tunables);
 			policy->governor_data = NULL;
-			if (!have_governor_per_policy())
+			if (!have_governor_per_policy()) {
 				common_tunables = NULL;
+				cpufreq_put_global_kobject();
+			}
 			return rc;
 		}
 
