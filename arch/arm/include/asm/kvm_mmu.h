@@ -207,7 +207,7 @@ static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
 
 	bool need_flush = !vcpu_has_cache_enabled(vcpu) || ipa_uncached;
 
-	VM_BUG_ON(size & PAGE_MASK);
+	VM_BUG_ON(size & ~PAGE_MASK);
 
 	if (!need_flush && !icache_is_pipt())
 		goto vipt_cache;
