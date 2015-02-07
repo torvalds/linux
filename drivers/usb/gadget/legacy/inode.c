@@ -363,97 +363,6 @@ ep_io (struct ep_data *epdata, void *buf, unsigned len)
 	return value;
 }
 
-
-/* handle a synchronous OUT bulk/intr/iso transfer */
-static ssize_t
-ep_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
-{
-	struct ep_data		*data = fd->private_data;
-	void			*kbuf;
-	ssize_t			value;
-
-	if ((value = get_ready_ep (fd->f_flags, data)) < 0)
-		return value;
-
-	/* halt any endpoint by doing a "wrong direction" i/o call */
-	if (usb_endpoint_dir_in(&data->desc)) {
-		if (usb_endpoint_xfer_isoc(&data->desc)) {
-			mutex_unlock(&data->lock);
-			return -EINVAL;
-		}
-		DBG (data->dev, "%s halt\n", data->name);
-		spin_lock_irq (&data->dev->lock);
-		if (likely (data->ep != NULL))
-			usb_ep_set_halt (data->ep);
-		spin_unlock_irq (&data->dev->lock);
-		mutex_unlock(&data->lock);
-		return -EBADMSG;
-	}
-
-	/* FIXME readahead for O_NONBLOCK and poll(); careful with ZLPs */
-
-	value = -ENOMEM;
-	kbuf = kmalloc (len, GFP_KERNEL);
-	if (unlikely (!kbuf))
-		goto free1;
-
-	value = ep_io (data, kbuf, len);
-	VDEBUG (data->dev, "%s read %zu OUT, status %d\n",
-		data->name, len, (int) value);
-	if (value >= 0 && copy_to_user (buf, kbuf, value))
-		value = -EFAULT;
-
-free1:
-	mutex_unlock(&data->lock);
-	kfree (kbuf);
-	return value;
-}
-
-/* handle a synchronous IN bulk/intr/iso transfer */
-static ssize_t
-ep_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
-{
-	struct ep_data		*data = fd->private_data;
-	void			*kbuf;
-	ssize_t			value;
-
-	if ((value = get_ready_ep (fd->f_flags, data)) < 0)
-		return value;
-
-	/* halt any endpoint by doing a "wrong direction" i/o call */
-	if (!usb_endpoint_dir_in(&data->desc)) {
-		if (usb_endpoint_xfer_isoc(&data->desc)) {
-			mutex_unlock(&data->lock);
-			return -EINVAL;
-		}
-		DBG (data->dev, "%s halt\n", data->name);
-		spin_lock_irq (&data->dev->lock);
-		if (likely (data->ep != NULL))
-			usb_ep_set_halt (data->ep);
-		spin_unlock_irq (&data->dev->lock);
-		mutex_unlock(&data->lock);
-		return -EBADMSG;
-	}
-
-	/* FIXME writebehind for O_NONBLOCK and poll(), qlen = 1 */
-
-	value = -ENOMEM;
-	kbuf = memdup_user(buf, len);
-	if (IS_ERR(kbuf)) {
-		value = PTR_ERR(kbuf);
-		kbuf = NULL;
-		goto free1;
-	}
-
-	value = ep_io (data, kbuf, len);
-	VDEBUG (data->dev, "%s write %zu IN, status %d\n",
-		data->name, len, (int) value);
-free1:
-	mutex_unlock(&data->lock);
-	kfree (kbuf);
-	return value;
-}
-
 static int
 ep_release (struct inode *inode, struct file *fd)
 {
@@ -517,8 +426,8 @@ struct kiocb_priv {
 	struct mm_struct	*mm;
 	struct work_struct	work;
 	void			*buf;
-	const struct iovec	*iv;
-	unsigned long		nr_segs;
+	struct iov_iter		to;
+	const void		*to_free;
 	unsigned		actual;
 };
 
@@ -541,34 +450,6 @@ static int ep_aio_cancel(struct kiocb *iocb)
 	return value;
 }
 
-static ssize_t ep_copy_to_user(struct kiocb_priv *priv)
-{
-	ssize_t			len, total;
-	void			*to_copy;
-	int			i;
-
-	/* copy stuff into user buffers */
-	total = priv->actual;
-	len = 0;
-	to_copy = priv->buf;
-	for (i=0; i < priv->nr_segs; i++) {
-		ssize_t this = min((ssize_t)(priv->iv[i].iov_len), total);
-
-		if (copy_to_user(priv->iv[i].iov_base, to_copy, this)) {
-			if (len == 0)
-				len = -EFAULT;
-			break;
-		}
-
-		total -= this;
-		len += this;
-		to_copy += this;
-		if (total == 0)
-			break;
-	}
-	return len;
-}
-
 static void ep_user_copy_worker(struct work_struct *work)
 {
 	struct kiocb_priv *priv = container_of(work, struct kiocb_priv, work);
@@ -577,14 +458,16 @@ static void ep_user_copy_worker(struct work_struct *work)
 	size_t ret;
 
 	use_mm(mm);
-	ret = ep_copy_to_user(priv);
+	ret = copy_to_iter(priv->buf, priv->actual, &priv->to);
 	unuse_mm(mm);
+	if (!ret)
+		ret = -EFAULT;
 
 	/* completing the iocb can drop the ctx and mm, don't touch mm after */
 	aio_complete(iocb, ret, ret);
 
 	kfree(priv->buf);
-	kfree(priv->iv);
+	kfree(priv->to_free);
 	kfree(priv);
 }
 
@@ -603,9 +486,9 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 	 * don't need to copy anything to userspace, so we can
 	 * complete the aio request immediately.
 	 */
-	if (priv->iv == NULL || unlikely(req->actual == 0)) {
+	if (priv->to_free == NULL || unlikely(req->actual == 0)) {
 		kfree(req->buf);
-		kfree(priv->iv);
+		kfree(priv->to_free);
 		kfree(priv);
 		iocb->private = NULL;
 		/* aio_complete() reports bytes-transferred _and_ faults */
@@ -619,6 +502,7 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 
 		priv->buf = req->buf;
 		priv->actual = req->actual;
+		INIT_WORK(&priv->work, ep_user_copy_worker);
 		schedule_work(&priv->work);
 	}
 	spin_unlock(&epdata->dev->lock);
@@ -627,45 +511,17 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 	put_ep(epdata);
 }
 
-static ssize_t
-ep_aio_rwtail(
-	struct kiocb	*iocb,
-	char		*buf,
-	size_t		len,
-	struct ep_data	*epdata,
-	const struct iovec *iv,
-	unsigned long	nr_segs
-)
+static ssize_t ep_aio(struct kiocb *iocb,
+		      struct kiocb_priv *priv,
+		      struct ep_data *epdata,
+		      char *buf,
+		      size_t len)
 {
-	struct kiocb_priv	*priv;
-	struct usb_request	*req;
-	ssize_t			value;
+	struct usb_request *req;
+	ssize_t value;
 
-	priv = kzalloc(sizeof *priv, GFP_KERNEL);
-	if (!priv) {
-		value = -ENOMEM;
-fail:
-		kfree(buf);
-		return value;
-	}
 	iocb->private = priv;
 	priv->iocb = iocb;
-	if (iv) {
-		priv->iv = kmemdup(iv, nr_segs * sizeof(struct iovec),
-				   GFP_KERNEL);
-		if (!priv->iv) {
-			kfree(priv);
-			goto fail;
-		}
-	}
-	priv->nr_segs = nr_segs;
-	INIT_WORK(&priv->work, ep_user_copy_worker);
-
-	value = get_ready_ep(iocb->ki_filp->f_flags, epdata);
-	if (unlikely(value < 0)) {
-		kfree(priv);
-		goto fail;
-	}
 
 	kiocb_set_cancel_fn(iocb, ep_aio_cancel);
 	get_ep(epdata);
@@ -677,76 +533,147 @@ fail:
 	 * allocate or submit those if the host disconnected.
 	 */
 	spin_lock_irq(&epdata->dev->lock);
-	if (likely(epdata->ep)) {
-		req = usb_ep_alloc_request(epdata->ep, GFP_ATOMIC);
-		if (likely(req)) {
-			priv->req = req;
-			req->buf = buf;
-			req->length = len;
-			req->complete = ep_aio_complete;
-			req->context = iocb;
-			value = usb_ep_queue(epdata->ep, req, GFP_ATOMIC);
-			if (unlikely(0 != value))
-				usb_ep_free_request(epdata->ep, req);
-		} else
-			value = -EAGAIN;
-	} else
-		value = -ENODEV;
+	value = -ENODEV;
+	if (unlikely(epdata->ep))
+		goto fail;
+
+	req = usb_ep_alloc_request(epdata->ep, GFP_ATOMIC);
+	value = -ENOMEM;
+	if (unlikely(!req))
+		goto fail;
+
+	priv->req = req;
+	req->buf = buf;
+	req->length = len;
+	req->complete = ep_aio_complete;
+	req->context = iocb;
+	value = usb_ep_queue(epdata->ep, req, GFP_ATOMIC);
+	if (unlikely(0 != value)) {
+		usb_ep_free_request(epdata->ep, req);
+		goto fail;
+	}
 	spin_unlock_irq(&epdata->dev->lock);
+	return -EIOCBQUEUED;
 
-	mutex_unlock(&epdata->lock);
-
-	if (unlikely(value)) {
-		kfree(priv->iv);
-		kfree(priv);
-		put_ep(epdata);
-	} else
-		value = -EIOCBQUEUED;
+fail:
+	spin_unlock_irq(&epdata->dev->lock);
+	kfree(priv->to_free);
+	kfree(priv);
+	put_ep(epdata);
 	return value;
 }
 
 static ssize_t
-ep_aio_read(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long nr_segs, loff_t o)
+ep_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct ep_data		*epdata = iocb->ki_filp->private_data;
-	char			*buf;
+	struct file *file = iocb->ki_filp;
+	struct ep_data *epdata = file->private_data;
+	size_t len = iov_iter_count(to);
+	ssize_t value;
+	char *buf;
 
-	if (unlikely(usb_endpoint_dir_in(&epdata->desc)))
-		return -EINVAL;
+	if ((value = get_ready_ep(file->f_flags, epdata)) < 0)
+		return value;
 
-	buf = kmalloc(iocb->ki_nbytes, GFP_KERNEL);
-	if (unlikely(!buf))
+	/* halt any endpoint by doing a "wrong direction" i/o call */
+	if (usb_endpoint_dir_in(&epdata->desc)) {
+		if (usb_endpoint_xfer_isoc(&epdata->desc) ||
+		    !is_sync_kiocb(iocb)) {
+			mutex_unlock(&epdata->lock);
+			return -EINVAL;
+		}
+		DBG (epdata->dev, "%s halt\n", epdata->name);
+		spin_lock_irq(&epdata->dev->lock);
+		if (likely(epdata->ep != NULL))
+			usb_ep_set_halt(epdata->ep);
+		spin_unlock_irq(&epdata->dev->lock);
+		mutex_unlock(&epdata->lock);
+		return -EBADMSG;
+	}
+
+	buf = kmalloc(len, GFP_KERNEL);
+	if (unlikely(!buf)) {
+		mutex_unlock(&epdata->lock);
 		return -ENOMEM;
-
-	return ep_aio_rwtail(iocb, buf, iocb->ki_nbytes, epdata, iov, nr_segs);
+	}
+	if (is_sync_kiocb(iocb)) {
+		value = ep_io(epdata, buf, len);
+		if (value >= 0 && copy_to_iter(buf, value, to))
+			value = -EFAULT;
+	} else {
+		struct kiocb_priv *priv = kzalloc(sizeof *priv, GFP_KERNEL);
+		value = -ENOMEM;
+		if (!priv)
+			goto fail;
+		priv->to_free = dup_iter(&priv->to, to, GFP_KERNEL);
+		if (!priv->to_free) {
+			kfree(priv);
+			goto fail;
+		}
+		value = ep_aio(iocb, priv, epdata, buf, len);
+		if (value == -EIOCBQUEUED)
+			buf = NULL;
+	}
+fail:
+	kfree(buf);
+	mutex_unlock(&epdata->lock);
+	return value;
 }
 
 static ssize_t
-ep_aio_write(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long nr_segs, loff_t o)
+ep_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct ep_data		*epdata = iocb->ki_filp->private_data;
-	char			*buf;
-	size_t			len = 0;
-	int			i = 0;
+	struct file *file = iocb->ki_filp;
+	struct ep_data *epdata = file->private_data;
+	size_t len = iov_iter_count(from);
+	ssize_t value;
+	char *buf;
 
-	if (unlikely(!usb_endpoint_dir_in(&epdata->desc)))
-		return -EINVAL;
+	if ((value = get_ready_ep(file->f_flags, epdata)) < 0)
+		return value;
 
-	buf = kmalloc(iocb->ki_nbytes, GFP_KERNEL);
-	if (unlikely(!buf))
-		return -ENOMEM;
-
-	for (i=0; i < nr_segs; i++) {
-		if (unlikely(copy_from_user(&buf[len], iov[i].iov_base,
-				iov[i].iov_len) != 0)) {
-			kfree(buf);
-			return -EFAULT;
+	/* halt any endpoint by doing a "wrong direction" i/o call */
+	if (!usb_endpoint_dir_in(&epdata->desc)) {
+		if (usb_endpoint_xfer_isoc(&epdata->desc) ||
+		    !is_sync_kiocb(iocb)) {
+			mutex_unlock(&epdata->lock);
+			return -EINVAL;
 		}
-		len += iov[i].iov_len;
+		DBG (epdata->dev, "%s halt\n", epdata->name);
+		spin_lock_irq(&epdata->dev->lock);
+		if (likely(epdata->ep != NULL))
+			usb_ep_set_halt(epdata->ep);
+		spin_unlock_irq(&epdata->dev->lock);
+		mutex_unlock(&epdata->lock);
+		return -EBADMSG;
 	}
-	return ep_aio_rwtail(iocb, buf, len, epdata, NULL, 0);
+
+	buf = kmalloc(len, GFP_KERNEL);
+	if (unlikely(!buf)) {
+		mutex_unlock(&epdata->lock);
+		return -ENOMEM;
+	}
+
+	if (unlikely(copy_from_iter(buf, len, from) != len)) {
+		value = -EFAULT;
+		goto out;
+	}
+
+	if (is_sync_kiocb(iocb)) {
+		value = ep_io(epdata, buf, len);
+	} else {
+		struct kiocb_priv *priv = kzalloc(sizeof *priv, GFP_KERNEL);
+		value = -ENOMEM;
+		if (priv) {
+			value = ep_aio(iocb, priv, epdata, buf, len);
+			if (value == -EIOCBQUEUED)
+				buf = NULL;
+		}
+	}
+out:
+	kfree(buf);
+	mutex_unlock(&epdata->lock);
+	return value;
 }
 
 /*----------------------------------------------------------------------*/
@@ -756,13 +683,13 @@ static const struct file_operations ep_io_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
-	.read =		ep_read,
-	.write =	ep_write,
+	.read =		new_sync_read,
+	.write =	new_sync_write,
 	.unlocked_ioctl = ep_ioctl,
 	.release =	ep_release,
 
-	.aio_read =	ep_aio_read,
-	.aio_write =	ep_aio_write,
+	.read_iter =	ep_read_iter,
+	.write_iter =	ep_write_iter,
 };
 
 /* ENDPOINT INITIALIZATION
