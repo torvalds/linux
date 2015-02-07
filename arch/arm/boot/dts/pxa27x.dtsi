@@ -60,6 +60,14 @@
 			clocks = <&clks CLK_USB>;
 			status = "disabled";
 		};
+
+		keypad: keypad@41500000 {
+			compatible = "marvell,pxa27x-keypad";
+			reg = <0x41500000 0x4c>;
+			interrupts = <4>;
+			clocks = <&clks CLK_KEYPAD>;
+			status = "disabled";
+		};
 	};
 
 	clocks {
