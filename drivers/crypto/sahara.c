@@ -1047,7 +1047,7 @@ static int sahara_sha_process(struct ahash_request *req)
 {
 	struct sahara_dev *dev = dev_ptr;
 	struct sahara_sha_reqctx *rctx = ahash_request_ctx(req);
-	int ret = -EINPROGRESS;
+	int ret;
 	unsigned long timeout;
 
 	ret = sahara_sha_prepare_request(req);
