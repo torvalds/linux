@@ -1,6 +1,6 @@
 /* The pxa3xx skeleton simply augments the 2xx version */
 #include "pxa2xx.dtsi"
-#include "dt-bindings/clock/pxa2xx-clock.h"
+#include "dt-bindings/clock/pxa-clock.h"
 
 / {
 	model = "Marvell PXA27x familiy SoC";
@@ -12,36 +12,47 @@
 			marvell,intc-nr-irqs = <34>;
 		};
 
+		gpio: gpio@40e00000 {
+			compatible = "intel,pxa27x-gpio";
+			clocks = <&clks CLK_NONE>;
+		};
+
 		pwm0: pwm@40b00000 {
 			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
 			reg = <0x40b00000 0x10>;
 			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM0>;
 		};
 
 		pwm1: pwm@40b00010 {
 			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
 			reg = <0x40b00010 0x10>;
 			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM1>;
 		};
 
 		pwm2: pwm@40c00000 {
 			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
 			reg = <0x40c00000 0x10>;
 			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM0>;
 		};
 
 		pwm3: pwm@40c00010 {
 			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
 			reg = <0x40c00010 0x10>;
 			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM1>;
 		};
 
 		pwri2c: i2c@40f000180 {
 			compatible = "mrvl,pxa-i2c";
 			reg = <0x40f00180 0x24>;
 			interrupts = <6>;
+			clocks = <&clks CLK_PWRI2C>;
 			status = "disabled";
 		};
+
 	};
 
 	clocks {
@@ -53,11 +64,10 @@
 		#size-cells = <1>;
 		ranges;
 
-		pxa2xx_clks: pxa2xx_clks@41300004 {
-			compatible = "marvell,pxa-clocks";
+		clks: pxa2xx_clks@41300004 {
+			compatible = "marvell,pxa270-clocks";
 			#clock-cells = <1>;
 			status = "okay";
 		};
 	};
-
 };
