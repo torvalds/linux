@@ -768,7 +768,7 @@ static int rpm_reg_probe(struct platform_device *pdev)
 			break;
 		}
 
-		if (force_mode < 0) {
+		if (force_mode == -1) {
 			dev_err(&pdev->dev, "invalid force mode\n");
 			return -EINVAL;
 		}
