@@ -82,6 +82,8 @@ struct sh_msiof_spi_priv {
 #define MDR1_SYNCMD_LR	 0x30000000 /*   L/R mode */
 #define MDR1_SYNCAC_SHIFT	 25 /* Sync Polarity (1 = Active-low) */
 #define MDR1_BITLSB_SHIFT	 24 /* MSB/LSB First (1 = LSB first) */
+#define MDR1_DTDL_SHIFT		 20 /* Data Pin Bit Delay for MSIOF_SYNC */
+#define MDR1_SYNCDL_SHIFT	 16 /* Frame Sync Signal Timing Delay */
 #define MDR1_FLD_MASK	 0x0000000c /* Frame Sync Signal Interval (0-3) */
 #define MDR1_FLD_SHIFT		  2
 #define MDR1_XXSTP	 0x00000001 /* Transmission/Reception Stop on FIFO */
@@ -241,42 +243,80 @@ static irqreturn_t sh_msiof_spi_irq(int irq, void *data)
 
 static struct {
 	unsigned short div;
-	unsigned short scr;
-} const sh_msiof_spi_clk_table[] = {
-	{ 1,	SCR_BRPS( 1) | SCR_BRDV_DIV_1 },
-	{ 2,	SCR_BRPS( 1) | SCR_BRDV_DIV_2 },
-	{ 4,	SCR_BRPS( 1) | SCR_BRDV_DIV_4 },
-	{ 8,	SCR_BRPS( 1) | SCR_BRDV_DIV_8 },
-	{ 16,	SCR_BRPS( 1) | SCR_BRDV_DIV_16 },
-	{ 32,	SCR_BRPS( 1) | SCR_BRDV_DIV_32 },
-	{ 64,	SCR_BRPS(32) | SCR_BRDV_DIV_2 },
-	{ 128,	SCR_BRPS(32) | SCR_BRDV_DIV_4 },
-	{ 256,	SCR_BRPS(32) | SCR_BRDV_DIV_8 },
-	{ 512,	SCR_BRPS(32) | SCR_BRDV_DIV_16 },
-	{ 1024,	SCR_BRPS(32) | SCR_BRDV_DIV_32 },
+	unsigned short brdv;
+} const sh_msiof_spi_div_table[] = {
+	{ 1,	SCR_BRDV_DIV_1 },
+	{ 2,	SCR_BRDV_DIV_2 },
+	{ 4,	SCR_BRDV_DIV_4 },
+	{ 8,	SCR_BRDV_DIV_8 },
+	{ 16,	SCR_BRDV_DIV_16 },
+	{ 32,	SCR_BRDV_DIV_32 },
 };
 
 static void sh_msiof_spi_set_clk_regs(struct sh_msiof_spi_priv *p,
 				      unsigned long parent_rate, u32 spi_hz)
 {
 	unsigned long div = 1024;
+	u32 brps, scr;
 	size_t k;
 
 	if (!WARN_ON(!spi_hz || !parent_rate))
 		div = DIV_ROUND_UP(parent_rate, spi_hz);
 
-	/* TODO: make more fine grained */
-
-	for (k = 0; k < ARRAY_SIZE(sh_msiof_spi_clk_table); k++) {
-		if (sh_msiof_spi_clk_table[k].div >= div)
+	for (k = 0; k < ARRAY_SIZE(sh_msiof_spi_div_table); k++) {
+		brps = DIV_ROUND_UP(div, sh_msiof_spi_div_table[k].div);
+		if (brps <= 32) /* max of brdv is 32 */
 			break;
 	}
 
-	k = min_t(int, k, ARRAY_SIZE(sh_msiof_spi_clk_table) - 1);
+	k = min_t(int, k, ARRAY_SIZE(sh_msiof_spi_div_table) - 1);
 
-	sh_msiof_write(p, TSCR, sh_msiof_spi_clk_table[k].scr);
+	scr = sh_msiof_spi_div_table[k].brdv | SCR_BRPS(brps);
+	sh_msiof_write(p, TSCR, scr);
 	if (!(p->chipdata->master_flags & SPI_MASTER_MUST_TX))
-		sh_msiof_write(p, RSCR, sh_msiof_spi_clk_table[k].scr);
+		sh_msiof_write(p, RSCR, scr);
+}
+
+static u32 sh_msiof_get_delay_bit(u32 dtdl_or_syncdl)
+{
+	/*
+	 * DTDL/SYNCDL bit	: p->info->dtdl or p->info->syncdl
+	 * b'000		: 0
+	 * b'001		: 100
+	 * b'010		: 200
+	 * b'011 (SYNCDL only)	: 300
+	 * b'101		: 50
+	 * b'110		: 150
+	 */
+	if (dtdl_or_syncdl % 100)
+		return dtdl_or_syncdl / 100 + 5;
+	else
+		return dtdl_or_syncdl / 100;
+}
+
+static u32 sh_msiof_spi_get_dtdl_and_syncdl(struct sh_msiof_spi_priv *p)
+{
+	u32 val;
+
+	if (!p->info)
+		return 0;
+
+	/* check if DTDL and SYNCDL is allowed value */
+	if (p->info->dtdl > 200 || p->info->syncdl > 300) {
+		dev_warn(&p->pdev->dev, "DTDL or SYNCDL is too large\n");
+		return 0;
+	}
+
+	/* check if the sum of DTDL and SYNCDL becomes an integer value  */
+	if ((p->info->dtdl + p->info->syncdl) % 100) {
+		dev_warn(&p->pdev->dev, "the sum of DTDL/SYNCDL is not good\n");
+		return 0;
+	}
+
+	val = sh_msiof_get_delay_bit(p->info->dtdl) << MDR1_DTDL_SHIFT;
+	val |= sh_msiof_get_delay_bit(p->info->syncdl) << MDR1_SYNCDL_SHIFT;
+
+	return val;
 }
 
 static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
@@ -296,6 +336,7 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	tmp = MDR1_SYNCMD_SPI | 1 << MDR1_FLD_SHIFT | MDR1_XXSTP;
 	tmp |= !cs_high << MDR1_SYNCAC_SHIFT;
 	tmp |= lsb_first << MDR1_BITLSB_SHIFT;
+	tmp |= sh_msiof_spi_get_dtdl_and_syncdl(p);
 	sh_msiof_write(p, TMDR1, tmp | MDR1_TRMD | TMDR1_PCON);
 	if (p->chipdata->master_flags & SPI_MASTER_MUST_TX) {
 		/* These bits are reserved if RX needs TX */
@@ -501,7 +542,7 @@ static int sh_msiof_spi_setup(struct spi_device *spi)
 		gpio_set_value(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 
 
-	pm_runtime_put_sync(&p->pdev->dev);
+	pm_runtime_put(&p->pdev->dev);
 
 	return 0;
 }
@@ -595,8 +636,7 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	ret = wait_for_completion_timeout(&p->done, HZ);
-	if (!ret) {
+	if (!wait_for_completion_timeout(&p->done, HZ)) {
 		dev_err(&p->pdev->dev, "PIO timeout\n");
 		ret = -ETIMEDOUT;
 		goto stop_reset;
@@ -706,8 +746,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	ret = wait_for_completion_timeout(&p->done, HZ);
-	if (!ret) {
+	if (!wait_for_completion_timeout(&p->done, HZ)) {
 		dev_err(&p->pdev->dev, "DMA timeout\n");
 		ret = -ETIMEDOUT;
 		goto stop_reset;
@@ -957,6 +996,8 @@ static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 					&info->tx_fifo_override);
 	of_property_read_u32(np, "renesas,rx-fifo-size",
 					&info->rx_fifo_override);
+	of_property_read_u32(np, "renesas,dtdl", &info->dtdl);
+	of_property_read_u32(np, "renesas,syncdl", &info->syncdl);
 
 	info->num_chipselect = num_cs;
 
