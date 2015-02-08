@@ -932,6 +932,27 @@ int nfc_remove_se(struct nfc_dev *dev, u32 se_idx)
 }
 EXPORT_SYMBOL(nfc_remove_se);
 
+int nfc_se_transaction(struct nfc_dev *dev, u8 se_idx,
+		       struct nfc_evt_transaction *evt_transaction)
+{
+	int rc;
+
+	pr_debug("transaction: %x\n", se_idx);
+
+	device_lock(&dev->dev);
+
+	if (!evt_transaction) {
+		rc = -EPROTO;
+		goto out;
+	}
+
+	rc = nfc_genl_se_transaction(dev, se_idx, evt_transaction);
+out:
+	device_unlock(&dev->dev);
+	return rc;
+}
+EXPORT_SYMBOL(nfc_se_transaction);
+
 static void nfc_release(struct device *d)
 {
 	struct nfc_dev *dev = to_nfc_dev(d);
