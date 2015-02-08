@@ -634,23 +634,32 @@ static DEVICE_ATTR(bypass, 0444,
 
 /* Calculate the new optimum regulator operating mode based on the new total
  * consumer load. All locks held by caller */
-static void drms_uA_update(struct regulator_dev *rdev)
+static int drms_uA_update(struct regulator_dev *rdev)
 {
 	struct regulator *sibling;
 	int current_uA = 0, output_uV, input_uV, err;
 	unsigned int mode;
 
+	/*
+	 * first check to see if we can set modes at all, otherwise just
+	 * tell the consumer everything is OK.
+	 */
 	err = regulator_check_drms(rdev);
-	if (err < 0 || !rdev->desc->ops->get_optimum_mode ||
-	    (!rdev->desc->ops->get_voltage &&
-	     !rdev->desc->ops->get_voltage_sel) ||
-	    !rdev->desc->ops->set_mode)
-		return;
+	if (err < 0)
+		return 0;
+
+	if (!rdev->desc->ops->get_optimum_mode)
+		return 0;
+
+	if (!rdev->desc->ops->set_mode)
+		return -EINVAL;
 
 	/* get output voltage */
 	output_uV = _regulator_get_voltage(rdev);
-	if (output_uV <= 0)
-		return;
+	if (output_uV <= 0) {
+		rdev_err(rdev, "invalid output voltage found\n");
+		return -EINVAL;
+	}
 
 	/* get input voltage */
 	input_uV = 0;
@@ -658,8 +667,10 @@ static void drms_uA_update(struct regulator_dev *rdev)
 		input_uV = regulator_get_voltage(rdev->supply);
 	if (input_uV <= 0)
 		input_uV = rdev->constraints->input_uV;
-	if (input_uV <= 0)
-		return;
+	if (input_uV <= 0) {
+		rdev_err(rdev, "invalid input voltage found\n");
+		return -EINVAL;
+	}
 
 	/* calc total requested load */
 	list_for_each_entry(sibling, &rdev->consumer_list, list)
@@ -671,8 +682,17 @@ static void drms_uA_update(struct regulator_dev *rdev)
 
 	/* check the new mode is allowed */
 	err = regulator_mode_constrain(rdev, &mode);
-	if (err == 0)
-		rdev->desc->ops->set_mode(rdev, mode);
+	if (err < 0) {
+		rdev_err(rdev, "failed to get optimum mode @ %d uA %d -> %d uV\n",
+			 current_uA, input_uV, output_uV);
+		return err;
+	}
+
+	err = rdev->desc->ops->set_mode(rdev, mode);
+	if (err < 0)
+		rdev_err(rdev, "failed to set optimum mode %x\n", mode);
+
+	return err;
 }
 
 static int suspend_set_state(struct regulator_dev *rdev,
@@ -3002,75 +3022,13 @@ EXPORT_SYMBOL_GPL(regulator_get_mode);
 int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 {
 	struct regulator_dev *rdev = regulator->rdev;
-	struct regulator *consumer;
-	int ret, output_uV, input_uV = 0, total_uA_load = 0;
-	unsigned int mode;
-
-	if (rdev->supply)
-		input_uV = regulator_get_voltage(rdev->supply);
+	int ret;
 
 	mutex_lock(&rdev->mutex);
-
-	/*
-	 * first check to see if we can set modes at all, otherwise just
-	 * tell the consumer everything is OK.
-	 */
 	regulator->uA_load = uA_load;
-	ret = regulator_check_drms(rdev);
-	if (ret < 0) {
-		ret = 0;
-		goto out;
-	}
-
-	if (!rdev->desc->ops->get_optimum_mode)
-		goto out;
-
-	/*
-	 * we can actually do this so any errors are indicators of
-	 * potential real failure.
-	 */
-	ret = -EINVAL;
-
-	if (!rdev->desc->ops->set_mode)
-		goto out;
-
-	/* get output voltage */
-	output_uV = _regulator_get_voltage(rdev);
-	if (output_uV <= 0) {
-		rdev_err(rdev, "invalid output voltage found\n");
-		goto out;
-	}
-
-	/* No supply? Use constraint voltage */
-	if (input_uV <= 0)
-		input_uV = rdev->constraints->input_uV;
-	if (input_uV <= 0) {
-		rdev_err(rdev, "invalid input voltage found\n");
-		goto out;
-	}
-
-	/* calc total requested load for this regulator */
-	list_for_each_entry(consumer, &rdev->consumer_list, list)
-		total_uA_load += consumer->uA_load;
-
-	mode = rdev->desc->ops->get_optimum_mode(rdev,
-						 input_uV, output_uV,
-						 total_uA_load);
-	ret = regulator_mode_constrain(rdev, &mode);
-	if (ret < 0) {
-		rdev_err(rdev, "failed to get optimum mode @ %d uA %d -> %d uV\n",
-			 total_uA_load, input_uV, output_uV);
-		goto out;
-	}
-
-	ret = rdev->desc->ops->set_mode(rdev, mode);
-	if (ret < 0) {
-		rdev_err(rdev, "failed to set optimum mode %x\n", mode);
-		goto out;
-	}
-	ret = mode;
-out:
+	ret = drms_uA_update(rdev);
 	mutex_unlock(&rdev->mutex);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_set_optimum_mode);
