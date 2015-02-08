@@ -1608,6 +1608,8 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	int ret, irq, cs;
 
 	pdata = dev_get_platdata(&pdev->dev);
+	if (pdata->num_cs <= 0)
+		return -ENODEV;
 	info = devm_kzalloc(&pdev->dev, sizeof(*info) + (sizeof(*mtd) +
 			    sizeof(*host)) * pdata->num_cs, GFP_KERNEL);
 	if (!info)
