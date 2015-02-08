@@ -1579,7 +1579,7 @@ static void bcm2048_parse_rt_match_d(struct bcm2048_device *bdev, int i,
 		bcm2048_parse_rds_rt_block(bdev, i, index+2, crc);
 }
 
-static int bcm2048_parse_rds_rt(struct bcm2048_device *bdev)
+static void bcm2048_parse_rds_rt(struct bcm2048_device *bdev)
 {
 	int i, index = 0, crc, match_b = 0, match_c = 0, match_d = 0;
 
@@ -1615,8 +1615,6 @@ static int bcm2048_parse_rds_rt(struct bcm2048_device *bdev)
 					match_b = 1;
 		}
 	}
-
-	return 0;
 }
 
 static void bcm2048_parse_rds_ps_block(struct bcm2048_device *bdev, int i,
