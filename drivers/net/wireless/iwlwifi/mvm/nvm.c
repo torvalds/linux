@@ -70,6 +70,7 @@
 #include "iwl-eeprom-parse.h"
 #include "iwl-eeprom-read.h"
 #include "iwl-nvm-parse.h"
+#include "iwl-prph.h"
 
 /* Default NVM size to read */
 #define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024)
@@ -265,6 +266,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
 	const __le16 *hw, *sw, *calib, *regulatory, *mac_override, *phy_sku;
 	bool is_family_8000_a_step = false, lar_enabled;
+	u32 mac_addr0, mac_addr1;
 
 	/* Checking for required sections */
 	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
@@ -304,6 +306,10 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	if (WARN_ON(!mvm->cfg))
 		return NULL;
 
+	/* read the mac address from WFMP registers */
+	mac_addr0 = iwl_trans_read_prph(mvm->trans, WFMP_MAC_ADDR_0);
+	mac_addr1 = iwl_trans_read_prph(mvm->trans, WFMP_MAC_ADDR_1);
+
 	hw = (const __le16 *)sections[mvm->cfg->nvm_hw_section_num].data;
 	sw = (const __le16 *)sections[NVM_SECTION_TYPE_SW].data;
 	calib = (const __le16 *)sections[NVM_SECTION_TYPE_CALIBRATION].data;
@@ -319,7 +325,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
 				  mvm->fw->valid_tx_ant, mvm->fw->valid_rx_ant,
-				  lar_enabled, is_family_8000_a_step);
+				  lar_enabled, is_family_8000_a_step,
+				  mac_addr0, mac_addr1);
 }
 
 #define MAX_NVM_FILE_LEN	16384
@@ -590,10 +597,12 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 }
 
 struct iwl_mcc_update_resp *
-iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2)
+iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
+		   enum iwl_mcc_source src_id)
 {
 	struct iwl_mcc_update_cmd mcc_update_cmd = {
 		.mcc = cpu_to_le16(alpha2[0] << 8 | alpha2[1]),
+		.source_id = (u8)src_id,
 	};
 	struct iwl_mcc_update_resp *mcc_resp, *resp_cp = NULL;
 	struct iwl_rx_packet *pkt;
@@ -613,8 +622,8 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2)
 
 	cmd.len[0] = sizeof(struct iwl_mcc_update_cmd);
 
-	IWL_DEBUG_LAR(mvm, "send MCC update to FW with '%c%c'\n",
-		      alpha2[0], alpha2[1]);
+	IWL_DEBUG_LAR(mvm, "send MCC update to FW with '%c%c' src = %d\n",
+		      alpha2[0], alpha2[1], src_id);
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret)
@@ -631,18 +640,6 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2)
 	/* Extract MCC response */
 	mcc_resp = (void *)pkt->data;
 	status = le32_to_cpu(mcc_resp->status);
-
-	if (status == MCC_RESP_INVALID) {
-		IWL_ERR(mvm,
-			"FW ERROR: MCC update with invalid parameter '%c%c'\n",
-			alpha2[0], alpha2[1]);
-		ret = -EINVAL;
-		goto exit;
-	} else if (status == MCC_RESP_NVM_DISABLED) {
-		ret = 0;
-		/* resp_cp will be NULL */
-		goto exit;
-	}
 
 	mcc = le16_to_cpu(mcc_resp->mcc);
 
@@ -677,6 +674,8 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 {
 	bool tlv_lar;
 	bool nvm_lar;
+	int retval;
+	struct ieee80211_regdomain *regd;
 
 	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
 		tlv_lar = mvm->fw->ucode_capa.capa[0] &
@@ -698,32 +697,24 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	 */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		/* This should only be called during vif up and hold RTNL */
-		const struct ieee80211_regdomain *r =
-				rtnl_dereference(mvm->hw->wiphy->regd);
-
-		if (r) {
-			struct iwl_mcc_update_resp *resp;
-
-			resp = iwl_mvm_update_mcc(mvm, r->alpha2);
-			if (IS_ERR_OR_NULL(resp))
-				return -EIO;
-
-			kfree(resp);
-		}
-
-		return 0;
+		return iwl_mvm_init_fw_regd(mvm);
 	}
 
 	/*
-	 * Driver regulatory hint for initial update - use the special
-	 * unknown-country "99" code. This will also clear the "custom reg"
-	 * flag and allow regdomain changes. It will happen after init since
-	 * RTNL is required.
+	 * Driver regulatory hint for initial update, this also informs the
+	 * firmware we support wifi location updates.
 	 * Disallow scans that might crash the FW while the LAR regdomain
 	 * is not set.
 	 */
 	mvm->lar_regdom_set = false;
-	return 0;
+
+	regd = iwl_mvm_get_current_regdomain(mvm);
+	if (IS_ERR_OR_NULL(regd))
+		return -EIO;
+
+	retval = regulatory_set_wiphy_regd_sync_rtnl(mvm->hw->wiphy, regd);
+	kfree(regd);
+	return retval;
 }
 
 int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
@@ -732,17 +723,29 @@ int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mcc_chub_notif *notif = (void *)pkt->data;
+	enum iwl_mcc_source src;
 	char mcc[3];
+	struct ieee80211_regdomain *regd;
+
+	lockdep_assert_held(&mvm->mutex);
 
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
-		return -EOPNOTSUPP;
+		return 0;
 
 	mcc[0] = notif->mcc >> 8;
 	mcc[1] = notif->mcc & 0xff;
 	mcc[2] = '\0';
+	src = notif->source_id;
 
 	IWL_DEBUG_LAR(mvm,
-		      "RX: received chub update mcc command (mcc 0x%x '%s')\n",
-		      notif->mcc, mcc);
+		      "RX: received chub update mcc cmd (mcc '%s' src %d)\n",
+		      mcc, src);
+	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc, src);
+	if (IS_ERR_OR_NULL(regd))
+		return 0;
+
+	regulatory_set_wiphy_regd(mvm->hw->wiphy, regd);
+	kfree(regd);
+
 	return 0;
 }

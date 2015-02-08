@@ -811,6 +811,7 @@ struct iwl_mvm {
 	u32 ap_last_beacon_gp2;
 
 	bool lar_regdom_set;
+	enum iwl_mcc_source mcc_src;
 
 	u8 low_latency_agg_frame_limit;
 
@@ -929,6 +930,11 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 		return nvm_lar && tlv_lar;
 	else
 		return tlv_lar;
+}
+
+static inline bool iwl_mvm_is_wifi_mcc_supported(struct iwl_mvm *mvm)
+{
+	return mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_WIFI_MCC_UPDATE;
 }
 
 static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)
@@ -1412,13 +1418,17 @@ int iwl_mvm_get_temp(struct iwl_mvm *mvm);
 
 /* Location Aware Regulatory */
 struct iwl_mcc_update_resp *
-iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2);
+iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
+		   enum iwl_mcc_source src_id);
 int iwl_mvm_init_mcc(struct iwl_mvm *mvm);
 int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 			       struct iwl_rx_cmd_buffer *rxb,
 			       struct iwl_device_cmd *cmd);
 struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
-						  const char *alpha2);
+						  const char *alpha2,
+						  enum iwl_mcc_source src_id);
+struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm);
+int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm);
 
 /* smart fifo */
 int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

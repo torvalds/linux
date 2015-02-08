@@ -371,6 +371,14 @@ enum secure_load_status_reg {
 
 #define DBGC_IN_SAMPLE			(0xa03c00)
 
+/* enable the ID buf for read */
+#define WFPM_PS_CTL_CLR			0xA0300C
+#define WFMP_MAC_ADDR_0			0xA03080
+#define WFMP_MAC_ADDR_1			0xA03084
+#define LMPM_PMG_EN			0xA01CEC
+#define RADIO_REG_SYS_MANUAL_DFT_0	0xAD4078
+#define RFIC_REG_RD			0xAD0470
+
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
 enum {

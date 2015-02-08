@@ -542,7 +542,8 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 					   const struct iwl_cfg *cfg,
 					   struct iwl_nvm_data *data,
 					   const __le16 *mac_override,
-					   const __le16 *nvm_hw)
+					   const __le16 *nvm_hw,
+					   u32 mac_addr0, u32 mac_addr1)
 {
 	const u8 *hw_addr;
 
@@ -566,48 +567,17 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 	}
 
 	if (nvm_hw) {
-		/* read the MAC address from OTP */
-		if (!dev_is_pci(dev) || (data->nvm_version < 0xE08)) {
-			/* read the mac address from the WFPM location */
-			hw_addr = (const u8 *)(nvm_hw +
-					       HW_ADDR0_WFPM_FAMILY_8000);
-			data->hw_addr[0] = hw_addr[3];
-			data->hw_addr[1] = hw_addr[2];
-			data->hw_addr[2] = hw_addr[1];
-			data->hw_addr[3] = hw_addr[0];
+		/* read the MAC address from HW resisters */
+		hw_addr = (const u8 *)&mac_addr0;
+		data->hw_addr[0] = hw_addr[3];
+		data->hw_addr[1] = hw_addr[2];
+		data->hw_addr[2] = hw_addr[1];
+		data->hw_addr[3] = hw_addr[0];
 
-			hw_addr = (const u8 *)(nvm_hw +
-					       HW_ADDR1_WFPM_FAMILY_8000);
-			data->hw_addr[4] = hw_addr[1];
-			data->hw_addr[5] = hw_addr[0];
-		} else if ((data->nvm_version >= 0xE08) &&
-			   (data->nvm_version < 0xE0B)) {
-			/* read "reverse order"  from the PCIe location */
-			hw_addr = (const u8 *)(nvm_hw +
-					       HW_ADDR0_PCIE_FAMILY_8000);
-			data->hw_addr[5] = hw_addr[2];
-			data->hw_addr[4] = hw_addr[1];
-			data->hw_addr[3] = hw_addr[0];
+		hw_addr = (const u8 *)&mac_addr1;
+		data->hw_addr[4] = hw_addr[1];
+		data->hw_addr[5] = hw_addr[0];
 
-			hw_addr = (const u8 *)(nvm_hw +
-					       HW_ADDR1_PCIE_FAMILY_8000);
-			data->hw_addr[2] = hw_addr[3];
-			data->hw_addr[1] = hw_addr[2];
-			data->hw_addr[0] = hw_addr[1];
-		} else {
-			/* read from the PCIe location */
-			hw_addr = (const u8 *)(nvm_hw +
-					       HW_ADDR0_PCIE_FAMILY_8000);
-			data->hw_addr[5] = hw_addr[0];
-			data->hw_addr[4] = hw_addr[1];
-			data->hw_addr[3] = hw_addr[2];
-
-			hw_addr = (const u8 *)(nvm_hw +
-					       HW_ADDR1_PCIE_FAMILY_8000);
-			data->hw_addr[2] = hw_addr[1];
-			data->hw_addr[1] = hw_addr[2];
-			data->hw_addr[0] = hw_addr[3];
-		}
 		if (!is_valid_ether_addr(data->hw_addr))
 			IWL_ERR_DEV(dev,
 				    "mac address from hw section is not valid\n");
@@ -624,7 +594,8 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
 		   const __le16 *mac_override, const __le16 *phy_sku,
 		   u8 tx_chains, u8 rx_chains,
-		   bool lar_fw_supported, bool is_family_8000_a_step)
+		   bool lar_fw_supported, bool is_family_8000_a_step,
+		   u32 mac_addr0, u32 mac_addr1)
 {
 	struct iwl_nvm_data *data;
 	u32 sku;
@@ -692,7 +663,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 
 		/* MAC address in family 8000 */
 		iwl_set_hw_address_family_8000(dev, cfg, data, mac_override,
-					       nvm_hw);
+					       nvm_hw, mac_addr0, mac_addr1);
 
 		iwl_init_sbands(dev, cfg, data, regulatory,
 				tx_chains, rx_chains,
