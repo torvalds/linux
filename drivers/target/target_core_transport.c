@@ -1980,16 +1980,22 @@ static void transport_handle_queue_full(
 	schedule_work(&cmd->se_dev->qf_work_queue);
 }
 
-static bool target_check_read_strip(struct se_cmd *cmd)
+static bool target_read_prot_action(struct se_cmd *cmd)
 {
 	sense_reason_t rc;
 
-	if (!(cmd->se_sess->sup_prot_ops & TARGET_PROT_DIN_STRIP)) {
-		rc = sbc_dif_read_strip(cmd);
-		if (rc) {
-			cmd->pi_err = rc;
-			return true;
+	switch (cmd->prot_op) {
+	case TARGET_PROT_DIN_STRIP:
+		if (!(cmd->se_sess->sup_prot_ops & TARGET_PROT_DIN_STRIP)) {
+			rc = sbc_dif_read_strip(cmd);
+			if (rc) {
+				cmd->pi_err = rc;
+				return true;
+			}
 		}
+		break;
+	default:
+		break;
 	}
 
 	return false;
@@ -2064,8 +2070,7 @@ static void target_complete_ok_work(struct work_struct *work)
 		 * backend had PI enabled, if the transport will not be
 		 * performing hardware READ_STRIP offload.
 		 */
-		if (cmd->prot_op == TARGET_PROT_DIN_STRIP &&
-		    target_check_read_strip(cmd)) {
+		if (target_read_prot_action(cmd)) {
 			ret = transport_send_check_condition_and_sense(cmd,
 						cmd->pi_err, 0);
 			if (ret == -EAGAIN || ret == -ENOMEM)
