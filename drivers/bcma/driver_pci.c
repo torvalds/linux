@@ -282,21 +282,21 @@ void bcma_core_pci_power_save(struct bcma_bus *bus, bool up)
 }
 EXPORT_SYMBOL_GPL(bcma_core_pci_power_save);
 
-int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc, struct bcma_device *core,
+int bcma_core_pci_irq_ctl(struct bcma_bus *bus, struct bcma_device *core,
 			  bool enable)
 {
 	struct pci_dev *pdev;
 	u32 coremask, tmp;
 	int err = 0;
 
-	if (!pc || core->bus->hosttype != BCMA_HOSTTYPE_PCI) {
+	if (bus->hosttype != BCMA_HOSTTYPE_PCI) {
 		/* This bcma device is not on a PCI host-bus. So the IRQs are
 		 * not routed through the PCI core.
 		 * So we must not enable routing through the PCI core. */
 		goto out;
 	}
 
-	pdev = pc->core->bus->host_pci;
+	pdev = bus->host_pci;
 
 	err = pci_read_config_dword(pdev, BCMA_PCI_IRQMASK, &tmp);
 	if (err)
