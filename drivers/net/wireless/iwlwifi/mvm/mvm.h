@@ -681,6 +681,7 @@ struct iwl_mvm {
 
 	struct iwl_mvm_frame_stats drv_rx_stats;
 	spinlock_t drv_stats_lock;
+	u16 dbgfs_rx_phyinfo;
 #endif
 
 	struct iwl_mvm_phy_ctxt phy_ctxts[NUM_PHY_CTX];

@@ -545,6 +545,57 @@ static ssize_t iwl_dbgfs_uapsd_misbehaving_write(struct ieee80211_vif *vif,
 	return ret ? count : -EINVAL;
 }
 
+static ssize_t iwl_dbgfs_rx_phyinfo_write(struct ieee80211_vif *vif, char *buf,
+					  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct iwl_mvm_phy_ctxt *phy_ctxt;
+	u16 value;
+	int ret;
+
+	ret = kstrtou16(buf, 0, &value);
+	if (ret)
+		return ret;
+
+	mutex_lock(&mvm->mutex);
+	rcu_read_lock();
+
+	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	/* make sure the channel context is assigned */
+	if (!chanctx_conf) {
+		rcu_read_unlock();
+		mutex_unlock(&mvm->mutex);
+		return -EINVAL;
+	}
+
+	phy_ctxt = &mvm->phy_ctxts[*(u16 *)chanctx_conf->drv_priv];
+	rcu_read_unlock();
+
+	mvm->dbgfs_rx_phyinfo = value;
+
+	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &chanctx_conf->min_def,
+				       chanctx_conf->rx_chains_static,
+				       chanctx_conf->rx_chains_dynamic);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
+static ssize_t iwl_dbgfs_rx_phyinfo_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct ieee80211_vif *vif = file->private_data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	char buf[8];
+
+	snprintf(buf, sizeof(buf), "0x%04x\n", mvmvif->mvm->dbgfs_rx_phyinfo);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, sizeof(buf));
+}
+
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
@@ -560,6 +611,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(pm_params, 32);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bf_params, 256);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(low_latency, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(uapsd_misbehaving, 20);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
 
 void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
@@ -594,6 +646,8 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	MVM_DEBUGFS_ADD_FILE_VIF(low_latency, mvmvif->dbgfs_dir,
 				 S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE_VIF(uapsd_misbehaving, mvmvif->dbgfs_dir,
+				 S_IRUSR | S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE_VIF(rx_phyinfo, mvmvif->dbgfs_dir,
 				 S_IRUSR | S_IWUSR);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
