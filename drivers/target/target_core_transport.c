@@ -1994,6 +1994,12 @@ static bool target_read_prot_action(struct se_cmd *cmd)
 			}
 		}
 		break;
+	case TARGET_PROT_DIN_INSERT:
+		if (cmd->se_sess->sup_prot_ops & TARGET_PROT_DIN_INSERT)
+			break;
+
+		sbc_dif_generate(cmd);
+		break;
 	default:
 		break;
 	}
