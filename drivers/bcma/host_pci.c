@@ -213,16 +213,26 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 	/* Initialize struct, detect chip */
 	bcma_init_bus(bus);
 
+	/* Scan bus to find out generation of PCIe core */
+	err = bcma_bus_scan(bus);
+	if (err)
+		goto err_pci_unmap_mmio;
+
+	if (bcma_find_core(bus, BCMA_CORE_PCIE2))
+		bus->host_is_pcie2 = true;
+
 	/* Register */
 	err = bcma_bus_register(bus);
 	if (err)
-		goto err_pci_unmap_mmio;
+		goto err_unregister_cores;
 
 	pci_set_drvdata(dev, bus);
 
 out:
 	return err;
 
+err_unregister_cores:
+	bcma_unregister_cores(bus);
 err_pci_unmap_mmio:
 	pci_iounmap(dev, bus->mmio);
 err_pci_release_regions:
@@ -283,9 +293,12 @@ static const struct pci_device_id bcma_pci_bridge_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4357) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4358) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4359) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4360) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4365) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x43a0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x43a9) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x43aa) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x43b1) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4727) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 43227) },	/* 0xa8db, BCM43217 (sic!) */
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 43228) },	/* 0xa8dc */
