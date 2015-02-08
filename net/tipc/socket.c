@@ -1802,11 +1802,10 @@ static int tipc_sk_enqueue(struct sk_buff_head *inputq, struct sock *sk,
 	unsigned long time_limit = jiffies + 2;
 
 	while (skb_queue_len(inputq)) {
+		if (unlikely(time_after_eq(jiffies, time_limit)))
+			return TIPC_OK;
 		skb = tipc_skb_dequeue(inputq, dport);
 		if (unlikely(!skb))
-			return TIPC_OK;
-		/* Return if softirq window exhausted */
-		if (unlikely(time_after_eq(jiffies, time_limit)))
 			return TIPC_OK;
 		if (!sock_owned_by_user(sk)) {
 			err = filter_rcv(sk, &skb);
