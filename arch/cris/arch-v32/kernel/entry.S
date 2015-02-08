@@ -147,7 +147,7 @@ system_call:
 	;; Stack-frame similar to the irq heads, which is reversed in
 	;; ret_from_sys_call.
 
-	sub.d	92, $sp		; Skip EXS and EDA.
+	sub.d	92, $sp		; Skip EDA.
 	movem	$r13, [$sp]
 	move.d	$sp, $r8
 	addq	14*4, $r8
@@ -158,8 +158,9 @@ system_call:
 	move	$ccs, $r4
 	move	$srp, $r5
 	move	$erp, $r6
+	move.d	$r9, $r7	; Store syscall number in EXS
 	subq	4, $sp
-	movem	$r6, [$r8]
+	movem	$r7, [$r8]
 	ei			; Enable interrupts while processing syscalls.
 	move.d	$r10, [$sp]
 

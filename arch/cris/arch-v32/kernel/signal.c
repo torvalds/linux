@@ -72,6 +72,9 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	/* Make that the user-mode flag is set. */
 	regs->ccs |= (1 << (U_CCS_BITNR + CCS_SHIFT));
 
+	/* Don't perform syscall restarting */
+	regs->exs = -1;
+
 	/* Restore the old USP. */
 	err |= __get_user(old_usp, &sc->usp);
 	wrusp(old_usp);
@@ -426,6 +429,8 @@ void
 do_signal(int canrestart, struct pt_regs *regs)
 {
 	struct ksignal ksig;
+
+	canrestart = canrestart && ((int)regs->exs >= 0);
 
 	/*
 	 * The common case should go fast, which is why this point is
