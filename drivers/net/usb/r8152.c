@@ -489,16 +489,16 @@ struct rx_desc {
 #define RX_LEN_MASK			0x7fff
 
 	__le32 opts2;
-#define RD_UDP_CS			(1 << 23)
-#define RD_TCP_CS			(1 << 22)
-#define RD_IPV6_CS			(1 << 20)
-#define RD_IPV4_CS			(1 << 19)
+#define RD_UDP_CS			BIT(23)
+#define RD_TCP_CS			BIT(22)
+#define RD_IPV6_CS			BIT(20)
+#define RD_IPV4_CS			BIT(19)
 
 	__le32 opts3;
-#define IPF				(1 << 23) /* IP checksum fail */
-#define UDPF				(1 << 22) /* UDP checksum fail */
-#define TCPF				(1 << 21) /* TCP checksum fail */
-#define RX_VLAN_TAG			(1 << 16)
+#define IPF				BIT(23) /* IP checksum fail */
+#define UDPF				BIT(22) /* UDP checksum fail */
+#define TCPF				BIT(21) /* TCP checksum fail */
+#define RX_VLAN_TAG			BIT(16)
 
 	__le32 opts4;
 	__le32 opts5;
@@ -507,24 +507,24 @@ struct rx_desc {
 
 struct tx_desc {
 	__le32 opts1;
-#define TX_FS			(1 << 31) /* First segment of a packet */
-#define TX_LS			(1 << 30) /* Final segment of a packet */
-#define GTSENDV4		(1 << 28)
-#define GTSENDV6		(1 << 27)
+#define TX_FS			BIT(31) /* First segment of a packet */
+#define TX_LS			BIT(30) /* Final segment of a packet */
+#define GTSENDV4		BIT(28)
+#define GTSENDV6		BIT(27)
 #define GTTCPHO_SHIFT		18
 #define GTTCPHO_MAX		0x7fU
 #define TX_LEN_MAX		0x3ffffU
 
 	__le32 opts2;
-#define UDP_CS			(1 << 31) /* Calculate UDP/IP checksum */
-#define TCP_CS			(1 << 30) /* Calculate TCP/IP checksum */
-#define IPV4_CS			(1 << 29) /* Calculate IPv4 checksum */
-#define IPV6_CS			(1 << 28) /* Calculate IPv6 checksum */
+#define UDP_CS			BIT(31) /* Calculate UDP/IP checksum */
+#define TCP_CS			BIT(30) /* Calculate TCP/IP checksum */
+#define IPV4_CS			BIT(29) /* Calculate IPv4 checksum */
+#define IPV6_CS			BIT(28) /* Calculate IPv6 checksum */
 #define MSS_SHIFT		17
 #define MSS_MAX			0x7ffU
 #define TCPHO_SHIFT		17
 #define TCPHO_MAX		0x7ffU
-#define TX_VLAN_TAG			(1 << 16)
+#define TX_VLAN_TAG		BIT(16)
 };
 
 struct r8152;
@@ -581,7 +581,6 @@ struct r8152 {
 	u16 ocp_base;
 	u8 *intr_buff;
 	u8 version;
-	u8 speed;
 };
 
 enum rtl_version {
@@ -1157,12 +1156,12 @@ static void intr_callback(struct urb *urb)
 
 	d = urb->transfer_buffer;
 	if (INTR_LINK & __le16_to_cpu(d[0])) {
-		if (!(tp->speed & LINK_STATUS)) {
+		if (!netif_carrier_ok(tp->netdev)) {
 			set_bit(RTL8152_LINK_CHG, &tp->flags);
 			schedule_delayed_work(&tp->schedule, 0);
 		}
 	} else {
-		if (tp->speed & LINK_STATUS) {
+		if (netif_carrier_ok(tp->netdev)) {
 			set_bit(RTL8152_LINK_CHG, &tp->flags);
 			schedule_delayed_work(&tp->schedule, 0);
 		}
@@ -1331,18 +1330,6 @@ static struct tx_agg *r8152_get_tx_agg(struct r8152 *tp)
 	return agg;
 }
 
-static inline __be16 get_protocol(struct sk_buff *skb)
-{
-	__be16 protocol;
-
-	if (skb->protocol == htons(ETH_P_8021Q))
-		protocol = vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
-	else
-		protocol = skb->protocol;
-
-	return protocol;
-}
-
 /* r8152_csum_workaround()
  * The hw limites the value the transport offset. When the offset is out of the
  * range, calculate the checksum by sw.
@@ -1448,7 +1435,7 @@ static int r8152_tx_csum(struct r8152 *tp, struct tx_desc *desc,
 			goto unavailable;
 		}
 
-		switch (get_protocol(skb)) {
+		switch (vlan_get_protocol(skb)) {
 		case htons(ETH_P_IP):
 			opts1 |= GTSENDV4;
 			break;
@@ -1479,7 +1466,7 @@ static int r8152_tx_csum(struct r8152 *tp, struct tx_desc *desc,
 			goto unavailable;
 		}
 
-		switch (get_protocol(skb)) {
+		switch (vlan_get_protocol(skb)) {
 		case htons(ETH_P_IP):
 			opts2 |= IPV4_CS;
 			ip_protocol = ip_hdr(skb)->protocol;
@@ -1643,7 +1630,7 @@ static int rx_bottom(struct r8152 *tp, int budget)
 {
 	unsigned long flags;
 	struct list_head *cursor, *next, rx_queue;
-	int work_done = 0;
+	int ret = 0, work_done = 0;
 
 	if (!skb_queue_empty(&tp->rx_queue)) {
 		while (work_done < budget) {
@@ -1734,7 +1721,18 @@ find_next_rx:
 		}
 
 submit:
-		r8152_submit_rx(tp, agg, GFP_ATOMIC);
+		if (!ret) {
+			ret = r8152_submit_rx(tp, agg, GFP_ATOMIC);
+		} else {
+			urb->actual_length = 0;
+			list_add_tail(&agg->list, next);
+		}
+	}
+
+	if (!list_empty(&rx_queue)) {
+		spin_lock_irqsave(&tp->rx_lock, flags);
+		list_splice_tail(&rx_queue, &tp->rx_done);
+		spin_unlock_irqrestore(&tp->rx_lock, flags);
 	}
 
 out1:
@@ -1883,7 +1881,7 @@ static void rtl8152_set_rx_mode(struct net_device *netdev)
 {
 	struct r8152 *tp = netdev_priv(netdev);
 
-	if (tp->speed & LINK_STATUS) {
+	if (netif_carrier_ok(netdev)) {
 		set_bit(RTL8152_SET_RX_MODE, &tp->flags);
 		schedule_delayed_work(&tp->schedule, 0);
 	}
@@ -2907,21 +2905,20 @@ static void set_carrier(struct r8152 *tp)
 	speed = rtl8152_get_speed(tp);
 
 	if (speed & LINK_STATUS) {
-		if (!(tp->speed & LINK_STATUS)) {
+		if (!netif_carrier_ok(netdev)) {
 			tp->rtl_ops.enable(tp);
 			set_bit(RTL8152_SET_RX_MODE, &tp->flags);
 			netif_carrier_on(netdev);
 			rtl_start_rx(tp);
 		}
 	} else {
-		if (tp->speed & LINK_STATUS) {
+		if (netif_carrier_ok(netdev)) {
 			netif_carrier_off(netdev);
 			napi_disable(&tp->napi);
 			tp->rtl_ops.disable(tp);
 			napi_enable(&tp->napi);
 		}
 	}
-	tp->speed = speed;
 }
 
 static void rtl_work_func_t(struct work_struct *work)
@@ -2953,7 +2950,7 @@ static void rtl_work_func_t(struct work_struct *work)
 
 	/* don't schedule napi before linking */
 	if (test_bit(SCHEDULE_NAPI, &tp->flags) &&
-	    (tp->speed & LINK_STATUS)) {
+	    netif_carrier_ok(tp->netdev)) {
 		clear_bit(SCHEDULE_NAPI, &tp->flags);
 		napi_schedule(&tp->napi);
 	}
@@ -2976,8 +2973,7 @@ static int rtl8152_open(struct net_device *netdev)
 	if (res)
 		goto out;
 
-	/* set speed to 0 to avoid autoresume try to submit rx */
-	tp->speed = 0;
+	netif_carrier_off(netdev);
 
 	res = usb_autopm_get_interface(tp->intf);
 	if (res < 0) {
@@ -2994,7 +2990,7 @@ static int rtl8152_open(struct net_device *netdev)
 		cancel_delayed_work_sync(&tp->schedule);
 
 		/* disable the tx/rx, if the workqueue has enabled them. */
-		if (tp->speed & LINK_STATUS)
+		if (netif_carrier_ok(netdev))
 			tp->rtl_ops.disable(tp);
 	}
 
@@ -3003,7 +2999,6 @@ static int rtl8152_open(struct net_device *netdev)
 	rtl8152_set_speed(tp, AUTONEG_ENABLE,
 			  tp->mii.supports_gmii ? SPEED_1000 : SPEED_100,
 			  DUPLEX_FULL);
-	tp->speed = 0;
 	netif_carrier_off(netdev);
 	netif_start_queue(netdev);
 	set_bit(WORK_ENABLE, &tp->flags);
@@ -3039,7 +3034,7 @@ static int rtl8152_close(struct net_device *netdev)
 	netif_stop_queue(netdev);
 
 	res = usb_autopm_get_interface(tp->intf);
-	if (res < 0) {
+	if (res < 0 || test_bit(RTL8152_UNPLUG, &tp->flags)) {
 		rtl_drop_queued_tx(tp);
 		rtl_stop_rx(tp);
 	} else {
@@ -3245,10 +3240,10 @@ static void r8153_init(struct r8152 *tp)
 
 	ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, USB_LPM_CTRL);
 	ocp_data &= ~LPM_TIMER_MASK;
-	if (tp->udev->speed == USB_SPEED_SUPER)
-		ocp_data |= LPM_TIMER_500US;
-	else
+	if (tp->version == RTL_VER_04 && tp->udev->speed != USB_SPEED_SUPER)
 		ocp_data |= LPM_TIMER_500MS;
+	else
+		ocp_data |= LPM_TIMER_500US;
 	ocp_write_byte(tp, MCU_TYPE_USB, USB_LPM_CTRL, ocp_data);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_AFE_CTRL2);
@@ -3329,7 +3324,7 @@ static int rtl8152_resume(struct usb_interface *intf)
 			rtl_runtime_suspend_enable(tp, false);
 			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
 			set_bit(WORK_ENABLE, &tp->flags);
-			if (tp->speed & LINK_STATUS)
+			if (netif_carrier_ok(tp->netdev))
 				rtl_start_rx(tp);
 		} else {
 			tp->rtl_ops.up(tp);
@@ -3337,7 +3332,6 @@ static int rtl8152_resume(struct usb_interface *intf)
 					  tp->mii.supports_gmii ?
 					  SPEED_1000 : SPEED_100,
 					  DUPLEX_FULL);
-			tp->speed = 0;
 			netif_carrier_off(tp->netdev);
 			set_bit(WORK_ENABLE, &tp->flags);
 		}
@@ -3902,8 +3896,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_SG |
 			      NETIF_F_TSO | NETIF_F_FRAGLIST |
 			      NETIF_F_IPV6_CSUM | NETIF_F_TSO6 |
-			      NETIF_F_HW_VLAN_CTAG_RX |
-			      NETIF_F_HW_VLAN_CTAG_TX;
+			      NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX;
 	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
 				NETIF_F_HIGHDMA | NETIF_F_FRAGLIST |
 				NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
