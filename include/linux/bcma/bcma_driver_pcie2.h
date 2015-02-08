@@ -143,6 +143,8 @@
 
 struct bcma_drv_pcie2 {
 	struct bcma_device *core;
+
+	u16 reqsize;
 };
 
 #define pcie2_read16(pcie2, offset)		bcma_read16((pcie2)->core, offset)

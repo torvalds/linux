@@ -104,6 +104,9 @@ u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
 void bcma_core_pci_up(struct bcma_drv_pci *pc);
 void bcma_core_pci_down(struct bcma_drv_pci *pc);
 
+/* driver_pcie2.c */
+void bcma_core_pcie2_up(struct bcma_drv_pcie2 *pcie2);
+
 extern int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc);
 
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE

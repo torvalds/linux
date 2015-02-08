@@ -322,7 +322,7 @@ void bcma_host_pci_up(struct bcma_bus *bus)
 		return;
 
 	if (bus->host_is_pcie2)
-		pr_warn("Bringing up bus with PCIe Gen 2 host is unsupported yet\n");
+		bcma_core_pcie2_up(&bus->drv_pcie2);
 	else
 		bcma_core_pci_up(&bus->drv_pci[0]);
 }
