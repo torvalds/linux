@@ -270,9 +270,10 @@ struct rpcrdma_req {
 static inline struct rpcrdma_req *
 rpcr_to_rdmar(struct rpc_rqst *rqst)
 {
-	struct rpcrdma_regbuf *rb = container_of(rqst->rq_buffer,
-						 struct rpcrdma_regbuf,
-						 rg_base[0]);
+	void *buffer = rqst->rq_buffer;
+	struct rpcrdma_regbuf *rb;
+
+	rb = container_of(buffer, struct rpcrdma_regbuf, rg_base);
 	return rb->rg_owner;
 }
 
