@@ -796,8 +796,6 @@ static void xs_error_report(struct sock *sk)
 	dprintk("RPC:       xs_error_report client %p, error=%d...\n",
 			xprt, -err);
 	trace_rpc_socket_error(xprt, sk->sk_socket, err);
-	if (test_bit(XPRT_CONNECTION_REUSE, &xprt->state))
-		goto out;
 	xprt_wake_pending_tasks(xprt, err);
  out:
 	read_unlock_bh(&sk->sk_callback_lock);
@@ -2102,57 +2100,6 @@ out:
 	xprt_wake_pending_tasks(xprt, status);
 }
 
-/*
- * We need to preserve the port number so the reply cache on the server can
- * find our cached RPC replies when we get around to reconnecting.
- */
-static void xs_abort_connection(struct sock_xprt *transport)
-{
-	int result;
-	struct sockaddr any;
-
-	dprintk("RPC:       disconnecting xprt %p to reuse port\n", transport);
-
-	/*
-	 * Disconnect the transport socket by doing a connect operation
-	 * with AF_UNSPEC.  This should return immediately...
-	 */
-	memset(&any, 0, sizeof(any));
-	any.sa_family = AF_UNSPEC;
-	result = kernel_connect(transport->sock, &any, sizeof(any), 0);
-	trace_rpc_socket_reset_connection(&transport->xprt,
-			transport->sock, result);
-	if (!result)
-		xs_sock_reset_connection_flags(&transport->xprt);
-	dprintk("RPC:       AF_UNSPEC connect return code %d\n", result);
-}
-
-static void xs_tcp_reuse_connection(struct sock_xprt *transport)
-{
-	unsigned int state = transport->inet->sk_state;
-
-	if (state == TCP_CLOSE && transport->sock->state == SS_UNCONNECTED) {
-		/* we don't need to abort the connection if the socket
-		 * hasn't undergone a shutdown
-		 */
-		if (transport->inet->sk_shutdown == 0)
-			return;
-		dprintk("RPC:       %s: TCP_CLOSEd and sk_shutdown set to %d\n",
-				__func__, transport->inet->sk_shutdown);
-	}
-	if ((1 << state) & (TCPF_ESTABLISHED|TCPF_SYN_SENT)) {
-		/* we don't need to abort the connection if the socket
-		 * hasn't undergone a shutdown
-		 */
-		if (transport->inet->sk_shutdown == 0)
-			return;
-		dprintk("RPC:       %s: ESTABLISHED/SYN_SENT "
-				"sk_shutdown set to %d\n",
-				__func__, transport->inet->sk_shutdown);
-	}
-	xs_abort_connection(transport);
-}
-
 static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
@@ -2245,18 +2192,6 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 			status = PTR_ERR(sock);
 			goto out;
 		}
-	} else {
-		int abort_and_exit;
-
-		abort_and_exit = test_and_clear_bit(XPRT_CONNECTION_ABORT,
-				&xprt->state);
-		/* "close" the socket, preserving the local port */
-		set_bit(XPRT_CONNECTION_REUSE, &xprt->state);
-		xs_tcp_reuse_connection(transport);
-		clear_bit(XPRT_CONNECTION_REUSE, &xprt->state);
-
-		if (abort_and_exit)
-			goto out_eagain;
 	}
 
 	dprintk("RPC:       worker connecting xprt %p via %s to "
@@ -2296,9 +2231,9 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	case -EADDRINUSE:
 	case -ENOBUFS:
 		/* retry with existing socket, after a delay */
+		xs_tcp_force_close(xprt);
 		goto out;
 	}
-out_eagain:
 	status = -EAGAIN;
 out:
 	xprt_unlock_connect(xprt, transport);
