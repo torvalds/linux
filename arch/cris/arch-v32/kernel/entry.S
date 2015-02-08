@@ -281,43 +281,14 @@ _syscall_exit_work:
 	.type	_work_pending,@function
 _work_pending:
 	addoq	+TI_flags, $r0, $acr
-	move.d	[$acr], $r10
-	btstq	TIF_NEED_RESCHED, $r10	; Need resched?
-	bpl	_work_notifysig		; No, must be signal/notify.
-	nop
-	.size	_work_pending, . - _work_pending
-
-	.type	_work_resched,@function
-_work_resched:
-	move.d	$r9, $r1		; Preserve R9.
-	jsr	schedule
-	nop
-	move.d	$r1, $r9
-	di
-
-	addoq	+TI_flags, $r0, $acr
-	move.d	[$acr], $r1
-	and.d	_TIF_WORK_MASK, $r1	; Ignore sycall trace counter.
-	beq	_Rexit
-	nop
-	btstq	TIF_NEED_RESCHED, $r1
-	bmi	_work_resched		; current->work.need_resched.
-	nop
-	.size	_work_resched, . - _work_resched
-
-	.type	_work_notifysig,@function
-_work_notifysig:
-	;; Deal with pending signals and notify-resume requests.
-
-	addoq	+TI_flags, $r0, $acr
 	move.d	[$acr], $r12		; The thread_info_flags parameter.
 	move.d	$sp, $r11		; The regs param.
-	jsr	do_notify_resume
-	move.d	$r9, $r10		; do_notify_resume syscall/irq param.
+	jsr	do_work_pending
+	move.d	$r9, $r10		; The syscall/irq param.
 
 	ba _Rexit
 	nop
-	.size	_work_notifysig, . - _work_notifysig
+	.size	_work_pending, . - _work_pending
 
 	;; We get here as a sidetrack when we've entered a syscall with the
 	;; trace-bit set. We need to call do_syscall_trace and then continue
