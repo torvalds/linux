@@ -29,8 +29,8 @@
 
 #define MAX_GPIOS 32
 
-struct spi_device *spi_device;
-struct platform_device *p_device;
+static struct spi_device *spi_device;
+static struct platform_device *p_device;
 
 static char *name;
 module_param(name, charp, 0);
