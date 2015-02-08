@@ -1196,18 +1196,11 @@ static void bond_fill_ifslave(struct slave *slave, struct ifslave *info)
 	info->link_failure_count = slave->link_failure_count;
 }
 
-static void bond_netdev_notify(struct slave *slave, struct net_device *dev)
+static void bond_netdev_notify(struct net_device *dev,
+			       struct netdev_bonding_info *info)
 {
-	struct bonding *bond = slave->bond;
-	struct netdev_bonding_info bonding_info;
-
 	rtnl_lock();
-	/* make sure that slave is still valid */
-	if (dev->priv_flags & IFF_BONDING) {
-		bond_fill_ifslave(slave, &bonding_info.slave);
-		bond_fill_ifbond(bond, &bonding_info.master);
-		netdev_bonding_info_change(slave->dev, &bonding_info);
-	}
+	netdev_bonding_info_change(dev, info);
 	rtnl_unlock();
 }
 
@@ -1216,25 +1209,26 @@ static void bond_netdev_notify_work(struct work_struct *_work)
 	struct netdev_notify_work *w =
 		container_of(_work, struct netdev_notify_work, work.work);
 
-	bond_netdev_notify(w->slave, w->dev);
+	bond_netdev_notify(w->dev, &w->bonding_info);
 	dev_put(w->dev);
+	kfree(w);
 }
 
 void bond_queue_slave_event(struct slave *slave)
 {
+	struct bonding *bond = slave->bond;
 	struct netdev_notify_work *nnw = kzalloc(sizeof(*nnw), GFP_ATOMIC);
 
 	if (!nnw)
 		return;
 
-	INIT_DELAYED_WORK(&nnw->work, bond_netdev_notify_work);
-	nnw->slave = slave;
+	dev_hold(slave->dev);
 	nnw->dev = slave->dev;
+	bond_fill_ifslave(slave, &nnw->bonding_info.slave);
+	bond_fill_ifbond(bond, &nnw->bonding_info.master);
+	INIT_DELAYED_WORK(&nnw->work, bond_netdev_notify_work);
 
-	if (queue_delayed_work(slave->bond->wq, &nnw->work, 0))
-		dev_hold(slave->dev);
-	else
-		kfree(nnw);
+	queue_delayed_work(slave->bond->wq, &nnw->work, 0);
 }
 
 /* enslave device <slave> to bond device <master> */

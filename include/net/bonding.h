@@ -152,8 +152,8 @@ struct bond_parm_tbl {
 
 struct netdev_notify_work {
 	struct delayed_work	work;
-	struct slave		*slave;
 	struct net_device	*dev;
+	struct netdev_bonding_info bonding_info;
 };
 
 struct slave {
