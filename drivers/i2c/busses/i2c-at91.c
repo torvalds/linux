@@ -381,6 +381,7 @@ static irqreturn_t atmel_twi_interrupt(int irq, void *dev_id)
 static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 {
 	int ret;
+	unsigned long time_left;
 	bool has_unre_flag = dev->pdata->has_unre_flag;
 
 	dev_dbg(dev->dev, "transfer: %s %d bytes.\n",
@@ -436,9 +437,9 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 		}
 	}
 
-	ret = wait_for_completion_timeout(&dev->cmd_complete,
-					     dev->adapter.timeout);
-	if (ret == 0) {
+	time_left = wait_for_completion_timeout(&dev->cmd_complete,
+					      dev->adapter.timeout);
+	if (time_left == 0) {
 		dev_err(dev->dev, "controller timed out\n");
 		at91_init_twi_bus(dev);
 		ret = -ETIMEDOUT;
