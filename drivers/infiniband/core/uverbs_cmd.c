@@ -3318,7 +3318,7 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	if (cmd.reserved)
 		return -EINVAL;
 
-	resp.response_length = sizeof(resp);
+	resp.response_length = offsetof(typeof(resp), odp_caps);
 
 	if (ucore->outlen < resp.response_length)
 		return -ENOSPC;
@@ -3330,6 +3330,24 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	copy_query_dev_fields(file, &resp.base, &attr);
 	resp.comp_mask = 0;
 
+	if (ucore->outlen < resp.response_length + sizeof(resp.odp_caps))
+		goto end;
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	resp.odp_caps.general_caps = attr.odp_caps.general_caps;
+	resp.odp_caps.per_transport_caps.rc_odp_caps =
+		attr.odp_caps.per_transport_caps.rc_odp_caps;
+	resp.odp_caps.per_transport_caps.uc_odp_caps =
+		attr.odp_caps.per_transport_caps.uc_odp_caps;
+	resp.odp_caps.per_transport_caps.ud_odp_caps =
+		attr.odp_caps.per_transport_caps.ud_odp_caps;
+	resp.odp_caps.reserved = 0;
+#else
+	memset(&resp.odp_caps, 0, sizeof(resp.odp_caps));
+#endif
+	resp.response_length += sizeof(resp.odp_caps);
+
+end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	if (err)
 		return err;
