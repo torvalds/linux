@@ -1740,6 +1740,7 @@ void __target_execute_cmd(struct se_cmd *cmd)
 
 static int target_write_prot_action(struct se_cmd *cmd)
 {
+	u32 sectors;
 	/*
 	 * Perform WRITE_INSERT of PI using software emulation when backend
 	 * device has PI enabled, if the transport has not already generated
@@ -1749,6 +1750,21 @@ static int target_write_prot_action(struct se_cmd *cmd)
 	case TARGET_PROT_DOUT_INSERT:
 		if (!(cmd->se_sess->sup_prot_ops & TARGET_PROT_DOUT_INSERT))
 			sbc_dif_generate(cmd);
+		break;
+	case TARGET_PROT_DOUT_STRIP:
+		if (cmd->se_sess->sup_prot_ops & TARGET_PROT_DOUT_STRIP)
+			break;
+
+		sectors = cmd->data_length >> ilog2(cmd->se_dev->dev_attrib.block_size);
+		cmd->pi_err = sbc_dif_verify_write(cmd, cmd->t_task_lba,
+						   sectors, 0, NULL, 0);
+		if (unlikely(cmd->pi_err)) {
+			spin_lock_irq(&cmd->t_state_lock);
+			cmd->transport_state &= ~CMD_T_BUSY|CMD_T_SENT;
+			spin_unlock_irq(&cmd->t_state_lock);
+			transport_generic_request_failure(cmd, cmd->pi_err);
+			return -1;
+		}
 		break;
 	default:
 		break;
