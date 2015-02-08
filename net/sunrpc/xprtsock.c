@@ -1667,6 +1667,39 @@ static unsigned short xs_get_random_port(void)
 }
 
 /**
+ * xs_set_reuseaddr_port - set the socket's port and address reuse options
+ * @sock: socket
+ *
+ * Note that this function has to be called on all sockets that share the
+ * same port, and it must be called before binding.
+ */
+static void xs_sock_set_reuseport(struct socket *sock)
+{
+	char opt = 1;
+
+	kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+}
+
+static unsigned short xs_sock_getport(struct socket *sock)
+{
+	struct sockaddr_storage buf;
+	int buflen;
+	unsigned short port = 0;
+
+	if (kernel_getsockname(sock, (struct sockaddr *)&buf, &buflen) < 0)
+		goto out;
+	switch (buf.ss_family) {
+	case AF_INET6:
+		port = ntohs(((struct sockaddr_in6 *)&buf)->sin6_port);
+		break;
+	case AF_INET:
+		port = ntohs(((struct sockaddr_in *)&buf)->sin_port);
+	}
+out:
+	return port;
+}
+
+/**
  * xs_set_port - reset the port number in the remote endpoint address
  * @xprt: generic transport
  * @port: new port number
@@ -1678,6 +1711,12 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 
 	rpc_set_port(xs_addr(xprt), port);
 	xs_update_peer_port(xprt);
+}
+
+static void xs_set_srcport(struct sock_xprt *transport, struct socket *sock)
+{
+	if (transport->srcport == 0)
+		transport->srcport = xs_sock_getport(sock);
 }
 
 static unsigned short xs_get_srcport(struct sock_xprt *transport)
@@ -1833,7 +1872,8 @@ static void xs_dummy_setup_socket(struct work_struct *work)
 }
 
 static struct socket *xs_create_sock(struct rpc_xprt *xprt,
-		struct sock_xprt *transport, int family, int type, int protocol)
+		struct sock_xprt *transport, int family, int type,
+		int protocol, bool reuseport)
 {
 	struct socket *sock;
 	int err;
@@ -1845,6 +1885,9 @@ static struct socket *xs_create_sock(struct rpc_xprt *xprt,
 		goto out;
 	}
 	xs_reclassify_socket(family, sock);
+
+	if (reuseport)
+		xs_sock_set_reuseport(sock);
 
 	err = xs_bind(transport, sock);
 	if (err) {
@@ -2047,7 +2090,8 @@ static void xs_udp_setup_socket(struct work_struct *work)
 	/* Start by resetting any existing state */
 	xs_reset_transport(transport);
 	sock = xs_create_sock(xprt, transport,
-			xs_addr(xprt)->sa_family, SOCK_DGRAM, IPPROTO_UDP);
+			xs_addr(xprt)->sa_family, SOCK_DGRAM,
+			IPPROTO_UDP, false);
 	if (IS_ERR(sock))
 		goto out;
 
@@ -2149,7 +2193,6 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		sk->sk_allocation = GFP_ATOMIC;
 
 		/* socket options */
-		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
 		sock_reset_flag(sk, SOCK_LINGER);
 		tcp_sk(sk)->linger2 = 0;
 		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
@@ -2174,6 +2217,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	ret = kernel_connect(sock, xs_addr(xprt), xprt->addrlen, O_NONBLOCK);
 	switch (ret) {
 	case 0:
+		xs_set_srcport(transport, sock);
 	case -EINPROGRESS:
 		/* SYN_SENT! */
 		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
@@ -2202,7 +2246,8 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	if (!sock) {
 		clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
 		sock = xs_create_sock(xprt, transport,
-				xs_addr(xprt)->sa_family, SOCK_STREAM, IPPROTO_TCP);
+				xs_addr(xprt)->sa_family, SOCK_STREAM,
+				IPPROTO_TCP, true);
 		if (IS_ERR(sock)) {
 			status = PTR_ERR(sock);
 			goto out;
