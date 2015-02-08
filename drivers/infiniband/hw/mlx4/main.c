@@ -1186,6 +1186,9 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 			goto err_create_flow;
 		i++;
 		if (is_bonded) {
+			/* Application always sees one port so the mirror rule
+			 * must be on port #2
+			 */
 			flow_attr->port = 2;
 			err = __mlx4_ib_create_flow(qp, flow_attr,
 						    domain, type[j],
@@ -1286,7 +1289,8 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 	reg_id.mirror = 0;
 	if (mlx4_is_bonded(dev)) {
-		err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw, 2,
+		err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw,
+					    (mqp->port == 1) ? 2 : 1,
 					    !!(mqp->flags &
 					    MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
 					    prot, &reg_id.mirror);
