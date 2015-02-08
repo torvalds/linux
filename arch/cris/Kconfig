@@ -53,6 +53,7 @@ config CRIS
 	select OLD_SIGSUSPEND
 	select OLD_SIGACTION
 	select ARCH_REQUIRE_GPIOLIB
+	select IRQ_DOMAIN if ETRAX_ARCH_V32
 
 config HZ
 	int
