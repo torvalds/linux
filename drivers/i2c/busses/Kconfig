@@ -372,6 +372,16 @@ config I2C_BCM2835
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-bcm2835.
 
+config I2C_BCM_IPROC
+	tristate "Broadcom iProc I2C controller"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	default ARCH_BCM_IPROC
+	help
+	  If you say yes to this option, support will be included for the
+	  Broadcom iProc I2C controller.
+
+	  If you don't know what to do here, say N.
+
 config I2C_BCM_KONA
 	tristate "BCM Kona I2C adapter"
 	depends on ARCH_BCM_MOBILE
