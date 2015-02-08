@@ -871,31 +871,59 @@ void spi_finalize_current_transfer(struct spi_master *master)
 EXPORT_SYMBOL_GPL(spi_finalize_current_transfer);
 
 /**
- * spi_pump_messages - kthread work function which processes spi message queue
- * @work: pointer to kthread work struct contained in the master struct
+ * __spi_pump_messages - function which processes spi message queue
+ * @master: master to process queue for
+ * @in_kthread: true if we are in the context of the message pump thread
  *
  * This function checks if there is any spi message in the queue that
  * needs processing and if so call out to the driver to initialize hardware
  * and transfer each message.
  *
+ * Note that it is called both from the kthread itself and also from
+ * inside spi_sync(); the queue extraction handling at the top of the
+ * function should deal with this safely.
  */
-static void spi_pump_messages(struct kthread_work *work)
+static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 {
-	struct spi_master *master =
-		container_of(work, struct spi_master, pump_messages);
 	unsigned long flags;
 	bool was_busy = false;
 	int ret;
 
-	/* Lock queue and check for queue work */
+	/* Lock queue */
 	spin_lock_irqsave(&master->queue_lock, flags);
+
+	/* Make sure we are not already running a message */
+	if (master->cur_msg) {
+		spin_unlock_irqrestore(&master->queue_lock, flags);
+		return;
+	}
+
+	/* If another context is idling the device then defer */
+	if (master->idling) {
+		queue_kthread_work(&master->kworker, &master->pump_messages);
+		spin_unlock_irqrestore(&master->queue_lock, flags);
+		return;
+	}
+
+	/* Check if the queue is idle */
 	if (list_empty(&master->queue) || !master->running) {
 		if (!master->busy) {
 			spin_unlock_irqrestore(&master->queue_lock, flags);
 			return;
 		}
+
+		/* Only do teardown in the thread */
+		if (!in_kthread) {
+			queue_kthread_work(&master->kworker,
+					   &master->pump_messages);
+			spin_unlock_irqrestore(&master->queue_lock, flags);
+			return;
+		}
+
 		master->busy = false;
+		master->idling = true;
 		spin_unlock_irqrestore(&master->queue_lock, flags);
+
 		kfree(master->dummy_rx);
 		master->dummy_rx = NULL;
 		kfree(master->dummy_tx);
@@ -909,14 +937,13 @@ static void spi_pump_messages(struct kthread_work *work)
 			pm_runtime_put_autosuspend(master->dev.parent);
 		}
 		trace_spi_master_idle(master);
-		return;
-	}
 
-	/* Make sure we are not already running a message */
-	if (master->cur_msg) {
+		spin_lock_irqsave(&master->queue_lock, flags);
+		master->idling = false;
 		spin_unlock_irqrestore(&master->queue_lock, flags);
 		return;
 	}
+
 	/* Extract head of queue */
 	master->cur_msg =
 		list_first_entry(&master->queue, struct spi_message, queue);
@@ -981,12 +1008,21 @@ static void spi_pump_messages(struct kthread_work *work)
 	}
 }
 
+/**
+ * spi_pump_messages - kthread work function which processes spi message queue
+ * @work: pointer to kthread work struct contained in the master struct
+ */
+static void spi_pump_messages(struct kthread_work *work)
+{
+	struct spi_master *master =
+		container_of(work, struct spi_master, pump_messages);
+
+	__spi_pump_messages(master, true);
+}
+
 static int spi_init_queue(struct spi_master *master)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
-
-	INIT_LIST_HEAD(&master->queue);
-	spin_lock_init(&master->queue_lock);
 
 	master->running = false;
 	master->busy = false;
@@ -1157,12 +1193,9 @@ static int spi_destroy_queue(struct spi_master *master)
 	return 0;
 }
 
-/**
- * spi_queued_transfer - transfer function for queued transfers
- * @spi: spi device which is requesting transfer
- * @msg: spi message which is to handled is queued to driver queue
- */
-static int spi_queued_transfer(struct spi_device *spi, struct spi_message *msg)
+static int __spi_queued_transfer(struct spi_device *spi,
+				 struct spi_message *msg,
+				 bool need_pump)
 {
 	struct spi_master *master = spi->master;
 	unsigned long flags;
@@ -1177,11 +1210,21 @@ static int spi_queued_transfer(struct spi_device *spi, struct spi_message *msg)
 	msg->status = -EINPROGRESS;
 
 	list_add_tail(&msg->queue, &master->queue);
-	if (!master->busy)
+	if (!master->busy && need_pump)
 		queue_kthread_work(&master->kworker, &master->pump_messages);
 
 	spin_unlock_irqrestore(&master->queue_lock, flags);
 	return 0;
+}
+
+/**
+ * spi_queued_transfer - transfer function for queued transfers
+ * @spi: spi device which is requesting transfer
+ * @msg: spi message which is to handled is queued to driver queue
+ */
+static int spi_queued_transfer(struct spi_device *spi, struct spi_message *msg)
+{
+	return __spi_queued_transfer(spi, msg, true);
 }
 
 static int spi_master_initialize_queue(struct spi_master *master)
@@ -1605,6 +1648,8 @@ int spi_register_master(struct spi_master *master)
 		dynamic = 1;
 	}
 
+	INIT_LIST_HEAD(&master->queue);
+	spin_lock_init(&master->queue_lock);
 	spin_lock_init(&master->bus_lock_spinlock);
 	mutex_init(&master->bus_lock_mutex);
 	master->bus_lock_flag = 0;
@@ -2110,19 +2155,46 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 	DECLARE_COMPLETION_ONSTACK(done);
 	int status;
 	struct spi_master *master = spi->master;
+	unsigned long flags;
+
+	status = __spi_validate(spi, message);
+	if (status != 0)
+		return status;
 
 	message->complete = spi_complete;
 	message->context = &done;
+	message->spi = spi;
 
 	if (!bus_locked)
 		mutex_lock(&master->bus_lock_mutex);
 
-	status = spi_async_locked(spi, message);
+	/* If we're not using the legacy transfer method then we will
+	 * try to transfer in the calling context so special case.
+	 * This code would be less tricky if we could remove the
+	 * support for driver implemented message queues.
+	 */
+	if (master->transfer == spi_queued_transfer) {
+		spin_lock_irqsave(&master->bus_lock_spinlock, flags);
+
+		trace_spi_message_submit(message);
+
+		status = __spi_queued_transfer(spi, message, false);
+
+		spin_unlock_irqrestore(&master->bus_lock_spinlock, flags);
+	} else {
+		status = spi_async_locked(spi, message);
+	}
 
 	if (!bus_locked)
 		mutex_unlock(&master->bus_lock_mutex);
 
 	if (status == 0) {
+		/* Push out the messages in the calling context if we
+		 * can.
+		 */
+		if (master->transfer == spi_queued_transfer)
+			__spi_pump_messages(master, false);
+
 		wait_for_completion(&done);
 		status = message->status;
 	}
