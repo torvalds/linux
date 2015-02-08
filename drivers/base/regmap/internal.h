@@ -235,6 +235,10 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 
 void regmap_async_complete_cb(struct regmap_async *async, int ret);
 
+enum regmap_endian regmap_get_val_endian(struct device *dev,
+					 const struct regmap_bus *bus,
+					 const struct regmap_config *config);
+
 extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_lzo_ops;
 extern struct regcache_ops regcache_flat_ops;
