@@ -3561,7 +3561,7 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
 /**
  * regulator_register - register regulator
  * @regulator_desc: regulator to register
- * @config: runtime configuration for regulator
+ * @cfg: runtime configuration for regulator
  *
  * Called by regulator drivers to register a regulator.
  * Returns a valid pointer to struct regulator_dev on success
@@ -3569,20 +3569,21 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
  */
 struct regulator_dev *
 regulator_register(const struct regulator_desc *regulator_desc,
-		   const struct regulator_config *config)
+		   const struct regulator_config *cfg)
 {
 	const struct regulation_constraints *constraints = NULL;
 	const struct regulator_init_data *init_data;
+	struct regulator_config *config = NULL;
 	static atomic_t regulator_no = ATOMIC_INIT(-1);
 	struct regulator_dev *rdev;
 	struct device *dev;
 	int ret, i;
 	const char *supply = NULL;
 
-	if (regulator_desc == NULL || config == NULL)
+	if (regulator_desc == NULL || cfg == NULL)
 		return ERR_PTR(-EINVAL);
 
-	dev = config->dev;
+	dev = cfg->dev;
 	WARN_ON(!dev);
 
 	if (regulator_desc->name == NULL || regulator_desc->ops == NULL)
@@ -3612,7 +3613,17 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	if (rdev == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	init_data = regulator_of_get_init_data(dev, regulator_desc,
+	/*
+	 * Duplicate the config so the driver could override it after
+	 * parsing init data.
+	 */
+	config = kmemdup(cfg, sizeof(*cfg), GFP_KERNEL);
+	if (config == NULL) {
+		kfree(rdev);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	init_data = regulator_of_get_init_data(dev, regulator_desc, config,
 					       &rdev->dev.of_node);
 	if (!init_data) {
 		init_data = config->init_data;
@@ -3735,6 +3746,7 @@ add_dev:
 	rdev_init_debugfs(rdev);
 out:
 	mutex_unlock(&regulator_list_mutex);
+	kfree(config);
 	return rdev;
 
 unset_supplies:
