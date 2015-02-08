@@ -101,6 +101,8 @@ static inline void __exit bcma_host_soc_unregister_driver(void)
 
 /* driver_pci.c */
 u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
+void bcma_core_pci_up(struct bcma_drv_pci *pc);
+void bcma_core_pci_down(struct bcma_drv_pci *pc);
 
 extern int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc);
 

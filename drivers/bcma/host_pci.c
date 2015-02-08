@@ -310,3 +310,31 @@ void __exit bcma_host_pci_exit(void)
 {
 	pci_unregister_driver(&bcma_pci_bridge_driver);
 }
+
+/**************************************************
+ * Runtime ops for drivers.
+ **************************************************/
+
+/* See also pcicore_up */
+void bcma_host_pci_up(struct bcma_bus *bus)
+{
+	if (bus->hosttype != BCMA_HOSTTYPE_PCI)
+		return;
+
+	if (bus->host_is_pcie2)
+		pr_warn("Bringing up bus with PCIe Gen 2 host is unsupported yet\n");
+	else
+		bcma_core_pci_up(&bus->drv_pci[0]);
+}
+EXPORT_SYMBOL_GPL(bcma_host_pci_up);
+
+/* See also pcicore_down */
+void bcma_host_pci_down(struct bcma_bus *bus)
+{
+	if (bus->hosttype != BCMA_HOSTTYPE_PCI)
+		return;
+
+	if (!bus->host_is_pcie2)
+		bcma_core_pci_down(&bus->drv_pci[0]);
+}
+EXPORT_SYMBOL_GPL(bcma_host_pci_down);
