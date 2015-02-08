@@ -2308,6 +2308,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	spin_lock_init(&ibdev->sm_lock);
 	mutex_init(&ibdev->cap_mask_mutex);
+	INIT_LIST_HEAD(&ibdev->qp_list);
+	spin_lock_init(&ibdev->reset_flow_resource_lock);
 
 	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED &&
 	    ib_num_ports) {
@@ -2622,6 +2624,67 @@ out:
 	return;
 }
 
+static void mlx4_ib_handle_catas_error(struct mlx4_ib_dev *ibdev)
+{
+	struct mlx4_ib_qp *mqp;
+	unsigned long flags_qp;
+	unsigned long flags_cq;
+	struct mlx4_ib_cq *send_mcq, *recv_mcq;
+	struct list_head    cq_notify_list;
+	struct mlx4_cq *mcq;
+	unsigned long flags;
+
+	pr_warn("mlx4_ib_handle_catas_error was started\n");
+	INIT_LIST_HEAD(&cq_notify_list);
+
+	/* Go over qp list reside on that ibdev, sync with create/destroy qp.*/
+	spin_lock_irqsave(&ibdev->reset_flow_resource_lock, flags);
+
+	list_for_each_entry(mqp, &ibdev->qp_list, qps_list) {
+		spin_lock_irqsave(&mqp->sq.lock, flags_qp);
+		if (mqp->sq.tail != mqp->sq.head) {
+			send_mcq = to_mcq(mqp->ibqp.send_cq);
+			spin_lock_irqsave(&send_mcq->lock, flags_cq);
+			if (send_mcq->mcq.comp &&
+			    mqp->ibqp.send_cq->comp_handler) {
+				if (!send_mcq->mcq.reset_notify_added) {
+					send_mcq->mcq.reset_notify_added = 1;
+					list_add_tail(&send_mcq->mcq.reset_notify,
+						      &cq_notify_list);
+				}
+			}
+			spin_unlock_irqrestore(&send_mcq->lock, flags_cq);
+		}
+		spin_unlock_irqrestore(&mqp->sq.lock, flags_qp);
+		/* Now, handle the QP's receive queue */
+		spin_lock_irqsave(&mqp->rq.lock, flags_qp);
+		/* no handling is needed for SRQ */
+		if (!mqp->ibqp.srq) {
+			if (mqp->rq.tail != mqp->rq.head) {
+				recv_mcq = to_mcq(mqp->ibqp.recv_cq);
+				spin_lock_irqsave(&recv_mcq->lock, flags_cq);
+				if (recv_mcq->mcq.comp &&
+				    mqp->ibqp.recv_cq->comp_handler) {
+					if (!recv_mcq->mcq.reset_notify_added) {
+						recv_mcq->mcq.reset_notify_added = 1;
+						list_add_tail(&recv_mcq->mcq.reset_notify,
+							      &cq_notify_list);
+					}
+				}
+				spin_unlock_irqrestore(&recv_mcq->lock,
+						       flags_cq);
+			}
+		}
+		spin_unlock_irqrestore(&mqp->rq.lock, flags_qp);
+	}
+
+	list_for_each_entry(mcq, &cq_notify_list, reset_notify) {
+		mcq->comp(mcq);
+	}
+	spin_unlock_irqrestore(&ibdev->reset_flow_resource_lock, flags);
+	pr_warn("mlx4_ib_handle_catas_error ended\n");
+}
+
 static void handle_bonded_port_state_event(struct work_struct *work)
 {
 	struct ib_event_work *ew =
@@ -2701,6 +2764,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	case MLX4_DEV_EVENT_CATASTROPHIC_ERROR:
 		ibdev->ib_active = false;
 		ibev.event = IB_EVENT_DEVICE_FATAL;
+		mlx4_ib_handle_catas_error(ibdev);
 		break;
 
 	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:

@@ -689,6 +689,8 @@ struct mlx4_cq {
 		void (*comp)(struct mlx4_cq *);
 		void		*priv;
 	} tasklet_ctx;
+	int		reset_notify_added;
+	struct list_head	reset_notify;
 };
 
 struct mlx4_qp {

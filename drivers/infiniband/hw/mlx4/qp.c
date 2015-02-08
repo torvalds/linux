@@ -46,6 +46,11 @@
 #include "mlx4_ib.h"
 #include "user.h"
 
+static void mlx4_ib_lock_cqs(struct mlx4_ib_cq *send_cq,
+			     struct mlx4_ib_cq *recv_cq);
+static void mlx4_ib_unlock_cqs(struct mlx4_ib_cq *send_cq,
+			       struct mlx4_ib_cq *recv_cq);
+
 enum {
 	MLX4_IB_ACK_REQ_FREQ	= 8,
 };
@@ -618,6 +623,8 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	struct mlx4_ib_sqp *sqp;
 	struct mlx4_ib_qp *qp;
 	enum mlx4_ib_qp_type qp_type = (enum mlx4_ib_qp_type) init_attr->qp_type;
+	struct mlx4_ib_cq *mcq;
+	unsigned long flags;
 
 	/* When tunneling special qps, we use a plain UD qp */
 	if (sqpn) {
@@ -828,6 +835,24 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	qp->mqp.event = mlx4_ib_qp_event;
 	if (!*caller_qp)
 		*caller_qp = qp;
+
+	spin_lock_irqsave(&dev->reset_flow_resource_lock, flags);
+	mlx4_ib_lock_cqs(to_mcq(init_attr->send_cq),
+			 to_mcq(init_attr->recv_cq));
+	/* Maintain device to QPs access, needed for further handling
+	 * via reset flow
+	 */
+	list_add_tail(&qp->qps_list, &dev->qp_list);
+	/* Maintain CQ to QPs access, needed for further handling
+	 * via reset flow
+	 */
+	mcq = to_mcq(init_attr->send_cq);
+	list_add_tail(&qp->cq_send_list, &mcq->send_qp_list);
+	mcq = to_mcq(init_attr->recv_cq);
+	list_add_tail(&qp->cq_recv_list, &mcq->recv_qp_list);
+	mlx4_ib_unlock_cqs(to_mcq(init_attr->send_cq),
+			   to_mcq(init_attr->recv_cq));
+	spin_unlock_irqrestore(&dev->reset_flow_resource_lock, flags);
 	return 0;
 
 err_qpn:
@@ -886,13 +911,13 @@ static void mlx4_ib_lock_cqs(struct mlx4_ib_cq *send_cq, struct mlx4_ib_cq *recv
 	__acquires(&send_cq->lock) __acquires(&recv_cq->lock)
 {
 	if (send_cq == recv_cq) {
-		spin_lock_irq(&send_cq->lock);
+		spin_lock(&send_cq->lock);
 		__acquire(&recv_cq->lock);
 	} else if (send_cq->mcq.cqn < recv_cq->mcq.cqn) {
-		spin_lock_irq(&send_cq->lock);
+		spin_lock(&send_cq->lock);
 		spin_lock_nested(&recv_cq->lock, SINGLE_DEPTH_NESTING);
 	} else {
-		spin_lock_irq(&recv_cq->lock);
+		spin_lock(&recv_cq->lock);
 		spin_lock_nested(&send_cq->lock, SINGLE_DEPTH_NESTING);
 	}
 }
@@ -902,13 +927,13 @@ static void mlx4_ib_unlock_cqs(struct mlx4_ib_cq *send_cq, struct mlx4_ib_cq *re
 {
 	if (send_cq == recv_cq) {
 		__release(&recv_cq->lock);
-		spin_unlock_irq(&send_cq->lock);
+		spin_unlock(&send_cq->lock);
 	} else if (send_cq->mcq.cqn < recv_cq->mcq.cqn) {
 		spin_unlock(&recv_cq->lock);
-		spin_unlock_irq(&send_cq->lock);
+		spin_unlock(&send_cq->lock);
 	} else {
 		spin_unlock(&send_cq->lock);
-		spin_unlock_irq(&recv_cq->lock);
+		spin_unlock(&recv_cq->lock);
 	}
 }
 
@@ -953,6 +978,7 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 			      int is_user)
 {
 	struct mlx4_ib_cq *send_cq, *recv_cq;
+	unsigned long flags;
 
 	if (qp->state != IB_QPS_RESET) {
 		if (mlx4_qp_modify(dev->dev, NULL, to_mlx4_state(qp->state),
@@ -984,8 +1010,13 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 
 	get_cqs(qp, &send_cq, &recv_cq);
 
+	spin_lock_irqsave(&dev->reset_flow_resource_lock, flags);
 	mlx4_ib_lock_cqs(send_cq, recv_cq);
 
+	/* del from lists under both locks above to protect reset flow paths */
+	list_del(&qp->qps_list);
+	list_del(&qp->cq_send_list);
+	list_del(&qp->cq_recv_list);
 	if (!is_user) {
 		__mlx4_ib_cq_clean(recv_cq, qp->mqp.qpn,
 				 qp->ibqp.srq ? to_msrq(qp->ibqp.srq): NULL);
@@ -996,6 +1027,7 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 	mlx4_qp_remove(dev->dev, &qp->mqp);
 
 	mlx4_ib_unlock_cqs(send_cq, recv_cq);
+	spin_unlock_irqrestore(&dev->reset_flow_resource_lock, flags);
 
 	mlx4_qp_free(dev->dev, &qp->mqp);
 
@@ -2618,8 +2650,15 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	__be32 uninitialized_var(lso_hdr_sz);
 	__be32 blh;
 	int i;
+	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
+	if (mdev->dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR) {
+		err = -EIO;
+		*bad_wr = wr;
+		nreq = 0;
+		goto out;
+	}
 
 	ind = qp->sq_next_wqe;
 
@@ -2917,9 +2956,17 @@ int mlx4_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	int ind;
 	int max_gs;
 	int i;
+	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 
 	max_gs = qp->rq.max_gs;
 	spin_lock_irqsave(&qp->rq.lock, flags);
+
+	if (mdev->dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR) {
+		err = -EIO;
+		*bad_wr = wr;
+		nreq = 0;
+		goto out;
+	}
 
 	ind = qp->rq.head & (qp->rq.wqe_cnt - 1);
 
