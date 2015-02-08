@@ -1447,7 +1447,19 @@ enum iwl_sf_scenario {
 #define SF_W_MARK_LEGACY 4096
 #define SF_W_MARK_SCAN 4096
 
-/* SF Scenarios timers for FULL_ON state (aligned to 32 uSec) */
+/* SF Scenarios timers for default configuration (aligned to 32 uSec) */
+#define SF_SINGLE_UNICAST_IDLE_TIMER_DEF 160	/* 150 uSec  */
+#define SF_SINGLE_UNICAST_AGING_TIMER_DEF 400	/* 0.4 mSec */
+#define SF_AGG_UNICAST_IDLE_TIMER_DEF 160		/* 150 uSec */
+#define SF_AGG_UNICAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_MCAST_IDLE_TIMER_DEF 160		/* 150 mSec */
+#define SF_MCAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_BA_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_BA_AGING_TIMER_DEF 400			/* 0.4 mSec */
+#define SF_TX_RE_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_TX_RE_AGING_TIMER_DEF 400		/* 0.4 mSec */
+
+/* SF Scenarios timers for BSS MAC configuration (aligned to 32 uSec) */
 #define SF_SINGLE_UNICAST_IDLE_TIMER 320	/* 300 uSec  */
 #define SF_SINGLE_UNICAST_AGING_TIMER 2016	/* 2 mSec */
 #define SF_AGG_UNICAST_IDLE_TIMER 320		/* 300 uSec */
