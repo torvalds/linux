@@ -526,8 +526,9 @@ int llog_cat_cancel_records(const struct lu_env *env,
 }
 EXPORT_SYMBOL(llog_cat_cancel_records);
 
-int llog_cat_process_cb(const struct lu_env *env, struct llog_handle *cat_llh,
-			struct llog_rec_hdr *rec, void *data)
+static int llog_cat_process_cb(const struct lu_env *env,
+			       struct llog_handle *cat_llh,
+			       struct llog_rec_hdr *rec, void *data)
 {
 	struct llog_process_data *d = data;
 	struct llog_logid_rec *lir = (struct llog_logid_rec *)rec;
