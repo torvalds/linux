@@ -54,6 +54,8 @@ config CRIS
 	select OLD_SIGACTION
 	select ARCH_REQUIRE_GPIOLIB
 	select IRQ_DOMAIN if ETRAX_ARCH_V32
+	select OF if ETRAX_ARCH_V32
+	select OF_EARLY_FLATTREE if ETRAX_ARCH_V32
 
 config HZ
 	int
@@ -62,6 +64,10 @@ config HZ
 config NR_CPUS
 	int
 	default "1"
+
+config BUILTIN_DTB
+	string "DTB to build into the kernel image"
+	depends on OF
 
 source "init/Kconfig"
 
