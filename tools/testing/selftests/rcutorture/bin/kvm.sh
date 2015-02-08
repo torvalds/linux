@@ -310,7 +310,7 @@ function dump(first, pastlast)
 			cfr[jn] = cf[j] "." cfrep[cf[j]];
 		}
 		if (cpusr[jn] > ncpus && ncpus != 0)
-			ovf = "(!)";
+			ovf = "-ovf";
 		else
 			ovf = "";
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date`";
