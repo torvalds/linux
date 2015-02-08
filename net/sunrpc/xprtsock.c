@@ -852,8 +852,6 @@ static void xs_close(struct rpc_xprt *xprt)
 
 	dprintk("RPC:       xs_close xprt %p\n", xprt);
 
-	cancel_delayed_work_sync(&transport->connect_worker);
-
 	xs_reset_transport(transport);
 	xprt->reestablish_timeout = 0;
 
@@ -2101,6 +2099,7 @@ static void xs_udp_setup_socket(struct work_struct *work)
 	trace_rpc_socket_connect(xprt, sock, 0);
 	status = 0;
 out:
+	xprt_unlock_connect(xprt, transport);
 	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
 }
@@ -2286,6 +2285,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	case 0:
 	case -EINPROGRESS:
 	case -EALREADY:
+		xprt_unlock_connect(xprt, transport);
 		xprt_clear_connecting(xprt);
 		return;
 	case -EINVAL:
@@ -2303,6 +2303,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 out_eagain:
 	status = -EAGAIN;
 out:
+	xprt_unlock_connect(xprt, transport);
 	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
 }
@@ -2324,6 +2325,8 @@ out:
 static void xs_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+
+	WARN_ON_ONCE(!xprt_lock_connect(xprt, task, transport));
 
 	if (transport->sock != NULL && !RPC_IS_SOFTCONN(task)) {
 		dprintk("RPC:       xs_connect delayed xprt %p for %lu "

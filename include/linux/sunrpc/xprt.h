@@ -347,6 +347,9 @@ void			xprt_force_disconnect(struct rpc_xprt *xprt);
 void			xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie);
 int			xs_swapper(struct rpc_xprt *xprt, int enable);
 
+bool			xprt_lock_connect(struct rpc_xprt *, struct rpc_task *, void *);
+void			xprt_unlock_connect(struct rpc_xprt *, void *);
+
 /*
  * Reserved bit positions in xprt->state
  */
