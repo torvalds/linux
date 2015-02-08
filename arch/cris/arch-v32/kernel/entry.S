@@ -99,6 +99,8 @@ ret_from_kernel_thread:
 
 	.type	ret_from_intr,@function
 ret_from_intr:
+	moveq	0, $r9			; not a syscall
+
 	;; Check for resched if preemptive kernel, or if we're going back to
 	;; user-mode. This test matches the user_regs(regs) macro. Don't simply
 	;; test CCS since that doesn't necessarily reflect what mode we'll
