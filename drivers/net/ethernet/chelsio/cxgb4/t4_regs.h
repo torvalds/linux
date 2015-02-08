@@ -947,6 +947,7 @@
 
 /* registers for module CIM */
 #define CIM_BOOT_CFG_A 0x7b00
+#define CIM_PF_MAILBOX_CTRL_SHADOW_COPY_A 0x290
 
 #define  BOOTADDR_M	0xffffff00U
 
@@ -1183,8 +1184,30 @@
 #define RSVDSPACEINT_F    RSVDSPACEINT_V(1U)
 
 /* registers for module TP */
+#define DBGLAWHLF_S    23
+#define DBGLAWHLF_V(x) ((x) << DBGLAWHLF_S)
+#define DBGLAWHLF_F    DBGLAWHLF_V(1U)
+
+#define DBGLAWPTR_S    16
+#define DBGLAWPTR_M    0x7fU
+#define DBGLAWPTR_G(x) (((x) >> DBGLAWPTR_S) & DBGLAWPTR_M)
+
+#define DBGLAENABLE_S    12
+#define DBGLAENABLE_V(x) ((x) << DBGLAENABLE_S)
+#define DBGLAENABLE_F    DBGLAENABLE_V(1U)
+
+#define DBGLARPTR_S    0
+#define DBGLARPTR_M    0x7fU
+#define DBGLARPTR_V(x) ((x) << DBGLARPTR_S)
+
+#define TP_DBG_LA_DATAL_A	0x7ed8
+#define TP_DBG_LA_CONFIG_A	0x7ed4
 #define TP_OUT_CONFIG_A		0x7d04
 #define TP_GLOBAL_CONFIG_A	0x7d08
+
+#define DBGLAMODE_S	14
+#define DBGLAMODE_M	0x3U
+#define DBGLAMODE_G(x)	(((x) >> DBGLAMODE_S) & DBGLAMODE_M)
 
 #define FIVETUPLELOOKUP_S    17
 #define FIVETUPLELOOKUP_M    0x3U
@@ -1268,6 +1291,9 @@
 #define KEEPALIVEMAXR2_M    0xfU
 #define KEEPALIVEMAXR2_V(x) ((x) << KEEPALIVEMAXR2_S)
 #define KEEPALIVEMAXR2_G(x) (((x) >> KEEPALIVEMAXR2_S) & KEEPALIVEMAXR2_M)
+
+#define ROWINDEX_S    16
+#define ROWINDEX_V(x) ((x) << ROWINDEX_S)
 
 #define TP_CCTRL_TABLE_A	0x7ddc
 #define TP_MTU_TABLE_A		0x7de4
@@ -2248,6 +2274,10 @@
 #define ULP_RX_INT_CAUSE_A 0x19158
 #define ULP_RX_ISCSI_TAGMASK_A 0x19164
 #define ULP_RX_ISCSI_PSZ_A 0x19168
+#define ULP_RX_LA_CTL_A 0x1923c
+#define ULP_RX_LA_RDPTR_A 0x19240
+#define ULP_RX_LA_RDDATA_A 0x19244
+#define ULP_RX_LA_WRPTR_A 0x19248
 
 #define HPZ3_S    24
 #define HPZ3_V(x) ((x) << HPZ3_S)

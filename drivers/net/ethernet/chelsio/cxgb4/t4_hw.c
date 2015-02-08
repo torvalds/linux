@@ -1263,6 +1263,21 @@ int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
 	return t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), NULL);
 }
 
+void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < 8; i++) {
+		u32 *p = la_buf + i;
+
+		t4_write_reg(adap, ULP_RX_LA_CTL_A, i);
+		j = t4_read_reg(adap, ULP_RX_LA_WRPTR_A);
+		t4_write_reg(adap, ULP_RX_LA_RDPTR_A, j);
+		for (j = 0; j < ULPRX_LA_SIZE; j++, p += 8)
+			*p = t4_read_reg(adap, ULP_RX_LA_RDDATA_A);
+	}
+}
+
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
 		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
 		     FW_PORT_CAP_ANEG)
@@ -2401,6 +2416,27 @@ void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log)
 		if (mtu_log)
 			mtu_log[i] = MTUWIDTH_G(v);
 	}
+}
+
+/**
+ *	t4_read_cong_tbl - reads the congestion control table
+ *	@adap: the adapter
+ *	@incr: where to store the alpha values
+ *
+ *	Reads the additive increments programmed into the HW congestion
+ *	control table.
+ */
+void t4_read_cong_tbl(struct adapter *adap, u16 incr[NMTUS][NCCTRL_WIN])
+{
+	unsigned int mtu, w;
+
+	for (mtu = 0; mtu < NMTUS; ++mtu)
+		for (w = 0; w < NCCTRL_WIN; ++w) {
+			t4_write_reg(adap, TP_CCTRL_TABLE_A,
+				     ROWINDEX_V(0xffff) | (mtu << 5) | w);
+			incr[mtu][w] = (u16)t4_read_reg(adap,
+						TP_CCTRL_TABLE_A) & 0x1fff;
+		}
 }
 
 /**
@@ -4781,4 +4817,51 @@ restart:
 			ret = r;
 	}
 	return ret;
+}
+
+/**
+ *	t4_tp_read_la - read TP LA capture buffer
+ *	@adap: the adapter
+ *	@la_buf: where to store the LA data
+ *	@wrptr: the HW write pointer within the capture buffer
+ *
+ *	Reads the contents of the TP LA buffer with the most recent entry at
+ *	the end	of the returned data and with the entry at @wrptr first.
+ *	We leave the LA in the running state we find it in.
+ */
+void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr)
+{
+	bool last_incomplete;
+	unsigned int i, cfg, val, idx;
+
+	cfg = t4_read_reg(adap, TP_DBG_LA_CONFIG_A) & 0xffff;
+	if (cfg & DBGLAENABLE_F)			/* freeze LA */
+		t4_write_reg(adap, TP_DBG_LA_CONFIG_A,
+			     adap->params.tp.la_mask | (cfg ^ DBGLAENABLE_F));
+
+	val = t4_read_reg(adap, TP_DBG_LA_CONFIG_A);
+	idx = DBGLAWPTR_G(val);
+	last_incomplete = DBGLAMODE_G(val) >= 2 && (val & DBGLAWHLF_F) == 0;
+	if (last_incomplete)
+		idx = (idx + 1) & DBGLARPTR_M;
+	if (wrptr)
+		*wrptr = idx;
+
+	val &= 0xffff;
+	val &= ~DBGLARPTR_V(DBGLARPTR_M);
+	val |= adap->params.tp.la_mask;
+
+	for (i = 0; i < TPLA_SIZE; i++) {
+		t4_write_reg(adap, TP_DBG_LA_CONFIG_A, DBGLARPTR_V(idx) | val);
+		la_buf[i] = t4_read_reg64(adap, TP_DBG_LA_DATAL_A);
+		idx = (idx + 1) & DBGLARPTR_M;
+	}
+
+	/* Wipe out last entry if it isn't valid */
+	if (last_incomplete)
+		la_buf[TPLA_SIZE - 1] = ~0ULL;
+
+	if (cfg & DBGLAENABLE_F)                    /* restore running state */
+		t4_write_reg(adap, TP_DBG_LA_CONFIG_A,
+			     cfg | adap->params.tp.la_mask);
 }
