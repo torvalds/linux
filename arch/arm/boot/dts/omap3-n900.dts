@@ -16,6 +16,13 @@
 	model = "Nokia N900";
 	compatible = "nokia,omap3-n900", "ti,omap3430", "ti,omap3";
 
+	aliases {
+		i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+	};
+
 	cpus {
 		cpu@0 {
 			cpu0-supply = <&vcc>;
