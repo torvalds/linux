@@ -53,7 +53,6 @@ struct pxa2xx_spi_chip {
 #if defined(CONFIG_ARCH_PXA) || defined(CONFIG_ARCH_MMP)
 
 #include <linux/clk.h>
-#include <mach/dma.h>
 
 extern void pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info);
 
