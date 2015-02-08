@@ -697,6 +697,13 @@ static int tcm_loop_check_prod_mode_write_protect(struct se_portal_group *se_tpg
 	return 0;
 }
 
+static int tcm_loop_check_prot_fabric_only(struct se_portal_group *se_tpg)
+{
+	struct tcm_loop_tpg *tl_tpg = container_of(se_tpg, struct tcm_loop_tpg,
+						   tl_se_tpg);
+	return tl_tpg->tl_fabric_prot_type;
+}
+
 static struct se_node_acl *tcm_loop_tpg_alloc_fabric_acl(
 	struct se_portal_group *se_tpg)
 {
@@ -912,6 +919,46 @@ static void tcm_loop_port_unlink(
 
 /* End items for tcm_loop_port_cit */
 
+static ssize_t tcm_loop_tpg_attrib_show_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	struct tcm_loop_tpg *tl_tpg = container_of(se_tpg, struct tcm_loop_tpg,
+						   tl_se_tpg);
+
+	return sprintf(page, "%d\n", tl_tpg->tl_fabric_prot_type);
+}
+
+static ssize_t tcm_loop_tpg_attrib_store_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	const char *page,
+	size_t count)
+{
+	struct tcm_loop_tpg *tl_tpg = container_of(se_tpg, struct tcm_loop_tpg,
+						   tl_se_tpg);
+	unsigned long val;
+	int ret = kstrtoul(page, 0, &val);
+
+	if (ret) {
+		pr_err("kstrtoul() returned %d for fabric_prot_type\n", ret);
+		return ret;
+	}
+	if (val != 0 && val != 1 && val != 3) {
+		pr_err("Invalid qla2xxx fabric_prot_type: %lu\n", val);
+		return -EINVAL;
+	}
+	tl_tpg->tl_fabric_prot_type = val;
+
+	return count;
+}
+
+TF_TPG_ATTRIB_ATTR(tcm_loop, fabric_prot_type, S_IRUGO | S_IWUSR);
+
+static struct configfs_attribute *tcm_loop_tpg_attrib_attrs[] = {
+	&tcm_loop_tpg_attrib_fabric_prot_type.attr,
+	NULL,
+};
+
 /* Start items for tcm_loop_nexus_cit */
 
 static int tcm_loop_make_nexus(
@@ -937,7 +984,8 @@ static int tcm_loop_make_nexus(
 	/*
 	 * Initialize the struct se_session pointer
 	 */
-	tl_nexus->se_sess = transport_init_session(TARGET_PROT_ALL);
+	tl_nexus->se_sess = transport_init_session(
+				TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS);
 	if (IS_ERR(tl_nexus->se_sess)) {
 		ret = PTR_ERR(tl_nexus->se_sess);
 		goto out;
@@ -1377,6 +1425,8 @@ static int tcm_loop_register_configfs(void)
 					&tcm_loop_check_demo_mode_write_protect;
 	fabric->tf_ops.tpg_check_prod_mode_write_protect =
 					&tcm_loop_check_prod_mode_write_protect;
+	fabric->tf_ops.tpg_check_prot_fabric_only =
+					&tcm_loop_check_prot_fabric_only;
 	/*
 	 * The TCM loopback fabric module runs in demo-mode to a local
 	 * virtual SCSI device, so fabric dependent initator ACLs are
@@ -1429,7 +1479,7 @@ static int tcm_loop_register_configfs(void)
 	 */
 	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = tcm_loop_wwn_attrs;
 	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = tcm_loop_tpg_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = tcm_loop_tpg_attrib_attrs;
 	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
 	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
 	/*
