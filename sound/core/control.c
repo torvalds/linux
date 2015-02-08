@@ -373,6 +373,7 @@ int snd_ctl_add(struct snd_card *card, struct snd_kcontrol *kcontrol)
 	card->controls_count += kcontrol->count;
 	kcontrol->id.numid = card->last_numid + 1;
 	card->last_numid += kcontrol->count;
+	id = kcontrol->id;
 	count = kcontrol->count;
 	up_write(&card->controls_rwsem);
 	for (idx = 0; idx < count; idx++, id.index++, id.numid++)
