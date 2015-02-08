@@ -334,7 +334,7 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SNS;
 	u32 rx_xfer, tx_xfer;
 	u32 addr_1, addr_2;
-	int ret;
+	unsigned long time_left;
 
 	idev->msg = msg;
 	idev->msg_xfrd = 0;
@@ -383,15 +383,15 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 
 	i2c_int_enable(idev, int_mask);
 
-	ret = wait_for_completion_timeout(&idev->msg_complete,
-					  I2C_XFER_TIMEOUT);
+	time_left = wait_for_completion_timeout(&idev->msg_complete,
+					      I2C_XFER_TIMEOUT);
 
 	i2c_int_disable(idev, int_mask);
 
 	if (readl(idev->base + MST_COMMAND) & CMD_BUSY)
 		dev_warn(idev->dev, "busy after xfer\n");
 
-	if (ret == 0)
+	if (time_left == 0)
 		idev->msg_err = -ETIMEDOUT;
 
 	if (unlikely(idev->msg_err) && idev->msg_err != -ENXIO)
@@ -403,17 +403,17 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 static int axxia_i2c_stop(struct axxia_i2c_dev *idev)
 {
 	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SCC;
-	int ret;
+	unsigned long time_left;
 
 	reinit_completion(&idev->msg_complete);
 
 	/* Issue stop */
 	writel(0xb, idev->base + MST_COMMAND);
 	i2c_int_enable(idev, int_mask);
-	ret = wait_for_completion_timeout(&idev->msg_complete,
-					  I2C_STOP_TIMEOUT);
+	time_left = wait_for_completion_timeout(&idev->msg_complete,
+					      I2C_STOP_TIMEOUT);
 	i2c_int_disable(idev, int_mask);
-	if (ret == 0)
+	if (time_left == 0)
 		return -ETIMEDOUT;
 
 	if (readl(idev->base + MST_COMMAND) & CMD_BUSY)
