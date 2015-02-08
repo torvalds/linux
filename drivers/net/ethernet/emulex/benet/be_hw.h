@@ -75,7 +75,7 @@
  * atomically without having to arbitrate for the PCI Interrupt Disable bit
  * with the OS.
  */
-#define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
+#define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	BIT(29) /* bit 29 */
 
 /********* PCI Function Capability *********/
 #define BE_FUNCTION_CAPS_RSS			0x2
@@ -193,10 +193,10 @@ struct be_eq_entry {
 /* TX Queue Descriptor */
 #define ETH_WRB_FRAG_LEN_MASK		0xFFFF
 struct be_eth_wrb {
-	u32 frag_pa_hi;		/* dword 0 */
-	u32 frag_pa_lo;		/* dword 1 */
-	u32 rsvd0;		/* dword 2 */
-	u32 frag_len;		/* dword 3: bits 0 - 15 */
+	__le32 frag_pa_hi;		/* dword 0 */
+	__le32 frag_pa_lo;		/* dword 1 */
+	u32 rsvd0;			/* dword 2 */
+	__le32 frag_len;		/* dword 3: bits 0 - 15 */
 } __packed;
 
 /* Pseudo amap definition for eth_hdr_wrb in which each bit of the
@@ -224,12 +224,12 @@ struct amap_eth_hdr_wrb {
 } __packed;
 
 #define TX_HDR_WRB_COMPL		1		/* word 2 */
-#define TX_HDR_WRB_EVT			(1 << 1)	/* word 2 */
+#define TX_HDR_WRB_EVT			BIT(1)		/* word 2 */
 #define TX_HDR_WRB_NUM_SHIFT		13		/* word 2: bits 13:17 */
 #define TX_HDR_WRB_NUM_MASK		0x1F		/* word 2: bits 13:17 */
 
 struct be_eth_hdr_wrb {
-	u32 dw[4];
+	__le32 dw[4];
 };
 
 /********* Tx Compl Status Encoding *********/

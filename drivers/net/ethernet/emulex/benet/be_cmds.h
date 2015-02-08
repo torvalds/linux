@@ -44,10 +44,10 @@ struct be_mcc_wrb {
 	} payload;
 };
 
-#define CQE_FLAGS_VALID_MASK 		(1 << 31)
-#define CQE_FLAGS_ASYNC_MASK 		(1 << 30)
-#define CQE_FLAGS_COMPLETED_MASK 	(1 << 28)
-#define CQE_FLAGS_CONSUMED_MASK 	(1 << 27)
+#define CQE_FLAGS_VALID_MASK		BIT(31)
+#define CQE_FLAGS_ASYNC_MASK		BIT(30)
+#define CQE_FLAGS_COMPLETED_MASK	BIT(28)
+#define CQE_FLAGS_CONSUMED_MASK		BIT(27)
 
 /* Completion Status */
 enum mcc_base_status {
@@ -102,6 +102,8 @@ struct be_mcc_compl {
 #define ASYNC_EVENT_PVID_STATE		0x3
 #define ASYNC_EVENT_CODE_QNQ		0x6
 #define ASYNC_DEBUG_EVENT_TYPE_QNQ	1
+#define ASYNC_EVENT_CODE_SLIPORT	0x11
+#define ASYNC_EVENT_PORT_MISCONFIG	0x9
 
 enum {
 	LINK_DOWN	= 0x0,
@@ -166,6 +168,15 @@ struct be_async_event_qnq {
 	u16 vlan_tag;
 	u32 event_tag;
 	u8 rsvd1[4];
+	u32 flags;
+} __packed;
+
+#define INCOMPATIBLE_SFP		0x3
+/* async event indicating misconfigured port */
+struct be_async_event_misconfig_port {
+	u32 event_data_word1;
+	u32 event_data_word2;
+	u32 rsvd0;
 	u32 flags;
 } __packed;
 
@@ -585,6 +596,10 @@ enum be_if_flags {
 			 BE_IF_FLAGS_VLAN | BE_IF_FLAGS_MCAST_PROMISCUOUS |\
 			 BE_IF_FLAGS_PASS_L3L4_ERRORS | BE_IF_FLAGS_MULTICAST |\
 			 BE_IF_FLAGS_UNTAGGED)
+
+#define BE_IF_FLAGS_ALL_PROMISCUOUS	(BE_IF_FLAGS_PROMISCUOUS | \
+					 BE_IF_FLAGS_VLAN_PROMISCUOUS |\
+					 BE_IF_FLAGS_MCAST_PROMISCUOUS)
 
 /* An RX interface is an object with one or more MAC addresses and
  * filtering capabilities. */
@@ -1024,6 +1039,8 @@ enum {
 #define	SFP_PLUS_SFF_8472_COMP		0x5E
 #define	SFP_PLUS_CABLE_TYPE_OFFSET	0x8
 #define	SFP_PLUS_COPPER_CABLE		0x4
+#define SFP_VENDOR_NAME_OFFSET		0x14
+#define SFP_VENDOR_PN_OFFSET		0x28
 
 #define PAGE_DATA_LEN   256
 struct be_cmd_resp_port_type {
@@ -1090,6 +1107,10 @@ struct be_cmd_req_query_fw_cfg {
 	struct be_cmd_req_hdr hdr;
 	u32 rsvd[31];
 };
+
+/* ASIC revisions */
+#define ASIC_REV_B0		0x10
+#define ASIC_REV_P2		0x11
 
 struct be_cmd_resp_query_fw_cfg {
 	struct be_cmd_resp_hdr hdr;
@@ -1168,6 +1189,7 @@ struct be_cmd_resp_get_beacon_state {
 #define OPTYPE_REDBOOT			1
 #define OPTYPE_BIOS			2
 #define OPTYPE_PXE_BIOS			3
+#define OPTYPE_OFFSET_SPECIFIED		7
 #define OPTYPE_FCOE_BIOS		8
 #define OPTYPE_ISCSI_BACKUP		9
 #define OPTYPE_FCOE_FW_ACTIVE		10
@@ -1259,6 +1281,11 @@ struct flash_file_hdr_g2 {
 	u32 num_imgs;
 	u8 build[24];
 };
+
+/* First letter of the build version of the image */
+#define BLD_STR_UFI_TYPE_BE2	'2'
+#define BLD_STR_UFI_TYPE_BE3	'3'
+#define BLD_STR_UFI_TYPE_SH	'4'
 
 struct flash_file_hdr_g3 {
 	u8 sign[52];
@@ -2245,8 +2272,10 @@ int be_cmd_get_beacon_state(struct be_adapter *adapter, u8 port_num,
 int be_cmd_read_port_transceiver_data(struct be_adapter *adapter,
 				      u8 page_num, u8 *data);
 int be_cmd_query_cable_type(struct be_adapter *adapter);
+int be_cmd_query_sfp_info(struct be_adapter *adapter);
 int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
-			  u32 flash_oper, u32 flash_opcode, u32 buf_size);
+			  u32 flash_oper, u32 flash_opcode, u32 img_offset,
+			  u32 buf_size);
 int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			    u32 data_size, u32 data_offset,
 			    const char *obj_name, u32 *data_written,
@@ -2256,7 +2285,7 @@ int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			   u32 *data_read, u32 *eof, u8 *addn_status);
 int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			  u16 optype, int offset);
+			 u16 img_optype, u32 img_offset, u32 crc_offset);
 int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
 			    struct be_dma_mem *nonemb_cmd);
 int be_cmd_fw_init(struct be_adapter *adapter);
@@ -2311,7 +2340,7 @@ int lancer_initiate_dump(struct be_adapter *adapter);
 int lancer_delete_dump(struct be_adapter *adapter);
 bool dump_present(struct be_adapter *adapter);
 int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
-int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
+int be_cmd_query_port_name(struct be_adapter *adapter);
 int be_cmd_get_func_config(struct be_adapter *adapter,
 			   struct be_resources *res);
 int be_cmd_get_profile_config(struct be_adapter *adapter,
