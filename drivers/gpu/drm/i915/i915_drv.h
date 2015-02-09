@@ -2396,6 +2396,7 @@ struct drm_i915_cmd_table {
 #define SKL_REVID_B0		(0x1)
 #define SKL_REVID_C0		(0x2)
 #define SKL_REVID_D0		(0x3)
+#define SKL_REVID_E0		(0x4)
 
 /*
  * The genX designation typically refers to the render engine, so render

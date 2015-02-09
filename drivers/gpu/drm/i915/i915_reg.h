@@ -5259,6 +5259,9 @@ enum skl_disp_power_wells {
 #define GEN7_L3SQCREG4				0xb034
 #define  L3SQ_URB_READ_CAM_MATCH_DISABLE	(1<<27)
 
+#define GEN8_L3SQCREG4				0xb118
+#define  GEN8_LQSC_RO_PERF_DIS			(1<<27)
+
 /* GEN8 chicken */
 #define HDC_CHICKEN0				0x7300
 #define  HDC_FENCE_DEST_SLM_DISABLE		(1<<14)
