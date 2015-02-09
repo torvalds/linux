@@ -66,10 +66,12 @@ static const enum cache_type cache_type_map[] = {
 
 void show_cacheinfo(struct seq_file *m)
 {
-	int cpu = smp_processor_id(), idx;
-	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
+	struct cpu_cacheinfo *this_cpu_ci;
 	struct cacheinfo *cache;
+	int idx;
 
+	get_online_cpus();
+	this_cpu_ci = get_cpu_cacheinfo(cpumask_any(cpu_online_mask));
 	for (idx = 0; idx < this_cpu_ci->num_leaves; idx++) {
 		cache = this_cpu_ci->info_list + idx;
 		seq_printf(m, "cache%-11d: ", idx);
@@ -82,6 +84,7 @@ void show_cacheinfo(struct seq_file *m)
 		seq_printf(m, "associativity=%d", cache->ways_of_associativity);
 		seq_puts(m, "\n");
 	}
+	put_online_cpus();
 }
 
 static inline enum cache_type get_cache_type(struct cache_info *ci, int level)
