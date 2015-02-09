@@ -1150,6 +1150,17 @@ static int gen8_init_render_ring(struct intel_engine_cs *ring)
 	return init_workarounds_ring(ring);
 }
 
+static int gen9_init_render_ring(struct intel_engine_cs *ring)
+{
+	int ret;
+
+	ret = gen8_init_common_ring(ring);
+	if (ret)
+		return ret;
+
+	return init_workarounds_ring(ring);
+}
+
 static int gen8_emit_bb_start(struct intel_ringbuffer *ringbuf,
 			      struct intel_context *ctx,
 			      u64 offset, unsigned flags)
@@ -1440,7 +1451,10 @@ static int logical_render_ring_init(struct drm_device *dev)
 	if (HAS_L3_DPF(dev))
 		ring->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
-	ring->init_hw = gen8_init_render_ring;
+	if (INTEL_INFO(dev)->gen >= 9)
+		ring->init_hw = gen9_init_render_ring;
+	else
+		ring->init_hw = gen8_init_render_ring;
 	ring->init_context = gen8_init_rcs_context;
 	ring->cleanup = intel_fini_pipe_control;
 	ring->get_seqno = gen8_get_seqno;
