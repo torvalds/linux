@@ -1225,7 +1225,7 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0, reg;
 
-	wm9713->ac97 = snd_soc_new_ac97_codec(codec);
+	wm9713->ac97 = snd_soc_alloc_ac97_codec(codec);
 	if (IS_ERR(wm9713->ac97))
 		return PTR_ERR(wm9713->ac97);
 
@@ -1234,7 +1234,11 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	wm9713_reset(codec, 0);
 	ret = wm9713_reset(codec, 1);
 	if (ret < 0)
-		goto reset_err;
+		goto err_put_device;
+
+	ret = device_add(&wm9713->ac97->dev);
+	if (ret)
+		goto err_put_device;
 
 	/* unmute the adc - move to kcontrol */
 	reg = ac97_read(codec, AC97_CD) & 0x7fff;
@@ -1242,8 +1246,8 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 
 	return 0;
 
-reset_err:
-	snd_soc_free_ac97_codec(wm9713->ac97);
+err_put_device:
+	put_device(&wm9713->ac97->dev);
 	return ret;
 }
 
