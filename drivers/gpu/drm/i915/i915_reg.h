@@ -5285,6 +5285,9 @@ enum skl_disp_power_wells {
 #define HSW_SCRATCH1				0xb038
 #define  HSW_SCRATCH1_L3_DATA_ATOMICS_DISABLE	(1<<27)
 
+#define BDW_SCRATCH1					0xb11c
+#define  GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE	(1<<2)
+
 /* PCH */
 
 /* south display engine interrupt: IBX */
