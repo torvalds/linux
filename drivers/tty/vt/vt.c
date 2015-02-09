@@ -1573,7 +1573,7 @@ static void setterm_command(struct vc_data *vc)
 		case 11: /* set bell duration in msec */
 			if (vc->vc_npar >= 1)
 				vc->vc_bell_duration = (vc->vc_par[1] < 2000) ?
-					vc->vc_par[1] * HZ / 1000 : 0;
+					msecs_to_jiffies(vc->vc_par[1]) : 0;
 			else
 				vc->vc_bell_duration = DEFAULT_BELL_DURATION;
 			break;
