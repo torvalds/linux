@@ -127,7 +127,6 @@ u32  tipc_bclink_get_last_sent(struct net *net);
 u32  tipc_bclink_acks_missing(struct tipc_node *n_ptr);
 void tipc_bclink_update_link_state(struct tipc_node *node,
 				   u32 last_sent);
-int  tipc_bclink_stats(struct net *net, char *stats_buf, const u32 buf_size);
 int  tipc_bclink_reset_stats(struct net *net);
 int  tipc_bclink_set_queue_limits(struct net *net, u32 limit);
 void tipc_bcbearer_sort(struct net *net, struct tipc_node_map *nm_ptr,

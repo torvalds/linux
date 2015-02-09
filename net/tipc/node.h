@@ -142,10 +142,6 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 int tipc_node_active_links(struct tipc_node *n_ptr);
 int tipc_node_is_up(struct tipc_node *n_ptr);
-struct sk_buff *tipc_node_get_links(struct net *net, const void *req_tlv_area,
-				    int req_tlv_space);
-struct sk_buff *tipc_node_get_nodes(struct net *net, const void *req_tlv_area,
-				    int req_tlv_space);
 int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 node,
 			   char *linkname, size_t len);
 void tipc_node_unlock(struct tipc_node *node);

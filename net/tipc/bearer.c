@@ -36,7 +36,6 @@
 
 #include <net/sock.h>
 #include "core.h"
-#include "config.h"
 #include "bearer.h"
 #include "link.h"
 #include "discover.h"
@@ -112,35 +111,15 @@ void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 	m_ptr = media_find_id(a->media_id);
 
 	if (m_ptr && !m_ptr->addr2str(a, addr_str, sizeof(addr_str)))
-		ret = tipc_snprintf(buf, len, "%s(%s)", m_ptr->name, addr_str);
+		ret = scnprintf(buf, len, "%s(%s)", m_ptr->name, addr_str);
 	else {
 		u32 i;
 
-		ret = tipc_snprintf(buf, len, "UNKNOWN(%u)", a->media_id);
+		ret = scnprintf(buf, len, "UNKNOWN(%u)", a->media_id);
 		for (i = 0; i < sizeof(a->value); i++)
-			ret += tipc_snprintf(buf - ret, len + ret,
+			ret += scnprintf(buf - ret, len + ret,
 					    "-%02x", a->value[i]);
 	}
-}
-
-/**
- * tipc_media_get_names - record names of registered media in buffer
- */
-struct sk_buff *tipc_media_get_names(void)
-{
-	struct sk_buff *buf;
-	int i;
-
-	buf = tipc_cfg_reply_alloc(MAX_MEDIA * TLV_SPACE(TIPC_MAX_MEDIA_NAME));
-	if (!buf)
-		return NULL;
-
-	for (i = 0; media_info_array[i] != NULL; i++) {
-		tipc_cfg_append_tlv(buf, TIPC_TLV_MEDIA_NAME,
-				    media_info_array[i]->name,
-				    strlen(media_info_array[i]->name) + 1);
-	}
-	return buf;
 }
 
 /**
@@ -205,35 +184,6 @@ struct tipc_bearer *tipc_bearer_find(struct net *net, const char *name)
 	return NULL;
 }
 
-/**
- * tipc_bearer_get_names - record names of bearers in buffer
- */
-struct sk_buff *tipc_bearer_get_names(struct net *net)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct sk_buff *buf;
-	struct tipc_bearer *b;
-	int i, j;
-
-	buf = tipc_cfg_reply_alloc(MAX_BEARERS * TLV_SPACE(TIPC_MAX_BEARER_NAME));
-	if (!buf)
-		return NULL;
-
-	for (i = 0; media_info_array[i] != NULL; i++) {
-		for (j = 0; j < MAX_BEARERS; j++) {
-			b = rtnl_dereference(tn->bearer_list[j]);
-			if (!b)
-				continue;
-			if (b->media == media_info_array[i]) {
-				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME,
-						    b->name,
-						    strlen(b->name) + 1);
-			}
-		}
-	}
-	return buf;
-}
-
 void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
@@ -265,8 +215,8 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
 /**
  * tipc_enable_bearer - enable bearer with the given name
  */
-int tipc_enable_bearer(struct net *net, const char *name, u32 disc_domain,
-		       u32 priority)
+static int tipc_enable_bearer(struct net *net, const char *name,
+			      u32 disc_domain, u32 priority)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_bearer *b_ptr;
@@ -420,22 +370,6 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b_ptr,
 		}
 	}
 	kfree_rcu(b_ptr, rcu);
-}
-
-int tipc_disable_bearer(struct net *net, const char *name)
-{
-	struct tipc_bearer *b_ptr;
-	int res;
-
-	b_ptr = tipc_bearer_find(net, name);
-	if (b_ptr == NULL) {
-		pr_warn("Attempt to disable unknown bearer <%s>\n", name);
-		res = -EINVAL;
-	} else {
-		bearer_disable(net, b_ptr, false);
-		res = 0;
-	}
-	return res;
 }
 
 int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b)
@@ -658,7 +592,7 @@ static int __tipc_nl_add_bearer(struct tipc_nl_msg *msg,
 	struct nlattr *attrs;
 	struct nlattr *prop;
 
-	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  NLM_F_MULTI, TIPC_NL_BEARER_GET);
 	if (!hdr)
 		return -EMSGSIZE;
@@ -785,7 +719,7 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 	char *name;
 	struct tipc_bearer *bearer;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
-	struct net *net = genl_info_net(info);
+	struct net *net = sock_net(skb->sk);
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
@@ -816,11 +750,11 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 {
-	struct net *net = genl_info_net(info);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	int err;
 	char *bearer;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
+	struct net *net = sock_net(skb->sk);
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	u32 domain;
 	u32 prio;
 
@@ -924,7 +858,7 @@ static int __tipc_nl_add_media(struct tipc_nl_msg *msg,
 	struct nlattr *attrs;
 	struct nlattr *prop;
 
-	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  NLM_F_MULTI, TIPC_NL_MEDIA_GET);
 	if (!hdr)
 		return -EMSGSIZE;

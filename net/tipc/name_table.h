@@ -97,8 +97,6 @@ struct name_table {
 
 int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
-struct sk_buff *tipc_nametbl_get(struct net *net, const void *req_tlv_area,
-				 int req_tlv_space);
 u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *node);
 int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
 			      u32 limit, struct tipc_plist *dports);

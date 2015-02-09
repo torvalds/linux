@@ -40,8 +40,6 @@
 #include "subscr.h"
 #include "socket.h"
 #include "node.h"
-#include "config.h"
-#include "bcast.h"
 
 static const struct nla_policy tipc_nl_net_policy[TIPC_NLA_NET_MAX + 1] = {
 	[TIPC_NLA_NET_UNSPEC]	= { .type = NLA_UNSPEC },
@@ -156,7 +154,7 @@ static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 	void *hdr;
 	struct nlattr *attrs;
 
-	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  NLM_F_MULTI, TIPC_NL_NET_GET);
 	if (!hdr)
 		return -EMSGSIZE;
@@ -208,7 +206,7 @@ out:
 
 int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 {
-	struct net *net = genl_info_net(info);
+	struct net *net = sock_net(skb->sk);
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct nlattr *attrs[TIPC_NLA_NET_MAX + 1];
 	int err;

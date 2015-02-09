@@ -40,7 +40,6 @@
 #include "name_table.h"
 #include "node.h"
 #include "link.h"
-#include "config.h"
 #include "name_distr.h"
 #include "socket.h"
 
@@ -2281,91 +2280,6 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 	return rc;
 }
 
-static int tipc_sk_show(struct tipc_sock *tsk, char *buf,
-			int len, int full_id)
-{
-	struct net *net = sock_net(&tsk->sk);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct publication *publ;
-	int ret;
-
-	if (full_id)
-		ret = tipc_snprintf(buf, len, "<%u.%u.%u:%u>:",
-				    tipc_zone(tn->own_addr),
-				    tipc_cluster(tn->own_addr),
-				    tipc_node(tn->own_addr), tsk->portid);
-	else
-		ret = tipc_snprintf(buf, len, "%-10u:", tsk->portid);
-
-	if (tsk->connected) {
-		u32 dport = tsk_peer_port(tsk);
-		u32 destnode = tsk_peer_node(tsk);
-
-		ret += tipc_snprintf(buf + ret, len - ret,
-				     " connected to <%u.%u.%u:%u>",
-				     tipc_zone(destnode),
-				     tipc_cluster(destnode),
-				     tipc_node(destnode), dport);
-		if (tsk->conn_type != 0)
-			ret += tipc_snprintf(buf + ret, len - ret,
-					     " via {%u,%u}", tsk->conn_type,
-					     tsk->conn_instance);
-	} else if (tsk->published) {
-		ret += tipc_snprintf(buf + ret, len - ret, " bound to");
-		list_for_each_entry(publ, &tsk->publications, pport_list) {
-			if (publ->lower == publ->upper)
-				ret += tipc_snprintf(buf + ret, len - ret,
-						     " {%u,%u}", publ->type,
-						     publ->lower);
-			else
-				ret += tipc_snprintf(buf + ret, len - ret,
-						     " {%u,%u,%u}", publ->type,
-						     publ->lower, publ->upper);
-		}
-	}
-	ret += tipc_snprintf(buf + ret, len - ret, "\n");
-	return ret;
-}
-
-struct sk_buff *tipc_sk_socks_show(struct net *net)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	const struct bucket_table *tbl;
-	struct rhash_head *pos;
-	struct sk_buff *buf;
-	struct tlv_desc *rep_tlv;
-	char *pb;
-	int pb_len;
-	struct tipc_sock *tsk;
-	int str_len = 0;
-	int i;
-
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(ULTRA_STRING_MAX_LEN));
-	if (!buf)
-		return NULL;
-	rep_tlv = (struct tlv_desc *)buf->data;
-	pb = TLV_DATA(rep_tlv);
-	pb_len = ULTRA_STRING_MAX_LEN;
-
-	rcu_read_lock();
-	tbl = rht_dereference_rcu((&tn->sk_rht)->tbl, &tn->sk_rht);
-	for (i = 0; i < tbl->size; i++) {
-		rht_for_each_entry_rcu(tsk, pos, tbl, i, node) {
-			spin_lock_bh(&tsk->sk.sk_lock.slock);
-			str_len += tipc_sk_show(tsk, pb + str_len,
-						pb_len - str_len, 0);
-			spin_unlock_bh(&tsk->sk.sk_lock.slock);
-		}
-	}
-	rcu_read_unlock();
-
-	str_len += 1;	/* for "\0" */
-	skb_put(buf, TLV_SPACE(str_len));
-	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
-
-	return buf;
-}
-
 /* tipc_sk_reinit: set non-zero address in all existing sockets
  *                 when we go from standalone to network mode.
  */
@@ -2783,7 +2697,7 @@ static int __tipc_nl_add_sk(struct sk_buff *skb, struct netlink_callback *cb,
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
-			  &tipc_genl_v2_family, NLM_F_MULTI, TIPC_NL_SOCK_GET);
+			  &tipc_genl_family, NLM_F_MULTI, TIPC_NL_SOCK_GET);
 	if (!hdr)
 		goto msg_cancel;
 
@@ -2864,7 +2778,7 @@ static int __tipc_nl_add_sk_publ(struct sk_buff *skb,
 	struct nlattr *attrs;
 
 	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
-			  &tipc_genl_v2_family, NLM_F_MULTI, TIPC_NL_PUBL_GET);
+			  &tipc_genl_family, NLM_F_MULTI, TIPC_NL_PUBL_GET);
 	if (!hdr)
 		goto msg_cancel;
 

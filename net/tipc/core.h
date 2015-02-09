@@ -70,8 +70,6 @@
 
 #define TIPC_MOD_VER "2.0.0"
 
-int tipc_snprintf(char *buf, int len, const char *fmt, ...);
-
 extern int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 extern int sysctl_tipc_named_timeout __read_mostly;
@@ -115,5 +113,4 @@ void tipc_unregister_sysctl(void);
 #define tipc_register_sysctl() 0
 #define tipc_unregister_sysctl()
 #endif
-
 #endif

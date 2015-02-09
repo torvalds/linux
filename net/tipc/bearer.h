@@ -173,9 +173,6 @@ struct tipc_bearer_names {
  */
 
 void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr);
-int tipc_enable_bearer(struct net *net, const char *bearer_name,
-		       u32 disc_domain, u32 priority);
-int tipc_disable_bearer(struct net *net, const char *name);
 
 /*
  * Routines made available to TIPC by supported media types
@@ -199,13 +196,11 @@ int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info);
 int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);
 void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a);
-struct sk_buff *tipc_media_get_names(void);
 int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b);
 void tipc_disable_l2_media(struct tipc_bearer *b);
 int tipc_l2_send_msg(struct net *net, struct sk_buff *buf,
 		     struct tipc_bearer *b, struct tipc_media_addr *dest);
 
-struct sk_buff *tipc_bearer_get_names(struct net *net);
 void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest);
 void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest);
 struct tipc_bearer *tipc_bearer_find(struct net *net, const char *name);

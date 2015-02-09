@@ -40,7 +40,6 @@
 #include "socket.h"
 #include "name_distr.h"
 #include "discover.h"
-#include "config.h"
 #include "netlink.h"
 
 #include <linux/pkt_sched.h>
@@ -1959,150 +1958,6 @@ static struct tipc_node *tipc_link_find_owner(struct net *net,
 }
 
 /**
- * link_value_is_valid -- validate proposed link tolerance/priority/window
- *
- * @cmd: value type (TIPC_CMD_SET_LINK_*)
- * @new_value: the new value
- *
- * Returns 1 if value is within range, 0 if not.
- */
-static int link_value_is_valid(u16 cmd, u32 new_value)
-{
-	switch (cmd) {
-	case TIPC_CMD_SET_LINK_TOL:
-		return (new_value >= TIPC_MIN_LINK_TOL) &&
-			(new_value <= TIPC_MAX_LINK_TOL);
-	case TIPC_CMD_SET_LINK_PRI:
-		return (new_value <= TIPC_MAX_LINK_PRI);
-	case TIPC_CMD_SET_LINK_WINDOW:
-		return (new_value >= TIPC_MIN_LINK_WIN) &&
-			(new_value <= TIPC_MAX_LINK_WIN);
-	}
-	return 0;
-}
-
-/**
- * link_cmd_set_value - change priority/tolerance/window for link/bearer/media
- * @net: the applicable net namespace
- * @name: ptr to link, bearer, or media name
- * @new_value: new value of link, bearer, or media setting
- * @cmd: which link, bearer, or media attribute to set (TIPC_CMD_SET_LINK_*)
- *
- * Caller must hold RTNL lock to ensure link/bearer/media is not deleted.
- *
- * Returns 0 if value updated and negative value on error.
- */
-static int link_cmd_set_value(struct net *net, const char *name, u32 new_value,
-			      u16 cmd)
-{
-	struct tipc_node *node;
-	struct tipc_link *l_ptr;
-	struct tipc_bearer *b_ptr;
-	struct tipc_media *m_ptr;
-	int bearer_id;
-	int res = 0;
-
-	node = tipc_link_find_owner(net, name, &bearer_id);
-	if (node) {
-		tipc_node_lock(node);
-		l_ptr = node->links[bearer_id];
-
-		if (l_ptr) {
-			switch (cmd) {
-			case TIPC_CMD_SET_LINK_TOL:
-				link_set_supervision_props(l_ptr, new_value);
-				tipc_link_proto_xmit(l_ptr, STATE_MSG, 0, 0,
-						     new_value, 0, 0);
-				break;
-			case TIPC_CMD_SET_LINK_PRI:
-				l_ptr->priority = new_value;
-				tipc_link_proto_xmit(l_ptr, STATE_MSG, 0, 0,
-						     0, new_value, 0);
-				break;
-			case TIPC_CMD_SET_LINK_WINDOW:
-				tipc_link_set_queue_limits(l_ptr, new_value);
-				break;
-			default:
-				res = -EINVAL;
-				break;
-			}
-		}
-		tipc_node_unlock(node);
-		return res;
-	}
-
-	b_ptr = tipc_bearer_find(net, name);
-	if (b_ptr) {
-		switch (cmd) {
-		case TIPC_CMD_SET_LINK_TOL:
-			b_ptr->tolerance = new_value;
-			break;
-		case TIPC_CMD_SET_LINK_PRI:
-			b_ptr->priority = new_value;
-			break;
-		case TIPC_CMD_SET_LINK_WINDOW:
-			b_ptr->window = new_value;
-			break;
-		default:
-			res = -EINVAL;
-			break;
-		}
-		return res;
-	}
-
-	m_ptr = tipc_media_find(name);
-	if (!m_ptr)
-		return -ENODEV;
-	switch (cmd) {
-	case TIPC_CMD_SET_LINK_TOL:
-		m_ptr->tolerance = new_value;
-		break;
-	case TIPC_CMD_SET_LINK_PRI:
-		m_ptr->priority = new_value;
-		break;
-	case TIPC_CMD_SET_LINK_WINDOW:
-		m_ptr->window = new_value;
-		break;
-	default:
-		res = -EINVAL;
-		break;
-	}
-	return res;
-}
-
-struct sk_buff *tipc_link_cmd_config(struct net *net, const void *req_tlv_area,
-				     int req_tlv_space, u16 cmd)
-{
-	struct tipc_link_config *args;
-	u32 new_value;
-	int res;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_LINK_CONFIG))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	args = (struct tipc_link_config *)TLV_DATA(req_tlv_area);
-	new_value = ntohl(args->value);
-
-	if (!link_value_is_valid(cmd, new_value))
-		return tipc_cfg_reply_error_string(
-			"cannot change, value invalid");
-
-	if (!strcmp(args->name, tipc_bclink_name)) {
-		if ((cmd == TIPC_CMD_SET_LINK_WINDOW) &&
-		    (tipc_bclink_set_queue_limits(net, new_value) == 0))
-			return tipc_cfg_reply_none();
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-						   " (cannot change setting on broadcast link)");
-	}
-
-	res = link_cmd_set_value(net, args->name, new_value, cmd);
-	if (res)
-		return tipc_cfg_reply_error_string("cannot change link setting");
-
-	return tipc_cfg_reply_none();
-}
-
-/**
  * link_reset_statistics - reset link statistics
  * @l_ptr: pointer to link
  */
@@ -2111,180 +1966,6 @@ static void link_reset_statistics(struct tipc_link *l_ptr)
 	memset(&l_ptr->stats, 0, sizeof(l_ptr->stats));
 	l_ptr->stats.sent_info = l_ptr->next_out_no;
 	l_ptr->stats.recv_info = l_ptr->next_in_no;
-}
-
-struct sk_buff *tipc_link_cmd_reset_stats(struct net *net,
-					  const void *req_tlv_area,
-					  int req_tlv_space)
-{
-	char *link_name;
-	struct tipc_link *l_ptr;
-	struct tipc_node *node;
-	unsigned int bearer_id;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_LINK_NAME))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	link_name = (char *)TLV_DATA(req_tlv_area);
-	if (!strcmp(link_name, tipc_bclink_name)) {
-		if (tipc_bclink_reset_stats(net))
-			return tipc_cfg_reply_error_string("link not found");
-		return tipc_cfg_reply_none();
-	}
-	node = tipc_link_find_owner(net, link_name, &bearer_id);
-	if (!node)
-		return tipc_cfg_reply_error_string("link not found");
-
-	tipc_node_lock(node);
-	l_ptr = node->links[bearer_id];
-	if (!l_ptr) {
-		tipc_node_unlock(node);
-		return tipc_cfg_reply_error_string("link not found");
-	}
-	link_reset_statistics(l_ptr);
-	tipc_node_unlock(node);
-	return tipc_cfg_reply_none();
-}
-
-/**
- * percent - convert count to a percentage of total (rounding up or down)
- */
-static u32 percent(u32 count, u32 total)
-{
-	return (count * 100 + (total / 2)) / total;
-}
-
-/**
- * tipc_link_stats - print link statistics
- * @net: the applicable net namespace
- * @name: link name
- * @buf: print buffer area
- * @buf_size: size of print buffer area
- *
- * Returns length of print buffer data string (or 0 if error)
- */
-static int tipc_link_stats(struct net *net, const char *name, char *buf,
-			   const u32 buf_size)
-{
-	struct tipc_link *l;
-	struct tipc_stats *s;
-	struct tipc_node *node;
-	char *status;
-	u32 profile_total = 0;
-	unsigned int bearer_id;
-	int ret;
-
-	if (!strcmp(name, tipc_bclink_name))
-		return tipc_bclink_stats(net, buf, buf_size);
-
-	node = tipc_link_find_owner(net, name, &bearer_id);
-	if (!node)
-		return 0;
-
-	tipc_node_lock(node);
-
-	l = node->links[bearer_id];
-	if (!l) {
-		tipc_node_unlock(node);
-		return 0;
-	}
-
-	s = &l->stats;
-
-	if (tipc_link_is_active(l))
-		status = "ACTIVE";
-	else if (tipc_link_is_up(l))
-		status = "STANDBY";
-	else
-		status = "DEFUNCT";
-
-	ret = tipc_snprintf(buf, buf_size, "Link <%s>\n"
-			    "  %s  MTU:%u  Priority:%u  Tolerance:%u ms"
-			    "  Window:%u packets\n",
-			    l->name, status, l->max_pkt, l->priority,
-			    l->tolerance, l->queue_limit[0]);
-
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  RX packets:%u fragments:%u/%u bundles:%u/%u\n",
-			     l->next_in_no - s->recv_info, s->recv_fragments,
-			     s->recv_fragmented, s->recv_bundles,
-			     s->recv_bundled);
-
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  TX packets:%u fragments:%u/%u bundles:%u/%u\n",
-			     l->next_out_no - s->sent_info, s->sent_fragments,
-			     s->sent_fragmented, s->sent_bundles,
-			     s->sent_bundled);
-
-	profile_total = s->msg_length_counts;
-	if (!profile_total)
-		profile_total = 1;
-
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  TX profile sample:%u packets  average:%u octets\n"
-			     "  0-64:%u%% -256:%u%% -1024:%u%% -4096:%u%% "
-			     "-16384:%u%% -32768:%u%% -66000:%u%%\n",
-			     s->msg_length_counts,
-			     s->msg_lengths_total / profile_total,
-			     percent(s->msg_length_profile[0], profile_total),
-			     percent(s->msg_length_profile[1], profile_total),
-			     percent(s->msg_length_profile[2], profile_total),
-			     percent(s->msg_length_profile[3], profile_total),
-			     percent(s->msg_length_profile[4], profile_total),
-			     percent(s->msg_length_profile[5], profile_total),
-			     percent(s->msg_length_profile[6], profile_total));
-
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  RX states:%u probes:%u naks:%u defs:%u"
-			     " dups:%u\n", s->recv_states, s->recv_probes,
-			     s->recv_nacks, s->deferred_recv, s->duplicates);
-
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  TX states:%u probes:%u naks:%u acks:%u"
-			     " dups:%u\n", s->sent_states, s->sent_probes,
-			     s->sent_nacks, s->sent_acks, s->retransmitted);
-
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  Congestion link:%u  Send queue"
-			     " max:%u avg:%u\n", s->link_congs,
-			     s->max_queue_sz, s->queue_sz_counts ?
-			     (s->accu_queue_sz / s->queue_sz_counts) : 0);
-
-	tipc_node_unlock(node);
-	return ret;
-}
-
-struct sk_buff *tipc_link_cmd_show_stats(struct net *net,
-					 const void *req_tlv_area,
-					 int req_tlv_space)
-{
-	struct sk_buff *buf;
-	struct tlv_desc *rep_tlv;
-	int str_len;
-	int pb_len;
-	char *pb;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_LINK_NAME))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(ULTRA_STRING_MAX_LEN));
-	if (!buf)
-		return NULL;
-
-	rep_tlv = (struct tlv_desc *)buf->data;
-	pb = TLV_DATA(rep_tlv);
-	pb_len = ULTRA_STRING_MAX_LEN;
-	str_len = tipc_link_stats(net, (char *)TLV_DATA(req_tlv_area),
-				  pb, pb_len);
-	if (!str_len) {
-		kfree_skb(buf);
-		return tipc_cfg_reply_error_string("link not found");
-	}
-	str_len += 1;	/* for "\0" */
-	skb_put(buf, TLV_SPACE(str_len));
-	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
-
-	return buf;
 }
 
 static void link_print(struct tipc_link *l_ptr, const char *str)
@@ -2357,7 +2038,7 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info)
 	struct tipc_link *link;
 	struct tipc_node *node;
 	struct nlattr *attrs[TIPC_NLA_LINK_MAX + 1];
-	struct net *net = genl_info_net(info);
+	struct net *net = sock_net(skb->sk);
 
 	if (!info->attrs[TIPC_NLA_LINK])
 		return -EINVAL;
@@ -2498,7 +2179,7 @@ static int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
 	struct nlattr *prop;
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
-	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  NLM_F_MULTI, TIPC_NL_LINK_GET);
 	if (!hdr)
 		return -EMSGSIZE;
@@ -2709,7 +2390,7 @@ int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info)
 	struct tipc_link *link;
 	struct tipc_node *node;
 	struct nlattr *attrs[TIPC_NLA_LINK_MAX + 1];
-	struct net *net = genl_info_net(info);
+	struct net *net = sock_net(skb->sk);
 
 	if (!info->attrs[TIPC_NLA_LINK])
 		return -EINVAL;
