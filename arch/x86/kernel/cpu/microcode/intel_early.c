@@ -262,17 +262,18 @@ err:
  * - or if it is a newly discovered microcode patch.
  *
  * The microcode patch should have matching model with CPU.
+ *
+ * Returns: The updated number @num_saved of saved microcode patches.
  */
-static void _save_mc(struct microcode_intel **mc_saved, u8 *ucode_ptr,
-		     unsigned int *mc_saved_count_p)
+static unsigned int _save_mc(struct microcode_intel **mc_saved,
+			     u8 *ucode_ptr, unsigned int num_saved)
 {
-	int i;
-	int found = 0;
-	unsigned int mc_saved_count = *mc_saved_count_p;
 	struct microcode_header_intel *mc_header;
+	int found = 0, i;
 
 	mc_header = (struct microcode_header_intel *)ucode_ptr;
-	for (i = 0; i < mc_saved_count; i++) {
+
+	for (i = 0; i < num_saved; i++) {
 		unsigned int sig, pf;
 		unsigned int new_rev;
 		struct microcode_header_intel *mc_saved_header =
@@ -289,21 +290,20 @@ static void _save_mc(struct microcode_intel **mc_saved, u8 *ucode_ptr,
 				 * Replace the older one with this newer
 				 * one.
 				 */
-				mc_saved[i] =
-					(struct microcode_intel *)ucode_ptr;
+				mc_saved[i] = (struct microcode_intel *)ucode_ptr;
 				break;
 			}
 		}
 	}
-	if (i >= mc_saved_count && !found)
+
+	if (i >= num_saved && !found)
 		/*
 		 * This ucode is first time discovered in ucode file.
 		 * Save it to memory.
 		 */
-		mc_saved[mc_saved_count++] =
-				 (struct microcode_intel *)ucode_ptr;
+		mc_saved[num_saved++] = (struct microcode_intel *)ucode_ptr;
 
-	*mc_saved_count_p = mc_saved_count;
+	return num_saved;
 }
 
 /*
@@ -351,7 +351,7 @@ get_matching_model_microcode(int cpu, unsigned long start,
 			continue;
 		}
 
-		_save_mc(mc_saved_tmp, ucode_ptr, &mc_saved_count);
+		mc_saved_count = _save_mc(mc_saved_tmp, ucode_ptr, mc_saved_count);
 
 		ucode_ptr += mc_size;
 	}
@@ -519,8 +519,7 @@ int save_mc_for_early(u8 *mc)
 	 * Save the microcode patch mc in mc_save_tmp structure if it's a newer
 	 * version.
 	 */
-
-	_save_mc(mc_saved_tmp, mc, &mc_saved_count);
+	mc_saved_count = _save_mc(mc_saved_tmp, mc, mc_saved_count);
 
 	/*
 	 * Save the mc_save_tmp in global mc_saved_data.
