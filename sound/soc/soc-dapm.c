@@ -517,8 +517,8 @@ static int soc_dapm_update_bits(struct snd_soc_dapm_context *dapm,
 {
 	if (!dapm->component)
 		return -EIO;
-	return snd_soc_component_update_bits_async(dapm->component, reg,
-		mask, value);
+	return snd_soc_component_update_bits(dapm->component, reg,
+					     mask, value);
 }
 
 static int soc_dapm_test_bits(struct snd_soc_dapm_context *dapm,
