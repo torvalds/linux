@@ -104,7 +104,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 	{
 		.flags = CE_ATTR_FLAGS,
 		.src_nentries = 0,
-		.src_sz_max = 512,
+		.src_sz_max = 2048,
 		.dest_nentries = 512,
 	},
 
@@ -174,7 +174,7 @@ static const struct ce_pipe_config target_ce_config_wlan[] = {
 		.pipenum = __cpu_to_le32(1),
 		.pipedir = __cpu_to_le32(PIPEDIR_IN),
 		.nentries = __cpu_to_le32(32),
-		.nbytes_max = __cpu_to_le32(512),
+		.nbytes_max = __cpu_to_le32(2048),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
 		.reserved = __cpu_to_le32(0),
 	},
