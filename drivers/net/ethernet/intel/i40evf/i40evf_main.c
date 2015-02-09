@@ -1631,7 +1631,7 @@ static void i40evf_adminq_task(struct work_struct *work)
 	v_msg = (struct i40e_virtchnl_msg *)&event.desc;
 	do {
 		ret = i40evf_clean_arq_element(hw, &event, &pending);
-		if (ret)
+		if (ret || !v_msg->v_opcode)
 			break; /* No event to process or error cleaning ARQ */
 
 		i40evf_virtchnl_completion(adapter, v_msg->v_opcode,
@@ -2213,11 +2213,17 @@ err:
 static void i40evf_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
 
 	if (netif_running(netdev))
 		i40evf_close(netdev);
+
+	/* Prevent the watchdog from running. */
+	adapter->state = __I40EVF_REMOVE;
+	adapter->aq_required = 0;
+	adapter->aq_pending = 0;
 
 #ifdef CONFIG_PM
 	pci_save_state(pdev);
@@ -2423,7 +2429,6 @@ static void i40evf_remove(struct pci_dev *pdev)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40evf_mac_filter *f, *ftmp;
 	struct i40e_hw *hw = &adapter->hw;
-	int count = 50;
 
 	cancel_delayed_work_sync(&adapter->init_task);
 	cancel_work_sync(&adapter->reset_task);
@@ -2432,12 +2437,18 @@ static void i40evf_remove(struct pci_dev *pdev)
 		unregister_netdev(netdev);
 		adapter->netdev_registered = false;
 	}
-	while (count-- && adapter->aq_required)
-		msleep(50);
 
-	if (count < 0)
-		dev_err(&pdev->dev, "Timed out waiting for PF driver.\n");
+	/* Shut down all the garbage mashers on the detention level */
 	adapter->state = __I40EVF_REMOVE;
+	adapter->aq_required = 0;
+	adapter->aq_pending = 0;
+	i40evf_request_reset(adapter);
+	msleep(20);
+	/* If the FW isn't responding, kick it once, but only once. */
+	if (!i40evf_asq_done(hw)) {
+		i40evf_request_reset(adapter);
+		msleep(20);
+	}
 
 	if (adapter->msix_entries) {
 		i40evf_misc_irq_disable(adapter);
