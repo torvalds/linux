@@ -327,9 +327,10 @@ xfs_trans_read_buf_map(
 		return -EIO;
 	}
 
-	if (tp)
+	if (tp) {
 		_xfs_trans_bjoin(tp, bp, 1);
-	trace_xfs_trans_read_buf(bp->b_fspriv);
+		trace_xfs_trans_read_buf(bp->b_fspriv);
+	}
 	*bpp = bp;
 	return 0;
 
