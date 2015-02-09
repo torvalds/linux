@@ -183,9 +183,13 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	}
 	switch (ret) {
 	case -EBUSY:
-		adapter->data_sent = true;
-		/* Fall through FAILURE handling */
+		dev_kfree_skb_any(skb);
+		dev_err(adapter->dev, "%s: host_to_card failed: ret=%d\n",
+			__func__, ret);
+		adapter->dbg.num_tx_host_to_card_failure++;
+		break;
 	case -1:
+		adapter->data_sent = false;
 		dev_kfree_skb_any(skb);
 		dev_err(adapter->dev, "%s: host_to_card failed: ret=%d\n",
 			__func__, ret);
@@ -198,6 +202,7 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 		adapter->tx_lock_flag = true;
 		break;
 	case -EINPROGRESS:
+		adapter->tx_lock_flag = true;
 		break;
 	default:
 		break;

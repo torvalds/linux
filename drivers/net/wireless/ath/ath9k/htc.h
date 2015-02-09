@@ -45,7 +45,7 @@
 extern struct ieee80211_ops ath9k_htc_ops;
 extern int htc_modparam_nohwcrypt;
 #ifdef CONFIG_MAC80211_LEDS
-extern int led_blink;
+extern int ath9k_htc_led_blink;
 #endif
 
 enum htc_phymode {

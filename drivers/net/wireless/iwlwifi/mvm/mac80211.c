@@ -401,9 +401,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_2GHZ];
-	if (mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels)
+	if (mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels) {
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
+
+		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BEAMFORMER)
+			hw->wiphy->bands[IEEE80211_BAND_5GHZ]->vht_cap.cap |=
+				IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
+	}
 
 	hw->wiphy->hw_version = mvm->trans->hw_id;
 
@@ -706,9 +711,6 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 
 	mvmvif->uploaded = false;
 	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
-
-	/* does this make sense at all? */
-	mvmvif->color++;
 
 	spin_lock_bh(&mvm->time_event_lock);
 	iwl_mvm_te_clear_data(mvm, &mvmvif->time_event_data);
@@ -1353,7 +1355,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	ret = iwl_mvm_power_update_mac(mvm);
 	if (ret)
-		goto out_release;
+		goto out_remove_mac;
 
 	/* beacon filtering */
 	ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);

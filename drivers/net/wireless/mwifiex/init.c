@@ -152,6 +152,8 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->check_tdls_tx = false;
 	memcpy(priv->tos_to_tid_inv, tos_to_tid_inv, MAX_NUM_TID);
 
+	mwifiex_init_11h_params(priv);
+
 	return mwifiex_add_bss_prio_tbl(priv);
 }
 
@@ -294,9 +296,13 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	memset(&adapter->arp_filter, 0, sizeof(adapter->arp_filter));
 	adapter->arp_filter_size = 0;
 	adapter->max_mgmt_ie_index = MAX_MGMT_IE_INDEX;
-	adapter->ext_scan = true;
+	adapter->ext_scan = false;
 	adapter->key_api_major_ver = 0;
 	adapter->key_api_minor_ver = 0;
+	memset(adapter->perm_addr, 0xff, ETH_ALEN);
+	adapter->iface_limit.sta_intf = MWIFIEX_MAX_STA_NUM;
+	adapter->iface_limit.uap_intf = MWIFIEX_MAX_UAP_NUM;
+	adapter->iface_limit.p2p_intf = MWIFIEX_MAX_P2P_NUM;
 
 	setup_timer(&adapter->wakeup_timer, wakeup_timer_fn,
 		    (unsigned long)adapter);
@@ -551,7 +557,8 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
-			ret = mwifiex_sta_init_cmd(adapter->priv[i], first_sta);
+			ret = mwifiex_sta_init_cmd(adapter->priv[i], first_sta,
+						   true);
 			if (ret == -1)
 				return -1;
 
@@ -676,6 +683,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 			priv = adapter->priv[i];
 
 			mwifiex_clean_auto_tdls(priv);
+			mwifiex_abort_cac(priv);
 			mwifiex_clean_txrx(priv);
 			mwifiex_delete_bss_prio_tbl(priv);
 		}

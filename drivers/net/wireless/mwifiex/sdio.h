@@ -34,6 +34,7 @@
 #define SD8797_DEFAULT_FW_NAME "mrvl/sd8797_uapsta.bin"
 #define SD8897_DEFAULT_FW_NAME "mrvl/sd8897_uapsta.bin"
 #define SD8887_DEFAULT_FW_NAME "mrvl/sd8887_uapsta.bin"
+#define SD8801_DEFAULT_FW_NAME "mrvl/sd8801_uapsta.bin"
 
 #define BLOCK_MODE	1
 #define BYTE_MODE	0
@@ -255,6 +256,7 @@ struct sdio_mmc_card {
 
 	u8 *mp_regs;
 	u8 auto_tdls;
+	bool can_ext_scan;
 
 	struct mwifiex_sdio_mpa_tx mpa_tx;
 	struct mwifiex_sdio_mpa_rx mpa_rx;
@@ -272,6 +274,7 @@ struct mwifiex_sdio_device {
 	u32 mp_tx_agg_buf_size;
 	u32 mp_rx_agg_buf_size;
 	u8 auto_tdls;
+	bool can_ext_scan;
 };
 
 static const struct mwifiex_sdio_card_reg mwifiex_reg_sd87xx = {
@@ -416,6 +419,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8786 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.supports_fw_dump = false,
 	.auto_tdls = false,
+	.can_ext_scan = false,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
@@ -430,6 +434,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.supports_fw_dump = false,
 	.auto_tdls = false,
+	.can_ext_scan = true,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
@@ -444,6 +449,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.supports_fw_dump = false,
 	.auto_tdls = false,
+	.can_ext_scan = true,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
@@ -458,6 +464,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
 	.supports_fw_dump = true,
 	.auto_tdls = false,
+	.can_ext_scan = true,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8887 = {
@@ -472,6 +479,22 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8887 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
 	.supports_fw_dump = false,
 	.auto_tdls = true,
+	.can_ext_scan = true,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8801 = {
+	.firmware = SD8801_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd87xx,
+	.max_ports = 16,
+	.mp_agg_pkt_limit = 8,
+	.supports_sdio_new_mode = false,
+	.has_control_mask = true,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.supports_fw_dump = false,
+	.auto_tdls = false,
+	.can_ext_scan = true,
 };
 
 /*

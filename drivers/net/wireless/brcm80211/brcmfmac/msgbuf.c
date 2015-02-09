@@ -73,6 +73,8 @@
 #define BRCMF_MSGBUF_TX_FLUSH_CNT1		32
 #define BRCMF_MSGBUF_TX_FLUSH_CNT2		96
 
+#define BRCMF_MSGBUF_DELAY_TXWORKER_THRS	64
+#define BRCMF_MSGBUF_TRICKLE_TXWORKER_THRS	32
 
 struct msgbuf_common_hdr {
 	u8				msgtype;
@@ -749,6 +751,7 @@ static void brcmf_msgbuf_txflow(struct brcmf_msgbuf *msgbuf, u8 flowid)
 		tx_msghdr->metadata_buf_len = 0;
 		tx_msghdr->metadata_buf_addr.high_addr = 0;
 		tx_msghdr->metadata_buf_addr.low_addr = 0;
+		atomic_inc(&commonring->outstanding_tx);
 		if (count >= BRCMF_MSGBUF_TX_FLUSH_CNT2) {
 			brcmf_commonring_write_complete(commonring);
 			count = 0;
@@ -773,10 +776,16 @@ static void brcmf_msgbuf_txflow_worker(struct work_struct *worker)
 }
 
 
-static int brcmf_msgbuf_schedule_txdata(struct brcmf_msgbuf *msgbuf, u32 flowid)
+static int brcmf_msgbuf_schedule_txdata(struct brcmf_msgbuf *msgbuf, u32 flowid,
+					bool force)
 {
+	struct brcmf_commonring *commonring;
+
 	set_bit(flowid, msgbuf->flow_map);
-	queue_work(msgbuf->txflow_wq, &msgbuf->txflow_work);
+	commonring = msgbuf->flowrings[flowid];
+	if ((force) || (atomic_read(&commonring->outstanding_tx) <
+			BRCMF_MSGBUF_DELAY_TXWORKER_THRS))
+		queue_work(msgbuf->txflow_wq, &msgbuf->txflow_work);
 
 	return 0;
 }
@@ -797,7 +806,7 @@ static int brcmf_msgbuf_txdata(struct brcmf_pub *drvr, int ifidx,
 			return -ENOMEM;
 	}
 	brcmf_flowring_enqueue(flow, flowid, skb);
-	brcmf_msgbuf_schedule_txdata(msgbuf, flowid);
+	brcmf_msgbuf_schedule_txdata(msgbuf, flowid, false);
 
 	return 0;
 }
@@ -854,6 +863,7 @@ brcmf_msgbuf_process_ioctl_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 static void
 brcmf_msgbuf_process_txstatus(struct brcmf_msgbuf *msgbuf, void *buf)
 {
+	struct brcmf_commonring *commonring;
 	struct msgbuf_tx_status *tx_status;
 	u32 idx;
 	struct sk_buff *skb;
@@ -871,6 +881,8 @@ brcmf_msgbuf_process_txstatus(struct brcmf_msgbuf *msgbuf, void *buf)
 	}
 
 	set_bit(flowid, msgbuf->txstatus_done_map);
+	commonring = msgbuf->flowrings[flowid];
+	atomic_dec(&commonring->outstanding_tx);
 
 	brcmf_txfinalize(msgbuf->drvr, skb, tx_status->msg.ifidx, true);
 }
@@ -1181,7 +1193,7 @@ brcmf_msgbuf_process_flow_ring_create_response(struct brcmf_msgbuf *msgbuf,
 
 	brcmf_flowring_open(msgbuf->flow, flowid);
 
-	brcmf_msgbuf_schedule_txdata(msgbuf, flowid);
+	brcmf_msgbuf_schedule_txdata(msgbuf, flowid, true);
 }
 
 
@@ -1280,8 +1292,10 @@ int brcmf_proto_msgbuf_rx_trigger(struct device *dev)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 	struct brcmf_msgbuf *msgbuf = (struct brcmf_msgbuf *)drvr->proto->pd;
+	struct brcmf_commonring *commonring;
 	void *buf;
 	u32 flowid;
+	int qlen;
 
 	buf = msgbuf->commonrings[BRCMF_D2H_MSGRING_RX_COMPLETE];
 	brcmf_msgbuf_process_rx(msgbuf, buf);
@@ -1293,8 +1307,12 @@ int brcmf_proto_msgbuf_rx_trigger(struct device *dev)
 	for_each_set_bit(flowid, msgbuf->txstatus_done_map,
 			 msgbuf->nrof_flowrings) {
 		clear_bit(flowid, msgbuf->txstatus_done_map);
-		if (brcmf_flowring_qlen(msgbuf->flow, flowid))
-			brcmf_msgbuf_schedule_txdata(msgbuf, flowid);
+		commonring = msgbuf->flowrings[flowid];
+		qlen = brcmf_flowring_qlen(msgbuf->flow, flowid);
+		if ((qlen > BRCMF_MSGBUF_TRICKLE_TXWORKER_THRS) ||
+		    ((qlen) && (atomic_read(&commonring->outstanding_tx) <
+				BRCMF_MSGBUF_TRICKLE_TXWORKER_THRS)))
+			brcmf_msgbuf_schedule_txdata(msgbuf, flowid, true);
 	}
 
 	return 0;

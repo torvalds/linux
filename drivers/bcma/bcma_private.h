@@ -107,6 +107,14 @@ extern int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc);
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc);
 void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
+#else
+static inline bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
+{
+	return false;
+}
+static inline void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
+{
+}
 #endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
 
 #ifdef CONFIG_BCMA_DRIVER_GPIO

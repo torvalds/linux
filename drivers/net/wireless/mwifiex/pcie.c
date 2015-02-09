@@ -204,6 +204,7 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		card->pcie.blksz_fw_dl = data->blksz_fw_dl;
 		card->pcie.tx_buf_size = data->tx_buf_size;
 		card->pcie.supports_fw_dump = data->supports_fw_dump;
+		card->pcie.can_ext_scan = data->can_ext_scan;
 	}
 
 	if (mwifiex_add_card(card, &add_remove_card_sem, &pcie_ops,
@@ -2563,6 +2564,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	adapter->mem_type_mapping_tbl = mem_type_mapping_tbl;
 	adapter->num_mem_types = ARRAY_SIZE(mem_type_mapping_tbl);
 	strcpy(adapter->fw_name, card->pcie.firmware);
+	adapter->ext_scan = card->pcie.can_ext_scan;
 
 	return 0;
 }

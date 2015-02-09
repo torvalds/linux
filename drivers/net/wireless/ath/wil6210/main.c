@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -32,34 +32,6 @@ MODULE_PARM_DESC(no_fw_recovery, " disable automatic FW error recovery");
 static bool no_fw_load = true;
 module_param(no_fw_load, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_load, " do not download FW, use one in on-card flash.");
-
-static unsigned int tx_interframe_timeout =
-		WIL6210_ITR_TX_INTERFRAME_TIMEOUT_DEFAULT;
-
-module_param(tx_interframe_timeout, uint, S_IRUGO);
-MODULE_PARM_DESC(tx_interframe_timeout,
-		 " Interrupt moderation TX interframe timeout, usecs.");
-
-static unsigned int rx_interframe_timeout =
-		WIL6210_ITR_RX_INTERFRAME_TIMEOUT_DEFAULT;
-
-module_param(rx_interframe_timeout, uint, S_IRUGO);
-MODULE_PARM_DESC(rx_interframe_timeout,
-		 " Interrupt moderation RX interframe timeout, usecs.");
-
-static unsigned int tx_max_burst_duration =
-		WIL6210_ITR_TX_MAX_BURST_DURATION_DEFAULT;
-
-module_param(tx_max_burst_duration, uint, S_IRUGO);
-MODULE_PARM_DESC(tx_max_burst_duration,
-		 " Interrupt moderation TX max burst duration, usecs.");
-
-static unsigned int rx_max_burst_duration =
-		WIL6210_ITR_RX_MAX_BURST_DURATION_DEFAULT;
-
-module_param(rx_max_burst_duration, uint, S_IRUGO);
-MODULE_PARM_DESC(rx_max_burst_duration,
-		 " Interrupt moderation RX max burst duration, usecs.");
 
 /* if not set via modparam, will be set to default value of 1/8 of
  * rx ring size during init flow
@@ -248,7 +220,9 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
-		wil_link_off(wil);
+		netif_tx_stop_all_queues(ndev);
+		netif_carrier_off(ndev);
+
 		if (test_bit(wil_status_fwconnected, wil->status)) {
 			clear_bit(wil_status_fwconnected, wil->status);
 			cfg80211_disconnected(ndev, reason_code,
@@ -395,6 +369,8 @@ static void wil_connect_worker(struct work_struct *work)
 	int rc;
 	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
 						connect_worker);
+	struct net_device *ndev = wil_to_ndev(wil);
+
 	int cid = wil->pending_connect_cid;
 	int ringid = wil_find_free_vring(wil);
 
@@ -409,7 +385,7 @@ static void wil_connect_worker(struct work_struct *work)
 	wil->pending_connect_cid = -1;
 	if (rc == 0) {
 		wil->sta[cid].status = wil_sta_connected;
-		wil_link_on(wil);
+		netif_tx_wake_all_queues(ndev);
 	} else {
 		wil->sta[cid].status = wil_sta_unused;
 	}
@@ -429,6 +405,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	mutex_init(&wil->wmi_mutex);
 	mutex_init(&wil->back_rx_mutex);
 	mutex_init(&wil->back_tx_mutex);
+	mutex_init(&wil->probe_client_mutex);
 
 	init_completion(&wil->wmi_ready);
 	init_completion(&wil->wmi_call);
@@ -443,10 +420,12 @@ int wil_priv_init(struct wil6210_priv *wil)
 	INIT_WORK(&wil->fw_error_worker, wil_fw_error_worker);
 	INIT_WORK(&wil->back_rx_worker, wil_back_rx_worker);
 	INIT_WORK(&wil->back_tx_worker, wil_back_tx_worker);
+	INIT_WORK(&wil->probe_client_worker, wil_probe_client_worker);
 
 	INIT_LIST_HEAD(&wil->pending_wmi_ev);
 	INIT_LIST_HEAD(&wil->back_rx_pending);
 	INIT_LIST_HEAD(&wil->back_tx_pending);
+	INIT_LIST_HEAD(&wil->probe_client_pending);
 	spin_lock_init(&wil->wmi_ev_lock);
 	init_waitqueue_head(&wil->wq);
 
@@ -459,10 +438,10 @@ int wil_priv_init(struct wil6210_priv *wil)
 		goto out_wmi_wq;
 
 	wil->last_fw_recovery = jiffies;
-	wil->tx_interframe_timeout = tx_interframe_timeout;
-	wil->rx_interframe_timeout = rx_interframe_timeout;
-	wil->tx_max_burst_duration = tx_max_burst_duration;
-	wil->rx_max_burst_duration = rx_max_burst_duration;
+	wil->tx_interframe_timeout = WIL6210_ITR_TX_INTERFRAME_TIMEOUT_DEFAULT;
+	wil->rx_interframe_timeout = WIL6210_ITR_RX_INTERFRAME_TIMEOUT_DEFAULT;
+	wil->tx_max_burst_duration = WIL6210_ITR_TX_MAX_BURST_DURATION_DEFAULT;
+	wil->rx_max_burst_duration = WIL6210_ITR_RX_MAX_BURST_DURATION_DEFAULT;
 
 	if (rx_ring_overflow_thrsh == WIL6210_RX_HIGH_TRSH_INIT)
 		rx_ring_overflow_thrsh = WIL6210_RX_HIGH_TRSH_DEFAULT;
@@ -509,6 +488,8 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->back_rx_worker);
 	wil_back_tx_flush(wil);
 	cancel_work_sync(&wil->back_tx_worker);
+	wil_probe_client_flush(wil);
+	cancel_work_sync(&wil->probe_client_worker);
 	destroy_workqueue(wil->wq_service);
 	destroy_workqueue(wil->wmi_wq);
 }
@@ -739,28 +720,6 @@ void wil_fw_error_recovery(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "starting fw error recovery\n");
 	wil->recovery_state = fw_recovery_pending;
 	schedule_work(&wil->fw_error_worker);
-}
-
-void wil_link_on(struct wil6210_priv *wil)
-{
-	struct net_device *ndev = wil_to_ndev(wil);
-
-	wil_dbg_misc(wil, "%s()\n", __func__);
-
-	netif_carrier_on(ndev);
-	wil_dbg_misc(wil, "netif_tx_wake : link on\n");
-	netif_tx_wake_all_queues(ndev);
-}
-
-void wil_link_off(struct wil6210_priv *wil)
-{
-	struct net_device *ndev = wil_to_ndev(wil);
-
-	wil_dbg_misc(wil, "%s()\n", __func__);
-
-	netif_tx_stop_all_queues(ndev);
-	wil_dbg_misc(wil, "netif_tx_stop : link off\n");
-	netif_carrier_off(ndev);
 }
 
 int __wil_up(struct wil6210_priv *wil)

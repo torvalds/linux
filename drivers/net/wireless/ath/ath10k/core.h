@@ -97,12 +97,26 @@ struct ath10k_skb_cb {
 	} bcn;
 } __packed;
 
+struct ath10k_skb_rxcb {
+	dma_addr_t paddr;
+	struct hlist_node hlist;
+};
+
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
 {
 	BUILD_BUG_ON(sizeof(struct ath10k_skb_cb) >
 		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
 	return (struct ath10k_skb_cb *)&IEEE80211_SKB_CB(skb)->driver_data;
 }
+
+static inline struct ath10k_skb_rxcb *ATH10K_SKB_RXCB(struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(struct ath10k_skb_rxcb) > sizeof(skb->cb));
+	return (struct ath10k_skb_rxcb *)skb->cb;
+}
+
+#define ATH10K_RXCB_SKB(rxcb) \
+		container_of((void *)rxcb, struct sk_buff, cb)
 
 static inline u32 host_interest_item_address(u32 item_offset)
 {
@@ -239,9 +253,20 @@ struct ath10k_sta {
 	u32 smps;
 
 	struct work_struct update_wk;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* protected by conf_mutex */
+	bool aggr_mode;
+#endif
 };
 
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5*HZ)
+
+enum ath10k_beacon_state {
+	ATH10K_BEACON_SCHEDULED = 0,
+	ATH10K_BEACON_SENDING,
+	ATH10K_BEACON_SENT,
+};
 
 struct ath10k_vif {
 	struct list_head list;
@@ -253,7 +278,7 @@ struct ath10k_vif {
 	u32 dtim_period;
 	struct sk_buff *beacon;
 	/* protected by data_lock */
-	bool beacon_sent;
+	enum ath10k_beacon_state beacon_state;
 	void *beacon_buf;
 	dma_addr_t beacon_paddr;
 
@@ -266,10 +291,8 @@ struct ath10k_vif {
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 
-	struct work_struct wep_key_work;
 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
-	u8 def_wep_key_idx;
-	u8 def_wep_key_newidx;
+	s8 def_wep_key_idx;
 
 	u16 tx_seq_no;
 
@@ -296,6 +319,7 @@ struct ath10k_vif {
 	bool use_cts_prot;
 	int num_legacy_stations;
 	int txpower;
+	struct wmi_wmm_params_all_arg wmm_params;
 };
 
 struct ath10k_vif_iter {
@@ -326,6 +350,7 @@ struct ath10k_debug {
 
 	/* protected by conf_mutex */
 	u32 fw_dbglog_mask;
+	u32 fw_dbglog_level;
 	u32 pktlog_filter;
 	u32 reg_addr;
 	u32 nf_cal_period;
@@ -452,6 +477,7 @@ struct ath10k {
 	struct device *dev;
 	u8 mac_addr[ETH_ALEN];
 
+	enum ath10k_hw_rev hw_rev;
 	u32 chip_id;
 	u32 target_version;
 	u8 fw_version_major;
@@ -467,9 +493,6 @@ struct ath10k {
 
 	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
 
-	struct targetdef *targetdef;
-	struct hostdef *hostdef;
-
 	bool p2p;
 
 	struct {
@@ -479,6 +502,7 @@ struct ath10k {
 
 	struct completion target_suspend;
 
+	const struct ath10k_hw_regs *regs;
 	struct ath10k_bmi bmi;
 	struct ath10k_wmi wmi;
 	struct ath10k_htc htc;
@@ -559,7 +583,6 @@ struct ath10k {
 	u8 cfg_tx_chainmask;
 	u8 cfg_rx_chainmask;
 
-	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
 
 	struct completion vdev_setup_done;
@@ -643,6 +666,7 @@ struct ath10k {
 
 struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  enum ath10k_bus bus,
+				  enum ath10k_hw_rev hw_rev,
 				  const struct ath10k_hif_ops *hif_ops);
 void ath10k_core_destroy(struct ath10k *ar);
 

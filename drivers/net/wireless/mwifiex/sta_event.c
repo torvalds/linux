@@ -312,8 +312,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 					adapter->ps_state = PS_STATE_AWAKE;
 					adapter->pm_wakeup_card_req = false;
 					adapter->pm_wakeup_fw_try = false;
-					mod_timer(&adapter->wakeup_timer,
-						  jiffies + (HZ*3));
+					del_timer_sync(&adapter->wakeup_timer);
 					break;
 				}
 				if (!mwifiex_send_null_packet
@@ -487,7 +486,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_REMAIN_ON_CHAN_EXPIRED:
 		dev_dbg(adapter->dev, "event: Remain on channel expired\n");
-		cfg80211_remain_on_channel_expired(priv->wdev,
+		cfg80211_remain_on_channel_expired(&priv->wdev,
 						   priv->roc_cfg.cookie,
 						   &priv->roc_cfg.chan,
 						   GFP_ATOMIC);
@@ -516,6 +515,16 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		mwifiex_parse_tx_status_event(priv, adapter->event_body);
 		break;
 
+	case EVENT_CHANNEL_REPORT_RDY:
+		dev_dbg(adapter->dev, "event: Channel Report\n");
+		ret = mwifiex_11h_handle_chanrpt_ready(priv,
+						       adapter->event_skb);
+		break;
+	case EVENT_RADAR_DETECTED:
+		dev_dbg(adapter->dev, "event: Radar detected\n");
+		ret = mwifiex_11h_handle_radar_detected(priv,
+							adapter->event_skb);
+		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);

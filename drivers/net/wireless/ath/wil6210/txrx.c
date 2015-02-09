@@ -671,6 +671,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	}
 
 	memset(txdata, 0, sizeof(*txdata));
+	spin_lock_init(&txdata->lock);
 	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
@@ -718,8 +719,10 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 
 	wil_dbg_misc(wil, "%s() id=%d\n", __func__, id);
 
+	spin_lock_bh(&txdata->lock);
+	txdata->enabled = 0; /* no Tx can be in progress or start anew */
+	spin_unlock_bh(&txdata->lock);
 	/* make sure NAPI won't touch this vring */
-	wil->vring_tx_data[id].enabled = 0;
 	if (test_bit(wil_status_napi_en, wil->status))
 		napi_synchronize(&wil->napi_tx);
 
@@ -873,9 +876,6 @@ static int wil_tx_desc_map(struct vring_tx_desc *d, dma_addr_t pa, u32 len,
 	d->mac.d[1] = 0;
 	d->mac.d[2] = 0;
 	d->mac.ucode_cmd = 0;
-	/* use dst index 0 */
-	d->mac.d[1] |= BIT(MAC_CFG_DESC_TX_1_DST_INDEX_EN_POS) |
-		       (0 << MAC_CFG_DESC_TX_1_DST_INDEX_POS);
 	/* translation type:  0 - bypass; 1 - 802.3; 2 - native wifi */
 	d->mac.d[2] = BIT(MAC_CFG_DESC_TX_2_SNAP_HDR_INSERTION_EN_POS) |
 		      (1 << MAC_CFG_DESC_TX_2_L2_TRANSLATION_TYPE_POS);
@@ -938,8 +938,8 @@ static int wil_tx_desc_offload_cksum_set(struct wil6210_priv *wil,
 	return 0;
 }
 
-static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
-			struct sk_buff *skb)
+static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
+			  struct sk_buff *skb)
 {
 	struct device *dev = wil_to_dev(wil);
 	struct vring_tx_desc dd, *d = &dd;
@@ -955,18 +955,21 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 	wil_dbg_txrx(wil, "%s()\n", __func__);
 
+	if (unlikely(!txdata->enabled))
+		return -EINVAL;
+
 	if (avail < 1 + nr_frags) {
 		wil_err_ratelimited(wil,
-				    "Tx ring full. No space for %d fragments\n",
-				    1 + nr_frags);
+				    "Tx ring[%2d] full. No space for %d fragments\n",
+				    vring_index, 1 + nr_frags);
 		return -ENOMEM;
 	}
 	_d = &vring->va[i].tx;
 
 	pa = dma_map_single(dev, skb->data, skb_headlen(skb), DMA_TO_DEVICE);
 
-	wil_dbg_txrx(wil, "Tx skb %d bytes 0x%p -> %pad\n", skb_headlen(skb),
-		     skb->data, &pa);
+	wil_dbg_txrx(wil, "Tx[%2d] skb %d bytes 0x%p -> %pad\n", vring_index,
+		     skb_headlen(skb), skb->data, &pa);
 	wil_hex_dump_txrx("Tx ", DUMP_PREFIX_OFFSET, 16, 1,
 			  skb->data, skb_headlen(skb), false);
 
@@ -977,15 +980,13 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	wil_tx_desc_map(d, pa, skb_headlen(skb), vring_index);
 	/* Process TCP/UDP checksum offloading */
 	if (wil_tx_desc_offload_cksum_set(wil, d, skb)) {
-		wil_err(wil, "VRING #%d Failed to set cksum, drop packet\n",
+		wil_err(wil, "Tx[%2d] Failed to set cksum, drop packet\n",
 			vring_index);
 		goto dma_error;
 	}
 
 	vring->ctx[i].nr_frags = nr_frags;
 	wil_tx_desc_set_nr_frags(d, nr_frags);
-	if (nr_frags)
-		*_d = *d;
 
 	/* middle segments */
 	for (; f < nr_frags; f++) {
@@ -993,6 +994,10 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 				&skb_shinfo(skb)->frags[f];
 		int len = skb_frag_size(frag);
 
+		*_d = *d;
+		wil_dbg_txrx(wil, "Tx[%2d] desc[%4d]\n", vring_index, i);
+		wil_hex_dump_txrx("TxD ", DUMP_PREFIX_NONE, 32, 4,
+				  (const void *)d, sizeof(*d), false);
 		i = (swhead + f + 1) % vring->size;
 		_d = &vring->va[i].tx;
 		pa = skb_frag_dma_map(dev, frag, 0, skb_frag_size(frag),
@@ -1006,13 +1011,15 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 		 * it will succeed here too
 		 */
 		wil_tx_desc_offload_cksum_set(wil, d, skb);
-		*_d = *d;
 	}
 	/* for the last seg only */
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_EOP_POS);
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_MARK_WB_POS);
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_DMA_IT_POS);
 	*_d = *d;
+	wil_dbg_txrx(wil, "Tx[%2d] desc[%4d]\n", vring_index, i);
+	wil_hex_dump_txrx("TxD ", DUMP_PREFIX_NONE, 32, 4,
+			  (const void *)d, sizeof(*d), false);
 
 	/* hold reference to skb
 	 * to prevent skb release before accounting
@@ -1020,15 +1027,13 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	 */
 	vring->ctx[i].skb = skb_get(skb);
 
-	wil_hex_dump_txrx("Tx ", DUMP_PREFIX_NONE, 32, 4,
-			  (const void *)d, sizeof(*d), false);
-
 	if (wil_vring_is_empty(vring)) /* performance monitoring */
 		txdata->idle += get_cycles() - txdata->last_idle;
 
 	/* advance swhead */
 	wil_vring_advance_head(vring, nr_frags + 1);
-	wil_dbg_txrx(wil, "Tx swhead %d -> %d\n", swhead, vring->swhead);
+	wil_dbg_txrx(wil, "Tx[%2d] swhead %d -> %d\n", vring_index, swhead,
+		     vring->swhead);
 	trace_wil6210_tx(vring_index, swhead, skb->len, nr_frags);
 	iowrite32(vring->swhead, wil->csr + HOSTADDR(vring->hwtail));
 
@@ -1053,6 +1058,19 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	}
 
 	return -EINVAL;
+}
+
+static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
+			struct sk_buff *skb)
+{
+	int vring_index = vring - wil->vring_tx;
+	struct vring_tx_data *txdata = &wil->vring_tx_data[vring_index];
+	int rc;
+
+	spin_lock(&txdata->lock);
+	rc = __wil_tx_vring(wil, vring, skb);
+	spin_unlock(&txdata->lock);
+	return rc;
 }
 
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
@@ -1121,6 +1139,22 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NET_XMIT_DROP;
 }
 
+static inline bool wil_need_txstat(struct sk_buff *skb)
+{
+	struct ethhdr *eth = (void *)skb->data;
+
+	return is_unicast_ether_addr(eth->h_dest) && skb->sk &&
+	       (skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS);
+}
+
+static inline void wil_consume_skb(struct sk_buff *skb, bool acked)
+{
+	if (unlikely(wil_need_txstat(skb)))
+		skb_complete_wifi_ack(skb, acked);
+	else
+		acked ? dev_consume_skb_any(skb) : dev_kfree_skb_any(skb);
+}
+
 /**
  * Clean up transmitted skb's from the Tx VRING
  *
@@ -1181,10 +1215,10 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 			trace_wil6210_tx_done(ringid, vring->swtail, dmalen,
 					      d->dma.error);
 			wil_dbg_txrx(wil,
-				     "Tx[%3d] : %d bytes, status 0x%02x err 0x%02x\n",
-				     vring->swtail, dmalen, d->dma.status,
-				     d->dma.error);
-			wil_hex_dump_txrx("TxC ", DUMP_PREFIX_NONE, 32, 4,
+				     "TxC[%2d][%3d] : %d bytes, status 0x%02x err 0x%02x\n",
+				     ringid, vring->swtail, dmalen,
+				     d->dma.status, d->dma.error);
+			wil_hex_dump_txrx("TxCD ", DUMP_PREFIX_NONE, 32, 4,
 					  (const void *)d, sizeof(*d), false);
 
 			wil_txdesc_unmap(dev, d, ctx);
@@ -1199,8 +1233,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 					ndev->stats.tx_errors++;
 					stats->tx_errors++;
 				}
-
-				dev_kfree_skb_any(skb);
+				wil_consume_skb(skb, d->dma.error == 0);
 			}
 			memset(ctx, 0, sizeof(*ctx));
 			/* There is no need to touch HW descriptor:

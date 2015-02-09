@@ -371,7 +371,7 @@ static int ath10k_debug_fw_stats_request(struct ath10k *ar)
 
 		ret = wait_for_completion_timeout(&ar->debug.fw_stats_complete,
 						  1*HZ);
-		if (ret <= 0)
+		if (ret == 0)
 			return -ETIMEDOUT;
 
 		spin_lock_bh(&ar->data_lock);
@@ -1318,10 +1318,10 @@ static ssize_t ath10k_read_fw_dbglog(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	unsigned int len;
-	char buf[32];
+	char buf[64];
 
-	len = scnprintf(buf, sizeof(buf), "0x%08x\n",
-			ar->debug.fw_dbglog_mask);
+	len = scnprintf(buf, sizeof(buf), "0x%08x %u\n",
+			ar->debug.fw_dbglog_mask, ar->debug.fw_dbglog_level);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -1331,19 +1331,32 @@ static ssize_t ath10k_write_fw_dbglog(struct file *file,
 				      size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
-	unsigned long mask;
 	int ret;
+	char buf[64];
+	unsigned int log_level, mask;
 
-	ret = kstrtoul_from_user(user_buf, count, 0, &mask);
-	if (ret)
-		return ret;
+	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+
+	/* make sure that buf is null terminated */
+	buf[sizeof(buf) - 1] = 0;
+
+	ret = sscanf(buf, "%x %u", &mask, &log_level);
+
+	if (!ret)
+		return -EINVAL;
+
+	if (ret == 1)
+		/* default if user did not specify */
+		log_level = ATH10K_DBGLOG_LEVEL_WARN;
 
 	mutex_lock(&ar->conf_mutex);
 
 	ar->debug.fw_dbglog_mask = mask;
+	ar->debug.fw_dbglog_level = log_level;
 
 	if (ar->state == ATH10K_STATE_ON) {
-		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask);
+		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask,
+					    ar->debug.fw_dbglog_level);
 		if (ret) {
 			ath10k_warn(ar, "dbglog cfg failed from debugfs: %d\n",
 				    ret);
@@ -1685,7 +1698,8 @@ int ath10k_debug_start(struct ath10k *ar)
 			    ret);
 
 	if (ar->debug.fw_dbglog_mask) {
-		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask);
+		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask,
+					    ATH10K_DBGLOG_LEVEL_WARN);
 		if (ret)
 			/* not serious */
 			ath10k_warn(ar, "failed to enable dbglog during start: %d",

@@ -107,6 +107,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		card->mp_rx_agg_buf_size = data->mp_rx_agg_buf_size;
 		card->supports_fw_dump = data->supports_fw_dump;
 		card->auto_tdls = data->auto_tdls;
+		card->can_ext_scan = data->can_ext_scan;
 	}
 
 	sdio_claim_host(func);
@@ -282,6 +283,9 @@ static int mwifiex_sdio_suspend(struct device *dev)
 #define SDIO_DEVICE_ID_MARVELL_8897   (0x912d)
 /* Device ID for SD8887 */
 #define SDIO_DEVICE_ID_MARVELL_8887   (0x9135)
+/* Device ID for SD8801 */
+#define SDIO_DEVICE_ID_MARVELL_8801   (0x9139)
+
 
 /* WLAN IDs */
 static const struct sdio_device_id mwifiex_ids[] = {
@@ -295,6 +299,8 @@ static const struct sdio_device_id mwifiex_ids[] = {
 		.driver_data = (unsigned long) &mwifiex_sdio_sd8897},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8887),
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8887},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8801),
+		.driver_data = (unsigned long)&mwifiex_sdio_sd8801},
 	{},
 };
 
@@ -1882,6 +1888,7 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	}
 
 	adapter->auto_tdls = card->auto_tdls;
+	adapter->ext_scan = card->can_ext_scan;
 	return ret;
 }
 

@@ -1105,6 +1105,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_UAP_SYS_CONFIG:
 		break;
 	case HostCmd_CMD_UAP_BSS_START:
+		adapter->tx_lock_flag = false;
+		adapter->pps_uapsd_mode = false;
+		adapter->delay_null_pkt = false;
 		priv->bss_started = 1;
 		break;
 	case HostCmd_CMD_UAP_BSS_STOP:
@@ -1118,6 +1121,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_TDLS_OPER:
 		ret = mwifiex_ret_tdls_oper(priv, resp);
+		break;
+	case HostCmd_CMD_CHAN_REPORT_REQUEST:
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

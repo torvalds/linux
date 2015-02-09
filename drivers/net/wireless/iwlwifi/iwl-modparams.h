@@ -96,7 +96,6 @@ enum iwl_disable_11n {
  *	use IWL_[DIS,EN]ABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 0
  * @restart_fw: restart firmware, default = 1
- * @wd_disable: disable stuck queue check, default = 1
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
  * @power_save: enable power save, default = false
@@ -111,7 +110,6 @@ struct iwl_mod_params {
 	unsigned int disable_11n;
 	int amsdu_size_8K;
 	bool restart_fw;
-	int  wd_disable;
 	bool bt_coex_active;
 	int led_mode;
 	bool power_save;

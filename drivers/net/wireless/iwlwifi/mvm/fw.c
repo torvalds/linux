@@ -575,7 +575,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 	}
 
-	iwl_mvm_get_shared_mem_conf(mvm);
+	if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 10)
+		iwl_mvm_get_shared_mem_conf(mvm);
 
 	ret = iwl_mvm_sf_update(mvm, NULL, false);
 	if (ret)

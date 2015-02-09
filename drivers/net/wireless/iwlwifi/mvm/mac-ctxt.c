@@ -462,6 +462,9 @@ exit_fail:
 
 int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
+	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
+					mvm->cfg->base_params->wd_timeout :
+					IWL_WATCHDOG_DISABLED;
 	u32 ac;
 	int ret;
 
@@ -474,16 +477,17 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
 		iwl_mvm_enable_ac_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
-				      IWL_MVM_TX_FIFO_VO);
+				      IWL_MVM_TX_FIFO_VO, wdg_timeout);
 		break;
 	case NL80211_IFTYPE_AP:
 		iwl_mvm_enable_ac_txq(mvm, vif->cab_queue,
-				      IWL_MVM_TX_FIFO_MCAST);
+				      IWL_MVM_TX_FIFO_MCAST, wdg_timeout);
 		/* fall through */
 	default:
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_enable_ac_txq(mvm, vif->hw_queue[ac],
-					      iwl_mvm_ac_to_tx_fifo[ac]);
+					      iwl_mvm_ac_to_tx_fifo[ac],
+					      wdg_timeout);
 		break;
 	}
 

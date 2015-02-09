@@ -39,7 +39,7 @@ int mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
 {
 	uint16_t ht_ext_cap = le16_to_cpu(ht_cap->extended_ht_cap_info);
 	struct ieee80211_supported_band *sband =
-					priv->wdev->wiphy->bands[radio_type];
+					priv->wdev.wiphy->bands[radio_type];
 
 	if (WARN_ON_ONCE(!sband)) {
 		dev_err(priv->adapter->dev, "Invalid radio type!\n");
@@ -314,7 +314,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		return ret_len;
 
 	radio_type = mwifiex_band_to_radio_type((u8) bss_desc->bss_band);
-	sband = priv->wdev->wiphy->bands[radio_type];
+	sband = priv->wdev.wiphy->bands[radio_type];
 
 	if (bss_desc->bcn_ht_cap) {
 		ht_cap = (struct mwifiex_ie_types_htcap *) *buffer;

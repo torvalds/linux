@@ -322,9 +322,9 @@ mwifiex_get_cfp(struct mwifiex_private *priv, u8 band, u16 channel, u32 freq)
 		return cfp;
 
 	if (mwifiex_band_to_radio_type(band) == HostCmd_SCAN_RADIO_TYPE_BG)
-		sband = priv->wdev->wiphy->bands[IEEE80211_BAND_2GHZ];
+		sband = priv->wdev.wiphy->bands[IEEE80211_BAND_2GHZ];
 	else
-		sband = priv->wdev->wiphy->bands[IEEE80211_BAND_5GHZ];
+		sband = priv->wdev.wiphy->bands[IEEE80211_BAND_5GHZ];
 
 	if (!sband) {
 		dev_err(priv->adapter->dev, "%s: cannot find cfp by band %d\n",

@@ -1043,6 +1043,69 @@ static const struct file_operations fops_ackto = {
 };
 #endif
 
+#ifdef CONFIG_ATH9K_WOW
+
+static ssize_t read_file_wow(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	unsigned int len = 0, size = 32;
+	ssize_t retval;
+	char *buf;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	len += scnprintf(buf + len, size - len, "WOW: %s\n",
+			 sc->force_wow ? "ENABLED" : "DISABLED");
+
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+static ssize_t write_file_wow(struct file *file, const char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	unsigned long val;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	if (val != 1)
+		return -EINVAL;
+
+	if (!sc->force_wow) {
+		sc->force_wow = true;
+		ath9k_init_wow(sc->hw);
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_wow = {
+	.read = read_file_wow,
+	.write = write_file_wow,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+#endif
+
 static ssize_t read_file_tpc(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
@@ -1311,6 +1374,11 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
 	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_btcoex);
+#endif
+
+#ifdef CONFIG_ATH9K_WOW
+	debugfs_create_file("wow", S_IRUSR | S_IWUSR,
+			    sc->debug.debugfs_phy, sc, &fops_wow);
 #endif
 
 #ifdef CONFIG_ATH9K_DYNACK

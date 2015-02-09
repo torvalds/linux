@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -44,8 +44,9 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
-#define WIL_RX_RING_SIZE_ORDER_DEFAULT	(9)
-#define WIL_TX_RING_SIZE_ORDER_DEFAULT	(9)
+#define WIL_TX_Q_LEN_DEFAULT		(4000)
+#define WIL_RX_RING_SIZE_ORDER_DEFAULT	(10)
+#define WIL_TX_RING_SIZE_ORDER_DEFAULT	(10)
 /* limit ring size in range [32..32k] */
 #define WIL_RING_SIZE_ORDER_MIN	(5)
 #define WIL_RING_SIZE_ORDER_MAX	(15)
@@ -77,8 +78,8 @@ static inline u32 wil_mtu2macbuf(u32 mtu)
 #define WIL_MAX_ETH_MTU		(IEEE80211_MAX_DATA_LEN_DMG - 8)
 /* Max supported by wil6210 value for interrupt threshold is 5sec. */
 #define WIL6210_ITR_TRSH_MAX (5000000)
-#define WIL6210_ITR_TX_INTERFRAME_TIMEOUT_DEFAULT (15) /* usec */
-#define WIL6210_ITR_RX_INTERFRAME_TIMEOUT_DEFAULT (15) /* usec */
+#define WIL6210_ITR_TX_INTERFRAME_TIMEOUT_DEFAULT (13) /* usec */
+#define WIL6210_ITR_RX_INTERFRAME_TIMEOUT_DEFAULT (13) /* usec */
 #define WIL6210_ITR_TX_MAX_BURST_DURATION_DEFAULT (500) /* usec */
 #define WIL6210_ITR_RX_MAX_BURST_DURATION_DEFAULT (500) /* usec */
 #define WIL6210_FW_RECOVERY_RETRIES	(5) /* try to recover this many times */
@@ -384,6 +385,7 @@ struct vring_tx_data {
 	u16 agg_timeout;
 	u8 agg_amsdu;
 	bool addba_in_progress; /* if set, agg_xxx is for request in progress */
+	spinlock_t lock;
 };
 
 enum { /* for wil6210_priv.status */
@@ -503,6 +505,12 @@ struct wil_back_tx {
 	u16 agg_timeout;
 };
 
+struct wil_probe_client_req {
+	struct list_head list;
+	u64 cookie;
+	u8 cid;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	int n_msi;
@@ -563,6 +571,10 @@ struct wil6210_priv {
 	struct list_head back_tx_pending;
 	struct mutex back_tx_mutex; /* protect @back_tx_pending */
 	struct work_struct back_tx_worker;
+	/* keep alive */
+	struct list_head probe_client_pending;
+	struct mutex probe_client_mutex; /* protect @probe_client_pending */
+	struct work_struct probe_client_worker;
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
@@ -649,8 +661,6 @@ void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_reset(struct wil6210_priv *wil);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
-void wil_link_on(struct wil6210_priv *wil);
-void wil_link_off(struct wil6210_priv *wil);
 int wil_up(struct wil6210_priv *wil);
 int __wil_up(struct wil6210_priv *wil);
 int wil_down(struct wil6210_priv *wil);
@@ -723,6 +733,8 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan);
 int wmi_pcp_stop(struct wil6210_priv *wil);
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			u16 reason_code, bool from_event);
+void wil_probe_client_flush(struct wil6210_priv *wil);
+void wil_probe_client_worker(struct work_struct *work);
 
 int wil_rx_init(struct wil6210_priv *wil, u16 size);
 void wil_rx_fini(struct wil6210_priv *wil);

@@ -1010,6 +1010,16 @@ static int rtl_op_conf_tx(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void send_beacon_frame(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+
+	if (skb)
+		rtlpriv->intf_ops->adapter_tx(hw, NULL, skb, NULL);
+}
+
 static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *bss_conf,
@@ -1040,6 +1050,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 				if (rtlpriv->cfg->ops->linked_set_reg)
 					rtlpriv->cfg->ops->linked_set_reg(hw);
+				send_beacon_frame(hw, vif);
 			}
 		}
 		if ((changed & BSS_CHANGED_BEACON_ENABLED &&

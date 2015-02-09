@@ -219,7 +219,7 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 
 	if (!strncmp(priv->adapter->country_code, &country_ie[2], 2)) {
 		rcu_read_unlock();
-		wiphy_dbg(priv->wdev->wiphy,
+		wiphy_dbg(priv->wdev.wiphy,
 			  "11D: skip setting domain info in FW\n");
 		return 0;
 	}
@@ -1133,36 +1133,6 @@ mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 	}
 
 	return roc_cfg.status;
-}
-
-int
-mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role)
-{
-	if (GET_BSS_ROLE(priv) == bss_role) {
-		dev_dbg(priv->adapter->dev,
-			"info: already in the desired role.\n");
-		return 0;
-	}
-
-	mwifiex_free_priv(priv);
-	mwifiex_init_priv(priv);
-
-	priv->bss_role = bss_role;
-	switch (bss_role) {
-	case MWIFIEX_BSS_ROLE_UAP:
-		priv->bss_mode = NL80211_IFTYPE_AP;
-		break;
-	case MWIFIEX_BSS_ROLE_STA:
-	case MWIFIEX_BSS_ROLE_ANY:
-	default:
-		priv->bss_mode = NL80211_IFTYPE_STATION;
-		break;
-	}
-
-	mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
-			 HostCmd_ACT_GEN_SET, 0, NULL, true);
-
-	return mwifiex_sta_init_cmd(priv, false);
 }
 
 /*

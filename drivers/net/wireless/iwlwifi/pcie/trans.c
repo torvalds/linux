@@ -75,6 +75,7 @@
 #include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
+#include "iwl-scd.h"
 #include "iwl-agn-hw.h"
 #include "iwl-fw-error-dump.h"
 #include "internal.h"
@@ -1268,6 +1269,7 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 
 	trans_pcie->cmd_queue = trans_cfg->cmd_queue;
 	trans_pcie->cmd_fifo = trans_cfg->cmd_fifo;
+	trans_pcie->cmd_q_wdg_timeout = trans_cfg->cmd_q_wdg_timeout;
 	if (WARN_ON(trans_cfg->n_no_reclaim_cmds > MAX_NO_RECLAIM_CMDS))
 		trans_pcie->n_no_reclaim_cmds = 0;
 	else
@@ -1281,9 +1283,6 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 		trans_pcie->rx_page_order = get_order(8 * 1024);
 	else
 		trans_pcie->rx_page_order = get_order(4 * 1024);
-
-	trans_pcie->wd_timeout =
-		msecs_to_jiffies(trans_cfg->queue_watchdog_timeout);
 
 	trans_pcie->command_names = trans_cfg->command_names;
 	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;

@@ -551,6 +551,7 @@ struct wmi_cmd_map {
 	u32 gpio_config_cmdid;
 	u32 gpio_output_cmdid;
 	u32 pdev_get_temperature_cmdid;
+	u32 vdev_set_wmm_params_cmdid;
 };
 
 /*
@@ -2939,14 +2940,14 @@ struct wmi_wmm_params_arg {
 	u32 no_ack;
 };
 
-struct wmi_pdev_set_wmm_params_arg {
+struct wmi_wmm_params_all_arg {
 	struct wmi_wmm_params_arg ac_be;
 	struct wmi_wmm_params_arg ac_bk;
 	struct wmi_wmm_params_arg ac_vi;
 	struct wmi_wmm_params_arg ac_vo;
 };
 
-struct wal_dbg_tx_stats {
+struct wmi_pdev_stats_tx {
 	/* Num HTT cookies queued to dispatch list */
 	__le32 comp_queued;
 
@@ -3016,7 +3017,7 @@ struct wal_dbg_tx_stats {
 	__le32 txop_ovf;
 } __packed;
 
-struct wal_dbg_rx_stats {
+struct wmi_pdev_stats_rx {
 	/* Cnts any change in ring routing mid-ppdu */
 	__le32 mid_ppdu_route_change;
 
@@ -3050,15 +3051,9 @@ struct wal_dbg_rx_stats {
 	__le32 mpdu_errs;
 } __packed;
 
-struct wal_dbg_peer_stats {
+struct wmi_pdev_stats_peer {
 	/* REMOVE THIS ONCE REAL PEER STAT COUNTERS ARE ADDED */
 	__le32 dummy;
-} __packed;
-
-struct wal_dbg_stats {
-	struct wal_dbg_tx_stats tx;
-	struct wal_dbg_rx_stats rx;
-	struct wal_dbg_peer_stats peer;
 } __packed;
 
 enum wmi_stats_id {
@@ -3127,29 +3122,68 @@ struct wmi_stats_event {
 	u8 data[0];
 } __packed;
 
+struct wmi_10_2_stats_event {
+	__le32 stats_id; /* %WMI_REQUEST_ */
+	__le32 num_pdev_stats;
+	__le32 num_pdev_ext_stats;
+	__le32 num_vdev_stats;
+	__le32 num_peer_stats;
+	__le32 num_bcnflt_stats;
+	u8 data[0];
+} __packed;
+
 /*
  * PDEV statistics
  * TODO: add all PDEV stats here
  */
-struct wmi_pdev_stats {
-	__le32 chan_nf;        /* Channel noise floor */
-	__le32 tx_frame_count; /* TX frame count */
-	__le32 rx_frame_count; /* RX frame count */
-	__le32 rx_clear_count; /* rx clear count */
-	__le32 cycle_count;    /* cycle count */
-	__le32 phy_err_count;  /* Phy error count */
-	__le32 chan_tx_pwr;    /* channel tx power */
-	struct wal_dbg_stats wal; /* WAL dbg stats */
+struct wmi_pdev_stats_base {
+	__le32 chan_nf;
+	__le32 tx_frame_count;
+	__le32 rx_frame_count;
+	__le32 rx_clear_count;
+	__le32 cycle_count;
+	__le32 phy_err_count;
+	__le32 chan_tx_pwr;
 } __packed;
 
-struct wmi_10x_pdev_stats {
-	struct wmi_pdev_stats old;
+struct wmi_pdev_stats {
+	struct wmi_pdev_stats_base base;
+	struct wmi_pdev_stats_tx tx;
+	struct wmi_pdev_stats_rx rx;
+	struct wmi_pdev_stats_peer peer;
+} __packed;
+
+struct wmi_pdev_stats_extra {
 	__le32 ack_rx_bad;
 	__le32 rts_bad;
 	__le32 rts_good;
 	__le32 fcs_bad;
 	__le32 no_beacons;
 	__le32 mib_int_count;
+} __packed;
+
+struct wmi_10x_pdev_stats {
+	struct wmi_pdev_stats_base base;
+	struct wmi_pdev_stats_tx tx;
+	struct wmi_pdev_stats_rx rx;
+	struct wmi_pdev_stats_peer peer;
+	struct wmi_pdev_stats_extra extra;
+} __packed;
+
+struct wmi_pdev_stats_mem {
+	__le32 dram_free;
+	__le32 iram_free;
+} __packed;
+
+struct wmi_10_2_pdev_stats {
+	struct wmi_pdev_stats_base base;
+	struct wmi_pdev_stats_tx tx;
+	__le32 mc_drop;
+	struct wmi_pdev_stats_rx rx;
+	__le32 pdev_rx_timeout;
+	struct wmi_pdev_stats_mem mem;
+	struct wmi_pdev_stats_peer peer;
+	struct wmi_pdev_stats_extra extra;
 } __packed;
 
 /*
@@ -3173,6 +3207,32 @@ struct wmi_peer_stats {
 struct wmi_10x_peer_stats {
 	struct wmi_peer_stats old;
 	__le32 peer_rx_rate;
+} __packed;
+
+struct wmi_10_2_peer_stats {
+	struct wmi_peer_stats old;
+	__le32 peer_rx_rate;
+	__le32 current_per;
+	__le32 retries;
+	__le32 tx_rate_count;
+	__le32 max_4ms_frame_len;
+	__le32 total_sub_frames;
+	__le32 tx_bytes;
+	__le32 num_pkt_loss_overflow[4];
+	__le32 num_pkt_loss_excess_retry[4];
+} __packed;
+
+struct wmi_10_2_4_peer_stats {
+	struct wmi_10_2_peer_stats common;
+	__le32 unknown_value; /* FIXME: what is this word? */
+} __packed;
+
+struct wmi_10_2_pdev_ext_stats {
+	__le32 rx_rssi_comb;
+	__le32 rx_rssi[4];
+	__le32 rx_mcs[10];
+	__le32 tx_mcs[10];
+	__le32 ack_rssi;
 } __packed;
 
 struct wmi_vdev_create_cmd {
@@ -4060,6 +4120,30 @@ enum wmi_sta_ps_param_uapsd {
 	WMI_STA_PS_UAPSD_AC3_TRIGGER_EN  = (1 << 7),
 };
 
+#define WMI_STA_UAPSD_MAX_INTERVAL_MSEC UINT_MAX
+
+struct wmi_sta_uapsd_auto_trig_param {
+	__le32 wmm_ac;
+	__le32 user_priority;
+	__le32 service_interval;
+	__le32 suspend_interval;
+	__le32 delay_interval;
+};
+
+struct wmi_sta_uapsd_auto_trig_cmd_fixed_param {
+	__le32 vdev_id;
+	struct wmi_mac_addr peer_macaddr;
+	__le32 num_ac;
+};
+
+struct wmi_sta_uapsd_auto_trig_arg {
+	u32 wmm_ac;
+	u32 user_priority;
+	u32 service_interval;
+	u32 suspend_interval;
+	u32 delay_interval;
+};
+
 enum wmi_sta_powersave_param {
 	/*
 	 * Controls how frames are retrievd from AP while STA is sleeping
@@ -4430,7 +4514,7 @@ struct wmi_peer_set_q_empty_callback_cmd {
 #define WMI_PEER_SPATIAL_MUX    0x00200000
 #define WMI_PEER_VHT            0x02000000
 #define WMI_PEER_80MHZ          0x04000000
-#define WMI_PEER_PMF            0x08000000
+#define WMI_PEER_VHT_2G         0x08000000
 
 /*
  * Peer rate capabilities.
@@ -4581,6 +4665,11 @@ enum wmi_sta_keepalive_method {
 	WMI_STA_KEEPALIVE_METHOD_UNSOLICITATED_ARP_RESPONSE = 2,
 };
 
+#define WMI_STA_KEEPALIVE_INTERVAL_DISABLE 0
+
+/* Firmware crashes if keepalive interval exceeds this limit */
+#define WMI_STA_KEEPALIVE_INTERVAL_MAX_SECONDS 0xffff
+
 /* note: ip4 addresses are in network byte order, i.e. big endian */
 struct wmi_sta_keepalive_arp_resp {
 	__be32 src_ip4_addr;
@@ -4595,6 +4684,16 @@ struct wmi_sta_keepalive_cmd {
 	__le32 interval; /* in seconds */
 	struct wmi_sta_keepalive_arp_resp arp_resp;
 } __packed;
+
+struct wmi_sta_keepalive_arg {
+	u32 vdev_id;
+	u32 enabled;
+	u32 method;
+	u32 interval;
+	__be32 src_ip4_addr;
+	__be32 dest_ip4_addr;
+	const u8 dest_mac_addr[ETH_ALEN];
+};
 
 enum wmi_force_fw_hang_type {
 	WMI_FORCE_FW_HANG_ASSERT = 1,
@@ -4772,16 +4871,22 @@ int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
 			       u32 cmd_id);
 void ath10k_wmi_start_scan_init(struct ath10k *ar, struct wmi_start_scan_arg *);
 
-void ath10k_wmi_pull_pdev_stats(const struct wmi_pdev_stats *src,
-				struct ath10k_fw_stats_pdev *dst);
+void ath10k_wmi_pull_pdev_stats_base(const struct wmi_pdev_stats_base *src,
+				     struct ath10k_fw_stats_pdev *dst);
+void ath10k_wmi_pull_pdev_stats_tx(const struct wmi_pdev_stats_tx *src,
+				   struct ath10k_fw_stats_pdev *dst);
+void ath10k_wmi_pull_pdev_stats_rx(const struct wmi_pdev_stats_rx *src,
+				   struct ath10k_fw_stats_pdev *dst);
+void ath10k_wmi_pull_pdev_stats_extra(const struct wmi_pdev_stats_extra *src,
+				      struct ath10k_fw_stats_pdev *dst);
 void ath10k_wmi_pull_peer_stats(const struct wmi_peer_stats *src,
 				struct ath10k_fw_stats_peer *dst);
 void ath10k_wmi_put_host_mem_chunks(struct ath10k *ar,
 				    struct wmi_host_mem_chunks *chunks);
 void ath10k_wmi_put_start_scan_common(struct wmi_start_scan_common *cmn,
 				      const struct wmi_start_scan_arg *arg);
-void ath10k_wmi_pdev_set_wmm_param(struct wmi_wmm_params *params,
-				   const struct wmi_wmm_params_arg *arg);
+void ath10k_wmi_set_wmm_param(struct wmi_wmm_params *params,
+			      const struct wmi_wmm_params_arg *arg);
 void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
 				const struct wmi_channel_arg *arg);
 int ath10k_wmi_start_scan_verify(const struct wmi_start_scan_arg *arg);

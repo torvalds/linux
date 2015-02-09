@@ -315,22 +315,19 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 		adapter->dbg.num_cmd_sleep_cfm_host_to_card_failure++;
 		return -1;
 	}
-	if (GET_BSS_ROLE(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY))
-	    == MWIFIEX_BSS_ROLE_STA) {
-		if (!le16_to_cpu(sleep_cfm_buf->resp_ctrl))
-			/* Response is not needed for sleep
-			   confirm command */
-			adapter->ps_state = PS_STATE_SLEEP;
-		else
-			adapter->ps_state = PS_STATE_SLEEP_CFM;
 
-		if (!le16_to_cpu(sleep_cfm_buf->resp_ctrl) &&
-		    (adapter->is_hs_configured &&
-		     !adapter->sleep_period.period)) {
-			adapter->pm_wakeup_card_req = true;
-			mwifiex_hs_activated_event(mwifiex_get_priv
-					(adapter, MWIFIEX_BSS_ROLE_STA), true);
-		}
+	if (!le16_to_cpu(sleep_cfm_buf->resp_ctrl))
+		/* Response is not needed for sleep confirm command */
+		adapter->ps_state = PS_STATE_SLEEP;
+	else
+		adapter->ps_state = PS_STATE_SLEEP_CFM;
+
+	if (!le16_to_cpu(sleep_cfm_buf->resp_ctrl) &&
+	    (adapter->is_hs_configured &&
+	     !adapter->sleep_period.period)) {
+		adapter->pm_wakeup_card_req = true;
+		mwifiex_hs_activated_event(mwifiex_get_priv
+				(adapter, MWIFIEX_BSS_ROLE_ANY), true);
 	}
 
 	return ret;
@@ -450,6 +447,7 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 				      EVENT_GET_BSS_TYPE(eventcause));
 	if (!priv)
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
+
 	/* Clear BSS_NO_BITS from event */
 	eventcause &= EVENT_ID_MASK;
 	adapter->event_cause = eventcause;
@@ -462,12 +460,6 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 	}
 
 	dev_dbg(adapter->dev, "EVENT: cause: %#x\n", eventcause);
-	if (eventcause == EVENT_PS_SLEEP || eventcause == EVENT_PS_AWAKE) {
-		/* Handle PS_SLEEP/AWAKE events on STA */
-		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
-		if (!priv)
-			priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
-	}
 
 	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
 		ret = mwifiex_process_uap_event(priv);
@@ -1582,9 +1574,7 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 		le16_to_cpu(hw_spec->hw_if_version),
 		le16_to_cpu(hw_spec->version));
 
-	if (priv->curr_addr[0] == 0xff)
-		memmove(priv->curr_addr, hw_spec->permanent_addr, ETH_ALEN);
-
+	ether_addr_copy(priv->adapter->perm_addr, hw_spec->permanent_addr);
 	adapter->region_code = le16_to_cpu(hw_spec->region_code);
 
 	for (i = 0; i < MWIFIEX_MAX_REGION_CODE; i++)

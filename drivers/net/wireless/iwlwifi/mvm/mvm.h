@@ -119,11 +119,13 @@ extern const struct ieee80211_ops iwl_mvm_hw_ops;
  *	We will register to mac80211 to have testmode working. The NIC must not
  *	be up'ed after the INIT fw asserted. This is useful to be able to use
  *	proprietary tools over testmode to debug the INIT fw.
+ * @tfd_q_hang_detect: enabled the detection of hung transmit queues
  * @power_scheme: CAM(Continuous Active Mode)-1, BPS(Balanced Power
  *	Save)-2(default), LP(Low Power)-3
  */
 struct iwl_mvm_mod_params {
 	bool init_dbg;
+	bool tfd_q_hang_detect;
 	int power_scheme;
 };
 extern struct iwl_mvm_mod_params iwlmvm_mod_params;
@@ -532,6 +534,7 @@ enum {
 enum iwl_mvm_tdls_cs_state {
 	IWL_MVM_TDLS_SW_IDLE = 0,
 	IWL_MVM_TDLS_SW_REQ_SENT,
+	IWL_MVM_TDLS_SW_RESP_RCVD,
 	IWL_MVM_TDLS_SW_REQ_RCVD,
 	IWL_MVM_TDLS_SW_ACTIVE,
 };
@@ -797,6 +800,9 @@ struct iwl_mvm {
 			struct cfg80211_chan_def chandef;
 			struct sk_buff *skb; /* ch sw template */
 			u32 ch_sw_tm_ie;
+
+			/* timestamp of last ch-sw request sent (GP2 time) */
+			u32 sent_timestamp;
 		} peer;
 	} tdls_cs;
 
@@ -874,7 +880,7 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)
 {
-	return mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_API_SCD_CFG;
+	return mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SCD_CFG;
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
@@ -1312,11 +1318,13 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 
 /* hw scheduler queue config */
 void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
-			const struct iwl_trans_txq_scd_cfg *cfg);
+			const struct iwl_trans_txq_scd_cfg *cfg,
+			unsigned int wdg_timeout);
 void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, u8 flags);
 
-static inline void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
-					 u8 fifo)
+static inline
+void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
+			   u8 fifo, unsigned int wdg_timeout)
 {
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = fifo,
@@ -1325,12 +1333,13 @@ static inline void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
 		.frame_limit = IWL_FRAME_LIMIT,
 	};
 
-	iwl_mvm_enable_txq(mvm, queue, 0, &cfg);
+	iwl_mvm_enable_txq(mvm, queue, 0, &cfg, wdg_timeout);
 }
 
 static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
 					  int fifo, int sta_id, int tid,
-					  int frame_limit, u16 ssn)
+					  int frame_limit, u16 ssn,
+					  unsigned int wdg_timeout)
 {
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = fifo,
@@ -1340,7 +1349,7 @@ static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
 		.aggregate = true,
 	};
 
-	iwl_mvm_enable_txq(mvm, queue, ssn, &cfg);
+	iwl_mvm_enable_txq(mvm, queue, ssn, &cfg, wdg_timeout);
 }
 
 /* Assoc status */

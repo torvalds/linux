@@ -1302,6 +1302,10 @@ struct wmi_tlv_pdev_set_wmm_cmd {
 	__le32 dg_type; /* no idea.. */
 } __packed;
 
+struct wmi_tlv_vdev_set_wmm_cmd {
+	__le32 vdev_id;
+} __packed;
+
 struct wmi_tlv_phyerr_ev {
 	__le32 num_phyerrs;
 	__le32 tsf_l32;
@@ -1373,6 +1377,66 @@ struct wmi_tlv_pktlog_enable {
 
 struct wmi_tlv_pktlog_disable {
 	__le32 reserved;
+} __packed;
+
+enum wmi_tlv_bcn_tx_status {
+	WMI_TLV_BCN_TX_STATUS_OK,
+	WMI_TLV_BCN_TX_STATUS_XRETRY,
+	WMI_TLV_BCN_TX_STATUS_DROP,
+	WMI_TLV_BCN_TX_STATUS_FILTERED,
+};
+
+struct wmi_tlv_bcn_tx_status_ev {
+	__le32 vdev_id;
+	__le32 tx_status;
+} __packed;
+
+struct wmi_tlv_bcn_prb_info {
+	__le32 caps;
+	__le32 erp;
+	u8 ies[0];
+} __packed;
+
+struct wmi_tlv_bcn_tmpl_cmd {
+	__le32 vdev_id;
+	__le32 tim_ie_offset;
+	__le32 buf_len;
+} __packed;
+
+struct wmi_tlv_prb_tmpl_cmd {
+	__le32 vdev_id;
+	__le32 buf_len;
+} __packed;
+
+struct wmi_tlv_p2p_go_bcn_ie {
+	__le32 vdev_id;
+	__le32 ie_len;
+} __packed;
+
+enum wmi_tlv_diag_item_type {
+	WMI_TLV_DIAG_ITEM_TYPE_FW_EVENT,
+	WMI_TLV_DIAG_ITEM_TYPE_FW_LOG,
+	WMI_TLV_DIAG_ITEM_TYPE_FW_DEBUG_MSG,
+};
+
+struct wmi_tlv_diag_item {
+	u8 type;
+	u8 reserved;
+	__le16 len;
+	__le32 timestamp;
+	__le32 code;
+	u8 payload[0];
+} __packed;
+
+struct wmi_tlv_diag_data_ev {
+	__le32 num_items;
+} __packed;
+
+struct wmi_tlv_sta_keepalive_cmd {
+	__le32 vdev_id;
+	__le32 enabled;
+	__le32 method; /* WMI_STA_KEEPALIVE_METHOD_ */
+	__le32 interval; /* in seconds */
 } __packed;
 
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
