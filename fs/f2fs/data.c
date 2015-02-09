@@ -592,6 +592,56 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	return 0;
 }
 
+static void __allocate_data_blocks(struct inode *inode, loff_t offset,
+							size_t count)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct dnode_of_data dn;
+	u64 start = F2FS_BYTES_TO_BLK(offset);
+	u64 len = F2FS_BYTES_TO_BLK(count);
+	bool allocated;
+	u64 end_offset;
+
+	while (len) {
+		f2fs_balance_fs(sbi);
+		f2fs_lock_op(sbi);
+
+		/* When reading holes, we need its node page */
+		set_new_dnode(&dn, inode, NULL, NULL, 0);
+		if (get_dnode_of_data(&dn, start, ALLOC_NODE))
+			goto out;
+
+		allocated = false;
+		end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
+
+		while (dn.ofs_in_node < end_offset && len) {
+			if (dn.data_blkaddr == NULL_ADDR) {
+				if (__allocate_data_block(&dn))
+					goto sync_out;
+				allocated = true;
+			}
+			len--;
+			start++;
+			dn.ofs_in_node++;
+		}
+
+		if (allocated)
+			sync_inode_page(&dn);
+
+		f2fs_put_dnode(&dn);
+		f2fs_unlock_op(sbi);
+	}
+	return;
+
+sync_out:
+	if (allocated)
+		sync_inode_page(&dn);
+	f2fs_put_dnode(&dn);
+out:
+	f2fs_unlock_op(sbi);
+	return;
+}
+
 /*
  * get_data_block() now supported readahead/bmap/rw direct_IO with mapped bh.
  * If original data blocks are allocated, then give them to blockdev.
@@ -617,10 +667,8 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 	if (check_extent_cache(inode, pgofs, bh_result))
 		goto out;
 
-	if (create) {
-		f2fs_balance_fs(F2FS_I_SB(inode));
+	if (create)
 		f2fs_lock_op(F2FS_I_SB(inode));
-	}
 
 	/* When reading holes, we need its node page */
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
@@ -1107,6 +1155,9 @@ static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
 		return 0;
 
 	trace_f2fs_direct_IO_enter(inode, offset, count, rw);
+
+	if (rw & WRITE)
+		__allocate_data_blocks(inode, offset, count);
 
 	err = blockdev_direct_IO(rw, iocb, inode, iter, offset, get_data_block);
 	if (err < 0 && (rw & WRITE))
