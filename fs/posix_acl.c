@@ -564,13 +564,11 @@ posix_acl_create(struct inode *dir, umode_t *mode,
 
 	*acl = posix_acl_clone(p, GFP_NOFS);
 	if (!*acl)
-		return -ENOMEM;
+		goto no_mem;
 
 	ret = posix_acl_create_masq(*acl, mode);
-	if (ret < 0) {
-		posix_acl_release(*acl);
-		return -ENOMEM;
-	}
+	if (ret < 0)
+		goto no_mem_clone;
 
 	if (ret == 0) {
 		posix_acl_release(*acl);
@@ -591,6 +589,12 @@ no_acl:
 	*default_acl = NULL;
 	*acl = NULL;
 	return 0;
+
+no_mem_clone:
+	posix_acl_release(*acl);
+no_mem:
+	posix_acl_release(p);
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(posix_acl_create);
 
