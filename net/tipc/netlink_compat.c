@@ -35,6 +35,7 @@
 #include "config.h"
 #include "bearer.h"
 #include "link.h"
+#include "name_table.h"
 #include <net/genetlink.h>
 #include <linux/tipc_config.h>
 
@@ -58,6 +59,7 @@ struct tipc_nl_compat_msg {
 };
 
 struct tipc_nl_compat_cmd_dump {
+	int (*header)(struct tipc_nl_compat_msg *);
 	int (*dumpit)(struct sk_buff *, struct netlink_callback *);
 	int (*format)(struct tipc_nl_compat_msg *msg, struct nlattr **attrs);
 };
@@ -245,6 +247,9 @@ static int tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 
 	if (msg->rep_type)
 		tipc_tlv_init(msg->rep, msg->rep_type);
+
+	if (cmd->header)
+		(*cmd->header)(msg);
 
 	arg = nlmsg_new(0, GFP_KERNEL);
 	if (!arg) {
@@ -626,6 +631,93 @@ static int tipc_nl_compat_link_reset_stats(struct sk_buff *skb,
 	return 0;
 }
 
+static int tipc_nl_compat_name_table_dump_header(struct tipc_nl_compat_msg *msg)
+{
+	int i;
+	u32 depth;
+	struct tipc_name_table_query *ntq;
+	static const char * const header[] = {
+		"Type       ",
+		"Lower      Upper      ",
+		"Port Identity              ",
+		"Publication Scope"
+	};
+
+	ntq = (struct tipc_name_table_query *)TLV_DATA(msg->req);
+
+	depth = ntohl(ntq->depth);
+
+	if (depth > 4)
+		depth = 4;
+	for (i = 0; i < depth; i++)
+		tipc_tlv_sprintf(msg->rep, header[i]);
+	tipc_tlv_sprintf(msg->rep, "\n");
+
+	return 0;
+}
+
+static int tipc_nl_compat_name_table_dump(struct tipc_nl_compat_msg *msg,
+					  struct nlattr **attrs)
+{
+	char port_str[27];
+	struct tipc_name_table_query *ntq;
+	struct nlattr *nt[TIPC_NLA_NAME_TABLE_MAX + 1];
+	struct nlattr *publ[TIPC_NLA_PUBL_MAX + 1];
+	u32 node, depth, type, lowbound, upbound;
+	static const char * const scope_str[] = {"", " zone", " cluster",
+						 " node"};
+
+	nla_parse_nested(nt, TIPC_NLA_NAME_TABLE_MAX,
+			 attrs[TIPC_NLA_NAME_TABLE], NULL);
+
+	nla_parse_nested(publ, TIPC_NLA_PUBL_MAX, nt[TIPC_NLA_NAME_TABLE_PUBL],
+			 NULL);
+
+	ntq = (struct tipc_name_table_query *)TLV_DATA(msg->req);
+
+	depth = ntohl(ntq->depth);
+	type = ntohl(ntq->type);
+	lowbound = ntohl(ntq->lowbound);
+	upbound = ntohl(ntq->upbound);
+
+	if (!(depth & TIPC_NTQ_ALLTYPES) &&
+	    (type != nla_get_u32(publ[TIPC_NLA_PUBL_TYPE])))
+		return 0;
+	if (lowbound && (lowbound > nla_get_u32(publ[TIPC_NLA_PUBL_UPPER])))
+		return 0;
+	if (upbound && (upbound < nla_get_u32(publ[TIPC_NLA_PUBL_LOWER])))
+		return 0;
+
+	tipc_tlv_sprintf(msg->rep, "%-10u ",
+			 nla_get_u32(publ[TIPC_NLA_PUBL_TYPE]));
+
+	if (depth == 1)
+		goto out;
+
+	tipc_tlv_sprintf(msg->rep, "%-10u %-10u ",
+			 nla_get_u32(publ[TIPC_NLA_PUBL_LOWER]),
+			 nla_get_u32(publ[TIPC_NLA_PUBL_UPPER]));
+
+	if (depth == 2)
+		goto out;
+
+	node = nla_get_u32(publ[TIPC_NLA_PUBL_NODE]);
+	sprintf(port_str, "<%u.%u.%u:%u>", tipc_zone(node), tipc_cluster(node),
+		tipc_node(node), nla_get_u32(publ[TIPC_NLA_PUBL_REF]));
+	tipc_tlv_sprintf(msg->rep, "%-26s ", port_str);
+
+	if (depth == 3)
+		goto out;
+
+	tipc_tlv_sprintf(msg->rep, "%-10u %s",
+			 nla_get_u32(publ[TIPC_NLA_PUBL_REF]),
+			 scope_str[nla_get_u32(publ[TIPC_NLA_PUBL_SCOPE])]);
+out:
+	tipc_tlv_sprintf(msg->rep, "\n");
+
+	return 0;
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
@@ -675,6 +767,14 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		doit.doit = tipc_nl_link_reset_stats;
 		doit.transcode = tipc_nl_compat_link_reset_stats;
 		return tipc_nl_compat_doit(&doit, msg);
+	case TIPC_CMD_SHOW_NAME_TABLE:
+		msg->req_type = TIPC_TLV_NAME_TBL_QUERY;
+		msg->rep_size = ULTRA_STRING_MAX_LEN;
+		msg->rep_type = TIPC_TLV_ULTRA_STRING;
+		dump.header = tipc_nl_compat_name_table_dump_header;
+		dump.dumpit = tipc_nl_name_table_dump;
+		dump.format = tipc_nl_compat_name_table_dump;
+		return tipc_nl_compat_dumpit(&dump, msg);
 	}
 
 	return -EOPNOTSUPP;
@@ -780,6 +880,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_SET_LINK_PRI:
 	case TIPC_CMD_SET_LINK_WINDOW:
 	case TIPC_CMD_RESET_LINK_STATS:
+	case TIPC_CMD_SHOW_NAME_TABLE:
 		return tipc_nl_compat_recv(skb, info);
 	}
 
