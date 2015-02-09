@@ -75,9 +75,13 @@ static void rk3288_slp_mode_set(int level)
 	regmap_read(pmu_regmap, RK3288_PMU_PWRMODE_CON,
 		    &rk3288_pmu_pwr_mode_con);
 
-	/* set bit 8 so that system will resume to FAST_BOOT_ADDR */
+	/*
+	 * SGRF_FAST_BOOT_EN - system to boot from FAST_BOOT_ADDR
+	 * PCLK_WDT_GATE - disable WDT during suspend.
+	 */
 	regmap_write(sgrf_regmap, RK3288_SGRF_SOC_CON0,
-		     SGRF_FAST_BOOT_EN | SGRF_FAST_BOOT_EN_WRITE);
+		     SGRF_PCLK_WDT_GATE | SGRF_FAST_BOOT_EN
+		     | SGRF_PCLK_WDT_GATE_WRITE | SGRF_FAST_BOOT_EN_WRITE);
 
 	/* booting address of resuming system is from this register value */
 	regmap_write(sgrf_regmap, RK3288_SGRF_FAST_BOOT_ADDR,
@@ -122,7 +126,8 @@ static void rk3288_slp_mode_set_resume(void)
 		     rk3288_pmu_pwr_mode_con);
 
 	regmap_write(sgrf_regmap, RK3288_SGRF_SOC_CON0,
-		     rk3288_sgrf_soc_con0 | SGRF_FAST_BOOT_EN_WRITE);
+		     rk3288_sgrf_soc_con0 | SGRF_PCLK_WDT_GATE_WRITE
+		     | SGRF_FAST_BOOT_EN_WRITE);
 }
 
 static int rockchip_lpmode_enter(unsigned long arg)
