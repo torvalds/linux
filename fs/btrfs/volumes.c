@@ -2487,8 +2487,7 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 }
 
 static int btrfs_free_chunk(struct btrfs_trans_handle *trans,
-			    struct btrfs_root *root,
-			    u64 chunk_tree, u64 chunk_objectid,
+			    struct btrfs_root *root, u64 chunk_objectid,
 			    u64 chunk_offset)
 {
 	int ret;
@@ -2580,7 +2579,6 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 	struct map_lookup *map;
 	u64 dev_extent_len = 0;
 	u64 chunk_objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
-	u64 chunk_tree = root->fs_info->chunk_root->objectid;
 	int i, ret = 0;
 
 	/* Just in case */
@@ -2634,8 +2632,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 			}
 		}
 	}
-	ret = btrfs_free_chunk(trans, root, chunk_tree, chunk_objectid,
-			       chunk_offset);
+	ret = btrfs_free_chunk(trans, root, chunk_objectid, chunk_offset);
 	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
 		goto out;
@@ -2664,8 +2661,8 @@ out:
 }
 
 static int btrfs_relocate_chunk(struct btrfs_root *root,
-			 u64 chunk_tree, u64 chunk_objectid,
-			 u64 chunk_offset)
+				u64 chunk_objectid,
+				u64 chunk_offset)
 {
 	struct btrfs_root *extent_root;
 	struct btrfs_trans_handle *trans;
@@ -2707,7 +2704,6 @@ static int btrfs_relocate_sys_chunks(struct btrfs_root *root)
 	struct btrfs_chunk *chunk;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	u64 chunk_tree = chunk_root->root_key.objectid;
 	u64 chunk_type;
 	bool retried = false;
 	int failed = 0;
@@ -2744,7 +2740,7 @@ again:
 		btrfs_release_path(path);
 
 		if (chunk_type & BTRFS_BLOCK_GROUP_SYSTEM) {
-			ret = btrfs_relocate_chunk(chunk_root, chunk_tree,
+			ret = btrfs_relocate_chunk(chunk_root,
 						   found_key.objectid,
 						   found_key.offset);
 			if (ret == -ENOSPC)
@@ -3255,7 +3251,6 @@ again:
 		}
 
 		ret = btrfs_relocate_chunk(chunk_root,
-					   chunk_root->root_key.objectid,
 					   found_key.objectid,
 					   found_key.offset);
 		if (ret && ret != -ENOSPC)
@@ -3957,7 +3952,6 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	struct btrfs_dev_extent *dev_extent = NULL;
 	struct btrfs_path *path;
 	u64 length;
-	u64 chunk_tree;
 	u64 chunk_objectid;
 	u64 chunk_offset;
 	int ret;
@@ -4027,13 +4021,11 @@ again:
 			break;
 		}
 
-		chunk_tree = btrfs_dev_extent_chunk_tree(l, dev_extent);
 		chunk_objectid = btrfs_dev_extent_chunk_objectid(l, dev_extent);
 		chunk_offset = btrfs_dev_extent_chunk_offset(l, dev_extent);
 		btrfs_release_path(path);
 
-		ret = btrfs_relocate_chunk(root, chunk_tree, chunk_objectid,
-					   chunk_offset);
+		ret = btrfs_relocate_chunk(root, chunk_objectid, chunk_offset);
 		if (ret && ret != -ENOSPC)
 			goto done;
 		if (ret == -ENOSPC)
