@@ -984,6 +984,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	/* WaDisablePartialResolveInVc:skl */
 	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE);
 
+	/* WaCcsTlbPrefetchDisable:skl */
+	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
+			  GEN9_CCS_TLB_PREFETCH_ENABLE);
+
 	return 0;
 }
 

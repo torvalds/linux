@@ -6209,6 +6209,7 @@ enum skl_disp_power_wells {
 
 #define GEN9_HALF_SLICE_CHICKEN5	0xe188
 #define   GEN9_DG_MIRROR_FIX_ENABLE	(1<<5)
+#define   GEN9_CCS_TLB_PREFETCH_ENABLE	(1<<3)
 
 #define GEN8_ROW_CHICKEN		0xe4f0
 #define   PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE	(1<<8)
