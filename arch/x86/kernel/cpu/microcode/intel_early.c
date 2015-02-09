@@ -552,12 +552,10 @@ EXPORT_SYMBOL_GPL(save_mc_for_early);
 
 static __initdata char ucode_name[] = "kernel/x86/microcode/GenuineIntel.bin";
 static __init enum ucode_state
-scan_microcode(unsigned long start, unsigned long end,
-		struct mc_saved_data *mc_saved_data,
-		unsigned long *mc_saved_in_initrd,
-		struct ucode_cpu_info *uci)
+scan_microcode(unsigned long start, unsigned long size,
+	       struct mc_saved_data *mc_saved_data,
+	       unsigned long *mc_saved_in_initrd, struct ucode_cpu_info *uci)
 {
-	unsigned int size = end - start + 1;
 	struct cpio_data cd;
 	long offset = 0;
 #ifdef CONFIG_X86_32
@@ -572,7 +570,6 @@ scan_microcode(unsigned long start, unsigned long end,
 	cd = find_cpio_data(p, (void *)start, size, &offset);
 	if (!cd.data)
 		return UCODE_ERROR;
-
 
 	return get_matching_model_microcode(0, start, cd.data, cd.size,
 					    mc_saved_data, mc_saved_in_initrd,
@@ -721,50 +718,40 @@ int __init save_microcode_in_initrd_intel(void)
 static void __init
 _load_ucode_intel_bsp(struct mc_saved_data *mc_saved_data,
 		      unsigned long *mc_saved_in_initrd,
-		      unsigned long initrd_start_early,
-		      unsigned long initrd_end_early)
+		      unsigned long start, unsigned long size)
 {
 	struct ucode_cpu_info uci;
 	enum ucode_state ret;
 
 	collect_cpu_info_early(&uci);
-	scan_microcode(initrd_start_early, initrd_end_early, mc_saved_data,
-		       mc_saved_in_initrd, &uci);
+	scan_microcode(start, size, mc_saved_data, mc_saved_in_initrd, &uci);
 
-	ret = load_microcode(mc_saved_data, mc_saved_in_initrd,
-			     initrd_start_early, &uci);
+	ret = load_microcode(mc_saved_data, mc_saved_in_initrd, start, &uci);
 	if (ret != UCODE_OK)
 		return;
 
 	apply_microcode_early(&uci, true);
 }
 
-void __init
-load_ucode_intel_bsp(void)
+void __init load_ucode_intel_bsp(void)
 {
-	u64 ramdisk_image, ramdisk_size;
-	unsigned long initrd_start_early, initrd_end_early;
+	u64 start, size;
 #ifdef CONFIG_X86_32
-	struct boot_params *boot_params_p;
+	struct boot_params *p;
 
-	boot_params_p = (struct boot_params *)__pa_nodebug(&boot_params);
-	ramdisk_image = boot_params_p->hdr.ramdisk_image;
-	ramdisk_size  = boot_params_p->hdr.ramdisk_size;
-	initrd_start_early = ramdisk_image;
-	initrd_end_early = initrd_start_early + ramdisk_size;
+	p	= (struct boot_params *)__pa_nodebug(&boot_params);
+	start	= p->hdr.ramdisk_image;
+	size	= p->hdr.ramdisk_size;
 
 	_load_ucode_intel_bsp(
-		(struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
-		(unsigned long *)__pa_nodebug(&mc_saved_in_initrd),
-		initrd_start_early, initrd_end_early);
+			(struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
+			(unsigned long *)__pa_nodebug(&mc_saved_in_initrd),
+			start, size);
 #else
-	ramdisk_image = boot_params.hdr.ramdisk_image;
-	ramdisk_size  = boot_params.hdr.ramdisk_size;
-	initrd_start_early = ramdisk_image + PAGE_OFFSET;
-	initrd_end_early = initrd_start_early + ramdisk_size;
+	start	= boot_params.hdr.ramdisk_image + PAGE_OFFSET;
+	size	= boot_params.hdr.ramdisk_size;
 
-	_load_ucode_intel_bsp(&mc_saved_data, mc_saved_in_initrd,
-			      initrd_start_early, initrd_end_early);
+	_load_ucode_intel_bsp(&mc_saved_data, mc_saved_in_initrd, start, size);
 #endif
 }
 
