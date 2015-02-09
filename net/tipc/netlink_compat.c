@@ -606,6 +606,26 @@ static int tipc_nl_compat_link_set(struct sk_buff *skb,
 	return 0;
 }
 
+static int tipc_nl_compat_link_reset_stats(struct sk_buff *skb,
+					   struct tipc_nl_compat_msg *msg)
+{
+	char *name;
+	struct nlattr *link;
+
+	name = (char *)TLV_DATA(msg->req);
+
+	link = nla_nest_start(skb, TIPC_NLA_LINK);
+	if (!link)
+		return -EMSGSIZE;
+
+	if (nla_put_string(skb, TIPC_NLA_LINK_NAME, name))
+		return -EMSGSIZE;
+
+	nla_nest_end(skb, link);
+
+	return 0;
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
@@ -649,6 +669,11 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		msg->req_type =  TIPC_TLV_LINK_CONFIG;
 		doit.doit = tipc_nl_link_set;
 		doit.transcode = tipc_nl_compat_link_set;
+		return tipc_nl_compat_doit(&doit, msg);
+	case TIPC_CMD_RESET_LINK_STATS:
+		msg->req_type = TIPC_TLV_LINK_NAME;
+		doit.doit = tipc_nl_link_reset_stats;
+		doit.transcode = tipc_nl_compat_link_reset_stats;
 		return tipc_nl_compat_doit(&doit, msg);
 	}
 
@@ -754,6 +779,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_SET_LINK_TOL:
 	case TIPC_CMD_SET_LINK_PRI:
 	case TIPC_CMD_SET_LINK_WINDOW:
+	case TIPC_CMD_RESET_LINK_STATS:
 		return tipc_nl_compat_recv(skb, info);
 	}
 

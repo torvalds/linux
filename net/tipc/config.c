@@ -209,10 +209,6 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 		rep_tlv_buf = tipc_node_get_nodes(net, req_tlv_area,
 						  req_tlv_space);
 		break;
-	case TIPC_CMD_RESET_LINK_STATS:
-		rep_tlv_buf = tipc_link_cmd_reset_stats(net, req_tlv_area,
-							req_tlv_space);
-		break;
 	case TIPC_CMD_SHOW_NAME_TABLE:
 		rep_tlv_buf = tipc_nametbl_get(net, req_tlv_area,
 					       req_tlv_space);
