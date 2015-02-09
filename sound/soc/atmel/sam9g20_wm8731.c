@@ -47,7 +47,6 @@
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 
 #include "../codecs/wm8731.h"
 #include "atmel-pcm.h"
