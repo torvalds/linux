@@ -1474,6 +1474,11 @@ static const struct net_device_ops i40e_fcoe_netdev_ops = {
 	.ndo_set_features	= i40e_fcoe_set_features,
 };
 
+/* fcoe network device type */
+static struct device_type fcoe_netdev_type = {
+	.name = "fcoe",
+};
+
 /**
  * i40e_fcoe_config_netdev - prepares the VSI context for creating a FCoE VSI
  * @vsi: pointer to the associated VSI struct
@@ -1507,6 +1512,7 @@ void i40e_fcoe_config_netdev(struct net_device *netdev, struct i40e_vsi *vsi)
 	strlcpy(netdev->name, "fcoe%d", IFNAMSIZ-1);
 	netdev->mtu = FCOE_MTU;
 	SET_NETDEV_DEV(netdev, &pf->pdev->dev);
+	SET_NETDEV_DEVTYPE(netdev, &fcoe_netdev_type);
 	/* set different dev_port value 1 for FCoE netdev than the default
 	 * zero dev_port value for PF netdev, this helps biosdevname user
 	 * tool to differentiate them correctly while both attached to the
