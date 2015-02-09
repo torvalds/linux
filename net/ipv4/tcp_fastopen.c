@@ -255,6 +255,9 @@ bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 	struct tcp_fastopen_cookie valid_foc = { .len = -1 };
 	bool syn_data = TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1;
 
+	if (foc->len == 0) /* Client requests a cookie */
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENCOOKIEREQD);
+
 	if (!((sysctl_tcp_fastopen & TFO_SERVER_ENABLE) &&
 	      (syn_data || foc->len >= 0) &&
 	      tcp_fastopen_queue_check(sk))) {
@@ -265,7 +268,8 @@ bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 	if (syn_data && (sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_REQD))
 		goto fastopen;
 
-	if (tcp_fastopen_cookie_gen(req, skb, &valid_foc) &&
+	if (foc->len >= 0 &&  /* Client presents or requests a cookie */
+	    tcp_fastopen_cookie_gen(req, skb, &valid_foc) &&
 	    foc->len == TCP_FASTOPEN_COOKIE_SIZE &&
 	    foc->len == valid_foc.len &&
 	    !memcmp(foc->val, valid_foc.val, foc->len)) {
@@ -284,11 +288,10 @@ fastopen:
 					 LINUX_MIB_TCPFASTOPENPASSIVE);
 			return true;
 		}
-	}
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
+	} else if (foc->len > 0) /* Client presents an invalid cookie */
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
 
-	NET_INC_STATS_BH(sock_net(sk), foc->len ?
-			 LINUX_MIB_TCPFASTOPENPASSIVEFAIL :
-			 LINUX_MIB_TCPFASTOPENCOOKIEREQD);
 	*foc = valid_foc;
 	return false;
 }
