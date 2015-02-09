@@ -822,6 +822,19 @@ static int tipc_nl_compat_sk_dump(struct tipc_nl_compat_msg *msg,
 	return 0;
 }
 
+static int tipc_nl_compat_media_dump(struct tipc_nl_compat_msg *msg,
+				     struct nlattr **attrs)
+{
+	struct nlattr *media[TIPC_NLA_MEDIA_MAX + 1];
+
+	nla_parse_nested(media, TIPC_NLA_MEDIA_MAX, attrs[TIPC_NLA_MEDIA],
+			 NULL);
+
+	return tipc_add_tlv(msg->rep, TIPC_TLV_MEDIA_NAME,
+			    nla_data(media[TIPC_NLA_MEDIA_NAME]),
+			    nla_len(media[TIPC_NLA_MEDIA_NAME]));
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
@@ -884,6 +897,11 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		msg->rep_type = TIPC_TLV_ULTRA_STRING;
 		dump.dumpit = tipc_nl_sk_dump;
 		dump.format = tipc_nl_compat_sk_dump;
+		return tipc_nl_compat_dumpit(&dump, msg);
+	case TIPC_CMD_GET_MEDIA_NAMES:
+		msg->rep_size = MAX_MEDIA * TLV_SPACE(TIPC_MAX_MEDIA_NAME);
+		dump.dumpit = tipc_nl_media_dump;
+		dump.format = tipc_nl_compat_media_dump;
 		return tipc_nl_compat_dumpit(&dump, msg);
 	}
 
@@ -992,6 +1010,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_RESET_LINK_STATS:
 	case TIPC_CMD_SHOW_NAME_TABLE:
 	case TIPC_CMD_SHOW_PORTS:
+	case TIPC_CMD_GET_MEDIA_NAMES:
 		return tipc_nl_compat_recv(skb, info);
 	}
 

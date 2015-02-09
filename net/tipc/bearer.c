@@ -124,26 +124,6 @@ void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 }
 
 /**
- * tipc_media_get_names - record names of registered media in buffer
- */
-struct sk_buff *tipc_media_get_names(void)
-{
-	struct sk_buff *buf;
-	int i;
-
-	buf = tipc_cfg_reply_alloc(MAX_MEDIA * TLV_SPACE(TIPC_MAX_MEDIA_NAME));
-	if (!buf)
-		return NULL;
-
-	for (i = 0; media_info_array[i] != NULL; i++) {
-		tipc_cfg_append_tlv(buf, TIPC_TLV_MEDIA_NAME,
-				    media_info_array[i]->name,
-				    strlen(media_info_array[i]->name) + 1);
-	}
-	return buf;
-}
-
-/**
  * bearer_name_validate - validate & (optionally) deconstruct bearer name
  * @name: ptr to bearer name string
  * @name_parts: ptr to area for bearer name components (or NULL if not needed)
