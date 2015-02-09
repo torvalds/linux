@@ -857,10 +857,7 @@ static void xs_close(struct rpc_xprt *xprt)
 
 static void xs_tcp_close(struct rpc_xprt *xprt)
 {
-	if (test_and_clear_bit(XPRT_CONNECTION_CLOSE, &xprt->state))
-		xs_close(xprt);
-	else
-		xs_tcp_shutdown(xprt);
+	xs_tcp_shutdown(xprt);
 }
 
 static void xs_xprt_free(struct rpc_xprt *xprt)
@@ -1033,7 +1030,6 @@ static void xs_udp_data_ready(struct sock *sk)
  */
 static void xs_tcp_force_close(struct rpc_xprt *xprt)
 {
-	set_bit(XPRT_CONNECTION_CLOSE, &xprt->state);
 	xprt_force_disconnect(xprt);
 }
 
