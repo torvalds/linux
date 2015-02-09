@@ -816,9 +816,10 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 		    mode. This is used to re-write the RX idle mode. */
 		/*  We can only prvide a usual value instead and then
 		    HW will modify the value by itself. */
-		PHY_SetRFReg(Adapter, RF_PATH_A, 0, bRFRegOffsetMask, 0x32D95);
+		PHY_SetRFReg(Adapter, RF_PATH_A, RF_AC,
+			     bRFRegOffsetMask, 0x32D95);
 		if (pHalData->rf_type ==  RF_2T2R) {
-			PHY_SetRFReg(Adapter, RF_PATH_B, 0,
+			PHY_SetRFReg(Adapter, RF_PATH_B, RF_AC,
 				     bRFRegOffsetMask, 0x32D95);
 		}
 		break;
@@ -867,9 +868,9 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 				     0x001B25A0);
 
 		/*  3. issue 3-wire command that RF set to power down.*/
-		PHY_SetRFReg(Adapter, RF_PATH_A, 0, bRFRegOffsetMask, 0);
+		PHY_SetRFReg(Adapter, RF_PATH_A, RF_AC, bRFRegOffsetMask, 0);
 		if (pHalData->rf_type ==  RF_2T2R)
-			PHY_SetRFReg(Adapter, RF_PATH_B, 0,
+			PHY_SetRFReg(Adapter, RF_PATH_B, RF_AC,
 				     bRFRegOffsetMask, 0);
 
 		/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
