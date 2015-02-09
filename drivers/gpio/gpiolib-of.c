@@ -48,7 +48,7 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 		 * Return true to stop looking and return the translation
 		 * error via out_gpio
 		 */
-		gg_data->out_gpio = ERR_PTR(ret);
+		gg_data->out_gpio = ret;
 		return true;
 	 }
 

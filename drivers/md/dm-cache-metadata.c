@@ -648,7 +648,7 @@ static struct dm_cache_metadata *metadata_open(struct block_device *bdev,
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
 		DMERR("could not allocate metadata struct");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	atomic_set(&cmd->ref_count, 1);
@@ -710,7 +710,7 @@ static struct dm_cache_metadata *lookup_or_open(struct block_device *bdev,
 		return cmd;
 
 	cmd = metadata_open(bdev, data_block_size, may_format_device, policy_hint_size);
-	if (cmd) {
+	if (!IS_ERR(cmd)) {
 		mutex_lock(&table_lock);
 		cmd2 = lookup(bdev);
 		if (cmd2) {
@@ -745,9 +745,10 @@ struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
 {
 	struct dm_cache_metadata *cmd = lookup_or_open(bdev, data_block_size,
 						       may_format_device, policy_hint_size);
-	if (cmd && !same_params(cmd, data_block_size)) {
+
+	if (!IS_ERR(cmd) && !same_params(cmd, data_block_size)) {
 		dm_cache_metadata_close(cmd);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	return cmd;
