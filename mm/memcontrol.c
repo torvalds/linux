@@ -5773,7 +5773,7 @@ void mem_cgroup_uncharge_list(struct list_head *page_list)
  * mem_cgroup_migrate - migrate a charge to another page
  * @oldpage: currently charged page
  * @newpage: page to transfer the charge to
- * @lrucare: both pages might be on the LRU already
+ * @lrucare: either or both pages might be on the LRU already
  *
  * Migrate the charge from @oldpage to @newpage.
  *

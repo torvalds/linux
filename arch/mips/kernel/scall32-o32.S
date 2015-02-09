@@ -181,6 +181,7 @@ illegal_syscall:
 	sll	t1, t0, 2
 	beqz	v0, einval
 	lw	t2, sys_call_table(t1)		# syscall routine
+	sw	a0, PT_R2(sp)			# call routine directly on restart
 
 	/* Some syscalls like execve get their arguments from struct pt_regs
 	   and claim zero arguments in the syscall table. Thus we have to
@@ -580,3 +581,4 @@ EXPORT(sys_call_table)
 	PTR	sys_getrandom
 	PTR	sys_memfd_create
 	PTR	sys_bpf				/* 4355 */
+	PTR	sys_execveat
