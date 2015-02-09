@@ -361,6 +361,8 @@ struct fsl_asrc {
 
 	int asrc_rate;
 	int asrc_width;
+
+	u32 regcache_cfg;
 };
 
 extern struct snd_soc_platform_driver fsl_asrc_platform;
