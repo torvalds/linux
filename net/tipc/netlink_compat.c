@@ -553,6 +553,22 @@ static int tipc_nl_compat_link_stat_dump(struct tipc_nl_compat_msg *msg,
 	return 0;
 }
 
+static int tipc_nl_compat_link_dump(struct tipc_nl_compat_msg *msg,
+				    struct nlattr **attrs)
+{
+	struct nlattr *link[TIPC_NLA_LINK_MAX + 1];
+	struct tipc_link_info link_info;
+
+	nla_parse_nested(link, TIPC_NLA_LINK_MAX, attrs[TIPC_NLA_LINK], NULL);
+
+	link_info.dest = nla_get_flag(link[TIPC_NLA_LINK_DEST]);
+	link_info.up = htonl(nla_get_flag(link[TIPC_NLA_LINK_UP]));
+	strcpy(link_info.str, nla_data(link[TIPC_NLA_LINK_NAME]));
+
+	return tipc_add_tlv(msg->rep, TIPC_TLV_LINK_INFO,
+			    &link_info, sizeof(link_info));
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
@@ -583,6 +599,12 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		msg->rep_type = TIPC_TLV_ULTRA_STRING;
 		dump.dumpit = tipc_nl_link_dump;
 		dump.format = tipc_nl_compat_link_stat_dump;
+		return tipc_nl_compat_dumpit(&dump, msg);
+	case TIPC_CMD_GET_LINKS:
+		msg->req_type = TIPC_TLV_NET_ADDR;
+		msg->rep_size = ULTRA_STRING_MAX_LEN;
+		dump.dumpit = tipc_nl_link_dump;
+		dump.format = tipc_nl_compat_link_dump;
 		return tipc_nl_compat_dumpit(&dump, msg);
 	}
 
@@ -684,6 +706,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_ENABLE_BEARER:
 	case TIPC_CMD_DISABLE_BEARER:
 	case TIPC_CMD_SHOW_LINK_STATS:
+	case TIPC_CMD_GET_LINKS:
 		return tipc_nl_compat_recv(skb, info);
 	}
 
