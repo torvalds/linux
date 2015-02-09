@@ -79,6 +79,14 @@ void release_thread(struct task_struct *dead_task)
 {
 }
 
+#ifdef CONFIG_64BIT
+void arch_release_task_struct(struct task_struct *tsk)
+{
+	if (tsk->thread.vxrs)
+		kfree(tsk->thread.vxrs);
+}
+#endif
+
 int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 		unsigned long arg, struct task_struct *p)
 {
