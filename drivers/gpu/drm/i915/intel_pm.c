@@ -66,6 +66,12 @@ static void skl_init_clock_gating(struct drm_device *dev)
 			   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 	}
 
+	if (INTEL_REVID(dev) <= SKL_REVID_D0)
+		/* WaDisableHDCInvalidation:skl */
+		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+			   BDW_DISABLE_HDC_INVALIDATION);
+
+
 	if (INTEL_REVID(dev) <= SKL_REVID_E0)
 		/* WaDisableLSQCROPERFforOCL:skl */
 		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
