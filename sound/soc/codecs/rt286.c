@@ -34,6 +34,7 @@
 #include "rt286.h"
 
 #define RT286_VENDOR_ID 0x10ec0286
+#define RT288_VENDOR_ID 0x10ec0288
 
 struct rt286_priv {
 	struct regmap *regmap;
@@ -1168,6 +1169,7 @@ static const struct regmap_config rt286_regmap = {
 
 static const struct i2c_device_id rt286_i2c_id[] = {
 	{"rt286", 0},
+	{"rt288", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, rt286_i2c_id);
@@ -1221,7 +1223,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 
 	regmap_read(rt286->regmap,
 		RT286_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID), &ret);
-	if (ret != RT286_VENDOR_ID) {
+	if (ret != RT286_VENDOR_ID && ret != RT288_VENDOR_ID) {
 		dev_err(&i2c->dev,
 			"Device with ID register %x is not rt286\n", ret);
 		return -ENODEV;
