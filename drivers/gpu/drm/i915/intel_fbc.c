@@ -369,7 +369,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 		if (work->crtc->primary->fb == work->fb) {
 			dev_priv->display.enable_fbc(work->crtc);
 
-			dev_priv->fbc.plane = to_intel_crtc(work->crtc)->plane;
+			dev_priv->fbc.crtc = to_intel_crtc(work->crtc);
 			dev_priv->fbc.fb_id = work->crtc->primary->fb->base.id;
 			dev_priv->fbc.y = work->crtc->y;
 		}
@@ -460,7 +460,7 @@ void intel_fbc_disable(struct drm_device *dev)
 		return;
 
 	dev_priv->display.disable_fbc(dev);
-	dev_priv->fbc.plane = -1;
+	dev_priv->fbc.crtc = NULL;
 }
 
 static bool set_no_fbc_reason(struct drm_i915_private *dev_priv,
@@ -612,7 +612,7 @@ void intel_fbc_update(struct drm_device *dev)
 	 * cannot be unpinned (and have its GTT offset and fence revoked)
 	 * without first being decoupled from the scanout and FBC disabled.
 	 */
-	if (dev_priv->fbc.plane == intel_crtc->plane &&
+	if (dev_priv->fbc.crtc == intel_crtc &&
 	    dev_priv->fbc.fb_id == fb->base.id &&
 	    dev_priv->fbc.y == crtc->y)
 		return;

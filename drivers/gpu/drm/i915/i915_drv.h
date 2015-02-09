@@ -775,7 +775,7 @@ struct i915_fbc {
 	unsigned long uncompressed_size;
 	unsigned threshold;
 	unsigned int fb_id;
-	enum plane plane;
+	struct intel_crtc *crtc;
 	int y;
 
 	struct drm_mm_node compressed_fb;

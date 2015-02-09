@@ -4277,11 +4277,10 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
 
 	intel_crtc_wait_for_pending_flips(crtc);
 
-	if (dev_priv->fbc.plane == plane)
+	if (dev_priv->fbc.crtc == intel_crtc)
 		intel_fbc_disable(dev);
 
 	hsw_disable_ips(intel_crtc);
@@ -11932,7 +11931,7 @@ intel_check_primary_plane(struct drm_plane *plane,
 		 */
 		if (intel_crtc->primary_enabled &&
 		    INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
-		    dev_priv->fbc.plane == intel_crtc->plane &&
+		    dev_priv->fbc.crtc == intel_crtc &&
 		    state->base.rotation != BIT(DRM_ROTATE_0)) {
 			intel_crtc->atomic.disable_fbc = true;
 		}
