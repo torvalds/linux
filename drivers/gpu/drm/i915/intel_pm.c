@@ -2522,6 +2522,7 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	enum pipe pipe = intel_crtc->pipe;
 	struct skl_ddb_entry *alloc = &ddb->pipe[pipe];
 	uint16_t alloc_size, start, cursor_blocks;
+	uint16_t minimum[I915_MAX_PLANES];
 	unsigned int total_data_rate;
 	int plane;
 
@@ -2540,9 +2541,21 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	alloc_size -= cursor_blocks;
 	alloc->end -= cursor_blocks;
 
+	/* 1. Allocate the mininum required blocks for each active plane */
+	for_each_plane(pipe, plane) {
+		const struct intel_plane_wm_parameters *p;
+
+		p = &params->plane[plane];
+		if (!p->enabled)
+			continue;
+
+		minimum[plane] = 8;
+		alloc_size -= minimum[plane];
+	}
+
 	/*
-	 * Each active plane get a portion of the remaining space, in
-	 * proportion to the amount of data they need to fetch from memory.
+	 * 2. Distribute the remaining space in proportion to the amount of
+	 * data each plane needs to fetch from memory.
 	 *
 	 * FIXME: we may not allocate every single block here.
 	 */
@@ -2564,8 +2577,9 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 		 * promote the expression to 64 bits to avoid overflowing, the
 		 * result is < available as data_rate / total_data_rate < 1
 		 */
-		plane_blocks = div_u64((uint64_t)alloc_size * data_rate,
-				       total_data_rate);
+		plane_blocks = minimum[plane];
+		plane_blocks += div_u64((uint64_t)alloc_size * data_rate,
+					total_data_rate);
 
 		ddb->plane[pipe][plane].start = start;
 		ddb->plane[pipe][plane].end = start + plane_blocks;
