@@ -314,6 +314,87 @@ TRACE_EVENT_FN(foo_bar_with_fn,
 	foo_bar_reg, foo_bar_unreg
 );
 
+/*
+ * Each TRACE_EVENT macro creates several helper functions to produce
+ * the code to add the tracepoint, create the files in the trace
+ * directory, hook it to perf, assign the values and to print out
+ * the raw data from the ring buffer. To prevent too much bloat,
+ * if there are more than one tracepoint that uses the same format
+ * for the proto, args, struct, assign and printk, and only the name
+ * is different, it is highly recommended to use the DECLARE_EVENT_CLASS
+ *
+ * DECLARE_EVENT_CLASS() macro creates most of the functions for the
+ * tracepoint. Then DEFINE_EVENT() is use to hook a tracepoint to those
+ * functions. This DEFINE_EVENT() is an instance of the class and can
+ * be enabled and disabled separately from other events (either TRACE_EVENT
+ * or other DEFINE_EVENT()s).
+ *
+ * Note, TRACE_EVENT() itself is simply defined as:
+ *
+ * #define TRACE_EVENT(name, proto, args, tstruct, assign, printk)  \
+ *  DEFINE_EVENT_CLASS(name, proto, args, tstruct, assign, printk); \
+ *  DEFINE_EVENT(name, name, proto, args)
+ *
+ * The DEFINE_EVENT() also can be declared with conditions and reg functions:
+ *
+ * DEFINE_EVENT_CONDITION(template, name, proto, args, cond);
+ * DEFINE_EVENT_FN(template, name, proto, args, reg, unreg);
+ */
+DECLARE_EVENT_CLASS(foo_template,
+
+	TP_PROTO(const char *foo, int bar),
+
+	TP_ARGS(foo, bar),
+
+	TP_STRUCT__entry(
+		__string(	foo,    foo		)
+		__field(	int,	bar		)
+	),
+
+	TP_fast_assign(
+		__assign_str(foo, foo);
+		__entry->bar	= bar;
+	),
+
+	TP_printk("foo %s %d", __get_str(foo), __entry->bar)
+);
+
+/*
+ * Here's a better way for the previous samples (except, the first
+ * exmaple had more fields and could not be used here).
+ */
+DEFINE_EVENT(foo_template, foo_with_template_simple,
+	TP_PROTO(const char *foo, int bar),
+	TP_ARGS(foo, bar));
+
+DEFINE_EVENT_CONDITION(foo_template, foo_with_template_cond,
+	TP_PROTO(const char *foo, int bar),
+	TP_ARGS(foo, bar),
+	TP_CONDITION(!(bar % 8)));
+
+
+DEFINE_EVENT_FN(foo_template, foo_with_template_fn,
+	TP_PROTO(const char *foo, int bar),
+	TP_ARGS(foo, bar),
+	foo_bar_reg, foo_bar_unreg);
+
+/*
+ * Anytime two events share basically the same values and have
+ * the same output, use the DECLARE_EVENT_CLASS() and DEFINE_EVENT()
+ * when ever possible.
+ */
+
+/*
+ * If the event is similar to the DECLARE_EVENT_CLASS, but you need
+ * to have a different output, then use DEFINE_EVENT_PRINT() which
+ * lets you override the TP_printk() of the class.
+ */
+
+DEFINE_EVENT_PRINT(foo_template, foo_with_template_print,
+	TP_PROTO(const char *foo, int bar),
+	TP_ARGS(foo, bar),
+	TP_printk("bar %s %d", __get_str(foo), __entry->bar));
+
 #endif
 
 /***** NOTICE! The #if protection ends here. *****/

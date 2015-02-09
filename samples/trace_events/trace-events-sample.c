@@ -35,7 +35,13 @@ static void simple_thread_func(int cnt)
 	trace_foo_bar("hello", cnt, array, random_strings[len],
 		      tsk_cpus_allowed(current));
 
+	trace_foo_with_template_simple("HELLO", cnt);
+
 	trace_foo_bar_with_cond("Some times print", cnt);
+
+	trace_foo_with_template_cond("prints other times", cnt);
+
+	trace_foo_with_template_print("I have to be different", cnt);
 }
 
 static int simple_thread(void *arg)
@@ -58,6 +64,7 @@ static void simple_thread_func_fn(int cnt)
 
 	/* More silly tracepoints */
 	trace_foo_bar_with_fn("Look at me", cnt);
+	trace_foo_with_template_fn("Look at me too", cnt);
 }
 
 static int simple_thread_fn(void *arg)
