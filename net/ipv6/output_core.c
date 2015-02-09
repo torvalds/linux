@@ -9,7 +9,8 @@
 #include <net/addrconf.h>
 #include <net/secure_seq.h>
 
-u32 __ipv6_select_ident(u32 hashrnd, struct in6_addr *dst, struct in6_addr *src)
+static u32 __ipv6_select_ident(u32 hashrnd, struct in6_addr *dst,
+			       struct in6_addr *src)
 {
 	u32 hash, id;
 
