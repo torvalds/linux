@@ -3575,6 +3575,11 @@ retry:
 
 	blkcg = bio_blkcg(bio);
 	cfqg = cfq_lookup_create_cfqg(cfqd, blkcg);
+	if (!cfqg) {
+		cfqq = &cfqd->oom_cfqq;
+		goto out;
+	}
+
 	cfqq = cic_to_cfqq(cic, is_sync);
 
 	/*
@@ -3611,7 +3616,7 @@ retry:
 		} else
 			cfqq = &cfqd->oom_cfqq;
 	}
-
+out:
 	if (new_cfqq)
 		kmem_cache_free(cfq_pool, new_cfqq);
 
