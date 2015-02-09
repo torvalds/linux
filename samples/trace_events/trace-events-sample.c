@@ -10,12 +10,29 @@
 #define CREATE_TRACE_POINTS
 #include "trace-events-sample.h"
 
+static const char *random_strings[] = {
+	"Mother Goose",
+	"Snoopy",
+	"Gandalf",
+	"Frodo",
+	"One ring to rule them all"
+};
 
 static void simple_thread_func(int cnt)
 {
+	int array[6];
+	int len = cnt % 5;
+	int i;
+
 	set_current_state(TASK_INTERRUPTIBLE);
 	schedule_timeout(HZ);
-	trace_foo_bar("hello", cnt);
+
+	for (i = 0; i < len; i++)
+		array[i] = i + 1;
+	array[i] = 0;
+
+	trace_foo_bar("hello", cnt, array, random_strings[len],
+		      tsk_cpus_allowed(current));
 }
 
 static int simple_thread(void *arg)

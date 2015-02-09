@@ -1,6 +1,6 @@
 /*
  * If TRACE_SYSTEM is defined, that will be the directory created
- * in the ftrace directory under /sys/kernel/debug/tracing/events/<system>
+ * in the ftrace directory under /sys/kernel/tracing/events/<system>
  *
  * The define_trace.h below will also look for a file name of
  * TRACE_SYSTEM.h where TRACE_SYSTEM is what is defined here.
@@ -54,44 +54,163 @@
  *    Here it is simply "foo, bar".
  *
  * struct:  This defines the way the data will be stored in the ring buffer.
- *    There are currently two types of elements. __field and __array.
- *    a __field is broken up into (type, name). Where type can be any
- *    primitive type (integer, long or pointer). __field_struct() can
- *    be any static complex data value (struct, union, but not an array).
- *    For an array. there are three fields. (type, name, size). The
- *    type of elements in the array, the name of the field and the size
- *    of the array.
+ *          The items declared here become part of a special structure
+ *          called "__entry", which can be used in the fast_assign part of the
+ *          TRACE_EVENT macro.
  *
- *    __array( char, foo, 10) is the same as saying   char foo[10].
+ *      Here are the currently defined types you can use:
+ *
+ *   __field : Is broken up into type and name. Where type can be any
+ *         primitive type (integer, long or pointer).
+ *
+ *        __field(int, foo)
+ *
+ *        __entry->foo = 5;
+ *
+ *   __field_struct : This can be any static complex data type (struct, union
+ *         but not an array). Be careful using complex types, as each
+ *         event is limited in size, and copying large amounts of data
+ *         into the ring buffer can slow things down.
+ *
+ *         __field_struct(struct bar, foo)
+ *
+ *         __entry->bar.x = y;
+
+ *   __array: There are three fields (type, name, size). The type is the
+ *         type of elements in teh array, the name is the name of the array.
+ *         size is the number of items in the array (not the total size).
+ *
+ *         __array( char, foo, 10) is the same as saying: char foo[10];
+ *
+ *         Assigning arrays can be done like any array:
+ *
+ *         __entry->foo[0] = 'a';
+ *
+ *         memcpy(__entry->foo, bar, 10);
+ *
+ *   __dynamic_array: This is similar to array, but can vary is size from
+ *         instance to instance of the tracepoint being called.
+ *         Like __array, this too has three elements (type, name, size);
+ *         type is the type of the element, name is the name of the array.
+ *         The size is different than __array. It is not a static number,
+ *         but the algorithm to figure out the length of the array for the
+ *         specific instance of tracepoint. Again, size is the numebr of
+ *         items in the array, not the total length in bytes.
+ *
+ *         __dynamic_array( int, foo, bar) is similar to: int foo[bar];
+ *
+ *         Note, unlike arrays, you must use the __get_dynamic_array() macro
+ *         to access the array.
+ *
+ *         memcpy(__get_dynamic_array(foo), bar, 10);
+ *
+ *         Notice, that "__entry" is not needed here.
+ *
+ *   __string: This is a special kind of __dynamic_array. It expects to
+ *         have a nul terminated character array passed to it (it allows
+ *         for NULL too, which would be converted into "(null)"). __string
+ *         takes two paramenter (name, src), where name is the name of
+ *         the string saved, and src is the string to copy into the
+ *         ring buffer.
+ *
+ *         __string(foo, bar)  is similar to:  strcpy(foo, bar)
+ *
+ *         To assign a string, use the helper macro __assign_str().
+ *
+ *         __assign_str(foo, bar);
+ *
+ *         In most cases, the __assign_str() macro will take the same
+ *         parameters as the __string() macro had to declare the string.
+ *
+ *   __bitmask: This is another kind of __dynamic_array, but it expects
+ *         an array of longs, and the number of bits to parse. It takes
+ *         two parameters (name, nr_bits), where name is the name of the
+ *         bitmask to save, and the nr_bits is the number of bits to record.
+ *
+ *         __bitmask(target_cpu, nr_cpumask_bits)
+ *
+ *         To assign a bitmask, use the __assign_bitmask() helper macro.
+ *
+ *         __assign_bitmask(target_cpus, cpumask_bits(bar), nr_cpumask_bits);
+ *
  *
  * fast_assign: This is a C like function that is used to store the items
- *    into the ring buffer.
+ *    into the ring buffer. A special variable called "__entry" will be the
+ *    structure that points into the ring buffer and has the same fields as
+ *    described by the struct part of TRACE_EVENT above.
  *
  * printk: This is a way to print out the data in pretty print. This is
  *    useful if the system crashes and you are logging via a serial line,
  *    the data can be printed to the console using this "printk" method.
+ *    This is also used to print out the data from the trace files.
+ *    Again, the __entry macro is used to access the data from the ring buffer.
+ *
+ *    Note, __dynamic_array, __string, and __bitmask require special helpers
+ *       to access the data.
+ *
+ *      For __dynamic_array(int, foo, bar) use __get_dynamic_array(foo)
+ *            Use __get_dynamic_array_len(foo) to get the length of the array
+ *            saved.
+ *
+ *      For __string(foo, bar) use __get_str(foo)
+ *
+ *      For __bitmask(target_cpus, nr_cpumask_bits) use __get_bitmask(target_cpus)
+ *
  *
  * Note, that for both the assign and the printk, __entry is the handler
  * to the data structure in the ring buffer, and is defined by the
  * TP_STRUCT__entry.
  */
+
+/*
+ * It is OK to have helper functions in the file, but they need to be protected
+ * from being defined more than once. Remember, this file gets included more
+ * than once.
+ */
+#ifndef __TRACE_EVENT_SAMPLE_HELPER_FUNCTIONS
+#define __TRACE_EVENT_SAMPLE_HELPER_FUNCTIONS
+static inline int __length_of(const int *list)
+{
+	int i;
+
+	if (!list)
+		return 0;
+
+	for (i = 0; list[i]; i++)
+		;
+	return i;
+}
+#endif
+
 TRACE_EVENT(foo_bar,
 
-	TP_PROTO(char *foo, int bar),
+	TP_PROTO(const char *foo, int bar, const int *lst,
+		 const char *string, const struct cpumask *mask),
 
-	TP_ARGS(foo, bar),
+	TP_ARGS(foo, bar, lst, string, mask),
 
 	TP_STRUCT__entry(
 		__array(	char,	foo,    10		)
 		__field(	int,	bar			)
+		__dynamic_array(int,	list,   __length_of(lst))
+		__string(	str,	string			)
+		__bitmask(	cpus,	num_possible_cpus()	)
 	),
 
 	TP_fast_assign(
 		strlcpy(__entry->foo, foo, 10);
 		__entry->bar	= bar;
+		memcpy(__get_dynamic_array(list), lst,
+		       __length_of(lst) * sizeof(int));
+		__assign_str(str, string);
+		__assign_bitmask(cpus, cpumask_bits(mask), num_possible_cpus());
 	),
 
-	TP_printk("foo %s %d", __entry->foo, __entry->bar)
+	TP_printk("foo %s %d %s %s (%s)", __entry->foo, __entry->bar,
+		  __print_array(__get_dynamic_array(list),
+				__get_dynamic_array_len(list),
+				sizeof(int)),
+		  __get_str(str), __get_bitmask(cpus))
 );
 #endif
 
