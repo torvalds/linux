@@ -59,9 +59,10 @@ static void skl_init_clock_gating(struct drm_device *dev)
 	if (INTEL_REVID(dev) == SKL_REVID_A0) {
 		/*
 		 * WaDisableSDEUnitClockGating:skl
-		 * This seems to be a pre-production w/a.
+		 * WaSetGAPSunitClckGateDisable:skl
 		 */
 		I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
+			   GEN8_GAPSUNIT_CLOCK_GATE_DISABLE |
 			   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 	}
 }

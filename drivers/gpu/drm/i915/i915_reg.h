@@ -6018,6 +6018,7 @@ enum skl_disp_power_wells {
 #define GEN6_RSTCTL				0x9420
 
 #define GEN8_UCGCTL6				0x9430
+#define   GEN8_GAPSUNIT_CLOCK_GATE_DISABLE	(1<<24)
 #define   GEN8_SDEUNIT_CLOCK_GATE_DISABLE	(1<<14)
 
 #define GEN6_GFXPAUSE				0xA000
