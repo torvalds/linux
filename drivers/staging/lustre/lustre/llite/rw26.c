@@ -44,7 +44,7 @@
 #include <linux/stat.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/migrate.h>
 #include <linux/fs.h>

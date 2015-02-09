@@ -100,8 +100,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/pagevec.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "../include/lustre_lib.h"
 #include "../include/lustre_lite.h"

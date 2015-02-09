@@ -43,7 +43,7 @@
 #include "../../../include/linux/libcfs/libcfs.h"
 
 #if defined(CONFIG_KGDB)
-#include <asm/kgdb.h>
+#include <linux/kgdb.h>
 #endif
 
 /**

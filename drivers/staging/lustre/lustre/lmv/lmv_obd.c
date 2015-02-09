@@ -43,7 +43,7 @@
 #include <asm/div64.h>
 #include <linux/seq_file.h>
 #include <linux/namei.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "../include/lustre/lustre_idl.h"
 #include "../include/obd_support.h"
