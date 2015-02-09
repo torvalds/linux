@@ -268,39 +268,36 @@ err:
 static unsigned int _save_mc(struct microcode_intel **mc_saved,
 			     u8 *ucode_ptr, unsigned int num_saved)
 {
-	struct microcode_header_intel *mc_header;
+	struct microcode_header_intel *mc_hdr, *mc_saved_hdr;
+	unsigned int sig, pf, new_rev;
 	int found = 0, i;
 
-	mc_header = (struct microcode_header_intel *)ucode_ptr;
+	mc_hdr = (struct microcode_header_intel *)ucode_ptr;
 
 	for (i = 0; i < num_saved; i++) {
-		unsigned int sig, pf;
-		unsigned int new_rev;
-		struct microcode_header_intel *mc_saved_header =
-			     (struct microcode_header_intel *)mc_saved[i];
-		sig = mc_saved_header->sig;
-		pf = mc_saved_header->pf;
-		new_rev = mc_header->rev;
+		mc_saved_hdr = (struct microcode_header_intel *)mc_saved[i];
+		sig	     = mc_saved_hdr->sig;
+		pf	     = mc_saved_hdr->pf;
+		new_rev	     = mc_hdr->rev;
 
-		if (get_matching_sig(sig, pf, ucode_ptr, new_rev)) {
-			found = 1;
-			if (update_match_revision(mc_header, new_rev)) {
-				/*
-				 * Found an older ucode saved before.
-				 * Replace the older one with this newer
-				 * one.
-				 */
-				mc_saved[i] = (struct microcode_intel *)ucode_ptr;
-				break;
-			}
-		}
+		if (!get_matching_sig(sig, pf, ucode_ptr, new_rev))
+			continue;
+
+		found = 1;
+
+		if (!update_match_revision(mc_hdr, new_rev))
+			continue;
+
+		/*
+		 * Found an older ucode saved earlier. Replace it with
+		 * this newer one.
+		 */
+		mc_saved[i] = (struct microcode_intel *)ucode_ptr;
+		break;
 	}
 
+	/* Newly detected microcode, save it to memory. */
 	if (i >= num_saved && !found)
-		/*
-		 * This ucode is first time discovered in ucode file.
-		 * Save it to memory.
-		 */
 		mc_saved[num_saved++] = (struct microcode_intel *)ucode_ptr;
 
 	return num_saved;
