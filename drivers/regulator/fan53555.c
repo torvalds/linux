@@ -147,7 +147,7 @@ static unsigned int fan53555_get_mode(struct regulator_dev *rdev)
 		return REGULATOR_MODE_NORMAL;
 }
 
-static int slew_rates[] = {
+static const int slew_rates[] = {
 	64000,
 	32000,
 	16000,
@@ -296,7 +296,7 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 	return PTR_ERR_OR_ZERO(di->rdev);
 }
 
-static struct regmap_config fan53555_regmap_config = {
+static const struct regmap_config fan53555_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
