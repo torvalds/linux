@@ -110,6 +110,9 @@ struct mlx4_ib_cq {
 	struct mutex		resize_mutex;
 	struct ib_umem	       *umem;
 	struct ib_umem	       *resize_umem;
+	/* List of qps that it serves.*/
+	struct list_head		send_qp_list;
+	struct list_head		recv_qp_list;
 };
 
 struct mlx4_ib_mr {
@@ -300,6 +303,9 @@ struct mlx4_ib_qp {
 	struct mlx4_roce_smac_vlan_info pri;
 	struct mlx4_roce_smac_vlan_info alt;
 	u64			reg_id;
+	struct list_head	qps_list;
+	struct list_head	cq_recv_list;
+	struct list_head	cq_send_list;
 };
 
 struct mlx4_ib_srq {
@@ -535,6 +541,9 @@ struct mlx4_ib_dev {
 	/* lock when destroying qp1_proxy and getting netdev events */
 	struct mutex		qp1_proxy_lock[MLX4_MAX_PORTS];
 	u8			bond_next_port;
+	/* protect resources needed as part of reset flow */
+	spinlock_t		reset_flow_resource_lock;
+	struct list_head		qp_list;
 };
 
 struct ib_event_work {
