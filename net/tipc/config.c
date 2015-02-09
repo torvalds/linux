@@ -134,26 +134,6 @@ static struct sk_buff *tipc_show_stats(void)
 	return buf;
 }
 
-static struct sk_buff *cfg_set_netid(struct net *net)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	u32 value;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value == tn->net_id)
-		return tipc_cfg_reply_none();
-	if (value < 1 || value > 9999)
-		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-						   " (network id must be 1-9999)");
-	if (tn->own_addr)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-			" (cannot change network id once TIPC has joined a network)");
-	tn->net_id = value;
-	return tipc_cfg_reply_none();
-}
-
 struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 				const void *request_area, int request_space,
 				int reply_headroom)
@@ -184,9 +164,6 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 		break;
 	case TIPC_CMD_SHOW_STATS:
 		rep_tlv_buf = tipc_show_stats();
-		break;
-	case TIPC_CMD_SET_NETID:
-		rep_tlv_buf = cfg_set_netid(net);
 		break;
 	case TIPC_CMD_GET_NETID:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tn->net_id);

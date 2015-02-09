@@ -38,6 +38,7 @@
 #include "name_table.h"
 #include "socket.h"
 #include "node.h"
+#include "net.h"
 #include <net/genetlink.h>
 #include <linux/tipc_config.h>
 
@@ -863,9 +864,13 @@ static int tipc_nl_compat_net_set(struct sk_buff *skb,
 	if (!net)
 		return -EMSGSIZE;
 
-	if (nla_put_u32(skb, TIPC_NLA_NET_ADDR, val))
-		return -EMSGSIZE;
-
+	if (msg->cmd == TIPC_CMD_SET_NODE_ADDR) {
+		if (nla_put_u32(skb, TIPC_NLA_NET_ADDR, val))
+			return -EMSGSIZE;
+	} else if (msg->cmd == TIPC_CMD_SET_NETID) {
+		if (nla_put_u32(skb, TIPC_NLA_NET_ID, val))
+			return -EMSGSIZE;
+	}
 	nla_nest_end(skb, net);
 
 	return 0;
@@ -946,6 +951,11 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		return tipc_nl_compat_dumpit(&dump, msg);
 	case TIPC_CMD_SET_NODE_ADDR:
 		msg->req_type = TIPC_TLV_NET_ADDR;
+		doit.doit = tipc_nl_net_set;
+		doit.transcode = tipc_nl_compat_net_set;
+		return tipc_nl_compat_doit(&doit, msg);
+	case TIPC_CMD_SET_NETID:
+		msg->req_type = TIPC_TLV_UNSIGNED;
 		doit.doit = tipc_nl_net_set;
 		doit.transcode = tipc_nl_compat_net_set;
 		return tipc_nl_compat_doit(&doit, msg);
@@ -1059,6 +1069,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_GET_MEDIA_NAMES:
 	case TIPC_CMD_GET_NODES:
 	case TIPC_CMD_SET_NODE_ADDR:
+	case TIPC_CMD_SET_NETID:
 		return tipc_nl_compat_recv(skb, info);
 	}
 
