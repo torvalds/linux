@@ -722,21 +722,21 @@ static void __init
 _load_ucode_intel_bsp(struct mc_saved_data *mc_saved_data,
 		      unsigned long *mc_saved_in_initrd,
 		      unsigned long initrd_start_early,
-		      unsigned long initrd_end_early,
-		      struct ucode_cpu_info *uci)
+		      unsigned long initrd_end_early)
 {
+	struct ucode_cpu_info uci;
 	enum ucode_state ret;
 
-	collect_cpu_info_early(uci);
+	collect_cpu_info_early(&uci);
 	scan_microcode(initrd_start_early, initrd_end_early, mc_saved_data,
-		       mc_saved_in_initrd, uci);
+		       mc_saved_in_initrd, &uci);
 
 	ret = load_microcode(mc_saved_data, mc_saved_in_initrd,
-			     initrd_start_early, uci);
+			     initrd_start_early, &uci);
 	if (ret != UCODE_OK)
 		return;
 
-	apply_microcode_early(uci, true);
+	apply_microcode_early(&uci, true);
 }
 
 void __init
@@ -744,7 +744,6 @@ load_ucode_intel_bsp(void)
 {
 	u64 ramdisk_image, ramdisk_size;
 	unsigned long initrd_start_early, initrd_end_early;
-	struct ucode_cpu_info uci;
 #ifdef CONFIG_X86_32
 	struct boot_params *boot_params_p;
 
@@ -757,7 +756,7 @@ load_ucode_intel_bsp(void)
 	_load_ucode_intel_bsp(
 		(struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
 		(unsigned long *)__pa_nodebug(&mc_saved_in_initrd),
-		initrd_start_early, initrd_end_early, &uci);
+		initrd_start_early, initrd_end_early);
 #else
 	ramdisk_image = boot_params.hdr.ramdisk_image;
 	ramdisk_size  = boot_params.hdr.ramdisk_size;
@@ -765,8 +764,7 @@ load_ucode_intel_bsp(void)
 	initrd_end_early = initrd_start_early + ramdisk_size;
 
 	_load_ucode_intel_bsp(&mc_saved_data, mc_saved_in_initrd,
-			      initrd_start_early, initrd_end_early,
-			      &uci);
+			      initrd_start_early, initrd_end_early);
 #endif
 }
 
