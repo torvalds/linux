@@ -270,6 +270,50 @@ TRACE_EVENT_CONDITION(foo_bar_with_cond,
 
 	TP_printk("foo %s %d", __get_str(foo), __entry->bar)
 );
+
+void foo_bar_reg(void);
+void foo_bar_unreg(void);
+
+/*
+ * Now in the case that some function needs to be called when the
+ * tracepoint is enabled and/or when it is disabled, the
+ * TRACE_EVENT_FN() serves this purpose. This is just like TRACE_EVENT()
+ * but adds two more parameters at the end:
+ *
+ * TRACE_EVENT_FN( name, proto, args, struct, assign, printk, reg, unreg)
+ *
+ * reg and unreg are functions with the prototype of:
+ *
+ *    void reg(void)
+ *
+ * The reg function gets called before the tracepoint is enabled, and
+ * the unreg function gets called after the tracepoint is disabled.
+ *
+ * Note, reg and unreg are allowed to be NULL. If you only need to
+ * call a function before enabling, or after disabling, just set one
+ * function and pass in NULL for the other parameter.
+ */
+TRACE_EVENT_FN(foo_bar_with_fn,
+
+	TP_PROTO(const char *foo, int bar),
+
+	TP_ARGS(foo, bar),
+
+	TP_STRUCT__entry(
+		__string(	foo,    foo		)
+		__field(	int,	bar		)
+	),
+
+	TP_fast_assign(
+		__assign_str(foo, foo);
+		__entry->bar	= bar;
+	),
+
+	TP_printk("foo %s %d", __get_str(foo), __entry->bar),
+
+	foo_bar_reg, foo_bar_unreg
+);
+
 #endif
 
 /***** NOTICE! The #if protection ends here. *****/
