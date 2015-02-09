@@ -274,7 +274,7 @@ static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
 		unsigned int blkbits = inode->i_sb->s_blocksize_bits;
 		size_t count;
 
-		clear_buffer_new(bh_result);
+		set_buffer_new(bh_result);
 		map_bh(bh_result, inode->i_sb,
 				start_blkaddr + pgofs - start_fofs);
 		count = end_fofs - pgofs + 1;
@@ -634,12 +634,14 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 		goto put_out;
 
 	if (dn.data_blkaddr != NULL_ADDR) {
+		set_buffer_new(bh_result);
 		map_bh(bh_result, inode->i_sb, dn.data_blkaddr);
 	} else if (create) {
 		err = __allocate_data_block(&dn);
 		if (err)
 			goto put_out;
 		allocated = true;
+		set_buffer_new(bh_result);
 		map_bh(bh_result, inode->i_sb, dn.data_blkaddr);
 	} else {
 		goto put_out;
