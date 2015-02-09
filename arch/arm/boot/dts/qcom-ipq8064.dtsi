@@ -120,6 +120,7 @@
 
 		gsbi2: gsbi@12480000 {
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <2>;
 			reg = <0x12480000 0x100>;
 			clocks = <&gcc GSBI2_H_CLK>;
 			clock-names = "iface";
@@ -127,6 +128,8 @@
 			#size-cells = <1>;
 			ranges;
 			status = "disabled";
+
+			syscon-tcsr = <&tcsr>;
 
 			serial@12490000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
@@ -155,6 +158,7 @@
 
 		gsbi4: gsbi@16300000 {
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <4>;
 			reg = <0x16300000 0x100>;
 			clocks = <&gcc GSBI4_H_CLK>;
 			clock-names = "iface";
@@ -162,6 +166,8 @@
 			#size-cells = <1>;
 			ranges;
 			status = "disabled";
+
+			syscon-tcsr = <&tcsr>;
 
 			serial@16340000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
@@ -189,6 +195,7 @@
 
 		gsbi5: gsbi@1a200000 {
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <5>;
 			reg = <0x1a200000 0x100>;
 			clocks = <&gcc GSBI5_H_CLK>;
 			clock-names = "iface";
@@ -196,6 +203,8 @@
 			#size-cells = <1>;
 			ranges;
 			status = "disabled";
+
+			syscon-tcsr = <&tcsr>;
 
 			serial@1a240000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
@@ -278,6 +287,11 @@
 			reg = <0x00900000 0x4000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+		};
+
+		tcsr: syscon@1a400000 {
+			compatible = "qcom,tcsr-ipq8064", "syscon";
+			reg = <0x1a400000 0x100>;
 		};
 	};
 };
