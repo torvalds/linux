@@ -507,10 +507,16 @@ void intel_fbc_update(struct drm_device *dev)
 		return;
 	}
 
-	if (!i915.powersave) {
+	if (i915.enable_fbc < 0) {
+		if (set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT))
+			DRM_DEBUG_KMS("disabled per chip default\n");
+		goto out_disable;
+	}
+
+	if (!i915.enable_fbc || !i915.powersave) {
 		if (set_no_fbc_reason(dev_priv, FBC_MODULE_PARAM))
 			DRM_DEBUG_KMS("fbc disabled per module param\n");
-		return;
+		goto out_disable;
 	}
 
 	/*
@@ -545,16 +551,6 @@ void intel_fbc_update(struct drm_device *dev)
 	obj = intel_fb_obj(fb);
 	adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 
-	if (i915.enable_fbc < 0) {
-		if (set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT))
-			DRM_DEBUG_KMS("disabled per chip default\n");
-		goto out_disable;
-	}
-	if (!i915.enable_fbc) {
-		if (set_no_fbc_reason(dev_priv, FBC_MODULE_PARAM))
-			DRM_DEBUG_KMS("fbc disabled per module param\n");
-		goto out_disable;
-	}
 	if ((adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
 		if (set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED_MODE))
