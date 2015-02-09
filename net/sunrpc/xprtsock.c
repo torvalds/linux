@@ -721,6 +721,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		xs_tcp_shutdown(xprt);
 	case -ECONNREFUSED:
 	case -ENOTCONN:
+	case -EADDRINUSE:
 	case -EPIPE:
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
 	}
@@ -2299,6 +2300,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ENETUNREACH:
+	case -EADDRINUSE:
 	case -ENOBUFS:
 		/* retry with existing socket, after a delay */
 		goto out;
