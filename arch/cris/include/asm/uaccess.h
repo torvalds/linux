@@ -1,4 +1,4 @@
-/* 
+/*
  * Authors:    Bjorn Wesen (bjornw@axis.com)
  *	       Hans-Peter Nilsson (hp@axis.com)
  */
@@ -35,7 +35,7 @@
 #define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
 
 /* addr_limit is the maximum accessible address for the task. we misuse
- * the KERNEL_DS and USER_DS values to both assign and compare the 
+ * the KERNEL_DS and USER_DS values to both assign and compare the
  * addr_limit values through the equally misnamed get/set_fs macros.
  * (see above)
  */
@@ -51,7 +51,7 @@
 
 #define __kernel_ok (segment_eq(get_fs(), KERNEL_DS))
 #define __user_ok(addr, size) \
-	(((size) <= TASK_SIZE)&&((addr) <= TASK_SIZE-(size)))
+	(((size) <= TASK_SIZE) && ((addr) <= TASK_SIZE-(size)))
 #define __access_ok(addr, size) (__kernel_ok || __user_ok((addr), (size)))
 #define access_ok(type, addr, size) __access_ok((unsigned long)(addr), (size))
 
@@ -70,8 +70,7 @@
  * on our cache or tlb entries.
  */
 
-struct exception_table_entry
-{
+struct exception_table_entry {
 	unsigned long insn, fixup;
 };
 
@@ -94,14 +93,14 @@ struct exception_table_entry
  * exception handling means that it's no longer "just"...)
  */
 #define get_user(x, ptr) \
-  __get_user_check((x), (ptr), sizeof(*(ptr)))
+	__get_user_check((x), (ptr), sizeof(*(ptr)))
 #define put_user(x, ptr) \
-  __put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+	__put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
 #define __get_user(x, ptr) \
-  __get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
 #define __put_user(x, ptr) \
-  __put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
 extern long __put_user_bad(void);
 
@@ -109,11 +108,20 @@ extern long __put_user_bad(void);
 do {									\
 	retval = 0;							\
 	switch (size) {							\
-	  case 1: __put_user_asm(x, ptr, retval, "move.b"); break;	\
-	  case 2: __put_user_asm(x, ptr, retval, "move.w"); break;	\
-	  case 4: __put_user_asm(x, ptr, retval, "move.d"); break;	\
-	  case 8: __put_user_asm_64(x, ptr, retval); break;		\
-	  default: __put_user_bad();					\
+	case 1:								\
+		__put_user_asm(x, ptr, retval, "move.b");		\
+		break;							\
+	case 2:								\
+		__put_user_asm(x, ptr, retval, "move.w");		\
+		break;							\
+	case 4:								\
+		__put_user_asm(x, ptr, retval, "move.d");		\
+		break;							\
+	case 8:								\
+		__put_user_asm_64(x, ptr, retval);			\
+		break;							\
+	default:							\
+		__put_user_bad();					\
 	}								\
 } while (0)
 
@@ -121,11 +129,20 @@ do {									\
 do {									\
 	retval = 0;							\
 	switch (size) {							\
-	  case 1: __get_user_asm(x, ptr, retval, "move.b"); break;	\
-	  case 2: __get_user_asm(x, ptr, retval, "move.w"); break;	\
-	  case 4: __get_user_asm(x, ptr, retval, "move.d"); break;	\
-	  case 8: __get_user_asm_64(x, ptr, retval); break;		\
-	  default: (x) = __get_user_bad();				\
+	case 1:								\
+		__get_user_asm(x, ptr, retval, "move.b");		\
+		break;							\
+	case 2:								\
+		__get_user_asm(x, ptr, retval, "move.w");		\
+		break;							\
+	case 4:								\
+		__get_user_asm(x, ptr, retval, "move.d");		\
+		break;							\
+	case 8:								\
+		__get_user_asm_64(x, ptr, retval);			\
+		break;							\
+	default:							\
+		(x) = __get_user_bad();					\
 	}								\
 } while (0)
 
@@ -211,6 +228,7 @@ static inline long
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	long res = -EFAULT;
+
 	if (access_ok(VERIFY_READ, src, 1))
 		res = __do_strncpy_from_user(dst, src, count);
 	return res;
@@ -224,6 +242,7 @@ static inline unsigned long
 __constant_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	unsigned long ret = 0;
+
 	if (n == 0)
 		;
 	else if (n == 1)
@@ -274,6 +293,7 @@ static inline unsigned long
 __constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	unsigned long ret = 0;
+
 	if (n == 0)
 		;
 	else if (n == 1)
@@ -324,6 +344,7 @@ static inline unsigned long
 __constant_clear_user(void __user *to, unsigned long n)
 {
 	unsigned long ret = 0;
+
 	if (n == 0)
 		;
 	else if (n == 1)
@@ -351,20 +372,20 @@ __constant_clear_user(void __user *to, unsigned long n)
 }
 
 
-#define clear_user(to, n)			\
-(__builtin_constant_p(n) ?			\
- __constant_clear_user(to, n) :			\
- __generic_clear_user(to, n))
+#define clear_user(to, n)				\
+	(__builtin_constant_p(n) ?			\
+	 __constant_clear_user(to, n) :			\
+	 __generic_clear_user(to, n))
 
-#define copy_from_user(to, from, n)		\
-(__builtin_constant_p(n) ?			\
- __constant_copy_from_user(to, from, n) :	\
- __generic_copy_from_user(to, from, n))
+#define copy_from_user(to, from, n)			\
+	(__builtin_constant_p(n) ?			\
+	 __constant_copy_from_user(to, from, n) :	\
+	 __generic_copy_from_user(to, from, n))
 
-#define copy_to_user(to, from, n)		\
-(__builtin_constant_p(n) ?			\
- __constant_copy_to_user(to, from, n) :		\
- __generic_copy_to_user(to, from, n))
+#define copy_to_user(to, from, n)			\
+	(__builtin_constant_p(n) ?			\
+	 __constant_copy_to_user(to, from, n) :		\
+	 __generic_copy_to_user(to, from, n))
 
 /* We let the __ versions of copy_from/to_user inline, because they're often
  * used in fast paths and have only a small space overhead.
