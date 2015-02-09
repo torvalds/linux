@@ -1362,8 +1362,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	}
 
 	ssi_private->irq = platform_get_irq(pdev, 0);
-	if (ssi_private->irq < 0) {
-		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
+	if (!ssi_private->irq) {
+		dev_err(&pdev->dev, "no irq for node %s\n", pdev->name);
 		return ssi_private->irq;
 	}
 
