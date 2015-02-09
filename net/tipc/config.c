@@ -134,29 +134,6 @@ static struct sk_buff *tipc_show_stats(void)
 	return buf;
 }
 
-static struct sk_buff *cfg_set_own_addr(struct net *net)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	u32 addr;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	addr = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (addr == tn->own_addr)
-		return tipc_cfg_reply_none();
-	if (!tipc_addr_node_valid(addr))
-		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-						   " (node address)");
-	if (tn->own_addr)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-						   " (cannot change node address once assigned)");
-	if (!tipc_net_start(net, addr))
-		return tipc_cfg_reply_none();
-
-	return tipc_cfg_reply_error_string("cannot change to network mode");
-}
-
 static struct sk_buff *cfg_set_netid(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
@@ -207,9 +184,6 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 		break;
 	case TIPC_CMD_SHOW_STATS:
 		rep_tlv_buf = tipc_show_stats();
-		break;
-	case TIPC_CMD_SET_NODE_ADDR:
-		rep_tlv_buf = cfg_set_own_addr(net);
 		break;
 	case TIPC_CMD_SET_NETID:
 		rep_tlv_buf = cfg_set_netid(net);

@@ -851,6 +851,26 @@ static int tipc_nl_compat_node_dump(struct tipc_nl_compat_msg *msg,
 			    sizeof(node_info));
 }
 
+static int tipc_nl_compat_net_set(struct sk_buff *skb,
+				  struct tipc_nl_compat_msg *msg)
+{
+	u32 val;
+	struct nlattr *net;
+
+	val = ntohl(*(__be32 *)TLV_DATA(msg->req));
+
+	net = nla_nest_start(skb, TIPC_NLA_NET);
+	if (!net)
+		return -EMSGSIZE;
+
+	if (nla_put_u32(skb, TIPC_NLA_NET_ADDR, val))
+		return -EMSGSIZE;
+
+	nla_nest_end(skb, net);
+
+	return 0;
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
@@ -924,6 +944,11 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		dump.dumpit = tipc_nl_node_dump;
 		dump.format = tipc_nl_compat_node_dump;
 		return tipc_nl_compat_dumpit(&dump, msg);
+	case TIPC_CMD_SET_NODE_ADDR:
+		msg->req_type = TIPC_TLV_NET_ADDR;
+		doit.doit = tipc_nl_net_set;
+		doit.transcode = tipc_nl_compat_net_set;
+		return tipc_nl_compat_doit(&doit, msg);
 	}
 
 	return -EOPNOTSUPP;
@@ -1033,6 +1058,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_SHOW_PORTS:
 	case TIPC_CMD_GET_MEDIA_NAMES:
 	case TIPC_CMD_GET_NODES:
+	case TIPC_CMD_SET_NODE_ADDR:
 		return tipc_nl_compat_recv(skb, info);
 	}
 

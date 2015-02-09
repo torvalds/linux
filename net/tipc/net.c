@@ -208,7 +208,7 @@ out:
 
 int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 {
-	struct net *net = genl_info_net(info);
+	struct net *net = sock_net(skb->sk);
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct nlattr *attrs[TIPC_NLA_NET_MAX + 1];
 	int err;
