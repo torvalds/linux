@@ -36,6 +36,7 @@
 #include "bearer.h"
 #include "link.h"
 #include "name_table.h"
+#include "socket.h"
 #include <net/genetlink.h>
 #include <linux/tipc_config.h>
 
@@ -718,6 +719,109 @@ out:
 	return 0;
 }
 
+static int __tipc_nl_compat_publ_dump(struct tipc_nl_compat_msg *msg,
+				      struct nlattr **attrs)
+{
+	u32 type, lower, upper;
+	struct nlattr *publ[TIPC_NLA_PUBL_MAX + 1];
+
+	nla_parse_nested(publ, TIPC_NLA_PUBL_MAX, attrs[TIPC_NLA_PUBL], NULL);
+
+	type = nla_get_u32(publ[TIPC_NLA_PUBL_TYPE]);
+	lower = nla_get_u32(publ[TIPC_NLA_PUBL_LOWER]);
+	upper = nla_get_u32(publ[TIPC_NLA_PUBL_UPPER]);
+
+	if (lower == upper)
+		tipc_tlv_sprintf(msg->rep, " {%u,%u}", type, lower);
+	else
+		tipc_tlv_sprintf(msg->rep, " {%u,%u,%u}", type, lower, upper);
+
+	return 0;
+}
+
+static int tipc_nl_compat_publ_dump(struct tipc_nl_compat_msg *msg, u32 sock)
+{
+	int err;
+	void *hdr;
+	struct nlattr *nest;
+	struct sk_buff *args;
+	struct tipc_nl_compat_cmd_dump dump;
+
+	args = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!args)
+		return -ENOMEM;
+
+	hdr = genlmsg_put(args, 0, 0, &tipc_genl_family, NLM_F_MULTI,
+			  TIPC_NL_PUBL_GET);
+
+	nest = nla_nest_start(args, TIPC_NLA_SOCK);
+	if (!nest) {
+		kfree_skb(args);
+		return -EMSGSIZE;
+	}
+
+	if (nla_put_u32(args, TIPC_NLA_SOCK_REF, sock)) {
+		kfree_skb(args);
+		return -EMSGSIZE;
+	}
+
+	nla_nest_end(args, nest);
+	genlmsg_end(args, hdr);
+
+	dump.dumpit = tipc_nl_publ_dump;
+	dump.format = __tipc_nl_compat_publ_dump;
+
+	err = __tipc_nl_compat_dumpit(&dump, msg, args);
+
+	kfree_skb(args);
+
+	return err;
+}
+
+static int tipc_nl_compat_sk_dump(struct tipc_nl_compat_msg *msg,
+				  struct nlattr **attrs)
+{
+	int err;
+	u32 sock_ref;
+	struct nlattr *sock[TIPC_NLA_SOCK_MAX + 1];
+
+	nla_parse_nested(sock, TIPC_NLA_SOCK_MAX, attrs[TIPC_NLA_SOCK], NULL);
+
+	sock_ref = nla_get_u32(sock[TIPC_NLA_SOCK_REF]);
+	tipc_tlv_sprintf(msg->rep, "%u:", sock_ref);
+
+	if (sock[TIPC_NLA_SOCK_CON]) {
+		u32 node;
+		struct nlattr *con[TIPC_NLA_CON_MAX + 1];
+
+		nla_parse_nested(con, TIPC_NLA_CON_MAX, sock[TIPC_NLA_SOCK_CON],
+				 NULL);
+
+		node = nla_get_u32(con[TIPC_NLA_CON_NODE]);
+		tipc_tlv_sprintf(msg->rep, "  connected to <%u.%u.%u:%u>",
+				 tipc_zone(node),
+				 tipc_cluster(node),
+				 tipc_node(node),
+				 nla_get_u32(con[TIPC_NLA_CON_SOCK]));
+
+		if (con[TIPC_NLA_CON_FLAG])
+			tipc_tlv_sprintf(msg->rep, " via {%u,%u}\n",
+					 nla_get_u32(con[TIPC_NLA_CON_TYPE]),
+					 nla_get_u32(con[TIPC_NLA_CON_INST]));
+		else
+			tipc_tlv_sprintf(msg->rep, "\n");
+	} else if (sock[TIPC_NLA_SOCK_HAS_PUBL]) {
+		tipc_tlv_sprintf(msg->rep, " bound to");
+
+		err = tipc_nl_compat_publ_dump(msg, sock_ref);
+		if (err)
+			return err;
+	}
+	tipc_tlv_sprintf(msg->rep, "\n");
+
+	return 0;
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
@@ -774,6 +878,12 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		dump.header = tipc_nl_compat_name_table_dump_header;
 		dump.dumpit = tipc_nl_name_table_dump;
 		dump.format = tipc_nl_compat_name_table_dump;
+		return tipc_nl_compat_dumpit(&dump, msg);
+	case TIPC_CMD_SHOW_PORTS:
+		msg->rep_size = ULTRA_STRING_MAX_LEN;
+		msg->rep_type = TIPC_TLV_ULTRA_STRING;
+		dump.dumpit = tipc_nl_sk_dump;
+		dump.format = tipc_nl_compat_sk_dump;
 		return tipc_nl_compat_dumpit(&dump, msg);
 	}
 
@@ -881,6 +991,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_SET_LINK_WINDOW:
 	case TIPC_CMD_RESET_LINK_STATS:
 	case TIPC_CMD_SHOW_NAME_TABLE:
+	case TIPC_CMD_SHOW_PORTS:
 		return tipc_nl_compat_recv(skb, info);
 	}
 
