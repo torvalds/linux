@@ -948,6 +948,43 @@ int t4_get_tp_version(struct adapter *adapter, u32 *vers)
 			     1, vers, 0);
 }
 
+/**
+ *	t4_get_exprom_version - return the Expansion ROM version (if any)
+ *	@adapter: the adapter
+ *	@vers: where to place the version
+ *
+ *	Reads the Expansion ROM header from FLASH and returns the version
+ *	number (if present) through the @vers return value pointer.  We return
+ *	this in the Firmware Version Format since it's convenient.  Return
+ *	0 on success, -ENOENT if no Expansion ROM is present.
+ */
+int t4_get_exprom_version(struct adapter *adap, u32 *vers)
+{
+	struct exprom_header {
+		unsigned char hdr_arr[16];	/* must start with 0x55aa */
+		unsigned char hdr_ver[4];	/* Expansion ROM version */
+	} *hdr;
+	u32 exprom_header_buf[DIV_ROUND_UP(sizeof(struct exprom_header),
+					   sizeof(u32))];
+	int ret;
+
+	ret = t4_read_flash(adap, FLASH_EXP_ROM_START,
+			    ARRAY_SIZE(exprom_header_buf), exprom_header_buf,
+			    0);
+	if (ret)
+		return ret;
+
+	hdr = (struct exprom_header *)exprom_header_buf;
+	if (hdr->hdr_arr[0] != 0x55 || hdr->hdr_arr[1] != 0xaa)
+		return -ENOENT;
+
+	*vers = (FW_HDR_FW_VER_MAJOR_V(hdr->hdr_ver[0]) |
+		 FW_HDR_FW_VER_MINOR_V(hdr->hdr_ver[1]) |
+		 FW_HDR_FW_VER_MICRO_V(hdr->hdr_ver[2]) |
+		 FW_HDR_FW_VER_BUILD_V(hdr->hdr_ver[3]));
+	return 0;
+}
+
 /* Is the given firmware API compatible with the one the driver was compiled
  * with?
  */

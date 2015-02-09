@@ -1121,6 +1121,7 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
+int t4_get_exprom_version(struct adapter *adapter, u32 *vers);
 int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
 	       const u8 *fw_data, unsigned int fw_size,
 	       struct fw_hdr *card_fw, enum dev_state state, int *reset);
