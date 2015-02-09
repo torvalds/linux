@@ -142,16 +142,16 @@ int rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg)
 /* arg[5] = Short GI */
 void rtl8723a_add_rateatid(struct rtw_adapter *pAdapter, u32 bitmap, u8 arg, u8 rssi_level)
 {
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(pAdapter);
-	u8 macid = arg&0x1f;
-	u8 raid = (bitmap>>28) & 0x0f;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(pAdapter);
+	u8 macid = arg & 0x1f;
+	u32 raid = bitmap & 0xf0000000;
 
 	bitmap &= 0x0fffffff;
 	if (rssi_level != DM_RATR_STA_INIT)
 		bitmap = ODM_Get_Rate_Bitmap23a(pHalData, macid, bitmap,
 						rssi_level);
 
-	bitmap |= ((raid<<28)&0xf0000000);
+	bitmap |= raid;
 
 	rtl8723a_set_raid_cmd(pAdapter, bitmap, arg);
 }
