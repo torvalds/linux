@@ -1920,6 +1920,8 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	rcu_for_each_node_breadth_first(rsp, rnp) {
 		raw_spin_lock_irq(&rnp->lock);
 		smp_mb__after_unlock_lock();
+		WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp));
+		WARN_ON_ONCE(rnp->qsmask);
 		ACCESS_ONCE(rnp->completed) = rsp->gpnum;
 		rdp = this_cpu_ptr(rsp->rda);
 		if (rnp == rdp->mynode)
