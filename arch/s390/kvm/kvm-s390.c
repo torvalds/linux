@@ -30,7 +30,6 @@
 #include <asm/pgtable.h>
 #include <asm/nmi.h>
 #include <asm/switch_to.h>
-#include <asm/facility.h>
 #include <asm/sclp.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
@@ -100,14 +99,19 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
-unsigned long *vfacilities;
-static struct gmap_notifier gmap_notifier;
+/* upper facilities limit for kvm */
+unsigned long kvm_s390_fac_list_mask[] = {
+	0xff82fffbf4fc2000UL,
+	0x005c000000000000UL,
+};
 
-/* test availability of vfacility */
-int test_vfacility(unsigned long nr)
+unsigned long kvm_s390_fac_list_mask_size(void)
 {
-	return __test_facility(nr, (void *) vfacilities);
+	BUILD_BUG_ON(ARRAY_SIZE(kvm_s390_fac_list_mask) > S390_ARCH_FAC_MASK_SIZE_U64);
+	return ARRAY_SIZE(kvm_s390_fac_list_mask);
 }
+
+static struct gmap_notifier gmap_notifier;
 
 /* Section: not file related */
 int kvm_arch_hardware_enable(void)
@@ -351,7 +355,7 @@ static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
 	struct kvm_vcpu *vcpu;
 	int i;
 
-	if (!test_vfacility(76))
+	if (!test_kvm_facility(kvm, 76))
 		return -EINVAL;
 
 	mutex_lock(&kvm->lock);
@@ -498,6 +502,106 @@ static int kvm_s390_get_tod(struct kvm *kvm, struct kvm_device_attr *attr)
 	return ret;
 }
 
+static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_s390_vm_cpu_processor *proc;
+	int ret = 0;
+
+	mutex_lock(&kvm->lock);
+	if (atomic_read(&kvm->online_vcpus)) {
+		ret = -EBUSY;
+		goto out;
+	}
+	proc = kzalloc(sizeof(*proc), GFP_KERNEL);
+	if (!proc) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	if (!copy_from_user(proc, (void __user *)attr->addr,
+			    sizeof(*proc))) {
+		memcpy(&kvm->arch.model.cpu_id, &proc->cpuid,
+		       sizeof(struct cpuid));
+		kvm->arch.model.ibc = proc->ibc;
+		memcpy(kvm->arch.model.fac->kvm, proc->fac_list,
+		       S390_ARCH_FAC_LIST_SIZE_BYTE);
+	} else
+		ret = -EFAULT;
+	kfree(proc);
+out:
+	mutex_unlock(&kvm->lock);
+	return ret;
+}
+
+static int kvm_s390_set_cpu_model(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	int ret = -ENXIO;
+
+	switch (attr->attr) {
+	case KVM_S390_VM_CPU_PROCESSOR:
+		ret = kvm_s390_set_processor(kvm, attr);
+		break;
+	}
+	return ret;
+}
+
+static int kvm_s390_get_processor(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_s390_vm_cpu_processor *proc;
+	int ret = 0;
+
+	proc = kzalloc(sizeof(*proc), GFP_KERNEL);
+	if (!proc) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	memcpy(&proc->cpuid, &kvm->arch.model.cpu_id, sizeof(struct cpuid));
+	proc->ibc = kvm->arch.model.ibc;
+	memcpy(&proc->fac_list, kvm->arch.model.fac->kvm, S390_ARCH_FAC_LIST_SIZE_BYTE);
+	if (copy_to_user((void __user *)attr->addr, proc, sizeof(*proc)))
+		ret = -EFAULT;
+	kfree(proc);
+out:
+	return ret;
+}
+
+static int kvm_s390_get_machine(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_s390_vm_cpu_machine *mach;
+	int ret = 0;
+
+	mach = kzalloc(sizeof(*mach), GFP_KERNEL);
+	if (!mach) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	get_cpu_id((struct cpuid *) &mach->cpuid);
+	mach->ibc = sclp_get_ibc();
+	memcpy(&mach->fac_mask, kvm_s390_fac_list_mask,
+	       kvm_s390_fac_list_mask_size() * sizeof(u64));
+	memcpy((unsigned long *)&mach->fac_list, S390_lowcore.stfle_fac_list,
+	       S390_ARCH_FAC_LIST_SIZE_U64);
+	if (copy_to_user((void __user *)attr->addr, mach, sizeof(*mach)))
+		ret = -EFAULT;
+	kfree(mach);
+out:
+	return ret;
+}
+
+static int kvm_s390_get_cpu_model(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	int ret = -ENXIO;
+
+	switch (attr->attr) {
+	case KVM_S390_VM_CPU_PROCESSOR:
+		ret = kvm_s390_get_processor(kvm, attr);
+		break;
+	case KVM_S390_VM_CPU_MACHINE:
+		ret = kvm_s390_get_machine(kvm, attr);
+		break;
+	}
+	return ret;
+}
+
 static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	int ret;
@@ -508,6 +612,9 @@ static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		break;
 	case KVM_S390_VM_TOD:
 		ret = kvm_s390_set_tod(kvm, attr);
+		break;
+	case KVM_S390_VM_CPU_MODEL:
+		ret = kvm_s390_set_cpu_model(kvm, attr);
 		break;
 	case KVM_S390_VM_CRYPTO:
 		ret = kvm_s390_vm_set_crypto(kvm, attr);
@@ -530,6 +637,9 @@ static int kvm_s390_vm_get_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		break;
 	case KVM_S390_VM_TOD:
 		ret = kvm_s390_get_tod(kvm, attr);
+		break;
+	case KVM_S390_VM_CPU_MODEL:
+		ret = kvm_s390_get_cpu_model(kvm, attr);
 		break;
 	default:
 		ret = -ENXIO;
@@ -560,6 +670,17 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		switch (attr->attr) {
 		case KVM_S390_VM_TOD_LOW:
 		case KVM_S390_VM_TOD_HIGH:
+			ret = 0;
+			break;
+		default:
+			ret = -ENXIO;
+			break;
+		}
+		break;
+	case KVM_S390_VM_CPU_MODEL:
+		switch (attr->attr) {
+		case KVM_S390_VM_CPU_PROCESSOR:
+		case KVM_S390_VM_CPU_MACHINE:
 			ret = 0;
 			break;
 		default:
@@ -654,9 +775,61 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	return r;
 }
 
+static int kvm_s390_query_ap_config(u8 *config)
+{
+	u32 fcn_code = 0x04000000UL;
+	u32 cc;
+
+	asm volatile(
+		"lgr 0,%1\n"
+		"lgr 2,%2\n"
+		".long 0xb2af0000\n"		/* PQAP(QCI) */
+		"ipm %0\n"
+		"srl %0,28\n"
+		: "=r" (cc)
+		: "r" (fcn_code), "r" (config)
+		: "cc", "0", "2", "memory"
+	);
+
+	return cc;
+}
+
+static int kvm_s390_apxa_installed(void)
+{
+	u8 config[128];
+	int cc;
+
+	if (test_facility(2) && test_facility(12)) {
+		cc = kvm_s390_query_ap_config(config);
+
+		if (cc)
+			pr_err("PQAP(QCI) failed with cc=%d", cc);
+		else
+			return config[0] & 0x40;
+	}
+
+	return 0;
+}
+
+static void kvm_s390_set_crycb_format(struct kvm *kvm)
+{
+	kvm->arch.crypto.crycbd = (__u32)(unsigned long) kvm->arch.crypto.crycb;
+
+	if (kvm_s390_apxa_installed())
+		kvm->arch.crypto.crycbd |= CRYCB_FORMAT2;
+	else
+		kvm->arch.crypto.crycbd |= CRYCB_FORMAT1;
+}
+
+static void kvm_s390_get_cpu_id(struct cpuid *cpu_id)
+{
+	get_cpu_id(cpu_id);
+	cpu_id->version = 0xff;
+}
+
 static int kvm_s390_crypto_init(struct kvm *kvm)
 {
-	if (!test_vfacility(76))
+	if (!test_kvm_facility(kvm, 76))
 		return 0;
 
 	kvm->arch.crypto.crycb = kzalloc(sizeof(*kvm->arch.crypto.crycb),
@@ -664,8 +837,7 @@ static int kvm_s390_crypto_init(struct kvm *kvm)
 	if (!kvm->arch.crypto.crycb)
 		return -ENOMEM;
 
-	kvm->arch.crypto.crycbd = (__u32) (unsigned long) kvm->arch.crypto.crycb |
-				  CRYCB_FORMAT1;
+	kvm_s390_set_crycb_format(kvm);
 
 	/* Disable AES/DEA protected key functions by default */
 	kvm->arch.crypto.aes_kw = 0;
@@ -676,7 +848,7 @@ static int kvm_s390_crypto_init(struct kvm *kvm)
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
-	int rc;
+	int i, rc;
 	char debug_name[16];
 	static unsigned long sca_offset;
 
@@ -711,6 +883,46 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (!kvm->arch.dbf)
 		goto out_nodbf;
 
+	/*
+	 * The architectural maximum amount of facilities is 16 kbit. To store
+	 * this amount, 2 kbyte of memory is required. Thus we need a full
+	 * page to hold the active copy (arch.model.fac->sie) and the current
+	 * facilities set (arch.model.fac->kvm). Its address size has to be
+	 * 31 bits and word aligned.
+	 */
+	kvm->arch.model.fac =
+		(struct s390_model_fac *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!kvm->arch.model.fac)
+		goto out_nofac;
+
+	memcpy(kvm->arch.model.fac->kvm, S390_lowcore.stfle_fac_list,
+	       S390_ARCH_FAC_LIST_SIZE_U64);
+
+	/*
+	 * If this KVM host runs *not* in a LPAR, relax the facility bits
+	 * of the kvm facility mask by all missing facilities. This will allow
+	 * to determine the right CPU model by means of the remaining facilities.
+	 * Live guest migration must prohibit the migration of KVMs running in
+	 * a LPAR to non LPAR hosts.
+	 */
+	if (!MACHINE_IS_LPAR)
+		for (i = 0; i < kvm_s390_fac_list_mask_size(); i++)
+			kvm_s390_fac_list_mask[i] &= kvm->arch.model.fac->kvm[i];
+
+	/*
+	 * Apply the kvm facility mask to limit the kvm supported/tolerated
+	 * facility list.
+	 */
+	for (i = 0; i < S390_ARCH_FAC_LIST_SIZE_U64; i++) {
+		if (i < kvm_s390_fac_list_mask_size())
+			kvm->arch.model.fac->kvm[i] &= kvm_s390_fac_list_mask[i];
+		else
+			kvm->arch.model.fac->kvm[i] = 0UL;
+	}
+
+	kvm_s390_get_cpu_id(&kvm->arch.model.cpu_id);
+	kvm->arch.model.ibc = sclp_get_ibc() & 0x0fff;
+
 	if (kvm_s390_crypto_init(kvm) < 0)
 		goto out_crypto;
 
@@ -742,6 +954,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 out_nogmap:
 	kfree(kvm->arch.crypto.crycb);
 out_crypto:
+	free_page((unsigned long)kvm->arch.model.fac);
+out_nofac:
 	debug_unregister(kvm->arch.dbf);
 out_nodbf:
 	free_page((unsigned long)(kvm->arch.sca));
@@ -794,6 +1008,7 @@ static void kvm_free_vcpus(struct kvm *kvm)
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_free_vcpus(kvm);
+	free_page((unsigned long)kvm->arch.model.fac);
 	free_page((unsigned long)(kvm->arch.sca));
 	debug_unregister(kvm->arch.dbf);
 	kfree(kvm->arch.crypto.crycb);
@@ -889,7 +1104,7 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 {
-	if (!test_vfacility(76))
+	if (!test_kvm_facility(vcpu->kvm, 76))
 		return;
 
 	vcpu->arch.sie_block->ecb3 &= ~(ECB3_AES | ECB3_DEA);
@@ -928,7 +1143,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 						    CPUSTAT_STOPPED |
 						    CPUSTAT_GED);
 	vcpu->arch.sie_block->ecb   = 6;
-	if (test_vfacility(50) && test_vfacility(73))
+	if (test_kvm_facility(vcpu->kvm, 50) && test_kvm_facility(vcpu->kvm, 73))
 		vcpu->arch.sie_block->ecb |= 0x10;
 
 	vcpu->arch.sie_block->ecb2  = 8;
@@ -937,7 +1152,6 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->eca |= 1;
 	if (sclp_has_sigpif())
 		vcpu->arch.sie_block->eca |= 0x10000000U;
-	vcpu->arch.sie_block->fac   = (int) (long) vfacilities;
 	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE |
 				      ICTL_TPROT;
 
@@ -948,8 +1162,13 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	}
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	vcpu->arch.ckc_timer.function = kvm_s390_idle_wakeup;
-	get_cpu_id(&vcpu->arch.cpu_id);
-	vcpu->arch.cpu_id.version = 0xff;
+
+	mutex_lock(&vcpu->kvm->lock);
+	vcpu->arch.cpu_id = vcpu->kvm->arch.model.cpu_id;
+	memcpy(vcpu->kvm->arch.model.fac->sie, vcpu->kvm->arch.model.fac->kvm,
+	       S390_ARCH_FAC_LIST_SIZE_BYTE);
+	vcpu->arch.sie_block->ibc = vcpu->kvm->arch.model.ibc;
+	mutex_unlock(&vcpu->kvm->lock);
 
 	kvm_s390_vcpu_crypto_setup(vcpu);
 
@@ -993,6 +1212,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
 		set_bit(63 - id, (unsigned long *) &kvm->arch.sca->mcn);
 	}
+	vcpu->arch.sie_block->fac = (int) (long) kvm->arch.model.fac->sie;
 
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
@@ -2058,30 +2278,11 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 static int __init kvm_s390_init(void)
 {
-	int ret;
-	ret = kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
-	if (ret)
-		return ret;
-
-	/*
-	 * guests can ask for up to 255+1 double words, we need a full page
-	 * to hold the maximum amount of facilities. On the other hand, we
-	 * only set facilities that are known to work in KVM.
-	 */
-	vfacilities = (unsigned long *) get_zeroed_page(GFP_KERNEL|GFP_DMA);
-	if (!vfacilities) {
-		kvm_exit();
-		return -ENOMEM;
-	}
-	memcpy(vfacilities, S390_lowcore.stfle_fac_list, 16);
-	vfacilities[0] &= 0xff82fffbf47c2000UL;
-	vfacilities[1] &= 0x005c000000000000UL;
-	return 0;
+	return kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 }
 
 static void __exit kvm_s390_exit(void)
 {
-	free_page((unsigned long) vfacilities);
 	kvm_exit();
 }
 
