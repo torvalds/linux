@@ -40,7 +40,6 @@
 #include "name_table.h"
 #include "node.h"
 #include "link.h"
-#include "config.h"
 #include "name_distr.h"
 #include "socket.h"
 

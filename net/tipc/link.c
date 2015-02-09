@@ -40,7 +40,6 @@
 #include "socket.h"
 #include "name_distr.h"
 #include "discover.h"
-#include "config.h"
 #include "netlink.h"
 
 #include <linux/pkt_sched.h>

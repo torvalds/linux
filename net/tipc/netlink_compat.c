@@ -32,7 +32,6 @@
  */
 
 #include "core.h"
-#include "config.h"
 #include "bearer.h"
 #include "link.h"
 #include "name_table.h"
@@ -909,6 +908,11 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 	memset(&doit, 0, sizeof(doit));
 
 	switch (msg->cmd) {
+	case TIPC_CMD_NOOP:
+		msg->rep = tipc_tlv_alloc(0);
+		if (!msg->rep)
+			return -ENOMEM;
+		return 0;
 	case TIPC_CMD_GET_BEARER_NAMES:
 		msg->rep_size = MAX_BEARERS * TLV_SPACE(TIPC_MAX_BEARER_NAME);
 		dump.dumpit = tipc_nl_bearer_dump;
@@ -1044,71 +1048,6 @@ send:
 	return err;
 }
 
-static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
-{
-	struct net *net = genl_info_net(info);
-	struct sk_buff *rep_buf;
-	struct nlmsghdr *rep_nlh;
-	struct nlmsghdr *req_nlh = info->nlhdr;
-	struct tipc_genlmsghdr *req_userhdr = info->userhdr;
-	int hdr_space = nlmsg_total_size(GENL_HDRLEN + TIPC_GENL_HDRLEN);
-	u16 cmd;
-
-	if ((req_userhdr->cmd & 0xC000) &&
-	    (!netlink_net_capable(skb, CAP_NET_ADMIN)))
-		cmd = TIPC_CMD_NOT_NET_ADMIN;
-	else
-		cmd = req_userhdr->cmd;
-
-	rep_buf = tipc_cfg_do_cmd(net, req_userhdr->dest, cmd,
-				  nlmsg_data(req_nlh) + GENL_HDRLEN +
-				  TIPC_GENL_HDRLEN,
-				  nlmsg_attrlen(req_nlh, GENL_HDRLEN +
-				  TIPC_GENL_HDRLEN), hdr_space);
-
-	if (rep_buf) {
-		skb_push(rep_buf, hdr_space);
-		rep_nlh = nlmsg_hdr(rep_buf);
-		memcpy(rep_nlh, req_nlh, hdr_space);
-		rep_nlh->nlmsg_len = rep_buf->len;
-		genlmsg_unicast(net, rep_buf, NETLINK_CB(skb).portid);
-	}
-
-	return 0;
-}
-
-/* Temporary function to keep functionality throughout the patchset
- * without having to mess with the global variables and other trickery
- * of the old API.
- */
-static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
-{
-	struct tipc_genlmsghdr *req = info->userhdr;
-
-	switch (req->cmd) {
-	case TIPC_CMD_GET_BEARER_NAMES:
-	case TIPC_CMD_ENABLE_BEARER:
-	case TIPC_CMD_DISABLE_BEARER:
-	case TIPC_CMD_SHOW_LINK_STATS:
-	case TIPC_CMD_GET_LINKS:
-	case TIPC_CMD_SET_LINK_TOL:
-	case TIPC_CMD_SET_LINK_PRI:
-	case TIPC_CMD_SET_LINK_WINDOW:
-	case TIPC_CMD_RESET_LINK_STATS:
-	case TIPC_CMD_SHOW_NAME_TABLE:
-	case TIPC_CMD_SHOW_PORTS:
-	case TIPC_CMD_GET_MEDIA_NAMES:
-	case TIPC_CMD_GET_NODES:
-	case TIPC_CMD_SET_NODE_ADDR:
-	case TIPC_CMD_SET_NETID:
-	case TIPC_CMD_GET_NETID:
-	case TIPC_CMD_SHOW_STATS:
-		return tipc_nl_compat_recv(skb, info);
-	}
-
-	return handle_cmd(skb, info);
-}
-
 static struct genl_family tipc_genl_compat_family = {
 	.id		= GENL_ID_GENERATE,
 	.name		= TIPC_GENL_NAME,
@@ -1121,7 +1060,7 @@ static struct genl_family tipc_genl_compat_family = {
 static struct genl_ops tipc_genl_compat_ops[] = {
 	{
 		.cmd		= TIPC_GENL_CMD,
-		.doit		= tipc_nl_compat_tmp_wrap,
+		.doit		= tipc_nl_compat_recv,
 	},
 };
 

@@ -35,7 +35,6 @@
  */
 
 #include "core.h"
-#include "config.h"
 
 /**
  * tipc_snprintf - append formatted output to print buffer

@@ -39,7 +39,8 @@
 #include "core.h"
 #include "name_table.h"
 #include "subscr.h"
-#include "config.h"
+#include "bearer.h"
+#include "net.h"
 #include "socket.h"
 
 #include <linux/module.h>

@@ -36,11 +36,13 @@
 
 #include <net/sock.h>
 #include "core.h"
-#include "config.h"
+#include "netlink.h"
 #include "name_table.h"
 #include "name_distr.h"
 #include "subscr.h"
 #include "bcast.h"
+#include "addr.h"
+#include <net/genetlink.h>
 
 #define TIPC_NAMETBL_SIZE 1024		/* must be a power of 2 */
 

@@ -36,7 +36,6 @@
 
 #include <net/sock.h>
 #include "core.h"
-#include "config.h"
 #include "bearer.h"
 #include "link.h"
 #include "discover.h"

@@ -35,7 +35,7 @@
  */
 
 #include "core.h"
-#include "config.h"
+#include "link.h"
 #include "node.h"
 #include "name_distr.h"
 #include "socket.h"
