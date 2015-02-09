@@ -212,6 +212,64 @@ TRACE_EVENT(foo_bar,
 				sizeof(int)),
 		  __get_str(str), __get_bitmask(cpus))
 );
+
+/*
+ * There may be a case where a tracepoint should only be called if
+ * some condition is set. Otherwise the tracepoint should not be called.
+ * But to do something like:
+ *
+ *  if (cond)
+ *     trace_foo();
+ *
+ * Would cause a little overhead when tracing is not enabled, and that
+ * overhead, even if small, is not something we want. As tracepoints
+ * use static branch (aka jump_labels), where no branch is taken to
+ * skip the tracepoint when not enabled, and a jmp is placed to jump
+ * to the tracepoint code when it is enabled, having a if statement
+ * nullifies that optimization. It would be nice to place that
+ * condition within the static branch. This is where TRACE_EVENT_CONDITION
+ * comes in.
+ *
+ * TRACE_EVENT_CONDITION() is just like TRACE_EVENT, except it adds another
+ * parameter just after args. Where TRACE_EVENT has:
+ *
+ * TRACE_EVENT(name, proto, args, struct, assign, printk)
+ *
+ * the CONDITION version has:
+ *
+ * TRACE_EVENT_CONDITION(name, proto, args, cond, struct, assign, printk)
+ *
+ * Everything is the same as TRACE_EVENT except for the new cond. Think
+ * of the cond variable as:
+ *
+ *   if (cond)
+ *      trace_foo_bar_with_cond();
+ *
+ * Except that the logic for the if branch is placed after the static branch.
+ * That is, the if statement that processes the condition will not be
+ * executed unless that traecpoint is enabled. Otherwise it still remains
+ * a nop.
+ */
+TRACE_EVENT_CONDITION(foo_bar_with_cond,
+
+	TP_PROTO(const char *foo, int bar),
+
+	TP_ARGS(foo, bar),
+
+	TP_CONDITION(!(bar % 10)),
+
+	TP_STRUCT__entry(
+		__string(	foo,    foo		)
+		__field(	int,	bar			)
+	),
+
+	TP_fast_assign(
+		__assign_str(foo, foo);
+		__entry->bar	= bar;
+	),
+
+	TP_printk("foo %s %d", __get_str(foo), __entry->bar)
+);
 #endif
 
 /***** NOTICE! The #if protection ends here. *****/

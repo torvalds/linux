@@ -31,8 +31,11 @@ static void simple_thread_func(int cnt)
 		array[i] = i + 1;
 	array[i] = 0;
 
+	/* Silly tracepoints */
 	trace_foo_bar("hello", cnt, array, random_strings[len],
 		      tsk_cpus_allowed(current));
+
+	trace_foo_bar_with_cond("Some times print", cnt);
 }
 
 static int simple_thread(void *arg)
