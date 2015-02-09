@@ -236,8 +236,8 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
 /**
  * tipc_enable_bearer - enable bearer with the given name
  */
-int tipc_enable_bearer(struct net *net, const char *name, u32 disc_domain,
-		       u32 priority)
+static int tipc_enable_bearer(struct net *net, const char *name,
+			      u32 disc_domain, u32 priority)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_bearer *b_ptr;
@@ -391,22 +391,6 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b_ptr,
 		}
 	}
 	kfree_rcu(b_ptr, rcu);
-}
-
-int tipc_disable_bearer(struct net *net, const char *name)
-{
-	struct tipc_bearer *b_ptr;
-	int res;
-
-	b_ptr = tipc_bearer_find(net, name);
-	if (b_ptr == NULL) {
-		pr_warn("Attempt to disable unknown bearer <%s>\n", name);
-		res = -EINVAL;
-	} else {
-		bearer_disable(net, b_ptr, false);
-		res = 0;
-	}
-	return res;
 }
 
 int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b)
@@ -756,7 +740,7 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 	char *name;
 	struct tipc_bearer *bearer;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
-	struct net *net = genl_info_net(info);
+	struct net *net = sock_net(skb->sk);
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
@@ -787,11 +771,11 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 {
-	struct net *net = genl_info_net(info);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	int err;
 	char *bearer;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
+	struct net *net = sock_net(skb->sk);
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	u32 domain;
 	u32 prio;
 

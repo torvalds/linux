@@ -173,9 +173,6 @@ struct tipc_bearer_names {
  */
 
 void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr);
-int tipc_enable_bearer(struct net *net, const char *bearer_name,
-		       u32 disc_domain, u32 priority);
-int tipc_disable_bearer(struct net *net, const char *name);
 
 /*
  * Routines made available to TIPC by supported media types

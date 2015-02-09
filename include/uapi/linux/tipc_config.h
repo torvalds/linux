@@ -277,6 +277,11 @@ static inline int TLV_GET_LEN(struct tlv_desc *tlv)
 	return ntohs(tlv->tlv_len);
 }
 
+static inline int TLV_CHECK_TYPE(struct tlv_desc *tlv,  __u16 type)
+{
+	return (ntohs(tlv->tlv_type) == type);
+}
+
 static inline int TLV_SET(void *tlv, __u16 type, void *data, __u16 len)
 {
 	struct tlv_desc *tlv_ptr;

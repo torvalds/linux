@@ -134,33 +134,6 @@ static struct sk_buff *tipc_show_stats(void)
 	return buf;
 }
 
-static struct sk_buff *cfg_enable_bearer(struct net *net)
-{
-	struct tipc_bearer_config *args;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_BEARER_CONFIG))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	args = (struct tipc_bearer_config *)TLV_DATA(req_tlv_area);
-	if (tipc_enable_bearer(net, args->name,
-			       ntohl(args->disc_domain),
-			       ntohl(args->priority)))
-		return tipc_cfg_reply_error_string("unable to enable bearer");
-
-	return tipc_cfg_reply_none();
-}
-
-static struct sk_buff *cfg_disable_bearer(struct net *net)
-{
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_BEARER_NAME))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	if (tipc_disable_bearer(net, (char *)TLV_DATA(req_tlv_area)))
-		return tipc_cfg_reply_error_string("unable to disable bearer");
-
-	return tipc_cfg_reply_none();
-}
-
 static struct sk_buff *cfg_set_own_addr(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
@@ -266,12 +239,6 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 	case TIPC_CMD_SET_LINK_WINDOW:
 		rep_tlv_buf = tipc_link_cmd_config(net, req_tlv_area,
 						   req_tlv_space, cmd);
-		break;
-	case TIPC_CMD_ENABLE_BEARER:
-		rep_tlv_buf = cfg_enable_bearer(net);
-		break;
-	case TIPC_CMD_DISABLE_BEARER:
-		rep_tlv_buf = cfg_disable_bearer(net);
 		break;
 	case TIPC_CMD_SET_NODE_ADDR:
 		rep_tlv_buf = cfg_set_own_addr(net);

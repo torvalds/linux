@@ -49,6 +49,7 @@
 struct tipc_nl_compat_msg {
 	u16 cmd;
 	int rep_size;
+	int req_type;
 	struct sk_buff *rep;
 	struct tlv_desc *req;
 	struct sock *dst_sk;
@@ -57,6 +58,11 @@ struct tipc_nl_compat_msg {
 struct tipc_nl_compat_cmd_dump {
 	int (*dumpit)(struct sk_buff *, struct netlink_callback *);
 	int (*format)(struct tipc_nl_compat_msg *msg, struct nlattr **attrs);
+};
+
+struct tipc_nl_compat_cmd_doit {
+	int (*doit)(struct sk_buff *skb, struct genl_info *info);
+	int (*transcode)(struct sk_buff *skb, struct tipc_nl_compat_msg *msg);
 };
 
 static int tipc_skb_tailroom(struct sk_buff *skb)
@@ -213,6 +219,78 @@ static int tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 	return err;
 }
 
+static int __tipc_nl_compat_doit(struct tipc_nl_compat_cmd_doit *cmd,
+				 struct tipc_nl_compat_msg *msg)
+{
+	int err;
+	struct sk_buff *doit_buf;
+	struct sk_buff *trans_buf;
+	struct nlattr **attrbuf;
+	struct genl_info info;
+
+	trans_buf = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!trans_buf)
+		return -ENOMEM;
+
+	err = (*cmd->transcode)(trans_buf, msg);
+	if (err)
+		goto trans_out;
+
+	attrbuf = kmalloc((tipc_genl_family.maxattr + 1) *
+			sizeof(struct nlattr *), GFP_KERNEL);
+	if (!attrbuf) {
+		err = -ENOMEM;
+		goto trans_out;
+	}
+
+	err = nla_parse(attrbuf, tipc_genl_family.maxattr,
+			(const struct nlattr *)trans_buf->data,
+			trans_buf->len, NULL);
+	if (err)
+		goto parse_out;
+
+	doit_buf = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!doit_buf) {
+		err = -ENOMEM;
+		goto parse_out;
+	}
+
+	doit_buf->sk = msg->dst_sk;
+
+	memset(&info, 0, sizeof(info));
+	info.attrs = attrbuf;
+
+	err = (*cmd->doit)(doit_buf, &info);
+
+	kfree_skb(doit_buf);
+parse_out:
+	kfree(attrbuf);
+trans_out:
+	kfree_skb(trans_buf);
+
+	return err;
+}
+
+static int tipc_nl_compat_doit(struct tipc_nl_compat_cmd_doit *cmd,
+			       struct tipc_nl_compat_msg *msg)
+{
+	int err;
+
+	if (msg->req_type && !TLV_CHECK_TYPE(msg->req, msg->req_type))
+		return -EINVAL;
+
+	err = __tipc_nl_compat_doit(cmd, msg);
+	if (err)
+		return err;
+
+	/* The legacy API considered an empty message a success message */
+	msg->rep = tipc_tlv_alloc(0);
+	if (!msg->rep)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int tipc_nl_compat_bearer_dump(struct tipc_nl_compat_msg *msg,
 				      struct nlattr **attrs)
 {
@@ -226,11 +304,65 @@ static int tipc_nl_compat_bearer_dump(struct tipc_nl_compat_msg *msg,
 			    nla_len(bearer[TIPC_NLA_BEARER_NAME]));
 }
 
+static int tipc_nl_compat_bearer_enable(struct sk_buff *skb,
+					struct tipc_nl_compat_msg *msg)
+{
+	struct nlattr *prop;
+	struct nlattr *bearer;
+	struct tipc_bearer_config *b;
+
+	b = (struct tipc_bearer_config *)TLV_DATA(msg->req);
+
+	bearer = nla_nest_start(skb, TIPC_NLA_BEARER);
+	if (!bearer)
+		return -EMSGSIZE;
+
+	if (nla_put_string(skb, TIPC_NLA_BEARER_NAME, b->name))
+		return -EMSGSIZE;
+
+	if (nla_put_u32(skb, TIPC_NLA_BEARER_DOMAIN, ntohl(b->disc_domain)))
+		return -EMSGSIZE;
+
+	if (ntohl(b->priority) <= TIPC_MAX_LINK_PRI) {
+		prop = nla_nest_start(skb, TIPC_NLA_BEARER_PROP);
+		if (!prop)
+			return -EMSGSIZE;
+		if (nla_put_u32(skb, TIPC_NLA_PROP_PRIO, ntohl(b->priority)))
+			return -EMSGSIZE;
+		nla_nest_end(skb, prop);
+	}
+	nla_nest_end(skb, bearer);
+
+	return 0;
+}
+
+static int tipc_nl_compat_bearer_disable(struct sk_buff *skb,
+					 struct tipc_nl_compat_msg *msg)
+{
+	char *name;
+	struct nlattr *bearer;
+
+	name = (char *)TLV_DATA(msg->req);
+
+	bearer = nla_nest_start(skb, TIPC_NLA_BEARER);
+	if (!bearer)
+		return -EMSGSIZE;
+
+	if (nla_put_string(skb, TIPC_NLA_BEARER_NAME, name))
+		return -EMSGSIZE;
+
+	nla_nest_end(skb, bearer);
+
+	return 0;
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
+	struct tipc_nl_compat_cmd_doit doit;
 
 	memset(&dump, 0, sizeof(dump));
+	memset(&doit, 0, sizeof(doit));
 
 	switch (msg->cmd) {
 	case TIPC_CMD_GET_BEARER_NAMES:
@@ -238,6 +370,16 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		dump.dumpit = tipc_nl_bearer_dump;
 		dump.format = tipc_nl_compat_bearer_dump;
 		return tipc_nl_compat_dumpit(&dump, msg);
+	case TIPC_CMD_ENABLE_BEARER:
+		msg->req_type = TIPC_TLV_BEARER_CONFIG;
+		doit.doit = tipc_nl_bearer_enable;
+		doit.transcode = tipc_nl_compat_bearer_enable;
+		return tipc_nl_compat_doit(&doit, msg);
+	case TIPC_CMD_DISABLE_BEARER:
+		msg->req_type = TIPC_TLV_BEARER_NAME;
+		doit.doit = tipc_nl_bearer_disable;
+		doit.transcode = tipc_nl_compat_bearer_disable;
+		return tipc_nl_compat_doit(&doit, msg);
 	}
 
 	return -EOPNOTSUPP;
@@ -335,6 +477,8 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 
 	switch (req->cmd) {
 	case TIPC_CMD_GET_BEARER_NAMES:
+	case TIPC_CMD_ENABLE_BEARER:
+	case TIPC_CMD_DISABLE_BEARER:
 		return tipc_nl_compat_recv(skb, info);
 	}
 
