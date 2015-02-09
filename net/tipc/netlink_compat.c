@@ -888,6 +888,18 @@ static int tipc_nl_compat_net_dump(struct tipc_nl_compat_msg *msg,
 	return tipc_add_tlv(msg->rep, TIPC_TLV_UNSIGNED, &id, sizeof(id));
 }
 
+static int tipc_cmd_show_stats_compat(struct tipc_nl_compat_msg *msg)
+{
+	msg->rep = tipc_tlv_alloc(ULTRA_STRING_MAX_LEN);
+	if (!msg->rep)
+		return -ENOMEM;
+
+	tipc_tlv_init(msg->rep, TIPC_TLV_ULTRA_STRING);
+	tipc_tlv_sprintf(msg->rep, "TIPC version " TIPC_MOD_VER "\n");
+
+	return 0;
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
@@ -976,6 +988,8 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		dump.dumpit = tipc_nl_net_dump;
 		dump.format = tipc_nl_compat_net_dump;
 		return tipc_nl_compat_dumpit(&dump, msg);
+	case TIPC_CMD_SHOW_STATS:
+		return tipc_cmd_show_stats_compat(msg);
 	}
 
 	return -EOPNOTSUPP;
@@ -1088,6 +1102,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_SET_NODE_ADDR:
 	case TIPC_CMD_SET_NETID:
 	case TIPC_CMD_GET_NETID:
+	case TIPC_CMD_SHOW_STATS:
 		return tipc_nl_compat_recv(skb, info);
 	}
 
