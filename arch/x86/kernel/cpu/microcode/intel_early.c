@@ -126,31 +126,6 @@ load_microcode(struct mc_saved_data *mc_saved_data,
 	}
 }
 
-static u8 get_x86_family(unsigned long sig)
-{
-	u8 x86;
-
-	x86 = (sig >> 8) & 0xf;
-
-	if (x86 == 0xf)
-		x86 += (sig >> 20) & 0xff;
-
-	return x86;
-}
-
-static u8 get_x86_model(unsigned long sig)
-{
-	u8 x86, x86_model;
-
-	x86 = get_x86_family(sig);
-	x86_model = (sig >> 4) & 0xf;
-
-	if (x86 == 0x6 || x86 == 0xf)
-		x86_model += ((sig >> 16) & 0xf) << 4;
-
-	return x86_model;
-}
-
 /*
  * Given CPU signature and a microcode patch, this function finds if the
  * microcode patch has matching family and model with the CPU.
@@ -159,41 +134,40 @@ static enum ucode_state
 matching_model_microcode(struct microcode_header_intel *mc_header,
 			unsigned long sig)
 {
-	u8 x86, x86_model;
-	u8 x86_ucode, x86_model_ucode;
+	unsigned int fam, model;
+	unsigned int fam_ucode, model_ucode;
 	struct extended_sigtable *ext_header;
 	unsigned long total_size = get_totalsize(mc_header);
 	unsigned long data_size = get_datasize(mc_header);
 	int ext_sigcount, i;
 	struct extended_signature *ext_sig;
 
-	x86 = get_x86_family(sig);
-	x86_model = get_x86_model(sig);
+	fam   = __x86_family(sig);
+	model = x86_model(sig);
 
-	x86_ucode = get_x86_family(mc_header->sig);
-	x86_model_ucode = get_x86_model(mc_header->sig);
+	fam_ucode   = __x86_family(mc_header->sig);
+	model_ucode = x86_model(mc_header->sig);
 
-	if (x86 == x86_ucode && x86_model == x86_model_ucode)
+	if (fam == fam_ucode && model == model_ucode)
 		return UCODE_OK;
 
 	/* Look for ext. headers: */
 	if (total_size <= data_size + MC_HEADER_SIZE)
 		return UCODE_NFOUND;
 
-	ext_header = (void *) mc_header + data_size + MC_HEADER_SIZE;
+	ext_header   = (void *) mc_header + data_size + MC_HEADER_SIZE;
+	ext_sig      = (void *)ext_header + EXT_HEADER_SIZE;
 	ext_sigcount = ext_header->count;
-	ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
 
 	for (i = 0; i < ext_sigcount; i++) {
-		x86_ucode = get_x86_family(ext_sig->sig);
-		x86_model_ucode = get_x86_model(ext_sig->sig);
+		fam_ucode   = __x86_family(ext_sig->sig);
+		model_ucode = x86_model(ext_sig->sig);
 
-		if (x86 == x86_ucode && x86_model == x86_model_ucode)
+		if (fam == fam_ucode && model == model_ucode)
 			return UCODE_OK;
 
 		ext_sig++;
 	}
-
 	return UCODE_NFOUND;
 }
 
@@ -374,7 +348,7 @@ out:
 static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 {
 	unsigned int val[2];
-	u8 x86, x86_model;
+	unsigned int family, model;
 	struct cpu_signature csig;
 	unsigned int eax, ebx, ecx, edx;
 
@@ -389,10 +363,10 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 	csig.sig = eax;
 
-	x86 = get_x86_family(csig.sig);
-	x86_model = get_x86_model(csig.sig);
+	family = __x86_family(csig.sig);
+	model  = x86_model(csig.sig);
 
-	if ((x86_model >= 5) || (x86 > 6)) {
+	if ((model >= 5) || (family > 6)) {
 		/* get processor flags from MSR 0x17 */
 		native_rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
 		csig.pf = 1 << ((val[1] >> 18) & 7);
