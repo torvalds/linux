@@ -120,7 +120,6 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 	n_ptr->action_flags = TIPC_WAIT_PEER_LINKS_DOWN;
 	n_ptr->signature = INVALID_NODE_SIG;
-	tn->num_nodes++;
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
 	return n_ptr;
@@ -131,8 +130,6 @@ static void tipc_node_delete(struct tipc_net *tn, struct tipc_node *n_ptr)
 	list_del_rcu(&n_ptr->list);
 	hlist_del_rcu(&n_ptr->hash);
 	kfree_rcu(n_ptr, rcu);
-
-	tn->num_nodes--;
 }
 
 void tipc_node_stop(struct net *net)
@@ -405,57 +402,6 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		list_del(&conn->list);
 		kfree(conn);
 	}
-}
-
-struct sk_buff *tipc_node_get_nodes(struct net *net, const void *req_tlv_area,
-				    int req_tlv_space)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	u32 domain;
-	struct sk_buff *buf;
-	struct tipc_node *n_ptr;
-	struct tipc_node_info node_info;
-	u32 payload_size;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	domain = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (!tipc_addr_domain_valid(domain))
-		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-						   " (network address)");
-
-	spin_lock_bh(&tn->node_list_lock);
-	if (!tn->num_nodes) {
-		spin_unlock_bh(&tn->node_list_lock);
-		return tipc_cfg_reply_none();
-	}
-
-	/* For now, get space for all other nodes */
-	payload_size = TLV_SPACE(sizeof(node_info)) * tn->num_nodes;
-	if (payload_size > 32768u) {
-		spin_unlock_bh(&tn->node_list_lock);
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-						   " (too many nodes)");
-	}
-	spin_unlock_bh(&tn->node_list_lock);
-
-	buf = tipc_cfg_reply_alloc(payload_size);
-	if (!buf)
-		return NULL;
-
-	/* Add TLVs for all nodes in scope */
-	rcu_read_lock();
-	list_for_each_entry_rcu(n_ptr, &tn->node_list, list) {
-		if (!tipc_in_scope(domain, n_ptr->addr))
-			continue;
-		node_info.addr = htonl(n_ptr->addr);
-		node_info.up = htonl(tipc_node_is_up(n_ptr));
-		tipc_cfg_append_tlv(buf, TIPC_TLV_NODE_INFO,
-				    &node_info, sizeof(node_info));
-	}
-	rcu_read_unlock();
-	return buf;
 }
 
 /**

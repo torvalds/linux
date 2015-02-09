@@ -37,6 +37,7 @@
 #include "link.h"
 #include "name_table.h"
 #include "socket.h"
+#include "node.h"
 #include <net/genetlink.h>
 #include <linux/tipc_config.h>
 
@@ -835,6 +836,21 @@ static int tipc_nl_compat_media_dump(struct tipc_nl_compat_msg *msg,
 			    nla_len(media[TIPC_NLA_MEDIA_NAME]));
 }
 
+static int tipc_nl_compat_node_dump(struct tipc_nl_compat_msg *msg,
+				    struct nlattr **attrs)
+{
+	struct tipc_node_info node_info;
+	struct nlattr *node[TIPC_NLA_NODE_MAX + 1];
+
+	nla_parse_nested(node, TIPC_NLA_NODE_MAX, attrs[TIPC_NLA_NODE], NULL);
+
+	node_info.addr = htonl(nla_get_u32(node[TIPC_NLA_NODE_ADDR]));
+	node_info.up = htonl(nla_get_flag(node[TIPC_NLA_NODE_UP]));
+
+	return tipc_add_tlv(msg->rep, TIPC_TLV_NODE_INFO, &node_info,
+			    sizeof(node_info));
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
@@ -902,6 +918,11 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		msg->rep_size = MAX_MEDIA * TLV_SPACE(TIPC_MAX_MEDIA_NAME);
 		dump.dumpit = tipc_nl_media_dump;
 		dump.format = tipc_nl_compat_media_dump;
+		return tipc_nl_compat_dumpit(&dump, msg);
+	case TIPC_CMD_GET_NODES:
+		msg->rep_size = ULTRA_STRING_MAX_LEN;
+		dump.dumpit = tipc_nl_node_dump;
+		dump.format = tipc_nl_compat_node_dump;
 		return tipc_nl_compat_dumpit(&dump, msg);
 	}
 
@@ -1011,6 +1032,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_SHOW_NAME_TABLE:
 	case TIPC_CMD_SHOW_PORTS:
 	case TIPC_CMD_GET_MEDIA_NAMES:
+	case TIPC_CMD_GET_NODES:
 		return tipc_nl_compat_recv(skb, info);
 	}
 

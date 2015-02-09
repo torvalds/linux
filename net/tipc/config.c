@@ -205,10 +205,6 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 	case TIPC_CMD_NOOP:
 		rep_tlv_buf = tipc_cfg_reply_none();
 		break;
-	case TIPC_CMD_GET_NODES:
-		rep_tlv_buf = tipc_node_get_nodes(net, req_tlv_area,
-						  req_tlv_space);
-		break;
 	case TIPC_CMD_SHOW_STATS:
 		rep_tlv_buf = tipc_show_stats();
 		break;
