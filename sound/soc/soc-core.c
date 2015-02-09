@@ -2419,8 +2419,8 @@ int snd_soc_unregister_card(struct snd_soc_card *card)
 		card->instantiated = false;
 		snd_soc_dapm_shutdown(card);
 		soc_cleanup_card_resources(card);
+		dev_dbg(card->dev, "ASoC: Unregistered card '%s'\n", card->name);
 	}
-	dev_dbg(card->dev, "ASoC: Unregistered card '%s'\n", card->name);
 
 	return 0;
 }

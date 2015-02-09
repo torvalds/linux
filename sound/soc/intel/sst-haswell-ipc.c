@@ -338,12 +338,6 @@ static inline u32 msg_get_stage_type(u32 msg)
 	return (msg & IPC_STG_TYPE_MASK) >>  IPC_STG_TYPE_SHIFT;
 }
 
-static inline u32 msg_set_stage_type(u32 msg, u32 type)
-{
-	return (msg & ~IPC_STG_TYPE_MASK) +
-		(type << IPC_STG_TYPE_SHIFT);
-}
-
 static inline u32 msg_get_stream_id(u32 msg)
 {
 	return (msg & IPC_STR_ID_MASK) >>  IPC_STR_ID_SHIFT;
@@ -970,45 +964,6 @@ int sst_hsw_fw_get_version(struct sst_hsw *hsw,
 }
 
 /* Mixer Controls */
-int sst_hsw_stream_mute(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
-	u32 stage_id, u32 channel)
-{
-	int ret;
-
-	ret = sst_hsw_stream_get_volume(hsw, stream, stage_id, channel,
-		&stream->mute_volume[channel]);
-	if (ret < 0)
-		return ret;
-
-	ret = sst_hsw_stream_set_volume(hsw, stream, stage_id, channel, 0);
-	if (ret < 0) {
-		dev_err(hsw->dev, "error: can't unmute stream %d channel %d\n",
-			stream->reply.stream_hw_id, channel);
-		return ret;
-	}
-
-	stream->mute[channel] = 1;
-	return 0;
-}
-
-int sst_hsw_stream_unmute(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
-	u32 stage_id, u32 channel)
-
-{
-	int ret;
-
-	stream->mute[channel] = 0;
-	ret = sst_hsw_stream_set_volume(hsw, stream, stage_id, channel,
-		stream->mute_volume[channel]);
-	if (ret < 0) {
-		dev_err(hsw->dev, "error: can't unmute stream %d channel %d\n",
-			stream->reply.stream_hw_id, channel);
-		return ret;
-	}
-
-	return 0;
-}
-
 int sst_hsw_stream_get_volume(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
 	u32 stage_id, u32 channel, u32 *volume)
 {
@@ -1018,17 +973,6 @@ int sst_hsw_stream_get_volume(struct sst_hsw *hsw, struct sst_hsw_stream *stream
 	sst_dsp_read(hsw->dsp, volume,
 		stream->reply.volume_register_address[channel],
 		sizeof(*volume));
-
-	return 0;
-}
-
-int sst_hsw_stream_set_volume_curve(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, u64 curve_duration,
-	enum sst_hsw_volume_curve curve)
-{
-	/* curve duration in steps of 100ns */
-	stream->vol_req.curve_duration = curve_duration;
-	stream->vol_req.curve_type = curve;
 
 	return 0;
 }
@@ -1084,42 +1028,6 @@ int sst_hsw_stream_set_volume(struct sst_hsw *hsw,
 	return 0;
 }
 
-int sst_hsw_mixer_mute(struct sst_hsw *hsw, u32 stage_id, u32 channel)
-{
-	int ret;
-
-	ret = sst_hsw_mixer_get_volume(hsw, stage_id, channel,
-		&hsw->mute_volume[channel]);
-	if (ret < 0)
-		return ret;
-
-	ret = sst_hsw_mixer_set_volume(hsw, stage_id, channel, 0);
-	if (ret < 0) {
-		dev_err(hsw->dev, "error: failed to unmute mixer channel %d\n",
-			channel);
-		return ret;
-	}
-
-	hsw->mute[channel] = 1;
-	return 0;
-}
-
-int sst_hsw_mixer_unmute(struct sst_hsw *hsw, u32 stage_id, u32 channel)
-{
-	int ret;
-
-	ret = sst_hsw_mixer_set_volume(hsw, stage_id, channel,
-		hsw->mixer_info.volume_register_address[channel]);
-	if (ret < 0) {
-		dev_err(hsw->dev, "error: failed to unmute mixer channel %d\n",
-			channel);
-		return ret;
-	}
-
-	hsw->mute[channel] = 0;
-	return 0;
-}
-
 int sst_hsw_mixer_get_volume(struct sst_hsw *hsw, u32 stage_id, u32 channel,
 	u32 *volume)
 {
@@ -1129,16 +1037,6 @@ int sst_hsw_mixer_get_volume(struct sst_hsw *hsw, u32 stage_id, u32 channel,
 	sst_dsp_read(hsw->dsp, volume,
 		hsw->mixer_info.volume_register_address[channel],
 		sizeof(*volume));
-
-	return 0;
-}
-
-int sst_hsw_mixer_set_volume_curve(struct sst_hsw *hsw,
-	 u64 curve_duration, enum sst_hsw_volume_curve curve)
-{
-	/* curve duration in steps of 100ns */
-	hsw->curve_duration = curve_duration;
-	hsw->curve_type = curve;
 
 	return 0;
 }
@@ -1451,48 +1349,6 @@ int sst_hsw_stream_commit(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 
 /* Stream Information - these calls could be inline but we want the IPC
  ABI to be opaque to client PCM drivers to cope with any future ABI changes */
-int sst_hsw_stream_get_hw_id(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream)
-{
-	return stream->reply.stream_hw_id;
-}
-
-int sst_hsw_stream_get_mixer_id(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream)
-{
-	return stream->reply.mixer_hw_id;
-}
-
-u32 sst_hsw_stream_get_read_reg(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream)
-{
-	return stream->reply.read_position_register_address;
-}
-
-u32 sst_hsw_stream_get_pointer_reg(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream)
-{
-	return stream->reply.presentation_position_register_address;
-}
-
-u32 sst_hsw_stream_get_peak_reg(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, u32 channel)
-{
-	if (channel >= 2)
-		return 0;
-
-	return stream->reply.peak_meter_register_address[channel];
-}
-
-u32 sst_hsw_stream_get_vol_reg(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, u32 channel)
-{
-	if (channel >= 2)
-		return 0;
-
-	return stream->reply.volume_register_address[channel];
-}
-
 int sst_hsw_mixer_get_info(struct sst_hsw *hsw)
 {
 	struct sst_hsw_ipc_stream_info_reply *reply;
@@ -1628,30 +1484,6 @@ u64 sst_hsw_get_dsp_presentation_position(struct sst_hsw *hsw,
 		sizeof(ppos));
 
 	return ppos;
-}
-
-int sst_hsw_stream_set_write_position(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, u32 stage_id, u32 position)
-{
-	u32 header;
-	int ret;
-
-	trace_stream_write_position(stream->reply.stream_hw_id, position);
-
-	header = IPC_GLB_TYPE(IPC_GLB_STREAM_MESSAGE) |
-		IPC_STR_TYPE(IPC_STR_STAGE_MESSAGE);
-	header |= (stream->reply.stream_hw_id << IPC_STR_ID_SHIFT);
-	header |= (IPC_STG_SET_WRITE_POSITION << IPC_STG_TYPE_SHIFT);
-	header |= (stage_id << IPC_STG_ID_SHIFT);
-	stream->wpos.position = position;
-
-	ret = ipc_tx_message_nowait(hsw, header, &stream->wpos,
-		sizeof(stream->wpos));
-	if (ret < 0)
-		dev_err(hsw->dev, "error: stream %d set position %d failed\n",
-			stream->reply.stream_hw_id, position);
-
-	return ret;
 }
 
 /* physical BE config */

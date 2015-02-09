@@ -119,8 +119,9 @@ struct hsw_pcm_data {
 };
 
 enum hsw_pm_state {
-	HSW_PM_STATE_D3 = 0,
-	HSW_PM_STATE_D0 = 1,
+	HSW_PM_STATE_D0 = 0,
+	HSW_PM_STATE_RTD3 = 1,
+	HSW_PM_STATE_D3 = 2,
 };
 
 /* private data for the driver */
@@ -1035,12 +1036,12 @@ static int hsw_pcm_runtime_suspend(struct device *dev)
 	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
 	struct sst_hsw *hsw = pdata->hsw;
 
-	if (pdata->pm_state == HSW_PM_STATE_D3)
+	if (pdata->pm_state >= HSW_PM_STATE_RTD3)
 		return 0;
 
 	sst_hsw_dsp_runtime_suspend(hsw);
 	sst_hsw_dsp_runtime_sleep(hsw);
-	pdata->pm_state = HSW_PM_STATE_D3;
+	pdata->pm_state = HSW_PM_STATE_RTD3;
 
 	return 0;
 }
@@ -1051,7 +1052,7 @@ static int hsw_pcm_runtime_resume(struct device *dev)
 	struct sst_hsw *hsw = pdata->hsw;
 	int ret;
 
-	if (pdata->pm_state == HSW_PM_STATE_D0)
+	if (pdata->pm_state != HSW_PM_STATE_RTD3)
 		return 0;
 
 	ret = sst_hsw_dsp_load(hsw);
@@ -1091,7 +1092,7 @@ static void hsw_pcm_complete(struct device *dev)
 	struct hsw_pcm_data *pcm_data;
 	int i, err;
 
-	if (pdata->pm_state == HSW_PM_STATE_D0)
+	if (pdata->pm_state != HSW_PM_STATE_D3)
 		return;
 
 	err = sst_hsw_dsp_load(hsw);
@@ -1139,41 +1140,42 @@ static int hsw_pcm_prepare(struct device *dev)
 
 	if (pdata->pm_state == HSW_PM_STATE_D3)
 		return 0;
-	/* suspend all active streams */
-	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
-		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
+	else if (pdata->pm_state == HSW_PM_STATE_D0) {
+		/* suspend all active streams */
+		for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
+			pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
 
-		if (!pcm_data->substream)
-			continue;
-		dev_dbg(dev, "suspending pcm %d\n", i);
-		snd_pcm_suspend_all(pcm_data->hsw_pcm);
+			if (!pcm_data->substream)
+				continue;
+			dev_dbg(dev, "suspending pcm %d\n", i);
+			snd_pcm_suspend_all(pcm_data->hsw_pcm);
 
-		/* We need to wait until the DSP FW stops the streams */
-		msleep(2);
+			/* We need to wait until the DSP FW stops the streams */
+			msleep(2);
+		}
+
+		/* preserve persistent memory */
+		for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
+			pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
+
+			if (!pcm_data->substream)
+				continue;
+
+			dev_dbg(dev, "saving context pcm %d\n", i);
+			err = sst_module_runtime_save(pcm_data->runtime,
+				&pcm_data->context);
+			if (err < 0)
+				dev_err(dev, "failed to save context for PCM %d\n", i);
+		}
+		/* enter D3 state and stall */
+		sst_hsw_dsp_runtime_suspend(hsw);
+		/* put the DSP to sleep */
+		sst_hsw_dsp_runtime_sleep(hsw);
 	}
 
 	snd_soc_suspend(pdata->soc_card->dev);
 	snd_soc_poweroff(pdata->soc_card->dev);
 
-	/* enter D3 state and stall */
-	sst_hsw_dsp_runtime_suspend(hsw);
-
-	/* preserve persistent memory */
-	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
-		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
-
-		if (!pcm_data->substream)
-			continue;
-
-		dev_dbg(dev, "saving context pcm %d\n", i);
-		err = sst_module_runtime_save(pcm_data->runtime,
-			&pcm_data->context);
-		if (err < 0)
-			dev_err(dev, "failed to save context for PCM %d\n", i);
-	}
-
-	/* put the DSP to sleep */
-	sst_hsw_dsp_runtime_sleep(hsw);
 	pdata->pm_state = HSW_PM_STATE_D3;
 
 	return 0;

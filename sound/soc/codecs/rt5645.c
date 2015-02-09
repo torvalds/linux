@@ -615,6 +615,87 @@ static int is_using_asrc(struct snd_soc_dapm_widget *source,
 
 }
 
+/**
+ * rt5645_sel_asrc_clk_src - select ASRC clock source for a set of filters
+ * @codec: SoC audio codec device.
+ * @filter_mask: mask of filters.
+ * @clk_src: clock source
+ *
+ * The ASRC function is for asynchronous MCLK and LRCK. Also, since RT5645 can
+ * only support standard 32fs or 64fs i2s format, ASRC should be enabled to
+ * support special i2s clock format such as Intel's 100fs(100 * sampling rate).
+ * ASRC function will track i2s clock and generate a corresponding system clock
+ * for codec. This function provides an API to select the clock source for a
+ * set of filters specified by the mask. And the codec driver will turn on ASRC
+ * for these filters if ASRC is selected as their clock source.
+ */
+int rt5645_sel_asrc_clk_src(struct snd_soc_codec *codec,
+		unsigned int filter_mask, unsigned int clk_src)
+{
+	unsigned int asrc2_mask = 0;
+	unsigned int asrc2_value = 0;
+	unsigned int asrc3_mask = 0;
+	unsigned int asrc3_value = 0;
+
+	switch (clk_src) {
+	case RT5645_CLK_SEL_SYS:
+	case RT5645_CLK_SEL_I2S1_ASRC:
+	case RT5645_CLK_SEL_I2S2_ASRC:
+	case RT5645_CLK_SEL_SYS2:
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if (filter_mask & RT5645_DA_STEREO_FILTER) {
+		asrc2_mask |= RT5645_DA_STO_CLK_SEL_MASK;
+		asrc2_value = (asrc2_value & ~RT5645_DA_STO_CLK_SEL_MASK)
+			| (clk_src << RT5645_DA_STO_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5645_DA_MONO_L_FILTER) {
+		asrc2_mask |= RT5645_DA_MONOL_CLK_SEL_MASK;
+		asrc2_value = (asrc2_value & ~RT5645_DA_MONOL_CLK_SEL_MASK)
+			| (clk_src << RT5645_DA_MONOL_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5645_DA_MONO_R_FILTER) {
+		asrc2_mask |= RT5645_DA_MONOR_CLK_SEL_MASK;
+		asrc2_value = (asrc2_value & ~RT5645_DA_MONOR_CLK_SEL_MASK)
+			| (clk_src << RT5645_DA_MONOR_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5645_AD_STEREO_FILTER) {
+		asrc2_mask |= RT5645_AD_STO1_CLK_SEL_MASK;
+		asrc2_value = (asrc2_value & ~RT5645_AD_STO1_CLK_SEL_MASK)
+			| (clk_src << RT5645_AD_STO1_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5645_AD_MONO_L_FILTER) {
+		asrc3_mask |= RT5645_AD_MONOL_CLK_SEL_MASK;
+		asrc3_value = (asrc3_value & ~RT5645_AD_MONOL_CLK_SEL_MASK)
+			| (clk_src << RT5645_AD_MONOL_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5645_AD_MONO_R_FILTER)  {
+		asrc3_mask |= RT5645_AD_MONOR_CLK_SEL_MASK;
+		asrc3_value = (asrc3_value & ~RT5645_AD_MONOR_CLK_SEL_MASK)
+			| (clk_src << RT5645_AD_MONOR_CLK_SEL_SFT);
+	}
+
+	if (asrc2_mask)
+		snd_soc_update_bits(codec, RT5645_ASRC_2,
+			asrc2_mask, asrc2_value);
+
+	if (asrc3_mask)
+		snd_soc_update_bits(codec, RT5645_ASRC_3,
+			asrc3_mask, asrc3_value);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt5645_sel_asrc_clk_src);
+
 /* Digital Mixer */
 static const struct snd_kcontrol_new rt5645_sto1_adc_l_mix[] = {
 	SOC_DAPM_SINGLE("ADC1 Switch", RT5645_STO1_ADC_MIXER,
