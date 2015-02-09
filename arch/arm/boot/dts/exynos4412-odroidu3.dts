@@ -49,9 +49,11 @@
 };
 
 &sound {
-	compatible = "samsung,odroidu3-audio";
-	samsung,model = "Odroid-U3";
-	samsung,audio-routing =
+	simple-audio-card,name = "Odroid-U3";
+	simple-audio-card,widgets =
+		"Headphone", "Headphone Jack",
+		"Speakers", "Speakers";
+	simple-audio-card,routing =
 		"Headphone Jack", "HPL",
 		"Headphone Jack", "HPR",
 		"Headphone Jack", "MICBIAS",
