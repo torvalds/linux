@@ -348,7 +348,6 @@ struct hal_data_8723a {
 	/* for host message to fw */
 	u8	LastHMEBoxNum;
 
-	u8	fw_ractrl;
 	u8	RegTxPause;
 	/*  Beacon function related global variable. */
 	u8	RegFwHwTxQCtrl;

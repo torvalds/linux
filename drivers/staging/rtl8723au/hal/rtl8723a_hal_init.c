@@ -1095,7 +1095,6 @@ void rtl8723a_init_default_value(struct rtw_adapter *padapter)
 	pdmpriv = &pHalData->dmpriv;
 
 	/*  init default value */
-	pHalData->fw_ractrl = false;
 	pHalData->bIQKInitialized = false;
 	if (!padapter->pwrctrlpriv.bkeepfwalive)
 		pHalData->LastHMEBoxNum = 0;

@@ -572,12 +572,10 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	status = rtl8723a_FirmwareDownload(Adapter);
 	if (status != _SUCCESS) {
 		Adapter->bFWReady = false;
-		pHalData->fw_ractrl = false;
 		DBG_8723A("fw download fail!\n");
 		goto exit;
 	} else {
 		Adapter->bFWReady = true;
-		pHalData->fw_ractrl = true;
 		DBG_8723A("fw download ok!\n");
 	}
 
@@ -1212,7 +1210,7 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
-	u8 init_rate, networkType, raid;
+	u8 init_rate, networkType, raid, arg;
 	u32 mask, rate_bitmap;
 	u8 shortGIrate = false;
 	int supportRateNum;
@@ -1284,27 +1282,15 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 
 	init_rate = get_highest_rate_idx23a(mask) & 0x3f;
 
-	if (pHalData->fw_ractrl == true) {
-		u8 arg = 0;
+	arg = mac_id & 0x1f;/* MACID */
+	arg |= BIT(7);
 
-		arg = mac_id & 0x1f;/* MACID */
+	if (shortGIrate == true)
+		arg |= BIT(5);
 
-		arg |= BIT(7);
+	DBG_8723A("update raid entry, mask = 0x%x, arg = 0x%x\n", mask, arg);
 
-		if (shortGIrate == true)
-			arg |= BIT(5);
-
-		DBG_8723A("update raid entry, mask = 0x%x, arg = 0x%x\n",
-			  mask, arg);
-
-		rtl8723a_set_raid_cmd(padapter, mask, arg);
-	} else {
-		if (shortGIrate == true)
-			init_rate |= BIT(6);
-
-		rtl8723au_write8(padapter, (REG_INIDATA_RATE_SEL + mac_id),
-				 init_rate);
-	}
+	rtl8723a_set_raid_cmd(padapter, mask, arg);
 
 	/* set ra_id */
 	psta->raid = raid;

@@ -153,21 +153,7 @@ void rtl8723a_add_rateatid(struct rtw_adapter *pAdapter, u32 bitmap, u8 arg, u8 
 
 	bitmap |= ((raid<<28)&0xf0000000);
 
-	if (pHalData->fw_ractrl == true) {
-		rtl8723a_set_raid_cmd(pAdapter, bitmap, arg);
-	} else {
-		u8 init_rate, shortGIrate = false;
-
-		init_rate = get_highest_rate_idx23a(bitmap&0x0fffffff)&0x3f;
-
-		shortGIrate = (arg&BIT(5)) ? true:false;
-
-		if (shortGIrate == true)
-			init_rate |= BIT(6);
-
-		rtl8723au_write8(pAdapter, REG_INIDATA_RATE_SEL + macid,
-				 init_rate);
-	}
+	rtl8723a_set_raid_cmd(pAdapter, bitmap, arg);
 }
 
 void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter *padapter, u8 Mode)

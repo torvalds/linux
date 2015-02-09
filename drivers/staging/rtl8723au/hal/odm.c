@@ -1289,8 +1289,7 @@ void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm)
 
 	for (i = 0; i < sta_cnt; i++) {
 		if (PWDB_rssi[i] != (0)) {
-			if (pHalData->fw_ractrl) /*  Report every sta's RSSI to FW */
-				rtl8723a_set_rssi_cmd(Adapter, (u8 *)&PWDB_rssi[i]);
+			rtl8723a_set_rssi_cmd(Adapter, (u8 *)&PWDB_rssi[i]);
 		}
 	}
 
