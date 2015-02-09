@@ -1626,9 +1626,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		}
 	}
 
-	if (card->fully_routed)
-		snd_soc_dapm_auto_nc_pins(card);
-
 	snd_soc_dapm_new_widgets(card);
 
 	ret = snd_card_register(card->snd_card);

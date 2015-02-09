@@ -335,13 +335,47 @@ static int dw_i2s_resume(struct snd_soc_dai *dai)
 #define dw_i2s_resume	NULL
 #endif
 
+static void dw_configure_dai_by_pd(struct dw_i2s_dev *dev,
+				   struct snd_soc_dai_driver *dw_i2s_dai,
+				   struct resource *res,
+				   const struct i2s_platform_data *pdata)
+{
+	/* Set DMA slaves info */
+
+	dev->play_dma_data.data = pdata->play_dma_data;
+	dev->capture_dma_data.data = pdata->capture_dma_data;
+	dev->play_dma_data.addr = res->start + I2S_TXDMA;
+	dev->capture_dma_data.addr = res->start + I2S_RXDMA;
+	dev->play_dma_data.max_burst = 16;
+	dev->capture_dma_data.max_burst = 16;
+	dev->play_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	dev->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	dev->play_dma_data.filter = pdata->filter;
+	dev->capture_dma_data.filter = pdata->filter;
+
+	if (pdata->cap & DWC_I2S_PLAY) {
+		dev_dbg(dev->dev, " designware: play supported\n");
+		dw_i2s_dai->playback.channels_min = MIN_CHANNEL_NUM;
+		dw_i2s_dai->playback.channels_max = pdata->channel;
+		dw_i2s_dai->playback.formats = pdata->snd_fmts;
+		dw_i2s_dai->playback.rates = pdata->snd_rates;
+	}
+
+	if (pdata->cap & DWC_I2S_RECORD) {
+		dev_dbg(dev->dev, "designware: record supported\n");
+		dw_i2s_dai->capture.channels_min = MIN_CHANNEL_NUM;
+		dw_i2s_dai->capture.channels_max = pdata->channel;
+		dw_i2s_dai->capture.formats = pdata->snd_fmts;
+		dw_i2s_dai->capture.rates = pdata->snd_rates;
+	}
+}
+
 static int dw_i2s_probe(struct platform_device *pdev)
 {
 	const struct i2s_platform_data *pdata = pdev->dev.platform_data;
 	struct dw_i2s_dev *dev;
 	struct resource *res;
 	int ret;
-	unsigned int cap;
 	struct snd_soc_dai_driver *dw_i2s_dai;
 
 	if (!pdata) {
@@ -356,44 +390,23 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	}
 
 	dw_i2s_dai = devm_kzalloc(&pdev->dev, sizeof(*dw_i2s_dai), GFP_KERNEL);
-	if (!dw_i2s_dai) {
-		dev_err(&pdev->dev, "mem allocation failed for dai driver\n");
+	if (!dw_i2s_dai)
 		return -ENOMEM;
-	}
 
 	dw_i2s_dai->ops = &dw_i2s_dai_ops;
 	dw_i2s_dai->suspend = dw_i2s_suspend;
 	dw_i2s_dai->resume = dw_i2s_resume;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no i2s resource defined\n");
-		return -ENODEV;
-	}
-
 	dev->i2s_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dev->i2s_base)) {
-		dev_err(&pdev->dev, "ioremap fail for i2s_region\n");
+	if (IS_ERR(dev->i2s_base))
 		return PTR_ERR(dev->i2s_base);
-	}
 
-	cap = pdata->cap;
-	dev->capability = cap;
+	dev->dev = &pdev->dev;
+	dw_configure_dai_by_pd(dev, dw_i2s_dai, res, pdata);
+
+	dev->capability = pdata->cap;
 	dev->i2s_clk_cfg = pdata->i2s_clk_cfg;
-
-	/* Set DMA slaves info */
-
-	dev->play_dma_data.data = pdata->play_dma_data;
-	dev->capture_dma_data.data = pdata->capture_dma_data;
-	dev->play_dma_data.addr = res->start + I2S_TXDMA;
-	dev->capture_dma_data.addr = res->start + I2S_RXDMA;
-	dev->play_dma_data.max_burst = 16;
-	dev->capture_dma_data.max_burst = 16;
-	dev->play_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
-	dev->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
-	dev->play_dma_data.filter = pdata->filter;
-	dev->capture_dma_data.filter = pdata->filter;
-
 	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk))
 		return  PTR_ERR(dev->clk);
@@ -402,23 +415,6 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_clk_put;
 
-	if (cap & DWC_I2S_PLAY) {
-		dev_dbg(&pdev->dev, " designware: play supported\n");
-		dw_i2s_dai->playback.channels_min = MIN_CHANNEL_NUM;
-		dw_i2s_dai->playback.channels_max = pdata->channel;
-		dw_i2s_dai->playback.formats = pdata->snd_fmts;
-		dw_i2s_dai->playback.rates = pdata->snd_rates;
-	}
-
-	if (cap & DWC_I2S_RECORD) {
-		dev_dbg(&pdev->dev, "designware: record supported\n");
-		dw_i2s_dai->capture.channels_min = MIN_CHANNEL_NUM;
-		dw_i2s_dai->capture.channels_max = pdata->channel;
-		dw_i2s_dai->capture.formats = pdata->snd_fmts;
-		dw_i2s_dai->capture.rates = pdata->snd_rates;
-	}
-
-	dev->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, dev);
 	ret = snd_soc_register_component(&pdev->dev, &dw_i2s_component,
 					 dw_i2s_dai, 1);
