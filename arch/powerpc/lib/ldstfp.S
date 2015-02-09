@@ -280,12 +280,12 @@ _GLOBAL(do_stvx)
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_VSX
-/* Get the contents of vsrN into vsr0; N is in r3. */
+/* Get the contents of vsN into vs0; N is in r3. */
 _GLOBAL(get_vsr)
 	mflr	r0
 	rlwinm	r3,r3,3,0x1f8
 	bcl	20,31,1f
-	blr			/* vsr0 is already in vsr0 */
+	blr			/* vs0 is already in vs0 */
 	nop
 reg = 1
 	.rept	63
@@ -299,7 +299,7 @@ reg = reg + 1
 	mtlr	r0
 	bctr
 
-/* Put the contents of vsr0 into vsrN; N is in r3. */
+/* Put the contents of vs0 into vsN; N is in r3. */
 _GLOBAL(put_vsr)
 	mflr	r0
 	rlwinm	r3,r3,3,0x1f8
