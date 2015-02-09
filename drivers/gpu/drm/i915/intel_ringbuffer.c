@@ -968,6 +968,14 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 			~GEN9_DG_MIRROR_FIX_ENABLE);
 	}
 
+	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) {
+		/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl */
+		WA_SET_BIT_MASKED(GEN7_COMMON_SLICE_CHICKEN1,
+				  GEN9_RHWO_OPTIMIZATION_DISABLE);
+		WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN0,
+				  DISABLE_PIXEL_MASK_CAMMING);
+	}
+
 	if (INTEL_REVID(dev) >= SKL_REVID_C0) {
 		/* WaEnableYV12BugFixInHalfSliceChicken7:skl */
 		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
