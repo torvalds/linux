@@ -390,6 +390,7 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt(
 			init_task_tag, conn->cid);
 	return NULL;
 }
+EXPORT_SYMBOL(iscsit_find_cmd_from_itt);
 
 struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(
 	struct iscsi_conn *conn,
