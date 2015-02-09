@@ -653,7 +653,8 @@ struct rps_dev_flow_table {
  */
 struct rps_sock_flow_table {
 	u32	mask;
-	u32	ents[0];
+
+	u32	ents[0] ____cacheline_aligned_in_smp;
 };
 #define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (offsetof(struct rps_sock_flow_table, ents[_num]))
 

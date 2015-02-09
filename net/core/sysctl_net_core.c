@@ -52,7 +52,7 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 
 	if (write) {
 		if (size) {
-			if (size > 1<<30) {
+			if (size > 1<<29) {
 				/* Enforce limit to prevent overflow */
 				mutex_unlock(&sock_flow_mutex);
 				return -EINVAL;
