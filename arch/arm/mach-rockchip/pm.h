@@ -63,6 +63,10 @@ static inline void rockchip_suspend_init(void)
 /* PMU_WAKEUP_CFG1 bits */
 #define PMU_ARMINT_WAKEUP_EN		BIT(0)
 
+/* wait 30ms for OSC stable and 30ms for pmic stable */
+#define OSC_STABL_CNT_THRESH	(32 * 30)
+#define PMU_STABL_CNT_THRESH	(32 * 30)
+
 enum rk3288_pwr_mode_con {
 	PMU_PWR_MODE_EN = 0,
 	PMU_CLK_CORE_SRC_GATE_EN,
