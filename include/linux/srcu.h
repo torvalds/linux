@@ -45,7 +45,7 @@ struct rcu_batch {
 #define RCU_BATCH_INIT(name) { NULL, &(name.head) }
 
 struct srcu_struct {
-	unsigned completed;
+	unsigned long completed;
 	struct srcu_struct_array __percpu *per_cpu_ref;
 	spinlock_t queue_lock; /* protect ->batch_queue, ->running */
 	bool running;
@@ -102,13 +102,11 @@ void process_srcu(struct work_struct *work);
  * define and init a srcu struct at build time.
  * dont't call init_srcu_struct() nor cleanup_srcu_struct() on it.
  */
-#define DEFINE_SRCU(name)						\
+#define __DEFINE_SRCU(name, is_static)					\
 	static DEFINE_PER_CPU(struct srcu_struct_array, name##_srcu_array);\
-	struct srcu_struct name = __SRCU_STRUCT_INIT(name);
-
-#define DEFINE_STATIC_SRCU(name)					\
-	static DEFINE_PER_CPU(struct srcu_struct_array, name##_srcu_array);\
-	static struct srcu_struct name = __SRCU_STRUCT_INIT(name);
+	is_static struct srcu_struct name = __SRCU_STRUCT_INIT(name)
+#define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
+#define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
 
 /**
  * call_srcu() - Queue a callback for invocation after an SRCU grace period
@@ -135,7 +133,7 @@ int __srcu_read_lock(struct srcu_struct *sp) __acquires(sp);
 void __srcu_read_unlock(struct srcu_struct *sp, int idx) __releases(sp);
 void synchronize_srcu(struct srcu_struct *sp);
 void synchronize_srcu_expedited(struct srcu_struct *sp);
-long srcu_batches_completed(struct srcu_struct *sp);
+unsigned long srcu_batches_completed(struct srcu_struct *sp);
 void srcu_barrier(struct srcu_struct *sp);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
