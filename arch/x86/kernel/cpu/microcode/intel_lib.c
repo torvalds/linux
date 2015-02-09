@@ -38,12 +38,6 @@ update_match_cpu(unsigned int csig, unsigned int cpf,
 	return (!sigmatch(sig, csig, pf, cpf)) ? 0 : 1;
 }
 
-int
-update_match_revision(struct microcode_header_intel *mc_header, int rev)
-{
-	return (mc_header->rev <= rev) ? 0 : 1;
-}
-
 int microcode_sanity_check(void *mc, int print_err)
 {
 	unsigned long total_size, data_size, ext_table_size;
@@ -166,7 +160,7 @@ int get_matching_microcode(unsigned int csig, int cpf, void *mc, int rev)
 {
 	struct microcode_header_intel *mc_header = mc;
 
-	if (!update_match_revision(mc_header, rev))
+	if (!revision_is_newer(mc_header, rev))
 		return 0;
 
 	return get_matching_sig(csig, cpf, mc, rev);
