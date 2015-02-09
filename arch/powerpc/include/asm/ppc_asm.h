@@ -637,38 +637,38 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,945)
 
 /* AltiVec Registers (VPRs) */
 
-#define	vr0	0
-#define	vr1	1
-#define	vr2	2
-#define	vr3	3
-#define	vr4	4
-#define	vr5	5
-#define	vr6	6
-#define	vr7	7
-#define	vr8	8
-#define	vr9	9
-#define	vr10	10
-#define	vr11	11
-#define	vr12	12
-#define	vr13	13
-#define	vr14	14
-#define	vr15	15
-#define	vr16	16
-#define	vr17	17
-#define	vr18	18
-#define	vr19	19
-#define	vr20	20
-#define	vr21	21
-#define	vr22	22
-#define	vr23	23
-#define	vr24	24
-#define	vr25	25
-#define	vr26	26
-#define	vr27	27
-#define	vr28	28
-#define	vr29	29
-#define	vr30	30
-#define	vr31	31
+#define	v0	0
+#define	v1	1
+#define	v2	2
+#define	v3	3
+#define	v4	4
+#define	v5	5
+#define	v6	6
+#define	v7	7
+#define	v8	8
+#define	v9	9
+#define	v10	10
+#define	v11	11
+#define	v12	12
+#define	v13	13
+#define	v14	14
+#define	v15	15
+#define	v16	16
+#define	v17	17
+#define	v18	18
+#define	v19	19
+#define	v20	20
+#define	v21	21
+#define	v22	22
+#define	v23	23
+#define	v24	24
+#define	v25	25
+#define	v26	26
+#define	v27	27
+#define	v28	28
+#define	v29	29
+#define	v30	30
+#define	v31	31
 
 /* VSX Registers (VSRs) */
 

@@ -184,16 +184,16 @@ _GLOBAL(do_stfd)
 	extab	2b,3b
 
 #ifdef CONFIG_ALTIVEC
-/* Get the contents of vrN into vr0; N is in r3. */
+/* Get the contents of vrN into v0; N is in r3. */
 _GLOBAL(get_vr)
 	mflr	r0
 	rlwinm	r3,r3,3,0xf8
 	bcl	20,31,1f
-	blr			/* vr0 is already in vr0 */
+	blr			/* v0 is already in v0 */
 	nop
 reg = 1
 	.rept	31
-	vor	vr0,reg,reg	/* assembler doesn't know vmr? */
+	vor	v0,reg,reg	/* assembler doesn't know vmr? */
 	blr
 reg = reg + 1
 	.endr
@@ -203,16 +203,16 @@ reg = reg + 1
 	mtlr	r0
 	bctr
 
-/* Put the contents of vr0 into vrN; N is in r3. */
+/* Put the contents of v0 into vrN; N is in r3. */
 _GLOBAL(put_vr)
 	mflr	r0
 	rlwinm	r3,r3,3,0xf8
 	bcl	20,31,1f
-	blr			/* vr0 is already in vr0 */
+	blr			/* v0 is already in v0 */
 	nop
 reg = 1
 	.rept	31
-	vor	reg,vr0,vr0
+	vor	reg,v0,v0
 	blr
 reg = reg + 1
 	.endr
@@ -234,13 +234,13 @@ _GLOBAL(do_lvx)
 	MTMSRD(r7)
 	isync
 	beq	cr7,1f
-	stvx	vr0,r1,r8
+	stvx	v0,r1,r8
 1:	li	r9,-EFAULT
-2:	lvx	vr0,0,r4
+2:	lvx	v0,0,r4
 	li	r9,0
 3:	beq	cr7,4f
 	bl	put_vr
-	lvx	vr0,r1,r8
+	lvx	v0,r1,r8
 4:	PPC_LL	r0,STKFRM+PPC_LR_STKOFF(r1)
 	mtlr	r0
 	MTMSRD(r6)
@@ -262,13 +262,13 @@ _GLOBAL(do_stvx)
 	MTMSRD(r7)
 	isync
 	beq	cr7,1f
-	stvx	vr0,r1,r8
+	stvx	v0,r1,r8
 	bl	get_vr
 1:	li	r9,-EFAULT
-2:	stvx	vr0,0,r4
+2:	stvx	v0,0,r4
 	li	r9,0
 3:	beq	cr7,4f
-	lvx	vr0,r1,r8
+	lvx	v0,r1,r8
 4:	PPC_LL	r0,STKFRM+PPC_LR_STKOFF(r1)
 	mtlr	r0
 	MTMSRD(r6)
@@ -304,7 +304,7 @@ _GLOBAL(put_vsr)
 	mflr	r0
 	rlwinm	r3,r3,3,0x1f8
 	bcl	20,31,1f
-	blr			/* vr0 is already in vr0 */
+	blr			/* v0 is already in v0 */
 	nop
 reg = 1
 	.rept	63
