@@ -120,6 +120,7 @@ static const struct of_device_id max98357a_device_id[] = {
 	{ .compatible = "maxim," DRV_NAME, },
 	{}
 };
+MODULE_DEVICE_TABLE(of, max98357a_device_id);
 #endif
 
 static struct platform_driver max98357a_platform_driver = {
@@ -135,4 +136,3 @@ module_platform_driver(max98357a_platform_driver);
 MODULE_DESCRIPTION("Maxim MAX98357A Codec Driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_DEVICE_TABLE(of, max98357a_device_id);
