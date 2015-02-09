@@ -1004,7 +1004,15 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 
 static int skl_init_workarounds(struct intel_engine_cs *ring)
 {
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	gen9_init_workarounds(ring);
+
+	/* WaDisablePowerCompilerClockGating:skl */
+	if (INTEL_REVID(dev) == SKL_REVID_B0)
+		WA_SET_BIT_MASKED(HIZ_CHICKEN,
+				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
 	return 0;
 }
