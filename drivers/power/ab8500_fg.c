@@ -629,7 +629,7 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 			&di->ab8500_fg_complete,
 			INS_CURR_TIMEOUT);
 		dev_dbg(di->dev, "Finalize time: %d ms\n",
-			((INS_CURR_TIMEOUT - timeout) * 1000) / HZ);
+			jiffies_to_msecs(INS_CURR_TIMEOUT - timeout));
 		if (!timeout) {
 			ret = -ETIME;
 			disable_irq(di->irq);
@@ -731,7 +731,7 @@ int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
 			&di->ab8500_fg_started,
 			INS_CURR_TIMEOUT);
 		dev_dbg(di->dev, "Start time: %d ms\n",
-			((INS_CURR_TIMEOUT - timeout) * 1000) / HZ);
+			jiffies_to_msecs(INS_CURR_TIMEOUT - timeout));
 		if (!timeout) {
 			ret = -ETIME;
 			dev_err(di->dev, "completion timed out [%d]\n",
