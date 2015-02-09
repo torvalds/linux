@@ -21,6 +21,10 @@
 		serial5 = &uart5;
 		serial6 = &uart6;
 		serial9 = &usp2;
+		spi1 = &spi1;
+		spi2 = &usp1;
+		spi3 = &usp2;
+		spi4 = &usp3;
 	};
 	cpus {
 		#address-cells = <1>;
