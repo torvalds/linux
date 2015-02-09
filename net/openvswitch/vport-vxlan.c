@@ -76,7 +76,7 @@ static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
 
 	flags = TUNNEL_KEY | (udp_hdr(skb)->check != 0 ? TUNNEL_CSUM : 0);
 	vxlan_port = vxlan_vport(vport);
-	if (vxlan_port->exts & VXLAN_F_GBP)
+	if (vxlan_port->exts & VXLAN_F_GBP && md->gbp)
 		flags |= TUNNEL_VXLAN_OPT;
 
 	/* Save outer tunnel values */
