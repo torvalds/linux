@@ -681,7 +681,7 @@ static unsigned int const exynos5420_list_disable_pmu_reg[] = {
 	EXYNOS5420_CMU_RESET_FSYS_SYS_PWR_REG,
 };
 
-static void exynos5_power_off(void)
+static void exynos_power_off(void)
 {
 	unsigned int tmp;
 
@@ -872,8 +872,6 @@ static void exynos5420_pmu_init(void)
 			EXYNOS5420_ARM_INTR_SPREAD_USE_STANDBYWFI);
 
 	pmu_raw_writel(0x1, EXYNOS5420_UP_SCHEDULER);
-
-	pm_power_off = exynos5_power_off;
 	pr_info("EXYNOS5420 PMU initialized\n");
 }
 
@@ -983,6 +981,8 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 	ret = register_restart_handler(&pmu_restart_handler);
 	if (ret)
 		dev_warn(dev, "can't register restart handler err=%d\n", ret);
+
+	pm_power_off = exynos_power_off;
 
 	dev_dbg(dev, "Exynos PMU Driver probe done\n");
 	return 0;
