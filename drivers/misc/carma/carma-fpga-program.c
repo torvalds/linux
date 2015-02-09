@@ -479,6 +479,7 @@ static int fpga_program_block(struct fpga_dev *priv, void *buf, size_t count)
 static noinline int fpga_program_cpu(struct fpga_dev *priv)
 {
 	int ret;
+	unsigned long timeout;
 
 	/* Disable the programmer */
 	fpga_programmer_disable(priv);
@@ -497,8 +498,8 @@ static noinline int fpga_program_cpu(struct fpga_dev *priv)
 		goto out_disable_controller;
 
 	/* Wait for the interrupt handler to signal that programming finished */
-	ret = wait_for_completion_timeout(&priv->completion, 2 * HZ);
-	if (!ret) {
+	timeout = wait_for_completion_timeout(&priv->completion, 2 * HZ);
+	if (!timeout) {
 		dev_err(priv->dev, "Timed out waiting for completion\n");
 		ret = -ETIMEDOUT;
 		goto out_disable_controller;
@@ -536,6 +537,7 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 	struct sg_table table;
 	dma_cookie_t cookie;
 	int ret, i;
+	unsigned long timeout;
 
 	/* Disable the programmer */
 	fpga_programmer_disable(priv);
@@ -623,8 +625,8 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 	dev_dbg(priv->dev, "enabled the controller\n");
 
 	/* Wait for the interrupt handler to signal that programming finished */
-	ret = wait_for_completion_timeout(&priv->completion, 2 * HZ);
-	if (!ret) {
+	timeout = wait_for_completion_timeout(&priv->completion, 2 * HZ);
+	if (!timeout) {
 		dev_err(priv->dev, "Timed out waiting for completion\n");
 		ret = -ETIMEDOUT;
 		goto out_disable_controller;
