@@ -502,10 +502,8 @@ void intel_fbc_update(struct drm_device *dev)
 	const struct drm_display_mode *adjusted_mode;
 	unsigned int max_width, max_height;
 
-	if (!HAS_FBC(dev)) {
-		set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED);
+	if (!HAS_FBC(dev))
 		return;
-	}
 
 	if (i915.enable_fbc < 0) {
 		if (set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT))
@@ -670,6 +668,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_FBC(dev_priv)) {
 		dev_priv->fbc.enabled = false;
+		dev_priv->fbc.no_fbc_reason = FBC_UNSUPPORTED;
 		return;
 	}
 
