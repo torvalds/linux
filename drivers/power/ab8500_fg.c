@@ -622,7 +622,7 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 	u8 low, high;
 	int val;
 	int ret;
-	int timeout;
+	unsigned long timeout;
 
 	if (!completion_done(&di->ab8500_fg_complete)) {
 		timeout = wait_for_completion_timeout(
@@ -716,7 +716,7 @@ fail:
 int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
 {
 	int ret;
-	int timeout;
+	unsigned long timeout;
 	int res = 0;
 
 	ret = ab8500_fg_inst_curr_start(di);
