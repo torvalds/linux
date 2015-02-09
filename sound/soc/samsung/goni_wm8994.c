@@ -136,21 +136,8 @@ static int goni_hifi_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 24000000;
 	int ret = 0;
-
-	/* set the cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
 
 	/* set the codec FLL */
 	ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1, 0, pll_out,
@@ -181,12 +168,6 @@ static int goni_voice_hw_params(struct snd_pcm_substream *substream,
 
 	if (params_rate(params) != 8000)
 		return -EINVAL;
-
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_LEFT_J |
-			SND_SOC_DAIFMT_IB_IF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
 
 	/* set the codec FLL */
 	ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL2, 0, pll_out,
@@ -234,6 +215,8 @@ static struct snd_soc_dai_link goni_dai[] = {
 	.codec_dai_name = "wm8994-aif1",
 	.platform_name = "samsung-i2s.0",
 	.codec_name = "wm8994-codec.0-001a",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		   SND_SOC_DAIFMT_CBM_CFM,
 	.init = goni_wm8994_init,
 	.ops = &goni_hifi_ops,
 }, {
@@ -242,6 +225,8 @@ static struct snd_soc_dai_link goni_dai[] = {
 	.cpu_dai_name = "goni-voice-dai",
 	.codec_dai_name = "wm8994-aif2",
 	.codec_name = "wm8994-codec.0-001a",
+	.dai_fmt = SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_IB_IF |
+		   SND_SOC_DAIFMT_CBM_CFM,
 	.ops = &goni_voice_ops,
 },
 };
