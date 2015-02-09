@@ -999,6 +999,7 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 		d->val_set = FORCEWAKE_KERNEL;
 		d->val_clear = 0;
 	} else {
+		/* WaRsClearFWBitsAtReset:bdw,skl */
 		d->val_reset = _MASKED_BIT_DISABLE(0xffff);
 		d->val_set = _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL);
 		d->val_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
