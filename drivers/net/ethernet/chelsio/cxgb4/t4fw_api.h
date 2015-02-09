@@ -3018,21 +3018,29 @@ enum fw_hdr_chip {
 
 #define FW_HDR_FW_VER_MAJOR_S	24
 #define FW_HDR_FW_VER_MAJOR_M	0xff
+#define FW_HDR_FW_VER_MAJOR_V(x) \
+	((x) << FW_HDR_FW_VER_MAJOR_S)
 #define FW_HDR_FW_VER_MAJOR_G(x) \
 	(((x) >> FW_HDR_FW_VER_MAJOR_S) & FW_HDR_FW_VER_MAJOR_M)
 
 #define FW_HDR_FW_VER_MINOR_S	16
 #define FW_HDR_FW_VER_MINOR_M	0xff
+#define FW_HDR_FW_VER_MINOR_V(x) \
+	((x) << FW_HDR_FW_VER_MINOR_S)
 #define FW_HDR_FW_VER_MINOR_G(x) \
 	(((x) >> FW_HDR_FW_VER_MINOR_S) & FW_HDR_FW_VER_MINOR_M)
 
 #define FW_HDR_FW_VER_MICRO_S	8
 #define FW_HDR_FW_VER_MICRO_M	0xff
+#define FW_HDR_FW_VER_MICRO_V(x) \
+	((x) << FW_HDR_FW_VER_MICRO_S)
 #define FW_HDR_FW_VER_MICRO_G(x) \
 	(((x) >> FW_HDR_FW_VER_MICRO_S) & FW_HDR_FW_VER_MICRO_M)
 
 #define FW_HDR_FW_VER_BUILD_S	0
 #define FW_HDR_FW_VER_BUILD_M	0xff
+#define FW_HDR_FW_VER_BUILD_V(x) \
+	((x) << FW_HDR_FW_VER_BUILD_S)
 #define FW_HDR_FW_VER_BUILD_G(x) \
 	(((x) >> FW_HDR_FW_VER_BUILD_S) & FW_HDR_FW_VER_BUILD_M)
 

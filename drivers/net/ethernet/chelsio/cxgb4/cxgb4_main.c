@@ -1419,6 +1419,7 @@ static int get_eeprom_len(struct net_device *dev)
 static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct adapter *adapter = netdev2adap(dev);
+	u32 exprom_vers;
 
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
@@ -1436,6 +1437,14 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 			FW_HDR_FW_VER_MINOR_G(adapter->params.tp_vers),
 			FW_HDR_FW_VER_MICRO_G(adapter->params.tp_vers),
 			FW_HDR_FW_VER_BUILD_G(adapter->params.tp_vers));
+
+	if (!t4_get_exprom_version(adapter, &exprom_vers))
+		snprintf(info->erom_version, sizeof(info->erom_version),
+			 "%u.%u.%u.%u",
+			 FW_HDR_FW_VER_MAJOR_G(exprom_vers),
+			 FW_HDR_FW_VER_MINOR_G(exprom_vers),
+			 FW_HDR_FW_VER_MICRO_G(exprom_vers),
+			 FW_HDR_FW_VER_BUILD_G(exprom_vers));
 }
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
