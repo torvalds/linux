@@ -1629,9 +1629,10 @@ static unsigned short xs_get_random_port(void)
  */
 static void xs_sock_set_reuseport(struct socket *sock)
 {
-	char opt = 1;
+	int opt = 1;
 
-	kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+	kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,
+			(char *)&opt, sizeof(opt));
 }
 
 static unsigned short xs_sock_getport(struct socket *sock)
