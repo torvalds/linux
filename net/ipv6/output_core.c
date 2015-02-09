@@ -54,7 +54,7 @@ void ipv6_proxy_select_ident(struct sk_buff *skb)
 
 	id = __ipv6_select_ident(ip6_proxy_idents_hashrnd,
 				 &addrs[1], &addrs[0]);
-	skb_shinfo(skb)->ip6_frag_id = id;
+	skb_shinfo(skb)->ip6_frag_id = htonl(id);
 }
 EXPORT_SYMBOL_GPL(ipv6_proxy_select_ident);
 
