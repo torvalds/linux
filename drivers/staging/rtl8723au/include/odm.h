@@ -749,9 +749,6 @@ struct dm_odm_t {
 	u8			RSSI_BT;			/* come from BT */
 	bool			bPSDinProcess;
 
-	/* for rate adaptive, in fact,  88c/92c fw will handle this */
-	u8			bUseRAMask;
-
 	struct odm_rate_adapt	RateAdaptive;
 
 

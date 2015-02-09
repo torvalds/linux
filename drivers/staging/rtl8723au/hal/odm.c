@@ -1010,10 +1010,6 @@ void odm_RateAdaptiveMaskInit23a(struct dm_odm_t *pDM_Odm)
 	struct odm_rate_adapt *pOdmRA = &pDM_Odm->RateAdaptive;
 
 	pOdmRA->Type = DM_Type_ByDriver;
-	if (pOdmRA->Type == DM_Type_ByDriver)
-		pDM_Odm->bUseRAMask = true;
-	else
-		pDM_Odm->bUseRAMask = false;
 
 	pOdmRA->RATRState = DM_RATR_STA_INIT;
 	pOdmRA->HighRSSIThresh = 50;
@@ -1138,14 +1134,6 @@ void odm_RefreshRateAdaptiveMask23aCE23a(struct dm_odm_t *pDM_Odm)
 			     ("<---- odm_RefreshRateAdaptiveMask23a(): driver is going to unload\n"));
 		return;
 	}
-
-	if (!pDM_Odm->bUseRAMask) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD,
-			     ("<---- odm_RefreshRateAdaptiveMask23a(): driver does not control rate adaptive mask\n"));
-		return;
-	}
-
-	/* printk("==> %s \n", __func__); */
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
