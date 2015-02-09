@@ -12528,9 +12528,7 @@ static int cfg80211_net_detect_results(struct sk_buff *msg,
 			}
 
 			for (j = 0; j < match->n_channels; j++) {
-				if (nla_put_u32(msg,
-						NL80211_ATTR_WIPHY_FREQ,
-						match->channels[j])) {
+				if (nla_put_u32(msg, j, match->channels[j])) {
 					nla_nest_cancel(msg, nl_freqs);
 					nla_nest_cancel(msg, nl_match);
 					goto out;
