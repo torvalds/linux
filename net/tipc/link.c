@@ -2498,7 +2498,7 @@ static int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
 	struct nlattr *prop;
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
-	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  NLM_F_MULTI, TIPC_NL_LINK_GET);
 	if (!hdr)
 		return -EMSGSIZE;

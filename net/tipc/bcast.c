@@ -810,7 +810,7 @@ int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg)
 
 	tipc_bclink_lock(net);
 
-	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  NLM_F_MULTI, TIPC_NL_LINK_GET);
 	if (!hdr)
 		return -EMSGSIZE;

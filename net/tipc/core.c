@@ -111,6 +111,10 @@ static int __init tipc_init(void)
 	if (err)
 		goto out_netlink;
 
+	err = tipc_netlink_compat_start();
+	if (err)
+		goto out_netlink_compat;
+
 	err = tipc_socket_init();
 	if (err)
 		goto out_socket;
@@ -136,6 +140,8 @@ out_pernet:
 out_sysctl:
 	tipc_socket_stop();
 out_socket:
+	tipc_netlink_compat_stop();
+out_netlink_compat:
 	tipc_netlink_stop();
 out_netlink:
 	pr_err("Unable to start in single node mode\n");
@@ -146,6 +152,7 @@ static void __exit tipc_exit(void)
 {
 	tipc_bearer_cleanup();
 	tipc_netlink_stop();
+	tipc_netlink_compat_stop();
 	tipc_socket_stop();
 	tipc_unregister_sysctl();
 	unregister_pernet_subsys(&tipc_net_ops);

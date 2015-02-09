@@ -156,7 +156,7 @@ static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 	void *hdr;
 	struct nlattr *attrs;
 
-	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  NLM_F_MULTI, TIPC_NL_NET_GET);
 	if (!hdr)
 		return -EMSGSIZE;

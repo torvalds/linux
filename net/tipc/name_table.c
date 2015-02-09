@@ -1055,7 +1055,7 @@ static int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg,
 		*last_publ = p->key;
 
 		hdr = genlmsg_put(msg->skb, msg->portid, msg->seq,
-				  &tipc_genl_v2_family, NLM_F_MULTI,
+				  &tipc_genl_family, NLM_F_MULTI,
 				  TIPC_NL_NAME_TABLE_GET);
 		if (!hdr)
 			return -EMSGSIZE;

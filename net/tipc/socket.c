@@ -2783,7 +2783,7 @@ static int __tipc_nl_add_sk(struct sk_buff *skb, struct netlink_callback *cb,
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
-			  &tipc_genl_v2_family, NLM_F_MULTI, TIPC_NL_SOCK_GET);
+			  &tipc_genl_family, NLM_F_MULTI, TIPC_NL_SOCK_GET);
 	if (!hdr)
 		goto msg_cancel;
 
@@ -2864,7 +2864,7 @@ static int __tipc_nl_add_sk_publ(struct sk_buff *skb,
 	struct nlattr *attrs;
 
 	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
-			  &tipc_genl_v2_family, NLM_F_MULTI, TIPC_NL_PUBL_GET);
+			  &tipc_genl_family, NLM_F_MULTI, TIPC_NL_PUBL_GET);
 	if (!hdr)
 		goto msg_cancel;
 
