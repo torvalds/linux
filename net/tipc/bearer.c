@@ -205,35 +205,6 @@ struct tipc_bearer *tipc_bearer_find(struct net *net, const char *name)
 	return NULL;
 }
 
-/**
- * tipc_bearer_get_names - record names of bearers in buffer
- */
-struct sk_buff *tipc_bearer_get_names(struct net *net)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct sk_buff *buf;
-	struct tipc_bearer *b;
-	int i, j;
-
-	buf = tipc_cfg_reply_alloc(MAX_BEARERS * TLV_SPACE(TIPC_MAX_BEARER_NAME));
-	if (!buf)
-		return NULL;
-
-	for (i = 0; media_info_array[i] != NULL; i++) {
-		for (j = 0; j < MAX_BEARERS; j++) {
-			b = rtnl_dereference(tn->bearer_list[j]);
-			if (!b)
-				continue;
-			if (b->media == media_info_array[i]) {
-				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME,
-						    b->name,
-						    strlen(b->name) + 1);
-			}
-		}
-	}
-	return buf;
-}
-
 void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
