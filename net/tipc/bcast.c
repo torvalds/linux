@@ -860,49 +860,6 @@ msg_full:
 	return -EMSGSIZE;
 }
 
-int tipc_bclink_stats(struct net *net, char *buf, const u32 buf_size)
-{
-	int ret;
-	struct tipc_stats *s;
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct tipc_link *bcl = tn->bcl;
-
-	if (!bcl)
-		return 0;
-
-	tipc_bclink_lock(net);
-
-	s = &bcl->stats;
-
-	ret = tipc_snprintf(buf, buf_size, "Link <%s>\n"
-			    "  Window:%u packets\n",
-			    bcl->name, bcl->queue_limit[0]);
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  RX packets:%u fragments:%u/%u bundles:%u/%u\n",
-			     s->recv_info, s->recv_fragments,
-			     s->recv_fragmented, s->recv_bundles,
-			     s->recv_bundled);
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  TX packets:%u fragments:%u/%u bundles:%u/%u\n",
-			     s->sent_info, s->sent_fragments,
-			     s->sent_fragmented, s->sent_bundles,
-			     s->sent_bundled);
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  RX naks:%u defs:%u dups:%u\n",
-			     s->recv_nacks, s->deferred_recv, s->duplicates);
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  TX naks:%u acks:%u dups:%u\n",
-			     s->sent_nacks, s->sent_acks, s->retransmitted);
-	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  Congestion link:%u  Send queue max:%u avg:%u\n",
-			     s->link_congs, s->max_queue_sz,
-			     s->queue_sz_counts ?
-			     (s->accu_queue_sz / s->queue_sz_counts) : 0);
-
-	tipc_bclink_unlock(net);
-	return ret;
-}
-
 int tipc_bclink_reset_stats(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);

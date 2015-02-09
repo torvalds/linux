@@ -34,6 +34,7 @@
 #include "core.h"
 #include "config.h"
 #include "bearer.h"
+#include "link.h"
 #include <net/genetlink.h>
 #include <linux/tipc_config.h>
 
@@ -48,6 +49,7 @@
 
 struct tipc_nl_compat_msg {
 	u16 cmd;
+	int rep_type;
 	int rep_size;
 	int req_type;
 	struct sk_buff *rep;
@@ -93,6 +95,40 @@ static int tipc_add_tlv(struct sk_buff *skb, u16 type, void *data, u16 len)
 		memcpy(TLV_DATA(tlv), data, len);
 
 	return 0;
+}
+
+static void tipc_tlv_init(struct sk_buff *skb, u16 type)
+{
+	struct tlv_desc *tlv = (struct tlv_desc *)skb->data;
+
+	TLV_SET_LEN(tlv, 0);
+	TLV_SET_TYPE(tlv, type);
+	skb_put(skb, sizeof(struct tlv_desc));
+}
+
+static int tipc_tlv_sprintf(struct sk_buff *skb, const char *fmt, ...)
+{
+	int n;
+	u16 len;
+	u32 rem;
+	char *buf;
+	struct tlv_desc *tlv;
+	va_list args;
+
+	rem = tipc_skb_tailroom(skb);
+
+	tlv = (struct tlv_desc *)skb->data;
+	len = TLV_GET_LEN(tlv);
+	buf = TLV_DATA(tlv) + len;
+
+	va_start(args, fmt);
+	n = vscnprintf(buf, rem, fmt, args);
+	va_end(args);
+
+	TLV_SET_LEN(tlv, n + len);
+	skb_put(skb, n);
+
+	return n;
 }
 
 static struct sk_buff *tipc_tlv_alloc(int size)
@@ -200,9 +236,15 @@ static int tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 	int err;
 	struct sk_buff *arg;
 
+	if (msg->req_type && !TLV_CHECK_TYPE(msg->req, msg->req_type))
+		return -EINVAL;
+
 	msg->rep = tipc_tlv_alloc(msg->rep_size);
 	if (!msg->rep)
 		return -ENOMEM;
+
+	if (msg->rep_type)
+		tipc_tlv_init(msg->rep, msg->rep_type);
 
 	arg = nlmsg_new(0, GFP_KERNEL);
 	if (!arg) {
@@ -356,6 +398,161 @@ static int tipc_nl_compat_bearer_disable(struct sk_buff *skb,
 	return 0;
 }
 
+static inline u32 perc(u32 count, u32 total)
+{
+	return (count * 100 + (total / 2)) / total;
+}
+
+static void __fill_bc_link_stat(struct tipc_nl_compat_msg *msg,
+				struct nlattr *prop[], struct nlattr *stats[])
+{
+	tipc_tlv_sprintf(msg->rep, "  Window:%u packets\n",
+			 nla_get_u32(prop[TIPC_NLA_PROP_WIN]));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  RX packets:%u fragments:%u/%u bundles:%u/%u\n",
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_INFO]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_FRAGMENTS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_FRAGMENTED]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_BUNDLES]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_BUNDLED]));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  TX packets:%u fragments:%u/%u bundles:%u/%u\n",
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_INFO]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_FRAGMENTS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_FRAGMENTED]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_BUNDLES]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_BUNDLED]));
+
+	tipc_tlv_sprintf(msg->rep, "  RX naks:%u defs:%u dups:%u\n",
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_NACKS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_DEFERRED]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_DUPLICATES]));
+
+	tipc_tlv_sprintf(msg->rep, "  TX naks:%u acks:%u dups:%u\n",
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_NACKS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_ACKS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RETRANSMITTED]));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  Congestion link:%u  Send queue max:%u avg:%u",
+			 nla_get_u32(stats[TIPC_NLA_STATS_LINK_CONGS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_MAX_QUEUE]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_AVG_QUEUE]));
+}
+
+static int tipc_nl_compat_link_stat_dump(struct tipc_nl_compat_msg *msg,
+					 struct nlattr **attrs)
+{
+	char *name;
+	struct nlattr *link[TIPC_NLA_LINK_MAX + 1];
+	struct nlattr *prop[TIPC_NLA_PROP_MAX + 1];
+	struct nlattr *stats[TIPC_NLA_STATS_MAX + 1];
+
+	nla_parse_nested(link, TIPC_NLA_LINK_MAX, attrs[TIPC_NLA_LINK], NULL);
+
+	nla_parse_nested(prop, TIPC_NLA_PROP_MAX, link[TIPC_NLA_LINK_PROP],
+			 NULL);
+
+	nla_parse_nested(stats, TIPC_NLA_STATS_MAX, link[TIPC_NLA_LINK_STATS],
+			 NULL);
+
+	name = (char *)TLV_DATA(msg->req);
+	if (strcmp(name, nla_data(link[TIPC_NLA_LINK_NAME])) != 0)
+		return 0;
+
+	tipc_tlv_sprintf(msg->rep, "\nLink <%s>\n",
+			 nla_data(link[TIPC_NLA_LINK_NAME]));
+
+	if (link[TIPC_NLA_LINK_BROADCAST]) {
+		__fill_bc_link_stat(msg, prop, stats);
+		return 0;
+	}
+
+	if (link[TIPC_NLA_LINK_ACTIVE])
+		tipc_tlv_sprintf(msg->rep, "  ACTIVE");
+	else if (link[TIPC_NLA_LINK_UP])
+		tipc_tlv_sprintf(msg->rep, "  STANDBY");
+	else
+		tipc_tlv_sprintf(msg->rep, "  DEFUNCT");
+
+	tipc_tlv_sprintf(msg->rep, "  MTU:%u  Priority:%u",
+			 nla_get_u32(link[TIPC_NLA_LINK_MTU]),
+			 nla_get_u32(prop[TIPC_NLA_PROP_PRIO]));
+
+	tipc_tlv_sprintf(msg->rep, "  Tolerance:%u ms  Window:%u packets\n",
+			 nla_get_u32(prop[TIPC_NLA_PROP_TOL]),
+			 nla_get_u32(prop[TIPC_NLA_PROP_WIN]));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  RX packets:%u fragments:%u/%u bundles:%u/%u\n",
+			 nla_get_u32(link[TIPC_NLA_LINK_RX]) -
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_INFO]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_FRAGMENTS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_FRAGMENTED]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_BUNDLES]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_BUNDLED]));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  TX packets:%u fragments:%u/%u bundles:%u/%u\n",
+			 nla_get_u32(link[TIPC_NLA_LINK_TX]) -
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_INFO]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_FRAGMENTS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_FRAGMENTED]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_BUNDLES]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_BUNDLED]));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  TX profile sample:%u packets  average:%u octets\n",
+			 nla_get_u32(stats[TIPC_NLA_STATS_MSG_LEN_CNT]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_MSG_LEN_TOT]) /
+			 nla_get_u32(stats[TIPC_NLA_STATS_MSG_PROF_TOT]));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  0-64:%u%% -256:%u%% -1024:%u%% -4096:%u%% ",
+			 perc(nla_get_u32(stats[TIPC_NLA_STATS_MSG_LEN_P0]),
+			      nla_get_u32(stats[TIPC_NLA_STATS_MSG_PROF_TOT])),
+			 perc(nla_get_u32(stats[TIPC_NLA_STATS_MSG_LEN_P1]),
+			      nla_get_u32(stats[TIPC_NLA_STATS_MSG_PROF_TOT])),
+			 perc(nla_get_u32(stats[TIPC_NLA_STATS_MSG_LEN_P2]),
+			      nla_get_u32(stats[TIPC_NLA_STATS_MSG_PROF_TOT])),
+			 perc(nla_get_u32(stats[TIPC_NLA_STATS_MSG_LEN_P3]),
+			      nla_get_u32(stats[TIPC_NLA_STATS_MSG_PROF_TOT])));
+
+	tipc_tlv_sprintf(msg->rep, "-16384:%u%% -32768:%u%% -66000:%u%%\n",
+			 perc(nla_get_u32(stats[TIPC_NLA_STATS_MSG_LEN_P4]),
+			      nla_get_u32(stats[TIPC_NLA_STATS_MSG_PROF_TOT])),
+			 perc(nla_get_u32(stats[TIPC_NLA_STATS_MSG_LEN_P5]),
+			      nla_get_u32(stats[TIPC_NLA_STATS_MSG_PROF_TOT])),
+			 perc(nla_get_u32(stats[TIPC_NLA_STATS_MSG_LEN_P6]),
+			      nla_get_u32(stats[TIPC_NLA_STATS_MSG_PROF_TOT])));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  RX states:%u probes:%u naks:%u defs:%u dups:%u\n",
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_STATES]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_PROBES]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_NACKS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RX_DEFERRED]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_DUPLICATES]));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  TX states:%u probes:%u naks:%u acks:%u dups:%u\n",
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_STATES]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_PROBES]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_NACKS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_TX_ACKS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_RETRANSMITTED]));
+
+	tipc_tlv_sprintf(msg->rep,
+			 "  Congestion link:%u  Send queue max:%u avg:%u",
+			 nla_get_u32(stats[TIPC_NLA_STATS_LINK_CONGS]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_MAX_QUEUE]),
+			 nla_get_u32(stats[TIPC_NLA_STATS_AVG_QUEUE]));
+
+	return 0;
+}
+
 static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 {
 	struct tipc_nl_compat_cmd_dump dump;
@@ -380,6 +577,13 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		doit.doit = tipc_nl_bearer_disable;
 		doit.transcode = tipc_nl_compat_bearer_disable;
 		return tipc_nl_compat_doit(&doit, msg);
+	case TIPC_CMD_SHOW_LINK_STATS:
+		msg->req_type = TIPC_TLV_LINK_NAME;
+		msg->rep_size = ULTRA_STRING_MAX_LEN;
+		msg->rep_type = TIPC_TLV_ULTRA_STRING;
+		dump.dumpit = tipc_nl_link_dump;
+		dump.format = tipc_nl_compat_link_stat_dump;
+		return tipc_nl_compat_dumpit(&dump, msg);
 	}
 
 	return -EOPNOTSUPP;
@@ -479,6 +683,7 @@ static int tipc_nl_compat_tmp_wrap(struct sk_buff *skb, struct genl_info *info)
 	case TIPC_CMD_GET_BEARER_NAMES:
 	case TIPC_CMD_ENABLE_BEARER:
 	case TIPC_CMD_DISABLE_BEARER:
+	case TIPC_CMD_SHOW_LINK_STATS:
 		return tipc_nl_compat_recv(skb, info);
 	}
 
