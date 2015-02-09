@@ -25,6 +25,7 @@ FILES=					\
 	test-libslang.bin		\
 	test-libunwind.bin		\
 	test-libunwind-debug-frame.bin	\
+	test-pthread-attr-setaffinity-np.bin	\
 	test-stackprotector-all.bin	\
 	test-timerfd.bin		\
 	test-libdw-dwarf-unwind.bin	\
@@ -46,6 +47,9 @@ test-all.bin:
 
 test-hello.bin:
 	$(BUILD)
+
+test-pthread-attr-setaffinity-np.bin:
+	$(BUILD) -Werror -lpthread
 
 test-stackprotector-all.bin:
 	$(BUILD) -Werror -fstack-protector-all
