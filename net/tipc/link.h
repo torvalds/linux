@@ -215,8 +215,6 @@ void tipc_link_reset_fragments(struct tipc_link *l_ptr);
 int tipc_link_is_up(struct tipc_link *l_ptr);
 int tipc_link_is_active(struct tipc_link *l_ptr);
 void tipc_link_purge_queues(struct tipc_link *l_ptr);
-struct sk_buff *tipc_link_cmd_config(struct net *net, const void *req_tlv_area,
-				     int req_tlv_space, u16 cmd);
 struct sk_buff *tipc_link_cmd_reset_stats(struct net *net,
 					  const void *req_tlv_area,
 					  int req_tlv_space);

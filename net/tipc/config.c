@@ -226,12 +226,6 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 	case TIPC_CMD_SHOW_STATS:
 		rep_tlv_buf = tipc_show_stats();
 		break;
-	case TIPC_CMD_SET_LINK_TOL:
-	case TIPC_CMD_SET_LINK_PRI:
-	case TIPC_CMD_SET_LINK_WINDOW:
-		rep_tlv_buf = tipc_link_cmd_config(net, req_tlv_area,
-						   req_tlv_space, cmd);
-		break;
 	case TIPC_CMD_SET_NODE_ADDR:
 		rep_tlv_buf = cfg_set_own_addr(net);
 		break;
