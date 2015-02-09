@@ -4560,36 +4560,37 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb)
 	do {
 		index--;
 		page = eb->pages[index];
-		if (page && mapped) {
+		if (!page)
+			continue;
+		if (mapped)
 			spin_lock(&page->mapping->private_lock);
+		/*
+		 * We do this since we'll remove the pages after we've
+		 * removed the eb from the radix tree, so we could race
+		 * and have this page now attached to the new eb.  So
+		 * only clear page_private if it's still connected to
+		 * this eb.
+		 */
+		if (PagePrivate(page) &&
+		    page->private == (unsigned long)eb) {
+			BUG_ON(test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
+			BUG_ON(PageDirty(page));
+			BUG_ON(PageWriteback(page));
 			/*
-			 * We do this since we'll remove the pages after we've
-			 * removed the eb from the radix tree, so we could race
-			 * and have this page now attached to the new eb.  So
-			 * only clear page_private if it's still connected to
-			 * this eb.
+			 * We need to make sure we haven't be attached
+			 * to a new eb.
 			 */
-			if (PagePrivate(page) &&
-			    page->private == (unsigned long)eb) {
-				BUG_ON(test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
-				BUG_ON(PageDirty(page));
-				BUG_ON(PageWriteback(page));
-				/*
-				 * We need to make sure we haven't be attached
-				 * to a new eb.
-				 */
-				ClearPagePrivate(page);
-				set_page_private(page, 0);
-				/* One for the page private */
-				page_cache_release(page);
-			}
-			spin_unlock(&page->mapping->private_lock);
-
-		}
-		if (page) {
-			/* One for when we alloced the page */
+			ClearPagePrivate(page);
+			set_page_private(page, 0);
+			/* One for the page private */
 			page_cache_release(page);
 		}
+
+		if (mapped)
+			spin_unlock(&page->mapping->private_lock);
+
+		/* One for when we alloced the page */
+		page_cache_release(page);
 	} while (index != 0);
 }
 
