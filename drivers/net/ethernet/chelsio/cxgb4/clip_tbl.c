@@ -81,6 +81,9 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 	int addr_len;
 	int ret = 0;
 
+	if (!ctbl)
+		return 0;
+
 	if (v6)
 		addr_len = 16;
 	else

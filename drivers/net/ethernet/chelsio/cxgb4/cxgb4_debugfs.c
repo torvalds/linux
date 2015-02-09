@@ -1237,7 +1237,7 @@ DEFINE_SIMPLE_DEBUGFS_FILE(sensors);
 #if IS_ENABLED(CONFIG_IPV6)
 static int clip_tbl_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, clip_tbl_show, PDE_DATA(inode));
+	return single_open(file, clip_tbl_show, inode->i_private);
 }
 
 static const struct file_operations clip_tbl_debugfs_fops = {
