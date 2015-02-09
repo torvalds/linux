@@ -111,13 +111,13 @@ void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 	m_ptr = media_find_id(a->media_id);
 
 	if (m_ptr && !m_ptr->addr2str(a, addr_str, sizeof(addr_str)))
-		ret = tipc_snprintf(buf, len, "%s(%s)", m_ptr->name, addr_str);
+		ret = scnprintf(buf, len, "%s(%s)", m_ptr->name, addr_str);
 	else {
 		u32 i;
 
-		ret = tipc_snprintf(buf, len, "UNKNOWN(%u)", a->media_id);
+		ret = scnprintf(buf, len, "UNKNOWN(%u)", a->media_id);
 		for (i = 0; i < sizeof(a->value); i++)
-			ret += tipc_snprintf(buf - ret, len + ret,
+			ret += scnprintf(buf - ret, len + ret,
 					    "-%02x", a->value[i]);
 	}
 }
