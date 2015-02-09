@@ -38,6 +38,8 @@
 #include <ctype.h>
 #include <sched.h>
 #include <cpuid.h>
+#include <linux/capability.h>
+#include <errno.h>
 
 char *proc_stat = "/proc/stat";
 unsigned int interval_sec = 5;	/* set with -i interval_sec */
@@ -59,8 +61,8 @@ unsigned int has_epb;
 unsigned int units = 1000000;	/* MHz etc */
 unsigned int genuine_intel;
 unsigned int has_invariant_tsc;
-unsigned int do_nehalem_platform_info;
-unsigned int do_nehalem_turbo_ratio_limit;
+unsigned int do_nhm_platform_info;
+unsigned int do_nhm_turbo_ratio_limit;
 unsigned int do_ivt_turbo_ratio_limit;
 unsigned int extra_msr_offset32;
 unsigned int extra_msr_offset64;
@@ -81,6 +83,9 @@ unsigned int tcc_activation_temp;
 unsigned int tcc_activation_temp_override;
 double rapl_power_units, rapl_energy_units, rapl_time_units;
 double rapl_joule_counter_range;
+unsigned int do_core_perf_limit_reasons;
+unsigned int do_gfx_perf_limit_reasons;
+unsigned int do_ring_perf_limit_reasons;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -251,15 +256,13 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
-		return -1;
+		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
 
 	retval = pread(fd, msr, sizeof *msr, offset);
 	close(fd);
 
-	if (retval != sizeof *msr) {
-		fprintf(stderr, "%s offset 0x%llx read failed\n", pathname, (unsigned long long)offset);
-		return -1;
-	}
+	if (retval != sizeof *msr)
+		err(-1, "%s offset 0x%llx read failed", pathname, (unsigned long long)offset);
 
 	return 0;
 }
@@ -281,7 +284,7 @@ void print_header(void)
 		outp += sprintf(outp, "     CPU");
 	if (has_aperf)
 		outp += sprintf(outp, " Avg_MHz");
-	if (do_nhm_cstates)
+	if (has_aperf)
 		outp += sprintf(outp, "   %%Busy");
 	if (has_aperf)
 		outp += sprintf(outp, " Bzy_MHz");
@@ -337,7 +340,7 @@ void print_header(void)
 			outp += sprintf(outp, "   PKG_%%");
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
 			outp += sprintf(outp, "   RAM_%%");
-	} else {
+	} else if (do_rapl && rapl_joules) {
 		if (do_rapl & RAPL_PKG)
 			outp += sprintf(outp, "   Pkg_J");
 		if (do_rapl & RAPL_CORES)
@@ -457,25 +460,25 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			outp += sprintf(outp, "%8d", t->cpu_id);
 	}
 
-	/* AvgMHz */
+	/* Avg_MHz */
 	if (has_aperf)
 		outp += sprintf(outp, "%8.0f",
 			1.0 / units * t->aperf / interval_float);
 
-	/* %c0 */
-	if (do_nhm_cstates) {
+	/* %Busy */
+	if (has_aperf) {
 		if (!skip_c0)
 			outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc);
 		else
 			outp += sprintf(outp, "********");
 	}
 
-	/* BzyMHz */
+	/* Bzy_MHz */
 	if (has_aperf)
 		outp += sprintf(outp, "%8.0f",
 			1.0 * t->tsc / units * t->aperf / t->mperf / interval_float);
 
-	/* TSC */
+	/* TSC_MHz */
 	outp += sprintf(outp, "%8.0f", 1.0 * t->tsc/units/interval_float);
 
 	/* SMI */
@@ -561,7 +564,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			outp += sprintf(outp, fmt8, 100.0 * p->rapl_pkg_perf_status * rapl_time_units / interval_float);
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
 			outp += sprintf(outp, fmt8, 100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
-	} else {
+	} else if (do_rapl && rapl_joules) {
 		if (do_rapl & RAPL_PKG)
 			outp += sprintf(outp, fmt8,
 					p->energy_pkg * rapl_energy_units);
@@ -578,8 +581,8 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			outp += sprintf(outp, fmt8, 100.0 * p->rapl_pkg_perf_status * rapl_time_units / interval_float);
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
 			outp += sprintf(outp, fmt8, 100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
-	outp += sprintf(outp, fmt8, interval_float);
 
+		outp += sprintf(outp, fmt8, interval_float);
 	}
 done:
 	outp += sprintf(outp, "\n");
@@ -670,24 +673,26 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 
 	old->c1 = new->c1 - old->c1;
 
-	if ((new->aperf > old->aperf) && (new->mperf > old->mperf)) {
-		old->aperf = new->aperf - old->aperf;
-		old->mperf = new->mperf - old->mperf;
-	} else {
+	if (has_aperf) {
+		if ((new->aperf > old->aperf) && (new->mperf > old->mperf)) {
+			old->aperf = new->aperf - old->aperf;
+			old->mperf = new->mperf - old->mperf;
+		} else {
 
-		if (!aperf_mperf_unstable) {
-			fprintf(stderr, "%s: APERF or MPERF went backwards *\n", progname);
-			fprintf(stderr, "* Frequency results do not cover entire interval *\n");
-			fprintf(stderr, "* fix this by running Linux-2.6.30 or later *\n");
+			if (!aperf_mperf_unstable) {
+				fprintf(stderr, "%s: APERF or MPERF went backwards *\n", progname);
+				fprintf(stderr, "* Frequency results do not cover entire interval *\n");
+				fprintf(stderr, "* fix this by running Linux-2.6.30 or later *\n");
 
-			aperf_mperf_unstable = 1;
+				aperf_mperf_unstable = 1;
+			}
+			/*
+			 * mperf delta is likely a huge "positive" number
+			 * can not use it for calculating c0 time
+			 */
+			skip_c0 = 1;
+			skip_c1 = 1;
 		}
-		/*
-		 * mperf delta is likely a huge "positive" number
-		 * can not use it for calculating c0 time
-		 */
-		skip_c0 = 1;
-		skip_c1 = 1;
 	}
 
 
@@ -1019,7 +1024,7 @@ void print_verbose_header(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
-	if (!do_nehalem_platform_info)
+	if (!do_nhm_platform_info)
 		return;
 
 	get_msr(0, MSR_NHM_PLATFORM_INFO, &msr);
@@ -1132,7 +1137,7 @@ print_nhm_turbo_ratio_limits:
 	}
 	fprintf(stderr, ")\n");
 
-	if (!do_nehalem_turbo_ratio_limit)
+	if (!do_nhm_turbo_ratio_limit)
 		return;
 
 	get_msr(0, MSR_NHM_TURBO_RATIO_LIMIT, &msr);
@@ -1178,6 +1183,7 @@ print_nhm_turbo_ratio_limits:
 	if (ratio)
 		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 1 active cores\n",
 			ratio, bclk, ratio * bclk);
+
 }
 
 void free_all_buffers(void)
@@ -1458,17 +1464,60 @@ void check_dev_msr()
 	struct stat sb;
 
 	if (stat("/dev/cpu/0/msr", &sb))
-		err(-5, "no /dev/cpu/0/msr\n"
-		    "Try \"# modprobe msr\"");
+		err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
 }
 
-void check_super_user()
+void check_permissions()
 {
-	if (getuid() != 0)
-		errx(-6, "must be root");
+	struct __user_cap_header_struct cap_header_data;
+	cap_user_header_t cap_header = &cap_header_data;
+	struct __user_cap_data_struct cap_data_data;
+	cap_user_data_t cap_data = &cap_data_data;
+	extern int capget(cap_user_header_t hdrp, cap_user_data_t datap);
+	int do_exit = 0;
+
+	/* check for CAP_SYS_RAWIO */
+	cap_header->pid = getpid();
+	cap_header->version = _LINUX_CAPABILITY_VERSION;
+	if (capget(cap_header, cap_data) < 0)
+		err(-6, "capget(2) failed");
+
+	if ((cap_data->effective & (1 << CAP_SYS_RAWIO)) == 0) {
+		do_exit++;
+		warnx("capget(CAP_SYS_RAWIO) failed,"
+			" try \"# setcap cap_sys_rawio=ep %s\"", progname);
+	}
+
+	/* test file permissions */
+	if (euidaccess("/dev/cpu/0/msr", R_OK)) {
+		do_exit++;
+		warn("/dev/cpu/0/msr open failed, try chown or chmod +r /dev/cpu/*/msr");
+	}
+
+	/* if all else fails, thell them to be root */
+	if (do_exit)
+		if (getuid() != 0)
+			warnx("... or simply run as root");
+
+	if (do_exit)
+		exit(-6);
 }
 
-int has_nehalem_turbo_ratio_limit(unsigned int family, unsigned int model)
+/*
+ * NHM adds support for additional MSRs:
+ *
+ * MSR_SMI_COUNT                   0x00000034
+ *
+ * MSR_NHM_PLATFORM_INFO           0x000000ce
+ * MSR_NHM_SNB_PKG_CST_CFG_CTL     0x000000e2
+ *
+ * MSR_PKG_C3_RESIDENCY            0x000003f8
+ * MSR_PKG_C6_RESIDENCY            0x000003f9
+ * MSR_CORE_C3_RESIDENCY           0x000003fc
+ * MSR_CORE_C6_RESIDENCY           0x000003fd
+ *
+ */
+int has_nhm_msrs(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return 0;
@@ -1495,11 +1544,25 @@ int has_nehalem_turbo_ratio_limit(unsigned int family, unsigned int model)
 	case 0x3D:	/* BDW */
 	case 0x4F:	/* BDX */
 	case 0x56:	/* BDX-DE */
-		return 1;
 	case 0x2E:	/* Nehalem-EX Xeon - Beckton */
 	case 0x2F:	/* Westmere-EX Xeon - Eagleton */
+		return 1;
 	default:
 		return 0;
+	}
+}
+int has_nhm_turbo_ratio_limit(unsigned int family, unsigned int model)
+{
+	if (!has_nhm_msrs(family, model))
+		return 0;
+
+	switch (model) {
+	/* Nehalem compatible, but do not include turbo-ratio limit support */
+	case 0x2E:	/* Nehalem-EX Xeon - Beckton */
+	case 0x2F:	/* Westmere-EX Xeon - Eagleton */
+		return 0;
+	default:
+		return 1;
 	}
 }
 int has_ivt_turbo_ratio_limit(unsigned int family, unsigned int model)
@@ -1561,6 +1624,103 @@ int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	}
 	fprintf(stderr, "cpu%d: MSR_IA32_ENERGY_PERF_BIAS: 0x%08llx (%s)\n", cpu, msr, epb_string);
 
+	return 0;
+}
+
+/*
+ * print_perf_limit()
+ */
+int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	unsigned long long msr;
+	int cpu;
+
+	cpu = t->cpu_id;
+
+	/* per-package */
+	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+		return 0;
+
+	if (cpu_migrate(cpu)) {
+		fprintf(stderr, "Could not migrate to CPU %d\n", cpu);
+		return -1;
+	}
+
+	if (do_core_perf_limit_reasons) {
+		get_msr(cpu, MSR_CORE_PERF_LIMIT_REASONS, &msr);
+		fprintf(stderr, "cpu%d: MSR_CORE_PERF_LIMIT_REASONS, 0x%08llx", cpu, msr);
+		fprintf(stderr, " (Active: %s%s%s%s%s%s%s%s%s%s%s%s%s%s)",
+			(msr & 1 << 0) ? "PROCHOT, " : "",
+			(msr & 1 << 1) ? "ThermStatus, " : "",
+			(msr & 1 << 2) ? "bit2, " : "",
+			(msr & 1 << 4) ? "Graphics, " : "",
+			(msr & 1 << 5) ? "Auto-HWP, " : "",
+			(msr & 1 << 6) ? "VR-Therm, " : "",
+			(msr & 1 << 8) ? "Amps, " : "",
+			(msr & 1 << 9) ? "CorePwr, " : "",
+			(msr & 1 << 10) ? "PkgPwrL1, " : "",
+			(msr & 1 << 11) ? "PkgPwrL2, " : "",
+			(msr & 1 << 12) ? "MultiCoreTurbo, " : "",
+			(msr & 1 << 13) ? "Transitions, " : "",
+			(msr & 1 << 14) ? "bit14, " : "",
+			(msr & 1 << 15) ? "bit15, " : "");
+		fprintf(stderr, " (Logged: %s%s%s%s%s%s%s%s%s%s%s%s%s%s)\n",
+			(msr & 1 << 16) ? "PROCHOT, " : "",
+			(msr & 1 << 17) ? "ThermStatus, " : "",
+			(msr & 1 << 18) ? "bit18, " : "",
+			(msr & 1 << 20) ? "Graphics, " : "",
+			(msr & 1 << 21) ? "Auto-HWP, " : "",
+			(msr & 1 << 22) ? "VR-Therm, " : "",
+			(msr & 1 << 24) ? "Amps, " : "",
+			(msr & 1 << 25) ? "CorePwr, " : "",
+			(msr & 1 << 26) ? "PkgPwrL1, " : "",
+			(msr & 1 << 27) ? "PkgPwrL2, " : "",
+			(msr & 1 << 28) ? "MultiCoreTurbo, " : "",
+			(msr & 1 << 29) ? "Transitions, " : "",
+			(msr & 1 << 30) ? "bit30, " : "",
+			(msr & 1 << 31) ? "bit31, " : "");
+
+	}
+	if (do_gfx_perf_limit_reasons) {
+		get_msr(cpu, MSR_GFX_PERF_LIMIT_REASONS, &msr);
+		fprintf(stderr, "cpu%d: MSR_GFX_PERF_LIMIT_REASONS, 0x%08llx", cpu, msr);
+		fprintf(stderr, " (Active: %s%s%s%s%s%s%s%s)",
+			(msr & 1 << 0) ? "PROCHOT, " : "",
+			(msr & 1 << 1) ? "ThermStatus, " : "",
+			(msr & 1 << 4) ? "Graphics, " : "",
+			(msr & 1 << 6) ? "VR-Therm, " : "",
+			(msr & 1 << 8) ? "Amps, " : "",
+			(msr & 1 << 9) ? "GFXPwr, " : "",
+			(msr & 1 << 10) ? "PkgPwrL1, " : "",
+			(msr & 1 << 11) ? "PkgPwrL2, " : "");
+		fprintf(stderr, " (Logged: %s%s%s%s%s%s%s%s)\n",
+			(msr & 1 << 16) ? "PROCHOT, " : "",
+			(msr & 1 << 17) ? "ThermStatus, " : "",
+			(msr & 1 << 20) ? "Graphics, " : "",
+			(msr & 1 << 22) ? "VR-Therm, " : "",
+			(msr & 1 << 24) ? "Amps, " : "",
+			(msr & 1 << 25) ? "GFXPwr, " : "",
+			(msr & 1 << 26) ? "PkgPwrL1, " : "",
+			(msr & 1 << 27) ? "PkgPwrL2, " : "");
+	}
+	if (do_ring_perf_limit_reasons) {
+		get_msr(cpu, MSR_RING_PERF_LIMIT_REASONS, &msr);
+		fprintf(stderr, "cpu%d: MSR_RING_PERF_LIMIT_REASONS, 0x%08llx", cpu, msr);
+		fprintf(stderr, " (Active: %s%s%s%s%s%s)",
+			(msr & 1 << 0) ? "PROCHOT, " : "",
+			(msr & 1 << 1) ? "ThermStatus, " : "",
+			(msr & 1 << 6) ? "VR-Therm, " : "",
+			(msr & 1 << 8) ? "Amps, " : "",
+			(msr & 1 << 10) ? "PkgPwrL1, " : "",
+			(msr & 1 << 11) ? "PkgPwrL2, " : "");
+		fprintf(stderr, " (Logged: %s%s%s%s%s%s)\n",
+			(msr & 1 << 16) ? "PROCHOT, " : "",
+			(msr & 1 << 17) ? "ThermStatus, " : "",
+			(msr & 1 << 22) ? "VR-Therm, " : "",
+			(msr & 1 << 24) ? "Amps, " : "",
+			(msr & 1 << 26) ? "PkgPwrL1, " : "",
+			(msr & 1 << 27) ? "PkgPwrL2, " : "");
+	}
 	return 0;
 }
 
@@ -1651,6 +1811,27 @@ void rapl_probe(unsigned int family, unsigned int model)
 		fprintf(stderr, "RAPL: %.0f sec. Joule Counter Range, at %.0f Watts\n", rapl_joule_counter_range, tdp);
 
 	return;
+}
+
+void perf_limit_reasons_probe(family, model)
+{
+	if (!genuine_intel)
+		return;
+
+	if (family != 6)
+		return;
+
+	switch (model) {
+	case 0x3C:	/* HSW */
+	case 0x45:	/* HSW */
+	case 0x46:	/* HSW */
+		do_gfx_perf_limit_reasons = 1;
+	case 0x3F:	/* HSX */
+		do_core_perf_limit_reasons = 1;
+		do_ring_perf_limit_reasons = 1;
+	default:
+		return;
+	}
 }
 
 int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -1842,8 +2023,15 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	return 0;
 }
 
+/*
+ * SNB adds support for additional MSRs:
+ *
+ * MSR_PKG_C7_RESIDENCY            0x000003fa
+ * MSR_CORE_C7_RESIDENCY           0x000003fe
+ * MSR_PKG_C2_RESIDENCY            0x0000060d
+ */
 
-int is_snb(unsigned int family, unsigned int model)
+int has_snb_msrs(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return 0;
@@ -1865,7 +2053,14 @@ int is_snb(unsigned int family, unsigned int model)
 	return 0;
 }
 
-int has_c8_c9_c10(unsigned int family, unsigned int model)
+/*
+ * HSW adds support for additional MSRs:
+ *
+ * MSR_PKG_C8_RESIDENCY            0x00000630
+ * MSR_PKG_C9_RESIDENCY            0x00000631
+ * MSR_PKG_C10_RESIDENCY           0x00000632
+ */
+int has_hsw_msrs(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return 0;
@@ -1917,7 +2112,7 @@ double slm_bclk(void)
 
 double discover_bclk(unsigned int family, unsigned int model)
 {
-	if (is_snb(family, model))
+	if (has_snb_msrs(family, model))
 		return 100.00;
 	else if (is_slm(family, model))
 		return slm_bclk();
@@ -1965,7 +2160,7 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 	}
 
 	/* Temperature Target MSR is Nehalem and newer only */
-	if (!do_nehalem_platform_info)
+	if (!do_nhm_platform_info)
 		goto guess;
 
 	if (get_msr(0, MSR_IA32_TEMPERATURE_TARGET, &msr))
@@ -2029,18 +2224,15 @@ void check_cpuid()
 	ebx = ecx = edx = 0;
 	__get_cpuid(0x80000000, &max_level, &ebx, &ecx, &edx);
 
-	if (max_level < 0x80000007)
-		errx(1, "CPUID: no invariant TSC (max_level 0x%x)", max_level);
+	if (max_level >= 0x80000007) {
 
-	/*
-	 * Non-Stop TSC is advertised by CPUID.EAX=0x80000007: EDX.bit8
-	 * this check is valid for both Intel and AMD
-	 */
-	__get_cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
-	has_invariant_tsc = edx & (1 << 8);
-
-	if (!has_invariant_tsc)
-		errx(1, "No invariant TSC");
+		/*
+		 * Non-Stop TSC is advertised by CPUID.EAX=0x80000007: EDX.bit8
+		 * this check is valid for both Intel and AMD
+		 */
+		__get_cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
+		has_invariant_tsc = edx & (1 << 8);
+	}
 
 	/*
 	 * APERF/MPERF is advertised by CPUID.EAX=0x6: ECX.bit0
@@ -2054,26 +2246,22 @@ void check_cpuid()
 	has_epb = ecx & (1 << 3);
 
 	if (verbose)
-		fprintf(stderr, "CPUID(6): %s%s%s%s\n",
-			has_aperf ? "APERF" : "No APERF!",
-			do_dts ? ", DTS" : "",
-			do_ptm ? ", PTM": "",
-			has_epb ? ", EPB": "");
+		fprintf(stderr, "CPUID(6): %sAPERF, %sDTS, %sPTM, %sEPB\n",
+			has_aperf ? "" : "No ",
+			do_dts ? "" : "No ",
+			do_ptm ? "" : "No ",
+			has_epb ? "" : "No ");
 
-	if (!has_aperf)
-		errx(-1, "No APERF");
-
-	do_nehalem_platform_info = genuine_intel && has_invariant_tsc;
-	do_nhm_cstates = genuine_intel;	/* all Intel w/ non-stop TSC have NHM counters */
-	do_smi = do_nhm_cstates;
-	do_snb_cstates = is_snb(family, model);
-	do_c8_c9_c10 = has_c8_c9_c10(family, model);
+	do_nhm_platform_info = do_nhm_cstates = do_smi = has_nhm_msrs(family, model);
+	do_snb_cstates = has_snb_msrs(family, model);
+	do_c8_c9_c10 = has_hsw_msrs(family, model);
 	do_slm_cstates = is_slm(family, model);
 	bclk = discover_bclk(family, model);
 
-	do_nehalem_turbo_ratio_limit = has_nehalem_turbo_ratio_limit(family, model);
+	do_nhm_turbo_ratio_limit = has_nhm_turbo_ratio_limit(family, model);
 	do_ivt_turbo_ratio_limit = has_ivt_turbo_ratio_limit(family, model);
 	rapl_probe(family, model);
+	perf_limit_reasons_probe(family, model);
 
 	return;
 }
@@ -2299,10 +2487,9 @@ void setup_all_buffers(void)
 
 void turbostat_init()
 {
-	check_cpuid();
-
 	check_dev_msr();
-	check_super_user();
+	check_permissions();
+	check_cpuid();
 
 	setup_all_buffers();
 
@@ -2311,6 +2498,9 @@ void turbostat_init()
 
 	if (verbose)
 		for_all_cpus(print_epb, ODD_COUNTERS);
+
+	if (verbose)
+		for_all_cpus(print_perf_limit, ODD_COUNTERS);
 
 	if (verbose)
 		for_all_cpus(print_rapl, ODD_COUNTERS);
@@ -2441,7 +2631,7 @@ int main(int argc, char **argv)
 	cmdline(argc, argv);
 
 	if (verbose)
-		fprintf(stderr, "turbostat v3.7 Feb 6, 2014"
+		fprintf(stderr, "turbostat v3.9 23-Jan, 2015"
 			" - Len Brown <lenb@kernel.org>\n");
 
 	turbostat_init();
