@@ -1701,6 +1701,8 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 				GEN9_MEM_LATENCY_LEVEL_MASK;
 
 		/*
+		 * WaWmMemoryReadLatency:skl
+		 *
 		 * punit doesn't take into account the read latency so we need
 		 * to add 2us to the various latency levels we retrieve from
 		 * the punit.
