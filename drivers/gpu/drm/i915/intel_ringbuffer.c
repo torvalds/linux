@@ -934,6 +934,13 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 			    GEN6_WIZ_HASHING_MASK,
 			    GEN6_WIZ_HASHING_16x4);
 
+	if (INTEL_REVID(dev) == SKL_REVID_C0 ||
+	    INTEL_REVID(dev) == SKL_REVID_D0)
+		/* WaBarrierPerformanceFixDisable:skl */
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FENCE_DEST_SLM_DISABLE |
+				  HDC_BARRIER_PERFORMANCE_DISABLE);
+
 	return 0;
 }
 
