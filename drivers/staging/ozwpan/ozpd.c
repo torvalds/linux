@@ -103,34 +103,35 @@ void oz_pd_put(struct oz_pd *pd)
 struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 {
 	struct oz_pd *pd;
+	int i;
 
 	pd = kzalloc(sizeof(struct oz_pd), GFP_ATOMIC);
-	if (pd) {
-		int i;
+	if (!pd)
+		return NULL;
 
-		atomic_set(&pd->ref_count, 2);
-		for (i = 0; i < OZ_NB_APPS; i++)
-			spin_lock_init(&pd->app_lock[i]);
-		pd->last_rx_pkt_num = 0xffffffff;
-		oz_pd_set_state(pd, OZ_PD_S_IDLE);
-		pd->max_tx_size = OZ_MAX_TX_SIZE;
-		ether_addr_copy(pd->mac_addr, mac_addr);
-		oz_elt_buf_init(&pd->elt_buff);
-		spin_lock_init(&pd->tx_frame_lock);
-		INIT_LIST_HEAD(&pd->tx_queue);
-		INIT_LIST_HEAD(&pd->farewell_list);
-		pd->last_sent_frame = &pd->tx_queue;
-		spin_lock_init(&pd->stream_lock);
-		INIT_LIST_HEAD(&pd->stream_list);
-		tasklet_init(&pd->heartbeat_tasklet, oz_pd_heartbeat_handler,
-							(unsigned long)pd);
-		tasklet_init(&pd->timeout_tasklet, oz_pd_timeout_handler,
-							(unsigned long)pd);
-		hrtimer_init(&pd->heartbeat, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		hrtimer_init(&pd->timeout, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		pd->heartbeat.function = oz_pd_heartbeat_event;
-		pd->timeout.function = oz_pd_timeout_event;
-	}
+	atomic_set(&pd->ref_count, 2);
+	for (i = 0; i < OZ_NB_APPS; i++)
+		spin_lock_init(&pd->app_lock[i]);
+	pd->last_rx_pkt_num = 0xffffffff;
+	oz_pd_set_state(pd, OZ_PD_S_IDLE);
+	pd->max_tx_size = OZ_MAX_TX_SIZE;
+	ether_addr_copy(pd->mac_addr, mac_addr);
+	oz_elt_buf_init(&pd->elt_buff);
+	spin_lock_init(&pd->tx_frame_lock);
+	INIT_LIST_HEAD(&pd->tx_queue);
+	INIT_LIST_HEAD(&pd->farewell_list);
+	pd->last_sent_frame = &pd->tx_queue;
+	spin_lock_init(&pd->stream_lock);
+	INIT_LIST_HEAD(&pd->stream_list);
+	tasklet_init(&pd->heartbeat_tasklet, oz_pd_heartbeat_handler,
+						(unsigned long)pd);
+	tasklet_init(&pd->timeout_tasklet, oz_pd_timeout_handler,
+						(unsigned long)pd);
+	hrtimer_init(&pd->heartbeat, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&pd->timeout, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	pd->heartbeat.function = oz_pd_heartbeat_event;
+	pd->timeout.function = oz_pd_timeout_event;
+
 	return pd;
 }
 
