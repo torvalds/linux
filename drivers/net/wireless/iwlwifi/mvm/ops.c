@@ -685,6 +685,38 @@ static void iwl_mvm_async_handlers_wk(struct work_struct *wk)
 	mutex_unlock(&mvm->mutex);
 }
 
+static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
+					    struct iwl_rx_packet *pkt)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_cmd *cmds_trig;
+	char buf[32];
+	int i;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_FW_NOTIF))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_FW_NOTIF);
+	cmds_trig = (void *)trig->data;
+
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, NULL, trig))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(cmds_trig->cmds); i++) {
+		/* don't collect on CMD 0 */
+		if (!cmds_trig->cmds[i].cmd_id)
+			break;
+
+		if (cmds_trig->cmds[i].cmd_id != pkt->hdr.cmd)
+			continue;
+
+		memset(buf, 0, sizeof(buf));
+		snprintf(buf, sizeof(buf), "CMD 0x%02x received", pkt->hdr.cmd);
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig, buf, sizeof(buf));
+		break;
+	}
+}
+
 static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 			       struct iwl_rx_cmd_buffer *rxb,
 			       struct iwl_device_cmd *cmd)
@@ -692,6 +724,8 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	u8 i;
+
+	iwl_mvm_rx_check_trigger(mvm, pkt);
 
 	/*
 	 * Do the notification wait before RX handlers so
