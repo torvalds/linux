@@ -2287,7 +2287,7 @@ err_interruptible:
 	return ret;
 }
 
-void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
+static void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
 {
 	WARN_ON(!mutex_is_locked(&obj->base.dev->struct_mutex));
 
