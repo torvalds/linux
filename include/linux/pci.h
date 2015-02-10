@@ -29,6 +29,7 @@
 #include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/resource_ext.h>
 #include <uapi/linux/pci.h>
 
 #include <linux/pci_ids.h>
@@ -397,16 +398,10 @@ static inline int pci_channel_offline(struct pci_dev *pdev)
 	return (pdev->error_state != pci_channel_io_normal);
 }
 
-struct pci_host_bridge_window {
-	struct list_head list;
-	struct resource *res;		/* host bridge aperture (CPU address) */
-	resource_size_t offset;		/* bus address + offset = CPU address */
-};
-
 struct pci_host_bridge {
 	struct device dev;
 	struct pci_bus *bus;		/* root bus */
-	struct list_head windows;	/* pci_host_bridge_windows */
+	struct list_head windows;	/* resource_entry */
 	void (*release_fn)(struct pci_host_bridge *);
 	void *release_data;
 };

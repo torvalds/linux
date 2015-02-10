@@ -35,6 +35,13 @@ void acpi_int340x_thermal_init(void);
 int acpi_sysfs_init(void);
 void acpi_container_init(void);
 void acpi_memory_hotplug_init(void);
+#ifdef	CONFIG_ACPI_HOTPLUG_IOAPIC
+int acpi_ioapic_add(struct acpi_pci_root *root);
+int acpi_ioapic_remove(struct acpi_pci_root *root);
+#else
+static inline int acpi_ioapic_add(struct acpi_pci_root *root) { return 0; }
+static inline int acpi_ioapic_remove(struct acpi_pci_root *root) { return 0; }
+#endif
 #ifdef CONFIG_ACPI_DOCK
 void register_dock_dependent_device(struct acpi_device *adev,
 				    acpi_handle dshandle);
