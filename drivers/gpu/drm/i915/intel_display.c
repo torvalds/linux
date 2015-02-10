@@ -13169,6 +13169,8 @@ void intel_modeset_init(struct drm_device *dev)
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
 
+	dev->mode_config.allow_fb_modifiers = true;
+
 	dev->mode_config.funcs = &intel_mode_funcs;
 
 	intel_init_quirks(dev);
