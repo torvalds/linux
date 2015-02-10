@@ -307,6 +307,20 @@ config MMC_SDHCI_F_SDH30
 
 	  If unsure, say N.
 
+config MMC_SDHCI_IPROC
+	tristate "SDHCI platform support for the iProc SD/MMC Controller"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on MMC_SDHCI_PLTFM
+	default ARCH_BCM_IPROC
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the iProc SD/MMC controller.
+
+	  If you have an IPROC platform with SD or MMC devices,
+	  say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_MOXART
 	tristate "MOXART SD/MMC Host Controller support"
 	depends on ARCH_MOXART && MMC
