@@ -177,6 +177,8 @@ enum pci_dev_flags {
 	PCI_DEV_FLAG_PCIE_BRIDGE_ALIAS = (__force pci_dev_flags_t) (1 << 5),
 	/* Do not use bus resets for device */
 	PCI_DEV_FLAGS_NO_BUS_RESET = (__force pci_dev_flags_t) (1 << 6),
+	/* Do not use PM reset even if device advertises NoSoftRst- */
+	PCI_DEV_FLAGS_NO_PM_RESET = (__force pci_dev_flags_t) (1 << 7),
 };
 
 enum pci_irq_reroute_variant {
@@ -562,6 +564,7 @@ static inline int pcibios_err_to_errno(int err)
 /* Low-level architecture-dependent routines */
 
 struct pci_ops {
+	void __iomem *(*map_bus)(struct pci_bus *bus, unsigned int devfn, int where);
 	int (*read)(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val);
 	int (*write)(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 val);
 };
@@ -859,6 +862,16 @@ int pci_bus_write_config_word(struct pci_bus *bus, unsigned int devfn,
 			      int where, u16 val);
 int pci_bus_write_config_dword(struct pci_bus *bus, unsigned int devfn,
 			       int where, u32 val);
+
+int pci_generic_config_read(struct pci_bus *bus, unsigned int devfn,
+			    int where, int size, u32 *val);
+int pci_generic_config_write(struct pci_bus *bus, unsigned int devfn,
+			    int where, int size, u32 val);
+int pci_generic_config_read32(struct pci_bus *bus, unsigned int devfn,
+			      int where, int size, u32 *val);
+int pci_generic_config_write32(struct pci_bus *bus, unsigned int devfn,
+			       int where, int size, u32 val);
+
 struct pci_ops *pci_bus_set_ops(struct pci_bus *bus, struct pci_ops *ops);
 
 static inline int pci_read_config_byte(const struct pci_dev *dev, int where, u8 *val)
@@ -1850,6 +1863,8 @@ static inline void pci_set_of_node(struct pci_dev *dev) { }
 static inline void pci_release_of_node(struct pci_dev *dev) { }
 static inline void pci_set_bus_of_node(struct pci_bus *bus) { }
 static inline void pci_release_bus_of_node(struct pci_bus *bus) { }
+static inline struct device_node *
+pci_device_to_OF_node(const struct pci_dev *pdev) { return NULL; }
 #endif  /* CONFIG_OF */
 
 #ifdef CONFIG_EEH

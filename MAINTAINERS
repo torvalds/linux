@@ -7277,6 +7277,14 @@ F:	include/linux/pci*
 F:	arch/x86/pci/
 F:	arch/x86/kernel/quirks.c
 
+PCI DRIVER FOR ARM VERSATILE PLATFORM
+M:	Rob Herring <robh@kernel.org>
+L:	linux-pci@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/versatile.txt
+F:	drivers/pci/host/pci-versatile.c
+
 PCI DRIVER FOR APPLIEDMICRO XGENE
 M:	Tanmay Inamdar <tinamdar@apm.com>
 L:	linux-pci@vger.kernel.org
