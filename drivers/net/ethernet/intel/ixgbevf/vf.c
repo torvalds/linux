@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -102,9 +101,10 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 
 	mdelay(10);
 
-	/* set our "perm_addr" based on info provided by PF */
-	/* also set up the mc_filter_type which is piggy backed
-	 * on the mac address in word 3 */
+	/* set our "perm_addr" based on info provided by PF
+	 * also set up the mc_filter_type which is piggy backed
+	 * on the mac address in word 3
+	 */
 	ret_val = mbx->ops.read_posted(hw, msgbuf, IXGBE_VF_PERMADDR_MSG_LEN);
 	if (ret_val)
 		return ret_val;
@@ -138,8 +138,7 @@ static s32 ixgbevf_stop_hw_vf(struct ixgbe_hw *hw)
 	u32 reg_val;
 	u16 i;
 
-	/*
-	 * Set the adapter_stopped flag so other driver functions stop touching
+	/* Set the adapter_stopped flag so other driver functions stop touching
 	 * the hardware
 	 */
 	hw->adapter_stopped = true;
@@ -182,7 +181,7 @@ static s32 ixgbevf_stop_hw_vf(struct ixgbe_hw *hw)
  *
  *  Extracts the 12 bits, from a multicast address, to determine which
  *  bit-vector to set in the multicast table. The hardware uses 12 bits, from
- *  incoming rx multicast addresses, to determine the bit-vector to check in
+ *  incoming Rx multicast addresses, to determine the bit-vector to check in
  *  the MTA. Which of the 4 combination, of 12-bits, the hardware uses is set
  *  by the MO field of the MCSTCTRL. The MO field is set during initialization
  *  to mc_filter_type.
@@ -233,8 +232,7 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	s32 ret_val;
 
 	memset(msgbuf, 0, sizeof(msgbuf));
-	/*
-	 * If index is one then this is the start of a new list and needs
+	/* If index is one then this is the start of a new list and needs
 	 * indication to the PF so it can do it's own list management.
 	 * If it is zero then that tells the PF to just clear all of
 	 * this VF's macvlans and there is no new list.
@@ -292,7 +290,7 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 }
 
 static void ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw,
-					u32 *msg, u16 size)
+				       u32 *msg, u16 size)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 retmsg[IXGBE_VFMAILBOX_SIZE];
@@ -348,7 +346,7 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 }
 
 /**
- *  ixgbevf_set_vfta_vf - Set/Unset vlan filter table address
+ *  ixgbevf_set_vfta_vf - Set/Unset VLAN filter table address
  *  @hw: pointer to the HW structure
  *  @vlan: 12 bit VLAN ID
  *  @vind: unused by VF drivers
@@ -462,7 +460,8 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	}
 
 	/* if the read failed it could just be a mailbox collision, best wait
-	 * until we are called again and don't report an error */
+	 * until we are called again and don't report an error
+	 */
 	if (mbx->ops.read(hw, &in_msg, 1))
 		goto out;
 
@@ -480,7 +479,8 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	}
 
 	/* if we passed all the tests above then the link is up and we no
-	 * longer need to check for link */
+	 * longer need to check for link
+	 */
 	mac->get_link_status = false;
 
 out:
@@ -561,8 +561,7 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
-		/*
-		 * if we we didn't get an ACK there must have been
+		/* if we we didn't get an ACK there must have been
 		 * some sort of mailbox error so we should treat it
 		 * as such
 		 */
@@ -595,17 +594,17 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 }
 
 static const struct ixgbe_mac_operations ixgbevf_mac_ops = {
-	.init_hw             = ixgbevf_init_hw_vf,
-	.reset_hw            = ixgbevf_reset_hw_vf,
-	.start_hw            = ixgbevf_start_hw_vf,
-	.get_mac_addr        = ixgbevf_get_mac_addr_vf,
-	.stop_adapter        = ixgbevf_stop_hw_vf,
-	.setup_link          = ixgbevf_setup_mac_link_vf,
-	.check_link          = ixgbevf_check_mac_link_vf,
-	.set_rar             = ixgbevf_set_rar_vf,
-	.update_mc_addr_list = ixgbevf_update_mc_addr_list_vf,
-	.set_uc_addr         = ixgbevf_set_uc_addr_vf,
-	.set_vfta            = ixgbevf_set_vfta_vf,
+	.init_hw		= ixgbevf_init_hw_vf,
+	.reset_hw		= ixgbevf_reset_hw_vf,
+	.start_hw		= ixgbevf_start_hw_vf,
+	.get_mac_addr		= ixgbevf_get_mac_addr_vf,
+	.stop_adapter		= ixgbevf_stop_hw_vf,
+	.setup_link		= ixgbevf_setup_mac_link_vf,
+	.check_link		= ixgbevf_check_mac_link_vf,
+	.set_rar		= ixgbevf_set_rar_vf,
+	.update_mc_addr_list	= ixgbevf_update_mc_addr_list_vf,
+	.set_uc_addr		= ixgbevf_set_uc_addr_vf,
+	.set_vfta		= ixgbevf_set_vfta_vf,
 };
 
 const struct ixgbevf_info ixgbevf_82599_vf_info = {

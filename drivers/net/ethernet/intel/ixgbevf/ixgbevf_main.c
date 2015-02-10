@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
+  Copyright(c) 1999 - 2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -24,7 +23,6 @@
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 *******************************************************************************/
-
 
 /******************************************************************************
  Copyright (c)2006 - 2007 Myricom, Inc. for some LRO specific code
@@ -170,12 +168,13 @@ u32 ixgbevf_read_reg(struct ixgbe_hw *hw, u32 reg)
  * @direction: 0 for Rx, 1 for Tx, -1 for other causes
  * @queue: queue to map the corresponding interrupt to
  * @msix_vector: the vector to map to the corresponding queue
- */
+ **/
 static void ixgbevf_set_ivar(struct ixgbevf_adapter *adapter, s8 direction,
 			     u8 queue, u8 msix_vector)
 {
 	u32 ivar, index;
 	struct ixgbe_hw *hw = &adapter->hw;
+
 	if (direction == -1) {
 		/* other causes */
 		msix_vector |= IXGBE_IVAR_ALLOC_VAL;
@@ -184,7 +183,7 @@ static void ixgbevf_set_ivar(struct ixgbevf_adapter *adapter, s8 direction,
 		ivar |= msix_vector;
 		IXGBE_WRITE_REG(hw, IXGBE_VTIVAR_MISC, ivar);
 	} else {
-		/* tx or rx causes */
+		/* Tx or Rx causes */
 		msix_vector |= IXGBE_IVAR_ALLOC_VAL;
 		index = ((16 * (queue & 1)) + (8 * direction));
 		ivar = IXGBE_READ_REG(hw, IXGBE_VTIVAR(queue >> 1));
@@ -458,11 +457,12 @@ static void ixgbevf_rx_skb(struct ixgbevf_q_vector *q_vector,
 	napi_gro_receive(&q_vector->napi, skb);
 }
 
-/* ixgbevf_rx_checksum - indicate in skb if hw indicated a good cksum
+/**
+ * ixgbevf_rx_checksum - indicate in skb if hw indicated a good cksum
  * @ring: structure containig ring specific data
  * @rx_desc: current Rx descriptor being processed
  * @skb: skb currently being received and modified
- */
+ **/
 static inline void ixgbevf_rx_checksum(struct ixgbevf_ring *ring,
 				       union ixgbe_adv_rx_desc *rx_desc,
 				       struct sk_buff *skb)
@@ -492,7 +492,8 @@ static inline void ixgbevf_rx_checksum(struct ixgbevf_ring *ring,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
-/* ixgbevf_process_skb_fields - Populate skb header fields from Rx descriptor
+/**
+ * ixgbevf_process_skb_fields - Populate skb header fields from Rx descriptor
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
  * @skb: pointer to current skb being populated
@@ -500,7 +501,7 @@ static inline void ixgbevf_rx_checksum(struct ixgbevf_ring *ring,
  * This function checks the ring, descriptor, and packet information in
  * order to populate the checksum, VLAN, protocol, and other fields within
  * the skb.
- */
+ **/
 static void ixgbevf_process_skb_fields(struct ixgbevf_ring *rx_ring,
 				       union ixgbe_adv_rx_desc *rx_desc,
 				       struct sk_buff *skb)
@@ -647,7 +648,8 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_ring *rx_ring,
 	}
 }
 
-/* ixgbevf_pull_tail - ixgbevf specific version of skb_pull_tail
+/**
+ * ixgbevf_pull_tail - ixgbevf specific version of skb_pull_tail
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @skb: pointer to current skb being adjusted
  *
@@ -657,7 +659,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_ring *rx_ring,
  * that allow for significant optimizations versus the standard function.
  * As a result we can do things like drop a frag and maintain an accurate
  * truesize for the skb.
- */
+ **/
 static void ixgbevf_pull_tail(struct ixgbevf_ring *rx_ring,
 			      struct sk_buff *skb)
 {
@@ -686,7 +688,8 @@ static void ixgbevf_pull_tail(struct ixgbevf_ring *rx_ring,
 	skb->tail += pull_len;
 }
 
-/* ixgbevf_cleanup_headers - Correct corrupted or empty headers
+/**
+ * ixgbevf_cleanup_headers - Correct corrupted or empty headers
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
  * @skb: pointer to current skb being fixed
@@ -702,7 +705,7 @@ static void ixgbevf_pull_tail(struct ixgbevf_ring *rx_ring,
  * it is large enough to qualify as a valid Ethernet frame.
  *
  * Returns true if an error was encountered and skb was freed.
- */
+ **/
 static bool ixgbevf_cleanup_headers(struct ixgbevf_ring *rx_ring,
 				    union ixgbe_adv_rx_desc *rx_desc,
 				    struct sk_buff *skb)
@@ -729,12 +732,13 @@ static bool ixgbevf_cleanup_headers(struct ixgbevf_ring *rx_ring,
 	return false;
 }
 
-/* ixgbevf_reuse_rx_page - page flip buffer and store it back on the ring
+/**
+ * ixgbevf_reuse_rx_page - page flip buffer and store it back on the ring
  * @rx_ring: rx descriptor ring to store buffers on
  * @old_buff: donor buffer to have page reused
  *
  * Synchronizes page for reuse by the adapter
- */
+ **/
 static void ixgbevf_reuse_rx_page(struct ixgbevf_ring *rx_ring,
 				  struct ixgbevf_rx_buffer *old_buff)
 {
@@ -764,7 +768,8 @@ static inline bool ixgbevf_page_is_reserved(struct page *page)
 	return (page_to_nid(page) != numa_mem_id()) || page->pfmemalloc;
 }
 
-/* ixgbevf_add_rx_frag - Add contents of Rx buffer to sk_buff
+/**
+ * ixgbevf_add_rx_frag - Add contents of Rx buffer to sk_buff
  * @rx_ring: rx descriptor ring to transact packets on
  * @rx_buffer: buffer containing page to add
  * @rx_desc: descriptor containing length of buffer written by hardware
@@ -777,7 +782,7 @@ static inline bool ixgbevf_page_is_reserved(struct page *page)
  *
  * The function will then update the page offset if necessary and return
  * true if the buffer can be reused by the adapter.
- */
+ **/
 static bool ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
 				struct ixgbevf_rx_buffer *rx_buffer,
 				union ixgbe_adv_rx_desc *rx_desc,
@@ -958,7 +963,7 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		 * source pruning.
 		 */
 		if ((skb->pkt_type == PACKET_BROADCAST ||
-		    skb->pkt_type == PACKET_MULTICAST) &&
+		     skb->pkt_type == PACKET_MULTICAST) &&
 		    ether_addr_equal(rx_ring->netdev->dev_addr,
 				     eth_hdr(skb)->h_source)) {
 			dev_kfree_skb_irq(skb);
@@ -1016,7 +1021,8 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 #endif
 
 	/* attempt to distribute budget to each queue fairly, but don't allow
-	 * the budget to go below 1 because we'll exit polling */
+	 * the budget to go below 1 because we'll exit polling
+	 */
 	if (q_vector->rx.count > 1)
 		per_ring_budget = max(budget/q_vector->rx.count, 1);
 	else
@@ -1049,7 +1055,7 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 /**
  * ixgbevf_write_eitr - write VTEITR register in hardware specific way
  * @q_vector: structure containing interrupt and ring information
- */
+ **/
 void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
 {
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
@@ -1057,8 +1063,7 @@ void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
 	int v_idx = q_vector->v_idx;
 	u32 itr_reg = q_vector->itr & IXGBE_MAX_EITR;
 
-	/*
-	 * set the WDIS bit to not clear the timer bits and cause an
+	/* set the WDIS bit to not clear the timer bits and cause an
 	 * immediate assertion of the interrupt
 	 */
 	itr_reg |= IXGBE_EITR_CNT_WDIS;
@@ -1115,12 +1120,12 @@ static void ixgbevf_configure_msix(struct ixgbevf_adapter *adapter)
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 	adapter->eims_enable_mask = 0;
 
-	/*
-	 * Populate the IVAR table and set the ITR values to the
+	/* Populate the IVAR table and set the ITR values to the
 	 * corresponding register.
 	 */
 	for (v_idx = 0; v_idx < q_vectors; v_idx++) {
 		struct ixgbevf_ring *ring;
+
 		q_vector = adapter->q_vector[v_idx];
 
 		ixgbevf_for_each_ring(ring, q_vector->rx)
@@ -1130,13 +1135,13 @@ static void ixgbevf_configure_msix(struct ixgbevf_adapter *adapter)
 			ixgbevf_set_ivar(adapter, 1, ring->reg_idx, v_idx);
 
 		if (q_vector->tx.ring && !q_vector->rx.ring) {
-			/* tx only vector */
+			/* Tx only vector */
 			if (adapter->tx_itr_setting == 1)
 				q_vector->itr = IXGBE_10K_ITR;
 			else
 				q_vector->itr = adapter->tx_itr_setting;
 		} else {
-			/* rx or rx/tx vector */
+			/* Rx or Rx/Tx vector */
 			if (adapter->rx_itr_setting == 1)
 				q_vector->itr = IXGBE_20K_ITR;
 			else
@@ -1167,13 +1172,13 @@ enum latency_range {
  * @q_vector: structure containing interrupt and ring information
  * @ring_container: structure containing ring performance data
  *
- *      Stores a new ITR value based on packets and byte
- *      counts during the last interrupt.  The advantage of per interrupt
- *      computation is faster updates and more accurate ITR for the current
- *      traffic pattern.  Constants in this function were computed
- *      based on theoretical maximum wire speed and thresholds were set based
- *      on testing data as well as attempting to minimize response time
- *      while increasing bulk throughput.
+ * Stores a new ITR value based on packets and byte
+ * counts during the last interrupt.  The advantage of per interrupt
+ * computation is faster updates and more accurate ITR for the current
+ * traffic pattern.  Constants in this function were computed
+ * based on theoretical maximum wire speed and thresholds were set based
+ * on testing data as well as attempting to minimize response time
+ * while increasing bulk throughput.
  **/
 static void ixgbevf_update_itr(struct ixgbevf_q_vector *q_vector,
 			       struct ixgbevf_ring_container *ring_container)
@@ -1187,7 +1192,7 @@ static void ixgbevf_update_itr(struct ixgbevf_q_vector *q_vector,
 	if (packets == 0)
 		return;
 
-	/* simple throttlerate management
+	/* simple throttle rate management
 	 *    0-20MB/s lowest (100000 ints/s)
 	 *   20-100MB/s low   (20000 ints/s)
 	 *  100-1249MB/s bulk (8000 ints/s)
@@ -1330,8 +1335,7 @@ static int ixgbevf_map_rings_to_vectors(struct ixgbevf_adapter *adapter)
 
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
-	/*
-	 * The ideal configuration...
+	/* The ideal configuration...
 	 * We have enough vectors to map one per queue.
 	 */
 	if (q_vectors == adapter->num_rx_queues + adapter->num_tx_queues) {
@@ -1343,8 +1347,7 @@ static int ixgbevf_map_rings_to_vectors(struct ixgbevf_adapter *adapter)
 		goto out;
 	}
 
-	/*
-	 * If we don't have enough vectors for a 1-to-1
+	/* If we don't have enough vectors for a 1-to-1
 	 * mapping, we'll have to group them so there are
 	 * multiple queues per vector.
 	 */
@@ -1406,8 +1409,8 @@ static int ixgbevf_request_msix_irqs(struct ixgbevf_adapter *adapter)
 				  q_vector->name, q_vector);
 		if (err) {
 			hw_dbg(&adapter->hw,
-			       "request_irq failed for MSIX interrupt "
-			       "Error: %d\n", err);
+			       "request_irq failed for MSIX interrupt Error: %d\n",
+			       err);
 			goto free_queue_irqs;
 		}
 	}
@@ -1415,8 +1418,8 @@ static int ixgbevf_request_msix_irqs(struct ixgbevf_adapter *adapter)
 	err = request_irq(adapter->msix_entries[vector].vector,
 			  &ixgbevf_msix_other, 0, netdev->name, adapter);
 	if (err) {
-		hw_dbg(&adapter->hw,
-		       "request_irq for msix_other failed: %d\n", err);
+		hw_dbg(&adapter->hw, "request_irq for msix_other failed: %d\n",
+		       err);
 		goto free_queue_irqs;
 	}
 
@@ -1448,6 +1451,7 @@ static inline void ixgbevf_reset_q_vectors(struct ixgbevf_adapter *adapter)
 
 	for (i = 0; i < q_vectors; i++) {
 		struct ixgbevf_q_vector *q_vector = adapter->q_vector[i];
+
 		q_vector->rx.ring = NULL;
 		q_vector->tx.ring = NULL;
 		q_vector->rx.count = 0;
@@ -1469,8 +1473,7 @@ static int ixgbevf_request_irq(struct ixgbevf_adapter *adapter)
 	err = ixgbevf_request_msix_irqs(adapter);
 
 	if (err)
-		hw_dbg(&adapter->hw,
-		       "request_irq failed, Error %d\n", err);
+		hw_dbg(&adapter->hw, "request_irq failed, Error %d\n", err);
 
 	return err;
 }
@@ -1659,7 +1662,7 @@ static void ixgbevf_disable_rx_queue(struct ixgbevf_adapter *adapter,
 	/* write value back with RXDCTL.ENABLE bit cleared */
 	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(reg_idx), rxdctl);
 
-	/* the hardware may take up to 100us to really disable the rx queue */
+	/* the hardware may take up to 100us to really disable the Rx queue */
 	do {
 		udelay(10);
 		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
@@ -1786,7 +1789,8 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 	ixgbevf_rlpml_set_vf(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
-	 * the Base and Length of the Rx Descriptor Ring */
+	 * the Base and Length of the Rx Descriptor Ring
+	 */
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		ixgbevf_configure_rx_ring(adapter, adapter->rx_ring[i]);
 }
@@ -1858,14 +1862,14 @@ static int ixgbevf_write_uc_addr_list(struct net_device *netdev)
 
 	if (!netdev_uc_empty(netdev)) {
 		struct netdev_hw_addr *ha;
+
 		netdev_for_each_uc_addr(ha, netdev) {
 			hw->mac.ops.set_uc_addr(hw, ++count, ha->addr);
 			udelay(200);
 		}
 	} else {
-		/*
-		 * If the list is empty then send message to PF driver to
-		 * clear all macvlans on this VF.
+		/* If the list is empty then send message to PF driver to
+		 * clear all MAC VLANs on this VF.
 		 */
 		hw->mac.ops.set_uc_addr(hw, 0, NULL);
 	}
@@ -2184,7 +2188,7 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter)
 	if (test_and_set_bit(__IXGBEVF_DOWN, &adapter->state))
 		return; /* do nothing if already down */
 
-	/* disable all enabled rx queues */
+	/* disable all enabled Rx queues */
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		ixgbevf_disable_rx_queue(adapter, adapter->rx_ring[i]);
 
@@ -2406,8 +2410,7 @@ static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 	int err = 0;
 	int vector, v_budget;
 
-	/*
-	 * It's easy to be greedy for MSI-X vectors, but it really
+	/* It's easy to be greedy for MSI-X vectors, but it really
 	 * doesn't do us much good if we have a lot more vectors
 	 * than CPU's.  So let's be conservative and only ask for
 	 * (roughly) the same number of vectors as there are CPU's.
@@ -2418,7 +2421,8 @@ static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 	v_budget += NON_Q_VECTORS;
 
 	/* A failure in MSI-X entry allocation isn't fatal, but it does
-	 * mean we disable MSI-X capabilities of the adapter. */
+	 * mean we disable MSI-X capabilities of the adapter.
+	 */
 	adapter->msix_entries = kcalloc(v_budget,
 					sizeof(struct msix_entry), GFP_KERNEL);
 	if (!adapter->msix_entries) {
@@ -2544,8 +2548,7 @@ static int ixgbevf_init_interrupt_scheme(struct ixgbevf_adapter *adapter)
 
 	err = ixgbevf_alloc_q_vectors(adapter);
 	if (err) {
-		hw_dbg(&adapter->hw, "Unable to allocate memory for queue "
-		       "vectors\n");
+		hw_dbg(&adapter->hw, "Unable to allocate memory for queue vectors\n");
 		goto err_alloc_q_vectors;
 	}
 
@@ -2555,8 +2558,7 @@ static int ixgbevf_init_interrupt_scheme(struct ixgbevf_adapter *adapter)
 		goto err_alloc_queues;
 	}
 
-	hw_dbg(&adapter->hw, "Multiqueue %s: Rx Queue count = %u, "
-	       "Tx Queue count = %u\n",
+	hw_dbg(&adapter->hw, "Multiqueue %s: Rx Queue count = %u, Tx Queue count = %u\n",
 	       (adapter->num_rx_queues > 1) ? "Enabled" :
 	       "Disabled", adapter->num_rx_queues, adapter->num_tx_queues);
 
@@ -2600,7 +2602,6 @@ static void ixgbevf_clear_interrupt_scheme(struct ixgbevf_adapter *adapter)
 
 /**
  * ixgbevf_sw_init - Initialize general software structures
- * (struct ixgbevf_adapter)
  * @adapter: board private structure to initialize
  *
  * ixgbevf_sw_init initializes the Adapter private data structure.
@@ -2615,7 +2616,6 @@ static int ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	int err;
 
 	/* PCI config space info */
-
 	hw->vendor_id = pdev->vendor;
 	hw->device_id = pdev->device;
 	hw->revision_id = pdev->revision;
@@ -2686,8 +2686,8 @@ out:
 	{								 \
 		u64 current_counter_lsb = IXGBE_READ_REG(hw, reg_lsb);	 \
 		u64 current_counter_msb = IXGBE_READ_REG(hw, reg_msb);	 \
-		u64 current_counter = (current_counter_msb << 32) |      \
-			current_counter_lsb;                             \
+		u64 current_counter = (current_counter_msb << 32) |	 \
+			current_counter_lsb;				 \
 		if (current_counter < last_counter)			 \
 			counter += 0x1000000000LL;			 \
 		last_counter = current_counter;				 \
@@ -2758,14 +2758,15 @@ static void ixgbevf_reset_subtask(struct ixgbevf_adapter *adapter)
 	ixgbevf_reinit_locked(adapter);
 }
 
-/* ixgbevf_check_hang_subtask - check for hung queues and dropped interrupts
- * @adapter - pointer to the device adapter structure
+/**
+ * ixgbevf_check_hang_subtask - check for hung queues and dropped interrupts
+ * @adapter: pointer to the device adapter structure
  *
  * This function serves two purposes.  First it strobes the interrupt lines
  * in order to make certain interrupts are occurring.  Secondly it sets the
  * bits needed to check for TX hangs.  As a result we should immediately
  * determine if a hang has occurred.
- */
+ **/
 static void ixgbevf_check_hang_subtask(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -2783,7 +2784,7 @@ static void ixgbevf_check_hang_subtask(struct ixgbevf_adapter *adapter)
 			set_check_for_tx_hang(adapter->tx_ring[i]);
 	}
 
-	/* get one bit for every active tx/rx interrupt vector */
+	/* get one bit for every active Tx/Rx interrupt vector */
 	for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
 		struct ixgbevf_q_vector *qv = adapter->q_vector[i];
 
@@ -2797,7 +2798,7 @@ static void ixgbevf_check_hang_subtask(struct ixgbevf_adapter *adapter)
 
 /**
  * ixgbevf_watchdog_update_link - update the link status
- * @adapter - pointer to the device adapter structure
+ * @adapter: pointer to the device adapter structure
  **/
 static void ixgbevf_watchdog_update_link(struct ixgbevf_adapter *adapter)
 {
@@ -2825,7 +2826,7 @@ static void ixgbevf_watchdog_update_link(struct ixgbevf_adapter *adapter)
 /**
  * ixgbevf_watchdog_link_is_up - update netif_carrier status and
  *				 print link up message
- * @adapter - pointer to the device adapter structure
+ * @adapter: pointer to the device adapter structure
  **/
 static void ixgbevf_watchdog_link_is_up(struct ixgbevf_adapter *adapter)
 {
@@ -2850,7 +2851,7 @@ static void ixgbevf_watchdog_link_is_up(struct ixgbevf_adapter *adapter)
 /**
  * ixgbevf_watchdog_link_is_down - update netif_carrier status and
  *				   print link down message
- * @adapter - pointer to the adapter structure
+ * @adapter: pointer to the adapter structure
  **/
 static void ixgbevf_watchdog_link_is_down(struct ixgbevf_adapter *adapter)
 {
@@ -2956,7 +2957,7 @@ static void ixgbevf_free_all_tx_resources(struct ixgbevf_adapter *adapter)
 
 /**
  * ixgbevf_setup_tx_resources - allocate Tx resources (Descriptors)
- * @tx_ring:    tx descriptor ring (for a specific queue) to setup
+ * @tx_ring: Tx descriptor ring (for a specific queue) to setup
  *
  * Return 0 on success, negative on failure
  **/
@@ -2983,8 +2984,7 @@ int ixgbevf_setup_tx_resources(struct ixgbevf_ring *tx_ring)
 err:
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
-	hw_dbg(&adapter->hw, "Unable to allocate memory for the transmit "
-	       "descriptor ring\n");
+	hw_dbg(&adapter->hw, "Unable to allocate memory for the transmit descriptor ring\n");
 	return -ENOMEM;
 }
 
@@ -3006,8 +3006,7 @@ static int ixgbevf_setup_all_tx_resources(struct ixgbevf_adapter *adapter)
 		err = ixgbevf_setup_tx_resources(adapter->tx_ring[i]);
 		if (!err)
 			continue;
-		hw_dbg(&adapter->hw,
-		       "Allocation for Tx Queue %u failed\n", i);
+		hw_dbg(&adapter->hw, "Allocation for Tx Queue %u failed\n", i);
 		break;
 	}
 
@@ -3016,7 +3015,7 @@ static int ixgbevf_setup_all_tx_resources(struct ixgbevf_adapter *adapter)
 
 /**
  * ixgbevf_setup_rx_resources - allocate Rx resources (Descriptors)
- * @rx_ring:    rx descriptor ring (for a specific queue) to setup
+ * @rx_ring: Rx descriptor ring (for a specific queue) to setup
  *
  * Returns 0 on success, negative on failure
  **/
@@ -3065,8 +3064,7 @@ static int ixgbevf_setup_all_rx_resources(struct ixgbevf_adapter *adapter)
 		err = ixgbevf_setup_rx_resources(adapter->rx_ring[i]);
 		if (!err)
 			continue;
-		hw_dbg(&adapter->hw,
-		       "Allocation for Rx Queue %u failed\n", i);
+		hw_dbg(&adapter->hw, "Allocation for Rx Queue %u failed\n", i);
 		break;
 	}
 	return err;
@@ -3136,11 +3134,11 @@ static int ixgbevf_open(struct net_device *netdev)
 	if (hw->adapter_stopped) {
 		ixgbevf_reset(adapter);
 		/* if adapter is still stopped then PF isn't up and
-		 * the vf can't start. */
+		 * the VF can't start.
+		 */
 		if (hw->adapter_stopped) {
 			err = IXGBE_ERR_MBX;
-			pr_err("Unable to start - perhaps the PF Driver isn't "
-			       "up yet\n");
+			pr_err("Unable to start - perhaps the PF Driver isn't up yet\n");
 			goto err_setup_reset;
 		}
 	}
@@ -3163,8 +3161,7 @@ static int ixgbevf_open(struct net_device *netdev)
 
 	ixgbevf_configure(adapter);
 
-	/*
-	 * Map the Tx/Rx rings to the vectors we were allotted.
+	/* Map the Tx/Rx rings to the vectors we were allotted.
 	 * if request_irq will be called in this function map_rings
 	 * must be called *before* up_complete
 	 */
@@ -3288,6 +3285,7 @@ static int ixgbevf_tso(struct ixgbevf_ring *tx_ring,
 
 	if (first->protocol == htons(ETH_P_IP)) {
 		struct iphdr *iph = ip_hdr(skb);
+
 		iph->tot_len = 0;
 		iph->check = 0;
 		tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
@@ -3313,7 +3311,7 @@ static int ixgbevf_tso(struct ixgbevf_ring *tx_ring,
 	*hdr_len += l4len;
 	*hdr_len = skb_transport_offset(skb) + l4len;
 
-	/* update gso size and bytecount with header size */
+	/* update GSO size and bytecount with header size */
 	first->gso_segs = skb_shinfo(skb)->gso_segs;
 	first->bytecount += (first->gso_segs - 1) * *hdr_len;
 
@@ -3343,6 +3341,7 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u8 l4_hdr = 0;
+
 		switch (first->protocol) {
 		case htons(ETH_P_IP):
 			vlan_macip_lens |= skb_network_header_len(skb);
@@ -3356,8 +3355,8 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 		default:
 			if (unlikely(net_ratelimit())) {
 				dev_warn(tx_ring->dev,
-				 "partial checksum but proto=%x!\n",
-				 first->protocol);
+					 "partial checksum but proto=%x!\n",
+					 first->protocol);
 			}
 			break;
 		}
@@ -3380,8 +3379,8 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 		default:
 			if (unlikely(net_ratelimit())) {
 				dev_warn(tx_ring->dev,
-				 "partial checksum but l4 proto=%x!\n",
-				 l4_hdr);
+					 "partial checksum but l4 proto=%x!\n",
+					 l4_hdr);
 			}
 			break;
 		}
@@ -3405,7 +3404,7 @@ static __le32 ixgbevf_tx_cmd_type(u32 tx_flags)
 				      IXGBE_ADVTXD_DCMD_IFCS |
 				      IXGBE_ADVTXD_DCMD_DEXT);
 
-	/* set HW vlan bit if vlan is present */
+	/* set HW VLAN bit if VLAN is present */
 	if (tx_flags & IXGBE_TX_FLAGS_VLAN)
 		cmd_type |= cpu_to_le32(IXGBE_ADVTXD_DCMD_VLE);
 
@@ -3572,11 +3571,13 @@ static int __ixgbevf_maybe_stop_tx(struct ixgbevf_ring *tx_ring, int size)
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	/* Herbert's original patch had:
 	 *  smp_mb__after_netif_stop_queue();
-	 * but since that doesn't exist yet, just open code it. */
+	 * but since that doesn't exist yet, just open code it.
+	 */
 	smp_mb();
 
 	/* We need to check again in a case another CPU has just
-	 * made room available. */
+	 * made room available.
+	 */
 	if (likely(ixgbevf_desc_unused(tx_ring) < size))
 		return -EBUSY;
 
@@ -3615,8 +3616,7 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_ring = adapter->tx_ring[skb->queue_mapping];
 
-	/*
-	 * need: 1 descriptor per page * PAGE_SIZE/IXGBE_MAX_DATA_PER_TXD,
+	/* need: 1 descriptor per page * PAGE_SIZE/IXGBE_MAX_DATA_PER_TXD,
 	 *       + 1 desc for skb_headlen/IXGBE_MAX_DATA_PER_TXD,
 	 *       + 2 desc gap to keep tail from touching head,
 	 *       + 1 desc for context descriptor,
@@ -3794,8 +3794,7 @@ static int ixgbevf_resume(struct pci_dev *pdev)
 	u32 err;
 
 	pci_restore_state(pdev);
-	/*
-	 * pci_restore_state clears dev->state_saved so call
+	/* pci_restore_state clears dev->state_saved so call
 	 * pci_save_state to restore it.
 	 */
 	pci_save_state(pdev);
@@ -3930,8 +3929,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			dev_err(&pdev->dev, "No usable DMA "
-				"configuration, aborting\n");
+			dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
 			goto err_dma;
 		}
 		pci_using_dac = 0;
@@ -3962,8 +3960,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->back = adapter;
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
-	/*
-	 * call save state here in standalone driver because it relies on
+	/* call save state here in standalone driver because it relies on
 	 * adapter struct to exist, and needs to call netdev_priv
 	 */
 	pci_save_state(pdev);
@@ -3978,7 +3975,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ixgbevf_assign_netdev_ops(netdev);
 
-	/* Setup hw api */
+	/* Setup HW API */
 	memcpy(&hw->mac.ops, ii->mac_ops, sizeof(hw->mac.ops));
 	hw->mac.type  = ii->mac;
 
@@ -3998,11 +3995,11 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	netdev->hw_features = NETIF_F_SG |
-			   NETIF_F_IP_CSUM |
-			   NETIF_F_IPV6_CSUM |
-			   NETIF_F_TSO |
-			   NETIF_F_TSO6 |
-			   NETIF_F_RXCSUM;
+			      NETIF_F_IP_CSUM |
+			      NETIF_F_IPV6_CSUM |
+			      NETIF_F_TSO |
+			      NETIF_F_TSO6 |
+			      NETIF_F_RXCSUM;
 
 	netdev->features = netdev->hw_features |
 			   NETIF_F_HW_VLAN_CTAG_TX |
@@ -4131,7 +4128,7 @@ static void ixgbevf_remove(struct pci_dev *pdev)
  *
  * This function is called after a PCI bus error affecting
  * this device has been detected.
- */
+ **/
 static pci_ers_result_t ixgbevf_io_error_detected(struct pci_dev *pdev,
 						  pci_channel_state_t state)
 {
@@ -4166,7 +4163,7 @@ static pci_ers_result_t ixgbevf_io_error_detected(struct pci_dev *pdev,
  *
  * Restart the card from scratch, as if from a cold-boot. Implementation
  * resembles the first-half of the ixgbevf_resume routine.
- */
+ **/
 static pci_ers_result_t ixgbevf_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -4194,7 +4191,7 @@ static pci_ers_result_t ixgbevf_io_slot_reset(struct pci_dev *pdev)
  * This callback is called when the error recovery driver tells us that
  * its OK to resume normal operation. Implementation resembles the
  * second-half of the ixgbevf_resume routine.
- */
+ **/
 static void ixgbevf_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -4214,17 +4211,17 @@ static const struct pci_error_handlers ixgbevf_err_handler = {
 };
 
 static struct pci_driver ixgbevf_driver = {
-	.name     = ixgbevf_driver_name,
-	.id_table = ixgbevf_pci_tbl,
-	.probe    = ixgbevf_probe,
-	.remove   = ixgbevf_remove,
+	.name		= ixgbevf_driver_name,
+	.id_table	= ixgbevf_pci_tbl,
+	.probe		= ixgbevf_probe,
+	.remove		= ixgbevf_remove,
 #ifdef CONFIG_PM
 	/* Power Management Hooks */
-	.suspend  = ixgbevf_suspend,
-	.resume   = ixgbevf_resume,
+	.suspend	= ixgbevf_suspend,
+	.resume		= ixgbevf_resume,
 #endif
-	.shutdown = ixgbevf_shutdown,
-	.err_handler = &ixgbevf_err_handler
+	.shutdown	= ixgbevf_shutdown,
+	.err_handler	= &ixgbevf_err_handler
 };
 
 /**
@@ -4236,6 +4233,7 @@ static struct pci_driver ixgbevf_driver = {
 static int __init ixgbevf_init_module(void)
 {
 	int ret;
+
 	pr_info("%s - version %s\n", ixgbevf_driver_string,
 		ixgbevf_driver_version);
 
@@ -4266,6 +4264,7 @@ static void __exit ixgbevf_exit_module(void)
 char *ixgbevf_get_hw_dev_name(struct ixgbe_hw *hw)
 {
 	struct ixgbevf_adapter *adapter = hw->back;
+
 	return adapter->netdev->name;
 }
 
