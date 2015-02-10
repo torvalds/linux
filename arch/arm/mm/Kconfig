@@ -1012,6 +1012,7 @@ config ARCH_SUPPORTS_BIG_ENDIAN
 
 config ARM_KERNMEM_PERMS
 	bool "Restrict kernel memory permissions"
+	depends on MMU
 	help
 	  If this is set, kernel memory other than kernel text (and rodata)
 	  will be made non-executable. The tradeoff is that each region is

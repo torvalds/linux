@@ -319,10 +319,7 @@ void __init arm_memblock_init(const struct machine_desc *mdesc)
 
 	early_init_fdt_scan_reserved_mem();
 
-	/*
-	 * reserve memory for DMA contigouos allocations,
-	 * must come from DMA area inside low memory
-	 */
+	/* reserve memory for DMA contiguous allocations */
 	dma_contiguous_reserve(arm_dma_limit);
 
 	arm_memblock_steal_permitted = false;
@@ -658,8 +655,8 @@ static struct section_perm ro_perms[] = {
 		.start  = (unsigned long)_stext,
 		.end    = (unsigned long)__init_begin,
 #ifdef CONFIG_ARM_LPAE
-		.mask   = ~PMD_SECT_RDONLY,
-		.prot   = PMD_SECT_RDONLY,
+		.mask   = ~L_PMD_SECT_RDONLY,
+		.prot   = L_PMD_SECT_RDONLY,
 #else
 		.mask   = ~(PMD_SECT_APX | PMD_SECT_AP_WRITE),
 		.prot   = PMD_SECT_APX | PMD_SECT_AP_WRITE,
