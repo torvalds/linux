@@ -246,6 +246,8 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TRIGGER_CHANNEL_SWITCH: trigger log collection upon channel switch.
  * @FW_DBG_TRIGGER_FW_NOTIF: trigger log collection when the firmware sends a
  *	command response or a notification.
+ * @FW_DB_TRIGGER_RESERVED: reserved
+ * @FW_DBG_TRIGGER_STATS: trigger log collection upon statistics threshold.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -254,6 +256,8 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_MISSED_BEACONS,
 	FW_DBG_TRIGGER_CHANNEL_SWITCH,
 	FW_DBG_TRIGGER_FW_NOTIF,
+	FW_DB_TRIGGER_RESERVED,
+	FW_DBG_TRIGGER_STATS,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,
