@@ -5260,9 +5260,10 @@ enum skl_disp_power_wells {
 
 /* GEN8 chicken */
 #define HDC_CHICKEN0				0x7300
-#define  HDC_FORCE_NON_COHERENT			(1<<4)
-#define  HDC_DONOT_FETCH_MEM_WHEN_MASKED	(1<<11)
 #define  HDC_FENCE_DEST_SLM_DISABLE		(1<<14)
+#define  HDC_DONOT_FETCH_MEM_WHEN_MASKED	(1<<11)
+#define  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT	(1<<5)
+#define  HDC_FORCE_NON_COHERENT			(1<<4)
 
 /* WaCatErrorRejectionIssue */
 #define GEN7_SQ_CHICKEN_MBCUNIT_CONFIG		0x9030

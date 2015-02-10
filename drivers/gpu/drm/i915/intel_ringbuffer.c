@@ -788,12 +788,14 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 * workaround for for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
-	/* WaForceEnableNonCoherent:bdw */
-	/* WaHdcDisableFetchWhenMasked:bdw */
-	/* WaDisableFenceDestinationToSLM:bdw (GT3 pre-production) */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  /* WaForceEnableNonCoherent:bdw */
 			  HDC_FORCE_NON_COHERENT |
+			  /* WaForceContextSaveRestoreNonCoherent:bdw */
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
+			  /* WaHdcDisableFetchWhenMasked:bdw */
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED |
+			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
 			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
 
 	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
