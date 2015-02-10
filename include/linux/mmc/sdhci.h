@@ -115,6 +115,8 @@ struct sdhci_host {
 #define SDHCI_QUIRK2_TUNING_WORK_AROUND			(1<<12)
 /* disable the block count for single block transactions */
 #define SDHCI_QUIRK2_SUPPORT_SINGLE			(1<<13)
+/* Controller broken with using ACMD23 */
+#define SDHCI_QUIRK2_ACMD23_BROKEN			(1<<14)
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
