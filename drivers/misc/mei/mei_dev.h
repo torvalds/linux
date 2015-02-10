@@ -201,6 +201,7 @@ struct mei_cl;
  * @file_object: pointer to file structure
  * @status: io status of the cb
  * @internal: communication between driver and FW flag
+ * @completed: the transfer or reception has completed
  */
 struct mei_cl_cb {
 	struct list_head list;
@@ -213,6 +214,7 @@ struct mei_cl_cb {
 	struct file *file_object;
 	int status;
 	u32 internal:1;
+	u32 completed:1;
 };
 
 /**
@@ -662,8 +664,6 @@ void mei_amthif_reset_params(struct mei_device *dev);
 
 int mei_amthif_host_init(struct mei_device *dev);
 
-int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *priv_cb);
-
 int mei_amthif_read(struct mei_device *dev, struct file *file,
 		char __user *ubuf, size_t length, loff_t *offset);
 
@@ -675,8 +675,8 @@ int mei_amthif_release(struct mei_device *dev, struct file *file);
 struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file);
 
-void mei_amthif_run_next_cmd(struct mei_device *dev);
-
+int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb);
+int mei_amthif_run_next_cmd(struct mei_device *dev);
 int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 			struct mei_cl_cb *cmpl_list);
 

@@ -401,7 +401,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	}
 
 	if (cl == &dev->iamthif_cl) {
-		rets = mei_amthif_write(dev, write_cb);
+		rets = mei_amthif_write(cl, write_cb);
 
 		if (rets) {
 			dev_err(dev->dev,

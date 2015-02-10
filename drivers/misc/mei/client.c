@@ -1106,6 +1106,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	cl->status = 0;
 	cl->writing_state = MEI_WRITING;
 	cb->buf_idx += mei_hdr.length;
+	cb->completed = mei_hdr.msg_complete == 1;
 
 	if (mei_hdr.msg_complete) {
 		if (mei_cl_flow_ctrl_reduce(cl))
@@ -1194,6 +1195,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 
 	cl->writing_state = MEI_WRITING;
 	cb->buf_idx = mei_hdr.length;
+	cb->completed = mei_hdr.msg_complete == 1;
 
 out:
 	if (mei_hdr.msg_complete) {

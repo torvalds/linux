@@ -298,110 +298,47 @@ err:
 /**
  * mei_amthif_send_cmd - send amthif command to the ME
  *
- * @dev: the device structure
+ * @cl: the host client
  * @cb: mei call back struct
  *
  * Return: 0 on success, <0 on failure.
- *
  */
-static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
+static int mei_amthif_send_cmd(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
-	struct mei_msg_hdr mei_hdr;
-	struct mei_cl *cl;
+	struct mei_device *dev;
 	int ret;
 
-	if (!dev || !cb)
+	if (!cl->dev || !cb)
 		return -ENODEV;
 
-	dev_dbg(dev->dev, "write data to amthif client.\n");
+	dev = cl->dev;
 
 	dev->iamthif_state = MEI_IAMTHIF_WRITING;
 	dev->iamthif_current_cb = cb;
 	dev->iamthif_file_object = cb->file_object;
 	dev->iamthif_canceled = false;
-	dev->iamthif_msg_buf_size = cb->request_buffer.size;
-	memcpy(dev->iamthif_msg_buf, cb->request_buffer.data,
-	       cb->request_buffer.size);
-	cl = &dev->iamthif_cl;
 
-	ret = mei_cl_flow_ctrl_creds(cl);
+	ret = mei_cl_write(cl, cb, false);
 	if (ret < 0)
 		return ret;
 
-	cb->fop_type = MEI_FOP_WRITE;
-	if (ret && mei_hbuf_acquire(dev)) {
-		ret = 0;
-		if (cb->request_buffer.size > mei_hbuf_max_len(dev)) {
-			mei_hdr.length = mei_hbuf_max_len(dev);
-			mei_hdr.msg_complete = 0;
-		} else {
-			mei_hdr.length = cb->request_buffer.size;
-			mei_hdr.msg_complete = 1;
-		}
-
-		mei_hdr.host_addr = cl->host_client_id;
-		mei_hdr.me_addr = cl->me_client_id;
-		mei_hdr.reserved = 0;
-		mei_hdr.internal = 0;
-		dev->iamthif_msg_buf_index += mei_hdr.length;
-		ret = mei_write_message(dev, &mei_hdr, dev->iamthif_msg_buf);
-		if (ret)
-			return ret;
-
-		if (mei_hdr.msg_complete) {
-			if (mei_cl_flow_ctrl_reduce(cl))
-				return -EIO;
-			cb->status = mei_amthif_read_start(cl, cb->file_object);
-			list_add_tail(&cb->list, &dev->write_waiting_list.list);
-		} else {
-			dev_dbg(dev->dev, "message does not complete, so add amthif cb to write list.\n");
-			list_add_tail(&cb->list, &dev->write_list.list);
-		}
-	} else {
-
-		list_add_tail(&cb->list, &dev->write_list.list);
-	}
+	if (cb->completed)
+		cb->status = mei_amthif_read_start(cl, cb->file_object);
 
 	return 0;
 }
 
 /**
- * mei_amthif_write - write amthif data to amthif client
- *
- * @dev: the device structure
- * @cb: mei call back struct
- *
- * Return: 0 on success, <0 on failure.
- *
- */
-int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
-{
-	if (!dev || !cb)
-		return -ENODEV;
-
-	cb->fop_type = MEI_FOP_WRITE;
-	if (!list_empty(&dev->amthif_cmd_list.list) ||
-	    dev->iamthif_state != MEI_IAMTHIF_IDLE) {
-		dev_dbg(dev->dev,
-			"amthif state = %d\n", dev->iamthif_state);
-		dev_dbg(dev->dev, "AMTHIF: add cb to the wait list\n");
-		list_add_tail(&cb->list, &dev->amthif_cmd_list.list);
-		return 0;
-	}
-	return mei_amthif_send_cmd(dev, cb);
-}
-/**
  * mei_amthif_run_next_cmd - send next amt command from queue
  *
  * @dev: the device structure
+ *
+ * Return: 0 on success, <0 on failure.
  */
-void mei_amthif_run_next_cmd(struct mei_device *dev)
+int mei_amthif_run_next_cmd(struct mei_device *dev)
 {
+	struct mei_cl *cl = &dev->iamthif_cl;
 	struct mei_cl_cb *cb;
-	int ret;
-
-	if (!dev)
-		return;
 
 	dev->iamthif_msg_buf_size = 0;
 	dev->iamthif_msg_buf_index = 0;
@@ -415,13 +352,37 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 	cb = list_first_entry_or_null(&dev->amthif_cmd_list.list,
 					typeof(*cb), list);
 	if (!cb)
-		return;
+		return 0;
+
 	list_del_init(&cb->list);
-	ret =  mei_amthif_send_cmd(dev, cb);
-	if (ret)
-		dev_warn(dev->dev, "amthif write failed status = %d\n", ret);
+	return mei_amthif_send_cmd(cl, cb);
 }
 
+/**
+ * mei_amthif_write - write amthif data to amthif client
+ *
+ * @cl: host client
+ * @cb: mei call back struct
+ *
+ * Return: 0 on success, <0 on failure.
+ */
+int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
+{
+
+	struct mei_device *dev;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	if (WARN_ON(!cb))
+		return -EINVAL;
+
+	dev = cl->dev;
+
+	cb->fop_type = MEI_FOP_WRITE;
+	list_add_tail(&cb->list, &dev->amthif_cmd_list.list);
+	return mei_amthif_run_next_cmd(dev);
+}
 
 unsigned int mei_amthif_poll(struct mei_device *dev,
 		struct file *file, poll_table *wait)
@@ -461,65 +422,14 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 			 struct mei_cl_cb *cmpl_list)
 {
-	struct mei_device *dev = cl->dev;
-	struct mei_msg_hdr mei_hdr;
-	size_t len = dev->iamthif_msg_buf_size - dev->iamthif_msg_buf_index;
-	u32 msg_slots = mei_data2slots(len);
-	int slots;
-	int rets;
+	int ret;
 
-	rets = mei_cl_flow_ctrl_creds(cl);
-	if (rets < 0)
-		return rets;
+	ret = mei_cl_irq_write(cl, cb, cmpl_list);
+	if (ret)
+		return ret;
 
-	if (rets == 0) {
-		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
-		return 0;
-	}
-
-	mei_hdr.host_addr = cl->host_client_id;
-	mei_hdr.me_addr = cl->me_client_id;
-	mei_hdr.reserved = 0;
-	mei_hdr.internal = 0;
-
-	slots = mei_hbuf_empty_slots(dev);
-
-	if (slots >= msg_slots) {
-		mei_hdr.length = len;
-		mei_hdr.msg_complete = 1;
-	/* Split the message only if we can write the whole host buffer */
-	} else if (slots == dev->hbuf_depth) {
-		msg_slots = slots;
-		len = (slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
-		mei_hdr.length = len;
-		mei_hdr.msg_complete = 0;
-	} else {
-		/* wait for next time the host buffer is empty */
-		return 0;
-	}
-
-	dev_dbg(dev->dev, MEI_HDR_FMT,  MEI_HDR_PRM(&mei_hdr));
-
-	rets = mei_write_message(dev, &mei_hdr,
-			dev->iamthif_msg_buf + dev->iamthif_msg_buf_index);
-	if (rets) {
-		dev->iamthif_state = MEI_IAMTHIF_IDLE;
-		cl->status = rets;
-		list_del(&cb->list);
-		return rets;
-	}
-
-	if (mei_cl_flow_ctrl_reduce(cl))
-		return -EIO;
-
-	dev->iamthif_msg_buf_index += mei_hdr.length;
-	cl->status = 0;
-
-	if (mei_hdr.msg_complete) {
+	if (cb->completed)
 		cb->status = mei_amthif_read_start(cl, cb->file_object);
-		list_move_tail(&cb->list, &dev->write_waiting_list.list);
-	}
-
 
 	return 0;
 }
