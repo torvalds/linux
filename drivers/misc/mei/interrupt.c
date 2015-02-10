@@ -43,7 +43,7 @@ void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *compl_list)
 
 	list_for_each_entry_safe(cb, next, &compl_list->list, list) {
 		cl = cb->cl;
-		list_del(&cb->list);
+		list_del_init(&cb->list);
 
 		dev_dbg(dev->dev, "completing call back.\n");
 		if (cl == &dev->iamthif_cl)
@@ -386,11 +386,6 @@ int mei_irq_read_handler(struct mei_device *dev,
 
 	if (cl == &dev->iamthif_cl) {
 		ret = mei_amthif_irq_read_msg(cl, mei_hdr, cmpl_list);
-		if (ret) {
-			dev_err(dev->dev, "mei_amthif_irq_read_msg failed = %d\n",
-					ret);
-			goto end;
-		}
 	} else {
 		ret = mei_cl_irq_read_msg(cl, mei_hdr, cmpl_list);
 	}
@@ -448,21 +443,9 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		cl = cb->cl;
 
 		cl->status = 0;
-		list_del(&cb->list);
-		if (cb->fop_type == MEI_FOP_WRITE &&
-		    cl != &dev->iamthif_cl) {
-			cl_dbg(dev, cl, "MEI WRITE COMPLETE\n");
-			cl->writing_state = MEI_WRITE_COMPLETE;
-			list_add_tail(&cb->list, &cmpl_list->list);
-		}
-		if (cl == &dev->iamthif_cl) {
-			cl_dbg(dev, cl, "check iamthif flow control.\n");
-			if (dev->iamthif_flow_control_pending) {
-				ret = mei_amthif_irq_read(dev, &slots);
-				if (ret)
-					return ret;
-			}
-		}
+		cl_dbg(dev, cl, "MEI WRITE COMPLETE\n");
+		cl->writing_state = MEI_WRITE_COMPLETE;
+		list_move_tail(&cb->list, &cmpl_list->list);
 	}
 
 	if (dev->wd_state == MEI_WD_STOPPING) {
