@@ -667,6 +667,8 @@
                 b_uart_pins:b_uart{
                         amlogic,setmask=<4 0x0300>;
                         amlogic,pins="GPIOX_16", "GPIOX_17";
+                        amlogic,pullup=<1>;
+                        amlogic,pullupen=<1>;
                 };
 
                 nand_input_state:nand_input{
