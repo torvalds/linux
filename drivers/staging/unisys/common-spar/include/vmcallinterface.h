@@ -79,18 +79,15 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 #define ISSUE_IO_VMCALL(method, param, result) \
 	(result = unisys_vmcall(method, (param) & 0xFFFFFFFF,	\
 				(param) >> 32))
-#define ISSUE_IO_EXTENDED_VMCALL(method, param1, param2,	\
-				 param3, result)			\
-	(result = unisys_extended_vmcall(method, param1,	\
-					 param2, param3))
+#define ISSUE_IO_EXTENDED_VMCALL(method, param1, param2, param3) \
+	unisys_extended_vmcall(method, param1, param2, param3)
 
     /* The following uses VMCALL_POST_CODE_LOGEVENT interface but is currently
      * not used much */
 #define ISSUE_IO_VMCALL_POSTCODE_SEVERITY(postcode, severity)		\
 do {									\
-	u32 _tempresult = VMCALL_SUCCESS;				\
 	ISSUE_IO_EXTENDED_VMCALL(VMCALL_POST_CODE_LOGEVENT, severity,	\
-				 MDS_APPOS, postcode, _tempresult);	\
+				 MDS_APPOS, postcode);			\
 } while (0)
 #endif
 
