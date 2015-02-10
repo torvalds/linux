@@ -10,6 +10,8 @@
 #ifdef CONFIG_CONTEXT_TRACKING
 extern void context_tracking_cpu_set(int cpu);
 
+extern void context_tracking_enter(enum ctx_state state);
+extern void context_tracking_exit(enum ctx_state state);
 extern void context_tracking_user_enter(void);
 extern void context_tracking_user_exit(void);
 extern void __context_tracking_task_switch(struct task_struct *prev,
@@ -35,7 +37,8 @@ static inline enum ctx_state exception_enter(void)
 		return 0;
 
 	prev_ctx = this_cpu_read(context_tracking.state);
-	context_tracking_user_exit();
+	if (prev_ctx != CONTEXT_KERNEL)
+		context_tracking_exit(prev_ctx);
 
 	return prev_ctx;
 }
@@ -43,8 +46,8 @@ static inline enum ctx_state exception_enter(void)
 static inline void exception_exit(enum ctx_state prev_ctx)
 {
 	if (context_tracking_is_enabled()) {
-		if (prev_ctx == CONTEXT_USER)
-			context_tracking_user_enter();
+		if (prev_ctx != CONTEXT_KERNEL)
+			context_tracking_enter(prev_ctx);
 	}
 }
 
