@@ -60,7 +60,7 @@ struct kmem_cache *lovsub_req_kmem;
 struct kmem_cache *lov_lock_link_kmem;
 
 /** Lock class of lov_device::ld_mutex. */
-struct lock_class_key cl_lov_device_mutex_class;
+static struct lock_class_key cl_lov_device_mutex_class;
 
 struct lu_kmem_descr lov_caches[] = {
 	{
