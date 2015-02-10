@@ -1570,6 +1570,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case 0x45:	/* HSW */
 	case 0x46:	/* HSW */
 	case 0x3D:	/* BDW */
+	case 0x47:	/* BDW */
 	case 0x4F:	/* BDX */
 	case 0x56:	/* BDX-DE */
 		pkg_cstate_limits = hsw_pkg_cstate_limits;
@@ -1808,6 +1809,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 	case 0x45:	/* HSW */
 	case 0x46:	/* HSW */
 	case 0x3D:	/* BDW */
+	case 0x47:	/* BDW */
 		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_GFX | RAPL_PKG_POWER_INFO;
 		break;
 	case 0x3F:	/* HSX */
@@ -2085,6 +2087,7 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case 0x45:	/* HSW */
 	case 0x46:	/* HSW */
 	case 0x3D:	/* BDW */
+	case 0x47:	/* BDW */
 	case 0x4F:	/* BDX */
 	case 0x56:	/* BDX-DE */
 		return 1;
@@ -2631,7 +2634,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(stderr, "turbostat version 4.0 10-Feb, 2015"
+	fprintf(stderr, "turbostat version 4.1 10-Feb, 2015"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
