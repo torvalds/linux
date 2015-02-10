@@ -1,5 +1,6 @@
 /*
- * arch/arm/kernel/probes-arm.c
+ *
+ * arch/arm/probes/decode-arm.c
  *
  * Some code moved here from arch/arm/kernel/kprobes-arm.c
  *
@@ -20,8 +21,8 @@
 #include <linux/stddef.h>
 #include <linux/ptrace.h>
 
-#include "probes.h"
-#include "probes-arm.h"
+#include "decode.h"
+#include "decode-arm.h"
 
 #define sign_extend(x, signbit) ((x) | (0 - ((x) & (1 << (signbit)))))
 
@@ -369,17 +370,17 @@ static const union decode_item arm_cccc_001x_table[] = {
 
 	/* MOVW			cccc 0011 0000 xxxx xxxx xxxx xxxx xxxx */
 	/* MOVT			cccc 0011 0100 xxxx xxxx xxxx xxxx xxxx */
-	DECODE_EMULATEX	(0x0fb00000, 0x03000000, PROBES_DATA_PROCESSING_IMM,
+	DECODE_EMULATEX	(0x0fb00000, 0x03000000, PROBES_MOV_HALFWORD,
 						 REGS(0, NOPC, 0, 0, 0)),
 
 	/* YIELD		cccc 0011 0010 0000 xxxx xxxx 0000 0001 */
 	DECODE_OR	(0x0fff00ff, 0x03200001),
 	/* SEV			cccc 0011 0010 0000 xxxx xxxx 0000 0100 */
-	DECODE_EMULATE	(0x0fff00ff, 0x03200004, PROBES_EMULATE_NONE),
+	DECODE_EMULATE	(0x0fff00ff, 0x03200004, PROBES_SEV),
 	/* NOP			cccc 0011 0010 0000 xxxx xxxx 0000 0000 */
 	/* WFE			cccc 0011 0010 0000 xxxx xxxx 0000 0010 */
 	/* WFI			cccc 0011 0010 0000 xxxx xxxx 0000 0011 */
-	DECODE_SIMULATE	(0x0fff00fc, 0x03200000, PROBES_SIMULATE_NOP),
+	DECODE_SIMULATE	(0x0fff00fc, 0x03200000, PROBES_WFE),
 	/* DBG			cccc 0011 0010 0000 xxxx xxxx ffff xxxx */
 	/* unallocated hints	cccc 0011 0010 0000 xxxx xxxx xxxx xxxx */
 	/* MSR (immediate)	cccc 0011 0x10 xxxx xxxx xxxx xxxx xxxx */
@@ -725,10 +726,11 @@ static void __kprobes arm_singlestep(probes_opcode_t insn,
  */
 enum probes_insn __kprobes
 arm_probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
-		       bool emulate, const union decode_action *actions)
+		       bool emulate, const union decode_action *actions,
+		       const struct decode_checker *checkers[])
 {
 	asi->insn_singlestep = arm_singlestep;
 	asi->insn_check_cc = probes_condition_checks[insn>>28];
 	return probes_decode_insn(insn, asi, probes_decode_arm_table, false,
-				  emulate, actions);
+				  emulate, actions, checkers);
 }

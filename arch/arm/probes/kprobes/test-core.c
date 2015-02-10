@@ -209,10 +209,10 @@
 #include <linux/bug.h>
 #include <asm/opcodes.h>
 
-#include "kprobes.h"
-#include "probes-arm.h"
-#include "probes-thumb.h"
-#include "kprobes-test.h"
+#include "core.h"
+#include "test-core.h"
+#include "../decode-arm.h"
+#include "../decode-thumb.h"
 
 
 #define BENCHMARKING	1
@@ -236,6 +236,8 @@ static int tests_failed;
 
 #ifndef CONFIG_THUMB2_KERNEL
 
+#define RET(reg)	"mov	pc, "#reg
+
 long arm_func(long r0, long r1);
 
 static void __used __naked __arm_kprobes_test_func(void)
@@ -245,13 +247,15 @@ static void __used __naked __arm_kprobes_test_func(void)
 		".type arm_func, %%function		\n\t"
 		"arm_func:				\n\t"
 		"adds	r0, r0, r1			\n\t"
-		"bx	lr				\n\t"
+		"mov	pc, lr				\n\t"
 		".code "NORMAL_ISA	 /* Back to Thumb if necessary */
 		: : : "r0", "r1", "cc"
 	);
 }
 
 #else /* CONFIG_THUMB2_KERNEL */
+
+#define RET(reg)	"bx	"#reg
 
 long thumb16_func(long r0, long r1);
 long thumb32even_func(long r0, long r1);
@@ -494,7 +498,7 @@ static void __naked benchmark_nop(void)
 {
 	__asm__ __volatile__ (
 		"nop		\n\t"
-		"bx	lr"
+		RET(lr)"	\n\t"
 	);
 }
 
@@ -977,7 +981,7 @@ void __naked __kprobes_test_case_start(void)
 		"bic	r0, lr, #1  @ r0 = inline data		\n\t"
 		"mov	r1, sp					\n\t"
 		"bl	kprobes_test_case_start			\n\t"
-		"bx	r0					\n\t"
+		RET(r0)"					\n\t"
 	);
 }
 
@@ -1055,15 +1059,6 @@ static kprobe_opcode_t current_instruction;
 static int test_case_run_count;
 static bool test_case_is_thumb;
 static int test_instance;
-
-/*
- * We ignore the state of the imprecise abort disable flag (CPSR.A) because this
- * can change randomly as the kernel doesn't take care to preserve or initialise
- * this across context switches. Also, with Security Extentions, the flag may
- * not be under control of the kernel; for this reason we ignore the state of
- * the FIQ disable flag CPSR.F as well.
- */
-#define PSR_IGNORE_BITS (PSR_A_BIT | PSR_F_BIT)
 
 static unsigned long test_check_cc(int cc, unsigned long cpsr)
 {
@@ -1196,6 +1191,13 @@ static void setup_test_context(struct pt_regs *regs)
 			regs->uregs[arg->reg] =
 				(unsigned long)current_stack + arg->val;
 			memory_needs_checking = true;
+			/*
+			 * Test memory at an address below SP is in danger of
+			 * being altered by an interrupt occurring and pushing
+			 * data onto the stack. Disable interrupts to stop this.
+			 */
+			if (arg->reg == 13)
+				regs->ARM_cpsr |= PSR_I_BIT;
 			break;
 		}
 		case ARG_TYPE_MEM: {
@@ -1264,14 +1266,26 @@ test_case_pre_handler(struct kprobe *p, struct pt_regs *regs)
 static int __kprobes
 test_after_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
+	struct test_arg *args;
+
 	if (container_of(p, struct test_probe, kprobe)->hit == test_instance)
 		return 0; /* Already run for this test instance */
 
 	result_regs = *regs;
+
+	/* Mask out results which are indeterminate */
 	result_regs.ARM_cpsr &= ~PSR_IGNORE_BITS;
+	for (args = current_args; args[0].type != ARG_TYPE_END; ++args)
+		if (args[0].type == ARG_TYPE_REG_MASKED) {
+			struct test_arg_regptr *arg =
+				(struct test_arg_regptr *)args;
+			result_regs.uregs[arg->reg] &= arg->val;
+		}
 
 	/* Undo any changes done to SP by the test case */
 	regs->ARM_sp = (unsigned long)current_stack;
+	/* Enable interrupts in case setup_test_context disabled them */
+	regs->ARM_cpsr &= ~PSR_I_BIT;
 
 	container_of(p, struct test_probe, kprobe)->hit = test_instance;
 	return 0;

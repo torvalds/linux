@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/kprobes-common.c
+ * arch/arm/probes/kprobes/actions-common.c
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
  *
@@ -15,7 +15,7 @@
 #include <linux/kprobes.h>
 #include <asm/opcodes.h>
 
-#include "kprobes.h"
+#include "core.h"
 
 
 static void __kprobes simulate_ldm1stm1(probes_opcode_t insn,

@@ -1694,6 +1694,7 @@ int __dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 
 	skb_scrub_packet(skb, true);
 	skb->protocol = eth_type_trans(skb, dev);
+	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
 	return 0;
 }
@@ -2522,7 +2523,7 @@ static int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 /* If MPLS offload request, verify we are testing hardware MPLS features
  * instead of standard features for the netdev.
  */
-#ifdef CONFIG_NET_MPLS_GSO
+#if IS_ENABLED(CONFIG_NET_MPLS_GSO)
 static netdev_features_t net_mpls_features(struct sk_buff *skb,
 					   netdev_features_t features,
 					   __be16 type)
@@ -2562,7 +2563,7 @@ static netdev_features_t harmonize_features(struct sk_buff *skb,
 
 netdev_features_t netif_skb_features(struct sk_buff *skb)
 {
-	const struct net_device *dev = skb->dev;
+	struct net_device *dev = skb->dev;
 	netdev_features_t features = dev->features;
 	u16 gso_segs = skb_shinfo(skb)->gso_segs;
 	__be16 protocol = skb->protocol;
@@ -2570,11 +2571,21 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 	if (gso_segs > dev->gso_max_segs || gso_segs < dev->gso_min_segs)
 		features &= ~NETIF_F_GSO_MASK;
 
-	if (protocol == htons(ETH_P_8021Q) || protocol == htons(ETH_P_8021AD)) {
-		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
-		protocol = veh->h_vlan_encapsulated_proto;
-	} else if (!vlan_tx_tag_present(skb)) {
-		return harmonize_features(skb, features);
+	/* If encapsulation offload request, verify we are testing
+	 * hardware encapsulation features instead of standard
+	 * features for the netdev
+	 */
+	if (skb->encapsulation)
+		features &= dev->hw_enc_features;
+
+	if (!vlan_tx_tag_present(skb)) {
+		if (unlikely(protocol == htons(ETH_P_8021Q) ||
+			     protocol == htons(ETH_P_8021AD))) {
+			struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
+			protocol = veh->h_vlan_encapsulated_proto;
+		} else {
+			goto finalize;
+		}
 	}
 
 	features = netdev_intersect_features(features,
@@ -2590,6 +2601,11 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 						     NETIF_F_GEN_CSUM |
 						     NETIF_F_HW_VLAN_CTAG_TX |
 						     NETIF_F_HW_VLAN_STAG_TX);
+
+finalize:
+	if (dev->netdev_ops->ndo_features_check)
+		features &= dev->netdev_ops->ndo_features_check(skb, dev,
+								features);
 
 	return harmonize_features(skb, features);
 }
@@ -2661,19 +2677,12 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 	if (unlikely(!skb))
 		goto out_null;
 
-	/* If encapsulation offload request, verify we are testing
-	 * hardware encapsulation features instead of standard
-	 * features for the netdev
-	 */
-	if (skb->encapsulation)
-		features &= dev->hw_enc_features;
-
 	if (netif_needs_gso(dev, skb, features)) {
 		struct sk_buff *segs;
 
 		segs = skb_gso_segment(skb, features);
 		if (IS_ERR(segs)) {
-			segs = NULL;
+			goto out_kfree_skb;
 		} else if (segs) {
 			consume_skb(skb);
 			skb = segs;
@@ -4557,6 +4566,68 @@ void netif_napi_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(netif_napi_del);
 
+static int napi_poll(struct napi_struct *n, struct list_head *repoll)
+{
+	void *have;
+	int work, weight;
+
+	list_del_init(&n->poll_list);
+
+	have = netpoll_poll_lock(n);
+
+	weight = n->weight;
+
+	/* This NAPI_STATE_SCHED test is for avoiding a race
+	 * with netpoll's poll_napi().  Only the entity which
+	 * obtains the lock and sees NAPI_STATE_SCHED set will
+	 * actually make the ->poll() call.  Therefore we avoid
+	 * accidentally calling ->poll() when NAPI is not scheduled.
+	 */
+	work = 0;
+	if (test_bit(NAPI_STATE_SCHED, &n->state)) {
+		work = n->poll(n, weight);
+		trace_napi_poll(n);
+	}
+
+	WARN_ON_ONCE(work > weight);
+
+	if (likely(work < weight))
+		goto out_unlock;
+
+	/* Drivers must not modify the NAPI state if they
+	 * consume the entire weight.  In such cases this code
+	 * still "owns" the NAPI instance and therefore can
+	 * move the instance around on the list at-will.
+	 */
+	if (unlikely(napi_disable_pending(n))) {
+		napi_complete(n);
+		goto out_unlock;
+	}
+
+	if (n->gro_list) {
+		/* flush too old packets
+		 * If HZ < 1000, flush all packets.
+		 */
+		napi_gro_flush(n, HZ >= 1000);
+	}
+
+	/* Some drivers may have called napi_schedule
+	 * prior to exhausting their budget.
+	 */
+	if (unlikely(!list_empty(&n->poll_list))) {
+		pr_warn_once("%s: Budget exhausted after napi rescheduled\n",
+			     n->dev ? n->dev->name : "backlog");
+		goto out_unlock;
+	}
+
+	list_add_tail(&n->poll_list, repoll);
+
+out_unlock:
+	netpoll_poll_unlock(have);
+
+	return work;
+}
+
 static void net_rx_action(struct softirq_action *h)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
@@ -4564,74 +4635,34 @@ static void net_rx_action(struct softirq_action *h)
 	int budget = netdev_budget;
 	LIST_HEAD(list);
 	LIST_HEAD(repoll);
-	void *have;
 
 	local_irq_disable();
 	list_splice_init(&sd->poll_list, &list);
 	local_irq_enable();
 
-	while (!list_empty(&list)) {
+	for (;;) {
 		struct napi_struct *n;
-		int work, weight;
+
+		if (list_empty(&list)) {
+			if (!sd_has_rps_ipi_waiting(sd) && list_empty(&repoll))
+				return;
+			break;
+		}
+
+		n = list_first_entry(&list, struct napi_struct, poll_list);
+		budget -= napi_poll(n, &repoll);
 
 		/* If softirq window is exhausted then punt.
 		 * Allow this to run for 2 jiffies since which will allow
 		 * an average latency of 1.5/HZ.
 		 */
-		if (unlikely(budget <= 0 || time_after_eq(jiffies, time_limit)))
-			goto softnet_break;
-
-
-		n = list_first_entry(&list, struct napi_struct, poll_list);
-		list_del_init(&n->poll_list);
-
-		have = netpoll_poll_lock(n);
-
-		weight = n->weight;
-
-		/* This NAPI_STATE_SCHED test is for avoiding a race
-		 * with netpoll's poll_napi().  Only the entity which
-		 * obtains the lock and sees NAPI_STATE_SCHED set will
-		 * actually make the ->poll() call.  Therefore we avoid
-		 * accidentally calling ->poll() when NAPI is not scheduled.
-		 */
-		work = 0;
-		if (test_bit(NAPI_STATE_SCHED, &n->state)) {
-			work = n->poll(n, weight);
-			trace_napi_poll(n);
+		if (unlikely(budget <= 0 ||
+			     time_after_eq(jiffies, time_limit))) {
+			sd->time_squeeze++;
+			break;
 		}
-
-		WARN_ON_ONCE(work > weight);
-
-		budget -= work;
-
-		/* Drivers must not modify the NAPI state if they
-		 * consume the entire weight.  In such cases this code
-		 * still "owns" the NAPI instance and therefore can
-		 * move the instance around on the list at-will.
-		 */
-		if (unlikely(work == weight)) {
-			if (unlikely(napi_disable_pending(n))) {
-				napi_complete(n);
-			} else {
-				if (n->gro_list) {
-					/* flush too old packets
-					 * If HZ < 1000, flush all packets.
-					 */
-					napi_gro_flush(n, HZ >= 1000);
-				}
-				list_add_tail(&n->poll_list, &repoll);
-			}
-		}
-
-		netpoll_poll_unlock(have);
 	}
 
-	if (!sd_has_rps_ipi_waiting(sd) &&
-	    list_empty(&list) &&
-	    list_empty(&repoll))
-		return;
-out:
 	local_irq_disable();
 
 	list_splice_tail_init(&sd->poll_list, &list);
@@ -4641,12 +4672,6 @@ out:
 		__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 
 	net_rps_action_and_irq_enable(sd);
-
-	return;
-
-softnet_break:
-	sd->time_squeeze++;
-	goto out;
 }
 
 struct netdev_adjacent {

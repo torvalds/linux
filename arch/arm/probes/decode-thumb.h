@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/probes-thumb.h
+ * arch/arm/probes/decode-thumb.h
  *
  * Copyright 2013 Linaro Ltd.
  * Written by: David A. Long
@@ -14,6 +14,8 @@
 
 #ifndef _ARM_KERNEL_PROBES_THUMB_H
 #define  _ARM_KERNEL_PROBES_THUMB_H
+
+#include "decode.h"
 
 /*
  * True if current instruction is in an IT block.
@@ -89,9 +91,11 @@ extern const union decode_item probes_decode_thumb16_table[];
 
 enum probes_insn __kprobes
 thumb16_probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
-		bool emulate, const union decode_action *actions);
+		bool emulate, const union decode_action *actions,
+		const struct decode_checker *checkers[]);
 enum probes_insn __kprobes
 thumb32_probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
-		bool emulate, const union decode_action *actions);
+		bool emulate, const union decode_action *actions,
+		const struct decode_checker *checkers[]);
 
 #endif

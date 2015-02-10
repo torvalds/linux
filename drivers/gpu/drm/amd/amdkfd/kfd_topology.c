@@ -700,8 +700,6 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 				dev->node_props.simd_per_cu);
 		sysfs_show_32bit_prop(buffer, "max_slots_scratch_cu",
 				dev->node_props.max_slots_scratch_cu);
-		sysfs_show_32bit_prop(buffer, "engine_id",
-				dev->node_props.engine_id);
 		sysfs_show_32bit_prop(buffer, "vendor_id",
 				dev->node_props.vendor_id);
 		sysfs_show_32bit_prop(buffer, "device_id",
@@ -715,6 +713,12 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 						dev->gpu->kgd));
 			sysfs_show_64bit_prop(buffer, "local_mem_size",
 					kfd2kgd->get_vmem_size(dev->gpu->kgd));
+
+			sysfs_show_32bit_prop(buffer, "fw_version",
+					kfd2kgd->get_fw_version(
+							dev->gpu->kgd,
+							KGD_ENGINE_MEC1));
+
 		}
 
 		ret = sysfs_show_32bit_prop(buffer, "max_engine_clk_ccompute",

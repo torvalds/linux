@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/probes-arm.h
+ * arch/arm/probes/decode-arm.h
  *
  * Copyright 2013 Linaro Ltd.
  * Written by: David A. Long
@@ -15,9 +15,9 @@
 #ifndef _ARM_KERNEL_PROBES_ARM_H
 #define  _ARM_KERNEL_PROBES_ARM_H
 
+#include "decode.h"
+
 enum probes_arm_action {
-	PROBES_EMULATE_NONE,
-	PROBES_SIMULATE_NOP,
 	PROBES_PRELOAD_IMM,
 	PROBES_PRELOAD_REG,
 	PROBES_BRANCH_IMM,
@@ -68,6 +68,7 @@ extern const union decode_item probes_decode_arm_table[];
 
 enum probes_insn arm_probes_decode_insn(probes_opcode_t,
 		struct arch_probes_insn *, bool emulate,
-		const union decode_action *actions);
+		const union decode_action *actions,
+		const struct decode_checker *checkers[]);
 
 #endif

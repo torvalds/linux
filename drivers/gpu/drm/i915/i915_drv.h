@@ -2501,9 +2501,8 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
 			 struct drm_mode_create_dumb *args);
-int i915_gem_dumb_map_offset(struct drm_file *file_priv,
-			     struct drm_device *dev, uint32_t handle,
-			     uint64_t *offset);
+int i915_gem_mmap_gtt(struct drm_file *file_priv, struct drm_device *dev,
+		      uint32_t handle, uint64_t *offset);
 /**
  * Returns true if seq1 is later than seq2.
  */

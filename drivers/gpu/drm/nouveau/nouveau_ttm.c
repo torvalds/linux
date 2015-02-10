@@ -28,6 +28,7 @@
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
 
+#include "drm_legacy.h"
 static int
 nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
@@ -281,7 +282,7 @@ nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
+		return drm_legacy_mmap(filp, vma);
 
 	return ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
 }

@@ -52,6 +52,7 @@
 #include <linux/dmi.h>
 #include <linux/kthread.h>
 #include <linux/acpi.h>
+#include <linux/ctype.h>
 
 #define PFX "ipmi_ssif: "
 #define DEVICE_NAME "ipmi_ssif"

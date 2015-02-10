@@ -17,9 +17,9 @@
 #include <asm/opcodes.h>
 #include <asm/traps.h>
 
-#include "probes.h"
-#include "probes-arm.h"
-#include "uprobes.h"
+#include "../decode.h"
+#include "../decode-arm.h"
+#include "core.h"
 
 #define UPROBE_TRAP_NR	UINT_MAX
 
@@ -88,7 +88,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	auprobe->ixol[1] = __opcode_to_mem_arm(UPROBE_SS_ARM_INSN);
 
 	ret = arm_probes_decode_insn(insn, &auprobe->asi, false,
-				     uprobes_probes_actions);
+				     uprobes_probes_actions, NULL);
 	switch (ret) {
 	case INSN_REJECTED:
 		return -EINVAL;

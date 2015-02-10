@@ -227,4 +227,4 @@ module_platform_driver(snd_byt_mc_driver);
 MODULE_DESCRIPTION("ASoC Intel(R) Baytrail CR Machine driver");
 MODULE_AUTHOR("Subhransu S. Prusty <subhransu.s.prusty@intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:bytrt5640-audio");
+MODULE_ALIAS("platform:bytt100_rt5640");

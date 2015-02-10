@@ -694,24 +694,28 @@ static const struct file_operations tegra_drm_fops = {
 	.llseek = noop_llseek,
 };
 
-static struct drm_crtc *tegra_crtc_from_pipe(struct drm_device *drm, int pipe)
+static struct drm_crtc *tegra_crtc_from_pipe(struct drm_device *drm,
+					     unsigned int pipe)
 {
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head) {
-		struct tegra_dc *dc = to_tegra_dc(crtc);
-
-		if (dc->pipe == pipe)
+		if (pipe == drm_crtc_index(crtc))
 			return crtc;
 	}
 
 	return NULL;
 }
 
-static u32 tegra_drm_get_vblank_counter(struct drm_device *dev, int crtc)
+static u32 tegra_drm_get_vblank_counter(struct drm_device *drm, int pipe)
 {
+	struct drm_crtc *crtc = tegra_crtc_from_pipe(drm, pipe);
+
+	if (!crtc)
+		return 0;
+
 	/* TODO: implement real hardware counter using syncpoints */
-	return drm_vblank_count(dev, crtc);
+	return drm_crtc_vblank_count(crtc);
 }
 
 static int tegra_drm_enable_vblank(struct drm_device *drm, int pipe)

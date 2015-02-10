@@ -96,6 +96,9 @@ struct port_info {
 	s16 xact_addr_filt;		/* index of our MAC address filter */
 	u16 rss_size;			/* size of VI's RSS table slice */
 	u8 pidx;			/* index into adapter port[] */
+	s8 mdio_addr;
+	u8 port_type;			/* firmware port type */
+	u8 mod_type;			/* firmware module type */
 	u8 port_id;			/* physical port ID */
 	u8 nqsets;			/* # of "Queue Sets" */
 	u8 first_qset;			/* index of first "Queue Set" */
@@ -522,6 +525,7 @@ static inline struct adapter *netdev2adap(const struct net_device *dev)
  * is "contracted" to provide for the common code.
  */
 void t4vf_os_link_changed(struct adapter *, int, int);
+void t4vf_os_portmod_changed(struct adapter *, int);
 
 /*
  * SGE function prototype declarations.

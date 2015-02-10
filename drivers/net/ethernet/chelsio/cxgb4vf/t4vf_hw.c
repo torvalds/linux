@@ -245,6 +245,10 @@ static int hash_mac_addr(const u8 *addr)
 	return a & 0x3f;
 }
 
+#define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
+		     FW_PORT_CAP_SPEED_100G | FW_PORT_CAP_ANEG)
+
 /**
  *	init_link_config - initialize a link's SW state
  *	@lc: structure holding the link state
@@ -259,8 +263,8 @@ static void init_link_config(struct link_config *lc, unsigned int caps)
 	lc->requested_speed = 0;
 	lc->speed = 0;
 	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;
-	if (lc->supported & SUPPORTED_Autoneg) {
-		lc->advertising = lc->supported;
+	if (lc->supported & FW_PORT_CAP_ANEG) {
+		lc->advertising = lc->supported & ADVERT_MASK;
 		lc->autoneg = AUTONEG_ENABLE;
 		lc->requested_fc |= PAUSE_AUTONEG;
 	} else {
@@ -280,7 +284,6 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 	struct fw_vi_cmd vi_cmd, vi_rpl;
 	struct fw_port_cmd port_cmd, port_rpl;
 	int v;
-	u32 word;
 
 	/*
 	 * Execute a VI Read command to get our Virtual Interface information
@@ -319,19 +322,11 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 	if (v)
 		return v;
 
-	v = 0;
-	word = be16_to_cpu(port_rpl.u.info.pcap);
-	if (word & FW_PORT_CAP_SPEED_100M)
-		v |= SUPPORTED_100baseT_Full;
-	if (word & FW_PORT_CAP_SPEED_1G)
-		v |= SUPPORTED_1000baseT_Full;
-	if (word & FW_PORT_CAP_SPEED_10G)
-		v |= SUPPORTED_10000baseT_Full;
-	if (word & FW_PORT_CAP_SPEED_40G)
-		v |= SUPPORTED_40000baseSR4_Full;
-	if (word & FW_PORT_CAP_ANEG)
-		v |= SUPPORTED_Autoneg;
-	init_link_config(&pi->link_cfg, v);
+	v = be32_to_cpu(port_rpl.u.info.lstatus_to_modtype);
+	pi->port_type = FW_PORT_CMD_PTYPE_G(v);
+	pi->mod_type = FW_PORT_MOD_TYPE_NA;
+
+	init_link_config(&pi->link_cfg, be16_to_cpu(port_rpl.u.info.pcap));
 
 	return 0;
 }
@@ -1491,7 +1486,7 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 		 */
 		const struct fw_port_cmd *port_cmd =
 			(const struct fw_port_cmd *)rpl;
-		u32 word;
+		u32 stat, mod;
 		int action, port_id, link_ok, speed, fc, pidx;
 
 		/*
@@ -1509,21 +1504,21 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 		port_id = FW_PORT_CMD_PORTID_G(
 			be32_to_cpu(port_cmd->op_to_portid));
 
-		word = be32_to_cpu(port_cmd->u.info.lstatus_to_modtype);
-		link_ok = (word & FW_PORT_CMD_LSTATUS_F) != 0;
+		stat = be32_to_cpu(port_cmd->u.info.lstatus_to_modtype);
+		link_ok = (stat & FW_PORT_CMD_LSTATUS_F) != 0;
 		speed = 0;
 		fc = 0;
-		if (word & FW_PORT_CMD_RXPAUSE_F)
+		if (stat & FW_PORT_CMD_RXPAUSE_F)
 			fc |= PAUSE_RX;
-		if (word & FW_PORT_CMD_TXPAUSE_F)
+		if (stat & FW_PORT_CMD_TXPAUSE_F)
 			fc |= PAUSE_TX;
-		if (word & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
+		if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
 			speed = 100;
-		else if (word & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
 			speed = 1000;
-		else if (word & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
 			speed = 10000;
-		else if (word & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
 			speed = 40000;
 
 		/*
@@ -1540,12 +1535,21 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 				continue;
 
 			lc = &pi->link_cfg;
+
+			mod = FW_PORT_CMD_MODTYPE_G(stat);
+			if (mod != pi->mod_type) {
+				pi->mod_type = mod;
+				t4vf_os_portmod_changed(adapter, pidx);
+			}
+
 			if (link_ok != lc->link_ok || speed != lc->speed ||
 			    fc != lc->fc) {
 				/* something changed */
 				lc->link_ok = link_ok;
 				lc->speed = speed;
 				lc->fc = fc;
+				lc->supported =
+					be16_to_cpu(port_cmd->u.info.pcap);
 				t4vf_os_link_changed(adapter, pidx, link_ok);
 			}
 		}

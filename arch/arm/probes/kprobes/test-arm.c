@@ -12,8 +12,9 @@
 #include <linux/module.h>
 #include <asm/system_info.h>
 #include <asm/opcodes.h>
+#include <asm/probes.h>
 
-#include "kprobes-test.h"
+#include "test-core.h"
 
 
 #define TEST_ISA "32"
@@ -203,9 +204,9 @@ void kprobe_arm_test_cases(void)
 #endif
 	TEST_GROUP("Miscellaneous instructions")
 
-	TEST("mrs	r0, cpsr")
-	TEST("mrspl	r7, cpsr")
-	TEST("mrs	r14, cpsr")
+	TEST_RMASKED("mrs	r",0,~PSR_IGNORE_BITS,", cpsr")
+	TEST_RMASKED("mrspl	r",7,~PSR_IGNORE_BITS,", cpsr")
+	TEST_RMASKED("mrs	r",14,~PSR_IGNORE_BITS,", cpsr")
 	TEST_UNSUPPORTED(__inst_arm(0xe10ff000) "	@ mrs r15, cpsr")
 	TEST_UNSUPPORTED("mrs	r0, spsr")
 	TEST_UNSUPPORTED("mrs	lr, spsr")
@@ -214,9 +215,12 @@ void kprobe_arm_test_cases(void)
 	TEST_UNSUPPORTED("msr	cpsr_f, lr")
 	TEST_UNSUPPORTED("msr	spsr, r0")
 
+#if __LINUX_ARM_ARCH__ >= 5 || \
+    (__LINUX_ARM_ARCH__ == 4 && !defined(CONFIG_CPU_32v4))
 	TEST_BF_R("bx	r",0,2f,"")
 	TEST_BB_R("bx	r",7,2f,"")
 	TEST_BF_R("bxeq	r",14,2f,"")
+#endif
 
 #if __LINUX_ARM_ARCH__ >= 5
 	TEST_R("clz	r0, r",0, 0x0,"")
@@ -476,7 +480,9 @@ void kprobe_arm_test_cases(void)
 	TEST_GROUP("Extra load/store instructions")
 
 	TEST_RPR(  "strh	r",0, VAL1,", [r",1, 48,", -r",2, 24,"]")
-	TEST_RPR(  "streqh	r",14,VAL2,", [r",13,0, ", r",12, 48,"]")
+	TEST_RPR(  "streqh	r",14,VAL2,", [r",11,0, ", r",12, 48,"]")
+	TEST_UNSUPPORTED(  "streqh	r14, [r13, r12]")
+	TEST_UNSUPPORTED(  "streqh	r14, [r12, r13]")
 	TEST_RPR(  "strh	r",1, VAL1,", [r",2, 24,", r",3,  48,"]!")
 	TEST_RPR(  "strneh	r",12,VAL2,", [r",11,48,", -r",10,24,"]!")
 	TEST_RPR(  "strh	r",2, VAL1,", [r",3, 24,"], r",4, 48,"")
@@ -501,6 +507,9 @@ void kprobe_arm_test_cases(void)
 	TEST_RP(   "strplh	r",12,VAL2,", [r",11,24,", #-4]!")
 	TEST_RP(   "strh	r",2, VAL1,", [r",3, 24,"], #48")
 	TEST_RP(   "strh	r",10,VAL2,", [r",9, 64,"], #-48")
+	TEST_RP(   "strh	r",3, VAL1,", [r",13,TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"]!")
+	TEST_UNSUPPORTED("strh r3, [r13, #-"__stringify(MAX_STACK_SIZE)"-8]!")
+	TEST_RP(   "strh	r",4, VAL1,", [r",14,TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"-8]!")
 	TEST_UNSUPPORTED(__inst_arm(0xe1efc3b0) "	@ strh r12, [pc, #48]!")
 	TEST_UNSUPPORTED(__inst_arm(0xe0c9f3b0) "	@ strh pc, [r9], #48")
 
@@ -565,7 +574,9 @@ void kprobe_arm_test_cases(void)
 
 #if __LINUX_ARM_ARCH__ >= 5
 	TEST_RPR(  "strd	r",0, VAL1,", [r",1, 48,", -r",2,24,"]")
-	TEST_RPR(  "strccd	r",8, VAL2,", [r",13,0, ", r",12,48,"]")
+	TEST_RPR(  "strccd	r",8, VAL2,", [r",11,0, ", r",12,48,"]")
+	TEST_UNSUPPORTED(  "strccd r8, [r13, r12]")
+	TEST_UNSUPPORTED(  "strccd r8, [r12, r13]")
 	TEST_RPR(  "strd	r",4, VAL1,", [r",2, 24,", r",3, 48,"]!")
 	TEST_RPR(  "strcsd	r",12,VAL2,", [r",11,48,", -r",10,24,"]!")
 	TEST_RPR(  "strd	r",2, VAL1,", [r",5, 24,"], r",4,48,"")
@@ -589,6 +600,9 @@ void kprobe_arm_test_cases(void)
 	TEST_RP(   "strvcd	r",12,VAL2,", [r",11,24,", #-16]!")
 	TEST_RP(   "strd	r",2, VAL1,", [r",4, 24,"], #48")
 	TEST_RP(   "strd	r",10,VAL2,", [r",9, 64,"], #-48")
+	TEST_RP(   "strd	r",6, VAL1,", [r",13,TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"]!")
+	TEST_UNSUPPORTED("strd r6, [r13, #-"__stringify(MAX_STACK_SIZE)"-8]!")
+	TEST_RP(   "strd	r",4, VAL1,", [r",12,TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"-8]!")
 	TEST_UNSUPPORTED(__inst_arm(0xe1efc3f0) "	@ strd r12, [pc, #48]!")
 
 	TEST_P(	   "ldrd	r0, [r",0, 24,", #-8]")
@@ -637,14 +651,20 @@ void kprobe_arm_test_cases(void)
 	TEST_RP( "str"byte"	r",12,VAL2,", [r",11,24,", #-4]!")		\
 	TEST_RP( "str"byte"	r",2, VAL1,", [r",3, 24,"], #48")		\
 	TEST_RP( "str"byte"	r",10,VAL2,", [r",9, 64,"], #-48")		\
+	TEST_RP( "str"byte"	r",3, VAL1,", [r",13,TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"]!") \
+	TEST_UNSUPPORTED("str"byte" r3, [r13, #-"__stringify(MAX_STACK_SIZE)"-8]!")				\
+	TEST_RP( "str"byte"	r",4, VAL1,", [r",10,TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"-8]!") \
 	TEST_RPR("str"byte"	r",0, VAL1,", [r",1, 48,", -r",2, 24,"]")	\
-	TEST_RPR("str"byte"	r",14,VAL2,", [r",13,0, ", r",12, 48,"]")	\
+	TEST_RPR("str"byte"	r",14,VAL2,", [r",11,0, ", r",12, 48,"]")	\
+	TEST_UNSUPPORTED("str"byte" r14, [r13, r12]")				\
+	TEST_UNSUPPORTED("str"byte" r14, [r12, r13]")				\
 	TEST_RPR("str"byte"	r",1, VAL1,", [r",2, 24,", r",3,  48,"]!")	\
 	TEST_RPR("str"byte"	r",12,VAL2,", [r",11,48,", -r",10,24,"]!")	\
 	TEST_RPR("str"byte"	r",2, VAL1,", [r",3, 24,"], r",4, 48,"")	\
 	TEST_RPR("str"byte"	r",10,VAL2,", [r",9, 48,"], -r",11,24,"")	\
 	TEST_RPR("str"byte"	r",0, VAL1,", [r",1, 24,", r",2,  32,", asl #1]")\
-	TEST_RPR("str"byte"	r",14,VAL2,", [r",13,0, ", r",12, 32,", lsr #2]")\
+	TEST_RPR("str"byte"	r",14,VAL2,", [r",11,0, ", r",12, 32,", lsr #2]")\
+	TEST_UNSUPPORTED("str"byte"	r14, [r13, r12, lsr #2]")		\
 	TEST_RPR("str"byte"	r",1, VAL1,", [r",2, 24,", r",3,  32,", asr #3]!")\
 	TEST_RPR("str"byte"	r",12,VAL2,", [r",11,24,", r",10, 4,", ror #31]!")\
 	TEST_P(  "ldr"byte"	r0, [r",0,  24,", #-2]")			\
@@ -668,12 +688,12 @@ void kprobe_arm_test_cases(void)
 
 	LOAD_STORE("")
 	TEST_P(   "str	pc, [r",0,0,", #15*4]")
-	TEST_R(   "str	pc, [sp, r",2,15*4,"]")
+	TEST_UNSUPPORTED(   "str	pc, [sp, r2]")
 	TEST_BF(  "ldr	pc, [sp, #15*4]")
 	TEST_BF_R("ldr	pc, [sp, r",2,15*4,"]")
 
 	TEST_P(   "str	sp, [r",0,0,", #13*4]")
-	TEST_R(   "str	sp, [sp, r",2,13*4,"]")
+	TEST_UNSUPPORTED(   "str	sp, [sp, r2]")
 	TEST_BF(  "ldr	sp, [sp, #13*4]")
 	TEST_BF_R("ldr	sp, [sp, r",2,13*4,"]")
 

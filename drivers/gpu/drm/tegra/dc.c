@@ -168,7 +168,7 @@ static int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 				 const struct tegra_dc_window *window)
 {
 	unsigned h_offset, v_offset, h_size, v_size, h_dda, v_dda, bpp;
-	unsigned long value;
+	unsigned long value, flags;
 	bool yuv, planar;
 
 	/*
@@ -180,6 +180,8 @@ static int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 		bpp = window->bits_per_pixel / 8;
 	else
 		bpp = planar ? 1 : 2;
+
+	spin_lock_irqsave(&dc->lock, flags);
 
 	value = WINDOW_A_SELECT << index;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
@@ -273,6 +275,7 @@ static int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 
 		case TEGRA_BO_TILING_MODE_BLOCK:
 			DRM_ERROR("hardware doesn't support block linear mode\n");
+			spin_unlock_irqrestore(&dc->lock, flags);
 			return -EINVAL;
 		}
 
@@ -331,6 +334,8 @@ static int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 
 	tegra_dc_window_commit(dc, index);
 
+	spin_unlock_irqrestore(&dc->lock, flags);
+
 	return 0;
 }
 
@@ -338,10 +343,13 @@ static int tegra_window_plane_disable(struct drm_plane *plane)
 {
 	struct tegra_dc *dc = to_tegra_dc(plane->crtc);
 	struct tegra_plane *p = to_tegra_plane(plane);
+	unsigned long flags;
 	u32 value;
 
 	if (!plane->crtc)
 		return 0;
+
+	spin_lock_irqsave(&dc->lock, flags);
 
 	value = WINDOW_A_SELECT << p->index;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
@@ -351,6 +359,8 @@ static int tegra_window_plane_disable(struct drm_plane *plane)
 	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
 
 	tegra_dc_window_commit(dc, p->index);
+
+	spin_unlock_irqrestore(&dc->lock, flags);
 
 	return 0;
 }
@@ -699,13 +709,15 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	struct tegra_bo *bo = tegra_fb_get_plane(fb, 0);
 	unsigned int h_offset = 0, v_offset = 0;
 	struct tegra_bo_tiling tiling;
+	unsigned long value, flags;
 	unsigned int format, swap;
-	unsigned long value;
 	int err;
 
 	err = tegra_fb_get_tiling(fb, &tiling);
 	if (err < 0)
 		return err;
+
+	spin_lock_irqsave(&dc->lock, flags);
 
 	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
 
@@ -752,6 +764,7 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 
 		case TEGRA_BO_TILING_MODE_BLOCK:
 			DRM_ERROR("hardware doesn't support block linear mode\n");
+			spin_unlock_irqrestore(&dc->lock, flags);
 			return -EINVAL;
 		}
 
@@ -777,6 +790,8 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	value = GENERAL_ACT_REQ | WIN_A_ACT_REQ;
 	tegra_dc_writel(dc, value << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
+
+	spin_unlock_irqrestore(&dc->lock, flags);
 
 	return 0;
 }
@@ -814,23 +829,32 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 	unsigned long flags, base;
 	struct tegra_bo *bo;
 
-	if (!dc->event)
+	spin_lock_irqsave(&drm->event_lock, flags);
+
+	if (!dc->event) {
+		spin_unlock_irqrestore(&drm->event_lock, flags);
 		return;
+	}
 
 	bo = tegra_fb_get_plane(crtc->primary->fb, 0);
 
+	spin_lock_irqsave(&dc->lock, flags);
+
 	/* check if new start address has been latched */
+	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
 	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
 	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
 
+	spin_unlock_irqrestore(&dc->lock, flags);
+
 	if (base == bo->paddr + crtc->primary->fb->offsets[0]) {
-		spin_lock_irqsave(&drm->event_lock, flags);
-		drm_send_vblank_event(drm, dc->pipe, dc->event);
-		drm_vblank_put(drm, dc->pipe);
+		drm_crtc_send_vblank_event(crtc, dc->event);
+		drm_crtc_vblank_put(crtc);
 		dc->event = NULL;
-		spin_unlock_irqrestore(&drm->event_lock, flags);
 	}
+
+	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 
 void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
@@ -843,7 +867,7 @@ void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
 
 	if (dc->event && dc->event->base.file_priv == file) {
 		dc->event->base.destroy(&dc->event->base);
-		drm_vblank_put(drm, dc->pipe);
+		drm_crtc_vblank_put(crtc);
 		dc->event = NULL;
 	}
 
@@ -853,16 +877,16 @@ void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
 static int tegra_dc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			      struct drm_pending_vblank_event *event, uint32_t page_flip_flags)
 {
+	unsigned int pipe = drm_crtc_index(crtc);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
-	struct drm_device *drm = crtc->dev;
 
 	if (dc->event)
 		return -EBUSY;
 
 	if (event) {
-		event->pipe = dc->pipe;
+		event->pipe = pipe;
 		dc->event = event;
-		drm_vblank_get(drm, dc->pipe);
+		drm_crtc_vblank_get(crtc);
 	}
 
 	tegra_dc_set_base(dc, 0, 0, fb);
@@ -1127,7 +1151,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *data)
 		/*
 		dev_dbg(dc->dev, "%s(): vertical blank\n", __func__);
 		*/
-		drm_handle_vblank(dc->base.dev, dc->pipe);
+		drm_crtc_handle_vblank(&dc->base);
 		tegra_dc_finish_page_flip(dc);
 	}
 

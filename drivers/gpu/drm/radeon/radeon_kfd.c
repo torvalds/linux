@@ -28,6 +28,8 @@
 #include "cikd.h"
 #include "cik_reg.h"
 #include "radeon_kfd.h"
+#include "radeon_ucode.h"
+#include <linux/firmware.h>
 
 #define CIK_PIPE_PER_MEC	(4)
 
@@ -49,6 +51,7 @@ static uint64_t get_vmem_size(struct kgd_dev *kgd);
 static uint64_t get_gpu_clock_counter(struct kgd_dev *kgd);
 
 static uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd);
+static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type);
 
 /*
  * Register access functions
@@ -91,6 +94,7 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.hqd_load = kgd_hqd_load,
 	.hqd_is_occupies = kgd_hqd_is_occupies,
 	.hqd_destroy = kgd_hqd_destroy,
+	.get_fw_version = get_fw_version
 };
 
 static const struct kgd2kfd_calls *kgd2kfd;
@@ -560,4 +564,53 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 
 	release_queue(kgd);
 	return 0;
+}
+
+static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
+{
+	struct radeon_device *rdev = (struct radeon_device *) kgd;
+	const union radeon_firmware_header *hdr;
+
+	BUG_ON(kgd == NULL || rdev->mec_fw == NULL);
+
+	switch (type) {
+	case KGD_ENGINE_PFP:
+		hdr = (const union radeon_firmware_header *) rdev->pfp_fw->data;
+		break;
+
+	case KGD_ENGINE_ME:
+		hdr = (const union radeon_firmware_header *) rdev->me_fw->data;
+		break;
+
+	case KGD_ENGINE_CE:
+		hdr = (const union radeon_firmware_header *) rdev->ce_fw->data;
+		break;
+
+	case KGD_ENGINE_MEC1:
+		hdr = (const union radeon_firmware_header *) rdev->mec_fw->data;
+		break;
+
+	case KGD_ENGINE_MEC2:
+		hdr = (const union radeon_firmware_header *)
+							rdev->mec2_fw->data;
+		break;
+
+	case KGD_ENGINE_RLC:
+		hdr = (const union radeon_firmware_header *) rdev->rlc_fw->data;
+		break;
+
+	case KGD_ENGINE_SDMA:
+		hdr = (const union radeon_firmware_header *)
+							rdev->sdma_fw->data;
+		break;
+
+	default:
+		return 0;
+	}
+
+	if (hdr == NULL)
+		return 0;
+
+	/* Only 12 bit in use*/
+	return hdr->common.ucode_version;
 }

@@ -384,5 +384,6 @@
 #define __NR_getrandom		359
 #define __NR_memfd_create	360
 #define __NR_bpf		361
+#define __NR_execveat		362
 
 #endif /* _UAPI_ASM_POWERPC_UNISTD_H_ */

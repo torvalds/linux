@@ -12553,9 +12553,11 @@ static int bnx2x_get_phys_port_id(struct net_device *netdev,
 	return 0;
 }
 
-static bool bnx2x_gso_check(struct sk_buff *skb, struct net_device *dev)
+static netdev_features_t bnx2x_features_check(struct sk_buff *skb,
+					      struct net_device *dev,
+					      netdev_features_t features)
 {
-	return vxlan_gso_check(skb);
+	return vxlan_features_check(skb, features);
 }
 
 static const struct net_device_ops bnx2x_netdev_ops = {
@@ -12589,7 +12591,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #endif
 	.ndo_get_phys_port_id	= bnx2x_get_phys_port_id,
 	.ndo_set_vf_link_state	= bnx2x_set_vf_link_state,
-	.ndo_gso_check		= bnx2x_gso_check,
+	.ndo_features_check	= bnx2x_features_check,
 };
 
 static int bnx2x_set_coherency_mask(struct bnx2x *bp)

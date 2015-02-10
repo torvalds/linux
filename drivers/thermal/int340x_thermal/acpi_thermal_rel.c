@@ -82,7 +82,7 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 	struct acpi_buffer trt_format = { sizeof("RRNNNNNN"), "RRNNNNNN" };
 
 	if (!acpi_has_method(handle, "_TRT"))
-		return 0;
+		return -ENODEV;
 
 	status = acpi_evaluate_object(handle, "_TRT", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -167,7 +167,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 		sizeof("RRNNNNNNNNNNN"), "RRNNNNNNNNNNN" };
 
 	if (!acpi_has_method(handle, "_ART"))
-		return 0;
+		return -ENODEV;
 
 	status = acpi_evaluate_object(handle, "_ART", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -321,8 +321,8 @@ static long acpi_thermal_rel_ioctl(struct file *f, unsigned int cmd,
 	unsigned long length = 0;
 	int count = 0;
 	char __user *arg = (void __user *)__arg;
-	struct trt *trts;
-	struct art *arts;
+	struct trt *trts = NULL;
+	struct art *arts = NULL;
 
 	switch (cmd) {
 	case ACPI_THERMAL_GET_TRT_COUNT:

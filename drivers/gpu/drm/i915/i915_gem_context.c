@@ -473,7 +473,12 @@ mi_set_context(struct intel_engine_cs *ring,
 	       u32 hw_flags)
 {
 	u32 flags = hw_flags | MI_MM_SPACE_GTT;
-	int ret;
+	const int num_rings =
+		/* Use an extended w/a on ivb+ if signalling from other rings */
+		i915_semaphore_is_enabled(ring->dev) ?
+		hweight32(INTEL_INFO(ring->dev)->ring_mask) - 1 :
+		0;
+	int len, i, ret;
 
 	/* w/a: If Flush TLB Invalidation Mode is enabled, driver must do a TLB
 	 * invalidation prior to MI_SET_CONTEXT. On GEN6 we don't set the value
@@ -490,15 +495,31 @@ mi_set_context(struct intel_engine_cs *ring,
 	if (!IS_HASWELL(ring->dev) && INTEL_INFO(ring->dev)->gen < 8)
 		flags |= (MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN);
 
-	ret = intel_ring_begin(ring, 6);
+
+	len = 4;
+	if (INTEL_INFO(ring->dev)->gen >= 7)
+		len += 2 + (num_rings ? 4*num_rings + 2 : 0);
+
+	ret = intel_ring_begin(ring, len);
 	if (ret)
 		return ret;
 
 	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw,chv */
-	if (INTEL_INFO(ring->dev)->gen >= 7)
+	if (INTEL_INFO(ring->dev)->gen >= 7) {
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_DISABLE);
-	else
-		intel_ring_emit(ring, MI_NOOP);
+		if (num_rings) {
+			struct intel_engine_cs *signaller;
+
+			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(num_rings));
+			for_each_ring(signaller, to_i915(ring->dev), i) {
+				if (signaller == ring)
+					continue;
+
+				intel_ring_emit(ring, RING_PSMI_CTL(signaller->mmio_base));
+				intel_ring_emit(ring, _MASKED_BIT_ENABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
+			}
+		}
+	}
 
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
@@ -510,10 +531,21 @@ mi_set_context(struct intel_engine_cs *ring,
 	 */
 	intel_ring_emit(ring, MI_NOOP);
 
-	if (INTEL_INFO(ring->dev)->gen >= 7)
+	if (INTEL_INFO(ring->dev)->gen >= 7) {
+		if (num_rings) {
+			struct intel_engine_cs *signaller;
+
+			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(num_rings));
+			for_each_ring(signaller, to_i915(ring->dev), i) {
+				if (signaller == ring)
+					continue;
+
+				intel_ring_emit(ring, RING_PSMI_CTL(signaller->mmio_base));
+				intel_ring_emit(ring, _MASKED_BIT_DISABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
+			}
+		}
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_ENABLE);
-	else
-		intel_ring_emit(ring, MI_NOOP);
+	}
 
 	intel_ring_advance(ring);
 

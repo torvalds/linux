@@ -1004,8 +1004,13 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 {
 	lockdep_assert_held(&mvm->mutex);
 
-	/* disallow low power states when the FW is down */
-	iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
+	/*
+	 * Disallow low power states when the FW is down by taking
+	 * the UCODE_DOWN ref. in case of ongoing hw restart the
+	 * ref is already taken, so don't take it again.
+	 */
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 	/* async_handlers_wk is now blocked */
 
@@ -1022,6 +1027,12 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 
 	/* the fw is stopped, the aux sta is dead: clean up driver state */
 	iwl_mvm_del_aux_sta(mvm);
+
+	/*
+	 * Clear IN_HW_RESTART flag when stopping the hw (as restart_complete()
+	 * won't be called in this case).
+	 */
+	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 
 	mvm->ucode_loaded = false;
 }

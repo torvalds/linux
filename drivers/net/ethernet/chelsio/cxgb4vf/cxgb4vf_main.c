@@ -44,6 +44,7 @@
 #include <linux/etherdevice.h>
 #include <linux/debugfs.h>
 #include <linux/ethtool.h>
+#include <linux/mdio.h>
 
 #include "t4vf_common.h"
 #include "t4vf_defs.h"
@@ -207,6 +208,38 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 		netif_carrier_off(dev);
 		netdev_info(dev, "link down\n");
 	}
+}
+
+/*
+ * THe port module type has changed on the indicated "port" (Virtual
+ * Interface).
+ */
+void t4vf_os_portmod_changed(struct adapter *adapter, int pidx)
+{
+	static const char * const mod_str[] = {
+		NULL, "LR", "SR", "ER", "passive DA", "active DA", "LRM"
+	};
+	const struct net_device *dev = adapter->port[pidx];
+	const struct port_info *pi = netdev_priv(dev);
+
+	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
+		dev_info(adapter->pdev_dev, "%s: port module unplugged\n",
+			 dev->name);
+	else if (pi->mod_type < ARRAY_SIZE(mod_str))
+		dev_info(adapter->pdev_dev, "%s: %s port module inserted\n",
+			 dev->name, mod_str[pi->mod_type]);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_NOTSUPPORTED)
+		dev_info(adapter->pdev_dev, "%s: unsupported optical port "
+			 "module inserted\n", dev->name);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
+		dev_info(adapter->pdev_dev, "%s: unknown port module inserted,"
+			 "forcing TWINAX\n", dev->name);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_ERROR)
+		dev_info(adapter->pdev_dev, "%s: transceiver module error\n",
+			 dev->name);
+	else
+		dev_info(adapter->pdev_dev, "%s: unknown module type %d "
+			 "inserted\n", dev->name, pi->mod_type);
 }
 
 /*
@@ -1193,24 +1226,103 @@ static void cxgb4vf_poll_controller(struct net_device *dev)
  * state of the port to which we're linked.
  */
 
-/*
- * Return current port link settings.
- */
-static int cxgb4vf_get_settings(struct net_device *dev,
-				struct ethtool_cmd *cmd)
+static unsigned int t4vf_from_fw_linkcaps(enum fw_port_type type,
+					  unsigned int caps)
 {
-	const struct port_info *pi = netdev_priv(dev);
+	unsigned int v = 0;
 
-	cmd->supported = pi->link_cfg.supported;
-	cmd->advertising = pi->link_cfg.advertising;
+	if (type == FW_PORT_TYPE_BT_SGMII || type == FW_PORT_TYPE_BT_XFI ||
+	    type == FW_PORT_TYPE_BT_XAUI) {
+		v |= SUPPORTED_TP;
+		if (caps & FW_PORT_CAP_SPEED_100M)
+			v |= SUPPORTED_100baseT_Full;
+		if (caps & FW_PORT_CAP_SPEED_1G)
+			v |= SUPPORTED_1000baseT_Full;
+		if (caps & FW_PORT_CAP_SPEED_10G)
+			v |= SUPPORTED_10000baseT_Full;
+	} else if (type == FW_PORT_TYPE_KX4 || type == FW_PORT_TYPE_KX) {
+		v |= SUPPORTED_Backplane;
+		if (caps & FW_PORT_CAP_SPEED_1G)
+			v |= SUPPORTED_1000baseKX_Full;
+		if (caps & FW_PORT_CAP_SPEED_10G)
+			v |= SUPPORTED_10000baseKX4_Full;
+	} else if (type == FW_PORT_TYPE_KR)
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseKR_Full;
+	else if (type == FW_PORT_TYPE_BP_AP)
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
+		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full;
+	else if (type == FW_PORT_TYPE_BP4_AP)
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
+		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full |
+		     SUPPORTED_10000baseKX4_Full;
+	else if (type == FW_PORT_TYPE_FIBER_XFI ||
+		 type == FW_PORT_TYPE_FIBER_XAUI ||
+		 type == FW_PORT_TYPE_SFP ||
+		 type == FW_PORT_TYPE_QSFP_10G ||
+		 type == FW_PORT_TYPE_QSA) {
+		v |= SUPPORTED_FIBRE;
+		if (caps & FW_PORT_CAP_SPEED_1G)
+			v |= SUPPORTED_1000baseT_Full;
+		if (caps & FW_PORT_CAP_SPEED_10G)
+			v |= SUPPORTED_10000baseT_Full;
+	} else if (type == FW_PORT_TYPE_BP40_BA ||
+		   type == FW_PORT_TYPE_QSFP) {
+		v |= SUPPORTED_40000baseSR4_Full;
+		v |= SUPPORTED_FIBRE;
+	}
+
+	if (caps & FW_PORT_CAP_ANEG)
+		v |= SUPPORTED_Autoneg;
+	return v;
+}
+
+static int cxgb4vf_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	const struct port_info *p = netdev_priv(dev);
+
+	if (p->port_type == FW_PORT_TYPE_BT_SGMII ||
+	    p->port_type == FW_PORT_TYPE_BT_XFI ||
+	    p->port_type == FW_PORT_TYPE_BT_XAUI)
+		cmd->port = PORT_TP;
+	else if (p->port_type == FW_PORT_TYPE_FIBER_XFI ||
+		 p->port_type == FW_PORT_TYPE_FIBER_XAUI)
+		cmd->port = PORT_FIBRE;
+	else if (p->port_type == FW_PORT_TYPE_SFP ||
+		 p->port_type == FW_PORT_TYPE_QSFP_10G ||
+		 p->port_type == FW_PORT_TYPE_QSA ||
+		 p->port_type == FW_PORT_TYPE_QSFP) {
+		if (p->mod_type == FW_PORT_MOD_TYPE_LR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_SR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_ER ||
+		    p->mod_type == FW_PORT_MOD_TYPE_LRM)
+			cmd->port = PORT_FIBRE;
+		else if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
+			 p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
+			cmd->port = PORT_DA;
+		else
+			cmd->port = PORT_OTHER;
+	} else
+		cmd->port = PORT_OTHER;
+
+	if (p->mdio_addr >= 0) {
+		cmd->phy_address = p->mdio_addr;
+		cmd->transceiver = XCVR_EXTERNAL;
+		cmd->mdio_support = p->port_type == FW_PORT_TYPE_BT_SGMII ?
+			MDIO_SUPPORTS_C22 : MDIO_SUPPORTS_C45;
+	} else {
+		cmd->phy_address = 0;  /* not really, but no better option */
+		cmd->transceiver = XCVR_INTERNAL;
+		cmd->mdio_support = 0;
+	}
+
+	cmd->supported = t4vf_from_fw_linkcaps(p->port_type,
+					       p->link_cfg.supported);
+	cmd->advertising = t4vf_from_fw_linkcaps(p->port_type,
+					    p->link_cfg.advertising);
 	ethtool_cmd_speed_set(cmd,
-			      netif_carrier_ok(dev) ? pi->link_cfg.speed : -1);
+			      netif_carrier_ok(dev) ? p->link_cfg.speed : 0);
 	cmd->duplex = DUPLEX_FULL;
-
-	cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
-	cmd->phy_address = pi->port_id;
-	cmd->transceiver = XCVR_EXTERNAL;
-	cmd->autoneg = pi->link_cfg.autoneg;
+	cmd->autoneg = p->link_cfg.autoneg;
 	cmd->maxtxpkt = 0;
 	cmd->maxrxpkt = 0;
 	return 0;

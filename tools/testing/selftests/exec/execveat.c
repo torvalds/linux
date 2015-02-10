@@ -179,11 +179,11 @@ static int check_execveat_pathmax(int dot_dfd, const char *src, int is_script)
 	 */
 	fd = open(longpath, O_RDONLY);
 	if (fd > 0) {
-		printf("Invoke copy of '%s' via filename of length %lu:\n",
+		printf("Invoke copy of '%s' via filename of length %zu:\n",
 			src, strlen(longpath));
 		fail += check_execveat(fd, "", AT_EMPTY_PATH);
 	} else {
-		printf("Failed to open length %lu filename, errno=%d (%s)\n",
+		printf("Failed to open length %zu filename, errno=%d (%s)\n",
 			strlen(longpath), errno, strerror(errno));
 		fail++;
 	}

@@ -2623,8 +2623,9 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 				sd_config_discard(sdkp, SD_LBP_WS16);
 
 		} else {	/* LBP VPD page tells us what to use */
-
-			if (sdkp->lbpws)
+			if (sdkp->lbpu && sdkp->max_unmap_blocks && !sdkp->lbprz)
+				sd_config_discard(sdkp, SD_LBP_UNMAP);
+			else if (sdkp->lbpws)
 				sd_config_discard(sdkp, SD_LBP_WS16);
 			else if (sdkp->lbpws10)
 				sd_config_discard(sdkp, SD_LBP_WS10);

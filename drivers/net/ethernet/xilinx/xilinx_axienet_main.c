@@ -1555,10 +1555,6 @@ static int axienet_of_probe(struct platform_device *op)
 		if ((be32_to_cpup(p)) >= 0x4000)
 			lp->jumbo_support = 1;
 	}
-	p = (__be32 *) of_get_property(op->dev.of_node, "xlnx,temac-type",
-				       NULL);
-	if (p)
-		lp->temac_type = be32_to_cpup(p);
 	p = (__be32 *) of_get_property(op->dev.of_node, "xlnx,phy-type", NULL);
 	if (p)
 		lp->phy_type = be32_to_cpup(p);

@@ -69,7 +69,8 @@ static inline void dump_cifs_file_struct(struct file *file, char *label)
  * Attempt to preload the dcache with the results from the FIND_FIRST/NEXT
  *
  * Find the dentry that matches "name". If there isn't one, create one. If it's
- * a negative dentry or the uniqueid changed, then drop it and recreate it.
+ * a negative dentry or the uniqueid or filetype(mode) changed,
+ * then drop it and recreate it.
  */
 static void
 cifs_prime_dcache(struct dentry *parent, struct qstr *name,
@@ -97,8 +98,11 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM))
 				fattr->cf_uniqueid = CIFS_I(inode)->uniqueid;
 
-			/* update inode in place if i_ino didn't change */
-			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid) {
+			/* update inode in place
+			 * if both i_ino and i_mode didn't change */
+			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid &&
+			    (inode->i_mode & S_IFMT) ==
+			    (fattr->cf_mode & S_IFMT)) {
 				cifs_fattr_to_inode(inode, fattr);
 				goto out;
 			}

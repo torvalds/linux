@@ -535,8 +535,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 			drm_free_large(msm_obj->pages);
 
 	} else {
-		if (msm_obj->vaddr)
-			vunmap(msm_obj->vaddr);
+		vunmap(msm_obj->vaddr);
 		put_pages(obj);
 	}
 
