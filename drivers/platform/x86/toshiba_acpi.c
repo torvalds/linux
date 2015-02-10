@@ -108,6 +108,7 @@ MODULE_LICENSE("GPL");
 #define TOS_FIFO_EMPTY			0x8c00
 #define TOS_DATA_NOT_AVAILABLE		0x8d20
 #define TOS_NOT_INITIALIZED		0x8d50
+#define TOS_NOT_INSTALLED		0x8e00
 
 /* registers */
 #define HCI_FAN				0x0004
@@ -695,16 +696,32 @@ static int toshiba_touchpad_get(struct toshiba_acpi_dev *dev, u32 *state)
 static int toshiba_eco_mode_available(struct toshiba_acpi_dev *dev)
 {
 	acpi_status status;
-	u32 in[TCI_WORDS] = { HCI_GET, HCI_ECO_MODE, 0, 1, 0, 0 };
+	u32 in[TCI_WORDS] = { HCI_GET, HCI_ECO_MODE, 0, 0, 0, 0 };
 	u32 out[TCI_WORDS];
 
 	status = tci_raw(dev, in, out);
-	if (ACPI_FAILURE(status) || out[0] == TOS_INPUT_DATA_ERROR) {
-		pr_info("ACPI call to get ECO led failed\n");
-		return 0;
+	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+		pr_err("ACPI call to get ECO led failed\n");
+	} else if (out[0] == TOS_NOT_INSTALLED) {
+		pr_info("ECO led not installed");
+	} else if (out[0] == TOS_INPUT_DATA_ERROR) {
+		/* If we receive 0x8300 (Input Data Error), it means that the
+		 * LED device is present, but that we just screwed the input
+		 * parameters.
+		 *
+		 * Let's query the status of the LED to see if we really have a
+		 * success response, indicating the actual presense of the LED,
+		 * bail out otherwise.
+		 */
+		in[3] = 1;
+		status = tci_raw(dev, in, out);
+		if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE)
+			pr_err("ACPI call to get ECO led failed\n");
+		else if (out[0] == TOS_SUCCESS)
+			return 1;
 	}
 
-	return 1;
+	return 0;
 }
 
 static enum led_brightness toshiba_eco_mode_get_status(struct led_classdev *cdev)
