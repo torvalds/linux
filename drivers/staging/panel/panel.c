@@ -2377,21 +2377,15 @@ static int __init panel_init_module(void)
 	/* tells various subsystems about the fact that we are initializing */
 	init_in_progress = 1;
 
+	if (!lcd.enabled && !keypad.enabled) {
+		/* no device enabled, let's exit */
+		pr_err("driver version " PANEL_VERSION " disabled.\n");
+		return -ENODEV;
+	}
+
 	if (parport_register_driver(&panel_driver)) {
 		pr_err("could not register with parport. Aborting.\n");
 		return -EIO;
-	}
-
-	if (!lcd.enabled && !keypad.enabled) {
-		/* no device enabled, let's release the parport */
-		if (pprt) {
-			parport_release(pprt);
-			parport_unregister_device(pprt);
-			pprt = NULL;
-		}
-		parport_unregister_driver(&panel_driver);
-		pr_err("driver version " PANEL_VERSION " disabled.\n");
-		return -ENODEV;
 	}
 
 	register_reboot_notifier(&panel_notifier);
