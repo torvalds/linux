@@ -376,8 +376,7 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
 	if (cb == NULL)
 		return;
 
-	kfree(cb->request_buffer.data);
-	kfree(cb->response_buffer.data);
+	kfree(cb->buf.data);
 	kfree(cb);
 }
 
@@ -406,7 +405,7 @@ struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
 }
 
 /**
- * mei_io_cb_alloc_req_buf - allocate request buffer
+ * mei_io_cb_alloc_buf - allocate callback buffer
  *
  * @cb: io callback structure
  * @length: size of the buffer
@@ -415,7 +414,7 @@ struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
  *         -EINVAL if cb is NULL
  *         -ENOMEM if allocation failed
  */
-int mei_io_cb_alloc_req_buf(struct mei_cl_cb *cb, size_t length)
+int mei_io_cb_alloc_buf(struct mei_cl_cb *cb, size_t length)
 {
 	if (!cb)
 		return -EINVAL;
@@ -423,38 +422,12 @@ int mei_io_cb_alloc_req_buf(struct mei_cl_cb *cb, size_t length)
 	if (length == 0)
 		return 0;
 
-	cb->request_buffer.data = kmalloc(length, GFP_KERNEL);
-	if (!cb->request_buffer.data)
+	cb->buf.data = kmalloc(length, GFP_KERNEL);
+	if (!cb->buf.data)
 		return -ENOMEM;
-	cb->request_buffer.size = length;
+	cb->buf.size = length;
 	return 0;
 }
-/**
- * mei_io_cb_alloc_resp_buf - allocate response buffer
- *
- * @cb: io callback structure
- * @length: size of the buffer
- *
- * Return: 0 on success
- *         -EINVAL if cb is NULL
- *         -ENOMEM if allocation failed
- */
-int mei_io_cb_alloc_resp_buf(struct mei_cl_cb *cb, size_t length)
-{
-	if (!cb)
-		return -EINVAL;
-
-	if (length == 0)
-		return 0;
-
-	cb->response_buffer.data = kmalloc(length, GFP_KERNEL);
-	if (!cb->response_buffer.data)
-		return -ENOMEM;
-	cb->response_buffer.size = length;
-	return 0;
-}
-
-
 
 /**
  * mei_cl_flush_queues - flushes queue lists belonging to cl.
@@ -1005,7 +978,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 		goto out;
 	}
 
-	rets = mei_io_cb_alloc_resp_buf(cb, length);
+	rets = mei_io_cb_alloc_buf(cb, length);
 	if (rets)
 		goto out;
 
@@ -1059,7 +1032,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	dev = cl->dev;
 
-	buf = &cb->request_buffer;
+	buf = &cb->buf;
 
 	rets = mei_cl_flow_ctrl_creds(cl);
 	if (rets < 0)
@@ -1094,7 +1067,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	}
 
 	cl_dbg(dev, cl, "buf: size = %d idx = %lu\n",
-			cb->request_buffer.size, cb->buf_idx);
+			cb->buf.size, cb->buf_idx);
 
 	rets = mei_write_message(dev, &mei_hdr, buf->data + cb->buf_idx);
 	if (rets) {
@@ -1144,7 +1117,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 	dev = cl->dev;
 
 
-	buf = &cb->request_buffer;
+	buf = &cb->buf;
 
 	cl_dbg(dev, cl, "size=%d\n", buf->size);
 

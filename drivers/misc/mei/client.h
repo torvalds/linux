@@ -49,8 +49,7 @@ void mei_me_cl_rm_all(struct mei_device *dev);
  */
 struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp);
 void mei_io_cb_free(struct mei_cl_cb *priv_cb);
-int mei_io_cb_alloc_req_buf(struct mei_cl_cb *cb, size_t length);
-int mei_io_cb_alloc_resp_buf(struct mei_cl_cb *cb, size_t length);
+int mei_io_cb_alloc_buf(struct mei_cl_cb *cb, size_t length);
 
 
 /**

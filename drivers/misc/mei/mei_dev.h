@@ -194,8 +194,7 @@ struct mei_cl;
  * @list: link in callback queue
  * @cl: file client who is running this operation
  * @fop_type: file operation type
- * @request_buffer: buffer to store request data
- * @response_buffer: buffer to store response data
+ * @buf: buffer for data associated with the callback
  * @buf_idx: last read index
  * @read_time: last read operation time stamp (iamthif)
  * @file_object: pointer to file structure
@@ -207,8 +206,7 @@ struct mei_cl_cb {
 	struct list_head list;
 	struct mei_cl *cl;
 	enum mei_cb_file_ops fop_type;
-	struct mei_msg_data request_buffer;
-	struct mei_msg_data response_buffer;
+	struct mei_msg_data buf;
 	unsigned long buf_idx;
 	unsigned long read_time;
 	struct file *file_object;

@@ -134,19 +134,17 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 
 	cl->reading_state = MEI_READING;
 
-	if (cb->response_buffer.size == 0 ||
-	    cb->response_buffer.data == NULL) {
+	if (cb->buf.size == 0 || cb->buf.data == NULL) {
 		cl_err(dev, cl, "response buffer is not allocated.\n");
 		list_move_tail(&cb->list, &complete_list->list);
 		cb->status = -ENOMEM;
 		goto out;
 	}
 
-	if (cb->response_buffer.size < mei_hdr->length + cb->buf_idx) {
+	if (cb->buf.size < mei_hdr->length + cb->buf_idx) {
 		cl_dbg(dev, cl, "message overflow. size %d len %d idx %ld\n",
-			cb->response_buffer.size, mei_hdr->length, cb->buf_idx);
-		buffer = krealloc(cb->response_buffer.data,
-				  mei_hdr->length + cb->buf_idx,
+			cb->buf.size, mei_hdr->length, cb->buf_idx);
+		buffer = krealloc(cb->buf.data, mei_hdr->length + cb->buf_idx,
 				  GFP_KERNEL);
 
 		if (!buffer) {
@@ -154,11 +152,11 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 			list_move_tail(&cb->list, &complete_list->list);
 			goto out;
 		}
-		cb->response_buffer.data = buffer;
-		cb->response_buffer.size = mei_hdr->length + cb->buf_idx;
+		cb->buf.data = buffer;
+		cb->buf.size = mei_hdr->length + cb->buf_idx;
 	}
 
-	buffer = cb->response_buffer.data + cb->buf_idx;
+	buffer = cb->buf.data + cb->buf_idx;
 	mei_read_slots(dev, buffer, mei_hdr->length);
 
 	cb->buf_idx += mei_hdr->length;

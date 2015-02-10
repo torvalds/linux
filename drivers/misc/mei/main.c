@@ -264,7 +264,7 @@ copy_buffer:
 	}
 
 	dev_dbg(dev->dev, "buf.size = %d buf.idx= %ld\n",
-	    cb->response_buffer.size, cb->buf_idx);
+	    cb->buf.size, cb->buf_idx);
 	if (length == 0 || ubuf == NULL || *offset > cb->buf_idx) {
 		rets = -EMSGSIZE;
 		goto free;
@@ -274,7 +274,7 @@ copy_buffer:
 	 * however buf_idx may point beyond that */
 	length = min_t(size_t, length, cb->buf_idx - *offset);
 
-	if (copy_to_user(ubuf, cb->response_buffer.data + *offset, length)) {
+	if (copy_to_user(ubuf, cb->buf.data + *offset, length)) {
 		dev_dbg(dev->dev, "failed to copy data to userland\n");
 		rets = -EFAULT;
 		goto free;
@@ -389,11 +389,11 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		rets = -ENOMEM;
 		goto out;
 	}
-	rets = mei_io_cb_alloc_req_buf(write_cb, length);
+	rets = mei_io_cb_alloc_buf(write_cb, length);
 	if (rets)
 		goto out;
 
-	rets = copy_from_user(write_cb->request_buffer.data, ubuf, length);
+	rets = copy_from_user(write_cb->buf.data, ubuf, length);
 	if (rets) {
 		dev_dbg(dev->dev, "failed to copy data from userland\n");
 		rets = -EFAULT;

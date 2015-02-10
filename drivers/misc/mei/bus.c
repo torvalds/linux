@@ -261,11 +261,11 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 		goto out;
 	}
 
-	rets = mei_io_cb_alloc_req_buf(cb, length);
+	rets = mei_io_cb_alloc_buf(cb, length);
 	if (rets < 0)
 		goto out;
 
-	memcpy(cb->request_buffer.data, buf, length);
+	memcpy(cb->buf.data, buf, length);
 
 	rets = mei_cl_write(cl, cb, blocking);
 
@@ -328,7 +328,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 	}
 
 	r_length = min_t(size_t, length, cb->buf_idx);
-	memcpy(buf, cb->response_buffer.data, r_length);
+	memcpy(buf, cb->buf.data, r_length);
 	rets = r_length;
 
 free:

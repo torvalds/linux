@@ -213,15 +213,15 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		 * remove message from deletion list
 		 */
 
-	dev_dbg(dev->dev, "amthif cb->response_buffer size - %d\n",
-	    cb->response_buffer.size);
+	dev_dbg(dev->dev, "amthif cb->buf size - %d\n",
+	    cb->buf.size);
 	dev_dbg(dev->dev, "amthif cb->buf_idx - %lu\n", cb->buf_idx);
 
 	/* length is being truncated to PAGE_SIZE, however,
 	 * the buf_idx may point beyond */
 	length = min_t(size_t, length, (cb->buf_idx - *offset));
 
-	if (copy_to_user(ubuf, cb->response_buffer.data + *offset, length)) {
+	if (copy_to_user(ubuf, cb->buf.data + *offset, length)) {
 		dev_dbg(dev->dev, "failed to copy data to userland\n");
 		rets = -EFAULT;
 	} else {
@@ -260,7 +260,7 @@ static int mei_amthif_read_start(struct mei_cl *cl, struct file *file)
 		goto err;
 	}
 
-	rets = mei_io_cb_alloc_resp_buf(cb, length);
+	rets = mei_io_cb_alloc_buf(cb, length);
 	if (rets)
 		goto err;
 
