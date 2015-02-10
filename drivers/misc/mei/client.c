@@ -384,11 +384,13 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
  * mei_io_cb_init - allocate and initialize io callback
  *
  * @cl: mei client
+ * @type: operation type
  * @fp: pointer to file structure
  *
  * Return: mei_cl_cb pointer or NULL;
  */
-struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
+struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, enum mei_cb_file_ops type,
+				 struct file *fp)
 {
 	struct mei_cl_cb *cb;
 
@@ -401,6 +403,7 @@ struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
 	cb->file_object = fp;
 	cb->cl = cl;
 	cb->buf_idx = 0;
+	cb->fop_type = type;
 	return cb;
 }
 
@@ -427,6 +430,33 @@ int mei_io_cb_alloc_buf(struct mei_cl_cb *cb, size_t length)
 		return -ENOMEM;
 	cb->buf.size = length;
 	return 0;
+}
+
+/**
+ * mei_cl_alloc_cb - a convenient wrapper for allocating read cb
+ *
+ * @cl: host client
+ * @length: size of the buffer
+ * @type: operation type
+ * @fp: associated file pointer (might be NULL)
+ *
+ * Return: cb on success and NULL on failure
+ */
+struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
+				  enum mei_cb_file_ops type, struct file *fp)
+{
+	struct mei_cl_cb *cb;
+
+	cb = mei_io_cb_init(cl, type, fp);
+	if (!cb)
+		return NULL;
+
+	if (mei_io_cb_alloc_buf(cb, length)) {
+		mei_io_cb_free(cb);
+		return NULL;
+	}
+
+	return cb;
 }
 
 /**
@@ -688,13 +718,10 @@ int mei_cl_disconnect(struct mei_cl *cl)
 		return rets;
 	}
 
-	cb = mei_io_cb_init(cl, NULL);
-	if (!cb) {
-		rets = -ENOMEM;
+	cb = mei_io_cb_init(cl, MEI_FOP_DISCONNECT, NULL);
+	rets = cb ? 0 : -ENOMEM;
+	if (rets)
 		goto free;
-	}
-
-	cb->fop_type = MEI_FOP_DISCONNECT;
 
 	if (mei_hbuf_acquire(dev)) {
 		if (mei_hbm_cl_disconnect_req(dev, cl)) {
@@ -795,13 +822,10 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 		return rets;
 	}
 
-	cb = mei_io_cb_init(cl, file);
-	if (!cb) {
-		rets = -ENOMEM;
+	cb = mei_io_cb_init(cl, MEI_FOP_CONNECT, file);
+	rets = cb ? 0 : -ENOMEM;
+	if (rets)
 		goto out;
-	}
-
-	cb->fop_type = MEI_FOP_CONNECT;
 
 	/* run hbuf acquire last so we don't have to undo */
 	if (!mei_cl_is_other_connecting(cl) && mei_hbuf_acquire(dev)) {
@@ -934,10 +958,11 @@ out:
  *
  * @cl: host client
  * @length: number of bytes to read
+ * @fp: pointer to file structure
  *
  * Return: 0 on success, <0 on failure.
  */
-int mei_cl_read_start(struct mei_cl *cl, size_t length)
+int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
@@ -972,17 +997,11 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 		return rets;
 	}
 
-	cb = mei_io_cb_init(cl, NULL);
-	if (!cb) {
-		rets = -ENOMEM;
-		goto out;
-	}
-
-	rets = mei_io_cb_alloc_buf(cb, length);
+	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_READ, fp);
+	rets = cb ? 0 : -ENOMEM;
 	if (rets)
 		goto out;
 
-	cb->fop_type = MEI_FOP_READ;
 	if (mei_hbuf_acquire(dev)) {
 		rets = mei_hbm_cl_flow_control_req(dev, cl);
 		if (rets < 0)
@@ -1128,7 +1147,6 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 		return rets;
 	}
 
-	cb->fop_type = MEI_FOP_WRITE;
 	cb->buf_idx = 0;
 	cl->writing_state = MEI_IDLE;
 

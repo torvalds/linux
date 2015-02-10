@@ -209,7 +209,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		*offset = 0;
 	}
 
-	err = mei_cl_read_start(cl, length);
+	err = mei_cl_read_start(cl, length, file);
 	if (err && err != -EBUSY) {
 		dev_dbg(dev->dev,
 			"mei start read failure with status = %d\n", err);
@@ -383,15 +383,11 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	} else if (cl->reading_state == MEI_IDLE)
 		*offset = 0;
 
-
-	write_cb = mei_io_cb_init(cl, file);
+	write_cb = mei_cl_alloc_cb(cl, length, MEI_FOP_WRITE, file);
 	if (!write_cb) {
 		rets = -ENOMEM;
 		goto out;
 	}
-	rets = mei_io_cb_alloc_buf(write_cb, length);
-	if (rets)
-		goto out;
 
 	rets = copy_from_user(write_cb->buf.data, ubuf, length);
 	if (rets) {

@@ -47,7 +47,8 @@ void mei_me_cl_rm_all(struct mei_device *dev);
 /*
  * MEI IO Functions
  */
-struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp);
+struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, enum mei_cb_file_ops type,
+				 struct file *fp);
 void mei_io_cb_free(struct mei_cl_cb *priv_cb);
 int mei_io_cb_alloc_buf(struct mei_cl_cb *cb, size_t length);
 
@@ -77,6 +78,8 @@ int mei_cl_unlink(struct mei_cl *cl);
 int mei_cl_flush_queues(struct mei_cl *cl);
 struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl);
 
+struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
+				  enum mei_cb_file_ops type, struct file *fp);
 
 int mei_cl_flow_ctrl_creds(struct mei_cl *cl);
 
@@ -100,7 +103,7 @@ static inline bool mei_cl_is_transitioning(struct mei_cl *cl)
 bool mei_cl_is_other_connecting(struct mei_cl *cl);
 int mei_cl_disconnect(struct mei_cl *cl);
 int mei_cl_connect(struct mei_cl *cl, struct file *file);
-int mei_cl_read_start(struct mei_cl *cl, size_t length);
+int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp);
 int mei_cl_irq_read_msg(struct mei_cl *cl, struct mei_msg_hdr *hdr,
 			struct mei_cl_cb *cmpl_list);
 int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking);

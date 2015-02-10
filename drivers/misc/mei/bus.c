@@ -255,15 +255,11 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 		goto out;
 	}
 
-	cb = mei_io_cb_init(cl, NULL);
+	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_WRITE, NULL);
 	if (!cb) {
 		rets = -ENOMEM;
 		goto out;
 	}
-
-	rets = mei_io_cb_alloc_buf(cb, length);
-	if (rets < 0)
-		goto out;
 
 	memcpy(cb->buf.data, buf, length);
 
@@ -293,7 +289,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 	mutex_lock(&dev->device_lock);
 
 	if (!cl->read_cb) {
-		rets = mei_cl_read_start(cl, length);
+		rets = mei_cl_read_start(cl, length, NULL);
 		if (rets < 0)
 			goto out;
 	}
@@ -392,7 +388,7 @@ static void mei_bus_event_work(struct work_struct *work)
 	device->events = 0;
 
 	/* Prepare for the next read */
-	mei_cl_read_start(device->cl, 0);
+	mei_cl_read_start(device->cl, 0, NULL);
 }
 
 int mei_cl_register_event_cb(struct mei_cl_device *device,
@@ -406,7 +402,7 @@ int mei_cl_register_event_cb(struct mei_cl_device *device,
 	device->event_context = context;
 	INIT_WORK(&device->event_work, mei_bus_event_work);
 
-	mei_cl_read_start(device->cl, 0);
+	mei_cl_read_start(device->cl, 0, NULL);
 
 	return 0;
 }
@@ -448,7 +444,7 @@ int mei_cl_enable_device(struct mei_cl_device *device)
 	mutex_unlock(&dev->device_lock);
 
 	if (device->event_cb && !cl->read_cb)
-		mei_cl_read_start(device->cl, 0);
+		mei_cl_read_start(device->cl, 0, NULL);
 
 	if (!device->ops || !device->ops->enable)
 		return 0;

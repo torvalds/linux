@@ -254,7 +254,7 @@ static int mei_amthif_read_start(struct mei_cl *cl, struct file *file)
 	size_t length = dev->iamthif_mtu;
 	int rets;
 
-	cb = mei_io_cb_init(cl, file);
+	cb = mei_io_cb_init(cl, MEI_FOP_READ, file);
 	if (!cb) {
 		rets = -ENOMEM;
 		goto err;
@@ -264,7 +264,6 @@ static int mei_amthif_read_start(struct mei_cl *cl, struct file *file)
 	if (rets)
 		goto err;
 
-	cb->fop_type = MEI_FOP_READ;
 	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 
 	dev->iamthif_state = MEI_IAMTHIF_READING;
@@ -359,7 +358,6 @@ int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	dev = cl->dev;
 
-	cb->fop_type = MEI_FOP_WRITE;
 	list_add_tail(&cb->list, &dev->amthif_cmd_list.list);
 	return mei_amthif_run_next_cmd(dev);
 }

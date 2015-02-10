@@ -684,10 +684,9 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 		cl->state = MEI_FILE_DISCONNECTED;
 		cl->timer_count = 0;
 
-		cb = mei_io_cb_init(cl, NULL);
+		cb = mei_io_cb_init(cl, MEI_FOP_DISCONNECT_RSP, NULL);
 		if (!cb)
 			return -ENOMEM;
-		cb->fop_type = MEI_FOP_DISCONNECT_RSP;
 		cl_dbg(dev, cl, "add disconnect response as first\n");
 		list_add(&cb->list, &dev->ctrl_wr_list.list);
 	}
