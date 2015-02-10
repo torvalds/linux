@@ -66,16 +66,14 @@ load_microcode_early(struct microcode_intel **saved,
 	return UCODE_OK;
 }
 
-static void
-microcode_pointer(struct microcode_intel **mc_saved,
-		  unsigned long *mc_saved_in_initrd,
-		  unsigned long initrd_start, int mc_saved_count)
+static inline void
+copy_initrd_ptrs(struct microcode_intel **mc_saved, unsigned long *initrd,
+		  unsigned long off, int num_saved)
 {
 	int i;
 
-	for (i = 0; i < mc_saved_count; i++)
-		mc_saved[i] = (struct microcode_intel *)
-			      (mc_saved_in_initrd[i] + initrd_start);
+	for (i = 0; i < num_saved; i++)
+		mc_saved[i] = (struct microcode_intel *)(initrd[i] + off);
 }
 
 #ifdef CONFIG_X86_32
@@ -99,17 +97,14 @@ microcode_phys(struct microcode_intel **mc_saved_tmp,
 #endif
 
 static enum ucode_state
-load_microcode(struct mc_saved_data *mc_saved_data,
-	       unsigned long *mc_saved_in_initrd,
-	       unsigned long initrd_start,
-	       struct ucode_cpu_info *uci)
+load_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
+	       unsigned long initrd_start, struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc_saved_tmp[MAX_UCODE_COUNT];
 	unsigned int count = mc_saved_data->mc_saved_count;
 
 	if (!mc_saved_data->mc_saved) {
-		microcode_pointer(mc_saved_tmp, mc_saved_in_initrd,
-				  initrd_start, count);
+		copy_initrd_ptrs(mc_saved_tmp, initrd, initrd_start, count);
 
 		return load_microcode_early(mc_saved_tmp, count, uci);
 	} else {
@@ -672,7 +667,7 @@ int __init save_microcode_in_initrd_intel(void)
 	if (count == 0)
 		return ret;
 
-	microcode_pointer(mc_saved, mc_saved_in_initrd, initrd_start, count);
+	copy_initrd_ptrs(mc_saved, mc_saved_in_initrd, initrd_start, count);
 	ret = save_microcode(&mc_saved_data, mc_saved, count);
 	if (ret)
 		pr_err("Cannot save microcode patches from initrd.\n");
