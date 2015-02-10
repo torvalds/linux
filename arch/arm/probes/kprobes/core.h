@@ -40,7 +40,7 @@ typedef enum probes_insn (kprobe_decode_insn_t)(probes_opcode_t,
 						struct arch_probes_insn *,
 						bool,
 						const union decode_action *,
-						const struct decode_checker *[*]);
+						const struct decode_checker *[]);
 
 #ifdef CONFIG_THUMB2_KERNEL
 
