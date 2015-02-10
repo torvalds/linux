@@ -191,6 +191,7 @@ enum {
 	Opt_coherency_full,
 	Opt_resv_level,
 	Opt_dir_resv_level,
+	Opt_journal_async_commit,
 	Opt_err,
 };
 
@@ -222,6 +223,7 @@ static const match_table_t tokens = {
 	{Opt_coherency_full, "coherency=full"},
 	{Opt_resv_level, "resv_level=%u"},
 	{Opt_dir_resv_level, "dir_resv_level=%u"},
+	{Opt_journal_async_commit, "journal_async_commit"},
 	{Opt_err, NULL}
 };
 
@@ -1500,6 +1502,9 @@ static int ocfs2_parse_options(struct super_block *sb,
 			    option < OCFS2_MAX_RESV_LEVEL)
 				mopt->dir_resv_level = option;
 			break;
+		case Opt_journal_async_commit:
+			mopt->mount_opt |= OCFS2_MOUNT_JOURNAL_ASYNC_COMMIT;
+			break;
 		default:
 			mlog(ML_ERROR,
 			     "Unrecognized mount option \"%s\" "
@@ -1605,6 +1610,9 @@ static int ocfs2_show_options(struct seq_file *s, struct dentry *root)
 
 	if (osb->osb_dir_resv_level != osb->osb_resv_level)
 		seq_printf(s, ",dir_resv_level=%d", osb->osb_resv_level);
+
+	if (opts & OCFS2_MOUNT_JOURNAL_ASYNC_COMMIT)
+		seq_printf(s, ",journal_async_commit");
 
 	return 0;
 }
@@ -2474,6 +2482,15 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 		mlog(ML_ERROR, "ocfs2 journal load failed! %d\n", status);
 		goto finally;
 	}
+
+	if (osb->s_mount_opt & OCFS2_MOUNT_JOURNAL_ASYNC_COMMIT)
+		jbd2_journal_set_features(osb->journal->j_journal,
+				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
+				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
+	else
+		jbd2_journal_clear_features(osb->journal->j_journal,
+				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
+				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
 
 	if (dirty) {
 		/* recover my local alloc if we didn't unmount cleanly. */
