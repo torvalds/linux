@@ -2369,9 +2369,6 @@ struct drm_i915_cmd_table {
 #define IS_IVB_GT1(dev)		(INTEL_DEVID(dev) == 0x0156 || \
 				 INTEL_DEVID(dev) == 0x0152 || \
 				 INTEL_DEVID(dev) == 0x015a)
-#define IS_SNB_GT1(dev)		(INTEL_DEVID(dev) == 0x0102 || \
-				 INTEL_DEVID(dev) == 0x0106 || \
-				 INTEL_DEVID(dev) == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
