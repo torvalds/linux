@@ -99,8 +99,8 @@ int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	reset_semaphore(dev->dev);
 
 	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
-		PUNIT_SEMAPHORE, &sem);
-	if (!ret)
+				PUNIT_SEMAPHORE, &sem);
+	if (ret)
 		dev_err(dev->dev, "iosf failed to read punit semaphore\n");
 	else
 		dev_err(dev->dev, "PUNIT SEM: %d\n", sem);
