@@ -108,6 +108,13 @@
 							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
 					};
 				};
+
+				usb1 {
+					pinctrl_usb1_vbus_sense: usb1_vbus_sense {
+						atmel,pins =
+							<AT91_PIOB 16 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;	/* PB16 gpio usb vbus sense, no pull up and deglitch */
+					};
+				};
 			};
 
 			spi0: spi@f0000000 {
@@ -118,6 +125,13 @@
 					spi-max-frequency = <50000000>;
 					reg = <0>;
 				};
+			};
+
+			usb1: gadget@f803c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usb1_vbus_sense>;
+				atmel,vbus-gpio = <&pioB 16 GPIO_ACTIVE_HIGH>;
+				status = "okay";
 			};
 
 			watchdog@fffffe40 {
