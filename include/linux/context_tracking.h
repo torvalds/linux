@@ -81,10 +81,16 @@ static inline void guest_enter(void)
 		vtime_guest_enter(current);
 	else
 		current->flags |= PF_VCPU;
+
+	if (context_tracking_is_enabled())
+		context_tracking_enter(CONTEXT_GUEST);
 }
 
 static inline void guest_exit(void)
 {
+	if (context_tracking_is_enabled())
+		context_tracking_exit(CONTEXT_GUEST);
+
 	if (vtime_accounting_enabled())
 		vtime_guest_exit(current);
 	else

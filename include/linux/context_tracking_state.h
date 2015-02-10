@@ -15,6 +15,7 @@ struct context_tracking {
 	enum ctx_state {
 		CONTEXT_KERNEL = 0,
 		CONTEXT_USER,
+		CONTEXT_GUEST,
 	} state;
 };
 
