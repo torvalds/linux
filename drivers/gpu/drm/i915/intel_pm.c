@@ -5623,6 +5623,10 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	/* Powersaving is controlled by the host when inside a VM */
+	if (intel_vgpu_active(dev))
+		return;
+
 	if (IS_IRONLAKE_M(dev)) {
 		mutex_lock(&dev->struct_mutex);
 		ironlake_enable_drps(dev);
