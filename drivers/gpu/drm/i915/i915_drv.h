@@ -31,6 +31,7 @@
 #define _I915_DRV_H_
 
 #include <uapi/drm/i915_drm.h>
+#include <uapi/drm/drm_fourcc.h>
 
 #include "i915_reg.h"
 #include "intel_bios.h"

@@ -164,4 +164,35 @@
  * authoritative source for all of these.
  */
 
+/* Intel framebuffer modifiers */
+
+/*
+ * Intel X-tiling layout
+ *
+ * This is a tiled layout using 4Kb tiles (except on gen2 where the tiles 2Kb)
+ * in row-major layout. Within the tile bytes are laid out row-major, with
+ * a platform-dependent stride. On top of that the memory can apply
+ * platform-depending swizzling of some higher address bits into bit6.
+ *
+ * This format is highly platforms specific and not useful for cross-driver
+ * sharing. It exists since on a given platform it does uniquely identify the
+ * layout in a simple way for i915-specific userspace.
+ */
+#define I915_FORMAT_MOD_X_TILED	fourcc_mod_code(INTEL, 1)
+
+/*
+ * Intel Y-tiling layout
+ *
+ * This is a tiled layout using 4Kb tiles (except on gen2 where the tiles 2Kb)
+ * in row-major layout. Within the tile bytes are laid out in OWORD (16 bytes)
+ * chunks column-major, with a platform-dependent height. On top of that the
+ * memory can apply platform-depending swizzling of some higher address bits
+ * into bit6.
+ *
+ * This format is highly platforms specific and not useful for cross-driver
+ * sharing. It exists since on a given platform it does uniquely identify the
+ * layout in a simple way for i915-specific userspace.
+ */
+#define I915_FORMAT_MOD_Y_TILED	fourcc_mod_code(INTEL, 2)
+
 #endif /* DRM_FOURCC_H */
