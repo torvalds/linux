@@ -1153,6 +1153,13 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 		mxc_do_addr_cycle(mtd, column, page_addr);
 
 		break;
+	case NAND_CMD_PARAM:
+		host->devtype_data->send_cmd(host, command, false);
+		mxc_do_addr_cycle(mtd, column, page_addr);
+		host->devtype_data->send_page(mtd, NFC_OUTPUT);
+		memcpy32_fromio(host->data_buf, host->main_area0, 512);
+		host->buf_start = 0;
+		break;
 	}
 }
 
