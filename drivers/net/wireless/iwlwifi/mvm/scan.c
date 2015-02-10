@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -358,36 +358,58 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 					   struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_periodic_scan_complete *scan_notif;
-
-	scan_notif = (void *)pkt->data;
+	struct iwl_periodic_scan_complete *scan_notif = (void *)pkt->data;
+	bool aborted = (scan_notif->status == IWL_SCAN_OFFLOAD_ABORTED);
+	bool ebs_successful = (scan_notif->ebs_status == IWL_SCAN_EBS_SUCCESS);
 
 	/* scan status must be locked for proper checking */
 	lockdep_assert_held(&mvm->mutex);
 
-	IWL_DEBUG_SCAN(mvm,
-		       "%s completed, status %s, EBS status %s\n",
-		       mvm->scan_status == IWL_MVM_SCAN_SCHED ?
-				"Scheduled scan" : "Scan",
-		       scan_notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
-				"completed" : "aborted",
-		       scan_notif->ebs_status == IWL_SCAN_EBS_SUCCESS ?
-				"success" : "failed");
+	/* We first check if we were stopping a scan, in which case we
+	 * just clear the stopping flag.  Then we check if it was a
+	 * firmware initiated stop, in which case we need to inform
+	 * mac80211.
+	 * Note that we can have a stopping and a running scan
+	 * simultaneously, but we can't have two different types of
+	 * scans stopping or running at the same time (since LMAC
+	 * doesn't support it).
+	 */
 
+	if (mvm->scan_status & IWL_MVM_SCAN_STOPPING_SCHED) {
+		WARN_ON_ONCE(mvm->scan_status & IWL_MVM_SCAN_STOPPING_REGULAR);
 
-	/* only call mac80211 completion if the stop was initiated by FW */
-	if (mvm->scan_status == IWL_MVM_SCAN_SCHED) {
-		mvm->scan_status = IWL_MVM_SCAN_NONE;
+		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
+			       aborted ? "aborted" : "completed",
+			       ebs_successful ? "successful" : "failed");
+
+		mvm->scan_status &= ~IWL_MVM_SCAN_STOPPING_SCHED;
+	} else if (mvm->scan_status & IWL_MVM_SCAN_STOPPING_REGULAR) {
+		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s\n",
+			       aborted ? "aborted" : "completed",
+			       ebs_successful ? "successful" : "failed");
+
+		mvm->scan_status &= ~IWL_MVM_SCAN_STOPPING_REGULAR;
+	} else if (mvm->scan_status & IWL_MVM_SCAN_SCHED) {
+		WARN_ON_ONCE(mvm->scan_status & IWL_MVM_SCAN_REGULAR);
+
+		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s (FW)\n",
+			       aborted ? "aborted" : "completed",
+			       ebs_successful ? "successful" : "failed");
+
+		mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
 		ieee80211_sched_scan_stopped(mvm->hw);
-	} else if (mvm->scan_status == IWL_MVM_SCAN_OS) {
-		mvm->scan_status = IWL_MVM_SCAN_NONE;
+	} else if (mvm->scan_status & IWL_MVM_SCAN_REGULAR) {
+		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s (FW)\n",
+			       aborted ? "aborted" : "completed",
+			       ebs_successful ? "successful" : "failed");
+
+		mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
 		ieee80211_scan_completed(mvm->hw,
 				scan_notif->status == IWL_SCAN_OFFLOAD_ABORTED);
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 	}
 
-	if (scan_notif->ebs_status)
-		mvm->last_ebs_successful = false;
+	mvm->last_ebs_successful = ebs_successful;
 
 	return 0;
 }
@@ -544,7 +566,7 @@ int iwl_mvm_scan_offload_start(struct iwl_mvm *mvm,
 			return ret;
 		ret = iwl_mvm_sched_scan_umac(mvm, vif, req, ies);
 	} else {
-		mvm->scan_status = IWL_MVM_SCAN_SCHED;
+		mvm->scan_status |= IWL_MVM_SCAN_SCHED;
 		ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
 		if (ret)
 			return ret;
@@ -565,7 +587,7 @@ static int iwl_mvm_send_scan_offload_abort(struct iwl_mvm *mvm)
 	/* Exit instantly with error when device is not ready
 	 * to receive scan abort command or it does not perform
 	 * scheduled scan currently */
-	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
+	if (!mvm->scan_status)
 		return -EIO;
 
 	ret = iwl_mvm_send_cmd_status(mvm, &cmd, &status);
@@ -592,7 +614,7 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 	int ret;
 	struct iwl_notification_wait wait_scan_done;
 	static const u8 scan_done_notif[] = { SCAN_OFFLOAD_COMPLETE, };
-	bool sched = mvm->scan_status == IWL_MVM_SCAN_SCHED;
+	bool sched = !!(mvm->scan_status & IWL_MVM_SCAN_SCHED);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -600,7 +622,11 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 		return iwl_umac_scan_stop(mvm, IWL_UMAC_SCAN_UID_SCHED_SCAN,
 					  notify);
 
-	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
+	/* FIXME: For now we only check if no scan is set here, since
+	 * we only support LMAC in this flow and it doesn't support
+	 * multiple scans.
+	 */
+	if (!mvm->scan_status)
 		return 0;
 
 	if (iwl_mvm_is_radio_killed(mvm)) {
@@ -622,25 +648,28 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 	}
 
 	IWL_DEBUG_SCAN(mvm, "Successfully sent stop %sscan\n",
-		       sched ? "offloaded " : "");
+		       sched ? "scheduled " : "");
 
 	ret = iwl_wait_notification(&mvm->notif_wait, &wait_scan_done, 1 * HZ);
 out:
-	/*
-	 * Clear the scan status so the next scan requests will succeed. This
-	 * also ensures the Rx handler doesn't do anything, as the scan was
-	 * stopped from above. Since the rx handler won't do anything now,
-	 * we have to release the scan reference here.
+	/* Clear the scan status so the next scan requests will
+	 * succeed and mark the scan as stopping, so that the Rx
+	 * handler doesn't do anything, as the scan was stopped from
+	 * above. Since the rx handler won't do anything now, we have
+	 * to release the scan reference here.
 	 */
-	if (mvm->scan_status == IWL_MVM_SCAN_OS)
+	if (mvm->scan_status == IWL_MVM_SCAN_REGULAR)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 
-	mvm->scan_status = IWL_MVM_SCAN_NONE;
-
-	if (notify) {
-		if (sched)
+	if (sched) {
+		mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
+		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_SCHED;
+		if (notify)
 			ieee80211_sched_scan_stopped(mvm->hw);
-		else
+	} else {
+		mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
+		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_REGULAR;
+		if (notify)
 			ieee80211_scan_completed(mvm->hw, true);
 	}
 
@@ -829,7 +858,7 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 	    req->req.n_channels > mvm->fw->ucode_capa.n_scan_channels)
 		return -ENOBUFS;
 
-	mvm->scan_status = IWL_MVM_SCAN_OS;
+	mvm->scan_status |= IWL_MVM_SCAN_REGULAR;
 
 	iwl_mvm_scan_calc_params(mvm, vif, req->req.n_ssids, req->req.flags,
 				 &params);
@@ -906,7 +935,7 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 		 * should try to send the command again with different params.
 		 */
 		IWL_ERR(mvm, "Scan failed! ret %d\n", ret);
-		mvm->scan_status = IWL_MVM_SCAN_NONE;
+		mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
 		ret = -EIO;
 	}
 	return ret;
@@ -1026,7 +1055,7 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 		 * should try to send the command again with different params.
 		 */
 		IWL_ERR(mvm, "Sched scan failed! ret %d\n", ret);
-		mvm->scan_status = IWL_MVM_SCAN_NONE;
+		mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
 		ret = -EIO;
 	}
 	return ret;
@@ -1039,13 +1068,13 @@ int iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 		return iwl_umac_scan_stop(mvm, IWL_UMAC_SCAN_UID_REG_SCAN,
 					  true);
 
-	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
+	if (!(mvm->scan_status & IWL_MVM_SCAN_REGULAR))
 		return 0;
 
 	if (iwl_mvm_is_radio_killed(mvm)) {
 		ieee80211_scan_completed(mvm->hw, true);
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
-		mvm->scan_status = IWL_MVM_SCAN_NONE;
+		mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
 		return 0;
 	}
 
@@ -1682,21 +1711,14 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 				mvm->scan_uid[i] = 0;
 		}
 	} else {
-		switch (mvm->scan_status) {
-		case IWL_MVM_SCAN_NONE:
-			break;
-		case IWL_MVM_SCAN_OS:
+		if (mvm->scan_status & IWL_MVM_SCAN_REGULAR)
 			ieee80211_scan_completed(mvm->hw, true);
-			break;
-		case IWL_MVM_SCAN_SCHED:
-			/*
-			 * Sched scan will be restarted by mac80211 in
-			 * restart_hw, so do not report if FW is about to be
-			 * restarted.
-			 */
-			if (!mvm->restart_fw)
-				ieee80211_sched_scan_stopped(mvm->hw);
-			break;
-		}
+
+		/* Sched scan will be restarted by mac80211 in
+		 * restart_hw, so do not report if FW is about to be
+		 * restarted.
+		 */
+		if ((mvm->scan_status & IWL_MVM_SCAN_SCHED) && !mvm->restart_fw)
+			ieee80211_sched_scan_stopped(mvm->hw);
 	}
 }

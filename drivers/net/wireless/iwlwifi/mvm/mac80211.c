@@ -1227,7 +1227,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	iwl_trans_stop_device(mvm->trans);
 
-	mvm->scan_status = IWL_MVM_SCAN_NONE;
+	mvm->scan_status = 0;
 	mvm->ps_disabled = false;
 	mvm->calibrating = false;
 
@@ -2374,28 +2374,30 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 }
 
 static int iwl_mvm_cancel_scan_wait_notif(struct iwl_mvm *mvm,
-					  enum iwl_scan_status scan_type)
+					  unsigned int scan_type)
 {
 	int ret;
 	bool wait_for_handlers = false;
 
 	mutex_lock(&mvm->mutex);
 
-	if (mvm->scan_status != scan_type) {
+	if (!(mvm->scan_status & scan_type)) {
 		ret = 0;
 		/* make sure there are no pending notifications */
 		wait_for_handlers = true;
 		goto out;
 	}
 
+	/* It's okay to switch on bitmask values here, because we can
+	 * only stop one scan type at a time.
+	 */
 	switch (scan_type) {
 	case IWL_MVM_SCAN_SCHED:
 		ret = iwl_mvm_scan_offload_stop(mvm, true);
 		break;
-	case IWL_MVM_SCAN_OS:
+	case IWL_MVM_SCAN_REGULAR:
 		ret = iwl_mvm_cancel_scan(mvm);
 		break;
-	case IWL_MVM_SCAN_NONE:
 	default:
 		WARN_ON_ONCE(1);
 		ret = -EINVAL;
@@ -2440,7 +2442,7 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
+	if (mvm->scan_status & IWL_MVM_SCAN_REGULAR) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -2476,7 +2478,7 @@ static void iwl_mvm_mac_cancel_hw_scan(struct ieee80211_hw *hw,
 	/* FIXME: for now, we ignore this race for UMAC scans, since
 	 * they don't set the scan_status.
 	 */
-	if ((mvm->scan_status == IWL_MVM_SCAN_OS) ||
+	if ((mvm->scan_status & IWL_MVM_SCAN_REGULAR) ||
 	    (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 		iwl_mvm_cancel_scan(mvm);
 
@@ -2797,7 +2799,7 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 	int ret;
 
 	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
-		ret = iwl_mvm_cancel_scan_wait_notif(mvm, IWL_MVM_SCAN_OS);
+		ret = iwl_mvm_cancel_scan_wait_notif(mvm, IWL_MVM_SCAN_REGULAR);
 		if (ret)
 			return ret;
 	}
@@ -2815,14 +2817,14 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
+	if (mvm->scan_status & IWL_MVM_SCAN_SCHED) {
 		ret = -EBUSY;
 		goto out;
 	}
 
 	ret = iwl_mvm_scan_offload_start(mvm, vif, req, ies);
 	if (ret)
-		mvm->scan_status = IWL_MVM_SCAN_NONE;
+		mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
 
 out:
 	mutex_unlock(&mvm->mutex);
@@ -2848,7 +2850,7 @@ static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
 	/* FIXME: for now, we ignore this race for UMAC scans, since
 	 * they don't set the scan_status.
 	 */
-	if (mvm->scan_status != IWL_MVM_SCAN_SCHED &&
+	if (!(mvm->scan_status & IWL_MVM_SCAN_SCHED) &&
 	    !(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		mutex_unlock(&mvm->mutex);
 		return 0;

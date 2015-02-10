@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -446,9 +446,19 @@ iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)
 extern const u8 tid_to_mac80211_ac[];
 
 enum iwl_scan_status {
-	IWL_MVM_SCAN_NONE,
-	IWL_MVM_SCAN_OS,
-	IWL_MVM_SCAN_SCHED,
+	IWL_MVM_SCAN_REGULAR		= BIT(0),
+	IWL_MVM_SCAN_SCHED		= BIT(1),
+
+	IWL_MVM_SCAN_STOPPING_REGULAR	= BIT(8),
+	IWL_MVM_SCAN_STOPPING_SCHED	= BIT(9),
+
+	IWL_MVM_SCAN_REGULAR_MASK	= IWL_MVM_SCAN_REGULAR |
+					  IWL_MVM_SCAN_STOPPING_REGULAR,
+	IWL_MVM_SCAN_SCHED_MASK		= IWL_MVM_SCAN_SCHED |
+					  IWL_MVM_SCAN_STOPPING_SCHED,
+
+	IWL_MVM_SCAN_STOPPING_MASK	= 0xff00,
+	IWL_MVM_SCAN_MASK		= 0x00ff,
 };
 
 /**
@@ -647,7 +657,7 @@ struct iwl_mvm {
 	u32 rts_threshold;
 
 	/* Scan status, cmd (pre-allocated) and auxiliary station */
-	enum iwl_scan_status scan_status;
+	unsigned int scan_status;
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 
