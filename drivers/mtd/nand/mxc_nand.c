@@ -386,26 +386,51 @@ static irqreturn_t mxc_nfc_irq(int irq, void *dev_id)
 /* This function polls the NANDFC to wait for the basic operation to
  * complete by checking the INT bit of config2 register.
  */
-static void wait_op_done(struct mxc_nand_host *host, int useirq)
+static int wait_op_done(struct mxc_nand_host *host, int useirq)
 {
-	int max_retries = 8000;
+	int ret = 0;
+
+	/*
+	 * If operation is already complete, don't bother to setup an irq or a
+	 * loop.
+	 */
+	if (host->devtype_data->check_int(host))
+		return 0;
 
 	if (useirq) {
-		if (!host->devtype_data->check_int(host)) {
-			reinit_completion(&host->op_completion);
-			irq_control(host, 1);
-			wait_for_completion(&host->op_completion);
+		unsigned long timeout;
+
+		reinit_completion(&host->op_completion);
+
+		irq_control(host, 1);
+
+		timeout = wait_for_completion_timeout(&host->op_completion, HZ);
+		if (!timeout && !host->devtype_data->check_int(host)) {
+			dev_dbg(host->dev, "timeout waiting for irq\n");
+			ret = -ETIMEDOUT;
 		}
 	} else {
-		while (max_retries-- > 0) {
-			if (host->devtype_data->check_int(host))
+		int max_retries = 8000;
+		int done;
+
+		do {
+			udelay(1);
+
+			done = host->devtype_data->check_int(host);
+			if (done)
 				break;
 
-			udelay(1);
+		} while (--max_retries);
+
+		if (!done) {
+			dev_dbg(host->dev, "timeout polling for completion\n");
+			ret = -ETIMEDOUT;
 		}
-		if (max_retries < 0)
-			pr_debug("%s: INT not set\n", __func__);
 	}
+
+	WARN_ONCE(ret < 0, "timeout! useirq=%d\n", useirq);
+
+	return ret;
 }
 
 static void send_cmd_v3(struct mxc_nand_host *host, uint16_t cmd, int useirq)
