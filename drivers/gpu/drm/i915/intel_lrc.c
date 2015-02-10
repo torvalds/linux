@@ -785,7 +785,7 @@ int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf,
 	return 0;
 }
 
-/**
+/*
  * intel_logical_ring_advance_and_submit() - advance the tail and submit the workload
  * @ringbuf: Logical Ringbuffer to advance.
  *
@@ -794,9 +794,10 @@ int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf,
  * on a queue waiting for the ELSP to be ready to accept a new context submission. At that
  * point, the tail *inside* the context is updated and the ELSP written to.
  */
-void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf,
-					   struct intel_context *ctx,
-					   struct drm_i915_gem_request *request)
+static void
+intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf,
+				      struct intel_context *ctx,
+				      struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
 
