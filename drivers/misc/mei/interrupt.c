@@ -82,6 +82,24 @@ static bool mei_cl_is_reading(struct mei_cl *cl)
 }
 
 /**
+ * mei_irq_discard_msg  - discard received message
+ *
+ * @dev: mei device
+ * @hdr: message header
+ */
+static inline
+void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr)
+{
+	/*
+	 * no need to check for size as it is guarantied
+	 * that length fits into rd_msg_buf
+	 */
+	mei_read_slots(dev, dev->rd_msg_buf, hdr->length);
+	dev_dbg(dev->dev, "discarding message " MEI_HDR_FMT "\n",
+		MEI_HDR_PRM(hdr));
+}
+
+/**
  * mei_cl_irq_read_msg - process client message
  *
  * @cl: reading client
@@ -90,9 +108,9 @@ static bool mei_cl_is_reading(struct mei_cl *cl)
  *
  * Return: always 0
  */
-static int mei_cl_irq_read_msg(struct mei_cl *cl,
-			       struct mei_msg_hdr *mei_hdr,
-			       struct mei_cl_cb *complete_list)
+int mei_cl_irq_read_msg(struct mei_cl *cl,
+		       struct mei_msg_hdr *mei_hdr,
+		       struct mei_cl_cb *complete_list)
 {
 	struct mei_device *dev = cl->dev;
 	struct mei_cl_cb *cb;
@@ -144,20 +162,17 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 	mei_read_slots(dev, buffer, mei_hdr->length);
 
 	cb->buf_idx += mei_hdr->length;
+
 	if (mei_hdr->msg_complete) {
+		cb->read_time = jiffies;
 		cl_dbg(dev, cl, "completed read length = %lu\n",
 			cb->buf_idx);
 		list_move_tail(&cb->list, &complete_list->list);
 	}
 
 out:
-	if (!buffer) {
-		/* assume that mei_hdr->length <= MEI_RD_MSG_BUF_SIZE */
-		BUG_ON(mei_hdr->length > MEI_RD_MSG_BUF_SIZE);
-		mei_read_slots(dev, dev->rd_msg_buf, mei_hdr->length);
-		dev_dbg(dev->dev, "discarding message " MEI_HDR_FMT "\n",
-				MEI_HDR_PRM(mei_hdr));
-	}
+	if (!buffer)
+		mei_irq_discard_msg(dev, mei_hdr);
 
 	return 0;
 }
@@ -569,8 +584,6 @@ void mei_timer(struct work_struct *work)
 		if (--dev->iamthif_stall_timer == 0) {
 			dev_err(dev->dev, "timer: amthif  hanged.\n");
 			mei_reset(dev);
-			dev->iamthif_msg_buf_size = 0;
-			dev->iamthif_msg_buf_index = 0;
 			dev->iamthif_canceled = false;
 			dev->iamthif_state = MEI_IAMTHIF_IDLE;
 			dev->iamthif_timer = 0;

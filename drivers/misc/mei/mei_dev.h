@@ -485,9 +485,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @iamthif_mtu : amthif client max message length
  * @iamthif_timer : time stamp of current amthif command completion
  * @iamthif_stall_timer : timer to detect amthif hang
- * @iamthif_msg_buf : amthif current message buffer
- * @iamthif_msg_buf_size : size of current amthif message request buffer
- * @iamthif_msg_buf_index : current index in amthif message request buffer
  * @iamthif_state : amthif processor state
  * @iamthif_canceled : current amthif command is canceled
  *
@@ -583,9 +580,6 @@ struct mei_device {
 	int iamthif_mtu;
 	unsigned long iamthif_timer;
 	u32 iamthif_stall_timer;
-	unsigned char *iamthif_msg_buf; /* Note: memory has to be allocated */
-	u32 iamthif_msg_buf_size;
-	u32 iamthif_msg_buf_index;
 	enum iamthif_states iamthif_state;
 	bool iamthif_canceled;
 
