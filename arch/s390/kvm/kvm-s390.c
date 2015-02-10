@@ -1148,8 +1148,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->eca |= 1;
 	if (sclp_has_sigpif())
 		vcpu->arch.sie_block->eca |= 0x10000000U;
-	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE |
-				      ICTL_TPROT;
+	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
 
 	if (kvm_s390_cmma_enabled(vcpu->kvm)) {
 		rc = kvm_s390_vcpu_setup_cmma(vcpu);
@@ -1726,6 +1725,31 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
+{
+	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+	u8 opcode;
+	int rc;
+
+	VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
+	trace_kvm_s390_sie_fault(vcpu);
+
+	/*
+	 * We want to inject an addressing exception, which is defined as a
+	 * suppressing or terminating exception. However, since we came here
+	 * by a DAT access exception, the PSW still points to the faulting
+	 * instruction since DAT exceptions are nullifying. So we've got
+	 * to look up the current opcode to get the length of the instruction
+	 * to be able to forward the PSW.
+	 */
+	rc = read_guest(vcpu, psw->addr, &opcode, 1);
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
+	psw->addr = __rewind_psw(*psw, -insn_length(opcode));
+
+	return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+}
+
 static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 {
 	int rc = -1;
@@ -1757,11 +1781,8 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 		}
 	}
 
-	if (rc == -1) {
-		VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
-		trace_kvm_s390_sie_fault(vcpu);
-		rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-	}
+	if (rc == -1)
+		rc = vcpu_post_run_fault_in_sie(vcpu);
 
 	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
 
