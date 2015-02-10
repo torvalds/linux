@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <stdlib.h>
+#include <getopt.h>
 #include <dirent.h>
 #include <string.h>
 #include <ctype.h>
@@ -42,13 +43,11 @@
 #include <errno.h>
 
 char *proc_stat = "/proc/stat";
-unsigned int interval_sec = 5;	/* set with -i interval_sec */
-unsigned int verbose;		/* set with -v */
-unsigned int rapl_verbose;	/* set with -R */
-unsigned int rapl_joules;	/* set with -J */
-unsigned int thermal_verbose;	/* set with -T */
-unsigned int summary_only;	/* set with -S */
-unsigned int dump_only;		/* set with -s */
+unsigned int interval_sec = 5;
+unsigned int debug;
+unsigned int rapl_joules;
+unsigned int summary_only;
+unsigned int dump_only;
 unsigned int skip_c0;
 unsigned int skip_c1;
 unsigned int do_nhm_cstates;
@@ -727,7 +726,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	}
 
 	if (old->mperf == 0) {
-		if (verbose > 1) fprintf(stderr, "cpu%d MPERF 0!\n", old->cpu_id);
+		if (debug > 1) fprintf(stderr, "cpu%d MPERF 0!\n", old->cpu_id);
 		old->mperf = 1;	/* divide by 0 protection */
 	}
 
@@ -1847,7 +1846,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 	tdp = get_tdp(model);
 
 	rapl_joule_counter_range = 0xFFFFFFFF * rapl_energy_units / tdp;
-	if (verbose)
+	if (debug)
 		fprintf(stderr, "RAPL: %.0f sec. Joule Counter Range, at %.0f Watts\n", rapl_joule_counter_range, tdp);
 
 	return;
@@ -1972,7 +1971,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (get_msr(cpu, MSR_RAPL_POWER_UNIT, &msr))
 		return -1;
 
-	if (verbose) {
+	if (debug) {
 		fprintf(stderr, "cpu%d: MSR_RAPL_POWER_UNIT: 0x%08llx "
 			"(%f Watts, %f Joules, %f sec.)\n", cpu, msr,
 			rapl_power_units, rapl_energy_units, rapl_time_units);
@@ -2029,7 +2028,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		print_power_limit_msr(cpu, msr, "DRAM Limit");
 	}
 	if (do_rapl & RAPL_CORE_POLICY) {
-		if (verbose) {
+		if (debug) {
 			if (get_msr(cpu, MSR_PP0_POLICY, &msr))
 				return -7;
 
@@ -2037,7 +2036,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		}
 	}
 	if (do_rapl & RAPL_CORES) {
-		if (verbose) {
+		if (debug) {
 
 			if (get_msr(cpu, MSR_PP0_POWER_LIMIT, &msr))
 				return -9;
@@ -2047,7 +2046,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		}
 	}
 	if (do_rapl & RAPL_GFX) {
-		if (verbose) {
+		if (debug) {
 			if (get_msr(cpu, MSR_PP1_POLICY, &msr))
 				return -8;
 
@@ -2208,7 +2207,7 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 
 	target_c_local = (msr >> 16) & 0xFF;
 
-	if (verbose)
+	if (debug)
 		fprintf(stderr, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C)\n",
 			cpu, msr, target_c_local);
 
@@ -2238,7 +2237,7 @@ void check_cpuid()
 	if (ebx == 0x756e6547 && edx == 0x49656e69 && ecx == 0x6c65746e)
 		genuine_intel = 1;
 
-	if (verbose)
+	if (debug)
 		fprintf(stderr, "CPUID(0): %.4s%.4s%.4s ",
 			(char *)&ebx, (char *)&edx, (char *)&ecx);
 
@@ -2249,7 +2248,7 @@ void check_cpuid()
 	if (family == 6 || family == 0xf)
 		model += ((fms >> 16) & 0xf) << 4;
 
-	if (verbose)
+	if (debug)
 		fprintf(stderr, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
 			max_level, family, model, stepping, family, model, stepping);
 
@@ -2285,7 +2284,7 @@ void check_cpuid()
 	do_ptm = eax & (1 << 6);
 	has_epb = ecx & (1 << 3);
 
-	if (verbose)
+	if (debug)
 		fprintf(stderr, "CPUID(6): %sAPERF, %sDTS, %sPTM, %sEPB\n",
 			has_aperf ? "" : "No ",
 			do_dts ? "" : "No ",
@@ -2311,10 +2310,25 @@ void check_cpuid()
 }
 
 
-void usage()
+void help()
 {
-	errx(1, "%s: [-v][-R][-T][-p|-P|-S][-c MSR#][-C MSR#][-m MSR#][-M MSR#][-i interval_sec | command ...]\n",
-	     progname);
+	fprintf(stderr,
+	"Usage: turbostat [OPTIONS][(--interval seconds) | COMMAND ...]\n"
+	"\n"
+	"Turbostat forks the specified COMMAND and prints statistics\n"
+	"when COMMAND completes.\n"
+	"If no COMMAND is specified, turbostat wakes every 5-seconds\n"
+	"to print statistics, until interrupted.\n"
+	"--debug	run in \"debug\" mode\n"
+	"--interval sec	Override default 5-second measurement interval\n"
+	"--help		print this help message\n"
+	"--counter msr	print 32-bit counter at address \"msr\"\n"
+	"--Counter msr	print 64-bit Counter at address \"msr\"\n"
+	"--msr msr	print 32-bit value at address \"msr\"\n"
+	"--MSR msr	print 64-bit Value at address \"msr\"\n"
+	"--version	print version information\n"
+	"\n"
+	"For more help, run \"man turbostat\"\n");
 }
 
 
@@ -2353,7 +2367,7 @@ void topology_probe()
 	if (!summary_only && topo.num_cpus > 1)
 		show_cpu = 1;
 
-	if (verbose > 1)
+	if (debug > 1)
 		fprintf(stderr, "num_cpus %d max_cpu_num %d\n", topo.num_cpus, topo.max_cpu_num);
 
 	cpus = calloc(1, (topo.max_cpu_num  + 1) * sizeof(struct cpu_topology));
@@ -2388,7 +2402,7 @@ void topology_probe()
 		int siblings;
 
 		if (cpu_is_not_present(i)) {
-			if (verbose > 1)
+			if (debug > 1)
 				fprintf(stderr, "cpu%d NOT PRESENT\n", i);
 			continue;
 		}
@@ -2403,26 +2417,26 @@ void topology_probe()
 		siblings = get_num_ht_siblings(i);
 		if (siblings > max_siblings)
 			max_siblings = siblings;
-		if (verbose > 1)
+		if (debug > 1)
 			fprintf(stderr, "cpu %d pkg %d core %d\n",
 				i, cpus[i].physical_package_id, cpus[i].core_id);
 	}
 	topo.num_cores_per_pkg = max_core_id + 1;
-	if (verbose > 1)
+	if (debug > 1)
 		fprintf(stderr, "max_core_id %d, sizing for %d cores per package\n",
 			max_core_id, topo.num_cores_per_pkg);
 	if (!summary_only && topo.num_cores_per_pkg > 1)
 		show_core = 1;
 
 	topo.num_packages = max_package_id + 1;
-	if (verbose > 1)
+	if (debug > 1)
 		fprintf(stderr, "max_package_id %d, sizing for %d packages\n",
 			max_package_id, topo.num_packages);
 	if (!summary_only && topo.num_packages > 1)
 		show_pkg = 1;
 
 	topo.num_threads_per_core = max_siblings;
-	if (verbose > 1)
+	if (debug > 1)
 		fprintf(stderr, "max_siblings %d\n", max_siblings);
 
 	free(cpus);
@@ -2537,21 +2551,21 @@ void turbostat_init()
 
 	setup_all_buffers();
 
-	if (verbose)
+	if (debug)
 		print_verbose_header();
 
-	if (verbose)
+	if (debug)
 		for_all_cpus(print_epb, ODD_COUNTERS);
 
-	if (verbose)
+	if (debug)
 		for_all_cpus(print_perf_limit, ODD_COUNTERS);
 
-	if (verbose)
+	if (debug)
 		for_all_cpus(print_rapl, ODD_COUNTERS);
 
 	for_all_cpus(set_temperature_target, ODD_COUNTERS);
 
-	if (verbose)
+	if (debug)
 		for_all_cpus(print_thermal, ODD_COUNTERS);
 }
 
@@ -2616,56 +2630,82 @@ int get_and_dump_counters(void)
 	return status;
 }
 
+void print_version() {
+	fprintf(stderr, "turbostat version 4.0 10-Feb, 2015"
+		" - Len Brown <lenb@kernel.org>\n");
+}
+
 void cmdline(int argc, char **argv)
 {
 	int opt;
+	int option_index = 0;
+	static struct option long_options[] = {
+		{"Counter",	required_argument,	0, 'C'},
+		{"counter",	required_argument,	0, 'c'},
+		{"Dump",	no_argument,		0, 'D'},
+		{"debug",	no_argument,		0, 'd'},
+		{"interval",	required_argument,	0, 'i'},
+		{"help",	no_argument,		0, 'h'},
+		{"Joules",	no_argument,		0, 'J'},
+		{"MSR",		required_argument,	0, 'M'},
+		{"msr",		required_argument,	0, 'm'},
+		{"Package",	no_argument,		0, 'p'},
+		{"processor",	no_argument,		0, 'p'},
+		{"Summary",	no_argument,		0, 'S'},
+		{"TCC",		required_argument,	0, 'T'},
+		{"version",	no_argument,		0, 'v' },
+		{0,		0,			0,  0 }
+	};
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "+pPsSvi:c:C:m:M:RJT:")) != -1) {
+	while ((opt = getopt_long_only(argc, argv, "C:c:Ddhi:JM:m:PpST:v",
+				long_options, &option_index)) != -1) {
 		switch (opt) {
-		case 'p':
-			show_core_only++;
-			break;
-		case 'P':
-			show_pkg_only++;
-			break;
-		case 's':
-			dump_only++;
-			break;
-		case 'S':
-			summary_only++;
-			break;
-		case 'v':
-			verbose++;
-			break;
-		case 'i':
-			interval_sec = atoi(optarg);
+		case 'C':
+			sscanf(optarg, "%x", &extra_delta_offset64);
 			break;
 		case 'c':
 			sscanf(optarg, "%x", &extra_delta_offset32);
 			break;
-		case 'C':
-			sscanf(optarg, "%x", &extra_delta_offset64);
+		case 'D':
+			dump_only++;
 			break;
-		case 'm':
-			sscanf(optarg, "%x", &extra_msr_offset32);
+		case 'd':
+			debug++;
 			break;
-		case 'M':
-			sscanf(optarg, "%x", &extra_msr_offset64);
-			break;
-		case 'R':
-			rapl_verbose++;
-			break;
-		case 'T':
-			tcc_activation_temp_override = atoi(optarg);
+		case 'h':
+		default:
+			help();
+			exit(1);
+		case 'i':
+			interval_sec = atoi(optarg);
 			break;
 		case 'J':
 			rapl_joules++;
 			break;
-
-		default:
-			usage();
+		case 'M':
+			sscanf(optarg, "%x", &extra_msr_offset64);
+			break;
+		case 'm':
+			sscanf(optarg, "%x", &extra_msr_offset32);
+			break;
+		case 'P':
+			show_pkg_only++;
+			break;
+		case 'p':
+			show_core_only++;
+			break;
+		case 'S':
+			summary_only++;
+			break;
+		case 'T':
+			tcc_activation_temp_override = atoi(optarg);
+			break;
+		case 'v':
+			print_version();
+			exit(0);
+			break;
 		}
 	}
 }
@@ -2674,9 +2714,8 @@ int main(int argc, char **argv)
 {
 	cmdline(argc, argv);
 
-	if (verbose)
-		fprintf(stderr, "turbostat v3.10 9-Feb, 2015"
-			" - Len Brown <lenb@kernel.org>\n");
+	if (debug)
+		print_version();
 
 	turbostat_init();
 
