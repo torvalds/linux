@@ -68,6 +68,8 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	int ret;
 	unsigned long start, end;
 
+	might_sleep();
+
 	if (!dev || !dev->dev)
 		return -ENODEV;
 
@@ -85,7 +87,7 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	/* host driver waits for bit 0 to be set in semaphore register */
 	start = jiffies;
 	end = start + msecs_to_jiffies(SEMAPHORE_TIMEOUT);
-	while (!time_after(jiffies, end)) {
+	do {
 		ret = get_sem(dev->dev, &sem);
 		if (!ret && sem) {
 			acquired = jiffies;
@@ -95,7 +97,7 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 		}
 
 		usleep_range(1000, 2000);
-	}
+	} while (time_before(jiffies, end));
 
 	dev_err(dev->dev, "punit semaphore timed out, resetting\n");
 	reset_semaphore(dev->dev);
