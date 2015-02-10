@@ -2215,8 +2215,8 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	switch (obj->tiling_mode) {
-	case I915_TILING_NONE:
+	switch (fb->modifier[0]) {
+	case DRM_FORMAT_MOD_NONE:
 		if (INTEL_INFO(dev)->gen >= 9)
 			alignment = 256 * 1024;
 		else if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
@@ -2226,7 +2226,7 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 		else
 			alignment = 64 * 1024;
 		break;
-	case I915_TILING_X:
+	case I915_FORMAT_MOD_X_TILED:
 		if (INTEL_INFO(dev)->gen >= 9)
 			alignment = 256 * 1024;
 		else {
@@ -2234,11 +2234,12 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 			alignment = 0;
 		}
 		break;
-	case I915_TILING_Y:
+	case I915_FORMAT_MOD_Y_TILED:
 		WARN(1, "Y tiled bo slipped through, driver bug!\n");
 		return -EINVAL;
 	default:
-		BUG();
+		MISSING_CASE(fb->modifier[0]);
+		return -EINVAL;
 	}
 
 	/* Note that the w/a also requires 64 PTE of padding following the
