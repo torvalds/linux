@@ -269,11 +269,11 @@ static int xgene_pcie_map_ranges(struct xgene_pcie_port *port,
 				 struct list_head *res,
 				 resource_size_t io_base)
 {
-	struct pci_host_bridge_window *window;
+	struct resource_entry *window;
 	struct device *dev = port->dev;
 	int ret;
 
-	list_for_each_entry(window, res, list) {
+	resource_list_for_each_entry(window, res) {
 		struct resource *res = window->res;
 		u64 restype = resource_type(res);
 

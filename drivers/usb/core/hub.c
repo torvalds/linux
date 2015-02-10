@@ -3452,8 +3452,6 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	return status;
 }
 
-#ifdef	CONFIG_PM
-
 int usb_remote_wakeup(struct usb_device *udev)
 {
 	int	status = 0;
@@ -3511,16 +3509,6 @@ static int hub_handle_remote_wakeup(struct usb_hub *hub, unsigned int port,
 	dev_dbg(&port_dev->dev, "resume, status %d\n", ret);
 	return connect_change;
 }
-
-#else
-
-static int hub_handle_remote_wakeup(struct usb_hub *hub, unsigned int port,
-		u16 portstatus, u16 portchange)
-{
-	return 0;
-}
-
-#endif
 
 static int check_ports_changed(struct usb_hub *hub)
 {

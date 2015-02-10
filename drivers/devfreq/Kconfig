@@ -88,4 +88,16 @@ config ARM_EXYNOS5_BUS_DEVFREQ
 	  It reads PPMU counters of memory controllers and adjusts the
 	  operating frequencies and voltages with OPP support.
 
+config ARM_TEGRA_DEVFREQ
+       tristate "Tegra DEVFREQ Driver"
+       depends on ARCH_TEGRA_124_SOC
+       select DEVFREQ_GOV_SIMPLE_ONDEMAND
+       select PM_OPP
+       help
+         This adds the DEVFREQ driver for the Tegra family of SoCs.
+         It reads ACTMON counters of memory controllers and adjusts the
+         operating frequencies and voltages with OPP support.
+
+source "drivers/devfreq/event/Kconfig"
+
 endif # PM_DEVFREQ

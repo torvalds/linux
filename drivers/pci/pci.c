@@ -523,6 +523,11 @@ static inline int platform_pci_run_wake(struct pci_dev *dev, bool enable)
 			pci_platform_pm->run_wake(dev, enable) : -ENODEV;
 }
 
+static inline bool platform_pci_need_resume(struct pci_dev *dev)
+{
+	return pci_platform_pm ? pci_platform_pm->need_resume(dev) : false;
+}
+
 /**
  * pci_raw_set_power_state - Use PCI PM registers to set the power state of
  *                           given PCI device
@@ -2000,6 +2005,27 @@ bool pci_dev_run_wake(struct pci_dev *dev)
 	return false;
 }
 EXPORT_SYMBOL_GPL(pci_dev_run_wake);
+
+/**
+ * pci_dev_keep_suspended - Check if the device can stay in the suspended state.
+ * @pci_dev: Device to check.
+ *
+ * Return 'true' if the device is runtime-suspended, it doesn't have to be
+ * reconfigured due to wakeup settings difference between system and runtime
+ * suspend and the current power state of it is suitable for the upcoming
+ * (system) transition.
+ */
+bool pci_dev_keep_suspended(struct pci_dev *pci_dev)
+{
+	struct device *dev = &pci_dev->dev;
+
+	if (!pm_runtime_suspended(dev)
+	    || (device_can_wakeup(dev) && !device_may_wakeup(dev))
+	    || platform_pci_need_resume(pci_dev))
+		return false;
+
+	return pci_target_state(pci_dev) == pci_dev->current_state;
+}
 
 void pci_config_pm_runtime_get(struct pci_dev *pdev)
 {
