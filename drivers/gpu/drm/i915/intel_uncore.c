@@ -23,6 +23,7 @@
 
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include "i915_vgpu.h"
 
 #include <linux/pm_runtime.h>
 
@@ -1074,6 +1075,8 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 void intel_uncore_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	i915_check_vgpu(dev);
 
 	intel_uncore_ellc_detect(dev);
 	intel_uncore_fw_domains_init(dev);
