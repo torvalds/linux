@@ -1323,6 +1323,39 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf,
 	return 0;
 }
 
+static int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
+					      struct intel_context *ctx)
+{
+	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
+	struct render_state so;
+	struct drm_i915_file_private *file_priv = ctx->file_priv;
+	struct drm_file *file = file_priv ? file_priv->file : NULL;
+	int ret;
+
+	ret = i915_gem_render_state_prepare(ring, &so);
+	if (ret)
+		return ret;
+
+	if (so.rodata == NULL)
+		return 0;
+
+	ret = ring->emit_bb_start(ringbuf,
+			ctx,
+			so.ggtt_offset,
+			I915_DISPATCH_SECURE);
+	if (ret)
+		goto out;
+
+	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
+
+	ret = __i915_add_request(ring, file, so.obj);
+	/* intel_logical_ring_add_request moves object to inactive if it
+	 * fails */
+out:
+	i915_gem_render_state_fini(&so);
+	return ret;
+}
+
 static int gen8_init_rcs_context(struct intel_engine_cs *ring,
 		       struct intel_context *ctx)
 {
@@ -1585,39 +1618,6 @@ cleanup_bsd_ring:
 cleanup_render_ring:
 	intel_logical_ring_cleanup(&dev_priv->ring[RCS]);
 
-	return ret;
-}
-
-int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
-				       struct intel_context *ctx)
-{
-	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
-	struct render_state so;
-	struct drm_i915_file_private *file_priv = ctx->file_priv;
-	struct drm_file *file = file_priv ? file_priv->file : NULL;
-	int ret;
-
-	ret = i915_gem_render_state_prepare(ring, &so);
-	if (ret)
-		return ret;
-
-	if (so.rodata == NULL)
-		return 0;
-
-	ret = ring->emit_bb_start(ringbuf,
-			ctx,
-			so.ggtt_offset,
-			I915_DISPATCH_SECURE);
-	if (ret)
-		goto out;
-
-	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
-
-	ret = __i915_add_request(ring, file, so.obj);
-	/* intel_logical_ring_add_request moves object to inactive if it
-	 * fails */
-out:
-	i915_gem_render_state_fini(&so);
 	return ret;
 }
 
