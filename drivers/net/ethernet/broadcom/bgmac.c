@@ -21,7 +21,7 @@
 static const struct bcma_device_id bgmac_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_4706_MAC_GBIT, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_MAC_GBIT, BCMA_ANY_REV, BCMA_ANY_CLASS),
-	BCMA_CORETABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(bcma, bgmac_bcma_tbl);
 

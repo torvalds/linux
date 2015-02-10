@@ -381,8 +381,6 @@ struct bcma_device_id {
 } __attribute__((packed,aligned(2)));
 #define BCMA_CORE(_manuf, _id, _rev, _class)  \
 	{ .manuf = _manuf, .id = _id, .rev = _rev, .class = _class, }
-#define BCMA_CORETABLE_END  \
-	{ 0, },
 
 #define BCMA_ANY_MANUF		0xFFFF
 #define BCMA_ANY_ID		0xFFFF
