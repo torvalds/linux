@@ -667,6 +667,55 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 	return rc;
 }
 
+static void *eeh_disable_and_save_dev_state(void *data, void *userdata)
+{
+	struct eeh_dev *edev = data;
+	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
+	struct pci_dev *dev = userdata;
+
+	/*
+	 * The caller should have disabled and saved the
+	 * state for the specified device
+	 */
+	if (!pdev || pdev == dev)
+		return NULL;
+
+	/* Ensure we have D0 power state */
+	pci_set_power_state(pdev, PCI_D0);
+
+	/* Save device state */
+	pci_save_state(pdev);
+
+	/*
+	 * Disable device to avoid any DMA traffic and
+	 * interrupt from the device
+	 */
+	pci_write_config_word(pdev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
+
+	return NULL;
+}
+
+static void *eeh_restore_dev_state(void *data, void *userdata)
+{
+	struct eeh_dev *edev = data;
+	struct device_node *dn = eeh_dev_to_of_node(edev);
+	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
+	struct pci_dev *dev = userdata;
+
+	if (!pdev)
+		return NULL;
+
+	/* Apply customization from firmware */
+	if (dn && eeh_ops->restore_config)
+		eeh_ops->restore_config(dn);
+
+	/* The caller should restore state for the specified device */
+	if (pdev != dev)
+		pci_save_state(pdev);
+
+	return NULL;
+}
+
 /**
  * pcibios_set_pcie_slot_reset - Set PCI-E reset state
  * @dev: pci device struct
@@ -689,13 +738,19 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 	switch (state) {
 	case pcie_deassert_reset:
 		eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
+		eeh_unfreeze_pe(pe, false);
 		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
+		eeh_pe_dev_traverse(pe, eeh_restore_dev_state, dev);
 		break;
 	case pcie_hot_reset:
+		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
+		eeh_pe_dev_traverse(pe, eeh_disable_and_save_dev_state, dev);
 		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 		eeh_ops->reset(pe, EEH_RESET_HOT);
 		break;
 	case pcie_warm_reset:
+		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
+		eeh_pe_dev_traverse(pe, eeh_disable_and_save_dev_state, dev);
 		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 		eeh_ops->reset(pe, EEH_RESET_FUNDAMENTAL);
 		break;
