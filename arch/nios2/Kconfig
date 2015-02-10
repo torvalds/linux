@@ -134,6 +134,14 @@ config NIOS2_PASS_CMDLINE
 	  will override "Default kernel command string".
 	  Say N if you are unsure.
 
+config NIOS2_BOOT_LINK_OFFSET
+	hex "Link address offset for booting"
+	default "0x00500000"
+	help
+	  This option allows you to set the link address offset of the zImage.
+	  This can be useful if you are on a board which has a small amount of
+	  memory.
+
 endmenu
 
 menu "Advanced setup"
