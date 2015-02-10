@@ -397,12 +397,12 @@ static acpi_status check_mcfg_resource(struct acpi_resource *res, void *data)
 
 	status = acpi_resource_to_address64(res, &address);
 	if (ACPI_FAILURE(status) ||
-	   (address.address_length <= 0) ||
+	   (address.address.address_length <= 0) ||
 	   (address.resource_type != ACPI_MEMORY_RANGE))
 		return AE_OK;
 
-	if ((mcfg_res->start >= address.minimum) &&
-	    (mcfg_res->end < (address.minimum + address.address_length))) {
+	if ((mcfg_res->start >= address.address.minimum) &&
+	    (mcfg_res->end < (address.address.minimum + address.address.address_length))) {
 		mcfg_res->flags = 1;
 		return AE_CTRL_TERMINATE;
 	}

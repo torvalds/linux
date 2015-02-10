@@ -410,12 +410,12 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
 		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
 			flags = IORESOURCE_MEM_WRITEABLE;
-		pnp_register_mem_resource(dev, option_flags, p->minimum,
-					  p->minimum, 0, p->address_length,
+		pnp_register_mem_resource(dev, option_flags, p->address.minimum,
+					  p->address.minimum, 0, p->address.address_length,
 					  flags);
 	} else if (p->resource_type == ACPI_IO_RANGE)
-		pnp_register_port_resource(dev, option_flags, p->minimum,
-					   p->minimum, 0, p->address_length,
+		pnp_register_port_resource(dev, option_flags, p->address.minimum,
+					   p->address.minimum, 0, p->address.address_length,
 					   IORESOURCE_IO_FIXED);
 }
 
@@ -429,12 +429,12 @@ static __init void pnpacpi_parse_ext_address_option(struct pnp_dev *dev,
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
 		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
 			flags = IORESOURCE_MEM_WRITEABLE;
-		pnp_register_mem_resource(dev, option_flags, p->minimum,
-					  p->minimum, 0, p->address_length,
+		pnp_register_mem_resource(dev, option_flags, p->address.minimum,
+					  p->address.minimum, 0, p->address.address_length,
 					  flags);
 	} else if (p->resource_type == ACPI_IO_RANGE)
-		pnp_register_port_resource(dev, option_flags, p->minimum,
-					   p->minimum, 0, p->address_length,
+		pnp_register_port_resource(dev, option_flags, p->address.minimum,
+					   p->address.minimum, 0, p->address.address_length,
 					   IORESOURCE_IO_FIXED);
 }
 
