@@ -488,7 +488,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @iamthif_msg_buf_index : current index in amthif message request buffer
  * @iamthif_state : amthif processor state
  * @iamthif_flow_control_pending: amthif waits for flow control
- * @iamthif_ioctl : wait for completion if amthif control message
  * @iamthif_canceled : current amthif command is canceled
  *
  * @init_work   : work item for the device init
@@ -588,7 +587,6 @@ struct mei_device {
 	u32 iamthif_msg_buf_index;
 	enum iamthif_states iamthif_state;
 	bool iamthif_flow_control_pending;
-	bool iamthif_ioctl;
 	bool iamthif_canceled;
 
 	struct work_struct init_work;

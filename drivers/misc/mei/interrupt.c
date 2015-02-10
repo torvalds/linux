@@ -589,7 +589,6 @@ void mei_timer(struct work_struct *work)
 			dev->iamthif_msg_buf_size = 0;
 			dev->iamthif_msg_buf_index = 0;
 			dev->iamthif_canceled = false;
-			dev->iamthif_ioctl = true;
 			dev->iamthif_state = MEI_IAMTHIF_IDLE;
 			dev->iamthif_timer = 0;
 

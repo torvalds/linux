@@ -52,7 +52,6 @@ void mei_amthif_reset_params(struct mei_device *dev)
 	dev->iamthif_msg_buf_size = 0;
 	dev->iamthif_msg_buf_index = 0;
 	dev->iamthif_canceled = false;
-	dev->iamthif_ioctl = false;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 	dev->iamthif_timer = 0;
 	dev->iamthif_stall_timer = 0;
@@ -279,7 +278,6 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 	dev->iamthif_current_cb = cb;
 	dev->iamthif_file_object = cb->file_object;
 	dev->iamthif_canceled = false;
-	dev->iamthif_ioctl = true;
 	dev->iamthif_msg_buf_size = cb->request_buffer.size;
 	memcpy(dev->iamthif_msg_buf, cb->request_buffer.data,
 	       cb->request_buffer.size);
@@ -375,7 +373,6 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 	dev->iamthif_msg_buf_size = 0;
 	dev->iamthif_msg_buf_index = 0;
 	dev->iamthif_canceled = false;
-	dev->iamthif_ioctl = true;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 	dev->iamthif_timer = 0;
 	dev->iamthif_file_object = NULL;
@@ -554,11 +551,9 @@ int mei_amthif_irq_read_msg(struct mei_cl *cl,
 	dev->iamthif_stall_timer = 0;
 	cb->buf_idx = dev->iamthif_msg_buf_index;
 	cb->read_time = jiffies;
-	if (dev->iamthif_ioctl) {
-		/* found the iamthif cb */
-		dev_dbg(dev->dev, "complete the amthif read cb.\n ");
-		list_add_tail(&cb->list, &complete_list->list);
-	}
+
+	dev_dbg(dev->dev, "complete the amthif read cb.\n ");
+	list_add_tail(&cb->list, &complete_list->list);
 
 	return 0;
 
