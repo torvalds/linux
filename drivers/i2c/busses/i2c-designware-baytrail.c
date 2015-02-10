@@ -71,7 +71,7 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	if (!dev || !dev->dev)
 		return -ENODEV;
 
-	if (!dev->acquire_lock)
+	if (!dev->release_lock)
 		return 0;
 
 	/* host driver writes to side band semaphore register */
