@@ -199,6 +199,7 @@ struct mei_cl;
  * @buf_idx: last read index
  * @read_time: last read operation time stamp (iamthif)
  * @file_object: pointer to file structure
+ * @status: io status of the cb
  * @internal: communication between driver and FW flag
  */
 struct mei_cl_cb {
@@ -210,6 +211,7 @@ struct mei_cl_cb {
 	unsigned long buf_idx;
 	unsigned long read_time;
 	struct file *file_object;
+	int status;
 	u32 internal:1;
 };
 

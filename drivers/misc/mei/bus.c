@@ -322,10 +322,16 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 		goto out;
 	}
 
+	if (cb->status) {
+		rets = cb->status;
+		goto free;
+	}
+
 	r_length = min_t(size_t, length, cb->buf_idx);
 	memcpy(buf, cb->response_buffer.data, r_length);
 	rets = r_length;
 
+free:
 	mei_io_cb_free(cb);
 	cl->reading_state = MEI_IDLE;
 	cl->read_cb = NULL;

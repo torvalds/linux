@@ -192,8 +192,8 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	if (cl->read_cb) {
-		cb = cl->read_cb;
+	cb = cl->read_cb;
+	if (cb) {
 		/* read what left */
 		if (cb->buf_idx > *offset)
 			goto copy_buffer;
@@ -218,7 +218,8 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	}
 
 	if (MEI_READ_COMPLETE != cl->reading_state &&
-			!waitqueue_active(&cl->rx_wait)) {
+		!waitqueue_active(&cl->rx_wait)) {
+
 		if (file->f_flags & O_NONBLOCK) {
 			rets = -EAGAIN;
 			goto out;
@@ -248,12 +249,20 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		rets = -ENODEV;
 		goto out;
 	}
+
 	if (cl->reading_state != MEI_READ_COMPLETE) {
 		rets = 0;
 		goto out;
 	}
-	/* now copy the data to user space */
+
 copy_buffer:
+	/* now copy the data to user space */
+	if (cb->status) {
+		rets = cb->status;
+		dev_dbg(dev->dev, "read operation failed %d\n", rets);
+		goto free;
+	}
+
 	dev_dbg(dev->dev, "buf.size = %d buf.idx= %ld\n",
 	    cb->response_buffer.size, cb->buf_idx);
 	if (length == 0 || ubuf == NULL || *offset > cb->buf_idx) {
