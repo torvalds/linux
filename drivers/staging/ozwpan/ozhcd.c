@@ -280,8 +280,9 @@ static void oz_free_urb_link(struct oz_urb_link *urbl)
  */
 static struct oz_endpoint *oz_ep_alloc(int buffer_size, gfp_t mem_flags)
 {
-	struct oz_endpoint *ep =
-		kzalloc(sizeof(struct oz_endpoint)+buffer_size, mem_flags);
+	struct oz_endpoint *ep;
+
+	ep = kzalloc(sizeof(struct oz_endpoint)+buffer_size, mem_flags);
 	if (ep) {
 		INIT_LIST_HEAD(&ep->urb_list);
 		INIT_LIST_HEAD(&ep->link);

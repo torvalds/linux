@@ -102,8 +102,9 @@ void oz_pd_put(struct oz_pd *pd)
  */
 struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 {
-	struct oz_pd *pd = kzalloc(sizeof(struct oz_pd), GFP_ATOMIC);
+	struct oz_pd *pd;
 
+	pd = kzalloc(sizeof(struct oz_pd), GFP_ATOMIC);
 	if (pd) {
 		int i;
 
@@ -652,8 +653,9 @@ static struct oz_isoc_stream *pd_stream_find(struct oz_pd *pd, u8 ep_num)
  */
 int oz_isoc_stream_create(struct oz_pd *pd, u8 ep_num)
 {
-	struct oz_isoc_stream *st =
-		kzalloc(sizeof(struct oz_isoc_stream), GFP_ATOMIC);
+	struct oz_isoc_stream *st;
+
+	st = kzalloc(sizeof(struct oz_isoc_stream), GFP_ATOMIC);
 	if (!st)
 		return -ENOMEM;
 	st->ep_num = ep_num;
