@@ -1604,9 +1604,9 @@ parahotplug_next_expiration(void)
 static struct parahotplug_request *
 parahotplug_request_create(struct controlvm_message *msg)
 {
-	struct parahotplug_request *req =
-	    kmalloc(sizeof(struct parahotplug_request),
-		    GFP_KERNEL|__GFP_NORETRY);
+	struct parahotplug_request *req;
+
+	req = kmalloc(sizeof(*req), GFP_KERNEL|__GFP_NORETRY);
 	if (req == NULL)
 		return NULL;
 

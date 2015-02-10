@@ -41,8 +41,9 @@ struct memregion *
 visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 {
 	struct memregion *rc = NULL;
-	struct memregion *memregion = kzalloc(sizeof(*memregion),
-					      GFP_KERNEL | __GFP_NORETRY);
+	struct memregion *memregion;
+
+	memregion = kzalloc(sizeof(*memregion), GFP_KERNEL | __GFP_NORETRY);
 	if (memregion == NULL) {
 		ERRDRV("visor_memregion_create allocation failed");
 		return NULL;
