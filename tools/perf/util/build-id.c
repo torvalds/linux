@@ -259,8 +259,8 @@ void disable_buildid_cache(void)
 	no_buildid_cache = true;
 }
 
-int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
-			  const char *name, bool is_kallsyms, bool is_vdso)
+int build_id_cache__add_s(const char *sbuild_id, const char *name,
+			  bool is_kallsyms, bool is_vdso)
 {
 	const size_t size = PATH_MAX;
 	char *realname, *filename = zalloc(size),
@@ -282,7 +282,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 		goto out_free;
 
 	len = scnprintf(filename, size, "%s%s%s",
-		       debugdir, slash ? "/" : "",
+		       buildid_dir, slash ? "/" : "",
 		       is_vdso ? DSO__NAME_VDSO : realname);
 	if (mkdir_p(filename, 0755))
 		goto out_free;
@@ -298,13 +298,13 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 	}
 
 	len = scnprintf(linkname, size, "%s/.build-id/%.2s",
-		       debugdir, sbuild_id);
+			buildid_dir, sbuild_id);
 
 	if (access(linkname, X_OK) && mkdir_p(linkname, 0755))
 		goto out_free;
 
 	snprintf(linkname + len, size - len, "/%s", sbuild_id + 2);
-	targetname = filename + strlen(debugdir) - 5;
+	targetname = filename + strlen(buildid_dir) - 5;
 	memcpy(targetname, "../..", 5);
 
 	if (symlink(targetname, linkname) == 0)
@@ -318,18 +318,17 @@ out_free:
 }
 
 static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
-				 const char *name, const char *debugdir,
-				 bool is_kallsyms, bool is_vdso)
+				 const char *name, bool is_kallsyms,
+				 bool is_vdso)
 {
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
 	build_id__sprintf(build_id, build_id_size, sbuild_id);
 
-	return build_id_cache__add_s(sbuild_id, debugdir, name,
-				     is_kallsyms, is_vdso);
+	return build_id_cache__add_s(sbuild_id, name, is_kallsyms, is_vdso);
 }
 
-int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir)
+int build_id_cache__remove_s(const char *sbuild_id)
 {
 	const size_t size = PATH_MAX;
 	char *filename = zalloc(size),
@@ -340,7 +339,7 @@ int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir)
 		goto out_free;
 
 	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
-		 debugdir, sbuild_id, sbuild_id + 2);
+		 buildid_dir, sbuild_id, sbuild_id + 2);
 
 	if (access(linkname, F_OK))
 		goto out_free;
@@ -355,7 +354,7 @@ int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir)
 	 * Since the link is relative, we must make it absolute:
 	 */
 	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
-		 debugdir, sbuild_id, filename);
+		 buildid_dir, sbuild_id, filename);
 
 	if (unlink(linkname))
 		goto out_free;
@@ -367,8 +366,7 @@ out_free:
 	return err;
 }
 
-static int dso__cache_build_id(struct dso *dso, struct machine *machine,
-			       const char *debugdir)
+static int dso__cache_build_id(struct dso *dso, struct machine *machine)
 {
 	bool is_kallsyms = dso->kernel && dso->long_name[0] != '/';
 	bool is_vdso = dso__is_vdso(dso);
@@ -381,28 +379,26 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine,
 		name = nm;
 	}
 	return build_id_cache__add_b(dso->build_id, sizeof(dso->build_id), name,
-				     debugdir, is_kallsyms, is_vdso);
+				     is_kallsyms, is_vdso);
 }
 
 static int __dsos__cache_build_ids(struct list_head *head,
-				   struct machine *machine, const char *debugdir)
+				   struct machine *machine)
 {
 	struct dso *pos;
 	int err = 0;
 
 	dsos__for_each_with_build_id(pos, head)
-		if (dso__cache_build_id(pos, machine, debugdir))
+		if (dso__cache_build_id(pos, machine))
 			err = -1;
 
 	return err;
 }
 
-static int machine__cache_build_ids(struct machine *machine, const char *debugdir)
+static int machine__cache_build_ids(struct machine *machine)
 {
-	int ret = __dsos__cache_build_ids(&machine->kernel_dsos.head, machine,
-					  debugdir);
-	ret |= __dsos__cache_build_ids(&machine->user_dsos.head, machine,
-				       debugdir);
+	int ret = __dsos__cache_build_ids(&machine->kernel_dsos.head, machine);
+	ret |= __dsos__cache_build_ids(&machine->user_dsos.head, machine);
 	return ret;
 }
 
@@ -417,11 +413,11 @@ int perf_session__cache_build_ids(struct perf_session *session)
 	if (mkdir(buildid_dir, 0755) != 0 && errno != EEXIST)
 		return -1;
 
-	ret = machine__cache_build_ids(&session->machines.host, buildid_dir);
+	ret = machine__cache_build_ids(&session->machines.host);
 
 	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret |= machine__cache_build_ids(pos, buildid_dir);
+		ret |= machine__cache_build_ids(pos);
 	}
 	return ret ? -1 : 0;
 }
