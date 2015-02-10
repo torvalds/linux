@@ -17,7 +17,9 @@
 #include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+
 #include <asm/iosf_mbi.h>
+
 #include "i2c-designware-core.h"
 
 #define SEMAPHORE_TIMEOUT	100
@@ -60,9 +62,9 @@ static void reset_semaphore(struct device *dev)
 		dev_err(dev, "iosf failed to reset punit semaphore during write\n");
 }
 
-int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
+static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 {
-	u32 sem = 0;
+	u32 sem;
 	int ret;
 	unsigned long start, end;
 
@@ -109,9 +111,8 @@ int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 
 	return -ETIMEDOUT;
 }
-EXPORT_SYMBOL(baytrail_i2c_acquire);
 
-void baytrail_i2c_release(struct dw_i2c_dev *dev)
+static void baytrail_i2c_release(struct dw_i2c_dev *dev)
 {
 	if (!dev || !dev->dev)
 		return;
@@ -123,7 +124,6 @@ void baytrail_i2c_release(struct dw_i2c_dev *dev)
 	dev_dbg(dev->dev, "punit semaphore held for %ums\n",
 		jiffies_to_msecs(jiffies - acquired));
 }
-EXPORT_SYMBOL(baytrail_i2c_release);
 
 int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
 {
@@ -139,7 +139,6 @@ int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
 		return 0;
 
 	status = acpi_evaluate_integer(handle, "_SEM", NULL, &shared_host);
-
 	if (ACPI_FAILURE(status))
 		return 0;
 
@@ -155,7 +154,6 @@ int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(i2c_dw_eval_lock_support);
 
 MODULE_AUTHOR("David E. Box <david.e.box@linux.intel.com>");
 MODULE_DESCRIPTION("Baytrail I2C Semaphore driver");
