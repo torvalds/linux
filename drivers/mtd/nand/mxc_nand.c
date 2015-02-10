@@ -928,7 +928,7 @@ static void preset_v1(struct mtd_info *mtd)
 	struct mxc_nand_host *host = nand_chip->priv;
 	uint16_t config1 = 0;
 
-	if (nand_chip->ecc.mode == NAND_ECC_HW)
+	if (nand_chip->ecc.mode == NAND_ECC_HW && mtd->writesize)
 		config1 |= NFC_V1_V2_CONFIG1_ECC_EN;
 
 	if (!host->devtype_data->irqpending_quirk)
@@ -956,9 +956,6 @@ static void preset_v2(struct mtd_info *mtd)
 	struct mxc_nand_host *host = nand_chip->priv;
 	uint16_t config1 = 0;
 
-	if (nand_chip->ecc.mode == NAND_ECC_HW)
-		config1 |= NFC_V1_V2_CONFIG1_ECC_EN;
-
 	config1 |= NFC_V2_CONFIG1_FP_INT;
 
 	if (!host->devtype_data->irqpending_quirk)
@@ -966,6 +963,9 @@ static void preset_v2(struct mtd_info *mtd)
 
 	if (mtd->writesize) {
 		uint16_t pages_per_block = mtd->erasesize / mtd->writesize;
+
+		if (nand_chip->ecc.mode == NAND_ECC_HW)
+			config1 |= NFC_V1_V2_CONFIG1_ECC_EN;
 
 		host->eccsize = get_eccsize(mtd);
 		if (host->eccsize == 4)
@@ -1024,9 +1024,6 @@ static void preset_v3(struct mtd_info *mtd)
 		NFC_V3_CONFIG2_INT_MSK |
 		NFC_V3_CONFIG2_NUM_ADDR_PHASE0;
 
-	if (chip->ecc.mode == NAND_ECC_HW)
-		config2 |= NFC_V3_CONFIG2_ECC_EN;
-
 	addr_phases = fls(chip->pagemask) >> 3;
 
 	if (mtd->writesize == 2048) {
@@ -1041,6 +1038,9 @@ static void preset_v3(struct mtd_info *mtd)
 	}
 
 	if (mtd->writesize) {
+		if (chip->ecc.mode == NAND_ECC_HW)
+			config2 |= NFC_V3_CONFIG2_ECC_EN;
+
 		config2 |= NFC_V3_CONFIG2_PPB(
 				ffs(mtd->erasesize / mtd->writesize) - 6,
 				host->devtype_data->ppb_shift);
