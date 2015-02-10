@@ -365,8 +365,6 @@ struct ssb_device_id {
 } __attribute__((packed, aligned(2)));
 #define SSB_DEVICE(_vendor, _coreid, _revision)  \
 	{ .vendor = _vendor, .coreid = _coreid, .revision = _revision, }
-#define SSB_DEVTABLE_END  \
-	{ 0, },
 
 #define SSB_ANY_VENDOR		0xFFFF
 #define SSB_ANY_ID		0xFFFF
