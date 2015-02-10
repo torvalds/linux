@@ -48,6 +48,8 @@
 #define REG1_IRQSEL_FALL	(2 << 2)
 #define REG1_IRQSEL_RISE	(3 << 2)
 
+#define REG1_POL                BIT(1)
+
 #define REG1_RESET		BIT(0)
 #define REG1_ENABLE		BIT(15)
 
@@ -111,6 +113,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	struct resource *res;
 	const char *map_name;
 	struct meson_ir *ir;
+        bool pulse_inverted = false;
 	int ret;
 
 	ir = devm_kzalloc(dev, sizeof(struct meson_ir), GFP_KERNEL);
@@ -148,6 +151,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	ir->rc->rx_resolution = US_TO_NS(MESON_TRATE);
 	ir->rc->timeout = MS_TO_NS(200);
 	ir->rc->driver_name = DRIVER_NAME;
+        pulse_inverted = of_property_read_bool(node, "pulse-inverted");
 
 	spin_lock_init(&ir->lock);
 	platform_set_drvdata(pdev, ir);
@@ -174,6 +178,9 @@ static int meson_ir_probe(struct platform_device *pdev)
 	/* IRQ on rising and falling edges */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_IRQSEL_MASK,
 			  REG1_IRQSEL_RISE_FALL);
+        /* Set polarity Invert input polarity */
+        meson_ir_set_mask(ir, IR_DEC_REG1, REG1_POL,
+                        pulse_inverted ? REG1_POL : 0);
 	/* Enable the decoder */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_ENABLE, REG1_ENABLE);
 
