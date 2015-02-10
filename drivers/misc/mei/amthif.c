@@ -195,23 +195,26 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		dev_dbg(dev->dev, "woke up from sleep\n");
 	}
 
+	if (cb->status) {
+		rets = cb->status;
+		dev_dbg(dev->dev, "read operation failed %d\n", rets);
+		goto free;
+	}
 
 	dev_dbg(dev->dev, "Got amthif data\n");
 	dev->iamthif_timer = 0;
 
-	if (cb) {
-		timeout = cb->read_time +
-			mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
-		dev_dbg(dev->dev, "amthif timeout = %lud\n",
-				timeout);
+	timeout = cb->read_time +
+		mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
+	dev_dbg(dev->dev, "amthif timeout = %lud\n",
+			timeout);
 
-		if  (time_after(jiffies, timeout)) {
-			dev_dbg(dev->dev, "amthif Time out\n");
-			/* 15 sec for the message has expired */
-			list_del(&cb->list);
-			rets = -ETIME;
-			goto free;
-		}
+	if  (time_after(jiffies, timeout)) {
+		dev_dbg(dev->dev, "amthif Time out\n");
+		/* 15 sec for the message has expired */
+		list_del(&cb->list);
+		rets = -ETIME;
+		goto free;
 	}
 	/* if the whole message will fit remove it from the list */
 	if (cb->buf_idx >= *offset && length >= (cb->buf_idx - *offset))
@@ -501,25 +504,42 @@ int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
  * mei_amthif_irq_read_msg - read routine after ISR to
  *			handle the read amthif message
  *
- * @dev: the device structure
+ * @cl: mei client
  * @mei_hdr: header of amthif message
- * @complete_list: An instance of our list structure
+ * @complete_list: completed callbacks list
  *
- * Return: 0 on success, <0 on failure.
+ * Return: -ENODEV if cb is NULL 0 otherwise; error message is in cb->status
  */
-int mei_amthif_irq_read_msg(struct mei_device *dev,
+int mei_amthif_irq_read_msg(struct mei_cl *cl,
 			    struct mei_msg_hdr *mei_hdr,
 			    struct mei_cl_cb *complete_list)
 {
+	struct mei_device *dev;
 	struct mei_cl_cb *cb;
 	unsigned char *buffer;
+	int ret = 0;
 
-	BUG_ON(mei_hdr->me_addr != dev->iamthif_cl.me_client_id);
-	BUG_ON(dev->iamthif_state != MEI_IAMTHIF_READING);
+	dev = cl->dev;
+
+	if (cl->state != MEI_FILE_CONNECTED)
+		goto err;
+
+	if (dev->iamthif_state != MEI_IAMTHIF_READING)
+		goto err;
+
+	cb = dev->iamthif_current_cb;
+
+	if (!cb) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	if (dev->iamthif_mtu < dev->iamthif_msg_buf_index + mei_hdr->length) {
+		cb->status = -ERANGE;
+		goto err;
+	}
 
 	buffer = dev->iamthif_msg_buf + dev->iamthif_msg_buf_index;
-	BUG_ON(dev->iamthif_mtu < dev->iamthif_msg_buf_index + mei_hdr->length);
-
 	mei_read_slots(dev, buffer, mei_hdr->length);
 
 	dev->iamthif_msg_buf_index += mei_hdr->length;
@@ -527,14 +547,8 @@ int mei_amthif_irq_read_msg(struct mei_device *dev,
 	if (!mei_hdr->msg_complete)
 		return 0;
 
-	dev_dbg(dev->dev, "amthif_message_buffer_index =%d\n",
-			mei_hdr->length);
-
 	dev_dbg(dev->dev, "completed amthif read.\n ");
-	if (!dev->iamthif_current_cb)
-		return -ENODEV;
 
-	cb = dev->iamthif_current_cb;
 	dev->iamthif_current_cb = NULL;
 
 	dev->iamthif_stall_timer = 0;
@@ -543,10 +557,16 @@ int mei_amthif_irq_read_msg(struct mei_device *dev,
 	if (dev->iamthif_ioctl) {
 		/* found the iamthif cb */
 		dev_dbg(dev->dev, "complete the amthif read cb.\n ");
-		dev_dbg(dev->dev, "add the amthif read cb to complete.\n ");
 		list_add_tail(&cb->list, &complete_list->list);
 	}
+
 	return 0;
+
+err:
+	mei_read_slots(dev, dev->rd_msg_buf, mei_hdr->length);
+	dev_dbg(dev->dev, "discarding message " MEI_HDR_FMT "\n",
+				MEI_HDR_PRM(mei_hdr));
+	return ret;
 }
 
 /**

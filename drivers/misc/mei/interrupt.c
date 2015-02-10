@@ -384,11 +384,8 @@ int mei_irq_read_handler(struct mei_device *dev,
 		goto end;
 	}
 
-	if (mei_hdr->host_addr == dev->iamthif_cl.host_client_id &&
-	    MEI_FILE_CONNECTED == dev->iamthif_cl.state &&
-	    dev->iamthif_state == MEI_IAMTHIF_READING) {
-
-		ret = mei_amthif_irq_read_msg(dev, mei_hdr, cmpl_list);
+	if (cl == &dev->iamthif_cl) {
+		ret = mei_amthif_irq_read_msg(cl, mei_hdr, cmpl_list);
 		if (ret) {
 			dev_err(dev->dev, "mei_amthif_irq_read_msg failed = %d\n",
 					ret);
