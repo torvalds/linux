@@ -82,6 +82,8 @@ struct netns_ipv4 {
 
 	int sysctl_fwmark_reflect;
 	int sysctl_tcp_fwmark_accept;
+	int sysctl_tcp_mtu_probing;
+	int sysctl_tcp_base_mss;
 
 	struct ping_group_range ping_group_range;
 
