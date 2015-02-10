@@ -2390,6 +2390,8 @@ intel_alloc_plane_obj(struct intel_crtc *crtc,
 	mode_cmd.width = fb->width;
 	mode_cmd.height = fb->height;
 	mode_cmd.pitches[0] = fb->pitches[0];
+	mode_cmd.modifier[0] = fb->modifier[0];
+	mode_cmd.flags = DRM_MODE_FB_MODIFIERS;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -6624,9 +6626,12 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	fb = &intel_fb->base;
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		if (val & DISPPLANE_TILED)
+	if (INTEL_INFO(dev)->gen >= 4) {
+		if (val & DISPPLANE_TILED) {
 			plane_config->tiling = I915_TILING_X;
+			fb->modifier[0] = I915_FORMAT_MOD_X_TILED;
+		}
+	}
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = i9xx_format_to_fourcc(pixel_format);
@@ -7658,8 +7663,10 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	if (!(val & PLANE_CTL_ENABLE))
 		goto error;
 
-	if (val & PLANE_CTL_TILED_MASK)
+	if (val & PLANE_CTL_TILED_MASK) {
 		plane_config->tiling = I915_TILING_X;
+		fb->modifier[0] = I915_FORMAT_MOD_X_TILED;
+	}
 
 	pixel_format = val & PLANE_CTL_FORMAT_MASK;
 	fourcc = skl_format_to_fourcc(pixel_format,
@@ -7757,9 +7764,12 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 
 	fb = &intel_fb->base;
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		if (val & DISPPLANE_TILED)
+	if (INTEL_INFO(dev)->gen >= 4) {
+		if (val & DISPPLANE_TILED) {
 			plane_config->tiling = I915_TILING_X;
+			fb->modifier[0] = I915_FORMAT_MOD_X_TILED;
+		}
+	}
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = i9xx_format_to_fourcc(pixel_format);
