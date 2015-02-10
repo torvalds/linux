@@ -502,6 +502,68 @@ static void ring_setup_phys_status_page(struct intel_engine_cs *ring)
 	I915_WRITE(HWS_PGA, addr);
 }
 
+static void intel_ring_setup_status_page(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	u32 mmio = 0;
+
+	/* The ring status page addresses are no longer next to the rest of
+	 * the ring registers as of gen7.
+	 */
+	if (IS_GEN7(dev)) {
+		switch (ring->id) {
+		case RCS:
+			mmio = RENDER_HWS_PGA_GEN7;
+			break;
+		case BCS:
+			mmio = BLT_HWS_PGA_GEN7;
+			break;
+		/*
+		 * VCS2 actually doesn't exist on Gen7. Only shut up
+		 * gcc switch check warning
+		 */
+		case VCS2:
+		case VCS:
+			mmio = BSD_HWS_PGA_GEN7;
+			break;
+		case VECS:
+			mmio = VEBOX_HWS_PGA_GEN7;
+			break;
+		}
+	} else if (IS_GEN6(ring->dev)) {
+		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
+	} else {
+		/* XXX: gen8 returns to sanity */
+		mmio = RING_HWS_PGA(ring->mmio_base);
+	}
+
+	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
+	POSTING_READ(mmio);
+
+	/*
+	 * Flush the TLB for this page
+	 *
+	 * FIXME: These two bits have disappeared on gen8, so a question
+	 * arises: do we still need this and if so how should we go about
+	 * invalidating the TLB?
+	 */
+	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8) {
+		u32 reg = RING_INSTPM(ring->mmio_base);
+
+		/* ring should be idle before issuing a sync flush*/
+		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
+
+		I915_WRITE(reg,
+			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
+					      INSTPM_SYNC_FLUSH));
+		if (wait_for((I915_READ(reg) & INSTPM_SYNC_FLUSH) == 0,
+			     1000))
+			DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
+				  ring->name);
+	}
+}
+
 static bool stop_ring(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = to_i915(ring->dev);
@@ -1436,68 +1498,6 @@ i8xx_ring_put_irq(struct intel_engine_cs *ring)
 		POSTING_READ16(IMR);
 	}
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-}
-
-void intel_ring_setup_status_page(struct intel_engine_cs *ring)
-{
-	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	u32 mmio = 0;
-
-	/* The ring status page addresses are no longer next to the rest of
-	 * the ring registers as of gen7.
-	 */
-	if (IS_GEN7(dev)) {
-		switch (ring->id) {
-		case RCS:
-			mmio = RENDER_HWS_PGA_GEN7;
-			break;
-		case BCS:
-			mmio = BLT_HWS_PGA_GEN7;
-			break;
-		/*
-		 * VCS2 actually doesn't exist on Gen7. Only shut up
-		 * gcc switch check warning
-		 */
-		case VCS2:
-		case VCS:
-			mmio = BSD_HWS_PGA_GEN7;
-			break;
-		case VECS:
-			mmio = VEBOX_HWS_PGA_GEN7;
-			break;
-		}
-	} else if (IS_GEN6(ring->dev)) {
-		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
-	} else {
-		/* XXX: gen8 returns to sanity */
-		mmio = RING_HWS_PGA(ring->mmio_base);
-	}
-
-	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
-	POSTING_READ(mmio);
-
-	/*
-	 * Flush the TLB for this page
-	 *
-	 * FIXME: These two bits have disappeared on gen8, so a question
-	 * arises: do we still need this and if so how should we go about
-	 * invalidating the TLB?
-	 */
-	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8) {
-		u32 reg = RING_INSTPM(ring->mmio_base);
-
-		/* ring should be idle before issuing a sync flush*/
-		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
-
-		I915_WRITE(reg,
-			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
-					      INSTPM_SYNC_FLUSH));
-		if (wait_for((I915_READ(reg) & INSTPM_SYNC_FLUSH) == 0,
-			     1000))
-			DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
-				  ring->name);
-	}
 }
 
 static int

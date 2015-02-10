@@ -425,7 +425,6 @@ int intel_init_blt_ring_buffer(struct drm_device *dev);
 int intel_init_vebox_ring_buffer(struct drm_device *dev);
 
 u64 intel_ring_get_active_head(struct intel_engine_cs *ring);
-void intel_ring_setup_status_page(struct intel_engine_cs *ring);
 
 int init_workarounds_ring(struct intel_engine_cs *ring);
 
