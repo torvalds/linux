@@ -108,6 +108,7 @@ void context_tracking_enter(enum ctx_state state)
 	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(context_tracking_enter);
+EXPORT_SYMBOL_GPL(context_tracking_enter);
 
 void context_tracking_user_enter(void)
 {
@@ -155,6 +156,7 @@ void context_tracking_exit(enum ctx_state state)
 	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(context_tracking_exit);
+EXPORT_SYMBOL_GPL(context_tracking_exit);
 
 void context_tracking_user_exit(void)
 {
