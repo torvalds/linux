@@ -515,10 +515,10 @@ int ff_layout_encode_ds_ioerr(struct nfs4_flexfile_layout *flo,
 		*p++ = cpu_to_be32(err->opnum);
 		*count += 1;
 		list_del(&err->list);
-		kfree(err);
 		dprintk("%s: offset %llu length %llu status %d op %d count %d\n",
 			__func__, err->offset, err->length, err->status,
 			err->opnum, *count);
+		kfree(err);
 	}
 
 	return 0;
