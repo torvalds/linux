@@ -1046,10 +1046,7 @@ static int ext4_mark_dquot_dirty(struct dquot *dquot);
 static int ext4_write_info(struct super_block *sb, int type);
 static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 			 struct path *path);
-static int ext4_quota_on_sysfile(struct super_block *sb, int type,
-				 int format_id);
 static int ext4_quota_off(struct super_block *sb, int type);
-static int ext4_quota_off_sysfile(struct super_block *sb, int type);
 static int ext4_quota_on_mount(struct super_block *sb, int type);
 static ssize_t ext4_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off);
@@ -1078,16 +1075,6 @@ static const struct dquot_operations ext4_quota_operations = {
 static const struct quotactl_ops ext4_qctl_operations = {
 	.quota_on	= ext4_quota_on,
 	.quota_off	= ext4_quota_off,
-	.quota_sync	= dquot_quota_sync,
-	.get_info	= dquot_get_dqinfo,
-	.set_info	= dquot_set_dqinfo,
-	.get_dqblk	= dquot_get_dqblk,
-	.set_dqblk	= dquot_set_dqblk
-};
-
-static const struct quotactl_ops ext4_qctl_sysfile_operations = {
-	.quota_on_meta	= ext4_quota_on_sysfile,
-	.quota_off	= ext4_quota_off_sysfile,
 	.quota_sync	= dquot_quota_sync,
 	.get_info	= dquot_get_dqinfo,
 	.set_info	= dquot_set_dqinfo,
@@ -3935,7 +3922,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &ext4_quota_operations;
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA))
-		sb->s_qcop = &ext4_qctl_sysfile_operations;
+		sb->s_qcop = &dquot_quotactl_sysfile_ops;
 	else
 		sb->s_qcop = &ext4_qctl_operations;
 	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
@@ -5288,21 +5275,6 @@ static int ext4_enable_quotas(struct super_block *sb)
 	return 0;
 }
 
-/*
- * quota_on function that is used when QUOTA feature is set.
- */
-static int ext4_quota_on_sysfile(struct super_block *sb, int type,
-				 int format_id)
-{
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA))
-		return -EINVAL;
-
-	/*
-	 * USAGE was enabled at mount time. Only need to enable LIMITS now.
-	 */
-	return ext4_quota_enable(sb, type, format_id, DQUOT_LIMITS_ENABLED);
-}
-
 static int ext4_quota_off(struct super_block *sb, int type)
 {
 	struct inode *inode = sb_dqopt(sb)->files[type];
@@ -5327,18 +5299,6 @@ static int ext4_quota_off(struct super_block *sb, int type)
 
 out:
 	return dquot_quota_off(sb, type);
-}
-
-/*
- * quota_off function that is used when QUOTA feature is set.
- */
-static int ext4_quota_off_sysfile(struct super_block *sb, int type)
-{
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA))
-		return -EINVAL;
-
-	/* Disable only the limits. */
-	return dquot_disable(sb, type, DQUOT_LIMITS_ENABLED);
 }
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford
