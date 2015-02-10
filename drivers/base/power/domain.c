@@ -1048,6 +1048,8 @@ static int pm_genpd_suspend_noirq(struct device *dev)
 	    || (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev)))
 		return 0;
 
+	pm_generic_suspend_noirq(dev);
+
 	genpd_stop_dev(genpd, dev);
 
 	/*
@@ -1070,6 +1072,7 @@ static int pm_genpd_suspend_noirq(struct device *dev)
 static int pm_genpd_resume_noirq(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
+	int ret;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -1089,7 +1092,11 @@ static int pm_genpd_resume_noirq(struct device *dev)
 	pm_genpd_sync_poweron(genpd);
 	genpd->suspended_count--;
 
-	return genpd_start_dev(genpd, dev);
+	ret = genpd_start_dev(genpd, dev);
+
+	pm_generic_resume_noirq(dev);
+
+	return ret;
 }
 
 /**
