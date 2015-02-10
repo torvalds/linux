@@ -12706,7 +12706,24 @@ static int intel_framebuffer_init(struct drm_device *dev,
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	if (obj->tiling_mode == I915_TILING_Y) {
+	if (mode_cmd->flags & DRM_MODE_FB_MODIFIERS) {
+		/* Enforce that fb modifier and tiling mode match, but only for
+		 * X-tiled. This is needed for FBC. */
+		if (!!(obj->tiling_mode == I915_TILING_X) !=
+		    !!(mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED)) {
+			DRM_DEBUG("tiling_mode doesn't match fb modifier\n");
+			return -EINVAL;
+		}
+	} else {
+		if (obj->tiling_mode == I915_TILING_X)
+			mode_cmd->modifier[0] = I915_FORMAT_MOD_X_TILED;
+		else if (obj->tiling_mode == I915_TILING_Y) {
+			DRM_DEBUG("No Y tiling for legacy addfb\n");
+			return -EINVAL;
+		}
+	}
+
+	if (mode_cmd->modifier[0] == I915_FORMAT_MOD_Y_TILED) {
 		DRM_DEBUG("hardware does not support tiling Y\n");
 		return -EINVAL;
 	}
@@ -12720,12 +12737,12 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev)) {
 		pitch_limit = 32*1024;
 	} else if (INTEL_INFO(dev)->gen >= 4) {
-		if (obj->tiling_mode)
+		if (mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED)
 			pitch_limit = 16*1024;
 		else
 			pitch_limit = 32*1024;
 	} else if (INTEL_INFO(dev)->gen >= 3) {
-		if (obj->tiling_mode)
+		if (mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED)
 			pitch_limit = 8*1024;
 		else
 			pitch_limit = 16*1024;
@@ -12735,12 +12752,13 @@ static int intel_framebuffer_init(struct drm_device *dev,
 
 	if (mode_cmd->pitches[0] > pitch_limit) {
 		DRM_DEBUG("%s pitch (%d) must be at less than %d\n",
-			  obj->tiling_mode ? "tiled" : "linear",
+			  mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED ?
+			  "tiled" : "linear",
 			  mode_cmd->pitches[0], pitch_limit);
 		return -EINVAL;
 	}
 
-	if (obj->tiling_mode != I915_TILING_NONE &&
+	if (mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED &&
 	    mode_cmd->pitches[0] != obj->stride) {
 		DRM_DEBUG("pitch (%d) must match tiling stride (%d)\n",
 			  mode_cmd->pitches[0], obj->stride);
