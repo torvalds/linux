@@ -29,6 +29,7 @@
 #include <drm/drm_vma_manager.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include <linux/oom.h>
@@ -4986,6 +4987,10 @@ i915_gem_load(struct drm_device *dev)
 		dev_priv->num_fence_regs = 16;
 	else
 		dev_priv->num_fence_regs = 8;
+
+	if (intel_vgpu_active(dev))
+		dev_priv->num_fence_regs =
+				I915_READ(vgtif_reg(avail_rs.fence_num));
 
 	/* Initialize fence registers to zero */
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
