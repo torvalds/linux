@@ -36,6 +36,11 @@
 #define HSW_PCM_COUNT		6
 #define HSW_VOLUME_MAX		0x7FFFFFFF	/* 0dB */
 
+#define SST_OLD_POSITION(d, r, o) ((d) +		\
+			frames_to_bytes(r, o))
+#define SST_SAMPLES(r, x) (bytes_to_samples(r,	\
+			frames_to_bytes(r, (x))))
+
 /* simple volume table */
 static const u32 volume_map[] = {
 	HSW_VOLUME_MAX >> 30,
@@ -577,22 +582,33 @@ static int hsw_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct hsw_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
 	struct hsw_pcm_data *pcm_data;
+	struct sst_hsw_stream *sst_stream;
 	struct sst_hsw *hsw = pdata->hsw;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	snd_pcm_uframes_t pos;
 	int dai;
 
 	dai = mod_map[rtd->cpu_dai->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
+	sst_stream = pcm_data->stream;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		sst_hsw_stream_set_silence_start(hsw, sst_stream, false);
 		sst_hsw_stream_resume(hsw, pcm_data->stream, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		sst_hsw_stream_set_silence_start(hsw, sst_stream, false);
 		sst_hsw_stream_pause(hsw, pcm_data->stream, 0);
+		break;
+	case SNDRV_PCM_TRIGGER_DRAIN:
+		pos = runtime->control->appl_ptr % runtime->buffer_size;
+		sst_hsw_stream_set_old_position(hsw, pcm_data->stream, pos);
+		sst_hsw_stream_set_silence_start(hsw, sst_stream, true);
 		break;
 	default:
 		break;
@@ -607,12 +623,61 @@ static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
 	struct snd_pcm_substream *substream = pcm_data->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct hsw_priv_data *pdata =
+		snd_soc_platform_get_drvdata(rtd->platform);
+	struct sst_hsw *hsw = pdata->hsw;
 	u32 pos;
+	snd_pcm_uframes_t position = bytes_to_frames(runtime,
+		 sst_hsw_get_dsp_position(hsw, pcm_data->stream));
+	unsigned char *dma_area = runtime->dma_area;
+	snd_pcm_uframes_t dma_frames =
+		bytes_to_frames(runtime, runtime->dma_bytes);
+	snd_pcm_uframes_t old_position;
+	ssize_t samples;
 
 	pos = frames_to_bytes(runtime,
 		(runtime->control->appl_ptr % runtime->buffer_size));
 
 	dev_vdbg(rtd->dev, "PCM: App pointer %d bytes\n", pos);
+
+	/* SST fw don't know where to stop dma
+	 * So, SST driver need to clean the data which has been consumed
+	 */
+	if (dma_area == NULL || dma_frames <= 0
+		|| (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		|| !sst_hsw_stream_get_silence_start(hsw, stream)) {
+		snd_pcm_period_elapsed(substream);
+		return pos;
+	}
+
+	old_position = sst_hsw_stream_get_old_position(hsw, stream);
+	if (position > old_position) {
+		if (position < dma_frames) {
+			samples = SST_SAMPLES(runtime, position - old_position);
+			snd_pcm_format_set_silence(runtime->format,
+				SST_OLD_POSITION(dma_area,
+					runtime, old_position),
+				samples);
+		} else
+			dev_err(rtd->dev, "PCM: position is wrong\n");
+	} else {
+		if (old_position < dma_frames) {
+			samples = SST_SAMPLES(runtime,
+				dma_frames - old_position);
+			snd_pcm_format_set_silence(runtime->format,
+				SST_OLD_POSITION(dma_area,
+					runtime, old_position),
+				samples);
+		} else
+			dev_err(rtd->dev, "PCM: dma_bytes is wrong\n");
+		if (position < dma_frames) {
+			samples = SST_SAMPLES(runtime, position);
+			snd_pcm_format_set_silence(runtime->format,
+				dma_area, samples);
+		} else
+			dev_err(rtd->dev, "PCM: position is wrong\n");
+	}
+	sst_hsw_stream_set_old_position(hsw, stream, position);
 
 	/* let alsa know we have play a period */
 	snd_pcm_period_elapsed(substream);

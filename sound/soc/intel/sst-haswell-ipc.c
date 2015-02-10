@@ -31,6 +31,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
+#include <sound/asound.h>
 
 #include "sst-haswell-ipc.h"
 #include "sst-dsp.h"
@@ -242,6 +243,9 @@ struct sst_hsw_stream {
 	u32 (*notify_position)(struct sst_hsw_stream *stream, void *data);
 	void *pdata;
 
+	/* record the fw read position when playback */
+	snd_pcm_uframes_t old_position;
+	bool play_silence;
 	struct list_head node;
 };
 
@@ -1345,6 +1349,30 @@ int sst_hsw_stream_commit(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	trace_hsw_stream_alloc_reply(stream);
 
 	return 0;
+}
+
+snd_pcm_uframes_t sst_hsw_stream_get_old_position(struct sst_hsw *hsw,
+	struct sst_hsw_stream *stream)
+{
+	return stream->old_position;
+}
+
+void sst_hsw_stream_set_old_position(struct sst_hsw *hsw,
+	struct sst_hsw_stream *stream, snd_pcm_uframes_t val)
+{
+	stream->old_position = val;
+}
+
+bool sst_hsw_stream_get_silence_start(struct sst_hsw *hsw,
+	struct sst_hsw_stream *stream)
+{
+	return stream->play_silence;
+}
+
+void sst_hsw_stream_set_silence_start(struct sst_hsw *hsw,
+	struct sst_hsw_stream *stream, bool val)
+{
+	stream->play_silence = val;
 }
 
 /* Stream Information - these calls could be inline but we want the IPC
