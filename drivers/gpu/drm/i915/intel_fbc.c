@@ -505,6 +505,10 @@ void intel_fbc_update(struct drm_device *dev)
 	if (!HAS_FBC(dev))
 		return;
 
+	/* disable framebuffer compression in vGPU */
+	if (intel_vgpu_active(dev))
+		i915.enable_fbc = 0;
+
 	if (i915.enable_fbc < 0) {
 		if (set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT))
 			DRM_DEBUG_KMS("disabled per chip default\n");
