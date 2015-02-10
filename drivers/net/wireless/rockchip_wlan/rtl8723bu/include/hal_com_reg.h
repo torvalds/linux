@@ -267,6 +267,7 @@
 #define REG_PKT_BE_BK_LIFE_TIME		0x04C2
 #define REG_STBC_SETTING				0x04C4
 #define REG_QUEUE_CTRL					0x04C6
+#define REG_SINGLE_AMPDU_CTRL			0x04c7
 #define REG_PROT_MODE_CTRL			0x04C8
 #define REG_MAX_AGGR_NUM				0x04CA
 #define REG_RTS_MAX_AGGR_NUM			0x04CB
@@ -638,6 +639,9 @@ Default: 00b.
 #define RRSR_MCS6				BIT18
 #define RRSR_MCS7				BIT19
 
+#define RRSR_CCK_RATES (RRSR_11M|RRSR_5_5M|RRSR_2M|RRSR_1M)
+#define RRSR_OFDM_RATES (RRSR_54M|RRSR_48M|RRSR_36M|RRSR_24M|RRSR_18M|RRSR_12M|RRSR_9M|RRSR_6M)
+
 // WOL bit information
 #define HAL92C_WOL_PTK_UPDATE_EVENT		BIT0
 #define HAL92C_WOL_GTK_UPDATE_EVENT		BIT1
@@ -761,10 +765,6 @@ Default: 00b.
 #define CAM_WRITE				BIT16
 #define CAM_READ				0x00000000
 #define CAM_POLLINIG			BIT31
-
-#define SCR_UseDK				0x01
-#define SCR_TxSecEnable			0x02
-#define SCR_RxSecEnable			0x04
 
 //
 // 10. Power Save Control Registers	 
@@ -1514,6 +1514,7 @@ Current IOREG MAP
 #define SCR_NoSKMC				BIT(5)			//No Key Search Multicast
 #define SCR_TXBCUSEDK			BIT(6)			// Force Tx Broadcast packets Use Default Key
 #define SCR_RXBCUSEDK			BIT(7)			// Force Rx Broadcast packets Use Default Key
+#define SCR_CHK_KEYID			BIT(8)
 
 //-----------------------------------------------------
 //
@@ -1716,7 +1717,7 @@ Current IOREG MAP
 // General definitions
 //========================================================
 
-#define LAST_ENTRY_OF_TX_PKT_BUFFER_8188E		176
+#define LAST_ENTRY_OF_TX_PKT_BUFFER_8188E(__Adapter)	   ( IS_VENDOR_8188E_I_CUT_SERIES(__Adapter) ? 255 : 175 )
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8812			255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8723B		255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8192C		255

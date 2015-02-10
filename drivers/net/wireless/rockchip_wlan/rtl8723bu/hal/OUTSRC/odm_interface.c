@@ -312,6 +312,20 @@ ODM_MoveMemory(
 #endif	
 }
 
+void ODM_Memory_Set
+	(IN 	PDM_ODM_T	pDM_Odm,
+		IN  PVOID	pbuf,
+		IN  s1Byte	value,
+		IN  u4Byte	length)
+{
+#if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
+	
+#elif (DM_ODM_SUPPORT_TYPE & ODM_CE )	
+	_rtw_memset(pbuf,value, length);
+#elif(DM_ODM_SUPPORT_TYPE & ODM_WIN)
+	PlatformFillMemory(pbuf,length,value);
+#endif
+}
 s4Byte ODM_CompareMemory(
 	IN 	PDM_ODM_T		pDM_Odm,
 	IN	PVOID           pBuf1,

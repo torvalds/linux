@@ -112,14 +112,33 @@ delay_loop:
 
 	ldr r2,=0x2000a000
 	ldr r3,[r2,#0]
-	orr r3, r3, #0xc;/*phy soft de-reset*/
+	orr r3, r3, #0x4;/*phy soft de-reset dll*/
 	str r3,[r2,#0]
-	sub r2, r2, #0x2000; /*0x20008000*/
-	ldr r3,=0x40004
-	str r3,[r2,#0x148]
+	mov r0,#5
+	mov r1,#5
+	mul r0, r0, r1
+delay5us_loop:
+	subs r0, r0, #1
+	bne delay5us_loop
+	orr r3, r3, #0x8;/*phy soft de-reset*/
+	str r3,[r2,#0]
 
+	sub r2,r2,#0x2000;/*0x20008000*/
+	ldr r3,[r2,#0x300];/*get chip id*/
+	sub r3,r3,#0x3100
+	subs r3,r3,#0x12
+	bne rk3126b_buffer_en;/*RK3126B*/
+	ldr r3,=0x40004
+ 	str r3,[r2,#0x148];/*buffer en*/
+	b move_access
+rk3126b_buffer_en:
+ 	ldr r2,=0x2000a000
+	mov r3,#0x2
+	str r3,[r2,#0x264]
+
+move_access:
 	/*move to access status*/
-	sub r2, r2, #0x4000;/*0x20004000*/
+    	ldr r2,=0x20004000
 	mov r3, #4
 	str r3,[r2,#0x4];/*wake up */
 	dsb sy

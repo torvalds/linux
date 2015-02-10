@@ -70,6 +70,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_RESP_SIFS,
 	HW_VAR_ACK_PREAMBLE,
 	HW_VAR_SEC_CFG,
+	HW_VAR_SEC_DK_CFG,
 	HW_VAR_BCN_VALID,
 	HW_VAR_RF_TYPE,
 	HW_VAR_DM_FLAG,
@@ -128,6 +129,9 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_READ_LLT_TAB,
 	HW_VAR_C2HEVT_CLEAR,
 	HW_VAR_C2HEVT_MSG_NORMAL,
+	HW_VAR_DUMP_MAC_QUEUE_INFO,
+	HW_VAR_MACID_SLEEP,
+	HW_VAR_MACID_WAKEUP,
 }HW_VARIABLES;
 
 typedef enum _HAL_DEF_VARIABLE{
@@ -148,6 +152,7 @@ typedef enum _HAL_DEF_VARIABLE{
 	HW_DEF_FA_CNT_DUMP,
 	HW_DEF_ODM_DBG_FLAG,
 	HW_DEF_ODM_DBG_LEVEL,
+	HAL_DEF_MACID_SLEEP, // Support for MACID sleep
 }HAL_DEF_VARIABLE;
 
 typedef enum _HAL_ODM_VARIABLE{
@@ -486,6 +491,9 @@ void rtw_hal_reset_security_engine(_adapter * adapter);
 
 s32 rtw_hal_c2h_handler(_adapter *adapter, struct c2h_evt_hdr *c2h_evt);
 c2h_id_filter rtw_hal_c2h_id_filter_ccx(_adapter *adapter);
+
+s32 rtw_hal_macid_sleep(PADAPTER padapter, u8 macid);
+s32 rtw_hal_macid_wakeup(PADAPTER padapter, u8 macid);
 
 #endif //__HAL_INTF_H__
 

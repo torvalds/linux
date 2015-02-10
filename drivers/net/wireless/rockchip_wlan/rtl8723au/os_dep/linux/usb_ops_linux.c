@@ -167,7 +167,7 @@ unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 		pipe=usb_rcvbulkpipe(pusbd, pdvobj->RtInPipe[0]);
 		
 	} else if (addr == RECV_INT_IN_ADDR) {	
-		pipe=usb_rcvbulkpipe(pusbd, pdvobj->RtInPipe[1]);
+		pipe=usb_rcvintpipe(pusbd, pdvobj->RtInPipe[1]);
 		
 	} else if (addr < HW_QUEUE_ENTRY) {
 		ep_num = pdvobj->Queue2Pipe[addr];
@@ -329,11 +329,6 @@ _func_enter_;
 			break;
 		case BK_QUEUE_INX:
 			pxmitpriv->bkq_cnt--;			
-			break;
-		case HIGH_QUEUE_INX:
-#ifdef CONFIG_AP_MODE			
-			rtw_chk_hi_queue_cmd(padapter);
-#endif
 			break;
 		default:			
 			break;

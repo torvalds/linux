@@ -53,7 +53,9 @@ CONFIG_TRAFFIC_PROTECT = y
 CONFIG_LOAD_PHY_PARA_FROM_FILE = y
 CONFIG_CALIBRATE_TX_POWER_BY_REGULATORY = n
 CONFIG_CALIBRATE_TX_POWER_TO_MAX = n
-CONFIG_ODM_ADAPTIVITY = n
+CONFIG_RTW_ADAPTIVITY_EN = auto
+CONFIG_RTW_ADAPTIVITY_MODE = normal
+CONFIG_SKIP_SIGNAL_SCALE_MAPPING = n
 ######################## Wake On Lan ##########################
 CONFIG_WOWLAN = n
 CONFIG_GPIO_WAKEUP = n
@@ -63,7 +65,7 @@ CONFIG_AP_WOWLAN = n
 ######### Notify SDIO Host Keep Power During Syspend ##########
 CONFIG_RTW_SDIO_PM_KEEP_POWER = y
 ###################### Platform Related #######################
-CONFIG_PLATFORM_I386_PC = y
+CONFIG_PLATFORM_I386_PC = n
 CONFIG_PLATFORM_ANDROID_X86 = n
 CONFIG_PLATFORM_JB_X86 = n
 CONFIG_PLATFORM_ARM_S3C2K4 = n
@@ -85,13 +87,12 @@ CONFIG_PLATFORM_ARM_TCC8900 = n
 CONFIG_PLATFORM_ARM_TCC8920 = n
 CONFIG_PLATFORM_ARM_TCC8920_JB42 = n
 CONFIG_PLATFORM_ARM_RK2818 = n
-CONFIG_PLATFORM_ARM_RK3066 = y
-CONFIG_PLATFORM_ARM_RK3188 = n
+CONFIG_PLATFORM_ARM_RK3066 = n
+CONFIG_PLATFORM_ARM_RK3188 = y
 CONFIG_PLATFORM_ARM_URBETTER = n
 CONFIG_PLATFORM_ARM_TI_PANDA = n
 CONFIG_PLATFORM_MIPS_JZ4760 = n
 CONFIG_PLATFORM_DMP_PHILIPS = n
-CONFIG_PLATFORM_TI_DM365 = n
 CONFIG_PLATFORM_MSTAR_TITANIA12 = n
 CONFIG_PLATFORM_MSTAR = n
 CONFIG_PLATFORM_SZEBOOK = n
@@ -104,6 +105,9 @@ CONFIG_PLATFORM_ACTIONS_ATV5201 = n
 CONFIG_PLATFORM_ARM_RTD299X = n
 CONFIG_PLATFORM_ARM_SPREADTRUM_6820 = n
 CONFIG_PLATFORM_ARM_SPREADTRUM_8810 = n
+CONFIG_PLATFORM_ARM_WMT = n
+CONFIG_PLATFORM_TI_DM365 = n
+CONFIG_PLATFORM_MOZART = n
 ###############################################################
 
 CONFIG_DRVEXT_MODULE = n
@@ -165,8 +169,16 @@ _OUTSRC_FILES := hal/OUTSRC/odm_debug.o	\
 		hal/OUTSRC/odm_interface.o\
 		hal/OUTSRC/odm_HWConfig.o\
 		hal/OUTSRC/odm.o\
-		hal/OUTSRC/HalPhyRf.o
-
+		hal/OUTSRC/HalPhyRf.o\
+		hal/OUTSRC/odm_EdcaTurboCheck.o\
+		hal/OUTSRC/odm_DIG.o\
+		hal/OUTSRC/odm_PathDiv.o\
+		hal/OUTSRC/odm_RaInfo.o\
+		hal/OUTSRC/odm_DynamicBBPowerSaving.o\
+		hal/OUTSRC/odm_DynamicTxPower.o\
+		hal/OUTSRC/odm_CfoTracking.o\
+		hal/OUTSRC/odm_NoiseMonitor.o
+		
 EXTRA_CFLAGS += -I$(src)/platform
 _PLATFORM_FILES := platform/platform_ops.o
 
@@ -183,7 +195,8 @@ _OUTSRC_FILES += hal/OUTSRC-BTCoexist/HalBtc8188c2Ant.o \
 				hal/OUTSRC-BTCoexist/HalBtc8812a1Ant.o \
 				hal/OUTSRC-BTCoexist/HalBtc8812a2Ant.o \
 				hal/OUTSRC-BTCoexist/HalBtc8821a1Ant.o \
-				hal/OUTSRC-BTCoexist/HalBtc8821a2Ant.o
+				hal/OUTSRC-BTCoexist/HalBtc8821a2Ant.o \
+				hal/OUTSRC-BTCoexist/HalBtc8821aCsr2Ant.o
 endif
 		
 ########### HAL_RTL8192C #################################										
@@ -370,6 +383,10 @@ ifeq ($(CONFIG_SDIO_HCI), y)
 MODULE_NAME = 8189es
 endif
 
+ifeq ($(CONFIG_GSPI_HCI), y)
+MODULE_NAME = 8189es
+endif
+
 ifeq ($(CONFIG_USB_HCI), y)
 MODULE_NAME = 8188eu
 endif
@@ -530,10 +547,6 @@ _OUTSRC_FILES += hal/OUTSRC/$(RTL871X)/HalHWImg8812A_FW.o\
 		hal/OUTSRC/$(RTL871X)/HalHWImg8812A_MAC.o\
 		hal/OUTSRC/$(RTL871X)/HalHWImg8812A_BB.o\
 		hal/OUTSRC/$(RTL871X)/HalHWImg8812A_RF.o\
-		hal/OUTSRC/$(RTL871X)/HalHWImg8812A_TestChip_FW.o\
-		hal/OUTSRC/$(RTL871X)/HalHWImg8812A_TestChip_MAC.o\
-		hal/OUTSRC/$(RTL871X)/HalHWImg8812A_TestChip_BB.o\
-		hal/OUTSRC/$(RTL871X)/HalHWImg8812A_TestChip_RF.o\
 		hal/OUTSRC/$(RTL871X)/HalPhyRf_8812A.o\
 		hal/OUTSRC/$(RTL871X)/odm_RegConfig8812A.o\
 		hal/OUTSRC/$(RTL871X)/odm_RTL8812A.o
@@ -561,9 +574,6 @@ _OUTSRC_FILES += hal/OUTSRC/rtl8821a/HalHWImg8821A_FW.o\
 		hal/OUTSRC/rtl8821a/HalHWImg8821A_MAC.o\
 		hal/OUTSRC/rtl8821a/HalHWImg8821A_BB.o\
 		hal/OUTSRC/rtl8821a/HalHWImg8821A_RF.o\
-		hal/OUTSRC/rtl8821a/HalHWImg8821A_TestChip_MAC.o\
-		hal/OUTSRC/rtl8821a/HalHWImg8821A_TestChip_BB.o\
-		hal/OUTSRC/rtl8821a/HalHWImg8821A_TestChip_RF.o\
 		hal/OUTSRC/rtl8812a/HalPhyRf_8812A.o\
 		hal/OUTSRC/rtl8821a/HalPhyRf_8821A.o\
 		hal/OUTSRC/rtl8821a/odm_RegConfig8821A.o\
@@ -689,6 +699,12 @@ endif
 
 ifeq ($(CONFIG_EFUSE_CONFIG_FILE), y)
 EXTRA_CFLAGS += -DCONFIG_EFUSE_CONFIG_FILE
+ifeq ($(MODULE_NAME), 8189es)
+EXTRA_CFLAGS += -DEFUSE_MAP_PATH=\"/system/etc/wifi/wifi_efuse_8189e.map\"
+else
+EXTRA_CFLAGS += -DEFUSE_MAP_PATH=\"/system/etc/wifi/wifi_efuse_$(MODULE_NAME).map\"
+endif
+EXTRA_CFLAGS += -DWIFIMAC_PATH=\"/data/wifimac.txt\"
 endif
 
 ifeq ($(CONFIG_EXT_CLK), y)
@@ -711,8 +727,22 @@ ifeq ($(CONFIG_CALIBRATE_TX_POWER_TO_MAX), y)
 EXTRA_CFLAGS += -DCONFIG_CALIBRATE_TX_POWER_TO_MAX
 endif
 
-ifeq ($(CONFIG_ODM_ADAPTIVITY), y)
-EXTRA_CFLAGS += -DCONFIG_ODM_ADAPTIVITY
+ifeq ($(CONFIG_RTW_ADAPTIVITY_EN), disable)
+EXTRA_CFLAGS += -DCONFIG_RTW_ADAPTIVITY_EN=0
+else ifeq ($(CONFIG_RTW_ADAPTIVITY_EN), enable)
+EXTRA_CFLAGS += -DCONFIG_RTW_ADAPTIVITY_EN=1
+else ifeq ($(CONFIG_RTW_ADAPTIVITY_EN), auto)
+EXTRA_CFLAGS += -DCONFIG_RTW_ADAPTIVITY_EN=2
+endif
+
+ifeq ($(CONFIG_RTW_ADAPTIVITY_MODE), normal)
+EXTRA_CFLAGS += -DCONFIG_RTW_ADAPTIVITY_MODE=0
+else ifeq ($(CONFIG_RTW_ADAPTIVITY_MODE), carrier_sense)
+EXTRA_CFLAGS += -DCONFIG_RTW_ADAPTIVITY_MODE=1
+endif
+
+ifeq ($(CONFIG_SKIP_SIGNAL_SCALE_MAPPING), y)
+EXTRA_CFLAGS += -DCONFIG_SKIP_SIGNAL_SCALE_MAPPING
 endif
 
 ifeq ($(CONFIG_WOWLAN), y)
@@ -748,6 +778,10 @@ endif
 
 ifeq ($(CONFIG_PLATFORM_I386_PC), y)
 EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
+EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
+EXTRA_CFLAGS += -DCONFIG_IOCTL_CFG80211
+EXTRA_CFLAGS += -DRTW_USE_CFG80211_STA_EVENT # only enable when kernel >= 3.2
+EXTRA_CFLAGS += -DCONFIG_P2P_IPS
 SUBARCH := $(shell uname -m | sed -e s/i.86/i386/)
 ARCH ?= $(SUBARCH)
 CROSS_COMPILE ?=
@@ -931,10 +965,23 @@ endif
 
 ifeq ($(CONFIG_PLATFORM_TI_DM365), y)
 EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_PLATFORM_TI_DM365
+EXTRA_CFLAGS += -DCONFIG_USE_USB_BUFFER_ALLOC_RX
 ARCH := arm
-CROSS_COMPILE := /home/cnsd4/Appro/mv_pro_5.0/montavista/pro/devkit/arm/v5t_le/bin/arm_v5t_le-
+#CROSS_COMPILE := /home/cnsd4/Appro/mv_pro_5.0/montavista/pro/devkit/arm/v5t_le/bin/arm_v5t_le-
+#KSRC := /home/cnsd4/Appro/mv_pro_5.0/montavista/pro/devkit/lsp/ti-davinci/linux-dm365
+CROSS_COMPILE := /opt/montavista/pro5.0/devkit/arm/v5t_le/bin/arm-linux-
+KSRC:= /home/vivotek/lsp/DM365/kernel_platform/kernel/linux-2.6.18
+KERNELOUTPUT := ${PRODUCTDIR}/tmp
 KVER  := 2.6.18
-KSRC := /home/cnsd4/Appro/mv_pro_5.0/montavista/pro/devkit/lsp/ti-davinci/linux-dm365
+endif
+
+ifeq ($(CONFIG_PLATFORM_MOZART), y)
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_PLATFORM_MOZART
+ARCH := arm
+CROSS_COMPILE := /home/vivotek/lsp/mozart3v2/Mozart3e_Toolchain/build_arm_nofpu/usr/bin/arm-linux-
+KVER  := $(shell uname -r)
+KSRC:= /opt/Vivotek/lsp/mozart3v2/kernel_platform/kernel/mozart_kernel-1.17
+KERNELOUTPUT := /home/pink/sample/ODM/IP8136W-VINT/tmp/kernel
 endif
 
 ifeq ($(CONFIG_PLATFORM_TEGRA3_CARDHU), y)
@@ -994,9 +1041,9 @@ endif
 ifeq ($(CONFIG_PLATFORM_ARM_RK2818), y)
 EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_PLATFORM_ANDROID -DCONFIG_PLATFORM_ROCKCHIPS
 ARCH := arm
-CROSS_COMPILE := /home/xxh/toolchain/arm-eabi-4.4.0/bin/arm-eabi-
-KSRC := /home/xxh/work/3066_Jelly_Bean_4.2_r2/kernel
-MODULE_NAME := 8723bu
+CROSS_COMPILE := /usr/src/release_fae_version/toolchain/arm-eabi-4.4.0/bin/arm-eabi-
+KSRC := /usr/src/release_fae_version/kernel25_A7_281x
+MODULE_NAME := wlan
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_RK3188), y)
@@ -1012,11 +1059,12 @@ EXTRA_CFLAGS += -DCONFIG_P2P_IPS
 ARCH := arm
 CROSS_COMPILE := /home/android_sdk/Rockchip/Rk3188/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-
 KSRC := /home/android_sdk/Rockchip/Rk3188/kernel
-MODULE_NAME := wlan
+MODULE_NAME := 8723bu
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_RK3066), y)
-#EXTRA_CFLAGS += -DRTW_ENABLE_WIFI_CONTROL_FUNC
+EXTRA_CFLAGS += -DCONFIG_PLATFORM_ARM_RK3066
+EXTRA_CFLAGS += -DRTW_ENABLE_WIFI_CONTROL_FUNC
 EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
 EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
 EXTRA_CFLAGS += -DCONFIG_IOCTL_CFG80211
@@ -1026,10 +1074,10 @@ EXTRA_CFLAGS += -DRTW_SUPPORT_PLATFORM_SHUTDOWN
 endif
 EXTRA_CFLAGS += -fno-pic
 ARCH := arm
-CROSS_COMPILE := /home/xxh/work/3066_KitKat/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.6/bin/arm-linux-androideabi-
+CROSS_COMPILE := /home/android_sdk/Rockchip/rk3066_20130607/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.6/bin/arm-linux-androideabi-
 #CROSS_COMPILE := /home/android_sdk/Rockchip/Rk3066sdk/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.6/bin/arm-linux-androideabi-
-KSRC := /home/xxh/work/3066_KitKat/kernel
-MODULE_NAME :=8723bu
+KSRC := /home/android_sdk/Rockchip/Rk3066sdk/kernel
+MODULE_NAME :=wlan
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_URBETTER), y)
@@ -1184,9 +1232,12 @@ _PLATFORM_FILES += platform/platform_ARM_SUNnI_sdio.o
 endif
 
 ARCH := arm
-CROSS_COMPILE := /home/android_sdk/Allwinner/a23/android-jb42/lichee/out/android/common/buildroot/external-toolchain/bin/arm-linux-gnueabi-
-KVER  := 3.4.39
-KSRC :=/home/android_sdk/Allwinner/a23/android-jb42/lichee/linux-3.4
+# ===Cross compile setting for Android 4.2 SDK ===
+#CROSS_COMPILE := /home/android_sdk/Allwinner/a23/android-jb42/lichee/out/android/common/buildroot/external-toolchain/bin/arm-linux-gnueabi-
+#KSRC :=/home/android_sdk/Allwinner/a23/android-jb42/lichee/linux-3.4
+# ===Cross compile setting for Android 4.4 SDK ===
+CROSS_COMPILE := /home/android_sdk/Allwinner/a23/android-kk44/lichee/out/android/common/buildroot/external-toolchain/bin/arm-linux-gnueabi-
+KSRC :=/home/android_sdk/Allwinner/a23/android-kk44/lichee/linux-3.4
 endif
 
 ifeq ($(CONFIG_PLATFORM_ACTIONS_ATV5201), y)
@@ -1234,6 +1285,20 @@ ifeq ($(CONFIG_SDIO_HCI), y)
 EXTRA_CFLAGS += -DCONFIG_PLATFORM_OPS
 _PLATFORM_FILES += platform/platform_sprd_sdio.o
 endif
+endif
+
+ifeq ($(CONFIG_PLATFORM_ARM_WMT), y)
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
+EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
+EXTRA_CFLAGS += -DCONFIG_IOCTL_CFG80211 -DRTW_USE_CFG80211_STA_EVENT
+EXTRA_CFLAGS += -DCONFIG_PLATFORM_OPS
+ifeq ($(CONFIG_SDIO_HCI), y)
+_PLATFORM_FILES += platform/platform_ARM_WMT_sdio.o
+endif
+ARCH := arm
+CROSS_COMPILE := /home/android_sdk/WonderMedia/wm8880-android4.4/toolchain/arm_201103_gcc4.5.2/mybin/arm_1103_le-
+KSRC := /home/android_sdk/WonderMedia/wm8880-android4.4/kernel4.4/
+MODULE_NAME :=8189es_kk
 endif
 
 ifeq ($(CONFIG_MULTIDRV), y)	

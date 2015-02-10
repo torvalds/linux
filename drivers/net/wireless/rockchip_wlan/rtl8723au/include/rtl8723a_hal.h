@@ -818,6 +818,7 @@ void Hal_InitChannelPlan(PADAPTER padapter);
 void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc);
 void SetHwReg8723A(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8723A(PADAPTER padapter, u8 variable, u8 *val);
+u8 GetHalDefVar8723A(PADAPTER Adapter, HAL_DEF_VARIABLE eVariable, PVOID pValue);
 #ifdef CONFIG_BT_COEXIST
 void rtl8723a_SingleDualAntennaDetection(PADAPTER padapter);
 #endif

@@ -8,10 +8,10 @@ static void usb20otg_hw_init(void)
 {
 	/* Turn off differential receiver in suspend mode */
 	writel(UOC_HIWORD_UPDATE(0, 1, 2),
-		   RK_GRF_VIRT + RK312X_GRF_USBPHY0_CON6);
+	       RK_GRF_VIRT + RK312X_GRF_USBPHY0_CON6);
 	/* Set disconnect detection trigger point to 600mv */
-	writel(UOC_HIWORD_UPDATE(1, 0xf, 11),
-		   RK_GRF_VIRT + RK312X_GRF_USBPHY0_CON7);
+	writel(UOC_HIWORD_UPDATE(0, 0xf, 11),
+	       RK_GRF_VIRT + RK312X_GRF_USBPHY0_CON7);
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
 	if (gpio_is_valid(control_usb->otg_gpios->gpio)) {
@@ -449,10 +449,7 @@ static void usb20ehci_clock_init(void *pdata)
 	struct rkehci_platform_data *usbpdata = pdata;
 	struct clk *ahbclk, *phyclk;
 
-	if (soc_is_rk3126b())
-		ahbclk = devm_clk_get(usbpdata->dev, "hclk_hoct0_3126b");
-	else
-		ahbclk = devm_clk_get(usbpdata->dev, "hclk_hoct0_3126");
+	ahbclk = devm_clk_get(usbpdata->dev, "hclk_host0");
 	if (IS_ERR(ahbclk)) {
 		dev_err(usbpdata->dev, "Failed to get hclk_usb1\n");
 		return;

@@ -341,6 +341,15 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 	for (i = 0; i < mi->nr_banks; i++)
 		memblock_add(mi->bank[i].start, mi->bank[i].size);
 
+//#ifdef CONFIG_ARCH_ROCKCHIP
+       for (i = 1; i < memblock.memory.cnt; i++) {
+               struct memblock_region *rgn = &memblock.memory.regions[i];
+
+               if (rgn->size != memblock.memory.regions[i-1].size)
+                       memblock_reserve(rgn->base+rgn->size-PAGE_SIZE, PAGE_SIZE);
+       }
+//#endif
+	
 	/* Register the kernel text, kernel data and initrd with memblock. */
 #ifdef CONFIG_XIP_KERNEL
 	memblock_reserve(__pa(_sdata), _end - _sdata);

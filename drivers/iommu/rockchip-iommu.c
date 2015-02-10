@@ -232,8 +232,9 @@ static void rockchip_iommu_disable_stall(void __iomem *base)
 		return;
 	}
 
-	skip_vop_mmu_disable:
 	__raw_writel(IOMMU_COMMAND_DISABLE_STALL, base + IOMMU_REGISTER_COMMAND);
+
+	skip_vop_mmu_disable:
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
 		u32 status;
@@ -290,8 +291,9 @@ static bool rockchip_iommu_enable_stall(void __iomem *base)
 		return false;
 	}
 
-	skip_vop_mmu_enable:
 	__raw_writel(IOMMU_COMMAND_ENABLE_STALL, base + IOMMU_REGISTER_COMMAND);
+
+	skip_vop_mmu_enable:
 
 	for (i = 0; i < IOMMU_REG_POLL_COUNT_FAST; ++i) {
 		if (base != rk312x_vop_mmu_base) {
@@ -393,16 +395,14 @@ static void rockchip_iommu_page_fault_done(void __iomem *base, const char *dbgna
 	__raw_writel(IOMMU_COMMAND_PAGE_FAULT_DONE,
 		     base + IOMMU_REGISTER_COMMAND);
 }
-#if 1
+
 static int rockchip_iommu_zap_tlb_without_stall (void __iomem *base)
 {
 	__raw_writel(IOMMU_COMMAND_ZAP_CACHE, base + IOMMU_REGISTER_COMMAND);
 
 	return 0;
 }
-#endif
 
-#if 0
 static int rockchip_iommu_zap_tlb(void __iomem *base)
 {
 	if (!rockchip_iommu_enable_stall(base)) {
@@ -416,7 +416,6 @@ static int rockchip_iommu_zap_tlb(void __iomem *base)
 
 	return 0;
 }
-#endif
 
 static inline bool rockchip_iommu_raw_reset(void __iomem *base)
 {
@@ -728,9 +727,11 @@ static int rockchip_iommu_enable(struct iommu_drvdata *data, unsigned long pgtab
 		__raw_writel(IOMMU_COMMAND_ZAP_CACHE, data->res_bases[i] +
 			     IOMMU_REGISTER_COMMAND);
 
-		__raw_writel(IOMMU_INTERRUPT_PAGE_FAULT |
-			     IOMMU_INTERRUPT_READ_BUS_ERROR,
+		if (strstr(data->dbgname, "isp")) {
+			__raw_writel(IOMMU_INTERRUPT_PAGE_FAULT |
+				IOMMU_INTERRUPT_READ_BUS_ERROR,
 			     data->res_bases[i] + IOMMU_REGISTER_INT_MASK);
+		}
 
 		ret = rockchip_iommu_enable_paging(data->res_bases[i]);
 		if (!ret) {
@@ -764,7 +765,7 @@ int rockchip_iommu_tlb_invalidate(struct device *dev)
 		int ret;
 
 		for (i = 0; i < data->num_res_mem; i++) {
-			ret = rockchip_iommu_zap_tlb_without_stall(data->res_bases[i]);
+			ret = rockchip_iommu_zap_tlb(data->res_bases[i]);
 			if (ret) {
 				dev_err(dev->archdata.iommu, "(%s) %s failed\n",
 					data->dbgname, __func__);

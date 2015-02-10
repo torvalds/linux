@@ -32,6 +32,8 @@ struct ht_priv
 	u32	tx_amsdu_maxlen; // 1: 8k, 0:4k ; default:8k, for tx
 	u32	rx_ampdu_maxlen; //for rx reordering ctrl win_sz, updated when join_callback.
 	
+	u8 	rx_ampdu_min_spacing;
+	
 	u8	ch_offset;//PRIME_CHNL_OFFSET
 	u8	sgi_20m;
 	u8	sgi_40m;

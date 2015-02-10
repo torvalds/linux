@@ -1,0 +1,7 @@
+config  RK_HDMI_V2
+        bool "RockChip HDMI V2 support"
+        depends on RK_HDMI
+        default y
+        help
+		Rockchip hdmi version 2 which support hdmi 2.0.
+

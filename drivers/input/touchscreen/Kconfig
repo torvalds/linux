@@ -17,6 +17,11 @@ config TOUCHSCREEN_ZET62XX
 		zet62xx touchscreen driver
 
 
+config TOUCHSCREEN_GSLX680
+	tristate "gslX680 touchscreen driver"
+	help
+		gslX680 touchscreen driver
+
 config TOUCHSCREEN_GT8XX
 	tristate "Goodix touch screen gt801X2 support for rockchip based platform"
 	help

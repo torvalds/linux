@@ -179,6 +179,8 @@ static void kill_urbs_in_qh_list(dwc_otg_hcd_t *hcd, dwc_list_link_t *qh_list)
 				hcd->fops->complete(hcd, qtd->urb->priv,
 						    qtd->urb, -DWC_E_SHUTDOWN);
 				dwc_otg_hcd_qtd_remove_and_free(hcd, qtd, qh);
+			} else {
+				return;
 			}
 
 		}
@@ -469,8 +471,9 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 {
 	hprt0_data_t hprt0 = {.d32 = 0 };
 	struct dwc_otg_platform_data *pldata;
-	pldata = hcd->core_if->otg_dev->pldata;
+	dwc_irqflags_t flags;
 
+	pldata = hcd->core_if->otg_dev->pldata;
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD STOP\n");
 
 	/*
@@ -478,6 +481,15 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 	 * The disconnect will clear the QTD lists (via ..._hcd_urb_dequeue)
 	 * and the QH lists (via ..._hcd_endpoint_disable).
 	 */
+	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
+	kill_all_urbs(hcd);
+	DWC_SPINUNLOCK_IRQRESTORE(hcd->lock, flags);
+
+	/*
+	 * Set status flags for the hub driver.
+	 */
+	hcd->flags.b.port_connect_status_change = 1;
+	hcd->flags.b.port_connect_status = 0;
 
 	/* Turn off all host-specific interrupts. */
 	dwc_otg_disable_host_interrupts(hcd->core_if);
@@ -953,13 +965,15 @@ static void dwc_otg_hcd_reinit(dwc_otg_hcd_t *hcd)
 	int i;
 	dwc_hc_t *channel;
 	dwc_hc_t *channel_tmp;
+	dwc_irqflags_t flags;
+	dwc_spinlock_t *temp_lock;
 
 	hcd->flags.d32 = 0;
-
 	hcd->non_periodic_qh_ptr = &hcd->non_periodic_sched_active;
 	hcd->non_periodic_channels = 0;
 	hcd->periodic_channels = 0;
 
+	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
 	/*
 	 * Put all channels in the free channel list and clean up channel
 	 * states.
@@ -976,12 +990,20 @@ static void dwc_otg_hcd_reinit(dwc_otg_hcd_t *hcd)
 					hc_list_entry);
 		dwc_otg_hc_cleanup(hcd->core_if, channel);
 	}
-
+	DWC_SPINUNLOCK_IRQRESTORE(hcd->lock, flags);
 	/* Initialize the DWC core for host mode operation. */
 	dwc_otg_core_host_init(hcd->core_if);
 
 	/* Set core_if's lock pointer to the hcd->lock */
-	hcd->core_if->lock = hcd->lock;
+	/* Should get this lock before modify it */
+	if (hcd->core_if->lock) {
+		DWC_SPINLOCK_IRQSAVE(hcd->core_if->lock, &flags);
+		temp_lock = hcd->core_if->lock;
+		hcd->core_if->lock = hcd->lock;
+		DWC_SPINUNLOCK_IRQRESTORE(temp_lock, flags);
+	} else {
+		hcd->core_if->lock = hcd->lock;
+	}
 }
 
 /**
@@ -1334,6 +1356,8 @@ static int queue_transaction(dwc_otg_hcd_t *hcd,
 				hc->qh->ping_state = 0;
 			}
 		} else if (!hc->xfer_started) {
+			if (!hc || !(hc->qh))
+				return -ENODEV;
 			dwc_otg_hc_start_transfer(hcd->core_if, hc);
 			hc->qh->ping_state = 0;
 		}

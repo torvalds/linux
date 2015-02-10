@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -20,8 +20,9 @@
 #define CONFIG_ODM_REFRESH_RAMASK
 #define CONFIG_PHY_SETTING_WITH_ODM
 
+
 /*
- * Public  General Config
+ * Automatically generated C config: don't edit
  */
 
 #define AUTOCONF_INCLUDED
@@ -33,19 +34,18 @@
 #define CONFIG_USB_HCI	
 #define PLATFORM_LINUX	
 
-#define CONFIG_EMBEDDED_FWIMG	
+#define CONFIG_EMBEDDED_FWIMG
 //#define CONFIG_FILE_FWIMG
 
 /*
  * Functions Config
  */
-
 #define CONFIG_XMIT_ACK
 #ifdef CONFIG_XMIT_ACK
 	#define CONFIG_ACTIVE_KEEP_ALIVE_CHECK
 #endif
-#define CONFIG_80211N_HT	
-#define CONFIG_RECV_REORDERING_CTRL	
+#define CONFIG_80211N_HT
+#define CONFIG_RECV_REORDERING_CTRL
 
 
 #define SUPPORT_HW_RFOFF_DETECTED	
@@ -55,26 +55,26 @@
 #ifdef CONFIG_IOCTL_CFG80211
 	#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
-	//#define CONFIG_DEBUG_CFG80211 
+	//#define CONFIG_DEBUG_CFG80211
 	#define CONFIG_SET_SCAN_DENY_TIMER
 #endif
 
-#define CONFIG_AP_MODE	
+#define CONFIG_AP_MODE
 #ifdef CONFIG_AP_MODE
-	#define CONFIG_NATIVEAP_MLME 
+	#define CONFIG_NATIVEAP_MLME
 	#ifndef CONFIG_NATIVEAP_MLME
-		#define CONFIG_HOSTAPD_MLME	
-	#endif			
-	//#define CONFIG_FIND_BEST_CHANNEL	
-	//#define CONFIG_NO_WIRELESS_HANDLERS	
+		#define CONFIG_HOSTAPD_MLME
+	#endif
+	//#define CONFIG_FIND_BEST_CHANNEL
+	//#define CONFIG_NO_WIRELESS_HANDLERS
 #endif
 
-#define CONFIG_P2P	
+#define CONFIG_P2P
 #ifdef CONFIG_P2P
 	//Added by Albert 20110812
 	//The CONFIG_WFD is for supporting the Wi-Fi display
 	#define CONFIG_WFD
-	
+
 	#ifndef CONFIG_WIFI_TEST
 		#define CONFIG_P2P_REMOVE_GROUP_INFO
 	#endif
@@ -87,7 +87,7 @@
 #endif
 
 //	Added by Kurt 20110511
-//#define CONFIG_TDLS	
+//#define CONFIG_TDLS
 #ifdef CONFIG_TDLS
 //	#ifndef CONFIG_WFD
 //		#define CONFIG_WFD	
@@ -112,12 +112,13 @@
 
 #define USB_INTERFERENCE_ISSUE // this should be checked in all usb interface
 //#define CONFIG_ADAPTOR_INFO_CACHING_FILE // now just applied on 8192cu only, should make it general...
-#define CONFIG_RESUME_IN_WORKQUEUE
+//#define CONFIG_RESUME_IN_WORKQUEUE
 //#define CONFIG_SET_SCAN_DENY_TIMER
 #define CONFIG_LONG_DELAY_ISSUE
 #define CONFIG_NEW_SIGNAL_STAT_PROCESS
-#define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable,  */
+#define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
 #define CONFIG_DEAUTH_BEFORE_CONNECT
+//#define CONFIG_PATCH_JOIN_WRONG_CHANNEL
 
 
 //#define CONFIG_ANTENNA_DIVERSITY
@@ -308,7 +309,7 @@
  */
 #define DBG	0
 
-#define CONFIG_DEBUG /* DBG_871X, etc... */
+//#define CONFIG_DEBUG /* DBG_871X, etc... */
 //#define CONFIG_DEBUG_RTL871X /* RT_TRACE, RT_PRINT_DATA, _func_enter_, _func_exit_ */
 
 #define CONFIG_PROC_DEBUG
@@ -316,27 +317,6 @@
 #define DBG_CONFIG_ERROR_DETECT
 #define DBG_CONFIG_ERROR_RESET
 
-//#define DBG_IO
-//#define DBG_DELAY_OS
-//#define DBG_MEM_ALLOC
-//#define DBG_IOCTL
-
-//#define DBG_TX
 //#define DBG_XMIT_BUF
-//#define DBG_TX_DROP_FRAME
-
-//#define DBG_RX_DROP_FRAME
-//#define DBG_RX_SEQ
-
-//#define DBG_SHOW_MCUFWDL_BEFORE_51_ENABLE
-//#define DBG_ROAMING_TEST
-
-//#define DBG_HAL_INIT_PROFILING
-
-//#define DBG_MEMORY_LEAK	1
-
-//TX use 1 urb
-//#define CONFIG_SINGLE_XMIT_BUF
-//RX use 1 urb
-//#define CONFIG_SINGLE_RECV_BUF
+//#define DBG_XMIT_BUF_EXT
 

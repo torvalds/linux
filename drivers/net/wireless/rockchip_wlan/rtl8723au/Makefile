@@ -357,6 +357,8 @@ endif
 
 ifeq ($(CONFIG_EFUSE_CONFIG_FILE), y)
 EXTRA_CFLAGS += -DCONFIG_EFUSE_CONFIG_FILE
+EXTRA_CFLAGS += -DEFUSE_MAP_PATH=\"/system/etc/wifi/wifi_efuse_$(MODULE_NAME).map\"
+EXTRA_CFLAGS += -DWIFIMAC_PATH=\"/data/wifimac.txt\"
 endif
 
 ifeq ($(CONFIG_EXT_CLK), y)
@@ -369,6 +371,10 @@ endif
 
 ifeq ($(CONFIG_ODM_ADAPTIVITY), y)
 EXTRA_CFLAGS += -DCONFIG_ODM_ADAPTIVITY
+endif
+
+ifeq ($(CONFIG_SKIP_SIGNAL_SCALE_MAPPING), y)
+EXTRA_CFLAGS += -DCONFIG_SKIP_SIGNAL_SCALE_MAPPING
 endif
 
 ifeq ($(CONFIG_MMC_PM_KEEP_POWER), y)
@@ -631,7 +637,7 @@ endif
 ARCH := arm
 CROSS_COMPILE := /usr/src/release_fae_version/toolchain/arm-eabi-4.4.0/bin/arm-eabi-
 KSRC := /usr/src/release_fae_version/kernel25_A7_281x
-MODULE_NAME := 8723au
+MODULE_NAME := wlan
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_RK3066), y)
@@ -736,14 +742,10 @@ KVER  := 3.3.0
 #Android-JB42
 #CROSS_COMPILE := /home/android_sdk/Allwinner/a31/android-jb42/lichee/buildroot/output/external-toolchain/bin/arm-linux-gnueabi-
 #KSRC :=/home/android_sdk/Allwinner/a31/android-jb42/lichee/linux-3.3
-
-#Android-KK44
-CROSS_COMPILE := /home/android_sdk/Allwinner/a31/android-kk44/A3x-KK-SDK/lichee/buildroot/output/external-toolchain/bin/arm-linux-gnueabi-
-KSRC :=/home/android_sdk/Allwinner/a31/android-kk44/A3x-KK-SDK/lichee/linux-3.3
-
-ifeq ($(CONFIG_USB_HCI), y)
-MODULE_NAME := 8188eu_sw
-endif
+# ==== Cross compile setting for kitkat-a3x_v4.5 =====
+CROSS_COMPILE := /home/android_sdk/Allwinner/a31/kitkat-a3x_v4.5/lichee/buildroot/output/external-toolchain/bin/arm-linux-gnueabi-
+KSRC :=/home/android_sdk/Allwinner/a31/kitkat-a3x_v4.5/lichee/linux-3.3
+MODULE_NAME := 8192eu
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_SUN7I), y)

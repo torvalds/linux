@@ -20,6 +20,7 @@
 #define __RTL8188E_SPEC_H__
 
 #include <drv_conf.h>
+#include "hal_com_reg.h"
 
 #ifndef BIT
 #define BIT(x)		(1 << (x))
@@ -254,13 +255,6 @@
 //	0x0400h ~ 0x047Fh	Protocol Configuration
 //
 //-----------------------------------------------------
-#define REG_VOQ_INFORMATION			0x0400
-#define REG_VIQ_INFORMATION			0x0404
-#define REG_BEQ_INFORMATION			0x0408
-#define REG_BKQ_INFORMATION			0x040C
-#define REG_MGQ_INFORMATION			0x0410
-#define REG_HGQ_INFORMATION			0x0414
-#define REG_BCNQ_INFORMATION			0x0418
 #define REG_TXPKT_EMPTY				0x041A
 
 #define REG_CPU_MGQ_INFORMATION		0x041C
@@ -447,13 +441,6 @@
 #define REG_FWDLY					0x0661
 #define REG_RXERR_RPT				0x0664
 #define REG_WMAC_TRXPTCL_CTL		0x0668
-
-// Security
-#define REG_CAMCMD					0x0670
-#define REG_CAMWRITE					0x0674
-#define REG_CAMREAD					0x0678
-#define REG_CAMDBG					0x067C
-#define REG_SECCFG					0x0680
 
 // Power
 #define REG_WOW_CTRL					0x0690
@@ -657,37 +644,6 @@ Default: 00b.
 //----------------------------------------------------------------------------
 #define	BW_OPMODE_20MHZ			BIT2
 #define	BW_OPMODE_5G				BIT1
-
-
-//----------------------------------------------------------------------------
-//       8192C CAM Config Setting (offset 0x250, 1 byte)
-//----------------------------------------------------------------------------
-#define	CAM_VALID					BIT15
-#define	CAM_NOTVALID				0x0000
-#define	CAM_USEDK					BIT5
-
-#define	CAM_CONTENT_COUNT 		8
-       	       		
-#define	CAM_NONE					0x0
-#define	CAM_WEP40					0x01
-#define	CAM_TKIP					0x02
-#define	CAM_AES					0x04
-#define	CAM_WEP104				0x05
-#define	CAM_SMS4					0x6
-        		
-#define	TOTAL_CAM_ENTRY			32
-#define	HALF_CAM_ENTRY			16	
-       		
-#define	CAM_CONFIG_USEDK			_TRUE
-#define	CAM_CONFIG_NO_USEDK		_FALSE
-       		
-#define	CAM_WRITE					BIT16
-#define	CAM_READ					0x00000000
-#define	CAM_POLLINIG				BIT31
-
-#define	SCR_UseDK					0x01
-#define	SCR_TxSecEnable			0x02
-#define	SCR_RxSecEnable			0x04
 
 //
 // 10. Power Save Control Registers	 (Offset: 0x0260 - 0x02DF)
@@ -1316,18 +1272,6 @@ Current IOREG MAP
 #define APP_ICV						BIT(29)
 #define APP_MIC						BIT(30)
 #define APP_FCS						BIT(31)
-
-
-//2 SECCFG
-#define	SCR_TxUseDK						BIT(0)			//Force Tx Use Default Key
-#define	SCR_RxUseDK						BIT(1)			//Force Rx Use Default Key
-#define	SCR_TxEncEnable					BIT(2)			//Enable Tx Encryption
-#define	SCR_RxDecEnable					BIT(3)			//Enable Rx Decryption
-#define	SCR_SKByA2						BIT(4)			//Search kEY BY A2
-#define	SCR_NoSKMC						BIT(5)			//No Key Search Multicast
-#define 	SCR_TXBCUSEDK					BIT(6)			// Force Tx Broadcast packets Use Default Key
-#define 	SCR_RXBCUSEDK					BIT(7)			// Force Rx Broadcast packets Use Default Key
-
 
 //-----------------------------------------------------
 //

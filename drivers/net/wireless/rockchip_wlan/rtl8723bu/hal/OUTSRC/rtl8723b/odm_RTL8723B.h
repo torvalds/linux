@@ -31,11 +31,6 @@ odm_CCKRSSI_8723B(
 	IN		u1Byte	VGA_idx
 	);
 
-s1Byte
-odm_RSSIOFDM_8723B(
-	IN	s1Byte	rx_pwr_new
-	);
-
 
 
 #endif

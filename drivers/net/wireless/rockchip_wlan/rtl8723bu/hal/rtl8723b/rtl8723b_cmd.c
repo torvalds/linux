@@ -1491,7 +1491,6 @@ static void rtl8723b_set_FwRemoteWakeCtrl_Cmd(PADAPTER padapter, u8 benable)
 
 	DBG_871X("%s(): Enable=%d\n", __func__, benable);
 
-
 	if (!ppwrpriv->wowlan_pno_enable) {
 	SET_H2CCMD_REMOTE_WAKECTRL_ENABLE(u1H2CRemoteWakeCtrlParm, benable);
 	SET_H2CCMD_REMOTE_WAKE_CTRL_ARP_OFFLOAD_EN(u1H2CRemoteWakeCtrlParm, 1);
@@ -2141,7 +2140,7 @@ static void rtl8723b_set_FwRsvdPagePkt(PADAPTER padapter, BOOLEAN bDLFinished)
 #endif //CONFIG_WOWLAN
 	{
 #ifdef CONFIG_PNO_SUPPORT
-		if (pwrctl->pno_in_resume == _FALSE) {
+		if (pwrctl->pno_in_resume == _FALSE && pwrctl->pno_inited == _TRUE) {
 			//Probe Request
 			RsvdPageLoc.LocProbePacket = TotalPageNum;
 			ConstructProbeReq(

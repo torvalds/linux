@@ -100,7 +100,10 @@ static void tve_set_mode(int mode)
 		tve_writel(TV_BW_CTRL, v_CHROMA_BW(BP_FILTER_NTSC) |
 			v_COLOR_DIFF_BW(COLOR_DIFF_FILTER_BW_1_3));
 		tve_writel(TV_SATURATION, 0x0042543C);
+		if(rk3036_tve->test_mode)
 		tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008300);
+		else
+		tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00007900);
 
 		tve_writel(TV_FREQ_SC,	0x21F07BD7);
 		tve_writel(TV_SYNC_TIMING, 0x00C07a81);
@@ -116,7 +119,10 @@ static void tve_set_mode(int mode)
 			v_COLOR_DIFF_BW(COLOR_DIFF_FILTER_BW_1_3));
 		if (rk3036_tve->soctype == SOC_RK312X) {
 			tve_writel(TV_SATURATION, /*0x00325c40*/ 0x002b4d3c);
+			if(rk3036_tve->test_mode)
 			tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008a0a);
+			else
+			tve_writel(TV_BRIGHTNESS_CONTRAST, 0x0000770a);
 		} else {
 			tve_writel(TV_SATURATION, /*0x00325c40*/ 0x00386346);
 			tve_writel(TV_BRIGHTNESS_CONTRAST, 0x00008b00);
@@ -377,6 +383,11 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 		rk3036_tve->test_mode = 0;
 	else
 		rk3036_tve->test_mode = val;
+	val = 0;
+	if (of_property_read_u32(np, "saturation", &val))
+		rk3036_tve->saturation = 0x002b4d3c;
+	else
+		rk3036_tve->saturation = val;
 
 	if (!strcmp(match->compatible, "rockchip,rk3036-tve")) {
 		rk3036_tve->soctype = SOC_RK3036;

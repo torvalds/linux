@@ -82,14 +82,6 @@ typedef struct _RT_FIRMWARE {
 	u8			szFwBuffer[FW_8723B_SIZE];
 #endif
 	u32			ulFwLength;
-
-#ifdef CONFIG_EMBEDDED_FWIMG
-	u8*			szBTFwBuffer;
-	u8			myBTFwBuffer[FW_8723B_SIZE];
-#else
-	u8			szBTFwBuffer[FW_8723B_SIZE];
-#endif
-	u32			ulBTFwLength;
 } RT_FIRMWARE_8723B, *PRT_FIRMWARE_8723B;
 
 //
@@ -132,7 +124,9 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 #define PAGE_SIZE_TX_8723B			128
 #define PAGE_SIZE_RX_8723B			8
 
-#define RX_DMA_SIZE_8723B			0x4000	// 16K
+#define TX_DMA_SIZE_8723B			0x8000	// 32K(TX)
+#define RX_DMA_SIZE_8723B			0x4000	// 16K(RX)
+
 #define RX_DMA_RESERVED_SIZE_8723B	0x80	// 128B, reserved for tx report
 #define RX_DMA_BOUNDARY_8723B		(RX_DMA_SIZE_8723B - RX_DMA_RESERVED_SIZE_8723B - 1)
 
@@ -152,7 +146,6 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 #undef BCNQ1_PAGE_NUM_8723B
 #define BCNQ1_PAGE_NUM_8723B		0x00 // 0x04
 #endif
-#define MAX_RX_DMA_BUFFER_SIZE_8723B	0x2800	// RX 10K
 
 //For WoWLan , more reserved page
 //ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, PNO: 6
@@ -231,6 +224,9 @@ typedef enum _C2H_EVT
 	C2H_8723B_BT_INFO = 9,
 	C2H_HW_INFO_EXCH = 10,
 	C2H_8723B_BT_MP_INFO = 11,
+#ifdef CONFIG_FW_C2H_DEBUG
+	C2H_8723B_FW_DEBUG = 0xff,
+#endif //CONFIG_FW_C2H_DEBUG
 	MAX_C2HEVENT
 } C2H_EVT;
 
@@ -320,6 +316,9 @@ void HalSetOutPutGPIO(PADAPTER padapter, u8 index, u8 OutPutValue);
 int FirmwareDownloadBT(IN PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
 
 void CCX_FwC2HTxRpt_8723b(PADAPTER padapter, u8 *pdata, u8 len);
+#ifdef CONFIG_FW_C2H_DEBUG
+void Debug_FwC2H_8723b(PADAPTER padapter, u8 *pdata, u8 len);
+#endif //CONFIG_FW_C2H_DEBUG
 s32 c2h_id_filter_ccx_8723b(u8 *buf);
 s32 c2h_handler_8723b(PADAPTER padapter, u8 *pC2hEvent);
 u8 MRateToHwRate8723B(u8  rate);

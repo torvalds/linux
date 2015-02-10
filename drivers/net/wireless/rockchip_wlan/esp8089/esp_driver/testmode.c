@@ -1124,8 +1124,9 @@ void esp_stability_test(char *filename,struct esp_pub *epub)
 
             }
 
+#if (!defined(CONFIG_DEBUG_FS) || !defined(DEBUGFS_BOOTMODE)) && !defined(ESP_CLASS)
             request_init_conf();
-
+#endif
             if(sif_get_ate_config() == 0)
             {
 
@@ -1408,7 +1409,7 @@ void esp_test_init(struct esp_pub *epub)
         sprintf(filename, "%s/%s", mod_eagle_path_get(), "test_results");
 
     sif_lock_bus(epub);
-    sif_had_io_enable(epub);
+    sif_hda_io_enable(epub);
     sif_unlock_bus(epub);
 
     if(sif_get_ate_config() == 2){

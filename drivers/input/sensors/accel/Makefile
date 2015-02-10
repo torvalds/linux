@@ -7,3 +7,4 @@ obj-$(CONFIG_GS_MXC6225)    += mxc622x.o
 obj-$(CONFIG_GS_DMT10)      += dmard10.o
 obj-$(CONFIG_GS_LSM303D)    += lsm303d.o
 obj-$(CONFIG_GS_MC3230)    += mc3230.o
+obj-$(CONFIG_MPU6880_ACC)   += mpu6880_acc.o

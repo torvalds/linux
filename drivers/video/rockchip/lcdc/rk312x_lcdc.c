@@ -184,7 +184,7 @@ static int rk312x_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 
 	return 0;
 }
-/*
+
 static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 {
 	u32 mask, val;
@@ -209,7 +209,7 @@ static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 	}
 	mdelay(1);
 	return 0;
-}*/
+}
 
 
 static int win0_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
@@ -470,8 +470,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 					    WIN1_MST, win->area[0].y_addr);
 			} else {
 				lcdc_writel(lcdc_dev, WIN1_DSP_INFO_RK312X,
-					    v_DSP_WIDTH(win->area[0].xsize) |
-					    v_DSP_HEIGHT(win->area[0].ysize));
+					    v_DSP_WIDTH(win->area[0].xact) |
+					    v_DSP_HEIGHT(win->area[0].yact));
 				lcdc_writel(lcdc_dev, WIN1_DSP_ST_RK312X,
 					    v_DSP_STX(win->area[0].dsp_stx) |
 					    v_DSP_STY(win->area[0].dsp_sty));
@@ -507,14 +507,23 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 	} else {
 		win->area[0].y_addr = 0;
 		win->area[0].uv_addr = 0;
-		if (win->id == 0)
+		if (win->id == 0) {
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_WIN0_EN,
 				     v_WIN0_EN(0));
-		else if (win->id == 1)
+			lcdc_writel(lcdc_dev, WIN0_YRGB_MST,
+				    win->area[0].y_addr);
+			lcdc_writel(lcdc_dev, WIN0_CBR_MST,
+				    win->area[0].uv_addr);
+		} else if (win->id == 1) {
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_WIN1_EN,
 				     v_WIN1_EN(0));
-		else if (win->id == 2)
-			lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_HWC_EN, v_HWC_EN(0));
+			 lcdc_writel(lcdc_dev, WIN1_MST, win->area[0].y_addr);
+		} else if (win->id == 2) {
+			lcdc_msk_reg(lcdc_dev,
+			             SYS_CTRL, m_HWC_EN | m_HWC_LODAD_EN,
+			             v_HWC_EN(0) | v_HWC_LODAD_EN(0));
+			lcdc_writel(lcdc_dev, HWC_MST, win->area[0].y_addr);
+		}
 	}
 	rk312x_lcdc_alpha_cfg(lcdc_dev);
 }
@@ -762,6 +771,7 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 static void rk312x_lcdc_deinit(struct lcdc_device *lcdc_dev)
 {
+	rk312x_lcdc_disable_irq(lcdc_dev);
 }
 
 static u32 calc_sclk_freq(struct rk_screen *src_screen,
@@ -1795,7 +1805,6 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 	if (!dev_drv->suspend_flag)
 		return 0;
 	rk_disp_pwr_enable(dev_drv);
-	dev_drv->suspend_flag = 0;
 
 	rk312x_lcdc_clk_enable(lcdc_dev);
 	rk312x_lcdc_reg_restore(lcdc_dev);
@@ -1833,10 +1842,12 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 	}
 
 	spin_unlock(&lcdc_dev->reg_lock);
+	dev_drv->suspend_flag = 0;
 
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
-	msleep(160);
+	mdelay(100);
+
 	return 0;
 }
 
@@ -1865,37 +1876,14 @@ static int rk312x_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
 	int i;
-	unsigned int mask, val;
 	struct rk_lcdc_win *win = NULL;
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
 		for (i = 0; i < ARRAY_SIZE(lcdc_win); i++) {
 			win = dev_drv->win[i];
-			if ((win->state == 0) && (win->last_state == 1)) {
-				switch (win->id) {
-				case 0:
-					mask =  m_WIN0_EN;
-					val  =  v_WIN0_EN(0);
-					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
-						     mask, val);
-					break;
-				case 1:
-					mask =  m_WIN1_EN;
-					val  =  v_WIN1_EN(0);
-					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
-						     mask, val);
-					break;
-				case 2:
-					mask =  m_HWC_EN;
-					val  =  v_HWC_EN(0);
-					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
-						     mask, val);
-					break;
-				default:
-					break;
-				}
-			}
+			if ((win->state == 0) && (win->last_state == 1))
+				lcdc_layer_update_regs(lcdc_dev, win);
 			win->last_state = win->state;
 		}
 		lcdc_cfg_done(lcdc_dev);
@@ -2647,12 +2635,14 @@ static int rk312x_lcdc_remove(struct platform_device *pdev)
 static void rk312x_lcdc_shutdown(struct platform_device *pdev)
 {
 	struct lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	struct rk_lcdc_driver *dev_drv=&lcdc_dev->driver;
 
-	rk312x_lcdc_early_suspend(&lcdc_dev->driver);
+	flush_kthread_worker(&dev_drv->update_regs_worker);
+	kthread_stop(dev_drv->update_regs_thread);
+
 	rk312x_lcdc_deinit(lcdc_dev);
-
-	if (lcdc_dev->backlight)
-		put_device(&lcdc_dev->backlight->dev);
+	rk312x_lcdc_clk_disable(lcdc_dev);
+	rk_disp_pwr_disable(&lcdc_dev->driver);
 }
 
 static struct platform_driver rk312x_lcdc_driver = {

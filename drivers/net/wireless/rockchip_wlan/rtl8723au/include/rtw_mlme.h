@@ -171,6 +171,9 @@ typedef struct _RT_LINK_DETECT_T{
 	BOOLEAN			bHigherBusyTraffic; // For interrupt migration purpose.
 	BOOLEAN			bHigherBusyRxTraffic; // We may disable Tx interrupt according as Rx traffic.
 	BOOLEAN			bHigherBusyTxTraffic; // We may disable Tx interrupt according as Tx traffic.
+#ifdef CONFIG_BT_COEXIST	
+	BOOLEAN			bBusyTrafficForCoex;
+#endif
 }RT_LINK_DETECT_T, *PRT_LINK_DETECT_T;
 
 struct profile_info {
@@ -261,6 +264,7 @@ struct cfg80211_wifidirect_info{
 	struct ieee80211_channel	remain_on_ch_channel;
 	enum nl80211_channel_type	remain_on_ch_type;
 	u64						remain_on_ch_cookie;
+	bool not_indic_ro_ch_exp;
 	bool is_ro_ch;
 };
 #endif //CONFIG_IOCTL_CFG80211
@@ -601,6 +605,9 @@ struct mlme_priv {
 #ifdef CONFIG_FTP_PROTECT
 	u8	ftp_lock_flag;
 #endif //CONFIG_FTP_PROTECT
+
+	u8 	NumOfBcnInfoChkFail;
+	u32	timeBcnInfoChkStart;
 };
 
 #ifdef CONFIG_AP_MODE

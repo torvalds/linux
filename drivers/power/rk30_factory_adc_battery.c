@@ -2456,6 +2456,7 @@ err_sysfs:
 err_ac_failed:
 	power_supply_unregister(&data ->ac);
 
+err_usb_failed:
 err_battery_failed:
 	power_supply_unregister(&data ->bat);
     

@@ -2179,8 +2179,8 @@ int32_t dwc_otg_hcd_handle_hc_n_intr(dwc_otg_hcd_t *dwc_otg_hcd, uint32_t num)
 		    handle_hc_frmovrun_intr(dwc_otg_hcd, hc, hc_regs, qtd);
 	}
 	if (hcint.b.datatglerr) {
-		retval |=
-		    handle_hc_datatglerr_intr(dwc_otg_hcd, hc, hc_regs, qtd);
+		disable_hc_int(hc_regs, datatglerr);
+		clear_hc_int(hc_regs, chhltd);
 	}
 
 	return retval;

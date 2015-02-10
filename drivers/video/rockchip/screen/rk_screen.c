@@ -2,7 +2,7 @@
 #include <linux/rk_fb.h>
 #include <linux/device.h>
 #include "lcd.h"
-#include "../hdmi/rk_hdmi.h"
+#include "../hdmi/rockchip-hdmi.h"
 
 static struct rk_screen *rk_screen;
 int  rk_fb_get_prmry_screen(struct rk_screen *screen)
@@ -50,27 +50,6 @@ size_t get_fb_size(void)
 	#else
 		size = (xres * yres << 2) << 1; /* two buffer */
 	#endif
-	return ALIGN(size, SZ_1M);
-}
-
-#define FB_4K_SIZE      (3840UL*2160UL*2)
-size_t get_rotate_fb_size(void)
-{
-	size_t size = 0;
-	u32 xres = 0;
-	u32 yres = 0;
-
-	if (unlikely(!rk_screen))
-		return 0;
-
-	xres = rk_screen->mode.xres;
-	yres = rk_screen->mode.yres;
-
-	/* align as 64 bytes(16*4) number of times */
-	xres = ALIGN_N_TIMES(xres, ALIGN_PIXEL_64BYTE_RGB8888);
-
-	size = (xres * yres << 2) << 1; /* two buffer */
-        size += 2 * FB_4K_SIZE; /* two full RGB size and two 4k size */
 	return ALIGN(size, SZ_1M);
 }
 

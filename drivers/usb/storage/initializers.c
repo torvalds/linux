@@ -91,7 +91,39 @@ int usb_stor_ucr61s2b_init(struct us_data *us)
 
 	return 0;
 }
-
+ int usb_stor_huawei_init(struct us_data *us)
+ {
+        int idProduct;
+        idProduct = us->pusb_dev->descriptor.idProduct;
+        if(idProduct==0x1F01){
+        int result ;
+        int act_len;
+        unsigned  char  cmd[32] =  {0x55,  0x53, 0x42,  0x43,  0x00, 0x00,  0x00, 0x00,
+                                     0x00,  0x00, 0x00,  0x00,  0x00,  0x00,  0x00, 0x11,
+                                     0x06,  0x30, 0x00,  0x00,  0x01,  0x00,  0x01, 0x00,
+                                     0x00,  0x00, 0x00,  0x00,  0x00,  0x00, 0x00};
+        result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe, cmd, 31, &act_len);
+        printk("usb_stor_bulk_transfer_buf performing result is %d, transfer the actual length=%d\n", result,act_len);
+        return result;
+    } else {
+        int result = 0;
+        int act_len = 0;
+        struct bulk_cb_wrap *bcbw = (struct bulk_cb_wrap *) us->iobuf;
+        char rewind_cmd[] = {0x11, 0x06, 0x20, 0x00, 0x00, 0x01, 0x01, 0x00,
+                            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+         bcbw->Signature = cpu_to_le32(US_BULK_CB_SIGN);
+         bcbw->Tag = 0;
+         bcbw->DataTransferLength = 0;
+         bcbw->Flags = bcbw->Lun = 0;
+         bcbw->Length = sizeof(rewind_cmd);
+         memset(bcbw->CDB, 0, sizeof(bcbw->CDB));
+         memcpy(bcbw->CDB, rewind_cmd, sizeof(rewind_cmd)); 
+         result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe, bcbw,
+                                         US_BULK_CB_WRAP_LEN, &act_len);
+         printk("transfer actual length=%d, result=%d\n", act_len, result);
+         return result;
+     }
+}
 /* This places the HUAWEI E220 devices in multi-port mode */
 int usb_stor_huawei_e220_init(struct us_data *us)
 {

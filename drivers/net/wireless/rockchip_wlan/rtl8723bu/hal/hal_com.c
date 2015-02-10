@@ -20,8 +20,39 @@
 #define _HAL_COM_C_
 
 #include <drv_types.h>
+#include "hal_com_h2c.h"
 
 #include "../hal/OUTSRC/odm_precomp.h"
+
+u8 rtw_hal_data_init(_adapter *padapter)
+{
+	if(is_primary_adapter(padapter))	//if(padapter->isprimary)
+	{
+		padapter->hal_data_sz = sizeof(HAL_DATA_TYPE);
+		padapter->HalData = rtw_zvmalloc(padapter->hal_data_sz);
+		if(padapter->HalData == NULL){
+			DBG_8192C("cant not alloc memory for HAL DATA \n");
+			return _FAIL;
+		}
+	}	
+	return _SUCCESS;
+}
+
+void rtw_hal_data_deinit(_adapter *padapter)
+{	
+	if(is_primary_adapter(padapter))	//if(padapter->isprimary)
+	{
+		if (padapter->HalData) 
+		{
+			#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
+			phy_free_filebuf(padapter);				
+			#endif		
+			rtw_vmfree(padapter->HalData, padapter->hal_data_sz);
+			padapter->HalData = NULL;
+			padapter->hal_data_sz = 0;
+		}	
+	}
+}
 
 
 void dump_chip_info(HAL_VERSION	ChipVersion)
@@ -436,7 +467,7 @@ _TwoOutPipeMapping(
 		
 		//	BK, 	BE, 	VI, 	VO, 	BCN,	CMD,MGT,HIGH,HCCA 
 		//{  0, 	1, 	0, 	1, 	0, 	0, 	0, 	0, 		0	};
-		//0:H, 1:N 
+		//0:ep_0 num, 1:ep_1 num 
 		
 		pdvobjpriv->Queue2Pipe[0] = pdvobjpriv->RtOutPipe[1];//VO
 		pdvobjpriv->Queue2Pipe[1] = pdvobjpriv->RtOutPipe[0];//VI
@@ -454,7 +485,7 @@ _TwoOutPipeMapping(
 		
 		//BK, 	BE, 	VI, 	VO, 	BCN,	CMD,MGT,HIGH,HCCA 
 		//{  1, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 		0	};			
-		//0:H, 1:N 
+		//0:ep_0 num, 1:ep_1 num
 		
 		pdvobjpriv->Queue2Pipe[0] = pdvobjpriv->RtOutPipe[0];//VO
 		pdvobjpriv->Queue2Pipe[1] = pdvobjpriv->RtOutPipe[0];//VI
@@ -1019,6 +1050,58 @@ _func_enter_;
 	case HW_VAR_PORT_SWITCH:
 		hw_var_port_switch(adapter);
 		break;
+	case HW_VAR_INIT_RTS_RATE:
+	{
+		u16 brate_cfg = *((u16*)val);
+		u8 rate_index = 0;
+		HAL_VERSION *hal_ver = &hal_data->VersionID;
+
+		if (IS_81XXC(*hal_ver) ||IS_92D(*hal_ver) || IS_8723_SERIES(*hal_ver) || IS_8188E(*hal_ver)) {
+
+			while (brate_cfg > 0x1) {
+				brate_cfg = (brate_cfg >> 1);
+				rate_index++;
+			}
+			rtw_write8(adapter, REG_INIRTS_RATE_SEL, rate_index);
+		} else {
+			rtw_warn_on(1);
+		}
+	}
+		break;
+	case HW_VAR_SEC_CFG:
+	{
+		#if defined(CONFIG_CONCURRENT_MODE) && !defined(DYNAMIC_CAMID_ALLOC)
+		// enable tx enc and rx dec engine, and no key search for MC/BC
+		rtw_write8(adapter, REG_SECCFG, SCR_NoSKMC|SCR_RxDecEnable|SCR_TxEncEnable);
+		#elif defined(DYNAMIC_CAMID_ALLOC)
+		u16 reg_scr;
+
+		reg_scr = rtw_read16(adapter, REG_SECCFG);
+		rtw_write16(adapter, REG_SECCFG, reg_scr|SCR_CHK_KEYID|SCR_RxDecEnable|SCR_TxEncEnable);
+		#else
+		rtw_write8(adapter, REG_SECCFG, *((u8*)val));
+		#endif
+	}
+		break;
+	case HW_VAR_SEC_DK_CFG:
+	{
+		struct security_priv *sec = &adapter->securitypriv;
+		u8 reg_scr = rtw_read8(adapter, REG_SECCFG);
+
+		if (val) /* Enable default key related setting */
+		{
+			reg_scr |= SCR_TXBCUSEDK;
+			if (sec->dot11AuthAlgrthm != dot11AuthAlgrthm_8021X)
+				reg_scr |= (SCR_RxUseDK|SCR_TxUseDK);
+		}
+		else /* Disable default key related setting */
+		{
+			reg_scr &= ~(SCR_RXBCUSEDK|SCR_TXBCUSEDK|SCR_RxUseDK|SCR_TxUseDK);
+		}
+
+		rtw_write8(adapter, REG_SECCFG, reg_scr);
+	}
+		break;
 	case HW_VAR_DM_FLAG:
 		odm->SupportAbility = *((u32*)val);
 		break;
@@ -1239,6 +1322,93 @@ GetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *value)
 
 	return bResult;
 }
+
+void GetHalODMVar(	
+	PADAPTER				Adapter,
+	HAL_ODM_VARIABLE		eVariable,
+	PVOID					pValue1,
+	PVOID					pValue2)
+{
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+	PDM_ODM_T podmpriv = &pHalData->odmpriv;
+	switch(eVariable){
+#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+		case HAL_ODM_NOISE_MONITOR:
+			{
+				u8 chan = *(u8*)pValue1;
+				*(s16 *)pValue2 = pHalData->noise[chan];
+				#ifdef DBG_NOISE_MONITOR
+				DBG_8192C("### Noise monitor chan(%d)-noise:%d (dBm) ###\n",
+					chan,pHalData->noise[chan]);
+				#endif			
+						
+			}
+			break;
+#endif//#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
+		default:
+			break;
+	}
+}
+
+void SetHalODMVar(
+	PADAPTER				Adapter,
+	HAL_ODM_VARIABLE		eVariable,
+	PVOID					pValue1,
+	BOOLEAN					bSet)
+{
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+	PDM_ODM_T podmpriv = &pHalData->odmpriv;
+	//_irqL irqL;
+	switch(eVariable){
+		case HAL_ODM_STA_INFO:
+			{	
+				struct sta_info *psta = (struct sta_info *)pValue1;				
+				if(bSet){
+					DBG_8192C("### Set STA_(%d) info ###\n",psta->mac_id);
+					ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS,psta->mac_id,psta);
+				}
+				else{
+					DBG_8192C("### Clean STA_(%d) info ###\n",psta->mac_id);
+					//_enter_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
+					ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS,psta->mac_id,NULL);
+					
+					//_exit_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
+			            }
+			}
+			break;
+		case HAL_ODM_P2P_STATE:		
+				ODM_CmnInfoUpdate(podmpriv,ODM_CMNINFO_WIFI_DIRECT,bSet);
+			break;
+		case HAL_ODM_WIFI_DISPLAY_STATE:
+				ODM_CmnInfoUpdate(podmpriv,ODM_CMNINFO_WIFI_DISPLAY,bSet);
+			break;
+		#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)		
+		case HAL_ODM_NOISE_MONITOR:
+			{
+				struct noise_info *pinfo = (struct noise_info *)pValue1;
+
+				#ifdef DBG_NOISE_MONITOR
+				DBG_8192C("### Noise monitor chan(%d)-bPauseDIG:%d,IGIValue:0x%02x,max_time:%d (ms) ###\n",
+					pinfo->chan,pinfo->bPauseDIG,pinfo->IGIValue,pinfo->max_time);
+				#endif
+				
+				pHalData->noise[pinfo->chan] = ODM_InbandNoise_Monitor(podmpriv,pinfo->bPauseDIG,pinfo->IGIValue,pinfo->max_time);				
+				DBG_871X("chan_%d, noise = %d (dBm)\n",pinfo->chan,pHalData->noise[pinfo->chan]);
+				#ifdef DBG_NOISE_MONITOR
+				DBG_871X("noise_a = %d, noise_b = %d  noise_all:%d \n", 
+					podmpriv->noise_level.noise[ODM_RF_PATH_A], 
+					podmpriv->noise_level.noise[ODM_RF_PATH_B],
+					podmpriv->noise_level.noise_all);						
+				#endif
+			}
+			break;
+		#endif//#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
+
+		default:
+			break;
+	}
+}	
+
 
 BOOLEAN 
 eqNByte(
@@ -1646,3 +1816,421 @@ void rtw_store_phy_info(_adapter *padapter, union recv_frame *prframe)
 	}
 }
 #endif
+
+#ifdef CONFIG_EFUSE_CONFIG_FILE
+int check_phy_efuse_tx_power_info_valid(PADAPTER padapter) {
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	u8* pContent = pEEPROM->efuse_eeprom_data;
+	int index = 0;
+	u16 tx_index_offset = 0x0000;
+
+	switch(padapter->chip_type) {
+		case RTL8723B:
+			tx_index_offset = EEPROM_TX_PWR_INX_8723B;
+		break;
+		case RTL8188E:
+			tx_index_offset = EEPROM_TX_PWR_INX_88E;
+		break;
+		case RTL8192E:
+			tx_index_offset = EEPROM_TX_PWR_INX_8192E;
+		break;
+		default:
+			tx_index_offset = 0x0010;
+		break;
+	}
+	for (index = 0 ; index < 12 ; index++) {
+		if (pContent[tx_index_offset + index] == 0xFF) {
+			return _FALSE;
+		} else {
+			DBG_871X("0x%02x ,", pContent[EEPROM_TX_PWR_INX_88E+index]);
+		}
+	}
+	DBG_871X("\n");
+	return _TRUE;
+}
+
+int check_phy_efuse_macaddr_info_valid(PADAPTER padapter) {
+
+	u8 val = 0;
+	u16 addr_offset = 0x0000;
+
+	switch(padapter->chip_type) {
+		case RTL8723B:
+			if (padapter->interface_type == RTW_USB) {
+				addr_offset = EEPROM_MAC_ADDR_8723BU;
+				DBG_871X("%s: interface is USB\n", __func__);
+			} else if (padapter->interface_type == RTW_SDIO) {
+				addr_offset = EEPROM_MAC_ADDR_8723BS;
+				DBG_871X("%s: interface is SDIO\n", __func__);
+			} else if (padapter->interface_type == RTW_PCIE) {
+				addr_offset = EEPROM_MAC_ADDR_8723BE;
+				DBG_871X("%s: interface is PCIE\n", __func__);
+			} else if (padapter->interface_type == RTW_GSPI) {
+				//addr_offset = EEPROM_MAC_ADDR_8723BS;
+				DBG_871X("%s: interface is GSPI\n", __func__);
+			}
+		break;
+		case RTL8188E:
+			if (padapter->interface_type == RTW_USB) {
+				addr_offset = EEPROM_MAC_ADDR_88EU;
+				DBG_871X("%s: interface is USB\n", __func__);
+			} else if (padapter->interface_type == RTW_SDIO) {
+				addr_offset = EEPROM_MAC_ADDR_88ES;
+				DBG_871X("%s: interface is SDIO\n", __func__);
+			} else if (padapter->interface_type == RTW_PCIE) {
+				addr_offset = EEPROM_MAC_ADDR_88EE;
+				DBG_871X("%s: interface is PCIE\n", __func__);
+			} else if (padapter->interface_type == RTW_GSPI) {
+				//addr_offset = EEPROM_MAC_ADDR_8723BS;
+				DBG_871X("%s: interface is GSPI\n", __func__);
+			}
+		break;
+	}
+
+	if (addr_offset == 0x0000) {
+		DBG_871X("phy efuse MAC addr offset is 0!!\n");
+		return _FALSE;
+	} else {
+		rtw_efuse_map_read(padapter, addr_offset, 1, &val);
+	}
+
+	if (val == 0xFF) {
+		return _FALSE;
+	} else {
+		DBG_871X("phy efuse with valid MAC addr\n");
+		return _TRUE;
+	}
+}
+
+u32 Hal_readPGDataFromConfigFile(
+	PADAPTER	padapter,
+	struct file *fp)
+{
+	u32 i;
+	mm_segment_t fs;
+	u8 temp[3];
+	loff_t pos = 0;
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	u8	*PROMContent = pEEPROM->efuse_eeprom_data;
+
+	temp[2] = 0; // add end of string '\0'
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	for (i = 0 ; i < HWSET_MAX_SIZE ; i++) {
+		vfs_read(fp, temp, 2, &pos);
+		PROMContent[i] = simple_strtoul(temp, NULL, 16);
+		if ((i % EFUSE_FILE_COLUMN_NUM) == (EFUSE_FILE_COLUMN_NUM - 1)) {
+			//Filter the lates space char.
+			vfs_read(fp, temp, 1, &pos);
+			if (strchr(temp, ' ') == NULL) {
+				pos--;
+				vfs_read(fp, temp, 2, &pos);
+			}
+		} else {
+			pos += 1; // Filter the space character
+		}
+	}
+
+	set_fs(fs);
+	pEEPROM->bloadfile_fail_flag = _FALSE;
+
+#ifdef CONFIG_DEBUG
+	DBG_871X("Efuse configure file:\n");
+	for (i=0; i<HWSET_MAX_SIZE; i++)
+	{
+		if (i % 16 == 0)
+			printk("\n");
+
+		printk("%02X ", PROMContent[i]);
+	}
+	printk("\n");
+#endif
+
+	return _SUCCESS;
+}
+
+void Hal_ReadMACAddrFromFile(
+	PADAPTER		padapter,
+	struct file *fp)
+{
+	u32 i;
+	mm_segment_t fs;
+	u8 source_addr[18];
+	loff_t pos = 0;
+	u32	curtime = rtw_get_current_time();
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	u8 *head, *end;
+
+	_rtw_memset(source_addr, 0, 18);
+	_rtw_memset(pEEPROM->mac_addr, 0, ETH_ALEN);
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	DBG_871X("wifi mac address:\n");
+	vfs_read(fp, source_addr, 18, &pos);
+	source_addr[17] = ':';
+
+	head = end = source_addr;
+	for (i=0; i<ETH_ALEN; i++) {
+		while (end && (*end != ':') )
+			end++;
+
+		if (end && (*end == ':') )
+			*end = '\0';
+
+		pEEPROM->mac_addr[i] = simple_strtoul(head, NULL, 16 );
+
+		if (end) {
+			end++;
+			head = end;
+		}
+	}
+
+	set_fs(fs);
+	pEEPROM->bloadmac_fail_flag = _FALSE;
+
+	if (rtw_check_invalid_mac_address(pEEPROM->mac_addr) == _TRUE) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33))
+		get_random_bytes(pEEPROM->mac_addr, ETH_ALEN);
+		pEEPROM->mac_addr[0] = 0x00;
+		pEEPROM->mac_addr[1] = 0xe0;
+		pEEPROM->mac_addr[2] = 0x4c;
+#else
+		pEEPROM->mac_addr[0] = 0x00;
+		pEEPROM->mac_addr[1] = 0xe0;
+		pEEPROM->mac_addr[2] = 0x4c;
+		pEEPROM->mac_addr[3] = (u8)(curtime & 0xff) ;
+		pEEPROM->mac_addr[4] = (u8)((curtime>>8) & 0xff) ;
+		pEEPROM->mac_addr[5] = (u8)((curtime>>16) & 0xff) ;
+#endif
+                DBG_871X("MAC Address from wifimac error is invalid, assign random MAC !!!\n");
+	}
+
+	DBG_871X("%s: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
+			__func__, pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
+			pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
+			pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]);
+}
+
+void Hal_GetPhyEfuseMACAddr(PADAPTER padapter, u8* mac_addr) {
+	int i = 0;
+	u16 addr_offset = 0x0000;
+
+	switch(padapter->chip_type) {
+		case RTL8723B:
+			if (padapter->interface_type == RTW_USB) {
+				addr_offset = EEPROM_MAC_ADDR_8723BU;
+				DBG_871X("%s: interface is USB\n", __func__);
+			} else if (padapter->interface_type == RTW_SDIO) {
+				addr_offset = EEPROM_MAC_ADDR_8723BS;
+				DBG_871X("%s: interface is SDIO\n", __func__);
+			} else if (padapter->interface_type == RTW_PCIE) {
+				addr_offset = EEPROM_MAC_ADDR_8723BE;
+				DBG_871X("%s: interface is PCIE\n", __func__);
+			} else if (padapter->interface_type == RTW_GSPI){
+				//addr_offset = EEPROM_MAC_ADDR_8723BS;
+				DBG_871X("%s: interface is GSPI\n", __func__);
+			}
+		break;
+		case RTL8188E:
+			if (padapter->interface_type == RTW_USB) {
+				addr_offset = EEPROM_MAC_ADDR_88EU;
+				DBG_871X("%s: interface is USB\n", __func__);
+			} else if (padapter->interface_type == RTW_SDIO) {
+				addr_offset = EEPROM_MAC_ADDR_88ES;
+				DBG_871X("%s: interface is SDIO\n", __func__);
+			} else if (padapter->interface_type == RTW_PCIE) {
+				addr_offset = EEPROM_MAC_ADDR_88EE;
+				DBG_871X("%s: interface is PCIE\n", __func__);
+			} else if (padapter->interface_type == RTW_GSPI){
+				//addr_offset = EEPROM_MAC_ADDR_8723BS;
+				DBG_871X("%s: interface is GSPI\n", __func__);
+			}
+		break;
+	}
+
+	rtw_efuse_map_read(padapter, addr_offset, ETH_ALEN, mac_addr);
+
+	if (rtw_check_invalid_mac_address(mac_addr) == _TRUE) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33))
+		get_random_bytes(mac_addr, ETH_ALEN);
+		mac_addr[0] = 0x00;
+		mac_addr[1] = 0xe0;
+		mac_addr[2] = 0x4c;
+#else
+		mac_addr[0] = 0x00;
+		mac_addr[1] = 0xe0;
+		mac_addr[2] = 0x4c;
+		mac_addr[3] = (u8)(curtime & 0xff) ;
+		mac_addr[4] = (u8)((curtime>>8) & 0xff) ;
+		mac_addr[5] = (u8)((curtime>>16) & 0xff) ;
+#endif
+                DBG_871X("MAC Address from phy efuse error, assign random MAC !!!\n");
+	}
+
+	DBG_871X("%s: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
+			__func__, mac_addr[0], mac_addr[1], mac_addr[2],
+			mac_addr[3], mac_addr[4], mac_addr[5]);
+}
+#endif //CONFIG_EFUSE_CONFIG_FILE
+
+#ifdef CONFIG_RF_GAIN_OFFSET
+u32 Array_kfreemap[] = { 
+0x08,0xe,
+0x06,0xc,
+0x04,0xa,
+0x02,0x8,
+0x00,0x6,
+0x03,0x4,
+0x05,0x2,
+0x07,0x0,
+0x09,0x0,
+0x0c,0x0,
+};
+
+void rtw_bb_rf_gain_offset(_adapter *padapter)
+{
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
+	u8		value = padapter->eeprompriv.EEPROMRFGainOffset;
+	u8		tmp = 0x3e;
+	u32 	res,i=0;
+	u4Byte	   ArrayLen    = sizeof(Array_kfreemap)/sizeof(u32);
+	pu4Byte    Array	   = Array_kfreemap;
+	u4Byte v1=0,v2=0,GainValue,target=0; 
+	//DBG_871X("+%s value: 0x%02x+\n", __func__, value);
+#if defined(CONFIG_RTL8723A)
+	if (value & BIT0) {
+		DBG_871X("Offset RF Gain.\n");
+		DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal=0x%x\n",padapter->eeprompriv.EEPROMRFGainVal);
+		if(padapter->eeprompriv.EEPROMRFGainVal != 0xff){
+			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0xd, 0xffffffff);
+			DBG_871X("Offset RF Gain. reg 0xd=0x%x\n",res);
+			res &= 0xfff87fff;
+
+			res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f)<< 15;
+			DBG_871X("Offset RF Gain.	 reg 0xd=0x%x\n",res);
+
+			rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET_CCK, RF_GAIN_OFFSET_MASK, res);
+
+			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0xe, 0xffffffff);
+			DBG_871X("Offset RF Gain. reg 0xe=0x%x\n",res);
+			res &= 0xfffffff0;
+
+			res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f);
+			DBG_871X("Offset RF Gain.	 reg 0xe=0x%x\n",res);
+
+			rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET_OFDM, RF_GAIN_OFFSET_MASK, res);
+		}
+		else
+		{
+			DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal=0x%x	!= 0xff, didn't run Kfree\n",padapter->eeprompriv.EEPROMRFGainVal);
+		}
+	} else {
+		DBG_871X("Using the default RF gain.\n");
+	}
+#elif defined(CONFIG_RTL8723B)
+	if (value & BIT4) {
+		DBG_871X("Offset RF Gain.\n");
+		DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal=0x%x\n",padapter->eeprompriv.EEPROMRFGainVal);
+
+		if(padapter->eeprompriv.EEPROMRFGainVal != 0xff){
+			if (pHalData->ant_path == ODM_RF_PATH_A)
+				GainValue=(padapter->eeprompriv.EEPROMRFGainVal & 0x0f);
+			else
+				GainValue=(padapter->eeprompriv.EEPROMRFGainVal & 0xf0)>>4;
+			DBG_871X("Ant PATH_%d GainValue Offset = 0x%x\n",(pHalData->ant_path == ODM_RF_PATH_A) ? (ODM_RF_PATH_A) : (ODM_RF_PATH_B),GainValue);
+
+			for (i = 0; i < ArrayLen; i += 2 )
+			{
+				v1 = Array[i];
+				v2 = Array[i+1];
+				if ( v1 == GainValue ) {
+						DBG_871X("Offset RF Gain. got v1 =0x%x ,v2 =0x%x \n",v1,v2);
+						target=v2;
+						break;
+				 }
+			}	 
+			DBG_871X("padapter->eeprompriv.EEPROMRFGainVal=0x%x ,Gain offset Target Value=0x%x\n",padapter->eeprompriv.EEPROMRFGainVal,target);
+
+			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
+			DBG_871X("Offset RF Gain. before reg 0x7f=0x%08x\n",res);
+			PHY_SetRFReg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, BIT18|BIT17|BIT16|BIT15, target);
+			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
+
+			DBG_871X("Offset RF Gain. After reg 0x7f=0x%08x\n",res);
+			
+		} else {
+
+			DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal=0x%x	!= 0xff, didn't run Kfree\n",padapter->eeprompriv.EEPROMRFGainVal);
+		}
+	} else {
+		DBG_871X("Using the default RF gain.\n");
+	}
+
+#elif defined(CONFIG_RTL8188E)
+	if (value & BIT4) {
+		DBG_871X("8188ES Offset RF Gain.\n");
+		DBG_871X("8188ES Offset RF Gain. EEPROMRFGainVal=0x%x\n",
+				padapter->eeprompriv.EEPROMRFGainVal);
+
+		if (padapter->eeprompriv.EEPROMRFGainVal != 0xff) {
+			res = rtw_hal_read_rfreg(padapter, RF_PATH_A,
+					REG_RF_BB_GAIN_OFFSET, 0xffffffff);
+
+			DBG_871X("Offset RF Gain. reg 0x55=0x%x\n",res);
+			res &= 0xfff87fff;
+
+			res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f) << 15;
+			DBG_871X("Offset RF Gain. res=0x%x\n",res);
+
+			rtw_hal_write_rfreg(padapter, RF_PATH_A,
+					REG_RF_BB_GAIN_OFFSET,
+					RF_GAIN_OFFSET_MASK, res);
+		} else {
+			DBG_871X("Offset RF Gain. EEPROMRFGainVal=0x%x == 0xff, didn't run Kfree\n",
+					padapter->eeprompriv.EEPROMRFGainVal);
+		}
+	} else {
+		DBG_871X("Using the default RF gain.\n");
+	}
+#else
+	if (!(value & 0x01)) {
+		//DBG_871X("Offset RF Gain.\n");
+		res = rtw_hal_read_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, 0xffffffff);
+		value &= tmp;
+		res = value << 14;
+		rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res);
+	} else {
+		DBG_871X("Using the default RF gain.\n");
+	}
+#endif
+	
+}
+#endif //CONFIG_RF_GAIN_OFFSET
+
+//To avoid RX affect TX throughput
+void dm_DynamicUsbTxAgg(_adapter *padapter, u8 from_timer)
+{
+	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
+	struct mlme_priv		*pmlmepriv = &(padapter->mlmepriv);
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
+#ifdef CONFIG_USB_RX_AGGREGATION	
+	if(IS_HARDWARE_TYPE_8821U(padapter) )//|| IS_HARDWARE_TYPE_8192EU(padapter))
+	{
+		//This AGG_PH_TH only for UsbRxAggMode == USB_RX_AGG_USB
+		if((pHalData->UsbRxAggMode == USB_RX_AGG_USB) && (check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE))
+		{
+			if(pdvobjpriv->traffic_stat.cur_tx_tp > 2 && pdvobjpriv->traffic_stat.cur_rx_tp < 30)
+				rtw_write16(padapter, REG_RXDMA_AGG_PG_TH,0x1010);
+			else
+				rtw_write16(padapter, REG_RXDMA_AGG_PG_TH,0x2005); //dmc agg th 20K
+			
+			//DBG_871X("TX_TP=%u, RX_TP=%u \n", pdvobjpriv->traffic_stat.cur_tx_tp, pdvobjpriv->traffic_stat.cur_rx_tp);
+		}
+	}
+#endif
+}
+

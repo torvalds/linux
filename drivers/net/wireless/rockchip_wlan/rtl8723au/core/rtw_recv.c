@@ -1682,12 +1682,12 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 
 				if(psta->sleepq_len>0)
 					pxmitframe->attrib.mdata = 1;
-                                else
+				else
 					pxmitframe->attrib.mdata = 0;
 
 				pxmitframe->attrib.triggered = 1;
 
-	                        //DBG_871X("handling ps-poll, q_len=%d, tim=%x\n", psta->sleepq_len, pstapriv->tim_bitmap);
+				//DBG_871X("handling ps-poll, q_len=%d, tim=%x\n", psta->sleepq_len, pstapriv->tim_bitmap);
 
 #if 0
                                 _exit_critical_bh(&psta->sleep_q.lock, &irqL);	
@@ -1707,7 +1707,7 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 
 					//upate BCN for TIM IE
 					//update_BCNTIM(padapter);		
-					update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
+					update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
 				}
 				
 				//_exit_critical_bh(&psta->sleep_q.lock, &irqL);
@@ -1727,7 +1727,7 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 						DBG_871X("no buffered packets to xmit\n");
 
 						//issue nulldata with More data bit = 0 to indicate we have no buffered packets
-						issue_nulldata(padapter, psta->hwaddr, 0, 0, 0);
+						issue_nulldata_in_interrupt(padapter, psta->hwaddr);
 					}
 					else
 					{
@@ -1739,7 +1739,7 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 
 					//upate BCN for TIM IE
 					//update_BCNTIM(padapter);
-					update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
+					update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
 				}
 				
 			}				

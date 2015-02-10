@@ -294,7 +294,7 @@ void rtw_tdls_set_key(_adapter *adapter, struct rx_pkt_attrib *prx_pkt_attrib, s
 	if(prx_pkt_attrib->encrypt)
 	{
 		ptdls_sta->dot118021XPrivacy=_AES_;
-		rtw_setstakey_cmd(adapter, (u8*)ptdls_sta, _TRUE, _TRUE);
+		rtw_setstakey_cmd(adapter, ptdls_sta, _TRUE, _TRUE);
 	}
 }
 

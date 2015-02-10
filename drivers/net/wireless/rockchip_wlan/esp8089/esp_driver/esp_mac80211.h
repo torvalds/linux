@@ -5,12 +5,38 @@
  */
 #ifndef _ESP_MAC80211_H_
 #define _ESP_MAC80211_H_
+#include <linux/ieee80211.h>
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35))
+struct ieee80211_hdr_3addr {
+	__le16 frame_control;
+	__le16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctrl;
+} __packed;
+#endif
+
+/*MGMT --------------------------------------------------------- */
+struct esp_80211_deauth {
+	struct ieee80211_hdr_3addr hdr;
+	__le16 reason_code;
+} __packed;
+
+/*CONTROL --------------------------------------------------------- */
+
+/*DATA --------------------------------------------------------- */
+struct esp_80211_nulldata {
+	struct ieee80211_hdr_3addr hdr;
+} __packed;
+
+/*IE --------------------------------------------------------- */
 struct esp_80211_wmm_ac_param {
 	u8 aci_aifsn; /* AIFSN, ACM, ACI */
 	u8 cw; /* ECWmin, ECWmax (CW = 2^ECW - 1) */
-	u16 txop_limit;
-};
+	__le16 txop_limit;
+} __packed;
 
 struct esp_80211_wmm_param_element {
 	/* Element ID： 221 (0xdd); length: 24 */
@@ -22,7 +48,7 @@ struct esp_80211_wmm_param_element {
 	u8 qos_info; /* AP/STA specif QoS info */
 	u8 reserved; /* 0 */
 	struct esp_80211_wmm_ac_param ac[4]; /* AC_BE, AC_BK, AC_VI, AC_VO */
-};
+} __packed;
 
 
 #endif /* _ESP_MAC80211_H_ */

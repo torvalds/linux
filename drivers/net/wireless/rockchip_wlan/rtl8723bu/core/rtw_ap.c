@@ -992,26 +992,39 @@ void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta)
 		//check if sta supports rx ampdu
 		phtpriv_sta->ampdu_enable = phtpriv_ap->ampdu_enable;
 
-		//check if sta support s Short GI 20M
+		phtpriv_sta->rx_ampdu_min_spacing = (phtpriv_sta->ht_cap.ampdu_params_info&IEEE80211_HT_CAP_AMPDU_DENSITY)>>2;
+	
+		// bwmode
+		if((phtpriv_sta->ht_cap.cap_info & phtpriv_ap->ht_cap.cap_info) & cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH))
+		{			
+			psta->bw_mode = CHANNEL_WIDTH_40;
+		}
+		else
+		{			
+			psta->bw_mode = CHANNEL_WIDTH_20;
+		}		
+
+		if(pmlmeext->cur_bwmode < psta->bw_mode)
+		{
+			psta->bw_mode = pmlmeext->cur_bwmode;
+		}
+
+		phtpriv_sta->ch_offset = pmlmeext->cur_ch_offset;
+
+
+		//check if sta support s Short GI 20M 
 		if((phtpriv_sta->ht_cap.cap_info & phtpriv_ap->ht_cap.cap_info) & cpu_to_le16(IEEE80211_HT_CAP_SGI_20))
 		{
 			phtpriv_sta->sgi_20m = _TRUE;
 		}
-		//check if sta support s Short GI 40M
+		
+		//check if sta support s Short GI 40M 
 		if((phtpriv_sta->ht_cap.cap_info & phtpriv_ap->ht_cap.cap_info) & cpu_to_le16(IEEE80211_HT_CAP_SGI_40))
 		{
-			phtpriv_sta->sgi_40m = _TRUE;
-		}
-
-		// bwmode
-		if((phtpriv_sta->ht_cap.cap_info & phtpriv_ap->ht_cap.cap_info) & cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH))
-		{
-			phtpriv_sta->ch_offset = pmlmeext->cur_ch_offset;
-			psta->bw_mode = CHANNEL_WIDTH_40;
-		}
-		else
-		{
-			psta->bw_mode = CHANNEL_WIDTH_20;
+			if(psta->bw_mode == CHANNEL_WIDTH_40) //according to psta->bw_mode
+				phtpriv_sta->sgi_40m = _TRUE;
+			else
+				phtpriv_sta->sgi_40m = _FALSE;
 		}
 
 		psta->qos_option = _TRUE;
@@ -1720,7 +1733,7 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 	if(p && ie_len>0)
 	{
 		u8 rf_type=0;
-		u8 max_rx_ampdu_factor=0;
+		HT_CAP_AMPDU_FACTOR max_rx_ampdu_factor=MAX_AMPDU_FACTOR_64K;
 		struct rtw_ieee80211_ht_cap *pht_cap = (struct rtw_ieee80211_ht_cap *)(p+2);
 
 		pHT_caps_ie=p;
@@ -2890,7 +2903,7 @@ u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u16 reaso
 	//report_del_sta_event(padapter, psta->hwaddr, reason);
 
 	//clear cam entry / key
-	rtw_clearstakey_cmd(padapter, (u8*)psta, (u8)rtw_get_camid(psta->mac_id), _TRUE);
+	rtw_clearstakey_cmd(padapter, psta, _TRUE);
 
 
 	_enter_critical_bh(&psta->lock, &irqL);
@@ -3129,13 +3142,14 @@ void rtw_ap_restore_network(_adapter *padapter)
 		if (psta == NULL) {
 			DBG_871X(FUNC_ADPT_FMT" sta_info is null\n", FUNC_ADPT_ARG(padapter));
 		} else if (psta->state &_FW_LINKED) {
+			rtw_sta_media_status_rpt(padapter, psta, 1);
 			Update_RA_Entry(padapter, psta);
 			//pairwise key
 			/* per sta pairwise key and settings */
 			if(	(padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_) ||
 				(padapter->securitypriv.dot11PrivacyAlgrthm == _AES_))
 			{
-				rtw_setstakey_cmd(padapter, (unsigned char *)psta, _TRUE,_FALSE);
+				rtw_setstakey_cmd(padapter, psta, _TRUE,_FALSE);
 			}			
 		}
 	}
@@ -3178,14 +3192,6 @@ void start_ap_mode(_adapter *padapter)
 	for(i=0; i<NUM_STA; i++)
 		pstapriv->sta_aid[i] = NULL;
 
-	pmlmepriv->wps_beacon_ie = NULL;	
-	pmlmepriv->wps_probe_resp_ie = NULL;
-	pmlmepriv->wps_assoc_resp_ie = NULL;
-	
-	pmlmepriv->p2p_beacon_ie = NULL;
-	pmlmepriv->p2p_probe_resp_ie = NULL;
-
-	
 	//for ACL 
 	_rtw_init_listhead(&(pacl_list->acl_node_q.queue));
 	pacl_list->num = 0;

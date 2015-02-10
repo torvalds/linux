@@ -125,11 +125,11 @@ void rtl8723bu_interface_configure(_adapter *padapter)
 #endif
 
 #ifdef CONFIG_USB_RX_AGGREGATION
-	pHalData->UsbRxAggMode		= USB_RX_AGG_DMA;// USB_RX_AGG_DMA;
-	pHalData->UsbRxAggBlockCount	= 8; //unit : 512b
-	pHalData->UsbRxAggBlockTimeout	= 0x6;
-	pHalData->UsbRxAggPageCount	= 48; //uint :128 b //0x0A;	// 10 = MAX_RX_DMA_BUFFER_SIZE/2/pHalData->UsbBulkOutSize
-	pHalData->UsbRxAggPageTimeout	= 0x4; //6, absolute time = 34ms/(2^6)
+	pHalData->UsbRxAggMode		= USB_RX_AGG_USB;
+	pHalData->UsbRxAggBlockCount	= 0x5; // unit: 4KB, for USB mode
+	pHalData->UsbRxAggBlockTimeout	= 0x20; // unit: 32us, for USB mode
+	pHalData->UsbRxAggPageCount	= 0xF; // uint: 1KB, for DMA mode
+	pHalData->UsbRxAggPageTimeout	= 0x20; // unit: 32us, for DMA mode
 #endif
 
 	HalUsbSetQueuePipeMapping8723BUsb(padapter,
@@ -157,28 +157,7 @@ static u8 _InitPowerOn_8723BU(PADAPTER padapter)
 	rtw_write16(padapter, REG_CR_8723B, value16);
 
 #ifdef CONFIG_BT_COEXIST
-	// Fix Antenna at BT side between power on and BT-Coex init HW
-	// enable BB power
-	value8 = rtw_read8(padapter, REG_SYS_FUNC_EN);
-	value8 |= FEN_BBRSTB | FEN_BB_GLB_RSTn;
-	rtw_write8(padapter, REG_SYS_FUNC_EN, value8);
-	//DBG_8192C("%s: 0x2=0x%02X\n", __FUNCTION__, rtw_read8(padapter, 0x2));
-
-	// Antenna of USB 1Ant is at S0
-	// internal switch BT->S0
-	// 0x948[12:0] = 0
-	value16 = rtw_read16(padapter, 0x948);
-	value16 &= ~0x1FFF;
-	value16 |= 0;
-	rtw_write16(padapter, 0x948, value16);
-	//DBG_8192C("%s: 0x948=0x%04X\n", __FUNCTION__, rtw_read16(padapter, 0x948));
-
-	// mask wlan_act to low
-	// 0x76e[3] = 0
-	value8 = rtw_read8(padapter, 0x76e);
-	value8 &= ~BIT(3);
-	rtw_write8(padapter, 0x76e, value8);
-	//DBG_8192C("%s: 0x76e=0x%02X\n", __FUNCTION__, rtw_read8(padapter, 0x76e));
+	rtw_btcoex_PowerOnSetting(padapter);
 
 	// external switch to S1
 	// 0x38[11] = 0x1
@@ -532,12 +511,8 @@ static void _InitQueuePriority(PADAPTER padapter)
 
 static void _InitPageBoundary(PADAPTER padapter)
 {
-	// RX Page Boundary
-	u16 rxdma_bufsz = 0x2800;//rx 10K
-
-	rtw_write16(padapter, (REG_TRXFF_BNDY_8723B+ 2), rxdma_bufsz-1);
-
-	// TODO: ?? shall we set tx boundary?
+	/* RX FIFO(RXFF0) Boundary, unit is byte */
+	rtw_write16(padapter, REG_TRXFF_BNDY+2, RX_DMA_BOUNDARY_8723B);
 }
 
 static VOID
@@ -722,6 +697,52 @@ _InitRetryFunction(
 	rtw_write8(Adapter, REG_ACKTO, 0x40);
 }
 
+static void _InitBurstPktLen(PADAPTER padapter)
+{
+	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
+	u8 tmp8;
+
+
+	tmp8 = rtw_read8(padapter, REG_RXDMA_PRO_8723B);
+	tmp8 &= ~(BIT(4) | BIT(5));
+	switch (pHalData->UsbBulkOutSize) {
+	case USB_HIGH_SPEED_BULK_SIZE:
+		tmp8 |= BIT(4); // set burst pkt len=512B
+		break;
+	case USB_FULL_SPEED_BULK_SIZE:
+	default:
+		tmp8 |= BIT(5); // set burst pkt len=64B
+		break;
+	}
+	tmp8 |= BIT(1) | BIT(2) | BIT(3);
+	rtw_write8(padapter, REG_RXDMA_PRO_8723B, tmp8);
+
+	pHalData->bSupportUSB3 = _FALSE;
+
+	tmp8 = rtw_read8(padapter, REG_HT_SINGLE_AMPDU_8723B);
+	tmp8 |= BIT(7); // enable single pkt ampdu
+	rtw_write8(padapter, REG_HT_SINGLE_AMPDU_8723B, tmp8);
+	rtw_write16(padapter, REG_MAX_AGGR_NUM, 0x0C14);
+	rtw_write8(padapter, REG_AMPDU_MAX_TIME_8723B, 0x5E);
+	rtw_write32(padapter, REG_AMPDU_MAX_LENGTH_8723B, 0xffffffff);
+	if (pHalData->AMPDUBurstMode)
+		rtw_write8(padapter, REG_AMPDU_BURST_MODE_8723B, 0x5F);
+
+	// for VHT packet length 11K
+	rtw_write8(padapter, REG_RX_PKT_LIMIT, 0x18);
+
+	rtw_write8(padapter, REG_PIFS, 0x00);
+	rtw_write8(padapter, REG_FWHW_TXQ_CTRL, 0x80);
+	rtw_write32(padapter, REG_FAST_EDCA_CTRL, 0x03086666);
+	rtw_write8(padapter, REG_USTIME_TSF_8723B, 0x50);
+	rtw_write8(padapter, REG_USTIME_EDCA_8723B, 0x50);
+
+	// to prevent mac is reseted by bus. 20111208, by Page
+	tmp8 = rtw_read8(padapter, REG_RSV_CTRL);
+	tmp8 |= BIT(5) | BIT(6);
+	rtw_write8(padapter, REG_RSV_CTRL, tmp8);
+}
+
 /*-----------------------------------------------------------------------------
  * Function:	usb_AggSettingTxUpdate()
  *
@@ -783,49 +804,68 @@ usb_AggSettingRxUpdate(
 	IN	PADAPTER			Adapter
 	)
 {
+	PHAL_DATA_TYPE pHalData;
+	u8 aggctrl;
+	u32 aggrx;
+	u32 agg_size;
+
+
+	pHalData = GET_HAL_DATA(Adapter);
+
+	aggctrl = rtw_read8(Adapter, REG_TRXDMA_CTRL);
+	aggctrl &= ~RXDMA_AGG_EN;
+
+	aggrx = rtw_read32(Adapter, REG_RXDMA_AGG_PG_TH);
+	aggrx &= ~BIT_USB_RXDMA_AGG_EN;
+	aggrx &= ~0xFF0F; // reset agg size and timeout
+
 #ifdef CONFIG_USB_RX_AGGREGATION
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	u8			usb_agg_setting;
-	u32			usb_agg_th;
-	
-	usb_agg_setting = rtw_read8(Adapter, REG_TRXDMA_CTRL_8723B);
-	
-	usb_agg_th = (pHalData->RegAcUsbDmaSize&0x0F) | (pHalData->RegAcUsbDmaTime<<8);
+	switch(pHalData->UsbRxAggMode) {
+	case USB_RX_AGG_DMA:
+		agg_size = pHalData->UsbRxAggPageCount << 10;
+		if (agg_size > RX_DMA_BOUNDARY_8723B)
+			agg_size = RX_DMA_BOUNDARY_8723B >> 1;
+		if ((agg_size + 2048) > MAX_RECVBUF_SZ)
+			agg_size = MAX_RECVBUF_SZ - 2048;
+		agg_size >>= 10; // unit: 1K
+		if (agg_size > 0xF)
+			agg_size = 0xF;
 
-	switch(pHalData->UsbRxAggMode)
-	{
+		aggctrl |= RXDMA_AGG_EN;
+		aggrx |= BIT_USB_RXDMA_AGG_EN;
+		aggrx |= agg_size;
+		aggrx |= (pHalData->UsbRxAggPageTimeout << 8);
+		DBG_8192C("%s: RX Agg-DMA mode, size=%dKB, timeout=%dus\n",
+			__FUNCTION__, agg_size, pHalData->UsbRxAggPageTimeout*32);
+		break;
 
-		case USB_RX_AGG_DMA:
-			{
-				usb_agg_th |= BIT_USB_RXDMA_AGG_EN;
-				rtw_write16(Adapter, REG_RXDMA_AGG_PG_TH_8723B, usb_agg_th);
-			}
-			break;
-		case USB_RX_AGG_USB:
-			{
-				usb_agg_setting = rtw_read8(Adapter,REG_RXDMA_PRO_8723B)|BIT(3)|BIT(2);
-				if(IS_HIGH_SPEED_USB(Adapter))
-				{
-					rtw_write8(Adapter,REG_RXDMA_PRO_8723B,((usb_agg_setting|BIT(4))&(~BIT(5))));
-				}
-				else if(IS_FULL_SPEED_USB(Adapter))
-				{
-					rtw_write8(Adapter,REG_RXDMA_PRO_8723B,	((usb_agg_setting|BIT(5))&(~BIT(4))));
-				}
-				
-			}
-		case USB_RX_AGG_MIX:
-		case USB_RX_AGG_DISABLE:
-		default:
-			// TODO: 
-			break;
+	case USB_RX_AGG_USB:
+	case USB_RX_AGG_MIX:
+		agg_size = pHalData->UsbRxAggBlockCount << 12;
+		if ((agg_size + 2048) > MAX_RECVBUF_SZ)
+			agg_size = MAX_RECVBUF_SZ - 2048;
+		agg_size >>= 12; // unit: 4K
+		if (agg_size > 0xF)
+			agg_size = 0xF;
+
+		aggctrl |= RXDMA_AGG_EN;
+		aggrx &= ~BIT_USB_RXDMA_AGG_EN;
+		aggrx |= agg_size;
+		aggrx |= (pHalData->UsbRxAggBlockTimeout << 8);
+		DBG_8192C("%s: RX Agg-USB mode, size=%dKB, timeout=%dus\n",
+			__FUNCTION__, agg_size*4, pHalData->UsbRxAggBlockTimeout*32);
+		break;
+
+	case USB_RX_AGG_DISABLE:
+	default:
+		DBG_8192C("%s: RX Aggregation Disable!\n", __FUNCTION__);
+		break;
 	}
+#endif // CONFIG_USB_RX_AGGREGATION
 
-
-
-
-#endif
-}	// usb_AggSettingRxUpdate
+	rtw_write8(Adapter, REG_TRXDMA_CTRL, aggctrl);
+	rtw_write32(Adapter, REG_RXDMA_AGG_PG_TH, aggrx);
+}
 
 static VOID
 _initUsbAggregationSetting(
@@ -1078,16 +1118,14 @@ u32 rtl8723bu_hal_init(PADAPTER padapter)
 		HAL_INIT_STAGES_INIT_SECURITY,
 		HAL_INIT_STAGES_MISC11,
 		//HAL_INIT_STAGES_RF_PS,
-		HAL_INIT_STAGES_IQK,
-		HAL_INIT_STAGES_PW_TRACK,
-		HAL_INIT_STAGES_LCK,
+		HAL_INIT_STAGES_INIT_HAL_DM,
+//		HAL_INIT_STAGES_IQK,
+//		HAL_INIT_STAGES_PW_TRACK,
+//		HAL_INIT_STAGES_LCK,
 		HAL_INIT_STAGES_MISC21,
 		//HAL_INIT_STAGES_INIT_PABIAS,
-		#ifdef CONFIG_BT_COEXIST
 		HAL_INIT_STAGES_BT_COEXIST,
-		#endif
 		//HAL_INIT_STAGES_ANTENNA_SEL,
-		HAL_INIT_STAGES_INIT_HAL_DM,
 		HAL_INIT_STAGES_MISC31,
 		HAL_INIT_STAGES_END,
 		HAL_INIT_STAGES_NUM
@@ -1107,16 +1145,14 @@ u32 rtl8723bu_hal_init(PADAPTER padapter)
 		"HAL_INIT_STAGES_INIT_SECURITY",
 		"HAL_INIT_STAGES_MISC11",
 		//"HAL_INIT_STAGES_RF_PS",
-		"HAL_INIT_STAGES_IQK",
-		"HAL_INIT_STAGES_PW_TRACK",
-		"HAL_INIT_STAGES_LCK",
+		"HAL_INIT_STAGES_INIT_HAL_DM",
+//		"HAL_INIT_STAGES_IQK",
+//		"HAL_INIT_STAGES_PW_TRACK",
+//		"HAL_INIT_STAGES_LCK",
 		"HAL_INIT_STAGES_MISC21",
 		//"HAL_INIT_STAGES_INIT_PABIAS",
-		#ifdef CONFIG_BT_COEXIST
 		"HAL_INIT_STAGES_BT_COEXIST",
-		#endif
 		//"HAL_INIT_STAGES_ANTENNA_SEL",
-		"HAL_INIT_STAGES_INIT_HAL_DM",
 		"HAL_INIT_STAGES_MISC31",
 		"HAL_INIT_STAGES_END",
 	};
@@ -1245,27 +1281,13 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC01);
 	// <Kordan> InitHalDm should be put ahead of FirmwareDownload. (HWConfig flow: FW->MAC->-BB->RF)
 	//InitHalDm(Adapter);
 
-	/* 
-		To inform FW about:
-		bit0: "0" for no antenna inverse; "1" for antenna inverse 
-		bit1: "0" for internal switch; "1" for external switch
-		bit2: "0" for one antenna; "1" for two antenna 
-	*/
-	value8 = 0;
-	value8 |= BIT(0); /* Set antenna inverse for 8723BU */
-	if (pHalData->EEPROMBluetoothAntNum == Ant_x2)
-	{
-		value8 |= BIT(2); /* two antenna case */
-	}
-	rtw_write8(padapter, 0xfe08, value8);
-
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_DOWNLOAD_FW);
 #if (1 == MP_DRIVER)
 	if (padapter->registrypriv.mp_mode == 1)
 	{
 		_InitRxSetting_8723bu(padapter);
 	}
-	else
+//	else
 #endif
 	{
 		status = rtl8723b_FirmwareDownload(padapter,_FALSE);
@@ -1360,11 +1382,12 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC02);
 	_InitEDCA(padapter);
 	_InitRateFallback(padapter);
 	_InitRetryFunction(padapter);
-	_initUsbAggregationSetting(padapter);
 //	_InitOperationMode(Adapter);//todo
 	rtl8723b_InitBeaconParameters(padapter);
 	rtl8723b_InitBeaconMaxError(padapter, _TRUE);
 
+	_InitBurstPktLen(padapter);
+	_initUsbAggregationSetting(padapter);
 
 #ifdef ENABLE_USB_DROP_INCORRECT_OUT
 	_InitHardwareDropIncorrectBulkOut(padapter);
@@ -1424,6 +1447,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 	
 //	_RfPowerSave(Adapter);
 
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
 	rtl8723b_InitHalDm(padapter);
 
 #if (MP_DRIVER == 1)
@@ -1466,7 +1490,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 #endif
 			restore_iqk_rst = (pwrpriv->bips_processing==_TRUE)?_TRUE:_FALSE;
 			b2Ant = pHalData->EEPROMBluetoothAntNum==Ant_x2?_TRUE:_FALSE;
-			PHY_IQCalibrate_8723B(padapter, _FALSE, restore_iqk_rst, b2Ant, 1);
+			PHY_IQCalibrate_8723B(padapter, _FALSE, restore_iqk_rst, b2Ant, pHalData->ant_path);
 			pHalData->odmpriv.RFCalibrateInfo.bIQKInitialized = _TRUE;
 #ifdef CONFIG_BT_COEXIST
 			rtw_btcoex_IQKNotify(padapter, _FALSE);
@@ -1486,9 +1510,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC21);
 //HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PABIAS);
 //	_InitPABias(Adapter);
 
-
-
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BT_COEXIST);
 #ifdef CONFIG_BT_COEXIST
 	// Init BT hw config.
 	rtw_btcoex_HAL_Initialize(padapter, _FALSE);
@@ -2567,7 +2589,12 @@ InitAdapterVariablesByPROM_8723BU(
 {
 	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 	//PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
-	u8			hwinfo[HWSET_MAX_SIZE_512];
+	u8*			hwinfo = NULL;
+
+	if (sizeof(pEEPROM->efuse_eeprom_data) < HWSET_MAX_SIZE_8723B)
+		DBG_871X("[WARNING] size of efuse_eeprom_data is less than HWSET_MAX_SIZE_8723B!\n");
+
+	hwinfo = pEEPROM->efuse_eeprom_data;
 	
 #ifdef CONFIG_EFUSE_CONFIG_FILE
 	Hal_readPGDataFromConfigFile(padapter);
@@ -2855,7 +2882,7 @@ GetHalDefVar8723BUsb(
 			*(( u32*)pValue) = RXDESC_SIZE + DRVINFO_SZ;
 			break;
 		case HW_VAR_MAX_RX_AMPDU_FACTOR:
-			*(( u32*)pValue) = MAX_AMPDU_FACTOR_64K;
+			*((HT_CAP_AMPDU_FACTOR*)pValue) = MAX_AMPDU_FACTOR_64K;
 			break;
 		default:
 			bResult = GetHalDefVar8723B(Adapter, eVariable, pValue);
@@ -2939,23 +2966,8 @@ void rtl8723bu_set_hal_ops(_adapter * padapter)
 
 _func_enter_;
 
-#ifdef CONFIG_CONCURRENT_MODE
-	if(padapter->isprimary)
-#endif //CONFIG_CONCURRENT_MODE
-	{
-		//set hardware operation functions
-		padapter->HalData = rtw_zvmalloc(sizeof(HAL_DATA_TYPE));
-		if(padapter->HalData == NULL){
-			DBG_871X("cant not alloc memory for HAL DATA \n");
-		}
-	}
-	//_rtw_memset(padapter->HalData, 0, sizeof(HAL_DATA_TYPE));
-	padapter->hal_data_sz = sizeof(HAL_DATA_TYPE);
-
 	pHalFunc->hal_init = &rtl8723bu_hal_init;
 	pHalFunc->hal_deinit = &rtl8723bu_hal_deinit;
-
-	//pHalFunc->free_hal_data = &rtl8192c_free_hal_data;
 
 	pHalFunc->inirp_init = &rtl8723bu_inirp_init;
 	pHalFunc->inirp_deinit = &rtl8723bu_inirp_deinit;

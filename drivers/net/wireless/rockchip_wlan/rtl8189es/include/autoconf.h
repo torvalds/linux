@@ -34,7 +34,7 @@
 
 #ifdef CONFIG_EFUSE_CONFIG_FILE
 #ifndef EFUSE_MAP_PATH
-#define EFUSE_MAP_PATH "/system/etc/wifi/wifi_efuse_8189e.map"
+#define EFUSE_MAP_PATH "/system/etc/firmware/wifi_efuse_8189e.map"
 #endif //EFUSE_MAP_PATH
 #endif
 
