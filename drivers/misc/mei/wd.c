@@ -202,10 +202,10 @@ err:
 	return ret;
 }
 
-/*
+/**
  * mei_wd_ops_start - wd start command from the watchdog core.
  *
- * @wd_dev - watchdog device struct
+ * @wd_dev: watchdog device struct
  *
  * Return: 0 if success, negative errno code for failure
  */
@@ -239,10 +239,10 @@ end_unlock:
 	return err;
 }
 
-/*
+/**
  * mei_wd_ops_stop -  wd stop command from the watchdog core.
  *
- * @wd_dev - watchdog device struct
+ * @wd_dev: watchdog device struct
  *
  * Return: 0 if success, negative errno code for failure
  */
@@ -261,10 +261,10 @@ static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
 	return 0;
 }
 
-/*
+/**
  * mei_wd_ops_ping - wd ping command from the watchdog core.
  *
- * @wd_dev - watchdog device struct
+ * @wd_dev: watchdog device struct
  *
  * Return: 0 if success, negative errno code for failure
  */
@@ -311,11 +311,11 @@ end:
 	return ret;
 }
 
-/*
+/**
  * mei_wd_ops_set_timeout - wd set timeout command from the watchdog core.
  *
- * @wd_dev - watchdog device struct
- * @timeout - timeout value to set
+ * @wd_dev: watchdog device struct
+ * @timeout: timeout value to set
  *
  * Return: 0 if success, negative errno code for failure
  */

@@ -321,7 +321,7 @@ static inline bool mei_cl_cmp_id(const struct mei_cl *cl1,
 }
 
 /**
- * mei_io_list_flush - removes cbs belonging to cl.
+ * __mei_io_list_flush - removes and frees cbs belonging to cl.
  *
  * @list:  an instance of our list structure
  * @cl:    host client, can be NULL for flushing the whole list
@@ -540,10 +540,11 @@ struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
 	return NULL;
 }
 
-/** mei_cl_link: allocate host id in the host map
+/**
+ * mei_cl_link - allocate host id in the host map
  *
- * @cl - host client
- * @id - fixed host id or -1 for generic one
+ * @cl: host client
+ * @id: fixed host id or -1 for generic one
  *
  * Return: 0 on success
  *	-EINVAL on incorrect values
