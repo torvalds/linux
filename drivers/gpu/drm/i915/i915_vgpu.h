@@ -81,5 +81,7 @@ struct vgt_if {
 	(VGT_PVINFO_PAGE + (long)&((struct vgt_if *)NULL)->x)
 
 extern void i915_check_vgpu(struct drm_device *dev);
+extern int intel_vgt_balloon(struct drm_device *dev);
+extern void intel_vgt_deballoon(void);
 
 #endif /* _I915_VGPU_H_ */

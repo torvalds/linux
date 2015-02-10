@@ -27,6 +27,7 @@
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 
@@ -1756,6 +1757,16 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	/* Subtract the guard page ... */
 	drm_mm_init(&ggtt_vm->mm, start, end - start - PAGE_SIZE);
+
+	dev_priv->gtt.base.start = start;
+	dev_priv->gtt.base.total = end - start;
+
+	if (intel_vgpu_active(dev)) {
+		ret = intel_vgt_balloon(dev);
+		if (ret)
+			return ret;
+	}
+
 	if (!HAS_LLC(dev))
 		dev_priv->gtt.base.mm.color_adjust = i915_gtt_color_adjust;
 
@@ -1774,9 +1785,6 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 		}
 		vma->bound |= GLOBAL_BIND;
 	}
-
-	dev_priv->gtt.base.start = start;
-	dev_priv->gtt.base.total = end - start;
 
 	/* Clear any non-preallocated blocks */
 	drm_mm_for_each_hole(entry, &ggtt_vm->mm, hole_start, hole_end) {
@@ -1829,6 +1837,9 @@ void i915_global_gtt_cleanup(struct drm_device *dev)
 	}
 
 	if (drm_mm_initialized(&vm->mm)) {
+		if (intel_vgpu_active(dev))
+			intel_vgt_deballoon();
+
 		drm_mm_takedown(&vm->mm);
 		list_del(&vm->global_link);
 	}

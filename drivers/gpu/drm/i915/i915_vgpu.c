@@ -84,3 +84,181 @@ void i915_check_vgpu(struct drm_device *dev)
 	dev_priv->vgpu.active = true;
 	DRM_INFO("Virtual GPU for Intel GVT-g detected.\n");
 }
+
+struct _balloon_info_ {
+	/*
+	 * There are up to 2 regions per mappable/unmappable graphic
+	 * memory that might be ballooned. Here, index 0/1 is for mappable
+	 * graphic memory, 2/3 for unmappable graphic memory.
+	 */
+	struct drm_mm_node space[4];
+};
+
+static struct _balloon_info_ bl_info;
+
+/**
+ * intel_vgt_deballoon - deballoon reserved graphics address trunks
+ *
+ * This function is called to deallocate the ballooned-out graphic memory, when
+ * driver is unloaded or when ballooning fails.
+ */
+void intel_vgt_deballoon(void)
+{
+	int i;
+
+	DRM_DEBUG("VGT deballoon.\n");
+
+	for (i = 0; i < 4; i++) {
+		if (bl_info.space[i].allocated)
+			drm_mm_remove_node(&bl_info.space[i]);
+	}
+
+	memset(&bl_info, 0, sizeof(bl_info));
+}
+
+static int vgt_balloon_space(struct drm_mm *mm,
+			     struct drm_mm_node *node,
+			     unsigned long start, unsigned long end)
+{
+	unsigned long size = end - start;
+
+	if (start == end)
+		return -EINVAL;
+
+	DRM_INFO("balloon space: range [ 0x%lx - 0x%lx ] %lu KiB.\n",
+		 start, end, size / 1024);
+
+	node->start = start;
+	node->size = size;
+
+	return drm_mm_reserve_node(mm, node);
+}
+
+/**
+ * intel_vgt_balloon - balloon out reserved graphics address trunks
+ * @dev: drm device
+ *
+ * This function is called at the initialization stage, to balloon out the
+ * graphic address space allocated to other vGPUs, by marking these spaces as
+ * reserved. The ballooning related knowledge(starting address and size of
+ * the mappable/unmappable graphic memory) is described in the vgt_if structure
+ * in a reserved mmio range.
+ *
+ * To give an example, the drawing below depicts one typical scenario after
+ * ballooning. Here the vGPU1 has 2 pieces of graphic address spaces ballooned
+ * out each for the mappable and the non-mappable part. From the vGPU1 point of
+ * view, the total size is the same as the physical one, with the start address
+ * of its graphic space being zero. Yet there are some portions ballooned out(
+ * the shadow part, which are marked as reserved by drm allocator). From the
+ * host point of view, the graphic address space is partitioned by multiple
+ * vGPUs in different VMs.
+ *
+ *                        vGPU1 view         Host view
+ *             0 ------> +-----------+     +-----------+
+ *               ^       |///////////|     |   vGPU3   |
+ *               |       |///////////|     +-----------+
+ *               |       |///////////|     |   vGPU2   |
+ *               |       +-----------+     +-----------+
+ *        mappable GM    | available | ==> |   vGPU1   |
+ *               |       +-----------+     +-----------+
+ *               |       |///////////|     |           |
+ *               v       |///////////|     |   Host    |
+ *               +=======+===========+     +===========+
+ *               ^       |///////////|     |   vGPU3   |
+ *               |       |///////////|     +-----------+
+ *               |       |///////////|     |   vGPU2   |
+ *               |       +-----------+     +-----------+
+ *      unmappable GM    | available | ==> |   vGPU1   |
+ *               |       +-----------+     +-----------+
+ *               |       |///////////|     |           |
+ *               |       |///////////|     |   Host    |
+ *               v       |///////////|     |           |
+ * total GM size ------> +-----------+     +-----------+
+ *
+ * Returns:
+ * zero on success, non-zero if configuration invalid or ballooning failed
+ */
+int intel_vgt_balloon(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_address_space *ggtt_vm = &dev_priv->gtt.base;
+	unsigned long ggtt_vm_end = ggtt_vm->start + ggtt_vm->total;
+
+	unsigned long mappable_base, mappable_size, mappable_end;
+	unsigned long unmappable_base, unmappable_size, unmappable_end;
+	int ret;
+
+	mappable_base = I915_READ(vgtif_reg(avail_rs.mappable_gmadr.base));
+	mappable_size = I915_READ(vgtif_reg(avail_rs.mappable_gmadr.size));
+	unmappable_base = I915_READ(vgtif_reg(avail_rs.nonmappable_gmadr.base));
+	unmappable_size = I915_READ(vgtif_reg(avail_rs.nonmappable_gmadr.size));
+
+	mappable_end = mappable_base + mappable_size;
+	unmappable_end = unmappable_base + unmappable_size;
+
+	DRM_INFO("VGT ballooning configuration:\n");
+	DRM_INFO("Mappable graphic memory: base 0x%lx size %ldKiB\n",
+		 mappable_base, mappable_size / 1024);
+	DRM_INFO("Unmappable graphic memory: base 0x%lx size %ldKiB\n",
+		 unmappable_base, unmappable_size / 1024);
+
+	if (mappable_base < ggtt_vm->start ||
+	    mappable_end > dev_priv->gtt.mappable_end ||
+	    unmappable_base < dev_priv->gtt.mappable_end ||
+	    unmappable_end > ggtt_vm_end) {
+		DRM_ERROR("Invalid ballooning configuration!\n");
+		return -EINVAL;
+	}
+
+	/* Unmappable graphic memory ballooning */
+	if (unmappable_base > dev_priv->gtt.mappable_end) {
+		ret = vgt_balloon_space(&ggtt_vm->mm,
+					&bl_info.space[2],
+					dev_priv->gtt.mappable_end,
+					unmappable_base);
+
+		if (ret)
+			goto err;
+	}
+
+	/*
+	 * No need to partition out the last physical page,
+	 * because it is reserved to the guard page.
+	 */
+	if (unmappable_end < ggtt_vm_end - PAGE_SIZE) {
+		ret = vgt_balloon_space(&ggtt_vm->mm,
+					&bl_info.space[3],
+					unmappable_end,
+					ggtt_vm_end - PAGE_SIZE);
+		if (ret)
+			goto err;
+	}
+
+	/* Mappable graphic memory ballooning */
+	if (mappable_base > ggtt_vm->start) {
+		ret = vgt_balloon_space(&ggtt_vm->mm,
+					&bl_info.space[0],
+					ggtt_vm->start, mappable_base);
+
+		if (ret)
+			goto err;
+	}
+
+	if (mappable_end < dev_priv->gtt.mappable_end) {
+		ret = vgt_balloon_space(&ggtt_vm->mm,
+					&bl_info.space[1],
+					mappable_end,
+					dev_priv->gtt.mappable_end);
+
+		if (ret)
+			goto err;
+	}
+
+	DRM_INFO("VGT balloon successfully\n");
+	return 0;
+
+err:
+	DRM_ERROR("VGT balloon fail\n");
+	intel_vgt_deballoon();
+	return ret;
+}
