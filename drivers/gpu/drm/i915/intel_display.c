@@ -2190,11 +2190,15 @@ static bool need_vtd_wa(struct drm_device *dev)
 }
 
 int
-intel_fb_align_height(struct drm_device *dev, int height, unsigned int tiling)
+intel_fb_align_height(struct drm_device *dev, int height,
+		      uint32_t pixel_format,
+		      uint64_t fb_format_modifier)
 {
 	int tile_height;
 
-	tile_height = tiling ? (IS_GEN2(dev) ? 16 : 8) : 1;
+	tile_height = fb_format_modifier == I915_FORMAT_MOD_X_TILED ?
+		(IS_GEN2(dev) ? 16 : 8) : 1;
+
 	return ALIGN(height, tile_height);
 }
 
@@ -6657,7 +6661,8 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->pitches[0] = val & 0xffffffc0;
 
 	aligned_height = intel_fb_align_height(dev, fb->height,
-					       plane_config->tiling);
+					       fb->pixel_format,
+					       fb->modifier[0]);
 
 	plane_config->size = PAGE_ALIGN(fb->pitches[0] * aligned_height);
 
@@ -7699,7 +7704,8 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->pitches[0] = (val & 0x3ff) * stride_mult;
 
 	aligned_height = intel_fb_align_height(dev, fb->height,
-					       plane_config->tiling);
+					       fb->pixel_format,
+					       fb->modifier[0]);
 
 	plane_config->size = ALIGN(fb->pitches[0] * aligned_height, PAGE_SIZE);
 
@@ -7795,7 +7801,8 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->pitches[0] = val & 0xffffffc0;
 
 	aligned_height = intel_fb_align_height(dev, fb->height,
-					       plane_config->tiling);
+					       fb->pixel_format,
+					       fb->modifier[0]);
 
 	plane_config->size = PAGE_ALIGN(fb->pitches[0] * aligned_height);
 
@@ -12823,7 +12830,8 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 
 	aligned_height = intel_fb_align_height(dev, mode_cmd->height,
-					       obj->tiling_mode);
+					       mode_cmd->pixel_format,
+					       mode_cmd->modifier[0]);
 	/* FIXME drm helper for size checks (especially planar formats)? */
 	if (obj->base.size < aligned_height * mode_cmd->pitches[0])
 		return -EINVAL;

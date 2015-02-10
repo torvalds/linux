@@ -879,7 +879,8 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 }
 
 int intel_fb_align_height(struct drm_device *dev, int height,
-			  unsigned int tiling);
+			  uint32_t pixel_format,
+			  uint64_t fb_format_modifier);
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 
 
