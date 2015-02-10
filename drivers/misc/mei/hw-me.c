@@ -561,11 +561,11 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 }
 
 /**
- * mei_me_pg_enter - write pg enter register
+ * mei_me_pg_set - write pg enter register
  *
  * @dev: the device structure
  */
-static void mei_me_pg_enter(struct mei_device *dev)
+static void mei_me_pg_set(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 reg;
@@ -580,11 +580,11 @@ static void mei_me_pg_enter(struct mei_device *dev)
 }
 
 /**
- * mei_me_pg_exit - write pg exit register
+ * mei_me_pg_unset - write pg exit register
  *
  * @dev: the device structure
  */
-static void mei_me_pg_exit(struct mei_device *dev)
+static void mei_me_pg_unset(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 reg;
@@ -601,13 +601,13 @@ static void mei_me_pg_exit(struct mei_device *dev)
 }
 
 /**
- * mei_me_pg_set_sync - perform pg entry procedure
+ * mei_me_pg_enter_sync - perform pg entry procedure
  *
  * @dev: the device structure
  *
  * Return: 0 on success an error code otherwise
  */
-int mei_me_pg_set_sync(struct mei_device *dev)
+int mei_me_pg_enter_sync(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	unsigned long timeout = mei_secs_to_jiffies(MEI_PGI_TIMEOUT);
@@ -625,7 +625,7 @@ int mei_me_pg_set_sync(struct mei_device *dev)
 	mutex_lock(&dev->device_lock);
 
 	if (dev->pg_event == MEI_PG_EVENT_RECEIVED) {
-		mei_me_pg_enter(dev);
+		mei_me_pg_set(dev);
 		ret = 0;
 	} else {
 		ret = -ETIME;
@@ -638,13 +638,13 @@ int mei_me_pg_set_sync(struct mei_device *dev)
 }
 
 /**
- * mei_me_pg_unset_sync - perform pg exit procedure
+ * mei_me_pg_exit_sync - perform pg exit procedure
  *
  * @dev: the device structure
  *
  * Return: 0 on success an error code otherwise
  */
-int mei_me_pg_unset_sync(struct mei_device *dev)
+int mei_me_pg_exit_sync(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	unsigned long timeout = mei_secs_to_jiffies(MEI_PGI_TIMEOUT);
@@ -655,7 +655,7 @@ int mei_me_pg_unset_sync(struct mei_device *dev)
 
 	dev->pg_event = MEI_PG_EVENT_WAIT;
 
-	mei_me_pg_exit(dev);
+	mei_me_pg_unset(dev);
 
 	mutex_unlock(&dev->device_lock);
 	wait_event_timeout(dev->wait_pg,

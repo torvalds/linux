@@ -389,7 +389,7 @@ static int mei_me_pm_runtime_suspend(struct device *device)
 	mutex_lock(&dev->device_lock);
 
 	if (mei_write_is_idle(dev))
-		ret = mei_me_pg_set_sync(dev);
+		ret = mei_me_pg_enter_sync(dev);
 	else
 		ret = -EAGAIN;
 
@@ -414,7 +414,7 @@ static int mei_me_pm_runtime_resume(struct device *device)
 
 	mutex_lock(&dev->device_lock);
 
-	ret = mei_me_pg_unset_sync(dev);
+	ret = mei_me_pg_exit_sync(dev);
 
 	mutex_unlock(&dev->device_lock);
 
