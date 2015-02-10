@@ -1796,12 +1796,6 @@ struct vm_area_struct *vma_interval_tree_iter_next(struct vm_area_struct *node,
 	for (vma = vma_interval_tree_iter_first(root, start, last);	\
 	     vma; vma = vma_interval_tree_iter_next(vma, start, last))
 
-static inline void vma_nonlinear_insert(struct vm_area_struct *vma,
-					struct list_head *list)
-{
-	list_add_tail(&vma->shared.nonlinear, list);
-}
-
 void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
 				   struct rb_root *root);
 void anon_vma_interval_tree_remove(struct anon_vma_chain *node,
