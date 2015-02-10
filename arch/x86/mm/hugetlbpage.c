@@ -178,4 +178,15 @@ static __init int setup_hugepagesz(char *opt)
 	return 1;
 }
 __setup("hugepagesz=", setup_hugepagesz);
+
+#ifdef CONFIG_CMA
+static __init int gigantic_pages_init(void)
+{
+	/* With CMA we can allocate gigantic pages at runtime */
+	if (cpu_has_gbpages && !size_to_hstate(1UL << PUD_SHIFT))
+		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+	return 0;
+}
+arch_initcall(gigantic_pages_init);
+#endif
 #endif
