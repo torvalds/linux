@@ -36,6 +36,7 @@
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_vgpu.h"
 #include "i915_trace.h"
 #include <linux/pci.h>
 #include <linux/console.h>
@@ -841,6 +842,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_power_well;
 		}
 	}
+
+	/*
+	 * Notify a valid surface after modesetting,
+	 * when running inside a VM.
+	 */
+	if (intel_vgpu_active(dev))
+		I915_WRITE(vgtif_reg(display_ready), VGT_DRV_DISPLAY_READY);
 
 	i915_setup_sysfs(dev);
 

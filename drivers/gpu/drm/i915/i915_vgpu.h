@@ -80,6 +80,10 @@ struct vgt_if {
 #define vgtif_reg(x) \
 	(VGT_PVINFO_PAGE + (long)&((struct vgt_if *)NULL)->x)
 
+/* vGPU display status to be used by the host side */
+#define VGT_DRV_DISPLAY_NOT_READY 0
+#define VGT_DRV_DISPLAY_READY     1  /* ready for display switch */
+
 extern void i915_check_vgpu(struct drm_device *dev);
 extern int intel_vgt_balloon(struct drm_device *dev);
 extern void intel_vgt_deballoon(void);
