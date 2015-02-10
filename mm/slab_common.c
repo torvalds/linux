@@ -331,7 +331,7 @@ out:
 
 out_free_cache:
 	memcg_free_cache_params(s);
-	kfree(s);
+	kmem_cache_free(kmem_cache, s);
 	goto out;
 }
 
