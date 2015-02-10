@@ -4431,7 +4431,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		 */
 		DRM_DEBUG_KMS("ignoring long hpd on eDP port %c\n",
 			      port_name(intel_dig_port->port));
-		return false;
+		return IRQ_HANDLED;
 	}
 
 	DRM_DEBUG_KMS("got hpd irq on port %c - %s\n",
