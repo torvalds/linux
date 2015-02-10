@@ -11,6 +11,7 @@
 #define _PSERIES_PSERIES_H
 
 #include <linux/interrupt.h>
+#include <asm/rtas.h>
 
 struct device_node;
 
@@ -62,6 +63,15 @@ extern int dlpar_attach_node(struct device_node *);
 extern int dlpar_detach_node(struct device_node *);
 extern int dlpar_acquire_drc(u32 drc_index);
 extern int dlpar_release_drc(u32 drc_index);
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int dlpar_memory(struct pseries_hp_errorlog *hp_elog);
+#else
+static inline int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 /* PCI root bridge prepare function override for pseries */
 struct pci_host_bridge;

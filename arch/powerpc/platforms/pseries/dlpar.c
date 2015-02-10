@@ -10,6 +10,8 @@
  * 2 as published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt)	"dlpar: " fmt
+
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
@@ -535,13 +537,125 @@ static ssize_t dlpar_cpu_release(const char *buf, size_t count)
 	return count;
 }
 
+#endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
+
+static int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
+{
+	int rc;
+
+	/* pseries error logs are in BE format, convert to cpu type */
+	switch (hp_elog->id_type) {
+	case PSERIES_HP_ELOG_ID_DRC_COUNT:
+		hp_elog->_drc_u.drc_count =
+					be32_to_cpu(hp_elog->_drc_u.drc_count);
+		break;
+	case PSERIES_HP_ELOG_ID_DRC_INDEX:
+		hp_elog->_drc_u.drc_index =
+					be32_to_cpu(hp_elog->_drc_u.drc_index);
+	}
+
+	switch (hp_elog->resource) {
+	case PSERIES_HP_ELOG_RESOURCE_MEM:
+		rc = dlpar_memory(hp_elog);
+		break;
+	default:
+		pr_warn_ratelimited("Invalid resource (%d) specified\n",
+				    hp_elog->resource);
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
+static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct pseries_hp_errorlog *hp_elog;
+	const char *arg;
+	int rc;
+
+	hp_elog = kzalloc(sizeof(*hp_elog), GFP_KERNEL);
+	if (!hp_elog) {
+		rc = -ENOMEM;
+		goto dlpar_store_out;
+	}
+
+	/* Parse out the request from the user, this will be in the form
+	 * <resource> <action> <id_type> <id>
+	 */
+	arg = buf;
+	if (!strncmp(arg, "memory", 6)) {
+		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_MEM;
+		arg += strlen("memory ");
+	} else {
+		pr_err("Invalid resource specified: \"%s\"\n", buf);
+		rc = -EINVAL;
+		goto dlpar_store_out;
+	}
+
+	if (!strncmp(arg, "add", 3)) {
+		hp_elog->action = PSERIES_HP_ELOG_ACTION_ADD;
+		arg += strlen("add ");
+	} else if (!strncmp(arg, "remove", 6)) {
+		hp_elog->action = PSERIES_HP_ELOG_ACTION_REMOVE;
+		arg += strlen("remove ");
+	} else {
+		pr_err("Invalid action specified: \"%s\"\n", buf);
+		rc = -EINVAL;
+		goto dlpar_store_out;
+	}
+
+	if (!strncmp(arg, "index", 5)) {
+		u32 index;
+
+		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
+		arg += strlen("index ");
+		if (kstrtou32(arg, 0, &index)) {
+			rc = -EINVAL;
+			pr_err("Invalid drc_index specified: \"%s\"\n", buf);
+			goto dlpar_store_out;
+		}
+
+		hp_elog->_drc_u.drc_index = cpu_to_be32(index);
+	} else if (!strncmp(arg, "count", 5)) {
+		u32 count;
+
+		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_COUNT;
+		arg += strlen("count ");
+		if (kstrtou32(arg, 0, &count)) {
+			rc = -EINVAL;
+			pr_err("Invalid count specified: \"%s\"\n", buf);
+			goto dlpar_store_out;
+		}
+
+		hp_elog->_drc_u.drc_count = cpu_to_be32(count);
+	} else {
+		pr_err("Invalid id_type specified: \"%s\"\n", buf);
+		rc = -EINVAL;
+		goto dlpar_store_out;
+	}
+
+	rc = handle_dlpar_errorlog(hp_elog);
+
+dlpar_store_out:
+	kfree(hp_elog);
+	return rc ? rc : count;
+}
+
+static CLASS_ATTR(dlpar, S_IWUSR, NULL, dlpar_store);
+
 static int __init pseries_dlpar_init(void)
 {
+	int rc;
+
+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 	ppc_md.cpu_probe = dlpar_cpu_probe;
 	ppc_md.cpu_release = dlpar_cpu_release;
+#endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 
-	return 0;
+	rc = sysfs_create_file(kernel_kobj, &class_attr_dlpar.attr);
+
+	return rc;
 }
 machine_device_initcall(pseries, pseries_dlpar_init);
 
-#endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */

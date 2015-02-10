@@ -9,6 +9,8 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt)	"pseries-hotplug-mem: " fmt
+
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/memblock.h>
@@ -133,6 +135,23 @@ static inline int pseries_remove_mem_node(struct device_node *np)
 	return 0;
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
+
+int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
+{
+	int rc = 0;
+
+	lock_device_hotplug();
+
+	switch (hp_elog->action) {
+	default:
+		pr_err("Invalid action (%d) specified\n", hp_elog->action);
+		rc = -EINVAL;
+		break;
+	}
+
+	unlock_device_hotplug();
+	return rc;
+}
 
 static int pseries_add_mem_node(struct device_node *np)
 {
