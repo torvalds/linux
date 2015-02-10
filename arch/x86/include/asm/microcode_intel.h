@@ -56,10 +56,9 @@ struct extended_sigtable {
 
 #define exttable_size(et) ((et)->count * EXT_SIGNATURE_SIZE + EXT_HEADER_SIZE)
 
-extern int
-get_matching_microcode(unsigned int csig, int cpf, void *mc, int rev);
+extern int get_matching_microcode(unsigned int csig, int cpf, int rev, void *mc);
 extern int microcode_sanity_check(void *mc, int print_err);
-extern int get_matching_sig(unsigned int csig, int cpf, void *mc, int rev);
+extern int get_matching_sig(unsigned int csig, int cpf, int rev, void *mc);
 
 static inline int
 revision_is_newer(struct microcode_header_intel *mc_header, int rev)

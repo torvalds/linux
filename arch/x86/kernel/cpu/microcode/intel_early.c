@@ -50,8 +50,8 @@ load_microcode_early(struct microcode_intel **saved,
 
 		ret = get_matching_microcode(uci->cpu_sig.sig,
 					     uci->cpu_sig.pf,
-					     ucode_ptr,
-					     new_rev);
+					     new_rev,
+					     ucode_ptr);
 		if (!ret)
 			continue;
 
@@ -251,7 +251,7 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
 		pf	     = mc_saved_hdr->pf;
 		new_rev	     = mc_hdr->rev;
 
-		if (!get_matching_sig(sig, pf, ucode_ptr, new_rev))
+		if (!get_matching_sig(sig, pf, new_rev, ucode_ptr))
 			continue;
 
 		found = 1;
