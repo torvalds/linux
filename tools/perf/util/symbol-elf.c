@@ -69,6 +69,10 @@ static inline uint8_t elf_sym__type(const GElf_Sym *sym)
 	return GELF_ST_TYPE(sym->st_info);
 }
 
+#ifndef STT_GNU_IFUNC
+#define STT_GNU_IFUNC 10
+#endif
+
 static inline int elf_sym__is_function(const GElf_Sym *sym)
 {
 	return (elf_sym__type(sym) == STT_FUNC ||
