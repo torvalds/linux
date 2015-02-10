@@ -1332,7 +1332,7 @@ void cpu_init(void)
 	barrier();
 
 	x86_configure_nx();
-	enable_x2apic();
+	x2apic_setup();
 
 	/*
 	 * set up and load the per-CPU TSS

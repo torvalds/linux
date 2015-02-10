@@ -4284,7 +4284,6 @@ static int alloc_hpet_msi(unsigned int irq, unsigned int id)
 }
 
 struct irq_remap_ops amd_iommu_irq_ops = {
-	.supported		= amd_iommu_supported,
 	.prepare		= amd_iommu_prepare,
 	.enable			= amd_iommu_enable,
 	.disable		= amd_iommu_disable,

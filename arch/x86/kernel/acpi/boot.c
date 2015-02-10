@@ -653,6 +653,7 @@ static int acpi_register_gsi_pic(struct device *dev, u32 gsi,
 	return gsi;
 }
 
+#ifdef CONFIG_X86_LOCAL_APIC
 static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
 				    int trigger, int polarity)
 {
@@ -675,6 +676,7 @@ static void acpi_unregister_gsi_ioapic(u32 gsi)
 	mutex_unlock(&acpi_ioapic_lock);
 #endif
 }
+#endif
 
 int (*__acpi_register_gsi)(struct device *dev, u32 gsi,
 			   int trigger, int polarity) = acpi_register_gsi_pic;
