@@ -2725,9 +2725,18 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	case DRM_FORMAT_XRGB8888:
 		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
 		break;
+	case DRM_FORMAT_ARGB8888:
+		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
+		plane_ctl |= PLANE_CTL_ALPHA_SW_PREMULTIPLY;
+		break;
 	case DRM_FORMAT_XBGR8888:
 		plane_ctl |= PLANE_CTL_ORDER_RGBX;
 		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
+		break;
+	case DRM_FORMAT_ABGR8888:
+		plane_ctl |= PLANE_CTL_ORDER_RGBX;
+		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
+		plane_ctl |= PLANE_CTL_ALPHA_SW_PREMULTIPLY;
 		break;
 	case DRM_FORMAT_XRGB2101010:
 		plane_ctl |= PLANE_CTL_FORMAT_XRGB_2101010;
