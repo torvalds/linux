@@ -1078,7 +1078,6 @@ bool pnfs_roc(struct inode *ino)
 			goto out_noroc;
 	}
 
-		goto out_noroc;
 	pnfs_clear_retry_layoutget(lo);
 	list_for_each_entry_safe(lseg, tmp, &lo->plh_segs, pls_list)
 		if (test_bit(NFS_LSEG_ROC, &lseg->pls_flags)) {
