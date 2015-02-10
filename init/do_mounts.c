@@ -226,8 +226,9 @@ dev_t name_to_dev_t(const char *name)
 
 	if (strncmp(name, "/dev/", 5) != 0) {
 		unsigned maj, min;
+		char dummy;
 
-		if (sscanf(name, "%u:%u", &maj, &min) == 2) {
+		if (sscanf(name, "%u:%u%c", &maj, &min, &dummy) == 2) {
 			res = MKDEV(maj, min);
 			if (maj != MAJOR(res) || min != MINOR(res))
 				goto fail;
