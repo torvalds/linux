@@ -25,6 +25,8 @@
 #include "hw-me.h"
 #include "hw-me-regs.h"
 
+#include "mei-trace.h"
+
 /**
  * mei_me_reg_read - Reads 32bit data from the mei device
  *
@@ -86,7 +88,12 @@ static inline void mei_me_hcbww_write(struct mei_device *dev, u32 data)
  */
 static inline u32 mei_me_mecsr_read(const struct mei_device *dev)
 {
-	return mei_me_reg_read(to_me_hw(dev), ME_CSR_HA);
+	u32 reg;
+
+	reg = mei_me_reg_read(to_me_hw(dev), ME_CSR_HA);
+	trace_mei_reg_read(dev->dev, "ME_CSR_HA", ME_CSR_HA, reg);
+
+	return reg;
 }
 
 /**
@@ -98,7 +105,12 @@ static inline u32 mei_me_mecsr_read(const struct mei_device *dev)
  */
 static inline u32 mei_hcsr_read(const struct mei_device *dev)
 {
-	return mei_me_reg_read(to_me_hw(dev), H_CSR);
+	u32 reg;
+
+	reg = mei_me_reg_read(to_me_hw(dev), H_CSR);
+	trace_mei_reg_read(dev->dev, "H_CSR", H_CSR, reg);
+
+	return reg;
 }
 
 /**
@@ -109,6 +121,7 @@ static inline u32 mei_hcsr_read(const struct mei_device *dev)
  */
 static inline void mei_hcsr_write(struct mei_device *dev, u32 reg)
 {
+	trace_mei_reg_write(dev->dev, "H_CSR", H_CSR, reg);
 	mei_me_reg_write(to_me_hw(dev), H_CSR, reg);
 }
 
@@ -555,9 +568,14 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 static void mei_me_pg_enter(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
-	u32 reg = mei_me_reg_read(hw, H_HPG_CSR);
+	u32 reg;
+
+	reg = mei_me_reg_read(hw, H_HPG_CSR);
+	trace_mei_reg_read(dev->dev, "H_HPG_CSR", H_HPG_CSR, reg);
 
 	reg |= H_HPG_CSR_PGI;
+
+	trace_mei_reg_write(dev->dev, "H_HPG_CSR", H_HPG_CSR, reg);
 	mei_me_reg_write(hw, H_HPG_CSR, reg);
 }
 
@@ -569,11 +587,16 @@ static void mei_me_pg_enter(struct mei_device *dev)
 static void mei_me_pg_exit(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
-	u32 reg = mei_me_reg_read(hw, H_HPG_CSR);
+	u32 reg;
+
+	reg = mei_me_reg_read(hw, H_HPG_CSR);
+	trace_mei_reg_read(dev->dev, "H_HPG_CSR", H_HPG_CSR, reg);
 
 	WARN(!(reg & H_HPG_CSR_PGI), "PGI is not set\n");
 
 	reg |= H_HPG_CSR_PGIHEXR;
+
+	trace_mei_reg_write(dev->dev, "H_HPG_CSR", H_HPG_CSR, reg);
 	mei_me_reg_write(hw, H_HPG_CSR, reg);
 }
 
