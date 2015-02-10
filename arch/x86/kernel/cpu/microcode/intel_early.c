@@ -514,9 +514,9 @@ EXPORT_SYMBOL_GPL(save_mc_for_early);
 
 static __initdata char ucode_name[] = "kernel/x86/microcode/GenuineIntel.bin";
 static __init enum ucode_state
-scan_microcode(unsigned long start, unsigned long size,
-	       struct mc_saved_data *mc_saved_data,
-	       unsigned long *mc_saved_in_initrd, struct ucode_cpu_info *uci)
+scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
+	       unsigned long start, unsigned long size,
+	       struct ucode_cpu_info *uci)
 {
 	struct cpio_data cd;
 	long offset = 0;
@@ -534,8 +534,7 @@ scan_microcode(unsigned long start, unsigned long size,
 		return UCODE_ERROR;
 
 	return get_matching_model_microcode(0, start, cd.data, cd.size,
-					    mc_saved_data, mc_saved_in_initrd,
-					    uci);
+					    mc_saved_data, initrd, uci);
 }
 
 /*
@@ -679,16 +678,19 @@ int __init save_microcode_in_initrd_intel(void)
 
 static void __init
 _load_ucode_intel_bsp(struct mc_saved_data *mc_saved_data,
-		      unsigned long *mc_saved_in_initrd,
+		      unsigned long *initrd,
 		      unsigned long start, unsigned long size)
 {
 	struct ucode_cpu_info uci;
 	enum ucode_state ret;
 
 	collect_cpu_info_early(&uci);
-	scan_microcode(start, size, mc_saved_data, mc_saved_in_initrd, &uci);
 
-	ret = load_microcode(mc_saved_data, mc_saved_in_initrd, start, &uci);
+	ret = scan_microcode(mc_saved_data, initrd, start, size, &uci);
+	if (ret != UCODE_OK)
+		return;
+
+	ret = load_microcode(mc_saved_data, initrd, start, &uci);
 	if (ret != UCODE_OK)
 		return;
 
