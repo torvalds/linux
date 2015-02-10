@@ -54,8 +54,6 @@
 
 typedef pte_t *pte_addr_t;
 
-static inline int pte_file(pte_t pte) { return 0; }
-
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
