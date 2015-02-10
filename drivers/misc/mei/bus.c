@@ -467,37 +467,34 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 
 	dev = cl->dev;
 
+	if (device->ops && device->ops->disable)
+		device->ops->disable(device);
+
+	device->event_cb = NULL;
+
 	mutex_lock(&dev->device_lock);
 
 	if (cl->state != MEI_FILE_CONNECTED) {
-		mutex_unlock(&dev->device_lock);
 		dev_err(dev->dev, "Already disconnected");
-
-		return 0;
+		err = 0;
+		goto out;
 	}
 
 	cl->state = MEI_FILE_DISCONNECTING;
 
 	err = mei_cl_disconnect(cl);
 	if (err < 0) {
-		mutex_unlock(&dev->device_lock);
-		dev_err(dev->dev,
-			"Could not disconnect from the ME client");
-
-		return err;
+		dev_err(dev->dev, "Could not disconnect from the ME client");
+		goto out;
 	}
 
 	/* Flush queues and remove any pending read */
 	mei_cl_flush_queues(cl, NULL);
 
-	device->event_cb = NULL;
-
+out:
 	mutex_unlock(&dev->device_lock);
+	return err;
 
-	if (!device->ops || !device->ops->disable)
-		return 0;
-
-	return device->ops->disable(device);
 }
 EXPORT_SYMBOL_GPL(mei_cl_disable_device);
 
