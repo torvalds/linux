@@ -12,16 +12,16 @@ turbostat \- Report processor frequency and idle statistics
 .RB [ "\-i interval_sec" ]
 .SH DESCRIPTION
 \fBturbostat \fP reports processor topology, frequency,
-idle power-state statistics, temperature and power on modern X86 processors.
-Either \fBcommand\fP is forked and statistics are printed
-upon its completion, or statistics are printed periodically.
+idle power-state statistics, temperature and power on X86 processors.
+There are two ways to invoke turbostat.
+The first method is to supply a
+\fBcommand\fP, which is forked and statistics are printed
+upon its completion.
+The second method is to omit the command,
+and turbodstat will print statistics every 5 seconds.
+The 5-second interval can changed using the -i option.
 
-\fBturbostat \fP
-must be run on root, and
-minimally requires that the processor
-supports an "invariant" TSC, plus the APERF and MPERF MSRs.
-Additional information is reported depending on hardware counter support.
-
+Some information is not availalbe on older processors.
 .SS Options
 The \fB-p\fP option limits output to the 1st thread in 1st core of each package.
 .PP
@@ -130,12 +130,13 @@ cpu3: MSR_IA32_THERM_STATUS: 0x884e0000 (27 C +/- 1)
  ...
 .fi
 The \fBmax efficiency\fP frequency, a.k.a. Low Frequency Mode, is the frequency
-available at the minimum package voltage.  The \fBTSC frequency\fP is the nominal
-maximum frequency of the processor if turbo-mode were not available.  This frequency
+available at the minimum package voltage.  The \fBTSC frequency\fP is the base
+frequency of the processor -- this should match the brand string
+in /proc/cpuinfo.  This base frequency
 should be sustainable on all CPUs indefinitely, given nominal power and cooling.
 The remaining rows show what maximum turbo frequency is possible
-depending on the number of idle cores.  Note that this information is
-not available on all processors.
+depending on the number of idle cores.  Note that not all information is
+available on all processors.
 .SH FORK EXAMPLE
 If turbostat is invoked with a command, it will fork that command
 and output the statistics gathered when the command exits.
@@ -176,6 +177,11 @@ not including any non-busy idle time.
 
 .B "turbostat "
 must be run as root.
+Alternatively, non-root users can be enabled to run turbostat this way:
+
+# setcap cap_sys_rawio=ep ./turbostat
+
+# chmod +r /dev/cpu/*/msr
 
 .B "turbostat "
 reads hardware counters, but doesn't write them.
@@ -184,15 +190,33 @@ multiple invocations of itself.
 
 \fBturbostat \fP
 may work poorly on Linux-2.6.20 through 2.6.29,
-as \fBacpi-cpufreq \fPperiodically cleared the APERF and MPERF
+as \fBacpi-cpufreq \fPperiodically cleared the APERF and MPERF MSRs
 in those kernels.
 
-If the TSC column does not make sense, then
-the other numbers will also make no sense.
-Turbostat is lightweight, and its data collection is not atomic.
-These issues are usually caused by an extremely short measurement
-interval (much less than 1 second), or system activity that prevents
-turbostat from being able to run on all CPUS to quickly collect data.
+AVG_MHz = APERF_delta/measurement_interval.  This is the actual
+number of elapsed cycles divided by the entire sample interval --
+including idle time.  Note that this calculation is resiliant
+to systems lacking a non-stop TSC.
+
+TSC_MHz = TSC_delta/measurement_interval.
+On a system with an invariant TSC, this value will be constant
+and will closely match the base frequency value shown
+in the brand string in /proc/cpuinfo.  On a system where
+the TSC stops in idle, TSC_MHz will drop
+below the processor's base frequency.
+
+%Busy = MPERF_delta/TSC_delta
+
+Bzy_MHz = TSC_delta/APERF_delta/MPERF_delta/measurement_interval
+
+Note that these calculations depend on TSC_delta, so they
+are not reliable during intervals when TSC_MHz is not running at the base frequency.
+
+Turbostat data collection is not atomic.
+Extremely short measurement intervals (much less than 1 second),
+or system activity that prevents turbostat from being able
+to run on all CPUS to quickly collect data, will result in
+inconsistent results.
 
 The APERF, MPERF MSRs are defined to count non-halted cycles.
 Although it is not guaranteed by the architecture, turbostat assumes
