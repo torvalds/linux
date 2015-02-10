@@ -60,6 +60,8 @@ extern struct device_node *dlpar_configure_connector(__be32,
 						struct device_node *);
 extern int dlpar_attach_node(struct device_node *);
 extern int dlpar_detach_node(struct device_node *);
+extern int dlpar_acquire_drc(u32 drc_index);
+extern int dlpar_release_drc(u32 drc_index);
 
 /* PCI root bridge prepare function override for pseries */
 struct pci_host_bridge;
