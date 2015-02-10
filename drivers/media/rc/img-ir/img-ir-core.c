@@ -165,7 +165,7 @@ static int img_ir_remove(struct platform_device *pdev)
 {
 	struct img_ir_priv *priv = platform_get_drvdata(pdev);
 
-	free_irq(priv->irq, img_ir_isr);
+	free_irq(priv->irq, priv);
 	img_ir_remove_hw(priv);
 	img_ir_remove_raw(priv);
 
