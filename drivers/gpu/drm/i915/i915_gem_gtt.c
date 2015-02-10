@@ -104,6 +104,9 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 	has_aliasing_ppgtt = INTEL_INFO(dev)->gen >= 6;
 	has_full_ppgtt = INTEL_INFO(dev)->gen >= 7;
 
+	if (intel_vgpu_active(dev))
+		has_full_ppgtt = false; /* emulation is too hard */
+
 	/*
 	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
 	 * execlists, the sole mechanism available to submit work.
@@ -798,6 +801,16 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	return 0;
 }
 
+static int vgpu_mm_switch(struct i915_hw_ppgtt *ppgtt,
+			  struct intel_engine_cs *ring)
+{
+	struct drm_i915_private *dev_priv = to_i915(ppgtt->base.dev);
+
+	I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+	I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
+	return 0;
+}
+
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct intel_engine_cs *ring)
 {
@@ -1126,6 +1139,9 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		ppgtt->switch_mm = gen7_mm_switch;
 	} else
 		BUG();
+
+	if (intel_vgpu_active(dev))
+		ppgtt->switch_mm = vgpu_mm_switch;
 
 	ret = gen6_ppgtt_alloc(ppgtt);
 	if (ret)
