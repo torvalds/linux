@@ -1302,8 +1302,14 @@ struct wmi_tlv_pdev_set_wmm_cmd {
 	__le32 dg_type; /* no idea.. */
 } __packed;
 
+struct wmi_tlv_vdev_wmm_params {
+	__le32 dummy;
+	struct wmi_wmm_params params;
+} __packed;
+
 struct wmi_tlv_vdev_set_wmm_cmd {
 	__le32 vdev_id;
+	struct wmi_tlv_vdev_wmm_params vdev_wmm_params[4];
 } __packed;
 
 struct wmi_tlv_phyerr_ev {

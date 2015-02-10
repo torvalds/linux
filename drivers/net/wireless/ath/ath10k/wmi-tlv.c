@@ -1710,14 +1710,12 @@ ath10k_wmi_tlv_op_gen_vdev_wmm_conf(struct ath10k *ar, u32 vdev_id,
 				    const struct wmi_wmm_params_all_arg *arg)
 {
 	struct wmi_tlv_vdev_set_wmm_cmd *cmd;
-	struct wmi_wmm_params *wmm;
 	struct wmi_tlv *tlv;
 	struct sk_buff *skb;
 	size_t len;
 	void *ptr;
 
-	len = (sizeof(*tlv) + sizeof(*cmd)) +
-	      (4 * (sizeof(*tlv) + sizeof(*wmm)));
+	len = sizeof(*tlv) + sizeof(*cmd);
 	skb = ath10k_wmi_alloc_skb(ar, len);
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
@@ -1729,13 +1727,10 @@ ath10k_wmi_tlv_op_gen_vdev_wmm_conf(struct ath10k *ar, u32 vdev_id,
 	cmd = (void *)tlv->value;
 	cmd->vdev_id = __cpu_to_le32(vdev_id);
 
-	ptr += sizeof(*tlv);
-	ptr += sizeof(*cmd);
-
-	ptr = ath10k_wmi_tlv_put_wmm(ptr, &arg->ac_be);
-	ptr = ath10k_wmi_tlv_put_wmm(ptr, &arg->ac_bk);
-	ptr = ath10k_wmi_tlv_put_wmm(ptr, &arg->ac_vi);
-	ptr = ath10k_wmi_tlv_put_wmm(ptr, &arg->ac_vo);
+	ath10k_wmi_set_wmm_param(&cmd->vdev_wmm_params[0].params, &arg->ac_be);
+	ath10k_wmi_set_wmm_param(&cmd->vdev_wmm_params[1].params, &arg->ac_bk);
+	ath10k_wmi_set_wmm_param(&cmd->vdev_wmm_params[2].params, &arg->ac_vi);
+	ath10k_wmi_set_wmm_param(&cmd->vdev_wmm_params[3].params, &arg->ac_vo);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv vdev wmm conf\n");
 	return skb;
