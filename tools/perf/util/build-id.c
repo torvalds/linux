@@ -93,6 +93,35 @@ int build_id__sprintf(const u8 *build_id, int len, char *bf)
 	return raw - build_id;
 }
 
+/* asnprintf consolidates asprintf and snprintf */
+static int asnprintf(char **strp, size_t size, const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	if (!strp)
+		return -EINVAL;
+
+	va_start(ap, fmt);
+	if (*strp)
+		ret = vsnprintf(*strp, size, fmt, ap);
+	else
+		ret = vasprintf(strp, fmt, ap);
+	va_end(ap);
+
+	return ret;
+}
+
+static char *build_id__filename(const char *sbuild_id, char *bf, size_t size)
+{
+	char *tmp = bf;
+	int ret = asnprintf(&bf, size, "%s/.build-id/%.2s/%s", buildid_dir,
+			    sbuild_id, sbuild_id + 2);
+	if (ret < 0 || (tmp && size < (unsigned int)ret))
+		return NULL;
+	return bf;
+}
+
 char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size)
 {
 	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
@@ -101,14 +130,7 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size)
 		return NULL;
 
 	build_id__sprintf(dso->build_id, sizeof(dso->build_id), build_id_hex);
-	if (bf == NULL) {
-		if (asprintf(&bf, "%s/.build-id/%.2s/%s", buildid_dir,
-			     build_id_hex, build_id_hex + 2) < 0)
-			return NULL;
-	} else
-		snprintf(bf, size, "%s/.build-id/%.2s/%s", buildid_dir,
-			 build_id_hex, build_id_hex + 2);
-	return bf;
+	return build_id__filename(build_id_hex, bf, size);
 }
 
 #define dsos__for_each_with_build_id(pos, head)	\
@@ -264,7 +286,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 {
 	const size_t size = PATH_MAX;
 	char *realname, *filename = zalloc(size),
-	     *linkname = zalloc(size), *targetname;
+	     *linkname = zalloc(size), *targetname, *tmp;
 	int len, err = -1;
 	bool slash = is_kallsyms || is_vdso;
 
@@ -297,13 +319,15 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 			goto out_free;
 	}
 
-	len = scnprintf(linkname, size, "%s/.build-id/%.2s",
-			buildid_dir, sbuild_id);
+	if (!build_id__filename(sbuild_id, linkname, size))
+		goto out_free;
+	tmp = strrchr(linkname, '/');
+	*tmp = '\0';
 
 	if (access(linkname, X_OK) && mkdir_p(linkname, 0755))
 		goto out_free;
 
-	snprintf(linkname + len, size - len, "/%s", sbuild_id + 2);
+	*tmp = '/';
 	targetname = filename + strlen(buildid_dir) - 5;
 	memcpy(targetname, "../..", 5);
 
@@ -332,14 +356,14 @@ int build_id_cache__remove_s(const char *sbuild_id)
 {
 	const size_t size = PATH_MAX;
 	char *filename = zalloc(size),
-	     *linkname = zalloc(size);
+	     *linkname = zalloc(size), *tmp;
 	int err = -1;
 
 	if (filename == NULL || linkname == NULL)
 		goto out_free;
 
-	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
-		 buildid_dir, sbuild_id, sbuild_id + 2);
+	if (!build_id__filename(sbuild_id, linkname, size))
+		goto out_free;
 
 	if (access(linkname, F_OK))
 		goto out_free;
@@ -353,8 +377,8 @@ int build_id_cache__remove_s(const char *sbuild_id)
 	/*
 	 * Since the link is relative, we must make it absolute:
 	 */
-	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
-		 buildid_dir, sbuild_id, filename);
+	tmp = strrchr(linkname, '/') + 1;
+	snprintf(tmp, size - (tmp - linkname), "%s", filename);
 
 	if (unlink(linkname))
 		goto out_free;
