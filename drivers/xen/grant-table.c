@@ -42,6 +42,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
+#include <linux/workqueue.h>
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
@@ -50,6 +51,7 @@
 #include <xen/interface/memory.h>
 #include <xen/hvc-console.h>
 #include <xen/swiotlb-xen.h>
+#include <xen/balloon.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/interface.h>
 
@@ -671,6 +673,59 @@ void gnttab_free_auto_xlat_frames(void)
 }
 EXPORT_SYMBOL_GPL(gnttab_free_auto_xlat_frames);
 
+/**
+ * gnttab_alloc_pages - alloc pages suitable for grant mapping into
+ * @nr_pages: number of pages to alloc
+ * @pages: returns the pages
+ */
+int gnttab_alloc_pages(int nr_pages, struct page **pages)
+{
+	int i;
+	int ret;
+
+	ret = alloc_xenballooned_pages(nr_pages, pages, false);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < nr_pages; i++) {
+#if BITS_PER_LONG < 64
+		struct xen_page_foreign *foreign;
+
+		foreign = kzalloc(sizeof(*foreign), GFP_KERNEL);
+		if (!foreign) {
+			gnttab_free_pages(nr_pages, pages);
+			return -ENOMEM;
+		}
+		set_page_private(pages[i], (unsigned long)foreign);
+#endif
+		SetPagePrivate(pages[i]);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(gnttab_alloc_pages);
+
+/**
+ * gnttab_free_pages - free pages allocated by gnttab_alloc_pages()
+ * @nr_pages; number of pages to free
+ * @pages: the pages
+ */
+void gnttab_free_pages(int nr_pages, struct page **pages)
+{
+	int i;
+
+	for (i = 0; i < nr_pages; i++) {
+		if (PagePrivate(pages[i])) {
+#if BITS_PER_LONG < 64
+			kfree((void *)page_private(pages[i]));
+#endif
+			ClearPagePrivate(pages[i]);
+		}
+	}
+	free_xenballooned_pages(nr_pages, pages);
+}
+EXPORT_SYMBOL(gnttab_free_pages);
+
 /* Handling of paged out grant targets (GNTST_eagain) */
 #define MAX_DELAY 256
 static inline void
@@ -727,29 +782,86 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 	if (ret)
 		return ret;
 
-	/* Retry eagain maps */
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
+		/* Retry eagain maps */
 		if (map_ops[i].status == GNTST_eagain)
 			gnttab_retry_eagain_gop(GNTTABOP_map_grant_ref, map_ops + i,
 						&map_ops[i].status, __func__);
+
+		if (map_ops[i].status == GNTST_okay) {
+			struct xen_page_foreign *foreign;
+
+			SetPageForeign(pages[i]);
+			foreign = xen_page_foreign(pages[i]);
+			foreign->domid = map_ops[i].dom;
+			foreign->gref = map_ops[i].ref;
+		}
+	}
 
 	return set_foreign_p2m_mapping(map_ops, kmap_ops, pages, count);
 }
 EXPORT_SYMBOL_GPL(gnttab_map_refs);
 
 int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
-		      struct gnttab_map_grant_ref *kmap_ops,
+		      struct gnttab_unmap_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count)
 {
+	unsigned int i;
 	int ret;
 
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap_ops, count);
 	if (ret)
 		return ret;
 
-	return clear_foreign_p2m_mapping(unmap_ops, kmap_ops, pages, count);
+	for (i = 0; i < count; i++)
+		ClearPageForeign(pages[i]);
+
+	return clear_foreign_p2m_mapping(unmap_ops, kunmap_ops, pages, count);
 }
 EXPORT_SYMBOL_GPL(gnttab_unmap_refs);
+
+#define GNTTAB_UNMAP_REFS_DELAY 5
+
+static void __gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item);
+
+static void gnttab_unmap_work(struct work_struct *work)
+{
+	struct gntab_unmap_queue_data
+		*unmap_data = container_of(work, 
+					   struct gntab_unmap_queue_data,
+					   gnttab_work.work);
+	if (unmap_data->age != UINT_MAX)
+		unmap_data->age++;
+	__gnttab_unmap_refs_async(unmap_data);
+}
+
+static void __gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item)
+{
+	int ret;
+	int pc;
+
+	for (pc = 0; pc < item->count; pc++) {
+		if (page_count(item->pages[pc]) > 1) {
+			unsigned long delay = GNTTAB_UNMAP_REFS_DELAY * (item->age + 1);
+			schedule_delayed_work(&item->gnttab_work,
+					      msecs_to_jiffies(delay));
+			return;
+		}
+	}
+
+	ret = gnttab_unmap_refs(item->unmap_ops, item->kunmap_ops,
+				item->pages, item->count);
+	item->done(ret, item);
+}
+
+void gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item)
+{
+	INIT_DELAYED_WORK(&item->gnttab_work, gnttab_unmap_work);
+	item->age = 0;
+
+	__gnttab_unmap_refs_async(item);
+}
+EXPORT_SYMBOL_GPL(gnttab_unmap_refs_async);
 
 static int gnttab_map_frames_v1(xen_pfn_t *frames, unsigned int nr_gframes)
 {
