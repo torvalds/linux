@@ -458,13 +458,55 @@ struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
 }
 
 /**
+ * mei_cl_read_cb - find this cl's callback in the read list
+ *     for a specific file
+ *
+ * @cl: host client
+ * @fp: file pointer (matching cb file object), may be NULL
+ *
+ * Return: cb on success, NULL if cb is not found
+ */
+struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl, const struct file *fp)
+{
+	struct mei_cl_cb *cb;
+
+	list_for_each_entry(cb, &cl->rd_completed, list)
+		if (!fp || fp == cb->file_object)
+			return cb;
+
+	return NULL;
+}
+
+/**
+ * mei_cl_read_cb_flush - free client's read pending and completed cbs
+ *   for a specific file
+ *
+ * @cl: host client
+ * @fp: file pointer (matching cb file object), may be NULL
+ */
+void mei_cl_read_cb_flush(const struct mei_cl *cl, const struct file *fp)
+{
+	struct mei_cl_cb *cb, *next;
+
+	list_for_each_entry_safe(cb, next, &cl->rd_completed, list)
+		if (!fp || fp == cb->file_object)
+			mei_io_cb_free(cb);
+
+
+	list_for_each_entry_safe(cb, next, &cl->rd_pending, list)
+		if (!fp || fp == cb->file_object)
+			mei_io_cb_free(cb);
+}
+
+/**
  * mei_cl_flush_queues - flushes queue lists belonging to cl.
  *
  * @cl: host client
+ * @fp: file pointer (matching cb file object), may be NULL
  *
  * Return: 0 on success, -EINVAL if cl or cl->dev is NULL.
  */
-int mei_cl_flush_queues(struct mei_cl *cl)
+int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp)
 {
 	struct mei_device *dev;
 
@@ -474,13 +516,15 @@ int mei_cl_flush_queues(struct mei_cl *cl)
 	dev = cl->dev;
 
 	cl_dbg(dev, cl, "remove list entry belonging to cl\n");
-	mei_io_list_flush(&cl->dev->read_list, cl);
 	mei_io_list_free(&cl->dev->write_list, cl);
 	mei_io_list_free(&cl->dev->write_waiting_list, cl);
 	mei_io_list_flush(&cl->dev->ctrl_wr_list, cl);
 	mei_io_list_flush(&cl->dev->ctrl_rd_list, cl);
 	mei_io_list_flush(&cl->dev->amthif_cmd_list, cl);
 	mei_io_list_flush(&cl->dev->amthif_rd_complete_list, cl);
+
+	mei_cl_read_cb_flush(cl, fp);
+
 	return 0;
 }
 
@@ -497,9 +541,10 @@ void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
 	init_waitqueue_head(&cl->wait);
 	init_waitqueue_head(&cl->rx_wait);
 	init_waitqueue_head(&cl->tx_wait);
+	INIT_LIST_HEAD(&cl->rd_completed);
+	INIT_LIST_HEAD(&cl->rd_pending);
 	INIT_LIST_HEAD(&cl->link);
 	INIT_LIST_HEAD(&cl->device_link);
-	cl->reading_state = MEI_IDLE;
 	cl->writing_state = MEI_IDLE;
 	cl->dev = dev;
 }
@@ -521,24 +566,6 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
 	mei_cl_init(cl, dev);
 
 	return cl;
-}
-
-/**
- * mei_cl_find_read_cb - find this cl's callback in the read list
- *
- * @cl: host client
- *
- * Return: cb on success, NULL on error
- */
-struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
-{
-	struct mei_device *dev = cl->dev;
-	struct mei_cl_cb *cb;
-
-	list_for_each_entry(cb, &dev->read_list.list, list)
-		if (mei_cl_cmp_id(cl, cb->cl))
-			return cb;
-	return NULL;
 }
 
 /**
@@ -1006,10 +1033,10 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp)
 	if (!mei_cl_is_connected(cl))
 		return -ENODEV;
 
-	if (cl->read_cb) {
-		cl_dbg(dev, cl, "read is pending.\n");
+	/* HW currently supports only one pending read */
+	if (!list_empty(&cl->rd_pending))
 		return -EBUSY;
-	}
+
 	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
 	if (!me_cl) {
 		cl_err(dev, cl, "no such me client %d\n", cl->me_client_id);
@@ -1036,12 +1063,10 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp)
 		if (rets < 0)
 			goto out;
 
-		list_add_tail(&cb->list, &dev->read_list.list);
+		list_add_tail(&cb->list, &cl->rd_pending);
 	} else {
 		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
-
-	cl->read_cb = cb;
 
 out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
@@ -1268,9 +1293,8 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 		if (waitqueue_active(&cl->tx_wait))
 			wake_up_interruptible(&cl->tx_wait);
 
-	} else if (cb->fop_type == MEI_FOP_READ &&
-			MEI_READING == cl->reading_state) {
-		cl->reading_state = MEI_READ_COMPLETE;
+	} else if (cb->fop_type == MEI_FOP_READ) {
+		list_add_tail(&cb->list, &cl->rd_completed);
 		if (waitqueue_active(&cl->rx_wait))
 			wake_up_interruptible(&cl->rx_wait);
 		else

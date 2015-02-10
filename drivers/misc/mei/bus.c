@@ -288,19 +288,20 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 
 	mutex_lock(&dev->device_lock);
 
-	if (!cl->read_cb) {
-		rets = mei_cl_read_start(cl, length, NULL);
-		if (rets < 0)
-			goto out;
-	}
+	cb = mei_cl_read_cb(cl, NULL);
+	if (cb)
+		goto copy;
 
-	if (cl->reading_state != MEI_READ_COMPLETE &&
-	    !waitqueue_active(&cl->rx_wait)) {
+	rets = mei_cl_read_start(cl, length, NULL);
+	if (rets && rets != -EBUSY)
+		goto out;
+
+	if (list_empty(&cl->rd_completed) && !waitqueue_active(&cl->rx_wait)) {
 
 		mutex_unlock(&dev->device_lock);
 
 		if (wait_event_interruptible(cl->rx_wait,
-				cl->reading_state == MEI_READ_COMPLETE  ||
+				(!list_empty(&cl->rd_completed)) ||
 				mei_cl_is_transitioning(cl))) {
 
 			if (signal_pending(current))
@@ -309,15 +310,20 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 		}
 
 		mutex_lock(&dev->device_lock);
+
+		if (mei_cl_is_transitioning(cl)) {
+			rets = -EBUSY;
+			goto out;
+		}
 	}
 
-
-	if (cl->reading_state != MEI_READ_COMPLETE) {
+	cb = mei_cl_read_cb(cl, NULL);
+	if (!cb) {
 		rets = 0;
 		goto out;
 	}
 
-	cb = cl->read_cb;
+copy:
 	if (cb->status) {
 		rets = cb->status;
 		goto free;
@@ -329,9 +335,6 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 
 free:
 	mei_io_cb_free(cb);
-	cl->read_cb = NULL;
-	cl->reading_state = MEI_IDLE;
-
 out:
 	mutex_unlock(&dev->device_lock);
 
@@ -443,7 +446,7 @@ int mei_cl_enable_device(struct mei_cl_device *device)
 
 	mutex_unlock(&dev->device_lock);
 
-	if (device->event_cb && !cl->read_cb)
+	if (device->event_cb)
 		mei_cl_read_start(device->cl, 0, NULL);
 
 	if (!device->ops || !device->ops->enable)
@@ -485,8 +488,7 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 	}
 
 	/* Flush queues and remove any pending read */
-	mei_cl_flush_queues(cl);
-	mei_io_cb_free(cl->read_cb);
+	mei_cl_flush_queues(cl, NULL);
 
 	device->event_cb = NULL;
 

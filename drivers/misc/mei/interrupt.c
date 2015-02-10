@@ -68,18 +68,6 @@ static inline int mei_cl_hbm_equal(struct mei_cl *cl,
 	return cl->host_client_id == mei_hdr->host_addr &&
 		cl->me_client_id == mei_hdr->me_addr;
 }
-/**
- * mei_cl_is_reading - checks if the client is in reading state
- *
- * @cl: mei client
- *
- * Return: true if the client is reading
- */
-static bool mei_cl_is_reading(struct mei_cl *cl)
-{
-	return cl->state == MEI_FILE_CONNECTED &&
-		cl->reading_state != MEI_READ_COMPLETE;
-}
 
 /**
  * mei_irq_discard_msg  - discard received message
@@ -116,23 +104,17 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 	struct mei_cl_cb *cb;
 	unsigned char *buffer = NULL;
 
-	list_for_each_entry(cb, &dev->read_list.list, list) {
-		if (cl == cb->cl)
-			break;
-	}
-
-	if (&cb->list == &dev->read_list.list) {
-		dev_err(dev->dev, "no reader found\n");
+	cb = list_first_entry_or_null(&cl->rd_pending, struct mei_cl_cb, list);
+	if (!cb) {
+		cl_err(dev, cl, "pending read cb not found\n");
 		goto out;
 	}
 
-	if (!mei_cl_is_reading(cl)) {
-		cl_err(dev, cl, "cl is not reading state=%d reading state=%d\n",
-			cl->state, cl->reading_state);
+	if (cl->state != MEI_FILE_CONNECTED) {
+		cl_dbg(dev, cl, "not connected\n");
+		cb->status = -ENODEV;
 		goto out;
 	}
-
-	cl->reading_state = MEI_READING;
 
 	if (cb->buf.size == 0 || cb->buf.data == NULL) {
 		cl_err(dev, cl, "response buffer is not allocated.\n");
@@ -163,8 +145,7 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 
 	if (mei_hdr->msg_complete) {
 		cb->read_time = jiffies;
-		cl_dbg(dev, cl, "completed read length = %lu\n",
-			cb->buf_idx);
+		cl_dbg(dev, cl, "completed read length = %lu\n", cb->buf_idx);
 		list_move_tail(&cb->list, &complete_list->list);
 	}
 
@@ -281,7 +262,7 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return ret;
 	}
 
-	list_move_tail(&cb->list, &dev->read_list.list);
+	list_move_tail(&cb->list, &cl->rd_pending);
 
 	return 0;
 }

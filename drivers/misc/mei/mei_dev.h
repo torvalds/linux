@@ -231,9 +231,9 @@ struct mei_cl_cb {
  * @me_client_id: me/fw id
  * @mei_flow_ctrl_creds: transmit flow credentials
  * @timer_count:  watchdog timer for operation completion
- * @reading_state: state of the rx
  * @writing_state: state of the tx
- * @read_cb: current pending reading callback
+ * @rd_pending: pending read credits
+ * @rd_completed: completed read
  *
  * @device: device on the mei client bus
  * @device_link:  link to bus clients
@@ -251,9 +251,9 @@ struct mei_cl {
 	u8 me_client_id;
 	u8 mei_flow_ctrl_creds;
 	u8 timer_count;
-	enum mei_file_transaction_states reading_state;
 	enum mei_file_transaction_states writing_state;
-	struct mei_cl_cb *read_cb;
+	struct list_head rd_pending;
+	struct list_head rd_completed;
 
 	/* MEI CL bus data */
 	struct mei_cl_device *device;
@@ -425,7 +425,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @cdev        : character device
  * @minor       : minor number allocated for device
  *
- * @read_list   : read completion list
  * @write_list  : write pending list
  * @write_waiting_list : write completion list
  * @ctrl_wr_list : pending control write list
@@ -501,7 +500,6 @@ struct mei_device {
 	struct cdev cdev;
 	int minor;
 
-	struct mei_cl_cb read_list;
 	struct mei_cl_cb write_list;
 	struct mei_cl_cb write_waiting_list;
 	struct mei_cl_cb ctrl_wr_list;

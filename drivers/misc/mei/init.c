@@ -395,7 +395,6 @@ void mei_device_init(struct mei_device *dev,
 	dev->dev_state = MEI_DEV_INITIALIZING;
 	dev->reset_count = 0;
 
-	mei_io_list_init(&dev->read_list);
 	mei_io_list_init(&dev->write_list);
 	mei_io_list_init(&dev->write_waiting_list);
 	mei_io_list_init(&dev->ctrl_wr_list);

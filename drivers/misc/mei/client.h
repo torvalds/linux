@@ -77,11 +77,12 @@ int mei_cl_unlink(struct mei_cl *cl);
 
 struct mei_cl *mei_cl_alloc_linked(struct mei_device *dev, int id);
 
-int mei_cl_flush_queues(struct mei_cl *cl);
-struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl);
-
+struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl,
+				 const struct file *fp);
+void mei_cl_read_cb_flush(const struct mei_cl *cl, const struct file *fp);
 struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
 				  enum mei_cb_file_ops type, struct file *fp);
+int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp);
 
 int mei_cl_flow_ctrl_creds(struct mei_cl *cl);
 
