@@ -321,52 +321,6 @@ static inline bool mei_cl_cmp_id(const struct mei_cl *cl1,
 }
 
 /**
- * __mei_io_list_flush - removes and frees cbs belonging to cl.
- *
- * @list:  an instance of our list structure
- * @cl:    host client, can be NULL for flushing the whole list
- * @free:  whether to free the cbs
- */
-static void __mei_io_list_flush(struct mei_cl_cb *list,
-				struct mei_cl *cl, bool free)
-{
-	struct mei_cl_cb *cb;
-	struct mei_cl_cb *next;
-
-	/* enable removing everything if no cl is specified */
-	list_for_each_entry_safe(cb, next, &list->list, list) {
-		if (!cl || mei_cl_cmp_id(cl, cb->cl)) {
-			list_del(&cb->list);
-			if (free)
-				mei_io_cb_free(cb);
-		}
-	}
-}
-
-/**
- * mei_io_list_flush - removes list entry belonging to cl.
- *
- * @list:  An instance of our list structure
- * @cl: host client
- */
-void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
-{
-	__mei_io_list_flush(list, cl, false);
-}
-
-
-/**
- * mei_io_list_free - removes cb belonging to cl and free them
- *
- * @list:  An instance of our list structure
- * @cl: host client
- */
-static inline void mei_io_list_free(struct mei_cl_cb *list, struct mei_cl *cl)
-{
-	__mei_io_list_flush(list, cl, true);
-}
-
-/**
  * mei_io_cb_free - free mei_cb_private related memory
  *
  * @cb: mei callback struct
@@ -376,6 +330,7 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
 	if (cb == NULL)
 		return;
 
+	list_del(&cb->list);
 	kfree(cb->buf.data);
 	kfree(cb);
 }
@@ -398,13 +353,56 @@ struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, enum mei_cb_file_ops type,
 	if (!cb)
 		return NULL;
 
-	mei_io_list_init(cb);
-
+	INIT_LIST_HEAD(&cb->list);
 	cb->file_object = fp;
 	cb->cl = cl;
 	cb->buf_idx = 0;
 	cb->fop_type = type;
 	return cb;
+}
+
+/**
+ * __mei_io_list_flush - removes and frees cbs belonging to cl.
+ *
+ * @list:  an instance of our list structure
+ * @cl:    host client, can be NULL for flushing the whole list
+ * @free:  whether to free the cbs
+ */
+static void __mei_io_list_flush(struct mei_cl_cb *list,
+				struct mei_cl *cl, bool free)
+{
+	struct mei_cl_cb *cb, *next;
+
+	/* enable removing everything if no cl is specified */
+	list_for_each_entry_safe(cb, next, &list->list, list) {
+		if (!cl || mei_cl_cmp_id(cl, cb->cl)) {
+			list_del_init(&cb->list);
+			if (free)
+				mei_io_cb_free(cb);
+		}
+	}
+}
+
+/**
+ * mei_io_list_flush - removes list entry belonging to cl.
+ *
+ * @list:  An instance of our list structure
+ * @cl: host client
+ */
+void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
+{
+	__mei_io_list_flush(list, cl, false);
+}
+
+/**
+ * mei_io_list_free - removes cb belonging to cl and free them
+ *
+ * @list:  An instance of our list structure
+ * @cl: host client
+ */
+static inline void mei_io_list_free(struct mei_cl_cb *list, struct mei_cl *cl)
+{
+	__mei_io_list_flush(list, cl, true);
 }
 
 /**

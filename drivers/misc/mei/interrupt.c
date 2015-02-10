@@ -202,7 +202,6 @@ static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	cl->state = MEI_FILE_DISCONNECTED;
 	cl->status = 0;
-	list_del(&cb->list);
 	mei_io_cb_free(cb);
 
 	return ret;
@@ -320,7 +319,7 @@ static int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 	if (ret) {
 		cl->status = ret;
 		cb->buf_idx = 0;
-		list_del(&cb->list);
+		list_del_init(&cb->list);
 		return ret;
 	}
 

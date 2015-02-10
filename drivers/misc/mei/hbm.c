@@ -639,7 +639,7 @@ static void mei_hbm_cl_res(struct mei_device *dev,
 			continue;
 
 		if (mei_hbm_cl_addr_equal(cl, rs)) {
-			list_del(&cb->list);
+			list_del_init(&cb->list);
 			break;
 		}
 	}

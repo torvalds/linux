@@ -311,13 +311,13 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 		mutex_lock(&dev->device_lock);
 	}
 
-	cb = cl->read_cb;
 
 	if (cl->reading_state != MEI_READ_COMPLETE) {
 		rets = 0;
 		goto out;
 	}
 
+	cb = cl->read_cb;
 	if (cb->status) {
 		rets = cb->status;
 		goto free;
@@ -329,8 +329,8 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 
 free:
 	mei_io_cb_free(cb);
-	cl->reading_state = MEI_IDLE;
 	cl->read_cb = NULL;
+	cl->reading_state = MEI_IDLE;
 
 out:
 	mutex_unlock(&dev->device_lock);
@@ -486,23 +486,7 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 
 	/* Flush queues and remove any pending read */
 	mei_cl_flush_queues(cl);
-
-	if (cl->read_cb) {
-		struct mei_cl_cb *cb = NULL;
-
-		cb = mei_cl_find_read_cb(cl);
-		/* Remove entry from read list */
-		if (cb)
-			list_del(&cb->list);
-
-		cb = cl->read_cb;
-		cl->read_cb = NULL;
-
-		if (cb) {
-			mei_io_cb_free(cb);
-			cb = NULL;
-		}
-	}
+	mei_io_cb_free(cl->read_cb);
 
 	device->event_cb = NULL;
 

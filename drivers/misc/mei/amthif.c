@@ -196,16 +196,16 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	if  (time_after(jiffies, timeout)) {
 		dev_dbg(dev->dev, "amthif Time out\n");
 		/* 15 sec for the message has expired */
-		list_del(&cb->list);
+		list_del_init(&cb->list);
 		rets = -ETIME;
 		goto free;
 	}
 	/* if the whole message will fit remove it from the list */
 	if (cb->buf_idx >= *offset && length >= (cb->buf_idx - *offset))
-		list_del(&cb->list);
+		list_del_init(&cb->list);
 	else if (cb->buf_idx > 0 && cb->buf_idx <= *offset) {
 		/* end of the message has been reached */
-		list_del(&cb->list);
+		list_del_init(&cb->list);
 		rets = 0;
 		goto free;
 	}
@@ -504,26 +504,22 @@ void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb)
 static bool mei_clear_list(struct mei_device *dev,
 		const struct file *file, struct list_head *mei_cb_list)
 {
-	struct mei_cl_cb *cb_pos = NULL;
-	struct mei_cl_cb *cb_next = NULL;
+	struct mei_cl *cl = &dev->iamthif_cl;
+	struct mei_cl_cb *cb, *next;
 	bool removed = false;
 
 	/* list all list member */
-	list_for_each_entry_safe(cb_pos, cb_next, mei_cb_list, list) {
+	list_for_each_entry_safe(cb, next, mei_cb_list, list) {
 		/* check if list member associated with a file */
-		if (file == cb_pos->file_object) {
-			/* remove member from the list */
-			list_del(&cb_pos->list);
+		if (file == cb->file_object) {
 			/* check if cb equal to current iamthif cb */
-			if (dev->iamthif_current_cb == cb_pos) {
+			if (dev->iamthif_current_cb == cb) {
 				dev->iamthif_current_cb = NULL;
 				/* send flow control to iamthif client */
-				mei_hbm_cl_flow_control_req(dev,
-							&dev->iamthif_cl);
+				mei_hbm_cl_flow_control_req(dev, cl);
 			}
 			/* free all allocated buffers */
-			mei_io_cb_free(cb_pos);
-			cb_pos = NULL;
+			mei_io_cb_free(cb);
 			removed = true;
 		}
 	}

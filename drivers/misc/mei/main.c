@@ -94,7 +94,6 @@ err_unlock:
 static int mei_release(struct inode *inode, struct file *file)
 {
 	struct mei_cl *cl = file->private_data;
-	struct mei_cl_cb *cb;
 	struct mei_device *dev;
 	int rets = 0;
 
@@ -118,22 +117,10 @@ static int mei_release(struct inode *inode, struct file *file)
 
 	mei_cl_unlink(cl);
 
-
-	/* free read cb */
-	cb = NULL;
-	if (cl->read_cb) {
-		cb = mei_cl_find_read_cb(cl);
-		/* Remove entry from read list */
-		if (cb)
-			list_del(&cb->list);
-
-		cb = cl->read_cb;
-		cl->read_cb = NULL;
-	}
+	mei_io_cb_free(cl->read_cb);
+	cl->read_cb = NULL;
 
 	file->private_data = NULL;
-
-	mei_io_cb_free(cb);
 
 	kfree(cl);
 out:
@@ -156,7 +143,6 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 			size_t length, loff_t *offset)
 {
 	struct mei_cl *cl = file->private_data;
-	struct mei_cl_cb *cb_pos = NULL;
 	struct mei_cl_cb *cb = NULL;
 	struct mei_device *dev;
 	int rets;
@@ -279,13 +265,10 @@ copy_buffer:
 		goto out;
 
 free:
-	cb_pos = mei_cl_find_read_cb(cl);
-	/* Remove entry from read list */
-	if (cb_pos)
-		list_del(&cb_pos->list);
 	mei_io_cb_free(cb);
-	cl->reading_state = MEI_IDLE;
 	cl->read_cb = NULL;
+
+	cl->reading_state = MEI_IDLE;
 out:
 	dev_dbg(dev->dev, "end mei read rets= %d\n", rets);
 	mutex_unlock(&dev->device_lock);
@@ -355,7 +338,6 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			if (time_after(jiffies, timeout) ||
 			    cl->reading_state == MEI_READ_COMPLETE) {
 				*offset = 0;
-				list_del(&write_cb->list);
 				mei_io_cb_free(write_cb);
 				write_cb = NULL;
 			}
@@ -367,11 +349,10 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		*offset = 0;
 		write_cb = mei_cl_find_read_cb(cl);
 		if (write_cb) {
-			list_del(&write_cb->list);
 			mei_io_cb_free(write_cb);
 			write_cb = NULL;
-			cl->reading_state = MEI_IDLE;
 			cl->read_cb = NULL;
+			cl->reading_state = MEI_IDLE;
 		}
 	} else if (cl->reading_state == MEI_IDLE)
 		*offset = 0;
