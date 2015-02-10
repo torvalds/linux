@@ -31,7 +31,10 @@ void mei_me_cl_init(struct mei_me_client *me_cl);
 void mei_me_cl_put(struct mei_me_client *me_cl);
 struct mei_me_client *mei_me_cl_get(struct mei_me_client *me_cl);
 
-struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
+void mei_me_cl_add(struct mei_device *dev, struct mei_me_client *me_cl);
+void mei_me_cl_del(struct mei_device *dev, struct mei_me_client *me_cl);
+
+struct mei_me_client *mei_me_cl_by_uuid(struct mei_device *dev,
 					const uuid_le *uuid);
 struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
 struct mei_me_client *mei_me_cl_by_uuid_id(struct mei_device *dev,

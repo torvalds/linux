@@ -338,7 +338,8 @@ static int mei_hbm_me_cl_add(struct mei_device *dev,
 	me_cl->client_id = res->me_addr;
 	me_cl->mei_flow_ctrl_creds = 0;
 
-	list_add(&me_cl->list, &dev->me_clients);
+	mei_me_cl_add(dev, me_cl);
+
 	return 0;
 }
 

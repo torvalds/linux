@@ -48,14 +48,14 @@ void mei_me_cl_init(struct mei_me_client *me_cl)
  */
 struct mei_me_client *mei_me_cl_get(struct mei_me_client *me_cl)
 {
-	if (me_cl)
-		kref_get(&me_cl->refcnt);
+	if (me_cl && kref_get_unless_zero(&me_cl->refcnt))
+		return me_cl;
 
-	return me_cl;
+	return NULL;
 }
 
 /**
- * mei_me_cl_release - unlink and free me client
+ * mei_me_cl_release - free me client
  *
  * Locking: called under "dev->device_lock" lock
  *
@@ -65,9 +65,10 @@ static void mei_me_cl_release(struct kref *ref)
 {
 	struct mei_me_client *me_cl =
 		container_of(ref, struct mei_me_client, refcnt);
-	list_del(&me_cl->list);
+
 	kfree(me_cl);
 }
+
 /**
  * mei_me_cl_put - decrease me client refcount and free client if necessary
  *
@@ -82,26 +83,85 @@ void mei_me_cl_put(struct mei_me_client *me_cl)
 }
 
 /**
+ * __mei_me_cl_del  - delete me client form the list and decrease
+ *     reference counter
+ *
+ * @dev: mei device
+ * @me_cl: me client
+ *
+ * Locking: dev->me_clients_rwsem
+ */
+static void __mei_me_cl_del(struct mei_device *dev, struct mei_me_client *me_cl)
+{
+	if (!me_cl)
+		return;
+
+	list_del(&me_cl->list);
+	mei_me_cl_put(me_cl);
+}
+
+/**
+ * mei_me_cl_add - add me client to the list
+ *
+ * @dev: mei device
+ * @me_cl: me client
+ */
+void mei_me_cl_add(struct mei_device *dev, struct mei_me_client *me_cl)
+{
+	down_write(&dev->me_clients_rwsem);
+	list_add(&me_cl->list, &dev->me_clients);
+	up_write(&dev->me_clients_rwsem);
+}
+
+/**
+ * __mei_me_cl_by_uuid - locate me client by uuid
+ *	increases ref count
+ *
+ * @dev: mei device
+ * @uuid: me client uuid
+ *
+ * Return: me client or NULL if not found
+ *
+ * Locking: dev->me_clients_rwsem
+ */
+static struct mei_me_client *__mei_me_cl_by_uuid(struct mei_device *dev,
+					const uuid_le *uuid)
+{
+	struct mei_me_client *me_cl;
+	const uuid_le *pn;
+
+	WARN_ON(!rwsem_is_locked(&dev->me_clients_rwsem));
+
+	list_for_each_entry(me_cl, &dev->me_clients, list) {
+		pn = &me_cl->props.protocol_name;
+		if (uuid_le_cmp(*uuid, *pn) == 0)
+			return mei_me_cl_get(me_cl);
+	}
+
+	return NULL;
+}
+
+/**
  * mei_me_cl_by_uuid - locate me client by uuid
  *	increases ref count
  *
  * @dev: mei device
  * @uuid: me client uuid
  *
- * Locking: called under "dev->device_lock" lock
- *
  * Return: me client or NULL if not found
+ *
+ * Locking: dev->me_clients_rwsem
  */
-struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
+struct mei_me_client *mei_me_cl_by_uuid(struct mei_device *dev,
 					const uuid_le *uuid)
 {
 	struct mei_me_client *me_cl;
 
-	list_for_each_entry(me_cl, &dev->me_clients, list)
-		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0)
-			return mei_me_cl_get(me_cl);
+	down_read(&dev->me_clients_rwsem);
+	me_cl = __mei_me_cl_by_uuid(dev, uuid);
+	up_read(&dev->me_clients_rwsem);
 
-	return NULL;
+	return me_cl;
 }
 
 /**
@@ -111,21 +171,57 @@ struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
  * @dev: the device structure
  * @client_id: me client id
  *
- * Locking: called under "dev->device_lock" lock
- *
  * Return: me client or NULL if not found
+ *
+ * Locking: dev->me_clients_rwsem
  */
 struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
 {
 
-	struct mei_me_client *me_cl;
+	struct mei_me_client *__me_cl, *me_cl = NULL;
 
-	list_for_each_entry(me_cl, &dev->me_clients, list)
-		if (me_cl->client_id == client_id)
+	down_read(&dev->me_clients_rwsem);
+	list_for_each_entry(__me_cl, &dev->me_clients, list) {
+		if (__me_cl->client_id == client_id) {
+			me_cl = mei_me_cl_get(__me_cl);
+			break;
+		}
+	}
+	up_read(&dev->me_clients_rwsem);
+
+	return me_cl;
+}
+
+/**
+ * __mei_me_cl_by_uuid_id - locate me client by client id and uuid
+ *	increases ref count
+ *
+ * @dev: the device structure
+ * @uuid: me client uuid
+ * @client_id: me client id
+ *
+ * Return: me client or null if not found
+ *
+ * Locking: dev->me_clients_rwsem
+ */
+static struct mei_me_client *__mei_me_cl_by_uuid_id(struct mei_device *dev,
+					   const uuid_le *uuid, u8 client_id)
+{
+	struct mei_me_client *me_cl;
+	const uuid_le *pn;
+
+	WARN_ON(!rwsem_is_locked(&dev->me_clients_rwsem));
+
+	list_for_each_entry(me_cl, &dev->me_clients, list) {
+		pn = &me_cl->props.protocol_name;
+		if (uuid_le_cmp(*uuid, *pn) == 0 &&
+		    me_cl->client_id == client_id)
 			return mei_me_cl_get(me_cl);
+	}
 
 	return NULL;
 }
+
 
 /**
  * mei_me_cl_by_uuid_id - locate me client by client id and uuid
@@ -135,21 +231,18 @@ struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
  * @uuid: me client uuid
  * @client_id: me client id
  *
- * Locking: called under "dev->device_lock" lock
- *
- * Return: me client or NULL if not found
+ * Return: me client or null if not found
  */
 struct mei_me_client *mei_me_cl_by_uuid_id(struct mei_device *dev,
 					   const uuid_le *uuid, u8 client_id)
 {
 	struct mei_me_client *me_cl;
 
-	list_for_each_entry(me_cl, &dev->me_clients, list)
-		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0 &&
-		    me_cl->client_id == client_id)
-			return mei_me_cl_get(me_cl);
+	down_read(&dev->me_clients_rwsem);
+	me_cl = __mei_me_cl_by_uuid_id(dev, uuid, client_id);
+	up_read(&dev->me_clients_rwsem);
 
-	return NULL;
+	return me_cl;
 }
 
 /**
@@ -162,12 +255,14 @@ struct mei_me_client *mei_me_cl_by_uuid_id(struct mei_device *dev,
  */
 void mei_me_cl_rm_by_uuid(struct mei_device *dev, const uuid_le *uuid)
 {
-	struct mei_me_client *me_cl, *next;
+	struct mei_me_client *me_cl;
 
 	dev_dbg(dev->dev, "remove %pUl\n", uuid);
-	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list)
-		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0)
-			mei_me_cl_put(me_cl);
+
+	down_write(&dev->me_clients_rwsem);
+	me_cl = __mei_me_cl_by_uuid(dev, uuid);
+	__mei_me_cl_del(dev, me_cl);
+	up_write(&dev->me_clients_rwsem);
 }
 
 /**
@@ -181,15 +276,14 @@ void mei_me_cl_rm_by_uuid(struct mei_device *dev, const uuid_le *uuid)
  */
 void mei_me_cl_rm_by_uuid_id(struct mei_device *dev, const uuid_le *uuid, u8 id)
 {
-	struct mei_me_client *me_cl, *next;
-	const uuid_le *pn;
+	struct mei_me_client *me_cl;
 
 	dev_dbg(dev->dev, "remove %pUl %d\n", uuid, id);
-	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list) {
-		pn =  &me_cl->props.protocol_name;
-		if (me_cl->client_id == id && uuid_le_cmp(*uuid, *pn) == 0)
-			mei_me_cl_put(me_cl);
-	}
+
+	down_write(&dev->me_clients_rwsem);
+	me_cl = __mei_me_cl_by_uuid_id(dev, uuid, id);
+	__mei_me_cl_del(dev, me_cl);
+	up_write(&dev->me_clients_rwsem);
 }
 
 /**
@@ -203,11 +297,11 @@ void mei_me_cl_rm_all(struct mei_device *dev)
 {
 	struct mei_me_client *me_cl, *next;
 
+	down_write(&dev->me_clients_rwsem);
 	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list)
-			mei_me_cl_put(me_cl);
+		__mei_me_cl_del(dev, me_cl);
+	up_write(&dev->me_clients_rwsem);
 }
-
-
 
 /**
  * mei_cl_cmp_id - tells if the clients are the same
@@ -535,28 +629,28 @@ int mei_cl_unlink(struct mei_cl *cl)
 
 void mei_host_client_init(struct work_struct *work)
 {
-	struct mei_device *dev = container_of(work,
-					      struct mei_device, init_work);
+	struct mei_device *dev =
+		container_of(work, struct mei_device, init_work);
 	struct mei_me_client *me_cl;
-	struct mei_client_properties *props;
 
 	mutex_lock(&dev->device_lock);
 
-	list_for_each_entry(me_cl, &dev->me_clients, list) {
-		props = &me_cl->props;
 
-		if (!uuid_le_cmp(props->protocol_name, mei_amthif_guid))
-			mei_amthif_host_init(dev);
-		else if (!uuid_le_cmp(props->protocol_name, mei_wd_guid))
-			mei_wd_host_init(dev);
-		else if (!uuid_le_cmp(props->protocol_name, mei_nfc_guid))
-			mei_nfc_host_init(dev);
+	me_cl = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
+	if (me_cl)
+		mei_amthif_host_init(dev);
 
-	}
+	me_cl = mei_me_cl_by_uuid(dev, &mei_wd_guid);
+	if (me_cl)
+		mei_wd_host_init(dev);
+
+	me_cl = mei_me_cl_by_uuid(dev, &mei_nfc_guid);
+	if (me_cl)
+		mei_nfc_host_init(dev);
+
 
 	dev->dev_state = MEI_DEV_ENABLED;
 	dev->reset_count = 0;
-
 	mutex_unlock(&dev->device_lock);
 
 	pm_runtime_mark_last_busy(dev->dev);

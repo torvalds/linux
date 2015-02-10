@@ -460,6 +460,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @version     : HBM protocol version in use
  * @hbm_f_pg_supported : hbm feature pgi protocol
  *
+ * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
  * @me_clients_map : FW clients bit map
  * @host_clients_map : host clients id pool
@@ -556,6 +557,7 @@ struct mei_device {
 	struct hbm_version version;
 	unsigned int hbm_f_pg_supported:1;
 
+	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;
 	DECLARE_BITMAP(me_clients_map, MEI_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);

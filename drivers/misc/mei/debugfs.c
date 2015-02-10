@@ -28,7 +28,7 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 					size_t cnt, loff_t *ppos)
 {
 	struct mei_device *dev = fp->private_data;
-	struct mei_me_client *me_cl, *n;
+	struct mei_me_client *me_cl;
 	size_t bufsz = 1;
 	char *buf;
 	int i = 0;
@@ -38,15 +38,14 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 #define HDR \
 "  |id|fix|         UUID                       |con|msg len|sb|refc|\n"
 
-	mutex_lock(&dev->device_lock);
-
+	down_read(&dev->me_clients_rwsem);
 	list_for_each_entry(me_cl, &dev->me_clients, list)
 		bufsz++;
 
 	bufsz *= sizeof(HDR) + 1;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		mutex_unlock(&dev->device_lock);
+		up_read(&dev->me_clients_rwsem);
 		return -ENOMEM;
 	}
 
@@ -56,10 +55,9 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 
-	list_for_each_entry_safe(me_cl, n, &dev->me_clients, list) {
+	list_for_each_entry(me_cl, &dev->me_clients, list) {
 
-		me_cl = mei_me_cl_get(me_cl);
-		if (me_cl) {
+		if (mei_me_cl_get(me_cl)) {
 			pos += scnprintf(buf + pos, bufsz - pos,
 				"%2d|%2d|%3d|%pUl|%3d|%7d|%2d|%4d|\n",
 				i++, me_cl->client_id,
@@ -69,12 +67,13 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 				me_cl->props.max_msg_length,
 				me_cl->props.single_recv_buf,
 				atomic_read(&me_cl->refcnt.refcount));
-		}
 
-		mei_me_cl_put(me_cl);
+			mei_me_cl_put(me_cl);
+		}
 	}
+
 out:
-	mutex_unlock(&dev->device_lock);
+	up_read(&dev->me_clients_rwsem);
 	ret = simple_read_from_buffer(ubuf, cnt, ppos, buf, pos);
 	kfree(buf);
 	return ret;

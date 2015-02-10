@@ -387,6 +387,7 @@ void mei_device_init(struct mei_device *dev,
 	INIT_LIST_HEAD(&dev->device_list);
 	INIT_LIST_HEAD(&dev->me_clients);
 	mutex_init(&dev->device_lock);
+	init_rwsem(&dev->me_clients_rwsem);
 	init_waitqueue_head(&dev->wait_hw_ready);
 	init_waitqueue_head(&dev->wait_pg);
 	init_waitqueue_head(&dev->wait_hbm_start);
