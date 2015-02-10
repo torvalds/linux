@@ -547,11 +547,11 @@ struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
  * mei_cl_link - allocate host id in the host map
  *
  * @cl: host client
- * @id: fixed host id or -1 for generic one
+ * @id: fixed host id or MEI_HOST_CLIENT_ID_ANY (-1) for generic one
  *
  * Return: 0 on success
  *	-EINVAL on incorrect values
- *	-ENONET if client not found
+ *	-EMFILE if open count exceeded.
  */
 int mei_cl_link(struct mei_cl *cl, int id)
 {
@@ -868,6 +868,37 @@ out:
 	mei_io_cb_free(cb);
 	return rets;
 }
+
+/**
+ * mei_cl_alloc_linked - allocate and link host client
+ *
+ * @dev: the device structure
+ * @id: fixed host id or MEI_HOST_CLIENT_ID_ANY (-1) for generic one
+ *
+ * Return: cl on success ERR_PTR on failure
+ */
+struct mei_cl *mei_cl_alloc_linked(struct mei_device *dev, int id)
+{
+	struct mei_cl *cl;
+	int ret;
+
+	cl = mei_cl_allocate(dev);
+	if (!cl) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = mei_cl_link(cl, id);
+	if (ret)
+		goto err;
+
+	return cl;
+err:
+	kfree(cl);
+	return ERR_PTR(ret);
+}
+
+
 
 /**
  * mei_cl_flow_ctrl_creds - checks flow_control credits for cl.

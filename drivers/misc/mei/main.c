@@ -59,24 +59,18 @@ static int mei_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&dev->device_lock);
 
-	cl = NULL;
-
-	err = -ENODEV;
 	if (dev->dev_state != MEI_DEV_ENABLED) {
 		dev_dbg(dev->dev, "dev_state != MEI_ENABLED  dev_state = %s\n",
 		    mei_dev_state_str(dev->dev_state));
+		err = -ENODEV;
 		goto err_unlock;
 	}
 
-	err = -ENOMEM;
-	cl = mei_cl_allocate(dev);
-	if (!cl)
+	cl = mei_cl_alloc_linked(dev, MEI_HOST_CLIENT_ID_ANY);
+	if (IS_ERR(cl)) {
+		err = PTR_ERR(cl);
 		goto err_unlock;
-
-	/* open_handle_count check is handled in the mei_cl_link */
-	err = mei_cl_link(cl, MEI_HOST_CLIENT_ID_ANY);
-	if (err)
-		goto err_unlock;
+	}
 
 	file->private_data = cl;
 
@@ -86,7 +80,6 @@ static int mei_open(struct inode *inode, struct file *file)
 
 err_unlock:
 	mutex_unlock(&dev->device_lock);
-	kfree(cl);
 	return err;
 }
 
