@@ -40,6 +40,7 @@ nvbios_disp_table(struct nouveau_bios *bios,
 				switch (*ver) {
 				case 0x20:
 				case 0x21:
+				case 0x22:
 					*hdr = nv_ro08(bios, data + 0x01);
 					*len = nv_ro08(bios, data + 0x02);
 					*cnt = nv_ro08(bios, data + 0x03);

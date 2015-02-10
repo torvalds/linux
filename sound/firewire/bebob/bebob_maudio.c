@@ -340,7 +340,7 @@ end:
 }
 
 /* Clock source control for special firmware */
-static char *const special_clk_labels[] = {
+static const char *const special_clk_labels[] = {
 	SND_BEBOB_CLOCK_INTERNAL " with Digital Mute", "Digital",
 	"Word Clock", SND_BEBOB_CLOCK_INTERNAL};
 static int special_clk_get(struct snd_bebob *bebob, unsigned int *id)
@@ -352,17 +352,8 @@ static int special_clk_get(struct snd_bebob *bebob, unsigned int *id)
 static int special_clk_ctl_info(struct snd_kcontrol *kctl,
 				struct snd_ctl_elem_info *einf)
 {
-	einf->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	einf->count = 1;
-	einf->value.enumerated.items = ARRAY_SIZE(special_clk_labels);
-
-	if (einf->value.enumerated.item >= einf->value.enumerated.items)
-		einf->value.enumerated.item = einf->value.enumerated.items - 1;
-
-	strcpy(einf->value.enumerated.name,
-	       special_clk_labels[einf->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(einf, 1, ARRAY_SIZE(special_clk_labels),
+				 special_clk_labels);
 }
 static int special_clk_ctl_get(struct snd_kcontrol *kctl,
 			       struct snd_ctl_elem_value *uval)
@@ -438,23 +429,15 @@ static struct snd_kcontrol_new special_sync_ctl = {
 };
 
 /* Digital input interface control for special firmware */
-static char *const special_dig_in_iface_labels[] = {
+static const char *const special_dig_in_iface_labels[] = {
 	"S/PDIF Optical", "S/PDIF Coaxial", "ADAT Optical"
 };
 static int special_dig_in_iface_ctl_info(struct snd_kcontrol *kctl,
 					 struct snd_ctl_elem_info *einf)
 {
-	einf->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	einf->count = 1;
-	einf->value.enumerated.items = ARRAY_SIZE(special_dig_in_iface_labels);
-
-	if (einf->value.enumerated.item >= einf->value.enumerated.items)
-		einf->value.enumerated.item = einf->value.enumerated.items - 1;
-
-	strcpy(einf->value.enumerated.name,
-	       special_dig_in_iface_labels[einf->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(einf, 1,
+				 ARRAY_SIZE(special_dig_in_iface_labels),
+				 special_dig_in_iface_labels);
 }
 static int special_dig_in_iface_ctl_get(struct snd_kcontrol *kctl,
 					struct snd_ctl_elem_value *uval)
@@ -539,23 +522,15 @@ static struct snd_kcontrol_new special_dig_in_iface_ctl = {
 };
 
 /* Digital output interface control for special firmware */
-static char *const special_dig_out_iface_labels[] = {
+static const char *const special_dig_out_iface_labels[] = {
 	"S/PDIF Optical and Coaxial", "ADAT Optical"
 };
 static int special_dig_out_iface_ctl_info(struct snd_kcontrol *kctl,
 					  struct snd_ctl_elem_info *einf)
 {
-	einf->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	einf->count = 1;
-	einf->value.enumerated.items = ARRAY_SIZE(special_dig_out_iface_labels);
-
-	if (einf->value.enumerated.item >= einf->value.enumerated.items)
-		einf->value.enumerated.item = einf->value.enumerated.items - 1;
-
-	strcpy(einf->value.enumerated.name,
-	       special_dig_out_iface_labels[einf->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(einf, 1,
+				 ARRAY_SIZE(special_dig_out_iface_labels),
+				 special_dig_out_iface_labels);
 }
 static int special_dig_out_iface_ctl_get(struct snd_kcontrol *kctl,
 					 struct snd_ctl_elem_value *uval)
@@ -631,7 +606,7 @@ end:
 }
 
 /* Hardware metering for special firmware */
-static char *const special_meter_labels[] = {
+static const char *const special_meter_labels[] = {
 	ANA_IN, ANA_IN, ANA_IN, ANA_IN,
 	SPDIF_IN,
 	ADAT_IN, ADAT_IN, ADAT_IN, ADAT_IN,
@@ -671,30 +646,30 @@ end:
 }
 
 /* last 4 bytes are omitted because it's clock info. */
-static char *const fw410_meter_labels[] = {
+static const char *const fw410_meter_labels[] = {
 	ANA_IN, DIG_IN,
 	ANA_OUT, ANA_OUT, ANA_OUT, ANA_OUT, DIG_OUT,
 	HP_OUT
 };
-static char *const audiophile_meter_labels[] = {
+static const char *const audiophile_meter_labels[] = {
 	ANA_IN, DIG_IN,
 	ANA_OUT, ANA_OUT, DIG_OUT,
 	HP_OUT, AUX_OUT,
 };
-static char *const solo_meter_labels[] = {
+static const char *const solo_meter_labels[] = {
 	ANA_IN, DIG_IN,
 	STRM_IN, STRM_IN,
 	ANA_OUT, DIG_OUT
 };
 
 /* no clock info */
-static char *const ozonic_meter_labels[] = {
+static const char *const ozonic_meter_labels[] = {
 	ANA_IN, ANA_IN,
 	STRM_IN, STRM_IN,
 	ANA_OUT, ANA_OUT
 };
 /* TODO: need testers. these positions are based on authour's assumption */
-static char *const nrv10_meter_labels[] = {
+static const char *const nrv10_meter_labels[] = {
 	ANA_IN, ANA_IN, ANA_IN, ANA_IN,
 	DIG_IN,
 	ANA_OUT, ANA_OUT, ANA_OUT, ANA_OUT,

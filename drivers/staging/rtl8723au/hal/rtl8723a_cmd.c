@@ -115,19 +115,16 @@ exit:
 
 int rtl8723a_set_rssi_cmd(struct rtw_adapter *padapter, u8 *param)
 {
-	int res = _SUCCESS;
-
 	*((u32 *)param) = cpu_to_le32(*((u32 *)param));
 
 	FillH2CCmd(padapter, RSSI_SETTING_EID, 3, param);
 
-	return res;
+	return _SUCCESS;
 }
 
 int rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg)
 {
 	u8 buf[5];
-	int res = _SUCCESS;
 
 	memset(buf, 0, 5);
 	mask = cpu_to_le32(mask);
@@ -136,7 +133,7 @@ int rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg)
 
 	FillH2CCmd(padapter, MACID_CONFIG_EID, 5, buf);
 
-	return res;
+	return _SUCCESS;
 }
 
 /* bitmap[0:27] = tx_rate_bitmap */

@@ -261,6 +261,205 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(nf_nat_icmpv6_reply_translation);
 
+unsigned int
+nf_nat_ipv6_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
+	       const struct net_device *in, const struct net_device *out,
+	       unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+					struct sk_buff *skb,
+					const struct net_device *in,
+					const struct net_device *out,
+					struct nf_conn *ct))
+{
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn_nat *nat;
+	enum nf_nat_manip_type maniptype = HOOK2MANIP(ops->hooknum);
+	__be16 frag_off;
+	int hdrlen;
+	u8 nexthdr;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	/* Can't track?  It's not due to stress, or conntrack would
+	 * have dropped it.  Hence it's the user's responsibilty to
+	 * packet filter it out, or implement conntrack/NAT for that
+	 * protocol. 8) --RR
+	 */
+	if (!ct)
+		return NF_ACCEPT;
+
+	/* Don't try to NAT if this packet is not conntracked */
+	if (nf_ct_is_untracked(ct))
+		return NF_ACCEPT;
+
+	nat = nf_ct_nat_ext_add(ct);
+	if (nat == NULL)
+		return NF_ACCEPT;
+
+	switch (ctinfo) {
+	case IP_CT_RELATED:
+	case IP_CT_RELATED_REPLY:
+		nexthdr = ipv6_hdr(skb)->nexthdr;
+		hdrlen = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr),
+					  &nexthdr, &frag_off);
+
+		if (hdrlen >= 0 && nexthdr == IPPROTO_ICMPV6) {
+			if (!nf_nat_icmpv6_reply_translation(skb, ct, ctinfo,
+							     ops->hooknum,
+							     hdrlen))
+				return NF_DROP;
+			else
+				return NF_ACCEPT;
+		}
+		/* Fall thru... (Only ICMPs can be IP_CT_IS_REPLY) */
+	case IP_CT_NEW:
+		/* Seen it before?  This can happen for loopback, retrans,
+		 * or local packets.
+		 */
+		if (!nf_nat_initialized(ct, maniptype)) {
+			unsigned int ret;
+
+			ret = do_chain(ops, skb, in, out, ct);
+			if (ret != NF_ACCEPT)
+				return ret;
+
+			if (nf_nat_initialized(ct, HOOK2MANIP(ops->hooknum)))
+				break;
+
+			ret = nf_nat_alloc_null_binding(ct, ops->hooknum);
+			if (ret != NF_ACCEPT)
+				return ret;
+		} else {
+			pr_debug("Already setup manip %s for ct %p\n",
+				 maniptype == NF_NAT_MANIP_SRC ? "SRC" : "DST",
+				 ct);
+			if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, out))
+				goto oif_changed;
+		}
+		break;
+
+	default:
+		/* ESTABLISHED */
+		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
+			     ctinfo == IP_CT_ESTABLISHED_REPLY);
+		if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, out))
+			goto oif_changed;
+	}
+
+	return nf_nat_packet(ct, ctinfo, ops->hooknum, skb);
+
+oif_changed:
+	nf_ct_kill_acct(ct, ctinfo, skb);
+	return NF_DROP;
+}
+EXPORT_SYMBOL_GPL(nf_nat_ipv6_fn);
+
+unsigned int
+nf_nat_ipv6_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
+	       const struct net_device *in, const struct net_device *out,
+	       unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+					struct sk_buff *skb,
+					const struct net_device *in,
+					const struct net_device *out,
+					struct nf_conn *ct))
+{
+	unsigned int ret;
+	struct in6_addr daddr = ipv6_hdr(skb)->daddr;
+
+	ret = nf_nat_ipv6_fn(ops, skb, in, out, do_chain);
+	if (ret != NF_DROP && ret != NF_STOLEN &&
+	    ipv6_addr_cmp(&daddr, &ipv6_hdr(skb)->daddr))
+		skb_dst_drop(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_nat_ipv6_in);
+
+unsigned int
+nf_nat_ipv6_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
+		const struct net_device *in, const struct net_device *out,
+		unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+					 struct sk_buff *skb,
+					 const struct net_device *in,
+					 const struct net_device *out,
+					 struct nf_conn *ct))
+{
+#ifdef CONFIG_XFRM
+	const struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+	int err;
+#endif
+	unsigned int ret;
+
+	/* root is playing with raw sockets. */
+	if (skb->len < sizeof(struct ipv6hdr))
+		return NF_ACCEPT;
+
+	ret = nf_nat_ipv6_fn(ops, skb, in, out, do_chain);
+#ifdef CONFIG_XFRM
+	if (ret != NF_DROP && ret != NF_STOLEN &&
+	    !(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
+	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
+		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+
+		if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.src.u3,
+				      &ct->tuplehash[!dir].tuple.dst.u3) ||
+		    (ct->tuplehash[dir].tuple.dst.protonum != IPPROTO_ICMPV6 &&
+		     ct->tuplehash[dir].tuple.src.u.all !=
+		     ct->tuplehash[!dir].tuple.dst.u.all)) {
+			err = nf_xfrm_me_harder(skb, AF_INET6);
+			if (err < 0)
+				ret = NF_DROP_ERR(err);
+		}
+	}
+#endif
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_nat_ipv6_out);
+
+unsigned int
+nf_nat_ipv6_local_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
+		     const struct net_device *in, const struct net_device *out,
+		     unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+					      struct sk_buff *skb,
+					      const struct net_device *in,
+					      const struct net_device *out,
+					      struct nf_conn *ct))
+{
+	const struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+	unsigned int ret;
+	int err;
+
+	/* root is playing with raw sockets. */
+	if (skb->len < sizeof(struct ipv6hdr))
+		return NF_ACCEPT;
+
+	ret = nf_nat_ipv6_fn(ops, skb, in, out, do_chain);
+	if (ret != NF_DROP && ret != NF_STOLEN &&
+	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
+		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+
+		if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.dst.u3,
+				      &ct->tuplehash[!dir].tuple.src.u3)) {
+			err = ip6_route_me_harder(skb);
+			if (err < 0)
+				ret = NF_DROP_ERR(err);
+		}
+#ifdef CONFIG_XFRM
+		else if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
+			 ct->tuplehash[dir].tuple.dst.protonum != IPPROTO_ICMPV6 &&
+			 ct->tuplehash[dir].tuple.dst.u.all !=
+			 ct->tuplehash[!dir].tuple.src.u.all) {
+			err = nf_xfrm_me_harder(skb, AF_INET6);
+			if (err < 0)
+				ret = NF_DROP_ERR(err);
+		}
+#endif
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_nat_ipv6_local_fn);
+
 static int __init nf_nat_l3proto_ipv6_init(void)
 {
 	int err;

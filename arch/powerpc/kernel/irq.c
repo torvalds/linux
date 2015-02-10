@@ -50,7 +50,6 @@
 #include <linux/list.h>
 #include <linux/radix-tree.h>
 #include <linux/mutex.h>
-#include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/debugfs.h>
 #include <linux/of.h>
@@ -114,7 +113,7 @@ static inline notrace void set_soft_enabled(unsigned long enable)
 static inline notrace int decrementer_check_overflow(void)
 {
  	u64 now = get_tb_or_rtc();
- 	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
+	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
  
 	return now >= *next_tb;
 }
@@ -444,13 +443,13 @@ void migrate_irqs(void)
 
 		cpumask_and(mask, data->affinity, map);
 		if (cpumask_any(mask) >= nr_cpu_ids) {
-			printk("Breaking affinity for irq %i\n", irq);
+			pr_warn("Breaking affinity for irq %i\n", irq);
 			cpumask_copy(mask, map);
 		}
 		if (chip->irq_set_affinity)
 			chip->irq_set_affinity(data, mask, true);
 		else if (desc->action && !(warned++))
-			printk("Cannot set affinity for irq %i\n", irq);
+			pr_err("Cannot set affinity for irq %i\n", irq);
 	}
 
 	free_cpumask_var(mask);
@@ -466,11 +465,11 @@ static inline void check_stack_overflow(void)
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	long sp;
 
-	sp = __get_SP() & (THREAD_SIZE-1);
+	sp = current_stack_pointer() & (THREAD_SIZE-1);
 
 	/* check for stack overflow: is there less than 2KB free? */
 	if (unlikely(sp < (sizeof(struct thread_info) + 2048))) {
-		printk("do_IRQ: stack overflow: %ld\n",
+		pr_err("do_IRQ: stack overflow: %ld\n",
 			sp - sizeof(struct thread_info));
 		dump_stack();
 	}
@@ -499,7 +498,7 @@ void __do_irq(struct pt_regs *regs)
 
 	/* And finally process it */
 	if (unlikely(irq == NO_IRQ))
-		__get_cpu_var(irq_stat).spurious_irqs++;
+		__this_cpu_inc(irq_stat.spurious_irqs);
 	else
 		generic_handle_irq(irq);
 

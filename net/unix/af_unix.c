@@ -1516,7 +1516,7 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	skb_put(skb, len - data_len);
 	skb->data_len = data_len;
 	skb->len = len;
-	err = skb_copy_datagram_from_iovec(skb, 0, msg->msg_iov, 0, len);
+	err = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, len);
 	if (err)
 		goto out_free;
 
@@ -1694,8 +1694,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		skb_put(skb, size - data_len);
 		skb->data_len = data_len;
 		skb->len = size;
-		err = skb_copy_datagram_from_iovec(skb, 0, msg->msg_iov,
-						   sent, size);
+		err = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, size);
 		if (err) {
 			kfree_skb(skb);
 			goto out_err;
@@ -1825,7 +1824,7 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 	else if (size < skb->len - skip)
 		msg->msg_flags |= MSG_TRUNC;
 
-	err = skb_copy_datagram_iovec(skb, skip, msg->msg_iov, size);
+	err = skb_copy_datagram_msg(skb, skip, msg, size);
 	if (err)
 		goto out_free;
 
@@ -2030,8 +2029,8 @@ again:
 		}
 
 		chunk = min_t(unsigned int, unix_skb_len(skb) - skip, size);
-		if (skb_copy_datagram_iovec(skb, UNIXCB(skb).consumed + skip,
-					    msg->msg_iov, chunk)) {
+		if (skb_copy_datagram_msg(skb, UNIXCB(skb).consumed + skip,
+					  msg, chunk)) {
 			if (copied == 0)
 				copied = -EFAULT;
 			break;

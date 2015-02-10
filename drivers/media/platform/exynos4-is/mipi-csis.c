@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
@@ -237,34 +238,34 @@ struct csis_state {
  */
 struct csis_pix_format {
 	unsigned int pix_width_alignment;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	u32 fmt_reg;
 	u8 data_alignment;
 };
 
 static const struct csis_pix_format s5pcsis_formats[] = {
 	{
-		.code = V4L2_MBUS_FMT_VYUY8_2X8,
+		.code = MEDIA_BUS_FMT_VYUY8_2X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_YCBCR422_8BIT,
 		.data_alignment = 32,
 	}, {
-		.code = V4L2_MBUS_FMT_JPEG_1X8,
+		.code = MEDIA_BUS_FMT_JPEG_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
 		.data_alignment = 32,
 	}, {
-		.code = V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8,
+		.code = MEDIA_BUS_FMT_S5C_UYVY_JPEG_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
 		.data_alignment = 32,
 	}, {
-		.code = V4L2_MBUS_FMT_SGRBG8_1X8,
+		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_RAW8,
 		.data_alignment = 24,
 	}, {
-		.code = V4L2_MBUS_FMT_SGRBG10_1X10,
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.fmt_reg = S5PCSIS_CFG_FMT_RAW10,
 		.data_alignment = 24,
 	}, {
-		.code = V4L2_MBUS_FMT_SGRBG12_1X12,
+		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
 		.fmt_reg = S5PCSIS_CFG_FMT_RAW12,
 		.data_alignment = 24,
 	}
@@ -752,7 +753,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 	v4l2_of_parse_endpoint(node, &endpoint);
 
 	state->index = endpoint.base.port - FIMC_INPUT_MIPI_CSI2_0;
-	if (state->index < 0 || state->index >= CSIS_MAX_ENTITIES)
+	if (state->index >= CSIS_MAX_ENTITIES)
 		return -ENXIO;
 
 	/* Get MIPI CSI-2 bus configration from the endpoint node. */
@@ -977,7 +978,7 @@ static int s5pcsis_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int s5pcsis_runtime_suspend(struct device *dev)
 {
 	return s5pcsis_pm_suspend(dev, true);
@@ -1040,7 +1041,6 @@ static struct platform_driver s5pcsis_driver = {
 	.driver		= {
 		.of_match_table = s5pcsis_of_match,
 		.name		= CSIS_DRIVER_NAME,
-		.owner		= THIS_MODULE,
 		.pm		= &s5pcsis_pm_ops,
 	},
 };

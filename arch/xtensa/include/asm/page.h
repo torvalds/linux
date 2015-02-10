@@ -20,10 +20,10 @@
  * Fixed TLB translations in the processor.
  */
 
-#define XCHAL_KSEG_CACHED_VADDR 0xd0000000
-#define XCHAL_KSEG_BYPASS_VADDR 0xd8000000
-#define XCHAL_KSEG_PADDR        0x00000000
-#define XCHAL_KSEG_SIZE         0x08000000
+#define XCHAL_KSEG_CACHED_VADDR __XTENSA_UL_CONST(0xd0000000)
+#define XCHAL_KSEG_BYPASS_VADDR __XTENSA_UL_CONST(0xd8000000)
+#define XCHAL_KSEG_PADDR        __XTENSA_UL_CONST(0x00000000)
+#define XCHAL_KSEG_SIZE         __XTENSA_UL_CONST(0x08000000)
 
 /*
  * PAGE_SHIFT determines the page size
@@ -37,7 +37,7 @@
 #define PAGE_OFFSET	XCHAL_KSEG_CACHED_VADDR
 #define MAX_MEM_PFN	XCHAL_KSEG_SIZE
 #else
-#define PAGE_OFFSET	0
+#define PAGE_OFFSET	__XTENSA_UL_CONST(0)
 #define MAX_MEM_PFN	(PLATFORM_DEFAULT_MEM_START + PLATFORM_DEFAULT_MEM_SIZE)
 #endif
 
@@ -145,7 +145,7 @@ extern void copy_page(void *to, void *from);
  * some extra work
  */
 
-#if DCACHE_WAY_SIZE > PAGE_SIZE
+#if defined(CONFIG_MMU) && DCACHE_WAY_SIZE > PAGE_SIZE
 extern void clear_page_alias(void *vaddr, unsigned long paddr);
 extern void copy_page_alias(void *to, void *from,
 			    unsigned long to_paddr, unsigned long from_paddr);

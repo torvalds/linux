@@ -145,6 +145,9 @@
 #define RXBUSY						(1 << 0)
 #define TXBUSY						(1 << 1)
 
+/* sclk_out: spi master internal logic in rk3x can support 50Mhz */
+#define MAX_SCLK_OUT		50000000
+
 enum rockchip_ssi_type {
 	SSI_MOTO_SPI = 0,
 	SSI_TI_SSP,
@@ -325,6 +328,8 @@ static int rockchip_spi_unprepare_message(struct spi_master *master,
 
 	spin_unlock_irqrestore(&rs->lock, flags);
 
+	spi_enable_chip(rs, 0);
+
 	return 0;
 }
 
@@ -381,6 +386,8 @@ static int rockchip_spi_pio_transfer(struct rockchip_spi *rs)
 	if (rs->tx)
 		wait_for_idle(rs);
 
+	spi_enable_chip(rs, 0);
+
 	return 0;
 }
 
@@ -392,8 +399,10 @@ static void rockchip_spi_dma_rxcb(void *data)
 	spin_lock_irqsave(&rs->lock, flags);
 
 	rs->state &= ~RXBUSY;
-	if (!(rs->state & TXBUSY))
+	if (!(rs->state & TXBUSY)) {
+		spi_enable_chip(rs, 0);
 		spi_finalize_current_transfer(rs->master);
+	}
 
 	spin_unlock_irqrestore(&rs->lock, flags);
 }
@@ -409,13 +418,15 @@ static void rockchip_spi_dma_txcb(void *data)
 	spin_lock_irqsave(&rs->lock, flags);
 
 	rs->state &= ~TXBUSY;
-	if (!(rs->state & RXBUSY))
+	if (!(rs->state & RXBUSY)) {
+		spi_enable_chip(rs, 0);
 		spi_finalize_current_transfer(rs->master);
+	}
 
 	spin_unlock_irqrestore(&rs->lock, flags);
 }
 
-static int rockchip_spi_dma_transfer(struct rockchip_spi *rs)
+static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 {
 	unsigned long flags;
 	struct dma_slave_config rxconf, txconf;
@@ -474,8 +485,6 @@ static int rockchip_spi_dma_transfer(struct rockchip_spi *rs)
 		dmaengine_submit(txdesc);
 		dma_async_issue_pending(rs->dma_tx.ch);
 	}
-
-	return 1;
 }
 
 static void rockchip_spi_config(struct rockchip_spi *rs)
@@ -498,11 +507,18 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 			dmacr |= RF_DMA_EN;
 	}
 
+	if (WARN_ON(rs->speed > MAX_SCLK_OUT))
+		rs->speed = MAX_SCLK_OUT;
+
+	/* the minimum divsor is 2 */
+	if (rs->max_freq < 2 * rs->speed) {
+		clk_set_rate(rs->spiclk, 2 * rs->speed);
+		rs->max_freq = clk_get_rate(rs->spiclk);
+	}
+
 	/* div doesn't support odd number */
 	div = max_t(u32, rs->max_freq / rs->speed, 1);
 	div = (div + 1) & 0xfffe;
-
-	spi_enable_chip(rs, 0);
 
 	writel_relaxed(cr0, rs->regs + ROCKCHIP_SPI_CTRLR0);
 
@@ -517,8 +533,6 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 	spi_set_clk(rs, div);
 
 	dev_dbg(rs->dev, "cr0 0x%x, div %d\n", cr0, div);
-
-	spi_enable_chip(rs, 1);
 }
 
 static int rockchip_spi_transfer_one(
@@ -526,7 +540,7 @@ static int rockchip_spi_transfer_one(
 		struct spi_device *spi,
 		struct spi_transfer *xfer)
 {
-	int ret = 0;
+	int ret = 1;
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
 
 	WARN_ON(readl_relaxed(rs->regs + ROCKCHIP_SPI_SSIENR) &&
@@ -557,6 +571,7 @@ static int rockchip_spi_transfer_one(
 	else if (rs->rx)
 		rs->tmode = CR0_XFM_RO;
 
+	/* we need prepare dma before spi was enabled */
 	if (master->can_dma && master->can_dma(master, spi, xfer))
 		rs->use_dma = 1;
 	else
@@ -564,10 +579,20 @@ static int rockchip_spi_transfer_one(
 
 	rockchip_spi_config(rs);
 
-	if (rs->use_dma)
-		ret = rockchip_spi_dma_transfer(rs);
-	else
+	if (rs->use_dma) {
+		if (rs->tmode == CR0_XFM_RO) {
+			/* rx: dma must be prepared first */
+			rockchip_spi_prepare_dma(rs);
+			spi_enable_chip(rs, 1);
+		} else {
+			/* tx or tr: spi must be enabled first */
+			spi_enable_chip(rs, 1);
+			rockchip_spi_prepare_dma(rs);
+		}
+	} else {
+		spi_enable_chip(rs, 1);
 		ret = rockchip_spi_pio_transfer(rs);
+	}
 
 	return ret;
 }
@@ -724,8 +749,6 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 	if (rs->dma_rx.ch)
 		dma_release_channel(rs->dma_rx.ch);
 
-	spi_master_put(master);
-
 	return 0;
 }
 
@@ -776,7 +799,7 @@ static int rockchip_spi_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int rockchip_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -804,7 +827,7 @@ static int rockchip_spi_runtime_resume(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops rockchip_spi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(rockchip_spi_suspend, rockchip_spi_resume)
@@ -823,7 +846,6 @@ MODULE_DEVICE_TABLE(of, rockchip_spi_dt_match);
 static struct platform_driver rockchip_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &rockchip_spi_pm,
 		.of_match_table = of_match_ptr(rockchip_spi_dt_match),
 	},

@@ -228,8 +228,7 @@ static int qcom_apq8064_sata_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy->mmio))
 		return PTR_ERR(phy->mmio);
 
-	generic_phy = devm_phy_create(dev, NULL, &qcom_apq8064_sata_phy_ops,
-				      NULL);
+	generic_phy = devm_phy_create(dev, NULL, &qcom_apq8064_sata_phy_ops);
 	if (IS_ERR(generic_phy)) {
 		dev_err(dev, "%s: failed to create phy\n", __func__);
 		return PTR_ERR(generic_phy);
@@ -279,7 +278,6 @@ static struct platform_driver qcom_apq8064_sata_phy_driver = {
 	.remove	= qcom_apq8064_sata_phy_remove,
 	.driver = {
 		.name	= "qcom-apq8064-sata-phy",
-		.owner	= THIS_MODULE,
 		.of_match_table	= qcom_apq8064_sata_phy_of_match,
 	}
 };

@@ -479,19 +479,15 @@ void pci_iov_release(struct pci_dev *dev)
  * pci_iov_resource_bar - get position of the SR-IOV BAR
  * @dev: the PCI device
  * @resno: the resource number
- * @type: the BAR type to be filled in
  *
  * Returns position of the BAR encapsulated in the SR-IOV capability.
  */
-int pci_iov_resource_bar(struct pci_dev *dev, int resno,
-			 enum pci_bar_type *type)
+int pci_iov_resource_bar(struct pci_dev *dev, int resno)
 {
 	if (resno < PCI_IOV_RESOURCES || resno > PCI_IOV_RESOURCE_END)
 		return 0;
 
 	BUG_ON(!dev->is_physfn);
-
-	*type = pci_bar_unknown;
 
 	return dev->sriov->pos + PCI_SRIOV_BAR +
 		4 * (resno - PCI_IOV_RESOURCES);
@@ -510,13 +506,12 @@ int pci_iov_resource_bar(struct pci_dev *dev, int resno,
 resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno)
 {
 	struct resource tmp;
-	enum pci_bar_type type;
-	int reg = pci_iov_resource_bar(dev, resno, &type);
+	int reg = pci_iov_resource_bar(dev, resno);
 
 	if (!reg)
 		return 0;
 
-	 __pci_read_base(dev, type, &tmp, reg);
+	 __pci_read_base(dev, pci_bar_unknown, &tmp, reg);
 	return resource_alignment(&tmp);
 }
 
@@ -633,7 +628,7 @@ int pci_vfs_assigned(struct pci_dev *dev)
 		 * our dev as the physical function and the assigned bit is set
 		 */
 		if (vfdev->is_virtfn && (vfdev->physfn == dev) &&
-		    (vfdev->dev_flags & PCI_DEV_FLAGS_ASSIGNED))
+			pci_is_dev_assigned(vfdev))
 			vfs_assigned++;
 
 		vfdev = pci_get_device(dev->vendor, dev_id, vfdev);

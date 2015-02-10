@@ -57,7 +57,7 @@ static unsigned long clk_composite_recalc_rate(struct clk_hw *hw,
 
 static long clk_composite_determine_rate(struct clk_hw *hw, unsigned long rate,
 					unsigned long *best_parent_rate,
-					struct clk **best_parent_p)
+					struct clk_hw **best_parent_p)
 {
 	struct clk_composite *composite = to_clk_composite(hw);
 	const struct clk_ops *rate_ops = composite->rate_ops;
@@ -80,8 +80,9 @@ static long clk_composite_determine_rate(struct clk_hw *hw, unsigned long rate,
 		*best_parent_p = NULL;
 
 		if (__clk_get_flags(hw->clk) & CLK_SET_RATE_NO_REPARENT) {
-			*best_parent_p = clk_get_parent(mux_hw->clk);
-			*best_parent_rate = __clk_get_rate(*best_parent_p);
+			parent = clk_get_parent(mux_hw->clk);
+			*best_parent_p = __clk_get_hw(parent);
+			*best_parent_rate = __clk_get_rate(parent);
 
 			return rate_ops->round_rate(rate_hw, rate,
 						    best_parent_rate);
@@ -103,7 +104,7 @@ static long clk_composite_determine_rate(struct clk_hw *hw, unsigned long rate,
 
 			if (!rate_diff || !*best_parent_p
 				       || best_rate_diff > rate_diff) {
-				*best_parent_p = parent;
+				*best_parent_p = __clk_get_hw(parent);
 				*best_parent_rate = parent_rate;
 				best_rate_diff = rate_diff;
 				best_rate = tmp_rate;

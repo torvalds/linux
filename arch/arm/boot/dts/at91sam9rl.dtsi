@@ -204,7 +204,7 @@
 			};
 
 			ssc0: ssc@fffc0000 {
-				compatible = "atmel,at91rm9200-ssc";
+				compatible = "atmel,at91sam9rl-ssc";
 				reg = <0xfffc0000 0x4000>;
 				interrupts = <14 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
@@ -213,7 +213,7 @@
 			};
 
 			ssc1: ssc@fffc4000 {
-				compatible = "atmel,at91rm9200-ssc";
+				compatible = "atmel,at91sam9rl-ssc";
 				reg = <0xfffc4000 0x4000>;
 				interrupts = <15 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
@@ -1058,6 +1058,27 @@
 					#clock-cells = <0>;
 					clocks = <&slow_rc_osc &slow_osc>;
 				};
+			};
+
+			rtc@fffffeb0 {
+				compatible = "atmel,at91rm9200-rtc";
+				reg = <0xfffffeb0 0x40>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+				status = "disabled";
+			};
+
+			rtc@fffffd20 {
+				compatible = "atmel,at91sam9260-rtt";
+				reg = <0xfffffd20 0x10>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&clk32k>;
+				status = "disabled";
+			};
+
+			gpbr: syscon@fffffd60 {
+				compatible = "atmel,at91sam9260-gpbr", "syscon";
+				reg = <0xfffffd60 0x10>;
+				status = "disabled";
 			};
 		};
 	};

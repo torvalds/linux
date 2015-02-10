@@ -605,7 +605,7 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	wait_for_completion_timeout(&host->dma_access_complete,
 				msecs_to_jiffies(3000));
 	if (ret <= 0) {
-		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(chan);
 		dev_err(host->dev, "wait_for_completion_timeout\n");
 		if (!ret)
 			ret = -ETIMEDOUT;
@@ -1224,7 +1224,6 @@ MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);
 static struct platform_driver fsmc_nand_driver = {
 	.remove = fsmc_nand_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "fsmc-nand",
 		.of_match_table = of_match_ptr(fsmc_nand_id_table),
 		.pm = &fsmc_nand_pm_ops,

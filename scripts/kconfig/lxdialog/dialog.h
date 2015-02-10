@@ -170,7 +170,7 @@ char item_tag(void);
 /* item list manipulation for lxdialog use */
 #define MAXITEMSTR 200
 struct dialog_item {
-	char str[MAXITEMSTR];	/* promtp displayed */
+	char str[MAXITEMSTR];	/* prompt displayed */
 	char tag;
 	void *data;	/* pointer to menu item - used by menubox+checklist */
 	int selected;	/* Set to 1 by dialog_*() function if selected. */

@@ -265,7 +265,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	/* pwm output subdevice */
 	s->type		= COMEDI_SUBD_PWM;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= 500;
 	s->range_table	= &range_unknown;

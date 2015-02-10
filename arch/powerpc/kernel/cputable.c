@@ -1961,6 +1961,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 #endif /* CONFIG_PPC32 */
 #ifdef CONFIG_E500
 #ifdef CONFIG_PPC32
+#ifndef CONFIG_PPC_E500MC
 	{	/* e500 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80200000,
@@ -2000,6 +2001,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_e500,
 		.platform		= "ppc8548",
 	},
+#else
 	{	/* e500mc */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80230000,
@@ -2018,7 +2020,9 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce500mc",
 	},
+#endif /* CONFIG_PPC_E500MC */
 #endif /* CONFIG_PPC32 */
+#ifdef CONFIG_PPC_E500MC
 	{	/* e5500 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80240000,
@@ -2062,6 +2066,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce6500",
 	},
+#endif /* CONFIG_PPC_E500MC */
 #ifdef CONFIG_PPC32
 	{	/* default match */
 		.pvr_mask		= 0x00000000,

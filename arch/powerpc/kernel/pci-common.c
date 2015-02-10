@@ -20,7 +20,6 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/of_address.h>
@@ -747,7 +746,11 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			break;
 		}
 		if (res != NULL) {
-			of_pci_range_to_resource(&range, dev, res);
+			res->name = dev->full_name;
+			res->flags = range.flags;
+			res->start = range.cpu_addr;
+			res->end = range.cpu_addr + range.size - 1;
+			res->parent = res->child = res->sibling = NULL;
 		}
 	}
 }
@@ -1140,7 +1143,7 @@ static int reparent_resources(struct resource *parent,
  *	    as well.
  */
 
-void pcibios_allocate_bus_resources(struct pci_bus *bus)
+static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 {
 	struct pci_bus *b;
 	int i;
@@ -1460,7 +1463,7 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 	res = &hose->io_resource;
 
 	if (!res->flags) {
-		printk(KERN_WARNING "PCI: I/O resource not set for host"
+		pr_info("PCI: I/O resource not set for host"
 		       " bridge %s (domain %d)\n",
 		       hose->dn->full_name, hose->global_number);
 	} else {
@@ -1561,7 +1564,6 @@ EARLY_PCI_OP(write, byte, u8)
 EARLY_PCI_OP(write, word, u16)
 EARLY_PCI_OP(write, dword, u32)
 
-extern int pci_bus_find_capability (struct pci_bus *bus, unsigned int devfn, int cap);
 int early_find_capability(struct pci_controller *hose, int bus, int devfn,
 			  int cap)
 {

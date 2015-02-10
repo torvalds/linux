@@ -83,9 +83,8 @@
 #define ODM_COMP_INIT					BIT31
 
 /*------------------------Export Marco Definition---------------------------*/
-#define DbgPrint	pr_info
 #define RT_PRINTK(fmt, args...)				\
-	DbgPrint("%s(): " fmt, __func__, ## args);
+	pr_info("%s(): " fmt, __func__, ## args);
 
 #ifndef ASSERT
 	#define ASSERT(expr)
@@ -94,39 +93,17 @@
 #define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)				\
 	if (((comp) & pDM_Odm->DebugComponents) &&			\
 	    (level <= pDM_Odm->DebugLevel)) {				\
-		DbgPrint("[ODM-8188E] ");				\
-		RT_PRINTK fmt;						\
-	}
-
-#define ODM_RT_TRACE_F(pDM_Odm, comp, level, fmt)			\
-	if (((comp) & pDM_Odm->DebugComponents) &&			\
-	    (level <= pDM_Odm->DebugLevel)) {				\
+		pr_info("[ODM-8188E] ");				\
 		RT_PRINTK fmt;						\
 	}
 
 #define ODM_RT_ASSERT(pDM_Odm, expr, fmt)				\
 	if (!(expr)) {							\
-		DbgPrint("Assertion failed! %s at ......\n", #expr);	\
-		DbgPrint("      ......%s,%s,line=%d\n", __FILE__,	\
+		pr_info("Assertion failed! %s at ......\n", #expr);	\
+		pr_info("      ......%s,%s,line=%d\n", __FILE__,	\
 			__func__, __LINE__);				\
 		RT_PRINTK fmt;						\
 		ASSERT(false);						\
-	}
-#define ODM_dbg_enter() { DbgPrint("==> %s\n", __func__); }
-#define ODM_dbg_exit() { DbgPrint("<== %s\n", __func__); }
-#define ODM_dbg_trace(str) { DbgPrint("%s:%s\n", __func__, str); }
-
-#define ODM_PRINT_ADDR(pDM_Odm, comp, level, title_str, ptr)		\
-	if (((comp) & pDM_Odm->DebugComponents) &&			\
-	    (level <= pDM_Odm->DebugLevel)) {				\
-		int __i;						\
-		u8 *__ptr = (u8 *)ptr;					\
-		DbgPrint("[ODM] ");					\
-		DbgPrint(title_str);					\
-		DbgPrint(" ");						\
-		for (__i = 0; __i < 6; __i++)				\
-			DbgPrint("%02X%s", __ptr[__i], (__i == 5)?"":"-");\
-		DbgPrint("\n");						\
 	}
 
 void ODM_InitDebugSetting(struct odm_dm_struct *pDM_Odm);

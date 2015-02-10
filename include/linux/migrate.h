@@ -13,18 +13,9 @@ typedef void free_page_t(struct page *page, unsigned long private);
  * Return values from addresss_space_operations.migratepage():
  * - negative errno on page migration failure;
  * - zero on page migration success;
- *
- * The balloon page migration introduces this special case where a 'distinct'
- * return code is used to flag a successful page migration to unmap_and_move().
- * This approach is necessary because page migration can race against balloon
- * deflation procedure, and for such case we could introduce a nasty page leak
- * if a successfully migrated balloon page gets released concurrently with
- * migration's unmap_and_move() wrap-up steps.
  */
 #define MIGRATEPAGE_SUCCESS		0
-#define MIGRATEPAGE_BALLOON_SUCCESS	1 /* special ret code for balloon page
-					   * sucessful migration case.
-					   */
+
 enum migrate_reason {
 	MR_COMPACTION,
 	MR_MEMORY_FAILURE,
@@ -45,9 +36,6 @@ extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
 
 extern int migrate_prep(void);
 extern int migrate_prep_local(void);
-extern int migrate_vmas(struct mm_struct *mm,
-		const nodemask_t *from, const nodemask_t *to,
-		unsigned long flags);
 extern void migrate_page_copy(struct page *newpage, struct page *page);
 extern int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct page *newpage, struct page *page);
@@ -66,13 +54,6 @@ static inline int migrate_pages(struct list_head *l, new_page_t new,
 static inline int migrate_prep(void) { return -ENOSYS; }
 static inline int migrate_prep_local(void) { return -ENOSYS; }
 
-static inline int migrate_vmas(struct mm_struct *mm,
-		const nodemask_t *from, const nodemask_t *to,
-		unsigned long flags)
-{
-	return -ENOSYS;
-}
-
 static inline void migrate_page_copy(struct page *newpage,
 				     struct page *page) {}
 
@@ -81,9 +62,6 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
 {
 	return -ENOSYS;
 }
-
-/* Possible settings for the migrate_page() method in address_operations */
-#define migrate_page NULL
 
 #endif /* CONFIG_MIGRATION */
 

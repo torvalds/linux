@@ -20,16 +20,16 @@
  *
 */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
+#include <linux/extcon.h>
+#include <linux/extcon/extcon-gpio.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <linux/gpio.h>
-#include <linux/extcon.h>
-#include <linux/extcon/extcon-gpio.h>
 
 struct gpio_extcon_data {
 	struct extcon_dev *edev;
@@ -181,7 +181,6 @@ static struct platform_driver gpio_extcon_driver = {
 	.remove		= gpio_extcon_remove,
 	.driver		= {
 		.name	= "extcon-gpio",
-		.owner	= THIS_MODULE,
 		.pm	= &gpio_extcon_pm_ops,
 	},
 };

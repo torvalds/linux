@@ -219,7 +219,7 @@ static int sha384_ssse3_final(struct shash_desc *desc, u8 *hash)
 	sha512_ssse3_final(desc, D);
 
 	memcpy(hash, D, SHA384_DIGEST_SIZE);
-	memset(D, 0, SHA512_DIGEST_SIZE);
+	memzero_explicit(D, SHA512_DIGEST_SIZE);
 
 	return 0;
 }
@@ -326,5 +326,5 @@ module_exit(sha512_ssse3_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA512 Secure Hash Algorithm, Supplemental SSE3 accelerated");
 
-MODULE_ALIAS("sha512");
-MODULE_ALIAS("sha384");
+MODULE_ALIAS_CRYPTO("sha512");
+MODULE_ALIAS_CRYPTO("sha384");

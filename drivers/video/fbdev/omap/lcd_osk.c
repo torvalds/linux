@@ -126,7 +126,6 @@ static struct platform_driver osk_panel_driver = {
 	.resume		= osk_panel_resume,
 	.driver		= {
 		.name	= "lcd_osk",
-		.owner	= THIS_MODULE,
 	},
 };
 

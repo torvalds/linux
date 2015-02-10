@@ -135,8 +135,10 @@ extern void	affs_fix_checksum(struct super_block *sb, struct buffer_head *bh);
 extern void	secs_to_datestamp(time_t secs, struct affs_date *ds);
 extern umode_t	prot_to_mode(u32 prot);
 extern void	mode_to_prot(struct inode *inode);
+__printf(3, 4)
 extern void	affs_error(struct super_block *sb, const char *function,
 			   const char *fmt, ...);
+__printf(3, 4)
 extern void	affs_warning(struct super_block *sb, const char *function,
 			     const char *fmt, ...);
 extern bool	affs_nofilenametruncate(const struct dentry *dentry);

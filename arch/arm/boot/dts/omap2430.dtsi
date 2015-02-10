@@ -247,8 +247,13 @@
 			reg = <0x48094000 0x200>;
 			interrupts = <26>;
 			ti,hwmods = "mailbox";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <6>;
+			mbox_dsp: dsp {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <1 0 0>;
+			};
 		};
 
 		timer1: timer@49018000 {

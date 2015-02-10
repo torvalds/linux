@@ -463,21 +463,10 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_bad;
 
 	mutex_unlock(&kernfs_mutex);
-out_valid:
 	return 1;
 out_bad:
 	mutex_unlock(&kernfs_mutex);
 out_bad_unlocked:
-	/*
-	 * @dentry doesn't match the underlying kernfs node, drop the
-	 * dentry and force lookup.  If we have submounts we must allow the
-	 * vfs caches to lie about the state of the filesystem to prevent
-	 * leaks and other nasty things, so use check_submounts_and_drop()
-	 * instead of d_drop().
-	 */
-	if (check_submounts_and_drop(dentry) != 0)
-		goto out_valid;
-
 	return 0;
 }
 
@@ -818,7 +807,7 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	}
 
 	/* instantiate and hash dentry */
-	ret = d_materialise_unique(dentry, inode);
+	ret = d_splice_alias(inode, dentry);
  out_unlock:
 	mutex_unlock(&kernfs_mutex);
 	return ret;

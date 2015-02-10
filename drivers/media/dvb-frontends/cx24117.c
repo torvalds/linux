@@ -459,7 +459,7 @@ static int cx24117_firmware_ondemand(struct dvb_frontend *fe)
 	if (state->priv->skip_fw_load)
 		return 0;
 
-	/* check if firmware if already running */
+	/* check if firmware is already running */
 	if (cx24117_readreg(state, 0xeb) != 0xa) {
 		/* Load firmware */
 		/* request the firmware, this will block until loaded */

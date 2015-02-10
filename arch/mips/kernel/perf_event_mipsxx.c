@@ -340,7 +340,7 @@ static int mipsxx_pmu_alloc_counter(struct cpu_hw_events *cpuc,
 
 static void mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	WARN_ON(idx < 0 || idx >= mipspmu.num_counters);
 
@@ -360,7 +360,7 @@ static void mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 
 static void mipsxx_pmu_disable_event(int idx)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	unsigned long flags;
 
 	WARN_ON(idx < 0 || idx >= mipspmu.num_counters);
@@ -460,7 +460,7 @@ static void mipspmu_stop(struct perf_event *event, int flags)
 
 static int mipspmu_add(struct perf_event *event, int flags)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx;
 	int err = 0;
@@ -496,7 +496,7 @@ out:
 
 static void mipspmu_del(struct perf_event *event, int flags)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
@@ -561,8 +561,8 @@ static int mipspmu_get_irq(void)
 			IRQF_PERCPU | IRQF_NOBALANCING | IRQF_NO_THREAD,
 			"mips_perf_pmu", NULL);
 		if (err) {
-			pr_warning("Unable to request IRQ%d for MIPS "
-			   "performance counters!\n", mipspmu.irq);
+			pr_warn("Unable to request IRQ%d for MIPS performance counters!\n",
+				mipspmu.irq);
 		}
 	} else if (cp0_perfcount_irq < 0) {
 		/*
@@ -572,8 +572,7 @@ static int mipspmu_get_irq(void)
 		perf_irq = mipsxx_pmu_handle_shared_irq;
 		err = 0;
 	} else {
-		pr_warning("The platform hasn't properly defined its "
-			"interrupt controller.\n");
+		pr_warn("The platform hasn't properly defined its interrupt controller\n");
 		err = -ENOENT;
 	}
 
@@ -1275,7 +1274,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 static void pause_local_counters(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int ctr = mipspmu.num_counters;
 	unsigned long flags;
 
@@ -1291,7 +1290,7 @@ static void pause_local_counters(void)
 
 static void resume_local_counters(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int ctr = mipspmu.num_counters;
 
 	do {
@@ -1302,7 +1301,7 @@ static void resume_local_counters(void)
 
 static int mipsxx_pmu_handle_shared_irq(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct perf_sample_data data;
 	unsigned int counters = mipspmu.num_counters;
 	u64 counter;
@@ -1614,22 +1613,13 @@ init_hw_perf_events(void)
 		counters = counters_total_to_per_cpu(counters);
 #endif
 
-#ifdef MSC01E_INT_BASE
-	if (cpu_has_veic) {
-		/*
-		 * Using platform specific interrupt controller defines.
-		 */
-		irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
-	} else {
-#endif
-		if ((cp0_perfcount_irq >= 0) &&
-				(cp0_compare_irq != cp0_perfcount_irq))
-			irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
-		else
-			irq = -1;
-#ifdef MSC01E_INT_BASE
-	}
-#endif
+	if (get_c0_perfcount_int)
+		irq = get_c0_perfcount_int();
+	else if ((cp0_perfcount_irq >= 0) &&
+		 (cp0_compare_irq != cp0_perfcount_irq))
+		irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
+	else
+		irq = -1;
 
 	mipspmu.map_raw_event = mipsxx_pmu_map_raw_event;
 

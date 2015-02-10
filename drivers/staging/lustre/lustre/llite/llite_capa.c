@@ -540,10 +540,9 @@ static int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa)
 			if (rc == -EIO && !capa_is_expired(ocapa)) {
 				delay_capa_renew(ocapa, 120);
 				DEBUG_CAPA(D_ERROR, &ocapa->c_capa,
-					   "renewal failed: -EIO, "
-					   "retry in 2 mins");
+					   "renewal failed: -EIO, retry in 2 mins");
 				ll_capa_renewal_retries++;
-				GOTO(retry, rc);
+				goto retry;
 			} else {
 				DEBUG_CAPA(D_ERROR, &ocapa->c_capa,
 					   "renewal failed(rc: %d) for", rc);

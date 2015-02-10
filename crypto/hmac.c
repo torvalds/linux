@@ -52,20 +52,17 @@ static int hmac_setkey(struct crypto_shash *parent,
 	struct hmac_ctx *ctx = align_ptr(opad + ss,
 					 crypto_tfm_ctx_alignment());
 	struct crypto_shash *hash = ctx->hash;
-	struct {
-		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(hash)];
-	} desc;
+	SHASH_DESC_ON_STACK(shash, hash);
 	unsigned int i;
 
-	desc.shash.tfm = hash;
-	desc.shash.flags = crypto_shash_get_flags(parent) &
-			    CRYPTO_TFM_REQ_MAY_SLEEP;
+	shash->tfm = hash;
+	shash->flags = crypto_shash_get_flags(parent)
+		& CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	if (keylen > bs) {
 		int err;
 
-		err = crypto_shash_digest(&desc.shash, inkey, keylen, ipad);
+		err = crypto_shash_digest(shash, inkey, keylen, ipad);
 		if (err)
 			return err;
 
@@ -81,12 +78,12 @@ static int hmac_setkey(struct crypto_shash *parent,
 		opad[i] ^= 0x5c;
 	}
 
-	return crypto_shash_init(&desc.shash) ?:
-	       crypto_shash_update(&desc.shash, ipad, bs) ?:
-	       crypto_shash_export(&desc.shash, ipad) ?:
-	       crypto_shash_init(&desc.shash) ?:
-	       crypto_shash_update(&desc.shash, opad, bs) ?:
-	       crypto_shash_export(&desc.shash, opad);
+	return crypto_shash_init(shash) ?:
+	       crypto_shash_update(shash, ipad, bs) ?:
+	       crypto_shash_export(shash, ipad) ?:
+	       crypto_shash_init(shash) ?:
+	       crypto_shash_update(shash, opad, bs) ?:
+	       crypto_shash_export(shash, opad);
 }
 
 static int hmac_export(struct shash_desc *pdesc, void *out)
@@ -271,3 +268,4 @@ module_exit(hmac_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("HMAC hash algorithm");
+MODULE_ALIAS_CRYPTO("hmac");

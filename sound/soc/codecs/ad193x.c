@@ -72,11 +72,13 @@ static const struct snd_kcontrol_new ad193x_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget ad193x_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC("DAC", "Playback", AD193X_DAC_CTRL0, 0, 1),
+	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_PGA("DAC Output", AD193X_DAC_CTRL0, 0, 1, NULL, 0),
 	SND_SOC_DAPM_ADC("ADC", "Capture", SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_SUPPLY("PLL_PWR", AD193X_PLL_CLK_CTRL0, 0, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("ADC_PWR", AD193X_ADC_CTRL0, 0, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("SYSCLK", AD193X_PLL_CLK_CTRL0, 7, 0, NULL, 0),
+	SND_SOC_DAPM_VMID("VMID"),
 	SND_SOC_DAPM_OUTPUT("DAC1OUT"),
 	SND_SOC_DAPM_OUTPUT("DAC2OUT"),
 	SND_SOC_DAPM_OUTPUT("DAC3OUT"),
@@ -87,13 +89,15 @@ static const struct snd_soc_dapm_widget ad193x_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "DAC", NULL, "SYSCLK" },
+	{ "DAC Output", NULL, "DAC" },
+	{ "DAC Output", NULL, "VMID" },
 	{ "ADC", NULL, "SYSCLK" },
 	{ "DAC", NULL, "ADC_PWR" },
 	{ "ADC", NULL, "ADC_PWR" },
-	{ "DAC1OUT", NULL, "DAC" },
-	{ "DAC2OUT", NULL, "DAC" },
-	{ "DAC3OUT", NULL, "DAC" },
-	{ "DAC4OUT", NULL, "DAC" },
+	{ "DAC1OUT", NULL, "DAC Output" },
+	{ "DAC2OUT", NULL, "DAC Output" },
+	{ "DAC3OUT", NULL, "DAC Output" },
+	{ "DAC4OUT", NULL, "DAC Output" },
 	{ "ADC", NULL, "ADC1IN" },
 	{ "ADC", NULL, "ADC2IN" },
 	{ "SYSCLK", NULL, "PLL_PWR" },

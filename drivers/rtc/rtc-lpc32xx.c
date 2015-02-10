@@ -379,7 +379,6 @@ static struct platform_driver lpc32xx_rtc_driver = {
 	.remove		= lpc32xx_rtc_remove,
 	.driver = {
 		.name	= RTC_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= LPC32XX_RTC_PM_OPS,
 		.of_match_table = of_match_ptr(lpc32xx_rtc_match),
 	},

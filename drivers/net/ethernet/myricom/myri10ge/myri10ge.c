@@ -2913,16 +2913,11 @@ again:
 		flags |= MXGEFW_FLAGS_SMALL;
 
 		/* pad frames to at least ETH_ZLEN bytes */
-		if (unlikely(skb->len < ETH_ZLEN)) {
-			if (skb_padto(skb, ETH_ZLEN)) {
-				/* The packet is gone, so we must
-				 * return 0 */
-				ss->stats.tx_dropped += 1;
-				return NETDEV_TX_OK;
-			}
-			/* adjust the len to account for the zero pad
-			 * so that the nic can know how long it is */
-			skb->len = ETH_ZLEN;
+		if (eth_skb_pad(skb)) {
+			/* The packet is gone, so we must
+			 * return 0 */
+			ss->stats.tx_dropped += 1;
+			return NETDEV_TX_OK;
 		}
 	}
 
@@ -4038,8 +4033,10 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	(void)pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	mgp->cmd = dma_alloc_coherent(&pdev->dev, sizeof(*mgp->cmd),
 				      &mgp->cmd_bus, GFP_KERNEL);
-	if (mgp->cmd == NULL)
+	if (!mgp->cmd) {
+		status = -ENOMEM;
 		goto abort_with_enabled;
+	}
 
 	mgp->board_span = pci_resource_len(pdev, 0);
 	mgp->iomem_base = pci_resource_start(pdev, 0);

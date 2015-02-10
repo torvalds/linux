@@ -22,8 +22,9 @@ menuconfig NET_SCHED
 	  This code is considered to be experimental.
 
 	  To administer these schedulers, you'll need the user-level utilities
-	  from the package iproute2+tc at <ftp://ftp.tux.org/pub/net/ip-routing/>.
-	  That package also contains some documentation; for more, check out
+	  from the package iproute2+tc at
+	  <https://www.kernel.org/pub/linux/utils/net/iproute2/>.  That package
+	  also contains some documentation; for more, check out
 	  <http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2>.
 
 	  This Quality of Service (QoS) support will enable you to use
@@ -336,7 +337,7 @@ config NET_SCH_PLUG
 	  of virtual machines by allowing the generated network output to be rolled
 	  back if needed.
 
-	  For more information, please refer to http://wiki.xensource.com/xenwiki/Remus
+	  For more information, please refer to <http://wiki.xenproject.org/wiki/Remus>
 
 	  Say Y here if you are using this kernel for Xen dom0 and
 	  want to protect Xen guests with Remus.
@@ -685,6 +686,17 @@ config NET_ACT_CSUM
 
 	  To compile this code as a module, choose M here: the
 	  module will be called act_csum.
+
+config NET_ACT_VLAN
+        tristate "Vlan manipulation"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to push or pop vlan headers.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_vlan.
 
 config NET_CLS_IND
 	bool "Incoming device classification"

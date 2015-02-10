@@ -217,7 +217,7 @@ static void xlp_msix_mask_ack(struct irq_data *d)
 
 	msixvec = nlm_irq_msixvec(d->irq);
 	link = nlm_irq_msixlink(msixvec);
-	mask_msi_irq(d);
+	pci_msi_mask_irq(d);
 	md = irq_data_get_irq_handler_data(d);
 
 	/* Ack MSI on bridge */
@@ -239,10 +239,10 @@ static void xlp_msix_mask_ack(struct irq_data *d)
 
 static struct irq_chip xlp_msix_chip = {
 	.name		= "XLP-MSIX",
-	.irq_enable	= unmask_msi_irq,
-	.irq_disable	= mask_msi_irq,
+	.irq_enable	= pci_msi_unmask_irq,
+	.irq_disable	= pci_msi_mask_irq,
 	.irq_mask_ack	= xlp_msix_mask_ack,
-	.irq_unmask	= unmask_msi_irq,
+	.irq_unmask	= pci_msi_unmask_irq,
 };
 
 void arch_teardown_msi_irq(unsigned int irq)
@@ -345,7 +345,7 @@ static int xlp_setup_msi(uint64_t lnkbase, int node, int link,
 	if (ret < 0)
 		return ret;
 
-	write_msi_msg(xirq, &msg);
+	pci_write_msi_msg(xirq, &msg);
 	return 0;
 }
 
@@ -443,12 +443,10 @@ static int xlp_setup_msix(uint64_t lnkbase, int node, int link,
 	msg.data = 0xc00 | msixvec;
 
 	ret = irq_set_msi_desc(xirq, desc);
-	if (ret < 0) {
-		destroy_irq(xirq);
+	if (ret < 0)
 		return ret;
-	}
 
-	write_msi_msg(xirq, &msg);
+	pci_write_msi_msg(xirq, &msg);
 	return 0;
 }
 

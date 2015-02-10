@@ -837,7 +837,6 @@ struct hostdata {
 static struct Scsi_Host *sh[MAX_BOARDS];
 static const char *driver_name = "EATA";
 static char sha[MAX_BOARDS];
-static DEFINE_SPINLOCK(driver_lock);
 
 /* Initialize num_boards so that ihdlr can work while detect is in progress */
 static unsigned int num_boards = MAX_BOARDS;
@@ -947,20 +946,18 @@ static int eata2x_slave_configure(struct scsi_device *dev)
 
 	if (TLDEV(dev->type) && dev->tagged_supported) {
 		if (tag_mode == TAG_SIMPLE) {
-			scsi_adjust_queue_depth(dev, MSG_SIMPLE_TAG, tqd);
 			tag_suffix = ", simple tags";
 		} else if (tag_mode == TAG_ORDERED) {
-			scsi_adjust_queue_depth(dev, MSG_ORDERED_TAG, tqd);
 			tag_suffix = ", ordered tags";
 		} else {
-			scsi_adjust_queue_depth(dev, 0, tqd);
 			tag_suffix = ", no tags";
 		}
+		scsi_change_queue_depth(dev, tqd);
 	} else if (TLDEV(dev->type) && linked_comm) {
-		scsi_adjust_queue_depth(dev, 0, tqd);
+		scsi_change_queue_depth(dev, tqd);
 		tag_suffix = ", untagged";
 	} else {
-		scsi_adjust_queue_depth(dev, 0, utqd);
+		scsi_change_queue_depth(dev, utqd);
 		tag_suffix = "";
 	}
 
@@ -1096,8 +1093,6 @@ static int port_detect(unsigned long port_base, unsigned int j,
 #endif
 		goto fail;
 	}
-
-	spin_lock_irq(&driver_lock);
 
 	if (do_dma(port_base, 0, READ_CONFIG_PIO)) {
 #if defined(DEBUG_DETECT)
@@ -1264,10 +1259,7 @@ static int port_detect(unsigned long port_base, unsigned int j,
 	}
 #endif
 
-	spin_unlock_irq(&driver_lock);
 	sh[j] = shost = scsi_register(tpnt, sizeof(struct hostdata));
-	spin_lock_irq(&driver_lock);
-
 	if (shost == NULL) {
 		printk("%s: unable to register host, detaching.\n", name);
 		goto freedma;
@@ -1343,8 +1335,6 @@ static int port_detect(unsigned long port_base, unsigned int j,
 		sprintf(dma_name, "%s", "BMST");
 	else
 		sprintf(dma_name, "DMA %u", dma_channel);
-
-	spin_unlock_irq(&driver_lock);
 
 	for (i = 0; i < shost->can_queue; i++)
 		ha->cp[i].cp_dma_addr = pci_map_single(ha->pdev,
@@ -1438,7 +1428,6 @@ static int port_detect(unsigned long port_base, unsigned int j,
       freeirq:
 	free_irq(irq, &sha[j]);
       freelock:
-	spin_unlock_irq(&driver_lock);
 	release_region(port_base, REGION_SIZE);
       fail:
 	return 0;

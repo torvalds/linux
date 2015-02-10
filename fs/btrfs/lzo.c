@@ -266,8 +266,7 @@ static int lzo_decompress_biovec(struct list_head *ws,
 	char *data_in;
 	unsigned long page_in_index = 0;
 	unsigned long page_out_index = 0;
-	unsigned long total_pages_in = (srclen + PAGE_CACHE_SIZE - 1) /
-					PAGE_CACHE_SIZE;
+	unsigned long total_pages_in = DIV_ROUND_UP(srclen, PAGE_CACHE_SIZE);
 	unsigned long buf_start;
 	unsigned long buf_offset = 0;
 	unsigned long bytes;
@@ -374,6 +373,8 @@ cont:
 	}
 done:
 	kunmap(pages_in[page_in_index]);
+	if (!ret)
+		btrfs_clear_biovec_end(bvec, vcnt, page_out_index, pg_offset);
 	return ret;
 }
 
@@ -411,10 +412,23 @@ static int lzo_decompress(struct list_head *ws, unsigned char *data_in,
 		goto out;
 	}
 
+	/*
+	 * the caller is already checking against PAGE_SIZE, but lets
+	 * move this check closer to the memcpy/memset
+	 */
+	destlen = min_t(unsigned long, destlen, PAGE_SIZE);
 	bytes = min_t(unsigned long, destlen, out_len - start_byte);
 
 	kaddr = kmap_atomic(dest_page);
 	memcpy(kaddr, workspace->buf + start_byte, bytes);
+
+	/*
+	 * btrfs_getblock is doing a zero on the tail of the page too,
+	 * but this will cover anything missing from the decompressed
+	 * data.
+	 */
+	if (bytes < destlen)
+		memset(kaddr+bytes, 0, destlen-bytes);
 	kunmap_atomic(kaddr);
 out:
 	return ret;

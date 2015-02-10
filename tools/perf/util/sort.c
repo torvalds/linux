@@ -70,12 +70,14 @@ static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 				       size_t size, unsigned int width)
 {
 	const char *comm = thread__comm_str(he->thread);
-	return repsep_snprintf(bf, size, "%*s:%5d", width - 6,
-			       comm ?: "", he->thread->tid);
+
+	width = max(7U, width) - 6;
+	return repsep_snprintf(bf, size, "%5d:%-*.*s", he->thread->tid,
+			       width, width, comm ?: "");
 }
 
 struct sort_entry sort_thread = {
-	.se_header	= "Command:  Pid",
+	.se_header	= "  Pid:Command",
 	.se_cmp		= sort__thread_cmp,
 	.se_snprintf	= hist_entry__thread_snprintf,
 	.se_width_idx	= HISTC_THREAD,
@@ -106,7 +108,7 @@ sort__comm_sort(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__comm_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%*s", width, comm__str(he->comm));
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, comm__str(he->comm));
 }
 
 struct sort_entry sort_comm = {
@@ -152,10 +154,10 @@ static int _hist_entry__dso_snprintf(struct map *map, char *bf,
 	if (map && map->dso) {
 		const char *dso_name = !verbose ? map->dso->short_name :
 			map->dso->long_name;
-		return repsep_snprintf(bf, size, "%-*s", width, dso_name);
+		return repsep_snprintf(bf, size, "%-*.*s", width, width, dso_name);
 	}
 
-	return repsep_snprintf(bf, size, "%-*s", width, "[unknown]");
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, "[unknown]");
 }
 
 static int hist_entry__dso_snprintf(struct hist_entry *he, char *bf,
@@ -257,7 +259,10 @@ static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 				       width - ret, "");
 	}
 
-	return ret;
+	if (ret > width)
+		bf[width] = '\0';
+
+	return width;
 }
 
 static int hist_entry__sym_snprintf(struct hist_entry *he, char *bf,
@@ -286,7 +291,8 @@ sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 		else {
 			struct map *map = left->ms.map;
 			left->srcline = get_srcline(map->dso,
-					    map__rip_2objdump(map, left->ip));
+					   map__rip_2objdump(map, left->ip),
+						    left->ms.sym, true);
 		}
 	}
 	if (!right->srcline) {
@@ -295,17 +301,17 @@ sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 		else {
 			struct map *map = right->ms.map;
 			right->srcline = get_srcline(map->dso,
-					    map__rip_2objdump(map, right->ip));
+					     map__rip_2objdump(map, right->ip),
+						     right->ms.sym, true);
 		}
 	}
 	return strcmp(right->srcline, left->srcline);
 }
 
 static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
-					size_t size,
-					unsigned int width __maybe_unused)
+					size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%s", he->srcline);
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcline);
 }
 
 struct sort_entry sort_srcline = {
@@ -332,7 +338,7 @@ sort__parent_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__parent_snprintf(struct hist_entry *he, char *bf,
 				       size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*s", width,
+	return repsep_snprintf(bf, size, "%-*.*s", width, width,
 			      he->parent ? he->parent->name : "[other]");
 }
 
@@ -354,7 +360,7 @@ sort__cpu_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__cpu_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%*d", width, he->cpu);
+	return repsep_snprintf(bf, size, "%*.*d", width, width, he->cpu);
 }
 
 struct sort_entry sort_cpu = {
@@ -369,6 +375,9 @@ struct sort_entry sort_cpu = {
 static int64_t
 sort__dso_from_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	if (!left->branch_info || !right->branch_info)
+		return cmp_null(left->branch_info, right->branch_info);
+
 	return _sort__dso_cmp(left->branch_info->from.map,
 			      right->branch_info->from.map);
 }
@@ -376,13 +385,19 @@ sort__dso_from_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__dso_from_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
-	return _hist_entry__dso_snprintf(he->branch_info->from.map,
-					 bf, size, width);
+	if (he->branch_info)
+		return _hist_entry__dso_snprintf(he->branch_info->from.map,
+						 bf, size, width);
+	else
+		return repsep_snprintf(bf, size, "%-*.*s", width, width, "N/A");
 }
 
 static int64_t
 sort__dso_to_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	if (!left->branch_info || !right->branch_info)
+		return cmp_null(left->branch_info, right->branch_info);
+
 	return _sort__dso_cmp(left->branch_info->to.map,
 			      right->branch_info->to.map);
 }
@@ -390,8 +405,11 @@ sort__dso_to_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__dso_to_snprintf(struct hist_entry *he, char *bf,
 				       size_t size, unsigned int width)
 {
-	return _hist_entry__dso_snprintf(he->branch_info->to.map,
-					 bf, size, width);
+	if (he->branch_info)
+		return _hist_entry__dso_snprintf(he->branch_info->to.map,
+						 bf, size, width);
+	else
+		return repsep_snprintf(bf, size, "%-*.*s", width, width, "N/A");
 }
 
 static int64_t
@@ -399,6 +417,12 @@ sort__sym_from_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	struct addr_map_symbol *from_l = &left->branch_info->from;
 	struct addr_map_symbol *from_r = &right->branch_info->from;
+
+	if (!left->branch_info || !right->branch_info)
+		return cmp_null(left->branch_info, right->branch_info);
+
+	from_l = &left->branch_info->from;
+	from_r = &right->branch_info->from;
 
 	if (!from_l->sym && !from_r->sym)
 		return _sort__addr_cmp(from_l->addr, from_r->addr);
@@ -409,8 +433,13 @@ sort__sym_from_cmp(struct hist_entry *left, struct hist_entry *right)
 static int64_t
 sort__sym_to_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	struct addr_map_symbol *to_l = &left->branch_info->to;
-	struct addr_map_symbol *to_r = &right->branch_info->to;
+	struct addr_map_symbol *to_l, *to_r;
+
+	if (!left->branch_info || !right->branch_info)
+		return cmp_null(left->branch_info, right->branch_info);
+
+	to_l = &left->branch_info->to;
+	to_r = &right->branch_info->to;
 
 	if (!to_l->sym && !to_r->sym)
 		return _sort__addr_cmp(to_l->addr, to_r->addr);
@@ -421,19 +450,27 @@ sort__sym_to_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__sym_from_snprintf(struct hist_entry *he, char *bf,
 					 size_t size, unsigned int width)
 {
-	struct addr_map_symbol *from = &he->branch_info->from;
-	return _hist_entry__sym_snprintf(from->map, from->sym, from->addr,
-					 he->level, bf, size, width);
+	if (he->branch_info) {
+		struct addr_map_symbol *from = &he->branch_info->from;
 
+		return _hist_entry__sym_snprintf(from->map, from->sym, from->addr,
+						 he->level, bf, size, width);
+	}
+
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, "N/A");
 }
 
 static int hist_entry__sym_to_snprintf(struct hist_entry *he, char *bf,
 				       size_t size, unsigned int width)
 {
-	struct addr_map_symbol *to = &he->branch_info->to;
-	return _hist_entry__sym_snprintf(to->map, to->sym, to->addr,
-					 he->level, bf, size, width);
+	if (he->branch_info) {
+		struct addr_map_symbol *to = &he->branch_info->to;
 
+		return _hist_entry__sym_snprintf(to->map, to->sym, to->addr,
+						 he->level, bf, size, width);
+	}
+
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, "N/A");
 }
 
 struct sort_entry sort_dso_from = {
@@ -467,11 +504,13 @@ struct sort_entry sort_sym_to = {
 static int64_t
 sort__mispredict_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	const unsigned char mp = left->branch_info->flags.mispred !=
-					right->branch_info->flags.mispred;
-	const unsigned char p = left->branch_info->flags.predicted !=
-					right->branch_info->flags.predicted;
+	unsigned char mp, p;
 
+	if (!left->branch_info || !right->branch_info)
+		return cmp_null(left->branch_info, right->branch_info);
+
+	mp = left->branch_info->flags.mispred != right->branch_info->flags.mispred;
+	p  = left->branch_info->flags.predicted != right->branch_info->flags.predicted;
 	return mp || p;
 }
 
@@ -479,12 +518,14 @@ static int hist_entry__mispredict_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width){
 	static const char *out = "N/A";
 
-	if (he->branch_info->flags.predicted)
-		out = "N";
-	else if (he->branch_info->flags.mispred)
-		out = "Y";
+	if (he->branch_info) {
+		if (he->branch_info->flags.predicted)
+			out = "N";
+		else if (he->branch_info->flags.mispred)
+			out = "Y";
+	}
 
-	return repsep_snprintf(bf, size, "%-*s", width, out);
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, out);
 }
 
 /* --sort daddr_sym */
@@ -985,6 +1026,9 @@ struct sort_entry sort_mem_dcacheline = {
 static int64_t
 sort__abort_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	if (!left->branch_info || !right->branch_info)
+		return cmp_null(left->branch_info, right->branch_info);
+
 	return left->branch_info->flags.abort !=
 		right->branch_info->flags.abort;
 }
@@ -992,10 +1036,15 @@ sort__abort_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__abort_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
-	static const char *out = ".";
+	static const char *out = "N/A";
 
-	if (he->branch_info->flags.abort)
-		out = "A";
+	if (he->branch_info) {
+		if (he->branch_info->flags.abort)
+			out = "A";
+		else
+			out = ".";
+	}
+
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
@@ -1009,6 +1058,9 @@ struct sort_entry sort_abort = {
 static int64_t
 sort__in_tx_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	if (!left->branch_info || !right->branch_info)
+		return cmp_null(left->branch_info, right->branch_info);
+
 	return left->branch_info->flags.in_tx !=
 		right->branch_info->flags.in_tx;
 }
@@ -1016,10 +1068,14 @@ sort__in_tx_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__in_tx_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
-	static const char *out = ".";
+	static const char *out = "N/A";
 
-	if (he->branch_info->flags.in_tx)
-		out = "T";
+	if (he->branch_info) {
+		if (he->branch_info->flags.in_tx)
+			out = "T";
+		else
+			out = ".";
+	}
 
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
@@ -1194,7 +1250,7 @@ bool perf_hpp__same_sort_entry(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 	return hse_a->se == hse_b->se;
 }
 
-void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
+void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 {
 	struct hpp_sort_entry *hse;
 
@@ -1202,20 +1258,21 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 		return;
 
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
-	hists__new_col_len(hists, hse->se->se_width_idx,
-			   strlen(hse->se->se_header));
+	hists__new_col_len(hists, hse->se->se_width_idx, strlen(fmt->name));
 }
 
 static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			      struct perf_evsel *evsel)
 {
 	struct hpp_sort_entry *hse;
-	size_t len;
+	size_t len = fmt->user_len;
 
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
-	len = hists__col_len(&evsel->hists, hse->se->se_width_idx);
 
-	return scnprintf(hpp->buf, hpp->size, "%-*s", len, hse->se->se_header);
+	if (!len)
+		len = hists__col_len(evsel__hists(evsel), hse->se->se_width_idx);
+
+	return scnprintf(hpp->buf, hpp->size, "%-*.*s", len, len, fmt->name);
 }
 
 static int __sort__hpp_width(struct perf_hpp_fmt *fmt,
@@ -1223,20 +1280,26 @@ static int __sort__hpp_width(struct perf_hpp_fmt *fmt,
 			     struct perf_evsel *evsel)
 {
 	struct hpp_sort_entry *hse;
+	size_t len = fmt->user_len;
 
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
 
-	return hists__col_len(&evsel->hists, hse->se->se_width_idx);
+	if (!len)
+		len = hists__col_len(evsel__hists(evsel), hse->se->se_width_idx);
+
+	return len;
 }
 
 static int __sort__hpp_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			     struct hist_entry *he)
 {
 	struct hpp_sort_entry *hse;
-	size_t len;
+	size_t len = fmt->user_len;
 
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
-	len = hists__col_len(he->hists, hse->se->se_width_idx);
+
+	if (!len)
+		len = hists__col_len(he->hists, hse->se->se_width_idx);
 
 	return hse->se->se_snprintf(he, hpp->buf, hpp->size, len);
 }
@@ -1253,6 +1316,7 @@ __sort_dimension__alloc_hpp(struct sort_dimension *sd)
 	}
 
 	hse->se = sd->entry;
+	hse->hpp.name = sd->entry->se_header;
 	hse->hpp.header = __sort__hpp_header;
 	hse->hpp.width = __sort__hpp_width;
 	hse->hpp.entry = __sort__hpp_entry;
@@ -1265,6 +1329,8 @@ __sort_dimension__alloc_hpp(struct sort_dimension *sd)
 	INIT_LIST_HEAD(&hse->hpp.list);
 	INIT_LIST_HEAD(&hse->hpp.sort_list);
 	hse->hpp.elide = false;
+	hse->hpp.len = 0;
+	hse->hpp.user_len = 0;
 
 	return hse;
 }
@@ -1432,14 +1498,49 @@ static const char *get_default_sort_order(void)
 	return default_sort_orders[sort__mode];
 }
 
+static int setup_sort_order(void)
+{
+	char *new_sort_order;
+
+	/*
+	 * Append '+'-prefixed sort order to the default sort
+	 * order string.
+	 */
+	if (!sort_order || is_strict_order(sort_order))
+		return 0;
+
+	if (sort_order[1] == '\0') {
+		error("Invalid --sort key: `+'");
+		return -EINVAL;
+	}
+
+	/*
+	 * We allocate new sort_order string, but we never free it,
+	 * because it's checked over the rest of the code.
+	 */
+	if (asprintf(&new_sort_order, "%s,%s",
+		     get_default_sort_order(), sort_order + 1) < 0) {
+		error("Not enough memory to set up --sort");
+		return -ENOMEM;
+	}
+
+	sort_order = new_sort_order;
+	return 0;
+}
+
 static int __setup_sorting(void)
 {
 	char *tmp, *tok, *str;
-	const char *sort_keys = sort_order;
+	const char *sort_keys;
 	int ret = 0;
 
+	ret = setup_sort_order();
+	if (ret)
+		return ret;
+
+	sort_keys = sort_order;
 	if (sort_keys == NULL) {
-		if (field_order) {
+		if (is_strict_order(field_order)) {
 			/*
 			 * If user specified field order but no sort order,
 			 * we'll honor it and not add default sort orders.
@@ -1625,23 +1726,36 @@ static void reset_dimensions(void)
 		memory_sort_dimensions[i].taken = 0;
 }
 
+bool is_strict_order(const char *order)
+{
+	return order && (*order != '+');
+}
+
 static int __setup_output_field(void)
 {
-	char *tmp, *tok, *str;
-	int ret = 0;
+	char *tmp, *tok, *str, *strp;
+	int ret = -EINVAL;
 
 	if (field_order == NULL)
 		return 0;
 
 	reset_dimensions();
 
-	str = strdup(field_order);
+	strp = str = strdup(field_order);
 	if (str == NULL) {
 		error("Not enough memory to setup output fields");
 		return -ENOMEM;
 	}
 
-	for (tok = strtok_r(str, ", ", &tmp);
+	if (!is_strict_order(field_order))
+		strp++;
+
+	if (!strlen(strp)) {
+		error("Invalid --fields key: `+'");
+		goto out;
+	}
+
+	for (tok = strtok_r(strp, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
 		ret = output_field_add(tok);
 		if (ret == -EINVAL) {
@@ -1653,6 +1767,7 @@ static int __setup_output_field(void)
 		}
 	}
 
+out:
 	free(str);
 	return ret;
 }

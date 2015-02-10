@@ -199,7 +199,6 @@ static int corenet_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	data->table = table;
-	per_cpu(cpu_data, cpu) = data;
 
 	/* update ->cpus if we have cluster, no harm if not */
 	cpumask_copy(policy->cpus, per_cpu(cpu_mask, cpu));

@@ -1042,7 +1042,7 @@
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
 		clocks = <&sys_clkin1>, <&sys_clkin2>;
-		reg = <0x01a4>;
+		reg = <0x0164>;
 	};
 
 	mlb_clk: mlb_clk {
@@ -1084,14 +1084,14 @@
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
 		clocks = <&sys_clkin1>, <&sys_clkin2>;
-		reg = <0x01d0>;
+		reg = <0x0168>;
 	};
 
 	video2_dpll_clk_mux: video2_dpll_clk_mux {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
 		clocks = <&sys_clkin1>, <&sys_clkin2>;
-		reg = <0x01d4>;
+		reg = <0x016c>;
 	};
 
 	wkupaon_iclk_mux: wkupaon_iclk_mux {

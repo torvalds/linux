@@ -68,7 +68,7 @@ static inline struct device *mic_dev(struct mic_vdev *mvdev)
 }
 
 /* This gets the device's feature bits. */
-static u32 mic_get_features(struct virtio_device *vdev)
+static u64 mic_get_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	u32 features = 0;
@@ -76,8 +76,7 @@ static u32 mic_get_features(struct virtio_device *vdev)
 	u8 __iomem *in_features = mic_vq_features(desc);
 	int feature_len = ioread8(&desc->feature_len);
 
-	bits = min_t(unsigned, feature_len,
-		sizeof(vdev->features)) * 8;
+	bits = min_t(unsigned, feature_len, sizeof(features)) * 8;
 	for (i = 0; i < bits; i++)
 		if (ioread8(&in_features[i / 8]) & (BIT(i % 8)))
 			features |= BIT(i);
@@ -85,7 +84,7 @@ static u32 mic_get_features(struct virtio_device *vdev)
 	return features;
 }
 
-static void mic_finalize_features(struct virtio_device *vdev)
+static int mic_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	struct mic_device_desc __iomem *desc = to_micvdev(vdev)->desc;
@@ -97,14 +96,19 @@ static void mic_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
+	/* Make sure we don't have any features > 32 bits! */
+	BUG_ON((u32)vdev->features != vdev->features);
+
 	memset_io(out_features, 0, feature_len);
 	bits = min_t(unsigned, feature_len,
 		sizeof(vdev->features)) * 8;
 	for (i = 0; i < bits; i++) {
-		if (test_bit(i, vdev->features))
+		if (__virtio_test_bit(vdev, i))
 			iowrite8(ioread8(&out_features[i / 8]) | (1 << (i % 8)),
 				 &out_features[i / 8]);
 	}
+
+	return 0;
 }
 
 /*
@@ -462,16 +466,12 @@ static void mic_handle_config_change(struct mic_device_desc __iomem *d,
 	struct mic_device_ctrl __iomem *dc
 		= (void __iomem *)d + mic_aligned_desc_size(d);
 	struct mic_vdev *mvdev = (struct mic_vdev *)ioread64(&dc->vdev);
-	struct virtio_driver *drv;
 
 	if (ioread8(&dc->config_change) != MIC_VIRTIO_PARAM_CONFIG_CHANGED)
 		return;
 
 	dev_dbg(mdrv->dev, "%s %d\n", __func__, __LINE__);
-	drv = container_of(mvdev->vdev.dev.driver,
-				struct virtio_driver, driver);
-	if (drv->config_changed)
-		drv->config_changed(&mvdev->vdev);
+	virtio_config_changed(&mvdev->vdev);
 	iowrite8(1, &dc->guest_ack);
 }
 

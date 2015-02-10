@@ -348,7 +348,6 @@ static struct platform_driver p1022_rdk_driver = {
 		 * in lowercase letters.
 		 */
 		.name = "snd-soc-p1022rdk",
-		.owner = THIS_MODULE,
 	},
 };
 

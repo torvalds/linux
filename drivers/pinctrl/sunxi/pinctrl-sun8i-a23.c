@@ -581,7 +581,6 @@ static struct platform_driver sun8i_a23_pinctrl_driver = {
 	.probe	= sun8i_a23_pinctrl_probe,
 	.driver	= {
 		.name		= "sun8i-a23-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= sun8i_a23_pinctrl_match,
 	},
 };

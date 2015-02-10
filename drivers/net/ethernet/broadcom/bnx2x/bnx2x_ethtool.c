@@ -1852,7 +1852,7 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	if ((ering->rx_pending > MAX_RX_AVAIL) ||
 	    (ering->rx_pending < (bp->disable_tpa ? MIN_RX_SIZE_NONTPA :
 						    MIN_RX_SIZE_TPA)) ||
-	    (ering->tx_pending > (IS_MF_FCOE_AFEX(bp) ? 0 : MAX_TX_AVAIL)) ||
+	    (ering->tx_pending > (IS_MF_STORAGE_ONLY(bp) ? 0 : MAX_TX_AVAIL)) ||
 	    (ering->tx_pending <= MAX_SKB_FRAGS + 4)) {
 		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
 		return -EINVAL;
@@ -3358,11 +3358,17 @@ static u32 bnx2x_get_rxfh_indir_size(struct net_device *dev)
 	return T_ETH_INDIRECTION_TABLE_SIZE;
 }
 
-static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key)
+static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
+			  u8 *hfunc)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
 	size_t i;
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (!indir)
+		return 0;
 
 	/* Get the current configuration of the RSS indirection table */
 	bnx2x_get_rss_ind_table(&bp->rss_conf_obj, ind_table);
@@ -3383,10 +3389,20 @@ static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key)
 }
 
 static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
-			  const u8 *key)
+			  const u8 *key, const u8 hfunc)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;
+
+	/* We require at least one supported parameter to be changed and no
+	 * change in any of the unsupported parameters
+	 */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+
+	if (!indir)
+		return 0;
 
 	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
 		/*
@@ -3481,6 +3497,46 @@ static int bnx2x_set_channels(struct net_device *dev,
 	return bnx2x_nic_load(bp, LOAD_NORMAL);
 }
 
+static int bnx2x_get_ts_info(struct net_device *dev,
+			     struct ethtool_ts_info *info)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	if (bp->flags & PTP_SUPPORTED) {
+		info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+					SOF_TIMESTAMPING_RX_SOFTWARE |
+					SOF_TIMESTAMPING_SOFTWARE |
+					SOF_TIMESTAMPING_TX_HARDWARE |
+					SOF_TIMESTAMPING_RX_HARDWARE |
+					SOF_TIMESTAMPING_RAW_HARDWARE;
+
+		if (bp->ptp_clock)
+			info->phc_index = ptp_clock_index(bp->ptp_clock);
+		else
+			info->phc_index = -1;
+
+		info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+				   (1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
+				   (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+				   (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+				   (1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+				   (1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+				   (1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+				   (1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+				   (1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+				   (1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+				   (1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+				   (1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+				   (1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ);
+
+		info->tx_types = (1 << HWTSTAMP_TX_OFF)|(1 << HWTSTAMP_TX_ON);
+
+		return 0;
+	}
+
+	return ethtool_op_get_ts_info(dev, info);
+}
+
 static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_settings		= bnx2x_get_settings,
 	.set_settings		= bnx2x_set_settings,
@@ -3522,7 +3578,7 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_module_eeprom	= bnx2x_get_module_eeprom,
 	.get_eee		= bnx2x_get_eee,
 	.set_eee		= bnx2x_set_eee,
-	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_ts_info		= bnx2x_get_ts_info,
 };
 
 static const struct ethtool_ops bnx2x_vf_ethtool_ops = {

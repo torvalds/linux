@@ -67,6 +67,36 @@ static const u8 mbm_guid[16] = {
 	0xa6, 0x07, 0xc0, 0xff, 0xcb, 0x7e, 0x39, 0x2a,
 };
 
+static void usbnet_cdc_update_filter(struct usbnet *dev)
+{
+	struct cdc_state	*info = (void *) &dev->data;
+	struct usb_interface	*intf = info->control;
+	struct net_device	*net = dev->net;
+
+	u16 cdc_filter = USB_CDC_PACKET_TYPE_DIRECTED
+			| USB_CDC_PACKET_TYPE_BROADCAST;
+
+	/* filtering on the device is an optional feature and not worth
+	 * the hassle so we just roughly care about snooping and if any
+	 * multicast is requested, we take every multicast
+	 */
+	if (net->flags & IFF_PROMISC)
+		cdc_filter |= USB_CDC_PACKET_TYPE_PROMISCUOUS;
+	if (!netdev_mc_empty(net) || (net->flags & IFF_ALLMULTI))
+		cdc_filter |= USB_CDC_PACKET_TYPE_ALL_MULTICAST;
+
+	usb_control_msg(dev->udev,
+			usb_sndctrlpipe(dev->udev, 0),
+			USB_CDC_SET_ETHERNET_PACKET_FILTER,
+			USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+			cdc_filter,
+			intf->cur_altsetting->desc.bInterfaceNumber,
+			NULL,
+			0,
+			USB_CTRL_SET_TIMEOUT
+		);
+}
+
 /* probes control interface, claims data interface, collects the bulk
  * endpoints, activates data interface (if needed), maybe sets MTU.
  * all pure cdc, except for certain firmware workarounds, and knowing
@@ -347,16 +377,8 @@ next_desc:
 	 * don't do reset all the way. So the packet filter should
 	 * be set to a sane initial value.
 	 */
-	usb_control_msg(dev->udev,
-			usb_sndctrlpipe(dev->udev, 0),
-			USB_CDC_SET_ETHERNET_PACKET_FILTER,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			USB_CDC_PACKET_TYPE_ALL_MULTICAST | USB_CDC_PACKET_TYPE_DIRECTED | USB_CDC_PACKET_TYPE_BROADCAST,
-			intf->cur_altsetting->desc.bInterfaceNumber,
-			NULL,
-			0,
-			USB_CTRL_SET_TIMEOUT
-		);
+	usbnet_cdc_update_filter(dev);
+
 	return 0;
 
 bad_desc:
@@ -468,10 +490,6 @@ int usbnet_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 		return status;
 	}
 
-	/* FIXME cdc-ether has some multicast code too, though it complains
-	 * in routine cases.  info->ether describes the multicast support.
-	 * Implement that here, manipulating the cdc filter as needed.
-	 */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_cdc_bind);
@@ -482,6 +500,7 @@ static const struct driver_info	cdc_info = {
 	.bind =		usbnet_cdc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	usbnet_cdc_status,
+	.set_rx_mode =	usbnet_cdc_update_filter,
 	.manage_power =	usbnet_manage_power,
 };
 
@@ -491,6 +510,7 @@ static const struct driver_info wwan_info = {
 	.bind =		usbnet_cdc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	usbnet_cdc_status,
+	.set_rx_mode =	usbnet_cdc_update_filter,
 	.manage_power =	usbnet_manage_power,
 };
 

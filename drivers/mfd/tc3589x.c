@@ -241,10 +241,8 @@ static struct irq_domain_ops tc3589x_irq_ops = {
 
 static int tc3589x_irq_init(struct tc3589x *tc3589x, struct device_node *np)
 {
-	int base = tc3589x->irq_base;
-
 	tc3589x->domain = irq_domain_add_simple(
-		np, TC3589x_NR_INTERNAL_IRQS, base,
+		np, TC3589x_NR_INTERNAL_IRQS, 0,
 		&tc3589x_irq_ops, tc3589x);
 
 	if (!tc3589x->domain) {
@@ -298,7 +296,7 @@ static int tc3589x_device_init(struct tc3589x *tc3589x)
 	if (blocks & TC3589x_BLOCK_GPIO) {
 		ret = mfd_add_devices(tc3589x->dev, -1, tc3589x_dev_gpio,
 				      ARRAY_SIZE(tc3589x_dev_gpio), NULL,
-				      tc3589x->irq_base, tc3589x->domain);
+				      0, tc3589x->domain);
 		if (ret) {
 			dev_err(tc3589x->dev, "failed to add gpio child\n");
 			return ret;
@@ -309,7 +307,7 @@ static int tc3589x_device_init(struct tc3589x *tc3589x)
 	if (blocks & TC3589x_BLOCK_KEYPAD) {
 		ret = mfd_add_devices(tc3589x->dev, -1, tc3589x_dev_keypad,
 				      ARRAY_SIZE(tc3589x_dev_keypad), NULL,
-				      tc3589x->irq_base, tc3589x->domain);
+				      0, tc3589x->domain);
 		if (ret) {
 			dev_err(tc3589x->dev, "failed to keypad child\n");
 			return ret;
@@ -404,7 +402,6 @@ static int tc3589x_probe(struct i2c_client *i2c,
 	tc3589x->dev = &i2c->dev;
 	tc3589x->i2c = i2c;
 	tc3589x->pdata = pdata;
-	tc3589x->irq_base = pdata->irq_base;
 
 	switch (version) {
 	case TC3589X_TC35893:

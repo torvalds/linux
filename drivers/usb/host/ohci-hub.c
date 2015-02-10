@@ -585,7 +585,7 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 	if (!(status & RH_PS_CCS))
 		return -ENODEV;
 
-	/* khubd will finish the reset later */
+	/* hub_wq will finish the reset later */
 	ohci_writel(ohci, RH_PS_PRS, &ohci->regs->roothub.portstatus [port]);
 	return 0;
 }
@@ -610,7 +610,7 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 /* wrap-aware logic morphed from <linux/jiffies.h> */
 #define tick_before(t1,t2) ((s16)(((s16)(t1))-((s16)(t2))) < 0)
 
-/* called from some task, normally khubd */
+/* called from some task, normally hub_wq */
 static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 {
 	__hc32 __iomem *portstat = &ohci->regs->roothub.portstatus [port];

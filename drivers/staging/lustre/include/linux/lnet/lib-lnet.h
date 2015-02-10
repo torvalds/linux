@@ -94,8 +94,8 @@ static inline int lnet_md_exhausted(lnet_libmd_t *md)
 static inline int lnet_md_unlinkable(lnet_libmd_t *md)
 {
 	/* Should unlink md when its refcount is 0 and either:
-	 *  - md has been flagged for deletion (by auto unlink or LNetM[DE]Unlink,
-	 *    in the latter case md may not be exhausted).
+	 *  - md has been flagged for deletion (by auto unlink or
+	 *    LNetM[DE]Unlink, in the latter case md may not be exhausted).
 	 *  - auto unlink is on and md is exhausted.
 	 */
 	if (md->md_refcount != 0)
@@ -644,7 +644,8 @@ lnet_ni_t *lnet_net2ni_locked(__u32 net, int cpt);
 lnet_ni_t *lnet_net2ni(__u32 net);
 
 int lnet_notify(lnet_ni_t *ni, lnet_nid_t peer, int alive, unsigned long when);
-void lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, unsigned long when);
+void lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive,
+			unsigned long when);
 int lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway_nid,
 		   unsigned int priority);
 int lnet_check_routes(void);
@@ -791,8 +792,8 @@ lnet_copy_iov2flat(int dlen, void *dest, unsigned int doffset,
 
 static inline void
 lnet_copy_kiov2flat(int dlen, void *dest, unsigned int doffset,
-		    unsigned int nsiov, lnet_kiov_t *skiov, unsigned int soffset,
-		    unsigned int nob)
+		    unsigned int nsiov, lnet_kiov_t *skiov,
+		    unsigned int soffset, unsigned int nob)
 {
 	struct iovec diov = {/* .iov_base = */ dest, /* .iov_len = */ dlen};
 
@@ -811,8 +812,9 @@ lnet_copy_flat2iov(unsigned int ndiov, struct iovec *diov, unsigned int doffset,
 }
 
 static inline void
-lnet_copy_flat2kiov(unsigned int ndiov, lnet_kiov_t *dkiov, unsigned int doffset,
-		    int slen, void *src, unsigned int soffset, unsigned int nob)
+lnet_copy_flat2kiov(unsigned int ndiov, lnet_kiov_t *dkiov,
+		    unsigned int doffset, int slen, void *src,
+		    unsigned int soffset, unsigned int nob)
 {
 	struct iovec siov = {/* .iov_base = */ src, /* .iov_len = */ slen};
 

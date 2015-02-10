@@ -1,5 +1,5 @@
 /*
- *  HID driver for Sony / PS2 / PS3 BD devices.
+ *  HID driver for Sony / PS2 / PS3 / PS4 BD devices.
  *
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
@@ -8,6 +8,7 @@
  *  Copyright (c) 2012 David Dillow <dave@thedillows.org>
  *  Copyright (c) 2006-2013 Jiri Kosina
  *  Copyright (c) 2013 Colin Leitner <colin.leitner@gmail.com>
+ *  Copyright (c) 2014 Frank Praznik <frank.praznik@gmail.com>
  */
 
 /*
@@ -176,7 +177,7 @@ static u8 dualshock4_usb_rdesc[] = {
 	0x75, 0x06,         /*      Report Size (6),                */
 	0x95, 0x01,         /*      Report Count (1),               */
 	0x15, 0x00,         /*      Logical Minimum (0),            */
-	0x25, 0x7F,         /*      Logical Maximum (127),          */
+	0x25, 0x3F,         /*      Logical Maximum (63),           */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x05, 0x01,         /*      Usage Page (Desktop),           */
 	0x09, 0x33,         /*      Usage (Rx),                     */
@@ -200,14 +201,14 @@ static u8 dualshock4_usb_rdesc[] = {
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x19, 0x43,         /*      Usage Minimum (43h),            */
 	0x29, 0x45,         /*      Usage Maximum (45h),            */
-	0x16, 0xFF, 0xBF,   /*      Logical Minimum (-16385),       */
-	0x26, 0x00, 0x40,   /*      Logical Maximum (16384),        */
+	0x16, 0x00, 0xE0,   /*      Logical Minimum (-8192),        */
+	0x26, 0xFF, 0x1F,   /*      Logical Maximum (8191),         */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x06, 0x00, 0xFF,   /*      Usage Page (FF00h),             */
 	0x09, 0x21,         /*      Usage (21h),                    */
 	0x15, 0x00,         /*      Logical Minimum (0),            */
-	0x25, 0xFF,         /*      Logical Maximum (255),          */
+	0x26, 0xFF, 0x00,   /*      Logical Maximum (255),          */
 	0x75, 0x08,         /*      Report Size (8),                */
 	0x95, 0x27,         /*      Report Count (39),              */
 	0x81, 0x02,         /*      Input (Variable),               */
@@ -395,11 +396,11 @@ static u8 dualshock4_usb_rdesc[] = {
 
 /*
  * The default behavior of the Dualshock 4 is to send reports using report
- * type 1 when running over Bluetooth. However, as soon as it receives a
- * report of type 17 to set the LEDs or rumble it starts returning it's state
- * in report 17 instead of 1.  Since report 17 is undefined in the default HID
+ * type 1 when running over Bluetooth. However, when feature report 2 is
+ * requested during the controller initialization it starts sending input
+ * reports in report 17.  Since report 17 is undefined in the default HID
  * descriptor the button and axis definitions must be moved to report 17 or
- * the HID layer won't process the received input once a report is sent.
+ * the HID layer won't process the received input.
  */
 static u8 dualshock4_bt_rdesc[] = {
 	0x05, 0x01,         /*  Usage Page (Desktop),               */
@@ -509,8 +510,8 @@ static u8 dualshock4_bt_rdesc[] = {
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x19, 0x43,         /*      Usage Minimum (43h),            */
 	0x29, 0x45,         /*      Usage Maximum (45h),            */
-	0x16, 0xFF, 0xBF,   /*      Logical Minimum (-16385),       */
-	0x26, 0x00, 0x40,   /*      Logical Maximum (16384),        */
+	0x16, 0x00, 0xE0,   /*      Logical Minimum (-8192),        */
+	0x26, 0xFF, 0x1F,   /*      Logical Maximum (8191),         */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x06, 0x00, 0xFF,   /*      Usage Page (FF00h),             */
@@ -797,6 +798,12 @@ union sixaxis_output_report_01 {
 	__u8 buf[36];
 };
 
+#define DS4_REPORT_0x02_SIZE 37
+#define DS4_REPORT_0x05_SIZE 32
+#define DS4_REPORT_0x11_SIZE 78
+#define DS4_REPORT_0x81_SIZE 7
+#define SIXAXIS_REPORT_0xF2_SIZE 18
+
 static spinlock_t sony_dev_list_lock;
 static LIST_HEAD(sony_device_list);
 static DEFINE_IDA(sony_device_id_allocator);
@@ -810,6 +817,7 @@ struct sony_sc {
 	struct work_struct state_worker;
 	struct power_supply battery;
 	int device_id;
+	__u8 *output_report_dmabuf;
 
 #ifdef CONFIG_SONY_FF
 	__u8 left;
@@ -935,12 +943,13 @@ static void sixaxis_parse_report(struct sony_sc *sc, __u8 *rd, int size)
 	if (rd[30] >= 0xee) {
 		battery_capacity = 100;
 		battery_charging = !(rd[30] & 0x01);
+		cable_state = 1;
 	} else {
 		__u8 index = rd[30] <= 5 ? rd[30] : 5;
 		battery_capacity = sixaxis_battery_capacity[index];
 		battery_charging = 0;
+		cable_state = 0;
 	}
-	cable_state = !(rd[31] & 0x04);
 
 	spin_lock_irqsave(&sc->lock, flags);
 	sc->cable_state = cable_state;
@@ -1082,6 +1091,38 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 	return 0;
 }
 
+static int sony_register_touchpad(struct hid_input *hi, int touch_count,
+					int w, int h)
+{
+	struct input_dev *input_dev = hi->input;
+	int ret;
+
+	ret = input_mt_init_slots(input_dev, touch_count, 0);
+	if (ret < 0)
+		return ret;
+
+	input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0, w, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, h, 0, 0);
+
+	return 0;
+}
+
+static void sony_input_configured(struct hid_device *hdev,
+					struct hid_input *hidinput)
+{
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	/*
+	 * The Dualshock 4 touchpad supports 2 touches and has a
+	 * resolution of 1920x942 (44.86 dots/mm).
+	 */
+	if (sc->quirks & DUALSHOCK4_CONTROLLER) {
+		if (sony_register_touchpad(hidinput, 2, 1920, 942) != 0)
+			hid_err(sc->hdev,
+				"Unable to initialize multi-touch slots\n");
+	}
+}
+
 /*
  * Sending HID_REQ_GET_REPORT changes the operation mode of the ps3 controller
  * to "operational".  Without this, the ps3 controller will not report any
@@ -1108,9 +1149,20 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 
 static int sixaxis_set_operational_bt(struct hid_device *hdev)
 {
-	unsigned char buf[] = { 0xf4,  0x42, 0x03, 0x00, 0x00 };
-	return hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+	static const __u8 report[] = { 0xf4, 0x42, 0x03, 0x00, 0x00 };
+	__u8 *buf;
+	int ret;
+
+	buf = kmemdup(report, sizeof(report), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(report),
 				  HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+
+	kfree(buf);
+
+	return ret;
 }
 
 /*
@@ -1119,10 +1171,19 @@ static int sixaxis_set_operational_bt(struct hid_device *hdev)
  */
 static int dualshock4_set_operational_bt(struct hid_device *hdev)
 {
-	__u8 buf[37] = { 0 };
+	__u8 *buf;
+	int ret;
 
-	return hid_hw_raw_request(hdev, 0x02, buf, sizeof(buf),
+	buf = kmalloc(DS4_REPORT_0x02_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = hid_hw_raw_request(hdev, 0x02, buf, DS4_REPORT_0x02_SIZE,
 				HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+
+	kfree(buf);
+
+	return ret;
 }
 
 static void sixaxis_set_leds_from_id(int id, __u8 values[MAX_LEDS])
@@ -1437,9 +1498,7 @@ error_leds:
 
 static void sixaxis_state_worker(struct work_struct *work)
 {
-	struct sony_sc *sc = container_of(work, struct sony_sc, state_worker);
-	int n;
-	union sixaxis_output_report_01 report = {
+	static const union sixaxis_output_report_01 default_report = {
 		.buf = {
 			0x01,
 			0x00, 0xff, 0x00, 0xff, 0x00,
@@ -1451,20 +1510,27 @@ static void sixaxis_state_worker(struct work_struct *work)
 			0x00, 0x00, 0x00, 0x00, 0x00
 		}
 	};
+	struct sony_sc *sc = container_of(work, struct sony_sc, state_worker);
+	struct sixaxis_output_report *report =
+		(struct sixaxis_output_report *)sc->output_report_dmabuf;
+	int n;
+
+	/* Initialize the report with default values */
+	memcpy(report, &default_report, sizeof(struct sixaxis_output_report));
 
 #ifdef CONFIG_SONY_FF
-	report.data.rumble.right_motor_on = sc->right ? 1 : 0;
-	report.data.rumble.left_motor_force = sc->left;
+	report->rumble.right_motor_on = sc->right ? 1 : 0;
+	report->rumble.left_motor_force = sc->left;
 #endif
 
-	report.data.leds_bitmap |= sc->led_state[0] << 1;
-	report.data.leds_bitmap |= sc->led_state[1] << 2;
-	report.data.leds_bitmap |= sc->led_state[2] << 3;
-	report.data.leds_bitmap |= sc->led_state[3] << 4;
+	report->leds_bitmap |= sc->led_state[0] << 1;
+	report->leds_bitmap |= sc->led_state[1] << 2;
+	report->leds_bitmap |= sc->led_state[2] << 3;
+	report->leds_bitmap |= sc->led_state[3] << 4;
 
 	/* Set flag for all leds off, required for 3rd party INTEC controller */
-	if ((report.data.leds_bitmap & 0x1E) == 0)
-		report.data.leds_bitmap |= 0x20;
+	if ((report->leds_bitmap & 0x1E) == 0)
+		report->leds_bitmap |= 0x20;
 
 	/*
 	 * The LEDs in the report are indexed in reverse order to their
@@ -1477,28 +1543,30 @@ static void sixaxis_state_worker(struct work_struct *work)
 	 */
 	for (n = 0; n < 4; n++) {
 		if (sc->led_delay_on[n] || sc->led_delay_off[n]) {
-			report.data.led[3 - n].duty_off = sc->led_delay_off[n];
-			report.data.led[3 - n].duty_on = sc->led_delay_on[n];
+			report->led[3 - n].duty_off = sc->led_delay_off[n];
+			report->led[3 - n].duty_on = sc->led_delay_on[n];
 		}
 	}
 
-	hid_hw_raw_request(sc->hdev, report.data.report_id, report.buf,
-			sizeof(report), HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+	hid_hw_raw_request(sc->hdev, report->report_id, (__u8 *)report,
+			sizeof(struct sixaxis_output_report),
+			HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
 }
 
 static void dualshock4_state_worker(struct work_struct *work)
 {
 	struct sony_sc *sc = container_of(work, struct sony_sc, state_worker);
 	struct hid_device *hdev = sc->hdev;
+	__u8 *buf = sc->output_report_dmabuf;
 	int offset;
 
-	__u8 buf[78] = { 0 };
-
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_USB) {
+		memset(buf, 0, DS4_REPORT_0x05_SIZE);
 		buf[0] = 0x05;
 		buf[1] = 0xFF;
 		offset = 4;
 	} else {
+		memset(buf, 0, DS4_REPORT_0x11_SIZE);
 		buf[0] = 0x11;
 		buf[1] = 0xB0;
 		buf[3] = 0x0F;
@@ -1526,10 +1594,31 @@ static void dualshock4_state_worker(struct work_struct *work)
 	buf[offset++] = sc->led_delay_off[3];
 
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_USB)
-		hid_hw_output_report(hdev, buf, 32);
+		hid_hw_output_report(hdev, buf, DS4_REPORT_0x05_SIZE);
 	else
-		hid_hw_raw_request(hdev, 0x11, buf, 78,
+		hid_hw_raw_request(hdev, 0x11, buf, DS4_REPORT_0x11_SIZE,
 				HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+}
+
+static int sony_allocate_output_report(struct sony_sc *sc)
+{
+	if (sc->quirks & SIXAXIS_CONTROLLER)
+		sc->output_report_dmabuf =
+			kmalloc(sizeof(union sixaxis_output_report_01),
+				GFP_KERNEL);
+	else if (sc->quirks & DUALSHOCK4_CONTROLLER_BT)
+		sc->output_report_dmabuf = kmalloc(DS4_REPORT_0x11_SIZE,
+						GFP_KERNEL);
+	else if (sc->quirks & DUALSHOCK4_CONTROLLER_USB)
+		sc->output_report_dmabuf = kmalloc(DS4_REPORT_0x05_SIZE,
+						GFP_KERNEL);
+	else
+		return 0;
+
+	if (!sc->output_report_dmabuf)
+		return -ENOMEM;
+
+	return 0;
 }
 
 #ifdef CONFIG_SONY_FF
@@ -1654,26 +1743,6 @@ static void sony_battery_remove(struct sony_sc *sc)
 	sc->battery.name = NULL;
 }
 
-static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
-					int w, int h)
-{
-	struct hid_input *hidinput = list_entry(sc->hdev->inputs.next,
-						struct hid_input, list);
-	struct input_dev *input_dev = hidinput->input;
-	int ret;
-
-	ret = input_mt_init_slots(input_dev, touch_count, 0);
-	if (ret < 0) {
-		hid_err(sc->hdev, "Unable to initialize multi-touch slots\n");
-		return ret;
-	}
-
-	input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0, w, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, h, 0, 0);
-
-	return 0;
-}
-
 /*
  * If a controller is plugged in via USB while already connected via Bluetooth
  * it will show up as two devices. A global list of connected controllers and
@@ -1740,6 +1809,7 @@ static int sony_get_bt_devaddr(struct sony_sc *sc)
 
 static int sony_check_add(struct sony_sc *sc)
 {
+	__u8 *buf = NULL;
 	int n, ret;
 
 	if ((sc->quirks & DUALSHOCK4_CONTROLLER_BT) ||
@@ -1755,36 +1825,44 @@ static int sony_check_add(struct sony_sc *sc)
 			return 0;
 		}
 	} else if (sc->quirks & DUALSHOCK4_CONTROLLER_USB) {
-		__u8 buf[7];
+		buf = kmalloc(DS4_REPORT_0x81_SIZE, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
 
 		/*
 		 * The MAC address of a DS4 controller connected via USB can be
 		 * retrieved with feature report 0x81. The address begins at
 		 * offset 1.
 		 */
-		ret = hid_hw_raw_request(sc->hdev, 0x81, buf, sizeof(buf),
-				HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+		ret = hid_hw_raw_request(sc->hdev, 0x81, buf,
+				DS4_REPORT_0x81_SIZE, HID_FEATURE_REPORT,
+				HID_REQ_GET_REPORT);
 
-		if (ret != 7) {
+		if (ret != DS4_REPORT_0x81_SIZE) {
 			hid_err(sc->hdev, "failed to retrieve feature report 0x81 with the DualShock 4 MAC address\n");
-			return ret < 0 ? ret : -EINVAL;
+			ret = ret < 0 ? ret : -EINVAL;
+			goto out_free;
 		}
 
 		memcpy(sc->mac_address, &buf[1], sizeof(sc->mac_address));
 	} else if (sc->quirks & SIXAXIS_CONTROLLER_USB) {
-		__u8 buf[18];
+		buf = kmalloc(SIXAXIS_REPORT_0xF2_SIZE, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
 
 		/*
 		 * The MAC address of a Sixaxis controller connected via USB can
 		 * be retrieved with feature report 0xf2. The address begins at
 		 * offset 4.
 		 */
-		ret = hid_hw_raw_request(sc->hdev, 0xf2, buf, sizeof(buf),
-				HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+		ret = hid_hw_raw_request(sc->hdev, 0xf2, buf,
+				SIXAXIS_REPORT_0xF2_SIZE, HID_FEATURE_REPORT,
+				HID_REQ_GET_REPORT);
 
-		if (ret != 18) {
+		if (ret != SIXAXIS_REPORT_0xF2_SIZE) {
 			hid_err(sc->hdev, "failed to retrieve feature report 0xf2 with the Sixaxis MAC address\n");
-			return ret < 0 ? ret : -EINVAL;
+			ret = ret < 0 ? ret : -EINVAL;
+			goto out_free;
 		}
 
 		/*
@@ -1797,7 +1875,13 @@ static int sony_check_add(struct sony_sc *sc)
 		return 0;
 	}
 
-	return sony_check_add_dev_list(sc);
+	ret = sony_check_add_dev_list(sc);
+
+out_free:
+
+	kfree(buf);
+
+	return ret;
 }
 
 static int sony_set_device_id(struct sony_sc *sc)
@@ -1881,6 +1965,12 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
+	ret = sony_allocate_output_report(sc);
+	if (ret < 0) {
+		hid_err(hdev, "failed to allocate the output report buffer\n");
+		goto err_stop;
+	}
+
 	ret = sony_set_device_id(sc);
 	if (ret < 0) {
 		hid_err(hdev, "failed to allocate the device id\n");
@@ -1923,13 +2013,6 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 				goto err_stop;
 			}
 		}
-		/*
-		 * The Dualshock 4 touchpad supports 2 touches and has a
-		 * resolution of 1920x940.
-		 */
-		ret = sony_register_touchpad(sc, 2, 1920, 940);
-		if (ret < 0)
-			goto err_stop;
 
 		sony_init_work(sc, dualshock4_state_worker);
 	} else {
@@ -1977,6 +2060,7 @@ err_stop:
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
 		sony_battery_remove(sc);
 	sony_cancel_work_sync(sc);
+	kfree(sc->output_report_dmabuf);
 	sony_remove_dev_list(sc);
 	sony_release_device_id(sc);
 	hid_hw_stop(hdev);
@@ -1996,6 +2080,8 @@ static void sony_remove(struct hid_device *hdev)
 	}
 
 	sony_cancel_work_sync(sc);
+
+	kfree(sc->output_report_dmabuf);
 
 	sony_remove_dev_list(sc);
 
@@ -2027,6 +2113,9 @@ static const struct hid_device_id sony_devices[] = {
 	/* Logitech Harmony Adapter for PS3 */
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_HARMONY_PS3),
 		.driver_data = PS3REMOTE },
+	/* SMK-Link PS3 BD Remote Control */
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SMK, USB_DEVICE_ID_SMK_PS3_BDREMOTE),
+		.driver_data = PS3REMOTE },
 	/* Sony Dualshock 4 controllers for PS4 */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER),
 		.driver_data = DUALSHOCK4_CONTROLLER_USB },
@@ -2037,13 +2126,14 @@ static const struct hid_device_id sony_devices[] = {
 MODULE_DEVICE_TABLE(hid, sony_devices);
 
 static struct hid_driver sony_driver = {
-	.name          = "sony",
-	.id_table      = sony_devices,
-	.input_mapping = sony_mapping,
-	.probe         = sony_probe,
-	.remove        = sony_remove,
-	.report_fixup  = sony_report_fixup,
-	.raw_event     = sony_raw_event
+	.name             = "sony",
+	.id_table         = sony_devices,
+	.input_mapping    = sony_mapping,
+	.input_configured = sony_input_configured,
+	.probe            = sony_probe,
+	.remove           = sony_remove,
+	.report_fixup     = sony_report_fixup,
+	.raw_event        = sony_raw_event
 };
 
 static int __init sony_init(void)

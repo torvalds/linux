@@ -93,6 +93,7 @@ struct driver_data {
 struct chip_data {
 	u32 cr0;
 	u32 cr1;
+	u32 dds_rate;
 	u32 psp;
 	u32 timeout;
 	u8 n_bytes;
@@ -126,6 +127,7 @@ DEFINE_SSP_REG(SSCR1, 0x04)
 DEFINE_SSP_REG(SSSR, 0x08)
 DEFINE_SSP_REG(SSITR, 0x0c)
 DEFINE_SSP_REG(SSDR, 0x10)
+DEFINE_SSP_REG(DDS_RATE, 0x28)  /* DDS Clock Rate */
 DEFINE_SSP_REG(SSTO, 0x28)
 DEFINE_SSP_REG(SSPSP, 0x2c)
 DEFINE_SSP_REG(SSITF, SSITF)
@@ -141,18 +143,22 @@ DEFINE_SSP_REG(SSIRF, SSIRF)
 
 static inline int pxa25x_ssp_comp(struct driver_data *drv_data)
 {
-	if (drv_data->ssp_type == PXA25x_SSP)
+	switch (drv_data->ssp_type) {
+	case PXA25x_SSP:
+	case CE4100_SSP:
+	case QUARK_X1000_SSP:
 		return 1;
-	if (drv_data->ssp_type == CE4100_SSP)
-		return 1;
-	return 0;
+	default:
+		return 0;
+	}
 }
 
 static inline void write_SSSR_CS(struct driver_data *drv_data, u32 val)
 {
 	void __iomem *reg = drv_data->ioaddr;
 
-	if (drv_data->ssp_type == CE4100_SSP)
+	if (drv_data->ssp_type == CE4100_SSP ||
+	    drv_data->ssp_type == QUARK_X1000_SSP)
 		val |= read_SSSR(reg) & SSSR_ALT_FRM_MASK;
 
 	write_SSSR(val, reg);

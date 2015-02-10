@@ -23,31 +23,6 @@
 
 #include "../comedidev.h"
 
-unsigned int cfc_bytes_per_scan(struct comedi_subdevice *);
-void cfc_inc_scan_progress(struct comedi_subdevice *, unsigned int num_bytes);
-
-/* Writes an array of data points to comedi's buffer */
-unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *,
-				       void *data, unsigned int num_bytes);
-
-static inline unsigned int cfc_write_to_buffer(struct comedi_subdevice *s,
-					       unsigned short data)
-{
-	return cfc_write_array_to_buffer(s, &data, sizeof(data));
-};
-
-static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice *s,
-						    unsigned int data)
-{
-	return cfc_write_array_to_buffer(s, &data, sizeof(data));
-};
-
-unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *,
-					void *data, unsigned int num_bytes);
-
-unsigned int cfc_handle_events(struct comedi_device *,
-			       struct comedi_subdevice *);
-
 /**
  * cfc_check_trigger_src() - trivially validate a comedi_cmd trigger source
  * @src: pointer to the trigger source to validate

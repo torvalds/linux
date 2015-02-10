@@ -2056,7 +2056,7 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 	struct sk_buff *skb;
 
 	if (rd->rdesc0.RSR & (RSR_STP | RSR_EDP)) {
-		VELOCITY_PRT(MSG_LEVEL_VERBOSE, KERN_ERR " %s : the received frame span multple RDs.\n", vptr->netdev->name);
+		VELOCITY_PRT(MSG_LEVEL_VERBOSE, KERN_ERR " %s : the received frame spans multiple RDs.\n", vptr->netdev->name);
 		stats->rx_length_errors++;
 		return -EINVAL;
 	}
@@ -3281,7 +3281,6 @@ static struct platform_driver velocity_platform_driver = {
 	.remove		= velocity_platform_remove,
 	.driver = {
 		.name = "via-velocity",
-		.owner = THIS_MODULE,
 		.of_match_table = velocity_of_ids,
 		.pm = &velocity_pm_ops,
 	},

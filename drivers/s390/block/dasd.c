@@ -1377,6 +1377,20 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 				      "I/O error, retry");
 			break;
 		case -EINVAL:
+			/*
+			 * device not valid so no I/O could be running
+			 * handle CQR as termination successful
+			 */
+			cqr->status = DASD_CQR_CLEARED;
+			cqr->stopclk = get_tod_clock();
+			cqr->starttime = 0;
+			/* no retries for invalid devices */
+			cqr->retries = -1;
+			DBF_DEV_EVENT(DBF_ERR, device, "%s",
+				      "EINVAL, handle as terminated");
+			/* fake rc to success */
+			rc = 0;
+			break;
 		case -EBUSY:
 			DBF_DEV_EVENT(DBF_ERR, device, "%s",
 				      "device busy, retry later");
@@ -1660,6 +1674,14 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		device->discipline->check_for_device_change(device, cqr, irb);
 		dasd_put_device(device);
 	}
+
+	/* check for for attention message */
+	if (scsw_dstat(&irb->scsw) & DEV_STAT_ATTENTION) {
+		device = dasd_device_from_cdev_locked(cdev);
+		device->discipline->check_attention(device, irb->esw.esw1.lpum);
+		dasd_put_device(device);
+	}
+
 	if (!cqr)
 		return;
 
@@ -1675,11 +1697,8 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	if (cqr->status == DASD_CQR_CLEAR_PENDING &&
 	    scsw_fctl(&irb->scsw) & SCSW_FCTL_CLEAR_FUNC) {
 		cqr->status = DASD_CQR_CLEARED;
-		if (cqr->callback_data == DASD_SLEEPON_START_TAG)
-			cqr->callback_data = DASD_SLEEPON_END_TAG;
 		dasd_device_clear_timer(device);
 		wake_up(&dasd_flush_wq);
-		wake_up(&generic_waitq);
 		dasd_schedule_device_bh(device);
 		return;
 	}
@@ -2261,8 +2280,8 @@ static inline int _wait_for_wakeup_queue(struct list_head *ccw_queue)
 static int _dasd_sleep_on_queue(struct list_head *ccw_queue, int interruptible)
 {
 	struct dasd_device *device;
-	int rc;
 	struct dasd_ccw_req *cqr, *n;
+	int rc;
 
 retry:
 	list_for_each_entry_safe(cqr, n, ccw_queue, blocklist) {
@@ -2310,23 +2329,18 @@ retry:
 		/*
 		 * for alias devices simplify error recovery and
 		 * return to upper layer
+		 * do not skip ERP requests
 		 */
-		if (cqr->startdev != cqr->basedev &&
+		if (cqr->startdev != cqr->basedev && !cqr->refers &&
 		    (cqr->status == DASD_CQR_TERMINATED ||
 		     cqr->status == DASD_CQR_NEED_ERP))
 			return -EAGAIN;
-		else {
-			/* normal recovery for basedev IO */
-			if (__dasd_sleep_on_erp(cqr)) {
-				if (!cqr->status == DASD_CQR_TERMINATED &&
-				    !cqr->status == DASD_CQR_NEED_ERP)
-					break;
-				rc = 1;
-			}
-		}
+
+		/* normal recovery for basedev IO */
+		if (__dasd_sleep_on_erp(cqr))
+			/* handle erp first */
+			goto retry;
 	}
-	if (rc)
-		goto retry;
 
 	return 0;
 }

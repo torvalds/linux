@@ -308,7 +308,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	ret = nouveau_gem_new(dev, PAGE_SIZE, 0, NOUVEAU_GEM_DOMAIN_GART,
 			      0, 0, &chan->ntfy);
 	if (ret == 0)
-		ret = nouveau_bo_pin(chan->ntfy, TTM_PL_FLAG_TT);
+		ret = nouveau_bo_pin(chan->ntfy, TTM_PL_FLAG_TT, false);
 	if (ret)
 		goto done;
 
@@ -448,7 +448,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	list_add(&ntfy->head, &chan->notifiers);
 	ntfy->handle = info->handle;
 
-	ret = nouveau_mm_head(&chan->heap, 1, info->size, info->size, 1,
+	ret = nouveau_mm_head(&chan->heap, 0, 1, info->size, info->size, 1,
 			      &ntfy->node);
 	if (ret)
 		goto done;

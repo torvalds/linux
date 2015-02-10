@@ -510,6 +510,13 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
  */
 #define xlate_dev_kmem_ptr(p)	p
 
-#define ioport_map(port, nr)	((void __iomem *)(port))
+static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
+{
+	return (void __iomem *) port;
+}
+
+static inline void ioport_unmap(void __iomem *p)
+{
+}
 
 #endif /* _IO_H */

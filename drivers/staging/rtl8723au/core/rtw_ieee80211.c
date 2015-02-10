@@ -69,6 +69,7 @@ int rtw_get_bit_value_from_ieee_value23a(u8 val)
 		{2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108, 0};
 
 	int i = 0;
+
 	while (dot11_rate_table[i] != 0) {
 		if (dot11_rate_table[i] == val)
 			return BIT(i);
@@ -295,14 +296,13 @@ exit:
 	return ret;
 }
 
-void rtw_set_supported_rate23a(u8* SupportedRates, uint mode)
+void rtw_set_supported_rate23a(u8 *SupportedRates, uint mode)
 {
 
 
 	memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
-	switch (mode)
-	{
+	switch (mode) {
 	case WIRELESS_11B:
 		memcpy(SupportedRates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
 		break;
@@ -520,7 +520,7 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 	return ret;
 }
 
-int rtw_parse_wpa2_ie23a(const u8* rsn_ie, int rsn_ie_len, int *group_cipher,
+int rtw_parse_wpa2_ie23a(const u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 		      int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;

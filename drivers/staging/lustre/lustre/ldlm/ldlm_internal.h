@@ -91,7 +91,8 @@ static inline int ldlm_ns_empty(struct ldlm_namespace *ns)
 }
 
 void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *, ldlm_side_t);
-void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *, ldlm_side_t);
+void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *,
+					    ldlm_side_t);
 struct ldlm_namespace *ldlm_namespace_first_locked(ldlm_side_t);
 
 /* ldlm_request.c */
@@ -214,6 +215,7 @@ static inline struct ldlm_extent *
 ldlm_interval_extent(struct ldlm_interval *node)
 {
 	struct ldlm_lock *lock;
+
 	LASSERT(!list_empty(&node->li_group));
 
 	lock = list_entry(node->li_group.next, struct ldlm_lock,
@@ -244,7 +246,7 @@ typedef enum ldlm_policy_res ldlm_policy_res_t;
 									    \
 		return lprocfs_rd_uint(m, &tmp);			    \
 	}								    \
-	struct __##var##__dummy_read {;} /* semicolon catcher */
+	struct __##var##__dummy_read {; } /* semicolon catcher */
 
 #define LDLM_POOL_PROC_WRITER(var, type)				    \
 	static int lprocfs_wr_##var(struct file *file, const char *buffer,  \
@@ -266,7 +268,7 @@ typedef enum ldlm_policy_res ldlm_policy_res_t;
 									    \
 		return rc;						    \
 	}								    \
-	struct __##var##__dummy_write {;} /* semicolon catcher */
+	struct __##var##__dummy_write {; } /* semicolon catcher */
 
 static inline int is_granted_or_cancelled(struct ldlm_lock *lock)
 {

@@ -72,7 +72,6 @@ module_param(carrier_timeout, uint, 0644);
 static int netpoll_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			      struct netdev_queue *txq)
 {
-	const struct net_device_ops *ops = dev->netdev_ops;
 	int status = NETDEV_TX_OK;
 	netdev_features_t features;
 
@@ -80,8 +79,7 @@ static int netpoll_start_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	if (vlan_tx_tag_present(skb) &&
 	    !vlan_hw_offload_capable(features, skb->vlan_proto)) {
-		skb = __vlan_put_tag(skb, skb->vlan_proto,
-				     vlan_tx_tag_get(skb));
+		skb = __vlan_hwaccel_push_inside(skb);
 		if (unlikely(!skb)) {
 			/* This is actually a packet drop, but we
 			 * don't want the code that calls this
@@ -89,12 +87,9 @@ static int netpoll_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			 */
 			goto out;
 		}
-		skb->vlan_tci = 0;
 	}
 
-	status = ops->ndo_start_xmit(skb, dev);
-	if (status == NETDEV_TX_OK)
-		txq_trans_update(txq);
+	status = netdev_start_xmit(skb, dev, txq, false);
 
 out:
 	return status;
@@ -116,7 +111,7 @@ static void queue_process(struct work_struct *work)
 			continue;
 		}
 
-		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+		txq = skb_get_tx_queue(dev, skb);
 
 		local_irq_save(flags);
 		HARD_TX_LOCK(dev, txq, smp_processor_id());

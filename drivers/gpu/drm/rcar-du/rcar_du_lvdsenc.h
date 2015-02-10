@@ -1,7 +1,7 @@
 /*
  * rcar_du_lvdsenc.h  --  R-Car Display Unit LVDS Encoder
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -16,7 +16,6 @@
 
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/platform_data/rcar-du.h>
 
 struct rcar_drm_crtc;
 struct rcar_du_lvdsenc;

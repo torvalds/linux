@@ -30,6 +30,7 @@
 #include <linux/cpu.h>
 #include <linux/initrd.h>
 #include <linux/module.h>
+#include <linux/start_kernel.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -141,21 +142,9 @@ static void __init boot_flags_init(char *commands)
 				process_switch(*commands++);
 			continue;
 		}
-		if (!strncmp(commands, "mem=", 4)) {
-			/*
-			 * "mem=XXX[kKmM]" overrides the PROM-reported
-			 * memory size.
-			 */
-			cmdline_memory_size = simple_strtoul(commands + 4,
-							     &commands, 0);
-			if (*commands == 'K' || *commands == 'k') {
-				cmdline_memory_size <<= 10;
-				commands++;
-			} else if (*commands=='M' || *commands=='m') {
-				cmdline_memory_size <<= 20;
-				commands++;
-			}
-		}
+		if (!strncmp(commands, "mem=", 4))
+			cmdline_memory_size = memparse(commands + 4, &commands);
+
 		while (*commands && *commands != ' ')
 			commands++;
 	}
@@ -174,7 +163,7 @@ char reboot_command[COMMAND_LINE_SIZE];
 
 static struct pt_regs fake_swapper_regs = { { 0, }, 0, 0, 0, 0 };
 
-void __init per_cpu_patch(void)
+static void __init per_cpu_patch(void)
 {
 	struct cpuid_patch_entry *p;
 	unsigned long ver;
@@ -266,7 +255,7 @@ void sun4v_patch_2insn_range(struct sun4v_2insn_patch_entry *start,
 	}
 }
 
-void __init sun4v_patch(void)
+static void __init sun4v_patch(void)
 {
 	extern void sun4v_hvapi_init(void);
 
@@ -335,14 +324,25 @@ static void __init pause_patch(void)
 	}
 }
 
-#ifdef CONFIG_SMP
-void __init boot_cpu_id_too_large(int cpu)
+void __init start_early_boot(void)
 {
-	prom_printf("Serious problem, boot cpu id (%d) >= NR_CPUS (%d)\n",
-		    cpu, NR_CPUS);
-	prom_halt();
+	int cpu;
+
+	check_if_starfire();
+	per_cpu_patch();
+	sun4v_patch();
+
+	cpu = hard_smp_processor_id();
+	if (cpu >= NR_CPUS) {
+		prom_printf("Serious problem, boot cpu id (%d) >= NR_CPUS (%d)\n",
+			    cpu, NR_CPUS);
+		prom_halt();
+	}
+	current_thread_info()->cpu = cpu;
+
+	prom_init_report();
+	start_kernel();
 }
-#endif
 
 /* On Ultra, we support all of the v8 capabilities. */
 unsigned long sparc64_elf_hwcap = (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR |
@@ -500,12 +500,16 @@ static void __init init_sparc64_elf_hwcap(void)
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5 ||
+		    sun4v_chip_type == SUN4V_CHIP_SPARC_M6 ||
+		    sun4v_chip_type == SUN4V_CHIP_SPARC_M7 ||
 		    sun4v_chip_type == SUN4V_CHIP_SPARC64X)
 			cap |= HWCAP_SPARC_BLKINIT;
 		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5 ||
+		    sun4v_chip_type == SUN4V_CHIP_SPARC_M6 ||
+		    sun4v_chip_type == SUN4V_CHIP_SPARC_M7 ||
 		    sun4v_chip_type == SUN4V_CHIP_SPARC64X)
 			cap |= HWCAP_SPARC_N2;
 	}
@@ -533,6 +537,8 @@ static void __init init_sparc64_elf_hwcap(void)
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5 ||
+			    sun4v_chip_type == SUN4V_CHIP_SPARC_M6 ||
+			    sun4v_chip_type == SUN4V_CHIP_SPARC_M7 ||
 			    sun4v_chip_type == SUN4V_CHIP_SPARC64X)
 				cap |= (AV_SPARC_VIS | AV_SPARC_VIS2 |
 					AV_SPARC_ASI_BLK_INIT |
@@ -540,6 +546,8 @@ static void __init init_sparc64_elf_hwcap(void)
 			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5 ||
+			    sun4v_chip_type == SUN4V_CHIP_SPARC_M6 ||
+			    sun4v_chip_type == SUN4V_CHIP_SPARC_M7 ||
 			    sun4v_chip_type == SUN4V_CHIP_SPARC64X)
 				cap |= (AV_SPARC_VIS3 | AV_SPARC_HPC |
 					AV_SPARC_FMAF);

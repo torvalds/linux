@@ -581,7 +581,6 @@ static atomic_t sony_pf_users = ATOMIC_INIT(0);
 static struct platform_driver sony_pf_driver = {
 	.driver = {
 		   .name = "sony-laptop",
-		   .owner = THIS_MODULE,
 		   }
 };
 static struct platform_device *sony_pf_device;
@@ -3141,8 +3140,7 @@ static void sony_nc_backlight_setup(void)
 
 static void sony_nc_backlight_cleanup(void)
 {
-	if (sony_bl_props.dev)
-		backlight_device_unregister(sony_bl_props.dev);
+	backlight_device_unregister(sony_bl_props.dev);
 }
 
 static int sony_nc_add(struct acpi_device *device)
@@ -3717,8 +3715,7 @@ static void sony_pic_detect_device_type(struct sony_pic_dev *dev)
 	dev->event_types = type2_events;
 
 out:
-	if (pcidev)
-		pci_dev_put(pcidev);
+	pci_dev_put(pcidev);
 
 	pr_info("detected Type%d model\n",
 		dev->model == SONYPI_DEVICE_TYPE1 ? 1 :

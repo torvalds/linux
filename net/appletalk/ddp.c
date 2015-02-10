@@ -1659,7 +1659,7 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 
 	SOCK_DEBUG(sk, "SK %p: Copy user data (%Zd bytes).\n", sk, len);
 
-	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	err = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (err) {
 		kfree_skb(skb);
 		err = -EFAULT;
@@ -1758,7 +1758,7 @@ static int atalk_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 		copied = size;
 		msg->msg_flags |= MSG_TRUNC;
 	}
-	err = skb_copy_datagram_iovec(skb, offset, msg->msg_iov, copied);
+	err = skb_copy_datagram_msg(skb, offset, msg, copied);
 
 	if (!err && msg->msg_name) {
 		DECLARE_SOCKADDR(struct sockaddr_at *, sat, msg->msg_name);

@@ -2159,7 +2159,7 @@ static void gdth_next(gdth_ha_str *ha)
               case VERIFY:
               case START_STOP:
               case MODE_SENSE:
-              case SERVICE_ACTION_IN:
+              case SERVICE_ACTION_IN_16:
                 TRACE(("cache cmd %x/%x/%x/%x/%x/%x\n",nscp->cmnd[0],
                        nscp->cmnd[1],nscp->cmnd[2],nscp->cmnd[3],
                        nscp->cmnd[4],nscp->cmnd[5]));
@@ -2391,7 +2391,7 @@ static int gdth_internal_cache_cmd(gdth_ha_str *ha, Scsi_Cmnd *scp)
         gdth_copy_internal_data(ha, scp, (char*)&rdc, sizeof(gdth_rdcap_data));
         break;
 
-      case SERVICE_ACTION_IN:
+      case SERVICE_ACTION_IN_16:
         if ((scp->cmnd[1] & 0x1f) == SAI_READ_CAPACITY_16 &&
             (ha->cache_feat & GDT_64BIT)) {
             gdth_rdcap16_data rdc16;
@@ -4661,7 +4661,6 @@ static void gdth_flush(gdth_ha_str *ha)
 /* configure lun */
 static int gdth_slave_configure(struct scsi_device *sdev)
 {
-    scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
     sdev->skip_ms_page_3f = 1;
     sdev->skip_ms_page_8 = 1;
     return 0;

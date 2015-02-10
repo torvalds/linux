@@ -48,9 +48,12 @@ Required properties:
 - compatible:	Should be set to "marvell,mbus-controller".
 
 - reg:          Device's register space.
-		Two entries are expected (see the examples below):
-		the first one controls the devices decoding window and
-		the second one controls the SDRAM decoding window.
+		Two or three entries are expected (see the examples below):
+		the first one controls the devices decoding window,
+		the second one controls the SDRAM decoding window and
+		the third controls the MBus bridge (only with the
+		marvell,armada370-mbus and marvell,armadaxp-mbus
+		compatible strings)
 
 Example:
 
@@ -67,7 +70,7 @@ Example:
 
 			mbusc: mbus-controller@20000 {
 				compatible = "marvell,mbus-controller";
-				reg = <0x20000 0x100>, <0x20180 0x20>;
+				reg = <0x20000 0x100>, <0x20180 0x20>, <0x20250 0x8>;
 			};
 
 			/* more children ...*/
@@ -126,7 +129,7 @@ are skipped.
 
 			mbusc: mbus-controller@20000 {
 				compatible = "marvell,mbus-controller";
-				reg = <0x20000 0x100>, <0x20180 0x20>;
+				reg = <0x20000 0x100>, <0x20180 0x20>, <0x20250 0x8>;
 			};
 
 			/* more children ...*/
@@ -170,7 +173,7 @@ Using this macro, the above example would be:
 
 			mbusc: mbus-controller@20000 {
 				compatible = "marvell,mbus-controller";
-				reg = <0x20000 0x100>, <0x20180 0x20>;
+				reg = <0x20000 0x100>, <0x20180 0x20>, <0x20250 0x8>;
 			};
 
 			/* other children */
@@ -266,7 +269,7 @@ See the example below, where a more complete device tree is shown:
 			ranges = <0 MBUS_ID(0xf0, 0x01) 0 0x100000>;
 
 			mbusc: mbus-controller@20000 {
-				reg = <0x20000 0x100>, <0x20180 0x20>;
+				reg = <0x20000 0x100>, <0x20180 0x20>, <0x20250 0x8>;
 			};
 
 			interrupt-controller@20000 {

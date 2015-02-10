@@ -164,7 +164,7 @@ struct uv_hub_info_s {
 };
 
 DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
-#define uv_hub_info		(&__get_cpu_var(__uv_hub_info))
+#define uv_hub_info		this_cpu_ptr(&__uv_hub_info)
 #define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
 
 /*
@@ -601,16 +601,16 @@ struct uv_hub_nmi_s {
 
 struct uv_cpu_nmi_s {
 	struct uv_hub_nmi_s	*hub;
-	atomic_t		state;
-	atomic_t		pinging;
+	int			state;
+	int			pinging;
 	int			queries;
 	int			pings;
 };
 
-DECLARE_PER_CPU(struct uv_cpu_nmi_s, __uv_cpu_nmi);
-#define uv_cpu_nmi			(__get_cpu_var(__uv_cpu_nmi))
+DECLARE_PER_CPU(struct uv_cpu_nmi_s, uv_cpu_nmi);
+
 #define uv_hub_nmi			(uv_cpu_nmi.hub)
-#define uv_cpu_nmi_per(cpu)		(per_cpu(__uv_cpu_nmi, cpu))
+#define uv_cpu_nmi_per(cpu)		(per_cpu(uv_cpu_nmi, cpu))
 #define uv_hub_nmi_per(cpu)		(uv_cpu_nmi_per(cpu).hub)
 
 /* uv_cpu_nmi_states */

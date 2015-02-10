@@ -9,6 +9,8 @@ Optional properties:
 - big-endian-regs : boolean, set this for hcds with big-endian registers
 - big-endian-desc : boolean, set this for hcds with big-endian descriptors
 - big-endian : boolean, for hcds with big-endian-regs + big-endian-desc
+- no-big-frame-no : boolean, set if frame_no lives in bits [15:0] of HCCA
+- num-ports : u32, to override the detected port count
 - clocks : a list of phandle + clock specifier pairs
 - phys : phandle + phy specifier pair
 - phy-names : "usb"

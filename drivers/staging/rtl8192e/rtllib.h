@@ -1456,7 +1456,7 @@ enum eap_type {
 	EAPOL_ENCAP_ASF_ALERT
 };
 
-static const char *eap_types[] = {
+static const char * const eap_types[] = {
 	[EAP_PACKET]		= "EAP-Packet",
 	[EAPOL_START]		= "EAPOL-Start",
 	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
@@ -1473,6 +1473,7 @@ static inline u8 Frame_QoSTID(u8 *buf)
 {
 	struct rtllib_hdr_3addr *hdr;
 	u16 fc;
+
 	hdr = (struct rtllib_hdr_3addr *)buf;
 	fc = le16_to_cpu(hdr->frame_ctl);
 	return (u8)((union frameqos *)(buf + (((fc & RTLLIB_FCTL_TODS) &&
@@ -2513,7 +2514,7 @@ struct rtllib_device {
 	void (*AllowAllDestAddrHandler)(struct net_device *dev,
 					bool bAllowAllDA, bool WriteIntoReg);
 
-	void (*rtllib_ips_leave_wq) (struct net_device *dev);
+	void (*rtllib_ips_leave_wq)(struct net_device *dev);
 	void (*rtllib_ips_leave)(struct net_device *dev);
 	void (*LeisurePSLeave)(struct net_device *dev);
 	void (*rtllib_rfkill_poll)(struct net_device *dev);
@@ -2761,8 +2762,6 @@ extern void rtllib_stop_scan(struct rtllib_device *ieee);
 extern bool rtllib_act_scanning(struct rtllib_device *ieee, bool sync_scan);
 extern void rtllib_stop_scan_syncro(struct rtllib_device *ieee);
 extern void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
-extern inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee);
-extern u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee);
 extern void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee,
 					  short pwr);
 extern void rtllib_sta_wakeup(struct rtllib_device *ieee, short nl);
@@ -2943,12 +2942,12 @@ void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
 
 extern const long rtllib_wlan_frequencies[];
 
-extern inline void rtllib_increment_scans(struct rtllib_device *ieee)
+static inline void rtllib_increment_scans(struct rtllib_device *ieee)
 {
 	ieee->scans++;
 }
 
-extern inline int rtllib_get_scans(struct rtllib_device *ieee)
+static inline int rtllib_get_scans(struct rtllib_device *ieee)
 {
 	return ieee->scans;
 }
@@ -2956,25 +2955,13 @@ extern inline int rtllib_get_scans(struct rtllib_device *ieee)
 static inline const char *escape_essid(const char *essid, u8 essid_len)
 {
 	static char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
-	const char *s = essid;
-	char *d = escaped;
 
 	if (rtllib_is_empty_essid(essid, essid_len)) {
 		memcpy(escaped, "<hidden>", sizeof("<hidden>"));
 		return escaped;
 	}
 
-	essid_len = min(essid_len, (u8)IW_ESSID_MAX_SIZE);
-	while (essid_len--) {
-		if (*s == '\0') {
-			*d++ = '\\';
-			*d++ = '0';
-			s++;
-		} else {
-			*d++ = *s++;
-		}
-	}
-	*d = '\0';
+	snprintf(escaped, sizeof(escaped), "%*pEn", essid_len, essid);
 	return escaped;
 }
 

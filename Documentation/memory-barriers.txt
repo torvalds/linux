@@ -121,22 +121,22 @@ For example, consider the following sequence of events:
 The set of accesses as seen by the memory system in the middle can be arranged
 in 24 different combinations:
 
-	STORE A=3,	STORE B=4,	x=LOAD A->3,	y=LOAD B->4
-	STORE A=3,	STORE B=4,	y=LOAD B->4,	x=LOAD A->3
-	STORE A=3,	x=LOAD A->3,	STORE B=4,	y=LOAD B->4
-	STORE A=3,	x=LOAD A->3,	y=LOAD B->2,	STORE B=4
-	STORE A=3,	y=LOAD B->2,	STORE B=4,	x=LOAD A->3
-	STORE A=3,	y=LOAD B->2,	x=LOAD A->3,	STORE B=4
-	STORE B=4,	STORE A=3,	x=LOAD A->3,	y=LOAD B->4
+	STORE A=3,	STORE B=4,	y=LOAD A->3,	x=LOAD B->4
+	STORE A=3,	STORE B=4,	x=LOAD B->4,	y=LOAD A->3
+	STORE A=3,	y=LOAD A->3,	STORE B=4,	x=LOAD B->4
+	STORE A=3,	y=LOAD A->3,	x=LOAD B->2,	STORE B=4
+	STORE A=3,	x=LOAD B->2,	STORE B=4,	y=LOAD A->3
+	STORE A=3,	x=LOAD B->2,	y=LOAD A->3,	STORE B=4
+	STORE B=4,	STORE A=3,	y=LOAD A->3,	x=LOAD B->4
 	STORE B=4, ...
 	...
 
 and can thus result in four different combinations of values:
 
-	x == 1, y == 2
-	x == 1, y == 4
-	x == 3, y == 2
-	x == 3, y == 4
+	x == 2, y == 1
+	x == 2, y == 3
+	x == 4, y == 1
+	x == 4, y == 3
 
 
 Furthermore, the stores committed by a CPU to the memory system may not be
@@ -574,30 +574,14 @@ However, stores are not speculated.  This means that ordering -is- provided
 in the following example:
 
 	q = ACCESS_ONCE(a);
-	if (ACCESS_ONCE(q)) {
+	if (q) {
 		ACCESS_ONCE(b) = p;
 	}
 
-Please note that ACCESS_ONCE() is not optional!  Without the ACCESS_ONCE(),
-the compiler is within its rights to transform this example:
-
-	q = a;
-	if (q) {
-		b = p;  /* BUG: Compiler can reorder!!! */
-		do_something();
-	} else {
-		b = p;  /* BUG: Compiler can reorder!!! */
-		do_something_else();
-	}
-
-into this, which of course defeats the ordering:
-
-	b = p;
-	q = a;
-	if (q)
-		do_something();
-	else
-		do_something_else();
+Please note that ACCESS_ONCE() is not optional!  Without the
+ACCESS_ONCE(), might combine the load from 'a' with other loads from
+'a', and the store to 'b' with other stores to 'b', with possible highly
+counterintuitive effects on ordering.
 
 Worse yet, if the compiler is able to prove (say) that the value of
 variable 'a' is always non-zero, it would be well within its rights
@@ -605,11 +589,12 @@ to optimize the original example by eliminating the "if" statement
 as follows:
 
 	q = a;
-	b = p;  /* BUG: Compiler can reorder!!! */
-	do_something();
+	b = p;  /* BUG: Compiler and CPU can both reorder!!! */
 
-The solution is again ACCESS_ONCE() and barrier(), which preserves the
-ordering between the load from variable 'a' and the store to variable 'b':
+So don't leave out the ACCESS_ONCE().
+
+It is tempting to try to enforce ordering on identical stores on both
+branches of the "if" statement as follows:
 
 	q = ACCESS_ONCE(a);
 	if (q) {
@@ -622,18 +607,11 @@ ordering between the load from variable 'a' and the store to variable 'b':
 		do_something_else();
 	}
 
-The initial ACCESS_ONCE() is required to prevent the compiler from
-proving the value of 'a', and the pair of barrier() invocations are
-required to prevent the compiler from pulling the two identical stores
-to 'b' out from the legs of the "if" statement.
-
-It is important to note that control dependencies absolutely require a
-a conditional.  For example, the following "optimized" version of
-the above example breaks ordering, which is why the barrier() invocations
-are absolutely required if you have identical stores in both legs of
-the "if" statement:
+Unfortunately, current compilers will transform this as follows at high
+optimization levels:
 
 	q = ACCESS_ONCE(a);
+	barrier();
 	ACCESS_ONCE(b) = p;  /* BUG: No ordering vs. load from a!!! */
 	if (q) {
 		/* ACCESS_ONCE(b) = p; -- moved up, BUG!!! */
@@ -643,21 +621,36 @@ the "if" statement:
 		do_something_else();
 	}
 
-It is of course legal for the prior load to be part of the conditional,
-for example, as follows:
+Now there is no conditional between the load from 'a' and the store to
+'b', which means that the CPU is within its rights to reorder them:
+The conditional is absolutely required, and must be present in the
+assembly code even after all compiler optimizations have been applied.
+Therefore, if you need ordering in this example, you need explicit
+memory barriers, for example, smp_store_release():
 
-	if (ACCESS_ONCE(a) > 0) {
-		barrier();
-		ACCESS_ONCE(b) = q / 2;
+	q = ACCESS_ONCE(a);
+	if (q) {
+		smp_store_release(&b, p);
 		do_something();
 	} else {
-		barrier();
-		ACCESS_ONCE(b) = q / 3;
+		smp_store_release(&b, p);
 		do_something_else();
 	}
 
-This will again ensure that the load from variable 'a' is ordered before the
-stores to variable 'b'.
+In contrast, without explicit memory barriers, two-legged-if control
+ordering is guaranteed only when the stores differ, for example:
+
+	q = ACCESS_ONCE(a);
+	if (q) {
+		ACCESS_ONCE(b) = p;
+		do_something();
+	} else {
+		ACCESS_ONCE(b) = r;
+		do_something_else();
+	}
+
+The initial ACCESS_ONCE() is still required to prevent the compiler from
+proving the value of 'a'.
 
 In addition, you need to be careful what you do with the local variable 'q',
 otherwise the compiler might be able to guess the value and again remove
@@ -665,12 +658,10 @@ the needed conditional.  For example:
 
 	q = ACCESS_ONCE(a);
 	if (q % MAX) {
-		barrier();
 		ACCESS_ONCE(b) = p;
 		do_something();
 	} else {
-		barrier();
-		ACCESS_ONCE(b) = p;
+		ACCESS_ONCE(b) = r;
 		do_something_else();
 	}
 
@@ -682,9 +673,12 @@ transform the above code into the following:
 	ACCESS_ONCE(b) = p;
 	do_something_else();
 
-This transformation loses the ordering between the load from variable 'a'
-and the store to variable 'b'.  If you are relying on this ordering, you
-should do something like the following:
+Given this transformation, the CPU is not required to respect the ordering
+between the load from variable 'a' and the store to variable 'b'.  It is
+tempting to add a barrier(), but this does not help.  The conditional
+is gone, and the barrier won't bring it back.  Therefore, if you are
+relying on this ordering, you should make sure that MAX is greater than
+one, perhaps as follows:
 
 	q = ACCESS_ONCE(a);
 	BUILD_BUG_ON(MAX <= 1); /* Order load from a with store to b. */
@@ -692,35 +686,63 @@ should do something like the following:
 		ACCESS_ONCE(b) = p;
 		do_something();
 	} else {
-		ACCESS_ONCE(b) = p;
+		ACCESS_ONCE(b) = r;
 		do_something_else();
 	}
 
+Please note once again that the stores to 'b' differ.  If they were
+identical, as noted earlier, the compiler could pull this store outside
+of the 'if' statement.
+
+You must also be careful not to rely too much on boolean short-circuit
+evaluation.  Consider this example:
+
+	q = ACCESS_ONCE(a);
+	if (a || 1 > 0)
+		ACCESS_ONCE(b) = 1;
+
+Because the second condition is always true, the compiler can transform
+this example as following, defeating control dependency:
+
+	q = ACCESS_ONCE(a);
+	ACCESS_ONCE(b) = 1;
+
+This example underscores the need to ensure that the compiler cannot
+out-guess your code.  More generally, although ACCESS_ONCE() does force
+the compiler to actually emit code for a given load, it does not force
+the compiler to use the results.
+
 Finally, control dependencies do -not- provide transitivity.  This is
-demonstrated by two related examples:
+demonstrated by two related examples, with the initial values of
+x and y both being zero:
 
 	CPU 0                     CPU 1
 	=====================     =====================
 	r1 = ACCESS_ONCE(x);      r2 = ACCESS_ONCE(y);
-	if (r1 >= 0)              if (r2 >= 0)
+	if (r1 > 0)               if (r2 > 0)
 	  ACCESS_ONCE(y) = 1;       ACCESS_ONCE(x) = 1;
 
 	assert(!(r1 == 1 && r2 == 1));
 
 The above two-CPU example will never trigger the assert().  However,
 if control dependencies guaranteed transitivity (which they do not),
-then adding the following two CPUs would guarantee a related assertion:
+then adding the following CPU would guarantee a related assertion:
 
-	CPU 2                     CPU 3
-	=====================     =====================
-	ACCESS_ONCE(x) = 2;       ACCESS_ONCE(y) = 2;
+	CPU 2
+	=====================
+	ACCESS_ONCE(x) = 2;
 
-	assert(!(r1 == 2 && r2 == 2 && x == 1 && y == 1)); /* FAILS!!! */
+	assert(!(r1 == 2 && r2 == 1 && x == 2)); /* FAILS!!! */
 
-But because control dependencies do -not- provide transitivity, the
-above assertion can fail after the combined four-CPU example completes.
-If you need the four-CPU example to provide ordering, you will need
-smp_mb() between the loads and stores in the CPU 0 and CPU 1 code fragments.
+But because control dependencies do -not- provide transitivity, the above
+assertion can fail after the combined three-CPU example completes.  If you
+need the three-CPU example to provide ordering, you will need smp_mb()
+between the loads and stores in the CPU 0 and CPU 1 code fragments,
+that is, just before or just after the "if" statements.
+
+These two examples are the LB and WWC litmus tests from this paper:
+http://www.cl.cam.ac.uk/users/pes20/ppc-supplemental/test6.pdf and this
+site: https://www.cl.cam.ac.uk/~pes20/ppcmem/index.html.
 
 In summary:
 
@@ -1611,6 +1633,48 @@ There are some more advanced barrier functions:
      operations" subsection for information on where to use these.
 
 
+ (*) dma_wmb();
+ (*) dma_rmb();
+
+     These are for use with consistent memory to guarantee the ordering
+     of writes or reads of shared memory accessible to both the CPU and a
+     DMA capable device.
+
+     For example, consider a device driver that shares memory with a device
+     and uses a descriptor status value to indicate if the descriptor belongs
+     to the device or the CPU, and a doorbell to notify it when new
+     descriptors are available:
+
+	if (desc->status != DEVICE_OWN) {
+		/* do not read data until we own descriptor */
+		dma_rmb();
+
+		/* read/modify data */
+		read_data = desc->data;
+		desc->data = write_data;
+
+		/* flush modifications before status update */
+		dma_wmb();
+
+		/* assign ownership */
+		desc->status = DEVICE_OWN;
+
+		/* force memory to sync before notifying device via MMIO */
+		wmb();
+
+		/* notify device of new descriptors */
+		writel(DESC_NOTIFY, doorbell);
+	}
+
+     The dma_rmb() allows us guarantee the device has released ownership
+     before we read the data from the descriptor, and he dma_wmb() allows
+     us to guarantee the data is written to the descriptor before the device
+     can see it now has ownership.  The wmb() is needed to guarantee that the
+     cache coherent memory writes have completed before attempting a write to
+     the cache incoherent MMIO region.
+
+     See Documentation/DMA-API.txt for more information on consistent memory.
+
 MMIO WRITE BARRIER
 ------------------
 
@@ -2461,10 +2525,15 @@ functions:
      Please refer to the PCI specification for more information on interactions
      between PCI transactions.
 
- (*) readX_relaxed()
+ (*) readX_relaxed(), writeX_relaxed()
 
-     These are similar to readX(), but are not guaranteed to be ordered in any
-     way. Be aware that there is no I/O read barrier available.
+     These are similar to readX() and writeX(), but provide weaker memory
+     ordering guarantees. Specifically, they do not guarantee ordering with
+     respect to normal memory accesses (e.g. DMA buffers) nor do they guarantee
+     ordering with respect to LOCK or UNLOCK operations. If the latter is
+     required, an mmiowb() barrier can be used. Note that relaxed accesses to
+     the same peripheral are guaranteed to be ordered with respect to each
+     other.
 
  (*) ioreadX(), iowriteX()
 

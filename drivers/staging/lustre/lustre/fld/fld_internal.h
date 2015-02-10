@@ -167,7 +167,7 @@ void fld_cache_delete(struct fld_cache *cache,
 void fld_cache_delete_nolock(struct fld_cache *cache,
 			     const struct lu_seq_range *range);
 int fld_cache_lookup(struct fld_cache *cache,
-		     const seqno_t seq, struct lu_seq_range *range);
+		     const u64 seq, struct lu_seq_range *range);
 
 struct fld_cache_entry*
 fld_cache_entry_lookup(struct fld_cache *cache, struct lu_seq_range *range);

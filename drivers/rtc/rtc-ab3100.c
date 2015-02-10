@@ -243,7 +243,6 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 static struct platform_driver ab3100_rtc_driver = {
 	.driver = {
 		.name = "ab3100-rtc",
-		.owner = THIS_MODULE,
 	},
 };
 

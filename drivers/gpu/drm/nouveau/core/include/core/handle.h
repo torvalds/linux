@@ -23,11 +23,6 @@ void nouveau_handle_destroy(struct nouveau_handle *);
 int  nouveau_handle_init(struct nouveau_handle *);
 int  nouveau_handle_fini(struct nouveau_handle *, bool suspend);
 
-int  nouveau_handle_new(struct nouveau_object *, u32 parent, u32 handle,
-			u16 oclass, void *data, u32 size,
-			struct nouveau_object **);
-int  nouveau_handle_del(struct nouveau_object *, u32 parent, u32 handle);
-
 struct nouveau_object *
 nouveau_handle_ref(struct nouveau_object *, u32 name);
 

@@ -1587,7 +1587,7 @@ static int tegra_dma_pm_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops tegra_dma_dev_pm_ops = {
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	.runtime_suspend = tegra_dma_runtime_suspend,
 	.runtime_resume = tegra_dma_runtime_resume,
 #endif
@@ -1597,7 +1597,6 @@ static const struct dev_pm_ops tegra_dma_dev_pm_ops = {
 static struct platform_driver tegra_dmac_driver = {
 	.driver = {
 		.name	= "tegra-apbdma",
-		.owner = THIS_MODULE,
 		.pm	= &tegra_dma_dev_pm_ops,
 		.of_match_table = tegra_dma_of_match,
 	},

@@ -294,11 +294,18 @@ int __weak arch_dup_task_struct(struct task_struct *dst,
 	return 0;
 }
 
+void set_task_stack_end_magic(struct task_struct *tsk)
+{
+	unsigned long *stackend;
+
+	stackend = end_of_stack(tsk);
+	*stackend = STACK_END_MAGIC;	/* for overflow detection */
+}
+
 static struct task_struct *dup_task_struct(struct task_struct *orig)
 {
 	struct task_struct *tsk;
 	struct thread_info *ti;
-	unsigned long *stackend;
 	int node = tsk_fork_get_node(orig);
 	int err;
 
@@ -328,8 +335,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	setup_thread_stack(tsk, orig);
 	clear_user_return_notifier(tsk);
 	clear_tsk_need_resched(tsk);
-	stackend = end_of_stack(tsk);
-	*stackend = STACK_END_MAGIC;	/* for overflow detection */
+	set_task_stack_end_magic(tsk);
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 	tsk->stack_canary = get_random_int();
@@ -427,7 +433,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 			get_file(file);
 			if (tmp->vm_flags & VM_DENYWRITE)
 				atomic_dec(&inode->i_writecount);
-			mutex_lock(&mapping->i_mmap_mutex);
+			i_mmap_lock_write(mapping);
 			if (tmp->vm_flags & VM_SHARED)
 				atomic_inc(&mapping->i_mmap_writable);
 			flush_dcache_mmap_lock(mapping);
@@ -439,7 +445,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 				vma_interval_tree_insert_after(tmp, mpnt,
 							&mapping->i_mmap);
 			flush_dcache_mmap_unlock(mapping);
-			mutex_unlock(&mapping->i_mmap_mutex);
+			i_mmap_unlock_write(mapping);
 		}
 
 		/*
@@ -601,9 +607,8 @@ static void check_mm(struct mm_struct *mm)
 			printk(KERN_ALERT "BUG: Bad rss-counter state "
 					  "mm:%p idx:%d val:%ld\n", mm, i, x);
 	}
-
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
-	VM_BUG_ON(mm->pmd_huge_pte);
+	VM_BUG_ON_MM(mm->pmd_huge_pte, mm);
 #endif
 }
 
@@ -1017,10 +1022,13 @@ void __cleanup_sighand(struct sighand_struct *sighand)
 {
 	if (atomic_dec_and_test(&sighand->count)) {
 		signalfd_cleanup(sighand);
+		/*
+		 * sighand_cachep is SLAB_DESTROY_BY_RCU so we can free it
+		 * without an RCU grace period, see __lock_task_sighand().
+		 */
 		kmem_cache_free(sighand_cachep, sighand);
 	}
 }
-
 
 /*
  * Initialize POSIX timer handling for a thread group.
@@ -1068,6 +1076,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->curr_target = tsk;
 	init_sigpending(&sig->shared_pending);
 	INIT_LIST_HEAD(&sig->posix_timers);
+	seqlock_init(&sig->stats_lock);
 
 	hrtimer_init(&sig->real_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	sig->real_timer.function = it_real_fn;

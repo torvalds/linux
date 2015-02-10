@@ -16,7 +16,7 @@
 #ifndef __VBUSDEVICEINFO_H__
 #define __VBUSDEVICEINFO_H__
 
-#include "commontypes.h"
+#include <linux/types.h>
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 
@@ -25,13 +25,13 @@
  * It is filled in by the client side to provide info about the device
  * and driver from the client's perspective.
  */
-typedef struct _ULTRA_VBUS_DEVICEINFO {
-	u8 devType[16];		/* short string identifying the device type */
-	u8 drvName[16];		/* driver .sys file name */
-	u8 infoStrings[96];	/* sequence of tab-delimited id strings: */
+struct ultra_vbus_deviceinfo {
+	u8 devtype[16];		/* short string identifying the device type */
+	u8 drvname[16];		/* driver .sys file name */
+	u8 infostrs[96];	/* sequence of tab-delimited id strings: */
 	/* <DRIVER_REV> <DRIVER_VERTAG> <DRIVER_COMPILETIME> */
 	u8 reserved[128];	/* pad size to 256 bytes */
-} ULTRA_VBUS_DEVICEINFO;
+};
 
 #pragma pack(pop)
 
@@ -54,6 +54,7 @@ vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 {
 	int chars = 0;
 	int nonprintable_streak = 0;
+
 	while (srcmax > 0) {
 		if ((*src >= ' ') && (*src < 0x7f)) {
 			if (nonprintable_streak) {
@@ -62,8 +63,9 @@ vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 					p++;
 					remain--;
 					chars++;
-				} else if (p == NULL)
+				} else if (p == NULL) {
 					chars++;
+				}
 				nonprintable_streak = 0;
 			}
 			if (remain > 0) {
@@ -71,10 +73,12 @@ vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 				p++;
 				remain--;
 				chars++;
-			} else if (p == NULL)
+			} else if (p == NULL) {
 				chars++;
-		} else
+			}
+		} else {
 			nonprintable_streak = 1;
+		}
 		src++;
 		srcmax--;
 	}
@@ -114,7 +118,7 @@ vbuschannel_itoa(char *p, int remain, int num)
 	}
 	/* form a backwards decimal ascii string in <s> */
 	while (num > 0) {
-		if (digits >= (int) sizeof(s))
+		if (digits >= (int)sizeof(s))
 			return 0;
 		s[digits++] = (num % 10) + '0';
 		num = num / 10;
@@ -146,15 +150,15 @@ vbuschannel_itoa(char *p, int remain, int num)
  * Returns the number of bytes written to <p>.
  */
 static inline int
-vbuschannel_devinfo_to_string(ULTRA_VBUS_DEVICEINFO *devinfo,
-				  char *p, int remain, int devix)
+vbuschannel_devinfo_to_string(struct ultra_vbus_deviceinfo *devinfo,
+			      char *p, int remain, int devix)
 {
 	char *psrc;
 	int nsrc, x, i, pad;
 	int chars = 0;
 
-	psrc = &(devinfo->devType[0]);
-	nsrc = sizeof(devinfo->devType);
+	psrc = &devinfo->devtype[0];
+	nsrc = sizeof(devinfo->devtype);
 	if (vbuschannel_sanitize_buffer(NULL, 0, psrc, nsrc) <= 0)
 		return 0;
 
@@ -183,8 +187,8 @@ vbuschannel_devinfo_to_string(ULTRA_VBUS_DEVICEINFO *devinfo,
 	VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
 
 	/* emit driver name */
-	psrc = &(devinfo->drvName[0]);
-	nsrc = sizeof(devinfo->drvName);
+	psrc = &devinfo->drvname[0];
+	nsrc = sizeof(devinfo->drvname);
 	x = vbuschannel_sanitize_buffer(p, remain, psrc, nsrc);
 	p += x;
 	remain -= x;
@@ -195,8 +199,8 @@ vbuschannel_devinfo_to_string(ULTRA_VBUS_DEVICEINFO *devinfo,
 	VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
 
 	/* emit strings */
-	psrc = &(devinfo->infoStrings[0]);
-	nsrc = sizeof(devinfo->infoStrings);
+	psrc = &devinfo->infostrs[0];
+	nsrc = sizeof(devinfo->infostrs);
 	x = vbuschannel_sanitize_buffer(p, remain, psrc, nsrc);
 	p += x;
 	remain -= x;

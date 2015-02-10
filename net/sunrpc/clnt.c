@@ -42,7 +42,7 @@
 #include "sunrpc.h"
 #include "netns.h"
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_CALL
 #endif
 
@@ -305,6 +305,10 @@ static int rpc_client_register(struct rpc_clnt *clnt,
 	struct super_block *pipefs_sb;
 	int err;
 
+	err = rpc_clnt_debugfs_register(clnt);
+	if (err)
+		return err;
+
 	pipefs_sb = rpc_get_sb_net(net);
 	if (pipefs_sb) {
 		err = rpc_setup_pipedir(pipefs_sb, clnt);
@@ -331,6 +335,7 @@ err_auth:
 out:
 	if (pipefs_sb)
 		rpc_put_sb_net(net);
+	rpc_clnt_debugfs_unregister(clnt);
 	return err;
 }
 
@@ -461,6 +466,8 @@ struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 
 	if (args->flags & RPC_CLNT_CREATE_AUTOBIND)
 		clnt->cl_autobind = 1;
+	if (args->flags & RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT)
+		clnt->cl_noretranstimeo = 1;
 	if (args->flags & RPC_CLNT_CREATE_DISCRTRY)
 		clnt->cl_discrtry = 1;
 	if (!(args->flags & RPC_CLNT_CREATE_QUIET))
@@ -579,6 +586,7 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
 	new->cl_softrtry = clnt->cl_softrtry;
+	new->cl_noretranstimeo = clnt->cl_noretranstimeo;
 	new->cl_discrtry = clnt->cl_discrtry;
 	new->cl_chatty = clnt->cl_chatty;
 	return new;
@@ -667,6 +675,7 @@ int rpc_switch_client_transport(struct rpc_clnt *clnt,
 
 	rpc_unregister_client(clnt);
 	__rpc_clnt_remove_pipedir(clnt);
+	rpc_clnt_debugfs_unregister(clnt);
 
 	/*
 	 * A new transport was created.  "clnt" therefore
@@ -768,6 +777,7 @@ rpc_free_client(struct rpc_clnt *clnt)
 			rcu_dereference(clnt->cl_xprt)->servername);
 	if (clnt->cl_parent != clnt)
 		parent = clnt->cl_parent;
+	rpc_clnt_debugfs_unregister(clnt);
 	rpc_clnt_remove_pipedir(clnt);
 	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
@@ -1393,8 +1403,9 @@ rpc_restart_call(struct rpc_task *task)
 }
 EXPORT_SYMBOL_GPL(rpc_restart_call);
 
-#ifdef RPC_DEBUG
-static const char *rpc_proc_name(const struct rpc_task *task)
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+const char
+*rpc_proc_name(const struct rpc_task *task)
 {
 	const struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
 
@@ -1913,6 +1924,7 @@ call_transmit_status(struct rpc_task *task)
 	case -EHOSTDOWN:
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
+	case -EPERM:
 		if (RPC_IS_SOFTCONN(task)) {
 			xprt_end_transmit(task);
 			rpc_exit(task, task->tk_status);
@@ -2018,6 +2030,7 @@ call_status(struct rpc_task *task)
 	case -EHOSTDOWN:
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
+	case -EPERM:
 		if (RPC_IS_SOFTCONN(task)) {
 			rpc_exit(task, status);
 			break;
@@ -2416,7 +2429,7 @@ struct rpc_task *rpc_call_null(struct rpc_clnt *clnt, struct rpc_cred *cred, int
 }
 EXPORT_SYMBOL_GPL(rpc_call_null);
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 static void rpc_show_header(void)
 {
 	printk(KERN_INFO "-pid- flgs status -client- --rqstp- "

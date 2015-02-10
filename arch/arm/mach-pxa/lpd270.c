@@ -416,17 +416,17 @@ static struct pxafb_mach_info *lpd270_lcd_to_use;
 
 static int __init lpd270_set_lcd(char *str)
 {
-	if (!strnicmp(str, "lq057q3dc02", 11)) {
+	if (!strncasecmp(str, "lq057q3dc02", 11)) {
 		lpd270_lcd_to_use = &sharp_lq057q3dc02;
-	} else if (!strnicmp(str, "lq121s1dg31", 11)) {
+	} else if (!strncasecmp(str, "lq121s1dg31", 11)) {
 		lpd270_lcd_to_use = &sharp_lq121s1dg31;
-	} else if (!strnicmp(str, "lq036q1da01", 11)) {
+	} else if (!strncasecmp(str, "lq036q1da01", 11)) {
 		lpd270_lcd_to_use = &sharp_lq036q1da01;
-	} else if (!strnicmp(str, "lq64d343", 8)) {
+	} else if (!strncasecmp(str, "lq64d343", 8)) {
 		lpd270_lcd_to_use = &sharp_lq64d343;
-	} else if (!strnicmp(str, "lq10d368", 8)) {
+	} else if (!strncasecmp(str, "lq10d368", 8)) {
 		lpd270_lcd_to_use = &sharp_lq10d368;
-	} else if (!strnicmp(str, "lq035q7db02-20", 14)) {
+	} else if (!strncasecmp(str, "lq035q7db02-20", 14)) {
 		lpd270_lcd_to_use = &sharp_lq035q7db02_20;
 	} else {
 		printk(KERN_INFO "lpd270: unknown lcd panel [%s]\n", str);

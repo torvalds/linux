@@ -26,7 +26,6 @@ struct hdmi_bridge {
 static void hdmi_bridge_destroy(struct drm_bridge *bridge)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
-	hdmi_unreference(hdmi_bridge->hdmi);
 	drm_bridge_cleanup(bridge);
 	kfree(hdmi_bridge);
 }
@@ -218,7 +217,7 @@ struct drm_bridge *hdmi_bridge_init(struct hdmi *hdmi)
 		goto fail;
 	}
 
-	hdmi_bridge->hdmi = hdmi_reference(hdmi);
+	hdmi_bridge->hdmi = hdmi;
 
 	bridge = &hdmi_bridge->base;
 

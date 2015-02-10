@@ -885,6 +885,7 @@ static int mpc_dma_probe(struct platform_device *op)
 	struct resource res;
 	ulong regs_start, regs_size;
 	int retval, i;
+	u8 chancnt;
 
 	mdma = devm_kzalloc(dev, sizeof(struct mpc_dma), GFP_KERNEL);
 	if (!mdma) {
@@ -956,10 +957,6 @@ static int mpc_dma_probe(struct platform_device *op)
 
 	dma = &mdma->dma;
 	dma->dev = dev;
-	if (mdma->is_mpc8308)
-		dma->chancnt = MPC8308_DMACHAN_MAX;
-	else
-		dma->chancnt = MPC512x_DMACHAN_MAX;
 	dma->device_alloc_chan_resources = mpc_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = mpc_dma_free_chan_resources;
 	dma->device_issue_pending = mpc_dma_issue_pending;
@@ -972,7 +969,12 @@ static int mpc_dma_probe(struct platform_device *op)
 	dma_cap_set(DMA_MEMCPY, dma->cap_mask);
 	dma_cap_set(DMA_SLAVE, dma->cap_mask);
 
-	for (i = 0; i < dma->chancnt; i++) {
+	if (mdma->is_mpc8308)
+		chancnt = MPC8308_DMACHAN_MAX;
+	else
+		chancnt = MPC512x_DMACHAN_MAX;
+
+	for (i = 0; i < chancnt; i++) {
 		mchan = &mdma->channels[i];
 
 		mchan->chan.device = dma;
@@ -1090,7 +1092,6 @@ static struct platform_driver mpc_dma_driver = {
 	.remove		= mpc_dma_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table	= mpc_dma_match,
 	},
 };

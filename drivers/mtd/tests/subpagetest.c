@@ -57,7 +57,7 @@ static int write_eraseblock(int ebnum)
 {
 	size_t written;
 	int err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	prandom_bytes_state(&rnd_state, writebuf, subpgsize);
 	err = mtd_write(mtd, addr, subpgsize, &written, writebuf);
@@ -92,7 +92,7 @@ static int write_eraseblock2(int ebnum)
 {
 	size_t written;
 	int err = 0, k;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	for (k = 1; k < 33; ++k) {
 		if (addr + (subpgsize * k) > (ebnum + 1) * mtd->erasesize)
@@ -131,7 +131,7 @@ static int verify_eraseblock(int ebnum)
 {
 	size_t read;
 	int err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	prandom_bytes_state(&rnd_state, writebuf, subpgsize);
 	clear_data(readbuf, subpgsize);
@@ -192,7 +192,7 @@ static int verify_eraseblock2(int ebnum)
 {
 	size_t read;
 	int err = 0, k;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	for (k = 1; k < 33; ++k) {
 		if (addr + (subpgsize * k) > (ebnum + 1) * mtd->erasesize)
@@ -227,7 +227,7 @@ static int verify_eraseblock_ff(int ebnum)
 	uint32_t j;
 	size_t read;
 	int err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	memset(writebuf, 0xff, subpgsize);
 	for (j = 0; j < mtd->erasesize / subpgsize; ++j) {

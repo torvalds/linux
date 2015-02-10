@@ -123,7 +123,6 @@ static struct platform_driver keystone_usbphy_driver = {
 	.remove         = keystone_usbphy_remove,
 	.driver         = {
 		.name   = "keystone-usbphy",
-		.owner  = THIS_MODULE,
 		.of_match_table = keystone_usbphy_ids,
 	},
 };

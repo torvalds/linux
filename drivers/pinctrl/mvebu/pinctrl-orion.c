@@ -247,7 +247,6 @@ static int orion_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver orion_pinctrl_driver = {
 	.driver = {
 		.name = "orion-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(orion_pinctrl_of_match),
 	},
 	.probe = orion_pinctrl_probe,

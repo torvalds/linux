@@ -341,7 +341,6 @@ static struct platform_driver da9063_rtc_driver = {
 	.probe		= da9063_rtc_probe,
 	.driver		= {
 		.name	= DA9063_DRVNAME_RTC,
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -835,7 +835,6 @@ static struct snd_soc_dai_driver wm8961_dai = {
 
 static int wm8961_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	u16 reg;
 
 	/* Enable class W */
@@ -871,50 +870,33 @@ static int wm8961_probe(struct snd_soc_codec *codec)
 	reg &= ~WM8961_MANUAL_MODE;
 	snd_soc_write(codec, WM8961_CLOCKING_3, reg);
 
-	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	snd_soc_add_codec_controls(codec, wm8961_snd_controls,
-				ARRAY_SIZE(wm8961_snd_controls));
-	snd_soc_dapm_new_controls(dapm, wm8961_dapm_widgets,
-				  ARRAY_SIZE(wm8961_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_paths, ARRAY_SIZE(audio_paths));
-
-	return 0;
-}
-
-static int wm8961_remove(struct snd_soc_codec *codec)
-{
-	wm8961_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int wm8961_suspend(struct snd_soc_codec *codec)
-{
-	wm8961_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
 
 static int wm8961_resume(struct snd_soc_codec *codec)
 {
 	snd_soc_cache_sync(codec);
 
-	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 #else
-#define wm8961_suspend NULL
 #define wm8961_resume NULL
 #endif
 
 static struct snd_soc_codec_driver soc_codec_dev_wm8961 = {
 	.probe =	wm8961_probe,
-	.remove =	wm8961_remove,
-	.suspend =	wm8961_suspend,
 	.resume =	wm8961_resume,
 	.set_bias_level = wm8961_set_bias_level,
+	.suspend_bias_off = true,
+
+	.controls = wm8961_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8961_snd_controls),
+	.dapm_widgets = wm8961_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8961_dapm_widgets),
+	.dapm_routes = audio_paths,
+	.num_dapm_routes = ARRAY_SIZE(audio_paths),
 };
 
 static const struct regmap_config wm8961_regmap = {

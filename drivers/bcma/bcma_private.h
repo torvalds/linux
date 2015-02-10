@@ -24,6 +24,7 @@ struct bcma_bus;
 /* main.c */
 bool bcma_wait_value(struct bcma_device *core, u16 reg, u32 mask, u32 value,
 		     int timeout);
+void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core);
 int bcma_bus_register(struct bcma_bus *bus);
 void bcma_bus_unregister(struct bcma_bus *bus);
 int __init bcma_bus_early_register(struct bcma_bus *bus,
@@ -49,6 +50,10 @@ int bcma_sprom_get(struct bcma_bus *bus);
 void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
 extern struct platform_device bcma_pflash_dev;
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
+
+/* driver_chipcommon_b.c */
+int bcma_core_chipcommon_b_init(struct bcma_drv_cc_b *ccb);
+void bcma_core_chipcommon_b_free(struct bcma_drv_cc_b *ccb);
 
 /* driver_chipcommon_pmu.c */
 u32 bcma_pmu_get_alp_clock(struct bcma_drv_cc *cc);
@@ -83,6 +88,20 @@ static inline int bcma_nflash_init(struct bcma_drv_cc *cc)
 extern int __init bcma_host_pci_init(void);
 extern void __exit bcma_host_pci_exit(void);
 #endif /* CONFIG_BCMA_HOST_PCI */
+
+/* host_soc.c */
+#if defined(CONFIG_BCMA_HOST_SOC) && defined(CONFIG_OF)
+extern int __init bcma_host_soc_register_driver(void);
+extern void __exit bcma_host_soc_unregister_driver(void);
+#else
+static inline int __init bcma_host_soc_register_driver(void)
+{
+	return 0;
+}
+static inline void __exit bcma_host_soc_unregister_driver(void)
+{
+}
+#endif /* CONFIG_BCMA_HOST_SOC && CONFIG_OF */
 
 /* driver_pci.c */
 u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);

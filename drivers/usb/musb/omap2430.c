@@ -65,15 +65,15 @@ static void musb_do_idle(unsigned long _musb)
 
 	spin_lock_irqsave(&musb->lock, flags);
 
-	switch (musb->xceiv->state) {
+	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_WAIT_BCON:
 
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 		if (devctl & MUSB_DEVCTL_BDEVICE) {
-			musb->xceiv->state = OTG_STATE_B_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 			MUSB_DEV_MODE(musb);
 		} else {
-			musb->xceiv->state = OTG_STATE_A_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 			MUSB_HST_MODE(musb);
 		}
 		break;
@@ -90,15 +90,15 @@ static void musb_do_idle(unsigned long _musb)
 			musb->port1_status |= USB_PORT_STAT_C_SUSPEND << 16;
 			usb_hcd_poll_rh_status(musb->hcd);
 			/* NOTE: it might really be A_WAIT_BCON ... */
-			musb->xceiv->state = OTG_STATE_A_HOST;
+			musb->xceiv->otg->state = OTG_STATE_A_HOST;
 		}
 		break;
 	case OTG_STATE_A_HOST:
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 		if (devctl &  MUSB_DEVCTL_BDEVICE)
-			musb->xceiv->state = OTG_STATE_B_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		else
-			musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_BCON;
 	default:
 		break;
 	}
@@ -116,9 +116,9 @@ static void omap2430_musb_try_idle(struct musb *musb, unsigned long timeout)
 
 	/* Never idle if active, or when VBUS timeout is not set as host */
 	if (musb->is_active || ((musb->a_wait_bcon == 0)
-			&& (musb->xceiv->state == OTG_STATE_A_WAIT_BCON))) {
+			&& (musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON))) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
-			usb_otg_state_string(musb->xceiv->state));
+			usb_otg_state_string(musb->xceiv->otg->state));
 		del_timer(&musb_idle_timer);
 		last_timer = jiffies;
 		return;
@@ -135,7 +135,7 @@ static void omap2430_musb_try_idle(struct musb *musb, unsigned long timeout)
 	last_timer = timeout;
 
 	dev_dbg(musb->controller, "%s inactive, for idle timer for %lu ms\n",
-		usb_otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->otg->state),
 		(unsigned long)jiffies_to_msecs(timeout - jiffies));
 	mod_timer(&musb_idle_timer, timeout);
 }
@@ -153,7 +153,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 
 	if (is_on) {
-		if (musb->xceiv->state == OTG_STATE_A_IDLE) {
+		if (musb->xceiv->otg->state == OTG_STATE_A_IDLE) {
 			int loops = 100;
 			/* start the session */
 			devctl |= MUSB_DEVCTL_SESSION;
@@ -162,7 +162,8 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 			 * Wait for the musb to set as A device to enable the
 			 * VBUS
 			 */
-			while (musb_readb(musb->mregs, MUSB_DEVCTL) & 0x80) {
+			while (musb_readb(musb->mregs, MUSB_DEVCTL) &
+			       MUSB_DEVCTL_BDEVICE) {
 
 				mdelay(5);
 				cpu_relax();
@@ -179,7 +180,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 		} else {
 			musb->is_active = 1;
 			otg->default_a = 1;
-			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			devctl |= MUSB_DEVCTL_SESSION;
 			MUSB_HST_MODE(musb);
 		}
@@ -191,7 +192,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 		 */
 
 		otg->default_a = 0;
-		musb->xceiv->state = OTG_STATE_B_IDLE;
+		musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		devctl &= ~MUSB_DEVCTL_SESSION;
 
 		MUSB_DEV_MODE(musb);
@@ -200,7 +201,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 
 	dev_dbg(musb->controller, "VBUS %s, devctl %02x "
 		/* otg %3x conf %08x prcm %08x */ "\n",
-		usb_otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->otg->state),
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
@@ -265,7 +266,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 		dev_dbg(dev, "ID GND\n");
 
 		otg->default_a = true;
-		musb->xceiv->state = OTG_STATE_A_IDLE;
+		musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 		musb->xceiv->last_event = USB_EVENT_ID;
 		if (musb->gadget_driver) {
 			pm_runtime_get_sync(dev);
@@ -279,7 +280,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 		dev_dbg(dev, "VBUS Connect\n");
 
 		otg->default_a = false;
-		musb->xceiv->state = OTG_STATE_B_IDLE;
+		musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		musb->xceiv->last_event = USB_EVENT_VBUS;
 		if (musb->gadget_driver)
 			pm_runtime_get_sync(dev);
@@ -518,10 +519,8 @@ static int omap2430_probe(struct platform_device *pdev)
 	int				ret = -ENOMEM;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "failed to allocate glue context\n");
+	if (!glue)
 		goto err0;
-	}
 
 	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
@@ -543,25 +542,16 @@ static int omap2430_probe(struct platform_device *pdev)
 		struct platform_device *control_pdev;
 
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata) {
-			dev_err(&pdev->dev,
-				"failed to allocate musb platform data\n");
+		if (!pdata)
 			goto err2;
-		}
 
 		data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-		if (!data) {
-			dev_err(&pdev->dev,
-				"failed to allocate musb board data\n");
+		if (!data)
 			goto err2;
-		}
 
 		config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
-		if (!config) {
-			dev_err(&pdev->dev,
-				"failed to allocate musb hdrc config\n");
+		if (!config)
 			goto err2;
-		}
 
 		of_property_read_u32(np, "mode", (u32 *)&pdata->mode);
 		of_property_read_u32(np, "interface-type",

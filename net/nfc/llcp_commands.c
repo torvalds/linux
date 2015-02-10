@@ -401,7 +401,8 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 	u8 *miux_tlv = NULL, miux_tlv_length;
 	u8 *rw_tlv = NULL, rw_tlv_length, rw;
 	int err;
-	u16 size = 0, miux;
+	u16 size = 0;
+	__be16 miux;
 
 	pr_debug("Sending CONNECT\n");
 
@@ -465,7 +466,8 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 	u8 *miux_tlv = NULL, miux_tlv_length;
 	u8 *rw_tlv = NULL, rw_tlv_length, rw;
 	int err;
-	u16 size = 0, miux;
+	u16 size = 0;
+	__be16 miux;
 
 	pr_debug("Sending CC\n");
 
@@ -665,7 +667,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 	if (msg_data == NULL)
 		return -ENOMEM;
 
-	if (memcpy_fromiovec(msg_data, msg->msg_iov, len)) {
+	if (memcpy_from_msg(msg_data, msg, len)) {
 		kfree(msg_data);
 		return -EFAULT;
 	}
@@ -731,7 +733,7 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 	if (msg_data == NULL)
 		return -ENOMEM;
 
-	if (memcpy_fromiovec(msg_data, msg->msg_iov, len)) {
+	if (memcpy_from_msg(msg_data, msg, len)) {
 		kfree(msg_data);
 		return -EFAULT;
 	}

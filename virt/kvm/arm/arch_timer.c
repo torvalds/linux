@@ -61,12 +61,14 @@ static void timer_disarm(struct arch_timer_cpu *timer)
 
 static void kvm_timer_inject_irq(struct kvm_vcpu *vcpu)
 {
+	int ret;
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 
 	timer->cntv_ctl |= ARCH_TIMER_CTRL_IT_MASK;
-	kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
-			    timer->irq->irq,
-			    timer->irq->level);
+	ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
+				  timer->irq->irq,
+				  timer->irq->level);
+	WARN_ON(ret);
 }
 
 static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
@@ -307,12 +309,24 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 	timer_disarm(timer);
 }
 
-int kvm_timer_init(struct kvm *kvm)
+void kvm_timer_enable(struct kvm *kvm)
 {
-	if (timecounter && wqueue) {
-		kvm->arch.timer.cntvoff = kvm_phys_timer_read();
-		kvm->arch.timer.enabled = 1;
-	}
+	if (kvm->arch.timer.enabled)
+		return;
 
-	return 0;
+	/*
+	 * There is a potential race here between VCPUs starting for the first
+	 * time, which may be enabling the timer multiple times.  That doesn't
+	 * hurt though, because we're just setting a variable to the same
+	 * variable that it already was.  The important thing is that all
+	 * VCPUs have the enabled variable set, before entering the guest, if
+	 * the arch timers are enabled.
+	 */
+	if (timecounter && wqueue)
+		kvm->arch.timer.enabled = 1;
+}
+
+void kvm_timer_init(struct kvm *kvm)
+{
+	kvm->arch.timer.cntvoff = kvm_phys_timer_read();
 }

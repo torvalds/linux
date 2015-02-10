@@ -216,7 +216,7 @@
 /* Various constants */
 
 /* Coalescing */
-#define MVNETA_TXDONE_COAL_PKTS		16
+#define MVNETA_TXDONE_COAL_PKTS		1
 #define MVNETA_RX_COAL_PKTS		32
 #define MVNETA_RX_COAL_USEC		100
 
@@ -1721,6 +1721,7 @@ static int mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 	u16 txq_id = skb_get_queue_mapping(skb);
 	struct mvneta_tx_queue *txq = &pp->txqs[txq_id];
 	struct mvneta_tx_desc *tx_desc;
+	int len = skb->len;
 	int frags = 0;
 	u32 tx_cmd;
 
@@ -1788,7 +1789,7 @@ out:
 
 		u64_stats_update_begin(&stats->syncp);
 		stats->tx_packets++;
-		stats->tx_bytes  += skb->len;
+		stats->tx_bytes  += len;
 		u64_stats_update_end(&stats->syncp);
 	} else {
 		dev->stats.tx_dropped++;
@@ -2558,11 +2559,10 @@ static void mvneta_adjust_link(struct net_device *ndev)
 				MVNETA_GMAC_FORCE_LINK_DOWN);
 			mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
 			mvneta_port_up(pp);
-			netdev_info(pp->dev, "link up\n");
 		} else {
 			mvneta_port_down(pp);
-			netdev_info(pp->dev, "link down\n");
 		}
+		phy_print_status(phydev);
 	}
 }
 

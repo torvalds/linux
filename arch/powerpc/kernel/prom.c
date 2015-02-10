@@ -160,6 +160,12 @@ static struct ibm_pa_feature {
 	{CPU_FTR_NODSISRALIGN, 0, 0,	1, 1, 1},
 	{0, MMU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
 	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
+	/*
+	 * If the kernel doesn't support TM (ie. CONFIG_PPC_TRANSACTIONAL_MEM=n),
+	 * we don't want to turn on CPU_FTR_TM here, so we use CPU_FTR_TM_COMP
+	 * which is 0 if the kernel doesn't support TM.
+	 */
+	{CPU_FTR_TM_COMP, 0, 0,		22, 0, 0},
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
@@ -386,8 +392,9 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	return 0;
 }
 
-int __init early_init_dt_scan_chosen_ppc(unsigned long node, const char *uname,
-					 int depth, void *data)
+static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
+						const char *uname,
+						int depth, void *data)
 {
 	const unsigned long *lprop; /* All these set by kernel, so no need to convert endian */
 
@@ -641,6 +648,10 @@ void __init early_init_devtree(void *params)
 
 	DBG(" -> early_init_devtree(%p)\n", params);
 
+	/* Too early to BUG_ON(), do it by hand */
+	if (!early_init_dt_verify(params))
+		panic("BUG: Failed verifying flat device tree, bad version?");
+
 	/* Setup flat device-tree pointer */
 	initial_boot_params = params;
 
@@ -663,14 +674,12 @@ void __init early_init_devtree(void *params)
 	 * device-tree, including the platform type, initrd location and
 	 * size, TCE reserve, and more ...
 	 */
-	of_scan_flat_dt(early_init_dt_scan_chosen_ppc, cmd_line);
+	of_scan_flat_dt(early_init_dt_scan_chosen_ppc, boot_command_line);
 
 	/* Scan memory nodes and rebuild MEMBLOCKs */
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
 
-	/* Save command line for /proc/cmdline and then parse parameters */
-	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 	parse_early_param();
 
 	/* make sure we've parsed cmdline for mem= before this */
@@ -693,10 +702,7 @@ void __init early_init_devtree(void *params)
 		reserve_crashkernel();
 	early_reserve_mem();
 
-	/*
-	 * Ensure that total memory size is page-aligned, because otherwise
-	 * mark_bootmem() gets upset.
-	 */
+	/* Ensure that total memory size is page-aligned. */
 	limit = ALIGN(memory_limit ?: memblock_phys_mem_size(), PAGE_SIZE);
 	memblock_enforce_memory_limit(limit);
 

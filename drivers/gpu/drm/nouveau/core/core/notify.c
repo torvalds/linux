@@ -98,7 +98,7 @@ nvkm_notify_send(struct nvkm_notify *notify, void *data, u32 size)
 	struct nvkm_event *event = notify->event;
 	unsigned long flags;
 
-	BUG_ON(!spin_is_locked(&event->list_lock));
+	assert_spin_locked(&event->list_lock);
 	BUG_ON(size != notify->size);
 
 	spin_lock_irqsave(&event->refs_lock, flags);
@@ -134,14 +134,15 @@ nvkm_notify_fini(struct nvkm_notify *notify)
 }
 
 int
-nvkm_notify_init(struct nvkm_event *event, int (*func)(struct nvkm_notify *),
-		 bool work, void *data, u32 size, u32 reply,
+nvkm_notify_init(struct nouveau_object *object, struct nvkm_event *event,
+		 int (*func)(struct nvkm_notify *), bool work,
+		 void *data, u32 size, u32 reply,
 		 struct nvkm_notify *notify)
 {
 	unsigned long flags;
 	int ret = -ENODEV;
 	if ((notify->event = event), event->refs) {
-		ret = event->func->ctor(data, size, notify);
+		ret = event->func->ctor(object, data, size, notify);
 		if (ret == 0 && (ret = -EINVAL, notify->size == reply)) {
 			notify->flags = 0;
 			notify->block = 1;

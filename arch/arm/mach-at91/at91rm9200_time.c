@@ -183,7 +183,6 @@ static struct clock_event_device clkevt = {
 void __iomem *at91_st_base;
 EXPORT_SYMBOL_GPL(at91_st_base);
 
-#ifdef CONFIG_OF
 static struct of_device_id at91rm9200_st_timer_ids[] = {
 	{ .compatible = "atmel,at91rm9200-st" },
 	{ /* sentinel */ }
@@ -218,28 +217,6 @@ node_err:
 	of_node_put(np);
 err:
 	return -EINVAL;
-}
-#else
-static int __init of_at91rm9200_st_init(void)
-{
-	return -EINVAL;
-}
-#endif
-
-void __init at91rm9200_ioremap_st(u32 addr)
-{
-#ifdef CONFIG_OF
-	struct device_node *np;
-
-	np = of_find_matching_node(NULL, at91rm9200_st_timer_ids);
-	if (np) {
-		of_node_put(np);
-		return;
-	}
-#endif
-	at91_st_base = ioremap(addr, 256);
-	if (!at91_st_base)
-		panic("Impossible to ioremap ST\n");
 }
 
 /*

@@ -599,7 +599,7 @@ static netdev_tx_t mpc_send_packet(struct sk_buff *skb,
 	}
 
 non_ip:
-	return mpc->old_ops->ndo_start_xmit(skb, dev);
+	return __netdev_start_xmit(mpc->old_ops, skb, dev, false);
 }
 
 static int atm_mpoa_vcc_attach(struct atm_vcc *vcc, void __user *arg)

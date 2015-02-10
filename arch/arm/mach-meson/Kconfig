@@ -1,0 +1,19 @@
+menuconfig ARCH_MESON
+	bool "Amlogic Meson SoCs" if ARCH_MULTI_V7
+	select GENERIC_IRQ_CHIP
+	select ARM_GIC
+	select CACHE_L2X0
+
+if ARCH_MESON
+
+config MACH_MESON6
+	bool "Amlogic Meson6 (8726MX) SoCs support"
+	default ARCH_MESON
+	select MESON6_TIMER
+
+config MACH_MESON8
+	bool "Amlogic Meson8 SoCs support"
+	default ARCH_MESON
+	select MESON6_TIMER
+
+endif

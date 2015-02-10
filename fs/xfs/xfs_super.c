@@ -21,9 +21,7 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_inum.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_inode.h"
@@ -44,9 +42,9 @@
 #include "xfs_icache.h"
 #include "xfs_trace.h"
 #include "xfs_icreate_item.h"
-#include "xfs_dinode.h"
 #include "xfs_filestream.h"
 #include "xfs_quota.h"
+#include "xfs_sysfs.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -61,7 +59,11 @@
 static const struct super_operations xfs_super_operations;
 static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
-struct kset *xfs_kset;
+
+static struct kset *xfs_kset;		/* top-level xfs sysfs dir */
+#ifdef DEBUG
+static struct xfs_kobj xfs_dbg_kobj;	/* global debug sysfs attrs */
+#endif
 
 #define MNTOPT_LOGBUFS	"logbufs"	/* number of XFS log buffers */
 #define MNTOPT_LOGBSIZE	"logbsize"	/* size of XFS log buffers */
@@ -791,8 +793,7 @@ xfs_open_devices(
  out_free_ddev_targ:
 	xfs_free_buftarg(mp, mp->m_ddev_targp);
  out_close_rtdev:
-	if (rtdev)
-		xfs_blkdev_put(rtdev);
+	xfs_blkdev_put(rtdev);
  out_close_logdev:
 	if (logdev && logdev != ddev)
 		xfs_blkdev_put(logdev);
@@ -837,33 +838,38 @@ STATIC int
 xfs_init_mount_workqueues(
 	struct xfs_mount	*mp)
 {
-	mp->m_data_workqueue = alloc_workqueue("xfs-data/%s",
-			WQ_MEM_RECLAIM, 0, mp->m_fsname);
-	if (!mp->m_data_workqueue)
+	mp->m_buf_workqueue = alloc_workqueue("xfs-buf/%s",
+			WQ_MEM_RECLAIM|WQ_FREEZABLE, 1, mp->m_fsname);
+	if (!mp->m_buf_workqueue)
 		goto out;
 
+	mp->m_data_workqueue = alloc_workqueue("xfs-data/%s",
+			WQ_MEM_RECLAIM|WQ_FREEZABLE, 0, mp->m_fsname);
+	if (!mp->m_data_workqueue)
+		goto out_destroy_buf;
+
 	mp->m_unwritten_workqueue = alloc_workqueue("xfs-conv/%s",
-			WQ_MEM_RECLAIM, 0, mp->m_fsname);
+			WQ_MEM_RECLAIM|WQ_FREEZABLE, 0, mp->m_fsname);
 	if (!mp->m_unwritten_workqueue)
 		goto out_destroy_data_iodone_queue;
 
 	mp->m_cil_workqueue = alloc_workqueue("xfs-cil/%s",
-			WQ_MEM_RECLAIM, 0, mp->m_fsname);
+			WQ_MEM_RECLAIM|WQ_FREEZABLE, 0, mp->m_fsname);
 	if (!mp->m_cil_workqueue)
 		goto out_destroy_unwritten;
 
 	mp->m_reclaim_workqueue = alloc_workqueue("xfs-reclaim/%s",
-			0, 0, mp->m_fsname);
+			WQ_FREEZABLE, 0, mp->m_fsname);
 	if (!mp->m_reclaim_workqueue)
 		goto out_destroy_cil;
 
 	mp->m_log_workqueue = alloc_workqueue("xfs-log/%s",
-			0, 0, mp->m_fsname);
+			WQ_FREEZABLE|WQ_HIGHPRI, 0, mp->m_fsname);
 	if (!mp->m_log_workqueue)
 		goto out_destroy_reclaim;
 
 	mp->m_eofblocks_workqueue = alloc_workqueue("xfs-eofblocks/%s",
-			0, 0, mp->m_fsname);
+			WQ_FREEZABLE, 0, mp->m_fsname);
 	if (!mp->m_eofblocks_workqueue)
 		goto out_destroy_log;
 
@@ -879,6 +885,8 @@ out_destroy_unwritten:
 	destroy_workqueue(mp->m_unwritten_workqueue);
 out_destroy_data_iodone_queue:
 	destroy_workqueue(mp->m_data_workqueue);
+out_destroy_buf:
+	destroy_workqueue(mp->m_buf_workqueue);
 out:
 	return -ENOMEM;
 }
@@ -893,6 +901,7 @@ xfs_destroy_mount_workqueues(
 	destroy_workqueue(mp->m_cil_workqueue);
 	destroy_workqueue(mp->m_data_workqueue);
 	destroy_workqueue(mp->m_unwritten_workqueue);
+	destroy_workqueue(mp->m_buf_workqueue);
 }
 
 /*
@@ -995,7 +1004,6 @@ xfs_fs_evict_inode(
 	clear_inode(inode);
 	XFS_STATS_INC(vn_rele);
 	XFS_STATS_INC(vn_remove);
-	XFS_STATS_DEC(vn_active);
 
 	xfs_inactive(ip);
 }
@@ -1406,6 +1414,7 @@ xfs_fs_fill_super(
 	atomic_set(&mp->m_active_trans, 0);
 	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);
 	INIT_DELAYED_WORK(&mp->m_eofblocks_work, xfs_eofblocks_worker);
+	mp->m_kobj.kobject.kset = xfs_kset;
 
 	mp->m_super = sb;
 	sb->s_fs_info = mp;
@@ -1419,6 +1428,7 @@ xfs_fs_fill_super(
 	sb->s_export_op = &xfs_export_operations;
 #ifdef CONFIG_XFS_QUOTA
 	sb->s_qcop = &xfs_quotactl_operations;
+	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP | QTYPE_MASK_PRJ;
 #endif
 	sb->s_op = &xfs_super_operations;
 
@@ -1715,7 +1725,8 @@ xfs_init_workqueues(void)
 	 * AGs in all the filesystems mounted. Hence use the default large
 	 * max_active value for this workqueue.
 	 */
-	xfs_alloc_wq = alloc_workqueue("xfsalloc", WQ_MEM_RECLAIM, 0);
+	xfs_alloc_wq = alloc_workqueue("xfsalloc",
+			WQ_MEM_RECLAIM|WQ_FREEZABLE, 0);
 	if (!xfs_alloc_wq)
 		return -ENOMEM;
 
@@ -1768,9 +1779,16 @@ init_xfs_fs(void)
 		goto out_sysctl_unregister;;
 	}
 
-	error = xfs_qm_init();
+#ifdef DEBUG
+	xfs_dbg_kobj.kobject.kset = xfs_kset;
+	error = xfs_sysfs_init(&xfs_dbg_kobj, &xfs_dbg_ktype, NULL, "debug");
 	if (error)
 		goto out_kset_unregister;
+#endif
+
+	error = xfs_qm_init();
+	if (error)
+		goto out_remove_kobj;
 
 	error = register_filesystem(&xfs_fs_type);
 	if (error)
@@ -1779,7 +1797,11 @@ init_xfs_fs(void)
 
  out_qm_exit:
 	xfs_qm_exit();
+ out_remove_kobj:
+#ifdef DEBUG
+	xfs_sysfs_del(&xfs_dbg_kobj);
  out_kset_unregister:
+#endif
 	kset_unregister(xfs_kset);
  out_sysctl_unregister:
 	xfs_sysctl_unregister();
@@ -1802,6 +1824,9 @@ exit_xfs_fs(void)
 {
 	xfs_qm_exit();
 	unregister_filesystem(&xfs_fs_type);
+#ifdef DEBUG
+	xfs_sysfs_del(&xfs_dbg_kobj);
+#endif
 	kset_unregister(xfs_kset);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();

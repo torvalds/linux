@@ -32,12 +32,14 @@
 static int
 check_smb2_hdr(struct smb2_hdr *hdr, __u64 mid)
 {
+	__u64 wire_mid = le64_to_cpu(hdr->MessageId);
+
 	/*
 	 * Make sure that this really is an SMB, that it is a response,
 	 * and that the message ids match.
 	 */
 	if ((*(__le32 *)hdr->ProtocolId == SMB2_PROTO_NUMBER) &&
-	    (mid == hdr->MessageId)) {
+	    (mid == wire_mid)) {
 		if (hdr->Flags & SMB2_FLAGS_SERVER_TO_REDIR)
 			return 0;
 		else {
@@ -51,11 +53,11 @@ check_smb2_hdr(struct smb2_hdr *hdr, __u64 mid)
 		if (*(__le32 *)hdr->ProtocolId != SMB2_PROTO_NUMBER)
 			cifs_dbg(VFS, "Bad protocol string signature header %x\n",
 				 *(unsigned int *) hdr->ProtocolId);
-		if (mid != hdr->MessageId)
+		if (mid != wire_mid)
 			cifs_dbg(VFS, "Mids do not match: %llu and %llu\n",
-				 mid, hdr->MessageId);
+				 mid, wire_mid);
 	}
-	cifs_dbg(VFS, "Bad SMB detected. The Mid=%llu\n", hdr->MessageId);
+	cifs_dbg(VFS, "Bad SMB detected. The Mid=%llu\n", wire_mid);
 	return 1;
 }
 
@@ -67,27 +69,27 @@ check_smb2_hdr(struct smb2_hdr *hdr, __u64 mid)
  *  indexed by command in host byte order
  */
 static const __le16 smb2_rsp_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
-	/* SMB2_NEGOTIATE */ __constant_cpu_to_le16(65),
-	/* SMB2_SESSION_SETUP */ __constant_cpu_to_le16(9),
-	/* SMB2_LOGOFF */ __constant_cpu_to_le16(4),
-	/* SMB2_TREE_CONNECT */ __constant_cpu_to_le16(16),
-	/* SMB2_TREE_DISCONNECT */ __constant_cpu_to_le16(4),
-	/* SMB2_CREATE */ __constant_cpu_to_le16(89),
-	/* SMB2_CLOSE */ __constant_cpu_to_le16(60),
-	/* SMB2_FLUSH */ __constant_cpu_to_le16(4),
-	/* SMB2_READ */ __constant_cpu_to_le16(17),
-	/* SMB2_WRITE */ __constant_cpu_to_le16(17),
-	/* SMB2_LOCK */ __constant_cpu_to_le16(4),
-	/* SMB2_IOCTL */ __constant_cpu_to_le16(49),
+	/* SMB2_NEGOTIATE */ cpu_to_le16(65),
+	/* SMB2_SESSION_SETUP */ cpu_to_le16(9),
+	/* SMB2_LOGOFF */ cpu_to_le16(4),
+	/* SMB2_TREE_CONNECT */ cpu_to_le16(16),
+	/* SMB2_TREE_DISCONNECT */ cpu_to_le16(4),
+	/* SMB2_CREATE */ cpu_to_le16(89),
+	/* SMB2_CLOSE */ cpu_to_le16(60),
+	/* SMB2_FLUSH */ cpu_to_le16(4),
+	/* SMB2_READ */ cpu_to_le16(17),
+	/* SMB2_WRITE */ cpu_to_le16(17),
+	/* SMB2_LOCK */ cpu_to_le16(4),
+	/* SMB2_IOCTL */ cpu_to_le16(49),
 	/* BB CHECK this ... not listed in documentation */
-	/* SMB2_CANCEL */ __constant_cpu_to_le16(0),
-	/* SMB2_ECHO */ __constant_cpu_to_le16(4),
-	/* SMB2_QUERY_DIRECTORY */ __constant_cpu_to_le16(9),
-	/* SMB2_CHANGE_NOTIFY */ __constant_cpu_to_le16(9),
-	/* SMB2_QUERY_INFO */ __constant_cpu_to_le16(9),
-	/* SMB2_SET_INFO */ __constant_cpu_to_le16(2),
+	/* SMB2_CANCEL */ cpu_to_le16(0),
+	/* SMB2_ECHO */ cpu_to_le16(4),
+	/* SMB2_QUERY_DIRECTORY */ cpu_to_le16(9),
+	/* SMB2_CHANGE_NOTIFY */ cpu_to_le16(9),
+	/* SMB2_QUERY_INFO */ cpu_to_le16(9),
+	/* SMB2_SET_INFO */ cpu_to_le16(2),
 	/* BB FIXME can also be 44 for lease break */
-	/* SMB2_OPLOCK_BREAK */ __constant_cpu_to_le16(24)
+	/* SMB2_OPLOCK_BREAK */ cpu_to_le16(24)
 };
 
 int
@@ -95,7 +97,7 @@ smb2_check_message(char *buf, unsigned int length)
 {
 	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
 	struct smb2_pdu *pdu = (struct smb2_pdu *)hdr;
-	__u64 mid = hdr->MessageId;
+	__u64 mid = le64_to_cpu(hdr->MessageId);
 	__u32 len = get_rfc1002_length(buf);
 	__u32 clc_len;  /* calculated length */
 	int command;
@@ -379,6 +381,14 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 	int len;
 	const char *start_of_path;
 	__le16 *to;
+	int map_type;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SFM_CHR)
+		map_type = SFM_MAP_UNI_RSVD;
+	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
+		map_type = SFU_MAP_UNI_RSVD;
+	else
+		map_type = NO_MAP_UNI_RSVD;
 
 	/* Windows doesn't allow paths beginning with \ */
 	if (from[0] == '\\')
@@ -386,9 +396,7 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 	else
 		start_of_path = from;
 	to = cifs_strndup_to_utf16(start_of_path, PATH_MAX, &len,
-				   cifs_sb->local_nls,
-				   cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+				   cifs_sb->local_nls, map_type);
 	return to;
 }
 

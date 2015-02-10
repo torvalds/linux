@@ -20,6 +20,7 @@
  */
 #define RGRP_RSRV_MINBYTES 8
 #define RGRP_RSRV_MINBLKS ((u32)(RGRP_RSRV_MINBYTES * GFS2_NBBY))
+#define RGRP_RSRV_ADDBLKS 64
 
 struct gfs2_rgrpd;
 struct gfs2_sbd;
@@ -80,4 +81,5 @@ static inline bool gfs2_rs_active(struct gfs2_blkreserv *rs)
 	return rs && !RB_EMPTY_NODE(&rs->rs_node);
 }
 
+extern void check_and_update_goal(struct gfs2_inode *ip);
 #endif /* __RGRP_DOT_H__ */

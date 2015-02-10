@@ -126,16 +126,28 @@ static bool samples_same(const struct perf_sample *s1,
 	if (type & PERF_SAMPLE_TRANSACTION)
 		COMP(transaction);
 
+	if (type & PERF_SAMPLE_REGS_INTR) {
+		size_t sz = hweight_long(s1->intr_regs.mask) * sizeof(u64);
+
+		COMP(intr_regs.mask);
+		COMP(intr_regs.abi);
+		if (s1->intr_regs.abi &&
+		    (!s1->intr_regs.regs || !s2->intr_regs.regs ||
+		     memcmp(s1->intr_regs.regs, s2->intr_regs.regs, sz))) {
+			pr_debug("Samples differ at 'intr_regs'\n");
+			return false;
+		}
+	}
+
 	return true;
 }
 
-static int do_test(u64 sample_type, u64 sample_regs_user, u64 read_format)
+static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 {
 	struct perf_evsel evsel = {
 		.needs_swap = false,
 		.attr = {
 			.sample_type = sample_type,
-			.sample_regs_user = sample_regs_user,
 			.read_format = read_format,
 		},
 	};
@@ -154,7 +166,7 @@ static int do_test(u64 sample_type, u64 sample_regs_user, u64 read_format)
 		/* 1 branch_entry */
 		.data = {1, 211, 212, 213},
 	};
-	u64 user_regs[64];
+	u64 regs[64];
 	const u64 raw_data[] = {0x123456780a0b0c0dULL, 0x1102030405060708ULL};
 	const u64 data[] = {0x2211443366558877ULL, 0, 0xaabbccddeeff4321ULL};
 	struct perf_sample sample = {
@@ -176,8 +188,8 @@ static int do_test(u64 sample_type, u64 sample_regs_user, u64 read_format)
 		.branch_stack	= &branch_stack.branch_stack,
 		.user_regs	= {
 			.abi	= PERF_SAMPLE_REGS_ABI_64,
-			.mask	= sample_regs_user,
-			.regs	= user_regs,
+			.mask	= sample_regs,
+			.regs	= regs,
 		},
 		.user_stack	= {
 			.size	= sizeof(data),
@@ -187,14 +199,25 @@ static int do_test(u64 sample_type, u64 sample_regs_user, u64 read_format)
 			.time_enabled = 0x030a59d664fca7deULL,
 			.time_running = 0x011b6ae553eb98edULL,
 		},
+		.intr_regs	= {
+			.abi	= PERF_SAMPLE_REGS_ABI_64,
+			.mask	= sample_regs,
+			.regs	= regs,
+		},
 	};
 	struct sample_read_value values[] = {{1, 5}, {9, 3}, {2, 7}, {6, 4},};
 	struct perf_sample sample_out;
 	size_t i, sz, bufsz;
 	int err, ret = -1;
 
-	for (i = 0; i < sizeof(user_regs); i++)
-		*(i + (u8 *)user_regs) = i & 0xfe;
+	if (sample_type & PERF_SAMPLE_REGS_USER)
+		evsel.attr.sample_regs_user = sample_regs;
+
+	if (sample_type & PERF_SAMPLE_REGS_INTR)
+		evsel.attr.sample_regs_intr = sample_regs;
+
+	for (i = 0; i < sizeof(regs); i++)
+		*(i + (u8 *)regs) = i & 0xfe;
 
 	if (read_format & PERF_FORMAT_GROUP) {
 		sample.read.group.nr     = 4;
@@ -271,7 +294,7 @@ int test__sample_parsing(void)
 {
 	const u64 rf[] = {4, 5, 6, 7, 12, 13, 14, 15};
 	u64 sample_type;
-	u64 sample_regs_user;
+	u64 sample_regs;
 	size_t i;
 	int err;
 
@@ -280,7 +303,7 @@ int test__sample_parsing(void)
 	 * were added.  Please actually update the test rather than just change
 	 * the condition below.
 	 */
-	if (PERF_SAMPLE_MAX > PERF_SAMPLE_TRANSACTION << 1) {
+	if (PERF_SAMPLE_MAX > PERF_SAMPLE_REGS_INTR << 1) {
 		pr_debug("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
 		return -1;
 	}
@@ -297,22 +320,24 @@ int test__sample_parsing(void)
 			}
 			continue;
 		}
+		sample_regs = 0;
 
 		if (sample_type == PERF_SAMPLE_REGS_USER)
-			sample_regs_user = 0x3fff;
-		else
-			sample_regs_user = 0;
+			sample_regs = 0x3fff;
 
-		err = do_test(sample_type, sample_regs_user, 0);
+		if (sample_type == PERF_SAMPLE_REGS_INTR)
+			sample_regs = 0xff0fff;
+
+		err = do_test(sample_type, sample_regs, 0);
 		if (err)
 			return err;
 	}
 
 	/* Test all sample format bits together */
 	sample_type = PERF_SAMPLE_MAX - 1;
-	sample_regs_user = 0x3fff;
+	sample_regs = 0x3fff; /* shared yb intr and user regs */
 	for (i = 0; i < ARRAY_SIZE(rf); i++) {
-		err = do_test(sample_type, sample_regs_user, rf[i]);
+		err = do_test(sample_type, sample_regs, rf[i]);
 		if (err)
 			return err;
 	}

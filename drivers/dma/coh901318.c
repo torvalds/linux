@@ -2156,7 +2156,7 @@ coh901318_free_chan_resources(struct dma_chan *chan)
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 
-	chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(chan);
 }
 
 

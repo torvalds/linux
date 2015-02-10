@@ -2614,14 +2614,14 @@ static void sh7372_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	iowrite8(value, addr);
 }
 
-static const struct sh_pfc_soc_operations sh7372_pinmux_ops = {
+static const struct sh_pfc_soc_operations sh7372_pfc_ops = {
 	.get_bias = sh7372_pinmux_get_bias,
 	.set_bias = sh7372_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info sh7372_pinmux_info = {
 	.name = "sh7372_pfc",
-	.ops = &sh7372_pinmux_ops,
+	.ops = &sh7372_pfc_ops,
 
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },

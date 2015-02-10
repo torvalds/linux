@@ -842,12 +842,9 @@ static int fsi_clk_disable(struct device *dev,
 		return -EINVAL;
 
 	if (1 == clock->count--) {
-		if (clock->xck)
-			clk_disable(clock->xck);
-		if (clock->ick)
-			clk_disable(clock->ick);
-		if (clock->div)
-			clk_disable(clock->div);
+		clk_disable(clock->xck);
+		clk_disable(clock->ick);
+		clk_disable(clock->div);
 	}
 
 	return 0;
@@ -1297,8 +1294,13 @@ static int fsi_dma_transfer(struct fsi_priv *fsi, struct fsi_stream *io)
 	struct snd_pcm_substream *substream = io->substream;
 	struct dma_async_tx_descriptor *desc;
 	int is_play = fsi_stream_is_play(fsi, io);
-	enum dma_data_direction dir = is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	enum dma_transfer_direction dir;
 	int ret = -EIO;
+
+	if (is_play)
+		dir = DMA_MEM_TO_DEV;
+	else
+		dir = DMA_DEV_TO_MEM;
 
 	desc = dmaengine_prep_dma_cyclic(io->chan,
 					 substream->runtime->dma_addr,
@@ -1706,8 +1708,7 @@ static const struct snd_soc_dai_ops fsi_dai_ops = {
 static struct snd_pcm_hardware fsi_pcm_hardware = {
 	.info =		SNDRV_PCM_INFO_INTERLEAVED	|
 			SNDRV_PCM_INFO_MMAP		|
-			SNDRV_PCM_INFO_MMAP_VALID	|
-			SNDRV_PCM_INFO_PAUSE,
+			SNDRV_PCM_INFO_MMAP_VALID,
 	.buffer_bytes_max	= 64 * 1024,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 8192,

@@ -57,7 +57,7 @@
  *	which are then pulled up with an external resistor. Setting this
  *	config will enable open drain mode, the argument is ignored.
  * @PIN_CONFIG_DRIVE_OPEN_SOURCE: the pin will be driven with open source
- *	(open emitter). Setting this config will enable open drain mode, the
+ *	(open emitter). Setting this config will enable open source mode, the
  *	argument is ignored.
  * @PIN_CONFIG_DRIVE_STRENGTH: the pin will sink or source at most the current
  *	passed as argument. The argument is in mA.

@@ -59,7 +59,9 @@ The core driver uses the info->tmpbuf_sem lock to prevent multi-threaded
 access to the info->tmpbuf bouncebuffer used for port writes.
 
 The port_sem semaphore is used to protect against ports being added/
-removed or reconfigured at inappropriate times.
+removed or reconfigured at inappropriate times. Since v2.6.27, this
+semaphore has been the 'mutex' member of the tty_port struct, and
+commonly referred to as the port mutex (or port->mutex).
 
 
 uart_ops
@@ -139,6 +141,8 @@ hardware.
 	the serial driver does not implement this function, the tty core
 	will append the character to the circular buffer and then call
 	start_tx() / stop_tx() to flush the data out.
+
+	Do not transmit if ch == '\0' (__DISABLED_CHAR).
 
 	Locking: none.
 	Interrupts: caller dependent.
@@ -246,7 +250,7 @@ hardware.
 	Other flags may be used (eg, xon/xoff characters) if your
 	hardware supports hardware "soft" flow control.
 
-	Locking: none.
+	Locking: caller holds port->mutex
 	Interrupts: caller dependent.
 	This call must not sleep
 

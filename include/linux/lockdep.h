@@ -4,7 +4,7 @@
  *  Copyright (C) 2006,2007 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
  *
- * see Documentation/lockdep-design.txt for more details.
+ * see Documentation/locking/lockdep-design.txt for more details.
  */
 #ifndef __LINUX_LOCKDEP_H
 #define __LINUX_LOCKDEP_H
@@ -362,6 +362,10 @@ extern void lockdep_trace_alloc(gfp_t mask);
 		WARN_ON(debug_locks && !lockdep_is_held(l));	\
 	} while (0)
 
+#define lockdep_assert_held_once(l)	do {				\
+		WARN_ON_ONCE(debug_locks && !lockdep_is_held(l));	\
+	} while (0)
+
 #define lockdep_recursing(tsk)	((tsk)->lockdep_recursion)
 
 #else /* !CONFIG_LOCKDEP */
@@ -412,6 +416,7 @@ struct lock_class_key { };
 #define lockdep_depth(tsk)	(0)
 
 #define lockdep_assert_held(l)			do { (void)(l); } while (0)
+#define lockdep_assert_held_once(l)		do { (void)(l); } while (0)
 
 #define lockdep_recursing(tsk)			(0)
 
@@ -505,6 +510,7 @@ static inline void print_irqtrace_events(struct task_struct *curr)
 
 #define lock_map_acquire(l)			lock_acquire_exclusive(l, 0, 0, NULL, _THIS_IP_)
 #define lock_map_acquire_read(l)		lock_acquire_shared_recursive(l, 0, 0, NULL, _THIS_IP_)
+#define lock_map_acquire_tryread(l)		lock_acquire_shared_recursive(l, 0, 1, NULL, _THIS_IP_)
 #define lock_map_release(l)			lock_release(l, 1, _THIS_IP_)
 
 #ifdef CONFIG_PROVE_LOCKING

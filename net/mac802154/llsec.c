@@ -17,10 +17,10 @@
 #include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/completion.h>
-#include <net/ieee802154.h>
+#include <linux/ieee802154.h>
 #include <crypto/algapi.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
 #include "llsec.h"
 
 static void llsec_key_put(struct mac802154_llsec_key *key);
@@ -75,8 +75,6 @@ void mac802154_llsec_destroy(struct mac802154_llsec *sec)
 	}
 }
 
-
-
 int mac802154_llsec_get_params(struct mac802154_llsec *sec,
 			       struct ieee802154_llsec_params *params)
 {
@@ -116,8 +114,6 @@ int mac802154_llsec_set_params(struct mac802154_llsec *sec,
 
 	return 0;
 }
-
-
 
 static struct mac802154_llsec_key*
 llsec_key_alloc(const struct ieee802154_llsec_key *template)
@@ -294,8 +290,6 @@ int mac802154_llsec_key_del(struct mac802154_llsec *sec,
 	return -ENOENT;
 }
 
-
-
 static bool llsec_dev_use_shortaddr(__le16 short_addr)
 {
 	return short_addr != cpu_to_le16(IEEE802154_ADDR_UNDEF) &&
@@ -304,12 +298,12 @@ static bool llsec_dev_use_shortaddr(__le16 short_addr)
 
 static u32 llsec_dev_hash_short(__le16 short_addr, __le16 pan_id)
 {
-	return ((__force u16) short_addr) << 16 | (__force u16) pan_id;
+	return ((__force u16)short_addr) << 16 | (__force u16)pan_id;
 }
 
 static u64 llsec_dev_hash_long(__le64 hwaddr)
 {
-	return (__force u64) hwaddr;
+	return (__force u64)hwaddr;
 }
 
 static struct mac802154_llsec_device*
@@ -411,8 +405,6 @@ int mac802154_llsec_dev_del(struct mac802154_llsec *sec, __le64 device_addr)
 	return 0;
 }
 
-
-
 static struct mac802154_llsec_device_key*
 llsec_devkey_find(struct mac802154_llsec_device *dev,
 		  const struct ieee802154_llsec_key_id *key)
@@ -475,8 +467,6 @@ int mac802154_llsec_devkey_del(struct mac802154_llsec *sec,
 	return 0;
 }
 
-
-
 static struct mac802154_llsec_seclevel*
 llsec_find_seclevel(const struct mac802154_llsec *sec,
 		    const struct ieee802154_llsec_seclevel *sl)
@@ -531,8 +521,6 @@ int mac802154_llsec_seclevel_del(struct mac802154_llsec *sec,
 
 	return 0;
 }
-
-
 
 static int llsec_recover_addr(struct mac802154_llsec *sec,
 			      struct ieee802154_addr *addr)
@@ -608,7 +596,6 @@ found:
 		*key_id = key_entry->id;
 	return llsec_key_get(key);
 }
-
 
 static void llsec_geniv(u8 iv[16], __le64 addr,
 			const struct ieee802154_sechdr *sec)
@@ -785,8 +772,6 @@ fail:
 	rcu_read_unlock();
 	return rc;
 }
-
-
 
 static struct mac802154_llsec_device*
 llsec_lookup_dev(struct mac802154_llsec *sec,

@@ -29,9 +29,9 @@ u8  __readb(const volatile void __iomem *addr);
 u16 __readw(const volatile void __iomem *addr);
 u32 __readl(const volatile void __iomem *addr);
 
-void __writeb(u8  val, void __iomem *addr);
-void __writew(u16 val, void __iomem *addr);
-void __writel(u32 val, void __iomem *addr);
+void __writeb(u8  val, volatile void __iomem *addr);
+void __writew(u16 val, volatile void __iomem *addr);
+void __writel(u32 val, volatile void __iomem *addr);
 
 /*
  * Argh, someone forgot the IOCS16 line.  We therefore have to handle
@@ -62,20 +62,31 @@ void __writel(u32 val, void __iomem *addr);
 #define writew(v,b)		__writew(v,b)
 #define writel(v,b)		__writel(v,b)
 
+#define insb insb
 extern void insb(unsigned int port, void *buf, int sz);
+#define insw insw
 extern void insw(unsigned int port, void *buf, int sz);
+#define insl insl
 extern void insl(unsigned int port, void *buf, int sz);
 
+#define outsb outsb
 extern void outsb(unsigned int port, const void *buf, int sz);
+#define outsw outsw
 extern void outsw(unsigned int port, const void *buf, int sz);
+#define outsl outsl
 extern void outsl(unsigned int port, const void *buf, int sz);
 
 /* can't support writesb atm */
-extern void writesw(void __iomem *addr, const void *data, int wordlen);
-extern void writesl(void __iomem *addr, const void *data, int longlen);
+#define writesw writesw
+extern void writesw(volatile void __iomem *addr, const void *data, int wordlen);
+#define writesl writesl
+extern void writesl(volatile void __iomem *addr, const void *data, int longlen);
 
 /* can't support readsb atm */
-extern void readsw(const void __iomem *addr, void *data, int wordlen);
-extern void readsl(const void __iomem *addr, void *data, int longlen);
+#define readsw readsw
+extern void readsw(const volatile void __iomem *addr, void *data, int wordlen);
+
+#define readsl readsl
+extern void readsl(const volatile void __iomem *addr, void *data, int longlen);
 
 #endif

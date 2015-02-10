@@ -26,8 +26,10 @@
 #include <asm/setup.h>
 #include <asm/mach_desc.h>
 
+#ifndef CONFIG_ARC_HAS_LLSC
 arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+#endif
 
 struct plat_smp_ops  plat_smp_ops;
 
@@ -101,7 +103,7 @@ void __weak arc_platform_smp_wait_to_boot(int cpu)
 
 const char *arc_platform_smp_cpuinfo(void)
 {
-	return plat_smp_ops.info;
+	return plat_smp_ops.info ? : "";
 }
 
 /*

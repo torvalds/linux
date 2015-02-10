@@ -1,6 +1,4 @@
-#define AUTOSENSE
 #define PSEUDO_DMA
-#define FOO
 #define UNSAFE  /* Not unsafe for PAS16 -- use it */
 #define PDEBUG 0
 
@@ -24,47 +22,9 @@
  * Media Vision
  * (510) 770-8600
  * (800) 348-7116
- * 
- * and 
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
  */
 
 /*
- * Options : 
- * AUTOSENSE - if defined, REQUEST SENSE will be performed automatically
- *      for commands that return with a CHECK CONDITION status. 
- *
- * LIMIT_TRANSFERSIZE - if defined, limit the pseudo-dma transfers to 512
- *      bytes at a time.  Since interrupts are disabled by default during
- *      these transfers, we might need this to give reasonable interrupt
- *      service time if the transfer size gets too large.
- *
- * PSEUDO_DMA - enables PSEUDO-DMA hardware, should give a 3-4X performance
- * increase compared to polled I/O.
- *
- * PARITY - enable parity checking.  Not supported.
- * 
- * SCSI2 - enable support for SCSI-II tagged queueing.  Untested.
- *
- * UNSAFE - leave interrupts enabled during pseudo-DMA transfers.  This
- *	    parameter comes from the NCR5380 code.  It is NOT unsafe with
- *	    the PAS16 and you should use it.  If you don't you will have
- *	    a problem with dropped characters during high speed
- *	    communications during SCSI transfers.  If you really don't
- *	    want to use UNSAFE you can try defining LIMIT_TRANSFERSIZE or
- *	    twiddle with the transfer size in the high level code.
- *
- * USLEEP - enable support for devices that don't disconnect.  Untested.
- *
  * The card is detected and initialized in one of several ways : 
  * 1.  Autoprobe (default) - There are many different models of
  *     the Pro Audio Spectrum/Studio 16, and I only have one of
@@ -102,13 +62,11 @@
  *   If you have problems with your card not being recognized, use
  *   the LILO command line override.  Try to get it recognized without
  *   interrupts.  Ie, for a board at the default 0x388 base port,
- *   boot: linux pas16=0x388,255
+ *   boot: linux pas16=0x388,0
  *
- *   SCSI_IRQ_NONE (255) should be specified for no interrupt,
+ *   NO_IRQ (0) should be specified for no interrupt,
  *   IRQ_AUTO (254) to autoprobe for an IRQ line if overridden
  *   on the command line.
- *
- *   (IRQ_AUTO == 254, SCSI_IRQ_NONE == 255 in NCR5380.h)
  */
  
 #include <linux/module.h>
@@ -123,15 +81,12 @@
 #include <linux/stat.h>
 #include <linux/init.h>
 
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "pas16.h"
 #define AUTOPROBE_IRQ
 #include "NCR5380.h"
 
 
-static int pas_maxi = 0;
-static int pas_wmaxi = 0;
 static unsigned short pas16_addr = 0;
 static int pas16_irq = 0;
  
@@ -337,6 +292,7 @@ static int __init
 }
 
 
+#ifndef MODULE
 /*
  * Function : pas16_setup(char *str, int *ints)
  *
@@ -347,10 +303,13 @@ static int __init
  *
  */
 
-void __init pas16_setup(char *str, int *ints)
+static int __init pas16_setup(char *str)
 {
     static int commandline_current = 0;
     int i;
+    int ints[10];
+
+    get_options(str, ARRAY_SIZE(ints), ints);
     if (ints[0] != 2) 
 	printk("pas16_setup : usage pas16=io_port,irq\n");
     else 
@@ -364,7 +323,11 @@ void __init pas16_setup(char *str, int *ints)
 		}
 	    ++commandline_current;
 	}
+    return 1;
 }
+
+__setup("pas16=", pas16_setup);
+#endif
 
 /* 
  * Function : int pas16_detect(struct scsi_host_template * tpnt)
@@ -379,17 +342,13 @@ void __init pas16_setup(char *str, int *ints)
  *
  */
 
-int __init pas16_detect(struct scsi_host_template * tpnt)
+static int __init pas16_detect(struct scsi_host_template *tpnt)
 {
     static int current_override = 0;
     static unsigned short current_base = 0;
     struct Scsi_Host *instance;
     unsigned short io_port;
     int  count;
-
-    tpnt->proc_name = "pas16";
-    tpnt->show_info = pas16_show_info;
-    tpnt->write_info = pas16_write_info;
 
     if (pas16_addr != 0) {
 	overrides[0].io_port = pas16_addr;
@@ -452,15 +411,19 @@ int __init pas16_detect(struct scsi_host_template * tpnt)
 	else 
 	    instance->irq = NCR5380_probe_irq(instance, PAS16_IRQS);
 
-	if (instance->irq != SCSI_IRQ_NONE) 
+	/* Compatibility with documented NCR5380 kernel parameters */
+	if (instance->irq == 255)
+		instance->irq = NO_IRQ;
+
+	if (instance->irq != NO_IRQ)
 	    if (request_irq(instance->irq, pas16_intr, 0,
 			    "pas16", instance)) {
 		printk("scsi%d : IRQ%d not free, interrupts disabled\n", 
 		    instance->host_no, instance->irq);
-		instance->irq = SCSI_IRQ_NONE;
+		instance->irq = NO_IRQ;
 	    } 
 
-	if (instance->irq == SCSI_IRQ_NONE) {
+	if (instance->irq == NO_IRQ) {
 	    printk("scsi%d : interrupts not enabled. for better interactive performance,\n", instance->host_no);
 	    printk("scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
 	    /* Disable 5380 interrupts, leave drive params the same */
@@ -471,17 +434,6 @@ int __init pas16_detect(struct scsi_host_template * tpnt)
 #if defined(PDEBUG) && (PDEBUG & PDEBUG_INIT)
 	printk("scsi%d : irq = %d\n", instance->host_no, instance->irq);
 #endif
-
-	printk("scsi%d : at 0x%04x", instance->host_no, (int) 
-	    instance->io_port);
-	if (instance->irq == SCSI_IRQ_NONE)
-	    printk (" interrupts disabled");
-	else 
-	    printk (" irq %d", instance->irq);
-	printk(" options CAN_QUEUE=%d  CMD_PER_LUN=%d release=%d",
-	    CAN_QUEUE, CMD_PER_LUN, PAS16_PUBLIC_RELEASE);
-	NCR5380_print_options(instance);
-	printk("\n");
 
 	++current_override;
 	++count;
@@ -509,8 +461,8 @@ int __init pas16_detect(struct scsi_host_template * tpnt)
  * and matching the H_C_S coordinates to what DOS uses.
  */
 
-int pas16_biosparam(struct scsi_device *sdev, struct block_device *dev,
-		sector_t capacity, int * ip)
+static int pas16_biosparam(struct scsi_device *sdev, struct block_device *dev,
+                           sector_t capacity, int *ip)
 {
   int size = capacity;
   ip[0] = 64;
@@ -547,6 +499,7 @@ static inline int NCR5380_pread (struct Scsi_Host *instance, unsigned char *dst,
 	P_DATA_REG_OFFSET);
     register int i = len;
     int ii = 0;
+    struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
     while ( !(inb(instance->io_port + P_STATUS_REG_OFFSET) & P_ST_RDY) )
 	 ++ii;
@@ -559,8 +512,8 @@ static inline int NCR5380_pread (struct Scsi_Host *instance, unsigned char *dst,
 	    instance->host_no);
 	return -1;
     }
-   if (ii > pas_maxi)
-      pas_maxi = ii;
+    if (ii > hostdata->spin_max_r)
+        hostdata->spin_max_r = ii;
     return 0;
 }
 
@@ -583,6 +536,7 @@ static inline int NCR5380_pwrite (struct Scsi_Host *instance, unsigned char *src
     register unsigned short reg = (instance->io_port + P_DATA_REG_OFFSET);
     register int i = len;
     int ii = 0;
+    struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
     while ( !((inb(instance->io_port + P_STATUS_REG_OFFSET)) & P_ST_RDY) )
 	 ++ii;
@@ -595,8 +549,8 @@ static inline int NCR5380_pwrite (struct Scsi_Host *instance, unsigned char *src
 	    instance->host_no);
 	return -1;
     }
-    if (ii > pas_maxi)
-	 pas_wmaxi = ii;
+    if (ii > hostdata->spin_max_w)
+        hostdata->spin_max_w = ii;
     return 0;
 }
 
@@ -604,7 +558,7 @@ static inline int NCR5380_pwrite (struct Scsi_Host *instance, unsigned char *src
 
 static int pas16_release(struct Scsi_Host *shost)
 {
-	if (shost->irq)
+	if (shost->irq != NO_IRQ)
 		free_irq(shost->irq, shost);
 	NCR5380_exit(shost);
 	if (shost->io_port && shost->n_io_port)
@@ -617,6 +571,10 @@ static struct scsi_host_template driver_template = {
 	.name           = "Pro Audio Spectrum-16 SCSI",
 	.detect         = pas16_detect,
 	.release        = pas16_release,
+	.proc_name      = "pas16",
+	.show_info      = pas16_show_info,
+	.write_info     = pas16_write_info,
+	.info           = pas16_info,
 	.queuecommand   = pas16_queue_command,
 	.eh_abort_handler = pas16_abort,
 	.eh_bus_reset_handler = pas16_bus_reset,

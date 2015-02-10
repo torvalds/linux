@@ -951,8 +951,6 @@ static int pm2xxx_wall_charger_suspend(struct device *dev)
 
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
-
 static int  pm2xxx_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *pm2xxx_i2c_client = to_i2c_client(dev);
@@ -976,8 +974,6 @@ static int  pm2xxx_runtime_resume(struct device *dev)
 
 	return 0;
 }
-
-#endif
 
 static const struct dev_pm_ops pm2xxx_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm2xxx_wall_charger_suspend,

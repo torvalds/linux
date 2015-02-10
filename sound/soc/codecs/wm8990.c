@@ -1271,18 +1271,6 @@ static struct snd_soc_dai_driver wm8990_dai = {
 	.ops = &wm8990_dai_ops,
 };
 
-static int wm8990_suspend(struct snd_soc_codec *codec)
-{
-	wm8990_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8990_resume(struct snd_soc_codec *codec)
-{
-	wm8990_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 /*
  * initialise the WM8990 driver
  * register the mixer and dsp interfaces with the kernel
@@ -1309,19 +1297,11 @@ static int wm8990_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/* power down chip */
-static int wm8990_remove(struct snd_soc_codec *codec)
-{
-	wm8990_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8990 = {
 	.probe =	wm8990_probe,
-	.remove =	wm8990_remove,
-	.suspend =	wm8990_suspend,
-	.resume =	wm8990_resume,
 	.set_bias_level = wm8990_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls =	wm8990_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8990_snd_controls),
 	.dapm_widgets = wm8990_dapm_widgets,

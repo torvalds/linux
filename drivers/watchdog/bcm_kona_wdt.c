@@ -352,7 +352,6 @@ MODULE_DEVICE_TABLE(of, bcm_kona_wdt_of_match);
 static struct platform_driver bcm_kona_wdt_driver = {
 	.driver = {
 			.name = BCM_KONA_WDT_NAME,
-			.owner = THIS_MODULE,
 			.of_match_table = bcm_kona_wdt_of_match,
 		  },
 	.probe = bcm_kona_wdt_probe,

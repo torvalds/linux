@@ -5,7 +5,8 @@ performance expectations by drivers, subsystems and user space applications on
 one of the parameters.
 
 Two different PM QoS frameworks are available:
-1. PM QoS classes for cpu_dma_latency, network_latency, network_throughput.
+1. PM QoS classes for cpu_dma_latency, network_latency, network_throughput,
+memory_bandwidth.
 2. the per-device PM QoS framework provides the API to manage the per-device latency
 constraints and PM QoS flags.
 
@@ -13,6 +14,7 @@ Each parameters have defined units:
  * latency: usec
  * timeout: usec
  * throughput: kbs (kilo bit / sec)
+ * memory bandwidth: mbs (mega bit / sec)
 
 
 1. PM QoS framework

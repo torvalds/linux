@@ -63,10 +63,9 @@ struct svc_xprt {
 #define	XPT_CHNGBUF	7		/* need to change snd/rcv buf sizes */
 #define	XPT_DEFERRED	8		/* deferred request pending */
 #define	XPT_OLD		9		/* used for xprt aging mark+sweep */
-#define	XPT_DETACHED	10		/* detached from tempsocks list */
-#define XPT_LISTENER	11		/* listening endpoint */
-#define XPT_CACHE_AUTH	12		/* cache auth info */
-#define XPT_LOCAL	13		/* connection from loopback interface */
+#define XPT_LISTENER	10		/* listening endpoint */
+#define XPT_CACHE_AUTH	11		/* cache auth info */
+#define XPT_LOCAL	12		/* connection from loopback interface */
 
 	struct svc_serv		*xpt_server;	/* service for transport */
 	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */

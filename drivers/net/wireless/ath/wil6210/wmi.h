@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  * Copyright (c) 2006-2012 Wilocity .
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -179,7 +179,6 @@ enum wmi_crypto_type {
 	WMI_CRYPT_AES_GCMP		= 0x20,
 };
 
-
 enum wmi_connect_ctrl_flag_bits {
 	WMI_CONNECT_ASSOC_POLICY_USER		= 0x0001,
 	WMI_CONNECT_SEND_REASSOC		= 0x0002,
@@ -219,7 +218,6 @@ struct wmi_disconnect_sta_cmd {
 	__le16 disconnect_reason;
 } __packed;
 
-
 /*
  * WMI_SET_PMK_CMDID
  */
@@ -233,7 +231,6 @@ struct wmi_disconnect_sta_cmd {
 struct  wmi_set_pmk_cmd {
 	u8 pmk[WMI_PMK_LEN];
 } __packed;
-
 
 /*
  * WMI_SET_PASSPHRASE_CMDID
@@ -272,7 +269,6 @@ struct wmi_delete_cipher_key_cmd {
 	u8 key_index;
 	u8 mac[WMI_MAC_LEN];
 } __packed;
-
 
 /*
  * WMI_START_SCAN_CMDID
@@ -325,7 +321,6 @@ struct wmi_probed_ssid_cmd {
 	u8 ssid[WMI_MAX_SSID_LEN];
 } __packed;
 
-
 /*
  * WMI_SET_APPIE_CMDID
  * Add Application specified IE to a management frame
@@ -350,7 +345,6 @@ struct wmi_set_appie_cmd {
 	__le16 ie_len;	/* Length of the IE to be added to MGMT frame */
 	u8 ie_info[0];
 } __packed;
-
 
 /*
  * WMI_PXMT_RANGE_CFG_CMDID
@@ -379,7 +373,6 @@ enum wmi_rf_mgmt_type {
 struct wmi_rf_mgmt_cmd {
 	__le32 rf_mgmt_type;
 } __packed;
-
 
 /*
  * WMI_RF_RX_TEST_CMDID
@@ -425,7 +418,6 @@ struct wmi_bcon_ctrl_cmd {
 	u8 disable_sec_offload;
 	u8 disable_sec;
 } __packed;
-
 
 /******* P2P ***********/
 
@@ -797,7 +789,6 @@ struct wmi_temp_sense_cmd {
 	__le32 measure_marlon_r_en;
 } __packed;
 
-
 /*
  * WMI Events
  */
@@ -886,7 +877,6 @@ enum wmi_event_id {
 /*
  * Events data structures
  */
-
 
 enum wmi_fw_status {
 	WMI_FW_STATUS_SUCCESS,
@@ -980,7 +970,7 @@ struct wmi_ready_event {
  * WMI_NOTIFY_REQ_DONE_EVENTID
  */
 struct wmi_notify_req_done_event {
-	__le32 status;
+	__le32 status; /* beamforming status, 0: fail; 1: OK; 2: retrying */
 	__le64 tsf;
 	__le32 snr_val;
 	__le32 tx_tpt;
@@ -1038,8 +1028,8 @@ struct wmi_disconnect_event {
 	__le16 protocol_reason_status;	/* reason code, see 802.11 spec. */
 	u8 bssid[WMI_MAC_LEN];		/* set if known */
 	u8 disconnect_reason;		/* see wmi_disconnect_reason */
-	u8 assoc_resp_len;		/* not in use */
-	u8 assoc_info[0];		/* not in use */
+	u8 assoc_resp_len;	/* not used */
+	u8 assoc_info[0];	/* not used */
 } __packed;
 
 /*
@@ -1080,7 +1070,6 @@ struct wmi_delba_event {
 	u8 from_initiator;
 	__le16 reason;
 } __packed;
-
 
 /*
  * WMI_VRING_CFG_DONE_EVENTID
@@ -1147,7 +1136,6 @@ struct wmi_data_port_open_event {
 	u8 reserved[3];
 } __packed;
 
-
 /*
  * WMI_GET_PCP_CHANNEL_EVENTID
  */
@@ -1155,7 +1143,6 @@ struct wmi_get_pcp_channel_event {
 	u8 channel;
 	u8 reserved[3];
 } __packed;
-
 
 /*
 * WMI_PORT_ALLOCATED_EVENTID
@@ -1259,7 +1246,6 @@ struct wmi_rx_mgmt_info {
 	u8 cid;
 	u8 channel;	/* From Radio MNGR */
 } __packed;
-
 
 /*
  * WMI_TX_MGMT_PACKET_EVENTID

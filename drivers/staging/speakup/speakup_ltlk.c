@@ -141,6 +141,7 @@ static void synth_interrogate(struct spk_synth *synth)
 {
 	unsigned char *t, i;
 	unsigned char buf[50], rom_v[20];
+
 	spk_synth_immediate(synth, "\x18\x01?");
 	for (i = 0; i < 50; i++) {
 		buf[i] = spk_serial_in();

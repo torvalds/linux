@@ -30,7 +30,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
-#include <linux/pda_power.h>
+#include <linux/power/gpio-charger.h>
 
 #include <video/sa1100fb.h>
 
@@ -131,62 +131,24 @@ static struct irda_platform_data collie_ir_data = {
 /*
  * Collie AC IN
  */
-static int collie_power_init(struct device *dev)
-{
-	int ret = gpio_request(COLLIE_GPIO_AC_IN, "ac in");
-	if (ret)
-		goto err_gpio_req;
-
-	ret = gpio_direction_input(COLLIE_GPIO_AC_IN);
-	if (ret)
-		goto err_gpio_in;
-
-	return 0;
-
-err_gpio_in:
-	gpio_free(COLLIE_GPIO_AC_IN);
-err_gpio_req:
-	return ret;
-}
-
-static void collie_power_exit(struct device *dev)
-{
-	gpio_free(COLLIE_GPIO_AC_IN);
-}
-
-static int collie_power_ac_online(void)
-{
-	return gpio_get_value(COLLIE_GPIO_AC_IN) == 2;
-}
-
 static char *collie_ac_supplied_to[] = {
 	"main-battery",
 	"backup-battery",
 };
 
-static struct pda_power_pdata collie_power_data = {
-	.init			= collie_power_init,
-	.is_ac_online		= collie_power_ac_online,
-	.exit			= collie_power_exit,
+
+static struct gpio_charger_platform_data collie_power_data = {
+	.name			= "charger",
+	.type			= POWER_SUPPLY_TYPE_MAINS,
+	.gpio			= COLLIE_GPIO_AC_IN,
 	.supplied_to		= collie_ac_supplied_to,
 	.num_supplicants	= ARRAY_SIZE(collie_ac_supplied_to),
 };
 
-static struct resource collie_power_resource[] = {
-	{
-		.name		= "ac",
-		.flags		= IORESOURCE_IRQ |
-				  IORESOURCE_IRQ_HIGHEDGE |
-				  IORESOURCE_IRQ_LOWEDGE,
-	},
-};
-
 static struct platform_device collie_power_device = {
-	.name			= "pda-power",
+	.name			= "gpio-charger",
 	.id			= -1,
 	.dev.platform_data	= &collie_power_data,
-	.resource		= collie_power_resource,
-	.num_resources		= ARRAY_SIZE(collie_power_resource),
 };
 
 #ifdef CONFIG_SHARP_LOCOMO
@@ -419,9 +381,6 @@ static void __init collie_init(void)
 	PCFR = PCFR_OPDE;
 
 	GPSR |= _COLLIE_GPIO_UCB1x00_RESET;
-
-	collie_power_resource[0].start = gpio_to_irq(COLLIE_GPIO_AC_IN);
-	collie_power_resource[0].end = gpio_to_irq(COLLIE_GPIO_AC_IN);
 
 	sa11x0_ppc_configure_mcp();
 

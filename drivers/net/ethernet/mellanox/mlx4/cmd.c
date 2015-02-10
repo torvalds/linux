@@ -580,8 +580,18 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 
 	err = context->result;
 	if (err) {
-		mlx4_err(dev, "command 0x%x failed: fw status = 0x%x\n",
-			 op, context->fw_status);
+		/* Since we do not want to have this error message always
+		 * displayed at driver start when there are ConnectX2 HCAs
+		 * on the host, we deprecate the error message for this
+		 * specific command/input_mod/opcode_mod/fw-status to be debug.
+		 */
+		if (op == MLX4_CMD_SET_PORT && in_modifier == 1 &&
+		    op_modifier == 0 && context->fw_status == CMD_STAT_BAD_SIZE)
+			mlx4_dbg(dev, "command 0x%x failed: fw status = 0x%x\n",
+				 op, context->fw_status);
+		else
+			mlx4_err(dev, "command 0x%x failed: fw status = 0x%x\n",
+				 op, context->fw_status);
 		goto out;
 	}
 
@@ -980,11 +990,11 @@ static struct mlx4_cmd_info cmd_info[] = {
 	{
 		.opcode = MLX4_CMD_CONFIG_DEV,
 		.has_inbox = false,
-		.has_outbox = false,
+		.has_outbox = true,
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = mlx4_CMD_EPERM_wrapper
+		.wrapper = mlx4_CONFIG_DEV_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_ALLOC_RES,
@@ -1327,6 +1337,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.encode_slave_id = false,
 		.verify = NULL,
 		.wrapper = mlx4_QUERY_IF_STAT_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_ACCESS_REG,
+		.has_inbox = true,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_ACCESS_REG_wrapper,
 	},
 	/* Native multicast commands are not available for guests */
 	{
@@ -1695,7 +1714,7 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 			if (err) {
 				vp_oper->vlan_idx = NO_INDX;
 				mlx4_warn(&priv->dev,
-					  "No vlan resorces slave %d, port %d\n",
+					  "No vlan resources slave %d, port %d\n",
 					  slave, port);
 				return err;
 			}
@@ -1711,7 +1730,7 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 				err = vp_oper->mac_idx;
 				vp_oper->mac_idx = NO_INDX;
 				mlx4_warn(&priv->dev,
-					  "No mac resorces slave %d, port %d\n",
+					  "No mac resources slave %d, port %d\n",
 					  slave, port);
 				return err;
 			}
@@ -2098,50 +2117,52 @@ err_vhcr:
 int mlx4_cmd_init(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
+	int flags = 0;
 
-	mutex_init(&priv->cmd.hcr_mutex);
-	mutex_init(&priv->cmd.slave_cmd_mutex);
-	sema_init(&priv->cmd.poll_sem, 1);
-	priv->cmd.use_events = 0;
-	priv->cmd.toggle     = 1;
+	if (!priv->cmd.initialized) {
+		mutex_init(&priv->cmd.hcr_mutex);
+		mutex_init(&priv->cmd.slave_cmd_mutex);
+		sema_init(&priv->cmd.poll_sem, 1);
+		priv->cmd.use_events = 0;
+		priv->cmd.toggle     = 1;
+		priv->cmd.initialized = 1;
+		flags |= MLX4_CMD_CLEANUP_STRUCT;
+	}
 
-	priv->cmd.hcr = NULL;
-	priv->mfunc.vhcr = NULL;
-
-	if (!mlx4_is_slave(dev)) {
+	if (!mlx4_is_slave(dev) && !priv->cmd.hcr) {
 		priv->cmd.hcr = ioremap(pci_resource_start(dev->pdev, 0) +
 					MLX4_HCR_BASE, MLX4_HCR_SIZE);
 		if (!priv->cmd.hcr) {
 			mlx4_err(dev, "Couldn't map command register\n");
-			return -ENOMEM;
+			goto err;
 		}
+		flags |= MLX4_CMD_CLEANUP_HCR;
 	}
 
-	if (mlx4_is_mfunc(dev)) {
+	if (mlx4_is_mfunc(dev) && !priv->mfunc.vhcr) {
 		priv->mfunc.vhcr = dma_alloc_coherent(&(dev->pdev->dev), PAGE_SIZE,
 						      &priv->mfunc.vhcr_dma,
 						      GFP_KERNEL);
 		if (!priv->mfunc.vhcr)
-			goto err_hcr;
+			goto err;
+
+		flags |= MLX4_CMD_CLEANUP_VHCR;
 	}
 
-	priv->cmd.pool = pci_pool_create("mlx4_cmd", dev->pdev,
-					 MLX4_MAILBOX_SIZE,
-					 MLX4_MAILBOX_SIZE, 0);
-	if (!priv->cmd.pool)
-		goto err_vhcr;
+	if (!priv->cmd.pool) {
+		priv->cmd.pool = pci_pool_create("mlx4_cmd", dev->pdev,
+						 MLX4_MAILBOX_SIZE,
+						 MLX4_MAILBOX_SIZE, 0);
+		if (!priv->cmd.pool)
+			goto err;
+
+		flags |= MLX4_CMD_CLEANUP_POOL;
+	}
 
 	return 0;
 
-err_vhcr:
-	if (mlx4_is_mfunc(dev))
-		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
-				  priv->mfunc.vhcr, priv->mfunc.vhcr_dma);
-	priv->mfunc.vhcr = NULL;
-
-err_hcr:
-	if (!mlx4_is_slave(dev))
-		iounmap(priv->cmd.hcr);
+err:
+	mlx4_cmd_cleanup(dev, flags);
 	return -ENOMEM;
 }
 
@@ -2165,18 +2186,28 @@ void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 	iounmap(priv->mfunc.comm);
 }
 
-void mlx4_cmd_cleanup(struct mlx4_dev *dev)
+void mlx4_cmd_cleanup(struct mlx4_dev *dev, int cleanup_mask)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	pci_pool_destroy(priv->cmd.pool);
+	if (priv->cmd.pool && (cleanup_mask & MLX4_CMD_CLEANUP_POOL)) {
+		pci_pool_destroy(priv->cmd.pool);
+		priv->cmd.pool = NULL;
+	}
 
-	if (!mlx4_is_slave(dev))
+	if (!mlx4_is_slave(dev) && priv->cmd.hcr &&
+	    (cleanup_mask & MLX4_CMD_CLEANUP_HCR)) {
 		iounmap(priv->cmd.hcr);
-	if (mlx4_is_mfunc(dev))
+		priv->cmd.hcr = NULL;
+	}
+	if (mlx4_is_mfunc(dev) && priv->mfunc.vhcr &&
+	    (cleanup_mask & MLX4_CMD_CLEANUP_VHCR)) {
 		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
 				  priv->mfunc.vhcr, priv->mfunc.vhcr_dma);
-	priv->mfunc.vhcr = NULL;
+		priv->mfunc.vhcr = NULL;
+	}
+	if (priv->cmd.initialized && (cleanup_mask & MLX4_CMD_CLEANUP_STRUCT))
+		priv->cmd.initialized = 0;
 }
 
 /*

@@ -3,6 +3,7 @@
 #define __PERF_DEBUG_H
 
 #include <stdbool.h>
+#include <string.h>
 #include "event.h"
 #include "../ui/helpline.h"
 #include "../ui/progress.h"
@@ -10,6 +11,7 @@
 
 extern int verbose;
 extern bool quiet, dump_trace;
+extern int debug_ordered_events;
 
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt
@@ -29,6 +31,14 @@ extern bool quiet, dump_trace;
 #define pr_debug3(fmt, ...) pr_debugN(3, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_debug4(fmt, ...) pr_debugN(4, pr_fmt(fmt), ##__VA_ARGS__)
 
+#define pr_time_N(n, var, t, fmt, ...) \
+	eprintf_time(n, var, t, fmt, ##__VA_ARGS__)
+
+#define pr_oe_time(t, fmt, ...)  pr_time_N(1, debug_ordered_events, t, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_oe_time2(t, fmt, ...) pr_time_N(2, debug_ordered_events, t, pr_fmt(fmt), ##__VA_ARGS__)
+
+#define STRERR_BUFSIZE	128	/* For the buffer size of strerror_r */
+
 int dump_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void trace_event(union perf_event *event);
 
@@ -38,6 +48,7 @@ int ui__warning(const char *format, ...) __attribute__((format(printf, 1, 2)));
 void pr_stat(const char *fmt, ...);
 
 int eprintf(int level, int var, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
+int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __attribute__((format(printf, 4, 5)));
 
 int perf_debug_option(const char *str);
 

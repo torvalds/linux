@@ -236,7 +236,6 @@ static struct platform_driver xwdt_driver = {
 	.probe       = xwdt_probe,
 	.remove      = xwdt_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = WATCHDOG_NAME,
 		.of_match_table = xwdt_of_match,
 	},

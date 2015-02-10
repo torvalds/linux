@@ -388,7 +388,7 @@ static void fimc_is_load_firmware(const struct firmware *fw, void *context)
 	mutex_lock(&is->lock);
 
 	if (fw->size < FIMC_IS_FW_SIZE_MIN || fw->size > FIMC_IS_FW_SIZE_MAX) {
-		dev_err(dev, "wrong firmware size: %d\n", fw->size);
+		dev_err(dev, "wrong firmware size: %zu\n", fw->size);
 		goto done;
 	}
 
@@ -416,7 +416,7 @@ static void fimc_is_load_firmware(const struct firmware *fw, void *context)
 
 	dev_info(dev, "loaded firmware: %s, rev. %s\n",
 		 is->fw.info, is->fw.version);
-	dev_dbg(dev, "FW size: %d, paddr: %#x\n", fw->size, is->memory.paddr);
+	dev_dbg(dev, "FW size: %zu, paddr: %pad\n", fw->size, &is->memory.paddr);
 
 	is->is_shared_region->chip_id = 0xe4412;
 	is->is_shared_region->chip_rev_no = 1;
@@ -428,8 +428,7 @@ static void fimc_is_load_firmware(const struct firmware *fw, void *context)
 	 * needed around for copying to the IS working memory every
 	 * time before the Cortex-A5 is restarted.
 	 */
-	if (is->fw.f_w)
-		release_firmware(is->fw.f_w);
+	release_firmware(is->fw.f_w);
 	is->fw.f_w = fw;
 done:
 	mutex_unlock(&is->lock);
@@ -693,9 +692,9 @@ int fimc_is_hw_initialize(struct fimc_is *is)
 		return -EIO;
 	}
 
-	pr_debug("shared region: %#x, parameter region: %#x\n",
-		 is->memory.paddr + FIMC_IS_SHARED_REGION_OFFSET,
-		 is->is_dma_p_region);
+	pr_debug("shared region: %pad, parameter region: %pad\n",
+		 &is->memory.paddr + FIMC_IS_SHARED_REGION_OFFSET,
+		 &is->is_dma_p_region);
 
 	is->setfile.sub_index = 0;
 
@@ -814,9 +813,9 @@ static int fimc_is_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	is->irq = irq_of_parse_and_map(dev->of_node, 0);
-	if (is->irq < 0) {
+	if (!is->irq) {
 		dev_err(dev, "no irq found\n");
-		return is->irq;
+		return -EINVAL;
 	}
 
 	ret = fimc_is_get_clocks(is);
@@ -937,8 +936,7 @@ static int fimc_is_remove(struct platform_device *pdev)
 	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
 	fimc_is_put_clocks(is);
 	fimc_is_debugfs_remove(is);
-	if (is->fw.f_w)
-		release_firmware(is->fw.f_w);
+	release_firmware(is->fw.f_w);
 	fimc_is_free_cpu_memory(is);
 
 	return 0;
@@ -962,7 +960,6 @@ static struct platform_driver fimc_is_driver = {
 	.driver = {
 		.of_match_table	= fimc_is_of_match,
 		.name		= FIMC_IS_DRV_NAME,
-		.owner		= THIS_MODULE,
 		.pm		= &fimc_is_pm_ops,
 	}
 };

@@ -434,11 +434,11 @@ accept2secure(const char *acc, long *sec)
 		return 1;
 	} else if (!strcmp(acc, "none")) {
 		return 0;
-	} else {
-		LCONSOLE_ERROR_MSG(0x124, "Can't parse 'accept=\"%s\"'\n",
-				   acc);
-		return -EINVAL;
 	}
+
+	LCONSOLE_ERROR_MSG(0x124, "Can't parse 'accept=\"%s\"'\n",
+			   acc);
+	return -EINVAL;
 }
 
 int

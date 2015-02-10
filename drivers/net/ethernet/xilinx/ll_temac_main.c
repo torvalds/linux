@@ -224,8 +224,7 @@ static void temac_dma_bd_release(struct net_device *ndev)
 		dma_free_coherent(ndev->dev.parent,
 				sizeof(*lp->tx_bd_v) * TX_BD_NUM,
 				lp->tx_bd_v, lp->tx_bd_p);
-	if (lp->rx_skb)
-		kfree(lp->rx_skb);
+	kfree(lp->rx_skb);
 }
 
 /**
@@ -1012,7 +1011,6 @@ static int temac_of_probe(struct platform_device *op)
 	if (!ndev)
 		return -ENOMEM;
 
-	ether_setup(ndev);
 	platform_set_drvdata(op, ndev);
 	SET_NETDEV_DEV(ndev, &op->dev);
 	ndev->flags &= ~IFF_MULTICAST;  /* clear multicast */
@@ -1045,6 +1043,7 @@ static int temac_of_probe(struct platform_device *op)
 	lp->regs = of_iomap(op->dev.of_node, 0);
 	if (!lp->regs) {
 		dev_err(&op->dev, "could not map temac regs.\n");
+		rc = -ENOMEM;
 		goto nodev;
 	}
 
@@ -1064,6 +1063,7 @@ static int temac_of_probe(struct platform_device *op)
 	np = of_parse_phandle(op->dev.of_node, "llink-connected", 0);
 	if (!np) {
 		dev_err(&op->dev, "could not find DMA node\n");
+		rc = -ENODEV;
 		goto err_iounmap;
 	}
 

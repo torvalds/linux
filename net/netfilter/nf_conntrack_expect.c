@@ -83,7 +83,8 @@ static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple
 	hash = jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
 		      (((tuple->dst.protonum ^ tuple->src.l3num) << 16) |
 		       (__force __u16)tuple->dst.u.all) ^ nf_conntrack_hash_rnd);
-	return ((u64)hash * nf_ct_expect_hsize) >> 32;
+
+	return reciprocal_scale(hash, nf_ct_expect_hsize);
 }
 
 struct nf_conntrack_expect *

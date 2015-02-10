@@ -18,14 +18,13 @@
 unsigned long *crst_table_alloc(struct mm_struct *);
 void crst_table_free(struct mm_struct *, unsigned long *);
 
-unsigned long *page_table_alloc(struct mm_struct *, unsigned long);
+unsigned long *page_table_alloc(struct mm_struct *);
 void page_table_free(struct mm_struct *, unsigned long *);
-void page_table_free_rcu(struct mmu_gather *, unsigned long *);
+void page_table_free_rcu(struct mmu_gather *, unsigned long *, unsigned long);
 
-void page_table_reset_pgste(struct mm_struct *, unsigned long, unsigned long,
-			    bool init_skey);
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned long key, bool nq);
+unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr);
 
 static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 {
@@ -145,8 +144,8 @@ static inline void pmd_populate(struct mm_struct *mm,
 /*
  * page table entry allocation/free routines.
  */
-#define pte_alloc_one_kernel(mm, vmaddr) ((pte_t *) page_table_alloc(mm, vmaddr))
-#define pte_alloc_one(mm, vmaddr) ((pte_t *) page_table_alloc(mm, vmaddr))
+#define pte_alloc_one_kernel(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
+#define pte_alloc_one(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
 
 #define pte_free_kernel(mm, pte) page_table_free(mm, (unsigned long *) pte)
 #define pte_free(mm, pte) page_table_free(mm, (unsigned long *) pte)

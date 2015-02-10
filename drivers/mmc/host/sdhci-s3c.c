@@ -300,6 +300,7 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 	struct device *dev = &ourhost->pdev->dev;
 	unsigned long timeout;
 	u16 clk = 0;
+	int ret;
 
 	host->mmc->actual_clock = 0;
 
@@ -311,7 +312,12 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	sdhci_s3c_set_clock(host, clock);
 
-	clk_set_rate(ourhost->clk_bus[ourhost->cur_clk], clock);
+	ret = clk_set_rate(ourhost->clk_bus[ourhost->cur_clk], clock);
+	if (ret != 0) {
+		dev_err(dev, "%s: failed to set clock rate %uHz\n",
+			mmc_hostname(host->mmc), clock);
+		return;
+	}
 
 	clk = SDHCI_CLOCK_INT_EN;
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
@@ -606,18 +612,18 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(dev, "sdhci_add_host() failed\n");
-		pm_runtime_forbid(&pdev->dev);
-		pm_runtime_get_noresume(&pdev->dev);
 		goto err_req_regs;
 	}
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	if (pdata->cd_type != S3C_SDHCI_CD_INTERNAL)
 		clk_disable_unprepare(sc->clk_io);
 #endif
 	return 0;
 
  err_req_regs:
+	pm_runtime_disable(&pdev->dev);
+
  err_no_busclks:
 	clk_disable_unprepare(sc->clk_io);
 
@@ -635,7 +641,7 @@ static int sdhci_s3c_remove(struct platform_device *pdev)
 	if (sc->ext_cd_irq)
 		free_irq(sc->ext_cd_irq, sc);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	if (sc->pdata->cd_type != S3C_SDHCI_CD_INTERNAL)
 		clk_prepare_enable(sc->clk_io);
 #endif
@@ -667,7 +673,7 @@ static int sdhci_s3c_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int sdhci_s3c_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -747,7 +753,6 @@ static struct platform_driver sdhci_s3c_driver = {
 	.remove		= sdhci_s3c_remove,
 	.id_table	= sdhci_s3c_driver_ids,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "s3c-sdhci",
 		.of_match_table = of_match_ptr(sdhci_s3c_dt_match),
 		.pm	= SDHCI_S3C_PMOPS,

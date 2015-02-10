@@ -73,7 +73,9 @@ struct sti_gdp_node {
 
 struct sti_gdp_node_list {
 	struct sti_gdp_node *top_field;
+	dma_addr_t top_field_paddr;
 	struct sti_gdp_node *btm_field;
+	dma_addr_t btm_field_paddr;
 };
 
 /**
@@ -81,6 +83,8 @@ struct sti_gdp_node_list {
  *
  * @layer:		layer structure
  * @clk_pix:            pixel clock for the current gdp
+ * @clk_main_parent:    gdp parent clock if main path used
+ * @clk_aux_parent:     gdp parent clock if aux path used
  * @vtg_field_nb:       callback for VTG FIELD (top or bottom) notification
  * @is_curr_top:        true if the current node processed is the top field
  * @node_list:		array of node list
@@ -88,6 +92,8 @@ struct sti_gdp_node_list {
 struct sti_gdp {
 	struct sti_layer layer;
 	struct clk *clk_pix;
+	struct clk *clk_main_parent;
+	struct clk *clk_aux_parent;
 	struct notifier_block vtg_field_nb;
 	bool is_curr_top;
 	struct sti_gdp_node_list node_list[GDP_NODE_NB_BANK];
@@ -168,7 +174,6 @@ static int sti_gdp_get_alpharange(int format)
 static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_layer *layer)
 {
 	int hw_nvn;
-	void *virt_nvn;
 	struct sti_gdp *gdp = to_sti_gdp(layer);
 	unsigned int i;
 
@@ -176,11 +181,9 @@ static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_layer *layer)
 	if (!hw_nvn)
 		goto end;
 
-	virt_nvn = dma_to_virt(layer->dev, (dma_addr_t) hw_nvn);
-
 	for (i = 0; i < GDP_NODE_NB_BANK; i++)
-		if ((virt_nvn != gdp->node_list[i].btm_field) &&
-		    (virt_nvn != gdp->node_list[i].top_field))
+		if ((hw_nvn != gdp->node_list[i].btm_field_paddr) &&
+		    (hw_nvn != gdp->node_list[i].top_field_paddr))
 			return &gdp->node_list[i];
 
 	/* in hazardious cases restart with the first node */
@@ -204,7 +207,6 @@ static
 struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_layer *layer)
 {
 	int hw_nvn;
-	void *virt_nvn;
 	struct sti_gdp *gdp = to_sti_gdp(layer);
 	unsigned int i;
 
@@ -212,11 +214,9 @@ struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_layer *layer)
 	if (!hw_nvn)
 		goto end;
 
-	virt_nvn = dma_to_virt(layer->dev, (dma_addr_t) hw_nvn);
-
 	for (i = 0; i < GDP_NODE_NB_BANK; i++)
-		if ((virt_nvn == gdp->node_list[i].btm_field) ||
-				(virt_nvn == gdp->node_list[i].top_field))
+		if ((hw_nvn == gdp->node_list[i].btm_field_paddr) ||
+				(hw_nvn == gdp->node_list[i].top_field_paddr))
 			return &gdp->node_list[i];
 
 end:
@@ -292,8 +292,8 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 
 	/* Same content and chained together */
 	memcpy(btm_field, top_field, sizeof(*btm_field));
-	top_field->gam_gdp_nvn = virt_to_dma(dev, btm_field);
-	btm_field->gam_gdp_nvn = virt_to_dma(dev, top_field);
+	top_field->gam_gdp_nvn = list->btm_field_paddr;
+	btm_field->gam_gdp_nvn = list->top_field_paddr;
 
 	/* Interlaced mode */
 	if (layer->mode->flags & DRM_MODE_FLAG_INTERLACE)
@@ -311,6 +311,17 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 
 		/* Set and enable gdp clock */
 		if (gdp->clk_pix) {
+			struct clk *clkp;
+			/* According to the mixer used, the gdp pixel clock
+			 * should have a different parent clock. */
+			if (layer->mixer_id == STI_MIXER_MAIN)
+				clkp = gdp->clk_main_parent;
+			else
+				clkp = gdp->clk_aux_parent;
+
+			if (clkp)
+				clk_set_parent(gdp->clk_pix, clkp);
+
 			res = clk_set_rate(gdp->clk_pix, rate);
 			if (res < 0) {
 				DRM_ERROR("Cannot set rate (%dHz) for gdp\n",
@@ -349,8 +360,8 @@ static int sti_gdp_commit_layer(struct sti_layer *layer)
 	struct sti_gdp_node *updated_top_node = updated_list->top_field;
 	struct sti_gdp_node *updated_btm_node = updated_list->btm_field;
 	struct sti_gdp *gdp = to_sti_gdp(layer);
-	u32 dma_updated_top = virt_to_dma(layer->dev, updated_top_node);
-	u32 dma_updated_btm = virt_to_dma(layer->dev, updated_btm_node);
+	u32 dma_updated_top = updated_list->top_field_paddr;
+	u32 dma_updated_btm = updated_list->btm_field_paddr;
 	struct sti_gdp_node_list *curr_list = sti_gdp_get_current_nodes(layer);
 
 	dev_dbg(layer->dev, "%s %s top/btm_node:0x%p/0x%p\n", __func__,
@@ -461,16 +472,16 @@ static void sti_gdp_init(struct sti_layer *layer)
 {
 	struct sti_gdp *gdp = to_sti_gdp(layer);
 	struct device_node *np = layer->dev->of_node;
-	dma_addr_t dma;
+	dma_addr_t dma_addr;
 	void *base;
 	unsigned int i, size;
 
 	/* Allocate all the nodes within a single memory page */
 	size = sizeof(struct sti_gdp_node) *
 	    GDP_NODE_PER_FIELD * GDP_NODE_NB_BANK;
-
 	base = dma_alloc_writecombine(layer->dev,
-			size, &dma, GFP_KERNEL | GFP_DMA);
+			size, &dma_addr, GFP_KERNEL | GFP_DMA);
+
 	if (!base) {
 		DRM_ERROR("Failed to allocate memory for GDP node\n");
 		return;
@@ -478,21 +489,26 @@ static void sti_gdp_init(struct sti_layer *layer)
 	memset(base, 0, size);
 
 	for (i = 0; i < GDP_NODE_NB_BANK; i++) {
-		if (virt_to_dma(layer->dev, base) & 0xF) {
+		if (dma_addr & 0xF) {
 			DRM_ERROR("Mem alignment failed\n");
 			return;
 		}
 		gdp->node_list[i].top_field = base;
+		gdp->node_list[i].top_field_paddr = dma_addr;
+
 		DRM_DEBUG_DRIVER("node[%d].top_field=%p\n", i, base);
 		base += sizeof(struct sti_gdp_node);
+		dma_addr += sizeof(struct sti_gdp_node);
 
-		if (virt_to_dma(layer->dev, base) & 0xF) {
+		if (dma_addr & 0xF) {
 			DRM_ERROR("Mem alignment failed\n");
 			return;
 		}
 		gdp->node_list[i].btm_field = base;
+		gdp->node_list[i].btm_field_paddr = dma_addr;
 		DRM_DEBUG_DRIVER("node[%d].btm_field=%p\n", i, base);
 		base += sizeof(struct sti_gdp_node);
+		dma_addr += sizeof(struct sti_gdp_node);
 	}
 
 	if (of_device_is_compatible(np, "st,stih407-compositor")) {
@@ -520,6 +536,14 @@ static void sti_gdp_init(struct sti_layer *layer)
 		gdp->clk_pix = devm_clk_get(layer->dev, clk_name);
 		if (IS_ERR(gdp->clk_pix))
 			DRM_ERROR("Cannot get %s clock\n", clk_name);
+
+		gdp->clk_main_parent = devm_clk_get(layer->dev, "main_parent");
+		if (IS_ERR(gdp->clk_main_parent))
+			DRM_ERROR("Cannot get main_parent clock\n");
+
+		gdp->clk_aux_parent = devm_clk_get(layer->dev, "aux_parent");
+		if (IS_ERR(gdp->clk_aux_parent))
+			DRM_ERROR("Cannot get aux_parent clock\n");
 	}
 }
 

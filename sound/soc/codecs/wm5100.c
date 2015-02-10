@@ -2319,11 +2319,8 @@ static void wm5100_init_gpio(struct i2c_client *i2c)
 static void wm5100_free_gpio(struct i2c_client *i2c)
 {
 	struct wm5100_priv *wm5100 = i2c_get_clientdata(i2c);
-	int ret;
 
-	ret = gpiochip_remove(&wm5100->gpio_chip);
-	if (ret != 0)
-		dev_err(&i2c->dev, "Failed to remove GPIOs: %d\n", ret);
+	gpiochip_remove(&wm5100->gpio_chip);
 }
 #else
 static void wm5100_init_gpio(struct i2c_client *i2c)
@@ -2667,7 +2664,7 @@ static int wm5100_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int wm5100_runtime_suspend(struct device *dev)
 {
 	struct wm5100_priv *wm5100 = dev_get_drvdata(dev);

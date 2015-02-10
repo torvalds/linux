@@ -322,7 +322,6 @@ MODULE_DEVICE_TABLE(of, ohci_hcd_nxp_match);
 static struct platform_driver ohci_hcd_nxp_driver = {
 	.driver = {
 		.name = "usb-ohci",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(ohci_hcd_nxp_match),
 	},
 	.probe = ohci_hcd_nxp_probe,

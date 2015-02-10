@@ -98,9 +98,15 @@ enum {
 
 	IPOIB_MCAST_FLAG_FOUND	  = 0,	/* used in set_multicast_list */
 	IPOIB_MCAST_FLAG_SENDONLY = 1,
-	IPOIB_MCAST_FLAG_BUSY	  = 2,	/* joining or already joined */
+	/*
+	 * For IPOIB_MCAST_FLAG_BUSY
+	 * When set, in flight join and mcast->mc is unreliable
+	 * When clear and mcast->mc IS_ERR_OR_NULL, need to restart or
+	 *   haven't started yet
+	 * When clear and mcast->mc is valid pointer, join was successful
+	 */
+	IPOIB_MCAST_FLAG_BUSY	  = 2,
 	IPOIB_MCAST_FLAG_ATTACHED = 3,
-	IPOIB_MCAST_JOIN_STARTED  = 4,
 
 	MAX_SEND_CQE		  = 16,
 	IPOIB_CM_COPYBREAK	  = 256,
@@ -317,6 +323,7 @@ struct ipoib_dev_priv {
 	struct list_head multicast_list;
 	struct rb_root multicast_tree;
 
+	struct workqueue_struct *wq;
 	struct delayed_work mcast_task;
 	struct work_struct carrier_on_task;
 	struct work_struct flush_light;
@@ -477,10 +484,10 @@ void ipoib_ib_dev_flush_heavy(struct work_struct *work);
 void ipoib_pkey_event(struct work_struct *work);
 void ipoib_ib_dev_cleanup(struct net_device *dev);
 
-int ipoib_ib_dev_open(struct net_device *dev, int flush);
+int ipoib_ib_dev_open(struct net_device *dev);
 int ipoib_ib_dev_up(struct net_device *dev);
-int ipoib_ib_dev_down(struct net_device *dev, int flush);
-int ipoib_ib_dev_stop(struct net_device *dev, int flush);
+int ipoib_ib_dev_down(struct net_device *dev);
+int ipoib_ib_dev_stop(struct net_device *dev);
 void ipoib_pkey_dev_check_presence(struct net_device *dev);
 
 int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
@@ -492,7 +499,7 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
 int ipoib_mcast_start_thread(struct net_device *dev);
-int ipoib_mcast_stop_thread(struct net_device *dev, int flush);
+int ipoib_mcast_stop_thread(struct net_device *dev);
 
 void ipoib_mcast_dev_down(struct net_device *dev);
 void ipoib_mcast_dev_flush(struct net_device *dev);

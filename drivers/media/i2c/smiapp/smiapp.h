@@ -54,6 +54,8 @@
 	(1000 +	(SMIAPP_RESET_DELAY_CLOCKS * 1000	\
 		 + (clk) / 1000 - 1) / ((clk) / 1000))
 
+#define SMIAPP_COLOUR_COMPONENTS	4
+
 #include "smiapp-limits.h"
 
 struct smiapp_quirk;
@@ -154,6 +156,11 @@ struct smiapp_csi_data_format {
 #define SMIAPP_PAD_SRC			1
 #define SMIAPP_PADS			2
 
+#define SMIAPP_COMPRESSED_BASE		8
+#define SMIAPP_COMPRESSED_MAX		12
+#define SMIAPP_NR_OF_COMPRESSED		(SMIAPP_COMPRESSED_MAX - \
+					 SMIAPP_COMPRESSED_BASE + 1)
+
 struct smiapp_binning_subtype {
 	u8 horizontal:4;
 	u8 vertical:4;
@@ -230,6 +237,9 @@ struct smiapp_sensor {
 
 	struct smiapp_pll pll;
 
+	/* Is a default format supported for a given BPP? */
+	unsigned long valid_link_freqs[SMIAPP_NR_OF_COMPRESSED];
+
 	/* Pixel array controls */
 	struct v4l2_ctrl *analog_gain;
 	struct v4l2_ctrl *exposure;
@@ -241,6 +251,8 @@ struct smiapp_sensor {
 	/* src controls */
 	struct v4l2_ctrl *link_freq;
 	struct v4l2_ctrl *pixel_rate_csi;
+	/* test pattern colour components */
+	struct v4l2_ctrl *test_data[SMIAPP_COLOUR_COMPONENTS];
 };
 
 #define to_smiapp_subdev(_sd)				\

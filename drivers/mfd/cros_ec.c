@@ -23,6 +23,9 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/cros_ec.h>
 #include <linux/mfd/cros_ec_commands.h>
+#include <linux/delay.h>
+
+#define EC_COMMAND_RETRIES	50
 
 int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 		       struct cros_ec_command *msg)
@@ -62,6 +65,49 @@ int cros_ec_check_result(struct cros_ec_device *ec_dev,
 }
 EXPORT_SYMBOL(cros_ec_check_result);
 
+int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
+		     struct cros_ec_command *msg)
+{
+	int ret;
+
+	mutex_lock(&ec_dev->lock);
+	ret = ec_dev->cmd_xfer(ec_dev, msg);
+	if (msg->result == EC_RES_IN_PROGRESS) {
+		int i;
+		struct cros_ec_command status_msg;
+		struct ec_response_get_comms_status status;
+
+		status_msg.version = 0;
+		status_msg.command = EC_CMD_GET_COMMS_STATUS;
+		status_msg.outdata = NULL;
+		status_msg.outsize = 0;
+		status_msg.indata = (uint8_t *)&status;
+		status_msg.insize = sizeof(status);
+
+		/*
+		 * Query the EC's status until it's no longer busy or
+		 * we encounter an error.
+		 */
+		for (i = 0; i < EC_COMMAND_RETRIES; i++) {
+			usleep_range(10000, 11000);
+
+			ret = ec_dev->cmd_xfer(ec_dev, &status_msg);
+			if (ret < 0)
+				break;
+
+			msg->result = status_msg.result;
+			if (status_msg.result != EC_RES_SUCCESS)
+				break;
+			if (!(status.flags & EC_COMMS_STATUS_PROCESSING))
+				break;
+		}
+	}
+	mutex_unlock(&ec_dev->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(cros_ec_cmd_xfer);
+
 static const struct mfd_cell cros_devs[] = {
 	{
 		.name = "cros-ec-keyb",
@@ -90,6 +136,8 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		if (!ec_dev->dout)
 			return -ENOMEM;
 	}
+
+	mutex_init(&ec_dev->lock);
 
 	err = mfd_add_devices(dev, 0, cros_devs,
 			      ARRAY_SIZE(cros_devs),

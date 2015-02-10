@@ -266,6 +266,7 @@ static int ep93xx_spi_setup(struct spi_device *spi)
 
 		if (chip->ops && chip->ops->setup) {
 			int ret = chip->ops->setup(spi);
+
 			if (ret) {
 				kfree(chip);
 				return ret;
@@ -963,7 +964,6 @@ static int ep93xx_spi_remove(struct platform_device *pdev)
 static struct platform_driver ep93xx_spi_driver = {
 	.driver		= {
 		.name	= "ep93xx-spi",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ep93xx_spi_probe,
 	.remove		= ep93xx_spi_remove,

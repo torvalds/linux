@@ -341,7 +341,7 @@ qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 			}
 			return -EIO;
 		}
-		msleep(1);
+		usleep_range(1000, 1500);
 	}
 
 	if (id_reg)
@@ -941,7 +941,7 @@ void qlcnic_82xx_config_ipaddr(struct qlcnic_adapter *adapter,
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
-				"could not notify %s IP 0x%x reuqest\n",
+				"could not notify %s IP 0x%x request\n",
 				(cmd == QLCNIC_IP_UP) ? "Add" : "Remove", ip);
 }
 

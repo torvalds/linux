@@ -5,7 +5,7 @@
  *
  * Author: Frank Haverkamp <haver@linux.vnet.ibm.com>
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
- * Author: Michael Jung <mijung@de.ibm.com>
+ * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -45,10 +45,10 @@
 MODULE_AUTHOR("Frank Haverkamp <haver@linux.vnet.ibm.com>");
 MODULE_AUTHOR("Michael Ruettger <michael@ibmra.de>");
 MODULE_AUTHOR("Joerg-Stephan Vogt <jsvogt@de.ibm.com>");
-MODULE_AUTHOR("Michal Jung <mijung@de.ibm.com>");
+MODULE_AUTHOR("Michael Jung <mijung@gmx.net>");
 
 MODULE_DESCRIPTION("GenWQE Card");
-MODULE_VERSION(DRV_VERS_STRING);
+MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 
 static char genwqe_driver_name[] = GENWQE_DEVNAME;
@@ -346,8 +346,13 @@ static bool genwqe_setup_vf_jtimer(struct genwqe_dev *cd)
 	unsigned int vf;
 	u32 T = genwqe_T_psec(cd);
 	u64 x;
+	int totalvfs;
 
-	for (vf = 0; vf < pci_sriov_get_totalvfs(pci_dev); vf++) {
+	totalvfs = pci_sriov_get_totalvfs(pci_dev);
+	if (totalvfs <= 0)
+		return false;
+
+	for (vf = 0; vf < totalvfs; vf++) {
 
 		if (cd->vf_jobtimeout_msec[vf] == 0)
 			continue;
@@ -383,8 +388,9 @@ static int genwqe_ffdc_buffs_alloc(struct genwqe_dev *cd)
 
 		/* currently support only the debug units mentioned here */
 		cd->ffdc[type].entries = e;
-		cd->ffdc[type].regs = kmalloc(e * sizeof(struct genwqe_reg),
-					      GFP_KERNEL);
+		cd->ffdc[type].regs =
+			kmalloc_array(e, sizeof(struct genwqe_reg),
+				      GFP_KERNEL);
 		/*
 		 * regs == NULL is ok, the using code treats this as no regs,
 		 * Printing warning is ok in this case.
@@ -723,8 +729,8 @@ static u64 genwqe_fir_checking(struct genwqe_dev *cd)
 				__genwqe_writeq(cd, sfir_addr, sfir);
 
 				dev_dbg(&pci_dev->dev,
-					"[HM] Clearing  2ndary FIR 0x%08x "
-					"with 0x%016llx\n", sfir_addr, sfir);
+					"[HM] Clearing  2ndary FIR 0x%08x with 0x%016llx\n",
+					sfir_addr, sfir);
 
 				/*
 				 * note, these cannot be error-Firs
@@ -740,9 +746,8 @@ static u64 genwqe_fir_checking(struct genwqe_dev *cd)
 				__genwqe_writeq(cd, fir_clr_addr, mask);
 
 				dev_dbg(&pci_dev->dev,
-					"[HM] Clearing primary FIR 0x%08x "
-					"with 0x%016llx\n", fir_clr_addr,
-					mask);
+					"[HM] Clearing primary FIR 0x%08x with 0x%016llx\n",
+					fir_clr_addr, mask);
 			}
 		}
 	}
@@ -1125,6 +1130,8 @@ static int genwqe_pci_setup(struct genwqe_dev *cd)
 	}
 
 	cd->num_vfs = pci_sriov_get_totalvfs(pci_dev);
+	if (cd->num_vfs < 0)
+		cd->num_vfs = 0;
 
 	err = genwqe_read_ids(cd);
 	if (err)
@@ -1202,8 +1209,8 @@ static int genwqe_probe(struct pci_dev *pci_dev,
 		err = genwqe_health_check_start(cd);
 		if (err < 0) {
 			dev_err(&pci_dev->dev,
-				"err: cannot start health checking! "
-				"(err=%d)\n", err);
+				"err: cannot start health checking! (err=%d)\n",
+				err);
 			goto out_stop_services;
 		}
 	}
@@ -1313,11 +1320,14 @@ static void genwqe_err_resume(struct pci_dev *pci_dev)
 
 static int genwqe_sriov_configure(struct pci_dev *dev, int numvfs)
 {
+	int rc;
 	struct genwqe_dev *cd = dev_get_drvdata(&dev->dev);
 
 	if (numvfs > 0) {
 		genwqe_setup_vf_jtimer(cd);
-		pci_enable_sriov(dev, numvfs);
+		rc = pci_enable_sriov(dev, numvfs);
+		if (rc < 0)
+			return rc;
 		return numvfs;
 	}
 	if (numvfs == 0) {

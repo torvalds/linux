@@ -140,7 +140,7 @@
 /* buffer for one video frame */
 struct omap1_cam_buf {
 	struct videobuf_buffer		vb;
-	enum v4l2_mbus_pixelcode	code;
+	u32	code;
 	int				inwork;
 	struct scatterlist		*sgbuf;
 	int				sgcount;
@@ -980,7 +980,7 @@ static void omap1_cam_clock_stop(struct soc_camera_host *ici)
 /* Duplicate standard formats based on host capability of byte swapping */
 static const struct soc_mbus_lookup omap1_cam_formats[] = {
 {
-	.code = V4L2_MBUS_FMT_UYVY8_2X8,
+	.code = MEDIA_BUS_FMT_UYVY8_2X8,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_YUYV,
 		.name			= "YUYV",
@@ -990,7 +990,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
-	.code = V4L2_MBUS_FMT_VYUY8_2X8,
+	.code = MEDIA_BUS_FMT_VYUY8_2X8,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_YVYU,
 		.name			= "YVYU",
@@ -1000,7 +1000,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
-	.code = V4L2_MBUS_FMT_YUYV8_2X8,
+	.code = MEDIA_BUS_FMT_YUYV8_2X8,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_UYVY,
 		.name			= "UYVY",
@@ -1010,7 +1010,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
-	.code = V4L2_MBUS_FMT_YVYU8_2X8,
+	.code = MEDIA_BUS_FMT_YVYU8_2X8,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_VYUY,
 		.name			= "VYUY",
@@ -1020,7 +1020,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
-	.code = V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE,
+	.code = MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_RGB555,
 		.name			= "RGB555",
@@ -1030,7 +1030,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
-	.code = V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
+	.code = MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_RGB555X,
 		.name			= "RGB555X",
@@ -1040,7 +1040,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
-	.code = V4L2_MBUS_FMT_RGB565_2X8_BE,
+	.code = MEDIA_BUS_FMT_RGB565_2X8_BE,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_RGB565,
 		.name			= "RGB565",
@@ -1050,7 +1050,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
-	.code = V4L2_MBUS_FMT_RGB565_2X8_LE,
+	.code = MEDIA_BUS_FMT_RGB565_2X8_LE,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_RGB565X,
 		.name			= "RGB565X",
@@ -1068,7 +1068,7 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
 	int formats = 0, ret;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	const struct soc_mbus_pixelfmt *fmt;
 
 	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
@@ -1088,14 +1088,14 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 		return 0;
 
 	switch (code) {
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_YVYU8_2X8:
-	case V4L2_MBUS_FMT_UYVY8_2X8:
-	case V4L2_MBUS_FMT_VYUY8_2X8:
-	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE:
-	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
-	case V4L2_MBUS_FMT_RGB565_2X8_BE:
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= soc_mbus_find_fmtdesc(code,

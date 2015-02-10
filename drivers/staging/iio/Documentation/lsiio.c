@@ -46,6 +46,7 @@ static int dump_channels(const char *dev_dir_name)
 {
 	DIR *dp;
 	const struct dirent *ent;
+
 	dp = opendir(dev_dir_name);
 	if (dp == NULL)
 		return -errno;
@@ -62,17 +63,17 @@ static int dump_one_device(const char *dev_dir_name)
 {
 	char name[IIO_MAX_NAME_LENGTH];
 	int dev_idx;
+	int retval;
 
-	sscanf(dev_dir_name + strlen(iio_dir) + strlen(type_device),
+	retval = sscanf(dev_dir_name + strlen(iio_dir) + strlen(type_device),
 			"%i", &dev_idx);
+	if (retval != 1)
+		return -EINVAL;
 	read_sysfs_string("name", dev_dir_name, name);
 	printf("Device %03d: %s\n", dev_idx, name);
 
-	if (verblevel >= VERBLEVEL_SENSORS) {
-		int ret = dump_channels(dev_dir_name);
-		if (ret)
-			return ret;
-	}
+	if (verblevel >= VERBLEVEL_SENSORS)
+		return dump_channels(dev_dir_name);
 	return 0;
 }
 
@@ -80,9 +81,12 @@ static int dump_one_trigger(const char *dev_dir_name)
 {
 	char name[IIO_MAX_NAME_LENGTH];
 	int dev_idx;
+	int retval;
 
-	sscanf(dev_dir_name + strlen(iio_dir) + strlen(type_trigger),
+	retval = sscanf(dev_dir_name + strlen(iio_dir) + strlen(type_trigger),
 			"%i", &dev_idx);
+	if (retval != 1)
+		return -EINVAL;
 	read_sysfs_string("name", dev_dir_name, name);
 	printf("Trigger %03d: %s\n", dev_idx, name);
 	return 0;
@@ -107,6 +111,7 @@ static void dump_devices(void)
 	while (ent = readdir(dp), ent != NULL) {
 		if (check_prefix(ent->d_name, type_device)) {
 			char *dev_dir_name;
+
 			asprintf(&dev_dir_name, "%s%s", iio_dir, ent->d_name);
 			dump_one_device(dev_dir_name);
 			free(dev_dir_name);
@@ -118,6 +123,7 @@ static void dump_devices(void)
 	while (ent = readdir(dp), ent != NULL) {
 		if (check_prefix(ent->d_name, type_trigger)) {
 			char *dev_dir_name;
+
 			asprintf(&dev_dir_name, "%s%s", iio_dir, ent->d_name);
 			dump_one_trigger(dev_dir_name);
 			free(dev_dir_name);

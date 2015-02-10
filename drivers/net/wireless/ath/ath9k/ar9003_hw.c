@@ -333,12 +333,29 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 			       qca953x_1p0_soc_preamble);
 		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_POST],
 			       qca953x_1p0_soc_postamble);
-		INIT_INI_ARRAY(&ah->iniModesRxGain,
-			       qca953x_1p0_common_wo_xlna_rx_gain_table);
-		INIT_INI_ARRAY(&ah->ini_modes_rx_gain_bounds,
-			       qca953x_1p0_common_wo_xlna_rx_gain_bounds);
-		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       qca953x_1p0_modes_no_xpa_tx_gain_table);
+
+		if (AR_SREV_9531_20(ah)) {
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				       qca953x_2p0_common_wo_xlna_rx_gain_table);
+			INIT_INI_ARRAY(&ah->ini_modes_rx_gain_bounds,
+				       qca953x_2p0_common_wo_xlna_rx_gain_bounds);
+		} else {
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				       qca953x_1p0_common_wo_xlna_rx_gain_table);
+			INIT_INI_ARRAY(&ah->ini_modes_rx_gain_bounds,
+				       qca953x_1p0_common_wo_xlna_rx_gain_bounds);
+		}
+
+		if (AR_SREV_9531_20(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       qca953x_2p0_modes_no_xpa_tx_gain_table);
+		else if (AR_SREV_9531_11(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       qca953x_1p1_modes_no_xpa_tx_gain_table);
+		else
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       qca953x_1p0_modes_no_xpa_tx_gain_table);
+
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
 			       qca953x_1p0_modes_fast_clock);
 	} else if (AR_SREV_9580(ah)) {
@@ -518,9 +535,15 @@ static void ar9003_tx_gain_table_mode0(struct ath_hw *ah)
 	else if (AR_SREV_9550(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar955x_1p0_modes_xpa_tx_gain_table);
-	else if (AR_SREV_9531(ah))
+	else if (AR_SREV_9531_10(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			qca953x_1p0_modes_xpa_tx_gain_table);
+			       qca953x_1p0_modes_xpa_tx_gain_table);
+	else if (AR_SREV_9531_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       qca953x_1p1_modes_xpa_tx_gain_table);
+	else if (AR_SREV_9531_20(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       qca953x_2p0_modes_xpa_tx_gain_table);
 	else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9580_1p0_lowest_ob_db_tx_gain_table);
@@ -562,7 +585,10 @@ static void ar9003_tx_gain_table_mode1(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar955x_1p0_modes_no_xpa_tx_gain_table);
 	else if (AR_SREV_9531(ah)) {
-		if (AR_SREV_9531_11(ah))
+		if (AR_SREV_9531_20(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       qca953x_2p0_modes_no_xpa_tx_gain_table);
+		else if (AR_SREV_9531_11(ah))
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
 				       qca953x_1p1_modes_no_xpa_tx_gain_table);
 		else
@@ -670,9 +696,6 @@ static void ar9003_tx_gain_table_mode5(struct ath_hw *ah)
 	if (AR_SREV_9485_11_OR_LATER(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9485Modes_green_ob_db_tx_gain_1_1);
-	else if (AR_SREV_9340(ah))
-		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9340Modes_ub124_tx_gain_table_1p0);
 	else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9580_1p0_type5_tx_gain_table);
@@ -792,11 +815,16 @@ static void ar9003_rx_gain_table_mode1(struct ath_hw *ah)
 			ar955x_1p0_common_wo_xlna_rx_gain_table);
 		INIT_INI_ARRAY(&ah->ini_modes_rx_gain_bounds,
 			ar955x_1p0_common_wo_xlna_rx_gain_bounds);
-	} else if (AR_SREV_9531(ah)) {
+	} else if (AR_SREV_9531_10(ah) || AR_SREV_9531_11(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			       qca953x_1p0_common_wo_xlna_rx_gain_table);
 		INIT_INI_ARRAY(&ah->ini_modes_rx_gain_bounds,
 			       qca953x_1p0_common_wo_xlna_rx_gain_bounds);
+	} else if (AR_SREV_9531_20(ah)) {
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+			       qca953x_2p0_common_wo_xlna_rx_gain_table);
+		INIT_INI_ARRAY(&ah->ini_modes_rx_gain_bounds,
+			       qca953x_2p0_common_wo_xlna_rx_gain_bounds);
 	} else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9580_1p0_wo_xlna_rx_gain_table);

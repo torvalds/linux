@@ -1,7 +1,7 @@
 #ifndef _SKEIN_IV_H_
 #define _SKEIN_IV_H_
 
-#include "skein.h"    /* get Skein macros and types */
+#include "skein_base.h"    /* get Skein macros and types */
 
 /*
 ***************** Pre-computed Skein IVs *******************

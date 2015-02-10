@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/balloon_compaction.h>
+#include <linux/oom.h>
 
 /*
  * Balloon device works in 4K page units.  So each page is pointed to by
@@ -36,6 +37,12 @@
  */
 #define VIRTIO_BALLOON_PAGES_PER_PAGE (unsigned)(PAGE_SIZE >> VIRTIO_BALLOON_PFN_SHIFT)
 #define VIRTIO_BALLOON_ARRAY_PFNS_MAX 256
+#define OOM_VBALLOON_DEFAULT_PAGES 256
+#define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
+
+static int oom_pages = OOM_VBALLOON_DEFAULT_PAGES;
+module_param(oom_pages, int, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
 
 struct virtio_balloon
 {
@@ -59,7 +66,7 @@ struct virtio_balloon
 	 * Each page on this list adds VIRTIO_BALLOON_PAGES_PER_PAGE
 	 * to num_pages above.
 	 */
-	struct balloon_dev_info *vb_dev_info;
+	struct balloon_dev_info vb_dev_info;
 
 	/* Synchronize access/update to this struct virtio_balloon elements */
 	struct mutex balloon_lock;
@@ -71,6 +78,9 @@ struct virtio_balloon
 	/* Memory statistics */
 	int need_stats_update;
 	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+
+	/* To register callback in oom notifier call chain */
+	struct notifier_block nb;
 };
 
 static struct virtio_device_id id_table[] = {
@@ -127,7 +137,7 @@ static void set_page_pfns(u32 pfns[], struct page *page)
 
 static void fill_balloon(struct virtio_balloon *vb, size_t num)
 {
-	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
+	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
 
 	/* We can only do one array worth at a time. */
 	num = min(num, ARRAY_SIZE(vb->pfns));
@@ -163,15 +173,16 @@ static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
 	/* Find pfns pointing at start of each page, get pages and free them. */
 	for (i = 0; i < num; i += VIRTIO_BALLOON_PAGES_PER_PAGE) {
 		struct page *page = balloon_pfn_to_page(pfns[i]);
-		balloon_page_free(page);
 		adjust_managed_page_count(page, 1);
+		put_page(page); /* balloon reference */
 	}
 }
 
-static void leak_balloon(struct virtio_balloon *vb, size_t num)
+static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
 {
+	unsigned num_freed_pages;
 	struct page *page;
-	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
+	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
 
 	/* We can only do one array worth at a time. */
 	num = min(num, ARRAY_SIZE(vb->pfns));
@@ -186,6 +197,7 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
 	}
 
+	num_freed_pages = vb->num_pfns;
 	/*
 	 * Note that if
 	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
@@ -195,6 +207,7 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 		tell_host(vb, vb->deflate_vq);
 	mutex_unlock(&vb->balloon_lock);
 	release_pages_by_pfn(vb->pfns, vb->num_pfns);
+	return num_freed_pages;
 }
 
 static inline void update_stat(struct virtio_balloon *vb, int idx,
@@ -287,6 +300,38 @@ static void update_balloon_size(struct virtio_balloon *vb)
 		      &actual);
 }
 
+/*
+ * virtballoon_oom_notify - release pages when system is under severe
+ *			    memory pressure (called from out_of_memory())
+ * @self : notifier block struct
+ * @dummy: not used
+ * @parm : returned - number of freed pages
+ *
+ * The balancing of memory by use of the virtio balloon should not cause
+ * the termination of processes while there are pages in the balloon.
+ * If virtio balloon manages to release some memory, it will make the
+ * system return and retry the allocation that forced the OOM killer
+ * to run.
+ */
+static int virtballoon_oom_notify(struct notifier_block *self,
+				  unsigned long dummy, void *parm)
+{
+	struct virtio_balloon *vb;
+	unsigned long *freed;
+	unsigned num_freed_pages;
+
+	vb = container_of(self, struct virtio_balloon, nb);
+	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+		return NOTIFY_OK;
+
+	freed = parm;
+	num_freed_pages = leak_balloon(vb, oom_pages);
+	update_balloon_size(vb);
+	*freed += num_freed_pages;
+
+	return NOTIFY_OK;
+}
+
 static int balloon(void *_vballoon)
 {
 	struct virtio_balloon *vb = _vballoon;
@@ -353,12 +398,11 @@ static int init_vqs(struct virtio_balloon *vb)
 	return 0;
 }
 
-static const struct address_space_operations virtio_balloon_aops;
 #ifdef CONFIG_BALLOON_COMPACTION
 /*
  * virtballoon_migratepage - perform the balloon page migration on behalf of
  *			     a compation thread.     (called under page lock)
- * @mapping: the page->mapping which will be assigned to the new migrated page.
+ * @vb_dev_info: the balloon device
  * @newpage: page that will replace the isolated page after migration finishes.
  * @page   : the isolated (old) page that is about to be migrated to newpage.
  * @mode   : compaction mode -- not used for balloon page migration.
@@ -373,16 +417,12 @@ static const struct address_space_operations virtio_balloon_aops;
  * This function preforms the balloon page migration task.
  * Called through balloon_mapping->a_ops->migratepage
  */
-static int virtballoon_migratepage(struct address_space *mapping,
+static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
 		struct page *newpage, struct page *page, enum migrate_mode mode)
 {
-	struct balloon_dev_info *vb_dev_info = balloon_page_device(page);
-	struct virtio_balloon *vb;
+	struct virtio_balloon *vb = container_of(vb_dev_info,
+			struct virtio_balloon, vb_dev_info);
 	unsigned long flags;
-
-	BUG_ON(!vb_dev_info);
-
-	vb = vb_dev_info->balloon_device;
 
 	/*
 	 * In order to avoid lock contention while migrating pages concurrently
@@ -395,21 +435,19 @@ static int virtballoon_migratepage(struct address_space *mapping,
 	if (!mutex_trylock(&vb->balloon_lock))
 		return -EAGAIN;
 
+	get_page(newpage); /* balloon reference */
+
 	/* balloon's page migration 1st step  -- inflate "newpage" */
 	spin_lock_irqsave(&vb_dev_info->pages_lock, flags);
-	balloon_page_insert(newpage, mapping, &vb_dev_info->pages);
+	balloon_page_insert(vb_dev_info, newpage);
 	vb_dev_info->isolated_pages--;
+	__count_vm_event(BALLOON_MIGRATE);
 	spin_unlock_irqrestore(&vb_dev_info->pages_lock, flags);
 	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
 	set_page_pfns(vb->pfns, newpage);
 	tell_host(vb, vb->inflate_vq);
 
-	/*
-	 * balloon's page migration 2nd step -- deflate "page"
-	 *
-	 * It's safe to delete page->lru here because this page is at
-	 * an isolated migration list, and this step is expected to happen here
-	 */
+	/* balloon's page migration 2nd step -- deflate "page" */
 	balloon_page_delete(page);
 	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
 	set_page_pfns(vb->pfns, page);
@@ -417,20 +455,15 @@ static int virtballoon_migratepage(struct address_space *mapping,
 
 	mutex_unlock(&vb->balloon_lock);
 
-	return MIGRATEPAGE_BALLOON_SUCCESS;
-}
+	put_page(page); /* balloon reference */
 
-/* define the balloon_mapping->a_ops callback to allow balloon page migration */
-static const struct address_space_operations virtio_balloon_aops = {
-			.migratepage = virtballoon_migratepage,
-};
+	return MIGRATEPAGE_SUCCESS;
+}
 #endif /* CONFIG_BALLOON_COMPACTION */
 
 static int virtballoon_probe(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb;
-	struct address_space *vb_mapping;
-	struct balloon_dev_info *vb_devinfo;
 	int err;
 
 	vdev->priv = vb = kmalloc(sizeof(*vb), GFP_KERNEL);
@@ -446,30 +479,20 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	vb->vdev = vdev;
 	vb->need_stats_update = 0;
 
-	vb_devinfo = balloon_devinfo_alloc(vb);
-	if (IS_ERR(vb_devinfo)) {
-		err = PTR_ERR(vb_devinfo);
-		goto out_free_vb;
-	}
-
-	vb_mapping = balloon_mapping_alloc(vb_devinfo,
-					   (balloon_compaction_check()) ?
-					   &virtio_balloon_aops : NULL);
-	if (IS_ERR(vb_mapping)) {
-		/*
-		 * IS_ERR(vb_mapping) && PTR_ERR(vb_mapping) == -EOPNOTSUPP
-		 * This means !CONFIG_BALLOON_COMPACTION, otherwise we get off.
-		 */
-		err = PTR_ERR(vb_mapping);
-		if (err != -EOPNOTSUPP)
-			goto out_free_vb_devinfo;
-	}
-
-	vb->vb_dev_info = vb_devinfo;
+	balloon_devinfo_init(&vb->vb_dev_info);
+#ifdef CONFIG_BALLOON_COMPACTION
+	vb->vb_dev_info.migratepage = virtballoon_migratepage;
+#endif
 
 	err = init_vqs(vb);
 	if (err)
-		goto out_free_vb_mapping;
+		goto out_free_vb;
+
+	vb->nb.notifier_call = virtballoon_oom_notify;
+	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
+	err = register_oom_notifier(&vb->nb);
+	if (err < 0)
+		goto out_oom_notify;
 
 	vb->thread = kthread_run(balloon, vb, "vballoon");
 	if (IS_ERR(vb->thread)) {
@@ -480,11 +503,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	return 0;
 
 out_del_vqs:
+	unregister_oom_notifier(&vb->nb);
+out_oom_notify:
 	vdev->config->del_vqs(vdev);
-out_free_vb_mapping:
-	balloon_mapping_free(vb_mapping);
-out_free_vb_devinfo:
-	balloon_devinfo_free(vb_devinfo);
 out_free_vb:
 	kfree(vb);
 out:
@@ -508,10 +529,9 @@ static void virtballoon_remove(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 
+	unregister_oom_notifier(&vb->nb);
 	kthread_stop(vb->thread);
 	remove_common(vb);
-	balloon_mapping_free(vb->vb_dev_info->mapping);
-	balloon_devinfo_free(vb->vb_dev_info);
 	kfree(vb);
 }
 
@@ -538,6 +558,8 @@ static int virtballoon_restore(struct virtio_device *vdev)
 	if (ret)
 		return ret;
 
+	virtio_device_ready(vdev);
+
 	fill_balloon(vb, towards_target(vb));
 	update_balloon_size(vb);
 	return 0;
@@ -547,6 +569,7 @@ static int virtballoon_restore(struct virtio_device *vdev)
 static unsigned int features[] = {
 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
 	VIRTIO_BALLOON_F_STATS_VQ,
+	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
 };
 
 static struct virtio_driver virtio_balloon_driver = {

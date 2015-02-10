@@ -23,6 +23,8 @@
 #include "xhci-mvebu.h"
 #include "xhci-rcar.h"
 
+static struct hc_driver __read_mostly xhci_plat_hc_driver;
+
 static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
 	/*
@@ -60,59 +62,6 @@ static int xhci_plat_start(struct usb_hcd *hcd)
 	return xhci_run(hcd);
 }
 
-static const struct hc_driver xhci_plat_xhci_driver = {
-	.description =		"xhci-hcd",
-	.product_desc =		"xHCI Host Controller",
-	.hcd_priv_size =	sizeof(struct xhci_hcd *),
-
-	/*
-	 * generic hardware linkage
-	 */
-	.irq =			xhci_irq,
-	.flags =		HCD_MEMORY | HCD_USB3 | HCD_SHARED,
-
-	/*
-	 * basic lifecycle operations
-	 */
-	.reset =		xhci_plat_setup,
-	.start =		xhci_plat_start,
-	.stop =			xhci_stop,
-	.shutdown =		xhci_shutdown,
-
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue =		xhci_urb_enqueue,
-	.urb_dequeue =		xhci_urb_dequeue,
-	.alloc_dev =		xhci_alloc_dev,
-	.free_dev =		xhci_free_dev,
-	.alloc_streams =	xhci_alloc_streams,
-	.free_streams =		xhci_free_streams,
-	.add_endpoint =		xhci_add_endpoint,
-	.drop_endpoint =	xhci_drop_endpoint,
-	.endpoint_reset =	xhci_endpoint_reset,
-	.check_bandwidth =	xhci_check_bandwidth,
-	.reset_bandwidth =	xhci_reset_bandwidth,
-	.address_device =	xhci_address_device,
-	.enable_device =	xhci_enable_device,
-	.update_hub_device =	xhci_update_hub_device,
-	.reset_device =		xhci_discover_or_reset_device,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number =	xhci_get_frame,
-
-	/* Root hub support */
-	.hub_control =		xhci_hub_control,
-	.hub_status_data =	xhci_hub_status_data,
-	.bus_suspend =		xhci_bus_suspend,
-	.bus_resume =		xhci_bus_resume,
-
-	.enable_usb3_lpm_timeout =	xhci_enable_usb3_lpm_timeout,
-	.disable_usb3_lpm_timeout =	xhci_disable_usb3_lpm_timeout,
-};
-
 static int xhci_plat_probe(struct platform_device *pdev)
 {
 	struct device_node	*node = pdev->dev.of_node;
@@ -128,15 +77,12 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (usb_disabled())
 		return -ENODEV;
 
-	driver = &xhci_plat_xhci_driver;
+	driver = &xhci_plat_hc_driver;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
 
 	if (of_device_is_compatible(pdev->dev.of_node,
 				    "marvell,armada-375-xhci") ||
@@ -160,14 +106,15 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 
-	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = resource_size(res);
-
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hcd->regs)) {
 		ret = PTR_ERR(hcd->regs);
 		goto put_hcd;
 	}
+
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
 
 	/*
 	 * Not all platforms have a clk so it is not an error if the
@@ -255,7 +202,15 @@ static int xhci_plat_suspend(struct device *dev)
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 
-	return xhci_suspend(xhci);
+	/*
+	 * xhci_suspend() needs `do_wakeup` to know whether host is allowed
+	 * to do wakeup during suspend. Since xhci_plat_suspend is currently
+	 * only designed for system suspend, device_may_wakeup() is enough
+	 * to dertermine whether host is allowed to do wakeup. Need to
+	 * reconsider this when xhci_plat_suspend enlarges its scope, e.g.,
+	 * also applies to runtime suspend.
+	 */
+	return xhci_suspend(xhci, device_may_wakeup(dev));
 }
 
 static int xhci_plat_resume(struct device *dev)
@@ -298,12 +253,19 @@ static struct platform_driver usb_xhci_driver = {
 };
 MODULE_ALIAS("platform:xhci-hcd");
 
-int xhci_register_plat(void)
+static int __init xhci_plat_init(void)
 {
+	xhci_init_driver(&xhci_plat_hc_driver, xhci_plat_setup);
+	xhci_plat_hc_driver.start = xhci_plat_start;
 	return platform_driver_register(&usb_xhci_driver);
 }
+module_init(xhci_plat_init);
 
-void xhci_unregister_plat(void)
+static void __exit xhci_plat_exit(void)
 {
 	platform_driver_unregister(&usb_xhci_driver);
 }
+module_exit(xhci_plat_exit);
+
+MODULE_DESCRIPTION("xHCI Platform Host Controller Driver");
+MODULE_LICENSE("GPL");

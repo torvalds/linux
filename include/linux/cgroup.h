@@ -27,7 +27,6 @@
 
 struct cgroup_root;
 struct cgroup_subsys;
-struct inode;
 struct cgroup;
 
 extern int cgroup_init_early(void);
@@ -38,7 +37,8 @@ extern void cgroup_exit(struct task_struct *p);
 extern int cgroupstats_build(struct cgroupstats *stats,
 				struct dentry *dentry);
 
-extern int proc_cgroup_show(struct seq_file *, void *);
+extern int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
+			    struct pid *pid, struct task_struct *tsk);
 
 /* define the enumeration of all cgroup subsystems */
 #define SUBSYS(_x) _x ## _cgrp_id,
@@ -113,6 +113,19 @@ static inline void css_get(struct cgroup_subsys_state *css)
 }
 
 /**
+ * css_get_many - obtain references on the specified css
+ * @css: target css
+ * @n: number of references to get
+ *
+ * The caller must already have a reference.
+ */
+static inline void css_get_many(struct cgroup_subsys_state *css, unsigned int n)
+{
+	if (!(css->flags & CSS_NO_REF))
+		percpu_ref_get_many(&css->refcnt, n);
+}
+
+/**
  * css_tryget - try to obtain a reference on the specified css
  * @css: target css
  *
@@ -159,13 +172,21 @@ static inline void css_put(struct cgroup_subsys_state *css)
 		percpu_ref_put(&css->refcnt);
 }
 
+/**
+ * css_put_many - put css references
+ * @css: target css
+ * @n: number of references to put
+ *
+ * Put references obtained via css_get() and css_tryget_online().
+ */
+static inline void css_put_many(struct cgroup_subsys_state *css, unsigned int n)
+{
+	if (!(css->flags & CSS_NO_REF))
+		percpu_ref_put_many(&css->refcnt, n);
+}
+
 /* bits in struct cgroup flags field */
 enum {
-	/*
-	 * Control Group has previously had a child cgroup or a task,
-	 * but no longer (only if CGRP_NOTIFY_ON_RELEASE is set)
-	 */
-	CGRP_RELEASABLE,
 	/* Control Group requires release notifications to userspace */
 	CGRP_NOTIFY_ON_RELEASE,
 	/*
@@ -235,13 +256,6 @@ struct cgroup {
 	struct list_head e_csets[CGROUP_SUBSYS_COUNT];
 
 	/*
-	 * Linked list running through all cgroups that can
-	 * potentially be reaped by the release agent. Protected by
-	 * release_list_lock
-	 */
-	struct list_head release_list;
-
-	/*
 	 * list of pidlists, up to two for each namespace (one for procs, one
 	 * for tasks); created on demand.
 	 */
@@ -250,6 +264,9 @@ struct cgroup {
 
 	/* used to wait for offlining of csses */
 	wait_queue_head_t offline_waitq;
+
+	/* used to schedule release agent */
+	struct work_struct release_agent_work;
 };
 
 #define MAX_CGROUP_ROOT_NAMELEN 64
@@ -376,8 +393,8 @@ struct css_set {
  * struct cftype: handler definitions for cgroup control files
  *
  * When reading/writing to a file:
- *	- the cgroup to use is file->f_dentry->d_parent->d_fsdata
- *	- the 'cftype' of the file is file->f_dentry->d_fsdata
+ *	- the cgroup to use is file->f_path.dentry->d_parent->d_fsdata
+ *	- the 'cftype' of the file is file->f_path.dentry->d_fsdata
  */
 
 /* cftype->flags */
@@ -536,13 +553,10 @@ static inline bool cgroup_has_tasks(struct cgroup *cgrp)
 	return !list_empty(&cgrp->cset_links);
 }
 
-/* returns ino associated with a cgroup, 0 indicates unmounted root */
+/* returns ino associated with a cgroup */
 static inline ino_t cgroup_ino(struct cgroup *cgrp)
 {
-	if (cgrp->kn)
-		return cgrp->kn->ino;
-	else
-		return 0;
+	return cgrp->kn->ino;
 }
 
 /* cft/css accessors for cftype->write() operation */
@@ -624,8 +638,10 @@ struct cgroup_subsys {
 	struct cgroup_subsys_state *(*css_alloc)(struct cgroup_subsys_state *parent_css);
 	int (*css_online)(struct cgroup_subsys_state *css);
 	void (*css_offline)(struct cgroup_subsys_state *css);
+	void (*css_released)(struct cgroup_subsys_state *css);
 	void (*css_free)(struct cgroup_subsys_state *css);
 	void (*css_reset)(struct cgroup_subsys_state *css);
+	void (*css_e_css_changed)(struct cgroup_subsys_state *css);
 
 	int (*can_attach)(struct cgroup_subsys_state *css,
 			  struct cgroup_taskset *tset);
@@ -920,6 +936,8 @@ void css_task_iter_end(struct css_task_iter *it);
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 
+struct cgroup_subsys_state *cgroup_get_e_css(struct cgroup *cgroup,
+					     struct cgroup_subsys *ss);
 struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 						       struct cgroup_subsys *ss);
 

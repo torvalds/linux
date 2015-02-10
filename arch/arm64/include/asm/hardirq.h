@@ -47,8 +47,6 @@ static inline void ack_bad_irq(unsigned int irq)
 	irq_err_count++;
 }
 
-extern void handle_IRQ(unsigned int, struct pt_regs *);
-
 /*
  * No arch-specific IRQ flags.
  */

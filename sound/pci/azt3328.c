@@ -1034,11 +1034,6 @@ snd_azf3328_info_mixer_enum(struct snd_kcontrol *kcontrol,
 	const char * const *p = NULL;
 
 	snd_azf3328_mixer_reg_decode(&reg, kcontrol->private_value);
-        uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-        uinfo->count = (reg.reg == IDX_MIXER_REC_SELECT) ? 2 : 1;
-        uinfo->value.enumerated.items = reg.enum_c;
-        if (uinfo->value.enumerated.item > reg.enum_c - 1U)
-                uinfo->value.enumerated.item = reg.enum_c - 1U;
 	if (reg.reg == IDX_MIXER_ADVCTL2) {
 		switch(reg.lchan_shift) {
 		case 8: /* modem out sel */
@@ -1051,12 +1046,12 @@ snd_azf3328_info_mixer_enum(struct snd_kcontrol *kcontrol,
 			p = texts4;
 			break;
 		}
-	} else
-	if (reg.reg == IDX_MIXER_REC_SELECT)
+	} else if (reg.reg == IDX_MIXER_REC_SELECT)
 		p = texts3;
 
-	strcpy(uinfo->value.enumerated.name, p[uinfo->value.enumerated.item]);
-        return 0;
+	return snd_ctl_enum_info(uinfo,
+				 (reg.reg == IDX_MIXER_REC_SELECT) ? 2 : 1,
+				 reg.enum_c, p);
 }
 
 static int

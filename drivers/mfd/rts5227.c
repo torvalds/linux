@@ -130,6 +130,12 @@ static int rts5227_extra_init_hw(struct rtsx_pcr *pcr)
 
 static int rts5227_optimize_phy(struct rtsx_pcr *pcr)
 {
+	int err;
+
+	err = rtsx_gops_pm_reset(pcr);
+	if (err < 0)
+		return err;
+
 	/* Optimize RX sensitivity */
 	return rtsx_pci_write_phy_register(pcr, 0x00, 0xBA42);
 }

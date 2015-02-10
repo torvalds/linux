@@ -26,7 +26,7 @@
 		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&hym8563_int>;
+		pinctrl-0 = <&pmic_int>;
 
 		#clock-cells = <0>;
 		clock-output-names = "xin32k";
@@ -121,14 +121,6 @@
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 			};
-		};
-	};
-};
-
-&pinctrl {
-	hym8563 {
-		hym8563_int: hym8563-int {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

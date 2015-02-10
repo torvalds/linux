@@ -3,6 +3,8 @@
 
 enum severity_level {
 	MCE_NO_SEVERITY,
+	MCE_DEFERRED_SEVERITY,
+	MCE_UCNA_SEVERITY = MCE_DEFERRED_SEVERITY,
 	MCE_KEEP_SEVERITY,
 	MCE_SOME_SEVERITY,
 	MCE_AO_SEVERITY,
@@ -21,7 +23,7 @@ struct mce_bank {
 	char			attrname[ATTR_LEN];	/* attribute name */
 };
 
-int mce_severity(struct mce *a, int tolerant, char **msg);
+int mce_severity(struct mce *a, int tolerant, char **msg, bool is_excp);
 struct dentry *mce_get_debugfs_dir(void);
 
 extern struct mce_bank *mce_banks;

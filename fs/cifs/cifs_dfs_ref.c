@@ -195,15 +195,15 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 		else
 			noff = tkn_e - (sb_mountdata + off) + 1;
 
-		if (strnicmp(sb_mountdata + off, "unc=", 4) == 0) {
+		if (strncasecmp(sb_mountdata + off, "unc=", 4) == 0) {
 			off += noff;
 			continue;
 		}
-		if (strnicmp(sb_mountdata + off, "ip=", 3) == 0) {
+		if (strncasecmp(sb_mountdata + off, "ip=", 3) == 0) {
 			off += noff;
 			continue;
 		}
-		if (strnicmp(sb_mountdata + off, "prefixpath=", 11) == 0) {
+		if (strncasecmp(sb_mountdata + off, "prefixpath=", 11) == 0) {
 			off += noff;
 			continue;
 		}

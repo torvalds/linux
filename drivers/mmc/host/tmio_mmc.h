@@ -40,31 +40,12 @@
 
 struct tmio_mmc_data;
 
-/*
- * We differentiate between the following 3 power states:
- * 1. card slot powered off, controller stopped. This is used, when either there
- *    is no card in the slot, or the card really has to be powered down.
- * 2. card slot powered on, controller stopped. This is used, when a card is in
- *    the slot, but no activity is currently taking place. This is a power-
- *    saving mode with card-state preserved. This state can be entered, e.g.
- *    when MMC clock-gating is used.
- * 3. card slot powered on, controller running. This is the actual active state.
- */
-enum tmio_mmc_power {
-	TMIO_MMC_OFF_STOP,	/* card power off, controller stopped */
-	TMIO_MMC_ON_STOP,	/* card power on, controller stopped */
-	TMIO_MMC_ON_RUN,	/* card power on, controller running */
-};
-
 struct tmio_mmc_host {
 	void __iomem *ctl;
 	struct mmc_command      *cmd;
 	struct mmc_request      *mrq;
 	struct mmc_data         *data;
 	struct mmc_host         *mmc;
-
-	/* Controller and card power state */
-	enum tmio_mmc_power	power;
 
 	/* Callbacks for clock / power control */
 	void (*set_pwr)(struct platform_device *host, int state);
@@ -92,15 +73,16 @@ struct tmio_mmc_host {
 	struct delayed_work	delayed_reset_work;
 	struct work_struct	done;
 
-	/* Cache IRQ mask */
+	/* Cache */
 	u32			sdcard_irq_mask;
 	u32			sdio_irq_mask;
+	unsigned int		clk_cache;
 
 	spinlock_t		lock;		/* protect host private data */
 	unsigned long		last_req_ts;
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
-	bool			resuming;
+	bool			sdio_irq_enabled;
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
@@ -162,12 +144,7 @@ static inline void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
 }
 #endif
 
-#ifdef CONFIG_PM_SLEEP
-int tmio_mmc_host_suspend(struct device *dev);
-int tmio_mmc_host_resume(struct device *dev);
-#endif
-
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 int tmio_mmc_host_runtime_suspend(struct device *dev);
 int tmio_mmc_host_runtime_resume(struct device *dev);
 #endif

@@ -481,6 +481,7 @@ struct ath9k_htc_priv {
 	unsigned long op_flags;
 
 	struct ath9k_hw_cal_data caldata;
+	struct ath_spec_scan_priv spec_priv;
 
 	spinlock_t beacon_lock;
 	struct ath_beacon_config cur_beacon_conf;
@@ -625,8 +626,12 @@ int ath9k_htc_resume(struct htc_target *htc_handle);
 #endif
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 int ath9k_htc_init_debug(struct ath_hw *ah);
+void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv);
 #else
 static inline int ath9k_htc_init_debug(struct ath_hw *ah) { return 0; };
+static inline void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv)
+{
+}
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
 #endif /* HTC_H */

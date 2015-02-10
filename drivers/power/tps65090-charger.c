@@ -353,7 +353,6 @@ static struct platform_driver tps65090_charger_driver = {
 	.driver	= {
 		.name	= "tps65090-charger",
 		.of_match_table = of_tps65090_charger_match,
-		.owner	= THIS_MODULE,
 	},
 	.probe	= tps65090_charger_probe,
 	.remove = tps65090_charger_remove,

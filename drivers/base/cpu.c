@@ -207,11 +207,8 @@ static ssize_t show_cpus_attr(struct device *dev,
 			      char *buf)
 {
 	struct cpu_attr *ca = container_of(attr, struct cpu_attr, attr);
-	int n = cpulist_scnprintf(buf, PAGE_SIZE-2, *(ca->map));
 
-	buf[n++] = '\n';
-	buf[n] = '\0';
-	return n;
+	return cpumap_print_to_pagebuf(true, buf, *ca->map);
 }
 
 #define _CPU_ATTR(name, map) \
@@ -365,6 +362,60 @@ struct device *get_cpu_device(unsigned cpu)
 		return NULL;
 }
 EXPORT_SYMBOL_GPL(get_cpu_device);
+
+static void device_create_release(struct device *dev)
+{
+	kfree(dev);
+}
+
+static struct device *
+__cpu_device_create(struct device *parent, void *drvdata,
+		    const struct attribute_group **groups,
+		    const char *fmt, va_list args)
+{
+	struct device *dev = NULL;
+	int retval = -ENODEV;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		retval = -ENOMEM;
+		goto error;
+	}
+
+	device_initialize(dev);
+	dev->parent = parent;
+	dev->groups = groups;
+	dev->release = device_create_release;
+	dev_set_drvdata(dev, drvdata);
+
+	retval = kobject_set_name_vargs(&dev->kobj, fmt, args);
+	if (retval)
+		goto error;
+
+	retval = device_add(dev);
+	if (retval)
+		goto error;
+
+	return dev;
+
+error:
+	put_device(dev);
+	return ERR_PTR(retval);
+}
+
+struct device *cpu_device_create(struct device *parent, void *drvdata,
+				 const struct attribute_group **groups,
+				 const char *fmt, ...)
+{
+	va_list vargs;
+	struct device *dev;
+
+	va_start(vargs, fmt);
+	dev = __cpu_device_create(parent, drvdata, groups, fmt, vargs);
+	va_end(vargs);
+	return dev;
+}
+EXPORT_SYMBOL_GPL(cpu_device_create);
 
 #ifdef CONFIG_GENERIC_CPU_AUTOPROBE
 static DEVICE_ATTR(modalias, 0444, print_cpu_modalias, NULL);

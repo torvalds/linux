@@ -29,8 +29,8 @@
 #include <linux/delay.h>
 #include <linux/nfc.h>
 #include <linux/firmware.h>
-#include <linux/unaligned/access_ok.h>
 #include <linux/platform_data/pn544.h>
+#include <asm/unaligned.h>
 
 #include <net/nfc/hci.h>
 #include <net/nfc/llc.h>

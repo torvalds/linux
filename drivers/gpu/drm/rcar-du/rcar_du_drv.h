@@ -1,7 +1,7 @@
 /*
  * rcar_du_drv.h  --  R-Car Display Unit DRM driver
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -15,7 +15,6 @@
 #define __RCAR_DU_DRV_H__
 
 #include <linux/kernel.h>
-#include <linux/platform_data/rcar-du.h>
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_group.h"
@@ -37,6 +36,7 @@ struct rcar_du_lvdsenc;
  * struct rcar_du_output_routing - Output routing specification
  * @possible_crtcs: bitmask of possible CRTCs for the output
  * @encoder_type: DRM type of the internal encoder associated with the output
+ * @port: device tree port number corresponding to this output route
  *
  * The DU has 5 possible outputs (DPAD0/1, LVDS0/1, TCON). Output routing data
  * specify the valid SoC outputs, which CRTCs can drive the output, and the type
@@ -45,6 +45,7 @@ struct rcar_du_lvdsenc;
 struct rcar_du_output_routing {
 	unsigned int possible_crtcs;
 	unsigned int encoder_type;
+	unsigned int port;
 };
 
 /*
@@ -65,7 +66,6 @@ struct rcar_du_device_info {
 
 struct rcar_du_device {
 	struct device *dev;
-	const struct rcar_du_platform_data *pdata;
 	const struct rcar_du_device_info *info;
 
 	void __iomem *mmio;

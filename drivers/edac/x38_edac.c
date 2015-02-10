@@ -500,8 +500,7 @@ fail1:
 	pci_unregister_driver(&x38_driver);
 
 fail0:
-	if (mci_pdev)
-		pci_dev_put(mci_pdev);
+	pci_dev_put(mci_pdev);
 
 	return pci_rc;
 }

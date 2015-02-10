@@ -142,12 +142,11 @@ static int rs5c_get_regs(struct rs5c372 *rs5c)
 	}
 
 	dev_dbg(&client->dev,
-		"%02x %02x %02x (%02x) %02x %02x %02x (%02x), "
-		"%02x %02x %02x, %02x %02x %02x; %02x %02x\n",
-		rs5c->regs[0],  rs5c->regs[1],  rs5c->regs[2],  rs5c->regs[3],
-		rs5c->regs[4],  rs5c->regs[5],  rs5c->regs[6],  rs5c->regs[7],
-		rs5c->regs[8],  rs5c->regs[9],  rs5c->regs[10], rs5c->regs[11],
-		rs5c->regs[12], rs5c->regs[13], rs5c->regs[14], rs5c->regs[15]);
+		"%3ph (%02x) %3ph (%02x), %3ph, %3ph; %02x %02x\n",
+		rs5c->regs + 0, rs5c->regs[3],
+		rs5c->regs + 4, rs5c->regs[7],
+		rs5c->regs + 8, rs5c->regs + 11,
+		rs5c->regs[14], rs5c->regs[15]);
 
 	return 0;
 }

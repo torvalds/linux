@@ -84,7 +84,7 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, umode_t mode,
 	struct inode *iplist[2];
 	struct tblock *tblk;
 
-	jfs_info("jfs_create: dip:0x%p name:%s", dip, dentry->d_name.name);
+	jfs_info("jfs_create: dip:0x%p name:%pd", dip, dentry);
 
 	dquot_initialize(dip);
 
@@ -216,7 +216,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, umode_t mode)
 	struct inode *iplist[2];
 	struct tblock *tblk;
 
-	jfs_info("jfs_mkdir: dip:0x%p name:%s", dip, dentry->d_name.name);
+	jfs_info("jfs_mkdir: dip:0x%p name:%pd", dip, dentry);
 
 	dquot_initialize(dip);
 
@@ -352,7 +352,7 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	struct inode *iplist[2];
 	struct tblock *tblk;
 
-	jfs_info("jfs_rmdir: dip:0x%p name:%s", dip, dentry->d_name.name);
+	jfs_info("jfs_rmdir: dip:0x%p name:%pd", dip, dentry);
 
 	/* Init inode for quota operations. */
 	dquot_initialize(dip);
@@ -480,7 +480,7 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 	s64 new_size = 0;
 	int commit_flag;
 
-	jfs_info("jfs_unlink: dip:0x%p name:%s", dip, dentry->d_name.name);
+	jfs_info("jfs_unlink: dip:0x%p name:%pd", dip, dentry);
 
 	/* Init inode for quota operations. */
 	dquot_initialize(dip);
@@ -797,8 +797,7 @@ static int jfs_link(struct dentry *old_dentry,
 	struct btstack btstack;
 	struct inode *iplist[2];
 
-	jfs_info("jfs_link: %s %s", old_dentry->d_name.name,
-		 dentry->d_name.name);
+	jfs_info("jfs_link: %pd %pd", old_dentry, dentry);
 
 	dquot_initialize(dir);
 
@@ -1082,8 +1081,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int commit_flag;
 
 
-	jfs_info("jfs_rename: %s %s", old_dentry->d_name.name,
-		 new_dentry->d_name.name);
+	jfs_info("jfs_rename: %pd %pd", old_dentry, new_dentry);
 
 	dquot_initialize(old_dir);
 	dquot_initialize(new_dir);
@@ -1355,7 +1353,7 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
-	jfs_info("jfs_mknod: %s", dentry->d_name.name);
+	jfs_info("jfs_mknod: %pd", dentry);
 
 	dquot_initialize(dir);
 
@@ -1444,7 +1442,7 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, unsig
 	struct component_name key;
 	int rc;
 
-	jfs_info("jfs_lookup: name = %s", dentry->d_name.name);
+	jfs_info("jfs_lookup: name = %pd", dentry);
 
 	if ((rc = get_UCSname(&key, dentry)))
 		return ERR_PTR(rc);

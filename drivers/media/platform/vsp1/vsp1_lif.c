@@ -78,8 +78,8 @@ static int lif_enum_mbus_code(struct v4l2_subdev *subdev,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	static const unsigned int codes[] = {
-		V4L2_MBUS_FMT_ARGB8888_1X32,
-		V4L2_MBUS_FMT_AYUV8_1X32,
+		MEDIA_BUS_FMT_ARGB8888_1X32,
+		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
 
 	if (code->pad == LIF_PAD_SINK) {
@@ -147,9 +147,9 @@ static int lif_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 	struct v4l2_mbus_framefmt *format;
 
 	/* Default to YUV if the requested format is not supported. */
-	if (fmt->format.code != V4L2_MBUS_FMT_ARGB8888_1X32 &&
-	    fmt->format.code != V4L2_MBUS_FMT_AYUV8_1X32)
-		fmt->format.code = V4L2_MBUS_FMT_AYUV8_1X32;
+	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
+	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)
+		fmt->format.code = MEDIA_BUS_FMT_AYUV8_1X32;
 
 	format = vsp1_entity_get_pad_format(&lif->entity, fh, fmt->pad,
 					    fmt->which);

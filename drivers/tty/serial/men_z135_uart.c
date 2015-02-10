@@ -809,6 +809,7 @@ static void men_z135_remove(struct mcb_device *mdev)
 
 static const struct mcb_device_id men_z135_ids[] = {
 	{ .device = 0x87 },
+	{ }
 };
 MODULE_DEVICE_TABLE(mcb, men_z135_ids);
 

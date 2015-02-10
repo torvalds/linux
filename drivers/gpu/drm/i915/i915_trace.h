@@ -587,6 +587,110 @@ TRACE_EVENT(intel_gpu_freq_change,
 	    TP_printk("new_freq=%u", __entry->freq)
 );
 
+/**
+ * DOC: i915_ppgtt_create and i915_ppgtt_release tracepoints
+ *
+ * With full ppgtt enabled each process using drm will allocate at least one
+ * translation table. With these traces it is possible to keep track of the
+ * allocation and of the lifetime of the tables; this can be used during
+ * testing/debug to verify that we are not leaking ppgtts.
+ * These traces identify the ppgtt through the vm pointer, which is also printed
+ * by the i915_vma_bind and i915_vma_unbind tracepoints.
+ */
+DECLARE_EVENT_CLASS(i915_ppgtt,
+	TP_PROTO(struct i915_address_space *vm),
+	TP_ARGS(vm),
+
+	TP_STRUCT__entry(
+			__field(struct i915_address_space *, vm)
+			__field(u32, dev)
+	),
+
+	TP_fast_assign(
+			__entry->vm = vm;
+			__entry->dev = vm->dev->primary->index;
+	),
+
+	TP_printk("dev=%u, vm=%p", __entry->dev, __entry->vm)
+)
+
+DEFINE_EVENT(i915_ppgtt, i915_ppgtt_create,
+	TP_PROTO(struct i915_address_space *vm),
+	TP_ARGS(vm)
+);
+
+DEFINE_EVENT(i915_ppgtt, i915_ppgtt_release,
+	TP_PROTO(struct i915_address_space *vm),
+	TP_ARGS(vm)
+);
+
+/**
+ * DOC: i915_context_create and i915_context_free tracepoints
+ *
+ * These tracepoints are used to track creation and deletion of contexts.
+ * If full ppgtt is enabled, they also print the address of the vm assigned to
+ * the context.
+ */
+DECLARE_EVENT_CLASS(i915_context,
+	TP_PROTO(struct intel_context *ctx),
+	TP_ARGS(ctx),
+
+	TP_STRUCT__entry(
+			__field(u32, dev)
+			__field(struct intel_context *, ctx)
+			__field(struct i915_address_space *, vm)
+	),
+
+	TP_fast_assign(
+			__entry->ctx = ctx;
+			__entry->vm = ctx->ppgtt ? &ctx->ppgtt->base : NULL;
+			__entry->dev = ctx->file_priv->dev_priv->dev->primary->index;
+	),
+
+	TP_printk("dev=%u, ctx=%p, ctx_vm=%p",
+		  __entry->dev, __entry->ctx, __entry->vm)
+)
+
+DEFINE_EVENT(i915_context, i915_context_create,
+	TP_PROTO(struct intel_context *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(i915_context, i915_context_free,
+	TP_PROTO(struct intel_context *ctx),
+	TP_ARGS(ctx)
+);
+
+/**
+ * DOC: switch_mm tracepoint
+ *
+ * This tracepoint allows tracking of the mm switch, which is an important point
+ * in the lifetime of the vm in the legacy submission path. This tracepoint is
+ * called only if full ppgtt is enabled.
+ */
+TRACE_EVENT(switch_mm,
+	TP_PROTO(struct intel_engine_cs *ring, struct intel_context *to),
+
+	TP_ARGS(ring, to),
+
+	TP_STRUCT__entry(
+			__field(u32, ring)
+			__field(struct intel_context *, to)
+			__field(struct i915_address_space *, vm)
+			__field(u32, dev)
+	),
+
+	TP_fast_assign(
+			__entry->ring = ring->id;
+			__entry->to = to;
+			__entry->vm = to->ppgtt? &to->ppgtt->base : NULL;
+			__entry->dev = ring->dev->primary->index;
+	),
+
+	TP_printk("dev=%u, ring=%u, ctx=%p, ctx_vm=%p",
+		  __entry->dev, __entry->ring, __entry->to, __entry->vm)
+);
+
 #endif /* _I915_TRACE_H_ */
 
 /* This part must be outside protection */

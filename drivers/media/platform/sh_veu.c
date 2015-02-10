@@ -26,6 +26,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mem2mem.h>
+#include <media/v4l2-image-sizes.h>
 #include <media/videobuf2-dma-contig.h>
 
 #define VEU_STR 0x00 /* start register */
@@ -134,9 +135,6 @@ enum sh_veu_fmt_idx {
 	SH_VEU_FMT_RGB666,
 	SH_VEU_FMT_RGB24,
 };
-
-#define VGA_WIDTH	640
-#define VGA_HEIGHT	480
 
 #define DEFAULT_IN_WIDTH	VGA_WIDTH
 #define DEFAULT_IN_HEIGHT	VGA_HEIGHT
@@ -1237,7 +1235,6 @@ static struct platform_driver __refdata sh_veu_pdrv = {
 	.remove		= sh_veu_remove,
 	.driver		= {
 		.name	= "sh_veu",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -23,8 +23,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -42,7 +40,6 @@
 #include "xfs_symlink.h"
 #include "xfs_trans.h"
 #include "xfs_log.h"
-#include "xfs_dinode.h"
 
 /* ----- Kernel only functions below ----- */
 STATIC int
@@ -269,9 +266,11 @@ xfs_symlink(
 	/*
 	 * Check for ability to enter directory entry, if no space reserved.
 	 */
-	error = xfs_dir_canenter(tp, dp, link_name, resblks);
-	if (error)
-		goto error_return;
+	if (!resblks) {
+		error = xfs_dir_canenter(tp, dp, link_name);
+		if (error)
+			goto error_return;
+	}
 	/*
 	 * Initialize the bmap freelist prior to calling either
 	 * bmapi or the directory create code.

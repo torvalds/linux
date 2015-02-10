@@ -223,6 +223,7 @@ static void serial_pxa_start_tx(struct uart_port *port)
 	}
 }
 
+/* should hold up->port.lock */
 static inline void check_modem_status(struct uart_pxa_port *up)
 {
 	int status;
@@ -255,12 +256,14 @@ static inline irqreturn_t serial_pxa_irq(int irq, void *dev_id)
 	iir = serial_in(up, UART_IIR);
 	if (iir & UART_IIR_NO_INT)
 		return IRQ_NONE;
+	spin_lock(&up->port.lock);
 	lsr = serial_in(up, UART_LSR);
 	if (lsr & UART_LSR_DR)
 		receive_chars(up, &lsr);
 	check_modem_status(up);
 	if (lsr & UART_LSR_THRE)
 		transmit_chars(up);
+	spin_unlock(&up->port.lock);
 	return IRQ_HANDLED;
 }
 
@@ -930,7 +933,6 @@ static struct platform_driver serial_pxa_driver = {
 
 	.driver		= {
 	        .name	= "pxa2xx-uart",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &serial_pxa_pm_ops,
 #endif

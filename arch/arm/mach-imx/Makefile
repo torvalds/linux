@@ -12,11 +12,12 @@ obj-$(CONFIG_SOC_IMX31) += mm-imx3.o cpu-imx31.o clk-imx31.o iomux-imx31.o ehci-
 obj-$(CONFIG_SOC_IMX35) += mm-imx3.o cpu-imx35.o clk-imx35.o ehci-imx35.o pm-imx3.o
 
 imx5-pm-$(CONFIG_PM) += pm-imx5.o
-obj-$(CONFIG_SOC_IMX5) += cpu-imx5.o clk-imx51-imx53.o $(imx5-pm-y)
+obj-$(CONFIG_SOC_IMX5) += cpu-imx5.o clk-imx51-imx53.o clk-cpu.o $(imx5-pm-y)
 
 obj-$(CONFIG_COMMON_CLK) += clk-pllv1.o clk-pllv2.o clk-pllv3.o clk-gate2.o \
 			    clk-pfd.o clk-busy.o clk.o \
-			    clk-fixup-div.o clk-fixup-mux.o
+			    clk-fixup-div.o clk-fixup-mux.o \
+			    clk-gate-exclusive.o
 
 obj-$(CONFIG_IMX_HAVE_IOMUX_V1) += iomux-v1.o
 obj-$(CONFIG_ARCH_MXC_IOMUX_V3) += iomux-v3.o
@@ -41,9 +42,9 @@ obj-y += ssi-fiq-ksym.o
 endif
 
 # i.MX1 based machines
-obj-$(CONFIG_ARCH_MX1ADS) += mach-mx1ads.o
 obj-$(CONFIG_MACH_SCB9328) += mach-scb9328.o
 obj-$(CONFIG_MACH_APF9328) += mach-apf9328.o
+obj-$(CONFIG_MACH_IMX1_DT) += imx1-dt.o
 
 # i.MX21 based machines
 obj-$(CONFIG_MACH_MX21ADS) += mach-mx21ads.o
@@ -56,14 +57,9 @@ obj-$(CONFIG_MACH_IMX25_DT) += imx25-dt.o
 
 # i.MX27 based machines
 obj-$(CONFIG_MACH_MX27ADS) += mach-mx27ads.o
-obj-$(CONFIG_MACH_PCM038) += mach-pcm038.o
-obj-$(CONFIG_MACH_PCM970_BASEBOARD) += pcm970-baseboard.o
 obj-$(CONFIG_MACH_MX27_3DS) += mach-mx27_3ds.o
 obj-$(CONFIG_MACH_IMX27_VISSTRIM_M10) += mach-imx27_visstrim_m10.o
-obj-$(CONFIG_MACH_CPUIMX27) += mach-cpuimx27.o
-obj-$(CONFIG_MACH_EUKREA_MBIMX27_BASEBOARD) += eukrea_mbimx27-baseboard.o
 obj-$(CONFIG_MACH_PCA100) += mach-pca100.o
-obj-$(CONFIG_MACH_MXT_TD60) += mach-mxt_td60.o
 obj-$(CONFIG_MACH_IMX27_DT) += imx27-dt.o
 
 # i.MX31 based machines
@@ -93,7 +89,7 @@ obj-$(CONFIG_HAVE_IMX_ANATOP) += anatop.o
 obj-$(CONFIG_HAVE_IMX_GPC) += gpc.o
 obj-$(CONFIG_HAVE_IMX_MMDC) += mmdc.o
 obj-$(CONFIG_HAVE_IMX_SRC) += src.o
-ifdef CONFIG_SOC_IMX6
+ifneq ($(CONFIG_SOC_IMX6)$(CONFIG_SOC_LS1021A),)
 AFLAGS_headsmp.o :=-Wa,-march=armv7-a
 obj-$(CONFIG_SMP) += headsmp.o platsmp.o
 obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
@@ -113,5 +109,7 @@ obj-$(CONFIG_SOC_IMX51) += mach-imx51.o
 obj-$(CONFIG_SOC_IMX53) += mach-imx53.o
 
 obj-$(CONFIG_SOC_VF610) += clk-vf610.o mach-vf610.o
+
+obj-$(CONFIG_SOC_LS1021A) += mach-ls1021a.o
 
 obj-y += devices/

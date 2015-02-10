@@ -2766,6 +2766,11 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.mtd_write = falcon_mtd_write,
 	.mtd_sync = falcon_mtd_sync,
 #endif
+	.sriov_init = efx_falcon_sriov_init,
+	.sriov_fini = efx_falcon_sriov_fini,
+	.sriov_mac_address_changed = efx_falcon_sriov_mac_address_changed,
+	.sriov_wanted = efx_falcon_sriov_wanted,
+	.sriov_reset = efx_falcon_sriov_reset,
 
 	.revision = EFX_REV_FALCON_A1,
 	.txd_ptr_tbl_base = FR_AA_TX_DESC_PTR_TBL_KER,
@@ -2862,6 +2867,11 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.mtd_write = falcon_mtd_write,
 	.mtd_sync = falcon_mtd_sync,
 #endif
+	.sriov_init = efx_falcon_sriov_init,
+	.sriov_fini = efx_falcon_sriov_fini,
+	.sriov_mac_address_changed = efx_falcon_sriov_mac_address_changed,
+	.sriov_wanted = efx_falcon_sriov_wanted,
+	.sriov_reset = efx_falcon_sriov_reset,
 
 	.revision = EFX_REV_FALCON_B0,
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,

@@ -3186,6 +3186,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		break;
 	case RF3070:
 	case RF5360:
+	case RF5362:
 	case RF5370:
 	case RF5372:
 	case RF5390:
@@ -3203,6 +3204,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	    rt2x00_rf(rt2x00dev, RF3290) ||
 	    rt2x00_rf(rt2x00dev, RF3322) ||
 	    rt2x00_rf(rt2x00dev, RF5360) ||
+	    rt2x00_rf(rt2x00dev, RF5362) ||
 	    rt2x00_rf(rt2x00dev, RF5370) ||
 	    rt2x00_rf(rt2x00dev, RF5372) ||
 	    rt2x00_rf(rt2x00dev, RF5390) ||
@@ -4117,7 +4119,20 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 	 * expected. We adjust it, based on TSSI reference and boundaries values
 	 * provided in EEPROM.
 	 */
-	delta += rt2800_get_gain_calibration_delta(rt2x00dev);
+	switch (rt2x00dev->chip.rt) {
+	case RT2860:
+	case RT2872:
+	case RT2883:
+	case RT3070:
+	case RT3071:
+	case RT3090:
+	case RT3572:
+		delta += rt2800_get_gain_calibration_delta(rt2x00dev);
+		break;
+	default:
+		/* TODO: temperature compensation code for other chips. */
+		break;
+	}
 
 	/*
 	 * Decrease power according to user settings, on devices with unknown
@@ -4134,25 +4149,19 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 	 * TODO: we do not use +6 dBm option to do not increase power beyond
 	 * regulatory limit, however this could be utilized for devices with
 	 * CAPABILITY_POWER_LIMIT.
-	 *
-	 * TODO: add different temperature compensation code for RT3290 & RT5390
-	 * to allow to use BBP_R1 for those chips.
 	 */
-	if (!rt2x00_rt(rt2x00dev, RT3290) &&
-	    !rt2x00_rt(rt2x00dev, RT5390)) {
-		rt2800_bbp_read(rt2x00dev, 1, &r1);
-		if (delta <= -12) {
-			power_ctrl = 2;
-			delta += 12;
-		} else if (delta <= -6) {
-			power_ctrl = 1;
-			delta += 6;
-		} else {
-			power_ctrl = 0;
-		}
-		rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, power_ctrl);
-		rt2800_bbp_write(rt2x00dev, 1, r1);
+	if (delta <= -12) {
+		power_ctrl = 2;
+		delta += 12;
+	} else if (delta <= -6) {
+		power_ctrl = 1;
+		delta += 6;
+	} else {
+		power_ctrl = 0;
 	}
+	rt2800_bbp_read(rt2x00dev, 1, &r1);
+	rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, power_ctrl);
+	rt2800_bbp_write(rt2x00dev, 1, r1);
 
 	offset = TX_PWR_CFG_0;
 
@@ -4317,6 +4326,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 	case RF3070:
 	case RF3290:
 	case RF5360:
+	case RF5362:
 	case RF5370:
 	case RF5372:
 	case RF5390:
@@ -7095,6 +7105,7 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RF3320:
 	case RF3322:
 	case RF5360:
+	case RF5362:
 	case RF5370:
 	case RF5372:
 	case RF5390:
@@ -7551,6 +7562,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	case RF3320:
 	case RF3322:
 	case RF5360:
+	case RF5362:
 	case RF5370:
 	case RF5372:
 	case RF5390:
@@ -7680,6 +7692,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	case RF3070:
 	case RF3290:
 	case RF5360:
+	case RF5362:
 	case RF5370:
 	case RF5372:
 	case RF5390:

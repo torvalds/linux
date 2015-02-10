@@ -14,13 +14,13 @@
 #include <linux/mdio-mux.h>
 #include <linux/of_gpio.h>
 
-#define DRV_VERSION "1.0"
+#define DRV_VERSION "1.1"
 #define DRV_DESCRIPTION "GPIO controlled MDIO bus multiplexer driver"
 
 #define MDIO_MUX_GPIO_MAX_BITS 8
 
 struct mdio_mux_gpio_state {
-	int gpio[MDIO_MUX_GPIO_MAX_BITS];
+	struct gpio_desc *gpio[MDIO_MUX_GPIO_MAX_BITS];
 	unsigned int num_gpios;
 	void *mux_handle;
 };
@@ -28,29 +28,23 @@ struct mdio_mux_gpio_state {
 static int mdio_mux_gpio_switch_fn(int current_child, int desired_child,
 				   void *data)
 {
-	int change;
+	int values[MDIO_MUX_GPIO_MAX_BITS];
 	unsigned int n;
 	struct mdio_mux_gpio_state *s = data;
 
 	if (current_child == desired_child)
 		return 0;
 
-	change = current_child == -1 ? -1 : current_child ^ desired_child;
-
 	for (n = 0; n < s->num_gpios; n++) {
-		if (change & 1)
-			gpio_set_value_cansleep(s->gpio[n],
-						(desired_child & 1) != 0);
-		change >>= 1;
-		desired_child >>= 1;
+		values[n] = (desired_child >> n) & 1;
 	}
+	gpiod_set_array_cansleep(s->num_gpios, s->gpio, values);
 
 	return 0;
 }
 
 static int mdio_mux_gpio_probe(struct platform_device *pdev)
 {
-	enum of_gpio_flags f;
 	struct mdio_mux_gpio_state *s;
 	int num_gpios;
 	unsigned int n;
@@ -70,22 +64,14 @@ static int mdio_mux_gpio_probe(struct platform_device *pdev)
 	s->num_gpios = num_gpios;
 
 	for (n = 0; n < num_gpios; ) {
-		int gpio = of_get_gpio_flags(pdev->dev.of_node, n, &f);
-		if (gpio < 0) {
-			r = (gpio == -ENODEV) ? -EPROBE_DEFER : gpio;
+		struct gpio_desc *gpio = gpiod_get_index(&pdev->dev, NULL, n,
+							 GPIOD_OUT_LOW);
+		if (IS_ERR(gpio)) {
+			r = PTR_ERR(gpio);
 			goto err;
 		}
 		s->gpio[n] = gpio;
-
 		n++;
-
-		r = gpio_request(gpio, "mdio_mux_gpio");
-		if (r)
-			goto err;
-
-		r = gpio_direction_output(gpio, 0);
-		if (r)
-			goto err;
 	}
 
 	r = mdio_mux_init(&pdev->dev,
@@ -98,15 +84,18 @@ static int mdio_mux_gpio_probe(struct platform_device *pdev)
 err:
 	while (n) {
 		n--;
-		gpio_free(s->gpio[n]);
+		gpiod_put(s->gpio[n]);
 	}
 	return r;
 }
 
 static int mdio_mux_gpio_remove(struct platform_device *pdev)
 {
+	unsigned int n;
 	struct mdio_mux_gpio_state *s = dev_get_platdata(&pdev->dev);
 	mdio_mux_uninit(s->mux_handle);
+	for (n = 0; n < s->num_gpios; n++)
+		gpiod_put(s->gpio[n]);
 	return 0;
 }
 
@@ -125,7 +114,6 @@ MODULE_DEVICE_TABLE(of, mdio_mux_gpio_match);
 static struct platform_driver mdio_mux_gpio_driver = {
 	.driver = {
 		.name		= "mdio-mux-gpio",
-		.owner		= THIS_MODULE,
 		.of_match_table = mdio_mux_gpio_match,
 	},
 	.probe		= mdio_mux_gpio_probe,

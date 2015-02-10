@@ -162,10 +162,10 @@ tsb_miss_page_table_walk_sun4v_fastpath:
 	nop
 	.previous
 
-	rdpr	%tl, %g3
-	cmp	%g3, 1
+	rdpr	%tl, %g7
+	cmp	%g7, 1
 	bne,pn	%xcc, winfix_trampoline
-	 nop
+	 mov	%g3, %g4
 	ba,pt	%xcc, etrap
 	 rd	%pc, %g7
 	call	hugetlb_setup

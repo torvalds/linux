@@ -33,12 +33,12 @@
 static DEFINE_SPINLOCK(nano_lock);
 
 static int nanoengine_get_pci_address(struct pci_bus *bus,
-	unsigned int devfn, int where, unsigned long *address)
+	unsigned int devfn, int where, void __iomem **address)
 {
 	int ret = PCIBIOS_DEVICE_NOT_FOUND;
 	unsigned int busnr = bus->number;
 
-	*address = NANO_PCI_CONFIG_SPACE_VIRT +
+	*address = (void __iomem *)NANO_PCI_CONFIG_SPACE_VIRT +
 		((bus->number << 16) | (devfn << 8) | (where & ~3));
 
 	ret = (busnr > 255 || devfn > 255 || where > 255) ?
@@ -51,7 +51,7 @@ static int nanoengine_read_config(struct pci_bus *bus, unsigned int devfn, int w
 	int size, u32 *val)
 {
 	int ret;
-	unsigned long address;
+	void __iomem *address;
 	unsigned long flags;
 	u32 v;
 
@@ -85,7 +85,7 @@ static int nanoengine_write_config(struct pci_bus *bus, unsigned int devfn, int 
 	int size, u32 val)
 {
 	int ret;
-	unsigned long address;
+	void __iomem *address;
 	unsigned long flags;
 	unsigned shift;
 	u32 v;

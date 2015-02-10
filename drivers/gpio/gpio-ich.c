@@ -526,7 +526,6 @@ static int ichx_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver ichx_gpio_driver = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
 	},
 	.probe		= ichx_gpio_probe,

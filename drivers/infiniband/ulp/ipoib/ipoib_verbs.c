@@ -145,10 +145,20 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	int ret, size;
 	int i;
 
+	/*
+	 * the various IPoIB tasks assume they will never race against
+	 * themselves, so always use a single thread workqueue
+	 */
+	priv->wq = create_singlethread_workqueue("ipoib_wq");
+	if (!priv->wq) {
+		printk(KERN_WARNING "ipoib: failed to allocate device WQ\n");
+		return -ENODEV;
+	}
+
 	priv->pd = ib_alloc_pd(priv->ca);
 	if (IS_ERR(priv->pd)) {
 		printk(KERN_WARNING "%s: failed to allocate PD\n", ca->name);
-		return -ENODEV;
+		goto out_free_wq;
 	}
 
 	priv->mr = ib_get_dma_mr(priv->pd, IB_ACCESS_LOCAL_WRITE);
@@ -242,6 +252,10 @@ out_free_mr:
 
 out_free_pd:
 	ib_dealloc_pd(priv->pd);
+
+out_free_wq:
+	destroy_workqueue(priv->wq);
+	priv->wq = NULL;
 	return -ENODEV;
 }
 
@@ -270,6 +284,12 @@ void ipoib_transport_dev_cleanup(struct net_device *dev)
 
 	if (ib_dealloc_pd(priv->pd))
 		ipoib_warn(priv, "ib_dealloc_pd failed\n");
+
+	if (priv->wq) {
+		flush_workqueue(priv->wq);
+		destroy_workqueue(priv->wq);
+		priv->wq = NULL;
+	}
 }
 
 void ipoib_event(struct ib_event_handler *handler,

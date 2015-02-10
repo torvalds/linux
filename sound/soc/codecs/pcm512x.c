@@ -517,7 +517,7 @@ void pcm512x_remove(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(pcm512x_remove);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int pcm512x_suspend(struct device *dev)
 {
 	struct pcm512x_priv *pcm512x = dev_get_drvdata(dev);

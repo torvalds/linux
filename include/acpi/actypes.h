@@ -721,7 +721,7 @@ typedef u32 acpi_event_type;
  *          |     | | +--- Enabled for wake?
  *          |     | +----- Set?
  *          |     +------- Has a handler?
- *          +----------- <Reserved>
+ *          +------------- <Reserved>
  */
 typedef u32 acpi_event_status;
 
@@ -729,13 +729,17 @@ typedef u32 acpi_event_status;
 #define ACPI_EVENT_FLAG_ENABLED         (acpi_event_status) 0x01
 #define ACPI_EVENT_FLAG_WAKE_ENABLED    (acpi_event_status) 0x02
 #define ACPI_EVENT_FLAG_SET             (acpi_event_status) 0x04
-#define ACPI_EVENT_FLAG_HANDLE		(acpi_event_status) 0x08
+#define ACPI_EVENT_FLAG_HAS_HANDLER     (acpi_event_status) 0x08
 
 /* Actions for acpi_set_gpe, acpi_gpe_wakeup, acpi_hw_low_set_gpe */
 
 #define ACPI_GPE_ENABLE                 0
 #define ACPI_GPE_DISABLE                1
 #define ACPI_GPE_CONDITIONAL_ENABLE     2
+#define ACPI_GPE_SAVE_MASK              4
+
+#define ACPI_GPE_ENABLE_SAVE            (ACPI_GPE_ENABLE | ACPI_GPE_SAVE_MASK)
+#define ACPI_GPE_DISABLE_SAVE           (ACPI_GPE_DISABLE | ACPI_GPE_SAVE_MASK)
 
 /*
  * GPE info flags - Per GPE

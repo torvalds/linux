@@ -314,14 +314,11 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
 		if (!isspace(str[n-1]))
 			break;
 	matched = n;
-
-	if ((t = sscanf(str, "%i%n", &m, &matched)) >= 1 &&
-	    matched == n) {
+	t = sscanf(str, "%i%n", &m, &matched);
+	if (t >= 1 && matched == n) {
 		/* don't print warning for lctl set_param debug=0 or -1 */
 		if (m != 0 && m != -1)
-			CWARN("You are trying to use a numerical value for the "
-			      "mask - this will be deprecated in a future "
-			      "release.\n");
+			CWARN("You are trying to use a numerical value for the mask - this will be deprecated in a future release.\n");
 		*mask = m;
 		return 0;
 	}
@@ -344,7 +341,7 @@ void libcfs_debug_dumplog_internal(void *arg)
 		snprintf(debug_file_name, sizeof(debug_file_name) - 1,
 			 "%s.%ld.%ld", libcfs_debug_file_path_arr,
 			 get_seconds(), (long_ptr_t)arg);
-		printk(KERN_ALERT "LustreError: dumping log to %s\n",
+		pr_alert("LustreError: dumping log to %s\n",
 		       debug_file_name);
 		cfs_tracefile_dump_all_pages(debug_file_name);
 		libcfs_run_debug_log_upcall(debug_file_name);
@@ -376,8 +373,8 @@ void libcfs_debug_dumplog(void)
 			     (void *)(long)current_pid(),
 			     "libcfs_debug_dumper");
 	if (IS_ERR(dumper))
-		printk(KERN_ERR "LustreError: cannot start log dump thread:"
-		       " %ld\n", PTR_ERR(dumper));
+		pr_err("LustreError: cannot start log dump thread: %ld\n",
+		       PTR_ERR(dumper));
 	else
 		schedule();
 
@@ -402,9 +399,9 @@ int libcfs_debug_init(unsigned long bufsize)
 	}
 
 	if (libcfs_debug_file_path != NULL) {
-		memset(libcfs_debug_file_path_arr, 0, PATH_MAX);
 		strncpy(libcfs_debug_file_path_arr,
 			libcfs_debug_file_path, PATH_MAX-1);
+		libcfs_debug_file_path_arr[PATH_MAX - 1] = '\0';
 	}
 
 	/* If libcfs_debug_mb is set to an invalid value or uninitialized
@@ -413,7 +410,7 @@ int libcfs_debug_init(unsigned long bufsize)
 		max = TCD_MAX_PAGES;
 	} else {
 		max = (max / num_possible_cpus());
-		max = (max << (20 - PAGE_CACHE_SHIFT));
+		max = max << (20 - PAGE_CACHE_SHIFT);
 	}
 	rc = cfs_tracefile_init(max);
 
@@ -442,9 +439,11 @@ int libcfs_debug_clear_buffer(void)
 #define DEBUG_SUBSYSTEM S_UNDEFINED
 int libcfs_debug_mark_buffer(const char *text)
 {
-	CDEBUG(D_TRACE,"***************************************************\n");
+	CDEBUG(D_TRACE,
+	       "***************************************************\n");
 	LCONSOLE(D_WARNING, "DEBUG MARKER: %s\n", text);
-	CDEBUG(D_TRACE,"***************************************************\n");
+	CDEBUG(D_TRACE,
+	       "***************************************************\n");
 
 	return 0;
 }
@@ -453,17 +452,9 @@ int libcfs_debug_mark_buffer(const char *text)
 
 void libcfs_debug_set_level(unsigned int debug_level)
 {
-	printk(KERN_WARNING "Lustre: Setting portals debug level to %08x\n",
+	pr_warn("Lustre: Setting portals debug level to %08x\n",
 	       debug_level);
 	libcfs_debug = debug_level;
 }
 
 EXPORT_SYMBOL(libcfs_debug_set_level);
-
-void libcfs_log_goto(struct libcfs_debug_msg_data *msgdata, const char *label,
-		     long_ptr_t rc)
-{
-	libcfs_debug_msg(msgdata, "Process leaving via %s (rc=%lu : %ld : %#lx)\n",
-			 label, (ulong_ptr_t)rc, rc, rc);
-}
-EXPORT_SYMBOL(libcfs_log_goto);

@@ -261,11 +261,6 @@ static int __init xen_guest_init(void)
 
 	xen_setup_features();
 
-	if (!xen_feature(XENFEAT_grant_map_identity)) {
-		pr_warn("Please upgrade your Xen.\n"
-				"If your platform has any non-coherent DMA devices, they won't work properly.\n");
-	}
-
 	if (xen_feature(XENFEAT_dom0))
 		xen_start_info->flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
 	else

@@ -22,6 +22,7 @@
 #include <linux/of.h>
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <linux/mmc/sdio_func.h>
 
 #include "btmrvl_drv.h"
 #include "btmrvl_sdio.h"
@@ -40,6 +41,11 @@ void btmrvl_interrupt(struct btmrvl_private *priv)
 	priv->adapter->wakeup_tries = 0;
 
 	priv->adapter->int_count++;
+
+	if (priv->adapter->hs_state == HS_ACTIVATED) {
+		BT_DBG("BT: HS DEACTIVATED in ISR!");
+		priv->adapter->hs_state = HS_DEACTIVATED;
+	}
 
 	wake_up_interruptible(&priv->main_thread.wait_q);
 }
@@ -209,7 +215,7 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, u8 subcmd)
 
 	ret = btmrvl_send_sync_cmd(priv, BT_CMD_MODULE_CFG_REQ, &subcmd, 1);
 	if (ret)
-		BT_ERR("module_cfg_cmd(%x) failed\n", subcmd);
+		BT_ERR("module_cfg_cmd(%x) failed", subcmd);
 
 	return ret;
 }
@@ -245,7 +251,7 @@ int btmrvl_send_hscfg_cmd(struct btmrvl_private *priv)
 
 	ret = btmrvl_send_sync_cmd(priv, BT_CMD_HOST_SLEEP_CONFIG, param, 2);
 	if (ret)
-		BT_ERR("HSCFG command failed\n");
+		BT_ERR("HSCFG command failed");
 
 	return ret;
 }
@@ -263,7 +269,7 @@ int btmrvl_enable_ps(struct btmrvl_private *priv)
 
 	ret = btmrvl_send_sync_cmd(priv, BT_CMD_AUTO_SLEEP_MODE, &param, 1);
 	if (ret)
-		BT_ERR("PSMODE command failed\n");
+		BT_ERR("PSMODE command failed");
 
 	return 0;
 }
@@ -276,7 +282,7 @@ int btmrvl_enable_hs(struct btmrvl_private *priv)
 
 	ret = btmrvl_send_sync_cmd(priv, BT_CMD_HOST_SLEEP_ENABLE, NULL, 0);
 	if (ret) {
-		BT_ERR("Host sleep enable command failed\n");
+		BT_ERR("Host sleep enable command failed");
 		return ret;
 	}
 
@@ -323,10 +329,17 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 		} else {
 			ret = priv->hw_wakeup_firmware(priv);
 			priv->adapter->hs_state = HS_DEACTIVATED;
+			BT_DBG("BT: HS DEACTIVATED due to host activity!");
 		}
 	}
 
 	return ret;
+}
+
+void btmrvl_firmware_dump(struct btmrvl_private *priv)
+{
+	if (priv->firmware_dump)
+		priv->firmware_dump(priv);
 }
 
 static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
@@ -487,34 +500,36 @@ static int btmrvl_download_cal_data(struct btmrvl_private *priv,
 	ret = btmrvl_send_sync_cmd(priv, BT_CMD_LOAD_CONFIG_DATA, data,
 				   BT_CAL_HDR_LEN + len);
 	if (ret)
-		BT_ERR("Failed to download caibration data\n");
+		BT_ERR("Failed to download caibration data");
 
 	return 0;
 }
 
-static int btmrvl_cal_data_dt(struct btmrvl_private *priv)
+static int btmrvl_check_device_tree(struct btmrvl_private *priv)
 {
 	struct device_node *dt_node;
 	u8 cal_data[BT_CAL_HDR_LEN + BT_CAL_DATA_SIZE];
-	const char name[] = "btmrvl_caldata";
-	const char property[] = "btmrvl,caldata";
 	int ret;
+	u32 val;
 
-	dt_node = of_find_node_by_name(NULL, name);
-	if (!dt_node)
-		return -ENODEV;
+	for_each_compatible_node(dt_node, NULL, "btmrvl,cfgdata") {
+		ret = of_property_read_u32(dt_node, "btmrvl,gpio-gap", &val);
+		if (!ret)
+			priv->btmrvl_dev.gpio_gap = val;
 
-	ret = of_property_read_u8_array(dt_node, property,
-					cal_data + BT_CAL_HDR_LEN,
-					BT_CAL_DATA_SIZE);
-	if (ret)
-		return ret;
+		ret = of_property_read_u8_array(dt_node, "btmrvl,cal-data",
+						cal_data + BT_CAL_HDR_LEN,
+						BT_CAL_DATA_SIZE);
+		if (ret)
+			return ret;
 
-	BT_DBG("Use cal data from device tree");
-	ret = btmrvl_download_cal_data(priv, cal_data, BT_CAL_DATA_SIZE);
-	if (ret) {
-		BT_ERR("Fail to download calibrate data");
-		return ret;
+		BT_DBG("Use cal data from device tree");
+		ret = btmrvl_download_cal_data(priv, cal_data,
+					       BT_CAL_DATA_SIZE);
+		if (ret) {
+			BT_ERR("Fail to download calibrate data");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -526,14 +541,15 @@ static int btmrvl_setup(struct hci_dev *hdev)
 
 	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
 
-	btmrvl_cal_data_dt(priv);
+	priv->btmrvl_dev.gpio_gap = 0xffff;
+
+	btmrvl_check_device_tree(priv);
 
 	btmrvl_pscan_window_reporting(priv, 0x01);
 
 	priv->btmrvl_dev.psmode = 1;
 	btmrvl_enable_ps(priv);
 
-	priv->btmrvl_dev.gpio_gap = 0xffff;
 	btmrvl_send_hscfg_cmd(priv);
 
 	return 0;

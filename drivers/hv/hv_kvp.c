@@ -350,6 +350,7 @@ kvp_send_key(struct work_struct *dummy)
 	__u8 pool = kvp_transaction.kvp_msg->kvp_hdr.pool;
 	__u32 val32;
 	__u64 val64;
+	int rc;
 
 	msg = kzalloc(sizeof(*msg) + sizeof(struct hv_kvp_msg) , GFP_ATOMIC);
 	if (!msg)
@@ -446,7 +447,13 @@ kvp_send_key(struct work_struct *dummy)
 	}
 
 	msg->len = sizeof(struct hv_kvp_msg);
-	cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
+	rc = cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
+	if (rc) {
+		pr_debug("KVP: failed to communicate to the daemon: %d\n", rc);
+		if (cancel_delayed_work_sync(&kvp_work))
+			kvp_respond_to_host(message, HV_E_FAIL);
+	}
+
 	kfree(msg);
 
 	return;

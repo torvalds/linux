@@ -72,10 +72,6 @@ static const struct dss_reg_field omap2_dss_reg_fields[] = {
 	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
 	[FEAT_REG_DISPC_CLK_SWITCH]		= { 0, 0 },
-	[FEAT_REG_DSIPLL_REGN]			= { 0, 0 },
-	[FEAT_REG_DSIPLL_REGM]			= { 0, 0 },
-	[FEAT_REG_DSIPLL_REGM_DISPC]		= { 0, 0 },
-	[FEAT_REG_DSIPLL_REGM_DSI]		= { 0, 0 },
 };
 
 static const struct dss_reg_field omap3_dss_reg_fields[] = {
@@ -87,10 +83,6 @@ static const struct dss_reg_field omap3_dss_reg_fields[] = {
 	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
 	[FEAT_REG_DISPC_CLK_SWITCH]		= { 0, 0 },
-	[FEAT_REG_DSIPLL_REGN]			= { 7, 1 },
-	[FEAT_REG_DSIPLL_REGM]			= { 18, 8 },
-	[FEAT_REG_DSIPLL_REGM_DISPC]		= { 22, 19 },
-	[FEAT_REG_DSIPLL_REGM_DSI]		= { 26, 23 },
 };
 
 static const struct dss_reg_field am43xx_dss_reg_fields[] = {
@@ -113,10 +105,6 @@ static const struct dss_reg_field omap4_dss_reg_fields[] = {
 	[FEAT_REG_HORIZONTALACCU]		= { 10, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 26, 16 },
 	[FEAT_REG_DISPC_CLK_SWITCH]		= { 9, 8 },
-	[FEAT_REG_DSIPLL_REGN]			= { 8, 1 },
-	[FEAT_REG_DSIPLL_REGM]			= { 20, 9 },
-	[FEAT_REG_DSIPLL_REGM_DISPC]		= { 25, 21 },
-	[FEAT_REG_DSIPLL_REGM_DSI]		= { 30, 26 },
 };
 
 static const struct dss_reg_field omap5_dss_reg_fields[] = {
@@ -128,10 +116,6 @@ static const struct dss_reg_field omap5_dss_reg_fields[] = {
 	[FEAT_REG_HORIZONTALACCU]		= { 10, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 26, 16 },
 	[FEAT_REG_DISPC_CLK_SWITCH]		= { 9, 7 },
-	[FEAT_REG_DSIPLL_REGN]			= { 8, 1 },
-	[FEAT_REG_DSIPLL_REGM]			= { 20, 9 },
-	[FEAT_REG_DSIPLL_REGM_DISPC]		= { 25, 21 },
-	[FEAT_REG_DSIPLL_REGM_DSI]		= { 30, 26 },
 };
 
 static const enum omap_display_type omap2_dss_supported_displays[] = {
@@ -437,12 +421,6 @@ static const char * const omap5_dss_clk_source_names[] = {
 static const struct dss_param_range omap2_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 133000000 },
 	[FEAT_PARAM_DSS_PCD]			= { 2, 255 },
-	[FEAT_PARAM_DSIPLL_REGN]		= { 0, 0 },
-	[FEAT_PARAM_DSIPLL_REGM]		= { 0, 0 },
-	[FEAT_PARAM_DSIPLL_REGM_DISPC]		= { 0, 0 },
-	[FEAT_PARAM_DSIPLL_REGM_DSI]		= { 0, 0 },
-	[FEAT_PARAM_DSIPLL_FINT]		= { 0, 0 },
-	[FEAT_PARAM_DSIPLL_LPDIV]		= { 0, 0 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 2 },
 	/*
 	 * Assuming the line width buffer to be 768 pixels as OMAP2 DISPC
@@ -454,11 +432,6 @@ static const struct dss_param_range omap2_dss_param_range[] = {
 static const struct dss_param_range omap3_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 173000000 },
 	[FEAT_PARAM_DSS_PCD]			= { 1, 255 },
-	[FEAT_PARAM_DSIPLL_REGN]		= { 0, (1 << 7) - 1 },
-	[FEAT_PARAM_DSIPLL_REGM]		= { 0, (1 << 11) - 1 },
-	[FEAT_PARAM_DSIPLL_REGM_DISPC]		= { 0, (1 << 4) - 1 },
-	[FEAT_PARAM_DSIPLL_REGM_DSI]		= { 0, (1 << 4) - 1 },
-	[FEAT_PARAM_DSIPLL_FINT]		= { 750000, 2100000 },
 	[FEAT_PARAM_DSIPLL_LPDIV]		= { 1, (1 << 13) - 1},
 	[FEAT_PARAM_DSI_FCK]			= { 0, 173000000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
@@ -475,11 +448,6 @@ static const struct dss_param_range am43xx_dss_param_range[] = {
 static const struct dss_param_range omap4_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 186000000 },
 	[FEAT_PARAM_DSS_PCD]			= { 1, 255 },
-	[FEAT_PARAM_DSIPLL_REGN]		= { 0, (1 << 8) - 1 },
-	[FEAT_PARAM_DSIPLL_REGM]		= { 0, (1 << 12) - 1 },
-	[FEAT_PARAM_DSIPLL_REGM_DISPC]		= { 0, (1 << 5) - 1 },
-	[FEAT_PARAM_DSIPLL_REGM_DSI]		= { 0, (1 << 5) - 1 },
-	[FEAT_PARAM_DSIPLL_FINT]		= { 500000, 2500000 },
 	[FEAT_PARAM_DSIPLL_LPDIV]		= { 0, (1 << 13) - 1 },
 	[FEAT_PARAM_DSI_FCK]			= { 0, 170000000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
@@ -489,11 +457,6 @@ static const struct dss_param_range omap4_dss_param_range[] = {
 static const struct dss_param_range omap5_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 209250000 },
 	[FEAT_PARAM_DSS_PCD]			= { 1, 255 },
-	[FEAT_PARAM_DSIPLL_REGN]		= { 0, (1 << 8) - 1 },
-	[FEAT_PARAM_DSIPLL_REGM]		= { 0, (1 << 12) - 1 },
-	[FEAT_PARAM_DSIPLL_REGM_DISPC]		= { 0, (1 << 5) - 1 },
-	[FEAT_PARAM_DSIPLL_REGM_DSI]		= { 0, (1 << 5) - 1 },
-	[FEAT_PARAM_DSIPLL_FINT]		= { 150000, 52000000 },
 	[FEAT_PARAM_DSIPLL_LPDIV]		= { 0, (1 << 13) - 1 },
 	[FEAT_PARAM_DSI_FCK]			= { 0, 209250000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
@@ -517,7 +480,6 @@ static const enum dss_feat_id omap3430_dss_feat_list[] = {
 	FEAT_LINEBUFFERSPLIT,
 	FEAT_ROWREPEATENABLE,
 	FEAT_RESIZECONF,
-	FEAT_DSI_PLL_FREQSEL,
 	FEAT_DSI_REVERSE_TXCLKESC,
 	FEAT_VENC_REQUIRES_TV_DAC_CLK,
 	FEAT_CPR,
@@ -537,7 +499,6 @@ static const enum dss_feat_id am35xx_dss_feat_list[] = {
 	FEAT_LINEBUFFERSPLIT,
 	FEAT_ROWREPEATENABLE,
 	FEAT_RESIZECONF,
-	FEAT_DSI_PLL_FREQSEL,
 	FEAT_DSI_REVERSE_TXCLKESC,
 	FEAT_VENC_REQUIRES_TV_DAC_CLK,
 	FEAT_CPR,
@@ -572,7 +533,6 @@ static const enum dss_feat_id omap3630_dss_feat_list[] = {
 	FEAT_ROWREPEATENABLE,
 	FEAT_RESIZECONF,
 	FEAT_DSI_PLL_PWR_BUG,
-	FEAT_DSI_PLL_FREQSEL,
 	FEAT_CPR,
 	FEAT_PRELOAD,
 	FEAT_FIR_COEF_V,
@@ -654,8 +614,6 @@ static const enum dss_feat_id omap5_dss_feat_list[] = {
 	FEAT_ALPHA_FREE_ZORDER,
 	FEAT_FIFO_MERGE,
 	FEAT_BURST_2D,
-	FEAT_DSI_PLL_SELFREQDCO,
-	FEAT_DSI_PLL_REFSEL,
 	FEAT_DSI_PHY_DCC,
 	FEAT_MFLAG,
 };

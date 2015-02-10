@@ -76,21 +76,22 @@
 	    <entry></entry>
 	    <entry>&v4l2-event-vsync;</entry>
             <entry><structfield>vsync</structfield></entry>
-	    <entry>Event data for event V4L2_EVENT_VSYNC.
+	    <entry>Event data for event <constant>V4L2_EVENT_VSYNC</constant>.
             </entry>
 	  </row>
 	  <row>
 	    <entry></entry>
 	    <entry>&v4l2-event-ctrl;</entry>
             <entry><structfield>ctrl</structfield></entry>
-	    <entry>Event data for event V4L2_EVENT_CTRL.
+	    <entry>Event data for event <constant>V4L2_EVENT_CTRL</constant>.
             </entry>
 	  </row>
 	  <row>
 	    <entry></entry>
 	    <entry>&v4l2-event-frame-sync;</entry>
             <entry><structfield>frame_sync</structfield></entry>
-	    <entry>Event data for event V4L2_EVENT_FRAME_SYNC.</entry>
+	    <entry>Event data for event
+	    <constant>V4L2_EVENT_FRAME_SYNC</constant>.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>

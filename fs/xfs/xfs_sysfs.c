@@ -51,6 +51,80 @@ struct kobj_type xfs_mp_ktype = {
 	.release = xfs_sysfs_release,
 };
 
+#ifdef DEBUG
+/* debug */
+
+STATIC ssize_t
+log_recovery_delay_store(
+	const char	*buf,
+	size_t		count,
+	void		*data)
+{
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val < 0 || val > 60)
+		return -EINVAL;
+
+	xfs_globals.log_recovery_delay = val;
+
+	return count;
+}
+
+STATIC ssize_t
+log_recovery_delay_show(
+	char	*buf,
+	void	*data)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.log_recovery_delay);
+}
+XFS_SYSFS_ATTR_RW(log_recovery_delay);
+
+static struct attribute *xfs_dbg_attrs[] = {
+	ATTR_LIST(log_recovery_delay),
+	NULL,
+};
+
+STATIC ssize_t
+xfs_dbg_show(
+	struct kobject		*kobject,
+	struct attribute	*attr,
+	char			*buf)
+{
+	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
+
+	return xfs_attr->show ? xfs_attr->show(buf, NULL) : 0;
+}
+
+STATIC ssize_t
+xfs_dbg_store(
+	struct kobject		*kobject,
+	struct attribute	*attr,
+	const char		*buf,
+	size_t			count)
+{
+	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
+
+	return xfs_attr->store ? xfs_attr->store(buf, count, NULL) : 0;
+}
+
+static struct sysfs_ops xfs_dbg_ops = {
+	.show = xfs_dbg_show,
+	.store = xfs_dbg_store,
+};
+
+struct kobj_type xfs_dbg_ktype = {
+	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_dbg_ops,
+	.default_attrs = xfs_dbg_attrs,
+};
+
+#endif /* DEBUG */
+
 /* xlog */
 
 STATIC ssize_t

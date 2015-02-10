@@ -144,7 +144,7 @@ config ACPI_VIDEO
 
 config ACPI_FAN
 	tristate "Fan"
-	select THERMAL
+	depends on THERMAL
 	default y
 	help
 	  This driver supports ACPI fan devices, allowing user-mode
@@ -360,15 +360,14 @@ config ACPI_BGRT
 config ACPI_REDUCED_HARDWARE_ONLY
 	bool "Hardware-reduced ACPI support only" if EXPERT
 	def_bool n
-	depends on ACPI
 	help
-	This config item changes the way the ACPI code is built.  When this
-	option is selected, the kernel will use a specialized version of
-	ACPICA that ONLY supports the ACPI "reduced hardware" mode.  The
-	resulting kernel will be smaller but it will also be restricted to
-	running in ACPI reduced hardware mode ONLY.
+	  This config item changes the way the ACPI code is built.  When this
+	  option is selected, the kernel will use a specialized version of
+	  ACPICA that ONLY supports the ACPI "reduced hardware" mode.  The
+	  resulting kernel will be smaller but it will also be restricted to
+	  running in ACPI reduced hardware mode ONLY.
 
-	If you are unsure what to do, do not enable this option.
+	  If you are unsure what to do, do not enable this option.
 
 source "drivers/acpi/apei/Kconfig"
 
@@ -393,5 +392,28 @@ config ACPI_EXTLOG
 	  information to system software, synchronous with MCE or CMCI. This
 	  driver adds support for that functionality with corresponding
 	  tracepoint which carries that information to userspace.
+
+menuconfig PMIC_OPREGION
+	bool "PMIC (Power Management Integrated Circuit) operation region support"
+	help
+	  Select this option to enable support for ACPI operation
+	  region of the PMIC chip. The operation region can be used
+	  to control power rails and sensor reading/writing on the
+	  PMIC chip.
+
+if PMIC_OPREGION
+config CRC_PMIC_OPREGION
+	bool "ACPI operation region support for CrystalCove PMIC"
+	depends on INTEL_SOC_PMIC
+	help
+	  This config adds ACPI operation region support for CrystalCove PMIC.
+
+config XPOWER_PMIC_OPREGION
+	bool "ACPI operation region support for XPower AXP288 PMIC"
+	depends on AXP288_ADC = y
+	help
+	  This config adds ACPI operation region support for XPower AXP288 PMIC.
+
+endif
 
 endif	# ACPI

@@ -1963,7 +1963,7 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
  * this should improve performance for small packets with large amounts
  * of reassembly being done in the stack
  */
-static void ixgb_check_copybreak(struct net_device *netdev,
+static void ixgb_check_copybreak(struct napi_struct *napi,
 				 struct ixgb_buffer *buffer_info,
 				 u32 length, struct sk_buff **skb)
 {
@@ -1972,7 +1972,7 @@ static void ixgb_check_copybreak(struct net_device *netdev,
 	if (length > copybreak)
 		return;
 
-	new_skb = netdev_alloc_skb_ip_align(netdev, length);
+	new_skb = napi_alloc_skb(napi, length);
 	if (!new_skb)
 		return;
 
@@ -2064,7 +2064,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 			goto rxdesc_done;
 		}
 
-		ixgb_check_copybreak(netdev, buffer_info, length, &skb);
+		ixgb_check_copybreak(&adapter->napi, buffer_info, length, &skb);
 
 		/* Good Receive */
 		skb_put(skb, length);

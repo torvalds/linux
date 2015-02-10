@@ -253,7 +253,7 @@ static int ds_recv_status_nodump(struct ds_device *dev, struct ds_status *st,
 
 	count = 0;
 	err = usb_interrupt_msg(dev->udev, usb_rcvintpipe(dev->udev,
-		dev->ep[EP_STATUS]), buf, size, &count, 100);
+		dev->ep[EP_STATUS]), buf, size, &count, 1000);
 	if (err < 0) {
 		pr_err("Failed to read 1-wire data from 0x%x: err=%d.\n",
 		       dev->ep[EP_STATUS], err);

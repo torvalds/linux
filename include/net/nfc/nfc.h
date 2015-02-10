@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2014 Marvell International Ltd.
  *
  * Authors:
  *    Lauro Ramos Venancio <lauro.venancio@openbossa.org>
@@ -87,6 +88,7 @@ struct nfc_ops {
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
 #define NFC_ATR_RES_GT_OFFSET 15
+#define NFC_ATR_REQ_GT_OFFSET 14
 
 /**
  * struct nfc_target - NFC target descriptiom

@@ -19,7 +19,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int keystone_pm_runtime_suspend(struct device *dev)
 {
 	int ret;

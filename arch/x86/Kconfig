@@ -24,13 +24,13 @@ config X86
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAS_FAST_MULTIPLIER
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select HAVE_AOUT if X86_32
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
 	select ARCH_SUPPORTS_INT128 if X86_64
-	select ARCH_WANTS_PROT_NUMA_PROT_NONE
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_PCSPKR_PLATFORM
@@ -137,10 +137,15 @@ config X86
 	select HAVE_ACPI_APEI if ACPI
 	select HAVE_ACPI_APEI_NMI if ACPI
 	select ACPI_LEGACY_TABLES_LOOKUP if ACPI
+	select X86_FEATURE_NAMES if PROC_FS
 
 config INSTRUCTION_DECODER
 	def_bool y
 	depends on KPROBES || PERF_EVENTS || UPROBES
+
+config PERF_EVENTS_INTEL_UNCORE
+	def_bool y
+	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
 
 config OUTPUT_FORMAT
 	string
@@ -314,6 +319,17 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config X86_FEATURE_NAMES
+	bool "Processor feature human-readable names" if EMBEDDED
+	default y
+	---help---
+	  This option compiles in a table of x86 feature bits and corresponding
+	  names.  This is required to support /proc/cpuinfo and a few kernel
+	  messages.  You can disable this to save space, at the expense of
+	  making those few kernel messages show numeric feature bits instead.
+
+	  If in doubt, say Y.
+
 config X86_X2APIC
 	bool "Support x2apic"
 	depends on X86_LOCAL_APIC && X86_64 && IRQ_REMAP
@@ -479,6 +495,36 @@ config X86_INTEL_LPSS
 	  found on Intel Lynxpoint PCH. Selecting this option enables
 	  things like clock tree (common clock framework) and pincontrol
 	  which are needed by the LPSS peripheral drivers.
+
+config IOSF_MBI
+	tristate "Intel SoC IOSF Sideband support for SoC platforms"
+	depends on PCI
+	---help---
+	  This option enables sideband register access support for Intel SoC
+	  platforms. On these platforms the IOSF sideband is used in lieu of
+	  MSR's for some register accesses, mostly but not limited to thermal
+	  and power. Drivers may query the availability of this device to
+	  determine if they need the sideband in order to work on these
+	  platforms. The sideband is available on the following SoC products.
+	  This list is not meant to be exclusive.
+	   - BayTrail
+	   - Braswell
+	   - Quark
+
+	  You should say Y if you are running a kernel on one of these SoC's.
+
+config IOSF_MBI_DEBUG
+	bool "Enable IOSF sideband access through debugfs"
+	depends on IOSF_MBI && DEBUG_FS
+	---help---
+	  Select this option to expose the IOSF sideband access registers (MCR,
+	  MDR, MCRX) through debugfs to write and read register information from
+	  different units on the SoC. This is most useful for obtaining device
+	  state information for debug and analysis. As this is a general access
+	  mechanism, users of this option would have specific knowledge of the
+	  device they want to access.
+
+	  If you don't require the option or are in doubt, say N.
 
 config X86_RDC321X
 	bool "RDC R-321x SoC"
@@ -837,11 +883,11 @@ config X86_UP_IOAPIC
 config X86_LOCAL_APIC
 	def_bool y
 	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_APIC || PCI_MSI
+	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 
 config X86_IO_APIC
-	def_bool y
-	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_IOAPIC || PCI_MSI
-	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
+	def_bool X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_IOAPIC
+	depends on X86_LOCAL_APIC
 	select IRQ_DOMAIN
 
 config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
@@ -942,6 +988,24 @@ config X86_ESPFIX32
 config X86_ESPFIX64
 	def_bool y
 	depends on X86_16BIT && X86_64
+
+config X86_VSYSCALL_EMULATION
+       bool "Enable vsyscall emulation" if EXPERT
+       default y
+       depends on X86_64
+       ---help---
+	 This enables emulation of the legacy vsyscall page.  Disabling
+	 it is roughly equivalent to booting with vsyscall=none, except
+	 that it will also disable the helpful warning if a program
+	 tries to use a vsyscall.  With this option set to N, offending
+	 programs will just segfault, citing addresses of the form
+	 0xffffffffff600?00.
+
+	 This option is required by many programs built before 2013, and
+	 care should be used even with newer programs if set to N.
+
+	 Disabling this option saves about 7K of kernel size and
+	 possibly 4K of additional runtime pagetable memory.
 
 config TOSHIBA
 	tristate "Toshiba Laptop support"
@@ -1525,6 +1589,32 @@ config X86_SMAP
 	  also a small increase in the kernel size if this is enabled.
 
 	  If unsure, say Y.
+
+config X86_INTEL_MPX
+	prompt "Intel MPX (Memory Protection Extensions)"
+	def_bool n
+	depends on CPU_SUP_INTEL
+	---help---
+	  MPX provides hardware features that can be used in
+	  conjunction with compiler-instrumented code to check
+	  memory references.  It is designed to detect buffer
+	  overflow or underflow bugs.
+
+	  This option enables running applications which are
+	  instrumented or otherwise use MPX.  It does not use MPX
+	  itself inside the kernel or to protect the kernel
+	  against bad memory references.
+
+	  Enabling this option will make the kernel larger:
+	  ~8k of kernel text and 36 bytes of data on a 64-bit
+	  defconfig.  It adds a long to the 'mm_struct' which
+	  will increase the kernel memory overhead of each
+	  process and adds some branches to paths used during
+	  exec() and munmap().
+
+	  For details, see Documentation/x86/intel_mpx.txt
+
+	  If unsure, say N.
 
 config EFI
 	bool "EFI runtime service support"
@@ -2442,11 +2532,6 @@ config X86_DEV_DMA_OPS
 config X86_DMA_REMAP
 	bool
 	depends on STA2X11
-
-config IOSF_MBI
-	tristate
-	default m
-	depends on PCI
 
 config PMC_ATOM
 	def_bool y

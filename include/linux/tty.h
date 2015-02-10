@@ -252,6 +252,7 @@ struct tty_struct {
 	struct rw_semaphore termios_rwsem;
 	struct mutex winsize_mutex;
 	spinlock_t ctrl_lock;
+	spinlock_t flow_lock;
 	/* Termios values are protected by the termios rwsem */
 	struct ktermios termios, termios_locked;
 	struct termiox *termiox;	/* May be NULL for unsupported */
@@ -261,8 +262,13 @@ struct tty_struct {
 	unsigned long flags;
 	int count;
 	struct winsize winsize;		/* winsize_mutex */
-	unsigned char stopped:1, hw_stopped:1, flow_stopped:1, packet:1;
-	unsigned char ctrl_status;	/* ctrl_lock */
+	unsigned long stopped:1,	/* flow_lock */
+		      flow_stopped:1,
+		      unused:BITS_PER_LONG - 2;
+	int hw_stopped;
+	unsigned long ctrl_status:8,	/* ctrl_lock */
+		      packet:1,
+		      unused_ctrl:BITS_PER_LONG - 9;
 	unsigned int receive_room;	/* Bytes free for queue */
 	int flow_change;
 
@@ -278,7 +284,7 @@ struct tty_struct {
 
 #define N_TTY_BUF_SIZE 4096
 
-	unsigned char closing:1;
+	int closing;
 	unsigned char *write_buf;
 	int write_cnt;
 	/* If the tty has a pending do_SAK, queue it here - akpm */
@@ -310,12 +316,10 @@ struct tty_file_private {
 #define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
 #define TTY_DEBUG 		4	/* Debugging */
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
-#define TTY_CLOSING 		7	/* ->close() in progress */
 #define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
 #define TTY_PTY_LOCK 		16	/* pty private */
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
 #define TTY_HUPPED 		18	/* Post driver->hangup() */
-#define TTY_HUPPING 		21	/* ->hangup() in progress */
 #define TTY_LDISC_HALTED	22	/* Line discipline is halted */
 
 #define TTY_WRITE_FLUSH(tty) tty_write_flush((tty))
@@ -397,7 +401,9 @@ extern int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
 extern char *tty_name(struct tty_struct *tty, char *buf);
 extern void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 extern int tty_check_change(struct tty_struct *tty);
+extern void __stop_tty(struct tty_struct *tty);
 extern void stop_tty(struct tty_struct *tty);
+extern void __start_tty(struct tty_struct *tty);
 extern void start_tty(struct tty_struct *tty);
 extern int tty_register_driver(struct tty_driver *driver);
 extern int tty_unregister_driver(struct tty_driver *driver);
@@ -411,6 +417,7 @@ extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
 extern int tty_read_raw_data(struct tty_struct *tty, unsigned char *bufp,
 			     int buflen);
 extern void tty_write_message(struct tty_struct *tty, char *msg);
+extern int tty_send_xchar(struct tty_struct *tty, char ch);
 extern int tty_put_char(struct tty_struct *tty, unsigned char c);
 extern int tty_chars_in_buffer(struct tty_struct *tty);
 extern int tty_write_room(struct tty_struct *tty);
@@ -428,14 +435,13 @@ extern int is_ignored(int sig);
 extern int tty_signal(int sig, struct tty_struct *tty);
 extern void tty_hangup(struct tty_struct *tty);
 extern void tty_vhangup(struct tty_struct *tty);
-extern void tty_unhangup(struct file *filp);
 extern int tty_hung_up_p(struct file *filp);
 extern void do_SAK(struct tty_struct *tty);
 extern void __do_SAK(struct tty_struct *tty);
 extern void no_tty(void);
 extern void tty_flush_to_ldisc(struct tty_struct *tty);
 extern void tty_buffer_free_all(struct tty_port *port);
-extern void tty_buffer_flush(struct tty_struct *tty);
+extern void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld);
 extern void tty_buffer_init(struct tty_port *port);
 extern speed_t tty_termios_baud_rate(struct ktermios *termios);
 extern speed_t tty_termios_input_baud_rate(struct ktermios *termios);
@@ -489,14 +495,9 @@ extern int tty_init_termios(struct tty_struct *tty);
 extern int tty_standard_install(struct tty_driver *driver,
 		struct tty_struct *tty);
 
-extern struct tty_struct *tty_pair_get_tty(struct tty_struct *tty);
-extern struct tty_struct *tty_pair_get_pty(struct tty_struct *tty);
-
 extern struct mutex tty_mutex;
 extern spinlock_t tty_files_lock;
 
-extern void tty_write_unlock(struct tty_struct *tty);
-extern int tty_write_lock(struct tty_struct *tty, int ndelay);
 #define tty_is_writelocked(tty)  (mutex_is_locked(&tty->atomic_write_lock))
 
 extern void tty_port_init(struct tty_port *port);
@@ -555,7 +556,7 @@ extern int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc);
 extern int tty_unregister_ldisc(int disc);
 extern int tty_set_ldisc(struct tty_struct *tty, int ldisc);
 extern int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty);
-extern void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty);
+extern void tty_ldisc_release(struct tty_struct *tty);
 extern void tty_ldisc_init(struct tty_struct *tty);
 extern void tty_ldisc_deinit(struct tty_struct *tty);
 extern void tty_ldisc_begin(void);
@@ -616,14 +617,6 @@ extern int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 extern long n_tty_compat_ioctl_helper(struct tty_struct *tty, struct file *file,
 		       unsigned int cmd, unsigned long arg);
 
-/* serial.c */
-
-extern void serial_console_init(void);
-
-/* pcxx.c */
-
-extern int pcxe_open(struct tty_struct *tty, struct file *filp);
-
 /* vt.c */
 
 extern int vt_ioctl(struct tty_struct *tty,
@@ -636,11 +629,9 @@ extern long vt_compat_ioctl(struct tty_struct *tty,
 /* functions for preparation of BKL removal */
 extern void __lockfunc tty_lock(struct tty_struct *tty);
 extern void __lockfunc tty_unlock(struct tty_struct *tty);
-extern void __lockfunc tty_lock_pair(struct tty_struct *tty,
-				struct tty_struct *tty2);
-extern void __lockfunc tty_unlock_pair(struct tty_struct *tty,
-				struct tty_struct *tty2);
-
+extern void __lockfunc tty_lock_slave(struct tty_struct *tty);
+extern void __lockfunc tty_unlock_slave(struct tty_struct *tty);
+extern void tty_set_lock_subclass(struct tty_struct *tty);
 /*
  * this shall be called only from where BTM is held (like close)
  *

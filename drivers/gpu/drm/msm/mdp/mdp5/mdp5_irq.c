@@ -15,6 +15,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/irqdomain.h>
+#include <linux/irq.h>
 
 #include "msm_drv.h"
 #include "mdp5_kms.h"
@@ -88,11 +90,17 @@ irqreturn_t mdp5_irq(struct msm_kms *kms)
 
 	VERB("intr=%08x", intr);
 
-	if (intr & MDP5_HW_INTR_STATUS_INTR_MDP)
+	if (intr & MDP5_HW_INTR_STATUS_INTR_MDP) {
 		mdp5_irq_mdp(mdp_kms);
+		intr &= ~MDP5_HW_INTR_STATUS_INTR_MDP;
+	}
 
-	if (intr & MDP5_HW_INTR_STATUS_INTR_HDMI)
-		hdmi_irq(0, mdp5_kms->hdmi);
+	while (intr) {
+		irq_hw_number_t hwirq = fls(intr) - 1;
+		generic_handle_irq(irq_find_mapping(
+				mdp5_kms->irqcontroller.domain, hwirq));
+		intr &= ~(1 << hwirq);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -108,4 +116,83 @@ void mdp5_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
 	mdp_update_vblank_mask(to_mdp_kms(kms),
 			mdp5_crtc_vblank(crtc), false);
+}
+
+/*
+ * interrupt-controller implementation, so sub-blocks (hdmi/eDP/dsi/etc)
+ * can register to get their irq's delivered
+ */
+
+#define VALID_IRQS  (MDP5_HW_INTR_STATUS_INTR_DSI0 | \
+		MDP5_HW_INTR_STATUS_INTR_DSI1 | \
+		MDP5_HW_INTR_STATUS_INTR_HDMI | \
+		MDP5_HW_INTR_STATUS_INTR_EDP)
+
+static void mdp5_hw_mask_irq(struct irq_data *irqd)
+{
+	struct mdp5_kms *mdp5_kms = irq_data_get_irq_chip_data(irqd);
+	smp_mb__before_atomic();
+	clear_bit(irqd->hwirq, &mdp5_kms->irqcontroller.enabled_mask);
+	smp_mb__after_atomic();
+}
+
+static void mdp5_hw_unmask_irq(struct irq_data *irqd)
+{
+	struct mdp5_kms *mdp5_kms = irq_data_get_irq_chip_data(irqd);
+	smp_mb__before_atomic();
+	set_bit(irqd->hwirq, &mdp5_kms->irqcontroller.enabled_mask);
+	smp_mb__after_atomic();
+}
+
+static struct irq_chip mdp5_hw_irq_chip = {
+	.name		= "mdp5",
+	.irq_mask	= mdp5_hw_mask_irq,
+	.irq_unmask	= mdp5_hw_unmask_irq,
+};
+
+static int mdp5_hw_irqdomain_map(struct irq_domain *d,
+		unsigned int irq, irq_hw_number_t hwirq)
+{
+	struct mdp5_kms *mdp5_kms = d->host_data;
+
+	if (!(VALID_IRQS & (1 << hwirq)))
+		return -EPERM;
+
+	irq_set_chip_and_handler(irq, &mdp5_hw_irq_chip, handle_level_irq);
+	irq_set_chip_data(irq, mdp5_kms);
+	set_irq_flags(irq, IRQF_VALID);
+
+	return 0;
+}
+
+static struct irq_domain_ops mdp5_hw_irqdomain_ops = {
+	.map = mdp5_hw_irqdomain_map,
+	.xlate = irq_domain_xlate_onecell,
+};
+
+
+int mdp5_irq_domain_init(struct mdp5_kms *mdp5_kms)
+{
+	struct device *dev = mdp5_kms->dev->dev;
+	struct irq_domain *d;
+
+	d = irq_domain_add_linear(dev->of_node, 32,
+			&mdp5_hw_irqdomain_ops, mdp5_kms);
+	if (!d) {
+		dev_err(dev, "mdp5 irq domain add failed\n");
+		return -ENXIO;
+	}
+
+	mdp5_kms->irqcontroller.enabled_mask = 0;
+	mdp5_kms->irqcontroller.domain = d;
+
+	return 0;
+}
+
+void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms)
+{
+	if (mdp5_kms->irqcontroller.domain) {
+		irq_domain_remove(mdp5_kms->irqcontroller.domain);
+		mdp5_kms->irqcontroller.domain = NULL;
+	}
 }

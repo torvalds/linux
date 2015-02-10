@@ -138,7 +138,7 @@ Other ethtool Commands:
 To enable Flow Director
 	ethtool -K ethX ntuple on
 To add a filter
-	Use -U switch. e.g., ethtool -U ethX flow-type tcp4 src-ip 0x178000a
+	Use -U switch. e.g., ethtool -U ethX flow-type tcp4 src-ip 10.0.128.23
         action 1
 To see the list of filters currently present:
 	ethtool -u ethX

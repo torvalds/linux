@@ -24,13 +24,6 @@
 
 #include "nv04.h"
 
-static void
-nv4c_mc_msi_rearm(struct nouveau_mc *pmc)
-{
-	struct nv04_mc_priv *priv = (void *)pmc;
-	nv_wr08(priv, 0x088050, 0xff);
-}
-
 struct nouveau_oclass *
 nv4c_mc_oclass = &(struct nouveau_mc_oclass) {
 	.base.handle = NV_SUBDEV(MC, 0x4c),
@@ -41,5 +34,4 @@ nv4c_mc_oclass = &(struct nouveau_mc_oclass) {
 		.fini = _nouveau_mc_fini,
 	},
 	.intr = nv04_mc_intr,
-	.msi_rearm = nv4c_mc_msi_rearm,
 }.base;

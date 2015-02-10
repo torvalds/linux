@@ -305,7 +305,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		}
 	}
 
-#ifdef	CONFIG_PM_RUNTIME
+#ifdef	CONFIG_PM
 	if (ehci->no_selective_suspend && device_can_wakeup(&pdev->dev))
 		ehci_warn(ehci, "selective suspend/wakeup unavailable\n");
 #endif

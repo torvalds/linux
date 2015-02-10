@@ -49,6 +49,7 @@ static void rtl871x_load_fw_cb(const struct firmware *firmware, void *context)
 	if (!firmware) {
 		struct usb_device *udev = padapter->dvobjpriv.pusbdev;
 		struct usb_interface *pusb_intf = padapter->pusb_intf;
+
 		dev_err(&udev->dev, "r8712u: Firmware request failed\n");
 		usb_put_dev(udev);
 		usb_set_intfdata(pusb_intf, NULL);
@@ -85,7 +86,7 @@ static u32 rtl871x_open_fw(struct _adapter *padapter, const u8 **ppmappedfw)
 			(int)padapter->fw->size);
 		return 0;
 	}
-	*ppmappedfw = (u8 *)((*praw)->data);
+	*ppmappedfw = (*praw)->data;
 	return (*praw)->size;
 }
 
@@ -135,15 +136,10 @@ static void update_fwhdr(struct fw_hdr	*pfwhdr, const u8 *pmappedfw)
 static u8 chk_fwhdr(struct fw_hdr *pfwhdr, u32 ulfilelength)
 {
 	u32	fwhdrsz, fw_sz;
-	u8 intf, rfconf;
 
 	/* check signature */
 	if ((pfwhdr->signature != 0x8712) && (pfwhdr->signature != 0x8192))
 		return _FAIL;
-	/* check interface */
-	intf = (u8)((pfwhdr->version&0x3000) >> 12);
-	/* check rf_conf */
-	rfconf = (u8)((pfwhdr->version&0xC000) >> 14);
 	/* check fw_priv_sze & sizeof(struct fw_priv) */
 	if (pfwhdr->fw_priv_sz != sizeof(struct fw_priv))
 		return _FAIL;
@@ -161,7 +157,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 	sint i;
 	u8 tmp8, tmp8_a;
 	u16 tmp16;
-	u32 maxlen = 0, tmp32; /* for compare usage */
+	u32 maxlen = 0; /* for compare usage */
 	uint dump_imem_sz, imem_sz, dump_emem_sz, emem_sz; /* max = 49152; */
 	struct fw_hdr fwhdr;
 	u32 ulfilelength;	/* FW file size */
@@ -261,7 +257,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		if (tmp8_a != (tmp8|BIT(2)))
 			goto exit_fail;
 
-		tmp32 = r8712_read32(padapter, TCR);
+		r8712_read32(padapter, TCR);
 
 		/* 4.polling IMEM Ready */
 		i = 100;
@@ -388,10 +384,8 @@ uint rtl871x_hal_init(struct _adapter *padapter)
 	padapter->hw_init_completed = false;
 	if (padapter->halpriv.hal_bus_init == NULL)
 		return _FAIL;
-	else {
-		if (padapter->halpriv.hal_bus_init(padapter) != _SUCCESS)
-			return _FAIL;
-	}
+	if (padapter->halpriv.hal_bus_init(padapter) != _SUCCESS)
+		return _FAIL;
 	if (rtl8712_hal_init(padapter) == _SUCCESS)
 		padapter->hw_init_completed = true;
 	else {

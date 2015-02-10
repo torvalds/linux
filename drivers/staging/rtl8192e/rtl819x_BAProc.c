@@ -16,6 +16,8 @@
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
+#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include "rtllib.h"
 #include "rtl819x_BA.h"
 
@@ -79,7 +81,6 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	struct sk_buff *skb = NULL;
 	 struct rtllib_hdr_3addr *BAReq = NULL;
 	u8 *tag = NULL;
-	u16 tmp = 0;
 	u16 len = ieee->tx_headroom + 9;
 
 	RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA, "========>%s(), frame(%d)"
@@ -115,15 +116,15 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 
 	if (ACT_ADDBARSP == type) {
 		RT_TRACE(COMP_DBG, "====>to send ADDBARSP\n");
-		tmp = StatusCode;
-		memcpy(tag, (u8 *)&tmp, 2);
+
+		put_unaligned_le16(StatusCode, tag);
 		tag += 2;
 	}
-	tmp = pBA->BaParamSet.shortData;
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(pBA->BaParamSet.shortData, tag);
 	tag += 2;
-	tmp = pBA->BaTimeoutValue;
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(pBA->BaTimeoutValue, tag);
 	tag += 2;
 
 	if (ACT_ADDBAREQ == type) {
@@ -143,7 +144,6 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	struct sk_buff *skb = NULL;
 	 struct rtllib_hdr_3addr *Delba = NULL;
 	u8 *tag = NULL;
-	u16 tmp = 0;
 	u16 len = 6 + ieee->tx_headroom;
 
 	if (net_ratelimit())
@@ -178,11 +178,11 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	*tag++ = ACT_CAT_BA;
 	*tag++ = ACT_DELBA;
 
-	tmp = DelbaParamSet.shortData;
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(DelbaParamSet.shortData, tag);
 	tag += 2;
-	tmp = ReasonCode;
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(ReasonCode, tag);
 	tag += 2;
 
 	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
@@ -196,6 +196,7 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 				 struct ba_record *pBA)
 {
 	struct sk_buff *skb = NULL;
+
 	skb = rtllib_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ);
 
 	if (skb) {
@@ -205,20 +206,19 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
 			     " %s()\n", __func__);
 	}
-	return;
 }
 
 static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
 				 struct ba_record *pBA, u16 StatusCode)
 {
 	struct sk_buff *skb = NULL;
+
 	skb = rtllib_ADDBA(ieee, dst, pBA, StatusCode, ACT_ADDBARSP);
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
 			     " %s()\n", __func__);
-	return;
 }
 
 static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
@@ -226,13 +226,13 @@ static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 			      u16 ReasonCode)
 {
 	struct sk_buff *skb = NULL;
+
 	skb = rtllib_DELBA(ieee, dst, pBA, TxRxSelect, ReasonCode);
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
 			     " %s()\n", __func__);
-	return ;
 }
 
 int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
@@ -312,6 +312,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 OnADDBAReq_Fail:
 	{
 		struct ba_record BA;
+
 		BA.BaParamSet = *pBaParamSet;
 		BA.BaTimeoutValue = *pBaTimeoutVal;
 		BA.DialogToken = *pDialogToken;
@@ -372,7 +373,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pAdmittedBA = &pTS->TxAdmittedBARecord;
 
 
-	if ((pAdmittedBA->bValid == true)) {
+	if (pAdmittedBA->bValid == true) {
 		RTLLIB_DEBUG(RTLLIB_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp."
 			     " Drop because already admit it!\n");
 		return -1;
@@ -416,6 +417,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 OnADDBARsp_Reject:
 	{
 		struct ba_record BA;
+
 		BA.BaParamSet = *pBaParamSet;
 		rtllib_send_DELBA(ieee, dst, &BA, TX_DIR, ReasonCode);
 		return 0;
@@ -561,5 +563,4 @@ void RxBaInactTimeout(unsigned long data)
 	rtllib_send_DELBA(ieee, pRxTs->TsCommonInfo.Addr,
 			  &pRxTs->RxAdmittedBARecord, RX_DIR,
 			  DELBA_REASON_TIMEOUT);
-	return ;
 }

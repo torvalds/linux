@@ -222,7 +222,6 @@ static struct platform_driver pm8xxx_vib_driver = {
 	.probe		= pm8xxx_vib_probe,
 	.driver		= {
 		.name	= "pm8xxx-vib",
-		.owner	= THIS_MODULE,
 		.pm	= &pm8xxx_vib_pm_ops,
 		.of_match_table = pm8xxx_vib_id_table,
 	},

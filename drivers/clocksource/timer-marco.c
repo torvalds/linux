@@ -20,8 +20,6 @@
 #include <linux/of_address.h>
 #include <linux/sched_clock.h>
 
-#define MARCO_CLOCK_FREQ 1000000
-
 #define SIRFSOC_TIMER_32COUNTER_0_CTRL			0x0000
 #define SIRFSOC_TIMER_32COUNTER_1_CTRL			0x0004
 #define SIRFSOC_TIMER_MATCH_0				0x0018
@@ -39,6 +37,8 @@
 #define SIRFSOC_TIMER_64COUNTER_RLATCHED_HI		0x0080
 
 #define SIRFSOC_TIMER_REG_CNT 6
+
+static unsigned long marco_timer_rate;
 
 static const u32 sirfsoc_timer_reg_list[SIRFSOC_TIMER_REG_CNT] = {
 	SIRFSOC_TIMER_WATCHDOG_EN,
@@ -63,7 +63,7 @@ static inline void sirfsoc_timer_count_disable(int idx)
 /* enable count and interrupt */
 static inline void sirfsoc_timer_count_enable(int idx)
 {
-	writel_relaxed(readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL + 4 * idx) | 0x7,
+	writel_relaxed(readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL + 4 * idx) | 0x3,
 		sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL + 4 * idx);
 }
 
@@ -102,6 +102,9 @@ static int sirfsoc_timer_set_next_event(unsigned long delta,
 	struct clock_event_device *ce)
 {
 	int cpu = smp_processor_id();
+
+	/* disable timer first, then modify the related registers */
+	sirfsoc_timer_count_disable(cpu);
 
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_0 +
 		4 * cpu);
@@ -192,7 +195,7 @@ static int sirfsoc_local_timer_setup(struct clock_event_device *ce)
 	ce->rating = 200;
 	ce->set_mode = sirfsoc_timer_set_mode;
 	ce->set_next_event = sirfsoc_timer_set_next_event;
-	clockevents_calc_mult_shift(ce, MARCO_CLOCK_FREQ, 60);
+	clockevents_calc_mult_shift(ce, marco_timer_rate, 60);
 	ce->max_delta_ns = clockevent_delta2ns(-2, ce);
 	ce->min_delta_ns = clockevent_delta2ns(2, ce);
 	ce->cpumask = cpumask_of(cpu);
@@ -254,7 +257,6 @@ static void __init sirfsoc_clockevent_init(void)
 /* initialize the kernel jiffy timer source */
 static void __init sirfsoc_marco_timer_init(struct device_node *np)
 {
-	unsigned long rate;
 	u32 timer_div;
 	struct clk *clk;
 
@@ -263,16 +265,12 @@ static void __init sirfsoc_marco_timer_init(struct device_node *np)
 
 	BUG_ON(clk_prepare_enable(clk));
 
-	rate = clk_get_rate(clk);
+	marco_timer_rate = clk_get_rate(clk);
 
-	BUG_ON(rate < MARCO_CLOCK_FREQ);
-	BUG_ON(rate % MARCO_CLOCK_FREQ);
-
-	/* Initialize the timer dividers */
-	timer_div = rate / MARCO_CLOCK_FREQ - 1;
-	writel_relaxed(timer_div << 16, sirfsoc_timer_base + SIRFSOC_TIMER_64COUNTER_CTRL);
-	writel_relaxed(timer_div << 16, sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL);
-	writel_relaxed(timer_div << 16, sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_1_CTRL);
+	/* timer dividers: 0, not divided */
+	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_64COUNTER_CTRL);
+	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL);
+	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_1_CTRL);
 
 	/* Initialize timer counters to 0 */
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_64COUNTER_LOAD_LO);
@@ -285,7 +283,7 @@ static void __init sirfsoc_marco_timer_init(struct device_node *np)
 	/* Clear all interrupts */
 	writel_relaxed(0xFFFF, sirfsoc_timer_base + SIRFSOC_TIMER_INTR_STATUS);
 
-	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, MARCO_CLOCK_FREQ));
+	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, marco_timer_rate));
 
 	sirfsoc_clockevent_init();
 }

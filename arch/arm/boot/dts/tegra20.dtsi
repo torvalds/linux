@@ -9,14 +9,6 @@
 	compatible = "nvidia,tegra20";
 	interrupt-parent = <&intc>;
 
-	aliases {
-		serial0 = &uarta;
-		serial1 = &uartb;
-		serial2 = &uartc;
-		serial3 = &uartd;
-		serial4 = &uarte;
-	};
-
 	host1x@50000000 {
 		compatible = "nvidia,tegra20-host1x", "simple-bus";
 		reg = <0x50000000 0x00024000>;
@@ -188,6 +180,11 @@
 		reg = <0x60006000 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+	};
+
+	flow-controller@60007000 {
+		compatible = "nvidia,tegra20-flowctrl";
+		reg = <0x60007000 0x1000>;
 	};
 
 	apbdma: dma@6000a000 {

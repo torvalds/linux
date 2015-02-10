@@ -204,7 +204,6 @@ static struct platform_driver ppc4xx_edac_driver = {
 	.probe			= ppc4xx_edac_probe,
 	.remove			= ppc4xx_edac_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = PPC4XX_EDAC_MODULE_NAME,
 		.of_match_table = ppc4xx_edac_match,
 	},
@@ -974,7 +973,7 @@ static int ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 		 * page size (PAGE_SIZE) or the memory width (2 or 4).
 		 */
 		for (j = 0; j < csi->nr_channels; j++) {
-			struct dimm_info *dimm = csi->channels[j].dimm;
+			struct dimm_info *dimm = csi->channels[j]->dimm;
 
 			dimm->nr_pages  = nr_pages / csi->nr_channels;
 			dimm->grain	= 1;
@@ -1120,7 +1119,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
 
 	status = request_irq(ded_irq,
 			     ppc4xx_edac_isr,
-			     IRQF_DISABLED,
+			     0,
 			     "[EDAC] MC ECCDED",
 			     mci);
 
@@ -1134,7 +1133,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
 
 	status = request_irq(sec_irq,
 			     ppc4xx_edac_isr,
-			     IRQF_DISABLED,
+			     0,
 			     "[EDAC] MC ECCSEC",
 			     mci);
 

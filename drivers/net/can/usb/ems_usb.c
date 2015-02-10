@@ -434,10 +434,9 @@ static void ems_usb_read_bulk_callback(struct urb *urb)
 	if (urb->actual_length > CPC_HEADER_SIZE) {
 		struct ems_cpc_msg *msg;
 		u8 *ibuf = urb->transfer_buffer;
-		u8 msg_count, again, start;
+		u8 msg_count, start;
 
 		msg_count = ibuf[0] & ~0x80;
-		again = ibuf[0] & 0x80;
 
 		start = CPC_HEADER_SIZE;
 

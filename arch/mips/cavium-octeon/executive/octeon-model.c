@@ -28,22 +28,23 @@
 #include <asm/octeon/octeon.h>
 
 /**
- * Given the chip processor ID from COP0, this function returns a
- * string representing the chip model number. The string is of the
- * form CNXXXXpX.X-FREQ-SUFFIX.
- * - XXXX = The chip model number
- * - X.X = Chip pass number
- * - FREQ = Current frequency in Mhz
- * - SUFFIX = NSP, EXP, SCP, SSP, or CP
+ * Read a byte of fuse data
+ * @byte_addr:	 address to read
  *
- * @chip_id: Chip ID
- *
- * Returns Model string
+ * Returns fuse value: 0 or 1
  */
-const char *octeon_model_get_string(uint32_t chip_id)
+static uint8_t __init cvmx_fuse_read_byte(int byte_addr)
 {
-	static char buffer[32];
-	return octeon_model_get_string_buffer(chip_id, buffer);
+	union cvmx_mio_fus_rcmd read_cmd;
+
+	read_cmd.u64 = 0;
+	read_cmd.s.addr = byte_addr;
+	read_cmd.s.pend = 1;
+	cvmx_write_csr(CVMX_MIO_FUS_RCMD, read_cmd.u64);
+	while ((read_cmd.u64 = cvmx_read_csr(CVMX_MIO_FUS_RCMD))
+	       && read_cmd.s.pend)
+		;
+	return read_cmd.s.dat;
 }
 
 /*
@@ -51,7 +52,8 @@ const char *octeon_model_get_string(uint32_t chip_id)
  * as running early in u-boot static/global variables don't work when
  * running from flash.
  */
-const char *octeon_model_get_string_buffer(uint32_t chip_id, char *buffer)
+static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
+							 char *buffer)
 {
 	const char *family;
 	const char *core_model;
@@ -406,4 +408,23 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char *buffer)
 	}
 	sprintf(buffer, "CN%s%sp%s-%d-%s", family, core_model, pass, clock_mhz, suffix);
 	return buffer;
+}
+
+/**
+ * Given the chip processor ID from COP0, this function returns a
+ * string representing the chip model number. The string is of the
+ * form CNXXXXpX.X-FREQ-SUFFIX.
+ * - XXXX = The chip model number
+ * - X.X = Chip pass number
+ * - FREQ = Current frequency in Mhz
+ * - SUFFIX = NSP, EXP, SCP, SSP, or CP
+ *
+ * @chip_id: Chip ID
+ *
+ * Returns Model string
+ */
+const char *__init octeon_model_get_string(uint32_t chip_id)
+{
+	static char buffer[32];
+	return octeon_model_get_string_buffer(chip_id, buffer);
 }

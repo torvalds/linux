@@ -17,15 +17,16 @@
 #include <linux/mutex.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/pwm.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 
 #define FTM_SC		0x00
-#define FTM_SC_CLK_MASK	0x3
-#define FTM_SC_CLK_SHIFT	3
-#define FTM_SC_CLK(c)	(((c) + 1) << FTM_SC_CLK_SHIFT)
+#define FTM_SC_CLK_MASK_SHIFT	3
+#define FTM_SC_CLK_MASK	(3 << FTM_SC_CLK_MASK_SHIFT)
+#define FTM_SC_CLK(c)	(((c) + 1) << FTM_SC_CLK_MASK_SHIFT)
 #define FTM_SC_PS_MASK	0x7
-#define FTM_SC_PS_SHIFT	0
 
 #define FTM_CNT		0x04
 #define FTM_MOD		0x08
@@ -83,7 +84,7 @@ struct fsl_pwm_chip {
 	unsigned int cnt_select;
 	unsigned int clk_ps;
 
-	void __iomem *base;
+	struct regmap *regmap;
 
 	int period_ns;
 
@@ -219,10 +220,11 @@ static unsigned long fsl_pwm_calculate_duty(struct fsl_pwm_chip *fpc,
 					    unsigned long period_ns,
 					    unsigned long duty_ns)
 {
-	unsigned long long val, duty;
+	unsigned long long duty;
+	u32 val;
 
-	val = readl(fpc->base + FTM_MOD);
-	duty = duty_ns * (val + 1);
+	regmap_read(fpc->regmap, FTM_MOD, &val);
+	duty = (unsigned long long)duty_ns * (val + 1);
 	do_div(duty, period_ns);
 
 	return (unsigned long)duty;
@@ -232,7 +234,7 @@ static int fsl_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			  int duty_ns, int period_ns)
 {
 	struct fsl_pwm_chip *fpc = to_fsl_chip(chip);
-	u32 val, period, duty;
+	u32 period, duty;
 
 	mutex_lock(&fpc->lock);
 
@@ -257,11 +259,9 @@ static int fsl_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			return -EINVAL;
 		}
 
-		val = readl(fpc->base + FTM_SC);
-		val &= ~(FTM_SC_PS_MASK << FTM_SC_PS_SHIFT);
-		val |= fpc->clk_ps;
-		writel(val, fpc->base + FTM_SC);
-		writel(period - 1, fpc->base + FTM_MOD);
+		regmap_update_bits(fpc->regmap, FTM_SC, FTM_SC_PS_MASK,
+				   fpc->clk_ps);
+		regmap_write(fpc->regmap, FTM_MOD, period - 1);
 
 		fpc->period_ns = period_ns;
 	}
@@ -270,8 +270,9 @@ static int fsl_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	duty = fsl_pwm_calculate_duty(fpc, period_ns, duty_ns);
 
-	writel(FTM_CSC_MSB | FTM_CSC_ELSB, fpc->base + FTM_CSC(pwm->hwpwm));
-	writel(duty, fpc->base + FTM_CV(pwm->hwpwm));
+	regmap_write(fpc->regmap, FTM_CSC(pwm->hwpwm),
+		     FTM_CSC_MSB | FTM_CSC_ELSB);
+	regmap_write(fpc->regmap, FTM_CV(pwm->hwpwm), duty);
 
 	return 0;
 }
@@ -283,31 +284,28 @@ static int fsl_pwm_set_polarity(struct pwm_chip *chip,
 	struct fsl_pwm_chip *fpc = to_fsl_chip(chip);
 	u32 val;
 
-	val = readl(fpc->base + FTM_POL);
+	regmap_read(fpc->regmap, FTM_POL, &val);
 
 	if (polarity == PWM_POLARITY_INVERSED)
 		val |= BIT(pwm->hwpwm);
 	else
 		val &= ~BIT(pwm->hwpwm);
 
-	writel(val, fpc->base + FTM_POL);
+	regmap_write(fpc->regmap, FTM_POL, val);
 
 	return 0;
 }
 
 static int fsl_counter_clock_enable(struct fsl_pwm_chip *fpc)
 {
-	u32 val;
 	int ret;
 
-	if (fpc->use_count != 0)
+	if (fpc->use_count++ != 0)
 		return 0;
 
 	/* select counter clock source */
-	val = readl(fpc->base + FTM_SC);
-	val &= ~(FTM_SC_CLK_MASK << FTM_SC_CLK_SHIFT);
-	val |= FTM_SC_CLK(fpc->cnt_select);
-	writel(val, fpc->base + FTM_SC);
+	regmap_update_bits(fpc->regmap, FTM_SC, FTM_SC_CLK_MASK,
+			   FTM_SC_CLK(fpc->cnt_select));
 
 	ret = clk_prepare_enable(fpc->clk[fpc->cnt_select]);
 	if (ret)
@@ -319,21 +317,16 @@ static int fsl_counter_clock_enable(struct fsl_pwm_chip *fpc)
 		return ret;
 	}
 
-	fpc->use_count++;
-
 	return 0;
 }
 
 static int fsl_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct fsl_pwm_chip *fpc = to_fsl_chip(chip);
-	u32 val;
 	int ret;
 
 	mutex_lock(&fpc->lock);
-	val = readl(fpc->base + FTM_OUTMASK);
-	val &= ~BIT(pwm->hwpwm);
-	writel(val, fpc->base + FTM_OUTMASK);
+	regmap_update_bits(fpc->regmap, FTM_OUTMASK, BIT(pwm->hwpwm), 0);
 
 	ret = fsl_counter_clock_enable(fpc);
 	mutex_unlock(&fpc->lock);
@@ -343,8 +336,6 @@ static int fsl_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 static void fsl_counter_clock_disable(struct fsl_pwm_chip *fpc)
 {
-	u32 val;
-
 	/*
 	 * already disabled, do nothing
 	 */
@@ -356,9 +347,7 @@ static void fsl_counter_clock_disable(struct fsl_pwm_chip *fpc)
 		return;
 
 	/* no users left, disable PWM counter clock */
-	val = readl(fpc->base + FTM_SC);
-	val &= ~(FTM_SC_CLK_MASK << FTM_SC_CLK_SHIFT);
-	writel(val, fpc->base + FTM_SC);
+	regmap_update_bits(fpc->regmap, FTM_SC, FTM_SC_CLK_MASK, 0);
 
 	clk_disable_unprepare(fpc->clk[FSL_PWM_CLK_CNTEN]);
 	clk_disable_unprepare(fpc->clk[fpc->cnt_select]);
@@ -370,14 +359,12 @@ static void fsl_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	u32 val;
 
 	mutex_lock(&fpc->lock);
-	val = readl(fpc->base + FTM_OUTMASK);
-	val |= BIT(pwm->hwpwm);
-	writel(val, fpc->base + FTM_OUTMASK);
+	regmap_update_bits(fpc->regmap, FTM_OUTMASK, BIT(pwm->hwpwm),
+			   BIT(pwm->hwpwm));
 
 	fsl_counter_clock_disable(fpc);
 
-	val = readl(fpc->base + FTM_OUTMASK);
-
+	regmap_read(fpc->regmap, FTM_OUTMASK, &val);
 	if ((val & 0xFF) == 0xFF)
 		fpc->period_ns = 0;
 
@@ -402,19 +389,39 @@ static int fsl_pwm_init(struct fsl_pwm_chip *fpc)
 	if (ret)
 		return ret;
 
-	writel(0x00, fpc->base + FTM_CNTIN);
-	writel(0x00, fpc->base + FTM_OUTINIT);
-	writel(0xFF, fpc->base + FTM_OUTMASK);
+	regmap_write(fpc->regmap, FTM_CNTIN, 0x00);
+	regmap_write(fpc->regmap, FTM_OUTINIT, 0x00);
+	regmap_write(fpc->regmap, FTM_OUTMASK, 0xFF);
 
 	clk_disable_unprepare(fpc->clk[FSL_PWM_CLK_SYS]);
 
 	return 0;
 }
 
+static bool fsl_pwm_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case FTM_CNT:
+		return true;
+	}
+	return false;
+}
+
+static const struct regmap_config fsl_pwm_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+
+	.max_register = FTM_PWMLOAD,
+	.volatile_reg = fsl_pwm_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
+};
+
 static int fsl_pwm_probe(struct platform_device *pdev)
 {
 	struct fsl_pwm_chip *fpc;
 	struct resource *res;
+	void __iomem *base;
 	int ret;
 
 	fpc = devm_kzalloc(&pdev->dev, sizeof(*fpc), GFP_KERNEL);
@@ -426,9 +433,16 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 	fpc->chip.dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	fpc->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(fpc->base))
-		return PTR_ERR(fpc->base);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	fpc->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "ftm_sys", base,
+						&fsl_pwm_regmap_config);
+	if (IS_ERR(fpc->regmap)) {
+		dev_err(&pdev->dev, "regmap init failed\n");
+		return PTR_ERR(fpc->regmap);
+	}
 
 	fpc->clk[FSL_PWM_CLK_SYS] = devm_clk_get(&pdev->dev, "ftm_sys");
 	if (IS_ERR(fpc->clk[FSL_PWM_CLK_SYS])) {
@@ -474,6 +488,51 @@ static int fsl_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&fpc->chip);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int fsl_pwm_suspend(struct device *dev)
+{
+	struct fsl_pwm_chip *fpc = dev_get_drvdata(dev);
+	u32 val;
+
+	regcache_cache_only(fpc->regmap, true);
+	regcache_mark_dirty(fpc->regmap);
+
+	/* read from cache */
+	regmap_read(fpc->regmap, FTM_OUTMASK, &val);
+	if ((val & 0xFF) != 0xFF) {
+		clk_disable_unprepare(fpc->clk[FSL_PWM_CLK_CNTEN]);
+		clk_disable_unprepare(fpc->clk[fpc->cnt_select]);
+		clk_disable_unprepare(fpc->clk[FSL_PWM_CLK_SYS]);
+	}
+
+	return 0;
+}
+
+static int fsl_pwm_resume(struct device *dev)
+{
+	struct fsl_pwm_chip *fpc = dev_get_drvdata(dev);
+	u32 val;
+
+	/* read from cache */
+	regmap_read(fpc->regmap, FTM_OUTMASK, &val);
+	if ((val & 0xFF) != 0xFF) {
+		clk_prepare_enable(fpc->clk[FSL_PWM_CLK_SYS]);
+		clk_prepare_enable(fpc->clk[fpc->cnt_select]);
+		clk_prepare_enable(fpc->clk[FSL_PWM_CLK_CNTEN]);
+	}
+
+	/* restore all registers from cache */
+	regcache_cache_only(fpc->regmap, false);
+	regcache_sync(fpc->regmap);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops fsl_pwm_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(fsl_pwm_suspend, fsl_pwm_resume)
+};
+
 static const struct of_device_id fsl_pwm_dt_ids[] = {
 	{ .compatible = "fsl,vf610-ftm-pwm", },
 	{ /* sentinel */ }
@@ -484,6 +543,7 @@ static struct platform_driver fsl_pwm_driver = {
 	.driver = {
 		.name = "fsl-ftm-pwm",
 		.of_match_table = fsl_pwm_dt_ids,
+		.pm = &fsl_pwm_pm_ops,
 	},
 	.probe = fsl_pwm_probe,
 	.remove = fsl_pwm_remove,

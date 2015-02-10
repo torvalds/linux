@@ -180,3 +180,4 @@ module_exit(nx842_mod_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("842 Compression Algorithm");
+MODULE_ALIAS_CRYPTO("842");

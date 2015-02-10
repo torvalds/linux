@@ -157,10 +157,8 @@ static u8 read_bbreg_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	u32 val;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj	*pcmd);
-	struct readBB_parm *prdbbparm;
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
 
-	prdbbparm = (struct readBB_parm *)pcmd->parmbuf;
 	if (pcmd->rsp && pcmd->rspsz > 0)
 		memcpy(pcmd->rsp, (u8 *)&val, pcmd->rspsz);
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
@@ -174,10 +172,8 @@ static u8 read_bbreg_hdl(struct _adapter *padapter, u8 *pbuf)
 static u8 write_bbreg_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
-	struct writeBB_parm *pwritebbparm;
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
 
-	pwritebbparm = (struct writeBB_parm *)pcmd->parmbuf;
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
 	if (pcmd_callback == NULL)
 		r8712_free_cmd_obj(pcmd);
@@ -190,10 +186,8 @@ static u8 read_rfreg_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	u32 val;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
-	struct readRF_parm *prdrfparm;
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
 
-	prdrfparm = (struct readRF_parm *)pcmd->parmbuf;
 	if (pcmd->rsp && pcmd->rspsz > 0)
 		memcpy(pcmd->rsp, (u8 *)&val, pcmd->rspsz);
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
@@ -207,10 +201,8 @@ static u8 read_rfreg_hdl(struct _adapter *padapter, u8 *pbuf)
 static u8 write_rfreg_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
-	struct writeRF_parm *pwriterfparm;
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
 
-	pwriterfparm = (struct writeRF_parm *)pcmd->parmbuf;
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
 	if (pcmd_callback == NULL)
 		r8712_free_cmd_obj(pcmd);
@@ -222,9 +214,7 @@ static u8 write_rfreg_hdl(struct _adapter *padapter, u8 *pbuf)
 static u8 sys_suspend_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
-	struct usb_suspend_parm *psetusbsuspend;
 
-	psetusbsuspend = (struct usb_suspend_parm *)pcmd->parmbuf;
 	r8712_free_cmd_obj(pcmd);
 	return H2C_SUCCESS;
 }
@@ -320,7 +310,7 @@ void r8712_fw_cmd_data(struct _adapter *pAdapter, u32 *value, u8 flag)
 int r8712_cmd_thread(void *context)
 {
 	struct cmd_obj *pcmd;
-	unsigned int cmdsz, wr_sz, *pcmdbuf, *prspbuf;
+	unsigned int cmdsz, wr_sz, *pcmdbuf;
 	struct tx_desc *pdesc;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
 	struct _adapter *padapter = (struct _adapter *)context;
@@ -342,7 +332,6 @@ _next:
 			continue;
 		}
 		pcmdbuf = (unsigned int *)pcmdpriv->cmd_buf;
-		prspbuf = (unsigned int *)pcmdpriv->rsp_buf;
 		pdesc = (struct tx_desc *)pcmdbuf;
 		memset(pdesc, 0, TXDESC_SIZE);
 		pcmd = cmd_hdl_filter(padapter, pcmd);
@@ -350,6 +339,7 @@ _next:
 			struct dvobj_priv *pdvobj = (struct dvobj_priv *)
 						    &padapter->dvobjpriv;
 			u8 blnPending = 0;
+
 			pcmdpriv->cmd_issued_cnt++;
 			cmdsz = round_up(pcmd->cmdsz, 8);
 			wr_sz = TXDESC_SIZE + 8 + cmdsz;
@@ -468,7 +458,8 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	pevt_priv->event_seq++;	/* update evt_seq */
 	if (pevt_priv->event_seq > 127)
 		pevt_priv->event_seq = 0;
-	peventbuf = peventbuf + 2; /* move to event content, 8 bytes alignment */
+	/* move to event content, 8 bytes alignment */
+	peventbuf = peventbuf + 2;
 	event_callback = wlanevents[evt_code].event_callback;
 	if (event_callback)
 		event_callback(padapter, (u8 *)peventbuf);

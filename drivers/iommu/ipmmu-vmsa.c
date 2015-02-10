@@ -558,7 +558,7 @@ static pmd_t *ipmmu_alloc_pmd(struct ipmmu_vmsa_device *mmu, pgd_t *pgd,
 
 static u64 ipmmu_page_prot(unsigned int prot, u64 type)
 {
-	u64 pgprot = ARM_VMSA_PTE_XN | ARM_VMSA_PTE_nG | ARM_VMSA_PTE_AF
+	u64 pgprot = ARM_VMSA_PTE_nG | ARM_VMSA_PTE_AF
 		   | ARM_VMSA_PTE_SH_IS | ARM_VMSA_PTE_AP_UNPRIV
 		   | ARM_VMSA_PTE_NS | type;
 
@@ -568,8 +568,8 @@ static u64 ipmmu_page_prot(unsigned int prot, u64 type)
 	if (prot & IOMMU_CACHE)
 		pgprot |= IMMAIR_ATTR_IDX_WBRWA << ARM_VMSA_PTE_ATTRINDX_SHIFT;
 
-	if (prot & IOMMU_EXEC)
-		pgprot &= ~ARM_VMSA_PTE_XN;
+	if (prot & IOMMU_NOEXEC)
+		pgprot |= ARM_VMSA_PTE_XN;
 	else if (!(prot & (IOMMU_READ | IOMMU_WRITE)))
 		/* If no access create a faulting entry to avoid TLB fills. */
 		pgprot &= ~ARM_VMSA_PTE_PAGE;
@@ -1127,6 +1127,7 @@ static const struct iommu_ops ipmmu_ops = {
 	.detach_dev = ipmmu_detach_device,
 	.map = ipmmu_map,
 	.unmap = ipmmu_unmap,
+	.map_sg = default_iommu_map_sg,
 	.iova_to_phys = ipmmu_iova_to_phys,
 	.add_device = ipmmu_add_device,
 	.remove_device = ipmmu_remove_device,
@@ -1184,7 +1185,7 @@ static int ipmmu_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), mmu);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ %d\n", irq);
-		return irq;
+		return ret;
 	}
 
 	ipmmu_device_reset(mmu);
@@ -1221,7 +1222,6 @@ static int ipmmu_remove(struct platform_device *pdev)
 
 static struct platform_driver ipmmu_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "ipmmu-vmsa",
 	},
 	.probe = ipmmu_probe,

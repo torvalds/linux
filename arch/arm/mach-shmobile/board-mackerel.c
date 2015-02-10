@@ -16,10 +16,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -63,6 +59,7 @@
 #include <asm/mach-types.h>
 
 #include "common.h"
+#include "intc.h"
 #include "irqs.h"
 #include "pm-rmobile.h"
 #include "sh-gpio.h"
@@ -1152,7 +1149,7 @@ static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
 	.format_depth = 16,
 	.format = {
-		.code = V4L2_MBUS_FMT_UYVY8_2X8,
+		.code = MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 		.field = V4L2_FIELD_NONE,
 		.width = 640,
@@ -1420,7 +1417,7 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 #define USCCR1		IOMEM(0xE6058144)
 static void __init mackerel_init(void)
 {
-	struct pm_domain_device domain_devices[] = {
+	static struct pm_domain_device domain_devices[] __initdata = {
 		{ "A4LC", &lcdc_device, },
 		{ "A4LC", &hdmi_lcdc_device, },
 		{ "A4LC", &meram_device, },

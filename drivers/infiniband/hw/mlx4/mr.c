@@ -223,7 +223,6 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 
 	if (flags & IB_MR_REREG_TRANS) {
 		int shift;
-		int err;
 		int n;
 
 		mlx4_mr_rereg_mem_cleanup(dev->dev, &mmr->mmr);

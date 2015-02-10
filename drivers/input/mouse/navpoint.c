@@ -353,7 +353,6 @@ static struct platform_driver navpoint_driver = {
 	.remove		= navpoint_remove,
 	.driver = {
 		.name	= "navpoint",
-		.owner	= THIS_MODULE,
 		.pm	= &navpoint_pm_ops,
 	},
 };

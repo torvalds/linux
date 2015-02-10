@@ -100,12 +100,11 @@ __init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long add
 {
 	pte_t *pte;
 	extern int mem_init_done;
-	extern void *early_get_page(void);
 
 	if (mem_init_done) {
 		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
 	} else {
-		pte = (pte_t *)early_get_page();
+		pte = __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
 		if (pte)
 			clear_page(pte);
 	}
@@ -430,7 +429,7 @@ static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 }
 
 
-void kernel_map_pages(struct page *page, int numpages, int enable)
+void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (PageHighMem(page))
 		return;

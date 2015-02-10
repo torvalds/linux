@@ -674,7 +674,6 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 
 					RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("switching to adhoc master\n"));
 
-					memset(&pdev_network->Ssid, 0, sizeof(struct ndis_802_11_ssid));
 					memcpy(&pdev_network->Ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
 
 					rtw_update_registrypriv_dev_network(adapter);
@@ -1334,7 +1333,6 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 
 			memcpy(pdev_network, &tgt_network->network, get_wlan_bssid_ex_sz(&tgt_network->network));
 
-			memset(&pdev_network->Ssid, 0, sizeof(struct ndis_802_11_ssid));
 			memcpy(&pdev_network->Ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
 
 			rtw_update_registrypriv_dev_network(adapter);
@@ -1364,7 +1362,7 @@ void rtw_cpwm_event_callback(struct adapter *padapter, u8 *pbuf)
 */
 void _rtw_join_timeout_handler (void *function_context)
 {
-	struct adapter *adapter = (struct adapter *)function_context;
+	struct adapter *adapter = function_context;
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	int do_join_r;
 
@@ -1406,7 +1404,7 @@ void _rtw_join_timeout_handler (void *function_context)
 */
 void rtw_scan_timeout_handler (void *function_context)
 {
-	struct adapter *adapter = (struct adapter *)function_context;
+	struct adapter *adapter = function_context;
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	DBG_88E(FUNC_ADPT_FMT" fw_state=%x\n", FUNC_ADPT_ARG(adapter), get_fwstate(pmlmepriv));
@@ -1437,7 +1435,7 @@ void rtw_dynamic_check_timer_handlder(void *function_context)
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 
 	if (!adapter)
-		goto exit;
+		return;
 	if (!adapter->hw_init_completed)
 		goto exit;
 	if ((adapter->bDriverStopped) || (adapter->bSurpriseRemoved))
@@ -2117,7 +2115,7 @@ void rtw_issue_addbareq_cmd(struct adapter *padapter, struct xmit_frame *pxmitfr
 		if (0 == issued) {
 			DBG_88E("rtw_issue_addbareq_cmd, p=%d\n", priority);
 			psta->htpriv.candidate_tid_bitmap |= BIT((u8)priority);
-			rtw_addbareq_cmd(padapter, (u8) priority, pattrib->ra);
+			rtw_addbareq_cmd(padapter, (u8)priority, pattrib->ra);
 		}
 	}
 }

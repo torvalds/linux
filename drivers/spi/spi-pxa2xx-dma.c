@@ -157,7 +157,6 @@ static struct dma_async_tx_descriptor *
 pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 			   enum dma_transfer_direction dir)
 {
-	struct pxa2xx_spi_master *pdata = drv_data->master_info;
 	struct chip_data *chip = drv_data->cur_chip;
 	enum dma_slave_buswidth width;
 	struct dma_slave_config cfg;
@@ -184,7 +183,6 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 		cfg.dst_addr = drv_data->ssdr_physical;
 		cfg.dst_addr_width = width;
 		cfg.dst_maxburst = chip->dma_burst_size;
-		cfg.slave_id = pdata->tx_slave_id;
 
 		sgt = &drv_data->tx_sgt;
 		nents = drv_data->tx_nents;
@@ -193,7 +191,6 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 		cfg.src_addr = drv_data->ssdr_physical;
 		cfg.src_addr_width = width;
 		cfg.src_maxburst = chip->dma_burst_size;
-		cfg.slave_id = pdata->rx_slave_id;
 
 		sgt = &drv_data->rx_sgt;
 		nents = drv_data->rx_nents;
@@ -208,14 +205,6 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 
 	return dmaengine_prep_slave_sg(chan, sgt->sgl, nents, dir,
 				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-}
-
-static bool pxa2xx_spi_dma_filter(struct dma_chan *chan, void *param)
-{
-	const struct pxa2xx_spi_master *pdata = param;
-
-	return chan->chan_id == pdata->tx_chan_id ||
-	       chan->chan_id == pdata->rx_chan_id;
 }
 
 bool pxa2xx_spi_dma_is_possible(size_t len)
@@ -321,12 +310,12 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 		return -ENOMEM;
 
 	drv_data->tx_chan = dma_request_slave_channel_compat(mask,
-				pxa2xx_spi_dma_filter, pdata, dev, "tx");
+				pdata->dma_filter, pdata->tx_param, dev, "tx");
 	if (!drv_data->tx_chan)
 		return -ENODEV;
 
 	drv_data->rx_chan = dma_request_slave_channel_compat(mask,
-				pxa2xx_spi_dma_filter, pdata, dev, "rx");
+				pdata->dma_filter, pdata->rx_param, dev, "rx");
 	if (!drv_data->rx_chan) {
 		dma_release_channel(drv_data->tx_chan);
 		drv_data->tx_chan = NULL;

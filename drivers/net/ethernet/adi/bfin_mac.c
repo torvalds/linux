@@ -1692,9 +1692,6 @@ static int bfin_mac_probe(struct platform_device *pdev)
 	lp->vlan1_mask = ETH_P_8021Q | mii_bus_data->vlan1_mask;
 	lp->vlan2_mask = ETH_P_8021Q | mii_bus_data->vlan2_mask;
 
-	/* Fill in the fields of the device structure with ethernet values. */
-	ether_setup(ndev);
-
 	ndev->netdev_ops = &bfin_mac_netdev_ops;
 	ndev->ethtool_ops = &bfin_mac_ethtool_ops;
 
@@ -1904,7 +1901,6 @@ static struct platform_driver bfin_mii_bus_driver = {
 	.remove = bfin_mii_bus_remove,
 	.driver = {
 		.name = "bfin_mii_bus",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1915,7 +1911,6 @@ static struct platform_driver bfin_mac_driver = {
 	.suspend = bfin_mac_suspend,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -171,6 +171,7 @@ static int pch_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 /*
  * Save register configuration and disable interrupts.
  */
@@ -206,6 +207,7 @@ static void pch_gpio_restore_reg_conf(struct pch_gpio *chip)
 		iowrite32(chip->pch_gpio_reg.gpio_use_sel_reg,
 			  &chip->reg->gpio_use_sel);
 }
+#endif
 
 static int pch_gpio_to_irq(struct gpio_chip *gpio, unsigned offset)
 {

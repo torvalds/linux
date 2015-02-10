@@ -24,7 +24,7 @@
 
 #include "nv50.h"
 
-static u64
+u64
 gm107_devinit_disable(struct nouveau_devinit *devinit)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
@@ -53,4 +53,5 @@ gm107_devinit_oclass = &(struct nouveau_devinit_impl) {
 	},
 	.pll_set = nvc0_devinit_pll_set,
 	.disable = gm107_devinit_disable,
+	.post = nvbios_init,
 }.base;

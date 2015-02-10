@@ -306,7 +306,6 @@ static int vx855gpio_remove(struct platform_device *pdev)
 static struct platform_driver vx855gpio_driver = {
 	.driver = {
 		.name	= MODULE_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= vx855gpio_probe,
 	.remove		= vx855gpio_remove,

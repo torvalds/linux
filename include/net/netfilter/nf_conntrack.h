@@ -92,11 +92,17 @@ struct nf_conn {
 	/* Have we seen traffic both ways yet? (bitset) */
 	unsigned long status;
 
-	/* If we were expected by an expectation, this will be it */
-	struct nf_conn *master;
-
 	/* Timer function; drops refcnt when it goes off. */
 	struct timer_list timeout;
+
+#ifdef CONFIG_NET_NS
+	struct net *ct_net;
+#endif
+	/* all members below initialized via memset */
+	u8 __nfct_init_offset[0];
+
+	/* If we were expected by an expectation, this will be it */
+	struct nf_conn *master;
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;
@@ -108,9 +114,6 @@ struct nf_conn {
 
 	/* Extensions */
 	struct nf_ct_ext *ext;
-#ifdef CONFIG_NET_NS
-	struct net *ct_net;
-#endif
 
 	/* Storage reserved for other modules, must be the last member */
 	union nf_conntrack_proto proto;
@@ -242,7 +245,7 @@ extern s32 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 DECLARE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 static inline struct nf_conn *nf_ct_untracked_get(void)
 {
-	return &__raw_get_cpu_var(nf_conntrack_untracked);
+	return raw_cpu_ptr(&nf_conntrack_untracked);
 }
 void nf_ct_untracked_status_or(unsigned long bits);
 

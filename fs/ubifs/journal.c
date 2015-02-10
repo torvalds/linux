@@ -546,15 +546,14 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	int aligned_dlen, aligned_ilen, sync = IS_DIRSYNC(dir);
 	int last_reference = !!(deletion && inode->i_nlink == 0);
 	struct ubifs_inode *ui = ubifs_inode(inode);
-	struct ubifs_inode *dir_ui = ubifs_inode(dir);
+	struct ubifs_inode *host_ui = ubifs_inode(dir);
 	struct ubifs_dent_node *dent;
 	struct ubifs_ino_node *ino;
 	union ubifs_key dent_key, ino_key;
 
 	dbg_jnl("ino %lu, dent '%.*s', data len %d in dir ino %lu",
 		inode->i_ino, nm->len, nm->name, ui->data_len, dir->i_ino);
-	ubifs_assert(dir_ui->data_len == 0);
-	ubifs_assert(mutex_is_locked(&dir_ui->ui_mutex));
+	ubifs_assert(mutex_is_locked(&host_ui->ui_mutex));
 
 	dlen = UBIFS_DENT_NODE_SZ + nm->len + 1;
 	ilen = UBIFS_INO_NODE_SZ;
@@ -572,7 +571,11 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 
 	aligned_dlen = ALIGN(dlen, 8);
 	aligned_ilen = ALIGN(ilen, 8);
+
 	len = aligned_dlen + aligned_ilen + UBIFS_INO_NODE_SZ;
+	/* Make sure to also account for extended attributes */
+	len += host_ui->data_len;
+
 	dent = kmalloc(len, GFP_NOFS);
 	if (!dent)
 		return -ENOMEM;
@@ -649,7 +652,8 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 
 	ino_key_init(c, &ino_key, dir->i_ino);
 	ino_offs += aligned_ilen;
-	err = ubifs_tnc_add(c, &ino_key, lnum, ino_offs, UBIFS_INO_NODE_SZ);
+	err = ubifs_tnc_add(c, &ino_key, lnum, ino_offs,
+			    UBIFS_INO_NODE_SZ + host_ui->data_len);
 	if (err)
 		goto out_ro;
 
@@ -658,7 +662,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	ui->synced_i_size = ui->ui_size;
 	spin_unlock(&ui->ui_lock);
 	mark_inode_clean(c, ui);
-	mark_inode_clean(c, dir_ui);
+	mark_inode_clean(c, host_ui);
 	return 0;
 
 out_finish:

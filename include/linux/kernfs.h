@@ -179,6 +179,7 @@ struct kernfs_open_file {
 	struct mutex		mutex;
 	int			event;
 	struct list_head	list;
+	char			*prealloc_buf;
 
 	size_t			atomic_write_len;
 	bool			mmapped;
@@ -214,6 +215,13 @@ struct kernfs_ops {
 	 * larger ones are rejected with -E2BIG.
 	 */
 	size_t atomic_write_len;
+	/*
+	 * "prealloc" causes a buffer to be allocated at open for
+	 * all read/write requests.  As ->seq_show uses seq_read()
+	 * which does its own allocation, it is incompatible with
+	 * ->prealloc.  Provide ->read and ->write with ->prealloc.
+	 */
+	bool prealloc;
 	ssize_t (*write)(struct kernfs_open_file *of, char *buf, size_t bytes,
 			 loff_t off);
 

@@ -200,6 +200,13 @@ Description:
 		Raw pressure measurement from channel Y. Units after
 		application of scale and offset are kilopascal.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_input
+KernelVersion:	3.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scaled pressure measurement from channel Y, in kilopascal.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_raw
 KernelVersion:	3.14
 Contact:	linux-iio@vger.kernel.org
@@ -231,6 +238,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_offset
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -251,6 +259,7 @@ Description:
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage-voltage_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale
@@ -266,6 +275,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_magnetic_tilt_comp_sca
 What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_true_tilt_comp_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -328,6 +338,10 @@ Description:
 		are listed in this attribute.
 
 What		/sys/bus/iio/devices/iio:deviceX/out_voltageY_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_red_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_green_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_blue_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_clear_hardwaregain
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1028,3 +1042,12 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw value of rotation from true/magnetic north measured with
 		or without compensation from tilt sensors.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_raw
+KernelVersion:	3.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw current measurement from channel X. Units are in milliamps
+		after application of scale and offset. If no offset or scale is
+		present, output should be considered as processed with the
+		unit in milliamps.

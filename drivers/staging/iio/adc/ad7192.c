@@ -213,7 +213,7 @@ static int ad7192_setup(struct ad7192_state *st,
 	ret = spi_write(st->sd.spi, &ones, 6);
 	if (ret < 0)
 		goto out;
-	msleep(1); /* Wait for at least 500us */
+	usleep_range(500, 1000); /* Wait for at least 500us */
 
 	/* write/read test for device presence */
 	ret = ad_sd_read_reg(&st->sd, AD7192_REG_ID, 1, &id);
@@ -223,7 +223,8 @@ static int ad7192_setup(struct ad7192_state *st,
 	id &= AD7192_ID_MASK;
 
 	if (id != st->devid)
-		dev_warn(&st->sd.spi->dev, "device ID query failed (0x%X)\n", id);
+		dev_warn(&st->sd.spi->dev, "device ID query failed (0x%X)\n",
+			id);
 
 	switch (pdata->clock_source_sel) {
 	case AD7192_CLK_EXT_MCLK1_2:

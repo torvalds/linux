@@ -15,7 +15,7 @@ DOCBOOKS := z8530book.xml device-drivers.xml \
 	    80211.xml debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
 	    tracepoint.xml drm.xml media_api.xml w1.xml \
-	    writing_musb_glue_layer.xml
+	    writing_musb_glue_layer.xml crypto-API.xml
 
 include Documentation/DocBook/media/Makefile
 

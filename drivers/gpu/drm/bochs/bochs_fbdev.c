@@ -9,6 +9,17 @@
 
 /* ---------------------------------------------------------------------- */
 
+static int bochsfb_mmap(struct fb_info *info,
+			struct vm_area_struct *vma)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct bochs_device *bochs =
+		container_of(fb_helper, struct bochs_device, fb.helper);
+	struct bochs_bo *bo = gem_to_bochs_bo(bochs->fb.gfb.obj);
+
+	return ttm_fbdev_mmap(vma, &bo->bo);
+}
+
 static struct fb_ops bochsfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
@@ -19,6 +30,7 @@ static struct fb_ops bochsfb_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+	.fb_mmap = bochsfb_mmap,
 };
 
 static int bochsfb_create_object(struct bochs_device *bochs,
@@ -123,11 +135,9 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 	info->screen_base = bo->kmap.virtual;
 	info->screen_size = size;
 
-#if 0
-	/* FIXME: get this right for mmap(/dev/fb0) */
-	info->fix.smem_start = bochs_bo_mmap_offset(bo);
+	drm_vma_offset_remove(&bo->bo.bdev->vma_manager, &bo->bo.vma_node);
+	info->fix.smem_start = 0;
 	info->fix.smem_len = size;
-#endif
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret) {

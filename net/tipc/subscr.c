@@ -36,7 +36,6 @@
 
 #include "core.h"
 #include "name_table.h"
-#include "port.h"
 #include "subscr.h"
 
 /**
@@ -306,7 +305,6 @@ static int subscr_subscribe(struct tipc_subscr *s,
 		kfree(sub);
 		return -EINVAL;
 	}
-	INIT_LIST_HEAD(&sub->nameseq_list);
 	list_add(&sub->subscription_list, &subscriber->subscription_list);
 	sub->subscriber = subscriber;
 	sub->swap = swap;

@@ -208,9 +208,8 @@ static irqreturn_t ni6527_interrupt(int irq, void *d)
 		return IRQ_NONE;
 
 	if (status & NI6527_STATUS_EDGE) {
-		comedi_buf_put(s, 0);
-		s->async->events |= COMEDI_CB_EOS;
-		comedi_event(dev, s);
+		comedi_buf_write_samples(s, &s->state, 1);
+		comedi_handle_events(dev, s);
 	}
 
 	writeb(NI6527_CLR_IRQS, dev->mmio + NI6527_CLR_REG);
@@ -238,9 +237,6 @@ static int ni6527_intr_cmdtest(struct comedi_device *dev,
 	/* Step 2a : make sure trigger sources are unique */
 	/* Step 2b : and mutually compatible */
 
-	if (err)
-		return 2;
-
 	/* Step 3: check if arguments are trivially valid */
 
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
@@ -252,10 +248,9 @@ static int ni6527_intr_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/* step 4: fix up any arguments */
+	/* Step 4: fix up any arguments */
 
-	if (err)
-		return 4;
+	/* Step 5: check channel list if it exists */
 
 	return 0;
 }
@@ -472,11 +467,7 @@ static void ni6527_detach(struct comedi_device *dev)
 {
 	if (dev->mmio)
 		ni6527_reset(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->mmio)
-		iounmap(dev->mmio);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver ni6527_driver = {

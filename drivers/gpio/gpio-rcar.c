@@ -1,6 +1,7 @@
 /*
  * Renesas R-Car GPIO Support
  *
+ *  Copyright (C) 2014 Renesas Electronics Corporation
  *  Copyright (C) 2013 Magnus Damm
  *
  * This program is free software; you can redistribute it and/or modify
@@ -291,22 +292,30 @@ struct gpio_rcar_info {
 	bool has_both_edge_trigger;
 };
 
+static const struct gpio_rcar_info gpio_rcar_info_gen1 = {
+	.has_both_edge_trigger = false,
+};
+
+static const struct gpio_rcar_info gpio_rcar_info_gen2 = {
+	.has_both_edge_trigger = true,
+};
+
 static const struct of_device_id gpio_rcar_of_table[] = {
 	{
 		.compatible = "renesas,gpio-r8a7790",
-		.data = (void *)&(const struct gpio_rcar_info) {
-			.has_both_edge_trigger = true,
-		},
+		.data = &gpio_rcar_info_gen2,
 	}, {
 		.compatible = "renesas,gpio-r8a7791",
-		.data = (void *)&(const struct gpio_rcar_info) {
-			.has_both_edge_trigger = true,
-		},
+		.data = &gpio_rcar_info_gen2,
+	}, {
+		.compatible = "renesas,gpio-r8a7793",
+		.data = &gpio_rcar_info_gen2,
+	}, {
+		.compatible = "renesas,gpio-r8a7794",
+		.data = &gpio_rcar_info_gen2,
 	}, {
 		.compatible = "renesas,gpio-rcar",
-		.data = (void *)&(const struct gpio_rcar_info) {
-			.has_both_edge_trigger = false,
-		},
+		.data = &gpio_rcar_info_gen1,
 	}, {
 		/* Terminator */
 	},

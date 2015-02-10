@@ -218,4 +218,5 @@ void perf_hpp__set_elide(int idx, bool elide);
 
 int report_parse_ignore_callees_opt(const struct option *opt, const char *arg, int unset);
 
+bool is_strict_order(const char *order);
 #endif	/* __PERF_SORT_H */

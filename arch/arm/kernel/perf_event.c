@@ -7,21 +7,18 @@
  * Copyright (C) 2010 ARM Ltd., Will Deacon <will.deacon@arm.com>
  *
  * This code is based on the sparc64 perf event code, which is in turn based
- * on the x86 code. Callchain code is based on the ARM OProfile backtrace
- * code.
+ * on the x86 code.
  */
 #define pr_fmt(fmt) "hw perfevents: " fmt
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/uaccess.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
 
 #include <asm/irq_regs.h>
 #include <asm/pmu.h>
-#include <asm/stacktrace.h>
 
 static int
 armpmu_map_cache_event(const unsigned (*cache_map)
@@ -80,8 +77,12 @@ armpmu_map_event(struct perf_event *event,
 		 u32 raw_event_mask)
 {
 	u64 config = event->attr.config;
+	int type = event->attr.type;
 
-	switch (event->attr.type) {
+	if (type == event->pmu->type)
+		return armpmu_map_raw_event(raw_event_mask, config);
+
+	switch (type) {
 	case PERF_TYPE_HARDWARE:
 		return armpmu_map_hw_event(event_map, config);
 	case PERF_TYPE_HW_CACHE:
@@ -200,7 +201,7 @@ static void
 armpmu_del(struct perf_event *event, int flags)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
-	struct pmu_hw_events *hw_events = armpmu->get_hw_events();
+	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
@@ -217,7 +218,7 @@ static int
 armpmu_add(struct perf_event *event, int flags)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
-	struct pmu_hw_events *hw_events = armpmu->get_hw_events();
+	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx;
 	int err = 0;
@@ -274,14 +275,12 @@ validate_group(struct perf_event *event)
 {
 	struct perf_event *sibling, *leader = event->group_leader;
 	struct pmu_hw_events fake_pmu;
-	DECLARE_BITMAP(fake_used_mask, ARMPMU_MAX_HWEVENTS);
 
 	/*
 	 * Initialise the fake PMU. We only need to populate the
 	 * used_mask for the purposes of validation.
 	 */
-	memset(fake_used_mask, 0, sizeof(fake_used_mask));
-	fake_pmu.used_mask = fake_used_mask;
+	memset(&fake_pmu.used_mask, 0, sizeof(fake_pmu.used_mask));
 
 	if (!validate_event(&fake_pmu, leader))
 		return -EINVAL;
@@ -305,17 +304,21 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 	int ret;
 	u64 start_clock, finish_clock;
 
-	if (irq_is_percpu(irq))
-		dev = *(void **)dev;
-	armpmu = dev;
+	/*
+	 * we request the IRQ with a (possibly percpu) struct arm_pmu**, but
+	 * the handlers expect a struct arm_pmu*. The percpu_irq framework will
+	 * do any necessary shifting, we just need to perform the first
+	 * dereference.
+	 */
+	armpmu = *(void **)dev;
 	plat_device = armpmu->plat_device;
 	plat = dev_get_platdata(&plat_device->dev);
 
 	start_clock = sched_clock();
 	if (plat && plat->handle_irq)
-		ret = plat->handle_irq(irq, dev, armpmu->handle_irq);
+		ret = plat->handle_irq(irq, armpmu, armpmu->handle_irq);
 	else
-		ret = armpmu->handle_irq(irq, dev);
+		ret = armpmu->handle_irq(irq, armpmu);
 	finish_clock = sched_clock();
 
 	perf_sample_event_took(finish_clock - start_clock);
@@ -468,7 +471,7 @@ static int armpmu_event_init(struct perf_event *event)
 static void armpmu_enable(struct pmu *pmu)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(pmu);
-	struct pmu_hw_events *hw_events = armpmu->get_hw_events();
+	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
 	int enabled = bitmap_weight(hw_events->used_mask, armpmu->num_events);
 
 	if (enabled)
@@ -481,7 +484,7 @@ static void armpmu_disable(struct pmu *pmu)
 	armpmu->stop(armpmu);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int armpmu_runtime_resume(struct device *dev)
 {
 	struct arm_pmu_platdata *plat = dev_get_platdata(dev);
@@ -533,130 +536,3 @@ int armpmu_register(struct arm_pmu *armpmu, int type)
 	return perf_pmu_register(&armpmu->pmu, armpmu->name, type);
 }
 
-/*
- * Callchain handling code.
- */
-
-/*
- * The registers we're interested in are at the end of the variable
- * length saved register structure. The fp points at the end of this
- * structure so the address of this struct is:
- * (struct frame_tail *)(xxx->fp)-1
- *
- * This code has been adapted from the ARM OProfile support.
- */
-struct frame_tail {
-	struct frame_tail __user *fp;
-	unsigned long sp;
-	unsigned long lr;
-} __attribute__((packed));
-
-/*
- * Get the return address for a single stackframe and return a pointer to the
- * next frame tail.
- */
-static struct frame_tail __user *
-user_backtrace(struct frame_tail __user *tail,
-	       struct perf_callchain_entry *entry)
-{
-	struct frame_tail buftail;
-	unsigned long err;
-
-	if (!access_ok(VERIFY_READ, tail, sizeof(buftail)))
-		return NULL;
-
-	pagefault_disable();
-	err = __copy_from_user_inatomic(&buftail, tail, sizeof(buftail));
-	pagefault_enable();
-
-	if (err)
-		return NULL;
-
-	perf_callchain_store(entry, buftail.lr);
-
-	/*
-	 * Frame pointers should strictly progress back up the stack
-	 * (towards higher addresses).
-	 */
-	if (tail + 1 >= buftail.fp)
-		return NULL;
-
-	return buftail.fp - 1;
-}
-
-void
-perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
-{
-	struct frame_tail __user *tail;
-
-	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		/* We don't support guest os callchain now */
-		return;
-	}
-
-	perf_callchain_store(entry, regs->ARM_pc);
-
-	if (!current->mm)
-		return;
-
-	tail = (struct frame_tail __user *)regs->ARM_fp - 1;
-
-	while ((entry->nr < PERF_MAX_STACK_DEPTH) &&
-	       tail && !((unsigned long)tail & 0x3))
-		tail = user_backtrace(tail, entry);
-}
-
-/*
- * Gets called by walk_stackframe() for every stackframe. This will be called
- * whist unwinding the stackframe and is like a subroutine return so we use
- * the PC.
- */
-static int
-callchain_trace(struct stackframe *fr,
-		void *data)
-{
-	struct perf_callchain_entry *entry = data;
-	perf_callchain_store(entry, fr->pc);
-	return 0;
-}
-
-void
-perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
-{
-	struct stackframe fr;
-
-	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		/* We don't support guest os callchain now */
-		return;
-	}
-
-	arm_get_current_stackframe(regs, &fr);
-	walk_stackframe(&fr, callchain_trace, entry);
-}
-
-unsigned long perf_instruction_pointer(struct pt_regs *regs)
-{
-	if (perf_guest_cbs && perf_guest_cbs->is_in_guest())
-		return perf_guest_cbs->get_guest_ip();
-
-	return instruction_pointer(regs);
-}
-
-unsigned long perf_misc_flags(struct pt_regs *regs)
-{
-	int misc = 0;
-
-	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		if (perf_guest_cbs->is_user_mode())
-			misc |= PERF_RECORD_MISC_GUEST_USER;
-		else
-			misc |= PERF_RECORD_MISC_GUEST_KERNEL;
-	} else {
-		if (user_mode(regs))
-			misc |= PERF_RECORD_MISC_USER;
-		else
-			misc |= PERF_RECORD_MISC_KERNEL;
-	}
-
-	return misc;
-}

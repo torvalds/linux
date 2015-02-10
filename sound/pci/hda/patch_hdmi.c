@@ -47,7 +47,9 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 
 #define is_haswell(codec)  ((codec)->vendor_id == 0x80862807)
 #define is_broadwell(codec)    ((codec)->vendor_id == 0x80862808)
-#define is_haswell_plus(codec) (is_haswell(codec) || is_broadwell(codec))
+#define is_skylake(codec) ((codec)->vendor_id == 0x80862809)
+#define is_haswell_plus(codec) (is_haswell(codec) || is_broadwell(codec) \
+					|| is_skylake(codec))
 
 #define is_valleyview(codec) ((codec)->vendor_id == 0x80862882)
 #define is_cherryview(codec) ((codec)->vendor_id == 0x80862883)
@@ -1163,15 +1165,21 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 
 static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll);
 
-static void jack_callback(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void check_presence_and_report(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct hdmi_spec *spec = codec->spec;
-	int pin_idx = pin_nid_to_pin_index(codec, jack->nid);
+	int pin_idx = pin_nid_to_pin_index(codec, nid);
+
 	if (pin_idx < 0)
 		return;
-
 	if (hdmi_present_sense(get_pin(spec, pin_idx), 1))
 		snd_hda_jack_report_sync(codec);
+}
+
+static void jack_callback(struct hda_codec *codec,
+			  struct hda_jack_callback *jack)
+{
+	check_presence_and_report(codec, jack->tbl->nid);
 }
 
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -1190,7 +1198,7 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 		codec->addr, jack->nid, dev_entry, !!(res & AC_UNSOL_RES_IA),
 		!!(res & AC_UNSOL_RES_PD), !!(res & AC_UNSOL_RES_ELDV));
 
-	jack_callback(codec, jack);
+	check_presence_and_report(codec, jack->nid);
 }
 
 static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -1577,19 +1585,22 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		}
 	}
 
-	if (pin_eld->eld_valid && !eld->eld_valid) {
-		update_eld = true;
+	if (pin_eld->eld_valid != eld->eld_valid)
 		eld_changed = true;
-	}
+
+	if (pin_eld->eld_valid && !eld->eld_valid)
+		update_eld = true;
+
 	if (update_eld) {
 		bool old_eld_valid = pin_eld->eld_valid;
 		pin_eld->eld_valid = eld->eld_valid;
-		eld_changed = pin_eld->eld_size != eld->eld_size ||
+		if (pin_eld->eld_size != eld->eld_size ||
 			      memcmp(pin_eld->eld_buffer, eld->eld_buffer,
-				     eld->eld_size) != 0;
-		if (eld_changed)
+				     eld->eld_size) != 0) {
 			memcpy(pin_eld->eld_buffer, eld->eld_buffer,
 			       eld->eld_size);
+			eld_changed = true;
+		}
 		pin_eld->eld_size = eld->eld_size;
 		pin_eld->info = eld->info;
 
@@ -2165,7 +2176,7 @@ static int generic_hdmi_init(struct hda_codec *codec)
 		hda_nid_t pin_nid = per_pin->pin_nid;
 
 		hdmi_init_pin(codec, pin_nid);
-		snd_hda_jack_detect_enable_callback(codec, pin_nid, pin_nid,
+		snd_hda_jack_detect_enable_callback(codec, pin_nid,
 			codec->jackpoll_interval > 0 ? jack_callback : NULL);
 	}
 	return 0;
@@ -2428,7 +2439,7 @@ static int simple_playback_init(struct hda_codec *codec)
 	if (get_wcaps(codec, pin) & AC_WCAP_OUT_AMP)
 		snd_hda_codec_write(codec, pin, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_OUT_UNMUTE);
-	snd_hda_jack_detect_enable(codec, pin, pin);
+	snd_hda_jack_detect_enable(codec, pin);
 	return 0;
 }
 
@@ -3342,6 +3353,7 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x10de0067, .name = "MCP67 HDMI",	.patch = patch_nvhdmi_2ch },
 { .id = 0x10de0070, .name = "GPU 70 HDMI/DP",	.patch = patch_nvhdmi },
 { .id = 0x10de0071, .name = "GPU 71 HDMI/DP",	.patch = patch_nvhdmi },
+{ .id = 0x10de0072, .name = "GPU 72 HDMI/DP",	.patch = patch_nvhdmi },
 { .id = 0x10de8001, .name = "MCP73 HDMI",	.patch = patch_nvhdmi_2ch },
 { .id = 0x11069f80, .name = "VX900 HDMI/DP",	.patch = patch_via_hdmi },
 { .id = 0x11069f81, .name = "VX900 HDMI/DP",	.patch = patch_via_hdmi },
@@ -3356,6 +3368,7 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x80862806, .name = "PantherPoint HDMI", .patch = patch_generic_hdmi },
 { .id = 0x80862807, .name = "Haswell HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862808, .name = "Broadwell HDMI",	.patch = patch_generic_hdmi },
+{ .id = 0x80862809, .name = "Skylake HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862880, .name = "CedarTrail HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862882, .name = "Valleyview2 HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862883, .name = "Braswell HDMI",	.patch = patch_generic_hdmi },
@@ -3401,6 +3414,7 @@ MODULE_ALIAS("snd-hda-codec-id:10de0060");
 MODULE_ALIAS("snd-hda-codec-id:10de0067");
 MODULE_ALIAS("snd-hda-codec-id:10de0070");
 MODULE_ALIAS("snd-hda-codec-id:10de0071");
+MODULE_ALIAS("snd-hda-codec-id:10de0072");
 MODULE_ALIAS("snd-hda-codec-id:10de8001");
 MODULE_ALIAS("snd-hda-codec-id:11069f80");
 MODULE_ALIAS("snd-hda-codec-id:11069f81");
@@ -3416,6 +3430,7 @@ MODULE_ALIAS("snd-hda-codec-id:80862805");
 MODULE_ALIAS("snd-hda-codec-id:80862806");
 MODULE_ALIAS("snd-hda-codec-id:80862807");
 MODULE_ALIAS("snd-hda-codec-id:80862808");
+MODULE_ALIAS("snd-hda-codec-id:80862809");
 MODULE_ALIAS("snd-hda-codec-id:80862880");
 MODULE_ALIAS("snd-hda-codec-id:80862882");
 MODULE_ALIAS("snd-hda-codec-id:80862883");

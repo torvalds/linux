@@ -287,17 +287,14 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 }
 
 #ifdef CONFIG_PROC_FS
-static int eventfd_show_fdinfo(struct seq_file *m, struct file *f)
+static void eventfd_show_fdinfo(struct seq_file *m, struct file *f)
 {
 	struct eventfd_ctx *ctx = f->private_data;
-	int ret;
 
 	spin_lock_irq(&ctx->wqh.lock);
-	ret = seq_printf(m, "eventfd-count: %16llx\n",
-			 (unsigned long long)ctx->count);
+	seq_printf(m, "eventfd-count: %16llx\n",
+		   (unsigned long long)ctx->count);
 	spin_unlock_irq(&ctx->wqh.lock);
-
-	return ret;
 }
 #endif
 

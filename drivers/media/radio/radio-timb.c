@@ -174,7 +174,6 @@ static int timbradio_remove(struct platform_device *pdev)
 static struct platform_driver timbradio_platform_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= timbradio_probe,
 	.remove		= timbradio_remove,

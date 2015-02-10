@@ -20,11 +20,7 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 static inline unsigned long
 __cls_set_class(unsigned long *clp, unsigned long cl)
 {
-	unsigned long old_cl;
- 
-	old_cl = *clp;
-	*clp = cl;
-	return old_cl;
+	return xchg(clp, cl);
 }
 
 static inline unsigned long
@@ -137,7 +133,7 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
 		      struct tcf_exts *exts, bool ovr);
-void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
+void tcf_exts_destroy(struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
@@ -170,6 +166,7 @@ struct tcf_ematch {
 	unsigned int		datalen;
 	u16			matchid;
 	u16			flags;
+	struct net		*net;
 };
 
 static inline int tcf_em_is_container(struct tcf_ematch *em)
@@ -233,12 +230,11 @@ struct tcf_ematch_tree {
 struct tcf_ematch_ops {
 	int			kind;
 	int			datalen;
-	int			(*change)(struct tcf_proto *, void *,
+	int			(*change)(struct net *net, void *,
 					  int, struct tcf_ematch *);
 	int			(*match)(struct sk_buff *, struct tcf_ematch *,
 					 struct tcf_pkt_info *);
-	void			(*destroy)(struct tcf_proto *,
-					   struct tcf_ematch *);
+	void			(*destroy)(struct tcf_ematch *);
 	int			(*dump)(struct sk_buff *, struct tcf_ematch *);
 	struct module		*owner;
 	struct list_head	link;
@@ -248,7 +244,7 @@ int tcf_em_register(struct tcf_ematch_ops *);
 void tcf_em_unregister(struct tcf_ematch_ops *);
 int tcf_em_tree_validate(struct tcf_proto *, struct nlattr *,
 			 struct tcf_ematch_tree *);
-void tcf_em_tree_destroy(struct tcf_proto *, struct tcf_ematch_tree *);
+void tcf_em_tree_destroy(struct tcf_ematch_tree *);
 int tcf_em_tree_dump(struct sk_buff *, struct tcf_ematch_tree *, int);
 int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
 			struct tcf_pkt_info *);
@@ -305,7 +301,7 @@ struct tcf_ematch_tree {
 };
 
 #define tcf_em_tree_validate(tp, tb, t) ((void)(t), 0)
-#define tcf_em_tree_destroy(tp, t) do { (void)(t); } while(0)
+#define tcf_em_tree_destroy(t) do { (void)(t); } while(0)
 #define tcf_em_tree_dump(skb, t, tlv) (0)
 #define tcf_em_tree_change(tp, dst, src) do { } while(0)
 #define tcf_em_tree_match(skb, t, info) ((void)(info), 1)

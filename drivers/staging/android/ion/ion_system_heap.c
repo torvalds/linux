@@ -205,7 +205,6 @@ static struct sg_table *ion_system_heap_map_dma(struct ion_heap *heap,
 static void ion_system_heap_unmap_dma(struct ion_heap *heap,
 				      struct ion_buffer *buffer)
 {
-	return;
 }
 
 static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,

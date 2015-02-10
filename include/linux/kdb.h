@@ -13,11 +13,54 @@
  * Copyright (C) 2009 Jason Wessel <jason.wessel@windriver.com>
  */
 
+/* Shifted versions of the command enable bits are be used if the command
+ * has no arguments (see kdb_check_flags). This allows commands, such as
+ * go, to have different permissions depending upon whether it is called
+ * with an argument.
+ */
+#define KDB_ENABLE_NO_ARGS_SHIFT 10
+
 typedef enum {
-	KDB_REPEAT_NONE = 0,	/* Do not repeat this command */
-	KDB_REPEAT_NO_ARGS,	/* Repeat the command without arguments */
-	KDB_REPEAT_WITH_ARGS,	/* Repeat the command including its arguments */
-} kdb_repeat_t;
+	KDB_ENABLE_ALL = (1 << 0), /* Enable everything */
+	KDB_ENABLE_MEM_READ = (1 << 1),
+	KDB_ENABLE_MEM_WRITE = (1 << 2),
+	KDB_ENABLE_REG_READ = (1 << 3),
+	KDB_ENABLE_REG_WRITE = (1 << 4),
+	KDB_ENABLE_INSPECT = (1 << 5),
+	KDB_ENABLE_FLOW_CTRL = (1 << 6),
+	KDB_ENABLE_SIGNAL = (1 << 7),
+	KDB_ENABLE_REBOOT = (1 << 8),
+	/* User exposed values stop here, all remaining flags are
+	 * exclusively used to describe a commands behaviour.
+	 */
+
+	KDB_ENABLE_ALWAYS_SAFE = (1 << 9),
+	KDB_ENABLE_MASK = (1 << KDB_ENABLE_NO_ARGS_SHIFT) - 1,
+
+	KDB_ENABLE_ALL_NO_ARGS = KDB_ENABLE_ALL << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_MEM_READ_NO_ARGS = KDB_ENABLE_MEM_READ
+				      << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_MEM_WRITE_NO_ARGS = KDB_ENABLE_MEM_WRITE
+				       << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_REG_READ_NO_ARGS = KDB_ENABLE_REG_READ
+				      << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_REG_WRITE_NO_ARGS = KDB_ENABLE_REG_WRITE
+				       << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_INSPECT_NO_ARGS = KDB_ENABLE_INSPECT
+				     << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_FLOW_CTRL_NO_ARGS = KDB_ENABLE_FLOW_CTRL
+				       << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_SIGNAL_NO_ARGS = KDB_ENABLE_SIGNAL
+				    << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_REBOOT_NO_ARGS = KDB_ENABLE_REBOOT
+				    << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_ALWAYS_SAFE_NO_ARGS = KDB_ENABLE_ALWAYS_SAFE
+					 << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_MASK_NO_ARGS = KDB_ENABLE_MASK << KDB_ENABLE_NO_ARGS_SHIFT,
+
+	KDB_REPEAT_NO_ARGS = 0x40000000, /* Repeat the command w/o arguments */
+	KDB_REPEAT_WITH_ARGS = 0x80000000, /* Repeat the command with args */
+} kdb_cmdflags_t;
 
 typedef int (*kdb_func_t)(int, const char **);
 
@@ -62,6 +105,7 @@ extern atomic_t kdb_event;
 #define KDB_BADLENGTH	(-19)
 #define KDB_NOBP	(-20)
 #define KDB_BADADDR	(-21)
+#define KDB_NOPERM	(-22)
 
 /*
  * kdb_diemsg
@@ -146,17 +190,17 @@ static inline const char *kdb_walk_kallsyms(loff_t *pos)
 
 /* Dynamic kdb shell command registration */
 extern int kdb_register(char *, kdb_func_t, char *, char *, short);
-extern int kdb_register_repeat(char *, kdb_func_t, char *, char *,
-			       short, kdb_repeat_t);
+extern int kdb_register_flags(char *, kdb_func_t, char *, char *,
+			      short, kdb_cmdflags_t);
 extern int kdb_unregister(char *);
 #else /* ! CONFIG_KGDB_KDB */
 static inline __printf(1, 2) int kdb_printf(const char *fmt, ...) { return 0; }
 static inline void kdb_init(int level) {}
 static inline int kdb_register(char *cmd, kdb_func_t func, char *usage,
 			       char *help, short minlen) { return 0; }
-static inline int kdb_register_repeat(char *cmd, kdb_func_t func, char *usage,
-				      char *help, short minlen,
-				      kdb_repeat_t repeat) { return 0; }
+static inline int kdb_register_flags(char *cmd, kdb_func_t func, char *usage,
+				     char *help, short minlen,
+				     kdb_cmdflags_t flags) { return 0; }
 static inline int kdb_unregister(char *cmd) { return 0; }
 #endif	/* CONFIG_KGDB_KDB */
 enum {

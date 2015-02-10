@@ -12,14 +12,14 @@ specific.
 1. GROUP: KVM_S390_VM_MEM_CTRL
 Architectures: s390
 
-1.1. ATTRIBUTE: KVM_S390_VM_MEM_CTRL
+1.1. ATTRIBUTE: KVM_S390_VM_MEM_ENABLE_CMMA
 Parameters: none
-Returns: -EBUSY if already a vcpus is defined, otherwise 0
+Returns: -EBUSY if a vcpu is already defined, otherwise 0
 
-Enables CMMA for the virtual machine
+Enables Collaborative Memory Management Assist (CMMA) for the virtual machine.
 
-1.2. ATTRIBUTE: KVM_S390_VM_CLR_CMMA
-Parameteres: none
+1.2. ATTRIBUTE: KVM_S390_VM_MEM_CLR_CMMA
+Parameters: none
 Returns: 0
 
 Clear the CMMA status for all guest pages, so any pages the guest marked

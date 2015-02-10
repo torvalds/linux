@@ -57,23 +57,6 @@ enum  {
 	Ndis802_11Encryption3KeyAbsent,
 };
 
-/*  Key mapping keys require a BSSID */
-struct ndis_802_11_key {
-	u32 Length;             /*  Length of this structure */
-	u32 KeyIndex;
-	u32 KeyLength;          /*  length of key in bytes */
-	unsigned char BSSID[6];
-	unsigned long long KeyRSC;
-	u8 KeyMaterial[32]; /*  variable length depending on above field */
-};
-
-struct wlan_phy_info {
-	u8	SignalStrength;/* in percentage) */
-	u8	SignalQuality;/* in percentage) */
-	u8	Optimum_antenna;  /* for Antenna diversity */
-	u8	Reserved_0;
-};
-
 struct wlan_bcn_info {
 	/* these infor get from rtw_get_encrypt_info when
 	 *	 * translate scan to UI */
@@ -99,7 +82,8 @@ struct wlan_bssid_ex {
 	u32 DSConfig;           /*  Frequency, units are kHz */
 	enum nl80211_iftype ifmode;
 	unsigned char SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
-	struct wlan_phy_info	PhyInfo;
+	u8 SignalStrength;/* in percentage */
+	u8 SignalQuality;/* in percentage */
 	u32  IELength;
 	u8  IEs[MAX_IE_SZ]; /* timestamp, beacon interval, and capability info*/
 } __packed;
@@ -115,7 +99,6 @@ struct	wlan_network {
 	/*  set to fixed when not to be removed as site-surveying */
 	int	fixed;
 	unsigned long	last_scanned; /* timestamp for the network */
-	int	aid;		/* will only be valid when a BSS is joined. */
 	int	join_res;
 	struct wlan_bssid_ex	network; /* must be the last item */
 	struct wlan_bcn_info	BcnInfo;

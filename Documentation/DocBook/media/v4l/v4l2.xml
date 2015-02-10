@@ -152,6 +152,15 @@ structs, ioctls) must be noted in more detail in the history chapter
 applications. -->
 
       <revision>
+	<revnumber>3.19</revnumber>
+	<date>2014-12-05</date>
+	<authorinitials>hv</authorinitials>
+	<revremark>Rewrote Colorspace chapter, added new &v4l2-ycbcr-encoding; and &v4l2-quantization; fields
+to &v4l2-pix-format;, &v4l2-pix-format-mplane; and &v4l2-mbus-framefmt;.
+	</revremark>
+      </revision>
+
+      <revision>
 	<revnumber>3.17</revnumber>
 	<date>2014-08-04</date>
 	<authorinitials>lp, hv</authorinitials>
@@ -539,7 +548,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.17</subtitle>
+ <subtitle>Revision 3.19</subtitle>
 
   <chapter id="common">
     &sub-common;

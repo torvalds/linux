@@ -89,15 +89,17 @@ static const char *aer_correctable_error_string[] = {
 	NULL,
 	"Replay Timer Timeout",		/* Bit Position 12	*/
 	"Advisory Non-Fatal",		/* Bit Position 13	*/
+	"Corrected Internal Error",	/* Bit Position 14	*/
+	"Header Log Overflow",		/* Bit Position 15	*/
 };
 
 static const char *aer_uncorrectable_error_string[] = {
-	NULL,
+	"Undefined",			/* Bit Position 0	*/
 	NULL,
 	NULL,
 	NULL,
 	"Data Link Protocol",		/* Bit Position 4	*/
-	NULL,
+	"Surprise Down Error",		/* Bit Position 5	*/
 	NULL,
 	NULL,
 	NULL,
@@ -113,6 +115,11 @@ static const char *aer_uncorrectable_error_string[] = {
 	"Malformed TLP",		/* Bit Position 18	*/
 	"ECRC",				/* Bit Position 19	*/
 	"Unsupported Request",		/* Bit Position 20	*/
+	"ACS Violation",		/* Bit Position 21	*/
+	"Uncorrectable Internal Error",	/* Bit Position 22	*/
+	"MC Blocked TLP",		/* Bit Position 23	*/
+	"AtomicOp Egress Blocked",	/* Bit Position 24	*/
+	"TLP Prefix Blocked Error",	/* Bit Position 25	*/
 };
 
 static const char *aer_agent_string[] = {

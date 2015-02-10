@@ -544,6 +544,7 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 	u32 tx_win_size = priv->add_ba_param.tx_win_size;
 	static u8 dialog_tok;
 	int ret;
+	unsigned long flags;
 	u16 block_ack_param_set;
 
 	dev_dbg(priv->adapter->dev, "cmd: %s: tid %d\n", __func__, tid);
@@ -554,15 +555,18 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 	    memcmp(priv->cfg_bssid, peer_mac, ETH_ALEN)) {
 		struct mwifiex_sta_node *sta_ptr;
 
+		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 		sta_ptr = mwifiex_get_sta_entry(priv, peer_mac);
 		if (!sta_ptr) {
 			dev_warn(priv->adapter->dev,
 				 "BA setup with unknown TDLS peer %pM!\n",
 				peer_mac);
+			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 			return -1;
 		}
 		if (sta_ptr->is_11ac_enabled)
 			tx_win_size = MWIFIEX_11AC_STA_AMPDU_DEF_TXWINSIZE;
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 	}
 
 	block_ack_param_set = (u16)((tid << BLOCKACKPARAM_TID_POS) |

@@ -1543,16 +1543,21 @@ static int qp_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 	int align;
 	int base;
 	int qpn;
+	u8 flags;
 
 	switch (op) {
 	case RES_OP_RESERVE:
-		count = get_param_l(&in_param);
+		count = get_param_l(&in_param) & 0xffffff;
+		/* Turn off all unsupported QP allocation flags that the
+		 * slave tries to set.
+		 */
+		flags = (get_param_l(&in_param) >> 24) & dev->caps.alloc_res_qp_mask;
 		align = get_param_h(&in_param);
 		err = mlx4_grant_resource(dev, slave, RES_QP, count, 0);
 		if (err)
 			return err;
 
-		err = __mlx4_qp_reserve_range(dev, count, align, &base);
+		err = __mlx4_qp_reserve_range(dev, count, align, &base, flags);
 		if (err) {
 			mlx4_release_resource(dev, slave, RES_QP, count, 0);
 			return err;
@@ -2869,6 +2874,23 @@ out_move:
 	res_abort_move(dev, slave, RES_EQ, res_id);
 out_add:
 	rem_res_range(dev, slave, res_id, 1, RES_EQ, 0);
+	return err;
+}
+
+int mlx4_CONFIG_DEV_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd)
+{
+	int err;
+	u8 get = vhcr->op_modifier;
+
+	if (get != 1)
+		return -EPERM;
+
+	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+
 	return err;
 }
 

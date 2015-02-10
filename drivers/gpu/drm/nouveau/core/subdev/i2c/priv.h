@@ -5,6 +5,7 @@
 
 extern struct nouveau_oclass nv04_i2c_pad_oclass;
 extern struct nouveau_oclass nv94_i2c_pad_oclass;
+extern struct nouveau_oclass gm204_i2c_pad_oclass;
 
 #define nouveau_i2c_port_create(p,e,o,i,a,f,d)                                 \
 	nouveau_i2c_port_create_((p), (e), (o), (i), (a), (f),                 \
@@ -81,5 +82,8 @@ struct nouveau_i2c_impl {
 
 void nv94_aux_stat(struct nouveau_i2c *, u32 *, u32 *, u32 *, u32 *);
 void nv94_aux_mask(struct nouveau_i2c *, u32, u32, u32);
+
+void nve0_aux_stat(struct nouveau_i2c *, u32 *, u32 *, u32 *, u32 *);
+void nve0_aux_mask(struct nouveau_i2c *, u32, u32, u32);
 
 #endif

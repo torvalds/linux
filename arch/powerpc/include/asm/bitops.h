@@ -14,9 +14,9 @@
  *
  * The bitop functions are defined to work on unsigned longs, so for a
  * ppc64 system the bits end up numbered:
- *   |63..............0|127............64|191...........128|255...........196|
+ *   |63..............0|127............64|191...........128|255...........192|
  * and on ppc32:
- *   |31.....0|63....31|95....64|127...96|159..128|191..160|223..192|255..224|
+ *   |31.....0|63....32|95....64|127...96|159..128|191..160|223..192|255..224|
  *
  * There are a few little-endian macros used mostly for filesystem
  * bitmaps, these work on similar bit arrays layouts, but
@@ -213,7 +213,7 @@ static __inline__ unsigned long ffz(unsigned long x)
 	return __ilog2(x & -x);
 }
 
-static __inline__ int __ffs(unsigned long x)
+static __inline__ unsigned long __ffs(unsigned long x)
 {
 	return __ilog2(x & -x);
 }

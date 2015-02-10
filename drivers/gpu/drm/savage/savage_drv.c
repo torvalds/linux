@@ -40,7 +40,7 @@ static const struct file_operations savage_driver_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_mmap,
+	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
@@ -57,6 +57,7 @@ static struct drm_driver driver = {
 	.preclose = savage_reclaim_buffers,
 	.lastclose = savage_driver_lastclose,
 	.unload = savage_driver_unload,
+	.set_busid = drm_pci_set_busid,
 	.ioctls = savage_ioctls,
 	.dma_ioctl = savage_bci_buffers,
 	.fops = &savage_driver_fops,

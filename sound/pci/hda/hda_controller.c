@@ -1676,7 +1676,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	u8 sd_status;
 	int i;
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
 		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
@@ -1922,10 +1922,18 @@ int azx_mixer_create(struct azx *chip)
 EXPORT_SYMBOL_GPL(azx_mixer_create);
 
 
+static bool is_input_stream(struct azx *chip, unsigned char index)
+{
+	return (index >= chip->capture_index_offset &&
+		index < chip->capture_index_offset + chip->capture_streams);
+}
+
 /* initialize SD streams */
 int azx_init_stream(struct azx *chip)
 {
 	int i;
+	int in_stream_tag = 0;
+	int out_stream_tag = 0;
 
 	/* initialize each stream (aka device)
 	 * assign the starting bdl address to each stream (device)
@@ -1938,9 +1946,21 @@ int azx_init_stream(struct azx *chip)
 		azx_dev->sd_addr = chip->remap_addr + (0x20 * i + 0x80);
 		/* int mask: SDI0=0x01, SDI1=0x02, ... SDO3=0x80 */
 		azx_dev->sd_int_sta_mask = 1 << i;
-		/* stream tag: must be non-zero and unique */
 		azx_dev->index = i;
-		azx_dev->stream_tag = i + 1;
+
+		/* stream tag must be unique throughout
+		 * the stream direction group,
+		 * valid values 1...15
+		 * use separate stream tag if the flag
+		 * AZX_DCAPS_SEPARATE_STREAM_TAG is used
+		 */
+		if (chip->driver_caps & AZX_DCAPS_SEPARATE_STREAM_TAG)
+			azx_dev->stream_tag =
+				is_input_stream(chip, i) ?
+				++in_stream_tag :
+				++out_stream_tag;
+		else
+			azx_dev->stream_tag = i + 1;
 	}
 
 	return 0;

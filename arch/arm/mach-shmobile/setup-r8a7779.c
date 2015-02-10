@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -52,14 +48,14 @@
 #include "r8a7779.h"
 
 static struct map_desc r8a7779_io_desc[] __initdata = {
-	/* 2M entity map for 0xf0000000 (MPCORE) */
+	/* 2M identity mapping for 0xf0000000 (MPCORE) */
 	{
 		.virtual	= 0xf0000000,
 		.pfn		= __phys_to_pfn(0xf0000000),
 		.length		= SZ_2M,
 		.type		= MT_DEVICE_NONSHARED
 	},
-	/* 16M entity map for 0xfexxxxxx (DMAC-S/HPBREG/INTC2/LRAM/DBSC) */
+	/* 16M identity mapping for 0xfexxxxxx (DMAC-S/HPBREG/INTC2/LRAM/DBSC) */
 	{
 		.virtual	= 0xfe000000,
 		.pfn		= __phys_to_pfn(0xfe000000),
@@ -70,6 +66,7 @@ static struct map_desc r8a7779_io_desc[] __initdata = {
 
 void __init r8a7779_map_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(r8a7779_io_desc, ARRAY_SIZE(r8a7779_io_desc));
 }
 
@@ -641,7 +638,7 @@ static void __init r8a7779_register_hpb_dmae(void)
 					  sizeof(dma_platform_data));
 }
 
-static struct platform_device *r8a7779_devices_dt[] __initdata = {
+static struct platform_device *r8a7779_early_devices[] __initdata = {
 	&tmu0_device,
 };
 
@@ -669,8 +666,8 @@ void __init r8a7779_add_standard_devices(void)
 
 	r8a7779_init_pm_domains();
 
-	platform_add_devices(r8a7779_devices_dt,
-			    ARRAY_SIZE(r8a7779_devices_dt));
+	platform_add_devices(r8a7779_early_devices,
+			    ARRAY_SIZE(r8a7779_early_devices));
 	platform_add_devices(r8a7779_standard_devices,
 			    ARRAY_SIZE(r8a7779_standard_devices));
 	r8a7779_register_hpb_dmae();
@@ -678,12 +675,12 @@ void __init r8a7779_add_standard_devices(void)
 
 void __init r8a7779_add_early_devices(void)
 {
-	early_platform_add_devices(r8a7779_devices_dt,
-				   ARRAY_SIZE(r8a7779_devices_dt));
+	early_platform_add_devices(r8a7779_early_devices,
+				   ARRAY_SIZE(r8a7779_early_devices));
 
 	/* Early serial console setup is not included here due to
 	 * memory map collisions. The SCIF serial ports in r8a7779
-	 * are difficult to entity map 1:1 due to collision with the
+	 * are difficult to identity map 1:1 due to collision with the
 	 * virtual memory range used by the coherent DMA code on ARM.
 	 *
 	 * Anyone wanting to debug early can remove UPF_IOREMAP from
@@ -739,12 +736,6 @@ void __init r8a7779_init_irq_dt(void)
 	__raw_writel(0x003fee3f, INT2SMSKCR4);
 }
 
-void __init r8a7779_add_standard_devices_dt(void)
-{
-	platform_add_devices(r8a7779_devices_dt,
-			     ARRAY_SIZE(r8a7779_devices_dt));
-}
-
 #define MODEMR		0xffcc0020
 
 u32 __init r8a7779_read_mode_pins(void)
@@ -771,10 +762,8 @@ static const char *r8a7779_compat_dt[] __initdata = {
 DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.map_io		= r8a7779_map_io,
 	.init_early	= shmobile_init_delay,
-	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= r8a7779_init_irq_dt,
-	.init_machine	= r8a7779_add_standard_devices_dt,
-	.init_late	= r8a7779_init_late,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7779_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

@@ -15,10 +15,10 @@
  */
 
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/hsmmc-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include "omap_hwmod.h"
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 #include "cm33xx.h"
 #include "prm33xx.h"
@@ -836,7 +836,7 @@ static struct omap_hwmod_class am33xx_mmc_hwmod_class = {
 };
 
 /* mmc0 */
-static struct omap_mmc_dev_attr am33xx_mmc0_dev_attr = {
+static struct omap_hsmmc_dev_attr am33xx_mmc0_dev_attr = {
 	.flags		= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 
@@ -854,7 +854,7 @@ struct omap_hwmod am33xx_mmc0_hwmod = {
 };
 
 /* mmc1 */
-static struct omap_mmc_dev_attr am33xx_mmc1_dev_attr = {
+static struct omap_hsmmc_dev_attr am33xx_mmc1_dev_attr = {
 	.flags		= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 
@@ -872,7 +872,7 @@ struct omap_hwmod am33xx_mmc1_hwmod = {
 };
 
 /* mmc2 */
-static struct omap_mmc_dev_attr am33xx_mmc2_dev_attr = {
+static struct omap_hsmmc_dev_attr am33xx_mmc2_dev_attr = {
 	.flags		= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 struct omap_hwmod am33xx_mmc2_hwmod = {

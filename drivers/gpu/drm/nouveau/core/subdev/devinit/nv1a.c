@@ -34,4 +34,5 @@ nv1a_devinit_oclass = &(struct nouveau_devinit_impl) {
 		.fini = nv04_devinit_fini,
 	},
 	.pll_set = nv04_devinit_pll_set,
+	.post = nvbios_init,
 }.base;

@@ -1,0 +1,151 @@
+/*
+ * Device Tree for the ST-Ericsson Nomadik S8815 board
+ * Produced by Calao Systems
+ */
+
+/dts-v1/;
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include "ste-nomadik-stn8815.dtsi"
+
+/ {
+	model = "Nomadik STN8815NHK";
+	compatible = "st,nomadik-nhk-15";
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAMA1,115200n8 earlyprintk";
+	};
+
+	aliases {
+		stmpe-i2c0 = &stmpe0;
+		stmpe-i2c1 = &stmpe1;
+	};
+
+	pinctrl {
+		stmpe2401_1 {
+			stmpe2401_1_nhk_mode: stmpe2401_1_nhk {
+				nhk_cfg1 {
+					ste,pins = "GPIO76_B20"; // IRQ line
+					ste,input = <0>;
+				};
+				nhk_cfg2 {
+					ste,pins = "GPIO77_B8"; // reset line
+					ste,output = <1>;
+				};
+			};
+		};
+		stmpe2401_2 {
+			stmpe2401_2_nhk_mode: stmpe2401_2_nhk {
+				nhk_cfg1 {
+					ste,pins = "GPIO78_A8"; // IRQ line
+					ste,input = <0>;
+				};
+				nhk_cfg2 {
+					ste,pins = "GPIO79_C9"; // reset line
+					ste,output = <1>;
+				};
+			};
+		};
+	};
+
+	src@101e0000 {
+		/* These chrystal outputs are not used on this board */
+		disable-sxtalo;
+		disable-mxtalo;
+	};
+
+	/* This is where the interrupt is routed on the NHK-15 debug board */
+	external-bus@34000000 {
+		compatible = "simple-bus";
+		reg = <0x34000000 0x1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x34000000 0x1000000>;
+		ethernet@300 {
+			compatible = "smsc,lan91c111";
+			reg = <0x300 0x0fd00>;
+			reg-io-width = <2>;
+			reset-gpios = <&stmpe_gpio44 10 GPIO_ACTIVE_HIGH>;
+			interrupt-parent = <&stmpe_gpio44>;
+			interrupts = <11 IRQ_TYPE_EDGE_RISING>;
+		};
+	};
+
+	i2c0 {
+		stmpe0: stmpe2401@43 {
+			compatible = "st,stmpe2401";
+			reg = <0x43>;
+			reset-gpios = <&gpio2 13 GPIO_ACTIVE_LOW>; // GPIO77
+			interrupts = <12 IRQ_TYPE_EDGE_FALLING>; // GPIO76
+			interrupt-parent = <&gpio2>;
+			interrupt-controller;
+			wakeup-source;
+			pinctrl-names = "default";
+			pinctrl-0 = <&stmpe2401_1_nhk_mode>;
+			stmpe_gpio43: stmpe_gpio {
+				compatible = "st,stmpe-gpio";
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				/* Some pins in alternate functions */
+				st,norequest-mask = <0xf0f002>;
+			};
+			stmpe_keypad {
+				compatible = "st,stmpe-keypad";
+				debounce-interval = <64>;
+				st,scan-count = <8>;
+				st,no-autorepeat;
+				keypad,num-rows = <8>;
+				keypad,num-columns = <8>;
+				linux,keymap = <0x00020072 // Vol down
+						0x00030073 // Vol up
+						0x0100009e // Back
+						0x010100e3 // TV out
+						0x01020098 // Lock
+						0x0103013b // Start
+						0x020000a3 // Next
+						0x020100a4 // Play
+						0x020200a5 // Prev
+						0x02030160 // OK
+						0x03000069 // Left
+						0x0301006a // Right
+						0x03020067 // Up
+						0x0303006c>; // Down
+			};
+		};
+		stmpe1: stmpe2401@44 {
+			compatible = "st,stmpe2401";
+			reg = <0x44>;
+			reset-gpios = <&gpio2 15 GPIO_ACTIVE_LOW>; // GPIO79
+			interrupts = <14 IRQ_TYPE_EDGE_FALLING>; // GPIO78
+			interrupt-parent = <&gpio2>;
+			interrupt-controller;
+			wakeup-source;
+			pinctrl-names = "default";
+			pinctrl-0 = <&stmpe2401_2_nhk_mode>;
+			stmpe_gpio44: stmpe_gpio {
+				compatible = "st,stmpe-gpio";
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+		};
+	};
+
+	amba {
+		mmcsd: sdi@101f6000 {
+			cd-gpios = <&stmpe_gpio44 7 GPIO_ACTIVE_LOW>;
+			wp-gpios = <&stmpe_gpio44 18 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	/* Custom board node with GPIO pins to active etc */
+	usb-s8815 {
+		/* This will turn off SATA so that MMC/SD can thrive */
+		mmcsd-gpio {
+			gpios = <&stmpe_gpio44 2 0x1>;
+		};
+	};
+};

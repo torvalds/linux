@@ -21,13 +21,13 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
-#include <linux/unaligned/access_ok.h>
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
+#include <asm/unaligned.h>
 
 #include <asm/dma.h>
 #include <asm/portmux.h>
@@ -724,7 +724,6 @@ static struct platform_driver bfin_crypto_crc_driver = {
 	.resume    = bfin_crypto_crc_resume,
 	.driver    = {
 		.name  = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 

@@ -10,10 +10,67 @@
 #include "dm-persistent-data-internal.h"
 
 #include <linux/export.h>
+#include <linux/mutex.h>
+#include <linux/hash.h>
 #include <linux/slab.h>
 #include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "transaction manager"
+
+/*----------------------------------------------------------------*/
+
+#define PREFETCH_SIZE 128
+#define PREFETCH_BITS 7
+#define PREFETCH_SENTINEL ((dm_block_t) -1ULL)
+
+struct prefetch_set {
+	struct mutex lock;
+	dm_block_t blocks[PREFETCH_SIZE];
+};
+
+static unsigned prefetch_hash(dm_block_t b)
+{
+	return hash_64(b, PREFETCH_BITS);
+}
+
+static void prefetch_wipe(struct prefetch_set *p)
+{
+	unsigned i;
+	for (i = 0; i < PREFETCH_SIZE; i++)
+		p->blocks[i] = PREFETCH_SENTINEL;
+}
+
+static void prefetch_init(struct prefetch_set *p)
+{
+	mutex_init(&p->lock);
+	prefetch_wipe(p);
+}
+
+static void prefetch_add(struct prefetch_set *p, dm_block_t b)
+{
+	unsigned h = prefetch_hash(b);
+
+	mutex_lock(&p->lock);
+	if (p->blocks[h] == PREFETCH_SENTINEL)
+		p->blocks[h] = b;
+
+	mutex_unlock(&p->lock);
+}
+
+static void prefetch_issue(struct prefetch_set *p, struct dm_block_manager *bm)
+{
+	unsigned i;
+
+	mutex_lock(&p->lock);
+
+	for (i = 0; i < PREFETCH_SIZE; i++)
+		if (p->blocks[i] != PREFETCH_SENTINEL) {
+			dm_bm_prefetch(bm, p->blocks[i]);
+			p->blocks[i] = PREFETCH_SENTINEL;
+		}
+
+	mutex_unlock(&p->lock);
+}
 
 /*----------------------------------------------------------------*/
 
@@ -37,6 +94,8 @@ struct dm_transaction_manager {
 
 	spinlock_t lock;
 	struct hlist_head buckets[DM_HASH_SIZE];
+
+	struct prefetch_set prefetches;
 };
 
 /*----------------------------------------------------------------*/
@@ -116,6 +175,8 @@ static struct dm_transaction_manager *dm_tm_create(struct dm_block_manager *bm,
 	spin_lock_init(&tm->lock);
 	for (i = 0; i < DM_HASH_SIZE; i++)
 		INIT_HLIST_HEAD(tm->buckets + i);
+
+	prefetch_init(&tm->prefetches);
 
 	return tm;
 }
@@ -268,8 +329,14 @@ int dm_tm_read_lock(struct dm_transaction_manager *tm, dm_block_t b,
 		    struct dm_block_validator *v,
 		    struct dm_block **blk)
 {
-	if (tm->is_clone)
-		return dm_bm_read_try_lock(tm->real->bm, b, v, blk);
+	if (tm->is_clone) {
+		int r = dm_bm_read_try_lock(tm->real->bm, b, v, blk);
+
+		if (r == -EWOULDBLOCK)
+			prefetch_add(&tm->real->prefetches, b);
+
+		return r;
+	}
 
 	return dm_bm_read_lock(tm->bm, b, v, blk);
 }
@@ -316,6 +383,12 @@ struct dm_block_manager *dm_tm_get_bm(struct dm_transaction_manager *tm)
 {
 	return tm->bm;
 }
+
+void dm_tm_issue_prefetches(struct dm_transaction_manager *tm)
+{
+	prefetch_issue(&tm->prefetches, tm->bm);
+}
+EXPORT_SYMBOL_GPL(dm_tm_issue_prefetches);
 
 /*----------------------------------------------------------------*/
 

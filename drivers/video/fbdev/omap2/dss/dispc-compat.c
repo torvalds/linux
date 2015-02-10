@@ -634,13 +634,14 @@ void dispc_mgr_disable_sync(enum omap_channel channel)
 		WARN_ON(1);
 }
 
+static inline void dispc_irq_wait_handler(void *data, u32 mask)
+{
+	complete((struct completion *)data);
+}
+
 int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 		unsigned long timeout)
 {
-	void dispc_irq_wait_handler(void *data, u32 mask)
-	{
-		complete((struct completion *)data);
-	}
 
 	int r;
 	DECLARE_COMPLETION_ONSTACK(completion);

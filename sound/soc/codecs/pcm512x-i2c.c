@@ -24,8 +24,13 @@ static int pcm512x_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
 	struct regmap *regmap;
+	struct regmap_config config = pcm512x_regmap;
 
-	regmap = devm_regmap_init_i2c(i2c, &pcm512x_regmap);
+	/* msb needs to be set to enable auto-increment of addresses */
+	config.read_flag_mask = 0x80;
+	config.write_flag_mask = 0x80;
+
+	regmap = devm_regmap_init_i2c(i2c, &config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 

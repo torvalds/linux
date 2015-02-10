@@ -294,7 +294,7 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 
 	mbus_fmt.width = cx->cxhdl.width = w;
 	mbus_fmt.height = cx->cxhdl.height = h;
-	mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
+	mbus_fmt.code = MEDIA_BUS_FMT_FIXED;
 	v4l2_subdev_call(cx->sd_av, video, s_mbus_fmt, &mbus_fmt);
 	return cx18_g_fmt_vid_cap(file, fh, fmt);
 }
@@ -393,15 +393,16 @@ static int cx18_querycap(struct file *file, void *fh,
 				struct v4l2_capability *vcap)
 {
 	struct cx18_open_id *id = fh2id(fh);
+	struct cx18_stream *s = video_drvdata(file);
 	struct cx18 *cx = id->cx;
 
 	strlcpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, cx->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
 		 "PCI:%s", pci_name(cx->pci_dev));
-	vcap->capabilities = cx->v4l2_cap; 	    /* capabilities */
-	if (id->type == CX18_ENC_STREAM_TYPE_YUV)
-		vcap->capabilities |= V4L2_CAP_STREAMING;
+	vcap->capabilities = cx->v4l2_cap;	/* capabilities */
+	vcap->device_caps = s->v4l2_dev_caps;	/* device capabilities */
+	vcap->capabilities |= V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 

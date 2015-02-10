@@ -525,6 +525,13 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	}
 #endif
 
+	/*
+	 * This is only needed to tell the kernel whether to use VMCALL
+	 * and VMMCALL.  VMMCALL is never executed except under virt, so
+	 * we can set it unconditionally.
+	 */
+	set_cpu_cap(c, X86_FEATURE_VMMCALL);
+
 	/* F16h erratum 793, CVE-2013-6885 */
 	if (c->x86 == 0x16 && c->x86_model <= 0xf)
 		msr_set_bit(MSR_AMD64_LS_CFG, 15);
@@ -559,6 +566,17 @@ static void init_amd_k8(struct cpuinfo_x86 *c)
 
 	if (!c->x86_model_id[0])
 		strcpy(c->x86_model_id, "Hammer");
+
+#ifdef CONFIG_SMP
+	/*
+	 * Disable TLB flush filter by setting HWCR.FFDIS on K8
+	 * bit 6 of msr C001_0015
+	 *
+	 * Errata 63 for SH-B3 steppings
+	 * Errata 122 for all steppings (F+ have it disabled by default)
+	 */
+	msr_set_bit(MSR_K7_HWCR, 6);
+#endif
 }
 
 static void init_amd_gh(struct cpuinfo_x86 *c)
@@ -628,18 +646,6 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 static void init_amd(struct cpuinfo_x86 *c)
 {
 	u32 dummy;
-
-#ifdef CONFIG_SMP
-	/*
-	 * Disable TLB flush filter by setting HWCR.FFDIS on K8
-	 * bit 6 of msr C001_0015
-	 *
-	 * Errata 63 for SH-B3 steppings
-	 * Errata 122 for all steppings (F+ have it disabled by default)
-	 */
-	if (c->x86 == 0xf)
-		msr_set_bit(MSR_K7_HWCR, 6);
-#endif
 
 	early_init_amd(c);
 

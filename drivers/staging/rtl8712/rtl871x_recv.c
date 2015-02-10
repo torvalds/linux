@@ -73,8 +73,8 @@ sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
 	precvpriv->adapter = padapter;
 	precvpriv->free_recvframe_cnt = NR_RECVFRAME;
 	precvpriv->pallocated_frame_buf = kmalloc(NR_RECVFRAME *
-						  sizeof(union recv_frame) + RXFRAME_ALIGN_SZ,
-						  GFP_ATOMIC);
+				sizeof(union recv_frame) + RXFRAME_ALIGN_SZ,
+				GFP_ATOMIC);
 	if (precvpriv->pallocated_frame_buf == NULL)
 		return _FAIL;
 	kmemleak_not_leak(precvpriv->pallocated_frame_buf);
@@ -601,7 +601,7 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 {
 	/*remove the wlanhdr and add the eth_hdr*/
 	sint	rmv_len;
-	u16	eth_type, len;
+	u16	len;
 	u8	bsnaphdr;
 	u8	*psnap_type;
 	struct ieee80211_snap_hdr *psnap;
@@ -631,11 +631,10 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	rmv_len = pattrib->hdrlen + pattrib->iv_len +
 		  (bsnaphdr ? SNAP_SIZE : 0);
 	len = precvframe->u.hdr.len - rmv_len;
-	if ((check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
 		ptr += rmv_len;
 		*ptr = 0x87;
 		*(ptr+1) = 0x12;
-		eth_type = 0x8712;
 		/* append rx status for mp test packets */
 		ptr = recvframe_pull(precvframe, (rmv_len -
 		      sizeof(struct ethhdr) + 2) - 24);
@@ -658,27 +657,11 @@ s32 r8712_recv_entry(union recv_frame *precvframe)
 {
 	struct _adapter *padapter;
 	struct recv_priv *precvpriv;
-	struct	mlme_priv *pmlmepriv;
-	struct recv_stat *prxstat;
-	struct dvobj_priv *pdev;
-	u8 *phead, *pdata, *ptail, *pend;
 
-	struct  __queue *pfree_recv_queue, *ppending_recv_queue;
 	s32 ret = _SUCCESS;
-	struct intf_hdl *pintfhdl;
 
 	padapter = precvframe->u.hdr.adapter;
-	pintfhdl = &padapter->pio_queue->intf;
-	pmlmepriv = &padapter->mlmepriv;
 	precvpriv = &(padapter->recvpriv);
-	pdev = &padapter->dvobjpriv;
-	pfree_recv_queue = &(precvpriv->free_recv_queue);
-	ppending_recv_queue = &(precvpriv->recv_pending_queue);
-	phead = precvframe->u.hdr.rx_head;
-	pdata = precvframe->u.hdr.rx_data;
-	ptail = precvframe->u.hdr.rx_tail;
-	pend = precvframe->u.hdr.rx_end;
-	prxstat = (struct recv_stat *)phead;
 
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_RX);
 

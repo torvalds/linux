@@ -494,7 +494,9 @@ out:
 	return ret;
 }
 
-static void wcn36xx_sw_scan_start(struct ieee80211_hw *hw)
+static void wcn36xx_sw_scan_start(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  const u8 *mac_addr)
 {
 	struct wcn36xx *wcn = hw->priv;
 
@@ -502,7 +504,8 @@ static void wcn36xx_sw_scan_start(struct ieee80211_hw *hw)
 	wcn36xx_smd_start_scan(wcn);
 }
 
-static void wcn36xx_sw_scan_complete(struct ieee80211_hw *hw)
+static void wcn36xx_sw_scan_complete(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif)
 {
 	struct wcn36xx *wcn = hw->priv;
 
@@ -1075,7 +1078,6 @@ static struct platform_driver wcn36xx_driver = {
 	.remove     = wcn36xx_remove,
 	.driver         = {
 		.name   = "wcn36xx",
-		.owner  = THIS_MODULE,
 	},
 	.id_table    = wcn36xx_platform_id_table,
 };

@@ -366,7 +366,7 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		wake_up_all(&lov->lo_waitq);
 }
 
-static obd_off lov_offset_mod(obd_off val, int delta)
+static u64 lov_offset_mod(u64 val, int delta)
 {
 	if (val != OBD_OBJECT_EOF)
 		val += delta;
@@ -379,9 +379,9 @@ static int lov_io_iter_init(const struct lu_env *env,
 	struct lov_io	*lio = cl2lov_io(env, ios);
 	struct lov_stripe_md *lsm = lio->lis_object->lo_lsm;
 	struct lov_io_sub    *sub;
-	obd_off endpos;
-	obd_off start;
-	obd_off end;
+	u64 endpos;
+	u64 start;
+	u64 end;
 	int stripe;
 	int rc = 0;
 

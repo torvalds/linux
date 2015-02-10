@@ -1038,32 +1038,21 @@ static struct snd_soc_dai_driver alc5632_dai = {
 };
 
 #ifdef CONFIG_PM
-static int alc5632_suspend(struct snd_soc_codec *codec)
-{
-	alc5632_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int alc5632_resume(struct snd_soc_codec *codec)
 {
 	struct alc5632_priv *alc5632 = snd_soc_codec_get_drvdata(codec);
 
 	regcache_sync(alc5632->regmap);
 
-	alc5632_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
 #else
-#define	alc5632_suspend	NULL
 #define	alc5632_resume	NULL
 #endif
 
 static int alc5632_probe(struct snd_soc_codec *codec)
 {
 	struct alc5632_priv *alc5632 = snd_soc_codec_get_drvdata(codec);
-
-	/* power on device  */
-	alc5632_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	switch (alc5632->id) {
 	case 0x5c:
@@ -1077,19 +1066,12 @@ static int alc5632_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/* power down chip */
-static int alc5632_remove(struct snd_soc_codec *codec)
-{
-	alc5632_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_device_alc5632 = {
 	.probe = alc5632_probe,
-	.remove = alc5632_remove,
-	.suspend = alc5632_suspend,
 	.resume = alc5632_resume,
 	.set_bias_level = alc5632_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls = alc5632_snd_controls,
 	.num_controls = ARRAY_SIZE(alc5632_snd_controls),
 	.dapm_widgets = alc5632_dapm_widgets,

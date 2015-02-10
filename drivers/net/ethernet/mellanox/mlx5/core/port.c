@@ -68,9 +68,9 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 		memcpy(data_out, out->data, size_out);
 
 ex2:
-	mlx5_vfree(out);
+	kvfree(out);
 ex1:
-	mlx5_vfree(in);
+	kvfree(in);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_access_reg);

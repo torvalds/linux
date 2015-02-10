@@ -20,7 +20,7 @@ spu-manage-$(CONFIG_PPC_CELL_COMMON)	+= spu_manage.o
 
 obj-$(CONFIG_SPU_BASE)			+= spu_callbacks.o spu_base.o \
 					   spu_notify.o \
-					   spu_syscalls.o spu_fault.o \
+					   spu_syscalls.o \
 					   $(spu-priv1-y) \
 					   $(spu-manage-y) \
 					   spufs/

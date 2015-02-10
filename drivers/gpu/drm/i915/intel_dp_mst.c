@@ -278,20 +278,12 @@ static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-intel_mst_port_dp_detect(struct drm_connector *connector)
+intel_dp_mst_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_dp *intel_dp = intel_connector->mst_port;
 
-	return drm_dp_mst_detect_port(&intel_dp->mst_mgr, intel_connector->port);
-}
-
-static enum drm_connector_status
-intel_dp_mst_detect(struct drm_connector *connector, bool force)
-{
-	enum drm_connector_status status;
-	status = intel_mst_port_dp_detect(connector);
-	return status;
+	return drm_dp_mst_detect_port(connector, &intel_dp->mst_mgr, intel_connector->port);
 }
 
 static int
@@ -393,7 +385,7 @@ static void intel_connector_remove_from_fbdev(struct intel_connector *connector)
 #endif
 }
 
-static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, char *pathprop)
+static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, const char *pathprop)
 {
 	struct intel_dp *intel_dp = container_of(mgr, struct intel_dp, mst_mgr);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -422,6 +414,8 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	intel_dp_add_properties(intel_dp, connector);
 
 	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
+	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
+
 	drm_mode_connector_set_path_property(connector, pathprop);
 	drm_reinit_primary_mode_group(dev);
 	mutex_lock(&dev->mode_config.mutex);

@@ -437,7 +437,7 @@ static struct cpufreq_governor *__find_governor(const char *str_governor)
 	struct cpufreq_governor *t;
 
 	list_for_each_entry(t, &cpufreq_governor_list, governor_list)
-		if (!strnicmp(str_governor, t->name, CPUFREQ_NAME_LEN))
+		if (!strncasecmp(str_governor, t->name, CPUFREQ_NAME_LEN))
 			return t;
 
 	return NULL;
@@ -455,10 +455,10 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 		goto out;
 
 	if (cpufreq_driver->setpolicy) {
-		if (!strnicmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
+		if (!strncasecmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
 			*policy = CPUFREQ_POLICY_PERFORMANCE;
 			err = 0;
-		} else if (!strnicmp(str_governor, "powersave",
+		} else if (!strncasecmp(str_governor, "powersave",
 						CPUFREQ_NAME_LEN)) {
 			*policy = CPUFREQ_POLICY_POWERSAVE;
 			err = 0;
@@ -512,7 +512,18 @@ show_one(cpuinfo_max_freq, cpuinfo.max_freq);
 show_one(cpuinfo_transition_latency, cpuinfo.transition_latency);
 show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);
-show_one(scaling_cur_freq, cur);
+
+static ssize_t show_scaling_cur_freq(
+	struct cpufreq_policy *policy, char *buf)
+{
+	ssize_t ret;
+
+	if (cpufreq_driver && cpufreq_driver->setpolicy && cpufreq_driver->get)
+		ret = sprintf(buf, "%u\n", cpufreq_driver->get(policy->cpu));
+	else
+		ret = sprintf(buf, "%u\n", policy->cur);
+	return ret;
+}
 
 static int cpufreq_set_policy(struct cpufreq_policy *policy,
 				struct cpufreq_policy *new_policy);
@@ -524,7 +535,7 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 static ssize_t store_##file_name					\
 (struct cpufreq_policy *policy, const char *buf, size_t count)		\
 {									\
-	int ret;							\
+	int ret, temp;							\
 	struct cpufreq_policy new_policy;				\
 									\
 	ret = cpufreq_get_policy(&new_policy, policy->cpu);		\
@@ -535,8 +546,10 @@ static ssize_t store_##file_name					\
 	if (ret != 1)							\
 		return -EINVAL;						\
 									\
+	temp = new_policy.object;					\
 	ret = cpufreq_set_policy(policy, &new_policy);		\
-	policy->user_policy.object = policy->object;			\
+	if (!ret)							\
+		policy->user_policy.object = temp;			\
 									\
 	return ret ? ret : count;					\
 }
@@ -887,46 +900,31 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy,
 	struct freq_attr **drv_attr;
 	int ret = 0;
 
-	/* prepare interface data */
-	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq,
-				   &dev->kobj, "cpufreq");
-	if (ret)
-		return ret;
-
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
 	while ((drv_attr) && (*drv_attr)) {
 		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
 		if (ret)
-			goto err_out_kobj_put;
+			return ret;
 		drv_attr++;
 	}
 	if (cpufreq_driver->get) {
 		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
 		if (ret)
-			goto err_out_kobj_put;
+			return ret;
 	}
-	if (has_target()) {
-		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
-		if (ret)
-			goto err_out_kobj_put;
-	}
+
+	ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
+	if (ret)
+		return ret;
+
 	if (cpufreq_driver->bios_limit) {
 		ret = sysfs_create_file(&policy->kobj, &bios_limit.attr);
 		if (ret)
-			goto err_out_kobj_put;
+			return ret;
 	}
 
-	ret = cpufreq_add_dev_symlink(policy);
-	if (ret)
-		goto err_out_kobj_put;
-
-	return ret;
-
-err_out_kobj_put:
-	kobject_put(&policy->kobj);
-	wait_for_completion(&policy->kobj_unregister);
-	return ret;
+	return cpufreq_add_dev_symlink(policy);
 }
 
 static void cpufreq_init_policy(struct cpufreq_policy *policy)
@@ -1011,7 +1009,8 @@ static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
 
 	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
-	policy->governor = NULL;
+	if (policy)
+		policy->governor = NULL;
 
 	return policy;
 }
@@ -1184,6 +1183,8 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 		goto err_set_policy_cpu;
 	}
 
+	down_write(&policy->rwsem);
+
 	/* related cpus should atleast have policy->cpus */
 	cpumask_or(policy->related_cpus, policy->related_cpus, policy->cpus);
 
@@ -1196,9 +1197,17 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	if (!recover_policy) {
 		policy->user_policy.min = policy->min;
 		policy->user_policy.max = policy->max;
+
+		/* prepare interface data */
+		ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq,
+					   &dev->kobj, "cpufreq");
+		if (ret) {
+			pr_err("%s: failed to init policy->kobj: %d\n",
+			       __func__, ret);
+			goto err_init_policy_kobj;
+		}
 	}
 
-	down_write(&policy->rwsem);
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 	for_each_cpu(j, policy->cpus)
 		per_cpu(cpufreq_cpu_data, j) = policy;
@@ -1276,7 +1285,12 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	up_write(&policy->rwsem);
 
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
+
 	up_read(&cpufreq_rwsem);
+
+	/* Callback for handling stuff after policy is ready */
+	if (cpufreq_driver->ready)
+		cpufreq_driver->ready(policy);
 
 	pr_debug("initialization complete\n");
 
@@ -1289,6 +1303,11 @@ err_get_freq:
 		per_cpu(cpufreq_cpu_data, j) = NULL;
 	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
+	if (!recover_policy) {
+		kobject_put(&policy->kobj);
+		wait_for_completion(&policy->kobj_unregister);
+	}
+err_init_policy_kobj:
 	up_write(&policy->rwsem);
 
 	if (cpufreq_driver->exit)
@@ -1382,7 +1401,7 @@ static int __cpufreq_remove_dev_prepare(struct device *dev,
 		if (!cpufreq_suspended)
 			pr_debug("%s: policy Kobject moved to cpu: %d from: %d\n",
 				 __func__, new_cpu, cpu);
-	} else if (cpufreq_driver->stop_cpu && cpufreq_driver->setpolicy) {
+	} else if (cpufreq_driver->stop_cpu) {
 		cpufreq_driver->stop_cpu(policy);
 	}
 
@@ -1731,6 +1750,21 @@ const char *cpufreq_get_current_driver(void)
 }
 EXPORT_SYMBOL_GPL(cpufreq_get_current_driver);
 
+/**
+ *	cpufreq_get_driver_data - return current driver data
+ *
+ *	Return the private data of the currently loaded cpufreq
+ *	driver, or NULL if no cpufreq driver is loaded.
+ */
+void *cpufreq_get_driver_data(void)
+{
+	if (cpufreq_driver)
+		return cpufreq_driver->driver_data;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(cpufreq_get_driver_data);
+
 /*********************************************************************
  *                     NOTIFIER LISTS INTERFACE                      *
  *********************************************************************/
@@ -1994,6 +2028,12 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 	/* Don't start any governor operations if we are entering suspend */
 	if (cpufreq_suspended)
 		return 0;
+	/*
+	 * Governor might not be initiated here if ACPI _PPC changed
+	 * notification happened, so check it.
+	 */
+	if (!policy->governor)
+		return -EINVAL;
 
 	if (policy->governor->max_transition_latency &&
 	    policy->cpuinfo.transition_latency >

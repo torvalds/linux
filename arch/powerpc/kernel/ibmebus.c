@@ -55,7 +55,7 @@ static struct device ibmebus_bus_device = { /* fake "parent" device */
 struct bus_type ibmebus_bus_type;
 
 /* These devices will automatically be added to the bus during init */
-static struct of_device_id __initdata ibmebus_matches[] = {
+static const struct of_device_id ibmebus_matches[] __initconst = {
 	{ .compatible = "IBM,lhca" },
 	{ .compatible = "IBM,lhea" },
 	{},

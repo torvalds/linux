@@ -140,12 +140,6 @@ static int rx_buf[RBUF_LEN];
 static unsigned int rx_tail, rx_head;
 
 static bool debug;
-#define dprintk(fmt, args...)						\
-	do {								\
-		if (debug)						\
-			printk(KERN_DEBUG LIRC_DRIVER_NAME ": "		\
-				fmt, ## args);				\
-	} while (0)
 
 /* SECTION: Prototypes */
 
@@ -280,6 +274,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	u32 __user *uptr = (u32 __user *)arg;
 	int retval = 0;
 	u32 value = 0;
+
 	if (cmd == LIRC_GET_FEATURES)
 		value = LIRC_CAN_SEND_PULSE | LIRC_CAN_REC_MODE2;
 	else if (cmd == LIRC_GET_SEND_MODE)
@@ -321,7 +316,7 @@ static void add_read_queue(int flag, unsigned long val)
 	unsigned int new_rx_tail;
 	int newval;
 
-	dprintk("add flag %d with val %lu\n", flag, val);
+	pr_debug("add flag %d with val %lu\n", flag, val);
 
 	newval = val & PULSE_MASK;
 
@@ -341,7 +336,7 @@ static void add_read_queue(int flag, unsigned long val)
 	}
 	new_rx_tail = (rx_tail + 1) & (RBUF_LEN - 1);
 	if (new_rx_tail == rx_head) {
-		dprintk("Buffer overrun.\n");
+		pr_debug("Buffer overrun.\n");
 		return;
 	}
 	rx_buf[rx_tail] = newval;
@@ -438,7 +433,8 @@ static void sir_timeout(unsigned long data)
 		outb(UART_FCR_CLEAR_RCVR, io + UART_FCR);
 		/* determine 'virtual' pulse end: */
 		pulse_end = delta(&last_tv, &last_intr_tv);
-		dprintk("timeout add %d for %lu usec\n", last_value, pulse_end);
+		dev_dbg(driver.dev, "timeout add %d for %lu usec\n",
+				    last_value, pulse_end);
 		add_read_queue(last_value, pulse_end);
 		last_value = 0;
 		last_tv = last_intr_tv;
@@ -478,14 +474,15 @@ static irqreturn_t sir_interrupt(int irq, void *dev_id)
 				do_gettimeofday(&curr_tv);
 				deltv = delta(&last_tv, &curr_tv);
 				deltintrtv = delta(&last_intr_tv, &curr_tv);
-				dprintk("t %lu, d %d\n", deltintrtv, (int)data);
+				dev_dbg(driver.dev, "t %lu, d %d\n",
+						    deltintrtv, (int)data);
 				/*
 				 * if nothing came in last X cycles,
 				 * it was gap
 				 */
 				if (deltintrtv > TIME_CONST * threshold) {
 					if (last_value) {
-						dprintk("GAP\n");
+						dev_dbg(driver.dev, "GAP\n");
 						/* simulate signal change */
 						add_read_queue(last_value,
 							       deltv -
@@ -930,7 +927,6 @@ static struct platform_driver lirc_sir_driver = {
 	.remove		= lirc_sir_remove,
 	.driver		= {
 		.name	= "lirc_sir",
-		.owner	= THIS_MODULE,
 	},
 };
 

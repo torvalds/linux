@@ -311,7 +311,6 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 		}
 	default:
 		BUG();
-		return 0;
 	}
 
 	if (mutex_lock_interruptible(vdev->lock))
@@ -399,7 +398,6 @@ static ssize_t fops_read(struct file *file, char __user *data, size_t count, lof
 		return -EINVAL;
 	default:
 		BUG();
-		return 0;
 	}
 }
 
@@ -423,7 +421,6 @@ static ssize_t fops_write(struct file *file, const char __user *data, size_t cou
 		return -EINVAL;
 	default:
 		BUG();
-		return -EINVAL;
 	}
 }
 

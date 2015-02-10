@@ -22,7 +22,9 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
 	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
 	DSO_BINARY_TYPE__GUEST_KMODULE,
+	DSO_BINARY_TYPE__GUEST_KMODULE_COMP,
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
+	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP,
 	DSO_BINARY_TYPE__KCORE,
 	DSO_BINARY_TYPE__GUEST_KCORE,
 	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
@@ -90,8 +92,18 @@ struct dso_cache {
 	char data[0];
 };
 
+/*
+ * DSOs are put into both a list for fast iteration and rbtree for fast
+ * long name lookup.
+ */
+struct dsos {
+	struct list_head head;
+	struct rb_root	 root;	/* rbtree root sorted by long name */
+};
+
 struct dso {
 	struct list_head node;
+	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	void		 *a2l;
@@ -117,6 +129,7 @@ struct dso {
 	const char	 *long_name;
 	u16		 long_name_len;
 	u16		 short_name_len;
+	void		*dwfl;			/* DWARF debug info */
 
 	/* dso data file */
 	struct {
@@ -127,6 +140,11 @@ struct dso {
 		size_t		 file_size;
 		struct list_head open_entry;
 	} data;
+
+	union { /* Tool specific area */
+		void	 *priv;
+		u64	 db_id;
+	};
 
 	char		 name[0];
 };
@@ -169,6 +187,11 @@ int dso__kernel_module_get_build_id(struct dso *dso, const char *root_dir);
 char dso__symtab_origin(const struct dso *dso);
 int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type type,
 				   char *root_dir, char *filename, size_t size);
+bool is_supported_compression(const char *ext);
+bool is_kmodule_extension(const char *ext);
+bool is_kernel_module(const char *pathname, bool *compressed);
+bool decompress_to_file(const char *ext, const char *filename, int output_fd);
+bool dso__needs_decompress(struct dso *dso);
 
 /*
  * The dso__data_* external interface provides following functions:
@@ -224,10 +247,10 @@ struct map *dso__new_map(const char *name);
 struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 				const char *short_name, int dso_type);
 
-void dsos__add(struct list_head *head, struct dso *dso);
-struct dso *dsos__find(const struct list_head *head, const char *name,
+void dsos__add(struct dsos *dsos, struct dso *dso);
+struct dso *dsos__find(const struct dsos *dsos, const char *name,
 		       bool cmp_short);
-struct dso *__dsos__findnew(struct list_head *head, const char *name);
+struct dso *__dsos__findnew(struct dsos *dsos, const char *name);
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,

@@ -49,11 +49,11 @@ static struct oz_serial_ctx *oz_cdev_claim_ctx(struct oz_pd *pd)
 {
 	struct oz_serial_ctx *ctx;
 
-	spin_lock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
-	ctx = (struct oz_serial_ctx *)pd->app_ctx[OZ_APPID_SERIAL-1];
+	spin_lock_bh(&pd->app_lock[OZ_APPID_SERIAL]);
+	ctx = (struct oz_serial_ctx *) pd->app_ctx[OZ_APPID_SERIAL];
 	if (ctx)
 		atomic_inc(&ctx->ref_count);
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL]);
 	return ctx;
 }
 
@@ -182,8 +182,8 @@ static ssize_t oz_cdev_write(struct file *filp, const char __user *buf,
 	app_hdr->app_id = OZ_APPID_SERIAL;
 	if (copy_from_user(app_hdr+1, buf, count))
 		goto out;
-	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	ctx = (struct oz_serial_ctx *)pd->app_ctx[OZ_APPID_SERIAL-1];
+	spin_lock_bh(&pd->app_lock[OZ_APPID_USB]);
+	ctx = (struct oz_serial_ctx *) pd->app_ctx[OZ_APPID_SERIAL];
 	if (ctx) {
 		app_hdr->elt_seq_num = ctx->tx_seq_num++;
 		if (ctx->tx_seq_num == 0)
@@ -193,7 +193,7 @@ static ssize_t oz_cdev_write(struct file *filp, const char __user *buf,
 			ei = NULL;
 		spin_unlock(&eb->lock);
 	}
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 out:
 	if (ei) {
 		count = 0;
@@ -263,6 +263,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case OZ_IOCTL_GET_PD_LIST: {
 			struct oz_pd_list list;
+
 			oz_dbg(ON, "OZ_IOCTL_GET_PD_LIST\n");
 			memset(&list, 0, sizeof(list));
 			list.count = oz_get_pd_list(list.addr, OZ_MAX_PDS);
@@ -273,6 +274,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case OZ_IOCTL_SET_ACTIVE_PD: {
 			u8 addr[ETH_ALEN];
+
 			oz_dbg(ON, "OZ_IOCTL_SET_ACTIVE_PD\n");
 			if (copy_from_user(addr, (void __user *)arg, ETH_ALEN))
 				return -EFAULT;
@@ -281,6 +283,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case OZ_IOCTL_GET_ACTIVE_PD: {
 			u8 addr[ETH_ALEN];
+
 			oz_dbg(ON, "OZ_IOCTL_GET_ACTIVE_PD\n");
 			spin_lock_bh(&g_cdev.lock);
 			ether_addr_copy(addr, g_cdev.active_addr);
@@ -292,6 +295,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 	case OZ_IOCTL_ADD_BINDING:
 	case OZ_IOCTL_REMOVE_BINDING: {
 			struct oz_binding_info b;
+
 			if (copy_from_user(&b, (void __user *)arg,
 				sizeof(struct oz_binding_info))) {
 				return -EFAULT;
@@ -320,6 +324,7 @@ static unsigned int oz_cdev_poll(struct file *filp, poll_table *wait)
 	spin_lock_bh(&dev->lock);
 	if (dev->active_pd) {
 		struct oz_serial_ctx *ctx = oz_cdev_claim_ctx(dev->active_pd);
+
 		if (ctx) {
 			if (ctx->rd_in != ctx->rd_out)
 				ret |= POLLIN | POLLRDNORM;
@@ -360,7 +365,6 @@ int oz_cdev_register(void)
 	       MAJOR(g_cdev.devnum), MINOR(g_cdev.devnum));
 	cdev_init(&g_cdev.cdev, &oz_fops);
 	g_cdev.cdev.owner = THIS_MODULE;
-	g_cdev.cdev.ops = &oz_fops;
 	spin_lock_init(&g_cdev.lock);
 	init_waitqueue_head(&g_cdev.rdq);
 	err = cdev_add(&g_cdev.cdev, g_cdev.devnum, 1);
@@ -437,14 +441,14 @@ int oz_cdev_start(struct oz_pd *pd, int resume)
 		return -ENOMEM;
 	atomic_set(&ctx->ref_count, 1);
 	ctx->tx_seq_num = 1;
-	spin_lock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
-	old_ctx = pd->app_ctx[OZ_APPID_SERIAL-1];
+	spin_lock_bh(&pd->app_lock[OZ_APPID_SERIAL]);
+	old_ctx = pd->app_ctx[OZ_APPID_SERIAL];
 	if (old_ctx) {
-		spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
+		spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL]);
 		kfree(ctx);
 	} else {
-		pd->app_ctx[OZ_APPID_SERIAL-1] = ctx;
-		spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
+		pd->app_ctx[OZ_APPID_SERIAL] = ctx;
+		spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL]);
 	}
 	spin_lock(&g_cdev.lock);
 	if ((g_cdev.active_pd == NULL) &&
@@ -469,10 +473,10 @@ void oz_cdev_stop(struct oz_pd *pd, int pause)
 		oz_dbg(ON, "Serial service paused\n");
 		return;
 	}
-	spin_lock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
-	ctx = (struct oz_serial_ctx *)pd->app_ctx[OZ_APPID_SERIAL-1];
-	pd->app_ctx[OZ_APPID_SERIAL-1] = NULL;
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
+	spin_lock_bh(&pd->app_lock[OZ_APPID_SERIAL]);
+	ctx = (struct oz_serial_ctx *) pd->app_ctx[OZ_APPID_SERIAL];
+	pd->app_ctx[OZ_APPID_SERIAL] = NULL;
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL]);
 	if (ctx)
 		oz_cdev_release_ctx(ctx);
 	spin_lock(&g_cdev.lock);

@@ -442,7 +442,6 @@ static struct platform_driver ucb1400_ts_driver = {
 	.remove	= ucb1400_ts_remove,
 	.driver	= {
 		.name	= "ucb1400_ts",
-		.owner	= THIS_MODULE,
 		.pm	= &ucb1400_ts_pm_ops,
 	},
 };

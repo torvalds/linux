@@ -23,7 +23,7 @@
 #include <rtl8723a_bt_intf.h>
 #include <usb_ops_linux.h>
 
-void ips_enter23a(struct rtw_adapter * padapter)
+void ips_enter23a(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
@@ -53,7 +53,7 @@ void ips_enter23a(struct rtw_adapter * padapter)
 	up(&pwrpriv->lock);
 }
 
-int ips_leave23a(struct rtw_adapter * padapter)
+int ips_leave23a(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
@@ -146,7 +146,7 @@ exit:
 	return ret;
 }
 
-void rtw_ps_processor23a(struct rtw_adapter*padapter)
+void rtw_ps_processor23a(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -159,7 +159,7 @@ void rtw_ps_processor23a(struct rtw_adapter*padapter)
 	if (pwrpriv->ips_mode_req == IPS_NONE)
 		goto exit;
 
-	if (rtw_pwr_unassociated_idle(padapter) == false)
+	if (!rtw_pwr_unassociated_idle(padapter))
 		goto exit;
 
 	if (pwrpriv->rf_pwrstate == rf_on &&
@@ -172,12 +172,12 @@ void rtw_ps_processor23a(struct rtw_adapter*padapter)
 exit:
 	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 	pwrpriv->ps_processing = false;
-	return;
 }
 
 static void pwr_state_check_handler(unsigned long data)
 {
 	struct rtw_adapter *padapter = (struct rtw_adapter *)data;
+
 	rtw_ps_cmd23a(padapter);
 }
 
@@ -246,7 +246,7 @@ void rtw_set_rpwm23a(struct rtw_adapter *padapter, u8 pslv)
 	pwrpriv->cpwm = pslv;
 }
 
-static bool PS_RDY_CHECK(struct rtw_adapter * padapter)
+static bool PS_RDY_CHECK(struct rtw_adapter *padapter)
 {
 	unsigned long delta_time;
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
@@ -338,8 +338,7 @@ s32 LPS_RF_ON_check23a(struct rtw_adapter *padapter, u32 delay_ms)
 	start_time = jiffies;
 	end_time = start_time + msecs_to_jiffies(delay_ms);
 
-	while (1)
-	{
+	while (1) {
 		bAwake = rtl8723a_get_fwlps_rf_on(padapter);
 		if (bAwake == true)
 			break;
@@ -470,6 +469,7 @@ void rtw_free_pwrctrl_priv(struct rtw_adapter *adapter)
 inline void rtw_set_ips_deny23a(struct rtw_adapter *padapter, u32 ms)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
+
 	pwrpriv->ips_deny_time = jiffies + msecs_to_jiffies(ms);
 }
 

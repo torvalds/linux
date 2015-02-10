@@ -402,5 +402,6 @@
 #define __NR_seccomp		384
 #define __NR_getrandom		385
 #define __NR_memfd_create	386
+#define __NR_bpf		387
 
 #endif /* _UAPI_ASM_MICROBLAZE_UNISTD_H */

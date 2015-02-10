@@ -25,7 +25,6 @@ int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 {
 	return ip6_find_1stfragopt(skb, prevhdr);
 }
-
 EXPORT_SYMBOL(xfrm6_find_1stfragopt);
 
 static int xfrm6_local_dontfrag(struct sk_buff *skb)

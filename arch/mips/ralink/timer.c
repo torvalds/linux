@@ -58,7 +58,7 @@ static irqreturn_t rt_timer_irq(int irq, void *_rt)
 
 static int rt_timer_request(struct rt_timer *rt)
 {
-	int err = request_irq(rt->irq, rt_timer_irq, IRQF_DISABLED,
+	int err = request_irq(rt->irq, rt_timer_irq, 0,
 						dev_name(rt->dev), rt);
 	if (err) {
 		dev_err(rt->dev, "failed to request irq\n");
@@ -173,7 +173,6 @@ static struct platform_driver rt_timer_driver = {
 	.remove = rt_timer_remove,
 	.driver = {
 		.name		= "rt-timer",
-		.owner          = THIS_MODULE,
 		.of_match_table	= rt_timer_match
 	},
 };

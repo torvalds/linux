@@ -77,7 +77,6 @@ struct usb_phy {
 	unsigned int		 flags;
 
 	enum usb_phy_type	type;
-	enum usb_otg_state	state;
 	enum usb_phy_events	last_event;
 
 	struct usb_otg		*otg;
@@ -210,6 +209,7 @@ extern void usb_put_phy(struct usb_phy *);
 extern void devm_usb_put_phy(struct device *dev, struct usb_phy *x);
 extern int usb_bind_phy(const char *dev_name, u8 index,
 				const char *phy_dev_name);
+extern void usb_phy_set_event(struct usb_phy *x, unsigned long event);
 #else
 static inline struct usb_phy *usb_get_phy(enum usb_phy_type type)
 {
@@ -250,6 +250,10 @@ static inline int usb_bind_phy(const char *dev_name, u8 index,
 				const char *phy_dev_name)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline void usb_phy_set_event(struct usb_phy *x, unsigned long event)
+{
 }
 #endif
 

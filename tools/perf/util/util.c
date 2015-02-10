@@ -13,6 +13,15 @@
 #include <limits.h>
 #include <byteswap.h>
 #include <linux/kernel.h>
+#include <unistd.h>
+#include "callchain.h"
+
+struct callchain_param	callchain_param = {
+	.mode	= CHAIN_GRAPH_REL,
+	.min_percent = 0.5,
+	.order  = ORDER_CALLEE,
+	.key	= CCKEY_FUNCTION
+};
 
 /*
  * XXX We need to find a better place for these things...
@@ -282,6 +291,18 @@ void get_term_dimensions(struct winsize *ws)
 	ws->ws_col = 80;
 }
 
+void set_term_quiet_input(struct termios *old)
+{
+	struct termios tc;
+
+	tcgetattr(0, old);
+	tc = *old;
+	tc.c_lflag &= ~(ICANON | ECHO);
+	tc.c_cc[VMIN] = 0;
+	tc.c_cc[VTIME] = 0;
+	tcsetattr(0, TCSANOW, &tc);
+}
+
 static void set_tracing_events_path(const char *mountpoint)
 {
 	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s",
@@ -421,28 +442,12 @@ unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
 	return (unsigned long) -1;
 }
 
-int filename__read_int(const char *filename, int *value)
-{
-	char line[64];
-	int fd = open(filename, O_RDONLY), err = -1;
-
-	if (fd < 0)
-		return -1;
-
-	if (read(fd, line, sizeof(line)) > 0) {
-		*value = atoi(line);
-		err = 0;
-	}
-
-	close(fd);
-	return err;
-}
-
 int filename__read_str(const char *filename, char **buf, size_t *sizep)
 {
 	size_t size = 0, alloc_size = 0;
 	void *bf = NULL, *nbf;
 	int fd, n, err = 0;
+	char sbuf[STRERR_BUFSIZE];
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
@@ -463,8 +468,8 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 		n = read(fd, bf + size, alloc_size - size);
 		if (n < 0) {
 			if (size) {
-				pr_warning("read failed %d: %s\n",
-					   errno, strerror(errno));
+				pr_warning("read failed %d: %s\n", errno,
+					 strerror_r(errno, sbuf, sizeof(sbuf)));
 				err = 0;
 			} else
 				err = -errno;
@@ -501,16 +506,9 @@ const char *get_filename_for_perf_kvm(void)
 
 int perf_event_paranoid(void)
 {
-	char path[PATH_MAX];
-	const char *procfs = procfs__mountpoint();
 	int value;
 
-	if (!procfs)
-		return INT_MAX;
-
-	scnprintf(path, PATH_MAX, "%s/sys/kernel/perf_event_paranoid", procfs);
-
-	if (filename__read_int(path, &value))
+	if (sysctl__read_int("kernel/perf_event_paranoid", &value))
 		return INT_MAX;
 
 	return value;
@@ -535,4 +533,40 @@ void mem_bswap_64(void *src, int byte_size)
 		byte_size -= sizeof(u64);
 		++m;
 	}
+}
+
+bool find_process(const char *name)
+{
+	size_t len = strlen(name);
+	DIR *dir;
+	struct dirent *d;
+	int ret = -1;
+
+	dir = opendir(procfs__mountpoint());
+	if (!dir)
+		return -1;
+
+	/* Walk through the directory. */
+	while (ret && (d = readdir(dir)) != NULL) {
+		char path[PATH_MAX];
+		char *data;
+		size_t size;
+
+		if ((d->d_type != DT_DIR) ||
+		     !strcmp(".", d->d_name) ||
+		     !strcmp("..", d->d_name))
+			continue;
+
+		scnprintf(path, sizeof(path), "%s/%s/comm",
+			  procfs__mountpoint(), d->d_name);
+
+		if (filename__read_str(path, &data, &size))
+			continue;
+
+		ret = strncmp(name, data, len);
+		free(data);
+	}
+
+	closedir(dir);
+	return ret ? false : true;
 }

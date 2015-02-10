@@ -71,9 +71,17 @@ efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 	return ((efx_qword_t *) (tx_queue->txd.buf.addr)) + index;
 }
 
-/* Report whether the NIC considers this TX queue empty, given the
- * write_count used for the last doorbell push.  May return false
- * negative.
+/* Get partner of a TX queue, seen as part of the same net core queue */
+static struct efx_tx_queue *efx_tx_queue_partner(struct efx_tx_queue *tx_queue)
+{
+	if (tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD)
+		return tx_queue - EFX_TXQ_TYPE_OFFLOAD;
+	else
+		return tx_queue + EFX_TXQ_TYPE_OFFLOAD;
+}
+
+/* Report whether this TX queue would be empty for the given write_count.
+ * May return false negative.
  */
 static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
 					 unsigned int write_count)
@@ -86,9 +94,18 @@ static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
 	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
 }
 
-static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
+/* Decide whether we can use TX PIO, ie. write packet data directly into
+ * a buffer on the device.  This can reduce latency at the expense of
+ * throughput, so we only do this if both hardware and software TX rings
+ * are empty.  This also ensures that only one packet at a time can be
+ * using the PIO buffer.
+ */
+static inline bool efx_nic_may_tx_pio(struct efx_tx_queue *tx_queue)
 {
-	return __efx_nic_tx_is_empty(tx_queue, tx_queue->write_count);
+	struct efx_tx_queue *partner = efx_tx_queue_partner(tx_queue);
+	return tx_queue->piobuf &&
+	       __efx_nic_tx_is_empty(tx_queue, tx_queue->insert_count) &&
+	       __efx_nic_tx_is_empty(partner, partner->insert_count);
 }
 
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
@@ -96,6 +113,8 @@ static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
  * descriptor to an empty queue, but is otherwise pointless.  Further,
  * Falcon and Siena have hardware bugs (SF bug 33851) that may be
  * triggered if we don't check this.
+ * We use the write_count used for the last doorbell push, to get the
+ * NIC's view of the tx queue.
  */
 static inline bool efx_nic_may_push_tx_desc(struct efx_tx_queue *tx_queue,
 					    unsigned int write_count)
@@ -359,12 +378,30 @@ enum {
 
 /**
  * struct siena_nic_data - Siena NIC state
+ * @efx: Pointer back to main interface structure
  * @wol_filter_id: Wake-on-LAN packet filter id
  * @stats: Hardware statistics
+ * @vf_buftbl_base: The zeroth buffer table index used to back VF queues.
+ * @vfdi_status: Common VFDI status page to be dmad to VF address space.
+ * @local_addr_list: List of local addresses. Protected by %local_lock.
+ * @local_page_list: List of DMA addressable pages used to broadcast
+ *	%local_addr_list. Protected by %local_lock.
+ * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
+ * @peer_work: Work item to broadcast peer addresses to VMs.
  */
 struct siena_nic_data {
+	struct efx_nic *efx;
 	int wol_filter_id;
 	u64 stats[SIENA_STAT_COUNT];
+#ifdef CONFIG_SFC_SRIOV
+	struct efx_channel *vfdi_channel;
+	unsigned vf_buftbl_base;
+	struct efx_buffer vfdi_status;
+	struct list_head local_addr_list;
+	struct list_head local_page_list;
+	struct mutex local_lock;
+	struct work_struct peer_work;
+#endif
 };
 
 enum {
@@ -503,62 +540,88 @@ struct efx_ef10_nic_data {
 
 #ifdef CONFIG_SFC_SRIOV
 
-static inline bool efx_sriov_wanted(struct efx_nic *efx)
+/* SIENA */
+static inline bool efx_siena_sriov_wanted(struct efx_nic *efx)
 {
 	return efx->vf_count != 0;
 }
-static inline bool efx_sriov_enabled(struct efx_nic *efx)
+
+static inline bool efx_siena_sriov_enabled(struct efx_nic *efx)
 {
 	return efx->vf_init_count != 0;
 }
+
 static inline unsigned int efx_vf_size(struct efx_nic *efx)
 {
 	return 1 << efx->vi_scale;
 }
 
 int efx_init_sriov(void);
-void efx_sriov_probe(struct efx_nic *efx);
-int efx_sriov_init(struct efx_nic *efx);
-void efx_sriov_mac_address_changed(struct efx_nic *efx);
-void efx_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event);
-void efx_sriov_rx_flush_done(struct efx_nic *efx, efx_qword_t *event);
-void efx_sriov_event(struct efx_channel *channel, efx_qword_t *event);
-void efx_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq);
-void efx_sriov_flr(struct efx_nic *efx, unsigned flr);
-void efx_sriov_reset(struct efx_nic *efx);
-void efx_sriov_fini(struct efx_nic *efx);
+void efx_siena_sriov_probe(struct efx_nic *efx);
+int efx_siena_sriov_init(struct efx_nic *efx);
+void efx_siena_sriov_mac_address_changed(struct efx_nic *efx);
+void efx_siena_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event);
+void efx_siena_sriov_rx_flush_done(struct efx_nic *efx, efx_qword_t *event);
+void efx_siena_sriov_event(struct efx_channel *channel, efx_qword_t *event);
+void efx_siena_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq);
+void efx_siena_sriov_flr(struct efx_nic *efx, unsigned flr);
+void efx_siena_sriov_reset(struct efx_nic *efx);
+void efx_siena_sriov_fini(struct efx_nic *efx);
 void efx_fini_sriov(void);
+
+/* EF10 */
+static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx) { return false; }
+static inline int efx_ef10_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
+static inline void efx_ef10_sriov_mac_address_changed(struct efx_nic *efx) {}
+static inline void efx_ef10_sriov_reset(struct efx_nic *efx) {}
+static inline void efx_ef10_sriov_fini(struct efx_nic *efx) {}
 
 #else
 
-static inline bool efx_sriov_wanted(struct efx_nic *efx) { return false; }
-static inline bool efx_sriov_enabled(struct efx_nic *efx) { return false; }
+/* SIENA */
+static inline bool efx_siena_sriov_wanted(struct efx_nic *efx) { return false; }
+static inline bool efx_siena_sriov_enabled(struct efx_nic *efx) { return false; }
 static inline unsigned int efx_vf_size(struct efx_nic *efx) { return 0; }
-
 static inline int efx_init_sriov(void) { return 0; }
-static inline void efx_sriov_probe(struct efx_nic *efx) {}
-static inline int efx_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
-static inline void efx_sriov_mac_address_changed(struct efx_nic *efx) {}
-static inline void efx_sriov_tx_flush_done(struct efx_nic *efx,
-					   efx_qword_t *event) {}
-static inline void efx_sriov_rx_flush_done(struct efx_nic *efx,
-					   efx_qword_t *event) {}
-static inline void efx_sriov_event(struct efx_channel *channel,
-				   efx_qword_t *event) {}
-static inline void efx_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq) {}
-static inline void efx_sriov_flr(struct efx_nic *efx, unsigned flr) {}
-static inline void efx_sriov_reset(struct efx_nic *efx) {}
-static inline void efx_sriov_fini(struct efx_nic *efx) {}
+static inline void efx_siena_sriov_probe(struct efx_nic *efx) {}
+static inline int efx_siena_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
+static inline void efx_siena_sriov_mac_address_changed(struct efx_nic *efx) {}
+static inline void efx_siena_sriov_tx_flush_done(struct efx_nic *efx,
+						 efx_qword_t *event) {}
+static inline void efx_siena_sriov_rx_flush_done(struct efx_nic *efx,
+						 efx_qword_t *event) {}
+static inline void efx_siena_sriov_event(struct efx_channel *channel,
+					 efx_qword_t *event) {}
+static inline void efx_siena_sriov_desc_fetch_err(struct efx_nic *efx,
+						  unsigned dmaq) {}
+static inline void efx_siena_sriov_flr(struct efx_nic *efx, unsigned flr) {}
+static inline void efx_siena_sriov_reset(struct efx_nic *efx) {}
+static inline void efx_siena_sriov_fini(struct efx_nic *efx) {}
 static inline void efx_fini_sriov(void) {}
+
+/* EF10 */
+static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx) { return false; }
+static inline int efx_ef10_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
+static inline void efx_ef10_sriov_mac_address_changed(struct efx_nic *efx) {}
+static inline void efx_ef10_sriov_reset(struct efx_nic *efx) {}
+static inline void efx_ef10_sriov_fini(struct efx_nic *efx) {}
 
 #endif
 
-int efx_sriov_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
-int efx_sriov_set_vf_vlan(struct net_device *dev, int vf, u16 vlan, u8 qos);
-int efx_sriov_get_vf_config(struct net_device *dev, int vf,
-			    struct ifla_vf_info *ivf);
-int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
-			      bool spoofchk);
+/* FALCON */
+static inline bool efx_falcon_sriov_wanted(struct efx_nic *efx) { return false; }
+static inline int efx_falcon_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
+static inline void efx_falcon_sriov_mac_address_changed(struct efx_nic *efx) {}
+static inline void efx_falcon_sriov_reset(struct efx_nic *efx) {}
+static inline void efx_falcon_sriov_fini(struct efx_nic *efx) {}
+
+int efx_siena_sriov_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
+int efx_siena_sriov_set_vf_vlan(struct net_device *dev, int vf,
+				u16 vlan, u8 qos);
+int efx_siena_sriov_get_vf_config(struct net_device *dev, int vf,
+				  struct ifla_vf_info *ivf);
+int efx_siena_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
+				    bool spoofchk);
 
 struct ethtool_ts_info;
 int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel);

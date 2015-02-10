@@ -69,7 +69,7 @@ struct neigh_parms {
 	struct net *net;
 #endif
 	struct net_device *dev;
-	struct neigh_parms *next;
+	struct list_head list;
 	int	(*neigh_setup)(struct neighbour *);
 	void	(*neigh_cleanup)(struct neighbour *);
 	struct neigh_table *tbl;
@@ -190,7 +190,6 @@ struct neigh_hash_table {
 
 
 struct neigh_table {
-	struct neigh_table	*next;
 	int			family;
 	int			entry_size;
 	int			key_len;
@@ -203,6 +202,7 @@ struct neigh_table {
 	void			(*proxy_redo)(struct sk_buff *skb);
 	char			*id;
 	struct neigh_parms	parms;
+	struct list_head	parms_list;
 	int			gc_interval;
 	int			gc_thresh1;
 	int			gc_thresh2;
@@ -217,6 +217,13 @@ struct neigh_table {
 	struct neigh_statistics	__percpu *stats;
 	struct neigh_hash_table __rcu *nht;
 	struct pneigh_entry	**phash_buckets;
+};
+
+enum {
+	NEIGH_ARP_TABLE = 0,
+	NEIGH_ND_TABLE = 1,
+	NEIGH_DN_TABLE = 2,
+	NEIGH_NR_TABLES,
 };
 
 static inline int neigh_parms_family(struct neigh_parms *p)
@@ -239,8 +246,8 @@ static inline void *neighbour_priv(const struct neighbour *n)
 #define NEIGH_UPDATE_F_ISROUTER			0x40000000
 #define NEIGH_UPDATE_F_ADMIN			0x80000000
 
-void neigh_table_init(struct neigh_table *tbl);
-int neigh_table_clear(struct neigh_table *tbl);
+void neigh_table_init(int index, struct neigh_table *tbl);
+int neigh_table_clear(int index, struct neigh_table *tbl);
 struct neighbour *neigh_lookup(struct neigh_table *tbl, const void *pkey,
 			       struct net_device *dev);
 struct neighbour *neigh_lookup_nodev(struct neigh_table *tbl, struct net *net,
@@ -373,7 +380,7 @@ static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 	return 0;
 }
 
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 static inline int neigh_hh_bridge(struct hh_cache *hh, struct sk_buff *skb)
 {
 	unsigned int seq, hh_alen;

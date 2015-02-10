@@ -552,6 +552,7 @@ bnad_cq_setup_skb_frags(struct bna_rcb *rcb, struct sk_buff *skb,
 
 		len = (vec == nvecs) ?
 			last_fraglen : unmap->vector.len;
+		skb->truesize += unmap->vector.len;
 		totlen += len;
 
 		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
@@ -563,7 +564,6 @@ bnad_cq_setup_skb_frags(struct bna_rcb *rcb, struct sk_buff *skb,
 
 	skb->len += totlen;
 	skb->data_len += totlen;
-	skb->truesize += totlen;
 }
 
 static inline void
@@ -2054,7 +2054,7 @@ bnad_init_rx_config(struct bnad *bnad, struct bna_rx_config *rx_config)
 				 BFI_ENET_RSS_IPV4_TCP);
 		rx_config->rss_config.hash_mask =
 				bnad->num_rxp_per_rx - 1;
-		get_random_bytes(rx_config->rss_config.toeplitz_hash_key,
+		netdev_rss_key_fill(rx_config->rss_config.toeplitz_hash_key,
 			sizeof(rx_config->rss_config.toeplitz_hash_key));
 	} else {
 		rx_config->rss_status = BNA_STATUS_T_DISABLED;
@@ -2864,7 +2864,7 @@ bnad_txq_wi_prepare(struct bnad *bnad, struct bna_tcb *tcb,
 		txqent->hdr.wi.opcode =	htons(BNA_TXQ_WI_SEND);
 		txqent->hdr.wi.lso_mss = 0;
 
-		if (unlikely(skb->len > (bnad->netdev->mtu + ETH_HLEN))) {
+		if (unlikely(skb->len > (bnad->netdev->mtu + VLAN_ETH_HLEN))) {
 			BNAD_UPDATE_CTR(bnad, tx_skb_non_tso_too_long);
 			return -EINVAL;
 		}

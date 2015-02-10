@@ -104,7 +104,9 @@ module_param(enable_64b_cqe_eqe, bool, 0444);
 MODULE_PARM_DESC(enable_64b_cqe_eqe,
 		 "Enable 64 byte CQEs/EQEs when the FW supports this (default: True)");
 
-#define PF_CONTEXT_BEHAVIOUR_MASK	MLX4_FUNC_CAP_64B_EQE_CQE
+#define PF_CONTEXT_BEHAVIOUR_MASK	(MLX4_FUNC_CAP_64B_EQE_CQE | \
+					 MLX4_FUNC_CAP_EQE_CQE_STRIDE | \
+					 MLX4_FUNC_CAP_DMFS_A0_STATIC)
 
 static char mlx4_version[] =
 	DRV_NAME ": Mellanox ConnectX core driver v"
@@ -169,9 +171,9 @@ int mlx4_check_port_params(struct mlx4_dev *dev,
 {
 	int i;
 
-	for (i = 0; i < dev->caps.num_ports - 1; i++) {
-		if (port_type[i] != port_type[i + 1]) {
-			if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_DPDP)) {
+	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_DPDP)) {
+		for (i = 0; i < dev->caps.num_ports - 1; i++) {
+			if (port_type[i] != port_type[i + 1]) {
 				mlx4_err(dev, "Only same port types supported on this HCA, aborting\n");
 				return -EINVAL;
 			}
@@ -196,6 +198,103 @@ static void mlx4_set_port_mask(struct mlx4_dev *dev)
 		dev->caps.port_mask[i] = dev->caps.port_type[i];
 }
 
+enum {
+	MLX4_QUERY_FUNC_NUM_SYS_EQS = 1 << 0,
+};
+
+static int mlx4_query_func(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
+{
+	int err = 0;
+	struct mlx4_func func;
+
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+		err = mlx4_QUERY_FUNC(dev, &func, 0);
+		if (err) {
+			mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
+			return err;
+		}
+		dev_cap->max_eqs = func.max_eq;
+		dev_cap->reserved_eqs = func.rsvd_eqs;
+		dev_cap->reserved_uars = func.rsvd_uars;
+		err |= MLX4_QUERY_FUNC_NUM_SYS_EQS;
+	}
+	return err;
+}
+
+static void mlx4_enable_cqe_eqe_stride(struct mlx4_dev *dev)
+{
+	struct mlx4_caps *dev_cap = &dev->caps;
+
+	/* FW not supporting or cancelled by user */
+	if (!(dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_EQE_STRIDE) ||
+	    !(dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_CQE_STRIDE))
+		return;
+
+	/* Must have 64B CQE_EQE enabled by FW to use bigger stride
+	 * When FW has NCSI it may decide not to report 64B CQE/EQEs
+	 */
+	if (!(dev_cap->flags & MLX4_DEV_CAP_FLAG_64B_EQE) ||
+	    !(dev_cap->flags & MLX4_DEV_CAP_FLAG_64B_CQE)) {
+		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_CQE_STRIDE;
+		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
+		return;
+	}
+
+	if (cache_line_size() == 128 || cache_line_size() == 256) {
+		mlx4_dbg(dev, "Enabling CQE stride cacheLine supported\n");
+		/* Changing the real data inside CQE size to 32B */
+		dev_cap->flags &= ~MLX4_DEV_CAP_FLAG_64B_CQE;
+		dev_cap->flags &= ~MLX4_DEV_CAP_FLAG_64B_EQE;
+
+		if (mlx4_is_master(dev))
+			dev_cap->function_caps |= MLX4_FUNC_CAP_EQE_CQE_STRIDE;
+	} else {
+		mlx4_dbg(dev, "Disabling CQE stride cacheLine unsupported\n");
+		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_CQE_STRIDE;
+		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
+	}
+}
+
+static int _mlx4_dev_port(struct mlx4_dev *dev, int port,
+			  struct mlx4_port_cap *port_cap)
+{
+	dev->caps.vl_cap[port]	    = port_cap->max_vl;
+	dev->caps.ib_mtu_cap[port]	    = port_cap->ib_mtu;
+	dev->phys_caps.gid_phys_table_len[port]  = port_cap->max_gids;
+	dev->phys_caps.pkey_phys_table_len[port] = port_cap->max_pkeys;
+	/* set gid and pkey table operating lengths by default
+	 * to non-sriov values
+	 */
+	dev->caps.gid_table_len[port]  = port_cap->max_gids;
+	dev->caps.pkey_table_len[port] = port_cap->max_pkeys;
+	dev->caps.port_width_cap[port] = port_cap->max_port_width;
+	dev->caps.eth_mtu_cap[port]    = port_cap->eth_mtu;
+	dev->caps.def_mac[port]        = port_cap->def_mac;
+	dev->caps.supported_type[port] = port_cap->supported_port_types;
+	dev->caps.suggested_type[port] = port_cap->suggested_type;
+	dev->caps.default_sense[port] = port_cap->default_sense;
+	dev->caps.trans_type[port]	    = port_cap->trans_type;
+	dev->caps.vendor_oui[port]     = port_cap->vendor_oui;
+	dev->caps.wavelength[port]     = port_cap->wavelength;
+	dev->caps.trans_code[port]     = port_cap->trans_code;
+
+	return 0;
+}
+
+static int mlx4_dev_port(struct mlx4_dev *dev, int port,
+			 struct mlx4_port_cap *port_cap)
+{
+	int err = 0;
+
+	err = mlx4_QUERY_PORT(dev, port, port_cap);
+
+	if (err)
+		mlx4_err(dev, "QUERY_PORT command failed.\n");
+
+	return err;
+}
+
+#define MLX4_A0_STEERING_TABLE_SIZE	256
 static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
 	int err;
@@ -206,6 +305,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting\n");
 		return err;
 	}
+	mlx4_dev_cap_dump(dev, dev_cap);
 
 	if (dev_cap->min_page_sz > PAGE_SIZE) {
 		mlx4_err(dev, "HCA minimum page size of %d bigger than kernel PAGE_SIZE of %ld, aborting\n",
@@ -226,26 +326,16 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	}
 
 	dev->caps.num_ports	     = dev_cap->num_ports;
-	dev->phys_caps.num_phys_eqs  = MLX4_MAX_EQ_NUM;
+	dev->caps.num_sys_eqs = dev_cap->num_sys_eqs;
+	dev->phys_caps.num_phys_eqs = dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS ?
+				      dev->caps.num_sys_eqs :
+				      MLX4_MAX_EQ_NUM;
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
-		dev->caps.vl_cap[i]	    = dev_cap->max_vl[i];
-		dev->caps.ib_mtu_cap[i]	    = dev_cap->ib_mtu[i];
-		dev->phys_caps.gid_phys_table_len[i]  = dev_cap->max_gids[i];
-		dev->phys_caps.pkey_phys_table_len[i] = dev_cap->max_pkeys[i];
-		/* set gid and pkey table operating lengths by default
-		 * to non-sriov values */
-		dev->caps.gid_table_len[i]  = dev_cap->max_gids[i];
-		dev->caps.pkey_table_len[i] = dev_cap->max_pkeys[i];
-		dev->caps.port_width_cap[i] = dev_cap->max_port_width[i];
-		dev->caps.eth_mtu_cap[i]    = dev_cap->eth_mtu[i];
-		dev->caps.def_mac[i]        = dev_cap->def_mac[i];
-		dev->caps.supported_type[i] = dev_cap->supported_port_types[i];
-		dev->caps.suggested_type[i] = dev_cap->suggested_type[i];
-		dev->caps.default_sense[i] = dev_cap->default_sense[i];
-		dev->caps.trans_type[i]	    = dev_cap->trans_type[i];
-		dev->caps.vendor_oui[i]     = dev_cap->vendor_oui[i];
-		dev->caps.wavelength[i]     = dev_cap->wavelength[i];
-		dev->caps.trans_code[i]     = dev_cap->trans_code[i];
+		err = _mlx4_dev_port(dev, i, dev_cap->port_cap + i);
+		if (err) {
+			mlx4_err(dev, "QUERY_PORT command failed, aborting\n");
+			return err;
+		}
 	}
 
 	dev->caps.uar_page_size	     = PAGE_SIZE;
@@ -354,13 +444,13 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			dev->caps.possible_type[i] = dev->caps.port_type[i];
 		}
 
-		if (dev->caps.log_num_macs > dev_cap->log_max_macs[i]) {
-			dev->caps.log_num_macs = dev_cap->log_max_macs[i];
+		if (dev->caps.log_num_macs > dev_cap->port_cap[i].log_max_macs) {
+			dev->caps.log_num_macs = dev_cap->port_cap[i].log_max_macs;
 			mlx4_warn(dev, "Requested number of MACs is too much for port %d, reducing to %d\n",
 				  i, 1 << dev->caps.log_num_macs);
 		}
-		if (dev->caps.log_num_vlans > dev_cap->log_max_vlans[i]) {
-			dev->caps.log_num_vlans = dev_cap->log_max_vlans[i];
+		if (dev->caps.log_num_vlans > dev_cap->port_cap[i].log_max_vlans) {
+			dev->caps.log_num_vlans = dev_cap->port_cap[i].log_max_vlans;
 			mlx4_warn(dev, "Requested number of VLANs is too much for port %d, reducing to %d\n",
 				  i, 1 << dev->caps.log_num_vlans);
 		}
@@ -376,6 +466,28 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.num_ports;
 	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_EXCH] = MLX4_NUM_FEXCH;
 
+	if (dev_cap->dmfs_high_rate_qpn_base > 0 &&
+	    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FS_EN)
+		dev->caps.dmfs_high_rate_qpn_base = dev_cap->dmfs_high_rate_qpn_base;
+	else
+		dev->caps.dmfs_high_rate_qpn_base =
+			dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW];
+
+	if (dev_cap->dmfs_high_rate_qpn_range > 0 &&
+	    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FS_EN) {
+		dev->caps.dmfs_high_rate_qpn_range = dev_cap->dmfs_high_rate_qpn_range;
+		dev->caps.dmfs_high_steer_mode = MLX4_STEERING_DMFS_A0_DEFAULT;
+		dev->caps.flags2 |= MLX4_DEV_CAP_FLAG2_FS_A0;
+	} else {
+		dev->caps.dmfs_high_steer_mode = MLX4_STEERING_DMFS_A0_NOT_SUPPORTED;
+		dev->caps.dmfs_high_rate_qpn_base =
+			dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW];
+		dev->caps.dmfs_high_rate_qpn_range = MLX4_A0_STEERING_TABLE_SIZE;
+	}
+
+	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_RSS_RAW_ETH] =
+		dev->caps.dmfs_high_rate_qpn_range;
+
 	dev->caps.reserved_qps = dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW] +
 		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_ETH_ADDR] +
 		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_ADDR] +
@@ -390,12 +502,29 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			dev->caps.flags &= ~MLX4_DEV_CAP_FLAG_64B_CQE;
 			dev->caps.flags &= ~MLX4_DEV_CAP_FLAG_64B_EQE;
 		}
+
+		if (dev_cap->flags2 &
+		    (MLX4_DEV_CAP_FLAG2_CQE_STRIDE |
+		     MLX4_DEV_CAP_FLAG2_EQE_STRIDE)) {
+			mlx4_warn(dev, "Disabling EQE/CQE stride per user request\n");
+			dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_CQE_STRIDE;
+			dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
+		}
 	}
 
 	if ((dev->caps.flags &
 	    (MLX4_DEV_CAP_FLAG_64B_CQE | MLX4_DEV_CAP_FLAG_64B_EQE)) &&
 	    mlx4_is_master(dev))
 		dev->caps.function_caps |= MLX4_FUNC_CAP_64B_EQE_CQE;
+
+	if (!mlx4_is_slave(dev)) {
+		mlx4_enable_cqe_eqe_stride(dev);
+		dev->caps.alloc_res_qp_mask =
+			(dev->caps.bf_reg_size ? MLX4_RESERVE_ETH_BF_QP : 0) |
+			MLX4_RESERVE_A0_QP;
+	} else {
+		dev->caps.alloc_res_qp_mask = 0;
+	}
 
 	return 0;
 }
@@ -585,7 +714,7 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	struct mlx4_dev_cap	   dev_cap;
 	struct mlx4_func_cap	   func_cap;
 	struct mlx4_init_hca_param hca_param;
-	int			   i;
+	u8			   i;
 
 	memset(&hca_param, 0, sizeof(hca_param));
 	err = mlx4_QUERY_HCA(dev, &hca_param);
@@ -646,7 +775,8 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 
 	if ((func_cap.pf_context_behaviour | PF_CONTEXT_BEHAVIOUR_MASK) !=
 	    PF_CONTEXT_BEHAVIOUR_MASK) {
-		mlx4_err(dev, "Unknown pf context behaviour\n");
+		mlx4_err(dev, "Unknown pf context behaviour %x known flags %x\n",
+			 func_cap.pf_context_behaviour, PF_CONTEXT_BEHAVIOUR_MASK);
 		return -ENOSYS;
 	}
 
@@ -686,7 +816,7 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	}
 
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
-		err = mlx4_QUERY_FUNC_CAP(dev, (u32) i, &func_cap);
+		err = mlx4_QUERY_FUNC_CAP(dev, i, &func_cap);
 		if (err) {
 			mlx4_err(dev, "QUERY_FUNC_CAP port command failed for port %d, aborting (%d)\n",
 				 i, err);
@@ -724,15 +854,33 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 
 	if (hca_param.dev_cap_enabled & MLX4_DEV_CAP_64B_CQE_ENABLED) {
 		dev->caps.cqe_size   = 64;
-		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_64B_CQE;
+		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_LARGE_CQE;
 	} else {
 		dev->caps.cqe_size   = 32;
+	}
+
+	if (hca_param.dev_cap_enabled & MLX4_DEV_CAP_EQE_STRIDE_ENABLED) {
+		dev->caps.eqe_size = hca_param.eqe_size;
+		dev->caps.eqe_factor = 0;
+	}
+
+	if (hca_param.dev_cap_enabled & MLX4_DEV_CAP_CQE_STRIDE_ENABLED) {
+		dev->caps.cqe_size = hca_param.cqe_size;
+		/* User still need to know when CQE > 32B */
+		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_LARGE_CQE;
 	}
 
 	dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
 	mlx4_warn(dev, "Timestamping is not supported in slave mode\n");
 
 	slave_adjust_steering_mode(dev, &dev_cap, &hca_param);
+
+	if (func_cap.extra_flags & MLX4_QUERY_FUNC_FLAGS_BF_RES_QP &&
+	    dev->caps.bf_reg_size)
+		dev->caps.alloc_res_qp_mask |= MLX4_RESERVE_ETH_BF_QP;
+
+	if (func_cap.extra_flags & MLX4_QUERY_FUNC_FLAGS_A0_RES_QP)
+		dev->caps.alloc_res_qp_mask |= MLX4_RESERVE_A0_QP;
 
 	return 0;
 
@@ -844,8 +992,11 @@ static ssize_t set_port_type(struct device *dev,
 	struct mlx4_priv *priv = mlx4_priv(mdev);
 	enum mlx4_port_type types[MLX4_MAX_PORTS];
 	enum mlx4_port_type new_types[MLX4_MAX_PORTS];
+	static DEFINE_MUTEX(set_port_type_mutex);
 	int i;
 	int err = 0;
+
+	mutex_lock(&set_port_type_mutex);
 
 	if (!strcmp(buf, "ib\n"))
 		info->tmp_type = MLX4_PORT_TYPE_IB;
@@ -855,7 +1006,8 @@ static ssize_t set_port_type(struct device *dev,
 		info->tmp_type = MLX4_PORT_TYPE_AUTO;
 	else {
 		mlx4_err(mdev, "%s is not supported port type\n", buf);
-		return -EINVAL;
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	mlx4_stop_sense(mdev);
@@ -901,6 +1053,9 @@ static ssize_t set_port_type(struct device *dev,
 out:
 	mlx4_start_sense(mdev);
 	mutex_unlock(&priv->port_mutex);
+err_out:
+	mutex_unlock(&set_port_type_mutex);
+
 	return err ? err : count;
 }
 
@@ -1066,8 +1221,7 @@ static int mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 	if (err)
 		goto err_srq;
 
-	num_eqs = (mlx4_is_master(dev)) ? dev->phys_caps.num_phys_eqs :
-		  dev->caps.num_eqs;
+	num_eqs = dev->phys_caps.num_phys_eqs;
 	err = mlx4_init_icm_table(dev, &priv->eq_table.cmpt_table,
 				  cmpt_base +
 				  ((u64) (MLX4_CMPT_TYPE_EQ *
@@ -1129,8 +1283,7 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 	}
 
 
-	num_eqs = (mlx4_is_master(dev)) ? dev->phys_caps.num_phys_eqs :
-		   dev->caps.num_eqs;
+	num_eqs = dev->phys_caps.num_phys_eqs;
 	err = mlx4_init_icm_table(dev, &priv->eq_table.table,
 				  init_hca->eqc_base, dev_cap->eqc_entry_sz,
 				  num_eqs, num_eqs, 0, 0);
@@ -1409,6 +1562,12 @@ static void mlx4_close_hca(struct mlx4_dev *dev)
 	else {
 		mlx4_CLOSE_HCA(dev, 0);
 		mlx4_free_icms(dev);
+	}
+}
+
+static void mlx4_close_fw(struct mlx4_dev *dev)
+{
+	if (!mlx4_is_slave(dev)) {
 		mlx4_UNMAP_FA(dev);
 		mlx4_free_icm(dev, mlx4_priv(dev)->fw.fw_icm, 0);
 	}
@@ -1504,10 +1663,46 @@ static int choose_log_fs_mgm_entry_size(int qp_per_entry)
 	return (i <= MLX4_MAX_MGM_LOG_ENTRY_SIZE) ? i : -1;
 }
 
+static const char *dmfs_high_rate_steering_mode_str(int dmfs_high_steer_mode)
+{
+	switch (dmfs_high_steer_mode) {
+	case MLX4_STEERING_DMFS_A0_DEFAULT:
+		return "default performance";
+
+	case MLX4_STEERING_DMFS_A0_DYNAMIC:
+		return "dynamic hybrid mode";
+
+	case MLX4_STEERING_DMFS_A0_STATIC:
+		return "performance optimized for limited rule configuration (static)";
+
+	case MLX4_STEERING_DMFS_A0_DISABLE:
+		return "disabled performance optimized steering";
+
+	case MLX4_STEERING_DMFS_A0_NOT_SUPPORTED:
+		return "performance optimized steering not supported";
+
+	default:
+		return "Unrecognized mode";
+	}
+}
+
+#define MLX4_DMFS_A0_STEERING			(1UL << 2)
+
 static void choose_steering_mode(struct mlx4_dev *dev,
 				 struct mlx4_dev_cap *dev_cap)
 {
-	if (mlx4_log_num_mgm_entry_size == -1 &&
+	if (mlx4_log_num_mgm_entry_size <= 0) {
+		if ((-mlx4_log_num_mgm_entry_size) & MLX4_DMFS_A0_STEERING) {
+			if (dev->caps.dmfs_high_steer_mode ==
+			    MLX4_STEERING_DMFS_A0_NOT_SUPPORTED)
+				mlx4_err(dev, "DMFS high rate mode not supported\n");
+			else
+				dev->caps.dmfs_high_steer_mode =
+					MLX4_STEERING_DMFS_A0_STATIC;
+		}
+	}
+
+	if (mlx4_log_num_mgm_entry_size <= 0 &&
 	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_FS_EN &&
 	    (!mlx4_is_mfunc(dev) ||
 	     (dev_cap->fs_max_num_qp_per_entry >= (dev->num_vfs + 1))) &&
@@ -1520,6 +1715,9 @@ static void choose_steering_mode(struct mlx4_dev *dev,
 		dev->caps.fs_log_max_ucast_qp_range_size =
 			dev_cap->fs_log_max_ucast_qp_range_size;
 	} else {
+		if (dev->caps.dmfs_high_steer_mode !=
+		    MLX4_STEERING_DMFS_A0_NOT_SUPPORTED)
+			dev->caps.dmfs_high_steer_mode = MLX4_STEERING_DMFS_A0_DISABLE;
 		if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER &&
 		    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER)
 			dev->caps.steering_mode = MLX4_STEERING_MODE_B0;
@@ -1546,7 +1744,8 @@ static void choose_tunnel_offload_mode(struct mlx4_dev *dev,
 				       struct mlx4_dev_cap *dev_cap)
 {
 	if (dev->caps.steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED &&
-	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS)
+	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS &&
+	    dev->caps.dmfs_high_steer_mode != MLX4_STEERING_DMFS_A0_STATIC)
 		dev->caps.tunnel_offload_mode = MLX4_TUNNEL_OFFLOAD_MODE_VXLAN;
 	else
 		dev->caps.tunnel_offload_mode = MLX4_TUNNEL_OFFLOAD_MODE_NONE;
@@ -1555,16 +1754,39 @@ static void choose_tunnel_offload_mode(struct mlx4_dev *dev,
 		 == MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) ? "vxlan" : "none");
 }
 
-static int mlx4_init_hca(struct mlx4_dev *dev)
+static int mlx4_validate_optimized_steering(struct mlx4_dev *dev)
 {
-	struct mlx4_priv	  *priv = mlx4_priv(dev);
-	struct mlx4_adapter	   adapter;
-	struct mlx4_dev_cap	   dev_cap;
+	int i;
+	struct mlx4_port_cap port_cap;
+
+	if (dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_NOT_SUPPORTED)
+		return -EINVAL;
+
+	for (i = 1; i <= dev->caps.num_ports; i++) {
+		if (mlx4_dev_port(dev, i, &port_cap)) {
+			mlx4_err(dev,
+				 "QUERY_DEV_CAP command failed, can't veify DMFS high rate steering.\n");
+		} else if ((dev->caps.dmfs_high_steer_mode !=
+			    MLX4_STEERING_DMFS_A0_DEFAULT) &&
+			   (port_cap.dmfs_optimized_state ==
+			    !!(dev->caps.dmfs_high_steer_mode ==
+			    MLX4_STEERING_DMFS_A0_DISABLE))) {
+			mlx4_err(dev,
+				 "DMFS high rate steer mode differ, driver requested %s but %s in FW.\n",
+				 dmfs_high_rate_steering_mode_str(
+					dev->caps.dmfs_high_steer_mode),
+				 (port_cap.dmfs_optimized_state ?
+					"enabled" : "disabled"));
+		}
+	}
+
+	return 0;
+}
+
+static int mlx4_init_fw(struct mlx4_dev *dev)
+{
 	struct mlx4_mod_stat_cfg   mlx4_cfg;
-	struct mlx4_profile	   profile;
-	struct mlx4_init_hca_param init_hca;
-	u64 icm_size;
-	int err;
+	int err = 0;
 
 	if (!mlx4_is_slave(dev)) {
 		err = mlx4_QUERY_FW(dev);
@@ -1587,15 +1809,35 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		err = mlx4_MOD_STAT_CFG(dev, &mlx4_cfg);
 		if (err)
 			mlx4_warn(dev, "Failed to override log_pg_sz parameter\n");
+	}
 
+	return err;
+}
+
+static int mlx4_init_hca(struct mlx4_dev *dev)
+{
+	struct mlx4_priv	  *priv = mlx4_priv(dev);
+	struct mlx4_adapter	   adapter;
+	struct mlx4_dev_cap	   dev_cap;
+	struct mlx4_profile	   profile;
+	struct mlx4_init_hca_param init_hca;
+	u64 icm_size;
+	struct mlx4_config_dev_params params;
+	int err;
+
+	if (!mlx4_is_slave(dev)) {
 		err = mlx4_dev_cap(dev, &dev_cap);
 		if (err) {
 			mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting\n");
-			goto err_stop_fw;
+			return err;
 		}
 
 		choose_steering_mode(dev, &dev_cap);
 		choose_tunnel_offload_mode(dev, &dev_cap);
+
+		if (dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC &&
+		    mlx4_is_master(dev))
+			dev->caps.function_caps |= MLX4_FUNC_CAP_DMFS_A0_STATIC;
 
 		err = mlx4_get_phys_port_id(dev);
 		if (err)
@@ -1618,7 +1860,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 					     &init_hca);
 		if ((long long) icm_size < 0) {
 			err = icm_size;
-			goto err_stop_fw;
+			return err;
 		}
 
 		dev->caps.max_fmr_maps = (1 << (32 - ilog2(dev->caps.num_mpts))) - 1;
@@ -1632,13 +1874,26 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 
 		err = mlx4_init_icm(dev, &dev_cap, &init_hca, icm_size);
 		if (err)
-			goto err_stop_fw;
+			return err;
 
 		err = mlx4_INIT_HCA(dev, &init_hca);
 		if (err) {
 			mlx4_err(dev, "INIT_HCA command failed, aborting\n");
 			goto err_free_icm;
 		}
+
+		if (dev_cap.flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+			err = mlx4_query_func(dev, &dev_cap);
+			if (err < 0) {
+				mlx4_err(dev, "QUERY_FUNC command failed, aborting.\n");
+				goto err_close;
+			} else if (err & MLX4_QUERY_FUNC_NUM_SYS_EQS) {
+				dev->caps.num_eqs = dev_cap.max_eqs;
+				dev->caps.reserved_eqs = dev_cap.reserved_eqs;
+				dev->caps.reserved_uars = dev_cap.reserved_uars;
+			}
+		}
+
 		/*
 		 * If TS is supported by FW
 		 * read HCA frequency by QUERY_HCA command
@@ -1670,6 +1925,24 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 				mlx4_err(dev, "Failed to map internal clock. Timestamping is not supported\n");
 			}
 		}
+
+		if (dev->caps.dmfs_high_steer_mode !=
+		    MLX4_STEERING_DMFS_A0_NOT_SUPPORTED) {
+			if (mlx4_validate_optimized_steering(dev))
+				mlx4_warn(dev, "Optimized steering validation failed\n");
+
+			if (dev->caps.dmfs_high_steer_mode ==
+			    MLX4_STEERING_DMFS_A0_DISABLE) {
+				dev->caps.dmfs_high_rate_qpn_base =
+					dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW];
+				dev->caps.dmfs_high_rate_qpn_range =
+					MLX4_A0_STEERING_TABLE_SIZE;
+			}
+
+			mlx4_dbg(dev, "DMFS high rate steer mode is: %s\n",
+				 dmfs_high_rate_steering_mode_str(
+					dev->caps.dmfs_high_steer_mode));
+		}
 	} else {
 		err = mlx4_init_slave(dev);
 		if (err) {
@@ -1698,6 +1971,14 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		goto unmap_bf;
 	}
 
+	/* Query CONFIG_DEV parameters */
+	err = mlx4_config_dev_retrieval(dev, &params);
+	if (err && err != -ENOTSUPP) {
+		mlx4_err(dev, "Failed to query CONFIG_DEV parameters\n");
+	} else if (!err) {
+		dev->caps.rx_checksum_flags_port[1] = params.rx_csum_flags_port_1;
+		dev->caps.rx_checksum_flags_port[2] = params.rx_csum_flags_port_2;
+	}
 	priv->eq_table.inta_pin = adapter.inta_pin;
 	memcpy(dev->board_id, adapter.board_id, sizeof dev->board_id);
 
@@ -1725,11 +2006,6 @@ err_free_icm:
 	if (!mlx4_is_slave(dev))
 		mlx4_free_icms(dev);
 
-err_stop_fw:
-	if (!mlx4_is_slave(dev)) {
-		mlx4_UNMAP_FA(dev);
-		mlx4_free_icm(dev, priv->fw.fw_icm, 0);
-	}
 	return err;
 }
 
@@ -1997,12 +2273,11 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry *entries;
-	int nreq = min_t(int, dev->caps.num_ports *
-			 min_t(int, num_online_cpus() + 1,
-			       MAX_MSIX_P_PORT) + MSIX_LEGACY_SZ, MAX_MSIX);
 	int i;
 
 	if (msi_x) {
+		int nreq = dev->caps.num_ports * num_online_cpus() + MSIX_LEGACY_SZ;
+
 		nreq = min_t(int, dev->caps.num_eqs - dev->caps.reserved_eqs,
 			     nreq);
 
@@ -2202,18 +2477,458 @@ static void mlx4_free_ownership(struct mlx4_dev *dev)
 	iounmap(owner);
 }
 
-static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
+#define SRIOV_VALID_STATE(flags) (!!((flags) & MLX4_FLAG_SRIOV)	==\
+				  !!((flags) & MLX4_FLAG_MASTER))
+
+static u64 mlx4_enable_sriov(struct mlx4_dev *dev, struct pci_dev *pdev,
+			     u8 total_vfs, int existing_vfs)
 {
-	struct mlx4_priv *priv;
+	u64 dev_flags = dev->flags;
+	int err = 0;
+
+	atomic_inc(&pf_loading);
+	if (dev->flags &  MLX4_FLAG_SRIOV) {
+		if (existing_vfs != total_vfs) {
+			mlx4_err(dev, "SR-IOV was already enabled, but with num_vfs (%d) different than requested (%d)\n",
+				 existing_vfs, total_vfs);
+			total_vfs = existing_vfs;
+		}
+	}
+
+	dev->dev_vfs = kzalloc(total_vfs * sizeof(*dev->dev_vfs), GFP_KERNEL);
+	if (NULL == dev->dev_vfs) {
+		mlx4_err(dev, "Failed to allocate memory for VFs\n");
+		goto disable_sriov;
+	}
+
+	if (!(dev->flags &  MLX4_FLAG_SRIOV)) {
+		mlx4_warn(dev, "Enabling SR-IOV with %d VFs\n", total_vfs);
+		err = pci_enable_sriov(pdev, total_vfs);
+	}
+	if (err) {
+		mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d)\n",
+			 err);
+		goto disable_sriov;
+	} else {
+		mlx4_warn(dev, "Running in master mode\n");
+		dev_flags |= MLX4_FLAG_SRIOV |
+			MLX4_FLAG_MASTER;
+		dev_flags &= ~MLX4_FLAG_SLAVE;
+		dev->num_vfs = total_vfs;
+	}
+	return dev_flags;
+
+disable_sriov:
+	atomic_dec(&pf_loading);
+	dev->num_vfs = 0;
+	kfree(dev->dev_vfs);
+	return dev_flags & ~MLX4_FLAG_MASTER;
+}
+
+enum {
+	MLX4_DEV_CAP_CHECK_NUM_VFS_ABOVE_64 = -1,
+};
+
+static int mlx4_check_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
+			      int *nvfs)
+{
+	int requested_vfs = nvfs[0] + nvfs[1] + nvfs[2];
+	/* Checking for 64 VFs as a limitation of CX2 */
+	if (!(dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_80_VFS) &&
+	    requested_vfs >= 64) {
+		mlx4_err(dev, "Requested %d VFs, but FW does not support more than 64\n",
+			 requested_vfs);
+		return MLX4_DEV_CAP_CHECK_NUM_VFS_ABOVE_64;
+	}
+	return 0;
+}
+
+static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
+			 int total_vfs, int *nvfs, struct mlx4_priv *priv)
+{
 	struct mlx4_dev *dev;
+	unsigned sum = 0;
 	int err;
 	int port;
+	int i;
+	struct mlx4_dev_cap *dev_cap = NULL;
+	int existing_vfs = 0;
+
+	dev = &priv->dev;
+
+	INIT_LIST_HEAD(&priv->ctx_list);
+	spin_lock_init(&priv->ctx_lock);
+
+	mutex_init(&priv->port_mutex);
+
+	INIT_LIST_HEAD(&priv->pgdir_list);
+	mutex_init(&priv->pgdir_mutex);
+
+	INIT_LIST_HEAD(&priv->bf_list);
+	mutex_init(&priv->bf_mutex);
+
+	dev->rev_id = pdev->revision;
+	dev->numa_node = dev_to_node(&pdev->dev);
+
+	/* Detect if this device is a virtual function */
+	if (pci_dev_data & MLX4_PCI_DEV_IS_VF) {
+		mlx4_warn(dev, "Detected virtual function - running in slave mode\n");
+		dev->flags |= MLX4_FLAG_SLAVE;
+	} else {
+		/* We reset the device and enable SRIOV only for physical
+		 * devices.  Try to claim ownership on the device;
+		 * if already taken, skip -- do not allow multiple PFs */
+		err = mlx4_get_ownership(dev);
+		if (err) {
+			if (err < 0)
+				return err;
+			else {
+				mlx4_warn(dev, "Multiple PFs not yet supported - Skipping PF\n");
+				return -EINVAL;
+			}
+		}
+
+		atomic_set(&priv->opreq_count, 0);
+		INIT_WORK(&priv->opreq_task, mlx4_opreq_action);
+
+		/*
+		 * Now reset the HCA before we touch the PCI capabilities or
+		 * attempt a firmware command, since a boot ROM may have left
+		 * the HCA in an undefined state.
+		 */
+		err = mlx4_reset(dev);
+		if (err) {
+			mlx4_err(dev, "Failed to reset HCA, aborting\n");
+			goto err_sriov;
+		}
+
+		if (total_vfs) {
+			dev->flags = MLX4_FLAG_MASTER;
+			existing_vfs = pci_num_vf(pdev);
+			if (existing_vfs)
+				dev->flags |= MLX4_FLAG_SRIOV;
+			dev->num_vfs = total_vfs;
+		}
+	}
+
+slave_start:
+	err = mlx4_cmd_init(dev);
+	if (err) {
+		mlx4_err(dev, "Failed to init command interface, aborting\n");
+		goto err_sriov;
+	}
+
+	/* In slave functions, the communication channel must be initialized
+	 * before posting commands. Also, init num_slaves before calling
+	 * mlx4_init_hca */
+	if (mlx4_is_mfunc(dev)) {
+		if (mlx4_is_master(dev)) {
+			dev->num_slaves = MLX4_MAX_NUM_SLAVES;
+
+		} else {
+			dev->num_slaves = 0;
+			err = mlx4_multi_func_init(dev);
+			if (err) {
+				mlx4_err(dev, "Failed to init slave mfunc interface, aborting\n");
+				goto err_cmd;
+			}
+		}
+	}
+
+	err = mlx4_init_fw(dev);
+	if (err) {
+		mlx4_err(dev, "Failed to init fw, aborting.\n");
+		goto err_mfunc;
+	}
+
+	if (mlx4_is_master(dev)) {
+		/* when we hit the goto slave_start below, dev_cap already initialized */
+		if (!dev_cap) {
+			dev_cap = kzalloc(sizeof(*dev_cap), GFP_KERNEL);
+
+			if (!dev_cap) {
+				err = -ENOMEM;
+				goto err_fw;
+			}
+
+			err = mlx4_QUERY_DEV_CAP(dev, dev_cap);
+			if (err) {
+				mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
+				goto err_fw;
+			}
+
+			if (mlx4_check_dev_cap(dev, dev_cap, nvfs))
+				goto err_fw;
+
+			if (!(dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS)) {
+				u64 dev_flags = mlx4_enable_sriov(dev, pdev, total_vfs,
+								  existing_vfs);
+
+				mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_ALL);
+				dev->flags = dev_flags;
+				if (!SRIOV_VALID_STATE(dev->flags)) {
+					mlx4_err(dev, "Invalid SRIOV state\n");
+					goto err_sriov;
+				}
+				err = mlx4_reset(dev);
+				if (err) {
+					mlx4_err(dev, "Failed to reset HCA, aborting.\n");
+					goto err_sriov;
+				}
+				goto slave_start;
+			}
+		} else {
+			/* Legacy mode FW requires SRIOV to be enabled before
+			 * doing QUERY_DEV_CAP, since max_eq's value is different if
+			 * SRIOV is enabled.
+			 */
+			memset(dev_cap, 0, sizeof(*dev_cap));
+			err = mlx4_QUERY_DEV_CAP(dev, dev_cap);
+			if (err) {
+				mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
+				goto err_fw;
+			}
+
+			if (mlx4_check_dev_cap(dev, dev_cap, nvfs))
+				goto err_fw;
+		}
+	}
+
+	err = mlx4_init_hca(dev);
+	if (err) {
+		if (err == -EACCES) {
+			/* Not primary Physical function
+			 * Running in slave mode */
+			mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_ALL);
+			/* We're not a PF */
+			if (dev->flags & MLX4_FLAG_SRIOV) {
+				if (!existing_vfs)
+					pci_disable_sriov(pdev);
+				if (mlx4_is_master(dev))
+					atomic_dec(&pf_loading);
+				dev->flags &= ~MLX4_FLAG_SRIOV;
+			}
+			if (!mlx4_is_slave(dev))
+				mlx4_free_ownership(dev);
+			dev->flags |= MLX4_FLAG_SLAVE;
+			dev->flags &= ~MLX4_FLAG_MASTER;
+			goto slave_start;
+		} else
+			goto err_fw;
+	}
+
+	if (mlx4_is_master(dev) && (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS)) {
+		u64 dev_flags = mlx4_enable_sriov(dev, pdev, total_vfs, existing_vfs);
+
+		if ((dev->flags ^ dev_flags) & (MLX4_FLAG_MASTER | MLX4_FLAG_SLAVE)) {
+			mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_VHCR);
+			dev->flags = dev_flags;
+			err = mlx4_cmd_init(dev);
+			if (err) {
+				/* Only VHCR is cleaned up, so could still
+				 * send FW commands
+				 */
+				mlx4_err(dev, "Failed to init VHCR command interface, aborting\n");
+				goto err_close;
+			}
+		} else {
+			dev->flags = dev_flags;
+		}
+
+		if (!SRIOV_VALID_STATE(dev->flags)) {
+			mlx4_err(dev, "Invalid SRIOV state\n");
+			goto err_close;
+		}
+	}
+
+	/* check if the device is functioning at its maximum possible speed.
+	 * No return code for this call, just warn the user in case of PCI
+	 * express device capabilities are under-satisfied by the bus.
+	 */
+	if (!mlx4_is_slave(dev))
+		mlx4_check_pcie_caps(dev);
+
+	/* In master functions, the communication channel must be initialized
+	 * after obtaining its address from fw */
+	if (mlx4_is_master(dev)) {
+		int ib_ports = 0;
+
+		mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+			ib_ports++;
+
+		if (ib_ports &&
+		    (num_vfs_argc > 1 || probe_vfs_argc > 1)) {
+			mlx4_err(dev,
+				 "Invalid syntax of num_vfs/probe_vfs with IB port - single port VFs syntax is only supported when all ports are configured as ethernet\n");
+			err = -EINVAL;
+			goto err_close;
+		}
+		if (dev->caps.num_ports < 2 &&
+		    num_vfs_argc > 1) {
+			err = -EINVAL;
+			mlx4_err(dev,
+				 "Error: Trying to configure VFs on port 2, but HCA has only %d physical ports\n",
+				 dev->caps.num_ports);
+			goto err_close;
+		}
+		memcpy(dev->nvfs, nvfs, sizeof(dev->nvfs));
+
+		for (i = 0; i < sizeof(dev->nvfs)/sizeof(dev->nvfs[0]); i++) {
+			unsigned j;
+
+			for (j = 0; j < dev->nvfs[i]; ++sum, ++j) {
+				dev->dev_vfs[sum].min_port = i < 2 ? i + 1 : 1;
+				dev->dev_vfs[sum].n_ports = i < 2 ? 1 :
+					dev->caps.num_ports;
+			}
+		}
+
+		/* In master functions, the communication channel
+		 * must be initialized after obtaining its address from fw
+		 */
+		err = mlx4_multi_func_init(dev);
+		if (err) {
+			mlx4_err(dev, "Failed to init master mfunc interface, aborting.\n");
+			goto err_close;
+		}
+	}
+
+	err = mlx4_alloc_eq_table(dev);
+	if (err)
+		goto err_master_mfunc;
+
+	priv->msix_ctl.pool_bm = 0;
+	mutex_init(&priv->msix_ctl.pool_lock);
+
+	mlx4_enable_msi_x(dev);
+	if ((mlx4_is_mfunc(dev)) &&
+	    !(dev->flags & MLX4_FLAG_MSI_X)) {
+		err = -ENOSYS;
+		mlx4_err(dev, "INTx is not supported in multi-function mode, aborting\n");
+		goto err_free_eq;
+	}
+
+	if (!mlx4_is_slave(dev)) {
+		err = mlx4_init_steering(dev);
+		if (err)
+			goto err_disable_msix;
+	}
+
+	err = mlx4_setup_hca(dev);
+	if (err == -EBUSY && (dev->flags & MLX4_FLAG_MSI_X) &&
+	    !mlx4_is_mfunc(dev)) {
+		dev->flags &= ~MLX4_FLAG_MSI_X;
+		dev->caps.num_comp_vectors = 1;
+		dev->caps.comp_pool	   = 0;
+		pci_disable_msix(pdev);
+		err = mlx4_setup_hca(dev);
+	}
+
+	if (err)
+		goto err_steer;
+
+	mlx4_init_quotas(dev);
+
+	for (port = 1; port <= dev->caps.num_ports; port++) {
+		err = mlx4_init_port_info(dev, port);
+		if (err)
+			goto err_port;
+	}
+
+	err = mlx4_register_device(dev);
+	if (err)
+		goto err_port;
+
+	mlx4_request_modules(dev);
+
+	mlx4_sense_init(dev);
+	mlx4_start_sense(dev);
+
+	priv->removed = 0;
+
+	if (mlx4_is_master(dev) && dev->num_vfs)
+		atomic_dec(&pf_loading);
+
+	kfree(dev_cap);
+	return 0;
+
+err_port:
+	for (--port; port >= 1; --port)
+		mlx4_cleanup_port_info(&priv->port[port]);
+
+	mlx4_cleanup_counters_table(dev);
+	mlx4_cleanup_qp_table(dev);
+	mlx4_cleanup_srq_table(dev);
+	mlx4_cleanup_cq_table(dev);
+	mlx4_cmd_use_polling(dev);
+	mlx4_cleanup_eq_table(dev);
+	mlx4_cleanup_mcg_table(dev);
+	mlx4_cleanup_mr_table(dev);
+	mlx4_cleanup_xrcd_table(dev);
+	mlx4_cleanup_pd_table(dev);
+	mlx4_cleanup_uar_table(dev);
+
+err_steer:
+	if (!mlx4_is_slave(dev))
+		mlx4_clear_steering(dev);
+
+err_disable_msix:
+	if (dev->flags & MLX4_FLAG_MSI_X)
+		pci_disable_msix(pdev);
+
+err_free_eq:
+	mlx4_free_eq_table(dev);
+
+err_master_mfunc:
+	if (mlx4_is_master(dev))
+		mlx4_multi_func_cleanup(dev);
+
+	if (mlx4_is_slave(dev)) {
+		kfree(dev->caps.qp0_qkey);
+		kfree(dev->caps.qp0_tunnel);
+		kfree(dev->caps.qp0_proxy);
+		kfree(dev->caps.qp1_tunnel);
+		kfree(dev->caps.qp1_proxy);
+	}
+
+err_close:
+	mlx4_close_hca(dev);
+
+err_fw:
+	mlx4_close_fw(dev);
+
+err_mfunc:
+	if (mlx4_is_slave(dev))
+		mlx4_multi_func_cleanup(dev);
+
+err_cmd:
+	mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_ALL);
+
+err_sriov:
+	if (dev->flags & MLX4_FLAG_SRIOV && !existing_vfs)
+		pci_disable_sriov(pdev);
+
+	if (mlx4_is_master(dev) && dev->num_vfs)
+		atomic_dec(&pf_loading);
+
+	kfree(priv->dev.dev_vfs);
+
+	if (!mlx4_is_slave(dev))
+		mlx4_free_ownership(dev);
+
+	kfree(dev_cap);
+	return err;
+}
+
+static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
+			   struct mlx4_priv *priv)
+{
+	int err;
 	int nvfs[MLX4_MAX_PORTS + 1] = {0, 0, 0};
 	int prb_vf[MLX4_MAX_PORTS + 1] = {0, 0, 0};
 	const int param_map[MLX4_MAX_PORTS + 1][MLX4_MAX_PORTS + 1] = {
 		{2, 0, 0}, {0, 1, 2}, {0, 1, 2} };
 	unsigned total_vfs = 0;
-	int sriov_initialized = 0;
 	unsigned int i;
 
 	pr_info(DRV_NAME ": Initializing %s\n", pci_name(pdev));
@@ -2233,7 +2948,8 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 		nvfs[param_map[num_vfs_argc - 1][i]] = num_vfs[i];
 		if (nvfs[i] < 0) {
 			dev_err(&pdev->dev, "num_vfs module parameter cannot be negative\n");
-			return -EINVAL;
+			err = -EINVAL;
+			goto err_disable_pdev;
 		}
 	}
 	for (i = 0; i < sizeof(prb_vf)/sizeof(prb_vf[0]) && i < probe_vfs_argc;
@@ -2241,14 +2957,16 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 		prb_vf[param_map[probe_vfs_argc - 1][i]] = probe_vf[i];
 		if (prb_vf[i] < 0 || prb_vf[i] > nvfs[i]) {
 			dev_err(&pdev->dev, "probe_vf module parameter cannot be negative or greater than num_vfs\n");
-			return -EINVAL;
+			err = -EINVAL;
+			goto err_disable_pdev;
 		}
 	}
 	if (total_vfs >= MLX4_MAX_NUM_VF) {
 		dev_err(&pdev->dev,
 			"Requested more VF's (%d) than allowed (%d)\n",
 			total_vfs, MLX4_MAX_NUM_VF - 1);
-		return -EINVAL;
+		err = -EINVAL;
+		goto err_disable_pdev;
 	}
 
 	for (i = 0; i < MLX4_MAX_PORTS; i++) {
@@ -2257,14 +2975,12 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 				"Requested more VF's (%d) for port (%d) than allowed (%d)\n",
 				nvfs[i] + nvfs[2], i + 1,
 				MLX4_MAX_NUM_VF_P_PORT - 1);
-			return -EINVAL;
+			err = -EINVAL;
+			goto err_disable_pdev;
 		}
 	}
 
-
-	/*
-	 * Check for BARs.
-	 */
+	/* Check for BARs. */
 	if (!(pci_dev_data & MLX4_PCI_DEV_IS_VF) &&
 	    !(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "Missing DCS, aborting (driver_data: 0x%x, pci_resource_flags(pdev, 0):0x%lx)\n",
@@ -2307,301 +3023,36 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 
 	/* Allow large DMA segments, up to the firmware limit of 1 GB */
 	dma_set_max_seg_size(&pdev->dev, 1024 * 1024 * 1024);
-
-	dev       = pci_get_drvdata(pdev);
-	priv      = mlx4_priv(dev);
-	dev->pdev = pdev;
-	INIT_LIST_HEAD(&priv->ctx_list);
-	spin_lock_init(&priv->ctx_lock);
-
-	mutex_init(&priv->port_mutex);
-
-	INIT_LIST_HEAD(&priv->pgdir_list);
-	mutex_init(&priv->pgdir_mutex);
-
-	INIT_LIST_HEAD(&priv->bf_list);
-	mutex_init(&priv->bf_mutex);
-
-	dev->rev_id = pdev->revision;
-	dev->numa_node = dev_to_node(&pdev->dev);
 	/* Detect if this device is a virtual function */
 	if (pci_dev_data & MLX4_PCI_DEV_IS_VF) {
 		/* When acting as pf, we normally skip vfs unless explicitly
-		 * requested to probe them. */
+		 * requested to probe them.
+		 */
 		if (total_vfs) {
 			unsigned vfs_offset = 0;
+
 			for (i = 0; i < sizeof(nvfs)/sizeof(nvfs[0]) &&
-				     vfs_offset + nvfs[i] < extended_func_num(pdev);
+			     vfs_offset + nvfs[i] < extended_func_num(pdev);
 			     vfs_offset += nvfs[i], i++)
 				;
 			if (i == sizeof(nvfs)/sizeof(nvfs[0])) {
 				err = -ENODEV;
-				goto err_free_dev;
+				goto err_release_regions;
 			}
 			if ((extended_func_num(pdev) - vfs_offset)
 			    > prb_vf[i]) {
-				mlx4_warn(dev, "Skipping virtual function:%d\n",
-					  extended_func_num(pdev));
+				dev_warn(&pdev->dev, "Skipping virtual function:%d\n",
+					 extended_func_num(pdev));
 				err = -ENODEV;
-				goto err_free_dev;
-			}
-		}
-		mlx4_warn(dev, "Detected virtual function - running in slave mode\n");
-		dev->flags |= MLX4_FLAG_SLAVE;
-	} else {
-		/* We reset the device and enable SRIOV only for physical
-		 * devices.  Try to claim ownership on the device;
-		 * if already taken, skip -- do not allow multiple PFs */
-		err = mlx4_get_ownership(dev);
-		if (err) {
-			if (err < 0)
-				goto err_free_dev;
-			else {
-				mlx4_warn(dev, "Multiple PFs not yet supported - Skipping PF\n");
-				err = -EINVAL;
-				goto err_free_dev;
-			}
-		}
-
-		if (total_vfs) {
-			mlx4_warn(dev, "Enabling SR-IOV with %d VFs\n",
-				  total_vfs);
-			dev->dev_vfs = kzalloc(
-				total_vfs * sizeof(*dev->dev_vfs),
-				GFP_KERNEL);
-			if (NULL == dev->dev_vfs) {
-				mlx4_err(dev, "Failed to allocate memory for VFs\n");
-				err = 0;
-			} else {
-				atomic_inc(&pf_loading);
-				err = pci_enable_sriov(pdev, total_vfs);
-				if (err) {
-					mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d)\n",
-						 err);
-					atomic_dec(&pf_loading);
-					err = 0;
-				} else {
-					mlx4_warn(dev, "Running in master mode\n");
-					dev->flags |= MLX4_FLAG_SRIOV |
-						MLX4_FLAG_MASTER;
-					dev->num_vfs = total_vfs;
-					sriov_initialized = 1;
-				}
-			}
-		}
-
-		atomic_set(&priv->opreq_count, 0);
-		INIT_WORK(&priv->opreq_task, mlx4_opreq_action);
-
-		/*
-		 * Now reset the HCA before we touch the PCI capabilities or
-		 * attempt a firmware command, since a boot ROM may have left
-		 * the HCA in an undefined state.
-		 */
-		err = mlx4_reset(dev);
-		if (err) {
-			mlx4_err(dev, "Failed to reset HCA, aborting\n");
-			goto err_rel_own;
-		}
-	}
-
-slave_start:
-	err = mlx4_cmd_init(dev);
-	if (err) {
-		mlx4_err(dev, "Failed to init command interface, aborting\n");
-		goto err_sriov;
-	}
-
-	/* In slave functions, the communication channel must be initialized
-	 * before posting commands. Also, init num_slaves before calling
-	 * mlx4_init_hca */
-	if (mlx4_is_mfunc(dev)) {
-		if (mlx4_is_master(dev))
-			dev->num_slaves = MLX4_MAX_NUM_SLAVES;
-		else {
-			dev->num_slaves = 0;
-			err = mlx4_multi_func_init(dev);
-			if (err) {
-				mlx4_err(dev, "Failed to init slave mfunc interface, aborting\n");
-				goto err_cmd;
+				goto err_release_regions;
 			}
 		}
 	}
 
-	err = mlx4_init_hca(dev);
-	if (err) {
-		if (err == -EACCES) {
-			/* Not primary Physical function
-			 * Running in slave mode */
-			mlx4_cmd_cleanup(dev);
-			dev->flags |= MLX4_FLAG_SLAVE;
-			dev->flags &= ~MLX4_FLAG_MASTER;
-			goto slave_start;
-		} else
-			goto err_mfunc;
-	}
-
-	/* check if the device is functioning at its maximum possible speed.
-	 * No return code for this call, just warn the user in case of PCI
-	 * express device capabilities are under-satisfied by the bus.
-	 */
-	if (!mlx4_is_slave(dev))
-		mlx4_check_pcie_caps(dev);
-
-	/* In master functions, the communication channel must be initialized
-	 * after obtaining its address from fw */
-	if (mlx4_is_master(dev)) {
-		unsigned sum = 0;
-		err = mlx4_multi_func_init(dev);
-		if (err) {
-			mlx4_err(dev, "Failed to init master mfunc interface, aborting\n");
-			goto err_close;
-		}
-		if (sriov_initialized) {
-			int ib_ports = 0;
-			mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
-				ib_ports++;
-
-			if (ib_ports &&
-			    (num_vfs_argc > 1 || probe_vfs_argc > 1)) {
-				mlx4_err(dev,
-					 "Invalid syntax of num_vfs/probe_vfs with IB port - single port VFs syntax is only supported when all ports are configured as ethernet\n");
-				err = -EINVAL;
-				goto err_master_mfunc;
-			}
-			for (i = 0; i < sizeof(nvfs)/sizeof(nvfs[0]); i++) {
-				unsigned j;
-				for (j = 0; j < nvfs[i]; ++sum, ++j) {
-					dev->dev_vfs[sum].min_port =
-						i < 2 ? i + 1 : 1;
-					dev->dev_vfs[sum].n_ports = i < 2 ? 1 :
-						dev->caps.num_ports;
-				}
-			}
-		}
-	}
-
-	err = mlx4_alloc_eq_table(dev);
+	err = mlx4_load_one(pdev, pci_dev_data, total_vfs, nvfs, priv);
 	if (err)
-		goto err_master_mfunc;
-
-	priv->msix_ctl.pool_bm = 0;
-	mutex_init(&priv->msix_ctl.pool_lock);
-
-	mlx4_enable_msi_x(dev);
-	if ((mlx4_is_mfunc(dev)) &&
-	    !(dev->flags & MLX4_FLAG_MSI_X)) {
-		err = -ENOSYS;
-		mlx4_err(dev, "INTx is not supported in multi-function mode, aborting\n");
-		goto err_free_eq;
-	}
-
-	if (!mlx4_is_slave(dev)) {
-		err = mlx4_init_steering(dev);
-		if (err)
-			goto err_free_eq;
-	}
-
-	err = mlx4_setup_hca(dev);
-	if (err == -EBUSY && (dev->flags & MLX4_FLAG_MSI_X) &&
-	    !mlx4_is_mfunc(dev)) {
-		dev->flags &= ~MLX4_FLAG_MSI_X;
-		dev->caps.num_comp_vectors = 1;
-		dev->caps.comp_pool	   = 0;
-		pci_disable_msix(pdev);
-		err = mlx4_setup_hca(dev);
-	}
-
-	if (err)
-		goto err_steer;
-
-	mlx4_init_quotas(dev);
-
-	for (port = 1; port <= dev->caps.num_ports; port++) {
-		err = mlx4_init_port_info(dev, port);
-		if (err)
-			goto err_port;
-	}
-
-	err = mlx4_register_device(dev);
-	if (err)
-		goto err_port;
-
-	mlx4_request_modules(dev);
-
-	mlx4_sense_init(dev);
-	mlx4_start_sense(dev);
-
-	priv->removed = 0;
-
-	if (mlx4_is_master(dev) && dev->num_vfs)
-		atomic_dec(&pf_loading);
-
+		goto err_release_regions;
 	return 0;
-
-err_port:
-	for (--port; port >= 1; --port)
-		mlx4_cleanup_port_info(&priv->port[port]);
-
-	mlx4_cleanup_counters_table(dev);
-	mlx4_cleanup_qp_table(dev);
-	mlx4_cleanup_srq_table(dev);
-	mlx4_cleanup_cq_table(dev);
-	mlx4_cmd_use_polling(dev);
-	mlx4_cleanup_eq_table(dev);
-	mlx4_cleanup_mcg_table(dev);
-	mlx4_cleanup_mr_table(dev);
-	mlx4_cleanup_xrcd_table(dev);
-	mlx4_cleanup_pd_table(dev);
-	mlx4_cleanup_uar_table(dev);
-
-err_steer:
-	if (!mlx4_is_slave(dev))
-		mlx4_clear_steering(dev);
-
-err_free_eq:
-	mlx4_free_eq_table(dev);
-
-err_master_mfunc:
-	if (mlx4_is_master(dev))
-		mlx4_multi_func_cleanup(dev);
-
-	if (mlx4_is_slave(dev)) {
-		kfree(dev->caps.qp0_qkey);
-		kfree(dev->caps.qp0_tunnel);
-		kfree(dev->caps.qp0_proxy);
-		kfree(dev->caps.qp1_tunnel);
-		kfree(dev->caps.qp1_proxy);
-	}
-
-err_close:
-	if (dev->flags & MLX4_FLAG_MSI_X)
-		pci_disable_msix(pdev);
-
-	mlx4_close_hca(dev);
-
-err_mfunc:
-	if (mlx4_is_slave(dev))
-		mlx4_multi_func_cleanup(dev);
-
-err_cmd:
-	mlx4_cmd_cleanup(dev);
-
-err_sriov:
-	if (dev->flags & MLX4_FLAG_SRIOV)
-		pci_disable_sriov(pdev);
-
-err_rel_own:
-	if (!mlx4_is_slave(dev))
-		mlx4_free_ownership(dev);
-
-	if (mlx4_is_master(dev) && dev->num_vfs)
-		atomic_dec(&pf_loading);
-
-	kfree(priv->dev.dev_vfs);
-
-err_free_dev:
-	kfree(priv);
 
 err_release_regions:
 	pci_release_regions(pdev);
@@ -2616,6 +3067,7 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct mlx4_priv *priv;
 	struct mlx4_dev *dev;
+	int ret;
 
 	printk_once(KERN_INFO "%s", mlx4_version);
 
@@ -2624,28 +3076,38 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	dev       = &priv->dev;
+	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 	priv->pci_dev_data = id->driver_data;
 
-	return __mlx4_init_one(pdev, id->driver_data);
+	ret =  __mlx4_init_one(pdev, id->driver_data, priv);
+	if (ret)
+		kfree(priv);
+
+	return ret;
 }
 
-static void __mlx4_remove_one(struct pci_dev *pdev)
+static void mlx4_unload_one(struct pci_dev *pdev)
 {
 	struct mlx4_dev  *dev  = pci_get_drvdata(pdev);
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int               pci_dev_data;
 	int p;
+	int active_vfs = 0;
 
 	if (priv->removed)
 		return;
 
 	pci_dev_data = priv->pci_dev_data;
 
-	/* in SRIOV it is not allowed to unload the pf's
-	 * driver while there are alive vf's */
-	if (mlx4_is_master(dev) && mlx4_how_many_lives_vf(dev))
-		pr_warn("Removing PF when there are assigned VF's !!!\n");
+	/* Disabling SR-IOV is not allowed while there are active vf's */
+	if (mlx4_is_master(dev)) {
+		active_vfs = mlx4_how_many_lives_vf(dev);
+		if (active_vfs) {
+			pr_warn("Removing PF when there are active VF's !!\n");
+			pr_warn("Will not disable SR-IOV.\n");
+		}
+	}
 	mlx4_stop_sense(dev);
 	mlx4_unregister_device(dev);
 
@@ -2682,15 +3144,17 @@ static void __mlx4_remove_one(struct pci_dev *pdev)
 	if (mlx4_is_master(dev))
 		mlx4_multi_func_cleanup(dev);
 	mlx4_close_hca(dev);
+	mlx4_close_fw(dev);
 	if (mlx4_is_slave(dev))
 		mlx4_multi_func_cleanup(dev);
-	mlx4_cmd_cleanup(dev);
+	mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_ALL);
 
 	if (dev->flags & MLX4_FLAG_MSI_X)
 		pci_disable_msix(pdev);
-	if (dev->flags & MLX4_FLAG_SRIOV) {
+	if (dev->flags & MLX4_FLAG_SRIOV && !active_vfs) {
 		mlx4_warn(dev, "Disabling SR-IOV\n");
 		pci_disable_sriov(pdev);
+		dev->flags &= ~MLX4_FLAG_SRIOV;
 		dev->num_vfs = 0;
 	}
 
@@ -2704,8 +3168,6 @@ static void __mlx4_remove_one(struct pci_dev *pdev)
 	kfree(dev->caps.qp1_proxy);
 	kfree(dev->dev_vfs);
 
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
 	memset(priv, 0, sizeof(*priv));
 	priv->pci_dev_data = pci_dev_data;
 	priv->removed = 1;
@@ -2716,7 +3178,9 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 	struct mlx4_dev  *dev  = pci_get_drvdata(pdev);
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	__mlx4_remove_one(pdev);
+	mlx4_unload_one(pdev);
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
 	kfree(priv);
 	pci_set_drvdata(pdev, NULL);
 }
@@ -2725,11 +3189,22 @@ int mlx4_restart_one(struct pci_dev *pdev)
 {
 	struct mlx4_dev	 *dev  = pci_get_drvdata(pdev);
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	int		  pci_dev_data;
+	int nvfs[MLX4_MAX_PORTS + 1] = {0, 0, 0};
+	int pci_dev_data, err, total_vfs;
 
 	pci_dev_data = priv->pci_dev_data;
-	__mlx4_remove_one(pdev);
-	return __mlx4_init_one(pdev, pci_dev_data);
+	total_vfs = dev->num_vfs;
+	memcpy(nvfs, dev->nvfs, sizeof(dev->nvfs));
+
+	mlx4_unload_one(pdev);
+	err = mlx4_load_one(pdev, pci_dev_data, total_vfs, nvfs, priv);
+	if (err) {
+		mlx4_err(dev, "%s: ERROR: mlx4_load_one failed, pci_name=%s, err=%d\n",
+			 __func__, pci_name(pdev), err);
+		return err;
+	}
+
+	return err;
 }
 
 static const struct pci_device_id mlx4_pci_table[] = {
@@ -2783,7 +3258,7 @@ MODULE_DEVICE_TABLE(pci, mlx4_pci_table);
 static pci_ers_result_t mlx4_pci_err_detected(struct pci_dev *pdev,
 					      pci_channel_state_t state)
 {
-	__mlx4_remove_one(pdev);
+	mlx4_unload_one(pdev);
 
 	return state == pci_channel_io_perm_failure ?
 		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
@@ -2795,7 +3270,7 @@ static pci_ers_result_t mlx4_pci_slot_reset(struct pci_dev *pdev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int               ret;
 
-	ret = __mlx4_init_one(pdev, priv->pci_dev_data);
+	ret = __mlx4_init_one(pdev, priv->pci_dev_data, priv);
 
 	return ret ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
@@ -2809,7 +3284,7 @@ static struct pci_driver mlx4_driver = {
 	.name		= DRV_NAME,
 	.id_table	= mlx4_pci_table,
 	.probe		= mlx4_init_one,
-	.shutdown	= __mlx4_remove_one,
+	.shutdown	= mlx4_unload_one,
 	.remove		= mlx4_remove_one,
 	.err_handler    = &mlx4_err_handler,
 };
@@ -2840,10 +3315,11 @@ static int __init mlx4_verify_params(void)
 		port_type_array[0] = true;
 	}
 
-	if (mlx4_log_num_mgm_entry_size != -1 &&
-	    (mlx4_log_num_mgm_entry_size < MLX4_MIN_MGM_LOG_ENTRY_SIZE ||
-	     mlx4_log_num_mgm_entry_size > MLX4_MAX_MGM_LOG_ENTRY_SIZE)) {
-		pr_warn("mlx4_core: mlx4_log_num_mgm_entry_size (%d) not in legal range (-1 or %d..%d)\n",
+	if (mlx4_log_num_mgm_entry_size < -7 ||
+	    (mlx4_log_num_mgm_entry_size > 0 &&
+	     (mlx4_log_num_mgm_entry_size < MLX4_MIN_MGM_LOG_ENTRY_SIZE ||
+	      mlx4_log_num_mgm_entry_size > MLX4_MAX_MGM_LOG_ENTRY_SIZE))) {
+		pr_warn("mlx4_core: mlx4_log_num_mgm_entry_size (%d) not in legal range (-7..0 or %d..%d)\n",
 			mlx4_log_num_mgm_entry_size,
 			MLX4_MIN_MGM_LOG_ENTRY_SIZE,
 			MLX4_MAX_MGM_LOG_ENTRY_SIZE);

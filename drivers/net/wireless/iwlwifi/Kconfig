@@ -59,6 +59,7 @@ config IWLDVM
 
 config IWLMVM
 	tristate "Intel Wireless WiFi MVM Firmware support"
+	select WANT_DEV_COREDUMP
 	help
 	  This is the driver that supports the MVM firmware which is
 	  currently only available for 7260 and 3160 devices.
@@ -84,6 +85,16 @@ config IWLWIFI_BCAST_FILTERING
 
 	  If unsure, don't enable this option, as some programs might
 	  expect incoming broadcasts for their normal operations.
+
+config IWLWIFI_UAPSD
+	bool "enable U-APSD by default"
+	depends on IWLMVM
+	help
+	  Say Y here to enable U-APSD by default. This may cause
+	  interoperability problems with some APs, manifesting in lower than
+	  expected throughput due to those APs not enabling aggregation
+
+	  If unsure, say N.
 
 menu "Debugging Options"
 

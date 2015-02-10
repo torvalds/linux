@@ -170,98 +170,6 @@ static bool hdmic_detect(struct omap_dss_device *dssdev)
 		return in->ops.hdmi->detect(in);
 }
 
-static int hdmic_audio_enable(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-	int r;
-
-	/* enable audio only if the display is active */
-	if (!omapdss_device_is_enabled(dssdev))
-		return -EPERM;
-
-	r = in->ops.hdmi->audio_enable(in);
-	if (r)
-		return r;
-
-	dssdev->audio_state = OMAP_DSS_AUDIO_ENABLED;
-
-	return 0;
-}
-
-static void hdmic_audio_disable(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	in->ops.hdmi->audio_disable(in);
-
-	dssdev->audio_state = OMAP_DSS_AUDIO_DISABLED;
-}
-
-static int hdmic_audio_start(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-	int r;
-
-	/*
-	 * No need to check the panel state. It was checked when trasitioning
-	 * to AUDIO_ENABLED.
-	 */
-	if (dssdev->audio_state != OMAP_DSS_AUDIO_ENABLED)
-		return -EPERM;
-
-	r = in->ops.hdmi->audio_start(in);
-	if (r)
-		return r;
-
-	dssdev->audio_state = OMAP_DSS_AUDIO_PLAYING;
-
-	return 0;
-}
-
-static void hdmic_audio_stop(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	in->ops.hdmi->audio_stop(in);
-
-	dssdev->audio_state = OMAP_DSS_AUDIO_ENABLED;
-}
-
-static bool hdmic_audio_supported(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return false;
-
-	return in->ops.hdmi->audio_supported(in);
-}
-
-static int hdmic_audio_config(struct omap_dss_device *dssdev,
-		struct omap_dss_audio *audio)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-	int r;
-
-	/* config audio only if the display is active */
-	if (!omapdss_device_is_enabled(dssdev))
-		return -EPERM;
-
-	r = in->ops.hdmi->audio_config(in, audio);
-	if (r)
-		return r;
-
-	dssdev->audio_state = OMAP_DSS_AUDIO_CONFIGURED;
-
-	return 0;
-}
-
 static int hdmic_set_hdmi_mode(struct omap_dss_device *dssdev, bool hdmi_mode)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
@@ -296,13 +204,6 @@ static struct omap_dss_driver hdmic_driver = {
 	.detect			= hdmic_detect,
 	.set_hdmi_mode		= hdmic_set_hdmi_mode,
 	.set_hdmi_infoframe	= hdmic_set_infoframe,
-
-	.audio_enable		= hdmic_audio_enable,
-	.audio_disable		= hdmic_audio_disable,
-	.audio_start		= hdmic_audio_start,
-	.audio_stop		= hdmic_audio_stop,
-	.audio_supported	= hdmic_audio_supported,
-	.audio_config		= hdmic_audio_config,
 };
 
 static int hdmic_probe_pdata(struct platform_device *pdev)
@@ -435,8 +336,8 @@ static struct platform_driver hdmi_connector_driver = {
 	.remove	= __exit_p(hdmic_remove),
 	.driver	= {
 		.name	= "connector-hdmi",
-		.owner	= THIS_MODULE,
 		.of_match_table = hdmic_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

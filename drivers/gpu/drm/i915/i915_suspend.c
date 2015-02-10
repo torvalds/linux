@@ -203,34 +203,19 @@ static void i915_save_display(struct drm_device *dev)
 		i915_save_display_reg(dev);
 
 	/* LVDS state */
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+		dev_priv->regfile.saveLVDS = I915_READ(PCH_LVDS);
+	else if (INTEL_INFO(dev)->gen <= 4 && IS_MOBILE(dev) && !IS_I830(dev))
+		dev_priv->regfile.saveLVDS = I915_READ(LVDS);
+
+	/* Panel power sequencer */
 	if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->regfile.savePP_CONTROL = I915_READ(PCH_PP_CONTROL);
-		if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
-			dev_priv->regfile.saveLVDS = I915_READ(PCH_LVDS);
-	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
-		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
-
-		dev_priv->regfile.saveBLC_HIST_CTL =
-			I915_READ(VLV_BLC_HIST_CTL(PIPE_A));
-		dev_priv->regfile.saveBLC_HIST_CTL_B =
-			I915_READ(VLV_BLC_HIST_CTL(PIPE_B));
-	} else {
-		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
-		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
-		dev_priv->regfile.saveBLC_HIST_CTL = I915_READ(BLC_HIST_CTL);
-		if (IS_MOBILE(dev) && !IS_I830(dev))
-			dev_priv->regfile.saveLVDS = I915_READ(LVDS);
-	}
-
-	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev))
-		dev_priv->regfile.savePFIT_CONTROL = I915_READ(PFIT_CONTROL);
-
-	if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->regfile.savePP_ON_DELAYS = I915_READ(PCH_PP_ON_DELAYS);
 		dev_priv->regfile.savePP_OFF_DELAYS = I915_READ(PCH_PP_OFF_DELAYS);
 		dev_priv->regfile.savePP_DIVISOR = I915_READ(PCH_PP_DIVISOR);
-	} else {
+	} else if (!IS_VALLEYVIEW(dev)) {
+		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
 		dev_priv->regfile.savePP_ON_DELAYS = I915_READ(PP_ON_DELAYS);
 		dev_priv->regfile.savePP_OFF_DELAYS = I915_READ(PP_OFF_DELAYS);
 		dev_priv->regfile.savePP_DIVISOR = I915_READ(PP_DIVISOR);
@@ -259,29 +244,19 @@ static void i915_restore_display(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		mask = ~LVDS_PORT_EN;
 
+	/* LVDS state */
 	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 		I915_WRITE(PCH_LVDS, dev_priv->regfile.saveLVDS & mask);
 	else if (INTEL_INFO(dev)->gen <= 4 && IS_MOBILE(dev) && !IS_I830(dev))
 		I915_WRITE(LVDS, dev_priv->regfile.saveLVDS & mask);
 
-	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev))
-		I915_WRITE(PFIT_CONTROL, dev_priv->regfile.savePFIT_CONTROL);
-
+	/* Panel power sequencer */
 	if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(PCH_PP_ON_DELAYS, dev_priv->regfile.savePP_ON_DELAYS);
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
 		I915_WRITE(PCH_PP_DIVISOR, dev_priv->regfile.savePP_DIVISOR);
 		I915_WRITE(PCH_PP_CONTROL, dev_priv->regfile.savePP_CONTROL);
-		I915_WRITE(RSTDBYCTL,
-			   dev_priv->regfile.saveMCHBAR_RENDER_STANDBY);
-	} else if (IS_VALLEYVIEW(dev)) {
-		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_A),
-			   dev_priv->regfile.saveBLC_HIST_CTL);
-		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_B),
-			   dev_priv->regfile.saveBLC_HIST_CTL);
-	} else {
-		I915_WRITE(PFIT_PGM_RATIOS, dev_priv->regfile.savePFIT_PGM_RATIOS);
-		I915_WRITE(BLC_HIST_CTL, dev_priv->regfile.saveBLC_HIST_CTL);
+	} else if (!IS_VALLEYVIEW(dev)) {
 		I915_WRITE(PP_ON_DELAYS, dev_priv->regfile.savePP_ON_DELAYS);
 		I915_WRITE(PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
 		I915_WRITE(PP_DIVISOR, dev_priv->regfile.savePP_DIVISOR);
@@ -328,6 +303,10 @@ int i915_save_state(struct drm_device *dev)
 		}
 	}
 
+	if (IS_GEN4(dev))
+		pci_read_config_word(dev->pdev, GCDGMBUS,
+				     &dev_priv->regfile.saveGCDGMBUS);
+
 	/* Cache mode state */
 	if (INTEL_INFO(dev)->gen < 7)
 		dev_priv->regfile.saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
@@ -356,6 +335,10 @@ int i915_restore_state(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 
 	i915_gem_restore_fences(dev);
+
+	if (IS_GEN4(dev))
+		pci_write_config_word(dev->pdev, GCDGMBUS,
+				      dev_priv->regfile.saveGCDGMBUS);
 	i915_restore_display(dev);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -368,6 +351,8 @@ int i915_restore_state(struct drm_device *dev)
 			I915_WRITE(_FDI_RXA_IMR, dev_priv->regfile.saveFDI_RXA_IMR);
 			I915_WRITE(_FDI_RXB_IMR, dev_priv->regfile.saveFDI_RXB_IMR);
 			I915_WRITE(PCH_PORT_HOTPLUG, dev_priv->regfile.savePCH_PORT_HOTPLUG);
+			I915_WRITE(RSTDBYCTL,
+				   dev_priv->regfile.saveMCHBAR_RENDER_STANDBY);
 		} else {
 			I915_WRITE(IER, dev_priv->regfile.saveIER);
 			I915_WRITE(IMR, dev_priv->regfile.saveIMR);

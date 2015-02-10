@@ -544,7 +544,6 @@ static int axi_clkgen_remove(struct platform_device *pdev)
 static struct platform_driver axi_clkgen_driver = {
 	.driver = {
 		.name = "adi-axi-clkgen",
-		.owner = THIS_MODULE,
 		.of_match_table = axi_clkgen_ids,
 	},
 	.probe = axi_clkgen_probe,

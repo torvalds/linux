@@ -180,7 +180,7 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
 
 /* From 0x50 - 0x5f, last samples captured */
 
-/**
+/*
  * The hardware has 3 channels for playback and 1 for capture.
  *  - channel 0 is the front channel
  *  - channel 1 is the rear channel

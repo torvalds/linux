@@ -375,8 +375,7 @@ static struct sk_buff *rndis_add_header(struct gether *port,
 	struct sk_buff *skb2;
 
 	skb2 = skb_realloc_headroom(skb, sizeof(struct rndis_packet_msg_type));
-	if (skb2)
-		rndis_add_hdr(skb2);
+	rndis_add_hdr(skb2);
 
 	dev_kfree_skb(skb);
 	return skb2;
@@ -802,8 +801,10 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 
 	if (rndis->manufacturer && rndis->vendorID &&
 			rndis_set_param_vendor(rndis->config, rndis->vendorID,
-					       rndis->manufacturer))
-		goto fail;
+					       rndis->manufacturer)) {
+		status = -EINVAL;
+		goto fail_free_descs;
+	}
 
 	/* NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code
@@ -817,10 +818,11 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 			rndis->notify->name);
 	return 0;
 
+fail_free_descs:
+	usb_free_all_descriptors(f);
 fail:
 	kfree(f->os_desc_table);
 	f->os_desc_n = 0;
-	usb_free_all_descriptors(f);
 
 	if (rndis->notify_req) {
 		kfree(rndis->notify_req->buf);

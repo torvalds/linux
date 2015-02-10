@@ -168,7 +168,6 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	struct comedi_cmd *cmd;
 	unsigned int max_points, num_points, residue, leftover;
 	unsigned short dpnt;
-	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
 
 	if (!dev->attached) {
 		dev_err(dev->class_dev, "premature interrupt\n");
@@ -188,14 +187,14 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	if (status & OVFL_BIT) {
 		dev_err(dev->class_dev, "fifo overflow\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 	}
 
 	if ((status & DMA_TC_BIT) == 0) {
 		dev_err(dev->class_dev,
 			"caught non-dma interrupt?  Aborting.\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 		return IRQ_HANDLED;
 	}
 
@@ -206,12 +205,12 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	clear_dma_ff(devpriv->dma);
 
 	/*  figure out how many points to read */
-	max_points = devpriv->dma_transfer_size / sample_size;
+	max_points = comedi_bytes_to_samples(s, devpriv->dma_transfer_size);
 	/* residue is the number of points left to be done on the dma
 	 * transfer.  It should always be zero at this point unless
 	 * the stop_src is set to external triggering.
 	 */
-	residue = get_dma_residue(devpriv->dma) / sample_size;
+	residue = comedi_bytes_to_samples(s, get_dma_residue(devpriv->dma));
 	num_points = max_points - residue;
 	if (devpriv->count < num_points && cmd->stop_src == TRIG_COUNT)
 		num_points = devpriv->count;
@@ -219,7 +218,8 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	/*  figure out how many points will be stored next time */
 	leftover = 0;
 	if (cmd->stop_src == TRIG_NONE) {
-		leftover = devpriv->dma_transfer_size / sample_size;
+		leftover = comedi_bytes_to_samples(s,
+						   devpriv->dma_transfer_size);
 	} else if (devpriv->count > max_points) {
 		leftover = devpriv->count - max_points;
 		if (leftover > max_points)
@@ -237,7 +237,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 		dpnt = devpriv->dma_buffer[i];
 		/*  convert from 2's complement to unsigned coding */
 		dpnt ^= 0x8000;
-		cfc_write_to_buffer(s, dpnt);
+		comedi_buf_write_samples(s, &dpnt, 1);
 		if (cmd->stop_src == TRIG_COUNT) {
 			if (--devpriv->count == 0) {	/* end of acquisition */
 				async->events |= COMEDI_CB_EOA;
@@ -248,14 +248,13 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	/*  re-enable  dma */
 	if (leftover) {
 		set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
-		set_dma_count(devpriv->dma, leftover * sample_size);
+		set_dma_count(devpriv->dma,
+			      comedi_samples_to_bytes(s, leftover));
 		enable_dma(devpriv->dma);
 	}
 	release_dma_lock(flags);
 
-	async->events |= COMEDI_CB_BLOCK;
-
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 
 	/* clear interrupt */
 	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
@@ -287,7 +286,7 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    unsigned int flags)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard = dev->board_ptr;
 	struct a2150_private *devpriv = dev->private;
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -326,8 +325,8 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			}
 		}
 	}
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		/*  if least upper bound is better approximation */
 		if (lub - *period < *period - glb)
@@ -335,10 +334,10 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 		else
 			*period = glb;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		*period = lub;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		*period = glb;
 		break;
 	}
@@ -436,7 +435,7 @@ static int a2150_ai_check_chanlist(struct comedi_device *dev,
 static int a2150_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
@@ -511,9 +510,9 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;
 
-	if (cmd->flags & TRIG_RT) {
+	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
-			"dma incompatible with hard real-time interrupt (TRIG_RT), aborting\n");
+			"dma incompatible with hard real-time interrupt (CMDF_PRIORITY), aborting\n");
 		return -1;
 	}
 	/*  clear fifo and reset triggering circuitry */
@@ -705,8 +704,12 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	dev->board_ptr = a2150_boards + a2150_probe(dev);
-	thisboard = comedi_board(dev);
+	i = a2150_probe(dev);
+	if (i >= ARRAY_SIZE(a2150_boards))
+		return -ENODEV;
+
+	dev->board_ptr = a2150_boards + i;
+	thisboard = dev->board_ptr;
 	dev->board_name = thisboard->name;
 
 	if ((irq >= 3 && irq <= 7) || (irq >= 9 && irq <= 12) ||

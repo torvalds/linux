@@ -1,17 +1,28 @@
 Intel P-state driver
 --------------------
 
-This driver implements a scaling driver with an internal governor for
-Intel Core processors.  The driver follows the same model as the
-Transmeta scaling driver (longrun.c) and implements the setpolicy()
-instead of target().  Scaling drivers that implement setpolicy() are
-assumed to implement internal governors by the cpufreq core. All the
-logic for selecting the current P state is contained within the
-driver; no external governor is used by the cpufreq core.
+This driver provides an interface to control the P state selection for
+SandyBridge+ Intel processors.  The driver can operate two different
+modes based on the processor model legacy and Hardware P state (HWP)
+mode.
 
-Intel SandyBridge+ processors are supported.
+In legacy mode the driver implements a scaling driver with an internal
+governor for Intel Core processors.  The driver follows the same model
+as the Transmeta scaling driver (longrun.c) and implements the
+setpolicy() instead of target().  Scaling drivers that implement
+setpolicy() are assumed to implement internal governors by the cpufreq
+core. All the logic for selecting the current P state is contained
+within the driver; no external governor is used by the cpufreq core.
 
-New sysfs files for controlling P state selection have been added to
+In HWP mode P state selection is implemented in the processor
+itself. The driver provides the interfaces between the cpufreq core and
+the processor to control P state selection based on user preferences
+and reporting frequency to the cpufreq core.  In this mode the
+internal governor code is disabled.
+
+In addtion to the interfaces provided by the cpufreq core for
+controlling frequency the driver provides sysfs files for
+controlling P state selection. These files have been added to
 /sys/devices/system/cpu/intel_pstate/
 
       max_perf_pct: limits the maximum P state that will be requested by
@@ -33,7 +44,9 @@ frequency is fiction for Intel Core processors. Even if the scaling
 driver selects a single P state the actual frequency the processor
 will run at is selected by the processor itself.
 
-New debugfs files have also been added to /sys/kernel/debug/pstate_snb/
+For legacy mode debugfs files have also been added to allow tuning of
+the internal governor algorythm. These files are located at
+/sys/kernel/debug/pstate_snb/ These files are NOT present in HWP mode.
 
       deadband
       d_gain_pct

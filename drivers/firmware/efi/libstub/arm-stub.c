@@ -226,6 +226,10 @@ unsigned long __init efi_entry(void *handle, efi_system_table_t *sys_table,
 		goto fail_free_image;
 	}
 
+	status = efi_parse_options(cmdline_ptr);
+	if (status != EFI_SUCCESS)
+		pr_efi_err(sys_table, "Failed to parse EFI cmdline options\n");
+
 	/*
 	 * Unauthenticated device tree data is a security hazard, so
 	 * ignore 'dtb=' unless UEFI Secure Boot is disabled.
@@ -243,9 +247,18 @@ unsigned long __init efi_entry(void *handle, efi_system_table_t *sys_table,
 			goto fail_free_cmdline;
 		}
 	}
-	if (!fdt_addr)
+
+	if (fdt_addr) {
+		pr_efi(sys_table, "Using DTB from command line\n");
+	} else {
 		/* Look for a device tree configuration table entry. */
 		fdt_addr = (uintptr_t)get_fdt(sys_table);
+		if (fdt_addr)
+			pr_efi(sys_table, "Using DTB from configuration table\n");
+	}
+
+	if (!fdt_addr)
+		pr_efi(sys_table, "Generating empty DTB\n");
 
 	status = handle_cmdline_files(sys_table, image, cmdline_ptr,
 				      "initrd=", dram_base + SZ_512M,

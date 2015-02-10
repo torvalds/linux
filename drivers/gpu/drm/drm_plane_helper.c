@@ -27,9 +27,37 @@
 #include <drm/drmP.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_rect.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 
 #define SUBPIXEL_MASK 0xffff
+
+/**
+ * DOC: overview
+ *
+ * This helper library has two parts. The first part has support to implement
+ * primary plane support on top of the normal CRTC configuration interface.
+ * Since the legacy ->set_config interface ties the primary plane together with
+ * the CRTC state this does not allow userspace to disable the primary plane
+ * itself.  To avoid too much duplicated code use
+ * drm_plane_helper_check_update() which can be used to enforce the same
+ * restrictions as primary planes had thus. The default primary plane only
+ * expose XRBG8888 and ARGB8888 as valid pixel formats for the attached
+ * framebuffer.
+ *
+ * Drivers are highly recommended to implement proper support for primary
+ * planes, and newly merged drivers must not rely upon these transitional
+ * helpers.
+ *
+ * The second part also implements transitional helpers which allow drivers to
+ * gradually switch to the atomic helper infrastructure for plane updates. Once
+ * that switch is complete drivers shouldn't use these any longer, instead using
+ * the proper legacy implementations for update and disable plane hooks provided
+ * by the atomic helpers.
+ *
+ * Again drivers are strongly urged to switch to the new interfaces.
+ */
 
 /*
  * This is the minimal list of formats that seem to be safe for modeset use
@@ -125,6 +153,11 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 	if (hscale < 0 || vscale < 0) {
 		DRM_DEBUG_KMS("Invalid scaling of plane\n");
 		return -ERANGE;
+	}
+
+	if (!fb) {
+		*visible = false;
+		return 0;
 	}
 
 	*visible = drm_rect_clip_scaled(src, dest, clip, hscale, vscale);
@@ -369,3 +402,171 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	return drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs);
 }
 EXPORT_SYMBOL(drm_crtc_init);
+
+int drm_plane_helper_commit(struct drm_plane *plane,
+			    struct drm_plane_state *plane_state,
+			    struct drm_framebuffer *old_fb)
+{
+	struct drm_plane_helper_funcs *plane_funcs;
+	struct drm_crtc *crtc[2];
+	struct drm_crtc_helper_funcs *crtc_funcs[2];
+	int i, ret = 0;
+
+	plane_funcs = plane->helper_private;
+
+	/* Since this is a transitional helper we can't assume that plane->state
+	 * is always valid. Hence we need to use plane->crtc instead of
+	 * plane->state->crtc as the old crtc. */
+	crtc[0] = plane->crtc;
+	crtc[1] = crtc[0] != plane_state->crtc ? plane_state->crtc : NULL;
+
+	for (i = 0; i < 2; i++)
+		crtc_funcs[i] = crtc[i] ? crtc[i]->helper_private : NULL;
+
+	if (plane_funcs->atomic_check) {
+		ret = plane_funcs->atomic_check(plane, plane_state);
+		if (ret)
+			goto out;
+	}
+
+	if (plane_funcs->prepare_fb && plane_state->fb) {
+		ret = plane_funcs->prepare_fb(plane, plane_state->fb);
+		if (ret)
+			goto out;
+	}
+
+	/* Point of no return, commit sw state. */
+	swap(plane->state, plane_state);
+
+	for (i = 0; i < 2; i++) {
+		if (crtc_funcs[i] && crtc_funcs[i]->atomic_begin)
+			crtc_funcs[i]->atomic_begin(crtc[i]);
+	}
+
+	plane_funcs->atomic_update(plane, plane_state);
+
+	for (i = 0; i < 2; i++) {
+		if (crtc_funcs[i] && crtc_funcs[i]->atomic_flush)
+			crtc_funcs[i]->atomic_flush(crtc[i]);
+	}
+
+	for (i = 0; i < 2; i++) {
+		if (!crtc[i])
+			continue;
+
+		/* There's no other way to figure out whether the crtc is running. */
+		ret = drm_crtc_vblank_get(crtc[i]);
+		if (ret == 0) {
+			drm_crtc_wait_one_vblank(crtc[i]);
+			drm_crtc_vblank_put(crtc[i]);
+		}
+
+		ret = 0;
+	}
+
+	if (plane_funcs->cleanup_fb && old_fb)
+		plane_funcs->cleanup_fb(plane, old_fb);
+out:
+	if (plane_state) {
+		if (plane->funcs->atomic_destroy_state)
+			plane->funcs->atomic_destroy_state(plane, plane_state);
+		else
+			drm_atomic_helper_plane_destroy_state(plane, plane_state);
+	}
+
+	return ret;
+}
+
+/**
+ * drm_plane_helper_update() - Helper for primary plane update
+ * @plane: plane object to update
+ * @crtc: owning CRTC of owning plane
+ * @fb: framebuffer to flip onto plane
+ * @crtc_x: x offset of primary plane on crtc
+ * @crtc_y: y offset of primary plane on crtc
+ * @crtc_w: width of primary plane rectangle on crtc
+ * @crtc_h: height of primary plane rectangle on crtc
+ * @src_x: x offset of @fb for panning
+ * @src_y: y offset of @fb for panning
+ * @src_w: width of source rectangle in @fb
+ * @src_h: height of source rectangle in @fb
+ *
+ * Provides a default plane update handler using the atomic plane update
+ * functions. It is fully left to the driver to check plane constraints and
+ * handle corner-cases like a fully occluded or otherwise invisible plane.
+ *
+ * This is useful for piecewise transitioning of a driver to the atomic helpers.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
+			    struct drm_framebuffer *fb,
+			    int crtc_x, int crtc_y,
+			    unsigned int crtc_w, unsigned int crtc_h,
+			    uint32_t src_x, uint32_t src_y,
+			    uint32_t src_w, uint32_t src_h)
+{
+	struct drm_plane_state *plane_state;
+
+	if (plane->funcs->atomic_duplicate_state)
+		plane_state = plane->funcs->atomic_duplicate_state(plane);
+	else if (plane->state)
+		plane_state = drm_atomic_helper_plane_duplicate_state(plane);
+	else
+		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	if (!plane_state)
+		return -ENOMEM;
+
+	plane_state->crtc = crtc;
+	drm_atomic_set_fb_for_plane(plane_state, fb);
+	plane_state->crtc_x = crtc_x;
+	plane_state->crtc_y = crtc_y;
+	plane_state->crtc_h = crtc_h;
+	plane_state->crtc_w = crtc_w;
+	plane_state->src_x = src_x;
+	plane_state->src_y = src_y;
+	plane_state->src_h = src_h;
+	plane_state->src_w = src_w;
+
+	return drm_plane_helper_commit(plane, plane_state, plane->fb);
+}
+EXPORT_SYMBOL(drm_plane_helper_update);
+
+/**
+ * drm_plane_helper_disable() - Helper for primary plane disable
+ * @plane: plane to disable
+ *
+ * Provides a default plane disable handler using the atomic plane update
+ * functions. It is fully left to the driver to check plane constraints and
+ * handle corner-cases like a fully occluded or otherwise invisible plane.
+ *
+ * This is useful for piecewise transitioning of a driver to the atomic helpers.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int drm_plane_helper_disable(struct drm_plane *plane)
+{
+	struct drm_plane_state *plane_state;
+
+	/* crtc helpers love to call disable functions for already disabled hw
+	 * functions. So cope with that. */
+	if (!plane->crtc)
+		return 0;
+
+	if (plane->funcs->atomic_duplicate_state)
+		plane_state = plane->funcs->atomic_duplicate_state(plane);
+	else if (plane->state)
+		plane_state = drm_atomic_helper_plane_duplicate_state(plane);
+	else
+		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	if (!plane_state)
+		return -ENOMEM;
+
+	plane_state->crtc = NULL;
+	drm_atomic_set_fb_for_plane(plane_state, NULL);
+
+	return drm_plane_helper_commit(plane, plane_state, plane->fb);
+}
+EXPORT_SYMBOL(drm_plane_helper_disable);

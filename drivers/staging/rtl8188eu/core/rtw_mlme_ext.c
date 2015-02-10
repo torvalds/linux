@@ -227,7 +227,7 @@ static void init_mlme_ext_priv_value(struct adapter *padapter)
 	pmlmeext->cur_channel = padapter->registrypriv.channel;
 	pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_20;
 	pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-	pmlmeext->oper_channel = pmlmeext->cur_channel ;
+	pmlmeext->oper_channel = pmlmeext->cur_channel;
 	pmlmeext->oper_bwmode = pmlmeext->cur_bwmode;
 	pmlmeext->oper_ch_offset = pmlmeext->cur_ch_offset;
 	pmlmeext->retry = 0;
@@ -371,7 +371,6 @@ static u8 init_channel_set(struct adapter *padapter, u8 ChannelPlan, struct rt_c
 
 int	init_mlme_ext_priv(struct adapter *padapter)
 {
-	int	res = _SUCCESS;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
@@ -397,7 +396,7 @@ int	init_mlme_ext_priv(struct adapter *padapter)
 
 	pmlmeext->active_keep_alive_check = true;
 
-	return res;
+	return _SUCCESS;
 }
 
 void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext)
@@ -945,7 +944,7 @@ unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame
 	}
 
 	pstat = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
-	if (pstat == (struct sta_info *)NULL) {
+	if (pstat == NULL) {
 		status = _RSON_CLS2_;
 		goto asoc_class2_error;
 	}
@@ -1554,7 +1553,6 @@ unsigned int OnAtim(struct adapter *padapter, struct recv_frame *precv_frame)
 
 unsigned int on_action_spct(struct adapter *padapter, struct recv_frame *precv_frame)
 {
-	unsigned int ret = _FAIL;
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 *pframe = precv_frame->rx_data;
@@ -1587,7 +1585,7 @@ unsigned int on_action_spct(struct adapter *padapter, struct recv_frame *precv_f
 	}
 
 exit:
-	return ret;
+	return _FAIL;
 }
 
 unsigned int OnAction_qos(struct adapter *padapter, struct recv_frame *precv_frame)
@@ -2000,7 +1998,7 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 		DBG_88E("%s, alloc mgnt frame fail\n", __func__);
 		return;
 	}
-#if defined (CONFIG_88EU_AP_MODE)
+#if defined(CONFIG_88EU_AP_MODE)
 	spin_lock_bh(&pmlmepriv->bcn_update_lock);
 #endif /* if defined (CONFIG_88EU_AP_MODE) */
 
@@ -2027,7 +2025,7 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 	SetFrameSubType(pframe, WIFI_BEACON);
 
 	pframe += sizeof(struct rtw_ieee80211_hdr_3addr);
-	pattrib->pktlen = sizeof (struct rtw_ieee80211_hdr_3addr);
+	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
 		int len_diff;
@@ -2042,8 +2040,8 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 			);
 		pframe += (cur_network->IELength+len_diff);
 		pattrib->pktlen += (cur_network->IELength+len_diff);
-		wps_ie = rtw_get_wps_ie(pmgntframe->buf_addr+TXDESC_OFFSET+sizeof (struct rtw_ieee80211_hdr_3addr)+_BEACON_IE_OFFSET_,
-			pattrib->pktlen-sizeof (struct rtw_ieee80211_hdr_3addr)-_BEACON_IE_OFFSET_, NULL, &wps_ielen);
+		wps_ie = rtw_get_wps_ie(pmgntframe->buf_addr+TXDESC_OFFSET+sizeof(struct rtw_ieee80211_hdr_3addr)+_BEACON_IE_OFFSET_,
+			pattrib->pktlen-sizeof(struct rtw_ieee80211_hdr_3addr)-_BEACON_IE_OFFSET_, NULL, &wps_ielen);
 		if (wps_ie && wps_ielen > 0)
 			rtw_get_wps_attr_content(wps_ie,  wps_ielen, WPS_ATTR_SELECTED_REGISTRAR, (u8 *)(&sr), NULL);
 		if (sr != 0)
@@ -2101,7 +2099,7 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 	/* todo:HT for adhoc */
 _issue_bcn:
 
-#if defined (CONFIG_88EU_AP_MODE)
+#if defined(CONFIG_88EU_AP_MODE)
 	pmlmepriv->update_bcn = false;
 
 	spin_unlock_bh(&pmlmepriv->bcn_update_lock);
@@ -2130,7 +2128,7 @@ void issue_probersp(struct adapter *padapter, unsigned char *da, u8 is_valid_p2p
 	__le16 *fctrl;
 	unsigned char					*mac, *bssid;
 	struct xmit_priv	*pxmitpriv = &(padapter->xmitpriv);
-#if defined (CONFIG_88EU_AP_MODE)
+#if defined(CONFIG_88EU_AP_MODE)
 	u8 *pwps_ie;
 	uint wps_ielen;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -2323,8 +2321,8 @@ static int _issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *ps
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_PROBEREQ);
 
-	pframe += sizeof (struct rtw_ieee80211_hdr_3addr);
-	pattrib->pktlen = sizeof (struct rtw_ieee80211_hdr_3addr);
+	pframe += sizeof(struct rtw_ieee80211_hdr_3addr);
+	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
 
 	if (pssid)
 		pframe = rtw_set_ie(pframe, _SSID_IE_, pssid->SsidLength, pssid->Ssid, &(pattrib->pktlen));
@@ -3209,7 +3207,7 @@ exit:
 	return ret;
 }
 
-void issue_action_spct_ch_switch (struct adapter *padapter, u8 *ra, u8 new_ch, u8 ch_offset)
+void issue_action_spct_ch_switch(struct adapter *padapter, u8 *ra, u8 new_ch, u8 ch_offset)
 {
 	struct xmit_frame			*pmgntframe;
 	struct pkt_attrib			*pattrib;
@@ -3260,7 +3258,7 @@ void issue_action_spct_ch_switch (struct adapter *padapter, u8 *ra, u8 new_ch, u
 		pframe = rtw_set_fixed_ie(pframe, 1, &(action), &(pattrib->pktlen));
 	}
 
-	pframe = rtw_set_ie_ch_switch (pframe, &(pattrib->pktlen), 0, new_ch, 0);
+	pframe = rtw_set_ie_ch_switch(pframe, &(pattrib->pktlen), 0, new_ch, 0);
 	pframe = rtw_set_ie_secondary_ch_offset(pframe, &(pattrib->pktlen),
 		hal_ch_offset_to_secondary_ch_offset(ch_offset));
 
@@ -4241,12 +4239,12 @@ void report_survey_event(struct adapter *padapter,
 	pcmdpriv = &padapter->cmdpriv;
 
 
-	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (pcmd_obj == NULL)
 		return;
 
 	cmdsz = (sizeof(struct survey_event) + sizeof(struct C2HEvent_Header));
-	pevtcmd = kzalloc(cmdsz, GFP_KERNEL);
+	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
 	if (pevtcmd == NULL) {
 		kfree(pcmd_obj);
 		return;
@@ -4339,12 +4337,12 @@ void report_join_res(struct adapter *padapter, int res)
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (pcmd_obj == NULL)
 		return;
 
 	cmdsz = (sizeof(struct joinbss_event) + sizeof(struct C2HEvent_Header));
-	pevtcmd = kzalloc(cmdsz, GFP_KERNEL);
+	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
 	if (pevtcmd == NULL) {
 		kfree(pcmd_obj);
 		return;
@@ -4835,7 +4833,7 @@ void linked_status_chk(struct adapter *padapter)
 
 void survey_timer_hdl(void *function_context)
 {
-	struct adapter *padapter = (struct adapter *)function_context;
+	struct adapter *padapter = function_context;
 	struct cmd_obj	*ph2c;
 	struct sitesurvey_parm	*psurveyPara;
 	struct cmd_priv					*pcmdpriv = &padapter->cmdpriv;
@@ -4854,11 +4852,11 @@ void survey_timer_hdl(void *function_context)
 			pmlmeext->scan_abort = false;/* reset */
 		}
 
-		ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+		ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 		if (ph2c == NULL)
 			goto exit_survey_timer_hdl;
 
-		psurveyPara = kzalloc(sizeof(struct sitesurvey_parm), GFP_KERNEL);
+		psurveyPara = kzalloc(sizeof(struct sitesurvey_parm), GFP_ATOMIC);
 		if (psurveyPara == NULL) {
 			kfree(ph2c);
 			goto exit_survey_timer_hdl;
@@ -4912,7 +4910,7 @@ void link_timer_hdl(void *function_context)
 
 void addba_timer_hdl(void *function_context)
 {
-	struct sta_info *psta = (struct sta_info *)function_context;
+	struct sta_info *psta = function_context;
 	struct ht_priv	*phtpriv;
 
 	if (!psta)

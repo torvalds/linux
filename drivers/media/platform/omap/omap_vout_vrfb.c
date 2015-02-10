@@ -148,7 +148,7 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 			ret =  -ENOMEM;
 			goto release_vrfb_ctx;
 		}
-		vout->vrfb_static_allocation = 1;
+		vout->vrfb_static_allocation = true;
 	}
 	return 0;
 
@@ -336,7 +336,7 @@ void omap_vout_calculate_vrfb_offset(struct omap_vout_device *vout)
 		offset = vout->vrfb_context[0].yoffset *
 			vout->vrfb_context[0].bytespp;
 		temp_ps = ps / vr_ps;
-		if (mirroring == 0) {
+		if (!mirroring) {
 			*cropped_offset = offset + line_length *
 				temp_ps * cleft + crop->top * temp_ps;
 		} else {
@@ -350,7 +350,7 @@ void omap_vout_calculate_vrfb_offset(struct omap_vout_device *vout)
 			vout->vrfb_context[0].bytespp) +
 			(vout->vrfb_context[0].xoffset *
 			vout->vrfb_context[0].bytespp));
-		if (mirroring == 0) {
+		if (!mirroring) {
 			*cropped_offset = offset + (line_length * ps * ctop) +
 				(cleft / vr_ps) * ps;
 
@@ -364,7 +364,7 @@ void omap_vout_calculate_vrfb_offset(struct omap_vout_device *vout)
 		offset = MAX_PIXELS_PER_LINE * vout->vrfb_context[0].xoffset *
 			vout->vrfb_context[0].bytespp;
 		temp_ps = ps / vr_ps;
-		if (mirroring == 0) {
+		if (!mirroring) {
 			*cropped_offset = offset + line_length *
 			    temp_ps * crop->left + ctop * ps;
 		} else {
@@ -375,7 +375,7 @@ void omap_vout_calculate_vrfb_offset(struct omap_vout_device *vout)
 		}
 		break;
 	case dss_rotation_0_degree:
-		if (mirroring == 0) {
+		if (!mirroring) {
 			*cropped_offset = (line_length * ps) *
 				crop->top + (crop->left / vr_ps) * ps;
 		} else {

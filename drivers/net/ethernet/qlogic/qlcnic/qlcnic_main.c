@@ -52,7 +52,7 @@ MODULE_PARM_DESC(auto_fw_reset, "Auto firmware reset (0=disabled, 1=enabled)");
 module_param_named(auto_fw_reset, qlcnic_auto_fw_reset, int, 0644);
 
 int qlcnic_load_fw_file;
-MODULE_PARM_DESC(load_fw_file, "Load firmware from (0=flash, 1=file)");
+MODULE_PARM_DESC(load_fw_file, "Load firmware from (0=flash, 1=file, 2=POST in fast mode, 3= POST in medium mode, 4=POST in slow mode)");
 module_param_named(load_fw_file, qlcnic_load_fw_file, int, 0444);
 
 static int qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -111,6 +111,7 @@ static u32 qlcnic_vlan_tx_check(struct qlcnic_adapter *adapter)
 static const struct pci_device_id qlcnic_pci_tbl[] = {
 	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE824X),
 	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE834X),
+	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE8830),
 	ENTRY(PCI_DEVICE_ID_QLOGIC_VF_QLE834X),
 	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE844X),
 	ENTRY(PCI_DEVICE_ID_QLOGIC_VF_QLE844X),
@@ -227,6 +228,11 @@ static const struct qlcnic_board_info qlcnic_boards[] = {
 	{ PCI_VENDOR_ID_QLOGIC,
 	  PCI_DEVICE_ID_QLOGIC_QLE834X,
 	  0x0, 0x0, "8300 Series 1/10GbE Controller" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE8830,
+	  0x0,
+	  0x0,
+	  "8830 Series 1/10GbE Controller" },
 	{ PCI_VENDOR_ID_QLOGIC,
 	  PCI_DEVICE_ID_QLOGIC_QLE824X,
 	  PCI_VENDOR_ID_QLOGIC,
@@ -370,13 +376,14 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 }
 
 static int qlcnic_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
-			struct net_device *netdev, const unsigned char *addr)
+			struct net_device *netdev,
+			const unsigned char *addr, u16 vid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err = -EOPNOTSUPP;
 
 	if (!adapter->fdb_mac_learn)
-		return ndo_dflt_fdb_del(ndm, tb, netdev, addr);
+		return ndo_dflt_fdb_del(ndm, tb, netdev, addr, vid);
 
 	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED) ||
 	    qlcnic_sriov_check(adapter)) {
@@ -395,13 +402,13 @@ static int qlcnic_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 
 static int qlcnic_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			struct net_device *netdev,
-			const unsigned char *addr, u16 flags)
+			const unsigned char *addr, u16 vid, u16 flags)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err = 0;
 
 	if (!adapter->fdb_mac_learn)
-		return ndo_dflt_fdb_add(ndm, tb, netdev, addr, flags);
+		return ndo_dflt_fdb_add(ndm, tb, netdev, addr, vid, flags);
 
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED) &&
 	    !qlcnic_sriov_check(adapter)) {
@@ -454,7 +461,7 @@ static void qlcnic_82xx_cancel_idc_work(struct qlcnic_adapter *adapter)
 }
 
 static int qlcnic_get_phys_port_id(struct net_device *netdev,
-				   struct netdev_phys_port_id *ppid)
+				   struct netdev_phys_item_id *ppid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -497,6 +504,13 @@ static void qlcnic_del_vxlan_port(struct net_device *netdev,
 
 	adapter->flags |= QLCNIC_DEL_VXLAN_PORT;
 }
+
+static netdev_features_t qlcnic_features_check(struct sk_buff *skb,
+					       struct net_device *dev,
+					       netdev_features_t features)
+{
+	return vxlan_features_check(skb, features);
+}
 #endif
 
 static const struct net_device_ops qlcnic_netdev_ops = {
@@ -520,6 +534,7 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 #ifdef CONFIG_QLCNIC_VXLAN
 	.ndo_add_vxlan_port	= qlcnic_add_vxlan_port,
 	.ndo_del_vxlan_port	= qlcnic_del_vxlan_port,
+	.ndo_features_check	= qlcnic_features_check,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,
@@ -1131,6 +1146,7 @@ static void qlcnic_get_bar_length(u32 dev_id, ulong *bar)
 		*bar = QLCNIC_82XX_BAR0_LENGTH;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_QLE834X:
+	case PCI_DEVICE_ID_QLOGIC_QLE8830:
 	case PCI_DEVICE_ID_QLOGIC_QLE844X:
 	case PCI_DEVICE_ID_QLOGIC_VF_QLE834X:
 	case PCI_DEVICE_ID_QLOGIC_VF_QLE844X:
@@ -2474,6 +2490,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ahw->reg_tbl = (u32 *) qlcnic_reg_tbl;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_QLE834X:
+	case PCI_DEVICE_ID_QLOGIC_QLE8830:
 	case PCI_DEVICE_ID_QLOGIC_QLE844X:
 		qlcnic_83xx_register_map(ahw);
 		break;
@@ -2588,6 +2605,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		dev_err(&pdev->dev,
 			"%s: failed. Please Reboot\n", __func__);
+		err = -ENODEV;
 		goto err_out_free_hw;
 	}
 

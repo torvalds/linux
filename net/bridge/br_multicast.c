@@ -813,10 +813,9 @@ static void __br_multicast_send_query(struct net_bridge *br,
 		return;
 
 	if (port) {
-		__skb_push(skb, sizeof(struct ethhdr));
 		skb->dev = port->dev;
 		NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
-			dev_queue_xmit);
+			br_dev_queue_push_xmit);
 	} else {
 		br_multicast_select_own_querier(br, ip, skb);
 		netif_rx(skb);
@@ -1822,7 +1821,7 @@ static void br_multicast_query_expired(struct net_bridge *br,
 	if (query->startup_sent < br->multicast_startup_query_count)
 		query->startup_sent++;
 
-	rcu_assign_pointer(querier, NULL);
+	RCU_INIT_POINTER(querier, NULL);
 	br_multicast_send_query(br, NULL, query);
 	spin_unlock(&br->multicast_lock);
 }

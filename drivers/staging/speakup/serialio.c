@@ -83,6 +83,7 @@ static irqreturn_t synth_readbuf_handler(int irq, void *dev_id)
 /*printk(KERN_ERR "in irq\n"); */
 /*pr_warn("in IRQ\n"); */
 	int c;
+
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR) {
 
@@ -137,6 +138,7 @@ void spk_stop_serial_interrupt(void)
 int spk_wait_for_xmitr(void)
 {
 	int tmout = SPK_XMITR_TIMEOUT;
+
 	if ((synth->alive) && (timeouts >= NUM_DISABLE_TIMEOUTS)) {
 		pr_warn("%s: too many timeouts, deactivating speakup\n",
 			synth->long_name);

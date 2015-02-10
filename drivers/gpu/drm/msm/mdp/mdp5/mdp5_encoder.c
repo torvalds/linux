@@ -24,6 +24,7 @@ struct mdp5_encoder {
 	struct drm_encoder base;
 	int intf;
 	enum mdp5_intf intf_id;
+	spinlock_t intf_lock;	/* protect REG_MDP5_INTF_* registers */
 	bool enabled;
 	uint32_t bsc;
 };
@@ -115,6 +116,7 @@ static void mdp5_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
 	int intf = mdp5_encoder->intf;
 	bool enabled = (mode == DRM_MODE_DPMS_ON);
+	unsigned long flags;
 
 	DBG("mode=%d", mode);
 
@@ -123,9 +125,24 @@ static void mdp5_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 	if (enabled) {
 		bs_set(mdp5_encoder, 1);
+		spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 1);
+		spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
 	} else {
+		spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 0);
+		spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
+
+		/*
+		 * Wait for a vsync so we know the ENABLE=0 latched before
+		 * the (connector) source of the vsync's gets disabled,
+		 * otherwise we end up in a funny state if we re-enable
+		 * before the disable latches, which results that some of
+		 * the settings changes for the new modeset (like new
+		 * scanout buffer) don't latch properly..
+		 */
+		mdp_irq_wait(&mdp5_kms->base, intf2vblank(intf));
+
 		bs_set(mdp5_encoder, 0);
 	}
 
@@ -150,6 +167,7 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 	uint32_t display_v_start, display_v_end;
 	uint32_t hsync_start_x, hsync_end_x;
 	uint32_t format;
+	unsigned long flags;
 
 	mode = adjusted_mode;
 
@@ -180,6 +198,8 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 	display_v_start = (mode->vtotal - mode->vsync_start) * mode->htotal + dtv_hsync_skew;
 	display_v_end = vsync_period - ((mode->vsync_start - mode->vdisplay) * mode->htotal) + dtv_hsync_skew - 1;
 
+	spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
+
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_HSYNC_CTL(intf),
 			MDP5_INTF_HSYNC_CTL_PULSEW(mode->hsync_end - mode->hsync_start) |
 			MDP5_INTF_HSYNC_CTL_PERIOD(mode->htotal));
@@ -201,6 +221,8 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_ACTIVE_VEND_F0(intf), 0);
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_PANEL_FORMAT(intf), format);
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(intf), 0x3);  /* frame+line? */
+
+	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
 }
 
 static void mdp5_encoder_prepare(struct drm_encoder *encoder)
@@ -241,6 +263,8 @@ struct drm_encoder *mdp5_encoder_init(struct drm_device *dev, int intf,
 	mdp5_encoder->intf = intf;
 	mdp5_encoder->intf_id = intf_id;
 	encoder = &mdp5_encoder->base;
+
+	spin_lock_init(&mdp5_encoder->intf_lock);
 
 	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS);

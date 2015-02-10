@@ -51,6 +51,7 @@
 #include "nouveau_fence.h"
 #include "nouveau_debugfs.h"
 #include "nouveau_usif.h"
+#include "nouveau_connector.h"
 
 MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
@@ -73,7 +74,9 @@ MODULE_PARM_DESC(runpm, "disable (0), force enable (1), optimus only default (-1
 int nouveau_runtime_pm = -1;
 module_param_named(runpm, nouveau_runtime_pm, int, 0400);
 
-static struct drm_driver driver;
+static struct drm_driver driver_stub;
+static struct drm_driver driver_pci;
+static struct drm_driver driver_platform;
 
 static u64
 nouveau_pci_name(struct pci_dev *pdev)
@@ -322,7 +325,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	ret = drm_get_pci_dev(pdev, pent, &driver);
+	ret = drm_get_pci_dev(pdev, pent, &driver_pci);
 	if (ret) {
 		nouveau_object_ref(NULL, (struct nouveau_object **)&device);
 		return ret;
@@ -610,27 +613,6 @@ fail_display:
 	return ret;
 }
 
-int nouveau_pmops_suspend(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	int ret;
-
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    drm_dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
-		return 0;
-
-	ret = nouveau_do_suspend(drm_dev, false);
-	if (ret)
-		return ret;
-
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_ignore_hotplug(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-	return 0;
-}
-
 static int
 nouveau_do_resume(struct drm_device *dev, bool runtime)
 {
@@ -665,7 +647,29 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 	return 0;
 }
 
-int nouveau_pmops_resume(struct device *dev)
+int
+nouveau_pmops_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	int ret;
+
+	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
+	    drm_dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
+		return 0;
+
+	ret = nouveau_do_suspend(drm_dev, false);
+	if (ret)
+		return ret;
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+	return 0;
+}
+
+int
+nouveau_pmops_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
@@ -685,20 +689,122 @@ int nouveau_pmops_resume(struct device *dev)
 	return nouveau_do_resume(drm_dev, false);
 }
 
-static int nouveau_pmops_freeze(struct device *dev)
+static int
+nouveau_pmops_freeze(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return nouveau_do_suspend(drm_dev, false);
 }
 
-static int nouveau_pmops_thaw(struct device *dev)
+static int
+nouveau_pmops_thaw(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return nouveau_do_resume(drm_dev, false);
 }
 
+static int
+nouveau_pmops_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	int ret;
+
+	if (nouveau_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
+
+	/* are we optimus enabled? */
+	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
+		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
+
+	nv_debug_level(SILENT);
+	drm_kms_helper_poll_disable(drm_dev);
+	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
+	nouveau_switcheroo_optimus_dsm();
+	ret = nouveau_do_suspend(drm_dev, true);
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_ignore_hotplug(pdev);
+	pci_set_power_state(pdev, PCI_D3cold);
+	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
+	return ret;
+}
+
+static int
+nouveau_pmops_runtime_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct nvif_device *device = &nouveau_drm(drm_dev)->device;
+	int ret;
+
+	if (nouveau_runtime_pm == 0)
+		return -EINVAL;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+	pci_set_master(pdev);
+
+	ret = nouveau_do_resume(drm_dev, true);
+	drm_kms_helper_poll_enable(drm_dev);
+	/* do magic */
+	nvif_mask(device, 0x88488, (1 << 25), (1 << 25));
+	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
+	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
+	nv_debug_level(NORMAL);
+	return ret;
+}
+
+static int
+nouveau_pmops_runtime_idle(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct drm_crtc *crtc;
+
+	if (nouveau_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
+
+	/* are we optimus enabled? */
+	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
+		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
+
+	/* if we have a hdmi audio device - make sure it has a driver loaded */
+	if (drm->hdmi_device) {
+		if (!drm->hdmi_device->driver) {
+			DRM_DEBUG_DRIVER("failing to power off - no HDMI audio driver loaded\n");
+			pm_runtime_mark_last_busy(dev);
+			return -EBUSY;
+		}
+	}
+
+	list_for_each_entry(crtc, &drm->dev->mode_config.crtc_list, head) {
+		if (crtc->enabled) {
+			DRM_DEBUG_DRIVER("failing to power off - crtc active\n");
+			return -EBUSY;
+		}
+	}
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_autosuspend(dev);
+	/* we don't want the main rpm_idle to call suspend - we want to autosuspend */
+	return 1;
+}
 
 static int
 nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
@@ -831,7 +937,7 @@ nouveau_driver_fops = {
 };
 
 static struct drm_driver
-driver = {
+driver_stub = {
 	.driver_features =
 		DRIVER_USE_AGP |
 		DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER,
@@ -905,101 +1011,21 @@ nouveau_drm_pci_table[] = {
 	{}
 };
 
-static int nouveau_pmops_runtime_suspend(struct device *dev)
+static void nouveau_display_options(void)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	int ret;
+	DRM_DEBUG_DRIVER("Loading Nouveau with parameters:\n");
 
-	if (nouveau_runtime_pm == 0) {
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	/* are we optimus enabled? */
-	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
-		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	nv_debug_level(SILENT);
-	drm_kms_helper_poll_disable(drm_dev);
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
-	nouveau_switcheroo_optimus_dsm();
-	ret = nouveau_do_suspend(drm_dev, true);
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3cold);
-	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
-	return ret;
-}
-
-static int nouveau_pmops_runtime_resume(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct nvif_device *device = &nouveau_drm(drm_dev)->device;
-	int ret;
-
-	if (nouveau_runtime_pm == 0)
-		return -EINVAL;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	ret = pci_enable_device(pdev);
-	if (ret)
-		return ret;
-	pci_set_master(pdev);
-
-	ret = nouveau_do_resume(drm_dev, true);
-	drm_kms_helper_poll_enable(drm_dev);
-	/* do magic */
-	nvif_mask(device, 0x88488, (1 << 25), (1 << 25));
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
-	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
-	nv_debug_level(NORMAL);
-	return ret;
-}
-
-static int nouveau_pmops_runtime_idle(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
-	struct drm_crtc *crtc;
-
-	if (nouveau_runtime_pm == 0) {
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	/* are we optimus enabled? */
-	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
-		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	/* if we have a hdmi audio device - make sure it has a driver loaded */
-	if (drm->hdmi_device) {
-		if (!drm->hdmi_device->driver) {
-			DRM_DEBUG_DRIVER("failing to power off - no HDMI audio driver loaded\n");
-			pm_runtime_mark_last_busy(dev);
-			return -EBUSY;
-		}
-	}
-
-	list_for_each_entry(crtc, &drm->dev->mode_config.crtc_list, head) {
-		if (crtc->enabled) {
-			DRM_DEBUG_DRIVER("failing to power off - crtc active\n");
-			return -EBUSY;
-		}
-	}
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_autosuspend(dev);
-	/* we don't want the main rpm_idle to call suspend - we want to autosuspend */
-	return 1;
+	DRM_DEBUG_DRIVER("... tv_disable   : %d\n", nouveau_tv_disable);
+	DRM_DEBUG_DRIVER("... ignorelid    : %d\n", nouveau_ignorelid);
+	DRM_DEBUG_DRIVER("... duallink     : %d\n", nouveau_duallink);
+	DRM_DEBUG_DRIVER("... nofbaccel    : %d\n", nouveau_nofbaccel);
+	DRM_DEBUG_DRIVER("... config       : %s\n", nouveau_config);
+	DRM_DEBUG_DRIVER("... debug        : %s\n", nouveau_debug);
+	DRM_DEBUG_DRIVER("... noaccel      : %d\n", nouveau_noaccel);
+	DRM_DEBUG_DRIVER("... modeset      : %d\n", nouveau_modeset);
+	DRM_DEBUG_DRIVER("... runpm        : %d\n", nouveau_runtime_pm);
+	DRM_DEBUG_DRIVER("... vram_pushbuf : %d\n", nouveau_vram_pushbuf);
+	DRM_DEBUG_DRIVER("... pstate       : %d\n", nouveau_pstate);
 }
 
 static const struct dev_pm_ops nouveau_pm_ops = {
@@ -1037,7 +1063,7 @@ nouveau_platform_device_create_(struct platform_device *pdev, int size,
 	if (err)
 		return ERR_PTR(err);
 
-	drm = drm_dev_alloc(&driver, &pdev->dev);
+	drm = drm_dev_alloc(&driver_platform, &pdev->dev);
 	if (!drm) {
 		err = -ENOMEM;
 		goto err_free;
@@ -1062,6 +1088,13 @@ EXPORT_SYMBOL(nouveau_platform_device_create_);
 static int __init
 nouveau_drm_init(void)
 {
+	driver_pci = driver_stub;
+	driver_pci.set_busid = drm_pci_set_busid;
+	driver_platform = driver_stub;
+	driver_platform.set_busid = drm_platform_set_busid;
+
+	nouveau_display_options();
+
 	if (nouveau_modeset == -1) {
 #ifdef CONFIG_VGA_CONSOLE
 		if (vgacon_text_force())
@@ -1073,7 +1106,7 @@ nouveau_drm_init(void)
 		return 0;
 
 	nouveau_register_dsm_handler();
-	return drm_pci_init(&driver, &nouveau_drm_pci_driver);
+	return drm_pci_init(&driver_pci, &nouveau_drm_pci_driver);
 }
 
 static void __exit
@@ -1082,7 +1115,7 @@ nouveau_drm_exit(void)
 	if (!nouveau_modeset)
 		return;
 
-	drm_pci_exit(&driver, &nouveau_drm_pci_driver);
+	drm_pci_exit(&driver_pci, &nouveau_drm_pci_driver);
 	nouveau_unregister_dsm_handler();
 }
 

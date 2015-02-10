@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/brcmphy.h>
+#include <linux/mdio.h>
 
 /* Broadcom BCM7xxx internal PHY registers */
 #define MII_BCM7XXX_CHANNEL_WIDTH	0x2000
@@ -38,44 +39,14 @@
 
 #define AFE_RXCONFIG_0			MISC_ADDR(0x38, 0)
 #define AFE_RXCONFIG_1			MISC_ADDR(0x38, 1)
+#define AFE_RXCONFIG_2			MISC_ADDR(0x38, 2)
 #define AFE_RX_LP_COUNTER		MISC_ADDR(0x38, 3)
 #define AFE_TX_CONFIG			MISC_ADDR(0x39, 0)
+#define AFE_VDCA_ICTRL_0		MISC_ADDR(0x39, 1)
+#define AFE_VDAC_OTHERS_0		MISC_ADDR(0x39, 3)
 #define AFE_HPF_TRIM_OTHERS		MISC_ADDR(0x3a, 0)
 
 #define CORE_EXPB0			0xb0
-
-static int bcm7445_config_init(struct phy_device *phydev)
-{
-	int ret;
-	const struct bcm7445_regs {
-		int reg;
-		u16 value;
-	} bcm7445_regs_cfg[] = {
-		/* increases ADC latency by 24ns */
-		{ MII_BCM54XX_EXP_SEL, 0x0038 },
-		{ MII_BCM54XX_EXP_DATA, 0xAB95 },
-		/* increases internal 1V LDO voltage by 5% */
-		{ MII_BCM54XX_EXP_SEL, 0x2038 },
-		{ MII_BCM54XX_EXP_DATA, 0xBB22 },
-		/* reduce RX low pass filter corner frequency */
-		{ MII_BCM54XX_EXP_SEL, 0x6038 },
-		{ MII_BCM54XX_EXP_DATA, 0xFFC5 },
-		/* reduce RX high pass filter corner frequency */
-		{ MII_BCM54XX_EXP_SEL, 0x003a },
-		{ MII_BCM54XX_EXP_DATA, 0x2002 },
-	};
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(bcm7445_regs_cfg); i++) {
-		ret = phy_write(phydev,
-				bcm7445_regs_cfg[i].reg,
-				bcm7445_regs_cfg[i].value);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
 
 static void phy_write_exp(struct phy_device *phydev,
 					u16 reg, u16 value)
@@ -101,7 +72,16 @@ static void phy_write_misc(struct phy_device *phydev,
 	phy_write(phydev, MII_BCM54XX_EXP_DATA, value);
 }
 
-static int bcm7xxx_28nm_afe_config_init(struct phy_device *phydev)
+static void r_rc_cal_reset(struct phy_device *phydev)
+{
+	/* Reset R_CAL/RC_CAL Engine */
+	phy_write_exp(phydev, 0x00b0, 0x0010);
+
+	/* Disable Reset R_AL/RC_CAL Engine */
+	phy_write_exp(phydev, 0x00b0, 0x0000);
+}
+
+static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
 {
 	/* Increase VCO range to prevent unlocking problem of PLL at low
 	 * temp
@@ -122,11 +102,7 @@ static int bcm7xxx_28nm_afe_config_init(struct phy_device *phydev)
 	/* Switch to CORE_BASE1E */
 	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0xd);
 
-	/* Reset R_CAL/RC_CAL Engine */
-	phy_write_exp(phydev, CORE_EXPB0, 0x0010);
-
-	/* Disable Reset R_CAL/RC_CAL Engine */
-	phy_write_exp(phydev, CORE_EXPB0, 0x0000);
+	r_rc_cal_reset(phydev);
 
 	/* write AFE_RXCONFIG_0 */
 	phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb19);
@@ -146,15 +122,152 @@ static int bcm7xxx_28nm_afe_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
+{
+	/* AFE_RXCONFIG_0 */
+	phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb15);
+
+	/* AFE_RXCONFIG_1 */
+	phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9b2f);
+
+	/* AFE_RXCONFIG_2, set rCal offset for HT=0 code and LT=-2 code */
+	phy_write_misc(phydev, AFE_RXCONFIG_2, 0x2003);
+
+	/* AFE_RX_LP_COUNTER, set RX bandwidth to maximum */
+	phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
+
+	/* AFE_TX_CONFIG, set 1000BT Cfeed=110 for all ports */
+	phy_write_misc(phydev, AFE_TX_CONFIG, 0x0061);
+
+	/* AFE_VDCA_ICTRL_0, set Iq=1101 instead of 0111 for AB symmetry */
+	phy_write_misc(phydev, AFE_VDCA_ICTRL_0, 0xa7da);
+
+	/* AFE_VDAC_OTHERS_0, set 1000BT Cidac=010 for all ports */
+	phy_write_misc(phydev, AFE_VDAC_OTHERS_0, 0xa020);
+
+	/* AFE_HPF_TRIM_OTHERS, set 100Tx/10BT to -4.5% swing and set rCal
+	 * offset for HT=0 code
+	 */
+	phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x00e3);
+
+	/* CORE_BASE1E, force trim to overwrite and set I_ext trim to 0000 */
+	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0x0010);
+
+	/* DSP_TAP10, adjust bias current trim (+0% swing, +0 tick) */
+	phy_write_misc(phydev, DSP_TAP10, 0x011b);
+
+	/* Reset R_CAL/RC_CAL engine */
+	r_rc_cal_reset(phydev);
+
+	return 0;
+}
+
+static int bcm7xxx_28nm_e0_plus_afe_config_init(struct phy_device *phydev)
+{
+	/* AFE_RXCONFIG_1, provide more margin for INL/DNL measurement */
+	phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9b2f);
+
+	/* AFE_VDCA_ICTRL_0, set Iq=1101 instead of 0111 for AB symmetry */
+	phy_write_misc(phydev, AFE_VDCA_ICTRL_0, 0xa7da);
+
+	/* AFE_HPF_TRIM_OTHERS, set 100Tx/10BT to -4.5% swing and set rCal
+	 * offset for HT=0 code
+	 */
+	phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x00e3);
+
+	/* CORE_BASE1E, force trim to overwrite and set I_ext trim to 0000 */
+	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0x0010);
+
+	/* DSP_TAP10, adjust bias current trim (+0% swing, +0 tick) */
+	phy_write_misc(phydev, DSP_TAP10, 0x011b);
+
+	/* Reset R_CAL/RC_CAL engine */
+	r_rc_cal_reset(phydev);
+
+	return 0;
+}
+
+static int bcm7xxx_apd_enable(struct phy_device *phydev)
+{
+	int val;
+
+	/* Enable powering down of the DLL during auto-power down */
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_SCR3);
+	if (val < 0)
+		return val;
+
+	val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
+	bcm54xx_shadow_write(phydev, BCM54XX_SHD_SCR3, val);
+
+	/* Enable auto-power down */
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_APD);
+	if (val < 0)
+		return val;
+
+	val |= BCM54XX_SHD_APD_EN;
+	return bcm54xx_shadow_write(phydev, BCM54XX_SHD_APD, val);
+}
+
+static int bcm7xxx_eee_enable(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
+				    MDIO_MMD_AN, phydev->addr);
+	if (val < 0)
+		return val;
+
+	/* Enable general EEE feature at the PHY level */
+	val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
+
+	phy_write_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
+			       MDIO_MMD_AN, phydev->addr, val);
+
+	/* Advertise supported modes */
+	val = phy_read_mmd_indirect(phydev, MDIO_AN_EEE_ADV,
+				    MDIO_MMD_AN, phydev->addr);
+
+	val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+	phy_write_mmd_indirect(phydev, MDIO_AN_EEE_ADV,
+			       MDIO_MMD_AN, phydev->addr, val);
+
+	return 0;
+}
+
 static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 {
-	int ret;
+	u8 rev = PHY_BRCM_7XXX_REV(phydev->dev_flags);
+	u8 patch = PHY_BRCM_7XXX_PATCH(phydev->dev_flags);
+	int ret = 0;
 
-	ret = bcm7445_config_init(phydev);
+	pr_info_once("%s: %s PHY revision: 0x%02x, patch: %d\n",
+		     dev_name(&phydev->dev), phydev->drv->name, rev, patch);
+
+	switch (rev) {
+	case 0xb0:
+		ret = bcm7xxx_28nm_b0_afe_config_init(phydev);
+		break;
+	case 0xd0:
+		ret = bcm7xxx_28nm_d0_afe_config_init(phydev);
+		break;
+	case 0xe0:
+	case 0xf0:
+	/* Rev G0 introduces a roll over */
+	case 0x10:
+		ret = bcm7xxx_28nm_e0_plus_afe_config_init(phydev);
+		break;
+	default:
+		break;
+	}
+
 	if (ret)
 		return ret;
 
-	return bcm7xxx_28nm_afe_config_init(phydev);
+	ret = bcm7xxx_eee_enable(phydev);
+	if (ret)
+		return ret;
+
+	return bcm7xxx_apd_enable(phydev);
 }
 
 static int bcm7xxx_28nm_resume(struct phy_device *phydev)
@@ -201,8 +314,8 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 	phy_write(phydev, MII_BCM7XXX_AUX_MODE, MII_BCM7XX_64CLK_MDIO);
 	phy_read(phydev, MII_BCM7XXX_AUX_MODE);
 
-	/* Workaround only required for 100Mbits/sec */
-	if (!(phydev->dev_flags & PHY_BRCM_100MBPS_WAR))
+	/* Workaround only required for 100Mbits/sec capable PHYs */
+	if (phydev->supported & PHY_GBIT_FEATURES)
 		return 0;
 
 	/* set shadow mode 2 */
@@ -263,43 +376,53 @@ static int bcm7xxx_dummy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+#define BCM7XXX_28NM_GPHY(_oui, _name)					\
+{									\
+	.phy_id		= (_oui),					\
+	.phy_id_mask	= 0xfffffff0,					\
+	.name		= _name,					\
+	.features	= PHY_GBIT_FEATURES |				\
+			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,	\
+	.flags		= PHY_IS_INTERNAL,				\
+	.config_init	= bcm7xxx_28nm_config_init,			\
+	.config_aneg	= genphy_config_aneg,				\
+	.read_status	= genphy_read_status,				\
+	.resume		= bcm7xxx_28nm_resume,				\
+	.driver		= { .owner = THIS_MODULE },			\
+}
+
 static struct phy_driver bcm7xxx_driver[] = {
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7250, "Broadcom BCM7250"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7364, "Broadcom BCM7364"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7366, "Broadcom BCM7366"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7439, "Broadcom BCM7439"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7445, "Broadcom BCM7445"),
 {
-	.phy_id		= PHY_ID_BCM7366,
-	.phy_id_mask	= 0xfffffff0,
-	.name		= "Broadcom BCM7366",
-	.features	= PHY_GBIT_FEATURES |
+	.phy_id         = PHY_ID_BCM7425,
+	.phy_id_mask    = 0xfffffff0,
+	.name           = "Broadcom BCM7425",
+	.features       = PHY_GBIT_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_afe_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.resume		= bcm7xxx_28nm_resume,
-	.driver		= { .owner = THIS_MODULE },
+	.flags          = 0,
+	.config_init    = bcm7xxx_config_init,
+	.config_aneg    = genphy_config_aneg,
+	.read_status    = genphy_read_status,
+	.suspend        = bcm7xxx_suspend,
+	.resume         = bcm7xxx_config_init,
+	.driver         = { .owner = THIS_MODULE },
 }, {
-	.phy_id		= PHY_ID_BCM7439,
-	.phy_id_mask	= 0xfffffff0,
-	.name		= "Broadcom BCM7439",
-	.features	= PHY_GBIT_FEATURES |
+	.phy_id         = PHY_ID_BCM7429,
+	.phy_id_mask    = 0xfffffff0,
+	.name           = "Broadcom BCM7429",
+	.features       = PHY_GBIT_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_afe_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.resume		= bcm7xxx_28nm_resume,
-	.driver		= { .owner = THIS_MODULE },
-}, {
-	.phy_id		= PHY_ID_BCM7445,
-	.phy_id_mask	= 0xfffffff0,
-	.name		= "Broadcom BCM7445",
-	.features	= PHY_GBIT_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.resume		= bcm7xxx_28nm_afe_config_init,
-	.driver		= { .owner = THIS_MODULE },
+	.flags          = PHY_IS_INTERNAL,
+	.config_init    = bcm7xxx_config_init,
+	.config_aneg    = genphy_config_aneg,
+	.read_status    = genphy_read_status,
+	.suspend        = bcm7xxx_suspend,
+	.resume         = bcm7xxx_config_init,
+	.driver         = { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_BCM_OUI_4,
 	.phy_id_mask	= 0xffff0000,
@@ -329,7 +452,11 @@ static struct phy_driver bcm7xxx_driver[] = {
 } };
 
 static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
+	{ PHY_ID_BCM7250, 0xfffffff0, },
+	{ PHY_ID_BCM7364, 0xfffffff0, },
 	{ PHY_ID_BCM7366, 0xfffffff0, },
+	{ PHY_ID_BCM7425, 0xfffffff0, },
+	{ PHY_ID_BCM7429, 0xfffffff0, },
 	{ PHY_ID_BCM7439, 0xfffffff0, },
 	{ PHY_ID_BCM7445, 0xfffffff0, },
 	{ PHY_BCM_OUI_4, 0xffff0000 },
@@ -337,20 +464,7 @@ static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ }
 };
 
-static int __init bcm7xxx_phy_init(void)
-{
-	return phy_drivers_register(bcm7xxx_driver,
-			ARRAY_SIZE(bcm7xxx_driver));
-}
-
-static void __exit bcm7xxx_phy_exit(void)
-{
-	phy_drivers_unregister(bcm7xxx_driver,
-			ARRAY_SIZE(bcm7xxx_driver));
-}
-
-module_init(bcm7xxx_phy_init);
-module_exit(bcm7xxx_phy_exit);
+module_phy_driver(bcm7xxx_driver);
 
 MODULE_DEVICE_TABLE(mdio, bcm7xxx_tbl);
 

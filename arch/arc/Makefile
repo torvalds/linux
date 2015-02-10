@@ -12,7 +12,7 @@ ifeq ($(CROSS_COMPILE),)
 CROSS_COMPILE := arc-linux-uclibc-
 endif
 
-KBUILD_DEFCONFIG := fpga_defconfig
+KBUILD_DEFCONFIG := nsim_700_defconfig
 
 cflags-y	+= -mA7 -fno-common -pipe -fno-builtin -D__linux__
 
@@ -25,7 +25,6 @@ ifdef CONFIG_ARC_CURR_IN_REG
 LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/current.h
 endif
 
-upto_gcc42    :=  $(call cc-ifversion, -le, 0402, y)
 upto_gcc44    :=  $(call cc-ifversion, -le, 0404, y)
 atleast_gcc44 :=  $(call cc-ifversion, -ge, 0404, y)
 atleast_gcc48 :=  $(call cc-ifversion, -ge, 0408, y)
@@ -60,25 +59,11 @@ ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB
 # --build-id w/o "-marclinux". Default arc-elf32-ld is OK
 ldflags-$(upto_gcc44)			+= -marclinux
 
-ARC_LIBGCC				:= -mA7
-cflags-$(CONFIG_ARC_HAS_HW_MPY)		+= -multcost=16
-
 ifndef CONFIG_ARC_HAS_HW_MPY
 	cflags-y	+= -mno-mpy
-
-# newlib for ARC700 assumes MPY to be always present, which is generally true
-# However, if someone really doesn't want MPY, we need to use the 600 ver
-# which coupled with -mno-mpy will use mpy emulation
-# With gcc 4.4.7, -mno-mpy is enough to make any other related adjustments,
-# e.g. increased cost of MPY. With gcc 4.2.1 this had to be explicitly hinted
-
-	ifeq ($(upto_gcc42),y)
-		ARC_LIBGCC	:= -marc600
-		cflags-y	+= -multcost=30
-	endif
 endif
 
-LIBGCC	:= $(shell $(CC) $(ARC_LIBGCC) $(cflags-y) --print-libgcc-file-name)
+LIBGCC	:= $(shell $(CC) $(cflags-y) --print-libgcc-file-name)
 
 # Modules with short calls might break for calls into builtin-kernel
 KBUILD_CFLAGS_MODULE	+= -mlong-calls

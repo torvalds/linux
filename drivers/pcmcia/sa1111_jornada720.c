@@ -92,10 +92,9 @@ static struct pcmcia_low_level jornada720_pcmcia_ops = {
 	.nr			= 2,
 };
 
-int pcmcia_jornada720_init(struct device *dev)
+int pcmcia_jornada720_init(struct sa1111_dev *sadev)
 {
 	int ret = -ENODEV;
-	struct sa1111_dev *sadev = SA1111_DEV(dev);
 
 	if (machine_is_jornada720()) {
 		unsigned int pin = GPIO_A0 | GPIO_A1 | GPIO_A2 | GPIO_A3;

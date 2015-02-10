@@ -31,6 +31,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/ratelimit.h>
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/kallsyms.h>
@@ -65,24 +66,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
  */
 void handle_IRQ(unsigned int irq, struct pt_regs *regs)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	irq_enter();
-
-	/*
-	 * Some hardware gives randomly wrong interrupts.  Rather
-	 * than crashing, do something sensible.
-	 */
-	if (unlikely(irq >= nr_irqs)) {
-		if (printk_ratelimit())
-			printk(KERN_WARNING "Bad IRQ%u\n", irq);
-		ack_bad_irq(irq);
-	} else {
-		generic_handle_irq(irq);
-	}
-
-	irq_exit();
-	set_irq_regs(old_regs);
+	__handle_domain_irq(NULL, irq, false, regs);
 }
 
 /*
@@ -99,7 +83,7 @@ void set_irq_flags(unsigned int irq, unsigned int iflags)
 	unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 
 	if (irq >= nr_irqs) {
-		printk(KERN_ERR "Trying to set irq flags for IRQ%d\n", irq);
+		pr_err("Trying to set irq flags for IRQ%d\n", irq);
 		return;
 	}
 
@@ -152,7 +136,6 @@ int __init arch_probe_nr_irqs(void)
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
-
 static bool migrate_one_irq(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
@@ -204,9 +187,9 @@ void migrate_irqs(void)
 		affinity_broken = migrate_one_irq(desc);
 		raw_spin_unlock(&desc->lock);
 
-		if (affinity_broken && printk_ratelimit())
-			pr_warning("IRQ%u no longer affine to CPU%u\n", i,
-				smp_processor_id());
+		if (affinity_broken)
+			pr_warn_ratelimited("IRQ%u no longer affine to CPU%u\n",
+				i, smp_processor_id());
 	}
 
 	local_irq_restore(flags);

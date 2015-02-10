@@ -121,12 +121,18 @@ static inline unsigned long dma_max_pfn(struct device *dev)
 }
 #define dma_max_pfn(dev) dma_max_pfn(dev)
 
-static inline int set_arch_dma_coherent_ops(struct device *dev)
+#define arch_setup_dma_ops arch_setup_dma_ops
+extern void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
+			       struct iommu_ops *iommu, bool coherent);
+
+#define arch_teardown_dma_ops arch_teardown_dma_ops
+extern void arch_teardown_dma_ops(struct device *dev);
+
+/* do not use this function in a driver */
+static inline bool is_device_dma_coherent(struct device *dev)
 {
-	set_dma_ops(dev, &arm_coherent_dma_ops);
-	return 0;
+	return dev->archdata.dma_coherent;
 }
-#define set_arch_dma_coherent_ops(dev)	set_arch_dma_coherent_ops(dev)
 
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
@@ -264,22 +270,6 @@ static inline void dma_free_attrs(struct device *dev, size_t size,
 extern int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 			void *cpu_addr, dma_addr_t dma_addr, size_t size,
 			struct dma_attrs *attrs);
-
-static inline void *dma_alloc_writecombine(struct device *dev, size_t size,
-				       dma_addr_t *dma_handle, gfp_t flag)
-{
-	DEFINE_DMA_ATTRS(attrs);
-	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-	return dma_alloc_attrs(dev, size, dma_handle, flag, &attrs);
-}
-
-static inline void dma_free_writecombine(struct device *dev, size_t size,
-				     void *cpu_addr, dma_addr_t dma_handle)
-{
-	DEFINE_DMA_ATTRS(attrs);
-	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-	return dma_free_attrs(dev, size, cpu_addr, dma_handle, &attrs);
-}
 
 /*
  * This can be called during early boot to increase the size of the atomic

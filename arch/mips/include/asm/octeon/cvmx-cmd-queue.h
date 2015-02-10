@@ -76,6 +76,8 @@
 
 #include <linux/prefetch.h>
 
+#include <asm/compiler.h>
+
 #include <asm/octeon/cvmx-fpa.h>
 /**
  * By default we disable the max depth support. Most programs
@@ -273,7 +275,7 @@ static inline void __cvmx_cmd_queue_lock(cvmx_cmd_queue_id_t queue_id,
 		" lbu	%[ticket], %[now_serving]\n"
 		"4:\n"
 		".set pop\n" :
-		[ticket_ptr] "=m"(__cvmx_cmd_queue_state_ptr->ticket[__cvmx_cmd_queue_get_index(queue_id)]),
+		[ticket_ptr] "=" GCC_OFF12_ASM()(__cvmx_cmd_queue_state_ptr->ticket[__cvmx_cmd_queue_get_index(queue_id)]),
 		[now_serving] "=m"(qptr->now_serving), [ticket] "=r"(tmp),
 		[my_ticket] "=r"(my_ticket)
 	    );

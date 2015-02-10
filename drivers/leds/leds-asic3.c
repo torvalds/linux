@@ -168,7 +168,6 @@ static struct platform_driver asic3_led_driver = {
 	.remove		= asic3_led_remove,
 	.driver		= {
 		.name	= "leds-asic3",
-		.owner	= THIS_MODULE,
 		.pm	= &asic3_led_pm_ops,
 	},
 };

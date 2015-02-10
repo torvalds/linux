@@ -768,7 +768,6 @@ static struct platform_driver mac_mace_driver = {
 	.remove = mac_mace_device_remove,
 	.driver	= {
 		.name	= mac_mace_string,
-		.owner	= THIS_MODULE,
 	},
 };
 

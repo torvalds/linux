@@ -870,25 +870,22 @@ static unsigned int ep_eventpoll_poll(struct file *file, poll_table *wait)
 }
 
 #ifdef CONFIG_PROC_FS
-static int ep_show_fdinfo(struct seq_file *m, struct file *f)
+static void ep_show_fdinfo(struct seq_file *m, struct file *f)
 {
 	struct eventpoll *ep = f->private_data;
 	struct rb_node *rbp;
-	int ret = 0;
 
 	mutex_lock(&ep->mtx);
 	for (rbp = rb_first(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		struct epitem *epi = rb_entry(rbp, struct epitem, rbn);
 
-		ret = seq_printf(m, "tfd: %8d events: %8x data: %16llx\n",
-				 epi->ffd.fd, epi->event.events,
-				 (long long)epi->event.data);
-		if (ret)
+		seq_printf(m, "tfd: %8d events: %8x data: %16llx\n",
+			   epi->ffd.fd, epi->event.events,
+			   (long long)epi->event.data);
+		if (seq_has_overflowed(m))
 			break;
 	}
 	mutex_unlock(&ep->mtx);
-
-	return ret;
 }
 #endif
 

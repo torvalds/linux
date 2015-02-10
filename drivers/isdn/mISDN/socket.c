@@ -163,7 +163,7 @@ mISDN_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	memcpy(skb_push(skb, MISDN_HEADER_LEN), mISDN_HEAD_P(skb),
 	       MISDN_HEADER_LEN);
 
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	err = skb_copy_datagram_msg(skb, 0, msg, copied);
 
 	mISDN_sock_cmsg(sk, msg, skb);
 
@@ -203,7 +203,7 @@ mISDN_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (!skb)
 		goto done;
 
-	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+	if (memcpy_from_msg(skb_put(skb, len), msg, len)) {
 		err = -EFAULT;
 		goto done;
 	}

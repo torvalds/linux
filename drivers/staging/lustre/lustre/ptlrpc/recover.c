@@ -47,7 +47,6 @@
 #include "../include/lustre_import.h"
 #include "../include/lustre_export.h"
 #include "../include/obd.h"
-#include "../include/obd_ost.h"
 #include "../include/obd_class.h"
 #include <linux/list.h>
 
@@ -238,8 +237,7 @@ void ptlrpc_request_handle_notconn(struct ptlrpc_request *failed_req)
 	if (ptlrpc_set_import_discon(imp,
 			      lustre_msg_get_conn_cnt(failed_req->rq_reqmsg))) {
 		if (!imp->imp_replayable) {
-			CDEBUG(D_HA, "import %s@%s for %s not replayable, "
-			       "auto-deactivating\n",
+			CDEBUG(D_HA, "import %s@%s for %s not replayable, auto-deactivating\n",
 			       obd2cli_tgt(imp->imp_obd),
 			       imp->imp_connection->c_remote_uuid.uuid,
 			       imp->imp_obd->obd_name);
@@ -275,8 +273,8 @@ int ptlrpc_set_import_active(struct obd_import *imp, int active)
 	/* When deactivating, mark import invalid, and abort in-flight
 	 * requests. */
 	if (!active) {
-		LCONSOLE_WARN("setting import %s INACTIVE by administrator "
-			      "request\n", obd2cli_tgt(imp->imp_obd));
+		LCONSOLE_WARN("setting import %s INACTIVE by administrator request\n",
+			      obd2cli_tgt(imp->imp_obd));
 
 		/* set before invalidate to avoid messages about imp_inval
 		 * set without imp_deactive in ptlrpc_import_delay_req */
@@ -317,7 +315,7 @@ int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 		rc = -EINVAL;
 	spin_unlock(&imp->imp_lock);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	/* force import to be disconnected. */
 	ptlrpc_set_import_discon(imp, 0);
@@ -329,7 +327,7 @@ int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 		obd_str2uuid(&uuid, new_uuid);
 		rc = import_set_conn_priority(imp, &uuid);
 		if (rc)
-			GOTO(out, rc);
+			goto out;
 	}
 
 	/* Check if reconnect is already in progress */
@@ -340,11 +338,11 @@ int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 	}
 	spin_unlock(&imp->imp_lock);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	rc = ptlrpc_connect_import(imp);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	if (!async) {
 		struct l_wait_info lwi;

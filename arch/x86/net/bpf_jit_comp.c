@@ -8,12 +8,10 @@
  * as published by the Free Software Foundation; version 2
  * of the License.
  */
-#include <linux/moduleloader.h>
-#include <asm/cacheflush.h>
 #include <linux/netdevice.h>
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
-#include <linux/random.h>
+#include <asm/cacheflush.h>
 
 int bpf_jit_enable __read_mostly;
 
@@ -26,7 +24,7 @@ extern u8 sk_load_byte_positive_offset[];
 extern u8 sk_load_word_negative_offset[], sk_load_half_negative_offset[];
 extern u8 sk_load_byte_negative_offset[];
 
-static inline u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
+static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 {
 	if (len == 1)
 		*ptr = bytes;
@@ -54,12 +52,12 @@ static inline u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 #define EMIT4_off32(b1, b2, b3, b4, off) \
 	do {EMIT4(b1, b2, b3, b4); EMIT(off, 4); } while (0)
 
-static inline bool is_imm8(int value)
+static bool is_imm8(int value)
 {
 	return value <= 127 && value >= -128;
 }
 
-static inline bool is_simm32(s64 value)
+static bool is_simm32(s64 value)
 {
 	return value == (s64) (s32) value;
 }
@@ -96,7 +94,7 @@ static int bpf_size_to_x86_bytes(int bpf_size)
 #define X86_JGE 0x7D
 #define X86_JG  0x7F
 
-static inline void bpf_flush_icache(void *start, void *end)
+static void bpf_flush_icache(void *start, void *end)
 {
 	mm_segment_t old_fs = get_fs();
 
@@ -108,39 +106,6 @@ static inline void bpf_flush_icache(void *start, void *end)
 
 #define CHOOSE_LOAD_FUNC(K, func) \
 	((int)K < 0 ? ((int)K >= SKF_LL_OFF ? func##_negative_offset : func) : func##_positive_offset)
-
-struct bpf_binary_header {
-	unsigned int	pages;
-	/* Note : for security reasons, bpf code will follow a randomly
-	 * sized amount of int3 instructions
-	 */
-	u8		image[];
-};
-
-static struct bpf_binary_header *bpf_alloc_binary(unsigned int proglen,
-						  u8 **image_ptr)
-{
-	unsigned int sz, hole;
-	struct bpf_binary_header *header;
-
-	/* Most of BPF filters are really small,
-	 * but if some of them fill a page, allow at least
-	 * 128 extra bytes to insert a random section of int3
-	 */
-	sz = round_up(proglen + sizeof(*header) + 128, PAGE_SIZE);
-	header = module_alloc(sz);
-	if (!header)
-		return NULL;
-
-	memset(header, 0xcc, sz); /* fill whole space with int3 instructions */
-
-	header->pages = sz / PAGE_SIZE;
-	hole = min(sz - (proglen + sizeof(*header)), PAGE_SIZE - sizeof(*header));
-
-	/* insert a random number of int3 instructions before BPF code */
-	*image_ptr = &header->image[prandom_u32() % hole];
-	return header;
-}
 
 /* pick a register outside of BPF range for JIT internal work */
 #define AUX_REG (MAX_BPF_REG + 1)
@@ -168,24 +133,24 @@ static const int reg2hex[] = {
  * which need extra byte of encoding.
  * rax,rcx,...,rbp have simpler encoding
  */
-static inline bool is_ereg(u32 reg)
+static bool is_ereg(u32 reg)
 {
-	if (reg == BPF_REG_5 || reg == AUX_REG ||
-	    (reg >= BPF_REG_7 && reg <= BPF_REG_9))
-		return true;
-	else
-		return false;
+	return (1 << reg) & (BIT(BPF_REG_5) |
+			     BIT(AUX_REG) |
+			     BIT(BPF_REG_7) |
+			     BIT(BPF_REG_8) |
+			     BIT(BPF_REG_9));
 }
 
 /* add modifiers if 'reg' maps to x64 registers r8..r15 */
-static inline u8 add_1mod(u8 byte, u32 reg)
+static u8 add_1mod(u8 byte, u32 reg)
 {
 	if (is_ereg(reg))
 		byte |= 1;
 	return byte;
 }
 
-static inline u8 add_2mod(u8 byte, u32 r1, u32 r2)
+static u8 add_2mod(u8 byte, u32 r1, u32 r2)
 {
 	if (is_ereg(r1))
 		byte |= 1;
@@ -195,28 +160,40 @@ static inline u8 add_2mod(u8 byte, u32 r1, u32 r2)
 }
 
 /* encode 'dst_reg' register into x64 opcode 'byte' */
-static inline u8 add_1reg(u8 byte, u32 dst_reg)
+static u8 add_1reg(u8 byte, u32 dst_reg)
 {
 	return byte + reg2hex[dst_reg];
 }
 
 /* encode 'dst_reg' and 'src_reg' registers into x64 opcode 'byte' */
-static inline u8 add_2reg(u8 byte, u32 dst_reg, u32 src_reg)
+static u8 add_2reg(u8 byte, u32 dst_reg, u32 src_reg)
 {
 	return byte + reg2hex[dst_reg] + (reg2hex[src_reg] << 3);
 }
 
+static void jit_fill_hole(void *area, unsigned int size)
+{
+	/* fill whole space with int3 instructions */
+	memset(area, 0xcc, size);
+}
+
 struct jit_context {
-	unsigned int cleanup_addr; /* epilogue code offset */
+	int cleanup_addr; /* epilogue code offset */
 	bool seen_ld_abs;
 };
+
+/* maximum number of bytes emitted while JITing one eBPF insn */
+#define BPF_MAX_INSN_SIZE	128
+#define BPF_INSN_SAFETY		64
 
 static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		  int oldproglen, struct jit_context *ctx)
 {
 	struct bpf_insn *insn = bpf_prog->insnsi;
 	int insn_cnt = bpf_prog->len;
-	u8 temp[64];
+	bool seen_ld_abs = ctx->seen_ld_abs | (oldproglen == 0);
+	bool seen_exit = false;
+	u8 temp[BPF_MAX_INSN_SIZE + BPF_INSN_SAFETY];
 	int i;
 	int proglen = 0;
 	u8 *prog = temp;
@@ -254,7 +231,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 	EMIT2(0x31, 0xc0); /* xor eax, eax */
 	EMIT3(0x4D, 0x31, 0xED); /* xor r13, r13 */
 
-	if (ctx->seen_ld_abs) {
+	if (seen_ld_abs) {
 		/* r9d : skb->len - skb->data_len (headlen)
 		 * r10 : skb->data
 		 */
@@ -393,6 +370,23 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			EMIT1_off32(add_1reg(0xB8, dst_reg), imm32);
 			break;
 
+		case BPF_LD | BPF_IMM | BPF_DW:
+			if (insn[1].code != 0 || insn[1].src_reg != 0 ||
+			    insn[1].dst_reg != 0 || insn[1].off != 0) {
+				/* verifier must catch invalid insns */
+				pr_err("invalid BPF_LD_IMM64 insn\n");
+				return -EINVAL;
+			}
+
+			/* movabsq %rax, imm64 */
+			EMIT2(add_1mod(0x48, dst_reg), add_1reg(0xB8, dst_reg));
+			EMIT(insn[0].imm, 4);
+			EMIT(insn[1].imm, 4);
+
+			insn++;
+			i++;
+			break;
+
 			/* dst %= src, dst /= src, dst %= imm32, dst /= imm32 */
 		case BPF_ALU | BPF_MOD | BPF_X:
 		case BPF_ALU | BPF_DIV | BPF_X:
@@ -513,6 +507,48 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			case BPF_ARSH: b3 = 0xF8; break;
 			}
 			EMIT3(0xC1, add_1reg(b3, dst_reg), imm32);
+			break;
+
+		case BPF_ALU | BPF_LSH | BPF_X:
+		case BPF_ALU | BPF_RSH | BPF_X:
+		case BPF_ALU | BPF_ARSH | BPF_X:
+		case BPF_ALU64 | BPF_LSH | BPF_X:
+		case BPF_ALU64 | BPF_RSH | BPF_X:
+		case BPF_ALU64 | BPF_ARSH | BPF_X:
+
+			/* check for bad case when dst_reg == rcx */
+			if (dst_reg == BPF_REG_4) {
+				/* mov r11, dst_reg */
+				EMIT_mov(AUX_REG, dst_reg);
+				dst_reg = AUX_REG;
+			}
+
+			if (src_reg != BPF_REG_4) { /* common case */
+				EMIT1(0x51); /* push rcx */
+
+				/* mov rcx, src_reg */
+				EMIT_mov(BPF_REG_4, src_reg);
+			}
+
+			/* shl %rax, %cl | shr %rax, %cl | sar %rax, %cl */
+			if (BPF_CLASS(insn->code) == BPF_ALU64)
+				EMIT1(add_1mod(0x48, dst_reg));
+			else if (is_ereg(dst_reg))
+				EMIT1(add_1mod(0x40, dst_reg));
+
+			switch (BPF_OP(insn->code)) {
+			case BPF_LSH: b3 = 0xE0; break;
+			case BPF_RSH: b3 = 0xE8; break;
+			case BPF_ARSH: b3 = 0xF8; break;
+			}
+			EMIT2(0xD3, add_1reg(b3, dst_reg));
+
+			if (src_reg != BPF_REG_4)
+				EMIT1(0x59); /* pop rcx */
+
+			if (insn->dst_reg == BPF_REG_4)
+				/* mov dst_reg, r11 */
+				EMIT_mov(insn->dst_reg, AUX_REG);
 			break;
 
 		case BPF_ALU | BPF_END | BPF_FROM_BE:
@@ -655,7 +691,7 @@ xadd:			if (is_imm8(insn->off))
 		case BPF_JMP | BPF_CALL:
 			func = (u8 *) __bpf_call_base + imm32;
 			jmp_offset = func - (image + addrs[i]);
-			if (ctx->seen_ld_abs) {
+			if (seen_ld_abs) {
 				EMIT2(0x41, 0x52); /* push %r10 */
 				EMIT2(0x41, 0x51); /* push %r9 */
 				/* need to adjust jmp offset, since
@@ -669,7 +705,7 @@ xadd:			if (is_imm8(insn->off))
 				return -EINVAL;
 			}
 			EMIT1_off32(0xE8, jmp_offset);
-			if (ctx->seen_ld_abs) {
+			if (seen_ld_abs) {
 				EMIT2(0x41, 0x59); /* pop %r9 */
 				EMIT2(0x41, 0x5A); /* pop %r10 */
 			}
@@ -774,7 +810,8 @@ emit_jmp:
 			goto common_load;
 		case BPF_LD | BPF_ABS | BPF_W:
 			func = CHOOSE_LOAD_FUNC(imm32, sk_load_word);
-common_load:		ctx->seen_ld_abs = true;
+common_load:
+			ctx->seen_ld_abs = seen_ld_abs = true;
 			jmp_offset = func - (image + addrs[i]);
 			if (!func || !is_simm32(jmp_offset)) {
 				pr_err("unsupported bpf func %d addr %p image %p\n",
@@ -818,10 +855,11 @@ common_load:		ctx->seen_ld_abs = true;
 			goto common_load;
 
 		case BPF_JMP | BPF_EXIT:
-			if (i != insn_cnt - 1) {
+			if (seen_exit) {
 				jmp_offset = ctx->cleanup_addr - addrs[i];
 				goto emit_jmp;
 			}
+			seen_exit = true;
 			/* update cleanup_addr */
 			ctx->cleanup_addr = proglen;
 			/* mov rbx, qword ptr [rbp-X] */
@@ -848,6 +886,11 @@ common_load:		ctx->seen_ld_abs = true;
 		}
 
 		ilen = prog - temp;
+		if (ilen > BPF_MAX_INSN_SIZE) {
+			pr_err("bpf_jit_compile fatal insn size error\n");
+			return -EFAULT;
+		}
+
 		if (image) {
 			if (unlikely(proglen + ilen > oldproglen)) {
 				pr_err("bpf_jit_compile fatal error\n");
@@ -900,17 +943,20 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 		if (proglen <= 0) {
 			image = NULL;
 			if (header)
-				module_free(NULL, header);
+				bpf_jit_binary_free(header);
 			goto out;
 		}
 		if (image) {
-			if (proglen != oldproglen)
+			if (proglen != oldproglen) {
 				pr_err("bpf_jit: proglen=%d != oldproglen=%d\n",
 				       proglen, oldproglen);
+				goto out;
+			}
 			break;
 		}
 		if (proglen == oldproglen) {
-			header = bpf_alloc_binary(proglen, &image);
+			header = bpf_jit_binary_alloc(proglen, &image,
+						      1, jit_fill_hole);
 			if (!header)
 				goto out;
 		}
@@ -924,29 +970,23 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 		bpf_flush_icache(header, image + proglen);
 		set_memory_ro((unsigned long)header, header->pages);
 		prog->bpf_func = (void *)image;
-		prog->jited = 1;
+		prog->jited = true;
 	}
 out:
 	kfree(addrs);
 }
 
-static void bpf_jit_free_deferred(struct work_struct *work)
+void bpf_jit_free(struct bpf_prog *fp)
 {
-	struct bpf_prog *fp = container_of(work, struct bpf_prog, work);
 	unsigned long addr = (unsigned long)fp->bpf_func & PAGE_MASK;
 	struct bpf_binary_header *header = (void *)addr;
 
-	set_memory_rw(addr, header->pages);
-	module_free(NULL, header);
-	kfree(fp);
-}
+	if (!fp->jited)
+		goto free_filter;
 
-void bpf_jit_free(struct bpf_prog *fp)
-{
-	if (fp->jited) {
-		INIT_WORK(&fp->work, bpf_jit_free_deferred);
-		schedule_work(&fp->work);
-	} else {
-		kfree(fp);
-	}
+	set_memory_rw(addr, header->pages);
+	bpf_jit_binary_free(header);
+
+free_filter:
+	bpf_prog_unlock_free(fp);
 }

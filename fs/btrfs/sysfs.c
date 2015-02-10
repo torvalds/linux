@@ -111,7 +111,6 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_feature_attr *fa = to_btrfs_feature_attr(a);
-	struct btrfs_trans_handle *trans;
 	u64 features, set, clear;
 	unsigned long val;
 	int ret;
@@ -153,10 +152,6 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	btrfs_info(fs_info, "%s %s feature flag",
 		   val ? "Setting" : "Clearing", fa->kobj_attr.attr.name);
 
-	trans = btrfs_start_transaction(fs_info->fs_root, 0);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
-
 	spin_lock(&fs_info->super_lock);
 	features = get_features(fs_info, fa->feature_set);
 	if (val)
@@ -166,9 +161,11 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	set_features(fs_info, fa->feature_set, features);
 	spin_unlock(&fs_info->super_lock);
 
-	ret = btrfs_commit_transaction(trans, fs_info->fs_root);
-	if (ret)
-		return ret;
+	/*
+	 * We don't want to do full transaction commit from inside sysfs
+	 */
+	btrfs_set_pending(fs_info, COMMIT);
+	wake_up_process(fs_info->transaction_kthread);
 
 	return count;
 }
@@ -242,7 +239,7 @@ static ssize_t global_rsv_size_show(struct kobject *kobj,
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	return btrfs_show_u64(&block_rsv->size, &block_rsv->lock, buf);
 }
-BTRFS_ATTR(global_rsv_size, 0444, global_rsv_size_show);
+BTRFS_ATTR(global_rsv_size, global_rsv_size_show);
 
 static ssize_t global_rsv_reserved_show(struct kobject *kobj,
 					struct kobj_attribute *a, char *buf)
@@ -251,7 +248,7 @@ static ssize_t global_rsv_reserved_show(struct kobject *kobj,
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	return btrfs_show_u64(&block_rsv->reserved, &block_rsv->lock, buf);
 }
-BTRFS_ATTR(global_rsv_reserved, 0444, global_rsv_reserved_show);
+BTRFS_ATTR(global_rsv_reserved, global_rsv_reserved_show);
 
 #define to_space_info(_kobj) container_of(_kobj, struct btrfs_space_info, kobj)
 #define to_raid_kobj(_kobj) container_of(_kobj, struct raid_kobject, kobj)
@@ -306,7 +303,7 @@ static ssize_t btrfs_space_info_show_##field(struct kobject *kobj,	\
 	struct btrfs_space_info *sinfo = to_space_info(kobj);		\
 	return btrfs_show_u64(&sinfo->field, &sinfo->lock, buf);	\
 }									\
-BTRFS_ATTR(field, 0444, btrfs_space_info_show_##field)
+BTRFS_ATTR(field, btrfs_space_info_show_##field)
 
 static ssize_t btrfs_space_info_show_total_bytes_pinned(struct kobject *kobj,
 						       struct kobj_attribute *a,
@@ -325,7 +322,7 @@ SPACE_INFO_ATTR(bytes_reserved);
 SPACE_INFO_ATTR(bytes_may_use);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
-BTRFS_ATTR(total_bytes_pinned, 0444, btrfs_space_info_show_total_bytes_pinned);
+BTRFS_ATTR(total_bytes_pinned, btrfs_space_info_show_total_bytes_pinned);
 
 static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(flags),
@@ -363,7 +360,8 @@ static ssize_t btrfs_label_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
-	return snprintf(buf, PAGE_SIZE, "%s\n", fs_info->super_copy->label);
+	char *label = fs_info->super_copy->label;
+	return snprintf(buf, PAGE_SIZE, label[0] ? "%s\n" : "%s", label);
 }
 
 static ssize_t btrfs_label_store(struct kobject *kobj,
@@ -371,35 +369,34 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 				 const char *buf, size_t len)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
-	struct btrfs_trans_handle *trans;
-	struct btrfs_root *root = fs_info->fs_root;
-	int ret;
+	size_t p_len;
 
-	if (len >= BTRFS_LABEL_SIZE)
+	if (fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	/*
+	 * p_len is the len until the first occurrence of either
+	 * '\n' or '\0'
+	 */
+	p_len = strcspn(buf, "\n");
+
+	if (p_len >= BTRFS_LABEL_SIZE)
 		return -EINVAL;
 
-	trans = btrfs_start_transaction(root, 0);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	spin_lock(&fs_info->super_lock);
+	memset(fs_info->super_copy->label, 0, BTRFS_LABEL_SIZE);
+	memcpy(fs_info->super_copy->label, buf, p_len);
+	spin_unlock(&fs_info->super_lock);
 
-	spin_lock(&root->fs_info->super_lock);
-	strcpy(fs_info->super_copy->label, buf);
-	spin_unlock(&root->fs_info->super_lock);
-	ret = btrfs_commit_transaction(trans, root);
+	/*
+	 * We don't want to do full transaction commit from inside sysfs
+	 */
+	btrfs_set_pending(fs_info, COMMIT);
+	wake_up_process(fs_info->transaction_kthread);
 
-	if (!ret)
-		return len;
-
-	return ret;
+	return len;
 }
-BTRFS_ATTR_RW(label, 0644, btrfs_label_show, btrfs_label_store);
-
-static ssize_t btrfs_no_store(struct kobject *kobj,
-				 struct kobj_attribute *a,
-				 const char *buf, size_t len)
-{
-	return -EPERM;
-}
+BTRFS_ATTR_RW(label, btrfs_label_show, btrfs_label_store);
 
 static ssize_t btrfs_nodesize_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
@@ -409,7 +406,7 @@ static ssize_t btrfs_nodesize_show(struct kobject *kobj,
 	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->nodesize);
 }
 
-BTRFS_ATTR_RW(nodesize, 0444, btrfs_nodesize_show, btrfs_no_store);
+BTRFS_ATTR(nodesize, btrfs_nodesize_show);
 
 static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
@@ -419,7 +416,7 @@ static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
 	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->sectorsize);
 }
 
-BTRFS_ATTR_RW(sectorsize, 0444, btrfs_sectorsize_show, btrfs_no_store);
+BTRFS_ATTR(sectorsize, btrfs_sectorsize_show);
 
 static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
@@ -429,7 +426,7 @@ static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->sectorsize);
 }
 
-BTRFS_ATTR_RW(clone_alignment, 0444, btrfs_clone_alignment_show, btrfs_no_store);
+BTRFS_ATTR(clone_alignment, btrfs_clone_alignment_show);
 
 static struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(label),

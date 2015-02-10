@@ -1098,8 +1098,10 @@ static int fimc_md_link_notify(struct media_link *link, unsigned int flags,
 	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH) {
 		if (!(flags & MEDIA_LNK_FL_ENABLED))
 			ret = __fimc_md_modify_pipelines(sink, false);
+#if 0
 		else
-			; /* TODO: Link state change validation */
+			/* TODO: Link state change validation */
+#endif
 	/* After link activation */
 	} else if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
 		   (link->flags & MEDIA_LNK_FL_ENABLED)) {
@@ -1467,7 +1469,6 @@ static struct platform_driver fimc_md_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(fimc_md_of_match),
 		.name		= "s5p-fimc-md",
-		.owner		= THIS_MODULE,
 	}
 };
 

@@ -446,7 +446,7 @@ static int get_file_caps(struct linux_binprm *bprm, bool *effective, bool *has_c
 	if (bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)
 		return 0;
 
-	dentry = dget(bprm->file->f_dentry);
+	dentry = dget(bprm->file->f_path.dentry);
 
 	rc = get_vfs_caps_from_disk(dentry, &vcaps);
 	if (rc < 0) {

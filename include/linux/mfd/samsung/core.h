@@ -14,12 +14,35 @@
 #ifndef __LINUX_MFD_SEC_CORE_H
 #define __LINUX_MFD_SEC_CORE_H
 
+/* Macros to represent minimum voltages for LDO/BUCK */
+#define MIN_3000_MV		3000000
+#define MIN_2500_MV		2500000
+#define MIN_2000_MV		2000000
+#define MIN_1800_MV		1800000
+#define MIN_1500_MV		1500000
+#define MIN_1400_MV		1400000
+#define MIN_1000_MV		1000000
+
+#define MIN_900_MV		900000
+#define MIN_850_MV		850000
+#define MIN_800_MV		800000
+#define MIN_750_MV		750000
+#define MIN_600_MV		600000
+#define MIN_500_MV		500000
+
+/* Macros to represent steps for LDO/BUCK */
+#define STEP_50_MV		50000
+#define STEP_25_MV		25000
+#define STEP_12_5_MV		12500
+#define STEP_6_25_MV		6250
+
 enum sec_device_type {
 	S5M8751X,
 	S5M8763X,
 	S5M8767X,
 	S2MPA01,
 	S2MPS11X,
+	S2MPS13X,
 	S2MPS14X,
 	S2MPU02,
 };

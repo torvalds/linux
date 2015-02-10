@@ -15,10 +15,7 @@
 #ifndef _EXYNOS_DRM_CRTC_H_
 #define _EXYNOS_DRM_CRTC_H_
 
-struct drm_device;
-struct drm_crtc;
-struct exynos_drm_manager;
-struct exynos_drm_overlay;
+#include "exynos_drm_drv.h"
 
 int exynos_drm_crtc_create(struct exynos_drm_manager *manager);
 int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe);

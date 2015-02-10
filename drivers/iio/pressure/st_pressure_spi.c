@@ -21,19 +21,18 @@
 static int st_press_spi_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
-	struct st_sensor_data *pdata;
+	struct st_sensor_data *press_data;
 	int err;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*pdata));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*press_data));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
-	pdata = iio_priv(indio_dev);
-	pdata->dev = &spi->dev;
+	press_data = iio_priv(indio_dev);
 
-	st_sensors_spi_configure(indio_dev, spi, pdata);
+	st_sensors_spi_configure(indio_dev, spi, press_data);
 
-	err = st_press_common_probe(indio_dev, spi->dev.platform_data);
+	err = st_press_common_probe(indio_dev);
 	if (err < 0)
 		return err;
 

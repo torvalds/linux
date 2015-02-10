@@ -169,7 +169,6 @@ static struct platform_driver msm_clock_pcom_driver = {
 	.probe		= msm_clock_pcom_probe,
 	.driver		= {
 		.name	= "msm-clock-pcom",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(msm_clock_pcom_driver);

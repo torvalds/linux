@@ -413,8 +413,8 @@ void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
 
 	/* Generate the trace event */
 	grain_bits = fls_long(e->grain);
-	sprintf(pvt->detail_location, "APEI location: %s %s",
-		e->location, e->other_detail);
+	snprintf(pvt->detail_location, sizeof(pvt->detail_location),
+		 "APEI location: %s %s", e->location, e->other_detail);
 	trace_mc_event(type, e->msg, e->label, e->error_count,
 		       mci->mc_idx, e->top_layer, e->mid_layer, e->low_layer,
 		       PAGES_TO_MiB(e->page_frame_number) | e->offset_in_page,

@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,6 +84,8 @@
  * @BT_COEX_SYNC2SCO:
  * @BT_COEX_CORUNNING:
  * @BT_COEX_MPLUT:
+ * @BT_COEX_TTC:
+ * @BT_COEX_RRC:
  *
  * The COEX_MODE must be set for each command. Even if it is not changed.
  */
@@ -98,6 +102,8 @@ enum iwl_bt_coex_flags {
 	BT_COEX_SYNC2SCO		= BIT(7),
 	BT_COEX_CORUNNING		= BIT(8),
 	BT_COEX_MPLUT			= BIT(9),
+	BT_COEX_TTC			= BIT(20),
+	BT_COEX_RRC			= BIT(21),
 };
 
 /*
@@ -125,6 +131,8 @@ enum iwl_bt_coex_valid_bit_msk {
 	BT_VALID_TXTX_DELTA_FREQ_THRS	= BIT(16),
 	BT_VALID_TXRX_MAX_FREQ_0	= BIT(17),
 	BT_VALID_SYNC_TO_SCO		= BIT(18),
+	BT_VALID_TTC			= BIT(20),
+	BT_VALID_RRC			= BIT(21),
 };
 
 /**
@@ -504,7 +512,8 @@ struct iwl_bt_coex_profile_notif_old {
 	u8 bt_agg_traffic_load;
 	u8 bt_ci_compliance;
 	u8 ttc_enabled;
-	__le16 reserved;
+	u8 rrc_enabled;
+	u8 reserved;
 
 	__le32 primary_ch_lut;
 	__le32 secondary_ch_lut;

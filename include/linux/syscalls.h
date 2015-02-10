@@ -25,7 +25,7 @@ struct linux_dirent64;
 struct list_head;
 struct mmap_arg_struct;
 struct msgbuf;
-struct msghdr;
+struct user_msghdr;
 struct mmsghdr;
 struct msqid_ds;
 struct new_utsname;
@@ -65,6 +65,7 @@ struct old_linux_dirent;
 struct perf_event_attr;
 struct file_handle;
 struct sigaltstack;
+union bpf_attr;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -600,13 +601,13 @@ asmlinkage long sys_getpeername(int, struct sockaddr __user *, int __user *);
 asmlinkage long sys_send(int, void __user *, size_t, unsigned);
 asmlinkage long sys_sendto(int, void __user *, size_t, unsigned,
 				struct sockaddr __user *, int);
-asmlinkage long sys_sendmsg(int fd, struct msghdr __user *msg, unsigned flags);
+asmlinkage long sys_sendmsg(int fd, struct user_msghdr __user *msg, unsigned flags);
 asmlinkage long sys_sendmmsg(int fd, struct mmsghdr __user *msg,
 			     unsigned int vlen, unsigned flags);
 asmlinkage long sys_recv(int, void __user *, size_t, unsigned);
 asmlinkage long sys_recvfrom(int, void __user *, size_t, unsigned,
 				struct sockaddr __user *, int __user *);
-asmlinkage long sys_recvmsg(int fd, struct msghdr __user *msg, unsigned flags);
+asmlinkage long sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned flags);
 asmlinkage long sys_recvmmsg(int fd, struct mmsghdr __user *msg,
 			     unsigned int vlen, unsigned flags,
 			     struct timespec __user *timeout);
@@ -875,5 +876,10 @@ asmlinkage long sys_seccomp(unsigned int op, unsigned int flags,
 			    const char __user *uargs);
 asmlinkage long sys_getrandom(char __user *buf, size_t count,
 			      unsigned int flags);
+asmlinkage long sys_bpf(int cmd, union bpf_attr *attr, unsigned int size);
+
+asmlinkage long sys_execveat(int dfd, const char __user *filename,
+			const char __user *const __user *argv,
+			const char __user *const __user *envp, int flags);
 
 #endif

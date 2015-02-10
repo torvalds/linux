@@ -26,6 +26,11 @@ config USB_XHCI_HCD
 
 if USB_XHCI_HCD
 
+config USB_XHCI_PCI
+       tristate
+       depends on PCI
+       default y
+
 config USB_XHCI_PLATFORM
 	tristate
 
@@ -126,7 +131,7 @@ config XPS_USB_HCD_XILINX
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	---help---
-		Xilinx xps USB host controller core is EHCI compilant and has
+		Xilinx xps USB host controller core is EHCI compliant and has
 		transaction translator built-in. It can be configured to either
 		support both high speed and full speed devices, or high speed
 		devices only.
@@ -174,6 +179,15 @@ config USB_EHCI_HCD_SPEAR
           Enables support for the on-chip EHCI controller on
           ST SPEAr chips.
 
+config USB_EHCI_HCD_STI
+	tristate "Support for ST STiHxxx on-chip EHCI USB controller"
+	depends on ARCH_STI && OF
+	select GENERIC_PHY
+	select USB_EHCI_HCD_PLATFORM
+	help
+	  Enable support for the on-chip EHCI controller found on
+	  STMicroelectronics consumer electronics SoC's.
+
 config USB_EHCI_HCD_AT91
         tristate  "Support for Atmel on-chip EHCI USB controller"
         depends on USB_EHCI_HCD && ARCH_AT91
@@ -220,7 +234,7 @@ config USB_EHCI_SH
 
 config USB_EHCI_EXYNOS
        tristate "EHCI support for Samsung S5P/EXYNOS SoC Series"
-       depends on PLAT_S5P || ARCH_EXYNOS
+       depends on ARCH_S5PV210 || ARCH_EXYNOS
        help
 	Enable support for the Samsung Exynos SOC's on-chip EHCI controller.
 
@@ -278,11 +292,15 @@ config USB_EHCI_HCD_PLATFORM
 	  If unsure, say N.
 
 config USB_OCTEON_EHCI
-	bool "Octeon on-chip EHCI support"
+	bool "Octeon on-chip EHCI support (DEPRECATED)"
 	depends on CAVIUM_OCTEON_SOC
 	default n
 	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_HCD_PLATFORM
 	help
+	  This option is deprecated now and the driver was removed, use
+	  USB_EHCI_HCD_PLATFORM instead.
+
 	  Enable support for the Octeon II SOC's on-chip EHCI
 	  controller.  It is needed for high-speed (480Mbit/sec)
 	  USB 2.0 device support.  All CN6XXX based chips with USB are
@@ -401,6 +419,15 @@ config USB_OHCI_HCD_SPEAR
         ---help---
           Enables support for the on-chip OHCI controller on
           ST SPEAr chips.
+
+config USB_OHCI_HCD_STI
+	tristate "Support for ST STiHxxx on-chip OHCI USB controller"
+	depends on ARCH_STI && OF
+	select GENERIC_PHY
+	select USB_OHCI_HCD_PLATFORM
+	help
+	  Enable support for the on-chip OHCI controller found on
+	  STMicroelectronics consumer electronics SoC's.
 
 config USB_OHCI_HCD_S3C2410
         tristate "OHCI support for Samsung S3C24xx/S3C64xx SoC series"
@@ -527,7 +554,7 @@ config USB_OHCI_SH
 
 config USB_OHCI_EXYNOS
 	tristate "OHCI support for Samsung S5P/EXYNOS SoC Series"
-	depends on PLAT_S5P || ARCH_EXYNOS
+	depends on ARCH_S5PV210 || ARCH_EXYNOS
 	help
 	 Enable support for the Samsung Exynos SOC's on-chip OHCI controller.
 
@@ -552,12 +579,16 @@ config USB_OHCI_HCD_PLATFORM
 	  If unsure, say N.
 
 config USB_OCTEON_OHCI
-	bool "Octeon on-chip OHCI support"
+	bool "Octeon on-chip OHCI support (DEPRECATED)"
 	depends on CAVIUM_OCTEON_SOC
 	default USB_OCTEON_EHCI
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	select USB_OHCI_LITTLE_ENDIAN
+	select USB_OHCI_HCD_PLATFORM
 	help
+	  This option is deprecated now and the driver was removed, use
+	  USB_OHCI_HCD_PLATFORM instead.
+
 	  Enable support for the Octeon II SOC's on-chip OHCI
 	  controller.  It is needed for low-speed USB 1.0 device
 	  support.  All CN6XXX based chips with USB are supported.
@@ -709,7 +740,7 @@ config USB_WHCI_HCD
 
 config USB_HWA_HCD
 	tristate "Host Wire Adapter (HWA) driver"
-	depends on UWB
+	depends on USB && UWB
 	select USB_WUSB
 	select UWB_HWA
 	help
@@ -730,12 +761,6 @@ config USB_IMX21_HCD
 
          To compile this driver as a module, choose M here: the
          module will be called "imx21-hcd".
-
-
-
-config USB_OCTEON2_COMMON
-	bool
-	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI
 
 config USB_HCD_BCMA
 	tristate "BCMA usb host driver"

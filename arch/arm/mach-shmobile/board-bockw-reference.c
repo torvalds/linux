@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/of_platform.h>
@@ -80,8 +76,9 @@ static const char *bockw_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(BOCKW_DT, "bockw")
-	.init_early	= r8a7778_init_delay,
+	.init_early	= shmobile_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
 	.init_machine	= bockw_init,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= bockw_boards_compat_dt,
 MACHINE_END

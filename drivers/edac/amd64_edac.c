@@ -87,35 +87,6 @@ int __amd64_write_pci_cfg_dword(struct pci_dev *pdev, int offset,
 }
 
 /*
- *
- * Depending on the family, F2 DCT reads need special handling:
- *
- * K8: has a single DCT only
- *
- * F10h: each DCT has its own set of regs
- *	DCT0 -> F2x040..
- *	DCT1 -> F2x140..
- *
- * F15h: we select which DCT we access using F1x10C[DctCfgSel]
- *
- * F16h: has only 1 DCT
- */
-static int k8_read_dct_pci_cfg(struct amd64_pvt *pvt, int addr, u32 *val,
-			       const char *func)
-{
-	if (addr >= 0x100)
-		return -EINVAL;
-
-	return __amd64_read_pci_cfg_dword(pvt->F2, addr, val, func);
-}
-
-static int f10_read_dct_pci_cfg(struct amd64_pvt *pvt, int addr, u32 *val,
-				 const char *func)
-{
-	return __amd64_read_pci_cfg_dword(pvt->F2, addr, val, func);
-}
-
-/*
  * Select DCT to which PCI cfg accesses are routed
  */
 static void f15h_select_dct(struct amd64_pvt *pvt, u8 dct)
@@ -123,25 +94,66 @@ static void f15h_select_dct(struct amd64_pvt *pvt, u8 dct)
 	u32 reg = 0;
 
 	amd64_read_pci_cfg(pvt->F1, DCT_CFG_SEL, &reg);
-	reg &= (pvt->model >= 0x30) ? ~3 : ~1;
+	reg &= (pvt->model == 0x30) ? ~3 : ~1;
 	reg |= dct;
 	amd64_write_pci_cfg(pvt->F1, DCT_CFG_SEL, reg);
 }
 
-static int f15_read_dct_pci_cfg(struct amd64_pvt *pvt, int addr, u32 *val,
-				 const char *func)
+/*
+ *
+ * Depending on the family, F2 DCT reads need special handling:
+ *
+ * K8: has a single DCT only and no address offsets >= 0x100
+ *
+ * F10h: each DCT has its own set of regs
+ *	DCT0 -> F2x040..
+ *	DCT1 -> F2x140..
+ *
+ * F16h: has only 1 DCT
+ *
+ * F15h: we select which DCT we access using F1x10C[DctCfgSel]
+ */
+static inline int amd64_read_dct_pci_cfg(struct amd64_pvt *pvt, u8 dct,
+					 int offset, u32 *val)
 {
-	u8 dct  = 0;
+	switch (pvt->fam) {
+	case 0xf:
+		if (dct || offset >= 0x100)
+			return -EINVAL;
+		break;
 
-	/* For F15 M30h, the second dct is DCT 3, refer to BKDG Section 2.10 */
-	if (addr >= 0x140 && addr <= 0x1a0) {
-		dct   = (pvt->model >= 0x30) ? 3 : 1;
-		addr -= 0x100;
+	case 0x10:
+		if (dct) {
+			/*
+			 * Note: If ganging is enabled, barring the regs
+			 * F2x[1,0]98 and F2x[1,0]9C; reads reads to F2x1xx
+			 * return 0. (cf. Section 2.8.1 F10h BKDG)
+			 */
+			if (dct_ganging_enabled(pvt))
+				return 0;
+
+			offset += 0x100;
+		}
+		break;
+
+	case 0x15:
+		/*
+		 * F15h: F2x1xx addresses do not map explicitly to DCT1.
+		 * We should select which DCT we access using F1x10C[DctCfgSel]
+		 */
+		dct = (dct && pvt->model == 0x30) ? 3 : dct;
+		f15h_select_dct(pvt, dct);
+		break;
+
+	case 0x16:
+		if (dct)
+			return -EINVAL;
+		break;
+
+	default:
+		break;
 	}
-
-	f15h_select_dct(pvt, dct);
-
-	return __amd64_read_pci_cfg_dword(pvt->F2, addr, val, func);
+	return amd64_read_pci_cfg(pvt->F2, offset, val);
 }
 
 /*
@@ -680,9 +692,19 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 {
 	edac_dbg(1, "F2x%d90 (DRAM Cfg Low): 0x%08x\n", chan, dclr);
 
-	edac_dbg(1, "  DIMM type: %sbuffered; all DIMMs support ECC: %s\n",
-		 (dclr & BIT(16)) ?  "un" : "",
-		 (dclr & BIT(19)) ? "yes" : "no");
+	if (pvt->dram_type == MEM_LRDDR3) {
+		u32 dcsm = pvt->csels[chan].csmasks[0];
+		/*
+		 * It's assumed all LRDIMMs in a DCT are going to be of
+		 * same 'type' until proven otherwise. So, use a cs
+		 * value of '0' here to get dcsm value.
+		 */
+		edac_dbg(1, " LRDIMM %dx rank multiply\n", (dcsm & 0x3));
+	}
+
+	edac_dbg(1, "All DIMMs support ECC:%s\n",
+		    (dclr & BIT(19)) ? "yes" : "no");
+
 
 	edac_dbg(1, "  PAR/ERR parity: %s\n",
 		 (dclr & BIT(8)) ?  "enabled" : "disabled");
@@ -744,7 +766,7 @@ static void prep_chip_selects(struct amd64_pvt *pvt)
 	if (pvt->fam == 0xf && pvt->ext_model < K8_REV_F) {
 		pvt->csels[0].b_cnt = pvt->csels[1].b_cnt = 8;
 		pvt->csels[0].m_cnt = pvt->csels[1].m_cnt = 8;
-	} else if (pvt->fam == 0x15 && pvt->model >= 0x30) {
+	} else if (pvt->fam == 0x15 && pvt->model == 0x30) {
 		pvt->csels[0].b_cnt = pvt->csels[1].b_cnt = 4;
 		pvt->csels[0].m_cnt = pvt->csels[1].m_cnt = 2;
 	} else {
@@ -768,16 +790,17 @@ static void read_dct_base_mask(struct amd64_pvt *pvt)
 		u32 *base0 = &pvt->csels[0].csbases[cs];
 		u32 *base1 = &pvt->csels[1].csbases[cs];
 
-		if (!amd64_read_dct_pci_cfg(pvt, reg0, base0))
+		if (!amd64_read_dct_pci_cfg(pvt, 0, reg0, base0))
 			edac_dbg(0, "  DCSB0[%d]=0x%08x reg: F2x%x\n",
 				 cs, *base0, reg0);
 
-		if (pvt->fam == 0xf || dct_ganging_enabled(pvt))
+		if (pvt->fam == 0xf)
 			continue;
 
-		if (!amd64_read_dct_pci_cfg(pvt, reg1, base1))
+		if (!amd64_read_dct_pci_cfg(pvt, 1, reg0, base1))
 			edac_dbg(0, "  DCSB1[%d]=0x%08x reg: F2x%x\n",
-				 cs, *base1, reg1);
+				 cs, *base1, (pvt->fam == 0x10) ? reg1
+								: reg0);
 	}
 
 	for_each_chip_select_mask(cs, 0, pvt) {
@@ -786,38 +809,77 @@ static void read_dct_base_mask(struct amd64_pvt *pvt)
 		u32 *mask0 = &pvt->csels[0].csmasks[cs];
 		u32 *mask1 = &pvt->csels[1].csmasks[cs];
 
-		if (!amd64_read_dct_pci_cfg(pvt, reg0, mask0))
+		if (!amd64_read_dct_pci_cfg(pvt, 0, reg0, mask0))
 			edac_dbg(0, "    DCSM0[%d]=0x%08x reg: F2x%x\n",
 				 cs, *mask0, reg0);
 
-		if (pvt->fam == 0xf || dct_ganging_enabled(pvt))
+		if (pvt->fam == 0xf)
 			continue;
 
-		if (!amd64_read_dct_pci_cfg(pvt, reg1, mask1))
+		if (!amd64_read_dct_pci_cfg(pvt, 1, reg0, mask1))
 			edac_dbg(0, "    DCSM1[%d]=0x%08x reg: F2x%x\n",
-				 cs, *mask1, reg1);
+				 cs, *mask1, (pvt->fam == 0x10) ? reg1
+								: reg0);
 	}
 }
 
-static enum mem_type determine_memory_type(struct amd64_pvt *pvt, int cs)
+static void determine_memory_type(struct amd64_pvt *pvt)
 {
-	enum mem_type type;
+	u32 dram_ctrl, dcsm;
 
-	/* F15h supports only DDR3 */
-	if (pvt->fam >= 0x15)
-		type = (pvt->dclr0 & BIT(16)) ?	MEM_DDR3 : MEM_RDDR3;
-	else if (pvt->fam == 0x10 || pvt->ext_model >= K8_REV_F) {
+	switch (pvt->fam) {
+	case 0xf:
+		if (pvt->ext_model >= K8_REV_F)
+			goto ddr3;
+
+		pvt->dram_type = (pvt->dclr0 & BIT(18)) ? MEM_DDR : MEM_RDDR;
+		return;
+
+	case 0x10:
 		if (pvt->dchr0 & DDR3_MODE)
-			type = (pvt->dclr0 & BIT(16)) ?	MEM_DDR3 : MEM_RDDR3;
+			goto ddr3;
+
+		pvt->dram_type = (pvt->dclr0 & BIT(16)) ? MEM_DDR2 : MEM_RDDR2;
+		return;
+
+	case 0x15:
+		if (pvt->model < 0x60)
+			goto ddr3;
+
+		/*
+		 * Model 0x60h needs special handling:
+		 *
+		 * We use a Chip Select value of '0' to obtain dcsm.
+		 * Theoretically, it is possible to populate LRDIMMs of different
+		 * 'Rank' value on a DCT. But this is not the common case. So,
+		 * it's reasonable to assume all DIMMs are going to be of same
+		 * 'type' until proven otherwise.
+		 */
+		amd64_read_dct_pci_cfg(pvt, 0, DRAM_CONTROL, &dram_ctrl);
+		dcsm = pvt->csels[0].csmasks[0];
+
+		if (((dram_ctrl >> 8) & 0x7) == 0x2)
+			pvt->dram_type = MEM_DDR4;
+		else if (pvt->dclr0 & BIT(16))
+			pvt->dram_type = MEM_DDR3;
+		else if (dcsm & 0x3)
+			pvt->dram_type = MEM_LRDDR3;
 		else
-			type = (pvt->dclr0 & BIT(16)) ? MEM_DDR2 : MEM_RDDR2;
-	} else {
-		type = (pvt->dclr0 & BIT(18)) ? MEM_DDR : MEM_RDDR;
+			pvt->dram_type = MEM_RDDR3;
+
+		return;
+
+	case 0x16:
+		goto ddr3;
+
+	default:
+		WARN(1, KERN_ERR "%s: Family??? 0x%x\n", __func__, pvt->fam);
+		pvt->dram_type = MEM_EMPTY;
 	}
+	return;
 
-	amd64_info("CS%d: %s\n", cs, edac_mem_types[type]);
-
-	return type;
+ddr3:
+	pvt->dram_type = (pvt->dclr0 & BIT(16)) ? MEM_DDR3 : MEM_RDDR3;
 }
 
 /* Get the number of DCT channels the memory controller is using. */
@@ -944,8 +1006,12 @@ static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 	if (WARN_ON(!nb))
 		return;
 
-	pci_func = (pvt->model == 0x30) ? PCI_DEVICE_ID_AMD_15H_M30H_NB_F1
-					: PCI_DEVICE_ID_AMD_15H_NB_F1;
+	if (pvt->model == 0x60)
+		pci_func = PCI_DEVICE_ID_AMD_15H_M60H_NB_F1;
+	else if (pvt->model == 0x30)
+		pci_func = PCI_DEVICE_ID_AMD_15H_M30H_NB_F1;
+	else
+		pci_func = PCI_DEVICE_ID_AMD_15H_NB_F1;
 
 	f1 = pci_get_related_function(nb->misc->vendor, pci_func, nb->misc);
 	if (WARN_ON(!f1))
@@ -1035,7 +1101,7 @@ static int ddr2_cs_size(unsigned i, bool dct_width)
 }
 
 static int k8_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
-				  unsigned cs_mode)
+				  unsigned cs_mode, int cs_mask_nr)
 {
 	u32 dclr = dct ? pvt->dclr1 : pvt->dclr0;
 
@@ -1153,8 +1219,43 @@ static int ddr3_cs_size(unsigned i, bool dct_width)
 	return cs_size;
 }
 
+static int ddr3_lrdimm_cs_size(unsigned i, unsigned rank_multiply)
+{
+	unsigned shift = 0;
+	int cs_size = 0;
+
+	if (i < 4 || i == 6)
+		cs_size = -1;
+	else if (i == 12)
+		shift = 7;
+	else if (!(i & 0x1))
+		shift = i >> 1;
+	else
+		shift = (i + 1) >> 1;
+
+	if (cs_size != -1)
+		cs_size = rank_multiply * (128 << shift);
+
+	return cs_size;
+}
+
+static int ddr4_cs_size(unsigned i)
+{
+	int cs_size = 0;
+
+	if (i == 0)
+		cs_size = -1;
+	else if (i == 1)
+		cs_size = 1024;
+	else
+		/* Min cs_size = 1G */
+		cs_size = 1024 * (1 << (i >> 1));
+
+	return cs_size;
+}
+
 static int f10_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
-				   unsigned cs_mode)
+				   unsigned cs_mode, int cs_mask_nr)
 {
 	u32 dclr = dct ? pvt->dclr1 : pvt->dclr0;
 
@@ -1170,18 +1271,49 @@ static int f10_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
  * F15h supports only 64bit DCT interfaces
  */
 static int f15_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
-				   unsigned cs_mode)
+				   unsigned cs_mode, int cs_mask_nr)
 {
 	WARN_ON(cs_mode > 12);
 
 	return ddr3_cs_size(cs_mode, false);
 }
 
+/* F15h M60h supports DDR4 mapping as well.. */
+static int f15_m60h_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
+					unsigned cs_mode, int cs_mask_nr)
+{
+	int cs_size;
+	u32 dcsm = pvt->csels[dct].csmasks[cs_mask_nr];
+
+	WARN_ON(cs_mode > 12);
+
+	if (pvt->dram_type == MEM_DDR4) {
+		if (cs_mode > 9)
+			return -1;
+
+		cs_size = ddr4_cs_size(cs_mode);
+	} else if (pvt->dram_type == MEM_LRDDR3) {
+		unsigned rank_multiply = dcsm & 0xf;
+
+		if (rank_multiply == 3)
+			rank_multiply = 4;
+		cs_size = ddr3_lrdimm_cs_size(cs_mode, rank_multiply);
+	} else {
+		/* Minimum cs size is 512mb for F15hM60h*/
+		if (cs_mode == 0x1)
+			return -1;
+
+		cs_size = ddr3_cs_size(cs_mode, false);
+	}
+
+	return cs_size;
+}
+
 /*
  * F16h and F15h model 30h have only limited cs_modes.
  */
 static int f16_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
-				unsigned cs_mode)
+				unsigned cs_mode, int cs_mask_nr)
 {
 	WARN_ON(cs_mode > 12);
 
@@ -1198,7 +1330,7 @@ static void read_dram_ctl_register(struct amd64_pvt *pvt)
 	if (pvt->fam == 0xf)
 		return;
 
-	if (!amd64_read_dct_pci_cfg(pvt, DCT_SEL_LO, &pvt->dct_sel_lo)) {
+	if (!amd64_read_pci_cfg(pvt->F2, DCT_SEL_LO, &pvt->dct_sel_lo)) {
 		edac_dbg(0, "F2x110 (DCTSelLow): 0x%08x, High range addrs at: 0x%x\n",
 			 pvt->dct_sel_lo, dct_sel_baseaddr(pvt));
 
@@ -1219,7 +1351,7 @@ static void read_dram_ctl_register(struct amd64_pvt *pvt)
 			 dct_sel_interleave_addr(pvt));
 	}
 
-	amd64_read_dct_pci_cfg(pvt, DCT_SEL_HI, &pvt->dct_sel_hi);
+	amd64_read_pci_cfg(pvt->F2, DCT_SEL_HI, &pvt->dct_sel_hi);
 }
 
 /*
@@ -1430,7 +1562,7 @@ static u64 f1x_swap_interleaved_region(struct amd64_pvt *pvt, u64 sys_addr)
 			return sys_addr;
 	}
 
-	amd64_read_dct_pci_cfg(pvt, SWAP_INTLV_REG, &swap_reg);
+	amd64_read_pci_cfg(pvt->F2, SWAP_INTLV_REG, &swap_reg);
 
 	if (!(swap_reg & 0x1))
 		return sys_addr;
@@ -1723,10 +1855,16 @@ static void debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 		       WARN_ON(ctrl != 0);
 	}
 
-	dbam = (ctrl && !dct_ganging_enabled(pvt)) ? pvt->dbam1 : pvt->dbam0;
-	dcsb = (ctrl && !dct_ganging_enabled(pvt)) ? pvt->csels[1].csbases
-						   : pvt->csels[0].csbases;
-
+	if (pvt->fam == 0x10) {
+		dbam = (ctrl && !dct_ganging_enabled(pvt)) ? pvt->dbam1
+							   : pvt->dbam0;
+		dcsb = (ctrl && !dct_ganging_enabled(pvt)) ?
+				 pvt->csels[1].csbases :
+				 pvt->csels[0].csbases;
+	} else if (ctrl) {
+		dbam = pvt->dbam0;
+		dcsb = pvt->csels[1].csbases;
+	}
 	edac_dbg(1, "F2x%d80 (DRAM Bank Address Mapping): 0x%08x\n",
 		 ctrl, dbam);
 
@@ -1737,13 +1875,20 @@ static void debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 
 		size0 = 0;
 		if (dcsb[dimm*2] & DCSB_CS_ENABLE)
+			/* For f15m60h, need multiplier for LRDIMM cs_size
+			 * calculation. We pass 'dimm' value to the dbam_to_cs
+			 * mapper so we can find the multiplier from the
+			 * corresponding DCSM.
+			 */
 			size0 = pvt->ops->dbam_to_cs(pvt, ctrl,
-						     DBAM_DIMM(dimm, dbam));
+						     DBAM_DIMM(dimm, dbam),
+						     dimm);
 
 		size1 = 0;
 		if (dcsb[dimm*2 + 1] & DCSB_CS_ENABLE)
 			size1 = pvt->ops->dbam_to_cs(pvt, ctrl,
-						     DBAM_DIMM(dimm, dbam));
+						     DBAM_DIMM(dimm, dbam),
+						     dimm);
 
 		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
 				dimm * 2,     size0,
@@ -1760,7 +1905,6 @@ static struct amd64_family_type family_types[] = {
 			.early_channel_count	= k8_early_channel_count,
 			.map_sysaddr_to_csrow	= k8_map_sysaddr_to_csrow,
 			.dbam_to_cs		= k8_dbam_to_chip_select,
-			.read_dct_pci_cfg	= k8_read_dct_pci_cfg,
 		}
 	},
 	[F10_CPUS] = {
@@ -1771,7 +1915,6 @@ static struct amd64_family_type family_types[] = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f10_dbam_to_chip_select,
-			.read_dct_pci_cfg	= f10_read_dct_pci_cfg,
 		}
 	},
 	[F15_CPUS] = {
@@ -1782,7 +1925,6 @@ static struct amd64_family_type family_types[] = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f15_dbam_to_chip_select,
-			.read_dct_pci_cfg	= f15_read_dct_pci_cfg,
 		}
 	},
 	[F15_M30H_CPUS] = {
@@ -1793,7 +1935,16 @@ static struct amd64_family_type family_types[] = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f16_dbam_to_chip_select,
-			.read_dct_pci_cfg	= f15_read_dct_pci_cfg,
+		}
+	},
+	[F15_M60H_CPUS] = {
+		.ctl_name = "F15h_M60h",
+		.f1_id = PCI_DEVICE_ID_AMD_15H_M60H_NB_F1,
+		.f3_id = PCI_DEVICE_ID_AMD_15H_M60H_NB_F3,
+		.ops = {
+			.early_channel_count	= f1x_early_channel_count,
+			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
+			.dbam_to_cs		= f15_m60h_dbam_to_chip_select,
 		}
 	},
 	[F16_CPUS] = {
@@ -1804,7 +1955,6 @@ static struct amd64_family_type family_types[] = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f16_dbam_to_chip_select,
-			.read_dct_pci_cfg	= f10_read_dct_pci_cfg,
 		}
 	},
 	[F16_M30H_CPUS] = {
@@ -1815,7 +1965,6 @@ static struct amd64_family_type family_types[] = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f16_dbam_to_chip_select,
-			.read_dct_pci_cfg	= f10_read_dct_pci_cfg,
 		}
 	},
 };
@@ -2148,25 +2297,27 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 	read_dct_base_mask(pvt);
 
 	amd64_read_pci_cfg(pvt->F1, DHAR, &pvt->dhar);
-	amd64_read_dct_pci_cfg(pvt, DBAM0, &pvt->dbam0);
+	amd64_read_dct_pci_cfg(pvt, 0, DBAM0, &pvt->dbam0);
 
 	amd64_read_pci_cfg(pvt->F3, F10_ONLINE_SPARE, &pvt->online_spare);
 
-	amd64_read_dct_pci_cfg(pvt, DCLR0, &pvt->dclr0);
-	amd64_read_dct_pci_cfg(pvt, DCHR0, &pvt->dchr0);
+	amd64_read_dct_pci_cfg(pvt, 0, DCLR0, &pvt->dclr0);
+	amd64_read_dct_pci_cfg(pvt, 0, DCHR0, &pvt->dchr0);
 
 	if (!dct_ganging_enabled(pvt)) {
-		amd64_read_dct_pci_cfg(pvt, DCLR1, &pvt->dclr1);
-		amd64_read_dct_pci_cfg(pvt, DCHR1, &pvt->dchr1);
+		amd64_read_dct_pci_cfg(pvt, 1, DCLR0, &pvt->dclr1);
+		amd64_read_dct_pci_cfg(pvt, 1, DCHR0, &pvt->dchr1);
 	}
 
 	pvt->ecc_sym_sz = 4;
+	determine_memory_type(pvt);
+	edac_dbg(1, "  DIMM type: %s\n", edac_mem_types[pvt->dram_type]);
 
 	if (pvt->fam >= 0x10) {
 		amd64_read_pci_cfg(pvt->F3, EXT_NB_MCA_CFG, &tmp);
+		/* F16h has only DCT0, so no need to read dbam1 */
 		if (pvt->fam != 0x16)
-			/* F16h has only DCT0 */
-			amd64_read_dct_pci_cfg(pvt, DBAM1, &pvt->dbam1);
+			amd64_read_dct_pci_cfg(pvt, 1, DBAM0, &pvt->dbam1);
 
 		/* F10h, revD and later can do x8 ECC too */
 		if ((pvt->fam > 0x10 || pvt->model > 7) && tmp & BIT(25))
@@ -2224,7 +2375,8 @@ static u32 get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 	 */
 	cs_mode = DBAM_DIMM(csrow_nr / 2, dbam);
 
-	nr_pages = pvt->ops->dbam_to_cs(pvt, dct, cs_mode) << (20 - PAGE_SHIFT);
+	nr_pages = pvt->ops->dbam_to_cs(pvt, dct, cs_mode, (csrow_nr / 2))
+							   << (20 - PAGE_SHIFT);
 
 	edac_dbg(0, "csrow: %d, channel: %d, DBAM idx: %d\n",
 		    csrow_nr, dct,  cs_mode);
@@ -2243,7 +2395,6 @@ static int init_csrows(struct mem_ctl_info *mci)
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
 	enum edac_type edac_mode;
-	enum mem_type mtype;
 	int i, j, empty = 1;
 	int nr_pages = 0;
 	u32 val;
@@ -2288,8 +2439,6 @@ static int init_csrows(struct mem_ctl_info *mci)
 			nr_pages += row_dct1_pages;
 		}
 
-		mtype = determine_memory_type(pvt, i);
-
 		edac_dbg(1, "Total csrow%d pages: %u\n", i, nr_pages);
 
 		/*
@@ -2303,7 +2452,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 
 		for (j = 0; j < pvt->channel_count; j++) {
 			dimm = csrow->channels[j]->dimm;
-			dimm->mtype = mtype;
+			dimm->mtype = pvt->dram_type;
 			dimm->edac_mode = edac_mode;
 		}
 	}
@@ -2590,6 +2739,10 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 			fam_type = &family_types[F15_M30H_CPUS];
 			pvt->ops = &family_types[F15_M30H_CPUS].ops;
 			break;
+		} else if (pvt->model == 0x60) {
+			fam_type = &family_types[F15_M60H_CPUS];
+			pvt->ops = &family_types[F15_M60H_CPUS].ops;
+			break;
 		}
 
 		fam_type	= &family_types[F15_CPUS];
@@ -2814,55 +2967,13 @@ static void remove_one_instance(struct pci_dev *pdev)
  * inquiry this table to see if this driver is for a given device found.
  */
 static const struct pci_device_id amd64_pci_table[] = {
-	{
-		.vendor		= PCI_VENDOR_ID_AMD,
-		.device		= PCI_DEVICE_ID_AMD_K8_NB_MEMCTL,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.class		= 0,
-		.class_mask	= 0,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_AMD,
-		.device		= PCI_DEVICE_ID_AMD_10H_NB_DRAM,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.class		= 0,
-		.class_mask	= 0,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_AMD,
-		.device		= PCI_DEVICE_ID_AMD_15H_NB_F2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.class		= 0,
-		.class_mask	= 0,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_AMD,
-		.device		= PCI_DEVICE_ID_AMD_15H_M30H_NB_F2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.class		= 0,
-		.class_mask	= 0,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_AMD,
-		.device		= PCI_DEVICE_ID_AMD_16H_NB_F2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.class		= 0,
-		.class_mask	= 0,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_AMD,
-		.device		= PCI_DEVICE_ID_AMD_16H_M30H_NB_F2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.class		= 0,
-		.class_mask	= 0,
-	},
-
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_K8_NB_MEMCTL) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_10H_NB_DRAM) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F2) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M30H_NB_F2) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M60H_NB_F2) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F2) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F2) },
 	{0, }
 };
 MODULE_DEVICE_TABLE(pci, amd64_pci_table);
@@ -2924,6 +3035,11 @@ static int __init amd64_edac_init(void)
 		goto err_no_instances;
 
 	setup_pci_device();
+
+#ifdef CONFIG_X86_32
+	amd64_err("%s on 32-bit is unsupported. USE AT YOUR OWN RISK!\n", EDAC_MOD_STR);
+#endif
+
 	return 0;
 
 err_no_instances:

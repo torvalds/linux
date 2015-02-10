@@ -13,6 +13,7 @@
 #include <libgen.h>
 #include "build-id.h"
 #include "event.h"
+#include "util.h"
 
 #ifdef HAVE_LIBELF_SUPPORT
 #include <libelf.h>
@@ -21,27 +22,6 @@
 #include <elf.h>
 
 #include "dso.h"
-
-#ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
-extern char *cplus_demangle(const char *, int);
-
-static inline char *bfd_demangle(void __maybe_unused *v, const char *c, int i)
-{
-	return cplus_demangle(c, i);
-}
-#else
-#ifdef NO_DEMANGLE
-static inline char *bfd_demangle(void __maybe_unused *v,
-				 const char __maybe_unused *c,
-				 int __maybe_unused i)
-{
-	return NULL;
-}
-#else
-#define PACKAGE 'perf'
-#include <bfd.h>
-#endif
-#endif
 
 /*
  * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
@@ -59,6 +39,7 @@ extern Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 #endif
 
 #ifndef DMGL_PARAMS
+#define DMGL_NO_OPTS     0              /* For readability... */
 #define DMGL_PARAMS      (1 << 0)       /* Include function args */
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
 #endif
@@ -93,7 +74,7 @@ void symbols__delete(struct rb_root *symbols);
 
 static inline size_t symbol__size(const struct symbol *sym)
 {
-	return sym->end - sym->start + 1;
+	return sym->end - sym->start;
 }
 
 struct strlist;
@@ -103,6 +84,7 @@ struct symbol_conf {
 	unsigned short	nr_events;
 	bool		try_vmlinux_path,
 			ignore_vmlinux,
+			ignore_vmlinux_buildid,
 			show_kernel_path,
 			use_modules,
 			sort_by_name,
@@ -118,8 +100,10 @@ struct symbol_conf {
 			annotate_src,
 			event_group,
 			demangle,
+			demangle_kernel,
 			filter_relative,
-			show_hist_headers;
+			show_hist_headers,
+			branch_callstack;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
@@ -143,6 +127,14 @@ struct symbol_conf {
 };
 
 extern struct symbol_conf symbol_conf;
+
+static inline int __symbol__join_symfs(char *bf, size_t size, const char *path)
+{
+	return path__join(bf, size, symbol_conf.symfs, path);
+}
+
+#define symbol__join_symfs(bf, path) __symbol__join_symfs(bf, sizeof(bf), path)
+
 extern int vmlinux_path__nr_entries;
 extern char **vmlinux_path;
 
@@ -253,7 +245,8 @@ int modules__parse(const char *filename, void *arg,
 int filename__read_debuglink(const char *filename, char *debuglink,
 			     size_t size);
 
-int symbol__init(void);
+struct perf_session_env;
+int symbol__init(struct perf_session_env *env);
 void symbol__exit(void);
 void symbol__elf_init(void);
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);

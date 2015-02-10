@@ -56,7 +56,6 @@ static struct cpuidle_driver tegra_idle_driver = {
 			.exit_latency		= 2000,
 			.target_residency	= 2200,
 			.power_usage		= 0,
-			.flags			= CPUIDLE_FLAG_TIME_VALID,
 			.name			= "powered-down",
 			.desc			= "CPU power gated",
 		},

@@ -622,7 +622,7 @@ static int has_svm(void)
 	return 1;
 }
 
-static void svm_hardware_disable(void *garbage)
+static void svm_hardware_disable(void)
 {
 	/* Make sure we clean up behind us */
 	if (static_cpu_has(X86_FEATURE_TSCRATEMSR))
@@ -633,7 +633,7 @@ static void svm_hardware_disable(void *garbage)
 	amd_pmu_disable_virt();
 }
 
-static int svm_hardware_enable(void *garbage)
+static int svm_hardware_enable(void)
 {
 
 	struct svm_cpu_data *sd;
@@ -670,7 +670,7 @@ static int svm_hardware_enable(void *garbage)
 
 	if (static_cpu_has(X86_FEATURE_TSCRATEMSR)) {
 		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
-		__get_cpu_var(current_tsc_ratio) = TSC_RATIO_DEFAULT;
+		__this_cpu_write(current_tsc_ratio, TSC_RATIO_DEFAULT);
 	}
 
 
@@ -1056,9 +1056,11 @@ static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool ho
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	WARN_ON(adjustment < 0);
-	if (host)
-		adjustment = svm_scale_tsc(vcpu, adjustment);
+	if (host) {
+		if (svm->tsc_ratio != TSC_RATIO_DEFAULT)
+			WARN_ON(adjustment < 0);
+		adjustment = svm_scale_tsc(vcpu, (u64)adjustment);
+	}
 
 	svm->vmcb->control.tsc_offset += adjustment;
 	if (is_guest_mode(vcpu))
@@ -1257,7 +1259,8 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	svm->asid_generation = 0;
 	init_vmcb(svm);
 
-	svm->vcpu.arch.apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
+	svm->vcpu.arch.apic_base = APIC_DEFAULT_PHYS_BASE |
+				   MSR_IA32_APICBASE_ENABLE;
 	if (kvm_vcpu_is_bsp(&svm->vcpu))
 		svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
 
@@ -1312,8 +1315,8 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 
 	if (static_cpu_has(X86_FEATURE_TSCRATEMSR) &&
-	    svm->tsc_ratio != __get_cpu_var(current_tsc_ratio)) {
-		__get_cpu_var(current_tsc_ratio) = svm->tsc_ratio;
+	    svm->tsc_ratio != __this_cpu_read(current_tsc_ratio)) {
+		__this_cpu_write(current_tsc_ratio, svm->tsc_ratio);
 		wrmsrl(MSR_AMD64_TSC_RATIO, svm->tsc_ratio);
 	}
 }
@@ -1974,10 +1977,26 @@ static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	svm->vmcb->control.exit_code = SVM_EXIT_NPF;
-	svm->vmcb->control.exit_code_hi = 0;
-	svm->vmcb->control.exit_info_1 = fault->error_code;
-	svm->vmcb->control.exit_info_2 = fault->address;
+	if (svm->vmcb->control.exit_code != SVM_EXIT_NPF) {
+		/*
+		 * TODO: track the cause of the nested page fault, and
+		 * correctly fill in the high bits of exit_info_1.
+		 */
+		svm->vmcb->control.exit_code = SVM_EXIT_NPF;
+		svm->vmcb->control.exit_code_hi = 0;
+		svm->vmcb->control.exit_info_1 = (1ULL << 32);
+		svm->vmcb->control.exit_info_2 = fault->address;
+	}
+
+	svm->vmcb->control.exit_info_1 &= ~0xffffffffULL;
+	svm->vmcb->control.exit_info_1 |= fault->error_code;
+
+	/*
+	 * The present bit is always zero for page structure faults on real
+	 * hardware.
+	 */
+	if (svm->vmcb->control.exit_info_1 & (2ULL << 32))
+		svm->vmcb->control.exit_info_1 &= ~1;
 
 	nested_svm_vmexit(svm);
 }
@@ -2982,7 +3001,6 @@ static int dr_interception(struct vcpu_svm *svm)
 {
 	int reg, dr;
 	unsigned long val;
-	int err;
 
 	if (svm->vcpu.guest_debug == 0) {
 		/*
@@ -3002,12 +3020,15 @@ static int dr_interception(struct vcpu_svm *svm)
 	dr = svm->vmcb->control.exit_code - SVM_EXIT_READ_DR0;
 
 	if (dr >= 16) { /* mov to DRn */
+		if (!kvm_require_dr(&svm->vcpu, dr - 16))
+			return 1;
 		val = kvm_register_read(&svm->vcpu, reg);
 		kvm_set_dr(&svm->vcpu, dr - 16, val);
 	} else {
-		err = kvm_get_dr(&svm->vcpu, dr, &val);
-		if (!err)
-			kvm_register_write(&svm->vcpu, reg, val);
+		if (!kvm_require_dr(&svm->vcpu, dr))
+			return 1;
+		kvm_get_dr(&svm->vcpu, dr, &val);
+		kvm_register_write(&svm->vcpu, reg, val);
 	}
 
 	skip_emulated_instruction(&svm->vcpu);
@@ -3031,7 +3052,7 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 	return 0;
 }
 
-u64 svm_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
+static u64 svm_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
 {
 	struct vmcb *vmcb = get_host_vmcb(to_svm(vcpu));
 	return vmcb->control.tsc_offset +
@@ -3234,7 +3255,7 @@ static int wrmsr_interception(struct vcpu_svm *svm)
 	msr.host_initiated = false;
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 2;
-	if (svm_set_msr(&svm->vcpu, &msr)) {
+	if (kvm_set_msr(&svm->vcpu, &msr)) {
 		trace_kvm_msr_write_ex(ecx, data);
 		kvm_inject_gp(&svm->vcpu, 0);
 	} else {
@@ -3534,9 +3555,9 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 
 	if (exit_code >= ARRAY_SIZE(svm_exit_handlers)
 	    || !svm_exit_handlers[exit_code]) {
-		kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
-		kvm_run->hw.hardware_exit_reason = exit_code;
-		return 0;
+		WARN_ONCE(1, "vmx: unexpected exit reason 0x%x\n", exit_code);
+		kvm_queue_exception(vcpu, UD_VECTOR);
+		return 1;
 	}
 
 	return svm_exit_handlers[exit_code](svm);
@@ -4106,6 +4127,11 @@ static bool svm_mpx_supported(void)
 	return false;
 }
 
+static bool svm_xsaves_supported(void)
+{
+	return false;
+}
+
 static bool svm_has_wbinvd_exit(void)
 {
 	return true;
@@ -4305,6 +4331,10 @@ static void svm_handle_external_intr(struct kvm_vcpu *vcpu)
 	local_irq_enable();
 }
 
+static void svm_sched_in(struct kvm_vcpu *vcpu, int cpu)
+{
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -4349,7 +4379,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
-	.fpu_activate = svm_fpu_activate,
 	.fpu_deactivate = svm_fpu_deactivate,
 
 	.tlb_flush = svm_flush_tlb,
@@ -4390,6 +4419,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.rdtscp_supported = svm_rdtscp_supported,
 	.invpcid_supported = svm_invpcid_supported,
 	.mpx_supported = svm_mpx_supported,
+	.xsaves_supported = svm_xsaves_supported,
 
 	.set_supported_cpuid = svm_set_supported_cpuid,
 
@@ -4406,6 +4436,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 
 	.check_intercept = svm_check_intercept,
 	.handle_external_intr = svm_handle_external_intr,
+
+	.sched_in = svm_sched_in,
 };
 
 static int __init svm_init(void)

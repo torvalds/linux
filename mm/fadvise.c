@@ -117,7 +117,11 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
 			__filemap_fdatawrite_range(mapping, offset, endbyte,
 						   WB_SYNC_NONE);
 
-		/* First and last FULL page! */
+		/*
+		 * First and last FULL page! Partial pages are deliberately
+		 * preserved on the expectation that it is better to preserve
+		 * needed memory than to discard unneeded memory.
+		 */
 		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
 		end_index = (endbyte >> PAGE_CACHE_SHIFT);
 

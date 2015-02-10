@@ -99,47 +99,47 @@ void mbus_to_pix(const struct v4l2_mbus_framefmt *mbus,
 			   struct v4l2_pix_format *pix)
 {
 	switch (mbus->code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		pix->pixelformat = V4L2_PIX_FMT_UYVY;
 		pix->bytesperline = pix->width * 2;
 		break;
 
-	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
 		pix->pixelformat = V4L2_PIX_FMT_YUYV;
 		pix->bytesperline = pix->width * 2;
 		break;
 
-	case V4L2_MBUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 		pix->pixelformat = V4L2_PIX_FMT_UYVY;
 		pix->bytesperline = pix->width * 2;
 		break;
 
-	case V4L2_MBUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
 		pix->pixelformat = V4L2_PIX_FMT_SBGGR16;
 		pix->bytesperline = pix->width * 2;
 		break;
 
-	case V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
 		pix->pixelformat = V4L2_PIX_FMT_SGRBG10DPCM8;
 		pix->bytesperline = pix->width;
 		break;
 
-	case V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8:
 		pix->pixelformat = V4L2_PIX_FMT_SGRBG10ALAW8;
 		pix->bytesperline = pix->width;
 		break;
 
-	case V4L2_MBUS_FMT_YDYUYDYV8_1X16:
+	case MEDIA_BUS_FMT_YDYUYDYV8_1X16:
 		pix->pixelformat = V4L2_PIX_FMT_NV12;
 		pix->bytesperline = pix->width;
 		break;
 
-	case V4L2_MBUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		pix->pixelformat = V4L2_PIX_FMT_GREY;
 		pix->bytesperline = pix->width;
 		break;
 
-	case V4L2_MBUS_FMT_UV8_1X8:
+	case MEDIA_BUS_FMT_UV8_1X8:
 		pix->pixelformat = V4L2_PIX_FMT_UV8;
 		pix->bytesperline = pix->width;
 		break;
@@ -228,10 +228,8 @@ static int vpfe_enable_clock(struct vpfe_device *vpfe_dev)
 
 	vpfe_dev->clks = kzalloc(vpfe_cfg->num_clocks *
 				   sizeof(struct clock *), GFP_KERNEL);
-	if (vpfe_dev->clks == NULL) {
-		v4l2_err(vpfe_dev->pdev->driver, "Memory allocation failed\n");
+	if (vpfe_dev->clks == NULL)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < vpfe_cfg->num_clocks; i++) {
 		if (vpfe_cfg->clocks[i] == NULL) {
@@ -349,11 +347,8 @@ static int register_i2c_devices(struct vpfe_device *vpfe_dev)
 	num_subdevs = vpfe_cfg->num_subdevs;
 	vpfe_dev->sd =
 		  kzalloc(sizeof(struct v4l2_subdev *)*num_subdevs, GFP_KERNEL);
-	if (vpfe_dev->sd == NULL) {
-		v4l2_err(&vpfe_dev->v4l2_dev,
-			"unable to allocate memory for subdevice\n");
+	if (vpfe_dev->sd == NULL)
 		return -ENOMEM;
-	}
 
 	for (i = 0, k = 0; i < num_subdevs; i++) {
 		sdinfo = &vpfe_cfg->sub_devs[i];
@@ -582,11 +577,8 @@ static int vpfe_probe(struct platform_device *pdev)
 	int ret = -ENOMEM;
 
 	vpfe_dev = kzalloc(sizeof(*vpfe_dev), GFP_KERNEL);
-	if (!vpfe_dev) {
-		v4l2_err(pdev->dev.driver,
-			"Failed to allocate memory for vpfe_dev\n");
+	if (!vpfe_dev)
 		return ret;
-	}
 
 	if (pdev->dev.platform_data == NULL) {
 		v4l2_err(pdev->dev.driver, "Unable to get vpfe config\n");
@@ -715,7 +707,6 @@ static int vpfe_remove(struct platform_device *pdev)
 static struct platform_driver vpfe_driver = {
 	.driver = {
 		.name = CAPTURE_DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = vpfe_probe,
 	.remove = vpfe_remove,

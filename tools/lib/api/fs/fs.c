@@ -7,6 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/vfs.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "debugfs.h"
 #include "fs.h"
@@ -163,3 +167,33 @@ const char *name##__mountpoint(void)	\
 
 FS__MOUNTPOINT(sysfs,  FS__SYSFS);
 FS__MOUNTPOINT(procfs, FS__PROCFS);
+
+int filename__read_int(const char *filename, int *value)
+{
+	char line[64];
+	int fd = open(filename, O_RDONLY), err = -1;
+
+	if (fd < 0)
+		return -1;
+
+	if (read(fd, line, sizeof(line)) > 0) {
+		*value = atoi(line);
+		err = 0;
+	}
+
+	close(fd);
+	return err;
+}
+
+int sysctl__read_int(const char *sysctl, int *value)
+{
+	char path[PATH_MAX];
+	const char *procfs = procfs__mountpoint();
+
+	if (!procfs)
+		return -1;
+
+	snprintf(path, sizeof(path), "%s/sys/%s", procfs, sysctl);
+
+	return filename__read_int(path, value);
+}

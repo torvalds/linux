@@ -135,4 +135,6 @@ int rcu_jiffies_till_stall_check(void);
  */
 #define TPS(x)  tracepoint_string(x)
 
+void rcu_early_boot_tests(void);
+
 #endif /* __LINUX_RCU_H */

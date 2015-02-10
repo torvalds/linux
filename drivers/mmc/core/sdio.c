@@ -216,8 +216,8 @@ static int sdio_enable_wide(struct mmc_card *card)
 		return ret;
 
 	if ((ctrl & SDIO_BUS_WIDTH_MASK) == SDIO_BUS_WIDTH_RESERVED)
-		pr_warning("%s: SDIO_CCCR_IF is invalid: 0x%02x\n",
-			   mmc_hostname(card->host), ctrl);
+		pr_warn("%s: SDIO_CCCR_IF is invalid: 0x%02x\n",
+			mmc_hostname(card->host), ctrl);
 
 	/* set as 4-bit bus width */
 	ctrl &= ~SDIO_BUS_WIDTH_MASK;
@@ -605,8 +605,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 
 try_again:
 	if (!retries) {
-		pr_warning("%s: Skipping voltage switch\n",
-				mmc_hostname(host));
+		pr_warn("%s: Skipping voltage switch\n", mmc_hostname(host));
 		ocr &= ~R4_18V_PRESENT;
 	}
 
@@ -981,8 +980,12 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	if (mmc_card_is_removable(host) || !mmc_card_keep_power(host)) {
 		sdio_reset(host);
 		mmc_go_idle(host);
-		err = mmc_sdio_init_card(host, host->card->ocr, host->card,
-					mmc_card_keep_power(host));
+		mmc_send_if_cond(host, host->card->ocr);
+		err = mmc_send_io_op_cond(host, 0, NULL);
+		if (!err)
+			err = mmc_sdio_init_card(host, host->card->ocr,
+						 host->card,
+						 mmc_card_keep_power(host));
 	} else if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
 		/* We may have switched to 1-bit mode during suspend */
 		err = sdio_enable_4bit_bus(host->card);
@@ -992,8 +995,16 @@ static int mmc_sdio_resume(struct mmc_host *host)
 		}
 	}
 
-	if (!err && host->sdio_irqs)
-		wake_up_process(host->sdio_irq_thread);
+	if (!err && host->sdio_irqs) {
+		if (!(host->caps2 & MMC_CAP2_SDIO_IRQ_NOTHREAD)) {
+			wake_up_process(host->sdio_irq_thread);
+		} else if (host->caps & MMC_CAP_SDIO_IRQ) {
+			mmc_host_clk_hold(host);
+			host->ops->enable_sdio_irq(host, 1);
+			mmc_host_clk_release(host);
+		}
+	}
+
 	mmc_release_host(host);
 
 	host->pm_flags &= ~MMC_PM_KEEP_POWER;
@@ -1028,7 +1039,7 @@ static int mmc_sdio_power_restore(struct mmc_host *host)
 
 	sdio_reset(host);
 	mmc_go_idle(host);
-	mmc_send_if_cond(host, host->ocr_avail);
+	mmc_send_if_cond(host, host->card->ocr);
 
 	ret = mmc_send_io_op_cond(host, 0, NULL);
 	if (ret)

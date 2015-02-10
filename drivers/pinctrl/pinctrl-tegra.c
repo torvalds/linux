@@ -262,8 +262,9 @@ static int tegra_pinctrl_get_func_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int tegra_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned function,
-			       unsigned group)
+static int tegra_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+				 unsigned function,
+				 unsigned group)
 {
 	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const struct tegra_pingroup *g;
@@ -294,7 +295,7 @@ static const struct pinmux_ops tegra_pinmux_ops = {
 	.get_functions_count = tegra_pinctrl_get_funcs_count,
 	.get_function_name = tegra_pinctrl_get_func_name,
 	.get_function_groups = tegra_pinctrl_get_func_groups,
-	.enable = tegra_pinctrl_enable,
+	.set_mux = tegra_pinctrl_set_mux,
 };
 
 static int tegra_pinconf_reg(struct tegra_pmx *pmx,

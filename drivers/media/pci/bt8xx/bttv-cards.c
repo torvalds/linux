@@ -3870,10 +3870,10 @@ static void osprey_eeprom(struct bttv *btv, const u8 ee[256])
 	} else {
 		unsigned short type;
 
-		for (i = 4*16; i < 8*16; i += 16) {
-			u16 checksum = ip_compute_csum(ee + i, 16);
+		for (i = 4 * 16; i < 8 * 16; i += 16) {
+			u16 checksum = (__force u16)ip_compute_csum(ee + i, 16);
 
-			if ((checksum&0xff) + (checksum>>8) == 0xff)
+			if ((checksum & 0xff) + (checksum >> 8) == 0xff)
 				break;
 		}
 		if (i >= 8*16)

@@ -654,10 +654,6 @@ struct libipw_network {
 	/* TPC Report - mandatory if spctrm mgmt required */
 	struct libipw_tpc_report tpc_report;
 
-	/* IBSS DFS - mandatory if spctrm mgmt required and IBSS
-	 * NOTE: This is variable length and so must be allocated dynamically */
-	struct libipw_ibss_dfs *ibss_dfs;
-
 	/* Channel Switch Announcement - optional if spctrm mgmt required */
 	struct libipw_csa csa;
 
@@ -970,7 +966,6 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 /* make sure to set stats->len */
 void libipw_rx_mgt(struct libipw_device *ieee, struct libipw_hdr_4addr *header,
 		   struct libipw_rx_stats *stats);
-void libipw_network_reset(struct libipw_network *network);
 
 /* libipw_geo.c */
 const struct libipw_geo *libipw_get_geo(struct libipw_device *ieee);

@@ -26,6 +26,8 @@ struct nv50_disp_priv {
 	struct work_struct supervisor;
 	u32 super;
 
+	struct nvkm_event uevent;
+
 	struct {
 		int nr;
 	} head;
@@ -40,6 +42,7 @@ struct nv50_disp_priv {
 		int (*hda_eld)(NV50_DISP_MTHD_V1);
 		int (*hdmi)(NV50_DISP_MTHD_V1);
 		u32 lvdsconf;
+		void (*magic)(struct nvkm_output *);
 	} sor;
 	struct {
 		int nr;
@@ -61,10 +64,10 @@ struct nv50_disp_impl {
 	} head;
 };
 
-int nv50_disp_base_scanoutpos(NV50_DISP_MTHD_V0);
-int nv50_disp_base_mthd(struct nouveau_object *, u32, void *, u32);
+int nv50_disp_main_scanoutpos(NV50_DISP_MTHD_V0);
+int nv50_disp_main_mthd(struct nouveau_object *, u32, void *, u32);
 
-int nvd0_disp_base_scanoutpos(NV50_DISP_MTHD_V0);
+int nvd0_disp_main_scanoutpos(NV50_DISP_MTHD_V0);
 
 int nv50_dac_power(NV50_DISP_MTHD_V1);
 int nv50_dac_sense(NV50_DISP_MTHD_V1);
@@ -75,6 +78,7 @@ int nvd0_hda_eld(NV50_DISP_MTHD_V1);
 int nv84_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int nva3_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int nvd0_hdmi_ctrl(NV50_DISP_MTHD_V1);
+int nve0_hdmi_ctrl(NV50_DISP_MTHD_V1);
 
 int nv50_sor_power(NV50_DISP_MTHD_V1);
 
@@ -116,9 +120,16 @@ struct nv50_disp_chan {
 	int chid;
 };
 
+int  nv50_disp_chan_ntfy(struct nouveau_object *, u32, struct nvkm_event **);
 int  nv50_disp_chan_map(struct nouveau_object *, u64 *, u32 *);
 u32  nv50_disp_chan_rd32(struct nouveau_object *, u64);
 void nv50_disp_chan_wr32(struct nouveau_object *, u64, u32);
+extern const struct nvkm_event_func nv50_disp_chan_uevent;
+int  nv50_disp_chan_uevent_ctor(struct nouveau_object *, void *, u32,
+				struct nvkm_notify *);
+void nv50_disp_chan_uevent_send(struct nv50_disp_priv *, int);
+
+extern const struct nvkm_event_func nvd0_disp_chan_uevent;
 
 #define nv50_disp_chan_init(a)                                                 \
 	nouveau_namedb_init(&(a)->base)
@@ -159,18 +170,18 @@ struct nv50_disp_mthd_chan {
 	} data[];
 };
 
-extern struct nv50_disp_chan_impl nv50_disp_mast_ofuncs;
-int nv50_disp_mast_ctor(struct nouveau_object *, struct nouveau_object *,
+extern struct nv50_disp_chan_impl nv50_disp_core_ofuncs;
+int nv50_disp_core_ctor(struct nouveau_object *, struct nouveau_object *,
 			struct nouveau_oclass *, void *, u32,
 			struct nouveau_object **);
-extern const struct nv50_disp_mthd_list nv50_disp_mast_mthd_base;
-extern const struct nv50_disp_mthd_list nv50_disp_mast_mthd_sor;
-extern const struct nv50_disp_mthd_list nv50_disp_mast_mthd_pior;
-extern struct nv50_disp_chan_impl nv50_disp_sync_ofuncs;
-int nv50_disp_sync_ctor(struct nouveau_object *, struct nouveau_object *,
+extern const struct nv50_disp_mthd_list nv50_disp_core_mthd_base;
+extern const struct nv50_disp_mthd_list nv50_disp_core_mthd_sor;
+extern const struct nv50_disp_mthd_list nv50_disp_core_mthd_pior;
+extern struct nv50_disp_chan_impl nv50_disp_base_ofuncs;
+int nv50_disp_base_ctor(struct nouveau_object *, struct nouveau_object *,
 			struct nouveau_oclass *, void *, u32,
 			struct nouveau_object **);
-extern const struct nv50_disp_mthd_list nv50_disp_sync_mthd_image;
+extern const struct nv50_disp_mthd_list nv50_disp_base_mthd_image;
 extern struct nv50_disp_chan_impl nv50_disp_ovly_ofuncs;
 int nv50_disp_ovly_ctor(struct nouveau_object *, struct nouveau_object *,
 			struct nouveau_oclass *, void *, u32,
@@ -184,12 +195,12 @@ extern struct nv50_disp_chan_impl nv50_disp_curs_ofuncs;
 int nv50_disp_curs_ctor(struct nouveau_object *, struct nouveau_object *,
 			struct nouveau_oclass *, void *, u32,
 			struct nouveau_object **);
-extern struct nouveau_ofuncs nv50_disp_base_ofuncs;
-int  nv50_disp_base_ctor(struct nouveau_object *, struct nouveau_object *,
+extern struct nouveau_ofuncs nv50_disp_main_ofuncs;
+int  nv50_disp_main_ctor(struct nouveau_object *, struct nouveau_object *,
 			 struct nouveau_oclass *, void *, u32,
 			 struct nouveau_object **);
-void nv50_disp_base_dtor(struct nouveau_object *);
-extern struct nouveau_omthds nv50_disp_base_omthds[];
+void nv50_disp_main_dtor(struct nouveau_object *);
+extern struct nouveau_omthds nv50_disp_main_omthds[];
 extern struct nouveau_oclass nv50_disp_cclass;
 void nv50_disp_mthd_chan(struct nv50_disp_priv *, int debug, int head,
 			 const struct nv50_disp_mthd_chan *);
@@ -197,31 +208,31 @@ void nv50_disp_intr_supervisor(struct work_struct *);
 void nv50_disp_intr(struct nouveau_subdev *);
 extern const struct nvkm_event_func nv50_disp_vblank_func;
 
-extern const struct nv50_disp_mthd_chan nv84_disp_mast_mthd_chan;
-extern const struct nv50_disp_mthd_list nv84_disp_mast_mthd_dac;
-extern const struct nv50_disp_mthd_list nv84_disp_mast_mthd_head;
-extern const struct nv50_disp_mthd_chan nv84_disp_sync_mthd_chan;
+extern const struct nv50_disp_mthd_chan nv84_disp_core_mthd_chan;
+extern const struct nv50_disp_mthd_list nv84_disp_core_mthd_dac;
+extern const struct nv50_disp_mthd_list nv84_disp_core_mthd_head;
+extern const struct nv50_disp_mthd_chan nv84_disp_base_mthd_chan;
 extern const struct nv50_disp_mthd_chan nv84_disp_ovly_mthd_chan;
 
-extern const struct nv50_disp_mthd_chan nv94_disp_mast_mthd_chan;
+extern const struct nv50_disp_mthd_chan nv94_disp_core_mthd_chan;
 
-extern struct nv50_disp_chan_impl nvd0_disp_mast_ofuncs;
-extern const struct nv50_disp_mthd_list nvd0_disp_mast_mthd_base;
-extern const struct nv50_disp_mthd_list nvd0_disp_mast_mthd_dac;
-extern const struct nv50_disp_mthd_list nvd0_disp_mast_mthd_sor;
-extern const struct nv50_disp_mthd_list nvd0_disp_mast_mthd_pior;
-extern struct nv50_disp_chan_impl nvd0_disp_sync_ofuncs;
+extern struct nv50_disp_chan_impl nvd0_disp_core_ofuncs;
+extern const struct nv50_disp_mthd_list nvd0_disp_core_mthd_base;
+extern const struct nv50_disp_mthd_list nvd0_disp_core_mthd_dac;
+extern const struct nv50_disp_mthd_list nvd0_disp_core_mthd_sor;
+extern const struct nv50_disp_mthd_list nvd0_disp_core_mthd_pior;
+extern struct nv50_disp_chan_impl nvd0_disp_base_ofuncs;
 extern struct nv50_disp_chan_impl nvd0_disp_ovly_ofuncs;
-extern const struct nv50_disp_mthd_chan nvd0_disp_sync_mthd_chan;
+extern const struct nv50_disp_mthd_chan nvd0_disp_base_mthd_chan;
 extern struct nv50_disp_chan_impl nvd0_disp_oimm_ofuncs;
 extern struct nv50_disp_chan_impl nvd0_disp_curs_ofuncs;
-extern struct nouveau_ofuncs nvd0_disp_base_ofuncs;
+extern struct nouveau_ofuncs nvd0_disp_main_ofuncs;
 extern struct nouveau_oclass nvd0_disp_cclass;
 void nvd0_disp_intr_supervisor(struct work_struct *);
 void nvd0_disp_intr(struct nouveau_subdev *);
 extern const struct nvkm_event_func nvd0_disp_vblank_func;
 
-extern const struct nv50_disp_mthd_chan nve0_disp_mast_mthd_chan;
+extern const struct nv50_disp_mthd_chan nve0_disp_core_mthd_chan;
 extern const struct nv50_disp_mthd_chan nve0_disp_ovly_mthd_chan;
 
 extern struct nvkm_output_dp_impl nv50_pior_dp_impl;
@@ -232,6 +243,10 @@ int nv94_sor_dp_lnk_pwr(struct nvkm_output_dp *, int);
 extern struct nouveau_oclass *nv94_disp_outp_sclass[];
 
 extern struct nvkm_output_dp_impl nvd0_sor_dp_impl;
+int nvd0_sor_dp_lnk_ctl(struct nvkm_output_dp *, int, int, bool);
 extern struct nouveau_oclass *nvd0_disp_outp_sclass[];
+
+void gm204_sor_magic(struct nvkm_output *outp);
+extern struct nvkm_output_dp_impl gm204_sor_dp_impl;
 
 #endif

@@ -40,33 +40,25 @@
 &mmc_0 {
 	status = "okay";
 	num-slots = <1>;
-	supports-highspeed;
+	cap-mmc-highspeed;
 	broken-cd;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
-
-	slot@0 {
-		reg = <0>;
-		bus-width = <8>;
-	};
+	bus-width = <8>;
 };
 
 &mmc_2 {
 	status = "okay";
 	num-slots = <1>;
-	supports-highspeed;
+	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
-
-	slot@0 {
-		reg = <0>;
-		bus-width = <4>;
-		disable-wp;
-	};
+	bus-width = <4>;
+	disable-wp;
 };
 
 &uart0 {

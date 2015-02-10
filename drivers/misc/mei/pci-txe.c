@@ -36,22 +36,25 @@
 #include "hw-txe.h"
 
 static const struct pci_device_id mei_txe_pci_tbl[] = {
-	{MEI_PCI_DEVICE(0x0F18, mei_txe_cfg)}, /* Baytrail */
+	{PCI_VDEVICE(INTEL, 0x0F18)}, /* Baytrail */
+	{PCI_VDEVICE(INTEL, 0x2298)}, /* Cherrytrail */
+
 	{0, }
 };
 MODULE_DEVICE_TABLE(pci, mei_txe_pci_tbl);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static inline void mei_txe_set_pm_domain(struct mei_device *dev);
 static inline void mei_txe_unset_pm_domain(struct mei_device *dev);
 #else
 static inline void mei_txe_set_pm_domain(struct mei_device *dev) {}
 static inline void mei_txe_unset_pm_domain(struct mei_device *dev) {}
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static void mei_txe_pci_iounmap(struct pci_dev *pdev, struct mei_txe_hw *hw)
 {
 	int i;
+
 	for (i = SEC_BAR; i < NUM_OF_MEM_BARS; i++) {
 		if (hw->mem_addr[i]) {
 			pci_iounmap(pdev, hw->mem_addr[i]);
@@ -65,11 +68,10 @@ static void mei_txe_pci_iounmap(struct pci_dev *pdev, struct mei_txe_hw *hw)
  * @pdev: PCI device structure
  * @ent: entry in mei_txe_pci_tbl
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	const struct mei_cfg *cfg = (struct mei_cfg *)(ent->driver_data);
 	struct mei_device *dev;
 	struct mei_txe_hw *hw;
 	int err;
@@ -100,7 +102,7 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* allocates and initializes the mei dev structure */
-	dev = mei_txe_dev_init(pdev, cfg);
+	dev = mei_txe_dev_init(pdev);
 	if (!dev) {
 		err = -ENOMEM;
 		goto release_regions;
@@ -294,7 +296,7 @@ static int mei_txe_pci_resume(struct device *device)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int mei_txe_pm_runtime_idle(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -371,13 +373,13 @@ static int mei_txe_pm_runtime_resume(struct device *device)
 }
 
 /**
- * mei_txe_set_pm_domain - fill and set pm domian stucture for device
+ * mei_txe_set_pm_domain - fill and set pm domain structure for device
  *
  * @dev: mei_device
  */
 static inline void mei_txe_set_pm_domain(struct mei_device *dev)
 {
-	struct pci_dev *pdev  = dev->pdev;
+	struct pci_dev *pdev  = to_pci_dev(dev->dev);
 
 	if (pdev->dev.bus && pdev->dev.bus->pm) {
 		dev->pg_domain.ops = *pdev->dev.bus->pm;
@@ -391,18 +393,16 @@ static inline void mei_txe_set_pm_domain(struct mei_device *dev)
 }
 
 /**
- * mei_txe_unset_pm_domain - clean pm domian stucture for device
+ * mei_txe_unset_pm_domain - clean pm domain structure for device
  *
  * @dev: mei_device
  */
 static inline void mei_txe_unset_pm_domain(struct mei_device *dev)
 {
 	/* stop using pm callbacks if any */
-	dev->pdev->dev.pm_domain = NULL;
+	dev->dev->pm_domain = NULL;
 }
-#endif /* CONFIG_PM_RUNTIME */
 
-#ifdef CONFIG_PM
 static const struct dev_pm_ops mei_txe_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mei_txe_pci_suspend,
 				mei_txe_pci_resume)

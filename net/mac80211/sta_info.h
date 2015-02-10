@@ -1,5 +1,6 @@
 /*
  * Copyright 2002-2005, Devicescape Software, Inc.
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,7 +32,6 @@
  *	when virtual port control is not in use.
  * @WLAN_STA_SHORT_PREAMBLE: Station is capable of receiving short-preamble
  *	frames.
- * @WLAN_STA_WME: Station is a QoS-STA.
  * @WLAN_STA_WDS: Station is one of our WDS peers.
  * @WLAN_STA_CLEAR_PS_FILT: Clear PS filter in hardware (using the
  *	IEEE80211_TX_CTL_CLEAR_PS_FILT control flag) when the next
@@ -49,6 +49,9 @@
  *	packets. This means the link is enabled.
  * @WLAN_STA_TDLS_INITIATOR: We are the initiator of the TDLS link with this
  *	station.
+ * @WLAN_STA_TDLS_CHAN_SWITCH: This TDLS peer supports TDLS channel-switching
+ * @WLAN_STA_TDLS_OFF_CHANNEL: The local STA is currently off-channel with this
+ *	TDLS peer
  * @WLAN_STA_UAPSD: Station requested unscheduled SP while driver was
  *	keeping station in power-save mode, reply when the driver
  *	unblocks the station.
@@ -69,7 +72,6 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_PS_STA,
 	WLAN_STA_AUTHORIZED,
 	WLAN_STA_SHORT_PREAMBLE,
-	WLAN_STA_WME,
 	WLAN_STA_WDS,
 	WLAN_STA_CLEAR_PS_FILT,
 	WLAN_STA_MFP,
@@ -79,6 +81,8 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_TDLS_PEER,
 	WLAN_STA_TDLS_PEER_AUTH,
 	WLAN_STA_TDLS_INITIATOR,
+	WLAN_STA_TDLS_CHAN_SWITCH,
+	WLAN_STA_TDLS_OFF_CHANNEL,
 	WLAN_STA_UAPSD,
 	WLAN_STA_SP,
 	WLAN_STA_4ADDR_EVENT,
@@ -169,6 +173,8 @@ struct tid_ampdu_tx {
  * @dialog_token: dialog token for aggregation session
  * @rcu_head: RCU head used for freeing this struct
  * @reorder_lock: serializes access to reorder buffer, see below.
+ * @auto_seq: used for offloaded BA sessions to automatically pick head_seq_and
+ *	and ssn.
  *
  * This structure's lifetime is managed by RCU, assignments to
  * the array holding it must hold the aggregation mutex.
@@ -192,6 +198,7 @@ struct tid_ampdu_rx {
 	u16 buf_size;
 	u16 timeout;
 	u8 dialog_token;
+	bool auto_seq;
 };
 
 /**
@@ -246,6 +253,9 @@ struct ieee80211_tx_latency_stat {
 	u32 *bins;
 	u32 bin_count;
 };
+
+/* Value to indicate no TID reservation */
+#define IEEE80211_TID_UNRESERVED	0xff
 
 /**
  * struct sta_info - STA information
@@ -334,6 +344,8 @@ struct ieee80211_tx_latency_stat {
  * @known_smps_mode: the smps_mode the client thinks we are in. Relevant for
  *	AP only.
  * @cipher_scheme: optional cipher scheme for this station
+ * @last_tdls_pkt_time: holds the time in jiffies of last TDLS pkt ACKed
+ * @reserved_tid: reserved TID (if any, otherwise IEEE80211_TID_UNRESERVED)
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -447,6 +459,11 @@ struct sta_info {
 
 	enum ieee80211_smps_mode known_smps_mode;
 	const struct ieee80211_cipher_scheme *cipher_scheme;
+
+	/* TDLS timeout data */
+	unsigned long last_tdls_pkt_time;
+
+	u8 reserved_tid;
 
 	/* keep last! */
 	struct ieee80211_sta sta;

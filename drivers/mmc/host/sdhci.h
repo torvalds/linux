@@ -72,6 +72,7 @@
 #define  SDHCI_WRITE_PROTECT	0x00080000
 #define  SDHCI_DATA_LVL_MASK	0x00F00000
 #define   SDHCI_DATA_LVL_SHIFT	20
+#define   SDHCI_DATA_0_LVL_MASK	0x00100000
 
 #define SDHCI_HOST_CONTROL	0x28
 #define  SDHCI_CTRL_LED		0x01
@@ -160,7 +161,7 @@
 #define   SDHCI_CTRL_UHS_SDR50		0x0002
 #define   SDHCI_CTRL_UHS_SDR104		0x0003
 #define   SDHCI_CTRL_UHS_DDR50		0x0004
-#define   SDHCI_CTRL_HS_SDR200		0x0005 /* reserved value in SDIO spec */
+#define   SDHCI_CTRL_HS400		0x0005 /* Non-standard */
 #define  SDHCI_CTRL_VDD_180		0x0008
 #define  SDHCI_CTRL_DRV_TYPE_MASK	0x0030
 #define   SDHCI_CTRL_DRV_TYPE_B		0x0000
@@ -203,6 +204,7 @@
 #define  SDHCI_RETUNING_MODE_SHIFT		14
 #define  SDHCI_CLOCK_MUL_MASK	0x00FF0000
 #define  SDHCI_CLOCK_MUL_SHIFT	16
+#define  SDHCI_SUPPORT_HS400	0x80000000 /* Non-standard */
 
 #define SDHCI_CAPABILITIES_1	0x44
 
@@ -226,6 +228,7 @@
 /* 55-57 reserved */
 
 #define SDHCI_ADMA_ADDRESS	0x58
+#define SDHCI_ADMA_ADDRESS_HI	0x5C
 
 /* 60-FB reserved */
 
@@ -234,6 +237,7 @@
 #define SDHCI_PRESET_FOR_SDR50 0x6A
 #define SDHCI_PRESET_FOR_SDR104        0x6C
 #define SDHCI_PRESET_FOR_DDR50 0x6E
+#define SDHCI_PRESET_FOR_HS400 0x74 /* Non-standard */
 #define SDHCI_PRESET_DRV_MASK  0xC000
 #define SDHCI_PRESET_DRV_SHIFT  14
 #define SDHCI_PRESET_CLKGEN_SEL_MASK   0x400
@@ -265,6 +269,46 @@
 #define SDHCI_DEFAULT_BOUNDARY_SIZE  (512 * 1024)
 #define SDHCI_DEFAULT_BOUNDARY_ARG   (ilog2(SDHCI_DEFAULT_BOUNDARY_SIZE) - 12)
 
+/* ADMA2 32-bit DMA descriptor size */
+#define SDHCI_ADMA2_32_DESC_SZ	8
+
+/* ADMA2 32-bit DMA alignment */
+#define SDHCI_ADMA2_32_ALIGN	4
+
+/* ADMA2 32-bit descriptor */
+struct sdhci_adma2_32_desc {
+	__le16	cmd;
+	__le16	len;
+	__le32	addr;
+}  __packed __aligned(SDHCI_ADMA2_32_ALIGN);
+
+/* ADMA2 64-bit DMA descriptor size */
+#define SDHCI_ADMA2_64_DESC_SZ	12
+
+/* ADMA2 64-bit DMA alignment */
+#define SDHCI_ADMA2_64_ALIGN	8
+
+/*
+ * ADMA2 64-bit descriptor. Note 12-byte descriptor can't always be 8-byte
+ * aligned.
+ */
+struct sdhci_adma2_64_desc {
+	__le16	cmd;
+	__le16	len;
+	__le32	addr_lo;
+	__le32	addr_hi;
+}  __packed __aligned(4);
+
+#define ADMA2_TRAN_VALID	0x21
+#define ADMA2_NOP_END_VALID	0x3
+#define ADMA2_END		0x2
+
+/*
+ * Maximum segments assuming a 512KiB maximum requisition size and a minimum
+ * 4KiB page size.
+ */
+#define SDHCI_MAX_SEGS		128
+
 struct sdhci_ops {
 #ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS
 	u32		(*read_l)(struct sdhci_host *host, int reg);
@@ -281,6 +325,9 @@ struct sdhci_ops {
 	unsigned int	(*get_max_clock)(struct sdhci_host *host);
 	unsigned int	(*get_min_clock)(struct sdhci_host *host);
 	unsigned int	(*get_timeout_clock)(struct sdhci_host *host);
+	unsigned int	(*get_max_timeout_count)(struct sdhci_host *host);
+	void		(*set_timeout)(struct sdhci_host *host,
+				       struct mmc_command *cmd);
 	void		(*set_bus_width)(struct sdhci_host *host, int width);
 	void (*platform_send_init_74_clocks)(struct sdhci_host *host,
 					     u8 power_mode);
@@ -407,9 +454,6 @@ void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing);
 extern int sdhci_suspend_host(struct sdhci_host *host);
 extern int sdhci_resume_host(struct sdhci_host *host);
 extern void sdhci_enable_irq_wakeups(struct sdhci_host *host);
-#endif
-
-#ifdef CONFIG_PM_RUNTIME
 extern int sdhci_runtime_suspend_host(struct sdhci_host *host);
 extern int sdhci_runtime_resume_host(struct sdhci_host *host);
 #endif

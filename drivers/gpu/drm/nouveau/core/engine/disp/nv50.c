@@ -29,6 +29,7 @@
 #include <core/enum.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
+#include <nvif/event.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -80,6 +81,73 @@ nv50_disp_chan_destroy(struct nv50_disp_chan *chan)
 	struct nv50_disp_base *base = (void *)nv_object(chan)->parent;
 	base->chan &= ~(1 << chan->chid);
 	nouveau_namedb_destroy(&chan->base);
+}
+
+static void
+nv50_disp_chan_uevent_fini(struct nvkm_event *event, int type, int index)
+{
+	struct nv50_disp_priv *priv = container_of(event, typeof(*priv), uevent);
+	nv_mask(priv, 0x610028, 0x00000001 << index, 0x00000000 << index);
+	nv_wr32(priv, 0x610020, 0x00000001 << index);
+}
+
+static void
+nv50_disp_chan_uevent_init(struct nvkm_event *event, int types, int index)
+{
+	struct nv50_disp_priv *priv = container_of(event, typeof(*priv), uevent);
+	nv_wr32(priv, 0x610020, 0x00000001 << index);
+	nv_mask(priv, 0x610028, 0x00000001 << index, 0x00000001 << index);
+}
+
+void
+nv50_disp_chan_uevent_send(struct nv50_disp_priv *priv, int chid)
+{
+	struct nvif_notify_uevent_rep {
+	} rep;
+
+	nvkm_event_send(&priv->uevent, 1, chid, &rep, sizeof(rep));
+}
+
+int
+nv50_disp_chan_uevent_ctor(struct nouveau_object *object, void *data, u32 size,
+			   struct nvkm_notify *notify)
+{
+	struct nv50_disp_dmac *dmac = (void *)object;
+	union {
+		struct nvif_notify_uevent_req none;
+	} *args = data;
+	int ret;
+
+	if (nvif_unvers(args->none)) {
+		notify->size  = sizeof(struct nvif_notify_uevent_rep);
+		notify->types = 1;
+		notify->index = dmac->base.chid;
+		return 0;
+	}
+
+	return ret;
+}
+
+const struct nvkm_event_func
+nv50_disp_chan_uevent = {
+	.ctor = nv50_disp_chan_uevent_ctor,
+	.init = nv50_disp_chan_uevent_init,
+	.fini = nv50_disp_chan_uevent_fini,
+};
+
+int
+nv50_disp_chan_ntfy(struct nouveau_object *object, u32 type,
+		    struct nvkm_event **pevent)
+{
+	struct nv50_disp_priv *priv = (void *)object->engine;
+	switch (type) {
+	case NV50_DISP_CORE_CHANNEL_DMA_V0_NTFY_UEVENT:
+		*pevent = &priv->uevent;
+		return 0;
+	default:
+		break;
+	}
+	return -EINVAL;
 }
 
 int
@@ -195,7 +263,7 @@ nv50_disp_dmac_init(struct nouveau_object *object)
 		return ret;
 
 	/* enable error reporting */
-	nv_mask(priv, 0x610028, 0x00010001 << chid, 0x00010001 << chid);
+	nv_mask(priv, 0x610028, 0x00010000 << chid, 0x00010000 << chid);
 
 	/* initialise channel for dma command submission */
 	nv_wr32(priv, 0x610204 + (chid * 0x0010), dmac->push);
@@ -232,7 +300,7 @@ nv50_disp_dmac_fini(struct nouveau_object *object, bool suspend)
 			return -EBUSY;
 	}
 
-	/* disable error reporting */
+	/* disable error reporting and completion notifications */
 	nv_mask(priv, 0x610028, 0x00010001 << chid, 0x00000000 << chid);
 
 	return nv50_disp_chan_fini(&dmac->base, suspend);
@@ -308,7 +376,7 @@ nv50_disp_mthd_chan(struct nv50_disp_priv *priv, int debug, int head,
 }
 
 const struct nv50_disp_mthd_list
-nv50_disp_mast_mthd_base = {
+nv50_disp_core_mthd_base = {
 	.mthd = 0x0000,
 	.addr = 0x000000,
 	.data = {
@@ -321,7 +389,7 @@ nv50_disp_mast_mthd_base = {
 };
 
 static const struct nv50_disp_mthd_list
-nv50_disp_mast_mthd_dac = {
+nv50_disp_core_mthd_dac = {
 	.mthd = 0x0080,
 	.addr = 0x000008,
 	.data = {
@@ -333,7 +401,7 @@ nv50_disp_mast_mthd_dac = {
 };
 
 const struct nv50_disp_mthd_list
-nv50_disp_mast_mthd_sor = {
+nv50_disp_core_mthd_sor = {
 	.mthd = 0x0040,
 	.addr = 0x000008,
 	.data = {
@@ -343,7 +411,7 @@ nv50_disp_mast_mthd_sor = {
 };
 
 const struct nv50_disp_mthd_list
-nv50_disp_mast_mthd_pior = {
+nv50_disp_core_mthd_pior = {
 	.mthd = 0x0040,
 	.addr = 0x000008,
 	.data = {
@@ -353,7 +421,7 @@ nv50_disp_mast_mthd_pior = {
 };
 
 static const struct nv50_disp_mthd_list
-nv50_disp_mast_mthd_head = {
+nv50_disp_core_mthd_head = {
 	.mthd = 0x0400,
 	.addr = 0x000540,
 	.data = {
@@ -400,21 +468,21 @@ nv50_disp_mast_mthd_head = {
 };
 
 static const struct nv50_disp_mthd_chan
-nv50_disp_mast_mthd_chan = {
+nv50_disp_core_mthd_chan = {
 	.name = "Core",
 	.addr = 0x000000,
 	.data = {
-		{ "Global", 1, &nv50_disp_mast_mthd_base },
-		{    "DAC", 3, &nv50_disp_mast_mthd_dac  },
-		{    "SOR", 2, &nv50_disp_mast_mthd_sor  },
-		{   "PIOR", 3, &nv50_disp_mast_mthd_pior },
-		{   "HEAD", 2, &nv50_disp_mast_mthd_head },
+		{ "Global", 1, &nv50_disp_core_mthd_base },
+		{    "DAC", 3, &nv50_disp_core_mthd_dac  },
+		{    "SOR", 2, &nv50_disp_core_mthd_sor  },
+		{   "PIOR", 3, &nv50_disp_core_mthd_pior },
+		{   "HEAD", 2, &nv50_disp_core_mthd_head },
 		{}
 	}
 };
 
 int
-nv50_disp_mast_ctor(struct nouveau_object *parent,
+nv50_disp_core_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
@@ -443,7 +511,7 @@ nv50_disp_mast_ctor(struct nouveau_object *parent,
 }
 
 static int
-nv50_disp_mast_init(struct nouveau_object *object)
+nv50_disp_core_init(struct nouveau_object *object)
 {
 	struct nv50_disp_priv *priv = (void *)object->engine;
 	struct nv50_disp_dmac *mast = (void *)object;
@@ -454,7 +522,7 @@ nv50_disp_mast_init(struct nouveau_object *object)
 		return ret;
 
 	/* enable error reporting */
-	nv_mask(priv, 0x610028, 0x00010001, 0x00010001);
+	nv_mask(priv, 0x610028, 0x00010000, 0x00010000);
 
 	/* attempt to unstick channel from some unknown state */
 	if ((nv_rd32(priv, 0x610200) & 0x009f0000) == 0x00020000)
@@ -480,7 +548,7 @@ nv50_disp_mast_init(struct nouveau_object *object)
 }
 
 static int
-nv50_disp_mast_fini(struct nouveau_object *object, bool suspend)
+nv50_disp_core_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nv50_disp_priv *priv = (void *)object->engine;
 	struct nv50_disp_dmac *mast = (void *)object;
@@ -494,19 +562,20 @@ nv50_disp_mast_fini(struct nouveau_object *object, bool suspend)
 			return -EBUSY;
 	}
 
-	/* disable error reporting */
+	/* disable error reporting and completion notifications */
 	nv_mask(priv, 0x610028, 0x00010001, 0x00000000);
 
 	return nv50_disp_chan_fini(&mast->base, suspend);
 }
 
 struct nv50_disp_chan_impl
-nv50_disp_mast_ofuncs = {
-	.base.ctor = nv50_disp_mast_ctor,
+nv50_disp_core_ofuncs = {
+	.base.ctor = nv50_disp_core_ctor,
 	.base.dtor = nv50_disp_dmac_dtor,
-	.base.init = nv50_disp_mast_init,
-	.base.fini = nv50_disp_mast_fini,
+	.base.init = nv50_disp_core_init,
+	.base.fini = nv50_disp_core_fini,
 	.base.map  = nv50_disp_chan_map,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
 	.chid = 0,
@@ -519,7 +588,7 @@ nv50_disp_mast_ofuncs = {
  ******************************************************************************/
 
 static const struct nv50_disp_mthd_list
-nv50_disp_sync_mthd_base = {
+nv50_disp_base_mthd_base = {
 	.mthd = 0x0000,
 	.addr = 0x000000,
 	.data = {
@@ -544,7 +613,7 @@ nv50_disp_sync_mthd_base = {
 };
 
 const struct nv50_disp_mthd_list
-nv50_disp_sync_mthd_image = {
+nv50_disp_base_mthd_image = {
 	.mthd = 0x0400,
 	.addr = 0x000000,
 	.data = {
@@ -558,18 +627,18 @@ nv50_disp_sync_mthd_image = {
 };
 
 static const struct nv50_disp_mthd_chan
-nv50_disp_sync_mthd_chan = {
+nv50_disp_base_mthd_chan = {
 	.name = "Base",
 	.addr = 0x000540,
 	.data = {
-		{ "Global", 1, &nv50_disp_sync_mthd_base },
-		{  "Image", 2, &nv50_disp_sync_mthd_image },
+		{ "Global", 1, &nv50_disp_base_mthd_base },
+		{  "Image", 2, &nv50_disp_base_mthd_image },
 		{}
 	}
 };
 
 int
-nv50_disp_sync_ctor(struct nouveau_object *parent,
+nv50_disp_base_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
@@ -602,11 +671,12 @@ nv50_disp_sync_ctor(struct nouveau_object *parent,
 }
 
 struct nv50_disp_chan_impl
-nv50_disp_sync_ofuncs = {
-	.base.ctor = nv50_disp_sync_ctor,
+nv50_disp_base_ofuncs = {
+	.base.ctor = nv50_disp_base_ctor,
 	.base.dtor = nv50_disp_dmac_dtor,
 	.base.init = nv50_disp_dmac_init,
 	.base.fini = nv50_disp_dmac_fini,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
@@ -696,6 +766,7 @@ nv50_disp_ovly_ofuncs = {
 	.base.dtor = nv50_disp_dmac_dtor,
 	.base.init = nv50_disp_dmac_init,
 	.base.fini = nv50_disp_dmac_fini,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
@@ -813,6 +884,7 @@ nv50_disp_oimm_ofuncs = {
 	.base.dtor = nv50_disp_pioc_dtor,
 	.base.init = nv50_disp_pioc_init,
 	.base.fini = nv50_disp_pioc_fini,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
@@ -860,6 +932,7 @@ nv50_disp_curs_ofuncs = {
 	.base.dtor = nv50_disp_pioc_dtor,
 	.base.init = nv50_disp_pioc_init,
 	.base.fini = nv50_disp_pioc_fini,
+	.base.ntfy = nv50_disp_chan_ntfy,
 	.base.map  = nv50_disp_chan_map,
 	.base.rd32 = nv50_disp_chan_rd32,
 	.base.wr32 = nv50_disp_chan_wr32,
@@ -871,7 +944,7 @@ nv50_disp_curs_ofuncs = {
  ******************************************************************************/
 
 int
-nv50_disp_base_scanoutpos(NV50_DISP_MTHD_V0)
+nv50_disp_main_scanoutpos(NV50_DISP_MTHD_V0)
 {
 	const u32 blanke = nv_rd32(priv, 0x610aec + (head * 0x540));
 	const u32 blanks = nv_rd32(priv, 0x610af4 + (head * 0x540));
@@ -903,7 +976,7 @@ nv50_disp_base_scanoutpos(NV50_DISP_MTHD_V0)
 }
 
 int
-nv50_disp_base_mthd(struct nouveau_object *object, u32 mthd,
+nv50_disp_main_mthd(struct nouveau_object *object, u32 mthd,
 		    void *data, u32 size)
 {
 	const struct nv50_disp_impl *impl = (void *)nv_oclass(object->engine);
@@ -1027,7 +1100,7 @@ nv50_disp_base_mthd(struct nouveau_object *object, u32 mthd,
 }
 
 int
-nv50_disp_base_ctor(struct nouveau_object *parent,
+nv50_disp_main_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
@@ -1047,7 +1120,7 @@ nv50_disp_base_ctor(struct nouveau_object *parent,
 }
 
 void
-nv50_disp_base_dtor(struct nouveau_object *object)
+nv50_disp_main_dtor(struct nouveau_object *object)
 {
 	struct nv50_disp_base *base = (void *)object;
 	nouveau_ramht_ref(NULL, &base->ramht);
@@ -1055,7 +1128,7 @@ nv50_disp_base_dtor(struct nouveau_object *object)
 }
 
 static int
-nv50_disp_base_init(struct nouveau_object *object)
+nv50_disp_main_init(struct nouveau_object *object)
 {
 	struct nv50_disp_priv *priv = (void *)object->engine;
 	struct nv50_disp_base *base = (void *)object;
@@ -1123,7 +1196,7 @@ nv50_disp_base_init(struct nouveau_object *object)
 }
 
 static int
-nv50_disp_base_fini(struct nouveau_object *object, bool suspend)
+nv50_disp_main_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nv50_disp_priv *priv = (void *)object->engine;
 	struct nv50_disp_base *base = (void *)object;
@@ -1136,25 +1209,25 @@ nv50_disp_base_fini(struct nouveau_object *object, bool suspend)
 }
 
 struct nouveau_ofuncs
-nv50_disp_base_ofuncs = {
-	.ctor = nv50_disp_base_ctor,
-	.dtor = nv50_disp_base_dtor,
-	.init = nv50_disp_base_init,
-	.fini = nv50_disp_base_fini,
-	.mthd = nv50_disp_base_mthd,
+nv50_disp_main_ofuncs = {
+	.ctor = nv50_disp_main_ctor,
+	.dtor = nv50_disp_main_dtor,
+	.init = nv50_disp_main_init,
+	.fini = nv50_disp_main_fini,
+	.mthd = nv50_disp_main_mthd,
 	.ntfy = nouveau_disp_ntfy,
 };
 
 static struct nouveau_oclass
-nv50_disp_base_oclass[] = {
-	{ NV50_DISP, &nv50_disp_base_ofuncs },
+nv50_disp_main_oclass[] = {
+	{ NV50_DISP, &nv50_disp_main_ofuncs },
 	{}
 };
 
 static struct nouveau_oclass
 nv50_disp_sclass[] = {
-	{ NV50_DISP_CORE_CHANNEL_DMA, &nv50_disp_mast_ofuncs.base },
-	{ NV50_DISP_BASE_CHANNEL_DMA, &nv50_disp_sync_ofuncs.base },
+	{ NV50_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
+	{ NV50_DISP_BASE_CHANNEL_DMA, &nv50_disp_base_ofuncs.base },
 	{ NV50_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
 	{ NV50_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
 	{ NV50_DISP_CURSOR, &nv50_disp_curs_ofuncs.base },
@@ -1559,7 +1632,7 @@ nv50_disp_intr_unk20_1(struct nv50_disp_priv *priv, int head)
 }
 
 static void
-nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv,
+nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv, int head,
 			  struct dcb_output *outp, u32 pclk)
 {
 	const int link = !(outp->sorconf.link & 1);
@@ -1568,24 +1641,36 @@ nv50_disp_intr_unk20_2_dp(struct nv50_disp_priv *priv,
 	const u32 loff = (link * 0x080) + soff;
 	const u32 ctrl = nv_rd32(priv, 0x610794 + (or * 8));
 	const u32 symbol = 100000;
-	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff) & 0x0000f0000;
+	const s32 vactive = nv_rd32(priv, 0x610af8 + (head * 0x540)) & 0xffff;
+	const s32 vblanke = nv_rd32(priv, 0x610ae8 + (head * 0x540)) & 0xffff;
+	const s32 vblanks = nv_rd32(priv, 0x610af0 + (head * 0x540)) & 0xffff;
+	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff);
 	u32 clksor = nv_rd32(priv, 0x614300 + soff);
 	int bestTU = 0, bestVTUi = 0, bestVTUf = 0, bestVTUa = 0;
 	int TU, VTUi, VTUf, VTUa;
 	u64 link_data_rate, link_ratio, unk;
 	u32 best_diff = 64 * symbol;
 	u32 link_nr, link_bw, bits;
+	u64 value;
 
-	/* calculate packed data rate for each lane */
-	if      (dpctrl > 0x00030000) link_nr = 4;
-	else if (dpctrl > 0x00010000) link_nr = 2;
-	else			      link_nr = 1;
+	link_bw = (clksor & 0x000c0000) ? 270000 : 162000;
+	link_nr = hweight32(dpctrl & 0x000f0000);
 
-	if (clksor & 0x000c0000)
-		link_bw = 270000;
-	else
-		link_bw = 162000;
+	/* symbols/hblank - algorithm taken from comments in tegra driver */
+	value = vblanke + vactive - vblanks - 7;
+	value = value * link_bw;
+	do_div(value, pclk);
+	value = value - (3 * !!(dpctrl & 0x00004000)) - (12 / link_nr);
+	nv_mask(priv, 0x61c1e8 + soff, 0x0000ffff, value);
 
+	/* symbols/vblank - algorithm taken from comments in tegra driver */
+	value = vblanks - vblanke - 25;
+	value = value * link_bw;
+	do_div(value, pclk);
+	value = value - ((36 / link_nr) + 3) - 1;
+	nv_mask(priv, 0x61c1ec + soff, 0x00ffffff, value);
+
+	/* watermark / activesym */
 	if      ((ctrl & 0xf0000) == 0x60000) bits = 30;
 	else if ((ctrl & 0xf0000) == 0x50000) bits = 24;
 	else                                  bits = 18;
@@ -1731,7 +1816,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 	} else
 	if (!outp->info.location) {
 		if (outp->info.type == DCB_OUTPUT_DP)
-			nv50_disp_intr_unk20_2_dp(priv, &outp->info, pclk);
+			nv50_disp_intr_unk20_2_dp(priv, head, &outp->info, pclk);
 		oreg = 0x614300 + (ffs(outp->info.or) - 1) * 0x800;
 		oval = (conf & 0x0100) ? 0x00000101 : 0x00000000;
 		hval = 0x00000000;
@@ -1847,6 +1932,12 @@ nv50_disp_intr(struct nouveau_subdev *subdev)
 		intr0 &= ~(0x00010000 << chid);
 	}
 
+	while (intr0 & 0x0000001f) {
+		u32 chid = __ffs(intr0 & 0x0000001f);
+		nv50_disp_chan_uevent_send(priv, chid);
+		intr0 &= ~(0x00000001 << chid);
+	}
+
 	if (intr1 & 0x00000004) {
 		nouveau_disp_vblank(&priv->base, 0);
 		nv_wr32(priv, 0x610024, 0x00000004);
@@ -1881,7 +1972,11 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = nv50_disp_base_oclass;
+	ret = nvkm_event_init(&nv50_disp_chan_uevent, 1, 9, &priv->uevent);
+	if (ret)
+		return ret;
+
+	nv_engine(priv)->sclass = nv50_disp_main_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nv50_disp_intr;
 	INIT_WORK(&priv->supervisor, nv50_disp_intr_supervisor);
@@ -1914,9 +2009,9 @@ nv50_disp_oclass = &(struct nv50_disp_impl) {
 	},
 	.base.vblank = &nv50_disp_vblank_func,
 	.base.outp =  nv50_disp_outp_sclass,
-	.mthd.core = &nv50_disp_mast_mthd_chan,
-	.mthd.base = &nv50_disp_sync_mthd_chan,
+	.mthd.core = &nv50_disp_core_mthd_chan,
+	.mthd.base = &nv50_disp_base_mthd_chan,
 	.mthd.ovly = &nv50_disp_ovly_mthd_chan,
 	.mthd.prev = 0x000004,
-	.head.scanoutpos = nv50_disp_base_scanoutpos,
+	.head.scanoutpos = nv50_disp_main_scanoutpos,
 }.base.base;

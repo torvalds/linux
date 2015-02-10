@@ -23,7 +23,7 @@ static int ad7606_spi_read_block(struct device *dev,
 	int i, ret;
 	unsigned short *data = buf;
 
-	ret = spi_read(spi, (u8 *)buf, count * 2);
+	ret = spi_read(spi, buf, count * 2);
 	if (ret < 0) {
 		dev_err(&spi->dev, "SPI read error\n");
 		return ret;

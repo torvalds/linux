@@ -955,6 +955,10 @@ static void mlx4_err_rule(struct mlx4_dev *dev, char *str,
 					cur->ib.dst_gid_msk);
 			break;
 
+		case MLX4_NET_TRANS_RULE_ID_VXLAN:
+			len += snprintf(buf + len, BUF_SIZE - len,
+					"VNID = %d ", be32_to_cpu(cur->vxlan.vni));
+			break;
 		case MLX4_NET_TRANS_RULE_ID_IPV6:
 			break;
 
@@ -995,12 +999,27 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 	}
 
 	ret = mlx4_QP_FLOW_STEERING_ATTACH(dev, mailbox, size >> 2, reg_id);
-	if (ret == -ENOMEM)
+	if (ret == -ENOMEM) {
 		mlx4_err_rule(dev,
 			      "mcg table is full. Fail to register network rule\n",
 			      rule);
-	else if (ret)
-		mlx4_err_rule(dev, "Fail to register network rule\n", rule);
+	} else if (ret) {
+		if (ret == -ENXIO) {
+			if (dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED)
+				mlx4_err_rule(dev,
+					      "DMFS is not enabled, "
+					      "failed to register network rule.\n",
+					      rule);
+			else
+				mlx4_err_rule(dev,
+					      "Rule exceeds the dmfs_high_rate_mode limitations, "
+					      "failed to register network rule.\n",
+					      rule);
+
+		} else {
+			mlx4_err_rule(dev, "Fail to register network rule.\n", rule);
+		}
+	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 

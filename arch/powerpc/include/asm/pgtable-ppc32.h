@@ -8,8 +8,6 @@
 #include <linux/threads.h>
 #include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
 
-extern unsigned long va_to_phys(unsigned long address);
-extern pte_t *va_to_pte(unsigned long address);
 extern unsigned long ioremap_bot;
 
 #ifdef CONFIG_44x
@@ -50,10 +48,10 @@ extern int icache_44x_need_flush;
 #define FIRST_USER_ADDRESS	0
 
 #define pte_ERROR(e) \
-	printk("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
+	pr_err("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
 		(unsigned long long)pte_val(e))
 #define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
@@ -172,6 +170,25 @@ static inline unsigned long pte_update(pte_t *p,
 #ifdef PTE_ATOMIC_UPDATES
 	unsigned long old, tmp;
 
+#ifdef CONFIG_PPC_8xx
+	unsigned long tmp2;
+
+	__asm__ __volatile__("\
+1:	lwarx	%0,0,%4\n\
+	andc	%1,%0,%5\n\
+	or	%1,%1,%6\n\
+	/* 0x200 == Extended encoding, bit 22 */ \
+	/* Bit 22 has to be 1 if neither _PAGE_USER nor _PAGE_RW are set */ \
+	rlwimi	%1,%1,32-2,0x200\n /* get _PAGE_USER */ \
+	rlwinm	%3,%1,32-1,0x200\n /* get _PAGE_RW */ \
+	or	%1,%3,%1\n\
+	xori	%1,%1,0x200\n"
+"	stwcx.	%1,0,%4\n\
+	bne-	1b"
+	: "=&r" (old), "=&r" (tmp), "=m" (*p), "=&r" (tmp2)
+	: "r" (p), "r" (clr), "r" (set), "m" (*p)
+	: "cc" );
+#else /* CONFIG_PPC_8xx */
 	__asm__ __volatile__("\
 1:	lwarx	%0,0,%3\n\
 	andc	%1,%0,%4\n\
@@ -182,6 +199,7 @@ static inline unsigned long pte_update(pte_t *p,
 	: "=&r" (old), "=&r" (tmp), "=m" (*p)
 	: "r" (p), "r" (clr), "r" (set), "m" (*p)
 	: "cc" );
+#endif /* CONFIG_PPC_8xx */
 #else /* PTE_ATOMIC_UPDATES */
 	unsigned long old = pte_val(*p);
 	*p = __pte((old & ~clr) | set);

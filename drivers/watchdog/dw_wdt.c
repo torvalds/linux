@@ -21,6 +21,7 @@
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -29,9 +30,11 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/uaccess.h>
@@ -40,6 +43,7 @@
 #define WDOG_CONTROL_REG_OFFSET		    0x00
 #define WDOG_CONTROL_REG_WDT_EN_MASK	    0x01
 #define WDOG_TIMEOUT_RANGE_REG_OFFSET	    0x04
+#define WDOG_TIMEOUT_RANGE_TOPINIT_SHIFT    4
 #define WDOG_CURRENT_COUNT_REG_OFFSET	    0x08
 #define WDOG_COUNTER_RESTART_REG_OFFSET     0x0c
 #define WDOG_COUNTER_RESTART_KICK_VALUE	    0x76
@@ -62,6 +66,7 @@ static struct {
 	unsigned long		next_heartbeat;
 	struct timer_list	timer;
 	int			expect_close;
+	struct notifier_block	restart_handler;
 } dw_wdt;
 
 static inline int dw_wdt_is_enabled(void)
@@ -106,7 +111,8 @@ static int dw_wdt_set_top(unsigned top_s)
 		}
 
 	/* Set the new value in the watchdog. */
-	writel(top_val, dw_wdt.regs + WDOG_TIMEOUT_RANGE_REG_OFFSET);
+	writel(top_val | top_val << WDOG_TIMEOUT_RANGE_TOPINIT_SHIFT,
+		dw_wdt.regs + WDOG_TIMEOUT_RANGE_REG_OFFSET);
 
 	dw_wdt_set_next_heartbeat();
 
@@ -117,6 +123,26 @@ static void dw_wdt_keepalive(void)
 {
 	writel(WDOG_COUNTER_RESTART_KICK_VALUE, dw_wdt.regs +
 	       WDOG_COUNTER_RESTART_REG_OFFSET);
+}
+
+static int dw_wdt_restart_handle(struct notifier_block *this,
+				unsigned long mode, void *cmd)
+{
+	u32 val;
+
+	writel(0, dw_wdt.regs + WDOG_TIMEOUT_RANGE_REG_OFFSET);
+	val = readl(dw_wdt.regs + WDOG_CONTROL_REG_OFFSET);
+	if (val & WDOG_CONTROL_REG_WDT_EN_MASK)
+		writel(WDOG_COUNTER_RESTART_KICK_VALUE, dw_wdt.regs +
+			WDOG_COUNTER_RESTART_REG_OFFSET);
+	else
+		writel(WDOG_CONTROL_REG_WDT_EN_MASK,
+		       dw_wdt.regs + WDOG_CONTROL_REG_OFFSET);
+
+	/* wait for reset to assert... */
+	mdelay(500);
+
+	return NOTIFY_DONE;
 }
 
 static void dw_wdt_ping(unsigned long data)
@@ -314,6 +340,12 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_disable_clk;
 
+	dw_wdt.restart_handler.notifier_call = dw_wdt_restart_handle;
+	dw_wdt.restart_handler.priority = 128;
+	ret = register_restart_handler(&dw_wdt.restart_handler);
+	if (ret)
+		pr_warn("cannot register restart handler\n");
+
 	dw_wdt_set_next_heartbeat();
 	setup_timer(&dw_wdt.timer, dw_wdt_ping, 0);
 	mod_timer(&dw_wdt.timer, jiffies + WDT_TIMEOUT);
@@ -328,6 +360,8 @@ out_disable_clk:
 
 static int dw_wdt_drv_remove(struct platform_device *pdev)
 {
+	unregister_restart_handler(&dw_wdt.restart_handler);
+
 	misc_deregister(&dw_wdt_miscdev);
 
 	clk_disable_unprepare(dw_wdt.clk);
@@ -348,7 +382,6 @@ static struct platform_driver dw_wdt_driver = {
 	.remove		= dw_wdt_drv_remove,
 	.driver		= {
 		.name	= "dw_wdt",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(dw_wdt_of_match),
 		.pm	= &dw_wdt_pm_ops,
 	},

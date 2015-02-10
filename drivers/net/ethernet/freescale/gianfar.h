@@ -99,6 +99,10 @@ extern const char gfar_driver_version[];
 #define GFAR_MAX_FIFO_STARVE	511
 #define GFAR_MAX_FIFO_STARVE_OFF 511
 
+#define FBTHR_SHIFT        24
+#define DEFAULT_RX_LFC_THR  16
+#define DEFAULT_LFC_PTVVAL  4
+
 #define DEFAULT_RX_BUFFER_SIZE  1536
 #define TX_RING_MOD_MASK(size) (size-1)
 #define RX_RING_MOD_MASK(size) (size-1)
@@ -145,9 +149,7 @@ extern const char gfar_driver_version[];
 		| SUPPORTED_Autoneg \
 		| SUPPORTED_MII)
 
-#define GFAR_SUPPORTED_GBIT (SUPPORTED_1000baseT_Full \
-		| SUPPORTED_Pause \
-		| SUPPORTED_Asym_Pause)
+#define GFAR_SUPPORTED_GBIT SUPPORTED_1000baseT_Full
 
 /* TBI register addresses */
 #define MII_TBICON		0x11
@@ -275,6 +277,7 @@ extern const char gfar_driver_version[];
 
 #define RCTRL_TS_ENABLE 	0x01000000
 #define RCTRL_PAL_MASK		0x001f0000
+#define RCTRL_LFC		0x00004000
 #define RCTRL_VLEX		0x00002000
 #define RCTRL_FILREN		0x00001000
 #define RCTRL_GHTX		0x00000400
@@ -851,7 +854,32 @@ struct gfar {
 	u8	res23c[248];
 	u32	attr;		/* 0x.bf8 - Attributes Register */
 	u32	attreli;	/* 0x.bfc - Attributes Extract Length and Extract Index Register */
-	u8	res24[688];
+	u32	rqprm0;	/* 0x.c00 - Receive queue parameters register 0 */
+	u32	rqprm1;	/* 0x.c04 - Receive queue parameters register 1 */
+	u32	rqprm2;	/* 0x.c08 - Receive queue parameters register 2 */
+	u32	rqprm3;	/* 0x.c0c - Receive queue parameters register 3 */
+	u32	rqprm4;	/* 0x.c10 - Receive queue parameters register 4 */
+	u32	rqprm5;	/* 0x.c14 - Receive queue parameters register 5 */
+	u32	rqprm6;	/* 0x.c18 - Receive queue parameters register 6 */
+	u32	rqprm7;	/* 0x.c1c - Receive queue parameters register 7 */
+	u8	res24[36];
+	u32	rfbptr0; /* 0x.c44 - Last free RxBD pointer for ring 0 */
+	u8	res24a[4];
+	u32	rfbptr1; /* 0x.c4c - Last free RxBD pointer for ring 1 */
+	u8	res24b[4];
+	u32	rfbptr2; /* 0x.c54 - Last free RxBD pointer for ring 2 */
+	u8	res24c[4];
+	u32	rfbptr3; /* 0x.c5c - Last free RxBD pointer for ring 3 */
+	u8	res24d[4];
+	u32	rfbptr4; /* 0x.c64 - Last free RxBD pointer for ring 4 */
+	u8	res24e[4];
+	u32	rfbptr5; /* 0x.c6c - Last free RxBD pointer for ring 5 */
+	u8	res24f[4];
+	u32	rfbptr6; /* 0x.c74 - Last free RxBD pointer for ring 6 */
+	u8	res24g[4];
+	u32	rfbptr7; /* 0x.c7c - Last free RxBD pointer for ring 7 */
+	u8	res24h[4];
+	u8	res24x[556];
 	u32	isrg0;		/* 0x.eb0 - Interrupt steering group 0 register */
 	u32	isrg1;		/* 0x.eb4 - Interrupt steering group 1 register */
 	u32	isrg2;		/* 0x.eb8 - Interrupt steering group 2 register */
@@ -1011,6 +1039,7 @@ struct gfar_priv_rx_q {
 	/* RX Coalescing values */
 	unsigned char rxcoalescing;
 	unsigned long rxic;
+	u32 *rfbptr;
 };
 
 enum gfar_irqinfo_id {
@@ -1101,6 +1130,7 @@ struct gfar_private {
 	unsigned int num_tx_queues;
 	unsigned int num_rx_queues;
 	unsigned int num_grps;
+	int tx_actual_en;
 
 	/* Network Statistics */
 	struct gfar_extra_stats extra_stats;
@@ -1224,6 +1254,37 @@ static inline void gfar_write_isrg(struct gfar_private *priv)
 		baddr++;
 		isrg = 0;
 	}
+}
+
+static inline int gfar_is_dma_stopped(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+
+	return ((gfar_read(&regs->ievent) & (IEVENT_GRSC | IEVENT_GTSC)) ==
+	       (IEVENT_GRSC | IEVENT_GTSC));
+}
+
+static inline int gfar_is_rx_dma_stopped(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+
+	return gfar_read(&regs->ievent) & IEVENT_GRSC;
+}
+
+static inline void gfar_wmb(void)
+{
+#if defined(CONFIG_PPC)
+	/* The powerpc-specific eieio() is used, as wmb() has too strong
+	 * semantics (it requires synchronization between cacheable and
+	 * uncacheable mappings, which eieio() doesn't provide and which we
+	 * don't need), thus requiring a more expensive sync instruction.  At
+	 * some point, the set of architecture-independent barrier functions
+	 * should be expanded to include weaker barriers.
+	 */
+	eieio();
+#else
+	wmb(); /* order write acesses for BD (or FCB) fields */
+#endif
 }
 
 irqreturn_t gfar_receive(int irq, void *dev_id);

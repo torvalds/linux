@@ -1,7 +1,9 @@
 * CSR SiRFprimaII/atlasVI Universal Synchronous Asynchronous Receiver/Transmitter *
 
 Required properties:
-- compatible : Should be "sirf,prima2-uart" or "sirf, prima2-usp-uart"
+- compatible : Should be "sirf,prima2-uart", "sirf, prima2-usp-uart",
+		"sirf,marco-uart" or "sirf,marco-bt-uart" which means
+		uart located in BT module and used for BT.
 - reg : Offset and length of the register set for the device
 - interrupts : Should contain uart interrupt
 - fifosize : Should define hardware rx/tx fifo size
@@ -31,3 +33,15 @@ usp@b0090000 {
 	rts-gpios = <&gpio 15 0>;
 	cts-gpios = <&gpio 46 0>;
 };
+
+for uart use in BT module,
+uart6: uart@11000000 {
+	cell-index = <6>;
+	compatible = "sirf,marco-bt-uart", "sirf,marco-uart";
+	reg = <0x11000000 0x1000>;
+	interrupts = <0 100 0>;
+	clocks = <&clks 138>, <&clks 140>, <&clks 141>;
+	clock-names = "uart", "general", "noc";
+	fifosize = <128>;
+	status = "disabled";
+}

@@ -142,4 +142,5 @@ nva3_devinit_oclass = &(struct nouveau_devinit_impl) {
 	.pll_set = nva3_devinit_pll_set,
 	.disable = nva3_devinit_disable,
 	.mmio    = nva3_devinit_mmio,
+	.post = nvbios_init,
 }.base;

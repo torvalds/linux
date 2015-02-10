@@ -24,6 +24,12 @@
 #include <crypto/hash_info.h>
 #include "ima.h"
 
+#ifdef CONFIG_IMA_X509_PATH
+#define IMA_X509_PATH	CONFIG_IMA_X509_PATH
+#else
+#define IMA_X509_PATH	"/etc/keys/x509_ima.der"
+#endif
+
 /* name for boot aggregate entry */
 static const char *boot_aggregate_name = "boot_aggregate";
 int ima_used_chip;
@@ -43,7 +49,7 @@ int ima_used_chip;
  * a different value.) Violations add a zero entry to the measurement
  * list and extend the aggregate PCR value with ff...ff's.
  */
-static void __init ima_add_boot_aggregate(void)
+static int __init ima_add_boot_aggregate(void)
 {
 	static const char op[] = "add_boot_aggregate";
 	const char *audit_cause = "ENOMEM";
@@ -72,18 +78,35 @@ static void __init ima_add_boot_aggregate(void)
 
 	result = ima_alloc_init_template(iint, NULL, boot_aggregate_name,
 					 NULL, 0, &entry);
-	if (result < 0)
-		return;
+	if (result < 0) {
+		audit_cause = "alloc_entry";
+		goto err_out;
+	}
 
 	result = ima_store_template(entry, violation, NULL,
 				    boot_aggregate_name);
-	if (result < 0)
+	if (result < 0) {
 		ima_free_template_entry(entry);
-	return;
+		audit_cause = "store_entry";
+		goto err_out;
+	}
+	return 0;
 err_out:
 	integrity_audit_msg(AUDIT_INTEGRITY_PCR, NULL, boot_aggregate_name, op,
 			    audit_cause, result, 0);
+	return result;
 }
+
+#ifdef CONFIG_IMA_LOAD_X509
+void __init ima_load_x509(void)
+{
+	int unset_flags = ima_policy_flag & IMA_APPRAISE;
+
+	ima_policy_flag &= ~unset_flags;
+	integrity_load_x509(INTEGRITY_KEYRING_IMA, IMA_X509_PATH);
+	ima_policy_flag |= unset_flags;
+}
+#endif
 
 int __init ima_init(void)
 {
@@ -98,6 +121,10 @@ int __init ima_init(void)
 	if (!ima_used_chip)
 		pr_info("No TPM chip found, activating TPM-bypass!\n");
 
+	rc = ima_init_keyring(INTEGRITY_KEYRING_IMA);
+	if (rc)
+		return rc;
+
 	rc = ima_init_crypto();
 	if (rc)
 		return rc;
@@ -105,7 +132,10 @@ int __init ima_init(void)
 	if (rc != 0)
 		return rc;
 
-	ima_add_boot_aggregate();	/* boot aggregate must be first entry */
+	rc = ima_add_boot_aggregate();	/* boot aggregate must be first entry */
+	if (rc != 0)
+		return rc;
+
 	ima_init_policy();
 
 	return ima_fs_init();

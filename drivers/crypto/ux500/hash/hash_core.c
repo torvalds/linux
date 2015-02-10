@@ -1881,6 +1881,7 @@ static void ux500_hash_shutdown(struct platform_device *pdev)
 			__func__);
 }
 
+#ifdef CONFIG_PM_SLEEP
 /**
  * ux500_hash_suspend - Function that suspends the hash device.
  * @dev:	Device to suspend.
@@ -1949,6 +1950,7 @@ static int ux500_hash_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ux500_hash_pm, ux500_hash_suspend, ux500_hash_resume);
 
@@ -1962,7 +1964,6 @@ static struct platform_driver hash_driver = {
 	.remove = ux500_hash_remove,
 	.shutdown = ux500_hash_shutdown,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = "hash1",
 		.of_match_table = ux500_hash_match,
 		.pm    = &ux500_hash_pm,
@@ -1995,7 +1996,7 @@ module_exit(ux500_hash_mod_fini);
 MODULE_DESCRIPTION("Driver for ST-Ericsson UX500 HASH engine.");
 MODULE_LICENSE("GPL");
 
-MODULE_ALIAS("sha1-all");
-MODULE_ALIAS("sha256-all");
-MODULE_ALIAS("hmac-sha1-all");
-MODULE_ALIAS("hmac-sha256-all");
+MODULE_ALIAS_CRYPTO("sha1-all");
+MODULE_ALIAS_CRYPTO("sha256-all");
+MODULE_ALIAS_CRYPTO("hmac-sha1-all");
+MODULE_ALIAS_CRYPTO("hmac-sha256-all");

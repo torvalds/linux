@@ -22,6 +22,13 @@
 
 
 		pinctrl@fd510000 {
+			i2c11_pins: i2c11 {
+				mux {
+					pins = "gpio83", "gpio84";
+					function = "blsp_i2c11";
+				};
+			};
+
 			spi8_default: spi8_default {
 				mosi {
 					pins = "gpio45";
@@ -39,6 +46,20 @@
 					pins = "gpio48";
 					function = "blsp_spi8";
 				};
+			};
+		};
+
+		i2c@f9967000 {
+			status = "okay";
+			clock-frequency = <200000>;
+			pinctrl-0 = <&i2c11_pins>;
+			pinctrl-names = "default";
+
+			eeprom: eeprom@52 {
+				compatible = "atmel,24c128";
+				reg = <0x52>;
+				pagesize = <32>;
+				read-only;
 			};
 		};
 	};

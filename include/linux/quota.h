@@ -56,6 +56,11 @@ enum quota_type {
 	PRJQUOTA = 2,		/* element used for project quotas */
 };
 
+/* Masks for quota types when used as a bitmask */
+#define QTYPE_MASK_USR (1 << USRQUOTA)
+#define QTYPE_MASK_GRP (1 << GRPQUOTA)
+#define QTYPE_MASK_PRJ (1 << PRJQUOTA)
+
 typedef __kernel_uid32_t qid_t; /* Type in which we store ids in memory */
 typedef long long qsize_t;	/* Type in which we store sizes */
 

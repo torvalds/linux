@@ -10,6 +10,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 
 #include "sti_compositor.h"
 #include "sti_drm_drv.h"
@@ -27,7 +28,7 @@ static void sti_drm_crtc_prepare(struct drm_crtc *crtc)
 	struct device *dev = mixer->dev;
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 
-	compo->enable = true;
+	mixer->enabled = true;
 
 	/* Prepare and enable the compo IP clock */
 	if (mixer->id == STI_MIXER_MAIN) {
@@ -37,6 +38,8 @@ static void sti_drm_crtc_prepare(struct drm_crtc *crtc)
 		if (clk_prepare_enable(compo->clk_compo_aux))
 			DRM_INFO("Failed to prepare/enable compo_aux clk\n");
 	}
+
+	sti_mixer_clear_all_layers(mixer);
 }
 
 static void sti_drm_crtc_commit(struct drm_crtc *crtc)
@@ -61,6 +64,8 @@ static void sti_drm_crtc_commit(struct drm_crtc *crtc)
 	/* Enable layer on mixer */
 	if (sti_mixer_set_layer_status(mixer, layer, true))
 		DRM_ERROR("Can not enable layer at mixer\n");
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static bool sti_drm_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -143,7 +148,8 @@ sti_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	w = crtc->primary->fb->width - x;
 	h = crtc->primary->fb->height - y;
 
-	return sti_layer_prepare(layer, crtc->primary->fb, &crtc->mode,
+	return sti_layer_prepare(layer, crtc,
+			crtc->primary->fb, &crtc->mode,
 			mixer->id, 0, 0, w, h, x, y, w, h);
 }
 
@@ -170,7 +176,8 @@ static int sti_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	w = crtc->primary->fb->width - crtc->x;
 	h = crtc->primary->fb->height - crtc->y;
 
-	ret = sti_layer_prepare(layer, crtc->primary->fb, &crtc->mode,
+	ret = sti_layer_prepare(layer, crtc,
+				crtc->primary->fb, &crtc->mode,
 				mixer->id, 0, 0, w, h,
 				crtc->x, crtc->y, w, h);
 	if (ret) {
@@ -195,7 +202,7 @@ static void sti_drm_crtc_disable(struct drm_crtc *crtc)
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 	struct sti_layer *layer;
 
-	if (!compo->enable)
+	if (!mixer->enabled)
 		return;
 
 	DRM_DEBUG_KMS("CRTC:%d (%s)\n", crtc->base.id, sti_mixer_to_str(mixer));
@@ -221,7 +228,7 @@ static void sti_drm_crtc_disable(struct drm_crtc *crtc)
 	/* Then disable layer itself */
 	sti_layer_disable(layer);
 
-	drm_vblank_off(crtc->dev, mixer->id);
+	drm_crtc_vblank_off(crtc);
 
 	/* Disable pixel clock and compo IP clocks */
 	if (mixer->id == STI_MIXER_MAIN) {
@@ -232,7 +239,7 @@ static void sti_drm_crtc_disable(struct drm_crtc *crtc)
 		clk_disable_unprepare(compo->clk_compo_aux);
 	}
 
-	compo->enable = false;
+	mixer->enabled = false;
 }
 
 static struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
@@ -363,7 +370,6 @@ void sti_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 	struct sti_drm_private *priv = dev->dev_private;
 	struct sti_compositor *compo = priv->compo;
 	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb;
-	unsigned long flags;
 
 	DRM_DEBUG_DRIVER("\n");
 
@@ -372,13 +378,10 @@ void sti_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
 
 	/* free the resources of the pending requests */
-	spin_lock_irqsave(&dev->event_lock, flags);
 	if (compo->mixer[crtc]->pending_event) {
 		drm_vblank_put(dev, crtc);
 		compo->mixer[crtc]->pending_event = NULL;
 	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
 }
 EXPORT_SYMBOL(sti_drm_crtc_disable_vblank);
 
@@ -398,6 +401,7 @@ bool sti_drm_crtc_is_main(struct drm_crtc *crtc)
 
 	return false;
 }
+EXPORT_SYMBOL(sti_drm_crtc_is_main);
 
 int sti_drm_crtc_init(struct drm_device *drm_dev, struct sti_mixer *mixer,
 		struct drm_plane *primary, struct drm_plane *cursor)

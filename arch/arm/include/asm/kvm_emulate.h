@@ -33,6 +33,11 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
 
+static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.hcr = HCR_GUEST_MASK;
+}
+
 static inline bool vcpu_mode_is_32bit(struct kvm_vcpu *vcpu)
 {
 	return 1;
@@ -148,6 +153,11 @@ static inline bool kvm_vcpu_trap_is_iabt(struct kvm_vcpu *vcpu)
 }
 
 static inline u8 kvm_vcpu_trap_get_fault(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC;
+}
+
+static inline u8 kvm_vcpu_trap_get_fault_type(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC_TYPE;
 }

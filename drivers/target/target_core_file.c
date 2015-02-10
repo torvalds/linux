@@ -37,6 +37,7 @@
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
+#include <target/target_core_backend_configfs.h>
 
 #include "target_core_file.h"
 
@@ -415,7 +416,7 @@ fd_execute_sync_cache(struct se_cmd *cmd)
 	} else {
 		start = cmd->t_task_lba * dev->dev_attrib.block_size;
 		if (cmd->data_length)
-			end = start + cmd->data_length;
+			end = start + cmd->data_length - 1;
 		else
 			end = LLONG_MAX;
 	}
@@ -680,7 +681,12 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			struct fd_dev *fd_dev = FD_DEV(dev);
 			loff_t start = cmd->t_task_lba *
 				dev->dev_attrib.block_size;
-			loff_t end = start + cmd->data_length;
+			loff_t end;
+
+			if (cmd->data_length)
+				end = start + cmd->data_length - 1;
+			else
+				end = LLONG_MAX;
 
 			vfs_fsync_range(fd_dev->fd_file, start, end, 1);
 		}
@@ -762,7 +768,9 @@ static ssize_t fd_set_configfs_dev_params(struct se_device *dev,
 			fd_dev->fbd_flags |= FBDF_HAS_SIZE;
 			break;
 		case Opt_fd_buffered_io:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			if (arg != 1) {
 				pr_err("bogus fd_buffered_io=%d value\n", arg);
 				ret = -EINVAL;
@@ -927,6 +935,42 @@ fd_parse_cdb(struct se_cmd *cmd)
 	return sbc_parse_cdb(cmd, &fd_sbc_ops);
 }
 
+DEF_TB_DEFAULT_ATTRIBS(fileio);
+
+static struct configfs_attribute *fileio_backend_dev_attrs[] = {
+	&fileio_dev_attrib_emulate_model_alias.attr,
+	&fileio_dev_attrib_emulate_dpo.attr,
+	&fileio_dev_attrib_emulate_fua_write.attr,
+	&fileio_dev_attrib_emulate_fua_read.attr,
+	&fileio_dev_attrib_emulate_write_cache.attr,
+	&fileio_dev_attrib_emulate_ua_intlck_ctrl.attr,
+	&fileio_dev_attrib_emulate_tas.attr,
+	&fileio_dev_attrib_emulate_tpu.attr,
+	&fileio_dev_attrib_emulate_tpws.attr,
+	&fileio_dev_attrib_emulate_caw.attr,
+	&fileio_dev_attrib_emulate_3pc.attr,
+	&fileio_dev_attrib_pi_prot_type.attr,
+	&fileio_dev_attrib_hw_pi_prot_type.attr,
+	&fileio_dev_attrib_pi_prot_format.attr,
+	&fileio_dev_attrib_enforce_pr_isids.attr,
+	&fileio_dev_attrib_is_nonrot.attr,
+	&fileio_dev_attrib_emulate_rest_reord.attr,
+	&fileio_dev_attrib_force_pr_aptpl.attr,
+	&fileio_dev_attrib_hw_block_size.attr,
+	&fileio_dev_attrib_block_size.attr,
+	&fileio_dev_attrib_hw_max_sectors.attr,
+	&fileio_dev_attrib_fabric_max_sectors.attr,
+	&fileio_dev_attrib_optimal_sectors.attr,
+	&fileio_dev_attrib_hw_queue_depth.attr,
+	&fileio_dev_attrib_queue_depth.attr,
+	&fileio_dev_attrib_max_unmap_lba_count.attr,
+	&fileio_dev_attrib_max_unmap_block_desc_count.attr,
+	&fileio_dev_attrib_unmap_granularity.attr,
+	&fileio_dev_attrib_unmap_granularity_alignment.attr,
+	&fileio_dev_attrib_max_write_same_len.attr,
+	NULL,
+};
+
 static struct se_subsystem_api fileio_template = {
 	.name			= "fileio",
 	.inquiry_prod		= "FILEIO",
@@ -950,6 +994,11 @@ static struct se_subsystem_api fileio_template = {
 
 static int __init fileio_module_init(void)
 {
+	struct target_backend_cits *tbc = &fileio_template.tb_cits;
+
+	target_core_setup_sub_cits(&fileio_template);
+	tbc->tb_dev_attrib_cit.ct_attrs = fileio_backend_dev_attrs;
+
 	return transport_subsystem_register(&fileio_template);
 }
 

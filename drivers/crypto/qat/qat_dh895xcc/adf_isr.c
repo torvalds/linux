@@ -70,9 +70,9 @@ static int adf_enable_msix(struct adf_accel_dev *accel_dev)
 	for (i = 0; i < msix_num_entries; i++)
 		pci_dev_info->msix_entries.entries[i].entry = i;
 
-	if (pci_enable_msix(pci_dev_info->pci_dev,
-			    pci_dev_info->msix_entries.entries,
-			    msix_num_entries)) {
+	if (pci_enable_msix_exact(pci_dev_info->pci_dev,
+				  pci_dev_info->msix_entries.entries,
+				  msix_num_entries)) {
 		pr_err("QAT: Failed to enable MSIX IRQ\n");
 		return -EFAULT;
 	}
@@ -89,7 +89,7 @@ static irqreturn_t adf_msix_isr_bundle(int irq, void *bank_ptr)
 	struct adf_etr_bank_data *bank = bank_ptr;
 
 	WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr, bank->bank_number, 0);
-	tasklet_hi_schedule(&bank->resp_hanlder);
+	tasklet_hi_schedule(&bank->resp_handler);
 	return IRQ_HANDLED;
 }
 
@@ -168,7 +168,7 @@ static int adf_isr_alloc_msix_entry_table(struct adf_accel_dev *accel_dev)
 	uint32_t msix_num_entries = hw_data->num_banks + 1;
 
 	entries = kzalloc_node(msix_num_entries * sizeof(*entries),
-			       GFP_KERNEL, accel_dev->numa_node);
+			       GFP_KERNEL, dev_to_node(&GET_DEV(accel_dev)));
 	if (!entries)
 		return -ENOMEM;
 
@@ -186,10 +186,8 @@ static int adf_isr_alloc_msix_entry_table(struct adf_accel_dev *accel_dev)
 	accel_dev->accel_pci_dev.msix_entries.names = names;
 	return 0;
 err:
-	for (i = 0; i < msix_num_entries; i++) {
-		if (*(names + i))
-			kfree(*(names + i));
-	}
+	for (i = 0; i < msix_num_entries; i++)
+		kfree(*(names + i));
 	kfree(entries);
 	kfree(names);
 	return -ENOMEM;
@@ -203,10 +201,8 @@ static void adf_isr_free_msix_entry_table(struct adf_accel_dev *accel_dev)
 	int i;
 
 	kfree(accel_dev->accel_pci_dev.msix_entries.entries);
-	for (i = 0; i < msix_num_entries; i++) {
-		if (*(names + i))
-			kfree(*(names + i));
-	}
+	for (i = 0; i < msix_num_entries; i++)
+		kfree(*(names + i));
 	kfree(names);
 }
 
@@ -217,7 +213,7 @@ static int adf_setup_bh(struct adf_accel_dev *accel_dev)
 	int i;
 
 	for (i = 0; i < hw_data->num_banks; i++)
-		tasklet_init(&priv_data->banks[i].resp_hanlder,
+		tasklet_init(&priv_data->banks[i].resp_handler,
 			     adf_response_handler,
 			     (unsigned long)&priv_data->banks[i]);
 	return 0;
@@ -230,8 +226,8 @@ static void adf_cleanup_bh(struct adf_accel_dev *accel_dev)
 	int i;
 
 	for (i = 0; i < hw_data->num_banks; i++) {
-		tasklet_disable(&priv_data->banks[i].resp_hanlder);
-		tasklet_kill(&priv_data->banks[i].resp_hanlder);
+		tasklet_disable(&priv_data->banks[i].resp_handler);
+		tasklet_kill(&priv_data->banks[i].resp_handler);
 	}
 }
 

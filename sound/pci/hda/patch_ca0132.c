@@ -2417,7 +2417,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
  * @reloc: Relocation address for loading single-segment overlays, or 0 for
  *	   no relocation
  * @sample_rate: sampling rate of the stream used for DSP download
- * @number_channels: channels of the stream used for DSP download
+ * @channels: channels of the stream used for DSP download
  * @ovly: TRUE if overlay format is required
  *
  * Returns zero or a negative error code.
@@ -2556,10 +2556,7 @@ static void dspload_post_setup(struct hda_codec *codec)
 }
 
 /**
- * Download DSP from a DSP Image Fast Load structure. This structure is a
- * linear, non-constant sized element array of structures, each of which
- * contain the count of the data to be loaded, the data itself, and the
- * corresponding starting chip address of the starting data location.
+ * dspload_image - Download DSP from a DSP Image Fast Load structure.
  *
  * @codec: the HDA codec
  * @fls: pointer to a fast load image
@@ -2570,6 +2567,10 @@ static void dspload_post_setup(struct hda_codec *codec)
  * @router_chans: number of audio router channels to be allocated (0 means use
  *		  internal defaults; max is 32)
  *
+ * Download DSP from a DSP Image Fast Load structure. This structure is a
+ * linear, non-constant sized element array of structures, each of which
+ * contain the count of the data to be loaded, the data itself, and the
+ * corresponding starting chip address of the starting data location.
  * Returns zero or a negative error code.
  */
 static int dspload_image(struct hda_codec *codec,
@@ -3224,8 +3225,14 @@ static void ca0132_unsol_hp_delayed(struct work_struct *work)
 {
 	struct ca0132_spec *spec = container_of(
 		to_delayed_work(work), struct ca0132_spec, unsol_hp_work);
+	struct hda_jack_tbl *jack;
+
 	ca0132_select_out(spec->codec);
-	snd_hda_jack_report_sync(spec->codec);
+	jack = snd_hda_jack_tbl_get(spec->codec, UNSOL_TAG_HP);
+	if (jack) {
+		jack->block_report = 0;
+		snd_hda_jack_report_sync(spec->codec);
+	}
 }
 
 static void ca0132_set_dmic(struct hda_codec *codec, int enable);
@@ -4114,12 +4121,6 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
 	}
 }
 
-static void ca0132_init_unsol(struct hda_codec *codec)
-{
-	snd_hda_jack_detect_enable(codec, UNSOL_TAG_HP, UNSOL_TAG_HP);
-	snd_hda_jack_detect_enable(codec, UNSOL_TAG_AMIC1, UNSOL_TAG_AMIC1);
-}
-
 static void refresh_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir)
 {
 	unsigned int caps;
@@ -4390,7 +4391,8 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 		ca0132_set_dsp_msr(codec, true);
 }
 
-static void ca0132_process_dsp_response(struct hda_codec *codec)
+static void ca0132_process_dsp_response(struct hda_codec *codec,
+					struct hda_jack_callback *callback)
 {
 	struct ca0132_spec *spec = codec->spec;
 
@@ -4403,36 +4405,31 @@ static void ca0132_process_dsp_response(struct hda_codec *codec)
 	dspio_clear_response_queue(codec);
 }
 
-static void ca0132_unsol_event(struct hda_codec *codec, unsigned int res)
+static void hp_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (((res >> AC_UNSOL_RES_TAG_SHIFT) & 0x3f) == UNSOL_TAG_DSP) {
-		ca0132_process_dsp_response(codec);
-	} else {
-		res = snd_hda_jack_get_action(codec,
-				(res >> AC_UNSOL_RES_TAG_SHIFT) & 0x3f);
+	/* Delay enabling the HP amp, to let the mic-detection
+	 * state machine run.
+	 */
+	cancel_delayed_work_sync(&spec->unsol_hp_work);
+	queue_delayed_work(codec->bus->workq, &spec->unsol_hp_work,
+			   msecs_to_jiffies(500));
+	cb->tbl->block_report = 1;
+}
 
-		codec_dbg(codec, "snd_hda_jack_get_action: 0x%x\n", res);
+static void amic_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
+{
+	ca0132_select_mic(codec);
+}
 
-		switch (res) {
-		case UNSOL_TAG_HP:
-			/* Delay enabling the HP amp, to let the mic-detection
-			 * state machine run.
-			 */
-			cancel_delayed_work_sync(&spec->unsol_hp_work);
-			queue_delayed_work(codec->bus->workq,
-					   &spec->unsol_hp_work,
-					   msecs_to_jiffies(500));
-			break;
-		case UNSOL_TAG_AMIC1:
-			ca0132_select_mic(codec);
-			snd_hda_jack_report_sync(codec);
-			break;
-		default:
-			break;
-		}
-	}
+static void ca0132_init_unsol(struct hda_codec *codec)
+{
+	snd_hda_jack_detect_enable_callback(codec, UNSOL_TAG_HP, hp_callback);
+	snd_hda_jack_detect_enable_callback(codec, UNSOL_TAG_AMIC1,
+					    amic_callback);
+	snd_hda_jack_detect_enable_callback(codec, UNSOL_TAG_DSP,
+					    ca0132_process_dsp_response);
 }
 
 /*
@@ -4443,8 +4440,6 @@ static void ca0132_unsol_event(struct hda_codec *codec, unsigned int res)
 static struct hda_verb ca0132_base_init_verbs[] = {
 	/*enable ct extension*/
 	{0x15, VENDOR_CHIPIO_CT_EXTENSIONS_ENABLE, 0x1},
-	/*enable DSP node unsol, needed for DSP download*/
-	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | UNSOL_TAG_DSP},
 	{}
 };
 
@@ -4561,6 +4556,8 @@ static int ca0132_init(struct hda_codec *codec)
 
 	snd_hda_power_up(codec);
 
+	ca0132_init_unsol(codec);
+
 	ca0132_init_params(codec);
 	ca0132_init_flags(codec);
 	snd_hda_sequence_write(codec, spec->base_init_verbs);
@@ -4582,8 +4579,6 @@ static int ca0132_init(struct hda_codec *codec)
 
 	for (i = 0; i < spec->num_init_verbs; i++)
 		snd_hda_sequence_write(codec, spec->init_verbs[i]);
-
-	ca0132_init_unsol(codec);
 
 	ca0132_select_out(codec);
 	ca0132_select_mic(codec);
@@ -4612,7 +4607,7 @@ static struct hda_codec_ops ca0132_patch_ops = {
 	.build_pcms = ca0132_build_pcms,
 	.init = ca0132_init,
 	.free = ca0132_free,
-	.unsol_event = ca0132_unsol_event,
+	.unsol_event = snd_hda_jack_unsol_event,
 };
 
 static void ca0132_config(struct hda_codec *codec)

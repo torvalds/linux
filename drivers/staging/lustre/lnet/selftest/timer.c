@@ -121,7 +121,7 @@ stt_del_timer(stt_timer_t *timer)
 }
 
 /* called with stt_data.stt_lock held */
-int
+static int
 stt_expire_list(struct list_head *slot, unsigned long now)
 {
 	int	  expired = 0;
@@ -145,7 +145,7 @@ stt_expire_list(struct list_head *slot, unsigned long now)
 	return expired;
 }
 
-int
+static int
 stt_check_timers(unsigned long *last)
 {
 	int	expired = 0;
@@ -168,7 +168,7 @@ stt_check_timers(unsigned long *last)
 }
 
 
-int
+static int
 stt_timer_main(void *arg)
 {
 	cfs_block_allsigs();
@@ -187,7 +187,7 @@ stt_timer_main(void *arg)
 	return 0;
 }
 
-int
+static int
 stt_start_timer_thread(void)
 {
 	struct task_struct *task;

@@ -376,8 +376,8 @@ static unsigned int hhf_drop(struct Qdisc *sch)
 		struct sk_buff *skb = dequeue_head(bucket);
 
 		sch->q.qlen--;
-		sch->qstats.drops++;
-		sch->qstats.backlog -= qdisc_pkt_len(skb);
+		qdisc_qstats_drop(sch);
+		qdisc_qstats_backlog_dec(sch, skb);
 		kfree_skb(skb);
 	}
 
@@ -395,7 +395,7 @@ static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	bucket = &q->buckets[idx];
 	bucket_add(bucket, skb);
-	sch->qstats.backlog += qdisc_pkt_len(skb);
+	qdisc_qstats_backlog_inc(sch, skb);
 
 	if (list_empty(&bucket->bucketchain)) {
 		unsigned int weight;
@@ -457,7 +457,7 @@ begin:
 	if (bucket->head) {
 		skb = dequeue_head(bucket);
 		sch->q.qlen--;
-		sch->qstats.backlog -= qdisc_pkt_len(skb);
+		qdisc_qstats_backlog_dec(sch, skb);
 	}
 
 	if (!skb) {

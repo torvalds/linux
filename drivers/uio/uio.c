@@ -28,18 +28,6 @@
 
 #define UIO_MAX_DEVICES		(1U << MINORBITS)
 
-struct uio_device {
-	struct module		*owner;
-	struct device		*dev;
-	int			minor;
-	atomic_t		event;
-	struct fasync_struct	*async_queue;
-	wait_queue_head_t	wait;
-	struct uio_info		*info;
-	struct kobject		*map_dir;
-	struct kobject		*portio_dir;
-};
-
 static int uio_major;
 static struct cdev *uio_cdev;
 static DEFINE_IDR(uio_idr);
@@ -68,12 +56,12 @@ static ssize_t map_name_show(struct uio_mem *mem, char *buf)
 
 static ssize_t map_addr_show(struct uio_mem *mem, char *buf)
 {
-	return sprintf(buf, "0x%llx\n", (unsigned long long)mem->addr);
+	return sprintf(buf, "%pa\n", &mem->addr);
 }
 
 static ssize_t map_size_show(struct uio_mem *mem, char *buf)
 {
-	return sprintf(buf, "0x%lx\n", mem->size);
+	return sprintf(buf, "%pa\n", &mem->size);
 }
 
 static ssize_t map_offset_show(struct uio_mem *mem, char *buf)

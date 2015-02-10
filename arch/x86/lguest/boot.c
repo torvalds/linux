@@ -841,7 +841,7 @@ static void __init lguest_init_IRQ(void)
 {
 	unsigned int i;
 
-	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
+	for (i = FIRST_EXTERNAL_VECTOR; i < FIRST_SYSTEM_VECTOR; i++) {
 		/* Some systems map "vectors" to interrupts weirdly.  Not us! */
 		__this_cpu_write(vector_irq[i], i - FIRST_EXTERNAL_VECTOR);
 		if (i != SYSCALL_VECTOR)

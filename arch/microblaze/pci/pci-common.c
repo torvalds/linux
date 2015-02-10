@@ -660,8 +660,13 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			res = &hose->mem_resources[memno++];
 			break;
 		}
-		if (res != NULL)
-			of_pci_range_to_resource(&range, dev, res);
+		if (res != NULL) {
+			res->name = dev->full_name;
+			res->flags = range.flags;
+			res->start = range.cpu_addr;
+			res->end = range.cpu_addr + range.size - 1;
+			res->parent = res->child = res->sibling = NULL;
+		}
 	}
 
 	/* If there's an ISA hole and the pci_mem_offset is -not- matching

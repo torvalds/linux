@@ -2,7 +2,7 @@
  * Scsi Host Layer for MPT (Message Passing Technology) based controllers
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_scsih.c
- * Copyright (C) 2007-2013  LSI Corporation
+ * Copyright (C) 2007-2014  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -54,6 +54,8 @@
 #include <linux/aer.h>
 #include <linux/raid_class.h>
 #include <linux/slab.h>
+
+#include <asm/unaligned.h>
 
 #include "mpt2sas_base.h"
 
@@ -145,7 +147,7 @@ struct sense_info {
 };
 
 
-#define MPT2SAS_TURN_ON_FAULT_LED (0xFFFC)
+#define MPT2SAS_TURN_ON_PFA_LED (0xFFFC)
 #define MPT2SAS_PORT_ENABLE_COMPLETE (0xFFFD)
 #define MPT2SAS_REMOVE_UNRESPONDING_DEVICES (0xFFFF)
 /**
@@ -1177,15 +1179,14 @@ _scsih_build_scatter_gather(struct MPT2SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_adjust_queue_depth - setting device queue depth
+ * _scsih_change_queue_depth - setting device queue depth
  * @sdev: scsi device struct
  * @qdepth: requested queue depth
  *
- *
- * Returns nothing
+ * Returns queue depth.
  */
-static void
-_scsih_adjust_queue_depth(struct scsi_device *sdev, int qdepth)
+static int
+_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	struct Scsi_Host *shost = sdev->host;
 	int max_depth;
@@ -1215,63 +1216,11 @@ _scsih_adjust_queue_depth(struct scsi_device *sdev, int qdepth)
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
  not_sata:
-
 	if (!sdev->tagged_supported)
 		max_depth = 1;
 	if (qdepth > max_depth)
 		qdepth = max_depth;
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
-}
-
-/**
- * _scsih_change_queue_depth - setting device queue depth
- * @sdev: scsi device struct
- * @qdepth: requested queue depth
- * @reason: SCSI_QDEPTH_DEFAULT/SCSI_QDEPTH_QFULL/SCSI_QDEPTH_RAMP_UP
- * (see include/scsi/scsi_host.h for definition)
- *
- * Returns queue depth.
- */
-static int
-_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
-{
-	if (reason == SCSI_QDEPTH_DEFAULT || reason == SCSI_QDEPTH_RAMP_UP)
-		_scsih_adjust_queue_depth(sdev, qdepth);
-	else if (reason == SCSI_QDEPTH_QFULL)
-		scsi_track_queue_full(sdev, qdepth);
-	else
-		return -EOPNOTSUPP;
-
-	if (sdev->inquiry_len > 7)
-		sdev_printk(KERN_INFO, sdev, "qdepth(%d), tagged(%d), "
-		"simple(%d), ordered(%d), scsi_level(%d), cmd_que(%d)\n",
-		sdev->queue_depth, sdev->tagged_supported, sdev->simple_tags,
-		sdev->ordered_tags, sdev->scsi_level,
-		(sdev->inquiry[7] & 2) >> 1);
-
-	return sdev->queue_depth;
-}
-
-/**
- * _scsih_change_queue_type - changing device queue tag type
- * @sdev: scsi device struct
- * @tag_type: requested tag type
- *
- * Returns queue tag type.
- */
-static int
-_scsih_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag_type);
-		if (tag_type)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag_type = 0;
-
-	return tag_type;
+	return scsi_change_queue_depth(sdev, qdepth);
 }
 
 /**
@@ -2102,7 +2051,7 @@ _scsih_slave_configure(struct scsi_device *sdev)
 			    r_level, raid_device->handle,
 			    (unsigned long long)raid_device->wwid,
 			    raid_device->num_pds, ds);
-		_scsih_change_queue_depth(sdev, qdepth, SCSI_QDEPTH_DEFAULT);
+		_scsih_change_queue_depth(sdev, qdepth);
 		/* raid transport support */
 		if (!ioc->is_warpdrive)
 			_scsih_set_level(sdev, raid_device->volume_type);
@@ -2167,7 +2116,7 @@ _scsih_slave_configure(struct scsi_device *sdev)
 		_scsih_display_sata_capabilities(ioc, handle, sdev);
 
 
-	_scsih_change_queue_depth(sdev, qdepth, SCSI_QDEPTH_DEFAULT);
+	_scsih_change_queue_depth(sdev, qdepth);
 
 	if (ssp_target) {
 		sas_read_port_mode_page(sdev);
@@ -3858,85 +3807,46 @@ _scsih_setup_direct_io(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	struct _raid_device *raid_device, Mpi2SCSIIORequest_t *mpi_request,
 	u16 smid)
 {
-	u32 v_lba, p_lba, stripe_off, stripe_unit, column, io_size;
+	sector_t v_lba, p_lba, stripe_off, column, io_size;
 	u32 stripe_sz, stripe_exp;
-	u8 num_pds, *cdb_ptr, i;
-	u8 cdb0 = scmd->cmnd[0];
-	u64 v_llba;
+	u8 num_pds, cmd = scmd->cmnd[0];
 
-	/*
-	 * Try Direct I/O to RAID memeber disks
-	 */
-	if (cdb0 == READ_16 || cdb0 == READ_10 ||
-	    cdb0 == WRITE_16 || cdb0 == WRITE_10) {
-		cdb_ptr = mpi_request->CDB.CDB32;
+	if (cmd != READ_10 && cmd != WRITE_10 &&
+	    cmd != READ_16 && cmd != WRITE_16)
+		return;
 
-		if ((cdb0 < READ_16) || !(cdb_ptr[2] | cdb_ptr[3] | cdb_ptr[4]
-			| cdb_ptr[5])) {
-			io_size = scsi_bufflen(scmd) >>
-			    raid_device->block_exponent;
-			i = (cdb0 < READ_16) ? 2 : 6;
-			/* get virtual lba */
-			v_lba = be32_to_cpu(*(__be32 *)(&cdb_ptr[i]));
+	if (cmd == READ_10 || cmd == WRITE_10)
+		v_lba = get_unaligned_be32(&mpi_request->CDB.CDB32[2]);
+	else
+		v_lba = get_unaligned_be64(&mpi_request->CDB.CDB32[2]);
 
-			if (((u64)v_lba + (u64)io_size - 1) <=
-			    (u32)raid_device->max_lba) {
-				stripe_sz = raid_device->stripe_sz;
-				stripe_exp = raid_device->stripe_exponent;
-				stripe_off = v_lba & (stripe_sz - 1);
+	io_size = scsi_bufflen(scmd) >> raid_device->block_exponent;
 
-				/* Check whether IO falls within a stripe */
-				if ((stripe_off + io_size) <= stripe_sz) {
-					num_pds = raid_device->num_pds;
-					p_lba = v_lba >> stripe_exp;
-					stripe_unit = p_lba / num_pds;
-					column = p_lba % num_pds;
-					p_lba = (stripe_unit << stripe_exp) +
-					    stripe_off;
-					mpi_request->DevHandle =
-						cpu_to_le16(raid_device->
-						    pd_handle[column]);
-					(*(__be32 *)(&cdb_ptr[i])) =
-						cpu_to_be32(p_lba);
-					/*
-					* WD: To indicate this I/O is directI/O
-					*/
-					_scsih_scsi_direct_io_set(ioc, smid, 1);
-				}
-			}
-		} else {
-			io_size = scsi_bufflen(scmd) >>
-			    raid_device->block_exponent;
-			/* get virtual lba */
-			v_llba = be64_to_cpu(*(__be64 *)(&cdb_ptr[2]));
+	if (v_lba + io_size - 1 > raid_device->max_lba)
+		return;
 
-			if ((v_llba + (u64)io_size - 1) <=
-			    raid_device->max_lba) {
-				stripe_sz = raid_device->stripe_sz;
-				stripe_exp = raid_device->stripe_exponent;
-				stripe_off = (u32) (v_llba & (stripe_sz - 1));
+	stripe_sz = raid_device->stripe_sz;
+	stripe_exp = raid_device->stripe_exponent;
+	stripe_off = v_lba & (stripe_sz - 1);
 
-				/* Check whether IO falls within a stripe */
-				if ((stripe_off + io_size) <= stripe_sz) {
-					num_pds = raid_device->num_pds;
-					p_lba = (u32)(v_llba >> stripe_exp);
-					stripe_unit = p_lba / num_pds;
-					column = p_lba % num_pds;
-					p_lba = (stripe_unit << stripe_exp) +
-					    stripe_off;
-					mpi_request->DevHandle =
-						cpu_to_le16(raid_device->
-						    pd_handle[column]);
-					(*(__be64 *)(&cdb_ptr[2])) =
-					    cpu_to_be64((u64)p_lba);
-					/*
-					* WD: To indicate this I/O is directI/O
-					*/
-					_scsih_scsi_direct_io_set(ioc, smid, 1);
-				}
-			}
-		}
-	}
+	/* Return unless IO falls within a stripe */
+	if (stripe_off + io_size > stripe_sz)
+		return;
+
+	num_pds = raid_device->num_pds;
+	p_lba = v_lba >> stripe_exp;
+	column = sector_div(p_lba, num_pds);
+	p_lba = (p_lba << stripe_exp) + stripe_off;
+
+	mpi_request->DevHandle = cpu_to_le16(raid_device->pd_handle[column]);
+
+	if (cmd == READ_10 || cmd == WRITE_10)
+		put_unaligned_be32(lower_32_bits(p_lba),
+				   &mpi_request->CDB.CDB32[2]);
+	else
+		put_unaligned_be64(p_lba, &mpi_request->CDB.CDB32[2]);
+
+	_scsih_scsi_direct_io_set(ioc, smid, 1);
 }
 
 /**
@@ -4003,16 +3913,8 @@ _scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 		mpi_control = MPI2_SCSIIO_CONTROL_NODATATRANSFER;
 
 	/* set tags */
-	if (!(sas_device_priv_data->flags & MPT_DEVICE_FLAGS_INIT)) {
-		if (scmd->device->tagged_supported) {
-			if (scmd->device->ordered_tags)
-				mpi_control |= MPI2_SCSIIO_CONTROL_ORDEREDQ;
-			else
-				mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
-		} else
-			mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
-	} else
-		mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
+	mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
+
 	/* Make sure Device is not raid volume.
 	 * We do not expose raid functionality to upper layer for warpdrive.
 	 */
@@ -4308,7 +4210,7 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 #endif
 
 /**
- * _scsih_turn_on_fault_led - illuminate Fault LED
+ * _scsih_turn_on_pfa_led - illuminate PFA LED
  * @ioc: per adapter object
  * @handle: device handle
  * Context: process
@@ -4316,10 +4218,15 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
  * Return nothing.
  */
 static void
-_scsih_turn_on_fault_led(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+_scsih_turn_on_pfa_led(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 {
 	Mpi2SepReply_t mpi_reply;
 	Mpi2SepRequest_t mpi_request;
+	struct _sas_device *sas_device;
+
+	sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
+	if (!sas_device)
+		return;
 
 	memset(&mpi_request, 0, sizeof(Mpi2SepRequest_t));
 	mpi_request.Function = MPI2_FUNCTION_SCSI_ENCLOSURE_PROCESSOR;
@@ -4328,6 +4235,47 @@ _scsih_turn_on_fault_led(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	    cpu_to_le32(MPI2_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT);
 	mpi_request.DevHandle = cpu_to_le16(handle);
 	mpi_request.Flags = MPI2_SEP_REQ_FLAGS_DEVHANDLE_ADDRESS;
+	if ((mpt2sas_base_scsi_enclosure_processor(ioc, &mpi_reply,
+	    &mpi_request)) != 0) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n", ioc->name,
+		__FILE__, __LINE__, __func__);
+		return;
+	}
+	sas_device->pfa_led_on = 1;
+
+
+	if (mpi_reply.IOCStatus || mpi_reply.IOCLogInfo) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
+		 "enclosure_processor: ioc_status (0x%04x), loginfo(0x%08x)\n",
+		 ioc->name, le16_to_cpu(mpi_reply.IOCStatus),
+		 le32_to_cpu(mpi_reply.IOCLogInfo)));
+		return;
+	}
+}
+
+/**
+ * _scsih_turn_off_pfa_led - turn off PFA LED
+ * @ioc: per adapter object
+ * @sas_device: sas device whose PFA LED has to turned off
+ * Context: process
+ *
+ * Return nothing.
+ */
+static void
+_scsih_turn_off_pfa_led(struct MPT2SAS_ADAPTER *ioc,
+	struct _sas_device *sas_device)
+{
+	Mpi2SepReply_t mpi_reply;
+	Mpi2SepRequest_t mpi_request;
+
+	memset(&mpi_request, 0, sizeof(Mpi2SepRequest_t));
+	mpi_request.Function = MPI2_FUNCTION_SCSI_ENCLOSURE_PROCESSOR;
+	mpi_request.Action = MPI2_SEP_REQ_ACTION_WRITE_STATUS;
+	mpi_request.SlotStatus = 0;
+	mpi_request.Slot = cpu_to_le16(sas_device->slot);
+	mpi_request.DevHandle = 0;
+	mpi_request.EnclosureHandle = cpu_to_le16(sas_device->enclosure_handle);
+	mpi_request.Flags = MPI2_SEP_REQ_FLAGS_ENCLOSURE_SLOT_ADDRESS;
 	if ((mpt2sas_base_scsi_enclosure_processor(ioc, &mpi_reply,
 	    &mpi_request)) != 0) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n", ioc->name,
@@ -4345,7 +4293,7 @@ _scsih_turn_on_fault_led(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 }
 
 /**
- * _scsih_send_event_to_turn_on_fault_led - fire delayed event
+ * _scsih_send_event_to_turn_on_pfa_led - fire delayed event
  * @ioc: per adapter object
  * @handle: device handle
  * Context: interrupt.
@@ -4353,14 +4301,14 @@ _scsih_turn_on_fault_led(struct MPT2SAS_ADAPTER *ioc, u16 handle)
  * Return nothing.
  */
 static void
-_scsih_send_event_to_turn_on_fault_led(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+_scsih_send_event_to_turn_on_pfa_led(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 {
 	struct fw_event_work *fw_event;
 
 	fw_event = kzalloc(sizeof(struct fw_event_work), GFP_ATOMIC);
 	if (!fw_event)
 		return;
-	fw_event->event = MPT2SAS_TURN_ON_FAULT_LED;
+	fw_event->event = MPT2SAS_TURN_ON_PFA_LED;
 	fw_event->device_handle = handle;
 	fw_event->ioc = ioc;
 	_scsih_fw_event_add(ioc, fw_event);
@@ -4404,7 +4352,7 @@ _scsih_smart_predicted_fault(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
 	if (ioc->pdev->subsystem_vendor == PCI_VENDOR_ID_IBM)
-		_scsih_send_event_to_turn_on_fault_led(ioc, handle);
+		_scsih_send_event_to_turn_on_pfa_led(ioc, handle);
 
 	/* insert into event log */
 	sz = offsetof(Mpi2EventNotificationReply_t, EventData) +
@@ -5324,6 +5272,12 @@ _scsih_remove_device(struct MPT2SAS_ADAPTER *ioc,
     struct _sas_device *sas_device)
 {
 	struct MPT2SAS_TARGET *sas_target_priv_data;
+
+	if ((ioc->pdev->subsystem_vendor == PCI_VENDOR_ID_IBM) &&
+		(sas_device->pfa_led_on)) {
+		_scsih_turn_off_pfa_led(ioc, sas_device);
+		sas_device->pfa_led_on = 0;
+	}
 
 	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter: "
 	    "handle(0x%04x), sas_addr(0x%016llx)\n", ioc->name, __func__,
@@ -7441,8 +7395,8 @@ _firmware_event_work(struct work_struct *work)
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "port enable: complete "
 		    "from worker thread\n", ioc->name));
 		break;
-	case MPT2SAS_TURN_ON_FAULT_LED:
-		_scsih_turn_on_fault_led(ioc, fw_event->device_handle);
+	case MPT2SAS_TURN_ON_PFA_LED:
+		_scsih_turn_on_pfa_led(ioc, fw_event->device_handle);
 		break;
 	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
 		_scsih_sas_topology_change_event(ioc, fw_event);
@@ -7638,7 +7592,6 @@ static struct scsi_host_template scsih_driver_template = {
 	.scan_finished			= _scsih_scan_finished,
 	.scan_start			= _scsih_scan_start,
 	.change_queue_depth 		= _scsih_change_queue_depth,
-	.change_queue_type		= _scsih_change_queue_type,
 	.eh_abort_handler		= _scsih_abort,
 	.eh_device_reset_handler	= _scsih_dev_reset,
 	.eh_target_reset_handler	= _scsih_target_reset,
@@ -7652,6 +7605,7 @@ static struct scsi_host_template scsih_driver_template = {
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= mpt2sas_host_attrs,
 	.sdev_attrs			= mpt2sas_dev_attrs,
+	.track_queue_depth		= 1,
 };
 
 /**
@@ -8132,6 +8086,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct MPT2SAS_ADAPTER *ioc;
 	struct Scsi_Host *shost;
+	int rv;
 
 	shost = scsi_host_alloc(&scsih_driver_template,
 	    sizeof(struct MPT2SAS_ADAPTER));
@@ -8227,6 +8182,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!ioc->firmware_event_thread) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
+		rv = -ENODEV;
 		goto out_thread_fail;
 	}
 
@@ -8234,6 +8190,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if ((mpt2sas_base_attach(ioc))) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
+		rv = -ENODEV;
 		goto out_attach_fail;
 	}
 
@@ -8251,7 +8208,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	} else
 		ioc->hide_drives = 0;
 
-	if ((scsi_add_host(shost, &pdev->dev))) {
+	rv = scsi_add_host(shost, &pdev->dev);
+	if (rv) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
 		goto out_add_shost_fail;
@@ -8268,7 +8226,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
  out_thread_fail:
 	list_del(&ioc->list);
 	scsi_host_put(shost);
-	return -ENODEV;
+	return rv;
 }
 
 #ifdef CONFIG_PM

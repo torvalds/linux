@@ -49,11 +49,11 @@
 
 #include <linux/highmem.h>
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 static const char transfertypes[][12] = {
 	"pure inline",	/* no chunks */
 	" read chunk",	/* some argument via rdma read */

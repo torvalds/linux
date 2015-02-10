@@ -443,6 +443,9 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (attr->ia_valid & ATTR_SIZE) {
+		error = fat_block_truncate_page(inode, attr->ia_size);
+		if (error)
+			goto out;
 		down_write(&MSDOS_I(inode)->truncate_lock);
 		truncate_setsize(inode, attr->ia_size);
 		fat_truncate_blocks(inode, attr->ia_size);

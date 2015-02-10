@@ -19,6 +19,7 @@
 #define __ASM_CMPXCHG_H
 
 #include <linux/bug.h>
+#include <linux/mmdebug.h>
 
 #include <asm/barrier.h>
 
@@ -152,6 +153,51 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	return oldval;
 }
 
+#define system_has_cmpxchg_double()     1
+
+static inline int __cmpxchg_double(volatile void *ptr1, volatile void *ptr2,
+		unsigned long old1, unsigned long old2,
+		unsigned long new1, unsigned long new2, int size)
+{
+	unsigned long loop, lost;
+
+	switch (size) {
+	case 8:
+		VM_BUG_ON((unsigned long *)ptr2 - (unsigned long *)ptr1 != 1);
+		do {
+			asm volatile("// __cmpxchg_double8\n"
+			"	ldxp	%0, %1, %2\n"
+			"	eor	%0, %0, %3\n"
+			"	eor	%1, %1, %4\n"
+			"	orr	%1, %0, %1\n"
+			"	mov	%w0, #0\n"
+			"	cbnz	%1, 1f\n"
+			"	stxp	%w0, %5, %6, %2\n"
+			"1:\n"
+				: "=&r"(loop), "=&r"(lost), "+Q" (*(u64 *)ptr1)
+				: "r" (old1), "r"(old2), "r"(new1), "r"(new2));
+		} while (loop);
+		break;
+	default:
+		BUILD_BUG();
+	}
+
+	return !lost;
+}
+
+static inline int __cmpxchg_double_mb(volatile void *ptr1, volatile void *ptr2,
+			unsigned long old1, unsigned long old2,
+			unsigned long new1, unsigned long new2, int size)
+{
+	int ret;
+
+	smp_mb();
+	ret = __cmpxchg_double(ptr1, ptr2, old1, old2, new1, new2, size);
+	smp_mb();
+
+	return ret;
+}
+
 static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
 					 unsigned long new, int size)
 {
@@ -181,6 +227,33 @@ static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
 			  (unsigned long)(n), sizeof(*(ptr))); \
 	__ret; \
 })
+
+#define cmpxchg_double(ptr1, ptr2, o1, o2, n1, n2) \
+({\
+	int __ret;\
+	__ret = __cmpxchg_double_mb((ptr1), (ptr2), (unsigned long)(o1), \
+			(unsigned long)(o2), (unsigned long)(n1), \
+			(unsigned long)(n2), sizeof(*(ptr1)));\
+	__ret; \
+})
+
+#define cmpxchg_double_local(ptr1, ptr2, o1, o2, n1, n2) \
+({\
+	int __ret;\
+	__ret = __cmpxchg_double((ptr1), (ptr2), (unsigned long)(o1), \
+			(unsigned long)(o2), (unsigned long)(n1), \
+			(unsigned long)(n2), sizeof(*(ptr1)));\
+	__ret; \
+})
+
+#define this_cpu_cmpxchg_1(ptr, o, n) cmpxchg_local(raw_cpu_ptr(&(ptr)), o, n)
+#define this_cpu_cmpxchg_2(ptr, o, n) cmpxchg_local(raw_cpu_ptr(&(ptr)), o, n)
+#define this_cpu_cmpxchg_4(ptr, o, n) cmpxchg_local(raw_cpu_ptr(&(ptr)), o, n)
+#define this_cpu_cmpxchg_8(ptr, o, n) cmpxchg_local(raw_cpu_ptr(&(ptr)), o, n)
+
+#define this_cpu_cmpxchg_double_8(ptr1, ptr2, o1, o2, n1, n2) \
+	cmpxchg_double_local(raw_cpu_ptr(&(ptr1)), raw_cpu_ptr(&(ptr2)), \
+				o1, o2, n1, n2)
 
 #define cmpxchg64(ptr,o,n)		cmpxchg((ptr),(o),(n))
 #define cmpxchg64_local(ptr,o,n)	cmpxchg_local((ptr),(o),(n))

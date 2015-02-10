@@ -18,6 +18,8 @@
 #include <linux/pfn.h>
 #include <linux/bit_spinlock.h>
 #include <linux/shrinker.h>
+#include <linux/resource.h>
+#include <linux/page_ext.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -53,6 +55,17 @@ extern int sysctl_legacy_va_layout;
 
 #ifndef __pa_symbol
 #define __pa_symbol(x)  __pa(RELOC_HIDE((unsigned long)(x), 0))
+#endif
+
+/*
+ * To prevent common memory management code establishing
+ * a zero page mapping on a read fault.
+ * This macro should be defined within <asm/pgtable.h>.
+ * s390 does this to prevent multiplexing of hardware bits
+ * related to the physical page in case of virtualization.
+ */
+#ifndef mm_forbids_zeropage
+#define mm_forbids_zeropage(X)	(0)
 #endif
 
 extern unsigned long sysctl_user_reserve_kbytes;
@@ -127,6 +140,7 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
 #define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
 #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
+#define VM_ARCH_2	0x02000000
 #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
@@ -152,6 +166,11 @@ extern unsigned int kobjsize(const void *objp);
 # define VM_GROWSUP	VM_ARCH_1
 #elif !defined(CONFIG_MMU)
 # define VM_MAPPED_COPY	VM_ARCH_1	/* T if mapped copy of data (nommu mmap) */
+#endif
+
+#if defined(CONFIG_X86)
+/* MPX specific bounds table or bounds directory */
+# define VM_MPX		VM_ARCH_2
 #endif
 
 #ifndef VM_GROWSUP
@@ -267,8 +286,6 @@ struct vm_operations_struct {
 	 */
 	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
 					unsigned long addr);
-	int (*migrate)(struct vm_area_struct *vma, const nodemask_t *from,
-		const nodemask_t *to, unsigned long flags);
 #endif
 	/* called by sys_remap_file_pages() to populate non-linear mapping */
 	int (*remap_pages)(struct vm_area_struct *vma, unsigned long addr,
@@ -346,6 +363,7 @@ static inline int put_page_unless_one(struct page *page)
 }
 
 extern int page_is_ram(unsigned long pfn);
+extern int region_is_ram(resource_size_t phys_addr, unsigned long size);
 
 /* Support for virtually mapped pages */
 struct page *vmalloc_to_page(const void *addr);
@@ -550,6 +568,25 @@ static inline void __SetPageBuddy(struct page *page)
 static inline void __ClearPageBuddy(struct page *page)
 {
 	VM_BUG_ON_PAGE(!PageBuddy(page), page);
+	atomic_set(&page->_mapcount, -1);
+}
+
+#define PAGE_BALLOON_MAPCOUNT_VALUE (-256)
+
+static inline int PageBalloon(struct page *page)
+{
+	return atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE;
+}
+
+static inline void __SetPageBalloon(struct page *page)
+{
+	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
+	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
+}
+
+static inline void __ClearPageBalloon(struct page *page)
+{
+	VM_BUG_ON_PAGE(!PageBalloon(page), page);
 	atomic_set(&page->_mapcount, -1);
 }
 
@@ -1155,6 +1192,7 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
 
 extern void truncate_pagecache(struct inode *inode, loff_t new);
 extern void truncate_setsize(struct inode *inode, loff_t newsize);
+void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to);
 void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
 int truncate_inode_page(struct address_space *mapping, struct page *page);
 int generic_error_remove_page(struct address_space *mapping, struct page *page);
@@ -1213,7 +1251,6 @@ int __set_page_dirty_no_writeback(struct page *page);
 int redirty_page_for_writepage(struct writeback_control *wbc,
 				struct page *page);
 void account_page_dirtied(struct page *page, struct address_space *mapping);
-void account_page_writeback(struct page *page);
 int set_page_dirty(struct page *page);
 int set_page_dirty_lock(struct page *page);
 int clear_page_dirty_for_io(struct page *page);
@@ -1247,8 +1284,8 @@ static inline int stack_guard_page_end(struct vm_area_struct *vma,
 		!vma_growsup(vma->vm_next, addr);
 }
 
-extern pid_t
-vm_is_stack(struct task_struct *task, struct vm_area_struct *vma, int in_group);
+extern struct task_struct *task_of_stack(struct task_struct *task,
+				struct vm_area_struct *vma, bool in_group);
 
 extern unsigned long move_page_tables(struct vm_area_struct *vma,
 		unsigned long old_addr, struct vm_area_struct *new_vma,
@@ -1780,6 +1817,20 @@ extern struct vm_area_struct *copy_vma(struct vm_area_struct **,
 	bool *need_rmap_locks);
 extern void exit_mmap(struct mm_struct *);
 
+static inline int check_data_rlimit(unsigned long rlim,
+				    unsigned long new,
+				    unsigned long start,
+				    unsigned long end_data,
+				    unsigned long start_data)
+{
+	if (rlim < RLIM_INFINITY) {
+		if (((new - start) + (end_data - start_data)) > rlim)
+			return -ENOSPC;
+	}
+
+	return 0;
+}
+
 extern int mm_take_all_locks(struct mm_struct *mm);
 extern void mm_drop_all_locks(struct mm_struct *mm);
 
@@ -1901,7 +1952,7 @@ extern int expand_downwards(struct vm_area_struct *vma,
 #if VM_GROWSUP
 extern int expand_upwards(struct vm_area_struct *vma, unsigned long address);
 #else
-  #define expand_upwards(vma, address) do { } while (0)
+  #define expand_upwards(vma, address) (0)
 #endif
 
 /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
@@ -1939,10 +1990,15 @@ static inline struct vm_area_struct *find_exact_vma(struct mm_struct *mm,
 
 #ifdef CONFIG_MMU
 pgprot_t vm_get_page_prot(unsigned long vm_flags);
+void vma_set_page_prot(struct vm_area_struct *vma);
 #else
 static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
 {
 	return __pgprot(0);
+}
+static inline void vma_set_page_prot(struct vm_area_struct *vma)
+{
+	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 }
 #endif
 
@@ -1985,6 +2041,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
 #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
 #define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
 #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
+#define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
 
 typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
 			void *data);
@@ -2002,7 +2059,22 @@ static inline void vm_stat_account(struct mm_struct *mm,
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-extern void kernel_map_pages(struct page *page, int numpages, int enable);
+extern bool _debug_pagealloc_enabled;
+extern void __kernel_map_pages(struct page *page, int numpages, int enable);
+
+static inline bool debug_pagealloc_enabled(void)
+{
+	return _debug_pagealloc_enabled;
+}
+
+static inline void
+kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	if (!debug_pagealloc_enabled())
+		return;
+
+	__kernel_map_pages(page, numpages, enable);
+}
 #ifdef CONFIG_HIBERNATION
 extern bool kernel_page_present(struct page *page);
 #endif /* CONFIG_HIBERNATION */
@@ -2036,9 +2108,9 @@ int drop_caches_sysctl_handler(struct ctl_table *, int,
 					void __user *, size_t *, loff_t *);
 #endif
 
-unsigned long shrink_slab(struct shrink_control *shrink,
-			  unsigned long nr_pages_scanned,
-			  unsigned long lru_pages);
+unsigned long shrink_node_slabs(gfp_t gfp_mask, int nid,
+				unsigned long nr_scanned,
+				unsigned long nr_eligible);
 
 #ifndef CONFIG_MMU
 #define randomize_va_space 0
@@ -2097,20 +2169,36 @@ extern void copy_user_huge_page(struct page *dst, struct page *src,
 				unsigned int pages_per_huge_page);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 
+extern struct page_ext_operations debug_guardpage_ops;
+extern struct page_ext_operations page_poisoning_ops;
+
 #ifdef CONFIG_DEBUG_PAGEALLOC
 extern unsigned int _debug_guardpage_minorder;
+extern bool _debug_guardpage_enabled;
 
 static inline unsigned int debug_guardpage_minorder(void)
 {
 	return _debug_guardpage_minorder;
 }
 
+static inline bool debug_guardpage_enabled(void)
+{
+	return _debug_guardpage_enabled;
+}
+
 static inline bool page_is_guard(struct page *page)
 {
-	return test_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
+	struct page_ext *page_ext;
+
+	if (!debug_guardpage_enabled())
+		return false;
+
+	page_ext = lookup_page_ext(page);
+	return test_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
 }
 #else
 static inline unsigned int debug_guardpage_minorder(void) { return 0; }
+static inline bool debug_guardpage_enabled(void) { return false; }
 static inline bool page_is_guard(struct page *page) { return false; }
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 

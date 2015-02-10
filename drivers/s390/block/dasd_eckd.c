@@ -29,6 +29,8 @@
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
 #include <asm/itcw.h>
+#include <asm/schid.h>
+#include <asm/chpid.h>
 
 #include "dasd_int.h"
 #include "dasd_eckd.h"
@@ -111,6 +113,12 @@ struct path_verification_work_data {
 };
 static struct path_verification_work_data *path_verification_worker;
 static DEFINE_MUTEX(dasd_path_verification_mutex);
+
+struct check_attention_work_data {
+	struct work_struct worker;
+	struct dasd_device *device;
+	__u8 lpum;
+};
 
 /* initial attempt at a probe function. this can be simplified once
  * the other detection code is gone */
@@ -1126,6 +1134,7 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 					"device %s instead of %s\n", lpm,
 					print_path_uid, print_device_uid);
 				path_err = -EINVAL;
+				path_data->cablepm |= lpm;
 				continue;
 			}
 
@@ -1141,6 +1150,13 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			break;
 		}
 		path_data->opm |= lpm;
+		/*
+		 * if the path is used
+		 * it should not be in one of the negative lists
+		 */
+		path_data->cablepm &= ~lpm;
+		path_data->hpfpm &= ~lpm;
+		path_data->cuirpm &= ~lpm;
 
 		if (conf_data != private->conf_data)
 			kfree(conf_data);
@@ -1230,7 +1246,7 @@ static void do_path_verification_work(struct work_struct *work)
 	struct dasd_eckd_private path_private;
 	struct dasd_uid *uid;
 	__u8 path_rcd_buf[DASD_ECKD_RCD_DATA_SIZE];
-	__u8 lpm, opm, npm, ppm, epm;
+	__u8 lpm, opm, npm, ppm, epm, hpfpm, cablepm;
 	unsigned long flags;
 	char print_uid[60];
 	int rc;
@@ -1248,6 +1264,9 @@ static void do_path_verification_work(struct work_struct *work)
 	npm = 0;
 	ppm = 0;
 	epm = 0;
+	hpfpm = 0;
+	cablepm = 0;
+
 	for (lpm = 0x80; lpm; lpm >>= 1) {
 		if (!(lpm & data->tbvpm))
 			continue;
@@ -1289,6 +1308,7 @@ static void do_path_verification_work(struct work_struct *work)
 			opm &= ~lpm;
 			npm &= ~lpm;
 			ppm &= ~lpm;
+			hpfpm |= lpm;
 			continue;
 		}
 
@@ -1350,6 +1370,7 @@ static void do_path_verification_work(struct work_struct *work)
 				opm &= ~lpm;
 				npm &= ~lpm;
 				ppm &= ~lpm;
+				cablepm |= lpm;
 				continue;
 			}
 		}
@@ -1364,12 +1385,21 @@ static void do_path_verification_work(struct work_struct *work)
 		spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 		if (!device->path_data.opm && opm) {
 			device->path_data.opm = opm;
+			device->path_data.cablepm &= ~opm;
+			device->path_data.cuirpm &= ~opm;
+			device->path_data.hpfpm &= ~opm;
 			dasd_generic_path_operational(device);
-		} else
+		} else {
 			device->path_data.opm |= opm;
+			device->path_data.cablepm &= ~opm;
+			device->path_data.cuirpm &= ~opm;
+			device->path_data.hpfpm &= ~opm;
+		}
 		device->path_data.npm |= npm;
 		device->path_data.ppm |= ppm;
 		device->path_data.tbvpm |= epm;
+		device->path_data.cablepm |= cablepm;
+		device->path_data.hpfpm |= hpfpm;
 		spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 	}
 
@@ -4475,6 +4505,343 @@ out_err:
 	return -1;
 }
 
+static int dasd_eckd_read_message_buffer(struct dasd_device *device,
+					 struct dasd_rssd_messages *messages,
+					 __u8 lpum)
+{
+	struct dasd_rssd_messages *message_buf;
+	struct dasd_psf_prssd_data *prssdp;
+	struct dasd_eckd_private *private;
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+	int rc;
+
+	private = (struct dasd_eckd_private *) device->private;
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1 /* PSF */	+ 1 /* RSSD */,
+				   (sizeof(struct dasd_psf_prssd_data) +
+				    sizeof(struct dasd_rssd_messages)),
+				   device);
+	if (IS_ERR(cqr)) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
+				"Could not allocate read message buffer request");
+		return PTR_ERR(cqr);
+	}
+
+	cqr->startdev = device;
+	cqr->memdev = device;
+	cqr->block = NULL;
+	cqr->retries = 256;
+	cqr->expires = 10 * HZ;
+
+	/* we need to check for messages on exactly this path */
+	set_bit(DASD_CQR_VERIFY_PATH, &cqr->flags);
+	cqr->lpm = lpum;
+
+	/* Prepare for Read Subsystem Data */
+	prssdp = (struct dasd_psf_prssd_data *) cqr->data;
+	memset(prssdp, 0, sizeof(struct dasd_psf_prssd_data));
+	prssdp->order = PSF_ORDER_PRSSD;
+	prssdp->suborder = 0x03;	/* Message Buffer */
+	/* all other bytes of prssdp must be zero */
+
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = DASD_ECKD_CCW_PSF;
+	ccw->count = sizeof(struct dasd_psf_prssd_data);
+	ccw->flags |= CCW_FLAG_CC;
+	ccw->flags |= CCW_FLAG_SLI;
+	ccw->cda = (__u32)(addr_t) prssdp;
+
+	/* Read Subsystem Data - message buffer */
+	message_buf = (struct dasd_rssd_messages *) (prssdp + 1);
+	memset(message_buf, 0, sizeof(struct dasd_rssd_messages));
+
+	ccw++;
+	ccw->cmd_code = DASD_ECKD_CCW_RSSD;
+	ccw->count = sizeof(struct dasd_rssd_messages);
+	ccw->flags |= CCW_FLAG_SLI;
+	ccw->cda = (__u32)(addr_t) message_buf;
+
+	cqr->buildclk = get_tod_clock();
+	cqr->status = DASD_CQR_FILLED;
+	rc = dasd_sleep_on_immediatly(cqr);
+	if (rc == 0) {
+		prssdp = (struct dasd_psf_prssd_data *) cqr->data;
+		message_buf = (struct dasd_rssd_messages *)
+			(prssdp + 1);
+		memcpy(messages, message_buf,
+		       sizeof(struct dasd_rssd_messages));
+	} else
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
+				"Reading messages failed with rc=%d\n"
+				, rc);
+	dasd_sfree_request(cqr, cqr->memdev);
+	return rc;
+}
+
+/*
+ * Perform Subsystem Function - CUIR response
+ */
+static int
+dasd_eckd_psf_cuir_response(struct dasd_device *device, int response,
+			    __u32 message_id,
+			    struct channel_path_desc *desc,
+			    struct subchannel_id sch_id)
+{
+	struct dasd_psf_cuir_response *psf_cuir;
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+	int rc;
+
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1 /* PSF */ ,
+				  sizeof(struct dasd_psf_cuir_response),
+				  device);
+
+	if (IS_ERR(cqr)) {
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+			   "Could not allocate PSF-CUIR request");
+		return PTR_ERR(cqr);
+	}
+
+	psf_cuir = (struct dasd_psf_cuir_response *)cqr->data;
+	psf_cuir->order = PSF_ORDER_CUIR_RESPONSE;
+	psf_cuir->cc = response;
+	if (desc)
+		psf_cuir->chpid = desc->chpid;
+	psf_cuir->message_id = message_id;
+	psf_cuir->cssid = sch_id.cssid;
+	psf_cuir->ssid = sch_id.ssid;
+
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = DASD_ECKD_CCW_PSF;
+	ccw->cda = (__u32)(addr_t)psf_cuir;
+	ccw->count = sizeof(struct dasd_psf_cuir_response);
+
+	cqr->startdev = device;
+	cqr->memdev = device;
+	cqr->block = NULL;
+	cqr->retries = 256;
+	cqr->expires = 10*HZ;
+	cqr->buildclk = get_tod_clock();
+	cqr->status = DASD_CQR_FILLED;
+
+	rc = dasd_sleep_on(cqr);
+
+	dasd_sfree_request(cqr, cqr->memdev);
+	return rc;
+}
+
+static int dasd_eckd_cuir_change_state(struct dasd_device *device, __u8 lpum)
+{
+	unsigned long flags;
+	__u8 tbcpm;
+
+	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
+	tbcpm = device->path_data.opm & ~lpum;
+	if (tbcpm) {
+		device->path_data.opm = tbcpm;
+		device->path_data.cuirpm |= lpum;
+	}
+	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
+	return tbcpm ? 0 : PSF_CUIR_LAST_PATH;
+}
+
+/*
+ * walk through all devices and quiesce them
+ * if it is the last path return error
+ *
+ * if only part of the devices are quiesced and an error
+ * occurs no onlining necessary, the storage server will
+ * notify the already set offline devices again
+ */
+static int dasd_eckd_cuir_quiesce(struct dasd_device *device, __u8 lpum,
+				 struct channel_path_desc *desc,
+				 struct subchannel_id sch_id)
+{
+	struct alias_pav_group *pavgroup, *tempgroup;
+	struct dasd_eckd_private *private;
+	struct dasd_device *dev, *n;
+	int rc;
+
+	private = (struct dasd_eckd_private *) device->private;
+	rc = 0;
+
+	/* active devices */
+	list_for_each_entry_safe(dev, n,
+				 &private->lcu->active_devices,
+				 alias_list) {
+		rc = dasd_eckd_cuir_change_state(dev, lpum);
+		if (rc)
+			goto out;
+	}
+
+	/* inactive devices */
+	list_for_each_entry_safe(dev, n,
+				 &private->lcu->inactive_devices,
+				 alias_list) {
+		rc = dasd_eckd_cuir_change_state(dev, lpum);
+		if (rc)
+			goto out;
+	}
+
+	/* devices in PAV groups */
+	list_for_each_entry_safe(pavgroup, tempgroup,
+				 &private->lcu->grouplist, group) {
+		list_for_each_entry_safe(dev, n, &pavgroup->baselist,
+					 alias_list) {
+			rc = dasd_eckd_cuir_change_state(dev, lpum);
+			if (rc)
+				goto out;
+		}
+		list_for_each_entry_safe(dev, n, &pavgroup->aliaslist,
+					 alias_list) {
+			rc = dasd_eckd_cuir_change_state(dev, lpum);
+			if (rc)
+				goto out;
+		}
+	}
+
+	pr_warn("Service on the storage server caused path %x.%02x to go offline",
+		sch_id.cssid, desc ? desc->chpid : 0);
+	rc = PSF_CUIR_COMPLETED;
+out:
+	return rc;
+}
+
+static int dasd_eckd_cuir_resume(struct dasd_device *device, __u8 lpum,
+				 struct channel_path_desc *desc,
+				 struct subchannel_id sch_id)
+{
+	struct alias_pav_group *pavgroup, *tempgroup;
+	struct dasd_eckd_private *private;
+	struct dasd_device *dev, *n;
+
+	pr_info("Path %x.%02x is back online after service on the storage server",
+		sch_id.cssid, desc ? desc->chpid : 0);
+	private = (struct dasd_eckd_private *) device->private;
+
+	/*
+	 * the path may have been added through a generic path event before
+	 * only trigger path verification if the path is not already in use
+	 */
+
+	list_for_each_entry_safe(dev, n,
+				 &private->lcu->active_devices,
+				 alias_list) {
+		if (!(dev->path_data.opm & lpum)) {
+			dev->path_data.tbvpm |= lpum;
+			dasd_schedule_device_bh(dev);
+		}
+	}
+
+	list_for_each_entry_safe(dev, n,
+				 &private->lcu->inactive_devices,
+				 alias_list) {
+		if (!(dev->path_data.opm & lpum)) {
+			dev->path_data.tbvpm |= lpum;
+			dasd_schedule_device_bh(dev);
+		}
+	}
+
+	/* devices in PAV groups */
+	list_for_each_entry_safe(pavgroup, tempgroup,
+				 &private->lcu->grouplist,
+				 group) {
+		list_for_each_entry_safe(dev, n,
+					 &pavgroup->baselist,
+					 alias_list) {
+			if (!(dev->path_data.opm & lpum)) {
+				dev->path_data.tbvpm |= lpum;
+				dasd_schedule_device_bh(dev);
+			}
+		}
+		list_for_each_entry_safe(dev, n,
+					 &pavgroup->aliaslist,
+					 alias_list) {
+			if (!(dev->path_data.opm & lpum)) {
+				dev->path_data.tbvpm |= lpum;
+				dasd_schedule_device_bh(dev);
+			}
+		}
+	}
+	return PSF_CUIR_COMPLETED;
+}
+
+static void dasd_eckd_handle_cuir(struct dasd_device *device, void *messages,
+				 __u8 lpum)
+{
+	struct dasd_cuir_message *cuir = messages;
+	struct channel_path_desc *desc;
+	struct subchannel_id sch_id;
+	int pos, response;
+	ccw_device_get_schid(device->cdev, &sch_id);
+
+	/* get position of path in mask */
+	pos = 8 - ffs(lpum);
+	/* get channel path descriptor from this position */
+	desc = ccw_device_get_chp_desc(device->cdev, pos);
+
+	if (cuir->code == CUIR_QUIESCE) {
+		/* quiesce */
+		response = dasd_eckd_cuir_quiesce(device, lpum, desc, sch_id);
+	} else if (cuir->code == CUIR_RESUME) {
+		/* resume */
+		response = dasd_eckd_cuir_resume(device, lpum, desc, sch_id);
+	} else
+		response = PSF_CUIR_NOT_SUPPORTED;
+
+	dasd_eckd_psf_cuir_response(device, response, cuir->message_id,
+				    desc, sch_id);
+
+	/* free descriptor copy */
+	kfree(desc);
+}
+
+static void dasd_eckd_check_attention_work(struct work_struct *work)
+{
+	struct check_attention_work_data *data;
+	struct dasd_rssd_messages *messages;
+	struct dasd_device *device;
+	int rc;
+
+	data = container_of(work, struct check_attention_work_data, worker);
+	device = data->device;
+
+	messages = kzalloc(sizeof(*messages), GFP_KERNEL);
+	if (!messages) {
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+			      "Could not allocate attention message buffer");
+		goto out;
+	}
+
+	rc = dasd_eckd_read_message_buffer(device, messages, data->lpum);
+	if (rc)
+		goto out;
+
+	if (messages->length == ATTENTION_LENGTH_CUIR &&
+	    messages->format == ATTENTION_FORMAT_CUIR)
+		dasd_eckd_handle_cuir(device, messages, data->lpum);
+
+out:
+	dasd_put_device(device);
+	kfree(messages);
+	kfree(data);
+}
+
+static int dasd_eckd_check_attention(struct dasd_device *device, __u8 lpum)
+{
+	struct check_attention_work_data *data;
+
+	data = kzalloc(sizeof(*data), GFP_ATOMIC);
+	if (!data)
+		return -ENOMEM;
+	INIT_WORK(&data->worker, dasd_eckd_check_attention_work);
+	dasd_get_device(device);
+	data->device = device;
+	data->lpum = lpum;
+	schedule_work(&data->worker);
+	return 0;
+}
+
 static struct ccw_driver dasd_eckd_driver = {
 	.driver = {
 		.name	= "dasd-eckd",
@@ -4539,6 +4906,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.reload = dasd_eckd_reload_device,
 	.get_uid = dasd_eckd_get_uid,
 	.kick_validate = dasd_eckd_kick_validate_server,
+	.check_attention = dasd_eckd_check_attention,
 };
 
 static int __init

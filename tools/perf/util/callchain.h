@@ -54,17 +54,24 @@ enum chain_key {
 };
 
 struct callchain_param {
+	bool			enabled;
+	enum perf_call_graph_mode record_mode;
+	u32			dump_size;
 	enum chain_mode 	mode;
 	u32			print_limit;
 	double			min_percent;
 	sort_chain_func_t	sort;
 	enum chain_order	order;
 	enum chain_key		key;
+	bool			branch_callstack;
 };
+
+extern struct callchain_param callchain_param;
 
 struct callchain_list {
 	u64			ip;
 	struct map_symbol	ms;
+	char		       *srcline;
 	struct list_head	list;
 };
 
@@ -154,7 +161,6 @@ static inline void callchain_cursor_advance(struct callchain_cursor *cursor)
 struct option;
 struct hist_entry;
 
-int record_parse_callchain(const char *arg, struct record_opts *opts);
 int record_parse_callchain_opt(const struct option *opt, const char *arg, int unset);
 int record_callchain_opt(const struct option *opt, const char *arg, int unset);
 
@@ -166,7 +172,9 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 			bool hide_unresolved);
 
 extern const char record_callchain_help[];
+int parse_callchain_record_opt(const char *arg);
 int parse_callchain_report_opt(const char *arg);
+int perf_callchain_config(const char *var, const char *value);
 
 static inline void callchain_cursor_snapshot(struct callchain_cursor *dest,
 					     struct callchain_cursor *src)
@@ -178,15 +186,18 @@ static inline void callchain_cursor_snapshot(struct callchain_cursor *dest,
 }
 
 #ifdef HAVE_SKIP_CALLCHAIN_IDX
-extern int arch_skip_callchain_idx(struct machine *machine,
-			struct thread *thread, struct ip_callchain *chain);
+extern int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain);
 #else
-static inline int arch_skip_callchain_idx(struct machine *machine __maybe_unused,
-			struct thread *thread __maybe_unused,
+static inline int arch_skip_callchain_idx(struct thread *thread __maybe_unused,
 			struct ip_callchain *chain __maybe_unused)
 {
 	return -1;
 }
 #endif
+
+char *callchain_list__sym_name(struct callchain_list *cl,
+			       char *bf, size_t bfsize, bool show_dso);
+
+void free_callchain(struct callchain_root *root);
 
 #endif	/* __PERF_CALLCHAIN_H */

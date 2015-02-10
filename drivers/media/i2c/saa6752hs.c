@@ -562,7 +562,7 @@ static int saa6752hs_g_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefm
 		h->video_format = SAA6752HS_VF_D1;
 	f->width = v4l2_format_table[h->video_format].fmt.pix.width;
 	f->height = v4l2_format_table[h->video_format].fmt.pix.height;
-	f->code = V4L2_MBUS_FMT_FIXED;
+	f->code = MEDIA_BUS_FMT_FIXED;
 	f->field = V4L2_FIELD_INTERLACED;
 	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	return 0;
@@ -572,7 +572,7 @@ static int saa6752hs_try_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_frame
 {
 	int dist_352, dist_480, dist_720;
 
-	f->code = V4L2_MBUS_FMT_FIXED;
+	f->code = MEDIA_BUS_FMT_FIXED;
 
 	dist_352 = abs(f->width - 352);
 	dist_480 = abs(f->width - 480);
@@ -599,7 +599,7 @@ static int saa6752hs_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefm
 {
 	struct saa6752hs_state *h = to_state(sd);
 
-	if (f->code != V4L2_MBUS_FMT_FIXED)
+	if (f->code != MEDIA_BUS_FMT_FIXED)
 		return -EINVAL;
 
 	/*
@@ -660,7 +660,7 @@ static const struct v4l2_subdev_ops saa6752hs_ops = {
 static int saa6752hs_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-	struct saa6752hs_state *h = kzalloc(sizeof(*h), GFP_KERNEL);
+	struct saa6752hs_state *h;
 	struct v4l2_subdev *sd;
 	struct v4l2_ctrl_handler *hdl;
 	u8 addr = 0x13;
@@ -668,6 +668,8 @@ static int saa6752hs_probe(struct i2c_client *client,
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
+
+	h = devm_kzalloc(&client->dev, sizeof(*h), GFP_KERNEL);
 	if (h == NULL)
 		return -ENOMEM;
 	sd = &h->sd;
@@ -752,7 +754,6 @@ static int saa6752hs_probe(struct i2c_client *client,
 		int err = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		kfree(h);
 		return err;
 	}
 	v4l2_ctrl_cluster(3, &h->video_bitrate_mode);
@@ -767,7 +768,6 @@ static int saa6752hs_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&to_state(sd)->hdl);
-	kfree(to_state(sd));
 	return 0;
 }
 

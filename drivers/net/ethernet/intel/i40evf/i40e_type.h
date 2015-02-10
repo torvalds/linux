@@ -43,6 +43,7 @@
 #define I40E_DEV_ID_QSFP_A		0x1583
 #define I40E_DEV_ID_QSFP_B		0x1584
 #define I40E_DEV_ID_QSFP_C		0x1585
+#define I40E_DEV_ID_10G_BASE_T		0x1586
 #define I40E_DEV_ID_VF		0x154C
 #define I40E_DEV_ID_VF_HV		0x1571
 
@@ -259,8 +260,7 @@ enum i40e_aq_resource_access_type {
 };
 
 struct i40e_nvm_info {
-	u64 hw_semaphore_timeout; /* 2usec global time (GTIME resolution) */
-	u64 hw_semaphore_wait;    /* - || - */
+	u64 hw_semaphore_timeout; /* usec global time (GTIME resolution) */
 	u32 timeout;              /* [ms] */
 	u16 sr_size;              /* Shadow RAM size in words */
 	bool blank_nvm_mode;      /* is NVM empty (no FW present)*/
@@ -474,6 +474,11 @@ struct i40e_hw {
 	/* debug mask */
 	u32 debug_mask;
 };
+
+static inline bool i40e_is_vf(struct i40e_hw *hw)
+{
+	return hw->mac.type == I40E_MAC_VF;
+}
 
 struct i40e_driver_version {
 	u8 major_version;

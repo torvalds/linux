@@ -30,7 +30,4 @@
 # define FALSE 0
 #endif
 
-/* Required for our shared headers! */
-typedef unsigned char uchar;
-
 #endif

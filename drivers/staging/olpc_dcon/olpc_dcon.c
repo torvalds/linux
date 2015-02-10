@@ -682,8 +682,7 @@ static int dcon_remove(struct i2c_client *client)
 
 	free_irq(DCON_IRQ, dcon);
 
-	if (dcon->bl_dev)
-		backlight_device_unregister(dcon->bl_dev);
+	backlight_device_unregister(dcon->bl_dev);
 
 	if (dcon_device != NULL)
 		platform_device_unregister(dcon_device);

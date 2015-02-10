@@ -4962,7 +4962,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_cmd |= PCI_COMMAND_PARITY;
 	pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
 	if (pci_try_set_mwi(pdev))
-		pr_warning("Could not enable MWI for %s\n", pci_name(pdev));
+		pr_warn("Could not enable MWI for %s\n", pci_name(pdev));
 
 	cas_program_bridge(pdev);
 
@@ -5179,8 +5179,7 @@ static void cas_remove_one(struct pci_dev *pdev)
 	cp = netdev_priv(dev);
 	unregister_netdev(dev);
 
-	if (cp->fw_data)
-		vfree(cp->fw_data);
+	vfree(cp->fw_data);
 
 	mutex_lock(&cp->pm_mutex);
 	cancel_work_sync(&cp->reset_task);

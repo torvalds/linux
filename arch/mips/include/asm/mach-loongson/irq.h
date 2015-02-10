@@ -32,8 +32,7 @@
 #define LOONGSON_INT_ROUTER_LPC		LOONGSON_INT_ROUTER_ENTRY(0x0a)
 #define LOONGSON_INT_ROUTER_HT1(n)	LOONGSON_INT_ROUTER_ENTRY(n + 0x18)
 
-#define LOONGSON_INT_CORE0_INT0		0x11 /* route to int 0 of core 0 */
-#define LOONGSON_INT_CORE0_INT1		0x21 /* route to int 1 of core 0 */
+#define LOONGSON_INT_COREx_INTy(x, y)	(1<<(x) | 1<<(y+4))	/* route to int y of core x */
 
 #endif
 

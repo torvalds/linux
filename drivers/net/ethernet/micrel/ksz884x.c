@@ -2303,12 +2303,6 @@ static inline int port_chk_force_flow_ctrl(struct ksz_hw *hw, int p)
 
 /* Spanning Tree */
 
-static inline void port_cfg_dis_learn(struct ksz_hw *hw, int p, int set)
-{
-	port_cfg(hw, p,
-		KS8842_PORT_CTRL_2_OFFSET, PORT_LEARN_DISABLE, set);
-}
-
 static inline void port_cfg_rx(struct ksz_hw *hw, int p, int set)
 {
 	port_cfg(hw, p,

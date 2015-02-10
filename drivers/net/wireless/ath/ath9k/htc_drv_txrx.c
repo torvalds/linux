@@ -946,7 +946,7 @@ static inline void convert_htc_flag(struct ath_rx_status *rx_stats,
 static void rx_status_htc_to_ath(struct ath_rx_status *rx_stats,
 				 struct ath_htc_rx_status *rxstatus)
 {
-	rx_stats->rs_datalen	= rxstatus->rs_datalen;
+	rx_stats->rs_datalen	= be16_to_cpu(rxstatus->rs_datalen);
 	rx_stats->rs_status	= rxstatus->rs_status;
 	rx_stats->rs_phyerr	= rxstatus->rs_phyerr;
 	rx_stats->rs_rssi	= rxstatus->rs_rssi;
@@ -1012,6 +1012,20 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	 * separately to avoid doing two lookups for a rate for each frame.
 	 */
 	hdr = (struct ieee80211_hdr *)skb->data;
+
+	/*
+	 * Process PHY errors and return so that the packet
+	 * can be dropped.
+	 */
+	if (rx_stats.rs_status & ATH9K_RXERR_PHY) {
+		/* TODO: Not using DFS processing now. */
+		if (ath_cmn_process_fft(&priv->spec_priv, hdr,
+				    &rx_stats, rx_status->mactime)) {
+			/* TODO: Code to collect spectral scan statistics */
+		}
+		goto rx_next;
+	}
+
 	if (!ath9k_cmn_rx_accept(common, hdr, rx_status, &rx_stats,
 			&decrypt_error, priv->rxfilter))
 		goto rx_next;

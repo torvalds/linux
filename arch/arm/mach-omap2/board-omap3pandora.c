@@ -24,6 +24,7 @@
 #include <linux/spi/spi.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
+#include <linux/omap-gpmc.h>
 #include <linux/wl12xx.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
@@ -51,7 +52,6 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
-#include "gpmc-nand.h"
 
 #define PANDORA_WIFI_IRQ_GPIO		21
 #define PANDORA_WIFI_NRESET_GPIO	23
@@ -624,7 +624,6 @@ MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
-	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap3pandora_init,
 	.init_late	= omap35xx_init_late,
 	.init_time	= omap3_sync32k_timer_init,

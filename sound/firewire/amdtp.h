@@ -23,7 +23,7 @@
  *	corresponds to the end of event in the packet. Out of IEC 61883.
  * @CIP_WRONG_DBS: Only for in-stream. The value of dbs is wrong in in-packets.
  *	The value of data_block_quadlets is used instead of reported value.
- * @SKIP_DBC_ZERO_CHECK: Only for in-stream.  Packets with zero in dbc is
+ * @CIP_SKIP_DBC_ZERO_CHECK: Only for in-stream.  Packets with zero in dbc is
  *	skipped for detecting discontinuity.
  * @CIP_SKIP_INIT_DBC_CHECK: Only for in-stream. The value of dbc in first
  *	packet is not continuous from an initial value.
@@ -43,7 +43,27 @@ enum cip_flags {
 };
 
 /**
- * enum cip_sfc - a stream's sample rate
+ * enum cip_sfc - supported Sampling Frequency Codes (SFCs)
+ * @CIP_SFC_32000:   32,000 data blocks
+ * @CIP_SFC_44100:   44,100 data blocks
+ * @CIP_SFC_48000:   48,000 data blocks
+ * @CIP_SFC_88200:   88,200 data blocks
+ * @CIP_SFC_96000:   96,000 data blocks
+ * @CIP_SFC_176400: 176,400 data blocks
+ * @CIP_SFC_192000: 192,000 data blocks
+ * @CIP_SFC_COUNT: the number of supported SFCs
+ *
+ * These values are used to show nominal Sampling Frequency Code in
+ * Format Dependent Field (FDF) of AMDTP packet header. In IEC 61883-6:2002,
+ * this code means the number of events per second. Actually the code
+ * represents the number of data blocks transferred per second in an AMDTP
+ * stream.
+ *
+ * In IEC 61883-6:2005, some extensions were added to support more types of
+ * data such as 'One Bit LInear Audio', therefore the meaning of SFC became
+ * different depending on the types.
+ *
+ * Currently our implementation is compatible with IEC 61883-6:2002.
  */
 enum cip_sfc {
 	CIP_SFC_32000  = 0,

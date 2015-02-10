@@ -128,8 +128,8 @@ void reply_in_callback(lnet_event_t *ev)
 	    ((lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT))) {
 		/* Early reply */
 		DEBUG_REQ(D_ADAPTTO, req,
-			  "Early reply received: mlen=%u offset=%d replen=%d "
-			  "replied=%d unlinked=%d", ev->mlength, ev->offset,
+			  "Early reply received: mlen=%u offset=%d replen=%d replied=%d unlinked=%d",
+			  ev->mlength, ev->offset,
 			  req->rq_replen, req->rq_replied, ev->unlinked);
 
 		req->rq_early_count++; /* number received, client side */
@@ -186,7 +186,8 @@ void client_bulk_callback(lnet_event_t *ev)
 	if (CFS_FAIL_CHECK_ORSET(OBD_FAIL_PTLRPC_CLIENT_BULK_CB, CFS_FAIL_ONCE))
 		ev->status = -EIO;
 
-	if (CFS_FAIL_CHECK_ORSET(OBD_FAIL_PTLRPC_CLIENT_BULK_CB2,CFS_FAIL_ONCE))
+	if (CFS_FAIL_CHECK_ORSET(OBD_FAIL_PTLRPC_CLIENT_BULK_CB2,
+				 CFS_FAIL_ONCE))
 		ev->status = -EIO;
 
 	CDEBUG((ev->status == 0) ? D_NET : D_ERROR,
@@ -312,8 +313,7 @@ void request_in_callback(lnet_event_t *ev)
 		}
 		req = ptlrpc_request_cache_alloc(GFP_ATOMIC);
 		if (req == NULL) {
-			CERROR("Can't allocate incoming request descriptor: "
-			       "Dropping %s RPC from %s\n",
+			CERROR("Can't allocate incoming request descriptor: Dropping %s RPC from %s\n",
 			       service->srv_name,
 			       libcfs_id2str(ev->initiator));
 			return;
@@ -481,7 +481,7 @@ int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
 		}
 	}
 
-	CDEBUG(D_NET,"%s->%s\n", uuid->uuid, libcfs_id2str(*peer));
+	CDEBUG(D_NET, "%s->%s\n", uuid->uuid, libcfs_id2str(*peer));
 	return rc;
 }
 
@@ -541,7 +541,7 @@ int ptlrpc_ni_init(void)
 	rc = LNetNIInit(pid);
 	if (rc < 0) {
 		CDEBUG(D_NET, "Can't init network interface: %d\n", rc);
-		return (-ENOENT);
+		return -ENOENT;
 	}
 
 	/* CAVEAT EMPTOR: how we process portals events is _radically_
@@ -557,7 +557,7 @@ int ptlrpc_ni_init(void)
 	CERROR("Failed to allocate event queue: %d\n", rc);
 	LNetNIFini();
 
-	return (-ENOMEM);
+	return -ENOMEM;
 }
 
 

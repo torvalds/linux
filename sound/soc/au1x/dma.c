@@ -331,7 +331,6 @@ static int alchemy_pcm_drvremove(struct platform_device *pdev)
 static struct platform_driver alchemy_pcmdma_driver = {
 	.driver	= {
 		.name	= "alchemy-pcm-dma",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= alchemy_pcm_drvprobe,
 	.remove		= alchemy_pcm_drvremove,

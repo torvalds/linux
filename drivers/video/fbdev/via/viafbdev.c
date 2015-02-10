@@ -1937,8 +1937,7 @@ out_fb1_unreg_lcd_cle266:
 out_dealloc_cmap:
 	fb_dealloc_cmap(&viafbinfo->cmap);
 out_fb1_release:
-	if (viafbinfo1)
-		framebuffer_release(viafbinfo1);
+	framebuffer_release(viafbinfo1);
 out_fb_release:
 	i2c_bus_free(viaparinfo->shared);
 	framebuffer_release(viafbinfo);

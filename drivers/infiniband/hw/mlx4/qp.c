@@ -802,16 +802,21 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			}
 		}
 	} else {
-		/* Raw packet QPNs must be aligned to 8 bits. If not, the WQE
-		 * BlueFlame setup flow wrongly causes VLAN insertion. */
+		/* Raw packet QPNs may not have bits 6,7 set in their qp_num;
+		 * otherwise, the WQE BlueFlame setup flow wrongly causes
+		 * VLAN insertion. */
 		if (init_attr->qp_type == IB_QPT_RAW_PACKET)
-			err = mlx4_qp_reserve_range(dev->dev, 1, 1 << 8, &qpn);
+			err = mlx4_qp_reserve_range(dev->dev, 1, 1, &qpn,
+						    (init_attr->cap.max_send_wr ?
+						     MLX4_RESERVE_ETH_BF_QP : 0) |
+						    (init_attr->cap.max_recv_wr ?
+						     MLX4_RESERVE_A0_QP : 0));
 		else
 			if (qp->flags & MLX4_IB_QP_NETIF)
 				err = mlx4_ib_steer_qp_alloc(dev, 1, &qpn);
 			else
 				err = mlx4_qp_reserve_range(dev->dev, 1, 1,
-							    &qpn);
+							    &qpn, 0);
 		if (err)
 			goto err_proxy;
 	}

@@ -2,6 +2,15 @@ Device tree configuration for Renesas IIC (sh_mobile) driver
 
 Required properties:
 - compatible      : "renesas,iic-<soctype>". "renesas,rmobile-iic" as fallback
+		     Examples with soctypes are:
+			- "renesas,iic-r8a73a4" (R-Mobile APE6)
+			- "renesas,iic-r8a7740" (R-Mobile A1)
+			- "renesas,iic-r8a7790" (R-Car H2)
+			- "renesas,iic-r8a7791" (R-Car M2-W)
+			- "renesas,iic-r8a7792" (R-Car V2H)
+			- "renesas,iic-r8a7793" (R-Car M2-N)
+			- "renesas,iic-r8a7794" (R-Car E2)
+			- "renesas,iic-sh73a0" (SH-Mobile AG5)
 - reg             : address start and address range size of device
 - interrupts      : interrupt of device
 - clocks          : clock for device
@@ -10,6 +19,11 @@ Required properties:
 
 Optional properties:
 - clock-frequency : frequency of bus clock in Hz. Default 100kHz if unset.
+- dmas            : Must contain a list of two references to DMA
+		    specifiers, one for transmission, and one for
+		    reception.
+- dma-names       : Must contain a list of two DMA names, "tx" and "rx".
+
 
 Pinctrl properties might be needed, too. See there.
 

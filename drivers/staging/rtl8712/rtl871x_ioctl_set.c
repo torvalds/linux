@@ -77,7 +77,7 @@ static u8 do_join(struct _adapter *padapter)
 		/* when set_ssid/set_bssid for do_join(), but scanning queue
 		 * is empty we try to issue sitesurvey firstly
 		 */
-		if (pmlmepriv->sitesurveyctrl.traffic_busy == false)
+		if (!pmlmepriv->sitesurveyctrl.traffic_busy)
 			r8712_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid);
 		return true;
 	} else {
@@ -143,8 +143,7 @@ u8 r8712_set_802_11_bssid(struct _adapter *padapter, u8 *bssid)
 	    _FW_LINKED|WIFI_ADHOC_MASTER_STATE) == true) {
 		if (!memcmp(&pmlmepriv->cur_network.network.MacAddress, bssid,
 		    ETH_ALEN)) {
-			if (check_fwstate(pmlmepriv,
-			    WIFI_STATION_STATE) == false)
+			if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 				goto _Abort_Set_BSSID; /* driver is in
 						* WIFI_ADHOC_MASTER_STATE */
 		} else {
@@ -177,7 +176,7 @@ void r8712_set_802_11_ssid(struct _adapter *padapter,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
 
-	if (padapter->hw_init_completed == false)
+	if (!padapter->hw_init_completed)
 		return;
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING)) {
@@ -188,10 +187,9 @@ void r8712_set_802_11_ssid(struct _adapter *padapter,
 		if ((pmlmepriv->assoc_ssid.SsidLength == ssid->SsidLength) &&
 		    (!memcmp(&pmlmepriv->assoc_ssid.Ssid, ssid->Ssid,
 		    ssid->SsidLength))) {
-			if ((check_fwstate(pmlmepriv,
-			     WIFI_STATION_STATE) == false)) {
-				if (r8712_is_same_ibss(padapter,
-				     pnetwork) == false) {
+			if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+				if (!r8712_is_same_ibss(padapter,
+				     pnetwork)) {
 					/* if in WIFI_ADHOC_MASTER_STATE or
 					 *  WIFI_ADHOC_STATE, create bss or
 					 * rejoin again
@@ -227,7 +225,7 @@ void r8712_set_802_11_ssid(struct _adapter *padapter,
 	}
 	if (padapter->securitypriv.btkip_countermeasure == true)
 		goto _Abort_Set_SSID;
-	if (validate_ssid(ssid) == false)
+	if (!validate_ssid(ssid))
 		goto _Abort_Set_SSID;
 	memcpy(&pmlmepriv->assoc_ssid, ssid, sizeof(struct ndis_802_11_ssid));
 	pmlmepriv->assoc_by_bssid = false;
@@ -308,10 +306,10 @@ u8 r8712_set_802_11_bssid_list_scan(struct _adapter *padapter)
 	unsigned long irqL;
 	u8 ret = true;
 
-	if (padapter == NULL)
+	if (!padapter)
 		return false;
 	pmlmepriv = &padapter->mlmepriv;
-	if (padapter->hw_init_completed == false)
+	if (!padapter->hw_init_completed)
 		return false;
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if ((check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING)) ||
@@ -345,13 +343,9 @@ u8 r8712_set_802_11_authentication_mode(struct _adapter *padapter,
 u8 r8712_set_802_11_add_wep(struct _adapter *padapter,
 			    struct NDIS_802_11_WEP *wep)
 {
-	u8	bdefaultkey;
-	u8	btransmitkey;
 	sint	keyid;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 
-	bdefaultkey = (wep->KeyIndex & 0x40000000) > 0 ? false : true;
-	btransmitkey = (wep->KeyIndex & 0x80000000) > 0 ? true : false;
 	keyid = wep->KeyIndex & 0x3fffffff;
 	if (keyid >= WEP_KEYS)
 		return false;

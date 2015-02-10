@@ -209,8 +209,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 static long cifs_fallocate(struct file *file, int mode, loff_t off, loff_t len)
 {
-	struct super_block *sb = file->f_path.dentry->d_sb;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct TCP_Server_Info *server = tcon->ses->server;
 
@@ -813,7 +812,8 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 	return generic_file_llseek(file, offset, whence);
 }
 
-static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
+static int
+cifs_setlease(struct file *file, long arg, struct file_lock **lease, void **priv)
 {
 	/*
 	 * Note that this is called by vfs setlease with i_lock held to
@@ -829,7 +829,7 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 	if (arg == F_UNLCK ||
 	    ((arg == F_RDLCK) && CIFS_CACHE_READ(CIFS_I(inode))) ||
 	    ((arg == F_WRLCK) && CIFS_CACHE_WRITE(CIFS_I(inode))))
-		return generic_setlease(file, arg, lease);
+		return generic_setlease(file, arg, lease, priv);
 	else if (tlink_tcon(cfile->tlink)->local_lease &&
 		 !CIFS_CACHE_READ(CIFS_I(inode)))
 		/*
@@ -840,7 +840,7 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 		 * knows that the file won't be changed on the server by anyone
 		 * else.
 		 */
-		return generic_setlease(file, arg, lease);
+		return generic_setlease(file, arg, lease, priv);
 	else
 		return -EAGAIN;
 }

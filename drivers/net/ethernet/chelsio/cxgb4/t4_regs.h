@@ -72,11 +72,11 @@
 #define  PIDX_MASK   0x00003fffU
 #define  PIDX_SHIFT  0
 #define  PIDX(x)     ((x) << PIDX_SHIFT)
-#define  S_PIDX_T5   0
-#define  M_PIDX_T5   0x1fffU
-#define  PIDX_T5(x)  (((x) >> S_PIDX_T5) & M_PIDX_T5)
+#define  PIDX_SHIFT_T5   0
+#define  PIDX_T5(x)  ((x) << PIDX_SHIFT_T5)
 
 
+#define SGE_TIMERREGS	6
 #define SGE_PF_GTS 0x4
 #define  INGRESSQID_MASK   0xffff0000U
 #define  INGRESSQID_SHIFT  16
@@ -95,6 +95,7 @@
 #define X_INGPADBOUNDARY_SHIFT 5
 
 #define SGE_CONTROL 0x1008
+#define SGE_CONTROL2_A		0x1124
 #define  DCASYSTYPE             0x00080000U
 #define  RXPKTCPLMODE_MASK      0x00040000U
 #define  RXPKTCPLMODE_SHIFT     18
@@ -106,6 +107,7 @@
 #define  PKTSHIFT_SHIFT         10
 #define  PKTSHIFT(x)            ((x) << PKTSHIFT_SHIFT)
 #define  PKTSHIFT_GET(x)	(((x) & PKTSHIFT_MASK) >> PKTSHIFT_SHIFT)
+#define  INGPCIEBOUNDARY_32B_X	0
 #define  INGPCIEBOUNDARY_MASK   0x00000380U
 #define  INGPCIEBOUNDARY_SHIFT  7
 #define  INGPCIEBOUNDARY(x)     ((x) << INGPCIEBOUNDARY_SHIFT)
@@ -114,6 +116,14 @@
 #define  INGPADBOUNDARY(x)      ((x) << INGPADBOUNDARY_SHIFT)
 #define  INGPADBOUNDARY_GET(x)	(((x) & INGPADBOUNDARY_MASK) \
 				 >> INGPADBOUNDARY_SHIFT)
+#define  INGPACKBOUNDARY_16B_X	0
+#define  INGPACKBOUNDARY_SHIFT_X 5
+
+#define  INGPACKBOUNDARY_S	16
+#define  INGPACKBOUNDARY_M	0x7U
+#define  INGPACKBOUNDARY_V(x)	((x) << INGPACKBOUNDARY_S)
+#define  INGPACKBOUNDARY_G(x)	(((x) >> INGPACKBOUNDARY_S) \
+				 & INGPACKBOUNDARY_M)
 #define  EGRPCIEBOUNDARY_MASK   0x0000000eU
 #define  EGRPCIEBOUNDARY_SHIFT  1
 #define  EGRPCIEBOUNDARY(x)     ((x) << EGRPCIEBOUNDARY_SHIFT)
@@ -145,19 +155,43 @@
 #define  HOSTPAGESIZEPF2_SHIFT  8
 #define  HOSTPAGESIZEPF2(x)     ((x) << HOSTPAGESIZEPF2_SHIFT)
 
-#define  HOSTPAGESIZEPF1_MASK   0x0000000fU
-#define  HOSTPAGESIZEPF1_SHIFT  4
-#define  HOSTPAGESIZEPF1(x)     ((x) << HOSTPAGESIZEPF1_SHIFT)
+#define  HOSTPAGESIZEPF1_M	0x0000000fU
+#define  HOSTPAGESIZEPF1_S	4
+#define  HOSTPAGESIZEPF1(x)     ((x) << HOSTPAGESIZEPF1_S)
 
-#define  HOSTPAGESIZEPF0_MASK   0x0000000fU
-#define  HOSTPAGESIZEPF0_SHIFT  0
-#define  HOSTPAGESIZEPF0(x)     ((x) << HOSTPAGESIZEPF0_SHIFT)
+#define  HOSTPAGESIZEPF0_M	0x0000000fU
+#define  HOSTPAGESIZEPF0_S	0
+#define  HOSTPAGESIZEPF0(x)     ((x) << HOSTPAGESIZEPF0_S)
 
 #define SGE_EGRESS_QUEUES_PER_PAGE_PF 0x1010
-#define  QUEUESPERPAGEPF0_MASK   0x0000000fU
-#define  QUEUESPERPAGEPF0_GET(x) ((x) & QUEUESPERPAGEPF0_MASK)
+#define SGE_EGRESS_QUEUES_PER_PAGE_VF_A 0x1014
 
+#define QUEUESPERPAGEPF1_S    4
+
+#define QUEUESPERPAGEPF0_S    0
+#define QUEUESPERPAGEPF0_MASK   0x0000000fU
+#define QUEUESPERPAGEPF0_GET(x) ((x) & QUEUESPERPAGEPF0_MASK)
+
+#define QUEUESPERPAGEPF0    0
 #define QUEUESPERPAGEPF1    4
+
+/* T5 and later support a new BAR2-based doorbell mechanism for Egress Queues.
+ * The User Doorbells are each 128 bytes in length with a Simple Doorbell at
+ * offsets 8x and a Write Combining single 64-byte Egress Queue Unit
+ * (X_IDXSIZE_UNIT) Gather Buffer interface at offset 64.  For Ingress Queues,
+ * we have a Going To Sleep register at offsets 8x+4.
+ *
+ * As noted above, we have many instances of the Simple Doorbell and Going To
+ * Sleep registers at offsets 8x and 8x+4, respectively.  We want to use a
+ * non-64-byte aligned offset for the Simple Doorbell in order to attempt to
+ * avoid buffering of the writes to the Simple Doorbell and we want to use a
+ * non-contiguous offset for the Going To Sleep writes in order to avoid
+ * possible combining between them.
+ */
+#define SGE_UDB_SIZE            128
+#define SGE_UDB_KDOORBELL       8
+#define SGE_UDB_GTS             20
+#define SGE_UDB_WCDOORBELL      64
 
 #define SGE_INT_CAUSE1 0x1024
 #define SGE_INT_CAUSE2 0x1030
@@ -294,6 +328,7 @@
 #define SGE_DEBUG_DATA_LOW_INDEX_3	0x12cc
 #define SGE_DEBUG_DATA_HIGH_INDEX_10	0x12a8
 #define SGE_INGRESS_QUEUES_PER_PAGE_PF 0x10f4
+#define SGE_INGRESS_QUEUES_PER_PAGE_VF_A 0x10f8
 
 #define S_HP_INT_THRESH    28
 #define M_HP_INT_THRESH 0xfU
@@ -482,21 +517,62 @@
 
 #define MC_BIST_STATUS_RDATA 0x7688
 
-#define MA_EDRAM0_BAR 0x77c0
-#define MA_EDRAM1_BAR 0x77c4
-#define EDRAM_SIZE_MASK   0xfffU
-#define EDRAM_SIZE_GET(x) ((x) & EDRAM_SIZE_MASK)
+#define MA_EDRAM0_BAR_A 0x77c0
 
-#define MA_EXT_MEMORY_BAR 0x77c8
-#define  EXT_MEM_SIZE_MASK   0x00000fffU
-#define  EXT_MEM_SIZE_SHIFT  0
-#define  EXT_MEM_SIZE_GET(x) (((x) & EXT_MEM_SIZE_MASK) >> EXT_MEM_SIZE_SHIFT)
+#define EDRAM0_SIZE_S    0
+#define EDRAM0_SIZE_M    0xfffU
+#define EDRAM0_SIZE_V(x) ((x) << EDRAM0_SIZE_S)
+#define EDRAM0_SIZE_G(x) (((x) >> EDRAM0_SIZE_S) & EDRAM0_SIZE_M)
 
-#define MA_TARGET_MEM_ENABLE 0x77d8
-#define  EXT_MEM1_ENABLE 0x00000010U
-#define  EXT_MEM_ENABLE 0x00000004U
-#define  EDRAM1_ENABLE  0x00000002U
-#define  EDRAM0_ENABLE  0x00000001U
+#define MA_EDRAM1_BAR_A 0x77c4
+
+#define EDRAM1_SIZE_S    0
+#define EDRAM1_SIZE_M    0xfffU
+#define EDRAM1_SIZE_V(x) ((x) << EDRAM1_SIZE_S)
+#define EDRAM1_SIZE_G(x) (((x) >> EDRAM1_SIZE_S) & EDRAM1_SIZE_M)
+
+#define MA_EXT_MEMORY_BAR_A 0x77c8
+
+#define EXT_MEM_SIZE_S    0
+#define EXT_MEM_SIZE_M    0xfffU
+#define EXT_MEM_SIZE_V(x) ((x) << EXT_MEM_SIZE_S)
+#define EXT_MEM_SIZE_G(x) (((x) >> EXT_MEM_SIZE_S) & EXT_MEM_SIZE_M)
+
+#define MA_EXT_MEMORY1_BAR_A 0x7808
+
+#define EXT_MEM1_SIZE_S    0
+#define EXT_MEM1_SIZE_M    0xfffU
+#define EXT_MEM1_SIZE_V(x) ((x) << EXT_MEM1_SIZE_S)
+#define EXT_MEM1_SIZE_G(x) (((x) >> EXT_MEM1_SIZE_S) & EXT_MEM1_SIZE_M)
+
+#define MA_EXT_MEMORY0_BAR_A 0x77c8
+
+#define EXT_MEM0_SIZE_S    0
+#define EXT_MEM0_SIZE_M    0xfffU
+#define EXT_MEM0_SIZE_V(x) ((x) << EXT_MEM0_SIZE_S)
+#define EXT_MEM0_SIZE_G(x) (((x) >> EXT_MEM0_SIZE_S) & EXT_MEM0_SIZE_M)
+
+#define MA_TARGET_MEM_ENABLE_A 0x77d8
+
+#define EXT_MEM_ENABLE_S    2
+#define EXT_MEM_ENABLE_V(x) ((x) << EXT_MEM_ENABLE_S)
+#define EXT_MEM_ENABLE_F    EXT_MEM_ENABLE_V(1U)
+
+#define EDRAM1_ENABLE_S    1
+#define EDRAM1_ENABLE_V(x) ((x) << EDRAM1_ENABLE_S)
+#define EDRAM1_ENABLE_F    EDRAM1_ENABLE_V(1U)
+
+#define EDRAM0_ENABLE_S    0
+#define EDRAM0_ENABLE_V(x) ((x) << EDRAM0_ENABLE_S)
+#define EDRAM0_ENABLE_F    EDRAM0_ENABLE_V(1U)
+
+#define EXT_MEM1_ENABLE_S    4
+#define EXT_MEM1_ENABLE_V(x) ((x) << EXT_MEM1_ENABLE_S)
+#define EXT_MEM1_ENABLE_F    EXT_MEM1_ENABLE_V(1U)
+
+#define EXT_MEM0_ENABLE_S    2
+#define EXT_MEM0_ENABLE_V(x) ((x) << EXT_MEM0_ENABLE_S)
+#define EXT_MEM0_ENABLE_F    EXT_MEM0_ENABLE_V(1U)
 
 #define MA_INT_CAUSE 0x77e0
 #define  MEM_PERR_INT_CAUSE 0x00000002U
@@ -513,7 +589,6 @@
 #define MA_PARITY_ERROR_STATUS 0x77f4
 #define MA_PARITY_ERROR_STATUS2 0x7804
 
-#define MA_EXT_MEMORY1_BAR 0x7808
 #define EDC_0_BASE_ADDR 0x7900
 
 #define EDC_BIST_CMD 0x7904

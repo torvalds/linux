@@ -178,6 +178,7 @@
 
 #else /* no mmu */
 
+# define _PAGE_CHG_MASK  (PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 # define PAGE_NONE       __pgprot(0)
 # define PAGE_SHARED     __pgprot(0)
 # define PAGE_COPY       __pgprot(0)
@@ -276,6 +277,8 @@ static inline pte_t pte_mkwrite(pte_t pte)
 	{ pte_val(pte) |= _PAGE_WRITABLE; return pte; }
 static inline pte_t pte_mkspecial(pte_t pte)
 	{ return pte; }
+
+#define pgprot_noncached(prot) (__pgprot(pgprot_val(prot) & ~_PAGE_CA_MASK))
 
 /*
  * Conversion functions: convert a page and protection to a page entry,

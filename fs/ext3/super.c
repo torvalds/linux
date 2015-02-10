@@ -441,7 +441,7 @@ static void ext3_put_super (struct super_block * sb)
 	percpu_counter_destroy(&sbi->s_dirs_counter);
 	brelse(sbi->s_sbh);
 #ifdef CONFIG_QUOTA
-	for (i = 0; i < MAXQUOTAS; i++)
+	for (i = 0; i < EXT3_MAXQUOTAS; i++)
 		kfree(sbi->s_qf_names[i]);
 #endif
 
@@ -485,6 +485,10 @@ static struct inode *ext3_alloc_inode(struct super_block *sb)
 	ei->vfs_inode.i_version = 1;
 	atomic_set(&ei->i_datasync_tid, 0);
 	atomic_set(&ei->i_sync_tid, 0);
+#ifdef CONFIG_QUOTA
+	memset(&ei->i_dquot, 0, sizeof(ei->i_dquot));
+#endif
+
 	return &ei->vfs_inode;
 }
 
@@ -764,6 +768,10 @@ static ssize_t ext3_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off);
 static ssize_t ext3_quota_write(struct super_block *sb, int type,
 				const char *data, size_t len, loff_t off);
+static struct dquot **ext3_get_dquots(struct inode *inode)
+{
+	return EXT3_I(inode)->i_dquot;
+}
 
 static const struct dquot_operations ext3_quota_operations = {
 	.write_dquot	= ext3_write_dquot,
@@ -803,6 +811,7 @@ static const struct super_operations ext3_sops = {
 #ifdef CONFIG_QUOTA
 	.quota_read	= ext3_quota_read,
 	.quota_write	= ext3_quota_write,
+	.get_dquots	= ext3_get_dquots,
 #endif
 	.bdev_try_to_free_page = bdev_try_to_free_page,
 };
@@ -1354,13 +1363,6 @@ set_qf_format:
 					"not specified.");
 			return 0;
 		}
-	} else {
-		if (sbi->s_jquota_fmt) {
-			ext3_msg(sb, KERN_ERR, "error: journaled quota format "
-					"specified with no journaling "
-					"enabled.");
-			return 0;
-		}
 	}
 #endif
 	return 1;
@@ -1555,7 +1557,7 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 	/* Needed for iput() to work correctly and not trash data */
 	sb->s_flags |= MS_ACTIVE;
 	/* Turn on quotas so that they are updated correctly */
-	for (i = 0; i < MAXQUOTAS; i++) {
+	for (i = 0; i < EXT3_MAXQUOTAS; i++) {
 		if (EXT3_SB(sb)->s_qf_names[i]) {
 			int ret = ext3_quota_on_mount(sb, i);
 			if (ret < 0)
@@ -1606,7 +1608,7 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 		       PLURAL(nr_truncates));
 #ifdef CONFIG_QUOTA
 	/* Turn quotas off */
-	for (i = 0; i < MAXQUOTAS; i++) {
+	for (i = 0; i < EXT3_MAXQUOTAS; i++) {
 		if (sb_dqopt(sb)->files[i])
 			dquot_quota_off(sb, i);
 	}
@@ -2008,6 +2010,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_QUOTA
 	sb->s_qcop = &ext3_qctl_operations;
 	sb->dq_op = &ext3_quota_operations;
+	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 #endif
 	memcpy(sb->s_uuid, es->s_uuid, sizeof(es->s_uuid));
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
@@ -2039,14 +2042,14 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount2;
 	}
 	err = percpu_counter_init(&sbi->s_freeblocks_counter,
-			ext3_count_free_blocks(sb));
+			ext3_count_free_blocks(sb), GFP_KERNEL);
 	if (!err) {
 		err = percpu_counter_init(&sbi->s_freeinodes_counter,
-				ext3_count_free_inodes(sb));
+				ext3_count_free_inodes(sb), GFP_KERNEL);
 	}
 	if (!err) {
 		err = percpu_counter_init(&sbi->s_dirs_counter,
-				ext3_count_dirs(sb));
+				ext3_count_dirs(sb), GFP_KERNEL);
 	}
 	if (err) {
 		ext3_msg(sb, KERN_ERR, "error: insufficient memory");
@@ -2139,7 +2142,7 @@ failed_mount2:
 	kfree(sbi->s_group_desc);
 failed_mount:
 #ifdef CONFIG_QUOTA
-	for (i = 0; i < MAXQUOTAS; i++)
+	for (i = 0; i < EXT3_MAXQUOTAS; i++)
 		kfree(sbi->s_qf_names[i]);
 #endif
 	ext3_blkdev_remove(sbi);
@@ -2659,7 +2662,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 	old_opts.s_commit_interval = sbi->s_commit_interval;
 #ifdef CONFIG_QUOTA
 	old_opts.s_jquota_fmt = sbi->s_jquota_fmt;
-	for (i = 0; i < MAXQUOTAS; i++)
+	for (i = 0; i < EXT3_MAXQUOTAS; i++)
 		if (sbi->s_qf_names[i]) {
 			old_opts.s_qf_names[i] = kstrdup(sbi->s_qf_names[i],
 							 GFP_KERNEL);
@@ -2763,7 +2766,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 	}
 #ifdef CONFIG_QUOTA
 	/* Release old quota file names */
-	for (i = 0; i < MAXQUOTAS; i++)
+	for (i = 0; i < EXT3_MAXQUOTAS; i++)
 		kfree(old_opts.s_qf_names[i]);
 #endif
 	if (enable_quota)
@@ -2777,7 +2780,7 @@ restore_opts:
 	sbi->s_commit_interval = old_opts.s_commit_interval;
 #ifdef CONFIG_QUOTA
 	sbi->s_jquota_fmt = old_opts.s_jquota_fmt;
-	for (i = 0; i < MAXQUOTAS; i++) {
+	for (i = 0; i < EXT3_MAXQUOTAS; i++) {
 		kfree(sbi->s_qf_names[i]);
 		sbi->s_qf_names[i] = old_opts.s_qf_names[i];
 	}

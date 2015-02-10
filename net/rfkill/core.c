@@ -329,7 +329,7 @@ static atomic_t rfkill_input_disabled = ATOMIC_INIT(0);
 /**
  * __rfkill_switch_all - Toggle state of all switches of given type
  * @type: type of interfaces to be affected
- * @state: the new state
+ * @blocked: the new state
  *
  * This function sets the state of all switches of given type,
  * unless a specific switch is claimed by userspace (in which case,
@@ -353,7 +353,7 @@ static void __rfkill_switch_all(const enum rfkill_type type, bool blocked)
 /**
  * rfkill_switch_all - Toggle state of all switches of given type
  * @type: type of interfaces to be affected
- * @state: the new state
+ * @blocked: the new state
  *
  * Acquires rfkill_global_mutex and calls __rfkill_switch_all(@type, @state).
  * Please refer to __rfkill_switch_all() for details.

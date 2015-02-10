@@ -161,19 +161,11 @@
 			clock-output-names = "apb0_codec", "apb0_pio", "apb0_ir";
 		};
 
-		apb1_mux: apb1_mux@01c20058 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-apb1-mux-clk";
-			reg = <0x01c20058 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&osc32k>;
-			clock-output-names = "apb1_mux";
-		};
-
-		apb1: apb1@01c20058 {
+		apb1: clk@01c20058 {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun4i-a10-apb1-clk";
 			reg = <0x01c20058 0x4>;
-			clocks = <&apb1_mux>;
+			clocks = <&osc24M>, <&pll6 1>, <&osc32k>;
 			clock-output-names = "apb1";
 		};
 
@@ -285,7 +277,7 @@
 
 		mbus_clk: clk@01c2015c {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
+			compatible = "allwinner,sun5i-a13-mbus-clk";
 			reg = <0x01c2015c 0x4>;
 			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
 			clock-output-names = "mbus";
@@ -298,12 +290,22 @@
 		#size-cells = <1>;
 		ranges;
 
+		dma: dma-controller@01c02000 {
+			compatible = "allwinner,sun4i-a10-dma";
+			reg = <0x01c02000 0x1000>;
+			interrupts = <27>;
+			clocks = <&ahb_gates 6>;
+			#dma-cells = <2>;
+		};
+
 		spi0: spi@01c05000 {
 			compatible = "allwinner,sun4i-a10-spi";
 			reg = <0x01c05000 0x1000>;
 			interrupts = <10>;
 			clocks = <&ahb_gates 20>, <&spi0_clk>;
 			clock-names = "ahb", "mod";
+			dmas = <&dma 1 27>, <&dma 1 26>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -315,6 +317,8 @@
 			interrupts = <11>;
 			clocks = <&ahb_gates 21>, <&spi1_clk>;
 			clock-names = "ahb", "mod";
+			dmas = <&dma 1 9>, <&dma 1 8>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -376,6 +380,8 @@
 			interrupts = <12>;
 			clocks = <&ahb_gates 22>, <&spi2_clk>;
 			clock-names = "ahb", "mod";
+			dmas = <&dma 1 29>, <&dma 1 28>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -490,7 +496,6 @@
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <7>;
 			clocks = <&apb1_gates 0>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -501,7 +506,6 @@
 			reg = <0x01c2b000 0x400>;
 			interrupts = <8>;
 			clocks = <&apb1_gates 1>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -512,7 +516,6 @@
 			reg = <0x01c2b400 0x400>;
 			interrupts = <9>;
 			clocks = <&apb1_gates 2>;
-			clock-frequency = <100000>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;

@@ -1,0 +1,93 @@
+* Samsung Exynos7 Clock Controller
+
+Exynos7 clock controller has various blocks which are instantiated
+independently from the device-tree. These clock controllers
+generate and supply clocks to various hardware blocks within
+the SoC.
+
+Each clock is assigned an identifier and client nodes can use
+this identifier to specify the clock which they consume. All
+available clocks are defined as preprocessor macros in
+dt-bindings/clock/exynos7-clk.h header and can be used in
+device tree sources.
+
+External clocks:
+
+There are several clocks that are generated outside the SoC. It
+is expected that they are defined using standard clock bindings
+with following clock-output-names:
+
+ - "fin_pll" - PLL input clock from XXTI
+
+Required Properties for Clock Controller:
+
+ - compatible: clock controllers will use one of the following
+	compatible strings to indicate the clock controller
+	functionality.
+
+	- "samsung,exynos7-clock-topc"
+	- "samsung,exynos7-clock-top0"
+	- "samsung,exynos7-clock-top1"
+	- "samsung,exynos7-clock-ccore"
+	- "samsung,exynos7-clock-peric0"
+	- "samsung,exynos7-clock-peric1"
+	- "samsung,exynos7-clock-peris"
+	- "samsung,exynos7-clock-fsys0"
+	- "samsung,exynos7-clock-fsys1"
+
+ - reg: physical base address of the controller and the length of
+	memory mapped region.
+
+ - #clock-cells: should be 1.
+
+ - clocks: list of clock identifiers which are fed as the input to
+	the given clock controller. Please refer the next section to
+	find the input clocks for a given controller.
+
+- clock-names: list of names of clocks which are fed as the input
+	to the given clock controller.
+
+Input clocks for top0 clock controller:
+	- fin_pll
+	- dout_sclk_bus0_pll
+	- dout_sclk_bus1_pll
+	- dout_sclk_cc_pll
+	- dout_sclk_mfc_pll
+
+Input clocks for top1 clock controller:
+	- fin_pll
+	- dout_sclk_bus0_pll
+	- dout_sclk_bus1_pll
+	- dout_sclk_cc_pll
+	- dout_sclk_mfc_pll
+
+Input clocks for ccore clock controller:
+	- fin_pll
+	- dout_aclk_ccore_133
+
+Input clocks for peric0 clock controller:
+	- fin_pll
+	- dout_aclk_peric0_66
+	- sclk_uart0
+
+Input clocks for peric1 clock controller:
+	- fin_pll
+	- dout_aclk_peric1_66
+	- sclk_uart1
+	- sclk_uart2
+	- sclk_uart3
+
+Input clocks for peris clock controller:
+	- fin_pll
+	- dout_aclk_peris_66
+
+Input clocks for fsys0 clock controller:
+	- fin_pll
+	- dout_aclk_fsys0_200
+	- dout_sclk_mmc2
+
+Input clocks for fsys1 clock controller:
+	- fin_pll
+	- dout_aclk_fsys1_200
+	- dout_sclk_mmc0
+	- dout_sclk_mmc1

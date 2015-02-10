@@ -21,8 +21,10 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#define SST_HSW_NO_CHANNELS		2
+#define SST_HSW_NO_CHANNELS		4
 #define SST_HSW_MAX_DX_REGIONS		14
+#define SST_HSW_DX_CONTEXT_SIZE        (640 * 1024)
+#define SST_HSW_CHANNELS_ALL		0xffffffff
 
 #define SST_HSW_FW_LOG_CONFIG_DWORDS	12
 #define SST_HSW_GLOBAL_LOG		15
@@ -40,6 +42,7 @@ struct sst_hsw_stream;
 struct sst_hsw_log_stream;
 struct sst_pdata;
 struct sst_module;
+struct sst_module_runtime;
 extern struct sst_ops haswell_ops;
 
 /* Stream Allocate Path ID */
@@ -84,6 +87,7 @@ enum sst_hsw_device_mclk {
 enum sst_hsw_device_mode {
 	SST_HSW_DEVICE_CLOCK_SLAVE   = 0,
 	SST_HSW_DEVICE_CLOCK_MASTER  = 1,
+	SST_HSW_DEVICE_TDM_CLOCK_MASTER = 2,
 };
 
 /* DX Power State */
@@ -295,7 +299,8 @@ struct sst_hsw_ipc_device_config_req {
 	u32 clock_frequency;
 	u32 mode;
 	u16 clock_divider;
-	u16 reserved;
+	u8 channels;
+	u8 reserved;
 } __attribute__((packed));
 
 /* Audio Data formats */
@@ -430,8 +435,7 @@ int sst_hsw_stream_set_map_config(struct sst_hsw *hsw,
 int sst_hsw_stream_set_style(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
 	enum sst_hsw_interleaving style);
 int sst_hsw_stream_set_module_info(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, enum sst_hsw_module_id module_id,
-	u32 entry_point);
+	struct sst_hsw_stream *stream, struct sst_module_runtime *runtime);
 int sst_hsw_stream_set_pmemory_info(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 offset, u32 size);
 int sst_hsw_stream_set_smemory_info(struct sst_hsw *hsw,
@@ -484,7 +488,16 @@ int sst_hsw_dx_get_state(struct sst_hsw *hsw, u32 item,
 int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata);
 void sst_hsw_dsp_free(struct device *dev, struct sst_pdata *pdata);
 struct sst_dsp *sst_hsw_get_dsp(struct sst_hsw *hsw);
-void sst_hsw_set_scratch_module(struct sst_hsw *hsw,
-	struct sst_module *scratch);
+
+/* runtime module management */
+struct sst_module_runtime *sst_hsw_runtime_module_create(struct sst_hsw *hsw,
+	int mod_id, int offset);
+void sst_hsw_runtime_module_free(struct sst_module_runtime *runtime);
+
+/* PM */
+int sst_hsw_dsp_runtime_resume(struct sst_hsw *hsw);
+int sst_hsw_dsp_runtime_suspend(struct sst_hsw *hsw);
+int sst_hsw_dsp_load(struct sst_hsw *hsw);
+int sst_hsw_dsp_runtime_sleep(struct sst_hsw *hsw);
 
 #endif

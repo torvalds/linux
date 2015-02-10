@@ -41,6 +41,7 @@ nvbios_dp_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 				case 0x21:
 				case 0x30:
 				case 0x40:
+				case 0x41:
 					*hdr = nv_ro08(bios, data + 0x01);
 					*len = nv_ro08(bios, data + 0x02);
 					*cnt = nv_ro08(bios, data + 0x03);
@@ -70,6 +71,7 @@ nvbios_dpout_entry(struct nouveau_bios *bios, u8 idx,
 			*cnt = nv_ro08(bios, outp + 0x04);
 			break;
 		case 0x40:
+		case 0x41:
 			*hdr = nv_ro08(bios, data + 0x04);
 			*cnt = 0;
 			*len = 0;
@@ -108,6 +110,7 @@ nvbios_dpout_parse(struct nouveau_bios *bios, u8 idx,
 				info->script[4] = nv_ro16(bios, data + 0x10);
 			break;
 		case 0x40:
+		case 0x41:
 			info->flags     = nv_ro08(bios, data + 0x04);
 			info->script[0] = nv_ro16(bios, data + 0x05);
 			info->script[1] = nv_ro16(bios, data + 0x07);
@@ -172,10 +175,11 @@ nvbios_dpcfg_parse(struct nouveau_bios *bios, u16 outp, u8 idx,
 			break;
 		case 0x30:
 		case 0x40:
+		case 0x41:
 			info->pc    = nv_ro08(bios, data + 0x00);
 			info->dc    = nv_ro08(bios, data + 0x01);
 			info->pe    = nv_ro08(bios, data + 0x02);
-			info->tx_pu = nv_ro08(bios, data + 0x03);
+			info->tx_pu = nv_ro08(bios, data + 0x03) & 0x0f;
 			break;
 		default:
 			data = 0x0000;
@@ -194,6 +198,10 @@ nvbios_dpcfg_match(struct nouveau_bios *bios, u16 outp, u8 pc, u8 vs, u8 pe,
 	u16 data;
 
 	if (*ver >= 0x30) {
+		/*XXX: there's a second set of these on at least 4.1, that
+		 *     i've witnessed nvidia using instead of the first
+		 *     on gm204.  figure out what/why
+		 */
 		const u8 vsoff[] = { 0, 4, 7, 9 };
 		idx = (pc * 10) + vsoff[vs] + pe;
 	} else {

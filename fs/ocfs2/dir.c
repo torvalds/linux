@@ -744,7 +744,7 @@ restart:
 		if (ocfs2_read_dir_block(dir, block, &bh, 0)) {
 			/* read error, skip block & hope for the best.
 			 * ocfs2_read_dir_block() has released the bh. */
-			ocfs2_error(dir->i_sb, "reading directory %llu, "
+			mlog(ML_ERROR, "reading directory %llu, "
 				    "offset %lu\n",
 				    (unsigned long long)OCFS2_I(dir)->ip_blkno,
 				    block);
@@ -2073,10 +2073,12 @@ struct ocfs2_empty_dir_priv {
 	unsigned seen_other;
 	unsigned dx_dir;
 };
-static int ocfs2_empty_dir_filldir(void *priv, const char *name, int name_len,
-				   loff_t pos, u64 ino, unsigned type)
+static int ocfs2_empty_dir_filldir(struct dir_context *ctx, const char *name,
+				   int name_len, loff_t pos, u64 ino,
+				   unsigned type)
 {
-	struct ocfs2_empty_dir_priv *p = priv;
+	struct ocfs2_empty_dir_priv *p =
+		container_of(ctx, struct ocfs2_empty_dir_priv, ctx);
 
 	/*
 	 * Check the positions of "." and ".." records to be sure
@@ -4477,7 +4479,7 @@ int ocfs2_dx_dir_truncate(struct inode *dir, struct buffer_head *di_bh)
 		p_cpos = ocfs2_blocks_to_clusters(dir->i_sb, blkno);
 
 		ret = ocfs2_remove_btree_range(dir, &et, cpos, p_cpos, clen, 0,
-					       &dealloc, 0);
+					       &dealloc, 0, false);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;

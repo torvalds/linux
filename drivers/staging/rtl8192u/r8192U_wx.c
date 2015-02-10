@@ -22,9 +22,10 @@
 #include "r8192U_hw.h"
 
 #include "dot11d.h"
+#include "r8192U_wx.h"
 
 #define RATE_COUNT 12
-u32 rtl8180_rates[] = {1000000, 2000000, 5500000, 11000000,
+static const u32 rtl8180_rates[] = {1000000, 2000000, 5500000, 11000000,
 	6000000, 9000000, 12000000, 18000000, 24000000, 36000000, 48000000, 54000000};
 
 
@@ -170,7 +171,6 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int *parms = (int *)extra;
 	int enable = (parms[0] > 0);
-	short prev = priv->crcmon;
 
 	down(&priv->wx_sem);
 
@@ -181,11 +181,6 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 
 	DMESG("bad CRC in monitor mode are %s",
 	      priv->crcmon ? "accepted" : "rejected");
-
-	if (prev != priv->crcmon && priv->up) {
-		/* rtl8180_down(dev); */
-		/* rtl8180_up(dev); */
-	}
 
 	up(&priv->wx_sem);
 
@@ -344,6 +339,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		return -EAGAIN;
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		struct iw_scan_req *req = (struct iw_scan_req *)b;
+
 		if (req->essid_len) {
 			ieee->current_network.ssid_len = req->essid_len;
 			memcpy(ieee->current_network.ssid, req->essid, req->essid_len);
@@ -758,6 +754,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 		struct iw_point *encoding = &wrqu->encoding;
 		u8 idx = 0, alg = 0, group = 0;
+
 		if ((encoding->flags & IW_ENCODE_DISABLED) || ext->alg == IW_ENCODE_ALG_NONE)
 			/* none is not allowed to use hwsec WB 2008.07.01 */
 			goto end_hw_sec;

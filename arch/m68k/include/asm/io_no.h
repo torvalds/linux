@@ -40,10 +40,6 @@ static inline unsigned int _swapl(volatile unsigned long v)
 #define readl(addr) \
     ({ unsigned int __v = (*(volatile unsigned int *) (addr)); __v; })
 
-#define readb_relaxed(addr) readb(addr)
-#define readw_relaxed(addr) readw(addr)
-#define readl_relaxed(addr) readl(addr)
-
 #define writeb(b,addr) (void)((*(volatile unsigned char *) (addr)) = (b))
 #define writew(b,addr) (void)((*(volatile unsigned short *) (addr)) = (b))
 #define writel(b,addr) (void)((*(volatile unsigned int *) (addr)) = (b))
@@ -178,6 +174,15 @@ static inline void *ioremap_fullcache(unsigned long physaddr, unsigned long size
  * Convert a virtual cached pointer to an uncached pointer
  */
 #define xlate_dev_kmem_ptr(p)	p
+
+static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
+{
+	return (void __iomem *) port;
+}
+
+static inline void ioport_unmap(void __iomem *p)
+{
+}
 
 #endif /* __KERNEL__ */
 

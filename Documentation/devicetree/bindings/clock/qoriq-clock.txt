@@ -62,6 +62,8 @@ Required properties:
 		It takes parent's clock-frequency as its clock.
 	* "fsl,qoriq-sysclk-2.0": for input system clock (v2.0).
 		It takes parent's clock-frequency as its clock.
+	* "fsl,qoriq-platform-pll-1.0" for the platform PLL clock (v1.0)
+	* "fsl,qoriq-platform-pll-2.0" for the platform PLL clock (v2.0)
 - #clock-cells: From common clock binding. The number of cells in a
 	clock-specifier. Should be <0> for "fsl,qoriq-sysclk-[1,2].0"
 	clocks, or <1> for "fsl,qoriq-core-pll-[1,2].0" clocks.
@@ -128,8 +130,16 @@ Example for clock block and clock provider:
 			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
 			clock-output-names = "cmux1";
 		};
+
+		platform-pll: platform-pll@c00 {
+			#clock-cells = <1>;
+			reg = <0xc00 0x4>;
+			compatible = "fsl,qoriq-platform-pll-1.0";
+			clocks = <&sysclk>;
+			clock-output-names = "platform-pll", "platform-pll-div2";
+		};
 	};
-  }
+};
 
 Example for clock consumer:
 
@@ -139,4 +149,4 @@ Example for clock consumer:
 		clocks = <&mux0>;
 		...
 	};
-  }
+};

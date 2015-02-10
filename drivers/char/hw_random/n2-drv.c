@@ -750,7 +750,6 @@ MODULE_DEVICE_TABLE(of, n2rng_match);
 static struct platform_driver n2rng_driver = {
 	.driver = {
 		.name = "n2rng",
-		.owner = THIS_MODULE,
 		.of_match_table = n2rng_match,
 	},
 	.probe		= n2rng_probe,

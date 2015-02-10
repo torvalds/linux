@@ -385,7 +385,6 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 	char *str = buf;
-	void *virt_addr;
 	int bios_index;
 	DECLARE_COMPLETION_ONSTACK(completion);
 	struct pm8001_ioctl_payload payload;
@@ -402,11 +401,10 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 		return -ENOMEM;
 	}
 	wait_for_completion(&completion);
-	virt_addr = pm8001_ha->memoryMap.region[NVMD].virt_ptr;
 	for (bios_index = BIOSOFFSET; bios_index < BIOS_OFFSET_LIMIT;
 		bios_index++)
 		str += sprintf(str, "%c",
-			*((u8 *)((u8 *)virt_addr+bios_index)));
+			*(payload.func_specific+bios_index));
 	kfree(payload.func_specific);
 	return str - buf;
 }

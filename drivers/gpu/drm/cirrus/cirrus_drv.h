@@ -21,6 +21,8 @@
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
 
+#include <drm/drm_gem.h>
+
 #define DRIVER_AUTHOR		"Matthew Garrett"
 
 #define DRIVER_NAME		"cirrus"
@@ -163,7 +165,7 @@ struct cirrus_bo {
 	struct ttm_placement placement;
 	struct ttm_bo_kmap_obj kmap;
 	struct drm_gem_object gem;
-	u32 placements[3];
+	struct ttm_place placements[3];
 	int pin_count;
 };
 #define gem_to_cirrus_bo(gobj) container_of((gobj), struct cirrus_bo, gem)
@@ -207,6 +209,9 @@ int cirrus_framebuffer_init(struct drm_device *dev,
 			   struct cirrus_framebuffer *gfb,
 			    struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct drm_gem_object *obj);
+
+bool cirrus_check_framebuffer(struct cirrus_device *cdev, int width, int height,
+			      int bpp, int pitch);
 
 				/* cirrus_display.c */
 int cirrus_modeset_init(struct cirrus_device *cdev);

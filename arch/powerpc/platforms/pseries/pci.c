@@ -29,6 +29,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
 #include <asm/ppc-pci.h>
+#include "pseries.h"
 
 #if 0
 void pcibios_name_device(struct pci_dev *dev)
@@ -133,7 +134,7 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 	of_node_put(pdn);
 
 	if (rc) {
-		pr_err("no ibm,pcie-link-speed-stats property\n");
+		pr_debug("no ibm,pcie-link-speed-stats property\n");
 		return 0;
 	}
 

@@ -136,50 +136,50 @@ enum drbd_role conn_highest_peer(struct drbd_connection *connection)
 
 enum drbd_disk_state conn_highest_disk(struct drbd_connection *connection)
 {
-	enum drbd_disk_state ds = D_DISKLESS;
+	enum drbd_disk_state disk_state = D_DISKLESS;
 	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
 		struct drbd_device *device = peer_device->device;
-		ds = max_t(enum drbd_disk_state, ds, device->state.disk);
+		disk_state = max_t(enum drbd_disk_state, disk_state, device->state.disk);
 	}
 	rcu_read_unlock();
 
-	return ds;
+	return disk_state;
 }
 
 enum drbd_disk_state conn_lowest_disk(struct drbd_connection *connection)
 {
-	enum drbd_disk_state ds = D_MASK;
+	enum drbd_disk_state disk_state = D_MASK;
 	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
 		struct drbd_device *device = peer_device->device;
-		ds = min_t(enum drbd_disk_state, ds, device->state.disk);
+		disk_state = min_t(enum drbd_disk_state, disk_state, device->state.disk);
 	}
 	rcu_read_unlock();
 
-	return ds;
+	return disk_state;
 }
 
 enum drbd_disk_state conn_highest_pdsk(struct drbd_connection *connection)
 {
-	enum drbd_disk_state ds = D_DISKLESS;
+	enum drbd_disk_state disk_state = D_DISKLESS;
 	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
 		struct drbd_device *device = peer_device->device;
-		ds = max_t(enum drbd_disk_state, ds, device->state.pdsk);
+		disk_state = max_t(enum drbd_disk_state, disk_state, device->state.pdsk);
 	}
 	rcu_read_unlock();
 
-	return ds;
+	return disk_state;
 }
 
 enum drbd_conns conn_lowest_conn(struct drbd_connection *connection)
@@ -213,6 +213,18 @@ static bool no_peer_wf_report_params(struct drbd_connection *connection)
 	rcu_read_unlock();
 
 	return rv;
+}
+
+static void wake_up_all_devices(struct drbd_connection *connection)
+{
+	struct drbd_peer_device *peer_device;
+	int vnr;
+
+	rcu_read_lock();
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
+		wake_up(&peer_device->device->state_wait);
+	rcu_read_unlock();
+
 }
 
 
@@ -406,6 +418,22 @@ _drbd_request_state(struct drbd_device *device, union drbd_state mask,
 
 	wait_event(device->state_wait,
 		   (rv = drbd_req_state(device, mask, val, f)) != SS_IN_TRANSIENT_STATE);
+
+	return rv;
+}
+
+enum drbd_state_rv
+_drbd_request_state_holding_state_mutex(struct drbd_device *device, union drbd_state mask,
+		    union drbd_state val, enum chg_state_flags f)
+{
+	enum drbd_state_rv rv;
+
+	BUG_ON(f & CS_SERIALIZE);
+
+	wait_event_cmd(device->state_wait,
+		       (rv = drbd_req_state(device, mask, val, f)) != SS_IN_TRANSIENT_STATE,
+		       mutex_unlock(device->state_mutex),
+		       mutex_lock(device->state_mutex));
 
 	return rv;
 }
@@ -629,14 +657,11 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_c
 	if (ns.conn == C_DISCONNECTING && os.conn == C_UNCONNECTED)
 		rv = SS_IN_TRANSIENT_STATE;
 
-	/* if (ns.conn == os.conn && ns.conn == C_WF_REPORT_PARAMS)
-	   rv = SS_IN_TRANSIENT_STATE; */
-
 	/* While establishing a connection only allow cstate to change.
-	   Delay/refuse role changes, detach attach etc... */
+	   Delay/refuse role changes, detach attach etc... (they do not touch cstate) */
 	if (test_bit(STATE_SENT, &connection->flags) &&
-	    !(os.conn == C_WF_REPORT_PARAMS ||
-	      (ns.conn == C_WF_REPORT_PARAMS && os.conn == C_WF_CONNECTION)))
+	    !((ns.conn == C_WF_REPORT_PARAMS && os.conn == C_WF_CONNECTION) ||
+	      (ns.conn >= C_CONNECTED && os.conn == C_WF_REPORT_PARAMS)))
 		rv = SS_IN_TRANSIENT_STATE;
 
 	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
@@ -1032,8 +1057,10 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 	/* Wake up role changes, that were delayed because of connection establishing */
 	if (os.conn == C_WF_REPORT_PARAMS && ns.conn != C_WF_REPORT_PARAMS &&
-	    no_peer_wf_report_params(connection))
+	    no_peer_wf_report_params(connection)) {
 		clear_bit(STATE_SENT, &connection->flags);
+		wake_up_all_devices(connection);
+	}
 
 	wake_up(&device->misc_wait);
 	wake_up(&device->state_wait);
@@ -1072,7 +1099,6 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 		set_ov_position(device, ns.conn);
 		device->rs_start = now;
-		device->rs_last_events = 0;
 		device->rs_last_sect_ev = 0;
 		device->ov_last_oos_size = 0;
 		device->ov_last_oos_start = 0;

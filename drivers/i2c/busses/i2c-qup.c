@@ -764,7 +764,6 @@ static struct platform_driver qup_i2c_driver = {
 	.remove = qup_i2c_remove,
 	.driver = {
 		.name = "i2c_qup",
-		.owner = THIS_MODULE,
 		.pm = &qup_i2c_qup_pm_ops,
 		.of_match_table = qup_i2c_dt_match,
 	},

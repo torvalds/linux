@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/io.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -28,10 +29,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 
-#include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-
-#include <mach/hardware.h>
 #include <linux/platform_data/keypad-pxa27x.h>
 /*
  * Keypad Controller registers
@@ -835,7 +832,6 @@ static struct platform_driver pxa27x_keypad_driver = {
 	.driver		= {
 		.name	= "pxa27x-keypad",
 		.of_match_table = of_match_ptr(pxa27x_keypad_dt_match),
-		.owner	= THIS_MODULE,
 		.pm	= &pxa27x_keypad_pm_ops,
 	},
 };

@@ -235,7 +235,8 @@ static ssize_t ata_scsi_park_store(struct device *device,
 		rc = -ENODEV;
 		goto unlock;
 	}
-	if (dev->class != ATA_DEV_ATA) {
+	if (dev->class != ATA_DEV_ATA &&
+	    dev->class != ATA_DEV_ZAC) {
 		rc = -EOPNOTSUPP;
 		goto unlock;
 	}
@@ -1164,7 +1165,7 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 
 		depth = min(sdev->host->can_queue, ata_id_queue_depth(dev->id));
 		depth = min(ATA_MAX_QUEUE - 1, depth);
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, depth);
+		scsi_change_queue_depth(sdev, depth);
 	}
 
 	blk_queue_flush_queueable(q, false);
@@ -1243,20 +1244,16 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
  *	@ap: ATA port to which the device change the queue depth
  *	@sdev: SCSI device to configure queue depth for
  *	@queue_depth: new queue depth
- *	@reason: calling context
  *
  *	libsas and libata have different approaches for associating a sdev to
  *	its ata_port.
  *
  */
 int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
-			     int queue_depth, int reason)
+			     int queue_depth)
 {
 	struct ata_device *dev;
 	unsigned long flags;
-
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
 
 	if (queue_depth < 1 || queue_depth == sdev->queue_depth)
 		return sdev->queue_depth;
@@ -1282,15 +1279,13 @@ int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
 	if (sdev->queue_depth == queue_depth)
 		return -EINVAL;
 
-	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, queue_depth);
-	return queue_depth;
+	return scsi_change_queue_depth(sdev, queue_depth);
 }
 
 /**
  *	ata_scsi_change_queue_depth - SCSI callback for queue depth config
  *	@sdev: SCSI device to configure queue depth for
  *	@queue_depth: new queue depth
- *	@reason: calling context
  *
  *	This is libata standard hostt->change_queue_depth callback.
  *	SCSI will call into this callback when user tries to set queue
@@ -1302,12 +1297,11 @@ int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
  *	RETURNS:
  *	Newly configured queue depth.
  */
-int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth,
-				int reason)
+int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 
-	return __ata_change_queue_depth(ap, sdev, queue_depth, reason);
+	return __ata_change_queue_depth(ap, sdev, queue_depth);
 }
 
 /**
@@ -1968,6 +1962,7 @@ static void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
 static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 {
 	const u8 versions[] = {
+		0x00,
 		0x60,	/* SAM-3 (no version claimed) */
 
 		0x03,
@@ -1976,6 +1971,20 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 		0x02,
 		0x60	/* SPC-3 (no version claimed) */
 	};
+	const u8 versions_zbc[] = {
+		0x00,
+		0xA0,	/* SAM-5 (no version claimed) */
+
+		0x04,
+		0xC0,	/* SBC-3 (no version claimed) */
+
+		0x04,
+		0x60,	/* SPC-4 (no version claimed) */
+
+		0x60,
+		0x20,   /* ZBC (no version claimed) */
+	};
+
 	u8 hdr[] = {
 		TYPE_DISK,
 		0,
@@ -1990,6 +1999,11 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	if (ata_id_removeable(args->id))
 		hdr[1] |= (1 << 7);
 
+	if (args->dev->class == ATA_DEV_ZAC) {
+		hdr[0] = TYPE_ZBC;
+		hdr[2] = 0x6; /* ZBC is defined in SPC-4 */
+	}
+
 	memcpy(rbuf, hdr, sizeof(hdr));
 	memcpy(&rbuf[8], "ATA     ", 8);
 	ata_id_string(args->id, &rbuf[16], ATA_ID_PROD, 16);
@@ -2002,7 +2016,10 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	if (rbuf[32] == 0 || rbuf[32] == ' ')
 		memcpy(&rbuf[32], "n/a ", 4);
 
-	memcpy(rbuf + 59, versions, sizeof(versions));
+	if (args->dev->class == ATA_DEV_ZAC)
+		memcpy(rbuf + 58, versions_zbc, sizeof(versions_zbc));
+	else
+		memcpy(rbuf + 58, versions, sizeof(versions));
 
 	return 0;
 }
@@ -2571,7 +2588,6 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 
 	DPRINTK("ATAPI request sense\n");
 
-	/* FIXME: is this needed? */
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 
 #ifdef CONFIG_ATA_SFF
@@ -3412,7 +3428,7 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
 	ata_xlat_func_t xlat_func;
 	int rc = 0;
 
-	if (dev->class == ATA_DEV_ATA) {
+	if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
 		if (unlikely(!scmd->cmd_len || scmd->cmd_len > dev->cdb_len))
 			goto bad_cdb_len;
 
@@ -3570,7 +3586,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
 		break;
 
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		if ((scsicmd[1] & 0x1f) == SAI_READ_CAPACITY_16)
 			ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
 		else

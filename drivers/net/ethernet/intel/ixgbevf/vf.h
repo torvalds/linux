@@ -74,6 +74,8 @@ enum ixgbe_mac_type {
 	ixgbe_mac_unknown = 0,
 	ixgbe_mac_82599_vf,
 	ixgbe_mac_X540_vf,
+	ixgbe_mac_X550_vf,
+	ixgbe_mac_X550EM_x_vf,
 	ixgbe_num_macs
 };
 

@@ -24,6 +24,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/omap-gpmc.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -142,7 +143,6 @@ MACHINE_START(CRANEBOARD, "AM3517/05 CRANEBOARD")
 	.map_io		= omap3_map_io,
 	.init_early	= am35xx_init_early,
 	.init_irq	= omap3_init_irq,
-	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= am3517_crane_init,
 	.init_late	= am35xx_init_late,
 	.init_time	= omap3_sync32k_timer_init,

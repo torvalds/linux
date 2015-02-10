@@ -69,8 +69,8 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
 	if (old_mask == new_mask)
 		return;
 
-	if (fsn_mark->i.inode)
-		fsnotify_recalc_inode_mask(fsn_mark->i.inode);
+	if (fsn_mark->inode)
+		fsnotify_recalc_inode_mask(fsn_mark->inode);
 }
 
 /*
@@ -346,13 +346,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		goto out;
 	}
 
-	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
-	if (error) {
-		/* if we added, we must shoot */
-		if (dn_mark == new_dn_mark)
-			destroy = 1;
-		goto out;
-	}
+	__f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
 
 	error = attach_dn(dn, dn_mark, id, fd, filp, mask);
 	/* !error means that we attached the dn to the dn_mark, so don't free it */

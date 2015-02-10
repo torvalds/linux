@@ -522,26 +522,36 @@ void __init setup_system(void)
 	smp_release_cpus();
 #endif
 
-	printk("Starting Linux PPC64 %s\n", init_utsname()->version);
+	pr_info("Starting Linux PPC64 %s\n", init_utsname()->version);
 
-	printk("-----------------------------------------------------\n");
-	printk("ppc64_pft_size                = 0x%llx\n", ppc64_pft_size);
-	printk("physicalMemorySize            = 0x%llx\n", memblock_phys_mem_size());
+	pr_info("-----------------------------------------------------\n");
+	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
+	pr_info("phys_mem_size     = 0x%llx\n", memblock_phys_mem_size());
+
 	if (ppc64_caches.dline_size != 0x80)
-		printk("ppc64_caches.dcache_line_size = 0x%x\n",
-		       ppc64_caches.dline_size);
+		pr_info("dcache_line_size  = 0x%x\n", ppc64_caches.dline_size);
 	if (ppc64_caches.iline_size != 0x80)
-		printk("ppc64_caches.icache_line_size = 0x%x\n",
-		       ppc64_caches.iline_size);
+		pr_info("icache_line_size  = 0x%x\n", ppc64_caches.iline_size);
+
+	pr_info("cpu_features      = 0x%016lx\n", cur_cpu_spec->cpu_features);
+	pr_info("  possible        = 0x%016lx\n", CPU_FTRS_POSSIBLE);
+	pr_info("  always          = 0x%016lx\n", CPU_FTRS_ALWAYS);
+	pr_info("cpu_user_features = 0x%08x 0x%08x\n", cur_cpu_spec->cpu_user_features,
+		cur_cpu_spec->cpu_user_features2);
+	pr_info("mmu_features      = 0x%08x\n", cur_cpu_spec->mmu_features);
+	pr_info("firmware_features = 0x%016lx\n", powerpc_firmware_features);
+
 #ifdef CONFIG_PPC_STD_MMU_64
 	if (htab_address)
-		printk("htab_address                  = 0x%p\n", htab_address);
-	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
-#endif /* CONFIG_PPC_STD_MMU_64 */
+		pr_info("htab_address      = 0x%p\n", htab_address);
+
+	pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
+#endif
+
 	if (PHYSICAL_START > 0)
-		printk("physical_start                = 0x%llx\n",
+		pr_info("physical_start    = 0x%llx\n",
 		       (unsigned long long)PHYSICAL_START);
-	printk("-----------------------------------------------------\n");
+	pr_info("-----------------------------------------------------\n");
 
 	DBG(" <- setup_system()\n");
 }
@@ -650,14 +660,12 @@ static void __init emergency_stack_init(void)
 }
 
 /*
- * Called into from start_kernel this initializes bootmem, which is used
+ * Called into from start_kernel this initializes memblock, which is used
  * to manage page allocation until mem_init is called.
  */
 void __init setup_arch(char **cmdline_p)
 {
-	ppc64_boot_msg(0x12, "Setup Arch");
-
-	*cmdline_p = cmd_line;
+	*cmdline_p = boot_command_line;
 
 	/*
 	 * Set cache line size based on type of cpu as a default.
@@ -681,9 +689,7 @@ void __init setup_arch(char **cmdline_p)
 	exc_lvl_early_init();
 	emergency_stack_init();
 
-	/* set up the bootmem stuff with available memory */
-	do_init_bootmem();
-	sparse_init();
+	initmem_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -701,33 +707,6 @@ void __init setup_arch(char **cmdline_p)
 	if ((unsigned long)_stext & 0xffff)
 		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
 		      (unsigned long)_stext);
-
-	ppc64_boot_msg(0x15, "Setup Done");
-}
-
-
-/* ToDo: do something useful if ppc_md is not yet setup. */
-#define PPC64_LINUX_FUNCTION 0x0f000000
-#define PPC64_IPL_MESSAGE 0xc0000000
-#define PPC64_TERM_MESSAGE 0xb0000000
-
-static void ppc64_do_msg(unsigned int src, const char *msg)
-{
-	if (ppc_md.progress) {
-		char buf[128];
-
-		sprintf(buf, "%08X\n", src);
-		ppc_md.progress(buf, 0);
-		snprintf(buf, 128, "%s", msg);
-		ppc_md.progress(buf, 0);
-	}
-}
-
-/* Print a boot progress message. */
-void ppc64_boot_msg(unsigned int src, const char *msg)
-{
-	ppc64_do_msg(PPC64_LINUX_FUNCTION|PPC64_IPL_MESSAGE|src, msg);
-	printk("[boot]%04x %s\n", src, msg);
 }
 
 #ifdef CONFIG_SMP

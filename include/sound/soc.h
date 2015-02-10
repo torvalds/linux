@@ -36,6 +36,11 @@
 	{.reg = xreg, .rreg = xreg, .shift = shift_left, \
 	.rshift = shift_right, .max = xmax, .platform_max = xmax, \
 	.invert = xinvert, .autodisable = xautodisable})
+#define SOC_DOUBLE_S_VALUE(xreg, shift_left, shift_right, xmin, xmax, xsign_bit, xinvert, xautodisable) \
+	((unsigned long)&(struct soc_mixer_control) \
+	{.reg = xreg, .rreg = xreg, .shift = shift_left, \
+	.rshift = shift_right, .min = xmin, .max = xmax, .platform_max = xmax, \
+	.sign_bit = xsign_bit, .invert = xinvert, .autodisable = xautodisable})
 #define SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert, xautodisable) \
 	SOC_DOUBLE_VALUE(xreg, xshift, xshift, xmax, xinvert, xautodisable)
 #define SOC_SINGLE_VALUE_EXT(xreg, xmax, xinvert) \
@@ -171,11 +176,9 @@
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 		  SNDRV_CTL_ELEM_ACCESS_READWRITE, \
 	.tlv.p  = (tlv_array), \
-	.info   = snd_soc_info_volsw_s8, .get = snd_soc_get_volsw_s8, \
-	.put    = snd_soc_put_volsw_s8, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = xreg, .min = xmin, .max = xmax, \
-		 .platform_max = xmax} }
+	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
+	.put = snd_soc_put_volsw, \
+	.private_value = SOC_DOUBLE_S_VALUE(xreg, 0, 8, xmin, xmax, 7, 0, 0) }
 #define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xitems, xtexts) \
 {	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
 	.items = xitems, .texts = xtexts, \
@@ -366,8 +369,6 @@ struct snd_soc_jack_gpio;
 
 typedef int (*hw_write_t)(void *,const char* ,int);
 
-extern struct snd_ac97_bus_ops *soc_ac97_ops;
-
 enum snd_soc_pcm_subclass {
 	SND_SOC_PCM_CLASS_PCM	= 0,
 	SND_SOC_PCM_CLASS_BE	= 1,
@@ -409,13 +410,9 @@ int devm_snd_soc_register_component(struct device *dev,
 			 const struct snd_soc_component_driver *cmpnt_drv,
 			 struct snd_soc_dai_driver *dai_drv, int num_dai);
 void snd_soc_unregister_component(struct device *dev);
-int snd_soc_cache_sync(struct snd_soc_codec *codec);
 int snd_soc_cache_init(struct snd_soc_codec *codec);
 int snd_soc_cache_exit(struct snd_soc_codec *codec);
-int snd_soc_cache_write(struct snd_soc_codec *codec,
-			unsigned int reg, unsigned int value);
-int snd_soc_cache_read(struct snd_soc_codec *codec,
-		       unsigned int reg, unsigned int *value);
+
 int snd_soc_platform_read(struct snd_soc_platform *platform,
 					unsigned int reg);
 int snd_soc_platform_write(struct snd_soc_platform *platform,
@@ -500,13 +497,27 @@ int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
 int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 
-int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
-	struct snd_ac97_bus_ops *ops, int num);
-void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
+#ifdef CONFIG_SND_SOC_AC97_BUS
+struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec);
+void snd_soc_free_ac97_codec(struct snd_ac97 *ac97);
 
 int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops);
 int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 		struct platform_device *pdev);
+
+extern struct snd_ac97_bus_ops *soc_ac97_ops;
+#else
+static inline int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
+	struct platform_device *pdev)
+{
+	return 0;
+}
+
+static inline int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops)
+{
+	return 0;
+}
+#endif
 
 /*
  *Controls
@@ -544,12 +555,6 @@ int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 int snd_soc_get_volsw_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_info_volsw_s8(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo);
-int snd_soc_get_volsw_s8(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_info_volsw_range(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
@@ -690,6 +695,17 @@ struct snd_soc_compr_ops {
 struct snd_soc_component_driver {
 	const char *name;
 
+	/* Default control and setup, added after probe() is run */
+	const struct snd_kcontrol_new *controls;
+	unsigned int num_controls;
+	const struct snd_soc_dapm_widget *dapm_widgets;
+	unsigned int num_dapm_widgets;
+	const struct snd_soc_dapm_route *dapm_routes;
+	unsigned int num_dapm_routes;
+
+	int (*probe)(struct snd_soc_component *);
+	void (*remove)(struct snd_soc_component *);
+
 	/* DT */
 	int (*of_xlate_dai_name)(struct snd_soc_component *component,
 				 struct of_phandle_args *args,
@@ -697,6 +713,10 @@ struct snd_soc_component_driver {
 	void (*seq_notifier)(struct snd_soc_component *, enum snd_soc_dapm_type,
 		int subseq);
 	int (*stream_event)(struct snd_soc_component *, int event);
+
+	/* probe ordering - for components with runtime dependencies */
+	int probe_order;
+	int remove_order;
 };
 
 struct snd_soc_component {
@@ -710,6 +730,7 @@ struct snd_soc_component {
 
 	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
 	unsigned int registered_as_component:1;
+	unsigned int probed:1;
 
 	struct list_head list;
 
@@ -728,9 +749,35 @@ struct snd_soc_component {
 
 	struct mutex io_mutex;
 
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_root;
+#endif
+
+	/*
+	* DO NOT use any of the fields below in drivers, they are temporary and
+	* are going to be removed again soon. If you use them in driver code the
+	* driver will be marked as BROKEN when these fields are removed.
+	*/
+
 	/* Don't use these, use snd_soc_component_get_dapm() */
 	struct snd_soc_dapm_context dapm;
 	struct snd_soc_dapm_context *dapm_ptr;
+
+	const struct snd_kcontrol_new *controls;
+	unsigned int num_controls;
+	const struct snd_soc_dapm_widget *dapm_widgets;
+	unsigned int num_dapm_widgets;
+	const struct snd_soc_dapm_route *dapm_routes;
+	unsigned int num_dapm_routes;
+	struct snd_soc_codec *codec;
+
+	int (*probe)(struct snd_soc_component *);
+	void (*remove)(struct snd_soc_component *);
+
+#ifdef CONFIG_DEBUG_FS
+	void (*init_debugfs)(struct snd_soc_component *component);
+	const char *debugfs_prefix;
+#endif
 };
 
 /* SoC Audio Codec device */
@@ -738,26 +785,18 @@ struct snd_soc_codec {
 	struct device *dev;
 	const struct snd_soc_codec_driver *driver;
 
-	struct mutex mutex;
 	struct list_head list;
 	struct list_head card_list;
 
 	/* runtime */
-	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
 	unsigned int cache_bypass:1; /* Suppress access to the cache */
 	unsigned int suspended:1; /* Codec is in suspend PM state */
-	unsigned int probed:1; /* Codec has been probed */
-	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
-	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int cache_init:1; /* codec cache has been initialized */
-	u32 cache_only;  /* Suppress writes to hardware */
-	u32 cache_sync; /* Cache needs to be synced to hardware */
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
 	hw_write_t hw_write;
 	void *reg_cache;
-	struct mutex cache_rw_mutex;
 
 	/* component */
 	struct snd_soc_component component;
@@ -766,7 +805,6 @@ struct snd_soc_codec {
 	struct snd_soc_dapm_context dapm;
 
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_codec_root;
 	struct dentry *debugfs_reg;
 #endif
 };
@@ -808,15 +846,12 @@ struct snd_soc_codec_driver {
 	int (*set_bias_level)(struct snd_soc_codec *,
 			      enum snd_soc_bias_level level);
 	bool idle_bias_off;
+	bool suspend_bias_off;
 
 	void (*seq_notifier)(struct snd_soc_dapm_context *,
 			     enum snd_soc_dapm_type, int);
 
 	bool ignore_pmdown_time;  /* Doesn't benefit from pmdown delay */
-
-	/* probe ordering - for components with runtime dependencies */
-	int probe_order;
-	int remove_order;
 };
 
 /* SoC platform interface */
@@ -824,21 +859,11 @@ struct snd_soc_platform_driver {
 
 	int (*probe)(struct snd_soc_platform *);
 	int (*remove)(struct snd_soc_platform *);
-	int (*suspend)(struct snd_soc_dai *dai);
-	int (*resume)(struct snd_soc_dai *dai);
 	struct snd_soc_component_driver component_driver;
 
 	/* pcm creation and destruction */
 	int (*pcm_new)(struct snd_soc_pcm_runtime *);
 	void (*pcm_free)(struct snd_pcm *);
-
-	/* Default control and setup, added after probe() is run */
-	const struct snd_kcontrol_new *controls;
-	int num_controls;
-	const struct snd_soc_dapm_widget *dapm_widgets;
-	int num_dapm_widgets;
-	const struct snd_soc_dapm_route *dapm_routes;
-	int num_dapm_routes;
 
 	/*
 	 * For platform caused delay reporting.
@@ -853,19 +878,12 @@ struct snd_soc_platform_driver {
 	/* platform stream compress ops */
 	const struct snd_compr_ops *compr_ops;
 
-	/* probe ordering - for components with runtime dependencies */
-	int probe_order;
-	int remove_order;
-
-	/* platform IO - used for platform DAPM */
-	unsigned int (*read)(struct snd_soc_platform *, unsigned int);
-	int (*write)(struct snd_soc_platform *, unsigned int, unsigned int);
 	int (*bespoke_trigger)(struct snd_pcm_substream *, int);
 };
 
 struct snd_soc_dai_link_component {
 	const char *name;
-	const struct device_node *of_node;
+	struct device_node *of_node;
 	const char *dai_name;
 };
 
@@ -873,16 +891,9 @@ struct snd_soc_platform {
 	struct device *dev;
 	const struct snd_soc_platform_driver *driver;
 
-	unsigned int suspended:1; /* platform is suspended */
-	unsigned int probed:1;
-
 	struct list_head list;
 
 	struct snd_soc_component component;
-
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_platform_root;
-#endif
 };
 
 struct snd_soc_dai_link {
@@ -897,7 +908,7 @@ struct snd_soc_dai_link {
 	 * only for codec to codec links, or systems using device tree.
 	 */
 	const char *cpu_name;
-	const struct device_node *cpu_of_node;
+	struct device_node *cpu_of_node;
 	/*
 	 * You MAY specify the DAI name of the CPU DAI. If this information is
 	 * omitted, the CPU-side DAI is matched using .cpu_name/.cpu_of_node
@@ -909,7 +920,7 @@ struct snd_soc_dai_link {
 	 * DT/OF node, but not both.
 	 */
 	const char *codec_name;
-	const struct device_node *codec_of_node;
+	struct device_node *codec_of_node;
 	/* You MUST specify the DAI name within the codec */
 	const char *codec_dai_name;
 
@@ -922,7 +933,7 @@ struct snd_soc_dai_link {
 	 * do not need a platform.
 	 */
 	const char *platform_name;
-	const struct device_node *platform_of_node;
+	struct device_node *platform_of_node;
 	int be_id;	/* optional ID for machine driver BE identification */
 
 	const struct snd_soc_pcm_stream *params;
@@ -974,7 +985,7 @@ struct snd_soc_codec_conf {
 	 * DT/OF node, but not both.
 	 */
 	const char *dev_name;
-	const struct device_node *of_node;
+	struct device_node *of_node;
 
 	/*
 	 * optional map of kcontrol, widget and path name prefixes that are
@@ -991,10 +1002,10 @@ struct snd_soc_aux_dev {
 	 * DT/OF node, but not both.
 	 */
 	const char *codec_name;
-	const struct device_node *codec_of_node;
+	struct device_node *codec_of_node;
 
 	/* codec/machine specific init - e.g. add machine controls */
-	int (*init)(struct snd_soc_dapm_context *dapm);
+	int (*init)(struct snd_soc_component *component);
 };
 
 /* SoC card */
@@ -1112,6 +1123,7 @@ struct snd_soc_pcm_runtime {
 	struct snd_soc_platform *platform;
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
+	struct snd_soc_component *component; /* Only valid for AUX dev rtds */
 
 	struct snd_soc_dai **codec_dais;
 	unsigned int num_codecs;
@@ -1247,6 +1259,17 @@ unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
 int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int val);
 
+/**
+ * snd_soc_cache_sync() - Sync the register cache with the hardware
+ * @codec: CODEC to sync
+ *
+ * Note: This function will call regcache_sync()
+ */
+static inline int snd_soc_cache_sync(struct snd_soc_codec *codec)
+{
+	return regcache_sync(codec->component.regmap);
+}
+
 /* component IO */
 int snd_soc_component_read(struct snd_soc_component *component,
 	unsigned int reg, unsigned int *val);
@@ -1260,8 +1283,44 @@ void snd_soc_component_async_complete(struct snd_soc_component *component);
 int snd_soc_component_test_bits(struct snd_soc_component *component,
 	unsigned int reg, unsigned int mask, unsigned int value);
 
-int snd_soc_component_init_io(struct snd_soc_component *component,
+#ifdef CONFIG_REGMAP
+
+void snd_soc_component_init_regmap(struct snd_soc_component *component,
 	struct regmap *regmap);
+void snd_soc_component_exit_regmap(struct snd_soc_component *component);
+
+/**
+ * snd_soc_codec_init_regmap() - Initialize regmap instance for the CODEC
+ * @codec: The CODEC for which to initialize the regmap instance
+ * @regmap: The regmap instance that should be used by the CODEC
+ *
+ * This function allows deferred assignment of the regmap instance that is
+ * associated with the CODEC. Only use this if the regmap instance is not yet
+ * ready when the CODEC is registered. The function must also be called before
+ * the first IO attempt of the CODEC.
+ */
+static inline void snd_soc_codec_init_regmap(struct snd_soc_codec *codec,
+	struct regmap *regmap)
+{
+	snd_soc_component_init_regmap(&codec->component, regmap);
+}
+
+/**
+ * snd_soc_codec_exit_regmap() - De-initialize regmap instance for the CODEC
+ * @codec: The CODEC for which to de-initialize the regmap instance
+ *
+ * Calls regmap_exit() on the regmap instance associated to the CODEC and
+ * removes the regmap instance from the CODEC.
+ *
+ * This function should only be used if snd_soc_codec_init_regmap() was used to
+ * initialize the regmap instance.
+ */
+static inline void snd_soc_codec_exit_regmap(struct snd_soc_codec *codec)
+{
+	snd_soc_component_exit_regmap(&codec->component);
+}
+
+#endif
 
 /* device driver data */
 
@@ -1276,26 +1335,37 @@ static inline void *snd_soc_card_get_drvdata(struct snd_soc_card *card)
 	return card->drvdata;
 }
 
+static inline void snd_soc_component_set_drvdata(struct snd_soc_component *c,
+		void *data)
+{
+	dev_set_drvdata(c->dev, data);
+}
+
+static inline void *snd_soc_component_get_drvdata(struct snd_soc_component *c)
+{
+	return dev_get_drvdata(c->dev);
+}
+
 static inline void snd_soc_codec_set_drvdata(struct snd_soc_codec *codec,
 		void *data)
 {
-	dev_set_drvdata(codec->dev, data);
+	snd_soc_component_set_drvdata(&codec->component, data);
 }
 
 static inline void *snd_soc_codec_get_drvdata(struct snd_soc_codec *codec)
 {
-	return dev_get_drvdata(codec->dev);
+	return snd_soc_component_get_drvdata(&codec->component);
 }
 
 static inline void snd_soc_platform_set_drvdata(struct snd_soc_platform *platform,
 		void *data)
 {
-	dev_set_drvdata(platform->dev, data);
+	snd_soc_component_set_drvdata(&platform->component, data);
 }
 
 static inline void *snd_soc_platform_get_drvdata(struct snd_soc_platform *platform)
 {
-	return dev_get_drvdata(platform->dev);
+	return snd_soc_component_get_drvdata(&platform->component);
 }
 
 static inline void snd_soc_pcm_set_drvdata(struct snd_soc_pcm_runtime *rtd,
@@ -1426,6 +1496,9 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 				     struct device_node **framemaster);
 int snd_soc_of_get_dai_name(struct device_node *of_node,
 			    const char **dai_name);
+int snd_soc_of_get_dai_link_codecs(struct device *dev,
+				   struct device_node *of_node,
+				   struct snd_soc_dai_link *dai_link);
 
 #include <sound/soc-dai.h>
 

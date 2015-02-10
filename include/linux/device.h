@@ -181,13 +181,14 @@ extern int bus_unregister_notifier(struct bus_type *bus,
  * with the device lock held in the core, so be careful.
  */
 #define BUS_NOTIFY_ADD_DEVICE		0x00000001 /* device added */
-#define BUS_NOTIFY_DEL_DEVICE		0x00000002 /* device removed */
-#define BUS_NOTIFY_BIND_DRIVER		0x00000003 /* driver about to be
+#define BUS_NOTIFY_DEL_DEVICE		0x00000002 /* device to be removed */
+#define BUS_NOTIFY_REMOVED_DEVICE	0x00000003 /* device removed */
+#define BUS_NOTIFY_BIND_DRIVER		0x00000004 /* driver about to be
 						      bound */
-#define BUS_NOTIFY_BOUND_DRIVER		0x00000004 /* driver bound to device */
-#define BUS_NOTIFY_UNBIND_DRIVER	0x00000005 /* driver about to be
+#define BUS_NOTIFY_BOUND_DRIVER		0x00000005 /* driver bound to device */
+#define BUS_NOTIFY_UNBIND_DRIVER	0x00000006 /* driver about to be
 						      unbound */
-#define BUS_NOTIFY_UNBOUND_DRIVER	0x00000006 /* driver is unbound
+#define BUS_NOTIFY_UNBOUND_DRIVER	0x00000007 /* driver is unbound
 						      from the device */
 
 extern struct kset *bus_get_kset(struct bus_type *bus);
@@ -607,8 +608,8 @@ extern int devres_release_group(struct device *dev, void *id);
 extern void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp);
 extern char *devm_kvasprintf(struct device *dev, gfp_t gfp, const char *fmt,
 			     va_list ap);
-extern char *devm_kasprintf(struct device *dev, gfp_t gfp,
-			    const char *fmt, ...);
+extern __printf(3, 4)
+char *devm_kasprintf(struct device *dev, gfp_t gfp, const char *fmt, ...);
 static inline void *devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
 {
 	return devm_kmalloc(dev, size, gfp | __GFP_ZERO);
@@ -910,6 +911,11 @@ static inline void device_unlock(struct device *dev)
 	mutex_unlock(&dev->mutex);
 }
 
+static inline void device_lock_assert(struct device *dev)
+{
+	lockdep_assert_held(&dev->mutex);
+}
+
 void driver_init(void);
 
 /*
@@ -1116,6 +1122,41 @@ do {						     \
 	0;							\
 })
 #endif
+
+#ifdef CONFIG_PRINTK
+#define dev_level_once(dev_level, dev, fmt, ...)			\
+do {									\
+	static bool __print_once __read_mostly;				\
+									\
+	if (!__print_once) {						\
+		__print_once = true;					\
+		dev_level(dev, fmt, ##__VA_ARGS__);			\
+	}								\
+} while (0)
+#else
+#define dev_level_once(dev_level, dev, fmt, ...)			\
+do {									\
+	if (0)								\
+		dev_level(dev, fmt, ##__VA_ARGS__);			\
+} while (0)
+#endif
+
+#define dev_emerg_once(dev, fmt, ...)					\
+	dev_level_once(dev_emerg, dev, fmt, ##__VA_ARGS__)
+#define dev_alert_once(dev, fmt, ...)					\
+	dev_level_once(dev_alert, dev, fmt, ##__VA_ARGS__)
+#define dev_crit_once(dev, fmt, ...)					\
+	dev_level_once(dev_crit, dev, fmt, ##__VA_ARGS__)
+#define dev_err_once(dev, fmt, ...)					\
+	dev_level_once(dev_err, dev, fmt, ##__VA_ARGS__)
+#define dev_warn_once(dev, fmt, ...)					\
+	dev_level_once(dev_warn, dev, fmt, ##__VA_ARGS__)
+#define dev_notice_once(dev, fmt, ...)					\
+	dev_level_once(dev_notice, dev, fmt, ##__VA_ARGS__)
+#define dev_info_once(dev, fmt, ...)					\
+	dev_level_once(dev_info, dev, fmt, ##__VA_ARGS__)
+#define dev_dbg_once(dev, fmt, ...)					\
+	dev_level_once(dev_info, dev, fmt, ##__VA_ARGS__)
 
 #define dev_level_ratelimited(dev_level, dev, fmt, ...)			\
 do {									\

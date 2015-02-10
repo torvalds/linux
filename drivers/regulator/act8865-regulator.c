@@ -61,6 +61,8 @@
 #define	ACT8846_REG12_VSET	0xa0
 #define	ACT8846_REG12_CTRL	0xa1
 #define	ACT8846_REG13_CTRL	0xb1
+#define	ACT8846_GLB_OFF_CTRL	0xc3
+#define	ACT8846_OFF_SYSMASK	0x18
 
 /*
  * ACT8865 Global Register Map.
@@ -84,6 +86,7 @@
 #define	ACT8865_LDO3_CTRL	0x61
 #define	ACT8865_LDO4_VSET	0x64
 #define	ACT8865_LDO4_CTRL	0x65
+#define	ACT8865_MSTROFF		0x20
 
 /*
  * Field Definitions.
@@ -98,6 +101,8 @@
 
 struct act8865 {
 	struct regmap *regmap;
+	int off_reg;
+	int off_mask;
 };
 
 static const struct regmap_config act8865_regmap_config = {
@@ -275,6 +280,16 @@ static struct regulator_init_data
 	return NULL;
 }
 
+static struct i2c_client *act8865_i2c_client;
+static void act8865_power_off(void)
+{
+	struct act8865 *act8865;
+
+	act8865 = i2c_get_clientdata(act8865_i2c_client);
+	regmap_write(act8865->regmap, act8865->off_reg, act8865->off_mask);
+	while (1);
+}
+
 static int act8865_pmic_probe(struct i2c_client *client,
 			      const struct i2c_device_id *i2c_id)
 {
@@ -285,6 +300,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	int i, ret, num_regulators;
 	struct act8865 *act8865;
 	unsigned long type;
+	int off_reg, off_mask;
 
 	pdata = dev_get_platdata(dev);
 
@@ -304,10 +320,14 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	case ACT8846:
 		regulators = act8846_regulators;
 		num_regulators = ARRAY_SIZE(act8846_regulators);
+		off_reg = ACT8846_GLB_OFF_CTRL;
+		off_mask = ACT8846_OFF_SYSMASK;
 		break;
 	case ACT8865:
 		regulators = act8865_regulators;
 		num_regulators = ARRAY_SIZE(act8865_regulators);
+		off_reg = ACT8865_SYS_CTRL;
+		off_mask = ACT8865_MSTROFF;
 		break;
 	default:
 		dev_err(dev, "invalid device id %lu\n", type);
@@ -343,6 +363,17 @@ static int act8865_pmic_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
 			ret);
 		return ret;
+	}
+
+	if (of_device_is_system_power_controller(dev->of_node)) {
+		if (!pm_power_off) {
+			act8865_i2c_client = client;
+			act8865->off_reg = off_reg;
+			act8865->off_mask = off_mask;
+			pm_power_off = act8865_power_off;
+		} else {
+			dev_err(dev, "Failed to set poweroff capability, already defined\n");
+		}
 	}
 
 	/* Finally register devices */

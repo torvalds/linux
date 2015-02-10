@@ -331,8 +331,7 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
 
 	if (mm->exe_file) {
 		app_cookie = fast_get_dcookie(&mm->exe_file->f_path);
-		pr_debug("got dcookie for %s\n",
-			 mm->exe_file->f_dentry->d_name.name);
+		pr_debug("got dcookie for %pD\n", mm->exe_file);
 	}
 
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
@@ -342,15 +341,14 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
 		if (!vma->vm_file)
 			goto fail_no_image_cookie;
 
-		pr_debug("Found spu ELF at %X(object-id:%lx) for file %s\n",
-			 my_offset, spu_ref,
-			 vma->vm_file->f_dentry->d_name.name);
+		pr_debug("Found spu ELF at %X(object-id:%lx) for file %pD\n",
+			 my_offset, spu_ref, vma->vm_file);
 		*offsetp = my_offset;
 		break;
 	}
 
 	*spu_bin_dcookie = fast_get_dcookie(&vma->vm_file->f_path);
-	pr_debug("got dcookie for %s\n", vma->vm_file->f_dentry->d_name.name);
+	pr_debug("got dcookie for %pD\n", vma->vm_file);
 
 	up_read(&mm->mmap_sem);
 

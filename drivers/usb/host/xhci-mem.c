@@ -1904,7 +1904,7 @@ static int xhci_test_trb_in_td(struct xhci_hcd *xhci,
 	start_dma = xhci_trb_virt_to_dma(input_seg, start_trb);
 	end_dma = xhci_trb_virt_to_dma(input_seg, end_trb);
 
-	seg = trb_in_td(input_seg, start_trb, end_trb, input_dma);
+	seg = trb_in_td(xhci, input_seg, start_trb, end_trb, input_dma, false);
 	if (seg != result_seg) {
 		xhci_warn(xhci, "WARN: %s TRB math test %d failed!\n",
 				test_name, test_number);
@@ -1918,6 +1918,8 @@ static int xhci_test_trb_in_td(struct xhci_hcd *xhci,
 				end_trb, end_dma);
 		xhci_warn(xhci, "Expected seg %p, got seg %p\n",
 				result_seg, seg);
+		trb_in_td(xhci, input_seg, start_trb, end_trb, input_dma,
+			  true);
 		return -1;
 	}
 	return 0;

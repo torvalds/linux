@@ -44,6 +44,7 @@
 #include <linux/ratelimit.h>
 #include <linux/seccomp.h>
 #include <linux/if_vlan.h>
+#include <linux/bpf.h>
 
 /**
  *	sk_filter - run a packet through a socket filter
@@ -51,9 +52,9 @@
  *	@skb: buffer to filter
  *
  * Run the filter code and then cut skb->data to correct size returned by
- * sk_run_filter. If pkt_len is 0 we toss packet. If skb->len is smaller
+ * SK_RUN_FILTER. If pkt_len is 0 we toss packet. If skb->len is smaller
  * than pkt_len we keep whole skb->data. This is the socket level
- * wrapper to sk_run_filter. It returns 0 if the packet should
+ * wrapper to SK_RUN_FILTER. It returns 0 if the packet should
  * be accepted or -EPERM if the packet should be tossed.
  *
  */
@@ -87,33 +88,9 @@ int sk_filter(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sk_filter);
 
-/* Helper to find the offset of pkt_type in sk_buff structure. We want
- * to make sure its still a 3bit field starting at a byte boundary;
- * taken from arch/x86/net/bpf_jit_comp.c.
- */
-#ifdef __BIG_ENDIAN_BITFIELD
-#define PKT_TYPE_MAX	(7 << 5)
-#else
-#define PKT_TYPE_MAX	7
-#endif
-static unsigned int pkt_type_offset(void)
-{
-	struct sk_buff skb_probe = { .pkt_type = ~0, };
-	u8 *ct = (u8 *) &skb_probe;
-	unsigned int off;
-
-	for (off = 0; off < sizeof(struct sk_buff); off++) {
-		if (ct[off] == PKT_TYPE_MAX)
-			return off;
-	}
-
-	pr_err_once("Please fix %s, as pkt_type couldn't be found!\n", __func__);
-	return -1;
-}
-
 static u64 __skb_get_pay_offset(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 {
-	return __skb_get_poff((struct sk_buff *)(unsigned long) ctx);
+	return skb_get_poff((struct sk_buff *)(unsigned long) ctx);
 }
 
 static u64 __skb_get_nlattr(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
@@ -190,11 +167,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		break;
 
 	case SKF_AD_OFF + SKF_AD_PKTTYPE:
-		*insn = BPF_LDX_MEM(BPF_B, BPF_REG_A, BPF_REG_CTX,
-				    pkt_type_offset());
-		if (insn->off < 0)
-			return false;
-		insn++;
+		*insn++ = BPF_LDX_MEM(BPF_B, BPF_REG_A, BPF_REG_CTX,
+				      PKT_TYPE_OFFSET());
 		*insn = BPF_ALU32_IMM(BPF_AND, BPF_REG_A, PKT_TYPE_MAX);
 #ifdef __BIG_ENDIAN_BITFIELD
 		insn++;
@@ -593,11 +567,8 @@ err:
 
 /* Security:
  *
- * A BPF program is able to use 16 cells of memory to store intermediate
- * values (check u32 mem[BPF_MEMWORDS] in sk_run_filter()).
- *
  * As we dont want to clear mem[] array for each packet going through
- * sk_run_filter(), we check that filter loaded by user never try to read
+ * __bpf_prog_run(), we check that filter loaded by user never try to read
  * a cell if not previously written, and we check all branches to be sure
  * a malicious user doesn't try to abuse us.
  */
@@ -843,8 +814,12 @@ static void bpf_release_orig_filter(struct bpf_prog *fp)
 
 static void __bpf_prog_release(struct bpf_prog *prog)
 {
-	bpf_release_orig_filter(prog);
-	bpf_prog_free(prog);
+	if (prog->aux->prog_type == BPF_PROG_TYPE_SOCKET_FILTER) {
+		bpf_prog_put(prog);
+	} else {
+		bpf_release_orig_filter(prog);
+		bpf_prog_free(prog);
+	}
 }
 
 static void __sk_filter_release(struct sk_filter *fp)
@@ -933,7 +908,7 @@ static struct bpf_prog *bpf_migrate_filter(struct bpf_prog *fp)
 
 	/* Expand fp for appending the new filter representation. */
 	old_fp = fp;
-	fp = krealloc(old_fp, bpf_prog_size(new_len), GFP_KERNEL);
+	fp = bpf_prog_realloc(old_fp, bpf_prog_size(new_len), 0);
 	if (!fp) {
 		/* The old_fp is still around in case we couldn't
 		 * allocate new memory, so uncharge on that one.
@@ -972,7 +947,7 @@ static struct bpf_prog *bpf_prepare_filter(struct bpf_prog *fp)
 	int err;
 
 	fp->bpf_func = NULL;
-	fp->jited = 0;
+	fp->jited = false;
 
 	err = bpf_check_classic(fp->insns, fp->len);
 	if (err) {
@@ -1013,7 +988,7 @@ int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog)
 	if (fprog->filter == NULL)
 		return -EINVAL;
 
-	fp = kmalloc(bpf_prog_size(fprog->len), GFP_KERNEL);
+	fp = bpf_prog_alloc(bpf_prog_size(fprog->len), 0);
 	if (!fp)
 		return -ENOMEM;
 
@@ -1069,12 +1044,12 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	if (fprog->filter == NULL)
 		return -EINVAL;
 
-	prog = kmalloc(bpf_fsize, GFP_KERNEL);
+	prog = bpf_prog_alloc(bpf_fsize, 0);
 	if (!prog)
 		return -ENOMEM;
 
 	if (copy_from_user(prog->insns, fprog->filter, fsize)) {
-		kfree(prog);
+		__bpf_prog_free(prog);
 		return -EFAULT;
 	}
 
@@ -1082,7 +1057,7 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 
 	err = bpf_prog_store_orig_filter(prog, fprog);
 	if (err) {
-		kfree(prog);
+		__bpf_prog_free(prog);
 		return -ENOMEM;
 	}
 
@@ -1118,6 +1093,94 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(sk_attach_filter);
 
+#ifdef CONFIG_BPF_SYSCALL
+int sk_attach_bpf(u32 ufd, struct sock *sk)
+{
+	struct sk_filter *fp, *old_fp;
+	struct bpf_prog *prog;
+
+	if (sock_flag(sk, SOCK_FILTER_LOCKED))
+		return -EPERM;
+
+	prog = bpf_prog_get(ufd);
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
+	if (prog->aux->prog_type != BPF_PROG_TYPE_SOCKET_FILTER) {
+		/* valid fd, but invalid program type */
+		bpf_prog_put(prog);
+		return -EINVAL;
+	}
+
+	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	if (!fp) {
+		bpf_prog_put(prog);
+		return -ENOMEM;
+	}
+	fp->prog = prog;
+
+	atomic_set(&fp->refcnt, 0);
+
+	if (!sk_filter_charge(sk, fp)) {
+		__sk_filter_release(fp);
+		return -ENOMEM;
+	}
+
+	old_fp = rcu_dereference_protected(sk->sk_filter,
+					   sock_owned_by_user(sk));
+	rcu_assign_pointer(sk->sk_filter, fp);
+
+	if (old_fp)
+		sk_filter_uncharge(sk, old_fp);
+
+	return 0;
+}
+
+/* allow socket filters to call
+ * bpf_map_lookup_elem(), bpf_map_update_elem(), bpf_map_delete_elem()
+ */
+static const struct bpf_func_proto *sock_filter_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_map_lookup_elem:
+		return &bpf_map_lookup_elem_proto;
+	case BPF_FUNC_map_update_elem:
+		return &bpf_map_update_elem_proto;
+	case BPF_FUNC_map_delete_elem:
+		return &bpf_map_delete_elem_proto;
+	default:
+		return NULL;
+	}
+}
+
+static bool sock_filter_is_valid_access(int off, int size, enum bpf_access_type type)
+{
+	/* skb fields cannot be accessed yet */
+	return false;
+}
+
+static struct bpf_verifier_ops sock_filter_ops = {
+	.get_func_proto = sock_filter_func_proto,
+	.is_valid_access = sock_filter_is_valid_access,
+};
+
+static struct bpf_prog_type_list tl = {
+	.ops = &sock_filter_ops,
+	.type = BPF_PROG_TYPE_SOCKET_FILTER,
+};
+
+static int __init register_sock_filter_ops(void)
+{
+	bpf_register_prog_type(&tl);
+	return 0;
+}
+late_initcall(register_sock_filter_ops);
+#else
+int sk_attach_bpf(u32 ufd, struct sock *sk)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 int sk_detach_filter(struct sock *sk)
 {
 	int ret = -ENOENT;

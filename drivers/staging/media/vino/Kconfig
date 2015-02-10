@@ -1,0 +1,24 @@
+config VIDEO_VINO
+	tristate "SGI Vino Video For Linux (Deprecated)"
+	depends on I2C && SGI_IP22 && VIDEO_V4L2
+	select VIDEO_SAA7191 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to build in support for the Vino video input system found
+	  on SGI Indy machines.
+
+	  This driver is deprecated and will be removed soon. If you have
+	  hardware for this and you want to work on this driver, then contact
+	  the linux-media mailinglist.
+
+config VIDEO_SAA7191
+	tristate "Philips SAA7191 video decoder (Deprecated)"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Philips SAA7191 video decoder.
+
+	  This driver is deprecated and will be removed soon. If you have
+	  hardware for this and you want to work on this driver, then contact
+	  the linux-media mailinglist.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7191.

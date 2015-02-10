@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011  Intel Corporation. All rights reserved.
+ * Copyright (C) 2014 Marvell International Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1511,8 +1512,10 @@ int nfc_llcp_data_received(struct nfc_dev *dev, struct sk_buff *skb)
 	struct nfc_llcp_local *local;
 
 	local = nfc_llcp_find_local(dev);
-	if (local == NULL)
+	if (local == NULL) {
+		kfree_skb(skb);
 		return -ENODEV;
+	}
 
 	__nfc_llcp_recv(local, skb);
 

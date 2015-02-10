@@ -5,6 +5,15 @@
 #define TRANSPORT_PLUGIN_VHBA_PDEV		2
 #define TRANSPORT_PLUGIN_VHBA_VDEV		3
 
+struct target_backend_cits {
+	struct config_item_type tb_dev_cit;
+	struct config_item_type tb_dev_attrib_cit;
+	struct config_item_type tb_dev_pr_cit;
+	struct config_item_type tb_dev_wwn_cit;
+	struct config_item_type tb_dev_alua_tg_pt_gps_cit;
+	struct config_item_type tb_dev_stat_cit;
+};
+
 struct se_subsystem_api {
 	struct list_head sub_api_list;
 
@@ -44,6 +53,8 @@ struct se_subsystem_api {
 	int (*init_prot)(struct se_device *);
 	int (*format_prot)(struct se_device *);
 	void (*free_prot)(struct se_device *);
+
+	struct target_backend_cits tb_cits;
 };
 
 struct sbc_ops {
@@ -95,5 +106,37 @@ sense_reason_t	transport_generic_map_mem_to_cmd(struct se_cmd *,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 
 void	array_free(void *array, int n);
+
+/* From target_core_configfs.c to setup default backend config_item_types */
+void	target_core_setup_sub_cits(struct se_subsystem_api *);
+
+/* attribute helpers from target_core_device.c for backend drivers */
+int	se_dev_set_max_unmap_lba_count(struct se_device *, u32);
+int	se_dev_set_max_unmap_block_desc_count(struct se_device *, u32);
+int	se_dev_set_unmap_granularity(struct se_device *, u32);
+int	se_dev_set_unmap_granularity_alignment(struct se_device *, u32);
+int	se_dev_set_max_write_same_len(struct se_device *, u32);
+int	se_dev_set_emulate_model_alias(struct se_device *, int);
+int	se_dev_set_emulate_dpo(struct se_device *, int);
+int	se_dev_set_emulate_fua_write(struct se_device *, int);
+int	se_dev_set_emulate_fua_read(struct se_device *, int);
+int	se_dev_set_emulate_write_cache(struct se_device *, int);
+int	se_dev_set_emulate_ua_intlck_ctrl(struct se_device *, int);
+int	se_dev_set_emulate_tas(struct se_device *, int);
+int	se_dev_set_emulate_tpu(struct se_device *, int);
+int	se_dev_set_emulate_tpws(struct se_device *, int);
+int	se_dev_set_emulate_caw(struct se_device *, int);
+int	se_dev_set_emulate_3pc(struct se_device *, int);
+int	se_dev_set_pi_prot_type(struct se_device *, int);
+int	se_dev_set_pi_prot_format(struct se_device *, int);
+int	se_dev_set_enforce_pr_isids(struct se_device *, int);
+int	se_dev_set_force_pr_aptpl(struct se_device *, int);
+int	se_dev_set_is_nonrot(struct se_device *, int);
+int	se_dev_set_emulate_rest_reord(struct se_device *dev, int);
+int	se_dev_set_queue_depth(struct se_device *, u32);
+int	se_dev_set_max_sectors(struct se_device *, u32);
+int	se_dev_set_fabric_max_sectors(struct se_device *, u32);
+int	se_dev_set_optimal_sectors(struct se_device *, u32);
+int	se_dev_set_block_size(struct se_device *, u32);
 
 #endif /* TARGET_CORE_BACKEND_H */

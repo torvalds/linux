@@ -110,6 +110,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 			mwifiex_11n_del_rx_reorder_tbl_by_ta(priv, deauth_mac);
 			mwifiex_del_tx_ba_stream_tbl_by_ra(priv, deauth_mac);
 		}
+		mwifiex_wmm_del_peer_ra_list(priv, deauth_mac);
 		mwifiex_del_sta_entry(priv, deauth_mac);
 		break;
 	case EVENT_UAP_BSS_IDLE:
@@ -171,6 +172,10 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		if (adapter->ext_scan)
 			return mwifiex_handle_event_ext_scan_report(priv,
 						adapter->event_skb->data);
+		break;
+	case EVENT_TX_STATUS_REPORT:
+		dev_dbg(adapter->dev, "event: TX_STATUS Report\n");
+		mwifiex_parse_tx_status_event(priv, adapter->event_body);
 		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",

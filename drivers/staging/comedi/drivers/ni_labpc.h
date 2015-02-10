@@ -37,8 +37,6 @@ struct labpc_boardinfo {
 struct labpc_private {
 	/*  number of data points left to be taken */
 	unsigned long long count;
-	/*  software copy of analog output values */
-	unsigned int ao_value[NUM_AO_CHAN];
 	/*  software copys of bits written to command registers */
 	unsigned int cmd1;
 	unsigned int cmd2;
@@ -70,10 +68,6 @@ struct labpc_private {
 	unsigned int dma_transfer_size;
 	/* we are using dma/fifo-half-full/etc. */
 	enum transfer_type current_transfer;
-	/* stores contents of board's eeprom */
-	unsigned int eeprom_data[EEPROM_SIZE];
-	/* stores settings of calibration dacs */
-	unsigned int caldac[16];
 	/*
 	 * function pointers so we can use inb/outb or readb/writeb as
 	 * appropriate

@@ -66,7 +66,7 @@ __devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
 			      unsigned int index, enum gpiod_flags flags);
 void devm_gpiod_put(struct device *dev, struct gpio_desc *desc);
 
-int gpiod_get_direction(const struct gpio_desc *desc);
+int gpiod_get_direction(struct gpio_desc *desc);
 int gpiod_direction_input(struct gpio_desc *desc);
 int gpiod_direction_output(struct gpio_desc *desc, int value);
 int gpiod_direction_output_raw(struct gpio_desc *desc, int value);
@@ -74,14 +74,24 @@ int gpiod_direction_output_raw(struct gpio_desc *desc, int value);
 /* Value get/set from non-sleeping context */
 int gpiod_get_value(const struct gpio_desc *desc);
 void gpiod_set_value(struct gpio_desc *desc, int value);
+void gpiod_set_array(unsigned int array_size,
+		     struct gpio_desc **desc_array, int *value_array);
 int gpiod_get_raw_value(const struct gpio_desc *desc);
 void gpiod_set_raw_value(struct gpio_desc *desc, int value);
+void gpiod_set_raw_array(unsigned int array_size,
+			 struct gpio_desc **desc_array, int *value_array);
 
 /* Value get/set from sleeping context */
 int gpiod_get_value_cansleep(const struct gpio_desc *desc);
 void gpiod_set_value_cansleep(struct gpio_desc *desc, int value);
+void gpiod_set_array_cansleep(unsigned int array_size,
+			      struct gpio_desc **desc_array,
+			      int *value_array);
 int gpiod_get_raw_value_cansleep(const struct gpio_desc *desc);
 void gpiod_set_raw_value_cansleep(struct gpio_desc *desc, int value);
+void gpiod_set_raw_array_cansleep(unsigned int array_size,
+				  struct gpio_desc **desc_array,
+				  int *value_array);
 
 int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce);
 
@@ -94,6 +104,13 @@ int gpiod_to_irq(const struct gpio_desc *desc);
 struct gpio_desc *gpio_to_desc(unsigned gpio);
 int desc_to_gpio(const struct gpio_desc *desc);
 
+/* Child properties interface */
+struct fwnode_handle;
+
+struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
+					 const char *propname);
+struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
+					    struct fwnode_handle *child);
 #else /* CONFIG_GPIOLIB */
 
 static inline struct gpio_desc *__must_check __gpiod_get(struct device *dev,
@@ -210,6 +227,13 @@ static inline void gpiod_set_value(struct gpio_desc *desc, int value)
 	/* GPIO can never have been requested */
 	WARN_ON(1);
 }
+static inline void gpiod_set_array(unsigned int array_size,
+				   struct gpio_desc **desc_array,
+				   int *value_array)
+{
+	/* GPIO can never have been requested */
+	WARN_ON(1);
+}
 static inline int gpiod_get_raw_value(const struct gpio_desc *desc)
 {
 	/* GPIO can never have been requested */
@@ -217,6 +241,13 @@ static inline int gpiod_get_raw_value(const struct gpio_desc *desc)
 	return 0;
 }
 static inline void gpiod_set_raw_value(struct gpio_desc *desc, int value)
+{
+	/* GPIO can never have been requested */
+	WARN_ON(1);
+}
+static inline void gpiod_set_raw_array(unsigned int array_size,
+				       struct gpio_desc **desc_array,
+				       int *value_array)
 {
 	/* GPIO can never have been requested */
 	WARN_ON(1);
@@ -233,6 +264,13 @@ static inline void gpiod_set_value_cansleep(struct gpio_desc *desc, int value)
 	/* GPIO can never have been requested */
 	WARN_ON(1);
 }
+static inline void gpiod_set_array_cansleep(unsigned int array_size,
+					    struct gpio_desc **desc_array,
+					    int *value_array)
+{
+	/* GPIO can never have been requested */
+	WARN_ON(1);
+}
 static inline int gpiod_get_raw_value_cansleep(const struct gpio_desc *desc)
 {
 	/* GPIO can never have been requested */
@@ -241,6 +279,13 @@ static inline int gpiod_get_raw_value_cansleep(const struct gpio_desc *desc)
 }
 static inline void gpiod_set_raw_value_cansleep(struct gpio_desc *desc,
 						int value)
+{
+	/* GPIO can never have been requested */
+	WARN_ON(1);
+}
+static inline void gpiod_set_raw_array_cansleep(unsigned int array_size,
+						struct gpio_desc **desc_array,
+						int *value_array)
 {
 	/* GPIO can never have been requested */
 	WARN_ON(1);

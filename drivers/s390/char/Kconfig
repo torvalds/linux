@@ -102,6 +102,29 @@ config SCLP_ASYNC
 	  want for inform other people about your kernel panics,
 	  need this feature and intend to run your kernel in LPAR.
 
+config SCLP_ASYNC_ID
+       string "Component ID for Call Home"
+       depends on SCLP_ASYNC
+       default "000000000"
+       help
+	 The Component ID for Call Home is used to identify the correct
+	 problem reporting queue the call home records should be sent to.
+
+	 If your are unsure, please use the default value "000000000".
+
+config HMC_DRV
+	def_tristate m
+	prompt "Support for file transfers from HMC drive CD/DVD-ROM"
+	depends on S390 && 64BIT
+	select CRC16
+	help
+	  This option enables support for file transfers from a Hardware
+	  Management Console (HMC) drive CD/DVD-ROM. It is available as a
+	  module, called 'hmcdrv', and also as kernel built-in. There is one
+	  optional parameter for this module: cachesize=N, which modifies the
+	  transfer cache size from it's default value 0.5MB to N bytes. If N
+	  is zero, then no caching is performed.
+
 config S390_TAPE
 	def_tristate m
 	prompt "S/390 tape device support"

@@ -93,6 +93,15 @@ LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
+#
+# pass -msoft-float to GAS if it supports it.  However on newer binutils
+# (specifically newer than 2.24.51.20140728) we then also need to explicitly
+# set ".set hardfloat" in all files which manipulate floating point registers.
+#
+ifneq ($(call as-option,-Wa$(comma)-msoft-float,),)
+	cflags-y		+= -DGAS_HAS_SET_HARDFLOAT -Wa,-msoft-float
+endif
+
 cflags-y += -ffreestanding
 
 #
@@ -333,6 +342,16 @@ endif
 
 CLEAN_FILES += vmlinux.32 vmlinux.64
 
+# device-trees
+core-$(CONFIG_BUILTIN_DTB) += arch/mips/boot/dts/
+
+%.dtb %.dtb.S %.dtb.o: | scripts
+	$(Q)$(MAKE) $(build)=arch/mips/boot/dts arch/mips/boot/dts/$@
+
+PHONY += dtbs
+dtbs: scripts
+	$(Q)$(MAKE) $(build)=arch/mips/boot/dts dtbs
+
 archprepare:
 ifdef CONFIG_MIPS32_N32
 	@echo '  Checking missing-syscalls for N32'
@@ -361,12 +380,14 @@ define archhelp
 	echo '  vmlinux.ecoff        - ECOFF boot image'
 	echo '  vmlinux.bin          - Raw binary boot image'
 	echo '  vmlinux.srec         - SREC boot image'
+	echo '  vmlinux.32           - 64-bit boot image wrapped in 32bits (IP22/IP32)'
 	echo '  vmlinuz              - Compressed boot(zboot) image'
 	echo '  vmlinuz.ecoff        - ECOFF zboot image'
 	echo '  vmlinuz.bin          - Raw binary zboot image'
 	echo '  vmlinuz.srec         - SREC zboot image'
 	echo '  uImage               - U-Boot image'
 	echo '  uImage.gz            - U-Boot image (gzip)'
+	echo '  dtbs                 - Device-tree blobs for enabled boards'
 	echo
 	echo '  These will be default as appropriate for a configured platform.'
 endef

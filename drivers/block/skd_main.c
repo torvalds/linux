@@ -4426,6 +4426,7 @@ static int skd_cons_disk(struct skd_device *skdev)
 	q->limits.discard_zeroes_data = 1;
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
 
 	spin_lock_irqsave(&skdev->lock, flags);
 	pr_debug("%s:%s:%d stopping %s queue\n",

@@ -12,6 +12,7 @@
 
 #define MACB_GREGS_NBR 16
 #define MACB_GREGS_VERSION 1
+#define MACB_MAX_QUEUES 8
 
 /* MACB register offsets */
 #define MACB_NCR				0x0000
@@ -88,6 +89,13 @@
 #define GEM_DCFG5				0x0290
 #define GEM_DCFG6				0x0294
 #define GEM_DCFG7				0x0298
+
+#define GEM_ISR(hw_q)				(0x0400 + ((hw_q) << 2))
+#define GEM_TBQP(hw_q)				(0x0440 + ((hw_q) << 2))
+#define GEM_RBQP(hw_q)				(0x0480 + ((hw_q) << 2))
+#define GEM_IER(hw_q)				(0x0600 + ((hw_q) << 2))
+#define GEM_IDR(hw_q)				(0x0620 + ((hw_q) << 2))
+#define GEM_IMR(hw_q)				(0x0640 + ((hw_q) << 2))
 
 /* Bitfields in NCR */
 #define MACB_LB_OFFSET				0
@@ -376,6 +384,10 @@
 	__raw_readl((port)->regs + GEM_##reg)
 #define gem_writel(port, reg, value)			\
 	__raw_writel((value), (port)->regs + GEM_##reg)
+#define queue_readl(queue, reg)				\
+	__raw_readl((queue)->bp->regs + (queue)->reg)
+#define queue_writel(queue, reg, value)			\
+	__raw_writel((value), (queue)->bp->regs + (queue)->reg)
 
 /*
  * Conditional GEM/MACB macros.  These perform the operation to the correct
@@ -597,6 +609,23 @@ struct macb_config {
 	unsigned int		dma_burst_length;
 };
 
+struct macb_queue {
+	struct macb		*bp;
+	int			irq;
+
+	unsigned int		ISR;
+	unsigned int		IER;
+	unsigned int		IDR;
+	unsigned int		IMR;
+	unsigned int		TBQP;
+
+	unsigned int		tx_head, tx_tail;
+	struct macb_dma_desc	*tx_ring;
+	struct macb_tx_skb	*tx_skb;
+	dma_addr_t		tx_ring_dma;
+	struct work_struct	tx_error_task;
+};
+
 struct macb {
 	void __iomem		*regs;
 
@@ -607,9 +636,8 @@ struct macb {
 	void			*rx_buffers;
 	size_t			rx_buffer_size;
 
-	unsigned int		tx_head, tx_tail;
-	struct macb_dma_desc	*tx_ring;
-	struct macb_tx_skb	*tx_skb;
+	unsigned int		num_queues;
+	struct macb_queue	queues[MACB_MAX_QUEUES];
 
 	spinlock_t		lock;
 	struct platform_device	*pdev;
@@ -618,7 +646,6 @@ struct macb {
 	struct clk		*tx_clk;
 	struct net_device	*dev;
 	struct napi_struct	napi;
-	struct work_struct	tx_error_task;
 	struct net_device_stats	stats;
 	union {
 		struct macb_stats	macb;
@@ -626,7 +653,6 @@ struct macb {
 	}			hw_stats;
 
 	dma_addr_t		rx_ring_dma;
-	dma_addr_t		tx_ring_dma;
 	dma_addr_t		rx_buffers_dma;
 
 	struct macb_or_gem_ops	macbgem_ops;

@@ -63,3 +63,11 @@ config VIDEO_SAA7134_DVB
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7134-dvb.
+
+config VIDEO_SAA7134_GO7007
+	tristate "go7007 support for saa7134 based TV cards"
+	depends on VIDEO_SAA7134
+	depends on VIDEO_GO7007
+	---help---
+	  Enables saa7134 driver support for boards with go7007
+	  MPEG encoder (WIS Voyager or compatible).

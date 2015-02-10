@@ -133,7 +133,6 @@ static struct of_device_id ppc4xx_rng_match[] = {
 static struct platform_driver ppc4xx_rng_driver = {
 	.driver = {
 		.name = MODULE_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = ppc4xx_rng_match,
 	},
 	.probe = ppc4xx_rng_probe,

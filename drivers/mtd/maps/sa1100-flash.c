@@ -289,7 +289,6 @@ static struct platform_driver sa1100_mtd_driver = {
 	.remove		= __exit_p(sa1100_mtd_remove),
 	.driver		= {
 		.name	= "sa1100-mtd",
-		.owner	= THIS_MODULE,
 	},
 };
 

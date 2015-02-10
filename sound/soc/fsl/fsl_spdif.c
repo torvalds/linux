@@ -15,7 +15,6 @@
 
 #include <linux/bitrev.h>
 #include <linux/clk.h>
-#include <linux/clk-private.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -1040,7 +1039,7 @@ static bool fsl_spdif_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config fsl_spdif_regmap_config = {
+static const struct regmap_config fsl_spdif_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -1184,9 +1183,6 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	memcpy(&spdif_priv->cpu_dai_drv, &fsl_spdif_dai, sizeof(fsl_spdif_dai));
 	spdif_priv->cpu_dai_drv.name = spdif_priv->name;
 
-	if (of_property_read_bool(np, "big-endian"))
-		fsl_spdif_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
-
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
@@ -1287,7 +1283,6 @@ MODULE_DEVICE_TABLE(of, fsl_spdif_dt_ids);
 static struct platform_driver fsl_spdif_driver = {
 	.driver = {
 		.name = "fsl-spdif-dai",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_spdif_dt_ids,
 	},
 	.probe = fsl_spdif_probe,

@@ -812,7 +812,7 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 	/* if we find something consistent, stay with that assumption
 	 * at least M09 won't send 3 bytes here
 	 */
-	if (!(strnicmp(rdbuf + 1, "EP0", 3))) {
+	if (!(strncasecmp(rdbuf + 1, "EP0", 3))) {
 		tsdata->version = M06;
 
 		/* remove last '$' end marker */

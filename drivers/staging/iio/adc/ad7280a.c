@@ -188,7 +188,7 @@ static void ad7280_delay(struct ad7280_state *st)
 	if (st->readback_delay_us < 50)
 		udelay(st->readback_delay_us);
 	else
-		msleep(1);
+		usleep_range(250, 500);
 }
 
 static int __ad7280_read32(struct ad7280_state *st, unsigned *val)

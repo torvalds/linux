@@ -1096,9 +1096,8 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* initialize our threads if they haven't already been started up */
 	rc = one_time_init();
-	if (rc) {
+	if (rc)
 		goto err_free_bus;
-	}
 
 	dbg("pdev = %p\n", pdev);
 	dbg("pci resource start %llx\n", (unsigned long long)pci_resource_start(pdev, 0));

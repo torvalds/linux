@@ -124,14 +124,6 @@ static int device_authorization(struct hdpvr_device *dev)
 	int ret, retval = -ENOMEM;
 	char request_type = 0x38, rcv_request = 0x81;
 	char *response;
-#ifdef HDPVR_DEBUG
-	size_t buf_size = 46;
-	char *print_buf = kzalloc(5*buf_size+1, GFP_KERNEL);
-	if (!print_buf) {
-		v4l2_err(&dev->v4l2_dev, "Out of memory\n");
-		return retval;
-	}
-#endif
 
 	mutex_lock(&dev->usbc_mutex);
 	ret = usb_control_msg(dev->udev,
@@ -147,11 +139,9 @@ static int device_authorization(struct hdpvr_device *dev)
 	}
 #ifdef HDPVR_DEBUG
 	else {
-		hex_dump_to_buffer(dev->usbc_buf, 46, 16, 1, print_buf,
-				   5*buf_size+1, 0);
 		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
-			 "Status request returned, len %d: %s\n",
-			 ret, print_buf);
+			 "Status request returned, len %d: %46ph\n",
+			 ret, dev->usbc_buf);
 	}
 #endif
 
@@ -189,15 +179,13 @@ static int device_authorization(struct hdpvr_device *dev)
 
 	response = dev->usbc_buf+38;
 #ifdef HDPVR_DEBUG
-	hex_dump_to_buffer(response, 8, 16, 1, print_buf, 5*buf_size+1, 0);
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, "challenge: %s\n",
-		 print_buf);
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, "challenge: %8ph\n",
+		 response);
 #endif
 	challenge(response);
 #ifdef HDPVR_DEBUG
-	hex_dump_to_buffer(response, 8, 16, 1, print_buf, 5*buf_size+1, 0);
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, " response: %s\n",
-		 print_buf);
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, " response: %8ph\n",
+		 response);
 #endif
 
 	msleep(100);
@@ -213,9 +201,6 @@ static int device_authorization(struct hdpvr_device *dev)
 	retval = ret != 8;
 unlock:
 	mutex_unlock(&dev->usbc_mutex);
-#ifdef HDPVR_DEBUG
-	kfree(print_buf);
-#endif
 	return retval;
 }
 

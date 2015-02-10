@@ -42,6 +42,10 @@ struct ceph_connection_operations {
 	struct ceph_msg * (*alloc_msg) (struct ceph_connection *con,
 					struct ceph_msg_header *hdr,
 					int *skip);
+	int (*sign_message) (struct ceph_connection *con, struct ceph_msg *msg);
+
+	int (*check_message_signature) (struct ceph_connection *con,
+					struct ceph_msg *msg);
 };
 
 /* use format string %s%d */
@@ -142,7 +146,10 @@ struct ceph_msg_data_cursor {
  */
 struct ceph_msg {
 	struct ceph_msg_header hdr;	/* header */
-	struct ceph_msg_footer footer;	/* footer */
+	union {
+		struct ceph_msg_footer footer;		/* footer */
+		struct ceph_msg_footer_old old_footer;	/* old format footer */
+	};
 	struct kvec front;              /* unaligned blobs of message */
 	struct ceph_buffer *middle;
 

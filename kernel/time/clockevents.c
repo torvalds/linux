@@ -72,7 +72,7 @@ static u64 cev_delta2ns(unsigned long latch, struct clock_event_device *evt,
 	 * Also omit the add if it would overflow the u64 boundary.
 	 */
 	if ((~0ULL - clc > rnd) &&
-	    (!ismax || evt->mult <= (1U << evt->shift)))
+	    (!ismax || evt->mult <= (1ULL << evt->shift)))
 		clc += rnd;
 
 	do_div(clc, evt->mult);

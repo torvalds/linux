@@ -222,10 +222,14 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 			}
 
 			/* Error found so break the for loop */
-			break;
+			return IRQ_HANDLED;
 		}
 	}
-	return IRQ_HANDLED;
+
+	dev_err(l3->dev, "L3 %s IRQ not handled!!\n",
+		inttype ? "debug" : "application");
+
+	return IRQ_NONE;
 }
 
 static const struct of_device_id l3_noc_match[] = {
@@ -296,11 +300,65 @@ static int omap_l3_probe(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef	CONFIG_PM
+
+/**
+ * l3_resume_noirq() - resume function for l3_noc
+ * @dev:	pointer to l3_noc device structure
+ *
+ * We only have the resume handler only since we
+ * have already maintained the delta register
+ * configuration as part of configuring the system
+ */
+static int l3_resume_noirq(struct device *dev)
+{
+	struct omap_l3 *l3 = dev_get_drvdata(dev);
+	int i;
+	struct l3_flagmux_data *flag_mux;
+	void __iomem *base, *mask_regx = NULL;
+	u32 mask_val;
+
+	for (i = 0; i < l3->num_modules; i++) {
+		base = l3->l3_base[i];
+		flag_mux = l3->l3_flagmux[i];
+		if (!flag_mux->mask_app_bits && !flag_mux->mask_dbg_bits)
+			continue;
+
+		mask_regx = base + flag_mux->offset + L3_FLAGMUX_MASK0 +
+			   (L3_APPLICATION_ERROR << 3);
+		mask_val = readl_relaxed(mask_regx);
+		mask_val &= ~(flag_mux->mask_app_bits);
+
+		writel_relaxed(mask_val, mask_regx);
+		mask_regx = base + flag_mux->offset + L3_FLAGMUX_MASK0 +
+			   (L3_DEBUG_ERROR << 3);
+		mask_val = readl_relaxed(mask_regx);
+		mask_val &= ~(flag_mux->mask_dbg_bits);
+
+		writel_relaxed(mask_val, mask_regx);
+	}
+
+	/* Dummy read to force OCP barrier */
+	if (mask_regx)
+		(void)readl(mask_regx);
+
+	return 0;
+}
+
+static const struct dev_pm_ops l3_dev_pm_ops = {
+	.resume_noirq		= l3_resume_noirq,
+};
+
+#define L3_DEV_PM_OPS (&l3_dev_pm_ops)
+#else
+#define L3_DEV_PM_OPS NULL
+#endif
+
 static struct platform_driver omap_l3_driver = {
 	.probe		= omap_l3_probe,
 	.driver		= {
 		.name		= "omap_l3_noc",
-		.owner		= THIS_MODULE,
+		.pm		= L3_DEV_PM_OPS,
 		.of_match_table = of_match_ptr(l3_noc_match),
 	},
 };

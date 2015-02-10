@@ -596,7 +596,6 @@ static int coretemp_remove(struct platform_device *pdev)
 
 static struct platform_driver coretemp_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = DRVNAME,
 	},
 	.probe = coretemp_probe,

@@ -26,30 +26,15 @@
  * Date: May 21, 1996
  *
  * Functions:
- *      MACvReadAllRegs - Read All MAC Registers to buffer
  *      MACbIsRegBitsOn - Test if All test Bits On
  *      MACbIsRegBitsOff - Test if All test Bits Off
  *      MACbIsIntDisable - Test if MAC interrupt disable
- *      MACbyReadMultiAddr - Read Multicast Address Mask Pattern
- *      MACvWriteMultiAddr - Write Multicast Address Mask Pattern
- *      MACvSetMultiAddrByHash - Set Multicast Address Mask by Hash value
- *      MACvResetMultiAddrByHash - Clear Multicast Address Mask by Hash value
- *      MACvSetRxThreshold - Set Rx Threshold value
- *      MACvGetRxThreshold - Get Rx Threshold value
- *      MACvSetTxThreshold - Set Tx Threshold value
- *      MACvGetTxThreshold - Get Tx Threshold value
- *      MACvSetDmaLength - Set Dma Length value
- *      MACvGetDmaLength - Get Dma Length value
  *      MACvSetShortRetryLimit - Set 802.11 Short Retry limit
  *      MACvGetShortRetryLimit - Get 802.11 Short Retry limit
  *      MACvSetLongRetryLimit - Set 802.11 Long Retry limit
- *      MACvGetLongRetryLimit - Get 802.11 Long Retry limit
  *      MACvSetLoopbackMode - Set MAC Loopback Mode
- *      MACbIsInLoopbackMode - Test if MAC in Loopback mode
- *      MACvSetPacketFilter - Set MAC Address Filter
  *      MACvSaveContext - Save Context of MAC Registers
  *      MACvRestoreContext - Restore Context of MAC Registers
- *      MACbCompareContext - Compare if values of MAC Registers same as Context
  *      MACbSoftwareReset - Software Reset MAC
  *      MACbSafeRxOff - Turn Off MAC Rx
  *      MACbSafeTxOff - Turn Off MAC Tx
@@ -69,55 +54,7 @@
  */
 
 #include "tmacro.h"
-#include "tether.h"
 #include "mac.h"
-
-unsigned short TxRate_iwconfig;//2008-5-8 <add> by chester
-/*---------------------  Static Definitions -------------------------*/
-static int msglevel = MSG_LEVEL_INFO;
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-/*
- * Description:
- *      Read All MAC Registers to buffer
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *  Out:
- *      pbyMacRegs  - buffer to read
- *
- * Return Value: none
- *
- */
-void MACvReadAllRegs(void __iomem *dwIoBase, unsigned char *pbyMacRegs)
-{
-	int ii;
-
-	// read page0 register
-	for (ii = 0; ii < MAC_MAX_CONTEXT_SIZE_PAGE0; ii++) {
-		VNSvInPortB(dwIoBase + ii, pbyMacRegs);
-		pbyMacRegs++;
-	}
-
-	MACvSelectPage1(dwIoBase);
-
-	// read page1 register
-	for (ii = 0; ii < MAC_MAX_CONTEXT_SIZE_PAGE1; ii++) {
-		VNSvInPortB(dwIoBase + ii, pbyMacRegs);
-		pbyMacRegs++;
-	}
-
-	MACvSelectPage0(dwIoBase);
-}
 
 /*
  * Description:
@@ -191,252 +128,6 @@ bool MACbIsIntDisable(void __iomem *dwIoBase)
 
 /*
  * Description:
- *      Read MAC Multicast Address Mask
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *      uByteidx    - Index of Mask
- *  Out:
- *      none
- *
- * Return Value: Mask Value read
- *
- */
-unsigned char MACbyReadMultiAddr(void __iomem *dwIoBase, unsigned int uByteIdx)
-{
-	unsigned char byData;
-
-	MACvSelectPage1(dwIoBase);
-	VNSvInPortB(dwIoBase + MAC_REG_MAR0 + uByteIdx, &byData);
-	MACvSelectPage0(dwIoBase);
-	return byData;
-}
-
-/*
- * Description:
- *      Write MAC Multicast Address Mask
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *      uByteidx    - Index of Mask
- *      byData      - Mask Value to write
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvWriteMultiAddr(void __iomem *dwIoBase, unsigned int uByteIdx, unsigned char byData)
-{
-	MACvSelectPage1(dwIoBase);
-	VNSvOutPortB(dwIoBase + MAC_REG_MAR0 + uByteIdx, byData);
-	MACvSelectPage0(dwIoBase);
-}
-
-/*
- * Description:
- *      Set this hash index into multicast address register bit
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *      byHashIdx   - Hash index to set
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvSetMultiAddrByHash(void __iomem *dwIoBase, unsigned char byHashIdx)
-{
-	unsigned int uByteIdx;
-	unsigned char byBitMask;
-	unsigned char byOrgValue;
-
-	// calculate byte position
-	uByteIdx = byHashIdx / 8;
-	ASSERT(uByteIdx < 8);
-	// calculate bit position
-	byBitMask = 1;
-	byBitMask <<= (byHashIdx % 8);
-	// turn on the bit
-	byOrgValue = MACbyReadMultiAddr(dwIoBase, uByteIdx);
-	MACvWriteMultiAddr(dwIoBase, uByteIdx, (unsigned char)(byOrgValue | byBitMask));
-}
-
-/*
- * Description:
- *      Reset this hash index into multicast address register bit
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *      byHashIdx   - Hash index to clear
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvResetMultiAddrByHash(void __iomem *dwIoBase, unsigned char byHashIdx)
-{
-	unsigned int uByteIdx;
-	unsigned char byBitMask;
-	unsigned char byOrgValue;
-
-	// calculate byte position
-	uByteIdx = byHashIdx / 8;
-	ASSERT(uByteIdx < 8);
-	// calculate bit position
-	byBitMask = 1;
-	byBitMask <<= (byHashIdx % 8);
-	// turn off the bit
-	byOrgValue = MACbyReadMultiAddr(dwIoBase, uByteIdx);
-	MACvWriteMultiAddr(dwIoBase, uByteIdx, (unsigned char)(byOrgValue & (~byBitMask)));
-}
-
-/*
- * Description:
- *      Set Rx Threshold
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *      byThreshold - Threshold Value
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvSetRxThreshold(void __iomem *dwIoBase, unsigned char byThreshold)
-{
-	unsigned char byOrgValue;
-
-	ASSERT(byThreshold < 4);
-
-	// set FCR0
-	VNSvInPortB(dwIoBase + MAC_REG_FCR0, &byOrgValue);
-	byOrgValue = (byOrgValue & 0xCF) | (byThreshold << 4);
-	VNSvOutPortB(dwIoBase + MAC_REG_FCR0, byOrgValue);
-}
-
-/*
- * Description:
- *      Get Rx Threshold
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *  Out:
- *      pbyThreshold- Threshold Value Get
- *
- * Return Value: none
- *
- */
-void MACvGetRxThreshold(void __iomem *dwIoBase, unsigned char *pbyThreshold)
-{
-	// get FCR0
-	VNSvInPortB(dwIoBase + MAC_REG_FCR0, pbyThreshold);
-	*pbyThreshold = (*pbyThreshold >> 4) & 0x03;
-}
-
-/*
- * Description:
- *      Set Tx Threshold
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *      byThreshold - Threshold Value
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvSetTxThreshold(void __iomem *dwIoBase, unsigned char byThreshold)
-{
-	unsigned char byOrgValue;
-
-	ASSERT(byThreshold < 4);
-
-	// set FCR0
-	VNSvInPortB(dwIoBase + MAC_REG_FCR0, &byOrgValue);
-	byOrgValue = (byOrgValue & 0xF3) | (byThreshold << 2);
-	VNSvOutPortB(dwIoBase + MAC_REG_FCR0, byOrgValue);
-}
-
-/*
- * Description:
- *      Get Tx Threshold
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *  Out:
- *      pbyThreshold- Threshold Value Get
- *
- * Return Value: none
- *
- */
-void MACvGetTxThreshold(void __iomem *dwIoBase, unsigned char *pbyThreshold)
-{
-	// get FCR0
-	VNSvInPortB(dwIoBase + MAC_REG_FCR0, pbyThreshold);
-	*pbyThreshold = (*pbyThreshold >> 2) & 0x03;
-}
-
-/*
- * Description:
- *      Set Dma Length
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *      byDmaLength - Dma Length Value
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvSetDmaLength(void __iomem *dwIoBase, unsigned char byDmaLength)
-{
-	unsigned char byOrgValue;
-
-	ASSERT(byDmaLength < 4);
-
-	// set FCR0
-	VNSvInPortB(dwIoBase + MAC_REG_FCR0, &byOrgValue);
-	byOrgValue = (byOrgValue & 0xFC) | byDmaLength;
-	VNSvOutPortB(dwIoBase + MAC_REG_FCR0, byOrgValue);
-}
-
-/*
- * Description:
- *      Get Dma Length
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *  Out:
- *      pbyDmaLength- Dma Length Value Get
- *
- * Return Value: none
- *
- */
-void MACvGetDmaLength(void __iomem *dwIoBase, unsigned char *pbyDmaLength)
-{
-	// get FCR0
-	VNSvInPortB(dwIoBase + MAC_REG_FCR0, pbyDmaLength);
-	*pbyDmaLength &= 0x03;
-}
-
-/*
- * Description:
  *      Set 802.11 Short Retry Limit
  *
  * Parameters:
@@ -496,25 +187,6 @@ void MACvSetLongRetryLimit(void __iomem *dwIoBase, unsigned char byRetryLimit)
 
 /*
  * Description:
- *      Get 802.11 Long Retry Limit
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *  Out:
- *      pbyRetryLimit   - Retry Limit Get
- *
- * Return Value: none
- *
- */
-void MACvGetLongRetryLimit(void __iomem *dwIoBase, unsigned char *pbyRetryLimit)
-{
-	// get LRT
-	VNSvInPortB(dwIoBase + MAC_REG_LRT, pbyRetryLimit);
-}
-
-/*
- * Description:
  *      Set MAC Loopback mode
  *
  * Parameters:
@@ -538,89 +210,6 @@ void MACvSetLoopbackMode(void __iomem *dwIoBase, unsigned char byLoopbackMode)
 	byOrgValue = byOrgValue & 0x3F;
 	byOrgValue = byOrgValue | byLoopbackMode;
 	VNSvOutPortB(dwIoBase + MAC_REG_TEST, byOrgValue);
-}
-
-/*
- * Description:
- *      Test if MAC in Loopback mode
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *  Out:
- *      none
- *
- * Return Value: true if in Loopback mode; otherwise false
- *
- */
-bool MACbIsInLoopbackMode(void __iomem *dwIoBase)
-{
-	unsigned char byOrgValue;
-
-	VNSvInPortB(dwIoBase + MAC_REG_TEST, &byOrgValue);
-	if (byOrgValue & (TEST_LBINT | TEST_LBEXT))
-		return true;
-	return false;
-}
-
-/*
- * Description:
- *      Set MAC Address filter
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *      wFilterType     - Filter Type
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvSetPacketFilter(void __iomem *dwIoBase, unsigned short wFilterType)
-{
-	unsigned char byOldRCR;
-	unsigned char byNewRCR = 0;
-
-	// if only in DIRECTED mode, multicast-address will set to zero,
-	// but if other mode exist (e.g. PROMISCUOUS), multicast-address
-	// will be open
-	if (wFilterType & PKT_TYPE_DIRECTED) {
-		// set multicast address to accept none
-		MACvSelectPage1(dwIoBase);
-		VNSvOutPortD(dwIoBase + MAC_REG_MAR0, 0L);
-		VNSvOutPortD(dwIoBase + MAC_REG_MAR0 + sizeof(unsigned long), 0L);
-		MACvSelectPage0(dwIoBase);
-	}
-
-	if (wFilterType & (PKT_TYPE_PROMISCUOUS | PKT_TYPE_ALL_MULTICAST)) {
-		// set multicast address to accept all
-		MACvSelectPage1(dwIoBase);
-		VNSvOutPortD(dwIoBase + MAC_REG_MAR0, 0xFFFFFFFFL);
-		VNSvOutPortD(dwIoBase + MAC_REG_MAR0 + sizeof(unsigned long), 0xFFFFFFFFL);
-		MACvSelectPage0(dwIoBase);
-	}
-
-	if (wFilterType & PKT_TYPE_PROMISCUOUS) {
-		byNewRCR |= (RCR_RXALLTYPE | RCR_UNICAST | RCR_MULTICAST | RCR_BROADCAST);
-
-		byNewRCR &= ~RCR_BSSID;
-	}
-
-	if (wFilterType & (PKT_TYPE_ALL_MULTICAST | PKT_TYPE_MULTICAST))
-		byNewRCR |= RCR_MULTICAST;
-
-	if (wFilterType & PKT_TYPE_BROADCAST)
-		byNewRCR |= RCR_BROADCAST;
-
-	if (wFilterType & PKT_TYPE_ERROR_CRC)
-		byNewRCR |= RCR_ERRCRC;
-
-	VNSvInPortB(dwIoBase + MAC_REG_RCR,  &byOldRCR);
-	if (byNewRCR != byOldRCR) {
-		// Modify the Receive Command Register
-		VNSvOutPortB(dwIoBase + MAC_REG_RCR, byNewRCR);
-	}
 }
 
 /*
@@ -700,47 +289,6 @@ void MACvRestoreContext(void __iomem *dwIoBase, unsigned char *pbyCxtBuf)
 	VNSvOutPortD(dwIoBase + MAC_REG_RXDMAPTR0, *(unsigned long *)(pbyCxtBuf + MAC_REG_RXDMAPTR0));
 
 	VNSvOutPortD(dwIoBase + MAC_REG_RXDMAPTR1, *(unsigned long *)(pbyCxtBuf + MAC_REG_RXDMAPTR1));
-}
-
-/*
- * Description:
- *      Compare if MAC registers same as context buffer
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *      pbyCxtBuf   - Context buffer
- *  Out:
- *      none
- *
- * Return Value: true if all values are the same; otherwise false
- *
- */
-bool MACbCompareContext(void __iomem *dwIoBase, unsigned char *pbyCxtBuf)
-{
-	unsigned long dwData;
-
-	// compare MAC context to determine if this is a power lost init,
-	// return true for power remaining init, return false for power lost init
-
-	// compare CURR_RX_DESC_ADDR, CURR_TX_DESC_ADDR
-	VNSvInPortD(dwIoBase + MAC_REG_TXDMAPTR0, &dwData);
-	if (dwData != *(unsigned long *)(pbyCxtBuf + MAC_REG_TXDMAPTR0))
-		return false;
-
-	VNSvInPortD(dwIoBase + MAC_REG_AC0DMAPTR, &dwData);
-	if (dwData != *(unsigned long *)(pbyCxtBuf + MAC_REG_AC0DMAPTR))
-		return false;
-
-	VNSvInPortD(dwIoBase + MAC_REG_RXDMAPTR0, &dwData);
-	if (dwData != *(unsigned long *)(pbyCxtBuf + MAC_REG_RXDMAPTR0))
-		return false;
-
-	VNSvInPortD(dwIoBase + MAC_REG_RXDMAPTR1, &dwData);
-	if (dwData != *(unsigned long *)(pbyCxtBuf + MAC_REG_RXDMAPTR1))
-		return false;
-
-	return true;
 }
 
 /*
@@ -837,7 +385,7 @@ bool MACbSafeRxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x10);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x10)\n");
+		pr_debug(" DBG_PORT80(0x10)\n");
 		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -847,7 +395,7 @@ bool MACbSafeRxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x11);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x11)\n");
+		pr_debug(" DBG_PORT80(0x11)\n");
 		return false;
 	}
 
@@ -861,7 +409,7 @@ bool MACbSafeRxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x12);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x12)\n");
+		pr_debug(" DBG_PORT80(0x12)\n");
 		return false;
 	}
 	return true;
@@ -899,7 +447,7 @@ bool MACbSafeTxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x20);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x20)\n");
+		pr_debug(" DBG_PORT80(0x20)\n");
 		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -909,7 +457,7 @@ bool MACbSafeTxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x21);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x21)\n");
+		pr_debug(" DBG_PORT80(0x21)\n");
 		return false;
 	}
 
@@ -924,7 +472,7 @@ bool MACbSafeTxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x24);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x24)\n");
+		pr_debug(" DBG_PORT80(0x24)\n");
 		return false;
 	}
 	return true;
@@ -949,13 +497,13 @@ bool MACbSafeStop(void __iomem *dwIoBase)
 
 	if (!MACbSafeRxOff(dwIoBase)) {
 		DBG_PORT80(0xA1);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " MACbSafeRxOff == false)\n");
+		pr_debug(" MACbSafeRxOff == false)\n");
 		MACbSafeSoftwareReset(dwIoBase);
 		return false;
 	}
 	if (!MACbSafeTxOff(dwIoBase)) {
 		DBG_PORT80(0xA2);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " MACbSafeTxOff == false)\n");
+		pr_debug(" MACbSafeTxOff == false)\n");
 		MACbSafeSoftwareReset(dwIoBase);
 		return false;
 	}
@@ -1020,11 +568,6 @@ void MACvInitialize(void __iomem *dwIoBase)
 	VNSvOutPortB(dwIoBase + MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
 	// enable TSF counter
 	VNSvOutPortB(dwIoBase + MAC_REG_TFTCTL, TFTCTL_TSFCNTREN);
-
-	// set packet filter
-	// receive directed and broadcast address
-
-	MACvSetPacketFilter(dwIoBase, PKT_TYPE_DIRECTED | PKT_TYPE_BROADCAST);
 }
 
 /*
@@ -1172,7 +715,7 @@ void MACvSetCurrAC0DescAddrEx(void __iomem *dwIoBase, unsigned long dwCurrDescAd
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x26);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x26)\n");
+		pr_debug(" DBG_PORT80(0x26)\n");
 	}
 	VNSvOutPortD(dwIoBase + MAC_REG_AC0DMAPTR, dwCurrDescAddr);
 	if (byOrgDMACtl & DMACTL_RUN)
@@ -1236,27 +779,6 @@ void MACvTimer0MicroSDelay(void __iomem *dwIoBase, unsigned int uDelay)
  * Return Value: none
  *
  */
-void MACvOneShotTimer0MicroSec(void __iomem *dwIoBase, unsigned int uDelayTime)
-{
-	VNSvOutPortB(dwIoBase + MAC_REG_TMCTL0, 0);
-	VNSvOutPortD(dwIoBase + MAC_REG_TMDATA0, uDelayTime);
-	VNSvOutPortB(dwIoBase + MAC_REG_TMCTL0, (TMCTL_TMD | TMCTL_TE));
-}
-
-/*
- * Description:
- *      Micro Second One shot timer via MAC
- *
- * Parameters:
- *  In:
- *      dwIoBase    - Base Address for MAC
- *      uDelay      - Delay time
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
 void MACvOneShotTimer1MicroSec(void __iomem *dwIoBase, unsigned int uDelayTime)
 {
 	VNSvOutPortB(dwIoBase + MAC_REG_TMCTL1, 0);
@@ -1271,102 +793,6 @@ void MACvSetMISCFifo(void __iomem *dwIoBase, unsigned short wOffset, unsigned lo
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
 	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-}
-
-bool MACbTxDMAOff(void __iomem *dwIoBase, unsigned int idx)
-{
-	unsigned char byData;
-	unsigned int ww = 0;
-
-	if (idx == TYPE_TXDMA0) {
-		VNSvOutPortB(dwIoBase + MAC_REG_TXDMACTL0+2, DMACTL_RUN);
-		for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-			VNSvInPortB(dwIoBase + MAC_REG_TXDMACTL0, &byData);
-			if (!(byData & DMACTL_RUN))
-				break;
-		}
-	} else if (idx == TYPE_AC0DMA) {
-		VNSvOutPortB(dwIoBase + MAC_REG_AC0DMACTL+2, DMACTL_RUN);
-		for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-			VNSvInPortB(dwIoBase + MAC_REG_AC0DMACTL, &byData);
-			if (!(byData & DMACTL_RUN))
-				break;
-		}
-	}
-	if (ww == W_MAX_TIMEOUT) {
-		DBG_PORT80(0x29);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x29)\n");
-		return false;
-	}
-	return true;
-}
-
-void MACvClearBusSusInd(void __iomem *dwIoBase)
-{
-	unsigned long dwOrgValue;
-	unsigned int ww;
-	// check if BcnSusInd enabled
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);
-	if (!(dwOrgValue & EnCFG_BcnSusInd))
-		return;
-	//Set BcnSusClr
-	dwOrgValue = dwOrgValue | EnCFG_BcnSusClr;
-	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);
-	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);
-		if (!(dwOrgValue & EnCFG_BcnSusInd))
-			break;
-	}
-	if (ww == W_MAX_TIMEOUT) {
-		DBG_PORT80(0x33);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x33)\n");
-	}
-}
-
-void MACvEnableBusSusEn(void __iomem *dwIoBase)
-{
-	unsigned char byOrgValue;
-	unsigned long dwOrgValue;
-	unsigned int ww;
-	// check if BcnSusInd enabled
-	VNSvInPortB(dwIoBase + MAC_REG_CFG , &byOrgValue);
-
-	//Set BcnSusEn
-	byOrgValue = byOrgValue | CFG_BCNSUSEN;
-	VNSvOutPortB(dwIoBase + MAC_REG_ENCFG, byOrgValue);
-	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);
-		if (dwOrgValue & EnCFG_BcnSusInd)
-			break;
-	}
-	if (ww == W_MAX_TIMEOUT) {
-		DBG_PORT80(0x34);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x34)\n");
-	}
-}
-
-bool MACbFlushSYNCFifo(void __iomem *dwIoBase)
-{
-	unsigned char byOrgValue;
-	unsigned int ww;
-	// Read MACCR
-	VNSvInPortB(dwIoBase + MAC_REG_MACCR , &byOrgValue);
-
-	// Set SYNCFLUSH
-	byOrgValue = byOrgValue | MACCR_SYNCFLUSH;
-	VNSvOutPortB(dwIoBase + MAC_REG_MACCR, byOrgValue);
-
-	// Check if SyncFlushOK
-	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortB(dwIoBase + MAC_REG_MACCR , &byOrgValue);
-		if (byOrgValue & MACCR_SYNCFLUSHOK)
-			break;
-	}
-	if (ww == W_MAX_TIMEOUT) {
-		DBG_PORT80(0x35);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x33)\n");
-	}
-	return true;
 }
 
 bool MACbPSWakeup(void __iomem *dwIoBase)
@@ -1388,7 +814,7 @@ bool MACbPSWakeup(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x36);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x33)\n");
+		pr_debug(" DBG_PORT80(0x33)\n");
 		return false;
 	}
 	return true;
@@ -1419,7 +845,7 @@ void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned in
 	if (byLocalID <= 1)
 		return;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvSetKeyEntry\n");
+	pr_debug("MACvSetKeyEntry\n");
 	wOffset = MISCFIFO_KEYETRY0;
 	wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
@@ -1427,7 +853,8 @@ void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned in
 	dwData |= wKeyCtl;
 	dwData <<= 16;
 	dwData |= MAKEWORD(*(pbyAddr+4), *(pbyAddr+5));
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "1. wOffset: %d, Data: %X, KeyCtl:%X\n", wOffset, dwData, wKeyCtl);
+	pr_debug("1. wOffset: %d, Data: %X, KeyCtl:%X\n",
+		 wOffset, dwData, wKeyCtl);
 
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
 	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
@@ -1442,7 +869,7 @@ void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned in
 	dwData |= *(pbyAddr+1);
 	dwData <<= 8;
 	dwData |= *(pbyAddr+0);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "2. wOffset: %d, Data: %X\n", wOffset, dwData);
+	pr_debug("2. wOffset: %d, Data: %X\n", wOffset, dwData);
 
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
 	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
@@ -1452,7 +879,8 @@ void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned in
 	wOffset += (uKeyIdx * 4);
 	for (ii = 0; ii < 4; ii++) {
 		// always push 128 bits
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "3.(%d) wOffset: %d, Data: %X\n", ii, wOffset+ii, *pdwKey);
+		pr_debug("3.(%d) wOffset: %d, Data: %X\n",
+			 ii, wOffset+ii, *pdwKey);
 		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
 		VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
 		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
@@ -1482,208 +910,5 @@ void MACvDisableKeyEntry(void __iomem *dwIoBase, unsigned int uEntryIdx)
 
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
 	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, 0);
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-}
-
-/*
- * Description:
- *      Set the default Key (KeyEntry[10]) by MISCFIFO
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-
-void MACvSetDefaultKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
-			    unsigned int uKeyIdx, unsigned long *pdwKey, unsigned char byLocalID)
-{
-	unsigned short wOffset;
-	unsigned long dwData;
-	int     ii;
-
-	if (byLocalID <= 1)
-		return;
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvSetDefaultKeyEntry\n");
-	wOffset = MISCFIFO_KEYETRY0;
-	wOffset += (10 * MISCFIFO_KEYENTRYSIZE);
-
-	wOffset++;
-	wOffset++;
-	wOffset += (uKeyIdx * 4);
-	// always push 128 bits
-	for (ii = 0; ii < 3; ii++) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
-		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
-		VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
-		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-	}
-	dwData = *pdwKey;
-	if (uKeyLen == WLAN_WEP104_KEYLEN)
-		dwData |= 0x80000000;
-
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+3);
-	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "End. wOffset: %d, Data: %lX\n", wOffset+3, dwData);
-}
-
-/*
- * Description:
- *      Enable default Key (KeyEntry[10]) by MISCFIFO
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-/*
-  void MACvEnableDefaultKey(void __iomem *dwIoBase, unsigned char byLocalID)
-  {
-  unsigned short wOffset;
-  unsigned long dwData;
-
-  if (byLocalID <= 1)
-  return;
-
-  wOffset = MISCFIFO_KEYETRY0;
-  wOffset += (10 * MISCFIFO_KEYENTRYSIZE);
-
-  dwData = 0xC0440000;
-  VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
-  VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
-  VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvEnableDefaultKey: wOffset: %d, Data: %lX\n", wOffset, dwData);
-
-  }
-*/
-
-/*
- * Description:
- *      Disable default Key (KeyEntry[10]) by MISCFIFO
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvDisableDefaultKey(void __iomem *dwIoBase)
-{
-	unsigned short wOffset;
-	unsigned long dwData;
-
-	wOffset = MISCFIFO_KEYETRY0;
-	wOffset += (10 * MISCFIFO_KEYENTRYSIZE);
-
-	dwData = 0x0;
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
-	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvDisableDefaultKey: wOffset: %d, Data: %lX\n", wOffset, dwData);
-}
-
-/*
- * Description:
- *      Set the default TKIP Group Key (KeyEntry[10]) by MISCFIFO
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvSetDefaultTKIPKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
-				unsigned int uKeyIdx, unsigned long *pdwKey, unsigned char byLocalID)
-{
-	unsigned short wOffset;
-	unsigned long dwData;
-	int     ii;
-
-	if (byLocalID <= 1)
-		return;
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvSetDefaultTKIPKeyEntry\n");
-	wOffset = MISCFIFO_KEYETRY0;
-	// Kyle test : change offset from 10 -> 0
-	wOffset += (10 * MISCFIFO_KEYENTRYSIZE);
-
-	dwData = 0xC0660000;
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
-	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-	wOffset++;
-
-	dwData = 0;
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
-	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-	wOffset++;
-
-	wOffset += (uKeyIdx * 4);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "1. wOffset: %d, Data: %lX, idx:%d\n", wOffset, *pdwKey, uKeyIdx);
-	// always push 128 bits
-	for (ii = 0; ii < 4; ii++) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "2.(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
-		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
-		VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
-		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-	}
-}
-
-/*
- * Description:
- *      Set the Key Control by MISCFIFO
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-
-void MACvSetDefaultKeyCtl(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned int uEntryIdx, unsigned char byLocalID)
-{
-	unsigned short wOffset;
-	unsigned long dwData;
-
-	if (byLocalID <= 1)
-		return;
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvSetKeyEntry\n");
-	wOffset = MISCFIFO_KEYETRY0;
-	wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
-
-	dwData = 0;
-	dwData |= wKeyCtl;
-	dwData <<= 16;
-	dwData |= 0xffff;
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "1. wOffset: %d, Data: %lX, KeyCtl:%X\n", wOffset, dwData, wKeyCtl);
-
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
-	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
 }

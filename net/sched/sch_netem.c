@@ -139,33 +139,20 @@ struct netem_sched_data {
 
 /* Time stamp put into socket buffer control block
  * Only valid when skbs are in our internal t(ime)fifo queue.
+ *
+ * As skb->rbnode uses same storage than skb->next, skb->prev and skb->tstamp,
+ * and skb->next & skb->prev are scratch space for a qdisc,
+ * we save skb->tstamp value in skb->cb[] before destroying it.
  */
 struct netem_skb_cb {
 	psched_time_t	time_to_send;
 	ktime_t		tstamp_save;
 };
 
-/* Because space in skb->cb[] is tight, netem overloads skb->next/prev/tstamp
- * to hold a rb_node structure.
- *
- * If struct sk_buff layout is changed, the following checks will complain.
- */
-static struct rb_node *netem_rb_node(struct sk_buff *skb)
-{
-	BUILD_BUG_ON(offsetof(struct sk_buff, next) != 0);
-	BUILD_BUG_ON(offsetof(struct sk_buff, prev) !=
-		     offsetof(struct sk_buff, next) + sizeof(skb->next));
-	BUILD_BUG_ON(offsetof(struct sk_buff, tstamp) !=
-		     offsetof(struct sk_buff, prev) + sizeof(skb->prev));
-	BUILD_BUG_ON(sizeof(struct rb_node) > sizeof(skb->next) +
-					      sizeof(skb->prev) +
-					      sizeof(skb->tstamp));
-	return (struct rb_node *)&skb->next;
-}
 
 static struct sk_buff *netem_rb_to_skb(struct rb_node *rb)
 {
-	return (struct sk_buff *)rb;
+	return container_of(rb, struct sk_buff, rbnode);
 }
 
 static inline struct netem_skb_cb *netem_skb_cb(struct sk_buff *skb)
@@ -403,8 +390,8 @@ static void tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 		else
 			p = &parent->rb_left;
 	}
-	rb_link_node(netem_rb_node(nskb), parent, p);
-	rb_insert_color(netem_rb_node(nskb), &q->t_root);
+	rb_link_node(&nskb->rbnode, parent, p);
+	rb_insert_color(&nskb->rbnode, &q->t_root);
 	sch->q.qlen++;
 }
 
@@ -429,12 +416,12 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	/* Drop packet? */
 	if (loss_event(q)) {
 		if (q->ecn && INET_ECN_set_ce(skb))
-			sch->qstats.drops++; /* mark packet */
+			qdisc_qstats_drop(sch); /* mark packet */
 		else
 			--count;
 	}
 	if (count == 0) {
-		sch->qstats.drops++;
+		qdisc_qstats_drop(sch);
 		kfree_skb(skb);
 		return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	}
@@ -478,7 +465,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (unlikely(skb_queue_len(&sch->q) >= sch->limit))
 		return qdisc_reshape_fail(skb, sch);
 
-	sch->qstats.backlog += qdisc_pkt_len(skb);
+	qdisc_qstats_backlog_inc(sch, skb);
 
 	cb = netem_skb_cb(skb);
 	if (q->gap == 0 ||		/* not doing reordering */
@@ -549,15 +536,14 @@ static unsigned int netem_drop(struct Qdisc *sch)
 			sch->q.qlen--;
 			skb->next = NULL;
 			skb->prev = NULL;
-			len = qdisc_pkt_len(skb);
-			sch->qstats.backlog -= len;
+			qdisc_qstats_backlog_dec(sch, skb);
 			kfree_skb(skb);
 		}
 	}
 	if (!len && q->qdisc && q->qdisc->ops->drop)
 	    len = q->qdisc->ops->drop(q->qdisc);
 	if (len)
-		sch->qstats.drops++;
+		qdisc_qstats_drop(sch);
 
 	return len;
 }
@@ -575,7 +561,7 @@ tfifo_dequeue:
 	skb = __skb_dequeue(&sch->q);
 	if (skb) {
 deliver:
-		sch->qstats.backlog -= qdisc_pkt_len(skb);
+		qdisc_qstats_backlog_dec(sch, skb);
 		qdisc_unthrottled(sch);
 		qdisc_bstats_update(sch, skb);
 		return skb;
@@ -610,7 +596,7 @@ deliver:
 
 				if (unlikely(err != NET_XMIT_SUCCESS)) {
 					if (net_xmit_drop_count(err)) {
-						sch->qstats.drops++;
+						qdisc_qstats_drop(sch);
 						qdisc_tree_decrease_qlen(sch, 1);
 					}
 				}

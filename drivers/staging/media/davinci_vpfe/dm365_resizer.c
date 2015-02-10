@@ -35,18 +35,18 @@
 #define MIN_OUT_HEIGHT		2
 
 static const unsigned int resizer_input_formats[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_Y8_1X8,
-	V4L2_MBUS_FMT_UV8_1X8,
-	V4L2_MBUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_Y8_1X8,
+	MEDIA_BUS_FMT_UV8_1X8,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
 };
 
 static const unsigned int resizer_output_formats[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_Y8_1X8,
-	V4L2_MBUS_FMT_UV8_1X8,
-	V4L2_MBUS_FMT_YDYUYDYV8_1X16,
-	V4L2_MBUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_Y8_1X8,
+	MEDIA_BUS_FMT_UV8_1X8,
+	MEDIA_BUS_FMT_YDYUYDYV8_1X16,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
 };
 
 /* resizer_calculate_line_length() - This function calculates the line length of
@@ -54,17 +54,17 @@ static const unsigned int resizer_output_formats[] = {
  *				     output.
  */
 static void
-resizer_calculate_line_length(enum v4l2_mbus_pixelcode pix, int width,
-		      int height, int *line_len, int *line_len_c)
+resizer_calculate_line_length(u32 pix, int width, int height,
+			      int *line_len, int *line_len_c)
 {
 	*line_len = 0;
 	*line_len_c = 0;
 
-	if (pix == V4L2_MBUS_FMT_UYVY8_2X8 ||
-	    pix == V4L2_MBUS_FMT_SGRBG12_1X12) {
+	if (pix == MEDIA_BUS_FMT_UYVY8_2X8 ||
+	    pix == MEDIA_BUS_FMT_SGRBG12_1X12) {
 		*line_len = width << 1;
-	} else if (pix == V4L2_MBUS_FMT_Y8_1X8 ||
-		   pix == V4L2_MBUS_FMT_UV8_1X8) {
+	} else if (pix == MEDIA_BUS_FMT_Y8_1X8 ||
+		   pix == MEDIA_BUS_FMT_UV8_1X8) {
 		*line_len = width;
 		*line_len_c = width;
 	} else {
@@ -85,11 +85,11 @@ resizer_validate_output_image_format(struct device *dev,
 				     struct v4l2_mbus_framefmt *format,
 				     int *in_line_len, int *in_line_len_c)
 {
-	if (format->code != V4L2_MBUS_FMT_UYVY8_2X8 &&
-	    format->code != V4L2_MBUS_FMT_Y8_1X8 &&
-	    format->code != V4L2_MBUS_FMT_UV8_1X8 &&
-	    format->code != V4L2_MBUS_FMT_YDYUYDYV8_1X16 &&
-	    format->code != V4L2_MBUS_FMT_SGRBG12_1X12) {
+	if (format->code != MEDIA_BUS_FMT_UYVY8_2X8 &&
+	    format->code != MEDIA_BUS_FMT_Y8_1X8 &&
+	    format->code != MEDIA_BUS_FMT_UV8_1X8 &&
+	    format->code != MEDIA_BUS_FMT_YDYUYDYV8_1X16 &&
+	    format->code != MEDIA_BUS_FMT_SGRBG12_1X12) {
 		dev_err(dev, "Invalid Mbus format, %d\n", format->code);
 		return -EINVAL;
 	}
@@ -149,7 +149,7 @@ configure_resizer_out_params(struct vpfe_resizer_device *resizer, int index,
 		param->rsz_en[index] = DISABLE;
 		return;
 	}
-	output = (struct vpfe_rsz_output_spec *)output_spec;
+	output = output_spec;
 	param->rsz_en[index] = ENABLE;
 	if (partial) {
 		param->rsz_rsc_param[index].h_flip = output->h_flip;
@@ -281,7 +281,7 @@ resizer_calculate_sdram_offsets(struct vpfe_resizer_device *resizer, int index)
 	param->ext_mem_param[index].c_offset = 0;
 	param->ext_mem_param[index].flip_ofst_y = 0;
 	param->ext_mem_param[index].flip_ofst_c = 0;
-	if (outformat->code == V4L2_MBUS_FMT_YDYUYDYV8_1X16) {
+	if (outformat->code == MEDIA_BUS_FMT_YDYUYDYV8_1X16) {
 		/* YUV 420 */
 		yuv_420 = 1;
 		bytesperpixel = 1;
@@ -322,7 +322,7 @@ static int resizer_configure_output_win(struct vpfe_resizer_device *resizer)
 	outformat = &resizer->resizer_a.formats[RESIZER_PAD_SOURCE];
 
 	output_specs.vst_y = param->user_config.vst;
-	if (outformat->code == V4L2_MBUS_FMT_YDYUYDYV8_1X16)
+	if (outformat->code == MEDIA_BUS_FMT_YDYUYDYV8_1X16)
 		output_specs.vst_c = param->user_config.vst;
 
 	configure_resizer_out_params(resizer, RSZ_A, &output_specs, 0, 0);
@@ -336,7 +336,7 @@ static int resizer_configure_output_win(struct vpfe_resizer_device *resizer)
 	if (param->rsz_en[RSZ_B])
 		resizer_calculate_resize_ratios(resizer, RSZ_B);
 
-	if (outformat->code == V4L2_MBUS_FMT_YDYUYDYV8_1X16)
+	if (outformat->code == MEDIA_BUS_FMT_YDYUYDYV8_1X16)
 		resizer_enable_422_420_conversion(param, RSZ_A, ENABLE);
 	else
 		resizer_enable_422_420_conversion(param, RSZ_A, DISABLE);
@@ -447,26 +447,26 @@ resizer_configure_common_in_params(struct vpfe_resizer_device *resizer)
 		param->rsz_common.source = IPIPE_DATA;
 
 	switch (informat->code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		param->rsz_common.src_img_fmt = RSZ_IMG_422;
 		param->rsz_common.raw_flip = 0;
 		break;
 
-	case V4L2_MBUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		param->rsz_common.src_img_fmt = RSZ_IMG_420;
 		/* Select y */
 		param->rsz_common.y_c = 0;
 		param->rsz_common.raw_flip = 0;
 		break;
 
-	case V4L2_MBUS_FMT_UV8_1X8:
+	case MEDIA_BUS_FMT_UV8_1X8:
 		param->rsz_common.src_img_fmt = RSZ_IMG_420;
 		/* Select y */
 		param->rsz_common.y_c = 1;
 		param->rsz_common.raw_flip = 0;
 		break;
 
-	case V4L2_MBUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
 		param->rsz_common.raw_flip = 1;
 		break;
 
@@ -519,7 +519,7 @@ resizer_configure_in_continious_mode(struct vpfe_resizer_device *resizer)
 		param->ext_mem_param[RSZ_B].rsz_sdr_oft_c = line_len_c;
 		configure_resizer_out_params(resizer, RSZ_B,
 						&cont_config->output2, 0, 1);
-		if (outformat2->code == V4L2_MBUS_FMT_YDYUYDYV8_1X16)
+		if (outformat2->code == MEDIA_BUS_FMT_YDYUYDYV8_1X16)
 			resizer_enable_422_420_conversion(param,
 							  RSZ_B, ENABLE);
 		else
@@ -540,15 +540,15 @@ resizer_configure_in_continious_mode(struct vpfe_resizer_device *resizer)
 
 static inline int
 resizer_validate_input_image_format(struct device *dev,
-				    enum v4l2_mbus_pixelcode pix,
+				    u32 pix,
 				    int width, int height, int *line_len)
 {
 	int val;
 
-	if (pix != V4L2_MBUS_FMT_UYVY8_2X8 &&
-	    pix != V4L2_MBUS_FMT_Y8_1X8 &&
-	    pix != V4L2_MBUS_FMT_UV8_1X8 &&
-	    pix != V4L2_MBUS_FMT_SGRBG12_1X12) {
+	if (pix != MEDIA_BUS_FMT_UYVY8_2X8 &&
+	    pix != MEDIA_BUS_FMT_Y8_1X8 &&
+	    pix != MEDIA_BUS_FMT_UV8_1X8 &&
+	    pix != MEDIA_BUS_FMT_SGRBG12_1X12) {
 		dev_err(dev,
 		"resizer validate output: pix format not supported, %d\n", pix);
 		return -EINVAL;
@@ -560,7 +560,7 @@ resizer_validate_input_image_format(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (pix == V4L2_MBUS_FMT_UV8_1X8)
+	if (pix == MEDIA_BUS_FMT_UV8_1X8)
 		resizer_calculate_line_length(pix, width,
 					      height, &val, line_len);
 	else
@@ -633,7 +633,7 @@ resizer_calculate_normal_f_div_param(struct device *dev, int input_width,
 	if (!(val % 2)) {
 		h1 = val;
 	} else {
-		val = (input_width << 7);
+		val = input_width << 7;
 		val -= rsz >> 1;
 		val /= rsz << 1;
 		val <<= 1;
@@ -709,12 +709,12 @@ resizer_configure_in_single_shot_mode(struct vpfe_resizer_device *resizer)
 		configure_resizer_out_params(resizer, RSZ_A,
 					&param->user_config.output1, 0, 1);
 
-		if (outformat1->code == V4L2_MBUS_FMT_SGRBG12_1X12)
+		if (outformat1->code == MEDIA_BUS_FMT_SGRBG12_1X12)
 			param->rsz_common.raw_flip = 1;
 		else
 			param->rsz_common.raw_flip = 0;
 
-		if (outformat1->code == V4L2_MBUS_FMT_YDYUYDYV8_1X16)
+		if (outformat1->code == MEDIA_BUS_FMT_YDYUYDYV8_1X16)
 			resizer_enable_422_420_conversion(param,
 							  RSZ_A, ENABLE);
 		else
@@ -732,7 +732,7 @@ resizer_configure_in_single_shot_mode(struct vpfe_resizer_device *resizer)
 		param->ext_mem_param[RSZ_B].rsz_sdr_oft_c = line_len_c;
 		configure_resizer_out_params(resizer, RSZ_B,
 					&param->user_config.output2, 0, 1);
-		if (outformat2->code == V4L2_MBUS_FMT_YDYUYDYV8_1X16)
+		if (outformat2->code == MEDIA_BUS_FMT_YDYUYDYV8_1X16)
 			resizer_enable_422_420_conversion(param,
 							  RSZ_B, ENABLE);
 		else
@@ -745,7 +745,7 @@ resizer_configure_in_single_shot_mode(struct vpfe_resizer_device *resizer)
 		resizer_calculate_resize_ratios(resizer, RSZ_A);
 		resizer_calculate_sdram_offsets(resizer, RSZ_A);
 		/* Overriding resize ratio calculation */
-		if (informat->code == V4L2_MBUS_FMT_UV8_1X8) {
+		if (informat->code == MEDIA_BUS_FMT_UV8_1X8) {
 			param->rsz_rsc_param[RSZ_A].v_dif =
 				(((informat->height + 1) * 2) * 256) /
 				(param->rsz_rsc_param[RSZ_A].o_vsz + 1);
@@ -756,7 +756,7 @@ resizer_configure_in_single_shot_mode(struct vpfe_resizer_device *resizer)
 		resizer_calculate_resize_ratios(resizer, RSZ_B);
 		resizer_calculate_sdram_offsets(resizer, RSZ_B);
 		/* Overriding resize ratio calculation */
-		if (informat->code == V4L2_MBUS_FMT_UV8_1X8) {
+		if (informat->code == MEDIA_BUS_FMT_UV8_1X8) {
 			param->rsz_rsc_param[RSZ_B].v_dif =
 				(((informat->height + 1) * 2) * 256) /
 				(param->rsz_rsc_param[RSZ_B].o_vsz + 1);
@@ -1218,12 +1218,12 @@ static long resizer_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOC_VPFE_RSZ_S_CONFIG:
-		user_config = (struct vpfe_rsz_config *)arg;
+		user_config = arg;
 		ret = resizer_set_configuration(resizer, user_config);
 		break;
 
 	case VIDIOC_VPFE_RSZ_G_CONFIG:
-		user_config = (struct vpfe_rsz_config *)arg;
+		user_config = arg;
 		if (!user_config->config) {
 			dev_err(dev, "error in VIDIOC_VPFE_RSZ_G_CONFIG\n");
 			return -EINVAL;
@@ -1340,7 +1340,7 @@ resizer_try_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		}
 		/* If not found, use UYVY as default */
 		if (i >= ARRAY_SIZE(resizer_input_formats))
-			fmt->code = V4L2_MBUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 		fmt->width = clamp_t(u32, fmt->width, MIN_IN_WIDTH,
 					MAX_IN_WIDTH);
@@ -1357,7 +1357,7 @@ resizer_try_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		}
 		/* If not found, use UYVY as default */
 		if (i >= ARRAY_SIZE(resizer_output_formats))
-			fmt->code = V4L2_MBUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 		fmt->width = clamp_t(u32, fmt->width, MIN_OUT_WIDTH,
 					max_out_width);
@@ -1375,7 +1375,7 @@ resizer_try_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		}
 		/* If not found, use UYVY as default */
 		if (i >= ARRAY_SIZE(resizer_output_formats))
-			fmt->code = V4L2_MBUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 		fmt->width = clamp_t(u32, fmt->width, MIN_OUT_WIDTH,
 					max_out_width);
@@ -1548,7 +1548,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_CROP_PAD_SINK;
 		format.which = which;
-		format.format.code = V4L2_MBUS_FMT_YUYV8_2X8;
+		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_HEIGHT;
 		resizer_set_format(sd, fh, &format);
@@ -1556,7 +1556,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_CROP_PAD_SOURCE;
 		format.which = which;
-		format.format.code = V4L2_MBUS_FMT_UYVY8_2X8;
+		format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_WIDTH;
 		resizer_set_format(sd, fh, &format);
@@ -1564,7 +1564,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_CROP_PAD_SOURCE2;
 		format.which = which;
-		format.format.code = V4L2_MBUS_FMT_UYVY8_2X8;
+		format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_WIDTH;
 		resizer_set_format(sd, fh, &format);
@@ -1572,7 +1572,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_PAD_SINK;
 		format.which = which;
-		format.format.code = V4L2_MBUS_FMT_YUYV8_2X8;
+		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_HEIGHT;
 		resizer_set_format(sd, fh, &format);
@@ -1580,7 +1580,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_PAD_SOURCE;
 		format.which = which;
-		format.format.code = V4L2_MBUS_FMT_UYVY8_2X8;
+		format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 		format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 		format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
 		resizer_set_format(sd, fh, &format);
@@ -1588,7 +1588,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_PAD_SINK;
 		format.which = which;
-		format.format.code = V4L2_MBUS_FMT_YUYV8_2X8;
+		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_HEIGHT;
 		resizer_set_format(sd, fh, &format);
@@ -1596,7 +1596,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_PAD_SOURCE;
 		format.which = which;
-		format.format.code = V4L2_MBUS_FMT_UYVY8_2X8;
+		format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 		format.format.width = IPIPE_MAX_OUTPUT_WIDTH_B;
 		format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_B;
 		resizer_set_format(sd, fh, &format);

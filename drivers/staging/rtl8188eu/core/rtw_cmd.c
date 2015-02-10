@@ -69,7 +69,7 @@ exit:
 	return _SUCCESS;
 }
 
-struct	cmd_obj	* rtw_dequeue_cmd(struct __queue *queue)
+struct	cmd_obj	*rtw_dequeue_cmd(struct __queue *queue)
 {
 	unsigned long irqL;
 	struct cmd_obj *obj;
@@ -98,6 +98,7 @@ static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 	    (!pcmdpriv->padapter->registrypriv.usbss_enable)) {
 		if (cmd_obj->cmdcode == GEN_CMD_CODE(_Set_Drv_Extra)) {
 			struct drvextra_cmd_parm	*pdrvextra_cmd_parm = (struct drvextra_cmd_parm	*)cmd_obj->parmbuf;
+
 			if (pdrvextra_cmd_parm->ec_id == POWER_SAVING_CTRL_WK_CID)
 				bAllow = true;
 		}
@@ -166,7 +167,7 @@ int rtw_cmd_thread(void *context)
 	struct cmd_obj *pcmd;
 	u8 (*cmd_hdl)(struct adapter *padapter, u8 *pbuf);
 	void (*pcmd_callback)(struct adapter *dev, struct cmd_obj *pcmd);
-	struct adapter *padapter = (struct adapter *)context;
+	struct adapter *padapter = context;
 	struct cmd_priv *pcmdpriv = &(padapter->cmdpriv);
 
 	allow_signal(SIGTERM);
@@ -274,11 +275,11 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
 		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_SCAN, 1);
 
-	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (ph2c == NULL)
 		return _FAIL;
 
-	psurveyPara = kzalloc(sizeof(struct sitesurvey_parm), GFP_KERNEL);
+	psurveyPara = kzalloc(sizeof(struct sitesurvey_parm), GFP_ATOMIC);
 	if (psurveyPara == NULL) {
 		kfree(ph2c);
 		return _FAIL;
@@ -296,6 +297,7 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 	/* prepare ssid list */
 	if (ssid) {
 		int i;
+
 		for (i = 0; i < ssid_num && i < RTW_SSID_SCAN_AMOUNT; i++) {
 			if (ssid[i].SsidLength) {
 				memcpy(&psurveyPara->ssid[i], &ssid[i], sizeof(struct ndis_802_11_ssid));
@@ -307,6 +309,7 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 	/* prepare channel list */
 	if (ch) {
 		int i;
+
 		for (i = 0; i < ch_num && i < RTW_CHANNEL_SCAN_AMOUNT; i++) {
 			if (ch[i].hw_value && !(ch[i].flags & RTW_IEEE80211_CHAN_DISABLED)) {
 				memcpy(&psurveyPara->ch[i], &ch[i], sizeof(struct rtw_ieee80211_channel));
@@ -402,7 +405,7 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 	else
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_, ("+Join cmd: SSid =[%s]\n", pmlmepriv->assoc_ssid.Ssid));
 
-	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (pcmd == NULL) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_, ("rtw_joinbss_cmd: memory allocate for cmd_obj fail!!!\n"));
@@ -430,8 +433,7 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 
 	psecnetwork = (struct wlan_bssid_ex *)&psecuritypriv->sec_bss;
 	if (psecnetwork == NULL) {
-		if (pcmd != NULL)
-			kfree(pcmd);
+		kfree(pcmd);
 
 		res = _FAIL;
 
@@ -453,7 +455,7 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 
 	psecnetwork->IELength = 0;
 	/*  Added by Albert 2009/02/18 */
-	/*  If the the driver wants to use the bssid to create the connection. */
+	/*  If the driver wants to use the bssid to create the connection. */
 	/*  If not,  we have to copy the connecting AP's MAC address to it so that */
 	/*  the driver just has the bssid information for PMKIDList searching. */
 
@@ -635,7 +637,7 @@ u8 rtw_setstakey_cmd(struct adapter *padapter, u8 *psta, u8 unicast_key)
 	ether_addr_copy(psetstakey_para->addr, sta->hwaddr);
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
-		psetstakey_para->algorithm = (unsigned char) psecuritypriv->dot11PrivacyAlgrthm;
+		psetstakey_para->algorithm = (unsigned char)psecuritypriv->dot11PrivacyAlgrthm;
 	else
 		GET_ENCRY_ALGO(psecuritypriv, sta, psetstakey_para->algorithm, false);
 
@@ -752,13 +754,13 @@ u8 rtw_dynamic_chk_wk_cmd(struct adapter *padapter)
 	u8	res = _SUCCESS;
 
 
-	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (ph2c == NULL) {
 		res = _FAIL;
 		goto exit;
 	}
 
-	pdrvextra_cmd_parm = kzalloc(sizeof(struct drvextra_cmd_parm), GFP_KERNEL);
+	pdrvextra_cmd_parm = kzalloc(sizeof(struct drvextra_cmd_parm), GFP_ATOMIC);
 	if (pdrvextra_cmd_parm == NULL) {
 		kfree(ph2c);
 		res = _FAIL;
@@ -964,13 +966,13 @@ u8 rtw_lps_ctrl_wk_cmd(struct adapter *padapter, u8 lps_ctrl_type, u8 enqueue)
 	u8	res = _SUCCESS;
 
 	if (enqueue) {
-		ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+		ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 		if (ph2c == NULL) {
 			res = _FAIL;
 			goto exit;
 		}
 
-		pdrvextra_cmd_parm = kzalloc(sizeof(struct drvextra_cmd_parm), GFP_KERNEL);
+		pdrvextra_cmd_parm = kzalloc(sizeof(struct drvextra_cmd_parm), GFP_ATOMIC);
 		if (pdrvextra_cmd_parm == NULL) {
 			kfree(ph2c);
 			res = _FAIL;
@@ -1007,13 +1009,13 @@ u8 rtw_rpt_timer_cfg_cmd(struct adapter *padapter, u16 min_time)
 
 	u8	res = _SUCCESS;
 
-	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (ph2c == NULL) {
 		res = _FAIL;
 		goto exit;
 	}
 
-	pdrvextra_cmd_parm = kzalloc(sizeof(struct drvextra_cmd_parm), GFP_KERNEL);
+	pdrvextra_cmd_parm = kzalloc(sizeof(struct drvextra_cmd_parm), GFP_ATOMIC);
 	if (pdrvextra_cmd_parm == NULL) {
 		kfree(ph2c);
 		res = _FAIL;
@@ -1085,13 +1087,13 @@ u8 rtw_ps_cmd(struct adapter *padapter)
 
 	u8	res = _SUCCESS;
 
-	ppscmd = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	ppscmd = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (ppscmd == NULL) {
 		res = _FAIL;
 		goto exit;
 	}
 
-	pdrvextra_cmd_parm = kzalloc(sizeof(struct drvextra_cmd_parm), GFP_KERNEL);
+	pdrvextra_cmd_parm = kzalloc(sizeof(struct drvextra_cmd_parm), GFP_ATOMIC);
 	if (pdrvextra_cmd_parm == NULL) {
 		kfree(ppscmd);
 		res = _FAIL;

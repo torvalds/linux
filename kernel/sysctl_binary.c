@@ -137,6 +137,7 @@ static const struct bin_table bin_kern_table[] = {
 	{ CTL_INT,	KERN_COMPAT_LOG,		"compat-log" },
 	{ CTL_INT,	KERN_MAX_LOCK_DEPTH,		"max_lock_depth" },
 	{ CTL_INT,	KERN_PANIC_ON_NMI,		"panic_on_unrecovered_nmi" },
+	{ CTL_INT,	KERN_PANIC_ON_WARN,		"panic_on_warn" },
 	{}
 };
 
@@ -390,7 +391,6 @@ static const struct bin_table bin_net_ipv4_table[] = {
 	{ CTL_INT,	NET_TCP_MTU_PROBING,			"tcp_mtu_probing" },
 	{ CTL_INT,	NET_TCP_BASE_MSS,			"tcp_base_mss" },
 	{ CTL_INT,	NET_IPV4_TCP_WORKAROUND_SIGNED_WINDOWS,	"tcp_workaround_signed_windows" },
-	{ CTL_INT,	NET_TCP_DMA_COPYBREAK,			"tcp_dma_copybreak" },
 	{ CTL_INT,	NET_TCP_SLOW_START_AFTER_IDLE,		"tcp_slow_start_after_idle" },
 	{ CTL_INT,	NET_CIPSOV4_CACHE_ENABLE,		"cipso_cache_enable" },
 	{ CTL_INT,	NET_CIPSOV4_CACHE_BUCKET_SIZE,		"cipso_cache_bucket_size" },

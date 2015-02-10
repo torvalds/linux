@@ -1237,7 +1237,7 @@ journal_t * jbd2_journal_init_inode (struct inode *inode)
 		goto out_err;
 	}
 
-	bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
+	bh = getblk_unmovable(journal->j_dev, blocknr, journal->j_blocksize);
 	if (!bh) {
 		printk(KERN_ERR
 		       "%s: Cannot get buffer for journal superblock\n",
@@ -1522,18 +1522,18 @@ static int journal_get_superblock(journal_t *journal)
 		goto out;
 	}
 
-	if (jbd2_journal_has_csum_v2or3(journal) &&
-	    JBD2_HAS_COMPAT_FEATURE(journal, JBD2_FEATURE_COMPAT_CHECKSUM)) {
-		/* Can't have checksum v1 and v2 on at the same time! */
-		printk(KERN_ERR "JBD2: Can't enable checksumming v1 and v2 "
-		       "at the same time!\n");
-		goto out;
-	}
-
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2) &&
 	    JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V3)) {
 		/* Can't have checksum v2 and v3 at the same time! */
 		printk(KERN_ERR "JBD2: Can't enable checksumming v2 and v3 "
+		       "at the same time!\n");
+		goto out;
+	}
+
+	if (jbd2_journal_has_csum_v2or3(journal) &&
+	    JBD2_HAS_COMPAT_FEATURE(journal, JBD2_FEATURE_COMPAT_CHECKSUM)) {
+		/* Can't have checksum v1 and v2 on at the same time! */
+		printk(KERN_ERR "JBD2: Can't enable checksumming v1 and v2/3 "
 		       "at the same time!\n");
 		goto out;
 	}
@@ -1714,8 +1714,7 @@ int jbd2_journal_destroy(journal_t *journal)
 
 	if (journal->j_proc_entry)
 		jbd2_stats_proc_exit(journal);
-	if (journal->j_inode)
-		iput(journal->j_inode);
+	iput(journal->j_inode);
 	if (journal->j_revoke)
 		jbd2_journal_destroy_revoke(journal);
 	if (journal->j_chksum_driver)
@@ -1853,13 +1852,12 @@ int jbd2_journal_set_features (journal_t *journal, unsigned long compat,
 				journal->j_chksum_driver = NULL;
 				return 0;
 			}
-		}
 
-		/* Precompute checksum seed for all metadata */
-		if (jbd2_journal_has_csum_v2or3(journal))
+			/* Precompute checksum seed for all metadata */
 			journal->j_csum_seed = jbd2_chksum(journal, ~0,
 							   sb->s_uuid,
 							   sizeof(sb->s_uuid));
+		}
 	}
 
 	/* If enabling v1 checksums, downgrade superblock */

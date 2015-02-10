@@ -412,6 +412,7 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct fc_frame_header *fh;
 	struct fcoe_rcv_info *fr;
 	struct fcoe_percpu_s *bg;
+	struct sk_buff *tmp_skb;
 	unsigned short oxid;
 
 	interface = container_of(ptype, struct bnx2fc_interface,
@@ -423,6 +424,12 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 		printk(KERN_ERR PFX "bnx2fc_rcv: lport is NULL\n");
 		goto err;
 	}
+
+	tmp_skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!tmp_skb)
+		goto err;
+
+	skb = tmp_skb;
 
 	if (unlikely(eth_hdr(skb)->h_proto != htons(ETH_P_FCOE))) {
 		printk(KERN_ERR PFX "bnx2fc_rcv: Wrong FC type frame\n");
@@ -1081,7 +1088,7 @@ static int bnx2fc_vport_create(struct fc_vport *vport, bool disabled)
 	mutex_unlock(&bnx2fc_dev_lock);
 	rtnl_unlock();
 
-	if (IS_ERR(vn_port)) {
+	if (!vn_port) {
 		printk(KERN_ERR PFX "bnx2fc_vport_create (%s) failed\n",
 			netdev->name);
 		return -EIO;
@@ -2195,6 +2202,7 @@ static int _bnx2fc_create(struct net_device *netdev,
 	interface = bnx2fc_interface_create(hba, netdev, fip_mode);
 	if (!interface) {
 		printk(KERN_ERR PFX "bnx2fc_interface_create failed\n");
+		rc = -ENOMEM;
 		goto ifput_err;
 	}
 
@@ -2783,13 +2791,14 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.eh_target_reset_handler = bnx2fc_eh_target_reset, /* tgt reset */
 	.eh_host_reset_handler	= fc_eh_host_reset,
 	.slave_alloc		= fc_slave_alloc,
-	.change_queue_depth	= fc_change_queue_depth,
-	.change_queue_type	= fc_change_queue_type,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= BNX2FC_MAX_BDS_PER_CMD,
 	.max_sectors		= 1024,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static struct libfc_function_template bnx2fc_libfc_fcn_templ = {

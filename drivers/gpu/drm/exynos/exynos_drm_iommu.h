@@ -40,7 +40,6 @@ static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
 
 #else
 
-struct dma_iommu_mapping;
 static inline int drm_create_iommu_mapping(struct drm_device *drm_dev)
 {
 	return 0;

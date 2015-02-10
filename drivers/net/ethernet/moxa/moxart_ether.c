@@ -511,7 +511,6 @@ static int moxart_mac_probe(struct platform_device *pdev)
 		goto init_fail;
 	}
 
-	ether_setup(ndev);
 	ndev->netdev_ops = &moxart_netdev_ops;
 	netif_napi_add(ndev, &priv->napi, moxart_rx_poll, RX_DESC_NUM);
 	ndev->priv_flags |= IFF_UNICAST_FLT;
@@ -560,7 +559,6 @@ static struct platform_driver moxart_mac_driver = {
 	.remove	= moxart_remove,
 	.driver	= {
 		.name		= "moxart-ethernet",
-		.owner		= THIS_MODULE,
 		.of_match_table	= moxart_mac_match,
 	},
 };

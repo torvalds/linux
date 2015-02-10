@@ -317,7 +317,7 @@ urb_submit:
 	}
 }
 
-int rtl8723au_read_interrupt(struct rtw_adapter *adapter, u32 addr)
+int rtl8723au_read_interrupt(struct rtw_adapter *adapter)
 {
 	int err;
 	unsigned int pipe;
@@ -545,8 +545,7 @@ static void usb_read_port_complete(struct urb *purb)
 				 ("usb_read_port_complete: (purb->actual_"
 				  "length > MAX_RECVBUF_SZ) || (purb->actual_"
 				  "length < RXDESC_SIZE)\n"));
-			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
-					    precvbuf);
+			rtl8723au_read_port(padapter, 0, precvbuf);
 			DBG_8723A("%s()-%d: RX Warning!\n",
 				  __func__, __LINE__);
 		} else {
@@ -561,8 +560,7 @@ static void usb_read_port_complete(struct urb *purb)
 				tasklet_schedule(&precvpriv->recv_tasklet);
 
 			precvbuf->pskb = NULL;
-			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
-					    precvbuf);
+			rtl8723au_read_port(padapter, 0, precvbuf);
 		}
 	} else {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
@@ -596,8 +594,7 @@ static void usb_read_port_complete(struct urb *purb)
 			break;
 		case -EPROTO:
 		case -EOVERFLOW:
-			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
-					    precvbuf);
+			rtl8723au_read_port(padapter, 0, precvbuf);
 			break;
 		case -EINPROGRESS:
 			DBG_8723A("ERROR: URB IS IN PROGRESS!\n");
@@ -608,18 +605,18 @@ static void usb_read_port_complete(struct urb *purb)
 	}
 }
 
-int rtl8723au_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+int rtl8723au_read_port(struct rtw_adapter *adapter, u32 cnt,
 			struct recv_buf *precvbuf)
 {
+	struct urb *purb;
+	struct dvobj_priv *pdvobj = adapter_to_dvobj(adapter);
+	struct recv_priv *precvpriv = &adapter->recvpriv;
+	struct usb_device *pusbd = pdvobj->pusbdev;
 	int err;
 	unsigned int pipe;
 	unsigned long tmpaddr;
 	unsigned long alignment;
 	int ret = _SUCCESS;
-	struct urb *purb;
-	struct dvobj_priv *pdvobj = adapter_to_dvobj(adapter);
-	struct recv_priv *precvpriv = &adapter->recvpriv;
-	struct usb_device *pusbd = pdvobj->pusbdev;
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,

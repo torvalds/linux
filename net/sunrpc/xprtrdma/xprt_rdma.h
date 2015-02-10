@@ -51,6 +51,7 @@
 #include <linux/sunrpc/clnt.h> 		/* rpc_xprt */
 #include <linux/sunrpc/rpc_rdma.h> 	/* RPC/RDMA protocol */
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
+#include <linux/sunrpc/svc.h>		/* RPCSVC_MAXPAYLOAD */
 
 #define RDMA_RESOLVE_TIMEOUT	(5000)	/* 5 seconds */
 #define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if no listener backlog */
@@ -95,6 +96,12 @@ struct rpcrdma_ep {
 	struct ib_wc		rep_send_wcs[RPCRDMA_POLLSIZE];
 	struct ib_wc		rep_recv_wcs[RPCRDMA_POLLSIZE];
 };
+
+/*
+ * Force a signaled SEND Work Request every so often,
+ * in case the provider needs to do some housekeeping.
+ */
+#define RPCRDMA_MAX_UNSIGNALED_SENDS	(32)
 
 #define INIT_CQCOUNT(ep) atomic_set(&(ep)->rep_cqcount, (ep)->rep_cqinit)
 #define DECR_CQCOUNT(ep) atomic_sub_return(1, &(ep)->rep_cqcount)
@@ -391,5 +398,11 @@ extern struct kmem_cache *svc_rdma_map_cachep;
 extern struct kmem_cache *svc_rdma_ctxt_cachep;
 /* Workqueue created in svc_rdma.c */
 extern struct workqueue_struct *svc_rdma_wq;
+
+#if RPCSVC_MAXPAYLOAD < (RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT)
+#define RPCSVC_MAXPAYLOAD_RDMA RPCSVC_MAXPAYLOAD
+#else
+#define RPCSVC_MAXPAYLOAD_RDMA (RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT)
+#endif
 
 #endif				/* _LINUX_SUNRPC_XPRT_RDMA_H */

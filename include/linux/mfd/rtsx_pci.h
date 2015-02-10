@@ -558,6 +558,7 @@
 #define SD_SAMPLE_POINT_CTL		0xFDA7
 #define SD_PUSH_POINT_CTL		0xFDA8
 #define SD_CMD0				0xFDA9
+#define   SD_CMD_START			0x40
 #define SD_CMD1				0xFDAA
 #define SD_CMD2				0xFDAB
 #define SD_CMD3				0xFDAC
@@ -707,6 +708,14 @@
 #define PM_CTRL1			0xFF44
 #define PM_CTRL2			0xFF45
 #define PM_CTRL3			0xFF46
+#define   SDIO_SEND_PME_EN		0x80
+#define   FORCE_RC_MODE_ON		0x40
+#define   FORCE_RX50_LINK_ON		0x20
+#define   D3_DELINK_MODE_EN		0x10
+#define   USE_PESRTB_CTL_DELINK		0x08
+#define   DELAY_PIN_WAKE		0x04
+#define   RESET_PIN_WAKE		0x02
+#define   PM_WAKE_EN			0x01
 #define PM_CTRL4			0xFF47
 
 /* Memory mapping */
@@ -752,6 +761,14 @@
 #define PHY_DUM_REG			0x1F
 
 #define LCTLR				0x80
+#define   LCTLR_EXT_SYNC		0x80
+#define   LCTLR_COMMON_CLOCK_CFG	0x40
+#define   LCTLR_RETRAIN_LINK		0x20
+#define   LCTLR_LINK_DISABLE		0x10
+#define   LCTLR_RCB			0x08
+#define   LCTLR_RESERVED		0x04
+#define   LCTLR_ASPM_CTL_MASK		0x03
+
 #define PCR_SETTING_REG1		0x724
 #define PCR_SETTING_REG2		0x814
 #define PCR_SETTING_REG3		0x747
@@ -965,6 +982,26 @@ void rtsx_pci_complete_unfinished_transfer(struct rtsx_pcr *pcr);
 static inline u8 *rtsx_pci_get_cmd_data(struct rtsx_pcr *pcr)
 {
 	return (u8 *)(pcr->host_cmds_ptr);
+}
+
+static inline int rtsx_pci_update_cfg_byte(struct rtsx_pcr *pcr, int addr,
+		u8 mask, u8 append)
+{
+	int err;
+	u8 val;
+
+	err = pci_read_config_byte(pcr->pci, addr, &val);
+	if (err < 0)
+		return err;
+	return pci_write_config_byte(pcr->pci, addr, (val & mask) | append);
+}
+
+static inline void rtsx_pci_write_be32(struct rtsx_pcr *pcr, u16 reg, u32 val)
+{
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, reg,     0xFF, val >> 24);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, reg + 1, 0xFF, val >> 16);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, reg + 2, 0xFF, val >> 8);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, reg + 3, 0xFF, val);
 }
 
 #endif

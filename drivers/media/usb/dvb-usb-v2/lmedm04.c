@@ -817,20 +817,22 @@ static const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
 	case 0x1122:
 		switch (st->dvb_usb_lme2510_firmware) {
 		default:
-			st->dvb_usb_lme2510_firmware = TUNER_S0194;
 		case TUNER_S0194:
 			fw_lme = fw_s0194;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
 			if (ret == 0) {
+				st->dvb_usb_lme2510_firmware = TUNER_S0194;
 				cold = 0;
 				break;
 			}
-			st->dvb_usb_lme2510_firmware = TUNER_LG;
+			/* fall through */
 		case TUNER_LG:
 			fw_lme = fw_lg;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
-			if (ret == 0)
+			if (ret == 0) {
+				st->dvb_usb_lme2510_firmware = TUNER_LG;
 				break;
+			}
 			st->dvb_usb_lme2510_firmware = TUNER_DEFAULT;
 			break;
 		}
@@ -838,26 +840,30 @@ static const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
 	case 0x1120:
 		switch (st->dvb_usb_lme2510_firmware) {
 		default:
-			st->dvb_usb_lme2510_firmware = TUNER_S7395;
 		case TUNER_S7395:
 			fw_lme = fw_c_s7395;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
 			if (ret == 0) {
+				st->dvb_usb_lme2510_firmware = TUNER_S7395;
 				cold = 0;
 				break;
 			}
-			st->dvb_usb_lme2510_firmware = TUNER_LG;
+			/* fall through */
 		case TUNER_LG:
 			fw_lme = fw_c_lg;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
-			if (ret == 0)
+			if (ret == 0) {
+				st->dvb_usb_lme2510_firmware = TUNER_LG;
 				break;
-			st->dvb_usb_lme2510_firmware = TUNER_S0194;
+			}
+			/* fall through */
 		case TUNER_S0194:
 			fw_lme = fw_c_s0194;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
-			if (ret == 0)
+			if (ret == 0) {
+				st->dvb_usb_lme2510_firmware = TUNER_S0194;
 				break;
+			}
 			st->dvb_usb_lme2510_firmware = TUNER_DEFAULT;
 			cold = 0;
 			break;
@@ -1252,7 +1258,7 @@ static int lme2510_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 
 	/* Turn PID filter on the fly by module option */
 	if (pid_filter == 2) {
-		adap->pid_filtering  = 1;
+		adap->pid_filtering  = true;
 		adap->max_feed_count = 15;
 	}
 

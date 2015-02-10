@@ -70,10 +70,6 @@
 #define SPI_STATUS_WE                   (1UL << 1)
 #define SPI_STATUS_RD                   (1UL << 0)
 
-#define WRITE 0
-#define READ  1
-
-
 /* use PIO for small transfers, avoiding DMA setup/teardown overhead and
  * cache operations; better heuristics consider wordsize and bitrate.
  */
@@ -457,7 +453,6 @@ err:
 static struct platform_driver omap1_spi100k_driver = {
 	.driver = {
 		.name		= "omap1_spi100k",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= omap1_spi100k_probe,
 };

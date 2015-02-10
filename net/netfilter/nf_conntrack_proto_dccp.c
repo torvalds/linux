@@ -618,17 +618,17 @@ out_invalid:
 	return -NF_ACCEPT;
 }
 
-static int dccp_print_tuple(struct seq_file *s,
-			    const struct nf_conntrack_tuple *tuple)
+static void dccp_print_tuple(struct seq_file *s,
+			     const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "sport=%hu dport=%hu ",
-			  ntohs(tuple->src.u.dccp.port),
-			  ntohs(tuple->dst.u.dccp.port));
+	seq_printf(s, "sport=%hu dport=%hu ",
+		   ntohs(tuple->src.u.dccp.port),
+		   ntohs(tuple->dst.u.dccp.port));
 }
 
-static int dccp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
+static void dccp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
-	return seq_printf(s, "%s ", dccp_state_names[ct->proto.dccp.state]);
+	seq_printf(s, "%s ", dccp_state_names[ct->proto.dccp.state]);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

@@ -156,10 +156,9 @@ static void rpwm_workitem_callback(struct work_struct *work)
 				       struct pwrctrl_priv, rpwm_workitem);
 	struct _adapter *padapter = container_of(pwrpriv,
 				    struct _adapter, pwrctrlpriv);
-	u8 cpwm = pwrpriv->cpwm;
 	if (pwrpriv->cpwm != pwrpriv->rpwm) {
 		_enter_pwrlock(&pwrpriv->lock);
-		cpwm = r8712_read8(padapter, SDIO_HCPWM);
+		r8712_read8(padapter, SDIO_HCPWM);
 		pwrpriv->rpwm_retry = 1;
 		r8712_set_rpwm(padapter, pwrpriv->rpwm);
 		up(&pwrpriv->lock);
@@ -169,6 +168,7 @@ static void rpwm_workitem_callback(struct work_struct *work)
 static void rpwm_check_handler (void *FunctionContext)
 {
 	struct _adapter *adapter = (struct _adapter *)FunctionContext;
+
 	_rpwm_check_handler(adapter);
 }
 

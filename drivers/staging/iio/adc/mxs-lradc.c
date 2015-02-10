@@ -365,56 +365,49 @@ static u32 mxs_lradc_plate_mask(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_PLATE_MASK;
-	else
-		return LRADC_CTRL0_MX28_PLATE_MASK;
+	return LRADC_CTRL0_MX28_PLATE_MASK;
 }
 
 static u32 mxs_lradc_irq_en_mask(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL1_MX23_LRADC_IRQ_EN_MASK;
-	else
-		return LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK;
+	return LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK;
 }
 
 static u32 mxs_lradc_irq_mask(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL1_MX23_LRADC_IRQ_MASK;
-	else
-		return LRADC_CTRL1_MX28_LRADC_IRQ_MASK;
+	return LRADC_CTRL1_MX28_LRADC_IRQ_MASK;
 }
 
 static u32 mxs_lradc_touch_detect_bit(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_TOUCH_DETECT_ENABLE;
-	else
-		return LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE;
+	return LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE;
 }
 
 static u32 mxs_lradc_drive_x_plate(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_XP | LRADC_CTRL0_MX23_XM;
-	else
-		return LRADC_CTRL0_MX28_XPPSW | LRADC_CTRL0_MX28_XNNSW;
+	return LRADC_CTRL0_MX28_XPPSW | LRADC_CTRL0_MX28_XNNSW;
 }
 
 static u32 mxs_lradc_drive_y_plate(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_YP | LRADC_CTRL0_MX23_YM;
-	else
-		return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_YNNSW;
+	return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_YNNSW;
 }
 
 static u32 mxs_lradc_drive_pressure(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_YP | LRADC_CTRL0_MX23_XM;
-	else
-		return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_XNNSW;
+	return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_XNNSW;
 }
 
 static bool mxs_lradc_check_touch_event(struct mxs_lradc *lradc)
@@ -462,7 +455,8 @@ static void mxs_lradc_setup_ts_channel(struct mxs_lradc *lradc, unsigned ch)
 	 * SoC's delay unit and start the conversion later
 	 * and automatically.
 	 */
-	mxs_lradc_reg_wrt(lradc, LRADC_DELAY_TRIGGER(0) | /* don't trigger ADC */
+	mxs_lradc_reg_wrt(lradc,
+		LRADC_DELAY_TRIGGER(0) | /* don't trigger ADC */
 		LRADC_DELAY_TRIGGER_DELAYS(1 << 3) | /* trigger DELAY unit#3 */
 		LRADC_DELAY_KICK |
 		LRADC_DELAY_DELAY(lradc->settling_delay),
@@ -520,7 +514,8 @@ static void mxs_lradc_setup_ts_pressure(struct mxs_lradc *lradc, unsigned ch1,
 	 * SoC's delay unit and start the conversion later
 	 * and automatically.
 	 */
-	mxs_lradc_reg_wrt(lradc, LRADC_DELAY_TRIGGER(0) | /* don't trigger ADC */
+	mxs_lradc_reg_wrt(lradc,
+		LRADC_DELAY_TRIGGER(0) | /* don't trigger ADC */
 		LRADC_DELAY_TRIGGER_DELAYS(1 << 3) | /* trigger DELAY unit#3 */
 		LRADC_DELAY_KICK |
 		LRADC_DELAY_DELAY(lradc->settling_delay), LRADC_DELAY(2));
@@ -1280,7 +1275,7 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 	if (!ret)
 		return -EBUSY;
 
-	lradc->buffer = kmalloc(len * sizeof(*lradc->buffer), GFP_KERNEL);
+	lradc->buffer = kmalloc_array(len, sizeof(*lradc->buffer), GFP_KERNEL);
 	if (!lradc->buffer) {
 		ret = -ENOMEM;
 		goto err_mem;
@@ -1427,6 +1422,7 @@ static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
 		(LRADC_DELAY_TIMER_PER << LRADC_DELAY_DELAY_OFFSET);
 
 	int ret = stmp_reset_block(lradc->base);
+
 	if (ret)
 		return ret;
 
@@ -1565,14 +1561,16 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	/* Grab all IRQ sources */
 	for (i = 0; i < of_cfg->irq_count; i++) {
 		lradc->irq[i] = platform_get_irq(pdev, i);
-		if (lradc->irq[i] < 0)
-			return lradc->irq[i];
+		if (lradc->irq[i] < 0) {
+			ret = lradc->irq[i];
+			goto err_clk;
+		}
 
 		ret = devm_request_irq(dev, lradc->irq[i],
 					mxs_lradc_handle_irq, 0,
 					of_cfg->irq_name[i], iio);
 		if (ret)
-			return ret;
+			goto err_clk;
 	}
 
 	lradc->vref_mv = of_cfg->vref_mv;
@@ -1594,7 +1592,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 				&mxs_lradc_trigger_handler,
 				&mxs_lradc_buffer_ops);
 	if (ret)
-		return ret;
+		goto err_clk;
 
 	ret = mxs_lradc_trigger_init(iio);
 	if (ret)
@@ -1649,6 +1647,8 @@ err_dev:
 	mxs_lradc_trigger_remove(iio);
 err_trig:
 	iio_triggered_buffer_cleanup(iio);
+err_clk:
+	clk_disable_unprepare(lradc->clk);
 	return ret;
 }
 
@@ -1670,7 +1670,6 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 static struct platform_driver mxs_lradc_driver = {
 	.driver	= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = mxs_lradc_dt_ids,
 	},
 	.probe	= mxs_lradc_probe,

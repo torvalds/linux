@@ -770,7 +770,6 @@ static struct platform_driver davinci_mcbsp_driver = {
 	.remove		= davinci_i2s_remove,
 	.driver		= {
 		.name	= "davinci-mcbsp",
-		.owner	= THIS_MODULE,
 	},
 };
 

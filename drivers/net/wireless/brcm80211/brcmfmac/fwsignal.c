@@ -26,15 +26,15 @@
 
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
-#include "dhd.h"
-#include "dhd_dbg.h"
-#include "dhd_bus.h"
+#include "core.h"
+#include "debug.h"
+#include "bus.h"
 #include "fwil.h"
 #include "fwil_types.h"
 #include "fweh.h"
 #include "fwsignal.h"
 #include "p2p.h"
-#include "wl_cfg80211.h"
+#include "cfg80211.h"
 #include "proto.h"
 
 /**
@@ -1636,7 +1636,7 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 	if (!signal_len)
 		return 0;
 	/* if flow control disabled, skip to packet data and leave */
-	if (!fws->fw_signals) {
+	if ((!fws) || (!fws->fw_signals)) {
 		skb_pull(skb, signal_len);
 		return 0;
 	}

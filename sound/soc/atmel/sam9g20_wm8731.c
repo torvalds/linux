@@ -309,7 +309,6 @@ MODULE_DEVICE_TABLE(of, at91sam9g20ek_wm8731_dt_ids);
 static struct platform_driver at91sam9g20ek_audio_driver = {
 	.driver = {
 		.name	= "at91sam9g20ek-audio",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(at91sam9g20ek_wm8731_dt_ids),
 	},
 	.probe	= at91sam9g20ek_audio_probe,

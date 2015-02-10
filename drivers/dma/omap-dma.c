@@ -1074,8 +1074,6 @@ static int omap_dma_chan_init(struct omap_dmadev *od, int dma_sig)
 	vchan_init(&c->vc, &od->ddev);
 	INIT_LIST_HEAD(&c->node);
 
-	od->ddev.chancnt++;
-
 	return 0;
 }
 
@@ -1233,7 +1231,6 @@ static struct platform_driver omap_dma_driver = {
 	.remove	= omap_dma_remove,
 	.driver = {
 		.name = "omap-dma-engine",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(omap_dma_match),
 	},
 };

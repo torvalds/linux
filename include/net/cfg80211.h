@@ -4,6 +4,7 @@
  * 802.11 device and configuration interface
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -318,9 +319,12 @@ struct ieee80211_supported_band {
 /**
  * struct vif_params - describes virtual interface parameters
  * @use_4addr: use 4-address frames
- * @macaddr: address to use for this virtual interface. This will only
- * 	be used for non-netdevice interfaces. If this parameter is set
- * 	to zero address the driver may determine the address as needed.
+ * @macaddr: address to use for this virtual interface.
+ *	If this parameter is set to zero address the driver may
+ *	determine the address as needed.
+ *	This feature is only fully supported by drivers that enable the
+ *	%NL80211_FEATURE_MAC_ON_CREATE flag.  Others may support creating
+ **	only p2p devices with specified MAC.
  */
 struct vif_params {
        int use_4addr;
@@ -663,6 +667,7 @@ struct cfg80211_acl_data {
  * @crypto: crypto settings
  * @privacy: the BSS uses privacy
  * @auth_type: Authentication type (algorithm)
+ * @smps_mode: SMPS mode
  * @inactivity_timeout: time in seconds to determine station's inactivity.
  * @p2p_ctwindow: P2P CT Window
  * @p2p_opp_ps: P2P opportunistic PS
@@ -681,6 +686,7 @@ struct cfg80211_ap_settings {
 	struct cfg80211_crypto_settings crypto;
 	bool privacy;
 	enum nl80211_auth_type auth_type;
+	enum nl80211_smps_mode smps_mode;
 	int inactivity_timeout;
 	u8 p2p_ctwindow;
 	bool p2p_opp_ps;
@@ -793,6 +799,22 @@ struct station_parameters {
 	u8 supported_oper_classes_len;
 	u8 opmode_notif;
 	bool opmode_notif_used;
+};
+
+/**
+ * struct station_del_parameters - station deletion parameters
+ *
+ * Used to delete a station entry (or all stations).
+ *
+ * @mac: MAC address of the station to remove or NULL to remove all stations
+ * @subtype: Management frame subtype to use for indicating removal
+ *	(10 = Disassociation, 12 = Deauthentication)
+ * @reason_code: Reason code for the Disassociation/Deauthentication frame
+ */
+struct station_del_parameters {
+	const u8 *mac;
+	u8 subtype;
+	u16 reason_code;
 };
 
 /**
@@ -1337,6 +1359,16 @@ struct mesh_setup {
 };
 
 /**
+ * struct ocb_setup - 802.11p OCB mode setup configuration
+ * @chandef: defines the channel to use
+ *
+ * These parameters are fixed when connecting to the network
+ */
+struct ocb_setup {
+	struct cfg80211_chan_def chandef;
+};
+
+/**
  * struct ieee80211_txq_params - TX queue parameters
  * @ac: AC identifier
  * @txop: Maximum burst time in units of 32 usecs, 0 meaning disabled
@@ -1405,6 +1437,10 @@ struct cfg80211_ssid {
  * @aborted: (internal) scan request was notified as aborted
  * @notified: (internal) scan request was notified as done or aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
+ * @mac_addr: MAC address used with randomisation
+ * @mac_addr_mask: MAC address mask used with randomisation, bits that
+ *	are 0 in the mask should be randomised, bits that are 1 should
+ *	be taken from the @mac_addr
  */
 struct cfg80211_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -1419,6 +1455,9 @@ struct cfg80211_scan_request {
 
 	struct wireless_dev *wdev;
 
+	u8 mac_addr[ETH_ALEN] __aligned(2);
+	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
+
 	/* internal */
 	struct wiphy *wiphy;
 	unsigned long scan_start;
@@ -1428,6 +1467,17 @@ struct cfg80211_scan_request {
 	/* keep last */
 	struct ieee80211_channel *channels[0];
 };
+
+static inline void get_random_mask_addr(u8 *buf, const u8 *addr, const u8 *mask)
+{
+	int i;
+
+	get_random_bytes(buf, ETH_ALEN);
+	for (i = 0; i < ETH_ALEN; i++) {
+		buf[i] &= ~mask[i];
+		buf[i] |= addr[i] & mask[i];
+	}
+}
 
 /**
  * struct cfg80211_match_set - sets of attributes to match
@@ -1462,6 +1512,10 @@ struct cfg80211_match_set {
  * @channels: channels to scan
  * @min_rssi_thold: for drivers only supporting a single threshold, this
  *	contains the minimum over all matchsets
+ * @mac_addr: MAC address used with randomisation
+ * @mac_addr_mask: MAC address mask used with randomisation, bits that
+ *	are 0 in the mask should be randomised, bits that are 1 should
+ *	be taken from the @mac_addr
  */
 struct cfg80211_sched_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -1475,6 +1529,9 @@ struct cfg80211_sched_scan_request {
 	struct cfg80211_match_set *match_sets;
 	int n_match_sets;
 	s32 min_rssi_thold;
+
+	u8 mac_addr[ETH_ALEN] __aligned(2);
+	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
 
 	/* internal */
 	struct wiphy *wiphy;
@@ -1503,12 +1560,14 @@ enum cfg80211_signal_type {
  * @tsf: TSF contained in the frame that carried these IEs
  * @rcu_head: internal use, for freeing
  * @len: length of the IEs
+ * @from_beacon: these IEs are known to come from a beacon
  * @data: IE data
  */
 struct cfg80211_bss_ies {
 	u64 tsf;
 	struct rcu_head rcu_head;
 	int len;
+	bool from_beacon;
 	u8 data[];
 };
 
@@ -1605,10 +1664,12 @@ struct cfg80211_auth_request {
  *
  * @ASSOC_REQ_DISABLE_HT:  Disable HT (802.11n)
  * @ASSOC_REQ_DISABLE_VHT:  Disable VHT
+ * @ASSOC_REQ_USE_RRM: Declare RRM capability in this association
  */
 enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_HT		= BIT(0),
 	ASSOC_REQ_DISABLE_VHT		= BIT(1),
+	ASSOC_REQ_USE_RRM		= BIT(2),
 };
 
 /**
@@ -1800,6 +1861,7 @@ struct cfg80211_connect_params {
  * @WIPHY_PARAM_FRAG_THRESHOLD: wiphy->frag_threshold has changed
  * @WIPHY_PARAM_RTS_THRESHOLD: wiphy->rts_threshold has changed
  * @WIPHY_PARAM_COVERAGE_CLASS: coverage class changed
+ * @WIPHY_PARAM_DYN_ACK: dynack has been enabled
  */
 enum wiphy_params_flags {
 	WIPHY_PARAM_RETRY_SHORT		= 1 << 0,
@@ -1807,6 +1869,7 @@ enum wiphy_params_flags {
 	WIPHY_PARAM_FRAG_THRESHOLD	= 1 << 2,
 	WIPHY_PARAM_RTS_THRESHOLD	= 1 << 3,
 	WIPHY_PARAM_COVERAGE_CLASS	= 1 << 4,
+	WIPHY_PARAM_DYN_ACK		= 1 << 5,
 };
 
 /*
@@ -1902,6 +1965,7 @@ struct cfg80211_wowlan_tcp {
  * @rfkill_release: wake up when rfkill is released
  * @tcp: TCP connection establishment/wakeup parameters, see nl80211.h.
  *	NULL if not configured.
+ * @nd_config: configuration for the scan to be used for net detect wake.
  */
 struct cfg80211_wowlan {
 	bool any, disconnect, magic_pkt, gtk_rekey_failure,
@@ -1910,6 +1974,7 @@ struct cfg80211_wowlan {
 	struct cfg80211_pkt_pattern *patterns;
 	struct cfg80211_wowlan_tcp *tcp;
 	int n_patterns;
+	struct cfg80211_sched_scan_request *nd_config;
 };
 
 /**
@@ -1942,6 +2007,35 @@ struct cfg80211_coalesce {
 };
 
 /**
+ * struct cfg80211_wowlan_nd_match - information about the match
+ *
+ * @ssid: SSID of the match that triggered the wake up
+ * @n_channels: Number of channels where the match occurred.  This
+ *	value may be zero if the driver can't report the channels.
+ * @channels: center frequencies of the channels where a match
+ *	occurred (in MHz)
+ */
+struct cfg80211_wowlan_nd_match {
+	struct cfg80211_ssid ssid;
+	int n_channels;
+	u32 channels[];
+};
+
+/**
+ * struct cfg80211_wowlan_nd_info - net detect wake up information
+ *
+ * @n_matches: Number of match information instances provided in
+ *	@matches.  This value may be zero if the driver can't provide
+ *	match information.
+ * @matches: Array of pointers to matches containing information about
+ *	the matches that triggered the wake up.
+ */
+struct cfg80211_wowlan_nd_info {
+	int n_matches;
+	struct cfg80211_wowlan_nd_match *matches[];
+};
+
+/**
  * struct cfg80211_wowlan_wakeup - wakeup report
  * @disconnect: woke up by getting disconnected
  * @magic_pkt: woke up by receiving magic packet
@@ -1960,6 +2054,7 @@ struct cfg80211_coalesce {
  * @tcp_match: TCP wakeup packet received
  * @tcp_connlost: TCP connection lost or failed to establish
  * @tcp_nomoretokens: TCP data ran out of tokens
+ * @net_detect: if not %NULL, woke up because of net detect
  */
 struct cfg80211_wowlan_wakeup {
 	bool disconnect, magic_pkt, gtk_rekey_failure,
@@ -1969,18 +2064,17 @@ struct cfg80211_wowlan_wakeup {
 	s32 pattern_idx;
 	u32 packet_present_len, packet_len;
 	const void *packet;
+	struct cfg80211_wowlan_nd_info *net_detect;
 };
 
 /**
  * struct cfg80211_gtk_rekey_data - rekey data
- * @kek: key encryption key
- * @kck: key confirmation key
- * @replay_ctr: replay counter
+ * @kek: key encryption key (NL80211_KEK_LEN bytes)
+ * @kck: key confirmation key (NL80211_KCK_LEN bytes)
+ * @replay_ctr: replay counter (NL80211_REPLAY_CTR_LEN bytes)
  */
 struct cfg80211_gtk_rekey_data {
-	u8 kek[NL80211_KEK_LEN];
-	u8 kck[NL80211_KCK_LEN];
-	u8 replay_ctr[NL80211_REPLAY_CTR_LEN];
+	const u8 *kek, *kck, *replay_ctr;
 };
 
 /**
@@ -2125,7 +2219,7 @@ struct cfg80211_qos_map {
  * @stop_ap: Stop being an AP, including stopping beaconing.
  *
  * @add_station: Add a new station.
- * @del_station: Remove a station; @mac may be NULL to remove all stations.
+ * @del_station: Remove a station
  * @change_station: Modify a given station. Note that flags changes are not much
  *	validated in cfg80211, in particular the auth/assoc/authorized flags
  *	might come to the driver in invalid combinations -- make sure to check
@@ -2139,6 +2233,8 @@ struct cfg80211_qos_map {
  * @change_mpath: change a given mesh path
  * @get_mpath: get a mesh path for the given parameters
  * @dump_mpath: dump mesh path callback -- resume dump at index @idx
+ * @get_mpp: get a mesh proxy path for the given parameters
+ * @dump_mpp: dump mesh proxy path callback -- resume dump at index @idx
  * @join_mesh: join the mesh network with the specified parameters
  *	(invoked with the wireless_dev mutex held)
  * @leave_mesh: leave the current mesh network
@@ -2313,6 +2409,28 @@ struct cfg80211_qos_map {
  * @set_ap_chanwidth: Set the AP (including P2P GO) mode channel width for the
  *	given interface This is used e.g. for dynamic HT 20/40 MHz channel width
  *	changes during the lifetime of the BSS.
+ *
+ * @add_tx_ts: validate (if admitted_time is 0) or add a TX TS to the device
+ *	with the given parameters; action frame exchange has been handled by
+ *	userspace so this just has to modify the TX path to take the TS into
+ *	account.
+ *	If the admitted time is 0 just validate the parameters to make sure
+ *	the session can be created at all; it is valid to just always return
+ *	success for that but that may result in inefficient behaviour (handshake
+ *	with the peer followed by immediate teardown when the addition is later
+ *	rejected)
+ * @del_tx_ts: remove an existing TX TS
+ *
+ * @join_ocb: join the OCB network with the specified parameters
+ *	(invoked with the wireless_dev mutex held)
+ * @leave_ocb: leave the current OCB network
+ *	(invoked with the wireless_dev mutex held)
+ *
+ * @tdls_channel_switch: Start channel-switching with a TDLS peer. The driver
+ *	is responsible for continually initiating channel-switching operations
+ *	and returning to the base channel for communication with the AP.
+ * @tdls_cancel_channel_switch: Stop channel-switching with a TDLS peer. Both
+ *	peers must be on the base channel when the call completes.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -2358,7 +2476,7 @@ struct cfg80211_ops {
 			       const u8 *mac,
 			       struct station_parameters *params);
 	int	(*del_station)(struct wiphy *wiphy, struct net_device *dev,
-			       const u8 *mac);
+			       struct station_del_parameters *params);
 	int	(*change_station)(struct wiphy *wiphy, struct net_device *dev,
 				  const u8 *mac,
 				  struct station_parameters *params);
@@ -2378,6 +2496,11 @@ struct cfg80211_ops {
 	int	(*dump_mpath)(struct wiphy *wiphy, struct net_device *dev,
 			      int idx, u8 *dst, u8 *next_hop,
 			      struct mpath_info *pinfo);
+	int	(*get_mpp)(struct wiphy *wiphy, struct net_device *dev,
+			   u8 *dst, u8 *mpp, struct mpath_info *pinfo);
+	int	(*dump_mpp)(struct wiphy *wiphy, struct net_device *dev,
+			    int idx, u8 *dst, u8 *mpp,
+			    struct mpath_info *pinfo);
 	int	(*get_mesh_config)(struct wiphy *wiphy,
 				struct net_device *dev,
 				struct mesh_config *conf);
@@ -2388,6 +2511,10 @@ struct cfg80211_ops {
 			     const struct mesh_config *conf,
 			     const struct mesh_setup *setup);
 	int	(*leave_mesh)(struct wiphy *wiphy, struct net_device *dev);
+
+	int	(*join_ocb)(struct wiphy *wiphy, struct net_device *dev,
+			    struct ocb_setup *setup);
+	int	(*leave_ocb)(struct wiphy *wiphy, struct net_device *dev);
 
 	int	(*change_bss)(struct wiphy *wiphy, struct net_device *dev,
 			      struct bss_parameters *params);
@@ -2553,6 +2680,20 @@ struct cfg80211_ops {
 
 	int	(*set_ap_chanwidth)(struct wiphy *wiphy, struct net_device *dev,
 				    struct cfg80211_chan_def *chandef);
+
+	int	(*add_tx_ts)(struct wiphy *wiphy, struct net_device *dev,
+			     u8 tsid, const u8 *peer, u8 user_prio,
+			     u16 admitted_time);
+	int	(*del_tx_ts)(struct wiphy *wiphy, struct net_device *dev,
+			     u8 tsid, const u8 *peer);
+
+	int	(*tdls_channel_switch)(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       const u8 *addr, u8 oper_class,
+				       struct cfg80211_chan_def *chandef);
+	void	(*tdls_cancel_channel_switch)(struct wiphy *wiphy,
+					      struct net_device *dev,
+					      const u8 *addr);
 };
 
 /*
@@ -2727,6 +2868,7 @@ struct ieee80211_txrx_stypes {
  * @WIPHY_WOWLAN_EAP_IDENTITY_REQ: supports wakeup on EAP identity request
  * @WIPHY_WOWLAN_4WAY_HANDSHAKE: supports wakeup on 4-way handshake failure
  * @WIPHY_WOWLAN_RFKILL_RELEASE: supports wakeup on RF-kill release
+ * @WIPHY_WOWLAN_NET_DETECT: supports wakeup on network detection
  */
 enum wiphy_wowlan_support_flags {
 	WIPHY_WOWLAN_ANY		= BIT(0),
@@ -2737,6 +2879,7 @@ enum wiphy_wowlan_support_flags {
 	WIPHY_WOWLAN_EAP_IDENTITY_REQ	= BIT(5),
 	WIPHY_WOWLAN_4WAY_HANDSHAKE	= BIT(6),
 	WIPHY_WOWLAN_RFKILL_RELEASE	= BIT(7),
+	WIPHY_WOWLAN_NET_DETECT		= BIT(8),
 };
 
 struct wiphy_wowlan_tcp_support {
@@ -2755,6 +2898,11 @@ struct wiphy_wowlan_tcp_support {
  * @pattern_max_len: maximum length of each pattern
  * @pattern_min_len: minimum length of each pattern
  * @max_pkt_offset: maximum Rx packet offset
+ * @max_nd_match_sets: maximum number of matchsets for net-detect,
+ *	similar, but not necessarily identical, to max_match_sets for
+ *	scheduled scans.
+ *	See &struct cfg80211_sched_scan_request.@match_sets for more
+ *	details.
  * @tcp: TCP wakeup support information
  */
 struct wiphy_wowlan_support {
@@ -2763,6 +2911,7 @@ struct wiphy_wowlan_support {
 	int pattern_max_len;
 	int pattern_min_len;
 	int max_pkt_offset;
+	int max_nd_match_sets;
 	const struct wiphy_wowlan_tcp_support *tcp;
 };
 
@@ -3138,6 +3287,23 @@ static inline const char *wiphy_name(const struct wiphy *wiphy)
 }
 
 /**
+ * wiphy_new_nm - create a new wiphy for use with cfg80211
+ *
+ * @ops: The configuration operations for this device
+ * @sizeof_priv: The size of the private area to allocate
+ * @requested_name: Request a particular name.
+ *	NULL is valid value, and means use the default phy%d naming.
+ *
+ * Create a new wiphy and associate the given operations with it.
+ * @sizeof_priv bytes are allocated for private use.
+ *
+ * Return: A pointer to the new wiphy. This pointer must be
+ * assigned to each netdev's ieee80211_ptr for proper operation.
+ */
+struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
+			   const char *requested_name);
+
+/**
  * wiphy_new - create a new wiphy for use with cfg80211
  *
  * @ops: The configuration operations for this device
@@ -3149,7 +3315,11 @@ static inline const char *wiphy_name(const struct wiphy *wiphy)
  * Return: A pointer to the new wiphy. This pointer must be
  * assigned to each netdev's ieee80211_ptr for proper operation.
  */
-struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv);
+static inline struct wiphy *wiphy_new(const struct cfg80211_ops *ops,
+				      int sizeof_priv)
+{
+	return wiphy_new_nm(ops, sizeof_priv, NULL);
+}
 
 /**
  * wiphy_register - register a wiphy with cfg80211
@@ -3765,11 +3935,25 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 }
 
 /**
- * cfg80211_inform_bss - inform cfg80211 of a new BSS
+ * enum cfg80211_bss_frame_type - frame type that the BSS data came from
+ * @CFG80211_BSS_FTYPE_UNKNOWN: driver doesn't know whether the data is
+ *	from a beacon or probe response
+ * @CFG80211_BSS_FTYPE_BEACON: data comes from a beacon
+ * @CFG80211_BSS_FTYPE_PRESP: data comes from a probe response
+ */
+enum cfg80211_bss_frame_type {
+	CFG80211_BSS_FTYPE_UNKNOWN,
+	CFG80211_BSS_FTYPE_BEACON,
+	CFG80211_BSS_FTYPE_PRESP,
+};
+
+/**
+ * cfg80211_inform_bss_width - inform cfg80211 of a new BSS
  *
  * @wiphy: the wiphy reporting the BSS
  * @rx_channel: The channel the frame was received on
  * @scan_width: width of the control channel
+ * @ftype: frame type (if known)
  * @bssid: the BSSID of the BSS
  * @tsf: the TSF sent by the peer in the beacon/probe response (or 0)
  * @capability: the capability field sent by the peer
@@ -3789,6 +3973,7 @@ struct cfg80211_bss * __must_check
 cfg80211_inform_bss_width(struct wiphy *wiphy,
 			  struct ieee80211_channel *rx_channel,
 			  enum nl80211_bss_scan_width scan_width,
+			  enum cfg80211_bss_frame_type ftype,
 			  const u8 *bssid, u64 tsf, u16 capability,
 			  u16 beacon_interval, const u8 *ie, size_t ielen,
 			  s32 signal, gfp_t gfp);
@@ -3796,12 +3981,13 @@ cfg80211_inform_bss_width(struct wiphy *wiphy,
 static inline struct cfg80211_bss * __must_check
 cfg80211_inform_bss(struct wiphy *wiphy,
 		    struct ieee80211_channel *rx_channel,
+		    enum cfg80211_bss_frame_type ftype,
 		    const u8 *bssid, u64 tsf, u16 capability,
 		    u16 beacon_interval, const u8 *ie, size_t ielen,
 		    s32 signal, gfp_t gfp)
 {
 	return cfg80211_inform_bss_width(wiphy, rx_channel,
-					 NL80211_BSS_CHAN_WIDTH_20,
+					 NL80211_BSS_CHAN_WIDTH_20, ftype,
 					 bssid, tsf, capability,
 					 beacon_interval, ie, ielen, signal,
 					 gfp);
@@ -3902,6 +4088,7 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  *	moves to cfg80211 in this call
  * @buf: authentication frame (header + body)
  * @len: length of the frame data
+ * @uapsd_queues: bitmap of ACs configured to uapsd. -1 if n/a.
  *
  * After being asked to associate via cfg80211_ops::assoc() the driver must
  * call either this function or cfg80211_auth_timeout().
@@ -3910,7 +4097,8 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  */
 void cfg80211_rx_assoc_resp(struct net_device *dev,
 			    struct cfg80211_bss *bss,
-			    const u8 *buf, size_t len);
+			    const u8 *buf, size_t len,
+			    int uapsd_queues);
 
 /**
  * cfg80211_assoc_timeout - notification of timed out association
@@ -4412,7 +4600,6 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
  * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @flags: flags, as defined in enum nl80211_rxmgmt_flags
- * @gfp: context flags
  *
  * This function is called whenever an Action frame is received for a station
  * mode interface, but is not processed in kernel.
@@ -4423,7 +4610,7 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
  * driver is responsible for rejecting the frame.
  */
 bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp);
+		      const u8 *buf, size_t len, u32 flags);
 
 /**
  * cfg80211_mgmt_tx_status - notification of TX status for management frame
@@ -4456,33 +4643,6 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
 			      gfp_t gfp);
 
 /**
- * cfg80211_radar_event - radar detection event
- * @wiphy: the wiphy
- * @chandef: chandef for the current channel
- * @gfp: context flags
- *
- * This function is called when a radar is detected on the current chanenl.
- */
-void cfg80211_radar_event(struct wiphy *wiphy,
-			  struct cfg80211_chan_def *chandef, gfp_t gfp);
-
-/**
- * cfg80211_cac_event - Channel availability check (CAC) event
- * @netdev: network device
- * @chandef: chandef for the current channel
- * @event: type of event
- * @gfp: context flags
- *
- * This function is called when a Channel availability check (CAC) is finished
- * or aborted. This must be called to notify the completion of a CAC process,
- * also by full-MAC drivers.
- */
-void cfg80211_cac_event(struct net_device *netdev,
-			const struct cfg80211_chan_def *chandef,
-			enum nl80211_radar_event event, gfp_t gfp);
-
-
-/**
  * cfg80211_cqm_pktloss_notify - notify userspace about packetloss to peer
  * @dev: network device
  * @peer: peer's MAC address
@@ -4508,6 +4668,42 @@ void cfg80211_cqm_pktloss_notify(struct net_device *dev,
  */
 void cfg80211_cqm_txe_notify(struct net_device *dev, const u8 *peer,
 			     u32 num_packets, u32 rate, u32 intvl, gfp_t gfp);
+
+/**
+ * cfg80211_cqm_beacon_loss_notify - beacon loss event
+ * @dev: network device
+ * @gfp: context flags
+ *
+ * Notify userspace about beacon loss from the connected AP.
+ */
+void cfg80211_cqm_beacon_loss_notify(struct net_device *dev, gfp_t gfp);
+
+/**
+ * cfg80211_radar_event - radar detection event
+ * @wiphy: the wiphy
+ * @chandef: chandef for the current channel
+ * @gfp: context flags
+ *
+ * This function is called when a radar is detected on the current chanenl.
+ */
+void cfg80211_radar_event(struct wiphy *wiphy,
+			  struct cfg80211_chan_def *chandef, gfp_t gfp);
+
+/**
+ * cfg80211_cac_event - Channel availability check (CAC) event
+ * @netdev: network device
+ * @chandef: chandef for the current channel
+ * @event: type of event
+ * @gfp: context flags
+ *
+ * This function is called when a Channel availability check (CAC) is finished
+ * or aborted. This must be called to notify the completion of a CAC process,
+ * also by full-MAC drivers.
+ */
+void cfg80211_cac_event(struct net_device *netdev,
+			const struct cfg80211_chan_def *chandef,
+			enum nl80211_radar_event event, gfp_t gfp);
+
 
 /**
  * cfg80211_gtk_rekey_notify - notify userspace about driver rekeying
@@ -4611,6 +4807,20 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
  */
 void cfg80211_ch_switch_notify(struct net_device *dev,
 			       struct cfg80211_chan_def *chandef);
+
+/*
+ * cfg80211_ch_switch_started_notify - notify channel switch start
+ * @dev: the device on which the channel switch started
+ * @chandef: the future channel definition
+ * @count: the number of TBTTs until the channel switch happens
+ *
+ * Inform the userspace about the channel switch that has just
+ * started, so that it can take appropriate actions (eg. starting
+ * channel switch on other vifs), if necessary.
+ */
+void cfg80211_ch_switch_started_notify(struct net_device *dev,
+				       struct cfg80211_chan_def *chandef,
+				       u8 count);
 
 /**
  * ieee80211_operating_class_to_band - convert operating class to band

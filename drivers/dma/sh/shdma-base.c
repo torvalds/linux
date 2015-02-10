@@ -391,6 +391,8 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 				dev_dbg(schan->dev, "Bring down channel %d\n", schan->id);
 				pm_runtime_put(schan->dev);
 				schan->pm_state = SHDMA_PM_ESTABLISHED;
+			} else if (schan->pm_state == SHDMA_PM_PENDING) {
+				shdma_chan_xfer_ld_queue(schan);
 			}
 		}
 	}
@@ -951,7 +953,7 @@ void shdma_chan_probe(struct shdma_dev *sdev,
 	/* Add the channel to DMA device channel list */
 	list_add_tail(&schan->dma_chan.device_node,
 			&sdev->dma_dev.channels);
-	sdev->schan[sdev->dma_dev.chancnt++] = schan;
+	sdev->schan[id] = schan;
 }
 EXPORT_SYMBOL(shdma_chan_probe);
 

@@ -42,7 +42,10 @@ static void update_irq(struct mdp_kms *mdp_kms)
 	mdp_kms->funcs->set_irqmask(mdp_kms, irqmask);
 }
 
-static void update_irq_unlocked(struct mdp_kms *mdp_kms)
+/* if an mdp_irq's irqmask has changed, such as when mdp5 crtc<->encoder
+ * link changes, this must be called to figure out the new global irqmask
+ */
+void mdp_irq_update(struct mdp_kms *mdp_kms)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&list_lock, flags);
@@ -122,7 +125,7 @@ void mdp_irq_register(struct mdp_kms *mdp_kms, struct mdp_irq *irq)
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	if (needs_update)
-		update_irq_unlocked(mdp_kms);
+		mdp_irq_update(mdp_kms);
 }
 
 void mdp_irq_unregister(struct mdp_kms *mdp_kms, struct mdp_irq *irq)
@@ -141,5 +144,5 @@ void mdp_irq_unregister(struct mdp_kms *mdp_kms, struct mdp_irq *irq)
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	if (needs_update)
-		update_irq_unlocked(mdp_kms);
+		mdp_irq_update(mdp_kms);
 }

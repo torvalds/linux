@@ -97,39 +97,6 @@ int do_rangeinfo_ioctl(struct comedi_device *dev,
 	return 0;
 }
 
-static int aref_invalid(struct comedi_subdevice *s, unsigned int chanspec)
-{
-	unsigned int aref;
-
-	/*  disable reporting invalid arefs... maybe someday */
-	return 0;
-
-	aref = CR_AREF(chanspec);
-	switch (aref) {
-	case AREF_DIFF:
-		if (s->subdev_flags & SDF_DIFF)
-			return 0;
-		break;
-	case AREF_COMMON:
-		if (s->subdev_flags & SDF_COMMON)
-			return 0;
-		break;
-	case AREF_GROUND:
-		if (s->subdev_flags & SDF_GROUND)
-			return 0;
-		break;
-	case AREF_OTHER:
-		if (s->subdev_flags & SDF_OTHER)
-			return 0;
-		break;
-	default:
-		break;
-	}
-	dev_dbg(s->device->class_dev, "subdevice does not support aref %i",
-		aref);
-	return 1;
-}
-
 /**
  * comedi_check_chanlist() - Validate each element in a chanlist.
  * @s: comedi_subdevice struct
@@ -153,8 +120,7 @@ int comedi_check_chanlist(struct comedi_subdevice *s, int n,
 		else
 			range_len = 0;
 		if (chan >= s->n_chan ||
-		    CR_RANGE(chanspec) >= range_len ||
-		    aref_invalid(s, chanspec)) {
+		    CR_RANGE(chanspec) >= range_len) {
 			dev_warn(dev->class_dev,
 				 "bad chanlist[%d]=0x%08x chan=%d range length=%d\n",
 				 i, chanspec, chan, range_len);

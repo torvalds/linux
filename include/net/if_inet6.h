@@ -35,7 +35,6 @@ enum {
 	INET6_IFADDR_STATE_DAD,
 	INET6_IFADDR_STATE_POSTDAD,
 	INET6_IFADDR_STATE_ERRDAD,
-	INET6_IFADDR_STATE_UP,
 	INET6_IFADDR_STATE_DEAD,
 };
 
@@ -147,7 +146,6 @@ struct ifacaddr6 {
 	struct ifacaddr6	*aca_next;
 	int			aca_users;
 	atomic_t		aca_refcnt;
-	spinlock_t		aca_lock;
 	unsigned long		aca_cstamp;
 	unsigned long		aca_tstamp;
 };

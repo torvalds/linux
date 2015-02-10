@@ -914,8 +914,8 @@ static struct st_pio_control *st_get_pio_control(
 	return &bank->pc;
 }
 
-static int st_pmx_enable(struct pinctrl_dev *pctldev, unsigned fselector,
-		unsigned group)
+static int st_pmx_set_mux(struct pinctrl_dev *pctldev, unsigned fselector,
+			unsigned group)
 {
 	struct st_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct st_pinconf *conf = info->groups[group].pin_conf;
@@ -951,7 +951,7 @@ static struct pinmux_ops st_pmxops = {
 	.get_functions_count	= st_pmx_get_funcs_count,
 	.get_function_name	= st_pmx_get_fname,
 	.get_function_groups	= st_pmx_get_groups,
-	.enable			= st_pmx_enable,
+	.set_mux		= st_pmx_set_mux,
 	.gpio_set_direction	= st_pmx_set_gpio_direction,
 };
 
@@ -1012,8 +1012,10 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 				   struct seq_file *s, unsigned pin_id)
 {
 	unsigned long config;
-	st_pinconf_get(pctldev, pin_id, &config);
 
+	mutex_unlock(&pctldev->mutex);
+	st_pinconf_get(pctldev, pin_id, &config);
+	mutex_lock(&pctldev->mutex);
 	seq_printf(s, "[OE:%ld,PU:%ld,OD:%ld]\n"
 		"\t\t[retime:%ld,invclk:%ld,clknotdat:%ld,"
 		"de:%ld,rt-clk:%ld,rt-delay:%ld]",
@@ -1443,6 +1445,7 @@ static struct gpio_chip st_gpio_template = {
 
 static struct irq_chip st_gpio_irqchip = {
 	.name		= "GPIO",
+	.irq_disable	= st_gpio_irq_mask,
 	.irq_mask	= st_gpio_irq_mask,
 	.irq_unmask	= st_gpio_irq_unmask,
 	.irq_set_type	= st_gpio_irq_set_type,
@@ -1512,11 +1515,12 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 					     gpio_irq, st_gpio_irq_handler);
 	}
 
-	if (info->irqmux_base > 0 || gpio_irq > 0) {
+	if (info->irqmux_base || gpio_irq > 0) {
 		err = gpiochip_irqchip_add(&bank->gpio_chip, &st_gpio_irqchip,
 					   0, handle_simple_irq,
 					   IRQ_TYPE_LEVEL_LOW);
 		if (err) {
+			gpiochip_remove(&bank->gpio_chip);
 			dev_info(dev, "could not add irqchip\n");
 			return err;
 		}
@@ -1688,7 +1692,6 @@ static int st_pctl_probe(struct platform_device *pdev)
 static struct platform_driver st_pctl_driver = {
 	.driver = {
 		.name = "st-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = st_pctl_of_match,
 	},
 	.probe = st_pctl_probe,

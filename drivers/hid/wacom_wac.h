@@ -80,6 +80,7 @@ enum {
 	PL,
 	DTU,
 	DTUS,
+	DTUSX,
 	INTUOS,
 	INTUOS3S,
 	INTUOS3,
@@ -113,6 +114,7 @@ enum {
 	MTSCREEN,
 	MTTPC,
 	MTTPC_B,
+	HID_GENERIC,
 	MAX_TYPE
 };
 
@@ -143,6 +145,7 @@ struct wacom_features {
 	int pktlen;
 	bool check_for_hid_type;
 	int hid_type;
+	int last_slot_field;
 };
 
 struct wacom_shared {
@@ -152,6 +155,20 @@ struct wacom_shared {
 	unsigned touch_max;
 	int type;
 	struct input_dev *touch_input;
+};
+
+struct hid_data {
+	__s16 inputmode;	/* InputMode HID feature, -1 if non-existent */
+	__s16 inputmode_index;	/* InputMode HID feature index in the report */
+	bool inrange_state;
+	bool invert_state;
+	bool tipswitch;
+	int x;
+	int y;
+	int pressure;
+	int width;
+	int height;
+	int id;
 };
 
 struct wacom_wac {
@@ -167,6 +184,8 @@ struct wacom_wac {
 	struct wacom_shared *shared;
 	struct input_dev *input;
 	struct input_dev *pad_input;
+	bool input_registered;
+	bool pad_registered;
 	int pid;
 	int battery_capacity;
 	int num_contacts_left;
@@ -174,6 +193,7 @@ struct wacom_wac {
 	int ps_connected;
 	u8 bt_features;
 	u8 bt_high_speed;
+	struct hid_data hid_data;
 };
 
 #endif

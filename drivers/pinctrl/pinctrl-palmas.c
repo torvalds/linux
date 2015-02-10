@@ -685,7 +685,8 @@ static int palmas_pinctrl_get_func_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int palmas_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned function,
+static int palmas_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+		unsigned function,
 		unsigned group)
 {
 	struct palmas_pctrl_chip_info *pci = pinctrl_dev_get_drvdata(pctldev);
@@ -742,7 +743,7 @@ static const struct pinmux_ops palmas_pinmux_ops = {
 	.get_functions_count = palmas_pinctrl_get_funcs_count,
 	.get_function_name = palmas_pinctrl_get_func_name,
 	.get_function_groups = palmas_pinctrl_get_func_groups,
-	.enable = palmas_pinctrl_enable,
+	.set_mux = palmas_pinctrl_set_mux,
 };
 
 static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
@@ -1061,7 +1062,6 @@ static int palmas_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver palmas_pinctrl_driver = {
 	.driver = {
 		.name = "palmas-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = palmas_pinctrl_of_match,
 	},
 	.probe = palmas_pinctrl_probe,

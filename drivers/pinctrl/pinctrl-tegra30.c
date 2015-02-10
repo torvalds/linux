@@ -2484,7 +2484,7 @@ static int tegra30_pinctrl_probe(struct platform_device *pdev)
 	return tegra_pinctrl_probe(pdev, &tegra30_pinctrl);
 }
 
-static struct of_device_id tegra30_pinctrl_of_match[] = {
+static const struct of_device_id tegra30_pinctrl_of_match[] = {
 	{ .compatible = "nvidia,tegra30-pinmux", },
 	{ },
 };
@@ -2493,7 +2493,6 @@ MODULE_DEVICE_TABLE(of, tegra30_pinctrl_of_match);
 static struct platform_driver tegra30_pinctrl_driver = {
 	.driver = {
 		.name = "tegra30-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra30_pinctrl_of_match,
 	},
 	.probe = tegra30_pinctrl_probe,

@@ -290,7 +290,7 @@ static struct sk_buff *fq_dequeue_head(struct Qdisc *sch, struct fq_flow *flow)
 		flow->head = skb->next;
 		skb->next = NULL;
 		flow->qlen--;
-		sch->qstats.backlog -= qdisc_pkt_len(skb);
+		qdisc_qstats_backlog_dec(sch, skb);
 		sch->q.qlen--;
 	}
 	return skb;
@@ -371,13 +371,12 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	f->qlen++;
 	if (skb_is_retransmit(skb))
 		q->stat_tcp_retrans++;
-	sch->qstats.backlog += qdisc_pkt_len(skb);
+	qdisc_qstats_backlog_inc(sch, skb);
 	if (fq_flow_is_detached(f)) {
 		fq_flow_add_tail(&q->new_flows, f);
 		if (time_after(jiffies, f->age + q->flow_refill_delay))
 			f->credit = max_t(u32, f->credit, q->quantum);
 		q->inactive_flows--;
-		qdisc_unthrottled(sch);
 	}
 
 	/* Note: this overwrites f->age */
@@ -385,7 +384,6 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	if (unlikely(f == &q->internal)) {
 		q->stat_internal_packets++;
-		qdisc_unthrottled(sch);
 	}
 	sch->q.qlen++;
 
@@ -416,7 +414,7 @@ static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	u64 now = ktime_to_ns(ktime_get());
+	u64 now = ktime_get_ns();
 	struct fq_flow_head *head;
 	struct sk_buff *skb;
 	struct fq_flow *f;
@@ -433,7 +431,8 @@ begin:
 		if (!head->first) {
 			if (q->time_next_delayed_flow != ~0ULL)
 				qdisc_watchdog_schedule_ns(&q->watchdog,
-							   q->time_next_delayed_flow);
+							   q->time_next_delayed_flow,
+							   false);
 			return NULL;
 		}
 	}
@@ -482,12 +481,11 @@ begin:
 		if (likely(rate))
 			do_div(len, rate);
 		/* Since socket rate can change later,
-		 * clamp the delay to 125 ms.
-		 * TODO: maybe segment the too big skb, as in commit
-		 * e43ac79a4bc ("sch_tbf: segment too big GSO packets")
+		 * clamp the delay to 1 second.
+		 * Really, providers of too big packets should be fixed !
 		 */
-		if (unlikely(len > 125 * NSEC_PER_MSEC)) {
-			len = 125 * NSEC_PER_MSEC;
+		if (unlikely(len > NSEC_PER_SEC)) {
+			len = NSEC_PER_SEC;
 			q->stat_pkts_too_long++;
 		}
 
@@ -495,7 +493,6 @@ begin:
 	}
 out:
 	qdisc_bstats_update(sch, skb);
-	qdisc_unthrottled(sch);
 	return skb;
 }
 
@@ -787,7 +784,7 @@ nla_put_failure:
 static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	u64 now = ktime_to_ns(ktime_get());
+	u64 now = ktime_get_ns();
 	struct tc_fq_qd_stats st = {
 		.gc_flows		= q->stat_gc_flows,
 		.highprio_packets	= q->stat_internal_packets,

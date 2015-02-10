@@ -1,7 +1,7 @@
 /*
  * net/tipc/name_table.h: Include file for TIPC name table code
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2014, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -37,15 +37,15 @@
 #ifndef _TIPC_NAME_TABLE_H
 #define _TIPC_NAME_TABLE_H
 
-#include "node_subscr.h"
-
 struct tipc_subscription;
 struct tipc_port_list;
 
 /*
  * TIPC name types reserved for internal TIPC use (both current and planned)
  */
-#define TIPC_ZM_SRV 3		/* zone master service name type */
+#define TIPC_ZM_SRV		3	/* zone master service name type */
+#define TIPC_PUBL_SCOPE_NUM	(TIPC_NODE_SCOPE + 1)
+#define TIPC_NAMETBL_SIZE	1024	/* must be a power of 2 */
 
 /**
  * struct publication - info about a published (name or) name sequence
@@ -56,12 +56,13 @@ struct tipc_port_list;
  * @node: network address of publishing port's node
  * @ref: publishing port
  * @key: publication key
- * @subscr: subscription to "node down" event (for off-node publications only)
+ * @nodesub_list: subscription to "node down" event (off-node publication only)
  * @local_list: adjacent entries in list of publications made by this node
  * @pport_list: adjacent entries in list of publications made by this port
  * @node_list: adjacent matching name seq publications with >= node scope
  * @cluster_list: adjacent matching name seq publications with >= cluster scope
  * @zone_list: adjacent matching name seq publications with >= zone scope
+ * @rcu: RCU callback head used for deferred freeing
  *
  * Note that the node list, cluster list, and zone list are circular lists.
  */
@@ -73,16 +74,31 @@ struct publication {
 	u32 node;
 	u32 ref;
 	u32 key;
-	struct tipc_node_subscr subscr;
+	struct list_head nodesub_list;
 	struct list_head local_list;
 	struct list_head pport_list;
 	struct list_head node_list;
 	struct list_head cluster_list;
 	struct list_head zone_list;
+	struct rcu_head rcu;
 };
 
+/**
+ * struct name_table - table containing all existing port name publications
+ * @seq_hlist: name sequence hash lists
+ * @publ_list: pulication lists
+ * @local_publ_count: number of publications issued by this node
+ */
+struct name_table {
+	struct hlist_head seq_hlist[TIPC_NAMETBL_SIZE];
+	struct list_head publ_list[TIPC_PUBL_SCOPE_NUM];
+	u32 local_publ_count;
+};
 
-extern rwlock_t tipc_nametbl_lock;
+extern spinlock_t tipc_nametbl_lock;
+extern struct name_table *tipc_nametbl;
+
+int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space);
 u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *node);

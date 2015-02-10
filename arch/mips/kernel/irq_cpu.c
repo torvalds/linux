@@ -36,6 +36,7 @@
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
+#include <asm/setup.h>
 
 static inline void unmask_mips_irq(struct irq_data *d)
 {
@@ -94,28 +95,24 @@ static struct irq_chip mips_mt_cpu_irq_controller = {
 	.irq_eoi	= unmask_mips_irq,
 };
 
-void __init mips_cpu_irq_init(void)
+asmlinkage void __weak plat_irq_dispatch(void)
 {
-	int irq_base = MIPS_CPU_IRQ_BASE;
-	int i;
+	unsigned long pending = read_c0_cause() & read_c0_status() & ST0_IM;
+	int irq;
 
-	/* Mask interrupts. */
-	clear_c0_status(ST0_IM);
-	clear_c0_cause(CAUSEF_IP);
+	if (!pending) {
+		spurious_interrupt();
+		return;
+	}
 
-	/* Software interrupts are used for MT/CMT IPI */
-	for (i = irq_base; i < irq_base + 2; i++)
-		irq_set_chip_and_handler(i, cpu_has_mipsmt ?
-					 &mips_mt_cpu_irq_controller :
-					 &mips_cpu_irq_controller,
-					 handle_percpu_irq);
-
-	for (i = irq_base + 2; i < irq_base + 8; i++)
-		irq_set_chip_and_handler(i, &mips_cpu_irq_controller,
-					 handle_percpu_irq);
+	pending >>= CAUSEB_IP;
+	while (pending) {
+		irq = fls(pending) - 1;
+		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
+		pending &= ~BIT(irq);
+	}
 }
 
-#ifdef CONFIG_IRQ_DOMAIN
 static int mips_cpu_intc_map(struct irq_domain *d, unsigned int irq,
 			     irq_hw_number_t hw)
 {
@@ -128,6 +125,9 @@ static int mips_cpu_intc_map(struct irq_domain *d, unsigned int irq,
 		chip = &mips_cpu_irq_controller;
 	}
 
+	if (cpu_has_vint)
+		set_vi_handler(hw, plat_irq_dispatch);
+
 	irq_set_chip_and_handler(irq, chip, handle_percpu_irq);
 
 	return 0;
@@ -138,8 +138,7 @@ static const struct irq_domain_ops mips_cpu_intc_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-int __init mips_cpu_intc_init(struct device_node *of_node,
-			      struct device_node *parent)
+static void __init __mips_cpu_irq_init(struct device_node *of_node)
 {
 	struct irq_domain *domain;
 
@@ -151,7 +150,16 @@ int __init mips_cpu_intc_init(struct device_node *of_node,
 				       &mips_cpu_intc_irq_domain_ops, NULL);
 	if (!domain)
 		panic("Failed to add irqdomain for MIPS CPU");
+}
 
+void __init mips_cpu_irq_init(void)
+{
+	__mips_cpu_irq_init(NULL);
+}
+
+int __init mips_cpu_irq_of_init(struct device_node *of_node,
+				struct device_node *parent)
+{
+	__mips_cpu_irq_init(of_node);
 	return 0;
 }
-#endif /* CONFIG_IRQ_DOMAIN */

@@ -158,7 +158,6 @@ static int __exit tx4939_rng_remove(struct platform_device *dev)
 static struct platform_driver tx4939_rng_driver = {
 	.driver		= {
 		.name	= "tx4939-rng",
-		.owner	= THIS_MODULE,
 	},
 	.remove = tx4939_rng_remove,
 };

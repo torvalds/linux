@@ -101,7 +101,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 
 	ACCESS_ONCE(ads->ctl11) = (i->pkt_len & AR_FrameLen)
 		| (i->flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
-		| SM(i->txpower, AR_XmitPower0)
+		| SM(i->txpower[0], AR_XmitPower0)
 		| (i->flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
 		| (i->keyix != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0)
 		| (i->flags & ATH9K_TXDESC_LOWRXCHAIN ? AR_LowRxChain : 0)
@@ -152,9 +152,9 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 
 	ACCESS_ONCE(ads->ctl19) = AR_Not_Sounding;
 
-	ACCESS_ONCE(ads->ctl20) = SM(i->txpower, AR_XmitPower1);
-	ACCESS_ONCE(ads->ctl21) = SM(i->txpower, AR_XmitPower2);
-	ACCESS_ONCE(ads->ctl22) = SM(i->txpower, AR_XmitPower3);
+	ACCESS_ONCE(ads->ctl20) = SM(i->txpower[1], AR_XmitPower1);
+	ACCESS_ONCE(ads->ctl21) = SM(i->txpower[2], AR_XmitPower2);
+	ACCESS_ONCE(ads->ctl22) = SM(i->txpower[3], AR_XmitPower3);
 }
 
 static u16 ar9003_calc_ptr_chksum(struct ar9003_txc *ads)
@@ -431,6 +431,24 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	return 0;
 }
 
+static int ar9003_hw_get_duration(struct ath_hw *ah, const void *ds, int index)
+{
+	const struct ar9003_txc *adc = ds;
+
+	switch (index) {
+	case 0:
+		return MS(ACCESS_ONCE(adc->ctl15), AR_PacketDur0);
+	case 1:
+		return MS(ACCESS_ONCE(adc->ctl15), AR_PacketDur1);
+	case 2:
+		return MS(ACCESS_ONCE(adc->ctl16), AR_PacketDur2);
+	case 3:
+		return MS(ACCESS_ONCE(adc->ctl16), AR_PacketDur3);
+	default:
+		return 0;
+	}
+}
+
 void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 {
 	struct ath_hw_ops *ops = ath9k_hw_ops(hw);
@@ -440,6 +458,7 @@ void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 	ops->get_isr = ar9003_hw_get_isr;
 	ops->set_txdesc = ar9003_set_txdesc;
 	ops->proc_txdesc = ar9003_hw_proc_txdesc;
+	ops->get_duration = ar9003_hw_get_duration;
 }
 
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size)

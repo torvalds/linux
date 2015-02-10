@@ -197,10 +197,8 @@ __acquires(ep->udc->lock)
 	ep->stopped = 1;
 
 	spin_unlock(&ep->udc->lock);
-	/* complete() is from gadget layer,
-	 * eg fsg->bulk_in_complete() */
-	if (req->req.complete)
-		req->req.complete(&ep->ep, &req->req);
+
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 
 	spin_lock(&ep->udc->lock);
 	ep->stopped = stopped;
@@ -1238,9 +1236,8 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 
 static int fsl_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int fsl_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
-/* defined in gadget.h */
+static int fsl_udc_stop(struct usb_gadget *g);
+
 static const struct usb_gadget_ops fsl_gadget_ops = {
 	.get_frame = fsl_get_frame,
 	.wakeup = fsl_wakeup,
@@ -1774,7 +1771,7 @@ static void bus_resume(struct fsl_udc *udc)
 }
 
 /* Clear up all ep queues */
-static int reset_queues(struct fsl_udc *udc)
+static int reset_queues(struct fsl_udc *udc, bool bus_reset)
 {
 	u8 pipe;
 
@@ -1783,7 +1780,10 @@ static int reset_queues(struct fsl_udc *udc)
 
 	/* report disconnect; the driver is already quiesced */
 	spin_unlock(&udc->lock);
-	udc->driver->disconnect(&udc->gadget);
+	if (bus_reset)
+		usb_gadget_udc_reset(&udc->gadget, udc->driver);
+	else
+		udc->driver->disconnect(&udc->gadget);
 	spin_lock(&udc->lock);
 
 	return 0;
@@ -1837,7 +1837,7 @@ static void reset_irq(struct fsl_udc *udc)
 		udc->bus_reset = 1;
 		/* Reset all the queues, include XD, dTD, EP queue
 		 * head and TR Queue */
-		reset_queues(udc);
+		reset_queues(udc, true);
 		udc->usb_state = USB_STATE_DEFAULT;
 	} else {
 		VDBG("Controller reset");
@@ -1846,7 +1846,7 @@ static void reset_irq(struct fsl_udc *udc)
 		dr_controller_setup(udc);
 
 		/* Reset all internal used Queues */
-		reset_queues(udc);
+		reset_queues(udc, false);
 
 		ep0_setup(udc);
 
@@ -1977,8 +1977,7 @@ static int fsl_udc_start(struct usb_gadget *g,
 }
 
 /* Disconnect from gadget driver */
-static int fsl_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int fsl_udc_stop(struct usb_gadget *g)
 {
 	struct fsl_ep *loop_ep;
 	unsigned long flags;
@@ -2671,7 +2670,6 @@ static struct platform_driver udc_driver = {
 	.resume		= fsl_udc_resume,
 	.driver		= {
 			.name = driver_name,
-			.owner = THIS_MODULE,
 			/* udc suspend/resume called from OTG driver */
 			.suspend = fsl_udc_otg_suspend,
 			.resume  = fsl_udc_otg_resume,

@@ -25,6 +25,7 @@ Required properties:
 
 Optional properties:
 - nvidia,hp-det-gpios : The GPIO that detect headphones are plugged in
+- nvidia,mic-det-gpios : The GPIO that detect microphones are plugged in
 
 Example:
 

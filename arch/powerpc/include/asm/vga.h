@@ -38,12 +38,10 @@ static inline u16 scr_readw(volatile const u16 *addr)
 
 #endif /* !CONFIG_VGA_CONSOLE && !CONFIG_MDA_CONSOLE */
 
-extern unsigned long vgacon_remap_base;
-
 #ifdef __powerpc64__
 #define VGA_MAP_MEM(x,s) ((unsigned long) ioremap((x), s))
 #else
-#define VGA_MAP_MEM(x,s) (x + vgacon_remap_base)
+#define VGA_MAP_MEM(x,s) (x)
 #endif
 
 #define vga_readb(x) (*(x))

@@ -497,7 +497,6 @@ static int sst_byt_pcm_dev_remove(struct platform_device *pdev)
 static struct platform_driver sst_byt_pcm_driver = {
 	.driver = {
 		.name = "baytrail-pcm-audio",
-		.owner = THIS_MODULE,
 		.pm = SST_BYT_PM_OPS,
 	},
 

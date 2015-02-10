@@ -40,6 +40,7 @@
 		};
 
 		usbphy: phy@01c13400 {
+			usb0_vbus-supply = <&reg_usb0_vbus>;
 			usb1_vbus-supply = <&reg_usb1_vbus>;
 			usb2_vbus-supply = <&reg_usb2_vbus>;
 			status = "okay";
@@ -88,6 +89,13 @@
 
 			led_pins_cubietruck: led_pins@0 {
 				allwinner,pins = "PH7", "PH11", "PH20", "PH21";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			usb0_vbus_pin_a: usb0_vbus_pin@0 {
+				allwinner,pins = "PH17";
 				allwinner,function = "gpio_out";
 				allwinner,drive = <0>;
 				allwinner,pull = <0>;
@@ -182,6 +190,12 @@
 	reg_ahci_5v: ahci-5v {
 		pinctrl-0 = <&ahci_pwr_pin_cubietruck>;
 		gpio = <&pio 7 12 0>;
+		status = "okay";
+	};
+
+	reg_usb0_vbus: usb0-vbus {
+		pinctrl-0 = <&usb0_vbus_pin_a>;
+		gpio = <&pio 7 17 0>;
 		status = "okay";
 	};
 

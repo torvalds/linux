@@ -129,11 +129,11 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	init_rwsem(&sdp->sd_log_flush_lock);
 	atomic_set(&sdp->sd_log_in_flight, 0);
+	atomic_set(&sdp->sd_reserving_log, 0);
+	init_waitqueue_head(&sdp->sd_reserving_log_wait);
 	init_waitqueue_head(&sdp->sd_log_flush_wait);
-	init_waitqueue_head(&sdp->sd_log_frozen_wait);
-	atomic_set(&sdp->sd_log_freeze, 0);
-	atomic_set(&sdp->sd_frozen_root, 0);
-	init_waitqueue_head(&sdp->sd_frozen_root_wait);
+	atomic_set(&sdp->sd_freeze_state, SFS_UNFROZEN);
+	mutex_init(&sdp->sd_freeze_mutex);
 
 	return sdp;
 }
@@ -760,15 +760,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 	set_bit(SDF_JOURNAL_CHECKED, &sdp->sd_flags);
 	gfs2_glock_dq_uninit(&ji_gh);
 	jindex = 0;
-	if (!sdp->sd_args.ar_spectator) {
-		error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, 0,
-					   &sdp->sd_thaw_gh);
-		if (error) {
-			fs_err(sdp, "can't acquire freeze glock: %d\n", error);
-			goto fail_jinode_gh;
-		}
-	}
-	gfs2_glock_dq_uninit(&sdp->sd_thaw_gh);
+	INIT_WORK(&sdp->sd_freeze_work, gfs2_freeze_func);
 	return 0;
 
 fail_jinode_gh:
@@ -1082,6 +1074,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	sb->s_export_op = &gfs2_export_ops;
 	sb->s_xattr = gfs2_xattr_handlers;
 	sb->s_qcop = &gfs2_quotactl_ops;
+	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE;
 	sb->s_time_gran = 1;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;

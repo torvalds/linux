@@ -1,5 +1,6 @@
 /*  SuperH Ethernet device driver
  *
+ *  Copyright (C) 2014  Renesas Electronics Corporation
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2014 Renesas Solutions Corp.
  *  Copyright (C) 2013-2014 Cogent Embedded, Inc.
@@ -917,21 +918,13 @@ static int sh_eth_reset(struct net_device *ndev)
 	return ret;
 }
 
-#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 static void sh_eth_set_receive_align(struct sk_buff *skb)
 {
-	int reserve;
+	uintptr_t reserve = (uintptr_t)skb->data & (SH_ETH_RX_ALIGN - 1);
 
-	reserve = SH4_SKB_RX_ALIGN - ((u32)skb->data & (SH4_SKB_RX_ALIGN - 1));
 	if (reserve)
-		skb_reserve(skb, reserve);
+		skb_reserve(skb, SH_ETH_RX_ALIGN - reserve);
 }
-#else
-static void sh_eth_set_receive_align(struct sk_buff *skb)
-{
-	skb_reserve(skb, SH2_SH3_SKB_RX_ALIGN);
-}
-#endif
 
 
 /* CPU <-> EDMAC endian convert */
@@ -1119,6 +1112,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	struct sh_eth_txdesc *txdesc = NULL;
 	int rx_ringsize = sizeof(*rxdesc) * mdp->num_rx_ring;
 	int tx_ringsize = sizeof(*txdesc) * mdp->num_tx_ring;
+	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN - 1;
 
 	mdp->cur_rx = 0;
 	mdp->cur_tx = 0;
@@ -1131,21 +1125,21 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	for (i = 0; i < mdp->num_rx_ring; i++) {
 		/* skb */
 		mdp->rx_skbuff[i] = NULL;
-		skb = netdev_alloc_skb(ndev, mdp->rx_buf_sz);
+		skb = netdev_alloc_skb(ndev, skbuff_size);
 		mdp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
-		dma_map_single(&ndev->dev, skb->data, mdp->rx_buf_sz,
-			       DMA_FROM_DEVICE);
 		sh_eth_set_receive_align(skb);
 
 		/* RX descriptor */
 		rxdesc = &mdp->rx_ring[i];
-		rxdesc->addr = virt_to_phys(PTR_ALIGN(skb->data, 4));
+		/* The size of the buffer is a multiple of 16 bytes. */
+		rxdesc->buffer_length = ALIGN(mdp->rx_buf_sz, 16);
+		dma_map_single(&ndev->dev, skb->data, rxdesc->buffer_length,
+			       DMA_FROM_DEVICE);
+		rxdesc->addr = virt_to_phys(skb->data);
 		rxdesc->status = cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 
-		/* The size of the buffer is 16 byte boundary. */
-		rxdesc->buffer_length = ALIGN(mdp->rx_buf_sz, 16);
 		/* Rx descriptor address set */
 		if (i == 0) {
 			sh_eth_write(ndev, mdp->rx_desc_dma, RDLAR);
@@ -1394,10 +1388,14 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 
 	int entry = mdp->cur_rx % mdp->num_rx_ring;
 	int boguscnt = (mdp->dirty_rx + mdp->num_rx_ring) - mdp->cur_rx;
+	int limit;
 	struct sk_buff *skb;
 	u16 pkt_len = 0;
 	u32 desc_status;
+	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN - 1;
 
+	boguscnt = min(boguscnt, *quota);
+	limit = boguscnt;
 	rxdesc = &mdp->rx_ring[entry];
 	while (!(rxdesc->status & cpu_to_edmac(mdp, RD_RACT))) {
 		desc_status = edmac_to_cpu(mdp, rxdesc->status);
@@ -1405,11 +1403,6 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 
 		if (--boguscnt < 0)
 			break;
-
-		if (*quota <= 0)
-			break;
-
-		(*quota)--;
 
 		if (!(desc_status & RDFEND))
 			ndev->stats.rx_length_errors++;
@@ -1448,7 +1441,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			if (mdp->cd->rpadir)
 				skb_reserve(skb, NET_IP_ALIGN);
 			dma_sync_single_for_cpu(&ndev->dev, rxdesc->addr,
-						mdp->rx_buf_sz,
+						ALIGN(mdp->rx_buf_sz, 16),
 						DMA_FROM_DEVICE);
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
@@ -1468,16 +1461,16 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		rxdesc->buffer_length = ALIGN(mdp->rx_buf_sz, 16);
 
 		if (mdp->rx_skbuff[entry] == NULL) {
-			skb = netdev_alloc_skb(ndev, mdp->rx_buf_sz);
+			skb = netdev_alloc_skb(ndev, skbuff_size);
 			mdp->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break;	/* Better luck next round. */
-			dma_map_single(&ndev->dev, skb->data, mdp->rx_buf_sz,
-				       DMA_FROM_DEVICE);
 			sh_eth_set_receive_align(skb);
+			dma_map_single(&ndev->dev, skb->data,
+				       rxdesc->buffer_length, DMA_FROM_DEVICE);
 
 			skb_checksum_none_assert(skb);
-			rxdesc->addr = virt_to_phys(PTR_ALIGN(skb->data, 4));
+			rxdesc->addr = virt_to_phys(skb->data);
 		}
 		if (entry >= mdp->num_rx_ring - 1)
 			rxdesc->status |=
@@ -1500,6 +1493,8 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		}
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
 	}
+
+	*quota -= limit - boguscnt - 1;
 
 	return *quota <= 0;
 }
@@ -2042,6 +2037,8 @@ static int sh_eth_open(struct net_device *ndev)
 	if (ret)
 		goto out_free_irq;
 
+	mdp->is_opened = 1;
+
 	return ret;
 
 out_free_irq:
@@ -2131,6 +2128,36 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NETDEV_TX_OK;
 }
 
+static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+
+	if (sh_eth_is_rz_fast_ether(mdp))
+		return &ndev->stats;
+
+	if (!mdp->is_opened)
+		return &ndev->stats;
+
+	ndev->stats.tx_dropped += sh_eth_read(ndev, TROCR);
+	sh_eth_write(ndev, 0, TROCR);	/* (write clear) */
+	ndev->stats.collisions += sh_eth_read(ndev, CDCR);
+	sh_eth_write(ndev, 0, CDCR);	/* (write clear) */
+	ndev->stats.tx_carrier_errors += sh_eth_read(ndev, LCCR);
+	sh_eth_write(ndev, 0, LCCR);	/* (write clear) */
+
+	if (sh_eth_is_gether(mdp)) {
+		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CERCR);
+		sh_eth_write(ndev, 0, CERCR);	/* (write clear) */
+		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CEECR);
+		sh_eth_write(ndev, 0, CEECR);	/* (write clear) */
+	} else {
+		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CNDCR);
+		sh_eth_write(ndev, 0, CNDCR);	/* (write clear) */
+	}
+
+	return &ndev->stats;
+}
+
 /* device close function */
 static int sh_eth_close(struct net_device *ndev)
 {
@@ -2145,6 +2172,7 @@ static int sh_eth_close(struct net_device *ndev)
 	sh_eth_write(ndev, 0, EDTRR);
 	sh_eth_write(ndev, 0, EDRRR);
 
+	sh_eth_get_stats(ndev);
 	/* PHY Disconnect */
 	if (mdp->phydev) {
 		phy_stop(mdp->phydev);
@@ -2163,36 +2191,9 @@ static int sh_eth_close(struct net_device *ndev)
 
 	pm_runtime_put_sync(&mdp->pdev->dev);
 
+	mdp->is_opened = 0;
+
 	return 0;
-}
-
-static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (sh_eth_is_rz_fast_ether(mdp))
-		return &ndev->stats;
-
-	pm_runtime_get_sync(&mdp->pdev->dev);
-
-	ndev->stats.tx_dropped += sh_eth_read(ndev, TROCR);
-	sh_eth_write(ndev, 0, TROCR);	/* (write clear) */
-	ndev->stats.collisions += sh_eth_read(ndev, CDCR);
-	sh_eth_write(ndev, 0, CDCR);	/* (write clear) */
-	ndev->stats.tx_carrier_errors += sh_eth_read(ndev, LCCR);
-	sh_eth_write(ndev, 0, LCCR);	/* (write clear) */
-	if (sh_eth_is_gether(mdp)) {
-		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CERCR);
-		sh_eth_write(ndev, 0, CERCR);	/* (write clear) */
-		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CEECR);
-		sh_eth_write(ndev, 0, CEECR);	/* (write clear) */
-	} else {
-		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CNDCR);
-		sh_eth_write(ndev, 0, CNDCR);	/* (write clear) */
-	}
-	pm_runtime_put_sync(&mdp->pdev->dev);
-
-	return &ndev->stats;
 }
 
 /* ioctl to device function */
@@ -2746,6 +2747,7 @@ static const struct of_device_id sh_eth_match_table[] = {
 	{ .compatible = "renesas,ether-r8a7779", .data = &r8a777x_data },
 	{ .compatible = "renesas,ether-r8a7790", .data = &r8a779x_data },
 	{ .compatible = "renesas,ether-r8a7791", .data = &r8a779x_data },
+	{ .compatible = "renesas,ether-r8a7793", .data = &r8a779x_data },
 	{ .compatible = "renesas,ether-r8a7794", .data = &r8a779x_data },
 	{ .compatible = "renesas,ether-r7s72100", .data = &r7s72100_data },
 	{ }
@@ -2769,10 +2771,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(res == NULL)) {
-		dev_err(&pdev->dev, "invalid resource\n");
-		return -EINVAL;
-	}
 
 	ndev = alloc_etherdev(sizeof(struct sh_eth_private));
 	if (!ndev)
@@ -2781,8 +2779,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	/* The sh Ether-specific entries in the device structure. */
-	ndev->base_addr = res->start;
 	devno = pdev->id;
 	if (devno < 0)
 		devno = 0;
@@ -2805,6 +2801,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		ret = PTR_ERR(mdp->addr);
 		goto out_release;
 	}
+
+	ndev->base_addr = res->start;
 
 	spin_lock_init(&mdp->lock);
 	mdp->pdev = pdev;
@@ -2886,6 +2884,9 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			sh_eth_tsu_init(mdp);
 		}
 	}
+
+	if (mdp->cd->rmiimode)
+		sh_eth_write(ndev, 0x1, RMIIMODE);
 
 	/* MDIO bus init */
 	ret = sh_mdio_init(mdp, pd);
@@ -2973,6 +2974,7 @@ static struct platform_device_id sh_eth_id_table[] = {
 	{ "r8a777x-ether", (kernel_ulong_t)&r8a777x_data },
 	{ "r8a7790-ether", (kernel_ulong_t)&r8a779x_data },
 	{ "r8a7791-ether", (kernel_ulong_t)&r8a779x_data },
+	{ "r8a7793-ether", (kernel_ulong_t)&r8a779x_data },
 	{ "r8a7794-ether", (kernel_ulong_t)&r8a779x_data },
 	{ }
 };

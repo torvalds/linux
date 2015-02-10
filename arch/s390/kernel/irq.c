@@ -70,6 +70,7 @@ static const struct irq_class irqclass_sub_desc[NR_ARCH_IRQS] = {
 	{.irq = IRQEXT_CMS, .name = "CMS", .desc = "[EXT] CPU-Measurement: Sampling"},
 	{.irq = IRQEXT_CMC, .name = "CMC", .desc = "[EXT] CPU-Measurement: Counter"},
 	{.irq = IRQEXT_CMR, .name = "CMR", .desc = "[EXT] CPU-Measurement: RI"},
+	{.irq = IRQEXT_FTP, .name = "FTP", .desc = "[EXT] HMC FTP Service"},
 	{.irq = IRQIO_CIO,  .name = "CIO", .desc = "[I/O] Common I/O Layer Interrupt"},
 	{.irq = IRQIO_QAI,  .name = "QAI", .desc = "[I/O] QDIO Adapter Interrupt"},
 	{.irq = IRQIO_DAS,  .name = "DAS", .desc = "[I/O] DASD"},
@@ -126,13 +127,10 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(cpu)
 			seq_printf(p, "CPU%d       ", cpu);
 		seq_putc(p, '\n');
-		goto out;
 	}
 	if (index < NR_IRQS) {
 		if (index >= NR_IRQS_BASE)
 			goto out;
-		/* Adjust index to process irqclass_main_desc array entries */
-		index--;
 		seq_printf(p, "%s: ", irqclass_main_desc[index].name);
 		irq = irqclass_main_desc[index].irq;
 		for_each_online_cpu(cpu)
@@ -157,7 +155,7 @@ out:
 
 unsigned int arch_dynirq_lower_bound(unsigned int from)
 {
-	return from < THIN_INTERRUPT ? THIN_INTERRUPT : from;
+	return from < NR_IRQS_BASE ? NR_IRQS_BASE : from;
 }
 
 /*
@@ -258,7 +256,7 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 
 	ext_code = *(struct ext_code *) &regs->int_code;
 	if (ext_code.code != EXT_IRQ_CLK_COMP)
-		__get_cpu_var(s390_idle).nohz_delay = 1;
+		set_cpu_flag(CIF_NOHZ_DELAY);
 
 	index = ext_hash(ext_code.code);
 	rcu_read_lock();

@@ -182,7 +182,8 @@ done:
 /*
  *	Convert a name into device number.  We accept the following variants:
  *
- *	1) device number in hexadecimal	represents itself
+ *	1) <hex_major><hex_minor> device number in hexadecimal represents itself
+ *         no leading 0x, for example b302.
  *	2) /dev/nfs represents Root_NFS (0xff)
  *	3) /dev/<disk_name> represents the device number of disk
  *	4) /dev/<disk_name><decimal> represents the device number
@@ -394,8 +395,6 @@ retry:
 			case 0:
 				goto out;
 			case -EACCES:
-				flags |= MS_RDONLY;
-				goto retry;
 			case -EINVAL:
 				continue;
 		}
@@ -417,6 +416,10 @@ retry:
 		       "explicit textual name for \"root=\" boot option.\n");
 #endif
 		panic("VFS: Unable to mount root fs on %s", b);
+	}
+	if (!(flags & MS_RDONLY)) {
+		flags |= MS_RDONLY;
+		goto retry;
 	}
 
 	printk("List of all partitions:\n");

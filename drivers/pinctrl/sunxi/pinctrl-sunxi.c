@@ -393,9 +393,9 @@ static void sunxi_pmx_set(struct pinctrl_dev *pctldev,
 	spin_unlock_irqrestore(&pctl->lock, flags);
 }
 
-static int sunxi_pmx_enable(struct pinctrl_dev *pctldev,
-			    unsigned function,
-			    unsigned group)
+static int sunxi_pmx_set_mux(struct pinctrl_dev *pctldev,
+			     unsigned function,
+			     unsigned group)
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct sunxi_pinctrl_group *g = pctl->groups + group;
@@ -441,7 +441,7 @@ static const struct pinmux_ops sunxi_pmx_ops = {
 	.get_functions_count	= sunxi_pmx_get_funcs_cnt,
 	.get_function_name	= sunxi_pmx_get_func_name,
 	.get_function_groups	= sunxi_pmx_get_func_groups,
-	.enable			= sunxi_pmx_enable,
+	.set_mux		= sunxi_pmx_set_mux,
 	.gpio_set_direction	= sunxi_pmx_gpio_set_direction,
 };
 
@@ -553,7 +553,7 @@ static int sunxi_pinctrl_irq_request_resources(struct irq_data *d)
 	if (!func)
 		return -EINVAL;
 
-	ret = gpio_lock_as_irq(pctl->chip,
+	ret = gpiochip_lock_as_irq(pctl->chip,
 			pctl->irq_array[d->hwirq] - pctl->desc->pin_base);
 	if (ret) {
 		dev_err(pctl->dev, "unable to lock HW IRQ %lu for IRQ\n",
@@ -571,8 +571,8 @@ static void sunxi_pinctrl_irq_release_resources(struct irq_data *d)
 {
 	struct sunxi_pinctrl *pctl = irq_data_get_irq_chip_data(d);
 
-	gpio_unlock_as_irq(pctl->chip,
-			   pctl->irq_array[d->hwirq] - pctl->desc->pin_base);
+	gpiochip_unlock_as_irq(pctl->chip,
+			      pctl->irq_array[d->hwirq] - pctl->desc->pin_base);
 }
 
 static int sunxi_pinctrl_irq_set_type(struct irq_data *d, unsigned int type)

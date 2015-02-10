@@ -66,7 +66,7 @@ static int sha1_update(struct shash_desc *desc, const u8 *data,
 			src = data + done;
 		} while (done + 63 < len);
 
-		memset(temp, 0, sizeof(temp));
+		memzero_explicit(temp, sizeof(temp));
 		partial = 0;
 	}
 	memcpy(sctx->buffer + partial, src, len - done);
@@ -154,4 +154,4 @@ module_exit(sha1_powerpc_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA1 Secure Hash Algorithm");
 
-MODULE_ALIAS("sha1-powerpc");
+MODULE_ALIAS_CRYPTO("sha1-powerpc");

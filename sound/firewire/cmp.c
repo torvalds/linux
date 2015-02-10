@@ -114,6 +114,7 @@ static int pcr_modify(struct cmp_connection *c,
  * cmp_connection_init - initializes a connection manager
  * @c: the connection manager to initialize
  * @unit: a unit of the target device
+ * @direction: input or output
  * @pcr_index: the index of the iPCR/oPCR on the target device
  */
 int cmp_connection_init(struct cmp_connection *c,
@@ -154,6 +155,7 @@ EXPORT_SYMBOL(cmp_connection_init);
 /**
  * cmp_connection_check_used - check connection is already esablished or not
  * @c: the connection manager to be checked
+ * @used: the pointer to store the result of checking the connection
  */
 int cmp_connection_check_used(struct cmp_connection *c, bool *used)
 {

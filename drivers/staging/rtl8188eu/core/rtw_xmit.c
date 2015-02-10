@@ -37,7 +37,7 @@ static void _init_txservq(struct tx_servq *ptxservq)
 
 void	_rtw_init_sta_xmit_priv(struct sta_xmit_priv *psta_xmitpriv)
 {
-	memset((unsigned char *)psta_xmitpriv, 0, sizeof (struct sta_xmit_priv));
+	memset((unsigned char *)psta_xmitpriv, 0, sizeof(struct sta_xmit_priv));
 	spin_lock_init(&psta_xmitpriv->lock);
 	_init_txservq(&psta_xmitpriv->be_q);
 	_init_txservq(&psta_xmitpriv->bk_q);
@@ -223,7 +223,7 @@ exit:
 	return res;
 }
 
-void _rtw_free_xmit_priv (struct xmit_priv *pxmitpriv)
+void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 {
 	int i;
 	struct adapter *padapter = pxmitpriv->adapter;
@@ -691,7 +691,7 @@ static s32 xmitframe_addmic(struct adapter *padapter, struct xmit_frame *pxmitfr
 			payload = pframe;
 
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
-				payload = (u8 *) round_up((size_t)(payload), 4);
+				payload = (u8 *)round_up((size_t)(payload), 4);
 				RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
 					 ("=== curfragnum=%d, pframe = 0x%.2x, 0x%.2x, 0x%.2x, 0x%.2x, 0x%.2x, 0x%.2x, 0x%.2x, 0x%.2x,!!!\n",
 					 curfragnum, *payload, *(payload+1),
@@ -772,7 +772,7 @@ static s32 xmitframe_swencrypt(struct adapter *padapter, struct xmit_frame *pxmi
 	return _SUCCESS;
 }
 
-s32 rtw_make_wlanhdr (struct adapter *padapter , u8 *hdr, struct pkt_attrib *pattrib)
+s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattrib)
 {
 	u16 *qc;
 
@@ -1025,8 +1025,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 
 		/* adding icv, if necessary... */
 		if (pattrib->iv_len) {
-			if (psta != NULL) {
-				switch (pattrib->encrypt) {
+			switch (pattrib->encrypt) {
 				case _WEP40_:
 				case _WEP104_:
 					WEP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
@@ -1043,7 +1042,6 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 					else
 						AES_IV(pattrib->iv, psta->dot11txpn, 0);
 					break;
-				}
 			}
 
 			memcpy(pframe, pattrib->iv, pattrib->iv_len);
@@ -1098,7 +1096,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 
 		addr = (size_t)(pframe);
 
-		mem_start = (unsigned char *) round_up(addr, 4) + hw_hdr_offset;
+		mem_start = (unsigned char *)round_up(addr, 4) + hw_hdr_offset;
 		memcpy(mem_start, pbuf_start + hw_hdr_offset, pattrib->hdrlen);
 	}
 

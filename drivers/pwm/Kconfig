@@ -50,6 +50,17 @@ config PWM_ATMEL
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-atmel.
 
+config PWM_ATMEL_HLCDC_PWM
+	tristate "Atmel HLCDC PWM support"
+	depends on MFD_ATMEL_HLCDC
+	help
+	  Generic PWM framework driver for the PWM output of the HLCDC
+	  (Atmel High-end LCD Controller). This PWM output is mainly used
+	  to control the LCD backlight.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-atmel-hlcdc.
+
 config PWM_ATMEL_TCB
 	tristate "Atmel TC Block PWM support"
 	depends on ATMEL_TCLIB && OF
@@ -71,6 +82,15 @@ config PWM_BCM_KONA
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bcm-kona.
 
+config PWM_BCM2835
+	tristate "BCM2835 PWM support"
+	depends on ARCH_BCM2835
+	help
+	  PWM framework driver for BCM2835 controller (Raspberry Pi)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-bcm2835.
+
 config PWM_BFIN
 	tristate "Blackfin PWM support"
 	depends on BFIN_GPTIMERS
@@ -83,6 +103,7 @@ config PWM_BFIN
 config PWM_CLPS711X
 	tristate "CLPS711X PWM support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for Cirrus Logic CLPS711X.
 
@@ -101,6 +122,7 @@ config PWM_EP93XX
 config PWM_FSL_FTM
 	tristate "Freescale FlexTimer Module (FTM) PWM support"
 	depends on OF
+	select REGMAP_MMIO
 	help
 	  Generic FTM PWM framework driver for Freescale VF610 and
 	  Layerscape LS-1 SoCs.
@@ -149,13 +171,31 @@ config PWM_LPC32XX
 
 config PWM_LPSS
 	tristate "Intel LPSS PWM support"
-	depends on ACPI
+	depends on X86
 	help
 	  Generic PWM framework driver for Intel Low Power Subsystem PWM
 	  controller.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpss.
+
+config PWM_LPSS_PCI
+	tristate "Intel LPSS PWM PCI driver"
+	depends on PWM_LPSS && PCI
+	help
+	  The PCI driver for Intel Low Power Subsystem PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpss-pci.
+
+config PWM_LPSS_PLATFORM
+	tristate "Intel LPSS PWM platform driver"
+	depends on PWM_LPSS && ACPI
+	help
+	  The platform driver for Intel Low Power Subsystem PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpss-platform.
 
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
@@ -215,7 +255,7 @@ config PWM_ROCKCHIP
 
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
-	depends on PLAT_SAMSUNG
+	depends on PLAT_SAMSUNG || ARCH_EXYNOS
 	help
 	  Generic PWM framework driver for Samsung.
 

@@ -284,15 +284,6 @@ config VIDEO_SAA711X
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
 
-config VIDEO_SAA7191
-	tristate "Philips SAA7191 video decoder"
-	depends on VIDEO_V4L2 && I2C
-	---help---
-	  Support for the Philips SAA7191 video decoder.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa7191.
-
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
 	depends on VIDEO_V4L2 && I2C

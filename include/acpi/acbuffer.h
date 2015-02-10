@@ -111,7 +111,9 @@ struct acpi_gtm_info {
 struct acpi_pld_info {
 	u8 revision;
 	u8 ignore_color;
-	u32 color;
+	u8 red;
+	u8 green;
+	u8 blue;
 	u16 width;
 	u16 height;
 	u8 user_visible;
@@ -155,8 +157,14 @@ struct acpi_pld_info {
 #define ACPI_PLD_GET_IGNORE_COLOR(dword)        ACPI_GET_BITS (dword, 7, ACPI_1BIT_MASK)
 #define ACPI_PLD_SET_IGNORE_COLOR(dword,value)  ACPI_SET_BITS (dword, 7, ACPI_1BIT_MASK, value)	/* Offset 7, Len 1 */
 
-#define ACPI_PLD_GET_COLOR(dword)               ACPI_GET_BITS (dword, 8, ACPI_24BIT_MASK)
-#define ACPI_PLD_SET_COLOR(dword,value)         ACPI_SET_BITS (dword, 8, ACPI_24BIT_MASK, value)	/* Offset 8, Len 24 */
+#define ACPI_PLD_GET_RED(dword)                 ACPI_GET_BITS (dword, 8, ACPI_8BIT_MASK)
+#define ACPI_PLD_SET_RED(dword,value)           ACPI_SET_BITS (dword, 8, ACPI_8BIT_MASK, value)	/* Offset 8, Len 8 */
+
+#define ACPI_PLD_GET_GREEN(dword)               ACPI_GET_BITS (dword, 16, ACPI_8BIT_MASK)
+#define ACPI_PLD_SET_GREEN(dword,value)         ACPI_SET_BITS (dword, 16, ACPI_8BIT_MASK, value)	/* Offset 16, Len 8 */
+
+#define ACPI_PLD_GET_BLUE(dword)                ACPI_GET_BITS (dword, 24, ACPI_8BIT_MASK)
+#define ACPI_PLD_SET_BLUE(dword,value)          ACPI_SET_BITS (dword, 24, ACPI_8BIT_MASK, value)	/* Offset 24, Len 8 */
 
 /* Second 32-bit dword, bits 33:63 */
 

@@ -187,8 +187,8 @@ static int bru_enum_mbus_code(struct v4l2_subdev *subdev,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	static const unsigned int codes[] = {
-		V4L2_MBUS_FMT_ARGB8888_1X32,
-		V4L2_MBUS_FMT_AYUV8_1X32,
+		MEDIA_BUS_FMT_ARGB8888_1X32,
+		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
 	struct v4l2_mbus_framefmt *format;
 
@@ -215,8 +215,8 @@ static int bru_enum_frame_size(struct v4l2_subdev *subdev,
 	if (fse->index)
 		return -EINVAL;
 
-	if (fse->code != V4L2_MBUS_FMT_ARGB8888_1X32 &&
-	    fse->code != V4L2_MBUS_FMT_AYUV8_1X32)
+	if (fse->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
+	    fse->code != MEDIA_BUS_FMT_AYUV8_1X32)
 		return -EINVAL;
 
 	fse->min_width = BRU_MIN_SIZE;
@@ -261,9 +261,9 @@ static void bru_try_format(struct vsp1_bru *bru, struct v4l2_subdev_fh *fh,
 	switch (pad) {
 	case BRU_PAD_SINK(0):
 		/* Default to YUV if the requested format is not supported. */
-		if (fmt->code != V4L2_MBUS_FMT_ARGB8888_1X32 &&
-		    fmt->code != V4L2_MBUS_FMT_AYUV8_1X32)
-			fmt->code = V4L2_MBUS_FMT_AYUV8_1X32;
+		if (fmt->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
+		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
+			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
 		break;
 
 	default:

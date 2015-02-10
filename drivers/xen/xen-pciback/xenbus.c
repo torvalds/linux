@@ -247,7 +247,7 @@ static int xen_pcibk_export_device(struct xen_pcibk_device *pdev,
 	if (err)
 		goto out;
 
-	dev_dbg(&dev->dev, "registering for %d\n", pdev->xdev->otherend_id);
+	dev_info(&dev->dev, "registering for %d\n", pdev->xdev->otherend_id);
 	if (xen_register_device_domain_owner(dev,
 					     pdev->xdev->otherend_id) != 0) {
 		dev_err(&dev->dev, "Stealing ownership from dom%d.\n",
@@ -291,7 +291,7 @@ static int xen_pcibk_remove_device(struct xen_pcibk_device *pdev,
 
 	/* N.B. This ends up calling pcistub_put_pci_dev which ends up
 	 * doing the FLR. */
-	xen_pcibk_release_pci_dev(pdev, dev);
+	xen_pcibk_release_pci_dev(pdev, dev, true /* use the lock. */);
 
 out:
 	return err;
@@ -719,11 +719,13 @@ static const struct xenbus_device_id xen_pcibk_ids[] = {
 	{""},
 };
 
-static DEFINE_XENBUS_DRIVER(xen_pcibk, DRV_NAME,
+static struct xenbus_driver xen_pcibk_driver = {
+	.name                   = DRV_NAME,
+	.ids                    = xen_pcibk_ids,
 	.probe			= xen_pcibk_xenbus_probe,
 	.remove			= xen_pcibk_xenbus_remove,
 	.otherend_changed	= xen_pcibk_frontend_changed,
-);
+};
 
 const struct xen_pcibk_backend *__read_mostly xen_pcibk_backend;
 

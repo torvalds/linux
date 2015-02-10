@@ -1,5 +1,5 @@
 /*
- * Fushicai USBTV007 Video Grabber Driver
+ * Fushicai USBTV007 Audio-Video Grabber Driver
  *
  * Copyright (c) 2013 Lubomir Rintel
  * All rights reserved.
@@ -28,6 +28,7 @@
 
 /* Hardware. */
 #define USBTV_VIDEO_ENDP	0x81
+#define USBTV_AUDIO_ENDP	0x83
 #define USBTV_BASE		0xc000
 #define USBTV_REQUEST_REG	12
 
@@ -38,6 +39,10 @@
 
 #define USBTV_CHUNK_SIZE	256
 #define USBTV_CHUNK		240
+
+#define USBTV_AUDIO_URBSIZE	20480
+#define USBTV_AUDIO_HDRSIZE	4
+#define USBTV_AUDIO_BUFFER	65536
 
 /* Chunk header. */
 #define USBTV_MAGIC_OK(chunk)	((be32_to_cpu(chunk[0]) & 0xff000000) \
@@ -91,9 +96,23 @@ struct usbtv {
 	int iso_size;
 	unsigned int sequence;
 	struct urb *isoc_urbs[USBTV_ISOC_TRANSFERS];
+
+	/* audio */
+	struct snd_card *snd;
+	struct snd_pcm_substream *snd_substream;
+	atomic_t snd_stream;
+	struct work_struct snd_trigger;
+	struct urb *snd_bulk_urb;
+	size_t snd_buffer_pos;
+	size_t snd_period_pos;
 };
 
 int usbtv_set_regs(struct usbtv *usbtv, const u16 regs[][2], int size);
 
 int usbtv_video_init(struct usbtv *usbtv);
 void usbtv_video_free(struct usbtv *usbtv);
+
+int usbtv_audio_init(struct usbtv *usbtv);
+void usbtv_audio_free(struct usbtv *usbtv);
+void usbtv_audio_suspend(struct usbtv *usbtv);
+void usbtv_audio_resume(struct usbtv *usbtv);

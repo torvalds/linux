@@ -85,7 +85,10 @@ nvkm_output_create_(struct nouveau_object *parent,
 	    dcbE->sorconf.link : 0, dcbE->connector, dcbE->i2c_index,
 	    dcbE->bus, dcbE->heads);
 
-	outp->port = i2c->find(i2c, outp->info.i2c_index);
+	if (outp->info.type != DCB_OUTPUT_DP)
+		outp->port = i2c->find(i2c, NV_I2C_PORT(outp->info.i2c_index));
+	else
+		outp->port = i2c->find(i2c, NV_I2C_AUX(outp->info.i2c_index));
 	outp->edid = outp->port;
 
 	data = nvbios_connEp(bios, outp->info.connector, &ver, &hdr, &connE);

@@ -1019,7 +1019,7 @@ debug_count_numargs(char *string)
  */
 
 debug_entry_t*
-debug_sprintf_event(debug_info_t* id, int level,char *string,...)
+__debug_sprintf_event(debug_info_t *id, int level, char *string, ...)
 {
 	va_list   ap;
 	int numargs,idx;
@@ -1027,8 +1027,6 @@ debug_sprintf_event(debug_info_t* id, int level,char *string,...)
 	debug_sprintf_entry_t *curr_event;
 	debug_entry_t *active;
 
-	if((!id) || (level > id->level))
-		return NULL;
 	if (!debug_active || !id->areas)
 		return NULL;
 	numargs=debug_count_numargs(string);
@@ -1050,14 +1048,14 @@ debug_sprintf_event(debug_info_t* id, int level,char *string,...)
 
 	return active;
 }
-EXPORT_SYMBOL(debug_sprintf_event);
+EXPORT_SYMBOL(__debug_sprintf_event);
 
 /*
  * debug_sprintf_exception:
  */
 
 debug_entry_t*
-debug_sprintf_exception(debug_info_t* id, int level,char *string,...)
+__debug_sprintf_exception(debug_info_t *id, int level, char *string, ...)
 {
 	va_list   ap;
 	int numargs,idx;
@@ -1065,8 +1063,6 @@ debug_sprintf_exception(debug_info_t* id, int level,char *string,...)
 	debug_sprintf_entry_t *curr_event;
 	debug_entry_t *active;
 
-	if((!id) || (level > id->level))
-		return NULL;
 	if (!debug_active || !id->areas)
 		return NULL;
 
@@ -1089,7 +1085,7 @@ debug_sprintf_exception(debug_info_t* id, int level,char *string,...)
 
 	return active;
 }
-EXPORT_SYMBOL(debug_sprintf_exception);
+EXPORT_SYMBOL(__debug_sprintf_exception);
 
 /*
  * debug_register_view:

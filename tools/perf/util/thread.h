@@ -8,6 +8,8 @@
 #include "symbol.h"
 #include <strlist.h>
 
+struct thread_stack;
+
 struct thread {
 	union {
 		struct rb_node	 rb_node;
@@ -23,8 +25,10 @@ struct thread {
 	bool			dead; /* if set thread has exited */
 	struct list_head	comm_list;
 	int			comm_len;
+	u64			db_id;
 
 	void			*priv;
+	struct thread_stack	*ts;
 };
 
 struct machine;
@@ -38,24 +42,31 @@ static inline void thread__exited(struct thread *thread)
 	thread->dead = true;
 }
 
-int thread__set_comm(struct thread *thread, const char *comm, u64 timestamp);
+int __thread__set_comm(struct thread *thread, const char *comm, u64 timestamp,
+		       bool exec);
+static inline int thread__set_comm(struct thread *thread, const char *comm,
+				   u64 timestamp)
+{
+	return __thread__set_comm(thread, comm, timestamp, false);
+}
+
 int thread__comm_len(struct thread *thread);
 struct comm *thread__comm(const struct thread *thread);
+struct comm *thread__exec_comm(const struct thread *thread);
 const char *thread__comm_str(const struct thread *thread);
 void thread__insert_map(struct thread *thread, struct map *map);
 int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp);
 size_t thread__fprintf(struct thread *thread, FILE *fp);
 
-void thread__find_addr_map(struct thread *thread, struct machine *machine,
+void thread__find_addr_map(struct thread *thread,
 			   u8 cpumode, enum map_type type, u64 addr,
 			   struct addr_location *al);
 
-void thread__find_addr_location(struct thread *thread, struct machine *machine,
+void thread__find_addr_location(struct thread *thread,
 				u8 cpumode, enum map_type type, u64 addr,
 				struct addr_location *al);
 
 void thread__find_cpumode_addr_location(struct thread *thread,
-					struct machine *machine,
 					enum map_type type, u64 addr,
 					struct addr_location *al);
 

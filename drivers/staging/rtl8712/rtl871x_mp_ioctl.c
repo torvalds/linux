@@ -1431,11 +1431,8 @@ unsigned int mp_ioctl_xmit_packet_hdl(struct oid_par_priv *poid_par_priv)
 /*-------------------------------------------------------------------------*/
 uint oid_rt_set_power_down_hdl(struct oid_par_priv *poid_par_priv)
 {
-	u8	bpwrup;
-
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return RNDIS_STATUS_NOT_ACCEPTED;
-	bpwrup = *(u8 *)poid_par_priv->information_buf;
 	/*CALL  the power_down function*/
 	return RNDIS_STATUS_SUCCESS;
 }

@@ -199,15 +199,12 @@ enum dma_ctrl_flags {
  * configuration data in statically from the platform). An additional
  * argument of struct dma_slave_config must be passed in with this
  * command.
- * @FSLDMA_EXTERNAL_START: this command will put the Freescale DMA controller
- * into external start mode.
  */
 enum dma_ctrl_cmd {
 	DMA_TERMINATE_ALL,
 	DMA_PAUSE,
 	DMA_RESUME,
 	DMA_SLAVE_CONFIG,
-	FSLDMA_EXTERNAL_START,
 };
 
 /**
@@ -307,7 +304,9 @@ enum dma_slave_buswidth {
  * struct dma_slave_config - dma slave channel runtime config
  * @direction: whether the data shall go in or out on this slave
  * channel, right now. DMA_MEM_TO_DEV and DMA_DEV_TO_MEM are
- * legal values.
+ * legal values. DEPRECATED, drivers should use the direction argument
+ * to the device_prep_slave_sg and device_prep_dma_cyclic functions or
+ * the dir field in the dma_interleaved_template structure.
  * @src_addr: this is the physical address where DMA slave data
  * should be read (RX), if the source is memory this argument is
  * ignored.
@@ -448,7 +447,8 @@ struct dmaengine_unmap_data {
  * 	communicate status
  * @phys: physical address of the descriptor
  * @chan: target channel for this operation
- * @tx_submit: set the prepared descriptor(s) to be executed by the engine
+ * @tx_submit: accept the descriptor, assign ordered cookie and mark the
+ * descriptor pending. To be pushed on .issue_pending() call
  * @callback: routine to call after this operation is complete
  * @callback_param: general parameter to pass to the callback routine
  * ---async_tx api specific fields---
@@ -755,6 +755,16 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_interleaved_dma(
 	return chan->device->device_prep_interleaved_dma(chan, xt, flags);
 }
 
+static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_sg(
+		struct dma_chan *chan,
+		struct scatterlist *dst_sg, unsigned int dst_nents,
+		struct scatterlist *src_sg, unsigned int src_nents,
+		unsigned long flags)
+{
+	return chan->device->device_prep_dma_sg(chan, dst_sg, dst_nents,
+			src_sg, src_nents, flags);
+}
+
 static inline int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
 {
 	if (!chan || !caps)
@@ -900,18 +910,6 @@ static inline void dmaengine_put(void)
 }
 #endif
 
-#ifdef CONFIG_NET_DMA
-#define net_dmaengine_get()	dmaengine_get()
-#define net_dmaengine_put()	dmaengine_put()
-#else
-static inline void net_dmaengine_get(void)
-{
-}
-static inline void net_dmaengine_put(void)
-{
-}
-#endif
-
 #ifdef CONFIG_ASYNC_TX_DMA
 #define async_dmaengine_get()	dmaengine_get()
 #define async_dmaengine_put()	dmaengine_put()
@@ -933,16 +931,8 @@ async_dma_find_channel(enum dma_transaction_type type)
 	return NULL;
 }
 #endif /* CONFIG_ASYNC_TX_DMA */
-
-dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
-	void *dest, void *src, size_t len);
-dma_cookie_t dma_async_memcpy_buf_to_pg(struct dma_chan *chan,
-	struct page *page, unsigned int offset, void *kdata, size_t len);
-dma_cookie_t dma_async_memcpy_pg_to_pg(struct dma_chan *chan,
-	struct page *dest_pg, unsigned int dest_off, struct page *src_pg,
-	unsigned int src_off, size_t len);
 void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
-	struct dma_chan *chan);
+				  struct dma_chan *chan);
 
 static inline void async_tx_ack(struct dma_async_tx_descriptor *tx)
 {

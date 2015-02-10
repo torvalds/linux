@@ -718,4 +718,4 @@ err3;	stb	r0,0(r3)
 
 15:	addi	r1,r1,STACKFRAMESIZE
 	b	exit_vmx_usercopy	/* tail call optimise */
-#endif /* CONFiG_ALTIVEC */
+#endif /* CONFIG_ALTIVEC */

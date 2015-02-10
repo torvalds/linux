@@ -1,6 +1,6 @@
 This document describes standard names of mixer controls.
 
-Syntax: SOURCE [DIRECTION] FUNCTION
+Syntax: [LOCATION] SOURCE [CHANNEL] [DIRECTION] FUNCTION
 
 DIRECTION:
   <nothing>	(both directions)
@@ -14,12 +14,29 @@ FUNCTION:
   Volume
   Route		(route control, hardware specific)
 
+CHANNEL:
+  <nothing>     (channel independent, or applies to all channels)
+  Front
+  Surround      (rear left/right in 4.0/5.1 surround)
+  CLFE
+  Center
+  LFE
+  Side          (side left/right for 7.1 surround)
+
+LOCATION:       (physical location of source)
+  Front
+  Rear
+  Dock          (docking station)
+  Internal
+
 SOURCE:
   Master
   Master Mono
   Hardware Master
   Speaker	(internal speaker)
+  Bass Speaker	(internal LFE speaker)
   Headphone
+  Line Out
   Beep		(beep generator)
   Phone
   Phone Input
@@ -27,14 +44,14 @@ SOURCE:
   Synth
   FM
   Mic
-  Line
+  Headset Mic	(mic part of combined headset jack - 4-pin headphone + mic)
+  Headphone Mic	(mic part of either/or - 3-pin headphone or mic)
+  Line		(input only, use "Line Out" for output)
   CD
   Video
   Zoom Video
   Aux
   PCM
-  PCM Front
-  PCM Rear
   PCM Pan
   Loopback
   Analog Loopback	(D/A -> A/D loopback)
@@ -47,8 +64,13 @@ SOURCE:
   Music
   I2S
   IEC958
+  HDMI
+  SPDIF		(output only)
+  SPDIF In
+  Digital In
+  HDMI/DP	(either HDMI or DisplayPort)
 
-Exceptions:
+Exceptions (deprecated):
   [Digital] Capture Source
   [Digital] Capture Switch	(aka input gain switch)
   [Digital] Capture Volume	(aka input gain volume)

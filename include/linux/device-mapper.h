@@ -64,6 +64,7 @@ typedef int (*dm_request_endio_fn) (struct dm_target *ti,
 				    union map_info *map_context);
 
 typedef void (*dm_presuspend_fn) (struct dm_target *ti);
+typedef void (*dm_presuspend_undo_fn) (struct dm_target *ti);
 typedef void (*dm_postsuspend_fn) (struct dm_target *ti);
 typedef int (*dm_preresume_fn) (struct dm_target *ti);
 typedef void (*dm_resume_fn) (struct dm_target *ti);
@@ -145,6 +146,7 @@ struct target_type {
 	dm_endio_fn end_io;
 	dm_request_endio_fn rq_end_io;
 	dm_presuspend_fn presuspend;
+	dm_presuspend_undo_fn presuspend_undo;
 	dm_postsuspend_fn postsuspend;
 	dm_preresume_fn preresume;
 	dm_resume_fn resume;

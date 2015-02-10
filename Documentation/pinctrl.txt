@@ -702,7 +702,7 @@ static int foo_get_groups(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-int foo_enable(struct pinctrl_dev *pctldev, unsigned selector,
+int foo_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 		unsigned group)
 {
 	u8 regbit = (1 << selector + group);
@@ -711,21 +711,11 @@ int foo_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-void foo_disable(struct pinctrl_dev *pctldev, unsigned selector,
-		unsigned group)
-{
-	u8 regbit = (1 << selector + group);
-
-	writeb((readb(MUX) & ~(regbit)), MUX)
-	return 0;
-}
-
 struct pinmux_ops foo_pmxops = {
 	.get_functions_count = foo_get_functions_count,
 	.get_function_name = foo_get_fname,
 	.get_function_groups = foo_get_groups,
-	.enable = foo_enable,
-	.disable = foo_disable,
+	.set_mux = foo_set_mux,
 };
 
 /* Pinmux operations are handled by some pin controller */

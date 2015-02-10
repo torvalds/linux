@@ -30,6 +30,7 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#include "cifs_unicode.h"
 #include "fscache.h"
 
 
@@ -412,7 +413,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	      struct cifs_sb_info *cifs_sb, unsigned int xid)
 {
 	int rc;
-	int oplock = 0;
+	__u32 oplock;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
 	struct cifs_fid fid;
@@ -451,8 +452,13 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = CIFS_open(xid, &oparms, &oplock, NULL);
+	if (tcon->ses->server->oplocks)
+		oplock = REQ_OPLOCK;
+	else
+		oplock = 0;
+	rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, NULL);
 	if (rc) {
+		cifs_dbg(FYI, "check sfu type of %s, open rc = %d\n", path, rc);
 		cifs_put_tlink(tlink);
 		return rc;
 	}
@@ -464,7 +470,8 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	io_parms.offset = 0;
 	io_parms.length = 24;
 
-	rc = CIFSSMBRead(xid, &io_parms, &bytes_read, &pbuf, &buf_type);
+	rc = tcon->ses->server->ops->sync_read(xid, &fid, &io_parms,
+					&bytes_read, &pbuf, &buf_type);
 	if ((rc == 0) && (bytes_read >= 8)) {
 		if (memcmp("IntxBLK", pbuf, 8) == 0) {
 			cifs_dbg(FYI, "Block device\n");
@@ -504,7 +511,8 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 		fattr->cf_dtype = DT_REG;
 		rc = -EOPNOTSUPP; /* or some unknown SFU type */
 	}
-	CIFSSMBClose(xid, tcon, fid.netfid);
+
+	tcon->ses->server->ops->close(xid, tcon, &fid);
 	cifs_put_tlink(tlink);
 	return rc;
 }
@@ -539,7 +547,7 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 	rc = tcon->ses->server->ops->query_all_EAs(xid, tcon, path,
 			"SETFILEBITS", ea_value, 4 /* size of buf */,
 			cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+			cifs_remap(cifs_sb));
 	cifs_put_tlink(tlink);
 	if (rc < 0)
 		return (int)rc;
@@ -887,7 +895,7 @@ inode_has_hashed_dentries(struct inode *inode)
 	struct dentry *dentry;
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
 		if (!d_unhashed(dentry) || IS_ROOT(dentry)) {
 			spin_unlock(&inode->i_lock);
 			return true;
@@ -952,11 +960,18 @@ struct inode *cifs_root_iget(struct super_block *sb)
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
 	xid = get_xid();
-	if (tcon->unix_ext)
+	if (tcon->unix_ext) {
 		rc = cifs_get_inode_info_unix(&inode, "", sb, xid);
-	else
-		rc = cifs_get_inode_info(&inode, "", NULL, sb, xid, NULL);
+		/* some servers mistakenly claim POSIX support */
+		if (rc != -EOPNOTSUPP)
+			goto iget_no_retry;
+		cifs_dbg(VFS, "server does not support POSIX extensions");
+		tcon->unix_ext = false;
+	}
 
+	rc = cifs_get_inode_info(&inode, "", NULL, sb, xid, NULL);
+
+iget_no_retry:
 	if (!inode) {
 		inode = ERR_PTR(rc);
 		goto out;
@@ -1117,8 +1132,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 	/* rename the file */
 	rc = CIFSSMBRenameOpenFile(xid, tcon, fid.netfid, NULL,
 				   cifs_sb->local_nls,
-				   cifs_sb->mnt_cifs_flags &
-					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+				   cifs_remap(cifs_sb));
 	if (rc != 0) {
 		rc = -EBUSY;
 		goto undo_setattr;
@@ -1159,8 +1173,7 @@ out:
 	 */
 undo_rename:
 	CIFSSMBRenameOpenFile(xid, tcon, fid.netfid, dentry->d_name.name,
-				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+				cifs_sb->local_nls, cifs_remap(cifs_sb));
 undo_setattr:
 	if (dosattr != origattr) {
 		info_buf->Attributes = cpu_to_le32(origattr);
@@ -1226,7 +1239,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		rc = CIFSPOSIXDelFile(xid, tcon, full_path,
 			SMB_POSIX_UNLINK_FILE_TARGET, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+			cifs_remap(cifs_sb));
 		cifs_dbg(FYI, "posix del rc %d\n", rc);
 		if ((rc == 0) || (rc == -ENOENT))
 			goto psx_del_no_retry;
@@ -1349,8 +1362,7 @@ cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 		}
 		CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
 				       cifs_sb->local_nls,
-				       cifs_sb->mnt_cifs_flags &
-				       CIFS_MOUNT_MAP_SPECIAL_CHR);
+				       cifs_remap(cifs_sb));
 	} else {
 		struct TCP_Server_Info *server = tcon->ses->server;
 		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
@@ -1392,8 +1404,7 @@ cifs_posix_mkdir(struct inode *inode, struct dentry *dentry, umode_t mode,
 	mode &= ~current_umask();
 	rc = CIFSPOSIXCreate(xid, tcon, SMB_O_DIRECTORY | SMB_O_CREAT, mode,
 			     NULL /* netfid */, info, &oplock, full_path,
-			     cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-			     CIFS_MOUNT_MAP_SPECIAL_CHR);
+			     cifs_sb->local_nls, cifs_remap(cifs_sb));
 	if (rc == -EOPNOTSUPP)
 		goto posix_mkdir_out;
 	else if (rc) {
@@ -1419,8 +1430,8 @@ cifs_posix_mkdir(struct inode *inode, struct dentry *dentry, umode_t mode,
 	d_instantiate(dentry, newinode);
 
 #ifdef CONFIG_CIFS_DEBUG2
-	cifs_dbg(FYI, "instantiated dentry %p %s to inode %p\n",
-		 dentry, dentry->d_name.name, newinode);
+	cifs_dbg(FYI, "instantiated dentry %p %pd to inode %p\n",
+		 dentry, dentry, newinode);
 
 	if (newinode->i_nlink != 2)
 		cifs_dbg(FYI, "unexpected number of links %d\n",
@@ -1617,8 +1628,7 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	if (rc == 0) {
 		rc = CIFSSMBRenameOpenFile(xid, tcon, fid.netfid,
 				(const char *) to_dentry->d_name.name,
-				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+				cifs_sb->local_nls, cifs_remap(cifs_sb));
 		CIFSSMBClose(xid, tcon, fid.netfid);
 	}
 do_rename_exit:
@@ -1694,16 +1704,14 @@ cifs_rename2(struct inode *source_dir, struct dentry *source_dentry,
 		tmprc = CIFSSMBUnixQPathInfo(xid, tcon, from_name,
 					     info_buf_source,
 					     cifs_sb->local_nls,
-					     cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					     cifs_remap(cifs_sb));
 		if (tmprc != 0)
 			goto unlink_target;
 
 		tmprc = CIFSSMBUnixQPathInfo(xid, tcon, to_name,
 					     info_buf_target,
 					     cifs_sb->local_nls,
-					     cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					     cifs_remap(cifs_sb));
 
 		if (tmprc == 0 && (info_buf_source->UniqueId ==
 				   info_buf_target->UniqueId)) {
@@ -2068,8 +2076,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 		rc = SMBLegacyOpen(xid, tcon, full_path, FILE_OPEN,
 				   GENERIC_WRITE, CREATE_NOT_DIR, &netfid,
 				   &oplock, NULL, cifs_sb->local_nls,
-				   cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+				   cifs_remap(cifs_sb));
 		if (rc == 0) {
 			unsigned int bytes_written;
 
@@ -2111,8 +2118,8 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	struct cifs_unix_set_info_args *args = NULL;
 	struct cifsFileInfo *open_file;
 
-	cifs_dbg(FYI, "setattr_unix on file %s attrs->ia_valid=0x%x\n",
-		 direntry->d_name.name, attrs->ia_valid);
+	cifs_dbg(FYI, "setattr_unix on file %pd attrs->ia_valid=0x%x\n",
+		 direntry, attrs->ia_valid);
 
 	xid = get_xid();
 
@@ -2254,8 +2261,8 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 
 	xid = get_xid();
 
-	cifs_dbg(FYI, "setattr on file %s attrs->iavalid 0x%x\n",
-		 direntry->d_name.name, attrs->ia_valid);
+	cifs_dbg(FYI, "setattr on file %pd attrs->iavalid 0x%x\n",
+		 direntry, attrs->ia_valid);
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;

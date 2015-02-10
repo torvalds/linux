@@ -386,7 +386,6 @@ static struct platform_driver twl6040_vibra_driver = {
 	.probe		= twl6040_vibra_probe,
 	.driver		= {
 		.name	= "twl6040-vibra",
-		.owner	= THIS_MODULE,
 		.pm	= &twl6040_vibra_pm_ops,
 	},
 };

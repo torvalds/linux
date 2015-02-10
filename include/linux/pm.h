@@ -342,22 +342,13 @@ struct dev_pm_ops {
 #define SET_LATE_SYSTEM_SLEEP_PM_OPS(suspend_fn, resume_fn)
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 #define SET_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn) \
 	.runtime_suspend = suspend_fn, \
 	.runtime_resume = resume_fn, \
 	.runtime_idle = idle_fn,
 #else
 #define SET_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn)
-#endif
-
-#ifdef CONFIG_PM
-#define SET_PM_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn) \
-	.runtime_suspend = suspend_fn, \
-	.runtime_resume = resume_fn, \
-	.runtime_idle = idle_fn,
-#else
-#define SET_PM_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn)
 #endif
 
 /*
@@ -538,11 +529,7 @@ enum rpm_request {
 };
 
 struct wakeup_source;
-
-struct pm_domain_data {
-	struct list_head list_node;
-	struct device *dev;
-};
+struct pm_domain_data;
 
 struct pm_subsys_data {
 	spinlock_t lock;
@@ -576,7 +563,7 @@ struct dev_pm_info {
 #else
 	unsigned int		should_wakeup:1;
 #endif
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	struct timer_list	suspend_timer;
 	unsigned long		timer_expires;
 	struct work_struct	work;
@@ -619,6 +606,7 @@ extern int dev_pm_put_subsys_data(struct device *dev);
  */
 struct dev_pm_domain {
 	struct dev_pm_ops	ops;
+	void (*detach)(struct device *dev, bool power_off);
 };
 
 /*
@@ -679,12 +667,16 @@ struct dev_pm_domain {
 extern void device_pm_lock(void);
 extern void dpm_resume_start(pm_message_t state);
 extern void dpm_resume_end(pm_message_t state);
+extern void dpm_resume_noirq(pm_message_t state);
+extern void dpm_resume_early(pm_message_t state);
 extern void dpm_resume(pm_message_t state);
 extern void dpm_complete(pm_message_t state);
 
 extern void device_pm_unlock(void);
 extern int dpm_suspend_end(pm_message_t state);
 extern int dpm_suspend_start(pm_message_t state);
+extern int dpm_suspend_noirq(pm_message_t state);
+extern int dpm_suspend_late(pm_message_t state);
 extern int dpm_suspend(pm_message_t state);
 extern int dpm_prepare(pm_message_t state);
 

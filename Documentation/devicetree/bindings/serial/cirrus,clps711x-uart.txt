@@ -8,7 +8,8 @@ Required properties:
 - syscon: Phandle to SYSCON node, which contain UART control bits.
 
 Optional properties:
-- uart-use-ms: Indicate the UART has modem signal (DCD, DSR, CTS).
+- {rts,cts,dtr,dsr,rng,dcd}-gpios: specify a GPIO for RTS/CTS/DTR/DSR/RI/DCD
+  line respectively.
 
 Note: Each UART port should have an alias correctly numbered
 in "aliases" node.
@@ -24,5 +25,7 @@ Example:
 		interrupts = <12 13>;
 		clocks = <&clks 11>;
 		syscon = <&syscon1>;
-		uart-use-ms;
+		cts-gpios = <&sysgpio 0 GPIO_ACTIVE_LOW>;
+		dsr-gpios = <&sysgpio 1 GPIO_ACTIVE_LOW>;
+		dcd-gpios = <&sysgpio 2 GPIO_ACTIVE_LOW>;
 	};

@@ -441,7 +441,7 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 	*((__be32 *) skb_put(skb, 4)) = 0;
 
 	/* Copy user data into skb */
-	rc = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	rc = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (rc < 0) {
 		kfree_skb(skb);
 		goto error;
@@ -528,7 +528,7 @@ static int l2tp_ip_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 		copied = len;
 	}
 
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	err = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (err)
 		goto done;
 

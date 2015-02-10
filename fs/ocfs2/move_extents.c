@@ -404,7 +404,7 @@ static int ocfs2_find_victim_alloc_group(struct inode *inode,
 	 * 'vict_blkno' was out of the valid range.
 	 */
 	if ((vict_blkno < le64_to_cpu(rec->c_blkno)) ||
-	    (vict_blkno >= (le32_to_cpu(ac_dinode->id1.bitmap1.i_total) <<
+	    (vict_blkno >= ((u64)le32_to_cpu(ac_dinode->id1.bitmap1.i_total) <<
 				bits_per_unit))) {
 		ret = -EINVAL;
 		goto out;
@@ -903,9 +903,6 @@ static int ocfs2_move_extents(struct ocfs2_move_extents_context *context)
 	struct ocfs2_dinode *di;
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-
-	if (!inode)
-		return -ENOENT;
 
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
 		return -EROFS;

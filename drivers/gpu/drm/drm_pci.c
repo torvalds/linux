@@ -27,6 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include "drm_legacy.h"
 
 /**
  * drm_pci_alloc - Allocate a PCI consistent memory block, for DMA.
@@ -81,7 +82,7 @@ EXPORT_SYMBOL(drm_pci_alloc);
  *
  * This function is for internal use in the Linux-specific DRM core code.
  */
-void __drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
+void __drm_legacy_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 {
 	unsigned long addr;
 	size_t sz;
@@ -105,7 +106,7 @@ void __drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
  */
 void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 {
-	__drm_pci_free(dev, dmah);
+	__drm_legacy_pci_free(dev, dmah);
 	kfree(dmah);
 }
 
@@ -127,34 +128,20 @@ static int drm_get_pci_domain(struct drm_device *dev)
 	return pci_domain_nr(dev->pdev->bus);
 }
 
-static int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
+int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 {
-	int len, ret;
-	master->unique_len = 40;
-	master->unique_size = master->unique_len;
-	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
-	if (master->unique == NULL)
+	master->unique = kasprintf(GFP_KERNEL, "pci:%04x:%02x:%02x.%d",
+					drm_get_pci_domain(dev),
+					dev->pdev->bus->number,
+					PCI_SLOT(dev->pdev->devfn),
+					PCI_FUNC(dev->pdev->devfn));
+	if (!master->unique)
 		return -ENOMEM;
 
-
-	len = snprintf(master->unique, master->unique_len,
-		       "pci:%04x:%02x:%02x.%d",
-		       drm_get_pci_domain(dev),
-		       dev->pdev->bus->number,
-		       PCI_SLOT(dev->pdev->devfn),
-		       PCI_FUNC(dev->pdev->devfn));
-
-	if (len >= master->unique_len) {
-		DRM_ERROR("buffer overflow");
-		ret = -EINVAL;
-		goto err;
-	} else
-		master->unique_len = len;
-
+	master->unique_len = strlen(master->unique);
 	return 0;
-err:
-	return ret;
 }
+EXPORT_SYMBOL(drm_pci_set_busid);
 
 int drm_pci_set_unique(struct drm_device *dev,
 		       struct drm_master *master,
@@ -163,8 +150,7 @@ int drm_pci_set_unique(struct drm_device *dev,
 	int domain, bus, slot, func, ret;
 
 	master->unique_len = u->unique_len;
-	master->unique_size = u->unique_len + 1;
-	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
+	master->unique = kmalloc(master->unique_len + 1, GFP_KERNEL);
 	if (!master->unique) {
 		ret = -ENOMEM;
 		goto err;
@@ -269,10 +255,6 @@ void drm_pci_agp_destroy(struct drm_device *dev)
 	}
 }
 
-static struct drm_bus drm_pci_bus = {
-	.set_busid = drm_pci_set_busid,
-};
-
 /**
  * drm_get_pci_dev - Register a PCI device with the DRM subsystem
  * @pdev: PCI device
@@ -352,8 +334,6 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	int i;
 
 	DRM_DEBUG("\n");
-
-	driver->bus = &drm_pci_bus;
 
 	if (driver->driver_features & DRIVER_MODESET)
 		return pci_register_driver(pdriver);

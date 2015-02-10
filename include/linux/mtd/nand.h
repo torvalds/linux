@@ -455,8 +455,21 @@ struct nand_hw_control {
  *		be provided if an hardware ECC is available
  * @calculate:	function for ECC calculation or readback from ECC hardware
  * @correct:	function for ECC correction, matching to ECC generator (sw/hw)
- * @read_page_raw:	function to read a raw page without ECC
- * @write_page_raw:	function to write a raw page without ECC
+ * @read_page_raw:	function to read a raw page without ECC. This function
+ *			should hide the specific layout used by the ECC
+ *			controller and always return contiguous in-band and
+ *			out-of-band data even if they're not stored
+ *			contiguously on the NAND chip (e.g.
+ *			NAND_ECC_HW_SYNDROME interleaves in-band and
+ *			out-of-band data).
+ * @write_page_raw:	function to write a raw page without ECC. This function
+ *			should hide the specific layout used by the ECC
+ *			controller and consider the passed data as contiguous
+ *			in-band and out-of-band data. ECC controller is
+ *			responsible for doing the appropriate transformations
+ *			to adapt to its specific layout (e.g.
+ *			NAND_ECC_HW_SYNDROME interleaves in-band and
+ *			out-of-band data).
  * @read_page:	function to read a page according to the ECC generator
  *		requirements; returns maximum number of bitflips corrected in
  *		any single ECC step, 0 if bitflips uncorrectable, -EIO hw error
@@ -587,6 +600,11 @@ struct nand_buffers {
  * @ecc_step_ds:	[INTERN] ECC step required by the @ecc_strength_ds,
  *                      also from the datasheet. It is the recommended ECC step
  *			size, if known; if unknown, set to zero.
+ * @onfi_timing_mode_default: [INTERN] default ONFI timing mode. This field is
+ *			      either deduced from the datasheet if the NAND
+ *			      chip is not ONFI compliant or set to 0 if it is
+ *			      (an ONFI chip is always configured in mode 0
+ *			      after a NAND reset)
  * @numchips:		[INTERN] number of physical chips
  * @chipsize:		[INTERN] the size of one chip for multichip arrays
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
@@ -671,6 +689,7 @@ struct nand_chip {
 	uint8_t bits_per_cell;
 	uint16_t ecc_strength_ds;
 	uint16_t ecc_step_ds;
+	int onfi_timing_mode_default;
 	int badblockpos;
 	int badblockbits;
 
@@ -717,6 +736,7 @@ struct nand_chip {
 #define NAND_MFR_EON		0x92
 #define NAND_MFR_SANDISK	0x45
 #define NAND_MFR_INTEL		0x89
+#define NAND_MFR_ATO		0x9b
 
 /* The maximum expected count of bytes in the NAND ID sequence */
 #define NAND_MAX_ID_LEN 8
@@ -766,12 +786,17 @@ struct nand_chip {
  * @options: stores various chip bit options
  * @id_len: The valid length of the @id.
  * @oobsize: OOB size
+ * @ecc: ECC correctability and step information from the datasheet.
  * @ecc.strength_ds: The ECC correctability from the datasheet, same as the
  *                   @ecc_strength_ds in nand_chip{}.
  * @ecc.step_ds: The ECC step required by the @ecc.strength_ds, same as the
  *               @ecc_step_ds in nand_chip{}, also from the datasheet.
  *               For example, the "4bit ECC for each 512Byte" can be set with
  *               NAND_ECC_INFO(4, 512).
+ * @onfi_timing_mode_default: the default ONFI timing mode entered after a NAND
+ *			      reset. Should be deduced from timings described
+ *			      in the datasheet.
+ *
  */
 struct nand_flash_dev {
 	char *name;
@@ -792,6 +817,7 @@ struct nand_flash_dev {
 		uint16_t strength_ds;
 		uint16_t step_ds;
 	} ecc;
+	int onfi_timing_mode_default;
 };
 
 /**

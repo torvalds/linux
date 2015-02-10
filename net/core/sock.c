@@ -437,7 +437,6 @@ static void sock_disable_timestamp(struct sock *sk, unsigned long flags)
 int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
-	int skb_len;
 	unsigned long flags;
 	struct sk_buff_head *list = &sk->sk_receive_queue;
 
@@ -458,13 +457,6 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
-
-	/* Cache the SKB length before we tack it onto the receive
-	 * queue.  Once it is added it no longer belongs to us and
-	 * may be freed by other threads of control pulling packets
-	 * from the queue.
-	 */
-	skb_len = skb->len;
 
 	/* we escape from rcu protected region, make sure we dont leak
 	 * a norefcounted dst
@@ -896,6 +888,19 @@ set_rcvbuf:
 		}
 		break;
 
+	case SO_ATTACH_BPF:
+		ret = -EINVAL;
+		if (optlen == sizeof(u32)) {
+			u32 ufd;
+
+			ret = -EFAULT;
+			if (copy_from_user(&ufd, optval, sizeof(ufd)))
+				break;
+
+			ret = sk_attach_bpf(ufd, sk);
+		}
+		break;
+
 	case SO_DETACH_FILTER:
 		ret = sk_detach_filter(sk);
 		break;
@@ -1221,6 +1226,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		v.val = sk->sk_max_pacing_rate;
 		break;
 
+	case SO_INCOMING_CPU:
+		v.val = sk->sk_incoming_cpu;
+		break;
+
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -1489,9 +1498,6 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		atomic_set(&newsk->sk_omem_alloc, 0);
 		skb_queue_head_init(&newsk->sk_receive_queue);
 		skb_queue_head_init(&newsk->sk_write_queue);
-#ifdef CONFIG_NET_DMA
-		skb_queue_head_init(&newsk->sk_async_wait_queue);
-#endif
 
 		spin_lock_init(&newsk->sk_dst_lock);
 		rwlock_init(&newsk->sk_callback_lock);
@@ -1528,6 +1534,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 		newsk->sk_err	   = 0;
 		newsk->sk_priority = 0;
+		newsk->sk_incoming_cpu = raw_smp_processor_id();
 		/*
 		 * Before updating sk_refcnt, we must commit prior changes to memory
 		 * (Documentation/RCU/rculist_nulls.txt for details)
@@ -1645,18 +1652,24 @@ void sock_rfree(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sock_rfree);
 
+void sock_efree(struct sk_buff *skb)
+{
+	sock_put(skb->sk);
+}
+EXPORT_SYMBOL(sock_efree);
+
+#ifdef CONFIG_INET
 void sock_edemux(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 
-#ifdef CONFIG_INET
 	if (sk->sk_state == TCP_TIME_WAIT)
 		inet_twsk_put(inet_twsk(sk));
 	else
-#endif
 		sock_put(sk);
 }
 EXPORT_SYMBOL(sock_edemux);
+#endif
 
 kuid_t sock_i_uid(struct sock *sk)
 {
@@ -1718,15 +1731,33 @@ void *sock_kmalloc(struct sock *sk, int size, gfp_t priority)
 }
 EXPORT_SYMBOL(sock_kmalloc);
 
-/*
- * Free an option memory block.
+/* Free an option memory block. Note, we actually want the inline
+ * here as this allows gcc to detect the nullify and fold away the
+ * condition entirely.
  */
-void sock_kfree_s(struct sock *sk, void *mem, int size)
+static inline void __sock_kfree_s(struct sock *sk, void *mem, int size,
+				  const bool nullify)
 {
-	kfree(mem);
+	if (WARN_ON_ONCE(!mem))
+		return;
+	if (nullify)
+		kzfree(mem);
+	else
+		kfree(mem);
 	atomic_sub(size, &sk->sk_omem_alloc);
 }
+
+void sock_kfree_s(struct sock *sk, void *mem, int size)
+{
+	__sock_kfree_s(sk, mem, size, false);
+}
 EXPORT_SYMBOL(sock_kfree_s);
+
+void sock_kzfree_s(struct sock *sk, void *mem, int size)
+{
+	__sock_kfree_s(sk, mem, size, true);
+}
+EXPORT_SYMBOL(sock_kzfree_s);
 
 /* It is almost wait_for_tcp_memory minus release_sock/lock_sock.
    I think, these locks should be removed for datagram sockets.
@@ -1764,21 +1795,12 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 				     unsigned long data_len, int noblock,
 				     int *errcode, int max_page_order)
 {
-	struct sk_buff *skb = NULL;
-	unsigned long chunk;
-	gfp_t gfp_mask;
+	struct sk_buff *skb;
 	long timeo;
 	int err;
-	int npages = (data_len + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	struct page *page;
-	int i;
-
-	err = -EMSGSIZE;
-	if (npages > MAX_SKB_FRAGS)
-		goto failure;
 
 	timeo = sock_sndtimeo(sk, noblock);
-	while (!skb) {
+	for (;;) {
 		err = sock_error(sk);
 		if (err != 0)
 			goto failure;
@@ -1787,66 +1809,27 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 		if (sk->sk_shutdown & SEND_SHUTDOWN)
 			goto failure;
 
-		if (atomic_read(&sk->sk_wmem_alloc) >= sk->sk_sndbuf) {
-			set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
-			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-			err = -EAGAIN;
-			if (!timeo)
-				goto failure;
-			if (signal_pending(current))
-				goto interrupted;
-			timeo = sock_wait_for_wmem(sk, timeo);
-			continue;
-		}
+		if (sk_wmem_alloc_get(sk) < sk->sk_sndbuf)
+			break;
 
-		err = -ENOBUFS;
-		gfp_mask = sk->sk_allocation;
-		if (gfp_mask & __GFP_WAIT)
-			gfp_mask |= __GFP_REPEAT;
-
-		skb = alloc_skb(header_len, gfp_mask);
-		if (!skb)
+		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		err = -EAGAIN;
+		if (!timeo)
 			goto failure;
-
-		skb->truesize += data_len;
-
-		for (i = 0; npages > 0; i++) {
-			int order = max_page_order;
-
-			while (order) {
-				if (npages >= 1 << order) {
-					page = alloc_pages(sk->sk_allocation |
-							   __GFP_COMP |
-							   __GFP_NOWARN |
-							   __GFP_NORETRY,
-							   order);
-					if (page)
-						goto fill_page;
-					/* Do not retry other high order allocations */
-					order = 1;
-					max_page_order = 0;
-				}
-				order--;
-			}
-			page = alloc_page(sk->sk_allocation);
-			if (!page)
-				goto failure;
-fill_page:
-			chunk = min_t(unsigned long, data_len,
-				      PAGE_SIZE << order);
-			skb_fill_page_desc(skb, i, page, 0, chunk);
-			data_len -= chunk;
-			npages -= 1 << order;
-		}
+		if (signal_pending(current))
+			goto interrupted;
+		timeo = sock_wait_for_wmem(sk, timeo);
 	}
-
-	skb_set_owner_w(skb, sk);
+	skb = alloc_skb_with_frags(header_len, data_len, max_page_order,
+				   errcode, sk->sk_allocation);
+	if (skb)
+		skb_set_owner_w(skb, sk);
 	return skb;
 
 interrupted:
 	err = sock_intr_errno(timeo);
 failure:
-	kfree_skb(skb);
 	*errcode = err;
 	return NULL;
 }
@@ -2308,9 +2291,6 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	skb_queue_head_init(&sk->sk_receive_queue);
 	skb_queue_head_init(&sk->sk_write_queue);
 	skb_queue_head_init(&sk->sk_error_queue);
-#ifdef CONFIG_NET_DMA
-	skb_queue_head_init(&sk->sk_async_wait_queue);
-#endif
 
 	sk->sk_send_head	=	NULL;
 
@@ -2498,11 +2478,11 @@ int sock_recv_errqueue(struct sock *sk, struct msghdr *msg, int len,
 		       int level, int type)
 {
 	struct sock_exterr_skb *serr;
-	struct sk_buff *skb, *skb2;
+	struct sk_buff *skb;
 	int copied, err;
 
 	err = -EAGAIN;
-	skb = skb_dequeue(&sk->sk_error_queue);
+	skb = sock_dequeue_err_skb(sk);
 	if (skb == NULL)
 		goto out;
 
@@ -2511,7 +2491,7 @@ int sock_recv_errqueue(struct sock *sk, struct msghdr *msg, int len,
 		msg->msg_flags |= MSG_TRUNC;
 		copied = len;
 	}
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	err = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (err)
 		goto out_free_skb;
 
@@ -2522,16 +2502,6 @@ int sock_recv_errqueue(struct sock *sk, struct msghdr *msg, int len,
 
 	msg->msg_flags |= MSG_ERRQUEUE;
 	err = copied;
-
-	/* Reset and regenerate socket error */
-	spin_lock_bh(&sk->sk_error_queue.lock);
-	sk->sk_err = 0;
-	if ((skb2 = skb_peek(&sk->sk_error_queue)) != NULL) {
-		sk->sk_err = SKB_EXT_ERR(skb2)->ee.ee_errno;
-		spin_unlock_bh(&sk->sk_error_queue.lock);
-		sk->sk_error_report(sk);
-	} else
-		spin_unlock_bh(&sk->sk_error_queue.lock);
 
 out_free_skb:
 	kfree_skb(skb);

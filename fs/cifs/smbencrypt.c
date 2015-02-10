@@ -29,6 +29,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
+#include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 #include "cifspdu.h"
 #include "cifsglob.h"

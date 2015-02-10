@@ -27,7 +27,6 @@
 #include <asm/insn.h>
 
 #define  __ARCH_WANT_KPROBES_INSN_SLOT
-#define  ARCH_SUPPORTS_KPROBES_ON_FTRACE
 
 struct pt_regs;
 struct kprobe;

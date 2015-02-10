@@ -69,7 +69,8 @@ static inline void dump_cifs_file_struct(struct file *file, char *label)
  * Attempt to preload the dcache with the results from the FIND_FIRST/NEXT
  *
  * Find the dentry that matches "name". If there isn't one, create one. If it's
- * a negative dentry or the uniqueid changed, then drop it and recreate it.
+ * a negative dentry or the uniqueid or filetype(mode) changed,
+ * then drop it and recreate it.
  */
 static void
 cifs_prime_dcache(struct dentry *parent, struct qstr *name,
@@ -87,8 +88,6 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		return;
 
 	if (dentry) {
-		int err;
-
 		inode = dentry->d_inode;
 		if (inode) {
 			/*
@@ -99,16 +98,17 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM))
 				fattr->cf_uniqueid = CIFS_I(inode)->uniqueid;
 
-			/* update inode in place if i_ino didn't change */
-			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid) {
+			/* update inode in place
+			 * if both i_ino and i_mode didn't change */
+			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid &&
+			    (inode->i_mode & S_IFMT) ==
+			    (fattr->cf_mode & S_IFMT)) {
 				cifs_fattr_to_inode(inode, fattr);
 				goto out;
 			}
 		}
-		err = d_invalidate(dentry);
+		d_invalidate(dentry);
 		dput(dentry);
-		if (err)
-			return;
 	}
 
 	/*
@@ -127,7 +127,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	if (!inode)
 		goto out;
 
-	alias = d_materialise_unique(dentry, inode);
+	alias = d_splice_alias(inode, dentry);
 	if (alias && !IS_ERR(alias))
 		dput(alias);
 out:
@@ -243,7 +243,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 	rc = CIFSSMBOpen(xid, ptcon, full_path, FILE_OPEN, GENERIC_READ,
 			OPEN_REPARSE_POINT, &fid, &oplock, NULL,
 			cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+			cifs_remap(cifs_sb);
 	if (!rc) {
 		tmpbuffer = kmalloc(maxpath);
 		rc = CIFSSMBQueryReparseLinkInfo(xid, ptcon, full_path,
@@ -265,7 +265,7 @@ initiate_cifs_search(const unsigned int xid, struct file *file)
 	int rc = 0;
 	char *full_path = NULL;
 	struct cifsFileInfo *cifsFile;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
@@ -565,7 +565,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 	loff_t first_entry_in_buffer;
 	loff_t index_to_find = pos;
 	struct cifsFileInfo *cfile = file->private_data;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 	struct TCP_Server_Info *server = tcon->ses->server;
 	/* check if index in the buffer */
 
@@ -683,7 +683,7 @@ static int cifs_filldir(char *find_entry, struct file *file,
 		char *scratch_buf, unsigned int max_len)
 {
 	struct cifsFileInfo *file_info = file->private_data;
-	struct super_block *sb = file->f_path.dentry->d_sb;
+	struct super_block *sb = file_inode(file)->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_dirent de = { NULL, };
 	struct cifs_fattr fattr;
@@ -708,15 +708,15 @@ static int cifs_filldir(char *find_entry, struct file *file,
 
 	if (file_info->srch_inf.unicode) {
 		struct nls_table *nlt = cifs_sb->local_nls;
+		int map_type;
 
+		map_type = cifs_remap(cifs_sb);
 		name.name = scratch_buf;
 		name.len =
 			cifs_from_utf16((char *)name.name, (__le16 *)de.name,
 					UNICODE_NAME_MAX,
 					min_t(size_t, de.namelen,
-					      (size_t)max_len), nlt,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					      (size_t)max_len), nlt, map_type);
 		name.len -= nls_nullsize(nlt);
 	} else {
 		name.name = de.name;
@@ -757,7 +757,7 @@ static int cifs_filldir(char *find_entry, struct file *file,
 		 */
 		fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
 
-	cifs_prime_dcache(file->f_dentry, &name, &fattr);
+	cifs_prime_dcache(file->f_path.dentry, &name, &fattr);
 
 	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
 	return !dir_emit(ctx, name.name, name.len, ino, fattr.cf_dtype);
@@ -798,10 +798,6 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 		if it before then restart search
 		if after then keep searching till find it */
 
-	if (file->private_data == NULL) {
-		rc = -EINVAL;
-		goto rddir2_exit;
-	}
 	cifsFile = file->private_data;
 	if (cifsFile->srch_inf.endOfSearch) {
 		if (cifsFile->srch_inf.emptyDir) {

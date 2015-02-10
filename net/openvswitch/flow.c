@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2013 Nicira, Inc.
+ * Copyright (c) 2007-2014 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -16,8 +16,6 @@
  * 02110-1301, USA
  */
 
-#include "flow.h"
-#include "datapath.h"
 #include <linux/uaccess.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -34,6 +32,7 @@
 #include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/mpls.h>
 #include <linux/sctp.h>
 #include <linux/smp.h>
 #include <linux/tcp.h>
@@ -44,7 +43,12 @@
 #include <net/ip.h>
 #include <net/ip_tunnels.h>
 #include <net/ipv6.h>
+#include <net/mpls.h>
 #include <net/ndisc.h>
+
+#include "datapath.h"
+#include "flow.h"
+#include "flow_netlink.h"
 
 u64 ovs_flow_used_time(unsigned long flow_jiffies)
 {
@@ -62,10 +66,11 @@ u64 ovs_flow_used_time(unsigned long flow_jiffies)
 #define TCP_FLAGS_BE16(tp) (*(__be16 *)&tcp_flag_word(tp) & htons(0x0FFF))
 
 void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
-			   struct sk_buff *skb)
+			   const struct sk_buff *skb)
 {
 	struct flow_stats *stats;
 	int node = numa_node_id();
+	int len = skb->len + (vlan_tx_tag_present(skb) ? VLAN_HLEN : 0);
 
 	stats = rcu_dereference(flow->stats[node]);
 
@@ -89,7 +94,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 			 * allocated stats as we have already locked them.
 			 */
 			if (likely(flow->stats_last_writer != NUMA_NO_NODE)
-			    && likely(!rcu_dereference(flow->stats[node]))) {
+			    && likely(!rcu_access_pointer(flow->stats[node]))) {
 				/* Try to allocate node-specific stats. */
 				struct flow_stats *new_stats;
 
@@ -101,7 +106,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 				if (likely(new_stats)) {
 					new_stats->used = jiffies;
 					new_stats->packet_count = 1;
-					new_stats->byte_count = skb->len;
+					new_stats->byte_count = len;
 					new_stats->tcp_flags = tcp_flags;
 					spin_lock_init(&new_stats->lock);
 
@@ -116,7 +121,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 
 	stats->used = jiffies;
 	stats->packet_count++;
-	stats->byte_count += skb->len;
+	stats->byte_count += len;
 	stats->tcp_flags |= tcp_flags;
 unlock:
 	spin_unlock(&stats->lock);
@@ -272,6 +277,8 @@ static int parse_ipv6hdr(struct sk_buff *skb, struct sw_flow_key *key)
 			key->ip.frag = OVS_FRAG_TYPE_LATER;
 		else
 			key->ip.frag = OVS_FRAG_TYPE_FIRST;
+	} else {
+		key->ip.frag = OVS_FRAG_TYPE_NONE;
 	}
 
 	nh_len = payload_ofs - nh_ofs;
@@ -356,6 +363,7 @@ static int parse_icmpv6(struct sk_buff *skb, struct sw_flow_key *key,
 	 */
 	key->tp.src = htons(icmp->icmp6_type);
 	key->tp.dst = htons(icmp->icmp6_code);
+	memset(&key->ipv6.nd, 0, sizeof(key->ipv6.nd));
 
 	if (icmp->icmp6_code == 0 &&
 	    (icmp->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION ||
@@ -420,10 +428,9 @@ invalid:
 }
 
 /**
- * ovs_flow_extract - extracts a flow key from an Ethernet frame.
+ * key_extract - extracts a flow key from an Ethernet frame.
  * @skb: sk_buff that contains the frame, with skb->data pointing to the
  * Ethernet header
- * @in_port: port number on which @skb was received.
  * @key: output flow key
  *
  * The caller must ensure that skb->len >= ETH_HLEN.
@@ -442,18 +449,13 @@ invalid:
  *      of a correct length, otherwise the same as skb->network_header.
  *      For other key->eth.type values it is left untouched.
  */
-int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
+static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 {
 	int error;
 	struct ethhdr *eth;
 
-	memset(key, 0, sizeof(*key));
-
-	key->phy.priority = skb->priority;
-	if (OVS_CB(skb)->tun_key)
-		memcpy(&key->tun_key, OVS_CB(skb)->tun_key, sizeof(key->tun_key));
-	key->phy.in_port = in_port;
-	key->phy.skb_mark = skb->mark;
+	/* Flags are always used as part of stats */
+	key->tp.flags = 0;
 
 	skb_reset_mac_header(skb);
 
@@ -469,6 +471,7 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 	 * update skb->csum here.
 	 */
 
+	key->eth.tci = 0;
 	if (vlan_tx_tag_present(skb))
 		key->eth.tci = htons(skb->vlan_tci);
 	else if (eth->h_proto == htons(ETH_P_8021Q))
@@ -480,6 +483,7 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 		return -ENOMEM;
 
 	skb_reset_network_header(skb);
+	skb_reset_mac_len(skb);
 	__skb_push(skb, skb->data - skb_mac_header(skb));
 
 	/* Network layer. */
@@ -489,6 +493,8 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 
 		error = check_iphdr(skb);
 		if (unlikely(error)) {
+			memset(&key->ip, 0, sizeof(key->ip));
+			memset(&key->ipv4, 0, sizeof(key->ipv4));
 			if (error == -EINVAL) {
 				skb->transport_header = skb->network_header;
 				error = 0;
@@ -510,8 +516,10 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 			return 0;
 		}
 		if (nh->frag_off & htons(IP_MF) ||
-			 skb_shinfo(skb)->gso_type & SKB_GSO_UDP)
+			skb_shinfo(skb)->gso_type & SKB_GSO_UDP)
 			key->ip.frag = OVS_FRAG_TYPE_FIRST;
+		else
+			key->ip.frag = OVS_FRAG_TYPE_NONE;
 
 		/* Transport layer. */
 		if (key->ip.proto == IPPROTO_TCP) {
@@ -520,18 +528,25 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 				key->tp.src = tcp->source;
 				key->tp.dst = tcp->dest;
 				key->tp.flags = TCP_FLAGS_BE16(tcp);
+			} else {
+				memset(&key->tp, 0, sizeof(key->tp));
 			}
+
 		} else if (key->ip.proto == IPPROTO_UDP) {
 			if (udphdr_ok(skb)) {
 				struct udphdr *udp = udp_hdr(skb);
 				key->tp.src = udp->source;
 				key->tp.dst = udp->dest;
+			} else {
+				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		} else if (key->ip.proto == IPPROTO_SCTP) {
 			if (sctphdr_ok(skb)) {
 				struct sctphdr *sctp = sctp_hdr(skb);
 				key->tp.src = sctp->source;
 				key->tp.dst = sctp->dest;
+			} else {
+				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		} else if (key->ip.proto == IPPROTO_ICMP) {
 			if (icmphdr_ok(skb)) {
@@ -541,33 +556,72 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 				 * them in 16-bit network byte order. */
 				key->tp.src = htons(icmp->type);
 				key->tp.dst = htons(icmp->code);
+			} else {
+				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		}
 
-	} else if ((key->eth.type == htons(ETH_P_ARP) ||
-		   key->eth.type == htons(ETH_P_RARP)) && arphdr_ok(skb)) {
+	} else if (key->eth.type == htons(ETH_P_ARP) ||
+		   key->eth.type == htons(ETH_P_RARP)) {
 		struct arp_eth_header *arp;
+		bool arp_available = arphdr_ok(skb);
 
 		arp = (struct arp_eth_header *)skb_network_header(skb);
 
-		if (arp->ar_hrd == htons(ARPHRD_ETHER)
-				&& arp->ar_pro == htons(ETH_P_IP)
-				&& arp->ar_hln == ETH_ALEN
-				&& arp->ar_pln == 4) {
+		if (arp_available &&
+		    arp->ar_hrd == htons(ARPHRD_ETHER) &&
+		    arp->ar_pro == htons(ETH_P_IP) &&
+		    arp->ar_hln == ETH_ALEN &&
+		    arp->ar_pln == 4) {
 
 			/* We only match on the lower 8 bits of the opcode. */
 			if (ntohs(arp->ar_op) <= 0xff)
 				key->ip.proto = ntohs(arp->ar_op);
+			else
+				key->ip.proto = 0;
+
 			memcpy(&key->ipv4.addr.src, arp->ar_sip, sizeof(key->ipv4.addr.src));
 			memcpy(&key->ipv4.addr.dst, arp->ar_tip, sizeof(key->ipv4.addr.dst));
 			ether_addr_copy(key->ipv4.arp.sha, arp->ar_sha);
 			ether_addr_copy(key->ipv4.arp.tha, arp->ar_tha);
+		} else {
+			memset(&key->ip, 0, sizeof(key->ip));
+			memset(&key->ipv4, 0, sizeof(key->ipv4));
+		}
+	} else if (eth_p_mpls(key->eth.type)) {
+		size_t stack_len = MPLS_HLEN;
+
+		/* In the presence of an MPLS label stack the end of the L2
+		 * header and the beginning of the L3 header differ.
+		 *
+		 * Advance network_header to the beginning of the L3
+		 * header. mac_len corresponds to the end of the L2 header.
+		 */
+		while (1) {
+			__be32 lse;
+
+			error = check_header(skb, skb->mac_len + stack_len);
+			if (unlikely(error))
+				return 0;
+
+			memcpy(&lse, skb_network_header(skb), MPLS_HLEN);
+
+			if (stack_len == MPLS_HLEN)
+				memcpy(&key->mpls.top_lse, &lse, MPLS_HLEN);
+
+			skb_set_network_header(skb, skb->mac_len + stack_len);
+			if (lse & htonl(MPLS_LS_S_MASK))
+				break;
+
+			stack_len += MPLS_HLEN;
 		}
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		int nh_len;             /* IPv6 Header + Extensions */
 
 		nh_len = parse_ipv6hdr(skb, key);
 		if (unlikely(nh_len < 0)) {
+			memset(&key->ip, 0, sizeof(key->ip));
+			memset(&key->ipv6.addr, 0, sizeof(key->ipv6.addr));
 			if (nh_len == -EINVAL) {
 				skb->transport_header = skb->network_header;
 				error = 0;
@@ -589,27 +643,84 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 				key->tp.src = tcp->source;
 				key->tp.dst = tcp->dest;
 				key->tp.flags = TCP_FLAGS_BE16(tcp);
+			} else {
+				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		} else if (key->ip.proto == NEXTHDR_UDP) {
 			if (udphdr_ok(skb)) {
 				struct udphdr *udp = udp_hdr(skb);
 				key->tp.src = udp->source;
 				key->tp.dst = udp->dest;
+			} else {
+				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		} else if (key->ip.proto == NEXTHDR_SCTP) {
 			if (sctphdr_ok(skb)) {
 				struct sctphdr *sctp = sctp_hdr(skb);
 				key->tp.src = sctp->source;
 				key->tp.dst = sctp->dest;
+			} else {
+				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		} else if (key->ip.proto == NEXTHDR_ICMP) {
 			if (icmp6hdr_ok(skb)) {
 				error = parse_icmpv6(skb, key, nh_len);
 				if (error)
 					return error;
+			} else {
+				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		}
 	}
-
 	return 0;
+}
+
+int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	return key_extract(skb, key);
+}
+
+int ovs_flow_key_extract(const struct ovs_tunnel_info *tun_info,
+			 struct sk_buff *skb, struct sw_flow_key *key)
+{
+	/* Extract metadata from packet. */
+	if (tun_info) {
+		memcpy(&key->tun_key, &tun_info->tunnel, sizeof(key->tun_key));
+
+		if (tun_info->options) {
+			BUILD_BUG_ON((1 << (sizeof(tun_info->options_len) *
+						   8)) - 1
+					> sizeof(key->tun_opts));
+			memcpy(GENEVE_OPTS(key, tun_info->options_len),
+			       tun_info->options, tun_info->options_len);
+			key->tun_opts_len = tun_info->options_len;
+		} else {
+			key->tun_opts_len = 0;
+		}
+	} else  {
+		key->tun_opts_len = 0;
+		memset(&key->tun_key, 0, sizeof(key->tun_key));
+	}
+
+	key->phy.priority = skb->priority;
+	key->phy.in_port = OVS_CB(skb)->input_vport->port_no;
+	key->phy.skb_mark = skb->mark;
+	key->ovs_flow_hash = 0;
+	key->recirc_id = 0;
+
+	return key_extract(skb, key);
+}
+
+int ovs_flow_key_extract_userspace(const struct nlattr *attr,
+				   struct sk_buff *skb,
+				   struct sw_flow_key *key, bool log)
+{
+	int err;
+
+	/* Extract metadata from netlink attributes. */
+	err = ovs_nla_get_flow_metadata(attr, key, log);
+	if (err)
+		return err;
+
+	return key_extract(skb, key);
 }

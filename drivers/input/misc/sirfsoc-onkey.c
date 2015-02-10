@@ -203,7 +203,6 @@ static struct platform_driver sirfsoc_pwrc_driver = {
 	.remove		= sirfsoc_pwrc_remove,
 	.driver		= {
 		.name	= "sirfsoc-pwrc",
-		.owner	= THIS_MODULE,
 		.pm	= &sirfsoc_pwrc_pm_ops,
 		.of_match_table = sirfsoc_pwrc_of_match,
 	}

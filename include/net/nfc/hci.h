@@ -57,10 +57,14 @@ struct nfc_hci_ops {
 	int (*discover_se)(struct nfc_hci_dev *dev);
 	int (*enable_se)(struct nfc_hci_dev *dev, u32 se_idx);
 	int (*disable_se)(struct nfc_hci_dev *dev, u32 se_idx);
+	int (*se_io)(struct nfc_hci_dev *dev, u32 se_idx,
+		      u8 *apdu, size_t apdu_length,
+		      se_io_cb_t cb, void *cb_context);
 };
 
 /* Pipes */
 #define NFC_HCI_INVALID_PIPE	0x80
+#define NFC_HCI_DO_NOT_CREATE_PIPE	0x81
 #define NFC_HCI_LINK_MGMT_PIPE	0x00
 #define NFC_HCI_ADMIN_PIPE	0x01
 

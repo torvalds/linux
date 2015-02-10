@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,7 +68,7 @@
 #include "mvm.h"
 
 /* Maps the driver specific channel width definition to the the fw values */
-static inline u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
+u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
 {
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -88,7 +90,7 @@ static inline u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
  * Maps the driver specific control channel position (relative to the center
  * freq) definitions to the the fw values
  */
-static inline u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
+u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
 {
 	switch (chandef->chan->center_freq - chandef->center_freq1) {
 	case -70:

@@ -31,7 +31,6 @@
 
 void __iomem *at91_uart;
 
-#if !defined(CONFIG_ARCH_AT91X40)
 static const u32 uarts_rm9200[] = {
 	AT91_BASE_DBGU0,
 	AT91RM9200_BASE_US0,
@@ -94,12 +93,18 @@ static const u32 uarts_sam9x5[] = {
 	0,
 };
 
-static const u32 uarts_sama5[] = {
+static const u32 uarts_sama5d3[] = {
 	AT91_BASE_DBGU1,
 	SAMA5D3_BASE_USART0,
 	SAMA5D3_BASE_USART1,
 	SAMA5D3_BASE_USART2,
 	SAMA5D3_BASE_USART3,
+	0,
+};
+
+static const u32 uarts_sama5d4[] = {
+	AT91_BASE_DBGU2,
+	SAMA5D4_BASE_USART3,
 	0,
 };
 
@@ -134,8 +139,14 @@ static inline const u32* decomp_soc_detect(void __iomem *dbgu_base)
 	case ARCH_ID_AT91SAM9X5:
 		return uarts_sam9x5;
 
-	case ARCH_ID_SAMA5D3:
-		return uarts_sama5;
+	case ARCH_ID_SAMA5:
+		cidr = __raw_readl(dbgu_base + AT91_DBGU_EXID);
+		if (cidr & ARCH_EXID_SAMA5D3)
+			return uarts_sama5d3;
+		else if (cidr & ARCH_EXID_SAMA5D4)
+			return uarts_sama5d4;
+
+		break;
 	}
 
 	/* at91sam9g10 */
@@ -156,9 +167,10 @@ static inline void arch_decomp_setup(void)
 	const u32* usarts;
 
 	usarts = decomp_soc_detect((void __iomem *)AT91_BASE_DBGU0);
-
 	if (!usarts)
 		usarts = decomp_soc_detect((void __iomem *)AT91_BASE_DBGU1);
+	if (!usarts)
+		usarts = decomp_soc_detect((void __iomem *)AT91_BASE_DBGU2);
 	if (!usarts) {
 		at91_uart = NULL;
 		return;
@@ -175,12 +187,6 @@ static inline void arch_decomp_setup(void)
 
 	at91_uart = NULL;
 }
-#else
-static inline void arch_decomp_setup(void)
-{
-	at91_uart = NULL;
-}
-#endif
 
 /*
  * The following code assumes the serial port has already been

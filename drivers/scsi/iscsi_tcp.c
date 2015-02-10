@@ -726,13 +726,18 @@ static int iscsi_sw_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	switch(param) {
 	case ISCSI_PARAM_CONN_PORT:
 	case ISCSI_PARAM_CONN_ADDRESS:
+	case ISCSI_PARAM_LOCAL_PORT:
 		spin_lock_bh(&conn->session->frwd_lock);
 		if (!tcp_sw_conn || !tcp_sw_conn->sock) {
 			spin_unlock_bh(&conn->session->frwd_lock);
 			return -ENOTCONN;
 		}
-		rc = kernel_getpeername(tcp_sw_conn->sock,
-					(struct sockaddr *)&addr, &len);
+		if (param == ISCSI_PARAM_LOCAL_PORT)
+			rc = kernel_getsockname(tcp_sw_conn->sock,
+						(struct sockaddr *)&addr, &len);
+		else
+			rc = kernel_getpeername(tcp_sw_conn->sock,
+						(struct sockaddr *)&addr, &len);
 		spin_unlock_bh(&conn->session->frwd_lock);
 		if (rc)
 			return rc;
@@ -895,6 +900,7 @@ static umode_t iscsi_sw_tcp_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_DATADGST_EN:
 		case ISCSI_PARAM_CONN_ADDRESS:
 		case ISCSI_PARAM_CONN_PORT:
+		case ISCSI_PARAM_LOCAL_PORT:
 		case ISCSI_PARAM_EXP_STATSN:
 		case ISCSI_PARAM_PERSISTENT_ADDRESS:
 		case ISCSI_PARAM_PERSISTENT_PORT:
@@ -946,7 +952,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.module			= THIS_MODULE,
 	.name			= "iSCSI Initiator over TCP/IP",
 	.queuecommand           = iscsi_queuecommand,
-	.change_queue_depth	= iscsi_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.can_queue		= ISCSI_DEF_XMIT_CMDS_MAX - 1,
 	.sg_tablesize		= 4096,
 	.max_sectors		= 0xFFFF,
@@ -960,6 +966,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.target_alloc		= iscsi_target_alloc,
 	.proc_name		= "iscsi_tcp",
 	.this_id		= -1,
+	.track_queue_depth	= 1,
 };
 
 static struct iscsi_transport iscsi_sw_tcp_transport = {

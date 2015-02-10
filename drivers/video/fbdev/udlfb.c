@@ -922,8 +922,7 @@ static void dlfb_free(struct kref *kref)
 {
 	struct dlfb_data *dev = container_of(kref, struct dlfb_data, kref);
 
-	if (dev->backing_buffer)
-		vfree(dev->backing_buffer);
+	vfree(dev->backing_buffer);
 
 	kfree(dev->edid);
 
@@ -953,8 +952,7 @@ static void dlfb_free_framebuffer(struct dlfb_data *dev)
 			fb_dealloc_cmap(&info->cmap);
 		if (info->monspecs.modedb)
 			fb_destroy_modedb(info->monspecs.modedb);
-		if (info->screen_base)
-			vfree(info->screen_base);
+		vfree(info->screen_base);
 
 		fb_destroy_modelist(&info->modelist);
 
@@ -1203,8 +1201,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dev, struct fb_info *info)
 		if (!new_back)
 			pr_info("No shadow/backing buffer allocated\n");
 		else {
-			if (dev->backing_buffer)
-				vfree(dev->backing_buffer);
+			vfree(dev->backing_buffer);
 			dev->backing_buffer = new_back;
 		}
 	}
@@ -1528,11 +1525,8 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dev,
 	}
 
 	if (total_len > 5) {
-		pr_info("vendor descriptor length:%x data:%02x %02x %02x %02x" \
-			"%02x %02x %02x %02x %02x %02x %02x\n",
-			total_len, desc[0],
-			desc[1], desc[2], desc[3], desc[4], desc[5], desc[6],
-			desc[7], desc[8], desc[9], desc[10]);
+		pr_info("vendor descriptor length:%x data:%11ph\n", total_len,
+			desc);
 
 		if ((desc[0] != total_len) || /* descriptor length */
 		    (desc[1] != 0x5f) ||   /* vendor descriptor type */

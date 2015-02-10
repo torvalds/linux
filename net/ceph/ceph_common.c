@@ -184,14 +184,6 @@ void *ceph_kvmalloc(size_t size, gfp_t flags)
 	return __vmalloc(size, flags | __GFP_HIGHMEM, PAGE_KERNEL);
 }
 
-void ceph_kvfree(const void *ptr)
-{
-	if (is_vmalloc_addr(ptr))
-		vfree(ptr);
-	else
-		kfree(ptr);
-}
-
 
 static int parse_fsid(const char *str, struct ceph_fsid *fsid)
 {
@@ -245,6 +237,8 @@ enum {
 	Opt_noshare,
 	Opt_crc,
 	Opt_nocrc,
+	Opt_cephx_require_signatures,
+	Opt_nocephx_require_signatures,
 };
 
 static match_table_t opt_tokens = {
@@ -263,6 +257,8 @@ static match_table_t opt_tokens = {
 	{Opt_noshare, "noshare"},
 	{Opt_crc, "crc"},
 	{Opt_nocrc, "nocrc"},
+	{Opt_cephx_require_signatures, "cephx_require_signatures"},
+	{Opt_nocephx_require_signatures, "nocephx_require_signatures"},
 	{-1, NULL}
 };
 
@@ -293,17 +289,20 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 		key_err = PTR_ERR(ukey);
 		switch (key_err) {
 		case -ENOKEY:
-			pr_warning("ceph: Mount failed due to key not found: %s\n", name);
+			pr_warn("ceph: Mount failed due to key not found: %s\n",
+				name);
 			break;
 		case -EKEYEXPIRED:
-			pr_warning("ceph: Mount failed due to expired key: %s\n", name);
+			pr_warn("ceph: Mount failed due to expired key: %s\n",
+				name);
 			break;
 		case -EKEYREVOKED:
-			pr_warning("ceph: Mount failed due to revoked key: %s\n", name);
+			pr_warn("ceph: Mount failed due to revoked key: %s\n",
+				name);
 			break;
 		default:
-			pr_warning("ceph: Mount failed due to unknown key error"
-			       " %d: %s\n", key_err, name);
+			pr_warn("ceph: Mount failed due to unknown key error %d: %s\n",
+				key_err, name);
 		}
 		err = -EPERM;
 		goto out;
@@ -433,7 +432,7 @@ ceph_parse_options(char *options, const char *dev_name,
 
 			/* misc */
 		case Opt_osdtimeout:
-			pr_warning("ignoring deprecated osdtimeout option\n");
+			pr_warn("ignoring deprecated osdtimeout option\n");
 			break;
 		case Opt_osdkeepalivetimeout:
 			opt->osd_keepalive_timeout = intval;
@@ -457,6 +456,12 @@ ceph_parse_options(char *options, const char *dev_name,
 			break;
 		case Opt_nocrc:
 			opt->flags |= CEPH_OPT_NOCRC;
+			break;
+		case Opt_cephx_require_signatures:
+			opt->flags &= ~CEPH_OPT_NOMSGAUTH;
+			break;
+		case Opt_nocephx_require_signatures:
+			opt->flags |= CEPH_OPT_NOMSGAUTH;
 			break;
 
 		default:
@@ -500,6 +505,9 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
 	mutex_init(&client->mount_mutex);
 	init_waitqueue_head(&client->auth_wq);
 	client->auth_err = 0;
+
+	if (!ceph_test_opt(client, NOMSGAUTH))
+		required_features |= CEPH_FEATURE_MSG_AUTH;
 
 	client->extra_mon_dispatch = NULL;
 	client->supported_features = CEPH_FEATURES_SUPPORTED_DEFAULT |

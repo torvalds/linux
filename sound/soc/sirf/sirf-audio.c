@@ -143,7 +143,6 @@ MODULE_DEVICE_TABLE(of, sirf_audio_of_match);
 static struct platform_driver sirf_audio_driver = {
 	.driver = {
 		.name = "sirf-audio-card",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = sirf_audio_of_match,
 	},

@@ -705,7 +705,7 @@ static int stb0899_send_diseqc_msg(struct dvb_frontend *fe, struct dvb_diseqc_ma
 	struct stb0899_state *state = fe->demodulator_priv;
 	u8 reg, i;
 
-	if (cmd->msg_len > 8)
+	if (cmd->msg_len > sizeof(cmd->msg))
 		return -EINVAL;
 
 	/* enable FIFO precharge	*/

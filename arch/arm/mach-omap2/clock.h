@@ -234,6 +234,7 @@ struct ti_clk_features {
 };
 
 #define TI_CLK_DPLL_HAS_FREQSEL		(1 << 0)
+#define TI_CLK_DPLL4_DENY_REPROGRAM	(1 << 1)
 
 extern struct ti_clk_features ti_clk_features;
 
@@ -268,8 +269,6 @@ extern const struct clksel_rate div_1_4_rates[];
 extern const struct clksel_rate div31_1to31_rates[];
 
 extern void __iomem *clk_memmaps[];
-
-extern int am33xx_clk_init(void);
 
 extern int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 extern void omap2_clkops_disable_clkdm(struct clk_hw *hw);

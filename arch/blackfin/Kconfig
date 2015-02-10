@@ -671,7 +671,7 @@ config TICKSOURCE_CORETMR
 	default y
 endmenu
 
-menu "Clock souce"
+menu "Clock source"
 	depends on GENERIC_CLOCKEVENTS
 config CYCLES_CLOCKSOURCE
 	bool "CYCLES"

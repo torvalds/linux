@@ -632,7 +632,7 @@ retry:
 		return -EOVERFLOW;
 	}
 
-	/* use rhsc irqs after khubd is fully initialized */
+	/* use rhsc irqs after hub_wq is allocated */
 	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	hcd->uses_new_polling = 1;
 
@@ -909,8 +909,8 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		 * choices for RHSC.  Many followed the spec; RHSC triggers
 		 * on an edge, like setting and maybe clearing a port status
 		 * change bit.  With others it's level-triggered, active
-		 * until khubd clears all the port status change bits.  We'll
-		 * always disable it here and rely on polling until khubd
+		 * until hub_wq clears all the port status change bits.  We'll
+		 * always disable it here and rely on polling until hub_wq
 		 * re-enables it.
 		 */
 		ohci_writel(ohci, OHCI_INTR_RHSC, &regs->intrdisable);
@@ -1247,11 +1247,6 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_MACH_JZ4740
 #include "ohci-jz4740.c"
 #define PLATFORM_DRIVER	ohci_hcd_jz4740_driver
-#endif
-
-#ifdef CONFIG_USB_OCTEON_OHCI
-#include "ohci-octeon.c"
-#define PLATFORM_DRIVER		ohci_octeon_driver
 #endif
 
 #ifdef CONFIG_TILE_USB

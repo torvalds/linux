@@ -17,10 +17,10 @@
  * Authors
  *
  *	Mitsuru KANDA @USAGI       : IPv6 Support
- * 	Kazunori MIYAZAWA @USAGI   :
- * 	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
+ *	Kazunori MIYAZAWA @USAGI   :
+ *	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  *
- * 	This file is derived from net/ipv4/esp.c
+ *	This file is derived from net/ipv4/esp.c
  */
 
 #define pr_fmt(fmt) "IPv6: " fmt
@@ -286,8 +286,8 @@ static int esp_input_done2(struct sk_buff *skb, int err)
 	err = -EINVAL;
 	padlen = nexthdr[0];
 	if (padlen + 2 + alen >= elen) {
-		LIMIT_NETDEBUG(KERN_WARNING "ipsec esp packet is garbage "
-			       "padlen=%d, elen=%d\n", padlen + 2, elen - alen);
+		net_dbg_ratelimited("ipsec esp packet is garbage padlen=%d, elen=%d\n",
+				    padlen + 2, elen - alen);
 		goto out;
 	}
 
@@ -345,7 +345,8 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		goto out;
 	}
 
-	if ((nfrags = skb_cow_data(skb, 0, &trailer)) < 0) {
+	nfrags = skb_cow_data(skb, 0, &trailer);
+	if (nfrags < 0) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -544,12 +545,12 @@ static int esp_init_authenc(struct xfrm_state *x)
 		BUG_ON(!aalg_desc);
 
 		err = -EINVAL;
-		if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
+		if (aalg_desc->uinfo.auth.icv_fullbits / 8 !=
 		    crypto_aead_authsize(aead)) {
-			NETDEBUG(KERN_INFO "ESP: %s digestsize %u != %hu\n",
-				 x->aalg->alg_name,
-				 crypto_aead_authsize(aead),
-				 aalg_desc->uinfo.auth.icv_fullbits/8);
+			pr_info("ESP: %s digestsize %u != %hu\n",
+				x->aalg->alg_name,
+				crypto_aead_authsize(aead),
+				aalg_desc->uinfo.auth.icv_fullbits / 8);
 			goto free_key;
 		}
 
@@ -598,7 +599,7 @@ static int esp6_init_state(struct xfrm_state *x)
 	case XFRM_MODE_BEET:
 		if (x->sel.family != AF_INET6)
 			x->props.header_len += IPV4_BEET_PHMAXLEN +
-				               (sizeof(struct ipv6hdr) - sizeof(struct iphdr));
+					       (sizeof(struct ipv6hdr) - sizeof(struct iphdr));
 		break;
 	case XFRM_MODE_TRANSPORT:
 		break;
@@ -621,11 +622,10 @@ static int esp6_rcv_cb(struct sk_buff *skb, int err)
 	return 0;
 }
 
-static const struct xfrm_type esp6_type =
-{
+static const struct xfrm_type esp6_type = {
 	.description	= "ESP6",
-	.owner	     	= THIS_MODULE,
-	.proto	     	= IPPROTO_ESP,
+	.owner		= THIS_MODULE,
+	.proto		= IPPROTO_ESP,
 	.flags		= XFRM_TYPE_REPLAY_PROT,
 	.init_state	= esp6_init_state,
 	.destructor	= esp6_destroy,

@@ -938,8 +938,8 @@ int plain_svc_wrap_bulk(struct ptlrpc_request *req,
 	rc = plain_generate_bulk_csum(desc, req->rq_flvr.u_bulk.hash.hash_alg,
 				      tokenv);
 	if (rc) {
-		CERROR("bulk read: server failed to compute "
-		       "checksum: %d\n", rc);
+		CERROR("bulk read: server failed to compute checksum: %d\n",
+		       rc);
 	} else {
 		if (OBD_FAIL_CHECK(OBD_FAIL_OSC_CHECKSUM_RECEIVE))
 			corrupt_bulk_data(desc);

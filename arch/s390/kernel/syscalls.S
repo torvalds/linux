@@ -359,3 +359,6 @@ SYSCALL(sys_renameat2,sys_renameat2,compat_sys_renameat2)
 SYSCALL(sys_seccomp,sys_seccomp,compat_sys_seccomp)
 SYSCALL(sys_getrandom,sys_getrandom,compat_sys_getrandom)
 SYSCALL(sys_memfd_create,sys_memfd_create,compat_sys_memfd_create) /* 350 */
+SYSCALL(sys_bpf,sys_bpf,compat_sys_bpf)
+SYSCALL(sys_ni_syscall,sys_s390_pci_mmio_write,compat_sys_s390_pci_mmio_write)
+SYSCALL(sys_ni_syscall,sys_s390_pci_mmio_read,compat_sys_s390_pci_mmio_read)

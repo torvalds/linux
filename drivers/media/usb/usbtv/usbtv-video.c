@@ -1,5 +1,5 @@
 /*
- * Fushicai USBTV007 Video Grabber Driver
+ * Fushicai USBTV007 Audio-Video Grabber Driver
  *
  * Product web site:
  * http://www.fushicai.com/products_detail/&productId=d05449ee-b690-42f9-a661-aa7353894bed.html
@@ -79,7 +79,6 @@ static int usbtv_select_input(struct usbtv *usbtv, int input)
 		{ USBTV_BASE + 0x011f, 0x00f2 },
 		{ USBTV_BASE + 0x0127, 0x0060 },
 		{ USBTV_BASE + 0x00ae, 0x0010 },
-		{ USBTV_BASE + 0x0284, 0x00aa },
 		{ USBTV_BASE + 0x0239, 0x0060 },
 	};
 
@@ -88,7 +87,6 @@ static int usbtv_select_input(struct usbtv *usbtv, int input)
 		{ USBTV_BASE + 0x011f, 0x00ff },
 		{ USBTV_BASE + 0x0127, 0x0060 },
 		{ USBTV_BASE + 0x00ae, 0x0030 },
-		{ USBTV_BASE + 0x0284, 0x0088 },
 		{ USBTV_BASE + 0x0239, 0x0060 },
 	};
 
@@ -225,7 +223,6 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 		{ USBTV_BASE + 0x0159, 0x0006 },
 		{ USBTV_BASE + 0x015d, 0x0000 },
 
-		{ USBTV_BASE + 0x0284, 0x0088 },
 		{ USBTV_BASE + 0x0003, 0x0004 },
 		{ USBTV_BASE + 0x0100, 0x00d3 },
 		{ USBTV_BASE + 0x0115, 0x0015 },
@@ -256,7 +253,7 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
  * 720 pixel lines, as the chunk is 240 words long, which is 480 pixels.
  * Therefore, we break down the chunk into two halves before copyting,
  * so that we can interleave a line if needed. */
-static void usbtv_chunk_to_vbuf(u32 *frame, u32 *src, int chunk_no, int odd)
+static void usbtv_chunk_to_vbuf(u32 *frame, __be32 *src, int chunk_no, int odd)
 {
 	int half;
 
@@ -266,6 +263,7 @@ static void usbtv_chunk_to_vbuf(u32 *frame, u32 *src, int chunk_no, int odd)
 		int part_index = (line * 2 + !odd) * 3 + (part_no % 3);
 
 		u32 *dst = &frame[part_index * USBTV_CHUNK/2];
+
 		memcpy(dst, src, USBTV_CHUNK/2 * sizeof(*src));
 		src += USBTV_CHUNK/2;
 	}
@@ -274,7 +272,7 @@ static void usbtv_chunk_to_vbuf(u32 *frame, u32 *src, int chunk_no, int odd)
 /* Called for each 256-byte image chunk.
  * First word identifies the chunk, followed by 240 words of image
  * data and padding. */
-static void usbtv_image_chunk(struct usbtv *usbtv, u32 *chunk)
+static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 {
 	int frame_id, odd, chunk_no;
 	u32 *frame;
@@ -365,7 +363,7 @@ static void usbtv_iso_cb(struct urb *ip)
 
 		for (offset = 0; USBTV_CHUNK_SIZE * offset < size; offset++)
 			usbtv_image_chunk(usbtv,
-				(u32 *)&data[USBTV_CHUNK_SIZE * offset]);
+				(__be32 *)&data[USBTV_CHUNK_SIZE * offset]);
 	}
 
 resubmit:
@@ -410,6 +408,7 @@ static void usbtv_stop(struct usbtv *usbtv)
 	/* Cancel running transfers. */
 	for (i = 0; i < USBTV_ISOC_TRANSFERS; i++) {
 		struct urb *ip = usbtv->isoc_urbs[i];
+
 		if (ip == NULL)
 			continue;
 		usb_kill_urb(ip);
@@ -434,6 +433,8 @@ static int usbtv_start(struct usbtv *usbtv)
 	int i;
 	int ret;
 
+	usbtv_audio_suspend(usbtv);
+
 	ret = usb_set_interface(usbtv->udev, 0, 0);
 	if (ret < 0)
 		return ret;
@@ -445,6 +446,8 @@ static int usbtv_start(struct usbtv *usbtv)
 	ret = usb_set_interface(usbtv->udev, 0, 1);
 	if (ret < 0)
 		return ret;
+
+	usbtv_audio_resume(usbtv);
 
 	for (i = 0; i < USBTV_ISOC_TRANSFERS; i++) {
 		struct urb *ip;
@@ -559,6 +562,7 @@ static int usbtv_g_input(struct file *file, void *priv, unsigned int *i)
 static int usbtv_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct usbtv *usbtv = video_drvdata(file);
+
 	return usbtv_select_input(usbtv, i);
 }
 

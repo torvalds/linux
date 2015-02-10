@@ -154,7 +154,7 @@ SYSCALL_DEFINE1(syncfs, int, fd)
 
 	if (!f.file)
 		return -EBADF;
-	sb = f.file->f_dentry->d_sb;
+	sb = f.file->f_path.dentry->d_sb;
 
 	down_read(&sb->s_umount);
 	ret = sync_filesystem(sb);

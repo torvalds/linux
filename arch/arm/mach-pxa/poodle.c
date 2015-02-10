@@ -446,7 +446,7 @@ static void __init poodle_init(void)
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret)
-		pr_warning("poodle: Unable to register LoCoMo device\n");
+		pr_warn("poodle: Unable to register LoCoMo device\n");
 
 	pxa_set_fb_info(&poodle_locomo_device.dev, &poodle_fb_info);
 	pxa_set_udc_info(&udc_info);

@@ -23,9 +23,7 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_inum.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_da_format.h"
@@ -654,7 +652,7 @@ xfs_ialloc(
 	xfs_inode_t	*ip;
 	uint		flags;
 	int		error;
-	timespec_t	tv;
+	struct timespec	tv;
 
 	/*
 	 * Call the space management code to pick
@@ -720,7 +718,7 @@ xfs_ialloc(
 	ip->i_d.di_nextents = 0;
 	ASSERT(ip->i_d.di_nblocks == 0);
 
-	nanotime(&tv);
+	tv = current_fs_time(mp->m_super);
 	ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
 	ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
 	ip->i_d.di_atime = ip->i_d.di_mtime;
@@ -769,6 +767,8 @@ xfs_ialloc(
 					di_flags |= XFS_DIFLAG_EXTSZINHERIT;
 					ip->i_d.di_extsize = pip->i_d.di_extsize;
 				}
+				if (pip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+					di_flags |= XFS_DIFLAG_PROJINHERIT;
 			} else if (S_ISREG(mode)) {
 				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
 					di_flags |= XFS_DIFLAG_REALTIME;
@@ -789,8 +789,6 @@ xfs_ialloc(
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NOSYMLINKS) &&
 			    xfs_inherit_nosymlinks)
 				di_flags |= XFS_DIFLAG_NOSYMLINKS;
-			if (pip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
-				di_flags |= XFS_DIFLAG_PROJINHERIT;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NODEFRAG) &&
 			    xfs_inherit_nodefrag)
 				di_flags |= XFS_DIFLAG_NODEFRAG;
@@ -1082,7 +1080,7 @@ xfs_create(
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*gdqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
-	struct xfs_trans_res	tres;
+	struct xfs_trans_res	*tres;
 	uint			resblks;
 
 	trace_xfs_create(dp, name);
@@ -1105,13 +1103,11 @@ xfs_create(
 	if (is_dir) {
 		rdev = 0;
 		resblks = XFS_MKDIR_SPACE_RES(mp, name->len);
-		tres.tr_logres = M_RES(mp)->tr_mkdir.tr_logres;
-		tres.tr_logcount = XFS_MKDIR_LOG_COUNT;
+		tres = &M_RES(mp)->tr_mkdir;
 		tp = xfs_trans_alloc(mp, XFS_TRANS_MKDIR);
 	} else {
 		resblks = XFS_CREATE_SPACE_RES(mp, name->len);
-		tres.tr_logres = M_RES(mp)->tr_create.tr_logres;
-		tres.tr_logcount = XFS_CREATE_LOG_COUNT;
+		tres = &M_RES(mp)->tr_create;
 		tp = xfs_trans_alloc(mp, XFS_TRANS_CREATE);
 	}
 
@@ -1123,17 +1119,16 @@ xfs_create(
 	 * the case we'll drop the one we have and get a more
 	 * appropriate transaction later.
 	 */
-	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
-	error = xfs_trans_reserve(tp, &tres, resblks, 0);
+	error = xfs_trans_reserve(tp, tres, resblks, 0);
 	if (error == -ENOSPC) {
 		/* flush outstanding delalloc blocks and retry */
 		xfs_flush_inodes(mp);
-		error = xfs_trans_reserve(tp, &tres, resblks, 0);
+		error = xfs_trans_reserve(tp, tres, resblks, 0);
 	}
 	if (error == -ENOSPC) {
 		/* No space at all so try a "no-allocation" reservation */
 		resblks = 0;
-		error = xfs_trans_reserve(tp, &tres, 0, 0);
+		error = xfs_trans_reserve(tp, tres, 0, 0);
 	}
 	if (error) {
 		cancel_flags = 0;
@@ -1153,9 +1148,11 @@ xfs_create(
 	if (error)
 		goto out_trans_cancel;
 
-	error = xfs_dir_canenter(tp, dp, name, resblks);
-	if (error)
-		goto out_trans_cancel;
+	if (!resblks) {
+		error = xfs_dir_canenter(tp, dp, name);
+		if (error)
+			goto out_trans_cancel;
+	}
 
 	/*
 	 * A newly created regular or special file just has one directory
@@ -1421,9 +1418,11 @@ xfs_link(
 		goto error_return;
 	}
 
-	error = xfs_dir_canenter(tp, tdp, target_name, resblks);
-	if (error)
-		goto error_return;
+	if (!resblks) {
+		error = xfs_dir_canenter(tp, tdp, target_name);
+		if (error)
+			goto error_return;
+	}
 
 	xfs_bmap_init(&free_list, &first_block);
 
@@ -2484,9 +2483,7 @@ xfs_remove(
 	xfs_fsblock_t           first_block;
 	int			cancel_flags;
 	int			committed;
-	int			link_zero;
 	uint			resblks;
-	uint			log_count;
 
 	trace_xfs_remove(dp, name);
 
@@ -2501,13 +2498,10 @@ xfs_remove(
 	if (error)
 		goto std_return;
 
-	if (is_dir) {
+	if (is_dir)
 		tp = xfs_trans_alloc(mp, XFS_TRANS_RMDIR);
-		log_count = XFS_DEFAULT_LOG_COUNT;
-	} else {
+	else
 		tp = xfs_trans_alloc(mp, XFS_TRANS_REMOVE);
-		log_count = XFS_REMOVE_LOG_COUNT;
-	}
 	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 
 	/*
@@ -2574,9 +2568,6 @@ xfs_remove(
 	error = xfs_droplink(tp, ip);
 	if (error)
 		goto out_trans_cancel;
-
-	/* Determine if this is the last link while the inode is locked */
-	link_zero = (ip->i_d.di_nlink == 0);
 
 	xfs_bmap_init(&free_list, &first_block);
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino,
@@ -2759,9 +2750,11 @@ xfs_rename(
 		 * If there's no space reservation, check the entry will
 		 * fit before actually inserting it.
 		 */
-		error = xfs_dir_canenter(tp, target_dp, target_name, spaceres);
-		if (error)
-			goto error_return;
+		if (!spaceres) {
+			error = xfs_dir_canenter(tp, target_dp, target_name);
+			if (error)
+				goto error_return;
+		}
 		/*
 		 * If target does not exist and the rename crosses
 		 * directories, adjust the target directory link count
@@ -3056,7 +3049,7 @@ cluster_corrupt_out:
 			XFS_BUF_UNDONE(bp);
 			xfs_buf_stale(bp);
 			xfs_buf_ioerror(bp, -EIO);
-			xfs_buf_ioend(bp, 0);
+			xfs_buf_ioend(bp);
 		} else {
 			xfs_buf_stale(bp);
 			xfs_buf_relse(bp);

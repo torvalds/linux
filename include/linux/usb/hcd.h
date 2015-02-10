@@ -93,7 +93,7 @@ struct usb_hcd {
 
 	struct timer_list	rh_timer;	/* drives root-hub polling */
 	struct urb		*status_urb;	/* the current status urb */
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	struct work_struct	wakeup_work;	/* for remote wakeup */
 #endif
 
@@ -106,7 +106,8 @@ struct usb_hcd {
 	 * OTG and some Host controllers need software interaction with phys;
 	 * other external phys should be software-transparent
 	 */
-	struct usb_phy	*phy;
+	struct usb_phy		*usb_phy;
+	struct phy		*phy;
 
 	/* Flags that need to be manipulated atomically because they can
 	 * change while the host controller is running.  Always use
@@ -144,6 +145,7 @@ struct usb_hcd {
 	unsigned		has_tt:1;	/* Integrated TT in root hub */
 	unsigned		amd_resume_bug:1; /* AMD remote wakeup quirk */
 	unsigned		can_do_streams:1; /* HC supports streams */
+	unsigned		tpl_support:1; /* OTG & EH TPL support */
 
 	unsigned int		irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
@@ -377,6 +379,9 @@ struct hc_driver {
 	int	(*disable_usb3_lpm_timeout)(struct usb_hcd *,
 			struct usb_device *, enum usb3_link_state state);
 	int	(*find_raw_port_number)(struct usb_hcd *, int);
+	/* Call for power on/off the port if necessary */
+	int	(*port_power)(struct usb_hcd *hcd, int portnum, bool enable);
+
 };
 
 static inline int hcd_giveback_urb_in_bh(struct usb_hcd *hcd)
@@ -623,16 +628,13 @@ extern int usb_find_interface_driver(struct usb_device *dev,
 extern void usb_root_hub_lost_power(struct usb_device *rhdev);
 extern int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg);
 extern int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg);
-#endif /* CONFIG_PM */
-
-#ifdef CONFIG_PM_RUNTIME
 extern void usb_hcd_resume_root_hub(struct usb_hcd *hcd);
 #else
 static inline void usb_hcd_resume_root_hub(struct usb_hcd *hcd)
 {
 	return;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 /*-------------------------------------------------------------------------*/
 

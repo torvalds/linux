@@ -185,7 +185,6 @@ static struct platform_driver msm_rng_driver = {
 	.remove = msm_rng_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(msm_rng_of_match),
 	}
 };

@@ -40,7 +40,8 @@ const char *reserved_field_names[] = {
 int PRINT_TYPE_FUNC_NAME(type)(struct trace_seq *s, const char *name,	\
 				void *data, void *ent)			\
 {									\
-	return trace_seq_printf(s, " %s=" fmt, name, *(type *)data);	\
+	trace_seq_printf(s, " %s=" fmt, name, *(type *)data);		\
+	return !trace_seq_has_overflowed(s);				\
 }									\
 const char PRINT_TYPE_FMT_NAME(type)[] = fmt;				\
 NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(type));
@@ -61,10 +62,11 @@ int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, const char *name,
 	int len = *(u32 *)data >> 16;
 
 	if (!len)
-		return trace_seq_printf(s, " %s=(fault)", name);
+		trace_seq_printf(s, " %s=(fault)", name);
 	else
-		return trace_seq_printf(s, " %s=\"%s\"", name,
-					(const char *)get_loc_data(data, ent));
+		trace_seq_printf(s, " %s=\"%s\"", name,
+				 (const char *)get_loc_data(data, ent));
+	return !trace_seq_has_overflowed(s);
 }
 NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(string));
 

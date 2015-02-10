@@ -35,6 +35,8 @@
 #define DONT_APPRAISE	0x0008
 #define AUDIT		0x0040
 
+int ima_policy_flag;
+
 #define MAX_LSM_RULES 6
 enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
 	LSM_SUBJ_USER, LSM_SUBJ_ROLE, LSM_SUBJ_TYPE
@@ -98,7 +100,13 @@ static struct ima_rule_entry default_appraise_rules[] = {
 	{.action = DONT_APPRAISE, .fsmagic = SECURITYFS_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_APPRAISE, .fsmagic = SELINUX_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_APPRAISE, .fsmagic = CGROUP_SUPER_MAGIC, .flags = IMA_FSMAGIC},
+#ifndef CONFIG_IMA_APPRAISE_SIGNED_INIT
 	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .flags = IMA_FOWNER},
+#else
+	/* force signature */
+	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID,
+	 .flags = IMA_FOWNER | IMA_DIGSIG_REQUIRED},
+#endif
 };
 
 static LIST_HEAD(ima_default_rules);
@@ -295,6 +303,26 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 	return action;
 }
 
+/*
+ * Initialize the ima_policy_flag variable based on the currently
+ * loaded policy.  Based on this flag, the decision to short circuit
+ * out of a function or not call the function in the first place
+ * can be made earlier.
+ */
+void ima_update_policy_flag(void)
+{
+	struct ima_rule_entry *entry;
+
+	ima_policy_flag = 0;
+	list_for_each_entry(entry, ima_rules, list) {
+		if (entry->action & IMA_DO_MASK)
+			ima_policy_flag |= entry->action;
+	}
+
+	if (!ima_appraise)
+		ima_policy_flag &= ~IMA_APPRAISE;
+}
+
 /**
  * ima_init_policy - initialize the default measure rules.
  *
@@ -334,18 +362,8 @@ void __init ima_init_policy(void)
  */
 void ima_update_policy(void)
 {
-	static const char op[] = "policy_update";
-	const char *cause = "already-exists";
-	int result = 1;
-	int audit_info = 0;
-
-	if (ima_rules == &ima_default_rules) {
-		ima_rules = &ima_policy_rules;
-		cause = "complete";
-		result = 0;
-	}
-	integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL,
-			    NULL, op, cause, result, audit_info);
+	ima_rules = &ima_policy_rules;
+	ima_update_policy_flag();
 }
 
 enum {
@@ -663,13 +681,12 @@ ssize_t ima_parse_add_rule(char *rule)
 	ssize_t result, len;
 	int audit_info = 0;
 
-	/* Prevent installed policy from changing */
-	if (ima_rules != &ima_default_rules) {
-		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL,
-				    NULL, op, "already-exists",
-				    -EACCES, audit_info);
-		return -EACCES;
-	}
+	p = strsep(&rule, "\n");
+	len = strlen(p) + 1;
+	p += strspn(p, " \t");
+
+	if (*p == '#' || *p == '\0')
+		return len;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
@@ -679,14 +696,6 @@ ssize_t ima_parse_add_rule(char *rule)
 	}
 
 	INIT_LIST_HEAD(&entry->list);
-
-	p = strsep(&rule, "\n");
-	len = strlen(p) + 1;
-
-	if (*p == '#') {
-		kfree(entry);
-		return len;
-	}
 
 	result = ima_parse_rule(p, entry);
 	if (result) {

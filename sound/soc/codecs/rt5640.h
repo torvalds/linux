@@ -2097,4 +2097,7 @@ struct rt5640_priv {
 	bool hp_mute;
 };
 
+int rt5640_dmic_enable(struct snd_soc_codec *codec,
+		       bool dmic1_data_pin, bool dmic2_data_pin);
+
 #endif

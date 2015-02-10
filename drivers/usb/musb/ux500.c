@@ -56,7 +56,7 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 
 	if (is_on) {
-		if (musb->xceiv->state == OTG_STATE_A_IDLE) {
+		if (musb->xceiv->otg->state == OTG_STATE_A_IDLE) {
 			/* start the session */
 			devctl |= MUSB_DEVCTL_SESSION;
 			musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
@@ -76,7 +76,7 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 		} else {
 			musb->is_active = 1;
 			musb->xceiv->otg->default_a = 1;
-			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			devctl |= MUSB_DEVCTL_SESSION;
 			MUSB_HST_MODE(musb);
 		}
@@ -102,7 +102,7 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 		mdelay(200);
 
 	dev_dbg(musb->controller, "VBUS %s, devctl %02x\n",
-		usb_otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->otg->state),
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
@@ -112,7 +112,7 @@ static int musb_otg_notifications(struct notifier_block *nb,
 	struct musb *musb = container_of(nb, struct musb, nb);
 
 	dev_dbg(musb->controller, "musb_otg_notifications %ld %s\n",
-			event, usb_otg_state_string(musb->xceiv->state));
+			event, usb_otg_state_string(musb->xceiv->otg->state));
 
 	switch (event) {
 	case UX500_MUSB_ID:
@@ -127,7 +127,7 @@ static int musb_otg_notifications(struct notifier_block *nb,
 		if (is_host_active(musb))
 			ux500_musb_set_vbus(musb, 0);
 		else
-			musb->xceiv->state = OTG_STATE_B_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		break;
 	default:
 		dev_dbg(musb->controller, "ID float\n");
@@ -188,8 +188,10 @@ static int ux500_musb_exit(struct musb *musb)
 }
 
 static const struct musb_platform_ops ux500_ops = {
+	.quirks		= MUSB_INDEXED_EP,
 	.init		= ux500_musb_init,
 	.exit		= ux500_musb_exit,
+	.fifo_mode	= 5,
 
 	.set_vbus	= ux500_musb_set_vbus,
 };
@@ -247,10 +249,8 @@ static int ux500_probe(struct platform_device *pdev)
 	}
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "failed to allocate glue context\n");
+	if (!glue)
 		goto err0;
-	}
 
 	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {

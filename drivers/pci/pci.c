@@ -1003,13 +1003,16 @@ int pci_save_state(struct pci_dev *dev)
 	for (i = 0; i < 16; i++)
 		pci_read_config_dword(dev, i * 4, &dev->saved_config_space[i]);
 	dev->state_saved = true;
-	if ((i = pci_save_pcie_state(dev)) != 0)
+
+	i = pci_save_pcie_state(dev);
+	if (i != 0)
 		return i;
-	if ((i = pci_save_pcix_state(dev)) != 0)
+
+	i = pci_save_pcix_state(dev);
+	if (i != 0)
 		return i;
-	if ((i = pci_save_vc_state(dev)) != 0)
-		return i;
-	return 0;
+
+	return pci_save_vc_state(dev);
 }
 EXPORT_SYMBOL(pci_save_state);
 
@@ -1135,8 +1138,8 @@ EXPORT_SYMBOL_GPL(pci_store_saved_state);
  * @dev: PCI device that we're dealing with
  * @state: Saved state returned from pci_store_saved_state()
  */
-static int pci_load_saved_state(struct pci_dev *dev,
-				struct pci_saved_state *state)
+int pci_load_saved_state(struct pci_dev *dev,
+			 struct pci_saved_state *state)
 {
 	struct pci_cap_saved_data *cap;
 
@@ -1164,6 +1167,7 @@ static int pci_load_saved_state(struct pci_dev *dev,
 	dev->state_saved = true;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_load_saved_state);
 
 /**
  * pci_load_and_free_saved_state - Reload the save state pointed to by state,
@@ -1906,10 +1910,6 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 
 	if (target_state == PCI_POWER_ERROR)
 		return -EIO;
-
-	/* D3cold during system suspend/hibernate is not supported */
-	if (target_state > PCI_D3hot)
-		target_state = PCI_D3hot;
 
 	pci_enable_wake(dev, target_state, device_may_wakeup(&dev->dev));
 
@@ -2704,6 +2704,37 @@ int pci_request_regions_exclusive(struct pci_dev *pdev, const char *res_name)
 }
 EXPORT_SYMBOL(pci_request_regions_exclusive);
 
+/**
+ *	pci_remap_iospace - Remap the memory mapped I/O space
+ *	@res: Resource describing the I/O space
+ *	@phys_addr: physical address of range to be mapped
+ *
+ *	Remap the memory mapped I/O space described by the @res
+ *	and the CPU physical address @phys_addr into virtual address space.
+ *	Only architectures that have memory mapped IO functions defined
+ *	(and the PCI_IOBASE value defined) should call this function.
+ */
+int __weak pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr)
+{
+#if defined(PCI_IOBASE) && defined(CONFIG_MMU)
+	unsigned long vaddr = (unsigned long)PCI_IOBASE + res->start;
+
+	if (!(res->flags & IORESOURCE_IO))
+		return -EINVAL;
+
+	if (res->end > IO_SPACE_LIMIT)
+		return -EINVAL;
+
+	return ioremap_page_range(vaddr, vaddr + resource_size(res), phys_addr,
+				  pgprot_device(PAGE_KERNEL));
+#else
+	/* this architecture does not have memory mapped I/O space,
+	   so this function should never be called */
+	WARN_ONCE(1, "This architecture does not support memory mapped I/O\n");
+	return -ENODEV;
+#endif
+}
+
 static void __pci_set_master(struct pci_dev *dev, bool enable)
 {
 	u16 old_cmd, cmd;
@@ -3110,12 +3141,10 @@ static int pcie_flr(struct pci_dev *dev, int probe)
 		return 0;
 
 	if (!pci_wait_for_pending_transaction(dev))
-		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
+		dev_err(&dev->dev, "timed out waiting for pending transaction; performing function level reset anyway\n");
 
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
-
 	msleep(100);
-
 	return 0;
 }
 
@@ -3140,16 +3169,12 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 	 * is used, so we use the conrol offset rather than status and shift
 	 * the test bit to match.
 	 */
-	if (pci_wait_for_pending(dev, pos + PCI_AF_CTRL,
+	if (!pci_wait_for_pending(dev, pos + PCI_AF_CTRL,
 				 PCI_AF_STATUS_TP << 8))
-		goto clear;
+		dev_err(&dev->dev, "timed out waiting for pending transaction; performing AF function level reset anyway\n");
 
-	dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
-
-clear:
 	pci_write_config_byte(dev, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
 	msleep(100);
-
 	return 0;
 }
 
@@ -4146,7 +4171,8 @@ int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 		return dev->rom_base_reg;
 	} else if (resno < PCI_BRIDGE_RESOURCES) {
 		/* device specific resource */
-		reg = pci_iov_resource_bar(dev, resno, type);
+		*type = pci_bar_unknown;
+		reg = pci_iov_resource_bar(dev, resno);
 		if (reg)
 			return reg;
 	}
@@ -4405,6 +4431,15 @@ static void pci_no_domains(void)
 	pci_domains_supported = 0;
 #endif
 }
+
+#ifdef CONFIG_PCI_DOMAINS
+static atomic_t __domain_nr = ATOMIC_INIT(-1);
+
+int pci_get_new_domain_nr(void)
+{
+	return atomic_inc_return(&__domain_nr);
+}
+#endif
 
 /**
  * pci_ext_cfg_avail - can we access extended PCI config space?

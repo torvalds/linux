@@ -380,7 +380,7 @@ static struct fault_info {
 	{ do_bad,		SIGBUS,  0,		"level 1 address size fault"	},
 	{ do_bad,		SIGBUS,  0,		"level 2 address size fault"	},
 	{ do_bad,		SIGBUS,  0,		"level 3 address size fault"	},
-	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"input address range fault"	},
+	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 0 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 1 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 2 translation fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_MAPERR,	"level 3 translation fault"	},

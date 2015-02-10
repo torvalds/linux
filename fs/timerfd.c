@@ -288,7 +288,7 @@ static ssize_t timerfd_read(struct file *file, char __user *buf, size_t count,
 }
 
 #ifdef CONFIG_PROC_FS
-static int timerfd_show(struct seq_file *m, struct file *file)
+static void timerfd_show(struct seq_file *m, struct file *file)
 {
 	struct timerfd_ctx *ctx = file->private_data;
 	struct itimerspec t;
@@ -298,18 +298,19 @@ static int timerfd_show(struct seq_file *m, struct file *file)
 	t.it_interval = ktime_to_timespec(ctx->tintv);
 	spin_unlock_irq(&ctx->wqh.lock);
 
-	return seq_printf(m,
-			  "clockid: %d\n"
-			  "ticks: %llu\n"
-			  "settime flags: 0%o\n"
-			  "it_value: (%llu, %llu)\n"
-			  "it_interval: (%llu, %llu)\n",
-			  ctx->clockid, (unsigned long long)ctx->ticks,
-			  ctx->settime_flags,
-			  (unsigned long long)t.it_value.tv_sec,
-			  (unsigned long long)t.it_value.tv_nsec,
-			  (unsigned long long)t.it_interval.tv_sec,
-			  (unsigned long long)t.it_interval.tv_nsec);
+	seq_printf(m,
+		   "clockid: %d\n"
+		   "ticks: %llu\n"
+		   "settime flags: 0%o\n"
+		   "it_value: (%llu, %llu)\n"
+		   "it_interval: (%llu, %llu)\n",
+		   ctx->clockid,
+		   (unsigned long long)ctx->ticks,
+		   ctx->settime_flags,
+		   (unsigned long long)t.it_value.tv_sec,
+		   (unsigned long long)t.it_value.tv_nsec,
+		   (unsigned long long)t.it_interval.tv_sec,
+		   (unsigned long long)t.it_interval.tv_nsec);
 }
 #else
 #define timerfd_show NULL
@@ -333,8 +334,7 @@ static long timerfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		spin_lock_irq(&ctx->wqh.lock);
 		if (!timerfd_canceled(ctx)) {
 			ctx->ticks = ticks;
-			if (ticks)
-				wake_up_locked(&ctx->wqh);
+			wake_up_locked(&ctx->wqh);
 		} else
 			ret = -ECANCELED;
 		spin_unlock_irq(&ctx->wqh.lock);

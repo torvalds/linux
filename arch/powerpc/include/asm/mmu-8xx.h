@@ -56,6 +56,7 @@
  * additional information from the MI_EPN, and MI_TWC registers.
  */
 #define SPRN_MI_RPN	790
+#define MI_SPS16K	0x00000008	/* Small page size (0 = 4k, 1 = 16k) */
 
 /* Define an RPN value for mapping kernel memory to large virtual
  * pages for boot initialization.  This has real page number of 0,
@@ -129,6 +130,7 @@
  * additional information from the MD_EPN, and MD_TWC registers.
  */
 #define SPRN_MD_RPN	798
+#define MD_SPS16K	0x00000008	/* Small page size (0 = 4k, 1 = 16k) */
 
 /* This is a temporary storage register that could be used to save
  * a processor working register during a tablewalk.

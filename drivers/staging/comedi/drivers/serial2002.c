@@ -742,7 +742,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	/* digital output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 0;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -760,7 +760,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	/* analog output subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 0;
 	s->maxdata	= 1;
 	s->range_table	= NULL;

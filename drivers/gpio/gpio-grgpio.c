@@ -441,6 +441,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 	err = gpiochip_add(gc);
 	if (err) {
 		dev_err(&ofdev->dev, "Could not add gpiochip\n");
+		irq_domain_remove(priv->domain);
 		return err;
 	}
 
@@ -490,7 +491,6 @@ MODULE_DEVICE_TABLE(of, grgpio_match);
 static struct platform_driver grgpio_driver = {
 	.driver = {
 		.name = "grgpio",
-		.owner = THIS_MODULE,
 		.of_match_table = grgpio_match,
 	},
 	.probe = grgpio_probe,

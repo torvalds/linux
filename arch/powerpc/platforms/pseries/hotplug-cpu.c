@@ -90,7 +90,7 @@ static void rtas_stop_self(void)
 {
 	static struct rtas_args args = {
 		.nargs = 0,
-		.nret = 1,
+		.nret = cpu_to_be32(1),
 		.rets = &args.args[0],
 	};
 
@@ -247,7 +247,7 @@ static int pseries_add_processor(struct device_node *np)
 	unsigned int cpu;
 	cpumask_var_t candidate_mask, tmp;
 	int err = -ENOSPC, len, nthreads, i;
-	const u32 *intserv;
+	const __be32 *intserv;
 
 	intserv = of_get_property(np, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
@@ -293,7 +293,7 @@ static int pseries_add_processor(struct device_node *np)
 	for_each_cpu(cpu, tmp) {
 		BUG_ON(cpu_present(cpu));
 		set_cpu_present(cpu, true);
-		set_hard_smp_processor_id(cpu, *intserv++);
+		set_hard_smp_processor_id(cpu, be32_to_cpu(*intserv++));
 	}
 	err = 0;
 out_unlock:
@@ -312,7 +312,8 @@ static void pseries_remove_processor(struct device_node *np)
 {
 	unsigned int cpu;
 	int len, nthreads, i;
-	const u32 *intserv;
+	const __be32 *intserv;
+	u32 thread;
 
 	intserv = of_get_property(np, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
@@ -322,8 +323,9 @@ static void pseries_remove_processor(struct device_node *np)
 
 	cpu_maps_update_begin();
 	for (i = 0; i < nthreads; i++) {
+		thread = be32_to_cpu(intserv[i]);
 		for_each_present_cpu(cpu) {
-			if (get_hard_smp_processor_id(cpu) != intserv[i])
+			if (get_hard_smp_processor_id(cpu) != thread)
 				continue;
 			BUG_ON(cpu_online(cpu));
 			set_cpu_present(cpu, false);
@@ -332,22 +334,23 @@ static void pseries_remove_processor(struct device_node *np)
 		}
 		if (cpu >= nr_cpu_ids)
 			printk(KERN_WARNING "Could not find cpu to remove "
-			       "with physical id 0x%x\n", intserv[i]);
+			       "with physical id 0x%x\n", thread);
 	}
 	cpu_maps_update_done();
 }
 
 static int pseries_smp_notifier(struct notifier_block *nb,
-				unsigned long action, void *node)
+				unsigned long action, void *data)
 {
+	struct of_reconfig_data *rd = data;
 	int err = 0;
 
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
-		err = pseries_add_processor(node);
+		err = pseries_add_processor(rd->dn);
 		break;
 	case OF_RECONFIG_DETACH_NODE:
-		pseries_remove_processor(node);
+		pseries_remove_processor(rd->dn);
 		break;
 	}
 	return notifier_from_errno(err);

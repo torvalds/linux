@@ -99,42 +99,42 @@ static inline void tegra_irq_write_mask(unsigned int irq, unsigned long reg)
 
 static void tegra_mask(struct irq_data *d)
 {
-	if (d->irq < FIRST_LEGACY_IRQ)
+	if (d->hwirq < FIRST_LEGACY_IRQ)
 		return;
 
-	tegra_irq_write_mask(d->irq, ICTLR_CPU_IER_CLR);
+	tegra_irq_write_mask(d->hwirq, ICTLR_CPU_IER_CLR);
 }
 
 static void tegra_unmask(struct irq_data *d)
 {
-	if (d->irq < FIRST_LEGACY_IRQ)
+	if (d->hwirq < FIRST_LEGACY_IRQ)
 		return;
 
-	tegra_irq_write_mask(d->irq, ICTLR_CPU_IER_SET);
+	tegra_irq_write_mask(d->hwirq, ICTLR_CPU_IER_SET);
 }
 
 static void tegra_ack(struct irq_data *d)
 {
-	if (d->irq < FIRST_LEGACY_IRQ)
+	if (d->hwirq < FIRST_LEGACY_IRQ)
 		return;
 
-	tegra_irq_write_mask(d->irq, ICTLR_CPU_IEP_FIR_CLR);
+	tegra_irq_write_mask(d->hwirq, ICTLR_CPU_IEP_FIR_CLR);
 }
 
 static void tegra_eoi(struct irq_data *d)
 {
-	if (d->irq < FIRST_LEGACY_IRQ)
+	if (d->hwirq < FIRST_LEGACY_IRQ)
 		return;
 
-	tegra_irq_write_mask(d->irq, ICTLR_CPU_IEP_FIR_CLR);
+	tegra_irq_write_mask(d->hwirq, ICTLR_CPU_IEP_FIR_CLR);
 }
 
 static int tegra_retrigger(struct irq_data *d)
 {
-	if (d->irq < FIRST_LEGACY_IRQ)
+	if (d->hwirq < FIRST_LEGACY_IRQ)
 		return 0;
 
-	tegra_irq_write_mask(d->irq, ICTLR_CPU_IEP_FIR_SET);
+	tegra_irq_write_mask(d->hwirq, ICTLR_CPU_IEP_FIR_SET);
 
 	return 1;
 }
@@ -142,7 +142,7 @@ static int tegra_retrigger(struct irq_data *d)
 #ifdef CONFIG_PM_SLEEP
 static int tegra_set_wake(struct irq_data *d, unsigned int enable)
 {
-	u32 irq = d->irq;
+	u32 irq = d->hwirq;
 	u32 index, mask;
 
 	if (irq < FIRST_LEGACY_IRQ ||

@@ -54,10 +54,8 @@ static int tegra_ion_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, idev);
 	return 0;
 err:
-	for (i = 0; i < num_heaps; i++) {
-		if (heaps[i])
-			ion_heap_destroy(heaps[i]);
-	}
+	for (i = 0; i < num_heaps; ++i)
+		ion_heap_destroy(heaps[i]);
 	return err;
 }
 

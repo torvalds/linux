@@ -143,6 +143,7 @@ static inline bool synth_full(void)
 static char *oops(void)
 {
 	int s1, s2, s3, s4;
+
 	s1 = inb_p(synth_port);
 	s2 = inb_p(synth_port+1);
 	s3 = inb_p(synth_port+2);
@@ -155,6 +156,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
 	u_char ch;
 	int timeout;
+
 	while ((ch = *buf)) {
 		if (ch == '\n')
 			ch = PROCSPEECH;
@@ -227,7 +229,7 @@ spin_lock_irqsave(&speakup_info.spinlock, flags);
 			ch = PROCSPEECH;
 		outb_p(ch, synth_port);
 		SWAIT;
-		if ((jiffies >= jiff_max) && (ch == SPACE)) {
+		if (time_after_eq(jiffies, jiff_max) && (ch == SPACE)) {
 			timeout = 1000;
 			while (synth_writable())
 				if (--timeout <= 0)
@@ -264,6 +266,7 @@ static int synth_probe(struct spk_synth *synth)
 {
 	unsigned int port_val = 0;
 	int i = 0;
+
 	pr_info("Probing for %s.\n", synth->long_name);
 	if (port_forced) {
 		synth_port = port_forced;

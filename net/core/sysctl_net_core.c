@@ -26,6 +26,8 @@ static int zero = 0;
 static int one = 1;
 static int ushort_max = USHRT_MAX;
 
+static int net_msg_warn;	/* Unused, but still a sysctl */
+
 #ifdef CONFIG_RPS
 static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
@@ -215,6 +217,18 @@ static int set_default_qdisc(struct ctl_table *table, int write,
 }
 #endif
 
+static int proc_do_rss_key(struct ctl_table *table, int write,
+			   void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table fake_table;
+	char buf[NETDEV_RSS_KEY_LEN * 3];
+
+	snprintf(buf, sizeof(buf), "%*phC", NETDEV_RSS_KEY_LEN, netdev_rss_key);
+	fake_table.data = buf;
+	fake_table.maxlen = sizeof(buf);
+	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
+}
+
 static struct ctl_table net_core_table[] = {
 #ifdef CONFIG_NET
 	{
@@ -262,6 +276,13 @@ static struct ctl_table net_core_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "netdev_rss_key",
+		.data		= &netdev_rss_key,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= proc_do_rss_key,
 	},
 #ifdef CONFIG_BPF_JIT
 	{

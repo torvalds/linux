@@ -208,7 +208,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	 * We don't need to disable preemption here because any CPU can
 	 * safely use any IOMMU pool.
 	 */
-	pool_nr = __raw_get_cpu_var(iommu_pool_hash) & (tbl->nr_pools - 1);
+	pool_nr = __this_cpu_read(iommu_pool_hash) & (tbl->nr_pools - 1);
 
 	if (largealloc)
 		pool = &(tbl->large_pool);
@@ -428,10 +428,10 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 		ppc_md.tce_flush(tbl);
 }
 
-int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
-		 struct scatterlist *sglist, int nelems,
-		 unsigned long mask, enum dma_data_direction direction,
-		 struct dma_attrs *attrs)
+int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
+		     struct scatterlist *sglist, int nelems,
+		     unsigned long mask, enum dma_data_direction direction,
+		     struct dma_attrs *attrs)
 {
 	dma_addr_t dma_next = 0, dma_addr;
 	struct scatterlist *s, *outs, *segstart;
@@ -539,7 +539,7 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 
 	DBG("mapped %d elements:\n", outcount);
 
-	/* For the sake of iommu_unmap_sg, we clear out the length in the
+	/* For the sake of ppc_iommu_unmap_sg, we clear out the length in the
 	 * next entry of the sglist if we didn't fill the list completely
 	 */
 	if (outcount < incount) {
@@ -572,9 +572,9 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 }
 
 
-void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
-		int nelems, enum dma_data_direction direction,
-		struct dma_attrs *attrs)
+void ppc_iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
+			int nelems, enum dma_data_direction direction,
+			struct dma_attrs *attrs)
 {
 	struct scatterlist *sg;
 

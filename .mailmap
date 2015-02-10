@@ -17,7 +17,7 @@ Aleksey Gorelov <aleksey_gorelov@phoenix.com>
 Al Viro <viro@ftp.linux.org.uk>
 Al Viro <viro@zenIV.linux.org.uk>
 Andreas Herrmann <aherrman@de.ibm.com>
-Andrew Morton <akpm@osdl.org>
+Andrew Morton <akpm@linux-foundation.org>
 Andrew Vasquez <andrew.vasquez@qlogic.com>
 Andy Adamson <andros@citi.umich.edu>
 Archit Taneja <archit@ti.com>
@@ -51,6 +51,7 @@ Greg Kroah-Hartman <gregkh@suse.de>
 Greg Kroah-Hartman <greg@kroah.com>
 Henk Vergonet <Henk.Vergonet@gmail.com>
 Henrik Kretzschmar <henne@nachtwindheim.de>
+Henrik Rydberg <rydberg@bitmath.org>
 Herbert Xu <herbert@gondor.apana.org.au>
 Jacob Shin <Jacob.Shin@amd.com>
 James Bottomley <jejb@mulgrave.(none)>
@@ -102,6 +103,8 @@ Rudolf Marek <R.Marek@sh.cvut.cz>
 Rui Saraiva <rmps@joel.ist.utl.pt>
 Sachin P Sant <ssant@in.ibm.com>
 Sam Ravnborg <sam@mars.ravnborg.org>
+Santosh Shilimkar <ssantosh@kernel.org>
+Santosh Shilimkar <santosh.shilimkar@oracle.org>
 Sascha Hauer <s.hauer@pengutronix.de>
 S.Çağlar Onur <caglar@pardus.org.tr>
 Shiraz Hashim <shiraz.linux.kernel@gmail.com> <shiraz.hashim@st.com>

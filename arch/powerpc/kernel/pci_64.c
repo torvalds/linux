@@ -17,7 +17,6 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/list.h>
@@ -266,13 +265,3 @@ int pcibus_to_node(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pcibus_to_node);
 #endif
-
-static void quirk_radeon_32bit_msi(struct pci_dev *dev)
-{
-	struct pci_dn *pdn = pci_get_pdn(dev);
-
-	if (pdn)
-		pdn->force_32bit_msi = true;
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x68f2, quirk_radeon_32bit_msi);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0xaa68, quirk_radeon_32bit_msi);

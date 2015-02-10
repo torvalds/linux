@@ -143,7 +143,7 @@ static int exynos_rng_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
+#ifdef CONFIG_PM
 static int exynos_rng_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -169,7 +169,6 @@ static UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
 static struct platform_driver exynos_rng_driver = {
 	.driver		= {
 		.name	= "exynos-rng",
-		.owner	= THIS_MODULE,
 		.pm	= &exynos_rng_pm_ops,
 	},
 	.probe		= exynos_rng_probe,

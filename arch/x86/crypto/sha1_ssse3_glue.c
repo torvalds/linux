@@ -278,4 +278,4 @@ module_exit(sha1_ssse3_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA1 Secure Hash Algorithm, Supplemental SSE3 accelerated");
 
-MODULE_ALIAS("sha1");
+MODULE_ALIAS_CRYPTO("sha1");

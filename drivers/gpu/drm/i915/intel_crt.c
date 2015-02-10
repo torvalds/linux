@@ -72,7 +72,7 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 	u32 tmp;
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_enabled(dev_priv, power_domain))
+	if (!intel_display_power_is_enabled(dev_priv, power_domain))
 		return false;
 
 	tmp = I915_READ(crt->adpa_reg);
@@ -775,7 +775,7 @@ static void intel_crt_reset(struct drm_connector *connector)
 		I915_WRITE(crt->adpa_reg, adpa);
 		POSTING_READ(crt->adpa_reg);
 
-		DRM_DEBUG_KMS("pch crt adpa set to 0x%x\n", adpa);
+		DRM_DEBUG_KMS("crt adpa set to 0x%x\n", adpa);
 		crt->force_hotplug_required = 1;
 	}
 

@@ -32,7 +32,9 @@
  *
  */
 
-#include "linux/lustre_quota.h"
+#include <linux/fs.h>
+#include <linux/quota.h>
+#include <linux/quotaops.h>
 
 #include "dt_object.h"
 #include "lustre_fid.h"

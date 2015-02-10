@@ -659,7 +659,13 @@ _GLOBAL(ret_from_except_lite)
 3:
 #endif
 	bl	save_nvgprs
+	/*
+	 * Use a non volatile GPR to save and restore our thread_info flags
+	 * across the call to restore_interrupts.
+	 */
+	mr	r30,r4
 	bl	restore_interrupts
+	mr	r4,r30
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_notify_resume
 	b	ret_from_except
@@ -1221,12 +1227,19 @@ _GLOBAL(ftrace_graph_caller)
 	ld	r4, 128(r1)
 	subi	r4, r4, MCOUNT_INSN_SIZE
 
-	/* get the parent address */
+	/* Grab the LR out of the caller stack frame */
 	ld	r11, 112(r1)
-	addi	r3, r11, 16
+	ld	r3, 16(r11)
 
 	bl	prepare_ftrace_return
 	nop
+
+	/*
+	 * prepare_ftrace_return gives us the address we divert to.
+	 * Change the LR in the callers stack frame to this.
+	 */
+	ld	r11, 112(r1)
+	std	r3, 16(r11)
 
 	ld	r0, 128(r1)
 	mtlr	r0
@@ -1234,28 +1247,6 @@ _GLOBAL(ftrace_graph_caller)
 	blr
 
 _GLOBAL(return_to_handler)
-	/* need to save return values */
-	std	r4,  -24(r1)
-	std	r3,  -16(r1)
-	std	r31, -8(r1)
-	mr	r31, r1
-	stdu	r1, -112(r1)
-
-	bl	ftrace_return_to_handler
-	nop
-
-	/* return value has real return address */
-	mtlr	r3
-
-	ld	r1, 0(r1)
-	ld	r4,  -24(r1)
-	ld	r3,  -16(r1)
-	ld	r31, -8(r1)
-
-	/* Jump back to real return address */
-	blr
-
-_GLOBAL(mod_return_to_handler)
 	/* need to save return values */
 	std	r4,  -32(r1)
 	std	r3,  -24(r1)
@@ -1266,7 +1257,7 @@ _GLOBAL(mod_return_to_handler)
 	stdu	r1, -112(r1)
 
 	/*
-	 * We are in a module using the module's TOC.
+	 * We might be called from a module.
 	 * Switch to our TOC to run inside the core kernel.
 	 */
 	ld	r2, PACATOC(r13)

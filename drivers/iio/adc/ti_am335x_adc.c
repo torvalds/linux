@@ -86,19 +86,18 @@ static void tiadc_step_config(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
 	unsigned int stepconfig;
-	int i, steps;
+	int i, steps = 0;
 
 	/*
 	 * There are 16 configurable steps and 8 analog input
 	 * lines available which are shared between Touchscreen and ADC.
 	 *
-	 * Steps backwards i.e. from 16 towards 0 are used by ADC
+	 * Steps forwards i.e. from 0 towards 16 are used by ADC
 	 * depending on number of input lines needed.
 	 * Channel would represent which analog input
 	 * needs to be given to ADC to digitalize data.
 	 */
 
-	steps = TOTAL_STEPS - adc_dev->channels;
 	if (iio_buffer_enabled(indio_dev))
 		stepconfig = STEPCONFIG_AVG_16 | STEPCONFIG_FIFO1
 					| STEPCONFIG_MODE_SWCNT;
@@ -545,7 +544,6 @@ MODULE_DEVICE_TABLE(of, ti_adc_dt_ids);
 static struct platform_driver tiadc_driver = {
 	.driver = {
 		.name   = "TI-am335x-adc",
-		.owner	= THIS_MODULE,
 		.pm	= TIADC_PM_OPS,
 		.of_match_table = ti_adc_dt_ids,
 	},

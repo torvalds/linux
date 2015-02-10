@@ -40,7 +40,7 @@ nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 	int WL, CL, WR, at[2], dt, ds;
 	int rq = ram->freq < 1000000; /* XXX */
 
-	switch (ram->ramcfg.version) {
+	switch (ram->next->bios.ramcfg_ver) {
 	case 0x11:
 		pd =  ram->next->bios.ramcfg_11_01_80;
 		lf =  ram->next->bios.ramcfg_11_01_40;
@@ -54,7 +54,7 @@ nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 		return -ENOSYS;
 	}
 
-	switch (ram->timing.version) {
+	switch (ram->next->bios.timing_ver) {
 	case 0x20:
 		WL = (ram->next->bios.timing[1] & 0x00000f80) >> 7;
 		CL = (ram->next->bios.timing[1] & 0x0000001f);

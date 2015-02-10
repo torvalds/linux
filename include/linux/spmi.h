@@ -134,9 +134,6 @@ void spmi_controller_remove(struct spmi_controller *ctrl);
  *		this structure.
  * @probe:	binds this driver to a SPMI device.
  * @remove:	unbinds this driver from the SPMI device.
- * @shutdown:	standard shutdown callback used during powerdown/halt.
- * @suspend:	standard suspend callback used during system suspend.
- * @resume:	standard resume callback used during system resume.
  *
  * If PM runtime support is desired for a slave, a device driver can call
  * pm_runtime_put() from their probe() routine (and a balancing

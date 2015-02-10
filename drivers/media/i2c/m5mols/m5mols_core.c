@@ -57,14 +57,14 @@ static struct v4l2_mbus_framefmt m5mols_default_ffmt[M5MOLS_RESTYPE_MAX] = {
 	[M5MOLS_RESTYPE_MONITOR] = {
 		.width		= 1920,
 		.height		= 1080,
-		.code		= V4L2_MBUS_FMT_VYUY8_2X8,
+		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
 		.field		= V4L2_FIELD_NONE,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 	},
 	[M5MOLS_RESTYPE_CAPTURE] = {
 		.width		= 1920,
 		.height		= 1080,
-		.code		= V4L2_MBUS_FMT_JPEG_1X8,
+		.code		= MEDIA_BUS_FMT_JPEG_1X8,
 		.field		= V4L2_FIELD_NONE,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 	},
@@ -479,7 +479,7 @@ static int m5mols_get_version(struct v4l2_subdev *sd)
  * __find_restype - Lookup M-5MOLS resolution type according to pixel code
  * @code: pixel code
  */
-static enum m5mols_restype __find_restype(enum v4l2_mbus_pixelcode code)
+static enum m5mols_restype __find_restype(u32 code)
 {
 	enum m5mols_restype type = M5MOLS_RESTYPE_MONITOR;
 

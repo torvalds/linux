@@ -79,7 +79,7 @@
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "simple-bus";
+		compatible = "ti,omap3-l3-smx", "simple-bus";
 		reg = <0x68000000 0x10000>;
 		interrupts = <9 10>;
 		#address-cells = <1>;
@@ -97,6 +97,7 @@
 		prm: prm@48306000 {
 			compatible = "ti,omap3-prm";
 			reg = <0x48306000 0x4000>;
+			interrupts = <11>;
 
 			prm_clocks: clocks {
 				#address-cells = <1>;
@@ -140,10 +141,9 @@
 		};
 
 		intc: interrupt-controller@48200000 {
-			compatible = "ti,omap2-intc";
+			compatible = "ti,omap3-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
-			ti,intc-size = <96>;
 			reg = <0x48200000 0x1000>;
 		};
 
@@ -332,8 +332,13 @@
 			ti,hwmods = "mailbox";
 			reg = <0x48094000 0x200>;
 			interrupts = <26>;
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <2>;
 			ti,mbox-num-fifos = <2>;
+			mbox_dsp: dsp {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <1 0 0>;
+			};
 		};
 
 		mcspi1: spi@48098000 {

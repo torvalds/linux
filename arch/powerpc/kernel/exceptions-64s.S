@@ -15,6 +15,7 @@
 #include <asm/hw_irq.h>
 #include <asm/exception-64s.h>
 #include <asm/ptrace.h>
+#include <asm/cpuidle.h>
 
 /*
  * We layout physical memory as follows:
@@ -101,23 +102,34 @@ system_reset_pSeries:
 #ifdef CONFIG_PPC_P7_NAP
 BEGIN_FTR_SECTION
 	/* Running native on arch 2.06 or later, check if we are
-	 * waking up from nap. We only handle no state loss and
-	 * supervisor state loss. We do -not- handle hypervisor
-	 * state loss at this time.
+	 * waking up from nap/sleep/winkle.
 	 */
 	mfspr	r13,SPRN_SRR1
 	rlwinm.	r13,r13,47-31,30,31
 	beq	9f
 
-	/* waking up from powersave (nap) state */
-	cmpwi	cr1,r13,2
-	/* Total loss of HV state is fatal, we could try to use the
-	 * PIR to locate a PACA, then use an emergency stack etc...
-	 * OPAL v3 based powernv platforms have new idle states
-	 * which fall in this catagory.
+	cmpwi	cr3,r13,2
+
+	/*
+	 * Check if last bit of HSPGR0 is set. This indicates whether we are
+	 * waking up from winkle.
 	 */
-	bgt	cr1,8f
 	GET_PACA(r13)
+	clrldi	r5,r13,63
+	clrrdi	r13,r13,1
+	cmpwi	cr4,r5,1
+	mtspr	SPRN_HSPRG0,r13
+
+	lbz	r0,PACA_THREAD_IDLE_STATE(r13)
+	cmpwi   cr2,r0,PNV_THREAD_NAP
+	bgt     cr2,8f				/* Either sleep or Winkle */
+
+	/* Waking up from nap should not cause hypervisor state loss */
+	bgt	cr3,.
+
+	/* Waking up from nap */
+	li	r0,PNV_THREAD_RUNNING
+	stb	r0,PACA_THREAD_IDLE_STATE(r13)	/* Clear thread state */
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	li	r0,KVM_HWTHREAD_IN_KERNEL
@@ -131,7 +143,9 @@ BEGIN_FTR_SECTION
 1:
 #endif
 
-	beq	cr1,2f
+	/* Return SRR1 from power7_nap() */
+	mfspr	r3,SPRN_SRR1
+	beq	cr3,2f
 	b	power7_wakeup_noloss
 2:	b	power7_wakeup_loss
 
@@ -292,15 +306,26 @@ decrementer_pSeries:
 	. = 0xc00
 	.globl	system_call_pSeries
 system_call_pSeries:
-	HMT_MEDIUM
+	 /*
+	  * If CONFIG_KVM_BOOK3S_64_HANDLER is set, save the PPR (on systems
+	  * that support it) before changing to HMT_MEDIUM. That allows the KVM
+	  * code to save that value into the guest state (it is the guest's PPR
+	  * value). Otherwise just change to HMT_MEDIUM as userspace has
+	  * already saved the PPR.
+	  */
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 	SET_SCRATCH0(r13)
 	GET_PACA(r13)
 	std	r9,PACA_EXGEN+EX_R9(r13)
+	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR);
+	HMT_MEDIUM;
 	std	r10,PACA_EXGEN+EX_R10(r13)
+	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r9, CPU_FTR_HAS_PPR);
 	mfcr	r9
 	KVMTEST(0xc00)
 	GET_SCRATCH0(r13)
+#else
+	HMT_MEDIUM;
 #endif
 	SYSCALL_PSERIES_1
 	SYSCALL_PSERIES_2_RFID
@@ -1270,11 +1295,6 @@ hmi_exception_early:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	hmi_exception_realmode
 	/* Windup the stack. */
-	/* Clear MSR_RI before setting SRR0 and SRR1. */
-	li	r0,MSR_RI
-	mfmsr	r9			/* get MSR value */
-	andc	r9,r9,r0
-	mtmsrd	r9,1			/* Clear MSR_RI */
 	/* Move original HSRR0 and HSRR1 into the respective regs */
 	ld	r9,_MSR(r1)
 	mtspr	SPRN_HSRR1,r9
@@ -1305,23 +1325,6 @@ hmi_exception_after_realmode:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	hmi_exception_hv
-
-#ifdef CONFIG_PPC_POWERNV
-_GLOBAL(opal_mc_secondary_handler)
-	HMT_MEDIUM_PPR_DISCARD
-	SET_SCRATCH0(r13)
-	GET_PACA(r13)
-	clrldi	r3,r3,2
-	tovirt(r3,r3)
-	std	r3,PACA_OPAL_MC_EVT(r13)
-	ld	r13,OPAL_MC_SRR0(r3)
-	mtspr	SPRN_SRR0,r13
-	ld	r13,OPAL_MC_SRR1(r3)
-	mtspr	SPRN_SRR1,r13
-	ld	r3,OPAL_MC_GPR3(r3)
-	GET_SCRATCH0(r13)
-	b	machine_check_pSeries
-#endif /* CONFIG_PPC_POWERNV */
 
 
 #define MACHINE_CHECK_HANDLER_WINDUP			\
@@ -1391,6 +1394,7 @@ machine_check_handle_early:
 	MACHINE_CHECK_HANDLER_WINDUP
 	GET_PACA(r13)
 	ld	r1,PACAR1(r13)
+	li	r3,PNV_THREAD_NAP
 	b	power7_enter_nap_mode
 4:
 #endif
@@ -1576,9 +1580,11 @@ do_hash_page:
 	 * r3 contains the faulting address
 	 * r4 contains the required access permissions
 	 * r5 contains the trap number
+	 * r6 contains dsisr
 	 *
 	 * at return r3 = 0 for success, 1 for page fault, negative for error
 	 */
+	ld      r6,_DSISR(r1)
 	bl	hash_page		/* build HPTE if possible */
 	cmpdi	r3,0			/* see if hash_page succeeded */
 

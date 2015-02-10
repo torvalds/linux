@@ -86,7 +86,7 @@ void enic_rfs_flw_tbl_free(struct enic *enic)
 	int i;
 
 	enic_rfs_timer_stop(enic);
-	spin_lock(&enic->rfs_h.lock);
+	spin_lock_bh(&enic->rfs_h.lock);
 	enic->rfs_h.free = 0;
 	for (i = 0; i < (1 << ENIC_RFS_FLW_BITSHIFT); i++) {
 		struct hlist_head *hhead;
@@ -100,7 +100,7 @@ void enic_rfs_flw_tbl_free(struct enic *enic)
 			kfree(n);
 		}
 	}
-	spin_unlock(&enic->rfs_h.lock);
+	spin_unlock_bh(&enic->rfs_h.lock);
 }
 
 struct enic_rfs_fltr_node *htbl_fltr_search(struct enic *enic, u16 fltr_id)
@@ -128,7 +128,7 @@ void enic_flow_may_expire(unsigned long data)
 	bool res;
 	int j;
 
-	spin_lock(&enic->rfs_h.lock);
+	spin_lock_bh(&enic->rfs_h.lock);
 	for (j = 0; j < ENIC_CLSF_EXPIRE_COUNT; j++) {
 		struct hlist_head *hhead;
 		struct hlist_node *tmp;
@@ -148,7 +148,7 @@ void enic_flow_may_expire(unsigned long data)
 			}
 		}
 	}
-	spin_unlock(&enic->rfs_h.lock);
+	spin_unlock_bh(&enic->rfs_h.lock);
 	mod_timer(&enic->rfs_h.rfs_may_expire, jiffies + HZ/4);
 }
 
@@ -183,7 +183,7 @@ int enic_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		return -EPROTONOSUPPORT;
 
 	tbl_idx = skb_get_hash_raw(skb) & ENIC_RFS_FLW_MASK;
-	spin_lock(&enic->rfs_h.lock);
+	spin_lock_bh(&enic->rfs_h.lock);
 	n = htbl_key_search(&enic->rfs_h.ht_head[tbl_idx], &keys);
 
 	if (n) { /* entry already present  */
@@ -277,7 +277,7 @@ int enic_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	}
 
 ret_unlock:
-	spin_unlock(&enic->rfs_h.lock);
+	spin_unlock_bh(&enic->rfs_h.lock);
 	return res;
 }
 

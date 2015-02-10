@@ -24,6 +24,7 @@
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
+#include <linux/irqchip/mips-gic.h>
 
 #include <linux/atomic.h>
 #include <asm/cacheflush.h>
@@ -37,7 +38,6 @@
 #include <asm/mipsmtregs.h>
 #include <asm/mips_mt.h>
 #include <asm/amon.h>
-#include <asm/gic.h>
 
 static void cmp_init_secondary(void)
 {

@@ -10,8 +10,6 @@ struct nv50_i2c_priv {
 struct nv50_i2c_port {
 	struct nouveau_i2c_port base;
 	u32 addr;
-	u32 ctrl;
-	u32 data;
 	u32 state;
 };
 
@@ -28,5 +26,9 @@ int  nv94_aux_port_ctor(struct nouveau_object *, struct nouveau_object *,
 			struct nouveau_object **);
 void nv94_i2c_acquire(struct nouveau_i2c_port *);
 void nv94_i2c_release(struct nouveau_i2c_port *);
+
+int  nvd0_i2c_port_ctor(struct nouveau_object *, struct nouveau_object *,
+			struct nouveau_oclass *, void *, u32,
+			struct nouveau_object **);
 
 #endif

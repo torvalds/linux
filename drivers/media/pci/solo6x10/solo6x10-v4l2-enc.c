@@ -463,7 +463,6 @@ static int solo_fill_jpeg(struct solo_enc_dev *solo_enc,
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
 	struct sg_table *vbuf = vb2_dma_sg_plane_desc(vb, 0);
 	int frame_size;
-	int ret;
 
 	vb->v4l2_buf.flags |= V4L2_BUF_FLAG_KEYFRAME;
 
@@ -473,22 +472,10 @@ static int solo_fill_jpeg(struct solo_enc_dev *solo_enc,
 	frame_size = ALIGN(vop_jpeg_size(vh) + solo_enc->jpeg_len, DMA_ALIGN);
 	vb2_set_plane_payload(vb, 0, vop_jpeg_size(vh) + solo_enc->jpeg_len);
 
-	/* may discard all previous data in vbuf->sgl */
-	if (!dma_map_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
-			DMA_FROM_DEVICE))
-		return -ENOMEM;
-	ret = solo_send_desc(solo_enc, solo_enc->jpeg_len, vbuf,
+	return solo_send_desc(solo_enc, solo_enc->jpeg_len, vbuf,
 			     vop_jpeg_offset(vh) - SOLO_JPEG_EXT_ADDR(solo_dev),
 			     frame_size, SOLO_JPEG_EXT_ADDR(solo_dev),
 			     SOLO_JPEG_EXT_SIZE(solo_dev));
-	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
-			DMA_FROM_DEVICE);
-
-	/* add the header only after dma_unmap_sg() */
-	sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
-			    solo_enc->jpeg_header, solo_enc->jpeg_len);
-
-	return ret;
 }
 
 static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
@@ -498,7 +485,6 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 	struct sg_table *vbuf = vb2_dma_sg_plane_desc(vb, 0);
 	int frame_off, frame_size;
 	int skip = 0;
-	int ret;
 
 	if (vb2_plane_size(vb, 0) < vop_mpeg_size(vh))
 		return -EIO;
@@ -521,21 +507,9 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 		sizeof(*vh)) % SOLO_MP4E_EXT_SIZE(solo_dev);
 	frame_size = ALIGN(vop_mpeg_size(vh) + skip, DMA_ALIGN);
 
-	/* may discard all previous data in vbuf->sgl */
-	if (!dma_map_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
-			DMA_FROM_DEVICE))
-		return -ENOMEM;
-	ret = solo_send_desc(solo_enc, skip, vbuf, frame_off, frame_size,
+	return solo_send_desc(solo_enc, skip, vbuf, frame_off, frame_size,
 			SOLO_MP4E_EXT_ADDR(solo_dev),
 			SOLO_MP4E_EXT_SIZE(solo_dev));
-	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
-			DMA_FROM_DEVICE);
-
-	/* add the header only after dma_unmap_sg() */
-	if (!vop_type(vh))
-		sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
-				    solo_enc->vop, solo_enc->vop_len);
-	return ret;
 }
 
 static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
@@ -703,9 +677,7 @@ static int solo_ring_thread(void *data)
 
 		if (timeout == -ERESTARTSYS || kthread_should_stop())
 			break;
-		solo_irq_off(solo_dev, SOLO_IRQ_ENCODER);
 		solo_handle_ring(solo_dev);
-		solo_irq_on(solo_dev, SOLO_IRQ_ENCODER);
 		try_to_freeze();
 	}
 
@@ -720,7 +692,10 @@ static int solo_enc_queue_setup(struct vb2_queue *q,
 				unsigned int *num_planes, unsigned int sizes[],
 				void *alloc_ctxs[])
 {
+	struct solo_enc_dev *solo_enc = vb2_get_drv_priv(q);
+
 	sizes[0] = FRAME_BUF_SIZE;
+	alloc_ctxs[0] = solo_enc->alloc_ctx;
 	*num_planes = 1;
 
 	if (*num_buffers < MIN_VID_BUFFERS)
@@ -770,26 +745,51 @@ static void solo_ring_stop(struct solo_dev *solo_dev)
 static int solo_enc_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct solo_enc_dev *solo_enc = vb2_get_drv_priv(q);
-	int ret;
 
-	ret = solo_enc_on(solo_enc);
-	if (ret)
-		return ret;
-	return solo_ring_start(solo_enc->solo_dev);
+	return solo_enc_on(solo_enc);
 }
 
 static void solo_enc_stop_streaming(struct vb2_queue *q)
 {
 	struct solo_enc_dev *solo_enc = vb2_get_drv_priv(q);
+	unsigned long flags;
 
+	spin_lock_irqsave(&solo_enc->av_lock, flags);
 	solo_enc_off(solo_enc);
-	INIT_LIST_HEAD(&solo_enc->vidq_active);
-	solo_ring_stop(solo_enc->solo_dev);
+	while (!list_empty(&solo_enc->vidq_active)) {
+		struct solo_vb2_buf *buf = list_entry(
+				solo_enc->vidq_active.next,
+				struct solo_vb2_buf, list);
+
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+	}
+	spin_unlock_irqrestore(&solo_enc->av_lock, flags);
+}
+
+static void solo_enc_buf_finish(struct vb2_buffer *vb)
+{
+	struct solo_enc_dev *solo_enc = vb2_get_drv_priv(vb->vb2_queue);
+	struct sg_table *vbuf = vb2_dma_sg_plane_desc(vb, 0);
+
+	switch (solo_enc->fmt) {
+	case V4L2_PIX_FMT_MPEG4:
+	case V4L2_PIX_FMT_H264:
+		if (vb->v4l2_buf.flags & V4L2_BUF_FLAG_KEYFRAME)
+			sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
+					solo_enc->vop, solo_enc->vop_len);
+		break;
+	default: /* V4L2_PIX_FMT_MJPEG */
+		sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
+				solo_enc->jpeg_header, solo_enc->jpeg_len);
+		break;
+	}
 }
 
 static struct vb2_ops solo_enc_video_qops = {
 	.queue_setup	= solo_enc_queue_setup,
 	.buf_queue	= solo_enc_buf_queue,
+	.buf_finish	= solo_enc_buf_finish,
 	.start_streaming = solo_enc_start_streaming,
 	.stop_streaming = solo_enc_stop_streaming,
 	.wait_prepare	= vb2_ops_wait_prepare,
@@ -1263,6 +1263,11 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 		return ERR_PTR(-ENOMEM);
 
 	hdl = &solo_enc->hdl;
+	solo_enc->alloc_ctx = vb2_dma_sg_init_ctx(&solo_dev->pdev->dev);
+	if (IS_ERR(solo_enc->alloc_ctx)) {
+		ret = PTR_ERR(solo_enc->alloc_ctx);
+		goto hdl_free;
+	}
 	v4l2_ctrl_handler_init(hdl, 10);
 	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
@@ -1366,6 +1371,7 @@ pci_free:
 			solo_enc->desc_items, solo_enc->desc_dma);
 hdl_free:
 	v4l2_ctrl_handler_free(hdl);
+	vb2_dma_sg_cleanup_ctx(solo_enc->alloc_ctx);
 	kfree(solo_enc);
 	return ERR_PTR(ret);
 }
@@ -1375,8 +1381,12 @@ static void solo_enc_free(struct solo_enc_dev *solo_enc)
 	if (solo_enc == NULL)
 		return;
 
+	pci_free_consistent(solo_enc->solo_dev->pdev,
+			sizeof(struct solo_p2m_desc) * solo_enc->desc_nelts,
+			solo_enc->desc_items, solo_enc->desc_dma);
 	video_unregister_device(solo_enc->vfd);
 	v4l2_ctrl_handler_free(&solo_enc->hdl);
+	vb2_dma_sg_cleanup_ctx(solo_enc->alloc_ctx);
 	kfree(solo_enc);
 }
 
@@ -1419,12 +1429,14 @@ int solo_enc_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 		 solo_dev->v4l2_enc[0]->vfd->num,
 		 solo_dev->v4l2_enc[solo_dev->nr_chans - 1]->vfd->num);
 
-	return 0;
+	return solo_ring_start(solo_dev);
 }
 
 void solo_enc_v4l2_exit(struct solo_dev *solo_dev)
 {
 	int i;
+
+	solo_ring_stop(solo_dev);
 
 	for (i = 0; i < solo_dev->nr_chans; i++)
 		solo_enc_free(solo_dev->v4l2_enc[i]);

@@ -5,6 +5,7 @@ config ARM
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAVE_CUSTOM_GPIO_H
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_USE_BUILTIN_BSWAP
@@ -14,6 +15,7 @@ config ARM
 	select CLONE_BACKWARDS
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select GENERIC_ALLOCATOR
 	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	select GENERIC_IDLE_POLL_SETUP
@@ -24,6 +26,7 @@ config ARM
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
+	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
 	select HAVE_ARCH_AUDITSYSCALL if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
@@ -60,6 +63,7 @@ config ARM
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_RCU_TABLE_FREE if (SMP && ARM_LPAE)
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UID16
@@ -317,24 +321,6 @@ config ARCH_MULTIPLATFORM
 	select SPARSE_IRQ
 	select USE_OF
 
-config ARCH_INTEGRATOR
-	bool "ARM Ltd. Integrator family"
-	select ARM_AMBA
-	select ARM_PATCH_PHYS_VIRT if MMU
-	select AUTO_ZRELADDR
-	select COMMON_CLK
-	select COMMON_CLK_VERSATILE
-	select GENERIC_CLOCKEVENTS
-	select HAVE_TCM
-	select ICST
-	select MULTI_IRQ_HANDLER
-	select PLAT_VERSATILE
-	select SPARSE_IRQ
-	select USE_OF
-	select VERSATILE_FPGA_IRQ
-	help
-	  Support for ARM's Integrator platform.
-
 config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -347,6 +333,7 @@ config ARCH_REALVIEW
 	select ICST
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_SCHED_CLOCK
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -362,6 +349,7 @@ config ARCH_VERSATILE
 	select ICST
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLOCK
+	select PLAT_VERSATILE_SCHED_CLOCK
 	select VERSATILE_FPGA_IRQ
 	help
 	  This enables support for ARM Ltd Versatile board.
@@ -373,10 +361,11 @@ config ARCH_AT91
 	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD
 	select PINCTRL
-	select PINCTRL_AT91 if USE_OF
+	select PINCTRL_AT91
+	select USE_OF
 	help
 	  This enables support for systems based on Atmel
-	  AT91RM9200 and AT91SAM9* processors.
+	  AT91RM9200, AT91SAM9 and SAMA5 processors.
 
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
@@ -387,6 +376,7 @@ config ARCH_CLPS711X
 	select CPU_ARM720T
 	select GENERIC_CLOCKEVENTS
 	select MFD_SYSCON
+	select SOC_BUS
 	help
 	  Support for Cirrus Logic 711x/721x/731x based boards.
 
@@ -650,6 +640,7 @@ config ARCH_SHMOBILE_LEGACY
 	select ARCH_SHMOBILE
 	select ARM_PATCH_PHYS_VIRT if MMU
 	select CLKDEV_LOOKUP
+	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
@@ -660,6 +651,7 @@ config ARCH_SHMOBILE_LEGACY
 	select NO_IOPORT_MAP
 	select PINCTRL
 	select PM_GENERIC_DOMAINS if PM
+	select SH_CLK_CPG
 	select SPARSE_IRQ
 	help
 	  Support for Renesas ARM SoC platforms using a non-multiplatform
@@ -696,7 +688,9 @@ config ARCH_SA1100
 	select CPU_SA1100
 	select GENERIC_CLOCKEVENTS
 	select HAVE_IDE
+	select IRQ_DOMAIN
 	select ISA
+	select MULTI_IRQ_HANDLER
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
 	help
@@ -848,6 +842,8 @@ config ARCH_VIRT
 #
 source "arch/arm/mach-mvebu/Kconfig"
 
+source "arch/arm/mach-asm9260/Kconfig"
+
 source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-axxia/Kconfig"
@@ -887,6 +883,8 @@ source "arch/arm/mach-ixp4xx/Kconfig"
 source "arch/arm/mach-keystone/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
+
+source "arch/arm/mach-meson/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
 
@@ -1251,9 +1249,6 @@ source "arch/arm/common/Kconfig"
 
 menu "Bus support"
 
-config ARM_AMBA
-	bool
-
 config ISA
 	bool
 	help
@@ -1404,6 +1399,15 @@ config MCPM
 	  This option provides the common power management infrastructure
 	  for (multi-)cluster based systems, such as big.LITTLE based
 	  systems.
+
+config MCPM_QUAD_CLUSTER
+	bool
+	depends on MCPM
+	help
+	  To avoid wasting resources unnecessarily, MCPM only supports up
+	  to 2 clusters by default.
+	  Platforms with 3 or 4 clusters that use MCPM must select this
+	  option to allow the additional clusters to be managed.
 
 config BIG_LITTLE
 	bool "big.LITTLE support (Experimental)"
@@ -1644,6 +1648,10 @@ config ARCH_SELECT_MEMORY_MODEL
 config HAVE_ARCH_PFN_VALID
 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
 
+config HAVE_GENERIC_RCU_GUP
+	def_bool y
+	depends on ARM_LPAE
+
 config HIGHMEM
 	bool "High Memory Support"
 	depends on MMU
@@ -1758,7 +1766,7 @@ config XEN_DOM0
 	depends on XEN
 
 config XEN
-	bool "Xen guest support on ARM (EXPERIMENTAL)"
+	bool "Xen guest support on ARM"
 	depends on ARM && AEABI && OF
 	depends on CPU_V7 && !CPU_V6
 	depends on !GENERIC_ATOMIC64

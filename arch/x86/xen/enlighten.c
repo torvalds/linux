@@ -821,7 +821,7 @@ static void xen_convert_trap_info(const struct desc_ptr *desc,
 
 void xen_copy_trap_info(struct trap_info *traps)
 {
-	const struct desc_ptr *desc = &__get_cpu_var(idt_desc);
+	const struct desc_ptr *desc = this_cpu_ptr(&idt_desc);
 
 	xen_convert_trap_info(desc, traps);
 }
@@ -838,7 +838,7 @@ static void xen_load_idt(const struct desc_ptr *desc)
 
 	spin_lock(&lock);
 
-	__get_cpu_var(idt_desc) = *desc;
+	memcpy(this_cpu_ptr(&idt_desc), desc, sizeof(idt_desc));
 
 	xen_convert_trap_info(desc, traps);
 
@@ -1100,12 +1100,6 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 		/* Fast syscall setup is all done in hypercalls, so
 		   these are all ignored.  Stub them out here to stop
 		   Xen console noise. */
-		break;
-
-	case MSR_IA32_CR_PAT:
-		if (smp_processor_id() == 0)
-			xen_set_pat(((u64)high << 32) | low);
-		break;
 
 	default:
 		ret = native_write_msr_safe(msr, low, high);
@@ -1463,6 +1457,7 @@ static void __ref xen_setup_gdt(int cpu)
 	pv_cpu_ops.load_gdt = xen_load_gdt;
 }
 
+#ifdef CONFIG_XEN_PVH
 /*
  * A PV guest starts with default flags that are not set for PVH, set them
  * here asap.
@@ -1508,17 +1503,21 @@ static void __init xen_pvh_early_guest_init(void)
 		return;
 
 	xen_have_vector_callback = 1;
+
+	xen_pvh_early_cpu_init(0, false);
 	xen_pvh_set_cr_flags(0);
 
 #ifdef CONFIG_X86_32
 	BUG(); /* PVH: Implement proper support. */
 #endif
 }
+#endif    /* CONFIG_XEN_PVH */
 
 /* First C function to be called on Xen boot */
 asmlinkage __visible void __init xen_start_kernel(void)
 {
 	struct physdev_set_iopl set_iopl;
+	unsigned long initrd_start = 0;
 	int rc;
 
 	if (!xen_start_info)
@@ -1527,7 +1526,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_domain_type = XEN_PV_DOMAIN;
 
 	xen_setup_features();
+#ifdef CONFIG_XEN_PVH
 	xen_pvh_early_guest_init();
+#endif
 	xen_setup_machphys_mapping();
 
 	/* Install Xen paravirt ops */
@@ -1554,12 +1555,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	/* Prevent unwanted bits from being set in PTEs. */
 	__supported_pte_mask &= ~_PAGE_GLOBAL;
-#if 0
-	if (!xen_initial_domain())
-#endif
-		__supported_pte_mask &= ~(_PAGE_PWT | _PAGE_PCD);
-
-	__supported_pte_mask |= _PAGE_IOMAP;
 
 	/*
 	 * Prevent page tables from being allocated in highmem, even
@@ -1613,14 +1608,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 */
 	acpi_numa = -1;
 #endif
-#ifdef CONFIG_X86_PAT
-	/*
-	 * For right now disable the PAT. We should remove this once
-	 * git commit 8eaffa67b43e99ae581622c5133e20b0f48bcef1
-	 * (xen/pat: Disable PAT support for now) is reverted.
-	 */
-	pat_enabled = 0;
-#endif
 	/* Don't do the full vcpu_info placement stuff until we have a
 	   possible map and a non-dummy shared_info. */
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
@@ -1631,8 +1618,12 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_raw_console_write("mapping kernel into physical memory\n");
 	xen_setup_kernel_pagetable((pgd_t *)xen_start_info->pt_base, xen_start_info->nr_pages);
 
-	/* Allocate and initialize top and mid mfn levels for p2m structure */
-	xen_build_mfn_list_list();
+	/*
+	 * Modify the cache mode translation tables to match Xen's PAT
+	 * configuration.
+	 */
+
+	pat_init_cache_modes();
 
 	/* keep using Xen gdt for now; no urgent need to change it */
 
@@ -1667,10 +1658,16 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	new_cpu_data.x86_capability[0] = cpuid_edx(1);
 #endif
 
+	if (xen_start_info->mod_start) {
+	    if (xen_start_info->flags & SIF_MOD_START_PFN)
+		initrd_start = PFN_PHYS(xen_start_info->mod_start);
+	    else
+		initrd_start = __pa(xen_start_info->mod_start);
+	}
+
 	/* Poke various useful things into boot_params */
 	boot_params.hdr.type_of_loader = (9 << 4) | 0;
-	boot_params.hdr.ramdisk_image = xen_start_info->mod_start
-		? __pa(xen_start_info->mod_start) : 0;
+	boot_params.hdr.ramdisk_image = initrd_start;
 	boot_params.hdr.ramdisk_size = xen_start_info->mod_len;
 	boot_params.hdr.cmd_line_ptr = __pa(xen_start_info->cmd_line);
 

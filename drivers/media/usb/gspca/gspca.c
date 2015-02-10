@@ -876,9 +876,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		ep_tb[0].alt = gspca_dev->alt;
 		alt_idx = 1;
 	} else {
-
-	/* else, compute the minimum bandwidth
-	 * and build the endpoint table */
+		/* else, compute the minimum bandwidth
+		 * and build the endpoint table */
 		alt_idx = build_isoc_ep_tb(gspca_dev, intf, ep_tb);
 		if (alt_idx <= 0) {
 			pr_err("no transfer endpoint found\n");

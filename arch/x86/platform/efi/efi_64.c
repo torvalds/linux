@@ -48,8 +48,7 @@ static unsigned long efi_flags __initdata;
  * We allocate runtime services regions bottom-up, starting from -4G, i.e.
  * 0xffff_ffff_0000_0000 and limit EFI VA mapping space to 64G.
  */
-static u64 efi_va	= -4 * (1UL << 30);
-#define EFI_VA_END	(-68 * (1UL << 30))
+static u64 efi_va = EFI_VA_START;
 
 /*
  * Scratch space used for switching the pagetable in the EFI stub
@@ -79,7 +78,7 @@ static void __init early_code_mapping_set_exec(int executable)
 	}
 }
 
-void __init efi_call_phys_prelog(void)
+void __init efi_call_phys_prolog(void)
 {
 	unsigned long vaddress;
 	int pgd;
@@ -139,7 +138,7 @@ void efi_sync_low_kernel_mappings(void)
 		sizeof(pgd_t) * num_pgds);
 }
 
-int efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 {
 	unsigned long text;
 	struct page *page;
@@ -192,7 +191,7 @@ int efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	return 0;
 }
 
-void efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+void __init efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 {
 	pgd_t *pgd = (pgd_t *)__va(real_mode_header->trampoline_pgd);
 

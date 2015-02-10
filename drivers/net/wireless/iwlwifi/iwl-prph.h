@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -281,6 +283,7 @@
 #define SCD_CHAINEXT_EN		(SCD_BASE + 0x244)
 #define SCD_AGGR_SEL		(SCD_BASE + 0x248)
 #define SCD_INTERRUPT_MASK	(SCD_BASE + 0x108)
+#define SCD_EN_CTRL		(SCD_BASE + 0x254)
 
 static inline unsigned int SCD_QUEUE_WRPTR(unsigned int chnl)
 {
@@ -319,6 +322,7 @@ enum secure_boot_config_reg {
 	LMPM_SECURE_BOOT_CONFIG_INSPECTOR_NOT_REQ	= 0x00000002,
 };
 
+#define LMPM_SECURE_BOOT_CPU1_STATUS_ADDR_B0	(0xA01E30)
 #define LMPM_SECURE_BOOT_CPU1_STATUS_ADDR	(0x1E30)
 #define LMPM_SECURE_BOOT_CPU2_STATUS_ADDR	(0x1E34)
 enum secure_boot_status_reg {
@@ -330,6 +334,7 @@ enum secure_boot_status_reg {
 	LMPM_SECURE_BOOT_STATUS_SUCCESS			= 0x00000003,
 };
 
+#define FH_UCODE_LOAD_STATUS		(0x1AF0)
 #define CSR_UCODE_LOAD_STATUS_ADDR	(0x1E70)
 enum secure_load_status_reg {
 	LMPM_CPU_UCODE_LOADING_STARTED			= 0x00000001,
@@ -349,7 +354,7 @@ enum secure_load_status_reg {
 #define LMPM_SECURE_CPU1_HDR_MEM_SPACE		(0x420000)
 #define LMPM_SECURE_CPU2_HDR_MEM_SPACE		(0x420400)
 
-#define LMPM_SECURE_TIME_OUT	(100)
+#define LMPM_SECURE_TIME_OUT	(100) /* 10 micro */
 
 /* Rx FIFO */
 #define RXF_SIZE_ADDR			(0xa00c88)
@@ -364,5 +369,11 @@ enum secure_load_status_reg {
 #define MON_BUFF_END_ADDR		(0xa03c40)
 #define MON_BUFF_WRPTR			(0xa03c44)
 #define MON_BUFF_CYCLE_CNT		(0xa03c48)
+
+/* FW chicken bits */
+#define LMPM_CHICK			0xA01FF8
+enum {
+	LMPM_CHICK_EXTENDED_ADDR_SPACE = BIT(0),
+};
 
 #endif				/* __iwl_prph_h__ */

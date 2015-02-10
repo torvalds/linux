@@ -1042,8 +1042,8 @@ static struct platform_driver omap_rfbihw_driver = {
 	.remove         = __exit_p(omap_rfbihw_remove),
 	.driver         = {
 		.name   = "omapdss_rfbi",
-		.owner  = THIS_MODULE,
 		.pm	= &rfbi_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 };
 

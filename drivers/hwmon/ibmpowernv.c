@@ -74,9 +74,6 @@ struct platform_data {
 	u32 sensors_count; /* Total count of sensors from each group */
 };
 
-/* Platform device representing all the ibmpowernv sensors */
-static struct platform_device *pdevice;
-
 static ssize_t show_sensor(struct device *dev, struct device_attribute *devattr,
 			   char *buf)
 {
@@ -99,7 +96,7 @@ static ssize_t show_sensor(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%u\n", x);
 }
 
-static int __init get_sensor_index_attr(const char *name, u32 *index,
+static int get_sensor_index_attr(const char *name, u32 *index,
 					char *attr)
 {
 	char *hash_pos = strchr(name, '#');
@@ -136,7 +133,7 @@ static int __init get_sensor_index_attr(const char *name, u32 *index,
  * which need to be mapped as fan2_input, temp1_max respectively before
  * populating them inside hwmon device class.
  */
-static int __init create_hwmon_attr_name(struct device *dev, enum sensors type,
+static int create_hwmon_attr_name(struct device *dev, enum sensors type,
 					 const char *node_name,
 					 char *hwmon_attr_name)
 {
@@ -172,7 +169,7 @@ static int __init create_hwmon_attr_name(struct device *dev, enum sensors type,
 	return 0;
 }
 
-static int __init populate_attr_groups(struct platform_device *pdev)
+static int populate_attr_groups(struct platform_device *pdev)
 {
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 	const struct attribute_group **pgroups = pdata->attr_groups;
@@ -180,11 +177,6 @@ static int __init populate_attr_groups(struct platform_device *pdev)
 	enum sensors type;
 
 	opal = of_find_node_by_path("/ibm,opal/sensors");
-	if (!opal) {
-		dev_err(&pdev->dev, "Opal node 'sensors' not found\n");
-		return -ENODEV;
-	}
-
 	for_each_child_of_node(opal, np) {
 		if (np->name == NULL)
 			continue;
@@ -221,7 +213,7 @@ static int __init populate_attr_groups(struct platform_device *pdev)
  * to the name required by the higher 'hwmon' driver like fan1_input, temp1_max
  * etc..
  */
-static int __init create_device_attrs(struct platform_device *pdev)
+static int create_device_attrs(struct platform_device *pdev)
 {
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 	const struct attribute_group **pgroups = pdata->attr_groups;
@@ -280,7 +272,7 @@ exit_put_node:
 	return err;
 }
 
-static int __init ibmpowernv_probe(struct platform_device *pdev)
+static int ibmpowernv_probe(struct platform_device *pdev)
 {
 	struct platform_data *pdata;
 	struct device *hwmon_dev;
@@ -309,55 +301,24 @@ static int __init ibmpowernv_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
+static const struct platform_device_id opal_sensor_driver_ids[] = {
+	{
+		.name = "opal-sensor",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, opal_sensor_driver_ids);
+
 static struct platform_driver ibmpowernv_driver = {
-	.driver = {
-		.owner = THIS_MODULE,
-		.name = DRVNAME,
+	.probe		= ibmpowernv_probe,
+	.id_table	= opal_sensor_driver_ids,
+	.driver		= {
+		.name	= DRVNAME,
 	},
 };
 
-static int __init ibmpowernv_init(void)
-{
-	int err;
-
-	pdevice = platform_device_alloc(DRVNAME, 0);
-	if (!pdevice) {
-		pr_err("Device allocation failed\n");
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	err = platform_device_add(pdevice);
-	if (err) {
-		pr_err("Device addition failed (%d)\n", err);
-		goto exit_device_put;
-	}
-
-	err = platform_driver_probe(&ibmpowernv_driver, ibmpowernv_probe);
-	if (err) {
-		pr_err("Platfrom driver probe failed\n");
-		goto exit_device_del;
-	}
-
-	return 0;
-
-exit_device_del:
-	platform_device_del(pdevice);
-exit_device_put:
-	platform_device_put(pdevice);
-exit:
-	return err;
-}
-
-static void __exit ibmpowernv_exit(void)
-{
-	platform_driver_unregister(&ibmpowernv_driver);
-	platform_device_unregister(pdevice);
-}
+module_platform_driver(ibmpowernv_driver);
 
 MODULE_AUTHOR("Neelesh Gupta <neelegup@linux.vnet.ibm.com>");
 MODULE_DESCRIPTION("IBM POWERNV platform sensors");
 MODULE_LICENSE("GPL");
-
-module_init(ibmpowernv_init);
-module_exit(ibmpowernv_exit);

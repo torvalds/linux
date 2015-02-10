@@ -78,8 +78,8 @@ struct pcan_usb_pro_msg {
 	int rec_buffer_size;
 	int rec_buffer_len;
 	union {
-		u16 *rec_cnt_rd;
-		u32 *rec_cnt;
+		__le16 *rec_cnt_rd;
+		__le32 *rec_cnt;
 		u8 *rec_buffer;
 	} u;
 };
@@ -155,7 +155,7 @@ static int pcan_msg_add_rec(struct pcan_usb_pro_msg *pm, u8 id, ...)
 		*pc++ = va_arg(ap, int);
 		*pc++ = va_arg(ap, int);
 		*pc++ = va_arg(ap, int);
-		*(u32 *)pc = cpu_to_le32(va_arg(ap, u32));
+		*(__le32 *)pc = cpu_to_le32(va_arg(ap, u32));
 		pc += 4;
 		memcpy(pc, va_arg(ap, int *), i);
 		pc += i;
@@ -165,7 +165,7 @@ static int pcan_msg_add_rec(struct pcan_usb_pro_msg *pm, u8 id, ...)
 	case PCAN_USBPRO_GETDEVID:
 		*pc++ = va_arg(ap, int);
 		pc += 2;
-		*(u32 *)pc = cpu_to_le32(va_arg(ap, u32));
+		*(__le32 *)pc = cpu_to_le32(va_arg(ap, u32));
 		pc += 4;
 		break;
 
@@ -173,21 +173,21 @@ static int pcan_msg_add_rec(struct pcan_usb_pro_msg *pm, u8 id, ...)
 	case PCAN_USBPRO_SETBUSACT:
 	case PCAN_USBPRO_SETSILENT:
 		*pc++ = va_arg(ap, int);
-		*(u16 *)pc = cpu_to_le16(va_arg(ap, int));
+		*(__le16 *)pc = cpu_to_le16(va_arg(ap, int));
 		pc += 2;
 		break;
 
 	case PCAN_USBPRO_SETLED:
 		*pc++ = va_arg(ap, int);
-		*(u16 *)pc = cpu_to_le16(va_arg(ap, int));
+		*(__le16 *)pc = cpu_to_le16(va_arg(ap, int));
 		pc += 2;
-		*(u32 *)pc = cpu_to_le32(va_arg(ap, u32));
+		*(__le32 *)pc = cpu_to_le32(va_arg(ap, u32));
 		pc += 4;
 		break;
 
 	case PCAN_USBPRO_SETTS:
 		pc++;
-		*(u16 *)pc = cpu_to_le16(va_arg(ap, int));
+		*(__le16 *)pc = cpu_to_le16(va_arg(ap, int));
 		pc += 2;
 		break;
 
@@ -200,7 +200,7 @@ static int pcan_msg_add_rec(struct pcan_usb_pro_msg *pm, u8 id, ...)
 
 	len = pc - pm->rec_ptr;
 	if (len > 0) {
-		*pm->u.rec_cnt = cpu_to_le32(*pm->u.rec_cnt+1);
+		*pm->u.rec_cnt = cpu_to_le32(le32_to_cpu(*pm->u.rec_cnt) + 1);
 		*pm->rec_ptr = id;
 
 		pm->rec_ptr = pc;
@@ -333,8 +333,6 @@ static int pcan_usb_pro_send_req(struct peak_usb_device *dev, int req_id,
 	if (!(dev->state & PCAN_USB_STATE_CONNECTED))
 		return 0;
 
-	memset(req_addr, '\0', req_size);
-
 	req_type = USB_TYPE_VENDOR | USB_RECIP_OTHER;
 
 	switch (req_id) {
@@ -345,6 +343,7 @@ static int pcan_usb_pro_send_req(struct peak_usb_device *dev, int req_id,
 	default:
 		p = usb_rcvctrlpipe(dev->udev, 0);
 		req_type |= USB_DIR_IN;
+		memset(req_addr, '\0', req_size);
 		break;
 	}
 
@@ -572,7 +571,7 @@ static int pcan_usb_pro_handle_canmsg(struct pcan_usb_pro_interface *usb_if,
 static int pcan_usb_pro_handle_error(struct pcan_usb_pro_interface *usb_if,
 				     struct pcan_usb_pro_rxstatus *er)
 {
-	const u32 raw_status = le32_to_cpu(er->status);
+	const u16 raw_status = le16_to_cpu(er->status);
 	const unsigned int ctrl_idx = (er->channel >> 4) & 0x0f;
 	struct peak_usb_device *dev = usb_if->dev[ctrl_idx];
 	struct net_device *netdev = dev->netdev;

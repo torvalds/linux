@@ -542,7 +542,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	 */
 	ret = sh_pfc_register_pinctrl(pfc);
 	if (unlikely(ret != 0))
-		goto error;
+		return ret;
 
 #ifdef CONFIG_GPIO_SH_PFC
 	/*
@@ -564,11 +564,6 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	dev_info(pfc->dev, "%s support registered\n", info->name);
 
 	return 0;
-
-error:
-	if (info->ops && info->ops->exit)
-		info->ops->exit(pfc);
-	return ret;
 }
 
 static int sh_pfc_remove(struct platform_device *pdev)
@@ -579,9 +574,6 @@ static int sh_pfc_remove(struct platform_device *pdev)
 	sh_pfc_unregister_gpiochip(pfc);
 #endif
 	sh_pfc_unregister_pinctrl(pfc);
-
-	if (pfc->info->ops && pfc->info->ops->exit)
-		pfc->info->ops->exit(pfc);
 
 	return 0;
 }
@@ -658,7 +650,6 @@ static struct platform_driver sh_pfc_driver = {
 	.id_table	= sh_pfc_id_table,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(sh_pfc_of_table),
 	},
 };

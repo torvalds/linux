@@ -557,6 +557,9 @@ struct bcm_sysport_mib {
 	u32 rxchk_other_pkt_disc;
 	u32 rbuf_ovflow_cnt;
 	u32 rbuf_err_cnt;
+	u32 alloc_rx_buff_failed;
+	u32 rx_dma_failed;
+	u32 tx_dma_failed;
 };
 
 /* HW maintains a large list of counters */

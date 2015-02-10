@@ -41,10 +41,12 @@ typedef struct xpaddr {
 
 extern unsigned long *machine_to_phys_mapping;
 extern unsigned long  machine_to_phys_nr;
+extern unsigned long *xen_p2m_addr;
+extern unsigned long  xen_p2m_size;
+extern unsigned long  xen_max_p2m_pfn;
 
 extern unsigned long get_phys_to_machine(unsigned long pfn);
 extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
-extern bool __init early_set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 extern unsigned long set_phys_range_identity(unsigned long pfn_s,
 					     unsigned long pfn_e);
@@ -52,16 +54,51 @@ extern unsigned long set_phys_range_identity(unsigned long pfn_s,
 extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 				   struct gnttab_map_grant_ref *kmap_ops,
 				   struct page **pages, unsigned int count);
-extern int m2p_add_override(unsigned long mfn, struct page *page,
-			    struct gnttab_map_grant_ref *kmap_op);
 extern int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 				     struct gnttab_map_grant_ref *kmap_ops,
 				     struct page **pages, unsigned int count);
-extern int m2p_remove_override(struct page *page,
-			       struct gnttab_map_grant_ref *kmap_op,
-			       unsigned long mfn);
-extern struct page *m2p_find_override(unsigned long mfn);
 extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
+
+/*
+ * Helper functions to write or read unsigned long values to/from
+ * memory, when the access may fault.
+ */
+static inline int xen_safe_write_ulong(unsigned long *addr, unsigned long val)
+{
+	return __put_user(val, (unsigned long __user *)addr);
+}
+
+static inline int xen_safe_read_ulong(unsigned long *addr, unsigned long *val)
+{
+	return __get_user(*val, (unsigned long __user *)addr);
+}
+
+/*
+ * When to use pfn_to_mfn(), __pfn_to_mfn() or get_phys_to_machine():
+ * - pfn_to_mfn() returns either INVALID_P2M_ENTRY or the mfn. No indicator
+ *   bits (identity or foreign) are set.
+ * - __pfn_to_mfn() returns the found entry of the p2m table. A possibly set
+ *   identity or foreign indicator will be still set. __pfn_to_mfn() is
+ *   encapsulating get_phys_to_machine() which is called in special cases only.
+ * - get_phys_to_machine() is to be called by __pfn_to_mfn() only in special
+ *   cases needing an extended handling.
+ */
+static inline unsigned long __pfn_to_mfn(unsigned long pfn)
+{
+	unsigned long mfn;
+
+	if (pfn < xen_p2m_size)
+		mfn = xen_p2m_addr[pfn];
+	else if (unlikely(pfn < xen_max_p2m_pfn))
+		return get_phys_to_machine(pfn);
+	else
+		return IDENTITY_FRAME(pfn);
+
+	if (unlikely(mfn == INVALID_P2M_ENTRY))
+		return get_phys_to_machine(pfn);
+
+	return mfn;
+}
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
@@ -70,7 +107,7 @@ static inline unsigned long pfn_to_mfn(unsigned long pfn)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return pfn;
 
-	mfn = get_phys_to_machine(pfn);
+	mfn = __pfn_to_mfn(pfn);
 
 	if (mfn != INVALID_P2M_ENTRY)
 		mfn &= ~(FOREIGN_FRAME_BIT | IDENTITY_FRAME_BIT);
@@ -83,7 +120,7 @@ static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return 1;
 
-	return get_phys_to_machine(pfn) != INVALID_P2M_ENTRY;
+	return __pfn_to_mfn(pfn) != INVALID_P2M_ENTRY;
 }
 
 static inline unsigned long mfn_to_pfn_no_overrides(unsigned long mfn)
@@ -102,7 +139,7 @@ static inline unsigned long mfn_to_pfn_no_overrides(unsigned long mfn)
 	 * In such cases it doesn't matter what we return (we return garbage),
 	 * but we must handle the fault without crashing!
 	 */
-	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
+	ret = xen_safe_read_ulong(&machine_to_phys_mapping[mfn], &pfn);
 	if (ret < 0)
 		return ~0;
 
@@ -117,7 +154,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 		return mfn;
 
 	pfn = mfn_to_pfn_no_overrides(mfn);
-	if (get_phys_to_machine(pfn) != mfn) {
+	if (__pfn_to_mfn(pfn) != mfn) {
 		/*
 		 * If this appears to be a foreign mfn (because the pfn
 		 * doesn't map back to the mfn), then check the local override
@@ -133,8 +170,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	 * entry doesn't map back to the mfn and m2p_override doesn't have a
 	 * valid entry for it.
 	 */
-	if (pfn == ~0 &&
-			get_phys_to_machine(mfn) == IDENTITY_FRAME(mfn))
+	if (pfn == ~0 && __pfn_to_mfn(mfn) == IDENTITY_FRAME(mfn))
 		pfn = mfn;
 
 	return pfn;
@@ -180,7 +216,7 @@ static inline unsigned long mfn_to_local_pfn(unsigned long mfn)
 		return mfn;
 
 	pfn = mfn_to_pfn(mfn);
-	if (get_phys_to_machine(pfn) != mfn)
+	if (__pfn_to_mfn(pfn) != mfn)
 		return -1; /* force !pfn_valid() */
 	return pfn;
 }
@@ -235,5 +271,12 @@ void make_lowmem_page_readwrite(void *vaddr);
 
 #define xen_remap(cookie, size) ioremap((cookie), (size));
 #define xen_unmap(cookie) iounmap((cookie))
+
+static inline bool xen_arch_need_swiotlb(struct device *dev,
+					 unsigned long pfn,
+					 unsigned long mfn)
+{
+	return false;
+}
 
 #endif /* _ASM_X86_XEN_PAGE_H */

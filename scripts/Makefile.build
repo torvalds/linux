@@ -79,11 +79,11 @@ endif
 
 # ===========================================================================
 
-ifneq ($(strip $(lib-y) $(lib-m) $(lib-n) $(lib-)),)
+ifneq ($(strip $(lib-y) $(lib-m) $(lib-)),)
 lib-target := $(obj)/lib.a
 endif
 
-ifneq ($(strip $(obj-y) $(obj-m) $(obj-n) $(obj-) $(subdir-m) $(lib-target)),)
+ifneq ($(strip $(obj-y) $(obj-m) $(obj-) $(subdir-m) $(lib-target)),)
 builtin-target := $(obj)/built-in.o
 endif
 
@@ -382,16 +382,14 @@ cmd_link_multi-y = $(LD) $(ld_flags) -r -o $@ $(link_multi_deps) $(cmd_secanalys
 quiet_cmd_link_multi-m = LD [M]  $@
 cmd_link_multi-m = $(cmd_link_multi-y)
 
-# We would rather have a list of rules like
-# 	foo.o: $(foo-objs)
-# but that's not so easy, so we rather make all composite objects depend
-# on the set of all their parts
-$(multi-used-y) : %.o: $(multi-objs-y) FORCE
+$(multi-used-y): FORCE
 	$(call if_changed,link_multi-y)
+$(call multi_depend, $(multi-used-y), .o, -objs -y)
 
-$(multi-used-m) : %.o: $(multi-objs-m) FORCE
+$(multi-used-m): FORCE
 	$(call if_changed,link_multi-m)
 	@{ echo $(@:.o=.ko); echo $(link_multi_deps); } > $(MODVERDIR)/$(@F:.o=.mod)
+$(call multi_depend, $(multi-used-m), .o, -objs -y)
 
 targets += $(multi-used-y) $(multi-used-m)
 

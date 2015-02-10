@@ -96,7 +96,6 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 	union ib_gid sgid;
-	u8 zmac[ETH_ALEN];
 
 	if (!(attr->ah_flags & IB_AH_GRH))
 		return ERR_PTR(-EINVAL);
@@ -118,9 +117,7 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 		goto av_conf_err;
 	}
 
-	memset(&zmac, 0, ETH_ALEN);
-	if (pd->uctx &&
-	    memcmp(attr->dmac, &zmac, ETH_ALEN)) {
+	if (pd->uctx) {
 		status = rdma_addr_find_dmac_by_grh(&sgid, &attr->grh.dgid,
                                         attr->dmac, &attr->vlan_id);
 		if (status) {

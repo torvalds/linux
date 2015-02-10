@@ -57,6 +57,8 @@ Optional device specific properties:
         occurred on. If it is not set, the interrupt are only generated for the
         bank they belong to.
         On devices with only one interrupt output this property is useless.
+- microchip,irq-active-high: Sets the INTPOL flag in the IOCON register. This
+        configures the IRQ output polarity as active high.
 
 Example I2C (with interrupt):
 gpiom1: gpio@20 {

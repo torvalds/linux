@@ -190,6 +190,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_comp;
 
+	dev->irq_enabled = true;
 	dev->vblank_disable_allowed = 1;
 
 	ret = armada_fbdev_init(dev);
@@ -308,6 +309,7 @@ static struct drm_driver armada_drm_driver = {
 	.postclose		= NULL,
 	.lastclose		= armada_drm_lastclose,
 	.unload			= armada_drm_unload,
+	.set_busid		= drm_platform_set_busid,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= armada_drm_enable_vblank,
 	.disable_vblank		= armada_drm_disable_vblank,
@@ -330,7 +332,7 @@ static struct drm_driver armada_drm_driver = {
 	.desc			= "Armada SoC DRM",
 	.date			= "20120730",
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET |
-				  DRIVER_PRIME,
+				  DRIVER_HAVE_IRQ | DRIVER_PRIME,
 	.ioctls			= armada_ioctls,
 	.fops			= &armada_drm_fops,
 };
@@ -484,7 +486,6 @@ static struct platform_driver armada_drm_platform_driver = {
 	.remove	= armada_drm_remove,
 	.driver	= {
 		.name	= "armada-drm",
-		.owner	= THIS_MODULE,
 	},
 	.id_table = armada_drm_platform_ids,
 };

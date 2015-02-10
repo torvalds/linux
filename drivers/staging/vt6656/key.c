@@ -37,17 +37,14 @@
 
 int vnt_key_init_table(struct vnt_private *priv)
 {
-	int ret;
 	u8 i;
 	u8 data[MAX_KEY_TABLE];
 
 	for (i = 0; i < MAX_KEY_TABLE; i++)
 		data[i] = i;
 
-	ret = vnt_control_out(priv, MESSAGE_TYPE_CLRKEYENTRY,
+	return vnt_control_out(priv, MESSAGE_TYPE_CLRKEYENTRY,
 			0, 0, ARRAY_SIZE(data), data);
-
-	return ret;
 }
 
 static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,

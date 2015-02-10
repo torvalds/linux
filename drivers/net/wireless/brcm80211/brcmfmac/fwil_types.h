@@ -53,6 +53,66 @@
 #define BRCMF_OBSS_COEX_OFF		0
 #define BRCMF_OBSS_COEX_ON		1
 
+/* WOWL bits */
+/* Wakeup on Magic packet: */
+#define BRCMF_WOWL_MAGIC		(1 << 0)
+/* Wakeup on Netpattern */
+#define BRCMF_WOWL_NET			(1 << 1)
+/* Wakeup on loss-of-link due to Disassoc/Deauth: */
+#define BRCMF_WOWL_DIS			(1 << 2)
+/* Wakeup on retrograde TSF: */
+#define BRCMF_WOWL_RETR			(1 << 3)
+/* Wakeup on loss of beacon: */
+#define BRCMF_WOWL_BCN			(1 << 4)
+/* Wakeup after test: */
+#define BRCMF_WOWL_TST			(1 << 5)
+/* Wakeup after PTK refresh: */
+#define BRCMF_WOWL_M1			(1 << 6)
+/* Wakeup after receipt of EAP-Identity Req: */
+#define BRCMF_WOWL_EAPID		(1 << 7)
+/* Wakeind via PME(0) or GPIO(1): */
+#define BRCMF_WOWL_PME_GPIO		(1 << 8)
+/* need tkip phase 1 key to be updated by the driver: */
+#define BRCMF_WOWL_NEEDTKIP1		(1 << 9)
+/* enable wakeup if GTK fails: */
+#define BRCMF_WOWL_GTK_FAILURE		(1 << 10)
+/* support extended magic packets: */
+#define BRCMF_WOWL_EXTMAGPAT		(1 << 11)
+/* support ARP/NS/keepalive offloading: */
+#define BRCMF_WOWL_ARPOFFLOAD		(1 << 12)
+/* read protocol version for EAPOL frames: */
+#define BRCMF_WOWL_WPA2			(1 << 13)
+/* If the bit is set, use key rotaton: */
+#define BRCMF_WOWL_KEYROT		(1 << 14)
+/* If the bit is set, frm received was bcast frame: */
+#define BRCMF_WOWL_BCAST		(1 << 15)
+/* If the bit is set, scan offload is enabled: */
+#define BRCMF_WOWL_SCANOL		(1 << 16)
+/* Wakeup on tcpkeep alive timeout: */
+#define BRCMF_WOWL_TCPKEEP_TIME		(1 << 17)
+/* Wakeup on mDNS Conflict Resolution: */
+#define BRCMF_WOWL_MDNS_CONFLICT	(1 << 18)
+/* Wakeup on mDNS Service Connect: */
+#define BRCMF_WOWL_MDNS_SERVICE		(1 << 19)
+/* tcp keepalive got data: */
+#define BRCMF_WOWL_TCPKEEP_DATA		(1 << 20)
+/* Firmware died in wowl mode: */
+#define BRCMF_WOWL_FW_HALT		(1 << 21)
+/* Enable detection of radio button changes: */
+#define BRCMF_WOWL_ENAB_HWRADIO		(1 << 22)
+/* Offloads detected MIC failure(s): */
+#define BRCMF_WOWL_MIC_FAIL		(1 << 23)
+/* Wakeup in Unassociated state (Net/Magic Pattern): */
+#define BRCMF_WOWL_UNASSOC		(1 << 24)
+/* Wakeup if received matched secured pattern: */
+#define BRCMF_WOWL_SECURE		(1 << 25)
+/* Link Down indication in WoWL mode: */
+#define BRCMF_WOWL_LINKDOWN		(1 << 31)
+
+#define BRCMF_WOWL_MAXPATTERNS		8
+#define BRCMF_WOWL_MAXPATTERNSIZE	128
+
+
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
 	BRCMF_JOIN_PREF_RSSI = 1,
@@ -66,6 +126,12 @@ enum brcmf_fil_p2p_if_types {
 	BRCMF_FIL_P2P_IF_GO,
 	BRCMF_FIL_P2P_IF_DYNBCN_GO,
 	BRCMF_FIL_P2P_IF_DEV,
+};
+
+enum brcmf_wowl_pattern_type {
+	BRCMF_WOWL_PATTERN_TYPE_BITMAP = 0,
+	BRCMF_WOWL_PATTERN_TYPE_ARP,
+	BRCMF_WOWL_PATTERN_TYPE_NA
 };
 
 struct brcmf_fil_p2p_if_le {
@@ -426,6 +492,37 @@ struct brcmf_rx_mgmt_data {
 	__be32	rssi;
 	__be32	mactime;
 	__be32	rate;
+};
+
+/**
+ * struct brcmf_fil_wowl_pattern_le - wowl pattern configuration struct.
+ *
+ * @cmd: "add", "del" or "clr".
+ * @masksize: Size of the mask in #of bytes
+ * @offset: Pattern byte offset in packet
+ * @patternoffset: Offset of start of pattern. Starting from field masksize.
+ * @patternsize: Size of the pattern itself in #of bytes
+ * @id: id
+ * @reasonsize: Size of the wakeup reason code
+ * @type: Type of pattern (enum brcmf_wowl_pattern_type)
+ */
+struct brcmf_fil_wowl_pattern_le {
+	u8	cmd[4];
+	__le32	masksize;
+	__le32	offset;
+	__le32	patternoffset;
+	__le32	patternsize;
+	__le32	id;
+	__le32	reasonsize;
+	__le32	type;
+	/* u8 mask[] - Mask follows the structure above */
+	/* u8 pattern[] - Pattern follows the mask is at 'patternoffset' */
+};
+
+struct brcmf_mbss_ssid_le {
+	__le32	bsscfgidx;
+	__le32	SSID_len;
+	unsigned char SSID[32];
 };
 
 #endif /* FWIL_TYPES_H_ */

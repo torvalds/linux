@@ -2725,7 +2725,11 @@ int kv_dpm_init(struct radeon_device *rdev)
 
         pi->sram_end = SMC_RAM_END;
 
-	pi->enable_nb_dpm = true;
+	/* Enabling nb dpm on an asrock system prevents dpm from working */
+	if (rdev->pdev->subsystem_vendor == 0x1849)
+		pi->enable_nb_dpm = false;
+	else
+		pi->enable_nb_dpm = true;
 
 	pi->caps_power_containment = true;
 	pi->caps_cac = true;
@@ -2740,10 +2744,17 @@ int kv_dpm_init(struct radeon_device *rdev)
 	pi->caps_sclk_ds = true;
 	pi->enable_auto_thermal_throttling = true;
 	pi->disable_nb_ps3_in_battery = false;
-	if (radeon_bapm == 0)
+	if (radeon_bapm == -1) {
+		/* only enable bapm on KB, ML by default */
+		if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
+			pi->bapm_enable = true;
+		else
+			pi->bapm_enable = false;
+	} else if (radeon_bapm == 0) {
 		pi->bapm_enable = false;
-	else
+	} else {
 		pi->bapm_enable = true;
+	}
 	pi->voltage_drop_t = 0;
 	pi->caps_sclk_throttle_low_notification = false;
 	pi->caps_fps = false; /* true? */
@@ -2787,6 +2798,8 @@ void kv_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 		tmp = (RREG32_SMC(SMU_VOLTAGE_STATUS) & SMU_VOLTAGE_CURRENT_LEVEL_MASK) >>
 			SMU_VOLTAGE_CURRENT_LEVEL_SHIFT;
 		vddc = kv_convert_8bit_index_to_voltage(rdev, (u16)tmp);
+		seq_printf(m, "uvd    %sabled\n", pi->uvd_power_gated ? "dis" : "en");
+		seq_printf(m, "vce    %sabled\n", pi->vce_power_gated ? "dis" : "en");
 		seq_printf(m, "power level %d    sclk: %u vddc: %u\n",
 			   current_index, sclk, vddc);
 	}

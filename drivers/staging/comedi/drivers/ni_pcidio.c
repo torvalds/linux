@@ -384,11 +384,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct mite_struct *mite = devpriv->mite;
-
-	/* int i, j; */
-	unsigned int auxdata = 0;
-	unsigned short data1 = 0;
-	unsigned short data2 = 0;
+	unsigned int auxdata;
 	int flags;
 	int status;
 	int work = 0;
@@ -451,13 +447,9 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 					goto out;
 				}
 				auxdata = readl(dev->mmio + Group_1_FIFO);
-				data1 = auxdata & 0xffff;
-				data2 = (auxdata & 0xffff0000) >> 16;
-				comedi_buf_put(s, data1);
-				comedi_buf_put(s, data2);
+				comedi_buf_write_samples(s, &auxdata, 1);
 				flags = readb(dev->mmio + Group_1_Flags);
 			}
-			async->events |= COMEDI_CB_BLOCK;
 		}
 
 		if (flags & CountExpired) {
@@ -485,7 +477,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	}
 
 out:
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 #if 0
 	if (!tag)
 		writeb(0x03, dev->mmio + Master_DMA_And_Interrupt_Control);
@@ -530,15 +522,15 @@ static int ni_pcidio_ns_to_timer(int *nanosec, unsigned int flags)
 
 	base = TIMER_BASE;
 
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		divider = (*nanosec + base - 1) / base;
 		break;
 	}
@@ -598,11 +590,10 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* no limit */
-	} else {	/* TRIG_NONE */
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	}
 
 	if (err)
 		return 3;
@@ -669,7 +660,7 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writeb(3, dev->mmio + LinePolarities);
 		writeb(0xc0, dev->mmio + AckSer);
 		writel(ni_pcidio_ns_to_timer(&cmd->scan_begin_arg,
-					     TRIG_ROUND_NEAREST),
+					     CMDF_ROUND_NEAREST),
 		       dev->mmio + StartDelay);
 		writeb(1, dev->mmio + ReqDelay);
 		writeb(1, dev->mmio + ReqNotDelay);

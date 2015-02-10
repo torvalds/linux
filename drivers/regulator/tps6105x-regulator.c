@@ -163,7 +163,6 @@ static int tps6105x_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps6105x_regulator_driver = {
 	.driver = {
 		.name  = "tps6105x-regulator",
-		.owner = THIS_MODULE,
 	},
 	.probe = tps6105x_regulator_probe,
 };

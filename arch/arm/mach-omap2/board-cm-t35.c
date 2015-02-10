@@ -25,6 +25,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/omap-gpmc.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #include <linux/platform_data/at24.h>
@@ -51,8 +52,6 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
-#include "gpmc.h"
-#include "gpmc-nand.h"
 
 #define CM_T35_GPIO_PENDOWN		57
 #define SB_T35_USB_HUB_RESET_GPIO	167
@@ -766,7 +765,6 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
-	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t35_init,
 	.init_late	= omap35xx_init_late,
 	.init_time	= omap3_sync32k_timer_init,
@@ -779,7 +777,6 @@ MACHINE_START(CM_T3730, "Compulab CM-T3730")
 	.map_io		= omap3_map_io,
 	.init_early	= omap3630_init_early,
 	.init_irq	= omap3_init_irq,
-	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t3730_init,
 	.init_late     = omap3630_init_late,
 	.init_time	= omap3_sync32k_timer_init,

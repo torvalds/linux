@@ -139,7 +139,7 @@ struct rcu_node {
 	unsigned long expmask;	/* Groups that have ->blkd_tasks */
 				/*  elements that need to drain to allow the */
 				/*  current expedited grace period to */
-				/*  complete (only for TREE_PREEMPT_RCU). */
+				/*  complete (only for PREEMPT_RCU). */
 	unsigned long qsmaskinit;
 				/* Per-GP initial value for qsmask & expmask. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
@@ -350,7 +350,7 @@ struct rcu_data {
 	int nocb_p_count_lazy;		/*  (approximate). */
 	wait_queue_head_t nocb_wq;	/* For nocb kthreads to sleep on. */
 	struct task_struct *nocb_kthread;
-	bool nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
+	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
 
 	/* The following fields are used by the leader, hence own cacheline. */
 	struct rcu_head *nocb_gp_head ____cacheline_internodealigned_in_smp;
@@ -382,6 +382,11 @@ struct rcu_data {
 #define RCU_SAVE_DYNTICK	2	/* Need to scan dyntick state. */
 #define RCU_FORCE_QS		3	/* Need to force quiescent state. */
 #define RCU_SIGNAL_INIT		RCU_SAVE_DYNTICK
+
+/* Values for nocb_defer_wakeup field in struct rcu_data. */
+#define RCU_NOGP_WAKE_NOT	0
+#define RCU_NOGP_WAKE		1
+#define RCU_NOGP_WAKE_FORCE	2
 
 #define RCU_JIFFIES_TILL_FORCE_QS (1 + (HZ > 250) + (HZ > 500))
 					/* For jiffies_till_first_fqs and */
@@ -525,10 +530,10 @@ DECLARE_PER_CPU(struct rcu_data, rcu_sched_data);
 extern struct rcu_state rcu_bh_state;
 DECLARE_PER_CPU(struct rcu_data, rcu_bh_data);
 
-#ifdef CONFIG_TREE_PREEMPT_RCU
+#ifdef CONFIG_PREEMPT_RCU
 extern struct rcu_state rcu_preempt_state;
 DECLARE_PER_CPU(struct rcu_data, rcu_preempt_data);
-#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+#endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 #ifdef CONFIG_RCU_BOOST
 DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
@@ -542,7 +547,7 @@ DECLARE_PER_CPU(char, rcu_cpu_has_work);
 /* Forward declarations for rcutree_plugin.h */
 static void rcu_bootup_announce(void);
 long rcu_batches_completed(void);
-static void rcu_preempt_note_context_switch(int cpu);
+static void rcu_preempt_note_context_switch(void);
 static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
 static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp,
@@ -556,12 +561,12 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 				     struct rcu_node *rnp,
 				     struct rcu_data *rdp);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
-static void rcu_preempt_check_callbacks(int cpu);
+static void rcu_preempt_check_callbacks(void);
 void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
-#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_TREE_PREEMPT_RCU)
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_PREEMPT_RCU)
 static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			       bool wake);
-#endif /* #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_TREE_PREEMPT_RCU) */
+#endif /* #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_PREEMPT_RCU) */
 static void __init __rcu_init_preempt(void);
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
@@ -572,15 +577,17 @@ static void rcu_preempt_do_callbacks(void);
 static int rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 						 struct rcu_node *rnp);
 #endif /* #ifdef CONFIG_RCU_BOOST */
+static void __init rcu_spawn_boost_kthreads(void);
 static void rcu_prepare_kthreads(int cpu);
-static void rcu_cleanup_after_idle(int cpu);
-static void rcu_prepare_for_idle(int cpu);
+static void rcu_cleanup_after_idle(void);
+static void rcu_prepare_for_idle(void);
 static void rcu_idle_count_callbacks_posted(void);
 static void print_cpu_stall_info_begin(void);
 static void print_cpu_stall_info(struct rcu_state *rsp, int cpu);
 static void print_cpu_stall_info_end(void);
 static void zero_cpu_stall_ticks(struct rcu_data *rdp);
 static void increment_cpu_stall_ticks(void);
+static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu);
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq);
 static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp);
 static void rcu_init_one_nocb(struct rcu_node *rnp);
@@ -589,14 +596,18 @@ static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 static bool rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
 				      struct rcu_data *rdp,
 				      unsigned long flags);
-static bool rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);
+static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);
 static void do_nocb_deferred_wakeup(struct rcu_data *rdp);
 static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
-static void rcu_spawn_nocb_kthreads(struct rcu_state *rsp);
+static void rcu_spawn_all_nocb_kthreads(int cpu);
+static void __init rcu_spawn_nocb_kthreads(void);
+#ifdef CONFIG_RCU_NOCB_CPU
+static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp);
+#endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 static void __maybe_unused rcu_kick_nohz_cpu(int cpu);
 static bool init_nocb_callback_list(struct rcu_data *rdp);
-static void rcu_sysidle_enter(struct rcu_dynticks *rdtp, int irq);
-static void rcu_sysidle_exit(struct rcu_dynticks *rdtp, int irq);
+static void rcu_sysidle_enter(int irq);
+static void rcu_sysidle_exit(int irq);
 static void rcu_sysidle_check_cpu(struct rcu_data *rdp, bool *isidle,
 				  unsigned long *maxj);
 static bool is_sysidle_rcu_state(struct rcu_state *rsp);
@@ -605,6 +616,8 @@ static void rcu_sysidle_report_gp(struct rcu_state *rsp, int isidle,
 static void rcu_bind_gp_kthread(void);
 static void rcu_sysidle_init_percpu_data(struct rcu_dynticks *rdtp);
 static bool rcu_nohz_full_cpu(struct rcu_state *rsp);
+static void rcu_dynticks_task_enter(void);
+static void rcu_dynticks_task_exit(void);
 
 #endif /* #ifndef RCU_TREE_NONCORE */
 

@@ -56,6 +56,14 @@ struct opal_sg_list {
 #define OPAL_HARDWARE_FROZEN	-13
 #define OPAL_WRONG_STATE	-14
 #define OPAL_ASYNC_COMPLETION	-15
+#define OPAL_I2C_TIMEOUT	-17
+#define OPAL_I2C_INVALID_CMD	-18
+#define OPAL_I2C_LBUS_PARITY	-19
+#define OPAL_I2C_BKEND_OVERRUN	-20
+#define OPAL_I2C_BKEND_ACCESS	-21
+#define OPAL_I2C_ARBT_LOST	-22
+#define OPAL_I2C_NACK_RCVD	-23
+#define OPAL_I2C_STOP_ERR	-24
 
 /* API Tokens (in r0) */
 #define OPAL_INVALID_CALL			-1
@@ -135,6 +143,7 @@ struct opal_sg_list {
 #define OPAL_FLASH_MANAGE			77
 #define OPAL_FLASH_UPDATE			78
 #define OPAL_RESYNC_TIMEBASE			79
+#define OPAL_CHECK_TOKEN			80
 #define OPAL_DUMP_INIT				81
 #define OPAL_DUMP_INFO				82
 #define OPAL_DUMP_READ				83
@@ -146,11 +155,30 @@ struct opal_sg_list {
 #define OPAL_GET_PARAM				89
 #define OPAL_SET_PARAM				90
 #define OPAL_DUMP_RESEND			91
+#define OPAL_PCI_SET_PHB_CXL_MODE		93
 #define OPAL_DUMP_INFO2				94
+#define OPAL_PCI_ERR_INJECT			96
 #define OPAL_PCI_EEH_FREEZE_SET			97
 #define OPAL_HANDLE_HMI				98
+#define OPAL_CONFIG_CPU_IDLE_STATE		99
+#define OPAL_SLW_SET_REG			100
 #define OPAL_REGISTER_DUMP_REGION		101
 #define OPAL_UNREGISTER_DUMP_REGION		102
+#define OPAL_WRITE_TPO				103
+#define OPAL_READ_TPO				104
+#define OPAL_IPMI_SEND				107
+#define OPAL_IPMI_RECV				108
+#define OPAL_I2C_REQUEST			109
+
+/* Device tree flags */
+
+/* Flags set in power-mgmt nodes in device tree if
+ * respective idle states are supported in the platform.
+ */
+#define OPAL_PM_NAP_ENABLED	0x00010000
+#define OPAL_PM_SLEEP_ENABLED	0x00020000
+#define OPAL_PM_WINKLE_ENABLED	0x00040000
+#define OPAL_PM_SLEEP_ENABLED_ER1	0x00080000
 
 #ifndef __ASSEMBLY__
 
@@ -197,6 +225,35 @@ enum OpalPciErrorSeverity {
 	OPAL_EEH_SEV_PHB_FENCED	= 3,
 	OPAL_EEH_SEV_PE_ER	= 4,
 	OPAL_EEH_SEV_INF	= 5
+};
+
+enum OpalErrinjectType {
+	OPAL_ERR_INJECT_TYPE_IOA_BUS_ERR	= 0,
+	OPAL_ERR_INJECT_TYPE_IOA_BUS_ERR64	= 1,
+};
+
+enum OpalErrinjectFunc {
+	/* IOA bus specific errors */
+	OPAL_ERR_INJECT_FUNC_IOA_LD_MEM_ADDR	= 0,
+	OPAL_ERR_INJECT_FUNC_IOA_LD_MEM_DATA	= 1,
+	OPAL_ERR_INJECT_FUNC_IOA_LD_IO_ADDR	= 2,
+	OPAL_ERR_INJECT_FUNC_IOA_LD_IO_DATA	= 3,
+	OPAL_ERR_INJECT_FUNC_IOA_LD_CFG_ADDR	= 4,
+	OPAL_ERR_INJECT_FUNC_IOA_LD_CFG_DATA	= 5,
+	OPAL_ERR_INJECT_FUNC_IOA_ST_MEM_ADDR	= 6,
+	OPAL_ERR_INJECT_FUNC_IOA_ST_MEM_DATA	= 7,
+	OPAL_ERR_INJECT_FUNC_IOA_ST_IO_ADDR	= 8,
+	OPAL_ERR_INJECT_FUNC_IOA_ST_IO_DATA	= 9,
+	OPAL_ERR_INJECT_FUNC_IOA_ST_CFG_ADDR	= 10,
+	OPAL_ERR_INJECT_FUNC_IOA_ST_CFG_DATA	= 11,
+	OPAL_ERR_INJECT_FUNC_IOA_DMA_RD_ADDR	= 12,
+	OPAL_ERR_INJECT_FUNC_IOA_DMA_RD_DATA	= 13,
+	OPAL_ERR_INJECT_FUNC_IOA_DMA_RD_MASTER	= 14,
+	OPAL_ERR_INJECT_FUNC_IOA_DMA_RD_TARGET	= 15,
+	OPAL_ERR_INJECT_FUNC_IOA_DMA_WR_ADDR	= 16,
+	OPAL_ERR_INJECT_FUNC_IOA_DMA_WR_DATA	= 17,
+	OPAL_ERR_INJECT_FUNC_IOA_DMA_WR_MASTER	= 18,
+	OPAL_ERR_INJECT_FUNC_IOA_DMA_WR_TARGET	= 19,
 };
 
 enum OpalShpcAction {
@@ -252,62 +309,6 @@ enum OpalMessageType {
 	OPAL_MSG_TYPE_MAX,
 };
 
-/* Machine check related definitions */
-enum OpalMCE_Version {
-	OpalMCE_V1 = 1,
-};
-
-enum OpalMCE_Severity {
-	OpalMCE_SEV_NO_ERROR = 0,
-	OpalMCE_SEV_WARNING = 1,
-	OpalMCE_SEV_ERROR_SYNC = 2,
-	OpalMCE_SEV_FATAL = 3,
-};
-
-enum OpalMCE_Disposition {
-	OpalMCE_DISPOSITION_RECOVERED = 0,
-	OpalMCE_DISPOSITION_NOT_RECOVERED = 1,
-};
-
-enum OpalMCE_Initiator {
-	OpalMCE_INITIATOR_UNKNOWN = 0,
-	OpalMCE_INITIATOR_CPU = 1,
-};
-
-enum OpalMCE_ErrorType {
-	OpalMCE_ERROR_TYPE_UNKNOWN = 0,
-	OpalMCE_ERROR_TYPE_UE = 1,
-	OpalMCE_ERROR_TYPE_SLB = 2,
-	OpalMCE_ERROR_TYPE_ERAT = 3,
-	OpalMCE_ERROR_TYPE_TLB = 4,
-};
-
-enum OpalMCE_UeErrorType {
-	OpalMCE_UE_ERROR_INDETERMINATE = 0,
-	OpalMCE_UE_ERROR_IFETCH = 1,
-	OpalMCE_UE_ERROR_PAGE_TABLE_WALK_IFETCH = 2,
-	OpalMCE_UE_ERROR_LOAD_STORE = 3,
-	OpalMCE_UE_ERROR_PAGE_TABLE_WALK_LOAD_STORE = 4,
-};
-
-enum OpalMCE_SlbErrorType {
-	OpalMCE_SLB_ERROR_INDETERMINATE = 0,
-	OpalMCE_SLB_ERROR_PARITY = 1,
-	OpalMCE_SLB_ERROR_MULTIHIT = 2,
-};
-
-enum OpalMCE_EratErrorType {
-	OpalMCE_ERAT_ERROR_INDETERMINATE = 0,
-	OpalMCE_ERAT_ERROR_PARITY = 1,
-	OpalMCE_ERAT_ERROR_MULTIHIT = 2,
-};
-
-enum OpalMCE_TlbErrorType {
-	OpalMCE_TLB_ERROR_INDETERMINATE = 0,
-	OpalMCE_TLB_ERROR_PARITY = 1,
-	OpalMCE_TLB_ERROR_MULTIHIT = 2,
-};
-
 enum OpalThreadStatus {
 	OPAL_THREAD_INACTIVE = 0x0,
 	OPAL_THREAD_STARTED = 0x1,
@@ -356,9 +357,12 @@ enum OpalM64EnableAction {
 };
 
 enum OpalPciResetScope {
-	OPAL_PHB_COMPLETE = 1, OPAL_PCI_LINK = 2, OPAL_PHB_ERROR = 3,
-	OPAL_PCI_HOT_RESET = 4, OPAL_PCI_FUNDAMENTAL_RESET = 5,
-	OPAL_PCI_IODA_TABLE_RESET = 6,
+	OPAL_RESET_PHB_COMPLETE		= 1,
+	OPAL_RESET_PCI_LINK		= 2,
+	OPAL_RESET_PHB_ERROR		= 3,
+	OPAL_RESET_PCI_HOT		= 4,
+	OPAL_RESET_PCI_FUNDAMENTAL	= 5,
+	OPAL_RESET_PCI_IODA_TABLE	= 6
 };
 
 enum OpalPciReinitScope {
@@ -417,52 +421,15 @@ struct opal_msg {
 	__be64 params[8];
 };
 
-struct opal_machine_check_event {
-	enum OpalMCE_Version	version:8;	/* 0x00 */
-	uint8_t			in_use;		/* 0x01 */
-	enum OpalMCE_Severity	severity:8;	/* 0x02 */
-	enum OpalMCE_Initiator	initiator:8;	/* 0x03 */
-	enum OpalMCE_ErrorType	error_type:8;	/* 0x04 */
-	enum OpalMCE_Disposition disposition:8; /* 0x05 */
-	uint8_t			reserved_1[2];	/* 0x06 */
-	uint64_t		gpr3;		/* 0x08 */
-	uint64_t		srr0;		/* 0x10 */
-	uint64_t		srr1;		/* 0x18 */
-	union {					/* 0x20 */
-		struct {
-			enum OpalMCE_UeErrorType ue_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		physical_address_provided;
-			uint8_t		reserved_1[5];
-			uint64_t	effective_address;
-			uint64_t	physical_address;
-			uint8_t		reserved_2[8];
-		} ue_error;
+enum {
+	OPAL_IPMI_MSG_FORMAT_VERSION_1 = 1,
+};
 
-		struct {
-			enum OpalMCE_SlbErrorType slb_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
-		} slb_error;
-
-		struct {
-			enum OpalMCE_EratErrorType erat_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
-		} erat_error;
-
-		struct {
-			enum OpalMCE_TlbErrorType tlb_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
-		} tlb_error;
-	} u;
+struct opal_ipmi_msg {
+	uint8_t		version;
+	uint8_t		netfn;
+	uint8_t		cmd;
+	uint8_t		data[];
 };
 
 /* FSP memory errors handling */
@@ -766,6 +733,24 @@ typedef struct oppanel_line {
 	uint64_t 	line_len;
 } oppanel_line_t;
 
+/* OPAL I2C request */
+struct opal_i2c_request {
+	uint8_t	type;
+#define OPAL_I2C_RAW_READ	0
+#define OPAL_I2C_RAW_WRITE	1
+#define OPAL_I2C_SM_READ	2
+#define OPAL_I2C_SM_WRITE	3
+	uint8_t flags;
+#define OPAL_I2C_ADDR_10	0x01	/* Not supported yet */
+	uint8_t	subaddr_sz;		/* Max 4 */
+	uint8_t reserved;
+	__be16 addr;			/* 7 or 10 bit address */
+	__be16 reserved2;
+	__be32 subaddr;		/* Sub-address if any */
+	__be32 size;			/* Data size */
+	__be64 buffer_ra;		/* Buffer real address */
+};
+
 /* /sys/firmware/opal */
 extern struct kobject *opal_kobj;
 
@@ -784,6 +769,9 @@ int64_t opal_rtc_read(__be32 *year_month_day,
 		      __be64 *hour_minute_second_millisecond);
 int64_t opal_rtc_write(uint32_t year_month_day,
 		       uint64_t hour_minute_second_millisecond);
+int64_t opal_tpo_read(uint64_t token, __be32 *year_mon_day, __be32 *hour_min);
+int64_t opal_tpo_write(uint64_t token, uint32_t year_mon_day,
+		       uint32_t hour_min);
 int64_t opal_cec_power_down(uint64_t request);
 int64_t opal_cec_reboot(void);
 int64_t opal_read_nvram(uint64_t buffer, uint64_t size, uint64_t offset);
@@ -819,6 +807,8 @@ int64_t opal_pci_eeh_freeze_clear(uint64_t phb_id, uint64_t pe_number,
 				  uint64_t eeh_action_token);
 int64_t opal_pci_eeh_freeze_set(uint64_t phb_id, uint64_t pe_number,
 				uint64_t eeh_action_token);
+int64_t opal_pci_err_inject(uint64_t phb_id, uint32_t pe_no, uint32_t type,
+			    uint32_t func, uint64_t addr, uint64_t mask);
 int64_t opal_pci_shpc(uint64_t phb_id, uint64_t shpc_action, uint8_t *state);
 
 
@@ -887,6 +877,7 @@ int64_t opal_pci_next_error(uint64_t phb_id, __be64 *first_frozen_pe,
 			    __be16 *pci_error_type, __be16 *severity);
 int64_t opal_pci_poll(uint64_t phb_id);
 int64_t opal_return_cpu(void);
+int64_t opal_check_token(uint64_t token);
 int64_t opal_reinit_cpus(uint64_t flags);
 
 int64_t opal_xscom_read(uint32_t gcid, uint64_t pcb_addr, __be64 *val);
@@ -924,6 +915,14 @@ int64_t opal_sensor_read(uint32_t sensor_hndl, int token, __be32 *sensor_data);
 int64_t opal_handle_hmi(void);
 int64_t opal_register_dump_region(uint32_t id, uint64_t start, uint64_t end);
 int64_t opal_unregister_dump_region(uint32_t id);
+int64_t opal_slw_set_reg(uint64_t cpu_pir, uint64_t sprn, uint64_t val);
+int64_t opal_pci_set_phb_cxl_mode(uint64_t phb_id, uint64_t mode, uint64_t pe_number);
+int64_t opal_ipmi_send(uint64_t interface, struct opal_ipmi_msg *msg,
+		uint64_t msg_len);
+int64_t opal_ipmi_recv(uint64_t interface, struct opal_ipmi_msg *msg,
+		uint64_t *msg_len);
+int64_t opal_i2c_request(uint64_t async_token, uint32_t bus_id,
+			 struct opal_i2c_request *oreq);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
@@ -953,8 +952,6 @@ extern int opal_async_wait_response(uint64_t token, struct opal_msg *msg);
 extern int opal_get_sensor_data(u32 sensor_hndl, u32 *sensor_data);
 
 struct rtc_time;
-extern int opal_set_rtc_time(struct rtc_time *tm);
-extern void opal_get_rtc_time(struct rtc_time *tm);
 extern unsigned long opal_get_boot_time(void);
 extern void opal_nvram_init(void);
 extern void opal_flash_init(void);

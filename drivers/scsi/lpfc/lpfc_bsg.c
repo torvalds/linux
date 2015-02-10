@@ -656,7 +656,6 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 	struct lpfc_nodelist *ndlp = rdata->pnode;
 	uint32_t elscmd;
 	uint32_t cmdsize;
-	uint32_t rspsize;
 	struct lpfc_iocbq *cmdiocbq;
 	uint16_t rpi = 0;
 	struct bsg_job_data *dd_data;
@@ -687,7 +686,6 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 
 	elscmd = job->request->rqst_data.r_els.els_code;
 	cmdsize = job->request_payload.payload_len;
-	rspsize = job->reply_payload.payload_len;
 
 	if (!lpfc_nlp_get(ndlp)) {
 		rc = -ENODEV;
@@ -2251,7 +2249,6 @@ lpfc_sli4_bsg_diag_mode_end(struct fc_bsg_job *job)
 	i = 0;
 	while (phba->link_state != LPFC_LINK_DOWN) {
 		if (i++ > timeout) {
-			rc = -ETIMEDOUT;
 			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 					"3140 Timeout waiting for link to "
 					"diagnostic mode_end, timeout:%d ms\n",
@@ -2291,7 +2288,6 @@ lpfc_sli4_bsg_link_diag_test(struct fc_bsg_job *job)
 	LPFC_MBOXQ_t *pmboxq;
 	struct sli4_link_diag *link_diag_test_cmd;
 	uint32_t req_len, alloc_len;
-	uint32_t timeout;
 	struct lpfc_mbx_run_link_diag_test *run_link_diag_test;
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t shdr_status, shdr_add_status;
@@ -2342,7 +2338,6 @@ lpfc_sli4_bsg_link_diag_test(struct fc_bsg_job *job)
 
 	link_diag_test_cmd = (struct sli4_link_diag *)
 			 job->request->rqst_data.h_vendor.vendor_cmd;
-	timeout = link_diag_test_cmd->timeout * 100;
 
 	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 1);
 
@@ -2693,14 +2688,13 @@ lpfc_bsg_dma_page_alloc(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&dmabuf->list);
 
 	/* now, allocate dma buffer */
-	dmabuf->virt = dma_alloc_coherent(&pcidev->dev, BSG_MBOX_SIZE,
-					  &(dmabuf->phys), GFP_KERNEL);
+	dmabuf->virt = dma_zalloc_coherent(&pcidev->dev, BSG_MBOX_SIZE,
+					   &(dmabuf->phys), GFP_KERNEL);
 
 	if (!dmabuf->virt) {
 		kfree(dmabuf);
 		return NULL;
 	}
-	memset((uint8_t *)dmabuf->virt, 0, BSG_MBOX_SIZE);
 
 	return dmabuf;
 }
@@ -2828,8 +2822,10 @@ diag_cmd_data_alloc(struct lpfc_hba *phba,
 		size -= cnt;
 	}
 
-	mlist->flag = i;
-	return mlist;
+	if (mlist) {
+		mlist->flag = i;
+		return mlist;
+	}
 out:
 	diag_cmd_data_free(phba, mlist);
 	return NULL;
@@ -3344,7 +3340,7 @@ job_error:
  * will wake up thread waiting on the wait queue pointed by context1
  * of the mailbox.
  **/
-void
+static void
 lpfc_bsg_issue_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
 	struct bsg_job_data *dd_data;
@@ -4593,7 +4589,7 @@ sli_cfg_ext_error:
  * being reset) and com-plete the job, otherwise issue the mailbox command and
  * let our completion handler finish the command.
  **/
-static uint32_t
+static int
 lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	struct lpfc_vport *vport)
 {

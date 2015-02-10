@@ -202,8 +202,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 		struct samsung_usb2_phy_instance *p = &drv->instances[i];
 
 		dev_dbg(dev, "Creating phy \"%s\"\n", label);
-		p->phy = devm_phy_create(dev, NULL, &samsung_usb2_phy_ops,
-					 NULL);
+		p->phy = devm_phy_create(dev, NULL, &samsung_usb2_phy_ops);
 		if (IS_ERR(p->phy)) {
 			dev_err(drv->dev, "Failed to create usb2_phy \"%s\"\n",
 				label);
@@ -231,7 +230,6 @@ static struct platform_driver samsung_usb2_phy_driver = {
 	.driver = {
 		.of_match_table	= samsung_usb2_phy_of_match,
 		.name		= "samsung-usb2-phy",
-		.owner		= THIS_MODULE,
 	}
 };
 

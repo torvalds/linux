@@ -254,7 +254,7 @@ nvkm_output_dp_create_(struct nouveau_object *parent,
 	atomic_set(&outp->lt.done, 0);
 
 	/* link maintenance */
-	ret = nvkm_notify_init(&i2c->event, nvkm_output_dp_irq, true,
+	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_output_dp_irq, true,
 			       &(struct nvkm_i2c_ntfy_req) {
 				.mask = NVKM_I2C_IRQ,
 				.port = outp->base.edid->index,
@@ -268,7 +268,7 @@ nvkm_output_dp_create_(struct nouveau_object *parent,
 	}
 
 	/* hotplug detect, replaces gpio-based mechanism with aux events */
-	ret = nvkm_notify_init(&i2c->event, nvkm_output_dp_hpd, true,
+	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_output_dp_hpd, true,
 			       &(struct nvkm_i2c_ntfy_req) {
 				.mask = NVKM_I2C_PLUG | NVKM_I2C_UNPLUG,
 				.port = outp->base.edid->index,

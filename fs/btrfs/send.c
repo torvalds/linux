@@ -515,7 +515,8 @@ static int write_buf(struct file *filp, const void *buf, u32 len, loff_t *off)
 	set_fs(KERNEL_DS);
 
 	while (pos < len) {
-		ret = vfs_write(filp, (char *)buf + pos, len - pos, off);
+		ret = vfs_write(filp, (__force const char __user *)buf + pos,
+				len - pos, off);
 		/* TODO handle that correctly */
 		/*if (ret == -ERESTARTSYS) {
 			continue;
@@ -985,11 +986,13 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 	int num;
 	u8 type;
 
-	if (found_key->type == BTRFS_XATTR_ITEM_KEY)
-		buf_len = BTRFS_MAX_XATTR_SIZE(root);
-	else
-		buf_len = PATH_MAX;
-
+	/*
+	 * Start with a small buffer (1 page). If later we end up needing more
+	 * space, which can happen for xattrs on a fs with a leaf size greater
+	 * then the page size, attempt to increase the buffer. Typically xattr
+	 * values are small.
+	 */
+	buf_len = PATH_MAX;
 	buf = kmalloc(buf_len, GFP_NOFS);
 	if (!buf) {
 		ret = -ENOMEM;
@@ -1016,7 +1019,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 				ret = -ENAMETOOLONG;
 				goto out;
 			}
-			if (name_len + data_len > buf_len) {
+			if (name_len + data_len > BTRFS_MAX_XATTR_SIZE(root)) {
 				ret = -E2BIG;
 				goto out;
 			}
@@ -1024,9 +1027,31 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 			/*
 			 * Path too long
 			 */
-			if (name_len + data_len > buf_len) {
+			if (name_len + data_len > PATH_MAX) {
 				ret = -ENAMETOOLONG;
 				goto out;
+			}
+		}
+
+		if (name_len + data_len > buf_len) {
+			buf_len = name_len + data_len;
+			if (is_vmalloc_addr(buf)) {
+				vfree(buf);
+				buf = NULL;
+			} else {
+				char *tmp = krealloc(buf, buf_len,
+						     GFP_NOFS | __GFP_NOWARN);
+
+				if (!tmp)
+					kfree(buf);
+				buf = tmp;
+			}
+			if (!buf) {
+				buf = vmalloc(buf_len);
+				if (!buf) {
+					ret = -ENOMEM;
+					goto out;
+				}
 			}
 		}
 
@@ -1050,7 +1075,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 	}
 
 out:
-	kfree(buf);
+	kvfree(buf);
 	return ret;
 }
 
@@ -3302,7 +3327,7 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 		if (ret < 0 && ret != -ENOENT) {
 			goto out;
 		} else if (ret == -ENOENT) {
-			ret = 1;
+			ret = 0;
 			break;
 		}
 
@@ -5482,6 +5507,51 @@ out:
 	return ret;
 }
 
+/*
+ * If orphan cleanup did remove any orphans from a root, it means the tree
+ * was modified and therefore the commit root is not the same as the current
+ * root anymore. This is a problem, because send uses the commit root and
+ * therefore can see inode items that don't exist in the current root anymore,
+ * and for example make calls to btrfs_iget, which will do tree lookups based
+ * on the current root and not on the commit root. Those lookups will fail,
+ * returning a -ESTALE error, and making send fail with that error. So make
+ * sure a send does not see any orphans we have just removed, and that it will
+ * see the same inodes regardless of whether a transaction commit happened
+ * before it started (meaning that the commit root will be the same as the
+ * current root) or not.
+ */
+static int ensure_commit_roots_uptodate(struct send_ctx *sctx)
+{
+	int i;
+	struct btrfs_trans_handle *trans = NULL;
+
+again:
+	if (sctx->parent_root &&
+	    sctx->parent_root->node != sctx->parent_root->commit_root)
+		goto commit_trans;
+
+	for (i = 0; i < sctx->clone_roots_cnt; i++)
+		if (sctx->clone_roots[i].root->node !=
+		    sctx->clone_roots[i].root->commit_root)
+			goto commit_trans;
+
+	if (trans)
+		return btrfs_end_transaction(trans, sctx->send_root);
+
+	return 0;
+
+commit_trans:
+	/* Use any root, all fs roots will get their commit roots updated. */
+	if (!trans) {
+		trans = btrfs_join_transaction(sctx->send_root);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+		goto again;
+	}
+
+	return btrfs_commit_transaction(trans, sctx->send_root);
+}
+
 static void btrfs_root_dec_send_in_progress(struct btrfs_root* root)
 {
 	spin_lock(&root->root_item_lock);
@@ -5703,7 +5773,11 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			NULL);
 	sort_clone_roots = 1;
 
-	current->journal_info = (void *)BTRFS_SEND_TRANS_STUB;
+	ret = ensure_commit_roots_uptodate(sctx);
+	if (ret)
+		goto out;
+
+	current->journal_info = BTRFS_SEND_TRANS_STUB;
 	ret = send_subvol(sctx);
 	current->journal_info = NULL;
 	if (ret < 0)

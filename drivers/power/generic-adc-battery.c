@@ -414,7 +414,6 @@ static const struct dev_pm_ops gab_pm_ops = {
 static struct platform_driver gab_driver = {
 	.driver		= {
 		.name	= "generic-adc-battery",
-		.owner	= THIS_MODULE,
 		.pm	= GAB_PM_OPS
 	},
 	.probe		= gab_probe,

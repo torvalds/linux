@@ -47,11 +47,11 @@
 					gpio2 {
 						gpio2_default_mode: gpio2_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio2_a_1";
+								function = "gpio";
+								groups = "gpio2_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO2_T9";
+								pins = "GPIO2_T9";
 								input-enable;
 								bias-pull-down;
 							};
@@ -60,11 +60,11 @@
 					gpio4 {
 						gpio4_default_mode: gpio4_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio4_a_1";
+								function = "gpio";
+								groups = "gpio4_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO4_W2";
+								pins = "GPIO4_W2";
 								input-enable;
 								bias-pull-down;
 							};
@@ -73,11 +73,11 @@
 					gpio10 {
 						gpio10_default_mode: gpio10_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio10_d_1";
+								function = "gpio";
+								groups = "gpio10_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO10_U17";
+								pins = "GPIO10_U17";
 								input-enable;
 								bias-pull-down;
 							};
@@ -86,11 +86,11 @@
 					gpio11 {
 						gpio11_default_mode: gpio11_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio11_d_1";
+								function = "gpio";
+								groups = "gpio11_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO11_AA18";
+								pins = "GPIO11_AA18";
 								input-enable;
 								bias-pull-down;
 							};
@@ -99,11 +99,11 @@
 					gpio12 {
 						gpio12_default_mode: gpio12_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio12_d_1";
+								function = "gpio";
+								groups = "gpio12_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO12_U16";
+								pins = "GPIO12_U16";
 								input-enable;
 								bias-pull-down;
 							};
@@ -112,11 +112,11 @@
 					gpio13 {
 						gpio13_default_mode: gpio13_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio13_d_1";
+								function = "gpio";
+								groups = "gpio13_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO13_W17";
+								pins = "GPIO13_W17";
 								input-enable;
 								bias-pull-down;
 							};
@@ -125,11 +125,11 @@
 					gpio16 {
 						gpio16_default_mode: gpio16_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio16_a_1";
+								function = "gpio";
+								groups = "gpio16_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO16_F15";
+								pins = "GPIO16_F15";
 								input-enable;
 								bias-pull-down;
 							};
@@ -138,11 +138,11 @@
 					gpio24 {
 						gpio24_default_mode: gpio24_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio24_a_1";
+								function = "gpio";
+								groups = "gpio24_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO24_T14";
+								pins = "GPIO24_T14";
 								input-enable;
 								bias-pull-down;
 							};
@@ -151,11 +151,11 @@
 					gpio25 {
 						gpio25_default_mode: gpio25_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio25_a_1";
+								function = "gpio";
+								groups = "gpio25_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO25_R16";
+								pins = "GPIO25_R16";
 								input-enable;
 								bias-pull-down;
 							};
@@ -164,11 +164,11 @@
 					gpio36 {
 						gpio36_default_mode: gpio36_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio36_a_1";
+								function = "gpio";
+								groups = "gpio36_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO36_A17";
+								pins = "GPIO36_A17";
 								input-enable;
 								bias-pull-down;
 							};
@@ -177,11 +177,11 @@
 					gpio37 {
 						gpio37_default_mode: gpio37_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio37_a_1";
+								function = "gpio";
+								groups = "gpio37_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO37_E15";
+								pins = "GPIO37_E15";
 								input-enable;
 								bias-pull-down;
 							};
@@ -190,11 +190,11 @@
 					gpio38 {
 						gpio38_default_mode: gpio38_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio38_a_1";
+								function = "gpio";
+								groups = "gpio38_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO38_C17";
+								pins = "GPIO38_C17";
 								input-enable;
 								bias-pull-down;
 							};
@@ -203,11 +203,11 @@
 					gpio39 {
 						gpio39_default_mode: gpio39_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio39_a_1";
+								function = "gpio";
+								groups = "gpio39_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO39_E16";
+								pins = "GPIO39_E16";
 								input-enable;
 								bias-pull-down;
 							};
@@ -216,11 +216,11 @@
 					gpio42 {
 						gpio42_default_mode: gpio42_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio42_a_1";
+								function = "gpio";
+								groups = "gpio42_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO42_U2";
+								pins = "GPIO42_U2";
 								input-enable;
 								bias-pull-down;
 							};
@@ -232,11 +232,11 @@
 					gpio26 {
 						gpio26_default_mode: gpio26_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio26_d_1";
+								function = "gpio";
+								groups = "gpio26_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO26_M16";
+								pins = "GPIO26_M16";
 								output-low;
 							};
 						};
@@ -244,11 +244,11 @@
 					gpio35 {
 						gpio35_default_mode: gpio35_default {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio35_d_1";
+								function = "gpio";
+								groups = "gpio35_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO35_W15";
+								pins = "GPIO35_W15";
 								output-low;
 							};
 						};
@@ -260,11 +260,11 @@
 					ycbcr {
 						ycbcr_default_mode: ycbcr_default {
 							default_mux {
-								ste,function = "ycbcr";
-								ste,pins = "ycbcr0123_d_1";
+								function = "ycbcr";
+								groups = "ycbcr0123_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO6_Y18",
+								pins = "GPIO6_Y18",
 									 "GPIO7_AA20",
 									 "GPIO8_W18",
 									 "GPIO9_AA19";
@@ -277,11 +277,11 @@
 					pwm {
 						pwm_default_mode: pwm_default {
 							default_mux {
-								ste,function = "pwmout";
-								ste,pins = "pwmout1_d_1", "pwmout2_d_1";
+								function = "pwmout";
+								groups = "pwmout1_d_1", "pwmout2_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO14_F14",
+								pins = "GPIO14_F14",
 									 "GPIO15_B17";
 								input-enable;
 								bias-pull-down;
@@ -292,11 +292,11 @@
 					adi1 {
 						adi1_default_mode: adi1_default {
 							default_mux {
-								ste,function = "adi1";
-								ste,pins = "adi1_d_1";
+								function = "adi1";
+								groups = "adi1_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO17_P5",
+								pins = "GPIO17_P5",
 									 "GPIO18_R5",
 									 "GPIO19_U5",
 									 "GPIO20_T5";
@@ -309,11 +309,11 @@
 					usbuicc {
 						usbuicc_default_mode: usbuicc_default {
 							default_mux {
-								ste,function = "usbuicc";
-								ste,pins = "usbuicc_d_1";
+								function = "usbuicc";
+								groups = "usbuicc_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO21_H19",
+								pins = "GPIO21_H19",
 									 "GPIO22_G20",
 									 "GPIO23_G19";
 								input-enable;
@@ -325,13 +325,13 @@
 					dmic {
 						dmic_default_mode: dmic_default {
 							default_mux {
-								ste,function = "dmic";
-								ste,pins = "dmic12_d_1",
+								function = "dmic";
+								groups = "dmic12_d_1",
 									 "dmic34_d_1",
 									 "dmic56_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO27_J6",
+								pins = "GPIO27_J6",
 									 "GPIO28_K6",
 									 "GPIO29_G6",
 									 "GPIO30_H6",
@@ -345,11 +345,11 @@
 					extcpena {
 						extcpena_default_mode: extcpena_default {
 							default_mux {
-								ste,function = "extcpena";
-								ste,pins = "extcpena_d_1";
+								function = "extcpena";
+								groups = "extcpena_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO34_R17";
+								pins = "GPIO34_R17";
 								input-enable;
 								bias-pull-down;
 							};
@@ -359,11 +359,11 @@
 					modsclsda {
 						modsclsda_default_mode: modsclsda_default {
 							default_mux {
-								ste,function = "modsclsda";
-								ste,pins = "modsclsda_d_1";
+								function = "modsclsda";
+								groups = "modsclsda_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO40_T19",
+								pins = "GPIO40_T19",
 									"GPIO41_U19";
 								input-enable;
 								bias-pull-down;
@@ -376,22 +376,22 @@
 					sysclkreq2 {
 						sysclkreq2_default_mode: sysclkreq2_default {
 							default_mux {
-								ste,function = "sysclkreq";
-								ste,pins = "sysclkreq2_d_1";
+								function = "sysclkreq";
+								groups = "sysclkreq2_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO1_T10";
+								pins = "GPIO1_T10";
 								input-enable;
 								bias-disable;
 							};
 						};
 						sysclkreq2_sleep_mode: sysclkreq2_sleep {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio1_a_1";
+								function = "gpio";
+								groups = "gpio1_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO1_T10";
+								pins = "GPIO1_T10";
 								input-enable;
 								bias-pull-down;
 							};
@@ -400,22 +400,22 @@
 					sysclkreq4 {
 						sysclkreq4_default_mode: sysclkreq4_default {
 							default_mux {
-								ste,function = "sysclkreq";
-								ste,pins = "sysclkreq4_d_1";
+								function = "sysclkreq";
+								groups = "sysclkreq4_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO3_U9";
+								pins = "GPIO3_U9";
 								input-enable;
 								bias-disable;
 							};
 						};
 						sysclkreq4_sleep_mode: sysclkreq4_sleep {
 							default_mux {
-								ste,function = "gpio";
-								ste,pins = "gpio3_a_1";
+								function = "gpio";
+								groups = "gpio3_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO3_U9";
+								pins = "GPIO3_U9";
 								input-enable;
 								bias-pull-down;
 							};

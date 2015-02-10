@@ -139,12 +139,12 @@ struct dm_thin_lookup_result {
 
 /*
  * Returns:
- *   -EWOULDBLOCK iff @can_block is set and would block.
+ *   -EWOULDBLOCK iff @can_issue_io is set and would issue IO
  *   -ENODATA iff that mapping is not present.
  *   0 success
  */
 int dm_thin_find_block(struct dm_thin_device *td, dm_block_t block,
-		       int can_block, struct dm_thin_lookup_result *result);
+		       int can_issue_io, struct dm_thin_lookup_result *result);
 
 /*
  * Obtain an unused block.
@@ -212,6 +212,11 @@ int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
  */
 int dm_pool_metadata_set_needs_check(struct dm_pool_metadata *pmd);
 bool dm_pool_metadata_needs_check(struct dm_pool_metadata *pmd);
+
+/*
+ * Issue any prefetches that may be useful.
+ */
+void dm_pool_issue_prefetches(struct dm_pool_metadata *pmd);
 
 /*----------------------------------------------------------------*/
 

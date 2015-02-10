@@ -98,7 +98,7 @@ static void spear_adc_set_clk(struct spear_adc_state *st, u32 val)
 	u32 clk_high, clk_low, count;
 	u32 apb_clk = clk_get_rate(st->clk);
 
-	count = (apb_clk + val - 1) / val;
+	count = DIV_ROUND_UP(apb_clk, val);
 	clk_low = count / 2;
 	clk_high = count - clk_low;
 	st->current_clk = apb_clk / count;
@@ -226,7 +226,7 @@ static const struct iio_chan_spec spear_adc_iio_channels[] = {
 
 static irqreturn_t spear_adc_isr(int irq, void *dev_id)
 {
-	struct spear_adc_state *st = (struct spear_adc_state *)dev_id;
+	struct spear_adc_state *st = dev_id;
 
 	/* Read value to clear IRQ */
 	st->value = spear_adc_get_average(st);
@@ -389,7 +389,6 @@ static struct platform_driver spear_adc_driver = {
 	.remove		= spear_adc_remove,
 	.driver		= {
 		.name	= SPEAR_ADC_MOD_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(spear_adc_dt_ids),
 	},
 };

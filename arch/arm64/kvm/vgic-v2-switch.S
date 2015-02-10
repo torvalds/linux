@@ -67,10 +67,14 @@ CPU_BE(	rev	w11, w11 )
 	str	w4, [x3, #VGIC_V2_CPU_HCR]
 	str	w5, [x3, #VGIC_V2_CPU_VMCR]
 	str	w6, [x3, #VGIC_V2_CPU_MISR]
-	str	w7, [x3, #VGIC_V2_CPU_EISR]
-	str	w8, [x3, #(VGIC_V2_CPU_EISR + 4)]
-	str	w9, [x3, #VGIC_V2_CPU_ELRSR]
-	str	w10, [x3, #(VGIC_V2_CPU_ELRSR + 4)]
+CPU_LE(	str	w7, [x3, #VGIC_V2_CPU_EISR] )
+CPU_LE(	str	w8, [x3, #(VGIC_V2_CPU_EISR + 4)] )
+CPU_LE(	str	w9, [x3, #VGIC_V2_CPU_ELRSR] )
+CPU_LE(	str	w10, [x3, #(VGIC_V2_CPU_ELRSR + 4)] )
+CPU_BE(	str	w7, [x3, #(VGIC_V2_CPU_EISR + 4)] )
+CPU_BE(	str	w8, [x3, #VGIC_V2_CPU_EISR] )
+CPU_BE(	str	w9, [x3, #(VGIC_V2_CPU_ELRSR + 4)] )
+CPU_BE(	str	w10, [x3, #VGIC_V2_CPU_ELRSR] )
 	str	w11, [x3, #VGIC_V2_CPU_APR]
 
 	/* Clear GICH_HCR */

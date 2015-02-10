@@ -222,12 +222,8 @@ void mv_u3d_done(struct mv_u3d_ep *ep, struct mv_u3d_req *req, int status)
 	}
 
 	spin_unlock(&ep->u3d->lock);
-	/*
-	 * complete() is from gadget layer,
-	 * eg fsg->bulk_in_complete()
-	 */
-	if (req->req.complete)
-		req->req.complete(&ep->ep, &req->req);
+
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 
 	spin_lock(&ep->u3d->lock);
 }
@@ -1270,8 +1266,7 @@ static int mv_u3d_start(struct usb_gadget *g,
 	return 0;
 }
 
-static int mv_u3d_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int mv_u3d_stop(struct usb_gadget *g)
 {
 	struct mv_u3d *u3d = container_of(g, struct mv_u3d, gadget);
 	struct mv_usb_platform_data *pdata = dev_get_platdata(u3d->dev);
@@ -1288,7 +1283,7 @@ static int mv_u3d_stop(struct usb_gadget *g,
 	mv_u3d_controller_stop(u3d);
 	/* stop all usb activities */
 	u3d->gadget.speed = USB_SPEED_UNKNOWN;
-	mv_u3d_stop_activity(u3d, driver);
+	mv_u3d_stop_activity(u3d, NULL);
 	mv_u3d_disable(u3d);
 
 	if (pdata->phy_deinit)
@@ -2057,7 +2052,6 @@ static struct platform_driver mv_u3d_driver = {
 	.remove		= mv_u3d_remove,
 	.shutdown	= mv_u3d_shutdown,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "mv-u3d",
 		.pm	= &mv_u3d_pm_ops,
 	},

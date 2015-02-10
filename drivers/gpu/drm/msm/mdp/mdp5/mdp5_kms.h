@@ -21,25 +21,9 @@
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "mdp/mdp_kms.h"
-/* dynamic offsets used by mdp5.xml.h (initialized in mdp5_kms.c) */
-#define MDP5_MAX_BASES		8
-struct mdp5_sub_block {
-	int	count;
-	uint32_t base[MDP5_MAX_BASES];
-};
-struct mdp5_config {
-	char  *name;
-	struct mdp5_sub_block ctl;
-	struct mdp5_sub_block pipe_vig;
-	struct mdp5_sub_block pipe_rgb;
-	struct mdp5_sub_block pipe_dma;
-	struct mdp5_sub_block lm;
-	struct mdp5_sub_block dspp;
-	struct mdp5_sub_block ad;
-	struct mdp5_sub_block intf;
-};
-extern const struct mdp5_config *mdp5_cfg;
+#include "mdp5_cfg.h"	/* must be included before mdp5.xml.h */
 #include "mdp5.xml.h"
+#include "mdp5_ctl.h"
 #include "mdp5_smp.h"
 
 struct mdp5_kms {
@@ -47,17 +31,14 @@ struct mdp5_kms {
 
 	struct drm_device *dev;
 
-	int rev;
-	const struct mdp5_config *hw_cfg;
+	struct mdp5_cfg_handler *cfg;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
 	struct msm_mmu *mmu;
 
-	/* for tracking smp allocation amongst pipes: */
-	mdp5_smp_state_t smp_state;
-	struct mdp5_client_smp_state smp_client_state[CID_MAX];
-	int smp_blk_cnt;
+	struct mdp5_smp *smp;
+	struct mdp5_ctl_manager *ctlm;
 
 	/* io/register spaces: */
 	void __iomem *mmio, *vbif;
@@ -71,18 +52,47 @@ struct mdp5_kms {
 	struct clk *lut_clk;
 	struct clk *vsync_clk;
 
-	struct hdmi *hdmi;
+	/*
+	 * lock to protect access to global resources: ie., following register:
+	 *	- REG_MDP5_DISP_INTF_SEL
+	 */
+	spinlock_t resource_lock;
 
 	struct mdp_irq error_handler;
+
+	struct {
+		volatile unsigned long enabled_mask;
+		struct irq_domain *domain;
+	} irqcontroller;
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
 
-/* platform config data (ie. from DT, or pdata) */
-struct mdp5_platform_config {
-	struct iommu_domain *iommu;
-	uint32_t max_clk;
-	int smp_blk_cnt;
+struct mdp5_plane_state {
+	struct drm_plane_state base;
+
+	/* "virtual" zpos.. we calculate actual mixer-stage at runtime
+	 * by sorting the attached planes by zpos and then assigning
+	 * mixer stage lowest to highest.  Private planes get default
+	 * zpos of zero, and public planes a unique value that is
+	 * greater than zero.  This way, things work out if a naive
+	 * userspace assigns planes to a crtc without setting zpos.
+	 */
+	int zpos;
+
+	/* the actual mixer stage, calculated in crtc->atomic_check()
+	 * NOTE: this should move to mdp5_crtc_state, when that exists
+	 */
+	enum mdp_mixer_stage_id stage;
+
+	/* some additional transactional status to help us know in the
+	 * apply path whether we need to update SMP allocation, and
+	 * whether current update is still pending:
+	 */
+	bool mode_changed : 1;
+	bool pending : 1;
 };
+#define to_mdp5_plane_state(x) \
+		container_of(x, struct mdp5_plane_state, base)
 
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {
@@ -107,23 +117,6 @@ static inline const char *pipe2name(enum mdp5_pipe pipe)
 	return names[pipe];
 }
 
-static inline uint32_t pipe2flush(enum mdp5_pipe pipe)
-{
-	switch (pipe) {
-	case SSPP_VIG0: return MDP5_CTL_FLUSH_VIG0;
-	case SSPP_VIG1: return MDP5_CTL_FLUSH_VIG1;
-	case SSPP_VIG2: return MDP5_CTL_FLUSH_VIG2;
-	case SSPP_RGB0: return MDP5_CTL_FLUSH_RGB0;
-	case SSPP_RGB1: return MDP5_CTL_FLUSH_RGB1;
-	case SSPP_RGB2: return MDP5_CTL_FLUSH_RGB2;
-	case SSPP_DMA0: return MDP5_CTL_FLUSH_DMA0;
-	case SSPP_DMA1: return MDP5_CTL_FLUSH_DMA1;
-	case SSPP_VIG3: return MDP5_CTL_FLUSH_VIG3;
-	case SSPP_RGB3: return MDP5_CTL_FLUSH_RGB3;
-	default:        return 0;
-	}
-}
-
 static inline int pipe2nclients(enum mdp5_pipe pipe)
 {
 	switch (pipe) {
@@ -134,34 +127,6 @@ static inline int pipe2nclients(enum mdp5_pipe pipe)
 		return 1;
 	default:
 		return 3;
-	}
-}
-
-static inline enum mdp5_client_id pipe2client(enum mdp5_pipe pipe, int plane)
-{
-	WARN_ON(plane >= pipe2nclients(pipe));
-	switch (pipe) {
-	case SSPP_VIG0: return CID_VIG0_Y + plane;
-	case SSPP_VIG1: return CID_VIG1_Y + plane;
-	case SSPP_VIG2: return CID_VIG2_Y + plane;
-	case SSPP_RGB0: return CID_RGB0;
-	case SSPP_RGB1: return CID_RGB1;
-	case SSPP_RGB2: return CID_RGB2;
-	case SSPP_DMA0: return CID_DMA0_Y + plane;
-	case SSPP_DMA1: return CID_DMA1_Y + plane;
-	case SSPP_VIG3: return CID_VIG3_Y + plane;
-	case SSPP_RGB3: return CID_RGB3;
-	default:        return CID_UNUSED;
-	}
-}
-
-static inline uint32_t mixer2flush(int lm)
-{
-	switch (lm) {
-	case 0:  return MDP5_CTL_FLUSH_LM0;
-	case 1:  return MDP5_CTL_FLUSH_LM1;
-	case 2:  return MDP5_CTL_FLUSH_LM2;
-	default: return 0;
 	}
 }
 
@@ -197,6 +162,8 @@ void mdp5_irq_uninstall(struct msm_kms *kms);
 irqreturn_t mdp5_irq(struct msm_kms *kms);
 int mdp5_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 void mdp5_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
+int mdp5_irq_domain_init(struct mdp5_kms *mdp5_kms);
+void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
 static inline
 uint32_t mdp5_get_formats(enum mdp5_pipe pipe, uint32_t *pixel_formats,
@@ -210,26 +177,18 @@ uint32_t mdp5_get_formats(enum mdp5_pipe pipe, uint32_t *pixel_formats,
 
 void mdp5_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
-void mdp5_plane_set_scanout(struct drm_plane *plane,
-		struct drm_framebuffer *fb);
-int mdp5_plane_mode_set(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h);
+uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 void mdp5_plane_complete_flip(struct drm_plane *plane);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
-		enum mdp5_pipe pipe, bool private_plane);
+		enum mdp5_pipe pipe, bool private_plane, uint32_t reg_offset);
 
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 
+int mdp5_crtc_get_lm(struct drm_crtc *crtc);
 void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file);
 void mdp5_crtc_set_intf(struct drm_crtc *crtc, int intf,
 		enum mdp5_intf intf_id);
-void mdp5_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane);
-void mdp5_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane);
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, int id);
 

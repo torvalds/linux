@@ -62,10 +62,9 @@ config BCM63XX_ENET
 
 config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
-	depends on OF
 	select MII
 	select PHYLIB
-	select FIXED_PHY if BCMGENET=y
+	select FIXED_PHY
 	select BCM7XXX_PHY
 	help
 	  This driver supports the built-in Ethernet MACs found in the
@@ -122,6 +121,7 @@ config TIGON3
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
+	select PTP_1588_CLOCK
 	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
@@ -155,7 +155,7 @@ config SYSTEMPORT
 	depends on OF
 	select MII
 	select PHYLIB
-	select FIXED_PHY if SYSTEMPORT=y
+	select FIXED_PHY
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset using an internal

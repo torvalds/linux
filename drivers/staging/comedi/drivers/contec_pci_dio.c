@@ -97,7 +97,7 @@ static struct comedi_driver contec_pci_dio_driver = {
 	.driver_name	= "contec_pci_dio",
 	.module		= THIS_MODULE,
 	.auto_attach	= contec_auto_attach,
-	.detach		= comedi_pci_disable,
+	.detach		= comedi_pci_detach,
 };
 
 static int contec_pci_dio_pci_probe(struct pci_dev *dev,

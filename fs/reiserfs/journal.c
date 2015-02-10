@@ -699,11 +699,13 @@ static int add_to_chunk(struct buffer_chunk *chunk, struct buffer_head *bh,
 	chunk->bh[chunk->nr++] = bh;
 	if (chunk->nr >= CHUNK_SIZE) {
 		ret = 1;
-		if (lock)
+		if (lock) {
 			spin_unlock(lock);
-		fn(chunk);
-		if (lock)
+			fn(chunk);
 			spin_lock(lock);
+		} else {
+			fn(chunk);
+		}
 	}
 	return ret;
 }
@@ -2770,7 +2772,7 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 
 	if (journal_init_dev(sb, journal, j_dev_name) != 0) {
 		reiserfs_warning(sb, "sh-462",
-				 "unable to initialize jornal device");
+				 "unable to initialize journal device");
 		goto free_and_return;
 	}
 

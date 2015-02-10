@@ -84,7 +84,4 @@ struct vt_setactivate {
 
 #define VT_SETACTIVATE	0x560F	/* Activate and set the mode of a console */
 
-
-#define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
-
 #endif /* _UAPI_LINUX_VT_H */

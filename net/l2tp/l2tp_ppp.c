@@ -208,7 +208,7 @@ static int pppol2tp_recvmsg(struct kiocb *iocb, struct socket *sock,
 	else if (len < skb->len)
 		msg->msg_flags |= MSG_TRUNC;
 
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, len);
+	err = skb_copy_datagram_msg(skb, 0, msg, len);
 	if (likely(err == 0))
 		err = len;
 
@@ -346,8 +346,7 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	skb_put(skb, 2);
 
 	/* Copy user data into skb */
-	error = memcpy_fromiovec(skb_put(skb, total_len), m->msg_iov,
-				 total_len);
+	error = memcpy_from_msg(skb_put(skb, total_len), m, total_len);
 	if (error < 0) {
 		kfree_skb(skb);
 		goto error_put_sess_tun;

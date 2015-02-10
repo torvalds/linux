@@ -450,7 +450,6 @@ static struct platform_driver lp_gpio_driver = {
 	.remove         = lp_gpio_remove,
 	.driver         = {
 		.name   = "lp_gpio",
-		.owner  = THIS_MODULE,
 		.pm	= &lp_gpio_pm_ops,
 		.acpi_match_table = ACPI_PTR(lynxpoint_gpio_acpi_match),
 	},

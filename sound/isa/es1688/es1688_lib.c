@@ -614,8 +614,7 @@ static int snd_es1688_free(struct snd_es1688 *chip)
 {
 	if (chip->hardware != ES1688_HW_UNDEF)
 		snd_es1688_init(chip, 0);
-	if (chip->res_port)
-		release_and_free_resource(chip->res_port);
+	release_and_free_resource(chip->res_port);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *) chip);
 	if (chip->dma8 >= 0) {
@@ -762,18 +761,12 @@ int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip,
 
 static int snd_es1688_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[9] = {
+	static const char * const texts[8] = {
 		"Mic", "Mic Master", "CD", "AOUT",
 		"Mic1", "Mix", "Line", "Master"
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 8;
-	if (uinfo->value.enumerated.item > 7)
-		uinfo->value.enumerated.item = 7;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 8, texts);
 }
 
 static int snd_es1688_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)

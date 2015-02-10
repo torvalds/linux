@@ -641,9 +641,6 @@ static int sensor_hub_probe(struct hid_device *hdev,
 					goto err_stop_hw;
 			}
 			sd->hid_sensor_hub_client_devs[
-				sd->hid_sensor_client_cnt].id =
-							PLATFORM_DEVID_AUTO;
-			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].name = name;
 			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].platform_data =
@@ -659,8 +656,9 @@ static int sensor_hub_probe(struct hid_device *hdev,
 	if (last_hsdev)
 		last_hsdev->end_collection_index = i;
 
-	ret = mfd_add_devices(&hdev->dev, 0, sd->hid_sensor_hub_client_devs,
-		sd->hid_sensor_client_cnt, NULL, 0, NULL);
+	ret = mfd_add_hotplug_devices(&hdev->dev,
+			sd->hid_sensor_hub_client_devs,
+			sd->hid_sensor_client_cnt);
 	if (ret < 0)
 		goto err_stop_hw;
 
@@ -707,6 +705,9 @@ static const struct hid_device_id sensor_hub_devices[] = {
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
 			USB_DEVICE_ID_MS_TYPE_COVER_2),
+			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_STM_0,
+			USB_DEVICE_ID_STM_HID_SENSOR),
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_STM_0,
 			USB_DEVICE_ID_STM_HID_SENSOR_1),

@@ -1,6 +1,7 @@
 /*
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -350,6 +351,9 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	sta->sta_state = IEEE80211_STA_NONE;
 
+	/* Mark TID as unreserved */
+	sta->reserved_tid = IEEE80211_TID_UNRESERVED;
+
 	ktime_get_ts(&uptime);
 	sta->last_connected = uptime.tv_sec;
 	ewma_init(&sta->avg_signal, 1024, 8);
@@ -500,7 +504,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 	/* make the station visible */
 	sta_info_hash_add(local, sta);
 
-	list_add_rcu(&sta->list, &local->sta_list);
+	list_add_tail_rcu(&sta->list, &local->sta_list);
 
 	/* notify driver */
 	err = sta_info_insert_drv_state(local, sdata, sta);
@@ -846,6 +850,15 @@ static int __must_check __sta_info_destroy_part1(struct sta_info *sta)
 	if (WARN_ON(ret))
 		return ret;
 
+	/*
+	 * for TDLS peers, make sure to return to the base channel before
+	 * removal.
+	 */
+	if (test_sta_flag(sta, WLAN_STA_TDLS_OFF_CHANNEL)) {
+		drv_tdls_cancel_channel_switch(local, sdata, &sta->sta);
+		clear_sta_flag(sta, WLAN_STA_TDLS_OFF_CHANNEL);
+	}
+
 	list_del_rcu(&sta->list);
 
 	drv_sta_pre_rcu_remove(local, sta->sdata, sta);
@@ -1182,7 +1195,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	int size = sizeof(*nullfunc);
 	__le16 fc;
-	bool qos = test_sta_flag(sta, WLAN_STA_WME);
+	bool qos = sta->sta.wme;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
@@ -1248,7 +1261,8 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	ieee80211_xmit(sdata, skb, chanctx_conf->def.chan->band);
+	info->band = chanctx_conf->def.chan->band;
+	ieee80211_xmit(sdata, skb);
 	rcu_read_unlock();
 }
 
@@ -1530,7 +1544,7 @@ void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta)
 		break;
 	case 0:
 		/* XXX: what is a good value? */
-		n_frames = 8;
+		n_frames = 128;
 		break;
 	}
 
@@ -1837,7 +1851,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHORIZED);
 	if (test_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE))
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
-	if (test_sta_flag(sta, WLAN_STA_WME))
+	if (sta->sta.wme)
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_WME);
 	if (test_sta_flag(sta, WLAN_STA_MFP))
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_MFP);

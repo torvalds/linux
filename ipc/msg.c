@@ -989,43 +989,12 @@ SYSCALL_DEFINE5(msgrcv, int, msqid, struct msgbuf __user *, msgp, size_t, msgsz,
 	return do_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg, do_msg_fill);
 }
 
-/*
- * Scale msgmni with the available lowmem size: the memory dedicated to msg
- * queues should occupy at most 1/MSG_MEM_SCALE of lowmem.
- * Also take into account the number of nsproxies created so far.
- * This should be done staying within the (MSGMNI , IPCMNI/nr_ipc_ns) range.
- */
-void recompute_msgmni(struct ipc_namespace *ns)
-{
-	struct sysinfo i;
-	unsigned long allowed;
-	int nb_ns;
-
-	si_meminfo(&i);
-	allowed = (((i.totalram - i.totalhigh) / MSG_MEM_SCALE) * i.mem_unit)
-		/ MSGMNB;
-	nb_ns = atomic_read(&nr_ipc_ns);
-	allowed /= nb_ns;
-
-	if (allowed < MSGMNI) {
-		ns->msg_ctlmni = MSGMNI;
-		return;
-	}
-
-	if (allowed > IPCMNI / nb_ns) {
-		ns->msg_ctlmni = IPCMNI / nb_ns;
-		return;
-	}
-
-	ns->msg_ctlmni = allowed;
-}
 
 void msg_init_ns(struct ipc_namespace *ns)
 {
 	ns->msg_ctlmax = MSGMAX;
 	ns->msg_ctlmnb = MSGMNB;
-
-	recompute_msgmni(ns);
+	ns->msg_ctlmni = MSGMNI;
 
 	atomic_set(&ns->msg_bytes, 0);
 	atomic_set(&ns->msg_hdrs, 0);
@@ -1068,9 +1037,6 @@ static int sysvipc_msg_proc_show(struct seq_file *s, void *it)
 void __init msg_init(void)
 {
 	msg_init_ns(&init_ipc_ns);
-
-	printk(KERN_INFO "msgmni has been set to %d\n",
-		init_ipc_ns.msg_ctlmni);
 
 	ipc_init_proc_interface("sysvipc/msg",
 				"       key      msqid perms      cbytes       qnum lspid lrpid   uid   gid  cuid  cgid      stime      rtime      ctime\n",

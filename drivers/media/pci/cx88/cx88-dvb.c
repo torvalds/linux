@@ -82,43 +82,87 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 /* ------------------------------------------------------------------ */
 
-static int dvb_buf_setup(struct videobuf_queue *q,
-			 unsigned int *count, unsigned int *size)
+static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+			   unsigned int *num_buffers, unsigned int *num_planes,
+			   unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct cx8802_dev *dev = q->priv_data;
+	struct cx8802_dev *dev = q->drv_priv;
 
+	*num_planes = 1;
 	dev->ts_packet_size  = 188 * 4;
 	dev->ts_packet_count = dvb_buf_tscnt;
-
-	*size  = dev->ts_packet_size * dev->ts_packet_count;
-	*count = dvb_buf_tscnt;
+	sizes[0] = dev->ts_packet_size * dev->ts_packet_count;
+	alloc_ctxs[0] = dev->alloc_ctx;
+	*num_buffers = dvb_buf_tscnt;
 	return 0;
 }
 
-static int dvb_buf_prepare(struct videobuf_queue *q,
-			   struct videobuf_buffer *vb, enum v4l2_field field)
+static int buffer_prepare(struct vb2_buffer *vb)
 {
-	struct cx8802_dev *dev = q->priv_data;
-	return cx8802_buf_prepare(q, dev, (struct cx88_buffer*)vb,field);
+	struct cx8802_dev *dev = vb->vb2_queue->drv_priv;
+	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
+
+	return cx8802_buf_prepare(vb->vb2_queue, dev, buf);
 }
 
-static void dvb_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
+static void buffer_finish(struct vb2_buffer *vb)
 {
-	struct cx8802_dev *dev = q->priv_data;
-	cx8802_buf_queue(dev, (struct cx88_buffer*)vb);
+	struct cx8802_dev *dev = vb->vb2_queue->drv_priv;
+	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
+	struct cx88_riscmem *risc = &buf->risc;
+
+	if (risc->cpu)
+		pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
+	memset(risc, 0, sizeof(*risc));
 }
 
-static void dvb_buf_release(struct videobuf_queue *q,
-			    struct videobuf_buffer *vb)
+static void buffer_queue(struct vb2_buffer *vb)
 {
-	cx88_free_buffer(q, (struct cx88_buffer*)vb);
+	struct cx8802_dev *dev = vb->vb2_queue->drv_priv;
+	struct cx88_buffer    *buf = container_of(vb, struct cx88_buffer, vb);
+
+	cx8802_buf_queue(dev, buf);
 }
 
-static const struct videobuf_queue_ops dvb_qops = {
-	.buf_setup    = dvb_buf_setup,
-	.buf_prepare  = dvb_buf_prepare,
-	.buf_queue    = dvb_buf_queue,
-	.buf_release  = dvb_buf_release,
+static int start_streaming(struct vb2_queue *q, unsigned int count)
+{
+	struct cx8802_dev *dev = q->drv_priv;
+	struct cx88_dmaqueue *dmaq = &dev->mpegq;
+	struct cx88_buffer *buf;
+
+	buf = list_entry(dmaq->active.next, struct cx88_buffer, list);
+	cx8802_start_dma(dev, dmaq, buf);
+	return 0;
+}
+
+static void stop_streaming(struct vb2_queue *q)
+{
+	struct cx8802_dev *dev = q->drv_priv;
+	struct cx88_dmaqueue *dmaq = &dev->mpegq;
+	unsigned long flags;
+
+	cx8802_cancel_buffers(dev);
+
+	spin_lock_irqsave(&dev->slock, flags);
+	while (!list_empty(&dmaq->active)) {
+		struct cx88_buffer *buf = list_entry(dmaq->active.next,
+			struct cx88_buffer, list);
+
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+	}
+	spin_unlock_irqrestore(&dev->slock, flags);
+}
+
+static struct vb2_ops dvb_qops = {
+	.queue_setup    = queue_setup,
+	.buf_prepare  = buffer_prepare,
+	.buf_finish = buffer_finish,
+	.buf_queue    = buffer_queue,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
+	.start_streaming = start_streaming,
+	.stop_streaming = stop_streaming,
 };
 
 /* ------------------------------------------------------------------ */
@@ -130,7 +174,7 @@ static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe, int acquire)
 	int ret = 0;
 	int fe_id;
 
-	fe_id = videobuf_dvb_find_frontend(&dev->frontends, fe);
+	fe_id = vb2_dvb_find_frontend(&dev->frontends, fe);
 	if (!fe_id) {
 		printk(KERN_ERR "%s() No frontend found\n", __func__);
 		return -EINVAL;
@@ -154,8 +198,8 @@ static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe, int acquire)
 
 static void cx88_dvb_gate_ctrl(struct cx88_core  *core, int open)
 {
-	struct videobuf_dvb_frontends *f;
-	struct videobuf_dvb_frontend *fe;
+	struct vb2_dvb_frontends *f;
+	struct vb2_dvb_frontend *fe;
 
 	if (!core->dvbdev)
 		return;
@@ -166,9 +210,9 @@ static void cx88_dvb_gate_ctrl(struct cx88_core  *core, int open)
 		return;
 
 	if (f->gate <= 1) /* undefined or fe0 */
-		fe = videobuf_dvb_get_frontend(f, 1);
+		fe = vb2_dvb_get_frontend(f, 1);
 	else
-		fe = videobuf_dvb_get_frontend(f, f->gate);
+		fe = vb2_dvb_get_frontend(f, f->gate);
 
 	if (fe && fe->dvb.frontend && fe->dvb.frontend->ops.i2c_gate_ctrl)
 		fe->dvb.frontend->ops.i2c_gate_ctrl(fe->dvb.frontend, open);
@@ -565,7 +609,7 @@ static const struct xc5000_config dvico_fusionhdtv7_tuner_config = {
 static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 {
 	struct dvb_frontend *fe;
-	struct videobuf_dvb_frontend *fe0 = NULL;
+	struct vb2_dvb_frontend *fe0 = NULL;
 	struct xc2028_ctrl ctl;
 	struct xc2028_config cfg = {
 		.i2c_adap  = &dev->core->i2c_adap,
@@ -574,7 +618,7 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 	};
 
 	/* Get the first frontend */
-	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
+	fe0 = vb2_dvb_get_frontend(&dev->frontends, 1);
 	if (!fe0)
 		return -EINVAL;
 
@@ -611,10 +655,10 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 static int attach_xc4000(struct cx8802_dev *dev, struct xc4000_config *cfg)
 {
 	struct dvb_frontend *fe;
-	struct videobuf_dvb_frontend *fe0 = NULL;
+	struct vb2_dvb_frontend *fe0 = NULL;
 
 	/* Get the first frontend */
-	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
+	fe0 = vb2_dvb_get_frontend(&dev->frontends, 1);
 	if (!fe0)
 		return -EINVAL;
 
@@ -745,7 +789,7 @@ static const struct stv0288_config tevii_tuner_earda_config = {
 static int cx8802_alloc_frontends(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
-	struct videobuf_dvb_frontend *fe = NULL;
+	struct vb2_dvb_frontend *fe = NULL;
 	int i;
 
 	mutex_init(&dev->frontends.lock);
@@ -757,10 +801,10 @@ static int cx8802_alloc_frontends(struct cx8802_dev *dev)
 	printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__,
 			 core->board.num_frontends);
 	for (i = 1; i <= core->board.num_frontends; i++) {
-		fe = videobuf_dvb_alloc_frontend(&dev->frontends, i);
+		fe = vb2_dvb_alloc_frontend(&dev->frontends, i);
 		if (!fe) {
 			printk(KERN_ERR "%s() failed to alloc\n", __func__);
-			videobuf_dvb_dealloc_frontends(&dev->frontends);
+			vb2_dvb_dealloc_frontends(&dev->frontends);
 			return -ENOMEM;
 		}
 	}
@@ -958,7 +1002,7 @@ static const struct stv0299_config samsung_stv0299_config = {
 static int dvb_register(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
-	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
+	struct vb2_dvb_frontend *fe0, *fe1 = NULL;
 	int mfe_shared = 0; /* bus not shared by default */
 	int res = -EINVAL;
 
@@ -968,7 +1012,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	}
 
 	/* Get the first frontend */
-	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
+	fe0 = vb2_dvb_get_frontend(&dev->frontends, 1);
 	if (!fe0)
 		goto frontend_detach;
 
@@ -1046,7 +1090,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				goto frontend_detach;
 		}
 		/* MFE frontend 2 */
-		fe1 = videobuf_dvb_get_frontend(&dev->frontends, 2);
+		fe1 = vb2_dvb_get_frontend(&dev->frontends, 2);
 		if (!fe1)
 			goto frontend_detach;
 		/* DVB-T init */
@@ -1415,7 +1459,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				goto frontend_detach;
 		}
 		/* MFE frontend 2 */
-		fe1 = videobuf_dvb_get_frontend(&dev->frontends, 2);
+		fe1 = vb2_dvb_get_frontend(&dev->frontends, 2);
 		if (!fe1)
 			goto frontend_detach;
 		/* DVB-T Init */
@@ -1594,7 +1638,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	call_all(core, core, s_power, 0);
 
 	/* register everything */
-	res = videobuf_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
+	res = vb2_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
 		&dev->pci->dev, adapter_nr, mfe_shared);
 	if (res)
 		goto frontend_detach;
@@ -1602,7 +1646,7 @@ static int dvb_register(struct cx8802_dev *dev)
 
 frontend_detach:
 	core->gate_ctrl = NULL;
-	videobuf_dvb_dealloc_frontends(&dev->frontends);
+	vb2_dvb_dealloc_frontends(&dev->frontends);
 	return res;
 }
 
@@ -1697,7 +1741,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	struct cx88_core *core = drv->core;
 	struct cx8802_dev *dev = drv->core->dvbdev;
 	int err;
-	struct videobuf_dvb_frontend *fe;
+	struct vb2_dvb_frontend *fe;
 	int i;
 
 	dprintk( 1, "%s\n", __func__);
@@ -1726,19 +1770,31 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 
 	err = -ENODEV;
 	for (i = 1; i <= core->board.num_frontends; i++) {
-		fe = videobuf_dvb_get_frontend(&core->dvbdev->frontends, i);
+		struct vb2_queue *q;
+
+		fe = vb2_dvb_get_frontend(&core->dvbdev->frontends, i);
 		if (fe == NULL) {
 			printk(KERN_ERR "%s() failed to get frontend(%d)\n",
 					__func__, i);
 			goto fail_probe;
 		}
-		videobuf_queue_sg_init(&fe->dvb.dvbq, &dvb_qops,
-				    &dev->pci->dev, &dev->slock,
-				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
-				    V4L2_FIELD_TOP,
-				    sizeof(struct cx88_buffer),
-				    dev, NULL);
-		/* init struct videobuf_dvb */
+		q = &fe->dvb.dvbq;
+		q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF | VB2_READ;
+		q->gfp_flags = GFP_DMA32;
+		q->min_buffers_needed = 2;
+		q->drv_priv = dev;
+		q->buf_struct_size = sizeof(struct cx88_buffer);
+		q->ops = &dvb_qops;
+		q->mem_ops = &vb2_dma_sg_memops;
+		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		q->lock = &core->lock;
+
+		err = vb2_queue_init(q);
+		if (err < 0)
+			goto fail_probe;
+
+		/* init struct vb2_dvb */
 		fe->dvb.name = dev->core->name;
 	}
 
@@ -1749,7 +1805,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 		       core->name, err);
 	return err;
 fail_probe:
-	videobuf_dvb_dealloc_frontends(&core->dvbdev->frontends);
+	vb2_dvb_dealloc_frontends(&core->dvbdev->frontends);
 fail_core:
 	return err;
 }
@@ -1761,7 +1817,7 @@ static int cx8802_dvb_remove(struct cx8802_driver *drv)
 
 	dprintk( 1, "%s\n", __func__);
 
-	videobuf_dvb_unregister_bus(&dev->frontends);
+	vb2_dvb_unregister_bus(&dev->frontends);
 
 	vp3054_i2c_remove(dev);
 

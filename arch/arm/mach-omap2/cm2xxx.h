@@ -46,9 +46,6 @@
 
 #ifndef __ASSEMBLER__
 
-extern void omap2xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask);
-extern void omap2xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask);
-
 extern void omap2xxx_cm_set_dpll_disable_autoidle(void);
 extern void omap2xxx_cm_set_dpll_auto_low_power_stop(void);
 
@@ -57,11 +54,8 @@ extern void omap2xxx_cm_set_apll54_auto_low_power_stop(void);
 extern void omap2xxx_cm_set_apll96_disable_autoidle(void);
 extern void omap2xxx_cm_set_apll96_auto_low_power_stop(void);
 
-extern bool omap2xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask);
-extern int omap2xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id,
-					 u8 idlest_shift);
-extern int omap2xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
-					s16 *prcm_inst, u8 *idlest_reg_id);
+int omap2xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
+				  u8 idlest_shift);
 extern int omap2xxx_cm_fclks_active(void);
 extern int omap2xxx_cm_mpu_retention_allowed(void);
 extern u32 omap2xxx_cm_get_core_clk_src(void);

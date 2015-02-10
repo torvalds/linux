@@ -195,18 +195,13 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	if (of_property_read_u32(dn, "abilis,ngpio", &ngpio))
 		return -EINVAL;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "No memory resource defined.\n");
-		return -EINVAL;
-	}
-
 	tb10x_gpio = devm_kzalloc(&pdev->dev, sizeof(*tb10x_gpio), GFP_KERNEL);
 	if (tb10x_gpio == NULL)
 		return -ENOMEM;
 
 	spin_lock_init(&tb10x_gpio->spinlock);
 
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tb10x_gpio->base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(tb10x_gpio->base))
 		return PTR_ERR(tb10x_gpio->base);
@@ -316,7 +311,6 @@ static struct platform_driver tb10x_gpio_driver = {
 	.driver = {
 		.name	= "tb10x-gpio",
 		.of_match_table = tb10x_gpio_dt_ids,
-		.owner	= THIS_MODULE,
 	}
 };
 

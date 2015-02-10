@@ -540,19 +540,11 @@ static struct snd_soc_dai_driver tlv320aic23_dai = {
 	.ops = &tlv320aic23_dai_ops,
 };
 
-static int tlv320aic23_suspend(struct snd_soc_codec *codec)
-{
-	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
 static int tlv320aic23_resume(struct snd_soc_codec *codec)
 {
 	struct aic23 *aic23 = snd_soc_codec_get_drvdata(codec);
 	regcache_mark_dirty(aic23->regmap);
 	regcache_sync(aic23->regmap);
-	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
@@ -561,9 +553,6 @@ static int tlv320aic23_codec_probe(struct snd_soc_codec *codec)
 {
 	/* Reset codec */
 	snd_soc_write(codec, TLV320AIC23_RESET, 0);
-
-	/* power on device */
-	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	snd_soc_write(codec, TLV320AIC23_DIGT, TLV320AIC23_DEEMP_44K);
 
@@ -589,18 +578,12 @@ static int tlv320aic23_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int tlv320aic23_remove(struct snd_soc_codec *codec)
-{
-	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_tlv320aic23 = {
 	.probe = tlv320aic23_codec_probe,
-	.remove = tlv320aic23_remove,
-	.suspend = tlv320aic23_suspend,
 	.resume = tlv320aic23_resume,
 	.set_bias_level = tlv320aic23_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls = tlv320aic23_snd_controls,
 	.num_controls = ARRAY_SIZE(tlv320aic23_snd_controls),
 	.dapm_widgets = tlv320aic23_dapm_widgets,

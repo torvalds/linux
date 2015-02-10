@@ -16,6 +16,9 @@
 
 #include <linux/sfi.h>
 
+#define MAX_NUM_STREAMS_MRFLD	25
+#define MAX_NUM_STREAMS	MAX_NUM_STREAMS_MRFLD
+
 enum sst_audio_task_id_mrfld {
 	SST_TASK_ID_NONE = 0,
 	SST_TASK_ID_SBA = 1,
@@ -73,6 +76,65 @@ struct sst_platform_data {
 	unsigned int strm_map_size;
 };
 
+struct sst_info {
+	u32 iram_start;
+	u32 iram_end;
+	bool iram_use;
+	u32 dram_start;
+	u32 dram_end;
+	bool dram_use;
+	u32 imr_start;
+	u32 imr_end;
+	bool imr_use;
+	u32 mailbox_start;
+	bool use_elf;
+	bool lpe_viewpt_rqd;
+	unsigned int max_streams;
+	u32 dma_max_len;
+	u8 num_probes;
+};
+
+struct sst_lib_dnld_info {
+	unsigned int mod_base;
+	unsigned int mod_end;
+	unsigned int mod_table_offset;
+	unsigned int mod_table_size;
+	bool mod_ddr_dnld;
+};
+
+struct sst_res_info {
+	unsigned int shim_offset;
+	unsigned int shim_size;
+	unsigned int shim_phy_addr;
+	unsigned int ssp0_offset;
+	unsigned int ssp0_size;
+	unsigned int dma0_offset;
+	unsigned int dma0_size;
+	unsigned int dma1_offset;
+	unsigned int dma1_size;
+	unsigned int iram_offset;
+	unsigned int iram_size;
+	unsigned int dram_offset;
+	unsigned int dram_size;
+	unsigned int mbox_offset;
+	unsigned int mbox_size;
+	unsigned int acpi_lpe_res_index;
+	unsigned int acpi_ddr_index;
+	unsigned int acpi_ipc_irq_index;
+};
+
+struct sst_ipc_info {
+	int ipc_offset;
+	unsigned int mbox_recv_off;
+};
+
+struct sst_platform_info {
+	const struct sst_info *probe_data;
+	const struct sst_ipc_info *ipc_info;
+	const struct sst_res_info *res_info;
+	const struct sst_lib_dnld_info *lib_info;
+	const char *platform;
+};
 int add_sst_platform_device(void);
 #endif
 

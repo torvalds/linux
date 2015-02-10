@@ -75,11 +75,14 @@ int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr, int reg)
 int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(ds->master_dev);
 	int ret;
 
+	if (bus == NULL)
+		return -EINVAL;
+
 	mutex_lock(&ps->smi_mutex);
-	ret = __mv88e6xxx_reg_read(ds->master_mii_bus,
-				   ds->pd->sw_addr, addr, reg);
+	ret = __mv88e6xxx_reg_read(bus, ds->pd->sw_addr, addr, reg);
 	mutex_unlock(&ps->smi_mutex);
 
 	return ret;
@@ -119,11 +122,14 @@ int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
 int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(ds->master_dev);
 	int ret;
 
+	if (bus == NULL)
+		return -EINVAL;
+
 	mutex_lock(&ps->smi_mutex);
-	ret = __mv88e6xxx_reg_write(ds->master_mii_bus,
-				    ds->pd->sw_addr, addr, reg, val);
+	ret = __mv88e6xxx_reg_write(bus, ds->pd->sw_addr, addr, reg, val);
 	mutex_unlock(&ps->smi_mutex);
 
 	return ret;
@@ -479,19 +485,107 @@ void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 	for (i = 0; i < nr_stats; i++) {
 		struct mv88e6xxx_hw_stat *s = stats + i;
 		u32 low;
-		u32 high;
+		u32 high = 0;
 
+		if (s->reg >= 0x100) {
+			int ret;
+
+			ret = mv88e6xxx_reg_read(ds, REG_PORT(port),
+						 s->reg - 0x100);
+			if (ret < 0)
+				goto error;
+			low = ret;
+			if (s->sizeof_stat == 4) {
+				ret = mv88e6xxx_reg_read(ds, REG_PORT(port),
+							 s->reg - 0x100 + 1);
+				if (ret < 0)
+					goto error;
+				high = ret;
+			}
+			data[i] = (((u64)high) << 16) | low;
+			continue;
+		}
 		mv88e6xxx_stats_read(ds, s->reg, &low);
 		if (s->sizeof_stat == 8)
 			mv88e6xxx_stats_read(ds, s->reg + 1, &high);
-		else
-			high = 0;
 
 		data[i] = (((u64)high) << 32) | low;
 	}
-
+error:
 	mutex_unlock(&ps->stats_mutex);
 }
+
+int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port)
+{
+	return 32 * sizeof(u16);
+}
+
+void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
+			struct ethtool_regs *regs, void *_p)
+{
+	u16 *p = _p;
+	int i;
+
+	regs->version = 0;
+
+	memset(p, 0xff, 32 * sizeof(u16));
+
+	for (i = 0; i < 32; i++) {
+		int ret;
+
+		ret = mv88e6xxx_reg_read(ds, REG_PORT(port), i);
+		if (ret >= 0)
+			p[i] = ret;
+	}
+}
+
+#ifdef CONFIG_NET_DSA_HWMON
+
+int  mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+	int val;
+
+	*temp = 0;
+
+	mutex_lock(&ps->phy_mutex);
+
+	ret = mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x6);
+	if (ret < 0)
+		goto error;
+
+	/* Enable temperature sensor */
+	ret = mv88e6xxx_phy_read(ds, 0x0, 0x1a);
+	if (ret < 0)
+		goto error;
+
+	ret = mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret | (1 << 5));
+	if (ret < 0)
+		goto error;
+
+	/* Wait for temperature to stabilize */
+	usleep_range(10000, 12000);
+
+	val = mv88e6xxx_phy_read(ds, 0x0, 0x1a);
+	if (val < 0) {
+		ret = val;
+		goto error;
+	}
+
+	/* Disable temperature sensor */
+	ret = mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret & ~(1 << 5));
+	if (ret < 0)
+		goto error;
+
+	*temp = ((val & 0x1f) - 5) * 5;
+
+error:
+	mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x0);
+	mutex_unlock(&ps->phy_mutex);
+	return ret;
+}
+#endif /* CONFIG_NET_DSA_HWMON */
 
 static int __init mv88e6xxx_init(void)
 {
@@ -501,12 +595,21 @@ static int __init mv88e6xxx_init(void)
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6123_61_65)
 	register_switch_driver(&mv88e6123_61_65_switch_driver);
 #endif
+#if IS_ENABLED(CONFIG_NET_DSA_MV88E6352)
+	register_switch_driver(&mv88e6352_switch_driver);
+#endif
+#if IS_ENABLED(CONFIG_NET_DSA_MV88E6171)
+	register_switch_driver(&mv88e6171_switch_driver);
+#endif
 	return 0;
 }
 module_init(mv88e6xxx_init);
 
 static void __exit mv88e6xxx_cleanup(void)
 {
+#if IS_ENABLED(CONFIG_NET_DSA_MV88E6171)
+	unregister_switch_driver(&mv88e6171_switch_driver);
+#endif
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6123_61_65)
 	unregister_switch_driver(&mv88e6123_61_65_switch_driver);
 #endif

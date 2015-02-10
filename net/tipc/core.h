@@ -41,6 +41,7 @@
 
 #include <linux/tipc.h>
 #include <linux/tipc_config.h>
+#include <linux/tipc_netlink.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -81,6 +82,7 @@ extern u32 tipc_own_addr __read_mostly;
 extern int tipc_max_ports __read_mostly;
 extern int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
+extern int sysctl_tipc_named_timeout __read_mostly;
 
 /*
  * Other global variables
@@ -187,8 +189,12 @@ static inline void k_term_timer(struct timer_list *timer)
 
 struct tipc_skb_cb {
 	void *handle;
-	bool deferred;
 	struct sk_buff *tail;
+	bool deferred;
+	bool wakeup_pending;
+	bool bundling;
+	u16 chain_sz;
+	u16 chain_imp;
 };
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))

@@ -300,7 +300,6 @@ static struct platform_driver da8xx_rproc_driver = {
 	.remove = da8xx_rproc_remove,
 	.driver = {
 		.name = "davinci-rproc",
-		.owner = THIS_MODULE,
 	},
 };
 

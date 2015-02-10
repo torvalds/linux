@@ -262,7 +262,7 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	tc3589x_gpio->chip = template_chip;
 	tc3589x_gpio->chip.ngpio = tc3589x->num_gpio;
 	tc3589x_gpio->chip.dev = &pdev->dev;
-	tc3589x_gpio->chip.base = (pdata) ? pdata->gpio_base : -1;
+	tc3589x_gpio->chip.base = -1;
 
 #ifdef CONFIG_OF_GPIO
 	tc3589x_gpio->chip.of_node = np;
@@ -299,6 +299,11 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 			"could not connect irqchip to gpiochip\n");
 		return ret;
 	}
+
+	gpiochip_set_chained_irqchip(&tc3589x_gpio->chip,
+				     &tc3589x_gpio_irq_chip,
+				     irq,
+				     NULL);
 
 	if (pdata && pdata->setup)
 		pdata->setup(tc3589x, tc3589x_gpio->chip.base);

@@ -169,7 +169,8 @@ static int osdc_show(struct seq_file *s, void *pp)
 
 		for (i = 0; i < req->r_num_ops; i++) {
 			opcode = req->r_ops[i].op;
-			seq_printf(s, "\t%s", ceph_osd_op_name(opcode));
+			seq_printf(s, "%s%s", (i == 0 ? "\t" : ","),
+				   ceph_osd_op_name(opcode));
 		}
 
 		seq_printf(s, "\n");

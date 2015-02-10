@@ -404,7 +404,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq->ir_v6_rmt_addr = ipv6_hdr(skb)->saddr;
 	ireq->ir_v6_loc_addr = ipv6_hdr(skb)->daddr;
 
-	if (ipv6_opt_accepted(sk, skb) ||
+	if (ipv6_opt_accepted(sk, skb, IP6CB(skb)) ||
 	    np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo ||
 	    np->rxopt.bits.rxhlim || np->rxopt.bits.rxohlim) {
 		atomic_inc(&skb->users);
@@ -757,7 +757,8 @@ static int dccp_v6_rcv(struct sk_buff *skb)
 	/* Step 2:
 	 *	Look up flow ID in table and get corresponding socket */
 	sk = __inet6_lookup_skb(&dccp_hashinfo, skb,
-			        dh->dccph_sport, dh->dccph_dport);
+			        dh->dccph_sport, dh->dccph_dport,
+				inet6_iif(skb));
 	/*
 	 * Step 2:
 	 *	If no socket ...

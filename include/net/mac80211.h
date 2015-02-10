@@ -4,6 +4,7 @@
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -262,6 +263,7 @@ struct ieee80211_vif_chanctx_switch {
  * @BSS_CHANGED_BANDWIDTH: The bandwidth used by this interface changed,
  *	note that this is only called when it changes after the channel
  *	context had been assigned.
+ * @BSS_CHANGED_OCB: OCB join status changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -286,6 +288,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_P2P_PS		= 1<<19,
 	BSS_CHANGED_BEACON_INFO		= 1<<20,
 	BSS_CHANGED_BANDWIDTH		= 1<<21,
+	BSS_CHANGED_OCB                 = 1<<22,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -738,7 +741,8 @@ struct ieee80211_tx_info {
 			u8 ampdu_ack_len;
 			u8 ampdu_len;
 			u8 antenna;
-			void *status_driver_data[21 / sizeof(void *)];
+			u16 tx_time;
+			void *status_driver_data[19 / sizeof(void *)];
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -878,6 +882,9 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	subframes share the same sequence number. Reported subframes can be
  *	either regular MSDU or singly A-MSDUs. Subframes must not be
  *	interleaved with other frames.
+ * @RX_FLAG_RADIOTAP_VENDOR_DATA: This frame contains vendor-specific
+ *	radiotap data in the skb->data (before the frame) as described by
+ *	the &struct ieee80211_vendor_radiotap.
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR		= BIT(0),
@@ -907,6 +914,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_10MHZ			= BIT(28),
 	RX_FLAG_5MHZ			= BIT(29),
 	RX_FLAG_AMSDU_MORE		= BIT(30),
+	RX_FLAG_RADIOTAP_VENDOR_DATA	= BIT(31),
 };
 
 #define RX_FLAG_STBC_SHIFT		26
@@ -976,6 +984,39 @@ struct ieee80211_rx_status {
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	u8 ampdu_delimiter_crc;
 };
+
+/**
+ * struct ieee80211_vendor_radiotap - vendor radiotap data information
+ * @present: presence bitmap for this vendor namespace
+ *	(this could be extended in the future if any vendor needs more
+ *	 bits, the radiotap spec does allow for that)
+ * @align: radiotap vendor namespace alignment. This defines the needed
+ *	alignment for the @data field below, not for the vendor namespace
+ *	description itself (which has a fixed 2-byte alignment)
+ *	Must be a power of two, and be set to at least 1!
+ * @oui: radiotap vendor namespace OUI
+ * @subns: radiotap vendor sub namespace
+ * @len: radiotap vendor sub namespace skip length, if alignment is done
+ *	then that's added to this, i.e. this is only the length of the
+ *	@data field.
+ * @pad: number of bytes of padding after the @data, this exists so that
+ *	the skb data alignment can be preserved even if the data has odd
+ *	length
+ * @data: the actual vendor namespace data
+ *
+ * This struct, including the vendor data, goes into the skb->data before
+ * the 802.11 header. It's split up in mac80211 using the align/oui/subns
+ * data.
+ */
+struct ieee80211_vendor_radiotap {
+	u32 present;
+	u8 align;
+	u8 oui[3];
+	u8 subns;
+	u8 pad;
+	u16 len;
+	u8 data[];
+} __packed;
 
 /**
  * enum ieee80211_conf_flags - configuration flags
@@ -1116,6 +1157,8 @@ struct ieee80211_conf {
  *	Function (TSF) timer when the frame containing the channel switch
  *	announcement was received. This is simply the rx.mactime parameter
  *	the driver passed into mac80211.
+ * @device_timestamp: arbitrary timestamp for the device, this is the
+ *	rx.device_timestamp parameter the driver passed to mac80211.
  * @block_tx: Indicates whether transmission must be blocked before the
  *	scheduled channel switch, as indicated by the AP.
  * @chandef: the new channel to switch to
@@ -1123,6 +1166,7 @@ struct ieee80211_conf {
  */
 struct ieee80211_channel_switch {
 	u64 timestamp;
+	u32 device_timestamp;
 	bool block_tx;
 	struct cfg80211_chan_def chandef;
 	u8 count;
@@ -1405,7 +1449,7 @@ struct ieee80211_sta_rates {
  * @supp_rates: Bitmap of supported rates (per band)
  * @ht_cap: HT capabilities of this STA; restricted to our own capabilities
  * @vht_cap: VHT capabilities of this STA; restricted to our own capabilities
- * @wme: indicates whether the STA supports WME. Only valid during AP-mode.
+ * @wme: indicates whether the STA supports QoS/WME.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
  * @uapsd_queues: bitmap of queues configured for uapsd. Only valid
@@ -1419,6 +1463,8 @@ struct ieee80211_sta_rates {
  * @smps_mode: current SMPS mode (off, static or dynamic)
  * @rates: rate control selection table
  * @tdls: indicates whether the STA is a TDLS peer
+ * @tdls_initiator: indicates the STA is an initiator of the TDLS link. Only
+ *	valid if the STA is a TDLS peer in the first place.
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];
@@ -1434,6 +1480,7 @@ struct ieee80211_sta {
 	enum ieee80211_smps_mode smps_mode;
 	struct ieee80211_sta_rates __rcu *rates;
 	bool tdls;
+	bool tdls_initiator;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
@@ -1533,16 +1580,6 @@ struct ieee80211_tx_control {
  * @IEEE80211_HW_MFP_CAPABLE:
  *	Hardware supports management frame protection (MFP, IEEE 802.11w).
  *
- * @IEEE80211_HW_SUPPORTS_STATIC_SMPS:
- *	Hardware supports static spatial multiplexing powersave,
- *	ie. can turn off all but one chain even on HT connections
- *	that should be using more chains.
- *
- * @IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS:
- *	Hardware supports dynamic spatial multiplexing powersave,
- *	ie. can turn off all but one chain and then wake the rest
- *	up as required after, for example, rts/cts handshake.
- *
  * @IEEE80211_HW_SUPPORTS_UAPSD:
  *	Hardware supports Unscheduled Automatic Power Save Delivery
  *	(U-APSD) in managed mode. The mode is configured with
@@ -1582,6 +1619,10 @@ struct ieee80211_tx_control {
  *	a virtual monitor interface when monitor interfaces are the only
  *	active interfaces.
  *
+ * @IEEE80211_HW_NO_AUTO_VIF: The driver would like for no wlanX to
+ *	be created.  It is expected user-space will create vifs as
+ *	desired (and thus have them named as desired).
+ *
  * @IEEE80211_HW_QUEUE_CONTROL: The driver wants to control per-interface
  *	queue mapping in order to use different queues (not just one per AC)
  *	for different virtual interfaces. See the doc section on HW queue
@@ -1606,6 +1647,9 @@ struct ieee80211_tx_control {
  *	is not enabled the default action is to disconnect when getting the
  *	CSA frame.
  *
+ * @IEEE80211_HW_SUPPORTS_CLONED_SKBS: The driver will never modify the payload
+ *	or tailroom of TX skbs without copying them first.
+ *
  * @IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS: The HW supports scanning on all bands
  *	in one command, mac80211 doesn't have to run separate scans per band.
  */
@@ -1625,8 +1669,8 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_DYNAMIC_PS		= 1<<12,
 	IEEE80211_HW_MFP_CAPABLE			= 1<<13,
 	IEEE80211_HW_WANT_MONITOR_VIF			= 1<<14,
-	IEEE80211_HW_SUPPORTS_STATIC_SMPS		= 1<<15,
-	IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS		= 1<<16,
+	IEEE80211_HW_NO_AUTO_VIF			= 1<<15,
+	/* free slot */
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
@@ -1639,7 +1683,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_TIMING_BEACON_ONLY			= 1<<26,
 	IEEE80211_HW_SUPPORTS_HT_CCK_RATES		= 1<<27,
 	IEEE80211_HW_CHANCTX_STA_CSA			= 1<<28,
-	/* bit 29 unused */
+	IEEE80211_HW_SUPPORTS_CLONED_SKBS		= 1<<29,
 	IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS		= 1<<30,
 };
 
@@ -1777,6 +1821,31 @@ struct ieee80211_scan_request {
 
 	/* Keep last */
 	struct cfg80211_scan_request req;
+};
+
+/**
+ * struct ieee80211_tdls_ch_sw_params - TDLS channel switch parameters
+ *
+ * @sta: peer this TDLS channel-switch request/response came from
+ * @chandef: channel referenced in a TDLS channel-switch request
+ * @action_code: see &enum ieee80211_tdls_actioncode
+ * @status: channel-switch response status
+ * @timestamp: time at which the frame was received
+ * @switch_time: switch-timing parameter received in the frame
+ * @switch_timeout: switch-timing parameter received in the frame
+ * @tmpl_skb: TDLS switch-channel response template
+ * @ch_sw_tm_ie: offset of the channel-switch timing IE inside @tmpl_skb
+ */
+struct ieee80211_tdls_ch_sw_params {
+	struct ieee80211_sta *sta;
+	struct cfg80211_chan_def *chandef;
+	u8 action_code;
+	u32 status;
+	u32 timestamp;
+	u16 switch_time;
+	u16 switch_timeout;
+	struct sk_buff *tmpl_skb;
+	u32 ch_sw_tm_ie;
 };
 
 /**
@@ -2379,6 +2448,22 @@ enum ieee80211_roc_type {
 };
 
 /**
+ * enum ieee80211_reconfig_complete_type - reconfig type
+ *
+ * This enum is used by the reconfig_complete() callback to indicate what
+ * reconfiguration type was completed.
+ *
+ * @IEEE80211_RECONFIG_TYPE_RESTART: hw restart type
+ *	(also due to resume() callback returning 1)
+ * @IEEE80211_RECONFIG_TYPE_SUSPEND: suspend type (regardless
+ *	of wowlan configuration)
+ */
+enum ieee80211_reconfig_type {
+	IEEE80211_RECONFIG_TYPE_RESTART,
+	IEEE80211_RECONFIG_TYPE_SUSPEND,
+};
+
+/**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
  *
  * This structure contains various callbacks that the driver may
@@ -2534,7 +2619,9 @@ enum ieee80211_roc_type {
  *
  * @sw_scan_start: Notifier function that is called just before a software scan
  *	is started. Can be NULL, if the driver doesn't need this notification.
- *	The callback can sleep.
+ *	The mac_addr parameter allows supporting NL80211_SCAN_FLAG_RANDOM_ADDR,
+ *	the driver may set the NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR flag if it
+ *	can use this parameter. The callback can sleep.
  *
  * @sw_scan_complete: Notifier function that is called just after a
  *	software scan finished. Can be NULL, if the driver doesn't need
@@ -2605,6 +2692,9 @@ enum ieee80211_roc_type {
  *	uses hardware rate control (%IEEE80211_HW_HAS_RATE_CONTROL) since
  *	otherwise the rate control algorithm is notified directly.
  *	Must be atomic.
+ * @sta_rate_tbl_update: Notifies the driver that the rate table changed. This
+ *	is only used if the configured rate control algorithm actually uses
+ *	the new rate table API, and is therefore optional. Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
@@ -2666,7 +2756,9 @@ enum ieee80211_roc_type {
  *
  * @set_coverage_class: Set slot time for given coverage class as specified
  *	in IEEE 802.11-2007 section 17.3.8.6 and modify ACK timeout
- *	accordingly. This callback is not required and may sleep.
+ *	accordingly; coverage class equals to -1 to enable ACK timeout
+ *	estimation algorithm (dynack). To disable dynack set valid value for
+ *	coverage class. This callback is not required and may sleep.
  *
  * @testmode_cmd: Implement a cfg80211 test mode command. The passed @vif may
  *	be %NULL. The callback can sleep.
@@ -2811,11 +2903,11 @@ enum ieee80211_roc_type {
  *	disabled/enabled via @bss_info_changed.
  * @stop_ap: Stop operation on the AP interface.
  *
- * @restart_complete: Called after a call to ieee80211_restart_hw(), when the
- *	reconfiguration has completed. This can help the driver implement the
- *	reconfiguration step. Also called when reconfiguring because the
- *	driver's resume function returned 1, as this is just like an "inline"
- *	hardware restart. This callback may sleep.
+ * @reconfig_complete: Called after a call to ieee80211_restart_hw() and
+ *	during resume, when the reconfiguration has completed.
+ *	This can help the driver implement the reconfiguration step (and
+ *	indicate mac80211 is ready to receive frames).
+ *	This callback may sleep.
  *
  * @ipv6_addr_change: IPv6 address assignment on the given interface changed.
  *	Currently, this is only called for managed or P2P client interfaces.
@@ -2831,6 +2923,13 @@ enum ieee80211_roc_type {
  *	transmitted and then call ieee80211_csa_finish().
  *	If the CSA count starts as zero or 1, this function will not be called,
  *	since there won't be any time to beacon before the switch anyway.
+ * @pre_channel_switch: This is an optional callback that is called
+ *	before a channel switch procedure is started (ie. when a STA
+ *	gets a CSA or an userspace initiated channel-switch), allowing
+ *	the driver to prepare for the channel switch.
+ * @post_channel_switch: This is an optional callback that is called
+ *	after a channel switch procedure is completed, allowing the
+ *	driver to go back to a normal configuration.
  *
  * @join_ibss: Join an IBSS (on an IBSS interface); this is called after all
  *	information in bss_conf is set up and the beacon can be retrieved. A
@@ -2840,6 +2939,26 @@ enum ieee80211_roc_type {
  * @get_expected_throughput: extract the expected throughput towards the
  *	specified station. The returned value is expressed in Kbps. It returns 0
  *	if the RC algorithm does not have proper data to provide.
+ *
+ * @get_txpower: get current maximum tx power (in dBm) based on configuration
+ *	and hardware limits.
+ *
+ * @tdls_channel_switch: Start channel-switching with a TDLS peer. The driver
+ *	is responsible for continually initiating channel-switching operations
+ *	and returning to the base channel for communication with the AP. The
+ *	driver receives a channel-switch request template and the location of
+ *	the switch-timing IE within the template as part of the invocation.
+ *	The template is valid only within the call, and the driver can
+ *	optionally copy the skb for further re-use.
+ * @tdls_cancel_channel_switch: Stop channel-switching with a TDLS peer. Both
+ *	peers must be on the base channel when the call completes.
+ * @tdls_recv_channel_switch: a TDLS channel-switch related frame (request or
+ *	response) has been received from a remote peer. The driver gets
+ *	parameters parsed from the incoming frame and may use them to continue
+ *	an ongoing channel-switch operation. In addition, a channel-switch
+ *	response template is provided, together with the location of the
+ *	switch-timing IE within the template. The skb can only be used within
+ *	the function call.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -2899,8 +3018,11 @@ struct ieee80211_ops {
 				struct ieee80211_scan_ies *ies);
 	int (*sched_scan_stop)(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif);
-	void (*sw_scan_start)(struct ieee80211_hw *hw);
-	void (*sw_scan_complete)(struct ieee80211_hw *hw);
+	void (*sw_scan_start)(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      const u8 *mac_addr);
+	void (*sw_scan_complete)(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
@@ -2934,6 +3056,9 @@ struct ieee80211_ops {
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta,
 			      u32 changed);
+	void (*sta_rate_tbl_update)(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta);
 	int (*conf_tx)(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif, u16 ac,
 		       const struct ieee80211_tx_queue_params *params);
@@ -2950,7 +3075,7 @@ struct ieee80211_ops {
 	int (*get_survey)(struct ieee80211_hw *hw, int idx,
 		struct survey_info *survey);
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
-	void (*set_coverage_class)(struct ieee80211_hw *hw, u8 coverage_class);
+	void (*set_coverage_class)(struct ieee80211_hw *hw, s16 coverage_class);
 #ifdef CONFIG_NL80211_TESTMODE
 	int (*testmode_cmd)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    void *data, int len);
@@ -2961,6 +3086,7 @@ struct ieee80211_ops {
 	void (*flush)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      u32 queues, bool drop);
 	void (*channel_switch)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
 			       struct ieee80211_channel_switch *ch_switch);
 	int (*set_antenna)(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
 	int (*get_antenna)(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
@@ -3027,7 +3153,8 @@ struct ieee80211_ops {
 				  int n_vifs,
 				  enum ieee80211_chanctx_switch_mode mode);
 
-	void (*restart_complete)(struct ieee80211_hw *hw);
+	void (*reconfig_complete)(struct ieee80211_hw *hw,
+				  enum ieee80211_reconfig_type reconfig_type);
 
 #if IS_ENABLED(CONFIG_IPV6)
 	void (*ipv6_addr_change)(struct ieee80211_hw *hw,
@@ -3037,14 +3164,54 @@ struct ieee80211_ops {
 	void (*channel_switch_beacon)(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      struct cfg80211_chan_def *chandef);
+	int (*pre_channel_switch)(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_channel_switch *ch_switch);
+
+	int (*post_channel_switch)(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif);
 
 	int (*join_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 	void (*leave_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 	u32 (*get_expected_throughput)(struct ieee80211_sta *sta);
+	int (*get_txpower)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   int *dbm);
+
+	int (*tdls_channel_switch)(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_sta *sta, u8 oper_class,
+				   struct cfg80211_chan_def *chandef,
+				   struct sk_buff *tmpl_skb, u32 ch_sw_tm_ie);
+	void (*tdls_cancel_channel_switch)(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif,
+					   struct ieee80211_sta *sta);
+	void (*tdls_recv_channel_switch)(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_tdls_ch_sw_params *params);
 };
 
 /**
- * ieee80211_alloc_hw -  Allocate a new hardware device
+ * ieee80211_alloc_hw_nm - Allocate a new hardware device
+ *
+ * This must be called once for each hardware device. The returned pointer
+ * must be used to refer to this device when calling other functions.
+ * mac80211 allocates a private data area for the driver pointed to by
+ * @priv in &struct ieee80211_hw, the size of this area is given as
+ * @priv_data_len.
+ *
+ * @priv_data_len: length of private data
+ * @ops: callbacks for this device
+ * @requested_name: Requested name for this device.
+ *	NULL is valid value, and means use the default naming (phy%d)
+ *
+ * Return: A pointer to the new hardware device, or %NULL on error.
+ */
+struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
+					   const struct ieee80211_ops *ops,
+					   const char *requested_name);
+
+/**
+ * ieee80211_alloc_hw - Allocate a new hardware device
  *
  * This must be called once for each hardware device. The returned pointer
  * must be used to refer to this device when calling other functions.
@@ -3057,8 +3224,12 @@ struct ieee80211_ops {
  *
  * Return: A pointer to the new hardware device, or %NULL on error.
  */
+static inline
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
-					const struct ieee80211_ops *ops);
+					const struct ieee80211_ops *ops)
+{
+	return ieee80211_alloc_hw_nm(priv_data_len, ops, NULL);
+}
 
 /**
  * ieee80211_register_hw - Register hardware device
@@ -3445,6 +3616,26 @@ void ieee80211_tx_status(struct ieee80211_hw *hw,
 			 struct sk_buff *skb);
 
 /**
+ * ieee80211_tx_status_noskb - transmit status callback without skb
+ *
+ * This function can be used as a replacement for ieee80211_tx_status
+ * in drivers that cannot reliably map tx status information back to
+ * specific skbs.
+ *
+ * Calls to this function for a single hardware must be synchronized
+ * against each other. Calls to this function, ieee80211_tx_status_ni()
+ * and ieee80211_tx_status_irqsafe() may not be mixed for a single hardware.
+ *
+ * @hw: the hardware the frame was transmitted by
+ * @sta: the receiver station to which this packet is sent
+ *	(NULL for multicast packets)
+ * @info: tx status information
+ */
+void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
+			       struct ieee80211_sta *sta,
+			       struct ieee80211_tx_info *info);
+
+/**
  * ieee80211_tx_status_ni - transmit status callback (in process context)
  *
  * Like ieee80211_tx_status() but can be called in process context.
@@ -3657,7 +3848,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 /**
  * ieee80211_probereq_get - retrieve a Probe Request template
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @src_addr: source MAC address
  * @ssid: SSID buffer
  * @ssid_len: length of SSID
  * @tailroom: tailroom to reserve at end of SKB for IEs
@@ -3668,7 +3859,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
  * Return: The Probe Request template. %NULL on error.
  */
 struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif,
+				       const u8 *src_addr,
 				       const u8 *ssid, size_t ssid_len,
 				       size_t tailroom);
 
@@ -4174,6 +4365,22 @@ void ieee80211_iterate_active_interfaces_rtnl(struct ieee80211_hw *hw,
 					      void *data);
 
 /**
+ * ieee80211_iterate_stations_atomic - iterate stations
+ *
+ * This function iterates over all stations associated with a given
+ * hardware that are currently uploaded to the driver and calls the callback
+ * function for them.
+ * This function requires the iterator callback function to be atomic,
+ *
+ * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iterator: the iterator function to call, cannot sleep
+ * @data: first argument of the iterator function
+ */
+void ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
+				       void (*iterator)(void *data,
+						struct ieee80211_sta *sta),
+				       void *data);
+/**
  * ieee80211_queue_work - add work onto the mac80211 workqueue
  *
  * Drivers and mac80211 use this to add work onto the mac80211 workqueue.
@@ -4482,6 +4689,14 @@ void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       gfp_t gfp);
 
 /**
+ * ieee80211_cqm_beacon_loss_notify - inform CQM of beacon loss
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @gfp: context flags
+ */
+void ieee80211_cqm_beacon_loss_notify(struct ieee80211_vif *vif, gfp_t gfp);
+
+/**
  * ieee80211_radar_detected - inform that a radar was detected
  *
  * @hw: pointer as obtained from ieee80211_alloc_hw()
@@ -4639,6 +4854,10 @@ struct rate_control_ops {
 	void (*free_sta)(void *priv, struct ieee80211_sta *sta,
 			 void *priv_sta);
 
+	void (*tx_status_noskb)(void *priv,
+				struct ieee80211_supported_band *sband,
+				struct ieee80211_sta *sta, void *priv_sta,
+				struct ieee80211_tx_info *info);
 	void (*tx_status)(void *priv, struct ieee80211_supported_band *sband,
 			  struct ieee80211_sta *sta, void *priv_sta,
 			  struct sk_buff *skb);
@@ -4890,4 +5109,69 @@ void ieee80211_update_p2p_noa(struct ieee80211_noa_data *data, u32 tsf);
 void ieee80211_tdls_oper_request(struct ieee80211_vif *vif, const u8 *peer,
 				 enum nl80211_tdls_operation oper,
 				 u16 reason_code, gfp_t gfp);
+
+/**
+ * ieee80211_reserve_tid - request to reserve a specific TID
+ *
+ * There is sometimes a need (such as in TDLS) for blocking the driver from
+ * using a specific TID so that the FW can use it for certain operations such
+ * as sending PTI requests. To make sure that the driver doesn't use that TID,
+ * this function must be called as it flushes out packets on this TID and marks
+ * it as blocked, so that any transmit for the station on this TID will be
+ * redirected to the alternative TID in the same AC.
+ *
+ * Note that this function blocks and may call back into the driver, so it
+ * should be called without driver locks held. Also note this function should
+ * only be called from the driver's @sta_state callback.
+ *
+ * @sta: the station to reserve the TID for
+ * @tid: the TID to reserve
+ *
+ * Returns: 0 on success, else on failure
+ */
+int ieee80211_reserve_tid(struct ieee80211_sta *sta, u8 tid);
+
+/**
+ * ieee80211_unreserve_tid - request to unreserve a specific TID
+ *
+ * Once there is no longer any need for reserving a certain TID, this function
+ * should be called, and no longer will packets have their TID modified for
+ * preventing use of this TID in the driver.
+ *
+ * Note that this function blocks and acquires a lock, so it should be called
+ * without driver locks held. Also note this function should only be called
+ * from the driver's @sta_state callback.
+ *
+ * @sta: the station
+ * @tid: the TID to unreserve
+ */
+void ieee80211_unreserve_tid(struct ieee80211_sta *sta, u8 tid);
+
+/**
+ * ieee80211_ie_split - split an IE buffer according to ordering
+ *
+ * @ies: the IE buffer
+ * @ielen: the length of the IE buffer
+ * @ids: an array with element IDs that are allowed before
+ *	the split
+ * @n_ids: the size of the element ID array
+ * @offset: offset where to start splitting in the buffer
+ *
+ * This function splits an IE buffer by updating the @offset
+ * variable to point to the location where the buffer should be
+ * split.
+ *
+ * It assumes that the given IE buffer is well-formed, this
+ * has to be guaranteed by the caller!
+ *
+ * It also assumes that the IEs in the buffer are ordered
+ * correctly, if not the result of using this function will not
+ * be ordered correctly either, i.e. it does no reordering.
+ *
+ * The function returns the offset where the next part of the
+ * buffer starts, which may be @ielen if the entire (remainder)
+ * of the buffer should be used.
+ */
+size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
+			  const u8 *ids, int n_ids, size_t offset);
 #endif /* MAC80211_H */

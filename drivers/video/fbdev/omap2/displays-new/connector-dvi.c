@@ -262,8 +262,7 @@ static int dvic_probe_pdata(struct platform_device *pdev)
 
 	in = omap_dss_find_output(pdata->source);
 	if (in == NULL) {
-		if (ddata->i2c_adapter)
-			i2c_put_adapter(ddata->i2c_adapter);
+		i2c_put_adapter(ddata->i2c_adapter);
 
 		dev_err(&pdev->dev, "Failed to find video source\n");
 		return -EPROBE_DEFER;
@@ -352,8 +351,7 @@ static int dvic_probe(struct platform_device *pdev)
 err_reg:
 	omap_dss_put_device(ddata->in);
 
-	if (ddata->i2c_adapter)
-		i2c_put_adapter(ddata->i2c_adapter);
+	i2c_put_adapter(ddata->i2c_adapter);
 
 	return r;
 }
@@ -371,8 +369,7 @@ static int __exit dvic_remove(struct platform_device *pdev)
 
 	omap_dss_put_device(in);
 
-	if (ddata->i2c_adapter)
-		i2c_put_adapter(ddata->i2c_adapter);
+	i2c_put_adapter(ddata->i2c_adapter);
 
 	return 0;
 }
@@ -389,8 +386,8 @@ static struct platform_driver dvi_connector_driver = {
 	.remove	= __exit_p(dvic_remove),
 	.driver	= {
 		.name	= "connector-dvi",
-		.owner	= THIS_MODULE,
 		.of_match_table = dvic_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

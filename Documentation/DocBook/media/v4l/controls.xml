@@ -3965,6 +3965,27 @@ by exposure, white balance or focus controls.</entry>
 	  </row>
 	  <row><entry></entry></row>
 
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_PAN_SPEED</constant>&nbsp;</entry>
+	    <entry>integer</entry>
+	  </row><row><entry spanname="descr">This control turns the
+camera horizontally at the specific speed. The unit is undefined. A
+positive value moves the camera to the right (clockwise when viewed
+from above), a negative value to the left. A value of zero stops the motion
+if one is in progress and has no effect otherwise.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TILT_SPEED</constant>&nbsp;</entry>
+	    <entry>integer</entry>
+	  </row><row><entry spanname="descr">This control turns the
+camera vertically at the specified speed. The unit is undefined. A
+positive value moves the camera up, a negative value down. A value of zero
+stops the motion if one is in progress and has no effect otherwise.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
 	</tbody>
       </tgroup>
     </table>
@@ -4788,6 +4809,40 @@ interface and may change in the future.</para>
 	    all colour components in the pixel matrix. The gain
 	    operation is performed in the analogue domain before A/D
 	    conversion.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN_RED</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Test pattern red colour component.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN_GREENR</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Test pattern green (next to red)
+	    colour component.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN_BLUE</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Test pattern blue colour component.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN_GREENB</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Test pattern green (next to blue)
+	    colour component.
 	    </entry>
 	  </row>
 	  <row><entry></entry></row>

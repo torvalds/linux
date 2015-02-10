@@ -210,7 +210,7 @@ static void fsl_emb_pmu_disable(struct pmu *pmu)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	cpuhw = &__get_cpu_var(cpu_hw_events);
+	cpuhw = this_cpu_ptr(&cpu_hw_events);
 
 	if (!cpuhw->disabled) {
 		cpuhw->disabled = 1;
@@ -249,7 +249,7 @@ static void fsl_emb_pmu_enable(struct pmu *pmu)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	cpuhw = &__get_cpu_var(cpu_hw_events);
+	cpuhw = this_cpu_ptr(&cpu_hw_events);
 	if (!cpuhw->disabled)
 		goto out;
 
@@ -653,7 +653,7 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 static void perf_event_interrupt(struct pt_regs *regs)
 {
 	int i;
-	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
 	struct perf_event *event;
 	unsigned long val;
 	int found = 0;

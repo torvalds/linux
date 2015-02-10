@@ -1376,6 +1376,7 @@ int hfa384x_drvr_setconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len);
 static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
 {
 	int result = 0;
+
 	result = hfa384x_drvr_getconfig(hw, rid, val, sizeof(u16));
 	if (result == 0)
 		*((u16 *) val) = le16_to_cpu(*((u16 *) val));
@@ -1385,6 +1386,7 @@ static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
 static inline int hfa384x_drvr_setconfig16(hfa384x_t *hw, u16 rid, u16 val)
 {
 	u16 value = cpu_to_le16(val);
+
 	return hfa384x_drvr_setconfig(hw, rid, &value, sizeof(value));
 }
 
@@ -1402,6 +1404,7 @@ static inline int
 hfa384x_drvr_setconfig16_async(hfa384x_t *hw, u16 rid, u16 val)
 {
 	u16 value = cpu_to_le16(val);
+
 	return hfa384x_drvr_setconfig_async(hw, rid, &value, sizeof(value),
 					    NULL, NULL);
 }

@@ -79,8 +79,7 @@
 #define IBLND_N_SCHED			2
 #define IBLND_N_SCHED_HIGH		4
 
-typedef struct
-{
+typedef struct {
 	int	      *kib_dev_failover;     /* HCA failover */
 	unsigned int     *kib_service;	  /* IB service number */
 	int	      *kib_min_reconnect_interval; /* first failed connection retry... */
@@ -186,8 +185,7 @@ struct kib_hca_dev;
 #define KIB_IFNAME_SIZE	      256
 #endif
 
-typedef struct
-{
+typedef struct {
 	struct list_head	   ibd_list;	  /* chain on kib_devs */
 	struct list_head	   ibd_fail_list;     /* chain on kib_failed_devs */
 	__u32		ibd_ifip;	  /* IPoIB interface IP */
@@ -203,8 +201,7 @@ typedef struct
 	struct kib_hca_dev  *ibd_hdev;
 } kib_dev_t;
 
-typedef struct kib_hca_dev
-{
+typedef struct kib_hca_dev {
 	struct rdma_cm_id   *ibh_cmid;	  /* listener cmid */
 	struct ib_device    *ibh_ibdev;	 /* IB device */
 	int		  ibh_page_shift;    /* page shift of current HCA */
@@ -224,8 +221,7 @@ typedef struct kib_hca_dev
 /** # of seconds to retry if allocation failed */
 #define IBLND_POOL_RETRY	1
 
-typedef struct
-{
+typedef struct {
 	int		     ibp_npages;	     /* # pages */
 	struct page	    *ibp_pages[0];	   /* page array */
 } kib_pages_t;
@@ -254,8 +250,7 @@ struct kib_net;
 
 #define IBLND_POOL_NAME_LEN     32
 
-typedef struct kib_poolset
-{
+typedef struct kib_poolset {
 	spinlock_t		ps_lock;		/* serialize */
 	struct kib_net	 *ps_net;		 /* network it belongs to */
 	char		    ps_name[IBLND_POOL_NAME_LEN]; /* pool set name */
@@ -272,8 +267,7 @@ typedef struct kib_poolset
 	kib_ps_node_fini_t      ps_node_fini;	   /* finalize node */
 } kib_poolset_t;
 
-typedef struct kib_pool
-{
+typedef struct kib_pool {
 	struct list_head	      po_list;		/* chain on pool list */
 	struct list_head	      po_free_list;	   /* pre-allocated node */
 	kib_poolset_t	  *po_owner;	       /* pool_set of this pool */
@@ -304,8 +298,7 @@ typedef struct kib_pmr_pool {
 	kib_pool_t	      ppo_pool;	       /* pool */
 } kib_pmr_pool_t;
 
-typedef struct
-{
+typedef struct {
 	spinlock_t		fps_lock;		/* serialize */
 	struct kib_net	 *fps_net;		/* IB network */
 	struct list_head	      fps_pool_list;	  /* FMR pool list */
@@ -320,8 +313,7 @@ typedef struct
 	unsigned long		fps_next_retry;
 } kib_fmr_poolset_t;
 
-typedef struct
-{
+typedef struct {
 	struct list_head	      fpo_list;	       /* chain on pool list */
 	struct kib_hca_dev     *fpo_hdev;	       /* device for this pool */
 	kib_fmr_poolset_t      *fpo_owner;	      /* owner of this pool */
@@ -336,8 +328,7 @@ typedef struct {
 	kib_fmr_pool_t	 *fmr_pool;	       /* pool of FMR */
 } kib_fmr_t;
 
-typedef struct kib_net
-{
+typedef struct kib_net {
 	struct list_head	   ibn_list;	  /* chain on kib_dev_t::ibd_nets */
 	__u64		ibn_incarnation;   /* my epoch */
 	int		  ibn_init;	  /* initialisation state */
@@ -372,8 +363,7 @@ struct kib_sched_info {
 	int			ibs_cpt;	/* CPT id */
 };
 
-typedef struct
-{
+typedef struct {
 	int			kib_init;	/* initialisation state */
 	int			kib_shutdown;	/* shut down? */
 	struct list_head		kib_devs;	/* IB devices extant */
@@ -411,60 +401,51 @@ typedef struct
  * These are sent in sender's byte order (i.e. receiver flips).
  */
 
-typedef struct kib_connparams
-{
+typedef struct kib_connparams {
 	__u16	     ibcp_queue_depth;
 	__u16	     ibcp_max_frags;
 	__u32	     ibcp_max_msg_size;
 } WIRE_ATTR kib_connparams_t;
 
-typedef struct
-{
+typedef struct {
 	lnet_hdr_t	ibim_hdr;	     /* portals header */
 	char	      ibim_payload[0];      /* piggy-backed payload */
 } WIRE_ATTR kib_immediate_msg_t;
 
-typedef struct
-{
+typedef struct {
 	__u32	     rf_nob;	       /* # bytes this frag */
 	__u64	     rf_addr;	      /* CAVEAT EMPTOR: misaligned!! */
 } WIRE_ATTR kib_rdma_frag_t;
 
-typedef struct
-{
+typedef struct {
 	__u32	     rd_key;	       /* local/remote key */
 	__u32	     rd_nfrags;	    /* # fragments */
 	kib_rdma_frag_t   rd_frags[0];	  /* buffer frags */
 } WIRE_ATTR kib_rdma_desc_t;
 
-typedef struct
-{
+typedef struct {
 	lnet_hdr_t	ibprm_hdr;	    /* portals header */
 	__u64	     ibprm_cookie;	 /* opaque completion cookie */
 } WIRE_ATTR kib_putreq_msg_t;
 
-typedef struct
-{
+typedef struct {
 	__u64	     ibpam_src_cookie;     /* reflected completion cookie */
 	__u64	     ibpam_dst_cookie;     /* opaque completion cookie */
 	kib_rdma_desc_t   ibpam_rd;	     /* sender's sink buffer */
 } WIRE_ATTR kib_putack_msg_t;
 
-typedef struct
-{
+typedef struct {
 	lnet_hdr_t	ibgm_hdr;	     /* portals header */
 	__u64	     ibgm_cookie;	  /* opaque completion cookie */
 	kib_rdma_desc_t   ibgm_rd;	      /* rdma descriptor */
 } WIRE_ATTR kib_get_msg_t;
 
-typedef struct
-{
+typedef struct {
 	__u64	     ibcm_cookie;	  /* opaque completion cookie */
 	__s32	     ibcm_status;	  /* < 0 failure: >= 0 length */
 } WIRE_ATTR kib_completion_msg_t;
 
-typedef struct
-{
+typedef struct {
 	/* First 2 fields fixed FOR ALL TIME */
 	__u32	     ibm_magic;	    /* I'm an ibnal message */
 	__u16	     ibm_version;	  /* this is my version number */
@@ -574,14 +555,12 @@ typedef struct kib_tx			   /* transmit message */
 	int		       tx_dmadir;    /* dma direction */
 } kib_tx_t;
 
-typedef struct kib_connvars
-{
+typedef struct kib_connvars {
 	/* connection-in-progress variables */
 	kib_msg_t		 cv_msg;
 } kib_connvars_t;
 
-typedef struct kib_conn
-{
+typedef struct kib_conn {
 	struct kib_sched_info *ibc_sched;	/* scheduler information */
 	struct kib_peer     *ibc_peer;	  /* owning peer */
 	kib_hca_dev_t       *ibc_hdev;	  /* HCA bound on */
@@ -629,8 +608,7 @@ typedef struct kib_conn
 #define IBLND_CONN_CLOSING	    4	 /* being closed */
 #define IBLND_CONN_DISCONNECTED       5	 /* disconnected */
 
-typedef struct kib_peer
-{
+typedef struct kib_peer {
 	struct list_head	   ibp_list;	   /* stash on global peer list */
 	lnet_nid_t	   ibp_nid;	    /* who's on the other end(s) */
 	lnet_ni_t	   *ibp_ni;	     /* LNet interface */

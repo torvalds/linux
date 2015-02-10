@@ -194,6 +194,7 @@ my $config_bisect_check;
 
 my $patchcheck_type;
 my $patchcheck_start;
+my $patchcheck_cherry;
 my $patchcheck_end;
 
 # set when a test is something other that just building or install
@@ -320,6 +321,7 @@ my %option_map = (
 
     "PATCHCHECK_TYPE"		=> \$patchcheck_type,
     "PATCHCHECK_START"		=> \$patchcheck_start,
+    "PATCHCHECK_CHERRY"		=> \$patchcheck_cherry,
     "PATCHCHECK_END"		=> \$patchcheck_end,
 );
 
@@ -682,11 +684,8 @@ sub set_value {
 	}
 	${$overrides}{$lvalue} = $prvalue;
     }
-    if ($rvalue =~ /^\s*$/) {
-	delete $opt{$lvalue};
-    } else {
-	$opt{$lvalue} = $prvalue;
-    }
+
+    $opt{$lvalue} = $prvalue;
 }
 
 sub set_eval {
@@ -1448,6 +1447,12 @@ sub wait_for_monitor {
 	}
     }
     print "** Monitor flushed **\n";
+
+    # if stop is defined but wasn't hit, return error
+    # used by reboot (which wants to see a reboot)
+    if (defined($stop) && !$booted) {
+	$bug = 1;
+    }
     return $bug;
 }
 
@@ -1997,7 +2002,7 @@ sub get_version {
     # get the release name
     return if ($have_version);
     doprint "$make kernelrelease ... ";
-    $version = `$make kernelrelease | tail -1`;
+    $version = `$make -s kernelrelease | tail -1`;
     chomp($version);
     doprint "$version\n";
     $have_version = 1;
@@ -2336,15 +2341,17 @@ sub success {
 
 sub answer_bisect {
     for (;;) {
-	doprint "Pass or fail? [p/f]";
+	doprint "Pass, fail, or skip? [p/f/s]";
 	my $ans = <STDIN>;
 	chomp $ans;
 	if ($ans eq "p" || $ans eq "P") {
 	    return 1;
 	} elsif ($ans eq "f" || $ans eq "F") {
 	    return 0;
+	} elsif ($ans eq "s" || $ans eq "S") {
+	    return -1;
 	} else {
-	    print "Please answer 'P' or 'F'\n";
+	    print "Please answer 'p', 'f', or 's'\n";
 	}
     }
 }
@@ -2726,15 +2733,17 @@ sub bisect {
     run_command "git bisect start$start_files" or
 	dodie "could not start bisect";
 
-    run_command "git bisect good $good" or
-	dodie "could not set bisect good to $good";
-
-    run_git_bisect "git bisect bad $bad" or
-	dodie "could not set bisect bad to $bad";
-
     if (defined($replay)) {
 	run_command "git bisect replay $replay" or
 	    dodie "failed to run replay";
+    } else {
+
+	run_command "git bisect good $good" or
+	    dodie "could not set bisect good to $good";
+
+	run_git_bisect "git bisect bad $bad" or
+	    dodie "could not set bisect bad to $bad";
+
     }
 
     if (defined($start)) {
@@ -3181,9 +3190,16 @@ sub patchcheck {
 
     my $start = $patchcheck_start;
 
+    my $cherry = $patchcheck_cherry;
+    if (!defined($cherry)) {
+	$cherry = 0;
+    }
+
     my $end = "HEAD";
     if (defined($patchcheck_end)) {
 	$end = $patchcheck_end;
+    } elsif ($cherry) {
+	die "PATCHCHECK_END must be defined with PATCHCHECK_CHERRY\n";
     }
 
     # Get the true sha1's since we can use things like HEAD~3
@@ -3197,24 +3213,38 @@ sub patchcheck {
 	$type = "boot";
     }
 
-    open (IN, "git log --pretty=oneline $end|") or
-	dodie "could not get git list";
+    if ($cherry) {
+	open (IN, "git cherry -v $start $end|") or
+	    dodie "could not get git list";
+    } else {
+	open (IN, "git log --pretty=oneline $end|") or
+	    dodie "could not get git list";
+    }
 
     my @list;
 
     while (<IN>) {
 	chomp;
+	# git cherry adds a '+' we want to remove
+	s/^\+ //;
 	$list[$#list+1] = $_;
 	last if (/^$start/);
     }
     close(IN);
 
-    if ($list[$#list] !~ /^$start/) {
-	fail "SHA1 $start not found";
+    if (!$cherry) {
+	if ($list[$#list] !~ /^$start/) {
+	    fail "SHA1 $start not found";
+	}
+
+	# go backwards in the list
+	@list = reverse @list;
     }
 
-    # go backwards in the list
-    @list = reverse @list;
+    doprint("Going to test the following commits:\n");
+    foreach my $l (@list) {
+	doprint "$l\n";
+    }
 
     my $save_clean = $noclean;
     my %ignored_warnings;
@@ -3538,7 +3568,9 @@ sub test_this_config {
     undef %configs;
     assign_configs \%configs, $output_config;
 
-    return $config if (!defined($configs{$config}));
+    if (!defined($configs{$config}) || $configs{$config} =~ /^#/) {
+	return $config;
+    }
 
     doprint "disabling config $config did not change .config\n";
 
@@ -3912,12 +3944,22 @@ for (my $i = 0, my $repeat = 1; $i <= $opt{"NUM_TESTS"}; $i += $repeat) {
     }
 }
 
+sub option_defined {
+    my ($option) = @_;
+
+    if (defined($opt{$option}) && $opt{$option} !~ /^\s*$/) {
+	return 1;
+    }
+
+    return 0;
+}
+
 sub __set_test_option {
     my ($name, $i) = @_;
 
     my $option = "$name\[$i\]";
 
-    if (defined($opt{$option})) {
+    if (option_defined($option)) {
 	return $opt{$option};
     }
 
@@ -3925,13 +3967,13 @@ sub __set_test_option {
 	if ($i >= $test &&
 	    $i < $test + $repeat_tests{$test}) {
 	    $option = "$name\[$test\]";
-	    if (defined($opt{$option})) {
+	    if (option_defined($option)) {
 		return $opt{$option};
 	    }
 	}
     }
 
-    if (defined($opt{$name})) {
+    if (option_defined($name)) {
 	return $opt{$name};
     }
 
@@ -4044,8 +4086,14 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     my $installme = "";
     $installme = " no_install" if ($no_install);
 
+    my $name = "";
+
+    if (defined($test_name)) {
+	$name = " ($test_name)";
+    }
+
     doprint "\n\n";
-    doprint "RUNNING TEST $i of $opt{NUM_TESTS} with option $test_type $run_type$installme\n\n";
+    doprint "RUNNING TEST $i of $opt{NUM_TESTS}$name with option $test_type $run_type$installme\n\n";
 
     if (defined($pre_test)) {
 	run_command $pre_test;

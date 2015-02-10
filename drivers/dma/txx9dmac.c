@@ -76,7 +76,7 @@ static void channel64_write_CHAR(const struct txx9dmac_chan *dc, dma_addr_t val)
 
 static void channel64_clear_CHAR(const struct txx9dmac_chan *dc)
 {
-#if defined(CONFIG_32BIT) && !defined(CONFIG_64BIT_PHYS_ADDR)
+#if defined(CONFIG_32BIT) && !defined(CONFIG_PHYS_ADDR_T_64BIT)
 	channel64_writel(dc, CHAR, 0);
 	channel64_writel(dc, __pad_CHAR, 0);
 #else

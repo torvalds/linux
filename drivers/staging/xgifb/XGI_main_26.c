@@ -588,13 +588,11 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 		}
 		i++;
 	}
-	if (xgifb_info->rate_idx > 0) {
+	if (xgifb_info->rate_idx > 0)
 		return xgifb_info->rate_idx;
-	} else {
-		pr_info("Unsupported rate %d for %dx%d\n",
-		       rate, xres, yres);
-		return 0;
-	}
+	pr_info("Unsupported rate %d for %dx%d\n",
+		rate, xres, yres);
+	return 0;
 }
 
 static void XGIfb_search_tvstd(const char *name)
@@ -2014,7 +2012,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	XGIfb_get_fix(&fb_info->fix, -1, fb_info);
 	fb_info->pseudo_palette = xgifb_info->pseudo_palette;
 
-	fb_alloc_cmap(&fb_info->cmap, 256 , 0);
+	fb_alloc_cmap(&fb_info->cmap, 256, 0);
 
 #ifdef CONFIG_MTRR
 	xgifb_info->mtrr = mtrr_add(xgifb_info->video_base,

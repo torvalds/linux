@@ -1091,8 +1091,8 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 }
 
 /*
- * Call early during boot, before mem init or bootmem, to retrieve the RTAS
- * informations from the device-tree and allocate the RMO buffer for userland
+ * Call early during boot, before mem init, to retrieve the RTAS
+ * information from the device-tree and allocate the RMO buffer for userland
  * accesses.
  */
 void __init rtas_initialize(void)

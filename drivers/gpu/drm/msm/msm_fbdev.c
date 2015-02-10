@@ -93,9 +93,6 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	uint32_t paddr;
 	int ret, size;
 
-	sizes->surface_bpp = 32;
-	sizes->surface_depth = 24;
-
 	DBG("create fbdev: %dx%d@%d (%dx%d)", sizes->surface_width,
 			sizes->surface_height, sizes->surface_bpp,
 			sizes->fb_width, sizes->fb_height);
@@ -193,8 +190,7 @@ fail_unlock:
 fail:
 
 	if (ret) {
-		if (fbi)
-			framebuffer_release(fbi);
+		framebuffer_release(fbi);
 		if (fb) {
 			drm_framebuffer_unregister_private(fb);
 			drm_framebuffer_remove(fb);

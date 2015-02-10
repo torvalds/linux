@@ -547,7 +547,7 @@
 			status = "disabled";
 		};
 
-		gpio@ff708000 {
+		gpio0: gpio@ff708000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "snps,dw-apb-gpio";
@@ -555,7 +555,7 @@
 			clocks = <&per_base_clk>;
 			status = "disabled";
 
-			gpio0: gpio-controller@0 {
+			porta: gpio-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -567,7 +567,7 @@
 			};
 		};
 
-		gpio@ff709000 {
+		gpio1: gpio@ff709000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "snps,dw-apb-gpio";
@@ -575,7 +575,7 @@
 			clocks = <&per_base_clk>;
 			status = "disabled";
 
-			gpio1: gpio-controller@0 {
+			portb: gpio-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -587,7 +587,7 @@
 			};
 		};
 
-		gpio@ff70a000 {
+		gpio2: gpio@ff70a000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "snps,dw-apb-gpio";
@@ -595,7 +595,7 @@
 			clocks = <&per_base_clk>;
 			status = "disabled";
 
-			gpio2: gpio-controller@0 {
+			portc: gpio-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -605,6 +605,17 @@
 				#interrupt-cells = <2>;
 				interrupts = <0 166 4>;
 			};
+		};
+
+		sdr: sdr@ffc25000 {
+			compatible = "syscon";
+			reg = <0xffc25000 0x1000>;
+		};
+
+		sdramedac {
+			compatible = "altr,sdram-edac";
+			altr,sdr-syscon = <&sdr>;
+			interrupts = <0 39 4>;
 		};
 
 		L2: l2-cache@fffef000 {
@@ -626,6 +637,33 @@
 			#size-cells = <0>;
 			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
 			clock-names = "biu", "ciu";
+		};
+
+		ocram: sram@ffff0000 {
+			compatible = "mmio-sram";
+			reg = <0xffff0000 0x10000>;
+		};
+
+		spi0: spi@fff00000 {
+			compatible = "snps,dw-apb-ssi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xfff00000 0x1000>;
+			interrupts = <0 154 4>;
+			num-cs = <4>;
+			clocks = <&spi_m_clk>;
+			status = "disabled";
+		};
+
+		spi1: spi@fff01000 {
+			compatible = "snps,dw-apb-ssi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xfff01000 0x1000>;
+			interrupts = <0 156 4>;
+			num-cs = <4>;
+			clocks = <&spi_m_clk>;
+			status = "disabled";
 		};
 
 		/* Local timer */

@@ -11,16 +11,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <asm/cacheflush.h>
@@ -49,74 +39,74 @@
  * corresponding in-memory formats to the table below!!!
  */
 static struct isp_format_info formats[] = {
-	{ V4L2_MBUS_FMT_Y8_1X8, V4L2_MBUS_FMT_Y8_1X8,
-	  V4L2_MBUS_FMT_Y8_1X8, V4L2_MBUS_FMT_Y8_1X8,
+	{ MEDIA_BUS_FMT_Y8_1X8, MEDIA_BUS_FMT_Y8_1X8,
+	  MEDIA_BUS_FMT_Y8_1X8, MEDIA_BUS_FMT_Y8_1X8,
 	  V4L2_PIX_FMT_GREY, 8, 1, },
-	{ V4L2_MBUS_FMT_Y10_1X10, V4L2_MBUS_FMT_Y10_1X10,
-	  V4L2_MBUS_FMT_Y10_1X10, V4L2_MBUS_FMT_Y8_1X8,
+	{ MEDIA_BUS_FMT_Y10_1X10, MEDIA_BUS_FMT_Y10_1X10,
+	  MEDIA_BUS_FMT_Y10_1X10, MEDIA_BUS_FMT_Y8_1X8,
 	  V4L2_PIX_FMT_Y10, 10, 2, },
-	{ V4L2_MBUS_FMT_Y12_1X12, V4L2_MBUS_FMT_Y10_1X10,
-	  V4L2_MBUS_FMT_Y12_1X12, V4L2_MBUS_FMT_Y8_1X8,
+	{ MEDIA_BUS_FMT_Y12_1X12, MEDIA_BUS_FMT_Y10_1X10,
+	  MEDIA_BUS_FMT_Y12_1X12, MEDIA_BUS_FMT_Y8_1X8,
 	  V4L2_PIX_FMT_Y12, 12, 2, },
-	{ V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_MBUS_FMT_SBGGR8_1X8,
-	  V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_MBUS_FMT_SBGGR8_1X8,
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, MEDIA_BUS_FMT_SBGGR8_1X8,
+	  MEDIA_BUS_FMT_SBGGR8_1X8, MEDIA_BUS_FMT_SBGGR8_1X8,
 	  V4L2_PIX_FMT_SBGGR8, 8, 1, },
-	{ V4L2_MBUS_FMT_SGBRG8_1X8, V4L2_MBUS_FMT_SGBRG8_1X8,
-	  V4L2_MBUS_FMT_SGBRG8_1X8, V4L2_MBUS_FMT_SGBRG8_1X8,
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, MEDIA_BUS_FMT_SGBRG8_1X8,
+	  MEDIA_BUS_FMT_SGBRG8_1X8, MEDIA_BUS_FMT_SGBRG8_1X8,
 	  V4L2_PIX_FMT_SGBRG8, 8, 1, },
-	{ V4L2_MBUS_FMT_SGRBG8_1X8, V4L2_MBUS_FMT_SGRBG8_1X8,
-	  V4L2_MBUS_FMT_SGRBG8_1X8, V4L2_MBUS_FMT_SGRBG8_1X8,
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, MEDIA_BUS_FMT_SGRBG8_1X8,
+	  MEDIA_BUS_FMT_SGRBG8_1X8, MEDIA_BUS_FMT_SGRBG8_1X8,
 	  V4L2_PIX_FMT_SGRBG8, 8, 1, },
-	{ V4L2_MBUS_FMT_SRGGB8_1X8, V4L2_MBUS_FMT_SRGGB8_1X8,
-	  V4L2_MBUS_FMT_SRGGB8_1X8, V4L2_MBUS_FMT_SRGGB8_1X8,
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, MEDIA_BUS_FMT_SRGGB8_1X8,
+	  MEDIA_BUS_FMT_SRGGB8_1X8, MEDIA_BUS_FMT_SRGGB8_1X8,
 	  V4L2_PIX_FMT_SRGGB8, 8, 1, },
-	{ V4L2_MBUS_FMT_SBGGR10_DPCM8_1X8, V4L2_MBUS_FMT_SBGGR10_DPCM8_1X8,
-	  V4L2_MBUS_FMT_SBGGR10_1X10, 0,
+	{ MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8, MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8,
+	  MEDIA_BUS_FMT_SBGGR10_1X10, 0,
 	  V4L2_PIX_FMT_SBGGR10DPCM8, 8, 1, },
-	{ V4L2_MBUS_FMT_SGBRG10_DPCM8_1X8, V4L2_MBUS_FMT_SGBRG10_DPCM8_1X8,
-	  V4L2_MBUS_FMT_SGBRG10_1X10, 0,
+	{ MEDIA_BUS_FMT_SGBRG10_DPCM8_1X8, MEDIA_BUS_FMT_SGBRG10_DPCM8_1X8,
+	  MEDIA_BUS_FMT_SGBRG10_1X10, 0,
 	  V4L2_PIX_FMT_SGBRG10DPCM8, 8, 1, },
-	{ V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8, V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8,
-	  V4L2_MBUS_FMT_SGRBG10_1X10, 0,
+	{ MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8, MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
+	  MEDIA_BUS_FMT_SGRBG10_1X10, 0,
 	  V4L2_PIX_FMT_SGRBG10DPCM8, 8, 1, },
-	{ V4L2_MBUS_FMT_SRGGB10_DPCM8_1X8, V4L2_MBUS_FMT_SRGGB10_DPCM8_1X8,
-	  V4L2_MBUS_FMT_SRGGB10_1X10, 0,
+	{ MEDIA_BUS_FMT_SRGGB10_DPCM8_1X8, MEDIA_BUS_FMT_SRGGB10_DPCM8_1X8,
+	  MEDIA_BUS_FMT_SRGGB10_1X10, 0,
 	  V4L2_PIX_FMT_SRGGB10DPCM8, 8, 1, },
-	{ V4L2_MBUS_FMT_SBGGR10_1X10, V4L2_MBUS_FMT_SBGGR10_1X10,
-	  V4L2_MBUS_FMT_SBGGR10_1X10, V4L2_MBUS_FMT_SBGGR8_1X8,
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, MEDIA_BUS_FMT_SBGGR10_1X10,
+	  MEDIA_BUS_FMT_SBGGR10_1X10, MEDIA_BUS_FMT_SBGGR8_1X8,
 	  V4L2_PIX_FMT_SBGGR10, 10, 2, },
-	{ V4L2_MBUS_FMT_SGBRG10_1X10, V4L2_MBUS_FMT_SGBRG10_1X10,
-	  V4L2_MBUS_FMT_SGBRG10_1X10, V4L2_MBUS_FMT_SGBRG8_1X8,
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, MEDIA_BUS_FMT_SGBRG10_1X10,
+	  MEDIA_BUS_FMT_SGBRG10_1X10, MEDIA_BUS_FMT_SGBRG8_1X8,
 	  V4L2_PIX_FMT_SGBRG10, 10, 2, },
-	{ V4L2_MBUS_FMT_SGRBG10_1X10, V4L2_MBUS_FMT_SGRBG10_1X10,
-	  V4L2_MBUS_FMT_SGRBG10_1X10, V4L2_MBUS_FMT_SGRBG8_1X8,
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, MEDIA_BUS_FMT_SGRBG10_1X10,
+	  MEDIA_BUS_FMT_SGRBG10_1X10, MEDIA_BUS_FMT_SGRBG8_1X8,
 	  V4L2_PIX_FMT_SGRBG10, 10, 2, },
-	{ V4L2_MBUS_FMT_SRGGB10_1X10, V4L2_MBUS_FMT_SRGGB10_1X10,
-	  V4L2_MBUS_FMT_SRGGB10_1X10, V4L2_MBUS_FMT_SRGGB8_1X8,
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, MEDIA_BUS_FMT_SRGGB10_1X10,
+	  MEDIA_BUS_FMT_SRGGB10_1X10, MEDIA_BUS_FMT_SRGGB8_1X8,
 	  V4L2_PIX_FMT_SRGGB10, 10, 2, },
-	{ V4L2_MBUS_FMT_SBGGR12_1X12, V4L2_MBUS_FMT_SBGGR10_1X10,
-	  V4L2_MBUS_FMT_SBGGR12_1X12, V4L2_MBUS_FMT_SBGGR8_1X8,
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, MEDIA_BUS_FMT_SBGGR10_1X10,
+	  MEDIA_BUS_FMT_SBGGR12_1X12, MEDIA_BUS_FMT_SBGGR8_1X8,
 	  V4L2_PIX_FMT_SBGGR12, 12, 2, },
-	{ V4L2_MBUS_FMT_SGBRG12_1X12, V4L2_MBUS_FMT_SGBRG10_1X10,
-	  V4L2_MBUS_FMT_SGBRG12_1X12, V4L2_MBUS_FMT_SGBRG8_1X8,
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, MEDIA_BUS_FMT_SGBRG10_1X10,
+	  MEDIA_BUS_FMT_SGBRG12_1X12, MEDIA_BUS_FMT_SGBRG8_1X8,
 	  V4L2_PIX_FMT_SGBRG12, 12, 2, },
-	{ V4L2_MBUS_FMT_SGRBG12_1X12, V4L2_MBUS_FMT_SGRBG10_1X10,
-	  V4L2_MBUS_FMT_SGRBG12_1X12, V4L2_MBUS_FMT_SGRBG8_1X8,
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, MEDIA_BUS_FMT_SGRBG10_1X10,
+	  MEDIA_BUS_FMT_SGRBG12_1X12, MEDIA_BUS_FMT_SGRBG8_1X8,
 	  V4L2_PIX_FMT_SGRBG12, 12, 2, },
-	{ V4L2_MBUS_FMT_SRGGB12_1X12, V4L2_MBUS_FMT_SRGGB10_1X10,
-	  V4L2_MBUS_FMT_SRGGB12_1X12, V4L2_MBUS_FMT_SRGGB8_1X8,
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, MEDIA_BUS_FMT_SRGGB10_1X10,
+	  MEDIA_BUS_FMT_SRGGB12_1X12, MEDIA_BUS_FMT_SRGGB8_1X8,
 	  V4L2_PIX_FMT_SRGGB12, 12, 2, },
-	{ V4L2_MBUS_FMT_UYVY8_1X16, V4L2_MBUS_FMT_UYVY8_1X16,
-	  V4L2_MBUS_FMT_UYVY8_1X16, 0,
+	{ MEDIA_BUS_FMT_UYVY8_1X16, MEDIA_BUS_FMT_UYVY8_1X16,
+	  MEDIA_BUS_FMT_UYVY8_1X16, 0,
 	  V4L2_PIX_FMT_UYVY, 16, 2, },
-	{ V4L2_MBUS_FMT_YUYV8_1X16, V4L2_MBUS_FMT_YUYV8_1X16,
-	  V4L2_MBUS_FMT_YUYV8_1X16, 0,
+	{ MEDIA_BUS_FMT_YUYV8_1X16, MEDIA_BUS_FMT_YUYV8_1X16,
+	  MEDIA_BUS_FMT_YUYV8_1X16, 0,
 	  V4L2_PIX_FMT_YUYV, 16, 2, },
-	{ V4L2_MBUS_FMT_UYVY8_2X8, V4L2_MBUS_FMT_UYVY8_2X8,
-	  V4L2_MBUS_FMT_UYVY8_2X8, 0,
+	{ MEDIA_BUS_FMT_UYVY8_2X8, MEDIA_BUS_FMT_UYVY8_2X8,
+	  MEDIA_BUS_FMT_UYVY8_2X8, 0,
 	  V4L2_PIX_FMT_UYVY, 8, 2, },
-	{ V4L2_MBUS_FMT_YUYV8_2X8, V4L2_MBUS_FMT_YUYV8_2X8,
-	  V4L2_MBUS_FMT_YUYV8_2X8, 0,
+	{ MEDIA_BUS_FMT_YUYV8_2X8, MEDIA_BUS_FMT_YUYV8_2X8,
+	  MEDIA_BUS_FMT_YUYV8_2X8, 0,
 	  V4L2_PIX_FMT_YUYV, 8, 2, },
 	/* Empty entry to catch the unsupported pixel code (0) used by the CCDC
 	 * module and avoid NULL pointer dereferences.
@@ -124,8 +114,7 @@ static struct isp_format_info formats[] = {
 	{ 0, }
 };
 
-const struct isp_format_info *
-omap3isp_video_format_info(enum v4l2_mbus_pixelcode code)
+const struct isp_format_info *omap3isp_video_format_info(u32 code)
 {
 	unsigned int i;
 
@@ -319,10 +308,11 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 	    vfh->format.fmt.pix.height != format.fmt.pix.height ||
 	    vfh->format.fmt.pix.width != format.fmt.pix.width ||
 	    vfh->format.fmt.pix.bytesperline != format.fmt.pix.bytesperline ||
-	    vfh->format.fmt.pix.sizeimage != format.fmt.pix.sizeimage)
+	    vfh->format.fmt.pix.sizeimage != format.fmt.pix.sizeimage ||
+	    vfh->format.fmt.pix.field != format.fmt.pix.field)
 		return -EINVAL;
 
-	return ret;
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -491,6 +481,11 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 	else
 		buf->vb.v4l2_buf.sequence = atomic_read(&pipe->frame_number);
 
+	if (pipe->field != V4L2_FIELD_NONE)
+		buf->vb.v4l2_buf.sequence /= 2;
+
+	buf->vb.v4l2_buf.field = pipe->field;
+
 	/* Report pipeline errors to userspace on the capture device side. */
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->error) {
 		state = VB2_BUF_STATE_ERROR;
@@ -641,7 +636,40 @@ isp_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 	if (format->type != video->type)
 		return -EINVAL;
 
-	mutex_lock(&video->mutex);
+	/* Replace unsupported field orders with sane defaults. */
+	switch (format->fmt.pix.field) {
+	case V4L2_FIELD_NONE:
+		/* Progressive is supported everywhere. */
+		break;
+	case V4L2_FIELD_ALTERNATE:
+		/* ALTERNATE is not supported on output nodes. */
+		if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+			format->fmt.pix.field = V4L2_FIELD_NONE;
+		break;
+	case V4L2_FIELD_INTERLACED:
+		/* The ISP has no concept of video standard, select the
+		 * top-bottom order when the unqualified interlaced order is
+		 * requested.
+		 */
+		format->fmt.pix.field = V4L2_FIELD_INTERLACED_TB;
+		/* Fall-through */
+	case V4L2_FIELD_INTERLACED_TB:
+	case V4L2_FIELD_INTERLACED_BT:
+		/* Interlaced orders are only supported at the CCDC output. */
+		if (video != &video->isp->isp_ccdc.video_out)
+			format->fmt.pix.field = V4L2_FIELD_NONE;
+		break;
+	case V4L2_FIELD_TOP:
+	case V4L2_FIELD_BOTTOM:
+	case V4L2_FIELD_SEQ_TB:
+	case V4L2_FIELD_SEQ_BT:
+	default:
+		/* All other field orders are currently unsupported, default to
+		 * progressive.
+		 */
+		format->fmt.pix.field = V4L2_FIELD_NONE;
+		break;
+	}
 
 	/* Fill the bytesperline and sizeimage fields by converting to media bus
 	 * format and back to pixel format.
@@ -649,9 +677,10 @@ isp_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 	isp_video_pix_to_mbus(&format->fmt.pix, &fmt);
 	isp_video_mbus_to_pix(video, &fmt, &format->fmt.pix);
 
+	mutex_lock(&video->mutex);
 	vfh->format = *format;
-
 	mutex_unlock(&video->mutex);
+
 	return 0;
 }
 
@@ -1039,6 +1068,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->queue = &vfh->queue;
 	INIT_LIST_HEAD(&video->dmaqueue);
 	atomic_set(&pipe->frame_number, -1);
+	pipe->field = vfh->format.fmt.pix.field;
 
 	mutex_lock(&video->queue_lock);
 	ret = vb2_streamon(&vfh->queue, type);

@@ -26,6 +26,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/omap_drm.h>
+#include <drm/drm_gem.h>
 #include <linux/platform_data/omap_drm.h>
 
 

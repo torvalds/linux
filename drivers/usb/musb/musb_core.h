@@ -124,41 +124,6 @@ enum musb_g_ep0_state {
 #define OTG_TIME_A_AIDL_BDIS	200		/* min 200 msec */
 #define OTG_TIME_B_ASE0_BRST	100		/* min 3.125 ms */
 
-
-/*************************** REGISTER ACCESS ********************************/
-
-/* Endpoint registers (other than dynfifo setup) can be accessed either
- * directly with the "flat" model, or after setting up an index register.
- */
-
-#if defined(CONFIG_ARCH_DAVINCI) || defined(CONFIG_SOC_OMAP2430) \
-		|| defined(CONFIG_SOC_OMAP3430) || defined(CONFIG_BLACKFIN) \
-		|| defined(CONFIG_ARCH_OMAP4)
-/* REVISIT indexed access seemed to
- * misbehave (on DaVinci) for at least peripheral IN ...
- */
-#define	MUSB_FLAT_REG
-#endif
-
-/* TUSB mapping: "flat" plus ep0 special cases */
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
-#define musb_ep_select(_mbase, _epnum) \
-	musb_writeb((_mbase), MUSB_INDEX, (_epnum))
-#define	MUSB_EP_OFFSET			MUSB_TUSB_OFFSET
-
-/* "flat" mapping: each endpoint has its own i/o address */
-#elif	defined(MUSB_FLAT_REG)
-#define musb_ep_select(_mbase, _epnum)	(((void)(_mbase)), ((void)(_epnum)))
-#define	MUSB_EP_OFFSET			MUSB_FLAT_OFFSET
-
-/* "indexed" mapping: INDEX register controls register bank select */
-#else
-#define musb_ep_select(_mbase, _epnum) \
-	musb_writeb((_mbase), MUSB_INDEX, (_epnum))
-#define	MUSB_EP_OFFSET			MUSB_INDEXED_OFFSET
-#endif
-
 /****************************** FUNCTIONS ********************************/
 
 #define MUSB_HST_MODE(_musb)\
@@ -173,8 +138,25 @@ enum musb_g_ep0_state {
 
 /******************************** TYPES *************************************/
 
+struct musb_io;
+
 /**
  * struct musb_platform_ops - Operations passed to musb_core by HW glue layer
+ * @quirks:	flags for platform specific quirks
+ * @enable:	enable device
+ * @disable:	disable device
+ * @ep_offset:	returns the end point offset
+ * @ep_select:	selects the specified end point
+ * @fifo_mode:	sets the fifo mode
+ * @fifo_offset: returns the fifo offset
+ * @readb:	read 8 bits
+ * @writeb:	write 8 bits
+ * @readw:	read 16 bits
+ * @writew:	write 16 bits
+ * @readl:	read 32 bits
+ * @writel:	write 32 bits
+ * @read_fifo:	reads the fifo
+ * @write_fifo:	writes to fifo
  * @init:	turns on clocks, sets up platform-specific registers, etc
  * @exit:	undoes @init
  * @set_mode:	forcefully changes operating mode
@@ -184,12 +166,34 @@ enum musb_g_ep0_state {
  * @adjust_channel_params: pre check for standard dma channel_program func
  */
 struct musb_platform_ops {
+
+#define MUSB_DMA_UX500		BIT(6)
+#define MUSB_DMA_CPPI41		BIT(5)
+#define MUSB_DMA_CPPI		BIT(4)
+#define MUSB_DMA_TUSB_OMAP	BIT(3)
+#define MUSB_DMA_INVENTRA	BIT(2)
+#define MUSB_IN_TUSB		BIT(1)
+#define MUSB_INDEXED_EP		BIT(0)
+	u32	quirks;
+
 	int	(*init)(struct musb *musb);
 	int	(*exit)(struct musb *musb);
 
 	void	(*enable)(struct musb *musb);
 	void	(*disable)(struct musb *musb);
 
+	u32	(*ep_offset)(u8 epnum, u16 offset);
+	void	(*ep_select)(void __iomem *mbase, u8 epnum);
+	u16	fifo_mode;
+	u32	(*fifo_offset)(u8 epnum);
+	u8	(*readb)(const void __iomem *addr, unsigned offset);
+	void	(*writeb)(void __iomem *addr, unsigned offset, u8 data);
+	u16	(*readw)(const void __iomem *addr, unsigned offset);
+	void	(*writew)(void __iomem *addr, unsigned offset, u16 data);
+	u32	(*readl)(const void __iomem *addr, unsigned offset);
+	void	(*writel)(void __iomem *addr, unsigned offset, u32 data);
+	void	(*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
+	void	(*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
 	int	(*set_mode)(struct musb *musb, u8 mode);
 	void	(*try_idle)(struct musb *musb, unsigned long timeout);
 	int	(*reset)(struct musb *musb);
@@ -212,8 +216,7 @@ struct musb_hw_ep {
 	void __iomem		*fifo;
 	void __iomem		*regs;
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
 	void __iomem		*conf;
 #endif
 
@@ -230,8 +233,7 @@ struct musb_hw_ep {
 	struct dma_channel	*tx_channel;
 	struct dma_channel	*rx_channel;
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
 	/* TUSB has "asynchronous" and "synchronous" dma modes */
 	dma_addr_t		fifo_async;
 	dma_addr_t		fifo_sync;
@@ -292,6 +294,7 @@ struct musb {
 	/* device lock */
 	spinlock_t		lock;
 
+	struct musb_io		io;
 	const struct musb_platform_ops *ops;
 	struct musb_context_registers context;
 
@@ -334,8 +337,7 @@ struct musb {
 	void __iomem		*ctrl_base;
 	void __iomem		*mregs;
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
 	dma_addr_t		async;
 	dma_addr_t		sync;
 	void __iomem		*sync_va;
@@ -390,6 +392,7 @@ struct musb {
 
 	/* is_suspended means USB B_PERIPHERAL suspend */
 	unsigned		is_suspended:1;
+	unsigned		need_finish_resume :1;
 
 	/* may_wakeup means remote wakeup is enabled */
 	unsigned		may_wakeup:1;
@@ -474,7 +477,7 @@ static inline int musb_read_fifosize(struct musb *musb,
 	u8 reg = 0;
 
 	/* read from core using indexed model */
-	reg = musb_readb(mbase, MUSB_EP_OFFSET(epnum, MUSB_FIFOSIZE));
+	reg = musb_readb(mbase, musb->io.ep_offset(epnum, MUSB_FIFOSIZE));
 	/* 0's returned when no more endpoints */
 	if (!reg)
 		return -ENODEV;

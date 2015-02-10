@@ -1834,7 +1834,6 @@ static struct platform_driver usdhi6_driver = {
 	.remove		= usdhi6_remove,
 	.driver		= {
 		.name	= "usdhi6rol0",
-		.owner	= THIS_MODULE,
 		.of_match_table = usdhi6_of_match,
 	},
 };

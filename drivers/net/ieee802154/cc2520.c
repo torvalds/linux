@@ -21,10 +21,10 @@
 #include <linux/skbuff.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_gpio.h>
+#include <linux/ieee802154.h>
 
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
-#include <net/ieee802154.h>
+#include <net/cfg802154.h>
 
 #define	SPI_COMMAND_BUFFER	3
 #define	HIGH			1
@@ -193,7 +193,7 @@
 /* Driver private information */
 struct cc2520_private {
 	struct spi_device *spi;		/* SPI device structure */
-	struct ieee802154_dev *dev;	/* IEEE-802.15.4 device */
+	struct ieee802154_hw *hw;	/* IEEE-802.15.4 device */
 	u8 *buf;			/* SPI TX/Rx data buffer */
 	struct mutex buffer_mutex;	/* SPI buffer mutex */
 	bool is_tx;			/* Flag for sync b/w Tx and Rx */
@@ -453,20 +453,20 @@ cc2520_read_rxfifo(struct cc2520_private *priv, u8 *data, u8 len, u8 *lqi)
 	return status;
 }
 
-static int cc2520_start(struct ieee802154_dev *dev)
+static int cc2520_start(struct ieee802154_hw *hw)
 {
-	return cc2520_cmd_strobe(dev->priv, CC2520_CMD_SRXON);
+	return cc2520_cmd_strobe(hw->priv, CC2520_CMD_SRXON);
 }
 
-static void cc2520_stop(struct ieee802154_dev *dev)
+static void cc2520_stop(struct ieee802154_hw *hw)
 {
-	cc2520_cmd_strobe(dev->priv, CC2520_CMD_SRFOFF);
+	cc2520_cmd_strobe(hw->priv, CC2520_CMD_SRFOFF);
 }
 
 static int
-cc2520_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
+cc2520_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 	unsigned long flags;
 	int rc;
 	u8 status = 0;
@@ -524,7 +524,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 	if (len < 2 || len > IEEE802154_MTU)
 		return -EINVAL;
 
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = dev_alloc_skb(len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -536,7 +536,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 
 	skb_trim(skb, skb->len - 2);
 
-	ieee802154_rx_irqsafe(priv->dev, skb, lqi);
+	ieee802154_rx_irqsafe(priv->hw, skb, lqi);
 
 	dev_vdbg(&priv->spi->dev, "RXFIFO: %x %x\n", len, lqi);
 
@@ -544,9 +544,9 @@ static int cc2520_rx(struct cc2520_private *priv)
 }
 
 static int
-cc2520_ed(struct ieee802154_dev *dev, u8 *level)
+cc2520_ed(struct ieee802154_hw *hw, u8 *level)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 	u8 status = 0xff;
 	u8 rssi;
 	int ret;
@@ -569,12 +569,11 @@ cc2520_ed(struct ieee802154_dev *dev, u8 *level)
 }
 
 static int
-cc2520_set_channel(struct ieee802154_dev *dev, int page, int channel)
+cc2520_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 	int ret;
 
-	might_sleep();
 	dev_dbg(&priv->spi->dev, "trying to set channel\n");
 
 	BUG_ON(page != 0);
@@ -588,12 +587,12 @@ cc2520_set_channel(struct ieee802154_dev *dev, int page, int channel)
 }
 
 static int
-cc2520_filter(struct ieee802154_dev *dev,
+cc2520_filter(struct ieee802154_hw *hw,
 	      struct ieee802154_hw_addr_filt *filt, unsigned long changed)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 
-	if (changed & IEEE802515_AFILT_PANID_CHANGED) {
+	if (changed & IEEE802154_AFILT_PANID_CHANGED) {
 		u16 panid = le16_to_cpu(filt->pan_id);
 
 		dev_vdbg(&priv->spi->dev,
@@ -602,7 +601,7 @@ cc2520_filter(struct ieee802154_dev *dev,
 				 sizeof(panid), (u8 *)&panid);
 	}
 
-	if (changed & IEEE802515_AFILT_IEEEADDR_CHANGED) {
+	if (changed & IEEE802154_AFILT_IEEEADDR_CHANGED) {
 		dev_vdbg(&priv->spi->dev,
 			 "cc2520_filter called for IEEE addr\n");
 		cc2520_write_ram(priv, CC2520RAM_IEEEADDR,
@@ -610,7 +609,7 @@ cc2520_filter(struct ieee802154_dev *dev,
 				 (u8 *)&filt->ieee_addr);
 	}
 
-	if (changed & IEEE802515_AFILT_SADDR_CHANGED) {
+	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		u16 addr = le16_to_cpu(filt->short_addr);
 
 		dev_vdbg(&priv->spi->dev,
@@ -619,7 +618,7 @@ cc2520_filter(struct ieee802154_dev *dev,
 				 sizeof(addr), (u8 *)&addr);
 	}
 
-	if (changed & IEEE802515_AFILT_PANC_CHANGED) {
+	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
 		dev_vdbg(&priv->spi->dev,
 			 "cc2520_filter called for panc change\n");
 		if (filt->pan_coord)
@@ -631,11 +630,11 @@ cc2520_filter(struct ieee802154_dev *dev,
 	return 0;
 }
 
-static struct ieee802154_ops cc2520_ops = {
+static const struct ieee802154_ops cc2520_ops = {
 	.owner = THIS_MODULE,
 	.start = cc2520_start,
 	.stop = cc2520_stop,
-	.xmit = cc2520_tx,
+	.xmit_sync = cc2520_tx,
 	.ed = cc2520_ed,
 	.set_channel = cc2520_set_channel,
 	.set_hw_addr_filt = cc2520_filter,
@@ -645,27 +644,29 @@ static int cc2520_register(struct cc2520_private *priv)
 {
 	int ret = -ENOMEM;
 
-	priv->dev = ieee802154_alloc_device(sizeof(*priv), &cc2520_ops);
-	if (!priv->dev)
+	priv->hw = ieee802154_alloc_hw(sizeof(*priv), &cc2520_ops);
+	if (!priv->hw)
 		goto err_ret;
 
-	priv->dev->priv = priv;
-	priv->dev->parent = &priv->spi->dev;
-	priv->dev->extra_tx_headroom = 0;
+	priv->hw->priv = priv;
+	priv->hw->parent = &priv->spi->dev;
+	priv->hw->extra_tx_headroom = 0;
+	priv->hw->vif_data_size = sizeof(*priv);
 
 	/* We do support only 2.4 Ghz */
-	priv->dev->phy->channels_supported[0] = 0x7FFF800;
-	priv->dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK;
+	priv->hw->phy->channels_supported[0] = 0x7FFF800;
+	priv->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
+			  IEEE802154_HW_AFILT;
 
 	dev_vdbg(&priv->spi->dev, "registered cc2520\n");
-	ret = ieee802154_register_device(priv->dev);
+	ret = ieee802154_register_hw(priv->hw);
 	if (ret)
 		goto err_free_device;
 
 	return 0;
 
 err_free_device:
-	ieee802154_free_device(priv->dev);
+	ieee802154_free_hw(priv->hw);
 err_ret:
 	return ret;
 }
@@ -857,7 +858,7 @@ static int cc2520_probe(struct spi_device *spi)
 	pinctrl = devm_pinctrl_get_select_default(&spi->dev);
 	if (IS_ERR(pinctrl))
 		dev_warn(&spi->dev,
-			 "pinctrl pins are not configured");
+			 "pinctrl pins are not configured\n");
 
 	pdata = cc2520_get_platform_data(spi);
 	if (!pdata) {
@@ -1002,8 +1003,8 @@ static int cc2520_remove(struct spi_device *spi)
 	mutex_destroy(&priv->buffer_mutex);
 	flush_work(&priv->fifop_irqwork);
 
-	ieee802154_unregister_device(priv->dev);
-	ieee802154_free_device(priv->dev);
+	ieee802154_unregister_hw(priv->hw);
+	ieee802154_free_hw(priv->hw);
 
 	return 0;
 }

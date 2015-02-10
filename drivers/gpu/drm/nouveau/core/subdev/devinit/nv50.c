@@ -26,6 +26,7 @@
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/disp.h>
 #include <subdev/bios/init.h>
+#include <subdev/ibus.h>
 #include <subdev/vga.h>
 
 #include "nv50.h"
@@ -91,6 +92,7 @@ int
 nv50_devinit_init(struct nouveau_object *object)
 {
 	struct nouveau_bios *bios = nouveau_bios(object);
+	struct nouveau_ibus *ibus = nouveau_ibus(object);
 	struct nv50_devinit_priv *priv = (void *)object;
 	struct nvbios_outp info;
 	struct dcb_output outp;
@@ -104,6 +106,13 @@ nv50_devinit_init(struct nouveau_object *object)
 			priv->base.post = true;
 		}
 	}
+
+	/* some boards appear to require certain priv register timeouts
+	 * to be bumped before runing devinit scripts.  not a clue why
+	 * the vbios engineers didn't make the scripts just work...
+	 */
+	if (priv->base.post && ibus)
+		nv_ofuncs(ibus)->init(nv_object(ibus));
 
 	ret = nouveau_devinit_init(&priv->base);
 	if (ret)
@@ -160,4 +169,5 @@ nv50_devinit_oclass = &(struct nouveau_devinit_impl) {
 	},
 	.pll_set = nv50_devinit_pll_set,
 	.disable = nv50_devinit_disable,
+	.post = nvbios_init,
 }.base;

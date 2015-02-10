@@ -30,6 +30,9 @@
 #define SST_DMA_TYPE_DW		1
 #define SST_DMA_TYPE_MID	2
 
+/* autosuspend delay 5s*/
+#define SST_RUNTIME_SUSPEND_DELAY	(5 * 1000)
+
 /* SST Shim register map
  * The register naming can differ between products. Some products also
  * contain extra functionality.
@@ -156,11 +159,17 @@
 #define SST_VDRTCTL3		0xaC
 
 /* VDRTCTL0 */
-#define SST_VDRTCL0_APLLSE_MASK		1
-#define SST_VDRTCL0_DSRAMPGE_SHIFT	16
-#define SST_VDRTCL0_DSRAMPGE_MASK	(0xffff << SST_VDRTCL0_DSRAMPGE_SHIFT)
-#define SST_VDRTCL0_ISRAMPGE_SHIFT	6
+#define SST_VDRTCL0_D3PGD		(1 << 0)
+#define SST_VDRTCL0_D3SRAMPGD		(1 << 1)
+#define SST_VDRTCL0_DSRAMPGE_SHIFT	12
+#define SST_VDRTCL0_DSRAMPGE_MASK	(0xfffff << SST_VDRTCL0_DSRAMPGE_SHIFT)
+#define SST_VDRTCL0_ISRAMPGE_SHIFT	2
 #define SST_VDRTCL0_ISRAMPGE_MASK	(0x3ff << SST_VDRTCL0_ISRAMPGE_SHIFT)
+
+/* VDRTCTL2 */
+#define SST_VDRTCL2_DCLCGE		(1 << 1)
+#define SST_VDRTCL2_DTCGE		(1 << 10)
+#define SST_VDRTCL2_APLLSE_MASK		(1 << 31)
 
 /* PMCS */
 #define SST_PMCS		0x84
@@ -245,6 +254,17 @@ void sst_memcpy_fromio_32(struct sst_dsp *sst,
 /* DSP reset & boot */
 void sst_dsp_reset(struct sst_dsp *sst);
 int sst_dsp_boot(struct sst_dsp *sst);
+int sst_dsp_wake(struct sst_dsp *sst);
+void sst_dsp_sleep(struct sst_dsp *sst);
+void sst_dsp_stall(struct sst_dsp *sst);
+
+/* DMA */
+int sst_dsp_dma_get_channel(struct sst_dsp *dsp, int chan_id);
+void sst_dsp_dma_put_channel(struct sst_dsp *dsp);
+int sst_dsp_dma_copyfrom(struct sst_dsp *sst, dma_addr_t dest_addr,
+	dma_addr_t src_addr, size_t size);
+int sst_dsp_dma_copyto(struct sst_dsp *sst, dma_addr_t dest_addr,
+	dma_addr_t src_addr, size_t size);
 
 /* Msg IO */
 void sst_dsp_ipc_msg_tx(struct sst_dsp *dsp, u32 msg);

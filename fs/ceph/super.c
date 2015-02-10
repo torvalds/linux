@@ -515,7 +515,8 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	struct ceph_fs_client *fsc;
 	const u64 supported_features =
 		CEPH_FEATURE_FLOCK |
-		CEPH_FEATURE_DIRLAYOUTHASH;
+		CEPH_FEATURE_DIRLAYOUTHASH |
+		CEPH_FEATURE_MDS_INLINE_DATA;
 	const u64 required_features = 0;
 	int page_count;
 	size_t size;
@@ -1017,9 +1018,6 @@ static struct file_system_type ceph_fs_type = {
 };
 MODULE_ALIAS_FS("ceph");
 
-#define _STRINGIFY(x) #x
-#define STRINGIFY(x) _STRINGIFY(x)
-
 static int __init init_ceph(void)
 {
 	int ret = init_caches();
@@ -1028,15 +1026,20 @@ static int __init init_ceph(void)
 
 	ceph_flock_init();
 	ceph_xattr_init();
+	ret = ceph_snap_init();
+	if (ret)
+		goto out_xattr;
 	ret = register_filesystem(&ceph_fs_type);
 	if (ret)
-		goto out_icache;
+		goto out_snap;
 
 	pr_info("loaded (mds proto %d)\n", CEPH_MDSC_PROTOCOL);
 
 	return 0;
 
-out_icache:
+out_snap:
+	ceph_snap_exit();
+out_xattr:
 	ceph_xattr_exit();
 	destroy_caches();
 out:
@@ -1047,6 +1050,7 @@ static void __exit exit_ceph(void)
 {
 	dout("exit_ceph\n");
 	unregister_filesystem(&ceph_fs_type);
+	ceph_snap_exit();
 	ceph_xattr_exit();
 	destroy_caches();
 }

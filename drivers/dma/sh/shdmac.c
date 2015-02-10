@@ -572,7 +572,6 @@ err_no_irq:
 
 static void sh_dmae_chan_remove(struct sh_dmae_device *shdev)
 {
-	struct dma_device *dma_dev = &shdev->shdma_dev.dma_dev;
 	struct shdma_chan *schan;
 	int i;
 
@@ -581,7 +580,6 @@ static void sh_dmae_chan_remove(struct sh_dmae_device *shdev)
 
 		shdma_chan_remove(schan);
 	}
-	dma_dev->chancnt = 0;
 }
 
 static void sh_dmae_shutdown(struct platform_device *pdev)
@@ -925,7 +923,6 @@ static int sh_dmae_remove(struct platform_device *pdev)
 
 static struct platform_driver sh_dmae_driver = {
 	.driver 	= {
-		.owner	= THIS_MODULE,
 		.pm	= &sh_dmae_pm,
 		.name	= SH_DMAE_DRV_NAME,
 		.of_match_table = sh_dmae_of_match,

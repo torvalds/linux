@@ -17,9 +17,13 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
-static char *mv88e6123_61_65_probe(struct mii_bus *bus, int sw_addr)
+static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
 {
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
 	int ret;
+
+	if (bus == NULL)
+		return NULL;
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
@@ -207,7 +211,7 @@ static int mv88e6123_61_65_setup_port(struct dsa_switch *ds, int p)
 	 */
 	val = 0x0433;
 	if (dsa_is_cpu_port(ds, p)) {
-		if (ds->dst->tag_protocol == htons(ETH_P_EDSA))
+		if (ds->dst->tag_protocol == DSA_TAG_PROTO_EDSA)
 			val |= 0x3300;
 		else
 			val |= 0x0100;
@@ -295,6 +299,7 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 
 	mutex_init(&ps->smi_mutex);
 	mutex_init(&ps->stats_mutex);
+	mutex_init(&ps->phy_mutex);
 
 	ret = mv88e6123_61_65_switch_reset(ds);
 	if (ret < 0)
@@ -325,16 +330,28 @@ static int mv88e6123_61_65_port_to_phy_addr(int port)
 static int
 mv88e6123_61_65_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int addr = mv88e6123_61_65_port_to_phy_addr(port);
-	return mv88e6xxx_phy_read(ds, addr, regnum);
+	int ret;
+
+	mutex_lock(&ps->phy_mutex);
+	ret = mv88e6xxx_phy_read(ds, addr, regnum);
+	mutex_unlock(&ps->phy_mutex);
+	return ret;
 }
 
 static int
 mv88e6123_61_65_phy_write(struct dsa_switch *ds,
 			      int port, int regnum, u16 val)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int addr = mv88e6123_61_65_port_to_phy_addr(port);
-	return mv88e6xxx_phy_write(ds, addr, regnum, val);
+	int ret;
+
+	mutex_lock(&ps->phy_mutex);
+	ret = mv88e6xxx_phy_write(ds, addr, regnum, val);
+	mutex_unlock(&ps->phy_mutex);
+	return ret;
 }
 
 static struct mv88e6xxx_hw_stat mv88e6123_61_65_hw_stats[] = {
@@ -368,6 +385,9 @@ static struct mv88e6xxx_hw_stat mv88e6123_61_65_hw_stats[] = {
 	{ "hist_256_511bytes", 4, 0x0b, },
 	{ "hist_512_1023bytes", 4, 0x0c, },
 	{ "hist_1024_max_bytes", 4, 0x0d, },
+	{ "sw_in_discards", 4, 0x110, },
+	{ "sw_in_filtered", 2, 0x112, },
+	{ "sw_out_filtered", 2, 0x113, },
 };
 
 static void
@@ -391,7 +411,7 @@ static int mv88e6123_61_65_get_sset_count(struct dsa_switch *ds)
 }
 
 struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
-	.tag_protocol		= cpu_to_be16(ETH_P_EDSA),
+	.tag_protocol		= DSA_TAG_PROTO_EDSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
 	.probe			= mv88e6123_61_65_probe,
 	.setup			= mv88e6123_61_65_setup,
@@ -402,6 +422,11 @@ struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 	.get_strings		= mv88e6123_61_65_get_strings,
 	.get_ethtool_stats	= mv88e6123_61_65_get_ethtool_stats,
 	.get_sset_count		= mv88e6123_61_65_get_sset_count,
+#ifdef CONFIG_NET_DSA_HWMON
+	.get_temp		= mv88e6xxx_get_temp,
+#endif
+	.get_regs_len		= mv88e6xxx_get_regs_len,
+	.get_regs		= mv88e6xxx_get_regs,
 };
 
 MODULE_ALIAS("platform:mv88e6123");

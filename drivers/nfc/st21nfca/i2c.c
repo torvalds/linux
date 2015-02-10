@@ -28,8 +28,8 @@
 #include <linux/delay.h>
 #include <linux/nfc.h>
 #include <linux/firmware.h>
-#include <linux/unaligned/access_ok.h>
 #include <linux/platform_data/st21nfca.h>
+#include <asm/unaligned.h>
 
 #include <net/nfc/hci.h>
 #include <net/nfc/llc.h>
@@ -72,7 +72,6 @@ struct st21nfca_i2c_phy {
 	struct nfc_hci_dev *hdev;
 
 	unsigned int gpio_ena;
-	unsigned int gpio_irq;
 	unsigned int irq_polarity;
 
 	struct sk_buff *pending_skb;
@@ -271,6 +270,7 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 static int get_frame_size(u8 *buf, int buflen)
 {
 	int len = 0;
+
 	if (buf[len + 1] == ST21NFCA_SOF_EOF)
 		return 0;
 
@@ -311,6 +311,7 @@ static int check_crc(u8 *buf, int buflen)
 static int st21nfca_hci_i2c_repack(struct sk_buff *skb)
 {
 	int i, j, r, size;
+
 	if (skb->len < 1 || (skb->len > 1 && skb->data[1] != 0))
 		return -EBADMSG;
 
@@ -525,29 +526,16 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 	}
 
 	/* GPIO request and configuration */
-	r = devm_gpio_request(&client->dev, gpio, "clf_enable");
+	r = devm_gpio_request_one(&client->dev, gpio, GPIOF_OUT_INIT_HIGH,
+				  "clf_enable");
 	if (r) {
 		nfc_err(&client->dev, "Failed to request enable pin\n");
-		return -ENODEV;
-	}
-
-	r = gpio_direction_output(gpio, 1);
-	if (r) {
-		nfc_err(&client->dev, "Failed to set enable pin direction as output\n");
-		return -ENODEV;
-	}
-	phy->gpio_ena = gpio;
-
-	/* IRQ */
-	r = irq_of_parse_and_map(pp, 0);
-	if (r < 0) {
-		nfc_err(&client->dev,
-				"Unable to get irq, error: %d\n", r);
 		return r;
 	}
 
-	phy->irq_polarity = irq_get_trigger_type(r);
-	client->irq = r;
+	phy->gpio_ena = gpio;
+
+	phy->irq_polarity = irq_get_trigger_type(client->irq);
 
 	return 0;
 }
@@ -563,7 +551,6 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 	struct st21nfca_nfc_platform_data *pdata;
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
 	int r;
-	int irq;
 
 	pdata = client->dev.platform_data;
 	if (pdata == NULL) {
@@ -572,47 +559,17 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 	}
 
 	/* store for later use */
-	phy->gpio_irq = pdata->gpio_irq;
 	phy->gpio_ena = pdata->gpio_ena;
 	phy->irq_polarity = pdata->irq_polarity;
 
-	r = devm_gpio_request(&client->dev, phy->gpio_irq, "wake_up");
-	if (r) {
-		pr_err("%s : gpio_request failed\n", __FILE__);
-		return -ENODEV;
-	}
-
-	r = gpio_direction_input(phy->gpio_irq);
-	if (r) {
-		pr_err("%s : gpio_direction_input failed\n", __FILE__);
-		return -ENODEV;
-	}
-
 	if (phy->gpio_ena > 0) {
-		r = devm_gpio_request(&client->dev,
-					phy->gpio_ena, "clf_enable");
+		r = devm_gpio_request_one(&client->dev, phy->gpio_ena,
+					  GPIOF_OUT_INIT_HIGH, "clf_enable");
 		if (r) {
 			pr_err("%s : ena gpio_request failed\n", __FILE__);
-			return -ENODEV;
-		}
-		r = gpio_direction_output(phy->gpio_ena, 1);
-
-		if (r) {
-			pr_err("%s : ena gpio_direction_output failed\n",
-			       __FILE__);
-			return -ENODEV;
+			return r;
 		}
 	}
-
-	/* IRQ */
-	irq = gpio_to_irq(phy->gpio_irq);
-	if (irq < 0) {
-		nfc_err(&client->dev,
-				"Unable to get irq number for GPIO %d error %d\n",
-				phy->gpio_irq, r);
-		return -ENODEV;
-	}
-	client->irq = irq;
 
 	return 0;
 }
@@ -671,7 +628,7 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 	r = st21nfca_hci_platform_init(phy);
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to reboot st21nfca\n");
-		return -ENODEV;
+		return r;
 	}
 
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
@@ -702,16 +659,18 @@ static int st21nfca_hci_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id of_st21nfca_i2c_match[] = {
 	{ .compatible = "st,st21nfca_i2c", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, of_st21nfca_i2c_match);
+#endif
 
 static struct i2c_driver st21nfca_hci_i2c_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = ST21NFCA_HCI_I2C_DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_st21nfca_i2c_match),
 	},
 	.probe = st21nfca_hci_i2c_probe,

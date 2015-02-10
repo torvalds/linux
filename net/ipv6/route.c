@@ -772,23 +772,22 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 }
 #endif
 
-#define BACKTRACK(__net, saddr)			\
-do { \
-	if (rt == __net->ipv6.ip6_null_entry) {	\
-		struct fib6_node *pn; \
-		while (1) { \
-			if (fn->fn_flags & RTN_TL_ROOT) \
-				goto out; \
-			pn = fn->parent; \
-			if (FIB6_SUBTREE(pn) && FIB6_SUBTREE(pn) != fn) \
-				fn = fib6_lookup(FIB6_SUBTREE(pn), NULL, saddr); \
-			else \
-				fn = pn; \
-			if (fn->fn_flags & RTN_RTINFO) \
-				goto restart; \
-		} \
-	} \
-} while (0)
+static struct fib6_node* fib6_backtrack(struct fib6_node *fn,
+					struct in6_addr *saddr)
+{
+	struct fib6_node *pn;
+	while (1) {
+		if (fn->fn_flags & RTN_TL_ROOT)
+			return NULL;
+		pn = fn->parent;
+		if (FIB6_SUBTREE(pn) && FIB6_SUBTREE(pn) != fn)
+			fn = fib6_lookup(FIB6_SUBTREE(pn), NULL, saddr);
+		else
+			fn = pn;
+		if (fn->fn_flags & RTN_RTINFO)
+			return fn;
+	}
+}
 
 static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 					     struct fib6_table *table,
@@ -804,15 +803,18 @@ restart:
 	rt = rt6_device_match(net, rt, &fl6->saddr, fl6->flowi6_oif, flags);
 	if (rt->rt6i_nsiblings && fl6->flowi6_oif == 0)
 		rt = rt6_multipath_select(rt, fl6, fl6->flowi6_oif, flags);
-	BACKTRACK(net, &fl6->saddr);
-out:
+	if (rt == net->ipv6.ip6_null_entry) {
+		fn = fib6_backtrack(fn, &fl6->saddr);
+		if (fn)
+			goto restart;
+	}
 	dst_use(&rt->dst, jiffies);
 	read_unlock_bh(&table->tb6_lock);
 	return rt;
 
 }
 
-struct dst_entry * ip6_route_lookup(struct net *net, struct flowi6 *fl6,
+struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
 				    int flags)
 {
 	return fib6_rule_lookup(net, fl6, flags, ip6_pol_route_lookup);
@@ -842,7 +844,6 @@ struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
 
 	return NULL;
 }
-
 EXPORT_SYMBOL(rt6_lookup);
 
 /* ip6_ins_rt is called with FREE table->tb6_lock.
@@ -916,32 +917,47 @@ static struct rt6_info *rt6_alloc_clone(struct rt6_info *ort,
 static struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table, int oif,
 				      struct flowi6 *fl6, int flags)
 {
-	struct fib6_node *fn;
+	struct fib6_node *fn, *saved_fn;
 	struct rt6_info *rt, *nrt;
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = net->ipv6.devconf_all->forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
+	if (net->ipv6.devconf_all->forwarding == 0)
+		strict |= RT6_LOOKUP_F_REACHABLE;
 
-relookup:
+redo_fib6_lookup_lock:
 	read_lock_bh(&table->tb6_lock);
 
-restart_2:
 	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
+	saved_fn = fn;
 
-restart:
-	rt = rt6_select(fn, oif, strict | reachable);
+redo_rt6_select:
+	rt = rt6_select(fn, oif, strict);
 	if (rt->rt6i_nsiblings)
-		rt = rt6_multipath_select(rt, fl6, oif, strict | reachable);
-	BACKTRACK(net, &fl6->saddr);
-	if (rt == net->ipv6.ip6_null_entry ||
-	    rt->rt6i_flags & RTF_CACHE)
-		goto out;
+		rt = rt6_multipath_select(rt, fl6, oif, strict);
+	if (rt == net->ipv6.ip6_null_entry) {
+		fn = fib6_backtrack(fn, &fl6->saddr);
+		if (fn)
+			goto redo_rt6_select;
+		else if (strict & RT6_LOOKUP_F_REACHABLE) {
+			/* also consider unreachable route */
+			strict &= ~RT6_LOOKUP_F_REACHABLE;
+			fn = saved_fn;
+			goto redo_rt6_select;
+		} else {
+			dst_hold(&rt->dst);
+			read_unlock_bh(&table->tb6_lock);
+			goto out2;
+		}
+	}
 
 	dst_hold(&rt->dst);
 	read_unlock_bh(&table->tb6_lock);
+
+	if (rt->rt6i_flags & RTF_CACHE)
+		goto out2;
 
 	if (!(rt->rt6i_flags & (RTF_NONEXTHOP | RTF_GATEWAY)))
 		nrt = rt6_alloc_cow(rt, &fl6->daddr, &fl6->saddr);
@@ -968,15 +984,8 @@ restart:
 	 * released someone could insert this route.  Relookup.
 	 */
 	ip6_rt_put(rt);
-	goto relookup;
+	goto redo_fib6_lookup_lock;
 
-out:
-	if (reachable) {
-		reachable = 0;
-		goto restart_2;
-	}
-	dst_hold(&rt->dst);
-	read_unlock_bh(&table->tb6_lock);
 out2:
 	rt->dst.lastuse = jiffies;
 	rt->dst.__use++;
@@ -1023,7 +1032,7 @@ static struct rt6_info *ip6_pol_route_output(struct net *net, struct fib6_table 
 	return ip6_pol_route(net, table, fl6->flowi6_oif, fl6, flags);
 }
 
-struct dst_entry * ip6_route_output(struct net *net, const struct sock *sk,
+struct dst_entry *ip6_route_output(struct net *net, const struct sock *sk,
 				    struct flowi6 *fl6)
 {
 	int flags = 0;
@@ -1040,7 +1049,6 @@ struct dst_entry * ip6_route_output(struct net *net, const struct sock *sk,
 
 	return fib6_rule_lookup(net, fl6, flags, ip6_pol_route_output);
 }
-
 EXPORT_SYMBOL(ip6_route_output);
 
 struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_orig)
@@ -1145,7 +1153,7 @@ static void ip6_link_failure(struct sk_buff *skb)
 static void ip6_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
 			       struct sk_buff *skb, u32 mtu)
 {
-	struct rt6_info *rt6 = (struct rt6_info*)dst;
+	struct rt6_info *rt6 = (struct rt6_info *)dst;
 
 	dst_confirm(dst);
 	if (mtu < dst_mtu(dst) && rt6->rt6i_dst.plen == 128) {
@@ -1237,10 +1245,12 @@ restart:
 		rt = net->ipv6.ip6_null_entry;
 	else if (rt->dst.error) {
 		rt = net->ipv6.ip6_null_entry;
-		goto out;
+	} else if (rt == net->ipv6.ip6_null_entry) {
+		fn = fib6_backtrack(fn, &fl6->saddr);
+		if (fn)
+			goto restart;
 	}
-	BACKTRACK(net, &fl6->saddr);
-out:
+
 	dst_hold(&rt->dst);
 
 	read_unlock_bh(&table->tb6_lock);
@@ -1920,7 +1930,7 @@ static struct rt6_info *rt6_get_route_info(struct net *net,
 		return NULL;
 
 	read_lock_bh(&table->tb6_lock);
-	fn = fib6_locate(&table->tb6_root, prefix ,prefixlen, NULL, 0);
+	fn = fib6_locate(&table->tb6_root, prefix, prefixlen, NULL, 0);
 	if (!fn)
 		goto out;
 
@@ -1979,7 +1989,7 @@ struct rt6_info *rt6_get_dflt_router(const struct in6_addr *addr, struct net_dev
 		return NULL;
 
 	read_lock_bh(&table->tb6_lock);
-	for (rt = table->tb6_root.leaf; rt; rt=rt->dst.rt6_next) {
+	for (rt = table->tb6_root.leaf; rt; rt = rt->dst.rt6_next) {
 		if (dev == rt->dst.dev &&
 		    ((rt->rt6i_flags & (RTF_ADDRCONF | RTF_DEFAULT)) == (RTF_ADDRCONF | RTF_DEFAULT)) &&
 		    ipv6_addr_equal(&rt->rt6i_gateway, addr))
@@ -2064,7 +2074,7 @@ int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	struct in6_rtmsg rtmsg;
 	int err;
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCADDRT:		/* Add a route */
 	case SIOCDELRT:		/* Delete a route */
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
@@ -2187,7 +2197,7 @@ int ip6_route_get_saddr(struct net *net,
 			unsigned int prefs,
 			struct in6_addr *saddr)
 {
-	struct inet6_dev *idev = ip6_dst_idev((struct dst_entry*)rt);
+	struct inet6_dev *idev = ip6_dst_idev((struct dst_entry *)rt);
 	int err = 0;
 	if (rt->rt6i_prefsrc.plen)
 		*saddr = rt->rt6i_prefsrc.addr;
@@ -2482,7 +2492,7 @@ beginning:
 	return last_err;
 }
 
-static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh)
+static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct fib6_config cfg;
 	int err;
@@ -2497,7 +2507,7 @@ static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh)
 		return ip6_route_del(&cfg);
 }
 
-static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh)
+static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct fib6_config cfg;
 	int err;
@@ -2689,7 +2699,7 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 		     prefix, 0, NLM_F_MULTI);
 }
 
-static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh)
+static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct nlattr *tb[RTA_MAX+1];

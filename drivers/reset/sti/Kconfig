@@ -12,4 +12,8 @@ config STIH416_RESET
 	bool
 	select STI_RESET_SYSCFG
 
+config STIH407_RESET
+	bool
+	select STI_RESET_SYSCFG
+
 endif

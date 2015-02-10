@@ -9,6 +9,11 @@
 	model = "CompuLab SBC-T3517 with CM-T3517";
 	compatible = "compulab,omap3-sbc-t3517", "compulab,omap3-cm-t3517", "ti,am3517", "ti,omap3";
 
+	aliases {
+		display0 = &dvi0;
+		display1 = &tv0;
+	};
+
 	/* Only one GPMC smsc9220 on SBC-T3517, CM-T3517 uses am35x Ethernet */
 	vddvario: regulator-vddvario-sb-t35 {
 		compatible = "regulator-fixed";
@@ -54,3 +59,13 @@
 	wp-gpios =  <&gpio2 27 GPIO_ACTIVE_HIGH>; /* gpio_59  */
 	cd-gpios =  <&gpio5 16 GPIO_ACTIVE_HIGH>; /* gpio_144 */
 };
+
+&dss {
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
+	};
+};
+

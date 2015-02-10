@@ -24,14 +24,16 @@
  * stiH407 compositor properties
  */
 struct sti_compositor_data stih407_compositor_data = {
-	.nb_subdev = 6,
+	.nb_subdev = 8,
 	.subdev_desc = {
+			{STI_CURSOR_SUBDEV, (int)STI_CURSOR, 0x000},
 			{STI_GPD_SUBDEV, (int)STI_GDP_0, 0x100},
 			{STI_GPD_SUBDEV, (int)STI_GDP_1, 0x200},
 			{STI_GPD_SUBDEV, (int)STI_GDP_2, 0x300},
 			{STI_GPD_SUBDEV, (int)STI_GDP_3, 0x400},
 			{STI_VID_SUBDEV, (int)STI_VID_0, 0x700},
-			{STI_MIXER_MAIN_SUBDEV, STI_MIXER_MAIN, 0xC00}
+			{STI_MIXER_MAIN_SUBDEV, STI_MIXER_MAIN, 0xC00},
+			{STI_MIXER_AUX_SUBDEV, STI_MIXER_AUX, 0xD00},
 	},
 };
 
@@ -67,11 +69,11 @@ static int sti_compositor_init_subdev(struct sti_compositor *compo,
 			break;
 		case STI_GPD_SUBDEV:
 		case STI_VID_SUBDEV:
+		case STI_CURSOR_SUBDEV:
 			compo->layer[layer_id++] =
 			    sti_layer_create(compo->dev, desc[i].id,
 					     compo->regs + desc[i].offset);
 			break;
-			/* case STI_CURSOR_SUBDEV : TODO */
 		default:
 			DRM_ERROR("Unknow subdev compoment type\n");
 			return 1;
@@ -102,33 +104,35 @@ static int sti_compositor_bind(struct device *dev, struct device *master,
 			enum sti_layer_type type = desc & STI_LAYER_TYPE_MASK;
 			enum drm_plane_type plane_type = DRM_PLANE_TYPE_OVERLAY;
 
-			if (compo->mixer[crtc])
+			if (crtc < compo->nb_mixers)
 				plane_type = DRM_PLANE_TYPE_PRIMARY;
 
 			switch (type) {
 			case STI_CUR:
 				cursor = sti_drm_plane_init(drm_dev,
 						compo->layer[i],
-						(1 << crtc) - 1,
-						DRM_PLANE_TYPE_CURSOR);
+						1, DRM_PLANE_TYPE_CURSOR);
 				break;
 			case STI_GDP:
 			case STI_VID:
 				primary = sti_drm_plane_init(drm_dev,
 						compo->layer[i],
-						(1 << crtc) - 1, plane_type);
+						(1 << compo->nb_mixers) - 1,
+						plane_type);
 				plane++;
 				break;
 			case STI_BCK:
+			case STI_VDP:
 				break;
 			}
 
 			/* The first planes are reserved for primary planes*/
-			if (compo->mixer[crtc]) {
+			if (crtc < compo->nb_mixers && primary) {
 				sti_drm_crtc_init(drm_dev, compo->mixer[crtc],
 						primary, cursor);
 				crtc++;
 				cursor = NULL;
+				primary = NULL;
 			}
 		}
 	}
@@ -267,7 +271,6 @@ static int sti_compositor_remove(struct platform_device *pdev)
 static struct platform_driver sti_compositor_driver = {
 	.driver = {
 		.name = "sti-compositor",
-		.owner = THIS_MODULE,
 		.of_match_table = compositor_of_match,
 	},
 	.probe = sti_compositor_probe,

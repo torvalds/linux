@@ -343,9 +343,9 @@ static int cap_file_fcntl(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-static int cap_file_set_fowner(struct file *file)
+static void cap_file_set_fowner(struct file *file)
 {
-	return 0;
+	return;
 }
 
 static int cap_file_send_sigiotask(struct task_struct *tsk,

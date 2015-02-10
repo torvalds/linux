@@ -1,5 +1,5 @@
 SEC 6 is as Freescale's Cryptographic Accelerator and Assurance Module (CAAM).
-Currently Freescale powerpc chip C29X is embeded with SEC 6.
+Currently Freescale powerpc chip C29X is embedded with SEC 6.
 SEC 6 device tree binding include:
    -SEC 6 Node
    -Job Ring Node

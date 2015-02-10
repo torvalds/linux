@@ -306,7 +306,7 @@ void ipxitf_down(struct ipx_interface *intrfc)
 	spin_unlock_bh(&ipx_interfaces_lock);
 }
 
-static __inline__ void __ipxitf_put(struct ipx_interface *intrfc)
+static void __ipxitf_put(struct ipx_interface *intrfc)
 {
 	if (atomic_dec_and_test(&intrfc->refcnt))
 		__ipxitf_down(intrfc);
@@ -1745,8 +1745,7 @@ static int ipx_sendmsg(struct kiocb *iocb, struct socket *sock,
 		memcpy(usipx->sipx_node, ipxs->dest_addr.node, IPX_NODE_LEN);
 	}
 
-	rc = ipxrtr_route_packet(sk, usipx, msg->msg_iov, len,
-				 flags & MSG_DONTWAIT);
+	rc = ipxrtr_route_packet(sk, usipx, msg, len, flags & MSG_DONTWAIT);
 	if (rc >= 0)
 		rc = len;
 out:
@@ -1764,6 +1763,7 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct ipxhdr *ipx = NULL;
 	struct sk_buff *skb;
 	int copied, rc;
+	bool locked = true;
 
 	lock_sock(sk);
 	/* put the autobinding in */
@@ -1790,6 +1790,8 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (sock_flag(sk, SOCK_ZAPPED))
 		goto out;
 
+	release_sock(sk);
+	locked = false;
 	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
 				flags & MSG_DONTWAIT, &rc);
 	if (!skb) {
@@ -1805,8 +1807,7 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 		msg->msg_flags |= MSG_TRUNC;
 	}
 
-	rc = skb_copy_datagram_iovec(skb, sizeof(struct ipxhdr), msg->msg_iov,
-				     copied);
+	rc = skb_copy_datagram_msg(skb, sizeof(struct ipxhdr), msg, copied);
 	if (rc)
 		goto out_free;
 	if (skb->tstamp.tv64)
@@ -1826,7 +1827,8 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 out_free:
 	skb_free_datagram(sk, skb);
 out:
-	release_sock(sk);
+	if (locked)
+		release_sock(sk);
 	return rc;
 }
 

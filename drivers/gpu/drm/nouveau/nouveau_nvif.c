@@ -40,12 +40,12 @@
 #include "nouveau_usif.h"
 
 static void
-nvkm_client_unmap(void *priv, void *ptr, u32 size)
+nvkm_client_unmap(void *priv, void __iomem *ptr, u32 size)
 {
 	iounmap(ptr);
 }
 
-static void *
+static void __iomem *
 nvkm_client_map(void *priv, u64 handle, u32 size)
 {
 	return ioremap(handle, size);

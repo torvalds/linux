@@ -49,6 +49,10 @@
 #define GICD_CTLR_ENABLE_G1A		(1U << 1)
 #define GICD_CTLR_ENABLE_G1		(1U << 0)
 
+#define GICD_TYPER_ID_BITS(typer)	((((typer) >> 19) & 0x1f) + 1)
+#define GICD_TYPER_IRQS(typer)		((((typer) & 0x1f) + 1) * 32)
+#define GICD_TYPER_LPIS			(1U << 17)
+
 #define GICD_IROUTER_SPI_MODE_ONE	(0U << 31)
 #define GICD_IROUTER_SPI_MODE_ANY	(1U << 31)
 
@@ -76,8 +80,26 @@
 #define GICR_MOVALLR			0x0110
 #define GICR_PIDR2			GICD_PIDR2
 
+#define GICR_CTLR_ENABLE_LPIS		(1UL << 0)
+
+#define GICR_TYPER_CPU_NUMBER(r)	(((r) >> 8) & 0xffff)
+
 #define GICR_WAKER_ProcessorSleep	(1U << 1)
 #define GICR_WAKER_ChildrenAsleep	(1U << 2)
+
+#define GICR_PROPBASER_NonShareable	(0U << 10)
+#define GICR_PROPBASER_InnerShareable	(1U << 10)
+#define GICR_PROPBASER_OuterShareable	(2U << 10)
+#define GICR_PROPBASER_SHAREABILITY_MASK (3UL << 10)
+#define GICR_PROPBASER_nCnB		(0U << 7)
+#define GICR_PROPBASER_nC		(1U << 7)
+#define GICR_PROPBASER_RaWt		(2U << 7)
+#define GICR_PROPBASER_RaWb		(3U << 7)
+#define GICR_PROPBASER_WaWt		(4U << 7)
+#define GICR_PROPBASER_WaWb		(5U << 7)
+#define GICR_PROPBASER_RaWaWt		(6U << 7)
+#define GICR_PROPBASER_RaWaWb		(7U << 7)
+#define GICR_PROPBASER_IDBITS_MASK	(0x1f)
 
 /*
  * Re-Distributor registers, offsets from SGI_base
@@ -91,8 +113,92 @@
 #define GICR_IPRIORITYR0		GICD_IPRIORITYR
 #define GICR_ICFGR0			GICD_ICFGR
 
+#define GICR_TYPER_PLPIS		(1U << 0)
 #define GICR_TYPER_VLPIS		(1U << 1)
 #define GICR_TYPER_LAST			(1U << 4)
+
+#define LPI_PROP_GROUP1			(1 << 1)
+#define LPI_PROP_ENABLED		(1 << 0)
+
+/*
+ * ITS registers, offsets from ITS_base
+ */
+#define GITS_CTLR			0x0000
+#define GITS_IIDR			0x0004
+#define GITS_TYPER			0x0008
+#define GITS_CBASER			0x0080
+#define GITS_CWRITER			0x0088
+#define GITS_CREADR			0x0090
+#define GITS_BASER			0x0100
+#define GITS_PIDR2			GICR_PIDR2
+
+#define GITS_TRANSLATER			0x10040
+
+#define GITS_TYPER_PTA			(1UL << 19)
+
+#define GITS_CBASER_VALID		(1UL << 63)
+#define GITS_CBASER_nCnB		(0UL << 59)
+#define GITS_CBASER_nC			(1UL << 59)
+#define GITS_CBASER_RaWt		(2UL << 59)
+#define GITS_CBASER_RaWb		(3UL << 59)
+#define GITS_CBASER_WaWt		(4UL << 59)
+#define GITS_CBASER_WaWb		(5UL << 59)
+#define GITS_CBASER_RaWaWt		(6UL << 59)
+#define GITS_CBASER_RaWaWb		(7UL << 59)
+#define GITS_CBASER_NonShareable	(0UL << 10)
+#define GITS_CBASER_InnerShareable	(1UL << 10)
+#define GITS_CBASER_OuterShareable	(2UL << 10)
+#define GITS_CBASER_SHAREABILITY_MASK	(3UL << 10)
+
+#define GITS_BASER_NR_REGS		8
+
+#define GITS_BASER_VALID		(1UL << 63)
+#define GITS_BASER_nCnB			(0UL << 59)
+#define GITS_BASER_nC			(1UL << 59)
+#define GITS_BASER_RaWt			(2UL << 59)
+#define GITS_BASER_RaWb			(3UL << 59)
+#define GITS_BASER_WaWt			(4UL << 59)
+#define GITS_BASER_WaWb			(5UL << 59)
+#define GITS_BASER_RaWaWt		(6UL << 59)
+#define GITS_BASER_RaWaWb		(7UL << 59)
+#define GITS_BASER_TYPE_SHIFT		(56)
+#define GITS_BASER_TYPE(r)		(((r) >> GITS_BASER_TYPE_SHIFT) & 7)
+#define GITS_BASER_ENTRY_SIZE_SHIFT	(48)
+#define GITS_BASER_ENTRY_SIZE(r)	((((r) >> GITS_BASER_ENTRY_SIZE_SHIFT) & 0xff) + 1)
+#define GITS_BASER_NonShareable		(0UL << 10)
+#define GITS_BASER_InnerShareable	(1UL << 10)
+#define GITS_BASER_OuterShareable	(2UL << 10)
+#define GITS_BASER_SHAREABILITY_SHIFT	(10)
+#define GITS_BASER_SHAREABILITY_MASK	(3UL << GITS_BASER_SHAREABILITY_SHIFT)
+#define GITS_BASER_PAGE_SIZE_SHIFT	(8)
+#define GITS_BASER_PAGE_SIZE_4K		(0UL << GITS_BASER_PAGE_SIZE_SHIFT)
+#define GITS_BASER_PAGE_SIZE_16K	(1UL << GITS_BASER_PAGE_SIZE_SHIFT)
+#define GITS_BASER_PAGE_SIZE_64K	(2UL << GITS_BASER_PAGE_SIZE_SHIFT)
+#define GITS_BASER_PAGE_SIZE_MASK	(3UL << GITS_BASER_PAGE_SIZE_SHIFT)
+
+#define GITS_BASER_TYPE_NONE		0
+#define GITS_BASER_TYPE_DEVICE		1
+#define GITS_BASER_TYPE_VCPU		2
+#define GITS_BASER_TYPE_CPU		3
+#define GITS_BASER_TYPE_COLLECTION	4
+#define GITS_BASER_TYPE_RESERVED5	5
+#define GITS_BASER_TYPE_RESERVED6	6
+#define GITS_BASER_TYPE_RESERVED7	7
+
+/*
+ * ITS commands
+ */
+#define GITS_CMD_MAPD			0x08
+#define GITS_CMD_MAPC			0x09
+#define GITS_CMD_MAPVI			0x0a
+#define GITS_CMD_MOVI			0x01
+#define GITS_CMD_DISCARD		0x0f
+#define GITS_CMD_INV			0x0c
+#define GITS_CMD_MOVALL			0x0e
+#define GITS_CMD_INVALL			0x0d
+#define GITS_CMD_INT			0x03
+#define GITS_CMD_CLEAR			0x04
+#define GITS_CMD_SYNC			0x05
 
 /*
  * CPU interface registers
@@ -189,11 +295,33 @@
 
 #include <linux/stringify.h>
 
+/*
+ * We need a value to serve as a irq-type for LPIs. Choose one that will
+ * hopefully pique the interest of the reviewer.
+ */
+#define GIC_IRQ_TYPE_LPI		0xa110c8ed
+
+struct rdists {
+	struct {
+		void __iomem	*rd_base;
+		struct page	*pend_page;
+		phys_addr_t	phys_base;
+	} __percpu		*rdist;
+	struct page		*prop_page;
+	int			id_bits;
+	u64			flags;
+};
+
 static inline void gic_write_eoir(u64 irq)
 {
 	asm volatile("msr_s " __stringify(ICC_EOIR1_EL1) ", %0" : : "r" (irq));
 	isb();
 }
+
+struct irq_domain;
+int its_cpu_init(void);
+int its_init(struct device_node *node, struct rdists *rdists,
+	     struct irq_domain *domain);
 
 #endif
 

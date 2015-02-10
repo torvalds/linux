@@ -459,7 +459,6 @@ static SIMPLE_DEV_PM_OPS(bcm63xx_hsspi_pm_ops, bcm63xx_hsspi_suspend,
 static struct platform_driver bcm63xx_hsspi_driver = {
 	.driver = {
 		.name	= "bcm63xx-hsspi",
-		.owner	= THIS_MODULE,
 		.pm	= &bcm63xx_hsspi_pm_ops,
 	},
 	.probe		= bcm63xx_hsspi_probe,

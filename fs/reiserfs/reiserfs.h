@@ -97,6 +97,10 @@ struct reiserfs_inode_info {
 #ifdef CONFIG_REISERFS_FS_XATTR
 	struct rw_semaphore i_xattr_sem;
 #endif
+#ifdef CONFIG_QUOTA
+	struct dquot *i_dquot[MAXQUOTAS];
+#endif
+
 	struct inode vfs_inode;
 };
 
@@ -506,6 +510,9 @@ typedef struct reiserfs_proc_info_data {
 } reiserfs_proc_info_data_t;
 #endif
 
+/* Number of quota types we support */
+#define REISERFS_MAXQUOTAS 2
+
 /* reiserfs union of in-core super block data */
 struct reiserfs_sb_info {
 	/* Buffer containing the super block */
@@ -615,7 +622,7 @@ struct reiserfs_sb_info {
 	spinlock_t old_work_lock;     /* protects old_work and work_queued */
 
 #ifdef CONFIG_QUOTA
-	char *s_qf_names[MAXQUOTAS];
+	char *s_qf_names[REISERFS_MAXQUOTAS];
 	int s_jquota_fmt;
 #endif
 	char *s_jdev;		/* Stored jdev for mount option showing */

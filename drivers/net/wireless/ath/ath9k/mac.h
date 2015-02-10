@@ -121,6 +121,7 @@ struct ath_tx_status {
 	u32 evm0;
 	u32 evm1;
 	u32 evm2;
+	u32 duration;
 };
 
 struct ath_rx_status {
@@ -703,7 +704,7 @@ struct ath_tx_info {
 	enum ath9k_pkt_type type;
 	enum ath9k_key_type keytype;
 	u8 keyix;
-	u8 txpower;
+	u8 txpower[4];
 };
 
 struct ath_hw;

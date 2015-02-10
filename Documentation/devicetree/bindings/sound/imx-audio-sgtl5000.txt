@@ -1,33 +1,40 @@
 Freescale i.MX audio complex with SGTL5000 codec
 
 Required properties:
-- compatible : "fsl,imx-audio-sgtl5000"
-- model : The user-visible name of this sound complex
-- ssi-controller : The phandle of the i.MX SSI controller
-- audio-codec : The phandle of the SGTL5000 audio codec
-- audio-routing : A list of the connections between audio components.
-  Each entry is a pair of strings, the first being the connection's sink,
-  the second being the connection's source. Valid names could be power
-  supplies, SGTL5000 pins, and the jacks on the board:
 
-  Power supplies:
-   * Mic Bias
+  - compatible		: "fsl,imx-audio-sgtl5000"
 
-  SGTL5000 pins:
-   * MIC_IN
-   * LINE_IN
-   * HP_OUT
-   * LINE_OUT
+  - model		: The user-visible name of this sound complex
 
-  Board connectors:
-   * Mic Jack
-   * Line In Jack
-   * Headphone Jack
-   * Line Out Jack
-   * Ext Spk
+  - ssi-controller	: The phandle of the i.MX SSI controller
 
-- mux-int-port : The internal port of the i.MX audio muxer (AUDMUX)
-- mux-ext-port : The external port of the i.MX audio muxer
+  - audio-codec		: The phandle of the SGTL5000 audio codec
+
+  - audio-routing	: A list of the connections between audio components.
+			  Each entry is a pair of strings, the first being the
+			  connection's sink, the second being the connection's
+			  source. Valid names could be power supplies, SGTL5000
+			  pins, and the jacks on the board:
+
+			  Power supplies:
+			   * Mic Bias
+
+			  SGTL5000 pins:
+			   * MIC_IN
+			   * LINE_IN
+			   * HP_OUT
+			   * LINE_OUT
+
+			  Board connectors:
+			   * Mic Jack
+			   * Line In Jack
+			   * Headphone Jack
+			   * Line Out Jack
+			   * Ext Spk
+
+  - mux-int-port	: The internal port of the i.MX audio muxer (AUDMUX)
+
+  - mux-ext-port	: The external port of the i.MX audio muxer
 
 Note: The AUDMUX port numbering should start at 1, which is consistent with
 hardware manual.

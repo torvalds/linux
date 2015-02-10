@@ -326,10 +326,17 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 
 		/* Then check that the global lock is free */
 		if (!spin_is_locked(&sma->sem_perm.lock)) {
-			/* spin_is_locked() is not a memory barrier */
-			smp_mb();
+			/*
+			 * The ipc object lock check must be visible on all
+			 * cores before rechecking the complex count.  Otherwise
+			 * we can race with  another thread that does:
+			 *	complex_count++;
+			 *	spin_unlock(sem_perm.lock);
+			 */
+			smp_rmb();
 
-			/* Now repeat the test of complex_count:
+			/*
+			 * Now repeat the test of complex_count:
 			 * It can't change anymore until we drop sem->lock.
 			 * Thus: if is now 0, then it will stay 0.
 			 */
@@ -507,13 +514,6 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 		return retval;
 	}
 
-	id = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni);
-	if (id < 0) {
-		ipc_rcu_putref(sma, sem_rcu_free);
-		return id;
-	}
-	ns->used_sems += nsems;
-
 	sma->sem_base = (struct sem *) &sma[1];
 
 	for (i = 0; i < nsems; i++) {
@@ -528,6 +528,14 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	INIT_LIST_HEAD(&sma->list_id);
 	sma->sem_nsems = nsems;
 	sma->sem_ctime = get_seconds();
+
+	id = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni);
+	if (id < 0) {
+		ipc_rcu_putref(sma, sem_rcu_free);
+		return id;
+	}
+	ns->used_sems += nsems;
+
 	sem_unlock(sma, -1);
 	rcu_read_unlock();
 

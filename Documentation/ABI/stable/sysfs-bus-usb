@@ -32,10 +32,9 @@ Date:		January 2008
 KernelVersion:	2.6.25
 Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
 Description:
-		If CONFIG_PM_RUNTIME is enabled then this file
-		is present.  When read, it returns the total time (in msec)
-		that the USB device has been connected to the machine.  This
-		file is read-only.
+		If CONFIG_PM is enabled, then this file is present.  When read,
+		it returns the total time (in msec) that the USB device has been
+		connected to the machine.  This file is read-only.
 Users:
 		PowerTOP <powertop@lists.01.org>
 		https://01.org/powertop/
@@ -45,10 +44,9 @@ Date:		January 2008
 KernelVersion:	2.6.25
 Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
 Description:
-		If CONFIG_PM_RUNTIME is enabled then this file
-		is present.  When read, it returns the total time (in msec)
-		that the USB device has been active, i.e. not in a suspended
-		state.  This file is read-only.
+		If CONFIG_PM is enabled, then this file is present.  When read,
+		it returns the total time (in msec) that the USB device has been
+		active, i.e. not in a suspended state.  This file is read-only.
 
 		Tools can use this file and the connected_duration file to
 		compute the percentage of time that a device has been active.

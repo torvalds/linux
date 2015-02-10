@@ -147,10 +147,8 @@ static int am335x_control_usb_probe(struct platform_device *pdev)
 	phy_ctrl = of_id->data;
 
 	ctrl_usb = devm_kzalloc(&pdev->dev, sizeof(*ctrl_usb), GFP_KERNEL);
-	if (!ctrl_usb) {
-		dev_err(&pdev->dev, "unable to alloc memory for control usb\n");
+	if (!ctrl_usb)
 		return -ENOMEM;
-	}
 
 	ctrl_usb->dev = &pdev->dev;
 
@@ -175,7 +173,6 @@ static struct platform_driver am335x_control_driver = {
 	.probe		= am335x_control_usb_probe,
 	.driver		= {
 		.name	= "am335x-control-usb",
-		.owner	= THIS_MODULE,
 		.of_match_table = omap_control_usb_id_table,
 	},
 };

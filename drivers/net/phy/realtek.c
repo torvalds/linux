@@ -101,18 +101,7 @@ static struct phy_driver realtek_drvs[] = {
 	},
 };
 
-static int __init realtek_init(void)
-{
-	return phy_drivers_register(realtek_drvs, ARRAY_SIZE(realtek_drvs));
-}
-
-static void __exit realtek_exit(void)
-{
-	phy_drivers_unregister(realtek_drvs, ARRAY_SIZE(realtek_drvs));
-}
-
-module_init(realtek_init);
-module_exit(realtek_exit);
+module_phy_driver(realtek_drvs);
 
 static struct mdio_device_id __maybe_unused realtek_tbl[] = {
 	{ 0x001cc912, 0x001fffff },

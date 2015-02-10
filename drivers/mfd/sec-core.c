@@ -27,11 +27,11 @@
 #include <linux/mfd/samsung/irq.h>
 #include <linux/mfd/samsung/s2mpa01.h>
 #include <linux/mfd/samsung/s2mps11.h>
+#include <linux/mfd/samsung/s2mps13.h>
 #include <linux/mfd/samsung/s2mps14.h>
 #include <linux/mfd/samsung/s2mpu02.h>
 #include <linux/mfd/samsung/s5m8763.h>
 #include <linux/mfd/samsung/s5m8767.h>
-#include <linux/regulator/machine.h>
 #include <linux/regmap.h>
 
 static const struct mfd_cell s5m8751_devs[] = {
@@ -74,6 +74,15 @@ static const struct mfd_cell s2mps11_devs[] = {
 	}
 };
 
+static const struct mfd_cell s2mps13_devs[] = {
+	{ .name = "s2mps13-pmic", },
+	{ .name = "s2mps13-rtc", },
+	{
+		.name = "s2mps13-clk",
+		.of_compatible = "samsung,s2mps13-clk",
+	},
+};
+
 static const struct mfd_cell s2mps14_devs[] = {
 	{
 		.name = "s2mps14-pmic",
@@ -107,6 +116,9 @@ static const struct of_device_id sec_dt_match[] = {
 	}, {
 		.compatible = "samsung,s2mps11-pmic",
 		.data = (void *)S2MPS11X,
+	}, {
+		.compatible = "samsung,s2mps13-pmic",
+		.data = (void *)S2MPS13X,
 	}, {
 		.compatible = "samsung,s2mps14-pmic",
 		.data = (void *)S2MPS14X,
@@ -190,6 +202,15 @@ static const struct regmap_config s2mps11_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = S2MPS11_REG_L38CTRL,
+	.volatile_reg = s2mps11_volatile,
+	.cache_type = REGCACHE_FLAT,
+};
+
+static const struct regmap_config s2mps13_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPS13_REG_LDODSCH5,
 	.volatile_reg = s2mps11_volatile,
 	.cache_type = REGCACHE_FLAT,
 };
@@ -325,6 +346,9 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	case S2MPS11X:
 		regmap = &s2mps11_regmap_config;
 		break;
+	case S2MPS13X:
+		regmap = &s2mps13_regmap_config;
+		break;
 	case S2MPS14X:
 		regmap = &s2mps14_regmap_config;
 		break;
@@ -377,6 +401,10 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	case S2MPS11X:
 		sec_devs = s2mps11_devs;
 		num_sec_devs = ARRAY_SIZE(s2mps11_devs);
+		break;
+	case S2MPS13X:
+		sec_devs = s2mps13_devs;
+		num_sec_devs = ARRAY_SIZE(s2mps13_devs);
 		break;
 	case S2MPS14X:
 		sec_devs = s2mps14_devs;
@@ -431,15 +459,6 @@ static int sec_pmic_suspend(struct device *dev)
 	 * suspended) and RTC Alarm interrupt is disabled.
 	 */
 	disable_irq(sec_pmic->irq);
-
-	switch (sec_pmic->device_type) {
-	case S2MPS14X:
-	case S2MPU02:
-		regulator_suspend_prepare(PM_SUSPEND_MEM);
-		break;
-	default:
-		break;
-	}
 
 	return 0;
 }

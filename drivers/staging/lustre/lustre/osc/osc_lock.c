@@ -1067,14 +1067,12 @@ static int osc_lock_enqueue_wait(const struct lu_env *env,
 			 * conflicts, we do not wait but return 0 so the
 			 * request is send to the server
 			 */
-			CDEBUG(D_DLMTRACE, "group lock %p is conflicted "
-					   "with %p, no wait, send to server\n",
+			CDEBUG(D_DLMTRACE, "group lock %p is conflicted with %p, no wait, send to server\n",
 			       lock, conflict);
 			cl_lock_put(env, conflict);
 			rc = 0;
 		} else {
-			CDEBUG(D_DLMTRACE, "lock %p is conflicted with %p, "
-					   "will wait\n",
+			CDEBUG(D_DLMTRACE, "lock %p is conflicted with %p, will wait\n",
 			       lock, conflict);
 			LASSERT(lock->cll_conflict == NULL);
 			lu_ref_add(&conflict->cll_reference, "cancel-wait",

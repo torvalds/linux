@@ -11,6 +11,7 @@
 static int __percent_color_snprintf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	int ret = 0;
+	int len;
 	va_list args;
 	double percent;
 	const char *markup;
@@ -18,6 +19,7 @@ static int __percent_color_snprintf(struct perf_hpp *hpp, const char *fmt, ...)
 	size_t size = hpp->size;
 
 	va_start(args, fmt);
+	len = va_arg(args, int);
 	percent = va_arg(args, double);
 	va_end(args);
 
@@ -25,7 +27,7 @@ static int __percent_color_snprintf(struct perf_hpp *hpp, const char *fmt, ...)
 	if (markup)
 		ret += scnprintf(buf, size, markup);
 
-	ret += scnprintf(buf + ret, size - ret, fmt, percent);
+	ret += scnprintf(buf + ret, size - ret, fmt, len, percent);
 
 	if (markup)
 		ret += scnprintf(buf + ret, size - ret, "</span>");
@@ -39,12 +41,12 @@ static u64 he_get_##_field(struct hist_entry *he)				\
 	return he->stat._field;							\
 }										\
 										\
-static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	\
+static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt,		\
 				       struct perf_hpp *hpp,			\
 				       struct hist_entry *he)			\
 {										\
-	return __hpp__fmt(hpp, he, he_get_##_field, " %6.2f%%",			\
-			  __percent_color_snprintf, true);			\
+	return hpp__fmt(fmt, hpp, he, he_get_##_field, " %*.2f%%",		\
+			__percent_color_snprintf, true);			\
 }
 
 #define __HPP_COLOR_ACC_PERCENT_FN(_type, _field)				\
@@ -57,8 +59,8 @@ static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	
 				       struct perf_hpp *hpp,			\
 				       struct hist_entry *he)			\
 {										\
-	return __hpp__fmt_acc(hpp, he, he_get_acc_##_field, " %6.2f%%",		\
-			      __percent_color_snprintf, true);			\
+	return hpp__fmt_acc(fmt, hpp, he, he_get_acc_##_field, " %*.2f%%", 	\
+			    __percent_color_snprintf, true);			\
 }
 
 __HPP_COLOR_PERCENT_FN(overhead, period)
@@ -85,15 +87,6 @@ void perf_gtk__init_hpp(void)
 				perf_gtk__hpp_color_overhead_guest_us;
 	perf_hpp__format[PERF_HPP__OVERHEAD_ACC].color =
 				perf_gtk__hpp_color_overhead_acc;
-}
-
-static void callchain_list__sym_name(struct callchain_list *cl,
-				     char *bf, size_t bfsize)
-{
-	if (cl->ms.sym)
-		scnprintf(bf, bfsize, "%s", cl->ms.sym->name);
-	else
-		scnprintf(bf, bfsize, "%#" PRIx64, cl->ip);
 }
 
 static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
@@ -126,7 +119,7 @@ static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
 			scnprintf(buf, sizeof(buf), "%5.2f%%", percent);
 			gtk_tree_store_set(store, &iter, 0, buf, -1);
 
-			callchain_list__sym_name(chain, buf, sizeof(buf));
+			callchain_list__sym_name(chain, buf, sizeof(buf), false);
 			gtk_tree_store_set(store, &iter, col, buf, -1);
 
 			if (need_new_parent) {
@@ -205,10 +198,8 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 		if (perf_hpp__is_sort_entry(fmt))
 			sym_col = col_idx;
 
-		fmt->header(fmt, &hpp, hists_to_evsel(hists));
-
 		gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
-							    -1, ltrim(s),
+							    -1, fmt->name,
 							    renderer, "markup",
 							    col_idx++, NULL);
 	}
@@ -319,7 +310,7 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 	gtk_container_add(GTK_CONTAINER(window), vbox);
 
 	evlist__for_each(evlist, pos) {
-		struct hists *hists = &pos->hists;
+		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
 		GtkWidget *scrolled_window;
 		GtkWidget *tab_label;

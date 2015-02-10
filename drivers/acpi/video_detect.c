@@ -174,6 +174,14 @@ static struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 5737"),
 		},
 	},
+	{
+	.callback = video_detect_force_vendor,
+	.ident = "Lenovo IdeaPad Z570",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "Ideapad Z570"),
+		},
+	},
 	{ },
 };
 

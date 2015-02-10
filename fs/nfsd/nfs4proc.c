@@ -33,6 +33,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <linux/file.h>
+#include <linux/falloc.h>
 #include <linux/slab.h>
 
 #include "idmap.h"
@@ -772,7 +773,7 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * the client wants us to do more in this compound:
 	 */
 	if (!nfsd4_last_compound_op(rqstp))
-		rqstp->rq_splice_ok = false;
+		clear_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
 
 	/* check stateid */
 	if ((status = nfs4_preprocess_stateid_op(SVC_NET(rqstp),
@@ -1013,6 +1014,87 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	return status;
 }
 
+static __be32
+nfsd4_fallocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		struct nfsd4_fallocate *fallocate, int flags)
+{
+	__be32 status = nfserr_notsupp;
+	struct file *file;
+
+	status = nfs4_preprocess_stateid_op(SVC_NET(rqstp), cstate,
+					    &fallocate->falloc_stateid,
+					    WR_STATE, &file);
+	if (status != nfs_ok) {
+		dprintk("NFSD: nfsd4_fallocate: couldn't process stateid!\n");
+		return status;
+	}
+
+	status = nfsd4_vfs_fallocate(rqstp, &cstate->current_fh, file,
+				     fallocate->falloc_offset,
+				     fallocate->falloc_length,
+				     flags);
+	fput(file);
+	return status;
+}
+
+static __be32
+nfsd4_allocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	       struct nfsd4_fallocate *fallocate)
+{
+	return nfsd4_fallocate(rqstp, cstate, fallocate, 0);
+}
+
+static __be32
+nfsd4_deallocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		 struct nfsd4_fallocate *fallocate)
+{
+	return nfsd4_fallocate(rqstp, cstate, fallocate,
+			       FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE);
+}
+
+static __be32
+nfsd4_seek(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		struct nfsd4_seek *seek)
+{
+	int whence;
+	__be32 status;
+	struct file *file;
+
+	status = nfs4_preprocess_stateid_op(SVC_NET(rqstp), cstate,
+					    &seek->seek_stateid,
+					    RD_STATE, &file);
+	if (status) {
+		dprintk("NFSD: nfsd4_seek: couldn't process stateid!\n");
+		return status;
+	}
+
+	switch (seek->seek_whence) {
+	case NFS4_CONTENT_DATA:
+		whence = SEEK_DATA;
+		break;
+	case NFS4_CONTENT_HOLE:
+		whence = SEEK_HOLE;
+		break;
+	default:
+		status = nfserr_union_notsupp;
+		goto out;
+	}
+
+	/*
+	 * Note:  This call does change file->f_pos, but nothing in NFSD
+	 *        should ever file->f_pos.
+	 */
+	seek->seek_pos = vfs_llseek(file, seek->seek_offset, whence);
+	if (seek->seek_pos < 0)
+		status = nfserrno(seek->seek_pos);
+	else if (seek->seek_pos >= i_size_read(file_inode(file)))
+		seek->seek_eof = true;
+
+out:
+	fput(file);
+	return status;
+}
+
 /* This routine never returns NFS_OK!  If there are no other errors, it
  * will return NFSERR_SAME or NFSERR_NOT_SAME depending on whether the
  * attributes matched.  VERIFY is implemented by mapping NFSERR_SAME
@@ -1229,7 +1311,8 @@ static bool need_wrongsec_check(struct svc_rqst *rqstp)
 	 */
 	if (argp->opcnt == resp->opcnt)
 		return false;
-
+	if (next->opnum == OP_ILLEGAL)
+		return false;
 	nextd = OPDESC(next);
 	/*
 	 * Rest of 2.6.3.1.1: certain operations will return WRONGSEC
@@ -1287,7 +1370,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	 * Don't use the deferral mechanism for NFSv4; compounds make it
 	 * too hard to avoid non-idempotency problems.
 	 */
-	rqstp->rq_usedeferral = false;
+	clear_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
 
 	/*
 	 * According to RFC3010, this takes precedence over all other errors.
@@ -1403,7 +1486,7 @@ encode_op:
 	BUG_ON(cstate->replay_owner);
 out:
 	/* Reset deferral mechanism for RPC deferrals */
-	rqstp->rq_usedeferral = true;
+	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
 	dprintk("nfsv4 compound returned %d\n", ntohl(status));
 	return status;
 }
@@ -1546,7 +1629,8 @@ static inline u32 nfsd4_rename_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op
 static inline u32 nfsd4_sequence_rsize(struct svc_rqst *rqstp,
 				       struct nfsd4_op *op)
 {
-	return NFS4_MAX_SESSIONID_LEN + 20;
+	return (op_encode_hdr_size
+		+ XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + 5) * sizeof(__be32);
 }
 
 static inline u32 nfsd4_setattr_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
@@ -1850,6 +1934,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_sequence,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
 		.op_name = "OP_SEQUENCE",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_sequence_rsize,
 	},
 	[OP_DESTROY_CLIENTID] = {
 		.op_func = (nfsd4op_func)nfsd4_destroy_clientid,
@@ -1880,6 +1965,24 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_name = "OP_FREE_STATEID",
 		.op_get_currentstateid = (stateid_getter)nfsd4_get_freestateid,
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
+	},
+
+	/* NFSv4.2 operations */
+	[OP_ALLOCATE] = {
+		.op_func = (nfsd4op_func)nfsd4_allocate,
+		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
+		.op_name = "OP_ALLOCATE",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_write_rsize,
+	},
+	[OP_DEALLOCATE] = {
+		.op_func = (nfsd4op_func)nfsd4_deallocate,
+		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
+		.op_name = "OP_DEALLOCATE",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_write_rsize,
+	},
+	[OP_SEEK] = {
+		.op_func = (nfsd4op_func)nfsd4_seek,
+		.op_name = "OP_SEEK",
 	},
 };
 

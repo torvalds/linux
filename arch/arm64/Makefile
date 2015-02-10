@@ -30,8 +30,6 @@ AS		+= -EL
 LD		+= -EL
 endif
 
-comma = ,
-
 CHECKFLAGS	+= -D__aarch64__
 
 # Default value
@@ -47,6 +45,7 @@ endif
 export	TEXT_OFFSET GZFLAGS
 
 core-y		+= arch/arm64/kernel/ arch/arm64/mm/
+core-$(CONFIG_NET) += arch/arm64/net/
 core-$(CONFIG_KVM) += arch/arm64/kvm/
 core-$(CONFIG_XEN) += arch/arm64/xen/
 core-$(CONFIG_CRYPTO) += arch/arm64/crypto/
@@ -71,8 +70,13 @@ zinstall install: vmlinux
 %.dtb: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
-dtbs: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts dtbs
+PHONY += dtbs dtbs_install
+
+dtbs: prepare scripts
+	$(Q)$(MAKE) $(build)=$(boot)/dts
+
+dtbs_install:
+	$(Q)$(MAKE) $(dtbinst)=$(boot)/dts
 
 PHONY += vdso_install
 vdso_install:
@@ -86,6 +90,7 @@ define archhelp
   echo  '* Image.gz      - Compressed kernel image (arch/$(ARCH)/boot/Image.gz)'
   echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
   echo  '* dtbs          - Build device tree blobs for enabled boards'
+  echo  '  dtbs_install  - Install dtbs to $(INSTALL_DTBS_PATH)'
   echo  '  install       - Install uncompressed kernel'
   echo  '  zinstall      - Install compressed kernel'
   echo  '                  Install using (your) ~/bin/installkernel or'

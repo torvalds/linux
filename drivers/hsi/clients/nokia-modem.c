@@ -29,7 +29,7 @@
 #include <linux/of_gpio.h>
 #include <linux/hsi/ssi_protocol.h>
 
-static unsigned int pm;
+static unsigned int pm = 1;
 module_param(pm, int, 0400);
 MODULE_PARM_DESC(pm,
 	"Enable power management (0=disabled, 1=userland based [default])");
@@ -164,9 +164,9 @@ static int nokia_modem_probe(struct device *dev)
 	dev_set_drvdata(dev, modem);
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq < 0) {
+	if (!irq) {
 		dev_err(dev, "Invalid rst_ind interrupt (%d)\n", irq);
-		return irq;
+		return -EINVAL;
 	}
 	modem->nokia_modem_rst_ind_irq = irq;
 	pflags = irq_get_trigger_type(irq);
@@ -174,7 +174,7 @@ static int nokia_modem_probe(struct device *dev)
 	tasklet_init(&modem->nokia_modem_rst_ind_tasklet,
 			do_nokia_modem_rst_ind_tasklet, (unsigned long)modem);
 	err = devm_request_irq(dev, irq, nokia_modem_rst_ind_isr,
-				IRQF_DISABLED | pflags, "modem_rst_ind", modem);
+				pflags, "modem_rst_ind", modem);
 	if (err < 0) {
 		dev_err(dev, "Request rst_ind irq(%d) failed (flags %d)\n",
 								irq, pflags);

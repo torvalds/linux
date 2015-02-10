@@ -496,7 +496,6 @@ out_bgio:
 static struct platform_driver mxc_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-mxc",
-		.owner	= THIS_MODULE,
 		.of_match_table = mxc_gpio_dt_ids,
 	},
 	.probe		= mxc_gpio_probe,

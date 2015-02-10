@@ -423,7 +423,6 @@ static struct cpuidle_driver sh7372_cpuidle_driver = {
 		.desc = "Core Standby Mode",
 		.exit_latency = 10,
 		.target_residency = 20 + 10,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.enter = sh7372_enter_core_standby,
 	},
 	.states[2] = {
@@ -431,7 +430,6 @@ static struct cpuidle_driver sh7372_cpuidle_driver = {
 		.desc = "A3SM PLL ON",
 		.exit_latency = 20,
 		.target_residency = 30 + 20,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.enter = sh7372_enter_a3sm_pll_on,
 	},
 	.states[3] = {
@@ -439,7 +437,6 @@ static struct cpuidle_driver sh7372_cpuidle_driver = {
 		.desc = "A3SM PLL OFF",
 		.exit_latency = 120,
 		.target_residency = 30 + 120,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.enter = sh7372_enter_a3sm_pll_off,
 	},
 	.states[4] = {
@@ -447,7 +444,6 @@ static struct cpuidle_driver sh7372_cpuidle_driver = {
 		.desc = "A4S PLL OFF",
 		.exit_latency = 240,
 		.target_residency = 30 + 240,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.enter = sh7372_enter_a4s,
 		.disabled = true,
 	},

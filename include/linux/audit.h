@@ -47,6 +47,7 @@ struct sk_buff;
 
 struct audit_krule {
 	int			vers_ops;
+	u32			pflags;
 	u32			flags;
 	u32			listnr;
 	u32			action;
@@ -64,14 +65,21 @@ struct audit_krule {
 	u64			prio;
 };
 
+/* Flag to indicate legacy AUDIT_LOGINUID unset usage */
+#define AUDIT_LOGINUID_LEGACY		0x1
+
 struct audit_field {
 	u32				type;
-	u32				val;
-	kuid_t				uid;
-	kgid_t				gid;
+	union {
+		u32			val;
+		kuid_t			uid;
+		kgid_t			gid;
+		struct {
+			char		*lsm_str;
+			void		*lsm_rule;
+		};
+	};
 	u32				op;
-	char				*lsm_str;
-	void				*lsm_rule;
 };
 
 extern int is_audit_feature_set(int which);
@@ -86,7 +94,7 @@ extern unsigned compat_dir_class[];
 extern unsigned compat_chattr_class[];
 extern unsigned compat_signal_class[];
 
-extern int __weak audit_classify_compat_syscall(int abi, unsigned syscall);
+extern int audit_classify_compat_syscall(int abi, unsigned syscall);
 
 /* audit_names->type values */
 #define	AUDIT_TYPE_UNKNOWN	0	/* we don't know yet */
@@ -109,12 +117,13 @@ extern void audit_log_session_info(struct audit_buffer *ab);
 #endif
 
 #ifdef CONFIG_AUDITSYSCALL
+#include <asm/syscall.h> /* for syscall_get_arch() */
+
 /* These are defined in auditsc.c */
 				/* Public API */
 extern int  audit_alloc(struct task_struct *task);
 extern void __audit_free(struct task_struct *task);
-extern void __audit_syscall_entry(int arch,
-				  int major, unsigned long a0, unsigned long a1,
+extern void __audit_syscall_entry(int major, unsigned long a0, unsigned long a1,
 				  unsigned long a2, unsigned long a3);
 extern void __audit_syscall_exit(int ret_success, long ret_value);
 extern struct filename *__audit_reusename(const __user char *uptr);
@@ -125,6 +134,7 @@ extern void audit_putname(struct filename *name);
 #define AUDIT_INODE_HIDDEN	2	/* audit record should be hidden */
 extern void __audit_inode(struct filename *name, const struct dentry *dentry,
 				unsigned int flags);
+extern void __audit_file(const struct file *);
 extern void __audit_inode_child(const struct inode *parent,
 				const struct dentry *dentry,
 				const unsigned char type);
@@ -141,12 +151,12 @@ static inline void audit_free(struct task_struct *task)
 	if (unlikely(task->audit_context))
 		__audit_free(task);
 }
-static inline void audit_syscall_entry(int arch, int major, unsigned long a0,
+static inline void audit_syscall_entry(int major, unsigned long a0,
 				       unsigned long a1, unsigned long a2,
 				       unsigned long a3)
 {
 	if (unlikely(current->audit_context))
-		__audit_syscall_entry(arch, major, a0, a1, a2, a3);
+		__audit_syscall_entry(major, a0, a1, a2, a3);
 }
 static inline void audit_syscall_exit(void *pt_regs)
 {
@@ -177,6 +187,11 @@ static inline void audit_inode(struct filename *name,
 			flags |= AUDIT_INODE_PARENT;
 		__audit_inode(name, dentry, flags);
 	}
+}
+static inline void audit_file(struct file *file)
+{
+	if (unlikely(!audit_dummy_context()))
+		__audit_file(file);
 }
 static inline void audit_inode_parent_hidden(struct filename *name,
 						const struct dentry *dentry)
@@ -322,7 +337,7 @@ static inline int audit_alloc(struct task_struct *task)
 }
 static inline void audit_free(struct task_struct *task)
 { }
-static inline void audit_syscall_entry(int arch, int major, unsigned long a0,
+static inline void audit_syscall_entry(int major, unsigned long a0,
 				       unsigned long a1, unsigned long a2,
 				       unsigned long a3)
 { }
@@ -352,6 +367,9 @@ static inline void audit_inode(struct filename *name,
 				const struct dentry *dentry,
 				unsigned int parent)
 { }
+static inline void audit_file(struct file *file)
+{
+}
 static inline void audit_inode_parent_hidden(struct filename *name,
 				const struct dentry *dentry)
 { }

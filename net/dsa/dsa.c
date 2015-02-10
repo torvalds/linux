@@ -9,8 +9,10 @@
  * (at your option) any later version.
  */
 
+#include <linux/ctype.h>
+#include <linux/device.h>
+#include <linux/hwmon.h>
 #include <linux/list.h>
-#include <linux/netdevice.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -18,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
+#include <linux/sysfs.h>
 #include "dsa_priv.h"
 
 char dsa_driver_version[] = "0.1";
@@ -44,7 +47,7 @@ void unregister_switch_driver(struct dsa_switch_driver *drv)
 EXPORT_SYMBOL_GPL(unregister_switch_driver);
 
 static struct dsa_switch_driver *
-dsa_switch_probe(struct mii_bus *bus, int sw_addr, char **_name)
+dsa_switch_probe(struct device *host_dev, int sw_addr, char **_name)
 {
 	struct dsa_switch_driver *ret;
 	struct list_head *list;
@@ -59,7 +62,7 @@ dsa_switch_probe(struct mii_bus *bus, int sw_addr, char **_name)
 
 		drv = list_entry(list, struct dsa_switch_driver, list);
 
-		name = drv->probe(bus, sw_addr);
+		name = drv->probe(host_dev, sw_addr);
 		if (name != NULL) {
 			ret = drv;
 			break;
@@ -72,11 +75,109 @@ dsa_switch_probe(struct mii_bus *bus, int sw_addr, char **_name)
 	return ret;
 }
 
+/* hwmon support ************************************************************/
+
+#ifdef CONFIG_NET_DSA_HWMON
+
+static ssize_t temp1_input_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	int temp, ret;
+
+	ret = ds->drv->get_temp(ds, &temp);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", temp * 1000);
+}
+static DEVICE_ATTR_RO(temp1_input);
+
+static ssize_t temp1_max_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	int temp, ret;
+
+	ret = ds->drv->get_temp_limit(ds, &temp);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", temp * 1000);
+}
+
+static ssize_t temp1_max_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
+{
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	int temp, ret;
+
+	ret = kstrtoint(buf, 0, &temp);
+	if (ret < 0)
+		return ret;
+
+	ret = ds->drv->set_temp_limit(ds, DIV_ROUND_CLOSEST(temp, 1000));
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR(temp1_max, S_IRUGO, temp1_max_show, temp1_max_store);
+
+static ssize_t temp1_max_alarm_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	bool alarm;
+	int ret;
+
+	ret = ds->drv->get_temp_alarm(ds, &alarm);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", alarm);
+}
+static DEVICE_ATTR_RO(temp1_max_alarm);
+
+static struct attribute *dsa_hwmon_attrs[] = {
+	&dev_attr_temp1_input.attr,	/* 0 */
+	&dev_attr_temp1_max.attr,	/* 1 */
+	&dev_attr_temp1_max_alarm.attr,	/* 2 */
+	NULL
+};
+
+static umode_t dsa_hwmon_attrs_visible(struct kobject *kobj,
+				       struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	struct dsa_switch_driver *drv = ds->drv;
+	umode_t mode = attr->mode;
+
+	if (index == 1) {
+		if (!drv->get_temp_limit)
+			mode = 0;
+		else if (drv->set_temp_limit)
+			mode |= S_IWUSR;
+	} else if (index == 2 && !drv->get_temp_alarm) {
+		mode = 0;
+	}
+	return mode;
+}
+
+static const struct attribute_group dsa_hwmon_group = {
+	.attrs = dsa_hwmon_attrs,
+	.is_visible = dsa_hwmon_attrs_visible,
+};
+__ATTRIBUTE_GROUPS(dsa_hwmon);
+
+#endif /* CONFIG_NET_DSA_HWMON */
 
 /* basic switch operations **************************************************/
 static struct dsa_switch *
 dsa_switch_setup(struct dsa_switch_tree *dst, int index,
-		 struct device *parent, struct mii_bus *bus)
+		 struct device *parent, struct device *host_dev)
 {
 	struct dsa_chip_data *pd = dst->pd->chip + index;
 	struct dsa_switch_driver *drv;
@@ -89,14 +190,14 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	/*
 	 * Probe for switch model.
 	 */
-	drv = dsa_switch_probe(bus, pd->sw_addr, &name);
+	drv = dsa_switch_probe(host_dev, pd->sw_addr, &name);
 	if (drv == NULL) {
-		printk(KERN_ERR "%s[%d]: could not detect attached switch\n",
-		       dst->master_netdev->name, index);
+		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
+			   index);
 		return ERR_PTR(-EINVAL);
 	}
-	printk(KERN_INFO "%s[%d]: detected a %s switch\n",
-		dst->master_netdev->name, index, name);
+	netdev_info(dst->master_netdev, "[%d]: detected a %s switch\n",
+		    index, name);
 
 
 	/*
@@ -110,8 +211,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	ds->index = index;
 	ds->pd = dst->pd->chip + index;
 	ds->drv = drv;
-	ds->master_mii_bus = bus;
-
+	ds->master_dev = host_dev;
 
 	/*
 	 * Validate supplied switch configuration.
@@ -125,7 +225,8 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 
 		if (!strcmp(name, "cpu")) {
 			if (dst->cpu_switch != -1) {
-				printk(KERN_ERR "multiple cpu ports?!\n");
+				netdev_err(dst->master_netdev,
+					   "multiple cpu ports?!\n");
 				ret = -EINVAL;
 				goto out;
 			}
@@ -144,14 +245,47 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 		goto out;
 	}
 
+	/* Make the built-in MII bus mask match the number of ports,
+	 * switch drivers can override this later
+	 */
+	ds->phys_mii_mask = ds->phys_port_mask;
+
 	/*
 	 * If the CPU connects to this switch, set the switch tree
 	 * tagging protocol to the preferred tagging format of this
 	 * switch.
 	 */
-	if (ds->dst->cpu_switch == index)
-		ds->dst->tag_protocol = drv->tag_protocol;
+	if (dst->cpu_switch == index) {
+		switch (drv->tag_protocol) {
+#ifdef CONFIG_NET_DSA_TAG_DSA
+		case DSA_TAG_PROTO_DSA:
+			dst->rcv = dsa_netdev_ops.rcv;
+			break;
+#endif
+#ifdef CONFIG_NET_DSA_TAG_EDSA
+		case DSA_TAG_PROTO_EDSA:
+			dst->rcv = edsa_netdev_ops.rcv;
+			break;
+#endif
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+		case DSA_TAG_PROTO_TRAILER:
+			dst->rcv = trailer_netdev_ops.rcv;
+			break;
+#endif
+#ifdef CONFIG_NET_DSA_TAG_BRCM
+		case DSA_TAG_PROTO_BRCM:
+			dst->rcv = brcm_netdev_ops.rcv;
+			break;
+#endif
+		case DSA_TAG_PROTO_NONE:
+			break;
+		default:
+			ret = -ENOPROTOOPT;
+			goto out;
+		}
 
+		dst->tag_protocol = drv->tag_protocol;
+	}
 
 	/*
 	 * Do basic register setup.
@@ -187,15 +321,38 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 
 		slave_dev = dsa_slave_create(ds, parent, i, pd->port_names[i]);
 		if (slave_dev == NULL) {
-			printk(KERN_ERR "%s[%d]: can't create dsa "
-			       "slave device for port %d(%s)\n",
-			       dst->master_netdev->name,
-			       index, i, pd->port_names[i]);
+			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s)\n",
+				   index, i, pd->port_names[i]);
 			continue;
 		}
 
 		ds->ports[i] = slave_dev;
 	}
+
+#ifdef CONFIG_NET_DSA_HWMON
+	/* If the switch provides a temperature sensor,
+	 * register with hardware monitoring subsystem.
+	 * Treat registration error as non-fatal and ignore it.
+	 */
+	if (drv->get_temp) {
+		const char *netname = netdev_name(dst->master_netdev);
+		char hname[IFNAMSIZ + 1];
+		int i, j;
+
+		/* Create valid hwmon 'name' attribute */
+		for (i = j = 0; i < IFNAMSIZ && netname[i]; i++) {
+			if (isalnum(netname[i]))
+				hname[j++] = netname[i];
+		}
+		hname[j] = '\0';
+		scnprintf(ds->hwmon_name, sizeof(ds->hwmon_name), "%s_dsa%d",
+			  hname, index);
+		ds->hwmon_dev = hwmon_device_register_with_groups(NULL,
+					ds->hwmon_name, ds, dsa_hwmon_groups);
+		if (IS_ERR(ds->hwmon_dev))
+			ds->hwmon_dev = NULL;
+	}
+#endif /* CONFIG_NET_DSA_HWMON */
 
 	return ds;
 
@@ -208,7 +365,56 @@ out:
 
 static void dsa_switch_destroy(struct dsa_switch *ds)
 {
+#ifdef CONFIG_NET_DSA_HWMON
+	if (ds->hwmon_dev)
+		hwmon_device_unregister(ds->hwmon_dev);
+#endif
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int dsa_switch_suspend(struct dsa_switch *ds)
+{
+	int i, ret = 0;
+
+	/* Suspend slave network devices */
+	for (i = 0; i < DSA_MAX_PORTS; i++) {
+		if (!(ds->phys_port_mask & (1 << i)))
+			continue;
+
+		ret = dsa_slave_suspend(ds->ports[i]);
+		if (ret)
+			return ret;
+	}
+
+	if (ds->drv->suspend)
+		ret = ds->drv->suspend(ds);
+
+	return ret;
+}
+
+static int dsa_switch_resume(struct dsa_switch *ds)
+{
+	int i, ret = 0;
+
+	if (ds->drv->resume)
+		ret = ds->drv->resume(ds);
+
+	if (ret)
+		return ret;
+
+	/* Resume slave network devices */
+	for (i = 0; i < DSA_MAX_PORTS; i++) {
+		if (!(ds->phys_port_mask & (1 << i)))
+			continue;
+
+		ret = dsa_slave_resume(ds->ports[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+#endif
 
 
 /* link polling *************************************************************/
@@ -256,7 +462,7 @@ static struct device *dev_find_class(struct device *parent, char *class)
 	return device_find_child(parent, class, dev_is_class);
 }
 
-static struct mii_bus *dev_to_mii_bus(struct device *dev)
+struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev)
 {
 	struct device *d;
 
@@ -272,6 +478,7 @@ static struct mii_bus *dev_to_mii_bus(struct device *dev)
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(dsa_host_dev_to_mii_bus);
 
 static struct net_device *dev_to_net_device(struct device *dev)
 {
@@ -319,7 +526,8 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 
 	/* First time routing table allocation */
 	if (!cd->rtable) {
-		cd->rtable = kmalloc(pd->nr_chips * sizeof(s8), GFP_KERNEL);
+		cd->rtable = kmalloc_array(pd->nr_chips, sizeof(s8),
+					   GFP_KERNEL);
 		if (!cd->rtable)
 			return -ENOMEM;
 
@@ -370,6 +578,7 @@ static int dsa_of_probe(struct platform_device *pdev)
 	const char *port_name;
 	int chip_index, port_index;
 	const unsigned int *sw_addr, *port_reg;
+	u32 eeprom_len;
 	int ret;
 
 	mdio = of_parse_phandle(np, "dsa,mii-bus", 0);
@@ -398,8 +607,8 @@ static int dsa_of_probe(struct platform_device *pdev)
 	if (pd->nr_chips > DSA_MAX_SWITCHES)
 		pd->nr_chips = DSA_MAX_SWITCHES;
 
-	pd->chip = kzalloc(pd->nr_chips * sizeof(struct dsa_chip_data),
-			GFP_KERNEL);
+	pd->chip = kcalloc(pd->nr_chips, sizeof(struct dsa_chip_data),
+			   GFP_KERNEL);
 	if (!pd->chip) {
 		ret = -ENOMEM;
 		goto out_free;
@@ -410,7 +619,8 @@ static int dsa_of_probe(struct platform_device *pdev)
 		chip_index++;
 		cd = &pd->chip[chip_index];
 
-		cd->mii_bus = &mdio_bus->dev;
+		cd->of_node = child;
+		cd->host_dev = &mdio_bus->dev;
 
 		sw_addr = of_get_property(child, "reg", NULL);
 		if (!sw_addr)
@@ -419,6 +629,9 @@ static int dsa_of_probe(struct platform_device *pdev)
 		cd->sw_addr = be32_to_cpup(sw_addr);
 		if (cd->sw_addr > PHY_MAX_ADDR)
 			continue;
+
+		if (!of_property_read_u32(np, "eeprom-length", &eeprom_len))
+			cd->eeprom_len = eeprom_len;
 
 		for_each_available_child_of_node(child, port) {
 			port_reg = of_get_property(port, "reg", NULL);
@@ -430,6 +643,8 @@ static int dsa_of_probe(struct platform_device *pdev)
 			port_name = of_get_property(port, "label", NULL);
 			if (!port_name)
 				continue;
+
+			cd->port_dn[port_index] = port;
 
 			cd->port_names[port_index] = kstrdup(port_name,
 					GFP_KERNEL);
@@ -486,15 +701,13 @@ static inline void dsa_of_remove(struct platform_device *pdev)
 
 static int dsa_probe(struct platform_device *pdev)
 {
-	static int dsa_version_printed;
 	struct dsa_platform_data *pd = pdev->dev.platform_data;
 	struct net_device *dev;
 	struct dsa_switch_tree *dst;
 	int i, ret;
 
-	if (!dsa_version_printed++)
-		printk(KERN_NOTICE "Distributed Switch Architecture "
-			"driver version %s\n", dsa_driver_version);
+	pr_notice_once("Distributed Switch Architecture driver version %s\n",
+		       dsa_driver_version);
 
 	if (pdev->dev.of_node) {
 		ret = dsa_of_probe(pdev);
@@ -534,21 +747,12 @@ static int dsa_probe(struct platform_device *pdev)
 	dst->cpu_port = -1;
 
 	for (i = 0; i < pd->nr_chips; i++) {
-		struct mii_bus *bus;
 		struct dsa_switch *ds;
 
-		bus = dev_to_mii_bus(pd->chip[i].mii_bus);
-		if (bus == NULL) {
-			printk(KERN_ERR "%s[%d]: no mii bus found for "
-				"dsa switch\n", dev->name, i);
-			continue;
-		}
-
-		ds = dsa_switch_setup(dst, i, &pdev->dev, bus);
+		ds = dsa_switch_setup(dst, i, &pdev->dev, pd->chip[i].host_dev);
 		if (IS_ERR(ds)) {
-			printk(KERN_ERR "%s[%d]: couldn't create dsa switch "
-				"instance (error %ld)\n", dev->name, i,
-				PTR_ERR(ds));
+			netdev_err(dev, "[%d]: couldn't create dsa switch instance (error %ld)\n",
+				   i, PTR_ERR(ds));
 			continue;
 		}
 
@@ -608,7 +812,62 @@ static void dsa_shutdown(struct platform_device *pdev)
 {
 }
 
+static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
+			  struct packet_type *pt, struct net_device *orig_dev)
+{
+	struct dsa_switch_tree *dst = dev->dsa_ptr;
+
+	if (unlikely(dst == NULL)) {
+		kfree_skb(skb);
+		return 0;
+	}
+
+	return dst->rcv(skb, dev, pt, orig_dev);
+}
+
+static struct packet_type dsa_pack_type __read_mostly = {
+	.type	= cpu_to_be16(ETH_P_XDSA),
+	.func	= dsa_switch_rcv,
+};
+
+#ifdef CONFIG_PM_SLEEP
+static int dsa_suspend(struct device *d)
+{
+	struct platform_device *pdev = to_platform_device(d);
+	struct dsa_switch_tree *dst = platform_get_drvdata(pdev);
+	int i, ret = 0;
+
+	for (i = 0; i < dst->pd->nr_chips; i++) {
+		struct dsa_switch *ds = dst->ds[i];
+
+		if (ds != NULL)
+			ret = dsa_switch_suspend(ds);
+	}
+
+	return ret;
+}
+
+static int dsa_resume(struct device *d)
+{
+	struct platform_device *pdev = to_platform_device(d);
+	struct dsa_switch_tree *dst = platform_get_drvdata(pdev);
+	int i, ret = 0;
+
+	for (i = 0; i < dst->pd->nr_chips; i++) {
+		struct dsa_switch *ds = dst->ds[i];
+
+		if (ds != NULL)
+			ret = dsa_switch_resume(ds);
+	}
+
+	return ret;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(dsa_pm_ops, dsa_suspend, dsa_resume);
+
 static const struct of_device_id dsa_of_match_table[] = {
+	{ .compatible = "brcm,bcm7445-switch-v4.0" },
 	{ .compatible = "marvell,dsa", },
 	{}
 };
@@ -620,8 +879,8 @@ static struct platform_driver dsa_driver = {
 	.shutdown	= dsa_shutdown,
 	.driver = {
 		.name	= "dsa",
-		.owner	= THIS_MODULE,
 		.of_match_table = dsa_of_match_table,
+		.pm	= &dsa_pm_ops,
 	},
 };
 
@@ -633,30 +892,15 @@ static int __init dsa_init_module(void)
 	if (rc)
 		return rc;
 
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	dev_add_pack(&dsa_packet_type);
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-	dev_add_pack(&edsa_packet_type);
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	dev_add_pack(&trailer_packet_type);
-#endif
+	dev_add_pack(&dsa_pack_type);
+
 	return 0;
 }
 module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	dev_remove_pack(&trailer_packet_type);
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-	dev_remove_pack(&edsa_packet_type);
-#endif
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	dev_remove_pack(&dsa_packet_type);
-#endif
+	dev_remove_pack(&dsa_pack_type);
 	platform_driver_unregister(&dsa_driver);
 }
 module_exit(dsa_cleanup_module);

@@ -4,7 +4,7 @@
 
 config UNISYS_VISORUTIL
 	tristate "Unisys visorutil driver"
-	depends on UNISYSSPAR
+	depends on UNISYSSPAR && HAS_IOMEM
 	---help---
 	If you say Y here, you will enable the Unisys visorutil driver.
 

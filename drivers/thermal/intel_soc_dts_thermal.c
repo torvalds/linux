@@ -360,6 +360,9 @@ static void proc_thermal_interrupt(void)
 	u32 sticky_out;
 	int status;
 	u32 ptmc_out;
+	unsigned long flags;
+
+	spin_lock_irqsave(&intr_notify_lock, flags);
 
 	/* Clear APIC interrupt */
 	status = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
@@ -378,21 +381,20 @@ static void proc_thermal_interrupt(void)
 		/* reset sticky bit */
 		status = iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
 					SOC_DTS_OFFSET_PTTSS, sticky_out);
+		spin_unlock_irqrestore(&intr_notify_lock, flags);
+
 		for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 			pr_debug("TZD update for zone %d\n", i);
 			thermal_zone_device_update(soc_dts[i]->tzone);
 		}
-	}
+	} else
+		spin_unlock_irqrestore(&intr_notify_lock, flags);
 
 }
 
 static irqreturn_t soc_irq_thread_fn(int irq, void *dev_data)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&intr_notify_lock, flags);
 	proc_thermal_interrupt();
-	spin_unlock_irqrestore(&intr_notify_lock, flags);
 	pr_debug("proc_thermal_interrupt\n");
 
 	return IRQ_HANDLED;

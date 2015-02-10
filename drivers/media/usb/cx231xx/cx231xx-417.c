@@ -24,6 +24,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cx231xx.h"
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -37,9 +39,6 @@
 #include <media/v4l2-event.h>
 #include <media/cx2341x.h>
 #include <media/tuner.h>
-#include <linux/usb.h>
-
-#include "cx231xx.h"
 
 #define CX231xx_FIRM_IMAGE_SIZE 376836
 #define CX231xx_FIRM_IMAGE_NAME "v4l-cx23885-enc.fw"
@@ -90,10 +89,10 @@ static unsigned int v4l_debug = 1;
 module_param(v4l_debug, int, 0644);
 MODULE_PARM_DESC(v4l_debug, "enable V4L debug messages");
 
-#define dprintk(level, fmt, arg...)\
-	do { if (v4l_debug >= level) \
-		pr_info("%s: " fmt, \
-		(dev) ? dev->name : "cx231xx[?]", ## arg); \
+#define dprintk(level, fmt, arg...)	\
+	do {				\
+		if (v4l_debug >= level) \
+			printk(KERN_DEBUG pr_fmt(fmt), ## arg); \
 	} while (0)
 
 static struct cx231xx_tvnorm cx231xx_tvnorms[] = {
@@ -988,29 +987,34 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 		IVTV_REG_APU, 0);
 
 	if (retval != 0) {
-		pr_err("%s: Error with mc417_register_write\n", __func__);
+		dev_err(dev->dev,
+			"%s: Error with mc417_register_write\n", __func__);
 		return -1;
 	}
 
 	retval = request_firmware(&firmware, CX231xx_FIRM_IMAGE_NAME,
-				  &dev->udev->dev);
+				  dev->dev);
 
 	if (retval != 0) {
-		pr_err("ERROR: Hotplug firmware request failed (%s).\n",
+		dev_err(dev->dev,
+			"ERROR: Hotplug firmware request failed (%s).\n",
 			CX231xx_FIRM_IMAGE_NAME);
-		pr_err("Please fix your hotplug setup, the board will not work without firmware loaded!\n");
+		dev_err(dev->dev,
+			"Please fix your hotplug setup, the board will not work without firmware loaded!\n");
 		return -1;
 	}
 
 	if (firmware->size != CX231xx_FIRM_IMAGE_SIZE) {
-		pr_err("ERROR: Firmware size mismatch (have %zd, expected %d)\n",
+		dev_err(dev->dev,
+			"ERROR: Firmware size mismatch (have %zd, expected %d)\n",
 			firmware->size, CX231xx_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
 		return -1;
 	}
 
 	if (0 != memcmp(firmware->data, magic, 8)) {
-		pr_err("ERROR: Firmware magic mismatch, wrong file?\n");
+		dev_err(dev->dev,
+			"ERROR: Firmware magic mismatch, wrong file?\n");
 		release_firmware(firmware);
 		return -1;
 	}
@@ -1057,7 +1061,8 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	retval |= mc417_register_write(dev, IVTV_REG_HW_BLOCKS,
 		IVTV_CMD_HW_BLOCKS_RST);
 	if (retval < 0) {
-		pr_err("%s: Error with mc417_register_write\n",
+		dev_err(dev->dev,
+			"%s: Error with mc417_register_write\n",
 			__func__);
 		return retval;
 	}
@@ -1069,7 +1074,8 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	retval |= mc417_register_write(dev, IVTV_REG_VPU, value & 0xFFFFFFE8);
 
 	if (retval < 0) {
-		pr_err("%s: Error with mc417_register_write\n",
+		dev_err(dev->dev,
+			"%s: Error with mc417_register_write\n",
 			__func__);
 		return retval;
 	}
@@ -1114,28 +1120,31 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 	cx231xx_disable656(dev);
 	retval = cx231xx_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 	if (retval < 0) {
-		dprintk(2, "%s() PING OK\n", __func__);
+		dprintk(2, "%s: PING OK\n", __func__);
 		retval = cx231xx_load_firmware(dev);
 		if (retval < 0) {
-			pr_err("%s() f/w load failed\n", __func__);
+			dev_err(dev->dev,
+				"%s: f/w load failed\n", __func__);
 			return retval;
 		}
 		retval = cx231xx_find_mailbox(dev);
 		if (retval < 0) {
-			pr_err("%s() mailbox < 0, error\n",
+			dev_err(dev->dev, "%s: mailbox < 0, error\n",
 				__func__);
 			return -1;
 		}
 		dev->cx23417_mailbox = retval;
 		retval = cx231xx_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0);
 		if (retval < 0) {
-			pr_err("ERROR: cx23417 firmware ping failed!\n");
+			dev_err(dev->dev,
+				"ERROR: cx23417 firmware ping failed!\n");
 			return -1;
 		}
 		retval = cx231xx_api_cmd(dev, CX2341X_ENC_GET_VERSION, 0, 1,
 			&version);
 		if (retval < 0) {
-			pr_err("ERROR: cx23417 firmware get encoder: version failed!\n");
+			dev_err(dev->dev,
+				"ERROR: cx23417 firmware get encoder: version failed!\n");
 			return -1;
 		}
 		dprintk(1, "cx23417 firmware version is 0x%08x\n", version);
@@ -1416,8 +1425,9 @@ static int bb_buf_prepare(struct videobuf_queue *q,
 		if (!dev->video_mode.bulk_ctl.num_bufs)
 			urb_init = 1;
 	}
-	/*cx231xx_info("urb_init=%d dev->video_mode.max_pkt_size=%d\n",
-		urb_init, dev->video_mode.max_pkt_size);*/
+	dev_dbg(dev->dev,
+		"urb_init=%d dev->video_mode.max_pkt_size=%d\n",
+		urb_init, dev->video_mode.max_pkt_size);
 	dev->mode_tv = 1;
 
 	if (urb_init) {
@@ -1688,7 +1698,7 @@ static int mpeg_open(struct file *file)
 			    sizeof(struct cx231xx_buffer), fh, &dev->lock);
 /*
 	videobuf_queue_sg_init(&fh->vidq, &cx231xx_qops,
-			    &dev->udev->dev, &dev->ts1.slock,
+			    dev->dev, &dev->ts1.slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx231xx_buffer),
@@ -1798,7 +1808,6 @@ static unsigned int mpeg_poll(struct file *file,
 static int mpeg_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct cx231xx_fh *fh = file->private_data;
-	struct cx231xx *dev = fh->dev;
 
 	dprintk(2, "%s()\n", __func__);
 
@@ -1878,7 +1887,7 @@ static int cx231xx_s_video_encoding(struct cx2341x_handler *cxhdl, u32 val)
 	/* fix videodecoder resolution */
 	fmt.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
 	fmt.height = cxhdl->height;
-	fmt.code = V4L2_MBUS_FMT_FIXED;
+	fmt.code = MEDIA_BUS_FMT_FIXED;
 	v4l2_subdev_call(dev->sd_cx25840, video, s_mbus_fmt, &fmt);
 	return 0;
 }

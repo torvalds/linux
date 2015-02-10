@@ -1435,6 +1435,8 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
 
+	memset(timings, 0, sizeof(struct v4l2_dv_timings));
+
 	/* SDP block */
 	if (state->mode == ADV7842_MODE_SDP)
 		return -ENODATA;
@@ -1483,7 +1485,7 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 					hdmi_read(sd, 0x2d)) / 2;
 			bt->il_vsync = ((hdmi_read(sd, 0x30) & 0x1f) * 256 +
 					hdmi_read(sd, 0x31)) / 2;
-			bt->vbackporch = ((hdmi_read(sd, 0x34) & 0x1f) * 256 +
+			bt->il_vbackporch = ((hdmi_read(sd, 0x34) & 0x1f) * 256 +
 					hdmi_read(sd, 0x35)) / 2;
 		}
 		adv7842_fill_optional_dv_timings_fields(sd, timings);
@@ -1875,12 +1877,12 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 }
 
 static int adv7842_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
-				 enum v4l2_mbus_pixelcode *code)
+				 u32 *code)
 {
 	if (index)
 		return -EINVAL;
 	/* Good enough for now */
-	*code = V4L2_MBUS_FMT_FIXED;
+	*code = MEDIA_BUS_FMT_FIXED;
 	return 0;
 }
 
@@ -1891,7 +1893,7 @@ static int adv7842_g_mbus_fmt(struct v4l2_subdev *sd,
 
 	fmt->width = state->timings.bt.width;
 	fmt->height = state->timings.bt.height;
-	fmt->code = V4L2_MBUS_FMT_FIXED;
+	fmt->code = MEDIA_BUS_FMT_FIXED;
 	fmt->field = V4L2_FIELD_NONE;
 
 	if (state->mode == ADV7842_MODE_SDP) {
@@ -2026,16 +2028,7 @@ static int adv7842_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	struct adv7842_state *state = to_state(sd);
 	u8 *data = NULL;
 
-	if (edid->pad > ADV7842_EDID_PORT_VGA)
-		return -EINVAL;
-	if (edid->blocks == 0)
-		return -EINVAL;
-	if (edid->blocks > 2)
-		return -EINVAL;
-	if (edid->start_block > 1)
-		return -EINVAL;
-	if (edid->start_block == 1)
-		edid->blocks = 1;
+	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	switch (edid->pad) {
 	case ADV7842_EDID_PORT_A:
@@ -2050,12 +2043,23 @@ static int adv7842_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	default:
 		return -EINVAL;
 	}
+
+	if (edid->start_block == 0 && edid->blocks == 0) {
+		edid->blocks = data ? 2 : 0;
+		return 0;
+	}
+
 	if (!data)
 		return -ENODATA;
 
-	memcpy(edid->edid,
-	       data + edid->start_block * 128,
-	       edid->blocks * 128);
+	if (edid->start_block >= 2)
+		return -EINVAL;
+
+	if (edid->start_block + edid->blocks > 2)
+		edid->blocks = 2 - edid->start_block;
+
+	memcpy(edid->edid, data + edid->start_block * 128, edid->blocks * 128);
+
 	return 0;
 }
 
@@ -2064,12 +2068,16 @@ static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *e)
 	struct adv7842_state *state = to_state(sd);
 	int err = 0;
 
+	memset(e->reserved, 0, sizeof(e->reserved));
+
 	if (e->pad > ADV7842_EDID_PORT_VGA)
 		return -EINVAL;
 	if (e->start_block != 0)
 		return -EINVAL;
-	if (e->blocks > 2)
+	if (e->blocks > 2) {
+		e->blocks = 2;
 		return -E2BIG;
+	}
 
 	/* todo, per edid */
 	state->aspect_ratio = v4l2_calc_aspect_ratio(e->edid[0x15],

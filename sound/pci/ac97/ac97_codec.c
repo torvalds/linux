@@ -463,14 +463,8 @@ static int snd_ac97_info_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct ac97_enum *e = (struct ac97_enum *)kcontrol->private_value;
 	
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = e->shift_l == e->shift_r ? 1 : 2;
-	uinfo->value.enumerated.items = e->mask;
-	
-	if (uinfo->value.enumerated.item > e->mask - 1)
-		uinfo->value.enumerated.item = e->mask - 1;
-	strcpy(uinfo->value.enumerated.name, e->texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, e->shift_l == e->shift_r ? 1 : 2,
+				 e->mask, e->texts);
 }
 
 static int snd_ac97_get_enum_double(struct snd_kcontrol *kcontrol,

@@ -250,9 +250,8 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 		}
 		strcpy(obj->name, name);
 		obj->procDir = createProcDir(obj->name, type->procDir);
-		if (obj->procDir == NULL) {
+		if (obj->procDir == NULL)
 			goto Away;
-		}
 	}
 	obj->procDirPropertyContexts =
 		kzalloc((type->nProperties + 1) * sizeof(PROCDIRENTRYCONTEXT),
@@ -321,19 +320,18 @@ void visor_proc_DestroyObject(MYPROCOBJECT *obj)
 		kfree(obj->procDirProperties);
 		obj->procDirProperties = NULL;
 	}
-	if (obj->procDirPropertyContexts != NULL) {
-		kfree(obj->procDirPropertyContexts);
-		obj->procDirPropertyContexts = NULL;
-	}
+
+	kfree(obj->procDirPropertyContexts);
+	obj->procDirPropertyContexts = NULL;
+
 	if (obj->procDir != NULL) {
 		if (obj->name != NULL)
 			remove_proc_entry(obj->name, type->procDir);
 		obj->procDir = NULL;
 	}
-	if (obj->name != NULL) {
-		kfree(obj->name);
-		obj->name = NULL;
-	}
+
+	kfree(obj->name);
+	obj->name = NULL;
 	kfree(obj);
 }
 EXPORT_SYMBOL_GPL(visor_proc_DestroyObject);

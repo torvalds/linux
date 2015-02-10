@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
+#include <linux/radix-tree.h>
 #include <asm/bug.h>
 #include <asm/page.h>
 
@@ -132,6 +133,18 @@ extern unsigned long MODULES_END;
 #define MODULES_LEN	(1UL << 31)
 #endif
 
+static inline int is_module_addr(void *addr)
+{
+#ifdef CONFIG_64BIT
+	BUILD_BUG_ON(MODULES_LEN > (1UL << 31));
+	if (addr < (void *)MODULES_VADDR)
+		return 0;
+	if (addr > (void *)MODULES_END)
+		return 0;
+#endif
+	return 1;
+}
+
 /*
  * A 31 bit pagetable entry of S390 has following format:
  *  |   PFRA          |    |  OS  |
@@ -216,7 +229,6 @@ extern unsigned long MODULES_END;
  */
 
 /* Hardware bits in the page table entry */
-#define _PAGE_CO	0x100		/* HW Change-bit override */
 #define _PAGE_PROTECT	0x200		/* HW read-only bit  */
 #define _PAGE_INVALID	0x400		/* HW invalid bit    */
 #define _PAGE_LARGE	0x800		/* Bit to mark a large pte */
@@ -233,8 +245,8 @@ extern unsigned long MODULES_END;
 #define __HAVE_ARCH_PTE_SPECIAL
 
 /* Set of bits not changed in pte_modify */
-#define _PAGE_CHG_MASK		(PAGE_MASK | _PAGE_SPECIAL | _PAGE_CO | \
-				 _PAGE_DIRTY | _PAGE_YOUNG)
+#define _PAGE_CHG_MASK		(PAGE_MASK | _PAGE_SPECIAL | _PAGE_DIRTY | \
+				 _PAGE_YOUNG)
 
 /*
  * handle_pte_fault uses pte_present, pte_none and pte_file to find out the
@@ -353,7 +365,6 @@ extern unsigned long MODULES_END;
 
 #define _REGION3_ENTRY_LARGE	0x400	/* RTTE-format control, large page  */
 #define _REGION3_ENTRY_RO	0x200	/* page protection bit		    */
-#define _REGION3_ENTRY_CO	0x100	/* change-recording override	    */
 
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_BITS	0xfffffffffffffe33UL
@@ -370,7 +381,6 @@ extern unsigned long MODULES_END;
 #define _SEGMENT_ENTRY_YOUNG	0x1000	/* SW segment young bit */
 #define _SEGMENT_ENTRY_SPLIT	0x0800	/* THP splitting bit */
 #define _SEGMENT_ENTRY_LARGE	0x0400	/* STE-format control, large page */
-#define _SEGMENT_ENTRY_CO	0x0100	/* change-recording override   */
 #define _SEGMENT_ENTRY_READ	0x0002	/* SW segment read bit */
 #define _SEGMENT_ENTRY_WRITE	0x0001	/* SW segment write bit */
 
@@ -481,6 +491,11 @@ static inline int mm_has_pgste(struct mm_struct *mm)
 	return 0;
 }
 
+/*
+ * In the case that a guest uses storage keys
+ * faults should no longer be backed by zero pages
+ */
+#define mm_forbids_zeropage mm_use_skey
 static inline int mm_use_skey(struct mm_struct *mm)
 {
 #ifdef CONFIG_PGSTE
@@ -789,43 +804,27 @@ static inline pgste_t pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
 
 /**
  * struct gmap_struct - guest address space
+ * @crst_list: list of all crst tables used in the guest address space
  * @mm: pointer to the parent mm_struct
+ * @guest_to_host: radix tree with guest to host address translation
+ * @host_to_guest: radix tree with pointer to segment table entries
+ * @guest_table_lock: spinlock to protect all entries in the guest page table
  * @table: pointer to the page directory
  * @asce: address space control element for gmap page table
- * @crst_list: list of all crst tables used in the guest address space
  * @pfault_enabled: defines if pfaults are applicable for the guest
  */
 struct gmap {
 	struct list_head list;
+	struct list_head crst_list;
 	struct mm_struct *mm;
+	struct radix_tree_root guest_to_host;
+	struct radix_tree_root host_to_guest;
+	spinlock_t guest_table_lock;
 	unsigned long *table;
 	unsigned long asce;
+	unsigned long asce_end;
 	void *private;
-	struct list_head crst_list;
 	bool pfault_enabled;
-};
-
-/**
- * struct gmap_rmap - reverse mapping for segment table entries
- * @gmap: pointer to the gmap_struct
- * @entry: pointer to a segment table entry
- * @vmaddr: virtual address in the guest address space
- */
-struct gmap_rmap {
-	struct list_head list;
-	struct gmap *gmap;
-	unsigned long *entry;
-	unsigned long vmaddr;
-};
-
-/**
- * struct gmap_pgtable - gmap information attached to a page table
- * @vmaddr: address of the 1MB segment in the process virtual memory
- * @mapper: list of segment table entries mapping a page table
- */
-struct gmap_pgtable {
-	unsigned long vmaddr;
-	struct list_head mapper;
 };
 
 /**
@@ -834,37 +833,38 @@ struct gmap_pgtable {
  */
 struct gmap_notifier {
 	struct list_head list;
-	void (*notifier_call)(struct gmap *gmap, unsigned long address);
+	void (*notifier_call)(struct gmap *gmap, unsigned long gaddr);
 };
 
-struct gmap *gmap_alloc(struct mm_struct *mm);
+struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit);
 void gmap_free(struct gmap *gmap);
 void gmap_enable(struct gmap *gmap);
 void gmap_disable(struct gmap *gmap);
 int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		     unsigned long to, unsigned long len);
 int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);
-unsigned long __gmap_translate(unsigned long address, struct gmap *);
-unsigned long gmap_translate(unsigned long address, struct gmap *);
-unsigned long __gmap_fault(unsigned long address, struct gmap *);
-unsigned long gmap_fault(unsigned long address, struct gmap *);
-void gmap_discard(unsigned long from, unsigned long to, struct gmap *);
-void __gmap_zap(unsigned long address, struct gmap *);
+unsigned long __gmap_translate(struct gmap *, unsigned long gaddr);
+unsigned long gmap_translate(struct gmap *, unsigned long gaddr);
+int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr);
+int gmap_fault(struct gmap *, unsigned long gaddr, unsigned int fault_flags);
+void gmap_discard(struct gmap *, unsigned long from, unsigned long to);
+void __gmap_zap(struct gmap *, unsigned long gaddr);
 bool gmap_test_and_clear_dirty(unsigned long address, struct gmap *);
 
 
 void gmap_register_ipte_notifier(struct gmap_notifier *);
 void gmap_unregister_ipte_notifier(struct gmap_notifier *);
 int gmap_ipte_notify(struct gmap *, unsigned long start, unsigned long len);
-void gmap_do_ipte_notify(struct mm_struct *, pte_t *);
+void gmap_do_ipte_notify(struct mm_struct *, unsigned long addr, pte_t *);
 
 static inline pgste_t pgste_ipte_notify(struct mm_struct *mm,
+					unsigned long addr,
 					pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
 	if (pgste_val(pgste) & PGSTE_IN_BIT) {
 		pgste_val(pgste) &= ~PGSTE_IN_BIT;
-		gmap_do_ipte_notify(mm, ptep);
+		gmap_do_ipte_notify(mm, addr, ptep);
 	}
 #endif
 	return pgste;
@@ -887,8 +887,6 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 		pgste = pgste_set_pte(ptep, pgste, entry);
 		pgste_set_unlock(ptep, pgste);
 	} else {
-		if (!(pte_val(entry) & _PAGE_INVALID) && MACHINE_HAS_EDAT1)
-			pte_val(entry) |= _PAGE_CO;
 		*ptep = entry;
 	}
 }
@@ -1058,6 +1056,22 @@ static inline void __ptep_ipte_local(unsigned long address, pte_t *ptep)
 		: "=m" (*ptep) : "m" (*ptep), "a" (pto), "a" (address));
 }
 
+static inline void __ptep_ipte_range(unsigned long address, int nr, pte_t *ptep)
+{
+	unsigned long pto = (unsigned long) ptep;
+
+#ifndef CONFIG_64BIT
+	/* pto in ESA mode must point to the start of the segment table */
+	pto &= 0x7ffffc00;
+#endif
+	/* Invalidate a range of ptes + global TLB flush of the ptes */
+	do {
+		asm volatile(
+			"	.insn rrf,0xb2210000,%2,%0,%1,0"
+			: "+a" (address), "+a" (nr) : "a" (pto) : "memory");
+	} while (nr != 255);
+}
+
 static inline void ptep_flush_direct(struct mm_struct *mm,
 				     unsigned long address, pte_t *ptep)
 {
@@ -1110,7 +1124,7 @@ static inline int ptep_test_and_clear_user_dirty(struct mm_struct *mm,
 	pgste_val(pgste) &= ~PGSTE_UC_BIT;
 	pte = *ptep;
 	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
-		pgste = pgste_ipte_notify(mm, ptep, pgste);
+		pgste = pgste_ipte_notify(mm, addr, ptep, pgste);
 		__ptep_ipte(addr, ptep);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
 			pte_val(pte) |= _PAGE_PROTECT;
@@ -1132,7 +1146,7 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 
 	if (mm_has_pgste(vma->vm_mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(vma->vm_mm, ptep, pgste);
+		pgste = pgste_ipte_notify(vma->vm_mm, addr, ptep, pgste);
 	}
 
 	oldpte = pte = *ptep;
@@ -1179,7 +1193,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(mm, ptep, pgste);
+		pgste = pgste_ipte_notify(mm, address, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1203,7 +1217,7 @@ static inline pte_t ptep_modify_prot_start(struct mm_struct *mm,
 
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste_ipte_notify(mm, ptep, pgste);
+		pgste_ipte_notify(mm, address, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1240,7 +1254,7 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 
 	if (mm_has_pgste(vma->vm_mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(vma->vm_mm, ptep, pgste);
+		pgste = pgste_ipte_notify(vma->vm_mm, address, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1274,7 +1288,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 
 	if (!full && mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(mm, ptep, pgste);
+		pgste = pgste_ipte_notify(mm, address, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1299,7 +1313,7 @@ static inline pte_t ptep_set_wrprotect(struct mm_struct *mm,
 	if (pte_write(pte)) {
 		if (mm_has_pgste(mm)) {
 			pgste = pgste_get_lock(ptep);
-			pgste = pgste_ipte_notify(mm, ptep, pgste);
+			pgste = pgste_ipte_notify(mm, address, ptep, pgste);
 		}
 
 		ptep_flush_lazy(mm, address, ptep);
@@ -1325,7 +1339,7 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 		return 0;
 	if (mm_has_pgste(vma->vm_mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(vma->vm_mm, ptep, pgste);
+		pgste = pgste_ipte_notify(vma->vm_mm, address, ptep, pgste);
 	}
 
 	ptep_flush_direct(vma->vm_mm, address, ptep);
@@ -1637,6 +1651,19 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 	return pmd;
 }
 
+#define __HAVE_ARCH_PMDP_GET_AND_CLEAR_FULL
+static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
+					    unsigned long address,
+					    pmd_t *pmdp, int full)
+{
+	pmd_t pmd = *pmdp;
+
+	if (!full)
+		pmdp_flush_lazy(mm, address, pmdp);
+	pmd_clear(pmdp);
+	return pmd;
+}
+
 #define __HAVE_ARCH_PMDP_CLEAR_FLUSH
 static inline pmd_t pmdp_clear_flush(struct vm_area_struct *vma,
 				     unsigned long address, pmd_t *pmdp)
@@ -1749,7 +1776,8 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 extern int vmem_add_mapping(unsigned long start, unsigned long size);
 extern int vmem_remove_mapping(unsigned long start, unsigned long size);
 extern int s390_enable_sie(void);
-extern void s390_enable_skey(void);
+extern int s390_enable_skey(void);
+extern void s390_reset_cmma(struct mm_struct *mm);
 
 /*
  * No page table caches to initialise

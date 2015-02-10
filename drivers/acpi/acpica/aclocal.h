@@ -413,8 +413,8 @@ struct acpi_gpe_handler_info {
 	acpi_gpe_handler address;	/* Address of handler, if any */
 	void *context;		/* Context to be passed to handler */
 	struct acpi_namespace_node *method_node;	/* Method node for this GPE level (saved) */
-	u8 original_flags;      /* Original (pre-handler) GPE info */
-	u8 originally_enabled;  /* True if GPE was originally enabled */
+	u8 original_flags;	/* Original (pre-handler) GPE info */
+	u8 originally_enabled;	/* True if GPE was originally enabled */
 };
 
 /* Notify info for implicit notify, multiple device objects */
@@ -454,6 +454,7 @@ struct acpi_gpe_register_info {
 	u16 base_gpe_number;	/* Base GPE number for this register */
 	u8 enable_for_wake;	/* GPEs to keep enabled when sleeping */
 	u8 enable_for_run;	/* GPEs to keep enabled when running */
+	u8 enable_mask;		/* Current mask of enabled GPEs */
 };
 
 /*
@@ -722,6 +723,7 @@ union acpi_parse_value {
 	ACPI_DISASM_ONLY_MEMBERS (\
 	u8                              disasm_flags;   /* Used during AML disassembly */\
 	u8                              disasm_opcode;  /* Subtype used for disassembly */\
+	char                            *operator_symbol;/* Used for C-style operator name strings */\
 	char                            aml_op_name[16])	/* Op name (debug only) */
 
 /* Flags for disasm_flags field above */
@@ -827,6 +829,8 @@ struct acpi_parse_state {
 #define ACPI_PARSEOP_EMPTY_TERMLIST     0x04
 #define ACPI_PARSEOP_PREDEF_CHECKED     0x08
 #define ACPI_PARSEOP_SPECIAL            0x10
+#define ACPI_PARSEOP_COMPOUND           0x20
+#define ACPI_PARSEOP_ASSIGNMENT         0x40
 
 /*****************************************************************************
  *

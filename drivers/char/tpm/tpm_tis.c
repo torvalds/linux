@@ -837,7 +837,6 @@ MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 static struct platform_driver tis_drv = {
 	.driver = {
 		.name = "tpm_tis",
-		.owner		= THIS_MODULE,
 		.pm		= &tpm_tis_pm,
 	},
 };

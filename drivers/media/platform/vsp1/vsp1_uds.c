@@ -173,8 +173,8 @@ static int uds_enum_mbus_code(struct v4l2_subdev *subdev,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	static const unsigned int codes[] = {
-		V4L2_MBUS_FMT_ARGB8888_1X32,
-		V4L2_MBUS_FMT_AYUV8_1X32,
+		MEDIA_BUS_FMT_ARGB8888_1X32,
+		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
 
 	if (code->pad == UDS_PAD_SINK) {
@@ -246,9 +246,9 @@ static void uds_try_format(struct vsp1_uds *uds, struct v4l2_subdev_fh *fh,
 	switch (pad) {
 	case UDS_PAD_SINK:
 		/* Default to YUV if the requested format is not supported. */
-		if (fmt->code != V4L2_MBUS_FMT_ARGB8888_1X32 &&
-		    fmt->code != V4L2_MBUS_FMT_AYUV8_1X32)
-			fmt->code = V4L2_MBUS_FMT_AYUV8_1X32;
+		if (fmt->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
+		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
+			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
 
 		fmt->width = clamp(fmt->width, UDS_MIN_SIZE, UDS_MAX_SIZE);
 		fmt->height = clamp(fmt->height, UDS_MIN_SIZE, UDS_MAX_SIZE);

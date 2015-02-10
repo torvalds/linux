@@ -37,6 +37,16 @@ struct anon_vma {
 	atomic_t refcount;
 
 	/*
+	 * Count of child anon_vmas and VMAs which points to this anon_vma.
+	 *
+	 * This counter is used for making decision about reusing anon_vma
+	 * instead of forking new one. See comments in function anon_vma_clone.
+	 */
+	unsigned degree;
+
+	struct anon_vma *parent;	/* Parent of this anon_vma */
+
+	/*
 	 * NOTE: the LSB of the rb_root.rb_node is set by
 	 * mm_take_all_locks() _after_ taking the above lock. So the
 	 * rb_root must only be read/written after taking the above lock
@@ -150,7 +160,7 @@ int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
 static inline void anon_vma_merge(struct vm_area_struct *vma,
 				  struct vm_area_struct *next)
 {
-	VM_BUG_ON(vma->anon_vma != next->anon_vma);
+	VM_BUG_ON_VMA(vma->anon_vma != next->anon_vma, vma);
 	unlink_anon_vmas(next);
 }
 

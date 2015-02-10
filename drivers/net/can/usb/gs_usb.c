@@ -718,6 +718,7 @@ static const struct net_device_ops gs_usb_netdev_ops = {
 	.ndo_open = gs_can_open,
 	.ndo_stop = gs_can_close,
 	.ndo_start_xmit = gs_can_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static struct gs_can *gs_make_candev(unsigned int channel, struct usb_interface *intf)

@@ -528,7 +528,7 @@ ips_setup(char *ips_str)
 		 * Update the variables
 		 */
 		for (i = 0; i < ARRAY_SIZE(options); i++) {
-			if (strnicmp
+			if (strncasecmp
 			    (key, options[i].option_name,
 			     strlen(options[i].option_name)) == 0) {
 				if (value)
@@ -1210,7 +1210,7 @@ ips_slave_configure(struct scsi_device * SDptr)
 		min = ha->max_cmds / 2;
 		if (ha->enq->ucLogDriveCount <= 2)
 			min = ha->max_cmds - 1;
-		scsi_adjust_queue_depth(SDptr, MSG_ORDERED_TAG, min);
+		scsi_change_queue_depth(SDptr, min);
 	}
 
 	SDptr->skip_ms_page_8 = 1;

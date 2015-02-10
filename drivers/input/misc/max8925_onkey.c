@@ -166,7 +166,6 @@ static SIMPLE_DEV_PM_OPS(max8925_onkey_pm_ops, max8925_onkey_suspend, max8925_on
 static struct platform_driver max8925_onkey_driver = {
 	.driver		= {
 		.name	= "max8925-onkey",
-		.owner	= THIS_MODULE,
 		.pm	= &max8925_onkey_pm_ops,
 	},
 	.probe		= max8925_onkey_probe,

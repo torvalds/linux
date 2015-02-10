@@ -145,6 +145,10 @@ struct renesas_usbhs_driver_param {
 	int d0_rx_id;
 	int d1_tx_id;
 	int d1_rx_id;
+	int d2_tx_id;
+	int d2_rx_id;
+	int d3_tx_id;
+	int d3_rx_id;
 
 	/*
 	 * option:

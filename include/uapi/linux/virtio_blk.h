@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/virtio_ids.h>
 #include <linux/virtio_config.h>
+#include <linux/virtio_types.h>
 
 /* Feature bits */
 #define VIRTIO_BLK_F_BARRIER	0	/* Does host support barriers? */
@@ -114,18 +115,18 @@ struct virtio_blk_config {
 /* This is the first element of the read scatter-gather list. */
 struct virtio_blk_outhdr {
 	/* VIRTIO_BLK_T* */
-	__u32 type;
+	__virtio32 type;
 	/* io priority. */
-	__u32 ioprio;
+	__virtio32 ioprio;
 	/* Sector (ie. 512 byte offset) */
-	__u64 sector;
+	__virtio64 sector;
 };
 
 struct virtio_scsi_inhdr {
-	__u32 errors;
-	__u32 data_len;
-	__u32 sense_len;
-	__u32 residual;
+	__virtio32 errors;
+	__virtio32 data_len;
+	__virtio32 sense_len;
+	__virtio32 residual;
 };
 
 /* And this is the final byte of the write scatter-gather list. */

@@ -62,7 +62,6 @@ static int lenovo_input_mapping_cptkbd(struct hid_device *hdev,
 	/* HID_UP_LNVENDOR = USB, HID_UP_MSVENDOR = BT */
 	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_MSVENDOR ||
 	    (usage->hid & HID_USAGE_PAGE) == HID_UP_LNVENDOR) {
-		set_bit(EV_REP, hi->input->evbit);
 		switch (usage->hid & HID_USAGE) {
 		case 0x00f1: /* Fn-F4: Mic mute */
 			map_key_clear(KEY_MICMUTE);
@@ -85,12 +84,12 @@ static int lenovo_input_mapping_cptkbd(struct hid_device *hdev,
 		case 0x00f8: /* Fn-F11: View open applications (3 boxes) */
 			map_key_clear(KEY_SCALE);
 			return 1;
-		case 0x00fa: /* Fn-Esc: Fn-lock toggle */
-			map_key_clear(KEY_FN_ESC);
-			return 1;
-		case 0x00fb: /* Fn-F12: Open My computer (6 boxes) USB-only */
+		case 0x00f9: /* Fn-F12: Open My computer (6 boxes) USB-only */
 			/* NB: This mapping is invented in raw_event below */
 			map_key_clear(KEY_FILE);
+			return 1;
+		case 0x00fa: /* Fn-Esc: Fn-lock toggle */
+			map_key_clear(KEY_FN_ESC);
 			return 1;
 		}
 	}
@@ -207,8 +206,8 @@ static int lenovo_raw_event(struct hid_device *hdev,
 			&& data[0] == 0x15
 			&& data[1] == 0x94
 			&& data[2] == 0x01)) {
-		data[1] = 0x0;
-		data[2] = 0x4;
+		data[1] = 0x00;
+		data[2] = 0x01;
 	}
 
 	return 0;

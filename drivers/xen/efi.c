@@ -27,6 +27,8 @@
 #include <xen/interface/platform.h>
 #include <xen/xen.h>
 
+#include <asm/page.h>
+
 #include <asm/xen/hypercall.h>
 
 #define INIT_EFI_OP(name) \
@@ -292,6 +294,7 @@ static const struct efi efi_xen __initconst = {
 	.acpi                     = EFI_INVALID_TABLE_ADDR,
 	.acpi20                   = EFI_INVALID_TABLE_ADDR,
 	.smbios                   = EFI_INVALID_TABLE_ADDR,
+	.smbios3                  = EFI_INVALID_TABLE_ADDR,
 	.sal_systab               = EFI_INVALID_TABLE_ADDR,
 	.boot_info                = EFI_INVALID_TABLE_ADDR,
 	.hcdp                     = EFI_INVALID_TABLE_ADDR,

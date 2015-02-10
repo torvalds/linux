@@ -97,7 +97,7 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	return 0;
 }
 
-static struct of_device_id of_pci_phb_ids[] = {
+static const struct of_device_id of_pci_phb_ids[] = {
 	{ .type = "pci", },
 	{ .type = "pcix", },
 	{ .type = "pcie", },
@@ -110,7 +110,6 @@ static struct platform_driver of_pci_phb_driver = {
 	.probe = of_pci_phb_probe,
 	.driver = {
 		.name = "of-pci",
-		.owner = THIS_MODULE,
 		.of_match_table = of_pci_phb_ids,
 	},
 };

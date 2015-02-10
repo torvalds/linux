@@ -404,8 +404,8 @@ GLOBAL(system_call_after_swapgs)
 	 * and short:
 	 */
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	SAVE_ARGS 8,0
-	movq  %rax,ORIG_RAX-ARGOFFSET(%rsp)
+	SAVE_ARGS 8, 0, rax_enosys=1
+	movq_cfi rax,(ORIG_RAX-ARGOFFSET)
 	movq  %rcx,RIP-ARGOFFSET(%rsp)
 	CFI_REL_OFFSET rip,RIP-ARGOFFSET
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
@@ -417,7 +417,7 @@ system_call_fastpath:
 	andl $__SYSCALL_MASK,%eax
 	cmpl $__NR_syscall_max,%eax
 #endif
-	ja badsys
+	ja ret_from_sys_call  /* and return regs->ax */
 	movq %r10,%rcx
 	call *sys_call_table(,%rax,8)  # XXX:	 rip relative
 	movq %rax,RAX-ARGOFFSET(%rsp)
@@ -476,27 +476,7 @@ sysret_signal:
 	FIXUP_TOP_OF_STACK %r11, -ARGOFFSET
 	jmp int_check_syscall_exit_work
 
-badsys:
-	movq $-ENOSYS,RAX-ARGOFFSET(%rsp)
-	jmp ret_from_sys_call
-
 #ifdef CONFIG_AUDITSYSCALL
-	/*
-	 * Fast path for syscall audit without full syscall trace.
-	 * We just call __audit_syscall_entry() directly, and then
-	 * jump back to the normal fast path.
-	 */
-auditsys:
-	movq %r10,%r9			/* 6th arg: 4th syscall arg */
-	movq %rdx,%r8			/* 5th arg: 3rd syscall arg */
-	movq %rsi,%rcx			/* 4th arg: 2nd syscall arg */
-	movq %rdi,%rdx			/* 3rd arg: 1st syscall arg */
-	movq %rax,%rsi			/* 2nd arg: syscall number */
-	movl $AUDIT_ARCH_X86_64,%edi	/* 1st arg: audit arch */
-	call __audit_syscall_entry
-	LOAD_ARGS 0		/* reload call-clobbered registers */
-	jmp system_call_fastpath
-
 	/*
 	 * Return fast path for syscall audit.  Call __audit_syscall_exit()
 	 * directly and then jump back to the fast path with TIF_SYSCALL_AUDIT
@@ -514,18 +494,25 @@ sysret_audit:
 
 	/* Do syscall tracing */
 tracesys:
-#ifdef CONFIG_AUDITSYSCALL
-	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
-	jz auditsys
-#endif
+	leaq -REST_SKIP(%rsp), %rdi
+	movq $AUDIT_ARCH_X86_64, %rsi
+	call syscall_trace_enter_phase1
+	test %rax, %rax
+	jnz tracesys_phase2		/* if needed, run the slow path */
+	LOAD_ARGS 0			/* else restore clobbered regs */
+	jmp system_call_fastpath	/*      and return to the fast path */
+
+tracesys_phase2:
 	SAVE_REST
-	movq $-ENOSYS,RAX(%rsp) /* ptrace can change this for a bad syscall */
 	FIXUP_TOP_OF_STACK %rdi
-	movq %rsp,%rdi
-	call syscall_trace_enter
+	movq %rsp, %rdi
+	movq $AUDIT_ARCH_X86_64, %rsi
+	movq %rax,%rdx
+	call syscall_trace_enter_phase2
+
 	/*
 	 * Reload arg registers from stack in case ptrace changed them.
-	 * We don't reload %rax because syscall_trace_enter() returned
+	 * We don't reload %rax because syscall_trace_entry_phase2() returned
 	 * the value it wants us to use in the table lookup.
 	 */
 	LOAD_ARGS ARGOFFSET, 1
@@ -536,7 +523,7 @@ tracesys:
 	andl $__SYSCALL_MASK,%eax
 	cmpl $__NR_syscall_max,%eax
 #endif
-	ja   int_ret_from_sys_call	/* RAX(%rsp) set to -ENOSYS above */
+	ja   int_ret_from_sys_call	/* RAX(%rsp) is already set */
 	movq %r10,%rcx	/* fixup for C */
 	call *sys_call_table(,%rax,8)
 	movq %rax,RAX-ARGOFFSET(%rsp)
@@ -665,6 +652,20 @@ ENTRY(stub_execve)
 	CFI_ENDPROC
 END(stub_execve)
 
+ENTRY(stub_execveat)
+	CFI_STARTPROC
+	addq $8, %rsp
+	PARTIAL_FRAME 0
+	SAVE_REST
+	FIXUP_TOP_OF_STACK %r11
+	call sys_execveat
+	RESTORE_TOP_OF_STACK %r11
+	movq %rax,RAX(%rsp)
+	RESTORE_REST
+	jmp int_ret_from_sys_call
+	CFI_ENDPROC
+END(stub_execveat)
+
 /*
  * sigreturn is special because it needs to restore all registers on return.
  * This cannot be done with SYSRET, so use the IRET return path instead.
@@ -710,6 +711,20 @@ ENTRY(stub_x32_execve)
 	CFI_ENDPROC
 END(stub_x32_execve)
 
+ENTRY(stub_x32_execveat)
+	CFI_STARTPROC
+	addq $8, %rsp
+	PARTIAL_FRAME 0
+	SAVE_REST
+	FIXUP_TOP_OF_STACK %r11
+	call compat_sys_execveat
+	RESTORE_TOP_OF_STACK %r11
+	movq %rax,RAX(%rsp)
+	RESTORE_REST
+	jmp int_ret_from_sys_call
+	CFI_ENDPROC
+END(stub_x32_execveat)
+
 #endif
 
 /*
@@ -725,10 +740,10 @@ ENTRY(interrupt)
 ENTRY(irq_entries_start)
 	INTR_FRAME
 vector=FIRST_EXTERNAL_VECTOR
-.rept (NR_VECTORS-FIRST_EXTERNAL_VECTOR+6)/7
+.rept (FIRST_SYSTEM_VECTOR-FIRST_EXTERNAL_VECTOR+6)/7
 	.balign 32
   .rept	7
-    .if vector < NR_VECTORS
+    .if vector < FIRST_SYSTEM_VECTOR
       .if vector <> FIRST_EXTERNAL_VECTOR
 	CFI_ADJUST_CFA_OFFSET -8
       .endif
@@ -841,9 +856,15 @@ ENTRY(native_iret)
 	jnz native_irq_return_ldt
 #endif
 
+.global native_irq_return_iret
 native_irq_return_iret:
+	/*
+	 * This may fault.  Non-paranoid faults on return to userspace are
+	 * handled by fixup_bad_iret.  These include #SS, #GP, and #NP.
+	 * Double-faults due to espfix64 are handled in do_double_fault.
+	 * Other faults here are fatal.
+	 */
 	iretq
-	_ASM_EXTABLE(native_irq_return_iret, bad_iret)
 
 #ifdef CONFIG_X86_ESPFIX64
 native_irq_return_ldt:
@@ -870,25 +891,6 @@ native_irq_return_ldt:
 	popq_cfi %rax
 	jmp native_irq_return_iret
 #endif
-
-	.section .fixup,"ax"
-bad_iret:
-	/*
-	 * The iret traps when the %cs or %ss being restored is bogus.
-	 * We've lost the original trap vector and error code.
-	 * #GPF is the most likely one to get for an invalid selector.
-	 * So pretend we completed the iret and took the #GPF in user mode.
-	 *
-	 * We are now running with the kernel GS after exception recovery.
-	 * But error_entry expects us to have user GS to match the user %cs,
-	 * so swap back.
-	 */
-	pushq $0
-
-	SWAPGS
-	jmp general_protection
-
-	.previous
 
 	/* edi: workmask, edx: work */
 retint_careful:
@@ -934,37 +936,6 @@ ENTRY(retint_kernel)
 #endif
 	CFI_ENDPROC
 END(common_interrupt)
-
-	/*
-	 * If IRET takes a fault on the espfix stack, then we
-	 * end up promoting it to a doublefault.  In that case,
-	 * modify the stack to make it look like we just entered
-	 * the #GP handler from user space, similar to bad_iret.
-	 */
-#ifdef CONFIG_X86_ESPFIX64
-	ALIGN
-__do_double_fault:
-	XCPT_FRAME 1 RDI+8
-	movq RSP(%rdi),%rax		/* Trap on the espfix stack? */
-	sarq $PGDIR_SHIFT,%rax
-	cmpl $ESPFIX_PGD_ENTRY,%eax
-	jne do_double_fault		/* No, just deliver the fault */
-	cmpl $__KERNEL_CS,CS(%rdi)
-	jne do_double_fault
-	movq RIP(%rdi),%rax
-	cmpq $native_irq_return_iret,%rax
-	jne do_double_fault		/* This shouldn't happen... */
-	movq PER_CPU_VAR(kernel_stack),%rax
-	subq $(6*8-KERNEL_STACK_OFFSET),%rax	/* Reset to original stack */
-	movq %rax,RSP(%rdi)
-	movq $0,(%rax)			/* Missing (lost) #GP error code */
-	movq $general_protection,RIP(%rdi)
-	retq
-	CFI_ENDPROC
-END(__do_double_fault)
-#else
-# define __do_double_fault do_double_fault
-#endif
 
 /*
  * APIC interrupts.
@@ -1137,7 +1108,7 @@ idtentry overflow do_overflow has_error_code=0
 idtentry bounds do_bounds has_error_code=0
 idtentry invalid_op do_invalid_op has_error_code=0
 idtentry device_not_available do_device_not_available has_error_code=0
-idtentry double_fault __do_double_fault has_error_code=1 paranoid=1
+idtentry double_fault do_double_fault has_error_code=1 paranoid=1
 idtentry coprocessor_segment_overrun do_coprocessor_segment_overrun has_error_code=0
 idtentry invalid_TSS do_invalid_TSS has_error_code=1
 idtentry segment_not_present do_segment_not_present has_error_code=1
@@ -1302,7 +1273,7 @@ apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 
 idtentry debug do_debug has_error_code=0 paranoid=1 shift_ist=DEBUG_STACK
 idtentry int3 do_int3 has_error_code=0 paranoid=1 shift_ist=DEBUG_STACK
-idtentry stack_segment do_stack_segment has_error_code=1 paranoid=1
+idtentry stack_segment do_stack_segment has_error_code=1
 #ifdef CONFIG_XEN
 idtentry xen_debug do_debug has_error_code=0
 idtentry xen_int3 do_int3 has_error_code=0
@@ -1412,17 +1383,16 @@ error_sti:
 
 /*
  * There are two places in the kernel that can potentially fault with
- * usergs. Handle them here. The exception handlers after iret run with
- * kernel gs again, so don't set the user space flag. B stepping K8s
- * sometimes report an truncated RIP for IRET exceptions returning to
- * compat mode. Check for these here too.
+ * usergs. Handle them here.  B stepping K8s sometimes report a
+ * truncated RIP for IRET exceptions returning to compat mode. Check
+ * for these here too.
  */
 error_kernelspace:
 	CFI_REL_OFFSET rcx, RCX+8
 	incl %ebx
 	leaq native_irq_return_iret(%rip),%rcx
 	cmpq %rcx,RIP+8(%rsp)
-	je error_swapgs
+	je error_bad_iret
 	movl %ecx,%eax	/* zero extend */
 	cmpq %rax,RIP+8(%rsp)
 	je bstep_iret
@@ -1433,7 +1403,15 @@ error_kernelspace:
 bstep_iret:
 	/* Fix truncated RIP */
 	movq %rcx,RIP+8(%rsp)
-	jmp error_swapgs
+	/* fall through */
+
+error_bad_iret:
+	SWAPGS
+	mov %rsp,%rdi
+	call fixup_bad_iret
+	mov %rax,%rsp
+	decl %ebx	/* Return to usergs */
+	jmp error_sti
 	CFI_ENDPROC
 END(error_entry)
 

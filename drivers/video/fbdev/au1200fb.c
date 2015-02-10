@@ -1254,7 +1254,6 @@ static void set_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
 			pdata->brightness = 30;
 		}
 		divider = (lcd->pwmdiv & 0x3FFFF) + 1;
-		hi1 = (lcd->pwmhi >> 16) + 1;
 		hi1 = (((pdata->brightness & 0xFF)+1) * divider >> 8);
 		lcd->pwmhi &= 0xFFFF;
 		lcd->pwmhi |= (hi1 << 16);
@@ -1842,7 +1841,6 @@ static const struct dev_pm_ops au1200fb_pmops = {
 static struct platform_driver au1200fb_driver = {
 	.driver = {
 		.name	= "au1200-lcd",
-		.owner	= THIS_MODULE,
 		.pm	= AU1200FB_PMOPS,
 	},
 	.probe		= au1200fb_drv_probe,

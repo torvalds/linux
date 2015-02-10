@@ -1043,8 +1043,8 @@ const char *sata_spd_string(unsigned int spd)
  *	None.
  *
  *	RETURNS:
- *	Device type, %ATA_DEV_ATA, %ATA_DEV_ATAPI, %ATA_DEV_PMP or
- *	%ATA_DEV_UNKNOWN the event of failure.
+ *	Device type, %ATA_DEV_ATA, %ATA_DEV_ATAPI, %ATA_DEV_PMP,
+ *	%ATA_DEV_ZAC, or %ATA_DEV_UNKNOWN the event of failure.
  */
 unsigned int ata_dev_classify(const struct ata_taskfile *tf)
 {
@@ -1087,6 +1087,11 @@ unsigned int ata_dev_classify(const struct ata_taskfile *tf)
 	if ((tf->lbam == 0x3c) && (tf->lbah == 0xc3)) {
 		DPRINTK("found SEMB device by sig (could be ATA device)\n");
 		return ATA_DEV_SEMB;
+	}
+
+	if ((tf->lbam == 0xcd) && (tf->lbah == 0xab)) {
+		DPRINTK("found ZAC device by sig\n");
+		return ATA_DEV_ZAC;
 	}
 
 	DPRINTK("unknown device\n");
@@ -1329,7 +1334,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 	int rc;
 
 	/* do we need to do it? */
-	if (dev->class != ATA_DEV_ATA ||
+	if ((dev->class != ATA_DEV_ATA && dev->class != ATA_DEV_ZAC) ||
 	    !ata_id_has_lba(dev->id) || !ata_id_hpa_enabled(dev->id) ||
 	    (dev->horkage & ATA_HORKAGE_BROKEN_HPA))
 		return 0;
@@ -1889,6 +1894,7 @@ retry:
 	case ATA_DEV_SEMB:
 		class = ATA_DEV_ATA;	/* some hard drives report SEMB sig */
 	case ATA_DEV_ATA:
+	case ATA_DEV_ZAC:
 		tf.command = ATA_CMD_ID_ATA;
 		break;
 	case ATA_DEV_ATAPI:
@@ -1980,7 +1986,7 @@ retry:
 	rc = -EINVAL;
 	reason = "device reports invalid type";
 
-	if (class == ATA_DEV_ATA) {
+	if (class == ATA_DEV_ATA || class == ATA_DEV_ZAC) {
 		if (!ata_id_is_ata(id) && !ata_id_is_cfa(id))
 			goto err_out;
 		if (ap->host->flags & ATA_HOST_IGNORE_ATA &&
@@ -2015,7 +2021,8 @@ retry:
 			goto retry;
 	}
 
-	if ((flags & ATA_READID_POSTRESET) && class == ATA_DEV_ATA) {
+	if ((flags & ATA_READID_POSTRESET) &&
+	    (class == ATA_DEV_ATA || class == ATA_DEV_ZAC)) {
 		/*
 		 * The exact sequence expected by certain pre-ATA4 drives is:
 		 * SRST RESET
@@ -2280,7 +2287,7 @@ int ata_dev_configure(struct ata_device *dev)
 			sizeof(modelbuf));
 
 	/* ATA-specific feature tests */
-	if (dev->class == ATA_DEV_ATA) {
+	if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
 		if (ata_id_is_cfa(id)) {
 			/* CPRM may make this media unusable */
 			if (id[ATA_ID_CFA_KEY_MGMT] & 1)
@@ -4033,6 +4040,7 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 	if (ata_class_enabled(new_class) &&
 	    new_class != ATA_DEV_ATA &&
 	    new_class != ATA_DEV_ATAPI &&
+	    new_class != ATA_DEV_ZAC &&
 	    new_class != ATA_DEV_SEMB) {
 		ata_dev_info(dev, "class mismatch %u != %u\n",
 			     dev->class, new_class);
@@ -4261,10 +4269,10 @@ static unsigned long ata_dev_blacklisted(const struct ata_device *dev)
 	ata_id_c_string(dev->id, model_rev, ATA_ID_FW_REV, sizeof(model_rev));
 
 	while (ad->model_num) {
-		if (glob_match(model_num, ad->model_num)) {
+		if (glob_match(ad->model_num, model_num)) {
 			if (ad->model_rev == NULL)
 				return ad->horkage;
-			if (glob_match(model_rev, ad->model_rev))
+			if (glob_match(ad->model_rev, model_rev))
 				return ad->horkage;
 		}
 		ad++;
@@ -6227,7 +6235,7 @@ int ata_host_activate(struct ata_host *host, int irq,
 	}
 
 	rc = devm_request_irq(host->dev, irq, irq_handler, irq_flags,
-			      dev_driver_string(host->dev), host);
+			      dev_name(host->dev), host);
 	if (rc)
 		return rc;
 
@@ -6772,32 +6780,28 @@ const struct ata_port_info ata_dummy_port_info = {
 /*
  * Utility print functions
  */
-int ata_port_printk(const struct ata_port *ap, const char *level,
-		    const char *fmt, ...)
+void ata_port_printk(const struct ata_port *ap, const char *level,
+		     const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	int r;
 
 	va_start(args, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	r = printk("%sata%u: %pV", level, ap->print_id, &vaf);
+	printk("%sata%u: %pV", level, ap->print_id, &vaf);
 
 	va_end(args);
-
-	return r;
 }
 EXPORT_SYMBOL(ata_port_printk);
 
-int ata_link_printk(const struct ata_link *link, const char *level,
-		    const char *fmt, ...)
+void ata_link_printk(const struct ata_link *link, const char *level,
+		     const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	int r;
 
 	va_start(args, fmt);
 
@@ -6805,37 +6809,32 @@ int ata_link_printk(const struct ata_link *link, const char *level,
 	vaf.va = &args;
 
 	if (sata_pmp_attached(link->ap) || link->ap->slave_link)
-		r = printk("%sata%u.%02u: %pV",
-			   level, link->ap->print_id, link->pmp, &vaf);
+		printk("%sata%u.%02u: %pV",
+		       level, link->ap->print_id, link->pmp, &vaf);
 	else
-		r = printk("%sata%u: %pV",
-			   level, link->ap->print_id, &vaf);
+		printk("%sata%u: %pV",
+		       level, link->ap->print_id, &vaf);
 
 	va_end(args);
-
-	return r;
 }
 EXPORT_SYMBOL(ata_link_printk);
 
-int ata_dev_printk(const struct ata_device *dev, const char *level,
+void ata_dev_printk(const struct ata_device *dev, const char *level,
 		    const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	int r;
 
 	va_start(args, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	r = printk("%sata%u.%02u: %pV",
-		   level, dev->link->ap->print_id, dev->link->pmp + dev->devno,
-		   &vaf);
+	printk("%sata%u.%02u: %pV",
+	       level, dev->link->ap->print_id, dev->link->pmp + dev->devno,
+	       &vaf);
 
 	va_end(args);
-
-	return r;
 }
 EXPORT_SYMBOL(ata_dev_printk);
 

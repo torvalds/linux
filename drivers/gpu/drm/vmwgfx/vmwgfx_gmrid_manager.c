@@ -46,8 +46,7 @@ struct vmwgfx_gmrid_man {
 
 static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
 				  struct ttm_buffer_object *bo,
-				  struct ttm_placement *placement,
-				  uint32_t flags,
+				  const struct ttm_place *place,
 				  struct ttm_mem_reg *mem)
 {
 	struct vmwgfx_gmrid_man *gman =

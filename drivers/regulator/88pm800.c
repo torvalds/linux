@@ -362,7 +362,6 @@ static int pm800_regulator_remove(struct platform_device *pdev)
 static struct platform_driver pm800_regulator_driver = {
 	.driver		= {
 		.name	= "88pm80x-regulator",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pm800_regulator_probe,
 	.remove		= pm800_regulator_remove,

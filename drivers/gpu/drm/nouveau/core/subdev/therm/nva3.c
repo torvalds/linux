@@ -51,6 +51,8 @@ nva3_therm_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
+	nv84_sensor_setup(&priv->base.base);
+
 	/* enable fan tach, count revolutions per-second */
 	nv_mask(priv, 0x00e720, 0x00000003, 0x00000002);
 	if (tach->func != DCB_GPIO_UNUSED) {

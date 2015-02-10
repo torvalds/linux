@@ -52,6 +52,7 @@ int  _nouveau_volt_init(struct nouveau_object *);
 #define _nouveau_volt_fini _nouveau_subdev_fini
 
 extern struct nouveau_oclass nv40_volt_oclass;
+extern struct nouveau_oclass gk20a_volt_oclass;
 
 int nouveau_voltgpio_init(struct nouveau_volt *);
 int nouveau_voltgpio_get(struct nouveau_volt *);

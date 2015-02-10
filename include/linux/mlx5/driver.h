@@ -44,6 +44,7 @@
 
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
+#include <linux/mlx5/mlx5_ifc.h>
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -99,81 +100,6 @@ enum {
 };
 
 enum {
-	MLX5_CMD_OP_QUERY_HCA_CAP		= 0x100,
-	MLX5_CMD_OP_QUERY_ADAPTER		= 0x101,
-	MLX5_CMD_OP_INIT_HCA			= 0x102,
-	MLX5_CMD_OP_TEARDOWN_HCA		= 0x103,
-	MLX5_CMD_OP_ENABLE_HCA			= 0x104,
-	MLX5_CMD_OP_DISABLE_HCA			= 0x105,
-	MLX5_CMD_OP_QUERY_PAGES			= 0x107,
-	MLX5_CMD_OP_MANAGE_PAGES		= 0x108,
-	MLX5_CMD_OP_SET_HCA_CAP			= 0x109,
-
-	MLX5_CMD_OP_CREATE_MKEY			= 0x200,
-	MLX5_CMD_OP_QUERY_MKEY			= 0x201,
-	MLX5_CMD_OP_DESTROY_MKEY		= 0x202,
-	MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS	= 0x203,
-
-	MLX5_CMD_OP_CREATE_EQ			= 0x301,
-	MLX5_CMD_OP_DESTROY_EQ			= 0x302,
-	MLX5_CMD_OP_QUERY_EQ			= 0x303,
-
-	MLX5_CMD_OP_CREATE_CQ			= 0x400,
-	MLX5_CMD_OP_DESTROY_CQ			= 0x401,
-	MLX5_CMD_OP_QUERY_CQ			= 0x402,
-	MLX5_CMD_OP_MODIFY_CQ			= 0x403,
-
-	MLX5_CMD_OP_CREATE_QP			= 0x500,
-	MLX5_CMD_OP_DESTROY_QP			= 0x501,
-	MLX5_CMD_OP_RST2INIT_QP			= 0x502,
-	MLX5_CMD_OP_INIT2RTR_QP			= 0x503,
-	MLX5_CMD_OP_RTR2RTS_QP			= 0x504,
-	MLX5_CMD_OP_RTS2RTS_QP			= 0x505,
-	MLX5_CMD_OP_SQERR2RTS_QP		= 0x506,
-	MLX5_CMD_OP_2ERR_QP			= 0x507,
-	MLX5_CMD_OP_RTS2SQD_QP			= 0x508,
-	MLX5_CMD_OP_SQD2RTS_QP			= 0x509,
-	MLX5_CMD_OP_2RST_QP			= 0x50a,
-	MLX5_CMD_OP_QUERY_QP			= 0x50b,
-	MLX5_CMD_OP_CONF_SQP			= 0x50c,
-	MLX5_CMD_OP_MAD_IFC			= 0x50d,
-	MLX5_CMD_OP_INIT2INIT_QP		= 0x50e,
-	MLX5_CMD_OP_SUSPEND_QP			= 0x50f,
-	MLX5_CMD_OP_UNSUSPEND_QP		= 0x510,
-	MLX5_CMD_OP_SQD2SQD_QP			= 0x511,
-	MLX5_CMD_OP_ALLOC_QP_COUNTER_SET	= 0x512,
-	MLX5_CMD_OP_DEALLOC_QP_COUNTER_SET	= 0x513,
-	MLX5_CMD_OP_QUERY_QP_COUNTER_SET	= 0x514,
-
-	MLX5_CMD_OP_CREATE_PSV			= 0x600,
-	MLX5_CMD_OP_DESTROY_PSV			= 0x601,
-	MLX5_CMD_OP_QUERY_PSV			= 0x602,
-	MLX5_CMD_OP_QUERY_SIG_RULE_TABLE	= 0x603,
-	MLX5_CMD_OP_QUERY_BLOCK_SIZE_TABLE	= 0x604,
-
-	MLX5_CMD_OP_CREATE_SRQ			= 0x700,
-	MLX5_CMD_OP_DESTROY_SRQ			= 0x701,
-	MLX5_CMD_OP_QUERY_SRQ			= 0x702,
-	MLX5_CMD_OP_ARM_RQ			= 0x703,
-	MLX5_CMD_OP_RESIZE_SRQ			= 0x704,
-
-	MLX5_CMD_OP_ALLOC_PD			= 0x800,
-	MLX5_CMD_OP_DEALLOC_PD			= 0x801,
-	MLX5_CMD_OP_ALLOC_UAR			= 0x802,
-	MLX5_CMD_OP_DEALLOC_UAR			= 0x803,
-
-	MLX5_CMD_OP_ATTACH_TO_MCG		= 0x806,
-	MLX5_CMD_OP_DETACH_FROM_MCG		= 0x807,
-
-
-	MLX5_CMD_OP_ALLOC_XRCD			= 0x80e,
-	MLX5_CMD_OP_DEALLOC_XRCD		= 0x80f,
-
-	MLX5_CMD_OP_ACCESS_REG			= 0x805,
-	MLX5_CMD_OP_MAX				= 0x810,
-};
-
-enum {
 	MLX5_REG_PCAP		 = 0x5001,
 	MLX5_REG_PMTU		 = 0x5003,
 	MLX5_REG_PTYS		 = 0x5004,
@@ -185,6 +111,13 @@ enum {
 	MLX5_REG_PMLP		 = 0, /* TBD */
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
+};
+
+enum mlx5_page_fault_resume_flags {
+	MLX5_PAGE_FAULT_RESUME_REQUESTOR = 1 << 0,
+	MLX5_PAGE_FAULT_RESUME_WRITE	 = 1 << 1,
+	MLX5_PAGE_FAULT_RESUME_RDMA	 = 1 << 2,
+	MLX5_PAGE_FAULT_RESUME_ERROR	 = 1 << 7,
 };
 
 enum dbg_rsc_type {
@@ -335,23 +268,30 @@ struct mlx5_port_caps {
 	int	pkey_table_len;
 };
 
-struct mlx5_caps {
+struct mlx5_general_caps {
 	u8	log_max_eq;
 	u8	log_max_cq;
 	u8	log_max_qp;
 	u8	log_max_mkey;
 	u8	log_max_pd;
 	u8	log_max_srq;
+	u8	log_max_strq;
+	u8	log_max_mrw_sz;
+	u8	log_max_bsf_list_size;
+	u8	log_max_klm_list_size;
 	u32	max_cqes;
 	int	max_wqes;
+	u32	max_eqes;
+	u32	max_indirection;
 	int	max_sq_desc_sz;
 	int	max_rq_desc_sz;
+	int	max_dc_sq_desc_sz;
 	u64	flags;
 	u16	stat_rate_support;
 	int	log_max_msg;
 	int	num_ports;
-	int	max_ra_res_qp;
-	int	max_ra_req_qp;
+	u8	log_max_ra_res_qp;
+	u8	log_max_ra_req_qp;
 	int	max_srq_wqes;
 	int	bf_reg_size;
 	int	bf_regs_per_page;
@@ -363,6 +303,19 @@ struct mlx5_caps {
 	u8	log_max_mcg;
 	u32	max_qp_mcg;
 	int	min_page_sz;
+	int	pd_cap;
+	u32	max_qp_counters;
+	u32	pkey_table_size;
+	u8	log_max_ra_req_dc;
+	u8	log_max_ra_res_dc;
+	u32	uar_sz;
+	u8	min_log_pg_sz;
+	u8	log_max_xrcd;
+	u16	log_uar_page_sz;
+};
+
+struct mlx5_caps {
+	struct mlx5_general_caps gen;
 };
 
 struct mlx5_cmd_mailbox {
@@ -427,6 +380,16 @@ struct mlx5_core_mr {
 	u64			size;
 	u32			key;
 	u32			pd;
+};
+
+enum mlx5_res_type {
+	MLX5_RES_QP,
+};
+
+struct mlx5_core_rsc_common {
+	enum mlx5_res_type	res;
+	atomic_t		refcount;
+	struct completion	free;
 };
 
 struct mlx5_core_srq {
@@ -511,7 +474,7 @@ struct mlx5_priv {
 	struct workqueue_struct *pg_wq;
 	struct rb_root		page_root;
 	int			fw_pages;
-	int			reg_pages;
+	atomic_t		reg_pages;
 	struct list_head	free_list;
 
 	struct mlx5_core_health health;
@@ -677,14 +640,6 @@ static inline void *mlx5_vzalloc(unsigned long size)
 	return rtn;
 }
 
-static inline void mlx5_vfree(const void *addr)
-{
-	if (addr && is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
-}
-
 static inline u32 mlx5_base_mkey(const u32 key)
 {
 	return key & 0xffffff00u;
@@ -695,6 +650,9 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_polling(struct mlx5_core_dev *dev);
 int mlx5_cmd_status_to_err(struct mlx5_outbox_hdr *hdr);
+int mlx5_cmd_status_to_err_v2(void *ptr);
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, struct mlx5_caps *caps,
+		       u16 opmod);
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size);
 int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,
@@ -751,7 +709,10 @@ int mlx5_eq_init(struct mlx5_core_dev *dev);
 void mlx5_eq_cleanup(struct mlx5_core_dev *dev);
 void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas);
 void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
-void mlx5_qp_event(struct mlx5_core_dev *dev, u32 qpn, int event_type);
+void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+void mlx5_eq_pagefault(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
+#endif
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
 void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector);
@@ -788,6 +749,9 @@ void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 			 int npsvs, u32 *sig_index);
 int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
+void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
+int mlx5_query_odp_caps(struct mlx5_core_dev *dev,
+			struct mlx5_odp_caps *odp_caps);
 
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {

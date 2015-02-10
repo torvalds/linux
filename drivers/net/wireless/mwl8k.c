@@ -5548,7 +5548,9 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return rc;
 }
 
-static void mwl8k_sw_scan_start(struct ieee80211_hw *hw)
+static void mwl8k_sw_scan_start(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				const u8 *mac_addr)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	u8 tmp;
@@ -5565,7 +5567,8 @@ static void mwl8k_sw_scan_start(struct ieee80211_hw *hw)
 	priv->sw_scan_start = true;
 }
 
-static void mwl8k_sw_scan_complete(struct ieee80211_hw *hw)
+static void mwl8k_sw_scan_complete(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	u8 tmp;

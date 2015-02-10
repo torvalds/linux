@@ -1016,7 +1016,7 @@ static bool e1000_clean_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 		 */
 		if (length < copybreak) {
 			struct sk_buff *new_skb =
-			    netdev_alloc_skb_ip_align(netdev, length);
+				napi_alloc_skb(&adapter->napi, length);
 			if (new_skb) {
 				skb_copy_to_linear_data_offset(new_skb,
 							       -NET_IP_ALIGN,
@@ -3449,15 +3449,12 @@ static void e1000e_setup_rss_hash(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 mrqc, rxcsum;
+	u32 rss_key[10];
 	int i;
-	static const u32 rsskey[10] = {
-		0xda565a6d, 0xc20e5b25, 0x3d256741, 0xb08fa343, 0xcb2bcad0,
-		0xb4307bae, 0xa32dcb77, 0x0cf23080, 0x3bb7426a, 0xfa01acbe
-	};
 
-	/* Fill out hash function seed */
+	netdev_rss_key_fill(rss_key, sizeof(rss_key));
 	for (i = 0; i < 10; i++)
-		ew32(RSSRK(i), rsskey[i]);
+		ew32(RSSRK(i), rss_key[i]);
 
 	/* Direct all traffic to queue 0 */
 	for (i = 0; i < 32; i++)
@@ -5557,12 +5554,8 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	/* The minimum packet size with TCTL.PSP set is 17 bytes so
 	 * pad skb in order to meet this minimum size requirement
 	 */
-	if (unlikely(skb->len < 17)) {
-		if (skb_pad(skb, 17 - skb->len))
-			return NETDEV_TX_OK;
-		skb->len = 17;
-		skb_set_tail_pointer(skb, 17);
-	}
+	if (skb_put_padto(skb, 17))
+		return NETDEV_TX_OK;
 
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss) {
@@ -6372,7 +6365,6 @@ static int e1000e_pm_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
 static int e1000e_pm_runtime_idle(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -6432,7 +6424,6 @@ static int e1000e_pm_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
 #endif /* CONFIG_PM */
 
 static void e1000_shutdown(struct pci_dev *pdev)

@@ -278,7 +278,7 @@ static void cp_tm1217_get_data(struct cp_tm1217_device *ts)
 
 static irqreturn_t cp_tm1217_sample_thread(int irq, void *handle)
 {
-	struct cp_tm1217_device *ts = (struct cp_tm1217_device *) handle;
+	struct cp_tm1217_device *ts = handle;
 	u8 req[2];
 	int retval;
 

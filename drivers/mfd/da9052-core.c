@@ -522,7 +522,7 @@ static const struct mfd_cell da9052_subdev_info[] = {
 	},
 };
 
-struct regmap_config da9052_regmap_config = {
+const struct regmap_config da9052_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

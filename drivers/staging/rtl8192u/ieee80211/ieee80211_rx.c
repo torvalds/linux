@@ -65,7 +65,7 @@ static inline void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 /* Called only as a tasklet (software IRQ) */
 static struct ieee80211_frag_entry *
 ieee80211_frag_cache_find(struct ieee80211_device *ieee, unsigned int seq,
-			  unsigned int frag, u8 tid,u8 *src, u8 *dst)
+			  unsigned int frag, u8 tid, u8 *src, u8 *dst)
 {
 	struct ieee80211_frag_entry *entry;
 	int i;
@@ -188,7 +188,7 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
 	  tid = 0;
 	}
 
-	entry = ieee80211_frag_cache_find(ieee, seq, -1, tid,hdr->addr2,
+	entry = ieee80211_frag_cache_find(ieee, seq, -1, tid, hdr->addr2,
 					  hdr->addr1);
 
 	if (entry == NULL) {
@@ -713,8 +713,8 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 	while(!list_empty(&pTS->RxPendingPktList)) {
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): start RREORDER indicate\n",__func__);
 		pReorderEntry = (PRX_REORDER_ENTRY)list_entry(pTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
-		if( SN_LESS(pReorderEntry->SeqNum, pTS->RxIndicateSeq) ||
-				SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
+		if (SN_LESS(pReorderEntry->SeqNum, pTS->RxIndicateSeq) ||
+		    SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
 		{
 			/* This protect buffer from overflow. */
 			if(index >= REORDER_WIN_SIZE) {
@@ -767,7 +767,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 
 static u8 parse_subframe(struct sk_buff *skb,
 			 struct ieee80211_rx_stats *rx_stats,
-			 struct ieee80211_rxb *rxb,u8 *src,u8 *dst)
+			 struct ieee80211_rxb *rxb, u8 *src, u8 *dst)
 {
 	struct ieee80211_hdr_3addr  *hdr = (struct ieee80211_hdr_3addr *)skb->data;
 	u16		fc = le16_to_cpu(hdr->frame_ctl);
@@ -800,9 +800,8 @@ static u8 parse_subframe(struct sk_buff *skb,
 	// Null packet, don't indicate it to upper layer
 	ChkLength = LLCOffset;/* + (Frame_WEP(frame)!=0 ?Adapter->MgntInfo.SecurityInfo.EncryptionHeadOverhead:0);*/
 
-	if( skb->len <= ChkLength ) {
+	if (skb->len <= ChkLength)
 		return 0;
-	}
 
 	skb_pull(skb, LLCOffset);
 
@@ -830,7 +829,7 @@ static u8 parse_subframe(struct sk_buff *skb,
 
 			if(skb->len<(ETHERNET_HEADER_SIZE + nSubframe_Length)) {
 				printk("%s: A-MSDU parse error!! pRfd->nTotalSubframe : %d\n",\
-						__func__,rxb->nr_subframes);
+						__func__, rxb->nr_subframes);
 				printk("%s: A-MSDU parse error!! Subframe Length: %d\n",__func__, nSubframe_Length);
 				printk("nRemain_Length is %d and nSubframe_Length is : %d\n",skb->len,nSubframe_Length);
 				printk("The Packet SeqNum is %d\n",SeqNum);
@@ -847,16 +846,18 @@ static u8 parse_subframe(struct sk_buff *skb,
 #else
 			/* Allocate new skb for releasing to upper layer */
 			sub_skb = dev_alloc_skb(nSubframe_Length + 12);
+			if (!sub_skb)
+				return 0;
 			skb_reserve(sub_skb, 12);
 			data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
-			memcpy(data_ptr,skb->data,nSubframe_Length);
+			memcpy(data_ptr, skb->data, nSubframe_Length);
 #endif
 			rxb->subframes[rxb->nr_subframes++] = sub_skb;
 			if(rxb->nr_subframes >= MAX_SUBFRAME_COUNT) {
 				IEEE80211_DEBUG_RX("ParseSubframe(): Too many Subframes! Packets dropped!\n");
 				break;
 			}
-			skb_pull(skb,nSubframe_Length);
+			skb_pull(skb, nSubframe_Length);
 
 			if(skb->len != 0) {
 				nPadding_Length = 4 - ((nSubframe_Length + ETHERNET_HEADER_SIZE) % 4);
@@ -868,7 +869,7 @@ static u8 parse_subframe(struct sk_buff *skb,
 					return 0;
 				}
 
-				skb_pull(skb,nPadding_Length);
+				skb_pull(skb, nPadding_Length);
 			}
 		}
 #ifdef JOHN_NOCPY
@@ -1033,10 +1034,9 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		{
 
 		//	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): pRxTS->RxLastFragNum is %d,frag is %d,pRxTS->RxLastSeqNum is %d,seq is %d\n",__func__,pRxTS->RxLastFragNum,frag,pRxTS->RxLastSeqNum,WLAN_GET_SEQ_SEQ(sc));
-			if(	(fc & (1<<11))  &&
-					(frag == pRxTS->RxLastFragNum) &&
-					(WLAN_GET_SEQ_SEQ(sc) == pRxTS->RxLastSeqNum)	)
-			{
+			if ((fc & (1<<11)) &&
+			    (frag == pRxTS->RxLastFragNum) &&
+			    (WLAN_GET_SEQ_SEQ(sc) == pRxTS->RxLastSeqNum)) {
 				goto rx_dropped;
 			}
 			else
@@ -1297,7 +1297,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 	/* to parse amsdu packets */
 	/* qos data packets & reserved bit is 1 */
-	if(parse_subframe(skb,rx_stats,rxb,src,dst) == 0) {
+	if (parse_subframe(skb, rx_stats, rxb, src, dst) == 0) {
 		/* only to free rxb, and not submit the packets to upper layer */
 		for(i =0; i < rxb->nr_subframes; i++) {
 			dev_kfree_skb(rxb->subframes[i]);
@@ -2384,11 +2384,11 @@ static inline void update_network(struct ieee80211_network *dst,
 	//added by amy for LEAP
 	dst->bWithAironetIE = src->bWithAironetIE;
 	dst->bCkipSupported = src->bCkipSupported;
-	memcpy(dst->CcxRmState,src->CcxRmState,2);
+	memcpy(dst->CcxRmState, src->CcxRmState, 2);
 	dst->bCcxRmEnable = src->bCcxRmEnable;
 	dst->MBssidMask = src->MBssidMask;
 	dst->bMBssidValid = src->bMBssidValid;
-	memcpy(dst->MBssid,src->MBssid,6);
+	memcpy(dst->MBssid, src->MBssid, 6);
 	dst->bWithCcxVerNum = src->bWithCcxVerNum;
 	dst->BssCcxVerNumber = src->BssCcxVerNumber;
 
@@ -2454,7 +2454,7 @@ static inline void ieee80211_process_probe_response(
 	//       then wireless adapter should do active scan from ch1~11 and
 	//       passive scan from ch12~14
 
-	if( !IsLegalChannel(ieee, network.channel) )
+	if (!IsLegalChannel(ieee, network.channel))
 		return;
 	if(ieee->bGlobalDomain)
 	{
@@ -2463,8 +2463,7 @@ static inline void ieee80211_process_probe_response(
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
 			{
-				if( !IsLegalChannel(ieee, network.channel) )
-				{
+				if (!IsLegalChannel(ieee, network.channel)) {
 					printk("GetScanInfo(): For Country code, filter probe response at channel(%d).\n", network.channel);
 					return;
 				}
@@ -2485,8 +2484,7 @@ static inline void ieee80211_process_probe_response(
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
 			{
-				if( !IsLegalChannel(ieee, network.channel) )
-				{
+				if (!IsLegalChannel(ieee, network.channel)) {
 					printk("GetScanInfo(): For Country code, filter beacon at channel(%d).\n",network.channel);
 					return;
 				}

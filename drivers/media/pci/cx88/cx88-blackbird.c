@@ -45,10 +45,6 @@ MODULE_AUTHOR("Jelle Foks <jelle@foks.us>, Gerd Knorr <kraxel@bytesex.org> [SuSE
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
-static unsigned int mpegbufs = 32;
-module_param(mpegbufs,int,0644);
-MODULE_PARM_DESC(mpegbufs,"number of mpeg buffers, range 2-32");
-
 static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
@@ -326,13 +322,13 @@ static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 dat
 	memory_read(dev->core, dev->mailbox - 4, &value);
 	if (value != 0x12345678) {
 		dprintk(0, "Firmware and/or mailbox pointer not initialized or corrupted\n");
-		return -1;
+		return -EIO;
 	}
 
 	memory_read(dev->core, dev->mailbox, &flag);
 	if (flag) {
 		dprintk(0, "ERROR: Mailbox appears to be in use (%x)\n", flag);
-		return -1;
+		return -EIO;
 	}
 
 	flag |= 1; /* tell 'em we're working on it */
@@ -352,14 +348,14 @@ static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 dat
 	memory_write(dev->core, dev->mailbox, flag);
 
 	/* wait for firmware to handle the API command */
-	timeout = jiffies + msecs_to_jiffies(10);
+	timeout = jiffies + msecs_to_jiffies(1000);
 	for (;;) {
 		memory_read(dev->core, dev->mailbox, &flag);
 		if (0 != (flag & 4))
 			break;
 		if (time_after(jiffies,timeout)) {
-			dprintk(0, "ERROR: API Mailbox timeout\n");
-			return -1;
+			dprintk(0, "ERROR: API Mailbox timeout %x\n", command);
+			return -EIO;
 		}
 		udelay(10);
 	}
@@ -420,7 +416,7 @@ static int blackbird_find_mailbox(struct cx8802_dev *dev)
 		}
 	}
 	dprintk(0, "Mailbox signature values not found!\n");
-	return -1;
+	return -EIO;
 }
 
 static int blackbird_load_firmware(struct cx8802_dev *dev)
@@ -432,7 +428,7 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 	int i, retval = 0;
 	u32 value = 0;
 	u32 checksum = 0;
-	u32 *dataptr;
+	__le32 *dataptr;
 
 	retval  = register_write(dev->core, IVTV_REG_VPU, 0xFFFFFFED);
 	retval |= register_write(dev->core, IVTV_REG_HW_BLOCKS, IVTV_CMD_HW_BLOCKS_RST);
@@ -449,29 +445,28 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 
 
 	if (retval != 0) {
-		dprintk(0, "ERROR: Hotplug firmware request failed (%s).\n",
+		pr_err("Hotplug firmware request failed (%s).\n",
 			CX2341X_FIRM_ENC_FILENAME);
-		dprintk(0, "Please fix your hotplug setup, the board will "
-			"not work without firmware loaded!\n");
-		return -1;
+		pr_err("Please fix your hotplug setup, the board will not work without firmware loaded!\n");
+		return -EIO;
 	}
 
 	if (firmware->size != BLACKBIRD_FIRM_IMAGE_SIZE) {
-		dprintk(0, "ERROR: Firmware size mismatch (have %zd, expected %d)\n",
+		pr_err("Firmware size mismatch (have %zd, expected %d)\n",
 			firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
-		return -1;
+		return -EINVAL;
 	}
 
 	if (0 != memcmp(firmware->data, magic, 8)) {
-		dprintk(0, "ERROR: Firmware magic mismatch, wrong file?\n");
+		pr_err("Firmware magic mismatch, wrong file?\n");
 		release_firmware(firmware);
-		return -1;
+		return -EINVAL;
 	}
 
 	/* transfer to the chip */
 	dprintk(1,"Loading firmware ...\n");
-	dataptr = (u32*)firmware->data;
+	dataptr = (__le32 *)firmware->data;
 	for (i = 0; i < (firmware->size >> 2); i++) {
 		value = le32_to_cpu(*dataptr);
 		checksum += ~value;
@@ -484,12 +479,11 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 		memory_read(dev->core, i, &value);
 		checksum -= ~value;
 	}
-	if (checksum) {
-		dprintk(0, "ERROR: Firmware load failed (checksum mismatch).\n");
-		release_firmware(firmware);
-		return -1;
-	}
 	release_firmware(firmware);
+	if (checksum) {
+		pr_err("Firmware load might have failed (checksum mismatch).\n");
+		return -EIO;
+	}
 	dprintk(0, "Firmware upload successful.\n");
 
 	retval |= register_write(dev->core, IVTV_REG_HW_BLOCKS, IVTV_CMD_HW_BLOCKS_RST);
@@ -521,12 +515,14 @@ DB* DVD | MPEG2 | 720x576PAL | CBR     | 600 :Good    | 6000 Kbps  | 25fps   | M
 
 static void blackbird_codec_settings(struct cx8802_dev *dev)
 {
+	struct cx88_core *core = dev->core;
+
 	/* assign frame size */
 	blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_SIZE, 2, 0,
-				dev->height, dev->width);
+				core->height, core->width);
 
-	dev->cxhdl.width = dev->width;
-	dev->cxhdl.height = dev->height;
+	dev->cxhdl.width = core->width;
+	dev->cxhdl.height = core->height;
 	cx2341x_handler_set_50hz(&dev->cxhdl, dev->core->tvnorm & V4L2_STD_625_50);
 	cx2341x_handler_setup(&dev->cxhdl);
 }
@@ -540,9 +536,6 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	dprintk(1,"Initialize codec\n");
 	retval = blackbird_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 	if (retval < 0) {
-
-		dev->mpeg_active = 0;
-
 		/* ping was not successful, reset and upload firmware */
 		cx_write(MO_SRST_IO, 0); /* SYS_RSTO=0 */
 		cx_write(MO_SRST_IO, 1); /* SYS_RSTO=1 */
@@ -589,9 +582,8 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	return 0;
 }
 
-static int blackbird_start_codec(struct file *file, void *priv)
+static int blackbird_start_codec(struct cx8802_dev *dev)
 {
-	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
 	struct cx88_core *core = dev->core;
 	/* start capturing to the host interface */
 	u32 reg;
@@ -627,7 +619,6 @@ static int blackbird_start_codec(struct file *file, void *priv)
 			BLACKBIRD_RAW_BITS_NONE
 		);
 
-	dev->mpeg_active = 1;
 	return 0;
 }
 
@@ -641,51 +632,137 @@ static int blackbird_stop_codec(struct cx8802_dev *dev)
 
 	cx2341x_handler_set_busy(&dev->cxhdl, 0);
 
-	dev->mpeg_active = 0;
 	return 0;
 }
 
 /* ------------------------------------------------------------------ */
 
-static int bb_buf_setup(struct videobuf_queue *q,
-			unsigned int *count, unsigned int *size)
+static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+			   unsigned int *num_buffers, unsigned int *num_planes,
+			   unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct cx8802_fh *fh = q->priv_data;
+	struct cx8802_dev *dev = q->drv_priv;
 
-	fh->dev->ts_packet_size  = 188 * 4; /* was: 512 */
-	fh->dev->ts_packet_count = mpegbufs; /* was: 100 */
-
-	*size = fh->dev->ts_packet_size * fh->dev->ts_packet_count;
-	*count = fh->dev->ts_packet_count;
+	*num_planes = 1;
+	dev->ts_packet_size  = 188 * 4;
+	dev->ts_packet_count  = 32;
+	sizes[0] = dev->ts_packet_size * dev->ts_packet_count;
+	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
-static int
-bb_buf_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
-	       enum v4l2_field field)
+static int buffer_prepare(struct vb2_buffer *vb)
 {
-	struct cx8802_fh *fh = q->priv_data;
-	return cx8802_buf_prepare(q, fh->dev, (struct cx88_buffer*)vb, field);
+	struct cx8802_dev *dev = vb->vb2_queue->drv_priv;
+	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
+
+	return cx8802_buf_prepare(vb->vb2_queue, dev, buf);
 }
 
-static void
-bb_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
+static void buffer_finish(struct vb2_buffer *vb)
 {
-	struct cx8802_fh *fh = q->priv_data;
-	cx8802_buf_queue(fh->dev, (struct cx88_buffer*)vb);
+	struct cx8802_dev *dev = vb->vb2_queue->drv_priv;
+	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
+	struct cx88_riscmem *risc = &buf->risc;
+
+	if (risc->cpu)
+		pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
+	memset(risc, 0, sizeof(*risc));
 }
 
-static void
-bb_buf_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
+static void buffer_queue(struct vb2_buffer *vb)
 {
-	cx88_free_buffer(q, (struct cx88_buffer*)vb);
+	struct cx8802_dev *dev = vb->vb2_queue->drv_priv;
+	struct cx88_buffer    *buf = container_of(vb, struct cx88_buffer, vb);
+
+	cx8802_buf_queue(dev, buf);
 }
 
-static struct videobuf_queue_ops blackbird_qops = {
-	.buf_setup    = bb_buf_setup,
-	.buf_prepare  = bb_buf_prepare,
-	.buf_queue    = bb_buf_queue,
-	.buf_release  = bb_buf_release,
+static int start_streaming(struct vb2_queue *q, unsigned int count)
+{
+	struct cx8802_dev *dev = q->drv_priv;
+	struct cx88_dmaqueue *dmaq = &dev->mpegq;
+	struct cx8802_driver *drv;
+	struct cx88_buffer *buf;
+	unsigned long flags;
+	int err;
+
+	/* Make sure we can acquire the hardware */
+	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
+	if (!drv) {
+		dprintk(1, "%s: blackbird driver is not loaded\n", __func__);
+		err = -ENODEV;
+		goto fail;
+	}
+
+	err = drv->request_acquire(drv);
+	if (err != 0) {
+		dprintk(1, "%s: Unable to acquire hardware, %d\n", __func__, err);
+		goto fail;
+	}
+
+	if (blackbird_initialize_codec(dev) < 0) {
+		drv->request_release(drv);
+		err = -EINVAL;
+		goto fail;
+	}
+
+	err = blackbird_start_codec(dev);
+	if (err == 0) {
+		buf = list_entry(dmaq->active.next, struct cx88_buffer, list);
+		cx8802_start_dma(dev, dmaq, buf);
+		return 0;
+	}
+
+fail:
+	spin_lock_irqsave(&dev->slock, flags);
+	while (!list_empty(&dmaq->active)) {
+		struct cx88_buffer *buf = list_entry(dmaq->active.next,
+			struct cx88_buffer, list);
+
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+	}
+	spin_unlock_irqrestore(&dev->slock, flags);
+	return err;
+}
+
+static void stop_streaming(struct vb2_queue *q)
+{
+	struct cx8802_dev *dev = q->drv_priv;
+	struct cx88_dmaqueue *dmaq = &dev->mpegq;
+	struct cx8802_driver *drv = NULL;
+	unsigned long flags;
+
+	cx8802_cancel_buffers(dev);
+	blackbird_stop_codec(dev);
+
+	/* Make sure we release the hardware */
+	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
+	WARN_ON(!drv);
+	if (drv)
+		drv->request_release(drv);
+
+	spin_lock_irqsave(&dev->slock, flags);
+	while (!list_empty(&dmaq->active)) {
+		struct cx88_buffer *buf = list_entry(dmaq->active.next,
+			struct cx88_buffer, list);
+
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+	}
+	spin_unlock_irqrestore(&dev->slock, flags);
+}
+
+static struct vb2_ops blackbird_qops = {
+	.queue_setup    = queue_setup,
+	.buf_prepare  = buffer_prepare,
+	.buf_finish = buffer_finish,
+	.buf_queue    = buffer_queue,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
+	.start_streaming = start_streaming,
+	.stop_streaming = stop_streaming,
 };
 
 /* ------------------------------------------------------------------ */
@@ -693,8 +770,8 @@ static struct videobuf_queue_ops blackbird_qops = {
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
-	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
-	struct cx88_core  *core = dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 
 	strcpy(cap->driver, "cx88_blackbird");
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
@@ -714,131 +791,111 @@ static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
-	struct cx8802_fh  *fh   = priv;
-	struct cx8802_dev *dev  = fh->dev;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    = 188 * 4 * mpegbufs; /* 188 * 4 * 1024; */
+	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.width        = dev->width;
-	f->fmt.pix.height       = dev->height;
-	f->fmt.pix.field        = fh->mpegq.field;
-	dprintk(1, "VIDIOC_G_FMT: w: %d, h: %d, f: %d\n",
-		dev->width, dev->height, fh->mpegq.field );
+	f->fmt.pix.width        = core->width;
+	f->fmt.pix.height       = core->height;
+	f->fmt.pix.field        = core->field;
 	return 0;
 }
 
-static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
-	struct cx8802_fh  *fh   = priv;
-	struct cx8802_dev *dev  = fh->dev;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
+	unsigned maxw, maxh;
+	enum v4l2_field field;
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    = 188 * 4 * mpegbufs; /* 188 * 4 * 1024; */
+	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
-	dprintk(1, "VIDIOC_TRY_FMT: w: %d, h: %d, f: %d\n",
-		dev->width, dev->height, fh->mpegq.field );
+
+	maxw = norm_maxw(core->tvnorm);
+	maxh = norm_maxh(core->tvnorm);
+
+	field = f->fmt.pix.field;
+
+	switch (field) {
+	case V4L2_FIELD_TOP:
+	case V4L2_FIELD_BOTTOM:
+	case V4L2_FIELD_INTERLACED:
+	case V4L2_FIELD_SEQ_BT:
+	case V4L2_FIELD_SEQ_TB:
+		break;
+	default:
+		field = (f->fmt.pix.height > maxh / 2)
+			? V4L2_FIELD_INTERLACED
+			: V4L2_FIELD_BOTTOM;
+		break;
+	}
+	if (V4L2_FIELD_HAS_T_OR_B(field))
+		maxh /= 2;
+
+	v4l_bound_align_image(&f->fmt.pix.width, 48, maxw, 2,
+			      &f->fmt.pix.height, 32, maxh, 0, 0);
+	f->fmt.pix.field = field;
 	return 0;
 }
 
-static int vidioc_s_fmt_vid_cap (struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
-	struct cx8802_fh  *fh   = priv;
-	struct cx8802_dev *dev  = fh->dev;
+	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core  *core = dev->core;
 
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    = 188 * 4 * mpegbufs; /* 188 * 4 * 1024; */
-	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
-	dev->width              = f->fmt.pix.width;
-	dev->height             = f->fmt.pix.height;
-	fh->mpegq.field         = f->fmt.pix.field;
+	if (vb2_is_busy(&dev->vb2_mpegq))
+		return -EBUSY;
+	if (core->v4ldev && (vb2_is_busy(&core->v4ldev->vb2_vidq) ||
+			     vb2_is_busy(&core->v4ldev->vb2_vbiq)))
+		return -EBUSY;
+	vidioc_try_fmt_vid_cap(file, priv, f);
+	core->width = f->fmt.pix.width;
+	core->height = f->fmt.pix.height;
+	core->field = f->fmt.pix.field;
 	cx88_set_scale(core, f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.field);
 	blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_SIZE, 2, 0,
 				f->fmt.pix.height, f->fmt.pix.width);
-	dprintk(1, "VIDIOC_S_FMT: w: %d, h: %d, f: %d\n",
-		f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.field );
 	return 0;
-}
-
-static int vidioc_reqbufs (struct file *file, void *priv, struct v4l2_requestbuffers *p)
-{
-	struct cx8802_fh  *fh   = priv;
-	return (videobuf_reqbufs(&fh->mpegq, p));
-}
-
-static int vidioc_querybuf (struct file *file, void *priv, struct v4l2_buffer *p)
-{
-	struct cx8802_fh  *fh   = priv;
-	return (videobuf_querybuf(&fh->mpegq, p));
-}
-
-static int vidioc_qbuf (struct file *file, void *priv, struct v4l2_buffer *p)
-{
-	struct cx8802_fh  *fh   = priv;
-	return (videobuf_qbuf(&fh->mpegq, p));
-}
-
-static int vidioc_dqbuf (struct file *file, void *priv, struct v4l2_buffer *p)
-{
-	struct cx8802_fh  *fh   = priv;
-	return (videobuf_dqbuf(&fh->mpegq, p,
-				file->f_flags & O_NONBLOCK));
-}
-
-static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
-{
-	struct cx8802_fh  *fh   = priv;
-	struct cx8802_dev *dev  = fh->dev;
-
-	if (!dev->mpeg_active)
-		blackbird_start_codec(file, fh);
-	return videobuf_streamon(&fh->mpegq);
-}
-
-static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
-{
-	struct cx8802_fh  *fh   = priv;
-	struct cx8802_dev *dev  = fh->dev;
-
-	if (dev->mpeg_active)
-		blackbird_stop_codec(dev);
-	return videobuf_streamoff(&fh->mpegq);
 }
 
 static int vidioc_s_frequency (struct file *file, void *priv,
 				const struct v4l2_frequency *f)
 {
-	struct cx8802_fh  *fh   = priv;
-	struct cx8802_dev *dev  = fh->dev;
-	struct cx88_core  *core = dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
+	bool streaming;
 
 	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
-	if (dev->mpeg_active)
+	streaming = vb2_start_streaming_called(&dev->vb2_mpegq);
+	if (streaming)
 		blackbird_stop_codec(dev);
 
 	cx88_set_freq (core,f);
 	blackbird_initialize_codec(dev);
-	cx88_set_scale(dev->core, dev->width, dev->height,
-			fh->mpegq.field);
+	cx88_set_scale(core, core->width, core->height,
+			core->field);
+	if (streaming)
+		blackbird_start_codec(dev);
 	return 0;
 }
 
 static int vidioc_log_status (struct file *file, void *priv)
 {
-	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
-	struct cx88_core  *core = dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 	char name[32 + 2];
 
 	snprintf(name, sizeof(name), "%s/2", core->name);
@@ -850,15 +907,16 @@ static int vidioc_log_status (struct file *file, void *priv)
 static int vidioc_enum_input (struct file *file, void *priv,
 				struct v4l2_input *i)
 {
-	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 	return cx88_enum_input (core,i);
 }
 
 static int vidioc_g_frequency (struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct cx8802_fh  *fh   = priv;
-	struct cx88_core  *core = fh->dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 
 	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
@@ -873,7 +931,8 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 
 static int vidioc_g_input (struct file *file, void *priv, unsigned int *i)
 {
-	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 
 	*i = core->input;
 	return 0;
@@ -881,24 +940,24 @@ static int vidioc_g_input (struct file *file, void *priv, unsigned int *i)
 
 static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
 {
-	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 
 	if (i >= 4)
 		return -EINVAL;
 	if (0 == INPUT(i).type)
 		return -EINVAL;
 
-	mutex_lock(&core->lock);
 	cx88_newstation(core);
 	cx88_video_mux(core,i);
-	mutex_unlock(&core->lock);
 	return 0;
 }
 
 static int vidioc_g_tuner (struct file *file, void *priv,
 				struct v4l2_tuner *t)
 {
-	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 	u32 reg;
 
 	if (unlikely(UNSET == core->board.tuner_type))
@@ -920,7 +979,8 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 static int vidioc_s_tuner (struct file *file, void *priv,
 				const struct v4l2_tuner *t)
 {
-	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 
 	if (UNSET == core->board.tuner_type)
 		return -EINVAL;
@@ -933,7 +993,8 @@ static int vidioc_s_tuner (struct file *file, void *priv,
 
 static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorm)
 {
-	struct cx88_core *core = ((struct cx8802_fh *)priv)->dev->core;
+	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 
 	*tvnorm = core->tvnorm;
 	return 0;
@@ -941,155 +1002,20 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorm)
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
-	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
-
-	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core, id);
-	mutex_unlock(&core->lock);
-	return 0;
-}
-
-/* FIXME: cx88_ioctl_hook not implemented */
-
-static int mpeg_open(struct file *file)
-{
-	struct video_device *vdev = video_devdata(file);
 	struct cx8802_dev *dev = video_drvdata(file);
-	struct cx8802_fh *fh;
-	struct cx8802_driver *drv = NULL;
-	int err;
+	struct cx88_core *core = dev->core;
 
-	dprintk( 1, "%s\n", __func__);
-
-	mutex_lock(&dev->core->lock);
-
-	/* Make sure we can acquire the hardware */
-	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
-	if (!drv) {
-		dprintk(1, "%s: blackbird driver is not loaded\n", __func__);
-		mutex_unlock(&dev->core->lock);
-		return -ENODEV;
-	}
-
-	err = drv->request_acquire(drv);
-	if (err != 0) {
-		dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
-		mutex_unlock(&dev->core->lock);
-		return err;
-	}
-
-	if (!dev->core->mpeg_users && blackbird_initialize_codec(dev) < 0) {
-		drv->request_release(drv);
-		mutex_unlock(&dev->core->lock);
-		return -EINVAL;
-	}
-	dprintk(1, "open dev=%s\n", video_device_node_name(vdev));
-
-	/* allocate + initialize per filehandle data */
-	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
-	if (NULL == fh) {
-		drv->request_release(drv);
-		mutex_unlock(&dev->core->lock);
-		return -ENOMEM;
-	}
-	v4l2_fh_init(&fh->fh, vdev);
-	file->private_data = fh;
-	fh->dev      = dev;
-
-	videobuf_queue_sg_init(&fh->mpegq, &blackbird_qops,
-			    &dev->pci->dev, &dev->slock,
-			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			    V4L2_FIELD_INTERLACED,
-			    sizeof(struct cx88_buffer),
-			    fh, NULL);
-
-	/* FIXME: locking against other video device */
-	cx88_set_scale(dev->core, dev->width, dev->height,
-			fh->mpegq.field);
-
-	dev->core->mpeg_users++;
-	mutex_unlock(&dev->core->lock);
-	v4l2_fh_add(&fh->fh);
-	return 0;
-}
-
-static int mpeg_release(struct file *file)
-{
-	struct cx8802_fh  *fh  = file->private_data;
-	struct cx8802_dev *dev = fh->dev;
-	struct cx8802_driver *drv = NULL;
-
-	mutex_lock(&dev->core->lock);
-
-	if (dev->mpeg_active && dev->core->mpeg_users == 1)
-		blackbird_stop_codec(dev);
-
-	cx8802_cancel_buffers(fh->dev);
-	/* stop mpeg capture */
-	videobuf_stop(&fh->mpegq);
-
-	videobuf_mmap_free(&fh->mpegq);
-
-	v4l2_fh_del(&fh->fh);
-	v4l2_fh_exit(&fh->fh);
-	file->private_data = NULL;
-	kfree(fh);
-
-	/* Make sure we release the hardware */
-	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
-	WARN_ON(!drv);
-	if (drv)
-		drv->request_release(drv);
-
-	dev->core->mpeg_users--;
-
-	mutex_unlock(&dev->core->lock);
-
-	return 0;
-}
-
-static ssize_t
-mpeg_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
-{
-	struct cx8802_fh *fh = file->private_data;
-	struct cx8802_dev *dev = fh->dev;
-
-	if (!dev->mpeg_active)
-		blackbird_start_codec(file, fh);
-
-	return videobuf_read_stream(&fh->mpegq, data, count, ppos, 0,
-				    file->f_flags & O_NONBLOCK);
-}
-
-static unsigned int
-mpeg_poll(struct file *file, struct poll_table_struct *wait)
-{
-	unsigned long req_events = poll_requested_events(wait);
-	struct cx8802_fh *fh = file->private_data;
-	struct cx8802_dev *dev = fh->dev;
-
-	if (!dev->mpeg_active && (req_events & (POLLIN | POLLRDNORM)))
-		blackbird_start_codec(file, fh);
-
-	return v4l2_ctrl_poll(file, wait) | videobuf_poll_stream(file, &fh->mpegq, wait);
-}
-
-static int
-mpeg_mmap(struct file *file, struct vm_area_struct * vma)
-{
-	struct cx8802_fh *fh = file->private_data;
-
-	return videobuf_mmap_mapper(&fh->mpegq, vma);
+	return cx88_set_tvnorm(core, id);
 }
 
 static const struct v4l2_file_operations mpeg_fops =
 {
 	.owner	       = THIS_MODULE,
-	.open	       = mpeg_open,
-	.release       = mpeg_release,
-	.read	       = mpeg_read,
-	.poll          = mpeg_poll,
-	.mmap	       = mpeg_mmap,
+	.open	       = v4l2_fh_open,
+	.release       = vb2_fop_release,
+	.read	       = vb2_fop_read,
+	.poll          = vb2_fop_poll,
+	.mmap	       = vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 };
 
@@ -1099,12 +1025,12 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
-	.vidioc_reqbufs       = vidioc_reqbufs,
-	.vidioc_querybuf      = vidioc_querybuf,
-	.vidioc_qbuf          = vidioc_qbuf,
-	.vidioc_dqbuf         = vidioc_dqbuf,
-	.vidioc_streamon      = vidioc_streamon,
-	.vidioc_streamoff     = vidioc_streamoff,
+	.vidioc_reqbufs       = vb2_ioctl_reqbufs,
+	.vidioc_querybuf      = vb2_ioctl_querybuf,
+	.vidioc_qbuf          = vb2_ioctl_qbuf,
+	.vidioc_dqbuf         = vb2_ioctl_dqbuf,
+	.vidioc_streamon      = vb2_ioctl_streamon,
+	.vidioc_streamoff     = vb2_ioctl_streamoff,
 	.vidioc_s_frequency   = vidioc_s_frequency,
 	.vidioc_log_status    = vidioc_log_status,
 	.vidioc_enum_input    = vidioc_enum_input,
@@ -1189,11 +1115,12 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 {
 	int err;
 
-	dev->mpeg_dev = cx88_vdev_init(dev->core,dev->pci,
-				       &cx8802_mpeg_template,"mpeg");
+	dev->mpeg_dev = cx88_vdev_init(dev->core, dev->pci,
+				       &cx8802_mpeg_template, "mpeg");
 	dev->mpeg_dev->ctrl_handler = &dev->cxhdl.hdl;
 	video_set_drvdata(dev->mpeg_dev, dev);
-	err = video_register_device(dev->mpeg_dev,VFL_TYPE_GRABBER, -1);
+	dev->mpeg_dev->queue = &dev->vb2_mpegq;
+	err = video_register_device(dev->mpeg_dev, VFL_TYPE_GRABBER, -1);
 	if (err < 0) {
 		printk(KERN_INFO "%s/2: can't register mpeg device\n",
 		       dev->core->name);
@@ -1210,6 +1137,7 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
 	struct cx8802_dev *dev = core->dvbdev;
+	struct vb2_queue *q;
 	int err;
 
 	dprintk( 1, "%s\n", __func__);
@@ -1223,15 +1151,9 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	if (!(core->board.mpeg & CX88_MPEG_BLACKBIRD))
 		goto fail_core;
 
-	dev->width = 720;
-	if (core->tvnorm & V4L2_STD_525_60) {
-		dev->height = 480;
-	} else {
-		dev->height = 576;
-	}
 	dev->cxhdl.port = CX2341X_PORT_STREAMING;
-	dev->cxhdl.width = dev->width;
-	dev->cxhdl.height = dev->height;
+	dev->cxhdl.width = core->width;
+	dev->cxhdl.height = core->height;
 	dev->cxhdl.func = blackbird_mbox_func;
 	dev->cxhdl.priv = dev;
 	err = cx2341x_handler_init(&dev->cxhdl, 36);
@@ -1250,13 +1172,30 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 //	init_controls(core);
 	cx88_set_tvnorm(core,core->tvnorm);
 	cx88_video_mux(core,0);
-	cx2341x_handler_set_50hz(&dev->cxhdl, dev->height == 576);
+	cx2341x_handler_set_50hz(&dev->cxhdl, core->height == 576);
 	cx2341x_handler_setup(&dev->cxhdl);
+
+	q = &dev->vb2_mpegq;
+	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF | VB2_READ;
+	q->gfp_flags = GFP_DMA32;
+	q->min_buffers_needed = 2;
+	q->drv_priv = dev;
+	q->buf_struct_size = sizeof(struct cx88_buffer);
+	q->ops = &blackbird_qops;
+	q->mem_ops = &vb2_dma_sg_memops;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->lock = &core->lock;
+
+	err = vb2_queue_init(q);
+	if (err < 0)
+		goto fail_core;
+
 	blackbird_register_video(dev);
 
 	return 0;
 
- fail_core:
+fail_core:
 	return err;
 }
 

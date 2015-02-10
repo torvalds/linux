@@ -21,10 +21,9 @@
 #include <linux/slab.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/io.h>
-
-#include <mach/at91_rtt.h>
-#include <mach/cpu.h>
-#include <mach/hardware.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
+#include <linux/clk.h>
 
 /*
  * This driver uses two configurable hardware resources that live in the
@@ -47,6 +46,22 @@
  * registers available, likewise usable for more than "RTC" support.
  */
 
+#define AT91_RTT_MR		0x00			/* Real-time Mode Register */
+#define AT91_RTT_RTPRES		(0xffff << 0)		/* Real-time Timer Prescaler Value */
+#define AT91_RTT_ALMIEN		(1 << 16)		/* Alarm Interrupt Enable */
+#define AT91_RTT_RTTINCIEN	(1 << 17)		/* Real Time Timer Increment Interrupt Enable */
+#define AT91_RTT_RTTRST		(1 << 18)		/* Real Time Timer Restart */
+
+#define AT91_RTT_AR		0x04			/* Real-time Alarm Register */
+#define AT91_RTT_ALMV		(0xffffffff)		/* Alarm Value */
+
+#define AT91_RTT_VR		0x08			/* Real-time Value Register */
+#define AT91_RTT_CRTV		(0xffffffff)		/* Current Real-time Value */
+
+#define AT91_RTT_SR		0x0c			/* Real-time Status Register */
+#define AT91_RTT_ALMS		(1 << 0)		/* Real-time Alarm Status */
+#define AT91_RTT_RTTINC		(1 << 1)		/* Real-time Timer Increment */
+
 /*
  * We store ALARM_DISABLED in ALMV to record that no alarm is set.
  * It's also the reset value for that field.
@@ -58,19 +73,30 @@ struct sam9_rtc {
 	void __iomem		*rtt;
 	struct rtc_device	*rtcdev;
 	u32			imr;
-	void __iomem		*gpbr;
+	struct regmap		*gpbr;
+	unsigned int		gpbr_offset;
 	int 			irq;
+	struct clk		*sclk;
 };
 
 #define rtt_readl(rtc, field) \
-	__raw_readl((rtc)->rtt + AT91_RTT_ ## field)
+	readl((rtc)->rtt + AT91_RTT_ ## field)
 #define rtt_writel(rtc, field, val) \
-	__raw_writel((val), (rtc)->rtt + AT91_RTT_ ## field)
+	writel((val), (rtc)->rtt + AT91_RTT_ ## field)
 
-#define gpbr_readl(rtc) \
-	__raw_readl((rtc)->gpbr)
-#define gpbr_writel(rtc, val) \
-	__raw_writel((val), (rtc)->gpbr)
+static inline unsigned int gpbr_readl(struct sam9_rtc *rtc)
+{
+	unsigned int val;
+
+	regmap_read(rtc->gpbr, rtc->gpbr_offset, &val);
+
+	return val;
+}
+
+static inline void gpbr_writel(struct sam9_rtc *rtc, unsigned int val)
+{
+	regmap_write(rtc->gpbr, rtc->gpbr_offset, val);
+}
 
 /*
  * Read current time and date in RTC
@@ -287,22 +313,22 @@ static const struct rtc_class_ops at91_rtc_ops = {
 	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
 };
 
+static struct regmap_config gpbr_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+};
+
 /*
  * Initialize and install RTC driver
  */
 static int at91_rtc_probe(struct platform_device *pdev)
 {
-	struct resource	*r, *r_gpbr;
+	struct resource	*r;
 	struct sam9_rtc	*rtc;
 	int		ret, irq;
 	u32		mr;
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	r_gpbr = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!r || !r_gpbr) {
-		dev_err(&pdev->dev, "need 2 ressources\n");
-		return -ENODEV;
-	}
+	unsigned int	sclk_rate;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -321,24 +347,66 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		device_init_wakeup(&pdev->dev, 1);
 
 	platform_set_drvdata(pdev, rtc);
-	rtc->rtt = devm_ioremap(&pdev->dev, r->start, resource_size(r));
-	if (!rtc->rtt) {
-		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	rtc->rtt = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(rtc->rtt))
+		return PTR_ERR(rtc->rtt);
+
+	if (!pdev->dev.of_node) {
+		/*
+		 * TODO: Remove this code chunk when removing non DT board
+		 * support. Remember to remove the gpbr_regmap_config
+		 * variable too.
+		 */
+		void __iomem *gpbr;
+
+		r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		gpbr = devm_ioremap_resource(&pdev->dev, r);
+		if (IS_ERR(gpbr))
+			return PTR_ERR(gpbr);
+
+		rtc->gpbr = regmap_init_mmio(NULL, gpbr,
+					     &gpbr_regmap_config);
+	} else {
+		struct of_phandle_args args;
+
+		ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+						"atmel,rtt-rtc-time-reg", 1, 0,
+						&args);
+		if (ret)
+			return ret;
+
+		rtc->gpbr = syscon_node_to_regmap(args.np);
+		rtc->gpbr_offset = args.args[0];
+	}
+
+	if (IS_ERR(rtc->gpbr)) {
+		dev_err(&pdev->dev, "failed to retrieve gpbr regmap, aborting.\n");
 		return -ENOMEM;
 	}
 
-	rtc->gpbr = devm_ioremap(&pdev->dev, r_gpbr->start,
-				resource_size(r_gpbr));
-	if (!rtc->gpbr) {
-		dev_err(&pdev->dev, "failed to map gpbr registers, aborting.\n");
-		return -ENOMEM;
+	rtc->sclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(rtc->sclk))
+		return PTR_ERR(rtc->sclk);
+
+	sclk_rate = clk_get_rate(rtc->sclk);
+	if (!sclk_rate || sclk_rate > AT91_RTT_RTPRES) {
+		dev_err(&pdev->dev, "Invalid slow clock rate\n");
+		return -EINVAL;
+	}
+
+	ret = clk_prepare_enable(rtc->sclk);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		return ret;
 	}
 
 	mr = rtt_readl(rtc, MR);
 
 	/* unless RTT is counting at 1 Hz, re-initialize it */
-	if ((mr & AT91_RTT_RTPRES) != AT91_SLOW_CLOCK) {
-		mr = AT91_RTT_RTTRST | (AT91_SLOW_CLOCK & AT91_RTT_RTPRES);
+	if ((mr & AT91_RTT_RTPRES) != sclk_rate) {
+		mr = AT91_RTT_RTTRST | (sclk_rate & AT91_RTT_RTPRES);
 		gpbr_writel(rtc, 0);
 	}
 
@@ -382,6 +450,9 @@ static int at91_rtc_remove(struct platform_device *pdev)
 
 	/* disable all interrupts */
 	rtt_writel(rtc, MR, mr & ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN));
+
+	if (!IS_ERR(rtc->sclk))
+		clk_disable_unprepare(rtc->sclk);
 
 	return 0;
 }
@@ -440,14 +511,22 @@ static int at91_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(at91_rtc_pm_ops, at91_rtc_suspend, at91_rtc_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id at91_rtc_dt_ids[] = {
+	{ .compatible = "atmel,at91sam9260-rtt" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
+#endif
+
 static struct platform_driver at91_rtc_driver = {
 	.probe		= at91_rtc_probe,
 	.remove		= at91_rtc_remove,
 	.shutdown	= at91_rtc_shutdown,
 	.driver		= {
 		.name	= "rtc-at91sam9",
-		.owner	= THIS_MODULE,
 		.pm	= &at91_rtc_pm_ops,
+		.of_match_table = of_match_ptr(at91_rtc_dt_ids),
 	},
 };
 

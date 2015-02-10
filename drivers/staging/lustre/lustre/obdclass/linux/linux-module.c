@@ -58,10 +58,10 @@
 #include <linux/poll.h>
 #include <linux/list.h>
 #include <linux/highmem.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/ioctls.h>
-#include <asm/poll.h>
-#include <asm/uaccess.h>
+#include <linux/poll.h>
+#include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/seq_file.h>
 
@@ -84,7 +84,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	int offset = 0;
 
 	err = copy_from_user(&hdr, (void *)arg, sizeof(hdr));
-	if ( err )
+	if (err)
 		return err;
 
 	if (hdr.ioc_version != OBD_IOCTL_VERSION) {
@@ -118,7 +118,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	data = (struct obd_ioctl_data *)*buf;
 
 	err = copy_from_user(*buf, (void *)arg, hdr.ioc_len);
-	if ( err ) {
+	if (err) {
 		OBD_FREE_LARGE(*buf, hdr.ioc_len);
 		return err;
 	}
@@ -166,14 +166,14 @@ int obd_ioctl_popdata(void *arg, void *data, int len)
 EXPORT_SYMBOL(obd_ioctl_popdata);
 
 /*  opening /dev/obd */
-static int obd_class_open(struct inode * inode, struct file * file)
+static int obd_class_open(struct inode *inode, struct file *file)
 {
 	try_module_get(THIS_MODULE);
 	return 0;
 }
 
 /*  closing /dev/obd */
-static int obd_class_release(struct inode * inode, struct file * file)
+static int obd_class_release(struct inode *inode, struct file *file)
 {
 	module_put(THIS_MODULE);
 	return 0;

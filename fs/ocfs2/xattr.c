@@ -1284,7 +1284,7 @@ int ocfs2_xattr_get_nolock(struct inode *inode,
 		return -EOPNOTSUPP;
 
 	if (!(oi->ip_dyn_features & OCFS2_HAS_XATTR_FL))
-		ret = -ENODATA;
+		return -ENODATA;
 
 	xis.inode_bh = xbs.inode_bh = di_bh;
 	di = (struct ocfs2_dinode *)di_bh->b_data;

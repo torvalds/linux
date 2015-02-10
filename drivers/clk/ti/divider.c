@@ -300,8 +300,8 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	return clk;
 }
 
-static struct clk_div_table
-__init *ti_clk_get_div_table(struct device_node *node)
+static struct clk_div_table *
+__init ti_clk_get_div_table(struct device_node *node)
 {
 	struct clk_div_table *table;
 	const __be32 *divspec;

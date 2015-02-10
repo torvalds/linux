@@ -47,13 +47,11 @@ static int of_flash_remove(struct platform_device *dev)
 		return 0;
 	dev_set_drvdata(&dev->dev, NULL);
 
-	if (info->cmtd != info->list[0].mtd) {
+	if (info->cmtd) {
 		mtd_device_unregister(info->cmtd);
-		mtd_concat_destroy(info->cmtd);
+		if (info->cmtd != info->list[0].mtd)
+			mtd_concat_destroy(info->cmtd);
 	}
-
-	if (info->cmtd)
-		mtd_device_unregister(info->cmtd);
 
 	for (i = 0; i < info->list_size; i++) {
 		if (info->list[i].mtd)
@@ -103,7 +101,7 @@ static struct mtd_info *obsolete_probe(struct platform_device *dev,
 		if (strcmp(of_probe, "ROM") != 0)
 			dev_warn(&dev->dev, "obsolete_probe: don't know probe "
 				 "type '%s', mapping as rom\n", of_probe);
-		return do_map_probe("mtd_rom", map);
+		return do_map_probe("map_rom", map);
 	}
 }
 
@@ -340,6 +338,10 @@ static struct of_device_id of_flash_match[] = {
 		.data           = (void *)"map_ram",
 	},
 	{
+		.compatible     = "mtd-rom",
+		.data           = (void *)"map_rom",
+	},
+	{
 		.type		= "rom",
 		.compatible	= "direct-mapped"
 	},
@@ -350,7 +352,6 @@ MODULE_DEVICE_TABLE(of, of_flash_match);
 static struct platform_driver of_flash_driver = {
 	.driver = {
 		.name = "of-flash",
-		.owner = THIS_MODULE,
 		.of_match_table = of_flash_match,
 	},
 	.probe		= of_flash_probe,

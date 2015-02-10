@@ -67,10 +67,13 @@
 #include <linux/binfmts.h>
 #include <linux/highmem.h>
 #include <linux/syscalls.h>
+#include <asm/syscall.h>
 #include <linux/capability.h>
 #include <linux/fs_struct.h>
 #include <linux/compat.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
+#include <uapi/linux/limits.h>
 
 #include "audit.h"
 
@@ -124,14 +127,6 @@ struct audit_tree_refs {
 	struct audit_tree_refs *next;
 	struct audit_chunk *c[31];
 };
-
-static inline int open_arg(int flags, int mask)
-{
-	int n = ACC_MODE(flags);
-	if (flags & (O_TRUNC | O_CREAT))
-		n |= AUDIT_PERM_WRITE;
-	return n & mask;
-}
 
 static int audit_match_perm(struct audit_context *ctx, int mask)
 {
@@ -1505,7 +1500,6 @@ void __audit_free(struct task_struct *tsk)
 
 /**
  * audit_syscall_entry - fill in an audit record at syscall entry
- * @arch: architecture type
  * @major: major syscall type (function)
  * @a1: additional syscall register 1
  * @a2: additional syscall register 2
@@ -1520,9 +1514,8 @@ void __audit_free(struct task_struct *tsk)
  * will only be written if another part of the kernel requests that it
  * be written).
  */
-void __audit_syscall_entry(int arch, int major,
-			 unsigned long a1, unsigned long a2,
-			 unsigned long a3, unsigned long a4)
+void __audit_syscall_entry(int major, unsigned long a1, unsigned long a2,
+			   unsigned long a3, unsigned long a4)
 {
 	struct task_struct *tsk = current;
 	struct audit_context *context = tsk->audit_context;
@@ -1536,7 +1529,7 @@ void __audit_syscall_entry(int arch, int major,
 	if (!audit_enabled)
 		return;
 
-	context->arch	    = arch;
+	context->arch	    = syscall_get_arch();
 	context->major      = major;
 	context->argv[0]    = a1;
 	context->argv[1]    = a2;
@@ -1870,8 +1863,7 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 	}
 
 	list_for_each_entry_reverse(n, &context->names_list, list) {
-		/* does the name pointer match? */
-		if (!n->name || n->name->name != name->name)
+		if (!n->name || strcmp(n->name->name, name->name))
 			continue;
 
 		/* match the correct record type */
@@ -1886,12 +1878,48 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 	}
 
 out_alloc:
-	/* unable to find the name from a previous getname(). Allocate a new
-	 * anonymous entry.
-	 */
-	n = audit_alloc_name(context, AUDIT_TYPE_NORMAL);
+	/* unable to find an entry with both a matching name and type */
+	n = audit_alloc_name(context, AUDIT_TYPE_UNKNOWN);
 	if (!n)
 		return;
+	/* unfortunately, while we may have a path name to record with the
+	 * inode, we can't always rely on the string lasting until the end of
+	 * the syscall so we need to create our own copy, it may fail due to
+	 * memory allocation issues, but we do our best */
+	if (name) {
+		/* we can't use getname_kernel() due to size limits */
+		size_t len = strlen(name->name) + 1;
+		struct filename *new = __getname();
+
+		if (unlikely(!new))
+			goto out;
+
+		if (len <= (PATH_MAX - sizeof(*new))) {
+			new->name = (char *)(new) + sizeof(*new);
+			new->separate = false;
+		} else if (len <= PATH_MAX) {
+			/* this looks odd, but is due to final_putname() */
+			struct filename *new2;
+
+			new2 = kmalloc(sizeof(*new2), GFP_KERNEL);
+			if (unlikely(!new2)) {
+				__putname(new);
+				goto out;
+			}
+			new2->name = (char *)new;
+			new2->separate = true;
+			new = new2;
+		} else {
+			/* we should never get here, but let's be safe */
+			__putname(new);
+			goto out;
+		}
+		strlcpy((char *)new->name, name->name, len);
+		new->uptr = NULL;
+		new->aname = n;
+		n->name = new;
+		n->name_put = true;
+	}
 out:
 	if (parent) {
 		n->name_len = n->name ? parent_len(n->name->name) : AUDIT_NAME_FULL;
@@ -1904,6 +1932,11 @@ out:
 	}
 	handle_path(dentry);
 	audit_copy_inode(n, dentry, inode);
+}
+
+void __audit_file(const struct file *file)
+{
+	__audit_inode(NULL, file->f_path.dentry, 0);
 }
 
 /**
@@ -2382,7 +2415,7 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 
-	dentry = dget(bprm->file->f_dentry);
+	dentry = dget(bprm->file->f_path.dentry);
 	get_vfs_caps_from_disk(dentry, &vcaps);
 	dput(dentry);
 
@@ -2406,7 +2439,7 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
  * @new: the new credentials
  * @old: the old (current) credentials
  *
- * Record the aguments userspace sent to sys_capset for later printing by the
+ * Record the arguments userspace sent to sys_capset for later printing by the
  * audit system if applicable
  */
 void __audit_log_capset(const struct cred *new, const struct cred *old)
@@ -2433,6 +2466,7 @@ static void audit_log_task(struct audit_buffer *ab)
 	kgid_t gid;
 	unsigned int sessionid;
 	struct mm_struct *mm = current->mm;
+	char comm[sizeof(current->comm)];
 
 	auid = audit_get_loginuid(current);
 	sessionid = audit_get_sessionid(current);
@@ -2445,7 +2479,7 @@ static void audit_log_task(struct audit_buffer *ab)
 			 sessionid);
 	audit_log_task_context(ab);
 	audit_log_format(ab, " pid=%d comm=", task_pid_nr(current));
-	audit_log_untrustedstring(ab, current->comm);
+	audit_log_untrustedstring(ab, get_task_comm(comm, current));
 	if (mm) {
 		down_read(&mm->mmap_sem);
 		if (mm->exe_file)
@@ -2488,11 +2522,9 @@ void __audit_seccomp(unsigned long syscall, long signr, int code)
 	if (unlikely(!ab))
 		return;
 	audit_log_task(ab);
-	audit_log_format(ab, " sig=%ld", signr);
-	audit_log_format(ab, " syscall=%ld", syscall);
-	audit_log_format(ab, " compat=%d", is_compat_task());
-	audit_log_format(ab, " ip=0x%lx", KSTK_EIP(current));
-	audit_log_format(ab, " code=0x%x", code);
+	audit_log_format(ab, " sig=%ld arch=%x syscall=%ld compat=%d ip=0x%lx code=0x%x",
+			 signr, syscall_get_arch(), syscall, is_compat_task(),
+			 KSTK_EIP(current), code);
 	audit_log_end(ab);
 }
 

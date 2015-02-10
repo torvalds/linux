@@ -334,8 +334,7 @@ static void mx3fb_init_backlight(struct mx3fb_data *fbd)
 
 static void mx3fb_exit_backlight(struct mx3fb_data *fbd)
 {
-	if (fbd->bl)
-		backlight_device_unregister(fbd->bl);
+	backlight_device_unregister(fbd->bl);
 }
 
 static void mx3fb_dma_done(void *);
@@ -461,8 +460,7 @@ static void sdc_disable_channel(struct mx3fb_info *mx3_fbi)
 
 	spin_unlock_irqrestore(&mx3fb->lock, flags);
 
-	mx3_fbi->txd->chan->device->device_control(mx3_fbi->txd->chan,
-						   DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(mx3_fbi->txd->chan);
 	mx3_fbi->txd = NULL;
 	mx3_fbi->cookie = -EINVAL;
 }
@@ -1179,7 +1177,7 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 
 	/*
 	 * We enable the End of Frame interrupt, which will free a tx-descriptor,
-	 * which we will need for the next device_prep_slave_sg(). The
+	 * which we will need for the next dmaengine_prep_slave_sg(). The
 	 * IRQ-handler will disable the IRQ again.
 	 */
 	init_completion(&mx3_fbi->flip_cmpl);
@@ -1647,7 +1645,6 @@ static int mx3fb_remove(struct platform_device *dev)
 static struct platform_driver mx3fb_driver = {
 	.driver = {
 		.name = MX3FB_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = mx3fb_probe,
 	.remove = mx3fb_remove,

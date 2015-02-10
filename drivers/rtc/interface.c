@@ -30,6 +30,14 @@ static int __rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm)
 	else {
 		memset(tm, 0, sizeof(struct rtc_time));
 		err = rtc->ops->read_time(rtc->dev.parent, tm);
+		if (err < 0) {
+			dev_err(&rtc->dev, "read_time: fail to read\n");
+			return err;
+		}
+
+		err = rtc_valid_tm(tm);
+		if (err < 0)
+			dev_err(&rtc->dev, "read_time: rtc_time isn't valid\n");
 	}
 	return err;
 }
@@ -891,11 +899,24 @@ again:
 	if (next) {
 		struct rtc_wkalrm alarm;
 		int err;
+		int retry = 3;
+
 		alarm.time = rtc_ktime_to_tm(next->expires);
 		alarm.enabled = 1;
+reprogram:
 		err = __rtc_set_alarm(rtc, &alarm);
 		if (err == -ETIME)
 			goto again;
+		else if (err) {
+			if (retry-- > 0)
+				goto reprogram;
+
+			timer = container_of(next, struct rtc_timer, node);
+			timerqueue_del(&rtc->timerqueue, &timer->node);
+			timer->enabled = 0;
+			dev_err(&rtc->dev, "__rtc_set_alarm: err=%d\n", err);
+			goto again;
+		}
 	} else
 		rtc_alarm_disable(rtc);
 

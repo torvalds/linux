@@ -39,6 +39,9 @@ struct tegra_fbdev {
 struct tegra_drm {
 	struct drm_device *drm;
 
+	struct iommu_domain *domain;
+	struct drm_mm mm;
+
 	struct mutex clients_lock;
 	struct list_head clients;
 
@@ -101,6 +104,7 @@ struct tegra_dc {
 	spinlock_t lock;
 
 	struct drm_crtc base;
+	int powergate;
 	int pipe;
 
 	struct clk *clk;
@@ -120,6 +124,8 @@ struct tegra_dc {
 	struct drm_pending_vblank_event *event;
 
 	const struct tegra_dc_soc_info *soc;
+
+	struct iommu_domain *domain;
 };
 
 static inline struct tegra_dc *
@@ -133,16 +139,15 @@ static inline struct tegra_dc *to_tegra_dc(struct drm_crtc *crtc)
 	return crtc ? container_of(crtc, struct tegra_dc, base) : NULL;
 }
 
-static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long value,
-				   unsigned long reg)
+static inline void tegra_dc_writel(struct tegra_dc *dc, u32 value,
+				   unsigned long offset)
 {
-	writel(value, dc->regs + (reg << 2));
+	writel(value, dc->regs + (offset << 2));
 }
 
-static inline unsigned long tegra_dc_readl(struct tegra_dc *dc,
-					   unsigned long reg)
+static inline u32 tegra_dc_readl(struct tegra_dc *dc, unsigned long offset)
 {
-	return readl(dc->regs + (reg << 2));
+	return readl(dc->regs + (offset << 2));
 }
 
 struct tegra_dc_window {
@@ -287,6 +292,7 @@ bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer);
 int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 			struct tegra_bo_tiling *tiling);
 int tegra_drm_fb_prepare(struct drm_device *drm);
+void tegra_drm_fb_free(struct drm_device *drm);
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);
 #ifdef CONFIG_DRM_TEGRA_FBDEV

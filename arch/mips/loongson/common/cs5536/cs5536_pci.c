@@ -21,6 +21,7 @@
  */
 
 #include <linux/types.h>
+#include <cs5536/cs5536_pci.h>
 #include <cs5536/cs5536_vsm.h>
 
 enum {
@@ -35,21 +36,21 @@ enum {
 };
 
 static const cs5536_pci_vsm_write vsm_conf_write[] = {
-	[CS5536_ISA_FUNC]	pci_isa_write_reg,
-	[reserved_func]		NULL,
-	[CS5536_IDE_FUNC]	pci_ide_write_reg,
-	[CS5536_ACC_FUNC]	pci_acc_write_reg,
-	[CS5536_OHCI_FUNC]	pci_ohci_write_reg,
-	[CS5536_EHCI_FUNC]	pci_ehci_write_reg,
+	[CS5536_ISA_FUNC]	= pci_isa_write_reg,
+	[reserved_func]		= NULL,
+	[CS5536_IDE_FUNC]	= pci_ide_write_reg,
+	[CS5536_ACC_FUNC]	= pci_acc_write_reg,
+	[CS5536_OHCI_FUNC]	= pci_ohci_write_reg,
+	[CS5536_EHCI_FUNC]	= pci_ehci_write_reg,
 };
 
 static const cs5536_pci_vsm_read vsm_conf_read[] = {
-	[CS5536_ISA_FUNC]	pci_isa_read_reg,
-	[reserved_func]		NULL,
-	[CS5536_IDE_FUNC]	pci_ide_read_reg,
-	[CS5536_ACC_FUNC]	pci_acc_read_reg,
-	[CS5536_OHCI_FUNC]	pci_ohci_read_reg,
-	[CS5536_EHCI_FUNC]	pci_ehci_read_reg,
+	[CS5536_ISA_FUNC]	= pci_isa_read_reg,
+	[reserved_func]		= NULL,
+	[CS5536_IDE_FUNC]	= pci_ide_read_reg,
+	[CS5536_ACC_FUNC]	= pci_acc_read_reg,
+	[CS5536_OHCI_FUNC]	= pci_ohci_read_reg,
+	[CS5536_EHCI_FUNC]	= pci_ehci_read_reg,
 };
 
 /*

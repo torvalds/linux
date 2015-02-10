@@ -259,7 +259,7 @@ static int vv6410_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	fine = val % VV6410_CIF_LINELENGTH;
 	coarse = min(512, val / VV6410_CIF_LINELENGTH);
 
-	PDEBUG(D_CONF, "Set coarse exposure to %d, fine expsure to %d",
+	PDEBUG(D_CONF, "Set coarse exposure to %d, fine exposure to %d",
 	       coarse, fine);
 
 	err = stv06xx_write_sensor(sd, VV6410_FINEH, fine >> 8);

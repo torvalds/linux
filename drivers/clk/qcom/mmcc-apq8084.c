@@ -3122,7 +3122,7 @@ static struct clk_regmap *mmcc_apq8084_clocks[] = {
 	[ESC1_CLK_SRC] = &esc1_clk_src.clkr,
 	[HDMI_CLK_SRC] = &hdmi_clk_src.clkr,
 	[VSYNC_CLK_SRC] = &vsync_clk_src.clkr,
-	[RBCPR_CLK_SRC] = &rbcpr_clk_src.clkr,
+	[MMSS_RBCPR_CLK_SRC] = &rbcpr_clk_src.clkr,
 	[RBBMTIMER_CLK_SRC] = &rbbmtimer_clk_src.clkr,
 	[MAPLE_CLK_SRC] = &maple_clk_src.clkr,
 	[VDP_CLK_SRC] = &vdp_clk_src.clkr,
@@ -3341,7 +3341,6 @@ static struct platform_driver mmcc_apq8084_driver = {
 	.remove		= mmcc_apq8084_remove,
 	.driver		= {
 		.name	= "mmcc-apq8084",
-		.owner	= THIS_MODULE,
 		.of_match_table = mmcc_apq8084_match_table,
 	},
 };

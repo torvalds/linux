@@ -168,7 +168,7 @@ static int rx51_spk_event(struct snd_soc_dapm_widget *w,
 static int rx51_hp_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *k, int event)
 {
-	struct snd_soc_codec *codec = w->dapm->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		tpa6130a2_stereo_enable(codec, 1);
@@ -519,7 +519,6 @@ MODULE_DEVICE_TABLE(of, rx51_audio_of_match);
 static struct platform_driver rx51_soc_driver = {
 	.driver = {
 		.name = "rx51-audio",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(rx51_audio_of_match),
 	},
 	.probe = rx51_soc_probe,

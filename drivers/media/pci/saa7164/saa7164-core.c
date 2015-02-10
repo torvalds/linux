@@ -52,7 +52,7 @@ unsigned int saa_debug;
 module_param_named(debug, saa_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
-unsigned int fw_debug;
+static unsigned int fw_debug;
 module_param(fw_debug, int, 0644);
 MODULE_PARM_DESC(fw_debug, "Firmware debug level def:2");
 
@@ -72,7 +72,7 @@ static unsigned int card[]  = {[0 ... (SAA7164_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
 
-unsigned int print_histogram = 64;
+static unsigned int print_histogram = 64;
 module_param(print_histogram, int, 0644);
 MODULE_PARM_DESC(print_histogram, "print histogram values once");
 
@@ -80,7 +80,7 @@ unsigned int crc_checking = 1;
 module_param(crc_checking, int, 0644);
 MODULE_PARM_DESC(crc_checking, "enable crc sanity checking on buffers");
 
-unsigned int guard_checking = 1;
+static unsigned int guard_checking = 1;
 module_param(guard_checking, int, 0644);
 MODULE_PARM_DESC(guard_checking,
 	"enable dma sanity checking for buffer overruns");
@@ -119,7 +119,7 @@ static void saa7164_ts_verifier(struct saa7164_buffer *buf)
 	u32 i;
 	u8 cc, a;
 	u16 pid;
-	u8 __iomem *bufcpu = (u8 *)buf->cpu;
+	u8 *bufcpu = (u8 *)buf->cpu;
 
 	port->sync_errors = 0;
 	port->v_cc_errors = 0;
@@ -260,7 +260,7 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 	struct saa7164_user_buffer *ubuf = NULL;
 	struct list_head *c, *n;
 	int i = 0;
-	u8 __iomem *p;
+	u8 *p;
 
 	mutex_lock(&port->dmaqueue_lock);
 	list_for_each_safe(c, n, &port->dmaqueue.list) {
@@ -318,8 +318,7 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 
 				if (buf->actual_size <= ubuf->actual_size) {
 
-					memcpy_fromio(ubuf->data, buf->cpu,
-						ubuf->actual_size);
+					memcpy(ubuf->data, buf->cpu, ubuf->actual_size);
 
 					if (crc_checking) {
 						/* Throw a new checksum on the read buffer */
@@ -346,7 +345,7 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 			 * with known bad data. We check for this data at a later point
 			 * in time. */
 			saa7164_buffer_zero_offsets(port, bufnr);
-			memset_io(buf->cpu, 0xff, buf->pci_size);
+			memset(buf->cpu, 0xff, buf->pci_size);
 			if (crc_checking) {
 				/* Throw yet aanother new checksum on the dma buffer */
 				buf->crc = crc32(0, buf->cpu, buf->actual_size);
@@ -1096,7 +1095,7 @@ static int saa7164_proc_show(struct seq_file *m, void *v)
 			if (c == 0)
 				seq_printf(m, " %04x:", i);
 
-			seq_printf(m, " %02x", *(b->m_pdwSetRing + i));
+			seq_printf(m, " %02x", readb(b->m_pdwSetRing + i));
 
 			if (++c == 16) {
 				seq_printf(m, "\n");
@@ -1111,7 +1110,7 @@ static int saa7164_proc_show(struct seq_file *m, void *v)
 			if (c == 0)
 				seq_printf(m, " %04x:", i);
 
-			seq_printf(m, " %02x", *(b->m_pdwGetRing + i));
+			seq_printf(m, " %02x", readb(b->m_pdwGetRing + i));
 
 			if (++c == 16) {
 				seq_printf(m, "\n");

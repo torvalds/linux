@@ -392,6 +392,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 	data_buf = memdup_user((void const __user *)buf, n_bytes);
 	if (IS_ERR(data_buf)) {
 		retval = PTR_ERR(data_buf);
+		data_buf = NULL;
 		goto exit;
 	}
 
@@ -474,8 +475,6 @@ static void usb_tx_callback(struct urb *urb)
 	/* notify waiters that write has finished */
 	atomic_set(&context->tx.busy, 0);
 	complete(&context->tx.finished);
-
-	return;
 }
 
 /**
@@ -489,7 +488,7 @@ static int ir_open(void *data)
 	/* prevent races with disconnect */
 	mutex_lock(&disconnect_lock);
 
-	context = (struct sasem_context *) data;
+	context = data;
 
 	mutex_lock(&context->ctx_lock);
 
@@ -531,7 +530,7 @@ static void ir_close(void *data)
 {
 	struct sasem_context *context;
 
-	context = (struct sasem_context *)data;
+	context = data;
 	if (!context) {
 		pr_err("%s: no context for device\n", __func__);
 		return;
@@ -562,7 +561,6 @@ static void ir_close(void *data)
 	}
 
 	mutex_unlock(&context->ctx_lock);
-	return;
 }
 
 /**
@@ -575,7 +573,6 @@ static void incoming_packet(struct sasem_context *context,
 	unsigned char *buf = urb->transfer_buffer;
 	long ms;
 	struct timeval tv;
-	int i;
 
 	if (len != 8) {
 		dev_warn(&context->dev->dev,
@@ -584,13 +581,8 @@ static void incoming_packet(struct sasem_context *context,
 		return;
 	}
 
-	if (debug) {
-		printk(KERN_INFO "Incoming data: ");
-		for (i = 0; i < 8; ++i)
-			printk(KERN_CONT "%02x ", buf[i]);
-		printk(KERN_CONT "\n");
-	}
-
+	if (debug)
+		dev_info(&context->dev->dev, "Incoming data: %*ph\n", len, buf);
 	/*
 	 * Lirc could deal with the repeat code, but we really need to block it
 	 * if it arrives too late.  Otherwise we could repeat the wrong code.
@@ -664,7 +656,6 @@ static void usb_rx_callback(struct urb *urb)
 	}
 
 	usb_submit_urb(context->rx_urb, GFP_ATOMIC);
-	return;
 }
 
 
@@ -713,6 +704,7 @@ static int sasem_probe(struct usb_interface *interface,
 		struct usb_endpoint_descriptor *ep;
 		int ep_dir;
 		int ep_type;
+
 		ep = &iface_desc->endpoint [i].desc;
 		ep_dir = ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK;
 		ep_type = ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;

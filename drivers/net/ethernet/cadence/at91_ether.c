@@ -351,7 +351,6 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	if (res)
 		goto err_disable_clock;
 
-	ether_setup(dev);
 	dev->netdev_ops = &at91ether_netdev_ops;
 	dev->ethtool_ops = &macb_ethtool_ops;
 	platform_set_drvdata(pdev, dev);
@@ -470,7 +469,6 @@ static struct platform_driver at91ether_driver = {
 	.resume		= at91ether_resume,
 	.driver		= {
 		.name	= "at91_ether",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(at91ether_dt_ids),
 	},
 };

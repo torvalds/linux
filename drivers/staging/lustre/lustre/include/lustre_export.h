@@ -125,14 +125,14 @@ struct nid_stat {
 #define nidstat_getref(nidstat)						\
 do {									   \
 	atomic_inc(&(nidstat)->nid_exp_ref_count);			 \
-} while(0)
+} while (0)
 
 #define nidstat_putref(nidstat)						\
 do {									   \
 	atomic_dec(&(nidstat)->nid_exp_ref_count);			 \
 	LASSERTF(atomic_read(&(nidstat)->nid_exp_ref_count) >= 0,	  \
 		 "stat %p nid_exp_ref_count < 0\n", nidstat);		  \
-} while(0)
+} while (0)
 
 enum obd_option {
 	OBD_OPT_FORCE =	 0x0001,

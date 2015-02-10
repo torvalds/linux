@@ -241,7 +241,6 @@ static struct platform_driver pxa2xx_ac97_driver = {
 	.remove		= pxa2xx_ac97_remove,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM_SLEEP
 		.pm	= &pxa2xx_ac97_pm_ops,
 #endif

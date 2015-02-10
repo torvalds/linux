@@ -225,7 +225,6 @@ MODULE_DEVICE_TABLE(of, fs_enet_mdio_fec_match);
 static struct platform_driver fs_enet_fec_mdio_driver = {
 	.driver = {
 		.name = "fsl-fec-mdio",
-		.owner = THIS_MODULE,
 		.of_match_table = fs_enet_mdio_fec_match,
 	},
 	.probe = fs_enet_mdio_probe,

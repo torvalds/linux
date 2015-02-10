@@ -739,7 +739,7 @@ ccw_device_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	struct irb *irb;
 	int is_cmd;
 
-	irb = &__get_cpu_var(cio_irb);
+	irb = this_cpu_ptr(&cio_irb);
 	is_cmd = !scsw_is_tm(&irb->scsw);
 	/* Check for unsolicited interrupt. */
 	if (!scsw_is_solicited(&irb->scsw)) {
@@ -805,7 +805,7 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 {
 	struct irb *irb;
 
-	irb = &__get_cpu_var(cio_irb);
+	irb = this_cpu_ptr(&cio_irb);
 	/* Check for unsolicited interrupt. */
 	if (scsw_stctl(&irb->scsw) ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {

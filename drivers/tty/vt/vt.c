@@ -156,6 +156,8 @@ static void console_callback(struct work_struct *ignored);
 static void blank_screen_t(unsigned long dummy);
 static void set_palette(struct vc_data *vc);
 
+#define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
+
 static int printable;		/* Is console ready for printing? */
 int default_utf8 = true;
 module_param(default_utf8, int, S_IRUGO | S_IWUSR);
@@ -1367,9 +1369,11 @@ static void csi_m(struct vc_data *vc)
 						rgb_from_256(vc->vc_par[i]));
 				} else if (vc->vc_par[i] == 2 &&  /* 24 bit */
 				           i <= vc->vc_npar + 3) {/* extremely rare */
-					struct rgb c = {r:vc->vc_par[i+1],
-							g:vc->vc_par[i+2],
-							b:vc->vc_par[i+3]};
+					struct rgb c = {
+						.r = vc->vc_par[i + 1],
+						.g = vc->vc_par[i + 2],
+						.b = vc->vc_par[i + 3],
+					};
 					rgb_foreground(vc, c);
 					i += 3;
 				}
@@ -1388,9 +1392,11 @@ static void csi_m(struct vc_data *vc)
 						rgb_from_256(vc->vc_par[i]));
 				} else if (vc->vc_par[i] == 2 && /* 24 bit */
 				           i <= vc->vc_npar + 3) {
-					struct rgb c = {r:vc->vc_par[i+1],
-							g:vc->vc_par[i+2],
-							b:vc->vc_par[i+3]};
+					struct rgb c = {
+						.r = vc->vc_par[i + 1],
+						.g = vc->vc_par[i + 2],
+						.b = vc->vc_par[i + 3],
+					};
 					rgb_background(vc, c);
 					i += 3;
 				}
@@ -3849,8 +3855,8 @@ void do_unblank_screen(int leaving_gfx)
 		return;
 	if (!vc_cons_allocated(fg_console)) {
 		/* impossible */
-		pr_warning("unblank_screen: tty %d not allocated ??\n",
-			   fg_console+1);
+		pr_warn("unblank_screen: tty %d not allocated ??\n",
+			fg_console + 1);
 		return;
 	}
 	vc = vc_cons[fg_console].d;

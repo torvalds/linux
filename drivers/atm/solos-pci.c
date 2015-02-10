@@ -1225,11 +1225,13 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	card->config_regs = pci_iomap(dev, 0, CONFIG_RAM_SIZE);
 	if (!card->config_regs) {
 		dev_warn(&dev->dev, "Failed to ioremap config registers\n");
+		err = -ENOMEM;
 		goto out_release_regions;
 	}
 	card->buffers = pci_iomap(dev, 1, DATA_RAM_SIZE);
 	if (!card->buffers) {
 		dev_warn(&dev->dev, "Failed to ioremap data buffers\n");
+		err = -ENOMEM;
 		goto out_unmap_config;
 	}
 

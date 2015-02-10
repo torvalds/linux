@@ -214,13 +214,6 @@ __dump_desc_dbg(struct ioat_chan_common *chan, struct ioat_dma_descriptor *hw,
 #define dump_desc_dbg(c, d) \
 	({ if (d) __dump_desc_dbg(&c->base, d->hw, &d->txd, desc_id(d)); 0; })
 
-static inline void ioat_set_tcp_copy_break(unsigned long copybreak)
-{
-	#ifdef CONFIG_NET_DMA
-	sysctl_tcp_dma_copybreak = copybreak;
-	#endif
-}
-
 static inline struct ioat_chan_common *
 ioat_chan_by_index(struct ioatdma_device *device, int index)
 {

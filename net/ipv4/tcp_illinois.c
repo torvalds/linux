@@ -284,7 +284,7 @@ static void tcp_illinois_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		delta = (tp->snd_cwnd_cnt * ca->alpha) >> ALPHA_SHIFT;
 		if (delta >= tp->snd_cwnd) {
 			tp->snd_cwnd = min(tp->snd_cwnd + delta / tp->snd_cwnd,
-					   (u32) tp->snd_cwnd_clamp);
+					   (u32)tp->snd_cwnd_clamp);
 			tp->snd_cwnd_cnt = 0;
 		}
 	}
@@ -298,7 +298,6 @@ static u32 tcp_illinois_ssthresh(struct sock *sk)
 	/* Multiplicative decrease */
 	return max(tp->snd_cwnd - ((tp->snd_cwnd * ca->beta) >> BETA_SHIFT), 2U);
 }
-
 
 /* Extract info for Tcp socket info provided via netlink. */
 static void tcp_illinois_info(struct sock *sk, u32 ext,

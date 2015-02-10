@@ -1173,18 +1173,24 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 		err = __mlx4_ib_create_flow(qp, flow_attr, domain, type[i],
 					    &mflow->reg_id[i]);
 		if (err)
-			goto err_free;
+			goto err_create_flow;
 		i++;
 	}
 
 	if (i < ARRAY_SIZE(type) && flow_attr->type == IB_FLOW_ATTR_NORMAL) {
 		err = mlx4_ib_tunnel_steer_add(qp, flow_attr, &mflow->reg_id[i]);
 		if (err)
-			goto err_free;
+			goto err_create_flow;
+		i++;
 	}
 
 	return &mflow->ibflow;
 
+err_create_flow:
+	while (i) {
+		(void)__mlx4_ib_destroy_flow(to_mdev(qp->device)->dev, mflow->reg_id[i]);
+		i--;
+	}
 err_free:
 	kfree(mflow);
 	return ERR_PTR(err);
@@ -1969,8 +1975,7 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	    dev->caps.num_ports > dev->caps.comp_pool)
 		return;
 
-	eq_per_port = rounddown_pow_of_two(dev->caps.comp_pool/
-					dev->caps.num_ports);
+	eq_per_port = dev->caps.comp_pool / dev->caps.num_ports;
 
 	/* Init eq table */
 	added_eqs = 0;
@@ -2222,7 +2227,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		ibdev->steer_qpn_count = MLX4_IB_UC_MAX_NUM_QPS;
 		err = mlx4_qp_reserve_range(dev, ibdev->steer_qpn_count,
 					    MLX4_IB_UC_STEER_QPN_ALIGN,
-					    &ibdev->steer_qpn_base);
+					    &ibdev->steer_qpn_base, 0);
 		if (err)
 			goto err_counter;
 

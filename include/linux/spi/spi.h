@@ -1049,4 +1049,10 @@ spi_unregister_device(struct spi_device *spi)
 extern const struct spi_device_id *
 spi_get_device_id(const struct spi_device *sdev);
 
+static inline bool
+spi_transfer_is_last(struct spi_master *master, struct spi_transfer *xfer)
+{
+	return list_is_last(&xfer->transfer_list, &master->cur_msg->transfers);
+}
+
 #endif /* __LINUX_SPI_H */

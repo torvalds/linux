@@ -128,6 +128,9 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 			dwc2_op_state_str(hsotg));
 		gotgctl = readl(hsotg->regs + GOTGCTL);
 
+		if (dwc2_is_device_mode(hsotg))
+			s3c_hsotg_disconnect(hsotg);
+
 		if (hsotg->op_state == OTG_STATE_B_HOST) {
 			hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 		} else {
@@ -287,9 +290,11 @@ static void dwc2_handle_conn_id_status_change_intr(struct dwc2_hsotg *hsotg)
 	 * Release lock before scheduling workq as it holds spinlock during
 	 * scheduling.
 	 */
-	spin_unlock(&hsotg->lock);
-	queue_work(hsotg->wq_otg, &hsotg->wf_otg);
-	spin_lock(&hsotg->lock);
+	if (hsotg->wq_otg) {
+		spin_unlock(&hsotg->lock);
+		queue_work(hsotg->wq_otg, &hsotg->wf_otg);
+		spin_lock(&hsotg->lock);
+	}
 
 	/* Clear interrupt */
 	writel(GINTSTS_CONIDSTSCHNG, hsotg->regs + GINTSTS);
@@ -312,6 +317,12 @@ static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 
 	/* Clear interrupt */
 	writel(GINTSTS_SESSREQINT, hsotg->regs + GINTSTS);
+
+	/*
+	 * Report disconnect if there is any previous session established
+	 */
+	if (dwc2_is_device_mode(hsotg))
+		s3c_hsotg_disconnect(hsotg);
 }
 
 /*

@@ -626,7 +626,7 @@ static void gdm_lte_netif_rx(struct net_device *dev, char *buf,
 			void *addr = buf + sizeof(struct iphdr) +
 				sizeof(struct udphdr) +
 				offsetof(struct dhcp_packet, chaddr);
-			memcpy(nic->dest_mac_addr, addr, ETH_ALEN);
+			ether_addr_copy(nic->dest_mac_addr, addr);
 		}
 	}
 
@@ -639,7 +639,7 @@ static void gdm_lte_netif_rx(struct net_device *dev, char *buf,
 	}
 
 	/* Format the data so that it can be put to skb */
-	memcpy(mac_header_data, nic->dest_mac_addr, ETH_ALEN);
+	ether_addr_copy(mac_header_data, nic->dest_mac_addr);
 	memcpy(mac_header_data + ETH_ALEN, nic->src_mac_addr, ETH_ALEN);
 
 	vlan_eth.h_vlan_TCI = htons(nic->vlan_id);
@@ -842,9 +842,9 @@ static void form_mac_address(u8 *dev_addr, u8 *nic_src, u8 *nic_dest,
 {
 	/* Form the dev_addr */
 	if (!mac_address)
-		memcpy(dev_addr, gdm_lte_macaddr, ETH_ALEN);
+		ether_addr_copy(dev_addr, gdm_lte_macaddr);
 	else
-		memcpy(dev_addr, mac_address, ETH_ALEN);
+		ether_addr_copy(dev_addr, mac_address);
 
 	/* The last byte of the mac address
 	 * should be less than or equal to 0xFC
@@ -858,7 +858,7 @@ static void form_mac_address(u8 *dev_addr, u8 *nic_src, u8 *nic_dest,
 	memcpy(nic_src, dev_addr, 3);
 
 	/* Copy the nic_dest from dev_addr*/
-	memcpy(nic_dest, dev_addr, ETH_ALEN);
+	ether_addr_copy(nic_dest, dev_addr);
 }
 
 static void validate_mac_address(u8 *mac_address)

@@ -320,7 +320,7 @@ static struct config_group *target_fabric_make_mappedlun(
 			struct se_node_acl, acl_group);
 	struct se_portal_group *se_tpg = se_nacl->se_tpg;
 	struct target_fabric_configfs *tf = se_tpg->se_tpg_wwn->wwn_tf;
-	struct se_lun_acl *lacl;
+	struct se_lun_acl *lacl = NULL;
 	struct config_item *acl_ci;
 	struct config_group *lacl_cg = NULL, *ml_stat_grp = NULL;
 	char *buf;
@@ -406,6 +406,7 @@ static struct config_group *target_fabric_make_mappedlun(
 out:
 	if (lacl_cg)
 		kfree(lacl_cg->default_groups);
+	kfree(lacl);
 	kfree(buf);
 	return ERR_PTR(ret);
 }
@@ -821,7 +822,7 @@ static int target_fabric_port_unlink(
 		tf->tf_ops.fabric_pre_unlink(se_tpg, lun);
 	}
 
-	core_dev_del_lun(se_tpg, lun->unpacked_lun);
+	core_dev_del_lun(se_tpg, lun);
 	return 0;
 }
 
@@ -910,16 +911,12 @@ static struct config_group *target_fabric_make_lun(
 				GFP_KERNEL);
 	if (!port_stat_grp->default_groups) {
 		pr_err("Unable to allocate port_stat_grp->default_groups\n");
-		errno = -ENOMEM;
-		goto out;
+		kfree(lun_cg->default_groups);
+		return ERR_PTR(-ENOMEM);
 	}
 	target_stat_setup_port_default_groups(lun);
 
 	return &lun->lun_group;
-out:
-	if (lun_cg)
-		kfree(lun_cg->default_groups);
-	return ERR_PTR(errno);
 }
 
 static void target_fabric_drop_lun(

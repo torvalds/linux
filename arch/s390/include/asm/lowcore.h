@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <asm/ptrace.h>
 #include <asm/cpu.h>
+#include <asm/types.h>
 
 #ifdef CONFIG_32BIT
 
@@ -30,6 +31,11 @@ struct save_area {
 	u32	gp_regs[16];
 	u32	ctrl_regs[16];
 } __packed;
+
+struct save_area_ext {
+	struct save_area	sa;
+	__vector128		vx_regs[32];
+};
 
 struct _lowcore {
 	psw_t	restart_psw;			/* 0x0000 */
@@ -141,7 +147,7 @@ struct _lowcore {
 	__u32	softirq_pending;		/* 0x02ec */
 	__u32	percpu_offset;			/* 0x02f0 */
 	__u32	machine_flags;			/* 0x02f4 */
-	__u32	ftrace_func;			/* 0x02f8 */
+	__u8	pad_0x02f8[0x02fc-0x02f8];	/* 0x02f8 */
 	__u32	spinlock_lockval;		/* 0x02fc */
 
 	__u8	pad_0x0300[0x0e00-0x0300];	/* 0x0300 */
@@ -182,6 +188,11 @@ struct save_area {
 	u32	acc_regs[16];
 	u64	ctrl_regs[16];
 } __packed;
+
+struct save_area_ext {
+	struct save_area	sa;
+	__vector128		vx_regs[32];
+};
 
 struct _lowcore {
 	__u8	pad_0x0000[0x0014-0x0000];	/* 0x0000 */
@@ -286,7 +297,7 @@ struct _lowcore {
 	__u64	percpu_offset;			/* 0x0378 */
 	__u64	vdso_per_cpu_data;		/* 0x0380 */
 	__u64	machine_flags;			/* 0x0388 */
-	__u64	ftrace_func;			/* 0x0390 */
+	__u8	pad_0x0390[0x0398-0x0390];	/* 0x0390 */
 	__u64	gmap;				/* 0x0398 */
 	__u32	spinlock_lockval;		/* 0x03a0 */
 	__u8	pad_0x03a0[0x0400-0x03a4];	/* 0x03a4 */
@@ -310,7 +321,10 @@ struct _lowcore {
 
 	/* Extended facility list */
 	__u64	stfle_fac_list[32];		/* 0x0f00 */
-	__u8	pad_0x1000[0x11b8-0x1000];	/* 0x1000 */
+	__u8	pad_0x1000[0x11b0-0x1000];	/* 0x1000 */
+
+	/* Pointer to vector register save area */
+	__u64	vector_save_area_addr;		/* 0x11b0 */
 
 	/* 64 bit extparam used for pfault/diag 250: defined by architecture */
 	__u64	ext_params2;			/* 0x11B8 */
@@ -334,9 +348,10 @@ struct _lowcore {
 
 	/* Transaction abort diagnostic block */
 	__u8	pgm_tdb[256];			/* 0x1800 */
+	__u8	pad_0x1900[0x1c00-0x1900];	/* 0x1900 */
 
-	/* align to the top of the prefix area */
-	__u8	pad_0x1900[0x2000-0x1900];	/* 0x1900 */
+	/* Software defined save area for vector registers */
+	__u8	vector_save_area[1024];		/* 0x1c00 */
 } __packed;
 
 #endif /* CONFIG_32BIT */

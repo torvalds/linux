@@ -52,7 +52,6 @@
 #include <asm/numa.h>
 #include <asm/cacheflush.h>
 #include <asm/init.h>
-#include <asm/uv/uv.h>
 #include <asm/setup.h>
 
 #include "mm_internal.h"
@@ -151,7 +150,7 @@ early_param("gbpages", parse_direct_gbpages_on);
  * around without checking the pgd every time.
  */
 
-pteval_t __supported_pte_mask __read_mostly = ~_PAGE_IOMAP;
+pteval_t __supported_pte_mask __read_mostly = ~0;
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
 int force_personality32;
@@ -178,7 +177,7 @@ __setup("noexec32=", nonx32_setup);
  * When memory was added/removed make sure all the processes MM have
  * suitable PGD entries in the local PGD level page.
  */
-void sync_global_pgds(unsigned long start, unsigned long end)
+void sync_global_pgds(unsigned long start, unsigned long end, int removed)
 {
 	unsigned long address;
 
@@ -186,7 +185,12 @@ void sync_global_pgds(unsigned long start, unsigned long end)
 		const pgd_t *pgd_ref = pgd_offset_k(address);
 		struct page *page;
 
-		if (pgd_none(*pgd_ref))
+		/*
+		 * When it is called after memory hot remove, pgd_none()
+		 * returns true. In this case (removed == 1), we must clear
+		 * the PGD entries in the local PGD level page.
+		 */
+		if (pgd_none(*pgd_ref) && !removed)
 			continue;
 
 		spin_lock(&pgd_lock);
@@ -199,11 +203,17 @@ void sync_global_pgds(unsigned long start, unsigned long end)
 			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
 			spin_lock(pgt_lock);
 
-			if (pgd_none(*pgd))
-				set_pgd(pgd, *pgd_ref);
-			else
+			if (!pgd_none(*pgd_ref) && !pgd_none(*pgd))
 				BUG_ON(pgd_page_vaddr(*pgd)
 				       != pgd_page_vaddr(*pgd_ref));
+
+			if (removed) {
+				if (pgd_none(*pgd_ref) && !pgd_none(*pgd))
+					pgd_clear(pgd);
+			} else {
+				if (pgd_none(*pgd))
+					set_pgd(pgd, *pgd_ref);
+			}
 
 			spin_unlock(pgt_lock);
 		}
@@ -327,12 +337,15 @@ pte_t * __init populate_extra_pte(unsigned long vaddr)
  * Create large page table mappings for a range of physical addresses.
  */
 static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
-						pgprot_t prot)
+					enum page_cache_mode cache)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
+	pgprot_t prot;
 
+	pgprot_val(prot) = pgprot_val(PAGE_KERNEL_LARGE) |
+		pgprot_val(pgprot_4k_2_large(cachemode2pgprot(cache)));
 	BUG_ON((phys & ~PMD_MASK) || (size & ~PMD_MASK));
 	for (; size; phys += PMD_SIZE, size -= PMD_SIZE) {
 		pgd = pgd_offset_k((unsigned long)__va(phys));
@@ -355,12 +368,12 @@ static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
 
 void __init init_extra_mapping_wb(unsigned long phys, unsigned long size)
 {
-	__init_extra_mapping(phys, size, PAGE_KERNEL_LARGE);
+	__init_extra_mapping(phys, size, _PAGE_CACHE_MODE_WB);
 }
 
 void __init init_extra_mapping_uc(unsigned long phys, unsigned long size)
 {
-	__init_extra_mapping(phys, size, PAGE_KERNEL_LARGE_NOCACHE);
+	__init_extra_mapping(phys, size, _PAGE_CACHE_MODE_UC);
 }
 
 /*
@@ -633,7 +646,7 @@ kernel_physical_mapping_init(unsigned long start,
 	}
 
 	if (pgd_changed)
-		sync_global_pgds(addr, end - 1);
+		sync_global_pgds(addr, end - 1, 0);
 
 	__flush_tlb_all();
 
@@ -976,25 +989,26 @@ static void __meminit
 remove_pagetable(unsigned long start, unsigned long end, bool direct)
 {
 	unsigned long next;
+	unsigned long addr;
 	pgd_t *pgd;
 	pud_t *pud;
 	bool pgd_changed = false;
 
-	for (; start < end; start = next) {
-		next = pgd_addr_end(start, end);
+	for (addr = start; addr < end; addr = next) {
+		next = pgd_addr_end(addr, end);
 
-		pgd = pgd_offset_k(start);
+		pgd = pgd_offset_k(addr);
 		if (!pgd_present(*pgd))
 			continue;
 
 		pud = (pud_t *)pgd_page_vaddr(*pgd);
-		remove_pud_table(pud, start, next, direct);
+		remove_pud_table(pud, addr, next, direct);
 		if (free_pud_table(pud, pgd))
 			pgd_changed = true;
 	}
 
 	if (pgd_changed)
-		sync_global_pgds(start, end - 1);
+		sync_global_pgds(start, end - 1, 1);
 
 	flush_tlb_all();
 }
@@ -1111,7 +1125,7 @@ void mark_rodata_ro(void)
 	unsigned long end = (unsigned long) &__end_rodata_hpage_align;
 	unsigned long text_end = PFN_ALIGN(&__stop___ex_table);
 	unsigned long rodata_end = PFN_ALIGN(&__end_rodata);
-	unsigned long all_end = PFN_ALIGN(&_end);
+	unsigned long all_end;
 
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 	       (end - start) >> 10);
@@ -1122,7 +1136,16 @@ void mark_rodata_ro(void)
 	/*
 	 * The rodata/data/bss/brk section (but not the kernel text!)
 	 * should also be not-executable.
+	 *
+	 * We align all_end to PMD_SIZE because the existing mapping
+	 * is a full PMD. If we would align _brk_end to PAGE_SIZE we
+	 * split the PMD and the reminder between _brk_end and the end
+	 * of the PMD will remain mapped executable.
+	 *
+	 * Any PMD which was setup after the one which covers _brk_end
+	 * has been zapped already via cleanup_highmem().
 	 */
+	all_end = roundup((unsigned long)_brk_end, PMD_SIZE);
 	set_memory_nx(rodata_start, (all_end - rodata_start) >> PAGE_SHIFT);
 
 	rodata_test();
@@ -1181,66 +1204,15 @@ int kern_addr_valid(unsigned long addr)
 	return pfn_valid(pte_pfn(*pte));
 }
 
-/*
- * A pseudo VMA to allow ptrace access for the vsyscall page.  This only
- * covers the 64bit vsyscall page now. 32bit has a real VMA now and does
- * not need special handling anymore:
- */
-static const char *gate_vma_name(struct vm_area_struct *vma)
-{
-	return "[vsyscall]";
-}
-static struct vm_operations_struct gate_vma_ops = {
-	.name = gate_vma_name,
-};
-static struct vm_area_struct gate_vma = {
-	.vm_start	= VSYSCALL_ADDR,
-	.vm_end		= VSYSCALL_ADDR + PAGE_SIZE,
-	.vm_page_prot	= PAGE_READONLY_EXEC,
-	.vm_flags	= VM_READ | VM_EXEC,
-	.vm_ops		= &gate_vma_ops,
-};
-
-struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
-{
-#ifdef CONFIG_IA32_EMULATION
-	if (!mm || mm->context.ia32_compat)
-		return NULL;
-#endif
-	return &gate_vma;
-}
-
-int in_gate_area(struct mm_struct *mm, unsigned long addr)
-{
-	struct vm_area_struct *vma = get_gate_vma(mm);
-
-	if (!vma)
-		return 0;
-
-	return (addr >= vma->vm_start) && (addr < vma->vm_end);
-}
-
-/*
- * Use this when you have no reliable mm, typically from interrupt
- * context. It is less reliable than using a task's mm and may give
- * false positives.
- */
-int in_gate_area_no_mm(unsigned long addr)
-{
-	return (addr & PAGE_MASK) == VSYSCALL_ADDR;
-}
-
 static unsigned long probe_memory_block_size(void)
 {
 	/* start from 2g */
 	unsigned long bz = 1UL<<31;
 
-#ifdef CONFIG_X86_UV
-	if (is_uv_system()) {
-		printk(KERN_INFO "UV: memory block size 2GB\n");
+	if (totalram_pages >= (64ULL << (30 - PAGE_SHIFT))) {
+		pr_info("Using 2GB memory block size for large-memory system\n");
 		return 2UL * 1024 * 1024 * 1024;
 	}
-#endif
 
 	/* less than 64g installed */
 	if ((max_pfn << PAGE_SHIFT) < (16UL << 32))
@@ -1341,7 +1313,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	else
 		err = vmemmap_populate_basepages(start, end, node);
 	if (!err)
-		sync_global_pgds(start, end - 1);
+		sync_global_pgds(start, end - 1, 0);
 	return err;
 }
 

@@ -49,6 +49,7 @@ int br_dev_queue_push_xmit(struct sk_buff *skb)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(br_dev_queue_push_xmit);
 
 int br_forward_finish(struct sk_buff *skb)
 {
@@ -56,6 +57,7 @@ int br_forward_finish(struct sk_buff *skb)
 		       br_dev_queue_push_xmit);
 
 }
+EXPORT_SYMBOL_GPL(br_forward_finish);
 
 static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
@@ -110,6 +112,7 @@ void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 
 	kfree_skb(skb);
 }
+EXPORT_SYMBOL_GPL(br_deliver);
 
 /* called with rcu_read_lock */
 void br_forward(const struct net_bridge_port *to, struct sk_buff *skb, struct sk_buff *skb0)
@@ -181,6 +184,11 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		/* Do not flood unicast traffic to ports that turn it off */
 		if (unicast && !(p->flags & BR_FLOOD))
 			continue;
+
+		/* Do not flood to ports that enable proxy ARP */
+		if (p->flags & BR_PROXYARP)
+			continue;
+
 		prev = maybe_deliver(prev, p, skb, __packet_hook);
 		if (IS_ERR(prev))
 			goto out;

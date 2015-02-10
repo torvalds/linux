@@ -27,7 +27,10 @@ FILES=					\
 	test-libunwind-debug-frame.bin	\
 	test-stackprotector-all.bin	\
 	test-timerfd.bin		\
-	test-libdw-dwarf-unwind.bin
+	test-libdw-dwarf-unwind.bin	\
+	test-compile-32.bin		\
+	test-compile-x32.bin		\
+	test-zlib.bin
 
 CC := $(CROSS_COMPILE)gcc -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
@@ -39,7 +42,7 @@ BUILD = $(CC) $(CFLAGS) -o $(OUTPUT)$@ $(patsubst %.bin,%.c,$@) $(LDFLAGS)
 ###############################
 
 test-all.bin:
-	$(BUILD) -Werror -fstack-protector-all -O2 -Werror -D_FORTIFY_SOURCE=2 -ldw -lelf -lnuma -lelf -laudit -I/usr/include/slang -lslang $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) $(FLAGS_PERL_EMBED) $(FLAGS_PYTHON_EMBED) -DPACKAGE='"perf"' -lbfd -ldl
+	$(BUILD) -Werror -fstack-protector-all -O2 -Werror -D_FORTIFY_SOURCE=2 -ldw -lelf -lnuma -lelf -laudit -I/usr/include/slang -lslang $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) $(FLAGS_PERL_EMBED) $(FLAGS_PYTHON_EMBED) -DPACKAGE='"perf"' -lbfd -ldl -lz
 
 test-hello.bin:
 	$(BUILD)
@@ -101,25 +104,11 @@ FLAGS_PERL_EMBED=$(PERL_EMBED_CCOPTS) $(PERL_EMBED_LDOPTS)
 test-libperl.bin:
 	$(BUILD) $(FLAGS_PERL_EMBED)
 
-override PYTHON := python
-override PYTHON_CONFIG := python-config
-
-escape-for-shell-sq =  $(subst ','\'',$(1))
-shell-sq = '$(escape-for-shell-sq)'
-
-PYTHON_CONFIG_SQ = $(call shell-sq,$(PYTHON_CONFIG))
-
-PYTHON_EMBED_LDOPTS = $(shell $(PYTHON_CONFIG_SQ) --ldflags 2>/dev/null)
-PYTHON_EMBED_LDFLAGS = $(call strip-libs,$(PYTHON_EMBED_LDOPTS))
-PYTHON_EMBED_LIBADD = $(call grep-libs,$(PYTHON_EMBED_LDOPTS))
-PYTHON_EMBED_CCOPTS = $(shell $(PYTHON_CONFIG_SQ) --cflags 2>/dev/null)
-FLAGS_PYTHON_EMBED = $(PYTHON_EMBED_CCOPTS) $(PYTHON_EMBED_LDOPTS)
-
 test-libpython.bin:
-	$(BUILD) $(FLAGS_PYTHON_EMBED)
+	$(BUILD)
 
 test-libpython-version.bin:
-	$(BUILD) $(FLAGS_PYTHON_EMBED)
+	$(BUILD)
 
 test-libbfd.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -lz -liberty -ldl
@@ -144,6 +133,15 @@ test-libdw-dwarf-unwind.bin:
 
 test-sync-compare-and-swap.bin:
 	$(BUILD) -Werror
+
+test-compile-32.bin:
+	$(CC) -m32 -o $(OUTPUT)$@ test-compile.c
+
+test-compile-x32.bin:
+	$(CC) -mx32 -o $(OUTPUT)$@ test-compile.c
+
+test-zlib.bin:
+	$(BUILD) -lz
 
 -include *.d
 

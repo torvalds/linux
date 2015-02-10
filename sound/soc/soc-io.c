@@ -271,31 +271,3 @@ int snd_soc_platform_write(struct snd_soc_platform *platform,
 	return snd_soc_component_write(&platform->component, reg, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_platform_write);
-
-/**
- * snd_soc_component_init_io() - Initialize regmap IO
- *
- * @component: component to initialize
- * @regmap: regmap instance to use for IO operations
- *
- * Return: 0 on success, a negative error code otherwise
- */
-int snd_soc_component_init_io(struct snd_soc_component *component,
-	struct regmap *regmap)
-{
-	int ret;
-
-	if (!regmap)
-		return -EINVAL;
-
-	ret = regmap_get_val_bytes(regmap);
-	/* Errors are legitimate for non-integer byte
-	 * multiples */
-	if (ret > 0)
-		component->val_bytes = ret;
-
-	component->regmap = regmap;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_init_io);

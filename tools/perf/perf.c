@@ -200,6 +200,16 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 				*envchanged = 1;
 			(*argv)++;
 			(*argc)--;
+		} else if (!strcmp(cmd, "--buildid-dir")) {
+			if (*argc < 2) {
+				fprintf(stderr, "No directory given for --buildid-dir.\n");
+				usage(perf_usage_string);
+			}
+			set_buildid_dir((*argv)[1]);
+			if (envchanged)
+				*envchanged = 1;
+			(*argv)++;
+			(*argc)--;
 		} else if (!prefixcmp(cmd, CMD_DEBUGFS_DIR)) {
 			perf_debugfs_set_path(cmd + strlen(CMD_DEBUGFS_DIR));
 			fprintf(stderr, "dir: %s\n", debugfs_mountpoint);
@@ -313,6 +323,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	int status;
 	struct stat st;
 	const char *prefix;
+	char sbuf[STRERR_BUFSIZE];
 
 	prefix = NULL;
 	if (p->option & RUN_SETUP)
@@ -343,7 +354,8 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	status = 1;
 	/* Check for ENOSPC and EIO errors.. */
 	if (fflush(stdout)) {
-		fprintf(stderr, "write failure on standard output: %s", strerror(errno));
+		fprintf(stderr, "write failure on standard output: %s",
+			strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 	if (ferror(stdout)) {
@@ -351,7 +363,8 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 		goto out;
 	}
 	if (fclose(stdout)) {
-		fprintf(stderr, "close failed on standard output: %s", strerror(errno));
+		fprintf(stderr, "close failed on standard output: %s",
+			strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 	status = 0;
@@ -466,6 +479,7 @@ void pthread__unblock_sigwinch(void)
 int main(int argc, const char **argv)
 {
 	const char *cmd;
+	char sbuf[STRERR_BUFSIZE];
 
 	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
@@ -495,7 +509,7 @@ int main(int argc, const char **argv)
 	}
 	if (!prefixcmp(cmd, "trace")) {
 #ifdef HAVE_LIBAUDIT_SUPPORT
-		set_buildid_dir();
+		set_buildid_dir(NULL);
 		setup_path();
 		argv[0] = "trace";
 		return cmd_trace(argc, argv, NULL);
@@ -510,7 +524,7 @@ int main(int argc, const char **argv)
 	argc--;
 	handle_options(&argv, &argc, NULL);
 	commit_pager_choice();
-	set_buildid_dir();
+	set_buildid_dir(NULL);
 
 	if (argc > 0) {
 		if (!prefixcmp(argv[0], "--"))
@@ -561,7 +575,7 @@ int main(int argc, const char **argv)
 	}
 
 	fprintf(stderr, "Failed to run command '%s': %s\n",
-		cmd, strerror(errno));
+		cmd, strerror_r(errno, sbuf, sizeof(sbuf)));
 out:
 	return 1;
 }

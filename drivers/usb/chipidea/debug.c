@@ -220,7 +220,7 @@ static int ci_otg_show(struct seq_file *s, void *unused)
 
 	/* ------ State ----- */
 	seq_printf(s, "OTG state: %s\n\n",
-		usb_otg_state_string(ci->transceiver->state));
+			usb_otg_state_string(ci->otg.state));
 
 	/* ------ State Machine Variables ----- */
 	seq_printf(s, "a_bus_drop: %d\n", fsm->a_bus_drop);

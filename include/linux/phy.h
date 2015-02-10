@@ -433,6 +433,7 @@ struct phy_device {
  *   by this PHY
  * flags: A bitfield defining certain other features this PHY
  *   supports (like interrupts)
+ * driver_data: static driver data
  *
  * The drivers must implement config_aneg and read_status.  All
  * other functions are optional. Note that none of these
@@ -448,6 +449,7 @@ struct phy_driver {
 	unsigned int phy_id_mask;
 	u32 features;
 	u32 flags;
+	const void *driver_data;
 
 	/*
 	 * Called to issue a PHY software reset
@@ -598,6 +600,19 @@ static inline int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 }
 
 /**
+ * phy_read_mmd_indirect - reads data from the MMD registers
+ * @phydev: The PHY device bus
+ * @prtad: MMD Address
+ * @devad: MMD DEVAD
+ * @addr: PHY address on the MII bus
+ *
+ * Description: it reads data from the MMD registers (clause 22 to access to
+ * clause 45) of the specified phy address.
+ */
+int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
+			  int devad, int addr);
+
+/**
  * phy_read - Convenience function for reading a given PHY register
  * @phydev: the phy_device struct
  * @regnum: register number to read
@@ -667,6 +682,20 @@ static inline int phy_write_mmd(struct phy_device *phydev, int devad,
 
 	return mdiobus_write(phydev->bus, phydev->addr, regnum, val);
 }
+
+/**
+ * phy_write_mmd_indirect - writes data to the MMD registers
+ * @phydev: The PHY device
+ * @prtad: MMD Address
+ * @devad: MMD DEVAD
+ * @addr: PHY address on the MII bus
+ * @data: data to write in the MMD register
+ *
+ * Description: Write data from the MMD registers of the specified
+ * phy address.
+ */
+void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
+			    int devad, int addr, u32 data);
 
 struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 				     bool is_c45,
@@ -745,4 +774,28 @@ int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
 
 extern struct bus_type mdio_bus_type;
+
+/**
+ * module_phy_driver() - Helper macro for registering PHY drivers
+ * @__phy_drivers: array of PHY drivers to register
+ *
+ * Helper macro for PHY drivers which do not do anything special in module
+ * init/exit. Each module may only use this macro once, and calling it
+ * replaces module_init() and module_exit().
+ */
+#define phy_module_driver(__phy_drivers, __count)			\
+static int __init phy_module_init(void)					\
+{									\
+	return phy_drivers_register(__phy_drivers, __count);		\
+}									\
+module_init(phy_module_init);						\
+static void __exit phy_module_exit(void)				\
+{									\
+	phy_drivers_unregister(__phy_drivers, __count);			\
+}									\
+module_exit(phy_module_exit)
+
+#define module_phy_driver(__phy_drivers)				\
+	phy_module_driver(__phy_drivers, ARRAY_SIZE(__phy_drivers))
+
 #endif /* __PHY_H */

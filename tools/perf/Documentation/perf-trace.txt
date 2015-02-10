@@ -20,7 +20,7 @@ scheduling events, etc.
 This is a live mode tool in addition to working with perf.data files like
 the other perf tools. Files can be generated using the 'perf record' command
 but the session needs to include the raw_syscalls events (-e 'raw_syscalls:*').
-Alernatively, the 'perf trace record' can be used as a shortcut to
+Alternatively, 'perf trace record' can be used as a shortcut to
 automatically include the raw_syscalls events when writing events to a file.
 
 The following options apply to perf trace; options to perf trace record are

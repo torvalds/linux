@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2011 Zhang, Keguang <keguang.zhang@gmail.com>
  *
- * Loongson 1 watchdog register definitions.
+ * Loongson 1 Watchdog Register Definitions.
  *
  * This program is free software; you can redistribute	it and/or modify it
  * under  the terms of	the GNU General	 Public License as published by the
@@ -12,11 +12,8 @@
 #ifndef __ASM_MACH_LOONGSON1_REGS_WDT_H
 #define __ASM_MACH_LOONGSON1_REGS_WDT_H
 
-#define LS1X_WDT_REG(x) \
-		((void __iomem *)KSEG1ADDR(LS1X_WDT_BASE + (x)))
-
-#define LS1X_WDT_EN			LS1X_WDT_REG(0x0)
-#define LS1X_WDT_SET			LS1X_WDT_REG(0x4)
-#define LS1X_WDT_TIMER			LS1X_WDT_REG(0x8)
+#define WDT_EN			0x0
+#define WDT_TIMER		0x4
+#define WDT_SET			0x8
 
 #endif /* __ASM_MACH_LOONGSON1_REGS_WDT_H */

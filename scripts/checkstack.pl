@@ -13,7 +13,7 @@
 #	Random bits by Matt Mackall <mpm@selenic.com>
 #	M68k port by Geert Uytterhoeven and Andreas Schwab
 #	AVR32 port by Haavard Skinnemoen (Atmel)
-#	PARISC port by Kyle McMartin <kyle@parisc-linux.org>
+#	AArch64, PARISC ports by Kyle McMartin
 #	sparc port by Martin Habets <errandir_news@mph.eclipse.co.uk>
 #
 #	Usage:
@@ -45,7 +45,10 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
 	$x	= "[0-9a-f]";	# hex character
 	$xs	= "[0-9a-f ]";	# hex character or space
 	$funcre = qr/^$x* <(.*)>:$/;
-	if ($arch eq 'arm') {
+	if ($arch eq 'aarch64') {
+		#ffffffc0006325cc:       a9bb7bfd        stp     x29, x30, [sp,#-80]!
+		$re = qr/^.*stp.*sp,\#-([0-9]{1,8})\]\!/o;
+	} elsif ($arch eq 'arm') {
 		#c0008ffc:	e24dd064	sub	sp, sp, #100	; 0x64
 		$re = qr/.*sub.*sp, sp, #(([0-9]{2}|[3-9])[0-9]{2})/o;
 	} elsif ($arch eq 'avr32') {

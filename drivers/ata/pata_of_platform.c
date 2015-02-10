@@ -35,25 +35,14 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 		return -EINVAL;
 	}
 
-	if (of_device_is_compatible(dn, "electra-ide")) {
-		/* Altstatus is really at offset 0x3f6 from the primary window
-		 * on electra-ide. Adjust ctl_res and io_res accordingly.
-		 */
-		ctl_res = io_res;
-		ctl_res.start = ctl_res.start+0x3f6;
-		io_res.end = ctl_res.start-1;
-	} else {
-		ret = of_address_to_resource(dn, 1, &ctl_res);
-		if (ret) {
-			dev_err(&ofdev->dev, "can't get CTL address from "
-				"device tree\n");
-			return -EINVAL;
-		}
+	ret = of_address_to_resource(dn, 1, &ctl_res);
+	if (ret) {
+		dev_err(&ofdev->dev, "can't get CTL address from "
+			"device tree\n");
+		return -EINVAL;
 	}
 
 	irq_res = platform_get_resource(ofdev, IORESOURCE_IRQ, 0);
-	if (irq_res)
-		irq_res->flags = 0;
 
 	prop = of_get_property(dn, "reg-shift", NULL);
 	if (prop)
@@ -79,15 +68,13 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 
 static struct of_device_id pata_of_platform_match[] = {
 	{ .compatible = "ata-generic", },
-	{ .compatible = "electra-ide", },
-	{},
+	{ },
 };
 MODULE_DEVICE_TABLE(of, pata_of_platform_match);
 
 static struct platform_driver pata_of_platform_driver = {
 	.driver = {
 		.name = "pata_of_platform",
-		.owner = THIS_MODULE,
 		.of_match_table = pata_of_platform_match,
 	},
 	.probe		= pata_of_platform_probe,

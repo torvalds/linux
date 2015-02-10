@@ -1,6 +1,8 @@
 #ifndef ASM_EDAC_H
 #define ASM_EDAC_H
 
+#include <asm/compiler.h>
+
 /* ECC atomic, DMA, SMP and interrupt safe scrub function */
 
 static inline void atomic_scrub(void *va, u32 size)
@@ -24,8 +26,8 @@ static inline void atomic_scrub(void *va, u32 size)
 		"	sc	%0, %1					\n"
 		"	beqz	%0, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "=m" (*virt_addr)
-		: "m" (*virt_addr));
+		: "=&r" (temp), "=" GCC_OFF12_ASM() (*virt_addr)
+		: GCC_OFF12_ASM() (*virt_addr));
 
 		virt_addr++;
 	}

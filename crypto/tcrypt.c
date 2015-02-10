@@ -1225,15 +1225,22 @@ static inline int tcrypt_test(const char *alg)
 	return ret;
 }
 
-static int do_test(int m)
+static int do_test(const char *alg, u32 type, u32 mask, int m)
 {
 	int i;
 	int ret = 0;
 
 	switch (m) {
 	case 0:
+		if (alg) {
+			if (!crypto_has_alg(alg, type,
+					    mask ?: CRYPTO_ALG_TYPE_MASK))
+				ret = -ENOENT;
+			break;
+		}
+
 		for (i = 1; i < 200; i++)
-			ret += do_test(i);
+			ret += do_test(NULL, 0, 0, i);
 		break;
 
 	case 1:
@@ -1752,6 +1759,11 @@ static int do_test(int m)
 		break;
 
 	case 300:
+		if (alg) {
+			test_hash_speed(alg, sec, generic_hash_speed_template);
+			break;
+		}
+
 		/* fall through */
 
 	case 301:
@@ -1838,6 +1850,11 @@ static int do_test(int m)
 		break;
 
 	case 400:
+		if (alg) {
+			test_ahash_speed(alg, sec, generic_hash_speed_template);
+			break;
+		}
+
 		/* fall through */
 
 	case 401:
@@ -2127,12 +2144,6 @@ static int do_test(int m)
 	return ret;
 }
 
-static int do_alg_test(const char *alg, u32 type, u32 mask)
-{
-	return crypto_has_alg(alg, type, mask ?: CRYPTO_ALG_TYPE_MASK) ?
-	       0 : -ENOENT;
-}
-
 static int __init tcrypt_mod_init(void)
 {
 	int err = -ENOMEM;
@@ -2144,10 +2155,7 @@ static int __init tcrypt_mod_init(void)
 			goto err_free_tv;
 	}
 
-	if (alg)
-		err = do_alg_test(alg, type, mask);
-	else
-		err = do_test(mode);
+	err = do_test(alg, type, mask, mode);
 
 	if (err) {
 		printk(KERN_ERR "tcrypt: one or more tests failed!\n");

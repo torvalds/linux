@@ -27,6 +27,7 @@
 #include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/regulator/consumer.h>
+#include <soc/tegra/fuse.h>
 #include <soc/tegra/pmc.h>
 
 #include "nouveau_drm.h"
@@ -128,6 +129,7 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 	}
 
 	device->gpu = gpu;
+	device->gpu_speedo = tegra_sku_info.gpu_speedo_value;
 
 	err = drm_dev_register(drm, 0);
 	if (err < 0)

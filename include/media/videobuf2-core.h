@@ -82,19 +82,23 @@ struct vb2_threadio_data;
  *				  unmap_dmabuf.
  */
 struct vb2_mem_ops {
-	void		*(*alloc)(void *alloc_ctx, unsigned long size, gfp_t gfp_flags);
+	void		*(*alloc)(void *alloc_ctx, unsigned long size,
+				  enum dma_data_direction dma_dir,
+				  gfp_t gfp_flags);
 	void		(*put)(void *buf_priv);
 	struct dma_buf *(*get_dmabuf)(void *buf_priv, unsigned long flags);
 
 	void		*(*get_userptr)(void *alloc_ctx, unsigned long vaddr,
-					unsigned long size, int write);
+					unsigned long size,
+					enum dma_data_direction dma_dir);
 	void		(*put_userptr)(void *buf_priv);
 
 	void		(*prepare)(void *buf_priv);
 	void		(*finish)(void *buf_priv);
 
 	void		*(*attach_dmabuf)(void *alloc_ctx, struct dma_buf *dbuf,
-				unsigned long size, int write);
+					  unsigned long size,
+					  enum dma_data_direction dma_dir);
 	void		(*detach_dmabuf)(void *buf_priv);
 	int		(*map_dmabuf)(void *buf_priv);
 	void		(*unmap_dmabuf)(void *buf_priv);
@@ -270,22 +274,24 @@ struct vb2_buffer {
  *			queue setup from completing successfully; optional.
  * @buf_prepare:	called every time the buffer is queued from userspace
  *			and from the VIDIOC_PREPARE_BUF ioctl; drivers may
- *			perform any initialization required before each hardware
- *			operation in this callback; drivers that support
- *			VIDIOC_CREATE_BUFS must also validate the buffer size;
- *			if an error is returned, the buffer will not be queued
- *			in driver; optional.
+ *			perform any initialization required before each
+ *			hardware operation in this callback; drivers can
+ *			access/modify the buffer here as it is still synced for
+ *			the CPU; drivers that support VIDIOC_CREATE_BUFS must
+ *			also validate the buffer size; if an error is returned,
+ *			the buffer will not be queued in driver; optional.
  * @buf_finish:		called before every dequeue of the buffer back to
- *			userspace; drivers may perform any operations required
- *			before userspace accesses the buffer; optional. The
- *			buffer state can be one of the following: DONE and
- *			ERROR occur while streaming is in progress, and the
- *			PREPARED state occurs when the queue has been canceled
- *			and all pending buffers are being returned to their
- *			default DEQUEUED state. Typically you only have to do
- *			something if the state is VB2_BUF_STATE_DONE, since in
- *			all other cases the buffer contents will be ignored
- *			anyway.
+ *			userspace; the buffer is synced for the CPU, so drivers
+ *			can access/modify the buffer contents; drivers may
+ *			perform any operations required before userspace
+ *			accesses the buffer; optional. The buffer state can be
+ *			one of the following: DONE and ERROR occur while
+ *			streaming is in progress, and the PREPARED state occurs
+ *			when the queue has been canceled and all pending
+ *			buffers are being returned to their default DEQUEUED
+ *			state. Typically you only have to do something if the
+ *			state is VB2_BUF_STATE_DONE, since in all other cases
+ *			the buffer contents will be ignored anyway.
  * @buf_cleanup:	called once before the buffer is freed; drivers may
  *			perform any additional cleanup; optional.
  * @start_streaming:	called once to enter 'streaming' state; the driver may
@@ -356,8 +362,8 @@ struct v4l2_fh;
  * @buf_struct_size: size of the driver-specific buffer structure;
  *		"0" indicates the driver doesn't want to use a custom buffer
  *		structure type, so sizeof(struct vb2_buffer) will is used
- * @timestamp_flags: Timestamp flags; V4L2_BUF_FLAGS_TIMESTAMP_* and
- *		V4L2_BUF_FLAGS_TSTAMP_SRC_*
+ * @timestamp_flags: Timestamp flags; V4L2_BUF_FLAG_TIMESTAMP_* and
+ *		V4L2_BUF_FLAG_TSTAMP_SRC_*
  * @gfp_flags:	additional gfp flags used when allocating the buffers.
  *		Typically this is 0, but it may be e.g. GFP_DMA or __GFP_DMA32
  *		to force the buffer allocation to a specific memory zone.
@@ -366,6 +372,7 @@ struct v4l2_fh;
  *		cannot be started unless at least this number of buffers
  *		have been queued into the driver.
  *
+ * @mmap_lock:	private mutex used when buffers are allocated/freed/mmapped
  * @memory:	current memory type used
  * @bufs:	videobuf buffer structures
  * @num_buffers: number of allocated/used buffers
@@ -402,6 +409,7 @@ struct vb2_queue {
 	u32				min_buffers_needed;
 
 /* private: internal use only */
+	struct mutex			mmap_lock;
 	enum v4l2_memory		memory;
 	struct vb2_buffer		*bufs[VIDEO_MAX_FRAME];
 	unsigned int			num_buffers;
@@ -590,6 +598,15 @@ vb2_plane_size(struct vb2_buffer *vb, unsigned int plane_no)
 	if (plane_no < vb->num_planes)
 		return vb->v4l2_planes[plane_no].length;
 	return 0;
+}
+
+/**
+ * vb2_start_streaming_called() - return streaming status of driver
+ * @q:		videobuf queue
+ */
+static inline bool vb2_start_streaming_called(struct vb2_queue *q)
+{
+	return q->start_streaming_called;
 }
 
 /*

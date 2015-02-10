@@ -66,7 +66,7 @@ typedef s32 codel_tdiff_t;
 
 static inline codel_time_t codel_get_time(void)
 {
-	u64 ns = ktime_to_ns(ktime_get());
+	u64 ns = ktime_get_ns();
 
 	return ns >> CODEL_SHIFT;
 }

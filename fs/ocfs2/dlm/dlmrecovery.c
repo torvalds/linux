@@ -1656,14 +1656,18 @@ int dlm_do_master_requery(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 	req.namelen = res->lockname.len;
 	memcpy(req.name, res->lockname.name, res->lockname.len);
 
+resend:
 	ret = o2net_send_message(DLM_MASTER_REQUERY_MSG, dlm->key,
 				 &req, sizeof(req), nodenum, &status);
-	/* XXX: negative status not handled properly here. */
 	if (ret < 0)
 		mlog(ML_ERROR, "Error %d when sending message %u (key "
 		     "0x%x) to node %u\n", ret, DLM_MASTER_REQUERY_MSG,
 		     dlm->key, nodenum);
-	else {
+	else if (status == -ENOMEM) {
+		mlog_errno(status);
+		msleep(50);
+		goto resend;
+	} else {
 		BUG_ON(status < 0);
 		BUG_ON(status > DLM_LOCK_RES_OWNER_UNKNOWN);
 		*real_master = (u8) (status & 0xff);
@@ -1705,14 +1709,21 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 			int ret = dlm_dispatch_assert_master(dlm, res,
 							     0, 0, flags);
 			if (ret < 0) {
-				mlog_errno(-ENOMEM);
-				/* retry!? */
-				BUG();
+				mlog_errno(ret);
+				spin_unlock(&res->spinlock);
+				dlm_lockres_put(res);
+				spin_unlock(&dlm->spinlock);
+				dlm_put(dlm);
+				/* sender will take care of this and retry */
+				return ret;
 			} else
 				__dlm_lockres_grab_inflight_worker(dlm, res);
-		} else /* put.. incase we are not the master */
+			spin_unlock(&res->spinlock);
+		} else {
+			/* put.. incase we are not the master */
+			spin_unlock(&res->spinlock);
 			dlm_lockres_put(res);
-		spin_unlock(&res->spinlock);
+		}
 	}
 	spin_unlock(&dlm->spinlock);
 
@@ -2012,11 +2023,8 @@ leave:
 	dlm_lockres_drop_inflight_ref(dlm, res);
 	spin_unlock(&res->spinlock);
 
-	if (ret < 0) {
+	if (ret < 0)
 		mlog_errno(ret);
-		if (newlock)
-			dlm_lock_put(newlock);
-	}
 
 	return ret;
 }

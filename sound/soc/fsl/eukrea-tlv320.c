@@ -105,7 +105,7 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 	int ret;
 	int int_port = 0, ext_port;
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ssi_np, *codec_np;
+	struct device_node *ssi_np = NULL, *codec_np = NULL;
 
 	eukrea_tlv320.dev = &pdev->dev;
 	if (np) {
@@ -217,8 +217,7 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 err:
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
-	if (np)
-		of_node_put(ssi_np);
+	of_node_put(ssi_np);
 
 	return ret;
 }
@@ -239,7 +238,6 @@ MODULE_DEVICE_TABLE(of, imx_tlv320_dt_ids);
 static struct platform_driver eukrea_tlv320_driver = {
 	.driver = {
 		.name = "eukrea_tlv320",
-		.owner = THIS_MODULE,
 		.of_match_table = imx_tlv320_dt_ids,
 	},
 	.probe = eukrea_tlv320_probe,

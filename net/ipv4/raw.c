@@ -79,6 +79,16 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/compat.h>
+#include <linux/uio.h>
+
+struct raw_frag_vec {
+	struct msghdr *msg;
+	union {
+		struct icmphdr icmph;
+		char c[1];
+	} hdr;
+	int hlen;
+};
 
 static struct raw_hashinfo raw_v4_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(raw_v4_hashinfo.lock),
@@ -420,51 +430,55 @@ error:
 	return err;
 }
 
-static int raw_probe_proto_opt(struct flowi4 *fl4, struct msghdr *msg)
+static int raw_probe_proto_opt(struct raw_frag_vec *rfv, struct flowi4 *fl4)
 {
-	struct iovec *iov;
-	u8 __user *type = NULL;
-	u8 __user *code = NULL;
-	int probed = 0;
-	unsigned int i;
+	int err;
 
-	if (!msg->msg_iov)
+	if (fl4->flowi4_proto != IPPROTO_ICMP)
 		return 0;
 
-	for (i = 0; i < msg->msg_iovlen; i++) {
-		iov = &msg->msg_iov[i];
-		if (!iov)
-			continue;
+	/* We only need the first two bytes. */
+	rfv->hlen = 2;
 
-		switch (fl4->flowi4_proto) {
-		case IPPROTO_ICMP:
-			/* check if one-byte field is readable or not. */
-			if (iov->iov_base && iov->iov_len < 1)
-				break;
+	err = memcpy_from_msg(rfv->hdr.c, rfv->msg, rfv->hlen);
+	if (err)
+		return err;
 
-			if (!type) {
-				type = iov->iov_base;
-				/* check if code field is readable or not. */
-				if (iov->iov_len > 1)
-					code = type + 1;
-			} else if (!code)
-				code = iov->iov_base;
+	fl4->fl4_icmp_type = rfv->hdr.icmph.type;
+	fl4->fl4_icmp_code = rfv->hdr.icmph.code;
 
-			if (type && code) {
-				if (get_user(fl4->fl4_icmp_type, type) ||
-				    get_user(fl4->fl4_icmp_code, code))
-					return -EFAULT;
-				probed = 1;
-			}
-			break;
-		default:
-			probed = 1;
-			break;
-		}
-		if (probed)
-			break;
-	}
 	return 0;
+}
+
+static int raw_getfrag(void *from, char *to, int offset, int len, int odd,
+		       struct sk_buff *skb)
+{
+	struct raw_frag_vec *rfv = from;
+
+	if (offset < rfv->hlen) {
+		int copy = min(rfv->hlen - offset, len);
+
+		if (skb->ip_summed == CHECKSUM_PARTIAL)
+			memcpy(to, rfv->hdr.c + offset, copy);
+		else
+			skb->csum = csum_block_add(
+				skb->csum,
+				csum_partial_copy_nocheck(rfv->hdr.c + offset,
+							  to, copy, 0),
+				odd);
+
+		odd = 0;
+		offset += copy;
+		to += copy;
+		len -= copy;
+
+		if (!len)
+			return 0;
+	}
+
+	offset -= rfv->hlen;
+
+	return ip_generic_getfrag(rfv->msg, to, offset, len, odd, skb);
 }
 
 static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
@@ -480,6 +494,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	u8  tos;
 	int err;
 	struct ip_options_data opt_copy;
+	struct raw_frag_vec rfv;
 
 	err = -EMSGSIZE;
 	if (len > 0xFFFF)
@@ -585,7 +600,10 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			   daddr, saddr, 0, 0);
 
 	if (!inet->hdrincl) {
-		err = raw_probe_proto_opt(&fl4, msg);
+		rfv.msg = msg;
+		rfv.hlen = 0;
+
+		err = raw_probe_proto_opt(&rfv, &fl4);
 		if (err)
 			goto done;
 	}
@@ -607,7 +625,8 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 back_from_confirm:
 
 	if (inet->hdrincl)
-		err = raw_send_hdrinc(sk, &fl4, msg->msg_iov, len,
+		/* XXX: stripping const */
+		err = raw_send_hdrinc(sk, &fl4, (struct iovec *)msg->msg_iter.iov, len,
 				      &rt, msg->msg_flags);
 
 	 else {
@@ -616,8 +635,8 @@ back_from_confirm:
 		if (!ipc.addr)
 			ipc.addr = fl4.daddr;
 		lock_sock(sk);
-		err = ip_append_data(sk, &fl4, ip_generic_getfrag,
-				     msg->msg_iov, len, 0,
+		err = ip_append_data(sk, &fl4, raw_getfrag,
+				     &rfv, len, 0,
 				     &ipc, &rt, msg->msg_flags);
 		if (err)
 			ip_flush_pending_frames(sk);
@@ -718,7 +737,7 @@ static int raw_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		copied = len;
 	}
 
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	err = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (err)
 		goto done;
 

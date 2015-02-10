@@ -371,10 +371,10 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 		writel(status, dev->mmio + 16);
 
 		val = readl(dev->mmio + 28);
-		comedi_buf_put(s, val);
+		comedi_buf_write_samples(s, &val, 1);
 
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 
 		return IRQ_HANDLED;
 	}
@@ -472,7 +472,7 @@ static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
 				   unsigned int *ns, unsigned int flags)
 {
-	const struct apci3xxx_boardinfo *board = comedi_board(dev);
+	const struct apci3xxx_boardinfo *board = dev->board_ptr;
 	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int base;
 	unsigned int timer;
@@ -496,15 +496,15 @@ static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
 			break;
 		}
 
-		switch (flags & TRIG_ROUND_MASK) {
-		case TRIG_ROUND_NEAREST:
+		switch (flags & CMDF_ROUND_MASK) {
+		case CMDF_ROUND_NEAREST:
 		default:
 			timer = (*ns + base / 2) / base;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			timer = *ns / base;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			timer = (*ns + base - 1) / base;
 			break;
 		}
@@ -523,7 +523,7 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_cmd *cmd)
 {
-	const struct apci3xxx_boardinfo *board = comedi_board(dev);
+	const struct apci3xxx_boardinfo *board = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
@@ -628,16 +628,20 @@ static int apci3xxx_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
+		unsigned int val = data[i];
+
 		/* Set the range selection */
 		writel(range, dev->mmio + 96);
 
 		/* Write the analog value to the selected channel */
-		writel((data[i] << 8) | chan, dev->mmio + 100);
+		writel((val << 8) | chan, dev->mmio + 100);
 
 		/* Wait the end of transfer */
 		ret = comedi_timeout(dev, s, insn, apci3xxx_ao_eoc, 0);
 		if (ret)
 			return ret;
+
+		s->readback[chan] = val;
 	}
 
 	return insn->n;
@@ -845,11 +849,15 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_ao) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &apci3xxx_ao_range;
 		s->insn_write	= apci3xxx_ao_insn_write;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 
 		subdev++;
 	}
@@ -871,7 +879,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_dig_out) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DO;
-		s->subdev_flags	= SDF_WRITEABLE;
+		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= 4;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
@@ -884,7 +892,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_ttl_io) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DIO;
-		s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 		s->n_chan	= 24;
 		s->maxdata	= 1;
 		s->io_bits	= 0xff;	/* channels 0-7 are always outputs */
@@ -901,17 +909,9 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 
 static void apci3xxx_detach(struct comedi_device *dev)
 {
-	struct apci3xxx_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (dev->iobase)
-			apci3xxx_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-		if (dev->mmio)
-			iounmap(dev->mmio);
-	}
-	comedi_pci_disable(dev);
+	if (dev->iobase)
+		apci3xxx_reset(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver apci3xxx_driver = {

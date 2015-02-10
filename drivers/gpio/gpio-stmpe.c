@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/mfd/stmpe.h>
+#include <linux/seq_file.h>
 
 /*
  * These registers are modified under the irq bus lock and cached to avoid
@@ -127,19 +128,19 @@ static int stmpe_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
-	if (type == IRQ_TYPE_LEVEL_LOW || type == IRQ_TYPE_LEVEL_HIGH)
+	if (type & IRQ_TYPE_LEVEL_LOW || type & IRQ_TYPE_LEVEL_HIGH)
 		return -EINVAL;
 
 	/* STMPE801 doesn't have RE and FE registers */
 	if (stmpe_gpio->stmpe->partnum == STMPE801)
 		return 0;
 
-	if (type == IRQ_TYPE_EDGE_RISING)
+	if (type & IRQ_TYPE_EDGE_RISING)
 		stmpe_gpio->regs[REG_RE][regoffset] |= mask;
 	else
 		stmpe_gpio->regs[REG_RE][regoffset] &= ~mask;
 
-	if (type == IRQ_TYPE_EDGE_FALLING)
+	if (type & IRQ_TYPE_EDGE_FALLING)
 		stmpe_gpio->regs[REG_FE][regoffset] |= mask;
 	else
 		stmpe_gpio->regs[REG_FE][regoffset] &= ~mask;
@@ -209,6 +210,77 @@ static void stmpe_gpio_irq_unmask(struct irq_data *d)
 	int mask = 1 << (offset % 8);
 
 	stmpe_gpio->regs[REG_IE][regoffset] |= mask;
+}
+
+static void stmpe_dbg_show_one(struct seq_file *s,
+			       struct gpio_chip *gc,
+			       unsigned offset, unsigned gpio)
+{
+	struct stmpe_gpio *stmpe_gpio = to_stmpe_gpio(gc);
+	struct stmpe *stmpe = stmpe_gpio->stmpe;
+	const char *label = gpiochip_is_requested(gc, offset);
+	int num_banks = DIV_ROUND_UP(stmpe->num_gpios, 8);
+	bool val = !!stmpe_gpio_get(gc, offset);
+	u8 dir_reg = stmpe->regs[STMPE_IDX_GPDR_LSB] - (offset / 8);
+	u8 mask = 1 << (offset % 8);
+	int ret;
+	u8 dir;
+
+	ret = stmpe_reg_read(stmpe, dir_reg);
+	if (ret < 0)
+		return;
+	dir = !!(ret & mask);
+
+	if (dir) {
+		seq_printf(s, " gpio-%-3d (%-20.20s) out %s",
+			   gpio, label ?: "(none)",
+			   val ? "hi" : "lo");
+	} else {
+		u8 edge_det_reg = stmpe->regs[STMPE_IDX_GPEDR_MSB] + num_banks - 1 - (offset / 8);
+		u8 rise_reg = stmpe->regs[STMPE_IDX_GPRER_LSB] - (offset / 8);
+		u8 fall_reg = stmpe->regs[STMPE_IDX_GPFER_LSB] - (offset / 8);
+		u8 irqen_reg = stmpe->regs[STMPE_IDX_IEGPIOR_LSB] - (offset / 8);
+		bool edge_det;
+		bool rise;
+		bool fall;
+		bool irqen;
+
+		ret = stmpe_reg_read(stmpe, edge_det_reg);
+		if (ret < 0)
+			return;
+		edge_det = !!(ret & mask);
+		ret = stmpe_reg_read(stmpe, rise_reg);
+		if (ret < 0)
+			return;
+		rise = !!(ret & mask);
+		ret = stmpe_reg_read(stmpe, fall_reg);
+		if (ret < 0)
+			return;
+		fall = !!(ret & mask);
+		ret = stmpe_reg_read(stmpe, irqen_reg);
+		if (ret < 0)
+			return;
+		irqen = !!(ret & mask);
+
+		seq_printf(s, " gpio-%-3d (%-20.20s) in  %s %s %s%s%s",
+			   gpio, label ?: "(none)",
+			   val ? "hi" : "lo",
+			   edge_det ? "edge-asserted" : "edge-inactive",
+			   irqen ? "IRQ-enabled" : "",
+			   rise ? " rising-edge-detection" : "",
+			   fall ? " falling-edge-detection" : "");
+	}
+}
+
+static void stmpe_dbg_show(struct seq_file *s, struct gpio_chip *gc)
+{
+	unsigned i;
+	unsigned gpio = gc->base;
+
+	for (i = 0; i < gc->ngpio; i++, gpio++) {
+		stmpe_dbg_show_one(s, gc, i, gpio);
+		seq_printf(s, "\n");
+	}
 }
 
 static struct irq_chip stmpe_gpio_irq_chip = {
@@ -293,6 +365,9 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 #endif
 	stmpe_gpio->chip.base = -1;
 
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+                stmpe_gpio->chip.dbg_show = stmpe_dbg_show;
+
 	if (pdata)
 		stmpe_gpio->norequest_mask = pdata->norequest_mask;
 	else if (np)
@@ -307,6 +382,12 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_GPIO);
 	if (ret)
 		goto out_free;
+
+	ret = gpiochip_add(&stmpe_gpio->chip);
+	if (ret) {
+		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
+		goto out_disable;
+	}
 
 	if (irq > 0) {
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
@@ -324,14 +405,13 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev,
 				"could not connect irqchip to gpiochip\n");
-			return ret;
+			goto out_disable;
 		}
-	}
 
-	ret = gpiochip_add(&stmpe_gpio->chip);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
-		goto out_disable;
+		gpiochip_set_chained_irqchip(&stmpe_gpio->chip,
+					     &stmpe_gpio_irq_chip,
+					     irq,
+					     NULL);
 	}
 
 	if (pdata && pdata->setup)
@@ -343,6 +423,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 
 out_disable:
 	stmpe_disable(stmpe, STMPE_BLOCK_GPIO);
+	gpiochip_remove(&stmpe_gpio->chip);
 out_free:
 	kfree(stmpe_gpio);
 	return ret;

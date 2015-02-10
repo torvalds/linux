@@ -790,7 +790,6 @@ struct iscsi_np {
 	void			*np_context;
 	struct iscsit_transport *np_transport;
 	struct list_head	np_list;
-	struct iscsi_tpg_np	*tpg_np;
 } ____cacheline_aligned;
 
 struct iscsi_tpg_np {

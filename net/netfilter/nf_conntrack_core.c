@@ -142,7 +142,7 @@ static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple, u16 zone)
 
 static u32 __hash_bucket(u32 hash, unsigned int size)
 {
-	return ((u64)hash * size) >> 32;
+	return reciprocal_scale(hash, size);
 }
 
 static u32 hash_bucket(u32 hash, const struct net *net)
@@ -358,7 +358,7 @@ bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp && tstamp->stop == 0)
-		tstamp->stop = ktime_to_ns(ktime_get_real());
+		tstamp->stop = ktime_get_real_ns();
 
 	if (nf_ct_is_dying(ct))
 		goto delete;
@@ -824,22 +824,19 @@ __nf_conntrack_alloc(struct net *net, u16 zone,
 		atomic_dec(&net->ct.count);
 		return ERR_PTR(-ENOMEM);
 	}
-	/*
-	 * Let ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.next
-	 * and ct->tuplehash[IP_CT_DIR_REPLY].hnnode.next unchanged.
-	 */
-	memset(&ct->tuplehash[IP_CT_DIR_MAX], 0,
-	       offsetof(struct nf_conn, proto) -
-	       offsetof(struct nf_conn, tuplehash[IP_CT_DIR_MAX]));
 	spin_lock_init(&ct->lock);
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.pprev = NULL;
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
 	/* save hash for reusing when confirming */
 	*(unsigned long *)(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev) = hash;
+	ct->status = 0;
 	/* Don't set timer yet: wait for confirmation */
 	setup_timer(&ct->timeout, death_by_timeout, (unsigned long)ct);
 	write_pnet(&ct->ct_net, net);
+	memset(&ct->__nfct_init_offset[0], 0,
+	       offsetof(struct nf_conn, proto) -
+	       offsetof(struct nf_conn, __nfct_init_offset[0]));
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	if (zone) {
 		struct nf_conntrack_zone *nf_ct_zone;

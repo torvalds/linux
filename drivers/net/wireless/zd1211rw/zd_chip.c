@@ -129,7 +129,7 @@ int zd_ioread32v_locked(struct zd_chip *chip, u32 *values, const zd_addr_t *addr
 	r = zd_ioread16v_locked(chip, v16, a16, count16);
 	if (r) {
 		dev_dbg_f(zd_chip_dev(chip),
-			  "error: zd_ioread16v_locked. Error number %d\n", r);
+			  "error: %s. Error number %d\n", __func__, r);
 		return r;
 	}
 
@@ -256,8 +256,8 @@ int zd_iowrite32a_locked(struct zd_chip *chip,
 		if (r) {
 			zd_usb_iowrite16v_async_end(&chip->usb, 0);
 			dev_dbg_f(zd_chip_dev(chip),
-				"error _zd_iowrite32v_locked."
-				" Error number %d\n", r);
+				"error _%s. Error number %d\n", __func__,
+				r);
 			return r;
 		}
 	}

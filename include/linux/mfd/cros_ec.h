@@ -62,10 +62,6 @@ struct cros_ec_command {
  * @dev: Device pointer
  * @was_wake_device: true if this device was set to wake the system from
  * sleep at the last suspend
- * @cmd_xfer: send command to EC and get response
- *     Returns the number of bytes received if the communication succeeded, but
- *     that doesn't mean the EC was happy with the command. The caller
- *     should check msg.result for the EC's result code.
  *
  * @priv: Private data
  * @irq: Interrupt to use
@@ -82,6 +78,10 @@ struct cros_ec_command {
  * @dout_size: size of dout buffer to allocate (zero to use static dout)
  * @parent: pointer to parent device (e.g. i2c or spi device)
  * @wake_enabled: true if this device can wake the system from sleep
+ * @cmd_xfer: send command to EC and get response
+ *     Returns the number of bytes received if the communication succeeded, but
+ *     that doesn't mean the EC was happy with the command. The caller
+ *     should check msg.result for the EC's result code.
  * @lock: one transaction at a time
  */
 struct cros_ec_device {
@@ -92,8 +92,6 @@ struct cros_ec_device {
 	struct device *dev;
 	bool was_wake_device;
 	struct class *cros_class;
-	int (*cmd_xfer)(struct cros_ec_device *ec,
-			struct cros_ec_command *msg);
 
 	/* These are used to implement the platform-specific interface */
 	void *priv;
@@ -104,6 +102,8 @@ struct cros_ec_device {
 	int dout_size;
 	struct device *parent;
 	bool wake_enabled;
+	int (*cmd_xfer)(struct cros_ec_device *ec,
+			struct cros_ec_command *msg);
 	struct mutex lock;
 };
 
@@ -151,6 +151,18 @@ int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
  */
 int cros_ec_check_result(struct cros_ec_device *ec_dev,
 			 struct cros_ec_command *msg);
+
+/**
+ * cros_ec_cmd_xfer - Send a command to the ChromeOS EC
+ *
+ * Call this to send a command to the ChromeOS EC.  This should be used
+ * instead of calling the EC's cmd_xfer() callback directly.
+ *
+ * @ec_dev: EC device
+ * @msg: Message to write
+ */
+int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
+		     struct cros_ec_command *msg);
 
 /**
  * cros_ec_remove - Remove a ChromeOS EC

@@ -115,7 +115,7 @@ static void gdm_wimax_event_rcv(struct net_device *dev, u16 type, void *msg,
 {
 	struct nic *nic = netdev_priv(dev);
 
-	u8 *buf = (u8 *)msg;
+	u8 *buf = msg;
 	u16 hci_cmd =  (buf[0]<<8) | buf[1];
 	u16 hci_len = (buf[2]<<8) | buf[3];
 
@@ -605,10 +605,8 @@ static void gdm_wimax_netif_rx(struct net_device *dev, char *buf, int len)
 	int ret;
 
 	skb = dev_alloc_skb(len + 2);
-	if (!skb) {
-		netdev_err(dev, "%s: dev_alloc_skb failed!\n", __func__);
+	if (!skb)
 		return;
-	}
 	skb_reserve(skb, 2);
 
 	dev->stats.rx_packets++;

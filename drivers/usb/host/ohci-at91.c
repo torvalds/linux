@@ -24,11 +24,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 
-#include <mach/hardware.h>
 #include <asm/gpio.h>
-
-#include <mach/cpu.h>
-
 
 #include "ohci.h"
 
@@ -137,12 +133,6 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	struct resource *res;
 	int irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_dbg(dev, "hcd probe: missing memory resource\n");
-		return -ENXIO;
-	}
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_dbg(dev, "hcd probe: missing irq resource\n");
@@ -152,14 +142,15 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	hcd = usb_create_hcd(driver, dev, "at91");
 	if (!hcd)
 		return -ENOMEM;
-	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = resource_size(res);
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hcd->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err;
 	}
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
 
 	iclk = devm_clk_get(dev, "ohci_clk");
 	if (IS_ERR(iclk)) {
@@ -664,7 +655,6 @@ static struct platform_driver ohci_hcd_at91_driver = {
 	.resume		= ohci_hcd_at91_drv_resume,
 	.driver		= {
 		.name	= "at91_ohci",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(at91_ohci_dt_ids),
 	},
 };

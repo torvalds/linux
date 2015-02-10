@@ -100,6 +100,28 @@ static int iio_dev_node_match(struct device *dev, void *data)
 	return dev->of_node == data && dev->type == &iio_device_type;
 }
 
+/**
+ * __of_iio_simple_xlate - translate iiospec to the IIO channel index
+ * @indio_dev:	pointer to the iio_dev structure
+ * @iiospec:	IIO specifier as found in the device tree
+ *
+ * This is simple translation function, suitable for the most 1:1 mapped
+ * channels in IIO chips. This function performs only one sanity check:
+ * whether IIO index is less than num_channels (that is specified in the
+ * iio_dev).
+ */
+static int __of_iio_simple_xlate(struct iio_dev *indio_dev,
+				const struct of_phandle_args *iiospec)
+{
+	if (!iiospec->args_count)
+		return 0;
+
+	if (iiospec->args[0] >= indio_dev->num_channels)
+		return -EINVAL;
+
+	return iiospec->args[0];
+}
+
 static int __of_iio_channel_get(struct iio_channel *channel,
 				struct device_node *np, int index)
 {
@@ -122,18 +144,19 @@ static int __of_iio_channel_get(struct iio_channel *channel,
 
 	indio_dev = dev_to_iio_dev(idev);
 	channel->indio_dev = indio_dev;
-	index = iiospec.args_count ? iiospec.args[0] : 0;
-	if (index >= indio_dev->num_channels) {
-		err = -EINVAL;
+	if (indio_dev->info->of_xlate)
+		index = indio_dev->info->of_xlate(indio_dev, &iiospec);
+	else
+		index = __of_iio_simple_xlate(indio_dev, &iiospec);
+	if (index < 0)
 		goto err_put;
-	}
 	channel->channel = &indio_dev->channels[index];
 
 	return 0;
 
 err_put:
 	iio_device_put(indio_dev);
-	return err;
+	return index;
 }
 
 static struct iio_channel *of_iio_channel_get(struct device_node *np, int index)

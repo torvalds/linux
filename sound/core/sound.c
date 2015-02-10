@@ -355,8 +355,13 @@ int snd_unregister_device(int type, struct snd_card *card, int dev)
 
 EXPORT_SYMBOL(snd_unregister_device);
 
-/* get the assigned device to the given type and device number;
- * the caller needs to release it via put_device() after using it
+/**
+ * snd_get_device - get the assigned device to the given type and device number
+ * @type: the device type, SNDRV_DEVICE_TYPE_XXX
+ * @card:the card instance
+ * @dev: the device index
+ *
+ * The caller needs to release it via put_device() after using it.
  */
 struct device *snd_get_device(int type, struct snd_card *card, int dev)
 {

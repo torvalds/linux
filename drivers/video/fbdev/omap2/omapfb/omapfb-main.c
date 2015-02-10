@@ -273,16 +273,16 @@ static struct omapfb_colormode omapfb_colormodes[] = {
 	},
 };
 
+static bool cmp_component(struct fb_bitfield *f1, struct fb_bitfield *f2)
+{
+	return f1->length == f2->length &&
+		f1->offset == f2->offset &&
+		f1->msb_right == f2->msb_right;
+}
+
 static bool cmp_var_to_colormode(struct fb_var_screeninfo *var,
 		struct omapfb_colormode *color)
 {
-	bool cmp_component(struct fb_bitfield *f1, struct fb_bitfield *f2)
-	{
-		return f1->length == f2->length &&
-			f1->offset == f2->offset &&
-			f1->msb_right == f2->msb_right;
-	}
-
 	if (var->bits_per_pixel == 0 ||
 			var->red.length == 0 ||
 			var->blue.length == 0 ||
@@ -1833,14 +1833,13 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	if (fbdev == NULL)
 		return;
 
-	for (i = 0; i < fbdev->num_fbs; i++) {
-		struct omapfb_info *ofbi = FB2OFB(fbdev->fbs[i]);
-		int j;
+	for (i = 0; i < fbdev->num_overlays; i++) {
+		struct omap_overlay *ovl = fbdev->overlays[i];
 
-		for (j = 0; j < ofbi->num_overlays; j++) {
-			struct omap_overlay *ovl = ofbi->overlays[j];
-			ovl->disable(ovl);
-		}
+		ovl->disable(ovl);
+
+		if (ovl->manager)
+			ovl->unset_manager(ovl);
 	}
 
 	for (i = 0; i < fbdev->num_fbs; i++)
@@ -2619,7 +2618,7 @@ err0:
 	return r;
 }
 
-static int __exit omapfb_remove(struct platform_device *pdev)
+static int omapfb_remove(struct platform_device *pdev)
 {
 	struct omapfb2_device *fbdev = platform_get_drvdata(pdev);
 
@@ -2636,10 +2635,9 @@ static int __exit omapfb_remove(struct platform_device *pdev)
 
 static struct platform_driver omapfb_driver = {
 	.probe		= omapfb_probe,
-	.remove         = __exit_p(omapfb_remove),
+	.remove         = omapfb_remove,
 	.driver         = {
 		.name   = "omapfb",
-		.owner  = THIS_MODULE,
 	},
 };
 
@@ -2651,6 +2649,7 @@ module_param_named(mirror, def_mirror, bool, 0);
 
 module_platform_driver(omapfb_driver);
 
+MODULE_ALIAS("platform:omapfb");
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
 MODULE_DESCRIPTION("OMAP2/3 Framebuffer");
 MODULE_LICENSE("GPL v2");

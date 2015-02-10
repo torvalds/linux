@@ -40,9 +40,11 @@ FEXPORT(__strnlen_\func\()_nocheck_asm)
 .else
 	EX(lbe, t0, (v0), .Lfault\@)
 .endif
-	PTR_ADDIU	v0, 1
+	.set		noreorder
 	bnez		t0, 1b
-1:	PTR_SUBU	v0, a0
+1:	 PTR_ADDIU	v0, 1
+	.set		reorder
+	PTR_SUBU	v0, a0
 	jr		ra
 	END(__strnlen_\func\()_asm)
 

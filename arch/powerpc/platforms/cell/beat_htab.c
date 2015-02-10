@@ -186,7 +186,7 @@ static long beat_lpar_hpte_updatepp(unsigned long slot,
 				    unsigned long newpp,
 				    unsigned long vpn,
 				    int psize, int apsize,
-				    int ssize, int local)
+				    int ssize, unsigned long flags)
 {
 	unsigned long lpar_rc;
 	u64 dummy0, dummy1;
@@ -369,7 +369,7 @@ static long beat_lpar_hpte_updatepp_v3(unsigned long slot,
 				       unsigned long newpp,
 				       unsigned long vpn,
 				       int psize, int apsize,
-				       int ssize, int local)
+				       int ssize, unsigned long flags)
 {
 	unsigned long lpar_rc;
 	unsigned long want_v;

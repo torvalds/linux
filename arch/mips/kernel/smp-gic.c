@@ -12,9 +12,9 @@
  * option) any later version.
  */
 
+#include <linux/irqchip/mips-gic.h>
 #include <linux/printk.h>
 
-#include <asm/gic.h>
 #include <asm/mips-cpc.h>
 #include <asm/smp-ops.h>
 

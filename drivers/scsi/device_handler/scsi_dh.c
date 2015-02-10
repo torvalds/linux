@@ -98,27 +98,51 @@ device_handler_match(struct scsi_device_handler *scsi_dh,
 static int scsi_dh_handler_attach(struct scsi_device *sdev,
 				  struct scsi_device_handler *scsi_dh)
 {
-	int err = 0;
+	struct scsi_dh_data *d;
 
 	if (sdev->scsi_dh_data) {
 		if (sdev->scsi_dh_data->scsi_dh != scsi_dh)
-			err = -EBUSY;
-		else
-			kref_get(&sdev->scsi_dh_data->kref);
-	} else if (scsi_dh->attach) {
-		err = scsi_dh->attach(sdev);
-		if (!err) {
-			kref_init(&sdev->scsi_dh_data->kref);
-			sdev->scsi_dh_data->sdev = sdev;
-		}
+			return -EBUSY;
+
+		kref_get(&sdev->scsi_dh_data->kref);
+		return 0;
 	}
-	return err;
+
+	if (!try_module_get(scsi_dh->module))
+		return -EINVAL;
+
+	d = scsi_dh->attach(sdev);
+	if (IS_ERR(d)) {
+		sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%ld)\n",
+			    scsi_dh->name, PTR_ERR(d));
+		module_put(scsi_dh->module);
+		return PTR_ERR(d);
+	}
+
+	d->scsi_dh = scsi_dh;
+	kref_init(&d->kref);
+	d->sdev = sdev;
+
+	spin_lock_irq(sdev->request_queue->queue_lock);
+	sdev->scsi_dh_data = d;
+	spin_unlock_irq(sdev->request_queue->queue_lock);
+	return 0;
 }
 
 static void __detach_handler (struct kref *kref)
 {
-	struct scsi_dh_data *scsi_dh_data = container_of(kref, struct scsi_dh_data, kref);
-	scsi_dh_data->scsi_dh->detach(scsi_dh_data->sdev);
+	struct scsi_dh_data *scsi_dh_data =
+		container_of(kref, struct scsi_dh_data, kref);
+	struct scsi_device_handler *scsi_dh = scsi_dh_data->scsi_dh;
+	struct scsi_device *sdev = scsi_dh_data->sdev;
+
+	spin_lock_irq(sdev->request_queue->queue_lock);
+	sdev->scsi_dh_data = NULL;
+	spin_unlock_irq(sdev->request_queue->queue_lock);
+
+	scsi_dh->detach(sdev);
+	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", scsi_dh->name);
+	module_put(scsi_dh->module);
 }
 
 /*
@@ -141,7 +165,7 @@ static void scsi_dh_handler_detach(struct scsi_device *sdev,
 	if (!scsi_dh)
 		scsi_dh = sdev->scsi_dh_data->scsi_dh;
 
-	if (scsi_dh && scsi_dh->detach)
+	if (scsi_dh)
 		kref_put(&sdev->scsi_dh_data->kref, __detach_handler);
 }
 
@@ -329,6 +353,9 @@ int scsi_register_device_handler(struct scsi_device_handler *scsi_dh)
 
 	if (get_device_handler(scsi_dh->name))
 		return -EBUSY;
+
+	if (!scsi_dh->attach || !scsi_dh->detach)
+		return -EINVAL;
 
 	spin_lock(&list_lock);
 	list_add(&scsi_dh->list, &scsi_dh_list);

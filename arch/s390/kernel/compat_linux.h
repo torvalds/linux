@@ -50,6 +50,14 @@ typedef struct
 	_s390_fp_regs32     fpregs;
 } _sigregs32;
 
+typedef struct
+{
+	__u32 gprs_high[__NUM_GPRS];
+	__u64 vxrs_low[__NUM_VXRS_LOW];
+	__vector128 vxrs_high[__NUM_VXRS_HIGH];
+	__u8 __reserved[128];
+} _sigregs_ext32;
+
 #define _SIGCONTEXT_NSIG32	64
 #define _SIGCONTEXT_NSIG_BPW32	32
 #define __SIGNAL_FRAMESIZE32	96
@@ -72,6 +80,7 @@ struct ucontext32 {
 	compat_sigset_t		uc_sigmask;
 	/* Allow for uc_sigmask growth.  Glibc uses a 1024-bit sigset_t.  */
 	unsigned char		__unused[128 - sizeof(compat_sigset_t)];
+	_sigregs_ext32		uc_mcontext_ext;
 };
 
 struct stat64_emu31;

@@ -128,7 +128,7 @@
 //#define PTLBD_BULK_PORTAL	      21
 #define MDS_SETATTR_PORTAL	     22
 #define MDS_READPAGE_PORTAL	    23
-#define MDS_MDS_PORTAL		 24
+#define OUT_PORTAL		    24
 
 #define MGC_REPLY_PORTAL	       25
 #define MGS_REQUEST_PORTAL	     26
@@ -164,22 +164,6 @@
 #define LUSTRE_DLM_VERSION  0x00040000
 #define LUSTRE_LOG_VERSION  0x00050000
 #define LUSTRE_MGS_VERSION  0x00060000
-
-typedef __u32 mdsno_t;
-typedef __u64 seqno_t;
-typedef __u64 obd_id;
-typedef __u64 obd_seq;
-typedef __s64 obd_time;
-typedef __u64 obd_size;
-typedef __u64 obd_off;
-typedef __u64 obd_blocks;
-typedef __u64 obd_valid;
-typedef __u32 obd_blksize;
-typedef __u32 obd_mode;
-typedef __u32 obd_uid;
-typedef __u32 obd_gid;
-typedef __u32 obd_flag;
-typedef __u32 obd_count;
 
 /**
  * Describes a range of sequence, lsr_start is included but lsr_end is
@@ -337,49 +321,6 @@ enum lma_incompat {
 };
 #define LMA_INCOMPAT_SUPP	(LMAI_AGENT | LMAI_REMOTE_PARENT)
 
-extern void lustre_lma_swab(struct lustre_mdt_attrs *lma);
-extern void lustre_lma_init(struct lustre_mdt_attrs *lma,
-			    const struct lu_fid *fid, __u32 incompat);
-/**
- * SOM on-disk attributes stored in a separate xattr.
- */
-struct som_attrs {
-	/** Bitfield for supported data in this structure. For future use. */
-	__u32	som_compat;
-
-	/** Incompat feature list. The supported feature mask is available in
-	 * SOM_INCOMPAT_SUPP */
-	__u32	som_incompat;
-
-	/** IO Epoch SOM attributes belongs to */
-	__u64	som_ioepoch;
-	/** total file size in objects */
-	__u64	som_size;
-	/** total fs blocks in objects */
-	__u64	som_blocks;
-	/** mds mount id the size is valid for */
-	__u64	som_mountid;
-};
-extern void lustre_som_swab(struct som_attrs *attrs);
-
-#define SOM_INCOMPAT_SUPP 0x0
-
-/**
- * HSM on-disk attributes stored in a separate xattr.
- */
-struct hsm_attrs {
-	/** Bitfield for supported data in this structure. For future use. */
-	__u32	hsm_compat;
-
-	/** HSM flags, see hsm_flags enum below */
-	__u32	hsm_flags;
-	/** backend archive id associated with the file */
-	__u64	hsm_arch_id;
-	/** version associated with the last archiving, if any */
-	__u64	hsm_arch_ver;
-};
-extern void lustre_hsm_swab(struct hsm_attrs *attrs);
-
 /**
  * fid constants
  */
@@ -413,7 +354,7 @@ static inline void fid_zero(struct lu_fid *fid)
 	memset(fid, 0, sizeof(*fid));
 }
 
-static inline obd_id fid_ver_oid(const struct lu_fid *fid)
+static inline __u64 fid_ver_oid(const struct lu_fid *fid)
 {
 	return ((__u64)fid_ver(fid) << 32 | fid_oid(fid));
 }
@@ -477,7 +418,7 @@ enum dot_lustre_oid {
 	FID_OID_DOT_LUSTRE_OBF = 2UL,
 };
 
-static inline int fid_seq_is_mdt0(obd_seq seq)
+static inline int fid_seq_is_mdt0(__u64 seq)
 {
 	return (seq == FID_SEQ_OST_MDT0);
 }
@@ -487,7 +428,7 @@ static inline int fid_seq_is_mdt(const __u64 seq)
 	return seq == FID_SEQ_OST_MDT0 || seq >= FID_SEQ_NORMAL;
 };
 
-static inline int fid_seq_is_echo(obd_seq seq)
+static inline int fid_seq_is_echo(__u64 seq)
 {
 	return (seq == FID_SEQ_ECHO);
 }
@@ -497,7 +438,7 @@ static inline int fid_is_echo(const struct lu_fid *fid)
 	return fid_seq_is_echo(fid_seq(fid));
 }
 
-static inline int fid_seq_is_llog(obd_seq seq)
+static inline int fid_seq_is_llog(__u64 seq)
 {
 	return (seq == FID_SEQ_LLOG);
 }
@@ -597,13 +538,13 @@ static inline int fid_is_norm(const struct lu_fid *fid)
 }
 
 /* convert an OST objid into an IDIF FID SEQ number */
-static inline obd_seq fid_idif_seq(obd_id id, __u32 ost_idx)
+static inline __u64 fid_idif_seq(__u64 id, __u32 ost_idx)
 {
 	return FID_SEQ_IDIF | (ost_idx << 16) | ((id >> 32) & 0xffff);
 }
 
 /* convert a packed IDIF FID into an OST objid */
-static inline obd_id fid_idif_id(obd_seq seq, __u32 oid, __u32 ver)
+static inline __u64 fid_idif_id(__u64 seq, __u32 oid, __u32 ver)
 {
 	return ((__u64)ver << 48) | ((seq & 0xffff) << 32) | oid;
 }
@@ -615,7 +556,7 @@ static inline __u32 fid_idif_ost_idx(const struct lu_fid *fid)
 }
 
 /* extract OST sequence (group) from a wire ost_id (id/seq) pair */
-static inline obd_seq ostid_seq(const struct ost_id *ostid)
+static inline __u64 ostid_seq(const struct ost_id *ostid)
 {
 	if (fid_seq_is_mdt0(ostid->oi.oi_seq))
 		return FID_SEQ_OST_MDT0;
@@ -630,7 +571,7 @@ static inline obd_seq ostid_seq(const struct ost_id *ostid)
 }
 
 /* extract OST objid from a wire ost_id (id/seq) pair */
-static inline obd_id ostid_id(const struct ost_id *ostid)
+static inline __u64 ostid_id(const struct ost_id *ostid)
 {
 	if (fid_seq_is_mdt0(ostid_seq(ostid)))
 		return ostid->oi.oi_id & IDIF_OID_MASK;
@@ -1371,8 +1312,9 @@ extern void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 #define CLIENT_CONNECT_MDT_REQD (OBD_CONNECT_IBITS | OBD_CONNECT_FID | \
 				 OBD_CONNECT_FULL20)
 
-#define OBD_OCD_VERSION(major,minor,patch,fix) (((major)<<24) + ((minor)<<16) +\
-						((patch)<<8) + (fix))
+#define OBD_OCD_VERSION(major, minor, patch, fix) (((major)<<24) + \
+						  ((minor)<<16) + \
+						  ((patch)<<8) + (fix))
 #define OBD_OCD_VERSION_MAJOR(version) ((int)((version)>>24)&255)
 #define OBD_OCD_VERSION_MINOR(version) ((int)((version)>>16)&255)
 #define OBD_OCD_VERSION_PATCH(version) ((int)((version)>>8)&255)
@@ -1857,9 +1799,9 @@ extern void lustre_swab_niobuf_remote (struct niobuf_remote *nbr);
 
 struct ost_lvb_v1 {
 	__u64		lvb_size;
-	obd_time	lvb_mtime;
-	obd_time	lvb_atime;
-	obd_time	lvb_ctime;
+	__s64		lvb_mtime;
+	__s64		lvb_atime;
+	__s64		lvb_ctime;
 	__u64		lvb_blocks;
 };
 
@@ -1867,9 +1809,9 @@ extern void lustre_swab_ost_lvb_v1(struct ost_lvb_v1 *lvb);
 
 struct ost_lvb {
 	__u64		lvb_size;
-	obd_time	lvb_mtime;
-	obd_time	lvb_atime;
-	obd_time	lvb_ctime;
+	__s64		lvb_mtime;
+	__s64		lvb_atime;
+	__s64		lvb_ctime;
 	__u64		lvb_blocks;
 	__u32		lvb_mtime_ns;
 	__u32		lvb_atime_ns;
@@ -2250,9 +2192,9 @@ struct mdt_body {
 	struct lustre_handle handle;
 	__u64	  valid;
 	__u64	  size;   /* Offset, in the case of MDS_READPAGE */
-       obd_time	mtime;
-       obd_time	atime;
-       obd_time	ctime;
+	__s64	  mtime;
+	__s64	  atime;
+	__s64	  ctime;
 	__u64	  blocks; /* XID, in the case of MDS_READPAGE */
 	__u64	  ioepoch;
 	__u64	       t_state; /* transient file state defined in
@@ -2335,9 +2277,9 @@ struct mdt_rec_setattr {
 	__u32	   sa_gid;
 	__u64	   sa_size;
 	__u64	   sa_blocks;
-	obd_time	sa_mtime;
-	obd_time	sa_atime;
-	obd_time	sa_ctime;
+	__s64	   sa_mtime;
+	__s64	   sa_atime;
+	__s64	   sa_ctime;
 	__u32	   sa_attr_flags;
 	__u32	   sa_mode;
 	__u32	   sa_bias;      /* some operation flags */
@@ -2466,7 +2408,7 @@ struct mdt_rec_create {
 	struct lu_fid   cr_fid1;
 	struct lu_fid   cr_fid2;
 	struct lustre_handle cr_old_handle; /* handle in case of open replay */
-	obd_time	cr_time;
+	__s64	   cr_time;
 	__u64	   cr_rdev;
 	__u64	   cr_ioepoch;
 	__u64	   cr_padding_1;   /* rr_blocks */
@@ -2506,7 +2448,7 @@ struct mdt_rec_link {
 	__u32	   lk_suppgid2_h;
 	struct lu_fid   lk_fid1;
 	struct lu_fid   lk_fid2;
-	obd_time	lk_time;
+	__s64	   lk_time;
 	__u64	   lk_padding_1;   /* rr_atime */
 	__u64	   lk_padding_2;   /* rr_ctime */
 	__u64	   lk_padding_3;   /* rr_size */
@@ -2533,7 +2475,7 @@ struct mdt_rec_unlink {
 	__u32	   ul_suppgid2_h;
 	struct lu_fid   ul_fid1;
 	struct lu_fid   ul_fid2;
-	obd_time	ul_time;
+	__s64	   ul_time;
 	__u64	   ul_padding_2;   /* rr_atime */
 	__u64	   ul_padding_3;   /* rr_ctime */
 	__u64	   ul_padding_4;   /* rr_size */
@@ -2560,7 +2502,7 @@ struct mdt_rec_rename {
 	__u32	   rn_suppgid2_h;
 	struct lu_fid   rn_fid1;
 	struct lu_fid   rn_fid2;
-	obd_time	rn_time;
+	__s64	   rn_time;
 	__u64	   rn_padding_1;   /* rr_atime */
 	__u64	   rn_padding_2;   /* rr_ctime */
 	__u64	   rn_padding_3;   /* rr_size */
@@ -2590,7 +2532,7 @@ struct mdt_rec_setxattr {
 	__u32	   sx_padding_2;
 	__u32	   sx_padding_3;
 	__u64	   sx_valid;
-	obd_time	sx_time;
+	__s64	   sx_time;
 	__u64	   sx_padding_5;   /* rr_ctime */
 	__u64	   sx_padding_6;   /* rr_size */
 	__u64	   sx_padding_7;   /* rr_blocks */
@@ -2623,9 +2565,9 @@ struct mdt_rec_reint {
 	__u32	   rr_suppgid2_h;
 	struct lu_fid   rr_fid1;
 	struct lu_fid   rr_fid2;
-	obd_time	rr_mtime;
-	obd_time	rr_atime;
-	obd_time	rr_ctime;
+	__s64	   rr_mtime;
+	__s64	   rr_atime;
+	__s64	   rr_ctime;
 	__u64	   rr_size;
 	__u64	   rr_blocks;
 	__u32	   rr_bias;
@@ -2871,7 +2813,7 @@ extern void lustre_swab_ldlm_request (struct ldlm_request *rq);
 
 /* If LDLM_ENQUEUE, 1 slot is already occupied, 1 is available.
  * Otherwise, 2 are available. */
-#define ldlm_request_bufsize(count,type)				\
+#define ldlm_request_bufsize(count, type)				\
 ({								      \
 	int _avail = LDLM_LOCKREQ_HANDLES;			      \
 	_avail -= (type == LDLM_ENQUEUE ? LDLM_ENQUEUE_CANCEL_OFF : 0); \
@@ -2979,8 +2921,8 @@ struct cfg_marker {
 	__u32	     cm_flags;
 	__u32	     cm_vers;       /* lustre release version number */
 	__u32	     cm_padding;    /* 64 bit align */
-	obd_time	  cm_createtime; /*when this record was first created */
-	obd_time	  cm_canceltime; /*when this record is no longer valid*/
+	__s64	     cm_createtime; /*when this record was first created */
+	__s64	     cm_canceltime; /*when this record is no longer valid*/
 	char	      cm_tgtname[MTI_NAME_MAXLEN];
 	char	      cm_comment[MTI_NAME_MAXLEN];
 };
@@ -3084,16 +3026,16 @@ struct llog_logid_rec {
 
 struct llog_unlink_rec {
 	struct llog_rec_hdr	lur_hdr;
-	obd_id			lur_oid;
-	obd_count		lur_oseq;
-	obd_count		lur_count;
+	__u64			lur_oid;
+	__u32			lur_oseq;
+	__u32			lur_count;
 	struct llog_rec_tail	lur_tail;
 } __attribute__((packed));
 
 struct llog_unlink64_rec {
 	struct llog_rec_hdr	lur_hdr;
 	struct lu_fid		lur_fid;
-	obd_count		lur_count; /* to destroy the lost precreated */
+	__u32			lur_count; /* to destroy the lost precreated */
 	__u32			lur_padding1;
 	__u64			lur_padding2;
 	__u64			lur_padding3;
@@ -3238,7 +3180,7 @@ enum llog_flag {
 
 struct llog_log_hdr {
 	struct llog_rec_hdr     llh_hdr;
-	obd_time		llh_timestamp;
+	__s64		   llh_timestamp;
 	__u32		   llh_count;
 	__u32		   llh_bitmap_offset;
 	__u32		   llh_size;
@@ -3296,25 +3238,25 @@ struct llogd_conn_body {
 
 /* Note: 64-bit types are 64-bit aligned in structure */
 struct obdo {
-	obd_valid	       o_valid;	/* hot fields in this obdo */
-	struct ost_id	   o_oi;
-	obd_id		  o_parent_seq;
-	obd_size		o_size;	 /* o_size-o_blocks == ost_lvb */
-	obd_time		o_mtime;
-	obd_time		o_atime;
-	obd_time		o_ctime;
-	obd_blocks	      o_blocks;       /* brw: cli sent cached bytes */
-	obd_size		o_grant;
+	__u64		o_valid;	/* hot fields in this obdo */
+	struct ost_id	o_oi;
+	__u64		o_parent_seq;
+	__u64		o_size;	 /* o_size-o_blocks == ost_lvb */
+	__s64		o_mtime;
+	__s64		o_atime;
+	__s64		o_ctime;
+	__u64		o_blocks;       /* brw: cli sent cached bytes */
+	__u64		o_grant;
 
 	/* 32-bit fields start here: keep an even number of them via padding */
-	obd_blksize	     o_blksize;      /* optimal IO blocksize */
-	obd_mode		o_mode;	 /* brw: cli sent cache remain */
-	obd_uid		 o_uid;
-	obd_gid		 o_gid;
-	obd_flag		o_flags;
-	obd_count	       o_nlink;	/* brw: checksum */
-	obd_count	       o_parent_oid;
-	obd_count		o_misc;		/* brw: o_dropped */
+	__u32		o_blksize;      /* optimal IO blocksize */
+	__u32		o_mode;	 /* brw: cli sent cache remain */
+	__u32		o_uid;
+	__u32		o_gid;
+	__u32		o_flags;
+	__u32		o_nlink;	/* brw: checksum */
+	__u32		o_parent_oid;
+	__u32		o_misc;		/* brw: o_dropped */
 
 	__u64		   o_ioepoch;      /* epoch in ost writes */
 	__u32		   o_stripe_idx;   /* holds stripe idx */
@@ -3363,7 +3305,7 @@ static inline void lustre_get_wire_obdo(struct obd_connect_data *ocd,
 					struct obdo *lobdo,
 					const struct obdo *wobdo)
 {
-	obd_flag local_flags = 0;
+	__u32 local_flags = 0;
 
 	if (lobdo->o_valid & OBD_MD_FLFLAGS)
 		 local_flags = lobdo->o_flags & OBD_FL_LOCAL_MASK;
@@ -3401,7 +3343,7 @@ struct ll_fiemap_info_key {
 };
 
 extern void lustre_swab_ost_body (struct ost_body *b);
-extern void lustre_swab_ost_last_id(obd_id *id);
+extern void lustre_swab_ost_last_id(__u64 *id);
 extern void lustre_swab_fiemap(struct ll_user_fiemap *fiemap);
 
 extern void lustre_swab_lov_user_md_v1(struct lov_user_md_v1 *lum);

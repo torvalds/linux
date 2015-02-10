@@ -126,7 +126,7 @@ struct lloop_device {
 	struct block_device *lo_device;
 	unsigned	     lo_blocksize;
 
-	int		  old_gfp_mask;
+	gfp_t		  old_gfp_mask;
 
 	spinlock_t		lo_lock;
 	struct bio		*lo_bio;
@@ -187,12 +187,12 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 {
 	const struct lu_env  *env   = lo->lo_env;
 	struct cl_io	 *io    = &lo->lo_io;
-	struct inode	 *inode = lo->lo_backing_file->f_dentry->d_inode;
+	struct inode	 *inode = file_inode(lo->lo_backing_file);
 	struct cl_object     *obj = ll_i2info(inode)->lli_clob;
 	pgoff_t	       offset;
 	int		   ret;
 	int		   rw;
-	obd_count	     page_count = 0;
+	u32		   page_count = 0;
 	struct bio_vec       bvec;
 	struct bvec_iter   iter;
 	struct bio	   *bio;
@@ -409,8 +409,10 @@ static int loop_thread(void *data)
 	lo->lo_state = LLOOP_BOUND;
 
 	env = cl_env_get(&refcheck);
-	if (IS_ERR(env))
-		GOTO(out, ret = PTR_ERR(env));
+	if (IS_ERR(env)) {
+		ret = PTR_ERR(env);
+		goto out;
+	}
 
 	lo->lo_env = env;
 	memset(&lo->lo_pvec, 0, sizeof(lo->lo_pvec));
@@ -546,7 +548,7 @@ static int loop_clr_fd(struct lloop_device *lo, struct block_device *bdev,
 		       int count)
 {
 	struct file *filp = lo->lo_backing_file;
-	int gfp = lo->old_gfp_mask;
+	gfp_t gfp = lo->old_gfp_mask;
 
 	if (lo->lo_state != LLOOP_BOUND)
 		return -ENXIO;
@@ -624,7 +626,7 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 			break;
 		}
 		if (inode == NULL)
-			inode = lo->lo_backing_file->f_dentry->d_inode;
+			inode = file_inode(lo->lo_backing_file);
 		if (lo->lo_state == LLOOP_BOUND)
 			fid = ll_i2info(inode)->lli_fid;
 		else
@@ -670,8 +672,10 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 	if (magic != ll_iocontrol_magic)
 		return LLIOC_CONT;
 
-	if (disks == NULL)
-		GOTO(out1, err = -ENODEV);
+	if (disks == NULL) {
+		err = -ENODEV;
+		goto out1;
+	}
 
 	CWARN("Enter llop_ioctl\n");
 
@@ -688,23 +692,28 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 					lo_free = lo;
 				continue;
 			}
-			if (lo->lo_backing_file->f_dentry->d_inode ==
-			    file->f_dentry->d_inode)
+			if (file_inode(lo->lo_backing_file) == file_inode(file))
 				break;
 		}
-		if (lo || !lo_free)
-			GOTO(out, err = -EBUSY);
+		if (lo || !lo_free) {
+			err = -EBUSY;
+			goto out;
+		}
 
 		lo = lo_free;
 		dev = MKDEV(lloop_major, lo->lo_number);
 
 		/* quit if the used pointer is writable */
-		if (put_user((long)old_encode_dev(dev), (long*)arg))
-			GOTO(out, err = -EFAULT);
+		if (put_user((long)old_encode_dev(dev), (long *)arg)) {
+			err = -EFAULT;
+			goto out;
+		}
 
 		bdev = blkdev_get_by_dev(dev, file->f_mode, NULL);
-		if (IS_ERR(bdev))
-			GOTO(out, err = PTR_ERR(bdev));
+		if (IS_ERR(bdev)) {
+			err = PTR_ERR(bdev);
+			goto out;
+		}
 
 		get_file(file);
 		err = loop_set_fd(lo, NULL, bdev, file);
@@ -720,16 +729,22 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 		int minor;
 
 		dev = old_decode_dev(arg);
-		if (MAJOR(dev) != lloop_major)
-			GOTO(out, err = -EINVAL);
+		if (MAJOR(dev) != lloop_major) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		minor = MINOR(dev);
-		if (minor > max_loop - 1)
-			GOTO(out, err = -EINVAL);
+		if (minor > max_loop - 1) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		lo = &loop_dev[minor];
-		if (lo->lo_state != LLOOP_BOUND)
-			GOTO(out, err = -EINVAL);
+		if (lo->lo_state != LLOOP_BOUND) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		bdev = lo->lo_device;
 		err = loop_clr_fd(lo, bdev, 1);
@@ -762,8 +777,8 @@ static int __init lloop_init(void)
 
 	if (max_loop < 1 || max_loop > 256) {
 		max_loop = MAX_LOOP_DEFAULT;
-		CWARN("lloop: invalid max_loop (must be between"
-		      " 1 and 256), using default (%u)\n", max_loop);
+		CWARN("lloop: invalid max_loop (must be between 1 and 256), using default (%u)\n",
+		      max_loop);
 	}
 
 	lloop_major = register_blkdev(0, "lloop");
@@ -777,11 +792,11 @@ static int __init lloop_init(void)
 	if (ll_iocontrol_magic == NULL)
 		goto out_mem1;
 
-	OBD_ALLOC_WAIT(loop_dev, max_loop * sizeof(*loop_dev));
+	loop_dev = kcalloc(max_loop, sizeof(*loop_dev), GFP_KERNEL);
 	if (!loop_dev)
 		goto out_mem1;
 
-	OBD_ALLOC_WAIT(disks, max_loop * sizeof(*disks));
+	disks = kcalloc(max_loop, sizeof(*disks), GFP_KERNEL);
 	if (!disks)
 		goto out_mem2;
 

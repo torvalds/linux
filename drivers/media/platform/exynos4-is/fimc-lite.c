@@ -48,7 +48,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_YCBYCR422,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.flags		= FMT_FLAGS_YUV,
 	}, {
 		.name		= "YUV 4:2:2 packed, CbYCrY",
@@ -57,7 +57,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_CBYCRY422,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_UYVY8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 		.flags		= FMT_FLAGS_YUV,
 	}, {
 		.name		= "YUV 4:2:2 packed, CrYCbY",
@@ -66,7 +66,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_CRYCBY422,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_VYUY8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
 		.flags		= FMT_FLAGS_YUV,
 	}, {
 		.name		= "YUV 4:2:2 packed, YCrYCb",
@@ -75,7 +75,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_YCRYCB422,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_YVYU8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
 		.flags		= FMT_FLAGS_YUV,
 	}, {
 		.name		= "RAW8 (GRBG)",
@@ -84,7 +84,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 8 },
 		.color		= FIMC_FMT_RAW8,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_SGRBG8_1X8,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG8_1X8,
 		.flags		= FMT_FLAGS_RAW_BAYER,
 	}, {
 		.name		= "RAW10 (GRBG)",
@@ -93,7 +93,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_RAW10,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_SGRBG10_1X10,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
 		.flags		= FMT_FLAGS_RAW_BAYER,
 	}, {
 		.name		= "RAW12 (GRBG)",
@@ -102,7 +102,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_RAW12,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_SGRBG12_1X12,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG12_1X12,
 		.flags		= FMT_FLAGS_RAW_BAYER,
 	},
 };
@@ -1588,7 +1588,7 @@ err_clk_put:
 	return ret;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int fimc_lite_runtime_resume(struct device *dev)
 {
 	struct fimc_lite *fimc = dev_get_drvdata(dev);
@@ -1720,7 +1720,6 @@ static struct platform_driver fimc_lite_driver = {
 	.driver = {
 		.of_match_table = flite_of_match,
 		.name		= FIMC_LITE_DRV_NAME,
-		.owner		= THIS_MODULE,
 		.pm		= &fimc_lite_pm_ops,
 	}
 };

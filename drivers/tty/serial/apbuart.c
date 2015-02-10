@@ -585,7 +585,6 @@ static struct of_device_id apbuart_match[] = {
 static struct platform_driver grlib_apbuart_of_driver = {
 	.probe = apbuart_probe,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "grlib-apbuart",
 		.of_match_table = apbuart_match,
 	},

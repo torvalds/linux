@@ -17,11 +17,13 @@
 #include "debug.h"
 #include "annotate.h"
 #include "evsel.h"
+#include <regex.h>
 #include <pthread.h>
 #include <linux/bitops.h>
 
 const char 	*disassembler_style;
 const char	*objdump_path;
+static regex_t	 file_lineno;
 
 static struct ins *ins__find(const char *name);
 static int disasm_line__parse(char *line, char **namep, char **rawp);
@@ -232,9 +234,16 @@ static int mov__parse(struct ins_operands *ops)
 		return -1;
 
 	target = ++s;
+	comment = strchr(s, '#');
 
-	while (s[0] != '\0' && !isspace(s[0]))
-		++s;
+	if (comment != NULL)
+		s = comment - 1;
+	else
+		s = strchr(s, '\0') - 1;
+
+	while (s > target && isspace(s[0]))
+		--s;
+	s++;
 	prev = *s;
 	*s = '\0';
 
@@ -244,7 +253,6 @@ static int mov__parse(struct ins_operands *ops)
 	if (ops->target.raw == NULL)
 		goto out_free_source;
 
-	comment = strchr(s, '#');
 	if (comment == NULL)
 		return 0;
 
@@ -472,7 +480,7 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
-	if (addr < sym->start || addr > sym->end)
+	if (addr < sym->start || addr >= sym->end)
 		return -ERANGE;
 
 	offset = addr - sym->start;
@@ -564,13 +572,15 @@ out_free_name:
 	return -1;
 }
 
-static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privsize)
+static struct disasm_line *disasm_line__new(s64 offset, char *line,
+					size_t privsize, int line_nr)
 {
 	struct disasm_line *dl = zalloc(sizeof(*dl) + privsize);
 
 	if (dl != NULL) {
 		dl->offset = offset;
 		dl->line = strdup(line);
+		dl->line_nr = line_nr;
 		if (dl->line == NULL)
 			goto out_delete;
 
@@ -782,13 +792,15 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
  * The ops.raw part will be parsed further according to type of the instruction.
  */
 static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
-				      FILE *file, size_t privsize)
+				      FILE *file, size_t privsize,
+				      int *line_nr)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct disasm_line *dl;
 	char *line = NULL, *parsed_line, *tmp, *tmp2, *c;
 	size_t line_len;
 	s64 line_ip, offset = -1;
+	regmatch_t match[2];
 
 	if (getline(&line, &line_len, file) < 0)
 		return -1;
@@ -805,6 +817,12 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 
 	line_ip = -1;
 	parsed_line = line;
+
+	/* /filename:linenr ? Save line number and ignore. */
+	if (regexec(&file_lineno, line, 2, match, 0) == 0) {
+		*line_nr = atoi(line + match[1].rm_so);
+		return 0;
+	}
 
 	/*
 	 * Strip leading spaces:
@@ -830,14 +848,15 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 		    end = map__rip_2objdump(map, sym->end);
 
 		offset = line_ip - start;
-		if ((u64)line_ip < start || (u64)line_ip > end)
+		if ((u64)line_ip < start || (u64)line_ip >= end)
 			offset = -1;
 		else
 			parsed_line = tmp2 + 1;
 	}
 
-	dl = disasm_line__new(offset, parsed_line, privsize);
+	dl = disasm_line__new(offset, parsed_line, privsize, *line_nr);
 	free(line);
+	(*line_nr)++;
 
 	if (dl == NULL)
 		return -1;
@@ -861,6 +880,11 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 	disasm__add(&notes->src->source, dl);
 
 	return 0;
+}
+
+static __attribute__((constructor)) void symbol__init_regexpr(void)
+{
+	regcomp(&file_lineno, "^/[^:]+:([0-9]+)", REG_EXTENDED);
 }
 
 static void delete_last_nop(struct symbol *sym)
@@ -898,11 +922,10 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 	char symfs_filename[PATH_MAX];
 	struct kcore_extract kce;
 	bool delete_extract = false;
+	int lineno = 0;
 
-	if (filename) {
-		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
-			 symbol_conf.symfs, filename);
-	}
+	if (filename)
+		symbol__join_symfs(symfs_filename, filename);
 
 	if (filename == NULL) {
 		if (dso->has_build_id) {
@@ -910,6 +933,8 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 			       sym->name);
 			return -ENOMEM;
 		}
+		goto fallback;
+	} else if (dso__is_kcore(dso)) {
 		goto fallback;
 	} else if (readlink(symfs_filename, command, sizeof(command)) < 0 ||
 		   strstr(command, "[kernel.kallsyms]") ||
@@ -922,8 +947,7 @@ fallback:
 		 * DSO is the same as when 'perf record' ran.
 		 */
 		filename = (char *)dso->long_name;
-		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
-			 symbol_conf.symfs, filename);
+		symbol__join_symfs(symfs_filename, filename);
 		free_filename = false;
 	}
 
@@ -963,7 +987,7 @@ fallback:
 		kce.kcore_filename = symfs_filename;
 		kce.addr = map__rip_2objdump(map, sym->start);
 		kce.offs = sym->start;
-		kce.len = sym->end + 1 - sym->start;
+		kce.len = sym->end - sym->start;
 		if (!kcore_extract__create(&kce)) {
 			delete_extract = true;
 			strlcpy(symfs_filename, kce.extract_filename,
@@ -979,12 +1003,12 @@ fallback:
 	snprintf(command, sizeof(command),
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
-		 " -d %s %s -C %s 2>/dev/null|grep -v %s|expand",
+		 " -l -d %s %s -C %s 2>/dev/null|grep -v %s|expand",
 		 objdump_path ? objdump_path : "objdump",
 		 disassembler_style ? "-M " : "",
 		 disassembler_style ? disassembler_style : "",
 		 map__rip_2objdump(map, sym->start),
-		 map__rip_2objdump(map, sym->end+1),
+		 map__rip_2objdump(map, sym->end),
 		 symbol_conf.annotate_asm_raw ? "" : "--no-show-raw",
 		 symbol_conf.annotate_src ? "-S" : "",
 		 symfs_filename, filename);
@@ -996,7 +1020,8 @@ fallback:
 		goto out_free_filename;
 
 	while (!feof(file))
-		if (symbol__parse_objdump_line(sym, map, file, privsize) < 0)
+		if (symbol__parse_objdump_line(sym, map, file, privsize,
+			    &lineno) < 0)
 			break;
 
 	/*
@@ -1167,7 +1192,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 			goto next;
 
 		offset = start + i;
-		src_line->path = get_srcline(map->dso, offset);
+		src_line->path = get_srcline(map->dso, offset, NULL, false);
 		insert_source_line(&tmp_root, src_line);
 
 	next:

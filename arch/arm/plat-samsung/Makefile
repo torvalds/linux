@@ -6,11 +6,6 @@
 
 ccflags-$(CONFIG_ARCH_MULTI_V7) += -I$(srctree)/$(src)/include
 
-obj-y				:=
-obj-m				:=
-obj-n				:= dummy.o
-obj-				:=
-
 # Objects we always build independent of SoC choice
 
 obj-y				+= init.o cpu.o
@@ -40,6 +35,7 @@ obj-$(CONFIG_SAMSUNG_DMADEV)	+= dma-ops.o
 # PM support
 
 obj-$(CONFIG_PM_SLEEP)		+= pm-common.o
+obj-$(CONFIG_EXYNOS_CPU_SUSPEND) += pm-common.o
 obj-$(CONFIG_SAMSUNG_PM)	+= pm.o
 obj-$(CONFIG_SAMSUNG_PM_GPIO)	+= pm-gpio.o
 obj-$(CONFIG_SAMSUNG_PM_CHECK)	+= pm-check.o

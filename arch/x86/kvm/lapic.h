@@ -11,6 +11,7 @@
 struct kvm_timer {
 	struct hrtimer timer;
 	s64 period; 				/* unit: ns */
+	u32 timer_mode;
 	u32 timer_mode_mask;
 	u64 tscdeadline;
 	atomic_t pending;			/* accumulated triggered timers */
@@ -22,6 +23,7 @@ struct kvm_lapic {
 	struct kvm_timer lapic_timer;
 	u32 divide_count;
 	struct kvm_vcpu *vcpu;
+	bool sw_enabled;
 	bool irr_pending;
 	/* Number of bits set in ISR. */
 	s16 isr_count;
@@ -55,8 +57,8 @@ void kvm_apic_set_version(struct kvm_vcpu *vcpu);
 
 void kvm_apic_update_tmr(struct kvm_vcpu *vcpu, u32 *tmr);
 void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir);
-int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u16 dest);
-int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda);
+int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 dest);
+int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda);
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
 		unsigned long *dest_map);
 int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type);
@@ -119,11 +121,11 @@ static inline int kvm_apic_hw_enabled(struct kvm_lapic *apic)
 
 extern struct static_key_deferred apic_sw_disabled;
 
-static inline int kvm_apic_sw_enabled(struct kvm_lapic *apic)
+static inline bool kvm_apic_sw_enabled(struct kvm_lapic *apic)
 {
 	if (static_key_false(&apic_sw_disabled.key))
-		return kvm_apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_APIC_ENABLED;
-	return APIC_SPIV_APIC_ENABLED;
+		return apic->sw_enabled;
+	return true;
 }
 
 static inline bool kvm_apic_present(struct kvm_vcpu *vcpu)
@@ -151,8 +153,6 @@ static inline u16 apic_cluster_id(struct kvm_apic_map *map, u32 ldr)
 	u16 cid;
 	ldr >>= 32 - map->ldr_bits;
 	cid = (ldr >> map->cid_shift) & map->cid_mask;
-
-	BUG_ON(cid >= ARRAY_SIZE(map->logical_map));
 
 	return cid;
 }

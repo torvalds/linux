@@ -20,7 +20,7 @@ Optional properties:
 	register is not modified as recommended by the datasheet.
 - fsl,lpccr: Contrast Control Register value. This property provides the
 	default value for the contrast control register.
-	If that property is ommited, the register is zeroed.
+	If that property is omitted, the register is zeroed.
 - fsl,lscr1: LCDC Sharp Configuration Register value.
 
 Example:

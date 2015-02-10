@@ -70,9 +70,9 @@ void __init plat_mem_setup(void)
 	iomem_resource.end = IOMEM_RESOURCE_END;
 }
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_PCI)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_PCI)
 /* This routine should be valid for all Au1x based boards */
-phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
+phys_addr_t __fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t size)
 {
 	unsigned long start = ALCHEMY_PCI_MEMWIN_START;
 	unsigned long end = ALCHEMY_PCI_MEMWIN_END;
@@ -83,7 +83,7 @@ phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 
 	/* Check for PCI memory window */
 	if (phys_addr >= start && (phys_addr + size - 1) <= end)
-		return (phys_t)(AU1500_PCI_MEM_PHYS_ADDR + phys_addr);
+		return (phys_addr_t)(AU1500_PCI_MEM_PHYS_ADDR + phys_addr);
 
 	/* default nop */
 	return phys_addr;

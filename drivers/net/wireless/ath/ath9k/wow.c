@@ -193,7 +193,8 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	u32 wow_triggers_enabled = 0;
 	int ret = 0;
 
-	cancel_work_sync(&sc->chanctx_work);
+	ath9k_deinit_channel_context(sc);
+
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);
@@ -231,7 +232,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 		goto fail_wow;
 	}
 
-	if (sc->nvifs > 1) {
+	if (sc->cur_chan->nvifs > 1) {
 		ath_dbg(common, WOW, "WoW for multivif is not yet supported\n");
 		ret = 1;
 		goto fail_wow;

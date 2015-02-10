@@ -740,6 +740,8 @@ nvc0_fifo_intr_engine_unit(struct nvc0_fifo_priv *priv, int engn)
 	u32 inte = nv_rd32(priv, 0x002628);
 	u32 unkn;
 
+	nv_wr32(priv, 0x0025a8 + (engn * 0x04), intr);
+
 	for (unkn = 0; unkn < 8; unkn++) {
 		u32 ints = (intr >> (unkn * 0x04)) & inte;
 		if (ints & 0x1) {
@@ -751,8 +753,6 @@ nvc0_fifo_intr_engine_unit(struct nvc0_fifo_priv *priv, int engn)
 			nv_mask(priv, 0x002628, ints, 0);
 		}
 	}
-
-	nv_wr32(priv, 0x0025a8 + (engn * 0x04), intr);
 }
 
 static void

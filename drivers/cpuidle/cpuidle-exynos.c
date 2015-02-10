@@ -47,7 +47,6 @@ static struct cpuidle_driver exynos_idle_driver = {
 			.enter			= exynos_enter_lowpower,
 			.exit_latency		= 300,
 			.target_residency	= 100000,
-			.flags			= CPUIDLE_FLAG_TIME_VALID,
 			.name			= "C1",
 			.desc			= "ARM power down",
 		},
@@ -75,7 +74,6 @@ static struct platform_driver exynos_cpuidle_driver = {
 	.probe	= exynos_cpuidle_probe,
 	.driver = {
 		.name = "exynos_cpuidle",
-		.owner = THIS_MODULE,
 	},
 };
 

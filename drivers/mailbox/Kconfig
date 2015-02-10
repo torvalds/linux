@@ -33,4 +33,16 @@ config OMAP_MBOX_KFIFO_SIZE
 	  Specify the default size of mailbox's kfifo buffers (bytes).
 	  This can also be changed at runtime (via the mbox_kfifo_size
 	  module parameter).
+
+config PCC
+	bool "Platform Communication Channel Driver"
+	depends on ACPI
+	help
+	  ACPI 5.0+ spec defines a generic mode of communication
+	  between the OS and a platform such as the BMC. This medium
+	  (PCC) is typically used by CPPC (ACPI CPU Performance management),
+	  RAS (ACPI reliability protocol) and MPST (ACPI Memory power
+	  states). Select this driver if your platform implements the
+	  PCC clients mentioned above.
+
 endif

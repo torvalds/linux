@@ -145,9 +145,6 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_BAD_STATEID:
-		if (state == NULL)
-			break;
-		nfs_remove_bad_delegation(state->inode);
 	case -NFS4ERR_OPENMODE:
 		if (state == NULL)
 			break;
@@ -265,7 +262,7 @@ filelayout_set_layoutcommit(struct nfs_pgio_header *hdr)
 {
 
 	if (FILELAYOUT_LSEG(hdr->lseg)->commit_through_mds ||
-	    hdr->res.verf->committed == NFS_FILE_SYNC)
+	    hdr->res.verf->committed != NFS_DATA_SYNC)
 		return;
 
 	pnfs_set_layoutcommit(hdr);
@@ -402,6 +399,9 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
+
+	if (data->verf.committed == NFS_UNSTABLE)
+		pnfs_commit_set_layoutcommit(data);
 
 	return 0;
 }
@@ -646,18 +646,15 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	}
 
 	/* find and reference the deviceid */
-	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode)->pnfs_curr_ld,
-				   NFS_SERVER(lo->plh_inode)->nfs_client, id);
-	if (d == NULL) {
-		dsaddr = filelayout_get_device_info(lo->plh_inode, id,
-				lo->plh_lc_cred, gfp_flags);
-		if (dsaddr == NULL)
-			goto out;
-	} else
-		dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
+	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode), id,
+			lo->plh_lc_cred, gfp_flags);
+	if (d == NULL)
+		goto out;
+
+	dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
 	/* Found deviceid is unavailable */
 	if (filelayout_test_devid_unavailable(&dsaddr->id_node))
-			goto out_put;
+		goto out_put;
 
 	fl->dsaddr = dsaddr;
 
@@ -1031,7 +1028,7 @@ filelayout_clear_request_commit(struct nfs_page *req,
 	}
 out:
 	nfs_request_remove_commit_list(req, cinfo);
-	pnfs_put_lseg_async(freeme);
+	pnfs_put_lseg_locked(freeme);
 }
 
 static void
@@ -1368,6 +1365,17 @@ out:
 	cinfo->ds->ncommitting = 0;
 	return PNFS_ATTEMPTED;
 }
+static struct nfs4_deviceid_node *
+filelayout_alloc_deviceid_node(struct nfs_server *server,
+		struct pnfs_device *pdev, gfp_t gfp_flags)
+{
+	struct nfs4_file_layout_dsaddr *dsaddr;
+
+	dsaddr = nfs4_fl_alloc_deviceid_node(server, pdev, gfp_flags);
+	if (!dsaddr)
+		return NULL;
+	return &dsaddr->id_node;
+}
 
 static void
 filelayout_free_deveiceid_node(struct nfs4_deviceid_node *d)
@@ -1420,6 +1428,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.commit_pagelist	= filelayout_commit_pagelist,
 	.read_pagelist		= filelayout_read_pagelist,
 	.write_pagelist		= filelayout_write_pagelist,
+	.alloc_deviceid_node	= filelayout_alloc_deviceid_node,
 	.free_deviceid_node	= filelayout_free_deveiceid_node,
 };
 

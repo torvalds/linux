@@ -1477,7 +1477,6 @@ static int i8042_remove(struct platform_device *dev)
 static struct platform_driver i8042_driver = {
 	.driver		= {
 		.name	= "i8042",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &i8042_pm_ops,
 #endif

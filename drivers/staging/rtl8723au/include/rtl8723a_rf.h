@@ -47,9 +47,9 @@
 void rtl8723a_phy_rf6052set_bw(struct rtw_adapter *Adapter,
 			       enum ht_channel_width Bandwidth);
 void rtl823a_phy_rf6052setccktxpower(struct rtw_adapter *Adapter,
-				      u8* pPowerlevel);
+				      u8 *pPowerlevel);
 void rtl8723a_PHY_RF6052SetOFDMTxPower(struct rtw_adapter *Adapter,
-				       u8* pPowerLevel, u8 Channel);
+				       u8 *pPowerLevel, u8 Channel);
 
 /*--------------------------Exported Function prototype---------------------*/
 

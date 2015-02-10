@@ -32,7 +32,7 @@ struct gen_pci_cfg_bus_ops {
 
 struct gen_pci_cfg_windows {
 	struct resource				res;
-	struct resource				bus_range;
+	struct resource				*bus_range;
 	void __iomem				**win;
 
 	const struct gen_pci_cfg_bus_ops	*ops;
@@ -50,7 +50,7 @@ static void __iomem *gen_pci_map_cfg_bus_cam(struct pci_bus *bus,
 {
 	struct pci_sys_data *sys = bus->sysdata;
 	struct gen_pci *pci = sys->private_data;
-	resource_size_t idx = bus->number - pci->cfg.bus_range.start;
+	resource_size_t idx = bus->number - pci->cfg.bus_range->start;
 
 	return pci->cfg.win[idx] + ((devfn << 8) | where);
 }
@@ -66,7 +66,7 @@ static void __iomem *gen_pci_map_cfg_bus_ecam(struct pci_bus *bus,
 {
 	struct pci_sys_data *sys = bus->sysdata;
 	struct gen_pci *pci = sys->private_data;
-	resource_size_t idx = bus->number - pci->cfg.bus_range.start;
+	resource_size_t idx = bus->number - pci->cfg.bus_range->start;
 
 	return pci->cfg.win[idx] + ((devfn << 12) | where);
 }
@@ -138,106 +138,50 @@ static const struct of_device_id gen_pci_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, gen_pci_of_match);
 
-static int gen_pci_calc_io_offset(struct device *dev,
-				  struct of_pci_range *range,
-				  struct resource *res,
-				  resource_size_t *offset)
-{
-	static atomic_t wins = ATOMIC_INIT(0);
-	int err, idx, max_win;
-	unsigned int window;
-
-	if (!PAGE_ALIGNED(range->cpu_addr))
-		return -EINVAL;
-
-	max_win = (IO_SPACE_LIMIT + 1) / SZ_64K;
-	idx = atomic_inc_return(&wins);
-	if (idx > max_win)
-		return -ENOSPC;
-
-	window = (idx - 1) * SZ_64K;
-	err = pci_ioremap_io(window, range->cpu_addr);
-	if (err)
-		return err;
-
-	of_pci_range_to_resource(range, dev->of_node, res);
-	res->start = window;
-	res->end = res->start + range->size - 1;
-	*offset = window - range->pci_addr;
-	return 0;
-}
-
-static int gen_pci_calc_mem_offset(struct device *dev,
-				   struct of_pci_range *range,
-				   struct resource *res,
-				   resource_size_t *offset)
-{
-	of_pci_range_to_resource(range, dev->of_node, res);
-	*offset = range->cpu_addr - range->pci_addr;
-	return 0;
-}
-
 static void gen_pci_release_of_pci_ranges(struct gen_pci *pci)
 {
-	struct pci_host_bridge_window *win;
-
-	list_for_each_entry(win, &pci->resources, list)
-		release_resource(win->res);
-
 	pci_free_resource_list(&pci->resources);
 }
 
 static int gen_pci_parse_request_of_pci_ranges(struct gen_pci *pci)
 {
-	struct of_pci_range range;
-	struct of_pci_range_parser parser;
 	int err, res_valid = 0;
 	struct device *dev = pci->host.dev.parent;
 	struct device_node *np = dev->of_node;
+	resource_size_t iobase;
+	struct pci_host_bridge_window *win;
 
-	if (of_pci_range_parser_init(&parser, np)) {
-		dev_err(dev, "missing \"ranges\" property\n");
-		return -EINVAL;
-	}
+	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources,
+					       &iobase);
+	if (err)
+		return err;
 
-	for_each_of_pci_range(&parser, &range) {
-		struct resource *parent, *res;
-		resource_size_t offset;
-		u32 restype = range.flags & IORESOURCE_TYPE_BITS;
+	list_for_each_entry(win, &pci->resources, list) {
+		struct resource *parent, *res = win->res;
 
-		res = devm_kmalloc(dev, sizeof(*res), GFP_KERNEL);
-		if (!res) {
-			err = -ENOMEM;
-			goto out_release_res;
-		}
-
-		switch (restype) {
+		switch (resource_type(res)) {
 		case IORESOURCE_IO:
 			parent = &ioport_resource;
-			err = gen_pci_calc_io_offset(dev, &range, res, &offset);
+			err = pci_remap_iospace(res, iobase);
+			if (err) {
+				dev_warn(dev, "error %d: failed to map resource %pR\n",
+					 err, res);
+				continue;
+			}
 			break;
 		case IORESOURCE_MEM:
 			parent = &iomem_resource;
-			err = gen_pci_calc_mem_offset(dev, &range, res, &offset);
-			res_valid |= !(res->flags & IORESOURCE_PREFETCH || err);
+			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
 			break;
+		case IORESOURCE_BUS:
+			pci->cfg.bus_range = res;
 		default:
-			err = -EINVAL;
 			continue;
 		}
 
-		if (err) {
-			dev_warn(dev,
-				 "error %d: failed to add resource [type 0x%x, %lld bytes]\n",
-				 err, restype, range.size);
-			continue;
-		}
-
-		err = request_resource(parent, res);
+		err = devm_request_resource(dev, parent, res);
 		if (err)
 			goto out_release_res;
-
-		pci_add_resource_offset(&pci->resources, res, offset);
 	}
 
 	if (!res_valid) {
@@ -262,30 +206,22 @@ static int gen_pci_parse_map_cfg_windows(struct gen_pci *pci)
 	struct device *dev = pci->host.dev.parent;
 	struct device_node *np = dev->of_node;
 
-	if (of_pci_parse_bus_range(np, &pci->cfg.bus_range))
-		pci->cfg.bus_range = (struct resource) {
-			.name	= np->name,
-			.start	= 0,
-			.end	= 0xff,
-			.flags	= IORESOURCE_BUS,
-		};
-
 	err = of_address_to_resource(np, 0, &pci->cfg.res);
 	if (err) {
 		dev_err(dev, "missing \"reg\" property\n");
 		return err;
 	}
 
-	pci->cfg.win = devm_kcalloc(dev, resource_size(&pci->cfg.bus_range),
+	/* Limit the bus-range to fit within reg */
+	bus_max = pci->cfg.bus_range->start +
+		  (resource_size(&pci->cfg.res) >> pci->cfg.ops->bus_shift) - 1;
+	pci->cfg.bus_range->end = min_t(resource_size_t,
+					pci->cfg.bus_range->end, bus_max);
+
+	pci->cfg.win = devm_kcalloc(dev, resource_size(pci->cfg.bus_range),
 				    sizeof(*pci->cfg.win), GFP_KERNEL);
 	if (!pci->cfg.win)
 		return -ENOMEM;
-
-	/* Limit the bus-range to fit within reg */
-	bus_max = pci->cfg.bus_range.start +
-		  (resource_size(&pci->cfg.res) >> pci->cfg.ops->bus_shift) - 1;
-	pci->cfg.bus_range.end = min_t(resource_size_t, pci->cfg.bus_range.end,
-				       bus_max);
 
 	/* Map our Configuration Space windows */
 	if (!devm_request_mem_region(dev, pci->cfg.res.start,
@@ -293,7 +229,7 @@ static int gen_pci_parse_map_cfg_windows(struct gen_pci *pci)
 				     "Configuration Space"))
 		return -ENOMEM;
 
-	bus_range = &pci->cfg.bus_range;
+	bus_range = pci->cfg.bus_range;
 	for (busn = bus_range->start; busn <= bus_range->end; ++busn) {
 		u32 idx = busn - bus_range->start;
 		u32 sz = 1 << pci->cfg.ops->bus_shift;
@@ -305,8 +241,6 @@ static int gen_pci_parse_map_cfg_windows(struct gen_pci *pci)
 			return -ENOMEM;
 	}
 
-	/* Register bus resource */
-	pci_add_resource(&pci->resources, bus_range);
 	return 0;
 }
 
@@ -376,7 +310,6 @@ static int gen_pci_probe(struct platform_device *pdev)
 static struct platform_driver gen_pci_driver = {
 	.driver = {
 		.name = "pci-host-generic",
-		.owner = THIS_MODULE,
 		.of_match_table = gen_pci_of_match,
 	},
 	.probe = gen_pci_probe,

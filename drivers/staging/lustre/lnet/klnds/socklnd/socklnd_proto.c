@@ -495,7 +495,8 @@ ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 	hdr->msg.hello.type = cpu_to_le32 (hello->kshm_ctype);
 	hdr->msg.hello.incarnation = cpu_to_le64 (hello->kshm_src_incarnation);
 
-	rc = libcfs_sock_write(sock, hdr, sizeof(*hdr),lnet_acceptor_timeout());
+	rc = libcfs_sock_write(sock, hdr, sizeof(*hdr),
+			       lnet_acceptor_timeout());
 
 	if (rc != 0) {
 		CNETERR("Error %d sending HELLO hdr to %pI4h/%d\n",
@@ -514,8 +515,8 @@ ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 			       hello->kshm_nips * sizeof(__u32),
 			       lnet_acceptor_timeout());
 	if (rc != 0) {
-		CNETERR("Error %d sending HELLO payload (%d)"
-			" to %pI4h/%d\n", rc, hello->kshm_nips,
+		CNETERR("Error %d sending HELLO payload (%d) to %pI4h/%d\n",
+			rc, hello->kshm_nips,
 			&conn->ksnc_ipaddr, conn->ksnc_port);
 	}
 out:
@@ -559,8 +560,8 @@ ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 			       hello->kshm_nips * sizeof(__u32),
 			       lnet_acceptor_timeout());
 	if (rc != 0) {
-		CNETERR("Error %d sending HELLO payload (%d)"
-			" to %pI4h/%d\n", rc, hello->kshm_nips,
+		CNETERR("Error %d sending HELLO payload (%d) to %pI4h/%d\n",
+			rc, hello->kshm_nips,
 			&conn->ksnc_ipaddr, conn->ksnc_port);
 	}
 
@@ -568,7 +569,8 @@ ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 }
 
 static int
-ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
+ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
+		       int timeout)
 {
 	struct socket	*sock = conn->ksnc_sock;
 	lnet_hdr_t	  *hdr;
@@ -593,10 +595,9 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
 
 	/* ...and check we got what we expected */
 	if (hdr->type != cpu_to_le32 (LNET_MSG_HELLO)) {
-		CERROR("Expecting a HELLO hdr,"
-			" but got type %d from %pI4h\n",
-			le32_to_cpu (hdr->type),
-			&conn->ksnc_ipaddr);
+		CERROR("Expecting a HELLO hdr, but got type %d from %pI4h\n",
+		       le32_to_cpu(hdr->type),
+		       &conn->ksnc_ipaddr);
 		rc = -EPROTO;
 		goto out;
 	}
@@ -756,8 +757,7 @@ ksocknal_unpack_msg_v2(ksock_msg_t *msg)
 	return;  /* Do nothing */
 }
 
-ksock_proto_t  ksocknal_protocol_v1x =
-{
+ksock_proto_t  ksocknal_protocol_v1x = {
 	.pro_version	    = KSOCK_PROTO_V1,
 	.pro_send_hello	 = ksocknal_send_hello_v1,
 	.pro_recv_hello	 = ksocknal_recv_hello_v1,
@@ -770,8 +770,7 @@ ksock_proto_t  ksocknal_protocol_v1x =
 	.pro_match_tx	   = ksocknal_match_tx
 };
 
-ksock_proto_t  ksocknal_protocol_v2x =
-{
+ksock_proto_t  ksocknal_protocol_v2x = {
 	.pro_version	    = KSOCK_PROTO_V2,
 	.pro_send_hello	 = ksocknal_send_hello_v2,
 	.pro_recv_hello	 = ksocknal_recv_hello_v2,
@@ -784,8 +783,7 @@ ksock_proto_t  ksocknal_protocol_v2x =
 	.pro_match_tx	   = ksocknal_match_tx
 };
 
-ksock_proto_t  ksocknal_protocol_v3x =
-{
+ksock_proto_t  ksocknal_protocol_v3x = {
 	.pro_version	    = KSOCK_PROTO_V3,
 	.pro_send_hello	 = ksocknal_send_hello_v2,
 	.pro_recv_hello	 = ksocknal_recv_hello_v2,

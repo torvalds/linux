@@ -492,16 +492,14 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
  *     Currently, its primary task it to free all the &struct request
  *     structures that were allocated to the queue and the queue itself.
  *
- * Caveat:
- *     Hopefully the low level driver will have finished any
- *     outstanding requests first...
+ * Note:
+ *     The low level driver must have finished any outstanding requests first
+ *     via blk_cleanup_queue().
  **/
 static void blk_release_queue(struct kobject *kobj)
 {
 	struct request_queue *q =
 		container_of(kobj, struct request_queue, kobj);
-
-	blk_sync_queue(q);
 
 	blkcg_exit_queue(q);
 
@@ -517,10 +515,8 @@ static void blk_release_queue(struct kobject *kobj)
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
 
-	if (q->mq_ops)
-		blk_mq_free_queue(q);
-
-	kfree(q->flush_rq);
+	if (!q->mq_ops)
+		blk_free_flush_queue(q->fq);
 
 	blk_trace_shutdown(q);
 
@@ -551,12 +547,19 @@ int blk_register_queue(struct gendisk *disk)
 		return -ENXIO;
 
 	/*
-	 * Initialization must be complete by now.  Finish the initial
-	 * bypass from queue allocation.
+	 * SCSI probing may synchronously create and destroy a lot of
+	 * request_queues for non-existent devices.  Shutting down a fully
+	 * functional queue takes measureable wallclock time as RCU grace
+	 * periods are involved.  To avoid excessive latency in these
+	 * cases, a request_queue starts out in a degraded mode which is
+	 * faster to shut down and is made fully functional here as
+	 * request_queues for non-existent devices never get registered.
 	 */
 	if (!blk_queue_init_done(q)) {
 		queue_flag_set_unlocked(QUEUE_FLAG_INIT_DONE, q);
 		blk_queue_bypass_end(q);
+		if (q->mq_ops)
+			blk_mq_finish_init(q);
 	}
 
 	ret = blk_trace_init_sysfs(dev);

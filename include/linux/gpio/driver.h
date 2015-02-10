@@ -32,6 +32,7 @@ struct seq_file;
  * @get: returns value for signal "offset"; for output signals this
  *	returns either the value actually sensed, or zero
  * @set: assigns output value for signal "offset"
+ * @set_multiple: assigns output values for multiple signals defined by "mask"
  * @set_debounce: optional hook for setting debounce time for specified gpio in
  *      interrupt triggered gpio chips
  * @to_irq: optional hook supporting non-static gpio_to_irq() mappings;
@@ -56,6 +57,8 @@ struct seq_file;
  *	as the chip access may sleep when e.g. reading out the IRQ status
  *	registers.
  * @exported: flags if the gpiochip is exported for use from sysfs. Private.
+ * @irq_not_threaded: flag must be set if @can_sleep is set but the
+ *	IRQs don't need to be threaded
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
  * they can all be accessed through a common programing interface.
@@ -87,6 +90,9 @@ struct gpio_chip {
 						unsigned offset);
 	void			(*set)(struct gpio_chip *chip,
 						unsigned offset, int value);
+	void			(*set_multiple)(struct gpio_chip *chip,
+						unsigned long *mask,
+						unsigned long *bits);
 	int			(*set_debounce)(struct gpio_chip *chip,
 						unsigned offset,
 						unsigned debounce);
@@ -101,11 +107,12 @@ struct gpio_chip {
 	struct gpio_desc	*desc;
 	const char		*const *names;
 	bool			can_sleep;
+	bool			irq_not_threaded;
 	bool			exported;
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 	/*
-	 * With CONFIG_GPIO_IRQCHIP we get an irqchip inside the gpiolib
+	 * With CONFIG_GPIOLIB_IRQCHIP we get an irqchip inside the gpiolib
 	 * to handle IRQs for most practical cases.
 	 */
 	struct irq_chip		*irqchip;
@@ -141,13 +148,13 @@ extern const char *gpiochip_is_requested(struct gpio_chip *chip,
 
 /* add/remove chips */
 extern int gpiochip_add(struct gpio_chip *chip);
-extern int gpiochip_remove(struct gpio_chip *chip);
+extern void gpiochip_remove(struct gpio_chip *chip);
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *chip, void *data));
 
 /* lock/unlock as IRQ */
-int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
-void gpio_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
+int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
+void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 
@@ -164,9 +171,10 @@ int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 		irq_flow_handler_t handler,
 		unsigned int type);
 
-#endif /* CONFIG_GPIO_IRQCHIP */
+#endif /* CONFIG_GPIOLIB_IRQCHIP */
 
-int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label);
+struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
+					    const char *label);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
 
 #else /* CONFIG_GPIOLIB */

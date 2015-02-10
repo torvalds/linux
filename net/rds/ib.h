@@ -316,8 +316,7 @@ int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic);
 void rds_ib_recv_free_caches(struct rds_ib_connection *ic);
 void rds_ib_recv_refill(struct rds_connection *conn, int prefill);
 void rds_ib_inc_free(struct rds_incoming *inc);
-int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iovec *iov,
-			     size_t size);
+int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to);
 void rds_ib_recv_cq_comp_handler(struct ib_cq *cq, void *context);
 void rds_ib_recv_tasklet_fn(unsigned long data);
 void rds_ib_recv_init_ring(struct rds_ib_connection *ic);

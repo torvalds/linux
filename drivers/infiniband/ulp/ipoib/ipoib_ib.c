@@ -655,7 +655,7 @@ void ipoib_reap_ah(struct work_struct *work)
 	__ipoib_reap_ah(dev);
 
 	if (!test_bit(IPOIB_STOP_REAPER, &priv->flags))
-		queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
+		queue_delayed_work(priv->wq, &priv->ah_reap_task,
 				   round_jiffies_relative(HZ));
 }
 
@@ -664,7 +664,7 @@ static void ipoib_ib_tx_timer_func(unsigned long ctx)
 	drain_tx_cq((struct net_device *)ctx);
 }
 
-int ipoib_ib_dev_open(struct net_device *dev, int flush)
+int ipoib_ib_dev_open(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
@@ -696,7 +696,7 @@ int ipoib_ib_dev_open(struct net_device *dev, int flush)
 	}
 
 	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
-	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
+	queue_delayed_work(priv->wq, &priv->ah_reap_task,
 			   round_jiffies_relative(HZ));
 
 	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
@@ -706,7 +706,7 @@ int ipoib_ib_dev_open(struct net_device *dev, int flush)
 dev_stop:
 	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 		napi_enable(&priv->napi);
-	ipoib_ib_dev_stop(dev, flush);
+	ipoib_ib_dev_stop(dev);
 	return -1;
 }
 
@@ -738,7 +738,7 @@ int ipoib_ib_dev_up(struct net_device *dev)
 	return ipoib_mcast_start_thread(dev);
 }
 
-int ipoib_ib_dev_down(struct net_device *dev, int flush)
+int ipoib_ib_dev_down(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -747,7 +747,7 @@ int ipoib_ib_dev_down(struct net_device *dev, int flush)
 	clear_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
 	netif_carrier_off(dev);
 
-	ipoib_mcast_stop_thread(dev, flush);
+	ipoib_mcast_stop_thread(dev);
 	ipoib_mcast_dev_flush(dev);
 
 	ipoib_flush_paths(dev);
@@ -807,7 +807,7 @@ void ipoib_drain_cq(struct net_device *dev)
 	local_bh_enable();
 }
 
-int ipoib_ib_dev_stop(struct net_device *dev, int flush)
+int ipoib_ib_dev_stop(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_attr qp_attr;
@@ -880,8 +880,7 @@ timeout:
 	/* Wait for all AHs to be reaped */
 	set_bit(IPOIB_STOP_REAPER, &priv->flags);
 	cancel_delayed_work(&priv->ah_reap_task);
-	if (flush)
-		flush_workqueue(ipoib_workqueue);
+	flush_workqueue(priv->wq);
 
 	begin = jiffies;
 
@@ -918,7 +917,7 @@ int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		    (unsigned long) dev);
 
 	if (dev->flags & IFF_UP) {
-		if (ipoib_ib_dev_open(dev, 1)) {
+		if (ipoib_ib_dev_open(dev)) {
 			ipoib_transport_dev_cleanup(dev);
 			return -ENODEV;
 		}
@@ -1040,12 +1039,12 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 	}
 
 	if (level >= IPOIB_FLUSH_NORMAL)
-		ipoib_ib_dev_down(dev, 0);
+		ipoib_ib_dev_down(dev);
 
 	if (level == IPOIB_FLUSH_HEAVY) {
 		if (test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
-			ipoib_ib_dev_stop(dev, 0);
-		if (ipoib_ib_dev_open(dev, 0) != 0)
+			ipoib_ib_dev_stop(dev);
+		if (ipoib_ib_dev_open(dev) != 0)
 			return;
 		if (netif_queue_stopped(dev))
 			netif_start_queue(dev);
@@ -1097,7 +1096,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	 */
 	ipoib_flush_paths(dev);
 
-	ipoib_mcast_stop_thread(dev, 1);
+	ipoib_mcast_stop_thread(dev);
 	ipoib_mcast_dev_flush(dev);
 
 	ipoib_transport_dev_cleanup(dev);

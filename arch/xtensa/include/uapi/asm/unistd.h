@@ -384,7 +384,8 @@ __SYSCALL(174, sys_chroot, 1)
 #define __NR_pivot_root 			175
 __SYSCALL(175, sys_pivot_root, 2)
 #define __NR_umount 				176
-__SYSCALL(176, sys_umount, 2)
+__SYSCALL(176, sys_oldumount, 1)
+#define __ARCH_WANT_SYS_OLDUMOUNT
 #define __NR_swapoff 				177
 __SYSCALL(177, sys_swapoff, 1)
 #define __NR_sync 				178
@@ -742,7 +743,14 @@ __SYSCALL(335, sys_sched_getattr, 3)
 #define __NR_renameat2				336
 __SYSCALL(336, sys_renameat2, 5)
 
-#define __NR_syscall_count			337
+#define __NR_seccomp				337
+__SYSCALL(337, sys_seccomp, 3)
+#define __NR_getrandom				338
+__SYSCALL(338, sys_getrandom, 3)
+#define __NR_memfd_create			339
+__SYSCALL(339, sys_memfd_create, 2)
+
+#define __NR_syscall_count			340
 
 /*
  * sysxtensa syscall handler

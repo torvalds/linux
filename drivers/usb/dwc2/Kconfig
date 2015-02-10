@@ -1,6 +1,6 @@
 config USB_DWC2
-	bool "DesignWare USB2 DRD Core Support"
-	depends on USB
+	tristate "DesignWare USB2 DRD Core Support"
+	depends on USB || USB_GADGET
 	help
 	  Say Y here if your system has a Dual Role Hi-Speed USB
 	  controller based on the DesignWare HSOTG IP Core.
@@ -10,48 +10,60 @@ config USB_DWC2
 	  bus interface module (if you have a PCI bus system) will be
 	  called dwc2_pci.ko, and the platform interface module (for
 	  controllers directly connected to the CPU) will be called
-	  dwc2_platform.ko. For gadget mode, there will be a single
-	  module called dwc2_gadget.ko.
-
-	  NOTE: The s3c-hsotg driver is now renamed to dwc2_gadget. The
-	  host and gadget drivers are still currently separate drivers.
-	  There are plans to merge the dwc2_gadget driver with the dwc2
-	  host driver in the near future to create a dual-role driver.
+	  dwc2_platform.ko. For all modes(host, gadget and dual-role), there
+	  will be an additional module named dwc2.ko.
 
 if USB_DWC2
 
+choice
+	bool "DWC2 Mode Selection"
+	default USB_DWC2_DUAL_ROLE if (USB && USB_GADGET)
+	default USB_DWC2_HOST if (USB && !USB_GADGET)
+	default USB_DWC2_PERIPHERAL if (!USB && USB_GADGET)
+
 config USB_DWC2_HOST
-	tristate "Host only mode"
+	bool "Host only mode"
 	depends on USB
 	help
 	  The Designware USB2.0 high-speed host controller
-	  integrated into many SoCs.
+	  integrated into many SoCs. Select this option if you want the
+	  driver to operate in Host-only mode.
+
+comment "Gadget/Dual-role mode requires USB Gadget support to be enabled"
+
+config USB_DWC2_PERIPHERAL
+	bool "Gadget only mode"
+	depends on USB_GADGET=y || USB_GADGET=USB_DWC2
+	help
+	  The Designware USB2.0 high-speed gadget controller
+	  integrated into many SoCs. Select this option if you want the
+	  driver to operate in Peripheral-only mode. This option requires
+	  USB_GADGET to be enabled.
+
+config USB_DWC2_DUAL_ROLE
+	bool "Dual Role mode"
+	depends on (USB=y || USB=USB_DWC2) && (USB_GADGET=y || USB_GADGET=USB_DWC2)
+	help
+	  Select this option if you want the driver to work in a dual-role
+	  mode. In this mode both host and gadget features are enabled, and
+	  the role will be determined by the cable that gets plugged-in. This
+	  option requires USB_GADGET to be enabled.
+endchoice
 
 config USB_DWC2_PLATFORM
-	bool "DWC2 Platform"
-	depends on USB_DWC2_HOST
-	default USB_DWC2_HOST
-	help
-	  The Designware USB2.0 platform interface module for
-	  controllers directly connected to the CPU. This is only
-	  used for host mode.
+	tristate "DWC2 Platform"
+	default USB_DWC2_HOST || USB_DWC2_PERIPHERAL
+        help
+          The Designware USB2.0 platform interface module for
+          controllers directly connected to the CPU.
 
 config USB_DWC2_PCI
-	bool "DWC2 PCI"
+	tristate "DWC2 PCI"
 	depends on USB_DWC2_HOST && PCI
 	default USB_DWC2_HOST
 	help
 	  The Designware USB2.0 PCI interface module for controllers
 	  connected to a PCI bus. This is only used for host mode.
-
-comment "Gadget mode requires USB Gadget support to be enabled"
-
-config USB_DWC2_PERIPHERAL
-	tristate "Gadget only mode"
-	depends on USB_GADGET
-	help
-	  The Designware USB2.0 high-speed gadget controller
-	  integrated into many SoCs.
 
 config USB_DWC2_DEBUG
 	bool "Enable Debugging Messages"

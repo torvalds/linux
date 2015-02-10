@@ -40,13 +40,73 @@
  * and don't forget to CC: the USB development list <linux-usb@vger.kernel.org>
  */
 
-/*
- * This is an example entry for the US_FL_IGNORE_UAS flag. Once we have an
- * actual entry using US_FL_IGNORE_UAS this entry should be removed.
- *
- * UNUSUAL_DEV(  0xabcd, 0x1234, 0x0100, 0x0100,
- *		"Example",
- *		"Storage with broken UAS",
- *		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
- *		US_FL_IGNORE_UAS),
- */
+/* https://bugzilla.kernel.org/show_bug.cgi?id=79511 */
+UNUSUAL_DEV(0x0bc2, 0x2312, 0x0000, 0x9999,
+		"Seagate",
+		"Expansion Desk",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
+/* https://bbs.archlinux.org/viewtopic.php?id=183190 */
+UNUSUAL_DEV(0x0bc2, 0x3312, 0x0000, 0x9999,
+		"Seagate",
+		"Expansion Desk",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
+/* Reported-by: Hans de Goede <hdegoede@redhat.com> */
+UNUSUAL_DEV(0x0bc2, 0x3320, 0x0000, 0x9999,
+		"Seagate",
+		"Expansion Desk",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
+/* Reported-by: Bogdan Mihalcea <bogdan.mihalcea@infim.ro> */
+UNUSUAL_DEV(0x0bc2, 0xa003, 0x0000, 0x9999,
+		"Seagate",
+		"Backup Plus",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
+/* https://bbs.archlinux.org/viewtopic.php?id=183190 */
+UNUSUAL_DEV(0x0bc2, 0xab20, 0x0000, 0x9999,
+		"Seagate",
+		"Backup+ BK",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
+/* https://bbs.archlinux.org/viewtopic.php?id=183190 */
+UNUSUAL_DEV(0x0bc2, 0xab21, 0x0000, 0x9999,
+		"Seagate",
+		"Backup+ BK",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
+/* Reported-by: Claudio Bizzarri <claudio.bizzarri@gmail.com> */
+UNUSUAL_DEV(0x152d, 0x0567, 0x0000, 0x9999,
+		"JMicron",
+		"JMS567",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_REPORT_OPCODES),
+
+/* Most ASM1051 based devices have issues with uas, blacklist them all */
+/* Reported-by: Hans de Goede <hdegoede@redhat.com> */
+UNUSUAL_DEV(0x174c, 0x5106, 0x0000, 0x9999,
+		"ASMedia",
+		"ASM1051",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_IGNORE_UAS),
+
+/* Reported-by: Hans de Goede <hdegoede@redhat.com> */
+UNUSUAL_DEV(0x2109, 0x0711, 0x0000, 0x9999,
+		"VIA",
+		"VL711",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
+/* Reported-by: Hans de Goede <hdegoede@redhat.com> */
+UNUSUAL_DEV(0x4971, 0x1012, 0x0000, 0x9999,
+		"Hitachi",
+		"External HDD",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_IGNORE_UAS),

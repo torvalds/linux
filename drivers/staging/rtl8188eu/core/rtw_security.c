@@ -189,7 +189,7 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 				arcfour_encrypt(&mycontext, payload+length, crc, 4);
 
 				pframe += pxmitpriv->frag_len;
-				pframe = (u8 *) round_up((size_t)(pframe), 4);
+				pframe = (u8 *)round_up((size_t)(pframe), 4);
 			}
 		}
 	}
@@ -258,7 +258,7 @@ static void secmicputuint32(u8 *p, u32 val)
 {
 	long i;
 	for (i = 0; i < 4; i++) {
-		*p++ = (u8) (val & 0xff);
+		*p++ = (u8)(val & 0xff);
 		val >>= 8;
 	}
 }
@@ -621,14 +621,14 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 					arcfour_encrypt(&mycontext, payload, payload, length);
 					arcfour_encrypt(&mycontext, payload+length, crc, 4);
 				} else {
-					length = pxmitpriv->frag_len-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len ;
+					length = pxmitpriv->frag_len-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len;
 					*((__le32 *)crc) = getcrc32(payload, length);/* modified by Amy*/
 					arcfour_init(&mycontext, rc4key, 16);
 					arcfour_encrypt(&mycontext, payload, payload, length);
 					arcfour_encrypt(&mycontext, payload+length, crc, 4);
 
 					pframe += pxmitpriv->frag_len;
-					pframe = (u8 *) round_up((size_t)(pframe), 4);
+					pframe = (u8 *)round_up((size_t)(pframe), 4);
 				}
 			}
 		} else {
@@ -953,8 +953,8 @@ static void construct_mic_iv(u8 *mic_iv, int qc_exists, int a4_exists, u8 *mpdu,
 		mic_iv[i] = mpdu[i + 8];	/* mic_iv[2:7] = A2[0:5] = mpdu[10:15] */
 	for (i = 8; i < 14; i++)
 		mic_iv[i] = pn_vector[13 - i];	/* mic_iv[8:13] = PN[5:0] */
-	mic_iv[14] = (unsigned char) (payload_length / 256);
-	mic_iv[15] = (unsigned char) (payload_length % 256);
+	mic_iv[14] = (unsigned char)(payload_length / 256);
+	mic_iv[15] = (unsigned char)(payload_length % 256);
 }
 
 /************************************************/
@@ -1045,8 +1045,8 @@ static void construct_ctr_preload(u8 *ctr_preload, int a4_exists, int qc_exists,
 		ctr_preload[i] = mpdu[i + 8];		       /* ctr_preload[2:7] = A2[0:5] = mpdu[10:15] */
 	for (i = 8; i < 14; i++)
 		ctr_preload[i] =    pn_vector[13 - i];	  /* ctr_preload[8:13] = PN[5:0] */
-	ctr_preload[14] =  (unsigned char) (c / 256); /* Ctr */
-	ctr_preload[15] =  (unsigned char) (c % 256);
+	ctr_preload[14] =  (unsigned char)(c / 256); /* Ctr */
+	ctr_preload[15] =  (unsigned char)(c % 256);
 }
 
 /************************************/
@@ -1219,7 +1219,7 @@ u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
 
 	/* 4 start to encrypt each fragment */
-	if ((pattrib->encrypt == _AES_)) {
+	if (pattrib->encrypt == _AES_) {
 		if (pattrib->psta)
 			stainfo = pattrib->psta;
 		else
@@ -1238,11 +1238,11 @@ u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 					aes_cipher(prwskey, pattrib->hdrlen, pframe, length);
 				} else{
-					length = pxmitpriv->frag_len-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len ;
+					length = pxmitpriv->frag_len-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len;
 
 					aes_cipher(prwskey, pattrib->hdrlen, pframe, length);
 					pframe += pxmitpriv->frag_len;
-					pframe = (u8 *) round_up((size_t)(pframe), 8);
+					pframe = (u8 *)round_up((size_t)(pframe), 8);
 				}
 			}
 		} else{
@@ -1460,7 +1460,7 @@ u32	rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 	u32	res = _SUCCESS;
 	pframe = (unsigned char *)((struct recv_frame *)precvframe)->rx_data;
 	/* 4 start to encrypt each fragment */
-	if ((prxattrib->encrypt == _AES_)) {
+	if (prxattrib->encrypt == _AES_) {
 		stainfo = rtw_get_stainfo(&padapter->stapriv, &prxattrib->ta[0]);
 		if (stainfo != NULL) {
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_aes_decrypt: stainfo!= NULL!!!\n"));

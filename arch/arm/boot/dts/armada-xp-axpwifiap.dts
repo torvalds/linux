@@ -60,40 +60,6 @@
 		};
 
 		internal-regs {
-			pinctrl {
-				pinctrl-0 = <&pmx_phy_int>;
-				pinctrl-names = "default";
-
-				pmx_ge0: pmx-ge0 {
-					marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3",
-						       "mpp4", "mpp5", "mpp6", "mpp7",
-						       "mpp8", "mpp9", "mpp10", "mpp11";
-					marvell,function = "ge0";
-				};
-
-				pmx_ge1: pmx-ge1 {
-					marvell,pins = "mpp12", "mpp13", "mpp14", "mpp15",
-						       "mpp16", "mpp17", "mpp18", "mpp19",
-						       "mpp20", "mpp21", "mpp22", "mpp23";
-					marvell,function = "ge1";
-				};
-
-				pmx_keys: pmx-keys {
-					marvell,pins = "mpp33";
-					marvell,function = "gpio";
-				};
-
-				pmx_spi: pmx-spi {
-					marvell,pins = "mpp36", "mpp37", "mpp38", "mpp39";
-					marvell,function = "spi";
-				};
-
-				pmx_phy_int: pmx-phy-int {
-					marvell,pins = "mpp32";
-					marvell,function = "gpio";
-				};
-			};
-
 			serial@12000 {
 				status = "okay";
 			};
@@ -118,14 +84,14 @@
 			};
 
 			ethernet@70000 {
-				pinctrl-0 = <&pmx_ge0>;
+				pinctrl-0 = <&ge0_rgmii_pins>;
 				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
 			};
 			ethernet@74000 {
-				pinctrl-0 = <&pmx_ge1>;
+				pinctrl-0 = <&ge1_rgmii_pins>;
 				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy1>;
@@ -134,8 +100,6 @@
 
 			spi0: spi@10600 {
 				status = "okay";
-				pinctrl-0 = <&pmx_spi>;
-				pinctrl-names = "default";
 
 				spi-flash@0 {
 					#address-cells = <1>;
@@ -152,7 +116,7 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-0 = <&pmx_keys>;
+		pinctrl-0 = <&keys_pin>;
 		pinctrl-names = "default";
 
 		button@1 {
@@ -160,5 +124,20 @@
 			linux,code = <KEY_SETUP>;
 			gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 		};
+	};
+};
+
+&pinctrl {
+	pinctrl-0 = <&phy_int_pin>;
+	pinctrl-names = "default";
+
+	keys_pin: keys-pin {
+		marvell,pins = "mpp33";
+		marvell,function = "gpio";
+	};
+
+	phy_int_pin: phy-int-pin {
+		marvell,pins = "mpp32";
+		marvell,function = "gpio";
 	};
 };

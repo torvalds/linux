@@ -72,7 +72,8 @@ static int stw481x_vmmc_regulator_probe(struct platform_device *pdev)
 	config.regmap = stw481x->map;
 	config.of_node = pdev->dev.of_node;
 	config.init_data = of_get_regulator_init_data(&pdev->dev,
-						      pdev->dev.of_node);
+						      pdev->dev.of_node,
+						      &vmmc_regulator);
 
 	stw481x->vmmc_regulator = devm_regulator_register(&pdev->dev,
 						&vmmc_regulator, &config);
@@ -94,7 +95,6 @@ static const struct of_device_id stw481x_vmmc_match[] = {
 static struct platform_driver stw481x_vmmc_regulator_driver = {
 	.driver = {
 		.name  = "stw481x-vmmc-regulator",
-		.owner = THIS_MODULE,
 		.of_match_table = stw481x_vmmc_match,
 	},
 	.probe = stw481x_vmmc_regulator_probe,

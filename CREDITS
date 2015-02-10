@@ -1197,6 +1197,13 @@ S: R. Tocantins, 89 - Cristo Rei
 S: 80050-430 - Curitiba - Paraná
 S: Brazil
 
+N: Oded Gabbay
+E: oded.gabbay@gmail.com
+D: AMD KFD maintainer
+S: 12 Shraga Raphaeli
+S: Petah-Tikva, 4906418
+S: Israel
+
 N: Kumar Gala
 E: galak@kernel.crashing.org
 D: Embedded PowerPC 6xx/7xx/74xx/82xx/83xx/85xx support
@@ -1727,14 +1734,14 @@ S: Chapel Hill, North Carolina 27514-4818
 S: USA
 
 N: Dave Jones
-E: davej@redhat.com
+E: davej@codemonkey.org.uk
 W: http://www.codemonkey.org.uk
 D: Assorted VIA x86 support.
 D: 2.5 AGPGART overhaul.
 D: CPUFREQ maintenance.
-D: Fedora kernel maintenance.
+D: Fedora kernel maintenance (2003-2014).
+D: 'Trinity' and similar fuzz testing work.
 D: Misc/Other.
-S: 314 Littleton Rd, Westford, MA 01886, USA
 
 N: Martin Josfsson
 E: gandalf@wlug.westbo.se

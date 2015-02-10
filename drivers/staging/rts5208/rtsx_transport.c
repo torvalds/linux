@@ -539,7 +539,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 		if (i == buf_cnt / (HOST_SG_TBL_BUF_LEN / 8))
 			sg_cnt = buf_cnt % (HOST_SG_TBL_BUF_LEN / 8);
 		else
-			sg_cnt = (HOST_SG_TBL_BUF_LEN / 8);
+			sg_cnt = HOST_SG_TBL_BUF_LEN / 8;
 
 		chip->sgi = 0;
 		for (j = 0; j < sg_cnt; j++) {
@@ -728,15 +728,13 @@ int rtsx_transfer_data_partial(struct rtsx_chip *chip, u8 card,
 	if (rtsx_chk_stat(chip, RTSX_STAT_ABORT))
 		return -EIO;
 
-	if (use_sg) {
+	if (use_sg)
 		err = rtsx_transfer_sglist_adma_partial(chip, card,
 				(struct scatterlist *)buf, use_sg,
 				index, offset, (int)len, dma_dir, timeout);
-	} else {
+	else
 		err = rtsx_transfer_buf(chip, card,
 					buf, len, dma_dir, timeout);
-	}
-
 	if (err < 0) {
 		if (RTSX_TST_DELINK(chip)) {
 			RTSX_CLR_DELINK(chip);

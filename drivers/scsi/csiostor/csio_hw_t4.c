@@ -307,12 +307,12 @@ csio_t4_memory_rw(struct csio_hw *hw, u32 win, int mtype, u32 addr,
 	 * MEM_EDC1 = 1
 	 * MEM_MC   = 2 -- T4
 	 */
-	edc_size  = EDRAM_SIZE_GET(csio_rd_reg32(hw, MA_EDRAM0_BAR));
+	edc_size  = EDRAM0_SIZE_G(csio_rd_reg32(hw, MA_EDRAM0_BAR_A));
 	if (mtype != MEM_MC1)
 		memoffset = (mtype * (edc_size * 1024 * 1024));
 	else {
-		mc_size = EXT_MEM_SIZE_GET(csio_rd_reg32(hw,
-							 MA_EXT_MEMORY_BAR));
+		mc_size = EXT_MEM_SIZE_G(csio_rd_reg32(hw,
+						       MA_EXT_MEMORY_BAR_A));
 		memoffset = (MEM_MC0 * edc_size + mc_size) * 1024 * 1024;
 	}
 
@@ -383,11 +383,12 @@ static void
 csio_t4_dfs_create_ext_mem(struct csio_hw *hw)
 {
 	u32 size;
-	int i = csio_rd_reg32(hw, MA_TARGET_MEM_ENABLE);
-	if (i & EXT_MEM_ENABLE) {
-		size = csio_rd_reg32(hw, MA_EXT_MEMORY_BAR);
+	int i = csio_rd_reg32(hw, MA_TARGET_MEM_ENABLE_A);
+
+	if (i & EXT_MEM_ENABLE_F) {
+		size = csio_rd_reg32(hw, MA_EXT_MEMORY_BAR_A);
 		csio_add_debugfs_mem(hw, "mc", MEM_MC,
-				     EXT_MEM_SIZE_GET(size));
+				     EXT_MEM_SIZE_G(size));
 	}
 }
 

@@ -58,22 +58,28 @@ struct report {
 	const char		*symbol_filter_str;
 	float			min_percent;
 	u64			nr_entries;
+	u64			queue_size;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
 static int report__config(const char *var, const char *value, void *cb)
 {
+	struct report *rep = cb;
+
 	if (!strcmp(var, "report.group")) {
 		symbol_conf.event_group = perf_config_bool(var, value);
 		return 0;
 	}
 	if (!strcmp(var, "report.percent-limit")) {
-		struct report *rep = cb;
 		rep->min_percent = strtof(value, NULL);
 		return 0;
 	}
 	if (!strcmp(var, "report.children")) {
 		symbol_conf.cumulate_callchain = perf_config_bool(var, value);
+		return 0;
+	}
+	if (!strcmp(var, "report.queue-size")) {
+		rep->queue_size = perf_config_u64(var, value);
 		return 0;
 	}
 
@@ -220,8 +226,9 @@ static int report__setup_sample_type(struct report *rep)
 			return -EINVAL;
 		}
 		if (symbol_conf.use_callchain) {
-			ui__error("Selected -g but no callchain data. Did "
-				    "you call 'perf record' without -g?\n");
+			ui__error("Selected -g or --branch-history but no "
+				  "callchain data. Did\n"
+				  "you call 'perf record' without -g?\n");
 			return -1;
 		}
 	} else if (!rep->dont_use_callchains &&
@@ -251,6 +258,13 @@ static int report__setup_sample_type(struct report *rep)
 		}
 	}
 
+	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain) {
+		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
+		    (sample_type & PERF_SAMPLE_STACK_USER))
+			callchain_param.record_mode = CALLCHAIN_DWARF;
+		else
+			callchain_param.record_mode = CALLCHAIN_FP;
+	}
 	return 0;
 }
 
@@ -282,12 +296,14 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 		evname = buf;
 
 		for_each_group_member(pos, evsel) {
+			const struct hists *pos_hists = evsel__hists(pos);
+
 			if (symbol_conf.filter_relative) {
-				nr_samples += pos->hists.stats.nr_non_filtered_samples;
-				nr_events += pos->hists.stats.total_non_filtered_period;
+				nr_samples += pos_hists->stats.nr_non_filtered_samples;
+				nr_events += pos_hists->stats.total_non_filtered_period;
 			} else {
-				nr_samples += pos->hists.stats.nr_events[PERF_RECORD_SAMPLE];
-				nr_events += pos->hists.stats.total_period;
+				nr_samples += pos_hists->stats.nr_events[PERF_RECORD_SAMPLE];
+				nr_events += pos_hists->stats.total_period;
 			}
 		}
 	}
@@ -312,7 +328,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	struct perf_evsel *pos;
 
 	evlist__for_each(evlist, pos) {
-		struct hists *hists = &pos->hists;
+		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
 
 		if (symbol_conf.event_group &&
@@ -421,7 +437,7 @@ static void report__collapse_hists(struct report *rep)
 	ui_progress__init(&prog, rep->nr_entries, "Merging related events...");
 
 	evlist__for_each(rep->session->evlist, pos) {
-		struct hists *hists = &pos->hists;
+		struct hists *hists = evsel__hists(pos);
 
 		if (pos->idx == 0)
 			hists->symbol_filter_str = rep->symbol_filter_str;
@@ -431,12 +447,25 @@ static void report__collapse_hists(struct report *rep)
 		/* Non-group events are considered as leader */
 		if (symbol_conf.event_group &&
 		    !perf_evsel__is_group_leader(pos)) {
-			struct hists *leader_hists = &pos->leader->hists;
+			struct hists *leader_hists = evsel__hists(pos->leader);
 
 			hists__match(leader_hists, hists);
 			hists__link(leader_hists, hists);
 		}
 	}
+
+	ui_progress__finish();
+}
+
+static void report__output_resort(struct report *rep)
+{
+	struct ui_progress prog;
+	struct perf_evsel *pos;
+
+	ui_progress__init(&prog, rep->nr_entries, "Sorting events for output...");
+
+	evlist__for_each(rep->session->evlist, pos)
+		hists__output_resort(evsel__hists(pos), &prog);
 
 	ui_progress__finish();
 }
@@ -479,6 +508,7 @@ static int __cmd_report(struct report *rep)
 
 		if (dump_trace) {
 			perf_session__fprintf_nr_events(session, stdout);
+			perf_evlist__fprintf_nr_events(session->evlist, stdout);
 			return 0;
 		}
 	}
@@ -488,13 +518,20 @@ static int __cmd_report(struct report *rep)
 	if (session_done())
 		return 0;
 
+	/*
+	 * recalculate number of entries after collapsing since it
+	 * might be changed during the collapse phase.
+	 */
+	rep->nr_entries = 0;
+	evlist__for_each(session->evlist, pos)
+		rep->nr_entries += evsel__hists(pos)->nr_entries;
+
 	if (rep->nr_entries == 0) {
 		ui__error("The %s file has no samples!\n", file->path);
 		return 0;
 	}
 
-	evlist__for_each(session->evlist, pos)
-		hists__output_resort(&pos->hists);
+	report__output_resort(rep);
 
 	return report__browse_hists(rep);
 }
@@ -559,7 +596,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	struct stat st;
 	bool has_br_stack = false;
 	int branch_mode = -1;
-	int ret = -1;
+	bool branch_call_mode = false;
 	char callchain_default_opt[] = "fractal,0.5,callee";
 	const char * const report_usage[] = {
 		"perf report [<options>]",
@@ -578,7 +615,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.attr		 = perf_event__process_attr,
 			.tracing_data	 = perf_event__process_tracing_data,
 			.build_id	 = perf_event__process_build_id,
-			.ordered_samples = true,
+			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
 		.max_stack		 = PERF_MAX_STACK_DEPTH,
@@ -622,8 +659,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", &report, "output_type,min_percent[,print_limit],call_order",
-		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold, optional print limit, callchain order, key (function or address). "
+	OPT_CALLBACK_DEFAULT('g', "call-graph", &report, "output_type,min_percent[,print_limit],call_order[,branch]",
+		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold, optional print limit, callchain order, key (function or address), add branches. "
 		     "Default: fractal,0.5,callee,function", &report_parse_callchain_opt, callchain_default_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
 		    "Accumulate callchains of children and show total overhead as well"),
@@ -669,11 +706,16 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
 		    "Show event group information together"),
 	OPT_CALLBACK_NOOPT('b', "branch-stack", &branch_mode, "",
-		    "use branch records for histogram filling", parse_branch_mode),
+		    "use branch records for per branch histogram filling",
+		    parse_branch_mode),
+	OPT_BOOLEAN(0, "branch-history", &branch_call_mode,
+		    "add last branch records to call history"),
 	OPT_STRING(0, "objdump", &objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Disable symbol demangling"),
+	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
+		    "Enable kernel symbol demangling"),
 	OPT_BOOLEAN(0, "mem-mode", &report.mem_mode, "mem access profile"),
 	OPT_CALLBACK(0, "percent-limit", &report, "percent",
 		     "Don't show entries under that percent", parse_percent_limit),
@@ -684,6 +726,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	struct perf_data_file file = {
 		.mode  = PERF_DATA_MODE_READ,
 	};
+	int ret = hists__init();
+
+	if (ret < 0)
+		return ret;
 
 	perf_config(report__config, &report);
 
@@ -712,16 +758,35 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 repeat:
 	session = perf_session__new(&file, false, &report.tool);
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
+
+	if (report.queue_size) {
+		ordered_events__set_alloc_size(&session->ordered_events,
+					       report.queue_size);
+	}
 
 	report.session = session;
 
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
 
-	if (branch_mode == -1 && has_br_stack) {
+	/*
+	 * Branch mode is a tristate:
+	 * -1 means default, so decide based on the file having branch data.
+	 * 0/1 means the user chose a mode.
+	 */
+	if (((branch_mode == -1 && has_br_stack) || branch_mode == 1) &&
+	    branch_call_mode == -1) {
 		sort__mode = SORT_MODE__BRANCH;
 		symbol_conf.cumulate_callchain = false;
+	}
+	if (branch_call_mode) {
+		callchain_param.key = CCKEY_ADDRESS;
+		callchain_param.branch_callstack = 1;
+		symbol_conf.use_callchain = true;
+		callchain_register_param(&callchain_param);
+		if (sort_order == NULL)
+			sort_order = "srcline,symbol,dso";
 	}
 
 	if (report.mem_mode) {
@@ -787,7 +852,7 @@ repeat:
 		}
 	}
 
-	if (symbol__init() < 0)
+	if (symbol__init(&session->header.env) < 0)
 		goto error;
 
 	if (argc) {

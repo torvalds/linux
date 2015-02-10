@@ -300,12 +300,14 @@ static int tdo24m_power(struct tdo24m *lcd, int power)
 static int tdo24m_set_power(struct lcd_device *ld, int power)
 {
 	struct tdo24m *lcd = lcd_get_data(ld);
+
 	return tdo24m_power(lcd, power);
 }
 
 static int tdo24m_get_power(struct lcd_device *ld)
 {
 	struct tdo24m *lcd = lcd_get_data(ld);
+
 	return lcd->power;
 }
 

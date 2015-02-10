@@ -41,6 +41,8 @@ struct nouveau_platform_device {
 	struct nouveau_device device;
 
 	struct nouveau_platform_gpu *gpu;
+
+	int gpu_speedo;
 };
 
 #define nv_device_to_platform(d)                                               \

@@ -24,7 +24,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>const struct v4l2_edid *<parameter>argp</parameter></paramdef>
+	<paramdef>struct v4l2_edid *<parameter>argp</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
   </refsynopsisdiv>
@@ -125,16 +125,16 @@
 	    <structfield>blocks</structfield> is 0, then the EDID is disabled or erased.</entry>
 	  </row>
 	  <row>
-	    <entry>__u8&nbsp;*</entry>
-	    <entry><structfield>edid</structfield></entry>
-	    <entry>Pointer to memory that contains the EDID. The minimum size is
-	    <structfield>blocks</structfield>&nbsp;*&nbsp;128.</entry>
-	  </row>
-	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved</structfield>[5]</entry>
 	    <entry>Reserved for future extensions. Applications and drivers must
 	    set the array to zero.</entry>
+	  </row>
+	  <row>
+	    <entry>__u8&nbsp;*</entry>
+	    <entry><structfield>edid</structfield></entry>
+	    <entry>Pointer to memory that contains the EDID. The minimum size is
+	    <structfield>blocks</structfield>&nbsp;*&nbsp;128.</entry>
 	  </row>
 	</tbody>
       </tgroup>

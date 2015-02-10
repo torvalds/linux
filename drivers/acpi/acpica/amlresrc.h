@@ -117,6 +117,12 @@ struct asl_resource_node {
 	struct asl_resource_node *next;
 };
 
+struct asl_resource_info {
+	union acpi_parse_object *descriptor_type_op;	/* Resource descriptor parse node */
+	union acpi_parse_object *mapping_op;	/* Used for mapfile support */
+	u32 current_byte_offset;	/* Offset in resource template */
+};
+
 /* Macros used to generate AML resource length fields */
 
 #define ACPI_AML_SIZE_LARGE(r)      (sizeof (r) - sizeof (struct aml_resource_large_header))
@@ -448,5 +454,33 @@ union aml_resource {
 	u16 word_item;
 	u8 byte_item;
 };
+
+/* Interfaces used by both the disassembler and compiler */
+
+void
+mp_save_gpio_info(union acpi_parse_object *op,
+		  union aml_resource *resource,
+		  u32 pin_count, u16 *pin_list, char *device_name);
+
+void
+mp_save_serial_info(union acpi_parse_object *op,
+		    union aml_resource *resource, char *device_name);
+
+char *mp_get_hid_from_parse_tree(struct acpi_namespace_node *hid_node);
+
+char *mp_get_hid_via_namestring(char *device_name);
+
+char *mp_get_connection_info(union acpi_parse_object *op,
+			     u32 pin_index,
+			     struct acpi_namespace_node **target_node,
+			     char **target_name);
+
+char *mp_get_parent_device_hid(union acpi_parse_object *op,
+			       struct acpi_namespace_node **target_node,
+			       char **parent_device_name);
+
+char *mp_get_ddn_value(char *device_name);
+
+char *mp_get_hid_value(struct acpi_namespace_node *device_node);
 
 #endif

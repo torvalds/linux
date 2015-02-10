@@ -331,7 +331,6 @@ free_rproc:
 static struct platform_driver sproc_driver = {
 	.driver	= {
 		.name	= SPROC_MODEM_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe	= sproc_probe,
 	.remove	= sproc_drv_remove,

@@ -540,8 +540,7 @@ bail:
 	if (status < 0)
 		make_bad_inode(inode);
 
-	if (args && bh)
-		brelse(bh);
+	brelse(bh);
 
 	return status;
 }

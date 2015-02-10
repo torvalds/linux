@@ -494,7 +494,6 @@ static int kempld_remove(struct platform_device *pdev)
 static struct platform_driver kempld_driver = {
 	.driver		= {
 		.name	= "kempld",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= kempld_probe,
 	.remove		= kempld_remove,

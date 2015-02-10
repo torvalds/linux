@@ -31,7 +31,7 @@ nvkm_ltc_tags_alloc(struct nouveau_ltc *ltc, u32 n,
 	struct nvkm_ltc_priv *priv = (void *)ltc;
 	int ret;
 
-	ret = nouveau_mm_head(&priv->tags, 1, n, n, 1, pnode);
+	ret = nouveau_mm_head(&priv->tags, 0, 1, n, n, 1, pnode);
 	if (ret)
 		*pnode = NULL;
 

@@ -44,7 +44,10 @@ static struct dentry *hfsplus_lookup(struct inode *dir, struct dentry *dentry,
 	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	if (err)
 		return ERR_PTR(err);
-	hfsplus_cat_build_key(sb, fd.search_key, dir->i_ino, &dentry->d_name);
+	err = hfsplus_cat_build_key(sb, fd.search_key, dir->i_ino,
+			&dentry->d_name);
+	if (unlikely(err < 0))
+		goto fail;
 again:
 	err = hfs_brec_read(&fd, &entry, sizeof(entry));
 	if (err) {
@@ -97,9 +100,11 @@ again:
 					be32_to_cpu(entry.file.permissions.dev);
 				str.len = sprintf(name, "iNode%d", linkid);
 				str.name = name;
-				hfsplus_cat_build_key(sb, fd.search_key,
+				err = hfsplus_cat_build_key(sb, fd.search_key,
 					HFSPLUS_SB(sb)->hidden_dir->i_ino,
 					&str);
+				if (unlikely(err < 0))
+					goto fail;
 				goto again;
 			}
 		} else if (!dentry->d_fsdata)
@@ -145,7 +150,7 @@ static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 		err = -ENOMEM;
 		goto out;
 	}
-	hfsplus_cat_build_key(sb, fd.search_key, inode->i_ino, NULL);
+	hfsplus_cat_build_key_with_cnid(sb, fd.search_key, inode->i_ino);
 	err = hfs_brec_find(&fd, hfs_find_rec_by_key);
 	if (err)
 		goto out;

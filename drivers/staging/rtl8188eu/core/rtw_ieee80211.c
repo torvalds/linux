@@ -159,7 +159,7 @@ u8 *rtw_set_ie
 	return pbuf + len + 2;
 }
 
-inline u8 *rtw_set_ie_ch_switch (u8 *buf, u32 *buf_len, u8 ch_switch_mode,
+inline u8 *rtw_set_ie_ch_switch(u8 *buf, u32 *buf_len, u8 ch_switch_mode,
 	u8 new_ch, u8 ch_switch_cnt)
 {
 	u8 ie_data[3];
@@ -870,7 +870,7 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 	if (elen < 4) {
 		if (show_errors) {
 			DBG_88E("short vendor specific information element ignored (len=%lu)\n",
-				(unsigned long) elen);
+				(unsigned long)elen);
 		}
 		return -1;
 	}
@@ -890,7 +890,7 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
 			if (elen < 5) {
 				DBG_88E("short WME information element ignored (len=%lu)\n",
-					(unsigned long) elen);
+					(unsigned long)elen);
 				return -1;
 			}
 			switch (pos[4]) {
@@ -905,7 +905,7 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 				break;
 			default:
 				DBG_88E("unknown WME information element ignored (subtype=%d len=%lu)\n",
-					pos[4], (unsigned long) elen);
+					pos[4], (unsigned long)elen);
 				return -1;
 			}
 			break;
@@ -916,7 +916,7 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			break;
 		default:
 			DBG_88E("Unknown Microsoft information element ignored (type=%d len=%lu)\n",
-				pos[3], (unsigned long) elen);
+				pos[3], (unsigned long)elen);
 			return -1;
 		}
 		break;
@@ -929,13 +929,13 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			break;
 		default:
 			DBG_88E("Unknown Broadcom information element ignored (type=%d len=%lu)\n",
-				pos[3], (unsigned long) elen);
+				pos[3], (unsigned long)elen);
 			return -1;
 		}
 		break;
 	default:
 		DBG_88E("unknown vendor specific information element ignored (vendor OUI %02x:%02x:%02x len=%lu)\n",
-			pos[0], pos[1], pos[2], (unsigned long) elen);
+			pos[0], pos[1], pos[2], (unsigned long)elen);
 		return -1;
 	}
 	return 0;
@@ -969,7 +969,7 @@ enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,
 		if (elen > left) {
 			if (show_errors) {
 				DBG_88E("IEEE 802.11 element parse failed (id=%d elen=%d left=%lu)\n",
-					id, elen, (unsigned long) left);
+					id, elen, (unsigned long)left);
 			}
 			return ParseFailed;
 		}

@@ -697,7 +697,7 @@ static void tb10x_gpio_disable_free(struct pinctrl_dev *pctl,
 	mutex_unlock(&state->mutex);
 }
 
-static int tb10x_pctl_enable(struct pinctrl_dev *pctl,
+static int tb10x_pctl_set_mux(struct pinctrl_dev *pctl,
 			unsigned func_selector, unsigned group_selector)
 {
 	struct tb10x_pinctrl *state = pinctrl_dev_get_drvdata(pctl);
@@ -744,7 +744,7 @@ static struct pinmux_ops tb10x_pinmux_ops = {
 	.get_function_groups = tb10x_get_function_groups,
 	.gpio_request_enable = tb10x_gpio_request_enable,
 	.gpio_disable_free = tb10x_gpio_disable_free,
-	.enable = tb10x_pctl_enable,
+	.set_mux = tb10x_pctl_set_mux,
 };
 
 static struct pinctrl_desc tb10x_pindesc = {
@@ -759,7 +759,7 @@ static struct pinctrl_desc tb10x_pindesc = {
 static int tb10x_pinctrl_probe(struct platform_device *pdev)
 {
 	int ret = -EINVAL;
-	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource *mem;
 	struct device *dev = &pdev->dev;
 	struct device_node *of_node = dev->of_node;
 	struct device_node *child;
@@ -768,11 +768,6 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 
 	if (!of_node) {
 		dev_err(dev, "No device tree node found.\n");
-		return -EINVAL;
-	}
-
-	if (!mem) {
-		dev_err(dev, "No memory resource defined.\n");
 		return -EINVAL;
 	}
 
@@ -787,6 +782,7 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 	state->pinfuncs = (struct tb10x_of_pinfunc *)(state + 1);
 	mutex_init(&state->mutex);
 
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	state->base = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(state->base)) {
 		ret = PTR_ERR(state->base);
@@ -847,7 +843,6 @@ static struct platform_driver tb10x_pinctrl_pdrv = {
 	.driver  = {
 		.name  = "tb10x_pinctrl",
 		.of_match_table = of_match_ptr(tb10x_pinctrl_dt_ids),
-		.owner = THIS_MODULE
 	}
 };
 

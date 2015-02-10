@@ -187,7 +187,6 @@ static struct platform_driver pwm_beeper_driver = {
 	.remove = pwm_beeper_remove,
 	.driver = {
 		.name	= "pwm-beeper",
-		.owner	= THIS_MODULE,
 		.pm	= PWM_BEEPER_PM_OPS,
 		.of_match_table = of_match_ptr(pwm_beeper_match),
 	},

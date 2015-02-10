@@ -232,7 +232,7 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt)
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = __skb_dequeue(&sch->q);
 
-		sch->qstats.backlog -= qdisc_pkt_len(skb);
+		qdisc_qstats_backlog_dec(sch, skb);
 		qdisc_drop(skb, sch);
 	}
 	qdisc_tree_decrease_qlen(sch, qlen - sch->q.qlen);
@@ -445,7 +445,6 @@ static int pie_init(struct Qdisc *sch, struct nlattr *opt)
 	sch->limit = q->params.limit;
 
 	setup_timer(&q->adapt_timer, pie_timer, (unsigned long)sch);
-	mod_timer(&q->adapt_timer, jiffies + HZ / 2);
 
 	if (opt) {
 		int err = pie_change(sch, opt);
@@ -454,6 +453,7 @@ static int pie_init(struct Qdisc *sch, struct nlattr *opt)
 			return err;
 	}
 
+	mod_timer(&q->adapt_timer, jiffies + HZ / 2);
 	return 0;
 }
 

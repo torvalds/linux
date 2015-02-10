@@ -643,9 +643,12 @@ static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 	 * and fix otherwise.
 	 */
 	count = param->count;
-	if (param->endless)
-		count = 0x80;
-	else if (count & 0x80)
+	if (param->endless) {
+		if (AR_SREV_9271(ah))
+			count = 0;
+		else
+			count = 0x80;
+	} else if (count & 0x80)
 		count = 0x7f;
 
 	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,

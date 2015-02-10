@@ -481,7 +481,6 @@ static int vml_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	default:
 		err = -ENODEV;
 		goto out_err_1;
-		break;
 	}
 
 	info = &vinfo->info;
@@ -1004,13 +1003,15 @@ static int vmlfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct vml_info *vinfo = container_of(info, struct vml_info, info);
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	int ret;
+	unsigned long prot;
 
 	ret = vmlfb_vram_offset(vinfo, offset);
 	if (ret)
 		return -EINVAL;
 
-	pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-	pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
+	prot = pgprot_val(vma->vm_page_prot) & ~_PAGE_CACHE_MASK;
+	pgprot_val(vma->vm_page_prot) =
+		prot | cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS);
 
 	return vm_iomap_memory(vma, vinfo->vram_start,
 			vinfo->vram_contig_size);

@@ -23,8 +23,9 @@
 #include "globals.h"
 #include "controlvmchannel.h"
 
-void test_produce_test_message(CONTROLVM_MESSAGE *msg, int isLocalTestAddr);
-BOOL test_consume_test_message(CONTROLVM_MESSAGE *msg);
+void test_produce_test_message(struct controlvm_message *msg,
+			       int isLocalTestAddr);
+BOOL test_consume_test_message(struct controlvm_message *msg);
 void test_manufacture_vnic_client_add(void *p);
 void test_manufacture_vnic_client_add_phys(HOSTADDRESS addr);
 void test_manufacture_preamble_messages(void);

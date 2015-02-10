@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Pavel Smolenskiy <pavel.smolenskiy@gmail.com>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
@@ -27,10 +23,10 @@
 #ifndef IEEE802154_NETDEVICE_H
 #define IEEE802154_NETDEVICE_H
 
-#include <net/ieee802154.h>
 #include <net/af_ieee802154.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/ieee802154.h>
 
 struct ieee802154_sechdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -427,8 +423,6 @@ struct ieee802154_mlme_ops {
 
 	/* The fields below are required. */
 
-	struct wpan_phy *(*get_phy)(const struct net_device *dev);
-
 	/*
 	 * FIXME: these should become the part of PIB/MIB interface.
 	 * However we still don't have IB interface of any kind
@@ -436,16 +430,6 @@ struct ieee802154_mlme_ops {
 	__le16 (*get_pan_id)(const struct net_device *dev);
 	__le16 (*get_short_addr)(const struct net_device *dev);
 	u8 (*get_dsn)(const struct net_device *dev);
-};
-
-/* The IEEE 802.15.4 standard defines 2 type of the devices:
- * - FFD - full functionality device
- * - RFD - reduce functionality device
- *
- * So 2 sets of mlme operations are needed
- */
-struct ieee802154_reduced_mlme_ops {
-	struct wpan_phy *(*get_phy)(const struct net_device *dev);
 };
 
 static inline struct ieee802154_mlme_ops *

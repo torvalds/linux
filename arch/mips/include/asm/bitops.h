@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <asm/barrier.h>
 #include <asm/byteorder.h>		/* sigh ... */
+#include <asm/compiler.h>
 #include <asm/cpu-features.h>
 #include <asm/sgidefs.h>
 #include <asm/war.h>
@@ -78,8 +79,8 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 		"	" __SC	"%0, %1					\n"
 		"	beqzl	%0, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "=m" (*m)
-		: "ir" (1UL << bit), "m" (*m));
+		: "=&r" (temp), "=" GCC_OFF12_ASM() (*m)
+		: "ir" (1UL << bit), GCC_OFF12_ASM() (*m));
 #ifdef CONFIG_CPU_MIPSR2
 	} else if (kernel_uses_llsc && __builtin_constant_p(bit)) {
 		do {
@@ -87,7 +88,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 			"	" __LL "%0, %1		# set_bit	\n"
 			"	" __INS "%0, %3, %2, 1			\n"
 			"	" __SC "%0, %1				\n"
-			: "=&r" (temp), "+m" (*m)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m)
 			: "ir" (bit), "r" (~0));
 		} while (unlikely(!temp));
 #endif /* CONFIG_CPU_MIPSR2 */
@@ -99,7 +100,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 			"	or	%0, %2				\n"
 			"	" __SC	"%0, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "+m" (*m)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m)
 			: "ir" (1UL << bit));
 		} while (unlikely(!temp));
 	} else
@@ -130,7 +131,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 		"	" __SC "%0, %1					\n"
 		"	beqzl	%0, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "+m" (*m)
+		: "=&r" (temp), "+" GCC_OFF12_ASM() (*m)
 		: "ir" (~(1UL << bit)));
 #ifdef CONFIG_CPU_MIPSR2
 	} else if (kernel_uses_llsc && __builtin_constant_p(bit)) {
@@ -139,7 +140,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 			"	" __LL "%0, %1		# clear_bit	\n"
 			"	" __INS "%0, $0, %2, 1			\n"
 			"	" __SC "%0, %1				\n"
-			: "=&r" (temp), "+m" (*m)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m)
 			: "ir" (bit));
 		} while (unlikely(!temp));
 #endif /* CONFIG_CPU_MIPSR2 */
@@ -151,7 +152,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 			"	and	%0, %2				\n"
 			"	" __SC "%0, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "+m" (*m)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m)
 			: "ir" (~(1UL << bit)));
 		} while (unlikely(!temp));
 	} else
@@ -196,7 +197,7 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		"	" __SC	"%0, %1				\n"
 		"	beqzl	%0, 1b				\n"
 		"	.set	mips0				\n"
-		: "=&r" (temp), "+m" (*m)
+		: "=&r" (temp), "+" GCC_OFF12_ASM() (*m)
 		: "ir" (1UL << bit));
 	} else if (kernel_uses_llsc) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
@@ -209,7 +210,7 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 			"	xor	%0, %2				\n"
 			"	" __SC	"%0, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "+m" (*m)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m)
 			: "ir" (1UL << bit));
 		} while (unlikely(!temp));
 	} else
@@ -244,7 +245,7 @@ static inline int test_and_set_bit(unsigned long nr,
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "+m" (*m), "=&r" (res)
+		: "=&r" (temp), "+" GCC_OFF12_ASM() (*m), "=&r" (res)
 		: "r" (1UL << bit)
 		: "memory");
 	} else if (kernel_uses_llsc) {
@@ -258,7 +259,7 @@ static inline int test_and_set_bit(unsigned long nr,
 			"	or	%2, %0, %3			\n"
 			"	" __SC	"%2, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "+m" (*m), "=&r" (res)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m), "=&r" (res)
 			: "r" (1UL << bit)
 			: "memory");
 		} while (unlikely(!res));
@@ -312,7 +313,7 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 			"	or	%2, %0, %3			\n"
 			"	" __SC	"%2, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "+m" (*m), "=&r" (res)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m), "=&r" (res)
 			: "r" (1UL << bit)
 			: "memory");
 		} while (unlikely(!res));
@@ -354,7 +355,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "+m" (*m), "=&r" (res)
+		: "=&r" (temp), "+" GCC_OFF12_ASM() (*m), "=&r" (res)
 		: "r" (1UL << bit)
 		: "memory");
 #ifdef CONFIG_CPU_MIPSR2
@@ -368,7 +369,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 			"	" __EXT "%2, %0, %3, 1			\n"
 			"	" __INS "%0, $0, %3, 1			\n"
 			"	" __SC	"%0, %1				\n"
-			: "=&r" (temp), "+m" (*m), "=&r" (res)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m), "=&r" (res)
 			: "ir" (bit)
 			: "memory");
 		} while (unlikely(!temp));
@@ -385,7 +386,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 			"	xor	%2, %3				\n"
 			"	" __SC	"%2, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "+m" (*m), "=&r" (res)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m), "=&r" (res)
 			: "r" (1UL << bit)
 			: "memory");
 		} while (unlikely(!res));
@@ -427,7 +428,7 @@ static inline int test_and_change_bit(unsigned long nr,
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "+m" (*m), "=&r" (res)
+		: "=&r" (temp), "+" GCC_OFF12_ASM() (*m), "=&r" (res)
 		: "r" (1UL << bit)
 		: "memory");
 	} else if (kernel_uses_llsc) {
@@ -441,7 +442,7 @@ static inline int test_and_change_bit(unsigned long nr,
 			"	xor	%2, %0, %3			\n"
 			"	" __SC	"\t%2, %1			\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "+m" (*m), "=&r" (res)
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (*m), "=&r" (res)
 			: "r" (1UL << bit)
 			: "memory");
 		} while (unlikely(!res));

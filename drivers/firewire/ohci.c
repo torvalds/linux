@@ -689,8 +689,7 @@ static void ar_context_release(struct ar_context *ctx)
 {
 	unsigned int i;
 
-	if (ctx->buffer)
-		vm_unmap_ram(ctx->buffer, AR_BUFFERS + AR_WRAPAROUND_PAGES);
+	vunmap(ctx->buffer);
 
 	for (i = 0; i < AR_BUFFERS; i++)
 		if (ctx->pages[i]) {
@@ -1018,8 +1017,7 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 		pages[i]              = ctx->pages[i];
 	for (i = 0; i < AR_WRAPAROUND_PAGES; i++)
 		pages[AR_BUFFERS + i] = ctx->pages[i];
-	ctx->buffer = vm_map_ram(pages, AR_BUFFERS + AR_WRAPAROUND_PAGES,
-				 -1, PAGE_KERNEL);
+	ctx->buffer = vmap(pages, ARRAY_SIZE(pages), VM_MAP, PAGE_KERNEL);
 	if (!ctx->buffer)
 		goto out_of_memory;
 

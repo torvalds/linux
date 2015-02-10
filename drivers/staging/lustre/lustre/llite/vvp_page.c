@@ -376,8 +376,7 @@ static int vvp_page_print(const struct lu_env *env,
 	struct ccc_page *vp = cl2ccc_page(slice);
 	struct page      *vmpage = vp->cpg_page;
 
-	(*printer)(env, cookie, LUSTRE_VVP_NAME"-page@%p(%d:%d:%d) "
-		   "vm@%p ",
+	(*printer)(env, cookie, LUSTRE_VVP_NAME "-page@%p(%d:%d:%d) vm@%p ",
 		   vp, vp->cpg_defer_uptodate, vp->cpg_ra_used,
 		   vp->cpg_write_queued, vmpage);
 	if (vmpage != NULL) {

@@ -33,8 +33,9 @@
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
-#define MAX_SPI_PORTS		3
+#define MAX_SPI_PORTS		6
 #define S3C64XX_SPI_QUIRK_POLL		(1 << 0)
+#define S3C64XX_SPI_QUIRK_CS_AUTO	(1 << 1)
 
 /* Registers and bit-fields */
 
@@ -78,6 +79,7 @@
 
 #define S3C64XX_SPI_SLAVE_AUTO			(1<<1)
 #define S3C64XX_SPI_SLAVE_SIG_INACT		(1<<0)
+#define S3C64XX_SPI_SLAVE_NSC_CNT_2		(2<<4)
 
 #define S3C64XX_SPI_INT_TRAILING_EN		(1<<6)
 #define S3C64XX_SPI_INT_RX_OVERRUN_EN		(1<<5)
@@ -344,16 +346,8 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 		spi->dma_tx = sdd->tx_dma.ch;
 	}
 
-	ret = pm_runtime_get_sync(&sdd->pdev->dev);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable device: %d\n", ret);
-		goto out_tx;
-	}
-
 	return 0;
 
-out_tx:
-	dma_release_channel(sdd->tx_dma.ch);
 out_rx:
 	dma_release_channel(sdd->rx_dma.ch);
 out:
@@ -370,7 +364,6 @@ static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
 		dma_release_channel(sdd->tx_dma.ch);
 	}
 
-	pm_runtime_put(&sdd->pdev->dev);
 	return 0;
 }
 
@@ -717,7 +710,12 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 	enable_datapath(sdd, spi, xfer, use_dma);
 
 	/* Start the signals */
-	writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
+	if (!(sdd->port_conf->quirks & S3C64XX_SPI_QUIRK_CS_AUTO))
+		writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
+	else
+		writel(readl(sdd->regs + S3C64XX_SPI_SLAVE_SEL)
+			| S3C64XX_SPI_SLAVE_AUTO | S3C64XX_SPI_SLAVE_NSC_CNT_2,
+			sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 	spin_unlock_irqrestore(&sdd->lock, flags);
 
@@ -866,13 +864,15 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	}
 
 	pm_runtime_put(&sdd->pdev->dev);
-	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
+	if (!(sdd->port_conf->quirks & S3C64XX_SPI_QUIRK_CS_AUTO))
+		writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 	return 0;
 
 setup_exit:
 	pm_runtime_put(&sdd->pdev->dev);
 	/* setup() returns with device de-selected */
-	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
+	if (!(sdd->port_conf->quirks & S3C64XX_SPI_QUIRK_CS_AUTO))
+		writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 	if (gpio_is_valid(spi->cs_gpio))
 		gpio_free(spi->cs_gpio);
@@ -946,7 +946,8 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 
 	sdd->cur_speed = 0;
 
-	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
+	if (!(sdd->port_conf->quirks & S3C64XX_SPI_QUIRK_CS_AUTO))
+		writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 	/* Disable Interrupts - we use Polling if not DMA mode */
 	writel(0, regs + S3C64XX_SPI_INT_EN);
@@ -1266,7 +1267,7 @@ static int s3c64xx_spi_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int s3c64xx_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -1296,7 +1297,7 @@ static int s3c64xx_spi_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops s3c64xx_spi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(s3c64xx_spi_suspend, s3c64xx_spi_resume)
@@ -1341,6 +1342,15 @@ static struct s3c64xx_spi_port_config exynos5440_spi_port_config = {
 	.quirks		= S3C64XX_SPI_QUIRK_POLL,
 };
 
+static struct s3c64xx_spi_port_config exynos7_spi_port_config = {
+	.fifo_lvl_mask	= { 0x1ff, 0x7F, 0x7F, 0x7F, 0x7F, 0x1ff},
+	.rx_lvl_offset	= 15,
+	.tx_st_done	= 25,
+	.high_speed	= true,
+	.clk_from_cmu	= true,
+	.quirks		= S3C64XX_SPI_QUIRK_CS_AUTO,
+};
+
 static struct platform_device_id s3c64xx_spi_driver_ids[] = {
 	{
 		.name		= "s3c2443-spi",
@@ -1374,6 +1384,9 @@ static const struct of_device_id s3c64xx_spi_dt_match[] = {
 	{ .compatible = "samsung,exynos5440-spi",
 			.data = (void *)&exynos5440_spi_port_config,
 	},
+	{ .compatible = "samsung,exynos7-spi",
+			.data = (void *)&exynos7_spi_port_config,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, s3c64xx_spi_dt_match);
@@ -1381,7 +1394,6 @@ MODULE_DEVICE_TABLE(of, s3c64xx_spi_dt_match);
 static struct platform_driver s3c64xx_spi_driver = {
 	.driver = {
 		.name	= "s3c64xx-spi",
-		.owner = THIS_MODULE,
 		.pm = &s3c64xx_spi_pm,
 		.of_match_table = of_match_ptr(s3c64xx_spi_dt_match),
 	},

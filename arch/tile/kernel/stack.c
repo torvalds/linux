@@ -387,9 +387,7 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		 * then bust_spinlocks() spit out a space in front of us
 		 * and it will mess up our KERN_ERR.
 		 */
-		pr_err("\n");
-		pr_err("Starting stack dump of tid %d, pid %d (%s)"
-		       " on cpu %d at cycle %lld\n",
+		pr_err("Starting stack dump of tid %d, pid %d (%s) on cpu %d at cycle %lld\n",
 		       kbt->task->pid, kbt->task->tgid, kbt->task->comm,
 		       raw_smp_processor_id(), get_cycles());
 	}
@@ -411,8 +409,7 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		       i++, address, namebuf, (unsigned long)(kbt->it.sp));
 
 		if (i >= 100) {
-			pr_err("Stack dump truncated"
-			       " (%d frames)\n", i);
+			pr_err("Stack dump truncated (%d frames)\n", i);
 			break;
 		}
 	}

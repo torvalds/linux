@@ -20,6 +20,7 @@
 #include <crypto/sha.h>
 #include <linux/percpu.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 static inline u64 Ch(u64 x, u64 y, u64 z)
 {
@@ -68,7 +69,7 @@ static const u64 sha512_K[80] = {
 
 static inline void LOAD_OP(int I, u64 *W, const u8 *input)
 {
-	W[I] = __be64_to_cpu( ((__be64*)(input))[I] );
+	W[I] = get_unaligned_be64((__u64 *)input + I);
 }
 
 static inline void BLEND_OP(int I, u64 *W)
@@ -238,7 +239,7 @@ static int sha384_final(struct shash_desc *desc, u8 *hash)
 	sha512_final(desc, D);
 
 	memcpy(hash, D, 48);
-	memset(D, 0, 64);
+	memzero_explicit(D, 64);
 
 	return 0;
 }
@@ -287,5 +288,5 @@ module_exit(sha512_generic_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA-512 and SHA-384 Secure Hash Algorithms");
 
-MODULE_ALIAS("sha384");
-MODULE_ALIAS("sha512");
+MODULE_ALIAS_CRYPTO("sha384");
+MODULE_ALIAS_CRYPTO("sha512");

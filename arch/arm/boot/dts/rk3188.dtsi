@@ -26,11 +26,24 @@
 		#size-cells = <0>;
 		enable-method = "rockchip,rk3066-smp";
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <0x0>;
+			operating-points = <
+				/* kHz    uV */
+				1608000 1350000
+				1416000 1250000
+				1200000 1150000
+				1008000 1075000
+				 816000  975000
+				 600000  950000
+				 504000  925000
+				 312000  875000
+			>;
+			clock-latency = <40000>;
+			clocks = <&cru ARMCLK>;
 		};
 		cpu@1 {
 			device_type = "cpu";
@@ -65,6 +78,21 @@
 		};
 	};
 
+	i2s0: i2s@1011a000 {
+		compatible = "rockchip,rk3188-i2s", "rockchip,rk3066-i2s";
+		reg = <0x1011a000 0x2000>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_bus>;
+		dmas = <&dmac1_s 6>, <&dmac1_s 7>;
+		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
+		status = "disabled";
+	};
+
 	cru: clock-controller@20000000 {
 		compatible = "rockchip,rk3188-cru";
 		reg = <0x20000000 0x1000>;
@@ -83,7 +111,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		gpio0: gpio0@0x2000a000 {
+		gpio0: gpio0@2000a000 {
 			compatible = "rockchip,rk3188-gpio-bank0";
 			reg = <0x2000a000 0x100>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
@@ -96,7 +124,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		gpio1: gpio1@0x2003c000 {
+		gpio1: gpio1@2003c000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003c000 0x100>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
@@ -145,6 +173,45 @@
 
 		pcfg_pull_none: pcfg_pull_none {
 			bias-disable;
+		};
+
+		emmc {
+			emmc_clk: emmc-clk {
+				rockchip,pins = <RK_GPIO0 24 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			emmc_cmd: emmc-cmd {
+				rockchip,pins = <RK_GPIO0 26 RK_FUNC_2 &pcfg_pull_up>;
+			};
+
+			emmc_rst: emmc-rst {
+				rockchip,pins = <RK_GPIO0 27 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			/*
+			 * The data pins are shared between nandc and emmc and
+			 * not accessible through pinctrl. Also they should've
+			 * been already set correctly by firmware, as
+			 * flash/emmc is the boot-device.
+			 */
+		};
+
+		emac {
+			emac_xfer: emac-xfer {
+				rockchip,pins = <RK_GPIO3 16 RK_FUNC_2 &pcfg_pull_none>, /* tx_en */
+						<RK_GPIO3 17 RK_FUNC_2 &pcfg_pull_none>, /* txd1 */
+						<RK_GPIO3 18 RK_FUNC_2 &pcfg_pull_none>, /* txd0 */
+						<RK_GPIO3 19 RK_FUNC_2 &pcfg_pull_none>, /* rxd0 */
+						<RK_GPIO3 20 RK_FUNC_2 &pcfg_pull_none>, /* rxd1 */
+						<RK_GPIO3 21 RK_FUNC_2 &pcfg_pull_none>, /* mac_clk */
+						<RK_GPIO3 22 RK_FUNC_2 &pcfg_pull_none>, /* rx_err */
+						<RK_GPIO3 23 RK_FUNC_2 &pcfg_pull_none>; /* crs_dvalid */
+			};
+
+			emac_mdio: emac-mdio {
+				rockchip,pins = <RK_GPIO3 24 RK_FUNC_2 &pcfg_pull_none>,
+						<RK_GPIO3 25 RK_FUNC_2 &pcfg_pull_none>;
+			};
 		};
 
 		i2c0 {
@@ -203,6 +270,42 @@
 		pwm3 {
 			pwm3_out: pwm3-out {
 				rockchip,pins = <RK_GPIO3 30 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		spi0 {
+			spi0_clk: spi0-clk {
+				rockchip,pins = <RK_GPIO1 6 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi0_cs0: spi0-cs0 {
+				rockchip,pins = <RK_GPIO1 7 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi0_tx: spi0-tx {
+				rockchip,pins = <RK_GPIO1 5 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi0_rx: spi0-rx {
+				rockchip,pins = <RK_GPIO1 4 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi0_cs1: spi0-cs1 {
+				rockchip,pins = <RK_GPIO1 15 RK_FUNC_1 &pcfg_pull_up>;
+			};
+		};
+
+		spi1 {
+			spi1_clk: spi1-clk {
+				rockchip,pins = <RK_GPIO0 30 RK_FUNC_1 &pcfg_pull_up>;
+			};
+			spi1_cs0: spi1-cs0 {
+				rockchip,pins = <RK_GPIO0 31 RK_FUNC_1 &pcfg_pull_up>;
+			};
+			spi1_rx: spi1-rx {
+				rockchip,pins = <RK_GPIO0 28 RK_FUNC_1 &pcfg_pull_up>;
+			};
+			spi1_tx: spi1-tx {
+				rockchip,pins = <RK_GPIO0 29 RK_FUNC_1 &pcfg_pull_up>;
+			};
+			spi1_cs1: spi1-cs1 {
+				rockchip,pins = <RK_GPIO1 14 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 
@@ -320,7 +423,22 @@
 						<RK_GPIO3 20 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
+
+		i2s0 {
+			i2s0_bus: i2s0-bus {
+				rockchip,pins = <RK_GPIO1 16 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 17 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 18 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 19 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 20 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 21 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
 	};
+};
+
+&emac {
+	compatible = "rockchip,rk3188-emac";
 };
 
 &global_timer {
@@ -379,6 +497,18 @@
 &pwm3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm3_out>;
+};
+
+&spi0 {
+	compatible = "rockchip,rk3188-spi", "rockchip,rk3066-spi";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_clk &spi0_tx &spi0_rx &spi0_cs0>;
+};
+
+&spi1 {
+	compatible = "rockchip,rk3188-spi", "rockchip,rk3066-spi";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx &spi1_cs0>;
 };
 
 &uart0 {

@@ -32,6 +32,9 @@
 #define rmb()		dsb(ld)
 #define wmb()		dsb(st)
 
+#define dma_rmb()	dmb(oshld)
+#define dma_wmb()	dmb(oshst)
+
 #ifndef CONFIG_SMP
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()

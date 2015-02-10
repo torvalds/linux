@@ -943,7 +943,6 @@ static int w90p910_ether_setup(struct net_device *dev)
 {
 	struct w90p910_ether *ether = netdev_priv(dev);
 
-	ether_setup(dev);
 	dev->netdev_ops = &w90p910_ether_netdev_ops;
 	dev->ethtool_ops = &w90p910_ether_ethtool_ops;
 
@@ -1082,7 +1081,6 @@ static struct platform_driver w90p910_ether_driver = {
 	.remove		= w90p910_ether_remove,
 	.driver		= {
 		.name	= "nuc900-emc",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -646,7 +646,7 @@ error:
 	return ret;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int spi_qup_pm_suspend_runtime(struct device *device)
 {
 	struct spi_master *master = dev_get_drvdata(device);
@@ -672,7 +672,7 @@ static int spi_qup_pm_resume_runtime(struct device *device)
 	writel_relaxed(config, controller->base + QUP_CONFIG);
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
 static int spi_qup_suspend(struct device *device)
@@ -756,7 +756,6 @@ static const struct dev_pm_ops spi_qup_dev_pm_ops = {
 static struct platform_driver spi_qup_driver = {
 	.driver = {
 		.name		= "spi_qup",
-		.owner		= THIS_MODULE,
 		.pm		= &spi_qup_dev_pm_ops,
 		.of_match_table = spi_qup_dt_match,
 	},

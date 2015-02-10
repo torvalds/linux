@@ -299,10 +299,9 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	struct clk *clk;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
-	if (!phy) {
-		dev_err(&pdev->dev, "unable to alloc mem for TI PIPE3 PHY\n");
+	if (!phy)
 		return -ENOMEM;
-	}
+
 	phy->dev		= &pdev->dev;
 
 	if (!of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
@@ -400,7 +399,7 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, phy);
 	pm_runtime_enable(phy->dev);
 
-	generic_phy = devm_phy_create(phy->dev, NULL, &ops, NULL);
+	generic_phy = devm_phy_create(phy->dev, NULL, &ops);
 	if (IS_ERR(generic_phy))
 		return PTR_ERR(generic_phy);
 
@@ -424,7 +423,7 @@ static int ti_pipe3_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 static int ti_pipe3_runtime_suspend(struct device *dev)
 {
@@ -519,7 +518,6 @@ static struct platform_driver ti_pipe3_driver = {
 	.remove		= ti_pipe3_remove,
 	.driver		= {
 		.name	= "ti-pipe3",
-		.owner	= THIS_MODULE,
 		.pm	= DEV_PM_OPS,
 		.of_match_table = of_match_ptr(ti_pipe3_id_table),
 	},

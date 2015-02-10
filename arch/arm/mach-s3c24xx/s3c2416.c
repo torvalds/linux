@@ -81,14 +81,6 @@ static struct device s3c2416_dev = {
 	.bus		= &s3c2416_subsys,
 };
 
-void s3c2416_restart(enum reboot_mode mode, const char *cmd)
-{
-	if (mode == REBOOT_SOFT)
-		soft_restart(0);
-
-	__raw_writel(S3C2443_SWRST_RESET, S3C2443_SWRST);
-}
-
 int __init s3c2416_init(void)
 {
 	printk(KERN_INFO "S3C2416: Initializing architecture\n");

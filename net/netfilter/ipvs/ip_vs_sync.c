@@ -820,8 +820,7 @@ ip_vs_conn_fill_param_sync(struct net *net, int af, union ip_vs_sync_conn *sc,
 
 		p->pe_data = kmemdup(pe_data, pe_data_len, GFP_ATOMIC);
 		if (!p->pe_data) {
-			if (p->pe->module)
-				module_put(p->pe->module);
+			module_put(p->pe->module);
 			return -ENOMEM;
 		}
 		p->pe_data_len = pe_data_len;
@@ -880,10 +879,17 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 		 * but still handled.
 		 */
 		rcu_read_lock();
-		dest = ip_vs_find_dest(net, type, daddr, dport, param->vaddr,
-				       param->vport, protocol, fwmark, flags);
+		/* This function is only invoked by the synchronization
+		 * code. We do not currently support heterogeneous pools
+		 * with synchronization, so we can make the assumption that
+		 * the svc_af is the same as the dest_af
+		 */
+		dest = ip_vs_find_dest(net, type, type, daddr, dport,
+				       param->vaddr, param->vport, protocol,
+				       fwmark, flags);
 
-		cp = ip_vs_conn_new(param, daddr, dport, flags, dest, fwmark);
+		cp = ip_vs_conn_new(param, type, daddr, dport, flags, dest,
+				    fwmark);
 		rcu_read_unlock();
 		if (!cp) {
 			kfree(param->pe_data);

@@ -156,8 +156,6 @@ static const struct pcl711_board boardtypes[] = {
 };
 
 struct pcl711_private {
-	unsigned int ntrig;
-	unsigned int ao_readback[2];
 	unsigned int divisor1;
 	unsigned int divisor2;
 };
@@ -200,7 +198,6 @@ static int pcl711_ai_cancel(struct comedi_device *dev,
 static irqreturn_t pcl711_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct pcl711_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int data;
@@ -214,16 +211,14 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 	outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
 
-	if (comedi_buf_put(s, data) == 0) {
-		s->async->events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
-	} else {
-		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-		if (cmd->stop_src == TRIG_COUNT && !(--devpriv->ntrig)) {
-			pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
-			s->async->events |= COMEDI_CB_EOA;
-		}
-	}
-	comedi_event(dev, s);
+	comedi_buf_write_samples(s, &data, 1);
+
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg)
+		s->async->events |= COMEDI_CB_EOA;
+
+	comedi_handle_events(dev, s);
+
 	return IRQ_HANDLED;
 }
 
@@ -335,7 +330,9 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_NONE)
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -372,20 +369,9 @@ static void pcl711_ai_load_counters(struct comedi_device *dev)
 
 static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct pcl711_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	pcl711_set_changain(dev, s, cmd->chanlist[0]);
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg == 0) {
-			/* an empty acquisition */
-			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev, s);
-			return 0;
-		}
-		devpriv->ntrig = cmd->stop_arg;
-	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		pcl711_ai_load_counters(dev);
@@ -410,31 +396,15 @@ static int pcl711_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct pcl711_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = devpriv->ao_readback[chan];
+	unsigned int val = s->readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 		pcl711_ao_write(dev, chan, val);
 	}
-	devpriv->ao_readback[chan] = val;
-
-	return insn->n;
-}
-
-static int pcl711_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct pcl711_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
+	s->readback[chan] = val;
 
 	return insn->n;
 }
@@ -476,7 +446,7 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 
 static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pcl711_board *board = comedi_board(dev);
+	const struct pcl711_board *board = dev->board_ptr;
 	struct pcl711_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -527,7 +497,10 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0xfff;
 	s->range_table	= &range_bipolar5;
 	s->insn_write	= pcl711_ao_insn_write;
-	s->insn_read	= pcl711_ao_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* Digital Input subdevice */
 	s = &dev->subdevices[2];

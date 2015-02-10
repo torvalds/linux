@@ -14,6 +14,8 @@
 #ifndef _DMA_H_
 #define _DMA_H_
 
+#include <linux/dmaengine.h>
+
 /* maximum data transfer block size between BAM and CE */
 #define QCE_BAM_BURST_SIZE		64
 

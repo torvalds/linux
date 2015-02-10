@@ -365,15 +365,15 @@ ia64_done_with_exception (struct pt_regs *regs)
 }
 
 #define ARCH_HAS_TRANSLATE_MEM_PTR	1
-static __inline__ char *
-xlate_dev_mem_ptr (unsigned long p)
+static __inline__ void *
+xlate_dev_mem_ptr(phys_addr_t p)
 {
 	struct page *page;
-	char * ptr;
+	void *ptr;
 
 	page = pfn_to_page(p >> PAGE_SHIFT);
 	if (PageUncached(page))
-		ptr = (char *)p + __IA64_UNCACHED_OFFSET;
+		ptr = (void *)p + __IA64_UNCACHED_OFFSET;
 	else
 		ptr = __va(p);
 
@@ -383,15 +383,15 @@ xlate_dev_mem_ptr (unsigned long p)
 /*
  * Convert a virtual cached kernel memory pointer to an uncached pointer
  */
-static __inline__ char *
-xlate_dev_kmem_ptr (char * p)
+static __inline__ void *
+xlate_dev_kmem_ptr(void *p)
 {
 	struct page *page;
-	char * ptr;
+	void *ptr;
 
 	page = virt_to_page((unsigned long)p);
 	if (PageUncached(page))
-		ptr = (char *)__pa(p) + __IA64_UNCACHED_OFFSET;
+		ptr = (void *)__pa(p) + __IA64_UNCACHED_OFFSET;
 	else
 		ptr = p;
 

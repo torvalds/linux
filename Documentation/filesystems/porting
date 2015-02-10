@@ -463,3 +463,11 @@ in your dentry operations instead.
 	of the in-tree instances did).  inode_hash_lock is still held,
 	of course, so they are still serialized wrt removal from inode hash,
 	as well as wrt set() callback of iget5_locked().
+--
+[mandatory]
+	d_materialise_unique() is gone; d_splice_alias() does everything you
+	need now.  Remember that they have opposite orders of arguments ;-/
+--
+[mandatory]
+	f_dentry is gone; use f_path.dentry, or, better yet, see if you can avoid
+	it entirely.

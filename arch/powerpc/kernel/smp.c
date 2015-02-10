@@ -52,6 +52,7 @@
 #endif
 #include <asm/vdso.h>
 #include <asm/debug.h>
+#include <asm/kexec.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -242,7 +243,7 @@ void smp_muxed_ipi_message_pass(int cpu, int msg)
 
 irqreturn_t smp_ipi_demux(void)
 {
-	struct cpu_messages *info = &__get_cpu_var(ipi_message);
+	struct cpu_messages *info = this_cpu_ptr(&ipi_message);
 	unsigned int all;
 
 	mb();	/* order any irq clear */
@@ -379,8 +380,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		/*
 		 * numa_node_id() works after this.
 		 */
-		set_cpu_numa_node(cpu, numa_cpu_lookup_table[cpu]);
-		set_cpu_numa_mem(cpu, local_memory_node(numa_cpu_lookup_table[cpu]));
+		if (cpu_present(cpu)) {
+			set_cpu_numa_node(cpu, numa_cpu_lookup_table[cpu]);
+			set_cpu_numa_mem(cpu,
+				local_memory_node(numa_cpu_lookup_table[cpu]));
+		}
 	}
 
 	cpumask_set_cpu(boot_cpuid, cpu_sibling_mask(boot_cpuid));
@@ -438,9 +442,9 @@ void generic_mach_cpu_die(void)
 	idle_task_exit();
 	cpu = smp_processor_id();
 	printk(KERN_DEBUG "CPU%d offline\n", cpu);
-	__get_cpu_var(cpu_state) = CPU_DEAD;
+	__this_cpu_write(cpu_state, CPU_DEAD);
 	smp_wmb();
-	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
+	while (__this_cpu_read(cpu_state) != CPU_UP_PREPARE)
 		cpu_relax();
 }
 
@@ -727,6 +731,9 @@ void start_secondary(void *unused)
 		cpumask_set_cpu(base + i, cpu_core_mask(cpu));
 	}
 	traverse_core_siblings(cpu, true);
+
+	set_numa_node(numa_cpu_lookup_table[cpu]);
+	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
 
 	smp_wmb();
 	notify_cpu_starting(cpu);

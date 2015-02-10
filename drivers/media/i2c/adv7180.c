@@ -422,12 +422,12 @@ static void adv7180_exit_controls(struct adv7180_state *state)
 }
 
 static int adv7180_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
-				 enum v4l2_mbus_pixelcode *code)
+				 u32 *code)
 {
 	if (index > 0)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_YUYV8_2X8;
+	*code = MEDIA_BUS_FMT_YUYV8_2X8;
 
 	return 0;
 }
@@ -437,7 +437,7 @@ static int adv7180_mbus_fmt(struct v4l2_subdev *sd,
 {
 	struct adv7180_state *state = to_state(sd);
 
-	fmt->code = V4L2_MBUS_FMT_YUYV8_2X8;
+	fmt->code = MEDIA_BUS_FMT_YUYV8_2X8;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	fmt->field = V4L2_FIELD_INTERLACED;
 	fmt->width = 720;

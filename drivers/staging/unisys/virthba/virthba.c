@@ -101,7 +101,6 @@ static DEF_SCSI_QCMD(virthba_queue_command)
 #define virthba_queue_command virthba_queue_command_lck
 #endif
 
-
 static int virthba_slave_alloc(struct scsi_device *scsidev);
 static int virthba_slave_configure(struct scsi_device *scsidev);
 static void virthba_slave_destroy(struct scsi_device *scsidev);
@@ -172,7 +171,7 @@ struct virthba_info {
 	struct virtpci_dev *virtpcidev;
 	struct list_head dev_info_list;
 	struct chaninfo chinfo;
-	struct InterruptInfo intr;	/* use recvInterrupt info to receive
+	struct irq_info intr;		/* use recvInterrupt info to receive
 					   interrupts when IOs complete */
 	int interrupt_vector;
 	struct scsipending pending[MAX_PENDING_REQUESTS]; /* Tracks the requests
@@ -420,8 +419,8 @@ static irqreturn_t
 virthba_ISR(int irq, void *dev_id)
 {
 	struct virthba_info *virthbainfo = (struct virthba_info *) dev_id;
-	CHANNEL_HEADER __iomem *pChannelHeader;
-	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
+	struct channel_header __iomem *pChannelHeader;
+	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
 	unsigned long long rc1;
 
@@ -429,24 +428,24 @@ virthba_ISR(int irq, void *dev_id)
 		return IRQ_NONE;
 	virthbainfo->interrupts_rcvd++;
 	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
-	if (((readq(&pChannelHeader->Features)
+	if (((readq(&pChannelHeader->features)
 	      & ULTRA_IO_IOVM_IS_OK_WITH_DRIVER_DISABLING_INTS) != 0)
-	    && ((readq(&pChannelHeader->Features) &
+	    && ((readq(&pChannelHeader->features) &
 		 ULTRA_IO_DRIVER_DISABLES_INTS) !=
 		0)) {
 		virthbainfo->interrupts_disabled++;
 		mask = ~ULTRA_CHANNEL_ENABLE_INTS;
-		rc1 = uisqueue_InterlockedAnd(virthbainfo->flags_addr, mask);
+		rc1 = uisqueue_interlocked_and(virthbainfo->flags_addr, mask);
 	}
-	if (visor_signalqueue_empty(pChannelHeader, IOCHAN_FROM_IOPART)) {
+	if (spar_signalqueue_empty(pChannelHeader, IOCHAN_FROM_IOPART)) {
 		virthbainfo->interrupts_notme++;
 		return IRQ_NONE;
 	}
-	pqhdr = (SIGNAL_QUEUE_HEADER __iomem *)
+	pqhdr = (struct signal_queue_header __iomem *)
 		((char __iomem *) pChannelHeader +
-		 readq(&pChannelHeader->oChannelSpace)) + IOCHAN_FROM_IOPART;
-	writeq(readq(&pqhdr->NumInterruptsReceived) + 1,
-	       &pqhdr->NumInterruptsReceived);
+		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
+	writeq(readq(&pqhdr->num_irq_received) + 1,
+	       &pqhdr->num_irq_received);
 	atomic_set(&virthbainfo->interrupt_rcvd, 1);
 	wake_up_interruptible(&virthbainfo->rsp_queue);
 	return IRQ_HANDLED;
@@ -461,17 +460,17 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	int rsp;
 	int i;
 	irq_handler_t handler = virthba_ISR;
-	CHANNEL_HEADER __iomem *pChannelHeader;
-	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
+	struct channel_header __iomem *pChannelHeader;
+	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
 
 	LOGVER("entering virthba_probe...\n");
-	LOGVER("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	LOGVER("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 
 	LOGINF("entering virthba_probe...\n");
-	LOGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	LOGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 	POSTCODE_LINUX_2(VHBA_PROBE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	/* call scsi_host_alloc to register a scsi host adapter
 	 * instance - this virthba that has just been created is an
@@ -517,7 +516,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	    (unsigned short) (virtpcidev->scsi.max.max_io_size / PAGE_SIZE);
 	if (scsihost->sg_tablesize > MAX_PHYS_INFO)
 		scsihost->sg_tablesize = MAX_PHYS_INFO;
-	LOGINF("scsihost->max_channel=%u, max_id=%u, max_lun=%u, cmd_per_lun=%u, max_sectors=%hu, sg_tablesize=%hu\n",
+	LOGINF("scsihost->max_channel=%u, max_id=%u, max_lun=%llu, cmd_per_lun=%u, max_sectors=%hu, sg_tablesize=%hu\n",
 	     scsihost->max_channel, scsihost->max_id, scsihost->max_lun,
 	     scsihost->cmd_per_lun, scsihost->max_sectors,
 	     scsihost->sg_tablesize);
@@ -578,18 +577,18 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	INIT_WORK(&virthbainfo->serverdown_completion,
 		  virthba_serverdown_complete);
 
-	writeq(readq(&virthbainfo->chinfo.queueinfo->chan->Features) |
+	writeq(readq(&virthbainfo->chinfo.queueinfo->chan->features) |
 	       ULTRA_IO_CHANNEL_IS_POLLING,
-	       &virthbainfo->chinfo.queueinfo->chan->Features);
+	       &virthbainfo->chinfo.queueinfo->chan->features);
 	/* start thread that will receive scsicmnd responses */
 	DBGINF("starting rsp thread -- queueinfo: 0x%p, threadinfo: 0x%p.\n",
 	       virthbainfo->chinfo.queueinfo, &virthbainfo->chinfo.threadinfo);
 
 	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
-	pqhdr = (SIGNAL_QUEUE_HEADER __iomem *)
+	pqhdr = (struct signal_queue_header __iomem *)
 		((char __iomem *)pChannelHeader +
-		 readq(&pChannelHeader->oChannelSpace)) + IOCHAN_FROM_IOPART;
-	virthbainfo->flags_addr = &pqhdr->FeatureFlags;
+		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
+	virthbainfo->flags_addr = &pqhdr->features;
 
 	if (!uisthread_start(&virthbainfo->chinfo.threadinfo,
 			     process_incoming_rsps,
@@ -603,16 +602,16 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 	LOGINF("sendInterruptHandle=0x%16llX",
-	       virthbainfo->intr.sendInterruptHandle);
+	       virthbainfo->intr.send_irq_handle);
 	LOGINF("recvInterruptHandle=0x%16llX",
-	       virthbainfo->intr.recvInterruptHandle);
+	       virthbainfo->intr.recv_irq_handle);
 	LOGINF("recvInterruptVector=0x%8X",
-	       virthbainfo->intr.recvInterruptVector);
+	       virthbainfo->intr.recv_irq_vector);
 	LOGINF("recvInterruptShared=0x%2X",
-	       virthbainfo->intr.recvInterruptShared);
+	       virthbainfo->intr.recv_irq_shared);
 	LOGINF("scsihost.hostt->name=%s", scsihost->hostt->name);
 	virthbainfo->interrupt_vector =
-	    virthbainfo->intr.recvInterruptHandle & INTERRUPT_VECTOR_MASK;
+	    virthbainfo->intr.recv_irq_handle & INTERRUPT_VECTOR_MASK;
 	rsp = request_irq(virthbainfo->interrupt_vector, handler, IRQF_SHARED,
 			  scsihost->hostt->name, virthbainfo);
 	if (rsp != 0) {
@@ -622,14 +621,14 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		POSTCODE_LINUX_2(VHBA_PROBE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 	} else {
 		u64 __iomem *Features_addr =
-		    &virthbainfo->chinfo.queueinfo->chan->Features;
+		    &virthbainfo->chinfo.queueinfo->chan->features;
 		LOGERR("request_irq(%d) uislib_virthba_ISR request succeeded\n",
 		       virthbainfo->interrupt_vector);
 		mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
 			 ULTRA_IO_DRIVER_DISABLES_INTS);
-		uisqueue_InterlockedAnd(Features_addr, mask);
+		uisqueue_interlocked_and(Features_addr, mask);
 		mask = ULTRA_IO_DRIVER_ENABLES_INTS;
-		uisqueue_InterlockedOr(Features_addr, mask);
+		uisqueue_interlocked_or(Features_addr, mask);
 		rsltq_wait_usecs = 4000000;
 	}
 
@@ -649,8 +648,8 @@ virthba_remove(struct virtpci_dev *virtpcidev)
 	struct Scsi_Host *scsihost =
 	    (struct Scsi_Host *) virtpcidev->scsi.scsihost;
 
-	LOGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	LOGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 	virthbainfo = (struct virthba_info *) scsihost->hostdata;
 	if (virthbainfo->interrupt_vector != -1)
 		free_irq(virthbainfo->interrupt_vector, virthbainfo);
@@ -674,7 +673,7 @@ virthba_remove(struct virtpci_dev *virtpcidev)
 }
 
 static int
-forward_vdiskmgmt_command(VDISK_MGMT_TYPES vdiskcmdtype,
+forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 			  struct Scsi_Host *scsihost,
 			  struct uisscsi_dest *vdest)
 {
@@ -738,7 +737,8 @@ forward_vdiskmgmt_command(VDISK_MGMT_TYPES vdiskcmdtype,
 /*****************************************************/
 
 static int
-forward_taskmgmt_command(TASK_MGMT_TYPES tasktype, struct scsi_device *scsidev)
+forward_taskmgmt_command(enum task_mgmt_types tasktype,
+			 struct scsi_device *scsidev)
 {
 	struct uiscmdrsp *cmdrsp;
 	struct virthba_info *virthbainfo =
@@ -746,7 +746,7 @@ forward_taskmgmt_command(TASK_MGMT_TYPES tasktype, struct scsi_device *scsidev)
 	int notifyresult = 0xffff;
 	wait_queue_head_t notifyevent;
 
-	LOGINF("TaskMgmt:%d %d:%d:%d\n", tasktype,
+	LOGINF("TaskMgmt:%d %d:%d:%llu\n", tasktype,
 	       scsidev->channel, scsidev->id, scsidev->lun);
 
 	if (virthbainfo->serverdown || virthbainfo->serverchangingstate) {
@@ -1105,7 +1105,6 @@ virthba_slave_destroy(struct scsi_device *scsidev)
 			return;
 		}
 	}
-	return;
 }
 
 /*****************************************************/
@@ -1139,16 +1138,16 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 
 		if (atomic_read(&vdisk->error_count) < VIRTHBA_ERROR_COUNT) {
 			atomic_inc(&vdisk->error_count);
-			LOGERR("SCSICMD ****FAILED scsicmd:0x%p op:0x%x <%d:%d:%d:%d> 0x%x-0x%x-0x%x-0x%x-0x%x.\n",
+			LOGERR("SCSICMD ****FAILED scsicmd:0x%p op:0x%x <%d:%d:%d:%llu> 0x%x-0x%x-0x%x-0x%x-0x%x.\n",
 			       scsicmd, cmdrsp->scsi.cmnd[0],
 			       scsidev->host->host_no, scsidev->id,
 			       scsidev->channel, scsidev->lun,
-			       cmdrsp->scsi.linuxstat, sd->Valid, sd->SenseKey,
-			       sd->AdditionalSenseCode,
-			       sd->AdditionalSenseCodeQualifier);
+			       cmdrsp->scsi.linuxstat, sd->valid, sd->sense_key,
+			       sd->additional_sense_code,
+			       sd->additional_sense_code_qualifier);
 			if (atomic_read(&vdisk->error_count) ==
 			    VIRTHBA_ERROR_COUNT) {
-				LOGERR("Throtling SCSICMD errors disk <%d:%d:%d:%d>\n",
+				LOGERR("Throtling SCSICMD errors disk <%d:%d:%d:%llu>\n",
 				     scsidev->host->host_no, scsidev->id,
 				     scsidev->channel, scsidev->lun);
 			}
@@ -1277,8 +1276,8 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 
 	while (1) {
 		spin_lock_irqsave(&virthbainfo->chinfo.insertlock, flags);
-		if (!ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(dc->queueinfo->chan,
-						     "vhba", NULL)) {
+		if (!spar_channel_client_acquire_os(dc->queueinfo->chan,
+						     "vhba")) {
 			spin_unlock_irqrestore(&virthbainfo->chinfo.insertlock,
 					       flags);
 			virthbainfo->acquire_failed_cnt++;
@@ -1286,8 +1285,7 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 		}
 		qrslt = uisqueue_get_cmdrsp(dc->queueinfo, cmdrsp,
 					    IOCHAN_FROM_IOPART);
-		ULTRA_CHANNEL_CLIENT_RELEASE_OS(dc->queueinfo->chan,
-						"vhba", NULL);
+		spar_channel_client_release_os(dc->queueinfo->chan, "vhba");
 		spin_unlock_irqrestore(&virthbainfo->chinfo.insertlock, flags);
 		if (qrslt == 0)
 			break;
@@ -1311,7 +1309,7 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 			 * a Client/Guest Partition. Let's be
 			 * safe and set it to NULL now.  Do
 			 * not use it here! */
-			cmdrsp->disknotify.vHba = NULL;
+			cmdrsp->disknotify.v_hba = NULL;
 			process_disk_notify(shost, cmdrsp);
 		} else if (cmdrsp->cmdtype == CMD_VDISKMGMT_TYPE) {
 			if (!del_scsipending_entry(virthbainfo,
@@ -1323,7 +1321,6 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 		/* cmdrsp is now available for reuse */
 	}
 }
-
 
 /* main function for the thread that waits for scsi commands to arrive
  * in a specified queue
@@ -1354,7 +1351,7 @@ process_incoming_rsps(void *v)
 		atomic_set(&virthbainfo->interrupt_rcvd, 0);
 		/* drain queue */
 		drain_queue(virthbainfo, dc, cmdrsp);
-		rc1 = uisqueue_InterlockedOr(virthbainfo->flags_addr, mask);
+		rc1 = uisqueue_interlocked_or(virthbainfo->flags_addr, mask);
 		if (dc->threadinfo.should_stop)
 			break;
 	}
@@ -1454,20 +1451,20 @@ static ssize_t enable_ints_write(struct file *file,
 		if (VirtHbasOpen[i].virthbainfo != NULL) {
 			virthbainfo = VirtHbasOpen[i].virthbainfo;
 			Features_addr =
-				&virthbainfo->chinfo.queueinfo->chan->Features;
+				&virthbainfo->chinfo.queueinfo->chan->features;
 			if (new_value == 1) {
 				mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
 					 ULTRA_IO_DRIVER_DISABLES_INTS);
-				uisqueue_InterlockedAnd(Features_addr, mask);
+				uisqueue_interlocked_and(Features_addr, mask);
 				mask = ULTRA_IO_DRIVER_ENABLES_INTS;
-				uisqueue_InterlockedOr(Features_addr, mask);
+				uisqueue_interlocked_or(Features_addr, mask);
 				rsltq_wait_usecs = 4000000;
 			} else {
 				mask = ~(ULTRA_IO_DRIVER_ENABLES_INTS |
 					 ULTRA_IO_DRIVER_DISABLES_INTS);
-				uisqueue_InterlockedAnd(Features_addr, mask);
+				uisqueue_interlocked_and(Features_addr, mask);
 				mask = ULTRA_IO_CHANNEL_IS_POLLING;
-				uisqueue_InterlockedOr(Features_addr, mask);
+				uisqueue_interlocked_or(Features_addr, mask);
 				rsltq_wait_usecs = 4000;
 			}
 		}
@@ -1483,8 +1480,8 @@ virthba_serverup(struct virtpci_dev *virtpcidev)
 	    (struct virthba_info *) ((struct Scsi_Host *) virtpcidev->scsi.
 				     scsihost)->hostdata;
 
-	DBGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 
 	if (!virthbainfo->serverdown) {
 		DBGINF("Server up message received while server is already up.\n");
@@ -1499,9 +1496,9 @@ virthba_serverup(struct virtpci_dev *virtpcidev)
 	/* Must transition channel to ATTACHED state BEFORE we
 	 * can start using the device again
 	 */
-	ULTRA_CHANNEL_CLIENT_TRANSITION(virthbainfo->chinfo.queueinfo->chan,
-					dev_name(&virtpcidev->generic_dev),
-					CHANNELCLI_ATTACHED, NULL);
+	SPAR_CHANNEL_CLIENT_TRANSITION(virthbainfo->chinfo.queueinfo->chan,
+				       dev_name(&virtpcidev->generic_dev),
+				       CHANNELCLI_ATTACHED, NULL);
 
 	/* Start Processing the IOVM Response Queue Again */
 	if (!uisthread_start(&virthbainfo->chinfo.threadinfo,
@@ -1574,13 +1571,13 @@ virthba_serverdown_complete(struct work_struct *work)
 
 	virtpcidev = virthbainfo->virtpcidev;
 
-	DBGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 	virthbainfo->serverdown = true;
 	virthbainfo->serverchangingstate = false;
 	/* Return the ServerDown response to Command */
-	visorchipset_device_pause_response(virtpcidev->busNo,
-					   virtpcidev->deviceNo, 0);
+	visorchipset_device_pause_response(virtpcidev->bus_no,
+					   virtpcidev->device_no, 0);
 }
 
 /* As per VirtpciFunc returns 1 for success and 0 for failure */
@@ -1592,8 +1589,8 @@ virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state)
 				     scsihost)->hostdata;
 
 	DBGINF("virthba_serverdown");
-	DBGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 
 	if (!virthbainfo->serverdown && !virthbainfo->serverchangingstate) {
 		virthbainfo->serverchangingstate = true;

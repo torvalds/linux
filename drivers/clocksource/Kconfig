@@ -30,6 +30,10 @@ config ARMADA_370_XP_TIMER
 	bool
 	select CLKSRC_OF
 
+config MESON6_TIMER
+	bool
+	select CLKSRC_MMIO
+
 config ORION_TIMER
 	select CLKSRC_OF
 	select CLKSRC_MMIO
@@ -119,6 +123,10 @@ config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	default y
 	help
 	 Use ARM global timer clock source as sched_clock
+
+config ATMEL_PIT
+	select CLKSRC_OF if OF
+	def_bool SOC_AT91SAM9 || SOC_SAMA5
 
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
@@ -215,5 +223,10 @@ config CLKSRC_VERSATILE
 	  counter available in the "System Registers" block of
 	  ARM Versatile, RealView and Versatile Express reference
 	  platforms.
+
+config CLKSRC_MIPS_GIC
+	bool
+	depends on MIPS_GIC
+	select CLKSRC_OF
 
 endmenu

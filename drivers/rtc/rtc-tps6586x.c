@@ -337,7 +337,6 @@ static SIMPLE_DEV_PM_OPS(tps6586x_pm_ops, tps6586x_rtc_suspend,
 static struct platform_driver tps6586x_rtc_driver = {
 	.driver	= {
 		.name	= "tps6586x-rtc",
-		.owner	= THIS_MODULE,
 		.pm	= &tps6586x_pm_ops,
 	},
 	.probe	= tps6586x_rtc_probe,

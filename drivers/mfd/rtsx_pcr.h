@@ -72,4 +72,7 @@ do {									\
 	pcr->ms_pull_ctl_disable_tbl = __device##_ms_pull_ctl_disable_tbl; \
 } while (0)
 
+/* generic operations */
+int rtsx_gops_pm_reset(struct rtsx_pcr *pcr);
+
 #endif

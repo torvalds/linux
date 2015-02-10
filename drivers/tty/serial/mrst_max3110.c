@@ -27,6 +27,8 @@
  *    interrupt for a low speed UART device
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #ifdef CONFIG_MAGIC_SYSRQ
 #define SUPPORT_SYSRQ
 #endif
@@ -46,8 +48,6 @@
 #include <linux/pm.h>
 
 #include "mrst_max3110.h"
-
-#define PR_FMT	"mrst_max3110: "
 
 #define UART_TX_NEEDED 1
 #define CON_TX_NEEDED  2
@@ -127,8 +127,8 @@ static int max3110_out(struct uart_max3110 *max, const u16 out)
 	*obuf = out;
 	ret = max3110_write_then_read(max, obuf, ibuf, 2, 1);
 	if (ret) {
-		pr_warning(PR_FMT "%s(): get err msg %d when sending 0x%x\n",
-				__func__, ret, out);
+		pr_warn("%s: get err msg %d when sending 0x%x\n",
+			__func__, ret, out);
 		goto exit;
 	}
 
@@ -153,10 +153,8 @@ static int max3110_read_multi(struct uart_max3110 *max)
 
 	blen = M3110_RX_FIFO_DEPTH * sizeof(u16);
 	buf = kzalloc(blen * 2, GFP_KERNEL | GFP_DMA);
-	if (!buf) {
-		pr_warning(PR_FMT "%s(): fail to alloc dma buffer\n", __func__);
+	if (!buf)
 		return 0;
-	}
 
 	/* tx/rx always have the same length */
 	obuf = buf;
@@ -212,13 +210,13 @@ serial_m3110_con_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	pr_info(PR_FMT "setting up console\n");
+	pr_info("setting up console\n");
 
 	if (co->index == -1)
 		co->index = 0;
 
 	if (!max) {
-		pr_err(PR_FMT "pmax is NULL, return");
+		pr_err("pmax is NULL, return\n");
 		return -ENODEV;
 	}
 
@@ -296,8 +294,7 @@ static void send_circ_buf(struct uart_max3110 *max,
 
 			ret = max3110_write_then_read(max, obuf, ibuf, blen, 0);
 			if (ret)
-				pr_warning(PR_FMT "%s(): get err msg %d\n",
-						__func__, ret);
+				pr_warn("%s: get err msg %d\n", __func__, ret);
 
 			receive_chars(max, ibuf, len);
 
@@ -411,7 +408,7 @@ static int max3110_main_thread(void *_max)
 	int ret = 0;
 	struct circ_buf *xmit = &max->con_xmit;
 
-	pr_info(PR_FMT "start main thread\n");
+	pr_info("start main thread\n");
 
 	do {
 		wait_event_interruptible(*wq,
@@ -455,7 +452,7 @@ static int max3110_read_thread(void *_max)
 {
 	struct uart_max3110 *max = _max;
 
-	pr_info(PR_FMT "start read thread\n");
+	pr_info("start read thread\n");
 	do {
 		/*
 		 * If can't acquire the mutex, it means the main thread
@@ -481,7 +478,7 @@ static int serial_m3110_startup(struct uart_port *port)
 	int ret = 0;
 
 	if (port->line != 0) {
-		pr_err(PR_FMT "uart port startup failed\n");
+		pr_err("uart port startup failed\n");
 		return -1;
 	}
 
@@ -504,7 +501,7 @@ static int serial_m3110_startup(struct uart_port *port)
 		if (IS_ERR(max->read_thread)) {
 			ret = PTR_ERR(max->read_thread);
 			max->read_thread = NULL;
-			pr_err(PR_FMT "Can't create read thread!\n");
+			pr_err("Can't create read thread!\n");
 			return ret;
 		}
 	}

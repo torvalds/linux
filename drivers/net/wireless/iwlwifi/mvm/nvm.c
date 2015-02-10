@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +64,7 @@
  *****************************************************************************/
 #include <linux/firmware.h>
 #include "iwl-trans.h"
+#include "iwl-csr.h"
 #include "mvm.h"
 #include "iwl-eeprom-parse.h"
 #include "iwl-eeprom-read.h"
@@ -336,18 +339,22 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 	} *file_sec;
 	const u8 *eof, *temp;
 	int max_section_size;
+	const __le32 *dword_buff;
 
 #define NVM_WORD1_LEN(x) (8 * (x & 0x03FF))
 #define NVM_WORD2_ID(x) (x >> 12)
 #define NVM_WORD2_LEN_FAMILY_8000(x) (2 * ((x & 0xFF) << 8 | x >> 8))
 #define NVM_WORD1_ID_FAMILY_8000(x) (x >> 4)
+#define NVM_HEADER_0	(0x2A504C54)
+#define NVM_HEADER_1	(0x4E564D2A)
+#define NVM_HEADER_SIZE	(4 * sizeof(u32))
 
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from external NVM\n");
 
 	/* Maximal size depends on HW family and step */
 	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
 		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
-	else if ((mvm->trans->hw_rev & 0xc) == 0) /* Family 8000 A-step */
+	else if (CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP)
 		max_section_size = IWL_MAX_NVM_8000A_SECTION_SIZE;
 	else /* Family 8000 B-step */
 		max_section_size = IWL_MAX_NVM_8000B_SECTION_SIZE;
@@ -369,12 +376,6 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 	IWL_INFO(mvm, "Loaded NVM file %s (%zu bytes)\n",
 		 mvm->nvm_file_name, fw_entry->size);
 
-	if (fw_entry->size < sizeof(*file_sec)) {
-		IWL_ERR(mvm, "NVM file too small\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (fw_entry->size > MAX_NVM_FILE_LEN) {
 		IWL_ERR(mvm, "NVM file too large\n");
 		ret = -EINVAL;
@@ -382,8 +383,25 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 	}
 
 	eof = fw_entry->data + fw_entry->size;
+	dword_buff = (__le32 *)fw_entry->data;
 
-	file_sec = (void *)fw_entry->data;
+	/* some NVM file will contain a header.
+	 * The header is identified by 2 dwords header as follow:
+	 * dword[0] = 0x2A504C54
+	 * dword[1] = 0x4E564D2A
+	 *
+	 * This header must be skipped when providing the NVM data to the FW.
+	 */
+	if (fw_entry->size > NVM_HEADER_SIZE &&
+	    dword_buff[0] == cpu_to_le32(NVM_HEADER_0) &&
+	    dword_buff[1] == cpu_to_le32(NVM_HEADER_1)) {
+		file_sec = (void *)(fw_entry->data + NVM_HEADER_SIZE);
+		IWL_INFO(mvm, "NVM Version %08X\n", le32_to_cpu(dword_buff[2]));
+		IWL_INFO(mvm, "NVM Manufacturing date %08X\n",
+			 le32_to_cpu(dword_buff[3]));
+	} else {
+		file_sec = (void *)fw_entry->data;
+	}
 
 	while (true) {
 		if (file_sec->data > eof) {

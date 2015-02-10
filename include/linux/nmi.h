@@ -24,6 +24,19 @@ static inline void touch_nmi_watchdog(void)
 }
 #endif
 
+#if defined(CONFIG_HARDLOCKUP_DETECTOR)
+extern void watchdog_enable_hardlockup_detector(bool val);
+extern bool watchdog_hardlockup_detector_is_enabled(void);
+#else
+static inline void watchdog_enable_hardlockup_detector(bool val)
+{
+}
+static inline bool watchdog_hardlockup_detector_is_enabled(void)
+{
+	return true;
+}
+#endif
+
 /*
  * Create trigger_all_cpu_backtrace() out of the arch-provided
  * base function. Return whether such support was available,

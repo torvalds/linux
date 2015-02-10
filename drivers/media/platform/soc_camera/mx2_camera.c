@@ -211,7 +211,7 @@ struct emma_prp_resize {
 
 /* prp configuration for a client-host fmt pair */
 struct mx2_fmt_cfg {
-	enum v4l2_mbus_pixelcode	in_fmt;
+	u32	in_fmt;
 	u32				out_fmt;
 	struct mx2_prp_cfg		cfg;
 };
@@ -309,7 +309,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 		}
 	},
 	{
-		.in_fmt		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.in_fmt		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.out_fmt	= V4L2_PIX_FMT_YUYV,
 		.cfg		= {
 			.channel	= 1,
@@ -323,7 +323,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 		}
 	},
 	{
-		.in_fmt		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.in_fmt		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.out_fmt	= V4L2_PIX_FMT_YUYV,
 		.cfg		= {
 			.channel	= 1,
@@ -337,7 +337,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 		}
 	},
 	{
-		.in_fmt		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.in_fmt		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.out_fmt	= V4L2_PIX_FMT_YUV420,
 		.cfg		= {
 			.channel	= 2,
@@ -351,7 +351,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 		}
 	},
 	{
-		.in_fmt		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.in_fmt		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.out_fmt	= V4L2_PIX_FMT_YUV420,
 		.cfg		= {
 			.channel	= 2,
@@ -366,9 +366,7 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 	},
 };
 
-static struct mx2_fmt_cfg *mx27_emma_prp_get_format(
-					enum v4l2_mbus_pixelcode in_fmt,
-					u32 out_fmt)
+static struct mx2_fmt_cfg *mx27_emma_prp_get_format(u32 in_fmt, u32 out_fmt)
 {
 	int i;
 
@@ -809,10 +807,9 @@ static int mx2_camera_init_videobuf(struct vb2_queue *q,
 
 static int mx27_camera_emma_prp_reset(struct mx2_camera_dev *pcdev)
 {
-	u32 cntl;
 	int count = 0;
 
-	cntl = readl(pcdev->base_emma + PRP_CNTL);
+	readl(pcdev->base_emma + PRP_CNTL);
 	writel(PRP_CNTL_SWRST, pcdev->base_emma + PRP_CNTL);
 	while (count++ < 100) {
 		if (!(readl(pcdev->base_emma + PRP_CNTL) & PRP_CNTL_SWRST))
@@ -946,7 +943,7 @@ static int mx2_camera_get_formats(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_mbus_pixelfmt *fmt;
 	struct device *dev = icd->parent;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	int ret, formats = 0;
 
 	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
@@ -960,8 +957,8 @@ static int mx2_camera_get_formats(struct soc_camera_device *icd,
 		return 0;
 	}
 
-	if (code == V4L2_MBUS_FMT_YUYV8_2X8 ||
-	    code == V4L2_MBUS_FMT_UYVY8_2X8) {
+	if (code == MEDIA_BUS_FMT_YUYV8_2X8 ||
+	    code == MEDIA_BUS_FMT_UYVY8_2X8) {
 		formats++;
 		if (xlate) {
 			/*
@@ -969,7 +966,7 @@ static int mx2_camera_get_formats(struct soc_camera_device *icd,
 			 * soc_mediabus.c
 			 */
 			xlate->host_fmt =
-				soc_mbus_get_fmtdesc(V4L2_MBUS_FMT_YUYV8_1_5X8);
+				soc_mbus_get_fmtdesc(MEDIA_BUS_FMT_YUYV8_1_5X8);
 			xlate->code	= code;
 			dev_dbg(dev, "Providing host format %s for sensor code %d\n",
 			       xlate->host_fmt->name, code);
@@ -977,11 +974,11 @@ static int mx2_camera_get_formats(struct soc_camera_device *icd,
 		}
 	}
 
-	if (code == V4L2_MBUS_FMT_UYVY8_2X8) {
+	if (code == MEDIA_BUS_FMT_UYVY8_2X8) {
 		formats++;
 		if (xlate) {
 			xlate->host_fmt =
-				soc_mbus_get_fmtdesc(V4L2_MBUS_FMT_YUYV8_2X8);
+				soc_mbus_get_fmtdesc(MEDIA_BUS_FMT_YUYV8_2X8);
 			xlate->code	= code;
 			dev_dbg(dev, "Providing host format %s for sensor code %d\n",
 				xlate->host_fmt->name, code);
@@ -1003,7 +1000,7 @@ static int mx2_emmaprp_resize(struct mx2_camera_dev *pcdev,
 			      struct v4l2_mbus_framefmt *mf_in,
 			      struct v4l2_pix_format *pix_out, bool apply)
 {
-	int num, den;
+	unsigned int num, den;
 	unsigned long m;
 	int i, dir;
 

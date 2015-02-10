@@ -8,6 +8,8 @@
 #include <subdev/bios/i2c.h>
 
 #define NV_I2C_PORT(n)    (0x00 + (n))
+#define NV_I2C_AUX(n)     (0x10 + (n))
+#define NV_I2C_EXT(n)     (0x20 + (n))
 #define NV_I2C_DEFAULT(n) (0x80 + (n))
 
 #define NV_I2C_TYPE_DCBI2C(n) (0x0000 | (n))
@@ -89,6 +91,7 @@ extern struct nouveau_oclass *nv94_i2c_oclass;
 extern struct nouveau_oclass *nvd0_i2c_oclass;
 extern struct nouveau_oclass *gf117_i2c_oclass;
 extern struct nouveau_oclass *nve0_i2c_oclass;
+extern struct nouveau_oclass *gm204_i2c_oclass;
 
 static inline int
 nv_rdi2cr(struct nouveau_i2c_port *port, u8 addr, u8 reg)

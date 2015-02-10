@@ -301,7 +301,8 @@ do {									\
 			__get_kernel_common((x), size, __gu_ptr);	\
 		else							\
 			__get_user_common((x), size, __gu_ptr);		\
-	}								\
+	} else								\
+		(x) = 0;						\
 									\
 	__gu_err;							\
 })
@@ -316,6 +317,7 @@ do {									\
 	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
+	"	move	%1, $0					\n"	\
 	"	j	2b					\n"	\
 	"	.previous					\n"	\
 	"	.section __ex_table,\"a\"			\n"	\
@@ -630,6 +632,7 @@ do {									\
 	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
+	"	move	%1, $0					\n"	\
 	"	j	2b					\n"	\
 	"	.previous					\n"	\
 	"	.section __ex_table,\"a\"			\n"	\
@@ -773,10 +776,11 @@ extern void __put_user_unaligned_unknown(void);
 	"jal\t" #destination "\n\t"
 #endif
 
-#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
-#define DADDI_SCRATCH "$0"
-#else
+#if defined(CONFIG_CPU_DADDI_WORKAROUNDS) || (defined(CONFIG_EVA) &&	\
+					      defined(CONFIG_CPU_HAS_PREFETCH))
 #define DADDI_SCRATCH "$3"
+#else
+#define DADDI_SCRATCH "$0"
 #endif
 
 extern size_t __copy_user(void *__to, const void *__from, size_t __n);
@@ -1321,33 +1325,6 @@ strncpy_from_user(char *__to, const char __user *__from, long __len)
 	return res;
 }
 
-/* Returns: 0 if bad, string length+1 (memory size) of string if ok */
-static inline long __strlen_user(const char __user *s)
-{
-	long res;
-
-	if (segment_eq(get_fs(), get_ds())) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			__MODULE_JAL(__strlen_kernel_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s)
-			: "$2", "$4", __UA_t0, "$31");
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			__MODULE_JAL(__strlen_user_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s)
-			: "$2", "$4", __UA_t0, "$31");
-	}
-
-	return res;
-}
-
 /*
  * strlen_user: - Get the size of a string in user space.
  * @str: The string to measure.
@@ -1418,7 +1395,7 @@ static inline long __strnlen_user(const char __user *s, long n)
 }
 
 /*
- * strlen_user: - Get the size of a string in user space.
+ * strnlen_user: - Get the size of a string in user space.
  * @str: The string to measure.
  *
  * Context: User context only.	This function may sleep.
@@ -1427,9 +1404,7 @@ static inline long __strnlen_user(const char __user *s, long n)
  *
  * Returns the size of the string INCLUDING the terminating NUL.
  * On exception, returns 0.
- *
- * If there is a limit on the length of a valid string, you may wish to
- * consider using strnlen_user() instead.
+ * If the string is too long, returns a value greater than @n.
  */
 static inline long strnlen_user(const char __user *s, long n)
 {

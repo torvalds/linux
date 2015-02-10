@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/etherdevice.h>
 #include <linux/export.h>
-#include <ar231x_platform.h>
+#include <ath25_platform.h>
 #include "ath5k.h"
 #include "debug.h"
 #include "base.h"

@@ -54,18 +54,6 @@
 				status = "okay";
 			};
 
-			pinctrl {
-				pwr_led_pin: pwr-led-pin {
-					marvell,pins = "mpp63";
-					marvell,function = "gpo";
-				};
-
-				stat_led_pins: stat-led-pins {
-					marvell,pins = "mpp64", "mpp65";
-					marvell,function = "gpio";
-				};
-			};
-
 			gpio_leds {
 				compatible = "gpio-leds";
 				pinctrl-names = "default";
@@ -91,6 +79,8 @@
 			};
 
 			mdio {
+				pinctrl-0 = <&mdio_pins>;
+				pinctrl-names = "default";
 				phy0: ethernet-phy@0 {
 					reg = <0>;
 				};
@@ -100,11 +90,15 @@
 				};
 			};
 			ethernet@70000 {
+				pinctrl-0 = <&ge0_rgmii_pins>;
+				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
 			};
 			ethernet@74000 {
+				pinctrl-0 = <&ge1_rgmii_pins>;
+				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
@@ -163,3 +157,16 @@
 		};
 	};
 };
+
+&pinctrl {
+	pwr_led_pin: pwr-led-pin {
+		marvell,pins = "mpp63";
+		marvell,function = "gpo";
+	};
+
+	stat_led_pins: stat-led-pins {
+		marvell,pins = "mpp64", "mpp65";
+		marvell,function = "gpio";
+	};
+};
+

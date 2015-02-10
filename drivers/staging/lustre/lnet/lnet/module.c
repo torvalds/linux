@@ -43,7 +43,7 @@ MODULE_PARM_DESC(config_on_load, "configure network at module load");
 
 static struct mutex lnet_config_mutex;
 
-int
+static int
 lnet_configure(void *arg)
 {
 	/* 'arg' only there so I can be passed to cfs_create_thread() */
@@ -63,7 +63,7 @@ lnet_configure(void *arg)
 	return rc;
 }
 
-int
+static int
 lnet_unconfigure(void)
 {
 	int   refcount;
@@ -83,7 +83,7 @@ lnet_unconfigure(void)
 	return (refcount == 0) ? 0 : -EBUSY;
 }
 
-int
+static int
 lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
 {
 	int   rc;
@@ -110,7 +110,7 @@ lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
 
 DECLARE_IOCTL_HANDLER(lnet_ioctl_handler, lnet_ioctl);
 
-int
+static int __init
 init_lnet(void)
 {
 	int		  rc;
@@ -135,7 +135,7 @@ init_lnet(void)
 	return 0;
 }
 
-void
+static void __exit
 fini_lnet(void)
 {
 	int rc;

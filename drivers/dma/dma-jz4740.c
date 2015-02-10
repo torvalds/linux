@@ -563,10 +563,9 @@ static int jz4740_dma_probe(struct platform_device *pdev)
 	dd->device_prep_dma_cyclic = jz4740_dma_prep_dma_cyclic;
 	dd->device_control = jz4740_dma_control;
 	dd->dev = &pdev->dev;
-	dd->chancnt = JZ_DMA_NR_CHANS;
 	INIT_LIST_HEAD(&dd->channels);
 
-	for (i = 0; i < dd->chancnt; i++) {
+	for (i = 0; i < JZ_DMA_NR_CHANS; i++) {
 		chan = &dmadev->chan[i];
 		chan->id = i;
 		chan->vchan.desc_free = jz4740_dma_desc_free;
@@ -608,7 +607,6 @@ static struct platform_driver jz4740_dma_driver = {
 	.remove = jz4740_dma_remove,
 	.driver = {
 		.name = "jz4740-dma",
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(jz4740_dma_driver);

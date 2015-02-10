@@ -138,6 +138,8 @@ void zynq_slcr_cpu_start(int cpu)
 	zynq_slcr_write(reg, SLCR_A9_CPU_RST_CTRL_OFFSET);
 	reg &= ~(SLCR_A9_CPU_CLKSTOP << cpu);
 	zynq_slcr_write(reg, SLCR_A9_CPU_RST_CTRL_OFFSET);
+
+	zynq_slcr_cpu_state_write(cpu, false);
 }
 
 /**
@@ -154,8 +156,47 @@ void zynq_slcr_cpu_stop(int cpu)
 }
 
 /**
- * zynq_slcr_init - Regular slcr driver init
+ * zynq_slcr_cpu_state - Read/write cpu state
+ * @cpu:	cpu number
  *
+ * SLCR_REBOOT_STATUS save upper 2 bits (31/30 cpu states for cpu0 and cpu1)
+ * 0 means cpu is running, 1 cpu is going to die.
+ *
+ * Return: true if cpu is running, false if cpu is going to die
+ */
+bool zynq_slcr_cpu_state_read(int cpu)
+{
+	u32 state;
+
+	state = readl(zynq_slcr_base + SLCR_REBOOT_STATUS_OFFSET);
+	state &= 1 << (31 - cpu);
+
+	return !state;
+}
+
+/**
+ * zynq_slcr_cpu_state - Read/write cpu state
+ * @cpu:	cpu number
+ * @die:	cpu state - true if cpu is going to die
+ *
+ * SLCR_REBOOT_STATUS save upper 2 bits (31/30 cpu states for cpu0 and cpu1)
+ * 0 means cpu is running, 1 cpu is going to die.
+ */
+void zynq_slcr_cpu_state_write(int cpu, bool die)
+{
+	u32 state, mask;
+
+	state = readl(zynq_slcr_base + SLCR_REBOOT_STATUS_OFFSET);
+	mask = 1 << (31 - cpu);
+	if (die)
+		state |= mask;
+	else
+		state &= ~mask;
+	writel(state, zynq_slcr_base + SLCR_REBOOT_STATUS_OFFSET);
+}
+
+/**
+ * zynq_slcr_init - Regular slcr driver init
  * Return:	0 on success, negative errno otherwise.
  *
  * Called early during boot from platform code to remap SLCR area.

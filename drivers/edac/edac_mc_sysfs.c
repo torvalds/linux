@@ -372,7 +372,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 {
 	int err, chan;
 
-	if (csrow->nr_channels >= EDAC_NR_CHANNELS)
+	if (csrow->nr_channels > EDAC_NR_CHANNELS)
 		return -ENODEV;
 
 	csrow->dev.type = &csrow_attr_type;

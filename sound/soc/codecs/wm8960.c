@@ -125,9 +125,10 @@ struct wm8960_priv {
 	struct snd_soc_dapm_widget *out3;
 	bool deemph;
 	int playback_fs;
+	struct wm8960_data pdata;
 };
 
-#define wm8960_reset(c)	snd_soc_write(c, WM8960_RESET, 0)
+#define wm8960_reset(c)	regmap_write(c, WM8960_RESET, 0)
 
 /* enumerated controls */
 static const char *wm8960_polarity[] = {"No Inversion", "Left Inverted",
@@ -440,8 +441,8 @@ static const struct snd_soc_dapm_route audio_paths_capless[] = {
 
 static int wm8960_add_widgets(struct snd_soc_codec *codec)
 {
-	struct wm8960_data *pdata = codec->dev->platform_data;
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
+	struct wm8960_data *pdata = &wm8960->pdata;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_dapm_widget *w;
 
@@ -942,56 +943,15 @@ static struct snd_soc_dai_driver wm8960_dai = {
 	.symmetric_rates = 1,
 };
 
-static int wm8960_suspend(struct snd_soc_codec *codec)
-{
-	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
-
-	wm8960->set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8960_resume(struct snd_soc_codec *codec)
-{
-	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
-
-	wm8960->set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8960_probe(struct snd_soc_codec *codec)
 {
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
-	struct wm8960_data *pdata = dev_get_platdata(codec->dev);
-	int ret;
+	struct wm8960_data *pdata = &wm8960->pdata;
 
-	wm8960->set_bias_level = wm8960_set_bias_level_out3;
-
-	if (!pdata) {
-		dev_warn(codec->dev, "No platform data supplied\n");
-	} else {
-		if (pdata->capless)
-			wm8960->set_bias_level = wm8960_set_bias_level_capless;
-	}
-
-	ret = wm8960_reset(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset\n");
-		return ret;
-	}
-
-	wm8960->set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	/* Latch the update bits */
-	snd_soc_update_bits(codec, WM8960_LINVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8960_RINVOL, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8960_LADC, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8960_RADC, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8960_LDAC, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8960_RDAC, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8960_LOUT1, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8960_ROUT1, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8960_LOUT2, 0x100, 0x100);
-	snd_soc_update_bits(codec, WM8960_ROUT2, 0x100, 0x100);
+	if (pdata->capless)
+		wm8960->set_bias_level = wm8960_set_bias_level_capless;
+	else
+		wm8960->set_bias_level = wm8960_set_bias_level_out3;
 
 	snd_soc_add_codec_controls(codec, wm8960_snd_controls,
 				     ARRAY_SIZE(wm8960_snd_controls));
@@ -1000,21 +960,10 @@ static int wm8960_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/* power down chip */
-static int wm8960_remove(struct snd_soc_codec *codec)
-{
-	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
-
-	wm8960->set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8960 = {
 	.probe =	wm8960_probe,
-	.remove =	wm8960_remove,
-	.suspend =	wm8960_suspend,
-	.resume =	wm8960_resume,
 	.set_bias_level = wm8960_set_bias_level,
+	.suspend_bias_off = true,
 };
 
 static const struct regmap_config wm8960_regmap = {
@@ -1028,6 +977,18 @@ static const struct regmap_config wm8960_regmap = {
 
 	.volatile_reg = wm8960_volatile,
 };
+
+static void wm8960_set_pdata_from_of(struct i2c_client *i2c,
+				struct wm8960_data *pdata)
+{
+	const struct device_node *np = i2c->dev.of_node;
+
+	if (of_property_read_bool(np, "wlf,capless"))
+		pdata->capless = true;
+
+	if (of_property_read_bool(np, "wlf,shared-lrclk"))
+		pdata->shared_lrclk = true;
+}
 
 static int wm8960_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -1045,7 +1006,18 @@ static int wm8960_i2c_probe(struct i2c_client *i2c,
 	if (IS_ERR(wm8960->regmap))
 		return PTR_ERR(wm8960->regmap);
 
-	if (pdata && pdata->shared_lrclk) {
+	if (pdata)
+		memcpy(&wm8960->pdata, pdata, sizeof(struct wm8960_data));
+	else if (i2c->dev.of_node)
+		wm8960_set_pdata_from_of(i2c, &wm8960->pdata);
+
+	ret = wm8960_reset(wm8960->regmap);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to issue reset\n");
+		return ret;
+	}
+
+	if (wm8960->pdata.shared_lrclk) {
 		ret = regmap_update_bits(wm8960->regmap, WM8960_ADDCTL2,
 					 0x4, 0x4);
 		if (ret != 0) {
@@ -1054,6 +1026,18 @@ static int wm8960_i2c_probe(struct i2c_client *i2c,
 			return ret;
 		}
 	}
+
+	/* Latch the update bits */
+	regmap_update_bits(wm8960->regmap, WM8960_LINVOL, 0x100, 0x100);
+	regmap_update_bits(wm8960->regmap, WM8960_RINVOL, 0x100, 0x100);
+	regmap_update_bits(wm8960->regmap, WM8960_LADC, 0x100, 0x100);
+	regmap_update_bits(wm8960->regmap, WM8960_RADC, 0x100, 0x100);
+	regmap_update_bits(wm8960->regmap, WM8960_LDAC, 0x100, 0x100);
+	regmap_update_bits(wm8960->regmap, WM8960_RDAC, 0x100, 0x100);
+	regmap_update_bits(wm8960->regmap, WM8960_LOUT1, 0x100, 0x100);
+	regmap_update_bits(wm8960->regmap, WM8960_ROUT1, 0x100, 0x100);
+	regmap_update_bits(wm8960->regmap, WM8960_LOUT2, 0x100, 0x100);
+	regmap_update_bits(wm8960->regmap, WM8960_ROUT2, 0x100, 0x100);
 
 	i2c_set_clientdata(i2c, wm8960);
 
@@ -1075,10 +1059,17 @@ static const struct i2c_device_id wm8960_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8960_i2c_id);
 
+static const struct of_device_id wm8960_of_match[] = {
+       { .compatible = "wlf,wm8960", },
+       { }
+};
+MODULE_DEVICE_TABLE(of, wm8960_of_match);
+
 static struct i2c_driver wm8960_i2c_driver = {
 	.driver = {
 		.name = "wm8960",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8960_of_match,
 	},
 	.probe =    wm8960_i2c_probe,
 	.remove =   wm8960_i2c_remove,

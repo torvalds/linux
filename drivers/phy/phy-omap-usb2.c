@@ -60,7 +60,7 @@ EXPORT_SYMBOL_GPL(omap_usb2_set_comparator);
 
 static int omap_usb_set_vbus(struct usb_otg *otg, bool enabled)
 {
-	struct omap_usb *phy = phy_to_omapusb(otg->phy);
+	struct omap_usb *phy = phy_to_omapusb(otg->usb_phy);
 
 	if (!phy->comparator)
 		return -ENODEV;
@@ -70,7 +70,7 @@ static int omap_usb_set_vbus(struct usb_otg *otg, bool enabled)
 
 static int omap_usb_start_srp(struct usb_otg *otg)
 {
-	struct omap_usb *phy = phy_to_omapusb(otg->phy);
+	struct omap_usb *phy = phy_to_omapusb(otg->usb_phy);
 
 	if (!phy->comparator)
 		return -ENODEV;
@@ -80,11 +80,9 @@ static int omap_usb_start_srp(struct usb_otg *otg)
 
 static int omap_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
-	struct usb_phy	*phy = otg->phy;
-
 	otg->host = host;
 	if (!host)
-		phy->state = OTG_STATE_UNDEFINED;
+		otg->state = OTG_STATE_UNDEFINED;
 
 	return 0;
 }
@@ -92,11 +90,9 @@ static int omap_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 static int omap_usb_set_peripheral(struct usb_otg *otg,
 		struct usb_gadget *gadget)
 {
-	struct usb_phy	*phy = otg->phy;
-
 	otg->gadget = gadget;
 	if (!gadget)
-		phy->state = OTG_STATE_UNDEFINED;
+		otg->state = OTG_STATE_UNDEFINED;
 
 	return 0;
 }
@@ -212,16 +208,12 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	phy_data = (struct usb_phy_data *)of_id->data;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
-	if (!phy) {
-		dev_err(&pdev->dev, "unable to allocate memory for USB2 PHY\n");
+	if (!phy)
 		return -ENOMEM;
-	}
 
 	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
-	if (!otg) {
-		dev_err(&pdev->dev, "unable to allocate memory for USB OTG\n");
+	if (!otg)
 		return -ENOMEM;
-	}
 
 	phy->dev		= &pdev->dev;
 
@@ -259,17 +251,19 @@ static int omap_usb2_probe(struct platform_device *pdev)
 		otg->set_vbus		= omap_usb_set_vbus;
 	if (phy_data->flags & OMAP_USB2_HAS_START_SRP)
 		otg->start_srp		= omap_usb_start_srp;
-	otg->phy		= &phy->phy;
+	otg->usb_phy		= &phy->phy;
 
 	platform_set_drvdata(pdev, phy);
+	pm_runtime_enable(phy->dev);
 
-	generic_phy = devm_phy_create(phy->dev, NULL, &ops, NULL);
-	if (IS_ERR(generic_phy))
+	generic_phy = devm_phy_create(phy->dev, NULL, &ops);
+	if (IS_ERR(generic_phy)) {
+		pm_runtime_disable(phy->dev);
 		return PTR_ERR(generic_phy);
+	}
 
 	phy_set_drvdata(generic_phy, phy);
 
-	pm_runtime_enable(phy->dev);
 	phy_provider = devm_of_phy_provider_register(phy->dev,
 			of_phy_simple_xlate);
 	if (IS_ERR(phy_provider)) {
@@ -324,7 +318,7 @@ static int omap_usb2_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 static int omap_usb2_runtime_suspend(struct device *dev)
 {
@@ -382,7 +376,6 @@ static struct platform_driver omap_usb2_driver = {
 	.remove		= omap_usb2_remove,
 	.driver		= {
 		.name	= "omap-usb2",
-		.owner	= THIS_MODULE,
 		.pm	= DEV_PM_OPS,
 		.of_match_table = of_match_ptr(omap_usb2_id_table),
 	},

@@ -48,7 +48,7 @@ MODULE_DEVICE_TABLE(pci, atl1c_pci_tbl);
 
 MODULE_AUTHOR("Jie Yang");
 MODULE_AUTHOR("Qualcomm Atheros Inc., <nic-devel@qualcomm.com>");
-MODULE_DESCRIPTION("Qualcom Atheros 100/1000M Ethernet Network Driver");
+MODULE_DESCRIPTION("Qualcomm Atheros 100/1000M Ethernet Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ATL1C_DRV_VERSION);
 

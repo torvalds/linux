@@ -30,10 +30,7 @@
 /* Interrupt Throttling and Rate Limiting Goodies */
 
 #define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
-#define I40E_MIN_ITR               0x0004  /* reg uses 2 usec resolution */
-#define I40E_MAX_IRATE             0x03F
-#define I40E_MIN_IRATE             0x001
-#define I40E_IRATE_USEC_RESOLUTION 4
+#define I40E_MIN_ITR               0x0001  /* reg uses 2 usec resolution */
 #define I40E_ITR_100K              0x0005
 #define I40E_ITR_20K               0x0019
 #define I40E_ITR_8K                0x003E
@@ -121,6 +118,7 @@ enum i40e_dyn_idx_t {
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S) DIV_ROUND_UP((S), I40E_MAX_DATA_PER_TXD)
 #define DESC_NEEDED (MAX_SKB_FRAGS + 4)
+#define I40E_MIN_DESC_PENDING	4
 
 #define I40E_TX_FLAGS_CSUM		(u32)(1)
 #define I40E_TX_FLAGS_HW_VLAN		(u32)(1 << 1)

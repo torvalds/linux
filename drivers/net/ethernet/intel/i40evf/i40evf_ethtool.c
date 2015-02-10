@@ -58,8 +58,8 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 
 #define I40EVF_GLOBAL_STATS_LEN ARRAY_SIZE(i40evf_gstrings_stats)
 #define I40EVF_QUEUE_STATS_LEN(_dev) \
-	(((struct i40evf_adapter *) \
-		netdev_priv(_dev))->vsi_res->num_queue_pairs \
+	(((struct i40evf_adapter *)\
+		netdev_priv(_dev))->num_active_queues \
 		  * 2 * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
 #define I40EVF_STATS_LEN(_dev) \
 	(I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN(_dev))
@@ -121,11 +121,11 @@ static void i40evf_get_ethtool_stats(struct net_device *netdev,
 		p = (char *)adapter + i40evf_gstrings_stats[i].stat_offset;
 		data[i] =  *(u64 *)p;
 	}
-	for (j = 0; j < adapter->vsi_res->num_queue_pairs; j++) {
+	for (j = 0; j < adapter->num_active_queues; j++) {
 		data[i++] = adapter->tx_rings[j]->stats.packets;
 		data[i++] = adapter->tx_rings[j]->stats.bytes;
 	}
-	for (j = 0; j < adapter->vsi_res->num_queue_pairs; j++) {
+	for (j = 0; j < adapter->num_active_queues; j++) {
 		data[i++] = adapter->rx_rings[j]->stats.packets;
 		data[i++] = adapter->rx_rings[j]->stats.bytes;
 	}
@@ -151,13 +151,13 @@ static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-		for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+		for (i = 0; i < adapter->num_active_queues; i++) {
 			snprintf(p, ETH_GSTRING_LEN, "tx-%u.packets", i);
 			p += ETH_GSTRING_LEN;
 			snprintf(p, ETH_GSTRING_LEN, "tx-%u.bytes", i);
 			p += ETH_GSTRING_LEN;
 		}
-		for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+		for (i = 0; i < adapter->num_active_queues; i++) {
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.packets", i);
 			p += ETH_GSTRING_LEN;
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.bytes", i);
@@ -175,6 +175,7 @@ static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 static u32 i40evf_get_msglevel(struct net_device *netdev)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
 	return adapter->msg_enable;
 }
 
@@ -189,6 +190,7 @@ static u32 i40evf_get_msglevel(struct net_device *netdev)
 static void i40evf_set_msglevel(struct net_device *netdev, u32 data)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
 	adapter->msg_enable = data;
 }
 
@@ -219,7 +221,7 @@ static void i40evf_get_drvinfo(struct net_device *netdev,
  * but the number of rings is not reported.
  **/
 static void i40evf_get_ringparam(struct net_device *netdev,
-				  struct ethtool_ringparam *ring)
+				 struct ethtool_ringparam *ring)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
@@ -280,7 +282,7 @@ static int i40evf_set_ringparam(struct net_device *netdev,
  * this functionality.
  **/
 static int i40evf_get_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			       struct ethtool_coalesce *ec)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_vsi *vsi = &adapter->vsi;
@@ -308,7 +310,7 @@ static int i40evf_get_coalesce(struct net_device *netdev,
  * Change current coalescing settings.
  **/
 static int i40evf_set_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			       struct ethtool_coalesce *ec)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
@@ -430,7 +432,7 @@ static int i40evf_get_rxnfc(struct net_device *netdev,
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = adapter->vsi_res->num_queue_pairs;
+		cmd->data = adapter->num_active_queues;
 		ret = 0;
 		break;
 	case ETHTOOL_GRXFH:
@@ -598,12 +600,12 @@ static void i40evf_get_channels(struct net_device *netdev,
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	/* Report maximum channels */
-	ch->max_combined = adapter->vsi_res->num_queue_pairs;
+	ch->max_combined = adapter->num_active_queues;
 
 	ch->max_other = NONQ_VECS;
 	ch->other_count = NONQ_VECS;
 
-	ch->combined_count = adapter->vsi_res->num_queue_pairs;
+	ch->combined_count = adapter->num_active_queues;
 }
 
 /**
@@ -621,16 +623,22 @@ static u32 i40evf_get_rxfh_indir_size(struct net_device *netdev)
  * i40evf_get_rxfh - get the rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
- * @key: hash key (will be %NULL until get_rxfh_key_size is implemented)
+ * @key: hash key
  *
  * Reads the indirection table directly from the hardware. Always returns 0.
  **/
-static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
+static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
+			   u8 *hfunc)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
 	u32 hlut_val;
 	int i, j;
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (!indir)
+		return 0;
 
 	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
 		hlut_val = rd32(hw, I40E_VFQF_HLUT(i));
@@ -646,18 +654,25 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
  * i40evf_set_rxfh - set the rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
- * @key: hash key (will be %NULL until get_rxfh_key_size is implemented)
+ * @key: hash key
  *
  * Returns -EINVAL if the table specifies an inavlid queue id, otherwise
  * returns 0 after programming the table.
  **/
 static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
-			   const u8 *key)
+			   const u8 *key, const u8 hfunc)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
 	u32 hlut_val;
 	int i, j;
+
+	/* We do not allow change in unsupported parameters */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+	if (!indir)
+		return 0;
 
 	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
 		hlut_val = indir[j++];

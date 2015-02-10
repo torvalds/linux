@@ -209,16 +209,9 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	switch (config->chan_nr) {
 	case EIGHT_CHANNEL_SUPPORT:
-		ch_reg = 3;
-		break;
 	case SIX_CHANNEL_SUPPORT:
-		ch_reg = 2;
-		break;
 	case FOUR_CHANNEL_SUPPORT:
-		ch_reg = 1;
-		break;
 	case TWO_CHANNEL_SUPPORT:
-		ch_reg = 0;
 		break;
 	default:
 		dev_err(dev->dev, "channel not supported\n");
@@ -227,18 +220,22 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	i2s_disable_channels(dev, substream->stream);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		i2s_write_reg(dev->i2s_base, TCR(ch_reg), xfer_resolution);
-		i2s_write_reg(dev->i2s_base, TFCR(ch_reg), 0x02);
-		irq = i2s_read_reg(dev->i2s_base, IMR(ch_reg));
-		i2s_write_reg(dev->i2s_base, IMR(ch_reg), irq & ~0x30);
-		i2s_write_reg(dev->i2s_base, TER(ch_reg), 1);
-	} else {
-		i2s_write_reg(dev->i2s_base, RCR(ch_reg), xfer_resolution);
-		i2s_write_reg(dev->i2s_base, RFCR(ch_reg), 0x07);
-		irq = i2s_read_reg(dev->i2s_base, IMR(ch_reg));
-		i2s_write_reg(dev->i2s_base, IMR(ch_reg), irq & ~0x03);
-		i2s_write_reg(dev->i2s_base, RER(ch_reg), 1);
+	for (ch_reg = 0; ch_reg < (config->chan_nr / 2); ch_reg++) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			i2s_write_reg(dev->i2s_base, TCR(ch_reg),
+				      xfer_resolution);
+			i2s_write_reg(dev->i2s_base, TFCR(ch_reg), 0x02);
+			irq = i2s_read_reg(dev->i2s_base, IMR(ch_reg));
+			i2s_write_reg(dev->i2s_base, IMR(ch_reg), irq & ~0x30);
+			i2s_write_reg(dev->i2s_base, TER(ch_reg), 1);
+		} else {
+			i2s_write_reg(dev->i2s_base, RCR(ch_reg),
+				      xfer_resolution);
+			i2s_write_reg(dev->i2s_base, RFCR(ch_reg), 0x07);
+			irq = i2s_read_reg(dev->i2s_base, IMR(ch_reg));
+			i2s_write_reg(dev->i2s_base, IMR(ch_reg), irq & ~0x03);
+			i2s_write_reg(dev->i2s_base, RER(ch_reg), 1);
+		}
 	}
 
 	i2s_write_reg(dev->i2s_base, CCR, ccr);
@@ -261,6 +258,19 @@ static void dw_i2s_shutdown(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
+}
+
+static int dw_i2s_prepare(struct snd_pcm_substream *substream,
+			  struct snd_soc_dai *dai)
+{
+	struct dw_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		i2s_write_reg(dev->i2s_base, TXFFR, 1);
+	else
+		i2s_write_reg(dev->i2s_base, RXFFR, 1);
+
+	return 0;
 }
 
 static int dw_i2s_trigger(struct snd_pcm_substream *substream,
@@ -294,6 +304,7 @@ static struct snd_soc_dai_ops dw_i2s_dai_ops = {
 	.startup	= dw_i2s_startup,
 	.shutdown	= dw_i2s_shutdown,
 	.hw_params	= dw_i2s_hw_params,
+	.prepare	= dw_i2s_prepare,
 	.trigger	= dw_i2s_trigger,
 };
 
@@ -338,29 +349,32 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no i2s resource defined\n");
-		return -ENODEV;
-	}
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "i2s region already claimed\n");
-		return -EBUSY;
-	}
-
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		dev_warn(&pdev->dev, "kzalloc fail\n");
 		return -ENOMEM;
 	}
 
-	dev->i2s_base = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
-	if (!dev->i2s_base) {
-		dev_err(&pdev->dev, "ioremap fail for i2s_region\n");
+	dw_i2s_dai = devm_kzalloc(&pdev->dev, sizeof(*dw_i2s_dai), GFP_KERNEL);
+	if (!dw_i2s_dai) {
+		dev_err(&pdev->dev, "mem allocation failed for dai driver\n");
 		return -ENOMEM;
+	}
+
+	dw_i2s_dai->ops = &dw_i2s_dai_ops;
+	dw_i2s_dai->suspend = dw_i2s_suspend;
+	dw_i2s_dai->resume = dw_i2s_resume;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "no i2s resource defined\n");
+		return -ENODEV;
+	}
+
+	dev->i2s_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dev->i2s_base)) {
+		dev_err(&pdev->dev, "ioremap fail for i2s_region\n");
+		return PTR_ERR(dev->i2s_base);
 	}
 
 	cap = pdata->cap;
@@ -388,13 +402,6 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_clk_put;
 
-	dw_i2s_dai = devm_kzalloc(&pdev->dev, sizeof(*dw_i2s_dai), GFP_KERNEL);
-	if (!dw_i2s_dai) {
-		dev_err(&pdev->dev, "mem allocation failed for dai driver\n");
-		ret = -ENOMEM;
-		goto err_clk_disable;
-	}
-
 	if (cap & DWC_I2S_PLAY) {
 		dev_dbg(&pdev->dev, " designware: play supported\n");
 		dw_i2s_dai->playback.channels_min = MIN_CHANNEL_NUM;
@@ -410,10 +417,6 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		dw_i2s_dai->capture.formats = pdata->snd_fmts;
 		dw_i2s_dai->capture.rates = pdata->snd_rates;
 	}
-
-	dw_i2s_dai->ops = &dw_i2s_dai_ops;
-	dw_i2s_dai->suspend = dw_i2s_suspend;
-	dw_i2s_dai->resume = dw_i2s_resume;
 
 	dev->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, dev);
@@ -449,7 +452,6 @@ static struct platform_driver dw_i2s_driver = {
 	.remove		= dw_i2s_remove,
 	.driver		= {
 		.name	= "designware-i2s",
-		.owner	= THIS_MODULE,
 	},
 };
 

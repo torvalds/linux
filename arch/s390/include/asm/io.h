@@ -13,9 +13,10 @@
 #include <asm/page.h>
 #include <asm/pci_io.h>
 
-void *xlate_dev_mem_ptr(unsigned long phys);
 #define xlate_dev_mem_ptr xlate_dev_mem_ptr
-void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
+void *xlate_dev_mem_ptr(phys_addr_t phys);
+#define unxlate_dev_mem_ptr unxlate_dev_mem_ptr
+void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
 
 /*
  * Convert a virtual cached pointer to an uncached pointer
@@ -35,6 +36,15 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 }
 
 static inline void iounmap(volatile void __iomem *addr)
+{
+}
+
+static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
+{
+	return NULL;
+}
+
+static inline void ioport_unmap(void __iomem *p)
 {
 }
 
@@ -59,11 +69,6 @@ static inline void iounmap(volatile void __iomem *addr)
 #define __raw_writew	zpci_write_u16
 #define __raw_writel	zpci_write_u32
 #define __raw_writeq	zpci_write_u64
-
-#define readb_relaxed	readb
-#define readw_relaxed	readw
-#define readl_relaxed	readl
-#define readq_relaxed	readq
 
 #endif /* CONFIG_PCI */
 

@@ -143,18 +143,18 @@ static void lsm_unpackmd_common(struct lov_stripe_md *lsm,
 
 static void
 lsm_stripe_by_index_plain(struct lov_stripe_md *lsm, int *stripeno,
-			   obd_off *lov_off, obd_off *swidth)
+			   u64 *lov_off, u64 *swidth)
 {
 	if (swidth)
-		*swidth = (obd_off)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
+		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
 }
 
 static void
 lsm_stripe_by_offset_plain(struct lov_stripe_md *lsm, int *stripeno,
-			   obd_off *lov_off, obd_off *swidth)
+			   u64 *lov_off, u64 *swidth)
 {
 	if (swidth)
-		*swidth = (obd_off)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
+		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
 }
 
 static int lsm_destroy_plain(struct lov_stripe_md *lsm, struct obdo *oa,
@@ -348,9 +348,8 @@ const struct lsm_operations lsm_v3_ops = {
 
 void dump_lsm(unsigned int level, const struct lov_stripe_md *lsm)
 {
-	CDEBUG(level, "lsm %p, objid "DOSTID", maxbytes %#llx, magic 0x%08X,"
-	       " stripe_size %u, stripe_count %u, refc: %d,"
-	       " layout_gen %u, pool ["LOV_POOLNAMEF"]\n", lsm,
+	CDEBUG(level, "lsm %p, objid " DOSTID ", maxbytes %#llx, magic 0x%08X, stripe_size %u, stripe_count %u, refc: %d, layout_gen %u, pool [" LOV_POOLNAMEF "]\n",
+	       lsm,
 	       POSTID(&lsm->lsm_oi), lsm->lsm_maxbytes, lsm->lsm_magic,
 	       lsm->lsm_stripe_size, lsm->lsm_stripe_count,
 	       atomic_read(&lsm->lsm_refc), lsm->lsm_layout_gen,

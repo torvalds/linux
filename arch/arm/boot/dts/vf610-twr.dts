@@ -22,18 +22,16 @@
 		reg = <0x80000000 0x8000000>;
 	};
 
-	clocks {
-		audio_ext {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <24576000>;
-		};
+	audio_ext: mclk_osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24576000>;
+	};
 
-		enet_ext {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <50000000>;
-		};
+	enet_ext: eth_osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
 	};
 
 	regulators {
@@ -76,7 +74,6 @@
 
 		simple-audio-card,cpu {
 			sound-dai = <&sai2>;
-			master-clkdir-out;
 			frame-master;
 			bitclock-master;
 		};
@@ -96,6 +93,11 @@
 	status = "okay";
 };
 
+&clks {
+	clocks = <&sxosc>, <&fxosc>, <&enet_ext>, <&audio_ext>;
+	clock-names = "sxosc", "fxosc", "enet_ext", "audio_ext";
+};
+
 &dspi0 {
 	bus-num = <0>;
 	pinctrl-names = "default";
@@ -113,10 +115,15 @@
 	};
 };
 
+&edma0 {
+	status = "okay";
+};
+
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
+	cd-gpios = <&gpio5 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -221,8 +228,6 @@
 				VF610_PAD_PTB1__FTM0_CH1		0x1582
 				VF610_PAD_PTB2__FTM0_CH2		0x1582
 				VF610_PAD_PTB3__FTM0_CH3		0x1582
-				VF610_PAD_PTB6__FTM0_CH6		0x1582
-				VF610_PAD_PTB7__FTM0_CH7		0x1582
 			>;
 		};
 
@@ -244,6 +249,13 @@
 				VF610_PAD_PTB5__UART1_RX		0x21a1
 			>;
 		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				VF610_PAD_PTB6__UART2_TX		0x21a2
+				VF610_PAD_PTB7__UART2_RX		0x21a1
+			>;
+		};
 	};
 };
 
@@ -263,5 +275,37 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&usbdev0 {
+	disable-over-current;
+	status = "okay";
+};
+
+&usbh1 {
+	disable-over-current;
+	status = "okay";
+};
+
+&usbmisc0 {
+	status = "okay";
+};
+
+&usbmisc1 {
+	status = "okay";
+};
+
+&usbphy0 {
+	status = "okay";
+};
+
+&usbphy1 {
 	status = "okay";
 };

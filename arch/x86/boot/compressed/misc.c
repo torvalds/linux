@@ -260,7 +260,7 @@ static void handle_relocations(void *output, unsigned long output_len)
 
 	/*
 	 * Process relocations: 32 bit relocations first then 64 bit after.
-	 * Two sets of binary relocations are added to the end of the kernel
+	 * Three sets of binary relocations are added to the end of the kernel
 	 * before compression. Each relocation table entry is the kernel
 	 * address of the location which needs to be updated stored as a
 	 * 32-bit value which is sign extended to 64 bits.
@@ -270,6 +270,8 @@ static void handle_relocations(void *output, unsigned long output_len)
 	 * kernel bits...
 	 * 0 - zero terminator for 64 bit relocations
 	 * 64 bit relocation repeated
+	 * 0 - zero terminator for inverse 32 bit relocations
+	 * 32 bit inverse relocation repeated
 	 * 0 - zero terminator for 32 bit relocations
 	 * 32 bit relocation repeated
 	 *
@@ -286,6 +288,16 @@ static void handle_relocations(void *output, unsigned long output_len)
 		*(uint32_t *)ptr += delta;
 	}
 #ifdef CONFIG_X86_64
+	while (*--reloc) {
+		long extended = *reloc;
+		extended += map;
+
+		ptr = (unsigned long)extended;
+		if (ptr < min_addr || ptr > max_addr)
+			error("inverse 32-bit relocation outside of kernel!\n");
+
+		*(int32_t *)ptr -= delta;
+	}
 	for (reloc--; *reloc; reloc--) {
 		long extended = *reloc;
 		extended += map;
@@ -358,7 +370,8 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 				  unsigned char *input_data,
 				  unsigned long input_len,
 				  unsigned char *output,
-				  unsigned long output_len)
+				  unsigned long output_len,
+				  unsigned long run_size)
 {
 	real_mode = rmode;
 
@@ -381,8 +394,14 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
 
-	output = choose_kernel_location(input_data, input_len,
-					output, output_len);
+	/*
+	 * The memory hole needed for the kernel is the larger of either
+	 * the entire decompressed kernel plus relocation table, or the
+	 * entire decompressed kernel plus .bss and .brk sections.
+	 */
+	output = choose_kernel_location(input_data, input_len, output,
+					output_len > run_size ? output_len
+							      : run_size);
 
 	/* Validate memory location choices. */
 	if ((unsigned long)output & (MIN_KERNEL_ALIGN - 1))

@@ -84,6 +84,9 @@ struct fs_ops {
 	void (*napi_clear_rx_event)(struct net_device *dev);
 	void (*napi_enable_rx)(struct net_device *dev);
 	void (*napi_disable_rx)(struct net_device *dev);
+	void (*napi_clear_tx_event)(struct net_device *dev);
+	void (*napi_enable_tx)(struct net_device *dev);
+	void (*napi_disable_tx)(struct net_device *dev);
 	void (*rx_bd_done)(struct net_device *dev);
 	void (*tx_kickstart)(struct net_device *dev);
 	u32 (*get_int_events)(struct net_device *dev);
@@ -119,6 +122,7 @@ struct phy_info {
 
 struct fs_enet_private {
 	struct napi_struct napi;
+	struct napi_struct napi_tx;
 	struct device *dev;	/* pointer back to the device (must be initialized first) */
 	struct net_device *ndev;
 	spinlock_t lock;	/* during all ops except TX pckt processing */
@@ -149,6 +153,7 @@ struct fs_enet_private {
 
 	/* event masks */
 	u32 ev_napi_rx;		/* mask of NAPI rx events */
+	u32 ev_napi_tx;		/* mask of NAPI rx events */
 	u32 ev_rx;		/* rx event mask          */
 	u32 ev_tx;		/* tx event mask          */
 	u32 ev_err;		/* error event mask       */
@@ -191,8 +196,8 @@ void fs_cleanup_bds(struct net_device *dev);
 
 #define DRV_MODULE_NAME		"fs_enet"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.0"
-#define DRV_MODULE_RELDATE	"Aug 8, 2005"
+#define DRV_MODULE_VERSION	"1.1"
+#define DRV_MODULE_RELDATE	"Sep 22, 2014"
 
 /***************************************************************************/
 

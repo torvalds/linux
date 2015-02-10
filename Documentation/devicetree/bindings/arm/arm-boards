@@ -92,3 +92,68 @@ Required nodes:
 - core-module: the root node to the Versatile platforms must have
   a core-module with regs and the compatible strings
   "arm,core-module-versatile", "syscon"
+
+ARM RealView Boards
+-------------------
+The RealView boards cover tailored evaluation boards that are used to explore
+the ARM11 and Cortex A-8 and Cortex A-9 processors.
+
+Required properties (in root node):
+	/* RealView Emulation Baseboard */
+	compatible = "arm,realview-eb";
+	 /* RealView Platform Baseboard for ARM1176JZF-S */
+	compatible = "arm,realview-pb1176";
+	/* RealView Platform Baseboard for ARM11 MPCore */
+	compatible = "arm,realview-pb11mp";
+	/* RealView Platform Baseboard for Cortex A-8 */
+	compatible = "arm,realview-pba8";
+	/* RealView Platform Baseboard Explore for Cortex A-9 */
+	compatible = "arm,realview-pbx";
+
+Required nodes:
+
+- soc: some node of the RealView platforms must be the SoC
+  node that contain the SoC-specific devices, withe the compatible
+  string set to one of these tuples:
+   "arm,realview-eb-soc", "simple-bus"
+   "arm,realview-pb1176-soc", "simple-bus"
+   "arm,realview-pb11mp-soc", "simple-bus"
+   "arm,realview-pba8-soc", "simple-bus"
+   "arm,realview-pbx-soc", "simple-bus"
+
+- syscon: some subnode of the RealView SoC node must be a
+  system controller node pointing to the control registers,
+  with the compatible string set to one of these tuples:
+   "arm,realview-eb-syscon", "syscon"
+   "arm,realview-pb1176-syscon", "syscon"
+   "arm,realview-pb11mp-syscon", "syscon"
+   "arm,realview-pba8-syscon", "syscon"
+   "arm,realview-pbx-syscon", "syscon"
+
+  Required properties for the system controller:
+  - regs: the location and size of the system controller registers,
+    one range of 0x1000 bytes.
+
+Example:
+
+/dts-v1/;
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "skeleton.dtsi"
+
+/ {
+	model = "ARM RealView PB1176 with device tree";
+	compatible = "arm,realview-pb1176";
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "arm,realview-pb1176-soc", "simple-bus";
+		ranges;
+
+		syscon: syscon@10000000 {
+			compatible = "arm,realview-syscon", "syscon";
+			reg = <0x10000000 0x1000>;
+		};
+
+	};
+};

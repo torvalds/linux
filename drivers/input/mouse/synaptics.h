@@ -119,16 +119,6 @@
 #define SYN_REDUCED_FILTER_FUZZ		8
 
 /*
- * A structure to describe which internal touchpad finger slots are being
- * reported in raw packets.
- */
-struct synaptics_mt_state {
-	int count;			/* num fingers being tracked */
-	int sgm;			/* which slot is reported by sgm pkt */
-	int agm;			/* which slot is reported by agm pkt*/
-};
-
-/*
  * A structure to describe the state of the touchpad hardware (buttons and pad)
  */
 struct synaptics_hw_state {
@@ -143,9 +133,6 @@ struct synaptics_hw_state {
 	unsigned int down:1;
 	unsigned char ext_buttons;
 	signed char scroll;
-
-	/* As reported in last AGM-CONTACT packets */
-	struct synaptics_mt_state mt_state;
 };
 
 struct synaptics_data {
@@ -170,15 +157,12 @@ struct synaptics_data {
 
 	struct serio *pt_port;			/* Pass-through serio port */
 
-	struct synaptics_mt_state mt_state;	/* Current mt finger state */
-	bool mt_state_lost;			/* mt_state may be incorrect */
-
 	/*
 	 * Last received Advanced Gesture Mode (AGM) packet. An AGM packet
 	 * contains position data for a second contact, at half resolution.
 	 */
 	struct synaptics_hw_state agm;
-	bool agm_pending;			/* new AGM packet received */
+	unsigned int agm_count;			/* finger count reported by agm */
 
 	/* ForcePad handling */
 	unsigned long				press_start;

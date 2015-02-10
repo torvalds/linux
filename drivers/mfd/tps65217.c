@@ -33,9 +33,11 @@
 static const struct mfd_cell tps65217s[] = {
 	{
 		.name = "tps65217-pmic",
+		.of_compatible = "ti,tps65217-pmic",
 	},
 	{
 		.name = "tps65217-bl",
+		.of_compatible = "ti,tps65217-bl",
 	},
 };
 
@@ -146,6 +148,8 @@ EXPORT_SYMBOL_GPL(tps65217_clear_bits);
 static struct regmap_config tps65217_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+
+	.max_register = TPS65217_REG_MAX,
 };
 
 static const struct of_device_id tps65217_of_match[] = {

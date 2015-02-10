@@ -24,6 +24,8 @@
 
 #define USB8XXX_VID		0x1286
 
+#define USB8766_PID_1		0x2041
+#define USB8766_PID_2		0x2042
 #define USB8797_PID_1		0x2043
 #define USB8797_PID_2		0x2044
 #define USB8897_PID_1		0x2045
@@ -37,6 +39,7 @@
 #define MWIFIEX_RX_DATA_URB	6
 #define MWIFIEX_USB_TIMEOUT	100
 
+#define USB8766_DEFAULT_FW_NAME	"mrvl/usb8766_uapsta.bin"
 #define USB8797_DEFAULT_FW_NAME	"mrvl/usb8797_uapsta.bin"
 #define USB8897_DEFAULT_FW_NAME	"mrvl/usb8897_uapsta.bin"
 

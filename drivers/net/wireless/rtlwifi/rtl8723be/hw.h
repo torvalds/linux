@@ -59,4 +59,5 @@ void rtl8723be_bt_reg_init(struct ieee80211_hw *hw);
 void rtl8723be_bt_hw_init(struct ieee80211_hw *hw);
 void rtl8723be_suspend(struct ieee80211_hw *hw);
 void rtl8723be_resume(struct ieee80211_hw *hw);
+
 #endif

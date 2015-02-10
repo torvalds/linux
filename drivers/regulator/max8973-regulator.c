@@ -458,7 +458,8 @@ static int max8973_probe(struct i2c_client *client,
 
 	config.dev = &client->dev;
 	config.init_data = pdata ? pdata->reg_init_data :
-		of_get_regulator_init_data(&client->dev, client->dev.of_node);
+		of_get_regulator_init_data(&client->dev, client->dev.of_node,
+					   &max->desc);
 	config.driver_data = max;
 	config.of_node = client->dev.of_node;
 	config.regmap = max->regmap;

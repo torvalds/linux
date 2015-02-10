@@ -13,8 +13,11 @@
 
 #ifndef ASM_KVM_HOST_H
 #define ASM_KVM_HOST_H
+
+#include <linux/types.h>
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
+#include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <asm/debug.h>
@@ -120,7 +123,7 @@ struct kvm_s390_sie_block {
 #define ICPT_PARTEXEC	0x38
 #define ICPT_IOINST	0x40
 	__u8	icptcode;		/* 0x0050 */
-	__u8	reserved51;		/* 0x0051 */
+	__u8	icptstatus;		/* 0x0051 */
 	__u16	ihcpu;			/* 0x0052 */
 	__u8	reserved54[2];		/* 0x0054 */
 	__u16	ipa;			/* 0x0056 */
@@ -154,7 +157,9 @@ struct kvm_s390_sie_block {
 	__u8	armid;			/* 0x00e3 */
 	__u8	reservede4[4];		/* 0x00e4 */
 	__u64	tecmc;			/* 0x00e8 */
-	__u8	reservedf0[16];		/* 0x00f0 */
+	__u8	reservedf0[12];		/* 0x00f0 */
+#define CRYCB_FORMAT1 0x00000001
+	__u32	crycbd;			/* 0x00fc */
 	__u64	gcr[16];		/* 0x0100 */
 	__u64	gbea;			/* 0x0180 */
 	__u8	reserved188[24];	/* 0x0188 */
@@ -187,6 +192,7 @@ struct kvm_vcpu_stat {
 	u32 exit_stop_request;
 	u32 exit_validity;
 	u32 exit_instruction;
+	u32 halt_wakeup;
 	u32 instruction_lctl;
 	u32 instruction_lctlg;
 	u32 instruction_stctl;
@@ -220,10 +226,17 @@ struct kvm_vcpu_stat {
 	u32 instruction_sigp_sense_running;
 	u32 instruction_sigp_external_call;
 	u32 instruction_sigp_emergency;
+	u32 instruction_sigp_cond_emergency;
+	u32 instruction_sigp_start;
 	u32 instruction_sigp_stop;
+	u32 instruction_sigp_stop_store_status;
+	u32 instruction_sigp_store_status;
 	u32 instruction_sigp_arch;
 	u32 instruction_sigp_prefix;
 	u32 instruction_sigp_restart;
+	u32 instruction_sigp_init_cpu_reset;
+	u32 instruction_sigp_cpu_reset;
+	u32 instruction_sigp_unknown;
 	u32 diagnose_10;
 	u32 diagnose_44;
 	u32 diagnose_9c;
@@ -282,6 +295,79 @@ struct kvm_vcpu_stat {
 #define PGM_PER				0x80
 #define PGM_CRYPTO_OPERATION		0x119
 
+/* irq types in order of priority */
+enum irq_types {
+	IRQ_PEND_MCHK_EX = 0,
+	IRQ_PEND_SVC,
+	IRQ_PEND_PROG,
+	IRQ_PEND_MCHK_REP,
+	IRQ_PEND_EXT_IRQ_KEY,
+	IRQ_PEND_EXT_MALFUNC,
+	IRQ_PEND_EXT_EMERGENCY,
+	IRQ_PEND_EXT_EXTERNAL,
+	IRQ_PEND_EXT_CLOCK_COMP,
+	IRQ_PEND_EXT_CPU_TIMER,
+	IRQ_PEND_EXT_TIMING,
+	IRQ_PEND_EXT_SERVICE,
+	IRQ_PEND_EXT_HOST,
+	IRQ_PEND_PFAULT_INIT,
+	IRQ_PEND_PFAULT_DONE,
+	IRQ_PEND_VIRTIO,
+	IRQ_PEND_IO_ISC_0,
+	IRQ_PEND_IO_ISC_1,
+	IRQ_PEND_IO_ISC_2,
+	IRQ_PEND_IO_ISC_3,
+	IRQ_PEND_IO_ISC_4,
+	IRQ_PEND_IO_ISC_5,
+	IRQ_PEND_IO_ISC_6,
+	IRQ_PEND_IO_ISC_7,
+	IRQ_PEND_SIGP_STOP,
+	IRQ_PEND_RESTART,
+	IRQ_PEND_SET_PREFIX,
+	IRQ_PEND_COUNT
+};
+
+/*
+ * Repressible (non-floating) machine check interrupts
+ * subclass bits in MCIC
+ */
+#define MCHK_EXTD_BIT 58
+#define MCHK_DEGR_BIT 56
+#define MCHK_WARN_BIT 55
+#define MCHK_REP_MASK ((1UL << MCHK_DEGR_BIT) | \
+		       (1UL << MCHK_EXTD_BIT) | \
+		       (1UL << MCHK_WARN_BIT))
+
+/* Exigent machine check interrupts subclass bits in MCIC */
+#define MCHK_SD_BIT 63
+#define MCHK_PD_BIT 62
+#define MCHK_EX_MASK ((1UL << MCHK_SD_BIT) | (1UL << MCHK_PD_BIT))
+
+#define IRQ_PEND_EXT_MASK ((1UL << IRQ_PEND_EXT_IRQ_KEY)    | \
+			   (1UL << IRQ_PEND_EXT_CLOCK_COMP) | \
+			   (1UL << IRQ_PEND_EXT_CPU_TIMER)  | \
+			   (1UL << IRQ_PEND_EXT_MALFUNC)    | \
+			   (1UL << IRQ_PEND_EXT_EMERGENCY)  | \
+			   (1UL << IRQ_PEND_EXT_EXTERNAL)   | \
+			   (1UL << IRQ_PEND_EXT_TIMING)     | \
+			   (1UL << IRQ_PEND_EXT_HOST)       | \
+			   (1UL << IRQ_PEND_EXT_SERVICE)    | \
+			   (1UL << IRQ_PEND_VIRTIO)         | \
+			   (1UL << IRQ_PEND_PFAULT_INIT)    | \
+			   (1UL << IRQ_PEND_PFAULT_DONE))
+
+#define IRQ_PEND_IO_MASK ((1UL << IRQ_PEND_IO_ISC_0) | \
+			  (1UL << IRQ_PEND_IO_ISC_1) | \
+			  (1UL << IRQ_PEND_IO_ISC_2) | \
+			  (1UL << IRQ_PEND_IO_ISC_3) | \
+			  (1UL << IRQ_PEND_IO_ISC_4) | \
+			  (1UL << IRQ_PEND_IO_ISC_5) | \
+			  (1UL << IRQ_PEND_IO_ISC_6) | \
+			  (1UL << IRQ_PEND_IO_ISC_7))
+
+#define IRQ_PEND_MCHK_MASK ((1UL << IRQ_PEND_MCHK_REP) | \
+			    (1UL << IRQ_PEND_MCHK_EX))
+
 struct kvm_s390_interrupt_info {
 	struct list_head list;
 	u64	type;
@@ -300,14 +386,25 @@ struct kvm_s390_interrupt_info {
 #define ACTION_STORE_ON_STOP		(1<<0)
 #define ACTION_STOP_ON_STOP		(1<<1)
 
+struct kvm_s390_irq_payload {
+	struct kvm_s390_io_info io;
+	struct kvm_s390_ext_info ext;
+	struct kvm_s390_pgm_info pgm;
+	struct kvm_s390_emerg_info emerg;
+	struct kvm_s390_extcall_info extcall;
+	struct kvm_s390_prefix_info prefix;
+	struct kvm_s390_mchk_info mchk;
+};
+
 struct kvm_s390_local_interrupt {
 	spinlock_t lock;
-	struct list_head list;
-	atomic_t active;
 	struct kvm_s390_float_interrupt *float_int;
 	wait_queue_head_t *wq;
 	atomic_t *cpuflags;
 	unsigned int action_bits;
+	DECLARE_BITMAP(sigp_emerg_pending, KVM_MAX_VCPUS);
+	struct kvm_s390_irq_payload irq;
+	unsigned long pending_irqs;
 };
 
 struct kvm_s390_float_interrupt {
@@ -407,6 +504,15 @@ struct s390_io_adapter {
 #define MAX_S390_IO_ADAPTERS ((MAX_ISC + 1) * 8)
 #define MAX_S390_ADAPTER_MAPS 256
 
+struct kvm_s390_crypto {
+	struct kvm_s390_crypto_cb *crycb;
+	__u32 crycbd;
+};
+
+struct kvm_s390_crypto_cb {
+	__u8    reserved00[128];                /* 0x0000 */
+};
+
 struct kvm_arch{
 	struct sca_block *sca;
 	debug_info_t *dbf;
@@ -419,7 +525,10 @@ struct kvm_arch{
 	int user_cpu_state_ctrl;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
+	int ipte_lock_count;
+	struct mutex ipte_mutex;
 	spinlock_t start_stop_lock;
+	struct kvm_s390_crypto crypto;
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)
@@ -431,8 +540,6 @@ static inline bool kvm_is_error_hva(unsigned long addr)
 }
 
 #define ASYNC_PF_PER_VCPU	64
-struct kvm_vcpu;
-struct kvm_async_pf;
 struct kvm_arch_async_pf {
 	unsigned long pfault_token;
 };
@@ -450,4 +557,18 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 
 extern int sie64a(struct kvm_s390_sie_block *, u64 *);
 extern char sie_exit;
+
+static inline void kvm_arch_hardware_disable(void) {}
+static inline void kvm_arch_check_processor_compat(void *rtn) {}
+static inline void kvm_arch_exit(void) {}
+static inline void kvm_arch_sync_events(struct kvm *kvm) {}
+static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+static inline void kvm_arch_free_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *free, struct kvm_memory_slot *dont) {}
+static inline void kvm_arch_memslots_updated(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *slot) {}
+
 #endif

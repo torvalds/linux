@@ -107,6 +107,13 @@ config AT_HDMAC
 	help
 	  Support the Atmel AHB DMA controller.
 
+config AT_XDMAC
+	tristate "Atmel XDMA support"
+	depends on ARCH_AT91
+	select DMA_ENGINE
+	help
+	  Support the Atmel XDMA controller.
+
 config FSL_DMA
 	tristate "Freescale Elo series DMA support"
 	depends on FSL_SOC
@@ -270,7 +277,7 @@ config IMX_SDMA
 	select DMA_ENGINE
 	help
 	  Support the i.MX SDMA engine. This engine is integrated into
-	  Freescale i.MX25/31/35/51/53 chips.
+	  Freescale i.MX25/31/35/51/53/6 chips.
 
 config IMX_DMA
 	tristate "i.MX DMA support"
@@ -395,12 +402,12 @@ config XILINX_VDMA
 
 config DMA_SUN6I
 	tristate "Allwinner A31 SoCs DMA support"
-	depends on MACH_SUN6I || COMPILE_TEST
+	depends on MACH_SUN6I || MACH_SUN8I || COMPILE_TEST
 	depends on RESET_CONTROLLER
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Support for the DMA engine for Allwinner A31 SoCs.
+	  Support for the DMA engine first found in Allwinner A31 SoCs.
 
 config NBPFAXI_DMA
 	tristate "Renesas Type-AXI NBPF DMA support"
@@ -426,18 +433,6 @@ config DMA_OF
 
 comment "DMA Clients"
 	depends on DMA_ENGINE
-
-config NET_DMA
-	bool "Network: TCP receive copy offload"
-	depends on DMA_ENGINE && NET
-	default (INTEL_IOATDMA || FSL_DMA)
-	depends on BROKEN
-	help
-	  This enables the use of DMA engines in the network stack to
-	  offload receive copy-to-user operations, freeing CPU cycles.
-
-	  Say Y here if you enabled INTEL_IOATDMA or FSL_DMA, otherwise
-	  say N.
 
 config ASYNC_TX_DMA
 	bool "Async_tx: Offload support for the async_tx api"

@@ -25,8 +25,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_itable.h"
@@ -160,6 +158,7 @@ xfs_ioctl32_bstat_copyin(
 	    get_user(bstat->bs_gen,	&bstat32->bs_gen)	||
 	    get_user(bstat->bs_projid_lo, &bstat32->bs_projid_lo) ||
 	    get_user(bstat->bs_projid_hi, &bstat32->bs_projid_hi) ||
+	    get_user(bstat->bs_forkoff,	&bstat32->bs_forkoff)	||
 	    get_user(bstat->bs_dmevmask, &bstat32->bs_dmevmask)	||
 	    get_user(bstat->bs_dmstate,	&bstat32->bs_dmstate)	||
 	    get_user(bstat->bs_aextents, &bstat32->bs_aextents))
@@ -214,6 +213,7 @@ xfs_bulkstat_one_fmt_compat(
 	    put_user(buffer->bs_gen,	  &p32->bs_gen)		||
 	    put_user(buffer->bs_projid,	  &p32->bs_projid)	||
 	    put_user(buffer->bs_projid_hi,	&p32->bs_projid_hi)	||
+	    put_user(buffer->bs_forkoff,  &p32->bs_forkoff)	||
 	    put_user(buffer->bs_dmevmask, &p32->bs_dmevmask)	||
 	    put_user(buffer->bs_dmstate,  &p32->bs_dmstate)	||
 	    put_user(buffer->bs_aextents, &p32->bs_aextents))

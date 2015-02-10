@@ -90,7 +90,7 @@ static void adf_dev_restore(struct adf_accel_dev *accel_dev)
 	uint16_t ppdstat = 0, bridge_ctl = 0;
 	int pending = 0;
 
-	pr_info("QAT: Reseting device qat_dev%d\n", accel_dev->accel_id);
+	pr_info("QAT: Resetting device qat_dev%d\n", accel_dev->accel_id);
 	pci_read_config_word(pdev, PPDSTAT_OFFSET, &ppdstat);
 	pending = ppdstat & PCI_EXP_DEVSTA_TRPND;
 	if (pending) {

@@ -343,7 +343,7 @@ int i40e_init_pf_fcoe(struct i40e_pf *pf)
  **/
 u8 i40e_get_fcoe_tc_map(struct i40e_pf *pf)
 {
-	struct i40e_ieee_app_priority_table app;
+	struct i40e_dcb_app_priority_table app;
 	struct i40e_hw *hw = &pf->hw;
 	u8 enabled_tc = 0;
 	u8 tc, i;

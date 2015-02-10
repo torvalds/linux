@@ -43,22 +43,4 @@
 # endif
 
 
-#  define PARM_STR(VAR, INIT, PERM, DESC) \
-		static char *VAR = INIT; \
-		char *dgnc_##VAR; \
-		module_param(VAR, charp, PERM); \
-		MODULE_PARM_DESC(VAR, DESC);
-
-#  define PARM_INT(VAR, INIT, PERM, DESC) \
-		static int VAR = INIT; \
-		int dgnc_##VAR; \
-		module_param(VAR, int, PERM); \
-		MODULE_PARM_DESC(VAR, DESC);
-
-#  define PARM_ULONG(VAR, INIT, PERM, DESC) \
-		static ulong VAR = INIT; \
-		ulong dgnc_##VAR; \
-		module_param(VAR, long, PERM); \
-		MODULE_PARM_DESC(VAR, DESC);
-
 #endif /* ! __DGNC_KCOMPAT_H */

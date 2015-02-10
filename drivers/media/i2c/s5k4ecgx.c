@@ -151,7 +151,7 @@ static const struct s5k4ecgx_frmsize s5k4ecgx_prev_sizes[] = {
 #define S5K4ECGX_NUM_PREV ARRAY_SIZE(s5k4ecgx_prev_sizes)
 
 struct s5k4ecgx_pixfmt {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	u32 colorspace;
 	/* REG_TC_PCFG_Format register value */
 	u16 reg_p_format;
@@ -159,7 +159,7 @@ struct s5k4ecgx_pixfmt {
 
 /* By default value, output from sensor will be YUV422 0-255 */
 static const struct s5k4ecgx_pixfmt s5k4ecgx_formats[] = {
-	{ V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG, 5 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG, 5 },
 };
 
 static const char * const s5k4ecgx_supply_names[] = {

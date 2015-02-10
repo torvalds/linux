@@ -494,13 +494,10 @@ EXPORT_SYMBOL_GPL(mite_bytes_read_from_memory_ub);
 unsigned mite_dma_tcr(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
-	int tcr;
 	int lkar;
 
 	lkar = readl(mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
-	tcr = readl(mite->mite_io_addr + MITE_TCR(mite_chan->channel));
-
-	return tcr;
+	return readl(mite->mite_io_addr + MITE_TCR(mite_chan->channel));
 }
 EXPORT_SYMBOL_GPL(mite_dma_tcr);
 
@@ -542,7 +539,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 		return 0;
 
 	comedi_buf_write_free(s, count);
-	cfc_inc_scan_progress(s, count);
+	comedi_inc_scan_progress(s, count);
 	async->events |= COMEDI_CB_BLOCK;
 	return 0;
 }
@@ -553,7 +550,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	u32 stop_count = cmd->stop_arg * cfc_bytes_per_scan(s);
+	u32 stop_count = cmd->stop_arg * comedi_bytes_per_scan(s);
 	unsigned int old_alloc_count = async->buf_read_alloc_count;
 	u32 nbytes_ub, nbytes_lb;
 	int count;

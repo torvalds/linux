@@ -690,7 +690,7 @@ static inline int cpq_get_latch_status(struct controller *ctrl,
 
 	status = (readl(ctrl->hpc_reg + INT_INPUT_CLEAR) & (0x01L << hp_slot));
 
-	return(status == 0) ? 1 : 0;
+	return (status == 0) ? 1 : 0;
 }
 
 

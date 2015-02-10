@@ -53,7 +53,7 @@
 
 int lmv_fld_lookup(struct lmv_obd *lmv,
 		   const struct lu_fid *fid,
-		   mdsno_t *mds)
+		   u32 *mds)
 {
 	int rc;
 
@@ -75,8 +75,7 @@ int lmv_fld_lookup(struct lmv_obd *lmv,
 	       *mds, PFID(fid));
 
 	if (*mds >= lmv->desc.ld_tgt_count) {
-		CERROR("FLD lookup got invalid mds #%x (max: %x) "
-		       "for fid="DFID"\n", *mds, lmv->desc.ld_tgt_count,
+		CERROR("FLD lookup got invalid mds #%x (max: %x) for fid=" DFID "\n", *mds, lmv->desc.ld_tgt_count,
 		       PFID(fid));
 		rc = -EINVAL;
 	}

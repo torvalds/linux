@@ -199,6 +199,33 @@ The active-low state of a GPIO can also be queried using the following call:
 Note that these functions should only be used with great moderation ; a driver
 should not have to care about the physical line level.
 
+
+Set multiple GPIO outputs with a single function call
+-----------------------------------------------------
+The following functions set the output values of an array of GPIOs:
+
+	void gpiod_set_array(unsigned int array_size,
+			     struct gpio_desc **desc_array,
+			     int *value_array)
+	void gpiod_set_raw_array(unsigned int array_size,
+				 struct gpio_desc **desc_array,
+				 int *value_array)
+	void gpiod_set_array_cansleep(unsigned int array_size,
+				      struct gpio_desc **desc_array,
+				      int *value_array)
+	void gpiod_set_raw_array_cansleep(unsigned int array_size,
+					  struct gpio_desc **desc_array,
+					  int *value_array)
+
+The array can be an arbitrary set of GPIOs. The functions will try to set
+GPIOs belonging to the same bank or chip simultaneously if supported by the
+corresponding chip driver. In that case a significantly improved performance
+can be expected. If simultaneous setting is not possible the GPIOs will be set
+sequentially.
+Note that for optimal performance GPIOs belonging to the same chip should be
+contiguous within the array of descriptors.
+
+
 GPIOs mapped to IRQs
 --------------------
 GPIO lines can quite often be used as IRQs. You can get the IRQ number
@@ -217,6 +244,24 @@ free_irq(). They will often be stored into IRQ resources for platform devices,
 by the board-specific initialization code. Note that IRQ trigger options are
 part of the IRQ interface, e.g. IRQF_TRIGGER_FALLING, as are system wakeup
 capabilities.
+
+
+GPIOs and ACPI
+==============
+
+On ACPI systems, GPIOs are described by GpioIo()/GpioInt() resources listed by
+the _CRS configuration objects of devices.  Those resources do not provide
+connection IDs (names) for GPIOs, so it is necessary to use an additional
+mechanism for this purpose.
+
+Systems compliant with ACPI 5.1 or newer may provide a _DSD configuration object
+which, among other things, may be used to provide connection IDs for specific
+GPIOs described by the GpioIo()/GpioInt() resources in _CRS.  If that is the
+case, it will be handled by the GPIO subsystem automatically.  However, if the
+_DSD is not present, the mappings between GpioIo()/GpioInt() resources and GPIO
+connection IDs need to be provided by device drivers.
+
+For details refer to Documentation/acpi/gpio-properties.txt
 
 
 Interacting With the Legacy GPIO Subsystem

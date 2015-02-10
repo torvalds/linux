@@ -22,7 +22,6 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/bootmem.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 

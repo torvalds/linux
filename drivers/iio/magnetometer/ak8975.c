@@ -477,8 +477,8 @@ static const struct acpi_device_id ak_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, ak_acpi_match);
 
-static char *ak8975_match_acpi_device(struct device *dev,
-				enum asahi_compass_chipset *chipset)
+static const char *ak8975_match_acpi_device(struct device *dev,
+					    enum asahi_compass_chipset *chipset)
 {
 	const struct acpi_device_id *id;
 
@@ -487,7 +487,7 @@ static char *ak8975_match_acpi_device(struct device *dev,
 		return NULL;
 	*chipset = (int)id->driver_data;
 
-	return (char *)dev_name(dev);
+	return dev_name(dev);
 }
 
 static int ak8975_probe(struct i2c_client *client,
@@ -497,7 +497,7 @@ static int ak8975_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int eoc_gpio;
 	int err;
-	char *name = NULL;
+	const char *name = NULL;
 
 	/* Grab and set up the supplied GPIO. */
 	if (client->dev.platform_data)
@@ -539,7 +539,7 @@ static int ak8975_probe(struct i2c_client *client,
 	if (id) {
 		data->chipset =
 			(enum asahi_compass_chipset)(id->driver_data);
-		name = (char *) id->name;
+		name = id->name;
 	} else if (ACPI_HANDLE(&client->dev))
 		name = ak8975_match_acpi_device(&client->dev, &data->chipset);
 	else

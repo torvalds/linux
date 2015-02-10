@@ -2216,11 +2216,7 @@ static void wm8996_init_gpio(struct wm8996_priv *wm8996)
 
 static void wm8996_free_gpio(struct wm8996_priv *wm8996)
 {
-	int ret;
-
-	ret = gpiochip_remove(&wm8996->gpio_chip);
-	if (ret != 0)
-		dev_err(wm8996->dev, "Failed to remove GPIOs: %d\n", ret);
+	gpiochip_remove(&wm8996->gpio_chip);
 }
 #else
 static void wm8996_init_gpio(struct wm8996_priv *wm8996)

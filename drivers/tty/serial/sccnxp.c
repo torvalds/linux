@@ -1012,7 +1012,6 @@ static int sccnxp_remove(struct platform_device *pdev)
 static struct platform_driver sccnxp_uart_driver = {
 	.driver = {
 		.name	= SCCNXP_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= sccnxp_probe,
 	.remove		= sccnxp_remove,

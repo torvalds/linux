@@ -30,9 +30,7 @@
 static int ncp_file_mmap_fault(struct vm_area_struct *area,
 					struct vm_fault *vmf)
 {
-	struct file *file = area->vm_file;
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file_inode(area->vm_file);
 	char *pg_addr;
 	unsigned int already_read;
 	unsigned int count;

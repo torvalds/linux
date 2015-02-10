@@ -1167,7 +1167,6 @@ static const struct attribute_group *sclp_drv_attr_groups[] = {
 static struct platform_driver sclp_pdrv = {
 	.driver = {
 		.name	= "sclp",
-		.owner	= THIS_MODULE,
 		.pm	= &sclp_pm_ops,
 		.groups = sclp_drv_attr_groups,
 	},

@@ -57,11 +57,12 @@
  * Globals/Macros
  */
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
 static void rpcrdma_reset_frmrs(struct rpcrdma_ia *);
+static void rpcrdma_reset_fmrs(struct rpcrdma_ia *);
 
 /*
  * internal functions
@@ -105,13 +106,51 @@ rpcrdma_run_tasklet(unsigned long data)
 
 static DECLARE_TASKLET(rpcrdma_tasklet_g, rpcrdma_run_tasklet, 0UL);
 
+static const char * const async_event[] = {
+	"CQ error",
+	"QP fatal error",
+	"QP request error",
+	"QP access error",
+	"communication established",
+	"send queue drained",
+	"path migration successful",
+	"path mig error",
+	"device fatal error",
+	"port active",
+	"port error",
+	"LID change",
+	"P_key change",
+	"SM change",
+	"SRQ error",
+	"SRQ limit reached",
+	"last WQE reached",
+	"client reregister",
+	"GID change",
+};
+
+#define ASYNC_MSG(status)					\
+	((status) < ARRAY_SIZE(async_event) ?			\
+		async_event[(status)] : "unknown async error")
+
+static void
+rpcrdma_schedule_tasklet(struct list_head *sched_list)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rpcrdma_tk_lock_g, flags);
+	list_splice_tail(sched_list, &rpcrdma_tasklets_g);
+	spin_unlock_irqrestore(&rpcrdma_tk_lock_g, flags);
+	tasklet_schedule(&rpcrdma_tasklet_g);
+}
+
 static void
 rpcrdma_qp_async_error_upcall(struct ib_event *event, void *context)
 {
 	struct rpcrdma_ep *ep = context;
 
-	dprintk("RPC:       %s: QP error %X on device %s ep %p\n",
-		__func__, event->event, event->device->name, context);
+	pr_err("RPC:       %s: %s on device %s ep %p\n",
+	       __func__, ASYNC_MSG(event->event),
+		event->device->name, context);
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
 		ep->rep_func(ep);
@@ -124,8 +163,9 @@ rpcrdma_cq_async_error_upcall(struct ib_event *event, void *context)
 {
 	struct rpcrdma_ep *ep = context;
 
-	dprintk("RPC:       %s: CQ error %X on device %s ep %p\n",
-		__func__, event->event, event->device->name, context);
+	pr_err("RPC:       %s: %s on device %s ep %p\n",
+	       __func__, ASYNC_MSG(event->event),
+		event->device->name, context);
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
 		ep->rep_func(ep);
@@ -243,7 +283,6 @@ rpcrdma_recvcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 	struct list_head sched_list;
 	struct ib_wc *wcs;
 	int budget, count, rc;
-	unsigned long flags;
 
 	INIT_LIST_HEAD(&sched_list);
 	budget = RPCRDMA_WC_BUDGET / RPCRDMA_POLLSIZE;
@@ -261,10 +300,7 @@ rpcrdma_recvcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 	rc = 0;
 
 out_schedule:
-	spin_lock_irqsave(&rpcrdma_tk_lock_g, flags);
-	list_splice_tail(&sched_list, &rpcrdma_tasklets_g);
-	spin_unlock_irqrestore(&rpcrdma_tk_lock_g, flags);
-	tasklet_schedule(&rpcrdma_tasklet_g);
+	rpcrdma_schedule_tasklet(&sched_list);
 	return rc;
 }
 
@@ -309,11 +345,18 @@ rpcrdma_recvcq_upcall(struct ib_cq *cq, void *cq_context)
 static void
 rpcrdma_flush_cqs(struct rpcrdma_ep *ep)
 {
-	rpcrdma_recvcq_upcall(ep->rep_attr.recv_cq, ep);
-	rpcrdma_sendcq_upcall(ep->rep_attr.send_cq, ep);
+	struct ib_wc wc;
+	LIST_HEAD(sched_list);
+
+	while (ib_poll_cq(ep->rep_attr.recv_cq, 1, &wc) > 0)
+		rpcrdma_recvcq_process_wc(&wc, &sched_list);
+	if (!list_empty(&sched_list))
+		rpcrdma_schedule_tasklet(&sched_list);
+	while (ib_poll_cq(ep->rep_attr.send_cq, 1, &wc) > 0)
+		rpcrdma_sendcq_process_wc(&wc);
 }
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 static const char * const conn[] = {
 	"address resolved",
 	"address error",
@@ -344,7 +387,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	struct rpcrdma_xprt *xprt = id->context;
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	struct rpcrdma_ep *ep = &xprt->rx_ep;
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	struct sockaddr_in *addr = (struct sockaddr_in *) &ep->rep_remote_addr;
 #endif
 	struct ib_qp_attr attr;
@@ -408,7 +451,7 @@ connected:
 		break;
 	}
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	if (connstate == 1) {
 		int ird = attr.max_dest_rd_atomic;
 		int tird = ep->rep_remote_cma.responder_resources;
@@ -733,7 +776,9 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	/* set trigger for requesting send completion */
 	ep->rep_cqinit = ep->rep_attr.cap.max_send_wr/2 - 1;
-	if (ep->rep_cqinit <= 2)
+	if (ep->rep_cqinit > RPCRDMA_MAX_UNSIGNALED_SENDS)
+		ep->rep_cqinit = RPCRDMA_MAX_UNSIGNALED_SENDS;
+	else if (ep->rep_cqinit <= 2)
 		ep->rep_cqinit = 0;
 	INIT_CQCOUNT(ep);
 	ep->rep_ia = ia;
@@ -866,8 +911,19 @@ retry:
 		rpcrdma_ep_disconnect(ep, ia);
 		rpcrdma_flush_cqs(ep);
 
-		if (ia->ri_memreg_strategy == RPCRDMA_FRMR)
+		switch (ia->ri_memreg_strategy) {
+		case RPCRDMA_FRMR:
 			rpcrdma_reset_frmrs(ia);
+			break;
+		case RPCRDMA_MTHCAFMR:
+			rpcrdma_reset_fmrs(ia);
+			break;
+		case RPCRDMA_ALLPHYSICAL:
+			break;
+		default:
+			rc = -EIO;
+			goto out;
+		}
 
 		xprt = container_of(ia, struct rpcrdma_xprt, rx_ia);
 		id = rpcrdma_create_id(xprt, ia,
@@ -1285,6 +1341,34 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 	}
 
 	kfree(buf->rb_pool);
+}
+
+/* After a disconnect, unmap all FMRs.
+ *
+ * This is invoked only in the transport connect worker in order
+ * to serialize with rpcrdma_register_fmr_external().
+ */
+static void
+rpcrdma_reset_fmrs(struct rpcrdma_ia *ia)
+{
+	struct rpcrdma_xprt *r_xprt =
+				container_of(ia, struct rpcrdma_xprt, rx_ia);
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct list_head *pos;
+	struct rpcrdma_mw *r;
+	LIST_HEAD(l);
+	int rc;
+
+	list_for_each(pos, &buf->rb_all) {
+		r = list_entry(pos, struct rpcrdma_mw, mw_all);
+
+		INIT_LIST_HEAD(&l);
+		list_add(&r->r.fmr->list, &l);
+		rc = ib_unmap_fmr(&l);
+		if (rc)
+			dprintk("RPC:       %s: ib_unmap_fmr failed %i\n",
+				__func__, rc);
+	}
 }
 
 /* After a disconnect, a flushed FAST_REG_MR can leave an FRMR in
@@ -1918,10 +2002,10 @@ rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
 		break;
 
 	default:
-		return -1;
+		return -EIO;
 	}
 	if (rc)
-		return -1;
+		return rc;
 
 	return nsegs;
 }

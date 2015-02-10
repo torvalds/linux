@@ -476,7 +476,7 @@ static struct ib_mr *c2_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 					 c2mr->umem->page_size,
 					 i,
 					 length,
-					 c2mr->umem->offset,
+					 ib_umem_offset(c2mr->umem),
 					 &kva,
 					 c2_convert_access(acc),
 					 c2mr);

@@ -315,8 +315,6 @@ static int netx_eth_enable(struct net_device *ndev)
 	unsigned int mac4321, mac65;
 	int running, i;
 
-	ether_setup(ndev);
-
 	ndev->netdev_ops = &netx_eth_netdev_ops;
 	ndev->watchdog_timeo = msecs_to_jiffies(5000);
 
@@ -459,7 +457,6 @@ static struct platform_driver netx_eth_driver = {
 	.resume		= netx_eth_drv_resume,
 	.driver		= {
 		.name	= CARDNAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

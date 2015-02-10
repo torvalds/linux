@@ -53,6 +53,21 @@ static const struct ieee80211_tpt_blink ath9k_htc_tpt_blink[] = {
 };
 #endif
 
+static void ath9k_htc_op_ps_wakeup(struct ath_common *common)
+{
+	ath9k_htc_ps_wakeup((struct ath9k_htc_priv *) common->priv);
+}
+
+static void ath9k_htc_op_ps_restore(struct ath_common *common)
+{
+	ath9k_htc_ps_restore((struct ath9k_htc_priv *) common->priv);
+}
+
+static struct ath_ps_ops ath9k_htc_ps_ops = {
+	.wakeup = ath9k_htc_op_ps_wakeup,
+	.restore = ath9k_htc_op_ps_restore,
+};
+
 static int ath9k_htc_wait_for_target(struct ath9k_htc_priv *priv)
 {
 	int time_left;
@@ -87,6 +102,7 @@ static void ath9k_deinit_device(struct ath9k_htc_priv *priv)
 
 	wiphy_rfkill_stop_polling(hw->wiphy);
 	ath9k_deinit_leds(priv);
+	ath9k_htc_deinit_debug(priv);
 	ieee80211_unregister_hw(hw);
 	ath9k_rx_cleanup(priv);
 	ath9k_tx_cleanup(priv);
@@ -449,6 +465,14 @@ static void ath9k_init_misc(struct ath9k_htc_priv *priv)
 
 	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	priv->ah->opmode = NL80211_IFTYPE_STATION;
+
+	priv->spec_priv.ah = priv->ah;
+	priv->spec_priv.spec_config.enabled = 0;
+	priv->spec_priv.spec_config.short_repeat = false;
+	priv->spec_priv.spec_config.count = 8;
+	priv->spec_priv.spec_config.endless = false;
+	priv->spec_priv.spec_config.period = 0x12;
+	priv->spec_priv.spec_config.fft_period = 0x02;
 }
 
 static int ath9k_init_priv(struct ath9k_htc_priv *priv,
@@ -464,6 +488,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 		return -ENOMEM;
 
 	ah->dev = priv->dev;
+	ah->hw = priv->hw;
 	ah->hw_version.devid = devid;
 	ah->hw_version.usbdev = drv_info;
 	ah->ah_flags |= AH_USE_EEPROM;
@@ -477,6 +502,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 
 	common = ath9k_hw_common(ah);
 	common->ops = &ah->reg_ops;
+	common->ps_ops = &ath9k_htc_ps_ops;
 	common->bus_ops = &ath9k_usb_bus_ops;
 	common->ah = ah;
 	common->hw = priv->hw;
@@ -591,6 +617,8 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN |
 			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+
+	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 
 	hw->queues = 4;
 	hw->max_listen_interval = 1;

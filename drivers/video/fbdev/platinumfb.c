@@ -679,7 +679,6 @@ static struct platform_driver platinum_driver =
 {
 	.driver = {
 		.name = "platinumfb",
-		.owner = THIS_MODULE,
 		.of_match_table = platinumfb_match,
 	},
 	.probe		= platinumfb_probe,

@@ -36,6 +36,7 @@
 #include <linux/wait.h>
 #include "../pci.h"
 #include <asm/pci_x86.h>		/* for struct irq_routing_table */
+#include <asm/io_apic.h>
 #include "ibmphp.h"
 
 #define attn_on(sl)  ibmphp_hpc_writeslot (sl, HPC_SLOT_ATTNON)
@@ -155,13 +156,10 @@ int ibmphp_init_devno(struct slot **cur_slot)
 	for (loop = 0; loop < len; loop++) {
 		if ((*cur_slot)->number == rtable->slots[loop].slot &&
 		    (*cur_slot)->bus == rtable->slots[loop].bus) {
-			struct io_apic_irq_attr irq_attr;
-
 			(*cur_slot)->device = PCI_SLOT(rtable->slots[loop].devfn);
 			for (i = 0; i < 4; i++)
 				(*cur_slot)->irq[i] = IO_APIC_get_PCI_irq_vector((int) (*cur_slot)->bus,
-						(int) (*cur_slot)->device, i,
-						&irq_attr);
+						(int) (*cur_slot)->device, i);
 
 			debug("(*cur_slot)->irq[0] = %x\n",
 					(*cur_slot)->irq[0]);
@@ -1023,7 +1021,8 @@ static int enable_slot(struct hotplug_slot *hs)
 	debug("ENABLING SLOT........\n");
 	slot_cur = hs->private;
 
-	if ((rc = validate(slot_cur, ENABLE))) {
+	rc = validate(slot_cur, ENABLE);
+	if (rc) {
 		err("validate function failed\n");
 		goto error_nopower;
 	}
@@ -1199,9 +1198,8 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 
 	debug("DISABLING SLOT...\n");
 
-	if ((slot_cur == NULL) || (slot_cur->ctrl == NULL)) {
+	if ((slot_cur == NULL) || (slot_cur->ctrl == NULL))
 		return -ENODEV;
-	}
 
 	flag = slot_cur->flag;
 	slot_cur->flag = 1;
@@ -1336,17 +1334,20 @@ static int __init ibmphp_init(void)
 	for (i = 0; i < 16; i++)
 		irqs[i] = 0;
 
-	if ((rc = ibmphp_access_ebda()))
+	rc = ibmphp_access_ebda();
+	if (rc)
 		goto error;
 	debug("after ibmphp_access_ebda()\n");
 
-	if ((rc = ibmphp_rsrc_init()))
+	rc = ibmphp_rsrc_init();
+	if (rc)
 		goto error;
 	debug("AFTER Resource & EBDA INITIALIZATIONS\n");
 
 	max_slots = get_max_slots();
 
-	if ((rc = ibmphp_register_pci()))
+	rc = ibmphp_register_pci();
+	if (rc)
 		goto error;
 
 	if (init_ops()) {
@@ -1355,9 +1356,9 @@ static int __init ibmphp_init(void)
 	}
 
 	ibmphp_print_test();
-	if ((rc = ibmphp_hpc_start_poll_thread())) {
+	rc = ibmphp_hpc_start_poll_thread();
+	if (rc)
 		goto error;
-	}
 
 exit:
 	return rc;

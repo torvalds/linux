@@ -125,6 +125,11 @@ static const struct mxs_phy_data imx6sl_phy_data = {
 		MXS_PHY_NEED_IP_FIX,
 };
 
+static const struct mxs_phy_data vf610_phy_data = {
+	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS |
+		MXS_PHY_NEED_IP_FIX,
+};
+
 static const struct mxs_phy_data imx6sx_phy_data = {
 	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS |
 		MXS_PHY_NEED_IP_FIX,
@@ -135,6 +140,7 @@ static const struct of_device_id mxs_phy_dt_ids[] = {
 	{ .compatible = "fsl,imx6sl-usbphy", .data = &imx6sl_phy_data, },
 	{ .compatible = "fsl,imx6q-usbphy", .data = &imx6q_phy_data, },
 	{ .compatible = "fsl,imx23-usbphy", .data = &imx23_phy_data, },
+	{ .compatible = "fsl,vf610-usbphy", .data = &vf610_phy_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxs_phy_dt_ids);
@@ -384,10 +390,8 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	}
 
 	mxs_phy = devm_kzalloc(&pdev->dev, sizeof(*mxs_phy), GFP_KERNEL);
-	if (!mxs_phy) {
-		dev_err(&pdev->dev, "Failed to allocate USB PHY structure!\n");
+	if (!mxs_phy)
 		return -ENOMEM;
-	}
 
 	/* Some SoCs don't have anatop registers */
 	if (of_get_property(np, "fsl,anatop", NULL)) {
@@ -485,7 +489,6 @@ static struct platform_driver mxs_phy_driver = {
 	.remove = mxs_phy_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = mxs_phy_dt_ids,
 		.pm = &mxs_phy_pm,
 	 },

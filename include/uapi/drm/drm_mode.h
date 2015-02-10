@@ -286,6 +286,8 @@ struct drm_mode_get_property {
 	char name[DRM_PROP_NAME_LEN];
 
 	__u32 count_values;
+	/* This is only used to count enum values, not blobs. The _blobs is
+	 * simply because of a historical reason, i.e. backwards compat. */
 	__u32 count_enum_blobs;
 };
 

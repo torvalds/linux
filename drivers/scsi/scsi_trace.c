@@ -278,7 +278,7 @@ scsi_trace_parse_cdb(struct trace_seq *p, unsigned char *cdb, int len)
 		return scsi_trace_rw16(p, cdb, len);
 	case UNMAP:
 		return scsi_trace_unmap(p, cdb, len);
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		return scsi_trace_service_action_in(p, cdb, len);
 	case VARIABLE_LENGTH_CMD:
 		return scsi_trace_varlen(p, cdb, len);

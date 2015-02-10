@@ -42,7 +42,7 @@ struct machdep_calls {
 					 unsigned long newpp, 
 					 unsigned long vpn,
 					 int bpsize, int apsize,
-					 int ssize, int local);
+					 int ssize, unsigned long flags);
 	void            (*hpte_updateboltedpp)(unsigned long newpp, 
 					       unsigned long ea,
 					       int psize, int ssize);
@@ -60,7 +60,7 @@ struct machdep_calls {
 	void		(*hugepage_invalidate)(unsigned long vsid,
 					       unsigned long addr,
 					       unsigned char *hpte_slot_array,
-					       int psize, int ssize);
+					       int psize, int ssize, int local);
 	/* special for kexec, to be called in real mode, linear mapping is
 	 * destroyed as well */
 	void		(*hpte_clear_all)(void);
@@ -136,15 +136,12 @@ struct machdep_calls {
 	int		(*pci_setup_phb)(struct pci_controller *host);
 
 #ifdef CONFIG_PCI_MSI
-	int		(*msi_check_device)(struct pci_dev* dev,
-					    int nvec, int type);
 	int		(*setup_msi_irqs)(struct pci_dev *dev,
 					  int nvec, int type);
 	void		(*teardown_msi_irqs)(struct pci_dev *dev);
 #endif
 
 	void		(*restart)(char *cmd);
-	void		(*power_off)(void);
 	void		(*halt)(void);
 	void		(*panic)(char *str);
 	void		(*cpu_die)(void);
@@ -294,10 +291,6 @@ struct machdep_calls {
 #ifdef CONFIG_ARCH_RANDOM
 	int (*get_random_long)(unsigned long *v);
 #endif
-
-#ifdef CONFIG_MEMORY_HOTREMOVE
-	int (*remove_memory)(u64, u64);
-#endif
 };
 
 extern void e500_idle(void);
@@ -330,8 +323,6 @@ extern struct machdep_calls *machine_id;
 
 extern void probe_machine(void);
 
-extern char cmd_line[COMMAND_LINE_SIZE];
-
 #ifdef CONFIG_PPC_PMAC
 /*
  * Power macintoshes have either a CUDA, PMU or SMU controlling
@@ -346,16 +337,6 @@ typedef enum sys_ctrler_kind {
 extern sys_ctrler_t sys_ctrler;
 
 #endif /* CONFIG_PPC_PMAC */
-
-
-/* Functions to produce codes on the leds.
- * The SRC code should be unique for the message category and should
- * be limited to the lower 24 bits (the upper 8 are set by these funcs),
- * and (for boot & dump) should be sorted numerically in the order
- * the events occur.
- */
-/* Print a boot progress message. */
-void ppc64_boot_msg(unsigned int src, const char *msg);
 
 static inline void log_error(char *buf, unsigned int err_type, int fatal)
 {

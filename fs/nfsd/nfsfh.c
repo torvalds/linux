@@ -86,7 +86,7 @@ static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 	int flags = nfsexp_flags(rqstp, exp);
 
 	/* Check if the request originated from a secure port. */
-	if (!rqstp->rq_secure && !(flags & NFSEXP_INSECURE_PORT)) {
+	if (!test_bit(RQ_SECURE, &rqstp->rq_flags) && !(flags & NFSEXP_INSECURE_PORT)) {
 		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
 		dprintk("nfsd: request from insecure port %s!\n",
 		        svc_print_addr(rqstp, buf, sizeof(buf)));
@@ -209,8 +209,10 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		 * fix that case easily.
 		 */
 		struct cred *new = prepare_creds();
-		if (!new)
-			return nfserrno(-ENOMEM);
+		if (!new) {
+			error =  nfserrno(-ENOMEM);
+			goto out;
+		}
 		new->cap_effective =
 			cap_raise_nfsd_set(new->cap_effective,
 					   new->cap_permitted);

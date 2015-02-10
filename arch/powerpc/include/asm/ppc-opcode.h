@@ -194,6 +194,7 @@
 
 #define PPC_INST_NAP			0x4c000364
 #define PPC_INST_SLEEP			0x4c0003a4
+#define PPC_INST_WINKLE			0x4c0003e4
 
 /* A2 specific instructions */
 #define PPC_INST_ERATWE			0x7c0001a6
@@ -204,6 +205,7 @@
 #define PPC_INST_ERATSX_DOT		0x7c000127
 
 /* Misc instructions for BPF compiler */
+#define PPC_INST_LBZ			0x88000000
 #define PPC_INST_LD			0xe8000000
 #define PPC_INST_LHZ			0xa0000000
 #define PPC_INST_LHBRX			0x7c00062c
@@ -374,6 +376,7 @@
 
 #define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
 #define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
+#define PPC_WINKLE		stringify_in_c(.long PPC_INST_WINKLE)
 
 /* BHRB instructions */
 #define PPC_CLRBHRB		stringify_in_c(.long PPC_INST_CLRBHRB)

@@ -104,7 +104,6 @@ struct twl6030_usb {
 	int			irq2;
 	enum omap_musb_vbus_id_status linkstat;
 	u8			asleep;
-	bool			irq_enabled;
 	bool			vbus_enable;
 	const char		*regulator;
 };
@@ -373,7 +372,6 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 
 	INIT_WORK(&twl->set_vbus_work, otg_set_vbus_work);
 
-	twl->irq_enabled = true;
 	status = request_threaded_irq(twl->irq1, NULL, twl6030_usbotg_irq,
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 			"twl6030_usb", twl);
@@ -432,7 +430,6 @@ static struct platform_driver twl6030_usb_driver = {
 	.remove		= twl6030_usb_remove,
 	.driver		= {
 		.name	= "twl6030_usb",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl6030_usb_id_table),
 	},
 };

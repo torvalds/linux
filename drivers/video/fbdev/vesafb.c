@@ -512,7 +512,6 @@ static int vesafb_remove(struct platform_device *pdev)
 static struct platform_driver vesafb_driver = {
 	.driver = {
 		.name = "vesa-framebuffer",
-		.owner = THIS_MODULE,
 	},
 	.probe = vesafb_probe,
 	.remove = vesafb_remove,

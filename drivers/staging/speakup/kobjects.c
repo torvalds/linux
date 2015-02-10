@@ -81,7 +81,7 @@ static ssize_t chars_chartab_show(struct kobject *kobj,
 static void report_char_chartab_status(int reset, int received, int used,
 	int rejected, int do_characters)
 {
-	char *object_type[] = {
+	static char const *object_type[] = {
 		"character class entries",
 		"character descriptions",
 	};
@@ -232,6 +232,7 @@ static ssize_t keymap_show(struct kobject *kobj, struct kobj_attribute *attr,
 	u_char *cp1;
 	u_char ch;
 	unsigned long flags;
+
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	cp1 = spk_key_buf + SHIFT_TBL_SIZE;
 	num_keys = (int)(*cp1);
@@ -808,9 +809,9 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 			if (msg_stored == -ENOMEM)
 				reset = 1;
 			break;
-		} else {
-			used++;
 		}
+
+		used++;
 
 		cp = linefeed + 1;
 	}
@@ -905,9 +906,11 @@ static struct kobj_attribute spell_delay_attribute =
 static struct kobj_attribute announcements_attribute =
 	__ATTR(announcements, S_IWUSR|S_IRUGO, message_show, message_store);
 static struct kobj_attribute characters_attribute =
-	__ATTR(characters, S_IWUSR|S_IRUGO, chars_chartab_show, chars_chartab_store);
+	__ATTR(characters, S_IWUSR|S_IRUGO, chars_chartab_show,
+	       chars_chartab_store);
 static struct kobj_attribute chartab_attribute =
-	__ATTR(chartab, S_IWUSR|S_IRUGO, chars_chartab_show, chars_chartab_store);
+	__ATTR(chartab, S_IWUSR|S_IRUGO, chars_chartab_show,
+	       chars_chartab_store);
 static struct kobj_attribute ctl_keys_attribute =
 	__ATTR(ctl_keys, S_IWUSR|S_IRUGO, message_show, message_store);
 static struct kobj_attribute colors_attribute =

@@ -485,11 +485,11 @@ static int nand_check_wp(struct mtd_info *mtd)
 }
 
 /**
- * nand_block_checkbad - [GENERIC] Check if a block is marked bad
+ * nand_block_isreserved - [GENERIC] Check if a block is marked reserved.
  * @mtd: MTD device structure
  * @ofs: offset from device start
  *
- * Check if the block is mark as reserved.
+ * Check if the block is marked as reserved.
  */
 static int nand_block_isreserved(struct mtd_info *mtd, loff_t ofs)
 {
@@ -720,7 +720,7 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 
 	/*
 	 * Program and erase have their own busy handlers status, sequential
-	 * in, and deplete1 need no delay.
+	 * in and status need no delay.
 	 */
 	switch (command) {
 
@@ -982,6 +982,15 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 	chip->select_chip(mtd, chipnr);
 
+	/*
+	 * Reset the chip.
+	 * If we want to check the WP through READ STATUS and check the bit 7
+	 * we must reset the chip
+	 * some operation can also clear the bit 7 of status register
+	 * eg. erase/program a locked block
+	 */
+	chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
 		pr_debug("%s: device is write protected!\n",
@@ -1031,6 +1040,15 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	chipnr = ofs >> chip->chip_shift;
 
 	chip->select_chip(mtd, chipnr);
+
+	/*
+	 * Reset the chip.
+	 * If we want to check the WP through READ STATUS and check the bit 7
+	 * we must reset the chip
+	 * some operation can also clear the bit 7 of status register
+	 * eg. erase/program a locked block
+	 */
+	chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
@@ -2391,8 +2409,8 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	blockmask = (1 << (chip->phys_erase_shift - chip->page_shift)) - 1;
 
 	/* Invalidate the page cache, when we write to the cached page */
-	if (to <= (chip->pagebuf << chip->page_shift) &&
-	    (chip->pagebuf << chip->page_shift) < (to + ops->len))
+	if (to <= ((loff_t)chip->pagebuf << chip->page_shift) &&
+	    ((loff_t)chip->pagebuf << chip->page_shift) < (to + ops->len))
 		chip->pagebuf = -1;
 
 	/* Don't allow multipage oob writes with offset */
@@ -3576,6 +3594,8 @@ static bool find_full_id_nand(struct mtd_info *mtd, struct nand_chip *chip,
 		chip->options |= type->options;
 		chip->ecc_strength_ds = NAND_ECC_STRENGTH(type);
 		chip->ecc_step_ds = NAND_ECC_STEP(type);
+		chip->onfi_timing_mode_default =
+					type->onfi_timing_mode_default;
 
 		*busw = type->options & NAND_BUSWIDTH_16;
 
@@ -3745,9 +3765,9 @@ ident_done:
 		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name,
 				type->name);
 
-	pr_info("%dMiB, %s, page size: %d, OOB size: %d\n",
+	pr_info("%d MiB, %s, erase size: %d KiB, page size: %d, OOB size: %d\n",
 		(int)(chip->chipsize >> 20), nand_is_slc(chip) ? "SLC" : "MLC",
-		mtd->writesize, mtd->oobsize);
+		mtd->erasesize >> 10, mtd->writesize, mtd->oobsize);
 	return type;
 }
 
@@ -3918,8 +3938,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	case NAND_ECC_HW_OOB_FIRST:
 		/* Similar to NAND_ECC_HW, but a separate read_page handle */
 		if (!ecc->calculate || !ecc->correct || !ecc->hwctl) {
-			pr_warn("No ECC functions supplied; "
-				   "hardware ECC not possible\n");
+			pr_warn("No ECC functions supplied; hardware ECC not possible\n");
 			BUG();
 		}
 		if (!ecc->read_page)
@@ -3950,8 +3969,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		     ecc->read_page == nand_read_page_hwecc ||
 		     !ecc->write_page ||
 		     ecc->write_page == nand_write_page_hwecc)) {
-			pr_warn("No ECC functions supplied; "
-				   "hardware ECC not possible\n");
+			pr_warn("No ECC functions supplied; hardware ECC not possible\n");
 			BUG();
 		}
 		/* Use standard syndrome read/write page function? */
@@ -3975,9 +3993,8 @@ int nand_scan_tail(struct mtd_info *mtd)
 			}
 			break;
 		}
-		pr_warn("%d byte HW ECC not possible on "
-			   "%d byte page size, fallback to SW ECC\n",
-			   ecc->size, mtd->writesize);
+		pr_warn("%d byte HW ECC not possible on %d byte page size, fallback to SW ECC\n",
+			ecc->size, mtd->writesize);
 		ecc->mode = NAND_ECC_SOFT;
 
 	case NAND_ECC_SOFT:
@@ -4018,7 +4035,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		 */
 		if (!ecc->size && (mtd->oobsize >= 64)) {
 			ecc->size = 512;
-			ecc->bytes = 7;
+			ecc->bytes = DIV_ROUND_UP(13 * ecc->strength, 8);
 		}
 		ecc->priv = nand_bch_init(mtd, ecc->size, ecc->bytes,
 					       &ecc->layout);
@@ -4030,8 +4047,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		break;
 
 	case NAND_ECC_NONE:
-		pr_warn("NAND_ECC_NONE selected by board driver. "
-			   "This is not recommended!\n");
+		pr_warn("NAND_ECC_NONE selected by board driver. This is not recommended!\n");
 		ecc->read_page = nand_read_page_raw;
 		ecc->write_page = nand_write_page_raw;
 		ecc->read_oob = nand_read_oob_std;

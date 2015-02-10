@@ -345,6 +345,9 @@ int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate,
 
 	pr_debug("\n");
 
+	if (hdev->gate2pipe[dest_gate] == NFC_HCI_DO_NOT_CREATE_PIPE)
+		return 0;
+
 	if (hdev->gate2pipe[dest_gate] != NFC_HCI_INVALID_PIPE)
 		return -EADDRINUSE;
 

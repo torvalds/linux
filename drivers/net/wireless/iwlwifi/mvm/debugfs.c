@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -119,78 +121,6 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 	return ret;
 }
 
-static int iwl_dbgfs_fw_error_dump_open(struct inode *inode, struct file *file)
-{
-	struct iwl_mvm *mvm = inode->i_private;
-	int ret;
-
-	if (!mvm)
-		return -EINVAL;
-
-	mutex_lock(&mvm->mutex);
-	if (!mvm->fw_error_dump) {
-		ret = -ENODATA;
-		goto out;
-	}
-
-	file->private_data = mvm->fw_error_dump;
-	mvm->fw_error_dump = NULL;
-	ret = 0;
-
-out:
-	mutex_unlock(&mvm->mutex);
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_fw_error_dump_read(struct file *file,
-					    char __user *user_buf,
-					    size_t count, loff_t *ppos)
-{
-	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
-	ssize_t bytes_read = 0;
-	ssize_t bytes_read_trans = 0;
-
-	if (*ppos < dump_ptrs->op_mode_len)
-		bytes_read +=
-			simple_read_from_buffer(user_buf, count, ppos,
-						dump_ptrs->op_mode_ptr,
-						dump_ptrs->op_mode_len);
-
-	if (bytes_read < 0 || *ppos < dump_ptrs->op_mode_len)
-		return bytes_read;
-
-	if (dump_ptrs->trans_ptr) {
-		*ppos -= dump_ptrs->op_mode_len;
-		bytes_read_trans =
-			simple_read_from_buffer(user_buf + bytes_read,
-						count - bytes_read, ppos,
-						dump_ptrs->trans_ptr->data,
-						dump_ptrs->trans_ptr->len);
-		*ppos += dump_ptrs->op_mode_len;
-
-		if (bytes_read_trans >= 0)
-			bytes_read += bytes_read_trans;
-		else if (!bytes_read)
-			/* propagate the failure */
-			return bytes_read_trans;
-	}
-
-	return bytes_read;
-
-}
-
-static int iwl_dbgfs_fw_error_dump_release(struct inode *inode,
-					   struct file *file)
-{
-	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
-
-	vfree(dump_ptrs->op_mode_ptr);
-	vfree(dump_ptrs->trans_ptr);
-	kfree(dump_ptrs);
-
-	return 0;
-}
-
 static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
@@ -255,6 +185,96 @@ static ssize_t iwl_dbgfs_sram_write(struct iwl_mvm *mvm, char *buf,
 	}
 
 	return count;
+}
+
+static ssize_t iwl_dbgfs_set_nic_temperature_read(struct file *file,
+						  char __user *user_buf,
+						  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	char buf[16];
+	int pos;
+
+	if (!mvm->temperature_test)
+		pos = scnprintf(buf , sizeof(buf), "disabled\n");
+	else
+		pos = scnprintf(buf , sizeof(buf), "%d\n", mvm->temperature);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+/*
+ * Set NIC Temperature
+ * Cause the driver to ignore the actual NIC temperature reported by the FW
+ * Enable: any value between IWL_MVM_DEBUG_SET_TEMPERATURE_MIN -
+ * IWL_MVM_DEBUG_SET_TEMPERATURE_MAX
+ * Disable: IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE
+ */
+static ssize_t iwl_dbgfs_set_nic_temperature_write(struct iwl_mvm *mvm,
+						   char *buf, size_t count,
+						   loff_t *ppos)
+{
+	int temperature;
+
+	if (!mvm->ucode_loaded && !mvm->temperature_test)
+		return -EIO;
+
+	if (kstrtoint(buf, 10, &temperature))
+		return -EINVAL;
+	/* not a legal temperature */
+	if ((temperature > IWL_MVM_DEBUG_SET_TEMPERATURE_MAX &&
+	     temperature != IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE) ||
+	    temperature < IWL_MVM_DEBUG_SET_TEMPERATURE_MIN)
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	if (temperature == IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE) {
+		if (!mvm->temperature_test)
+			goto out;
+
+		mvm->temperature_test = false;
+		/* Since we can't read the temp while awake, just set
+		 * it to zero until we get the next RX stats from the
+		 * firmware.
+		 */
+		mvm->temperature = 0;
+	} else {
+		mvm->temperature_test = true;
+		mvm->temperature = temperature;
+	}
+	IWL_DEBUG_TEMP(mvm, "%sabling debug set temperature (temp = %d)\n",
+		       mvm->temperature_test ? "En" : "Dis" ,
+		       mvm->temperature);
+	/* handle the temperature change */
+	iwl_mvm_tt_handler(mvm);
+
+out:
+	mutex_unlock(&mvm->mutex);
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_nic_temp_read(struct file *file,
+				       char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	char buf[16];
+	int pos, temp;
+
+	if (!mvm->ucode_loaded)
+		return -EIO;
+
+	mutex_lock(&mvm->mutex);
+	temp = iwl_mvm_get_temp(mvm);
+	mutex_unlock(&mvm->mutex);
+
+	if (temp < 0)
+		return temp;
+
+	pos = scnprintf(buf , sizeof(buf), "%d\n", temp);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
@@ -916,7 +936,11 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 	if (scan_rx_ant & ~mvm->fw->valid_rx_ant)
 		return -EINVAL;
 
-	mvm->scan_rx_ant = scan_rx_ant;
+	if (mvm->scan_rx_ant != scan_rx_ant) {
+		mvm->scan_rx_ant = scan_rx_ant;
+		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+			iwl_mvm_config_scan(mvm);
+	}
 
 	return count;
 }
@@ -1158,6 +1182,118 @@ static ssize_t iwl_dbgfs_d3_sram_read(struct file *file, char __user *user_buf,
 
 	return ret;
 }
+
+#define MAX_NUM_ND_MATCHSETS 10
+
+static ssize_t iwl_dbgfs_netdetect_write(struct iwl_mvm *mvm, char *buf,
+					 size_t count, loff_t *ppos)
+{
+	const char *seps = ",\n";
+	char *buf_ptr = buf;
+	char *value_str = NULL;
+	int ret, i;
+
+	/* TODO: don't free if write is being called several times in one go */
+	if (mvm->nd_config) {
+		kfree(mvm->nd_config->match_sets);
+		kfree(mvm->nd_config);
+		mvm->nd_config = NULL;
+	}
+
+	mvm->nd_config = kzalloc(sizeof(*mvm->nd_config) +
+				 (11 * sizeof(struct ieee80211_channel *)),
+				 GFP_KERNEL);
+	if (!mvm->nd_config) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
+	mvm->nd_config->n_channels = 11;
+	mvm->nd_config->scan_width = NL80211_BSS_CHAN_WIDTH_20;
+	mvm->nd_config->interval = 5;
+	mvm->nd_config->min_rssi_thold = -80;
+	for (i = 0; i < mvm->nd_config->n_channels; i++)
+		mvm->nd_config->channels[i] = &mvm->nvm_data->channels[i];
+
+	mvm->nd_config->match_sets =
+		kcalloc(MAX_NUM_ND_MATCHSETS,
+			sizeof(*mvm->nd_config->match_sets),
+			GFP_KERNEL);
+	if (!mvm->nd_config->match_sets) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
+	while ((value_str = strsep(&buf_ptr, seps)) &&
+	       strlen(value_str)) {
+		struct cfg80211_match_set *set;
+
+		if (mvm->nd_config->n_match_sets >= MAX_NUM_ND_MATCHSETS) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		set = &mvm->nd_config->match_sets[mvm->nd_config->n_match_sets];
+		set->ssid.ssid_len = strlen(value_str);
+
+		if (set->ssid.ssid_len > IEEE80211_MAX_SSID_LEN) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		memcpy(set->ssid.ssid, value_str, set->ssid.ssid_len);
+
+		mvm->nd_config->n_match_sets++;
+	}
+
+	ret = count;
+
+	if (mvm->nd_config->n_match_sets)
+		goto out;
+
+out_free:
+	if (mvm->nd_config)
+		kfree(mvm->nd_config->match_sets);
+	kfree(mvm->nd_config);
+	mvm->nd_config = NULL;
+out:
+	return ret;
+}
+
+static ssize_t
+iwl_dbgfs_netdetect_read(struct file *file, char __user *user_buf,
+			 size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	size_t bufsz, ret;
+	char *buf;
+	int i, n_match_sets, pos = 0;
+
+	n_match_sets = mvm->nd_config ? mvm->nd_config->n_match_sets : 0;
+
+	bufsz = n_match_sets * (IEEE80211_MAX_SSID_LEN + 1) + 1;
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for (i = 0; i < n_match_sets; i++) {
+		if (pos +
+		    mvm->nd_config->match_sets[i].ssid.ssid_len + 2 > bufsz) {
+			ret = -EIO;
+			goto out;
+		}
+
+		memcpy(buf + pos, mvm->nd_config->match_sets[i].ssid.ssid,
+		       mvm->nd_config->match_sets[i].ssid.ssid_len);
+		pos += mvm->nd_config->match_sets[i].ssid.ssid_len;
+		buf[pos++] = '\n';
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+out:
+	kfree(buf);
+	return ret;
+}
 #endif
 
 #define PRINT_MVM_REF(ref) do {						\
@@ -1190,7 +1326,20 @@ static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
 	PRINT_MVM_REF(IWL_MVM_REF_P2P_CLIENT);
 	PRINT_MVM_REF(IWL_MVM_REF_AP_IBSS);
 	PRINT_MVM_REF(IWL_MVM_REF_USER);
+	PRINT_MVM_REF(IWL_MVM_REF_TX);
+	PRINT_MVM_REF(IWL_MVM_REF_TX_AGG);
+	PRINT_MVM_REF(IWL_MVM_REF_ADD_IF);
+	PRINT_MVM_REF(IWL_MVM_REF_START_AP);
+	PRINT_MVM_REF(IWL_MVM_REF_BSS_CHANGED);
+	PRINT_MVM_REF(IWL_MVM_REF_PREPARE_TX);
+	PRINT_MVM_REF(IWL_MVM_REF_PROTECT_TDLS);
+	PRINT_MVM_REF(IWL_MVM_REF_CHECK_CTKILL);
+	PRINT_MVM_REF(IWL_MVM_REF_PRPH_READ);
+	PRINT_MVM_REF(IWL_MVM_REF_PRPH_WRITE);
+	PRINT_MVM_REF(IWL_MVM_REF_NMI);
+	PRINT_MVM_REF(IWL_MVM_REF_TM_CMD);
 	PRINT_MVM_REF(IWL_MVM_REF_EXIT_WORK);
+	PRINT_MVM_REF(IWL_MVM_REF_PROTECT_CSA);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -1296,6 +1445,8 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
 MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram, 64);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(set_nic_temperature, 64);
+MVM_DEBUGFS_READ_FILE_OPS(nic_temp);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
 MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
 MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
@@ -1309,12 +1460,6 @@ MVM_DEBUGFS_WRITE_FILE_OPS(bt_force_ant, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 
-static const struct file_operations iwl_dbgfs_fw_error_dump_ops = {
-	.open = iwl_dbgfs_fw_error_dump_open,
-	.read = iwl_dbgfs_fw_error_dump_read,
-	.release = iwl_dbgfs_fw_error_dump_release,
-};
-
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
@@ -1322,6 +1467,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
 
 #ifdef CONFIG_PM_SLEEP
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram, 8);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(netdetect, 384);
 #endif
 
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
@@ -1336,8 +1482,10 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(sta_drain, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(set_nic_temperature, mvm->debugfs_dir,
+			     S_IWUSR | S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(nic_temp, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(fw_error_dump, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir,
@@ -1378,8 +1526,16 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	if (!debugfs_create_bool("d3_wake_sysassert", S_IRUSR | S_IWUSR,
 				 mvm->debugfs_dir, &mvm->d3_wake_sysassert))
 		goto err;
+	MVM_DEBUGFS_ADD_FILE(netdetect, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 #endif
 
+	if (!debugfs_create_u8("low_latency_agg_frame_limit", S_IRUSR | S_IWUSR,
+			       mvm->debugfs_dir,
+			       &mvm->low_latency_agg_frame_limit))
+		goto err;
+	if (!debugfs_create_u8("ps_disabled", S_IRUSR,
+			       mvm->debugfs_dir, &mvm->ps_disabled))
+		goto err;
 	if (!debugfs_create_blob("nvm_hw", S_IRUSR,
 				  mvm->debugfs_dir, &mvm->nvm_hw_blob))
 		goto err;

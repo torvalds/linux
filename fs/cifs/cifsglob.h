@@ -323,11 +323,11 @@ struct smb_version_operations {
 	int (*async_writev)(struct cifs_writedata *,
 			    void (*release)(struct kref *));
 	/* sync read from the server */
-	int (*sync_read)(const unsigned int, struct cifsFileInfo *,
+	int (*sync_read)(const unsigned int, struct cifs_fid *,
 			 struct cifs_io_parms *, unsigned int *, char **,
 			 int *);
 	/* sync write to the server */
-	int (*sync_write)(const unsigned int, struct cifsFileInfo *,
+	int (*sync_write)(const unsigned int, struct cifs_fid *,
 			  struct cifs_io_parms *, unsigned int *, struct kvec *,
 			  unsigned long);
 	/* open dir, start readdir */
@@ -466,6 +466,7 @@ struct smb_vol {
 	bool direct_io:1;
 	bool strict_io:1; /* strict cache behavior */
 	bool remap:1;      /* set to remap seven reserved chars in filenames */
+	bool sfu_remap:1;  /* remap seven reserved chars ala SFU */
 	bool posix_paths:1; /* unset to not ask for posix pathnames. */
 	bool no_linux_ext:1;
 	bool sfu_emul:1;
@@ -499,6 +500,7 @@ struct smb_vol {
 #define CIFS_MOUNT_MASK (CIFS_MOUNT_NO_PERM | CIFS_MOUNT_SET_UID | \
 			 CIFS_MOUNT_SERVER_INUM | CIFS_MOUNT_DIRECT_IO | \
 			 CIFS_MOUNT_NO_XATTR | CIFS_MOUNT_MAP_SPECIAL_CHR | \
+			 CIFS_MOUNT_MAP_SFM_CHR | \
 			 CIFS_MOUNT_UNX_EMUL | CIFS_MOUNT_NO_BRL | \
 			 CIFS_MOUNT_CIFS_ACL | CIFS_MOUNT_OVERR_UID | \
 			 CIFS_MOUNT_OVERR_GID | CIFS_MOUNT_DYNPERM | \
@@ -659,16 +661,16 @@ set_credits(struct TCP_Server_Info *server, const int val)
 	server->ops->set_credits(server, val);
 }
 
-static inline __u64
+static inline __le64
 get_next_mid64(struct TCP_Server_Info *server)
 {
-	return server->ops->get_next_mid(server);
+	return cpu_to_le64(server->ops->get_next_mid(server));
 }
 
 static inline __le16
 get_next_mid(struct TCP_Server_Info *server)
 {
-	__u16 mid = get_next_mid64(server);
+	__u16 mid = server->ops->get_next_mid(server);
 	/*
 	 * The value in the SMB header should be little endian for easy
 	 * on-the-wire decoding.
@@ -1164,6 +1166,12 @@ static inline struct cifs_sb_info *
 CIFS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
+}
+
+static inline struct cifs_sb_info *
+CIFS_FILE_SB(struct file *file)
+{
+	return CIFS_SB(file_inode(file)->i_sb);
 }
 
 static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)

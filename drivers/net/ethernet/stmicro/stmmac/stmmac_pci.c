@@ -26,27 +26,26 @@
 #include <linux/pci.h>
 #include "stmmac.h"
 
-static struct plat_stmmacenet_data plat_dat;
-static struct stmmac_mdio_bus_data mdio_data;
-static struct stmmac_dma_cfg dma_cfg;
-
-static void stmmac_default_data(void)
+static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 {
-	memset(&plat_dat, 0, sizeof(struct plat_stmmacenet_data));
-	plat_dat.bus_id = 1;
-	plat_dat.phy_addr = 0;
-	plat_dat.interface = PHY_INTERFACE_MODE_GMII;
-	plat_dat.clk_csr = 2;	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
-	plat_dat.has_gmac = 1;
-	plat_dat.force_sf_dma_mode = 1;
+	plat->bus_id = 1;
+	plat->phy_addr = 0;
+	plat->interface = PHY_INTERFACE_MODE_GMII;
+	plat->clk_csr = 2;	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
+	plat->has_gmac = 1;
+	plat->force_sf_dma_mode = 1;
 
-	mdio_data.phy_reset = NULL;
-	mdio_data.phy_mask = 0;
-	plat_dat.mdio_bus_data = &mdio_data;
+	plat->mdio_bus_data->phy_reset = NULL;
+	plat->mdio_bus_data->phy_mask = 0;
 
-	dma_cfg.pbl = 32;
-	dma_cfg.burst_len = DMA_AXI_BLEN_256;
-	plat_dat.dma_cfg = &dma_cfg;
+	plat->dma_cfg->pbl = 32;
+	plat->dma_cfg->burst_len = DMA_AXI_BLEN_256;
+
+	/* Set default value for multicast hash bins */
+	plat->multicast_filter_bins = HASH_TABLE_SIZE;
+
+	/* Set default value for unicast filter entries */
+	plat->unicast_filter_entries = 1;
 }
 
 /**
@@ -64,64 +63,61 @@ static void stmmac_default_data(void)
 static int stmmac_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
-	int ret = 0;
-	void __iomem *addr = NULL;
-	struct stmmac_priv *priv = NULL;
+	struct plat_stmmacenet_data *plat;
+	struct stmmac_priv *priv;
 	int i;
+	int ret;
+
+	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
+	if (!plat)
+		return -ENOMEM;
+
+	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
+					   sizeof(*plat->mdio_bus_data),
+					   GFP_KERNEL);
+	if (!plat->mdio_bus_data)
+		return -ENOMEM;
+
+	plat->dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*plat->dma_cfg),
+				     GFP_KERNEL);
+	if (!plat->dma_cfg)
+		return -ENOMEM;
 
 	/* Enable pci device */
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret) {
-		pr_err("%s : ERROR: failed to enable %s device\n", __func__,
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "%s: ERROR: failed to enable device\n",
+			__func__);
 		return ret;
-	}
-	if (pci_request_regions(pdev, STMMAC_RESOURCE_NAME)) {
-		pr_err("%s: ERROR: failed to get PCI region\n", __func__);
-		ret = -ENODEV;
-		goto err_out_req_reg_failed;
 	}
 
 	/* Get the base address of device */
-	for (i = 0; i <= 5; i++) {
+	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
 		if (pci_resource_len(pdev, i) == 0)
 			continue;
-		addr = pci_iomap(pdev, i, 0);
-		if (addr == NULL) {
-			pr_err("%s: ERROR: cannot map register memory aborting",
-			       __func__);
-			ret = -EIO;
-			goto err_out_map_failed;
-		}
+		ret = pcim_iomap_regions(pdev, BIT(i), pci_name(pdev));
+		if (ret)
+			return ret;
 		break;
 	}
+
 	pci_set_master(pdev);
 
-	stmmac_default_data();
+	stmmac_default_data(plat);
 
-	priv = stmmac_dvr_probe(&(pdev->dev), &plat_dat, addr);
+	priv = stmmac_dvr_probe(&pdev->dev, plat, pcim_iomap_table(pdev)[i]);
 	if (IS_ERR(priv)) {
-		pr_err("%s: main driver probe failed", __func__);
-		ret = PTR_ERR(priv);
-		goto err_out;
+		dev_err(&pdev->dev, "%s: main driver probe failed\n", __func__);
+		return PTR_ERR(priv);
 	}
 	priv->dev->irq = pdev->irq;
 	priv->wol_irq = pdev->irq;
 
 	pci_set_drvdata(pdev, priv->dev);
 
-	pr_debug("STMMAC platform driver registration completed");
+	dev_dbg(&pdev->dev, "STMMAC PCI driver registration completed\n");
 
 	return 0;
-
-err_out:
-	pci_clear_master(pdev);
-err_out_map_failed:
-	pci_release_regions(pdev);
-err_out_req_reg_failed:
-	pci_disable_device(pdev);
-
-	return ret;
 }
 
 /**
@@ -134,38 +130,29 @@ err_out_req_reg_failed:
 static void stmmac_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
 
 	stmmac_dvr_remove(ndev);
-
-	pci_iounmap(pdev, priv->ioaddr);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
 }
 
-#ifdef CONFIG_PM
-static int stmmac_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int stmmac_pci_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *ndev = pci_get_drvdata(pdev);
-	int ret;
 
-	ret = stmmac_suspend(ndev);
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
-	return ret;
+	return stmmac_suspend(ndev);
 }
 
-static int stmmac_pci_resume(struct pci_dev *pdev)
+static int stmmac_pci_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *ndev = pci_get_drvdata(pdev);
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
 
 	return stmmac_resume(ndev);
 }
 #endif
+
+static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_pci_suspend, stmmac_pci_resume);
 
 #define STMMAC_VENDOR_ID 0x700
 #define STMMAC_DEVICE_ID 0x1108
@@ -178,16 +165,17 @@ static const struct pci_device_id stmmac_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, stmmac_id_table);
 
-struct pci_driver stmmac_pci_driver = {
+static struct pci_driver stmmac_pci_driver = {
 	.name = STMMAC_RESOURCE_NAME,
 	.id_table = stmmac_id_table,
 	.probe = stmmac_pci_probe,
 	.remove = stmmac_pci_remove,
-#ifdef CONFIG_PM
-	.suspend = stmmac_pci_suspend,
-	.resume = stmmac_pci_resume,
-#endif
+	.driver         = {
+		.pm     = &stmmac_pm_ops,
+	},
 };
+
+module_pci_driver(stmmac_pci_driver);
 
 MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PCI driver");
 MODULE_AUTHOR("Rayagond Kokatanur <rayagond.kokatanur@vayavyalabs.com>");

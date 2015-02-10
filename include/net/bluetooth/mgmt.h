@@ -184,6 +184,9 @@ struct mgmt_cp_load_link_keys {
 
 #define MGMT_LTK_UNAUTHENTICATED	0x00
 #define MGMT_LTK_AUTHENTICATED		0x01
+#define MGMT_LTK_P256_UNAUTH		0x02
+#define MGMT_LTK_P256_AUTH		0x03
+#define MGMT_LTK_P256_DEBUG		0x04
 
 struct mgmt_ltk_info {
 	struct mgmt_addr_info addr;
@@ -299,28 +302,28 @@ struct mgmt_cp_user_passkey_neg_reply {
 #define MGMT_READ_LOCAL_OOB_DATA_SIZE	0
 struct mgmt_rp_read_local_oob_data {
 	__u8	hash[16];
-	__u8	randomizer[16];
+	__u8	rand[16];
 } __packed;
 struct mgmt_rp_read_local_oob_ext_data {
 	__u8	hash192[16];
-	__u8	randomizer192[16];
+	__u8	rand192[16];
 	__u8	hash256[16];
-	__u8	randomizer256[16];
+	__u8	rand256[16];
 } __packed;
 
 #define MGMT_OP_ADD_REMOTE_OOB_DATA	0x0021
 struct mgmt_cp_add_remote_oob_data {
 	struct mgmt_addr_info addr;
 	__u8	hash[16];
-	__u8	randomizer[16];
+	__u8	rand[16];
 } __packed;
 #define MGMT_ADD_REMOTE_OOB_DATA_SIZE	(MGMT_ADDR_INFO_SIZE + 32)
 struct mgmt_cp_add_remote_oob_ext_data {
 	struct mgmt_addr_info addr;
 	__u8	hash192[16];
-	__u8	randomizer192[16];
+	__u8	rand192[16];
 	__u8	hash256[16];
-	__u8	randomizer256[16];
+	__u8	rand256[16];
 } __packed;
 #define MGMT_ADD_REMOTE_OOB_EXT_DATA_SIZE (MGMT_ADDR_INFO_SIZE + 64)
 
@@ -494,6 +497,15 @@ struct mgmt_cp_set_public_address {
 	bdaddr_t bdaddr;
 } __packed;
 #define MGMT_SET_PUBLIC_ADDRESS_SIZE	6
+
+#define MGMT_OP_START_SERVICE_DISCOVERY	0x003A
+struct mgmt_cp_start_service_discovery {
+	__u8 type;
+	__s8 rssi;
+	__le16 uuid_count;
+	__u8 uuids[0][16];
+} __packed;
+#define MGMT_START_SERVICE_DISCOVERY_SIZE 4
 
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {

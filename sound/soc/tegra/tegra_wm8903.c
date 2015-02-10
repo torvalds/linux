@@ -386,7 +386,6 @@ static const struct of_device_id tegra_wm8903_of_match[] = {
 static struct platform_driver tegra_wm8903_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = tegra_wm8903_of_match,
 	},

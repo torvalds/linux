@@ -111,8 +111,8 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	unsigned long dent_ino;
 	int uname_len;
 
-	ntfs_debug("Looking up %s in directory inode 0x%lx.",
-			dent->d_name.name, dir_ino->i_ino);
+	ntfs_debug("Looking up %pd in directory inode 0x%lx.",
+			dent, dir_ino->i_ino);
 	/* Convert the name of the dentry to Unicode. */
 	uname_len = ntfs_nlstoucs(vol, dent->d_name.name, dent->d_name.len,
 			&uname);

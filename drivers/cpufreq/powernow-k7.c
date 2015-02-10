@@ -1,7 +1,6 @@
 /*
  *  AMD K7 Powernow driver.
  *  (C) 2003 Dave Jones on behalf of SuSE Labs.
- *  (C) 2003-2004 Dave Jones <davej@redhat.com>
  *
  *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon datasheets & sample CPUs kindly provided by AMD.
@@ -701,7 +700,7 @@ static void __exit powernow_exit(void)
 module_param(acpi_force,  int, 0444);
 MODULE_PARM_DESC(acpi_force, "Force ACPI to be used.");
 
-MODULE_AUTHOR("Dave Jones <davej@redhat.com>");
+MODULE_AUTHOR("Dave Jones");
 MODULE_DESCRIPTION("Powernow driver for AMD K7 processors.");
 MODULE_LICENSE("GPL");
 

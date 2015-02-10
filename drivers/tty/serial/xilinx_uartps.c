@@ -133,6 +133,15 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
 #define CDNS_UART_IXR_BRK	0x80000000
 
 /*
+ * Modem Control register:
+ * The read/write Modem Control register controls the interface with the modem
+ * or data set, or a peripheral device emulating a modem.
+ */
+#define CDNS_UART_MODEMCR_FCM	0x00000020 /* Automatic flow control mode */
+#define CDNS_UART_MODEMCR_RTS	0x00000002 /* Request to send output control */
+#define CDNS_UART_MODEMCR_DTR	0x00000001 /* Data Terminal Ready */
+
+/*
  * Channel Status Register:
  * The channel status register (CSR) is provided to enable the control logic
  * to monitor the status of bits in the channel interrupt status register,
@@ -915,7 +924,18 @@ static unsigned int cdns_uart_get_mctrl(struct uart_port *port)
 
 static void cdns_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* N/A */
+	u32 val;
+
+	val = cdns_uart_readl(CDNS_UART_MODEMCR_OFFSET);
+
+	val &= ~(CDNS_UART_MODEMCR_RTS | CDNS_UART_MODEMCR_DTR);
+
+	if (mctrl & TIOCM_RTS)
+		val |= CDNS_UART_MODEMCR_RTS;
+	if (mctrl & TIOCM_DTR)
+		val |= CDNS_UART_MODEMCR_DTR;
+
+	cdns_uart_writel(val, CDNS_UART_MODEMCR_OFFSET);
 }
 
 #ifdef CONFIG_CONSOLE_POLL
@@ -1050,6 +1070,25 @@ static void cdns_uart_console_putchar(struct uart_port *port, int ch)
 	cdns_uart_console_wait_tx(port);
 	cdns_uart_writel(ch, CDNS_UART_FIFO_OFFSET);
 }
+
+static void cdns_early_write(struct console *con, const char *s, unsigned n)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, n, cdns_uart_console_putchar);
+}
+
+static int __init cdns_early_console_setup(struct earlycon_device *device,
+					   const char *opt)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = cdns_early_write;
+
+	return 0;
+}
+EARLYCON_DECLARE(cdns, cdns_early_console_setup);
 
 /**
  * cdns_uart_console_write - perform write operation
@@ -1428,7 +1467,6 @@ static struct platform_driver cdns_uart_platform_driver = {
 	.probe   = cdns_uart_probe,
 	.remove  = cdns_uart_remove,
 	.driver  = {
-		.owner = THIS_MODULE,
 		.name = CDNS_UART_NAME,
 		.of_match_table = cdns_uart_of_match,
 		.pm = &cdns_uart_dev_pm_ops,

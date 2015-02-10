@@ -113,7 +113,6 @@ unsigned int sysctl_net_busy_read __read_mostly;
 unsigned int sysctl_net_busy_poll __read_mostly;
 #endif
 
-static int sock_no_open(struct inode *irrelevant, struct file *dontcare);
 static ssize_t sock_aio_read(struct kiocb *iocb, const struct iovec *iov,
 			 unsigned long nr_segs, loff_t pos);
 static ssize_t sock_aio_write(struct kiocb *iocb, const struct iovec *iov,
@@ -151,7 +150,6 @@ static const struct file_operations socket_file_ops = {
 	.compat_ioctl = compat_sock_ioctl,
 #endif
 	.mmap =		sock_mmap,
-	.open =		sock_no_open,	/* special open code to disallow open via /proc */
 	.release =	sock_close,
 	.fasync =	sock_fasync,
 	.sendpage =	sock_sendpage,
@@ -374,7 +372,6 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 	path.mnt = mntget(sock_mnt);
 
 	d_instantiate(path.dentry, SOCK_INODE(sock));
-	SOCK_INODE(sock)->i_fop = &socket_file_ops;
 
 	file = alloc_file(&path, FMODE_READ | FMODE_WRITE,
 		  &socket_file_ops);
@@ -559,23 +556,6 @@ static struct socket *sock_alloc(void)
 	return sock;
 }
 
-/*
- *	In theory you can't get an open on this inode, but /proc provides
- *	a back door. Remember to keep it shut otherwise you'll let the
- *	creepy crawlies in.
- */
-
-static int sock_no_open(struct inode *irrelevant, struct file *dontcare)
-{
-	return -ENXIO;
-}
-
-const struct file_operations bad_sock_fops = {
-	.owner = THIS_MODULE,
-	.open = sock_no_open,
-	.llseek = noop_llseek,
-};
-
 /**
  *	sock_release	-	close a socket
  *	@sock: socket to close
@@ -610,7 +590,7 @@ void sock_release(struct socket *sock)
 }
 EXPORT_SYMBOL(sock_release);
 
-void sock_tx_timestamp(const struct sock *sk, __u8 *tx_flags)
+void __sock_tx_timestamp(const struct sock *sk, __u8 *tx_flags)
 {
 	u8 flags = *tx_flags;
 
@@ -626,12 +606,9 @@ void sock_tx_timestamp(const struct sock *sk, __u8 *tx_flags)
 	if (sk->sk_tsflags & SOF_TIMESTAMPING_TX_ACK)
 		flags |= SKBTX_ACK_TSTAMP;
 
-	if (sock_flag(sk, SOCK_WIFI_STATUS))
-		flags |= SKBTX_WIFI_STATUS;
-
 	*tx_flags = flags;
 }
-EXPORT_SYMBOL(sock_tx_timestamp);
+EXPORT_SYMBOL(__sock_tx_timestamp);
 
 static inline int __sock_sendmsg_nosec(struct kiocb *iocb, struct socket *sock,
 				       struct msghdr *msg, size_t size)
@@ -654,7 +631,8 @@ static inline int __sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return err ?: __sock_sendmsg_nosec(iocb, sock, msg, size);
 }
 
-int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
+static int do_sock_sendmsg(struct socket *sock, struct msghdr *msg,
+			   size_t size, bool nosec)
 {
 	struct kiocb iocb;
 	struct sock_iocb siocb;
@@ -662,25 +640,22 @@ int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 
 	init_sync_kiocb(&iocb, NULL);
 	iocb.private = &siocb;
-	ret = __sock_sendmsg(&iocb, sock, msg, size);
+	ret = nosec ? __sock_sendmsg_nosec(&iocb, sock, msg, size) :
+		      __sock_sendmsg(&iocb, sock, msg, size);
 	if (-EIOCBQUEUED == ret)
 		ret = wait_on_sync_kiocb(&iocb);
 	return ret;
+}
+
+int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
+{
+	return do_sock_sendmsg(sock, msg, size, false);
 }
 EXPORT_SYMBOL(sock_sendmsg);
 
 static int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg, size_t size)
 {
-	struct kiocb iocb;
-	struct sock_iocb siocb;
-	int ret;
-
-	init_sync_kiocb(&iocb, NULL);
-	iocb.private = &siocb;
-	ret = __sock_sendmsg_nosec(&iocb, sock, msg, size);
-	if (-EIOCBQUEUED == ret)
-		ret = wait_on_sync_kiocb(&iocb);
-	return ret;
+	return do_sock_sendmsg(sock, msg, size, true);
 }
 
 int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
@@ -694,8 +669,7 @@ int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 	 * the following is safe, since for compiler definitions of kvec and
 	 * iovec are identical, yielding the same in-core layout and alignment
 	 */
-	msg->msg_iov = (struct iovec *)vec;
-	msg->msg_iovlen = num;
+	iov_iter_init(&msg->msg_iter, WRITE, (struct iovec *)vec, num, size);
 	result = sock_sendmsg(sock, msg, size);
 	set_fs(oldfs);
 	return result;
@@ -858,7 +832,7 @@ int kernel_recvmsg(struct socket *sock, struct msghdr *msg,
 	 * the following is safe, since for compiler definitions of kvec and
 	 * iovec are identical, yielding the same in-core layout and alignment
 	 */
-	msg->msg_iov = (struct iovec *)vec, msg->msg_iovlen = num;
+	iov_iter_init(&msg->msg_iter, READ, (struct iovec *)vec, num, size);
 	result = sock_recvmsg(sock, msg, size, flags);
 	set_fs(oldfs);
 	return result;
@@ -918,8 +892,7 @@ static ssize_t do_sock_read(struct msghdr *msg, struct kiocb *iocb,
 	msg->msg_namelen = 0;
 	msg->msg_control = NULL;
 	msg->msg_controllen = 0;
-	msg->msg_iov = (struct iovec *)iov;
-	msg->msg_iovlen = nr_segs;
+	iov_iter_init(&msg->msg_iter, READ, iov, nr_segs, size);
 	msg->msg_flags = (file->f_flags & O_NONBLOCK) ? MSG_DONTWAIT : 0;
 
 	return __sock_recvmsg(iocb, sock, msg, size, msg->msg_flags);
@@ -958,8 +931,7 @@ static ssize_t do_sock_write(struct msghdr *msg, struct kiocb *iocb,
 	msg->msg_namelen = 0;
 	msg->msg_control = NULL;
 	msg->msg_controllen = 0;
-	msg->msg_iov = (struct iovec *)iov;
-	msg->msg_iovlen = nr_segs;
+	iov_iter_init(&msg->msg_iter, WRITE, iov, nr_segs, size);
 	msg->msg_flags = (file->f_flags & O_NONBLOCK) ? MSG_DONTWAIT : 0;
 	if (sock->type == SOCK_SEQPACKET)
 		msg->msg_flags |= MSG_EOR;
@@ -1068,7 +1040,8 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			err = -EFAULT;
 			if (get_user(pid, (int __user *)argp))
 				break;
-			err = f_setown(sock->file, pid, 1);
+			f_setown(sock->file, pid, 1);
+			err = 0;
 			break;
 		case FIOGETOWN:
 		case SIOCGPGRP:
@@ -1802,8 +1775,7 @@ SYSCALL_DEFINE6(sendto, int, fd, void __user *, buff, size_t, len,
 	iov.iov_base = buff;
 	iov.iov_len = len;
 	msg.msg_name = NULL;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
+	iov_iter_init(&msg.msg_iter, WRITE, &iov, 1, len);
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_namelen = 0;
@@ -1860,10 +1832,9 @@ SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, ubuf, size_t, size,
 
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
-	msg.msg_iovlen = 1;
-	msg.msg_iov = &iov;
 	iov.iov_len = size;
 	iov.iov_base = ubuf;
+	iov_iter_init(&msg.msg_iter, READ, &iov, 1, size);
 	/* Save some cycles and don't copy the address if not needed */
 	msg.msg_name = addr ? (struct sockaddr *)&address : NULL;
 	/* We assume all kernel code knows the size of sockaddr_storage */
@@ -1990,13 +1961,27 @@ struct used_address {
 	unsigned int name_len;
 };
 
-static int copy_msghdr_from_user(struct msghdr *kmsg,
-				 struct msghdr __user *umsg)
+static ssize_t copy_msghdr_from_user(struct msghdr *kmsg,
+				     struct user_msghdr __user *umsg,
+				     struct sockaddr __user **save_addr,
+				     struct iovec **iov)
 {
-	if (copy_from_user(kmsg, umsg, sizeof(struct msghdr)))
+	struct sockaddr __user *uaddr;
+	struct iovec __user *uiov;
+	size_t nr_segs;
+	ssize_t err;
+
+	if (!access_ok(VERIFY_READ, umsg, sizeof(*umsg)) ||
+	    __get_user(uaddr, &umsg->msg_name) ||
+	    __get_user(kmsg->msg_namelen, &umsg->msg_namelen) ||
+	    __get_user(uiov, &umsg->msg_iov) ||
+	    __get_user(nr_segs, &umsg->msg_iovlen) ||
+	    __get_user(kmsg->msg_control, &umsg->msg_control) ||
+	    __get_user(kmsg->msg_controllen, &umsg->msg_controllen) ||
+	    __get_user(kmsg->msg_flags, &umsg->msg_flags))
 		return -EFAULT;
 
-	if (kmsg->msg_name == NULL)
+	if (!uaddr)
 		kmsg->msg_namelen = 0;
 
 	if (kmsg->msg_namelen < 0)
@@ -2004,10 +1989,35 @@ static int copy_msghdr_from_user(struct msghdr *kmsg,
 
 	if (kmsg->msg_namelen > sizeof(struct sockaddr_storage))
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
-	return 0;
+
+	if (save_addr)
+		*save_addr = uaddr;
+
+	if (uaddr && kmsg->msg_namelen) {
+		if (!save_addr) {
+			err = move_addr_to_kernel(uaddr, kmsg->msg_namelen,
+						  kmsg->msg_name);
+			if (err < 0)
+				return err;
+		}
+	} else {
+		kmsg->msg_name = NULL;
+		kmsg->msg_namelen = 0;
+	}
+
+	if (nr_segs > UIO_MAXIOV)
+		return -EMSGSIZE;
+
+	err = rw_copy_check_uvector(save_addr ? READ : WRITE,
+				    uiov, nr_segs,
+				    UIO_FASTIOV, *iov, iov);
+	if (err >= 0)
+		iov_iter_init(&kmsg->msg_iter, save_addr ? READ : WRITE,
+			      *iov, nr_segs, err);
+	return err;
 }
 
-static int ___sys_sendmsg(struct socket *sock, struct msghdr __user *msg,
+static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
 			 struct msghdr *msg_sys, unsigned int flags,
 			 struct used_address *used_address)
 {
@@ -2019,34 +2029,15 @@ static int ___sys_sendmsg(struct socket *sock, struct msghdr __user *msg,
 	    __attribute__ ((aligned(sizeof(__kernel_size_t))));
 	/* 20 is size of ipv6_pktinfo */
 	unsigned char *ctl_buf = ctl;
-	int err, ctl_len, total_len;
+	int ctl_len, total_len;
+	ssize_t err;
 
-	err = -EFAULT;
-	if (MSG_CMSG_COMPAT & flags) {
-		if (get_compat_msghdr(msg_sys, msg_compat))
-			return -EFAULT;
-	} else {
-		err = copy_msghdr_from_user(msg_sys, msg);
-		if (err)
-			return err;
-	}
+	msg_sys->msg_name = &address;
 
-	if (msg_sys->msg_iovlen > UIO_FASTIOV) {
-		err = -EMSGSIZE;
-		if (msg_sys->msg_iovlen > UIO_MAXIOV)
-			goto out;
-		err = -ENOMEM;
-		iov = kmalloc(msg_sys->msg_iovlen * sizeof(struct iovec),
-			      GFP_KERNEL);
-		if (!iov)
-			goto out;
-	}
-
-	/* This will also move the address data into kernel space */
-	if (MSG_CMSG_COMPAT & flags) {
-		err = verify_compat_iovec(msg_sys, iov, &address, VERIFY_READ);
-	} else
-		err = verify_iovec(msg_sys, iov, &address, VERIFY_READ);
+	if (MSG_CMSG_COMPAT & flags)
+		err = get_compat_msghdr(msg_sys, msg_compat, NULL, &iov);
+	else
+		err = copy_msghdr_from_user(msg_sys, msg, NULL, &iov);
 	if (err < 0)
 		goto out_freeiov;
 	total_len = err;
@@ -2117,7 +2108,6 @@ out_freectl:
 out_freeiov:
 	if (iov != iovstack)
 		kfree(iov);
-out:
 	return err;
 }
 
@@ -2125,7 +2115,7 @@ out:
  *	BSD sendmsg interface
  */
 
-long __sys_sendmsg(int fd, struct msghdr __user *msg, unsigned flags)
+long __sys_sendmsg(int fd, struct user_msghdr __user *msg, unsigned flags)
 {
 	int fput_needed, err;
 	struct msghdr msg_sys;
@@ -2142,7 +2132,7 @@ out:
 	return err;
 }
 
-SYSCALL_DEFINE3(sendmsg, int, fd, struct msghdr __user *, msg, unsigned int, flags)
+SYSCALL_DEFINE3(sendmsg, int, fd, struct user_msghdr __user *, msg, unsigned int, flags)
 {
 	if (flags & MSG_CMSG_COMPAT)
 		return -EINVAL;
@@ -2179,7 +2169,7 @@ int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 
 	while (datagrams < vlen) {
 		if (MSG_CMSG_COMPAT & flags) {
-			err = ___sys_sendmsg(sock, (struct msghdr __user *)compat_entry,
+			err = ___sys_sendmsg(sock, (struct user_msghdr __user *)compat_entry,
 					     &msg_sys, flags, &used_address);
 			if (err < 0)
 				break;
@@ -2187,7 +2177,7 @@ int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 			++compat_entry;
 		} else {
 			err = ___sys_sendmsg(sock,
-					     (struct msghdr __user *)entry,
+					     (struct user_msghdr __user *)entry,
 					     &msg_sys, flags, &used_address);
 			if (err < 0)
 				break;
@@ -2217,7 +2207,7 @@ SYSCALL_DEFINE4(sendmmsg, int, fd, struct mmsghdr __user *, mmsg,
 	return __sys_sendmmsg(fd, mmsg, vlen, flags);
 }
 
-static int ___sys_recvmsg(struct socket *sock, struct msghdr __user *msg,
+static int ___sys_recvmsg(struct socket *sock, struct user_msghdr __user *msg,
 			 struct msghdr *msg_sys, unsigned int flags, int nosec)
 {
 	struct compat_msghdr __user *msg_compat =
@@ -2225,44 +2215,22 @@ static int ___sys_recvmsg(struct socket *sock, struct msghdr __user *msg,
 	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	unsigned long cmsg_ptr;
-	int err, total_len, len;
+	int total_len, len;
+	ssize_t err;
 
 	/* kernel mode address */
 	struct sockaddr_storage addr;
 
 	/* user mode address pointers */
 	struct sockaddr __user *uaddr;
-	int __user *uaddr_len;
+	int __user *uaddr_len = COMPAT_NAMELEN(msg);
 
-	if (MSG_CMSG_COMPAT & flags) {
-		if (get_compat_msghdr(msg_sys, msg_compat))
-			return -EFAULT;
-	} else {
-		err = copy_msghdr_from_user(msg_sys, msg);
-		if (err)
-			return err;
-	}
+	msg_sys->msg_name = &addr;
 
-	if (msg_sys->msg_iovlen > UIO_FASTIOV) {
-		err = -EMSGSIZE;
-		if (msg_sys->msg_iovlen > UIO_MAXIOV)
-			goto out;
-		err = -ENOMEM;
-		iov = kmalloc(msg_sys->msg_iovlen * sizeof(struct iovec),
-			      GFP_KERNEL);
-		if (!iov)
-			goto out;
-	}
-
-	/* Save the user-mode address (verify_iovec will change the
-	 * kernel msghdr to use the kernel address space)
-	 */
-	uaddr = (__force void __user *)msg_sys->msg_name;
-	uaddr_len = COMPAT_NAMELEN(msg);
 	if (MSG_CMSG_COMPAT & flags)
-		err = verify_compat_iovec(msg_sys, iov, &addr, VERIFY_WRITE);
+		err = get_compat_msghdr(msg_sys, msg_compat, &uaddr, &iov);
 	else
-		err = verify_iovec(msg_sys, iov, &addr, VERIFY_WRITE);
+		err = copy_msghdr_from_user(msg_sys, msg, &uaddr, &iov);
 	if (err < 0)
 		goto out_freeiov;
 	total_len = err;
@@ -2305,7 +2273,6 @@ static int ___sys_recvmsg(struct socket *sock, struct msghdr __user *msg,
 out_freeiov:
 	if (iov != iovstack)
 		kfree(iov);
-out:
 	return err;
 }
 
@@ -2313,7 +2280,7 @@ out:
  *	BSD recvmsg interface
  */
 
-long __sys_recvmsg(int fd, struct msghdr __user *msg, unsigned flags)
+long __sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned flags)
 {
 	int fput_needed, err;
 	struct msghdr msg_sys;
@@ -2330,7 +2297,7 @@ out:
 	return err;
 }
 
-SYSCALL_DEFINE3(recvmsg, int, fd, struct msghdr __user *, msg,
+SYSCALL_DEFINE3(recvmsg, int, fd, struct user_msghdr __user *, msg,
 		unsigned int, flags)
 {
 	if (flags & MSG_CMSG_COMPAT)
@@ -2375,7 +2342,7 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 		 * No need to ask LSM for more than the first datagram.
 		 */
 		if (MSG_CMSG_COMPAT & flags) {
-			err = ___sys_recvmsg(sock, (struct msghdr __user *)compat_entry,
+			err = ___sys_recvmsg(sock, (struct user_msghdr __user *)compat_entry,
 					     &msg_sys, flags & ~MSG_WAITFORONE,
 					     datagrams);
 			if (err < 0)
@@ -2384,7 +2351,7 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 			++compat_entry;
 		} else {
 			err = ___sys_recvmsg(sock,
-					     (struct msghdr __user *)entry,
+					     (struct user_msghdr __user *)entry,
 					     &msg_sys, flags & ~MSG_WAITFORONE,
 					     datagrams);
 			if (err < 0)
@@ -2573,13 +2540,13 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 				   (int __user *)a[4]);
 		break;
 	case SYS_SENDMSG:
-		err = sys_sendmsg(a0, (struct msghdr __user *)a1, a[2]);
+		err = sys_sendmsg(a0, (struct user_msghdr __user *)a1, a[2]);
 		break;
 	case SYS_SENDMMSG:
 		err = sys_sendmmsg(a0, (struct mmsghdr __user *)a1, a[2], a[3]);
 		break;
 	case SYS_RECVMSG:
-		err = sys_recvmsg(a0, (struct msghdr __user *)a1, a[2]);
+		err = sys_recvmsg(a0, (struct user_msghdr __user *)a1, a[2]);
 		break;
 	case SYS_RECVMMSG:
 		err = sys_recvmmsg(a0, (struct mmsghdr __user *)a1, a[2], a[3],

@@ -1697,7 +1697,7 @@ static int vmci_transport_dgram_bind(struct vsock_sock *vsk,
 static int vmci_transport_dgram_enqueue(
 	struct vsock_sock *vsk,
 	struct sockaddr_vm *remote_addr,
-	struct iovec *iov,
+	struct msghdr *msg,
 	size_t len)
 {
 	int err;
@@ -1714,7 +1714,7 @@ static int vmci_transport_dgram_enqueue(
 	if (!dg)
 		return -ENOMEM;
 
-	memcpy_fromiovec(VMCI_DG_PAYLOAD(dg), iov, len);
+	memcpy_from_msg(VMCI_DG_PAYLOAD(dg), msg, len);
 
 	dg->dst = vmci_make_handle(remote_addr->svm_cid,
 				   remote_addr->svm_port);
@@ -1773,8 +1773,7 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 	}
 
 	/* Place the datagram payload in the user's iovec. */
-	err = skb_copy_datagram_iovec(skb, sizeof(*dg), msg->msg_iov,
-		payload_len);
+	err = skb_copy_datagram_msg(skb, sizeof(*dg), msg, payload_len);
 	if (err)
 		goto out;
 
@@ -1836,22 +1835,23 @@ static int vmci_transport_connect(struct vsock_sock *vsk)
 
 static ssize_t vmci_transport_stream_dequeue(
 	struct vsock_sock *vsk,
-	struct iovec *iov,
+	struct msghdr *msg,
 	size_t len,
 	int flags)
 {
 	if (flags & MSG_PEEK)
-		return vmci_qpair_peekv(vmci_trans(vsk)->qpair, iov, len, 0);
+		return vmci_qpair_peekv(vmci_trans(vsk)->qpair, msg, len, 0);
 	else
-		return vmci_qpair_dequev(vmci_trans(vsk)->qpair, iov, len, 0);
+		return vmci_qpair_dequev(vmci_trans(vsk)->qpair, msg, len, 0);
 }
 
 static ssize_t vmci_transport_stream_enqueue(
 	struct vsock_sock *vsk,
-	struct iovec *iov,
+	struct msghdr *msg,
 	size_t len)
 {
-	return vmci_qpair_enquev(vmci_trans(vsk)->qpair, iov, len, 0);
+	/* XXX: stripping const */
+	return vmci_qpair_enquev(vmci_trans(vsk)->qpair, (struct iovec *)msg->msg_iter.iov, len, 0);
 }
 
 static s64 vmci_transport_stream_has_data(struct vsock_sock *vsk)

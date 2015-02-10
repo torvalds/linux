@@ -40,8 +40,8 @@
 
 #define DEBUG_SUBSYSTEM D_OTHER
 
+#include <linux/unaligned/access_ok.h>
 
-#include "../include/obd_ost.h"
 #include "../include/obd_support.h"
 #include "../include/lustre_debug.h"
 #include "../include/lustre_net.h"
@@ -61,14 +61,11 @@ int block_debug_setup(void *addr, int len, __u64 off, __u64 id)
 {
 	LASSERT(addr);
 
-	off = cpu_to_le64 (off);
-	id = cpu_to_le64 (id);
-	memcpy(addr, (char *)&off, LPDS);
-	memcpy(addr + LPDS, (char *)&id, LPDS);
-
+	put_unaligned_le64(off, addr);
+	put_unaligned_le64(id, addr+LPDS);
 	addr += len - LPDS - LPDS;
-	memcpy(addr, (char *)&off, LPDS);
-	memcpy(addr + LPDS, (char *)&id, LPDS);
+	put_unaligned_le64(off, addr);
+	put_unaligned_le64(id, addr+LPDS);
 
 	return 0;
 }

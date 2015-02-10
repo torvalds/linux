@@ -371,12 +371,6 @@ void snd_print_pcm_bits(int pcm, char *buf, int buflen);
 /*
  * Misc
  */
-int snd_hda_check_board_config(struct hda_codec *codec, int num_configs,
-			       const char * const *modelnames,
-			       const struct snd_pci_quirk *pci_list);
-int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
-                               int num_configs, const char * const *models,
-                               const struct snd_pci_quirk *tbl);
 int snd_hda_add_new_ctls(struct hda_codec *codec,
 			 const struct snd_kcontrol_new *knew);
 
@@ -425,7 +419,7 @@ struct snd_hda_pin_quirk {
 	  .subvendor = _subvendor,\
 	  .name = _name,\
 	  .value = _value,\
-	  .pins = (const struct hda_pintbl[]) { _pins } \
+	  .pins = (const struct hda_pintbl[]) { _pins, {0, 0}} \
 	}
 #else
 
@@ -433,7 +427,7 @@ struct snd_hda_pin_quirk {
 	{ .codec = _codec,\
 	  .subvendor = _subvendor,\
 	  .value = _value,\
-	  .pins = (const struct hda_pintbl[]) { _pins } \
+	  .pins = (const struct hda_pintbl[]) { _pins, {0, 0}} \
 	}
 
 #endif
@@ -609,6 +603,14 @@ int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_override_pin_caps(struct hda_codec *codec, hda_nid_t nid,
 			      unsigned int caps);
+bool snd_hda_check_amp_caps(struct hda_codec *codec, hda_nid_t nid,
+			   int dir, unsigned int bits);
+
+#define nid_has_mute(codec, nid, dir) \
+	snd_hda_check_amp_caps(codec, nid, dir, (AC_AMPCAP_MUTE | AC_AMPCAP_MIN_MUTE))
+#define nid_has_volume(codec, nid, dir) \
+	snd_hda_check_amp_caps(codec, nid, dir, AC_AMPCAP_NUM_STEPS)
+
 
 /* flags for hda_nid_item */
 #define HDA_NID_ITEM_AMP	(1<<0)

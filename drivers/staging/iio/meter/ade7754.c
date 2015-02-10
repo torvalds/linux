@@ -340,6 +340,7 @@ static int ade7754_set_irq(struct device *dev, bool enable)
 {
 	int ret;
 	u16 irqen;
+
 	ret = ade7754_spi_read_reg_16(dev, ADE7754_IRQEN, &irqen);
 	if (ret)
 		goto error_ret;
@@ -399,6 +400,7 @@ static ssize_t ade7754_read_frequency(struct device *dev,
 	int ret;
 	u8 t;
 	int sps;
+
 	ret = ade7754_spi_read_reg_8(dev,
 			ADE7754_WAVMODE,
 			&t);

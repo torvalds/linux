@@ -14,12 +14,6 @@ all: $(NET_PROGS)
 run_tests: all
 	@/bin/sh ./run_netsocktests || echo "sockettests: [FAIL]"
 	@/bin/sh ./run_afpackettests || echo "afpackettests: [FAIL]"
-	@if /sbin/modprobe test_bpf ; then \
-		/sbin/rmmod test_bpf; \
-		echo "test_bpf: ok"; \
-	else \
-		echo "test_bpf: [FAIL]"; \
-		exit 1; \
-	fi
+	./test_bpf.sh
 clean:
 	$(RM) $(NET_PROGS)

@@ -1143,8 +1143,9 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 			put_child(tp, cindex, (struct rt_trie_node *)tn);
 		} else {
 			rcu_assign_pointer(t->trie, (struct rt_trie_node *)tn);
-			tp = tn;
 		}
+
+		tp = tn;
 	}
 
 	if (tp && tp->pos + tp->bits > 32)

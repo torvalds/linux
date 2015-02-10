@@ -342,12 +342,16 @@ static int ixgbe_set_settings(struct net_device *netdev,
 		if (old == advertised)
 			return err;
 		/* this sets the link speed and restarts auto-neg */
+		while (test_and_set_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
+			usleep_range(1000, 2000);
+
 		hw->mac.autotry_restart = true;
 		err = hw->mac.ops.setup_link(hw, advertised, true);
 		if (err) {
 			e_info(probe, "setup link failed with code %d\n", err);
 			hw->mac.ops.setup_link(hw, old, true);
 		}
+		clear_bit(__IXGBE_IN_SFP_INIT, &adapter->state);
 	} else {
 		/* in this case we currently only support 10Gb/FULL */
 		u32 speed = ethtool_cmd_speed(ecmd);
@@ -507,6 +511,8 @@ static void ixgbe_get_regs(struct net_device *netdev,
 			break;
 		case ixgbe_mac_82599EB:
 		case ixgbe_mac_X540:
+		case ixgbe_mac_X550:
+		case ixgbe_mac_X550EM_x:
 			regs_buff[35 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTL_82599(i));
 			regs_buff[43 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTH_82599(i));
 			break;
@@ -618,6 +624,8 @@ static void ixgbe_get_regs(struct net_device *netdev,
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 		regs_buff[830] = IXGBE_READ_REG(hw, IXGBE_RTTDCS);
 		regs_buff[832] = IXGBE_READ_REG(hw, IXGBE_RTRPCS);
 		for (i = 0; i < 8; i++)
@@ -1303,7 +1311,7 @@ static const struct ixgbe_reg_test reg_test_82599[] = {
 	{ IXGBE_RAL(0), 16, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ IXGBE_RAL(0), 16, TABLE64_TEST_HI, 0x8001FFFF, 0x800CFFFF },
 	{ IXGBE_MTA(0), 128, TABLE32_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ 0, 0, 0, 0 }
+	{ .reg = 0 }
 };
 
 /* default 82598 register test */
@@ -1331,7 +1339,7 @@ static const struct ixgbe_reg_test reg_test_82598[] = {
 	{ IXGBE_RAL(0), 16, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ IXGBE_RAL(0), 16, TABLE64_TEST_HI, 0x800CFFFF, 0x800CFFFF },
 	{ IXGBE_MTA(0), 128, TABLE32_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ 0, 0, 0, 0 }
+	{ .reg = 0 }
 };
 
 static bool reg_pattern_test(struct ixgbe_adapter *adapter, u64 *data, int reg,
@@ -1402,6 +1410,8 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 		toggle = 0x7FFFF30F;
 		test = reg_test_82599;
 		break;
@@ -1640,6 +1650,8 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 		reg_ctl = IXGBE_READ_REG(hw, IXGBE_DMATXCTL);
 		reg_ctl &= ~IXGBE_DMATXCTL_TE;
 		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL, reg_ctl);
@@ -1676,6 +1688,8 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 		reg_data = IXGBE_READ_REG(&adapter->hw, IXGBE_DMATXCTL);
 		reg_data |= IXGBE_DMATXCTL_TE;
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DMATXCTL, reg_data);
@@ -1729,12 +1743,16 @@ static int ixgbe_setup_loopback_test(struct ixgbe_adapter *adapter)
 	reg_data |= IXGBE_FCTRL_BAM | IXGBE_FCTRL_SBP | IXGBE_FCTRL_MPE;
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, reg_data);
 
-	/* X540 needs to set the MACC.FLU bit to force link up */
-	if (adapter->hw.mac.type == ixgbe_mac_X540) {
+	/* X540 and X550 needs to set the MACC.FLU bit to force link up */
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 		reg_data = IXGBE_READ_REG(hw, IXGBE_MACC);
 		reg_data |= IXGBE_MACC_FLU;
 		IXGBE_WRITE_REG(hw, IXGBE_MACC, reg_data);
-	} else {
+		break;
+	default:
 		if (hw->mac.orig_autoc) {
 			reg_data = hw->mac.orig_autoc | IXGBE_AUTOC_FLU;
 			IXGBE_WRITE_REG(hw, IXGBE_AUTOC, reg_data);
@@ -2267,7 +2285,6 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count)
 		adapter->tx_itr_setting = adapter->rx_itr_setting;
 
-#if IS_ENABLED(CONFIG_BQL)
 	/* detect ITR changes that require update of TXDCTL.WTHRESH */
 	if ((adapter->tx_itr_setting != 1) &&
 	    (adapter->tx_itr_setting < IXGBE_100K_ITR)) {
@@ -2279,7 +2296,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		    (tx_itr_prev < IXGBE_100K_ITR))
 			need_reset = true;
 	}
-#endif
+
 	/* check the old value and enable RSC if necessary */
 	need_reset |= ixgbe_update_rsc(adapter);
 
@@ -2773,7 +2790,14 @@ static int ixgbe_set_rss_hash_opt(struct ixgbe_adapter *adapter,
 	/* if we changed something we need to update flags */
 	if (flags2 != adapter->flags2) {
 		struct ixgbe_hw *hw = &adapter->hw;
-		u32 mrqc = IXGBE_READ_REG(hw, IXGBE_MRQC);
+		u32 mrqc;
+		unsigned int pf_pool = adapter->num_vfs;
+
+		if ((hw->mac.type >= ixgbe_mac_X550) &&
+		    (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
+			mrqc = IXGBE_READ_REG(hw, IXGBE_PFVFMRQC(pf_pool));
+		else
+			mrqc = IXGBE_READ_REG(hw, IXGBE_MRQC);
 
 		if ((flags2 & UDP_RSS_FLAGS) &&
 		    !(adapter->flags2 & UDP_RSS_FLAGS))
@@ -2796,7 +2820,11 @@ static int ixgbe_set_rss_hash_opt(struct ixgbe_adapter *adapter,
 		if (flags2 & IXGBE_FLAG2_RSS_FIELD_IPV6_UDP)
 			mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
 
-		IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
+		if ((hw->mac.type >= ixgbe_mac_X550) &&
+		    (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
+			IXGBE_WRITE_REG(hw, IXGBE_PFVFMRQC(pf_pool), mrqc);
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 	}
 
 	return 0;
@@ -2830,6 +2858,8 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 
 	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_X540:
 	case ixgbe_mac_82599EB:
 		info->so_timestamping =
@@ -2897,7 +2927,7 @@ static unsigned int ixgbe_max_channels(struct ixgbe_adapter *adapter)
 		max_combined = IXGBE_MAX_FDIR_INDICES;
 	} else {
 		/* support up to 16 queues with RSS */
-		max_combined = IXGBE_MAX_RSS_INDICES;
+		max_combined = ixgbe_max_rss_indices(adapter);
 	}
 
 	return max_combined;
@@ -2945,6 +2975,7 @@ static int ixgbe_set_channels(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	unsigned int count = ch->combined_count;
+	u8 max_rss_indices = ixgbe_max_rss_indices(adapter);
 
 	/* verify they are not requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
@@ -2961,9 +2992,9 @@ static int ixgbe_set_channels(struct net_device *dev,
 	/* update feature limits from largest to smallest supported values */
 	adapter->ring_feature[RING_F_FDIR].limit = count;
 
-	/* cap RSS limit at 16 */
-	if (count > IXGBE_MAX_RSS_INDICES)
-		count = IXGBE_MAX_RSS_INDICES;
+	/* cap RSS limit */
+	if (count > max_rss_indices)
+		count = max_rss_indices;
 	adapter->ring_feature[RING_F_RSS].limit = count;
 
 #ifdef IXGBE_FCOE

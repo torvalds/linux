@@ -82,15 +82,6 @@ typedef uint32_t drbg_flag_t;
 struct drbg_core {
 	drbg_flag_t flags;	/* flags for the cipher */
 	__u8 statelen;		/* maximum state length */
-	/*
-	 * maximum length of personalization string or additional input
-	 * string -- exponent for base 2
-	 */
-	__u8 max_addtllen;
-	/* maximum bits per RNG request -- exponent for base 2*/
-	__u8 max_bits;
-	/* maximum number of requests -- exponent for base 2 */
-	__u8 max_req;
 	__u8 blocklen_bytes;	/* block size of output in bytes */
 	char cra_name[CRYPTO_MAX_ALG_NAME]; /* mapping to kernel crypto API */
 	 /* kernel crypto API backend cipher name */
@@ -156,12 +147,13 @@ static inline __u8 drbg_keylen(struct drbg_state *drbg)
 
 static inline size_t drbg_max_request_bytes(struct drbg_state *drbg)
 {
-	/* max_bits is in bits, but buflen is in bytes */
-	return (1 << (drbg->core->max_bits - 3));
+	/* SP800-90A requires the limit 2**19 bits, but we return bytes */
+	return (1 << 16);
 }
 
 static inline size_t drbg_max_addtl(struct drbg_state *drbg)
 {
+	/* SP800-90A requires 2**35 bytes additional info str / pers str */
 #if (__BITS_PER_LONG == 32)
 	/*
 	 * SP800-90A allows smaller maximum numbers to be returned -- we
@@ -170,16 +162,17 @@ static inline size_t drbg_max_addtl(struct drbg_state *drbg)
 	 */
 	return (SIZE_MAX - 1);
 #else
-	return (1UL<<(drbg->core->max_addtllen));
+	return (1UL<<35);
 #endif
 }
 
 static inline size_t drbg_max_requests(struct drbg_state *drbg)
 {
+	/* SP800-90A requires 2**48 maximum requests before reseeding */
 #if (__BITS_PER_LONG == 32)
 	return SIZE_MAX;
 #else
-	return (1UL<<(drbg->core->max_req));
+	return (1UL<<48);
 #endif
 }
 

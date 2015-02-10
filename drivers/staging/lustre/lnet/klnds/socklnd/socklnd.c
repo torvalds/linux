@@ -337,8 +337,7 @@ ksocknal_associate_route_conn_locked(ksock_route_t *route, ksock_conn_t *conn)
 			       &route->ksnr_ipaddr,
 			       &conn->ksnc_myipaddr);
 		} else {
-			CDEBUG(D_NET, "Rebinding %s %pI4h from "
-			       "%pI4h to %pI4h\n",
+			CDEBUG(D_NET, "Rebinding %s %pI4h from %pI4h to %pI4h\n",
 			       libcfs_id2str(peer->ksnp_id),
 			       &route->ksnr_ipaddr,
 			       &route->ksnr_myipaddr,
@@ -974,8 +973,7 @@ ksocknal_accept (lnet_ni_t *ni, struct socket *sock)
 
 	LIBCFS_ALLOC(cr, sizeof(*cr));
 	if (cr == NULL) {
-		LCONSOLE_ERROR_MSG(0x12f, "Dropping connection request from "
-				   "%pI4h: memory exhausted\n",
+		LCONSOLE_ERROR_MSG(0x12f, "Dropping connection request from %pI4h: memory exhausted\n",
 				   &peer_ip);
 		return -ENOMEM;
 	}
@@ -1288,8 +1286,7 @@ ksocknal_create_conn (lnet_ni_t *ni, ksock_route_t *route,
 	 *	socket callbacks.
 	 */
 
-	CDEBUG(D_NET, "New conn %s p %d.x %pI4h -> %pI4h/%d"
-	       " incarnation:%lld sched[%d:%d]\n",
+	CDEBUG(D_NET, "New conn %s p %d.x %pI4h -> %pI4h/%d incarnation:%lld sched[%d:%d]\n",
 	       libcfs_id2str(peerid), conn->ksnc_proto->pro_version,
 	       &conn->ksnc_myipaddr, &conn->ksnc_ipaddr,
 	       conn->ksnc_port, incarnation, cpt,
@@ -1638,37 +1635,32 @@ ksocknal_destroy_conn (ksock_conn_t *conn)
 	case SOCKNAL_RX_LNET_PAYLOAD:
 		last_rcv = conn->ksnc_rx_deadline -
 			   cfs_time_seconds(*ksocknal_tunables.ksnd_timeout);
-		CERROR("Completing partial receive from %s[%d]"
-		       ", ip %pI4h:%d, with error, wanted: %d, left: %d, "
-		       "last alive is %ld secs ago\n",
+		CERROR("Completing partial receive from %s[%d], ip %pI4h:%d, with error, wanted: %d, left: %d, last alive is %ld secs ago\n",
 		       libcfs_id2str(conn->ksnc_peer->ksnp_id), conn->ksnc_type,
 		       &conn->ksnc_ipaddr, conn->ksnc_port,
 		       conn->ksnc_rx_nob_wanted, conn->ksnc_rx_nob_left,
 		       cfs_duration_sec(cfs_time_sub(cfs_time_current(),
-					last_rcv)));
+						     last_rcv)));
 		lnet_finalize (conn->ksnc_peer->ksnp_ni,
 			       conn->ksnc_cookie, -EIO);
 		break;
 	case SOCKNAL_RX_LNET_HEADER:
 		if (conn->ksnc_rx_started)
-			CERROR("Incomplete receive of lnet header from %s"
-			       ", ip %pI4h:%d, with error, protocol: %d.x.\n",
+			CERROR("Incomplete receive of lnet header from %s, ip %pI4h:%d, with error, protocol: %d.x.\n",
 			       libcfs_id2str(conn->ksnc_peer->ksnp_id),
 			       &conn->ksnc_ipaddr, conn->ksnc_port,
 			       conn->ksnc_proto->pro_version);
 		break;
 	case SOCKNAL_RX_KSM_HEADER:
 		if (conn->ksnc_rx_started)
-			CERROR("Incomplete receive of ksock message from %s"
-			       ", ip %pI4h:%d, with error, protocol: %d.x.\n",
+			CERROR("Incomplete receive of ksock message from %s, ip %pI4h:%d, with error, protocol: %d.x.\n",
 			       libcfs_id2str(conn->ksnc_peer->ksnp_id),
 			       &conn->ksnc_ipaddr, conn->ksnc_port,
 			       conn->ksnc_proto->pro_version);
 		break;
 	case SOCKNAL_RX_SLOP:
 		if (conn->ksnc_rx_started)
-			CERROR("Incomplete receive of slops from %s"
-			       ", ip %pI4h:%d, with error\n",
+			CERROR("Incomplete receive of slops from %s, ip %pI4h:%d, with error\n",
 			       libcfs_id2str(conn->ksnc_peer->ksnp_id),
 			       &conn->ksnc_ipaddr, conn->ksnc_port);
 	       break;
@@ -2348,16 +2340,11 @@ ksocknal_base_shutdown(void)
 static __u64
 ksocknal_new_incarnation (void)
 {
-	struct timeval tv;
 
 	/* The incarnation number is the time this module loaded and it
-	 * identifies this particular instance of the socknal.  Hopefully
-	 * we won't be able to reboot more frequently than 1MHz for the
-	 * foreseeable future :) */
-
-	do_gettimeofday(&tv);
-
-	return (((__u64)tv.tv_sec) * 1000000) + tv.tv_usec;
+	 * identifies this particular instance of the socknal.
+	 */
+	return ktime_get_ns();
 }
 
 static int
@@ -2516,22 +2503,21 @@ ksocknal_debug_peerhash (lnet_ni_t *ni)
 		ksock_route_t *route;
 		ksock_conn_t  *conn;
 
-		CWARN ("Active peer on shutdown: %s, ref %d, scnt %d, "
-		       "closing %d, accepting %d, err %d, zcookie %llu, "
-		       "txq %d, zc_req %d\n", libcfs_id2str(peer->ksnp_id),
-		       atomic_read(&peer->ksnp_refcount),
-		       peer->ksnp_sharecount, peer->ksnp_closing,
-		       peer->ksnp_accepting, peer->ksnp_error,
-		       peer->ksnp_zc_next_cookie,
-		       !list_empty(&peer->ksnp_tx_queue),
-		       !list_empty(&peer->ksnp_zc_req_list));
+		CWARN("Active peer on shutdown: %s, ref %d, scnt %d, closing %d, accepting %d, err %d, zcookie %llu, txq %d, zc_req %d\n",
+		      libcfs_id2str(peer->ksnp_id),
+		      atomic_read(&peer->ksnp_refcount),
+		      peer->ksnp_sharecount, peer->ksnp_closing,
+		      peer->ksnp_accepting, peer->ksnp_error,
+		      peer->ksnp_zc_next_cookie,
+		      !list_empty(&peer->ksnp_tx_queue),
+		      !list_empty(&peer->ksnp_zc_req_list));
 
 		list_for_each (tmp, &peer->ksnp_routes) {
 			route = list_entry(tmp, ksock_route_t, ksnr_list);
-			CWARN ("Route: ref %d, schd %d, conn %d, cnted %d, "
-			       "del %d\n", atomic_read(&route->ksnr_refcount),
-			       route->ksnr_scheduled, route->ksnr_connecting,
-			       route->ksnr_connected, route->ksnr_deleted);
+			CWARN("Route: ref %d, schd %d, conn %d, cnted %d, del %d\n",
+			      atomic_read(&route->ksnr_refcount),
+			      route->ksnr_scheduled, route->ksnr_connecting,
+			      route->ksnr_connected, route->ksnr_deleted);
 		}
 
 		list_for_each (tmp, &peer->ksnp_conns) {

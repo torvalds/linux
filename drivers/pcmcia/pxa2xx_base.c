@@ -368,7 +368,6 @@ static struct platform_driver pxa2xx_pcmcia_driver = {
 	.remove		= pxa2xx_drv_pcmcia_remove,
 	.driver		= {
 		.name	= "pxa2xx-pcmcia",
-		.owner	= THIS_MODULE,
 		.pm	= &pxa2xx_drv_pcmcia_pm_ops,
 	},
 };

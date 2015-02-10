@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 
-#include "bonding.h"
+#include <net/bonding.h>
 
 struct slave_attribute {
 	struct attribute attr;
@@ -36,7 +36,7 @@ static ssize_t state_show(struct slave *slave, char *buf)
 	case BOND_STATE_BACKUP:
 		return sprintf(buf, "backup\n");
 	default:
-		return sprintf(buf, "UNKONWN\n");
+		return sprintf(buf, "UNKNOWN\n");
 	}
 }
 static SLAVE_ATTR_RO(state);

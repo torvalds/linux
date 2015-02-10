@@ -317,8 +317,8 @@ static inline void cxgbi_skcb_clear_flag(struct sk_buff *skb,
 	__clear_bit(flag, &(cxgbi_skcb_flags(skb)));
 }
 
-static inline int cxgbi_skcb_test_flag(struct sk_buff *skb,
-					enum cxgbi_skcb_flags flag)
+static inline int cxgbi_skcb_test_flag(const struct sk_buff *skb,
+				       enum cxgbi_skcb_flags flag)
 {
 	return test_bit(flag, &(cxgbi_skcb_flags(skb)));
 }
@@ -698,11 +698,6 @@ static inline void cxgbi_set_iscsi_ipv4(struct cxgbi_hba *chba, __be32 ipaddr)
 	else
 		pr_info("set iscsi ipv4 NOT supported, using %s ipv4.\n",
 			chba->ndev->name);
-}
-
-static inline __be32 cxgbi_get_iscsi_ipv4(struct cxgbi_hba *chba)
-{
-	return chba->ipv4addr;
 }
 
 struct cxgbi_device *cxgbi_device_register(unsigned int, unsigned int);

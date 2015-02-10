@@ -11,7 +11,9 @@
 #include <drm/drm_fb_cma_helper.h>
 
 #include "sti_compositor.h"
+#include "sti_cursor.h"
 #include "sti_gdp.h"
+#include "sti_hqvdp.h"
 #include "sti_layer.h"
 #include "sti_vid.h"
 
@@ -32,10 +34,13 @@ const char *sti_layer_to_str(struct sti_layer *layer)
 		return "VID1";
 	case STI_CURSOR:
 		return "CURSOR";
+	case STI_HQVDP_0:
+		return "HQVDP0";
 	default:
 		return "<UNKNOWN LAYER>";
 	}
 }
+EXPORT_SYMBOL(sti_layer_to_str);
 
 struct sti_layer *sti_layer_create(struct device *dev, int desc,
 				   void __iomem *baseaddr)
@@ -49,6 +54,12 @@ struct sti_layer *sti_layer_create(struct device *dev, int desc,
 		break;
 	case STI_VID:
 		layer = sti_vid_create(dev);
+		break;
+	case STI_CUR:
+		layer = sti_cursor_create(dev);
+		break;
+	case STI_VDP:
+		layer = sti_hqvdp_create(dev);
 		break;
 	}
 
@@ -67,8 +78,11 @@ struct sti_layer *sti_layer_create(struct device *dev, int desc,
 
 	return layer;
 }
+EXPORT_SYMBOL(sti_layer_create);
 
-int sti_layer_prepare(struct sti_layer *layer, struct drm_framebuffer *fb,
+int sti_layer_prepare(struct sti_layer *layer,
+		      struct drm_crtc *crtc,
+		      struct drm_framebuffer *fb,
 		      struct drm_display_mode *mode, int mixer_id,
 		      int dest_x, int dest_y, int dest_w, int dest_h,
 		      int src_x, int src_y, int src_w, int src_h)
@@ -88,6 +102,7 @@ int sti_layer_prepare(struct sti_layer *layer, struct drm_framebuffer *fb,
 		return 1;
 	}
 
+	layer->crtc = crtc;
 	layer->fb = fb;
 	layer->mode = mode;
 	layer->mixer_id = mixer_id;
@@ -100,6 +115,7 @@ int sti_layer_prepare(struct sti_layer *layer, struct drm_framebuffer *fb,
 	layer->src_w = src_w;
 	layer->src_h = src_h;
 	layer->format = fb->pixel_format;
+	layer->vaddr = cma_obj->vaddr;
 	layer->paddr = cma_obj->paddr;
 	for (i = 0; i < 4; i++) {
 		layer->pitches[i] = fb->pitches[i];

@@ -2358,7 +2358,7 @@ int ext4_mb_alloc_groupinfo(struct super_block *sb, ext4_group_t ngroups)
 	if (sbi->s_group_info) {
 		memcpy(new_groupinfo, sbi->s_group_info,
 		       sbi->s_group_info_size * sizeof(*sbi->s_group_info));
-		ext4_kvfree(sbi->s_group_info);
+		kvfree(sbi->s_group_info);
 	}
 	sbi->s_group_info = new_groupinfo;
 	sbi->s_group_info_size = size / sizeof(*sbi->s_group_info);
@@ -2385,7 +2385,7 @@ int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
 	if (group % EXT4_DESC_PER_BLOCK(sb) == 0) {
 		metalen = sizeof(*meta_group_info) <<
 			EXT4_DESC_PER_BLOCK_BITS(sb);
-		meta_group_info = kmalloc(metalen, GFP_KERNEL);
+		meta_group_info = kmalloc(metalen, GFP_NOFS);
 		if (meta_group_info == NULL) {
 			ext4_msg(sb, KERN_ERR, "can't allocate mem "
 				 "for a buddy group");
@@ -2399,7 +2399,7 @@ int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
 		sbi->s_group_info[group >> EXT4_DESC_PER_BLOCK_BITS(sb)];
 	i = group & (EXT4_DESC_PER_BLOCK(sb) - 1);
 
-	meta_group_info[i] = kmem_cache_zalloc(cachep, GFP_KERNEL);
+	meta_group_info[i] = kmem_cache_zalloc(cachep, GFP_NOFS);
 	if (meta_group_info[i] == NULL) {
 		ext4_msg(sb, KERN_ERR, "can't allocate buddy mem");
 		goto exit_group_info;
@@ -2428,7 +2428,7 @@ int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
 	{
 		struct buffer_head *bh;
 		meta_group_info[i]->bb_bitmap =
-			kmalloc(sb->s_blocksize, GFP_KERNEL);
+			kmalloc(sb->s_blocksize, GFP_NOFS);
 		BUG_ON(meta_group_info[i]->bb_bitmap == NULL);
 		bh = ext4_read_block_bitmap(sb, group);
 		BUG_ON(bh == NULL);
@@ -2495,7 +2495,7 @@ err_freebuddy:
 		kfree(sbi->s_group_info[i]);
 	iput(sbi->s_buddy_cache);
 err_freesgi:
-	ext4_kvfree(sbi->s_group_info);
+	kvfree(sbi->s_group_info);
 	return -ENOMEM;
 }
 
@@ -2708,12 +2708,11 @@ int ext4_mb_release(struct super_block *sb)
 			EXT4_DESC_PER_BLOCK_BITS(sb);
 		for (i = 0; i < num_meta_group_infos; i++)
 			kfree(sbi->s_group_info[i]);
-		ext4_kvfree(sbi->s_group_info);
+		kvfree(sbi->s_group_info);
 	}
 	kfree(sbi->s_mb_offsets);
 	kfree(sbi->s_mb_maxs);
-	if (sbi->s_buddy_cache)
-		iput(sbi->s_buddy_cache);
+	iput(sbi->s_buddy_cache);
 	if (sbi->s_mb_stats) {
 		ext4_msg(sb, KERN_INFO,
 		       "mballoc: %u blocks %u reqs (%u success)",
@@ -3155,9 +3154,8 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 			 "start %lu, size %lu, fe_logical %lu",
 			 (unsigned long) start, (unsigned long) size,
 			 (unsigned long) ac->ac_o_ex.fe_logical);
+		BUG();
 	}
-	BUG_ON(start + size <= ac->ac_o_ex.fe_logical &&
-			start > ac->ac_o_ex.fe_logical);
 	BUG_ON(size <= 0 || size > EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
 
 	/* now prepare goal request */
@@ -4134,7 +4132,7 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
 	 * per cpu locality group is to reduce the contention between block
 	 * request from multiple CPUs.
 	 */
-	ac->ac_lg = __this_cpu_ptr(sbi->s_locality_groups);
+	ac->ac_lg = raw_cpu_ptr(sbi->s_locality_groups);
 
 	/* we're going to use group allocation */
 	ac->ac_flags |= EXT4_MB_HINT_GROUP_ALLOC;
@@ -4410,14 +4408,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	if (IS_NOQUOTA(ar->inode))
 		ar->flags |= EXT4_MB_USE_ROOT_BLOCKS;
 
-	/*
-	 * For delayed allocation, we could skip the ENOSPC and
-	 * EDQUOT check, as blocks and quotas have been already
-	 * reserved when data being copied into pagecache.
-	 */
-	if (ext4_test_inode_state(ar->inode, EXT4_STATE_DELALLOC_RESERVED))
-		ar->flags |= EXT4_MB_DELALLOC_RESERVED;
-	else {
+	if ((ar->flags & EXT4_MB_DELALLOC_RESERVED) == 0) {
 		/* Without delayed allocation we need to verify
 		 * there is enough free blocks to do block allocation
 		 * and verify allocation doesn't exceed the quota limits.
@@ -4528,8 +4519,7 @@ out:
 	if (inquota && ar->len < inquota)
 		dquot_free_block(ar->inode, EXT4_C2B(sbi, inquota - ar->len));
 	if (!ar->len) {
-		if (!ext4_test_inode_state(ar->inode,
-					   EXT4_STATE_DELALLOC_RESERVED))
+		if ((ar->flags & EXT4_MB_DELALLOC_RESERVED) == 0)
 			/* release all the reserved blocks if non delalloc */
 			percpu_counter_sub(&sbi->s_dirtyclusters_counter,
 						reserv_clstrs);
