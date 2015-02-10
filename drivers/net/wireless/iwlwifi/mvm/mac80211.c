@@ -3956,6 +3956,69 @@ static void iwl_mvm_mac_sta_statistics(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
+static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       const struct ieee80211_event *event)
+{
+#define CHECK_MLME_TRIGGER(_mvm, _trig, _buf, _cnt, _str...)	\
+	do {							\
+		if ((_cnt) && --(_cnt))				\
+			break;					\
+		snprintf(_buf, sizeof(_buf), ##_str);		\
+		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _buf,	\
+					    sizeof(_buf));	\
+	} while (0)
+
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_mlme *trig_mlme;
+	char buf[32];
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_MLME))
+		return;
+
+	if (event->u.mlme.status == MLME_SUCCESS)
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_MLME);
+	trig_mlme = (void *)trig->data;
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+		return;
+
+	memset(buf, 0, sizeof(buf));
+
+	if (event->u.mlme.data == ASSOC_EVENT) {
+		if (event->u.mlme.status == MLME_DENIED)
+			CHECK_MLME_TRIGGER(mvm, trig, buf,
+					   trig_mlme->stop_assoc_denied,
+					   "DENIED ASSOC: reason %d",
+					    event->u.mlme.reason);
+		else if (event->u.mlme.status == MLME_TIMEOUT)
+			CHECK_MLME_TRIGGER(mvm, trig, buf,
+					   trig_mlme->stop_assoc_timeout,
+					   "ASSOC TIMEOUT");
+	} else if (event->u.mlme.data == AUTH_EVENT) {
+		if (event->u.mlme.status == MLME_DENIED)
+			CHECK_MLME_TRIGGER(mvm, trig, buf,
+					   trig_mlme->stop_auth_denied,
+					   "DENIED AUTH: reason %d",
+					   event->u.mlme.reason);
+		else if (event->u.mlme.status == MLME_TIMEOUT)
+			CHECK_MLME_TRIGGER(mvm, trig, buf,
+					   trig_mlme->stop_auth_timeout,
+					   "AUTH TIMEOUT");
+	} else if (event->u.mlme.data == DEAUTH_RX_EVENT) {
+		CHECK_MLME_TRIGGER(mvm, trig, buf,
+				   trig_mlme->stop_rx_deauth,
+				   "DEAUTH RX %d", event->u.mlme.reason);
+	} else if (event->u.mlme.data == DEAUTH_TX_EVENT) {
+		CHECK_MLME_TRIGGER(mvm, trig, buf,
+				   trig_mlme->stop_tx_deauth,
+				   "DEAUTH TX %d", event->u.mlme.reason);
+	}
+#undef CHECK_MLME_TRIGGER
+}
+
 const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
@@ -4008,6 +4071,8 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tdls_channel_switch = iwl_mvm_tdls_channel_switch,
 	.tdls_cancel_channel_switch = iwl_mvm_tdls_cancel_channel_switch,
 	.tdls_recv_channel_switch = iwl_mvm_tdls_recv_channel_switch,
+
+	.event_callback = iwl_mvm_mac_event_callback,
 
 	CFG80211_TESTMODE_CMD(iwl_mvm_mac_testmode_cmd)
 
