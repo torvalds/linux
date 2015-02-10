@@ -3750,6 +3750,9 @@ static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 			break;
 		spin_unlock(&dentry_attach_lock);
 
+		if (S_ISDIR(dl->dl_inode->i_mode))
+			shrink_dcache_parent(dentry);
+
 		mlog(0, "d_delete(%pd);\n", dentry);
 
 		/*
