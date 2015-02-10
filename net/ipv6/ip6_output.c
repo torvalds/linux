@@ -1273,7 +1273,7 @@ emsgsize:
 	/* If this is the first and only packet and device
 	 * supports checksum offloading, let's use it.
 	 */
-	if (!skb &&
+	if (!skb && sk->sk_protocol == IPPROTO_UDP &&
 	    length + fragheaderlen < mtu &&
 	    rt->dst.dev->features & NETIF_F_V6_CSUM &&
 	    !exthdrlen)
