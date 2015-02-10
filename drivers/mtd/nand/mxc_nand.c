@@ -1160,6 +1160,10 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 		memcpy32_fromio(host->data_buf, host->main_area0, 512);
 		host->buf_start = 0;
 		break;
+	default:
+		WARN_ONCE(1, "Unimplemented command (cmd=%u)\n",
+			  command);
+		break;
 	}
 }
 
