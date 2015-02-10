@@ -1039,12 +1039,6 @@ void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
 void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv);
 uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
 void intel_dp_unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes);
-int intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
-		       struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-		       unsigned int crtc_w, unsigned int crtc_h,
-		       uint32_t src_x, uint32_t src_y,
-		       uint32_t src_w, uint32_t src_h);
-int intel_disable_plane(struct drm_plane *plane);
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_edp_drrs_enable(struct intel_dp *intel_dp);
 void intel_edp_drrs_disable(struct intel_dp *intel_dp);
@@ -1233,9 +1227,6 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob);
 int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
 void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
 			       enum plane plane);
-int intel_plane_set_property(struct drm_plane *plane,
-			     struct drm_property *prop,
-			     uint64_t val);
 int intel_plane_restore(struct drm_plane *plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);

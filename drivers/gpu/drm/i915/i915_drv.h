@@ -2507,8 +2507,6 @@ extern int i915_max_ioctl;
 
 extern int i915_suspend_legacy(struct drm_device *dev, pm_message_t state);
 extern int i915_resume_legacy(struct drm_device *dev);
-extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
-extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
 
 /* i915_params.c */
 struct i915_params {
@@ -3212,8 +3210,6 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 int i915_get_reset_stats_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file);
-
-void intel_notify_mmio_flip(struct intel_engine_cs *ring);
 
 /* overlay */
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
