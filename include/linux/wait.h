@@ -990,6 +990,32 @@ wait_on_bit_io(void *word, int bit, unsigned mode)
 }
 
 /**
+ * wait_on_bit_timeout - wait for a bit to be cleared or a timeout elapses
+ * @word: the word being waited on, a kernel virtual address
+ * @bit: the bit of the word being waited on
+ * @mode: the task state to sleep in
+ * @timeout: timeout, in jiffies
+ *
+ * Use the standard hashed waitqueue table to wait for a bit
+ * to be cleared. This is similar to wait_on_bit(), except also takes a
+ * timeout parameter.
+ *
+ * Returned value will be zero if the bit was cleared before the
+ * @timeout elapsed, or non-zero if the @timeout elapsed or process
+ * received a signal and the mode permitted wakeup on that signal.
+ */
+static inline int
+wait_on_bit_timeout(void *word, int bit, unsigned mode, unsigned long timeout)
+{
+	might_sleep();
+	if (!test_bit(bit, word))
+		return 0;
+	return out_of_line_wait_on_bit_timeout(word, bit,
+					       bit_wait_timeout,
+					       mode, timeout);
+}
+
+/**
  * wait_on_bit_action - wait for a bit to be cleared
  * @word: the word being waited on, a kernel virtual address
  * @bit: the bit of the word being waited on
