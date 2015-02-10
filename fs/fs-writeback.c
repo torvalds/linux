@@ -470,12 +470,28 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	 * write_inode()
 	 */
 	spin_lock(&inode->i_lock);
-	/* Clear I_DIRTY_PAGES if we've written out all dirty pages */
-	if (!mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
-		inode->i_state &= ~I_DIRTY_PAGES;
+
 	dirty = inode->i_state & I_DIRTY;
-	inode->i_state &= ~(I_DIRTY_SYNC | I_DIRTY_DATASYNC);
+	inode->i_state &= ~I_DIRTY;
+
+	/*
+	 * Paired with smp_mb() in __mark_inode_dirty().  This allows
+	 * __mark_inode_dirty() to test i_state without grabbing i_lock -
+	 * either they see the I_DIRTY bits cleared or we see the dirtied
+	 * inode.
+	 *
+	 * I_DIRTY_PAGES is always cleared together above even if @mapping
+	 * still has dirty pages.  The flag is reinstated after smp_mb() if
+	 * necessary.  This guarantees that either __mark_inode_dirty()
+	 * sees clear I_DIRTY_PAGES or we see PAGECACHE_TAG_DIRTY.
+	 */
+	smp_mb();
+
+	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
+		inode->i_state |= I_DIRTY_PAGES;
+
 	spin_unlock(&inode->i_lock);
+
 	/* Don't write the inode if only I_DIRTY_PAGES was set */
 	if (dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) {
 		int err = write_inode(inode, wbc);
@@ -1146,12 +1162,11 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 	}
 
 	/*
-	 * make sure that changes are seen by all cpus before we test i_state
-	 * -- mikulas
+	 * Paired with smp_mb() in __writeback_single_inode() for the
+	 * following lockless i_state test.  See there for details.
 	 */
 	smp_mb();
 
-	/* avoid the locking if we can */
 	if ((inode->i_state & flags) == flags)
 		return;
 
