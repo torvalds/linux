@@ -2779,11 +2779,11 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	 * The stride is either expressed as a multiple of 64 bytes chunks for
 	 * linear buffers or in number of tiles for tiled buffers.
 	 */
-	switch (obj->tiling_mode) {
-	case I915_TILING_NONE:
+	switch (fb->modifier[0]) {
+	case DRM_FORMAT_MOD_NONE:
 		stride = fb->pitches[0] >> 6;
 		break;
-	case I915_TILING_X:
+	case I915_FORMAT_MOD_X_TILED:
 		plane_ctl |= PLANE_CTL_TILED_X;
 		stride = fb->pitches[0] >> 9;
 		break;
