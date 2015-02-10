@@ -425,6 +425,49 @@ out_unlock:
 }
 EXPORT_SYMBOL(kmem_cache_create);
 
+static int do_kmem_cache_shutdown(struct kmem_cache *s,
+		struct list_head *release, bool *need_rcu_barrier)
+{
+	if (__kmem_cache_shutdown(s) != 0) {
+		printk(KERN_ERR "kmem_cache_destroy %s: "
+		       "Slab cache still has objects\n", s->name);
+		dump_stack();
+		return -EBUSY;
+	}
+
+	if (s->flags & SLAB_DESTROY_BY_RCU)
+		*need_rcu_barrier = true;
+
+#ifdef CONFIG_MEMCG_KMEM
+	if (!is_root_cache(s)) {
+		struct kmem_cache *root_cache = s->memcg_params->root_cache;
+		int memcg_id = memcg_cache_id(s->memcg_params->memcg);
+
+		BUG_ON(root_cache->memcg_params->memcg_caches[memcg_id] != s);
+		root_cache->memcg_params->memcg_caches[memcg_id] = NULL;
+	}
+#endif
+	list_move(&s->list, release);
+	return 0;
+}
+
+static void do_kmem_cache_release(struct list_head *release,
+				  bool need_rcu_barrier)
+{
+	struct kmem_cache *s, *s2;
+
+	if (need_rcu_barrier)
+		rcu_barrier();
+
+	list_for_each_entry_safe(s, s2, release, list) {
+#ifdef SLAB_SUPPORTS_SYSFS
+		sysfs_slab_remove(s);
+#else
+		slab_kmem_cache_release(s);
+#endif
+	}
+}
+
 #ifdef CONFIG_MEMCG_KMEM
 /*
  * memcg_create_kmem_cache - Create a cache for a memory cgroup.
@@ -435,10 +478,11 @@ EXPORT_SYMBOL(kmem_cache_create);
  * requests going from @memcg to @root_cache. The new cache inherits properties
  * from its parent.
  */
-struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
-					   struct kmem_cache *root_cache)
+void memcg_create_kmem_cache(struct mem_cgroup *memcg,
+			     struct kmem_cache *root_cache)
 {
 	static char memcg_name_buf[NAME_MAX + 1]; /* protected by slab_mutex */
+	int memcg_id = memcg_cache_id(memcg);
 	struct kmem_cache *s = NULL;
 	char *cache_name;
 
@@ -446,6 +490,14 @@ struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 	get_online_mems();
 
 	mutex_lock(&slab_mutex);
+
+	/*
+	 * Since per-memcg caches are created asynchronously on first
+	 * allocation (see memcg_kmem_get_cache()), several threads can try to
+	 * create the same cache, but only one of them may succeed.
+	 */
+	if (cache_from_memcg_idx(root_cache, memcg_id))
+		goto out_unlock;
 
 	cgroup_name(mem_cgroup_css(memcg)->cgroup,
 		    memcg_name_buf, sizeof(memcg_name_buf));
@@ -458,49 +510,73 @@ struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 				 root_cache->size, root_cache->align,
 				 root_cache->flags, root_cache->ctor,
 				 memcg, root_cache);
+	/*
+	 * If we could not create a memcg cache, do not complain, because
+	 * that's not critical at all as we can always proceed with the root
+	 * cache.
+	 */
 	if (IS_ERR(s)) {
 		kfree(cache_name);
-		s = NULL;
+		goto out_unlock;
 	}
+
+	/*
+	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
+	 * barrier here to ensure nobody will see the kmem_cache partially
+	 * initialized.
+	 */
+	smp_wmb();
+	root_cache->memcg_params->memcg_caches[memcg_id] = s;
 
 out_unlock:
 	mutex_unlock(&slab_mutex);
 
 	put_online_mems();
 	put_online_cpus();
-
-	return s;
 }
 
-static int memcg_cleanup_cache_params(struct kmem_cache *s)
+void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 {
-	int rc;
+	LIST_HEAD(release);
+	bool need_rcu_barrier = false;
+	struct kmem_cache *s, *s2;
 
-	if (!s->memcg_params ||
-	    !s->memcg_params->is_root_cache)
-		return 0;
+	get_online_cpus();
+	get_online_mems();
 
-	mutex_unlock(&slab_mutex);
-	rc = __memcg_cleanup_cache_params(s);
 	mutex_lock(&slab_mutex);
+	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+		if (is_root_cache(s) || s->memcg_params->memcg != memcg)
+			continue;
+		/*
+		 * The cgroup is about to be freed and therefore has no charges
+		 * left. Hence, all its caches must be empty by now.
+		 */
+		BUG_ON(do_kmem_cache_shutdown(s, &release, &need_rcu_barrier));
+	}
+	mutex_unlock(&slab_mutex);
 
-	return rc;
-}
-#else
-static int memcg_cleanup_cache_params(struct kmem_cache *s)
-{
-	return 0;
+	put_online_mems();
+	put_online_cpus();
+
+	do_kmem_cache_release(&release, need_rcu_barrier);
 }
 #endif /* CONFIG_MEMCG_KMEM */
 
 void slab_kmem_cache_release(struct kmem_cache *s)
 {
+	memcg_free_cache_params(s);
 	kfree(s->name);
 	kmem_cache_free(kmem_cache, s);
 }
 
 void kmem_cache_destroy(struct kmem_cache *s)
 {
+	int i;
+	LIST_HEAD(release);
+	bool need_rcu_barrier = false;
+	bool busy = false;
+
 	get_online_cpus();
 	get_online_mems();
 
@@ -510,35 +586,23 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	if (s->refcount)
 		goto out_unlock;
 
-	if (memcg_cleanup_cache_params(s) != 0)
-		goto out_unlock;
+	for_each_memcg_cache_index(i) {
+		struct kmem_cache *c = cache_from_memcg_idx(s, i);
 
-	if (__kmem_cache_shutdown(s) != 0) {
-		printk(KERN_ERR "kmem_cache_destroy %s: "
-		       "Slab cache still has objects\n", s->name);
-		dump_stack();
-		goto out_unlock;
+		if (c && do_kmem_cache_shutdown(c, &release, &need_rcu_barrier))
+			busy = true;
 	}
 
-	list_del(&s->list);
-
-	mutex_unlock(&slab_mutex);
-	if (s->flags & SLAB_DESTROY_BY_RCU)
-		rcu_barrier();
-
-	memcg_free_cache_params(s);
-#ifdef SLAB_SUPPORTS_SYSFS
-	sysfs_slab_remove(s);
-#else
-	slab_kmem_cache_release(s);
-#endif
-	goto out;
+	if (!busy)
+		do_kmem_cache_shutdown(s, &release, &need_rcu_barrier);
 
 out_unlock:
 	mutex_unlock(&slab_mutex);
-out:
+
 	put_online_mems();
 	put_online_cpus();
+
+	do_kmem_cache_release(&release, need_rcu_barrier);
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
 
