@@ -3513,7 +3513,6 @@ next:
 		de = (struct ocfs2_dir_entry *)((char *) de + le16_to_cpu(de->rec_len));
 	}
 
-	status = 0;
 bail:
 	brelse(bh);
 	if (status)
