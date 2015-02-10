@@ -1,6 +1,7 @@
 #ifndef _ASM_X86_TRAPS_H
 #define _ASM_X86_TRAPS_H
 
+#include <linux/context_tracking_state.h>
 #include <linux/kprobes.h>
 
 #include <asm/debugreg.h>
@@ -109,6 +110,11 @@ void math_emulate(struct math_emu_info *);
 asmlinkage void smp_thermal_interrupt(void);
 asmlinkage void mce_threshold_interrupt(void);
 #endif
+
+extern enum ctx_state ist_enter(struct pt_regs *regs);
+extern void ist_exit(struct pt_regs *regs, enum ctx_state prev_state);
+extern void ist_begin_non_atomic(struct pt_regs *regs);
+extern void ist_end_non_atomic(void);
 
 /* Interrupts/Exceptions */
 enum {
