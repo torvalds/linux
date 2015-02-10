@@ -115,15 +115,24 @@ EFI_ATTR_SHOW(fw_vendor);
 EFI_ATTR_SHOW(runtime);
 EFI_ATTR_SHOW(config_table);
 
+static ssize_t fw_platform_size_show(struct kobject *kobj,
+				     struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", efi_enabled(EFI_64BIT) ? 64 : 32);
+}
+
 static struct kobj_attribute efi_attr_fw_vendor = __ATTR_RO(fw_vendor);
 static struct kobj_attribute efi_attr_runtime = __ATTR_RO(runtime);
 static struct kobj_attribute efi_attr_config_table = __ATTR_RO(config_table);
+static struct kobj_attribute efi_attr_fw_platform_size =
+	__ATTR_RO(fw_platform_size);
 
 static struct attribute *efi_subsys_attrs[] = {
 	&efi_attr_systab.attr,
 	&efi_attr_fw_vendor.attr,
 	&efi_attr_runtime.attr,
 	&efi_attr_config_table.attr,
+	&efi_attr_fw_platform_size.attr,
 	NULL,
 };
 
@@ -272,15 +281,10 @@ static __init int match_config_table(efi_guid_t *guid,
 				     unsigned long table,
 				     efi_config_table_type_t *table_types)
 {
-	u8 str[EFI_VARIABLE_GUID_LEN + 1];
 	int i;
 
 	if (table_types) {
-		efi_guid_unparse(guid, str);
-
 		for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
-			efi_guid_unparse(&table_types[i].guid, str);
-
 			if (!efi_guidcmp(*guid, table_types[i].guid)) {
 				*(table_types[i].ptr) = table;
 				pr_cont(" %s=0x%lx ",
@@ -403,8 +407,7 @@ static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
 	u64 val;
 	int i, len;
 
-	if (depth != 1 ||
-	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
+	if (depth != 1 || strcmp(uname, "chosen") != 0)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
