@@ -229,16 +229,17 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		 * It's possible the Guest did a NOTIFY hypercall to the
 		 * Launcher.
 		 */
-		if (cpu->pending_notify) {
+		if (cpu->pending.trap) {
 			/*
 			 * Does it just needs to write to a registered
 			 * eventfd (ie. the appropriate virtqueue thread)?
 			 */
 			if (!send_notify_to_eventfd(cpu)) {
 				/* OK, we tell the main Launcher. */
-				if (put_user(cpu->pending_notify, user))
+				if (copy_to_user(user, &cpu->pending,
+						 sizeof(cpu->pending)))
 					return -EFAULT;
-				return sizeof(cpu->pending_notify);
+				return sizeof(cpu->pending);
 			}
 		}
 

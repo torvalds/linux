@@ -68,6 +68,19 @@ enum lguest_req
 };
 
 /*
+ * This is what read() of the lguest fd populates.  trap ==
+ * LGUEST_TRAP_ENTRY for an LHCALL_NOTIFY (addr is the
+ * argument), 14 for a page fault in the MMIO region (addr is
+ * the trap address, insn is the instruction), or 13 for a GPF
+ * (insn is the instruction).
+ */
+struct lguest_pending {
+	__u8 trap;
+	__u8 insn[7];
+	__u32 addr;
+};
+
+/*
  * The alignment to use between consumer and producer parts of vring.
  * x86 pagesize for historical reasons.
  */

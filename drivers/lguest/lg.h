@@ -50,7 +50,8 @@ struct lg_cpu {
 	/* Bitmap of what has changed: see CHANGED_* above. */
 	int changed;
 
-	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
+	/* Pending operation. */
+	struct lguest_pending pending;
 
 	unsigned long *reg_read; /* register from LHREQ_GETREG */
 

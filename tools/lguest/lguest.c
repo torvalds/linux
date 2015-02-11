@@ -1820,17 +1820,21 @@ static void __attribute__((noreturn)) restart_guest(void)
 static void __attribute__((noreturn)) run_guest(void)
 {
 	for (;;) {
-		unsigned long notify_addr;
+		struct lguest_pending notify;
 		int readval;
 
 		/* We read from the /dev/lguest device to run the Guest. */
-		readval = pread(lguest_fd, &notify_addr,
-				sizeof(notify_addr), cpu_id);
+		readval = pread(lguest_fd, &notify, sizeof(notify), cpu_id);
 
 		/* One unsigned long means the Guest did HCALL_NOTIFY */
-		if (readval == sizeof(notify_addr)) {
-			verbose("Notify on address %#lx\n", notify_addr);
-			handle_output(notify_addr);
+		if (readval == sizeof(notify)) {
+			if (notify.trap == 0x1F) {
+				verbose("Notify on address %#08x\n",
+					notify.addr);
+				handle_output(notify.addr);
+			} else
+				errx(1, "Unknown trap %i addr %#08x\n",
+				     notify.trap, notify.addr);
 		/* ENOENT means the Guest died.  Reading tells us why. */
 		} else if (errno == ENOENT) {
 			char reason[1024] = { 0 };

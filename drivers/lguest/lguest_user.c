@@ -29,6 +29,10 @@ bool send_notify_to_eventfd(struct lg_cpu *cpu)
 	unsigned int i;
 	struct lg_eventfd_map *map;
 
+	/* We only connect LHCALL_NOTIFY to event fds, not other traps. */
+	if (cpu->pending.trap != LGUEST_TRAP_ENTRY)
+		return false;
+
 	/*
 	 * This "rcu_read_lock()" helps track when someone is still looking at
 	 * the (RCU-using) eventfds array.  It's not actually a lock at all;
@@ -52,9 +56,9 @@ bool send_notify_to_eventfd(struct lg_cpu *cpu)
 	 * we'll continue to use the old array and just won't see the new one.
 	 */
 	for (i = 0; i < map->num; i++) {
-		if (map->map[i].addr == cpu->pending_notify) {
+		if (map->map[i].addr == cpu->pending.addr) {
 			eventfd_signal(map->map[i].event, 1);
-			cpu->pending_notify = 0;
+			cpu->pending.trap = 0;
 			break;
 		}
 	}
@@ -62,7 +66,7 @@ bool send_notify_to_eventfd(struct lg_cpu *cpu)
 	rcu_read_unlock();
 
 	/* If we cleared the notification, it's because we found a match. */
-	return cpu->pending_notify == 0;
+	return cpu->pending.trap == 0;
 }
 
 /*L:055
@@ -282,8 +286,8 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	 * If we returned from read() last time because the Guest sent I/O,
 	 * clear the flag.
 	 */
-	if (cpu->pending_notify)
-		cpu->pending_notify = 0;
+	if (cpu->pending.trap)
+		cpu->pending.trap = 0;
 
 	/* Run the Guest until something interesting happens. */
 	return run_guest(cpu, (unsigned long __user *)user);
