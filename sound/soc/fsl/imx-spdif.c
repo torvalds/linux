@@ -60,6 +60,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 	data->card.dev = &pdev->dev;
 	data->card.dai_link = &data->dai;
 	data->card.num_links = 1;
+	data->card.owner = THIS_MODULE;
 
 	ret = snd_soc_of_parse_card_name(&data->card, "model");
 	if (ret)

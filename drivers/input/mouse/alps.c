@@ -435,7 +435,7 @@ static void alps_report_mt_data(struct psmouse *psmouse, int n)
 	struct alps_fields *f = &priv->f;
 	int i, slot[MAX_TOUCHES];
 
-	input_mt_assign_slots(dev, slot, f->mt, n);
+	input_mt_assign_slots(dev, slot, f->mt, n, 0);
 	for (i = 0; i < n; i++)
 		alps_set_slot(dev, slot[i], f->mt[i].x, f->mt[i].y);
 
@@ -474,6 +474,13 @@ static void alps_process_trackstick_packet_v3(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 	struct input_dev *dev = priv->dev2;
 	int x, y, z, left, right, middle;
+
+	/* It should be a DualPoint when received trackstick packet */
+	if (!(priv->flags & ALPS_DUALPOINT)) {
+		psmouse_warn(psmouse,
+			     "Rejected trackstick packet from non DualPoint device");
+		return;
+	}
 
 	/* Sanity check packet */
 	if (!(packet[0] & 0x40)) {
@@ -699,7 +706,8 @@ static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 
 	alps_report_semi_mt_data(psmouse, fingers);
 
-	if (!(priv->quirks & ALPS_QUIRK_TRACKSTICK_BUTTONS)) {
+	if ((priv->flags & ALPS_DUALPOINT) &&
+	    !(priv->quirks & ALPS_QUIRK_TRACKSTICK_BUTTONS)) {
 		input_report_key(dev2, BTN_LEFT, f->ts_left);
 		input_report_key(dev2, BTN_RIGHT, f->ts_right);
 		input_report_key(dev2, BTN_MIDDLE, f->ts_middle);
@@ -743,8 +751,11 @@ static void alps_process_packet_v6(struct psmouse *psmouse)
 	 */
 	if (packet[5] == 0x7F) {
 		/* It should be a DualPoint when received Trackpoint packet */
-		if (!(priv->flags & ALPS_DUALPOINT))
+		if (!(priv->flags & ALPS_DUALPOINT)) {
+			psmouse_warn(psmouse,
+				     "Rejected trackstick packet from non DualPoint device");
 			return;
+		}
 
 		/* Trackpoint packet */
 		x = packet[1] | ((packet[3] & 0x20) << 2);
@@ -1025,6 +1036,13 @@ static void alps_process_trackstick_packet_v7(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 	struct input_dev *dev2 = priv->dev2;
 	int x, y, z, left, right, middle;
+
+	/* It should be a DualPoint when received trackstick packet */
+	if (!(priv->flags & ALPS_DUALPOINT)) {
+		psmouse_warn(psmouse,
+			     "Rejected trackstick packet from non DualPoint device");
+		return;
+	}
 
 	/*
 	 *        b7 b6 b5 b4 b3 b2 b1 b0
@@ -2443,14 +2461,24 @@ int alps_init(struct psmouse *psmouse)
 		dev1->keybit[BIT_WORD(BTN_MIDDLE)] |= BIT_MASK(BTN_MIDDLE);
 	}
 
+	if (priv->flags & ALPS_DUALPOINT) {
+		/*
+		 * format of input device name is: "protocol vendor name"
+		 * see function psmouse_switch_protocol() in psmouse-base.c
+		 */
+		dev2->name = "AlpsPS/2 ALPS DualPoint Stick";
+		dev2->id.product = PSMOUSE_ALPS;
+		dev2->id.version = priv->proto_version;
+	} else {
+		dev2->name = "PS/2 ALPS Mouse";
+		dev2->id.product = PSMOUSE_PS2;
+		dev2->id.version = 0x0000;
+	}
+
 	snprintf(priv->phys, sizeof(priv->phys), "%s/input1", psmouse->ps2dev.serio->phys);
 	dev2->phys = priv->phys;
-	dev2->name = (priv->flags & ALPS_DUALPOINT) ?
-		     "DualPoint Stick" : "ALPS PS/2 Device";
 	dev2->id.bustype = BUS_I8042;
 	dev2->id.vendor  = 0x0002;
-	dev2->id.product = PSMOUSE_ALPS;
-	dev2->id.version = 0x0000;
 	dev2->dev.parent = &psmouse->ps2dev.serio->dev;
 
 	dev2->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);

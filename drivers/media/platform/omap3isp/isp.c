@@ -220,6 +220,9 @@ static u32 isp_xclk_calc_divider(unsigned long *rate, unsigned long parent_rate)
 		return ISPTCTRL_CTRL_DIV_BYPASS;
 	}
 
+	if (*rate == 0)
+		*rate = 1;
+
 	divider = DIV_ROUND_CLOSEST(parent_rate, *rate);
 	if (divider >= ISPTCTRL_CTRL_DIV_BYPASS)
 		divider = ISPTCTRL_CTRL_DIV_BYPASS - 1;

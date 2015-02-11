@@ -82,6 +82,7 @@ struct iss_csi2_ctx_cfg {
 	u8 virtual_id;
 	u16 format_id;		/* as in CSI2_CTx_CTRL2[9:0] */
 	u8 dpcm_predictor;	/* 1: simple, 0: advanced */
+	u16 frame;
 
 	/* Fields in CSI2_CTx_CTRL1/3 - Shadowed */
 	u16 alpha;
@@ -137,7 +138,6 @@ struct iss_csi2_device {
 	u32 output; /* output to IPIPEIF, memory or both? */
 	bool dpcm_decompress;
 	unsigned int frame_skip;
-	bool use_fs_irq;
 
 	struct iss_csiphy *phy;
 	struct iss_csi2_ctx_cfg contexts[ISS_CSI2_MAX_CTX_NUM + 1];

@@ -59,7 +59,7 @@
 #define GPIO_LEVEL_MASK_OFF	0x001c
 
 /* The MV78200 has per-CPU registers for edge mask and level mask */
-#define GPIO_EDGE_MASK_MV78200_OFF(cpu)   ((cpu) ? 0x30 : 0x18)
+#define GPIO_EDGE_MASK_MV78200_OFF(cpu)	  ((cpu) ? 0x30 : 0x18)
 #define GPIO_LEVEL_MASK_MV78200_OFF(cpu)  ((cpu) ? 0x34 : 0x1C)
 
 /* The Armada XP has per-CPU registers for interrupt cause, interrupt
@@ -69,11 +69,11 @@
 #define GPIO_EDGE_MASK_ARMADAXP_OFF(cpu)  (0x10 + (cpu) * 0x4)
 #define GPIO_LEVEL_MASK_ARMADAXP_OFF(cpu) (0x20 + (cpu) * 0x4)
 
-#define MVEBU_GPIO_SOC_VARIANT_ORION    0x1
-#define MVEBU_GPIO_SOC_VARIANT_MV78200  0x2
+#define MVEBU_GPIO_SOC_VARIANT_ORION	0x1
+#define MVEBU_GPIO_SOC_VARIANT_MV78200	0x2
 #define MVEBU_GPIO_SOC_VARIANT_ARMADAXP 0x3
 
-#define MVEBU_MAX_GPIO_PER_BANK         32
+#define MVEBU_MAX_GPIO_PER_BANK		32
 
 struct mvebu_gpio_chip {
 	struct gpio_chip   chip;
@@ -82,9 +82,9 @@ struct mvebu_gpio_chip {
 	void __iomem	  *percpu_membase;
 	int		   irqbase;
 	struct irq_domain *domain;
-	int                soc_variant;
+	int		   soc_variant;
 
-	/* Used to preserve GPIO registers accross suspend/resume */
+	/* Used to preserve GPIO registers across suspend/resume */
 	u32                out_reg;
 	u32                io_conf_reg;
 	u32                blink_en_reg;
@@ -107,7 +107,8 @@ static inline void __iomem *mvebu_gpioreg_blink(struct mvebu_gpio_chip *mvchip)
 	return mvchip->membase + GPIO_BLINK_EN_OFF;
 }
 
-static inline void __iomem *mvebu_gpioreg_io_conf(struct mvebu_gpio_chip *mvchip)
+static inline void __iomem *
+mvebu_gpioreg_io_conf(struct mvebu_gpio_chip *mvchip)
 {
 	return mvchip->membase + GPIO_IO_CONF_OFF;
 }
@@ -117,12 +118,14 @@ static inline void __iomem *mvebu_gpioreg_in_pol(struct mvebu_gpio_chip *mvchip)
 	return mvchip->membase + GPIO_IN_POL_OFF;
 }
 
-static inline void __iomem *mvebu_gpioreg_data_in(struct mvebu_gpio_chip *mvchip)
+static inline void __iomem *
+mvebu_gpioreg_data_in(struct mvebu_gpio_chip *mvchip)
 {
 	return mvchip->membase + GPIO_DATA_IN_OFF;
 }
 
-static inline void __iomem *mvebu_gpioreg_edge_cause(struct mvebu_gpio_chip *mvchip)
+static inline void __iomem *
+mvebu_gpioreg_edge_cause(struct mvebu_gpio_chip *mvchip)
 {
 	int cpu;
 
@@ -132,13 +135,15 @@ static inline void __iomem *mvebu_gpioreg_edge_cause(struct mvebu_gpio_chip *mvc
 		return mvchip->membase + GPIO_EDGE_CAUSE_OFF;
 	case MVEBU_GPIO_SOC_VARIANT_ARMADAXP:
 		cpu = smp_processor_id();
-		return mvchip->percpu_membase + GPIO_EDGE_CAUSE_ARMADAXP_OFF(cpu);
+		return mvchip->percpu_membase +
+			GPIO_EDGE_CAUSE_ARMADAXP_OFF(cpu);
 	default:
 		BUG();
 	}
 }
 
-static inline void __iomem *mvebu_gpioreg_edge_mask(struct mvebu_gpio_chip *mvchip)
+static inline void __iomem *
+mvebu_gpioreg_edge_mask(struct mvebu_gpio_chip *mvchip)
 {
 	int cpu;
 
@@ -150,7 +155,8 @@ static inline void __iomem *mvebu_gpioreg_edge_mask(struct mvebu_gpio_chip *mvch
 		return mvchip->membase + GPIO_EDGE_MASK_MV78200_OFF(cpu);
 	case MVEBU_GPIO_SOC_VARIANT_ARMADAXP:
 		cpu = smp_processor_id();
-		return mvchip->percpu_membase + GPIO_EDGE_MASK_ARMADAXP_OFF(cpu);
+		return mvchip->percpu_membase +
+			GPIO_EDGE_MASK_ARMADAXP_OFF(cpu);
 	default:
 		BUG();
 	}
@@ -168,7 +174,8 @@ static void __iomem *mvebu_gpioreg_level_mask(struct mvebu_gpio_chip *mvchip)
 		return mvchip->membase + GPIO_LEVEL_MASK_MV78200_OFF(cpu);
 	case MVEBU_GPIO_SOC_VARIANT_ARMADAXP:
 		cpu = smp_processor_id();
-		return mvchip->percpu_membase + GPIO_LEVEL_MASK_ARMADAXP_OFF(cpu);
+		return mvchip->percpu_membase +
+			GPIO_LEVEL_MASK_ARMADAXP_OFF(cpu);
 	default:
 		BUG();
 	}
@@ -364,22 +371,22 @@ static void mvebu_gpio_level_irq_unmask(struct irq_data *d)
  * value of the line or the opposite value.
  *
  * Level IRQ handlers: DATA_IN is used directly as cause register.
- *                     Interrupt are masked by LEVEL_MASK registers.
+ *		       Interrupt are masked by LEVEL_MASK registers.
  * Edge IRQ handlers:  Change in DATA_IN are latched in EDGE_CAUSE.
- *                     Interrupt are masked by EDGE_MASK registers.
+ *		       Interrupt are masked by EDGE_MASK registers.
  * Both-edge handlers: Similar to regular Edge handlers, but also swaps
- *                     the polarity to catch the next line transaction.
- *                     This is a race condition that might not perfectly
- *                     work on some use cases.
+ *		       the polarity to catch the next line transaction.
+ *		       This is a race condition that might not perfectly
+ *		       work on some use cases.
  *
  * Every eight GPIO lines are grouped (OR'ed) before going up to main
  * cause register.
  *
- *                    EDGE  cause    mask
- *        data-in   /--------| |-----| |----\
- *     -----| |-----                         ---- to main cause reg
- *           X      \----------------| |----/
- *        polarity    LEVEL          mask
+ *		      EDGE  cause    mask
+ *	  data-in   /--------| |-----| |----\
+ *     -----| |-----			     ---- to main cause reg
+ *	     X	    \----------------| |----/
+ *	  polarity    LEVEL	     mask
  *
  ****************************************************************************/
 
@@ -394,9 +401,8 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	pin = d->hwirq;
 
 	u = readl_relaxed(mvebu_gpioreg_io_conf(mvchip)) & (1 << pin);
-	if (!u) {
+	if (!u)
 		return -EINVAL;
-	}
 
 	type &= IRQ_TYPE_SENSE_MASK;
 	if (type == IRQ_TYPE_NONE)
@@ -529,13 +535,13 @@ static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			   (data_in ^ in_pol) & msk  ? "hi" : "lo",
 			   in_pol & msk ? "lo" : "hi");
 		if (!((edg_msk | lvl_msk) & msk)) {
-			seq_printf(s, " disabled\n");
+			seq_puts(s, " disabled\n");
 			continue;
 		}
 		if (edg_msk & msk)
-			seq_printf(s, " edge ");
+			seq_puts(s, " edge ");
 		if (lvl_msk & msk)
-			seq_printf(s, " level");
+			seq_puts(s, " level");
 		seq_printf(s, " (%s)\n", cause & msk ? "pending" : "clear  ");
 	}
 }
@@ -546,15 +552,15 @@ static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 static const struct of_device_id mvebu_gpio_of_match[] = {
 	{
 		.compatible = "marvell,orion-gpio",
-		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_ORION,
+		.data	    = (void *) MVEBU_GPIO_SOC_VARIANT_ORION,
 	},
 	{
 		.compatible = "marvell,mv78200-gpio",
-		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_MV78200,
+		.data	    = (void *) MVEBU_GPIO_SOC_VARIANT_MV78200,
 	},
 	{
 		.compatible = "marvell,armadaxp-gpio",
-		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_ARMADAXP,
+		.data	    = (void *) MVEBU_GPIO_SOC_VARIANT_ARMADAXP,
 	},
 	{
 		/* sentinel */
@@ -661,6 +667,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	unsigned int ngpios;
 	int soc_variant;
 	int i, cpu, id;
+	int err;
 
 	match = of_match_device(mvebu_gpio_of_match, &pdev->dev);
 	if (match)
@@ -668,7 +675,8 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	else
 		soc_variant = MVEBU_GPIO_SOC_VARIANT_ORION;
 
-	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip), GFP_KERNEL);
+	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip),
+			      GFP_KERNEL);
 	if (!mvchip)
 		return -ENOMEM;
 
@@ -767,8 +775,8 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	 * interrupt handlers, with each handler dealing with 8 GPIO
 	 * pins. */
 	for (i = 0; i < 4; i++) {
-		int irq;
-		irq = platform_get_irq(pdev, i);
+		int irq = platform_get_irq(pdev, i);
+
 		if (irq < 0)
 			continue;
 		irq_set_handler_data(irq, mvchip);
@@ -778,14 +786,16 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->irqbase = irq_alloc_descs(-1, 0, ngpios, -1);
 	if (mvchip->irqbase < 0) {
 		dev_err(&pdev->dev, "no irqs\n");
-		return mvchip->irqbase;
+		err = mvchip->irqbase;
+		goto err_gpiochip_add;
 	}
 
 	gc = irq_alloc_generic_chip("mvebu_gpio_irq", 2, mvchip->irqbase,
 				    mvchip->membase, handle_level_irq);
 	if (!gc) {
 		dev_err(&pdev->dev, "Cannot allocate generic irq_chip\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_gpiochip_add;
 	}
 
 	gc->private = mvchip;
@@ -816,18 +826,26 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	if (!mvchip->domain) {
 		dev_err(&pdev->dev, "couldn't allocate irq domain %s (DT).\n",
 			mvchip->chip.label);
-		irq_remove_generic_chip(gc, IRQ_MSK(ngpios), IRQ_NOREQUEST,
-					IRQ_LEVEL | IRQ_NOPROBE);
-		kfree(gc);
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_generic_chip;
 	}
 
 	return 0;
+
+err_generic_chip:
+	irq_remove_generic_chip(gc, IRQ_MSK(ngpios), IRQ_NOREQUEST,
+				IRQ_LEVEL | IRQ_NOPROBE);
+	kfree(gc);
+
+err_gpiochip_add:
+	gpiochip_remove(&mvchip->chip);
+
+	return err;
 }
 
 static struct platform_driver mvebu_gpio_driver = {
 	.driver		= {
-		.name	        = "mvebu-gpio",
+		.name		= "mvebu-gpio",
 		.of_match_table = mvebu_gpio_of_match,
 	},
 	.probe		= mvebu_gpio_probe,

@@ -5238,6 +5238,7 @@ static int dsi_init_pll_data(struct platform_device *dsidev)
 	}
 
 	pll->name = dsi->module_id == 0 ? "dsi0" : "dsi1";
+	pll->id = dsi->module_id == 0 ? DSS_PLL_DSI1 : DSS_PLL_DSI2;
 	pll->clkin = clk;
 	pll->base = dsi->pll_base;
 

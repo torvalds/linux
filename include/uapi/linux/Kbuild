@@ -35,6 +35,7 @@ header-y += adfs_fs.h
 header-y += affs_hardblocks.h
 header-y += agpgart.h
 header-y += aio_abi.h
+header-y += am437x-vpfe.h
 header-y += apm_bios.h
 header-y += arcfb.h
 header-y += atalk.h

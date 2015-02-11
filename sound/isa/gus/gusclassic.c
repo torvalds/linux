@@ -181,12 +181,12 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 	if (error < 0)
 		goto out;
 
-	error = snd_gf1_pcm_new(gus, 0, 0, NULL);
+	error = snd_gf1_pcm_new(gus, 0, 0);
 	if (error < 0)
 		goto out;
 
 	if (!gus->ace_flag) {
-		error = snd_gf1_rawmidi_new(gus, 0, NULL);
+		error = snd_gf1_rawmidi_new(gus, 0);
 		if (error < 0)
 			goto out;
 	}
