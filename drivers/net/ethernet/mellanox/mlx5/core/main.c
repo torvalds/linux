@@ -291,6 +291,7 @@ static void copy_rw_fields(void *to, struct mlx5_caps *from)
 	MLX5_SET(cmd_hca_cap, to, log_max_ra_req_dc, from->gen.log_max_ra_req_dc);
 	MLX5_SET(cmd_hca_cap, to, log_max_ra_res_dc, from->gen.log_max_ra_res_dc);
 	MLX5_SET(cmd_hca_cap, to, pkey_table_size, to_fw_pkey_sz(from->gen.pkey_table_size));
+	MLX5_SET(cmd_hca_cap, to, log_uar_page_sz, PAGE_SHIFT - 12);
 	v64 = from->gen.flags & MLX5_CAP_BITS_RW_MASK;
 	*flags_off = cpu_to_be64(v64);
 }
