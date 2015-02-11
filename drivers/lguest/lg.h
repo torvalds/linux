@@ -202,6 +202,7 @@ void guest_set_pte(struct lg_cpu *cpu, unsigned long gpgdir,
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages);
 bool demand_page(struct lg_cpu *cpu, unsigned long cr2, int errcode);
 void pin_page(struct lg_cpu *cpu, unsigned long vaddr);
+bool __guest_pa(struct lg_cpu *cpu, unsigned long vaddr, unsigned long *paddr);
 unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr);
 void page_table_guest_data_init(struct lg_cpu *cpu);
 

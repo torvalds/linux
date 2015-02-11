@@ -647,7 +647,7 @@ void guest_pagetable_flush_user(struct lg_cpu *cpu)
 /*:*/
 
 /* We walk down the guest page tables to get a guest-physical address */
-unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
+bool __guest_pa(struct lg_cpu *cpu, unsigned long vaddr, unsigned long *paddr)
 {
 	pgd_t gpgd;
 	pte_t gpte;
@@ -656,31 +656,47 @@ unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 #endif
 
 	/* Still not set up?  Just map 1:1. */
-	if (unlikely(cpu->linear_pages))
-		return vaddr;
+	if (unlikely(cpu->linear_pages)) {
+		*paddr = vaddr;
+		return true;
+	}
 
 	/* First step: get the top-level Guest page table entry. */
 	gpgd = lgread(cpu, gpgd_addr(cpu, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
-	if (!(pgd_flags(gpgd) & _PAGE_PRESENT)) {
-		kill_guest(cpu, "Bad address %#lx", vaddr);
-		return -1UL;
-	}
+	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
+		goto fail;
 
 #ifdef CONFIG_X86_PAE
 	gpmd = lgread(cpu, gpmd_addr(gpgd, vaddr), pmd_t);
-	if (!(pmd_flags(gpmd) & _PAGE_PRESENT)) {
-		kill_guest(cpu, "Bad address %#lx", vaddr);
-		return -1UL;
-	}
+	if (!(pmd_flags(gpmd) & _PAGE_PRESENT))
+		goto fail;
 	gpte = lgread(cpu, gpte_addr(cpu, gpmd, vaddr), pte_t);
 #else
 	gpte = lgread(cpu, gpte_addr(cpu, gpgd, vaddr), pte_t);
 #endif
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
-		kill_guest(cpu, "Bad address %#lx", vaddr);
+		goto fail;
 
-	return pte_pfn(gpte) * PAGE_SIZE | (vaddr & ~PAGE_MASK);
+	*paddr = pte_pfn(gpte) * PAGE_SIZE | (vaddr & ~PAGE_MASK);
+	return true;
+
+fail:
+	*paddr = -1UL;
+	return false;
+}
+
+/*
+ * This is the version we normally use: kills the Guest if it uses a
+ * bad address
+ */
+unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
+{
+	unsigned long paddr;
+
+	if (!__guest_pa(cpu, vaddr, &paddr))
+		kill_guest(cpu, "Bad address %#lx", vaddr);
+	return paddr;
 }
 
 /*
