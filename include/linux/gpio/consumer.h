@@ -83,7 +83,14 @@ struct gpio_desc *__must_check __devm_gpiod_get_optional(struct device *dev,
 struct gpio_desc *__must_check
 __devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
 			      unsigned int index, enum gpiod_flags flags);
+struct gpio_descs *__must_check devm_gpiod_get_array(struct device *dev,
+						     const char *con_id,
+						     enum gpiod_flags flags);
+struct gpio_descs *__must_check
+devm_gpiod_get_array_optional(struct device *dev, const char *con_id,
+			      enum gpiod_flags flags);
 void devm_gpiod_put(struct device *dev, struct gpio_desc *desc);
+void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs);
 
 int gpiod_get_direction(struct gpio_desc *desc);
 int gpiod_direction_input(struct gpio_desc *desc);
@@ -228,7 +235,30 @@ __devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
 	return ERR_PTR(-ENOSYS);
 }
 
+static inline struct gpio_descs *__must_check
+devm_gpiod_get_array(struct device *dev, const char *con_id,
+		     enum gpiod_flags flags)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline struct gpio_descs *__must_check
+devm_gpiod_get_array_optional(struct device *dev, const char *con_id,
+			      enum gpiod_flags flags)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
 static inline void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
+{
+	might_sleep();
+
+	/* GPIO can never have been requested */
+	WARN_ON(1);
+}
+
+static inline void devm_gpiod_put_array(struct device *dev,
+					struct gpio_descs *descs)
 {
 	might_sleep();
 

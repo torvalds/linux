@@ -102,10 +102,18 @@ Device-managed variants of these functions are also defined:
 						  const char *con_id,
 						  enum gpiod_flags flags)
 
-	struct gpio_desc * devm_gpiod_get_index_optional(struct device *dev,
+	struct gpio_desc *devm_gpiod_get_index_optional(struct device *dev,
 							const char *con_id,
 							unsigned int index,
 							enum gpiod_flags flags)
+
+	struct gpio_descs *devm_gpiod_get_array(struct device *dev,
+						const char *con_id,
+						enum gpiod_flags flags)
+
+	struct gpio_descs *devm_gpiod_get_array_optional(struct device *dev,
+							 const char *con_id,
+							 enum gpiod_flags flags)
 
 A GPIO descriptor can be disposed of using the gpiod_put() function:
 
@@ -119,9 +127,11 @@ It is strictly forbidden to use a descriptor after calling these functions.
 It is also not allowed to individually release descriptors (using gpiod_put())
 from an array acquired with gpiod_get_array().
 
-The device-managed variant is, unsurprisingly:
+The device-managed variants are, unsurprisingly:
 
 	void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
+
+	void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs)
 
 
 Using GPIOs
