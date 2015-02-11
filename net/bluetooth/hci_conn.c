@@ -864,8 +864,12 @@ struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 {
 	struct hci_conn *acl;
 
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		if (lmp_bredr_capable(hdev))
+			return ERR_PTR(-ECONNREFUSED);
+
 		return ERR_PTR(-EOPNOTSUPP);
+	}
 
 	acl = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
 	if (!acl) {
