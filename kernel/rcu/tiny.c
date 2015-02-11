@@ -103,8 +103,7 @@ EXPORT_SYMBOL(__rcu_is_watching);
 static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
 {
 	RCU_TRACE(reset_cpu_stall_ticks(rcp));
-	if (rcp->rcucblist != NULL &&
-	    rcp->donetail != rcp->curtail) {
+	if (rcp->donetail != rcp->curtail) {
 		rcp->donetail = rcp->curtail;
 		return 1;
 	}
