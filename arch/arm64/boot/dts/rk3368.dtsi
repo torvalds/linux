@@ -1190,6 +1190,7 @@
 		clock-names = "clk_crypto", "sclk_crypto", "mclk_crypto";
 		status = "okay";
 	};
+
 	dwc_control_usb: dwc-control-usb {
 		compatible = "rockchip,rk3368-dwc-control-usb";
 		rockchip,grf = <&grf>;
@@ -1204,8 +1205,8 @@
 		usb_bc{
 			compatible = "inno,phy";
 			regbase = &dwc_control_usb;
-			rk_usb,bvalid     = <0x04b 23 1>;
-			rk_usb,iddig      = <0x04b 26 1>;
+			rk_usb,bvalid     = <0x4bc 23 1>;
+			rk_usb,iddig      = <0x4bc 26 1>;
 			rk_usb,vdmsrcen   = <0x718 12 1>;
 			rk_usb,vdpsrcen   = <0x718 11 1>;
 			rk_usb,rdmpden    = <0x718 10 1>;

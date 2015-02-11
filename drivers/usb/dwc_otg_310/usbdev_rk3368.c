@@ -1,6 +1,6 @@
 #include "usbdev_rk.h"
-#include "usbdev_grf_regs.h"
 #include "dwc_otg_regs.h"
+
 static struct dwc_otg_control_usb *control_usb;
 
 static u32 uoc_read(u32 reg)
@@ -197,7 +197,7 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3368 = {
 	.get_status = usb20otg_get_status,
 	.power_enable = usb20otg_power_enable,
 	.dwc_otg_uart_mode = dwc_otg_uart_mode,
-	/* .bc_detect_cb = rk_battery_charger_detect_cb, */
+	.bc_detect_cb = rk_battery_charger_detect_cb,
 };
 #endif
 
@@ -321,7 +321,7 @@ static inline void do_wakeup(struct work_struct *work)
 
 static void usb_battery_charger_detect_work(struct work_struct *work)
 {
-	/* rk_battery_charger_detect_cb(usb_battery_charger_detect(1)); */
+	rk_battery_charger_detect_cb(usb_battery_charger_detect(1));
 }
 
 /********** handler for bvalid irq **********/
