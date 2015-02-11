@@ -553,9 +553,9 @@ int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave, int port)
 		slaves_pport_actv = mlx4_phys_to_slaves_pport_actv(
 				    dev, &exclusive_ports);
 		slave_gid -= bitmap_weight(slaves_pport_actv.slaves,
-					   dev->num_vfs + 1);
+					   dev->persist->num_vfs + 1);
 	}
-	vfs = bitmap_weight(slaves_pport.slaves, dev->num_vfs + 1) - 1;
+	vfs = bitmap_weight(slaves_pport.slaves, dev->persist->num_vfs + 1) - 1;
 	if (slave_gid <= ((MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS) % vfs))
 		return ((MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS) / vfs) + 1;
 	return (MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS) / vfs;
@@ -590,10 +590,10 @@ int mlx4_get_base_gid_ix(struct mlx4_dev *dev, int slave, int port)
 		slaves_pport_actv = mlx4_phys_to_slaves_pport_actv(
 				    dev, &exclusive_ports);
 		slave_gid -= bitmap_weight(slaves_pport_actv.slaves,
-					   dev->num_vfs + 1);
+					   dev->persist->num_vfs + 1);
 	}
 	gids = MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS;
-	vfs = bitmap_weight(slaves_pport.slaves, dev->num_vfs + 1) - 1;
+	vfs = bitmap_weight(slaves_pport.slaves, dev->persist->num_vfs + 1) - 1;
 	if (slave_gid <= gids % vfs)
 		return MLX4_ROCE_PF_GIDS + ((gids / vfs) + 1) * (slave_gid - 1);
 
@@ -644,7 +644,7 @@ void mlx4_reset_roce_gids(struct mlx4_dev *dev, int slave)
 	int num_eth_ports, err;
 	int i;
 
-	if (slave < 0 || slave > dev->num_vfs)
+	if (slave < 0 || slave > dev->persist->num_vfs)
 		return;
 
 	actv_ports = mlx4_get_active_ports(dev, slave);
@@ -1214,7 +1214,8 @@ int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
 		return -EINVAL;
 
 	slaves_pport = mlx4_phys_to_slaves_pport(dev, port);
-	num_vfs = bitmap_weight(slaves_pport.slaves, dev->num_vfs + 1) - 1;
+	num_vfs = bitmap_weight(slaves_pport.slaves,
+				dev->persist->num_vfs + 1) - 1;
 
 	for (i = 0; i < MLX4_ROCE_MAX_GIDS; i++) {
 		if (!memcmp(priv->port[port].gid_table.roce_gids[i].raw, gid,
@@ -1258,7 +1259,7 @@ int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
 							dev, &exclusive_ports);
 				num_vfs_before += bitmap_weight(
 						slaves_pport_actv.slaves,
-						dev->num_vfs + 1);
+						dev->persist->num_vfs + 1);
 			}
 
 			/* candidate_slave_gid isn't necessarily the correct slave, but
@@ -1288,7 +1289,7 @@ int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
 						dev, &exclusive_ports);
 				slave_gid += bitmap_weight(
 						slaves_pport_actv.slaves,
-						dev->num_vfs + 1);
+						dev->persist->num_vfs + 1);
 			}
 		}
 		*slave_id = slave_gid;

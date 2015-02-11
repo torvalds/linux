@@ -1850,8 +1850,7 @@ static ssize_t vmci_transport_stream_enqueue(
 	struct msghdr *msg,
 	size_t len)
 {
-	/* XXX: stripping const */
-	return vmci_qpair_enquev(vmci_trans(vsk)->qpair, (struct iovec *)msg->msg_iter.iov, len, 0);
+	return vmci_qpair_enquev(vmci_trans(vsk)->qpair, msg, len, 0);
 }
 
 static s64 vmci_transport_stream_has_data(struct vsock_sock *vsk)

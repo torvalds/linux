@@ -2666,11 +2666,11 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 
 	mac_iocb_ptr->frame_len = cpu_to_le16((u16) skb->len);
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		netif_printk(qdev, tx_queued, KERN_DEBUG, qdev->ndev,
-			     "Adding a vlan tag %d.\n", vlan_tx_tag_get(skb));
+			     "Adding a vlan tag %d.\n", skb_vlan_tag_get(skb));
 		mac_iocb_ptr->flags3 |= OB_MAC_IOCB_V;
-		mac_iocb_ptr->vlan_tci = cpu_to_le16(vlan_tx_tag_get(skb));
+		mac_iocb_ptr->vlan_tci = cpu_to_le16(skb_vlan_tag_get(skb));
 	}
 	tso = ql_tso(skb, (struct ob_mac_tso_iocb_req *)mac_iocb_ptr);
 	if (tso < 0) {

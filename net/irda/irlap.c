@@ -533,7 +533,7 @@ void irlap_discovery_request(struct irlap_cb *self, discovery_t *discovery)
 	info.discovery = discovery;
 
 	/* sysctl_slot_timeout bounds are checked in irsysctl.c - Jean II */
-	self->slot_timeout = sysctl_slot_timeout * HZ / 1000;
+	self->slot_timeout = msecs_to_jiffies(sysctl_slot_timeout);
 
 	irlap_do_event(self, DISCOVERY_REQUEST, NULL, &info);
 }
@@ -1015,13 +1015,15 @@ void irlap_apply_connection_parameters(struct irlap_cb *self, int now)
 	 * Or, this is how much we can keep the pf bit in primary mode.
 	 * Therefore, it must be lower or equal than our *OWN* max turn around.
 	 * Jean II */
-	self->poll_timeout = self->qos_tx.max_turn_time.value * HZ / 1000;
+	self->poll_timeout = msecs_to_jiffies(
+				self->qos_tx.max_turn_time.value);
 	/* The Final timeout applies only to the primary station.
 	 * It defines the maximum time the primary wait (mostly in RECV mode)
 	 * for an answer from the secondary station before polling it again.
 	 * Therefore, it must be greater or equal than our *PARTNER*
 	 * max turn around time - Jean II */
-	self->final_timeout = self->qos_rx.max_turn_time.value * HZ / 1000;
+	self->final_timeout = msecs_to_jiffies(
+				self->qos_rx.max_turn_time.value);
 	/* The Watchdog Bit timeout applies only to the secondary station.
 	 * It defines the maximum time the secondary wait (mostly in RECV mode)
 	 * for poll from the primary station before getting annoyed.

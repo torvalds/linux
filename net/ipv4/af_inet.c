@@ -395,8 +395,6 @@ int inet_release(struct socket *sock)
 	if (sk) {
 		long timeout;
 
-		sock_rps_reset_flow(sk);
-
 		/* Applications forget to leave groups before exiting */
 		ip_mc_drop_socket(sk);
 

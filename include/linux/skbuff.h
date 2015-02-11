@@ -626,8 +626,11 @@ struct sk_buff {
 	__u32			hash;
 	__be16			vlan_proto;
 	__u16			vlan_tci;
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	unsigned int	napi_id;
+#if defined(CONFIG_NET_RX_BUSY_POLL) || defined(CONFIG_XPS)
+	union {
+		unsigned int	napi_id;
+		unsigned int	sender_cpu;
+	};
 #endif
 #ifdef CONFIG_NETWORK_SECMARK
 	__u32			secmark;
@@ -2484,19 +2487,18 @@ static inline int skb_put_padto(struct sk_buff *skb, unsigned int len)
 }
 
 static inline int skb_add_data(struct sk_buff *skb,
-			       char __user *from, int copy)
+			       struct iov_iter *from, int copy)
 {
 	const int off = skb->len;
 
 	if (skb->ip_summed == CHECKSUM_NONE) {
-		int err = 0;
-		__wsum csum = csum_and_copy_from_user(from, skb_put(skb, copy),
-							    copy, 0, &err);
-		if (!err) {
+		__wsum csum = 0;
+		if (csum_and_copy_from_iter(skb_put(skb, copy), copy,
+					    &csum, from) == copy) {
 			skb->csum = csum_block_add(skb->csum, csum, off);
 			return 0;
 		}
-	} else if (!copy_from_user(skb_put(skb, copy), from, copy))
+	} else if (copy_from_iter(skb_put(skb, copy), copy, from) == copy)
 		return 0;
 
 	__skb_trim(skb, off);
@@ -2693,8 +2695,7 @@ int skb_vlan_push(struct sk_buff *skb, __be16 vlan_proto, u16 vlan_tci);
 
 static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
 {
-	/* XXX: stripping const */
-	return memcpy_fromiovec(data, (struct iovec *)msg->msg_iter.iov, len);
+	return copy_from_iter(data, len, &msg->msg_iter) == len ? 0 : -EFAULT;
 }
 
 static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)
@@ -3071,7 +3072,7 @@ static inline __wsum null_compute_pseudo(struct sk_buff *skb, int proto)
 
 #define skb_checksum_validate_zero_check(skb, proto, check,		\
 					 compute_pseudo)		\
-	__skb_checksum_validate_(skb, proto, true, true, check, compute_pseudo)
+	__skb_checksum_validate(skb, proto, true, true, check, compute_pseudo)
 
 #define skb_checksum_simple_validate(skb)				\
 	__skb_checksum_validate(skb, 0, true, false, 0, null_compute_pseudo)
@@ -3095,6 +3096,27 @@ do {									\
 		__skb_checksum_convert(skb, check,			\
 				       compute_pseudo(skb, proto));	\
 } while (0)
+
+/* Update skbuf and packet to reflect the remote checksum offload operation.
+ * When called, ptr indicates the starting point for skb->csum when
+ * ip_summed is CHECKSUM_COMPLETE. If we need create checksum complete
+ * here, skb_postpull_rcsum is done so skb->csum start is ptr.
+ */
+static inline void skb_remcsum_process(struct sk_buff *skb, void *ptr,
+				       int start, int offset)
+{
+	__wsum delta;
+
+	 if (unlikely(skb->ip_summed != CHECKSUM_COMPLETE)) {
+		__skb_checksum_complete(skb);
+		skb_postpull_rcsum(skb, skb->data, ptr - (void *)skb->data);
+	}
+
+	delta = remcsum_adjust(ptr, skb->csum, start, offset);
+
+	/* Adjust skb->csum since we changed the packet */
+	skb->csum = csum_add(skb->csum, delta);
+}
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 void nf_conntrack_destroy(struct nf_conntrack *nfct);

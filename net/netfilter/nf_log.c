@@ -425,8 +425,7 @@ static int netfilter_log_sysctl_init(struct net *net)
 			nf_log_sysctl_table[i].procname	=
 				nf_log_sysctl_fnames[i];
 			nf_log_sysctl_table[i].data = NULL;
-			nf_log_sysctl_table[i].maxlen =
-				NFLOGGER_NAME_LEN * sizeof(char);
+			nf_log_sysctl_table[i].maxlen = NFLOGGER_NAME_LEN;
 			nf_log_sysctl_table[i].mode = 0644;
 			nf_log_sysctl_table[i].proc_handler =
 				nf_log_proc_dostring;

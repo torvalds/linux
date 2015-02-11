@@ -1661,7 +1661,6 @@ M:	Jiri Slaby <jirislaby@gmail.com>
 M:	Nick Kossifidis <mickflemm@gmail.com>
 M:	"Luis R. Rodriguez" <mcgrof@do-not-panic.com>
 L:	linux-wireless@vger.kernel.org
-L:	ath5k-devel@lists.ath5k.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath5k
 S:	Maintained
 F:	drivers/net/wireless/ath/ath5k/
@@ -6652,6 +6651,7 @@ F:	include/linux/netdevice.h
 F:	include/uapi/linux/in.h
 F:	include/uapi/linux/net.h
 F:	include/uapi/linux/netdevice.h
+F:	include/uapi/linux/net_namespace.h
 F:	tools/net/
 F:	tools/testing/selftests/net/
 F:	lib/random32.c
@@ -7090,11 +7090,12 @@ F:	arch/openrisc/
 
 OPENVSWITCH
 M:	Pravin Shelar <pshelar@nicira.com>
+L:	netdev@vger.kernel.org
 L:	dev@openvswitch.org
 W:	http://openvswitch.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pshelar/openvswitch.git
 S:	Maintained
 F:	net/openvswitch/
+F:	include/uapi/linux/openvswitch.h
 
 OPL4 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
@@ -8096,6 +8097,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 S:	Maintained
 F:	Documentation/rfkill.txt
 F:	net/rfkill/
+
+RHASHTABLE
+M:	Thomas Graf <tgraf@suug.ch>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	lib/rhashtable.c
+F:	include/linux/rhashtable.h
 
 RICOH SMARTMEDIA/XD DRIVER
 M:	Maxim Levitsky <maximlevitsky@gmail.com>
@@ -9654,6 +9662,13 @@ F:	drivers/mfd/lp8788*.c
 F:	drivers/power/lp8788-charger.c
 F:	drivers/regulator/lp8788-*.c
 F:	include/linux/mfd/lp8788*.h
+
+TI NETCP ETHERNET DRIVER
+M:	Wingman Kwok <w-kwok2@ti.com>
+M:	Murali Karicheri <m-karicheri2@ti.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/ti/netcp*
 
 TI TWL4030 SERIES SOC CODEC DRIVER
 M:	Peter Ujfalusi <peter.ujfalusi@ti.com>

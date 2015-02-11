@@ -33,7 +33,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.1.1.67"
+#define DRV_VERSION		"2.1.1.83"
 #define DRV_COPYRIGHT		"Copyright 2008-2013 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -188,6 +188,7 @@ struct enic {
 	struct enic_rfs_flw_tbl rfs_h;
 	u32 rx_copybreak;
 	u8 rss_key[ENIC_RSS_LEN];
+	struct vnic_gen_stats gen_stats;
 };
 
 static inline struct device *enic_get_dev(struct enic *enic)
@@ -240,6 +241,19 @@ static inline unsigned int enic_msix_err_intr(struct enic *enic)
 static inline unsigned int enic_msix_notify_intr(struct enic *enic)
 {
 	return enic->rq_count + enic->wq_count + 1;
+}
+
+static inline int enic_dma_map_check(struct enic *enic, dma_addr_t dma_addr)
+{
+	if (unlikely(pci_dma_mapping_error(enic->pdev, dma_addr))) {
+		net_warn_ratelimited("%s: PCI dma mapping failed!\n",
+				     enic->netdev->name);
+		enic->gen_stats.dma_map_error++;
+
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 void enic_reset_addr_lists(struct enic *enic);

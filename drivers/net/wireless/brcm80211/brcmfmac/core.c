@@ -197,7 +197,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	brcmf_dbg(DATA, "Enter, idx=%d\n", ifp->bssidx);
 
 	/* Can the device send data? */
-	if (drvr->bus_if->state != BRCMF_BUS_DATA) {
+	if (drvr->bus_if->state != BRCMF_BUS_UP) {
 		brcmf_err("xmit rejected state=%d\n", drvr->bus_if->state);
 		netif_stop_queue(ndev);
 		dev_kfree_skb(skb);
@@ -601,9 +601,12 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
+	char drev[BRCMU_DOTREV_LEN] = "n/a";
 
+	if (drvr->revinfo.result == 0)
+		brcmu_dotrev_str(drvr->revinfo.driverrev, drev);
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	snprintf(info->version, sizeof(info->version), "n/a");
+	strlcpy(info->version, drev, sizeof(info->version));
 	strlcpy(info->fw_version, drvr->fwver, sizeof(info->fw_version));
 	strlcpy(info->bus_info, dev_name(drvr->bus_if->dev),
 		sizeof(info->bus_info));
@@ -637,7 +640,7 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
 
 	/* If bus is not ready, can't continue */
-	if (bus_if->state != BRCMF_BUS_DATA) {
+	if (bus_if->state != BRCMF_BUS_UP) {
 		brcmf_err("failed bus is not ready\n");
 		return -EAGAIN;
 	}
@@ -964,13 +967,20 @@ int brcmf_bus_start(struct device *dev)
 		p2p_ifp = NULL;
 
 	/* signal bus ready */
-	brcmf_bus_change_state(bus_if, BRCMF_BUS_DATA);
+	brcmf_bus_change_state(bus_if, BRCMF_BUS_UP);
 
 	/* Bus is ready, do any initialization */
 	ret = brcmf_c_preinit_dcmds(ifp);
 	if (ret < 0)
 		goto fail;
 
+	/* assure we have chipid before feature attach */
+	if (!bus_if->chip) {
+		bus_if->chip = drvr->revinfo.chipnum;
+		bus_if->chiprev = drvr->revinfo.chiprev;
+		brcmf_dbg(INFO, "firmware revinfo: chip %x (%d) rev %d\n",
+			  bus_if->chip, bus_if->chip, bus_if->chiprev);
+	}
 	brcmf_feat_attach(drvr);
 
 	ret = brcmf_fws_init(drvr);
@@ -1093,9 +1103,8 @@ static int brcmf_get_pend_8021x_cnt(struct brcmf_if *ifp)
 	return atomic_read(&ifp->pend_8021x_cnt);
 }
 
-int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
+int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	int err;
 
 	err = wait_event_timeout(ifp->pend_8021x_wait,
@@ -1105,6 +1114,27 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 	WARN_ON(!err);
 
 	return !err;
+}
+
+void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state)
+{
+	struct brcmf_pub *drvr = bus->drvr;
+	struct net_device *ndev;
+	int ifidx;
+
+	brcmf_dbg(TRACE, "%d -> %d\n", bus->state, state);
+	bus->state = state;
+
+	if (state == BRCMF_BUS_UP) {
+		for (ifidx = 0; ifidx < BRCMF_MAX_IFS; ifidx++) {
+			if ((drvr->iflist[ifidx]) &&
+			    (drvr->iflist[ifidx]->ndev)) {
+				ndev = drvr->iflist[ifidx]->ndev;
+				if (netif_queue_stopped(ndev))
+					netif_wake_queue(ndev);
+			}
+		}
+	}
 }
 
 static void brcmf_driver_register(struct work_struct *work)

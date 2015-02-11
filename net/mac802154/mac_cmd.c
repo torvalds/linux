@@ -81,7 +81,7 @@ static int mac802154_set_mac_params(struct net_device *dev,
 
 	/* PHY */
 	wpan_dev->wpan_phy->transmit_power = params->transmit_power;
-	wpan_dev->wpan_phy->cca_mode = params->cca_mode;
+	wpan_dev->wpan_phy->cca = params->cca;
 	wpan_dev->wpan_phy->cca_ed_level = params->cca_ed_level;
 
 	/* MAC */
@@ -98,7 +98,7 @@ static int mac802154_set_mac_params(struct net_device *dev,
 	}
 
 	if (local->hw.flags & IEEE802154_HW_CCA_MODE) {
-		ret = drv_set_cca_mode(local, params->cca_mode);
+		ret = drv_set_cca_mode(local, &params->cca);
 		if (ret < 0)
 			return ret;
 	}
@@ -122,7 +122,7 @@ static void mac802154_get_mac_params(struct net_device *dev,
 
 	/* PHY */
 	params->transmit_power = wpan_dev->wpan_phy->transmit_power;
-	params->cca_mode = wpan_dev->wpan_phy->cca_mode;
+	params->cca = wpan_dev->wpan_phy->cca;
 	params->cca_ed_level = wpan_dev->wpan_phy->cca_ed_level;
 
 	/* MAC */

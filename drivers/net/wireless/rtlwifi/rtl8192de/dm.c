@@ -29,6 +29,7 @@
 
 #include "../wifi.h"
 #include "../base.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -154,34 +155,6 @@ static const u8 cckswing_table_ch14[CCK_TABLE_SIZE][8] = {
 	{0x09, 0x09, 0x08, 0x05, 0x00, 0x00, 0x00, 0x00},    /* 31, -15.5dB */
 	{0x09, 0x08, 0x07, 0x04, 0x00, 0x00, 0x00, 0x00}     /* 32, -16.0dB */
 };
-
-static void rtl92d_dm_diginit(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct dig_t *de_digtable = &rtlpriv->dm_digtable;
-
-	de_digtable->dig_enable_flag = true;
-	de_digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
-	de_digtable->cur_igvalue = 0x20;
-	de_digtable->pre_igvalue = 0x0;
-	de_digtable->cursta_cstate = DIG_STA_DISCONNECT;
-	de_digtable->presta_cstate = DIG_STA_DISCONNECT;
-	de_digtable->curmultista_cstate = DIG_MULTISTA_DISCONNECT;
-	de_digtable->rssi_lowthresh = DM_DIG_THRESH_LOW;
-	de_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
-	de_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
-	de_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
-	de_digtable->rx_gain_max = DM_DIG_FA_UPPER;
-	de_digtable->rx_gain_min = DM_DIG_FA_LOWER;
-	de_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
-	de_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
-	de_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
-	de_digtable->pre_cck_pd_state = CCK_PD_STAGE_LOWRSSI;
-	de_digtable->cur_cck_pd_state = CCK_PD_STAGE_MAX;
-	de_digtable->large_fa_hit = 0;
-	de_digtable->recover_cnt = 0;
-	de_digtable->forbidden_igi = DM_DIG_FA_LOWER;
-}
 
 static void rtl92d_dm_false_alarm_counter_statistics(struct ieee80211_hw *hw)
 {
@@ -1305,7 +1278,9 @@ void rtl92d_dm_init(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.dm_type = DM_TYPE_BYDRIVER;
-	rtl92d_dm_diginit(hw);
+	rtl_dm_diginit(hw, 0x20);
+	rtlpriv->dm_digtable.rx_gain_max = DM_DIG_FA_UPPER;
+	rtlpriv->dm_digtable.rx_gain_min = DM_DIG_FA_LOWER;
 	rtl92d_dm_init_dynamic_txpower(hw);
 	rtl92d_dm_init_edca_turbo(hw);
 	rtl92d_dm_init_rate_adaptive_mask(hw);

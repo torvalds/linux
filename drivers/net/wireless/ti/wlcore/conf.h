@@ -997,6 +997,11 @@ struct conf_conn_settings {
 	 * whether we can go to ELP.
 	 */
 	u8 sta_sleep_auth;
+
+	/*
+	 * Default RX BA Activity filter configuration
+	 */
+	u8 suspend_rx_ba_activity;
 } __packed;
 
 enum {
@@ -1347,7 +1352,7 @@ struct conf_recovery_settings {
  * version, the two LSB are the lower driver's private conf
  * version.
  */
-#define WLCORE_CONF_VERSION	(0x0005 << 16)
+#define WLCORE_CONF_VERSION	(0x0006 << 16)
 #define WLCORE_CONF_MASK	0xffff0000
 #define WLCORE_CONF_SIZE	(sizeof(struct wlcore_conf_header) +	\
 				 sizeof(struct wlcore_conf))

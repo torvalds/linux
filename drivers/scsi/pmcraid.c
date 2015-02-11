@@ -1473,13 +1473,7 @@ static int pmcraid_notify_aen(
 	}
 
 	/* send genetlink multicast message to notify appplications */
-	result = genlmsg_end(skb, msg_header);
-
-	if (result < 0) {
-		pmcraid_err("genlmsg_end failed\n");
-		nlmsg_free(skb);
-		return result;
-	}
+	genlmsg_end(skb, msg_header);
 
 	result = genlmsg_multicast(&pmcraid_event_family, skb,
 				   0, 0, GFP_ATOMIC);

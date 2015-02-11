@@ -77,6 +77,7 @@
 #include <net/pkt_sched.h>
 #include <linux/rculist.h>
 #include <net/flow_keys.h>
+#include <net/switchdev.h>
 #include <net/bonding.h>
 #include <net/bond_3ad.h>
 #include <net/bond_alb.h>
@@ -334,7 +335,7 @@ static int bond_vlan_rx_kill_vid(struct net_device *bond_dev,
  *
  * Returns zero if carrier state does not change, nonzero if it does.
  */
-static int bond_set_carrier(struct bonding *bond)
+int bond_set_carrier(struct bonding *bond)
 {
 	struct list_head *iter;
 	struct slave *slave;
@@ -789,7 +790,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			}
 
 			new_active->delay = 0;
-			new_active->link = BOND_LINK_UP;
+			bond_set_slave_link_state(new_active, BOND_LINK_UP);
 
 			if (BOND_MODE(bond) == BOND_MODE_8023AD)
 				bond_3ad_handle_link_change(new_active, BOND_LINK_UP);
@@ -979,7 +980,11 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 	netdev_features_t mask;
 	struct slave *slave;
 
-	mask = features;
+	/* If any slave has the offload feature flag set,
+	 * set the offload flag on the bond.
+	 */
+	mask = features | NETIF_F_HW_SWITCH_OFFLOAD;
+
 	features &= ~NETIF_F_ONE_FOR_ALL;
 	features |= NETIF_F_ALL_FOR_ALL;
 
@@ -998,7 +1003,7 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 				 NETIF_F_HIGHDMA | NETIF_F_LRO)
 
 #define BOND_ENC_FEATURES	(NETIF_F_ALL_CSUM | NETIF_F_SG | NETIF_F_RXCSUM |\
-				 NETIF_F_TSO | NETIF_F_GSO_UDP_TUNNEL)
+				 NETIF_F_TSO)
 
 static void bond_compute_features(struct bonding *bond)
 {
@@ -1034,7 +1039,7 @@ static void bond_compute_features(struct bonding *bond)
 
 done:
 	bond_dev->vlan_features = vlan_features;
-	bond_dev->hw_enc_features = enc_features;
+	bond_dev->hw_enc_features = enc_features | NETIF_F_GSO_ENCAP_ALL;
 	bond_dev->hard_header_len = max_hard_header_len;
 	bond_dev->gso_max_segs = gso_max_segs;
 	netif_set_gso_max_size(bond_dev, gso_max_size);
@@ -1174,6 +1179,56 @@ static void bond_free_slave(struct slave *slave)
 		kfree(SLAVE_AD_INFO(slave));
 
 	kfree(slave);
+}
+
+static void bond_fill_ifbond(struct bonding *bond, struct ifbond *info)
+{
+	info->bond_mode = BOND_MODE(bond);
+	info->miimon = bond->params.miimon;
+	info->num_slaves = bond->slave_cnt;
+}
+
+static void bond_fill_ifslave(struct slave *slave, struct ifslave *info)
+{
+	strcpy(info->slave_name, slave->dev->name);
+	info->link = slave->link;
+	info->state = bond_slave_state(slave);
+	info->link_failure_count = slave->link_failure_count;
+}
+
+static void bond_netdev_notify(struct net_device *dev,
+			       struct netdev_bonding_info *info)
+{
+	rtnl_lock();
+	netdev_bonding_info_change(dev, info);
+	rtnl_unlock();
+}
+
+static void bond_netdev_notify_work(struct work_struct *_work)
+{
+	struct netdev_notify_work *w =
+		container_of(_work, struct netdev_notify_work, work.work);
+
+	bond_netdev_notify(w->dev, &w->bonding_info);
+	dev_put(w->dev);
+	kfree(w);
+}
+
+void bond_queue_slave_event(struct slave *slave)
+{
+	struct bonding *bond = slave->bond;
+	struct netdev_notify_work *nnw = kzalloc(sizeof(*nnw), GFP_ATOMIC);
+
+	if (!nnw)
+		return;
+
+	dev_hold(slave->dev);
+	nnw->dev = slave->dev;
+	bond_fill_ifslave(slave, &nnw->bonding_info.slave);
+	bond_fill_ifbond(bond, &nnw->bonding_info.master);
+	INIT_DELAYED_WORK(&nnw->work, bond_netdev_notify_work);
+
+	queue_delayed_work(slave->bond->wq, &nnw->work, 0);
 }
 
 /* enslave device <slave> to bond device <master> */
@@ -1439,19 +1494,22 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	if (bond->params.miimon) {
 		if (bond_check_dev_link(bond, slave_dev, 0) == BMSR_LSTATUS) {
 			if (bond->params.updelay) {
-				new_slave->link = BOND_LINK_BACK;
+				bond_set_slave_link_state(new_slave,
+							  BOND_LINK_BACK);
 				new_slave->delay = bond->params.updelay;
 			} else {
-				new_slave->link = BOND_LINK_UP;
+				bond_set_slave_link_state(new_slave,
+							  BOND_LINK_UP);
 			}
 		} else {
-			new_slave->link = BOND_LINK_DOWN;
+			bond_set_slave_link_state(new_slave, BOND_LINK_DOWN);
 		}
 	} else if (bond->params.arp_interval) {
-		new_slave->link = (netif_carrier_ok(slave_dev) ?
-			BOND_LINK_UP : BOND_LINK_DOWN);
+		bond_set_slave_link_state(new_slave,
+					  (netif_carrier_ok(slave_dev) ?
+					  BOND_LINK_UP : BOND_LINK_DOWN));
 	} else {
-		new_slave->link = BOND_LINK_UP;
+		bond_set_slave_link_state(new_slave, BOND_LINK_UP);
 	}
 
 	if (new_slave->link != BOND_LINK_DOWN)
@@ -1567,6 +1625,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		    new_slave->link != BOND_LINK_DOWN ? "an up" : "a down");
 
 	/* enslave is successful */
+	bond_queue_slave_event(new_slave);
 	return 0;
 
 /* Undo stages on error */
@@ -1816,11 +1875,7 @@ static int  bond_release_and_destroy(struct net_device *bond_dev,
 static int bond_info_query(struct net_device *bond_dev, struct ifbond *info)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-
-	info->bond_mode = BOND_MODE(bond);
-	info->miimon = bond->params.miimon;
-	info->num_slaves = bond->slave_cnt;
-
+	bond_fill_ifbond(bond, info);
 	return 0;
 }
 
@@ -1834,10 +1889,7 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 	bond_for_each_slave(bond, slave, iter) {
 		if (i++ == (int)info->slave_id) {
 			res = 0;
-			strcpy(info->slave_name, slave->dev->name);
-			info->link = slave->link;
-			info->state = bond_slave_state(slave);
-			info->link_failure_count = slave->link_failure_count;
+			bond_fill_ifslave(slave, info);
 			break;
 		}
 	}
@@ -1867,7 +1919,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 			if (link_state)
 				continue;
 
-			slave->link = BOND_LINK_FAIL;
+			bond_set_slave_link_state(slave, BOND_LINK_FAIL);
 			slave->delay = bond->params.downdelay;
 			if (slave->delay) {
 				netdev_info(bond->dev, "link status down for %sinterface %s, disabling it in %d ms\n",
@@ -1882,7 +1934,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 		case BOND_LINK_FAIL:
 			if (link_state) {
 				/* recovered before downdelay expired */
-				slave->link = BOND_LINK_UP;
+				bond_set_slave_link_state(slave, BOND_LINK_UP);
 				slave->last_link_up = jiffies;
 				netdev_info(bond->dev, "link status up again after %d ms for interface %s\n",
 					    (bond->params.downdelay - slave->delay) *
@@ -1904,7 +1956,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 			if (!link_state)
 				continue;
 
-			slave->link = BOND_LINK_BACK;
+			bond_set_slave_link_state(slave, BOND_LINK_BACK);
 			slave->delay = bond->params.updelay;
 
 			if (slave->delay) {
@@ -1917,7 +1969,8 @@ static int bond_miimon_inspect(struct bonding *bond)
 			/*FALLTHRU*/
 		case BOND_LINK_BACK:
 			if (!link_state) {
-				slave->link = BOND_LINK_DOWN;
+				bond_set_slave_link_state(slave,
+							  BOND_LINK_DOWN);
 				netdev_info(bond->dev, "link status down again after %d ms for interface %s\n",
 					    (bond->params.updelay - slave->delay) *
 					    bond->params.miimon,
@@ -1955,7 +2008,7 @@ static void bond_miimon_commit(struct bonding *bond)
 			continue;
 
 		case BOND_LINK_UP:
-			slave->link = BOND_LINK_UP;
+			bond_set_slave_link_state(slave, BOND_LINK_UP);
 			slave->last_link_up = jiffies;
 
 			primary = rtnl_dereference(bond->primary_slave);
@@ -1995,7 +2048,7 @@ static void bond_miimon_commit(struct bonding *bond)
 			if (slave->link_failure_count < UINT_MAX)
 				slave->link_failure_count++;
 
-			slave->link = BOND_LINK_DOWN;
+			bond_set_slave_link_state(slave, BOND_LINK_DOWN);
 
 			if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP ||
 			    BOND_MODE(bond) == BOND_MODE_8023AD)
@@ -2578,7 +2631,7 @@ static void bond_ab_arp_commit(struct bonding *bond)
 				struct slave *current_arp_slave;
 
 				current_arp_slave = rtnl_dereference(bond->current_arp_slave);
-				slave->link = BOND_LINK_UP;
+				bond_set_slave_link_state(slave, BOND_LINK_UP);
 				if (current_arp_slave) {
 					bond_set_slave_inactive_flags(
 						current_arp_slave,
@@ -2601,7 +2654,7 @@ static void bond_ab_arp_commit(struct bonding *bond)
 			if (slave->link_failure_count < UINT_MAX)
 				slave->link_failure_count++;
 
-			slave->link = BOND_LINK_DOWN;
+			bond_set_slave_link_state(slave, BOND_LINK_DOWN);
 			bond_set_slave_inactive_flags(slave,
 						      BOND_SLAVE_NOTIFY_NOW);
 
@@ -2680,7 +2733,7 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 		 * up when it is actually down
 		 */
 		if (!bond_slave_is_up(slave) && slave->link == BOND_LINK_UP) {
-			slave->link = BOND_LINK_DOWN;
+			bond_set_slave_link_state(slave, BOND_LINK_DOWN);
 			if (slave->link_failure_count < UINT_MAX)
 				slave->link_failure_count++;
 
@@ -2700,7 +2753,7 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 	if (!new_slave)
 		goto check_state;
 
-	new_slave->link = BOND_LINK_BACK;
+	bond_set_slave_link_state(new_slave, BOND_LINK_BACK);
 	bond_set_slave_active_flags(new_slave, BOND_SLAVE_NOTIFY_LATER);
 	bond_arp_send_all(bond, new_slave);
 	new_slave->last_link_up = jiffies;
@@ -3066,7 +3119,7 @@ static int bond_open(struct net_device *bond_dev)
 			    slave != rcu_access_pointer(bond->curr_active_slave)) {
 				bond_set_slave_inactive_flags(slave,
 							      BOND_SLAVE_NOTIFY_NOW);
-			} else {
+			} else if (BOND_MODE(bond) != BOND_MODE_8023AD) {
 				bond_set_slave_active_flags(slave,
 							    BOND_SLAVE_NOTIFY_NOW);
 			}
@@ -3734,7 +3787,7 @@ out:
  * usable slave array is formed in the control path. The xmit function
  * just calculates hash and sends the packet out.
  */
-int bond_3ad_xor_xmit(struct sk_buff *skb, struct net_device *dev)
+static int bond_3ad_xor_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bonding *bond = netdev_priv(dev);
 	struct slave *slave;
@@ -3952,6 +4005,8 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_add_slave		= bond_enslave,
 	.ndo_del_slave		= bond_release,
 	.ndo_fix_features	= bond_fix_features,
+	.ndo_bridge_setlink	= ndo_dflt_netdev_switch_port_bridge_setlink,
+	.ndo_bridge_dellink	= ndo_dflt_netdev_switch_port_bridge_dellink,
 };
 
 static const struct device_type bond_type = {
@@ -4010,7 +4065,7 @@ void bond_setup(struct net_device *bond_dev)
 				NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	bond_dev->hw_features &= ~(NETIF_F_ALL_CSUM & ~NETIF_F_HW_CSUM);
-	bond_dev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+	bond_dev->hw_features |= NETIF_F_GSO_ENCAP_ALL;
 	bond_dev->features |= bond_dev->hw_features;
 }
 

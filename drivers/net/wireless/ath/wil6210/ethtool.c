@@ -45,16 +45,35 @@ static int wil_ethtoolops_get_coalesce(struct net_device *ndev,
 				       struct ethtool_coalesce *cp)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
-	u32 itr_en, itr_val = 0;
+	u32 tx_itr_en, tx_itr_val = 0;
+	u32 rx_itr_en, rx_itr_val = 0;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
-	itr_en = ioread32(wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_CRL));
-	if (itr_en & BIT_DMA_ITR_CNT_CRL_EN)
-		itr_val = ioread32(wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_TRSH));
+	if (test_bit(hw_capability_advanced_itr_moderation,
+		     wil->hw_capabilities)) {
+		tx_itr_en = ioread32(wil->csr +
+				     HOSTADDR(RGF_DMA_ITR_TX_CNT_CTL));
+		if (tx_itr_en & BIT_DMA_ITR_TX_CNT_CTL_EN)
+			tx_itr_val =
+				ioread32(wil->csr +
+					 HOSTADDR(RGF_DMA_ITR_TX_CNT_TRSH));
 
-	cp->rx_coalesce_usecs = itr_val;
+		rx_itr_en = ioread32(wil->csr +
+				     HOSTADDR(RGF_DMA_ITR_RX_CNT_CTL));
+		if (rx_itr_en & BIT_DMA_ITR_RX_CNT_CTL_EN)
+			rx_itr_val =
+				ioread32(wil->csr +
+					 HOSTADDR(RGF_DMA_ITR_RX_CNT_TRSH));
+	} else {
+		rx_itr_en = ioread32(wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_CRL));
+		if (rx_itr_en & BIT_DMA_ITR_CNT_CRL_EN)
+			rx_itr_val = ioread32(wil->csr +
+					      HOSTADDR(RGF_DMA_ITR_CNT_TRSH));
+	}
 
+	cp->tx_coalesce_usecs = tx_itr_val;
+	cp->rx_coalesce_usecs = rx_itr_val;
 	return 0;
 }
 
@@ -63,22 +82,25 @@ static int wil_ethtoolops_set_coalesce(struct net_device *ndev,
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	wil_dbg_misc(wil, "%s(%d usec)\n", __func__, cp->rx_coalesce_usecs);
+	wil_dbg_misc(wil, "%s(rx %d usec, tx %d usec)\n", __func__,
+		     cp->rx_coalesce_usecs, cp->tx_coalesce_usecs);
 
 	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR) {
 		wil_dbg_misc(wil, "No IRQ coalescing in monitor mode\n");
 		return -EINVAL;
 	}
 
-	/* only @rx_coalesce_usecs supported, ignore
-	 * other parameters
+	/* only @rx_coalesce_usecs and @tx_coalesce_usecs supported,
+	 * ignore other parameters
 	 */
 
-	if (cp->rx_coalesce_usecs > WIL6210_ITR_TRSH_MAX)
+	if (cp->rx_coalesce_usecs > WIL6210_ITR_TRSH_MAX ||
+	    cp->tx_coalesce_usecs > WIL6210_ITR_TRSH_MAX)
 		goto out_bad;
 
-	wil->itr_trsh = cp->rx_coalesce_usecs;
-	wil_set_itr_trsh(wil);
+	wil->tx_max_burst_duration = cp->tx_coalesce_usecs;
+	wil->rx_max_burst_duration = cp->rx_coalesce_usecs;
+	wil_configure_interrupt_moderation(wil);
 
 	return 0;
 

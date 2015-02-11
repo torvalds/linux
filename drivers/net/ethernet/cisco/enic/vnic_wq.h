@@ -62,6 +62,7 @@ struct vnic_wq_buf {
 	uint8_t cq_entry; /* Gets completion event from hw */
 	uint8_t desc_skip_cnt; /* Num descs to occupy */
 	uint8_t compressed_send; /* Both hdr and payload in one desc */
+	struct vnic_wq_buf *prev;
 };
 
 /* Break the vnic_wq_buf allocations into blocks of 32/64 entries */

@@ -1079,7 +1079,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			       req_size, vq->iov[0].iov_len);
 			break;
 		}
-		ret = memcpy_fromiovecend(req, &vq->iov[0], 0, req_size);
+		ret = copy_from_user(req, vq->iov[0].iov_base, req_size);
 		if (unlikely(ret)) {
 			vq_err(vq, "Faulted on virtio_scsi_cmd_req\n");
 			break;

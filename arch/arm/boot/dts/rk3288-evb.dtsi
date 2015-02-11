@@ -90,6 +90,19 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	vcc_phy: vcc-phy-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&eth_phy_pwr>;
+		regulator-name = "vcc_phy";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &emmc {
@@ -206,6 +219,12 @@
 	usb {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins = <0 14 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	eth_phy {
+		eth_phy_pwr: eth-phy-pwr {
+			rockchip,pins = <0 6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

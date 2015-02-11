@@ -338,49 +338,31 @@ static const struct net_proto_family alg_family = {
 	.owner	=	THIS_MODULE,
 };
 
-int af_alg_make_sg(struct af_alg_sgl *sgl, void __user *addr, int len,
-		   int write)
+int af_alg_make_sg(struct af_alg_sgl *sgl, struct iov_iter *iter, int len)
 {
-	unsigned long from = (unsigned long)addr;
-	unsigned long npages;
-	unsigned off;
-	int err;
-	int i;
+	size_t off;
+	ssize_t n;
+	int npages, i;
 
-	err = -EFAULT;
-	if (!access_ok(write ? VERIFY_READ : VERIFY_WRITE, addr, len))
-		goto out;
+	n = iov_iter_get_pages(iter, sgl->pages, len, ALG_MAX_PAGES, &off);
+	if (n < 0)
+		return n;
 
-	off = from & ~PAGE_MASK;
-	npages = (off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (npages > ALG_MAX_PAGES)
-		npages = ALG_MAX_PAGES;
-
-	err = get_user_pages_fast(from, npages, write, sgl->pages);
-	if (err < 0)
-		goto out;
-
-	npages = err;
-	err = -EINVAL;
+	npages = (off + n + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (WARN_ON(npages == 0))
-		goto out;
-
-	err = 0;
+		return -EINVAL;
 
 	sg_init_table(sgl->sg, npages);
 
-	for (i = 0; i < npages; i++) {
+	for (i = 0, len = n; i < npages; i++) {
 		int plen = min_t(int, len, PAGE_SIZE - off);
 
 		sg_set_page(sgl->sg + i, sgl->pages[i], plen, off);
 
 		off = 0;
 		len -= plen;
-		err += plen;
 	}
-
-out:
-	return err;
+	return n;
 }
 EXPORT_SYMBOL_GPL(af_alg_make_sg);
 

@@ -327,7 +327,8 @@ csio_mb_caps_config(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 }
 
 #define CSIO_ADVERT_MASK     (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-			      FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_ANEG)
+			      FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G |\
+			      FW_PORT_CAP_ANEG)
 
 /*
  * csio_mb_port- FW PORT command helper
@@ -1104,8 +1105,8 @@ csio_mb_process_portparams_rsp(struct csio_hw *hw,
 void
 csio_mb_intr_enable(struct csio_hw *hw)
 {
-	csio_wr_reg32(hw, MBMSGRDYINTEN(1), MYPF_REG(CIM_PF_HOST_INT_ENABLE));
-	csio_rd_reg32(hw, MYPF_REG(CIM_PF_HOST_INT_ENABLE));
+	csio_wr_reg32(hw, MBMSGRDYINTEN_F, MYPF_REG(CIM_PF_HOST_INT_ENABLE_A));
+	csio_rd_reg32(hw, MYPF_REG(CIM_PF_HOST_INT_ENABLE_A));
 }
 
 /*
@@ -1117,8 +1118,9 @@ csio_mb_intr_enable(struct csio_hw *hw)
 void
 csio_mb_intr_disable(struct csio_hw *hw)
 {
-	csio_wr_reg32(hw, MBMSGRDYINTEN(0), MYPF_REG(CIM_PF_HOST_INT_ENABLE));
-	csio_rd_reg32(hw, MYPF_REG(CIM_PF_HOST_INT_ENABLE));
+	csio_wr_reg32(hw, MBMSGRDYINTEN_V(0),
+		      MYPF_REG(CIM_PF_HOST_INT_ENABLE_A));
+	csio_rd_reg32(hw, MYPF_REG(CIM_PF_HOST_INT_ENABLE_A));
 }
 
 static void
@@ -1153,8 +1155,8 @@ csio_mb_debug_cmd_handler(struct csio_hw *hw)
 {
 	int i;
 	__be64 cmd[CSIO_MB_MAX_REGS];
-	uint32_t ctl_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_CTRL);
-	uint32_t data_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_DATA);
+	uint32_t ctl_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_CTRL_A);
+	uint32_t data_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_DATA_A);
 	int size = sizeof(struct fw_debug_cmd);
 
 	/* Copy mailbox data */
@@ -1164,8 +1166,8 @@ csio_mb_debug_cmd_handler(struct csio_hw *hw)
 	csio_mb_dump_fw_dbg(hw, cmd);
 
 	/* Notify FW of mailbox by setting owner as UP */
-	csio_wr_reg32(hw, MBMSGVALID | MBINTREQ | MBOWNER(CSIO_MBOWNER_FW),
-		      ctl_reg);
+	csio_wr_reg32(hw, MBMSGVALID_F | MBINTREQ_F |
+		      MBOWNER_V(CSIO_MBOWNER_FW), ctl_reg);
 
 	csio_rd_reg32(hw, ctl_reg);
 	wmb();
@@ -1187,8 +1189,8 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 	__be64 *cmd = mbp->mb;
 	__be64 hdr;
 	struct csio_mbm	*mbm = &hw->mbm;
-	uint32_t ctl_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_CTRL);
-	uint32_t data_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_DATA);
+	uint32_t ctl_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_CTRL_A);
+	uint32_t data_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_DATA_A);
 	int size = mbp->mb_size;
 	int rv = -EINVAL;
 	struct fw_cmd_hdr *fw_hdr;
@@ -1224,12 +1226,12 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 	}
 
 	/* Now get ownership of mailbox */
-	owner = MBOWNER_GET(csio_rd_reg32(hw, ctl_reg));
+	owner = MBOWNER_G(csio_rd_reg32(hw, ctl_reg));
 
 	if (!csio_mb_is_host_owner(owner)) {
 
 		for (i = 0; (owner == CSIO_MBOWNER_NONE) && (i < 3); i++)
-			owner = MBOWNER_GET(csio_rd_reg32(hw, ctl_reg));
+			owner = MBOWNER_G(csio_rd_reg32(hw, ctl_reg));
 		/*
 		 * Mailbox unavailable. In immediate mode, fail the command.
 		 * In other modes, enqueue the request.
@@ -1271,10 +1273,10 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 	if (mbp->mb_cbfn != NULL) {
 		mbm->mcurrent = mbp;
 		mod_timer(&mbm->timer, jiffies + msecs_to_jiffies(mbp->tmo));
-		csio_wr_reg32(hw, MBMSGVALID | MBINTREQ |
-			      MBOWNER(CSIO_MBOWNER_FW), ctl_reg);
+		csio_wr_reg32(hw, MBMSGVALID_F | MBINTREQ_F |
+			      MBOWNER_V(CSIO_MBOWNER_FW), ctl_reg);
 	} else
-		csio_wr_reg32(hw, MBMSGVALID | MBOWNER(CSIO_MBOWNER_FW),
+		csio_wr_reg32(hw, MBMSGVALID_F | MBOWNER_V(CSIO_MBOWNER_FW),
 			      ctl_reg);
 
 	/* Flush posted writes */
@@ -1294,9 +1296,9 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 
 		/* Check for response */
 		ctl = csio_rd_reg32(hw, ctl_reg);
-		if (csio_mb_is_host_owner(MBOWNER_GET(ctl))) {
+		if (csio_mb_is_host_owner(MBOWNER_G(ctl))) {
 
-			if (!(ctl & MBMSGVALID)) {
+			if (!(ctl & MBMSGVALID_F)) {
 				csio_wr_reg32(hw, 0, ctl_reg);
 				continue;
 			}
@@ -1457,16 +1459,16 @@ csio_mb_isr_handler(struct csio_hw *hw)
 	__be64			*cmd;
 	uint32_t		ctl, cim_cause, pl_cause;
 	int			i;
-	uint32_t		ctl_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_CTRL);
-	uint32_t		data_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_DATA);
+	uint32_t	ctl_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_CTRL_A);
+	uint32_t	data_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_DATA_A);
 	int			size;
 	__be64			hdr;
 	struct fw_cmd_hdr	*fw_hdr;
 
-	pl_cause = csio_rd_reg32(hw, MYPF_REG(PL_PF_INT_CAUSE));
-	cim_cause = csio_rd_reg32(hw, MYPF_REG(CIM_PF_HOST_INT_CAUSE));
+	pl_cause = csio_rd_reg32(hw, MYPF_REG(PL_PF_INT_CAUSE_A));
+	cim_cause = csio_rd_reg32(hw, MYPF_REG(CIM_PF_HOST_INT_CAUSE_A));
 
-	if (!(pl_cause & PFCIM) || !(cim_cause & MBMSGRDYINT)) {
+	if (!(pl_cause & PFCIM_F) || !(cim_cause & MBMSGRDYINT_F)) {
 		CSIO_INC_STATS(hw, n_mbint_unexp);
 		return -EINVAL;
 	}
@@ -1477,16 +1479,16 @@ csio_mb_isr_handler(struct csio_hw *hw)
 	 * the upper level cause register. In other words, CIM-cause
 	 * first followed by PL-Cause next.
 	 */
-	csio_wr_reg32(hw, MBMSGRDYINT, MYPF_REG(CIM_PF_HOST_INT_CAUSE));
-	csio_wr_reg32(hw, PFCIM, MYPF_REG(PL_PF_INT_CAUSE));
+	csio_wr_reg32(hw, MBMSGRDYINT_F, MYPF_REG(CIM_PF_HOST_INT_CAUSE_A));
+	csio_wr_reg32(hw, PFCIM_F, MYPF_REG(PL_PF_INT_CAUSE_A));
 
 	ctl = csio_rd_reg32(hw, ctl_reg);
 
-	if (csio_mb_is_host_owner(MBOWNER_GET(ctl))) {
+	if (csio_mb_is_host_owner(MBOWNER_G(ctl))) {
 
 		CSIO_DUMP_MB(hw, hw->pfn, data_reg);
 
-		if (!(ctl & MBMSGVALID)) {
+		if (!(ctl & MBMSGVALID_F)) {
 			csio_warn(hw,
 				  "Stray mailbox interrupt recvd,"
 				  " mailbox data not valid\n");
