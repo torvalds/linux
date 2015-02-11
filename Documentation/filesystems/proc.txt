@@ -28,7 +28,7 @@ Table of Contents
   1.6	Parallel port info in /proc/parport
   1.7	TTY info in /proc/tty
   1.8	Miscellaneous kernel statistics in /proc/stat
-  1.9 Ext4 file system parameters
+  1.9	Ext4 file system parameters
 
   2	Modifying System Parameters
 
