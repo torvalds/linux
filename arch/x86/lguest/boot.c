@@ -57,6 +57,7 @@
 #include <linux/pm.h>
 #include <linux/export.h>
 #include <linux/pci.h>
+#include <linux/virtio_pci.h>
 #include <asm/acpi.h>
 #include <asm/apic.h>
 #include <asm/lguest.h>
@@ -74,6 +75,7 @@
 #include <asm/reboot.h>		/* for struct machine_ops */
 #include <asm/kvm_para.h>
 #include <asm/pci_x86.h>
+#include <asm/pci-direct.h>
 
 /*G:010
  * Welcome to the Guest!
@@ -1202,25 +1204,145 @@ static __init char *lguest_memory_setup(void)
 	return "LGUEST";
 }
 
+/* Offset within PCI config space of BAR access capability. */
+static int console_cfg_offset = 0;
+static int console_access_cap;
+
+/* Set up so that we access off in bar0 (on bus 0, device 1, function 0) */
+static void set_cfg_window(u32 cfg_offset, u32 off)
+{
+	write_pci_config_byte(0, 1, 0,
+			      cfg_offset + offsetof(struct virtio_pci_cap, bar),
+			      0);
+	write_pci_config(0, 1, 0,
+			 cfg_offset + offsetof(struct virtio_pci_cap, length),
+			 4);
+	write_pci_config(0, 1, 0,
+			 cfg_offset + offsetof(struct virtio_pci_cap, offset),
+			 off);
+}
+
+static u32 read_bar_via_cfg(u32 cfg_offset, u32 off)
+{
+	set_cfg_window(cfg_offset, off);
+	return read_pci_config(0, 1, 0,
+			       cfg_offset + sizeof(struct virtio_pci_cap));
+}
+
+static void write_bar_via_cfg(u32 cfg_offset, u32 off, u32 val)
+{
+	set_cfg_window(cfg_offset, off);
+	write_pci_config(0, 1, 0,
+			 cfg_offset + sizeof(struct virtio_pci_cap), val);
+}
+
+static void probe_pci_console(void)
+{
+	u8 cap, common_cap = 0, device_cap = 0;
+	/* Offsets within BAR0 */
+	u32 common_offset, device_offset;
+
+	/* Avoid recursive printk into here. */
+	console_cfg_offset = -1;
+
+	if (!early_pci_allowed()) {
+		printk(KERN_ERR "lguest: early PCI access not allowed!\n");
+		return;
+	}
+
+	/* We expect a console PCI device at BUS0, slot 1. */
+	if (read_pci_config(0, 1, 0, 0) != 0x10431AF4) {
+		printk(KERN_ERR "lguest: PCI device is %#x!\n",
+		       read_pci_config(0, 1, 0, 0));
+		return;
+	}
+
+	/* Find the capabilities we need (must be in bar0) */
+	cap = read_pci_config_byte(0, 1, 0, PCI_CAPABILITY_LIST);
+	while (cap) {
+		u8 vndr = read_pci_config_byte(0, 1, 0, cap);
+		if (vndr == PCI_CAP_ID_VNDR) {
+			u8 type, bar;
+			u32 offset;
+
+			type = read_pci_config_byte(0, 1, 0,
+			    cap + offsetof(struct virtio_pci_cap, cfg_type));
+			bar = read_pci_config_byte(0, 1, 0,
+			    cap + offsetof(struct virtio_pci_cap, bar));
+			offset = read_pci_config(0, 1, 0,
+			    cap + offsetof(struct virtio_pci_cap, offset));
+
+			switch (type) {
+			case VIRTIO_PCI_CAP_COMMON_CFG:
+				if (bar == 0) {
+					common_cap = cap;
+					common_offset = offset;
+				}
+				break;
+			case VIRTIO_PCI_CAP_DEVICE_CFG:
+				if (bar == 0) {
+					device_cap = cap;
+					device_offset = offset;
+				}
+				break;
+			case VIRTIO_PCI_CAP_PCI_CFG:
+				console_access_cap = cap;
+				break;
+			}
+		}
+		cap = read_pci_config_byte(0, 1, 0, cap + PCI_CAP_LIST_NEXT);
+	}
+	if (!common_cap || !device_cap || !console_access_cap) {
+		printk(KERN_ERR "lguest: No caps (%u/%u/%u) in console!\n",
+		       common_cap, device_cap, console_access_cap);
+		return;
+	}
+
+
+#define write_common_config(reg, val)					\
+	write_bar_via_cfg(console_access_cap,				\
+			  common_offset+offsetof(struct virtio_pci_common_cfg,reg),\
+			  val)
+
+#define read_common_config(reg)						\
+	read_bar_via_cfg(console_access_cap,				\
+			 common_offset+offsetof(struct virtio_pci_common_cfg,reg))
+
+	/* Check features: they must offer EMERG_WRITE */
+	write_common_config(device_feature_select, 0);
+
+	if (!(read_common_config(device_feature)
+	      & (1 << VIRTIO_CONSOLE_F_EMERG_WRITE))) {
+		printk(KERN_ERR "lguest: console missing EMERG_WRITE\n");
+		return;
+	}
+
+	console_cfg_offset = device_offset;
+}
+
 /*
  * We will eventually use the virtio console device to produce console output,
- * but before that is set up we use LHCALL_NOTIFY on normal memory to produce
- * console output.
+ * but before that is set up we use the virtio PCI console's backdoor mmio
+ * access and the "emergency" write facility (which is legal even before the
+ * device is configured).
  */
 static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 {
-	char scratch[17];
-	unsigned int len = count;
+	/* If we couldn't find PCI console, forget it. */
+	if (console_cfg_offset < 0)
+		return count;
 
-	/* We use a nul-terminated string, so we make a copy.  Icky, huh? */
-	if (len > sizeof(scratch) - 1)
-		len = sizeof(scratch) - 1;
-	scratch[len] = '\0';
-	memcpy(scratch, buf, len);
-	hcall(LHCALL_NOTIFY, __pa(scratch), 0, 0, 0);
+	if (unlikely(!console_cfg_offset)) {
+		probe_pci_console();
+		if (console_cfg_offset < 0)
+			return count;
+	}
 
-	/* This routine returns the number of bytes actually written. */
-	return len;
+	write_bar_via_cfg(console_access_cap,
+			  console_cfg_offset
+			  + offsetof(struct virtio_console_config, emerg_wr),
+			  buf[0]);
+	return 1;
 }
 
 /*
