@@ -241,7 +241,7 @@ static int lov_tgt_seq_show(struct seq_file *p, void *v)
 	return 0;
 }
 
-struct seq_operations lov_tgt_sops = {
+static const struct seq_operations lov_tgt_sops = {
 	.start = lov_tgt_seq_start,
 	.stop = lov_tgt_seq_stop,
 	.next = lov_tgt_seq_next,
@@ -270,7 +270,7 @@ LPROC_SEQ_FOPS_RO_TYPE(lov, kbytestotal);
 LPROC_SEQ_FOPS_RO_TYPE(lov, kbytesfree);
 LPROC_SEQ_FOPS_RO_TYPE(lov, kbytesavail);
 
-struct lprocfs_vars lprocfs_lov_obd_vars[] = {
+static struct lprocfs_vars lprocfs_lov_obd_vars[] = {
 	{ "uuid",	  &lov_uuid_fops,	  NULL, 0 },
 	{ "stripesize",   &lov_stripesize_fops,   NULL },
 	{ "stripeoffset", &lov_stripeoffset_fops, NULL },
