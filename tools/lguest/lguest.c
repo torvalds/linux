@@ -2773,6 +2773,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/* We always have a console device, and it's always device 1. */
+	setup_console();
+
 	/* The options are fairly straight-forward */
 	while ((c = getopt_long(argc, argv, "v", opts, NULL)) != EOF) {
 		switch (c) {
@@ -2812,9 +2815,6 @@ int main(int argc, char *argv[])
 		usage();
 
 	verbose("Guest base is at %p\n", guest_base);
-
-	/* We always have a console device */
-	setup_console();
 
 	/* Initialize the (fake) PCI host bridge device. */
 	init_pci_host_bridge();
