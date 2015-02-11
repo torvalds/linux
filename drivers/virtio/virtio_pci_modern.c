@@ -294,7 +294,7 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 
 	/* Check if queue is either not available or already active. */
 	num = ioread16(&cfg->queue_size);
-	if (!num || ioread8(&cfg->queue_enable))
+	if (!num || ioread16(&cfg->queue_enable))
 		return ERR_PTR(-ENOENT);
 
 	if (num & (num - 1)) {
@@ -394,7 +394,7 @@ static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	 */
 	list_for_each_entry(vq, &vdev->vqs, list) {
 		iowrite16(vq->index, &vp_dev->common->queue_select);
-		iowrite8(1, &vp_dev->common->queue_enable);
+		iowrite16(1, &vp_dev->common->queue_enable);
 	}
 
 	return 0;
