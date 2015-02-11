@@ -7160,7 +7160,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	int ret = 0;
 
 	if (create)
-		unlock_bits |= EXTENT_DELALLOC | EXTENT_DIRTY;
+		unlock_bits |= EXTENT_DIRTY;
 	else
 		len = min_t(u64, len, root->sectorsize);
 
@@ -7296,11 +7296,7 @@ unlock:
 			BTRFS_I(inode)->outstanding_extents++;
 			spin_unlock(&BTRFS_I(inode)->lock);
 		}
-
-		ret = set_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
-				     lockstart + len - 1, EXTENT_DELALLOC, NULL,
-				     &cached_state, GFP_NOFS);
-		BUG_ON(ret);
+		btrfs_free_reserved_data_space(inode, len);
 	}
 
 	/*
