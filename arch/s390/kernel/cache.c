@@ -111,10 +111,9 @@ static inline unsigned long ecag(int ai, int li, int ti)
 }
 
 static void ci_leaf_init(struct cacheinfo *this_leaf, int private,
-			 enum cache_type type, unsigned int level)
+			 enum cache_type type, unsigned int level, int cpu)
 {
 	int ti, num_sets;
-	int cpu = smp_processor_id();
 
 	if (type == CACHE_TYPE_INST)
 		ti = CACHE_TI_INSTRUCTION;
@@ -178,10 +177,10 @@ int populate_cache_leaves(unsigned int cpu)
 		pvt = (ct.ci[level].scope == CACHE_SCOPE_PRIVATE) ? 1 : 0;
 		ctype = get_cache_type(&ct.ci[0], level);
 		if (ctype == CACHE_TYPE_SEPARATE) {
-			ci_leaf_init(this_leaf++, pvt, CACHE_TYPE_DATA, level);
-			ci_leaf_init(this_leaf++, pvt, CACHE_TYPE_INST, level);
+			ci_leaf_init(this_leaf++, pvt, CACHE_TYPE_DATA, level, cpu);
+			ci_leaf_init(this_leaf++, pvt, CACHE_TYPE_INST, level, cpu);
 		} else {
-			ci_leaf_init(this_leaf++, pvt, ctype, level);
+			ci_leaf_init(this_leaf++, pvt, ctype, level, cpu);
 		}
 	}
 	return 0;
