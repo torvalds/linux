@@ -97,14 +97,6 @@ static const char * const mem_cgroup_stat_names[] = {
 	"swap",
 };
 
-enum mem_cgroup_events_index {
-	MEM_CGROUP_EVENTS_PGPGIN,	/* # of pages paged in */
-	MEM_CGROUP_EVENTS_PGPGOUT,	/* # of pages paged out */
-	MEM_CGROUP_EVENTS_PGFAULT,	/* # of page-faults */
-	MEM_CGROUP_EVENTS_PGMAJFAULT,	/* # of major page-faults */
-	MEM_CGROUP_EVENTS_NSTATS,
-};
-
 static const char * const mem_cgroup_events_names[] = {
 	"pgpgin",
 	"pgpgout",
@@ -138,7 +130,7 @@ enum mem_cgroup_events_target {
 
 struct mem_cgroup_stat_cpu {
 	long count[MEM_CGROUP_STAT_NSTATS];
-	unsigned long events[MEM_CGROUP_EVENTS_NSTATS];
+	unsigned long events[MEMCG_NR_EVENTS];
 	unsigned long nr_page_events;
 	unsigned long targets[MEM_CGROUP_NTARGETS];
 };
@@ -283,6 +275,10 @@ struct mem_cgroup {
 	struct page_counter memory;
 	struct page_counter memsw;
 	struct page_counter kmem;
+
+	/* Normal memory consumption range */
+	unsigned long low;
+	unsigned long high;
 
 	unsigned long soft_limit;
 
@@ -2315,6 +2311,8 @@ retry:
 	if (!(gfp_mask & __GFP_WAIT))
 		goto nomem;
 
+	mem_cgroup_events(mem_over_limit, MEMCG_MAX, 1);
+
 	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
 						    gfp_mask, may_swap);
 
@@ -2356,6 +2354,8 @@ retry:
 	if (fatal_signal_pending(current))
 		goto bypass;
 
+	mem_cgroup_events(mem_over_limit, MEMCG_OOM, 1);
+
 	mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(nr_pages));
 nomem:
 	if (!(gfp_mask & __GFP_NOFAIL))
@@ -2367,6 +2367,16 @@ done_restock:
 	css_get_many(&memcg->css, batch);
 	if (batch > nr_pages)
 		refill_stock(memcg, batch - nr_pages);
+	/*
+	 * If the hierarchy is above the normal consumption range,
+	 * make the charging task trim their excess contribution.
+	 */
+	do {
+		if (page_counter_read(&memcg->memory) <= memcg->high)
+			continue;
+		mem_cgroup_events(memcg, MEMCG_HIGH, 1);
+		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
+	} while ((memcg = parent_mem_cgroup(memcg)));
 done:
 	return ret;
 }
@@ -4276,7 +4286,7 @@ out_kfree:
 	return ret;
 }
 
-static struct cftype mem_cgroup_files[] = {
+static struct cftype mem_cgroup_legacy_files[] = {
 	{
 		.name = "usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
@@ -4552,6 +4562,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	if (parent_css == NULL) {
 		root_mem_cgroup = memcg;
 		page_counter_init(&memcg->memory, NULL);
+		memcg->high = PAGE_COUNTER_MAX;
 		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, NULL);
 		page_counter_init(&memcg->kmem, NULL);
@@ -4597,6 +4608,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 
 	if (parent->use_hierarchy) {
 		page_counter_init(&memcg->memory, &parent->memory);
+		memcg->high = PAGE_COUNTER_MAX;
 		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, &parent->memsw);
 		page_counter_init(&memcg->kmem, &parent->kmem);
@@ -4607,6 +4619,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 		 */
 	} else {
 		page_counter_init(&memcg->memory, NULL);
+		memcg->high = PAGE_COUNTER_MAX;
 		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, NULL);
 		page_counter_init(&memcg->kmem, NULL);
@@ -4682,6 +4695,8 @@ static void mem_cgroup_css_reset(struct cgroup_subsys_state *css)
 	mem_cgroup_resize_limit(memcg, PAGE_COUNTER_MAX);
 	mem_cgroup_resize_memsw_limit(memcg, PAGE_COUNTER_MAX);
 	memcg_update_kmem_limit(memcg, PAGE_COUNTER_MAX);
+	memcg->low = 0;
+	memcg->high = PAGE_COUNTER_MAX;
 	memcg->soft_limit = PAGE_COUNTER_MAX;
 }
 
@@ -5267,6 +5282,147 @@ static void mem_cgroup_bind(struct cgroup_subsys_state *root_css)
 		mem_cgroup_from_css(root_css)->use_hierarchy = true;
 }
 
+static u64 memory_current_read(struct cgroup_subsys_state *css,
+			       struct cftype *cft)
+{
+	return mem_cgroup_usage(mem_cgroup_from_css(css), false);
+}
+
+static int memory_low_show(struct seq_file *m, void *v)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+	unsigned long low = ACCESS_ONCE(memcg->low);
+
+	if (low == PAGE_COUNTER_MAX)
+		seq_puts(m, "infinity\n");
+	else
+		seq_printf(m, "%llu\n", (u64)low * PAGE_SIZE);
+
+	return 0;
+}
+
+static ssize_t memory_low_write(struct kernfs_open_file *of,
+				char *buf, size_t nbytes, loff_t off)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+	unsigned long low;
+	int err;
+
+	buf = strstrip(buf);
+	err = page_counter_memparse(buf, "infinity", &low);
+	if (err)
+		return err;
+
+	memcg->low = low;
+
+	return nbytes;
+}
+
+static int memory_high_show(struct seq_file *m, void *v)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+	unsigned long high = ACCESS_ONCE(memcg->high);
+
+	if (high == PAGE_COUNTER_MAX)
+		seq_puts(m, "infinity\n");
+	else
+		seq_printf(m, "%llu\n", (u64)high * PAGE_SIZE);
+
+	return 0;
+}
+
+static ssize_t memory_high_write(struct kernfs_open_file *of,
+				 char *buf, size_t nbytes, loff_t off)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+	unsigned long high;
+	int err;
+
+	buf = strstrip(buf);
+	err = page_counter_memparse(buf, "infinity", &high);
+	if (err)
+		return err;
+
+	memcg->high = high;
+
+	return nbytes;
+}
+
+static int memory_max_show(struct seq_file *m, void *v)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+	unsigned long max = ACCESS_ONCE(memcg->memory.limit);
+
+	if (max == PAGE_COUNTER_MAX)
+		seq_puts(m, "infinity\n");
+	else
+		seq_printf(m, "%llu\n", (u64)max * PAGE_SIZE);
+
+	return 0;
+}
+
+static ssize_t memory_max_write(struct kernfs_open_file *of,
+				char *buf, size_t nbytes, loff_t off)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+	unsigned long max;
+	int err;
+
+	buf = strstrip(buf);
+	err = page_counter_memparse(buf, "infinity", &max);
+	if (err)
+		return err;
+
+	err = mem_cgroup_resize_limit(memcg, max);
+	if (err)
+		return err;
+
+	return nbytes;
+}
+
+static int memory_events_show(struct seq_file *m, void *v)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+
+	seq_printf(m, "low %lu\n", mem_cgroup_read_events(memcg, MEMCG_LOW));
+	seq_printf(m, "high %lu\n", mem_cgroup_read_events(memcg, MEMCG_HIGH));
+	seq_printf(m, "max %lu\n", mem_cgroup_read_events(memcg, MEMCG_MAX));
+	seq_printf(m, "oom %lu\n", mem_cgroup_read_events(memcg, MEMCG_OOM));
+
+	return 0;
+}
+
+static struct cftype memory_files[] = {
+	{
+		.name = "current",
+		.read_u64 = memory_current_read,
+	},
+	{
+		.name = "low",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = memory_low_show,
+		.write = memory_low_write,
+	},
+	{
+		.name = "high",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = memory_high_show,
+		.write = memory_high_write,
+	},
+	{
+		.name = "max",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = memory_max_show,
+		.write = memory_max_write,
+	},
+	{
+		.name = "events",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = memory_events_show,
+	},
+	{ }	/* terminate */
+};
+
 struct cgroup_subsys memory_cgrp_subsys = {
 	.css_alloc = mem_cgroup_css_alloc,
 	.css_online = mem_cgroup_css_online,
@@ -5277,7 +5433,8 @@ struct cgroup_subsys memory_cgrp_subsys = {
 	.cancel_attach = mem_cgroup_cancel_attach,
 	.attach = mem_cgroup_move_task,
 	.bind = mem_cgroup_bind,
-	.legacy_cftypes = mem_cgroup_files,
+	.dfl_cftypes = memory_files,
+	.legacy_cftypes = mem_cgroup_legacy_files,
 	.early_init = 0,
 };
 
@@ -5311,6 +5468,56 @@ static void __init enable_swap_cgroup(void)
 {
 }
 #endif
+
+/**
+ * mem_cgroup_events - count memory events against a cgroup
+ * @memcg: the memory cgroup
+ * @idx: the event index
+ * @nr: the number of events to account for
+ */
+void mem_cgroup_events(struct mem_cgroup *memcg,
+		       enum mem_cgroup_events_index idx,
+		       unsigned int nr)
+{
+	this_cpu_add(memcg->stat->events[idx], nr);
+}
+
+/**
+ * mem_cgroup_low - check if memory consumption is below the normal range
+ * @root: the highest ancestor to consider
+ * @memcg: the memory cgroup to check
+ *
+ * Returns %true if memory consumption of @memcg, and that of all
+ * configurable ancestors up to @root, is below the normal range.
+ */
+bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg)
+{
+	if (mem_cgroup_disabled())
+		return false;
+
+	/*
+	 * The toplevel group doesn't have a configurable range, so
+	 * it's never low when looked at directly, and it is not
+	 * considered an ancestor when assessing the hierarchy.
+	 */
+
+	if (memcg == root_mem_cgroup)
+		return false;
+
+	if (page_counter_read(&memcg->memory) > memcg->low)
+		return false;
+
+	while (memcg != root) {
+		memcg = parent_mem_cgroup(memcg);
+
+		if (memcg == root_mem_cgroup)
+			break;
+
+		if (page_counter_read(&memcg->memory) > memcg->low)
+			return false;
+	}
+	return true;
+}
 
 #ifdef CONFIG_MEMCG_SWAP
 /**

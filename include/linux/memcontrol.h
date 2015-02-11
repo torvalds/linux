@@ -52,7 +52,27 @@ struct mem_cgroup_reclaim_cookie {
 	unsigned int generation;
 };
 
+enum mem_cgroup_events_index {
+	MEM_CGROUP_EVENTS_PGPGIN,	/* # of pages paged in */
+	MEM_CGROUP_EVENTS_PGPGOUT,	/* # of pages paged out */
+	MEM_CGROUP_EVENTS_PGFAULT,	/* # of page-faults */
+	MEM_CGROUP_EVENTS_PGMAJFAULT,	/* # of major page-faults */
+	MEM_CGROUP_EVENTS_NSTATS,
+	/* default hierarchy events */
+	MEMCG_LOW = MEM_CGROUP_EVENTS_NSTATS,
+	MEMCG_HIGH,
+	MEMCG_MAX,
+	MEMCG_OOM,
+	MEMCG_NR_EVENTS,
+};
+
 #ifdef CONFIG_MEMCG
+void mem_cgroup_events(struct mem_cgroup *memcg,
+		       enum mem_cgroup_events_index idx,
+		       unsigned int nr);
+
+bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg);
+
 int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 			  gfp_t gfp_mask, struct mem_cgroup **memcgp);
 void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
@@ -174,6 +194,18 @@ void mem_cgroup_split_huge_fixup(struct page *head);
 
 #else /* CONFIG_MEMCG */
 struct mem_cgroup;
+
+static inline void mem_cgroup_events(struct mem_cgroup *memcg,
+				     enum mem_cgroup_events_index idx,
+				     unsigned int nr)
+{
+}
+
+static inline bool mem_cgroup_low(struct mem_cgroup *root,
+				  struct mem_cgroup *memcg)
+{
+	return false;
+}
 
 static inline int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 					gfp_t gfp_mask,
