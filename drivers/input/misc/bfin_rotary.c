@@ -59,8 +59,7 @@ static void report_rotary_event(struct bfin_rot *rotary, int delta)
 
 static irqreturn_t bfin_rotary_isr(int irq, void *dev_id)
 {
-	struct platform_device *pdev = dev_id;
-	struct bfin_rot *rotary = platform_get_drvdata(pdev);
+	struct bfin_rot *rotary = dev_id;
 	int delta;
 
 	switch (bfin_read_CNT_STATUS()) {
@@ -152,7 +151,7 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 	}
 
 	error = request_irq(rotary->irq, bfin_rotary_isr,
-			    0, dev_name(&pdev->dev), pdev);
+			    0, dev_name(&pdev->dev), rotary);
 	if (error) {
 		dev_err(&pdev->dev,
 			"unable to claim irq %d; error %d\n",
@@ -186,7 +185,7 @@ static int bfin_rotary_probe(struct platform_device *pdev)
 	return 0;
 
 out2:
-	free_irq(rotary->irq, pdev);
+	free_irq(rotary->irq, rotary);
 out1:
 	input_free_device(input);
 	kfree(rotary);
@@ -202,7 +201,7 @@ static int bfin_rotary_remove(struct platform_device *pdev)
 	bfin_write_CNT_CONFIG(0);
 	bfin_write_CNT_IMASK(0);
 
-	free_irq(rotary->irq, pdev);
+	free_irq(rotary->irq, rotary);
 	input_unregister_device(rotary->input);
 	peripheral_free_list(per_cnt);
 
