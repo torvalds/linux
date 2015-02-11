@@ -15,6 +15,16 @@
 
 #include <linux/usb/ehci_def.h>
 
+/*
+ * ID
+ * For 1.x revision, bit24 - bit31 are reserved
+ * For 2.x revision, bit25 - bit28 are 0x2
+ */
+#define TAG		      (0x1F << 16)
+#define REVISION	      (0xF << 21)
+#define VERSION		      (0xF << 25)
+#define CIVERSION	      (0x7 << 29)
+
 /* HCCPARAMS */
 #define HCCPARAMS_LEN         BIT(17)
 

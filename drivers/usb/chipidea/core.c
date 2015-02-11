@@ -137,6 +137,22 @@ static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 	return 0;
 }
 
+static enum ci_revision ci_get_revision(struct ci_hdrc *ci)
+{
+	int ver = hw_read_id_reg(ci, ID_ID, VERSION) >> __ffs(VERSION);
+	enum ci_revision rev = CI_REVISION_UNKNOWN;
+
+	if (ver == 0x2) {
+		rev = hw_read_id_reg(ci, ID_ID, REVISION)
+			>> __ffs(REVISION);
+		rev += CI_REVISION_20;
+	} else if (ver == 0x0) {
+		rev = CI_REVISION_1X;
+	}
+
+	return rev;
+}
+
 /**
  * hw_read_intr_enable: returns interrupt enable register
  *
@@ -251,8 +267,11 @@ static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 	/* Clear all interrupts status bits*/
 	hw_write(ci, OP_USBSTS, 0xffffffff, 0xffffffff);
 
-	dev_dbg(ci->dev, "ChipIdea HDRC found, lpm: %d; cap: %p op: %p\n",
-		ci->hw_bank.lpm, ci->hw_bank.cap, ci->hw_bank.op);
+	ci->rev = ci_get_revision(ci);
+
+	dev_dbg(ci->dev,
+		"ChipIdea HDRC found, revision: %d, lpm: %d; cap: %p op: %p\n",
+		ci->rev, ci->hw_bank.lpm, ci->hw_bank.cap, ci->hw_bank.op);
 
 	/* setup lock mode ? */
 
