@@ -412,8 +412,6 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	win_data = &ctx->win_data[win];
 
 	switch (win_data->pixel_format) {
-	case DRM_FORMAT_NV12MT:
-		tiled_mode = true;
 	case DRM_FORMAT_NV12:
 		crcb_mode = false;
 		buf_num = 2;

@@ -185,8 +185,15 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 		return;
 	}
 
-	dev->driver->disable_vblank(dev, crtc);
-	vblank->enabled = false;
+	/*
+	 * Only disable vblank interrupts if they're enabled. This avoids
+	 * calling the ->disable_vblank() operation in atomic context with the
+	 * hardware potentially runtime suspended.
+	 */
+	if (vblank->enabled) {
+		dev->driver->disable_vblank(dev, crtc);
+		vblank->enabled = false;
+	}
 
 	/* No further vblank irq's will be processed after
 	 * this point. Get current hardware vblank count and
