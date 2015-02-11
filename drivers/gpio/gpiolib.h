@@ -40,6 +40,8 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 					  const char *propname, int index,
 					  struct acpi_gpio_info *info);
+
+int acpi_gpio_count(struct device *dev, const char *con_id);
 #else
 static inline void acpi_gpiochip_add(struct gpio_chip *chip) { }
 static inline void acpi_gpiochip_remove(struct gpio_chip *chip) { }
@@ -55,6 +57,11 @@ acpi_get_gpiod_by_index(struct acpi_device *adev, const char *propname,
 			int index, struct acpi_gpio_info *info)
 {
 	return ERR_PTR(-ENOSYS);
+}
+
+static inline int acpi_gpio_count(struct device *dev, const char *con_id)
+{
+	return -ENODEV;
 }
 #endif
 

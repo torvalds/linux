@@ -712,3 +712,87 @@ void acpi_gpiochip_remove(struct gpio_chip *chip)
 	acpi_detach_data(handle, acpi_gpio_chip_dh);
 	kfree(acpi_gpio);
 }
+
+static unsigned int acpi_gpio_package_count(const union acpi_object *obj)
+{
+	const union acpi_object *element = obj->package.elements;
+	const union acpi_object *end = element + obj->package.count;
+	unsigned int count = 0;
+
+	while (element < end) {
+		if (element->type == ACPI_TYPE_LOCAL_REFERENCE)
+			count++;
+
+		element++;
+	}
+	return count;
+}
+
+static int acpi_find_gpio_count(struct acpi_resource *ares, void *data)
+{
+	unsigned int *count = data;
+
+	if (ares->type == ACPI_RESOURCE_TYPE_GPIO)
+		*count += ares->data.gpio.pin_table_length;
+
+	return 1;
+}
+
+/**
+ * acpi_gpio_count - return the number of GPIOs associated with a
+ *		device / function or -ENOENT if no GPIO has been
+ *		assigned to the requested function.
+ * @dev:	GPIO consumer, can be NULL for system-global GPIOs
+ * @con_id:	function within the GPIO consumer
+ */
+int acpi_gpio_count(struct device *dev, const char *con_id)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	const union acpi_object *obj;
+	const struct acpi_gpio_mapping *gm;
+	int count = -ENOENT;
+	int ret;
+	char propname[32];
+	unsigned int i;
+
+	/* Try first from _DSD */
+	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
+		if (con_id && strcmp(con_id, "gpios"))
+			snprintf(propname, sizeof(propname), "%s-%s",
+				 con_id, gpio_suffixes[i]);
+		else
+			snprintf(propname, sizeof(propname), "%s",
+				 gpio_suffixes[i]);
+
+		ret = acpi_dev_get_property(adev, propname, ACPI_TYPE_ANY,
+					    &obj);
+		if (ret == 0) {
+			if (obj->type == ACPI_TYPE_LOCAL_REFERENCE)
+				count = 1;
+			else if (obj->type == ACPI_TYPE_PACKAGE)
+				count = acpi_gpio_package_count(obj);
+		} else if (adev->driver_gpios) {
+			for (gm = adev->driver_gpios; gm->name; gm++)
+				if (strcmp(propname, gm->name) == 0) {
+					count = gm->size;
+					break;
+				}
+		}
+		if (count >= 0)
+			break;
+	}
+
+	/* Then from plain _CRS GPIOs */
+	if (count < 0) {
+		struct list_head resource_list;
+		unsigned int crs_count = 0;
+
+		INIT_LIST_HEAD(&resource_list);
+		acpi_dev_get_resources(adev, &resource_list,
+				       acpi_find_gpio_count, &crs_count);
+		acpi_dev_free_resource_list(&resource_list);
+		if (crs_count > 0)
+			count = crs_count;
+	}
+	return count;
+}
