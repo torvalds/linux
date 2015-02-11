@@ -181,6 +181,52 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
 }
 /*:*/
 
+unsigned long *lguest_arch_regptr(struct lg_cpu *cpu, size_t reg_off, bool any)
+{
+	switch (reg_off) {
+	case offsetof(struct pt_regs, bx):
+		return &cpu->regs->ebx;
+	case offsetof(struct pt_regs, cx):
+		return &cpu->regs->ecx;
+	case offsetof(struct pt_regs, dx):
+		return &cpu->regs->edx;
+	case offsetof(struct pt_regs, si):
+		return &cpu->regs->esi;
+	case offsetof(struct pt_regs, di):
+		return &cpu->regs->edi;
+	case offsetof(struct pt_regs, bp):
+		return &cpu->regs->ebp;
+	case offsetof(struct pt_regs, ax):
+		return &cpu->regs->eax;
+	case offsetof(struct pt_regs, ip):
+		return &cpu->regs->eip;
+	case offsetof(struct pt_regs, sp):
+		return &cpu->regs->esp;
+	}
+
+	/* Launcher can read these, but we don't allow any setting. */
+	if (any) {
+		switch (reg_off) {
+		case offsetof(struct pt_regs, ds):
+			return &cpu->regs->ds;
+		case offsetof(struct pt_regs, es):
+			return &cpu->regs->es;
+		case offsetof(struct pt_regs, fs):
+			return &cpu->regs->fs;
+		case offsetof(struct pt_regs, gs):
+			return &cpu->regs->gs;
+		case offsetof(struct pt_regs, cs):
+			return &cpu->regs->cs;
+		case offsetof(struct pt_regs, flags):
+			return &cpu->regs->eflags;
+		case offsetof(struct pt_regs, ss):
+			return &cpu->regs->ss;
+		}
+	}
+
+	return NULL;
+}
+
 /*M:002
  * There are hooks in the scheduler which we can register to tell when we
  * get kicked off the CPU (preempt_notifier_register()).  This would allow us

@@ -208,6 +208,14 @@ void __lgwrite(struct lg_cpu *cpu, unsigned long addr, const void *b,
  */
 int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 {
+	/* If the launcher asked for a register with LHREQ_GETREG */
+	if (cpu->reg_read) {
+		if (put_user(*cpu->reg_read, user))
+			return -EFAULT;
+		cpu->reg_read = NULL;
+		return sizeof(*cpu->reg_read);
+	}
+
 	/* We stop running once the Guest is dead. */
 	while (!cpu->lg->dead) {
 		unsigned int irq;

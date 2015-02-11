@@ -52,6 +52,8 @@ struct lg_cpu {
 
 	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
 
+	unsigned long *reg_read; /* register from LHREQ_GETREG */
+
 	/* At end of a page shared mapped over lguest_pages in guest. */
 	unsigned long regs_page;
 	struct lguest_regs *regs;
@@ -210,6 +212,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu);
 int lguest_arch_init_hypercalls(struct lg_cpu *cpu);
 int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args);
 void lguest_arch_setup_regs(struct lg_cpu *cpu, unsigned long start);
+unsigned long *lguest_arch_regptr(struct lg_cpu *cpu, size_t reg_off, bool any);
 
 /* <arch>/switcher.S: */
 extern char start_switcher_text[], end_switcher_text[], switch_to_guest[];

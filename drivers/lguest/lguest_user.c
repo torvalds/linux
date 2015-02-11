@@ -173,6 +173,51 @@ static int attach_eventfd(struct lguest *lg, const unsigned long __user *input)
 	return err;
 }
 
+/* The Launcher can get the registers, and also set some of them. */
+static int getreg_setup(struct lg_cpu *cpu, const unsigned long __user *input)
+{
+	unsigned long which;
+
+	/* We re-use the ptrace structure to specify which register to read. */
+	if (get_user(which, input) != 0)
+		return -EFAULT;
+
+	/*
+	 * We set up the cpu register pointer, and their next read will
+	 * actually get the value (instead of running the guest).
+	 *
+	 * The last argument 'true' says we can access any register.
+	 */
+	cpu->reg_read = lguest_arch_regptr(cpu, which, true);
+	if (!cpu->reg_read)
+		return -ENOENT;
+
+	/* And because this is a write() call, we return the length used. */
+	return sizeof(unsigned long) * 2;
+}
+
+static int setreg(struct lg_cpu *cpu, const unsigned long __user *input)
+{
+	unsigned long which, value, *reg;
+
+	/* We re-use the ptrace structure to specify which register to read. */
+	if (get_user(which, input) != 0)
+		return -EFAULT;
+	input++;
+	if (get_user(value, input) != 0)
+		return -EFAULT;
+
+	/* The last argument 'false' means we can't access all registers. */
+	reg = lguest_arch_regptr(cpu, which, false);
+	if (!reg)
+		return -ENOENT;
+
+	*reg = value;
+
+	/* And because this is a write() call, we return the length used. */
+	return sizeof(unsigned long) * 3;
+}
+
 /*L:050
  * Sending an interrupt is done by writing LHREQ_IRQ and an interrupt
  * number to /dev/lguest.
@@ -434,6 +479,10 @@ static ssize_t write(struct file *file, const char __user *in,
 		return user_send_irq(cpu, input);
 	case LHREQ_EVENTFD:
 		return attach_eventfd(lg, input);
+	case LHREQ_GETREG:
+		return getreg_setup(cpu, input);
+	case LHREQ_SETREG:
+		return setreg(cpu, input);
 	default:
 		return -EINVAL;
 	}
