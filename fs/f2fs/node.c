@@ -474,7 +474,7 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct page *npage[4];
-	struct page *parent;
+	struct page *parent = NULL;
 	int offset[4];
 	unsigned int noffset[4];
 	nid_t nids[4];
@@ -491,6 +491,14 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 		if (IS_ERR(npage[0]))
 			return PTR_ERR(npage[0]);
 	}
+
+	/* if inline_data is set, should not report any block indices */
+	if (f2fs_has_inline_data(dn->inode) && index) {
+		err = -EINVAL;
+		f2fs_put_page(npage[0], 1);
+		goto release_out;
+	}
+
 	parent = npage[0];
 	if (level != 0)
 		nids[1] = get_nid(parent, offset[0], true);
