@@ -18,15 +18,16 @@ static bool first_fault = true;
 static int bcm5301x_abort_handler(unsigned long addr, unsigned int fsr,
 				 struct pt_regs *regs)
 {
-	if (fsr == 0x1c06 && first_fault) {
+	if ((fsr == 0x1406 || fsr == 0x1c06) && first_fault) {
 		first_fault = false;
 
 		/*
-		 * These faults with code 0x1c06 happens for no good reason,
-		 * possibly left over from the CFE boot loader.
+		 * These faults with codes 0x1406 (BCM4709) or 0x1c06 happens
+		 * for no good reason, possibly left over from the CFE boot
+		 * loader.
 		 */
 		pr_warn("External imprecise Data abort at addr=%#lx, fsr=%#x ignored.\n",
-		addr, fsr);
+			addr, fsr);
 
 		/* Returning non-zero causes fault display and panic */
 		return 0;
