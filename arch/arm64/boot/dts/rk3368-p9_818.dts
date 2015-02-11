@@ -476,7 +476,7 @@
 
 &pwm1 {
 	status = "disabled";
-}
+};
 
 &clk_ddr_dvfs_table {
 	operating-points = <
