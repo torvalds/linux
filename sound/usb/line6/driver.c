@@ -349,7 +349,7 @@ int line6_read_data(struct usb_line6 *line6, int address, void *data,
 		dev_err(line6->ifcdev,
 			"length mismatch (expected %d, got %d)\n",
 			(int)datalen, (int)len);
-		return -EINVAL;
+		return -EIO;
 	}
 
 	/* receive the result: */
@@ -415,7 +415,7 @@ int line6_write_data(struct usb_line6 *line6, int address, void *data,
 		return -EIO;
 	} else if (status != 0) {
 		dev_err(line6->ifcdev, "write failed (error %d)\n", ret);
-		return -EINVAL;
+		return -EIO;
 	}
 
 	return 0;
