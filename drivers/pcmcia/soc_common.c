@@ -726,9 +726,8 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 {
 	int ret;
 
-	init_timer(&skt->poll_timer);
-	skt->poll_timer.function = soc_common_pcmcia_poll_event;
-	skt->poll_timer.data = (unsigned long)skt;
+	setup_timer(&skt->poll_timer, soc_common_pcmcia_poll_event,
+		    (unsigned long)skt);
 	skt->poll_timer.expires = jiffies + SOC_PCMCIA_POLL_PERIOD;
 
 	ret = request_resource(&iomem_resource, &skt->res_skt);
