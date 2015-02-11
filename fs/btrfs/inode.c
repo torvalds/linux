@@ -7155,6 +7155,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	u64 start = iblock << inode->i_blkbits;
 	u64 lockstart, lockend;
 	u64 len = bh_result->b_size;
+	u64 orig_len = len;
 	int unlock_bits = EXTENT_LOCKED;
 	int ret = 0;
 
@@ -7290,9 +7291,11 @@ unlock:
 		if (start + len > i_size_read(inode))
 			i_size_write(inode, start + len);
 
-		spin_lock(&BTRFS_I(inode)->lock);
-		BTRFS_I(inode)->outstanding_extents++;
-		spin_unlock(&BTRFS_I(inode)->lock);
+		if (len < orig_len) {
+			spin_lock(&BTRFS_I(inode)->lock);
+			BTRFS_I(inode)->outstanding_extents++;
+			spin_unlock(&BTRFS_I(inode)->lock);
+		}
 
 		ret = set_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
 				     lockstart + len - 1, EXTENT_DELALLOC, NULL,
@@ -8073,8 +8076,6 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 		else if (ret >= 0 && (size_t)ret < count)
 			btrfs_delalloc_release_space(inode,
 						     count - (size_t)ret);
-		else
-			btrfs_delalloc_release_metadata(inode, 0);
 	}
 out:
 	if (wakeup)
