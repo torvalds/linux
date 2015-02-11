@@ -343,7 +343,6 @@ ssize_t vfs_iter_read(struct file *file, struct iov_iter *iter, loff_t *ppos)
 
 	init_sync_kiocb(&kiocb, file);
 	kiocb.ki_pos = *ppos;
-	kiocb.ki_nbytes = iov_iter_count(iter);
 
 	iter->type |= READ;
 	ret = file->f_op->read_iter(&kiocb, iter);
@@ -366,7 +365,6 @@ ssize_t vfs_iter_write(struct file *file, struct iov_iter *iter, loff_t *ppos)
 
 	init_sync_kiocb(&kiocb, file);
 	kiocb.ki_pos = *ppos;
-	kiocb.ki_nbytes = iov_iter_count(iter);
 
 	iter->type |= WRITE;
 	ret = file->f_op->write_iter(&kiocb, iter);
@@ -426,7 +424,6 @@ ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *pp
 
 	init_sync_kiocb(&kiocb, filp);
 	kiocb.ki_pos = *ppos;
-	kiocb.ki_nbytes = len;
 
 	ret = filp->f_op->aio_read(&kiocb, &iov, 1, kiocb.ki_pos);
 	if (-EIOCBQUEUED == ret)
@@ -446,7 +443,6 @@ ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *p
 
 	init_sync_kiocb(&kiocb, filp);
 	kiocb.ki_pos = *ppos;
-	kiocb.ki_nbytes = len;
 	iov_iter_init(&iter, READ, &iov, 1, len);
 
 	ret = filp->f_op->read_iter(&kiocb, &iter);
@@ -510,7 +506,6 @@ ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, lof
 
 	init_sync_kiocb(&kiocb, filp);
 	kiocb.ki_pos = *ppos;
-	kiocb.ki_nbytes = len;
 
 	ret = filp->f_op->aio_write(&kiocb, &iov, 1, kiocb.ki_pos);
 	if (-EIOCBQUEUED == ret)
@@ -530,7 +525,6 @@ ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, lo
 
 	init_sync_kiocb(&kiocb, filp);
 	kiocb.ki_pos = *ppos;
-	kiocb.ki_nbytes = len;
 	iov_iter_init(&iter, WRITE, &iov, 1, len);
 
 	ret = filp->f_op->write_iter(&kiocb, &iter);
@@ -719,7 +713,6 @@ static ssize_t do_iter_readv_writev(struct file *filp, int rw, const struct iove
 
 	init_sync_kiocb(&kiocb, filp);
 	kiocb.ki_pos = *ppos;
-	kiocb.ki_nbytes = len;
 
 	iov_iter_init(&iter, rw, iov, nr_segs, len);
 	ret = fn(&kiocb, &iter);
@@ -737,7 +730,6 @@ static ssize_t do_sync_readv_writev(struct file *filp, const struct iovec *iov,
 
 	init_sync_kiocb(&kiocb, filp);
 	kiocb.ki_pos = *ppos;
-	kiocb.ki_nbytes = len;
 
 	ret = fn(&kiocb, iov, nr_segs, kiocb.ki_pos);
 	if (ret == -EIOCBQUEUED)

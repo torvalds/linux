@@ -1344,12 +1344,13 @@ typedef ssize_t (rw_iter_op)(struct kiocb *, struct iov_iter *);
 static ssize_t aio_setup_vectored_rw(struct kiocb *kiocb,
 				     int rw, char __user *buf,
 				     unsigned long *nr_segs,
+				     size_t *len,
 				     struct iovec **iovec,
 				     bool compat)
 {
 	ssize_t ret;
 
-	*nr_segs = kiocb->ki_nbytes;
+	*nr_segs = *len;
 
 #ifdef CONFIG_COMPAT
 	if (compat)
@@ -1364,21 +1365,22 @@ static ssize_t aio_setup_vectored_rw(struct kiocb *kiocb,
 	if (ret < 0)
 		return ret;
 
-	/* ki_nbytes now reflect bytes instead of segs */
-	kiocb->ki_nbytes = ret;
+	/* len now reflect bytes instead of segs */
+	*len = ret;
 	return 0;
 }
 
 static ssize_t aio_setup_single_vector(struct kiocb *kiocb,
 				       int rw, char __user *buf,
 				       unsigned long *nr_segs,
+				       size_t len,
 				       struct iovec *iovec)
 {
-	if (unlikely(!access_ok(!rw, buf, kiocb->ki_nbytes)))
+	if (unlikely(!access_ok(!rw, buf, len)))
 		return -EFAULT;
 
 	iovec->iov_base = buf;
-	iovec->iov_len = kiocb->ki_nbytes;
+	iovec->iov_len = len;
 	*nr_segs = 1;
 	return 0;
 }
@@ -1388,7 +1390,7 @@ static ssize_t aio_setup_single_vector(struct kiocb *kiocb,
  *	Performs the initial checks and io submission.
  */
 static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
-			    char __user *buf, bool compat)
+			    char __user *buf, size_t len, bool compat)
 {
 	struct file *file = req->ki_filp;
 	ssize_t ret;
@@ -1423,21 +1425,21 @@ rw_common:
 		if (!rw_op && !iter_op)
 			return -EINVAL;
 
-		ret = (opcode == IOCB_CMD_PREADV ||
-		       opcode == IOCB_CMD_PWRITEV)
-			? aio_setup_vectored_rw(req, rw, buf, &nr_segs,
-						&iovec, compat)
-			: aio_setup_single_vector(req, rw, buf, &nr_segs,
-						  iovec);
+		if (opcode == IOCB_CMD_PREADV || opcode == IOCB_CMD_PWRITEV)
+			ret = aio_setup_vectored_rw(req, rw, buf, &nr_segs,
+						&len, &iovec, compat);
+		else
+			ret = aio_setup_single_vector(req, rw, buf, &nr_segs,
+						  len, iovec);
 		if (!ret)
-			ret = rw_verify_area(rw, file, &req->ki_pos, req->ki_nbytes);
+			ret = rw_verify_area(rw, file, &req->ki_pos, len);
 		if (ret < 0) {
 			if (iovec != inline_vecs)
 				kfree(iovec);
 			return ret;
 		}
 
-		req->ki_nbytes = ret;
+		len = ret;
 
 		/* XXX: move/kill - rw_verify_area()? */
 		/* This matches the pread()/pwrite() logic */
@@ -1450,7 +1452,7 @@ rw_common:
 			file_start_write(file);
 
 		if (iter_op) {
-			iov_iter_init(&iter, rw, iovec, nr_segs, req->ki_nbytes);
+			iov_iter_init(&iter, rw, iovec, nr_segs, len);
 			ret = iter_op(req, &iter);
 		} else {
 			ret = rw_op(req, iovec, nr_segs, req->ki_pos);
@@ -1553,10 +1555,10 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	req->ki_obj.user = user_iocb;
 	req->ki_user_data = iocb->aio_data;
 	req->ki_pos = iocb->aio_offset;
-	req->ki_nbytes = iocb->aio_nbytes;
 
 	ret = aio_run_iocb(req, iocb->aio_lio_opcode,
 			   (char __user *)(unsigned long)iocb->aio_buf,
+			   iocb->aio_nbytes,
 			   compat);
 	if (ret)
 		goto out_put_req;

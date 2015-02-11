@@ -858,11 +858,11 @@ static ssize_t sock_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (iocb->ki_pos != 0)
 		return -ESPIPE;
 
-	if (iocb->ki_nbytes == 0)	/* Match SYS5 behaviour */
+	if (!iov_iter_count(to))	/* Match SYS5 behaviour */
 		return 0;
 
 	res = __sock_recvmsg(iocb, sock, &msg,
-			     iocb->ki_nbytes, msg.msg_flags);
+			     iov_iter_count(to), msg.msg_flags);
 	*to = msg.msg_iter;
 	return res;
 }
@@ -883,7 +883,7 @@ static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (sock->type == SOCK_SEQPACKET)
 		msg.msg_flags |= MSG_EOR;
 
-	res = __sock_sendmsg(iocb, sock, &msg, iocb->ki_nbytes);
+	res = __sock_sendmsg(iocb, sock, &msg, iov_iter_count(from));
 	*from = msg.msg_iter;
 	return res;
 }

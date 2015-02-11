@@ -265,7 +265,7 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t 
 
 	return -EINVAL;
 #else
-	VM_BUG_ON(iocb->ki_nbytes != PAGE_SIZE);
+	VM_BUG_ON(iov_iter_count(iter) != PAGE_SIZE);
 
 	if (rw == READ)
 		return nfs_file_direct_read(iocb, iter, pos);

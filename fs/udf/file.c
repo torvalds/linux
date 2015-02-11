@@ -122,7 +122,7 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	int err, pos;
-	size_t count = iocb->ki_nbytes;
+	size_t count = iov_iter_count(from);
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	mutex_lock(&inode->i_mutex);
