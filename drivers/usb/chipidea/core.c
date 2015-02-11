@@ -808,6 +808,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ci_otg_is_fsm_mode(ci))
 		ci_hdrc_otg_fsm_start(ci);
 
+	device_set_wakeup_capable(&pdev->dev, true);
+
 	ret = dbg_create_files(ci);
 	if (!ret)
 		return 0;
@@ -898,6 +900,11 @@ static int ci_suspend(struct device *dev)
 		return 0;
 	}
 
+	if (device_may_wakeup(dev)) {
+		usb_phy_set_wakeup(ci->usb_phy, true);
+		enable_irq_wake(ci->irq);
+	}
+
 	ci_controller_suspend(ci);
 
 	return 0;
@@ -907,6 +914,9 @@ static int ci_resume(struct device *dev)
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
 	int ret;
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(ci->irq);
 
 	ret = ci_controller_resume(dev);
 	if (ret)
