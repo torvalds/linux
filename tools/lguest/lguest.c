@@ -1259,6 +1259,10 @@ static void emulate_insn(const u8 insn[])
 	else
 		mask = 0xFFFFFFFF;
 
+	/* This is the PS/2 keyboard status; 1 means ready for output */
+	if (port == 0x64)
+		val = 1;
+
 	/*
 	 * If it was an "IN" instruction, they expect the result to be read
 	 * into %eax, so we change %eax.
