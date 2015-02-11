@@ -16,6 +16,14 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  */
+
+/*
+ * This needs to be before all headers so that pr_debug in printk.h doesn't turn
+ * printk calls into no_printk().
+ *
+ *#define DEBUG
+ */
+
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -27,6 +35,9 @@
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
+
+#undef pr_fmt
+#define pr_fmt(fmt)	"microcode: " fmt
 
 static unsigned long mc_saved_in_initrd[MAX_UCODE_COUNT];
 static struct mc_saved_data {
@@ -397,8 +408,7 @@ static void __ref show_saved_mc(void)
 	sig = uci.cpu_sig.sig;
 	pf = uci.cpu_sig.pf;
 	rev = uci.cpu_sig.rev;
-	pr_debug("CPU%d: sig=0x%x, pf=0x%x, rev=0x%x\n",
-		 smp_processor_id(), sig, pf, rev);
+	pr_debug("CPU: sig=0x%x, pf=0x%x, rev=0x%x\n", sig, pf, rev);
 
 	for (i = 0; i < mc_saved_data.mc_saved_count; i++) {
 		struct microcode_header_intel *mc_saved_header;
