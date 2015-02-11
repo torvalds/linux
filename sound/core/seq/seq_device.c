@@ -133,11 +133,13 @@ void snd_seq_autoload_lock(void)
 {
 	atomic_inc(&snd_seq_in_init);
 }
+EXPORT_SYMBOL(snd_seq_autoload_lock);
 
 void snd_seq_autoload_unlock(void)
 {
 	atomic_dec(&snd_seq_in_init);
 }
+EXPORT_SYMBOL(snd_seq_autoload_unlock);
 
 static void autoload_drivers(void)
 {
@@ -195,9 +197,11 @@ void snd_seq_autoload_init(void)
 	queue_autoload_drivers();
 #endif
 }
+EXPORT_SYMBOL(snd_seq_autoload_init);
 #else
 #define try_autoload(ops) /* NOP */
 #endif
+
 
 void snd_seq_device_load_drivers(void)
 {
@@ -206,6 +210,7 @@ void snd_seq_device_load_drivers(void)
 	flush_work(&autoload_work);
 #endif
 }
+EXPORT_SYMBOL(snd_seq_device_load_drivers);
 
 /*
  * register a sequencer device
@@ -268,6 +273,7 @@ int snd_seq_device_new(struct snd_card *card, int device, char *id, int argsize,
 
 	return 0;
 }
+EXPORT_SYMBOL(snd_seq_device_new);
 
 /*
  * free the existing device
@@ -326,6 +332,7 @@ static int snd_seq_device_dev_register(struct snd_device *device)
 	unlock_driver(ops);
 	return 0;
 }
+EXPORT_SYMBOL(snd_seq_device_register_driver);
 
 /*
  * disconnect the device
@@ -344,6 +351,7 @@ static int snd_seq_device_dev_disconnect(struct snd_device *device)
 	unlock_driver(ops);
 	return 0;
 }
+EXPORT_SYMBOL(snd_seq_device_unregister_driver);
 
 /*
  * register device driver
@@ -604,13 +612,3 @@ static void __exit alsa_seq_device_exit(void)
 
 module_init(alsa_seq_device_init)
 module_exit(alsa_seq_device_exit)
-
-EXPORT_SYMBOL(snd_seq_device_load_drivers);
-EXPORT_SYMBOL(snd_seq_device_new);
-EXPORT_SYMBOL(snd_seq_device_register_driver);
-EXPORT_SYMBOL(snd_seq_device_unregister_driver);
-#ifdef CONFIG_MODULES
-EXPORT_SYMBOL(snd_seq_autoload_init);
-EXPORT_SYMBOL(snd_seq_autoload_lock);
-EXPORT_SYMBOL(snd_seq_autoload_unlock);
-#endif
