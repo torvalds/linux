@@ -67,7 +67,11 @@ struct snd_seq_dev_ops {
 /*
  * prototypes
  */
+#ifdef CONFIG_MODULES
 void snd_seq_device_load_drivers(void);
+#else
+#define snd_seq_device_load_drivers()
+#endif
 int snd_seq_device_new(struct snd_card *card, int device, char *id, int argsize, struct snd_seq_device **result);
 int snd_seq_device_register_driver(char *id, struct snd_seq_dev_ops *entry, int argsize);
 int snd_seq_device_unregister_driver(char *id);

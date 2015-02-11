@@ -198,19 +198,16 @@ void snd_seq_autoload_init(void)
 #endif
 }
 EXPORT_SYMBOL(snd_seq_autoload_init);
-#else
-#define try_autoload(ops) /* NOP */
-#endif
-
 
 void snd_seq_device_load_drivers(void)
 {
-#ifdef CONFIG_MODULES
 	queue_autoload_drivers();
 	flush_work(&autoload_work);
-#endif
 }
 EXPORT_SYMBOL(snd_seq_device_load_drivers);
+#else
+#define try_autoload(ops) /* NOP */
+#endif
 
 /*
  * register a sequencer device
