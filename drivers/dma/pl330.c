@@ -2155,6 +2155,33 @@ static int pl330_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
+/*
+ * We don't support DMA_RESUME command because of hardware
+ * limitations, so after pausing the channel we cannot restore
+ * it to active state. We have to terminate channel and setup
+ * DMA transfer again. This pause feature was implemented to
+ * allow safely read residue before channel termination.
+ */
+int pl330_pause(struct dma_chan *chan)
+{
+	struct dma_pl330_chan *pch = to_pchan(chan);
+	struct pl330_dmac *pl330 = pch->dmac;
+	unsigned long flags;
+
+	pm_runtime_get_sync(pl330->ddma.dev);
+	spin_lock_irqsave(&pch->lock, flags);
+
+	spin_lock(&pl330->lock);
+	_stop(pch->thread);
+	spin_unlock(&pl330->lock);
+
+	spin_unlock_irqrestore(&pch->lock, flags);
+	pm_runtime_mark_last_busy(pl330->ddma.dev);
+	pm_runtime_put_autosuspend(pl330->ddma.dev);
+
+	return 0;
+}
+
 static void pl330_free_chan_resources(struct dma_chan *chan)
 {
 	struct dma_pl330_chan *pch = to_pchan(chan);
@@ -2842,6 +2869,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	pd->device_tx_status = pl330_tx_status;
 	pd->device_prep_slave_sg = pl330_prep_slave_sg;
 	pd->device_config = pl330_config;
+	pd->device_pause = pl330_pause;
 	pd->device_terminate_all = pl330_terminate_all;
 	pd->device_issue_pending = pl330_issue_pending;
 	pd->src_addr_widths = PL330_DMA_BUSWIDTHS;
