@@ -1238,6 +1238,17 @@ static void handle_output(unsigned long addr)
  * code.
  */
 
+/* Linux expects a PCI host bridge: ours is a dummy, and first on the bus. */
+static struct device pci_host_bridge;
+
+static void init_pci_host_bridge(void)
+{
+	pci_host_bridge.name = "PCI Host Bridge";
+	pci_host_bridge.config.class = 0x06; /* bridge */
+	pci_host_bridge.config.subclass = 0; /* host bridge */
+	devices.pci[0] = &pci_host_bridge;
+}
+
 /* The IO ports used to read the PCI config space. */
 #define PCI_CONFIG_ADDR 0xCF8
 #define PCI_CONFIG_DATA 0xCFC
@@ -3006,6 +3017,9 @@ int main(int argc, char *argv[])
 
 	/* We always have a console device */
 	setup_console();
+
+	/* Initialize the (fake) PCI host bridge device. */
+	init_pci_host_bridge();
 
 	/* Now we load the kernel */
 	start = load_kernel(open_or_die(argv[optind+1], O_RDONLY));
