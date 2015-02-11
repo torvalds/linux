@@ -92,7 +92,7 @@ static bool verbose;
 /* The pointer to the start of guest memory. */
 static void *guest_base;
 /* The maximum guest physical address allowed, and maximum possible. */
-static unsigned long guest_limit, guest_max;
+static unsigned long guest_limit, guest_max, guest_mmio;
 /* The /dev/lguest file descriptor. */
 static int lguest_fd;
 
@@ -318,6 +318,23 @@ static void *get_pages(unsigned int num)
 	guest_limit += num * getpagesize();
 	if (guest_limit > guest_max)
 		errx(1, "Not enough memory for devices");
+	return addr;
+}
+
+/* Get some bytes which won't be mapped into the guest. */
+static unsigned long get_mmio_region(size_t size)
+{
+	unsigned long addr = guest_mmio;
+	size_t i;
+
+	if (!size)
+		return addr;
+
+	/* Size has to be a power of 2 (and multiple of 16) */
+	for (i = 1; i < size; i <<= 1);
+
+	guest_mmio += i;
+
 	return addr;
 }
 
@@ -549,9 +566,10 @@ static void tell_kernel(unsigned long start)
 	unsigned long args[] = { LHREQ_INITIALIZE,
 				 (unsigned long)guest_base,
 				 guest_limit / getpagesize(), start,
-				 guest_limit / getpagesize() };
-	verbose("Guest: %p - %p (%#lx)\n",
-		guest_base, guest_base + guest_limit, guest_limit);
+				 (guest_mmio+getpagesize()-1) / getpagesize() };
+	verbose("Guest: %p - %p (%#lx, MMIO %#lx)\n",
+		guest_base, guest_base + guest_limit,
+		guest_limit, guest_mmio);
 	lguest_fd = open_or_die("/dev/lguest", O_RDWR);
 	if (write(lguest_fd, args, sizeof(args)) < 0)
 		err(1, "Writing to /dev/lguest");
@@ -2079,7 +2097,7 @@ int main(int argc, char *argv[])
 			guest_base = map_zeroed_pages(mem / getpagesize()
 						      + DEVICE_PAGES);
 			guest_limit = mem;
-			guest_max = mem + DEVICE_PAGES*getpagesize();
+			guest_max = guest_mmio = mem + DEVICE_PAGES*getpagesize();
 			devices.descpage = get_pages(1);
 			break;
 		}
