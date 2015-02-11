@@ -1079,23 +1079,6 @@ static void cleanup_devices(void)
 		tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
 }
 
-/*L:215
- * This is the generic routine we call when the Guest uses LHCALL_NOTIFY.
- */
-static void handle_output(unsigned long addr)
-{
-	/*
-	 * Early console write is done using notify on a nul-terminated string
-	 * in Guest memory.  It's also great for hacking debugging messages
-	 * into a Guest.
-	 */
-	if (addr >= guest_limit)
-		errx(1, "Bad NOTIFY %#lx", addr);
-
-	write(STDOUT_FILENO, from_guest_phys(addr),
-	      strnlen(from_guest_phys(addr), guest_limit - addr));
-}
-
 /*L:217
  * We do PCI.  This is mainly done to let us test the kernel virtio PCI
  * code.
@@ -2662,14 +2645,8 @@ static void __attribute__((noreturn)) run_guest(void)
 
 		/* We read from the /dev/lguest device to run the Guest. */
 		readval = pread(lguest_fd, &notify, sizeof(notify), cpu_id);
-
-		/* One unsigned long means the Guest did HCALL_NOTIFY */
 		if (readval == sizeof(notify)) {
-			if (notify.trap == 0x1F) {
-				verbose("Notify on address %#08x\n",
-					notify.addr);
-				handle_output(notify.addr);
-			} else if (notify.trap == 13) {
+			if (notify.trap == 13) {
 				verbose("Emulating instruction at %#x\n",
 					getreg(eip));
 				emulate_insn(notify.insn);
