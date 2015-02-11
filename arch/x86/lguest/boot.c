@@ -56,6 +56,7 @@
 #include <linux/virtio_console.h>
 #include <linux/pm.h>
 #include <linux/export.h>
+#include <linux/pci.h>
 #include <asm/acpi.h>
 #include <asm/apic.h>
 #include <asm/lguest.h>
@@ -72,6 +73,7 @@
 #include <asm/stackprotector.h>
 #include <asm/reboot.h>		/* for struct machine_ops */
 #include <asm/kvm_para.h>
+#include <asm/pci_x86.h>
 
 /*G:010
  * Welcome to the Guest!
@@ -832,6 +834,24 @@ static struct irq_chip lguest_irq_controller = {
 	.irq_unmask	= enable_lguest_irq,
 };
 
+static int lguest_enable_irq(struct pci_dev *dev)
+{
+	u8 line = 0;
+
+	/* We literally use the PCI interrupt line as the irq number. */
+	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &line);
+	irq_set_chip_and_handler_name(line, &lguest_irq_controller,
+				      handle_level_irq, "level");
+	dev->irq = line;
+	return 0;
+}
+
+/* We don't do hotplug PCI, so this shouldn't be called. */
+static void lguest_disable_irq(struct pci_dev *dev)
+{
+	WARN_ON(1);
+}
+
 /*
  * This sets up the Interrupt Descriptor Table (IDT) entry for each hardware
  * interrupt (except 128, which is used for system calls), and then tells the
@@ -1431,6 +1451,10 @@ __init void lguest_init(void)
 
 	/* Don't let ACPI try to control our PCI interrupts. */
 	disable_acpi();
+
+	/* We control them ourselves, by overriding these two hooks. */
+	pcibios_enable_irq = lguest_enable_irq;
+	pcibios_disable_irq = lguest_disable_irq;
 
 	/*
 	 * Last of all, we set the power management poweroff hook to point to
