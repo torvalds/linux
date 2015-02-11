@@ -44,11 +44,10 @@ static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct ehci_ci_priv *priv = (struct ehci_ci_priv *)ehci->priv;
 	struct device *dev = hcd->self.controller;
-	struct ci_hdrc *ci = dev_get_drvdata(dev);
 	int ret = 0;
 	int port = HCS_N_PORTS(ehci->hcs_params);
 
-	if (priv->reg_vbus && !ci_otg_is_fsm_mode(ci)) {
+	if (priv->reg_vbus) {
 		if (port > 1) {
 			dev_warn(dev,
 				"Not support multi-port regulator control\n");
@@ -114,12 +113,23 @@ static int host_start(struct ci_hdrc *ci)
 	priv = (struct ehci_ci_priv *)ehci->priv;
 	priv->reg_vbus = NULL;
 
-	if (ci->platdata->reg_vbus)
-		priv->reg_vbus = ci->platdata->reg_vbus;
+	if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci)) {
+		if (ci->platdata->flags & CI_HDRC_TURN_VBUS_EARLY_ON) {
+			ret = regulator_enable(ci->platdata->reg_vbus);
+			if (ret) {
+				dev_err(ci->dev,
+				"Failed to enable vbus regulator, ret=%d\n",
+									ret);
+				goto put_hcd;
+			}
+		} else {
+			priv->reg_vbus = ci->platdata->reg_vbus;
+		}
+	}
 
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret) {
-		goto put_hcd;
+		goto disable_reg;
 	} else {
 		struct usb_otg *otg = &ci->otg;
 
@@ -139,6 +149,10 @@ static int host_start(struct ci_hdrc *ci)
 
 	return ret;
 
+disable_reg:
+	if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci) &&
+			(ci->platdata->flags & CI_HDRC_TURN_VBUS_EARLY_ON))
+		regulator_disable(ci->platdata->reg_vbus);
 put_hcd:
 	usb_put_hcd(hcd);
 
@@ -152,6 +166,9 @@ static void host_stop(struct ci_hdrc *ci)
 	if (hcd) {
 		usb_remove_hcd(hcd);
 		usb_put_hcd(hcd);
+		if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci) &&
+			(ci->platdata->flags & CI_HDRC_TURN_VBUS_EARLY_ON))
+				regulator_disable(ci->platdata->reg_vbus);
 	}
 }
 
