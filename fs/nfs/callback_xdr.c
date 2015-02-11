@@ -313,7 +313,7 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 		goto out;
 	}
 
-	args->devs = kmalloc(n * sizeof(*args->devs), GFP_KERNEL);
+	args->devs = kmalloc_array(n, sizeof(*args->devs), GFP_KERNEL);
 	if (!args->devs) {
 		status = htonl(NFS4ERR_DELAY);
 		goto out;
@@ -415,7 +415,7 @@ static __be32 decode_rc_list(struct xdr_stream *xdr,
 			     rc_list->rcl_nrefcalls * 2 * sizeof(uint32_t));
 		if (unlikely(p == NULL))
 			goto out;
-		rc_list->rcl_refcalls = kmalloc(rc_list->rcl_nrefcalls *
+		rc_list->rcl_refcalls = kmalloc_array(rc_list->rcl_nrefcalls,
 						sizeof(*rc_list->rcl_refcalls),
 						GFP_KERNEL);
 		if (unlikely(rc_list->rcl_refcalls == NULL))
