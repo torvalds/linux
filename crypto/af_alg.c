@@ -348,7 +348,7 @@ int af_alg_make_sg(struct af_alg_sgl *sgl, struct iov_iter *iter, int len)
 	if (n < 0)
 		return n;
 
-	npages = PAGE_ALIGN(off + n);
+	npages = (off + n + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (WARN_ON(npages == 0))
 		return -EINVAL;
 
