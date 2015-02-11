@@ -117,14 +117,6 @@ struct device_list {
 	/* Counter to print out convenient device numbers. */
 	unsigned int device_num;
 
-	/* The descriptor page for the devices. */
-	u8 *descpage;
-
-	/* A single linked list of devices. */
-	struct device *dev;
-	/* And a pointer to the last device for easy append. */
-	struct device *lastdev;
-
 	/* PCI devices. */
 	struct device *pci[MAX_PCI_DEVICES];
 };
@@ -170,16 +162,6 @@ struct pci_config {
 
 /* The device structure describes a single device. */
 struct device {
-	/* The linked-list pointer. */
-	struct device *next;
-
-	/* The device's descriptor, as mapped into the Guest. */
-	struct lguest_device_desc *desc;
-
-	/* We can't trust desc values once Guest has booted: we use these. */
-	unsigned int feature_len;
-	unsigned int num_vq;
-
 	/* The name of this device, for --verbose. */
 	const char *name;
 
@@ -215,9 +197,6 @@ struct virtqueue {
 
 	/* Which device owns me. */
 	struct device *dev;
-
-	/* The configuration for this queue. */
-	struct lguest_vqconfig config;
 
 	/* The actual ring of buffers. */
 	struct vring vring;
@@ -301,13 +280,6 @@ static void iov_consume(struct iovec iov[], unsigned num_iov,
 		errx(1, "iovec too short!");
 }
 
-/* The device virtqueue descriptors are followed by feature bitmasks. */
-static u8 *get_feature_bits(struct device *dev)
-{
-	return (u8 *)(dev->desc + 1)
-		+ dev->num_vq * sizeof(struct lguest_vqconfig);
-}
-
 /*L:100
  * The Launcher code itself takes us out into userspace, that scary place where
  * pointers run wild and free!  Unfortunately, like most userspace programs,
@@ -376,17 +348,6 @@ static void *map_zeroed_pages(unsigned int num)
 
 	/* Return address after PROT_NONE page */
 	return addr + getpagesize();
-}
-
-/* Get some more pages for a device. */
-static void *get_pages(unsigned int num)
-{
-	void *addr = from_guest_phys(guest_limit);
-
-	guest_limit += num * getpagesize();
-	if (guest_limit > guest_max)
-		errx(1, "Not enough memory for devices");
-	return addr;
 }
 
 /* Get some bytes which won't be mapped into the guest. */
@@ -701,7 +662,7 @@ static unsigned next_desc(struct vring_desc *desc,
  */
 static void trigger_irq(struct virtqueue *vq)
 {
-	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
+	unsigned long buf[] = { LHREQ_IRQ, vq->dev->config.irq_line };
 
 	/* Don't inform them if nothing used. */
 	if (!vq->pending_used)
@@ -713,13 +674,12 @@ static void trigger_irq(struct virtqueue *vq)
 		return;
 	}
 
-	/* For a PCI device, set isr to 1 (queue interrupt pending) */
-	if (vq->dev->mmio)
-		vq->dev->mmio->isr = 0x1;
+	/* Set isr to 1 (queue interrupt pending) */
+	vq->dev->mmio->isr = 0x1;
 
 	/* Send the Guest an interrupt tell them we used something up. */
 	if (write(lguest_fd, buf, sizeof(buf)) != 0)
-		err(1, "Triggering irq %i", vq->config.irq);
+		err(1, "Triggering irq %i", vq->dev->config.irq_line);
 }
 
 /*
@@ -1085,21 +1045,18 @@ static void reset_device(struct device *dev)
 	verbose("Resetting device %s\n", dev->name);
 
 	/* Clear any features they've acked. */
-	memset(get_feature_bits(dev) + dev->feature_len, 0, dev->feature_len);
+	dev->features_accepted = 0;
 
 	/* We're going to be explicitly killing threads, so ignore them. */
 	signal(SIGCHLD, SIG_IGN);
 
-	/* Zero out the virtqueues, get rid of their threads */
+	/* Get rid of the virtqueue threads */
 	for (vq = dev->vq; vq; vq = vq->next) {
 		if (vq->thread != (pid_t)-1) {
 			kill(vq->thread, SIGTERM);
 			waitpid(vq->thread, NULL, 0);
 			vq->thread = (pid_t)-1;
 		}
-		memset(vq->vring.desc, 0,
-		       vring_size(vq->config.num, LGUEST_VRING_ALIGN));
-		lg_last_avail(vq) = 0;
 	}
 	dev->running = false;
 
@@ -1107,122 +1064,27 @@ static void reset_device(struct device *dev)
 	signal(SIGCHLD, (void *)kill_launcher);
 }
 
-/*L:216
- * This actually creates the thread which services the virtqueue for a device.
- */
-static void create_thread(struct virtqueue *vq)
-{
-	/*
-	 * Create stack for thread.  Since the stack grows upwards, we point
-	 * the stack pointer to the end of this region.
-	 */
-	char *stack = malloc(32768);
-	unsigned long args[] = { LHREQ_EVENTFD,
-				 vq->config.pfn*getpagesize(), 0 };
-
-	/* Create a zero-initialized eventfd. */
-	vq->eventfd = eventfd(0, 0);
-	if (vq->eventfd < 0)
-		err(1, "Creating eventfd");
-	args[2] = vq->eventfd;
-
-	/*
-	 * Attach an eventfd to this virtqueue: it will go off when the Guest
-	 * does an LHCALL_NOTIFY for this vq.
-	 */
-	if (write(lguest_fd, &args, sizeof(args)) != 0)
-		err(1, "Attaching eventfd");
-
-	/*
-	 * CLONE_VM: because it has to access the Guest memory, and SIGCHLD so
-	 * we get a signal if it dies.
-	 */
-	vq->thread = clone(do_thread, stack + 32768, CLONE_VM | SIGCHLD, vq);
-	if (vq->thread == (pid_t)-1)
-		err(1, "Creating clone");
-
-	/* We close our local copy now the child has it. */
-	close(vq->eventfd);
-}
-
-static void start_device(struct device *dev)
-{
-	unsigned int i;
-	struct virtqueue *vq;
-
-	verbose("Device %s OK: offered", dev->name);
-	for (i = 0; i < dev->feature_len; i++)
-		verbose(" %02x", get_feature_bits(dev)[i]);
-	verbose(", accepted");
-	for (i = 0; i < dev->feature_len; i++)
-		verbose(" %02x", get_feature_bits(dev)
-			[dev->feature_len+i]);
-
-	for (vq = dev->vq; vq; vq = vq->next) {
-		if (vq->service)
-			create_thread(vq);
-	}
-	dev->running = true;
-}
-
 static void cleanup_devices(void)
 {
-	struct device *dev;
+	unsigned int i;
 
-	for (dev = devices.dev; dev; dev = dev->next)
-		reset_device(dev);
+	for (i = 1; i < MAX_PCI_DEVICES; i++) {
+		struct device *d = devices.pci[i];
+		if (!d)
+			continue;
+		reset_device(d);
+	}
 
 	/* If we saved off the original terminal settings, restore them now. */
 	if (orig_term.c_lflag & (ISIG|ICANON|ECHO))
 		tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
 }
 
-/* When the Guest tells us they updated the status field, we handle it. */
-static void update_device_status(struct device *dev)
-{
-	/* A zero status is a reset, otherwise it's a set of flags. */
-	if (dev->desc->status == 0)
-		reset_device(dev);
-	else if (dev->desc->status & VIRTIO_CONFIG_S_FAILED) {
-		warnx("Device %s configuration FAILED", dev->name);
-		if (dev->running)
-			reset_device(dev);
-	} else {
-		if (dev->running)
-			err(1, "Device %s features finalized twice", dev->name);
-		start_device(dev);
-	}
-}
-
 /*L:215
- * This is the generic routine we call when the Guest uses LHCALL_NOTIFY.  In
- * particular, it's used to notify us of device status changes during boot.
+ * This is the generic routine we call when the Guest uses LHCALL_NOTIFY.
  */
 static void handle_output(unsigned long addr)
 {
-	struct device *i;
-
-	/* Check each device. */
-	for (i = devices.dev; i; i = i->next) {
-		struct virtqueue *vq;
-
-		/*
-		 * Notifications to device descriptors mean they updated the
-		 * device status.
-		 */
-		if (from_guest_phys(addr) == i->desc) {
-			update_device_status(i);
-			return;
-		}
-
-		/* Devices should not be used before features are finalized. */
-		for (vq = i->vq; vq; vq = vq->next) {
-			if (addr != vq->config.pfn*getpagesize())
-				continue;
-			errx(1, "Notification on %s before setup!", i->name);
-		}
-	}
-
 	/*
 	 * Early console write is done using notify on a nul-terminated string
 	 * in Guest memory.  It's also great for hacking debugging messages
@@ -1736,11 +1598,6 @@ static void enable_virtqueue(struct device *d, struct virtqueue *vq)
 		err(1, "Creating clone");
 }
 
-static void reset_pci_device(struct device *dev)
-{
-	/* FIXME */
-}
-
 static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 {
 	struct virtqueue *vq;
@@ -1775,7 +1632,7 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 	case offsetof(struct virtio_pci_mmio, cfg.device_status):
 		verbose("%s: device status -> %#x\n", d->name, val);
 		if (val == 0)
-			reset_pci_device(d);
+			reset_device(d);
 		goto write_through8;
 	case offsetof(struct virtio_pci_mmio, cfg.queue_select):
 		vq = vq_by_num(d, val);
@@ -1986,102 +1843,6 @@ static void emulate_mmio(unsigned long paddr, const u8 *insn)
  * device" so the Launcher can keep track of it.  We have common helper
  * routines to allocate and manage them.
  */
-
-/*
- * The layout of the device page is a "struct lguest_device_desc" followed by a
- * number of virtqueue descriptors, then two sets of feature bits, then an
- * array of configuration bytes.  This routine returns the configuration
- * pointer.
- */
-static u8 *device_config(const struct device *dev)
-{
-	return (void *)(dev->desc + 1)
-		+ dev->num_vq * sizeof(struct lguest_vqconfig)
-		+ dev->feature_len * 2;
-}
-
-/*
- * This routine allocates a new "struct lguest_device_desc" from descriptor
- * table page just above the Guest's normal memory.  It returns a pointer to
- * that descriptor.
- */
-static struct lguest_device_desc *new_dev_desc(u16 type)
-{
-	struct lguest_device_desc d = { .type = type };
-	void *p;
-
-	/* Figure out where the next device config is, based on the last one. */
-	if (devices.lastdev)
-		p = device_config(devices.lastdev)
-			+ devices.lastdev->desc->config_len;
-	else
-		p = devices.descpage;
-
-	/* We only have one page for all the descriptors. */
-	if (p + sizeof(d) > (void *)devices.descpage + getpagesize())
-		errx(1, "Too many devices");
-
-	/* p might not be aligned, so we memcpy in. */
-	return memcpy(p, &d, sizeof(d));
-}
-
-/*
- * Each device descriptor is followed by the description of its virtqueues.  We
- * specify how many descriptors the virtqueue is to have.
- */
-static void add_virtqueue(struct device *dev, unsigned int num_descs,
-			  void (*service)(struct virtqueue *))
-{
-	unsigned int pages;
-	struct virtqueue **i, *vq = malloc(sizeof(*vq));
-	void *p;
-
-	/* First we need some memory for this virtqueue. */
-	pages = (vring_size(num_descs, LGUEST_VRING_ALIGN) + getpagesize() - 1)
-		/ getpagesize();
-	p = get_pages(pages);
-
-	/* Initialize the virtqueue */
-	vq->next = NULL;
-	vq->last_avail_idx = 0;
-	vq->dev = dev;
-
-	/*
-	 * This is the routine the service thread will run, and its Process ID
-	 * once it's running.
-	 */
-	vq->service = service;
-	vq->thread = (pid_t)-1;
-
-	/* Initialize the configuration. */
-	vq->config.num = num_descs;
-	vq->config.irq = devices.next_irq++;
-	vq->config.pfn = to_guest_phys(p) / getpagesize();
-
-	/* Initialize the vring. */
-	vring_init(&vq->vring, num_descs, p, LGUEST_VRING_ALIGN);
-
-	/*
-	 * Append virtqueue to this device's descriptor.  We use
-	 * device_config() to get the end of the device's current virtqueues;
-	 * we check that we haven't added any config or feature information
-	 * yet, otherwise we'd be overwriting them.
-	 */
-	assert(dev->desc->config_len == 0 && dev->desc->feature_len == 0);
-	memcpy(device_config(dev), &vq->config, sizeof(vq->config));
-	dev->num_vq++;
-	dev->desc->num_vq++;
-
-	verbose("Virtqueue page %#lx\n", to_guest_phys(p));
-
-	/*
-	 * Add to tail of list, so dev->vq is first vq, dev->vq->next is
-	 * second.
-	 */
-	for (i = &dev->vq; *i; i = &(*i)->next);
-	*i = vq;
-}
-
 static void add_pci_virtqueue(struct device *dev,
 			      void (*service)(struct virtqueue *))
 {
@@ -2107,9 +1868,6 @@ static void add_pci_virtqueue(struct device *dev,
 	/* Add one to the number of queues */
 	vq->dev->mmio->cfg.num_queues++;
 
-	/* FIXME: Do irq per virtqueue, not per device. */
-	vq->config.irq = vq->dev->config.irq_line;
-
 	/*
 	 * Add to tail of list, so dev->vq is first vq, dev->vq->next is
 	 * second.
@@ -2118,45 +1876,10 @@ static void add_pci_virtqueue(struct device *dev,
 	*i = vq;
 }
 
-/*
- * The first half of the feature bitmask is for us to advertise features.  The
- * second half is for the Guest to accept features.
- */
-static void add_feature(struct device *dev, unsigned bit)
-{
-	u8 *features = get_feature_bits(dev);
-
-	/* We can't extend the feature bits once we've added config bytes */
-	if (dev->desc->feature_len <= bit / CHAR_BIT) {
-		assert(dev->desc->config_len == 0);
-		dev->feature_len = dev->desc->feature_len = (bit/CHAR_BIT) + 1;
-	}
-
-	features[bit / CHAR_BIT] |= (1 << (bit % CHAR_BIT));
-}
-
+/* The Guest accesses the feature bits via the PCI common config MMIO region */
 static void add_pci_feature(struct device *dev, unsigned bit)
 {
 	dev->features |= (1ULL << bit);
-}
-
-/*
- * This routine sets the configuration fields for an existing device's
- * descriptor.  It only works for the last device, but that's OK because that's
- * how we use it.
- */
-static void set_config(struct device *dev, unsigned len, const void *conf)
-{
-	/* Check we haven't overflowed our single page. */
-	if (device_config(dev) + len > devices.descpage + getpagesize())
-		errx(1, "Too many devices");
-
-	/* Copy in the config information, and store the length. */
-	memcpy(device_config(dev), conf, len);
-	dev->desc->config_len = len;
-
-	/* Size must fit in config_len field (8 bits)! */
-	assert(dev->desc->config_len == len);
 }
 
 /* For devices with no config. */
@@ -2287,59 +2010,28 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 }
 
 /*
- * This routine does all the creation and setup of a new device, including
- * calling new_dev_desc() to allocate the descriptor and device memory.  We
- * don't actually start the service threads until later.
+ * This routine does all the creation and setup of a new device, but we don't
+ * actually place the MMIO region until we know the size (if any) of the
+ * device-specific config.  And we don't actually start the service threads
+ * until later.
  *
  * See what I mean about userspace being boring?
  */
-static struct device *new_device(const char *name, u16 type)
-{
-	struct device *dev = malloc(sizeof(*dev));
-
-	/* Now we populate the fields one at a time. */
-	dev->desc = new_dev_desc(type);
-	dev->name = name;
-	dev->vq = NULL;
-	dev->feature_len = 0;
-	dev->num_vq = 0;
-	dev->running = false;
-	dev->next = NULL;
-
-	/*
-	 * Append to device list.  Prepending to a single-linked list is
-	 * easier, but the user expects the devices to be arranged on the bus
-	 * in command-line order.  The first network device on the command line
-	 * is eth0, the first block device /dev/vda, etc.
-	 */
-	if (devices.lastdev)
-		devices.lastdev->next = dev;
-	else
-		devices.dev = dev;
-	devices.lastdev = dev;
-
-	return dev;
-}
-
 static struct device *new_pci_device(const char *name, u16 type,
 				     u8 class, u8 subclass)
 {
 	struct device *dev = malloc(sizeof(*dev));
 
 	/* Now we populate the fields one at a time. */
-	dev->desc = NULL;
 	dev->name = name;
 	dev->vq = NULL;
-	dev->feature_len = 0;
-	dev->num_vq = 0;
 	dev->running = false;
-	dev->next = NULL;
 	dev->mmio_size = sizeof(struct virtio_pci_mmio);
 	dev->mmio = calloc(1, dev->mmio_size);
 	dev->features = (u64)1 << VIRTIO_F_VERSION_1;
 	dev->features_accepted = 0;
 
-	if (devices.device_num + 1 >= 32)
+	if (devices.device_num + 1 >= MAX_PCI_DEVICES)
 		errx(1, "Can only handle 31 PCI devices");
 
 	init_pci_config(&dev->config, type, class, subclass);
@@ -2940,11 +2632,9 @@ int main(int argc, char *argv[])
 	main_args = argv;
 
 	/*
-	 * First we initialize the device list.  We keep a pointer to the last
-	 * device, and the next interrupt number to use for devices (1:
-	 * remember that 0 is used by the timer).
+	 * First we initialize the device list.  We remember next interrupt
+	 * number to use for devices (1: remember that 0 is used by the timer).
 	 */
-	devices.lastdev = NULL;
 	devices.next_irq = 1;
 
 	/* We're CPU 0.  In fact, that's the only CPU possible right now. */
@@ -2969,7 +2659,6 @@ int main(int argc, char *argv[])
 						      + DEVICE_PAGES);
 			guest_limit = mem;
 			guest_max = guest_mmio = mem + DEVICE_PAGES*getpagesize();
-			devices.descpage = get_pages(1);
 			break;
 		}
 	}
