@@ -1400,14 +1400,6 @@ __init void lguest_init(void)
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
 
 	/*
-	 * The IDE code spends about 3 seconds probing for disks: if we reserve
-	 * all the I/O ports up front it can't get them and so doesn't probe.
-	 * Other device drivers are similar (but less severe).  This cuts the
-	 * kernel boot time on my machine from 4.1 seconds to 0.45 seconds.
-	 */
-	paravirt_disable_iospace();
-
-	/*
 	 * This is messy CPU setup stuff which the native boot code does before
 	 * start_kernel, so we have to do, too:
 	 */
