@@ -302,13 +302,16 @@ static void line6_data_received(struct urb *urb)
 /*
 	Read data from device.
 */
-int line6_read_data(struct usb_line6 *line6, int address, void *data,
-		    size_t datalen)
+int line6_read_data(struct usb_line6 *line6, unsigned address, void *data,
+		    unsigned datalen)
 {
 	struct usb_device *usbdev = line6->usbdev;
 	int ret;
 	unsigned char len;
 	unsigned count;
+
+	if (address > 0xffff || datalen > 0xff)
+		return -EINVAL;
 
 	/* query the serial number: */
 	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x67,
@@ -370,13 +373,16 @@ EXPORT_SYMBOL_GPL(line6_read_data);
 /*
 	Write data to device.
 */
-int line6_write_data(struct usb_line6 *line6, int address, void *data,
-		     size_t datalen)
+int line6_write_data(struct usb_line6 *line6, unsigned address, void *data,
+		     unsigned datalen)
 {
 	struct usb_device *usbdev = line6->usbdev;
 	int ret;
 	unsigned char status;
 	int count;
+
+	if (address > 0xffff || datalen > 0xffff)
+		return -EINVAL;
 
 	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x67,
 			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
