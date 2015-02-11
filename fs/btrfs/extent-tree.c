@@ -4963,19 +4963,25 @@ void btrfs_subvolume_release_metadata(struct btrfs_root *root,
 /**
  * drop_outstanding_extent - drop an outstanding extent
  * @inode: the inode we're dropping the extent for
+ * @num_bytes: the number of bytes we're relaseing.
  *
  * This is called when we are freeing up an outstanding extent, either called
  * after an error or after an extent is written.  This will return the number of
  * reserved extents that need to be freed.  This must be called with
  * BTRFS_I(inode)->lock held.
  */
-static unsigned drop_outstanding_extent(struct inode *inode)
+static unsigned drop_outstanding_extent(struct inode *inode, u64 num_bytes)
 {
 	unsigned drop_inode_space = 0;
 	unsigned dropped_extents = 0;
+	unsigned num_extents = 0;
 
-	BUG_ON(!BTRFS_I(inode)->outstanding_extents);
-	BTRFS_I(inode)->outstanding_extents--;
+	num_extents = (unsigned)div64_u64(num_bytes +
+					  BTRFS_MAX_EXTENT_SIZE - 1,
+					  BTRFS_MAX_EXTENT_SIZE);
+	ASSERT(num_extents);
+	ASSERT(BTRFS_I(inode)->outstanding_extents >= num_extents);
+	BTRFS_I(inode)->outstanding_extents -= num_extents;
 
 	if (BTRFS_I(inode)->outstanding_extents == 0 &&
 	    test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
@@ -5146,7 +5152,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 out_fail:
 	spin_lock(&BTRFS_I(inode)->lock);
-	dropped = drop_outstanding_extent(inode);
+	dropped = drop_outstanding_extent(inode, num_bytes);
 	/*
 	 * If the inodes csum_bytes is the same as the original
 	 * csum_bytes then we know we haven't raced with any free()ers
@@ -5225,7 +5231,7 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
 	spin_lock(&BTRFS_I(inode)->lock);
-	dropped = drop_outstanding_extent(inode);
+	dropped = drop_outstanding_extent(inode, num_bytes);
 
 	if (num_bytes)
 		to_free = calc_csum_metadata_size(inode, num_bytes, 0);

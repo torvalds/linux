@@ -198,6 +198,8 @@ static int btrfs_csum_sizes[] = { 4, 0 };
 
 #define BTRFS_DIRTY_METADATA_THRESH	(32 * 1024 * 1024)
 
+#define BTRFS_MAX_EXTENT_SIZE (128 * 1024 * 1024)
+
 /*
  * The key defines the order in the tree, and so it also defines (optimal)
  * block layout.

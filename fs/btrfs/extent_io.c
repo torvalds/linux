@@ -3242,7 +3242,7 @@ static noinline_for_stack int writepage_delalloc(struct inode *inode,
 					       page,
 					       &delalloc_start,
 					       &delalloc_end,
-					       128 * 1024 * 1024);
+					       BTRFS_MAX_EXTENT_SIZE);
 		if (nr_delalloc == 0) {
 			delalloc_start = delalloc_end + 1;
 			continue;
