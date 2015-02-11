@@ -369,6 +369,31 @@ static void panel_simple_shutdown(struct device *dev)
 	panel_simple_disable(&panel->base);
 }
 
+static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
+	.clock = 33333,
+	.hdisplay = 800,
+	.hsync_start = 800 + 0,
+	.hsync_end = 800 + 0 + 255,
+	.htotal = 800 + 0 + 255 + 0,
+	.vdisplay = 480,
+	.vsync_start = 480 + 2,
+	.vsync_end = 480 + 2 + 45,
+	.vtotal = 480 + 2 + 45 + 0,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
+};
+
+static const struct panel_desc ampire_am800480r3tmqwa1h = {
+	.modes = &ampire_am800480r3tmqwa1h_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 152,
+		.height = 91,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct drm_display_mode auo_b101aw03_mode = {
 	.clock = 51450,
 	.hdisplay = 1024,
@@ -965,6 +990,9 @@ static const struct panel_desc shelly_sca07010_bfn_lnn = {
 
 static const struct of_device_id platform_of_match[] = {
 	{
+		.compatible = "ampire,am800480r3tmqwa1h",
+		.data = &ampire_am800480r3tmqwa1h,
+	}, {
 		.compatible = "auo,b101aw03",
 		.data = &auo_b101aw03,
 	}, {
