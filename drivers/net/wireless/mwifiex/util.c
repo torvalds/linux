@@ -367,6 +367,13 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 	if (!skb)
 		return -1;
 
+	if (!priv->mgmt_frame_mask ||
+	    priv->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED) {
+		dev_dbg(priv->adapter->dev,
+			"do not receive mgmt frames on uninitialized intf");
+		return -1;
+	}
+
 	rx_pd = (struct rxpd *)skb->data;
 
 	skb_pull(skb, le16_to_cpu(rx_pd->rx_pkt_offset));
