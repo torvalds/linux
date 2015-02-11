@@ -71,7 +71,7 @@ typedef uint8_t u8;
 #include "../../include/uapi/linux/virtio_config.h"
 #include "../../include/uapi/linux/virtio_net.h"
 #include "../../include/uapi/linux/virtio_blk.h"
-#include <linux/virtio_console.h>
+#include "../../include/uapi/linux/virtio_console.h"
 #include "../../include/uapi/linux/virtio_rng.h"
 #include <linux/virtio_ring.h>
 #include "../../include/uapi/linux/virtio_pci.h"
@@ -1687,6 +1687,15 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		goto write_through16;
 	case offsetof(struct virtio_pci_mmio, isr):
 		errx(1, "%s: Unexpected write to isr", d->name);
+	/* Weird corner case: write to emerg_wr of console */
+	case sizeof(struct virtio_pci_mmio)
+		+ offsetof(struct virtio_console_config, emerg_wr):
+		if (strcmp(d->name, "console") == 0) {
+			char c = val;
+			write(STDOUT_FILENO, &c, 1);
+			goto write_through32;
+		}
+		/* Fall through... */
 	default:
 		errx(1, "%s: Unexpected write to offset %u", d->name, off);
 	}
@@ -2048,6 +2057,7 @@ static struct device *new_pci_device(const char *name, u16 type,
 static void setup_console(void)
 {
 	struct device *dev;
+	struct virtio_console_config conf;
 
 	/* If we can save the initial standard input settings... */
 	if (tcgetattr(STDIN_FILENO, &orig_term) == 0) {
@@ -2075,8 +2085,9 @@ static void setup_console(void)
 	add_pci_virtqueue(dev, console_input);
 	add_pci_virtqueue(dev, console_output);
 
-	/* There's no configuration area for this device. */
-	no_device_config(dev);
+	/* We need a configuration area for the emerg_wr early writes. */
+	add_pci_feature(dev, VIRTIO_CONSOLE_F_EMERG_WRITE);
+	set_device_config(dev, &conf, sizeof(conf));
 
 	verbose("device %u: console\n", devices.device_num);
 }
