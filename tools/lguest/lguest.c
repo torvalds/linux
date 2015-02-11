@@ -1733,9 +1733,9 @@ static void setup_block_file(const char *filename)
 }
 
 /*L:211
- * Our random number generator device reads from /dev/random into the Guest's
+ * Our random number generator device reads from /dev/urandom into the Guest's
  * input buffers.  The usual case is that the Guest doesn't want random numbers
- * and so has no buffers although /dev/random is still readable, whereas
+ * and so has no buffers although /dev/urandom is still readable, whereas
  * console is the reverse.
  *
  * The same logic applies, however.
@@ -1763,7 +1763,7 @@ static void rng_input(struct virtqueue *vq)
 	while (!iov_empty(iov, in_num)) {
 		len = readv(rng_info->rfd, iov, in_num);
 		if (len <= 0)
-			err(1, "Read from /dev/random gave %i", len);
+			err(1, "Read from /dev/urandom gave %i", len);
 		iov_consume(iov, in_num, NULL, len);
 		totlen += len;
 	}
@@ -1780,8 +1780,8 @@ static void setup_rng(void)
 	struct device *dev;
 	struct rng_info *rng_info = malloc(sizeof(*rng_info));
 
-	/* Our device's privat info simply contains the /dev/random fd. */
-	rng_info->rfd = open_or_die("/dev/random", O_RDONLY);
+	/* Our device's private info simply contains the /dev/urandom fd. */
+	rng_info->rfd = open_or_die("/dev/urandom", O_RDONLY);
 
 	/* Create the new device. */
 	dev = new_device("rng", VIRTIO_ID_RNG);
