@@ -23,8 +23,6 @@
 #include "ci.h"
 #include "ci_hdrc_imx.h"
 
-#define CI_HDRC_IMX_IMX28_WRITE_FIX BIT(0)
-
 struct ci_hdrc_imx_platform_flag {
 	unsigned int flags;
 };
@@ -33,7 +31,7 @@ static const struct ci_hdrc_imx_platform_flag imx27_usb_data = {
 };
 
 static const struct ci_hdrc_imx_platform_flag imx28_usb_data = {
-	.flags = CI_HDRC_IMX_IMX28_WRITE_FIX,
+	.flags = CI_HDRC_IMX28_WRITE_FIX,
 };
 
 static const struct of_device_id ci_hdrc_imx_dt_ids[] = {
@@ -145,9 +143,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	}
 
 	pdata.usb_phy = data->phy;
-
-	if (imx_platform_flag->flags & CI_HDRC_IMX_IMX28_WRITE_FIX)
-		pdata.flags |= CI_HDRC_IMX28_WRITE_FIX;
+	pdata.flags |= imx_platform_flag->flags;
 
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)
