@@ -99,6 +99,9 @@ static int lguest_fd;
 /* a per-cpu variable indicating whose vcpu is currently running */
 static unsigned int __thread cpu_id;
 
+/* 5 bit device number in the PCI_CONFIG_ADDR => 32 only */
+#define MAX_PCI_DEVICES 32
+
 /* This is our list of devices. */
 struct device_list {
 	/* Counter to assign interrupt numbers. */
@@ -114,6 +117,9 @@ struct device_list {
 	struct device *dev;
 	/* And a pointer to the last device for easy append. */
 	struct device *lastdev;
+
+	/* PCI devices. */
+	struct device *pci[MAX_PCI_DEVICES];
 };
 
 /* The list of Guest devices, based on command line arguments. */
@@ -139,6 +145,10 @@ struct device {
 
 	/* Is it operational */
 	bool running;
+
+	/* PCI MMIO resources (all in BAR0) */
+	size_t mmio_size;
+	u32 mmio_addr;
 
 	/* Device-specific data. */
 	void *priv;
@@ -1197,6 +1207,77 @@ static void setreg_off(size_t offset, u32 val)
 		err(1, "Setting register %u", offset);
 }
 
+/* Get register by instruction encoding */
+static u32 getreg_num(unsigned regnum, u32 mask)
+{
+	/* 8 bit ops use regnums 4-7 for high parts of word */
+	if (mask == 0xFF && (regnum & 0x4))
+		return getreg_num(regnum & 0x3, 0xFFFF) >> 8;
+
+	switch (regnum) {
+	case 0: return getreg(eax) & mask;
+	case 1: return getreg(ecx) & mask;
+	case 2: return getreg(edx) & mask;
+	case 3: return getreg(ebx) & mask;
+	case 4: return getreg(esp) & mask;
+	case 5: return getreg(ebp) & mask;
+	case 6: return getreg(esi) & mask;
+	case 7: return getreg(edi) & mask;
+	}
+	abort();
+}
+
+/* Set register by instruction encoding */
+static void setreg_num(unsigned regnum, u32 val, u32 mask)
+{
+	/* Don't try to set bits out of range */
+	assert(~(val & ~mask));
+
+	/* 8 bit ops use regnums 4-7 for high parts of word */
+	if (mask == 0xFF && (regnum & 0x4)) {
+		/* Construct the 16 bits we want. */
+		val = (val << 8) | getreg_num(regnum & 0x3, 0xFF);
+		setreg_num(regnum & 0x3, val, 0xFFFF);
+		return;
+	}
+
+	switch (regnum) {
+	case 0: setreg(eax, val | (getreg(eax) & ~mask)); return;
+	case 1: setreg(ecx, val | (getreg(ecx) & ~mask)); return;
+	case 2: setreg(edx, val | (getreg(edx) & ~mask)); return;
+	case 3: setreg(ebx, val | (getreg(ebx) & ~mask)); return;
+	case 4: setreg(esp, val | (getreg(esp) & ~mask)); return;
+	case 5: setreg(ebp, val | (getreg(ebp) & ~mask)); return;
+	case 6: setreg(esi, val | (getreg(esi) & ~mask)); return;
+	case 7: setreg(edi, val | (getreg(edi) & ~mask)); return;
+	}
+	abort();
+}
+
+/* Get bytes of displacement appended to instruction, from r/m encoding */
+static u32 insn_displacement_len(u8 mod_reg_rm)
+{
+	/* Switch on the mod bits */
+	switch (mod_reg_rm >> 6) {
+	case 0:
+		/* If mod == 0, and r/m == 101, 16-bit displacement follows */
+		if ((mod_reg_rm & 0x7) == 0x5)
+			return 2;
+		/* Normally, mod == 0 means no literal displacement */
+		return 0;
+	case 1:
+		/* One byte displacement */
+		return 1;
+	case 2:
+		/* Four byte displacement */
+		return 4;
+	case 3:
+		/* Register mode */
+		return 0;
+	}
+	abort();
+}
+
 static void emulate_insn(const u8 insn[])
 {
 	unsigned long args[] = { LHREQ_TRAP, 13 };
@@ -1310,6 +1391,88 @@ no_emulate:
 		err(1, "Reinjecting trap 13 for fault at %#x", getreg(eip));
 }
 
+static struct device *find_mmio_region(unsigned long paddr, u32 *off)
+{
+	unsigned int i;
+
+	for (i = 1; i < MAX_PCI_DEVICES; i++) {
+		struct device *d = devices.pci[i];
+
+		if (!d)
+			continue;
+		if (paddr < d->mmio_addr)
+			continue;
+		if (paddr >= d->mmio_addr + d->mmio_size)
+			continue;
+		*off = paddr - d->mmio_addr;
+		return d;
+	}
+	return NULL;
+}
+
+static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
+{
+}
+
+static u32 emulate_mmio_read(struct device *d, u32 off, u32 mask)
+{
+	return 0xFFFFFFFF;
+}
+
+static void emulate_mmio(unsigned long paddr, const u8 *insn)
+{
+	u32 val, off, mask = 0xFFFFFFFF, insnlen = 0;
+	struct device *d = find_mmio_region(paddr, &off);
+	unsigned long args[] = { LHREQ_TRAP, 14 };
+
+	if (!d) {
+		warnx("MMIO touching %#08lx (not a device)", paddr);
+		goto reinject;
+	}
+
+	/* Prefix makes it a 16 bit op */
+	if (insn[0] == 0x66) {
+		mask = 0xFFFF;
+		insnlen++;
+	}
+
+	/* iowrite */
+	if (insn[insnlen] == 0x89) {
+		/* Next byte is r/m byte: bits 3-5 are register. */
+		val = getreg_num((insn[insnlen+1] >> 3) & 0x7, mask);
+		emulate_mmio_write(d, off, val, mask);
+		insnlen += 2 + insn_displacement_len(insn[insnlen+1]);
+	} else if (insn[insnlen] == 0x8b) { /* ioread */
+		/* Next byte is r/m byte: bits 3-5 are register. */
+		val = emulate_mmio_read(d, off, mask);
+		setreg_num((insn[insnlen+1] >> 3) & 0x7, val, mask);
+		insnlen += 2 + insn_displacement_len(insn[insnlen+1]);
+	} else if (insn[0] == 0x88) { /* 8-bit iowrite */
+		mask = 0xff;
+		/* Next byte is r/m byte: bits 3-5 are register. */
+		val = getreg_num((insn[1] >> 3) & 0x7, mask);
+		emulate_mmio_write(d, off, val, mask);
+		insnlen = 2 + insn_displacement_len(insn[1]);
+	} else if (insn[0] == 0x8a) { /* 8-bit ioread */
+		mask = 0xff;
+		val = emulate_mmio_read(d, off, mask);
+		setreg_num((insn[1] >> 3) & 0x7, val, mask);
+		insnlen = 2 + insn_displacement_len(insn[1]);
+	} else {
+		warnx("Unknown MMIO instruction touching %#08lx:"
+		     " %02x %02x %02x %02x at %u",
+		     paddr, insn[0], insn[1], insn[2], insn[3], getreg(eip));
+	reinject:
+		/* Inject trap into Guest. */
+		if (write(lguest_fd, args, sizeof(args)) < 0)
+			err(1, "Reinjecting trap 14 for fault at %#x",
+			    getreg(eip));
+		return;
+	}
+
+	/* Finally, we've "done" the instruction, so move past it. */
+	setreg(eip, getreg(eip) + insnlen);
+}
 
 /*L:190
  * Device Setup
@@ -2004,6 +2167,10 @@ static void __attribute__((noreturn)) run_guest(void)
 				verbose("Emulating instruction at %#x\n",
 					getreg(eip));
 				emulate_insn(notify.insn);
+			} else if (notify.trap == 14) {
+				verbose("Emulating MMIO at %#x\n",
+					getreg(eip));
+				emulate_mmio(notify.addr, notify.insn);
 			} else
 				errx(1, "Unknown trap %i addr %#08x\n",
 				     notify.trap, notify.addr);
