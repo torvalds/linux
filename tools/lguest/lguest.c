@@ -2221,9 +2221,6 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 	 * PCI have specific codes for different types of devices.
 	 * Linux doesn't care, but it's a good clue for people looking
 	 * at the device.
-	 *
-	 * eg :
-	 *  VIRTIO_ID_CONSOLE: class = 0x07, subclass = 0x00
 	 */
 	pci->class = class;
 	pci->subclass = subclass;
@@ -2370,7 +2367,7 @@ static void setup_console(void)
 		tcsetattr(STDIN_FILENO, TCSANOW, &term);
 	}
 
-	dev = new_device("console", VIRTIO_ID_CONSOLE);
+	dev = new_pci_device("console", VIRTIO_ID_CONSOLE, 0x07, 0x00);
 
 	/* We store the console state in dev->priv, and initialize it. */
 	dev->priv = malloc(sizeof(struct console_abort));
@@ -2382,10 +2379,13 @@ static void setup_console(void)
 	 * stdin.  When they put something in the output queue, we write it to
 	 * stdout.
 	 */
-	add_virtqueue(dev, VIRTQUEUE_NUM, console_input);
-	add_virtqueue(dev, VIRTQUEUE_NUM, console_output);
+	add_pci_virtqueue(dev, console_input);
+	add_pci_virtqueue(dev, console_output);
 
-	verbose("device %u: console\n", ++devices.device_num);
+	/* There's no configuration area for this device. */
+	no_device_config(dev);
+
+	verbose("device %u: console\n", devices.device_num);
 }
 /*:*/
 
