@@ -24,11 +24,19 @@ void of_console_init(void);
 typedef u32			__be32;
 
 #ifdef __LITTLE_ENDIAN__
+#define cpu_to_be16(x) swab16(x)
+#define be16_to_cpu(x) swab16(x)
 #define cpu_to_be32(x) swab32(x)
 #define be32_to_cpu(x) swab32(x)
+#define cpu_to_be64(x) swab64(x)
+#define be64_to_cpu(x) swab64(x)
 #else
+#define cpu_to_be16(x) (x)
+#define be16_to_cpu(x) (x)
 #define cpu_to_be32(x) (x)
 #define be32_to_cpu(x) (x)
+#define cpu_to_be64(x) (x)
+#define be64_to_cpu(x) (x)
 #endif
 
 #define PROM_ERROR (-1u)
