@@ -385,6 +385,14 @@ static bool req_no_special_merge(struct request *req)
 	return !q->mq_ops && req->special;
 }
 
+static int req_gap_to_prev(struct request *req, struct request *next)
+{
+	struct bio *prev = req->biotail;
+
+	return bvec_gap_to_prev(&prev->bi_io_vec[prev->bi_vcnt - 1],
+				next->bio->bi_io_vec[0].bv_offset);
+}
+
 static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 				struct request *next)
 {
@@ -397,6 +405,10 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	 * requests.  Can't merge them if they are.
 	 */
 	if (req_no_special_merge(req) || req_no_special_merge(next))
+		return 0;
+
+	if (test_bit(QUEUE_FLAG_SG_GAPS, &q->queue_flags) &&
+	    req_gap_to_prev(req, next))
 		return 0;
 
 	/*
