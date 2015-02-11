@@ -1070,6 +1070,23 @@ static inline void xen_write_cr8(unsigned long val)
 	BUG_ON(val);
 }
 #endif
+
+static u64 xen_read_msr_safe(unsigned int msr, int *err)
+{
+	u64 val;
+
+	val = native_read_msr_safe(msr, err);
+	switch (msr) {
+	case MSR_IA32_APICBASE:
+#ifdef CONFIG_X86_X2APIC
+		if (!(cpuid_ecx(1) & (1 << (X86_FEATURE_X2APIC & 31))))
+#endif
+			val &= ~X2APIC_ENABLE;
+		break;
+	}
+	return val;
+}
+
 static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 {
 	int ret;
@@ -1240,7 +1257,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 
 	.wbinvd = native_wbinvd,
 
-	.read_msr = native_read_msr_safe,
+	.read_msr = xen_read_msr_safe,
 	.write_msr = xen_write_msr_safe,
 
 	.read_tsc = native_read_tsc,
