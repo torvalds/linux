@@ -789,7 +789,8 @@ static int mv64x60_mc_err_probe(struct platform_device *pdev)
 	ctl = (ctl & 0xff00ffff) | 0x10000;
 	out_le32(pdata->mc_vbase + MV64X60_SDRAM_ERR_ECC_CNTL, ctl);
 
-	if (edac_mc_add_mc(mci)) {
+	res = edac_mc_add_mc(mci);
+	if (res) {
 		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto err;
 	}

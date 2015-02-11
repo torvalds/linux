@@ -589,6 +589,7 @@ static int m_can_handle_state_change(struct net_device *dev,
 		/* bus-off state */
 		priv->can.state = CAN_STATE_BUS_OFF;
 		m_can_disable_all_interrupts(priv);
+		priv->can.can_stats.bus_off++;
 		can_bus_off(dev);
 		break;
 	default:

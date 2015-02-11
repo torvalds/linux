@@ -94,7 +94,7 @@ static int orinoco_pci_cor_reset(struct orinoco_private *priv)
 	mdelay(HERMES_PCI_COR_OFFT);
 
 	/* The card is ready when it's no longer busy */
-	timeout = jiffies + (HERMES_PCI_COR_BUSYT * HZ / 1000);
+	timeout = jiffies + msecs_to_jiffies(HERMES_PCI_COR_BUSYT);
 	reg = hermes_read_regn(hw, CMD);
 	while (time_before(jiffies, timeout) && (reg & HERMES_CMD_BUSY)) {
 		mdelay(1);

@@ -75,6 +75,8 @@
 
 #define BRCMF_VNDR_IE_P2PAF_SHIFT	12
 
+#define BRCMF_MAX_DEFAULT_KEYS		4
+
 
 /**
  * enum brcmf_scan_status - scan engine status
@@ -125,11 +127,13 @@ struct brcmf_cfg80211_security {
  * @ssid: ssid of associated/associating ap.
  * @bssid: bssid of joined/joining ibss.
  * @sec: security information.
+ * @key: key information
  */
 struct brcmf_cfg80211_profile {
 	struct brcmf_ssid ssid;
 	u8 bssid[ETH_ALEN];
 	struct brcmf_cfg80211_security sec;
+	struct brcmf_wsec_key key[BRCMF_MAX_DEFAULT_KEYS];
 };
 
 /**
@@ -196,6 +200,7 @@ struct brcmf_cfg80211_vif {
 	struct list_head list;
 	u16 mgmt_rx_reg;
 	bool mbss;
+	int is_11d;
 };
 
 /* association inform */

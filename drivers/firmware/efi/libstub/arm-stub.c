@@ -17,10 +17,10 @@
 
 #include "efistub.h"
 
-static int __init efi_secureboot_enabled(efi_system_table_t *sys_table_arg)
+static int efi_secureboot_enabled(efi_system_table_t *sys_table_arg)
 {
-	static efi_guid_t const var_guid __initconst = EFI_GLOBAL_VARIABLE_GUID;
-	static efi_char16_t const var_name[] __initconst = {
+	static efi_guid_t const var_guid = EFI_GLOBAL_VARIABLE_GUID;
+	static efi_char16_t const var_name[] = {
 		'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 0 };
 
 	efi_get_variable_t *f_getvar = sys_table_arg->runtime->get_variable;
@@ -164,7 +164,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
  * for both archictectures, with the arch-specific code provided in the
  * handle_kernel_image() function.
  */
-unsigned long __init efi_entry(void *handle, efi_system_table_t *sys_table,
+unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 			       unsigned long *image_addr)
 {
 	efi_loaded_image_t *image;

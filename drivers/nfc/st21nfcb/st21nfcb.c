@@ -22,6 +22,7 @@
 #include <net/nfc/nci_core.h>
 
 #include "st21nfcb.h"
+#include "st21nfcb_se.h"
 
 #define DRIVER_DESC "NCI NFC driver for ST21NFCB"
 
@@ -78,6 +79,13 @@ static struct nci_ops st21nfcb_nci_ops = {
 	.close = st21nfcb_nci_close,
 	.send = st21nfcb_nci_send,
 	.get_rfprotocol = st21nfcb_nci_get_rfprotocol,
+	.discover_se = st21nfcb_nci_discover_se,
+	.enable_se = st21nfcb_nci_enable_se,
+	.disable_se = st21nfcb_nci_disable_se,
+	.se_io = st21nfcb_nci_se_io,
+	.hci_load_session = st21nfcb_hci_load_session,
+	.hci_event_received = st21nfcb_hci_event_received,
+	.hci_cmd_received = st21nfcb_hci_cmd_received,
 };
 
 int st21nfcb_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
@@ -114,9 +122,10 @@ int st21nfcb_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 	if (r) {
 		pr_err("Cannot register nfc device to nci core\n");
 		nci_free_device(ndlc->ndev);
+		return r;
 	}
 
-	return r;
+	return st21nfcb_se_init(ndlc->ndev);
 }
 EXPORT_SYMBOL_GPL(st21nfcb_nci_probe);
 

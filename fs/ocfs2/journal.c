@@ -1447,7 +1447,6 @@ bail:
 	 * requires that we call do_exit().  And it isn't exported, but
 	 * complete_and_exit() seems to be a minimal wrapper around it. */
 	complete_and_exit(NULL, status);
-	return status;
 }
 
 void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)

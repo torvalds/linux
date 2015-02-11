@@ -74,7 +74,7 @@ ssize_t vmci_qpair_dequeue(struct vmci_qp *qpair,
 ssize_t vmci_qpair_peek(struct vmci_qp *qpair, void *buf, size_t buf_size,
 			int mode);
 ssize_t vmci_qpair_enquev(struct vmci_qp *qpair,
-			  void *iov, size_t iov_size, int mode);
+			  struct msghdr *msg, size_t iov_size, int mode);
 ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,
 			  struct msghdr *msg, size_t iov_size, int mode);
 ssize_t vmci_qpair_peekv(struct vmci_qp *qpair, struct msghdr *msg, size_t iov_size,

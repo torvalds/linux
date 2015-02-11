@@ -386,7 +386,7 @@ static int __init pcc_init(void)
 	ret = acpi_pcc_probe();
 
 	if (ret) {
-		pr_err("ACPI PCC probe failed.\n");
+		pr_debug("ACPI PCC probe failed.\n");
 		return -ENODEV;
 	}
 
@@ -394,7 +394,7 @@ static int __init pcc_init(void)
 			pcc_mbox_probe, NULL, 0, NULL, 0);
 
 	if (!pcc_pdev) {
-		pr_err("Err creating PCC platform bundle\n");
+		pr_debug("Err creating PCC platform bundle\n");
 		return -ENODEV;
 	}
 

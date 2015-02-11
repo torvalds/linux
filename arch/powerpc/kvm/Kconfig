@@ -21,6 +21,7 @@ config KVM
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
 	select HAVE_KVM_EVENTFD
+	select SRCU
 
 config KVM_BOOK3S_HANDLER
 	bool

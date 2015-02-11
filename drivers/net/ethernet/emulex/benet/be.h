@@ -59,26 +59,6 @@
 #define OC_SUBSYS_DEVICE_ID3	0xE612
 #define OC_SUBSYS_DEVICE_ID4	0xE652
 
-static inline char *nic_name(struct pci_dev *pdev)
-{
-	switch (pdev->device) {
-	case OC_DEVICE_ID1:
-		return OC_NAME;
-	case OC_DEVICE_ID2:
-		return OC_NAME_BE;
-	case OC_DEVICE_ID3:
-	case OC_DEVICE_ID4:
-		return OC_NAME_LANCER;
-	case BE_DEVICE_ID2:
-		return BE3_NAME;
-	case OC_DEVICE_ID5:
-	case OC_DEVICE_ID6:
-		return OC_NAME_SH;
-	default:
-		return BE_NAME;
-	}
-}
-
 /* Number of bytes of an RX frame that are copied to skb->data */
 #define BE_HDR_LEN		((u16) 64)
 /* allocate extra space to allow tunneling decapsulation without head reallocation */
@@ -243,7 +223,6 @@ struct be_tx_stats {
 	u64 tx_bytes;
 	u64 tx_pkts;
 	u64 tx_reqs;
-	u64 tx_wrbs;
 	u64 tx_compl;
 	ulong tx_jiffies;
 	u32 tx_stops;
@@ -266,6 +245,9 @@ struct be_tx_obj {
 	/* Remember the skbs that were transmitted */
 	struct sk_buff *sent_skb_list[TX_Q_LEN];
 	struct be_tx_stats stats;
+	u16 pend_wrb_cnt;	/* Number of WRBs yet to be given to HW */
+	u16 last_req_wrb_cnt;	/* wrb cnt of the last req in the Q */
+	u16 last_req_hdr;	/* index of the last req's hdr-wrb */
 } ____cacheline_aligned_in_smp;
 
 /* Struct to remember the pages posted for rx frags */
@@ -379,15 +361,14 @@ enum vf_state {
 	ASSIGNED = 1
 };
 
-#define BE_FLAGS_LINK_STATUS_INIT		1
-#define BE_FLAGS_SRIOV_ENABLED			(1 << 2)
-#define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
-#define BE_FLAGS_VLAN_PROMISC			(1 << 4)
-#define BE_FLAGS_MCAST_PROMISC			(1 << 5)
-#define BE_FLAGS_NAPI_ENABLED			(1 << 9)
-#define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
-#define BE_FLAGS_VXLAN_OFFLOADS			(1 << 12)
-#define BE_FLAGS_SETUP_DONE			(1 << 13)
+#define BE_FLAGS_LINK_STATUS_INIT		BIT(1)
+#define BE_FLAGS_SRIOV_ENABLED			BIT(2)
+#define BE_FLAGS_WORKER_SCHEDULED		BIT(3)
+#define BE_FLAGS_NAPI_ENABLED			BIT(6)
+#define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		BIT(7)
+#define BE_FLAGS_VXLAN_OFFLOADS			BIT(8)
+#define BE_FLAGS_SETUP_DONE			BIT(9)
+#define BE_FLAGS_EVT_INCOMPATIBLE_SFP		BIT(10)
 
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2
@@ -397,6 +378,8 @@ enum vf_state {
 #define LANCER_DELETE_FW_DUMP			0x2
 
 struct phy_info {
+/* From SFF-8472 spec */
+#define SFP_VENDOR_NAME_LEN			17
 	u8 transceiver;
 	u8 autoneg;
 	u8 fc_autoneg;
@@ -410,6 +393,8 @@ struct phy_info {
 	u32 advertising;
 	u32 supported;
 	u8 cable_type;
+	u8 vendor_name[SFP_VENDOR_NAME_LEN];
+	u8 vendor_pn[SFP_VENDOR_NAME_LEN];
 };
 
 struct be_resources {
@@ -467,8 +452,6 @@ struct be_adapter {
 
 	struct be_drv_stats drv_stats;
 	struct be_aic_obj aic_obj[MAX_EVT_QS];
-	u16 vlans_added;
-	unsigned long vids[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
 	u16 recommended_prio;	/* Recommended Priority */
 	struct be_dma_mem rx_filter; /* Cmd DMA mem for rx-filter */
@@ -484,8 +467,15 @@ struct be_adapter {
 	/* Ethtool knobs and info */
 	char fw_ver[FW_VER_LEN];
 	char fw_on_flash[FW_VER_LEN];
+
+	/* IFACE filtering fields */
 	int if_handle;		/* Used to configure filtering */
+	u32 if_flags;		/* Interface filtering flags */
 	u32 *pmac_id;		/* MAC addr handle used by BE card */
+	u32 uc_macs;		/* Count of secondary UC MAC programmed */
+	unsigned long vids[BITS_TO_LONGS(VLAN_N_VID)];
+	u16 vlans_added;
+
 	u32 beacon_state;	/* for set_phys_id */
 
 	bool eeh_error;
@@ -493,7 +483,7 @@ struct be_adapter {
 	bool hw_error;
 
 	u32 port_num;
-	bool promiscuous;
+	char port_name;
 	u8 mc_type;
 	u32 function_mode;
 	u32 function_caps;
@@ -526,7 +516,6 @@ struct be_adapter {
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;
-	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	u16 asic_rev;
 	u16 qnq_vid;
 	u32 msg_enable;
@@ -732,19 +721,6 @@ static inline bool is_ipv4_pkt(struct sk_buff *skb)
 	return skb->protocol == htons(ETH_P_IP) && ip_hdr(skb)->version == 4;
 }
 
-static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
-{
-	u32 addr;
-
-	addr = jhash(adapter->netdev->dev_addr, ETH_ALEN, 0);
-
-	mac[5] = (u8)(addr & 0xFF);
-	mac[4] = (u8)((addr >> 8) & 0xFF);
-	mac[3] = (u8)((addr >> 16) & 0xFF);
-	/* Use the OUI from the current MAC address */
-	memcpy(mac, adapter->netdev->dev_addr, 3);
-}
-
 static inline bool be_multi_rxq(const struct be_adapter *adapter)
 {
 	return adapter->num_rx_qs > 1;
@@ -767,129 +743,6 @@ static inline void  be_clear_all_error(struct be_adapter *adapter)
 	adapter->fw_timeout = false;
 }
 
-static inline bool be_is_wol_excluded(struct be_adapter *adapter)
-{
-	struct pci_dev *pdev = adapter->pdev;
-
-	if (!be_physfn(adapter))
-		return true;
-
-	switch (pdev->subsystem_device) {
-	case OC_SUBSYS_DEVICE_ID1:
-	case OC_SUBSYS_DEVICE_ID2:
-	case OC_SUBSYS_DEVICE_ID3:
-	case OC_SUBSYS_DEVICE_ID4:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static inline int qnq_async_evt_rcvd(struct be_adapter *adapter)
-{
-	return adapter->flags & BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
-}
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static inline bool be_lock_napi(struct be_eq_obj *eqo)
-{
-	bool status = true;
-
-	spin_lock(&eqo->lock); /* BH is already disabled */
-	if (eqo->state & BE_EQ_LOCKED) {
-		WARN_ON(eqo->state & BE_EQ_NAPI);
-		eqo->state |= BE_EQ_NAPI_YIELD;
-		status = false;
-	} else {
-		eqo->state = BE_EQ_NAPI;
-	}
-	spin_unlock(&eqo->lock);
-	return status;
-}
-
-static inline void be_unlock_napi(struct be_eq_obj *eqo)
-{
-	spin_lock(&eqo->lock); /* BH is already disabled */
-
-	WARN_ON(eqo->state & (BE_EQ_POLL | BE_EQ_NAPI_YIELD));
-	eqo->state = BE_EQ_IDLE;
-
-	spin_unlock(&eqo->lock);
-}
-
-static inline bool be_lock_busy_poll(struct be_eq_obj *eqo)
-{
-	bool status = true;
-
-	spin_lock_bh(&eqo->lock);
-	if (eqo->state & BE_EQ_LOCKED) {
-		eqo->state |= BE_EQ_POLL_YIELD;
-		status = false;
-	} else {
-		eqo->state |= BE_EQ_POLL;
-	}
-	spin_unlock_bh(&eqo->lock);
-	return status;
-}
-
-static inline void be_unlock_busy_poll(struct be_eq_obj *eqo)
-{
-	spin_lock_bh(&eqo->lock);
-
-	WARN_ON(eqo->state & (BE_EQ_NAPI));
-	eqo->state = BE_EQ_IDLE;
-
-	spin_unlock_bh(&eqo->lock);
-}
-
-static inline void be_enable_busy_poll(struct be_eq_obj *eqo)
-{
-	spin_lock_init(&eqo->lock);
-	eqo->state = BE_EQ_IDLE;
-}
-
-static inline void be_disable_busy_poll(struct be_eq_obj *eqo)
-{
-	local_bh_disable();
-
-	/* It's enough to just acquire napi lock on the eqo to stop
-	 * be_busy_poll() from processing any queueus.
-	 */
-	while (!be_lock_napi(eqo))
-		mdelay(1);
-
-	local_bh_enable();
-}
-
-#else /* CONFIG_NET_RX_BUSY_POLL */
-
-static inline bool be_lock_napi(struct be_eq_obj *eqo)
-{
-	return true;
-}
-
-static inline void be_unlock_napi(struct be_eq_obj *eqo)
-{
-}
-
-static inline bool be_lock_busy_poll(struct be_eq_obj *eqo)
-{
-	return false;
-}
-
-static inline void be_unlock_busy_poll(struct be_eq_obj *eqo)
-{
-}
-
-static inline void be_enable_busy_poll(struct be_eq_obj *eqo)
-{
-}
-
-static inline void be_disable_busy_poll(struct be_eq_obj *eqo)
-{
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		  u16 num_popped);
 void be_link_status_update(struct be_adapter *adapter, u8 link_status);
@@ -898,16 +751,6 @@ int be_load_fw(struct be_adapter *adapter, u8 *func);
 bool be_is_wol_supported(struct be_adapter *adapter);
 bool be_pause_supported(struct be_adapter *adapter);
 u32 be_get_fw_log_level(struct be_adapter *adapter);
-
-static inline int fw_major_num(const char *fw_ver)
-{
-	int fw_major = 0;
-
-	sscanf(fw_ver, "%d.", &fw_major);
-
-	return fw_major;
-}
-
 int be_update_queues(struct be_adapter *adapter);
 int be_poll(struct napi_struct *napi, int budget);
 

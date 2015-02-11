@@ -50,12 +50,12 @@ static void print_tpte(struct c4iw_dev *dev, u32 stag)
 	PDBG("stag idx 0x%x valid %d key 0x%x state %d pdid %d "
 	       "perm 0x%x ps %d len 0x%llx va 0x%llx\n",
 	       stag & 0xffffff00,
-	       G_FW_RI_TPTE_VALID(ntohl(tpte.valid_to_pdid)),
-	       G_FW_RI_TPTE_STAGKEY(ntohl(tpte.valid_to_pdid)),
-	       G_FW_RI_TPTE_STAGSTATE(ntohl(tpte.valid_to_pdid)),
-	       G_FW_RI_TPTE_PDID(ntohl(tpte.valid_to_pdid)),
-	       G_FW_RI_TPTE_PERM(ntohl(tpte.locread_to_qpid)),
-	       G_FW_RI_TPTE_PS(ntohl(tpte.locread_to_qpid)),
+	       FW_RI_TPTE_VALID_G(ntohl(tpte.valid_to_pdid)),
+	       FW_RI_TPTE_STAGKEY_G(ntohl(tpte.valid_to_pdid)),
+	       FW_RI_TPTE_STAGSTATE_G(ntohl(tpte.valid_to_pdid)),
+	       FW_RI_TPTE_PDID_G(ntohl(tpte.valid_to_pdid)),
+	       FW_RI_TPTE_PERM_G(ntohl(tpte.locread_to_qpid)),
+	       FW_RI_TPTE_PS_G(ntohl(tpte.locread_to_qpid)),
 	       ((u64)ntohl(tpte.len_hi) << 32) | ntohl(tpte.len_lo),
 	       ((u64)ntohl(tpte.va_hi) << 32) | ntohl(tpte.va_lo_fbo));
 }

@@ -2512,7 +2512,7 @@ static int kexec_apply_relocations(struct kimage *image)
 			continue;
 
 		/*
-		 * Respective archicture needs to provide support for applying
+		 * Respective architecture needs to provide support for applying
 		 * relocations of type SHT_RELA/SHT_REL.
 		 */
 		if (sechdrs[i].sh_type == SHT_RELA)

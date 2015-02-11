@@ -238,6 +238,7 @@ struct i40e_ring {
 	u8 atr_count;
 
 	bool ring_active;		/* is ring online or not */
+	bool arm_wb;		/* do something to arm write back */
 
 	/* stats structs */
 	struct i40e_queue_stats	stats;

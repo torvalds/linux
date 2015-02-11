@@ -56,7 +56,7 @@
 #define PFUZE100_VGEN5VOL	0x70
 #define PFUZE100_VGEN6VOL	0x71
 
-enum chips { PFUZE100, PFUZE200 };
+enum chips { PFUZE100, PFUZE200, PFUZE3000 = 3 };
 
 struct pfuze_regulator {
 	struct regulator_desc desc;
@@ -80,9 +80,18 @@ static const int pfuze100_vsnvs[] = {
 	1000000, 1100000, 1200000, 1300000, 1500000, 1800000, 3000000,
 };
 
+static const int pfuze3000_sw2lo[] = {
+	1500000, 1550000, 1600000, 1650000, 1700000, 1750000, 1800000, 1850000,
+};
+
+static const int pfuze3000_sw2hi[] = {
+	2500000, 2800000, 2850000, 3000000, 3100000, 3150000, 3200000, 3300000,
+};
+
 static const struct i2c_device_id pfuze_device_id[] = {
 	{.name = "pfuze100", .driver_data = PFUZE100},
 	{.name = "pfuze200", .driver_data = PFUZE200},
+	{.name = "pfuze3000", .driver_data = PFUZE3000},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pfuze_device_id);
@@ -90,6 +99,7 @@ MODULE_DEVICE_TABLE(i2c, pfuze_device_id);
 static const struct of_device_id pfuze_dt_ids[] = {
 	{ .compatible = "fsl,pfuze100", .data = (void *)PFUZE100},
 	{ .compatible = "fsl,pfuze200", .data = (void *)PFUZE200},
+	{ .compatible = "fsl,pfuze3000", .data = (void *)PFUZE3000},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pfuze_dt_ids);
@@ -219,6 +229,60 @@ static struct regulator_ops pfuze100_swb_regulator_ops = {
 		.stby_mask = 0x20,	\
 	}
 
+#define PFUZE3000_VCC_REG(_chip, _name, base, min, max, step)	{	\
+	.desc = {	\
+		.name = #_name,	\
+		.n_voltages = ((max) - (min)) / (step) + 1,	\
+		.ops = &pfuze100_ldo_regulator_ops,	\
+		.type = REGULATOR_VOLTAGE,	\
+		.id = _chip ## _ ## _name,	\
+		.owner = THIS_MODULE,	\
+		.min_uV = (min),	\
+		.uV_step = (step),	\
+		.vsel_reg = (base),	\
+		.vsel_mask = 0x3,	\
+		.enable_reg = (base),	\
+		.enable_mask = 0x10,	\
+	},	\
+	.stby_reg = (base),	\
+	.stby_mask = 0x20,	\
+}
+
+
+#define PFUZE3000_SW2_REG(_chip, _name, base, min, max, step)	{	\
+	.desc = {	\
+		.name = #_name,\
+		.n_voltages = ((max) - (min)) / (step) + 1,	\
+		.ops = &pfuze100_sw_regulator_ops,	\
+		.type = REGULATOR_VOLTAGE,	\
+		.id = _chip ## _ ## _name,	\
+		.owner = THIS_MODULE,	\
+		.min_uV = (min),	\
+		.uV_step = (step),	\
+		.vsel_reg = (base) + PFUZE100_VOL_OFFSET,	\
+		.vsel_mask = 0x7,	\
+	},	\
+	.stby_reg = (base) + PFUZE100_STANDBY_OFFSET,	\
+	.stby_mask = 0x7,	\
+}
+
+#define PFUZE3000_SW3_REG(_chip, _name, base, min, max, step)	{	\
+	.desc = {	\
+		.name = #_name,\
+		.n_voltages = ((max) - (min)) / (step) + 1,	\
+		.ops = &pfuze100_sw_regulator_ops,	\
+		.type = REGULATOR_VOLTAGE,	\
+		.id = _chip ## _ ## _name,	\
+		.owner = THIS_MODULE,	\
+		.min_uV = (min),	\
+		.uV_step = (step),	\
+		.vsel_reg = (base) + PFUZE100_VOL_OFFSET,	\
+		.vsel_mask = 0xf,	\
+	},	\
+	.stby_reg = (base) + PFUZE100_STANDBY_OFFSET,	\
+	.stby_mask = 0xf,	\
+}
+
 /* PFUZE100 */
 static struct pfuze_regulator pfuze100_regulators[] = {
 	PFUZE100_SW_REG(PFUZE100, SW1AB, PFUZE100_SW1ABVOL, 300000, 1875000, 25000),
@@ -252,6 +316,22 @@ static struct pfuze_regulator pfuze200_regulators[] = {
 	PFUZE100_VGEN_REG(PFUZE200, VGEN4, PFUZE100_VGEN4VOL, 1800000, 3300000, 100000),
 	PFUZE100_VGEN_REG(PFUZE200, VGEN5, PFUZE100_VGEN5VOL, 1800000, 3300000, 100000),
 	PFUZE100_VGEN_REG(PFUZE200, VGEN6, PFUZE100_VGEN6VOL, 1800000, 3300000, 100000),
+};
+
+static struct pfuze_regulator pfuze3000_regulators[] = {
+	PFUZE100_SW_REG(PFUZE3000, SW1A, PFUZE100_SW1ABVOL, 700000, 1475000, 25000),
+	PFUZE100_SW_REG(PFUZE3000, SW1B, PFUZE100_SW1CVOL, 700000, 1475000, 25000),
+	PFUZE100_SWB_REG(PFUZE3000, SW2, PFUZE100_SW2VOL, 0x7, pfuze3000_sw2lo),
+	PFUZE3000_SW3_REG(PFUZE3000, SW3, PFUZE100_SW3AVOL, 900000, 1650000, 50000),
+	PFUZE100_SWB_REG(PFUZE3000, SWBST, PFUZE100_SWBSTCON1, 0x3, pfuze100_swbst),
+	PFUZE100_SWB_REG(PFUZE3000, VSNVS, PFUZE100_VSNVSVOL, 0x7, pfuze100_vsnvs),
+	PFUZE100_FIXED_REG(PFUZE3000, VREFDDR, PFUZE100_VREFDDRCON, 750000),
+	PFUZE100_VGEN_REG(PFUZE3000, VLDO1, PFUZE100_VGEN1VOL, 1800000, 3300000, 100000),
+	PFUZE100_VGEN_REG(PFUZE3000, VLDO2, PFUZE100_VGEN2VOL, 800000, 1550000, 50000),
+	PFUZE3000_VCC_REG(PFUZE3000, VCCSD, PFUZE100_VGEN3VOL, 2850000, 3300000, 150000),
+	PFUZE3000_VCC_REG(PFUZE3000, V33, PFUZE100_VGEN4VOL, 2850000, 3300000, 150000),
+	PFUZE100_VGEN_REG(PFUZE3000, VLDO3, PFUZE100_VGEN5VOL, 1800000, 3300000, 100000),
+	PFUZE100_VGEN_REG(PFUZE3000, VLDO4, PFUZE100_VGEN6VOL, 1800000, 3300000, 100000),
 };
 
 static struct pfuze_regulator *pfuze_regulators;
@@ -294,6 +374,24 @@ static struct of_regulator_match pfuze200_matches[] = {
 	{ .name = "vgen6",	},
 };
 
+/* PFUZE3000 */
+static struct of_regulator_match pfuze3000_matches[] = {
+
+	{ .name = "sw1a",	},
+	{ .name = "sw1b",	},
+	{ .name = "sw2",	},
+	{ .name = "sw3",	},
+	{ .name = "swbst",	},
+	{ .name = "vsnvs",	},
+	{ .name = "vrefddr",	},
+	{ .name = "vldo1",	},
+	{ .name = "vldo2",	},
+	{ .name = "vccsd",	},
+	{ .name = "v33",	},
+	{ .name = "vldo3",	},
+	{ .name = "vldo4",	},
+};
+
 static struct of_regulator_match *pfuze_matches;
 
 static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
@@ -313,6 +411,11 @@ static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 	}
 
 	switch (chip->chip_id) {
+	case PFUZE3000:
+		pfuze_matches = pfuze3000_matches;
+		ret = of_regulator_match(dev, parent, pfuze3000_matches,
+					 ARRAY_SIZE(pfuze3000_matches));
+		break;
 	case PFUZE200:
 		pfuze_matches = pfuze200_matches;
 		ret = of_regulator_match(dev, parent, pfuze200_matches,
@@ -378,7 +481,8 @@ static int pfuze_identify(struct pfuze_chip *pfuze_chip)
 		 * as ID=8 in PFUZE100
 		 */
 		dev_info(pfuze_chip->dev, "Assuming misprogrammed ID=0x8");
-	} else if ((value & 0x0f) != pfuze_chip->chip_id) {
+	} else if ((value & 0x0f) != pfuze_chip->chip_id &&
+		   (value & 0xf0) >> 4 != pfuze_chip->chip_id) {
 		/* device id NOT match with your setting */
 		dev_warn(pfuze_chip->dev, "Illegal ID: %x\n", value);
 		return -ENODEV;
@@ -417,7 +521,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 	int i, ret;
 	const struct of_device_id *match;
 	u32 regulator_num;
-	u32 sw_check_start, sw_check_end;
+	u32 sw_check_start, sw_check_end, sw_hi = 0x40;
 
 	pfuze_chip = devm_kzalloc(&client->dev, sizeof(*pfuze_chip),
 			GFP_KERNEL);
@@ -458,13 +562,19 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 
 	/* use the right regulators after identify the right device */
 	switch (pfuze_chip->chip_id) {
+	case PFUZE3000:
+		pfuze_regulators = pfuze3000_regulators;
+		regulator_num = ARRAY_SIZE(pfuze3000_regulators);
+		sw_check_start = PFUZE3000_SW2;
+		sw_check_end = PFUZE3000_SW2;
+		sw_hi = 1 << 3;
+		break;
 	case PFUZE200:
 		pfuze_regulators = pfuze200_regulators;
 		regulator_num = ARRAY_SIZE(pfuze200_regulators);
 		sw_check_start = PFUZE200_SW2;
 		sw_check_end = PFUZE200_SW3B;
 		break;
-
 	case PFUZE100:
 	default:
 		pfuze_regulators = pfuze100_regulators;
@@ -474,7 +584,8 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 		break;
 	}
 	dev_info(&client->dev, "pfuze%s found.\n",
-		(pfuze_chip->chip_id == PFUZE100) ? "100" : "200");
+		(pfuze_chip->chip_id == PFUZE100) ? "100" :
+		((pfuze_chip->chip_id == PFUZE200) ? "200" : "3000"));
 
 	memcpy(pfuze_chip->regulator_descs, pfuze_regulators,
 		sizeof(pfuze_chip->regulator_descs));
@@ -498,10 +609,15 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 		/* SW2~SW4 high bit check and modify the voltage value table */
 		if (i >= sw_check_start && i <= sw_check_end) {
 			regmap_read(pfuze_chip->regmap, desc->vsel_reg, &val);
-			if (val & 0x40) {
-				desc->min_uV = 800000;
-				desc->uV_step = 50000;
-				desc->n_voltages = 51;
+			if (val & sw_hi) {
+				if (pfuze_chip->chip_id == PFUZE3000) {
+					desc->volt_table = pfuze3000_sw2hi;
+					desc->n_voltages = ARRAY_SIZE(pfuze3000_sw2hi);
+				} else {
+					desc->min_uV = 800000;
+					desc->uV_step = 50000;
+					desc->n_voltages = 51;
+				}
 			}
 		}
 

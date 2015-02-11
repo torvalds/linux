@@ -861,8 +861,8 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 		break;
 
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		hyperv_mmio.start = res->data.address64.minimum;
-		hyperv_mmio.end = res->data.address64.maximum;
+		hyperv_mmio.start = res->data.address64.address.minimum;
+		hyperv_mmio.end = res->data.address64.address.maximum;
 		break;
 	}
 

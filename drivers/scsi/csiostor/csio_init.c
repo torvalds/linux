@@ -1176,9 +1176,8 @@ static struct pci_error_handlers csio_err_handler = {
  */
 #define CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN \
 	static struct pci_device_id csio_pci_tbl[] = {
-/* Define for iSCSI uses PF5, FCoE uses PF6 */
-#define CH_PCI_DEVICE_ID_FUNCTION	0x5
-#define CH_PCI_DEVICE_ID_FUNCTION2	0x6
+/* Define for FCoE uses PF6 */
+#define CH_PCI_DEVICE_ID_FUNCTION	0x6
 
 #define CH_PCI_ID_TABLE_ENTRY(devid) \
 		{ PCI_VDEVICE(CHELSIO, (devid)), 0 }
@@ -1256,5 +1255,4 @@ MODULE_DESCRIPTION(CSIO_DRV_DESC);
 MODULE_LICENSE(CSIO_DRV_LICENSE);
 MODULE_DEVICE_TABLE(pci, csio_pci_tbl);
 MODULE_VERSION(CSIO_DRV_VERSION);
-MODULE_FIRMWARE(FW_FNAME_T4);
 MODULE_FIRMWARE(FW_FNAME_T5);
