@@ -806,6 +806,9 @@ static int clear_refs_test_walk(unsigned long start, unsigned long end,
 	struct clear_refs_private *cp = walk->private;
 	struct vm_area_struct *vma = walk->vma;
 
+	if (vma->vm_flags & VM_PFNMAP)
+		return 1;
+
 	/*
 	 * Writing 1 to /proc/pid/clear_refs affects all pages.
 	 * Writing 2 to /proc/pid/clear_refs only affects anonymous pages.

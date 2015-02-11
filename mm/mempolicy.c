@@ -591,6 +591,9 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
 	unsigned long endvma = vma->vm_end;
 	unsigned long flags = qp->flags;
 
+	if (vma->vm_flags & VM_PFNMAP)
+		return 1;
+
 	if (endvma > end)
 		endvma = end;
 	if (vma->vm_start > start)

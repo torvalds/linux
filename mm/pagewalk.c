@@ -35,7 +35,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
 	do {
 again:
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(*pmd)) {
+		if (pmd_none(*pmd) || !walk->vma) {
 			if (walk->pte_hole)
 				err = walk->pte_hole(addr, next, walk);
 			if (err)
@@ -165,9 +165,6 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
  * or skip it via the returned value. Return 0 if we do walk over the
  * current vma, and return 1 if we skip the vma. Negative values means
  * error, where we abort the current walk.
- *
- * Default check (only VM_PFNMAP check for now) is used when the caller
- * doesn't define test_walk() callback.
  */
 static int walk_page_test(unsigned long start, unsigned long end,
 			struct mm_walk *walk)
@@ -178,11 +175,19 @@ static int walk_page_test(unsigned long start, unsigned long end,
 		return walk->test_walk(start, end, walk);
 
 	/*
-	 * Do not walk over vma(VM_PFNMAP), because we have no valid struct
-	 * page backing a VM_PFNMAP range. See also commit a9ff785e4437.
+	 * vma(VM_PFNMAP) doesn't have any valid struct pages behind VM_PFNMAP
+	 * range, so we don't walk over it as we do for normal vmas. However,
+	 * Some callers are interested in handling hole range and they don't
+	 * want to just ignore any single address range. Such users certainly
+	 * define their ->pte_hole() callbacks, so let's delegate them to handle
+	 * vma(VM_PFNMAP).
 	 */
-	if (vma->vm_flags & VM_PFNMAP)
-		return 1;
+	if (vma->vm_flags & VM_PFNMAP) {
+		int err = 1;
+		if (walk->pte_hole)
+			err = walk->pte_hole(start, end, walk);
+		return err ? err : 1;
+	}
 	return 0;
 }
 
