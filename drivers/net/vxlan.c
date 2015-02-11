@@ -555,12 +555,13 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 					  unsigned int off,
 					  struct vxlanhdr *vh, size_t hdrlen,
-					  u32 data)
+					  u32 data, struct gro_remcsum *grc,
+					  bool nopartial)
 {
 	size_t start, offset, plen;
 
 	if (skb->remcsum_offload)
-		return vh;
+		return NULL;
 
 	if (!NAPI_GRO_CB(skb)->csum_valid)
 		return NULL;
@@ -579,7 +580,8 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 			return NULL;
 	}
 
-	skb_gro_remcsum_process(skb, (void *)vh + hdrlen, start, offset);
+	skb_gro_remcsum_process(skb, (void *)vh + hdrlen,
+				start, offset, grc, nopartial);
 
 	skb->remcsum_offload = 1;
 
@@ -597,6 +599,9 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 	struct vxlan_sock *vs = container_of(uoff, struct vxlan_sock,
 					     udp_offloads);
 	u32 flags;
+	struct gro_remcsum grc;
+
+	skb_gro_remcsum_init(&grc);
 
 	off_vx = skb_gro_offset(skb);
 	hlen = off_vx + sizeof(*vh);
@@ -614,7 +619,9 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 
 	if ((flags & VXLAN_HF_RCO) && (vs->flags & VXLAN_F_REMCSUM_RX)) {
 		vh = vxlan_gro_remcsum(skb, off_vx, vh, sizeof(struct vxlanhdr),
-				       ntohl(vh->vx_vni));
+				       ntohl(vh->vx_vni), &grc,
+				       !!(vs->flags &
+					  VXLAN_F_REMCSUM_NOPARTIAL));
 
 		if (!vh)
 			goto out;
@@ -637,6 +644,7 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 	pp = eth_gro_receive(head, skb);
 
 out:
+	skb_gro_remcsum_cleanup(skb, &grc);
 	NAPI_GRO_CB(skb)->flush |= flush;
 
 	return pp;
@@ -1150,15 +1158,9 @@ static void vxlan_igmp_leave(struct work_struct *work)
 }
 
 static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
-				      size_t hdrlen, u32 data)
+				      size_t hdrlen, u32 data, bool nopartial)
 {
 	size_t start, offset, plen;
-
-	if (skb->remcsum_offload) {
-		/* Already processed in GRO path */
-		skb->remcsum_offload = 0;
-		return vh;
-	}
 
 	start = (data & VXLAN_RCO_MASK) << VXLAN_RCO_SHIFT;
 	offset = start + ((data & VXLAN_RCO_UDP) ?
@@ -1172,7 +1174,8 @@ static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
 
 	vh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
 
-	skb_remcsum_process(skb, (void *)vh + hdrlen, start, offset);
+	skb_remcsum_process(skb, (void *)vh + hdrlen, start, offset,
+			    nopartial);
 
 	return vh;
 }
@@ -1209,7 +1212,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 
 	if ((flags & VXLAN_HF_RCO) && (vs->flags & VXLAN_F_REMCSUM_RX)) {
-		vxh = vxlan_remcsum(skb, vxh, sizeof(struct vxlanhdr), vni);
+		vxh = vxlan_remcsum(skb, vxh, sizeof(struct vxlanhdr), vni,
+				    !!(vs->flags & VXLAN_F_REMCSUM_NOPARTIAL));
 		if (!vxh)
 			goto drop;
 
@@ -2438,6 +2442,7 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_REMCSUM_TX]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_REMCSUM_RX]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_GBP]	= { .type = NLA_FLAG, },
+	[IFLA_VXLAN_REMCSUM_NOPARTIAL]	= { .type = NLA_FLAG },
 };
 
 static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -2761,6 +2766,9 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	if (data[IFLA_VXLAN_GBP])
 		vxlan->flags |= VXLAN_F_GBP;
 
+	if (data[IFLA_VXLAN_REMCSUM_NOPARTIAL])
+		vxlan->flags |= VXLAN_F_REMCSUM_NOPARTIAL;
+
 	if (vxlan_find_vni(src_net, vni, use_ipv6 ? AF_INET6 : AF_INET,
 			   vxlan->dst_port, vxlan->flags)) {
 		pr_info("duplicate VNI %u\n", vni);
@@ -2908,6 +2916,10 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (vxlan->flags & VXLAN_F_GBP &&
 	    nla_put_flag(skb, IFLA_VXLAN_GBP))
+		goto nla_put_failure;
+
+	if (vxlan->flags & VXLAN_F_REMCSUM_NOPARTIAL &&
+	    nla_put_flag(skb, IFLA_VXLAN_REMCSUM_NOPARTIAL))
 		goto nla_put_failure;
 
 	return 0;
