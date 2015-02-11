@@ -427,11 +427,11 @@ static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
 	struct skcipher_sg_list *sgl;
 	struct scatterlist *sg;
 	int err = -EAGAIN;
-	int used;
 	long copied = 0;
 
 	lock_sock(sk);
 	while (iov_iter_count(&msg->msg_iter)) {
+		int used;
 		sgl = list_first_entry(&ctx->tsgl,
 				       struct skcipher_sg_list, list);
 		sg = sgl->sg;
@@ -439,14 +439,13 @@ static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
 		while (!sg->length)
 			sg++;
 
-		used = ctx->used;
-		if (!used) {
+		if (!ctx->used) {
 			err = skcipher_wait_for_data(sk, flags);
 			if (err)
 				goto unlock;
 		}
 
-		used = min_t(unsigned long, used, iov_iter_count(&msg->msg_iter));
+		used = min_t(unsigned long, ctx->used, iov_iter_count(&msg->msg_iter));
 
 		used = af_alg_make_sg(&ctx->rsgl, &msg->msg_iter, used);
 		err = used;
