@@ -63,6 +63,7 @@ typedef uint16_t u16;
 typedef uint8_t u8;
 /*:*/
 
+#define VIRTIO_CONFIG_NO_LEGACY
 #define VIRTIO_PCI_NO_LEGACY
 #define VIRTIO_BLK_NO_LEGACY
 
