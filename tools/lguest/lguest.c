@@ -41,6 +41,7 @@
 #include <signal.h>
 #include <pwd.h>
 #include <grp.h>
+#include <sys/user.h>
 
 #ifndef VIRTIO_F_ANY_LAYOUT
 #define VIRTIO_F_ANY_LAYOUT		27
@@ -1143,6 +1144,150 @@ static void handle_output(unsigned long addr)
 	      strnlen(from_guest_phys(addr), guest_limit - addr));
 }
 
+/*L:216
+ * This is where we emulate a handful of Guest instructions.  It's ugly
+ * and we used to do it in the kernel but it grew over time.
+ */
+
+/*
+ * We use the ptrace syscall's pt_regs struct to talk about registers
+ * to lguest: these macros convert the names to the offsets.
+ */
+#define getreg(name) getreg_off(offsetof(struct user_regs_struct, name))
+#define setreg(name, val) \
+	setreg_off(offsetof(struct user_regs_struct, name), (val))
+
+static u32 getreg_off(size_t offset)
+{
+	u32 r;
+	unsigned long args[] = { LHREQ_GETREG, offset };
+
+	if (pwrite(lguest_fd, args, sizeof(args), cpu_id) < 0)
+		err(1, "Getting register %u", offset);
+	if (pread(lguest_fd, &r, sizeof(r), cpu_id) != sizeof(r))
+		err(1, "Reading register %u", offset);
+
+	return r;
+}
+
+static void setreg_off(size_t offset, u32 val)
+{
+	unsigned long args[] = { LHREQ_SETREG, offset, val };
+
+	if (pwrite(lguest_fd, args, sizeof(args), cpu_id) < 0)
+		err(1, "Setting register %u", offset);
+}
+
+static void emulate_insn(const u8 insn[])
+{
+	unsigned long args[] = { LHREQ_TRAP, 13 };
+	unsigned int insnlen = 0, in = 0, small_operand = 0, byte_access;
+	unsigned int eax, port, mask;
+	/*
+	 * We always return all-ones on IO port reads, which traditionally
+	 * means "there's nothing there".
+	 */
+	u32 val = 0xFFFFFFFF;
+
+	/*
+	 * This must be the Guest kernel trying to do something, not userspace!
+	 * The bottom two bits of the CS segment register are the privilege
+	 * level.
+	 */
+	if ((getreg(xcs) & 3) != 0x1)
+		goto no_emulate;
+
+	/* Decoding x86 instructions is icky. */
+
+	/*
+	 * Around 2.6.33, the kernel started using an emulation for the
+	 * cmpxchg8b instruction in early boot on many configurations.  This
+	 * code isn't paravirtualized, and it tries to disable interrupts.
+	 * Ignore it, which will Mostly Work.
+	 */
+	if (insn[insnlen] == 0xfa) {
+		/* "cli", or Clear Interrupt Enable instruction.  Skip it. */
+		insnlen = 1;
+		goto skip_insn;
+	}
+
+	/*
+	 * 0x66 is an "operand prefix".  It means a 16, not 32 bit in/out.
+	 */
+	if (insn[insnlen] == 0x66) {
+		small_operand = 1;
+		/* The instruction is 1 byte so far, read the next byte. */
+		insnlen = 1;
+	}
+
+	/* If the lower bit isn't set, it's a single byte access */
+	byte_access = !(insn[insnlen] & 1);
+
+	/*
+	 * Now we can ignore the lower bit and decode the 4 opcodes
+	 * we need to emulate.
+	 */
+	switch (insn[insnlen] & 0xFE) {
+	case 0xE4: /* in     <next byte>,%al */
+		port = insn[insnlen+1];
+		insnlen += 2;
+		in = 1;
+		break;
+	case 0xEC: /* in     (%dx),%al */
+		port = getreg(edx) & 0xFFFF;
+		insnlen += 1;
+		in = 1;
+		break;
+	case 0xE6: /* out    %al,<next byte> */
+		port = insn[insnlen+1];
+		insnlen += 2;
+		break;
+	case 0xEE: /* out    %al,(%dx) */
+		port = getreg(edx) & 0xFFFF;
+		insnlen += 1;
+		break;
+	default:
+		/* OK, we don't know what this is, can't emulate. */
+		goto no_emulate;
+	}
+
+	/* Set a mask of the 1, 2 or 4 bytes, depending on size of IO */
+	if (byte_access)
+		mask = 0xFF;
+	else if (small_operand)
+		mask = 0xFFFF;
+	else
+		mask = 0xFFFFFFFF;
+
+	/*
+	 * If it was an "IN" instruction, they expect the result to be read
+	 * into %eax, so we change %eax.
+	 */
+	eax = getreg(eax);
+
+	if (in) {
+		/* Clear the bits we're about to read */
+		eax &= ~mask;
+		/* Copy bits in from val. */
+		eax |= val & mask;
+		/* Now update the register. */
+		setreg(eax, eax);
+	}
+
+	verbose("IO %s of %x to %u: %#08x\n",
+		in ? "IN" : "OUT", mask, port, eax);
+skip_insn:
+	/* Finally, we've "done" the instruction, so move past it. */
+	setreg(eip, getreg(eip) + insnlen);
+	return;
+
+no_emulate:
+	/* Inject trap into Guest. */
+	if (write(lguest_fd, args, sizeof(args)) < 0)
+		err(1, "Reinjecting trap 13 for fault at %#x", getreg(eip));
+}
+
+
 /*L:190
  * Device Setup
  *
@@ -1832,6 +1977,10 @@ static void __attribute__((noreturn)) run_guest(void)
 				verbose("Notify on address %#08x\n",
 					notify.addr);
 				handle_output(notify.addr);
+			} else if (notify.trap == 13) {
+				verbose("Emulating instruction at %#x\n",
+					getreg(eip));
+				emulate_insn(notify.insn);
 			} else
 				errx(1, "Unknown trap %i addr %#08x\n",
 				     notify.trap, notify.addr);
