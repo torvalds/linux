@@ -959,13 +959,9 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 
 	if (INTEL_REVID(dev) == SKL_REVID_A0 ||
 	    INTEL_REVID(dev) == SKL_REVID_B0) {
-		/*
-		* WaDisableDgMirrorFixInHalfSliceChicken5:skl
-		* This is a pre-production w/a.
-		*/
-		I915_WRITE(GEN9_HALF_SLICE_CHICKEN5,
-			I915_READ(GEN9_HALF_SLICE_CHICKEN5) &
-			~GEN9_DG_MIRROR_FIX_ENABLE);
+		/* WaDisableDgMirrorFixInHalfSliceChicken5:skl */
+		WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
+				  GEN9_DG_MIRROR_FIX_ENABLE);
 	}
 
 	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) {
