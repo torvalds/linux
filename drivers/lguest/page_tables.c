@@ -250,6 +250,16 @@ static void release_pte(pte_t pte)
 }
 /*:*/
 
+static bool gpte_in_iomem(struct lg_cpu *cpu, pte_t gpte)
+{
+	/* We don't handle large pages. */
+	if (pte_flags(gpte) & _PAGE_PSE)
+		return false;
+
+	return (pte_pfn(gpte) >= cpu->lg->pfn_limit
+		&& pte_pfn(gpte) < cpu->lg->device_limit);
+}
+
 static bool check_gpte(struct lg_cpu *cpu, pte_t gpte)
 {
 	if ((pte_flags(gpte) & _PAGE_PSE) ||
@@ -374,14 +384,22 @@ static pte_t *find_spte(struct lg_cpu *cpu, unsigned long vaddr, bool allocate,
  *
  * If we fixed up the fault (ie. we mapped the address), this routine returns
  * true.  Otherwise, it was a real fault and we need to tell the Guest.
+ *
+ * There's a corner case: they're trying to access memory between
+ * pfn_limit and device_limit, which is I/O memory.  In this case, we
+ * return false and set @iomem to the physical address, so the the
+ * Launcher can handle the instruction manually.
  */
-bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
+bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode,
+		 unsigned long *iomem)
 {
 	unsigned long gpte_ptr;
 	pte_t gpte;
 	pte_t *spte;
 	pmd_t gpmd;
 	pgd_t gpgd;
+
+	*iomem = 0;
 
 	/* We never demand page the Switcher, so trying is a mistake. */
 	if (vaddr >= switcher_addr)
@@ -458,6 +476,12 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 	/* User access to a kernel-only page? (bit 3 == user access) */
 	if ((errcode & 4) && !(pte_flags(gpte) & _PAGE_USER))
 		return false;
+
+	/* If they're accessing io memory, we expect a fault. */
+	if (gpte_in_iomem(cpu, gpte)) {
+		*iomem = (pte_pfn(gpte) << PAGE_SHIFT) | (vaddr & ~PAGE_MASK);
+		return false;
+	}
 
 	/*
 	 * Check that the Guest PTE flags are OK, and the page number is below
@@ -553,7 +577,9 @@ static bool page_writable(struct lg_cpu *cpu, unsigned long vaddr)
  */
 void pin_page(struct lg_cpu *cpu, unsigned long vaddr)
 {
-	if (!page_writable(cpu, vaddr) && !demand_page(cpu, vaddr, 2))
+	unsigned long iomem;
+
+	if (!page_writable(cpu, vaddr) && !demand_page(cpu, vaddr, 2, &iomem))
 		kill_guest(cpu, "bad stack page %#lx", vaddr);
 }
 /*:*/
@@ -928,7 +954,8 @@ static void __guest_set_pte(struct lg_cpu *cpu, int idx,
 			 * now.  This shaves 10% off a copy-on-write
 			 * micro-benchmark.
 			 */
-			if (pte_flags(gpte) & (_PAGE_DIRTY | _PAGE_ACCESSED)) {
+			if ((pte_flags(gpte) & (_PAGE_DIRTY | _PAGE_ACCESSED))
+			    && !gpte_in_iomem(cpu, gpte)) {
 				if (!check_gpte(cpu, gpte))
 					return;
 				set_pte(spte,

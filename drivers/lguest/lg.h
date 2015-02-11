@@ -97,7 +97,11 @@ struct lguest {
 	struct lg_cpu cpus[NR_CPUS];
 	unsigned int nr_cpus;
 
+	/* Valid guest memory pages must be < this. */
 	u32 pfn_limit;
+
+	/* Device memory is >= pfn_limit and < device_limit. */
+	u32 device_limit;
 
 	/*
 	 * This provides the offset to the base of guest-physical memory in the
@@ -200,7 +204,8 @@ void guest_pagetable_flush_user(struct lg_cpu *cpu);
 void guest_set_pte(struct lg_cpu *cpu, unsigned long gpgdir,
 		   unsigned long vaddr, pte_t val);
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages);
-bool demand_page(struct lg_cpu *cpu, unsigned long cr2, int errcode);
+bool demand_page(struct lg_cpu *cpu, unsigned long cr2, int errcode,
+		 unsigned long *iomem);
 void pin_page(struct lg_cpu *cpu, unsigned long vaddr);
 bool __guest_pa(struct lg_cpu *cpu, unsigned long vaddr, unsigned long *paddr);
 unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr);

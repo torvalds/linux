@@ -362,9 +362,19 @@ static void setup_emulate_insn(struct lg_cpu *cpu)
 			sizeof(cpu->pending.insn));
 }
 
+static void setup_iomem_insn(struct lg_cpu *cpu, unsigned long iomem_addr)
+{
+	cpu->pending.trap = 14;
+	cpu->pending.addr = iomem_addr;
+	copy_from_guest(cpu, cpu->pending.insn, cpu->regs->eip,
+			sizeof(cpu->pending.insn));
+}
+
 /*H:050 Once we've re-enabled interrupts, we look at why the Guest exited. */
 void lguest_arch_handle_trap(struct lg_cpu *cpu)
 {
+	unsigned long iomem_addr;
+
 	switch (cpu->regs->trapnum) {
 	case 13: /* We've intercepted a General Protection Fault. */
 		/* Hand to Launcher to emulate those pesky IN and OUT insns */
@@ -385,8 +395,15 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 * whether kernel or userspace code.
 		 */
 		if (demand_page(cpu, cpu->arch.last_pagefault,
-				cpu->regs->errcode))
+				cpu->regs->errcode, &iomem_addr))
 			return;
+
+		/* Was this an access to memory mapped IO? */
+		if (iomem_addr) {
+			/* Tell Launcher, let it handle it. */
+			setup_iomem_insn(cpu, iomem_addr);
+			return;
+		}
 
 		/*
 		 * OK, it's really not there (or not OK): the Guest needs to

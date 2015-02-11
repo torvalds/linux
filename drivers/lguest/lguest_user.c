@@ -385,7 +385,7 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	/* "struct lguest" contains all we (the Host) know about a Guest. */
 	struct lguest *lg;
 	int err;
-	unsigned long args[3];
+	unsigned long args[4];
 
 	/*
 	 * We grab the Big Lguest lock, which protects against multiple
@@ -419,6 +419,7 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	/* Populate the easy fields of our "struct lguest" */
 	lg->mem_base = (void __user *)args[0];
 	lg->pfn_limit = args[1];
+	lg->device_limit = args[3];
 
 	/* This is the first cpu (cpu 0) and it will start booting at args[2] */
 	err = lg_cpu_start(&lg->cpus[0], 0, args[2]);
