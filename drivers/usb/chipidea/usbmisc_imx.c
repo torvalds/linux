@@ -58,7 +58,16 @@
 #define MX6_BM_WAKEUP_ENABLE		BIT(10)
 #define MX6_BM_ID_WAKEUP		BIT(16)
 #define MX6_BM_VBUS_WAKEUP		BIT(17)
+#define MX6SX_BM_DPDM_WAKEUP_EN		BIT(29)
 #define MX6_BM_WAKEUP_INTR		BIT(31)
+#define MX6_USB_OTG1_PHY_CTRL		0x18
+/* For imx6dql, it is host-only controller, for later imx6, it is otg's */
+#define MX6_USB_OTG2_PHY_CTRL		0x1c
+#define MX6SX_USB_VBUS_WAKEUP_SOURCE(v)	(v << 8)
+#define MX6SX_USB_VBUS_WAKEUP_SOURCE_VBUS	MX6SX_USB_VBUS_WAKEUP_SOURCE(0)
+#define MX6SX_USB_VBUS_WAKEUP_SOURCE_AVALID	MX6SX_USB_VBUS_WAKEUP_SOURCE(1)
+#define MX6SX_USB_VBUS_WAKEUP_SOURCE_BVALID	MX6SX_USB_VBUS_WAKEUP_SOURCE(2)
+#define MX6SX_USB_VBUS_WAKEUP_SOURCE_SESS_END	MX6SX_USB_VBUS_WAKEUP_SOURCE(3)
 
 #define VF610_OVER_CUR_DIS		BIT(7)
 
@@ -259,6 +268,35 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 	return 0;
 }
 
+static int usbmisc_imx6sx_init(struct imx_usbmisc_data *data)
+{
+	void __iomem *reg = NULL;
+	unsigned long flags;
+	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+	u32 val;
+	int ret = 0;
+
+	usbmisc_imx6q_init(data);
+
+	if (data->index == 0 || data->index == 1) {
+		reg = usbmisc->base + MX6_USB_OTG1_PHY_CTRL + data->index * 4;
+		spin_lock_irqsave(&usbmisc->lock, flags);
+		/* Set vbus wakeup source as bvalid */
+		val = readl(reg);
+		writel(val | MX6SX_USB_VBUS_WAKEUP_SOURCE_BVALID, reg);
+		/*
+		 * Disable dp/dm wakeup in device mode when vbus is
+		 * not there.
+		 */
+		val = readl(usbmisc->base + data->index * 4);
+		writel(val & ~MX6SX_BM_DPDM_WAKEUP_EN,
+			usbmisc->base + data->index * 4);
+		spin_unlock_irqrestore(&usbmisc->lock, flags);
+	}
+
+	return ret;
+}
+
 static int usbmisc_vf610_init(struct imx_usbmisc_data *data)
 {
 	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
@@ -299,6 +337,11 @@ static const struct usbmisc_ops imx6q_usbmisc_ops = {
 
 static const struct usbmisc_ops vf610_usbmisc_ops = {
 	.init = usbmisc_vf610_init,
+};
+
+static const struct usbmisc_ops imx6sx_usbmisc_ops = {
+	.set_wakeup = usbmisc_imx6q_set_wakeup,
+	.init = usbmisc_imx6sx_init,
 };
 
 int imx_usbmisc_init(struct imx_usbmisc_data *data)
@@ -371,6 +414,10 @@ static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	{
 		.compatible = "fsl,vf610-usbmisc",
 		.data = &vf610_usbmisc_ops,
+	},
+	{
+		.compatible = "fsl,imx6sx-usbmisc",
+		.data = &imx6sx_usbmisc_ops,
 	},
 	{ /* sentinel */ }
 };
