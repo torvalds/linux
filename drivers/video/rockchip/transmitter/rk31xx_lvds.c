@@ -94,6 +94,10 @@ static int rk31xx_lvds_pwr_on(void)
         struct rk_lvds_device *lvds = rk31xx_lvds;
 
         if (lvds->screen.type == SCREEN_LVDS) {
+                /* set VOCM 900 mv and V-DIFF 350 mv */
+	        lvds_msk_reg(lvds, MIPIPHY_REGE4, m_VOCM | m_DIFF_V,
+			     v_VOCM(0) | v_DIFF_V(2));
+
                 /* power up lvds pll and ldo */
 	        lvds_msk_reg(lvds, MIPIPHY_REG1,
 	                     m_SYNC_RST | m_LDO_PWR_DOWN | m_PLL_PWR_DOWN,

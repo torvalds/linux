@@ -96,6 +96,13 @@ enum {
 #define v_LVDS_EN(x)            BITS_MASK(x, 1, 1)
 #define v_TTL_EN(x)             BITS_MASK(x, 1, 2)
 
+#define MIPIPHY_REGE4		0x0390
+#define m_VOCM			BITS(3, 4)
+#define m_DIFF_V		BITS(3, 6)
+
+#define v_VOCM(x)		BITS_MASK(x, 3, 4)
+#define v_DIFF_V(x)		BITS_MASK(x, 3, 6)
+
 #define MIPIPHY_REGE8           0x03a0
 
 #define MIPIPHY_REGEB           0x03ac
