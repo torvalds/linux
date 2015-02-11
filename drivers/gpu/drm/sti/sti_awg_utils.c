@@ -60,8 +60,6 @@ static int awg_generate_instr(enum opcode opcode,
 				 * pixel. So we transform SKIP into SET
 				 * instruction */
 				opcode = SET;
-				arg = (arg << 24) >> 24;
-				arg &= (0x0ff);
 				break;
 			}
 
