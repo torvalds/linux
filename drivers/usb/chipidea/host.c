@@ -33,6 +33,7 @@
 #include "host.h"
 
 static struct hc_driver __read_mostly ci_ehci_hc_driver;
+static int (*orig_bus_suspend)(struct usb_hcd *hcd);
 
 struct ehci_ci_priv {
 	struct regulator *reg_vbus;
@@ -161,6 +162,47 @@ void ci_hdrc_host_destroy(struct ci_hdrc *ci)
 		host_stop(ci);
 }
 
+static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	int port;
+	u32 tmp;
+
+	int ret = orig_bus_suspend(hcd);
+
+	if (ret)
+		return ret;
+
+	port = HCS_N_PORTS(ehci->hcs_params);
+	while (port--) {
+		u32 __iomem *reg = &ehci->regs->port_status[port];
+		u32 portsc = ehci_readl(ehci, reg);
+
+		if (portsc & PORT_CONNECT) {
+			/*
+			 * For chipidea, the resume signal will be ended
+			 * automatically, so for remote wakeup case, the
+			 * usbcmd.rs may not be set before the resume has
+			 * ended if other resume paths consumes too much
+			 * time (~24ms), in that case, the SOF will not
+			 * send out within 3ms after resume ends, then the
+			 * high speed device will enter full speed mode.
+			 */
+
+			tmp = ehci_readl(ehci, &ehci->regs->command);
+			tmp |= CMD_RUN;
+			ehci_writel(ehci, tmp, &ehci->regs->command);
+			/*
+			 * It needs a short delay between set RS bit and PHCD.
+			 */
+			usleep_range(150, 200);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 int ci_hdrc_host_init(struct ci_hdrc *ci)
 {
 	struct ci_role_driver *rdrv;
@@ -179,6 +221,8 @@ int ci_hdrc_host_init(struct ci_hdrc *ci)
 	ci->roles[CI_ROLE_HOST] = rdrv;
 
 	ehci_init_driver(&ci_ehci_hc_driver, &ehci_ci_overrides);
+	orig_bus_suspend = ci_ehci_hc_driver.bus_suspend;
+	ci_ehci_hc_driver.bus_suspend = ci_ehci_bus_suspend;
 
 	return 0;
 }
