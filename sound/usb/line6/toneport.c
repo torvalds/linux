@@ -52,7 +52,7 @@ struct usb_line6_toneport {
 	u32 serial_number;
 
 	/* Firmware version (x 100) */
-	int firmware_version;
+	u8 firmware_version;
 
 	/* Timer for delayed PCM startup */
 	struct timer_list timer;
