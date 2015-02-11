@@ -555,6 +555,9 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
 	INIT_LIST_HEAD(&mm->mmlist);
 	mm->core_state = NULL;
 	atomic_long_set(&mm->nr_ptes, 0);
+#ifndef __PAGETABLE_PMD_FOLDED
+	atomic_long_set(&mm->nr_pmds, 0);
+#endif
 	mm->map_count = 0;
 	mm->locked_vm = 0;
 	mm->pinned_vm = 0;
