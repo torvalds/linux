@@ -230,9 +230,7 @@ static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
 
 /**
  * update_fast_timekeeper - Update the fast and NMI safe monotonic timekeeper.
- * @tk:		The timekeeper from which we take the update
- * @tkf:	The fast timekeeper to update
- * @tbase:	The time base for the fast timekeeper (mono/raw)
+ * @tkr: Timekeeping readout base from which we take the update
  *
  * We want to use this from any context including NMI and tracing /
  * instrumenting the timekeeping code itself.
@@ -244,11 +242,11 @@ static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
  * smp_wmb();	<- Ensure that the last base[1] update is visible
  * tkf->seq++;
  * smp_wmb();	<- Ensure that the seqcount update is visible
- * update(tkf->base[0], tk);
+ * update(tkf->base[0], tkr);
  * smp_wmb();	<- Ensure that the base[0] update is visible
  * tkf->seq++;
  * smp_wmb();	<- Ensure that the seqcount update is visible
- * update(tkf->base[1], tk);
+ * update(tkf->base[1], tkr);
  *
  * The reader side does:
  *
@@ -269,7 +267,7 @@ static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
  * slightly wrong timestamp (a few nanoseconds). See
  * @ktime_get_mono_fast_ns.
  */
-static void update_fast_timekeeper(struct timekeeper *tk)
+static void update_fast_timekeeper(struct tk_read_base *tkr)
 {
 	struct tk_read_base *base = tk_fast_mono.base;
 
@@ -277,7 +275,7 @@ static void update_fast_timekeeper(struct timekeeper *tk)
 	raw_write_seqcount_latch(&tk_fast_mono.seq);
 
 	/* Update base[0] */
-	memcpy(base, &tk->tkr, sizeof(*base));
+	memcpy(base, tkr, sizeof(*base));
 
 	/* Force readers back to base[0] */
 	raw_write_seqcount_latch(&tk_fast_mono.seq);
@@ -462,7 +460,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
 		memcpy(&shadow_timekeeper, &tk_core.timekeeper,
 		       sizeof(tk_core.timekeeper));
 
-	update_fast_timekeeper(tk);
+	update_fast_timekeeper(&tk->tkr);
 }
 
 /**
