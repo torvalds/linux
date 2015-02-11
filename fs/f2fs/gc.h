@@ -40,8 +40,6 @@ struct gc_inode_list {
 	struct radix_tree_root iroot;
 };
 
-extern struct kmem_cache *inode_entry_slab;
-
 /*
  * inline functions
  */

@@ -16,9 +16,9 @@
 #include "f2fs.h"
 #include "trace.h"
 
-RADIX_TREE(pids, GFP_ATOMIC);
+static RADIX_TREE(pids, GFP_ATOMIC);
 static spinlock_t pids_lock;
-struct last_io_info last_io;
+static struct last_io_info last_io;
 
 static inline void __print_last_io(void)
 {

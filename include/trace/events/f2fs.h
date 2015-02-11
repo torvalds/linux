@@ -149,14 +149,14 @@ DEFINE_EVENT(f2fs__inode, f2fs_sync_file_enter,
 
 TRACE_EVENT(f2fs_sync_file_exit,
 
-	TP_PROTO(struct inode *inode, bool need_cp, int datasync, int ret),
+	TP_PROTO(struct inode *inode, int need_cp, int datasync, int ret),
 
 	TP_ARGS(inode, need_cp, datasync, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
-		__field(bool,	need_cp)
+		__field(int,	need_cp)
 		__field(int,	datasync)
 		__field(int,	ret)
 	),
@@ -185,7 +185,7 @@ TRACE_EVENT(f2fs_sync_fs,
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(bool,	dirty)
+		__field(int,	dirty)
 		__field(int,	wait)
 	),
 
@@ -989,14 +989,15 @@ TRACE_EVENT(f2fs_issue_discard,
 
 TRACE_EVENT(f2fs_issue_flush,
 
-	TP_PROTO(struct super_block *sb, bool nobarrier, bool flush_merge),
+	TP_PROTO(struct super_block *sb, unsigned int nobarrier,
+					unsigned int flush_merge),
 
 	TP_ARGS(sb, nobarrier, flush_merge),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(bool, nobarrier)
-		__field(bool, flush_merge)
+		__field(unsigned int, nobarrier)
+		__field(unsigned int, flush_merge)
 	),
 
 	TP_fast_assign(
