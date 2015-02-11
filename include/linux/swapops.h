@@ -135,6 +135,8 @@ static inline void make_migration_entry_read(swp_entry_t *entry)
 	*entry = swp_entry(SWP_MIGRATION_READ, swp_offset(*entry));
 }
 
+extern void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+					spinlock_t *ptl);
 extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 					unsigned long address);
 extern void migration_entry_wait_huge(struct vm_area_struct *vma,
@@ -148,6 +150,8 @@ static inline int is_migration_entry(swp_entry_t swp)
 }
 #define migration_entry_to_page(swp) NULL
 static inline void make_migration_entry_read(swp_entry_t *entryp) { }
+static inline void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+					spinlock_t *ptl) { }
 static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 					 unsigned long address) { }
 static inline void migration_entry_wait_huge(struct vm_area_struct *vma,
