@@ -1681,6 +1681,7 @@ static ssize_t version_show(struct device *dev,
 {
 	return sprintf(buf, "%s\n", TOSHIBA_ACPI_VERSION);
 }
+static DEVICE_ATTR_RO(version);
 
 static ssize_t fan_store(struct device *dev,
 			 struct device_attribute *attr,
@@ -1720,6 +1721,7 @@ static ssize_t fan_show(struct device *dev,
 
 	return sprintf(buf, "%d\n", value);
 }
+static DEVICE_ATTR_RW(fan);
 
 static ssize_t kbd_backlight_mode_store(struct device *dev,
 					struct device_attribute *attr,
@@ -1790,6 +1792,7 @@ static ssize_t kbd_backlight_mode_show(struct device *dev,
 
 	return sprintf(buf, "%i\n", time & SCI_KBD_MODE_MASK);
 }
+static DEVICE_ATTR_RW(kbd_backlight_mode);
 
 static ssize_t kbd_type_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
@@ -1798,6 +1801,7 @@ static ssize_t kbd_type_show(struct device *dev,
 
 	return sprintf(buf, "%d\n", toshiba->kbd_type);
 }
+static DEVICE_ATTR_RO(kbd_type);
 
 static ssize_t available_kbd_modes_show(struct device *dev,
 					struct device_attribute *attr,
@@ -1812,6 +1816,7 @@ static ssize_t available_kbd_modes_show(struct device *dev,
 	return sprintf(buf, "%x %x %x\n",
 		       SCI_KBD_MODE_AUTO, SCI_KBD_MODE_ON, SCI_KBD_MODE_OFF);
 }
+static DEVICE_ATTR_RO(available_kbd_modes);
 
 static ssize_t kbd_backlight_timeout_store(struct device *dev,
 					   struct device_attribute *attr,
@@ -1868,6 +1873,7 @@ static ssize_t kbd_backlight_timeout_show(struct device *dev,
 
 	return sprintf(buf, "%i\n", time >> HCI_MISC_SHIFT);
 }
+static DEVICE_ATTR_RW(kbd_backlight_timeout);
 
 static ssize_t touchpad_store(struct device *dev,
 			      struct device_attribute *attr,
@@ -1904,6 +1910,7 @@ static ssize_t touchpad_show(struct device *dev,
 
 	return sprintf(buf, "%i\n", state);
 }
+static DEVICE_ATTR_RW(touchpad);
 
 static ssize_t position_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
@@ -1925,6 +1932,7 @@ static ssize_t position_show(struct device *dev,
 
 	return sprintf(buf, "%d %d %d\n", x, y, z);
 }
+static DEVICE_ATTR_RO(position);
 
 static ssize_t usb_sleep_charge_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
@@ -1974,6 +1982,7 @@ static ssize_t usb_sleep_charge_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(usb_sleep_charge);
 
 static ssize_t sleep_functions_on_battery_show(struct device *dev,
 					       struct device_attribute *attr,
@@ -2035,6 +2044,7 @@ static ssize_t sleep_functions_on_battery_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(sleep_functions_on_battery);
 
 static ssize_t usb_rapid_charge_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
@@ -2070,6 +2080,7 @@ static ssize_t usb_rapid_charge_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(usb_rapid_charge);
 
 static ssize_t usb_sleep_music_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -2105,6 +2116,7 @@ static ssize_t usb_sleep_music_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(usb_sleep_music);
 
 static ssize_t kbd_function_keys_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
@@ -2146,6 +2158,7 @@ static ssize_t kbd_function_keys_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(kbd_function_keys);
 
 static ssize_t panel_power_on_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -2183,6 +2196,7 @@ static ssize_t panel_power_on_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(panel_power_on);
 
 static ssize_t usb_three_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -2224,33 +2238,7 @@ static ssize_t usb_three_store(struct device *dev,
 
 	return count;
 }
-
-static DEVICE_ATTR(version, S_IRUGO, version_show, NULL);
-static DEVICE_ATTR(fan, S_IRUGO | S_IWUSR, fan_show, fan_store);
-static DEVICE_ATTR(kbd_backlight_mode, S_IRUGO | S_IWUSR,
-		   kbd_backlight_mode_show, kbd_backlight_mode_store);
-static DEVICE_ATTR(kbd_type, S_IRUGO, kbd_type_show, NULL);
-static DEVICE_ATTR(available_kbd_modes, S_IRUGO,
-		   available_kbd_modes_show, NULL);
-static DEVICE_ATTR(kbd_backlight_timeout, S_IRUGO | S_IWUSR,
-		   kbd_backlight_timeout_show, kbd_backlight_timeout_store);
-static DEVICE_ATTR(touchpad, S_IRUGO | S_IWUSR, touchpad_show, touchpad_store);
-static DEVICE_ATTR(position, S_IRUGO, position_show, NULL);
-static DEVICE_ATTR(usb_sleep_charge, S_IRUGO | S_IWUSR,
-		   usb_sleep_charge_show, usb_sleep_charge_store);
-static DEVICE_ATTR(sleep_functions_on_battery, S_IRUGO | S_IWUSR,
-		   sleep_functions_on_battery_show,
-		   sleep_functions_on_battery_store);
-static DEVICE_ATTR(usb_rapid_charge, S_IRUGO | S_IWUSR,
-		   usb_rapid_charge_show, usb_rapid_charge_store);
-static DEVICE_ATTR(usb_sleep_music, S_IRUGO | S_IWUSR,
-		   usb_sleep_music_show, usb_sleep_music_store);
-static DEVICE_ATTR(kbd_function_keys, S_IRUGO | S_IWUSR,
-		   kbd_function_keys_show, kbd_function_keys_store);
-static DEVICE_ATTR(panel_power_on, S_IRUGO | S_IWUSR,
-		   panel_power_on_show, panel_power_on_store);
-static DEVICE_ATTR(usb_three, S_IRUGO | S_IWUSR,
-		   usb_three_show, usb_three_store);
+static DEVICE_ATTR_RW(usb_three);
 
 static struct attribute *toshiba_attributes[] = {
 	&dev_attr_version.attr,
