@@ -491,6 +491,13 @@ static irqreturn_t ci_irq(int irq, void *data)
 	irqreturn_t ret = IRQ_NONE;
 	u32 otgsc = 0;
 
+	if (ci->in_lpm) {
+		disable_irq_nosync(irq);
+		ci->wakeup_int = true;
+		pm_runtime_get(ci->dev);
+		return IRQ_HANDLED;
+	}
+
 	if (ci->is_otg) {
 		otgsc = hw_read_otgsc(ci, ~0);
 		if (ci_otg_is_fsm_mode(ci)) {
@@ -673,6 +680,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	ci->platdata = dev_get_platdata(dev);
 	ci->imx28_write_fix = !!(ci->platdata->flags &
 		CI_HDRC_IMX28_WRITE_FIX);
+	ci->supports_runtime_pm = !!(ci->platdata->flags &
+		CI_HDRC_SUPPORTS_RUNTIME_PM);
 
 	ret = hw_device_init(ci, base);
 	if (ret < 0) {
@@ -788,6 +797,14 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ret)
 		goto stop;
 
+	if (ci->supports_runtime_pm) {
+		pm_runtime_set_active(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
+		pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
+		pm_runtime_mark_last_busy(ci->dev);
+		pm_runtime_use_autosuspend(&pdev->dev);
+	}
+
 	if (ci_otg_is_fsm_mode(ci))
 		ci_hdrc_otg_fsm_start(ci);
 
@@ -807,6 +824,12 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 {
 	struct ci_hdrc *ci = platform_get_drvdata(pdev);
 
+	if (ci->supports_runtime_pm) {
+		pm_runtime_get_sync(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+		pm_runtime_put_noidle(&pdev->dev);
+	}
+
 	dbg_remove_files(ci);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
@@ -815,13 +838,14 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 static void ci_controller_suspend(struct ci_hdrc *ci)
 {
+	disable_irq(ci->irq);
 	ci_hdrc_enter_lpm(ci, true);
-
-	if (ci->usb_phy)
-		usb_phy_set_suspend(ci->usb_phy, 1);
+	usb_phy_set_suspend(ci->usb_phy, 1);
+	ci->in_lpm = true;
+	enable_irq(ci->irq);
 }
 
 static int ci_controller_resume(struct device *dev)
@@ -830,23 +854,49 @@ static int ci_controller_resume(struct device *dev)
 
 	dev_dbg(dev, "at %s\n", __func__);
 
-	ci_hdrc_enter_lpm(ci, false);
+	if (!ci->in_lpm) {
+		WARN_ON(1);
+		return 0;
+	}
 
+	ci_hdrc_enter_lpm(ci, false);
 	if (ci->usb_phy) {
 		usb_phy_set_suspend(ci->usb_phy, 0);
 		usb_phy_set_wakeup(ci->usb_phy, false);
 		hw_wait_phy_stable();
 	}
 
+	ci->in_lpm = false;
+	if (ci->wakeup_int) {
+		ci->wakeup_int = false;
+		pm_runtime_mark_last_busy(ci->dev);
+		pm_runtime_put_autosuspend(ci->dev);
+		enable_irq(ci->irq);
+	}
+
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ci_suspend(struct device *dev)
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
 
 	if (ci->wq)
 		flush_workqueue(ci->wq);
+	/*
+	 * Controller needs to be active during suspend, otherwise the core
+	 * may run resume when the parent is at suspend if other driver's
+	 * suspend fails, it occurs before parent's suspend has not started,
+	 * but the core suspend has finished.
+	 */
+	if (ci->in_lpm)
+		pm_runtime_resume(dev);
+
+	if (ci->in_lpm) {
+		WARN_ON(1);
+		return 0;
+	}
 
 	ci_controller_suspend(ci);
 
@@ -855,13 +905,51 @@ static int ci_suspend(struct device *dev)
 
 static int ci_resume(struct device *dev)
 {
-	return ci_controller_resume(dev);
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ci_controller_resume(dev);
+	if (ret)
+		return ret;
+
+	if (ci->supports_runtime_pm) {
+		pm_runtime_disable(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+	}
+
+	return ret;
 }
 #endif /* CONFIG_PM_SLEEP */
 
+static int ci_runtime_suspend(struct device *dev)
+{
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "at %s\n", __func__);
+
+	if (ci->in_lpm) {
+		WARN_ON(1);
+		return 0;
+	}
+
+	usb_phy_set_wakeup(ci->usb_phy, true);
+	ci_controller_suspend(ci);
+
+	return 0;
+}
+
+static int ci_runtime_resume(struct device *dev)
+{
+	return ci_controller_resume(dev);
+}
+
+#endif /* CONFIG_PM */
 static const struct dev_pm_ops ci_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ci_suspend, ci_resume)
+	SET_RUNTIME_PM_OPS(ci_runtime_suspend, ci_runtime_resume, NULL)
 };
+
 static struct platform_driver ci_hdrc_driver = {
 	.probe	= ci_hdrc_probe,
 	.remove	= ci_hdrc_remove,
