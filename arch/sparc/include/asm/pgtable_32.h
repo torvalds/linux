@@ -102,7 +102,8 @@ extern unsigned long empty_zero_page;
  */
 static inline unsigned long srmmu_swap(unsigned long *addr, unsigned long value)
 {
-	__asm__ __volatile__("swap [%2], %0" : "=&r" (value) : "0" (value), "r" (addr));
+	__asm__ __volatile__("swap [%2], %0" :
+			"=&r" (value) : "0" (value), "r" (addr) : "memory");
 	return value;
 }
 
