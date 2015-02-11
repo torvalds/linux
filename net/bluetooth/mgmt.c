@@ -3249,6 +3249,10 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		if (PTR_ERR(conn) == -EBUSY)
 			status = MGMT_STATUS_BUSY;
+		else if (PTR_ERR(conn) == -EOPNOTSUPP)
+			status = MGMT_STATUS_NOT_SUPPORTED;
+		else if (PTR_ERR(conn) == -ECONNREFUSED)
+			status = MGMT_STATUS_REJECTED;
 		else
 			status = MGMT_STATUS_CONNECT_FAILED;
 
