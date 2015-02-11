@@ -199,6 +199,8 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		pm_runtime_enable(&pdev->dev);
 	}
 
+	device_set_wakeup_capable(&pdev->dev, true);
+
 	return 0;
 
 disable_device:
@@ -270,11 +272,22 @@ clk_disable:
 #ifdef CONFIG_PM_SLEEP
 static int ci_hdrc_imx_suspend(struct device *dev)
 {
+	int ret;
+
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 
 	if (data->in_lpm)
 		/* The core's suspend doesn't run */
 		return 0;
+
+	if (device_may_wakeup(dev)) {
+		ret = imx_usbmisc_set_wakeup(data->usbmisc_data, true);
+		if (ret) {
+			dev_err(dev, "usbmisc set_wakeup failed, ret=%d\n",
+					ret);
+			return ret;
+		}
+	}
 
 	return imx_controller_suspend(dev);
 }
