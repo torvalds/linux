@@ -71,7 +71,7 @@ typedef uint8_t u8;
 #include "../../include/uapi/linux/virtio_net.h"
 #include "../../include/uapi/linux/virtio_blk.h"
 #include <linux/virtio_console.h>
-#include <linux/virtio_rng.h>
+#include "../../include/uapi/linux/virtio_rng.h"
 #include <linux/virtio_ring.h>
 #include "../../include/uapi/linux/virtio_pci.h"
 #include <asm/bootparam.h>
@@ -2224,7 +2224,6 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 	 *
 	 * eg :
 	 *  VIRTIO_ID_CONSOLE: class = 0x07, subclass = 0x00
-	 *  VIRTIO_ID_RNG: class = 0xff, subclass = 0
 	 */
 	pci->class = class;
 	pci->subclass = subclass;
@@ -2816,13 +2815,16 @@ static void setup_rng(void)
 	rng_info->rfd = open_or_die("/dev/urandom", O_RDONLY);
 
 	/* Create the new device. */
-	dev = new_device("rng", VIRTIO_ID_RNG);
+	dev = new_pci_device("rng", VIRTIO_ID_RNG, 0xff, 0);
 	dev->priv = rng_info;
 
 	/* The device has one virtqueue, where the Guest places inbufs. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, rng_input);
+	add_pci_virtqueue(dev, rng_input);
 
-	verbose("device %u: rng\n", devices.device_num++);
+	/* We don't have any configuration space */
+	no_device_config(dev);
+
+	verbose("device %u: rng\n", devices.device_num);
 }
 /* That's the end of device setup. */
 
