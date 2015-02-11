@@ -957,8 +957,8 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 			  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
 
-	if (INTEL_REVID(dev) >= SKL_REVID_A0 &&
-	    INTEL_REVID(dev) <= SKL_REVID_B0) {
+	if (INTEL_REVID(dev) == SKL_REVID_A0 ||
+	    INTEL_REVID(dev) == SKL_REVID_B0) {
 		/*
 		* WaDisableDgMirrorFixInHalfSliceChicken5:skl
 		* This is a pre-production w/a.
