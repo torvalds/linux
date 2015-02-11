@@ -440,7 +440,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 	} else {
 		if (prescaler_exp > LTC2941_MAX_PRESCALER_EXP)
 			prescaler_exp = LTC2941_MAX_PRESCALER_EXP;
-		info->Qlsb = ((58 * 50000) / r_sense) /
+		info->Qlsb = ((85 * 50000) / r_sense) /
 				(128 / (1 << prescaler_exp));
 	}
 
