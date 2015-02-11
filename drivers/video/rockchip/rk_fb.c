@@ -2040,6 +2040,12 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	int ret = 0, i, j = 0;
 	int list_is_empty = 0;
 
+	if (dev_drv->suspend_flag) {
+		dev_drv->timeline_max++;
+		sw_sync_timeline_inc(dev_drv->timeline, 1);
+		return 0;
+	}
+
 	regs = kzalloc(sizeof(struct rk_fb_reg_data), GFP_KERNEL);
 	if (!regs) {
 		printk(KERN_INFO "could not allocate rk_fb_reg_data\n");
@@ -2073,11 +2079,6 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	}
 
 	mutex_lock(&dev_drv->output_lock);
-	if (!(dev_drv->suspend_flag == 0)) {
-		rk_fb_update_reg(dev_drv, regs);
-		printk(KERN_INFO "suspend_flag = 1\n");
-		goto err;
-	}
 
 	dev_drv->timeline_max++;
 #ifdef H_USE_FENCE
@@ -2106,6 +2107,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	win_data->ret_fence_fd = get_unused_fd();
 	if (win_data->ret_fence_fd < 0) {
 		printk("ret_fence_fd=%d\n", win_data->ret_fence_fd);
+		win_data->ret_fence_fd = -1;
 		ret = -EFAULT;
 		goto err;
 	}
@@ -3102,9 +3104,11 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 
 			if (dev_drv->ops->dsp_black)
 				dev_drv->ops->dsp_black(dev_drv, 0);
-		} else if (rk_fb->num_lcdc > 1 && rk_fb->disp_policy == DISPLAY_POLICY_BOX) {
+		} else if (rk_fb->num_lcdc > 1) {
 			/* If there is more than one lcdc device, we disable
 			   the layer which attached to this device */
+			dev_drv->suspend_flag = 1;
+			flush_kthread_worker(&dev_drv->update_regs_worker);
 			for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 				if (dev_drv->win[i] && dev_drv->win[i]->state)
 					dev_drv->ops->open(dev_drv, i, 0);
@@ -3130,8 +3134,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 			if (dev_drv->win[win_id]) {
 				if (fb_par->state) {
-					if (!dev_drv->win[win_id]->state)
+					if (!dev_drv->win[win_id]->state) {
 						dev_drv->ops->open(dev_drv, win_id, 1);
+						dev_drv->suspend_flag = 0;
+					}
 					if (!load_screen) {
 						dev_drv->ops->load_screen(dev_drv, 1);
 						load_screen = 1;
