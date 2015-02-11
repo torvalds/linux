@@ -56,6 +56,7 @@
 #include <linux/virtio_console.h>
 #include <linux/pm.h>
 #include <linux/export.h>
+#include <asm/acpi.h>
 #include <asm/apic.h>
 #include <asm/lguest.h>
 #include <asm/paravirt.h>
@@ -1427,6 +1428,9 @@ __init void lguest_init(void)
 
 	/* Register our very early console. */
 	virtio_cons_early_init(early_put_chars);
+
+	/* Don't let ACPI try to control our PCI interrupts. */
+	disable_acpi();
 
 	/*
 	 * Last of all, we set the power management poweroff hook to point to
