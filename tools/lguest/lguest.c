@@ -42,6 +42,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <sys/user.h>
+#include <linux/pci_regs.h>
 
 #ifndef VIRTIO_F_ANY_LAYOUT
 #define VIRTIO_F_ANY_LAYOUT		27
@@ -125,6 +126,21 @@ struct device_list {
 /* The list of Guest devices, based on command line arguments. */
 static struct device_list devices;
 
+/* This is the layout (little-endian) of the PCI config space. */
+struct pci_config {
+	u16 vendor_id, device_id;
+	u16 command, status;
+	u8 revid, prog_if, subclass, class;
+	u8 cacheline_size, lat_timer, header_type, bist;
+	u32 bar[6];
+	u32 cardbus_cis_ptr;
+	u16 subsystem_vendor_id, subsystem_device_id;
+	u32 expansion_rom_addr;
+	u8 capabilities, reserved1[3];
+	u32 reserved2;
+	u8 irq_line, irq_pin, min_grant, max_latency;
+};
+
 /* The device structure describes a single device. */
 struct device {
 	/* The linked-list pointer. */
@@ -145,6 +161,15 @@ struct device {
 
 	/* Is it operational */
 	bool running;
+
+	/* PCI configuration */
+	union {
+		struct pci_config config;
+		u32 config_words[sizeof(struct pci_config) / sizeof(u32)];
+	};
+
+	/* Device-specific config hangs off the end of this. */
+	struct virtio_pci_mmio *mmio;
 
 	/* PCI MMIO resources (all in BAR0) */
 	size_t mmio_size;
@@ -1173,6 +1198,169 @@ static void handle_output(unsigned long addr)
 	      strnlen(from_guest_phys(addr), guest_limit - addr));
 }
 
+/*L:217
+ * We do PCI.  This is mainly done to let us test the kernel virtio PCI
+ * code.
+ */
+
+/* The IO ports used to read the PCI config space. */
+#define PCI_CONFIG_ADDR 0xCF8
+#define PCI_CONFIG_DATA 0xCFC
+
+/*
+ * Not really portable, but does help readability: this is what the Guest
+ * writes to the PCI_CONFIG_ADDR IO port.
+ */
+union pci_config_addr {
+	struct {
+		unsigned mbz: 2;
+		unsigned offset: 6;
+		unsigned funcnum: 3;
+		unsigned devnum: 5;
+		unsigned busnum: 8;
+		unsigned reserved: 7;
+		unsigned enabled : 1;
+	} bits;
+	u32 val;
+};
+
+/*
+ * We cache what they wrote to the address port, so we know what they're
+ * talking about when they access the data port.
+ */
+static union pci_config_addr pci_config_addr;
+
+static struct device *find_pci_device(unsigned int index)
+{
+	return devices.pci[index];
+}
+
+/* PCI can do 1, 2 and 4 byte reads; we handle that here. */
+static void ioread(u16 off, u32 v, u32 mask, u32 *val)
+{
+	assert(off < 4);
+	assert(mask == 0xFF || mask == 0xFFFF || mask == 0xFFFFFFFF);
+	*val = (v >> (off * 8)) & mask;
+}
+
+/* PCI can do 1, 2 and 4 byte writes; we handle that here. */
+static void iowrite(u16 off, u32 v, u32 mask, u32 *dst)
+{
+	assert(off < 4);
+	assert(mask == 0xFF || mask == 0xFFFF || mask == 0xFFFFFFFF);
+	*dst &= ~(mask << (off * 8));
+	*dst |= (v & mask) << (off * 8);
+}
+
+/*
+ * Where PCI_CONFIG_DATA accesses depends on the previous write to
+ * PCI_CONFIG_ADDR.
+ */
+static struct device *dev_and_reg(u32 *reg)
+{
+	if (!pci_config_addr.bits.enabled)
+		return NULL;
+
+	if (pci_config_addr.bits.funcnum != 0)
+		return NULL;
+
+	if (pci_config_addr.bits.busnum != 0)
+		return NULL;
+
+	if (pci_config_addr.bits.offset * 4 >= sizeof(struct pci_config))
+		return NULL;
+
+	*reg = pci_config_addr.bits.offset;
+	return find_pci_device(pci_config_addr.bits.devnum);
+}
+
+/* Is this accessing the PCI config address port?. */
+static bool is_pci_addr_port(u16 port)
+{
+	return port >= PCI_CONFIG_ADDR && port < PCI_CONFIG_ADDR + 4;
+}
+
+static bool pci_addr_iowrite(u16 port, u32 mask, u32 val)
+{
+	iowrite(port - PCI_CONFIG_ADDR, val, mask,
+		&pci_config_addr.val);
+	verbose("PCI%s: %#x/%x: bus %u dev %u func %u reg %u\n",
+		pci_config_addr.bits.enabled ? "" : " DISABLED",
+		val, mask,
+		pci_config_addr.bits.busnum,
+		pci_config_addr.bits.devnum,
+		pci_config_addr.bits.funcnum,
+		pci_config_addr.bits.offset);
+	return true;
+}
+
+static void pci_addr_ioread(u16 port, u32 mask, u32 *val)
+{
+	ioread(port - PCI_CONFIG_ADDR, pci_config_addr.val, mask, val);
+}
+
+/* Is this accessing the PCI config data port?. */
+static bool is_pci_data_port(u16 port)
+{
+	return port >= PCI_CONFIG_DATA && port < PCI_CONFIG_DATA + 4;
+}
+
+static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
+{
+	u32 reg, portoff;
+	struct device *d = dev_and_reg(&reg);
+
+	/* Complain if they don't belong to a device. */
+	if (!d)
+		return false;
+
+	/* They can do 1 byte writes, etc. */
+	portoff = port - PCI_CONFIG_DATA;
+
+	/*
+	 * PCI uses a weird way to determine the BAR size: the OS
+	 * writes all 1's, and sees which ones stick.
+	 */
+	if (&d->config_words[reg] == &d->config.bar[0]) {
+		int i;
+
+		iowrite(portoff, val, mask, &d->config.bar[0]);
+		for (i = 0; (1 << i) < d->mmio_size; i++)
+			d->config.bar[0] &= ~(1 << i);
+		return true;
+	} else if ((&d->config_words[reg] > &d->config.bar[0]
+		    && &d->config_words[reg] <= &d->config.bar[6])
+		   || &d->config_words[reg] == &d->config.expansion_rom_addr) {
+		/* Allow writing to any other BAR, or expansion ROM */
+		iowrite(portoff, val, mask, &d->config_words[reg]);
+		return true;
+		/* We let them overide latency timer and cacheline size */
+	} else if (&d->config_words[reg] == (void *)&d->config.cacheline_size) {
+		/* Only let them change the first two fields. */
+		if (mask == 0xFFFFFFFF)
+			mask = 0xFFFF;
+		iowrite(portoff, val, mask, &d->config_words[reg]);
+		return true;
+	} else if (&d->config_words[reg] == (void *)&d->config.command
+		   && mask == 0xFFFF) {
+		/* Ignore command writes. */
+		return true;
+	}
+
+	/* Complain about other writes. */
+	return false;
+}
+
+static void pci_data_ioread(u16 port, u32 mask, u32 *val)
+{
+	u32 reg;
+	struct device *d = dev_and_reg(&reg);
+
+	if (!d)
+		return;
+	ioread(port - PCI_CONFIG_DATA, d->config_words[reg], mask, val);
+}
+
 /*L:216
  * This is where we emulate a handful of Guest instructions.  It's ugly
  * and we used to do it in the kernel but it grew over time.
@@ -1284,7 +1472,7 @@ static void emulate_insn(const u8 insn[])
 	unsigned int insnlen = 0, in = 0, small_operand = 0, byte_access;
 	unsigned int eax, port, mask;
 	/*
-	 * We always return all-ones on IO port reads, which traditionally
+	 * Default is to return all-ones on IO port reads, which traditionally
 	 * means "there's nothing there".
 	 */
 	u32 val = 0xFFFFFFFF;
@@ -1359,10 +1547,6 @@ static void emulate_insn(const u8 insn[])
 	else
 		mask = 0xFFFFFFFF;
 
-	/* This is the PS/2 keyboard status; 1 means ready for output */
-	if (port == 0x64)
-		val = 1;
-
 	/*
 	 * If it was an "IN" instruction, they expect the result to be read
 	 * into %eax, so we change %eax.
@@ -1370,12 +1554,30 @@ static void emulate_insn(const u8 insn[])
 	eax = getreg(eax);
 
 	if (in) {
+		/* This is the PS/2 keyboard status; 1 means ready for output */
+		if (port == 0x64)
+			val = 1;
+		else if (is_pci_addr_port(port))
+			pci_addr_ioread(port, mask, &val);
+		else if (is_pci_data_port(port))
+			pci_data_ioread(port, mask, &val);
+
 		/* Clear the bits we're about to read */
 		eax &= ~mask;
 		/* Copy bits in from val. */
 		eax |= val & mask;
 		/* Now update the register. */
 		setreg(eax, eax);
+	} else {
+		if (is_pci_addr_port(port)) {
+			if (!pci_addr_iowrite(port, mask, eax))
+				goto bad_io;
+		} else if (is_pci_data_port(port)) {
+			if (!pci_data_iowrite(port, mask, eax))
+				goto bad_io;
+		}
+		/* There are many other ports, eg. CMOS clock, serial
+		 * and parallel ports, so we ignore them all. */
 	}
 
 	verbose("IO %s of %x to %u: %#08x\n",
@@ -1384,6 +1586,10 @@ skip_insn:
 	/* Finally, we've "done" the instruction, so move past it. */
 	setreg(eip, getreg(eip) + insnlen);
 	return;
+
+bad_io:
+	warnx("Attempt to %s port %u (%#x mask)",
+	      in ? "read from" : "write to", port, mask);
 
 no_emulate:
 	/* Inject trap into Guest. */
