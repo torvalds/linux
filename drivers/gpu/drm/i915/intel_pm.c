@@ -4625,7 +4625,10 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 					&ddcc_status);
 		if (0 == ret)
 			dev_priv->rps.efficient_freq =
-				(ddcc_status >> 8) & 0xff;
+				clamp_t(u8,
+					((ddcc_status >> 8) & 0xff),
+					dev_priv->rps.min_freq,
+					dev_priv->rps.max_freq);
 	}
 
 	/* Preserve min/max settings in case of re-init */
