@@ -718,11 +718,24 @@ static int rt5677_set_dsp_vad(struct snd_soc_codec *codec, bool on)
 			RT5677_LDO1_SEL_MASK, 0x0);
 		regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
 			RT5677_PWR_LDO1, RT5677_PWR_LDO1);
-		regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK1,
-			RT5677_MCLK_SRC_MASK, RT5677_MCLK2_SRC);
-		regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK2,
-			RT5677_PLL2_PR_SRC_MASK | RT5677_DSP_CLK_SRC_MASK,
-			RT5677_PLL2_PR_SRC_MCLK2 | RT5677_DSP_CLK_SRC_BYPASS);
+		switch (rt5677->type) {
+		case RT5677:
+			regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK1,
+				RT5677_MCLK_SRC_MASK, RT5677_MCLK2_SRC);
+			regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK2,
+				RT5677_PLL2_PR_SRC_MASK |
+				RT5677_DSP_CLK_SRC_MASK,
+				RT5677_PLL2_PR_SRC_MCLK2 |
+				RT5677_DSP_CLK_SRC_BYPASS);
+			break;
+		case RT5676:
+			regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK2,
+				RT5677_DSP_CLK_SRC_MASK,
+				RT5677_DSP_CLK_SRC_BYPASS);
+			break;
+		default:
+			break;
+		}
 		regmap_write(rt5677->regmap, RT5677_PWR_DSP2, 0x07ff);
 		regmap_write(rt5677->regmap, RT5677_PWR_DSP1, 0x07fd);
 		rt5677_set_dsp_mode(codec, true);
@@ -4733,7 +4746,8 @@ static const struct regmap_config rt5677_regmap = {
 };
 
 static const struct i2c_device_id rt5677_i2c_id[] = {
-	{ "rt5677", 0 },
+	{ "rt5677", RT5677 },
+	{ "rt5676", RT5676 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
@@ -4849,6 +4863,8 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5677);
+
+	rt5677->type = id->driver_data;
 
 	if (pdata)
 		rt5677->pdata = *pdata;
