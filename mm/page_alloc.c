@@ -232,27 +232,6 @@ EXPORT_SYMBOL(nr_node_ids);
 EXPORT_SYMBOL(nr_online_nodes);
 #endif
 
-/*
- * Structure for holding the mostly immutable allocation parameters passed
- * between alloc_pages* family of functions.
- *
- * nodemask, migratetype and high_zoneidx are initialized only once in
- * __alloc_pages_nodemask() and then never change.
- *
- * zonelist, preferred_zone and classzone_idx are set first in
- * __alloc_pages_nodemask() for the fast path, and might be later changed
- * in __alloc_pages_slowpath(). All other functions pass the whole strucure
- * by a const pointer.
- */
-struct alloc_context {
-	struct zonelist *zonelist;
-	nodemask_t *nodemask;
-	struct zone *preferred_zone;
-	int classzone_idx;
-	int migratetype;
-	enum zone_type high_zoneidx;
-};
-
 int page_group_by_mobility_disabled __read_mostly;
 
 void set_pageblock_migratetype(struct page *page, int migratetype)
@@ -2429,10 +2408,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 		return NULL;
 
 	current->flags |= PF_MEMALLOC;
-	compact_result = try_to_compact_pages(ac->zonelist, order, gfp_mask,
-						ac->nodemask, mode,
-						contended_compaction,
-						alloc_flags, ac->classzone_idx);
+	compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
+						mode, contended_compaction);
 	current->flags &= ~PF_MEMALLOC;
 
 	switch (compact_result) {
