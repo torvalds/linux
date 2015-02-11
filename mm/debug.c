@@ -130,7 +130,6 @@ static const struct trace_print_flags vmaflags_names[] = {
 	{VM_ACCOUNT,			"account"	},
 	{VM_NORESERVE,			"noreserve"	},
 	{VM_HUGETLB,			"hugetlb"	},
-	{VM_NONLINEAR,			"nonlinear"	},
 #if defined(CONFIG_X86)
 	{VM_PAT,			"pat"		},
 #elif defined(CONFIG_PPC)

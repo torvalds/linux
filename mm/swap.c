@@ -1140,10 +1140,8 @@ void __init swap_setup(void)
 
 	if (bdi_init(swapper_spaces[0].backing_dev_info))
 		panic("Failed to init swap bdi");
-	for (i = 0; i < MAX_SWAPFILES; i++) {
+	for (i = 0; i < MAX_SWAPFILES; i++)
 		spin_lock_init(&swapper_spaces[i].tree_lock);
-		INIT_LIST_HEAD(&swapper_spaces[i].i_mmap_nonlinear);
-	}
 #endif
 
 	/* Use a smaller cluster for small-memory machines */

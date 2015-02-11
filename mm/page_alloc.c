@@ -552,17 +552,15 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
 		return 0;
 
 	if (page_is_guard(buddy) && page_order(buddy) == order) {
-		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
-
 		if (page_zone_id(page) != page_zone_id(buddy))
 			return 0;
+
+		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
 
 		return 1;
 	}
 
 	if (PageBuddy(buddy) && page_order(buddy) == order) {
-		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
-
 		/*
 		 * zone check is done late to avoid uselessly
 		 * calculating zone/node ids for pages that could
@@ -570,6 +568,8 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
 		 */
 		if (page_zone_id(page) != page_zone_id(buddy))
 			return 0;
+
+		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
 
 		return 1;
 	}

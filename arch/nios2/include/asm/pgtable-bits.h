@@ -30,6 +30,5 @@
 #define _PAGE_PRESENT	(1<<25)	/* PTE contains a translation */
 #define _PAGE_ACCESSED	(1<<26)	/* page referenced */
 #define _PAGE_DIRTY	(1<<27)	/* dirty page */
-#define _PAGE_FILE	(1<<28)	/* PTE used for file mapping or swap */
 
 #endif /* _ASM_NIOS2_PGTABLE_BITS_H */
