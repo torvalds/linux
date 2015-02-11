@@ -68,7 +68,7 @@ typedef uint8_t u8;
 
 /* Use in-kernel ones, which defines VIRTIO_F_VERSION_1 */
 #include "../../include/uapi/linux/virtio_config.h"
-#include <linux/virtio_net.h>
+#include "../../include/uapi/linux/virtio_net.h"
 #include "../../include/uapi/linux/virtio_blk.h"
 #include <linux/virtio_console.h>
 #include <linux/virtio_rng.h>
@@ -2224,7 +2224,6 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 	 *
 	 * eg :
 	 *  VIRTIO_ID_CONSOLE: class = 0x07, subclass = 0x00
-	 *  VIRTIO_ID_NET: class = 0x02, subclass = 0x00
 	 *  VIRTIO_ID_RNG: class = 0xff, subclass = 0
 	 */
 	pci->class = class;
@@ -2485,6 +2484,7 @@ static void configure_device(int fd, const char *tapif, u32 ipaddr)
 static int get_tun_device(char tapif[IFNAMSIZ])
 {
 	struct ifreq ifr;
+	int vnet_hdr_sz;
 	int netfd;
 
 	/* Start with this zeroed.  Messy but sure. */
@@ -2512,6 +2512,18 @@ static int get_tun_device(char tapif[IFNAMSIZ])
 	 */
 	ioctl(netfd, TUNSETNOCSUM, 1);
 
+	/*
+	 * In virtio before 1.0 (aka legacy virtio), we added a 16-bit
+	 * field at the end of the network header iff
+	 * VIRTIO_NET_F_MRG_RXBUF was negotiated.  For virtio 1.0,
+	 * that became the norm, but we need to tell the tun device
+	 * about our expanded header (which is called
+	 * virtio_net_hdr_mrg_rxbuf in the legacy system).
+	 */
+	vnet_hdr_sz = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+	if (ioctl(netfd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0)
+		err(1, "Setting tun header size to %u", vnet_hdr_sz);
+
 	memcpy(tapif, ifr.ifr_name, IFNAMSIZ);
 	return netfd;
 }
@@ -2535,12 +2547,12 @@ static void setup_tun_net(char *arg)
 	net_info->tunfd = get_tun_device(tapif);
 
 	/* First we create a new network device. */
-	dev = new_device("net", VIRTIO_ID_NET);
+	dev = new_pci_device("net", VIRTIO_ID_NET, 0x02, 0x00);
 	dev->priv = net_info;
 
 	/* Network devices need a recv and a send queue, just like console. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, net_input);
-	add_virtqueue(dev, VIRTQUEUE_NUM, net_output);
+	add_pci_virtqueue(dev, net_input);
+	add_pci_virtqueue(dev, net_output);
 
 	/*
 	 * We need a socket to perform the magic network ioctls to bring up the
@@ -2560,7 +2572,7 @@ static void setup_tun_net(char *arg)
 	p = strchr(arg, ':');
 	if (p) {
 		str2mac(p+1, conf.mac);
-		add_feature(dev, VIRTIO_NET_F_MAC);
+		add_pci_feature(dev, VIRTIO_NET_F_MAC);
 		*p = '\0';
 	}
 
@@ -2574,24 +2586,20 @@ static void setup_tun_net(char *arg)
 	configure_device(ipfd, tapif, ip);
 
 	/* Expect Guest to handle everything except UFO */
-	add_feature(dev, VIRTIO_NET_F_CSUM);
-	add_feature(dev, VIRTIO_NET_F_GUEST_CSUM);
-	add_feature(dev, VIRTIO_NET_F_GUEST_TSO4);
-	add_feature(dev, VIRTIO_NET_F_GUEST_TSO6);
-	add_feature(dev, VIRTIO_NET_F_GUEST_ECN);
-	add_feature(dev, VIRTIO_NET_F_HOST_TSO4);
-	add_feature(dev, VIRTIO_NET_F_HOST_TSO6);
-	add_feature(dev, VIRTIO_NET_F_HOST_ECN);
+	add_pci_feature(dev, VIRTIO_NET_F_CSUM);
+	add_pci_feature(dev, VIRTIO_NET_F_GUEST_CSUM);
+	add_pci_feature(dev, VIRTIO_NET_F_GUEST_TSO4);
+	add_pci_feature(dev, VIRTIO_NET_F_GUEST_TSO6);
+	add_pci_feature(dev, VIRTIO_NET_F_GUEST_ECN);
+	add_pci_feature(dev, VIRTIO_NET_F_HOST_TSO4);
+	add_pci_feature(dev, VIRTIO_NET_F_HOST_TSO6);
+	add_pci_feature(dev, VIRTIO_NET_F_HOST_ECN);
 	/* We handle indirect ring entries */
-	add_feature(dev, VIRTIO_RING_F_INDIRECT_DESC);
-	/* We're compliant with the damn spec. */
-	add_feature(dev, VIRTIO_F_ANY_LAYOUT);
-	set_config(dev, sizeof(conf), &conf);
+	add_pci_feature(dev, VIRTIO_RING_F_INDIRECT_DESC);
+	set_device_config(dev, &conf, sizeof(conf));
 
 	/* We don't need the socket any more; setup is done. */
 	close(ipfd);
-
-	devices.device_num++;
 
 	if (bridging)
 		verbose("device %u: tun %s attached to bridge: %s\n",
