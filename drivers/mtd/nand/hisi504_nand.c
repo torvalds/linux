@@ -495,7 +495,7 @@ static void hisi_nfc_cmdfunc(struct mtd_info *mtd, unsigned command, int column,
 		flag = hinfc_read(host, HINFC504_CON);
 		if (chip->ecc.mode == NAND_ECC_HW)
 			hinfc_write(host,
-				    flag && ~(HINFC504_CON_ECCTYPE_MASK <<
+				    flag & ~(HINFC504_CON_ECCTYPE_MASK <<
 				    HINFC504_CON_ECCTYPE_SHIFT), HINFC504_CON);
 
 		host->offset = 0;
