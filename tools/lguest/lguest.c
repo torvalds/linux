@@ -64,11 +64,12 @@ typedef uint8_t u8;
 /*:*/
 
 #define VIRTIO_PCI_NO_LEGACY
+#define VIRTIO_BLK_NO_LEGACY
 
 /* Use in-kernel ones, which defines VIRTIO_F_VERSION_1 */
 #include "../../include/uapi/linux/virtio_config.h"
 #include <linux/virtio_net.h>
-#include <linux/virtio_blk.h>
+#include "../../include/uapi/linux/virtio_blk.h"
 #include <linux/virtio_console.h>
 #include <linux/virtio_rng.h>
 #include <linux/virtio_ring.h>
@@ -2224,7 +2225,6 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 	 * eg :
 	 *  VIRTIO_ID_CONSOLE: class = 0x07, subclass = 0x00
 	 *  VIRTIO_ID_NET: class = 0x02, subclass = 0x00
-	 *  VIRTIO_ID_BLOCK: class = 0x01, subclass = 0x80
 	 *  VIRTIO_ID_RNG: class = 0xff, subclass = 0
 	 */
 	pci->class = class;
@@ -2663,15 +2663,7 @@ static void blk_request(struct virtqueue *vq)
 	 */
 	off = out.sector * 512;
 
-	/*
-	 * In general the virtio block driver is allowed to try SCSI commands.
-	 * It'd be nice if we supported eject, for example, but we don't.
-	 */
-	if (out.type & VIRTIO_BLK_T_SCSI_CMD) {
-		fprintf(stderr, "Scsi commands unsupported\n");
-		*in = VIRTIO_BLK_S_UNSUPP;
-		wlen = sizeof(*in);
-	} else if (out.type & VIRTIO_BLK_T_OUT) {
+	if (out.type & VIRTIO_BLK_T_OUT) {
 		/*
 		 * Write
 		 *
@@ -2735,11 +2727,11 @@ static void setup_block_file(const char *filename)
 	struct vblk_info *vblk;
 	struct virtio_blk_config conf;
 
-	/* Creat the device. */
-	dev = new_device("block", VIRTIO_ID_BLOCK);
+	/* Create the device. */
+	dev = new_pci_device("block", VIRTIO_ID_BLOCK, 0x01, 0x80);
 
 	/* The device has one virtqueue, where the Guest places requests. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, blk_request);
+	add_pci_virtqueue(dev, blk_request);
 
 	/* Allocate the room for our own bookkeeping */
 	vblk = dev->priv = malloc(sizeof(*vblk));
@@ -2748,9 +2740,6 @@ static void setup_block_file(const char *filename)
 	vblk->fd = open_or_die(filename, O_RDWR|O_LARGEFILE);
 	vblk->len = lseek64(vblk->fd, 0, SEEK_END);
 
-	/* We support FLUSH. */
-	add_feature(dev, VIRTIO_BLK_F_FLUSH);
-
 	/* Tell Guest how many sectors this device has. */
 	conf.capacity = cpu_to_le64(vblk->len / 512);
 
@@ -2758,14 +2747,13 @@ static void setup_block_file(const char *filename)
 	 * Tell Guest not to put in too many descriptors at once: two are used
 	 * for the in and out elements.
 	 */
-	add_feature(dev, VIRTIO_BLK_F_SEG_MAX);
+	add_pci_feature(dev, VIRTIO_BLK_F_SEG_MAX);
 	conf.seg_max = cpu_to_le32(VIRTQUEUE_NUM - 2);
 
-	/* Don't try to put whole struct: we have 8 bit limit. */
-	set_config(dev, offsetof(struct virtio_blk_config, geometry), &conf);
+	set_device_config(dev, &conf, sizeof(struct virtio_blk_config));
 
 	verbose("device %u: virtblock %llu sectors\n",
-		++devices.device_num, le64_to_cpu(conf.capacity));
+		devices.device_num, le64_to_cpu(conf.capacity));
 }
 
 /*L:211
