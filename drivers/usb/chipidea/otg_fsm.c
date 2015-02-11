@@ -225,6 +225,9 @@ static void ci_otg_add_timer(struct ci_hdrc *ci, enum ci_otg_fsm_timer_index t)
 			return;
 		}
 
+	if (list_empty(active_timers))
+		pm_runtime_get(ci->dev);
+
 	timer->count = timer->expires;
 	list_add_tail(&timer->list, active_timers);
 
@@ -241,17 +244,22 @@ static void ci_otg_del_timer(struct ci_hdrc *ci, enum ci_otg_fsm_timer_index t)
 	struct ci_otg_fsm_timer *tmp_timer, *del_tmp;
 	struct ci_otg_fsm_timer *timer = ci->fsm_timer->timer_list[t];
 	struct list_head *active_timers = &ci->fsm_timer->active_timers;
+	int flag = 0;
 
 	if (t >= NUM_CI_OTG_FSM_TIMERS)
 		return;
 
 	list_for_each_entry_safe(tmp_timer, del_tmp, active_timers, list)
-		if (tmp_timer == timer)
+		if (tmp_timer == timer) {
 			list_del(&timer->list);
+			flag = 1;
+		}
 
 	/* Disable 1ms irq if there is no any active timer */
-	if (list_empty(active_timers))
+	if (list_empty(active_timers) && (flag == 1)) {
 		hw_write_otgsc(ci, OTGSC_1MSIE, 0);
+		pm_runtime_put(ci->dev);
+	}
 }
 
 /*
@@ -275,8 +283,10 @@ static inline int ci_otg_tick_timer(struct ci_hdrc *ci)
 	}
 
 	/* disable 1ms irq if there is no any timer active */
-	if ((expired == 1) && list_empty(active_timers))
+	if ((expired == 1) && list_empty(active_timers)) {
 		hw_write_otgsc(ci, OTGSC_1MSIE, 0);
+		pm_runtime_put(ci->dev);
+	}
 
 	return expired;
 }
@@ -585,6 +595,7 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 		ci->fsm.otg->state < OTG_STATE_A_IDLE)
 		return 0;
 
+	pm_runtime_get_sync(ci->dev);
 	if (otg_statemachine(&ci->fsm)) {
 		if (ci->fsm.otg->state == OTG_STATE_A_IDLE) {
 			/*
@@ -609,8 +620,13 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 				 */
 				ci_otg_queue_work(ci);
 			}
+		} else if (ci->fsm.otg->state == OTG_STATE_A_HOST) {
+			pm_runtime_mark_last_busy(ci->dev);
+			pm_runtime_put_autosuspend(ci->dev);
+			return 0;
 		}
 	}
+	pm_runtime_put_sync(ci->dev);
 	return 0;
 }
 
