@@ -23,6 +23,11 @@
 	model = "Adapteva Parallella Board";
 	compatible = "adapteva,parallella", "xlnx,zynq-7000";
 
+	aliases {
+		ethernet0 = &gem0;
+		serial0 = &uart1;
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x40000000>;
