@@ -2246,7 +2246,9 @@ static inline bool __skb_gro_checksum_validate_needed(struct sk_buff *skb,
 						      bool zero_okay,
 						      __sum16 check)
 {
-	return (skb->ip_summed != CHECKSUM_PARTIAL &&
+	return ((skb->ip_summed != CHECKSUM_PARTIAL ||
+		skb_checksum_start_offset(skb) <
+		 skb_gro_offset(skb)) &&
 		NAPI_GRO_CB(skb)->csum_cnt == 0 &&
 		(!zero_okay || check));
 }
