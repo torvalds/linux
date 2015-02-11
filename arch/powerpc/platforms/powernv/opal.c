@@ -318,6 +318,13 @@ int opal_message_notifier_register(enum OpalMessageType msg_type,
 				&opal_msg_notifier_head[msg_type], nb);
 }
 
+int opal_message_notifier_unregister(enum OpalMessageType msg_type,
+				     struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(
+			&opal_msg_notifier_head[msg_type], nb);
+}
+
 static void opal_message_do_notify(uint32_t msg_type, void *msg)
 {
 	/* notify subscribers */

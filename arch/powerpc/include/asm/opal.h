@@ -948,6 +948,8 @@ extern int opal_notifier_unregister(struct notifier_block *nb);
 
 extern int opal_message_notifier_register(enum OpalMessageType msg_type,
 						struct notifier_block *nb);
+extern int opal_message_notifier_unregister(enum OpalMessageType msg_type,
+					    struct notifier_block *nb);
 extern void opal_notifier_enable(void);
 extern void opal_notifier_disable(void);
 extern void opal_notifier_update_evt(uint64_t evt_mask, uint64_t evt_val);
