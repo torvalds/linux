@@ -63,12 +63,16 @@ typedef uint16_t u16;
 typedef uint8_t u8;
 /*:*/
 
-#include <linux/virtio_config.h>
+#define VIRTIO_PCI_NO_LEGACY
+
+/* Use in-kernel ones, which defines VIRTIO_F_VERSION_1 */
+#include "../../include/uapi/linux/virtio_config.h"
 #include <linux/virtio_net.h>
 #include <linux/virtio_blk.h>
 #include <linux/virtio_console.h>
 #include <linux/virtio_rng.h>
 #include <linux/virtio_ring.h>
+#include "../../include/uapi/linux/virtio_pci.h"
 #include <asm/bootparam.h>
 #include "../../include/linux/lguest_launcher.h"
 
@@ -126,6 +130,19 @@ struct device_list {
 /* The list of Guest devices, based on command line arguments. */
 static struct device_list devices;
 
+struct virtio_pci_cfg_cap {
+	struct virtio_pci_cap cap;
+	u32 window; /* Data for BAR access. */
+};
+
+struct virtio_pci_mmio {
+	struct virtio_pci_common_cfg cfg;
+	u16 notify;
+	u8 isr;
+	u8 padding;
+	/* Device-specific configuration follows this. */
+};
+
 /* This is the layout (little-endian) of the PCI config space. */
 struct pci_config {
 	u16 vendor_id, device_id;
@@ -139,6 +156,14 @@ struct pci_config {
 	u8 capabilities, reserved1[3];
 	u32 reserved2;
 	u8 irq_line, irq_pin, min_grant, max_latency;
+
+	/* Now, this is the linked capability list. */
+	struct virtio_pci_cap common;
+	struct virtio_pci_notify_cap notify;
+	struct virtio_pci_cap isr;
+	struct virtio_pci_cap device;
+	/* FIXME: Implement this! */
+	struct virtio_pci_cfg_cap cfg_access;
 };
 
 /* The device structure describes a single device. */
@@ -168,6 +193,9 @@ struct device {
 		u32 config_words[sizeof(struct pci_config) / sizeof(u32)];
 	};
 
+	/* Features we offer, and those accepted. */
+	u64 features, features_accepted;
+
 	/* Device-specific config hangs off the end of this. */
 	struct virtio_pci_mmio *mmio;
 
@@ -191,6 +219,9 @@ struct virtqueue {
 
 	/* The actual ring of buffers. */
 	struct vring vring;
+
+	/* The information about this virtqueue (we only use queue_size on) */
+	struct virtio_pci_common_cfg pci_config;
 
 	/* Last available index we saw. */
 	u16 last_avail_idx;
@@ -679,6 +710,10 @@ static void trigger_irq(struct virtqueue *vq)
 	if (vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT) {
 		return;
 	}
+
+	/* For a PCI device, set isr to 1 (queue interrupt pending) */
+	if (vq->dev->mmio)
+		vq->dev->mmio->isr = 0x1;
 
 	/* Send the Guest an interrupt tell them we used something up. */
 	if (write(lguest_fd, buf, sizeof(buf)) != 0)
@@ -1616,13 +1651,264 @@ static struct device *find_mmio_region(unsigned long paddr, u32 *off)
 	return NULL;
 }
 
+/* FIXME: Use vq array. */
+static struct virtqueue *vq_by_num(struct device *d, u32 num)
+{
+	struct virtqueue *vq = d->vq;
+
+	while (num-- && vq)
+		vq = vq->next;
+
+	return vq;
+}
+
+static void save_vq_config(const struct virtio_pci_common_cfg *cfg,
+			   struct virtqueue *vq)
+{
+	vq->pci_config = *cfg;
+}
+
+static void restore_vq_config(struct virtio_pci_common_cfg *cfg,
+			      struct virtqueue *vq)
+{
+	/* Only restore the per-vq part */
+	size_t off = offsetof(struct virtio_pci_common_cfg, queue_size);
+
+	memcpy((void *)cfg + off, (void *)&vq->pci_config + off,
+	       sizeof(*cfg) - off);
+}
+
+/*
+ * When they enable the virtqueue, we check that their setup is valid.
+ */
+static void enable_virtqueue(struct device *d, struct virtqueue *vq)
+{
+	/*
+	 * Create stack for thread.  Since the stack grows upwards, we point
+	 * the stack pointer to the end of this region.
+	 */
+	char *stack = malloc(32768);
+
+	/* Because lguest is 32 bit, all the descriptor high bits must be 0 */
+	if (vq->pci_config.queue_desc_hi
+	    || vq->pci_config.queue_avail_hi
+	    || vq->pci_config.queue_used_hi)
+		errx(1, "%s: invalid 64-bit queue address", d->name);
+
+	/* Initialize the virtqueue and check they're all in range. */
+	vq->vring.num = vq->pci_config.queue_size;
+	vq->vring.desc = check_pointer(vq->pci_config.queue_desc_lo,
+				       sizeof(*vq->vring.desc) * vq->vring.num);
+	vq->vring.avail = check_pointer(vq->pci_config.queue_avail_lo,
+					sizeof(*vq->vring.avail)
+					+ (sizeof(vq->vring.avail->ring[0])
+					   * vq->vring.num));
+	vq->vring.used = check_pointer(vq->pci_config.queue_used_lo,
+				       sizeof(*vq->vring.used)
+				       + (sizeof(vq->vring.used->ring[0])
+					  * vq->vring.num));
+
+
+	/* Create a zero-initialized eventfd. */
+	vq->eventfd = eventfd(0, 0);
+	if (vq->eventfd < 0)
+		err(1, "Creating eventfd");
+
+	/*
+	 * CLONE_VM: because it has to access the Guest memory, and SIGCHLD so
+	 * we get a signal if it dies.
+	 */
+	vq->thread = clone(do_thread, stack + 32768, CLONE_VM | SIGCHLD, vq);
+	if (vq->thread == (pid_t)-1)
+		err(1, "Creating clone");
+}
+
+static void reset_pci_device(struct device *dev)
+{
+	/* FIXME */
+}
+
 static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 {
+	struct virtqueue *vq;
+
+	switch (off) {
+	case offsetof(struct virtio_pci_mmio, cfg.device_feature_select):
+		if (val == 0)
+			d->mmio->cfg.device_feature = d->features;
+		else if (val == 1)
+			d->mmio->cfg.device_feature = (d->features >> 32);
+		else
+			d->mmio->cfg.device_feature = 0;
+		goto write_through32;
+	case offsetof(struct virtio_pci_mmio, cfg.guest_feature_select):
+		if (val > 1)
+			errx(1, "%s: Unexpected driver select %u",
+			     d->name, val);
+		goto write_through32;
+	case offsetof(struct virtio_pci_mmio, cfg.guest_feature):
+		if (d->mmio->cfg.guest_feature_select == 0) {
+			d->features_accepted &= ~((u64)0xFFFFFFFF);
+			d->features_accepted |= val;
+		} else {
+			assert(d->mmio->cfg.guest_feature_select == 1);
+			d->features_accepted &= ((u64)0xFFFFFFFF << 32);
+			d->features_accepted |= ((u64)val) << 32;
+		}
+		if (d->features_accepted & ~d->features)
+			errx(1, "%s: over-accepted features %#llx of %#llx",
+			     d->name, d->features_accepted, d->features);
+		goto write_through32;
+	case offsetof(struct virtio_pci_mmio, cfg.device_status):
+		verbose("%s: device status -> %#x\n", d->name, val);
+		if (val == 0)
+			reset_pci_device(d);
+		goto write_through8;
+	case offsetof(struct virtio_pci_mmio, cfg.queue_select):
+		vq = vq_by_num(d, val);
+		/* Out of range?  Return size 0 */
+		if (!vq) {
+			d->mmio->cfg.queue_size = 0;
+			goto write_through16;
+		}
+		/* Save registers for old vq, if it was a valid vq */
+		if (d->mmio->cfg.queue_size)
+			save_vq_config(&d->mmio->cfg,
+				       vq_by_num(d, d->mmio->cfg.queue_select));
+		/* Restore the registers for the queue they asked for */
+		restore_vq_config(&d->mmio->cfg, vq);
+		goto write_through16;
+	case offsetof(struct virtio_pci_mmio, cfg.queue_size):
+		if (val & (val-1))
+			errx(1, "%s: invalid queue size %u\n", d->name, val);
+		if (d->mmio->cfg.queue_enable)
+			errx(1, "%s: changing queue size on live device",
+			     d->name);
+		goto write_through16;
+	case offsetof(struct virtio_pci_mmio, cfg.queue_msix_vector):
+		errx(1, "%s: attempt to set MSIX vector to %u",
+		     d->name, val);
+	case offsetof(struct virtio_pci_mmio, cfg.queue_enable):
+		if (val != 1)
+			errx(1, "%s: setting queue_enable to %u", d->name, val);
+		d->mmio->cfg.queue_enable = val;
+		save_vq_config(&d->mmio->cfg,
+			       vq_by_num(d, d->mmio->cfg.queue_select));
+		enable_virtqueue(d, vq_by_num(d, d->mmio->cfg.queue_select));
+		goto write_through16;
+	case offsetof(struct virtio_pci_mmio, cfg.queue_notify_off):
+		errx(1, "%s: attempt to write to queue_notify_off", d->name);
+	case offsetof(struct virtio_pci_mmio, cfg.queue_desc_lo):
+	case offsetof(struct virtio_pci_mmio, cfg.queue_desc_hi):
+	case offsetof(struct virtio_pci_mmio, cfg.queue_avail_lo):
+	case offsetof(struct virtio_pci_mmio, cfg.queue_avail_hi):
+	case offsetof(struct virtio_pci_mmio, cfg.queue_used_lo):
+	case offsetof(struct virtio_pci_mmio, cfg.queue_used_hi):
+		if (d->mmio->cfg.queue_enable)
+			errx(1, "%s: changing queue on live device",
+			     d->name);
+		goto write_through32;
+	case offsetof(struct virtio_pci_mmio, notify):
+		vq = vq_by_num(d, val);
+		if (!vq)
+			errx(1, "Invalid vq notification on %u", val);
+		/* Notify the process handling this vq by adding 1 to eventfd */
+		write(vq->eventfd, "\1\0\0\0\0\0\0\0", 8);
+		goto write_through16;
+	case offsetof(struct virtio_pci_mmio, isr):
+		errx(1, "%s: Unexpected write to isr", d->name);
+	default:
+		errx(1, "%s: Unexpected write to offset %u", d->name, off);
+	}
+
+write_through32:
+	if (mask != 0xFFFFFFFF) {
+		errx(1, "%s: non-32-bit write to offset %u (%#x)",
+		     d->name, off, getreg(eip));
+		return;
+	}
+	memcpy((char *)d->mmio + off, &val, 4);
+	return;
+
+write_through16:
+	if (mask != 0xFFFF)
+		errx(1, "%s: non-16-bit (%#x) write to offset %u (%#x)",
+		     d->name, mask, off, getreg(eip));
+	memcpy((char *)d->mmio + off, &val, 2);
+	return;
+
+write_through8:
+	if (mask != 0xFF)
+		errx(1, "%s: non-8-bit write to offset %u (%#x)",
+		     d->name, off, getreg(eip));
+	memcpy((char *)d->mmio + off, &val, 1);
+	return;
 }
 
 static u32 emulate_mmio_read(struct device *d, u32 off, u32 mask)
 {
-	return 0xFFFFFFFF;
+	u8 isr;
+	u32 val = 0;
+
+	switch (off) {
+	case offsetof(struct virtio_pci_mmio, cfg.device_feature_select):
+	case offsetof(struct virtio_pci_mmio, cfg.device_feature):
+	case offsetof(struct virtio_pci_mmio, cfg.guest_feature_select):
+	case offsetof(struct virtio_pci_mmio, cfg.guest_feature):
+		goto read_through32;
+	case offsetof(struct virtio_pci_mmio, cfg.msix_config):
+		errx(1, "%s: read of msix_config", d->name);
+	case offsetof(struct virtio_pci_mmio, cfg.num_queues):
+		goto read_through16;
+	case offsetof(struct virtio_pci_mmio, cfg.device_status):
+	case offsetof(struct virtio_pci_mmio, cfg.config_generation):
+		goto read_through8;
+	case offsetof(struct virtio_pci_mmio, notify):
+		goto read_through16;
+	case offsetof(struct virtio_pci_mmio, isr):
+		if (mask != 0xFF)
+			errx(1, "%s: non-8-bit read from offset %u (%#x)",
+			     d->name, off, getreg(eip));
+		/* Read resets the isr */
+		isr = d->mmio->isr;
+		d->mmio->isr = 0;
+		return isr;
+	case offsetof(struct virtio_pci_mmio, padding):
+		errx(1, "%s: read from padding (%#x)",
+		     d->name, getreg(eip));
+	default:
+		/* Read from device config space, beware unaligned overflow */
+		if (off > d->mmio_size - 4)
+			errx(1, "%s: read past end (%#x)",
+			     d->name, getreg(eip));
+		if (mask == 0xFFFFFFFF)
+			goto read_through32;
+		else if (mask == 0xFFFF)
+			goto read_through16;
+		else
+			goto read_through8;
+	}
+
+read_through32:
+	if (mask != 0xFFFFFFFF)
+		errx(1, "%s: non-32-bit read to offset %u (%#x)",
+		     d->name, off, getreg(eip));
+	memcpy(&val, (char *)d->mmio + off, 4);
+	return val;
+
+read_through16:
+	if (mask != 0xFFFF)
+		errx(1, "%s: non-16-bit read to offset %u (%#x)",
+		     d->name, off, getreg(eip));
+	memcpy(&val, (char *)d->mmio + off, 2);
+	return val;
+
+read_through8:
+	if (mask != 0xFF)
+		errx(1, "%s: non-8-bit read to offset %u (%#x)",
+		     d->name, off, getreg(eip));
+	memcpy(&val, (char *)d->mmio + off, 1);
+	return val;
 }
 
 static void emulate_mmio(unsigned long paddr, const u8 *insn)
@@ -1783,6 +2069,42 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	*i = vq;
 }
 
+static void add_pci_virtqueue(struct device *dev,
+			      void (*service)(struct virtqueue *))
+{
+	struct virtqueue **i, *vq = malloc(sizeof(*vq));
+
+	/* Initialize the virtqueue */
+	vq->next = NULL;
+	vq->last_avail_idx = 0;
+	vq->dev = dev;
+
+	/*
+	 * This is the routine the service thread will run, and its Process ID
+	 * once it's running.
+	 */
+	vq->service = service;
+	vq->thread = (pid_t)-1;
+
+	/* Initialize the configuration. */
+	vq->pci_config.queue_size = VIRTQUEUE_NUM;
+	vq->pci_config.queue_enable = 0;
+	vq->pci_config.queue_notify_off = 0;
+
+	/* Add one to the number of queues */
+	vq->dev->mmio->cfg.num_queues++;
+
+	/* FIXME: Do irq per virtqueue, not per device. */
+	vq->config.irq = vq->dev->config.irq_line;
+
+	/*
+	 * Add to tail of list, so dev->vq is first vq, dev->vq->next is
+	 * second.
+	 */
+	for (i = &dev->vq; *i; i = &(*i)->next);
+	*i = vq;
+}
+
 /*
  * The first half of the feature bitmask is for us to advertise features.  The
  * second half is for the Guest to accept features.
@@ -1798,6 +2120,11 @@ static void add_feature(struct device *dev, unsigned bit)
 	}
 
 	features[bit / CHAR_BIT] |= (1 << (bit % CHAR_BIT));
+}
+
+static void add_pci_feature(struct device *dev, unsigned bit)
+{
+	dev->features |= (1ULL << bit);
 }
 
 /*
@@ -1817,6 +2144,139 @@ static void set_config(struct device *dev, unsigned len, const void *conf)
 
 	/* Size must fit in config_len field (8 bits)! */
 	assert(dev->desc->config_len == len);
+}
+
+/* For devices with no config. */
+static void no_device_config(struct device *dev)
+{
+	dev->mmio_addr = get_mmio_region(dev->mmio_size);
+
+	dev->config.bar[0] = dev->mmio_addr;
+	/* Bottom 4 bits must be zero */
+	assert(~(dev->config.bar[0] & 0xF));
+}
+
+/* This puts the device config into BAR0 */
+static void set_device_config(struct device *dev, const void *conf, size_t len)
+{
+	/* Set up BAR 0 */
+	dev->mmio_size += len;
+	dev->mmio = realloc(dev->mmio, dev->mmio_size);
+	memcpy(dev->mmio + 1, conf, len);
+
+	/* Hook up device cfg */
+	dev->config.cfg_access.cap.cap_next
+		= offsetof(struct pci_config, device);
+
+	/* Fix up device cfg field length. */
+	dev->config.device.length = len;
+
+	/* The rest is the same as the no-config case */
+	no_device_config(dev);
+}
+
+static void init_cap(struct virtio_pci_cap *cap, size_t caplen, int type,
+		     size_t bar_offset, size_t bar_bytes, u8 next)
+{
+	cap->cap_vndr = PCI_CAP_ID_VNDR;
+	cap->cap_next = next;
+	cap->cap_len = caplen;
+	cap->cfg_type = type;
+	cap->bar = 0;
+	memset(cap->padding, 0, sizeof(cap->padding));
+	cap->offset = bar_offset;
+	cap->length = bar_bytes;
+}
+
+/*
+ * This sets up the pci_config structure, as defined in the virtio 1.0
+ * standard (and PCI standard).
+ */
+static void init_pci_config(struct pci_config *pci, u16 type,
+			    u8 class, u8 subclass)
+{
+	size_t bar_offset, bar_len;
+
+	/* Save typing: most thing are happy being zero. */
+	memset(pci, 0, sizeof(*pci));
+
+	/* 4.1.2.1: Devices MUST have the PCI Vendor ID 0x1AF4 */
+	pci->vendor_id = 0x1AF4;
+	/* 4.1.2.1: ... PCI Device ID calculated by adding 0x1040 ... */
+	pci->device_id = 0x1040 + type;
+
+	/*
+	 * PCI have specific codes for different types of devices.
+	 * Linux doesn't care, but it's a good clue for people looking
+	 * at the device.
+	 *
+	 * eg :
+	 *  VIRTIO_ID_CONSOLE: class = 0x07, subclass = 0x00
+	 *  VIRTIO_ID_NET: class = 0x02, subclass = 0x00
+	 *  VIRTIO_ID_BLOCK: class = 0x01, subclass = 0x80
+	 *  VIRTIO_ID_RNG: class = 0xff, subclass = 0
+	 */
+	pci->class = class;
+	pci->subclass = subclass;
+
+	/*
+	 * 4.1.2.1 Non-transitional devices SHOULD have a PCI Revision
+	 * ID of 1 or higher
+	 */
+	pci->revid = 1;
+
+	/*
+	 * 4.1.2.1 Non-transitional devices SHOULD have a PCI
+	 * Subsystem Device ID of 0x40 or higher.
+	 */
+	pci->subsystem_device_id = 0x40;
+
+	/* We use our dummy interrupt controller, and irq_line is the irq */
+	pci->irq_line = devices.next_irq++;
+	pci->irq_pin = 0;
+
+	/* Support for extended capabilities. */
+	pci->status = (1 << 4);
+
+	/* Link them in. */
+	pci->capabilities = offsetof(struct pci_config, common);
+
+	bar_offset = offsetof(struct virtio_pci_mmio, cfg);
+	bar_len = sizeof(((struct virtio_pci_mmio *)0)->cfg);
+	init_cap(&pci->common, sizeof(pci->common), VIRTIO_PCI_CAP_COMMON_CFG,
+		 bar_offset, bar_len,
+		 offsetof(struct pci_config, notify));
+
+	bar_offset += bar_len;
+	bar_len = sizeof(((struct virtio_pci_mmio *)0)->notify);
+	/* FIXME: Use a non-zero notify_off, for per-queue notification? */
+	init_cap(&pci->notify.cap, sizeof(pci->notify),
+		 VIRTIO_PCI_CAP_NOTIFY_CFG,
+		 bar_offset, bar_len,
+		 offsetof(struct pci_config, isr));
+
+	bar_offset += bar_len;
+	bar_len = sizeof(((struct virtio_pci_mmio *)0)->isr);
+	init_cap(&pci->isr, sizeof(pci->isr),
+		 VIRTIO_PCI_CAP_ISR_CFG,
+		 bar_offset, bar_len,
+		 offsetof(struct pci_config, cfg_access));
+
+	/* This doesn't have any presence in the BAR */
+	init_cap(&pci->cfg_access.cap, sizeof(pci->cfg_access),
+		 VIRTIO_PCI_CAP_PCI_CFG,
+		 0, 0, 0);
+
+	bar_offset += bar_len + sizeof(((struct virtio_pci_mmio *)0)->padding);
+	assert(bar_offset == sizeof(struct virtio_pci_mmio));
+
+	/*
+	 * This gets sewn in and length set in set_device_config().
+	 * Some devices don't have a device configuration interface, so
+	 * we never expose this if we don't call set_device_config().
+	 */
+	init_cap(&pci->device, sizeof(pci->device), VIRTIO_PCI_CAP_DEVICE_CFG,
+		 bar_offset, 0, 0);
 }
 
 /*
@@ -1850,6 +2310,34 @@ static struct device *new_device(const char *name, u16 type)
 	else
 		devices.dev = dev;
 	devices.lastdev = dev;
+
+	return dev;
+}
+
+static struct device *new_pci_device(const char *name, u16 type,
+				     u8 class, u8 subclass)
+{
+	struct device *dev = malloc(sizeof(*dev));
+
+	/* Now we populate the fields one at a time. */
+	dev->desc = NULL;
+	dev->name = name;
+	dev->vq = NULL;
+	dev->feature_len = 0;
+	dev->num_vq = 0;
+	dev->running = false;
+	dev->next = NULL;
+	dev->mmio_size = sizeof(struct virtio_pci_mmio);
+	dev->mmio = calloc(1, dev->mmio_size);
+	dev->features = (u64)1 << VIRTIO_F_VERSION_1;
+	dev->features_accepted = 0;
+
+	if (devices.device_num + 1 >= 32)
+		errx(1, "Can only handle 31 PCI devices");
+
+	init_pci_config(&dev->config, type, class, subclass);
+	assert(!devices.pci[devices.device_num+1]);
+	devices.pci[++devices.device_num] = dev;
 
 	return dev;
 }
