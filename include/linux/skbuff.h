@@ -3104,15 +3104,28 @@ do {									\
 				       compute_pseudo(skb, proto));	\
 } while (0)
 
+static inline void skb_remcsum_adjust_partial(struct sk_buff *skb, void *ptr,
+					      u16 start, u16 offset)
+{
+	skb->ip_summed = CHECKSUM_PARTIAL;
+	skb->csum_start = ((unsigned char *)ptr + start) - skb->head;
+	skb->csum_offset = offset - start;
+}
+
 /* Update skbuf and packet to reflect the remote checksum offload operation.
  * When called, ptr indicates the starting point for skb->csum when
  * ip_summed is CHECKSUM_COMPLETE. If we need create checksum complete
  * here, skb_postpull_rcsum is done so skb->csum start is ptr.
  */
 static inline void skb_remcsum_process(struct sk_buff *skb, void *ptr,
-				       int start, int offset)
+				       int start, int offset, bool nopartial)
 {
 	__wsum delta;
+
+	if (!nopartial) {
+		skb_remcsum_adjust_partial(skb, ptr, start, offset);
+		return;
+	}
 
 	 if (unlikely(skb->ip_summed != CHECKSUM_COMPLETE)) {
 		__skb_checksum_complete(skb);

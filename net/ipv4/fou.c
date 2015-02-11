@@ -75,7 +75,7 @@ static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 		return NULL;
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 
-	skb_remcsum_process(skb, (void *)guehdr + hdrlen, start, offset);
+	skb_remcsum_process(skb, (void *)guehdr + hdrlen, start, offset, true);
 
 	return guehdr;
 }
@@ -230,7 +230,7 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 	}
 
 	skb_gro_remcsum_process(skb, (void *)guehdr + hdrlen,
-				start, offset, grc);
+				start, offset, grc, true);
 
 	skb->remcsum_offload = 1;
 

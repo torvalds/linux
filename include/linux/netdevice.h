@@ -1923,6 +1923,9 @@ struct napi_gro_cb {
 	/* Number of segments aggregated. */
 	u16	count;
 
+	/* Start offset for remote checksum offload */
+	u16	gro_remcsum_start;
+
 	/* jiffies when first packet was created/queued */
 	unsigned long age;
 
@@ -2244,6 +2247,12 @@ static inline void skb_gro_postpull_rcsum(struct sk_buff *skb,
 
 __sum16 __skb_gro_checksum_complete(struct sk_buff *skb);
 
+static inline bool skb_at_gro_remcsum_start(struct sk_buff *skb)
+{
+	return (NAPI_GRO_CB(skb)->gro_remcsum_start - skb_headroom(skb) ==
+		skb_gro_offset(skb));
+}
+
 static inline bool __skb_gro_checksum_validate_needed(struct sk_buff *skb,
 						      bool zero_okay,
 						      __sum16 check)
@@ -2251,6 +2260,7 @@ static inline bool __skb_gro_checksum_validate_needed(struct sk_buff *skb,
 	return ((skb->ip_summed != CHECKSUM_PARTIAL ||
 		skb_checksum_start_offset(skb) <
 		 skb_gro_offset(skb)) &&
+		!skb_at_gro_remcsum_start(skb) &&
 		NAPI_GRO_CB(skb)->csum_cnt == 0 &&
 		(!zero_okay || check));
 }
@@ -2337,11 +2347,18 @@ static inline void skb_gro_remcsum_init(struct gro_remcsum *grc)
 
 static inline void skb_gro_remcsum_process(struct sk_buff *skb, void *ptr,
 					   int start, int offset,
-					   struct gro_remcsum *grc)
+					   struct gro_remcsum *grc,
+					   bool nopartial)
 {
 	__wsum delta;
 
 	BUG_ON(!NAPI_GRO_CB(skb)->csum_valid);
+
+	if (!nopartial) {
+		NAPI_GRO_CB(skb)->gro_remcsum_start =
+		    ((unsigned char *)ptr + start) - skb->head;
+		return;
+	}
 
 	delta = remcsum_adjust(ptr, NAPI_GRO_CB(skb)->csum, start, offset);
 

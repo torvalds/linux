@@ -580,7 +580,7 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 	}
 
 	skb_gro_remcsum_process(skb, (void *)vh + hdrlen,
-				start, offset, grc);
+				start, offset, grc, true);
 
 	skb->remcsum_offload = 1;
 
@@ -1171,7 +1171,7 @@ static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
 
 	vh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
 
-	skb_remcsum_process(skb, (void *)vh + hdrlen, start, offset);
+	skb_remcsum_process(skb, (void *)vh + hdrlen, start, offset, true);
 
 	return vh;
 }
