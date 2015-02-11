@@ -649,8 +649,12 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 		ci->is_otg = (hw_read(ci, CAP_DCCPARAMS,
 				DCCPARAMS_DC | DCCPARAMS_HC)
 					== (DCCPARAMS_DC | DCCPARAMS_HC));
-	if (ci->is_otg)
+	if (ci->is_otg) {
 		dev_dbg(ci->dev, "It is OTG capable controller\n");
+		/* Disable and clear all OTG irq */
+		hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
+							OTGSC_INT_STATUS_BITS);
+	}
 }
 
 static int ci_hdrc_probe(struct platform_device *pdev)
@@ -749,9 +753,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	if (ci->is_otg && ci->roles[CI_ROLE_GADGET]) {
-		/* Disable and clear all OTG irq */
-		hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
-							OTGSC_INT_STATUS_BITS);
 		ret = ci_hdrc_otg_init(ci);
 		if (ret) {
 			dev_err(dev, "init otg fails, ret = %d\n", ret);
