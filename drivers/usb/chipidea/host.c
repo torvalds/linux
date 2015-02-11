@@ -133,6 +133,9 @@ static int host_start(struct ci_hdrc *ci)
 	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
 		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
 
+	if (ci->platdata->flags & CI_HDRC_FORCE_FULLSPEED)
+		hw_write(ci, OP_PORTSC, PORTSC_PFSC, PORTSC_PFSC);
+
 	return ret;
 
 put_hcd:
