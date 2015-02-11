@@ -2984,6 +2984,12 @@ static bool finished_loading(const char *name)
 	struct module *mod;
 	bool ret;
 
+	/*
+	 * The module_mutex should not be a heavily contended lock;
+	 * if we get the occasional sleep here, we'll go an extra iteration
+	 * in the wait_event_interruptible(), which is harmless.
+	 */
+	sched_annotate_sleep();
 	mutex_lock(&module_mutex);
 	mod = find_module_all(name, strlen(name), true);
 	ret = !mod || mod->state == MODULE_STATE_LIVE
@@ -3126,32 +3132,6 @@ static int may_init_module(void)
 }
 
 /*
- * Can't use wait_event_interruptible() because our condition
- * 'finished_loading()' contains a blocking primitive itself (mutex_lock).
- */
-static int wait_finished_loading(struct module *mod)
-{
-	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int ret = 0;
-
-	add_wait_queue(&module_wq, &wait);
-	for (;;) {
-		if (finished_loading(mod->name))
-			break;
-
-		if (signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-
-		wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
-	}
-	remove_wait_queue(&module_wq, &wait);
-
-	return ret;
-}
-
-/*
  * We try to place it in the list now to make sure it's unique before
  * we dedicate too many resources.  In particular, temporary percpu
  * memory exhaustion.
@@ -3171,8 +3151,8 @@ again:
 		    || old->state == MODULE_STATE_UNFORMED) {
 			/* Wait in case it fails to load. */
 			mutex_unlock(&module_mutex);
-
-			err = wait_finished_loading(mod);
+			err = wait_event_interruptible(module_wq,
+					       finished_loading(mod->name));
 			if (err)
 				goto out_unlocked;
 			goto again;
