@@ -283,35 +283,6 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 }
 EXPORT_SYMBOL(blk_rq_map_sg);
 
-/**
- * blk_bio_map_sg - map a bio to a scatterlist
- * @q: request_queue in question
- * @bio: bio being mapped
- * @sglist: scatterlist being mapped
- *
- * Note:
- *    Caller must make sure sg can hold bio->bi_phys_segments entries
- *
- * Will return the number of sg entries setup
- */
-int blk_bio_map_sg(struct request_queue *q, struct bio *bio,
-		   struct scatterlist *sglist)
-{
-	struct scatterlist *sg = NULL;
-	int nsegs;
-	struct bio *next = bio->bi_next;
-	bio->bi_next = NULL;
-
-	nsegs = __blk_bios_map_sg(q, bio, sglist, &sg);
-	bio->bi_next = next;
-	if (sg)
-		sg_mark_end(sg);
-
-	BUG_ON(bio->bi_phys_segments && nsegs > bio->bi_phys_segments);
-	return nsegs;
-}
-EXPORT_SYMBOL(blk_bio_map_sg);
-
 static inline int ll_new_hw_segment(struct request_queue *q,
 				    struct request *req,
 				    struct bio *bio)
