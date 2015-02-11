@@ -218,7 +218,7 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	beq	6f
 	ld	r1,0(r8)
 	li	r0,0
-	stdu	r0,-16(r1)	/* establish a stack frame */
+	stdu	r0,-112(r1)	/* establish a stack frame */
 6:
 #endif  /* __powerpc64__ */
 	/* Call platform_init() */
