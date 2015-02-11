@@ -149,13 +149,10 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
-	if (data->usbmisc_data) {
-		ret = imx_usbmisc_init(data->usbmisc_data);
-		if (ret) {
-			dev_err(&pdev->dev, "usbmisc init failed, ret=%d\n",
-					ret);
-			goto err_clk;
-		}
+	ret = imx_usbmisc_init(data->usbmisc_data);
+	if (ret) {
+		dev_err(&pdev->dev, "usbmisc init failed, ret=%d\n", ret);
+		goto err_clk;
 	}
 
 	data->ci_pdev = ci_hdrc_add_device(&pdev->dev,
@@ -169,13 +166,10 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	if (data->usbmisc_data) {
-		ret = imx_usbmisc_init_post(data->usbmisc_data);
-		if (ret) {
-			dev_err(&pdev->dev, "usbmisc post failed, ret=%d\n",
-					ret);
-			goto disable_device;
-		}
+	ret = imx_usbmisc_init_post(data->usbmisc_data);
+	if (ret) {
+		dev_err(&pdev->dev, "usbmisc post failed, ret=%d\n", ret);
+		goto disable_device;
 	}
 
 	platform_set_drvdata(pdev, data);

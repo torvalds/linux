@@ -265,8 +265,12 @@ static const struct usbmisc_ops vf610_usbmisc_ops = {
 
 int imx_usbmisc_init(struct imx_usbmisc_data *data)
 {
-	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+	struct imx_usbmisc *usbmisc;
 
+	if (!data)
+		return 0;
+
+	usbmisc = dev_get_drvdata(data->dev);
 	if (!usbmisc->ops->init)
 		return 0;
 	return usbmisc->ops->init(data);
@@ -275,8 +279,12 @@ EXPORT_SYMBOL_GPL(imx_usbmisc_init);
 
 int imx_usbmisc_init_post(struct imx_usbmisc_data *data)
 {
-	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+	struct imx_usbmisc *usbmisc;
 
+	if (!data)
+		return 0;
+
+	usbmisc = dev_get_drvdata(data->dev);
 	if (!usbmisc->ops->post)
 		return 0;
 	return usbmisc->ops->post(data);
