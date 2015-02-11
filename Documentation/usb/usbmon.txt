@@ -231,7 +231,7 @@ number. Number zero (/dev/usbmon0) is special and means "all buses".
 Note that specific naming policy is set by your Linux distribution.
 
 If you create /dev/usbmon0 by hand, make sure that it is owned by root
-and has mode 0600. Otherwise, unpriviledged users will be able to snoop
+and has mode 0600. Otherwise, unprivileged users will be able to snoop
 keyboard traffic.
 
 The following ioctl calls are available, with MON_IOC_MAGIC 0x92:
