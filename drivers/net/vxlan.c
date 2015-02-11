@@ -555,7 +555,8 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 					  unsigned int off,
 					  struct vxlanhdr *vh, size_t hdrlen,
-					  u32 data, struct gro_remcsum *grc)
+					  u32 data, struct gro_remcsum *grc,
+					  bool nopartial)
 {
 	size_t start, offset, plen;
 
@@ -580,7 +581,7 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 	}
 
 	skb_gro_remcsum_process(skb, (void *)vh + hdrlen,
-				start, offset, grc, true);
+				start, offset, grc, nopartial);
 
 	skb->remcsum_offload = 1;
 
@@ -618,7 +619,9 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 
 	if ((flags & VXLAN_HF_RCO) && (vs->flags & VXLAN_F_REMCSUM_RX)) {
 		vh = vxlan_gro_remcsum(skb, off_vx, vh, sizeof(struct vxlanhdr),
-				       ntohl(vh->vx_vni), &grc);
+				       ntohl(vh->vx_vni), &grc,
+				       !!(vs->flags &
+					  VXLAN_F_REMCSUM_NOPARTIAL));
 
 		if (!vh)
 			goto out;
@@ -1155,7 +1158,7 @@ static void vxlan_igmp_leave(struct work_struct *work)
 }
 
 static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
-				      size_t hdrlen, u32 data)
+				      size_t hdrlen, u32 data, bool nopartial)
 {
 	size_t start, offset, plen;
 
@@ -1171,7 +1174,8 @@ static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
 
 	vh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
 
-	skb_remcsum_process(skb, (void *)vh + hdrlen, start, offset, true);
+	skb_remcsum_process(skb, (void *)vh + hdrlen, start, offset,
+			    nopartial);
 
 	return vh;
 }
@@ -1208,7 +1212,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 
 	if ((flags & VXLAN_HF_RCO) && (vs->flags & VXLAN_F_REMCSUM_RX)) {
-		vxh = vxlan_remcsum(skb, vxh, sizeof(struct vxlanhdr), vni);
+		vxh = vxlan_remcsum(skb, vxh, sizeof(struct vxlanhdr), vni,
+				    !!(vs->flags & VXLAN_F_REMCSUM_NOPARTIAL));
 		if (!vxh)
 			goto drop;
 
@@ -2437,6 +2442,7 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_REMCSUM_TX]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_REMCSUM_RX]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_GBP]	= { .type = NLA_FLAG, },
+	[IFLA_VXLAN_REMCSUM_NOPARTIAL]	= { .type = NLA_FLAG },
 };
 
 static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -2760,6 +2766,9 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	if (data[IFLA_VXLAN_GBP])
 		vxlan->flags |= VXLAN_F_GBP;
 
+	if (data[IFLA_VXLAN_REMCSUM_NOPARTIAL])
+		vxlan->flags |= VXLAN_F_REMCSUM_NOPARTIAL;
+
 	if (vxlan_find_vni(src_net, vni, use_ipv6 ? AF_INET6 : AF_INET,
 			   vxlan->dst_port, vxlan->flags)) {
 		pr_info("duplicate VNI %u\n", vni);
@@ -2907,6 +2916,10 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (vxlan->flags & VXLAN_F_GBP &&
 	    nla_put_flag(skb, IFLA_VXLAN_GBP))
+		goto nla_put_failure;
+
+	if (vxlan->flags & VXLAN_F_REMCSUM_NOPARTIAL &&
+	    nla_put_flag(skb, IFLA_VXLAN_REMCSUM_NOPARTIAL))
 		goto nla_put_failure;
 
 	return 0;
