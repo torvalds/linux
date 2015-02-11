@@ -464,8 +464,10 @@ static __be32 decode_cb_sequence_args(struct svc_rqst *rqstp,
 
 		for (i = 0; i < args->csa_nrclists; i++) {
 			status = decode_rc_list(xdr, &args->csa_rclists[i]);
-			if (status)
+			if (status) {
+				args->csa_nrclists = i;
 				goto out_free;
+			}
 		}
 	}
 	status = 0;
