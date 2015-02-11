@@ -243,6 +243,23 @@ static int user_send_irq(struct lg_cpu *cpu, const unsigned long __user *input)
 	return 0;
 }
 
+/*L:053
+ * Deliver a trap: this is used by the Launcher if it can't emulate
+ * an instruction.
+ */
+static int trap(struct lg_cpu *cpu, const unsigned long __user *input)
+{
+	unsigned long trapnum;
+
+	if (get_user(trapnum, input) != 0)
+		return -EFAULT;
+
+	if (!deliver_trap(cpu, trapnum))
+		return -EINVAL;
+
+	return 0;
+}
+
 /*L:040
  * Once our Guest is initialized, the Launcher makes it run by reading
  * from /dev/lguest.
@@ -487,6 +504,8 @@ static ssize_t write(struct file *file, const char __user *in,
 		return getreg_setup(cpu, input);
 	case LHREQ_SETREG:
 		return setreg(cpu, input);
+	case LHREQ_TRAP:
+		return trap(cpu, input);
 	default:
 		return -EINVAL;
 	}

@@ -65,6 +65,7 @@ enum lguest_req
 	LHREQ_EVENTFD, /* + address, fd. */
 	LHREQ_GETREG, /* + offset within struct pt_regs (then read value). */
 	LHREQ_SETREG, /* + offset within struct pt_regs, value. */
+	LHREQ_TRAP, /* + trap number to deliver to guest. */
 };
 
 /*
