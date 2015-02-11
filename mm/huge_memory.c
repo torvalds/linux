@@ -171,12 +171,7 @@ static int start_khugepaged(void)
 }
 
 static atomic_t huge_zero_refcount;
-static struct page *huge_zero_page __read_mostly;
-
-static inline bool is_huge_zero_page(struct page *page)
-{
-	return ACCESS_ONCE(huge_zero_page) == page;
-}
+struct page *huge_zero_page __read_mostly;
 
 static inline bool is_huge_zero_pmd(pmd_t pmd)
 {
