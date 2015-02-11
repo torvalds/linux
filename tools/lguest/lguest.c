@@ -156,7 +156,6 @@ struct pci_config {
 	struct virtio_pci_notify_cap notify;
 	struct virtio_pci_cap isr;
 	struct virtio_pci_cap device;
-	/* FIXME: Implement this! */
 	struct virtio_pci_cfg_cap cfg_access;
 };
 
@@ -1184,6 +1183,36 @@ static struct device *dev_and_reg(u32 *reg)
 	return find_pci_device(pci_config_addr.bits.devnum);
 }
 
+/*
+ * We can get invalid combinations of values while they're writing, so we
+ * only fault if they try to write with some invalid bar/offset/length.
+ */
+static bool valid_bar_access(struct device *d,
+			     struct virtio_pci_cfg_cap *cfg_access)
+{
+	/* We only have 1 bar (BAR0) */
+	if (cfg_access->cap.bar != 0)
+		return false;
+
+	/* Check it's within BAR0. */
+	if (cfg_access->cap.offset >= d->mmio_size
+	    || cfg_access->cap.offset + cfg_access->cap.length > d->mmio_size)
+		return false;
+
+	/* Check length is 1, 2 or 4. */
+	if (cfg_access->cap.length != 1
+	    && cfg_access->cap.length != 2
+	    && cfg_access->cap.length != 4)
+		return false;
+
+	/* Offset must be multiple of length */
+	if (cfg_access->cap.offset % cfg_access->cap.length != 0)
+		return false;
+
+	/* Return pointer into word in BAR0. */
+	return true;
+}
+
 /* Is this accessing the PCI config address port?. */
 static bool is_pci_addr_port(u16 port)
 {
@@ -1214,6 +1243,8 @@ static bool is_pci_data_port(u16 port)
 {
 	return port >= PCI_CONFIG_DATA && port < PCI_CONFIG_DATA + 4;
 }
+
+static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask);
 
 static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
 {
@@ -1255,11 +1286,52 @@ static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
 		   && mask == 0xFFFF) {
 		/* Ignore command writes. */
 		return true;
+	} else if (&d->config_words[reg]
+		   == (void *)&d->config.cfg_access.cap.bar
+		   || &d->config_words[reg]
+		   == &d->config.cfg_access.cap.length
+		   || &d->config_words[reg]
+		   == &d->config.cfg_access.cap.offset) {
+
+		/*
+		 * The VIRTIO_PCI_CAP_PCI_CFG capability
+		 * provides a backdoor to access the MMIO
+		 * regions without mapping them.  Weird, but
+		 * useful.
+		 */
+		iowrite(portoff, val, mask, &d->config_words[reg]);
+		return true;
+	} else if (&d->config_words[reg] == &d->config.cfg_access.window) {
+		u32 write_mask;
+
+		/* Must be bar 0 */
+		if (!valid_bar_access(d, &d->config.cfg_access))
+			return false;
+
+		/* First copy what they wrote into the window */
+		iowrite(portoff, val, mask, &d->config.cfg_access.window);
+
+		/*
+		 * Now emulate a write.  The mask we use is set by
+		 * len, *not* this write!
+		 */
+		write_mask = (1ULL<<(8*d->config.cfg_access.cap.length)) - 1;
+		verbose("Window writing %#x/%#x to bar %u, offset %u len %u\n",
+			d->config.cfg_access.window, write_mask,
+			d->config.cfg_access.cap.bar,
+			d->config.cfg_access.cap.offset,
+			d->config.cfg_access.cap.length);
+
+		emulate_mmio_write(d, d->config.cfg_access.cap.offset,
+				   d->config.cfg_access.window, write_mask);
+		return true;
 	}
 
 	/* Complain about other writes. */
 	return false;
 }
+
+static u32 emulate_mmio_read(struct device *d, u32 off, u32 mask);
 
 static void pci_data_ioread(u16 port, u32 mask, u32 *val)
 {
@@ -1268,6 +1340,33 @@ static void pci_data_ioread(u16 port, u32 mask, u32 *val)
 
 	if (!d)
 		return;
+
+	/* Read through the PCI MMIO access window is special */
+	if (&d->config_words[reg] == &d->config.cfg_access.window) {
+		u32 read_mask;
+
+		/* Must be bar 0 */
+		if (!valid_bar_access(d, &d->config.cfg_access))
+			errx(1, "Invalid cfg_access to bar%u, offset %u len %u",
+			     d->config.cfg_access.cap.bar,
+			     d->config.cfg_access.cap.offset,
+			     d->config.cfg_access.cap.length);
+
+		/*
+		 * Read into the window.  The mask we use is set by
+		 * len, *not* this read!
+		 */
+		read_mask = (1ULL<<(8*d->config.cfg_access.cap.length))-1;
+		d->config.cfg_access.window
+			= emulate_mmio_read(d,
+					    d->config.cfg_access.cap.offset,
+					    read_mask);
+		verbose("Window read %#x/%#x from bar %u, offset %u len %u\n",
+			d->config.cfg_access.window, read_mask,
+			d->config.cfg_access.cap.bar,
+			d->config.cfg_access.cap.offset,
+			d->config.cfg_access.cap.length);
+	}
 	ioread(port - PCI_CONFIG_DATA, d->config_words[reg], mask, val);
 }
 
