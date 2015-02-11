@@ -296,6 +296,8 @@ static void line6_data_received(struct urb *urb)
 	line6_start_listen(line6);
 }
 
+#define LINE6_READ_WRITE_STATUS_DELAY 2  /* milliseconds */
+
 /*
 	Read data from device.
 */
@@ -319,6 +321,8 @@ int line6_read_data(struct usb_line6 *line6, int address, void *data,
 
 	/* Wait for data length. We'll get 0xff until length arrives. */
 	do {
+		mdelay(LINE6_READ_WRITE_STATUS_DELAY);
+
 		ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0), 0x67,
 				      USB_TYPE_VENDOR | USB_RECIP_DEVICE |
 				      USB_DIR_IN,
@@ -376,6 +380,8 @@ int line6_write_data(struct usb_line6 *line6, int address, void *data,
 	}
 
 	do {
+		mdelay(LINE6_READ_WRITE_STATUS_DELAY);
+
 		ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 				      0x67,
 				      USB_TYPE_VENDOR | USB_RECIP_DEVICE |
