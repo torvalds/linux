@@ -828,6 +828,30 @@ static const struct panel_desc lg_lp129qe = {
 	},
 };
 
+static const struct drm_display_mode ortustech_com43h4m85ulc_mode  = {
+	.clock = 25000,
+	.hdisplay = 480,
+	.hsync_start = 480 + 10,
+	.hsync_end = 480 + 10 + 10,
+	.htotal = 480 + 10 + 10 + 15,
+	.vdisplay = 800,
+	.vsync_start = 800 + 3,
+	.vsync_end = 800 + 3 + 3,
+	.vtotal = 800 + 3 + 3 + 3,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc ortustech_com43h4m85ulc = {
+	.modes = &ortustech_com43h4m85ulc_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 56,
+		.height = 93,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
 static const struct drm_display_mode samsung_ltn101nt05_mode = {
 	.clock = 54030,
 	.hdisplay = 1024,
@@ -964,6 +988,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,
+	}, {
+		.compatible = "ortustech,com43h4m85ulc",
+		.data = &ortustech_com43h4m85ulc,
 	}, {
 		.compatible = "samsung,ltn101nt05",
 		.data = &samsung_ltn101nt05,
