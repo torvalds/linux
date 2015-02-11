@@ -244,13 +244,13 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 	vq->vring.avail->idx = cpu_to_virtio16(_vq->vdev, virtio16_to_cpu(_vq->vdev, vq->vring.avail->idx) + 1);
 	vq->num_added++;
 
+	pr_debug("Added buffer head %i to %p\n", head, vq);
+	END_USE(vq);
+
 	/* This is very unlikely, but theoretically possible.  Kick
 	 * just in case. */
 	if (unlikely(vq->num_added == (1 << 16) - 1))
 		virtqueue_kick(_vq);
-
-	pr_debug("Added buffer head %i to %p\n", head, vq);
-	END_USE(vq);
 
 	return 0;
 }
