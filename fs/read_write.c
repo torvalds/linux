@@ -346,9 +346,7 @@ ssize_t vfs_iter_read(struct file *file, struct iov_iter *iter, loff_t *ppos)
 
 	iter->type |= READ;
 	ret = file->f_op->read_iter(&kiocb, iter);
-	if (ret == -EIOCBQUEUED)
-		ret = wait_on_sync_kiocb(&kiocb);
-
+	BUG_ON(ret == -EIOCBQUEUED);
 	if (ret > 0)
 		*ppos = kiocb.ki_pos;
 	return ret;
@@ -368,9 +366,7 @@ ssize_t vfs_iter_write(struct file *file, struct iov_iter *iter, loff_t *ppos)
 
 	iter->type |= WRITE;
 	ret = file->f_op->write_iter(&kiocb, iter);
-	if (ret == -EIOCBQUEUED)
-		ret = wait_on_sync_kiocb(&kiocb);
-
+	BUG_ON(ret == -EIOCBQUEUED);
 	if (ret > 0)
 		*ppos = kiocb.ki_pos;
 	return ret;
@@ -426,8 +422,7 @@ ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *pp
 	kiocb.ki_pos = *ppos;
 
 	ret = filp->f_op->aio_read(&kiocb, &iov, 1, kiocb.ki_pos);
-	if (-EIOCBQUEUED == ret)
-		ret = wait_on_sync_kiocb(&kiocb);
+	BUG_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
 }
@@ -446,8 +441,7 @@ ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *p
 	iov_iter_init(&iter, READ, &iov, 1, len);
 
 	ret = filp->f_op->read_iter(&kiocb, &iter);
-	if (-EIOCBQUEUED == ret)
-		ret = wait_on_sync_kiocb(&kiocb);
+	BUG_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
 }
@@ -508,8 +502,7 @@ ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, lof
 	kiocb.ki_pos = *ppos;
 
 	ret = filp->f_op->aio_write(&kiocb, &iov, 1, kiocb.ki_pos);
-	if (-EIOCBQUEUED == ret)
-		ret = wait_on_sync_kiocb(&kiocb);
+	BUG_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
 }
@@ -528,8 +521,7 @@ ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, lo
 	iov_iter_init(&iter, WRITE, &iov, 1, len);
 
 	ret = filp->f_op->write_iter(&kiocb, &iter);
-	if (-EIOCBQUEUED == ret)
-		ret = wait_on_sync_kiocb(&kiocb);
+	BUG_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
 }
@@ -716,8 +708,7 @@ static ssize_t do_iter_readv_writev(struct file *filp, int rw, const struct iove
 
 	iov_iter_init(&iter, rw, iov, nr_segs, len);
 	ret = fn(&kiocb, &iter);
-	if (ret == -EIOCBQUEUED)
-		ret = wait_on_sync_kiocb(&kiocb);
+	BUG_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
 }
@@ -732,8 +723,7 @@ static ssize_t do_sync_readv_writev(struct file *filp, const struct iovec *iov,
 	kiocb.ki_pos = *ppos;
 
 	ret = fn(&kiocb, iov, nr_segs, kiocb.ki_pos);
-	if (ret == -EIOCBQUEUED)
-		ret = wait_on_sync_kiocb(&kiocb);
+	BUG_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
 }

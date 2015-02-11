@@ -52,12 +52,6 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 
 	rc = generic_file_read_iter(iocb, to);
-	/*
-	 * Even though this is a async interface, we need to wait
-	 * for IO to finish to update atime
-	 */
-	if (-EIOCBQUEUED == rc)
-		rc = wait_on_sync_kiocb(iocb);
 	if (rc >= 0) {
 		path = ecryptfs_dentry_to_lower_path(file->f_path.dentry);
 		touch_atime(path);

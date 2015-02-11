@@ -778,22 +778,6 @@ static int kill_ioctx(struct mm_struct *mm, struct kioctx *ctx,
 	return 0;
 }
 
-/* wait_on_sync_kiocb:
- *	Waits on the given sync kiocb to complete.
- */
-ssize_t wait_on_sync_kiocb(struct kiocb *req)
-{
-	while (!req->ki_ctx) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (req->ki_ctx)
-			break;
-		io_schedule();
-	}
-	__set_current_state(TASK_RUNNING);
-	return req->ki_user_data;
-}
-EXPORT_SYMBOL(wait_on_sync_kiocb);
-
 /*
  * exit_aio: called when the last user of mm goes away.  At this point, there is
  * no way for any new requests to be submited or any of the io_* syscalls to be
@@ -1025,13 +1009,7 @@ void aio_complete(struct kiocb *iocb, long res, long res2)
 	 *    ref, no other paths have a way to get another ref
 	 *  - the sync task helpfully left a reference to itself in the iocb
 	 */
-	if (is_sync_kiocb(iocb)) {
-		iocb->ki_user_data = res;
-		smp_wmb();
-		iocb->ki_ctx = ERR_PTR(-EXDEV);
-		wake_up_process(iocb->ki_obj.tsk);
-		return;
-	}
+	BUG_ON(is_sync_kiocb(iocb));
 
 	if (iocb->ki_list.next) {
 		unsigned long flags;

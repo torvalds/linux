@@ -37,7 +37,6 @@ struct kiocb {
 
 	union {
 		void __user		*user;
-		struct task_struct	*tsk;
 	} ki_obj;
 
 	__u64			ki_user_data;	/* user's data for completion */
@@ -63,13 +62,11 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
 	*kiocb = (struct kiocb) {
 			.ki_ctx = NULL,
 			.ki_filp = filp,
-			.ki_obj.tsk = current,
 		};
 }
 
 /* prototypes */
 #ifdef CONFIG_AIO
-extern ssize_t wait_on_sync_kiocb(struct kiocb *iocb);
 extern void aio_complete(struct kiocb *iocb, long res, long res2);
 struct mm_struct;
 extern void exit_aio(struct mm_struct *mm);
@@ -77,7 +74,6 @@ extern long do_io_submit(aio_context_t ctx_id, long nr,
 			 struct iocb __user *__user *iocbpp, bool compat);
 void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel);
 #else
-static inline ssize_t wait_on_sync_kiocb(struct kiocb *iocb) { return 0; }
 static inline void aio_complete(struct kiocb *iocb, long res, long res2) { }
 struct mm_struct;
 static inline void exit_aio(struct mm_struct *mm) { }
