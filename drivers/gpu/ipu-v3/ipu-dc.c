@@ -277,7 +277,8 @@ static irqreturn_t dc_irq_handler(int irq, void *dev_id)
 void ipu_dc_disable_channel(struct ipu_dc *dc)
 {
 	struct ipu_dc_priv *priv = dc->priv;
-	int irq, ret;
+	int irq;
+	unsigned long ret;
 	u32 val;
 
 	/* TODO: Handle MEM_FG_SYNC differently from MEM_BG_SYNC */
@@ -292,7 +293,7 @@ void ipu_dc_disable_channel(struct ipu_dc *dc)
 	enable_irq(irq);
 	ret = wait_for_completion_timeout(&priv->comp, msecs_to_jiffies(50));
 	disable_irq(irq);
-	if (ret <= 0) {
+	if (ret == 0) {
 		dev_warn(priv->dev, "DC stop timeout after 50 ms\n");
 
 		val = readl(dc->base + DC_WR_CH_CONF);
