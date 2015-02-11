@@ -393,9 +393,9 @@ static int __init pcc_init(void)
 	pcc_pdev = platform_create_bundle(&pcc_mbox_driver,
 			pcc_mbox_probe, NULL, 0, NULL, 0);
 
-	if (!pcc_pdev) {
+	if (IS_ERR(pcc_pdev)) {
 		pr_debug("Err creating PCC platform bundle\n");
-		return -ENODEV;
+		return PTR_ERR(pcc_pdev);
 	}
 
 	return 0;
