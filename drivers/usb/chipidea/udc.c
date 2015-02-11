@@ -1992,9 +1992,12 @@ static int udc_id_switch_for_device(struct ci_hdrc *ci)
 	if (!ci->is_otg)
 		return 0;
 
-	/* Clear and enable BSV irq for peripheral or OTG B-device */
+	/*
+	 * Clear and enable BSV irq for A-device switch to B-device
+	 * (in otg fsm mode, means A_IDLE->B_DILE) due to ID change.
+	 */
 	if (!ci_otg_is_fsm_mode(ci) ||
-			ci->fsm.otg->state <= OTG_STATE_B_HOST)
+			ci->fsm.otg->state == OTG_STATE_A_IDLE)
 		hw_write_otgsc(ci, OTGSC_BSVIS | OTGSC_BSVIE,
 					OTGSC_BSVIS | OTGSC_BSVIE);
 
@@ -2005,12 +2008,13 @@ static void udc_id_switch_for_host(struct ci_hdrc *ci)
 {
 	if (!ci->is_otg)
 		return;
+
 	/*
-	 * Host or OTG A-device doesn't care B_SESSION_VALID event
-	 * so clear and disbale BSV irq
+	 * Clear and disbale BSV irq for B-device switch to A-device
+	 * (in otg fsm mode, means B_IDLE->A_IDLE) due to ID change.
 	 */
 	if (!ci_otg_is_fsm_mode(ci) ||
-			ci->fsm.otg->state > OTG_STATE_B_HOST)
+			ci->fsm.otg->state == OTG_STATE_B_IDLE)
 		hw_write_otgsc(ci, OTGSC_BSVIE | OTGSC_BSVIS, OTGSC_BSVIS);
 }
 
