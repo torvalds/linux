@@ -764,21 +764,40 @@ static void free_one_page(struct zone *zone,
 	spin_unlock(&zone->lock);
 }
 
+static int free_tail_pages_check(struct page *head_page, struct page *page)
+{
+	if (!IS_ENABLED(CONFIG_DEBUG_VM))
+		return 0;
+	if (unlikely(!PageTail(page))) {
+		bad_page(page, "PageTail not set", 0);
+		return 1;
+	}
+	if (unlikely(page->first_page != head_page)) {
+		bad_page(page, "first_page not consistent", 0);
+		return 1;
+	}
+	return 0;
+}
+
 static bool free_pages_prepare(struct page *page, unsigned int order)
 {
-	int i;
-	int bad = 0;
+	bool compound = PageCompound(page);
+	int i, bad = 0;
 
 	VM_BUG_ON_PAGE(PageTail(page), page);
-	VM_BUG_ON_PAGE(PageHead(page) && compound_order(page) != order, page);
+	VM_BUG_ON_PAGE(compound && compound_order(page) != order, page);
 
 	trace_mm_page_free(page, order);
 	kmemcheck_free_shadow(page, order);
 
 	if (PageAnon(page))
 		page->mapping = NULL;
-	for (i = 0; i < (1 << order); i++)
+	bad += free_pages_check(page);
+	for (i = 1; i < (1 << order); i++) {
+		if (compound)
+			bad += free_tail_pages_check(page, page + i);
 		bad += free_pages_check(page + i);
+	}
 	if (bad)
 		return false;
 
