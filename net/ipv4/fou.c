@@ -71,12 +71,6 @@ static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 	size_t offset = ntohs(pd[1]);
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
 
-	if (skb->remcsum_offload) {
-		/* Already processed in GRO path */
-		skb->remcsum_offload = 0;
-		return guehdr;
-	}
-
 	if (!pskb_may_pull(skb, plen))
 		return NULL;
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
@@ -214,7 +208,8 @@ out_unlock:
 
 static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 				      struct guehdr *guehdr, void *data,
-				      size_t hdrlen, u8 ipproto)
+				      size_t hdrlen, u8 ipproto,
+				      struct gro_remcsum *grc)
 {
 	__be16 *pd = data;
 	size_t start = ntohs(pd[0]);
@@ -222,7 +217,7 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
 
 	if (skb->remcsum_offload)
-		return guehdr;
+		return NULL;
 
 	if (!NAPI_GRO_CB(skb)->csum_valid)
 		return NULL;
@@ -234,7 +229,8 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 			return NULL;
 	}
 
-	skb_gro_remcsum_process(skb, (void *)guehdr + hdrlen, start, offset);
+	skb_gro_remcsum_process(skb, (void *)guehdr + hdrlen,
+				start, offset, grc);
 
 	skb->remcsum_offload = 1;
 
@@ -254,6 +250,9 @@ static struct sk_buff **gue_gro_receive(struct sk_buff **head,
 	void *data;
 	u16 doffset = 0;
 	int flush = 1;
+	struct gro_remcsum grc;
+
+	skb_gro_remcsum_init(&grc);
 
 	off = skb_gro_offset(skb);
 	len = off + sizeof(*guehdr);
@@ -295,7 +294,7 @@ static struct sk_buff **gue_gro_receive(struct sk_buff **head,
 		if (flags & GUE_PFLAG_REMCSUM) {
 			guehdr = gue_gro_remcsum(skb, off, guehdr,
 						 data + doffset, hdrlen,
-						 guehdr->proto_ctype);
+						 guehdr->proto_ctype, &grc);
 			if (!guehdr)
 				goto out;
 
@@ -345,6 +344,7 @@ out_unlock:
 	rcu_read_unlock();
 out:
 	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_remcsum_cleanup(skb, &grc);
 
 	return pp;
 }

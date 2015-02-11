@@ -555,12 +555,12 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 					  unsigned int off,
 					  struct vxlanhdr *vh, size_t hdrlen,
-					  u32 data)
+					  u32 data, struct gro_remcsum *grc)
 {
 	size_t start, offset, plen;
 
 	if (skb->remcsum_offload)
-		return vh;
+		return NULL;
 
 	if (!NAPI_GRO_CB(skb)->csum_valid)
 		return NULL;
@@ -579,7 +579,8 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 			return NULL;
 	}
 
-	skb_gro_remcsum_process(skb, (void *)vh + hdrlen, start, offset);
+	skb_gro_remcsum_process(skb, (void *)vh + hdrlen,
+				start, offset, grc);
 
 	skb->remcsum_offload = 1;
 
@@ -597,6 +598,9 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 	struct vxlan_sock *vs = container_of(uoff, struct vxlan_sock,
 					     udp_offloads);
 	u32 flags;
+	struct gro_remcsum grc;
+
+	skb_gro_remcsum_init(&grc);
 
 	off_vx = skb_gro_offset(skb);
 	hlen = off_vx + sizeof(*vh);
@@ -614,7 +618,7 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 
 	if ((flags & VXLAN_HF_RCO) && (vs->flags & VXLAN_F_REMCSUM_RX)) {
 		vh = vxlan_gro_remcsum(skb, off_vx, vh, sizeof(struct vxlanhdr),
-				       ntohl(vh->vx_vni));
+				       ntohl(vh->vx_vni), &grc);
 
 		if (!vh)
 			goto out;
@@ -637,6 +641,7 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 	pp = eth_gro_receive(head, skb);
 
 out:
+	skb_gro_remcsum_cleanup(skb, &grc);
 	NAPI_GRO_CB(skb)->flush |= flush;
 
 	return pp;
@@ -1153,12 +1158,6 @@ static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
 				      size_t hdrlen, u32 data)
 {
 	size_t start, offset, plen;
-
-	if (skb->remcsum_offload) {
-		/* Already processed in GRO path */
-		skb->remcsum_offload = 0;
-		return vh;
-	}
 
 	start = (data & VXLAN_RCO_MASK) << VXLAN_RCO_SHIFT;
 	offset = start + ((data & VXLAN_RCO_UDP) ?
