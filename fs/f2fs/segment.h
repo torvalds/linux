@@ -189,6 +189,7 @@ struct sit_info {
 	char *sit_bitmap;		/* SIT bitmap pointer */
 	unsigned int bitmap_size;	/* SIT bitmap size */
 
+	unsigned long *tmp_map;			/* bitmap for temporal use */
 	unsigned long *dirty_sentries_bitmap;	/* bitmap for dirty sentries */
 	unsigned int dirty_sentries;		/* # of dirty sentries */
 	unsigned int sents_per_block;		/* # of SIT entries per block */
