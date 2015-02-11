@@ -1030,12 +1030,14 @@ static const struct acpi_device_id xgene_enet_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, xgene_enet_acpi_match);
 #endif
 
+#ifdef CONFIG_OF
 static struct of_device_id xgene_enet_of_match[] = {
 	{.compatible = "apm,xgene-enet",},
 	{},
 };
 
 MODULE_DEVICE_TABLE(of, xgene_enet_of_match);
+#endif
 
 static struct platform_driver xgene_enet_driver = {
 	.driver = {
