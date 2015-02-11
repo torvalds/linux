@@ -45,7 +45,7 @@ config SND_ATMEL_SOC_WM8904
 
 config SND_AT91_SOC_SAM9X5_WM8731
 	tristate "SoC Audio support for WM8731-based at91sam9x5 board"
-	depends on ATMEL_SSC && SND_ATMEL_SOC && SOC_AT91SAM9X5
+	depends on ARCH_AT91 && ATMEL_SSC && SND_ATMEL_SOC
 	select SND_ATMEL_SOC_SSC
 	select SND_ATMEL_SOC_DMA
 	select SND_SOC_WM8731

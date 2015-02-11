@@ -1064,12 +1064,9 @@ static int sis_chip_free(struct sis7019 *sis)
 	if (sis->irq >= 0)
 		free_irq(sis->irq, sis);
 
-	if (sis->ioaddr)
-		iounmap(sis->ioaddr);
-
+	iounmap(sis->ioaddr);
 	pci_release_regions(sis->pci);
 	pci_disable_device(sis->pci);
-
 	sis_free_suspend(sis);
 	return 0;
 }
@@ -1211,7 +1208,6 @@ static int sis_chip_init(struct sis7019 *sis)
 #ifdef CONFIG_PM_SLEEP
 static int sis_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct sis7019 *sis = card->private_data;
 	void __iomem *ioaddr = sis->ioaddr;
@@ -1240,9 +1236,6 @@ static int sis_suspend(struct device *dev)
 		ioaddr += 4096;
 	}
 
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
@@ -1253,14 +1246,6 @@ static int sis_resume(struct device *dev)
 	struct sis7019 *sis = card->private_data;
 	void __iomem *ioaddr = sis->ioaddr;
 	int i;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-
-	if (pci_enable_device(pci) < 0) {
-		dev_err(&pci->dev, "unable to re-enable device\n");
-		goto error;
-	}
 
 	if (sis_chip_init(sis)) {
 		dev_err(&pci->dev, "unable to re-init controller\n");
@@ -1284,7 +1269,6 @@ static int sis_resume(struct device *dev)
 	memset(sis->suspend_state[0], 0, 4096);
 
 	sis->irq = pci->irq;
-	pci_set_master(pci);
 
 	if (sis->codecs_present & SIS_PRIMARY_CODEC_PRESENT)
 		snd_ac97_resume(sis->ac97[0]);
