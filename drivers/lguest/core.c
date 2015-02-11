@@ -225,22 +225,12 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		if (cpu->hcall)
 			do_hypercalls(cpu);
 
-		/*
-		 * It's possible the Guest did a NOTIFY hypercall to the
-		 * Launcher.
-		 */
+		/* Do we have to tell the Launcher about a trap? */
 		if (cpu->pending.trap) {
-			/*
-			 * Does it just needs to write to a registered
-			 * eventfd (ie. the appropriate virtqueue thread)?
-			 */
-			if (!send_notify_to_eventfd(cpu)) {
-				/* OK, we tell the main Launcher. */
-				if (copy_to_user(user, &cpu->pending,
-						 sizeof(cpu->pending)))
-					return -EFAULT;
-				return sizeof(cpu->pending);
-			}
+			if (copy_to_user(user, &cpu->pending,
+					 sizeof(cpu->pending)))
+				return -EFAULT;
+			return sizeof(cpu->pending);
 		}
 
 		/*

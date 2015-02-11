@@ -23,7 +23,7 @@ enum lguest_req
 	LHREQ_GETDMA, /* No longer used */
 	LHREQ_IRQ, /* + irq */
 	LHREQ_BREAK, /* No longer used */
-	LHREQ_EVENTFD, /* + address, fd. */
+	LHREQ_EVENTFD, /* No longer used. */
 	LHREQ_GETREG, /* + offset within struct pt_regs (then read value). */
 	LHREQ_SETREG, /* + offset within struct pt_regs, value. */
 	LHREQ_TRAP, /* + trap number to deliver to guest. */

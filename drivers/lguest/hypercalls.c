@@ -117,10 +117,6 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		/* Similarly, this sets the halted flag for run_guest(). */
 		cpu->halted = 1;
 		break;
-	case LHCALL_NOTIFY:
-		cpu->pending.trap = LGUEST_TRAP_ENTRY;
-		cpu->pending.addr = args->arg1;
-		break;
 	default:
 		/* It should be an architecture-specific hypercall. */
 		if (lguest_arch_do_hcall(cpu, args))

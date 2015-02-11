@@ -81,16 +81,6 @@ struct lg_cpu {
 	struct lg_cpu_arch arch;
 };
 
-struct lg_eventfd {
-	unsigned long addr;
-	struct eventfd_ctx *event;
-};
-
-struct lg_eventfd_map {
-	unsigned int num;
-	struct lg_eventfd map[];
-};
-
 /* The private info the thread maintains about the guest. */
 struct lguest {
 	struct lguest_data __user *lguest_data;
@@ -116,8 +106,6 @@ struct lguest {
 
 	unsigned int stack_pages;
 	u32 tsc_khz;
-
-	struct lg_eventfd_map *eventfds;
 
 	/* Dead? */
 	const char *dead;
