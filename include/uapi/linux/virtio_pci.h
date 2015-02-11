@@ -109,8 +109,10 @@
 #define VIRTIO_PCI_CAP_NOTIFY_CFG	2
 /* ISR access */
 #define VIRTIO_PCI_CAP_ISR_CFG		3
-/* Device specific confiuration */
+/* Device specific configuration */
 #define VIRTIO_PCI_CAP_DEVICE_CFG	4
+/* PCI configuration access */
+#define VIRTIO_PCI_CAP_PCI_CFG		5
 
 /* This is the PCI capability header: */
 struct virtio_pci_cap {
