@@ -13,12 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
-
-/*
  * Datasheets:
  * http://www.ti.com/product/bq24150
  * http://www.ti.com/product/bq24150a
@@ -173,7 +167,7 @@ struct bq2415x_device {
 	struct power_supply *notify_psy;
 	struct notifier_block nb;
 	enum bq2415x_mode reported_mode;/* mode reported by hook function */
-	enum bq2415x_mode mode;		/* current configured mode */
+	enum bq2415x_mode mode;		/* currently configured mode */
 	enum bq2415x_chip chip;
 	const char *timer_error;
 	char *model;
