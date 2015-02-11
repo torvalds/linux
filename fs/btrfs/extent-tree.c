@@ -9555,7 +9555,8 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 * Want to do this before we do anything else so we can recover
 		 * properly if we fail to join the transaction.
 		 */
-		trans = btrfs_join_transaction(root);
+		/* 1 for btrfs_orphan_reserve_metadata() */
+		trans = btrfs_start_transaction(root, 1);
 		if (IS_ERR(trans)) {
 			btrfs_set_block_group_rw(root, block_group);
 			ret = PTR_ERR(trans);
