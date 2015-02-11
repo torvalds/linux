@@ -1531,6 +1531,8 @@ static const struct backlight_ops toshiba_backlight_data = {
 /*
  * Sysfs files
  */
+static ssize_t toshiba_version_show(struct device *dev,
+				    struct device_attribute *attr, char *buf);
 static ssize_t toshiba_kbd_bl_mode_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count);
@@ -1583,6 +1585,7 @@ static ssize_t toshiba_usb_sleep_music_store(struct device *dev,
 					     struct device_attribute *attr,
 					     const char *buf, size_t count);
 
+static DEVICE_ATTR(version, S_IRUGO, toshiba_version_show, NULL);
 static DEVICE_ATTR(kbd_backlight_mode, S_IRUGO | S_IWUSR,
 		   toshiba_kbd_bl_mode_show, toshiba_kbd_bl_mode_store);
 static DEVICE_ATTR(kbd_type, S_IRUGO, toshiba_kbd_type_show, NULL);
@@ -1607,6 +1610,7 @@ static DEVICE_ATTR(usb_sleep_music, S_IRUGO | S_IWUSR,
 		   toshiba_usb_sleep_music_store);
 
 static struct attribute *toshiba_attributes[] = {
+	&dev_attr_version.attr,
 	&dev_attr_kbd_backlight_mode.attr,
 	&dev_attr_kbd_type.attr,
 	&dev_attr_available_kbd_modes.attr,
@@ -1627,6 +1631,12 @@ static struct attribute_group toshiba_attr_group = {
 	.is_visible = toshiba_sysfs_is_visible,
 	.attrs = toshiba_attributes,
 };
+
+static ssize_t toshiba_version_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", TOSHIBA_ACPI_VERSION);
+}
 
 static ssize_t toshiba_kbd_bl_mode_store(struct device *dev,
 					 struct device_attribute *attr,
