@@ -49,7 +49,7 @@ struct usb_line6_toneport {
 	int source;
 
 	/* Serial number of device */
-	int serial_number;
+	u32 serial_number;
 
 	/* Firmware version (x 100) */
 	int firmware_version;

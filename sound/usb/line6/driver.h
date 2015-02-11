@@ -150,7 +150,7 @@ extern char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1,
 extern int line6_read_data(struct usb_line6 *line6, int address, void *data,
 			   size_t datalen);
 extern int line6_read_serial_number(struct usb_line6 *line6,
-				    int *serial_number);
+				    u32 *serial_number);
 extern int line6_send_raw_message_async(struct usb_line6 *line6,
 					const char *buffer, int size);
 extern int line6_send_sysex_message(struct usb_line6 *line6,

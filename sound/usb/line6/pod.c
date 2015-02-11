@@ -73,7 +73,7 @@ struct usb_line6_pod {
 	int startup_progress;
 
 	/* Serial number of device */
-	int serial_number;
+	u32 serial_number;
 
 	/* Firmware version (x 100) */
 	int firmware_version;
@@ -247,7 +247,7 @@ static ssize_t serial_number_show(struct device *dev,
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
 
-	return sprintf(buf, "%d\n", pod->serial_number);
+	return sprintf(buf, "%u\n", pod->serial_number);
 }
 
 /*

@@ -426,7 +426,7 @@ EXPORT_SYMBOL_GPL(line6_write_data);
 	Read Line 6 device serial number.
 	(POD, TonePort, GuitarPort)
 */
-int line6_read_serial_number(struct usb_line6 *line6, int *serial_number)
+int line6_read_serial_number(struct usb_line6 *line6, u32 *serial_number)
 {
 	return line6_read_data(line6, 0x80d0, serial_number,
 			       sizeof(*serial_number));
