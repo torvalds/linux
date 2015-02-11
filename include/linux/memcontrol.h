@@ -102,6 +102,7 @@ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
  * For memory reclaim.
  */
 int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec);
+bool mem_cgroup_lruvec_online(struct lruvec *lruvec);
 int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
 unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list);
 void mem_cgroup_update_lru_size(struct lruvec *, enum lru_list, int);
@@ -264,6 +265,11 @@ static inline int
 mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
 {
 	return 1;
+}
+
+static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
+{
+	return true;
 }
 
 static inline unsigned long
