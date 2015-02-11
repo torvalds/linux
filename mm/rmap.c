@@ -1085,24 +1085,20 @@ void page_add_new_anon_rmap(struct page *page,
 void page_add_file_rmap(struct page *page)
 {
 	struct mem_cgroup *memcg;
-	unsigned long flags;
-	bool locked;
 
-	memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
+	memcg = mem_cgroup_begin_page_stat(page);
 	if (atomic_inc_and_test(&page->_mapcount)) {
 		__inc_zone_page_state(page, NR_FILE_MAPPED);
 		mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
 	}
-	mem_cgroup_end_page_stat(memcg, &locked, &flags);
+	mem_cgroup_end_page_stat(memcg);
 }
 
 static void page_remove_file_rmap(struct page *page)
 {
 	struct mem_cgroup *memcg;
-	unsigned long flags;
-	bool locked;
 
-	memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
+	memcg = mem_cgroup_begin_page_stat(page);
 
 	/* page still mapped by someone else? */
 	if (!atomic_add_negative(-1, &page->_mapcount))
@@ -1123,7 +1119,7 @@ static void page_remove_file_rmap(struct page *page)
 	if (unlikely(PageMlocked(page)))
 		clear_page_mlock(page);
 out:
-	mem_cgroup_end_page_stat(memcg, &locked, &flags);
+	mem_cgroup_end_page_stat(memcg);
 }
 
 /**

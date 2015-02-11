@@ -325,9 +325,11 @@ struct mem_cgroup {
 	/*
 	 * set > 0 if pages under this cgroup are moving to other cgroup.
 	 */
-	atomic_t	moving_account;
+	atomic_t		moving_account;
 	/* taken only while moving_account > 0 */
-	spinlock_t	move_lock;
+	spinlock_t		move_lock;
+	struct task_struct	*move_lock_task;
+	unsigned long		move_lock_flags;
 	/*
 	 * percpu counter.
 	 */
@@ -1977,34 +1979,33 @@ cleanup:
 /**
  * mem_cgroup_begin_page_stat - begin a page state statistics transaction
  * @page: page that is going to change accounted state
- * @locked: &memcg->move_lock slowpath was taken
- * @flags: IRQ-state flags for &memcg->move_lock
  *
  * This function must mark the beginning of an accounted page state
  * change to prevent double accounting when the page is concurrently
  * being moved to another memcg:
  *
- *   memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
+ *   memcg = mem_cgroup_begin_page_stat(page);
  *   if (TestClearPageState(page))
  *     mem_cgroup_update_page_stat(memcg, state, -1);
- *   mem_cgroup_end_page_stat(memcg, locked, flags);
- *
- * The RCU lock is held throughout the transaction.  The fast path can
- * get away without acquiring the memcg->move_lock (@locked is false)
- * because page moving starts with an RCU grace period.
- *
- * The RCU lock also protects the memcg from being freed when the page
- * state that is going to change is the only thing preventing the page
- * from being uncharged.  E.g. end-writeback clearing PageWriteback(),
- * which allows migration to go ahead and uncharge the page before the
- * account transaction might be complete.
+ *   mem_cgroup_end_page_stat(memcg);
  */
-struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page,
-					      bool *locked,
-					      unsigned long *flags)
+struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page)
 {
 	struct mem_cgroup *memcg;
+	unsigned long flags;
 
+	/*
+	 * The RCU lock is held throughout the transaction.  The fast
+	 * path can get away without acquiring the memcg->move_lock
+	 * because page moving starts with an RCU grace period.
+	 *
+	 * The RCU lock also protects the memcg from being freed when
+	 * the page state that is going to change is the only thing
+	 * preventing the page from being uncharged.
+	 * E.g. end-writeback clearing PageWriteback(), which allows
+	 * migration to go ahead and uncharge the page before the
+	 * account transaction might be complete.
+	 */
 	rcu_read_lock();
 
 	if (mem_cgroup_disabled())
@@ -2014,16 +2015,22 @@ again:
 	if (unlikely(!memcg))
 		return NULL;
 
-	*locked = false;
 	if (atomic_read(&memcg->moving_account) <= 0)
 		return memcg;
 
-	spin_lock_irqsave(&memcg->move_lock, *flags);
+	spin_lock_irqsave(&memcg->move_lock, flags);
 	if (memcg != page->mem_cgroup) {
-		spin_unlock_irqrestore(&memcg->move_lock, *flags);
+		spin_unlock_irqrestore(&memcg->move_lock, flags);
 		goto again;
 	}
-	*locked = true;
+
+	/*
+	 * When charge migration first begins, we can have locked and
+	 * unlocked page stat updates happening concurrently.  Track
+	 * the task who has the lock for mem_cgroup_end_page_stat().
+	 */
+	memcg->move_lock_task = current;
+	memcg->move_lock_flags = flags;
 
 	return memcg;
 }
@@ -2031,14 +2038,17 @@ again:
 /**
  * mem_cgroup_end_page_stat - finish a page state statistics transaction
  * @memcg: the memcg that was accounted against
- * @locked: value received from mem_cgroup_begin_page_stat()
- * @flags: value received from mem_cgroup_begin_page_stat()
  */
-void mem_cgroup_end_page_stat(struct mem_cgroup *memcg, bool *locked,
-			      unsigned long *flags)
+void mem_cgroup_end_page_stat(struct mem_cgroup *memcg)
 {
-	if (memcg && *locked)
-		spin_unlock_irqrestore(&memcg->move_lock, *flags);
+	if (memcg && memcg->move_lock_task == current) {
+		unsigned long flags = memcg->move_lock_flags;
+
+		memcg->move_lock_task = NULL;
+		memcg->move_lock_flags = 0;
+
+		spin_unlock_irqrestore(&memcg->move_lock, flags);
+	}
 
 	rcu_read_unlock();
 }
