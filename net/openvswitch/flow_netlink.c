@@ -1746,7 +1746,7 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	struct sw_flow_key key;
 	struct ovs_tunnel_info *tun_info;
 	struct nlattr *a;
-	int err, start, opts_type;
+	int err = 0, start, opts_type;
 
 	ovs_match_init(&match, &key, NULL);
 	opts_type = ipv4_tun_from_nlattr(nla_data(attr), &match, false, log);
