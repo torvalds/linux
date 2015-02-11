@@ -1533,6 +1533,11 @@ static const struct backlight_ops toshiba_backlight_data = {
  */
 static ssize_t toshiba_version_show(struct device *dev,
 				    struct device_attribute *attr, char *buf);
+static ssize_t toshiba_fan_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count);
+static ssize_t toshiba_fan_show(struct device *dev,
+				struct device_attribute *attr, char *buf);
 static ssize_t toshiba_kbd_bl_mode_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count);
@@ -1586,6 +1591,8 @@ static ssize_t toshiba_usb_sleep_music_store(struct device *dev,
 					     const char *buf, size_t count);
 
 static DEVICE_ATTR(version, S_IRUGO, toshiba_version_show, NULL);
+static DEVICE_ATTR(fan, S_IRUGO | S_IWUSR,
+		   toshiba_fan_show, toshiba_fan_store);
 static DEVICE_ATTR(kbd_backlight_mode, S_IRUGO | S_IWUSR,
 		   toshiba_kbd_bl_mode_show, toshiba_kbd_bl_mode_store);
 static DEVICE_ATTR(kbd_type, S_IRUGO, toshiba_kbd_type_show, NULL);
@@ -1611,6 +1618,7 @@ static DEVICE_ATTR(usb_sleep_music, S_IRUGO | S_IWUSR,
 
 static struct attribute *toshiba_attributes[] = {
 	&dev_attr_version.attr,
+	&dev_attr_fan.attr,
 	&dev_attr_kbd_backlight_mode.attr,
 	&dev_attr_kbd_type.attr,
 	&dev_attr_available_kbd_modes.attr,
@@ -1636,6 +1644,45 @@ static ssize_t toshiba_version_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", TOSHIBA_ACPI_VERSION);
+}
+
+static ssize_t toshiba_fan_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
+	u32 result;
+	int state;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &state);
+	if (ret)
+		return ret;
+
+	if (state != 0 && state != 1)
+		return -EINVAL;
+
+	result = hci_write1(toshiba, HCI_FAN, state);
+	if (result == TOS_FAILURE)
+		return -EIO;
+	else if (result == TOS_NOT_SUPPORTED)
+		return -ENODEV;
+
+	return count;
+}
+
+static ssize_t toshiba_fan_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
+	u32 value;
+	int ret;
+
+	ret = get_fan_status(toshiba, &value);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%d\n", value);
 }
 
 static ssize_t toshiba_kbd_bl_mode_store(struct device *dev,
@@ -2034,7 +2081,9 @@ static umode_t toshiba_sysfs_is_visible(struct kobject *kobj,
 	struct toshiba_acpi_dev *drv = dev_get_drvdata(dev);
 	bool exists = true;
 
-	if (attr == &dev_attr_kbd_backlight_mode.attr)
+	if (attr == &dev_attr_fan.attr)
+		exists = (drv->fan_supported) ? true : false;
+	else if (attr == &dev_attr_kbd_backlight_mode.attr)
 		exists = (drv->kbd_illum_supported) ? true : false;
 	else if (attr == &dev_attr_kbd_backlight_timeout.attr)
 		exists = (drv->kbd_mode == SCI_KBD_MODE_AUTO) ? true : false;
