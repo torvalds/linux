@@ -638,6 +638,7 @@ static const struct panel_desc giantplus_gpg482739qs5 = {
 		.width = 95,
 		.height = 54,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
 static const struct drm_display_mode hannstar_hsd070pww1_mode = {
