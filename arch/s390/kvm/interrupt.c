@@ -1,7 +1,7 @@
 /*
  * handling kvm guest interrupts
  *
- * Copyright IBM Corp. 2008,2014
+ * Copyright IBM Corp. 2008, 2015
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/bitmap.h>
 #include <asm/asm-offsets.h>
+#include <asm/dis.h>
 #include <asm/uaccess.h>
 #include <asm/sclp.h>
 #include "kvm-s390.h"
@@ -265,8 +266,6 @@ static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
 
 static u16 get_ilc(struct kvm_vcpu *vcpu)
 {
-	const unsigned short table[] = { 2, 4, 4, 6 };
-
 	switch (vcpu->arch.sie_block->icptcode) {
 	case ICPT_INST:
 	case ICPT_INSTPROGI:
@@ -274,7 +273,7 @@ static u16 get_ilc(struct kvm_vcpu *vcpu)
 	case ICPT_PARTEXEC:
 	case ICPT_IOINST:
 		/* last instruction only stored for these icptcodes */
-		return table[vcpu->arch.sie_block->ipa >> 14];
+		return insn_length(vcpu->arch.sie_block->ipa >> 8);
 	case ICPT_PROGI:
 		return vcpu->arch.sie_block->pgmilc;
 	default:
