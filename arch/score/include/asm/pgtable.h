@@ -27,7 +27,7 @@ extern pte_t invalid_pte_table[PAGE_SIZE/sizeof(pte_t)];
 #define PTRS_PER_PTE	1024
 
 #define USER_PTRS_PER_PGD	(0x80000000UL/PGDIR_SIZE)
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 
 #define VMALLOC_START		(0xc0000000UL)
 

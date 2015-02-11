@@ -99,7 +99,7 @@ extern unsigned long zero_page_mask;
 #endif /* CONFIG_64BIT */
 #define PTRS_PER_PGD	2048
 
-#define FIRST_USER_ADDRESS  0
+#define FIRST_USER_ADDRESS  0UL
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %p.\n", __FILE__, __LINE__, (void *) pte_val(e))
