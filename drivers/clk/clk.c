@@ -800,8 +800,8 @@ clk_mux_determine_rate_flags(struct clk_hw *hw, unsigned long rate,
 	if (core->flags & CLK_SET_RATE_NO_REPARENT) {
 		parent = core->parent;
 		if (core->flags & CLK_SET_RATE_PARENT)
-			best = __clk_determine_rate(parent->hw, rate,
-						    min_rate, max_rate);
+			best = __clk_determine_rate(parent ? parent->hw : NULL,
+						    rate, min_rate, max_rate);
 		else if (parent)
 			best = clk_core_get_rate_nolock(parent);
 		else
