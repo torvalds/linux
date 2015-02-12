@@ -164,7 +164,7 @@ extern void bitmap_remap(unsigned long *dst, const unsigned long *src,
 extern int bitmap_bitremap(int oldbit,
 		const unsigned long *old, const unsigned long *new, int bits);
 extern void bitmap_onto(unsigned long *dst, const unsigned long *orig,
-		const unsigned long *relmap, int bits);
+		const unsigned long *relmap, unsigned int bits);
 extern void bitmap_fold(unsigned long *dst, const unsigned long *orig,
 		int sz, int bits);
 extern int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order);

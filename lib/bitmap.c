@@ -1006,9 +1006,9 @@ EXPORT_SYMBOL(bitmap_bitremap);
  * All bits in @dst not set by the above rule are cleared.
  */
 void bitmap_onto(unsigned long *dst, const unsigned long *orig,
-			const unsigned long *relmap, int bits)
+			const unsigned long *relmap, unsigned int bits)
 {
-	int n, m;       	/* same meaning as in above comment */
+	unsigned int n, m;	/* same meaning as in above comment */
 
 	if (dst == orig)	/* following doesn't handle inplace mappings */
 		return;
