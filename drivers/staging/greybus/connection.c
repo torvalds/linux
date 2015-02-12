@@ -63,7 +63,7 @@ static bool gb_connection_hd_cport_id_alloc(struct gb_connection *connection)
 	int id;
 
 	spin_lock_irq(&gb_connections_lock);
-	id = ida_simple_get(ida, 0, HOST_DEV_CPORT_ID_MAX, GFP_KERNEL);
+	id = ida_simple_get(ida, 0, HOST_DEV_CPORT_ID_MAX, GFP_ATOMIC);
 	spin_unlock_irq(&gb_connections_lock);
 	if (id < 0)
 		return false;
