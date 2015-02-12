@@ -114,6 +114,45 @@ static void __init test_hexdump_set(int rowsize, bool ascii)
 	test_hexdump(len, rowsize, 1, ascii);
 }
 
+static void __init test_hexdump_overflow(bool ascii)
+{
+	char buf[56];
+	const char *t = test_data_1_le[0];
+	size_t l = get_random_int() % sizeof(buf);
+	bool a;
+	int e, r;
+
+	memset(buf, ' ', sizeof(buf));
+
+	r = hex_dump_to_buffer(data_b, 1, 16, 1, buf, l, ascii);
+
+	if (ascii)
+		e = 50;
+	else
+		e = 2;
+	buf[e + 2] = '\0';
+
+	if (!l) {
+		a = r == e && buf[0] == ' ';
+	} else if (l < 3) {
+		a = r == e && buf[0] == '\0';
+	} else if (l < 4) {
+		a = r == e && !strcmp(buf, t);
+	} else if (ascii) {
+		if (l < 51)
+			a = r == e && buf[l - 1] == '\0' && buf[l - 2] == ' ';
+		else
+			a = r == e && buf[50] == '\0' && buf[49] == '.';
+	} else {
+		a = r == e && buf[e] == '\0';
+	}
+
+	if (!a) {
+		pr_err("Len: %zu rc: %u strlen: %zu\n", l, r, strlen(buf));
+		pr_err("Result: '%s'\n", buf);
+	}
+}
+
 static int __init test_hexdump_init(void)
 {
 	unsigned int i;
@@ -128,6 +167,12 @@ static int __init test_hexdump_init(void)
 	rowsize = (get_random_int() % 2 + 1) * 16;
 	for (i = 0; i < 16; i++)
 		test_hexdump_set(rowsize, true);
+
+	for (i = 0; i < 16; i++)
+		test_hexdump_overflow(false);
+
+	for (i = 0; i < 16; i++)
+		test_hexdump_overflow(true);
 
 	return -EINVAL;
 }
