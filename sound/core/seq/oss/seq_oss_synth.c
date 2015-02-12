@@ -98,8 +98,9 @@ snd_seq_oss_synth_init(void)
  * registration of the synth device
  */
 int
-snd_seq_oss_synth_register(struct snd_seq_device *dev)
+snd_seq_oss_synth_probe(struct device *_dev)
 {
+	struct snd_seq_device *dev = to_seq_dev(_dev);
 	int i;
 	struct seq_oss_synth *rec;
 	struct snd_seq_oss_reg *reg = SNDRV_SEQ_DEVICE_ARGPTR(dev);
@@ -149,8 +150,9 @@ snd_seq_oss_synth_register(struct snd_seq_device *dev)
 
 
 int
-snd_seq_oss_synth_unregister(struct snd_seq_device *dev)
+snd_seq_oss_synth_remove(struct device *_dev)
 {
+	struct snd_seq_device *dev = to_seq_dev(_dev);
 	int index;
 	struct seq_oss_synth *rec = dev->driver_data;
 	unsigned long flags;

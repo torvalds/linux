@@ -52,16 +52,6 @@ MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("ALSA sequencer device management");
 MODULE_LICENSE("GPL");
 
-struct snd_seq_driver {
-	struct device_driver driver;
-	const char *id;
-	int argsize;
-	struct snd_seq_dev_ops ops;
-};
-
-#define to_seq_drv(_drv) \
-	container_of(_drv, struct snd_seq_driver, driver)
-
 /*
  * bus definition
  */
@@ -263,86 +253,23 @@ int snd_seq_device_new(struct snd_card *card, int device, const char *id,
 EXPORT_SYMBOL(snd_seq_device_new);
 
 /*
- * driver binding - just pass to each driver callback
+ * driver registration
  */
-static int snd_seq_drv_probe(struct device *dev)
+int __snd_seq_driver_register(struct snd_seq_driver *drv, struct module *mod)
 {
-	struct snd_seq_driver *sdrv = to_seq_drv(dev->driver);
-	struct snd_seq_device *sdev = to_seq_dev(dev);
-
-	return sdrv->ops.init_device(sdev);
-}
-
-static int snd_seq_drv_remove(struct device *dev)
-{
-	struct snd_seq_driver *sdrv = to_seq_drv(dev->driver);
-	struct snd_seq_device *sdev = to_seq_dev(dev);
-
-	return sdrv->ops.free_device(sdev);
-}
-
-/*
- * register device driver
- * id = driver id
- * entry = driver operators - duplicated to each instance
- */
-int snd_seq_device_register_driver(const char *id,
-				   struct snd_seq_dev_ops *entry, int argsize)
-{
-	struct snd_seq_driver *sdrv;
-	int err;
-
-	if (id == NULL || entry == NULL ||
-	    entry->init_device == NULL || entry->free_device == NULL)
+	if (WARN_ON(!drv->driver.name || !drv->id))
 		return -EINVAL;
-
-	sdrv = kzalloc(sizeof(*sdrv), GFP_KERNEL);
-	if (!sdrv)
-		return -ENOMEM;
-
-	sdrv->driver.name = id;
-	sdrv->driver.bus = &snd_seq_bus_type;
-	sdrv->driver.probe = snd_seq_drv_probe;
-	sdrv->driver.remove = snd_seq_drv_remove;
-	sdrv->id = id;
-	sdrv->argsize = argsize;
-	sdrv->ops = *entry;
-
-	err = driver_register(&sdrv->driver);
-	if (err < 0)
-		kfree(sdrv);
-	return err;
+	drv->driver.bus = &snd_seq_bus_type;
+	drv->driver.owner = mod;
+	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL(snd_seq_device_register_driver);
+EXPORT_SYMBOL_GPL(__snd_seq_driver_register);
 
-/* callback to find a specific driver; data is a pointer to the id string ptr.
- * when the id matches, store the driver pointer in return and break the loop.
- */
-static int find_drv(struct device_driver *drv, void *data)
+void snd_seq_driver_unregister(struct snd_seq_driver *drv)
 {
-	struct snd_seq_driver *sdrv = to_seq_drv(drv);
-	void **ptr = (void **)data;
-
-	if (strcmp(sdrv->id, *ptr))
-		return 0; /* id don't match, continue the loop */
-	*ptr = sdrv;
-	return 1; /* break the loop */
+	driver_unregister(&drv->driver);
 }
-
-/*
- * unregister the specified driver
- */
-int snd_seq_device_unregister_driver(const char *id)
-{
-	struct snd_seq_driver *sdrv = (struct snd_seq_driver *)id;
-
-	if (!bus_for_each_drv(&snd_seq_bus_type, NULL, &sdrv, find_drv))
-		return -ENXIO;
-	driver_unregister(&sdrv->driver);
-	kfree(sdrv);
-	return 0;
-}
-EXPORT_SYMBOL(snd_seq_device_unregister_driver);
+EXPORT_SYMBOL_GPL(snd_seq_driver_unregister);
 
 /*
  * module part
