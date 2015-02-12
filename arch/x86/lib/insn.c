@@ -164,6 +164,12 @@ found:
 				/* VEX.W overrides opnd_size */
 				insn->opnd_bytes = 8;
 		} else {
+			/*
+			 * For VEX2, fake VEX3-like byte#2.
+			 * Makes it easier to decode vex.W, vex.vvvv,
+			 * vex.L and vex.pp. Masking with 0x7f sets vex.W == 0.
+			 */
+			insn->vex_prefix.bytes[2] = b2 & 0x7f;
 			insn->vex_prefix.nbytes = 2;
 			insn->next_byte += 2;
 		}
