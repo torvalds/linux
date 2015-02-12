@@ -21,6 +21,8 @@ Required properties:
 		"ti,omap3-scm"
 		"ti,omap4-scm-core"
 		"ti,omap4-scm-padconf-core"
+		"ti,omap5-scm-core"
+		"ti,omap5-scm-padconf-core"
 - reg:		Contains Control Module register address range
 		(base address and length)
 
