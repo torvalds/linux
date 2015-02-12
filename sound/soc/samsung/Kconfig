@@ -54,7 +54,7 @@ config SND_SOC_SAMSUNG_JIVE_WM8750
 config SND_SOC_SAMSUNG_SMDK_WM8580
 	tristate "SoC I2S Audio support for WM8580 on SMDK"
 	depends on SND_SOC_SAMSUNG && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110)
-	depends on REGMAP_I2C
+	depends on I2C
 	select SND_SOC_WM8580
 	select SND_SAMSUNG_I2S
 	help
@@ -146,17 +146,6 @@ config SND_SOC_SMARTQ
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8750
 
-config SND_SOC_GONI_AQUILA_WM8994
-	tristate "SoC I2S Audio support for AQUILA/GONI - WM8994"
-	depends on SND_SOC_SAMSUNG && (MACH_GONI || MACH_AQUILA)
-	depends on I2C=y
-	select SND_SAMSUNG_I2S
-	select MFD_WM8994
-	select SND_SOC_WM8994
-	help
-	  Say Y if you want to add support for SoC audio on goni or aquila
-	  with the WM8994.
-
 config SND_SOC_SAMSUNG_SMDK_SPDIF
 	tristate "SoC S/PDIF Audio support for SMDK"
 	depends on SND_SOC_SAMSUNG
@@ -167,7 +156,7 @@ config SND_SOC_SAMSUNG_SMDK_SPDIF
 config SND_SOC_SMDK_WM8580_PCM
 	tristate "SoC PCM Audio support for WM8580 on SMDK"
 	depends on SND_SOC_SAMSUNG && (MACH_SMDKV210 || MACH_SMDKC110)
-	depends on REGMAP_I2C
+	depends on I2C
 	select SND_SOC_WM8580
 	select SND_SAMSUNG_PCM
 	help

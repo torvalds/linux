@@ -140,7 +140,7 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 	}
 
 	if (S_ISDIR(path->dentry->d_inode->i_mode) &&
-	    (marks_ignored_mask & FS_ISDIR))
+	    !(marks_mask & FS_ISDIR & ~marks_ignored_mask))
 		return false;
 
 	if (event_mask & marks_mask & ~marks_ignored_mask)

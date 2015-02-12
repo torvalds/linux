@@ -167,7 +167,6 @@ MODULE_DEVICE_TABLE(of, ls_pcie_of_match);
 static struct platform_driver ls_pcie_driver = {
 	.driver = {
 		.name = "layerscape-pcie",
-		.owner = THIS_MODULE,
 		.of_match_table = ls_pcie_of_match,
 	},
 };

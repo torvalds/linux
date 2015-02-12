@@ -270,12 +270,12 @@ F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
 F:	include/linux/acpi.h
 F:	include/acpi/
-F:	Documentation/acpi
+F:	Documentation/acpi/
 F:	Documentation/ABI/testing/sysfs-bus-acpi
 F:	drivers/pci/*acpi*
 F:	drivers/pci/*/*acpi*
 F:	drivers/pci/*/*/*acpi*
-F:	tools/power/acpi
+F:	tools/power/acpi/
 
 ACPI COMPONENT ARCHITECTURE (ACPICA)
 M:	Robert Moore <robert.moore@intel.com>
@@ -563,6 +563,12 @@ S:	Odd Fixes
 L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
+ALTERA MAILBOX DRIVER
+M:	Ley Foon Tan <lftan@altera.com>
+L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/mailbox/mailbox-altera.c
+
 ALTERA TRIPLE SPEED ETHERNET DRIVER
 M:	Vince Bridgers <vbridger@opensource.altera.com>
 L:	netdev@vger.kernel.org
@@ -658,6 +664,13 @@ M:	Hans Verkuil <hans.verkuil@cisco.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/ad9389b*
+
+ANALOG DEVICES INC ADV7180 DRIVER
+M:	Lars-Peter Clausen <lars@metafoo.de>
+L:	linux-media@vger.kernel.org
+W:	http://ez.analog.com/community/linux-device-drivers
+S:	Supported
+F:	drivers/media/i2c/adv7180.c
 
 ANALOG DEVICES INC ADV7511 DRIVER
 M:	Hans Verkuil <hans.verkuil@cisco.com>
@@ -1586,6 +1599,7 @@ N:	xilinx
 F:	drivers/clocksource/cadence_ttc_timer.c
 F:	drivers/i2c/busses/i2c-cadence.c
 F:	drivers/mmc/host/sdhci-of-arasan.c
+F:	drivers/edac/synopsys_edac.c
 
 ARM SMMU DRIVER
 M:	Will Deacon <will.deacon@arm.com>
@@ -3212,6 +3226,7 @@ F:	Documentation/
 X:	Documentation/ABI/
 X:	Documentation/devicetree/
 X:	Documentation/[a-z][a-z]_[A-Z][A-Z]/
+T:	git git://git.lwn.net/linux-2.6.git docs-next
 
 DOUBLETALK DRIVER
 M:	"James R. Van Zandt" <jrv@vanzandt.mv.com>
@@ -3471,6 +3486,14 @@ M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained
 F:	drivers/tty/serial/dz.*
 
+E3X0 POWER BUTTON DRIVER
+M:	Moritz Fischer <moritz.fischer@ettus.com>
+L:	usrp-users@lists.ettus.com
+W:	http://www.ettus.com
+S:	Supported
+F:	drivers/input/misc/e3x0-button.c
+F:	Documentation/devicetree/bindings/input/e3x0-button.txt
+
 E4000 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
@@ -3512,6 +3535,8 @@ M:	Borislav Petkov <bp@alien8.de>
 M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
 L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git#for-next
+T:	git://git.kernel.org/pub/linux/kernel/git/mchehab/linux-edac.git#linux_next
 S:	Supported
 F:	Documentation/edac.txt
 F:	drivers/edac/
@@ -4952,6 +4977,16 @@ F:	Documentation/input/multi-touch-protocol.txt
 F:	drivers/input/input-mt.c
 K:	\b(ABS|SYN)_MT_
 
+INTEL ASoC BDW/HSW DRIVERS
+M:	Jie Yang <yang.jie@linux.intel.com>
+L:	alsa-devel@alsa-project.org
+S:	Supported
+F:	sound/soc/intel/sst-haswell*
+F:	sound/soc/intel/sst-dsp*
+F:	sound/soc/intel/sst-firmware.c
+F:	sound/soc/intel/broadwell.c
+F:	sound/soc/intel/haswell.c
+
 INTEL C600 SERIES SAS CONTROLLER DRIVER
 M:	Intel SCU Linux support <intel-linux-scu@intel.com>
 M:	Artur Paszkiewicz <artur.paszkiewicz@intel.com>
@@ -5839,6 +5874,21 @@ F:	Documentation/misc-devices/lis3lv02d
 F:	drivers/misc/lis3lv02d/
 F:	drivers/platform/x86/hp_accel.c
 
+LIVE PATCHING
+M:	Josh Poimboeuf <jpoimboe@redhat.com>
+M:	Seth Jennings <sjenning@redhat.com>
+M:	Jiri Kosina <jkosina@suse.cz>
+M:	Vojtech Pavlik <vojtech@suse.cz>
+S:	Maintained
+F:	kernel/livepatch/
+F:	include/linux/livepatch.h
+F:	arch/x86/include/asm/livepatch.h
+F:	arch/x86/kernel/livepatch.c
+F:	Documentation/ABI/testing/sysfs-kernel-livepatch
+F:	samples/livepatch/
+L:	live-patching@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/livepatching.git
+
 LLC (802.2)
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 S:	Maintained
@@ -6137,6 +6187,13 @@ F:	Documentation/devicetree/bindings/i2c/max6697.txt
 F:	drivers/hwmon/max6697.c
 F:	include/linux/platform_data/max6697.h
 
+MAXIM MUIC CHARGER DRIVERS FOR EXYNOS BASED BOARDS
+M:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+L:	linux-pm@vger.kernel.org
+S:	Supported
+F:	drivers/power/max14577_charger.c
+F:	drivers/power/max77693_charger.c
+
 MAXIRADIO FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
@@ -6166,14 +6223,6 @@ F:	include/uapi/linux/v4l2-*
 F:	include/uapi/linux/meye.h
 F:	include/uapi/linux/ivtv*
 F:	include/uapi/linux/uvcvideo.h
-
-MEDIAVISION PRO MOVIE STUDIO DRIVER
-M:	Hans Verkuil <hverkuil@xs4all.nl>
-L:	linux-media@vger.kernel.org
-T:	git git://linuxtv.org/media_tree.git
-W:	http://linuxtv.org
-S:	Odd Fixes
-F:	drivers/media/parport/pms*
 
 MEGARAID SCSI/SAS DRIVERS
 M:	Kashyap Desai <kashyap.desai@avagotech.com>
@@ -6728,6 +6777,7 @@ F:	Documentation/devicetree/bindings/net/nfc/
 
 NFS, SUNRPC, AND LOCKD CLIENTS
 M:	Trond Myklebust <trond.myklebust@primarydata.com>
+M:	Anna Schumaker <anna.schumaker@netapp.com>
 L:	linux-nfs@vger.kernel.org
 W:	http://client.linux-nfs.org
 T:	git git://git.linux-nfs.org/projects/trondmy/linux-nfs.git
@@ -7264,6 +7314,14 @@ F:	drivers/pci/
 F:	include/linux/pci*
 F:	arch/x86/pci/
 F:	arch/x86/kernel/quirks.c
+
+PCI DRIVER FOR ARM VERSATILE PLATFORM
+M:	Rob Herring <robh@kernel.org>
+L:	linux-pci@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/versatile.txt
+F:	drivers/pci/host/pci-versatile.c
 
 PCI DRIVER FOR APPLIEDMICRO XGENE
 M:	Tanmay Inamdar <tinamdar@apm.com>
@@ -7866,14 +7924,6 @@ T:	git git://github.com/KrasnikovEugene/wcn36xx.git
 S:	Supported
 F:	drivers/net/wireless/ath/wcn36xx/
 
-QUICKCAM PARALLEL PORT WEBCAMS
-M:	Hans Verkuil <hverkuil@xs4all.nl>
-L:	linux-media@vger.kernel.org
-T:	git git://linuxtv.org/media_tree.git
-W:	http://linuxtv.org
-S:	Odd Fixes
-F:	drivers/media/parport/*-qcam*
-
 RADOS BLOCK DEVICE (RBD)
 M:	Yehuda Sadeh <yehuda@inktank.com>
 M:	Sage Weil <sage@inktank.com>
@@ -8411,12 +8461,6 @@ F:	kernel/time/clocksource.c
 F:	kernel/time/time*.c
 F:	kernel/time/ntp.c
 
-TLG2300 VIDEO4LINUX-2 DRIVER
-M:	Huang Shijie <shijie8@gmail.com>
-M:	Hans Verkuil <hverkuil@xs4all.nl>
-S:	Odd Fixes
-F:	drivers/media/usb/tlg2300/
-
 SC1200 WDT DRIVER
 M:	Zwane Mwaikambo <zwanem@gmail.com>
 S:	Maintained
@@ -8782,6 +8826,15 @@ S:	Maintained
 F:	drivers/media/platform/davinci/
 F:	include/media/davinci/
 
+TI AM437X VPFE DRIVER
+M:	Lad, Prabhakar <prabhakar.csengg@gmail.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+T:	git git://linuxtv.org/mhadli/v4l-dvb-davinci_devices.git
+S:	Maintained
+F:	drivers/media/platform/am437x/
+
 SIS 190 ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
 L:	netdev@vger.kernel.org
@@ -8863,6 +8916,8 @@ F:	drivers/media/i2c/smiapp/
 F:	include/media/smiapp.h
 F:	drivers/media/i2c/smiapp-pll.c
 F:	drivers/media/i2c/smiapp-pll.h
+F:	include/uapi/linux/smiapp.h
+F:	Documentation/devicetree/bindings/media/i2c/nokia,smia.txt
 
 SMM665 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
@@ -8929,6 +8984,7 @@ SOFTLOGIC 6x10 MPEG CODEC
 M:	Bluecherry Maintainers <maintainers@bluecherrydvr.com>
 M:	Andrey Utkin <andrey.utkin@corp.bluecherry.net>
 M:	Andrey Utkin <andrey.krieger.utkin@gmail.com>
+M:	Ismael Luceno <ismael@iodev.co.uk>
 L:	linux-media@vger.kernel.org
 S:	Supported
 F:	drivers/media/pci/solo6x10/
@@ -9241,6 +9297,13 @@ F:	arch/m68k/sun3*/
 F:	arch/m68k/include/asm/sun3*
 F:	drivers/net/ethernet/i825xx/sun3*
 
+SUN4I LOW RES ADC ATTACHED TABLET KEYS DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/input/sun4i-lradc-keys.txt
+F:	drivers/input/keyboard/sun4i-lradc-keys.c
+
 SUNDANCE NETWORK DRIVER
 M:	Denis Kirjanov <kda@linux-powerpc.org>
 L:	netdev@vger.kernel.org
@@ -9249,7 +9312,6 @@ F:	drivers/net/ethernet/dlink/sundance.c
 
 SUPERH
 L:	linux-sh@vger.kernel.org
-W:	http://www.linux-sh.org
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
 S:	Orphan
 F:	Documentation/sh/
@@ -10674,6 +10736,7 @@ M:	Max Filippov <jcmvbkbc@gmail.com>
 L:	linux-xtensa@linux-xtensa.org
 S:	Maintained
 F:	drivers/spi/spi-xtensa-xtfpga.c
+F:	sound/soc/xtensa/xtfpga-i2s.c
 
 YAM DRIVER FOR AX.25
 M:	Jean-Paul Roubelat <jpr@f6fbb.org>

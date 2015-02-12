@@ -3477,7 +3477,8 @@ nfsd_break_deleg_cb(struct file_lock *fl)
 }
 
 static int
-nfsd_change_deleg_cb(struct file_lock **onlist, int arg, struct list_head *dispose)
+nfsd_change_deleg_cb(struct file_lock *onlist, int arg,
+		     struct list_head *dispose)
 {
 	if (arg & F_UNLCK)
 		return lease_modify(onlist, arg, dispose);
@@ -5556,10 +5557,11 @@ out_nfserr:
 static bool
 check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 {
-	struct file_lock **flpp;
+	struct file_lock *fl;
 	int status = false;
 	struct file *filp = find_any_file(fp);
 	struct inode *inode;
+	struct file_lock_context *flctx;
 
 	if (!filp) {
 		/* Any valid lock stateid should have some sort of access */
@@ -5568,15 +5570,18 @@ check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 	}
 
 	inode = file_inode(filp);
+	flctx = inode->i_flctx;
 
-	spin_lock(&inode->i_lock);
-	for (flpp = &inode->i_flock; *flpp != NULL; flpp = &(*flpp)->fl_next) {
-		if ((*flpp)->fl_owner == (fl_owner_t)lowner) {
-			status = true;
-			break;
+	if (flctx && !list_empty_careful(&flctx->flc_posix)) {
+		spin_lock(&flctx->flc_lock);
+		list_for_each_entry(fl, &flctx->flc_posix, fl_list) {
+			if (fl->fl_owner == (fl_owner_t)lowner) {
+				status = true;
+				break;
+			}
 		}
+		spin_unlock(&flctx->flc_lock);
 	}
-	spin_unlock(&inode->i_lock);
 	fput(filp);
 	return status;
 }

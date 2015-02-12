@@ -24,3 +24,5 @@ net_prio.txt
 	- Network priority cgroups details and usages.
 resource_counter.txt
 	- Resource Counter API.
+unified-hierarchy.txt
+	- Description the new/next cgroup interface.

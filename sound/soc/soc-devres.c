@@ -60,7 +60,7 @@ static void devm_platform_release(struct device *dev, void *res)
 /**
  * devm_snd_soc_register_platform - resource managed platform registration
  * @dev: Device used to manage platform
- * @platform: platform to register
+ * @platform_drv: platform to register
  *
  * Register a platform driver with automatic unregistration when the device is
  * unregistered.

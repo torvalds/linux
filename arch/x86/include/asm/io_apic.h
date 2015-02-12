@@ -279,6 +279,11 @@ static inline void disable_ioapic_support(void) { }
 #define native_ioapic_set_affinity	NULL
 #define native_setup_ioapic_entry	NULL
 #define native_eoi_ioapic_pin		NULL
+
+static inline void setup_IO_APIC(void) { }
+static inline void enable_IO_APIC(void) { }
+static inline void setup_ioapic_dest(void) { }
+
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */

@@ -428,4 +428,5 @@ EXPORT(sysn32_call_table)
 	PTR	sys_getrandom
 	PTR	sys_memfd_create
 	PTR	sys_bpf
+	PTR	compat_sys_execveat		/* 6320 */
 	.size	sysn32_call_table,.-sysn32_call_table

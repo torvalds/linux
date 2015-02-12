@@ -287,6 +287,13 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PE_SOFTWARE_STATE_S (1ul << (31 - 30)) /* Suspend */
 #define CXL_PE_SOFTWARE_STATE_T (1ul << (31 - 31)) /* Terminate */
 
+/****** CXL_PSL_RXCTL_An (Implementation Specific) **************************
+ * Controls AFU Hang Pulse, which sets the timeout for the AFU to respond to
+ * the PSL for any response (except MMIO). Timeouts will occur between 1x to 2x
+ * of the hang pulse frequency.
+ */
+#define CXL_PSL_RXCTL_AFUHP_4S      0x7000000000000000ULL
+
 /* SPA->sw_command_status */
 #define CXL_SPA_SW_CMD_MASK         0xffff000000000000ULL
 #define CXL_SPA_SW_CMD_TERMINATE    0x0001000000000000ULL
@@ -375,6 +382,10 @@ struct cxl_afu {
 	int slice;
 	int modes_supported;
 	int current_mode;
+	int crs_num;
+	u64 crs_len;
+	u64 crs_offset;
+	struct list_head crs;
 	enum prefault_modes prefault_mode;
 	bool psa;
 	bool pp_psa;
@@ -481,6 +492,8 @@ void cxl_release_one_irq(struct cxl *adapter, int hwirq);
 int cxl_alloc_irq_ranges(struct cxl_irq_ranges *irqs, struct cxl *adapter, unsigned int num);
 void cxl_release_irq_ranges(struct cxl_irq_ranges *irqs, struct cxl *adapter);
 int cxl_setup_irq(struct cxl *adapter, unsigned int hwirq, unsigned int virq);
+int cxl_update_image_control(struct cxl *adapter);
+int cxl_reset(struct cxl *adapter);
 
 /* common == phyp + powernv */
 struct cxl_process_element_common {
@@ -541,6 +554,15 @@ static inline void __iomem *_cxl_p2n_addr(struct cxl_afu *afu, cxl_p2n_reg_t reg
 	out_be64(_cxl_p2n_addr(afu, reg), val)
 #define cxl_p2n_read(afu, reg) \
 	in_be64(_cxl_p2n_addr(afu, reg))
+
+
+#define cxl_afu_cr_read64(afu, cr, off) \
+	in_le64((afu)->afu_desc_mmio + (afu)->crs_offset + ((cr) * (afu)->crs_len) + (off))
+#define cxl_afu_cr_read32(afu, cr, off) \
+	in_le32((afu)->afu_desc_mmio + (afu)->crs_offset + ((cr) * (afu)->crs_len) + (off))
+u16 cxl_afu_cr_read16(struct cxl_afu *afu, int cr, u64 off);
+u8 cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off);
+
 
 struct cxl_calls {
 	void (*cxl_slbia)(struct mm_struct *mm);

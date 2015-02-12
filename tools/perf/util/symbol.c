@@ -685,7 +685,7 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta,
 	struct machine *machine = kmaps->machine;
 	struct map *curr_map = map;
 	struct symbol *pos;
-	int count = 0, moved = 0;	
+	int count = 0, moved = 0;
 	struct rb_root *root = &dso->symbols[map->type];
 	struct rb_node *next = rb_first(root);
 	int kernel_range = 0;

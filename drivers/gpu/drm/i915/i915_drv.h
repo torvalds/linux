@@ -1698,6 +1698,9 @@ struct drm_i915_private {
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
 
+	/* hda/i915 audio component */
+	bool audio_component_registered;
+
 	uint32_t hw_context_size;
 	struct list_head context_list;
 
@@ -1779,6 +1782,11 @@ struct drm_i915_private {
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
 	return dev->dev_private;
+}
+
+static inline struct drm_i915_private *dev_to_i915(struct device *dev)
+{
+	return to_i915(dev_get_drvdata(dev));
 }
 
 /* Iterate over initialised rings */

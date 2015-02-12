@@ -725,16 +725,19 @@ static int psmouse_extensions(struct psmouse *psmouse,
 
 /* Always check for focaltech, this is safe as it uses pnp-id matching */
 	if (psmouse_do_detect(focaltech_detect, psmouse, set_properties) == 0) {
-		if (!set_properties || focaltech_init(psmouse) == 0) {
-			/*
-			 * Not supported yet, use bare protocol.
-			 * Note that we need to also restrict
-			 * psmouse_max_proto so that psmouse_initialize()
-			 * does not try to reset rate and resolution,
-			 * because even that upsets the device.
-			 */
-			psmouse_max_proto = PSMOUSE_PS2;
-			return PSMOUSE_PS2;
+		if (max_proto > PSMOUSE_IMEX) {
+			if (!set_properties || focaltech_init(psmouse) == 0) {
+				if (focaltech_supported())
+					return PSMOUSE_FOCALTECH;
+				/*
+				 * Note that we need to also restrict
+				 * psmouse_max_proto so that psmouse_initialize()
+				 * does not try to reset rate and resolution,
+				 * because even that upsets the device.
+				 */
+				psmouse_max_proto = PSMOUSE_PS2;
+				return PSMOUSE_PS2;
+			}
 		}
 	}
 
@@ -1063,6 +1066,15 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.alias		= "cortps",
 		.detect		= cortron_detect,
 	},
+#ifdef CONFIG_MOUSE_PS2_FOCALTECH
+	{
+		.type		= PSMOUSE_FOCALTECH,
+		.name		= "FocalTechPS/2",
+		.alias		= "focaltech",
+		.detect		= focaltech_detect,
+		.init		= focaltech_init,
+	},
+#endif
 	{
 		.type		= PSMOUSE_AUTO,
 		.name		= "auto",

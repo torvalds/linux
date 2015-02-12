@@ -1128,43 +1128,6 @@ static int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
 	return __get_user_pages(tsk, mm, start, 1, flags, page, NULL, NULL);
 }
 
-int kvm_get_user_page_io(struct task_struct *tsk, struct mm_struct *mm,
-			 unsigned long addr, bool write_fault,
-			 struct page **pagep)
-{
-	int npages;
-	int locked = 1;
-	int flags = FOLL_TOUCH | FOLL_HWPOISON |
-		    (pagep ? FOLL_GET : 0) |
-		    (write_fault ? FOLL_WRITE : 0);
-
-	/*
-	 * If retrying the fault, we get here *not* having allowed the filemap
-	 * to wait on the page lock. We should now allow waiting on the IO with
-	 * the mmap semaphore released.
-	 */
-	down_read(&mm->mmap_sem);
-	npages = __get_user_pages(tsk, mm, addr, 1, flags, pagep, NULL,
-				  &locked);
-	if (!locked) {
-		VM_BUG_ON(npages);
-
-		if (!pagep)
-			return 0;
-
-		/*
-		 * The previous call has now waited on the IO. Now we can
-		 * retry and complete. Pass TRIED to ensure we do not re
-		 * schedule async IO (see e.g. filemap_fault).
-		 */
-		down_read(&mm->mmap_sem);
-		npages = __get_user_pages(tsk, mm, addr, 1, flags | FOLL_TRIED,
-					  pagep, NULL, NULL);
-	}
-	up_read(&mm->mmap_sem);
-	return npages;
-}
-
 static inline int check_user_page_hwpoison(unsigned long addr)
 {
 	int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
@@ -1227,15 +1190,10 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 		npages = get_user_page_nowait(current, current->mm,
 					      addr, write_fault, page);
 		up_read(&current->mm->mmap_sem);
-	} else {
-		/*
-		 * By now we have tried gup_fast, and possibly async_pf, and we
-		 * are certainly not atomic. Time to retry the gup, allowing
-		 * mmap semaphore to be relinquished in the case of IO.
-		 */
-		npages = kvm_get_user_page_io(current, current->mm, addr,
-					      write_fault, page);
-	}
+	} else
+		npages = __get_user_pages_unlocked(current, current->mm, addr, 1,
+						   write_fault, 0, page,
+						   FOLL_TOUCH|FOLL_HWPOISON);
 	if (npages != 1)
 		return npages;
 

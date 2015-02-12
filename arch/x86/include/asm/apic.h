@@ -106,7 +106,14 @@ extern u32 native_safe_apic_wait_icr_idle(void);
 extern void native_apic_icr_write(u32 low, u32 id);
 extern u64 native_apic_icr_read(void);
 
-extern int x2apic_mode;
+static inline bool apic_is_x2apic_enabled(void)
+{
+	u64 msr;
+
+	if (rdmsrl_safe(MSR_IA32_APICBASE, &msr))
+		return false;
+	return msr & X2APIC_ENABLE;
+}
 
 #ifdef CONFIG_X86_X2APIC
 /*
@@ -169,48 +176,23 @@ static inline u64 native_x2apic_icr_read(void)
 	return val;
 }
 
+extern int x2apic_mode;
 extern int x2apic_phys;
-extern int x2apic_preenabled;
-extern void check_x2apic(void);
-extern void enable_x2apic(void);
+extern void __init check_x2apic(void);
+extern void x2apic_setup(void);
 static inline int x2apic_enabled(void)
 {
-	u64 msr;
-
-	if (!cpu_has_x2apic)
-		return 0;
-
-	rdmsrl(MSR_IA32_APICBASE, msr);
-	if (msr & X2APIC_ENABLE)
-		return 1;
-	return 0;
+	return cpu_has_x2apic && apic_is_x2apic_enabled();
 }
 
 #define x2apic_supported()	(cpu_has_x2apic)
-static inline void x2apic_force_phys(void)
-{
-	x2apic_phys = 1;
-}
 #else
-static inline void disable_x2apic(void)
-{
-}
-static inline void check_x2apic(void)
-{
-}
-static inline void enable_x2apic(void)
-{
-}
-static inline int x2apic_enabled(void)
-{
-	return 0;
-}
-static inline void x2apic_force_phys(void)
-{
-}
+static inline void check_x2apic(void) { }
+static inline void x2apic_setup(void) { }
+static inline int x2apic_enabled(void) { return 0; }
 
-#define	x2apic_preenabled 0
-#define	x2apic_supported()	0
+#define x2apic_mode		(0)
+#define	x2apic_supported()	(0)
 #endif
 
 extern void enable_IR_x2apic(void);
@@ -219,7 +201,6 @@ extern int get_physical_broadcast(void);
 
 extern int lapic_get_maxlvt(void);
 extern void clear_local_APIC(void);
-extern void connect_bsp_APIC(void);
 extern void disconnect_bsp_APIC(int virt_wire_setup);
 extern void disable_local_APIC(void);
 extern void lapic_shutdown(void);
@@ -227,14 +208,15 @@ extern int verify_local_APIC(void);
 extern void sync_Arb_IDs(void);
 extern void init_bsp_APIC(void);
 extern void setup_local_APIC(void);
-extern void end_local_APIC_setup(void);
-extern void bsp_end_local_APIC_setup(void);
 extern void init_apic_mappings(void);
 void register_lapic_address(unsigned long address);
 extern void setup_boot_APIC_clock(void);
 extern void setup_secondary_APIC_clock(void);
 extern int APIC_init_uniprocessor(void);
 extern int apic_force_enable(unsigned long addr);
+
+extern int apic_bsp_setup(bool upmode);
+extern void apic_ap_setup(void);
 
 /*
  * On 32bit this is mach-xxx local

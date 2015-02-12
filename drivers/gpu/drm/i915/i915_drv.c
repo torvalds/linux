@@ -934,8 +934,7 @@ static int i915_pm_suspend(struct device *dev)
 
 static int i915_pm_suspend_late(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	/*
 	 * We have a suspedn ordering issue with the snd-hda driver also
@@ -954,8 +953,7 @@ static int i915_pm_suspend_late(struct device *dev)
 
 static int i915_pm_resume_early(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -965,8 +963,7 @@ static int i915_pm_resume_early(struct device *dev)
 
 static int i915_pm_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;

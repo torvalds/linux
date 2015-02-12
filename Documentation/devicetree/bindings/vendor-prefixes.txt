@@ -54,6 +54,7 @@ epcos	EPCOS AG
 epfl	Ecole Polytechnique Fédérale de Lausanne
 epson	Seiko Epson Corp.
 est	ESTeem Wireless Modems
+ettus	NI Ettus Research
 eukrea  Eukréa Electromatique
 everest	Everest Semiconductor Co. Ltd.
 excito	Excito
@@ -142,6 +143,7 @@ sandisk	Sandisk Corporation
 sbs	Smart Battery System
 schindler	Schindler
 seagate	Seagate Technology PLC
+semtech	Semtech Corporation
 sil	Silicon Image
 silabs	Silicon Laboratories
 simtek

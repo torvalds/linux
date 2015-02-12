@@ -20,17 +20,16 @@
 void pci_add_resource_offset(struct list_head *resources, struct resource *res,
 			     resource_size_t offset)
 {
-	struct pci_host_bridge_window *window;
+	struct resource_entry *entry;
 
-	window = kzalloc(sizeof(struct pci_host_bridge_window), GFP_KERNEL);
-	if (!window) {
+	entry = resource_list_create_entry(res, 0);
+	if (!entry) {
 		printk(KERN_ERR "PCI: can't add host bridge window %pR\n", res);
 		return;
 	}
 
-	window->res = res;
-	window->offset = offset;
-	list_add_tail(&window->list, resources);
+	entry->offset = offset;
+	resource_list_add_tail(entry, resources);
 }
 EXPORT_SYMBOL(pci_add_resource_offset);
 
@@ -42,12 +41,7 @@ EXPORT_SYMBOL(pci_add_resource);
 
 void pci_free_resource_list(struct list_head *resources)
 {
-	struct pci_host_bridge_window *window, *tmp;
-
-	list_for_each_entry_safe(window, tmp, resources, list) {
-		list_del(&window->list);
-		kfree(window);
-	}
+	resource_list_free(resources);
 }
 EXPORT_SYMBOL(pci_free_resource_list);
 

@@ -369,9 +369,9 @@ int fb_find_mode_cvt(struct fb_videomode *mode, int margins, int rb)
 	cvt.h_back_porch = cvt.hblank/2 + cvt.h_margin;
 	cvt.h_front_porch = cvt.hblank - cvt.hsync - cvt.h_back_porch +
 		2 * cvt.h_margin;
-	cvt.v_back_porch = 3 + cvt.v_margin;
-	cvt.v_front_porch = cvt.vtotal - cvt.yres/cvt.interlace -
-	    cvt.v_back_porch - cvt.vsync;
+	cvt.v_front_porch = 3 + cvt.v_margin;
+	cvt.v_back_porch = cvt.vtotal - cvt.yres/cvt.interlace -
+	    cvt.v_front_porch - cvt.vsync;
 	fb_cvt_print_name(&cvt);
 	fb_cvt_convert_to_mode(&cvt, mode);
 

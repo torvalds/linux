@@ -395,6 +395,16 @@ config USB_GSPCA_TOPRO
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_topro.
 
+config USB_GSPCA_TOUPTEK
+	tristate "Touptek USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the ToupTek UCMOS
+	  / AmScope MU series camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_touptek.
+
 config USB_GSPCA_TV8532
 	tristate "TV8532 USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA

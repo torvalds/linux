@@ -227,9 +227,11 @@ static int rpm_reg_set_mV_sel(struct regulator_dev *rdev,
 		return uV;
 
 	mutex_lock(&vreg->lock);
-	vreg->uV = uV;
 	if (vreg->is_enabled)
-		ret = rpm_reg_write(vreg, req, vreg->uV / 1000);
+		ret = rpm_reg_write(vreg, req, uV / 1000);
+
+	if (!ret)
+		vreg->uV = uV;
 	mutex_unlock(&vreg->lock);
 
 	return ret;
@@ -252,9 +254,11 @@ static int rpm_reg_set_uV_sel(struct regulator_dev *rdev,
 		return uV;
 
 	mutex_lock(&vreg->lock);
-	vreg->uV = uV;
 	if (vreg->is_enabled)
-		ret = rpm_reg_write(vreg, req, vreg->uV);
+		ret = rpm_reg_write(vreg, req, uV);
+
+	if (!ret)
+		vreg->uV = uV;
 	mutex_unlock(&vreg->lock);
 
 	return ret;
@@ -674,6 +678,7 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	vreg->desc.owner = THIS_MODULE;
 	vreg->desc.type = REGULATOR_VOLTAGE;
 	vreg->desc.name = pdev->dev.of_node->name;
+	vreg->desc.supply_name = "vin";
 
 	vreg->rpm = dev_get_drvdata(pdev->dev.parent);
 	if (!vreg->rpm) {
@@ -768,7 +773,7 @@ static int rpm_reg_probe(struct platform_device *pdev)
 			break;
 		}
 
-		if (force_mode < 0) {
+		if (force_mode == -1) {
 			dev_err(&pdev->dev, "invalid force mode\n");
 			return -EINVAL;
 		}

@@ -1792,8 +1792,8 @@ static int octeon_dummy_write_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 static struct pci_ops octeon_pcie0_ops = {
-	octeon_pcie0_read_config,
-	octeon_pcie0_write_config,
+	.read = octeon_pcie0_read_config,
+	.write = octeon_pcie0_write_config,
 };
 
 static struct resource octeon_pcie0_mem_resource = {
@@ -1813,8 +1813,8 @@ static struct pci_controller octeon_pcie0_controller = {
 };
 
 static struct pci_ops octeon_pcie1_ops = {
-	octeon_pcie1_read_config,
-	octeon_pcie1_write_config,
+	.read = octeon_pcie1_read_config,
+	.write = octeon_pcie1_write_config,
 };
 
 static struct resource octeon_pcie1_mem_resource = {
@@ -1834,8 +1834,8 @@ static struct pci_controller octeon_pcie1_controller = {
 };
 
 static struct pci_ops octeon_dummy_ops = {
-	octeon_dummy_read_config,
-	octeon_dummy_write_config,
+	.read = octeon_dummy_read_config,
+	.write = octeon_dummy_write_config,
 };
 
 static struct resource octeon_dummy_mem_resource = {

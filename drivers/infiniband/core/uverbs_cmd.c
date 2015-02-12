@@ -400,52 +400,6 @@ err:
 	return ret;
 }
 
-static void copy_query_dev_fields(struct ib_uverbs_file *file,
-				  struct ib_uverbs_query_device_resp *resp,
-				  struct ib_device_attr *attr)
-{
-	resp->fw_ver		= attr->fw_ver;
-	resp->node_guid		= file->device->ib_dev->node_guid;
-	resp->sys_image_guid	= attr->sys_image_guid;
-	resp->max_mr_size	= attr->max_mr_size;
-	resp->page_size_cap	= attr->page_size_cap;
-	resp->vendor_id		= attr->vendor_id;
-	resp->vendor_part_id	= attr->vendor_part_id;
-	resp->hw_ver		= attr->hw_ver;
-	resp->max_qp		= attr->max_qp;
-	resp->max_qp_wr		= attr->max_qp_wr;
-	resp->device_cap_flags	= attr->device_cap_flags;
-	resp->max_sge		= attr->max_sge;
-	resp->max_sge_rd	= attr->max_sge_rd;
-	resp->max_cq		= attr->max_cq;
-	resp->max_cqe		= attr->max_cqe;
-	resp->max_mr		= attr->max_mr;
-	resp->max_pd		= attr->max_pd;
-	resp->max_qp_rd_atom	= attr->max_qp_rd_atom;
-	resp->max_ee_rd_atom	= attr->max_ee_rd_atom;
-	resp->max_res_rd_atom	= attr->max_res_rd_atom;
-	resp->max_qp_init_rd_atom	= attr->max_qp_init_rd_atom;
-	resp->max_ee_init_rd_atom	= attr->max_ee_init_rd_atom;
-	resp->atomic_cap		= attr->atomic_cap;
-	resp->max_ee			= attr->max_ee;
-	resp->max_rdd			= attr->max_rdd;
-	resp->max_mw			= attr->max_mw;
-	resp->max_raw_ipv6_qp		= attr->max_raw_ipv6_qp;
-	resp->max_raw_ethy_qp		= attr->max_raw_ethy_qp;
-	resp->max_mcast_grp		= attr->max_mcast_grp;
-	resp->max_mcast_qp_attach	= attr->max_mcast_qp_attach;
-	resp->max_total_mcast_qp_attach	= attr->max_total_mcast_qp_attach;
-	resp->max_ah			= attr->max_ah;
-	resp->max_fmr			= attr->max_fmr;
-	resp->max_map_per_fmr		= attr->max_map_per_fmr;
-	resp->max_srq			= attr->max_srq;
-	resp->max_srq_wr		= attr->max_srq_wr;
-	resp->max_srq_sge		= attr->max_srq_sge;
-	resp->max_pkeys			= attr->max_pkeys;
-	resp->local_ca_ack_delay	= attr->local_ca_ack_delay;
-	resp->phys_port_cnt		= file->device->ib_dev->phys_port_cnt;
-}
-
 ssize_t ib_uverbs_query_device(struct ib_uverbs_file *file,
 			       const char __user *buf,
 			       int in_len, int out_len)
@@ -466,7 +420,47 @@ ssize_t ib_uverbs_query_device(struct ib_uverbs_file *file,
 		return ret;
 
 	memset(&resp, 0, sizeof resp);
-	copy_query_dev_fields(file, &resp, &attr);
+
+	resp.fw_ver 		       = attr.fw_ver;
+	resp.node_guid 		       = file->device->ib_dev->node_guid;
+	resp.sys_image_guid 	       = attr.sys_image_guid;
+	resp.max_mr_size 	       = attr.max_mr_size;
+	resp.page_size_cap 	       = attr.page_size_cap;
+	resp.vendor_id 		       = attr.vendor_id;
+	resp.vendor_part_id 	       = attr.vendor_part_id;
+	resp.hw_ver 		       = attr.hw_ver;
+	resp.max_qp 		       = attr.max_qp;
+	resp.max_qp_wr 		       = attr.max_qp_wr;
+	resp.device_cap_flags 	       = attr.device_cap_flags;
+	resp.max_sge 		       = attr.max_sge;
+	resp.max_sge_rd 	       = attr.max_sge_rd;
+	resp.max_cq 		       = attr.max_cq;
+	resp.max_cqe 		       = attr.max_cqe;
+	resp.max_mr 		       = attr.max_mr;
+	resp.max_pd 		       = attr.max_pd;
+	resp.max_qp_rd_atom 	       = attr.max_qp_rd_atom;
+	resp.max_ee_rd_atom 	       = attr.max_ee_rd_atom;
+	resp.max_res_rd_atom 	       = attr.max_res_rd_atom;
+	resp.max_qp_init_rd_atom       = attr.max_qp_init_rd_atom;
+	resp.max_ee_init_rd_atom       = attr.max_ee_init_rd_atom;
+	resp.atomic_cap 	       = attr.atomic_cap;
+	resp.max_ee 		       = attr.max_ee;
+	resp.max_rdd 		       = attr.max_rdd;
+	resp.max_mw 		       = attr.max_mw;
+	resp.max_raw_ipv6_qp 	       = attr.max_raw_ipv6_qp;
+	resp.max_raw_ethy_qp 	       = attr.max_raw_ethy_qp;
+	resp.max_mcast_grp 	       = attr.max_mcast_grp;
+	resp.max_mcast_qp_attach       = attr.max_mcast_qp_attach;
+	resp.max_total_mcast_qp_attach = attr.max_total_mcast_qp_attach;
+	resp.max_ah 		       = attr.max_ah;
+	resp.max_fmr 		       = attr.max_fmr;
+	resp.max_map_per_fmr 	       = attr.max_map_per_fmr;
+	resp.max_srq 		       = attr.max_srq;
+	resp.max_srq_wr 	       = attr.max_srq_wr;
+	resp.max_srq_sge 	       = attr.max_srq_sge;
+	resp.max_pkeys 		       = attr.max_pkeys;
+	resp.local_ca_ack_delay        = attr.local_ca_ack_delay;
+	resp.phys_port_cnt	       = file->device->ib_dev->phys_port_cnt;
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp))
@@ -3292,53 +3286,4 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 		ret = -EFAULT;
 
 	return ret ? ret : in_len;
-}
-
-int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
-			      struct ib_udata *ucore,
-			      struct ib_udata *uhw)
-{
-	struct ib_uverbs_ex_query_device_resp resp;
-	struct ib_uverbs_ex_query_device  cmd;
-	struct ib_device_attr attr;
-	struct ib_device *device;
-	int err;
-
-	device = file->device->ib_dev;
-	if (ucore->inlen < sizeof(cmd))
-		return -EINVAL;
-
-	err = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
-	if (err)
-		return err;
-
-	if (cmd.reserved)
-		return -EINVAL;
-
-	err = device->query_device(device, &attr);
-	if (err)
-		return err;
-
-	memset(&resp, 0, sizeof(resp));
-	copy_query_dev_fields(file, &resp.base, &attr);
-	resp.comp_mask = 0;
-
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	if (cmd.comp_mask & IB_USER_VERBS_EX_QUERY_DEVICE_ODP) {
-		resp.odp_caps.general_caps = attr.odp_caps.general_caps;
-		resp.odp_caps.per_transport_caps.rc_odp_caps =
-			attr.odp_caps.per_transport_caps.rc_odp_caps;
-		resp.odp_caps.per_transport_caps.uc_odp_caps =
-			attr.odp_caps.per_transport_caps.uc_odp_caps;
-		resp.odp_caps.per_transport_caps.ud_odp_caps =
-			attr.odp_caps.per_transport_caps.ud_odp_caps;
-		resp.comp_mask |= IB_USER_VERBS_EX_QUERY_DEVICE_ODP;
-	}
-#endif
-
-	err = ib_copy_to_udata(ucore, &resp, sizeof(resp));
-	if (err)
-		return err;
-
-	return 0;
 }

@@ -643,12 +643,6 @@ static struct snd_pcm_ops sst_platform_ops = {
 	.pointer = sst_platform_pcm_pointer,
 };
 
-static void sst_pcm_free(struct snd_pcm *pcm)
-{
-	dev_dbg(pcm->dev, "sst_pcm_free called\n");
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = rtd->cpu_dai;
@@ -679,7 +673,6 @@ static struct snd_soc_platform_driver sst_soc_platform_drv  = {
 	.ops		= &sst_platform_ops,
 	.compr_ops	= &sst_platform_compr_ops,
 	.pcm_new	= sst_pcm_new,
-	.pcm_free	= sst_pcm_free,
 };
 
 static const struct snd_soc_component_driver sst_component = {

@@ -76,7 +76,6 @@ extern unsigned ata_exec_internal_sg(struct ata_device *dev,
 				     struct ata_taskfile *tf, const u8 *cdb,
 				     int dma_dir, struct scatterlist *sg,
 				     unsigned int n_elem, unsigned long timeout);
-extern unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd);
 extern int ata_wait_ready(struct ata_link *link, unsigned long deadline,
 			  int (*check_ready)(struct ata_link *link));
 extern int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,

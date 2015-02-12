@@ -63,8 +63,6 @@ extern atomic_t rdma_stat_rq_prod;
 extern atomic_t rdma_stat_sq_poll;
 extern atomic_t rdma_stat_sq_prod;
 
-#define RPCRDMA_VERSION 1
-
 /*
  * Contexts are built when an RDMA request is created and are a
  * record of the resources that can be recovered when the request

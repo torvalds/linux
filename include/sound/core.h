@@ -109,6 +109,7 @@ struct snd_card {
 								private data */
 	struct list_head devices;	/* devices */
 
+	struct device ctl_dev;		/* control device */
 	unsigned int last_numid;	/* last used numeric ID */
 	struct rw_semaphore controls_rwsem;	/* controls list lock */
 	rwlock_t ctl_files_rwlock;	/* ctl_files list lock */
@@ -131,6 +132,7 @@ struct snd_card {
 	struct completion *release_completion;
 	struct device *dev;		/* device assigned to this card */
 	struct device card_dev;		/* cardX object for sysfs */
+	const struct attribute_group *dev_groups[4]; /* assigned sysfs attr */
 	bool registered;		/* card_dev is registered? */
 
 #ifdef CONFIG_PM
@@ -206,43 +208,13 @@ extern struct class *sound_class;
 
 void snd_request_card(int card);
 
-int snd_register_device_for_dev(int type, struct snd_card *card,
-				int dev,
-				const struct file_operations *f_ops,
-				void *private_data,
-				const char *name,
-				struct device *device);
+void snd_device_initialize(struct device *dev, struct snd_card *card);
 
-/**
- * snd_register_device - Register the ALSA device file for the card
- * @type: the device type, SNDRV_DEVICE_TYPE_XXX
- * @card: the card instance
- * @dev: the device index
- * @f_ops: the file operations
- * @private_data: user pointer for f_ops->open()
- * @name: the device file name
- *
- * Registers an ALSA device file for the given card.
- * The operators have to be set in reg parameter.
- *
- * This function uses the card's device pointer to link to the
- * correct &struct device.
- *
- * Return: Zero if successful, or a negative error code on failure.
- */
-static inline int snd_register_device(int type, struct snd_card *card, int dev,
-				      const struct file_operations *f_ops,
-				      void *private_data,
-				      const char *name)
-{
-	return snd_register_device_for_dev(type, card, dev, f_ops,
-					   private_data, name,
-					   snd_card_get_device_link(card));
-}
-
-int snd_unregister_device(int type, struct snd_card *card, int dev);
+int snd_register_device(int type, struct snd_card *card, int dev,
+			const struct file_operations *f_ops,
+			void *private_data, struct device *device);
+int snd_unregister_device(struct device *dev);
 void *snd_lookup_minor_data(unsigned int minor, int type);
-struct device *snd_get_device(int type, struct snd_card *card, int dev);
 
 #ifdef CONFIG_SND_OSSEMUL
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
@@ -291,6 +263,8 @@ void snd_card_set_id(struct snd_card *card, const char *id);
 int snd_card_register(struct snd_card *card);
 int snd_card_info_init(void);
 int snd_card_info_done(void);
+int snd_card_add_dev_attr(struct snd_card *card,
+			  const struct attribute_group *group);
 int snd_component_add(struct snd_card *card, const char *component);
 int snd_card_file_add(struct snd_card *card, struct file *file);
 int snd_card_file_remove(struct snd_card *card, struct file *file);

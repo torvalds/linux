@@ -17,8 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 
-#include <asm/system_misc.h>
-
 #include <soc/at91/at91sam9_ddrsdr.h>
 #include <soc/at91/at91sam9_sdramc.h>
 
@@ -54,7 +52,8 @@ static void __iomem *at91_ramc_base[2], *at91_rstc_base;
 * reset register it can be left driving the data bus and
 * killing the chance of a subsequent boot from NAND
 */
-static void at91sam9260_restart(enum reboot_mode mode, const char *cmd)
+static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
+			       void *cmd)
 {
 	asm volatile(
 		/* Align to cache lines */
@@ -76,9 +75,12 @@ static void at91sam9260_restart(enum reboot_mode mode, const char *cmd)
 		  "r" (1),
 		  "r" (AT91_SDRAMC_LPCB_POWER_DOWN),
 		  "r" (AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST));
+
+	return NOTIFY_DONE;
 }
 
-static void at91sam9g45_restart(enum reboot_mode mode, const char *cmd)
+static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
+			       void *cmd)
 {
 	asm volatile(
 		/*
@@ -117,6 +119,8 @@ static void at91sam9g45_restart(enum reboot_mode mode, const char *cmd)
 		  "r" (AT91_DDRSDRC_LPCB_POWER_DOWN),
 		  "r" (AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST)
 		: "r0");
+
+	return NOTIFY_DONE;
 }
 
 static void __init at91_reset_status(struct platform_device *pdev)
@@ -161,6 +165,10 @@ static struct of_device_id at91_reset_of_match[] = {
 	{ /* sentinel */ }
 };
 
+static struct notifier_block at91_restart_nb = {
+	.priority = 192,
+};
+
 static int at91_reset_of_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -183,9 +191,8 @@ static int at91_reset_of_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
-	arm_pm_restart = match->data;
-
-	return 0;
+	at91_restart_nb.notifier_call = match->data;
+	return register_restart_handler(&at91_restart_nb);
 }
 
 static int at91_reset_platform_probe(struct platform_device *pdev)
@@ -212,10 +219,11 @@ static int at91_reset_platform_probe(struct platform_device *pdev)
 	}
 
 	match = platform_get_device_id(pdev);
-	arm_pm_restart = (void (*)(enum reboot_mode, const char*))
-		match->driver_data;
+	at91_restart_nb.notifier_call =
+		(int (*)(struct notifier_block *,
+			 unsigned long, void *)) match->driver_data;
 
-	return 0;
+	return register_restart_handler(&at91_restart_nb);
 }
 
 static int at91_reset_probe(struct platform_device *pdev)

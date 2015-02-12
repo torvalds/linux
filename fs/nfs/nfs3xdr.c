@@ -1636,6 +1636,7 @@ static int nfs3_xdr_dec_read3res(struct rpc_rqst *req, struct xdr_stream *xdr,
 	error = decode_post_op_attr(xdr, result->fattr);
 	if (unlikely(error))
 		goto out;
+	result->op_status = status;
 	if (status != NFS3_OK)
 		goto out_status;
 	error = decode_read3resok(xdr, result);
@@ -1708,6 +1709,7 @@ static int nfs3_xdr_dec_write3res(struct rpc_rqst *req, struct xdr_stream *xdr,
 	error = decode_wcc_data(xdr, result->fattr);
 	if (unlikely(error))
 		goto out;
+	result->op_status = status;
 	if (status != NFS3_OK)
 		goto out_status;
 	error = decode_write3resok(xdr, result);
@@ -2323,6 +2325,7 @@ static int nfs3_xdr_dec_commit3res(struct rpc_rqst *req,
 	error = decode_wcc_data(xdr, result->fattr);
 	if (unlikely(error))
 		goto out;
+	result->op_status = status;
 	if (status != NFS3_OK)
 		goto out_status;
 	error = decode_writeverf3(xdr, &result->verf->verifier);

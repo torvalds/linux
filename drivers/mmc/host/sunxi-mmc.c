@@ -252,7 +252,7 @@ static int sunxi_mmc_reset_host(struct sunxi_mmc_host *host)
 	unsigned long expire = jiffies + msecs_to_jiffies(250);
 	u32 rval;
 
-	mmc_writel(host, REG_CMDR, SDXC_HARDWARE_RESET);
+	mmc_writel(host, REG_GCTRL, SDXC_HARDWARE_RESET);
 	do {
 		rval = mmc_readl(host, REG_GCTRL);
 	} while (time_before(jiffies, expire) && (rval & SDXC_HARDWARE_RESET));
@@ -310,7 +310,9 @@ static void sunxi_mmc_init_idma_des(struct sunxi_mmc_host *host,
 	}
 
 	pdes[0].config |= SDXC_IDMAC_DES0_FD;
-	pdes[i - 1].config = SDXC_IDMAC_DES0_OWN | SDXC_IDMAC_DES0_LD;
+	pdes[i - 1].config |= SDXC_IDMAC_DES0_LD | SDXC_IDMAC_DES0_ER;
+	pdes[i - 1].config &= ~SDXC_IDMAC_DES0_DIC;
+	pdes[i - 1].buf_addr_ptr2 = 0;
 
 	/*
 	 * Avoid the io-store starting the idmac hitting io-mem before the
@@ -570,6 +572,15 @@ static irqreturn_t sunxi_mmc_handle_manual_stop(int irq, void *dev_id)
 	}
 
 	dev_err(mmc_dev(host->mmc), "data error, sending stop command\n");
+
+	/*
+	 * We will never have more than one outstanding request,
+	 * and we do not complete the request until after
+	 * we've cleared host->manual_stop_mrq so we do not need to
+	 * spin lock this function.
+	 * Additionally we have wait states within this function
+	 * so having it in a lock is a very bad idea.
+	 */
 	sunxi_mmc_send_manual_stop(host, mrq);
 
 	spin_lock_irqsave(&host->lock, iflags);
@@ -616,7 +627,7 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 				  struct mmc_ios *ios)
 {
-	u32 rate, oclk_dly, rval, sclk_dly, src_clk;
+	u32 rate, oclk_dly, rval, sclk_dly;
 	int ret;
 
 	rate = clk_round_rate(host->clk_mmc, ios->clock);
@@ -659,14 +670,6 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 		/* rate > 50000000 */
 		oclk_dly = 2;
 		sclk_dly = 4;
-	}
-
-	src_clk = clk_get_rate(clk_get_parent(host->clk_mmc));
-	if (src_clk >= 300000000 && src_clk <= 400000000) {
-		if (oclk_dly)
-			oclk_dly--;
-		if (sclk_dly)
-			sclk_dly--;
 	}
 
 	clk_sunxi_mmc_phase_control(host->clk_mmc, sclk_dly, oclk_dly);
@@ -766,6 +769,7 @@ static void sunxi_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	unsigned long iflags;
 	u32 imask = SDXC_INTERRUPT_ERROR_BIT;
 	u32 cmd_val = SDXC_START | (cmd->opcode & 0x3f);
+	bool wait_dma = host->wait_dma;
 	int ret;
 
 	/* Check for set_ios errors (should never happen) */
@@ -816,7 +820,7 @@ static void sunxi_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			if (cmd->data->flags & MMC_DATA_WRITE)
 				cmd_val |= SDXC_WRITE;
 			else
-				host->wait_dma = true;
+				wait_dma = true;
 		} else {
 			imask |= SDXC_COMMAND_DONE;
 		}
@@ -850,6 +854,7 @@ static void sunxi_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 	host->mrq = mrq;
+	host->wait_dma = wait_dma;
 	mmc_writel(host, REG_IMASK, host->sdio_imask | imask);
 	mmc_writel(host, REG_CARG, cmd->arg);
 	mmc_writel(host, REG_CMDR, cmd_val);

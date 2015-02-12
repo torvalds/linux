@@ -135,7 +135,6 @@ MODULE_DEVICE_TABLE(of, samsung_arndale_rt5631_of_match);
 static struct platform_driver arndale_audio_driver = {
 	.driver = {
 		.name   = "arndale-audio",
-		.owner  = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = of_match_ptr(samsung_arndale_rt5631_of_match),
 	},

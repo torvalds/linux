@@ -38,6 +38,25 @@ enum {
 	NFS_LSEG_VALID = 0,	/* cleared when lseg is recalled/returned */
 	NFS_LSEG_ROC,		/* roc bit received from server */
 	NFS_LSEG_LAYOUTCOMMIT,	/* layoutcommit bit set for layoutcommit */
+	NFS_LSEG_LAYOUTRETURN,	/* layoutreturn bit set for layoutreturn */
+};
+
+/* Individual ip address */
+struct nfs4_pnfs_ds_addr {
+	struct sockaddr_storage	da_addr;
+	size_t			da_addrlen;
+	struct list_head	da_node;  /* nfs4_pnfs_dev_hlist dev_dslist */
+	char			*da_remotestr;	/* human readable addr+port */
+};
+
+struct nfs4_pnfs_ds {
+	struct list_head	ds_node;  /* nfs4_pnfs_dev_hlist dev_dslist */
+	char			*ds_remotestr;	/* comma sep list of addrs */
+	struct list_head	ds_addrs;
+	struct nfs_client	*ds_clp;
+	atomic_t		ds_count;
+	unsigned long		ds_state;
+#define NFS4DS_CONNECTING	0	/* ds is establishing connection */
 };
 
 struct pnfs_layout_segment {
@@ -53,11 +72,23 @@ struct pnfs_layout_segment {
 enum pnfs_try_status {
 	PNFS_ATTEMPTED     = 0,
 	PNFS_NOT_ATTEMPTED = 1,
+	PNFS_TRY_AGAIN     = 2,
 };
 
 #ifdef CONFIG_NFS_V4_1
 
 #define LAYOUT_NFSV4_1_MODULE_PREFIX "nfs-layouttype4"
+
+/*
+ * Default data server connection timeout and retrans vaules.
+ * Set by module parameters dataserver_timeo and dataserver_retrans.
+ */
+#define NFS4_DEF_DS_TIMEO   600 /* in tenths of a second */
+#define NFS4_DEF_DS_RETRANS 5
+
+/* error codes for internal use */
+#define NFS4ERR_RESET_TO_MDS   12001
+#define NFS4ERR_RESET_TO_PNFS  12002
 
 enum {
 	NFS_LAYOUT_RO_FAILED = 0,	/* get ro layout failed stop trying */
@@ -65,7 +96,10 @@ enum {
 	NFS_LAYOUT_BULK_RECALL,		/* bulk recall affecting layout */
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
 	NFS_LAYOUT_RETURN,		/* Return this layout ASAP */
+	NFS_LAYOUT_RETURN_BEFORE_CLOSE,	/* Return this layout before close */
 	NFS_LAYOUT_INVALID_STID,	/* layout stateid id is invalid */
+	NFS_LAYOUT_FIRST_LAYOUTGET,	/* Serialize first layoutget */
+	NFS_LAYOUT_RETRY_LAYOUTGET,	/* Retry layoutget */
 };
 
 enum layoutdriver_policy_flags {
@@ -106,7 +140,8 @@ struct pnfs_layoutdriver_type {
 	struct pnfs_ds_commit_info *(*get_ds_info) (struct inode *inode);
 	void (*mark_request_commit) (struct nfs_page *req,
 				     struct pnfs_layout_segment *lseg,
-				     struct nfs_commit_info *cinfo);
+				     struct nfs_commit_info *cinfo,
+				     u32 ds_commit_idx);
 	void (*clear_request_commit) (struct nfs_page *req,
 				      struct nfs_commit_info *cinfo);
 	int (*scan_commit_lists) (struct nfs_commit_info *cinfo,
@@ -154,6 +189,7 @@ struct pnfs_layout_hdr {
 	u32			plh_barrier; /* ignore lower seqids */
 	unsigned long		plh_retry_timestamp;
 	unsigned long		plh_flags;
+	enum pnfs_iomode	plh_return_iomode;
 	loff_t			plh_lwb; /* last write byte for layoutcommit */
 	struct rpc_cred		*plh_lc_cred; /* layoutcommit cred */
 	struct inode		*plh_inode;
@@ -185,7 +221,7 @@ extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 				   struct pnfs_device *dev,
 				   struct rpc_cred *cred);
 extern struct pnfs_layout_segment* nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags);
-extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
+extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync);
 
 /* pnfs.c */
 void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
@@ -198,6 +234,7 @@ void pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *, struct nfs_page *
 int pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
 void pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
 			        struct nfs_page *req, u64 wb_size);
+void pnfs_generic_pg_cleanup(struct nfs_pageio_descriptor *);
 int pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc);
 size_t pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio,
 			    struct nfs_page *prev, struct nfs_page *req);
@@ -217,6 +254,7 @@ void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     bool update_barrier);
 int pnfs_choose_layoutget_stateid(nfs4_stateid *dst,
 				  struct pnfs_layout_hdr *lo,
+				  struct pnfs_layout_range *range,
 				  struct nfs4_state *open_state);
 int pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
@@ -233,17 +271,21 @@ int _pnfs_return_layout(struct inode *);
 int pnfs_commit_and_return_layout(struct inode *);
 void pnfs_ld_write_done(struct nfs_pgio_header *);
 void pnfs_ld_read_done(struct nfs_pgio_header *);
+int pnfs_read_resend_pnfs(struct nfs_pgio_header *);
 struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       struct nfs_open_context *ctx,
 					       loff_t pos,
 					       u64 count,
 					       enum pnfs_iomode iomode,
 					       gfp_t gfp_flags);
+void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo);
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
 int pnfs_read_done_resend_to_mds(struct nfs_pgio_header *);
 int pnfs_write_done_resend_to_mds(struct nfs_pgio_header *);
 struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
+void pnfs_error_mark_layout_for_return(struct inode *inode,
+				       struct pnfs_layout_segment *lseg);
 
 /* nfs4_deviceid_flags */
 enum {
@@ -275,11 +317,64 @@ void nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node);
 bool nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
 
+/* pnfs_nfs.c */
+void pnfs_generic_clear_request_commit(struct nfs_page *req,
+				       struct nfs_commit_info *cinfo);
+void pnfs_generic_commit_release(void *calldata);
+void pnfs_generic_prepare_to_resend_writes(struct nfs_commit_data *data);
+void pnfs_generic_rw_release(void *data);
+void pnfs_generic_recover_commit_reqs(struct list_head *dst,
+				      struct nfs_commit_info *cinfo);
+int pnfs_generic_commit_pagelist(struct inode *inode,
+				 struct list_head *mds_pages,
+				 int how,
+				 struct nfs_commit_info *cinfo,
+				 int (*initiate_commit)(struct nfs_commit_data *data,
+							int how));
+int pnfs_generic_scan_commit_lists(struct nfs_commit_info *cinfo, int max);
+void pnfs_generic_write_commit_done(struct rpc_task *task, void *data);
+void nfs4_pnfs_ds_put(struct nfs4_pnfs_ds *ds);
+struct nfs4_pnfs_ds *nfs4_pnfs_ds_add(struct list_head *dsaddrs,
+				      gfp_t gfp_flags);
+void nfs4_pnfs_v3_ds_connect_unload(void);
+void nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
+			  struct nfs4_deviceid_node *devid, unsigned int timeo,
+			  unsigned int retrans, u32 version, u32 minor_version,
+			  rpc_authflavor_t au_flavor);
+struct nfs4_pnfs_ds_addr *nfs4_decode_mp_ds_addr(struct net *net,
+						 struct xdr_stream *xdr,
+						 gfp_t gfp_flags);
+
+static inline bool nfs_have_layout(struct inode *inode)
+{
+	return NFS_I(inode)->layout != NULL;
+}
+
 static inline struct nfs4_deviceid_node *
 nfs4_get_deviceid(struct nfs4_deviceid_node *d)
 {
 	atomic_inc(&d->ref);
 	return d;
+}
+
+static inline void pnfs_set_retry_layoutget(struct pnfs_layout_hdr *lo)
+{
+	if (!test_and_set_bit(NFS_LAYOUT_RETRY_LAYOUTGET, &lo->plh_flags))
+		atomic_inc(&lo->plh_refcount);
+}
+
+static inline void pnfs_clear_retry_layoutget(struct pnfs_layout_hdr *lo)
+{
+	if (test_and_clear_bit(NFS_LAYOUT_RETRY_LAYOUTGET, &lo->plh_flags)) {
+		atomic_dec(&lo->plh_refcount);
+		/* wake up waiters for LAYOUTRETURN as that is not needed */
+		wake_up_bit(&lo->plh_flags, NFS_LAYOUT_RETURN);
+	}
+}
+
+static inline bool pnfs_should_retry_layoutget(struct pnfs_layout_hdr *lo)
+{
+	return test_bit(NFS_LAYOUT_RETRY_LAYOUTGET, &lo->plh_flags);
 }
 
 static inline struct pnfs_layout_segment *
@@ -317,16 +412,22 @@ pnfs_get_ds_info(struct inode *inode)
 	return ld->get_ds_info(inode);
 }
 
+static inline void
+pnfs_generic_mark_devid_invalid(struct nfs4_deviceid_node *node)
+{
+	set_bit(NFS_DEVICEID_INVALID, &node->flags);
+}
+
 static inline bool
 pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
-			 struct nfs_commit_info *cinfo)
+			 struct nfs_commit_info *cinfo, u32 ds_commit_idx)
 {
 	struct inode *inode = req->wb_context->dentry->d_inode;
 	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
 
 	if (lseg == NULL || ld->mark_request_commit == NULL)
 		return false;
-	ld->mark_request_commit(req, lseg, cinfo);
+	ld->mark_request_commit(req, lseg, cinfo, ds_commit_idx);
 	return true;
 }
 
@@ -350,15 +451,6 @@ pnfs_scan_commit_lists(struct inode *inode, struct nfs_commit_info *cinfo,
 		return 0;
 	else
 		return NFS_SERVER(inode)->pnfs_curr_ld->scan_commit_lists(cinfo, max);
-}
-
-static inline void
-pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
-			 struct nfs_commit_info *cinfo)
-{
-	if (cinfo->ds == NULL || cinfo->ds->nwritten == 0)
-		return;
-	NFS_SERVER(inode)->pnfs_curr_ld->recover_commit_reqs(list, cinfo);
 }
 
 static inline struct nfs_page *
@@ -426,6 +518,11 @@ static inline void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id)
 }
 #endif /* NFS_DEBUG */
 #else  /* CONFIG_NFS_V4_1 */
+
+static inline bool nfs_have_layout(struct inode *inode)
+{
+	return false;
+}
 
 static inline void pnfs_destroy_all_layouts(struct nfs_client *clp)
 {
@@ -513,7 +610,7 @@ pnfs_get_ds_info(struct inode *inode)
 
 static inline bool
 pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
-			 struct nfs_commit_info *cinfo)
+			 struct nfs_commit_info *cinfo, u32 ds_commit_idx)
 {
 	return false;
 }
@@ -529,12 +626,6 @@ pnfs_scan_commit_lists(struct inode *inode, struct nfs_commit_info *cinfo,
 		       int max)
 {
 	return 0;
-}
-
-static inline void
-pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
-			 struct nfs_commit_info *cinfo)
-{
 }
 
 static inline struct nfs_page *
@@ -566,6 +657,10 @@ pnfs_layoutcommit_outstanding(struct inode *inode)
 static inline struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 {
 	return NULL;
+}
+
+static inline void nfs4_pnfs_v3_ds_connect_unload(void)
+{
 }
 
 #endif /* CONFIG_NFS_V4_1 */

@@ -31,6 +31,7 @@ struct mn88472_dev {
 	u16 i2c_wr_max;
 	fe_delivery_system_t delivery_system;
 	bool warm; /* FW running */
+	u32 xtal;
 };
 
 #endif
