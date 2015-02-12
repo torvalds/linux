@@ -28,11 +28,10 @@ int string_get_size(u64 size, const enum string_size_units units,
 		    char *buf, int len)
 {
 	static const char *const units_10[] = {
-		"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB", NULL
+		"B", "kB", "MB", "GB", "TB", "PB", "EB"
 	};
 	static const char *const units_2[] = {
-		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB",
-		NULL
+		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"
 	};
 	static const char *const *const units_str[] = {
 		[STRING_UNITS_10] = units_10,
@@ -49,7 +48,7 @@ int string_get_size(u64 size, const enum string_size_units units,
 	tmp[0] = '\0';
 	i = 0;
 	if (size >= divisor[units]) {
-		while (size >= divisor[units] && units_str[units][i]) {
+		while (size >= divisor[units]) {
 			remainder = do_div(size, divisor[units]);
 			i++;
 		}
