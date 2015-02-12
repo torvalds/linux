@@ -77,7 +77,7 @@ extern void paging_init(void);
  */
 
 #define USER_PTRS_PER_PGD       (TASK_SIZE/PGDIR_SIZE)
-#define FIRST_USER_ADDRESS      0
+#define FIRST_USER_ADDRESS      0UL
 
 /*
  * Kernels own virtual memory area.

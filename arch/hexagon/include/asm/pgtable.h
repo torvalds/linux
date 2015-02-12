@@ -171,7 +171,7 @@ extern unsigned long _dflt_cache_att;
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];  /* located in head.S */
 
 /* Seems to be zero even in architectures where the zero page is firewalled? */
-#define FIRST_USER_ADDRESS 0
+#define FIRST_USER_ADDRESS 0UL
 #define pte_special(pte)	0
 #define pte_mkspecial(pte)	(pte)
 

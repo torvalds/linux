@@ -211,7 +211,7 @@
  * No special requirements for lowest virtual address we permit any user space
  * mapping to be mapped at.
  */
-#define FIRST_USER_ADDRESS      0
+#define FIRST_USER_ADDRESS      0UL
 
 
 /****************************************************************

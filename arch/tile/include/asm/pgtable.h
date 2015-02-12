@@ -67,7 +67,7 @@ extern void pgtable_cache_init(void);
 extern void paging_init(void);
 extern void set_page_homes(void);
 
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 
 #define _PAGE_PRESENT           HV_PTE_PRESENT
 #define _PAGE_HUGE_PAGE         HV_PTE_PAGE
