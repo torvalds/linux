@@ -8,12 +8,12 @@
  * published by the Free Software Foundation.
  */
 
-&scrm_clocks {
+&scm_clocks {
 	mcbsp3_mux_fck: mcbsp3_mux_fck {
 		#clock-cells = <0>;
 		compatible = "ti,composite-mux-clock";
 		clocks = <&func_96m_ck>, <&mcbsp_clks>;
-		reg = <0x02e8>;
+		reg = <0x78>;
 	};
 
 	mcbsp3_fck: mcbsp3_fck {
@@ -27,7 +27,7 @@
 		compatible = "ti,composite-mux-clock";
 		clocks = <&func_96m_ck>, <&mcbsp_clks>;
 		ti,bit-shift = <2>;
-		reg = <0x02e8>;
+		reg = <0x78>;
 	};
 
 	mcbsp4_fck: mcbsp4_fck {
@@ -41,7 +41,7 @@
 		compatible = "ti,composite-mux-clock";
 		clocks = <&func_96m_ck>, <&mcbsp_clks>;
 		ti,bit-shift = <4>;
-		reg = <0x02e8>;
+		reg = <0x78>;
 	};
 
 	mcbsp5_fck: mcbsp5_fck {

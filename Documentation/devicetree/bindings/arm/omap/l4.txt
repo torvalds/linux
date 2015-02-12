@@ -1,0 +1,17 @@
+L4 interconnect bindings
+
+These bindings describe the OMAP SoCs L4 interconnect bus.
+
+Required properties:
+- compatible : Should be "ti,omap2-l4" for OMAP2 family l4 core bus
+	       Should be "ti,omap2-l4-wkup" for OMAP2 family l4 wkup bus
+- ranges : contains the IO map range for the bus
+
+Examples:
+
+l4: l4@48000000 {
+	compatible "ti,omap2-l4", "simple-bus";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0 0x48000000 0x100000>;
+};
