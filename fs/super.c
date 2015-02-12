@@ -91,14 +91,17 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
 	/*
 	 * prune the dcache first as the icache is pinned by it, then
 	 * prune the icache, followed by the filesystem specific caches
+	 *
+	 * Ensure that we always scan at least one object - memcg kmem
+	 * accounting uses this to fully empty the caches.
 	 */
-	sc->nr_to_scan = dentries;
+	sc->nr_to_scan = dentries + 1;
 	freed = prune_dcache_sb(sb, sc);
-	sc->nr_to_scan = inodes;
+	sc->nr_to_scan = inodes + 1;
 	freed += prune_icache_sb(sb, sc);
 
 	if (fs_objects) {
-		sc->nr_to_scan = fs_objects;
+		sc->nr_to_scan = fs_objects + 1;
 		freed += sb->s_op->free_cached_objects(sb, sc);
 	}
 
