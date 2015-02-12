@@ -238,7 +238,7 @@ int regulator_get_current_limit(struct regulator *regulator);
 
 int regulator_set_mode(struct regulator *regulator, unsigned int mode);
 unsigned int regulator_get_mode(struct regulator *regulator);
-int regulator_set_optimum_mode(struct regulator *regulator, int load_uA);
+int regulator_set_load(struct regulator *regulator, int load_uA);
 
 int regulator_allow_bypass(struct regulator *regulator, bool allow);
 
@@ -479,8 +479,7 @@ static inline unsigned int regulator_get_mode(struct regulator *regulator)
 	return REGULATOR_MODE_NORMAL;
 }
 
-static inline int regulator_set_optimum_mode(struct regulator *regulator,
-					int load_uA)
+static inline int regulator_set_load(struct regulator *regulator, int load_uA)
 {
 	return REGULATOR_MODE_NORMAL;
 }
@@ -553,6 +552,13 @@ static inline int regulator_is_supported_voltage_tol(struct regulator *regulator
 	return regulator_is_supported_voltage(regulator,
 					      target_uV - tol_uV,
 					      target_uV + tol_uV);
+}
+
+/* TEMP: Wrapper to keep bisectability */
+static inline int regulator_set_optimum_mode(struct regulator *regulator,
+					     int load_uA)
+{
+	return regulator_set_load(regulator, load_uA);
 }
 
 #endif

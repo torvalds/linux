@@ -2994,7 +2994,7 @@ unsigned int regulator_get_mode(struct regulator *regulator)
 EXPORT_SYMBOL_GPL(regulator_get_mode);
 
 /**
- * regulator_set_optimum_mode - set regulator optimum operating mode
+ * regulator_set_load - set regulator load
  * @regulator: regulator source
  * @uA_load: load current
  *
@@ -3017,9 +3017,9 @@ EXPORT_SYMBOL_GPL(regulator_get_mode);
  * DRMS will sum the total requested load on the regulator and change
  * to the most efficient operating mode if platform constraints allow.
  *
- * Returns the new regulator mode or error.
+ * On error a negative errno is returned.
  */
-int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
+int regulator_set_load(struct regulator *regulator, int uA_load)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret;
@@ -3031,7 +3031,7 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(regulator_set_optimum_mode);
+EXPORT_SYMBOL_GPL(regulator_set_load);
 
 /**
  * regulator_allow_bypass - allow the regulator to go into bypass mode
