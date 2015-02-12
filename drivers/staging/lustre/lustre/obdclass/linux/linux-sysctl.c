@@ -79,6 +79,7 @@ enum {
 };
 
 
+#ifdef CONFIG_SYSCTL
 static int proc_set_timeout(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -258,7 +259,6 @@ static int proc_alloc_fail_rate(struct ctl_table *table, int write,
 	return rc;
 }
 
-#ifdef CONFIG_SYSCTL
 static struct ctl_table obd_table[] = {
 	{
 		.procname = "timeout",
