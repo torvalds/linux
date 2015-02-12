@@ -744,10 +744,10 @@ EXPORT_SYMBOL(bitmap_parselist_user);
 /**
  * bitmap_pos_to_ord - find ordinal of set bit at given position in bitmap
  *	@buf: pointer to a bitmap
- *	@pos: a bit position in @buf (0 <= @pos < @bits)
- *	@bits: number of valid bit positions in @buf
+ *	@pos: a bit position in @buf (0 <= @pos < @nbits)
+ *	@nbits: number of valid bit positions in @buf
  *
- * Map the bit at position @pos in @buf (of length @bits) to the
+ * Map the bit at position @pos in @buf (of length @nbits) to the
  * ordinal of which set bit it is.  If it is not set or if @pos
  * is not a valid bit position, map to -1.
  *
@@ -759,22 +759,12 @@ EXPORT_SYMBOL(bitmap_parselist_user);
  *
  * The bit positions 0 through @bits are valid positions in @buf.
  */
-static int bitmap_pos_to_ord(const unsigned long *buf, int pos, int bits)
+static int bitmap_pos_to_ord(const unsigned long *buf, unsigned int pos, unsigned int nbits)
 {
-	int i, ord;
-
-	if (pos < 0 || pos >= bits || !test_bit(pos, buf))
+	if (pos >= nbits || !test_bit(pos, buf))
 		return -1;
 
-	i = find_first_bit(buf, bits);
-	ord = 0;
-	while (i < pos) {
-		i = find_next_bit(buf, bits, i + 1);
-	     	ord++;
-	}
-	BUG_ON(i != pos);
-
-	return ord;
+	return __bitmap_weight(buf, pos);
 }
 
 /**
