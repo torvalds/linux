@@ -98,19 +98,8 @@ static void snd_seq_device_info(struct snd_info_entry *entry,
  */
 
 #ifdef CONFIG_MODULES
-/* avoid auto-loading during module_init() */
+/* flag to block auto-loading */
 static atomic_t snd_seq_in_init = ATOMIC_INIT(1); /* blocked as default */
-void snd_seq_autoload_lock(void)
-{
-	atomic_inc(&snd_seq_in_init);
-}
-EXPORT_SYMBOL(snd_seq_autoload_lock);
-
-void snd_seq_autoload_unlock(void)
-{
-	atomic_dec(&snd_seq_in_init);
-}
-EXPORT_SYMBOL(snd_seq_autoload_unlock);
 
 static int request_seq_drv(struct device *dev, void *data)
 {
@@ -146,6 +135,12 @@ void snd_seq_autoload_init(void)
 #endif
 }
 EXPORT_SYMBOL(snd_seq_autoload_init);
+
+void snd_seq_autoload_exit(void)
+{
+	atomic_inc(&snd_seq_in_init);
+}
+EXPORT_SYMBOL(snd_seq_autoload_exit);
 
 void snd_seq_device_load_drivers(void)
 {

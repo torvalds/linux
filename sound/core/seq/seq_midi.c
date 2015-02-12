@@ -469,20 +469,4 @@ static struct snd_seq_driver seq_midisynth_driver = {
 	.argsize = 0,
 };
 
-static int __init alsa_seq_midi_init(void)
-{
-	int err;
-
-	snd_seq_autoload_lock();
-	err = snd_seq_driver_register(&seq_midisynth_driver);
-	snd_seq_autoload_unlock();
-	return err;
-}
-
-static void __exit alsa_seq_midi_exit(void)
-{
-	snd_seq_driver_unregister(&seq_midisynth_driver);
-}
-
-module_init(alsa_seq_midi_init)
-module_exit(alsa_seq_midi_exit)
+module_snd_seq_driver(seq_midisynth_driver);

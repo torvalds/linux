@@ -79,7 +79,6 @@ static int __init alsa_seq_oss_init(void)
 {
 	int rc;
 
-	snd_seq_autoload_lock();
 	if ((rc = register_device()) < 0)
 		goto error;
 	if ((rc = register_proc()) < 0) {
@@ -104,7 +103,6 @@ static int __init alsa_seq_oss_init(void)
 	snd_seq_oss_synth_init();
 
  error:
-	snd_seq_autoload_unlock();
 	return rc;
 }
 
