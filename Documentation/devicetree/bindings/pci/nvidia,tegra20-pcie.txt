@@ -1,10 +1,10 @@
 NVIDIA Tegra PCIe controller
 
 Required properties:
-- compatible: Must be one of:
-  - "nvidia,tegra20-pcie"
-  - "nvidia,tegra30-pcie"
-  - "nvidia,tegra124-pcie"
+- compatible: For Tegra20, must contain "nvidia,tegra20-pcie".  For Tegra30,
+  "nvidia,tegra30-pcie".  For Tegra124, must contain "nvidia,tegra124-pcie".
+  Otherwise, must contain "nvidia,<chip>-pcie", plus one of the above, where
+  <chip> is tegra132 or tegra210.
 - device_type: Must be "pci"
 - reg: A list of physical base address and length for each set of controller
   registers. Must contain an entry for each entry in the reg-names property.
