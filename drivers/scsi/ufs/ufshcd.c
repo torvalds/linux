@@ -4225,22 +4225,15 @@ static struct scsi_host_template ufshcd_driver_template = {
 static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,
 				   int ua)
 {
-	int ret = 0;
-	struct regulator *reg = vreg->reg;
-	const char *name = vreg->name;
+	int ret;
 
-	BUG_ON(!vreg);
+	if (!vreg)
+		return 0;
 
-	ret = regulator_set_optimum_mode(reg, ua);
-	if (ret >= 0) {
-		/*
-		 * regulator_set_optimum_mode() returns new regulator
-		 * mode upon success.
-		 */
-		ret = 0;
-	} else {
-		dev_err(dev, "%s: %s set optimum mode(ua=%d) failed, err=%d\n",
-				__func__, name, ua, ret);
+	ret = regulator_set_load(vreg->reg, ua);
+	if (ret < 0) {
+		dev_err(dev, "%s: %s set load (ua=%d) failed, err=%d\n",
+				__func__, vreg->name, ua, ret);
 	}
 
 	return ret;
@@ -4249,18 +4242,12 @@ static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,
 static inline int ufshcd_config_vreg_lpm(struct ufs_hba *hba,
 					 struct ufs_vreg *vreg)
 {
-	if (!vreg)
-		return 0;
-
 	return ufshcd_config_vreg_load(hba->dev, vreg, UFS_VREG_LPM_LOAD_UA);
 }
 
 static inline int ufshcd_config_vreg_hpm(struct ufs_hba *hba,
 					 struct ufs_vreg *vreg)
 {
-	if (!vreg)
-		return 0;
-
 	return ufshcd_config_vreg_load(hba->dev, vreg, vreg->max_uA);
 }
 
