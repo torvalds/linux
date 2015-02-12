@@ -1749,10 +1749,6 @@ static irqreturn_t usba_vbus_irq(int irq, void *devid)
 
 	spin_lock(&udc->lock);
 
-	/* May happen if Vbus pin toggles during probe() */
-	if (!udc->driver)
-		goto out;
-
 	vbus = vbus_is_present(udc);
 	if (vbus != udc->vbus_prev) {
 		if (vbus) {
@@ -1773,7 +1769,6 @@ static irqreturn_t usba_vbus_irq(int irq, void *devid)
 		udc->vbus_prev = vbus;
 	}
 
-out:
 	spin_unlock(&udc->lock);
 
 	return IRQ_HANDLED;
@@ -2113,6 +2108,8 @@ static int usba_udc_probe(struct platform_device *pdev)
 
 	if (gpio_is_valid(udc->vbus_pin)) {
 		if (!devm_gpio_request(&pdev->dev, udc->vbus_pin, "atmel_usba_udc")) {
+			irq_set_status_flags(gpio_to_irq(udc->vbus_pin),
+					IRQ_NOAUTOEN);
 			ret = devm_request_irq(&pdev->dev,
 					gpio_to_irq(udc->vbus_pin),
 					usba_vbus_irq, 0,
@@ -2122,8 +2119,6 @@ static int usba_udc_probe(struct platform_device *pdev)
 				dev_warn(&udc->pdev->dev,
 					 "failed to request vbus irq; "
 					 "assuming always on\n");
-			} else {
-				disable_irq(gpio_to_irq(udc->vbus_pin));
 			}
 		} else {
 			/* gpio_request fail so use -EINVAL for gpio_is_valid */
