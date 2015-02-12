@@ -34,7 +34,7 @@ static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
 
 	lo = 0;
 	hi = mddev->raid_disks - 1;
-	conf = rcu_dereference(mddev->private);
+	conf = mddev->private;
 
 	/*
 	 * Binary Search
@@ -60,18 +60,16 @@ static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
  *
  *	Return amount of bytes we can take at this offset
  */
-static int linear_mergeable_bvec(struct request_queue *q,
+static int linear_mergeable_bvec(struct mddev *mddev,
 				 struct bvec_merge_data *bvm,
 				 struct bio_vec *biovec)
 {
-	struct mddev *mddev = q->queuedata;
 	struct dev_info *dev0;
 	unsigned long maxsectors, bio_sectors = bvm->bi_size >> 9;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 	int maxbytes = biovec->bv_len;
 	struct request_queue *subq;
 
-	rcu_read_lock();
 	dev0 = which_dev(mddev, sector);
 	maxsectors = dev0->end_sector - sector;
 	subq = bdev_get_queue(dev0->rdev->bdev);
@@ -81,7 +79,6 @@ static int linear_mergeable_bvec(struct request_queue *q,
 		maxbytes = min(maxbytes, subq->merge_bvec_fn(subq, bvm,
 							     biovec));
 	}
-	rcu_read_unlock();
 
 	if (maxsectors < bio_sectors)
 		maxsectors = 0;
@@ -97,24 +94,18 @@ static int linear_mergeable_bvec(struct request_queue *q,
 		return maxsectors << 9;
 }
 
-static int linear_congested(void *data, int bits)
+static int linear_congested(struct mddev *mddev, int bits)
 {
-	struct mddev *mddev = data;
 	struct linear_conf *conf;
 	int i, ret = 0;
 
-	if (mddev_congested(mddev, bits))
-		return 1;
-
-	rcu_read_lock();
-	conf = rcu_dereference(mddev->private);
+	conf = mddev->private;
 
 	for (i = 0; i < mddev->raid_disks && !ret ; i++) {
 		struct request_queue *q = bdev_get_queue(conf->disks[i].rdev->bdev);
 		ret |= bdi_congested(&q->backing_dev_info, bits);
 	}
 
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -123,12 +114,10 @@ static sector_t linear_size(struct mddev *mddev, sector_t sectors, int raid_disk
 	struct linear_conf *conf;
 	sector_t array_sectors;
 
-	rcu_read_lock();
-	conf = rcu_dereference(mddev->private);
+	conf = mddev->private;
 	WARN_ONCE(sectors || raid_disks,
 		  "%s does not support generic reshape\n", __func__);
 	array_sectors = conf->array_sectors;
-	rcu_read_unlock();
 
 	return array_sectors;
 }
@@ -217,10 +206,6 @@ static int linear_run (struct mddev *mddev)
 	mddev->private = conf;
 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
 
-	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
-	mddev->queue->backing_dev_info.congested_fn = linear_congested;
-	mddev->queue->backing_dev_info.congested_data = mddev;
-
 	ret =  md_integrity_register(mddev);
 	if (ret) {
 		kfree(conf);
@@ -252,38 +237,23 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 	if (!newconf)
 		return -ENOMEM;
 
-	oldconf = rcu_dereference_protected(mddev->private,
-					    lockdep_is_held(
-						    &mddev->reconfig_mutex));
+	mddev_suspend(mddev);
+	oldconf = mddev->private;
 	mddev->raid_disks++;
-	rcu_assign_pointer(mddev->private, newconf);
+	mddev->private = newconf;
 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
 	set_capacity(mddev->gendisk, mddev->array_sectors);
+	mddev_resume(mddev);
 	revalidate_disk(mddev->gendisk);
-	kfree_rcu(oldconf, rcu);
+	kfree(oldconf);
 	return 0;
 }
 
-static int linear_stop (struct mddev *mddev)
+static void linear_free(struct mddev *mddev, void *priv)
 {
-	struct linear_conf *conf =
-		rcu_dereference_protected(mddev->private,
-					  lockdep_is_held(
-						  &mddev->reconfig_mutex));
+	struct linear_conf *conf = priv;
 
-	/*
-	 * We do not require rcu protection here since
-	 * we hold reconfig_mutex for both linear_add and
-	 * linear_stop, so they cannot race.
-	 * We should make sure any old 'conf's are properly
-	 * freed though.
-	 */
-	rcu_barrier();
-	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf);
-	mddev->private = NULL;
-
-	return 0;
 }
 
 static void linear_make_request(struct mddev *mddev, struct bio *bio)
@@ -299,15 +269,11 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 	}
 
 	do {
-		rcu_read_lock();
-
 		tmp_dev = which_dev(mddev, bio->bi_iter.bi_sector);
 		start_sector = tmp_dev->end_sector - tmp_dev->rdev->sectors;
 		end_sector = tmp_dev->end_sector;
 		data_offset = tmp_dev->rdev->data_offset;
 		bio->bi_bdev = tmp_dev->rdev->bdev;
-
-		rcu_read_unlock();
 
 		if (unlikely(bio->bi_iter.bi_sector >= end_sector ||
 			     bio->bi_iter.bi_sector < start_sector))
@@ -355,6 +321,10 @@ static void linear_status (struct seq_file *seq, struct mddev *mddev)
 	seq_printf(seq, " %dk rounding", mddev->chunk_sectors / 2);
 }
 
+static void linear_quiesce(struct mddev *mddev, int state)
+{
+}
+
 static struct md_personality linear_personality =
 {
 	.name		= "linear",
@@ -362,10 +332,13 @@ static struct md_personality linear_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= linear_make_request,
 	.run		= linear_run,
-	.stop		= linear_stop,
+	.free		= linear_free,
 	.status		= linear_status,
 	.hot_add_disk	= linear_add,
 	.size		= linear_size,
+	.quiesce	= linear_quiesce,
+	.congested	= linear_congested,
+	.mergeable_bvec	= linear_mergeable_bvec,
 };
 
 static int __init linear_init (void)
