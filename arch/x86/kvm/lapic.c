@@ -133,6 +133,14 @@ static inline int kvm_apic_id(struct kvm_lapic *apic)
 	return (kvm_apic_get_reg(apic, APIC_ID) >> 24) & 0xff;
 }
 
+/* The logical map is definitely wrong if we have multiple
+ * modes at the same time.  (Physical map is always right.)
+ */
+static inline bool kvm_apic_logical_map_valid(struct kvm_apic_map *map)
+{
+	return !(map->mode & (map->mode - 1));
+}
+
 static void recalculate_apic_map(struct kvm *kvm)
 {
 	struct kvm_apic_map *new, *old = NULL;
@@ -162,16 +170,19 @@ static void recalculate_apic_map(struct kvm *kvm)
 			new->ldr_bits = 32;
 			new->cid_shift = 16;
 			new->cid_mask = new->lid_mask = 0xffff;
+			new->mode |= KVM_APIC_MODE_X2APIC;
 		} else if (kvm_apic_get_reg(apic, APIC_LDR)) {
 			if (kvm_apic_get_reg(apic, APIC_DFR) ==
 							APIC_DFR_CLUSTER) {
 				new->cid_shift = 4;
 				new->cid_mask = 0xf;
 				new->lid_mask = 0xf;
+				new->mode |= KVM_APIC_MODE_XAPIC_CLUSTER;
 			} else {
 				new->cid_shift = 8;
 				new->cid_mask = 0;
 				new->lid_mask = 0xff;
+				new->mode |= KVM_APIC_MODE_XAPIC_FLAT;
 			}
 		}
 
@@ -201,6 +212,10 @@ static void recalculate_apic_map(struct kvm *kvm)
 
 		if (aid < ARRAY_SIZE(new->phys_map))
 			new->phys_map[aid] = apic;
+
+		if (!kvm_apic_logical_map_valid(new));
+			continue;
+
 		if (lid && cid < ARRAY_SIZE(new->logical_map))
 			new->logical_map[cid][ffs(lid) - 1] = apic;
 	}
@@ -718,7 +733,14 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 		dst = &map->phys_map[irq->dest_id];
 	} else {
 		u32 mda = irq->dest_id << (32 - map->ldr_bits);
-		u16 cid = apic_cluster_id(map, mda);
+		u16 cid;
+
+		if (!kvm_apic_logical_map_valid(map)) {
+			ret = false;
+			goto out;
+		}
+
+		cid = apic_cluster_id(map, mda);
 
 		if (cid >= ARRAY_SIZE(map->logical_map))
 			goto out;
