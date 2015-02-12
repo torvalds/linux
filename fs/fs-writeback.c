@@ -66,15 +66,21 @@ int writeback_in_progress(struct backing_dev_info *bdi)
 }
 EXPORT_SYMBOL(writeback_in_progress);
 
-static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
+struct backing_dev_info *inode_to_bdi(struct inode *inode)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb;
 
+	if (!inode)
+		return &noop_backing_dev_info;
+
+	sb = inode->i_sb;
+#ifdef CONFIG_BLOCK
 	if (sb_is_blkdev_sb(sb))
-		return inode->i_mapping->backing_dev_info;
-
+		return blk_get_backing_dev_info(I_BDEV(inode));
+#endif
 	return sb->s_bdi;
 }
+EXPORT_SYMBOL_GPL(inode_to_bdi);
 
 static inline struct inode *wb_inode(struct list_head *head)
 {

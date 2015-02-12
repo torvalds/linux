@@ -108,8 +108,6 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 	inode->i_mtime = inode->i_atime = inode->i_ctime =
 			 ubifs_current_time(inode);
 	inode->i_mapping->nrpages = 0;
-	/* Disable readahead */
-	inode->i_mapping->backing_dev_info = &c->bdi;
 
 	switch (mode & S_IFMT) {
 	case S_IFREG:

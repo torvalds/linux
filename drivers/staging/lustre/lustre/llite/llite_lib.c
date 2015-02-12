@@ -987,7 +987,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	if (err)
 		goto out_free;
 	lsi->lsi_flags |= LSI_BDI_INITIALIZED;
-	lsi->lsi_bdi.capabilities = BDI_CAP_MAP_COPY;
+	lsi->lsi_bdi.capabilities = 0;
 	err = ll_bdi_register(&lsi->lsi_bdi);
 	if (err)
 		goto out_free;
@@ -1811,10 +1811,6 @@ void ll_read_inode2(struct inode *inode, void *opaque)
 	ll_update_inode(inode, md);
 
 	/* OIDEBUG(inode); */
-
-	/* initializing backing dev info. */
-	inode->i_mapping->backing_dev_info = &s2lsi(inode->i_sb)->lsi_bdi;
-
 
 	if (S_ISREG(inode->i_mode)) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
