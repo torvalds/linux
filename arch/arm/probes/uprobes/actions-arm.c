@@ -13,9 +13,9 @@
 #include <linux/uprobes.h>
 #include <linux/module.h>
 
-#include "probes.h"
-#include "probes-arm.h"
-#include "uprobes.h"
+#include "../decode.h"
+#include "../decode-arm.h"
+#include "core.h"
 
 static int uprobes_substitute_pc(unsigned long *pinsn, u32 oregs)
 {
@@ -195,8 +195,6 @@ uprobe_decode_ldmstm(probes_opcode_t insn,
 }
 
 const union decode_action uprobes_probes_actions[] = {
-	[PROBES_EMULATE_NONE] = {.handler = probes_simulate_nop},
-	[PROBES_SIMULATE_NOP] = {.handler = probes_simulate_nop},
 	[PROBES_PRELOAD_IMM] = {.handler = probes_simulate_nop},
 	[PROBES_PRELOAD_REG] = {.handler = probes_simulate_nop},
 	[PROBES_BRANCH_IMM] = {.handler = simulate_blx1},

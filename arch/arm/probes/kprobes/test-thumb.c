@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/kprobes-test-thumb.c
+ * arch/arm/probes/kprobes/test-thumb.c
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
  *
@@ -11,8 +11,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <asm/opcodes.h>
+#include <asm/probes.h>
 
-#include "kprobes-test.h"
+#include "test-core.h"
 
 
 #define TEST_ISA "16"
@@ -416,6 +417,9 @@ void kprobe_thumb32_test_cases(void)
 	TEST_RR( "strd	r",14,VAL2,", r",12,VAL1,", [sp, #16]!")
 	TEST_RRP("strd	r",1, VAL1,", r",0, VAL2,", [r",7, 24,"], #16")
 	TEST_RR( "strd	r",7, VAL2,", r",8, VAL1,", [sp], #-16")
+	TEST_RRP("strd	r",6, VAL1,", r",7, VAL2,", [r",13, TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"]!")
+	TEST_UNSUPPORTED("strd r6, r7, [r13, #-"__stringify(MAX_STACK_SIZE)"-8]!")
+	TEST_RRP("strd	r",4, VAL1,", r",5, VAL2,", [r",14, TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"-8]!")
 	TEST_UNSUPPORTED(__inst_thumb32(0xe9efec04) "	@ strd	r14, r12, [pc, #16]!")
 	TEST_UNSUPPORTED(__inst_thumb32(0xe8efec04) "	@ strd	r14, r12, [pc], #16")
 
@@ -774,8 +778,8 @@ CONDITION_INSTRUCTIONS(22,
 
 	TEST_UNSUPPORTED("subs	pc, lr, #4")
 
-	TEST("mrs	r0, cpsr")
-	TEST("mrs	r14, cpsr")
+	TEST_RMASKED("mrs	r",0,~PSR_IGNORE_BITS,", cpsr")
+	TEST_RMASKED("mrs	r",14,~PSR_IGNORE_BITS,", cpsr")
 	TEST_UNSUPPORTED(__inst_thumb32(0xf3ef8d00) "	@ mrs	sp, spsr")
 	TEST_UNSUPPORTED(__inst_thumb32(0xf3ef8f00) "	@ mrs	pc, spsr")
 	TEST_UNSUPPORTED("mrs	r0, spsr")
@@ -821,13 +825,21 @@ CONDITION_INSTRUCTIONS(22,
 	TEST_RP( "str"size"	r",14,VAL2,", [r",1, 256,  ", #-128]!")		\
 	TEST_RPR("str"size".w	r",0, VAL1,", [r",1, 0,", r",2, 4,"]")		\
 	TEST_RPR("str"size"	r",14,VAL2,", [r",10,0,", r",11,4,", lsl #1]")	\
+	TEST_UNSUPPORTED("str"size"	r0, [r13, r1]")				\
 	TEST_R(  "str"size".w	r",7, VAL1,", [sp, #24]")			\
 	TEST_RP( "str"size".w	r",0, VAL2,", [r",0,0, "]")			\
+	TEST_RP( "str"size"	r",6, VAL1,", [r",13, TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"]!") \
+	TEST_UNSUPPORTED("str"size"	r6, [r13, #-"__stringify(MAX_STACK_SIZE)"-8]!")			\
+	TEST_RP( "str"size"	r",4, VAL2,", [r",12, TEST_MEMORY_SIZE,", #-"__stringify(MAX_STACK_SIZE)"-8]!") \
 	TEST_UNSUPPORTED("str"size"t	r0, [r1, #4]")
 
 	SINGLE_STORE("b")
 	SINGLE_STORE("h")
 	SINGLE_STORE("")
+
+	TEST_UNSUPPORTED(__inst_thumb32(0xf801000d) "	@ strb	r0, [r1, r13]")
+	TEST_UNSUPPORTED(__inst_thumb32(0xf821000d) "	@ strh	r0, [r1, r13]")
+	TEST_UNSUPPORTED(__inst_thumb32(0xf841000d) "	@ str	r0, [r1, r13]")
 
 	TEST("str	sp, [sp]")
 	TEST_UNSUPPORTED(__inst_thumb32(0xf8cfe000) "	@ str	r14, [pc]")

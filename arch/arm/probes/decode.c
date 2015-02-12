@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/probes.c
+ * arch/arm/probes/decode.c
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
  *
@@ -17,7 +17,7 @@
 #include <asm/ptrace.h>
 #include <linux/bug.h>
 
-#include "probes.h"
+#include "decode.h"
 
 
 #ifndef find_str_pc_offset
@@ -342,6 +342,31 @@ static const int decode_struct_sizes[NUM_DECODE_TYPES] = {
 	[DECODE_TYPE_REJECT]	= sizeof(struct decode_reject)
 };
 
+static int run_checkers(const struct decode_checker *checkers[],
+		int action, probes_opcode_t insn,
+		struct arch_probes_insn *asi,
+		const struct decode_header *h)
+{
+	const struct decode_checker **p;
+
+	if (!checkers)
+		return INSN_GOOD;
+
+	p = checkers;
+	while (*p != NULL) {
+		int retval;
+		probes_check_t *checker_func = (*p)[action].checker;
+
+		retval = INSN_GOOD;
+		if (checker_func)
+			retval = checker_func(insn, asi, h);
+		if (retval == INSN_REJECTED)
+			return retval;
+		p++;
+	}
+	return INSN_GOOD;
+}
+
 /*
  * probes_decode_insn operates on data tables in order to decode an ARM
  * architecture instruction onto which a kprobe has been placed.
@@ -388,11 +413,34 @@ static const int decode_struct_sizes[NUM_DECODE_TYPES] = {
 int __kprobes
 probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 		   const union decode_item *table, bool thumb,
-		   bool emulate, const union decode_action *actions)
+		   bool emulate, const union decode_action *actions,
+		   const struct decode_checker *checkers[])
 {
 	const struct decode_header *h = (struct decode_header *)table;
 	const struct decode_header *next;
 	bool matched = false;
+	/*
+	 * @insn can be modified by decode_regs. Save its original
+	 * value for checkers.
+	 */
+	probes_opcode_t origin_insn = insn;
+
+	/*
+	 * stack_space is initialized to 0 here. Checker functions
+	 * should update is value if they find this is a stack store
+	 * instruction: positive value means bytes of stack usage,
+	 * negitive value means unable to determine stack usage
+	 * statically. For instruction doesn't store to stack, checker
+	 * do nothing with it.
+	 */
+	asi->stack_space = 0;
+
+	/*
+	 * Similarly to stack_space, register_usage_flags is filled by
+	 * checkers. Its default value is set to ~0, which is 'all
+	 * registers are used', to prevent any potential optimization.
+	 */
+	asi->register_usage_flags = ~0UL;
 
 	if (emulate)
 		insn = prepare_emulated_insn(insn, asi, thumb);
@@ -422,24 +470,41 @@ probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 		}
 
 		case DECODE_TYPE_CUSTOM: {
+			int err;
 			struct decode_custom *d = (struct decode_custom *)h;
-			return actions[d->decoder.action].decoder(insn, asi, h);
+			int action = d->decoder.action;
+
+			err = run_checkers(checkers, action, origin_insn, asi, h);
+			if (err == INSN_REJECTED)
+				return INSN_REJECTED;
+			return actions[action].decoder(insn, asi, h);
 		}
 
 		case DECODE_TYPE_SIMULATE: {
+			int err;
 			struct decode_simulate *d = (struct decode_simulate *)h;
-			asi->insn_handler = actions[d->handler.action].handler;
+			int action = d->handler.action;
+
+			err = run_checkers(checkers, action, origin_insn, asi, h);
+			if (err == INSN_REJECTED)
+				return INSN_REJECTED;
+			asi->insn_handler = actions[action].handler;
 			return INSN_GOOD_NO_SLOT;
 		}
 
 		case DECODE_TYPE_EMULATE: {
+			int err;
 			struct decode_emulate *d = (struct decode_emulate *)h;
+			int action = d->handler.action;
+
+			err = run_checkers(checkers, action, origin_insn, asi, h);
+			if (err == INSN_REJECTED)
+				return INSN_REJECTED;
 
 			if (!emulate)
-				return actions[d->handler.action].decoder(insn,
-					asi, h);
+				return actions[action].decoder(insn, asi, h);
 
-			asi->insn_handler = actions[d->handler.action].handler;
+			asi->insn_handler = actions[action].handler;
 			set_emulated_insn(insn, asi, thumb);
 			return INSN_GOOD;
 		}

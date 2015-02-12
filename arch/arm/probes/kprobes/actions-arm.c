@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/kprobes-decode.c
+ * arch/arm/probes/kprobes/actions-arm.c
  *
  * Copyright (C) 2006, 2007 Motorola Inc.
  *
@@ -62,8 +62,9 @@
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
 
-#include "kprobes.h"
-#include "probes-arm.h"
+#include "../decode-arm.h"
+#include "core.h"
+#include "checkers.h"
 
 #if  __LINUX_ARM_ARCH__ >= 6
 #define BLX(reg)	"blx	"reg"		\n\t"
@@ -302,8 +303,6 @@ emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(probes_opcode_t insn,
 }
 
 const union decode_action kprobes_arm_actions[NUM_PROBES_ARM_ACTIONS] = {
-	[PROBES_EMULATE_NONE] = {.handler = probes_emulate_none},
-	[PROBES_SIMULATE_NOP] = {.handler = probes_simulate_nop},
 	[PROBES_PRELOAD_IMM] = {.handler = probes_simulate_nop},
 	[PROBES_PRELOAD_REG] = {.handler = probes_simulate_nop},
 	[PROBES_BRANCH_IMM] = {.handler = simulate_blx1},
@@ -341,3 +340,5 @@ const union decode_action kprobes_arm_actions[NUM_PROBES_ARM_ACTIONS] = {
 	[PROBES_BRANCH] = {.handler = simulate_bbl},
 	[PROBES_LDMSTM] = {.decoder = kprobe_decode_ldmstm}
 };
+
+const struct decode_checker *kprobes_arm_checkers[] = {arm_stack_checker, arm_regs_checker, NULL};

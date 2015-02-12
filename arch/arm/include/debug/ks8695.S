@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-ks8695/include/mach/debug-macro.S
+ * arch/arm/include/debug/ks8695.S
  *
  * Copyright (C) 2006 Ben Dooks <ben@simtec.co.uk>
  * Copyright (C) 2006 Simtec Electronics
@@ -11,8 +11,12 @@
  * published by the Free Software Foundation.
  */
 
-#include <mach/hardware.h>
-#include <mach/regs-uart.h>
+#define KS8695_UART_PA	0x03ffe000
+#define KS8695_UART_VA	0xf00fe000
+#define KS8695_URTH	(0x04)
+#define KS8695_URLS	(0x14)
+#define URLS_URTE	(1 << 6)
+#define URLS_URTHRE	(1 << 5)
 
 	.macro	addruart, rp, rv, tmp
 		ldr	\rp, =KS8695_UART_PA		@ physical base address

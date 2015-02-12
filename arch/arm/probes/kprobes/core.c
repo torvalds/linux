@@ -30,11 +30,11 @@
 #include <asm/cacheflush.h>
 #include <linux/percpu.h>
 #include <linux/bug.h>
+#include <asm/patch.h>
 
-#include "kprobes.h"
-#include "probes-arm.h"
-#include "probes-thumb.h"
-#include "patch.h"
+#include "../decode-arm.h"
+#include "../decode-thumb.h"
+#include "core.h"
 
 #define MIN_STACK_SIZE(addr) 				\
 	min((unsigned long)MAX_STACK_SIZE,		\
@@ -61,6 +61,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	kprobe_decode_insn_t *decode_insn;
 	const union decode_action *actions;
 	int is;
+	const struct decode_checker **checkers;
 
 	if (in_exception_text(addr))
 		return -EINVAL;
@@ -74,9 +75,11 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		insn = __opcode_thumb32_compose(insn, inst2);
 		decode_insn = thumb32_probes_decode_insn;
 		actions = kprobes_t32_actions;
+		checkers = kprobes_t32_checkers;
 	} else {
 		decode_insn = thumb16_probes_decode_insn;
 		actions = kprobes_t16_actions;
+		checkers = kprobes_t16_checkers;
 	}
 #else /* !CONFIG_THUMB2_KERNEL */
 	thumb = false;
@@ -85,12 +88,13 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	insn = __mem_to_opcode_arm(*p->addr);
 	decode_insn = arm_probes_decode_insn;
 	actions = kprobes_arm_actions;
+	checkers = kprobes_arm_checkers;
 #endif
 
 	p->opcode = insn;
 	p->ainsn.insn = tmp_insn;
 
-	switch ((*decode_insn)(insn, &p->ainsn, true, actions)) {
+	switch ((*decode_insn)(insn, &p->ainsn, true, actions, checkers)) {
 	case INSN_REJECTED:	/* not supported */
 		return -EINVAL;
 
@@ -110,6 +114,15 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		p->ainsn.insn = NULL;
 		break;
 	}
+
+	/*
+	 * Never instrument insn like 'str r0, [sp, +/-r1]'. Also, insn likes
+	 * 'str r0, [sp, #-68]' should also be prohibited.
+	 * See __und_svc.
+	 */
+	if ((p->ainsn.stack_space < 0) ||
+			(p->ainsn.stack_space > MAX_STACK_SIZE))
+		return -EINVAL;
 
 	return 0;
 }
@@ -150,19 +163,31 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
  * memory. It is also needed to atomically set the two half-words of a 32-bit
  * Thumb breakpoint.
  */
-int __kprobes __arch_disarm_kprobe(void *p)
+struct patch {
+	void *addr;
+	unsigned int insn;
+};
+
+static int __kprobes_remove_breakpoint(void *data)
 {
-	struct kprobe *kp = p;
-	void *addr = (void *)((uintptr_t)kp->addr & ~1);
-
-	__patch_text(addr, kp->opcode);
-
+	struct patch *p = data;
+	__patch_text(p->addr, p->insn);
 	return 0;
+}
+
+void __kprobes kprobes_remove_breakpoint(void *addr, unsigned int insn)
+{
+	struct patch p = {
+		.addr = addr,
+		.insn = insn,
+	};
+	stop_machine(__kprobes_remove_breakpoint, &p, cpu_online_mask);
 }
 
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
-	stop_machine(__arch_disarm_kprobe, p, cpu_online_mask);
+	kprobes_remove_breakpoint((void *)((uintptr_t)p->addr & ~1),
+			p->opcode);
 }
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
