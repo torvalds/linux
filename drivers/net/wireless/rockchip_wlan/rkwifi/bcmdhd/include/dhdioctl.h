@@ -7,7 +7,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhdioctl.h 419132 2013-08-19 21:33:05Z $
+ * $Id: dhdioctl.h 438755 2013-11-22 23:20:40Z $
  */
 
 #ifndef _dhdioctl_h_
@@ -35,7 +35,8 @@ typedef struct dhd_ioctl {
 /* Underlying BUS definition */
 enum {
 	BUS_TYPE_USB = 0, /* for USB dongles */
-	BUS_TYPE_SDIO /* for SDIO dongles */
+	BUS_TYPE_SDIO, /* for SDIO dongles */
+	BUS_TYPE_PCIE /* for PCIE dongles */
 };
 
 /* per-driver magic numbers */
@@ -67,7 +68,11 @@ enum {
 #define DHD_GLOM_VAL	0x0400
 #define DHD_EVENT_VAL	0x0800
 #define DHD_BTA_VAL	0x1000
+#if 0 && (NDISVER >= 0x0630) && 1
+#define DHD_SCAN_VAL	0x2000
+#else
 #define DHD_ISCAN_VAL	0x2000
+#endif
 #define DHD_ARPOE_VAL	0x4000
 #define DHD_REORDER_VAL	0x8000
 #define DHD_NOCHECKDIED_VAL		0x20000 /* UTF WAR */

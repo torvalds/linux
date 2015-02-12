@@ -1,7 +1,7 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2013, Broadcom Corporation
+ * Copyright (C) 1999-2014, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc_linux.c 404103 2013-05-23 20:07:27Z $
+ * $Id: bcmsdh_sdmmc_linux.c 434777 2013-11-07 09:30:27Z $
  */
 
 #include <typedefs.h>
@@ -34,9 +34,12 @@
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
-#include <dhd_config.h>
+#include <dhd_linux.h>
+#include <bcmsdh_sdmmc.h>
+#include <dhd_dbg.h>
 
 #if !defined(SDIO_VENDOR_ID_BROADCOM)
 #define SDIO_VENDOR_ID_BROADCOM		0x02d0
@@ -69,20 +72,12 @@
 #define SDIO_DEVICE_ID_BROADCOM_43239    43239
 #endif /* !defined(SDIO_DEVICE_ID_BROADCOM_43239) */
 
-
-#include <bcmsdh_sdmmc.h>
-
-#include <dhd_dbg.h>
-
-#ifdef WL_CFG80211
 extern void wl_cfg80211_set_parent_dev(void *dev);
-#endif
-
 extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
 extern void sdioh_sdmmc_devintr_on(sdioh_info_t *sd);
-extern int dhd_os_check_wakelock(void *dhdp);
-extern int dhd_os_check_if_up(void *dhdp);
-extern void *bcmsdh_get_drvdata(void);
+extern void* bcmsdh_probe(osl_t *osh, void *dev, void *sdioh, void *adapter_info, uint bus_type,
+	uint bus_num, uint slot_num);
+extern int bcmsdh_remove(bcmsdh_info_t *bcmsdh);
 
 int sdio_function_init(void);
 void sdio_function_cleanup(void);
@@ -101,82 +96,111 @@ PBCMSDH_SDMMC_INSTANCE gInstance;
 /* Maximum number of bcmsdh_sdmmc devices supported by driver */
 #define BCMSDH_SDMMC_MAX_DEVICES 1
 
-extern int bcmsdh_probe(struct device *dev);
-extern int bcmsdh_remove(struct device *dev);
 extern volatile bool dhd_mmc_suspend;
+
+static int sdioh_probe(struct sdio_func *func)
+{
+	int host_idx = func->card->host->index;
+	uint32 rca = func->card->rca;
+	wifi_adapter_info_t *adapter;
+	osl_t *osh = NULL;
+	sdioh_info_t *sdioh = NULL;
+
+	sd_err(("bus num (host idx)=%d, slot num (rca)=%d\n", host_idx, rca));
+	adapter = dhd_wifi_platform_get_adapter(SDIO_BUS, host_idx, rca);
+	if (adapter  != NULL)
+		sd_err(("found adapter info '%s'\n", adapter->name));
+	else
+		sd_err(("can't find adapter info for this chip\n"));
+
+#ifdef WL_CFG80211
+	wl_cfg80211_set_parent_dev(&func->dev);
+#endif
+
+	 /* allocate SDIO Host Controller state info */
+	 osh = osl_attach(&func->dev, SDIO_BUS, TRUE);
+	 if (osh == NULL) {
+		 sd_err(("%s: osl_attach failed\n", __FUNCTION__));
+		 goto fail;
+	 }
+	 osl_static_mem_init(osh, adapter);
+	 sdioh = sdioh_attach(osh, func);
+	 if (sdioh == NULL) {
+		 sd_err(("%s: sdioh_attach failed\n", __FUNCTION__));
+		 goto fail;
+	 }
+	 sdioh->bcmsdh = bcmsdh_probe(osh, &func->dev, sdioh, adapter, SDIO_BUS, host_idx, rca);
+	 if (sdioh->bcmsdh == NULL) {
+		 sd_err(("%s: bcmsdh_probe failed\n", __FUNCTION__));
+		 goto fail;
+	 }
+
+	sdio_set_drvdata(func, sdioh);
+	return 0;
+
+fail:
+	if (sdioh != NULL)
+		sdioh_detach(osh, sdioh);
+	if (osh != NULL)
+		osl_detach(osh);
+	return -ENOMEM;
+}
+
+static void sdioh_remove(struct sdio_func *func)
+{
+	sdioh_info_t *sdioh;
+	osl_t *osh;
+
+	sdioh = sdio_get_drvdata(func);
+	if (sdioh == NULL) {
+		sd_err(("%s: error, no sdioh handler found\n", __FUNCTION__));
+		return;
+	}
+
+	osh = sdioh->osh;
+	bcmsdh_remove(sdioh->bcmsdh);
+	sdioh_detach(osh, sdioh);
+	osl_detach(osh);
+}
 
 static int bcmsdh_sdmmc_probe(struct sdio_func *func,
                               const struct sdio_device_id *id)
 {
 	int ret = 0;
-	static struct sdio_func sdio_func_0;
 
-	if (!gInstance)
+	if (func == NULL)
 		return -EINVAL;
 
-	if (func) {
-		sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
-		sd_trace(("sdio_bcmsdh: func->class=%x\n", func->class));
-		sd_trace(("sdio_vendor: 0x%04x\n", func->vendor));
-		sd_trace(("sdio_device: 0x%04x\n", func->device));
-		sd_trace(("Function#: 0x%04x\n", func->num));
+	sd_err(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
+	sd_info(("sdio_bcmsdh: func->class=%x\n", func->class));
+	sd_info(("sdio_vendor: 0x%04x\n", func->vendor));
+	sd_info(("sdio_device: 0x%04x\n", func->device));
+	sd_info(("Function#: 0x%04x\n", func->num));
 
-		if (func->num == 1) {
-			sdio_func_0.num = 0;
-			sdio_func_0.card = func->card;
-			gInstance->func[0] = &sdio_func_0;
-			if(func->device == 0x4) { /* 4318 */
-				gInstance->func[2] = NULL;
-				sd_trace(("NIC found, calling bcmsdh_probe...\n"));
-				ret = bcmsdh_probe(&func->dev);
-			}
-		}
+	gInstance->func[func->num] = func;
 
-		gInstance->func[func->num] = func;
-
-		if (func->num == 2) {
-	#ifdef WL_CFG80211
-			wl_cfg80211_set_parent_dev(&func->dev);
-	#endif
-			sd_trace(("F2 found, calling bcmsdh_probe...\n"));
-			ret = bcmsdh_probe(&func->dev);
-			if (ret < 0)
-				gInstance->func[2] = NULL;
-		}
-	} else {
-		ret = -ENODEV;
-	}
-#ifdef POWER_OFF_IN_SUSPEND
-	dhd_conf_register_wifi_suspend(func);
-#endif
+	/* 4318 doesn't have function 2 */
+	if ((func->num == 2) || (func->num == 1 && func->device == 0x4))
+		ret = sdioh_probe(func);
 
 	return ret;
 }
 
 static void bcmsdh_sdmmc_remove(struct sdio_func *func)
 {
-	if (func) {
-		sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
-		sd_info(("sdio_bcmsdh: func->class=%x\n", func->class));
-		sd_info(("sdio_vendor: 0x%04x\n", func->vendor));
-		sd_info(("sdio_device: 0x%04x\n", func->device));
-		sd_info(("Function#: 0x%04x\n", func->num));
-
-#ifdef POWER_OFF_IN_SUSPEND
-		dhd_conf_unregister_wifi_suspend(func);
-#endif
-		if (gInstance->func[2]) {
-			sd_trace(("F2 found, calling bcmsdh_remove...\n"));
-			bcmsdh_remove(&func->dev);
-			gInstance->func[2] = NULL;
-		}
-		if (func->num == 1) {
-			sdio_claim_host(func);
-			sdio_disable_func(func);
-			sdio_release_host(func);
-			gInstance->func[1] = NULL;
-		}
+	if (func == NULL) {
+		sd_err(("%s is called with NULL SDIO function pointer\n", __FUNCTION__));
+		return;
 	}
+
+	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
+	sd_info(("sdio_bcmsdh: func->class=%x\n", func->class));
+	sd_info(("sdio_vendor: 0x%04x\n", func->vendor));
+	sd_info(("sdio_device: 0x%04x\n", func->device));
+	sd_info(("Function#: 0x%04x\n", func->num));
+
+	if ((func->num == 2) || (func->num == 1 && func->device == 0x4))
+		sdioh_remove(func);
 }
 
 /* devices we support, null terminated */
@@ -199,62 +223,63 @@ MODULE_DEVICE_TABLE(sdio, bcmsdh_sdmmc_ids);
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM)
 static int bcmsdh_sdmmc_suspend(struct device *pdev)
 {
+	int err;
+	sdioh_info_t *sdioh;
 	struct sdio_func *func = dev_to_sdio_func(pdev);
-#ifndef POWER_OFF_IN_SUSPEND
 	mmc_pm_flag_t sdio_flags;
-	int ret;
-#endif
 
+	printk("%s Enter\n", __FUNCTION__);
 	if (func->num != 2)
 		return 0;
 
-	sd_trace(("%s Enter\n", __FUNCTION__));
-	if (dhd_os_check_wakelock(bcmsdh_get_drvdata()))
-		return -EBUSY;
+	sdioh = sdio_get_drvdata(func);
+	err = bcmsdh_suspend(sdioh->bcmsdh);
+	if (err) {
+		printk("%s bcmsdh_suspend err=%d\n", __FUNCTION__, err);
+		return err;
+	}
 
-#ifdef POWER_OFF_IN_SUSPEND
-	dhd_conf_wifi_suspend(func);
-#else
 	sdio_flags = sdio_get_host_pm_caps(func);
-
 	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
 		sd_err(("%s: can't keep power while host is suspended\n", __FUNCTION__));
 		return  -EINVAL;
 	}
 
 	/* keep power while host suspended */
-	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
-	if (ret) {
+	err = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	if (err) {
 		sd_err(("%s: error while trying to keep power\n", __FUNCTION__));
-		return ret;
+		return err;
 	}
 #if defined(OOB_INTR_ONLY)
-	bcmsdh_oob_intr_set(0);
-#endif
+	bcmsdh_oob_intr_set(sdioh->bcmsdh, FALSE);
 #endif
 	dhd_mmc_suspend = TRUE;
 	smp_mb();
 
+	printk("%s Exit\n", __FUNCTION__);
 	return 0;
 }
 
 static int bcmsdh_sdmmc_resume(struct device *pdev)
 {
-#if defined(OOB_INTR_ONLY) || defined(POWER_OFF_IN_SUSPEND)
-	struct sdio_func *func = dev_to_sdio_func(pdev);
-#endif
-	sd_trace(("%s Enter\n", __FUNCTION__));
-	dhd_mmc_suspend = FALSE;
-	
-#ifdef POWER_OFF_IN_SUSPEND
-	gInstance->func[func->num] = func;
-#else
 #if defined(OOB_INTR_ONLY)
-	if ((func->num == 2) && dhd_os_check_if_up(bcmsdh_get_drvdata()))
-		bcmsdh_oob_intr_set(1);
-#endif 
+	sdioh_info_t *sdioh;
 #endif
+	struct sdio_func *func = dev_to_sdio_func(pdev);
+
+	printk("%s Enter\n", __FUNCTION__);
+	if (func->num != 2)
+		return 0;
+
+	dhd_mmc_suspend = FALSE;
+#if defined(OOB_INTR_ONLY)
+	sdioh = sdio_get_drvdata(func);
+	bcmsdh_resume(sdioh->bcmsdh);
+#endif 
+
 	smp_mb();
+	printk("%s Exit\n", __FUNCTION__);
 	return 0;
 }
 
@@ -266,10 +291,14 @@ static const struct dev_pm_ops bcmsdh_sdmmc_pm_ops = {
 
 #if defined(BCMLXSDMMC)
 static struct semaphore *notify_semaphore = NULL;
-/*
+
 static int dummy_probe(struct sdio_func *func,
                               const struct sdio_device_id *id)
 {
+	if (func && (func->num != 2)) {
+		return 0;
+	}
+
 	if (notify_semaphore)
 		up(notify_semaphore);
 	return 0;
@@ -285,19 +314,17 @@ static struct sdio_driver dummy_sdmmc_driver = {
 	.name		= "dummy_sdmmc",
 	.id_table	= bcmsdh_sdmmc_ids,
 	};
-*/
+
 int sdio_func_reg_notify(void* semaphore)
 {
 	notify_semaphore = semaphore;
-	if (notify_semaphore)
-		up(notify_semaphore);
-	return 0;	
-	//return sdio_register_driver(&dummy_sdmmc_driver);
+	return sdio_register_driver(&dummy_sdmmc_driver);
 }
 
 void sdio_func_unreg_notify(void)
 {
-	//sdio_unregister_driver(&dummy_sdmmc_driver);
+	OSL_SLEEP(15);
+	sdio_unregister_driver(&dummy_sdmmc_driver);
 }
 
 #endif /* defined(BCMLXSDMMC) */
@@ -319,72 +346,16 @@ struct sdos_info {
 	spinlock_t lock;
 };
 
-
-int
-sdioh_sdmmc_osinit(sdioh_info_t *sd)
-{
-	struct sdos_info *sdos;
-
-	if (!sd)
-		return BCME_BADARG;
-
-	sdos = (struct sdos_info*)MALLOC(sd->osh, sizeof(struct sdos_info));
-	sd->sdos_info = (void*)sdos;
-	if (sdos == NULL)
-		return BCME_NOMEM;
-
-	sdos->sd = sd;
-	spin_lock_init(&sdos->lock);
-	return BCME_OK;
-}
-
-void
-sdioh_sdmmc_osfree(sdioh_info_t *sd)
-{
-	struct sdos_info *sdos;
-	ASSERT(sd && sd->sdos_info);
-
-	sdos = (struct sdos_info *)sd->sdos_info;
-	MFREE(sd->osh, sdos, sizeof(struct sdos_info));
-}
-
 /* Interrupt enable/disable */
 SDIOH_API_RC
 sdioh_interrupt_set(sdioh_info_t *sd, bool enable)
 {
-	ulong flags;
-	struct sdos_info *sdos;
-
 	if (!sd)
 		return BCME_BADARG;
 
 	sd_trace(("%s: %s\n", __FUNCTION__, enable ? "Enabling" : "Disabling"));
-
-	sdos = (struct sdos_info *)sd->sdos_info;
-	ASSERT(sdos);
-
-#if !defined(OOB_INTR_ONLY)
-	if (enable && !(sd->intr_handler && sd->intr_handler_arg)) {
-		sd_err(("%s: no handler registered, will not enable\n", __FUNCTION__));
-		return SDIOH_API_RC_FAIL;
-	}
-#endif /* !defined(OOB_INTR_ONLY) */
-
-	/* Ensure atomicity for enable/disable calls */
-	spin_lock_irqsave(&sdos->lock, flags);
-
-	sd->client_intr_enabled = enable;
-	if (enable) {
-		sdioh_sdmmc_devintr_on(sd);
-	} else {
-		sdioh_sdmmc_devintr_off(sd);
-	}
-
-	spin_unlock_irqrestore(&sdos->lock, flags);
-
 	return SDIOH_API_RC_SUCCESS;
 }
-
 
 #ifdef BCMSDH_MODULE
 static int __init
@@ -412,37 +383,21 @@ MODULE_AUTHOR(AUTHOR);
 /*
  * module init
 */
-int sdio_function_init(void)
+int bcmsdh_register_client_driver(void)
 {
-	int error = 0;
-	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
-
 	gInstance = kzalloc(sizeof(BCMSDH_SDMMC_INSTANCE), GFP_KERNEL);
 	if (!gInstance)
 		return -ENOMEM;
 
-	error = sdio_register_driver(&bcmsdh_sdmmc_driver);
-	if (error) {
-		kfree(gInstance);
-		gInstance = NULL;
-	}
-
-	return error;
+	return sdio_register_driver(&bcmsdh_sdmmc_driver);
 }
 
 /*
  * module cleanup
 */
-extern int bcmsdh_remove(struct device *dev);
-void sdio_function_cleanup(void)
+void bcmsdh_unregister_client_driver(void)
 {
-	sd_trace(("%s Enter\n", __FUNCTION__));
-
-
 	sdio_unregister_driver(&bcmsdh_sdmmc_driver);
-
-	if (gInstance) {
+	if (gInstance)
 		kfree(gInstance);
-		gInstance = NULL;
-	}
 }
