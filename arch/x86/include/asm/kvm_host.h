@@ -552,7 +552,7 @@ struct kvm_apic_map {
 	struct rcu_head rcu;
 	u8 ldr_bits;
 	/* fields bellow are used to decode ldr values in different modes */
-	u32 cid_shift, cid_mask, lid_mask, broadcast;
+	u32 cid_shift, cid_mask, lid_mask;
 	struct kvm_lapic *phys_map[256];
 	/* first index is cluster id second is cpu id in a cluster */
 	struct kvm_lapic *logical_map[16][16];

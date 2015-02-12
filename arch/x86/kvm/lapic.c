@@ -151,7 +151,6 @@ static void recalculate_apic_map(struct kvm *kvm)
 	new->cid_shift = 8;
 	new->cid_mask = 0;
 	new->lid_mask = 0xff;
-	new->broadcast = APIC_BROADCAST;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvm_lapic *apic = vcpu->arch.apic;
@@ -163,7 +162,6 @@ static void recalculate_apic_map(struct kvm *kvm)
 			new->ldr_bits = 32;
 			new->cid_shift = 16;
 			new->cid_mask = new->lid_mask = 0xffff;
-			new->broadcast = X2APIC_BROADCAST;
 		} else if (kvm_apic_get_reg(apic, APIC_LDR)) {
 			if (kvm_apic_get_reg(apic, APIC_DFR) ==
 							APIC_DFR_CLUSTER) {
@@ -690,6 +688,7 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 	struct kvm_lapic **dst;
 	int i;
 	bool ret = false;
+	bool x2apic_ipi = src && apic_x2apic_mode(src);
 
 	*r = -1;
 
@@ -701,13 +700,13 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 	if (irq->shorthand)
 		return false;
 
+	if (irq->dest_id == (x2apic_ipi ? X2APIC_BROADCAST : APIC_BROADCAST))
+		return false;
+
 	rcu_read_lock();
 	map = rcu_dereference(kvm->arch.apic_map);
 
 	if (!map)
-		goto out;
-
-	if (irq->dest_id == map->broadcast)
 		goto out;
 
 	ret = true;
