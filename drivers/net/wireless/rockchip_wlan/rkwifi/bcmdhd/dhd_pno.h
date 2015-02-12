@@ -3,12 +3,13 @@
  * Prefered Network Offload code and Wi-Fi Location Service(WLS) code.
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_pno.h 419969 2013-08-23 18:54:36Z $
+ * $Id: dhd_pno.h 423669 2013-09-18 13:01:55Z $
  */
 
 #ifndef __DHD_PNO_H__
 #define __DHD_PNO_H__
 
+#if defined(PNO_SUPPORT)
 #define PNO_TLV_PREFIX			'S'
 #define PNO_TLV_VERSION			'1'
 #define PNO_TLV_SUBTYPE_LEGACY_PNO '2'
@@ -78,7 +79,7 @@ typedef struct cmd_tlv {
 } cmd_tlv_t;
 typedef enum dhd_pno_mode {
 	/* Wi-Fi Legacy PNO Mode */
-	DHD_PNO_NONE_MODE 	= 0,
+	DHD_PNO_NONE_MODE = 0,
 	DHD_PNO_LEGACY_MODE = (1 << (0)),
 	/* Wi-Fi Android BATCH SCAN Mode */
 	DHD_PNO_BATCH_MODE = (1 << (1)),
@@ -134,6 +135,7 @@ struct dhd_pno_get_batch_info {
 	uint32 expired_tot_scan_cnt;
 	uint32 top_node_cnt;
 	uint32 bufsize;
+	uint32 bytes_written;
 	int reason;
 	struct list_head scan_results_list;
 	struct list_head expired_scan_results_list;
@@ -228,4 +230,14 @@ extern int dhd_pno_stop_for_hotlist(dhd_pub_t *dhd);
 extern int dhd_pno_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data);
 extern int dhd_pno_init(dhd_pub_t *dhd);
 extern int dhd_pno_deinit(dhd_pub_t *dhd);
+#endif 
+
+#if (defined(NDISVER) && (NDISVER >= 0x0630)) && defined(PNO_SUPPORT)
+extern int dhd_pno_cfg(dhd_pub_t *dhd, wl_pfn_cfg_t *pcfg);
+extern int dhd_pno_suspend(dhd_pub_t *dhd, int pfn_suspend);
+extern int dhd_pno_set_add(dhd_pub_t *dhd, wl_pfn_t *netinfo, int nssid, ushort scan_fr,
+	ushort slowscan_fr, uint8 pno_repeat, uint8 pno_freq_expo_max, int16 flags);
+extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
+extern int dhd_pno_clean(dhd_pub_t *dhd);
+#endif /* (defined(NDISVER) && (NDISVER >= 0x0630)) && defined(PNO_SUPPORT) */
 #endif /* __DHD_PNO_H__ */

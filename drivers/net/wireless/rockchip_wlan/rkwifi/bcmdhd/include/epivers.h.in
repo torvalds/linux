@@ -24,7 +24,7 @@
 
 #define EPI_VERSION_DEV		@EPI_VERSION_DEV@
 
-
+/* Driver Version String, ASCII, 32 chars max */
 #define	EPI_VERSION_STR		"@EPI_VERSION_STR@@EPI_VERSION_TYPE@ (@VC_VERSION_NUM@)"
 
-#endif 
+#endif /* _epivers_h_ */

@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_bta.c 379512 2013-01-17 22:49:08Z $
+ * $Id: dhd_bta.c 434434 2013-11-06 07:16:02Z $
  */
 #ifndef WLBTAMP
 #error "WLBTAMP is not defined"
@@ -83,7 +83,6 @@ dhd_bta_flush_hcidata(dhd_pub_t *pub, uint16 llh)
 			void *pkt = pktq_pdeq(q, prec);
 			int ifidx;
 
-			PKTPULL(pub->osh, pkt, dhd_bus_hdrlen(pub->bus));
 			dhd_prot_hdrpull(pub, &ifidx, pkt, NULL, NULL);
 
 			if (PKTLEN(pub->osh, pkt) >= RFC1042_HDR_LEN) {
@@ -111,7 +110,6 @@ dhd_bta_flush_hcidata(dhd_pub_t *pub, uint16 llh)
 			}
 
 			dhd_prot_hdrpush(pub, ifidx, pkt);
-			PKTPUSH(pub->osh, pkt, dhd_bus_hdrlen(pub->bus));
 
 			if (head_pkt == NULL)
 				head_pkt = pkt;

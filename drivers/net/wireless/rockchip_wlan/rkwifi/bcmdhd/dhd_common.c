@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_common.c 419132 2013-08-19 21:33:05Z $
+ * $Id: dhd_common.c 490628 2014-07-11 07:13:31Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -16,9 +16,15 @@
 #include <wlioctl.h>
 #include <dhd.h>
 #include <dhd_ip.h>
-
 #include <proto/bcmevent.h>
-#include <proto/bcmip.h>
+
+#ifdef SHOW_LOGTRACE
+#include <event_log.h>
+#endif /* SHOW_LOGTRACE */
+
+#ifdef BCMPCIE
+#include <dhd_flowring.h>
+#endif
 
 #include <dhd_bus.h>
 #include <dhd_proto.h>
@@ -36,22 +42,24 @@
 #ifdef PNO_SUPPORT
 #include <dhd_pno.h>
 #endif
-#ifdef SET_RANDOM_MAC_SOFTAP
-#include <linux/random.h>
-#include <linux/jiffies.h>
-#endif
 
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-#define htodchanspec(i) i
-#define dtohchanspec(i) i
+#define htod32(i) (i)
+#define htod16(i) (i)
+#define dtoh32(i) (i)
+#define dtoh16(i) (i)
+#define htodchanspec(i) (i)
+#define dtohchanspec(i) (i)
 
 #ifdef PROP_TXSTATUS
 #include <wlfc_proto.h>
 #include <dhd_wlfc.h>
 #endif
+
+#ifdef DHD_WMF
+#include <dhd_linux.h>
+#include <dhd_wmf_linux.h>
+#endif /* DHD_WMF */
+
 
 #ifdef WLMEDIA_HTSF
 extern void htsf_update(struct dhd_info *dhd, void *data);
@@ -60,11 +68,6 @@ int dhd_msg_level = DHD_ERROR_VAL;
 
 
 #include <wl_iw.h>
-
-char fw_path[MOD_PARAM_PATHLEN];
-char nv_path[MOD_PARAM_PATHLEN];
-// terence 20130703: customer can add some parameters to configure driver
-char conf_path[MOD_PARAM_PATHLEN];
 
 #ifdef SOFTAP
 char fw_path2[MOD_PARAM_PATHLEN];
@@ -76,6 +79,9 @@ uint32 dhd_conn_event;
 uint32 dhd_conn_status;
 uint32 dhd_conn_reason;
 
+#if defined(SHOW_EVENTS) && defined(SHOW_LOGTRACE)
+static int check_event_log_sequence_number(uint32 seq_no);
+#endif /* defined(SHOW_EVENTS) && defined(SHOW_LOGTRACE) */
 extern int dhd_iscan_request(void * dhdp, uint16 action);
 extern void dhd_ind_scan_confirm(void *h, bool status);
 extern int dhd_iscan_in_progress(void *h);
@@ -88,19 +94,24 @@ extern int dhd_get_concurrent_capabilites(dhd_pub_t *dhd);
 bool ap_cfg_running = FALSE;
 bool ap_fw_loaded = FALSE;
 
-//(gwl)
-#define CONFIG_BCMDHD_CONFIG_PATH "/system/etc/firmware/config.txt"
-extern char CONFIG_BCMDHD_FW_PATH[];
-extern char CONFIG_BCMDHD_NVRAM_PATH[];
-
+/* Version string to report */
 #ifdef DHD_DEBUG
-const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR "\nCompiled on "
-	__DATE__ " at " __TIME__;
-#else
-const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR;
+#ifndef SRCBASE
+#define SRCBASE        "drivers/net/wireless/bcmdhd"
 #endif
+#define DHD_COMPILED "\nCompiled in " SRCBASE
+#endif /* DHD_DEBUG */
+
+#if defined(DHD_DEBUG)
+const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR
+	DHD_COMPILED " on " __DATE__ " at " __TIME__;
+#else
+const char dhd_version[] = "\nDongle Host Driver, version " EPI_VERSION_STR "\nCompiled from ";
+#endif 
 
 void dhd_set_timer(void *bus, uint wdtick);
+
+
 
 /* IOVar table */
 enum {
@@ -133,6 +144,10 @@ enum {
 	IOV_QMON_TIME_THRES,
 	IOV_QMON_TIME_PERCENT,
 #endif /* QMONITOR */
+	IOV_PROPTXSTATUS_MODULE_IGNORE,
+	IOV_PROPTXSTATUS_CREDIT_IGNORE,
+	IOV_PROPTXSTATUS_TXSTATUS_IGNORE,
+	IOV_PROPTXSTATUS_RXPKT_CHK,
 #endif /* PROP_TXSTATUS */
 	IOV_BUS_TYPE,
 #ifdef WLMEDIA_HTSF
@@ -140,11 +155,32 @@ enum {
 #endif
 	IOV_CHANGEMTU,
 	IOV_HOSTREORDER_FLOWS,
+#ifdef DHDTCPACK_SUPPRESS
+	IOV_TCPACK_SUPPRESS,
+#endif /* DHDTCPACK_SUPPRESS */
+#ifdef DHD_WMF
+	IOV_WMF_BSS_ENAB,
+	IOV_WMF_UCAST_IGMP,
+	IOV_WMF_MCAST_DATA_SENDUP,
+#ifdef WL_IGMP_UCQUERY
+	IOV_WMF_UCAST_IGMP_QUERY,
+#endif /* WL_IGMP_UCQUERY */
+#ifdef DHD_UCAST_UPNP
+	IOV_WMF_UCAST_UPNP,
+#endif /* DHD_UCAST_UPNP */
+#endif /* DHD_WMF */
+	IOV_AP_ISOLATE,
+#ifdef DHD_UNICAST_DHCP
+	IOV_DHCP_UNICAST,
+#endif /* DHD_UNICAST_DHCP */
+#ifdef DHD_L2_FILTER
+	IOV_BLOCK_PING,
+#endif
 	IOV_LAST
 };
 
 const bcm_iovar_t dhd_iovars[] = {
-	{"version", 	IOV_VERSION,	0,	IOVT_BUFFER,	sizeof(dhd_version) },
+	{"version",	IOV_VERSION,	0,	IOVT_BUFFER,	sizeof(dhd_version) },
 	{"wlmsglevel",	IOV_WLMSGLEVEL,	0,	IOVT_UINT32,	0 },
 #ifdef DHD_DEBUG
 	{"msglevel",	IOV_MSGLEVEL,	0,	IOVT_UINT32,	0 },
@@ -165,7 +201,7 @@ const bcm_iovar_t dhd_iovars[] = {
 	{"HCI_ACL_data", IOV_HCI_ACL_DATA, 0,	IOVT_BUFFER,	0},
 #endif
 #ifdef PROP_TXSTATUS
-	{"proptx",	IOV_PROPTXSTATUS_ENABLE,	0,	IOVT_UINT32,	0 },
+	{"proptx",	IOV_PROPTXSTATUS_ENABLE,	0,	IOVT_BOOL,	0 },
 	/*
 	set the proptxtstatus operation mode:
 	0 - Do not do any proptxtstatus flow control
@@ -173,11 +209,15 @@ const bcm_iovar_t dhd_iovars[] = {
 	2 - Use explicit credit
 	*/
 	{"ptxmode",	IOV_PROPTXSTATUS_MODE,	0,	IOVT_UINT32,	0 },
-	{"proptx_opt", IOV_PROPTXSTATUS_OPT, 	0,	IOVT_UINT32,	0 },
+	{"proptx_opt", IOV_PROPTXSTATUS_OPT,	0,	IOVT_UINT32,	0 },
 #ifdef QMONITOR
 	{"qtime_thres",	IOV_QMON_TIME_THRES,	0,	IOVT_UINT32,	0 },
 	{"qtime_percent", IOV_QMON_TIME_PERCENT, 0,	IOVT_UINT32,	0 },
 #endif /* QMONITOR */
+	{"pmodule_ignore", IOV_PROPTXSTATUS_MODULE_IGNORE, 0, IOVT_BOOL, 0 },
+	{"pcredit_ignore", IOV_PROPTXSTATUS_CREDIT_IGNORE, 0, IOVT_BOOL, 0 },
+	{"ptxstatus_ignore", IOV_PROPTXSTATUS_TXSTATUS_IGNORE, 0, IOVT_BOOL, 0 },
+	{"rxpkt_chk", IOV_PROPTXSTATUS_RXPKT_CHK, 0, IOVT_BOOL, 0 },
 #endif /* PROP_TXSTATUS */
 	{"bustype", IOV_BUS_TYPE, 0, IOVT_UINT32, 0},
 #ifdef WLMEDIA_HTSF
@@ -186,63 +226,35 @@ const bcm_iovar_t dhd_iovars[] = {
 	{"changemtu", IOV_CHANGEMTU, 0, IOVT_UINT32, 0 },
 	{"host_reorder_flows", IOV_HOSTREORDER_FLOWS, 0, IOVT_BUFFER,
 	(WLHOST_REORDERDATA_MAXFLOWS + 1) },
+#ifdef DHDTCPACK_SUPPRESS
+	{"tcpack_suppress",	IOV_TCPACK_SUPPRESS,	0,	IOVT_UINT8,	0 },
+#endif /* DHDTCPACK_SUPPRESS */
+#ifdef DHD_WMF
+	{"wmf_bss_enable", IOV_WMF_BSS_ENAB,	0,	IOVT_BOOL,	0 },
+	{"wmf_ucast_igmp", IOV_WMF_UCAST_IGMP,	0,	IOVT_BOOL,	0 },
+	{"wmf_mcast_data_sendup", IOV_WMF_MCAST_DATA_SENDUP,	0,	IOVT_BOOL,	0 },
+#ifdef WL_IGMP_UCQUERY
+	{"wmf_ucast_igmp_query", IOV_WMF_UCAST_IGMP_QUERY, (0), IOVT_BOOL, 0 },
+#endif /* WL_IGMP_UCQUERY */
+#ifdef DHD_UCAST_UPNP
+	{"wmf_ucast_upnp", IOV_WMF_UCAST_UPNP, (0), IOVT_BOOL, 0 },
+#endif /* DHD_UCAST_UPNP */
+#endif /* DHD_WMF */
+#ifdef DHD_UNICAST_DHCP
+	{"dhcp_unicast", IOV_DHCP_UNICAST, (0), IOVT_BOOL, 0 },
+#endif /* DHD_UNICAST_DHCP */
+	{"ap_isolate", IOV_AP_ISOLATE, (0), IOVT_BOOL, 0},
+#ifdef DHD_L2_FILTER
+	{"block_ping", IOV_BLOCK_PING, (0), IOVT_BOOL, 0},
+#endif
 	{NULL, 0, 0, 0, 0 }
 };
+
 #define DHD_IOVAR_BUF_SIZE	128
-//(gwl)
-extern int rkwifi_set_firmware(char *fw, char *nvram);
 
-void
-dhd_common_init(osl_t *osh)
-{
-//#ifdef CONFIG_BCMDHD_FW_PATH
-    if(strlen(CONFIG_BCMDHD_FW_PATH))
-        bcm_strncpy_s(fw_path, sizeof(fw_path), CONFIG_BCMDHD_FW_PATH, MOD_PARAM_PATHLEN-1);
-//#else /* CONFIG_BCMDHD_FW_PATH */
-    else
-        fw_path[0] = '\0';
-//#endif /* CONFIG_BCMDHD_FW_PATH */
-//#ifdef CONFIG_BCMDHD_NVRAM_PATH
-    if(strlen(CONFIG_BCMDHD_NVRAM_PATH))
-        bcm_strncpy_s(nv_path, sizeof(nv_path), CONFIG_BCMDHD_NVRAM_PATH, MOD_PARAM_PATHLEN-1);
-//#else /* CONFIG_BCMDHD_NVRAM_PATH */
-    else
-        nv_path[0] = '\0';
-//#endif /* CONFIG_BCMDHD_NVRAM_PATH */
-#ifdef CONFIG_BCMDHD_CONFIG_PATH
-	bcm_strncpy_s(conf_path, sizeof(conf_path), CONFIG_BCMDHD_CONFIG_PATH, MOD_PARAM_PATHLEN-1);
-#else /* CONFIG_BCMDHD_CONFIG_PATH */
-	conf_path[0] = '\0';
-#endif /* CONFIG_BCMDHD_CONFIG_PATH */
-    rkwifi_set_firmware(fw_path, nv_path);
-    //bcm_strncpy_s(firmware_path, sizeof(firmware_path), fw_path, MOD_PARAM_PATHLEN-1);
-    printk("FW_PATH = %s\nNVRAM_PATH = %s\n", fw_path, nv_path); //(gwl)
-#ifdef SOFTAP
-	fw_path2[0] = '\0';
-#endif
-}
-
-void
-dhd_common_deinit(dhd_pub_t *dhd_pub, dhd_cmn_t *sa_cmn)
-{
-	osl_t *osh;
-	dhd_cmn_t *cmn;
-
-	if (dhd_pub != NULL)
-		cmn = dhd_pub->cmn;
-	else
-		cmn = sa_cmn;
-
-	if (!cmn)
-		return;
-
-	osh = cmn->osh;
-
-	if (dhd_pub != NULL)
-		dhd_pub->cmn = NULL;
-
-	MFREE(osh, cmn, sizeof(dhd_cmn_t));
-}
+/* to NDIS developer, the structure dhd_common is redundant,
+ * please do NOT merge it back from other branches !!!
+ */
 
 static int
 dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
@@ -275,8 +287,8 @@ dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 	bcm_bprintf(strbuf, "multicast %lu\n", dhdp->dstats.multicast);
 
 	bcm_bprintf(strbuf, "bus stats:\n");
-	bcm_bprintf(strbuf, "tx_packets %lu tx_multicast %lu tx_errors %lu\n",
-	            dhdp->tx_packets, dhdp->tx_multicast, dhdp->tx_errors);
+	bcm_bprintf(strbuf, "tx_packets %lu  tx_dropped %lu tx_multicast %lu tx_errors %lu\n",
+	            dhdp->tx_packets, dhdp->tx_dropped, dhdp->tx_multicast, dhdp->tx_errors);
 	bcm_bprintf(strbuf, "tx_ctlpkts %lu tx_ctlerrs %lu\n",
 	            dhdp->tx_ctlpkts, dhdp->tx_ctlerrs);
 	bcm_bprintf(strbuf, "rx_packets %lu rx_multicast %lu rx_errors %lu \n",
@@ -294,11 +306,12 @@ dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 	/* Add any bus info */
 	dhd_bus_dump(dhdp, strbuf);
 
+
 	return (!strbuf->size ? BCME_BUFTOOSHORT : 0);
 }
 
 int
-dhd_wl_ioctl_cmd(dhd_pub_t *dhd_pub, int cmd, void *arg, int len, uint8 set, int ifindex)
+dhd_wl_ioctl_cmd(dhd_pub_t *dhd_pub, int cmd, void *arg, int len, uint8 set, int ifidx)
 {
 	wl_ioctl_t ioc;
 
@@ -307,21 +320,35 @@ dhd_wl_ioctl_cmd(dhd_pub_t *dhd_pub, int cmd, void *arg, int len, uint8 set, int
 	ioc.len = len;
 	ioc.set = set;
 
-	return dhd_wl_ioctl(dhd_pub, ifindex, &ioc, arg, len);
+	return dhd_wl_ioctl(dhd_pub, ifidx, &ioc, arg, len);
 }
 
-
 int
-dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int len)
+dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 {
-	int ret = 0;
+	int ret = BCME_ERROR;
 
 	if (dhd_os_proto_block(dhd_pub))
 	{
-		ret = dhd_prot_ioctl(dhd_pub, ifindex, ioc, buf, len);
-		if ((ret) && (dhd_pub->up))
+#if defined(WL_WLC_SHIM)
+		wl_info_t *wl = dhd_pub_wlinfo(dhd_pub);
+
+		wl_io_pport_t io_pport;
+		io_pport.dhd_pub = dhd_pub;
+		io_pport.ifidx = ifidx;
+
+		ret = wl_shim_ioctl(wl->shim, ioc, &io_pport);
+		if (ret != BCME_OK) {
+			DHD_ERROR(("%s: wl_shim_ioctl(%d) ERR %d\n", __FUNCTION__, ioc->cmd, ret));
+		}
+#else
+		ret = dhd_prot_ioctl(dhd_pub, ifidx, ioc, buf, len);
+#endif /* defined(WL_WLC_SHIM) */
+
+		if (ret && dhd_pub->up) {
 			/* Send hang event only if dhd_open() was success */
-			dhd_os_check_hang(dhd_pub, ifindex, ret);
+			dhd_os_check_hang(dhd_pub, ifidx, ret);
+		}
 
 		if (ret == -ETIMEDOUT && !dhd_pub->up) {
 			DHD_ERROR(("%s: 'resumed on timeout' error is "
@@ -333,7 +360,55 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int le
 		dhd_os_proto_unblock(dhd_pub);
 
 	}
+
 	return ret;
+}
+
+uint wl_get_port_num(wl_io_pport_t *io_pport)
+{
+	return 0;
+}
+
+/* Get bssidx from iovar params
+ * Input:   dhd_pub - pointer to dhd_pub_t
+ *	    params  - IOVAR params
+ * Output:  idx	    - BSS index
+ *	    val	    - ponter to the IOVAR arguments
+ */
+static int
+dhd_iovar_parse_bssidx(dhd_pub_t *dhd_pub, char *params, int *idx, char **val)
+{
+	char *prefix = "bsscfg:";
+	uint32	bssidx;
+
+	if (!(strncmp(params, prefix, strlen(prefix)))) {
+		/* per bss setting should be prefixed with 'bsscfg:' */
+		char *p = (char *)params + strlen(prefix);
+
+		/* Skip Name */
+		while (*p != '\0')
+			p++;
+		/* consider null */
+		p = p + 1;
+		bcopy(p, &bssidx, sizeof(uint32));
+		/* Get corresponding dhd index */
+		bssidx = dhd_bssidx2idx(dhd_pub, bssidx);
+
+		if (bssidx >= DHD_MAX_IFS) {
+			DHD_ERROR(("%s Wrong bssidx provided\n", __FUNCTION__));
+			return BCME_ERROR;
+		}
+
+		/* skip bss idx */
+		p += sizeof(uint32);
+		*val = p;
+		*idx = bssidx;
+	} else {
+		DHD_ERROR(("%s: bad parameter for per bss iovar\n", __FUNCTION__));
+		return BCME_ERROR;
+	}
+
+	return BCME_OK;
 }
 
 static int
@@ -452,6 +527,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		dhd_pub->tx_errors = dhd_pub->rx_errors = 0;
 		dhd_pub->tx_ctlpkts = dhd_pub->rx_ctlpkts = 0;
 		dhd_pub->tx_ctlerrs = dhd_pub->rx_ctlerrs = 0;
+		dhd_pub->tx_dropped = 0;
 		dhd_pub->rx_dropped = 0;
 		dhd_pub->rx_readahead_cnt = 0;
 		dhd_pub->tx_realloc = 0;
@@ -460,22 +536,10 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		dhd_bus_clearcounts(dhd_pub);
 #ifdef PROP_TXSTATUS
 		/* clear proptxstatus related counters */
-		if (dhd_pub->wlfc_state) {
-			athost_wl_status_info_t *wlfc =
-			        (athost_wl_status_info_t*)dhd_pub->wlfc_state;
-			wlfc_hanger_t* hanger;
-
-			memset(&wlfc->stats, 0, sizeof(athost_wl_stat_counters_t));
-
-			hanger = (wlfc_hanger_t*)wlfc->hanger;
-			hanger->pushed = 0;
-			hanger->popped = 0;
-			hanger->failed_slotfind = 0;
-			hanger->failed_to_pop = 0;
-			hanger->failed_to_push = 0;
-		}
+		dhd_wlfc_clear_counts(dhd_pub);
 #endif /* PROP_TXSTATUS */
 		break;
+
 
 	case IOV_GVAL(IOV_IOCTLTIMEOUT): {
 		int_val = (int32)dhd_os_get_ioctl_resp_timeout();
@@ -524,29 +588,41 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 #endif /* WLBTAMP */
 
 #ifdef PROP_TXSTATUS
-	case IOV_GVAL(IOV_PROPTXSTATUS_ENABLE):
-		int_val = dhd_pub->wlfc_enabled? 1 : 0;
-		bcopy(&int_val, arg, val_size);
-		break;
-
-	case IOV_SVAL(IOV_PROPTXSTATUS_ENABLE):
-		dhd_pub->wlfc_enabled = int_val? 1 : 0;
-		break;
-
-	case IOV_GVAL(IOV_PROPTXSTATUS_MODE): {
-		athost_wl_status_info_t *wlfc =
-		        (athost_wl_status_info_t*)dhd_pub->wlfc_state;
-		int_val = dhd_pub->wlfc_state ? (int32)wlfc->proptxstatus_mode : 0;
+	case IOV_GVAL(IOV_PROPTXSTATUS_ENABLE): {
+		bool wlfc_enab = FALSE;
+		bcmerror = dhd_wlfc_get_enable(dhd_pub, &wlfc_enab);
+		if (bcmerror != BCME_OK)
+			goto exit;
+		int_val = wlfc_enab ? 1 : 0;
 		bcopy(&int_val, arg, val_size);
 		break;
 	}
+	case IOV_SVAL(IOV_PROPTXSTATUS_ENABLE): {
+		bool wlfc_enab = FALSE;
+		bcmerror = dhd_wlfc_get_enable(dhd_pub, &wlfc_enab);
+		if (bcmerror != BCME_OK)
+			goto exit;
+
+		/* wlfc is already set as desired */
+		if (wlfc_enab == (int_val == 0 ? FALSE : TRUE))
+			goto exit;
+
+		if (int_val == TRUE)
+			bcmerror = dhd_wlfc_init(dhd_pub);
+		else
+			bcmerror = dhd_wlfc_deinit(dhd_pub);
+
+		break;
+	}
+	case IOV_GVAL(IOV_PROPTXSTATUS_MODE):
+		bcmerror = dhd_wlfc_get_mode(dhd_pub, &int_val);
+		if (bcmerror != BCME_OK)
+			goto exit;
+		bcopy(&int_val, arg, val_size);
+		break;
 
 	case IOV_SVAL(IOV_PROPTXSTATUS_MODE):
-		if (dhd_pub->wlfc_state) {
-			athost_wl_status_info_t *wlfc =
-			        (athost_wl_status_info_t*)dhd_pub->wlfc_state;
-			wlfc->proptxstatus_mode = int_val & 0xff;
-		}
+		dhd_wlfc_set_mode(dhd_pub, int_val);
 		break;
 #ifdef QMONITOR
 	case IOV_GVAL(IOV_QMON_TIME_THRES): {
@@ -566,6 +642,51 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		break;
 	}
 #endif /* QMONITOR */
+
+	case IOV_GVAL(IOV_PROPTXSTATUS_MODULE_IGNORE):
+		bcmerror = dhd_wlfc_get_module_ignore(dhd_pub, &int_val);
+		if (bcmerror != BCME_OK)
+			goto exit;
+		bcopy(&int_val, arg, val_size);
+		break;
+
+	case IOV_SVAL(IOV_PROPTXSTATUS_MODULE_IGNORE):
+		dhd_wlfc_set_module_ignore(dhd_pub, int_val);
+		break;
+
+	case IOV_GVAL(IOV_PROPTXSTATUS_CREDIT_IGNORE):
+		bcmerror = dhd_wlfc_get_credit_ignore(dhd_pub, &int_val);
+		if (bcmerror != BCME_OK)
+			goto exit;
+		bcopy(&int_val, arg, val_size);
+		break;
+
+	case IOV_SVAL(IOV_PROPTXSTATUS_CREDIT_IGNORE):
+		dhd_wlfc_set_credit_ignore(dhd_pub, int_val);
+		break;
+
+	case IOV_GVAL(IOV_PROPTXSTATUS_TXSTATUS_IGNORE):
+		bcmerror = dhd_wlfc_get_txstatus_ignore(dhd_pub, &int_val);
+		if (bcmerror != BCME_OK)
+			goto exit;
+		bcopy(&int_val, arg, val_size);
+		break;
+
+	case IOV_SVAL(IOV_PROPTXSTATUS_TXSTATUS_IGNORE):
+		dhd_wlfc_set_txstatus_ignore(dhd_pub, int_val);
+		break;
+
+	case IOV_GVAL(IOV_PROPTXSTATUS_RXPKT_CHK):
+		bcmerror = dhd_wlfc_get_rxpkt_chk(dhd_pub, &int_val);
+		if (bcmerror != BCME_OK)
+			goto exit;
+		bcopy(&int_val, arg, val_size);
+		break;
+
+	case IOV_SVAL(IOV_PROPTXSTATUS_RXPKT_CHK):
+		dhd_wlfc_set_rxpkt_chk(dhd_pub, int_val);
+		break;
+
 #endif /* PROP_TXSTATUS */
 
 	case IOV_GVAL(IOV_BUS_TYPE):
@@ -573,7 +694,12 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 #ifdef BCMDHDUSB
 		int_val = BUS_TYPE_USB;
 #endif
+#ifdef BCMSDIO
 		int_val = BUS_TYPE_SDIO;
+#endif
+#ifdef PCIE_FULL_DONGLE
+		int_val = BUS_TYPE_PCIE;
+#endif
 		bcopy(&int_val, arg, val_size);
 		break;
 
@@ -610,6 +736,186 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		}
 		ptr = (uint8 *)arg;
 		*ptr = count;
+		break;
+	}
+#ifdef DHDTCPACK_SUPPRESS
+	case IOV_GVAL(IOV_TCPACK_SUPPRESS): {
+		int_val = (uint32)dhd_pub->tcpack_sup_mode;
+		bcopy(&int_val, arg, val_size);
+		break;
+	}
+	case IOV_SVAL(IOV_TCPACK_SUPPRESS): {
+		bcmerror = dhd_tcpack_suppress_set(dhd_pub, (uint8)int_val);
+		break;
+	}
+#endif /* DHDTCPACK_SUPPRESS */
+#ifdef DHD_WMF
+	case IOV_GVAL(IOV_WMF_BSS_ENAB): {
+		uint32	bssidx;
+		dhd_wmf_t *wmf;
+		char *val;
+
+		if (dhd_iovar_parse_bssidx(dhd_pub, (char *)name, &bssidx, &val) != BCME_OK) {
+			DHD_ERROR(("%s: wmf_bss_enable: bad parameter\n", __FUNCTION__));
+			bcmerror = BCME_BADARG;
+			break;
+		}
+
+		wmf = dhd_wmf_conf(dhd_pub, bssidx);
+		int_val = wmf->wmf_enable ? 1 :0;
+		bcopy(&int_val, arg, val_size);
+		break;
+	}
+	case IOV_SVAL(IOV_WMF_BSS_ENAB): {
+		/* Enable/Disable WMF */
+		uint32	bssidx;
+		dhd_wmf_t *wmf;
+		char *val;
+
+		if (dhd_iovar_parse_bssidx(dhd_pub, (char *)name, &bssidx, &val) != BCME_OK) {
+			DHD_ERROR(("%s: wmf_bss_enable: bad parameter\n", __FUNCTION__));
+			bcmerror = BCME_BADARG;
+			break;
+		}
+
+		ASSERT(val);
+		bcopy(val, &int_val, sizeof(uint32));
+		wmf = dhd_wmf_conf(dhd_pub, bssidx);
+		if (wmf->wmf_enable == int_val)
+			break;
+		if (int_val) {
+			/* Enable WMF */
+			if (dhd_wmf_instance_add(dhd_pub, bssidx) != BCME_OK) {
+				DHD_ERROR(("%s: Error in creating WMF instance\n",
+				__FUNCTION__));
+				break;
+			}
+			if (dhd_wmf_start(dhd_pub, bssidx) != BCME_OK) {
+				DHD_ERROR(("%s: Failed to start WMF\n", __FUNCTION__));
+				break;
+			}
+			wmf->wmf_enable = TRUE;
+		} else {
+			/* Disable WMF */
+			wmf->wmf_enable = FALSE;
+			dhd_wmf_stop(dhd_pub, bssidx);
+			dhd_wmf_instance_del(dhd_pub, bssidx);
+		}
+		break;
+	}
+	case IOV_GVAL(IOV_WMF_UCAST_IGMP):
+		int_val = dhd_pub->wmf_ucast_igmp ? 1 : 0;
+		bcopy(&int_val, arg, val_size);
+		break;
+	case IOV_SVAL(IOV_WMF_UCAST_IGMP):
+		if (dhd_pub->wmf_ucast_igmp == int_val)
+			break;
+
+		if (int_val >= OFF && int_val <= ON)
+			dhd_pub->wmf_ucast_igmp = int_val;
+		else
+			bcmerror = BCME_RANGE;
+		break;
+	case IOV_GVAL(IOV_WMF_MCAST_DATA_SENDUP):
+		int_val = dhd_wmf_mcast_data_sendup(dhd_pub, 0, FALSE, FALSE);
+		bcopy(&int_val, arg, val_size);
+		break;
+	case IOV_SVAL(IOV_WMF_MCAST_DATA_SENDUP):
+		dhd_wmf_mcast_data_sendup(dhd_pub, 0, TRUE, int_val);
+		break;
+
+#ifdef WL_IGMP_UCQUERY
+	case IOV_GVAL(IOV_WMF_UCAST_IGMP_QUERY):
+		int_val = dhd_pub->wmf_ucast_igmp_query ? 1 : 0;
+		bcopy(&int_val, arg, val_size);
+		break;
+	case IOV_SVAL(IOV_WMF_UCAST_IGMP_QUERY):
+		if (dhd_pub->wmf_ucast_igmp_query == int_val)
+			break;
+
+		if (int_val >= OFF && int_val <= ON)
+			dhd_pub->wmf_ucast_igmp_query = int_val;
+		else
+			bcmerror = BCME_RANGE;
+		break;
+#endif /* WL_IGMP_UCQUERY */
+#ifdef DHD_UCAST_UPNP
+	case IOV_GVAL(IOV_WMF_UCAST_UPNP):
+		int_val = dhd_pub->wmf_ucast_upnp ? 1 : 0;
+		bcopy(&int_val, arg, val_size);
+		break;
+	case IOV_SVAL(IOV_WMF_UCAST_UPNP):
+		if (dhd_pub->wmf_ucast_upnp == int_val)
+			break;
+
+		if (int_val >= OFF && int_val <= ON)
+			dhd_pub->wmf_ucast_upnp = int_val;
+		else
+			bcmerror = BCME_RANGE;
+		break;
+#endif /* DHD_UCAST_UPNP */
+#endif /* DHD_WMF */
+
+
+#ifdef DHD_UNICAST_DHCP
+	case IOV_GVAL(IOV_DHCP_UNICAST):
+		int_val = dhd_pub->dhcp_unicast;
+		bcopy(&int_val, arg, val_size);
+		break;
+	case IOV_SVAL(IOV_DHCP_UNICAST):
+		if (dhd_pub->dhcp_unicast == int_val)
+			break;
+
+		if (int_val >= OFF || int_val <= ON) {
+			dhd_pub->dhcp_unicast = int_val;
+		} else {
+			bcmerror = BCME_RANGE;
+		}
+		break;
+#endif /* DHD_UNICAST_DHCP */
+#ifdef DHD_L2_FILTER
+	case IOV_GVAL(IOV_BLOCK_PING):
+		int_val = dhd_pub->block_ping;
+		bcopy(&int_val, arg, val_size);
+		break;
+	case IOV_SVAL(IOV_BLOCK_PING):
+		if (dhd_pub->block_ping == int_val)
+			break;
+		if (int_val >= OFF || int_val <= ON) {
+			dhd_pub->block_ping = int_val;
+		} else {
+			bcmerror = BCME_RANGE;
+		}
+		break;
+#endif
+
+	case IOV_GVAL(IOV_AP_ISOLATE): {
+		uint32	bssidx;
+		char *val;
+
+		if (dhd_iovar_parse_bssidx(dhd_pub, (char *)name, &bssidx, &val) != BCME_OK) {
+			DHD_ERROR(("%s: ap isoalate: bad parameter\n", __FUNCTION__));
+			bcmerror = BCME_BADARG;
+			break;
+		}
+
+		int_val = dhd_get_ap_isolate(dhd_pub, bssidx);
+		bcopy(&int_val, arg, val_size);
+		break;
+	}
+	case IOV_SVAL(IOV_AP_ISOLATE): {
+		uint32	bssidx;
+		char *val;
+
+		if (dhd_iovar_parse_bssidx(dhd_pub, (char *)name, &bssidx, &val) != BCME_OK) {
+			DHD_ERROR(("%s: ap isolate: bad parameter\n", __FUNCTION__));
+			bcmerror = BCME_BADARG;
+			break;
+		}
+
+		ASSERT(val);
+		bcopy(val, &int_val, sizeof(uint32));
+		dhd_set_ap_isolate(dhd_pub, bssidx, int_val);
 		break;
 	}
 
@@ -674,7 +980,13 @@ dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
 		/* Evict packet according to discard policy */
 		p = discard_oldest ? pktq_pdeq(q, eprec) : pktq_pdeq_tail(q, eprec);
 		ASSERT(p);
-
+#ifdef DHDTCPACK_SUPPRESS
+		if (dhd_tcpack_check_xmit(dhdp, p) == BCME_ERROR) {
+			DHD_ERROR(("%s %d: tcpack_suppress ERROR!!! Stop using it\n",
+				__FUNCTION__, __LINE__));
+			dhd_tcpack_suppress_set(dhdp, TCPACK_SUP_OFF);
+		}
+#endif /* DHDTCPACK_SUPPRESS */
 		PKTFREE(dhdp->osh, p, TRUE);
 	}
 
@@ -692,13 +1004,13 @@ dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
  *	If can't find pkts matching upper 2 cases, drop first pkt anyway
  */
 bool
-dhd_prec_drop_pkts(osl_t *osh, struct pktq *pq, int prec)
+dhd_prec_drop_pkts(dhd_pub_t *dhdp, struct pktq *pq, int prec, f_droppkt_t fn)
 {
 	struct pktq_prec *q = NULL;
 	void *p, *prev = NULL, *next = NULL, *first = NULL, *last = NULL, *prev_first = NULL;
 	pkt_frag_t frag_info;
 
-	ASSERT(osh && pq);
+	ASSERT(dhdp && pq);
 	ASSERT(prec >= 0 && prec < pq->num_prec);
 
 	q = &pq->q[prec];
@@ -708,13 +1020,14 @@ dhd_prec_drop_pkts(osl_t *osh, struct pktq *pq, int prec)
 		return FALSE;
 
 	while (p) {
-		frag_info = pkt_frag_info(osh, p);
+		frag_info = pkt_frag_info(dhdp->osh, p);
 		if (frag_info == DHD_PKT_FRAG_NONE) {
 			break;
 		} else if (frag_info == DHD_PKT_FRAG_FIRST) {
 			if (first) {
 				/* No last frag pkt, use prev as last */
 				last = prev;
+				break;
 			} else {
 				first = p;
 				prev_first = prev;
@@ -750,7 +1063,8 @@ dhd_prec_drop_pkts(osl_t *osh, struct pktq *pq, int prec)
 
 		PKTSETLINK(p, NULL);
 
-		PKTFREE(osh, p, TRUE);
+		if (fn)
+			fn(dhdp, prec, p, TRUE);
 
 		if (p == last)
 			break;
@@ -763,6 +1077,8 @@ dhd_prec_drop_pkts(osl_t *osh, struct pktq *pq, int prec)
 			q->tail = NULL;
 	} else {
 		PKTSETLINK(prev_first, next);
+		if (!next)
+			q->tail = prev_first;
 	}
 
 	return TRUE;
@@ -902,8 +1218,56 @@ dhd_ioctl(dhd_pub_t * dhd_pub, dhd_ioctl_t *ioc, void * buf, uint buflen)
 }
 
 #ifdef SHOW_EVENTS
+#ifdef SHOW_LOGTRACE
+
+#define AVOID_BYTE 64
+#define MAX_NO_OF_ARG 16
+
+static int
+check_event_log_sequence_number(uint32 seq_no)
+{
+	int32 diff;
+	uint32 ret;
+	static uint32 logtrace_seqnum_prev = 0;
+
+	diff = ntoh32(seq_no)-logtrace_seqnum_prev;
+	switch (diff)
+	{
+		case 0:
+			ret = -1; /* duplicate packet . drop */
+			break;
+
+		case 1:
+			ret =0; /* in order */
+			break;
+
+		default:
+			if ((ntoh32(seq_no) == 0) &&
+				(logtrace_seqnum_prev == 0xFFFFFFFF) ) { /* in-order - Roll over */
+					ret = 0;
+			} else {
+
+				if (diff > 0) {
+					DHD_EVENT(("WLC_E_TRACE:"
+						"Event lost (log) seqnum %d nblost %d\n",
+						ntoh32(seq_no), (diff-1)));
+				} else {
+					DHD_EVENT(("WLC_E_TRACE:"
+						"Event Packets coming out of order!!\n"));
+				}
+				ret = 0;
+			}
+	}
+
+	logtrace_seqnum_prev = ntoh32(seq_no);
+
+	return ret;
+}
+#endif /* SHOW_LOGTRACE */
+
 static void
-wl_show_host_event(wl_event_msg_t *event, void *event_data)
+wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
+	void *raw_event_ptr, char *eventmask)
 {
 	uint i, status, reason;
 	bool group = FALSE, flush_txq = FALSE, link = FALSE;
@@ -930,10 +1294,8 @@ wl_show_host_event(wl_event_msg_t *event, void *event_data)
 	        (uchar)event->addr.octet[4]&0xff,
 	        (uchar)event->addr.octet[5]&0xff);
 
-	event_name = "UNKNOWN";
-	for (i = 0; i < (uint)bcmevent_names_size; i++)
-		if (bcmevent_names[i].event == event_type)
-			event_name = bcmevent_names[i].name;
+	event_name = bcmevent_get_name(event_type);
+	BCM_REFERENCE(event_name);
 
 	if (flags & WLC_EVENT_MSG_LINK)
 		link = TRUE;
@@ -1076,20 +1438,29 @@ wl_show_host_event(wl_event_msg_t *event, void *event_data)
 		break;
 #endif /* WIFI_ACT_FRAME */
 
-	case WLC_E_TRACE: {
-		static uint32 seqnum_prev = 0;
-		static uint32 logtrace_seqnum_prev = 0;
+#ifdef SHOW_LOGTRACE
+	case WLC_E_TRACE:
+	{
 		msgtrace_hdr_t hdr;
 		uint32 nblost;
+		uint8 count;
 		char *s, *p;
+		static uint32 seqnum_prev = 0;
+		uint32 *record = NULL;
+		uint32 *log_ptr =  NULL;
+		uint32 writeindex = 0;
+		event_log_hdr_t event_hdr;
+		int no_of_fmts = 0;
+		char *fmt = NULL;
+		dhd_event_log_t *raw_event = (dhd_event_log_t *) raw_event_ptr;
 
 		buf = (uchar *) event_data;
 		memcpy(&hdr, buf, MSGTRACE_HDRLEN);
 
 		if (hdr.version != MSGTRACE_VERSION) {
-			printf("\nMACEVENT: %s [unsupported version --> "
-			       "dhd version:%d dongle version:%d]\n",
-			       event_name, MSGTRACE_VERSION, hdr.version);
+			DHD_EVENT(("\nMACEVENT: %s [unsupported version --> "
+				"dhd version:%d dongle version:%d]\n",
+				event_name, MSGTRACE_VERSION, hdr.version));
 			/* Reset datalen to avoid display below */
 			datalen = 0;
 			break;
@@ -1100,70 +1471,169 @@ wl_show_host_event(wl_event_msg_t *event, void *event_data)
 			buf[MSGTRACE_HDRLEN + ntoh16(hdr.len)] = '\0';
 
 			if (ntoh32(hdr.discarded_bytes) || ntoh32(hdr.discarded_printf)) {
-				printf("\nWLC_E_TRACE: [Discarded traces in dongle -->"
-				       "discarded_bytes %d discarded_printf %d]\n",
-				       ntoh32(hdr.discarded_bytes), ntoh32(hdr.discarded_printf));
+				DHD_EVENT(("WLC_E_TRACE: [Discarded traces in dongle -->"
+					"discarded_bytes %d discarded_printf %d]\n",
+					ntoh32(hdr.discarded_bytes),
+					ntoh32(hdr.discarded_printf)));
 			}
 
 			nblost = ntoh32(hdr.seqnum) - seqnum_prev - 1;
 			if (nblost > 0) {
-				printf("\nWLC_E_TRACE: [Event lost (msg) --> seqnum %d nblost %d\n",
-				       ntoh32(hdr.seqnum), nblost);
+				DHD_EVENT(("WLC_E_TRACE:"
+					"[Event lost (msg) --> seqnum %d nblost %d\n",
+					ntoh32(hdr.seqnum), nblost));
 			}
 			seqnum_prev = ntoh32(hdr.seqnum);
 
-			/* Display the trace buffer. Advance from \n to \n to avoid display big
+			/* Display the trace buffer. Advance from
+			 * \n to \n to avoid display big
 			 * printf (issue with Linux printk )
 			 */
 			p = (char *)&buf[MSGTRACE_HDRLEN];
-		while (*p != '\0' && (s = strstr(p, "\n")) != NULL) {
+			while (*p != '\0' && (s = strstr(p, "\n")) != NULL) {
 				*s = '\0';
-				printf("%s\n", p);
+				DHD_EVENT(("%s\n", p));
 				p = s+1;
 			}
-			if (*p) printf("%s", p);
+			if (*p)
+				DHD_EVENT(("%s", p));
 
 			/* Reset datalen to avoid display below */
 			datalen = 0;
 
 		} else if (hdr.trace_type == MSGTRACE_HDR_TYPE_LOG) {
 			/* Let the standard event printing work for now */
-			uint32 timestamp, w;
-			if (ntoh32(hdr.seqnum) == logtrace_seqnum_prev) {
-				printf("\nWLC_E_TRACE: [Event duplicate (log) %d",
-				       logtrace_seqnum_prev);
-			} else {
-				nblost = ntoh32(hdr.seqnum) - logtrace_seqnum_prev - 1;
-				if (nblost > 0) {
-					printf("\nWLC_E_TRACE: [Event lost (log)"
-					       " --> seqnum %d nblost %d\n",
-					       ntoh32(hdr.seqnum), nblost);
+			uint32 timestamp, w, malloc_len;
+
+			if (check_event_log_sequence_number(hdr.seqnum)) {
+
+				DHD_EVENT(("%s: WLC_E_TRACE:"
+					"[Event duplicate (log) %d] dropping!!\n",
+					__FUNCTION__, hdr.seqnum));
+				return; /* drop duplicate events */
+			}
+
+			p = (char *)&buf[MSGTRACE_HDRLEN];
+			datalen -= MSGTRACE_HDRLEN;
+			w = ntoh32((uint32)*p);
+			p += 4;
+			datalen -= 4;
+			timestamp = ntoh32((uint32)*p);
+			BCM_REFERENCE(timestamp);
+			BCM_REFERENCE(w);
+
+			DHD_EVENT(("timestamp %x%x\n", timestamp, w));
+
+			if (raw_event->fmts) {
+				malloc_len = datalen+ AVOID_BYTE;
+				record = (uint32 *)MALLOC(dhd_pub->osh, malloc_len);
+				if (record == NULL) {
+					DHD_EVENT(("MSGTRACE_HDR_TYPE_LOG:"
+						"malloc failed\n"));
+					return;
 				}
-				logtrace_seqnum_prev = ntoh32(hdr.seqnum);
+				log_ptr = (uint32 *) (p + datalen);
+				writeindex = datalen/4;
 
-				p = (char *)&buf[MSGTRACE_HDRLEN];
-				datalen -= MSGTRACE_HDRLEN;
-				w = ntoh32((uint32) *p);
-				p += 4;
-				datalen -= 4;
-				timestamp = ntoh32((uint32) *p);
-				printf("Logtrace %x timestamp %x %x",
-				       logtrace_seqnum_prev, timestamp, w);
+				if (record) {
+					while (datalen > 4) {
+						log_ptr--;
+						datalen -= 4;
+						event_hdr.t = *log_ptr;
+						/*
+						 * Check for partially overriten entries
+						 */
+						if (log_ptr - (uint32 *) p < event_hdr.count) {
+								break;
+						}
+						/*
+						* Check for end of the Frame.
+						*/
+						if (event_hdr.tag ==  EVENT_LOG_TAG_NULL) {
+							continue;
+						}
+						/*
+						* Check For Special Time Stamp Packet
+						*/
+						if (event_hdr.tag == EVENT_LOG_TAG_TS) {
+							datalen -= 12;
+							log_ptr = log_ptr - 3;
+							continue;
+						}
 
+						log_ptr[0] = event_hdr.t;
+						if (event_hdr.count > MAX_NO_OF_ARG) {
+							break;
+						}
+						/* Now place the header at the front
+						* and copy back.
+						*/
+						log_ptr -= event_hdr.count;
+
+						writeindex = writeindex - event_hdr.count;
+						record[writeindex++] = event_hdr.t;
+						for (count = 0; count < (event_hdr.count-1);
+							count++) {
+							record[writeindex++] = log_ptr[count];
+						}
+						writeindex = writeindex - event_hdr.count;
+						datalen = datalen - (event_hdr.count * 4);
+						no_of_fmts++;
+					}
+				}
+
+				while (no_of_fmts--)
+				{
+					event_log_hdr_t event_hdr;
+					event_hdr.t = record[writeindex];
+
+					if ((event_hdr.fmt_num>>2) < raw_event->num_fmts) {
+						fmt = raw_event->fmts[event_hdr.fmt_num>>2];
+						DHD_EVENT((fmt,
+							record[writeindex + 1],
+							record[writeindex + 2],
+							record[writeindex + 3],
+							record[writeindex + 4],
+							record[writeindex + 5],
+							record[writeindex + 6],
+							record[writeindex + 7],
+							record[writeindex + 8],
+							record[writeindex + 9],
+							record[writeindex + 10],
+							record[writeindex + 11],
+							record[writeindex + 12],
+							record[writeindex + 13],
+							record[writeindex + 14],
+							record[writeindex + 15],
+							record[writeindex + 16]));
+
+						if (fmt[strlen(fmt) - 1] != '\n') {
+							/* Add newline if missing */
+							DHD_EVENT(("\n"));
+						}
+					}
+
+					writeindex = writeindex + event_hdr.count;
+				}
+
+				if (record) {
+					MFREE(dhd_pub->osh, record, malloc_len);
+					record = NULL;
+				}
+			} else {
 				while (datalen > 4) {
 					p += 4;
 					datalen -= 4;
 					/* Print each word.  DO NOT ntoh it.  */
-					printf(" %8.8x", *((uint32 *) p));
+					DHD_EVENT((" %8.8x", *((uint32 *) p)));
 				}
-				printf("\n");
+				DHD_EVENT(("\n"));
 			}
 			datalen = 0;
 		}
-
 		break;
 	}
-
+#endif /* SHOW_LOGTRACE */
 
 	case WLC_E_RSSI:
 		DHD_EVENT(("MACEVENT: %s %d\n", event_name, ntoh32(*((int *)event_data))));
@@ -1175,6 +1645,12 @@ wl_show_host_event(wl_event_msg_t *event, void *event_data)
 		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
 		break;
 
+#ifdef BT_WIFI_HANDOBER
+	case WLC_E_BT_WIFI_HANDOVER_REQ:
+		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
+		break;
+#endif
+
 	default:
 		DHD_EVENT(("MACEVENT: %s %d, MAC %s, status %d, reason %d, auth %d\n",
 		       event_name, event_type, eabuf, (int)status, (int)reason,
@@ -1185,6 +1661,7 @@ wl_show_host_event(wl_event_msg_t *event, void *event_data)
 	/* show any appended data */
 	if (DHD_BYTES_ON() && DHD_EVENT_ON() && datalen) {
 		buf = (uchar *) event_data;
+		BCM_REFERENCE(buf);
 		DHD_EVENT((" data (%d) : ", datalen));
 		for (i = 0; i < datalen; i++)
 			DHD_EVENT((" 0x%02x ", *buf++));
@@ -1195,7 +1672,7 @@ wl_show_host_event(wl_event_msg_t *event, void *event_data)
 
 int
 wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
-              wl_event_msg_t *event, void **data_ptr)
+	wl_event_msg_t *event, void **data_ptr, void *raw_event)
 {
 	/* check whether packet is a BRCM event pkt */
 	bcm_event_t *pvt_data = (bcm_event_t *)pktdata;
@@ -1203,6 +1680,7 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 	uint32 type, status, datalen;
 	uint16 flags;
 	int evlen;
+	int hostidx;
 
 	if (bcmp(BRCM_OUI, &pvt_data->bcm_hdr.oui[0], DOT11_OUI_LEN)) {
 		DHD_ERROR(("%s: mismatched OUI, bailing\n", __FUNCTION__));
@@ -1218,6 +1696,7 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 	*data_ptr = &pvt_data[1];
 	event_data = *data_ptr;
 
+
 	/* memcpy since BRCM event pkt may be unaligned. */
 	memcpy(event, &pvt_data->event, sizeof(wl_event_msg_t));
 
@@ -1227,133 +1706,163 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 	datalen = ntoh32_ua((void *)&event->datalen);
 	evlen = datalen + sizeof(bcm_event_t);
 
+	/* find equivalent host index for event ifidx */
+	hostidx = dhd_ifidx2hostidx(dhd_pub->info, event->ifidx);
+
 	switch (type) {
 #ifdef PROP_TXSTATUS
 	case WLC_E_FIFO_CREDIT_MAP:
-		dhd_os_wlfc_block(dhd_pub);
-		dhd_wlfc_event(dhd_pub->info);
-		dhd_wlfc_FIFOcreditmap_event(dhd_pub->info, event_data);
-		dhd_os_wlfc_unblock(dhd_pub);
+		dhd_wlfc_enable(dhd_pub);
+		dhd_wlfc_FIFOcreditmap_event(dhd_pub, event_data);
 		WLFC_DBGMESG(("WLC_E_FIFO_CREDIT_MAP:(AC0,AC1,AC2,AC3),(BC_MC),(OTHER): "
 			"(%d,%d,%d,%d),(%d),(%d)\n", event_data[0], event_data[1],
 			event_data[2],
 			event_data[3], event_data[4], event_data[5]));
 		break;
+
+	case WLC_E_BCMC_CREDIT_SUPPORT:
+		dhd_wlfc_BCMCCredit_support_event(dhd_pub);
+		break;
 #endif
 
 	case WLC_E_IF:
 		{
-		dhd_if_event_t *ifevent = (dhd_if_event_t *)event_data;
+		struct wl_event_data_if *ifevent = (struct wl_event_data_if *)event_data;
 
 		/* Ignore the event if NOIF is set */
-		if (ifevent->flags & WLC_E_IF_FLAGS_BSSCFG_NOIF) {
-			WLFC_DBGMESG(("WLC_E_IF: NO_IF set, event Ignored\r\n"));
-			return (BCME_OK);
+		if (ifevent->reserved & WLC_E_IF_FLAGS_BSSCFG_NOIF) {
+			DHD_ERROR(("WLC_E_IF: NO_IF set, event Ignored\r\n"));
+			return (BCME_UNSUPPORTED);
 		}
-
+#ifdef PCIE_FULL_DONGLE
+		dhd_update_interface_flow_info(dhd_pub, ifevent->ifidx,
+			ifevent->opcode, ifevent->role);
+#endif
 #ifdef PROP_TXSTATUS
-			{
-		uint8* ea = pvt_data->eth.ether_dhost;
-		WLFC_DBGMESG(("WLC_E_IF: idx:%d, action:%s, iftype:%s, "
-		              "[%02x:%02x:%02x:%02x:%02x:%02x]\n",
-		              ifevent->ifidx,
-		              ((ifevent->action == WLC_E_IF_ADD) ? "ADD":"DEL"),
-		              ((ifevent->is_AP == 0) ? "STA":"AP "),
-		              ea[0], ea[1], ea[2], ea[3], ea[4], ea[5]));
-		(void)ea;
+		{
+			uint8* ea = pvt_data->eth.ether_dhost;
+			WLFC_DBGMESG(("WLC_E_IF: idx:%d, action:%s, iftype:%s, "
+			              "[%02x:%02x:%02x:%02x:%02x:%02x]\n",
+			              ifevent->ifidx,
+			              ((ifevent->opcode == WLC_E_IF_ADD) ? "ADD":"DEL"),
+			              ((ifevent->role == 0) ? "STA":"AP "),
+			              ea[0], ea[1], ea[2], ea[3], ea[4], ea[5]));
+			(void)ea;
 
-		dhd_os_wlfc_block(dhd_pub);
-		if (ifevent->action == WLC_E_IF_CHANGE)
-			dhd_wlfc_interface_event(dhd_pub->info,
-				eWLFC_MAC_ENTRY_ACTION_UPDATE,
-				ifevent->ifidx, ifevent->is_AP, ea);
-		else
-			dhd_wlfc_interface_event(dhd_pub->info,
-				((ifevent->action == WLC_E_IF_ADD) ?
-				eWLFC_MAC_ENTRY_ACTION_ADD : eWLFC_MAC_ENTRY_ACTION_DEL),
-				ifevent->ifidx, ifevent->is_AP, ea);
-		dhd_os_wlfc_unblock(dhd_pub);
+			if (ifevent->opcode == WLC_E_IF_CHANGE)
+				dhd_wlfc_interface_event(dhd_pub,
+					eWLFC_MAC_ENTRY_ACTION_UPDATE,
+					ifevent->ifidx, ifevent->role, ea);
+			else
+				dhd_wlfc_interface_event(dhd_pub,
+					((ifevent->opcode == WLC_E_IF_ADD) ?
+					eWLFC_MAC_ENTRY_ACTION_ADD : eWLFC_MAC_ENTRY_ACTION_DEL),
+					ifevent->ifidx, ifevent->role, ea);
 
-		/* dhd already has created an interface by default, for 0 */
-		if (ifevent->ifidx == 0)
-			break;
-			}
+			/* dhd already has created an interface by default, for 0 */
+			if (ifevent->ifidx == 0)
+				break;
+		}
 #endif /* PROP_TXSTATUS */
 
-#ifdef WL_CFG80211
-			if (wl_cfg80211_is_progress_ifchange()) {
-				DHD_ERROR(("%s:  ifidx %d for %s action %d\n",
-					__FUNCTION__, ifevent->ifidx,
-					event->ifname, ifevent->action));
-				if (ifevent->action == WLC_E_IF_ADD ||
-					ifevent->action == WLC_E_IF_CHANGE)
-					wl_cfg80211_notify_ifchange();
-				return (BCME_OK);
-			}
-#endif /* WL_CFG80211 */
 		if (ifevent->ifidx > 0 && ifevent->ifidx < DHD_MAX_IFS) {
-					if (ifevent->action == WLC_E_IF_ADD) {
-						if (dhd_add_if(dhd_pub->info, ifevent->ifidx,
-							NULL, event->ifname,
-							event->addr.octet,
-							ifevent->flags, ifevent->bssidx)) {
-							DHD_ERROR(("%s: dhd_add_if failed!!"
-									" ifidx: %d for %s\n",
-									__FUNCTION__,
-									ifevent->ifidx,
-									event->ifname));
-							return (BCME_ERROR);
-						}
-					}
-					else if (ifevent->action == WLC_E_IF_DEL)
-						dhd_del_if(dhd_pub->info, ifevent->ifidx);
+			if (ifevent->opcode == WLC_E_IF_ADD) {
+				if (dhd_event_ifadd(dhd_pub->info, ifevent, event->ifname,
+					event->addr.octet)) {
+
+					DHD_ERROR(("%s: dhd_event_ifadd failed ifidx: %d  %s\n",
+						__FUNCTION__, ifevent->ifidx, event->ifname));
+					return (BCME_ERROR);
+				}
+			} else if (ifevent->opcode == WLC_E_IF_DEL) {
+				dhd_event_ifdel(dhd_pub->info, ifevent, event->ifname,
+					event->addr.octet);
+			} else if (ifevent->opcode == WLC_E_IF_CHANGE) {
+#ifdef WL_CFG80211
+				wl_cfg80211_notify_ifchange(ifevent->ifidx,
+					event->ifname, event->addr.octet, ifevent->bssidx);
+#endif /* WL_CFG80211 */
+			}
 		} else {
-#ifndef PROP_TXSTATUS
+#if !defined(PROP_TXSTATUS) || !defined(PCIE_FULL_DONGLE)
 			DHD_ERROR(("%s: Invalid ifidx %d for %s\n",
 			           __FUNCTION__, ifevent->ifidx, event->ifname));
 #endif /* !PROP_TXSTATUS */
 		}
-			}
 			/* send up the if event: btamp user needs it */
-			*ifidx = dhd_ifname2idx(dhd_pub->info, event->ifname);
+			*ifidx = hostidx;
 			/* push up to external supp/auth */
 			dhd_event(dhd_pub->info, (char *)pvt_data, evlen, *ifidx);
 		break;
-
+	}
 
 #ifdef WLMEDIA_HTSF
 	case WLC_E_HTSFSYNC:
 		htsf_update(dhd_pub->info, event_data);
 		break;
 #endif /* WLMEDIA_HTSF */
+#if defined(NDISVER) && (NDISVER >= 0x0630)
+	case WLC_E_NDIS_LINK:
+		break;
+#else
 	case WLC_E_NDIS_LINK: {
 		uint32 temp = hton32(WLC_E_LINK);
 
 		memcpy((void *)(&pvt_data->event.event_type), &temp,
 		       sizeof(pvt_data->event.event_type));
+		break;
 	}
+#endif /* NDISVER >= 0x0630 */
 	case WLC_E_PFN_NET_FOUND:
 	case WLC_E_PFN_NET_LOST:
 		break;
+#if defined(PNO_SUPPORT)
 	case WLC_E_PFN_BSSID_NET_FOUND:
 	case WLC_E_PFN_BSSID_NET_LOST:
 	case WLC_E_PFN_BEST_BATCHING:
-#ifdef PNO_SUPPORT
 		dhd_pno_event_handler(dhd_pub, event, (void *)event_data);
-#endif
 		break;
+#endif 
 		/* These are what external supplicant/authenticator wants */
-		/* fall through */
+	case WLC_E_ASSOC_IND:
+	case WLC_E_AUTH_IND:
+	case WLC_E_REASSOC_IND:
+		dhd_findadd_sta(dhd_pub, hostidx, &event->addr.octet);
+		break;
 	case WLC_E_LINK:
+#ifdef PCIE_FULL_DONGLE
+		if (dhd_update_interface_link_status(dhd_pub, (uint8)hostidx,
+			(uint8)flags) != BCME_OK)
+			break;
+		if (!flags) {
+			dhd_flow_rings_delete(dhd_pub, hostidx);
+		}
+		/* fall through */
+#endif
 	case WLC_E_DEAUTH:
 	case WLC_E_DEAUTH_IND:
 	case WLC_E_DISASSOC:
 	case WLC_E_DISASSOC_IND:
+		if (type != WLC_E_LINK) {
+			dhd_del_sta(dhd_pub, hostidx, &event->addr.octet);
+		}
 		DHD_EVENT(("%s: Link event %d, flags %x, status %x\n",
 		           __FUNCTION__, type, flags, status));
+#ifdef PCIE_FULL_DONGLE
+		if (type != WLC_E_LINK) {
+			uint8 ifindex = (uint8)hostidx;
+			uint8 role = dhd_flow_rings_ifindex2role(dhd_pub, ifindex);
+			if (role == WLC_E_IF_ROLE_STA) {
+				dhd_flow_rings_delete(dhd_pub, ifindex);
+			} else {
+				dhd_flow_rings_delete_for_peer(dhd_pub, ifindex,
+					&event->addr.octet[0]);
+			}
+		}
+#endif
 		/* fall through */
 	default:
-		*ifidx = dhd_ifname2idx(dhd_pub->info, event->ifname);
+		*ifidx = hostidx;
 		/* push up to external supp/auth */
 		dhd_event(dhd_pub->info, (char *)pvt_data, evlen, *ifidx);
 		DHD_TRACE(("%s: MAC event %d, flags %x, status %x\n",
@@ -1361,22 +1870,12 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 		BCM_REFERENCE(flags);
 		BCM_REFERENCE(status);
 
-		/* put it back to WLC_E_NDIS_LINK */
-		if (type == WLC_E_NDIS_LINK) {
-			uint32 temp;
-
-			temp = ntoh32_ua((void *)&event->event_type);
-			DHD_TRACE(("Converted to WLC_E_LINK type %d\n", temp));
-
-			temp = ntoh32(WLC_E_NDIS_LINK);
-			memcpy((void *)(&pvt_data->event.event_type), &temp,
-			       sizeof(pvt_data->event.event_type));
-		}
 		break;
 	}
 
 #ifdef SHOW_EVENTS
-	wl_show_host_event(event, (void *)event_data);
+	wl_show_host_event(dhd_pub, event,
+		(void *)event_data, raw_event, dhd_pub->enable_log);
 #endif /* SHOW_EVENTS */
 
 	return (BCME_OK);
@@ -1421,7 +1920,6 @@ dhd_print_buf(void *pbuf, int len, int bytes_per_line)
 	printf("\n");
 #endif /* DHD_DEBUG */
 }
-
 #ifndef strtoul
 #define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
 #endif
@@ -1457,12 +1955,12 @@ dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_
 {
 	char				*argv[8];
 	int					i = 0;
-	const char 			*str;
+	const char			*str;
 	int					buf_len;
 	int					str_len;
 	char				*arg_save = 0, *arg_org = 0;
 	int					rc;
-	char				buf[128];
+	char				buf[32] = {0};
 	wl_pkt_filter_enable_t	enable_parm;
 	wl_pkt_filter_enable_t	* pkt_filterp;
 
@@ -1470,7 +1968,7 @@ dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_
 		return;
 
 	if (!(arg_save = MALLOC(dhd->osh, strlen(arg) + 1))) {
-		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
+		DHD_ERROR(("%s: malloc failed\n", __FUNCTION__));
 		goto fail;
 	}
 	arg_org = arg_save;
@@ -1486,14 +1984,16 @@ dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_
 
 	str = "pkt_filter_enable";
 	str_len = strlen(str);
-	bcm_strncpy_s(buf, sizeof(buf), str, str_len);
-	buf[str_len] = '\0';
+	bcm_strncpy_s(buf, sizeof(buf) - 1, str, sizeof(buf) - 1);
+	buf[ sizeof(buf) - 1 ] = '\0';
 	buf_len = str_len + 1;
 
 	pkt_filterp = (wl_pkt_filter_enable_t *)(buf + str_len + 1);
 
 	/* Parse packet filter id. */
 	enable_parm.id = htod32(strtoul(argv[i], NULL, 0));
+	if (dhd_conf_del_pkt_filter(dhd, enable_parm.id))
+		goto fail;
 
 	/* Parse enable/disable value. */
 	enable_parm.enable = htod32(enable);
@@ -1507,19 +2007,19 @@ dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_
 	rc = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, buf_len, TRUE, 0);
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
-		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
-		__FUNCTION__, arg, rc));
+		DHD_TRACE(("%s: failed to %s pktfilter %s, retcode = %d\n",
+		__FUNCTION__, enable?"enable":"disable", arg, rc));
 	else
-		DHD_TRACE(("%s: successfully added pktfilter %s\n",
-		__FUNCTION__, arg));
+		DHD_TRACE(("%s: successfully %s pktfilter %s\n",
+		__FUNCTION__, enable?"enable":"disable", arg));
 
 	/* Contorl the master mode */
 	bcm_mkiovar("pkt_filter_mode", (char *)&master_mode, 4, buf, sizeof(buf));
 	rc = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
-		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
-		__FUNCTION__, arg, rc));
+		DHD_TRACE(("%s: failed to set pkt_filter_mode %d, retcode = %d\n",
+		__FUNCTION__, master_mode, rc));
 
 fail:
 	if (arg_org)
@@ -1546,14 +2046,14 @@ dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg)
 		return;
 
 	if (!(arg_save = MALLOC(dhd->osh, strlen(arg) + 1))) {
-		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
+		DHD_ERROR(("%s: malloc failed\n", __FUNCTION__));
 		goto fail;
 	}
 
 	arg_org = arg_save;
 
 	if (!(buf = MALLOC(dhd->osh, BUF_SIZE))) {
-		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
+		DHD_ERROR(("%s: malloc failed\n", __FUNCTION__));
 		goto fail;
 	}
 
@@ -1584,6 +2084,8 @@ dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg)
 
 	/* Parse packet filter id. */
 	pkt_filter.id = htod32(strtoul(argv[i], NULL, 0));
+	if (dhd_conf_del_pkt_filter(dhd, pkt_filter.id))
+		goto fail;
 
 	if (argv[++i] == NULL) {
 		DHD_ERROR(("Polarity not provided\n"));
@@ -1674,6 +2176,9 @@ void dhd_pktfilter_offload_delete(dhd_pub_t *dhd, int id)
 		DHD_ERROR(("%s: Failed to delete filter ID:%d, ret=%d\n",
 			__FUNCTION__, id, ret));
 	}
+	else
+		DHD_TRACE(("%s: successfully deleted pktfilter %d\n",
+		__FUNCTION__, id));
 }
 #endif /* PKT_FILTER_SUPPORT */
 
@@ -1684,34 +2189,48 @@ void dhd_pktfilter_offload_delete(dhd_pub_t *dhd, int id)
 void
 dhd_arp_offload_set(dhd_pub_t * dhd, int arp_mode)
 {
-	char iovbuf[32];
+	char iovbuf[DHD_IOVAR_BUF_SIZE];
+	int iovar_len;
 	int retcode;
 
-	bcm_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
-	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+	iovar_len = bcm_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
+	if (!iovar_len) {
+		DHD_ERROR(("%s: Insufficient iovar buffer size %zu \n",
+			__FUNCTION__, sizeof(iovbuf)));
+		return;
+	}
+
+	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iovar_len, TRUE, 0);
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
-		DHD_TRACE(("%s: failed to set ARP offload mode to 0x%x, retcode = %d\n",
+		DHD_ERROR(("%s: failed to set ARP offload mode to 0x%x, retcode = %d\n",
 			__FUNCTION__, arp_mode, retcode));
 	else
-		DHD_TRACE(("%s: successfully set ARP offload mode to 0x%x\n",
+		DHD_ARPOE(("%s: successfully set ARP offload mode to 0x%x\n",
 			__FUNCTION__, arp_mode));
 }
 
 void
 dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable)
 {
-	char iovbuf[32];
+	char iovbuf[DHD_IOVAR_BUF_SIZE];
+	int iovar_len;
 	int retcode;
 
-	bcm_mkiovar("arpoe", (char *)&arp_enable, 4, iovbuf, sizeof(iovbuf));
-	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+	iovar_len = bcm_mkiovar("arpoe", (char *)&arp_enable, 4, iovbuf, sizeof(iovbuf));
+	if (!iovar_len) {
+		DHD_ERROR(("%s: Insufficient iovar buffer size %zu \n",
+			__FUNCTION__, sizeof(iovbuf)));
+		return;
+	}
+
+	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iovar_len, TRUE, 0);
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
-		DHD_TRACE(("%s: failed to enabe ARP offload to %d, retcode = %d\n",
+		DHD_ERROR(("%s: failed to enabe ARP offload to %d, retcode = %d\n",
 			__FUNCTION__, arp_enable, retcode));
 	else
-		DHD_TRACE(("%s: successfully enabed ARP offload to %d\n",
+		DHD_ARPOE(("%s: successfully enabed ARP offload to %d\n",
 			__FUNCTION__, arp_enable));
 	if (arp_enable) {
 		uint32 version;
@@ -1742,6 +2261,11 @@ dhd_aoe_arp_clr(dhd_pub_t *dhd, int idx)
 		idx = 0;
 
 	iov_len = bcm_mkiovar("arp_table_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if (!iov_len) {
+		DHD_ERROR(("%s: Insufficient iovar buffer size %zu \n",
+			__FUNCTION__, sizeof(iovbuf)));
+		return;
+	}
 	if ((ret  = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, idx)) < 0)
 		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
 }
@@ -1758,6 +2282,11 @@ dhd_aoe_hostip_clr(dhd_pub_t *dhd, int idx)
 		idx = 0;
 
 	iov_len = bcm_mkiovar("arp_hostip_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if (!iov_len) {
+		DHD_ERROR(("%s: Insufficient iovar buffer size %zu \n",
+			__FUNCTION__, sizeof(iovbuf)));
+		return;
+	}
 	if ((ret  = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, idx)) < 0)
 		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
 }
@@ -1775,14 +2304,19 @@ dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr, int idx)
 		idx = 0;
 	iov_len = bcm_mkiovar("arp_hostip", (char *)&ipaddr,
 		sizeof(ipaddr), iovbuf, sizeof(iovbuf));
+	if (!iov_len) {
+		DHD_ERROR(("%s: Insufficient iovar buffer size %zu \n",
+			__FUNCTION__, sizeof(iovbuf)));
+		return;
+	}
 	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, idx);
 
 	if (retcode)
-		DHD_TRACE(("%s: ARP ip addr add failed, retcode = %d\n",
-		__FUNCTION__, retcode));
+		DHD_ERROR(("%s: ARP ip addr add failed, retcode = %d\n",
+			__FUNCTION__, retcode));
 	else
-		DHD_TRACE(("%s: sARP H ipaddr entry added \n",
-		__FUNCTION__));
+		DHD_ARPOE(("%s: sARP H ipaddr entry added \n",
+			__FUNCTION__));
 }
 
 int
@@ -1804,8 +2338,8 @@ dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen, int idx)
 	retcode = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, buflen, FALSE, idx);
 
 	if (retcode) {
-		DHD_TRACE(("%s: ioctl WLC_GET_VAR error %d\n",
-		__FUNCTION__, retcode));
+		DHD_ERROR(("%s: ioctl WLC_GET_VAR error %d\n",
+			__FUNCTION__, retcode));
 
 		return -1;
 	}
@@ -1824,6 +2358,7 @@ dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen, int idx)
 	return 0;
 }
 #endif /* ARP_OFFLOAD_SUPPORT  */
+
 /*
  * Neighbor Discovery Offload: enable NDO feature
  * Called  by ipv6 event handler when interface comes up/goes down
@@ -1832,13 +2367,19 @@ int
 dhd_ndo_enable(dhd_pub_t * dhd, int ndo_enable)
 {
 	char iovbuf[DHD_IOVAR_BUF_SIZE];
+	int iov_len;
 	int retcode;
 
 	if (dhd == NULL)
 		return -1;
 
-	bcm_mkiovar("ndoe", (char *)&ndo_enable, 4, iovbuf, sizeof(iovbuf));
-	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+	iov_len = bcm_mkiovar("ndoe", (char *)&ndo_enable, 4, iovbuf, sizeof(iovbuf));
+	if (!iov_len) {
+		DHD_ERROR(("%s: Insufficient iovar buffer size %zu \n",
+			__FUNCTION__, sizeof(iovbuf)));
+		return -1;
+	}
+	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, 0);
 	if (retcode)
 		DHD_ERROR(("%s: failed to enabe ndo to %d, retcode = %d\n",
 			__FUNCTION__, ndo_enable, retcode));
@@ -1850,7 +2391,7 @@ dhd_ndo_enable(dhd_pub_t * dhd, int ndo_enable)
 }
 
 /*
- * Neighbor Discover Offload: add host ipv6 ip into firmware
+ * Neighbor Discover Offload: enable NDO feature
  * Called  by ipv6 event handler when interface comes up
  */
 int
@@ -1860,23 +2401,29 @@ dhd_ndo_add_ip(dhd_pub_t *dhd, char* ipv6addr, int idx)
 	char iovbuf[DHD_IOVAR_BUF_SIZE];
 	int retcode;
 
-	if (dhd == NULL || ipv6addr == NULL)
+	if (dhd == NULL)
 		return -1;
 
-	iov_len = bcm_mkiovar("nd_hostip", ipv6addr,
+	iov_len = bcm_mkiovar("nd_hostip", (char *)ipv6addr,
 		IPV6_ADDR_LEN, iovbuf, sizeof(iovbuf));
+	if (!iov_len) {
+		DHD_ERROR(("%s: Insufficient iovar buffer size %zu \n",
+			__FUNCTION__, sizeof(iovbuf)));
+		return -1;
+	}
 	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, idx);
 
 	if (retcode)
 		DHD_ERROR(("%s: ndo ip addr add failed, retcode = %d\n",
 		__FUNCTION__, retcode));
 	else
-		DHD_ERROR(("%s: ndo ipaddr entry added \n",
+		DHD_TRACE(("%s: ndo ipaddr entry added \n",
 		__FUNCTION__));
+
 	return retcode;
 }
 /*
- * Neighbor Discover Offload: disable NDO feature
+ * Neighbor Discover Offload: enable NDO feature
  * Called  by ipv6 event handler when interface goes down
  */
 int
@@ -1889,8 +2436,13 @@ dhd_ndo_remove_ip(dhd_pub_t *dhd, int idx)
 	if (dhd == NULL)
 		return -1;
 
-	iov_len = bcm_mkiovar("nd_hostip_clear", (char *)NULL,
+	iov_len = bcm_mkiovar("nd_hostip_clear", NULL,
 		0, iovbuf, sizeof(iovbuf));
+	if (!iov_len) {
+		DHD_ERROR(("%s: Insufficient iovar buffer size %zu \n",
+			__FUNCTION__, sizeof(iovbuf)));
+		return -1;
+	}
 	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, idx);
 
 	if (retcode)
@@ -1959,16 +2511,15 @@ bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf, int *retval)
 	}
 }
 
-
 /* Function to estimate possible DTIM_SKIP value */
 int
 dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd)
 {
 	int bcn_li_dtim = 1; /* deafult no dtim skip setting */
 	int ret = -1;
-	int dtim_assoc = 0;
+	int dtim_period = 0;
 	int ap_beacon = 0;
-
+	int allowed_skip_dtim_cnt = 0;
 	/* Check if associated */
 	if (dhd_is_associated(dhd, NULL, NULL) == FALSE) {
 		DHD_TRACE(("%s NOT assoc ret %d\n", __FUNCTION__, ret));
@@ -1982,21 +2533,15 @@ dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd)
 		goto exit;
 	}
 
-	/* if associated APs Beacon more  that 100msec do no dtim skip */
-	if (ap_beacon > MAX_DTIM_SKIP_BEACON_ITERVAL) {
-		DHD_ERROR(("%s NO dtim skip for AP with beacon %d ms\n", __FUNCTION__, ap_beacon));
-		goto exit;
-	}
-
 	/* read associated ap's dtim setup */
 	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_DTIMPRD,
-		&dtim_assoc, sizeof(dtim_assoc), FALSE, 0)) < 0) {
+		&dtim_period, sizeof(dtim_period), FALSE, 0)) < 0) {
 		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
 		goto exit;
 	}
 
 	/* if not assocated just eixt */
-	if (dtim_assoc == 0) {
+	if (dtim_period == 0) {
 		goto exit;
 	}
 
@@ -2004,22 +2549,27 @@ dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd)
 	bcn_li_dtim = dhd->suspend_bcn_li_dtim;
 
 	/* check if sta listen interval fits into AP dtim */
-	if (dtim_assoc > CUSTOM_LISTEN_INTERVAL) {
+	if (dtim_period > CUSTOM_LISTEN_INTERVAL) {
 		/* AP DTIM to big for our Listen Interval : no dtim skiping */
-		bcn_li_dtim = 1;
+		bcn_li_dtim = NO_DTIM_SKIP;
 		DHD_ERROR(("%s DTIM=%d > Listen=%d : too big ...\n",
-			__FUNCTION__, dtim_assoc, CUSTOM_LISTEN_INTERVAL));
+			__FUNCTION__, dtim_period, CUSTOM_LISTEN_INTERVAL));
 		goto exit;
 	}
 
-	if ((bcn_li_dtim * dtim_assoc) > CUSTOM_LISTEN_INTERVAL) {
+	if ((dtim_period * ap_beacon * bcn_li_dtim) > MAX_DTIM_ALLOWED_INTERVAL) {
+		 allowed_skip_dtim_cnt = MAX_DTIM_ALLOWED_INTERVAL / (dtim_period * ap_beacon);
+		 bcn_li_dtim = (allowed_skip_dtim_cnt != 0) ? allowed_skip_dtim_cnt : NO_DTIM_SKIP;
+	}
+
+	if ((bcn_li_dtim * dtim_period) > CUSTOM_LISTEN_INTERVAL) {
 		/* Round up dtim_skip to fit into STAs Listen Interval */
-		bcn_li_dtim = (int)(CUSTOM_LISTEN_INTERVAL / dtim_assoc);
+		bcn_li_dtim = (int)(CUSTOM_LISTEN_INTERVAL / dtim_period);
 		DHD_TRACE(("%s agjust dtim_skip as %d\n", __FUNCTION__, bcn_li_dtim));
 	}
 
 	DHD_ERROR(("%s beacon=%d bcn_li_dtim=%d DTIM=%d Listen=%d\n",
-		__FUNCTION__, ap_beacon, bcn_li_dtim, dtim_assoc, CUSTOM_LISTEN_INTERVAL));
+		__FUNCTION__, ap_beacon, bcn_li_dtim, dtim_period, CUSTOM_LISTEN_INTERVAL));
 
 exit:
 	return bcn_li_dtim;
@@ -2040,13 +2590,13 @@ bool dhd_support_sta_mode(dhd_pub_t *dhd)
 #if defined(KEEP_ALIVE)
 int dhd_keep_alive_onoff(dhd_pub_t *dhd)
 {
-	char 				buf[256];
-	const char 			*str;
+	char				buf[32] = {0};
+	const char			*str;
 	wl_mkeep_alive_pkt_t	mkeep_alive_pkt = {0};
 	wl_mkeep_alive_pkt_t	*mkeep_alive_pktp;
 	int					buf_len;
 	int					str_len;
-	int res 				= -1;
+	int res					= -1;
 
 	if (!dhd_support_sta_mode(dhd))
 		return res;
@@ -2055,8 +2605,8 @@ int dhd_keep_alive_onoff(dhd_pub_t *dhd)
 
 	str = "mkeep_alive";
 	str_len = strlen(str);
-	strncpy(buf, str, str_len);
-	buf[ str_len ] = '\0';
+	strncpy(buf, str, sizeof(buf) - 1);
+	buf[ sizeof(buf) - 1 ] = '\0';
 	mkeep_alive_pktp = (wl_mkeep_alive_pkt_t *) (buf + str_len + 1);
 	mkeep_alive_pkt.period_msec = dhd->conf->keep_alive_period;
 	buf_len = str_len + 1;

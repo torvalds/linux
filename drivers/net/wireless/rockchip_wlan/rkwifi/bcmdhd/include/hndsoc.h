@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: hndsoc.h 365041 2012-10-26 09:10:35Z $
+ * $Id: hndsoc.h 473238 2014-04-28 19:14:56Z $
  */
 
 #ifndef	_HNDSOC_H
@@ -29,7 +29,9 @@
 #define SI_WRAP_BASE    	0x18100000	/* Wrapper space base */
 #define SI_CORE_SIZE    	0x1000		/* each core gets 4Kbytes for registers */
 
+#ifndef SI_MAXCORES
 #define	SI_MAXCORES		32		/* NorthStar has more cores */
+#endif /* SI_MAXCORES */
 
 #define	SI_FASTRAM		0x19000000	/* On-chip RAM on chips that also have DDR */
 #define	SI_FASTRAM_SWAPPED	0x19800000
@@ -53,6 +55,7 @@
 #define	SI_ARM_FLASH1		0xffff0000	/* ARM Flash Region 1 */
 #define	SI_ARM_FLASH1_SZ	0x00010000	/* ARM Size of Flash Region 1 */
 
+#define SI_SFLASH		0x14000000
 #define SI_PCI_DMA		0x40000000	/* Client Mode sb2pcitranslation2 (1 GB) */
 #define SI_PCI_DMA2		0x80000000	/* Client Mode sb2pcitranslation2 (1 GB) */
 #define SI_PCI_DMA_SZ		0x40000000	/* Client Mode sb2pcitranslation2 size in bytes */
@@ -62,7 +65,6 @@
 #define SI_PCIE_DMA_H32		0x80000000	/* PCIE Client Mode sb2pcitranslation2
 						 * (2 ZettaBytes), high 32 bits
 						 */
-
 /* core codes */
 #define	NODEV_CORE_ID		0x700		/* Invalid coreid */
 #define	CC_CORE_ID		0x800		/* chipcommon core */
@@ -125,6 +127,8 @@
 #define PCIE2_CORE_ID		0x83c		/* pci express Gen2 core */
 #define USB30D_CORE_ID		0x83d		/* usb 3.0 device core */
 #define ARMCR4_CORE_ID		0x83e		/* ARM CR4 CPU */
+#define GCI_CORE_ID		0x840		/* GCI Core */
+#define M2MDMA_CORE_ID          0x844           /* memory to memory dma */
 #define APB_BRIDGE_CORE_ID	0x135		/* APB bridge core ID */
 #define AXI_CORE_ID		0x301		/* AXI/GPV core ID */
 #define EROM_CORE_ID		0x366		/* EROM core ID */
@@ -163,12 +167,12 @@
 #define CC_4706B0_CORE_REV	0x8000001f		/* chipcommon core */
 #define SOCRAM_4706B0_CORE_REV	0x80000005		/* internal memory core */
 #define GMAC_4706B0_CORE_REV	0x80000000		/* Gigabit MAC core */
+#define NS_PCIEG2_CORE_REV_B0	0x7		/* NS-B0 PCIE Gen 2 core rev */
 
 /* There are TWO constants on all HND chips: SI_ENUM_BASE above,
  * and chipcommon being the first core:
  */
 #define	SI_CC_IDX		0
-
 /* SOC Interconnect types (aka chip types) */
 #define	SOCI_SB			0
 #define	SOCI_AI			1
@@ -201,6 +205,7 @@
  * communicate w/PMU regarding clock control.
  */
 #define SI_CLK_CTL_ST		0x1e0		/* clock control and status */
+#define SI_PWR_CTL_ST		0x1e8		/* For memory clock gating */
 
 /* clk_ctl_st register */
 #define	CCS_FORCEALP		0x00000001	/* force ALP request */
@@ -211,12 +216,16 @@
 #define	CCS_FORCEHWREQOFF	0x00000020	/* Force HW Clock Request Off */
 #define CCS_HQCLKREQ		0x00000040	/* HQ Clock Required */
 #define CCS_USBCLKREQ		0x00000100	/* USB Clock Req */
+#define CCS_SECICLKREQ		0x00000100	/* SECI Clock Req */
+#define CCS_ARMFASTCLOCKREQ	0x00000100	/* ARM CR4 fast clock request */
+#define CCS_AVBCLKREQ		0x00000400	/* AVB Clock enable request */
 #define CCS_ERSRC_REQ_MASK	0x00000700	/* external resource requests */
 #define CCS_ERSRC_REQ_SHIFT	8
 #define	CCS_ALPAVAIL		0x00010000	/* ALP is available */
 #define	CCS_HTAVAIL		0x00020000	/* HT is available */
 #define CCS_BP_ON_APL		0x00040000	/* RO: Backplane is running on ALP clock */
 #define CCS_BP_ON_HT		0x00080000	/* RO: Backplane is running on HT clock */
+#define CCS_ARMFASTCLOCKSTATUS	0x01000000	/* Fast CPU clock is running */
 #define CCS_ERSRC_STS_MASK	0x07000000	/* external resource status */
 #define CCS_ERSRC_STS_SHIFT	24
 
@@ -251,9 +260,9 @@
 #define	SOC_KNLDEV_NORFLASH	0x00000002
 #define	SOC_KNLDEV_NANDFLASH	0x00000004
 
-#ifndef _LANGUAGE_ASSEMBLY
+#if !defined(_LANGUAGE_ASSEMBLY) && !defined(__ASSEMBLY__)
 int soc_boot_dev(void *sih);
 int soc_knl_dev(void *sih);
-#endif	/* _LANGUAGE_ASSEMBLY */
+#endif	/* !defined(_LANGUAGE_ASSEMBLY) && !defined(__ASSEMBLY__) */
 
 #endif /* _HNDSOC_H */
