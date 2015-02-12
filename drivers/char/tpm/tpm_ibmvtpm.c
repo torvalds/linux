@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2012 IBM Corporation
  *
- * Author: Ashley Lai <adlai@us.ibm.com>
+ * Author: Ashley Lai <ashleydlai@gmail.com>
  *
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
@@ -270,7 +270,10 @@ static int ibmvtpm_crq_send_init(struct ibmvtpm_dev *ibmvtpm)
 static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
 {
 	struct ibmvtpm_dev *ibmvtpm = ibmvtpm_get_data(&vdev->dev);
+	struct tpm_chip *chip = dev_get_drvdata(ibmvtpm->dev);
 	int rc = 0;
+
+	tpm_chip_unregister(chip);
 
 	free_irq(vdev->irq, ibmvtpm);
 
@@ -290,8 +293,6 @@ static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
 		kfree(ibmvtpm->rtce_buf);
 	}
 
-	tpm_remove_hardware(ibmvtpm->dev);
-
 	kfree(ibmvtpm);
 
 	return 0;
@@ -307,6 +308,14 @@ static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
 static unsigned long tpm_ibmvtpm_get_desired_dma(struct vio_dev *vdev)
 {
 	struct ibmvtpm_dev *ibmvtpm = ibmvtpm_get_data(&vdev->dev);
+
+	/* ibmvtpm initializes at probe time, so the data we are
+	* asking for may not be set yet. Estimate that 4K required
+	* for TCE-mapped buffer in addition to CRQ.
+	*/
+	if (!ibmvtpm)
+		return CRQ_RES_BUF_SIZE + PAGE_SIZE;
+
 	return CRQ_RES_BUF_SIZE + ibmvtpm->rtce_size;
 }
 
@@ -555,11 +564,9 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 	struct tpm_chip *chip;
 	int rc = -ENOMEM, rc1;
 
-	chip = tpm_register_hardware(dev, &tpm_ibmvtpm);
-	if (!chip) {
-		dev_err(dev, "tpm_register_hardware failed\n");
-		return -ENODEV;
-	}
+	chip = tpmm_chip_alloc(dev, &tpm_ibmvtpm);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
 	ibmvtpm = kzalloc(sizeof(struct ibmvtpm_dev), GFP_KERNEL);
 	if (!ibmvtpm) {
@@ -629,7 +636,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 	if (rc)
 		goto init_irq_cleanup;
 
-	return rc;
+	return tpm_chip_register(chip);
 init_irq_cleanup:
 	do {
 		rc1 = plpar_hcall_norets(H_FREE_CRQ, vio_dev->unit_address);
@@ -643,8 +650,6 @@ cleanup:
 			free_page((unsigned long)crq_q->crq_addr);
 		kfree(ibmvtpm);
 	}
-
-	tpm_remove_hardware(dev);
 
 	return rc;
 }
