@@ -21,7 +21,7 @@ int mminit_loglevel;
 #endif
 
 /* The zonelists are simply reported, validation is manual. */
-void mminit_verify_zonelist(void)
+void __init mminit_verify_zonelist(void)
 {
 	int nid;
 
