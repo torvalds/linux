@@ -11,6 +11,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <linux/phy.h>
+#include <linux/pm_opp.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx7-iomuxc-gpr.h>
@@ -110,6 +111,13 @@ static void __init imx7d_init_irq(void)
 	irqchip_init();
 }
 
+static void __init imx7d_init_late(void)
+{
+	if (IS_ENABLED(CONFIG_ARM_IMX7D_CPUFREQ)) {
+		platform_device_register_simple("imx7d-cpufreq", -1, NULL, 0);
+	}
+}
+
 static const char *imx7d_dt_compat[] __initconst = {
 	"fsl,imx7d",
 	NULL,
@@ -126,6 +134,7 @@ DT_MACHINE_START(IMX7D, "Freescale i.MX7 Dual (Device Tree)")
 	.smp            = smp_ops(imx_smp_ops),
 	.init_irq	= imx7d_init_irq,
 	.init_machine	= imx7d_init_machine,
+	.init_late	= imx7d_init_late,
 	.dt_compat	= imx7d_dt_compat,
 	.restart	= mxc_restart,
 MACHINE_END
