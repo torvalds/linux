@@ -14,6 +14,7 @@
 
 	wireless-wlan {
 		compatible = "wlan-platdata";
+                rockchip,grf = <&grf>;
 
 		/* wifi_chip_type - wifi chip define
 		 * bcmwifi ==> like ap6xxx, rk90x;
@@ -40,7 +41,7 @@
 		WIFI,host_wake_irq = <&gpio3 GPIO_A6 GPIO_ACTIVE_HIGH>;
 		//WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	wireless-bluetooth {
