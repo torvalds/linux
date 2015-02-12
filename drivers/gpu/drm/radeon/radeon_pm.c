@@ -585,7 +585,7 @@ static ssize_t radeon_hwmon_set_pwm1_enable(struct device *dev,
 	if (err)
 		return err;
 
-	switch(value) {
+	switch (value) {
 	case 1: /* manual, percent-based */
 		rdev->asic->dpm.fan_ctrl_set_mode(rdev, FDO_PWM_MODE_STATIC);
 		break;
@@ -608,7 +608,7 @@ static ssize_t radeon_hwmon_get_pwm1_max(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	return sprintf(buf, "%i\n", 100); /* pwm uses percent-based fan-control */
+	return sprintf(buf, "%i\n", 255);
 }
 
 static ssize_t radeon_hwmon_set_pwm1(struct device *dev,
@@ -622,6 +622,8 @@ static ssize_t radeon_hwmon_set_pwm1(struct device *dev,
 	err = kstrtou32(buf, 10, &value);
 	if (err)
 		return err;
+
+	value = (value * 100) / 255;
 
 	err = rdev->asic->dpm.set_fan_speed_percent(rdev, value);
 	if (err)
@@ -641,6 +643,8 @@ static ssize_t radeon_hwmon_get_pwm1(struct device *dev,
 	err = rdev->asic->dpm.get_fan_speed_percent(rdev, &speed);
 	if (err)
 		return err;
+
+	speed = (speed * 255) / 100;
 
 	return sprintf(buf, "%i\n", speed);
 }
