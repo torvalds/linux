@@ -554,11 +554,4 @@ static inline int regulator_is_supported_voltage_tol(struct regulator *regulator
 					      target_uV + tol_uV);
 }
 
-/* TEMP: Wrapper to keep bisectability */
-static inline int regulator_set_optimum_mode(struct regulator *regulator,
-					     int load_uA)
-{
-	return regulator_set_load(regulator, load_uA);
-}
-
 #endif
