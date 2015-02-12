@@ -165,17 +165,6 @@ bool is_supported_compression(const char *ext)
 	return false;
 }
 
-bool is_kmodule_extension(const char *ext)
-{
-	if (strncmp(ext, "ko", 2))
-		return false;
-
-	if (ext[2] == '\0' || (ext[2] == '.' && is_supported_compression(ext+3)))
-		return true;
-
-	return false;
-}
-
 bool is_kernel_module(const char *pathname)
 {
 	struct kmod_path m;
