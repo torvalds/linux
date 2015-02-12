@@ -42,7 +42,7 @@ int string_get_size(u64 size, const enum string_size_units units,
 		[STRING_UNITS_2] = 1024,
 	};
 	int i, j;
-	u64 remainder = 0, sf_cap;
+	u32 remainder = 0, sf_cap;
 	char tmp[8];
 
 	tmp[0] = '\0';
@@ -59,14 +59,13 @@ int string_get_size(u64 size, const enum string_size_units units,
 
 		if (j) {
 			remainder *= 1000;
-			do_div(remainder, divisor[units]);
-			snprintf(tmp, sizeof(tmp), ".%03lld",
-				 (unsigned long long)remainder);
+			remainder /= divisor[units];
+			snprintf(tmp, sizeof(tmp), ".%03u", remainder);
 			tmp[j+1] = '\0';
 		}
 	}
 
-	snprintf(buf, len, "%lld%s %s", (unsigned long long)size,
+	snprintf(buf, len, "%u%s %s", (u32)size,
 		 tmp, units_str[units][i]);
 
 	return 0;
