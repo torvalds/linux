@@ -147,7 +147,7 @@ axon_ram_direct_access(struct block_device *device, sector_t sector,
 	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
 
 	*kaddr = (void *)(bank->ph_addr + offset);
-	*pfn = virt_to_phys(kaddr) >> PAGE_SHIFT;
+	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
 
 	return bank->size - offset;
 }
