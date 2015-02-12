@@ -136,6 +136,7 @@ static const struct snd_soc_dapm_widget tegra_max98090_dapm_widgets[] = {
 };
 
 static const struct snd_kcontrol_new tegra_max98090_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphones"),
 	SOC_DAPM_PIN_SWITCH("Speakers"),
 };
 
