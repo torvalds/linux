@@ -594,11 +594,13 @@ static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 		ret_val = stream->ops->stream_drop(sst->dev, str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		dev_dbg(rtd->dev, "sst: in pause\n");
 		status = SST_PLATFORM_PAUSED;
 		ret_val = stream->ops->stream_pause(sst->dev, str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		dev_dbg(rtd->dev, "sst: in pause release\n");
 		status = SST_PLATFORM_RUNNING;
 		ret_val = stream->ops->stream_pause_release(sst->dev, str_id);
