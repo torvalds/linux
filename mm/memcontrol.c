@@ -2572,6 +2572,8 @@ static int memcg_alloc_cache_id(void)
 
 	err = memcg_update_all_caches(size);
 	if (!err)
+		err = memcg_update_all_list_lrus(size);
+	if (!err)
 		memcg_nr_cache_ids = size;
 
 	up_write(&memcg_cache_ids_sem);
@@ -2764,6 +2766,24 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order)
 
 	memcg_uncharge_kmem(memcg, 1 << order);
 	page->mem_cgroup = NULL;
+}
+
+struct mem_cgroup *__mem_cgroup_from_kmem(void *ptr)
+{
+	struct mem_cgroup *memcg = NULL;
+	struct kmem_cache *cachep;
+	struct page *page;
+
+	page = virt_to_head_page(ptr);
+	if (PageSlab(page)) {
+		cachep = page->slab_cache;
+		if (!is_root_cache(cachep))
+			memcg = cachep->memcg_params->memcg;
+	} else
+		/* page allocated by alloc_kmem_pages */
+		memcg = page->mem_cgroup;
+
+	return memcg;
 }
 #endif /* CONFIG_MEMCG_KMEM */
 
