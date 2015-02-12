@@ -313,6 +313,9 @@ struct usba_udc {
 	/* Protect hw registers from concurrent modifications */
 	spinlock_t lock;
 
+	/* Mutex to prevent concurrent start or stop */
+	struct mutex vbus_mutex;
+
 	void __iomem *regs;
 	void __iomem *fifo;
 
@@ -328,6 +331,7 @@ struct usba_udc {
 	struct clk *hclk;
 	struct usba_ep *usba_ep;
 	bool bias_pulse_needed;
+	bool clocked;
 
 	u16 devstatus;
 
