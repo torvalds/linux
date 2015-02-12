@@ -460,12 +460,35 @@ int machine__process_lost_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
+static struct dso *machine__module_dso(struct machine *machine, const char *filename)
+{
+	struct dso *dso;
+	bool compressed;
+
+	dso = dsos__find(&machine->kernel_dsos, filename, false);
+	if (!dso) {
+		dso = dsos__addnew(&machine->kernel_dsos, filename);
+		if (dso == NULL)
+			return NULL;
+
+		if (machine__is_host(machine))
+			dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
+		else
+			dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
+
+		/* _KMODULE_COMP should be next to _KMODULE */
+		if (is_kernel_module(filename, &compressed) && compressed)
+			dso->symtab_type++;
+	}
+
+	return dso;
+}
+
 struct map *machine__new_module(struct machine *machine, u64 start,
 				const char *filename)
 {
 	struct map *map;
-	struct dso *dso = __dsos__findnew(&machine->kernel_dsos, filename);
-	bool compressed;
+	struct dso *dso = machine__module_dso(machine, filename);
 
 	if (dso == NULL)
 		return NULL;
@@ -473,15 +496,6 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 	map = map__new2(start, dso, MAP__FUNCTION);
 	if (map == NULL)
 		return NULL;
-
-	if (machine__is_host(machine))
-		dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
-	else
-		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
-
-	/* _KMODULE_COMP should be next to _KMODULE */
-	if (is_kernel_module(filename, &compressed) && compressed)
-		dso->symtab_type++;
 
 	map_groups__insert(&machine->kmaps, map);
 	return map;
