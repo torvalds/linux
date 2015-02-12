@@ -20,12 +20,12 @@
  * @len:	length of buffer
  *
  * This function returns a string formatted to 3 significant figures
- * giving the size in the required units.  Returns 0 on success or
- * error on failure.  @buf is always zero terminated.
+ * giving the size in the required units.  @buf should have room for
+ * at least 9 bytes and will always be zero terminated.
  *
  */
-int string_get_size(u64 size, const enum string_size_units units,
-		    char *buf, int len)
+void string_get_size(u64 size, const enum string_size_units units,
+		     char *buf, int len)
 {
 	static const char *const units_10[] = {
 		"B", "kB", "MB", "GB", "TB", "PB", "EB"
@@ -67,8 +67,6 @@ int string_get_size(u64 size, const enum string_size_units units,
 
 	snprintf(buf, len, "%u%s %s", (u32)size,
 		 tmp, units_str[units][i]);
-
-	return 0;
 }
 EXPORT_SYMBOL(string_get_size);
 
