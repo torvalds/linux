@@ -1103,8 +1103,10 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 		low_pfn = isolate_migratepages_block(cc, low_pfn, end_pfn,
 								isolate_mode);
 
-		if (!low_pfn || cc->contended)
+		if (!low_pfn || cc->contended) {
+			acct_isolated(zone, cc);
 			return ISOLATE_ABORT;
+		}
 
 		/*
 		 * Either we isolated something and proceed with migration. Or
