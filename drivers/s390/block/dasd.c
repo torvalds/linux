@@ -1237,7 +1237,6 @@ EXPORT_SYMBOL(dasd_smalloc_request);
  */
 void dasd_kfree_request(struct dasd_ccw_req *cqr, struct dasd_device *device)
 {
-#ifdef CONFIG_64BIT
 	struct ccw1 *ccw;
 
 	/* Clear any idals used for the request. */
@@ -1245,7 +1244,6 @@ void dasd_kfree_request(struct dasd_ccw_req *cqr, struct dasd_device *device)
 	do {
 		clear_normalized_cda(ccw);
 	} while (ccw++->flags & (CCW_FLAG_CC | CCW_FLAG_DC));
-#endif
 	kfree(cqr->cpaddr);
 	kfree(cqr->data);
 	kfree(cqr);

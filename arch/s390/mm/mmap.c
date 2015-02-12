@@ -190,29 +190,6 @@ unsigned long randomize_et_dyn(void)
 	return base + mmap_rnd();
 }
 
-#ifndef CONFIG_64BIT
-
-/*
- * This function, called very early during the creation of a new
- * process VM image, sets up which VM layout function to use:
- */
-void arch_pick_mmap_layout(struct mm_struct *mm)
-{
-	/*
-	 * Fall back to the standard layout if the personality
-	 * bit is set, or if the expected stack growth is unlimited:
-	 */
-	if (mmap_is_legacy()) {
-		mm->mmap_base = mmap_base_legacy();
-		mm->get_unmapped_area = arch_get_unmapped_area;
-	} else {
-		mm->mmap_base = mmap_base();
-		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
-	}
-}
-
-#else
-
 int s390_mmap_check(unsigned long addr, unsigned long len, unsigned long flags)
 {
 	if (is_compat_task() || (TASK_SIZE >= (1UL << 53)))
@@ -317,5 +294,3 @@ static int __init setup_mmap_rnd(void)
 	return 0;
 }
 early_initcall(setup_mmap_rnd);
-
-#endif

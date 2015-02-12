@@ -49,13 +49,6 @@ static inline void __tlb_flush_global(void)
 	register unsigned long reg4 asm("4");
 	long dummy;
 
-#ifndef CONFIG_64BIT
-	if (!MACHINE_HAS_CSP) {
-		smp_ptlb_all();
-		return;
-	}
-#endif /* CONFIG_64BIT */
-
 	dummy = 0;
 	reg2 = reg3 = 0;
 	reg4 = ((unsigned long) &dummy) + 1;

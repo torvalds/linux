@@ -51,32 +51,6 @@
 
 #define __BITOPS_NO_BARRIER	"\n"
 
-#ifndef CONFIG_64BIT
-
-#define __BITOPS_OR		"or"
-#define __BITOPS_AND		"nr"
-#define __BITOPS_XOR		"xr"
-#define __BITOPS_BARRIER	"\n"
-
-#define __BITOPS_LOOP(__addr, __val, __op_string, __barrier)	\
-({								\
-	unsigned long __old, __new;				\
-								\
-	typecheck(unsigned long *, (__addr));			\
-	asm volatile(						\
-		"	l	%0,%2\n"			\
-		"0:	lr	%1,%0\n"			\
-		__op_string "	%1,%3\n"			\
-		"	cs	%0,%1,%2\n"			\
-		"	jl	0b"				\
-		: "=&d" (__old), "=&d" (__new), "+Q" (*(__addr))\
-		: "d" (__val)					\
-		: "cc", "memory");				\
-	__old;							\
-})
-
-#else /* CONFIG_64BIT */
-
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
 
 #define __BITOPS_OR		"laog"
@@ -124,8 +98,6 @@
 })
 
 #endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
-
-#endif /* CONFIG_64BIT */
 
 #define __BITOPS_WORDS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
 

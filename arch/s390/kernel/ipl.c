@@ -2062,12 +2062,10 @@ static void do_reset_calls(void)
 {
 	struct reset_call *reset;
 
-#ifdef CONFIG_64BIT
 	if (diag308_set_works) {
 		diag308_reset();
 		return;
 	}
-#endif
 	list_for_each_entry(reset, &rcall, list)
 		reset->fn();
 }

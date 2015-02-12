@@ -106,7 +106,6 @@ static void store_sigregs(void)
 {
 	save_access_regs(current->thread.acrs);
 	save_fp_ctl(&current->thread.fp_regs.fpc);
-#ifdef CONFIG_64BIT
 	if (current->thread.vxrs) {
 		int i;
 
@@ -115,7 +114,6 @@ static void store_sigregs(void)
 			current->thread.fp_regs.fprs[i] =
 				*(freg_t *)(current->thread.vxrs + i);
 	} else
-#endif
 		save_fp_regs(current->thread.fp_regs.fprs);
 }
 
@@ -124,7 +122,6 @@ static void load_sigregs(void)
 {
 	restore_access_regs(current->thread.acrs);
 	/* restore_fp_ctl is done in restore_sigregs */
-#ifdef CONFIG_64BIT
 	if (current->thread.vxrs) {
 		int i;
 
@@ -133,7 +130,6 @@ static void load_sigregs(void)
 				current->thread.fp_regs.fprs[i];
 		restore_vx_regs(current->thread.vxrs);
 	} else
-#endif
 		restore_fp_regs(current->thread.fp_regs.fprs);
 }
 
@@ -200,7 +196,6 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 static int save_sigregs_ext(struct pt_regs *regs,
 			    _sigregs_ext __user *sregs_ext)
 {
-#ifdef CONFIG_64BIT
 	__u64 vxrs[__NUM_VXRS_LOW];
 	int i;
 
@@ -215,14 +210,12 @@ static int save_sigregs_ext(struct pt_regs *regs,
 				   sizeof(sregs_ext->vxrs_high)))
 			return -EFAULT;
 	}
-#endif
 	return 0;
 }
 
 static int restore_sigregs_ext(struct pt_regs *regs,
 			       _sigregs_ext __user *sregs_ext)
 {
-#ifdef CONFIG_64BIT
 	__u64 vxrs[__NUM_VXRS_LOW];
 	int i;
 
@@ -237,7 +230,6 @@ static int restore_sigregs_ext(struct pt_regs *regs,
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
 			*((__u64 *)(current->thread.vxrs + i) + 1) = vxrs[i];
 	}
-#endif
 	return 0;
 }
 
@@ -416,13 +408,11 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	 * included in the signal frame on a 31-bit system.
 	 */
 	uc_flags = 0;
-#ifdef CONFIG_64BIT
 	if (MACHINE_HAS_VX) {
 		frame_size += sizeof(_sigregs_ext);
 		if (current->thread.vxrs)
 			uc_flags |= UC_VXRS;
 	}
-#endif
 	frame = get_sigframe(&ksig->ka, regs, frame_size);
 	if (frame == (void __user *) -1UL)
 		return -EFAULT;

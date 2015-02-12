@@ -198,19 +198,11 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->panic_stack = panic_stack + PANIC_FRAME_OFFSET;
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
-#ifndef CONFIG_64BIT
-	if (MACHINE_HAS_IEEE) {
-		lc->extended_save_area_addr = get_zeroed_page(GFP_KERNEL);
-		if (!lc->extended_save_area_addr)
-			goto out;
-	}
-#else
 	if (MACHINE_HAS_VX)
 		lc->vector_save_area_addr =
 			(unsigned long) &lc->vector_save_area;
 	if (vdso_alloc_per_cpu(lc))
 		goto out;
-#endif
 	lowcore_ptr[cpu] = lc;
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, (u32)(unsigned long) lc);
 	return 0;
@@ -229,16 +221,7 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, 0);
 	lowcore_ptr[pcpu - pcpu_devices] = NULL;
-#ifndef CONFIG_64BIT
-	if (MACHINE_HAS_IEEE) {
-		struct _lowcore *lc = pcpu->lowcore;
-
-		free_page((unsigned long) lc->extended_save_area_addr);
-		lc->extended_save_area_addr = 0;
-	}
-#else
 	vdso_free_per_cpu(pcpu->lowcore);
-#endif
 	if (pcpu == &pcpu_devices[0])
 		return;
 	free_page(pcpu->lowcore->panic_stack-PANIC_FRAME_OFFSET);
@@ -491,22 +474,6 @@ void arch_send_call_function_single_ipi(int cpu)
 {
 	pcpu_ec_call(pcpu_devices + cpu, ec_call_function_single);
 }
-
-#ifndef CONFIG_64BIT
-/*
- * this function sends a 'purge tlb' signal to another CPU.
- */
-static void smp_ptlb_callback(void *info)
-{
-	__tlb_flush_local();
-}
-
-void smp_ptlb_all(void)
-{
-	on_each_cpu(smp_ptlb_callback, NULL, 1);
-}
-EXPORT_SYMBOL(smp_ptlb_all);
-#endif /* ! CONFIG_64BIT */
 
 /*
  * this function sends a 'reschedule' IPI to another CPU.

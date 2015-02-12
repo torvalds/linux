@@ -107,11 +107,7 @@
 /*
  * These are used to set parameters in the core dumps.
  */
-#ifndef CONFIG_64BIT
-#define ELF_CLASS	ELFCLASS32
-#else /* CONFIG_64BIT */
 #define ELF_CLASS	ELFCLASS64
-#endif /* CONFIG_64BIT */
 #define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
 

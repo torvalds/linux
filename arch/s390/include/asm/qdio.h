@@ -211,11 +211,6 @@ struct qdio_buffer_element {
 	u8 scount;
 	u8 sflags;
 	u32 length;
-#ifdef CONFIG_32BIT
-	/* private: */
-	void *res2;
-	/* public: */
-#endif
 	void *addr;
 } __attribute__ ((packed, aligned(16)));
 
@@ -232,11 +227,6 @@ struct qdio_buffer {
  * @sbal: absolute SBAL address
  */
 struct sl_element {
-#ifdef CONFIG_32BIT
-	/* private: */
-	unsigned long reserved;
-	/* public: */
-#endif
 	unsigned long sbal;
 } __attribute__ ((packed));
 

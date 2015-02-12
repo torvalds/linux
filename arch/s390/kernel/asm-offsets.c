@@ -166,9 +166,6 @@ int main(void)
 	DEFINE(__LC_FPREGS_SAVE_AREA, offsetof(struct _lowcore, floating_pt_save_area));
 	DEFINE(__LC_GPREGS_SAVE_AREA, offsetof(struct _lowcore, gpregs_save_area));
 	DEFINE(__LC_CREGS_SAVE_AREA, offsetof(struct _lowcore, cregs_save_area));
-#ifdef CONFIG_32BIT
-	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, extended_save_area_addr));
-#else /* CONFIG_32BIT */
 	DEFINE(__LC_DATA_EXC_CODE, offsetof(struct _lowcore, data_exc_code));
 	DEFINE(__LC_MCCK_FAIL_STOR_ADDR, offsetof(struct _lowcore, failing_storage_address));
 	DEFINE(__LC_EXT_PARAMS2, offsetof(struct _lowcore, ext_params2));
@@ -183,6 +180,5 @@ int main(void)
 	DEFINE(__GMAP_ASCE, offsetof(struct gmap, asce));
 	DEFINE(__SIE_PROG0C, offsetof(struct kvm_s390_sie_block, prog0c));
 	DEFINE(__SIE_PROG20, offsetof(struct kvm_s390_sie_block, prog20));
-#endif /* CONFIG_32BIT */
 	return 0;
 }

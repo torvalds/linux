@@ -174,12 +174,10 @@ static int ap_interrupts_available(void)
  *
  * Returns 1 if AP configuration information is available.
  */
-#ifdef CONFIG_64BIT
 static int ap_configuration_available(void)
 {
 	return test_facility(2) && test_facility(12);
 }
-#endif
 
 /**
  * ap_test_queue(): Test adjunct processor queue.
@@ -239,7 +237,6 @@ static inline struct ap_queue_status ap_reset_queue(ap_qid_t qid)
 	return reg1;
 }
 
-#ifdef CONFIG_64BIT
 /**
  * ap_queue_interruption_control(): Enable interruption for a specific AP.
  * @qid: The AP queue number
@@ -261,9 +258,7 @@ ap_queue_interruption_control(ap_qid_t qid, void *ind)
 		: "cc" );
 	return reg1_out;
 }
-#endif
 
-#ifdef CONFIG_64BIT
 static inline struct ap_queue_status
 __ap_query_functions(ap_qid_t qid, unsigned int *functions)
 {
@@ -282,9 +277,7 @@ __ap_query_functions(ap_qid_t qid, unsigned int *functions)
 	*functions = (unsigned int)(reg2 >> 32);
 	return reg1;
 }
-#endif
 
-#ifdef CONFIG_64BIT
 static inline int __ap_query_configuration(struct ap_config_info *config)
 {
 	register unsigned long reg0 asm ("0") = 0x04000000UL;
@@ -302,7 +295,6 @@ static inline int __ap_query_configuration(struct ap_config_info *config)
 
 	return reg1;
 }
-#endif
 
 /**
  * ap_query_functions(): Query supported functions.
@@ -317,7 +309,6 @@ static inline int __ap_query_configuration(struct ap_config_info *config)
  */
 static int ap_query_functions(ap_qid_t qid, unsigned int *functions)
 {
-#ifdef CONFIG_64BIT
 	struct ap_queue_status status;
 	int i;
 	status = __ap_query_functions(qid, functions);
@@ -348,9 +339,6 @@ static int ap_query_functions(ap_qid_t qid, unsigned int *functions)
 		}
 	}
 	return -EBUSY;
-#else
-	return -EINVAL;
-#endif
 }
 
 /**
@@ -364,7 +352,6 @@ static int ap_query_functions(ap_qid_t qid, unsigned int *functions)
  */
 static int ap_queue_enable_interruption(ap_qid_t qid, void *ind)
 {
-#ifdef CONFIG_64BIT
 	struct ap_queue_status status;
 	int t_depth, t_device_type, rc, i;
 
@@ -404,9 +391,6 @@ static int ap_queue_enable_interruption(ap_qid_t qid, void *ind)
 		}
 	}
 	return rc;
-#else
-	return -EINVAL;
-#endif
 }
 
 /**
@@ -1238,7 +1222,6 @@ static struct bus_attribute *const ap_bus_attrs[] = {
  */
 static void ap_query_configuration(void)
 {
-#ifdef CONFIG_64BIT
 	if (ap_configuration_available()) {
 		if (!ap_configuration)
 			ap_configuration =
@@ -1248,9 +1231,6 @@ static void ap_query_configuration(void)
 			__ap_query_configuration(ap_configuration);
 	} else
 		ap_configuration = NULL;
-#else
-	ap_configuration = NULL;
-#endif
 }
 
 /**
