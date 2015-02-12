@@ -10,14 +10,10 @@ documentation about the individual clock/clockdomain nodes.
 Required properties:
 - compatible:	Must be one of:
 		"ti,am3-prcm"
-		"ti,am3-scm"
 		"ti,am4-prcm"
-		"ti,am4-scm"
 		"ti,omap2-prcm"
-		"ti,omap2-scm"
 		"ti,omap3-prm"
 		"ti,omap3-cm"
-		"ti,omap3-scm"
 		"ti,omap4-cm1"
 		"ti,omap4-prm"
 		"ti,omap4-cm2"
@@ -30,9 +26,7 @@ Required properties:
 		"ti,dra7-cm-core-aon"
 		"ti,dra7-cm-core"
 		"ti,dm814-prcm"
-		"ti,dm814-scrm"
 		"ti,dm816-prcm"
-		"ti,dm816-scrm"
 - reg:		Contains PRCM module register address range
 		(base address and length)
 - clocks:	clocks for this module
