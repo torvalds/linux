@@ -134,10 +134,7 @@ static inline bool sb_has_quota_suspended(struct super_block *sb, int type)
 
 static inline unsigned sb_any_quota_suspended(struct super_block *sb)
 {
-	unsigned type, tmsk = 0;
-	for (type = 0; type < MAXQUOTAS; type++)
-		tmsk |= sb_has_quota_suspended(sb, type) << type;
-	return tmsk;
+	return dquot_state_types(sb_dqopt(sb)->flags, DQUOT_SUSPENDED);
 }
 
 /* Does kernel know about any quota information for given sb + type? */
@@ -149,10 +146,7 @@ static inline bool sb_has_quota_loaded(struct super_block *sb, int type)
 
 static inline unsigned sb_any_quota_loaded(struct super_block *sb)
 {
-	unsigned type, tmsk = 0;
-	for (type = 0; type < MAXQUOTAS; type++)
-		tmsk |= sb_has_quota_loaded(sb, type) << type;
-	return	tmsk;
+	return dquot_state_types(sb_dqopt(sb)->flags, DQUOT_USAGE_ENABLED);
 }
 
 static inline bool sb_has_quota_active(struct super_block *sb, int type)

@@ -389,7 +389,19 @@ struct quota_format_type {
 	struct quota_format_type *qf_next;
 };
 
-/* Quota state flags - they actually come in two flavors - for users and groups */
+/**
+ * Quota state flags - they actually come in two flavors - for users and groups.
+ *
+ * Actual typed flags layout:
+ *				USRQUOTA	GRPQUOTA
+ *  DQUOT_USAGE_ENABLED		0x0001		0x0002
+ *  DQUOT_LIMITS_ENABLED	0x0004		0x0008
+ *  DQUOT_SUSPENDED		0x0010		0x0020
+ *
+ * Following bits are used for non-typed flags:
+ *  DQUOT_QUOTA_SYS_FILE	0x0040
+ *  DQUOT_NEGATIVE_USAGE	0x0080
+ */
 enum {
 	_DQUOT_USAGE_ENABLED = 0,		/* Track disk usage for users */
 	_DQUOT_LIMITS_ENABLED,			/* Enforce quota limits for users */
@@ -398,9 +410,9 @@ enum {
 						 * memory to turn them on */
 	_DQUOT_STATE_FLAGS
 };
-#define DQUOT_USAGE_ENABLED	(1 << _DQUOT_USAGE_ENABLED)
-#define DQUOT_LIMITS_ENABLED	(1 << _DQUOT_LIMITS_ENABLED)
-#define DQUOT_SUSPENDED		(1 << _DQUOT_SUSPENDED)
+#define DQUOT_USAGE_ENABLED	(1 << _DQUOT_USAGE_ENABLED * MAXQUOTAS)
+#define DQUOT_LIMITS_ENABLED	(1 << _DQUOT_LIMITS_ENABLED * MAXQUOTAS)
+#define DQUOT_SUSPENDED		(1 << _DQUOT_SUSPENDED * MAXQUOTAS)
 #define DQUOT_STATE_FLAGS	(DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED | \
 				 DQUOT_SUSPENDED)
 /* Other quota flags */
@@ -414,15 +426,21 @@ enum {
 						 */
 #define DQUOT_NEGATIVE_USAGE	(1 << (DQUOT_STATE_LAST + 1))
 					       /* Allow negative quota usage */
-
 static inline unsigned int dquot_state_flag(unsigned int flags, int type)
 {
-	return flags << _DQUOT_STATE_FLAGS * type;
+	return flags << type;
 }
 
 static inline unsigned int dquot_generic_flag(unsigned int flags, int type)
 {
-	return (flags >> _DQUOT_STATE_FLAGS * type) & DQUOT_STATE_FLAGS;
+	return (flags >> type) & DQUOT_STATE_FLAGS;
+}
+
+/* Bitmap of quota types where flag is set in flags */
+static __always_inline unsigned dquot_state_types(unsigned flags, unsigned flag)
+{
+	BUILD_BUG_ON_NOT_POWER_OF_2(flag);
+	return (flags / flag) & ((1 << MAXQUOTAS) - 1);
 }
 
 #ifdef CONFIG_QUOTA_NETLINK_INTERFACE
