@@ -1071,19 +1071,22 @@ struct dso *dsos__find(const struct dsos *dsos, const char *name,
 	return dso__find_by_longname(&dsos->root, name);
 }
 
+struct dso *dsos__addnew(struct dsos *dsos, const char *name)
+{
+	struct dso *dso = dso__new(name);
+
+	if (dso != NULL) {
+		dsos__add(dsos, dso);
+		dso__set_basename(dso);
+	}
+	return dso;
+}
+
 struct dso *__dsos__findnew(struct dsos *dsos, const char *name)
 {
 	struct dso *dso = dsos__find(dsos, name, false);
 
-	if (!dso) {
-		dso = dso__new(name);
-		if (dso != NULL) {
-			dsos__add(dsos, dso);
-			dso__set_basename(dso);
-		}
-	}
-
-	return dso;
+	return dso ? dso : dsos__addnew(dsos, name);
 }
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,

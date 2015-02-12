@@ -264,6 +264,7 @@ struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 				const char *short_name, int dso_type);
 
 void dsos__add(struct dsos *dsos, struct dso *dso);
+struct dso *dsos__addnew(struct dsos *dsos, const char *name);
 struct dso *dsos__find(const struct dsos *dsos, const char *name,
 		       bool cmp_short);
 struct dso *__dsos__findnew(struct dsos *dsos, const char *name);
