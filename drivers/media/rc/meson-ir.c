@@ -76,11 +76,19 @@ static void meson_ir_set_mask(struct meson_ir *ir, unsigned int reg,
 static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 {
 	struct meson_ir *ir = dev_id;
+#if !defined(CONFIG_MACH_MESON8B_ODROIDC)
 	u32 duration;
 	DEFINE_IR_RAW_EVENT(rawir);
+#endif
 
 	spin_lock(&ir->lock);
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+        ir_raw_event_store_edge(ir->rc,
+                        (readl(ir->reg + IR_DEC_STATUS) & STATUS_IR_DEC_IN)
+                        ? IR_PULSE : IR_SPACE);
+        ir_raw_event_handle(ir->rc);
+#else
 	duration = readl(ir->reg + IR_DEC_REG1);
 	duration = (duration & REG1_TIME_IV_MASK) >> REG1_TIME_IV_SHIFT;
 	rawir.duration = US_TO_NS(duration * MESON_TRATE);
@@ -89,6 +97,7 @@ static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 
 	ir_raw_event_store_with_filter(ir->rc, &rawir);
 	ir_raw_event_handle(ir->rc);
+#endif
 
 	spin_unlock(&ir->lock);
 
