@@ -1516,7 +1516,7 @@ int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb)
 /* Called with ovs_mutex or RCU read lock. */
 int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb)
 {
-	return ovs_nla_put_key(&flow->mask->key, &flow->key,
+	return ovs_nla_put_key(&flow->key, &flow->key,
 				OVS_FLOW_ATTR_KEY, false, skb);
 }
 
