@@ -43,8 +43,11 @@ struct snd_seq_device {
 	void *private_data;	/* private data for the caller */
 	void (*private_free)(struct snd_seq_device *device);
 	struct list_head list;	/* link to next device */
+	struct device dev;
 };
 
+#define to_seq_dev(_dev) \
+	container_of(_dev, struct snd_seq_device, dev)
 
 /* driver operators
  * init_device:
