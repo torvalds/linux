@@ -194,6 +194,14 @@ static void stsi_2_2_2(struct seq_file *m, struct sysinfo_2_2_2 *info)
 	seq_printf(m, "LPAR CPUs Reserved:   %d\n", info->cpus_reserved);
 	seq_printf(m, "LPAR CPUs Dedicated:  %d\n", info->cpus_dedicated);
 	seq_printf(m, "LPAR CPUs Shared:     %d\n", info->cpus_shared);
+	if (info->mt_installed & 0x80) {
+		seq_printf(m, "LPAR CPUs G-MTID:     %d\n",
+			   info->mt_general & 0x1f);
+		seq_printf(m, "LPAR CPUs S-MTID:     %d\n",
+			   info->mt_installed & 0x1f);
+		seq_printf(m, "LPAR CPUs PS-MTID:    %d\n",
+			   info->mt_psmtid & 0x1f);
+	}
 }
 
 static void stsi_3_2_2(struct seq_file *m, struct sysinfo_3_2_2 *info)

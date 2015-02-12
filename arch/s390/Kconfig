@@ -66,6 +66,7 @@ config S390
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_INLINE_READ_LOCK
 	select ARCH_INLINE_READ_LOCK_BH
@@ -116,7 +117,6 @@ config S390
 	select HAVE_BPF_JIT if 64BIT && PACK_STACK
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
-	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DYNAMIC_FTRACE if 64BIT
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS if 64BIT
@@ -151,7 +151,6 @@ config S390
 	select TTY
 	select VIRT_CPU_ACCOUNTING
 	select VIRT_TO_BUS
-	select ARCH_HAS_SG_CHAIN
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -184,6 +183,10 @@ config HAVE_MARCH_Z196_FEATURES
 config HAVE_MARCH_ZEC12_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z196_FEATURES
+
+config HAVE_MARCH_Z13_FEATURES
+	def_bool n
+	select HAVE_MARCH_ZEC12_FEATURES
 
 choice
 	prompt "Processor type"
@@ -244,6 +247,14 @@ config MARCH_ZEC12
 	  2827 series). The kernel will be slightly faster but will not work on
 	  older machines.
 
+config MARCH_Z13
+	bool "IBM z13"
+	select HAVE_MARCH_Z13_FEATURES if 64BIT
+	help
+	  Select this to enable optimizations for IBM z13 (2964 series).
+	  The kernel will be slightly faster but will not work on older
+	  machines.
+
 endchoice
 
 config MARCH_G5_TUNE
@@ -266,6 +277,9 @@ config MARCH_Z196_TUNE
 
 config MARCH_ZEC12_TUNE
 	def_bool TUNE_ZEC12 || MARCH_ZEC12 && TUNE_DEFAULT
+
+config MARCH_Z13_TUNE
+	def_bool TUNE_Z13 || MARCH_Z13 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -304,6 +318,9 @@ config TUNE_Z196
 
 config TUNE_ZEC12
 	bool "IBM zBC12 and zEC12"
+
+config TUNE_Z13
+	bool "IBM z13"
 
 endchoice
 
@@ -356,14 +373,14 @@ config SMP
 	  Even if you don't know what to do here, say Y.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-256)"
-	range 2 256
+	int "Maximum number of CPUs (2-512)"
+	range 2 512
 	depends on SMP
 	default "32" if !64BIT
 	default "64" if 64BIT
 	help
 	  This allows you to specify the maximum number of CPUs which this
-	  kernel will support. The maximum supported value is 256 and the
+	  kernel will support. The maximum supported value is 512 and the
 	  minimum value which makes sense is 2.
 
 	  This is purely to save memory - each supported CPU adds
@@ -378,17 +395,26 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
+config SCHED_SMT
+	def_bool n
+
 config SCHED_MC
 	def_bool n
 
 config SCHED_BOOK
+	def_bool n
+
+config SCHED_TOPOLOGY
 	def_bool y
-	prompt "Book scheduler support"
+	prompt "Topology scheduler support"
 	depends on SMP
+	select SCHED_SMT
 	select SCHED_MC
+	select SCHED_BOOK
 	help
-	  Book scheduler support improves the CPU scheduler's decision making
-	  when dealing with machines that have several books.
+	  Topology scheduler support improves the CPU scheduler's decision
+	  making when dealing with machines that have multi-threading,
+	  multiple cores or multiple books.
 
 source kernel/Kconfig.preempt
 
