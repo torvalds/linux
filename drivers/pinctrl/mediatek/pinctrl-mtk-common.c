@@ -406,7 +406,8 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 	}
 
-	err = pinconf_generic_parse_dt_config(node, &configs, &num_configs);
+	err = pinconf_generic_parse_dt_config(node, pctldev, &configs,
+		&num_configs);
 	if (num_configs)
 		has_config = 1;
 
@@ -1125,7 +1126,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 
 	prop = of_find_property(np, "pins-are-numbered", NULL);
 	if (!prop) {
-		dev_err(&pdev->dev, "only support pins-are-numbered format\n", ret);
+		dev_err(&pdev->dev, "only support pins-are-numbered format\n");
 		return -EINVAL;
 	}
 
