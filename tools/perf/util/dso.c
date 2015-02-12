@@ -178,19 +178,15 @@ bool is_kmodule_extension(const char *ext)
 
 bool is_kernel_module(const char *pathname, bool *compressed)
 {
-	const char *ext = strrchr(pathname, '.');
+	struct kmod_path m;
 
-	if (ext == NULL)
-		return false;
+	if (kmod_path__parse(&m, pathname))
+		return NULL;
 
-	if (is_supported_compression(ext + 1)) {
-		if (compressed)
-			*compressed = true;
-		ext -= 3;
-	} else if (compressed)
-		*compressed = false;
+	if (compressed)
+		*compressed = m.comp;
 
-	return is_kmodule_extension(ext + 1);
+	return m.kmod;
 }
 
 bool decompress_to_file(const char *ext, const char *filename, int output_fd)
