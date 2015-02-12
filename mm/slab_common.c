@@ -169,8 +169,8 @@ int memcg_update_all_caches(int num_memcgs)
 {
 	struct kmem_cache *s;
 	int ret = 0;
-	mutex_lock(&slab_mutex);
 
+	mutex_lock(&slab_mutex);
 	list_for_each_entry(s, &slab_caches, list) {
 		if (!is_root_cache(s))
 			continue;
@@ -181,11 +181,8 @@ int memcg_update_all_caches(int num_memcgs)
 		 * up to this point in an updated state.
 		 */
 		if (ret)
-			goto out;
+			break;
 	}
-
-	memcg_update_array_size(num_memcgs);
-out:
 	mutex_unlock(&slab_mutex);
 	return ret;
 }
@@ -369,6 +366,7 @@ kmem_cache_create(const char *name, size_t size, size_t align,
 
 	get_online_cpus();
 	get_online_mems();
+	memcg_get_cache_ids();
 
 	mutex_lock(&slab_mutex);
 
@@ -407,6 +405,7 @@ kmem_cache_create(const char *name, size_t size, size_t align,
 out_unlock:
 	mutex_unlock(&slab_mutex);
 
+	memcg_put_cache_ids();
 	put_online_mems();
 	put_online_cpus();
 

@@ -399,6 +399,8 @@ static inline void sock_release_memcg(struct sock *sk)
 extern struct static_key memcg_kmem_enabled_key;
 
 extern int memcg_nr_cache_ids;
+extern void memcg_get_cache_ids(void);
+extern void memcg_put_cache_ids(void);
 
 /*
  * Helper macro to loop through all memcg-specific caches. Callers must still
@@ -433,8 +435,6 @@ void __memcg_kmem_commit_charge(struct page *page,
 void __memcg_kmem_uncharge_pages(struct page *page, int order);
 
 int memcg_cache_id(struct mem_cgroup *memcg);
-
-void memcg_update_array_size(int num_groups);
 
 struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep);
 void __memcg_kmem_put_cache(struct kmem_cache *cachep);
@@ -567,6 +567,14 @@ memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
 static inline int memcg_cache_id(struct mem_cgroup *memcg)
 {
 	return -1;
+}
+
+static inline void memcg_get_cache_ids(void)
+{
+}
+
+static inline void memcg_put_cache_ids(void)
+{
 }
 
 static inline struct kmem_cache *

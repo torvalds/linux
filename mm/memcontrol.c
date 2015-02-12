@@ -544,6 +544,19 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
 static DEFINE_IDA(memcg_cache_ida);
 int memcg_nr_cache_ids;
 
+/* Protects memcg_nr_cache_ids */
+static DECLARE_RWSEM(memcg_cache_ids_sem);
+
+void memcg_get_cache_ids(void)
+{
+	down_read(&memcg_cache_ids_sem);
+}
+
+void memcg_put_cache_ids(void)
+{
+	up_read(&memcg_cache_ids_sem);
+}
+
 /*
  * MIN_SIZE is different than 1, because we would like to avoid going through
  * the alloc/free process all the time. In a small machine, 4 kmem-limited
@@ -2549,6 +2562,7 @@ static int memcg_alloc_cache_id(void)
 	 * There's no space for the new id in memcg_caches arrays,
 	 * so we have to grow them.
 	 */
+	down_write(&memcg_cache_ids_sem);
 
 	size = 2 * (id + 1);
 	if (size < MEMCG_CACHES_MIN_SIZE)
@@ -2557,6 +2571,11 @@ static int memcg_alloc_cache_id(void)
 		size = MEMCG_CACHES_MAX_SIZE;
 
 	err = memcg_update_all_caches(size);
+	if (!err)
+		memcg_nr_cache_ids = size;
+
+	up_write(&memcg_cache_ids_sem);
+
 	if (err) {
 		ida_simple_remove(&memcg_cache_ida, id);
 		return err;
@@ -2567,16 +2586,6 @@ static int memcg_alloc_cache_id(void)
 static void memcg_free_cache_id(int id)
 {
 	ida_simple_remove(&memcg_cache_ida, id);
-}
-
-/*
- * We should update the current array size iff all caches updates succeed. This
- * can only be done from the slab side. The slab mutex needs to be held when
- * calling this.
- */
-void memcg_update_array_size(int num)
-{
-	memcg_nr_cache_ids = num;
 }
 
 struct memcg_kmem_cache_create_work {
