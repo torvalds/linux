@@ -244,6 +244,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_sigp_stop;
 	u32 instruction_sigp_stop_store_status;
 	u32 instruction_sigp_store_status;
+	u32 instruction_sigp_store_adtl_status;
 	u32 instruction_sigp_arch;
 	u32 instruction_sigp_prefix;
 	u32 instruction_sigp_restart;
