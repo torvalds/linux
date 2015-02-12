@@ -416,6 +416,7 @@ static int intel_sst_runtime_suspend(struct device *dev)
 	synchronize_irq(ctx->irq_num);
 	flush_workqueue(ctx->post_msg_wq);
 
+	ctx->ops->reset(ctx);
 	/* save the shim registers because PMC doesn't save state */
 	sst_save_shim64(ctx, ctx->shim, ctx->shim_regs64);
 
