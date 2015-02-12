@@ -900,14 +900,17 @@ static inline struct dquot **i_dquot(struct inode *inode)
 
 static int dqinit_needed(struct inode *inode, int type)
 {
+	struct dquot * const *dquots;
 	int cnt;
 
 	if (IS_NOQUOTA(inode))
 		return 0;
+
+	dquots = i_dquot(inode);
 	if (type != -1)
-		return !i_dquot(inode)[type];
+		return !dquots[type];
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		if (!i_dquot(inode)[cnt])
+		if (!dquots[cnt])
 			return 1;
 	return 0;
 }
@@ -970,12 +973,13 @@ static void add_dquot_ref(struct super_block *sb, int type)
 static void remove_inode_dquot_ref(struct inode *inode, int type,
 				   struct list_head *tofree_head)
 {
-	struct dquot *dquot = i_dquot(inode)[type];
+	struct dquot **dquots = i_dquot(inode);
+	struct dquot *dquot = dquots[type];
 
-	i_dquot(inode)[type] = NULL;
 	if (!dquot)
 		return;
 
+	dquots[type] = NULL;
 	if (list_empty(&dquot->dq_free)) {
 		/*
 		 * The inode still has reference to dquot so it can't be in the
@@ -1389,12 +1393,14 @@ static int dquot_active(const struct inode *inode)
 static void __dquot_initialize(struct inode *inode, int type)
 {
 	int cnt, init_needed = 0;
-	struct dquot *got[MAXQUOTAS];
+	struct dquot **dquots, *got[MAXQUOTAS];
 	struct super_block *sb = inode->i_sb;
 	qsize_t rsv;
 
 	if (!dquot_active(inode))
 		return;
+
+	dquots = i_dquot(inode);
 
 	/* First get references to structures we might need. */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
@@ -1407,7 +1413,7 @@ static void __dquot_initialize(struct inode *inode, int type)
 		 * we check it without locking here to avoid unnecessary
 		 * dqget()/dqput() calls.
 		 */
-		if (i_dquot(inode)[cnt])
+		if (dquots[cnt])
 			continue;
 		init_needed = 1;
 
@@ -1438,8 +1444,8 @@ static void __dquot_initialize(struct inode *inode, int type)
 		/* We could race with quotaon or dqget() could have failed */
 		if (!got[cnt])
 			continue;
-		if (!i_dquot(inode)[cnt]) {
-			i_dquot(inode)[cnt] = got[cnt];
+		if (!dquots[cnt]) {
+			dquots[cnt] = got[cnt];
 			got[cnt] = NULL;
 			/*
 			 * Make quota reservation system happy if someone
@@ -1447,7 +1453,7 @@ static void __dquot_initialize(struct inode *inode, int type)
 			 */
 			rsv = inode_get_rsv_space(inode);
 			if (unlikely(rsv))
-				dquot_resv_space(i_dquot(inode)[cnt], rsv);
+				dquot_resv_space(dquots[cnt], rsv);
 		}
 	}
 out_err:
@@ -1473,12 +1479,13 @@ EXPORT_SYMBOL(dquot_initialize);
 static void __dquot_drop(struct inode *inode)
 {
 	int cnt;
+	struct dquot **dquots = i_dquot(inode);
 	struct dquot *put[MAXQUOTAS];
 
 	spin_lock(&dq_data_lock);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		put[cnt] = i_dquot(inode)[cnt];
-		i_dquot(inode)[cnt] = NULL;
+		put[cnt] = dquots[cnt];
+		dquots[cnt] = NULL;
 	}
 	spin_unlock(&dq_data_lock);
 	dqput_all(put);
@@ -1486,6 +1493,7 @@ static void __dquot_drop(struct inode *inode)
 
 void dquot_drop(struct inode *inode)
 {
+	struct dquot * const *dquots;
 	int cnt;
 
 	if (IS_NOQUOTA(inode))
@@ -1498,8 +1506,9 @@ void dquot_drop(struct inode *inode)
 	 * must assure that nobody can come after the DQUOT_DROP and
 	 * add quota pointers back anyway.
 	 */
+	dquots = i_dquot(inode);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		if (i_dquot(inode)[cnt])
+		if (dquots[cnt])
 			break;
 	}
 
@@ -1600,8 +1609,8 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 {
 	int cnt, ret = 0, index;
 	struct dquot_warn warn[MAXQUOTAS];
-	struct dquot **dquots = i_dquot(inode);
 	int reserve = flags & DQUOT_SPACE_RESERVE;
+	struct dquot **dquots;
 
 	if (!dquot_active(inode)) {
 		inode_incr_space(inode, number, reserve);
@@ -1611,6 +1620,7 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
 		warn[cnt].w_type = QUOTA_NL_NOWARN;
 
+	dquots = i_dquot(inode);
 	index = srcu_read_lock(&dquot_srcu);
 	spin_lock(&dq_data_lock);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
@@ -1652,13 +1662,14 @@ int dquot_alloc_inode(struct inode *inode)
 {
 	int cnt, ret = 0, index;
 	struct dquot_warn warn[MAXQUOTAS];
-	struct dquot * const *dquots = i_dquot(inode);
+	struct dquot * const *dquots;
 
 	if (!dquot_active(inode))
 		return 0;
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
 		warn[cnt].w_type = QUOTA_NL_NOWARN;
 
+	dquots = i_dquot(inode);
 	index = srcu_read_lock(&dquot_srcu);
 	spin_lock(&dq_data_lock);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
@@ -1690,6 +1701,7 @@ EXPORT_SYMBOL(dquot_alloc_inode);
  */
 int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 {
+	struct dquot **dquots;
 	int cnt, index;
 
 	if (!dquot_active(inode)) {
@@ -1697,18 +1709,18 @@ int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 		return 0;
 	}
 
+	dquots = i_dquot(inode);
 	index = srcu_read_lock(&dquot_srcu);
 	spin_lock(&dq_data_lock);
 	/* Claim reserved quotas to allocated quotas */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		if (i_dquot(inode)[cnt])
-			dquot_claim_reserved_space(i_dquot(inode)[cnt],
-							number);
+		if (dquots[cnt])
+			dquot_claim_reserved_space(dquots[cnt], number);
 	}
 	/* Update inode bytes */
 	inode_claim_rsv_space(inode, number);
 	spin_unlock(&dq_data_lock);
-	mark_all_dquot_dirty(i_dquot(inode));
+	mark_all_dquot_dirty(dquots);
 	srcu_read_unlock(&dquot_srcu, index);
 	return 0;
 }
@@ -1719,6 +1731,7 @@ EXPORT_SYMBOL(dquot_claim_space_nodirty);
  */
 void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number)
 {
+	struct dquot **dquots;
 	int cnt, index;
 
 	if (!dquot_active(inode)) {
@@ -1726,18 +1739,18 @@ void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number)
 		return;
 	}
 
+	dquots = i_dquot(inode);
 	index = srcu_read_lock(&dquot_srcu);
 	spin_lock(&dq_data_lock);
 	/* Claim reserved quotas to allocated quotas */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		if (i_dquot(inode)[cnt])
-			dquot_reclaim_reserved_space(i_dquot(inode)[cnt],
-						     number);
+		if (dquots[cnt])
+			dquot_reclaim_reserved_space(dquots[cnt], number);
 	}
 	/* Update inode bytes */
 	inode_reclaim_rsv_space(inode, number);
 	spin_unlock(&dq_data_lock);
-	mark_all_dquot_dirty(i_dquot(inode));
+	mark_all_dquot_dirty(dquots);
 	srcu_read_unlock(&dquot_srcu, index);
 	return;
 }
@@ -1750,7 +1763,7 @@ void __dquot_free_space(struct inode *inode, qsize_t number, int flags)
 {
 	unsigned int cnt;
 	struct dquot_warn warn[MAXQUOTAS];
-	struct dquot **dquots = i_dquot(inode);
+	struct dquot **dquots;
 	int reserve = flags & DQUOT_SPACE_RESERVE, index;
 
 	if (!dquot_active(inode)) {
@@ -1758,6 +1771,7 @@ void __dquot_free_space(struct inode *inode, qsize_t number, int flags)
 		return;
 	}
 
+	dquots = i_dquot(inode);
 	index = srcu_read_lock(&dquot_srcu);
 	spin_lock(&dq_data_lock);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
@@ -1793,12 +1807,13 @@ void dquot_free_inode(struct inode *inode)
 {
 	unsigned int cnt;
 	struct dquot_warn warn[MAXQUOTAS];
-	struct dquot * const *dquots = i_dquot(inode);
+	struct dquot * const *dquots;
 	int index;
 
 	if (!dquot_active(inode))
 		return;
 
+	dquots = i_dquot(inode);
 	index = srcu_read_lock(&dquot_srcu);
 	spin_lock(&dq_data_lock);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
