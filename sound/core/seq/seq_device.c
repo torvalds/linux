@@ -54,7 +54,7 @@ MODULE_LICENSE("GPL");
 
 struct snd_seq_driver {
 	struct device_driver driver;
-	char id[ID_LEN];
+	const char *id;
 	int argsize;
 	struct snd_seq_dev_ops ops;
 };
@@ -215,8 +215,8 @@ static void snd_seq_dev_release(struct device *dev)
  * id = id of driver
  * result = return pointer (NULL allowed if unnecessary)
  */
-int snd_seq_device_new(struct snd_card *card, int device, char *id, int argsize,
-		       struct snd_seq_device **result)
+int snd_seq_device_new(struct snd_card *card, int device, const char *id,
+		       int argsize, struct snd_seq_device **result)
 {
 	struct snd_seq_device *dev;
 	int err;
@@ -239,9 +239,8 @@ int snd_seq_device_new(struct snd_card *card, int device, char *id, int argsize,
 	/* set up device info */
 	dev->card = card;
 	dev->device = device;
-	strlcpy(dev->id, id, sizeof(dev->id));
+	dev->id = id;
 	dev->argsize = argsize;
-	dev->status = SNDRV_SEQ_DEVICE_FREE;
 
 	device_initialize(&dev->dev);
 	dev->dev.parent = &card->card_dev;
@@ -270,26 +269,16 @@ static int snd_seq_drv_probe(struct device *dev)
 {
 	struct snd_seq_driver *sdrv = to_seq_drv(dev->driver);
 	struct snd_seq_device *sdev = to_seq_dev(dev);
-	int err;
 
-	err = sdrv->ops.init_device(sdev);
-	if (err < 0)
-		return err;
-	sdev->status = SNDRV_SEQ_DEVICE_REGISTERED;
-	return 0;
+	return sdrv->ops.init_device(sdev);
 }
 
 static int snd_seq_drv_remove(struct device *dev)
 {
 	struct snd_seq_driver *sdrv = to_seq_drv(dev->driver);
 	struct snd_seq_device *sdev = to_seq_dev(dev);
-	int err;
 
-	err = sdrv->ops.free_device(sdev);
-	if (err < 0)
-		return err;
-	sdev->status = SNDRV_SEQ_DEVICE_FREE;
-	return 0;
+	return sdrv->ops.free_device(sdev);
 }
 
 /*
@@ -297,8 +286,8 @@ static int snd_seq_drv_remove(struct device *dev)
  * id = driver id
  * entry = driver operators - duplicated to each instance
  */
-int snd_seq_device_register_driver(char *id, struct snd_seq_dev_ops *entry,
-				   int argsize)
+int snd_seq_device_register_driver(const char *id,
+				   struct snd_seq_dev_ops *entry, int argsize)
 {
 	struct snd_seq_driver *sdrv;
 	int err;
@@ -315,7 +304,7 @@ int snd_seq_device_register_driver(char *id, struct snd_seq_dev_ops *entry,
 	sdrv->driver.bus = &snd_seq_bus_type;
 	sdrv->driver.probe = snd_seq_drv_probe;
 	sdrv->driver.remove = snd_seq_drv_remove;
-	strlcpy(sdrv->id, id, sizeof(sdrv->id));
+	sdrv->id = id;
 	sdrv->argsize = argsize;
 	sdrv->ops = *entry;
 
@@ -343,7 +332,7 @@ static int find_drv(struct device_driver *drv, void *data)
 /*
  * unregister the specified driver
  */
-int snd_seq_device_unregister_driver(char *id)
+int snd_seq_device_unregister_driver(const char *id)
 {
 	struct snd_seq_driver *sdrv = (struct snd_seq_driver *)id;
 

@@ -25,24 +25,16 @@
  * registered device information
  */
 
-#define ID_LEN	32
-
-/* status flag */
-#define SNDRV_SEQ_DEVICE_FREE		0
-#define SNDRV_SEQ_DEVICE_REGISTERED	1
-
 struct snd_seq_device {
 	/* device info */
 	struct snd_card *card;	/* sound card */
 	int device;		/* device number */
-	char id[ID_LEN];	/* driver id */
+	const char *id;		/* driver id */
 	char name[80];		/* device name */
 	int argsize;		/* size of the argument */
 	void *driver_data;	/* private data for driver */
-	int status;		/* flag - read only */
 	void *private_data;	/* private data for the caller */
 	void (*private_free)(struct snd_seq_device *device);
-	struct list_head list;	/* link to next device */
 	struct device dev;
 };
 
@@ -75,9 +67,11 @@ void snd_seq_device_load_drivers(void);
 #else
 #define snd_seq_device_load_drivers()
 #endif
-int snd_seq_device_new(struct snd_card *card, int device, char *id, int argsize, struct snd_seq_device **result);
-int snd_seq_device_register_driver(char *id, struct snd_seq_dev_ops *entry, int argsize);
-int snd_seq_device_unregister_driver(char *id);
+int snd_seq_device_new(struct snd_card *card, int device, const char *id,
+		       int argsize, struct snd_seq_device **result);
+int snd_seq_device_register_driver(const char *id,
+				   struct snd_seq_dev_ops *entry, int argsize);
+int snd_seq_device_unregister_driver(const char *id);
 
 #define SNDRV_SEQ_DEVICE_ARGPTR(dev) (void *)((char *)(dev) + sizeof(struct snd_seq_device))
 
