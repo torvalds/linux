@@ -897,7 +897,7 @@ int rtas_offline_cpus_mask(cpumask_var_t cpus)
 }
 EXPORT_SYMBOL(rtas_offline_cpus_mask);
 
-int rtas_ibm_suspend_me(struct rtas_args *args)
+int rtas_ibm_suspend_me(u64 handle, int *vasi_return)
 {
 	long state;
 	long rc;
@@ -911,8 +911,7 @@ int rtas_ibm_suspend_me(struct rtas_args *args)
 		return -ENOSYS;
 
 	/* Make sure the state is valid */
-	rc = plpar_hcall(H_VASI_STATE, retbuf,
-			 ((u64)args->args[0] << 32) | args->args[1]);
+	rc = plpar_hcall(H_VASI_STATE, retbuf, handle);
 
 	state = retbuf[0];
 
@@ -920,12 +919,12 @@ int rtas_ibm_suspend_me(struct rtas_args *args)
 		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned %ld\n",rc);
 		return rc;
 	} else if (state == H_VASI_ENABLED) {
-		args->args[args->nargs] = RTAS_NOT_SUSPENDABLE;
+		*vasi_return = RTAS_NOT_SUSPENDABLE;
 		return 0;
 	} else if (state != H_VASI_SUSPENDING) {
 		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned state %ld\n",
 		       state);
-		args->args[args->nargs] = -1;
+		*vasi_return = -1;
 		return 0;
 	}
 
@@ -973,7 +972,7 @@ out:
 	return atomic_read(&data.error);
 }
 #else /* CONFIG_PPC_PSERIES */
-int rtas_ibm_suspend_me(struct rtas_args *args)
+int rtas_ibm_suspend_me(u64 handle, int *vasi_return)
 {
 	return -ENOSYS;
 }
@@ -1053,7 +1052,16 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 
 	/* Need to handle ibm,suspend_me call specially */
 	if (token == ibm_suspend_me_token) {
-		rc = rtas_ibm_suspend_me(&args);
+
+		/*
+		 * rtas_ibm_suspend_me assumes args are in cpu endian, or at least the
+		 * hcall within it requires it.
+		 */
+		int vasi_rc = 0;
+		u64 handle = ((u64)be32_to_cpu(args.args[0]) << 32)
+		              | be32_to_cpu(args.args[1]);
+		rc = rtas_ibm_suspend_me(handle, &vasi_rc);
+		args.rets[0] = cpu_to_be32(vasi_rc);
 		if (rc)
 			return rc;
 		goto copy_return;

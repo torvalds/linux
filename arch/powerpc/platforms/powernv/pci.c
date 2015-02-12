@@ -781,35 +781,6 @@ static void pnv_p7ioc_rc_quirk(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_IBM, 0x3b9, pnv_p7ioc_rc_quirk);
 
-static int pnv_pci_probe_mode(struct pci_bus *bus)
-{
-	struct pci_controller *hose = pci_bus_to_host(bus);
-	const __be64 *tstamp;
-	u64 now, target;
-
-
-	/* We hijack this as a way to ensure we have waited long
-	 * enough since the reset was lifted on the PCI bus
-	 */
-	if (bus != hose->bus)
-		return PCI_PROBE_NORMAL;
-	tstamp = of_get_property(hose->dn, "reset-clear-timestamp", NULL);
-	if (!tstamp || !*tstamp)
-		return PCI_PROBE_NORMAL;
-
-	now = mftb() / tb_ticks_per_usec;
-	target = (be64_to_cpup(tstamp) / tb_ticks_per_usec)
-		+ PCI_RESET_DELAY_US;
-
-	pr_devel("pci %04d: Reset target: 0x%llx now: 0x%llx\n",
-		 hose->global_number, target, now);
-
-	if (now < target)
-		msleep((target - now + 999) / 1000);
-
-	return PCI_PROBE_NORMAL;
-}
-
 void __init pnv_pci_init(void)
 {
 	struct device_node *np;
@@ -856,7 +827,6 @@ void __init pnv_pci_init(void)
 	ppc_md.tce_build_rm = pnv_tce_build_rm;
 	ppc_md.tce_free_rm = pnv_tce_free_rm;
 	ppc_md.tce_get = pnv_tce_get;
-	ppc_md.pci_probe_mode = pnv_pci_probe_mode;
 	set_pci_dma_ops(&dma_iommu_ops);
 
 	/* Configure MSIs */

@@ -46,9 +46,9 @@
  * require a TLB exception handler change.  It is assumed unused bits
  * are always zero.
  */
-#define _PAGE_RW	0x0400	/* lsb PP bits, inverted in HW */
+#define _PAGE_RO	0x0400	/* lsb PP bits */
 #define _PAGE_USER	0x0800	/* msb PP bits */
-/* set when neither _PAGE_USER nor _PAGE_RW are set */
+/* set when _PAGE_USER is unset and _PAGE_RO is set */
 #define _PAGE_KNLRO	0x0200
 
 #define _PMD_PRESENT	0x0001
@@ -62,9 +62,8 @@
 #define PTE_ATOMIC_UPDATES	1
 
 /* We need to add _PAGE_SHARED to kernel pages */
-#define _PAGE_KERNEL_RO	(_PAGE_SHARED | _PAGE_KNLRO)
-#define _PAGE_KERNEL_ROX	(_PAGE_EXEC | _PAGE_KNLRO)
-#define _PAGE_KERNEL_RW	(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
+#define _PAGE_KERNEL_RO	(_PAGE_SHARED | _PAGE_RO | _PAGE_KNLRO)
+#define _PAGE_KERNEL_ROX	(_PAGE_EXEC | _PAGE_RO | _PAGE_KNLRO)
 
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_PTE_8xx_H */
