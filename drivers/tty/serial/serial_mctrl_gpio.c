@@ -48,9 +48,6 @@ void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
 	int value_array[UART_GPIO_MAX];
 	unsigned int count = 0;
 
-	if (IS_ERR_OR_NULL(gpios))
-		return;
-
 	for (i = 0; i < UART_GPIO_MAX; i++)
 		if (!IS_ERR_OR_NULL(gpios->gpio[i]) &&
 		    mctrl_gpios_desc[i].dir_out) {
@@ -65,10 +62,7 @@ EXPORT_SYMBOL_GPL(mctrl_gpio_set);
 struct gpio_desc *mctrl_gpio_to_gpiod(struct mctrl_gpios *gpios,
 				      enum mctrl_gpio_idx gidx)
 {
-	if (!IS_ERR_OR_NULL(gpios) && !IS_ERR_OR_NULL(gpios->gpio[gidx]))
-		return gpios->gpio[gidx];
-	else
-		return NULL;
+	return gpios->gpio[gidx];
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_to_gpiod);
 
@@ -76,15 +70,8 @@ unsigned int mctrl_gpio_get(struct mctrl_gpios *gpios, unsigned int *mctrl)
 {
 	enum mctrl_gpio_idx i;
 
-	/*
-	 * return it unchanged if the structure is not allocated
-	 */
-	if (IS_ERR_OR_NULL(gpios))
-		return *mctrl;
-
 	for (i = 0; i < UART_GPIO_MAX; i++) {
-		if (!IS_ERR_OR_NULL(gpios->gpio[i]) &&
-		    !mctrl_gpios_desc[i].dir_out) {
+		if (gpios->gpio[i] && !mctrl_gpios_desc[i].dir_out) {
 			if (gpiod_get_value(gpios->gpio[i]))
 				*mctrl |= mctrl_gpios_desc[i].mctrl;
 			else
@@ -137,9 +124,6 @@ EXPORT_SYMBOL_GPL(mctrl_gpio_init);
 void mctrl_gpio_free(struct device *dev, struct mctrl_gpios *gpios)
 {
 	enum mctrl_gpio_idx i;
-
-	if (IS_ERR_OR_NULL(gpios))
-		return;
 
 	for (i = 0; i < UART_GPIO_MAX; i++)
 		if (!IS_ERR_OR_NULL(gpios->gpio[i]))
