@@ -727,6 +727,7 @@ static const struct x86_cpu_id intel_idle_ids[] = {
 	ICPU(0x46, idle_cpu_hsw),
 	ICPU(0x4d, idle_cpu_avn),
 	ICPU(0x3d, idle_cpu_bdw),
+	ICPU(0x47, idle_cpu_bdw),
 	ICPU(0x4f, idle_cpu_bdw),
 	ICPU(0x56, idle_cpu_bdw),
 	{}
