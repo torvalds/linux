@@ -289,6 +289,7 @@ enum iwl_ucode_tlv_api {
  * @IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH: supports TDLS channel switching
  * @IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT: supports Hot Spot Command
  * @IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS: support radio and beacon statistics
+ * @IWL_UCODE_TLV_CAPA_BT_COEX_PLCR: enabled BT Coex packet level co-running
  */
 enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= BIT(0),
@@ -304,6 +305,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH		= BIT(13),
 	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= BIT(18),
 	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= BIT(22),
+	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= BIT(28),
 };
 
 /* The default calibrate table size if not specified by firmware file */

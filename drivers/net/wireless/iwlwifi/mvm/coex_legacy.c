@@ -619,7 +619,7 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 	if (IWL_MVM_BT_COEX_SYNC2SCO)
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_SYNC2SCO);
 
-	if (IWL_MVM_BT_COEX_CORUNNING) {
+	if (iwl_mvm_bt_is_plcr_supported(mvm)) {
 		bt_cmd->valid_bit_msk |= cpu_to_le32(BT_VALID_CORUN_LUT_20 |
 						     BT_VALID_CORUN_LUT_40);
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_CORUNNING);
@@ -1207,7 +1207,7 @@ int iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
 	};
 
-	if (!IWL_MVM_BT_COEX_CORUNNING)
+	if (!iwl_mvm_bt_is_plcr_supported(mvm))
 		return 0;
 
 	lockdep_assert_held(&mvm->mutex);

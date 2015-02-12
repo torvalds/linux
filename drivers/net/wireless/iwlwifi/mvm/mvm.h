@@ -898,6 +898,12 @@ static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)
 	return mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SCD_CFG;
 }
 
+static inline bool iwl_mvm_bt_is_plcr_supported(struct iwl_mvm *mvm)
+{
+	return (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BT_COEX_PLCR) &&
+		IWL_MVM_BT_COEX_CORUNNING;
+}
+
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
 
 struct iwl_rate_info {
