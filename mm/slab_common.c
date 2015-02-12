@@ -116,7 +116,7 @@ static int memcg_alloc_cache_params(struct mem_cgroup *memcg,
 
 	if (!memcg) {
 		size = offsetof(struct memcg_cache_params, memcg_caches);
-		size += memcg_limited_groups_array_size * sizeof(void *);
+		size += memcg_nr_cache_ids * sizeof(void *);
 	} else
 		size = sizeof(struct memcg_cache_params);
 
@@ -154,7 +154,7 @@ static int memcg_update_cache_params(struct kmem_cache *s, int num_memcgs)
 
 	cur_params = s->memcg_params;
 	memcpy(new_params->memcg_caches, cur_params->memcg_caches,
-	       memcg_limited_groups_array_size * sizeof(void *));
+	       memcg_nr_cache_ids * sizeof(void *));
 
 	new_params->is_root_cache = true;
 
