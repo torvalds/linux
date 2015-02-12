@@ -277,7 +277,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	if (!shost_use_blk_mq(sdev->host) &&
 	    (shost->bqt || shost->hostt->use_blk_tags)) {
 		blk_queue_init_tags(sdev->request_queue,
-				    sdev->host->cmd_per_lun, shost->bqt);
+				    sdev->host->cmd_per_lun, shost->bqt,
+				    shost->hostt->tag_alloc_policy);
 	}
 	scsi_change_queue_depth(sdev, sdev->host->cmd_per_lun);
 
