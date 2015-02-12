@@ -540,6 +540,21 @@ config CP15_BARRIER_EMULATION
 
 	  If unsure, say Y
 
+config SETEND_EMULATION
+	bool "Emulate SETEND instruction"
+	help
+	  The SETEND instruction alters the data-endianness of the
+	  AArch32 EL0, and is deprecated in ARMv8.
+
+	  Say Y here to enable software emulation of the instruction
+	  for AArch32 userspace code.
+
+	  Note: All the cpus on the system must have mixed endian support at EL0
+	  for this feature to be enabled. If a new CPU - which doesn't support mixed
+	  endian - is hotplugged in after this feature has been enabled, there could
+	  be unexpected results in the applications.
+
+	  If unsure, say Y
 endif
 
 endmenu
@@ -626,9 +641,6 @@ source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-
-config ARM64_CPU_SUSPEND
-	def_bool PM_SLEEP
 
 endmenu
 
