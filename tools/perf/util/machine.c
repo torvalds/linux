@@ -1104,7 +1104,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		struct dso *dso;
 
 		list_for_each_entry(dso, &machine->kernel_dsos.head, node) {
-			if (is_kernel_module(dso->long_name, NULL))
+			if (is_kernel_module(dso->long_name))
 				continue;
 
 			kernel = dso;

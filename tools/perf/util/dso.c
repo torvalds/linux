@@ -176,15 +176,12 @@ bool is_kmodule_extension(const char *ext)
 	return false;
 }
 
-bool is_kernel_module(const char *pathname, bool *compressed)
+bool is_kernel_module(const char *pathname)
 {
 	struct kmod_path m;
 
 	if (kmod_path__parse(&m, pathname))
 		return NULL;
-
-	if (compressed)
-		*compressed = m.comp;
 
 	return m.kmod;
 }

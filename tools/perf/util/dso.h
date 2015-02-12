@@ -191,7 +191,7 @@ int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type t
 				   char *root_dir, char *filename, size_t size);
 bool is_supported_compression(const char *ext);
 bool is_kmodule_extension(const char *ext);
-bool is_kernel_module(const char *pathname, bool *compressed);
+bool is_kernel_module(const char *pathname);
 bool decompress_to_file(const char *ext, const char *filename, int output_fd);
 bool dso__needs_decompress(struct dso *dso);
 
