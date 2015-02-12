@@ -2160,6 +2160,9 @@ struct drm_i915_gem_request {
 	/** file_priv list entry for this request */
 	struct list_head client_list;
 
+	/** process identifier submitting this request */
+	struct pid *pid;
+
 	uint32_t uniq;
 
 	/**

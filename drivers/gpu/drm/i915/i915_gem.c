@@ -2493,6 +2493,8 @@ int __i915_add_request(struct intel_engine_cs *ring,
 		list_add_tail(&request->client_list,
 			      &file_priv->mm.request_list);
 		spin_unlock(&file_priv->mm.lock);
+
+		request->pid = get_pid(task_pid(current));
 	}
 
 	trace_i915_gem_request_add(request);
@@ -2572,6 +2574,8 @@ static void i915_gem_free_request(struct drm_i915_gem_request *request)
 {
 	list_del(&request->list);
 	i915_gem_request_remove_from_client(request);
+
+	put_pid(request->pid);
 
 	i915_gem_request_unreference(request);
 }
