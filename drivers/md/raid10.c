@@ -3872,7 +3872,7 @@ static int raid10_resize(struct mddev *mddev, sector_t sectors)
 	return 0;
 }
 
-static void *raid10_takeover_raid0(struct mddev *mddev)
+static void *raid10_takeover_raid0(struct mddev *mddev, sector_t size, int devs)
 {
 	struct md_rdev *rdev;
 	struct r10conf *conf;
@@ -3882,6 +3882,7 @@ static void *raid10_takeover_raid0(struct mddev *mddev)
 		       mdname(mddev));
 		return ERR_PTR(-EINVAL);
 	}
+	sector_div(size, devs);
 
 	/* Set new parameters */
 	mddev->new_level = 10;
@@ -3892,12 +3893,15 @@ static void *raid10_takeover_raid0(struct mddev *mddev)
 	mddev->raid_disks *= 2;
 	/* make sure it will be not marked as dirty */
 	mddev->recovery_cp = MaxSector;
+	mddev->dev_sectors = size;
 
 	conf = setup_conf(mddev);
 	if (!IS_ERR(conf)) {
 		rdev_for_each(rdev, mddev)
-			if (rdev->raid_disk >= 0)
+			if (rdev->raid_disk >= 0) {
 				rdev->new_raid_disk = rdev->raid_disk * 2;
+				rdev->sectors = size;
+			}
 		conf->barrier = 1;
 	}
 
@@ -3920,7 +3924,9 @@ static void *raid10_takeover(struct mddev *mddev)
 			       mdname(mddev));
 			return ERR_PTR(-EINVAL);
 		}
-		return raid10_takeover_raid0(mddev);
+		return raid10_takeover_raid0(mddev,
+			raid0_conf->strip_zone->zone_end,
+			raid0_conf->strip_zone->nb_dev);
 	}
 	return ERR_PTR(-EINVAL);
 }
