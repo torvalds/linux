@@ -544,4 +544,7 @@ int sst_alloc_drv_context(struct intel_sst_drv **ctx,
 int sst_context_init(struct intel_sst_drv *ctx);
 void sst_context_cleanup(struct intel_sst_drv *ctx);
 void sst_configure_runtime_pm(struct intel_sst_drv *ctx);
+void memcpy32_toio(void __iomem *dst, const void *src, int count);
+void memcpy32_fromio(void *dst, const void __iomem *src, int count);
+
 #endif
