@@ -193,6 +193,9 @@ extern struct task_group root_task_group;
 	.nr_cpus_allowed= NR_CPUS,					\
 	.mm		= NULL,						\
 	.active_mm	= &init_mm,					\
+	.restart_block = {						\
+		.fn = do_no_restart_syscall,				\
+	},								\
 	.se		= {						\
 		.group_node 	= LIST_HEAD_INIT(tsk.se.group_node),	\
 	},								\
