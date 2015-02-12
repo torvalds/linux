@@ -127,6 +127,14 @@ config ARM_IMX6Q_CPUFREQ
 
 	  If in doubt, say N.
 
+config ARM_IMX7D_CPUFREQ
+	tristate "Freescale i.MX7 cpufreq support"
+	depends on ARCH_MXC
+	help
+	  This adds cpufreq driver support for Freescale i.MX7 series SoCs.
+
+	  If in doubt, say N.
+
 config ARM_INTEGRATOR
 	tristate "CPUfreq driver for ARM Integrator CPUs"
 	depends on ARCH_INTEGRATOR
