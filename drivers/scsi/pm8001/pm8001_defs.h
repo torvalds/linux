@@ -49,7 +49,8 @@ enum chip_flavors {
 	chip_8019,
 	chip_8074,
 	chip_8076,
-	chip_8077
+	chip_8077,
+	chip_8006,
 };
 
 enum phy_speed {
