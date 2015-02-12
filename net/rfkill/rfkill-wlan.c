@@ -37,6 +37,10 @@
 #include <linux/skbuff.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/fb.h>
+#include <linux/rockchip/grf.h>
+#include <linux/rockchip/common.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -149,8 +153,8 @@ EXPORT_SYMBOL(get_wifi_chip_type);
  * Broadcom Wifi Static Memory
  * 
  **********************************************************/
-#if 0//def CONFIG_RKWIFI
-#define BCM_STATIC_MEMORY_SUPPORT 1
+#ifdef CONFIG_RKWIFI
+#define BCM_STATIC_MEMORY_SUPPORT 0
 #else
 #define BCM_STATIC_MEMORY_SUPPORT 0
 #endif
@@ -608,6 +612,7 @@ void *rockchip_wifi_country_code(char *ccode)
 EXPORT_SYMBOL(rockchip_wifi_country_code);
 /**************************************************************************/
 
+#define RK3368_GRF_IO_VSEL 0x900
 static int rockchip_wifi_voltage_select(void)
 {
     struct rfkill_wlan_data *mrfkill = g_rfkill;
@@ -617,17 +622,32 @@ static int rockchip_wifi_voltage_select(void)
         LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
         return -1;
     }
+
     voltage = mrfkill->pdata->sdio_vol;
-    if (voltage > 2700 && voltage < 3500) {
-        writel_relaxed(0x00100000, RK_GRF_VIRT+0x380); //3.3
-        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
-    } else if (voltage  > 1500 && voltage < 1950) {
-        writel_relaxed(0x00100010, RK_GRF_VIRT+0x380); //1.8
-        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
-    } else {
-        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
-        return -1;
-    }
+    if (cpu_is_rk3288()) {
+	    if (voltage > 2700 && voltage < 3500) {
+	        writel_relaxed(0x00100000, RK_GRF_VIRT+0x380); //3.3
+	        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
+	    } else if (voltage  > 1500 && voltage < 1950) {
+	        writel_relaxed(0x00100010, RK_GRF_VIRT+0x380); //1.8
+	        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
+	    } else {
+	        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
+	        return -1;
+	    }
+	} else if(cpu_is_rk3036() || cpu_is_rk312x()) {
+	} else {
+	    if (voltage > 2700 && voltage < 3500) {
+	        regmap_write(mrfkill->pdata->grf, RK3368_GRF_IO_VSEL, ((1<<3)<<16)|(0<<3)); //3.3
+	        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
+	    } else if (voltage  > 1500 && voltage < 1950) {
+	        regmap_write(mrfkill->pdata->grf, RK3368_GRF_IO_VSEL, ((1<<3)<<16)|(1<<3)); //1.8
+	        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
+	    } else {
+	        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
+	        return -1;
+	    }		
+	}
 
     return 0;
 }
@@ -662,6 +682,12 @@ static int wlan_platdata_parse_dt(struct device *dev,
 
     memset(data, 0, sizeof(*data));
 
+    data->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+    if (IS_ERR(data->grf)) {
+            LOG("can't find rockchip,grf property\n");
+            return -1;
+    }
+
     ret = of_property_read_string(node, "wifi_chip_type", &strings);
     if (ret) {
         LOG("%s: Can not read wifi_chip_type, set default to rkwifi.\n", __func__);
@@ -678,7 +704,7 @@ static int wlan_platdata_parse_dt(struct device *dev,
 			return -1;
 		}
 		data->sdio_vol = value;*/
-	}else{
+	}else {
 		ret = of_property_read_u32(node, "sdio_vref", &value);
 		if (ret < 0) {
 			LOG("%s: Can't get sdio vref.", __func__);
