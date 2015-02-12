@@ -2542,8 +2542,8 @@ static int atmel_init_gpios(struct atmel_uart_port *p, struct device *dev)
 	struct gpio_desc *gpiod;
 
 	p->gpios = mctrl_gpio_init(dev, 0);
-	if (IS_ERR_OR_NULL(p->gpios))
-		return -1;
+	if (IS_ERR(p->gpios))
+		return PTR_ERR(p->gpios);
 
 	for (i = 0; i < UART_GPIO_MAX; i++) {
 		gpiod = mctrl_gpio_to_gpiod(p->gpios, i);
@@ -2594,9 +2594,10 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	port->uart.line = ret;
 
 	ret = atmel_init_gpios(port, &pdev->dev);
-	if (ret < 0)
-		dev_err(&pdev->dev, "%s",
-			"Failed to initialize GPIOs. The serial port may not work as expected");
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to initialize GPIOs.");
+		goto err;
+	}
 
 	ret = atmel_init_port(port, pdev);
 	if (ret)
