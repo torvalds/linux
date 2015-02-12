@@ -588,15 +588,23 @@ static void apic_set_tpr(struct kvm_lapic *apic, u32 tpr)
 	apic_update_ppr(apic);
 }
 
-static bool kvm_apic_broadcast(struct kvm_lapic *apic, u32 dest)
+static bool kvm_apic_broadcast(struct kvm_lapic *apic, u32 mda)
 {
-	return dest == (apic_x2apic_mode(apic) ?
-			X2APIC_BROADCAST : APIC_BROADCAST);
+	if (apic_x2apic_mode(apic))
+		return mda == X2APIC_BROADCAST;
+
+	return GET_APIC_DEST_FIELD(mda) == APIC_BROADCAST;
 }
 
-static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 dest)
+static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 mda)
 {
-	return kvm_apic_id(apic) == dest || kvm_apic_broadcast(apic, dest);
+	if (kvm_apic_broadcast(apic, mda))
+		return true;
+
+	if (apic_x2apic_mode(apic))
+		return mda == kvm_apic_id(apic);
+
+	return mda == SET_APIC_DEST_FIELD(kvm_apic_id(apic));
 }
 
 static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
@@ -613,6 +621,7 @@ static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 		       && (logical_id & mda & 0xffff) != 0;
 
 	logical_id = GET_APIC_LOGICAL_ID(logical_id);
+	mda = GET_APIC_DEST_FIELD(mda);
 
 	switch (kvm_apic_get_reg(apic, APIC_DFR)) {
 	case APIC_DFR_FLAT:
@@ -627,10 +636,27 @@ static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 	}
 }
 
+/* KVM APIC implementation has two quirks
+ *  - dest always begins at 0 while xAPIC MDA has offset 24,
+ *  - IOxAPIC messages have to be delivered (directly) to x2APIC.
+ */
+static u32 kvm_apic_mda(unsigned int dest_id, struct kvm_lapic *source,
+                                              struct kvm_lapic *target)
+{
+	bool ipi = source != NULL;
+	bool x2apic_mda = apic_x2apic_mode(ipi ? source : target);
+
+	if (!ipi && dest_id == APIC_BROADCAST && x2apic_mda)
+		return X2APIC_BROADCAST;
+
+	return x2apic_mda ? dest_id : SET_APIC_DEST_FIELD(dest_id);
+}
+
 bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 			   int short_hand, unsigned int dest, int dest_mode)
 {
 	struct kvm_lapic *target = vcpu->arch.apic;
+	u32 mda = kvm_apic_mda(dest, source, target);
 
 	apic_debug("target %p, source %p, dest 0x%x, "
 		   "dest_mode 0x%x, short_hand 0x%x\n",
@@ -640,9 +666,9 @@ bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 	switch (short_hand) {
 	case APIC_DEST_NOSHORT:
 		if (dest_mode == APIC_DEST_PHYSICAL)
-			return kvm_apic_match_physical_addr(target, dest);
+			return kvm_apic_match_physical_addr(target, mda);
 		else
-			return kvm_apic_match_logical_addr(target, dest);
+			return kvm_apic_match_logical_addr(target, mda);
 	case APIC_DEST_SELF:
 		return target == source;
 	case APIC_DEST_ALLINC:
