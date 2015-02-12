@@ -53,9 +53,8 @@ static void __iomem *clkctrl;
 #define BP_ENET_SLEEP		31
 #define BP_CLKSEQ_BYPASS_SAIF0	0
 #define BP_CLKSEQ_BYPASS_SSP0	3
-
-#define FRAC0_IO1	2
-#define FRAC0_IO0	3
+#define BP_FRAC0_IO1FRAC	16
+#define BP_FRAC0_IO0FRAC	24
 
 static void __iomem *digctrl;
 #define DIGCTRL digctrl
@@ -86,7 +85,6 @@ int mxs_saif_clkmux_select(unsigned int clkmux)
 static void __init clk_misc_init(void)
 {
 	u32 val;
-	u8 frac;
 
 	/* Gate off cpu clock in WFI for power saving */
 	writel_relaxed(1 << BP_CPU_INTERRUPT_WAIT, CPU + SET);
@@ -120,16 +118,11 @@ static void __init clk_misc_init(void)
 	/*
 	 * 480 MHz seems too high to be ssp clock source directly,
 	 * so set frac0 to get a 288 MHz ref_io0 and ref_io1.
-	 * According to reference manual we must access frac0 bytewise.
 	 */
-	frac = readb_relaxed(FRAC0 + FRAC0_IO0);
-	frac &= ~0x3f;
-	frac |= 30;
-	writeb_relaxed(frac, FRAC0 + FRAC0_IO0);
-	frac = readb_relaxed(FRAC0 + FRAC0_IO1);
-	frac &= ~0x3f;
-	frac |= 30;
-	writeb_relaxed(frac, FRAC0 + FRAC0_IO1);
+	val = readl_relaxed(FRAC0);
+	val &= ~((0x3f << BP_FRAC0_IO0FRAC) | (0x3f << BP_FRAC0_IO1FRAC));
+	val |= (30 << BP_FRAC0_IO0FRAC) | (30 << BP_FRAC0_IO1FRAC);
+	writel_relaxed(val, FRAC0);
 }
 
 static const char *sel_cpu[]  __initconst = { "ref_cpu", "ref_xtal", };
