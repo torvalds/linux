@@ -106,62 +106,66 @@ static inline int kmem_cache_sanity_check(const char *name, size_t size)
 #endif
 
 #ifdef CONFIG_MEMCG_KMEM
-static int memcg_alloc_cache_params(struct mem_cgroup *memcg,
-		struct kmem_cache *s, struct kmem_cache *root_cache)
+void slab_init_memcg_params(struct kmem_cache *s)
 {
-	size_t size;
+	s->memcg_params.is_root_cache = true;
+	RCU_INIT_POINTER(s->memcg_params.memcg_caches, NULL);
+}
 
-	if (!memcg_kmem_enabled())
-		return 0;
-
-	if (!memcg) {
-		size = offsetof(struct memcg_cache_params, memcg_caches);
-		size += memcg_nr_cache_ids * sizeof(void *);
-	} else
-		size = sizeof(struct memcg_cache_params);
-
-	s->memcg_params = kzalloc(size, GFP_KERNEL);
-	if (!s->memcg_params)
-		return -ENOMEM;
+static int init_memcg_params(struct kmem_cache *s,
+		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
+{
+	struct memcg_cache_array *arr;
 
 	if (memcg) {
-		s->memcg_params->memcg = memcg;
-		s->memcg_params->root_cache = root_cache;
-	} else
-		s->memcg_params->is_root_cache = true;
+		s->memcg_params.is_root_cache = false;
+		s->memcg_params.memcg = memcg;
+		s->memcg_params.root_cache = root_cache;
+		return 0;
+	}
 
+	slab_init_memcg_params(s);
+
+	if (!memcg_nr_cache_ids)
+		return 0;
+
+	arr = kzalloc(sizeof(struct memcg_cache_array) +
+		      memcg_nr_cache_ids * sizeof(void *),
+		      GFP_KERNEL);
+	if (!arr)
+		return -ENOMEM;
+
+	RCU_INIT_POINTER(s->memcg_params.memcg_caches, arr);
 	return 0;
 }
 
-static void memcg_free_cache_params(struct kmem_cache *s)
+static void destroy_memcg_params(struct kmem_cache *s)
 {
-	kfree(s->memcg_params);
+	if (is_root_cache(s))
+		kfree(rcu_access_pointer(s->memcg_params.memcg_caches));
 }
 
-static int memcg_update_cache_params(struct kmem_cache *s, int num_memcgs)
+static int update_memcg_params(struct kmem_cache *s, int new_array_size)
 {
-	int size;
-	struct memcg_cache_params *new_params, *cur_params;
+	struct memcg_cache_array *old, *new;
 
-	BUG_ON(!is_root_cache(s));
+	if (!is_root_cache(s))
+		return 0;
 
-	size = offsetof(struct memcg_cache_params, memcg_caches);
-	size += num_memcgs * sizeof(void *);
-
-	new_params = kzalloc(size, GFP_KERNEL);
-	if (!new_params)
+	new = kzalloc(sizeof(struct memcg_cache_array) +
+		      new_array_size * sizeof(void *), GFP_KERNEL);
+	if (!new)
 		return -ENOMEM;
 
-	cur_params = s->memcg_params;
-	memcpy(new_params->memcg_caches, cur_params->memcg_caches,
-	       memcg_nr_cache_ids * sizeof(void *));
+	old = rcu_dereference_protected(s->memcg_params.memcg_caches,
+					lockdep_is_held(&slab_mutex));
+	if (old)
+		memcpy(new->entries, old->entries,
+		       memcg_nr_cache_ids * sizeof(void *));
 
-	new_params->is_root_cache = true;
-
-	rcu_assign_pointer(s->memcg_params, new_params);
-	if (cur_params)
-		kfree_rcu(cur_params, rcu_head);
-
+	rcu_assign_pointer(s->memcg_params.memcg_caches, new);
+	if (old)
+		kfree_rcu(old, rcu);
 	return 0;
 }
 
@@ -172,10 +176,7 @@ int memcg_update_all_caches(int num_memcgs)
 
 	mutex_lock(&slab_mutex);
 	list_for_each_entry(s, &slab_caches, list) {
-		if (!is_root_cache(s))
-			continue;
-
-		ret = memcg_update_cache_params(s, num_memcgs);
+		ret = update_memcg_params(s, num_memcgs);
 		/*
 		 * Instead of freeing the memory, we'll just leave the caches
 		 * up to this point in an updated state.
@@ -187,13 +188,13 @@ int memcg_update_all_caches(int num_memcgs)
 	return ret;
 }
 #else
-static inline int memcg_alloc_cache_params(struct mem_cgroup *memcg,
-		struct kmem_cache *s, struct kmem_cache *root_cache)
+static inline int init_memcg_params(struct kmem_cache *s,
+		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
 {
 	return 0;
 }
 
-static inline void memcg_free_cache_params(struct kmem_cache *s)
+static inline void destroy_memcg_params(struct kmem_cache *s)
 {
 }
 #endif /* CONFIG_MEMCG_KMEM */
@@ -311,7 +312,7 @@ do_kmem_cache_create(char *name, size_t object_size, size_t size, size_t align,
 	s->align = align;
 	s->ctor = ctor;
 
-	err = memcg_alloc_cache_params(memcg, s, root_cache);
+	err = init_memcg_params(s, memcg, root_cache);
 	if (err)
 		goto out_free_cache;
 
@@ -327,7 +328,7 @@ out:
 	return s;
 
 out_free_cache:
-	memcg_free_cache_params(s);
+	destroy_memcg_params(s);
 	kmem_cache_free(kmem_cache, s);
 	goto out;
 }
@@ -439,11 +440,15 @@ static int do_kmem_cache_shutdown(struct kmem_cache *s,
 
 #ifdef CONFIG_MEMCG_KMEM
 	if (!is_root_cache(s)) {
-		struct kmem_cache *root_cache = s->memcg_params->root_cache;
-		int memcg_id = memcg_cache_id(s->memcg_params->memcg);
+		int idx;
+		struct memcg_cache_array *arr;
 
-		BUG_ON(root_cache->memcg_params->memcg_caches[memcg_id] != s);
-		root_cache->memcg_params->memcg_caches[memcg_id] = NULL;
+		idx = memcg_cache_id(s->memcg_params.memcg);
+		arr = rcu_dereference_protected(s->memcg_params.root_cache->
+						memcg_params.memcg_caches,
+						lockdep_is_held(&slab_mutex));
+		BUG_ON(arr->entries[idx] != s);
+		arr->entries[idx] = NULL;
 	}
 #endif
 	list_move(&s->list, release);
@@ -481,27 +486,32 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 			     struct kmem_cache *root_cache)
 {
 	static char memcg_name_buf[NAME_MAX + 1]; /* protected by slab_mutex */
-	int memcg_id = memcg_cache_id(memcg);
+	struct memcg_cache_array *arr;
 	struct kmem_cache *s = NULL;
 	char *cache_name;
+	int idx;
 
 	get_online_cpus();
 	get_online_mems();
 
 	mutex_lock(&slab_mutex);
 
+	idx = memcg_cache_id(memcg);
+	arr = rcu_dereference_protected(root_cache->memcg_params.memcg_caches,
+					lockdep_is_held(&slab_mutex));
+
 	/*
 	 * Since per-memcg caches are created asynchronously on first
 	 * allocation (see memcg_kmem_get_cache()), several threads can try to
 	 * create the same cache, but only one of them may succeed.
 	 */
-	if (cache_from_memcg_idx(root_cache, memcg_id))
+	if (arr->entries[idx])
 		goto out_unlock;
 
 	cgroup_name(mem_cgroup_css(memcg)->cgroup,
 		    memcg_name_buf, sizeof(memcg_name_buf));
 	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
-			       memcg_cache_id(memcg), memcg_name_buf);
+			       idx, memcg_name_buf);
 	if (!cache_name)
 		goto out_unlock;
 
@@ -525,7 +535,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 	 * initialized.
 	 */
 	smp_wmb();
-	root_cache->memcg_params->memcg_caches[memcg_id] = s;
+	arr->entries[idx] = s;
 
 out_unlock:
 	mutex_unlock(&slab_mutex);
@@ -545,7 +555,7 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 
 	mutex_lock(&slab_mutex);
 	list_for_each_entry_safe(s, s2, &slab_caches, list) {
-		if (is_root_cache(s) || s->memcg_params->memcg != memcg)
+		if (is_root_cache(s) || s->memcg_params.memcg != memcg)
 			continue;
 		/*
 		 * The cgroup is about to be freed and therefore has no charges
@@ -564,7 +574,7 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 
 void slab_kmem_cache_release(struct kmem_cache *s)
 {
-	memcg_free_cache_params(s);
+	destroy_memcg_params(s);
 	kfree(s->name);
 	kmem_cache_free(kmem_cache, s);
 }
@@ -640,6 +650,9 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t siz
 	s->name = name;
 	s->size = s->object_size = size;
 	s->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
+
+	slab_init_memcg_params(s);
+
 	err = __kmem_cache_create(s, flags);
 
 	if (err)
@@ -980,7 +993,7 @@ int memcg_slab_show(struct seq_file *m, void *p)
 
 	if (p == slab_caches.next)
 		print_slabinfo_header(m);
-	if (!is_root_cache(s) && s->memcg_params->memcg == memcg)
+	if (!is_root_cache(s) && s->memcg_params.memcg == memcg)
 		cache_show(s, m);
 	return 0;
 }
