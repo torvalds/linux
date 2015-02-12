@@ -1661,11 +1661,8 @@ static int scsiback_make_nexus(struct scsiback_tpg *tpg,
 			 name);
 		goto out;
 	}
-	/*
-	 * Now register the TCM pvscsi virtual I_T Nexus as active with the
-	 * call to __transport_register_session()
-	 */
-	__transport_register_session(se_tpg, tv_nexus->tvn_se_sess->se_node_acl,
+	/* Now register the TCM pvscsi virtual I_T Nexus as active. */
+	transport_register_session(se_tpg, tv_nexus->tvn_se_sess->se_node_acl,
 			tv_nexus->tvn_se_sess, tv_nexus);
 	tpg->tpg_nexus = tv_nexus;
 
