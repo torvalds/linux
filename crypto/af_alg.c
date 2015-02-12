@@ -348,7 +348,7 @@ int af_alg_make_sg(struct af_alg_sgl *sgl, struct iov_iter *iter, int len)
 	if (n < 0)
 		return n;
 
-	npages = DIV_ROUND_UP(off + n, PAGE_SIZE);
+	npages = PAGE_ALIGN(off + n);
 	if (WARN_ON(npages == 0))
 		return -EINVAL;
 
