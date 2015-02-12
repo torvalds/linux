@@ -549,9 +549,12 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 {
 	int idx;
 	struct memcg_cache_array *arr;
-	struct kmem_cache *s;
+	struct kmem_cache *s, *c;
 
 	idx = memcg_cache_id(memcg);
+
+	get_online_cpus();
+	get_online_mems();
 
 	mutex_lock(&slab_mutex);
 	list_for_each_entry(s, &slab_caches, list) {
@@ -560,9 +563,17 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 
 		arr = rcu_dereference_protected(s->memcg_params.memcg_caches,
 						lockdep_is_held(&slab_mutex));
+		c = arr->entries[idx];
+		if (!c)
+			continue;
+
+		__kmem_cache_shrink(c, true);
 		arr->entries[idx] = NULL;
 	}
 	mutex_unlock(&slab_mutex);
+
+	put_online_mems();
+	put_online_cpus();
 }
 
 void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
@@ -649,7 +660,7 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
 
 	get_online_cpus();
 	get_online_mems();
-	ret = __kmem_cache_shrink(cachep);
+	ret = __kmem_cache_shrink(cachep, false);
 	put_online_mems();
 	put_online_cpus();
 	return ret;
