@@ -132,6 +132,21 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
 }
 EXPORT_SYMBOL_GPL(list_lru_del);
 
+void list_lru_isolate(struct list_lru_one *list, struct list_head *item)
+{
+	list_del_init(item);
+	list->nr_items--;
+}
+EXPORT_SYMBOL_GPL(list_lru_isolate);
+
+void list_lru_isolate_move(struct list_lru_one *list, struct list_head *item,
+			   struct list_head *head)
+{
+	list_move(item, head);
+	list->nr_items--;
+}
+EXPORT_SYMBOL_GPL(list_lru_isolate_move);
+
 static unsigned long __list_lru_count_one(struct list_lru *lru,
 					  int nid, int memcg_idx)
 {
@@ -194,13 +209,11 @@ restart:
 			break;
 		--*nr_to_walk;
 
-		ret = isolate(item, &nlru->lock, cb_arg);
+		ret = isolate(item, l, &nlru->lock, cb_arg);
 		switch (ret) {
 		case LRU_REMOVED_RETRY:
 			assert_spin_locked(&nlru->lock);
 		case LRU_REMOVED:
-			l->nr_items--;
-			WARN_ON_ONCE(l->nr_items < 0);
 			isolated++;
 			/*
 			 * If the lru lock has been dropped, our list

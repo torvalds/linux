@@ -302,6 +302,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 }
 
 static enum lru_status shadow_lru_isolate(struct list_head *item,
+					  struct list_lru_one *lru,
 					  spinlock_t *lru_lock,
 					  void *arg)
 {
@@ -332,7 +333,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 		goto out;
 	}
 
-	list_del_init(item);
+	list_lru_isolate(lru, item);
 	spin_unlock(lru_lock);
 
 	/*
