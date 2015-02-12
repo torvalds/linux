@@ -100,7 +100,6 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
 
 	spin_lock(&nlru->lock);
 	l = list_lru_from_kmem(nlru, item);
-	WARN_ON_ONCE(l->nr_items < 0);
 	if (list_empty(item)) {
 		list_add_tail(item, &l->list);
 		l->nr_items++;
@@ -123,7 +122,6 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
 	if (!list_empty(item)) {
 		list_del_init(item);
 		l->nr_items--;
-		WARN_ON_ONCE(l->nr_items < 0);
 		spin_unlock(&nlru->lock);
 		return true;
 	}
@@ -156,7 +154,6 @@ static unsigned long __list_lru_count_one(struct list_lru *lru,
 
 	spin_lock(&nlru->lock);
 	l = list_lru_from_memcg_idx(nlru, memcg_idx);
-	WARN_ON_ONCE(l->nr_items < 0);
 	count = l->nr_items;
 	spin_unlock(&nlru->lock);
 
@@ -457,6 +454,49 @@ fail:
 	list_for_each_entry_continue_reverse(lru, &list_lrus, list)
 		memcg_cancel_update_list_lru(lru, old_size, new_size);
 	goto out;
+}
+
+static void memcg_drain_list_lru_node(struct list_lru_node *nlru,
+				      int src_idx, int dst_idx)
+{
+	struct list_lru_one *src, *dst;
+
+	/*
+	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
+	 * we have to use IRQ-safe primitives here to avoid deadlock.
+	 */
+	spin_lock_irq(&nlru->lock);
+
+	src = list_lru_from_memcg_idx(nlru, src_idx);
+	dst = list_lru_from_memcg_idx(nlru, dst_idx);
+
+	list_splice_init(&src->list, &dst->list);
+	dst->nr_items += src->nr_items;
+	src->nr_items = 0;
+
+	spin_unlock_irq(&nlru->lock);
+}
+
+static void memcg_drain_list_lru(struct list_lru *lru,
+				 int src_idx, int dst_idx)
+{
+	int i;
+
+	if (!list_lru_memcg_aware(lru))
+		return;
+
+	for (i = 0; i < nr_node_ids; i++)
+		memcg_drain_list_lru_node(&lru->node[i], src_idx, dst_idx);
+}
+
+void memcg_drain_all_list_lrus(int src_idx, int dst_idx)
+{
+	struct list_lru *lru;
+
+	mutex_lock(&list_lrus_mutex);
+	list_for_each_entry(lru, &list_lrus, list)
+		memcg_drain_list_lru(lru, src_idx, dst_idx);
+	mutex_unlock(&list_lrus_mutex);
 }
 #else
 static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
