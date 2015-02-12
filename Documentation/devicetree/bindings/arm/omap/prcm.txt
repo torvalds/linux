@@ -12,7 +12,7 @@ Required properties:
 		"ti,am3-prcm"
 		"ti,am3-scm"
 		"ti,am4-prcm"
-		"ti,am4-scrm"
+		"ti,am4-scm"
 		"ti,omap2-prcm"
 		"ti,omap2-scm"
 		"ti,omap3-prm"

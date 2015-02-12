@@ -7,6 +7,7 @@ Required properties:
 	       Should be "ti,omap2-l4-wkup" for OMAP2 family l4 wkup bus
 	       Should be "ti,omap3-l4-core" for OMAP3 family l4 core bus
 	       Should be "ti,am3-l4-wkup" for AM33xx family l4 wkup bus
+	       Should be "ti,am4-l4-wkup" for AM43xx family l4 wkup bus
 - ranges : contains the IO map range for the bus
 
 Examples:
