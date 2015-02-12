@@ -5820,8 +5820,8 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	u64 length = 0;
 	u64 map_length;
 	int ret;
-	int dev_nr = 0;
-	int total_devs = 1;
+	int dev_nr;
+	int total_devs;
 	struct btrfs_bio *bbio = NULL;
 
 	length = bio->bi_iter.bi_size;
@@ -5862,11 +5862,10 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		BUG();
 	}
 
-	while (dev_nr < total_devs) {
+	for (dev_nr = 0; dev_nr < total_devs; dev_nr++) {
 		dev = bbio->stripes[dev_nr].dev;
 		if (!dev || !dev->bdev || (rw & WRITE && !dev->writeable)) {
 			bbio_error(bbio, first_bio, logical);
-			dev_nr++;
 			continue;
 		}
 
@@ -5879,7 +5878,6 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 			ret = breakup_stripe_bio(root, bbio, first_bio, dev,
 						 dev_nr, rw, async_submit);
 			BUG_ON(ret);
-			dev_nr++;
 			continue;
 		}
 
@@ -5894,7 +5892,6 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		submit_stripe_bio(root, bbio, bio,
 				  bbio->stripes[dev_nr].physical, dev_nr, rw,
 				  async_submit);
-		dev_nr++;
 	}
 	btrfs_bio_counter_dec(root->fs_info);
 	return 0;
