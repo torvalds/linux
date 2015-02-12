@@ -2177,6 +2177,7 @@ static int usba_udc_probe(struct platform_device *pdev)
 	ret = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (ret)
 		return ret;
+	device_init_wakeup(&pdev->dev, 1);
 
 	usba_init_debugfs(udc);
 	for (i = 1; i < udc->num_ep; i++)
@@ -2192,6 +2193,7 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 
 	udc = platform_get_drvdata(pdev);
 
+	device_init_wakeup(&pdev->dev, 0);
 	usb_del_gadget_udc(&udc->gadget);
 
 	for (i = 1; i < udc->num_ep; i++)
@@ -2201,10 +2203,65 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int usba_udc_suspend(struct device *dev)
+{
+	struct usba_udc *udc = dev_get_drvdata(dev);
+
+	/* Not started */
+	if (!udc->driver)
+		return 0;
+
+	mutex_lock(&udc->vbus_mutex);
+
+	if (!device_may_wakeup(dev)) {
+		usba_stop(udc);
+		goto out;
+	}
+
+	/*
+	 * Device may wake up. We stay clocked if we failed
+	 * to request vbus irq, assuming always on.
+	 */
+	if (gpio_is_valid(udc->vbus_pin)) {
+		usba_stop(udc);
+		enable_irq_wake(gpio_to_irq(udc->vbus_pin));
+	}
+
+out:
+	mutex_unlock(&udc->vbus_mutex);
+	return 0;
+}
+
+static int usba_udc_resume(struct device *dev)
+{
+	struct usba_udc *udc = dev_get_drvdata(dev);
+
+	/* Not started */
+	if (!udc->driver)
+		return 0;
+
+	if (device_may_wakeup(dev) && gpio_is_valid(udc->vbus_pin))
+		disable_irq_wake(gpio_to_irq(udc->vbus_pin));
+
+	/* If Vbus is present, enable the controller and wait for reset */
+	mutex_lock(&udc->vbus_mutex);
+	udc->vbus_prev = vbus_is_present(udc);
+	if (udc->vbus_prev)
+		usba_start(udc);
+	mutex_unlock(&udc->vbus_mutex);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(usba_udc_pm_ops, usba_udc_suspend, usba_udc_resume);
+
 static struct platform_driver udc_driver = {
 	.remove		= __exit_p(usba_udc_remove),
 	.driver		= {
 		.name		= "atmel_usba_udc",
+		.pm		= &usba_udc_pm_ops,
 		.of_match_table	= of_match_ptr(atmel_udc_dt_ids),
 	},
 };
