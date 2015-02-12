@@ -94,27 +94,20 @@ struct mctrl_gpios *mctrl_gpio_init(struct device *dev, unsigned int idx)
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < UART_GPIO_MAX; i++) {
-		gpios->gpio[i] = devm_gpiod_get_index(dev,
-						      mctrl_gpios_desc[i].name,
-						      idx);
-
-		/*
-		 * The GPIOs are maybe not all filled,
-		 * this is not an error.
-		 */
-		if (IS_ERR_OR_NULL(gpios->gpio[i]))
-			continue;
+		enum gpiod_flags flags;
 
 		if (mctrl_gpios_desc[i].dir_out)
-			err = gpiod_direction_output(gpios->gpio[i], 0);
+			flags = GPIOD_OUT_LOW;
 		else
-			err = gpiod_direction_input(gpios->gpio[i]);
-		if (err) {
-			dev_dbg(dev, "Unable to set direction for %s GPIO",
-				mctrl_gpios_desc[i].name);
-			devm_gpiod_put(dev, gpios->gpio[i]);
-			gpios->gpio[i] = NULL;
-		}
+			flags = GPIOD_IN;
+
+		gpios->gpio[i] =
+			devm_gpiod_get_index_optional(dev,
+						      mctrl_gpios_desc[i].name,
+						      idx, flags);
+
+		if (IS_ERR(gpios->gpio[i]))
+			return PTR_ERR(gpios->gpio[i]);
 	}
 
 	return gpios;
