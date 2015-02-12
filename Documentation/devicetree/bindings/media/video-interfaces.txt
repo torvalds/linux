@@ -162,7 +162,7 @@ pipelines can be active: ov772x -> ceu0 or imx074 -> csi2 -> ceu0.
 	i2c0: i2c@0xfff20000 {
 		...
 		ov772x_1: camera@0x21 {
-			compatible = "omnivision,ov772x";
+			compatible = "ovti,ov772x";
 			reg = <0x21>;
 			vddio-supply = <&regulator1>;
 			vddcore-supply = <&regulator2>;

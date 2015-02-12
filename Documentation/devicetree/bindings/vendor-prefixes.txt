@@ -7,6 +7,7 @@ abilis	Abilis Systems
 active-semi	Active-Semi International Inc
 ad	Avionic Design GmbH
 adapteva	Adapteva, Inc.
+adh	AD Holdings Plc.
 adi	Analog Devices, Inc.
 aeroflexgaisler	Aeroflex Gaisler AB
 allwinner	Allwinner Technology Co., Ltd.
@@ -57,6 +58,7 @@ est	ESTeem Wireless Modems
 ettus	NI Ettus Research
 eukrea  Eukréa Electromatique
 everest	Everest Semiconductor Co. Ltd.
+everspin	Everspin Technologies, Inc.
 excito	Excito
 fcs	Fairchild Semiconductor
 fsl	Freescale Semiconductor
@@ -70,6 +72,7 @@ gumstix	Gumstix, Inc.
 gw	Gateworks Corporation
 hannstar	HannStar Display Corporation
 haoyu	Haoyu Microelectronic Co. Ltd.
+himax	Himax Technologies, Inc.
 hisilicon	Hisilicon Limited.
 hit	Hitachi Ltd.
 honeywell	Honeywell
@@ -83,8 +86,7 @@ innolux	Innolux Corporation
 intel	Intel Corporation
 intercontrol	Inter Control Group
 isee	ISEE 2007 S.L.
-isil    Intersil (deprecated, use isl)
-isl	Intersil
+isil	Intersil
 karo	Ka-Ro electronics GmbH
 keymile	Keymile GmbH
 lacie	LaCie
@@ -119,6 +121,7 @@ nvidia	NVIDIA
 nxp	NXP Semiconductors
 onnn	ON Semiconductor Corp.
 opencores	OpenCores.org
+ovti	OmniVision Technologies
 panasonic	Panasonic Corporation
 pericom	Pericom Technology Inc.
 phytec	PHYTEC Messtechnik GmbH
@@ -146,6 +149,7 @@ seagate	Seagate Technology PLC
 semtech	Semtech Corporation
 sil	Silicon Image
 silabs	Silicon Laboratories
+siliconmitus	Silicon Mitus, Inc.
 simtek
 sii	Seiko Instruments, Inc.
 silergy	Silergy Corp.
@@ -167,6 +171,7 @@ tlm	Trusted Logic Mobility
 toradex	Toradex AG
 toshiba	Toshiba Corporation
 toumaz	Toumaz
+truly	Truly Semiconductors Limited
 usi	Universal Scientific Industrial Co., Ltd.
 v3	V3 Semiconductor
 variscite	Variscite Ltd.

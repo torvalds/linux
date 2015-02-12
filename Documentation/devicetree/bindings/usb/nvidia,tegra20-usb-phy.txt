@@ -3,7 +3,10 @@ Tegra SOC USB PHY
 The device node for Tegra SOC USB PHY:
 
 Required properties :
- - compatible : Should be "nvidia,tegra<chip>-usb-phy".
+ - compatible : For Tegra20, must contain "nvidia,tegra20-usb-phy".
+   For Tegra30, must contain "nvidia,tegra30-usb-phy".  Otherwise, must contain
+   "nvidia,<chip>-usb-phy" plus at least one of the above, where <chip> is
+   tegra114, tegra124, tegra132, or tegra210.
  - reg : Defines the following set of registers, in the order listed:
    - The PHY's own register set.
      Always present.

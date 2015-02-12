@@ -61,6 +61,8 @@ extern int mem_init_done;
 
 #include <asm-generic/4level-fixup.h>
 
+#define __PAGETABLE_PMD_FOLDED
+
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
@@ -70,7 +72,7 @@ extern int mem_init_done;
 #include <asm/mmu.h>
 #include <asm/page.h>
 
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 
 extern unsigned long va_to_phys(unsigned long address);
 extern pte_t *va_to_pte(unsigned long address);

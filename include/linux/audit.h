@@ -46,7 +46,6 @@ struct audit_tree;
 struct sk_buff;
 
 struct audit_krule {
-	int			vers_ops;
 	u32			pflags;
 	u32			flags;
 	u32			listnr;

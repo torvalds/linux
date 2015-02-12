@@ -99,7 +99,7 @@ extern unsigned long zero_page_mask;
 #endif /* CONFIG_64BIT */
 #define PTRS_PER_PGD	2048
 
-#define FIRST_USER_ADDRESS  0
+#define FIRST_USER_ADDRESS  0UL
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %p.\n", __FILE__, __LINE__, (void *) pte_val(e))
@@ -1757,6 +1757,10 @@ extern int vmem_remove_mapping(unsigned long start, unsigned long size);
 extern int s390_enable_sie(void);
 extern int s390_enable_skey(void);
 extern void s390_reset_cmma(struct mm_struct *mm);
+
+/* s390 has a private copy of get unmapped area to deal with cache synonyms */
+#define HAVE_ARCH_UNMAPPED_AREA
+#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
 /*
  * No page table caches to initialise

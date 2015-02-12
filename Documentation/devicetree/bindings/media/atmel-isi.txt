@@ -38,7 +38,7 @@ Example:
 
 	i2c1: i2c@f0018000 {
 		ov2640: camera@0x30 {
-			compatible = "omnivision,ov2640";
+			compatible = "ovti,ov2640";
 			reg = <0x30>;
 
 			port {
