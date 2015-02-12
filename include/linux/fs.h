@@ -873,6 +873,7 @@ static inline struct file *get_file(struct file *f)
 #define FL_DOWNGRADE_PENDING	256 /* Lease is being downgraded */
 #define FL_UNLOCK_PENDING	512 /* Lease is being broken */
 #define FL_OFDLCK	1024	/* lock is "owned" by struct file */
+#define FL_LAYOUT	2048	/* outstanding pNFS layout */
 
 /*
  * Special return value from posix_lock_file() and vfs_lock_file() for
@@ -2035,6 +2036,16 @@ static inline int break_deleg_wait(struct inode **delegated_inode)
 	return ret;
 }
 
+static inline int break_layout(struct inode *inode, bool wait)
+{
+	smp_mb();
+	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
+		return __break_lease(inode,
+				wait ? O_WRONLY : O_WRONLY | O_NONBLOCK,
+				FL_LAYOUT);
+	return 0;
+}
+
 #else /* !CONFIG_FILE_LOCKING */
 static inline int locks_mandatory_locked(struct file *file)
 {
@@ -2087,6 +2098,11 @@ static inline int try_break_deleg(struct inode *inode, struct inode **delegated_
 static inline int break_deleg_wait(struct inode **delegated_inode)
 {
 	BUG();
+	return 0;
+}
+
+static inline int break_layout(struct inode *inode, bool wait)
+{
 	return 0;
 }
 
