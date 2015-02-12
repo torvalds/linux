@@ -148,21 +148,6 @@ static inline bool kvm_apic_vid_enabled(struct kvm *kvm)
 	return kvm_x86_ops->vm_has_apicv(kvm);
 }
 
-static inline u16 apic_cluster_id(struct kvm_apic_map *map, u32 ldr)
-{
-	u16 cid;
-	ldr >>= 32 - map->ldr_bits;
-	cid = (ldr >> map->cid_shift) & map->cid_mask;
-
-	return cid;
-}
-
-static inline u16 apic_logical_id(struct kvm_apic_map *map, u32 ldr)
-{
-	ldr >>= (32 - map->ldr_bits);
-	return ldr & map->lid_mask;
-}
-
 static inline bool kvm_apic_has_events(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.apic->pending_events;

@@ -141,6 +141,20 @@ static inline bool kvm_apic_logical_map_valid(struct kvm_apic_map *map)
 	return !(map->mode & (map->mode - 1));
 }
 
+static inline void
+apic_logical_id(struct kvm_apic_map *map, u32 dest_id, u16 *cid, u16 *lid)
+{
+	unsigned lid_bits;
+
+	BUILD_BUG_ON(KVM_APIC_MODE_XAPIC_CLUSTER !=  4);
+	BUILD_BUG_ON(KVM_APIC_MODE_XAPIC_FLAT    !=  8);
+	BUILD_BUG_ON(KVM_APIC_MODE_X2APIC        != 16);
+	lid_bits = map->mode;
+
+	*cid = dest_id >> lid_bits;
+	*lid = dest_id & ((1 << lid_bits) - 1);
+}
+
 static void recalculate_apic_map(struct kvm *kvm)
 {
 	struct kvm_apic_map *new, *old = NULL;
@@ -154,49 +168,6 @@ static void recalculate_apic_map(struct kvm *kvm)
 	if (!new)
 		goto out;
 
-	new->ldr_bits = 8;
-	/* flat mode is default */
-	new->cid_shift = 8;
-	new->cid_mask = 0;
-	new->lid_mask = 0xff;
-
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		struct kvm_lapic *apic = vcpu->arch.apic;
-
-		if (!kvm_apic_present(vcpu))
-			continue;
-
-		if (apic_x2apic_mode(apic)) {
-			new->ldr_bits = 32;
-			new->cid_shift = 16;
-			new->cid_mask = new->lid_mask = 0xffff;
-			new->mode |= KVM_APIC_MODE_X2APIC;
-		} else if (kvm_apic_get_reg(apic, APIC_LDR)) {
-			if (kvm_apic_get_reg(apic, APIC_DFR) ==
-							APIC_DFR_CLUSTER) {
-				new->cid_shift = 4;
-				new->cid_mask = 0xf;
-				new->lid_mask = 0xf;
-				new->mode |= KVM_APIC_MODE_XAPIC_CLUSTER;
-			} else {
-				new->cid_shift = 8;
-				new->cid_mask = 0;
-				new->lid_mask = 0xff;
-				new->mode |= KVM_APIC_MODE_XAPIC_FLAT;
-			}
-		}
-
-		/*
-		 * All APICs have to be configured in the same mode by an OS.
-		 * We take advatage of this while building logical id loockup
-		 * table. After reset APICs are in software disabled mode, so if
-		 * we find apic with different setting we assume this is the mode
-		 * OS wants all apics to be in; build lookup table accordingly.
-		 */
-		if (kvm_apic_sw_enabled(apic))
-			break;
-	}
-
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvm_lapic *apic = vcpu->arch.apic;
 		u16 cid, lid;
@@ -207,14 +178,24 @@ static void recalculate_apic_map(struct kvm *kvm)
 
 		aid = kvm_apic_id(apic);
 		ldr = kvm_apic_get_reg(apic, APIC_LDR);
-		cid = apic_cluster_id(new, ldr);
-		lid = apic_logical_id(new, ldr);
 
 		if (aid < ARRAY_SIZE(new->phys_map))
 			new->phys_map[aid] = apic;
 
-		if (!kvm_apic_logical_map_valid(new));
+		if (apic_x2apic_mode(apic)) {
+			new->mode |= KVM_APIC_MODE_X2APIC;
+		} else if (ldr) {
+			ldr = GET_APIC_LOGICAL_ID(ldr);
+			if (kvm_apic_get_reg(apic, APIC_DFR) == APIC_DFR_FLAT)
+				new->mode |= KVM_APIC_MODE_XAPIC_FLAT;
+			else
+				new->mode |= KVM_APIC_MODE_XAPIC_CLUSTER;
+		}
+
+		if (!kvm_apic_logical_map_valid(new))
 			continue;
+
+		apic_logical_id(new, ldr, &cid, &lid);
 
 		if (lid && cid < ARRAY_SIZE(new->logical_map))
 			new->logical_map[cid][ffs(lid) - 1] = apic;
@@ -732,7 +713,6 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 
 		dst = &map->phys_map[irq->dest_id];
 	} else {
-		u32 mda = irq->dest_id << (32 - map->ldr_bits);
 		u16 cid;
 
 		if (!kvm_apic_logical_map_valid(map)) {
@@ -740,14 +720,12 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 			goto out;
 		}
 
-		cid = apic_cluster_id(map, mda);
+		apic_logical_id(map, irq->dest_id, &cid, (u16 *)&bitmap);
 
 		if (cid >= ARRAY_SIZE(map->logical_map))
 			goto out;
 
 		dst = map->logical_map[cid];
-
-		bitmap = apic_logical_id(map, mda);
 
 		if (irq->delivery_mode == APIC_DM_LOWEST) {
 			int l = -1;
