@@ -220,6 +220,7 @@ loop:
 	 * commit the transaction.
 	 */
 	atomic_set(&cur_trans->use_count, 2);
+	cur_trans->have_free_bgs = 0;
 	cur_trans->start_time = get_seconds();
 
 	cur_trans->delayed_refs.href_root = RB_ROOT;
@@ -2036,6 +2037,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	mutex_unlock(&root->fs_info->tree_log_mutex);
 
 	btrfs_finish_extent_commit(trans, root);
+
+	if (cur_trans->have_free_bgs)
+		btrfs_clear_space_info_full(root->fs_info);
 
 	root->fs_info->last_trans_committed = cur_trans->transid;
 	/*
