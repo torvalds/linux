@@ -384,6 +384,7 @@ static void sync_fence_detach_pts(struct sync_fence *fence)
 
 	list_for_each_safe(pos, n, &fence->pt_list_head) {
 		struct sync_pt *pt = container_of(pos, struct sync_pt, pt_list);
+
 		sync_timeline_remove_pt(pt);
 	}
 }
@@ -394,6 +395,7 @@ static void sync_fence_free_pts(struct sync_fence *fence)
 
 	list_for_each_safe(pos, n, &fence->pt_list_head) {
 		struct sync_pt *pt = container_of(pos, struct sync_pt, pt_list);
+
 		sync_pt_free(pt);
 	}
 }
@@ -827,6 +829,7 @@ static long sync_fence_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	struct sync_fence *fence = file->private_data;
+
 	switch (cmd) {
 	case SYNC_IOC_WAIT:
 		return sync_fence_ioctl_wait(fence, arg);
@@ -856,18 +859,21 @@ static const char *sync_status_str(int status)
 static void sync_print_pt(struct seq_file *s, struct sync_pt *pt, bool fence)
 {
 	int status = pt->status;
+
 	seq_printf(s, "  %s%spt %s",
 		   fence ? pt->parent->name : "",
 		   fence ? "_" : "",
 		   sync_status_str(status));
 	if (pt->status) {
 		struct timeval tv = ktime_to_timeval(pt->timestamp);
+
 		seq_printf(s, "@%ld.%06ld", tv.tv_sec, tv.tv_usec);
 	}
 
 	if (pt->parent->ops->timeline_value_str &&
 	    pt->parent->ops->pt_value_str) {
 		char value[64];
+
 		pt->parent->ops->pt_value_str(pt, value, sizeof(value));
 		seq_printf(s, ": %s", value);
 		if (fence) {
@@ -892,6 +898,7 @@ static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
 
 	if (obj->ops->timeline_value_str) {
 		char value[64];
+
 		obj->ops->timeline_value_str(obj, value, sizeof(value));
 		seq_printf(s, ": %s", value);
 	} else if (obj->ops->print_obj) {
@@ -1001,6 +1008,7 @@ void sync_dump(void)
 	for (i = 0; i < s.count; i += DUMP_CHUNK) {
 		if ((s.count - i) > DUMP_CHUNK) {
 			char c = s.buf[i + DUMP_CHUNK];
+
 			s.buf[i + DUMP_CHUNK] = 0;
 			pr_cont("%s", s.buf + i);
 			s.buf[i + DUMP_CHUNK] = c;
