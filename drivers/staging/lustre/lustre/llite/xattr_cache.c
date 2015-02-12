@@ -133,11 +133,8 @@ static int ll_xattr_cache_add(struct list_head *cache,
 		goto err_name;
 	}
 	xattr->xe_value = kzalloc(xattr_val_len, GFP_NOFS);
-	if (!xattr->xe_value) {
-		CDEBUG(D_CACHE, "failed to alloc xattr value %d\n",
-		       xattr_val_len);
+	if (!xattr->xe_value)
 		goto err_value;
-	}
 
 	memcpy(xattr->xe_value, xattr_val, xattr_val_len);
 	xattr->xe_vallen = xattr_val_len;
