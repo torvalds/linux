@@ -313,7 +313,8 @@ int __init opal_elog_init(void)
 	}
 
 	/* We are now ready to pull error logs from opal. */
-	opal_resend_pending_logs();
+	if (opal_check_token(OPAL_ELOG_RESEND))
+		opal_resend_pending_logs();
 
 	return 0;
 }
