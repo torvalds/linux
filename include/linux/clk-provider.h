@@ -590,6 +590,12 @@ long __clk_mux_determine_rate_closest(struct clk_hw *hw, unsigned long rate,
 			      unsigned long *best_parent_rate,
 			      struct clk_hw **best_parent_p);
 
+static inline void __clk_hw_set_clk(struct clk_hw *dst, struct clk_hw *src)
+{
+	dst->clk = src->clk;
+	dst->core = src->core;
+}
+
 /*
  * FIXME clock api without lock protection
  */
