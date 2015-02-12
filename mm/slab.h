@@ -163,6 +163,18 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 		       size_t count, loff_t *ppos);
 
 #ifdef CONFIG_MEMCG_KMEM
+/*
+ * Iterate over all memcg caches of the given root cache. The caller must hold
+ * slab_mutex.
+ */
+#define for_each_memcg_cache(iter, root) \
+	list_for_each_entry(iter, &(root)->memcg_params.list, \
+			    memcg_params.list)
+
+#define for_each_memcg_cache_safe(iter, tmp, root) \
+	list_for_each_entry_safe(iter, tmp, &(root)->memcg_params.list, \
+				 memcg_params.list)
+
 static inline bool is_root_cache(struct kmem_cache *s)
 {
 	return s->memcg_params.is_root_cache;
@@ -240,6 +252,11 @@ static __always_inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
 extern void slab_init_memcg_params(struct kmem_cache *);
 
 #else /* !CONFIG_MEMCG_KMEM */
+
+#define for_each_memcg_cache(iter, root) \
+	for ((void)(iter), (void)(root); 0; )
+#define for_each_memcg_cache_safe(iter, tmp, root) \
+	for ((void)(iter), (void)(tmp), (void)(root); 0; )
 
 static inline bool is_root_cache(struct kmem_cache *s)
 {
