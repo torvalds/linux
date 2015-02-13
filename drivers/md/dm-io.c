@@ -291,6 +291,12 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 	unsigned short logical_block_size = queue_logical_block_size(q);
 	sector_t num_sectors;
 
+	/* Reject unsupported discard requests */
+	if ((rw & REQ_DISCARD) && !blk_queue_discard(q)) {
+		dec_count(io, region, -EOPNOTSUPP);
+		return;
+	}
+
 	/*
 	 * where->count may be zero if rw holds a flush and we need to
 	 * send a zero-sized flush.
