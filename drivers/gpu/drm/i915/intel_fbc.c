@@ -477,17 +477,19 @@ static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 {
 	struct drm_crtc *crtc = NULL, *tmp_crtc;
 	enum pipe pipe;
-	bool pipe_a_only = false;
+	bool pipe_a_only = false, one_pipe_only = false;
 
 	if (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8)
 		pipe_a_only = true;
+	else if (INTEL_INFO(dev_priv)->gen <= 4)
+		one_pipe_only = true;
 
 	for_each_pipe(dev_priv, pipe) {
 		tmp_crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
 		if (intel_crtc_active(tmp_crtc) &&
 		    to_intel_crtc(tmp_crtc)->primary_enabled) {
-			if (crtc) {
+			if (one_pipe_only && crtc) {
 				if (set_no_fbc_reason(dev_priv, FBC_MULTIPLE_PIPES))
 					DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
 				return NULL;
