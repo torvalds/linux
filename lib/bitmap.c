@@ -541,8 +541,8 @@ int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
 	int n = 0;
 
 	if (len > 1) {
-		n = list ? bitmap_scnlistprintf(buf, len, maskp, nmaskbits) :
-			   bitmap_scnprintf(buf, len, maskp, nmaskbits);
+		n = list ? scnprintf(buf, len, "%*pbl", nmaskbits, maskp) :
+			   scnprintf(buf, len, "%*pb", nmaskbits, maskp);
 		buf[n++] = '\n';
 		buf[n] = '\0';
 	}
