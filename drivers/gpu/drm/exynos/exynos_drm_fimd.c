@@ -253,9 +253,8 @@ static void fimd_enable_shadow_channel_path(struct fimd_context *ctx, int win,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
-static void fimd_clear_channel(struct exynos_drm_crtc *crtc)
+static void fimd_clear_channel(struct fimd_context *ctx)
 {
-	struct fimd_context *ctx = crtc->ctx;
 	int win, ch_enabled = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -280,7 +279,7 @@ static void fimd_clear_channel(struct exynos_drm_crtc *crtc)
 		unsigned int state = ctx->suspended;
 
 		ctx->suspended = 0;
-		fimd_wait_for_vblank(crtc);
+		fimd_wait_for_vblank(ctx->crtc);
 		ctx->suspended = state;
 	}
 }
@@ -302,7 +301,7 @@ static int fimd_ctx_initialize(struct fimd_context *ctx,
 		 * If any channel is already active, iommu will throw
 		 * a PAGE FAULT when enabled. So clear any channel if enabled.
 		 */
-		fimd_clear_channel(ctx->crtc);
+		fimd_clear_channel(ctx);
 		ret = drm_iommu_attach_device(ctx->drm_dev, ctx->dev);
 		if (ret) {
 			DRM_ERROR("drm_iommu_attach failed.\n");
@@ -823,9 +822,8 @@ static void fimd_win_disable(struct exynos_drm_crtc *crtc, int zpos)
 	win_data->enabled = false;
 }
 
-static void fimd_window_suspend(struct exynos_drm_crtc *crtc)
+static void fimd_window_suspend(struct fimd_context *ctx)
 {
-	struct fimd_context *ctx = crtc->ctx;
 	struct fimd_win_data *win_data;
 	int i;
 
@@ -833,13 +831,12 @@ static void fimd_window_suspend(struct exynos_drm_crtc *crtc)
 		win_data = &ctx->win_data[i];
 		win_data->resume = win_data->enabled;
 		if (win_data->enabled)
-			fimd_win_disable(crtc, i);
+			fimd_win_disable(ctx->crtc, i);
 	}
 }
 
-static void fimd_window_resume(struct exynos_drm_crtc *crtc)
+static void fimd_window_resume(struct fimd_context *ctx)
 {
-	struct fimd_context *ctx = crtc->ctx;
 	struct fimd_win_data *win_data;
 	int i;
 
@@ -850,26 +847,24 @@ static void fimd_window_resume(struct exynos_drm_crtc *crtc)
 	}
 }
 
-static void fimd_apply(struct exynos_drm_crtc *crtc)
+static void fimd_apply(struct fimd_context *ctx)
 {
-	struct fimd_context *ctx = crtc->ctx;
 	struct fimd_win_data *win_data;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
 		win_data = &ctx->win_data[i];
 		if (win_data->enabled)
-			fimd_win_commit(crtc, i);
+			fimd_win_commit(ctx->crtc, i);
 		else
-			fimd_win_disable(crtc, i);
+			fimd_win_disable(ctx->crtc, i);
 	}
 
-	fimd_commit(crtc);
+	fimd_commit(ctx->crtc);
 }
 
-static int fimd_poweron(struct exynos_drm_crtc *crtc)
+static int fimd_poweron(struct fimd_context *ctx)
 {
-	struct fimd_context *ctx = crtc->ctx;
 	int ret;
 
 	if (!ctx->suspended)
@@ -893,16 +888,16 @@ static int fimd_poweron(struct exynos_drm_crtc *crtc)
 
 	/* if vblank was enabled status, enable it again. */
 	if (test_and_clear_bit(0, &ctx->irq_flags)) {
-		ret = fimd_enable_vblank(crtc);
+		ret = fimd_enable_vblank(ctx->crtc);
 		if (ret) {
 			DRM_ERROR("Failed to re-enable vblank [%d]\n", ret);
 			goto enable_vblank_err;
 		}
 	}
 
-	fimd_window_resume(crtc);
+	fimd_window_resume(ctx);
 
-	fimd_apply(crtc);
+	fimd_apply(ctx);
 
 	return 0;
 
@@ -915,10 +910,8 @@ bus_clk_err:
 	return ret;
 }
 
-static int fimd_poweroff(struct exynos_drm_crtc *crtc)
+static int fimd_poweroff(struct fimd_context *ctx)
 {
-	struct fimd_context *ctx = crtc->ctx;
-
 	if (ctx->suspended)
 		return 0;
 
@@ -927,7 +920,7 @@ static int fimd_poweroff(struct exynos_drm_crtc *crtc)
 	 * suspend that connector. Otherwise we might try to scan from
 	 * a destroyed buffer later.
 	 */
-	fimd_window_suspend(crtc);
+	fimd_window_suspend(ctx);
 
 	clk_disable_unprepare(ctx->lcd_clk);
 	clk_disable_unprepare(ctx->bus_clk);
@@ -944,12 +937,12 @@ static void fimd_dpms(struct exynos_drm_crtc *crtc, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		fimd_poweron(crtc);
+		fimd_poweron(crtc->ctx);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		fimd_poweroff(crtc);
+		fimd_poweroff(crtc->ctx);
 		break;
 	default:
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
@@ -1065,18 +1058,19 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	int ret;
 
-	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
-					   EXYNOS_DISPLAY_TYPE_LCD,
-					   &fimd_crtc_ops, ctx);
-	if (IS_ERR(ctx->crtc))
-		return PTR_ERR(ctx->crtc);
-
 	ret = fimd_ctx_initialize(ctx, drm_dev);
 	if (ret) {
 		DRM_ERROR("fimd_ctx_initialize failed.\n");
 		return ret;
 	}
 
+	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
+					   EXYNOS_DISPLAY_TYPE_LCD,
+					   &fimd_crtc_ops, ctx);
+	if (IS_ERR(ctx->crtc)) {
+		fimd_ctx_remove(ctx);
+		return PTR_ERR(ctx->crtc);
+	}
 
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);

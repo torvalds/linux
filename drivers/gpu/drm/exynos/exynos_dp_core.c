@@ -1058,10 +1058,8 @@ static void exynos_dp_phy_exit(struct exynos_dp_device *dp)
 		phy_power_off(dp->phy);
 }
 
-static void exynos_dp_poweron(struct exynos_drm_display *display)
+static void exynos_dp_poweron(struct exynos_dp_device *dp)
 {
-	struct exynos_dp_device *dp = display_to_dp(display);
-
 	if (dp->dpms_mode == DRM_MODE_DPMS_ON)
 		return;
 
@@ -1076,13 +1074,11 @@ static void exynos_dp_poweron(struct exynos_drm_display *display)
 	exynos_dp_phy_init(dp);
 	exynos_dp_init_dp(dp);
 	enable_irq(dp->irq);
-	exynos_dp_commit(display);
+	exynos_dp_commit(&dp->display);
 }
 
-static void exynos_dp_poweroff(struct exynos_drm_display *display)
+static void exynos_dp_poweroff(struct exynos_dp_device *dp)
 {
-	struct exynos_dp_device *dp = display_to_dp(display);
-
 	if (dp->dpms_mode != DRM_MODE_DPMS_ON)
 		return;
 
@@ -1110,12 +1106,12 @@ static void exynos_dp_dpms(struct exynos_drm_display *display, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		exynos_dp_poweron(display);
+		exynos_dp_poweron(dp);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		exynos_dp_poweroff(display);
+		exynos_dp_poweroff(dp);
 		break;
 	default:
 		break;

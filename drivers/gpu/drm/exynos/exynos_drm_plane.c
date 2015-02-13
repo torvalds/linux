@@ -144,32 +144,6 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 		exynos_crtc->ops->win_mode_set(exynos_crtc, exynos_plane);
 }
 
-void exynos_plane_dpms(struct drm_plane *plane, int mode)
-{
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(plane->crtc);
-
-	if (mode == DRM_MODE_DPMS_ON) {
-		if (exynos_plane->enabled)
-			return;
-
-		if (exynos_crtc->ops->win_enable)
-			exynos_crtc->ops->win_enable(exynos_crtc,
-						     exynos_plane->zpos);
-
-		exynos_plane->enabled = true;
-	} else {
-		if (!exynos_plane->enabled)
-			return;
-
-		if (exynos_crtc->ops->win_disable)
-			exynos_crtc->ops->win_disable(exynos_crtc,
-						      exynos_plane->zpos);
-
-		exynos_plane->enabled = false;
-	}
-}
-
 int
 exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
@@ -198,7 +172,12 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 static int exynos_disable_plane(struct drm_plane *plane)
 {
-	exynos_plane_dpms(plane, DRM_MODE_DPMS_OFF);
+	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(plane->crtc);
+
+	if (exynos_crtc->ops->win_disable)
+		exynos_crtc->ops->win_disable(exynos_crtc,
+					      exynos_plane->zpos);
 
 	return 0;
 }
