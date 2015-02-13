@@ -606,6 +606,7 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 		}
 	}
 
+	/* Initialize slice/subslice/EU info */
 	if (IS_CHERRYVIEW(dev)) {
 		u32 fuse, mask_eu;
 
@@ -615,7 +616,79 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 				  CHV_FGT_EU_DIS_SS1_R0_MASK |
 				  CHV_FGT_EU_DIS_SS1_R1_MASK);
 		info->eu_total = 16 - hweight32(mask_eu);
+	} else if (IS_SKYLAKE(dev)) {
+		const int s_max = 3, ss_max = 4, eu_max = 8;
+		int s, ss;
+		u32 fuse2, eu_disable[s_max], s_enable, ss_disable;
+
+		fuse2 = I915_READ(GEN8_FUSE2);
+		s_enable = (fuse2 & GEN8_F2_S_ENA_MASK) >>
+			   GEN8_F2_S_ENA_SHIFT;
+		ss_disable = (fuse2 & GEN9_F2_SS_DIS_MASK) >>
+			     GEN9_F2_SS_DIS_SHIFT;
+
+		eu_disable[0] = I915_READ(GEN8_EU_DISABLE0);
+		eu_disable[1] = I915_READ(GEN8_EU_DISABLE1);
+		eu_disable[2] = I915_READ(GEN8_EU_DISABLE2);
+
+		info->slice_total = hweight32(s_enable);
+		/*
+		 * The subslice disable field is global, i.e. it applies
+		 * to each of the enabled slices.
+		*/
+		info->subslice_per_slice = ss_max - hweight32(ss_disable);
+		info->subslice_total = info->slice_total *
+				       info->subslice_per_slice;
+
+		/*
+		 * Iterate through enabled slices and subslices to
+		 * count the total enabled EU.
+		*/
+		for (s = 0; s < s_max; s++) {
+			if (!(s_enable & (0x1 << s)))
+				/* skip disabled slice */
+				continue;
+
+			for (ss = 0; ss < ss_max; ss++) {
+				if (ss_disable & (0x1 << ss))
+					/* skip disabled subslice */
+					continue;
+
+				info->eu_total += eu_max -
+						  hweight8(eu_disable[s] >>
+							   (ss * eu_max));
+			}
+		}
+
+		/*
+		 * SKL is expected to always have a uniform distribution
+		 * of EU across subslices with the exception that any one
+		 * EU in any one subslice may be fused off for die
+		 * recovery.
+		*/
+		info->eu_per_subslice = info->subslice_total ?
+					DIV_ROUND_UP(info->eu_total,
+						     info->subslice_total) : 0;
+		/*
+		 * SKL supports slice power gating on devices with more than
+		 * one slice, and supports EU power gating on devices with
+		 * more than one EU pair per subslice.
+		*/
+		info->has_slice_pg = (info->slice_total > 1) ? 1 : 0;
+		info->has_subslice_pg = 0;
+		info->has_eu_pg = (info->eu_per_subslice > 2) ? 1 : 0;
 	}
+	DRM_DEBUG_DRIVER("slice total: %u\n", info->slice_total);
+	DRM_DEBUG_DRIVER("subslice total: %u\n", info->subslice_total);
+	DRM_DEBUG_DRIVER("subslice per slice: %u\n", info->subslice_per_slice);
+	DRM_DEBUG_DRIVER("EU total: %u\n", info->eu_total);
+	DRM_DEBUG_DRIVER("EU per subslice: %u\n", info->eu_per_subslice);
+	DRM_DEBUG_DRIVER("has slice power gating: %s\n",
+			 info->has_slice_pg ? "y" : "n");
+	DRM_DEBUG_DRIVER("has subslice power gating: %s\n",
+			 info->has_subslice_pg ? "y" : "n");
+	DRM_DEBUG_DRIVER("has EU power gating: %s\n",
+			 info->has_eu_pg ? "y" : "n");
 }
 
 /**

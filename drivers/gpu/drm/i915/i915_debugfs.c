@@ -4358,6 +4358,35 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_cache_sharing_fops,
 			i915_cache_sharing_get, i915_cache_sharing_set,
 			"%llu\n");
 
+static int i915_sseu_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+
+	if (INTEL_INFO(dev)->gen < 9)
+		return -ENODEV;
+
+	seq_puts(m, "SSEU Device Info\n");
+	seq_printf(m, "  Available Slice Total: %u\n",
+		   INTEL_INFO(dev)->slice_total);
+	seq_printf(m, "  Available Subslice Total: %u\n",
+		   INTEL_INFO(dev)->subslice_total);
+	seq_printf(m, "  Available Subslice Per Slice: %u\n",
+		   INTEL_INFO(dev)->subslice_per_slice);
+	seq_printf(m, "  Available EU Total: %u\n",
+		   INTEL_INFO(dev)->eu_total);
+	seq_printf(m, "  Available EU Per Subslice: %u\n",
+		   INTEL_INFO(dev)->eu_per_subslice);
+	seq_printf(m, "  Has Slice Power Gating: %s\n",
+		   yesno(INTEL_INFO(dev)->has_slice_pg));
+	seq_printf(m, "  Has Subslice Power Gating: %s\n",
+		   yesno(INTEL_INFO(dev)->has_subslice_pg));
+	seq_printf(m, "  Has EU Power Gating: %s\n",
+		   yesno(INTEL_INFO(dev)->has_eu_pg));
+
+	return 0;
+}
+
 static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
@@ -4471,6 +4500,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
 	{"i915_wa_registers", i915_wa_registers, 0},
 	{"i915_ddb_info", i915_ddb_info, 0},
+	{"i915_sseu_status", i915_sseu_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

@@ -693,7 +693,16 @@ struct intel_device_info {
 	int trans_offsets[I915_MAX_TRANSCODERS];
 	int palette_offsets[I915_MAX_PIPES];
 	int cursor_offsets[I915_MAX_PIPES];
-	unsigned int eu_total;
+
+	/* Slice/subslice/EU info */
+	u8 slice_total;
+	u8 subslice_total;
+	u8 subslice_per_slice;
+	u8 eu_total;
+	u8 eu_per_subslice;
+	u8 has_slice_pg:1;
+	u8 has_subslice_pg:1;
+	u8 has_eu_pg:1;
 };
 
 #undef DEFINE_FLAG
