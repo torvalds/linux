@@ -332,8 +332,10 @@ struct mem_cgroup {
 	struct cg_proto tcp_mem;
 #endif
 #if defined(CONFIG_MEMCG_KMEM)
-        /* Index in the kmem_cache->memcg_params->memcg_caches array */
+        /* Index in the kmem_cache->memcg_params.memcg_caches array */
 	int kmemcg_id;
+	bool kmem_acct_activated;
+	bool kmem_acct_active;
 #endif
 
 	int last_scanned_node;
@@ -352,9 +354,9 @@ struct mem_cgroup {
 };
 
 #ifdef CONFIG_MEMCG_KMEM
-static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+bool memcg_kmem_is_active(struct mem_cgroup *memcg)
 {
-	return memcg->kmemcg_id >= 0;
+	return memcg->kmem_acct_active;
 }
 #endif
 
@@ -517,33 +519,35 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
 }
 EXPORT_SYMBOL(tcp_proto_cgroup);
 
-static void disarm_sock_keys(struct mem_cgroup *memcg)
-{
-	if (!memcg_proto_activated(&memcg->tcp_mem))
-		return;
-	static_key_slow_dec(&memcg_socket_limit_enabled);
-}
-#else
-static void disarm_sock_keys(struct mem_cgroup *memcg)
-{
-}
 #endif
 
 #ifdef CONFIG_MEMCG_KMEM
 /*
- * This will be the memcg's index in each cache's ->memcg_params->memcg_caches.
+ * This will be the memcg's index in each cache's ->memcg_params.memcg_caches.
  * The main reason for not using cgroup id for this:
  *  this works better in sparse environments, where we have a lot of memcgs,
  *  but only a few kmem-limited. Or also, if we have, for instance, 200
  *  memcgs, and none but the 200th is kmem-limited, we'd have to have a
  *  200 entry array for that.
  *
- * The current size of the caches array is stored in
- * memcg_limited_groups_array_size.  It will double each time we have to
- * increase it.
+ * The current size of the caches array is stored in memcg_nr_cache_ids. It
+ * will double each time we have to increase it.
  */
-static DEFINE_IDA(kmem_limited_groups);
-int memcg_limited_groups_array_size;
+static DEFINE_IDA(memcg_cache_ida);
+int memcg_nr_cache_ids;
+
+/* Protects memcg_nr_cache_ids */
+static DECLARE_RWSEM(memcg_cache_ids_sem);
+
+void memcg_get_cache_ids(void)
+{
+	down_read(&memcg_cache_ids_sem);
+}
+
+void memcg_put_cache_ids(void)
+{
+	up_read(&memcg_cache_ids_sem);
+}
 
 /*
  * MIN_SIZE is different than 1, because we would like to avoid going through
@@ -569,31 +573,7 @@ int memcg_limited_groups_array_size;
 struct static_key memcg_kmem_enabled_key;
 EXPORT_SYMBOL(memcg_kmem_enabled_key);
 
-static void memcg_free_cache_id(int id);
-
-static void disarm_kmem_keys(struct mem_cgroup *memcg)
-{
-	if (memcg_kmem_is_active(memcg)) {
-		static_key_slow_dec(&memcg_kmem_enabled_key);
-		memcg_free_cache_id(memcg->kmemcg_id);
-	}
-	/*
-	 * This check can't live in kmem destruction function,
-	 * since the charges will outlive the cgroup
-	 */
-	WARN_ON(page_counter_read(&memcg->kmem));
-}
-#else
-static void disarm_kmem_keys(struct mem_cgroup *memcg)
-{
-}
 #endif /* CONFIG_MEMCG_KMEM */
-
-static void disarm_static_keys(struct mem_cgroup *memcg)
-{
-	disarm_sock_keys(memcg);
-	disarm_kmem_keys(memcg);
-}
 
 static struct mem_cgroup_per_zone *
 mem_cgroup_zone_zoneinfo(struct mem_cgroup *memcg, struct zone *zone)
@@ -2538,18 +2518,19 @@ static int memcg_alloc_cache_id(void)
 	int id, size;
 	int err;
 
-	id = ida_simple_get(&kmem_limited_groups,
+	id = ida_simple_get(&memcg_cache_ida,
 			    0, MEMCG_CACHES_MAX_SIZE, GFP_KERNEL);
 	if (id < 0)
 		return id;
 
-	if (id < memcg_limited_groups_array_size)
+	if (id < memcg_nr_cache_ids)
 		return id;
 
 	/*
 	 * There's no space for the new id in memcg_caches arrays,
 	 * so we have to grow them.
 	 */
+	down_write(&memcg_cache_ids_sem);
 
 	size = 2 * (id + 1);
 	if (size < MEMCG_CACHES_MIN_SIZE)
@@ -2558,8 +2539,15 @@ static int memcg_alloc_cache_id(void)
 		size = MEMCG_CACHES_MAX_SIZE;
 
 	err = memcg_update_all_caches(size);
+	if (!err)
+		err = memcg_update_all_list_lrus(size);
+	if (!err)
+		memcg_nr_cache_ids = size;
+
+	up_write(&memcg_cache_ids_sem);
+
 	if (err) {
-		ida_simple_remove(&kmem_limited_groups, id);
+		ida_simple_remove(&memcg_cache_ida, id);
 		return err;
 	}
 	return id;
@@ -2567,17 +2555,7 @@ static int memcg_alloc_cache_id(void)
 
 static void memcg_free_cache_id(int id)
 {
-	ida_simple_remove(&kmem_limited_groups, id);
-}
-
-/*
- * We should update the current array size iff all caches updates succeed. This
- * can only be done from the slab side. The slab mutex needs to be held when
- * calling this.
- */
-void memcg_update_array_size(int num)
-{
-	memcg_limited_groups_array_size = num;
+	ida_simple_remove(&memcg_cache_ida, id);
 }
 
 struct memcg_kmem_cache_create_work {
@@ -2656,18 +2634,19 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep)
 {
 	struct mem_cgroup *memcg;
 	struct kmem_cache *memcg_cachep;
+	int kmemcg_id;
 
-	VM_BUG_ON(!cachep->memcg_params);
-	VM_BUG_ON(!cachep->memcg_params->is_root_cache);
+	VM_BUG_ON(!is_root_cache(cachep));
 
 	if (current->memcg_kmem_skip_account)
 		return cachep;
 
 	memcg = get_mem_cgroup_from_mm(current->mm);
-	if (!memcg_kmem_is_active(memcg))
+	kmemcg_id = ACCESS_ONCE(memcg->kmemcg_id);
+	if (kmemcg_id < 0)
 		goto out;
 
-	memcg_cachep = cache_from_memcg_idx(cachep, memcg_cache_id(memcg));
+	memcg_cachep = cache_from_memcg_idx(cachep, kmemcg_id);
 	if (likely(memcg_cachep))
 		return memcg_cachep;
 
@@ -2692,7 +2671,7 @@ out:
 void __memcg_kmem_put_cache(struct kmem_cache *cachep)
 {
 	if (!is_root_cache(cachep))
-		css_put(&cachep->memcg_params->memcg->css);
+		css_put(&cachep->memcg_params.memcg->css);
 }
 
 /*
@@ -2756,6 +2735,24 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order)
 
 	memcg_uncharge_kmem(memcg, 1 << order);
 	page->mem_cgroup = NULL;
+}
+
+struct mem_cgroup *__mem_cgroup_from_kmem(void *ptr)
+{
+	struct mem_cgroup *memcg = NULL;
+	struct kmem_cache *cachep;
+	struct page *page;
+
+	page = virt_to_head_page(ptr);
+	if (PageSlab(page)) {
+		cachep = page->slab_cache;
+		if (!is_root_cache(cachep))
+			memcg = cachep->memcg_params.memcg;
+	} else
+		/* page allocated by alloc_kmem_pages */
+		memcg = page->mem_cgroup;
+
+	return memcg;
 }
 #endif /* CONFIG_MEMCG_KMEM */
 
@@ -3291,8 +3288,9 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
 	int err = 0;
 	int memcg_id;
 
-	if (memcg_kmem_is_active(memcg))
-		return 0;
+	BUG_ON(memcg->kmemcg_id >= 0);
+	BUG_ON(memcg->kmem_acct_activated);
+	BUG_ON(memcg->kmem_acct_active);
 
 	/*
 	 * For simplicity, we won't allow this to be disabled.  It also can't
@@ -3335,6 +3333,8 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
 	 * patched.
 	 */
 	memcg->kmemcg_id = memcg_id;
+	memcg->kmem_acct_activated = true;
+	memcg->kmem_acct_active = true;
 out:
 	return err;
 }
@@ -4014,15 +4014,69 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 	return mem_cgroup_sockets_init(memcg, ss);
 }
 
+static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
+{
+	struct cgroup_subsys_state *css;
+	struct mem_cgroup *parent, *child;
+	int kmemcg_id;
+
+	if (!memcg->kmem_acct_active)
+		return;
+
+	/*
+	 * Clear the 'active' flag before clearing memcg_caches arrays entries.
+	 * Since we take the slab_mutex in memcg_deactivate_kmem_caches(), it
+	 * guarantees no cache will be created for this cgroup after we are
+	 * done (see memcg_create_kmem_cache()).
+	 */
+	memcg->kmem_acct_active = false;
+
+	memcg_deactivate_kmem_caches(memcg);
+
+	kmemcg_id = memcg->kmemcg_id;
+	BUG_ON(kmemcg_id < 0);
+
+	parent = parent_mem_cgroup(memcg);
+	if (!parent)
+		parent = root_mem_cgroup;
+
+	/*
+	 * Change kmemcg_id of this cgroup and all its descendants to the
+	 * parent's id, and then move all entries from this cgroup's list_lrus
+	 * to ones of the parent. After we have finished, all list_lrus
+	 * corresponding to this cgroup are guaranteed to remain empty. The
+	 * ordering is imposed by list_lru_node->lock taken by
+	 * memcg_drain_all_list_lrus().
+	 */
+	css_for_each_descendant_pre(css, &memcg->css) {
+		child = mem_cgroup_from_css(css);
+		BUG_ON(child->kmemcg_id != kmemcg_id);
+		child->kmemcg_id = parent->kmemcg_id;
+		if (!memcg->use_hierarchy)
+			break;
+	}
+	memcg_drain_all_list_lrus(kmemcg_id, parent->kmemcg_id);
+
+	memcg_free_cache_id(kmemcg_id);
+}
+
 static void memcg_destroy_kmem(struct mem_cgroup *memcg)
 {
-	memcg_destroy_kmem_caches(memcg);
+	if (memcg->kmem_acct_activated) {
+		memcg_destroy_kmem_caches(memcg);
+		static_key_slow_dec(&memcg_kmem_enabled_key);
+		WARN_ON(page_counter_read(&memcg->kmem));
+	}
 	mem_cgroup_sockets_destroy(memcg);
 }
 #else
 static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
 	return 0;
+}
+
+static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
+{
 }
 
 static void memcg_destroy_kmem(struct mem_cgroup *memcg)
@@ -4443,8 +4497,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
 		free_mem_cgroup_per_zone_info(memcg, node);
 
 	free_percpu(memcg->stat);
-
-	disarm_static_keys(memcg);
 	kfree(memcg);
 }
 
@@ -4581,6 +4633,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
 	spin_unlock(&memcg->event_list_lock);
 
 	vmpressure_cleanup(&memcg->vmpressure);
+
+	memcg_deactivate_kmem(memcg);
 }
 
 static void mem_cgroup_css_free(struct cgroup_subsys_state *css)

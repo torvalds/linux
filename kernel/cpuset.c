@@ -2400,7 +2400,7 @@ void cpuset_cpus_allowed_fallback(struct task_struct *tsk)
 	 */
 }
 
-void cpuset_init_current_mems_allowed(void)
+void __init cpuset_init_current_mems_allowed(void)
 {
 	nodes_setall(current->mems_allowed);
 }

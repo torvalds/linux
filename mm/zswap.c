@@ -906,11 +906,12 @@ static int __init init_zswap(void)
 
 	pr_info("loading zswap\n");
 
-	zswap_pool = zpool_create_pool(zswap_zpool_type, gfp, &zswap_zpool_ops);
+	zswap_pool = zpool_create_pool(zswap_zpool_type, "zswap", gfp,
+					&zswap_zpool_ops);
 	if (!zswap_pool && strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
 		pr_info("%s zpool not available\n", zswap_zpool_type);
 		zswap_zpool_type = ZSWAP_ZPOOL_DEFAULT;
-		zswap_pool = zpool_create_pool(zswap_zpool_type, gfp,
+		zswap_pool = zpool_create_pool(zswap_zpool_type, "zswap", gfp,
 					&zswap_zpool_ops);
 	}
 	if (!zswap_pool) {

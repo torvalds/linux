@@ -122,7 +122,7 @@ static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			struct kstat *stat)
 {
 	struct inode *inode = dentry->d_inode;
-	struct proc_dir_entry *de = PROC_I(inode)->pde;
+	struct proc_dir_entry *de = PDE(inode);
 	if (de && de->nlink)
 		set_nlink(inode, de->nlink);
 

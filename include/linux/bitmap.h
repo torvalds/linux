@@ -160,18 +160,18 @@ extern int bitmap_parselist(const char *buf, unsigned long *maskp,
 extern int bitmap_parselist_user(const char __user *ubuf, unsigned int ulen,
 			unsigned long *dst, int nbits);
 extern void bitmap_remap(unsigned long *dst, const unsigned long *src,
-		const unsigned long *old, const unsigned long *new, int bits);
+		const unsigned long *old, const unsigned long *new, unsigned int nbits);
 extern int bitmap_bitremap(int oldbit,
 		const unsigned long *old, const unsigned long *new, int bits);
 extern void bitmap_onto(unsigned long *dst, const unsigned long *orig,
-		const unsigned long *relmap, int bits);
+		const unsigned long *relmap, unsigned int bits);
 extern void bitmap_fold(unsigned long *dst, const unsigned long *orig,
-		int sz, int bits);
+		unsigned int sz, unsigned int nbits);
 extern int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order);
 extern void bitmap_release_region(unsigned long *bitmap, unsigned int pos, int order);
 extern int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order);
 extern void bitmap_copy_le(void *dst, const unsigned long *src, int nbits);
-extern int bitmap_ord_to_pos(const unsigned long *bitmap, int n, int bits);
+extern unsigned int bitmap_ord_to_pos(const unsigned long *bitmap, unsigned int ord, unsigned int nbits);
 extern int bitmap_print_to_pagebuf(bool list, char *buf,
 				   const unsigned long *maskp, int nmaskbits);
 
@@ -185,33 +185,33 @@ extern int bitmap_print_to_pagebuf(bool list, char *buf,
 #define small_const_nbits(nbits) \
 	(__builtin_constant_p(nbits) && (nbits) <= BITS_PER_LONG)
 
-static inline void bitmap_zero(unsigned long *dst, int nbits)
+static inline void bitmap_zero(unsigned long *dst, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		*dst = 0UL;
 	else {
-		int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
 		memset(dst, 0, len);
 	}
 }
 
-static inline void bitmap_fill(unsigned long *dst, int nbits)
+static inline void bitmap_fill(unsigned long *dst, unsigned int nbits)
 {
-	size_t nlongs = BITS_TO_LONGS(nbits);
+	unsigned int nlongs = BITS_TO_LONGS(nbits);
 	if (!small_const_nbits(nbits)) {
-		int len = (nlongs - 1) * sizeof(unsigned long);
+		unsigned int len = (nlongs - 1) * sizeof(unsigned long);
 		memset(dst, 0xff,  len);
 	}
 	dst[nlongs - 1] = BITMAP_LAST_WORD_MASK(nbits);
 }
 
 static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
-			int nbits)
+			unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		*dst = *src;
 	else {
-		int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
 		memcpy(dst, src, len);
 	}
 }

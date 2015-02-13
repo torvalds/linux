@@ -6642,9 +6642,10 @@ F:	include/uapi/linux/netrom.h
 F:	net/netrom/
 
 NETWORK BLOCK DEVICE (NBD)
-M:	Paul Clements <Paul.Clements@steeleye.com>
+M:	Markus Pargmann <mpa@pengutronix.de>
 S:	Maintained
 L:	nbd-general@lists.sourceforge.net
+T:	git git://git.pengutronix.de/git/mpa/linux-nbd.git
 F:	Documentation/blockdev/nbd.txt
 F:	drivers/block/nbd.c
 F:	include/linux/nbd.h
@@ -10690,6 +10691,7 @@ F:	drivers/pci/*xen*
 
 XEN BLOCK SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+M:	Roger Pau Monné <roger.pau@citrix.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/block/xen-blkback/*

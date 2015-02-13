@@ -81,6 +81,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/ptrace.h>
 #include <linux/tracehook.h>
+#include <linux/string_helpers.h>
 #include <linux/user_namespace.h>
 
 #include <asm/pgtable.h>
@@ -89,39 +90,18 @@
 
 static inline void task_name(struct seq_file *m, struct task_struct *p)
 {
-	int i;
-	char *buf, *end;
-	char *name;
+	char *buf;
 	char tcomm[sizeof(p->comm)];
 
 	get_task_comm(tcomm, p);
 
 	seq_puts(m, "Name:\t");
-	end = m->buf + m->size;
 	buf = m->buf + m->count;
-	name = tcomm;
-	i = sizeof(tcomm);
-	while (i && (buf < end)) {
-		unsigned char c = *name;
-		name++;
-		i--;
-		*buf = c;
-		if (!c)
-			break;
-		if (c == '\\') {
-			buf++;
-			if (buf < end)
-				*buf++ = c;
-			continue;
-		}
-		if (c == '\n') {
-			*buf++ = '\\';
-			if (buf < end)
-				*buf++ = 'n';
-			continue;
-		}
-		buf++;
-	}
+
+	/* Ignore error for now */
+	string_escape_str(tcomm, &buf, m->size - m->count,
+			  ESCAPE_SPACE | ESCAPE_SPECIAL, "\n\\");
+
 	m->count = buf - m->buf;
 	seq_putc(m, '\n');
 }

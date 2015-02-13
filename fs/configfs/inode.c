@@ -50,12 +50,6 @@ static const struct address_space_operations configfs_aops = {
 	.write_end	= simple_write_end,
 };
 
-static struct backing_dev_info configfs_backing_dev_info = {
-	.name		= "configfs",
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
-};
-
 static const struct inode_operations configfs_inode_operations ={
 	.setattr	= configfs_setattr,
 };
@@ -137,7 +131,6 @@ struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent *sd,
 	if (inode) {
 		inode->i_ino = get_next_ino();
 		inode->i_mapping->a_ops = &configfs_aops;
-		inode->i_mapping->backing_dev_info = &configfs_backing_dev_info;
 		inode->i_op = &configfs_inode_operations;
 
 		if (sd->s_iattr) {
@@ -282,14 +275,4 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 		}
 	}
 	mutex_unlock(&dir->d_inode->i_mutex);
-}
-
-int __init configfs_inode_init(void)
-{
-	return bdi_init(&configfs_backing_dev_info);
-}
-
-void configfs_inode_exit(void)
-{
-	bdi_destroy(&configfs_backing_dev_info);
 }

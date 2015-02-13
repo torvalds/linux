@@ -971,7 +971,7 @@ SYSCALL_DEFINE3(poll, struct pollfd __user *, ufds, unsigned int, nfds,
 	if (ret == -EINTR) {
 		struct restart_block *restart_block;
 
-		restart_block = &current_thread_info()->restart_block;
+		restart_block = &current->restart_block;
 		restart_block->fn = do_restart_poll;
 		restart_block->poll.ufds = ufds;
 		restart_block->poll.nfds = nfds;

@@ -639,8 +639,8 @@ static int check_name(const char *name)
 
 /*
  * On successful return, the caller must not attempt to acquire
- * _hash_lock without first calling dm_table_put, because dm_table_destroy
- * waits for this dm_table_put and could be called under this lock.
+ * _hash_lock without first calling dm_put_live_table, because dm_table_destroy
+ * waits for this dm_put_live_table and could be called under this lock.
  */
 static struct dm_table *dm_get_inactive_table(struct mapped_device *md, int *srcu_idx)
 {

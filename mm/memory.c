@@ -3013,14 +3013,17 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	bool migrated = false;
 	int flags = 0;
 
+	/* A PROT_NONE fault should not end up here */
+	BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
+
 	/*
 	* The "pte" at this point cannot be used safely without
 	* validation through pte_unmap_same(). It's of NUMA type but
 	* the pfn may be screwed if the read is non atomic.
 	*
-	* ptep_modify_prot_start is not called as this is clearing
-	* the _PAGE_NUMA bit and it is not really expected that there
-	* would be concurrent hardware modifications to the PTE.
+	* We can safely just do a "set_pte_at()", because the old
+	* page table entry is not accessible, so there would be no
+	* concurrent hardware modifications to the PTE.
 	*/
 	ptl = pte_lockptr(mm, pmd);
 	spin_lock(ptl);
@@ -3029,7 +3032,9 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto out;
 	}
 
-	pte = pte_mknonnuma(pte);
+	/* Make it present again */
+	pte = pte_modify(pte, vma->vm_page_prot);
+	pte = pte_mkyoung(pte);
 	set_pte_at(mm, addr, ptep, pte);
 	update_mmu_cache(vma, addr, ptep);
 
@@ -3038,7 +3043,6 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		pte_unmap_unlock(ptep, ptl);
 		return 0;
 	}
-	BUG_ON(is_zero_pfn(page_to_pfn(page)));
 
 	/*
 	 * Avoid grouping on DSO/COW pages in specific and RO pages
@@ -3124,7 +3128,7 @@ static int handle_pte_fault(struct mm_struct *mm,
 					pte, pmd, flags, entry);
 	}
 
-	if (pte_numa(entry))
+	if (pte_protnone(entry))
 		return do_numa_page(mm, vma, address, entry, pte, pmd);
 
 	ptl = pte_lockptr(mm, pmd);
@@ -3202,7 +3206,7 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			if (pmd_trans_splitting(orig_pmd))
 				return 0;
 
-			if (pmd_numa(orig_pmd))
+			if (pmd_protnone(orig_pmd))
 				return do_huge_pmd_numa_page(mm, vma, address,
 							     orig_pmd, pmd);
 
@@ -3458,7 +3462,7 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 	if (follow_phys(vma, addr, write, &prot, &phys_addr))
 		return -EINVAL;
 
-	maddr = ioremap_prot(phys_addr, PAGE_SIZE, prot);
+	maddr = ioremap_prot(phys_addr, PAGE_ALIGN(len + offset), prot);
 	if (write)
 		memcpy_toio(maddr + offset, buf, len);
 	else

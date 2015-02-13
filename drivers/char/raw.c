@@ -104,11 +104,9 @@ static int raw_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&raw_mutex);
 	bdev = raw_devices[minor].binding;
-	if (--raw_devices[minor].inuse == 0) {
+	if (--raw_devices[minor].inuse == 0)
 		/* Here  inode->i_mapping == bdev->bd_inode->i_mapping  */
 		inode->i_mapping = &inode->i_data;
-		inode->i_mapping->backing_dev_info = &default_backing_dev_info;
-	}
 	mutex_unlock(&raw_mutex);
 
 	blkdev_put(bdev, filp->f_mode | FMODE_EXCL);

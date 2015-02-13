@@ -34,7 +34,6 @@
 #include <linux/rculist.h>
 #include <linux/interrupt.h>
 #include <linux/genalloc.h>
-#include <linux/of_address.h>
 #include <linux/of_device.h>
 
 static inline size_t chunk_size(const struct gen_pool_chunk *chunk)
@@ -415,7 +414,7 @@ bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
 			size_t size)
 {
 	bool found = false;
-	unsigned long end = start + size;
+	unsigned long end = start + size - 1;
 	struct gen_pool_chunk *chunk;
 
 	rcu_read_lock();

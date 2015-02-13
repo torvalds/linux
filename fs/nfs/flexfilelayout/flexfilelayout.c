@@ -1366,7 +1366,7 @@ ff_layout_mark_request_commit(struct nfs_page *req,
 	spin_unlock(cinfo->lock);
 	if (!cinfo->dreq) {
 		inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-		inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
+		inc_bdi_stat(inode_to_bdi(page_file_mapping(req->wb_page)->host),
 			     BDI_RECLAIMABLE);
 		__mark_inode_dirty(req->wb_context->dentry->d_inode,
 				   I_DIRTY_DATASYNC);

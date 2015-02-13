@@ -49,7 +49,6 @@ static DEFINE_MUTEX(mtd_mutex);
  */
 struct mtd_file_info {
 	struct mtd_info *mtd;
-	struct inode *ino;
 	enum mtd_file_modes mode;
 };
 
@@ -59,10 +58,6 @@ static loff_t mtdchar_lseek(struct file *file, loff_t offset, int orig)
 	return fixed_size_llseek(file, offset, orig, mfi->mtd->size);
 }
 
-static int count;
-static struct vfsmount *mnt;
-static struct file_system_type mtd_inodefs_type;
-
 static int mtdchar_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
@@ -70,17 +65,12 @@ static int mtdchar_open(struct inode *inode, struct file *file)
 	int ret = 0;
 	struct mtd_info *mtd;
 	struct mtd_file_info *mfi;
-	struct inode *mtd_ino;
 
 	pr_debug("MTD_open\n");
 
 	/* You can't open the RO devices RW */
 	if ((file->f_mode & FMODE_WRITE) && (minor & 1))
 		return -EACCES;
-
-	ret = simple_pin_fs(&mtd_inodefs_type, &mnt, &count);
-	if (ret)
-		return ret;
 
 	mutex_lock(&mtd_mutex);
 	mtd = get_mtd_device(NULL, devnum);
@@ -95,43 +85,26 @@ static int mtdchar_open(struct inode *inode, struct file *file)
 		goto out1;
 	}
 
-	mtd_ino = iget_locked(mnt->mnt_sb, devnum);
-	if (!mtd_ino) {
-		ret = -ENOMEM;
-		goto out1;
-	}
-	if (mtd_ino->i_state & I_NEW) {
-		mtd_ino->i_private = mtd;
-		mtd_ino->i_mode = S_IFCHR;
-		mtd_ino->i_data.backing_dev_info = mtd->backing_dev_info;
-		unlock_new_inode(mtd_ino);
-	}
-	file->f_mapping = mtd_ino->i_mapping;
-
 	/* You can't open it RW if it's not a writeable device */
 	if ((file->f_mode & FMODE_WRITE) && !(mtd->flags & MTD_WRITEABLE)) {
 		ret = -EACCES;
-		goto out2;
+		goto out1;
 	}
 
 	mfi = kzalloc(sizeof(*mfi), GFP_KERNEL);
 	if (!mfi) {
 		ret = -ENOMEM;
-		goto out2;
+		goto out1;
 	}
-	mfi->ino = mtd_ino;
 	mfi->mtd = mtd;
 	file->private_data = mfi;
 	mutex_unlock(&mtd_mutex);
 	return 0;
 
-out2:
-	iput(mtd_ino);
 out1:
 	put_mtd_device(mtd);
 out:
 	mutex_unlock(&mtd_mutex);
-	simple_release_fs(&mnt, &count);
 	return ret;
 } /* mtdchar_open */
 
@@ -148,12 +121,9 @@ static int mtdchar_close(struct inode *inode, struct file *file)
 	if ((file->f_mode & FMODE_WRITE))
 		mtd_sync(mtd);
 
-	iput(mfi->ino);
-
 	put_mtd_device(mtd);
 	file->private_data = NULL;
 	kfree(mfi);
-	simple_release_fs(&mnt, &count);
 
 	return 0;
 } /* mtdchar_close */
@@ -1117,6 +1087,13 @@ static unsigned long mtdchar_get_unmapped_area(struct file *file,
 	ret = mtd_get_unmapped_area(mtd, len, offset, flags);
 	return ret == -EOPNOTSUPP ? -ENODEV : ret;
 }
+
+static unsigned mtdchar_mmap_capabilities(struct file *file)
+{
+	struct mtd_file_info *mfi = file->private_data;
+
+	return mtd_mmap_capabilities(mfi->mtd);
+}
 #endif
 
 /*
@@ -1160,26 +1137,9 @@ static const struct file_operations mtd_fops = {
 	.mmap		= mtdchar_mmap,
 #ifndef CONFIG_MMU
 	.get_unmapped_area = mtdchar_get_unmapped_area,
+	.mmap_capabilities = mtdchar_mmap_capabilities,
 #endif
 };
-
-static const struct super_operations mtd_ops = {
-	.drop_inode = generic_delete_inode,
-	.statfs = simple_statfs,
-};
-
-static struct dentry *mtd_inodefs_mount(struct file_system_type *fs_type,
-				int flags, const char *dev_name, void *data)
-{
-	return mount_pseudo(fs_type, "mtd_inode:", &mtd_ops, NULL, MTD_INODE_FS_MAGIC);
-}
-
-static struct file_system_type mtd_inodefs_type = {
-       .name = "mtd_inodefs",
-       .mount = mtd_inodefs_mount,
-       .kill_sb = kill_anon_super,
-};
-MODULE_ALIAS_FS("mtd_inodefs");
 
 int __init init_mtdchar(void)
 {
@@ -1193,23 +1153,11 @@ int __init init_mtdchar(void)
 		return ret;
 	}
 
-	ret = register_filesystem(&mtd_inodefs_type);
-	if (ret) {
-		pr_err("Can't register mtd_inodefs filesystem, error %d\n",
-		       ret);
-		goto err_unregister_chdev;
-	}
-
-	return ret;
-
-err_unregister_chdev:
-	__unregister_chrdev(MTD_CHAR_MAJOR, 0, 1 << MINORBITS, "mtd");
 	return ret;
 }
 
 void __exit cleanup_mtdchar(void)
 {
-	unregister_filesystem(&mtd_inodefs_type);
 	__unregister_chrdev(MTD_CHAR_MAJOR, 0, 1 << MINORBITS, "mtd");
 }
 

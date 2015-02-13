@@ -257,7 +257,10 @@ PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
 #define mk_pmd(page,prot)	pfn_pmd(page_to_pfn(page),prot)
 
 /* represent a notpresent pmd by zero, this is used by pmdp_invalidate */
-#define pmd_mknotpresent(pmd)	(__pmd(0))
+static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+{
+	return __pmd(0);
+}
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {

@@ -170,20 +170,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	atomic_set(&mapping->i_mmap_writable, 0);
 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
 	mapping->private_data = NULL;
-	mapping->backing_dev_info = &default_backing_dev_info;
 	mapping->writeback_index = 0;
-
-	/*
-	 * If the block_device provides a backing_dev_info for client
-	 * inodes then use that.  Otherwise the inode share the bdev's
-	 * backing_dev_info.
-	 */
-	if (sb->s_bdev) {
-		struct backing_dev_info *bdi;
-
-		bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
-		mapping->backing_dev_info = bdi;
-	}
 	inode->i_private = NULL;
 	inode->i_mapping = mapping;
 	INIT_HLIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */
@@ -685,8 +672,8 @@ int invalidate_inodes(struct super_block *sb, bool kill_dirty)
  * LRU does not have strict ordering. Hence we don't want to reclaim inodes
  * with this flag set because they are the inodes that are out of order.
  */
-static enum lru_status
-inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+static enum lru_status inode_lru_isolate(struct list_head *item,
+		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
 {
 	struct list_head *freeable = arg;
 	struct inode	*inode = container_of(item, struct inode, i_lru);
@@ -704,7 +691,7 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
 	 */
 	if (atomic_read(&inode->i_count) ||
 	    (inode->i_state & ~I_REFERENCED)) {
-		list_del_init(&inode->i_lru);
+		list_lru_isolate(lru, &inode->i_lru);
 		spin_unlock(&inode->i_lock);
 		this_cpu_dec(nr_unused);
 		return LRU_REMOVED;
@@ -738,7 +725,7 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
 
 	WARN_ON(inode->i_state & I_NEW);
 	inode->i_state |= I_FREEING;
-	list_move(&inode->i_lru, freeable);
+	list_lru_isolate_move(lru, &inode->i_lru, freeable);
 	spin_unlock(&inode->i_lock);
 
 	this_cpu_dec(nr_unused);
@@ -751,14 +738,13 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
  * to trim from the LRU. Inodes to be freed are moved to a temporary list and
  * then are freed outside inode_lock by dispose_list().
  */
-long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
-		     int nid)
+long prune_icache_sb(struct super_block *sb, struct shrink_control *sc)
 {
 	LIST_HEAD(freeable);
 	long freed;
 
-	freed = list_lru_walk_node(&sb->s_inode_lru, nid, inode_lru_isolate,
-				       &freeable, &nr_to_scan);
+	freed = list_lru_shrink_walk(&sb->s_inode_lru, sc,
+				     inode_lru_isolate, &freeable);
 	dispose_list(&freeable);
 	return freed;
 }

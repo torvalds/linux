@@ -47,6 +47,7 @@
 #include "state.h"
 #include "cache.h"
 #include "netns.h"
+#include "pnfs.h"
 
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 #include <linux/security.h>
@@ -234,6 +235,26 @@ static char *savemem(struct nfsd4_compoundargs *argp, __be32 *p, int nbytes)
 	return ret;
 }
 
+/*
+ * We require the high 32 bits of 'seconds' to be 0, and
+ * we ignore all 32 bits of 'nseconds'.
+ */
+static __be32
+nfsd4_decode_time(struct nfsd4_compoundargs *argp, struct timespec *tv)
+{
+	DECODE_HEAD;
+	u64 sec;
+
+	READ_BUF(12);
+	p = xdr_decode_hyper(p, &sec);
+	tv->tv_sec = sec;
+	tv->tv_nsec = be32_to_cpup(p++);
+	if (tv->tv_nsec >= (u32)1000000000)
+		return nfserr_inval;
+
+	DECODE_TAIL;
+}
+
 static __be32
 nfsd4_decode_bitmap(struct nfsd4_compoundargs *argp, u32 *bmval)
 {
@@ -267,7 +288,6 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 {
 	int expected_len, len = 0;
 	u32 dummy32;
-	u64 sec;
 	char *buf;
 
 	DECODE_HEAD;
@@ -358,15 +378,10 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		dummy32 = be32_to_cpup(p++);
 		switch (dummy32) {
 		case NFS4_SET_TO_CLIENT_TIME:
-			/* We require the high 32 bits of 'seconds' to be 0, and we ignore
-			   all 32 bits of 'nseconds'. */
-			READ_BUF(12);
 			len += 12;
-			p = xdr_decode_hyper(p, &sec);
-			iattr->ia_atime.tv_sec = (time_t)sec;
-			iattr->ia_atime.tv_nsec = be32_to_cpup(p++);
-			if (iattr->ia_atime.tv_nsec >= (u32)1000000000)
-				return nfserr_inval;
+			status = nfsd4_decode_time(argp, &iattr->ia_atime);
+			if (status)
+				return status;
 			iattr->ia_valid |= (ATTR_ATIME | ATTR_ATIME_SET);
 			break;
 		case NFS4_SET_TO_SERVER_TIME:
@@ -382,15 +397,10 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		dummy32 = be32_to_cpup(p++);
 		switch (dummy32) {
 		case NFS4_SET_TO_CLIENT_TIME:
-			/* We require the high 32 bits of 'seconds' to be 0, and we ignore
-			   all 32 bits of 'nseconds'. */
-			READ_BUF(12);
 			len += 12;
-			p = xdr_decode_hyper(p, &sec);
-			iattr->ia_mtime.tv_sec = sec;
-			iattr->ia_mtime.tv_nsec = be32_to_cpup(p++);
-			if (iattr->ia_mtime.tv_nsec >= (u32)1000000000)
-				return nfserr_inval;
+			status = nfsd4_decode_time(argp, &iattr->ia_mtime);
+			if (status)
+				return status;
 			iattr->ia_valid |= (ATTR_MTIME | ATTR_MTIME_SET);
 			break;
 		case NFS4_SET_TO_SERVER_TIME:
@@ -1513,6 +1523,127 @@ static __be32 nfsd4_decode_reclaim_complete(struct nfsd4_compoundargs *argp, str
 	DECODE_TAIL;
 }
 
+#ifdef CONFIG_NFSD_PNFS
+static __be32
+nfsd4_decode_getdeviceinfo(struct nfsd4_compoundargs *argp,
+		struct nfsd4_getdeviceinfo *gdev)
+{
+	DECODE_HEAD;
+	u32 num, i;
+
+	READ_BUF(sizeof(struct nfsd4_deviceid) + 3 * 4);
+	COPYMEM(&gdev->gd_devid, sizeof(struct nfsd4_deviceid));
+	gdev->gd_layout_type = be32_to_cpup(p++);
+	gdev->gd_maxcount = be32_to_cpup(p++);
+	num = be32_to_cpup(p++);
+	if (num) {
+		READ_BUF(4 * num);
+		gdev->gd_notify_types = be32_to_cpup(p++);
+		for (i = 1; i < num; i++) {
+			if (be32_to_cpup(p++)) {
+				status = nfserr_inval;
+				goto out;
+			}
+		}
+	}
+	DECODE_TAIL;
+}
+
+static __be32
+nfsd4_decode_layoutget(struct nfsd4_compoundargs *argp,
+		struct nfsd4_layoutget *lgp)
+{
+	DECODE_HEAD;
+
+	READ_BUF(36);
+	lgp->lg_signal = be32_to_cpup(p++);
+	lgp->lg_layout_type = be32_to_cpup(p++);
+	lgp->lg_seg.iomode = be32_to_cpup(p++);
+	p = xdr_decode_hyper(p, &lgp->lg_seg.offset);
+	p = xdr_decode_hyper(p, &lgp->lg_seg.length);
+	p = xdr_decode_hyper(p, &lgp->lg_minlength);
+	nfsd4_decode_stateid(argp, &lgp->lg_sid);
+	READ_BUF(4);
+	lgp->lg_maxcount = be32_to_cpup(p++);
+
+	DECODE_TAIL;
+}
+
+static __be32
+nfsd4_decode_layoutcommit(struct nfsd4_compoundargs *argp,
+		struct nfsd4_layoutcommit *lcp)
+{
+	DECODE_HEAD;
+	u32 timechange;
+
+	READ_BUF(20);
+	p = xdr_decode_hyper(p, &lcp->lc_seg.offset);
+	p = xdr_decode_hyper(p, &lcp->lc_seg.length);
+	lcp->lc_reclaim = be32_to_cpup(p++);
+	nfsd4_decode_stateid(argp, &lcp->lc_sid);
+	READ_BUF(4);
+	lcp->lc_newoffset = be32_to_cpup(p++);
+	if (lcp->lc_newoffset) {
+		READ_BUF(8);
+		p = xdr_decode_hyper(p, &lcp->lc_last_wr);
+	} else
+		lcp->lc_last_wr = 0;
+	READ_BUF(4);
+	timechange = be32_to_cpup(p++);
+	if (timechange) {
+		status = nfsd4_decode_time(argp, &lcp->lc_mtime);
+		if (status)
+			return status;
+	} else {
+		lcp->lc_mtime.tv_nsec = UTIME_NOW;
+	}
+	READ_BUF(8);
+	lcp->lc_layout_type = be32_to_cpup(p++);
+
+	/*
+	 * Save the layout update in XDR format and let the layout driver deal
+	 * with it later.
+	 */
+	lcp->lc_up_len = be32_to_cpup(p++);
+	if (lcp->lc_up_len > 0) {
+		READ_BUF(lcp->lc_up_len);
+		READMEM(lcp->lc_up_layout, lcp->lc_up_len);
+	}
+
+	DECODE_TAIL;
+}
+
+static __be32
+nfsd4_decode_layoutreturn(struct nfsd4_compoundargs *argp,
+		struct nfsd4_layoutreturn *lrp)
+{
+	DECODE_HEAD;
+
+	READ_BUF(16);
+	lrp->lr_reclaim = be32_to_cpup(p++);
+	lrp->lr_layout_type = be32_to_cpup(p++);
+	lrp->lr_seg.iomode = be32_to_cpup(p++);
+	lrp->lr_return_type = be32_to_cpup(p++);
+	if (lrp->lr_return_type == RETURN_FILE) {
+		READ_BUF(16);
+		p = xdr_decode_hyper(p, &lrp->lr_seg.offset);
+		p = xdr_decode_hyper(p, &lrp->lr_seg.length);
+		nfsd4_decode_stateid(argp, &lrp->lr_sid);
+		READ_BUF(4);
+		lrp->lrf_body_len = be32_to_cpup(p++);
+		if (lrp->lrf_body_len > 0) {
+			READ_BUF(lrp->lrf_body_len);
+			READMEM(lrp->lrf_body, lrp->lrf_body_len);
+		}
+	} else {
+		lrp->lr_seg.offset = 0;
+		lrp->lr_seg.length = NFS4_MAX_UINT64;
+	}
+
+	DECODE_TAIL;
+}
+#endif /* CONFIG_NFSD_PNFS */
+
 static __be32
 nfsd4_decode_fallocate(struct nfsd4_compoundargs *argp,
 		       struct nfsd4_fallocate *fallocate)
@@ -1607,11 +1738,19 @@ static nfsd4_dec nfsd4_dec_ops[] = {
 	[OP_DESTROY_SESSION]	= (nfsd4_dec)nfsd4_decode_destroy_session,
 	[OP_FREE_STATEID]	= (nfsd4_dec)nfsd4_decode_free_stateid,
 	[OP_GET_DIR_DELEGATION]	= (nfsd4_dec)nfsd4_decode_notsupp,
+#ifdef CONFIG_NFSD_PNFS
+	[OP_GETDEVICEINFO]	= (nfsd4_dec)nfsd4_decode_getdeviceinfo,
+	[OP_GETDEVICELIST]	= (nfsd4_dec)nfsd4_decode_notsupp,
+	[OP_LAYOUTCOMMIT]	= (nfsd4_dec)nfsd4_decode_layoutcommit,
+	[OP_LAYOUTGET]		= (nfsd4_dec)nfsd4_decode_layoutget,
+	[OP_LAYOUTRETURN]	= (nfsd4_dec)nfsd4_decode_layoutreturn,
+#else
 	[OP_GETDEVICEINFO]	= (nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_GETDEVICELIST]	= (nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_LAYOUTCOMMIT]	= (nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_LAYOUTGET]		= (nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_LAYOUTRETURN]	= (nfsd4_dec)nfsd4_decode_notsupp,
+#endif
 	[OP_SECINFO_NO_NAME]	= (nfsd4_dec)nfsd4_decode_secinfo_no_name,
 	[OP_SEQUENCE]		= (nfsd4_dec)nfsd4_decode_sequence,
 	[OP_SET_SSV]		= (nfsd4_dec)nfsd4_decode_notsupp,
@@ -2539,6 +2678,30 @@ out_acl:
 			get_parent_attributes(exp, &stat);
 		p = xdr_encode_hyper(p, stat.ino);
 	}
+#ifdef CONFIG_NFSD_PNFS
+	if ((bmval1 & FATTR4_WORD1_FS_LAYOUT_TYPES) ||
+	    (bmval2 & FATTR4_WORD2_LAYOUT_TYPES)) {
+		if (exp->ex_layout_type) {
+			p = xdr_reserve_space(xdr, 8);
+			if (!p)
+				goto out_resource;
+			*p++ = cpu_to_be32(1);
+			*p++ = cpu_to_be32(exp->ex_layout_type);
+		} else {
+			p = xdr_reserve_space(xdr, 4);
+			if (!p)
+				goto out_resource;
+			*p++ = cpu_to_be32(0);
+		}
+	}
+
+	if (bmval2 & FATTR4_WORD2_LAYOUT_BLKSIZE) {
+		p = xdr_reserve_space(xdr, 4);
+		if (!p)
+			goto out_resource;
+		*p++ = cpu_to_be32(stat.blksize);
+	}
+#endif /* CONFIG_NFSD_PNFS */
 	if (bmval2 & FATTR4_WORD2_SECURITY_LABEL) {
 		status = nfsd4_encode_security_label(xdr, rqstp, context,
 								contextlen);
@@ -2768,16 +2931,17 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	if (entry_bytes > cd->rd_maxcount)
 		goto fail;
 	cd->rd_maxcount -= entry_bytes;
-	if (!cd->rd_dircount)
-		goto fail;
 	/*
 	 * RFC 3530 14.2.24 describes rd_dircount as only a "hint", so
 	 * let's always let through the first entry, at least:
 	 */
-	name_and_cookie = 4 * XDR_QUADLEN(namlen) + 8;
+	if (!cd->rd_dircount)
+		goto fail;
+	name_and_cookie = 4 + 4 * XDR_QUADLEN(namlen) + 8;
 	if (name_and_cookie > cd->rd_dircount && cd->cookie_offset)
 		goto fail;
 	cd->rd_dircount -= min(cd->rd_dircount, name_and_cookie);
+
 	cd->cookie_offset = cookie_offset;
 skip_entry:
 	cd->common.err = nfs_ok;
@@ -3814,6 +3978,156 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, __be32 nfserr,
 	return nfserr;
 }
 
+#ifdef CONFIG_NFSD_PNFS
+static __be32
+nfsd4_encode_getdeviceinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
+		struct nfsd4_getdeviceinfo *gdev)
+{
+	struct xdr_stream *xdr = &resp->xdr;
+	const struct nfsd4_layout_ops *ops =
+		nfsd4_layout_ops[gdev->gd_layout_type];
+	u32 starting_len = xdr->buf->len, needed_len;
+	__be32 *p;
+
+	dprintk("%s: err %d\n", __func__, nfserr);
+	if (nfserr)
+		goto out;
+
+	nfserr = nfserr_resource;
+	p = xdr_reserve_space(xdr, 4);
+	if (!p)
+		goto out;
+
+	*p++ = cpu_to_be32(gdev->gd_layout_type);
+
+	/* If maxcount is 0 then just update notifications */
+	if (gdev->gd_maxcount != 0) {
+		nfserr = ops->encode_getdeviceinfo(xdr, gdev);
+		if (nfserr) {
+			/*
+			 * We don't bother to burden the layout drivers with
+			 * enforcing gd_maxcount, just tell the client to
+			 * come back with a bigger buffer if it's not enough.
+			 */
+			if (xdr->buf->len + 4 > gdev->gd_maxcount)
+				goto toosmall;
+			goto out;
+		}
+	}
+
+	nfserr = nfserr_resource;
+	if (gdev->gd_notify_types) {
+		p = xdr_reserve_space(xdr, 4 + 4);
+		if (!p)
+			goto out;
+		*p++ = cpu_to_be32(1);			/* bitmap length */
+		*p++ = cpu_to_be32(gdev->gd_notify_types);
+	} else {
+		p = xdr_reserve_space(xdr, 4);
+		if (!p)
+			goto out;
+		*p++ = 0;
+	}
+
+	nfserr = 0;
+out:
+	kfree(gdev->gd_device);
+	dprintk("%s: done: %d\n", __func__, be32_to_cpu(nfserr));
+	return nfserr;
+
+toosmall:
+	dprintk("%s: maxcount too small\n", __func__);
+	needed_len = xdr->buf->len + 4 /* notifications */;
+	xdr_truncate_encode(xdr, starting_len);
+	p = xdr_reserve_space(xdr, 4);
+	if (!p) {
+		nfserr = nfserr_resource;
+	} else {
+		*p++ = cpu_to_be32(needed_len);
+		nfserr = nfserr_toosmall;
+	}
+	goto out;
+}
+
+static __be32
+nfsd4_encode_layoutget(struct nfsd4_compoundres *resp, __be32 nfserr,
+		struct nfsd4_layoutget *lgp)
+{
+	struct xdr_stream *xdr = &resp->xdr;
+	const struct nfsd4_layout_ops *ops =
+		nfsd4_layout_ops[lgp->lg_layout_type];
+	__be32 *p;
+
+	dprintk("%s: err %d\n", __func__, nfserr);
+	if (nfserr)
+		goto out;
+
+	nfserr = nfserr_resource;
+	p = xdr_reserve_space(xdr, 36 + sizeof(stateid_opaque_t));
+	if (!p)
+		goto out;
+
+	*p++ = cpu_to_be32(1);	/* we always set return-on-close */
+	*p++ = cpu_to_be32(lgp->lg_sid.si_generation);
+	p = xdr_encode_opaque_fixed(p, &lgp->lg_sid.si_opaque,
+				    sizeof(stateid_opaque_t));
+
+	*p++ = cpu_to_be32(1);	/* we always return a single layout */
+	p = xdr_encode_hyper(p, lgp->lg_seg.offset);
+	p = xdr_encode_hyper(p, lgp->lg_seg.length);
+	*p++ = cpu_to_be32(lgp->lg_seg.iomode);
+	*p++ = cpu_to_be32(lgp->lg_layout_type);
+
+	nfserr = ops->encode_layoutget(xdr, lgp);
+out:
+	kfree(lgp->lg_content);
+	return nfserr;
+}
+
+static __be32
+nfsd4_encode_layoutcommit(struct nfsd4_compoundres *resp, __be32 nfserr,
+			  struct nfsd4_layoutcommit *lcp)
+{
+	struct xdr_stream *xdr = &resp->xdr;
+	__be32 *p;
+
+	if (nfserr)
+		return nfserr;
+
+	p = xdr_reserve_space(xdr, 4);
+	if (!p)
+		return nfserr_resource;
+	*p++ = cpu_to_be32(lcp->lc_size_chg);
+	if (lcp->lc_size_chg) {
+		p = xdr_reserve_space(xdr, 8);
+		if (!p)
+			return nfserr_resource;
+		p = xdr_encode_hyper(p, lcp->lc_newsize);
+	}
+
+	return nfs_ok;
+}
+
+static __be32
+nfsd4_encode_layoutreturn(struct nfsd4_compoundres *resp, __be32 nfserr,
+		struct nfsd4_layoutreturn *lrp)
+{
+	struct xdr_stream *xdr = &resp->xdr;
+	__be32 *p;
+
+	if (nfserr)
+		return nfserr;
+
+	p = xdr_reserve_space(xdr, 4);
+	if (!p)
+		return nfserr_resource;
+	*p++ = cpu_to_be32(lrp->lrs_present);
+	if (lrp->lrs_present)
+		nfsd4_encode_stateid(xdr, &lrp->lr_sid);
+	return nfs_ok;
+}
+#endif /* CONFIG_NFSD_PNFS */
+
 static __be32
 nfsd4_encode_seek(struct nfsd4_compoundres *resp, __be32 nfserr,
 		  struct nfsd4_seek *seek)
@@ -3890,11 +4204,19 @@ static nfsd4_enc nfsd4_enc_ops[] = {
 	[OP_DESTROY_SESSION]	= (nfsd4_enc)nfsd4_encode_noop,
 	[OP_FREE_STATEID]	= (nfsd4_enc)nfsd4_encode_noop,
 	[OP_GET_DIR_DELEGATION]	= (nfsd4_enc)nfsd4_encode_noop,
+#ifdef CONFIG_NFSD_PNFS
+	[OP_GETDEVICEINFO]	= (nfsd4_enc)nfsd4_encode_getdeviceinfo,
+	[OP_GETDEVICELIST]	= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_LAYOUTCOMMIT]	= (nfsd4_enc)nfsd4_encode_layoutcommit,
+	[OP_LAYOUTGET]		= (nfsd4_enc)nfsd4_encode_layoutget,
+	[OP_LAYOUTRETURN]	= (nfsd4_enc)nfsd4_encode_layoutreturn,
+#else
 	[OP_GETDEVICEINFO]	= (nfsd4_enc)nfsd4_encode_noop,
 	[OP_GETDEVICELIST]	= (nfsd4_enc)nfsd4_encode_noop,
 	[OP_LAYOUTCOMMIT]	= (nfsd4_enc)nfsd4_encode_noop,
 	[OP_LAYOUTGET]		= (nfsd4_enc)nfsd4_encode_noop,
 	[OP_LAYOUTRETURN]	= (nfsd4_enc)nfsd4_encode_noop,
+#endif
 	[OP_SECINFO_NO_NAME]	= (nfsd4_enc)nfsd4_encode_secinfo_no_name,
 	[OP_SEQUENCE]		= (nfsd4_enc)nfsd4_encode_sequence,
 	[OP_SET_SSV]		= (nfsd4_enc)nfsd4_encode_noop,

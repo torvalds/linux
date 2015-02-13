@@ -28,12 +28,15 @@ Implementation
 Execute-in-place is implemented in three steps: block device operation,
 address space operation, and file operations.
 
-A block device operation named direct_access is used to retrieve a
-reference (pointer) to a block on-disk. The reference is supposed to be
-cpu-addressable, physical address and remain valid until the release operation
-is performed. A struct block_device reference is used to address the device,
-and a sector_t argument is used to identify the individual block. As an
-alternative, memory technology devices can be used for this.
+A block device operation named direct_access is used to translate the
+block device sector number to a page frame number (pfn) that identifies
+the physical page for the memory.  It also returns a kernel virtual
+address that can be used to access the memory.
+
+The direct_access method takes a 'size' parameter that indicates the
+number of bytes being requested.  The function should return the number
+of bytes that can be contiguously accessed at that offset.  It may also
+return a negative errno if an error occurs.
 
 The block device operation is optional, these block devices support it as of
 today:

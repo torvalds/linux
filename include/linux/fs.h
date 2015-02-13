@@ -34,6 +34,7 @@
 #include <asm/byteorder.h>
 #include <uapi/linux/fs.h>
 
+struct backing_dev_info;
 struct export_operations;
 struct hd_geometry;
 struct iovec;
@@ -394,7 +395,6 @@ int pagecache_write_end(struct file *, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata);
 
-struct backing_dev_info;
 struct address_space {
 	struct inode		*host;		/* owner: inode, block_device */
 	struct radix_tree_root	page_tree;	/* radix tree of all pages */
@@ -408,7 +408,6 @@ struct address_space {
 	pgoff_t			writeback_index;/* writeback starts here */
 	const struct address_space_operations *a_ops;	/* methods */
 	unsigned long		flags;		/* error bits/gfp mask */
-	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
 	spinlock_t		private_lock;	/* for use by the address_space */
 	struct list_head	private_list;	/* ditto */
 	void			*private_data;	/* ditto */
@@ -873,6 +872,7 @@ static inline struct file *get_file(struct file *f)
 #define FL_DOWNGRADE_PENDING	256 /* Lease is being downgraded */
 #define FL_UNLOCK_PENDING	512 /* Lease is being broken */
 #define FL_OFDLCK	1024	/* lock is "owned" by struct file */
+#define FL_LAYOUT	2048	/* outstanding pNFS layout */
 
 /*
  * Special return value from posix_lock_file() and vfs_lock_file() for
@@ -1200,8 +1200,6 @@ struct mm_struct;
 #define UMOUNT_NOFOLLOW	0x00000008	/* Don't follow symlink on umount */
 #define UMOUNT_UNUSED	0x80000000	/* Flag guaranteed to be unused */
 
-extern struct list_head super_blocks;
-extern spinlock_t sb_lock;
 
 /* Possible states of 'frozen' field */
 enum {
@@ -1518,6 +1516,26 @@ struct block_device_operations;
 #define HAVE_COMPAT_IOCTL 1
 #define HAVE_UNLOCKED_IOCTL 1
 
+/*
+ * These flags let !MMU mmap() govern direct device mapping vs immediate
+ * copying more easily for MAP_PRIVATE, especially for ROM filesystems.
+ *
+ * NOMMU_MAP_COPY:	Copy can be mapped (MAP_PRIVATE)
+ * NOMMU_MAP_DIRECT:	Can be mapped directly (MAP_SHARED)
+ * NOMMU_MAP_READ:	Can be mapped for reading
+ * NOMMU_MAP_WRITE:	Can be mapped for writing
+ * NOMMU_MAP_EXEC:	Can be mapped for execution
+ */
+#define NOMMU_MAP_COPY		0x00000001
+#define NOMMU_MAP_DIRECT	0x00000008
+#define NOMMU_MAP_READ		VM_MAYREAD
+#define NOMMU_MAP_WRITE		VM_MAYWRITE
+#define NOMMU_MAP_EXEC		VM_MAYEXEC
+
+#define NOMMU_VMFLAGS \
+	(NOMMU_MAP_READ | NOMMU_MAP_WRITE | NOMMU_MAP_EXEC)
+
+
 struct iov_iter;
 
 struct file_operations {
@@ -1552,6 +1570,9 @@ struct file_operations {
 	long (*fallocate)(struct file *file, int mode, loff_t offset,
 			  loff_t len);
 	void (*show_fdinfo)(struct seq_file *m, struct file *f);
+#ifndef CONFIG_MMU
+	unsigned (*mmap_capabilities)(struct file *);
+#endif
 };
 
 struct inode_operations {
@@ -1634,8 +1655,10 @@ struct super_operations {
 	struct dquot **(*get_dquots)(struct inode *);
 #endif
 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
-	long (*nr_cached_objects)(struct super_block *, int);
-	long (*free_cached_objects)(struct super_block *, long, int);
+	long (*nr_cached_objects)(struct super_block *,
+				  struct shrink_control *);
+	long (*free_cached_objects)(struct super_block *,
+				    struct shrink_control *);
 };
 
 /*
@@ -2035,6 +2058,16 @@ static inline int break_deleg_wait(struct inode **delegated_inode)
 	return ret;
 }
 
+static inline int break_layout(struct inode *inode, bool wait)
+{
+	smp_mb();
+	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
+		return __break_lease(inode,
+				wait ? O_WRONLY : O_WRONLY | O_NONBLOCK,
+				FL_LAYOUT);
+	return 0;
+}
+
 #else /* !CONFIG_FILE_LOCKING */
 static inline int locks_mandatory_locked(struct file *file)
 {
@@ -2087,6 +2120,11 @@ static inline int try_break_deleg(struct inode *inode, struct inode **delegated_
 static inline int break_deleg_wait(struct inode **delegated_inode)
 {
 	BUG();
+	return 0;
+}
+
+static inline int break_layout(struct inode *inode, bool wait)
+{
 	return 0;
 }
 

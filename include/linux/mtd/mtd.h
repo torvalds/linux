@@ -408,4 +408,6 @@ static inline int mtd_is_bitflip_or_eccerr(int err) {
 	return mtd_is_bitflip(err) || mtd_is_eccerr(err);
 }
 
+unsigned mtd_mmap_capabilities(struct mtd_info *mtd);
+
 #endif /* __MTD_MTD_H__ */

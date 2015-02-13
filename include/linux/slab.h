@@ -115,13 +115,12 @@ int slab_is_available(void);
 struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
 			unsigned long,
 			void (*)(void *));
-#ifdef CONFIG_MEMCG_KMEM
-void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
-void memcg_destroy_kmem_caches(struct mem_cgroup *);
-#endif
 void kmem_cache_destroy(struct kmem_cache *);
 int kmem_cache_shrink(struct kmem_cache *);
-void kmem_cache_free(struct kmem_cache *, void *);
+
+void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
+void memcg_deactivate_kmem_caches(struct mem_cgroup *);
+void memcg_destroy_kmem_caches(struct mem_cgroup *);
 
 /*
  * Please use this macro to create slab caches. Simply specify the
@@ -288,6 +287,7 @@ static __always_inline int kmalloc_index(size_t size)
 
 void *__kmalloc(size_t size, gfp_t flags);
 void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags);
+void kmem_cache_free(struct kmem_cache *, void *);
 
 #ifdef CONFIG_NUMA
 void *__kmalloc_node(size_t size, gfp_t flags, int node);
@@ -473,14 +473,14 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 #ifndef ARCH_SLAB_MINALIGN
 #define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
 #endif
+
+struct memcg_cache_array {
+	struct rcu_head rcu;
+	struct kmem_cache *entries[0];
+};
+
 /*
  * This is the main placeholder for memcg-related information in kmem caches.
- * struct kmem_cache will hold a pointer to it, so the memory cost while
- * disabled is 1 pointer. The runtime cost while enabled, gets bigger than it
- * would otherwise be if that would be bundled in kmem_cache: we'll need an
- * extra pointer chase. But the trade off clearly lays in favor of not
- * penalizing non-users.
- *
  * Both the root cache and the child caches will have it. For the root cache,
  * this will hold a dynamically allocated array large enough to hold
  * information about the currently limited memcgs in the system. To allow the
@@ -491,14 +491,15 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
  *
  * @memcg: pointer to the memcg this cache belongs to
  * @root_cache: pointer to the global, root cache, this cache was derived from
+ *
+ * Both root and child caches of the same kind are linked into a list chained
+ * through @list.
  */
 struct memcg_cache_params {
 	bool is_root_cache;
+	struct list_head list;
 	union {
-		struct {
-			struct rcu_head rcu_head;
-			struct kmem_cache *memcg_caches[0];
-		};
+		struct memcg_cache_array __rcu *memcg_caches;
 		struct {
 			struct mem_cgroup *memcg;
 			struct kmem_cache *root_cache;
