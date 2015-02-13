@@ -1220,6 +1220,7 @@ struct trace {
 	} syscalls;
 	struct record_opts	opts;
 	struct machine		*host;
+	struct thread		*current;
 	u64			base_time;
 	FILE			*output;
 	unsigned long		nr_events;
@@ -1642,6 +1643,29 @@ static void thread__update_stats(struct thread_trace *ttrace,
 	update_stats(stats, duration);
 }
 
+static int trace__printf_interrupted_entry(struct trace *trace, struct perf_sample *sample)
+{
+	struct thread_trace *ttrace;
+	u64 duration;
+	size_t printed;
+
+	if (trace->current == NULL)
+		return 0;
+
+	ttrace = thread__priv(trace->current);
+
+	if (!ttrace->entry_pending)
+		return 0;
+
+	duration = sample->time - ttrace->entry_time;
+
+	printed  = trace__fprintf_entry_head(trace, trace->current, duration, sample->time, trace->output);
+	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
+	ttrace->entry_pending = false;
+
+	return printed;
+}
+
 static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample)
@@ -1673,6 +1697,8 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			return -1;
 	}
 
+	printed += trace__printf_interrupted_entry(trace, sample);
+
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
 	printed += scnprintf(msg + printed, 1024 - printed, "%s(", sc->name);
@@ -1687,6 +1713,8 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 		}
 	} else
 		ttrace->entry_pending = true;
+
+	trace->current = thread;
 
 	return 0;
 }
