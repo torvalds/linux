@@ -1343,7 +1343,7 @@ config SMP
 	  If you don't know what to do here, say N.
 
 config SMP_ON_UP
-	bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
+	bool "Allow booting SMP kernel on uniprocessor systems"
 	depends on SMP && !XIP_KERNEL && MMU
 	default y
 	help
