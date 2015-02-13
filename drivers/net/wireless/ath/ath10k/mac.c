@@ -1922,6 +1922,18 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 	}
 
 	arvif->is_up = true;
+
+	/* Workaround: Some firmware revisions (tested with qca6174
+	 * WLAN.RM.2.0-00073) have buggy powersave state machine and must be
+	 * poked with peer param command.
+	 */
+	ret = ath10k_wmi_peer_set_param(ar, arvif->vdev_id, arvif->bssid,
+					WMI_PEER_DUMMY_VAR, 1);
+	if (ret) {
+		ath10k_warn(ar, "failed to poke peer %pM param for ps workaround on vdev %i: %d\n",
+			    arvif->bssid, arvif->vdev_id, ret);
+		return;
+	}
 }
 
 static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
