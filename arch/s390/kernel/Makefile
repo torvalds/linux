@@ -33,7 +33,7 @@ obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
 obj-y	+= debug.o irq.o ipl.o dis.o diag.o sclp.o vdso.o
 obj-y	+= sysinfo.o jump_label.o lgr.o os_info.o machine_kexec.o pgm_check.o
 obj-y	+= runtime_instr.o cache.o dumpstack.o
-obj-y	+= entry64.o reipl64.o relocate_kernel64.o
+obj-y	+= entry.o reipl.o relocate_kernel.o
 
 extra-y				+= head.o head64.o vmlinux.lds
 

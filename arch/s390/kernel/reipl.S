@@ -84,7 +84,7 @@ ENTRY(do_reipl_asm)
 		mvc	__LC_PGM_NEW_PSW(16),.Lpcnew-.Lpg0(%r13)
 		stsch	.Lschib-.Lpg0(%r13)
 		oi	.Lschib+5-.Lpg0(%r13),0x84
-.Lecs:  	xi	.Lschib+27-.Lpg0(%r13),0x01
+.Lecs:		xi	.Lschib+27-.Lpg0(%r13),0x01
 		msch	.Lschib-.Lpg0(%r13)
 		lghi	%r0,5
 .Lssch:		ssch	.Liplorb-.Lpg0(%r13)
@@ -106,7 +106,7 @@ ENTRY(do_reipl_asm)
 		bas	%r14,.Ldisab-.Lpg0(%r13)
 .L003:		st	%r1,__LC_SUBCHANNEL_ID
 		lhi	%r1,0		 # mode 0 = esa
-		slr	%r0,%r0 	 # set cpuid to zero
+		slr	%r0,%r0		 # set cpuid to zero
 		sigp	%r1,%r0,SIGP_SET_ARCHITECTURE # switch to esa mode
 		lpsw	0
 .Ldisab:	sll	%r14,1
