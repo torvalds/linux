@@ -110,7 +110,7 @@ struct iv_tcw_private {
  * Crypt: maps a linear range of a block device
  * and encrypts / decrypts at the same time.
  */
-enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID };
+enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID, DM_CRYPT_SAME_CPU };
 
 /*
  * The fields in here must be read only after initialization.
@@ -1700,7 +1700,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	char dummy;
 
 	static struct dm_arg _args[] = {
-		{0, 1, "Invalid number of feature args"},
+		{0, 2, "Invalid number of feature args"},
 	};
 
 	if (argc < 5) {
@@ -1795,15 +1795,23 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		if (ret)
 			goto bad;
 
-		opt_string = dm_shift_arg(&as);
+		while (opt_params--) {
+			opt_string = dm_shift_arg(&as);
+			if (!opt_string) {
+				ti->error = "Not enough feature arguments";
+				goto bad;
+			}
 
-		if (opt_params == 1 && opt_string &&
-		    !strcasecmp(opt_string, "allow_discards"))
-			ti->num_discard_bios = 1;
-		else if (opt_params) {
-			ret = -EINVAL;
-			ti->error = "Invalid feature arguments";
-			goto bad;
+			if (!strcasecmp(opt_string, "allow_discards"))
+				ti->num_discard_bios = 1;
+
+			else if (!strcasecmp(opt_string, "same_cpu_crypt"))
+				set_bit(DM_CRYPT_SAME_CPU, &cc->flags);
+
+			else {
+				ti->error = "Invalid feature arguments";
+				goto bad;
+			}
 		}
 	}
 
@@ -1814,8 +1822,11 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	cc->crypt_queue = alloc_workqueue("kcryptd",
-					  WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1);
+	if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
+		cc->crypt_queue = alloc_workqueue("kcryptd", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1);
+	else
+		cc->crypt_queue = alloc_workqueue("kcryptd", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM | WQ_UNBOUND,
+						  num_online_cpus());
 	if (!cc->crypt_queue) {
 		ti->error = "Couldn't create kcryptd queue";
 		goto bad;
@@ -1864,6 +1875,7 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 {
 	struct crypt_config *cc = ti->private;
 	unsigned i, sz = 0;
+	int num_feature_args = 0;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -1882,8 +1894,15 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 		DMEMIT(" %llu %s %llu", (unsigned long long)cc->iv_offset,
 				cc->dev->name, (unsigned long long)cc->start);
 
-		if (ti->num_discard_bios)
-			DMEMIT(" 1 allow_discards");
+		num_feature_args += !!ti->num_discard_bios;
+		num_feature_args += test_bit(DM_CRYPT_SAME_CPU, &cc->flags);
+		if (num_feature_args) {
+			DMEMIT(" %d", num_feature_args);
+			if (ti->num_discard_bios)
+				DMEMIT(" allow_discards");
+			if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
+				DMEMIT(" same_cpu_crypt");
+		}
 
 		break;
 	}
@@ -1980,7 +1999,7 @@ static int crypt_iterate_devices(struct dm_target *ti,
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 13, 0},
+	.version = {1, 14, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
