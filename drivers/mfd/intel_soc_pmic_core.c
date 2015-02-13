@@ -31,7 +31,7 @@ static int intel_soc_pmic_find_gpio_irq(struct device *dev)
 	struct gpio_desc *desc;
 	int irq;
 
-	desc = devm_gpiod_get_index(dev, "intel_soc_pmic", 0);
+	desc = devm_gpiod_get_index(dev, "intel_soc_pmic", 0, GPIOD_IN);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
