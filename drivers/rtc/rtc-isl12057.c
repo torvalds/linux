@@ -535,7 +535,7 @@ static const struct rtc_class_ops rtc_ops = {
 	.alarm_irq_enable = isl12057_rtc_alarm_irq_enable,
 };
 
-static struct regmap_config isl12057_rtc_regmap_config = {
+static const struct regmap_config isl12057_rtc_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
