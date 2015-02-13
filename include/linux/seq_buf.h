@@ -125,9 +125,6 @@ extern int seq_buf_putmem_hex(struct seq_buf *s, const void *mem,
 			      unsigned int len);
 extern int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc);
 
-extern int seq_buf_bitmask(struct seq_buf *s, const unsigned long *maskp,
-			   int nmaskbits);
-
 #ifdef CONFIG_BINARY_PRINTF
 extern int
 seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary);
