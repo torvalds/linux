@@ -1037,6 +1037,12 @@ static void kill_launcher(int signal)
 	kill(0, SIGTERM);
 }
 
+static void reset_vq_pci_config(struct virtqueue *vq)
+{
+	vq->pci_config.queue_size = VIRTQUEUE_NUM;
+	vq->pci_config.queue_enable = 0;
+}
+
 static void reset_device(struct device *dev)
 {
 	struct virtqueue *vq;
@@ -1049,8 +1055,19 @@ static void reset_device(struct device *dev)
 	/* We're going to be explicitly killing threads, so ignore them. */
 	signal(SIGCHLD, SIG_IGN);
 
+	/*
+	 * 4.1.4.3.1:
+	 *
+	 *   The device MUST present a 0 in queue_enable on reset. 
+	 *
+	 * This means we set it here, and reset the saved ones in every vq.
+	 */
+	dev->mmio->cfg.queue_enable = 0;
+
 	/* Get rid of the virtqueue threads */
 	for (vq = dev->vq; vq; vq = vq->next) {
+		vq->last_avail_idx = 0;
+		reset_vq_pci_config(vq);
 		if (vq->thread != (pid_t)-1) {
 			kill(vq->thread, SIGTERM);
 			waitpid(vq->thread, NULL, 0);
@@ -1952,8 +1969,7 @@ static void add_pci_virtqueue(struct device *dev,
 	vq->thread = (pid_t)-1;
 
 	/* Initialize the configuration. */
-	vq->pci_config.queue_size = VIRTQUEUE_NUM;
-	vq->pci_config.queue_enable = 0;
+	reset_vq_pci_config(vq);
 	vq->pci_config.queue_notify_off = 0;
 
 	/* Add one to the number of queues */
