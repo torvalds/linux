@@ -23,6 +23,8 @@
 #include <linux/types.h>
 #include <linux/kasan.h>
 
+#include <asm/sections.h>
+
 #include "kasan.h"
 #include "../slab.h"
 
@@ -61,6 +63,7 @@ static void print_error_description(struct kasan_access_info *info)
 		break;
 	case KASAN_PAGE_REDZONE:
 	case KASAN_KMALLOC_REDZONE:
+	case KASAN_GLOBAL_REDZONE:
 	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
 		bug_type = "out of bounds access";
 		break;
@@ -78,6 +81,20 @@ static void print_error_description(struct kasan_access_info *info)
 	pr_err("%s of size %zu by task %s/%d\n",
 		info->is_write ? "Write" : "Read",
 		info->access_size, current->comm, task_pid_nr(current));
+}
+
+static inline bool kernel_or_module_addr(const void *addr)
+{
+	return (addr >= (void *)_stext && addr < (void *)_end)
+		|| (addr >= (void *)MODULES_VADDR
+			&& addr < (void *)MODULES_END);
+}
+
+static inline bool init_task_stack_addr(const void *addr)
+{
+	return addr >= (void *)&init_thread_union.stack &&
+		(addr <= (void *)&init_thread_union.stack +
+			sizeof(init_thread_union.stack));
 }
 
 static void print_address_description(struct kasan_access_info *info)
@@ -105,6 +122,11 @@ static void print_address_description(struct kasan_access_info *info)
 			return;
 		}
 		dump_page(page, "kasan: bad access detected");
+	}
+
+	if (kernel_or_module_addr(addr)) {
+		if (!init_task_stack_addr(addr))
+			pr_err("Address belongs to variable %pS\n", addr);
 	}
 
 	dump_stack();

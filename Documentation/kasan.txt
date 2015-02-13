@@ -9,7 +9,7 @@ a fast and comprehensive solution for finding use-after-free and out-of-bounds
 bugs.
 
 KASan uses compile-time instrumentation for checking every memory access,
-therefore you will need a certain version of GCC >= 4.9.2
+therefore you will need a certain version of GCC > 4.9.2
 
 Currently KASan is supported only for x86_64 architecture and requires that the
 kernel be built with the SLUB allocator.
