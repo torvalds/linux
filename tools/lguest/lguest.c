@@ -673,7 +673,13 @@ static void trigger_irq(struct virtqueue *vq)
 		return;
 	}
 
-	/* Set isr to 1 (queue interrupt pending) */
+	/*
+	 * 4.1.4.5.1:
+	 *
+	 *  If MSI-X capability is disabled, the device MUST set the Queue
+	 *  Interrupt bit in ISR status before sending a virtqueue notification
+	 *  to the driver.
+	 */
 	vq->dev->mmio->isr = 0x1;
 
 	/* Send the Guest an interrupt tell them we used something up. */
@@ -1304,11 +1310,19 @@ static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
 	} else if (&d->config_words[reg] == &d->config.cfg_access.pci_cfg_data) {
 		u32 write_mask;
 
+		/*
+		 * 4.1.4.7.1:
+		 *
+		 *  Upon detecting driver write access to pci_cfg_data, the
+		 *  device MUST execute a write access at offset cap.offset at
+		 *  BAR selected by cap.bar using the first cap.length bytes
+		 *  from pci_cfg_data.
+		 */
+
 		/* Must be bar 0 */
 		if (!valid_bar_access(d, &d->config.cfg_access))
 			return false;
 
-		/* First copy what they wrote into the window */
 		iowrite(portoff, val, mask, &d->config.cfg_access.pci_cfg_data);
 
 		/*
@@ -1346,6 +1360,14 @@ static void pci_data_ioread(u16 port, u32 mask, u32 *val)
 	if (&d->config_words[reg] == &d->config.cfg_access.pci_cfg_data) {
 		u32 read_mask;
 
+		/*
+		 * 4.1.4.7.1:
+		 *
+		 *  Upon detecting driver read access to pci_cfg_data, the
+		 *  device MUST execute a read access of length cap.length at
+		 *  offset cap.offset at BAR selected by cap.bar and store the
+		 *  first cap.length bytes in pci_cfg_data.
+		 */
 		/* Must be bar 0 */
 		if (!valid_bar_access(d, &d->config.cfg_access))
 			errx(1, "Invalid cfg_access to bar%u, offset %u len %u",
@@ -1704,6 +1726,13 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 
 	switch (off) {
 	case offsetof(struct virtio_pci_mmio, cfg.device_feature_select):
+		/*
+		 * 4.1.4.3.1:
+		 *
+		 * The device MUST present the feature bits it is offering in
+		 * device_feature, starting at bit device_feature_select ∗ 32
+		 * for any device_feature_select written by the driver
+		 */
 		if (val == 0)
 			d->mmio->cfg.device_feature = d->features;
 		else if (val == 1)
@@ -1731,12 +1760,23 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		goto write_through32;
 	case offsetof(struct virtio_pci_mmio, cfg.device_status):
 		verbose("%s: device status -> %#x\n", d->name, val);
+		/*
+		 * 4.1.4.3.1:
+		 * 
+		 *  The device MUST reset when 0 is written to device_status,
+		 *  and present a 0 in device_status once that is done.
+		 */
 		if (val == 0)
 			reset_device(d);
 		goto write_through8;
 	case offsetof(struct virtio_pci_mmio, cfg.queue_select):
 		vq = vq_by_num(d, val);
-		/* Out of range?  Return size 0 */
+		/*
+		 * 4.1.4.3.1:
+		 *
+		 *  The device MUST present a 0 in queue_size if the virtqueue
+		 *  corresponding to the current queue_select is unavailable.
+		 */
 		if (!vq) {
 			d->mmio->cfg.queue_size = 0;
 			goto write_through16;
@@ -1841,6 +1881,17 @@ static u32 emulate_mmio_read(struct device *d, u32 off, u32 mask)
 		goto read_through16;
 	case offsetof(struct virtio_pci_mmio, cfg.device_status):
 	case offsetof(struct virtio_pci_mmio, cfg.config_generation):
+		/*
+		 * 4.1.4.3.1:
+		 *
+		 *  The device MUST present a changed config_generation after
+		 *  the driver has read a device-specific configuration value
+		 *  which has changed since any part of the device-specific
+		 *  configuration was last read.
+		 *
+		 * This is simple: none of our devices change config, so this
+		 * is always 0.
+		 */
 		goto read_through8;
 	case offsetof(struct virtio_pci_mmio, notify):
 		goto read_through16;
@@ -1848,8 +1899,12 @@ static u32 emulate_mmio_read(struct device *d, u32 off, u32 mask)
 		if (mask != 0xFF)
 			errx(1, "%s: non-8-bit read from offset %u (%#x)",
 			     d->name, off, getreg(eip));
-		/* Read resets the isr */
 		isr = d->mmio->isr;
+		/*
+		 * 4.1.4.5.1:
+		 *
+		 *  The device MUST reset ISR status to 0 on driver read. 
+		 */
 		d->mmio->isr = 0;
 		return isr;
 	case offsetof(struct virtio_pci_mmio, padding):
@@ -2008,9 +2063,24 @@ static void set_device_config(struct device *dev, const void *conf, size_t len)
 	dev->mmio = realloc(dev->mmio, dev->mmio_size);
 	memcpy(dev->mmio + 1, conf, len);
 
+	/*
+	 * 4.1.4.6:
+	 *
+	 *  The device MUST present at least one VIRTIO_PCI_CAP_DEVICE_CFG
+	 *  capability for any device type which has a device-specific
+	 *  configuration.
+	 */
 	/* Hook up device cfg */
 	dev->config.cfg_access.cap.cap_next
 		= offsetof(struct pci_config, device);
+
+	/*
+	 * 4.1.4.6.1:
+	 *
+	 *  The offset for the device-specific configuration MUST be 4-byte
+	 *  aligned.
+	 */
+	assert(dev->config.cfg_access.cap.cap_next % 4 == 0);
 
 	/* Fix up device cfg field length. */
 	dev->config.device.length = len;
@@ -2041,7 +2111,12 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 {
 	size_t bar_offset, bar_len;
 
-	/* Save typing: most thing are happy being zero. */
+	/*
+	 * 4.1.4.4.1:
+	 *
+	 *  The device MUST either present notify_off_multiplier as an even
+	 *  power of 2, or present notify_off_multiplier as 0.
+	 */
 	memset(pci, 0, sizeof(*pci));
 
 	/* 4.1.2.1: Devices MUST have the PCI Vendor ID 0x1AF4 */
@@ -2058,14 +2133,18 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 	pci->subclass = subclass;
 
 	/*
-	 * 4.1.2.1 Non-transitional devices SHOULD have a PCI Revision
-	 * ID of 1 or higher
+	 * 4.1.2.1:
+	 *
+	 *  Non-transitional devices SHOULD have a PCI Revision ID of 1 or
+	 *  higher
 	 */
 	pci->revid = 1;
 
 	/*
-	 * 4.1.2.1 Non-transitional devices SHOULD have a PCI
-	 * Subsystem Device ID of 0x40 or higher.
+	 * 4.1.2.1:
+	 *
+	 *  Non-transitional devices SHOULD have a PCI Subsystem Device ID of
+	 *  0x40 or higher.
 	 */
 	pci->subsystem_device_id = 0x40;
 
@@ -2077,7 +2156,16 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 	pci->status = (1 << 4);
 
 	/* Link them in. */
+	/*
+	 * 4.1.4.3.1:
+	 *
+	 *  The device MUST present at least one common configuration
+	 *  capability.
+	 */
 	pci->capabilities = offsetof(struct pci_config, common);
+
+	/* 4.1.4.3.1 ... offset MUST be 4-byte aligned. */
+	assert(pci->capabilities % 4 == 0);
 
 	bar_offset = offsetof(struct virtio_pci_mmio, cfg);
 	bar_len = sizeof(((struct virtio_pci_mmio *)0)->cfg);
@@ -2085,9 +2173,31 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 		 bar_offset, bar_len,
 		 offsetof(struct pci_config, notify));
 
+	/*
+	 * 4.1.4.4.1:
+	 *
+	 *  The device MUST present at least one notification capability.
+	 */
 	bar_offset += bar_len;
 	bar_len = sizeof(((struct virtio_pci_mmio *)0)->notify);
+
+	/*
+	 * 4.1.4.4.1:
+	 *
+	 *  The cap.offset MUST be 2-byte aligned.
+	 */
+	assert(pci->common.cap_next % 2 == 0);
+
 	/* FIXME: Use a non-zero notify_off, for per-queue notification? */
+	/*
+	 * 4.1.4.4.1:
+	 *
+	 *  The value cap.length presented by the device MUST be at least 2 and
+	 *  MUST be large enough to support queue notification offsets for all
+	 *  supported queues in all possible configurations.
+	 */
+	assert(bar_len >= 2);
+
 	init_cap(&pci->notify.cap, sizeof(pci->notify),
 		 VIRTIO_PCI_CAP_NOTIFY_CFG,
 		 bar_offset, bar_len,
@@ -2095,11 +2205,23 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 
 	bar_offset += bar_len;
 	bar_len = sizeof(((struct virtio_pci_mmio *)0)->isr);
+	/*
+	 * 4.1.4.5.1:
+	 *
+	 *  The device MUST present at least one VIRTIO_PCI_CAP_ISR_CFG
+	 *  capability.
+	 */
 	init_cap(&pci->isr, sizeof(pci->isr),
 		 VIRTIO_PCI_CAP_ISR_CFG,
 		 bar_offset, bar_len,
 		 offsetof(struct pci_config, cfg_access));
 
+	/*
+	 * 4.1.4.7.1:
+	 *
+	 * The device MUST present at least one VIRTIO_PCI_CAP_PCI_CFG
+	 * capability.
+	 */
 	/* This doesn't have any presence in the BAR */
 	init_cap(&pci->cfg_access.cap, sizeof(pci->cfg_access),
 		 VIRTIO_PCI_CAP_PCI_CFG,
