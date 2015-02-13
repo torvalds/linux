@@ -1324,7 +1324,7 @@ static int i801_resume(struct pci_dev *dev)
 {
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
-	return pci_enable_device(dev);
+	return 0;
 }
 #else
 #define i801_suspend NULL
