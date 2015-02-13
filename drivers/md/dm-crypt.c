@@ -110,7 +110,8 @@ struct iv_tcw_private {
  * Crypt: maps a linear range of a block device
  * and encrypts / decrypts at the same time.
  */
-enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID, DM_CRYPT_SAME_CPU };
+enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID,
+	     DM_CRYPT_SAME_CPU, DM_CRYPT_NO_OFFLOAD };
 
 /*
  * The fields in here must be read only after initialization.
@@ -1239,6 +1240,11 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 
 	clone->bi_iter.bi_sector = cc->start + io->sector;
 
+	if (likely(!async) && test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags)) {
+		generic_make_request(clone);
+		return;
+	}
+
 	spin_lock_irqsave(&cc->write_thread_wait.lock, flags);
 	list_add_tail(&io->list, &cc->write_thread_list);
 	wake_up_locked(&cc->write_thread_wait);
@@ -1693,7 +1699,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	char dummy;
 
 	static struct dm_arg _args[] = {
-		{0, 2, "Invalid number of feature args"},
+		{0, 3, "Invalid number of feature args"},
 	};
 
 	if (argc < 5) {
@@ -1802,6 +1808,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			else if (!strcasecmp(opt_string, "same_cpu_crypt"))
 				set_bit(DM_CRYPT_SAME_CPU, &cc->flags);
 
+			else if (!strcasecmp(opt_string, "submit_from_crypt_cpus"))
+				set_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags);
+
 			else {
 				ti->error = "Invalid feature arguments";
 				goto bad;
@@ -1905,12 +1914,15 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 
 		num_feature_args += !!ti->num_discard_bios;
 		num_feature_args += test_bit(DM_CRYPT_SAME_CPU, &cc->flags);
+		num_feature_args += test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags);
 		if (num_feature_args) {
 			DMEMIT(" %d", num_feature_args);
 			if (ti->num_discard_bios)
 				DMEMIT(" allow_discards");
 			if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
 				DMEMIT(" same_cpu_crypt");
+			if (test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags))
+				DMEMIT(" submit_from_crypt_cpus");
 		}
 
 		break;
