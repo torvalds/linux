@@ -9618,7 +9618,7 @@ F:	net/tipc/
 
 TILE ARCHITECTURE
 M:	Chris Metcalf <cmetcalf@ezchip.com>
-W:	http://www.tilera.com/scm/
+W:	http://www.ezchip.com/scm/
 S:	Supported
 F:	arch/tile/
 F:	drivers/char/tile-srom.c
