@@ -200,6 +200,9 @@ struct virtqueue {
 	/* Which device owns me. */
 	struct device *dev;
 
+	/* Name for printing errors. */
+	const char *name;
+
 	/* The actual ring of buffers. */
 	struct vring vring;
 
@@ -2366,7 +2369,8 @@ static void emulate_mmio(unsigned long paddr, const u8 *insn)
  * routines to allocate and manage them.
  */
 static void add_pci_virtqueue(struct device *dev,
-			      void (*service)(struct virtqueue *))
+			      void (*service)(struct virtqueue *),
+			      const char *name)
 {
 	struct virtqueue **i, *vq = malloc(sizeof(*vq));
 
@@ -2374,6 +2378,7 @@ static void add_pci_virtqueue(struct device *dev,
 	vq->next = NULL;
 	vq->last_avail_idx = 0;
 	vq->dev = dev;
+	vq->name = name;
 
 	/*
 	 * This is the routine the service thread will run, and its Process ID
@@ -2666,8 +2671,8 @@ static void setup_console(void)
 	 * stdin.  When they put something in the output queue, we write it to
 	 * stdout.
 	 */
-	add_pci_virtqueue(dev, console_input);
-	add_pci_virtqueue(dev, console_output);
+	add_pci_virtqueue(dev, console_input, "input");
+	add_pci_virtqueue(dev, console_output, "output");
 
 	/* We need a configuration area for the emerg_wr early writes. */
 	add_pci_feature(dev, VIRTIO_CONSOLE_F_EMERG_WRITE);
@@ -2838,8 +2843,8 @@ static void setup_tun_net(char *arg)
 	dev->priv = net_info;
 
 	/* Network devices need a recv and a send queue, just like console. */
-	add_pci_virtqueue(dev, net_input);
-	add_pci_virtqueue(dev, net_output);
+	add_pci_virtqueue(dev, net_input, "rx");
+	add_pci_virtqueue(dev, net_output, "tx");
 
 	/*
 	 * We need a socket to perform the magic network ioctls to bring up the
@@ -3026,7 +3031,7 @@ static void setup_block_file(const char *filename)
 	dev = new_pci_device("block", VIRTIO_ID_BLOCK, 0x01, 0x80);
 
 	/* The device has one virtqueue, where the Guest places requests. */
-	add_pci_virtqueue(dev, blk_request);
+	add_pci_virtqueue(dev, blk_request, "request");
 
 	/* Allocate the room for our own bookkeeping */
 	vblk = dev->priv = malloc(sizeof(*vblk));
@@ -3107,7 +3112,7 @@ static void setup_rng(void)
 	dev->priv = rng_info;
 
 	/* The device has one virtqueue, where the Guest places inbufs. */
-	add_pci_virtqueue(dev, rng_input);
+	add_pci_virtqueue(dev, rng_input, "input");
 
 	/* We don't have any configuration space */
 	no_device_config(dev);
