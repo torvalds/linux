@@ -1138,7 +1138,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int err, i;
 	struct i801_priv *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1253,8 +1253,9 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (priv->features & FEATURE_IRQ) {
 		init_waitqueue_head(&priv->waitq);
 
-		err = request_irq(dev->irq, i801_isr, IRQF_SHARED,
-				  dev_driver_string(&dev->dev), priv);
+		err = devm_request_irq(&dev->dev, dev->irq, i801_isr,
+				       IRQF_SHARED,
+				       dev_driver_string(&dev->dev), priv);
 		if (err) {
 			dev_err(&dev->dev, "Failed to allocate irq %d: %d\n",
 				dev->irq, err);
@@ -1275,7 +1276,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	err = i2c_add_adapter(&priv->adapter);
 	if (err) {
 		dev_err(&dev->dev, "Failed to add SMBus adapter\n");
-		goto exit_free_irq;
+		goto exit_release;
 	}
 
 	i801_probe_optional_slaves(priv);
@@ -1286,12 +1287,9 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	return 0;
 
-exit_free_irq:
-	if (priv->features & FEATURE_IRQ)
-		free_irq(dev->irq, priv);
+exit_release:
 	pci_release_region(dev, SMBBAR);
 exit:
-	kfree(priv);
 	return err;
 }
 
@@ -1303,11 +1301,8 @@ static void i801_remove(struct pci_dev *dev)
 	i2c_del_adapter(&priv->adapter);
 	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
 
-	if (priv->features & FEATURE_IRQ)
-		free_irq(dev->irq, priv);
 	pci_release_region(dev, SMBBAR);
 
-	kfree(priv);
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on
 	 * some systems during power-off (eg. Fujitsu-Siemens Lifebook E8010)
