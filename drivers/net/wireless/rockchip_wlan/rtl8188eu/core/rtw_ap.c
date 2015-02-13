@@ -1720,7 +1720,7 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 	if(p && ie_len>0)
 	{
 		u8 rf_type=0;
-		u8 max_rx_ampdu_factor=0;
+		u32 max_rx_ampdu_factor=0;
 		struct rtw_ieee80211_ht_cap *pht_cap = (struct rtw_ieee80211_ht_cap *)(p+2);
 
 		pHT_caps_ie=p;

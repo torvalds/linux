@@ -503,12 +503,18 @@ static inline char * iwe_stream_protocol_process(_adapter *padapter,
 	{
 		if(pnetwork->network.Configuration.DSConfig > 14)
 		{
-			if(vht_cap == _TRUE)
+			#ifdef CONFIG_80211AC_VHT
+			if(vht_cap == _TRUE){
 				snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11AC");
-			else if(ht_cap == _TRUE)
-				snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11an");
+			}
 			else
-				snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11a");
+			#endif
+			{
+				if(ht_cap == _TRUE)
+					snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11an");
+				else
+					snprintf(iwe->u.name, IFNAMSIZ, "IEEE 802.11a");
+			}
 		}
 		else
 		{
@@ -581,10 +587,13 @@ static inline char * iwe_stream_rate_process(_adapter *padapter,
 		i++;
 	}
 
+#ifdef CONFIG_80211AC_VHT
 	if(vht_cap == _TRUE) {
 		max_rate = vht_data_rate;
 	}
-	else if(ht_cap == _TRUE)
+	else
+#endif
+	if(ht_cap == _TRUE)
 	{
 		if(mcs_rate&0x8000)//MCS15
 		{
@@ -649,12 +658,12 @@ static inline char * iwe_stream_wpa_wpa2_process(_adapter *padapter,
 					printk("-----------------Len %d----------------\n", wpa_len);
 				}
 
-				_rtw_memset(iwe, 0, sizeof(iwe));
+				_rtw_memset(iwe, 0, sizeof(*iwe));
 				iwe->cmd = IWEVCUSTOM;
 				iwe->u.data.length = strlen(pbuf);
 				start = iwe_stream_add_point(info, start, stop, iwe,pbuf);
 
-				_rtw_memset(iwe, 0, sizeof(iwe));
+				_rtw_memset(iwe, 0, sizeof(*iwe));
 				iwe->cmd =IWEVGENIE;
 				iwe->u.data.length = wpa_len;
 				start = iwe_stream_add_point(info, start, stop, iwe, wpa_ie);
@@ -666,12 +675,12 @@ static inline char * iwe_stream_wpa_wpa2_process(_adapter *padapter,
 				for (i = 0; i < rsn_len; i++) {
 					p += sprintf(p, "%02x", rsn_ie[i]);
 				}
-				_rtw_memset(iwe, 0, sizeof(iwe));
+				_rtw_memset(iwe, 0, sizeof(*iwe));
 				iwe->cmd = IWEVCUSTOM;
 				iwe->u.data.length = strlen(pbuf);
 				start = iwe_stream_add_point(info, start, stop, iwe,pbuf);
 
-				_rtw_memset(iwe, 0, sizeof(iwe));
+				_rtw_memset(iwe, 0, sizeof(*iwe));
 				iwe->cmd =IWEVGENIE;
 				iwe->u.data.length = rsn_len;
 				start = iwe_stream_add_point(info, start, stop, iwe, rsn_ie);
@@ -753,12 +762,12 @@ static inline char * iwe_stream_wapi_process(_adapter *padapter,
 				p += sprintf(p, "%02x", wapi_ie[i]);
 			}
 
-			_rtw_memset(iwe, 0, sizeof(iwe));
+			_rtw_memset(iwe, 0, sizeof(*iwe));
 			iwe->cmd = IWEVCUSTOM;
 			iwe->u.data.length = strlen(buf_wapi);
 			start = iwe_stream_add_point(info, start, stop, iwe,buf_wapi);
 
-			_rtw_memset(iwe, 0, sizeof(iwe));
+			_rtw_memset(iwe, 0, sizeof(*iwe));
 			iwe->cmd =IWEVGENIE;
 			iwe->u.data.length = wapi_len;
 			start = iwe_stream_add_point(info, start, stop, iwe, wapi_ie);
@@ -844,7 +853,7 @@ static inline char *  iwe_stream_net_rsv_process(_adapter *padapter,
 	pos = pnetwork->network.Reserved;
 
 	p += sprintf(p, "fm=%02X%02X", pos[1], pos[0]);
-	_rtw_memset(iwe, 0, sizeof(iwe));
+	_rtw_memset(iwe, 0, sizeof(*iwe));
 	iwe->cmd = IWEVCUSTOM;
 	iwe->u.data.length = strlen(buf);
 	start = iwe_stream_add_point(info, start, stop,iwe, buf);

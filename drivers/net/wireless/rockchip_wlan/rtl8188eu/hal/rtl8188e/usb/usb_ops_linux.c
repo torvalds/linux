@@ -1203,14 +1203,19 @@ void rtl8188eu_xmit_tasklet(void *priv)
 	_adapter *padapter = (_adapter*)priv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	if(check_fwstate(&padapter->mlmepriv, _FW_UNDER_SURVEY) == _TRUE)
-		return;
-
 	while(1)
 	{
 		if (RTW_CANNOT_TX(padapter))
 		{
 			DBG_8192C("xmit_tasklet => bDriverStopped or bSurpriseRemoved or bWritePortCancel\n");
+			break;
+		}
+
+		if(check_fwstate(&padapter->mlmepriv, _FW_UNDER_SURVEY) == _TRUE
+			#ifdef CONFIG_CONCURRENT_MODE
+			|| check_buddy_fwstate(padapter, _FW_UNDER_SURVEY) == _TRUE
+			#endif
+		) {
 			break;
 		}
 
