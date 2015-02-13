@@ -632,8 +632,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	}
 
 	/* extract page list from userspace mapping */
-	ret = vb2_dc_get_user_pages(start, pages, n_pages, vma,
-				    dma_dir == DMA_FROM_DEVICE);
+	ret = vb2_dc_get_user_pages(start, pages, n_pages, vma, dma_dir);
 	if (ret) {
 		unsigned long pfn;
 		if (vb2_dc_get_user_pfn(start, n_pages, vma, &pfn) == 0) {
