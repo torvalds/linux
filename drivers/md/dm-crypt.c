@@ -124,6 +124,7 @@ struct crypt_config {
 	mempool_t *req_pool;
 	mempool_t *page_pool;
 	struct bio_set *bs;
+	struct mutex bio_alloc_lock;
 
 	struct workqueue_struct *io_queue;
 	struct workqueue_struct *crypt_queue;
@@ -949,27 +950,51 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone);
 /*
  * Generate a new unfragmented bio with the given size
  * This should never violate the device limitations
+ *
+ * This function may be called concurrently. If we allocate from the mempool
+ * concurrently, there is a possibility of deadlock. For example, if we have
+ * mempool of 256 pages, two processes, each wanting 256, pages allocate from
+ * the mempool concurrently, it may deadlock in a situation where both processes
+ * have allocated 128 pages and the mempool is exhausted.
+ *
+ * In order to avoid this scenario we allocate the pages under a mutex.
+ *
+ * In order to not degrade performance with excessive locking, we try
+ * non-blocking allocations without a mutex first but on failure we fallback
+ * to blocking allocations with a mutex.
  */
 static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 {
 	struct crypt_config *cc = io->cc;
 	struct bio *clone;
 	unsigned int nr_iovecs = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	gfp_t gfp_mask = GFP_NOIO | __GFP_HIGHMEM;
-	unsigned i, len;
+	gfp_t gfp_mask = GFP_NOWAIT | __GFP_HIGHMEM;
+	unsigned i, len, remaining_size;
 	struct page *page;
 	struct bio_vec *bvec;
 
+retry:
+	if (unlikely(gfp_mask & __GFP_WAIT))
+		mutex_lock(&cc->bio_alloc_lock);
+
 	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, cc->bs);
 	if (!clone)
-		return NULL;
+		goto return_clone;
 
 	clone_init(io, clone);
 
+	remaining_size = size;
+
 	for (i = 0; i < nr_iovecs; i++) {
 		page = mempool_alloc(cc->page_pool, gfp_mask);
+		if (!page) {
+			crypt_free_buffer_pages(cc, clone);
+			bio_put(clone);
+			gfp_mask |= __GFP_WAIT;
+			goto retry;
+		}
 
-		len = (size > PAGE_SIZE) ? PAGE_SIZE : size;
+		len = (remaining_size > PAGE_SIZE) ? PAGE_SIZE : remaining_size;
 
 		bvec = &clone->bi_io_vec[clone->bi_vcnt++];
 		bvec->bv_page = page;
@@ -978,8 +1003,12 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 
 		clone->bi_iter.bi_size += len;
 
-		size -= len;
+		remaining_size -= len;
 	}
+
+return_clone:
+	if (unlikely(gfp_mask & __GFP_WAIT))
+		mutex_unlock(&cc->bio_alloc_lock);
 
 	return clone;
 }
@@ -1678,6 +1707,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Cannot allocate crypt bioset";
 		goto bad;
 	}
+
+	mutex_init(&cc->bio_alloc_lock);
 
 	ret = -EINVAL;
 	if (sscanf(argv[2], "%llu%c", &tmpll, &dummy) != 1) {
