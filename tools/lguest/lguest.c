@@ -1211,7 +1211,12 @@ static bool valid_bar_access(struct device *d,
 	    && cfg_access->cap.length != 4)
 		return false;
 
-	/* Offset must be multiple of length */
+	/*
+	 * 4.1.4.7.2:
+	 *
+	 *  The driver MUST NOT write a cap.offset which is not a multiple of
+	 *  cap.length (ie. all accesses MUST be aligned).
+	 */
 	if (cfg_access->cap.offset % cfg_access->cap.length != 0)
 		return false;
 
@@ -1342,7 +1347,13 @@ static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
 		return true;
 	}
 
-	/* Complain about other writes. */
+	/*
+	 * 4.1.4.1:
+	 *
+	 *  The driver MUST NOT write into any field of the capability
+	 *  structure, with the exception of those with cap_type
+	 *  VIRTIO_PCI_CAP_PCI_CFG...
+	 */
 	return false;
 }
 
@@ -1789,6 +1800,12 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		restore_vq_config(&d->mmio->cfg, vq);
 		goto write_through16;
 	case offsetof(struct virtio_pci_mmio, cfg.queue_size):
+		/*
+		 * 4.1.4.3.2:
+		 *
+		 *  The driver MUST NOT write a value which is not a power of 2
+		 *  to queue_size.
+		 */
 		if (val & (val-1))
 			errx(1, "%s: invalid queue size %u\n", d->name, val);
 		if (d->mmio->cfg.queue_enable)
@@ -1799,11 +1816,22 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		errx(1, "%s: attempt to set MSIX vector to %u",
 		     d->name, val);
 	case offsetof(struct virtio_pci_mmio, cfg.queue_enable):
+		/*
+		 * 4.1.4.3.2:
+		 *
+		 *  The driver MUST NOT write a 0 to queue_enable.
+		 */
 		if (val != 1)
 			errx(1, "%s: setting queue_enable to %u", d->name, val);
 		d->mmio->cfg.queue_enable = val;
 		save_vq_config(&d->mmio->cfg,
 			       vq_by_num(d, d->mmio->cfg.queue_select));
+		/*
+		 * 4.1.4.3.2:
+		 *
+		 *  The driver MUST configure the other virtqueue fields before
+		 *  enabling the virtqueue with queue_enable.
+		 */
 		enable_virtqueue(d, vq_by_num(d, d->mmio->cfg.queue_select));
 		goto write_through16;
 	case offsetof(struct virtio_pci_mmio, cfg.queue_notify_off):
@@ -1814,6 +1842,12 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 	case offsetof(struct virtio_pci_mmio, cfg.queue_avail_hi):
 	case offsetof(struct virtio_pci_mmio, cfg.queue_used_lo):
 	case offsetof(struct virtio_pci_mmio, cfg.queue_used_hi):
+		/*
+		 * 4.1.4.3.2:
+		 *
+		 *  The driver MUST configure the other virtqueue fields before
+		 *  enabling the virtqueue with queue_enable.
+		 */
 		if (d->mmio->cfg.queue_enable)
 			errx(1, "%s: changing queue on live device",
 			     d->name);
@@ -1837,9 +1871,23 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		}
 		/* Fall through... */
 	default:
+		/*
+		 * 4.1.4.3.2:
+		 *
+		 *   The driver MUST NOT write to device_feature, num_queues,
+		 *   config_generation or queue_notify_off.
+		 */
 		errx(1, "%s: Unexpected write to offset %u", d->name, off);
 	}
 
+
+	/*
+	 * 4.1.3.1:
+	 *
+	 *  The driver MUST access each field using the “natural” access
+	 *  method, i.e. 32-bit accesses for 32-bit fields, 16-bit accesses for
+	 *  16-bit fields and 8-bit accesses for 8-bit fields.
+	 */
 write_through32:
 	if (mask != 0xFFFFFFFF) {
 		errx(1, "%s: non-32-bit write to offset %u (%#x)",
@@ -1923,6 +1971,13 @@ static u32 emulate_mmio_read(struct device *d, u32 off, u32 mask)
 			goto read_through8;
 	}
 
+	/*
+	 * 4.1.3.1:
+	 *
+	 *  The driver MUST access each field using the “natural” access
+	 *  method, i.e. 32-bit accesses for 32-bit fields, 16-bit accesses for
+	 *  16-bit fields and 8-bit accesses for 8-bit fields.
+	 */
 read_through32:
 	if (mask != 0xFFFFFFFF)
 		errx(1, "%s: non-32-bit read to offset %u (%#x)",
