@@ -2357,6 +2357,13 @@ sub process {
 			     "Use of CONFIG_EXPERIMENTAL is deprecated. For alternatives, see https://lkml.org/lkml/2012/10/23/580\n");
 		}
 
+# discourage the use of boolean for type definition attributes of Kconfig options
+		if ($realfile =~ /Kconfig/ &&
+		    $line =~ /^\+\s*\bboolean\b/) {
+			WARN("CONFIG_TYPE_BOOLEAN",
+			     "Use of boolean is deprecated, please use bool instead.\n" . $herecurr);
+		}
+
 		if (($realfile =~ /Makefile.*/ || $realfile =~ /Kbuild.*/) &&
 		    ($line =~ /\+(EXTRA_[A-Z]+FLAGS).*/)) {
 			my $flag = $1;
