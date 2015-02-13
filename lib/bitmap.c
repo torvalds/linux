@@ -169,15 +169,14 @@ void __bitmap_shift_left(unsigned long *dst, const unsigned long *src,
 		 * word below and make them the bottom rem bits of result.
 		 */
 		if (rem && k > 0)
-			lower = src[k - 1];
+			lower = src[k - 1] >> (BITS_PER_LONG - rem);
 		else
 			lower = 0;
 		upper = src[k];
 		if (left && k == lim - 1)
 			upper &= (1UL << left) - 1;
-		dst[k + off] = upper << rem;
-		if (rem)
-			dst[k + off] |= lower >> (BITS_PER_LONG - rem);
+		upper <<= rem;
+		dst[k + off] = lower | upper;
 		if (left && k + off == lim - 1)
 			dst[k + off] &= (1UL << left) - 1;
 	}
