@@ -54,6 +54,10 @@ Supported chips:
     Prefix: 'it8783'
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Not publicly available
+  * IT8786E
+    Prefix: 'it8786'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not publicly available
   * SiS950   [clone of IT8705F]
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -100,7 +104,7 @@ Description
 
 This driver implements support for the IT8603E, IT8623E, IT8705F, IT8712F,
 IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E, IT8771E,
-IT8772E, IT8781F, IT8782F, IT8783E/F, and SiS950 chips.
+IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, and SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they

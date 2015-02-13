@@ -26,6 +26,7 @@
  *            IT8781F  Super I/O chip w/LPC interface
  *            IT8782F  Super I/O chip w/LPC interface
  *            IT8783E/F Super I/O chip w/LPC interface
+ *            IT8786E  Super I/O chip w/LPC interface
  *            Sis950   A clone of the IT8705F
  *
  *  Copyright (C) 2001 Chris Gauthron
@@ -67,7 +68,7 @@
 #define DRVNAME "it87"
 
 enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8771,
-	     it8772, it8781, it8782, it8783, it8603 };
+	     it8772, it8781, it8782, it8783, it8786, it8603 };
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
@@ -150,6 +151,7 @@ static inline void superio_exit(void)
 #define IT8781F_DEVID 0x8781
 #define IT8782F_DEVID 0x8782
 #define IT8783E_DEVID 0x8783
+#define IT8786E_DEVID 0x8786
 #define IT8603E_DEVID 0x8603
 #define IT8623E_DEVID 0x8623
 #define IT87_ACT_REG  0x30
@@ -334,6 +336,12 @@ static const struct it87_devices it87_devices[] = {
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
 		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG,
 		.old_peci_mask = 0x4,
+	},
+	[it8786] = {
+		.name = "it8786",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI,
+		.peci_mask = 0x07,
 	},
 	[it8603] = {
 		.name = "it8603",
@@ -1789,6 +1797,9 @@ static int __init it87_find(unsigned short *address,
 	case IT8783E_DEVID:
 		sio_data->type = it8783;
 		break;
+	case IT8786E_DEVID:
+		sio_data->type = it8786;
+		break;
 	case IT8603E_DEVID:
 	case IT8623E_DEVID:
 		sio_data->type = it8603;
@@ -1816,8 +1827,8 @@ static int __init it87_find(unsigned short *address,
 	sio_data->revision = superio_inb(DEVREV) & 0x0f;
 	pr_info("Found IT%04x%c chip at 0x%x, revision %d\n", chip_type,
 		chip_type == 0x8771 || chip_type == 0x8772 ||
-		chip_type == 0x8603 ? 'E' : 'F', *address,
-		sio_data->revision);
+		chip_type == 0x8786 || chip_type == 0x8603 ? 'E' : 'F',
+		*address, sio_data->revision);
 
 	/* in8 (Vbat) is always internal */
 	sio_data->internal = (1 << 2);
@@ -1987,9 +1998,8 @@ static int __init it87_find(unsigned short *address,
 		if (reg & (1 << 0))
 			sio_data->internal |= (1 << 0);
 		if ((reg & (1 << 1)) || sio_data->type == it8721 ||
-		    sio_data->type == it8728 ||
-		    sio_data->type == it8771 ||
-		    sio_data->type == it8772)
+		    sio_data->type == it8728 || sio_data->type == it8771 ||
+		    sio_data->type == it8772 || sio_data->type == it8786)
 			sio_data->internal |= (1 << 1);
 
 		/*
