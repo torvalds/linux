@@ -2114,7 +2114,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	else
 		perf_evlist__enable(evlist);
 
-	trace->multiple_threads = evlist->threads->map[0] == -1 || evlist->threads->nr > 1;
+	trace->multiple_threads = evlist->threads->map[0] == -1 ||
+				  evlist->threads->nr > 1 ||
+				  perf_evlist__first(evlist)->attr.inherit;
 again:
 	before = trace->nr_events;
 
