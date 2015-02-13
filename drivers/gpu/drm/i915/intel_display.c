@@ -13316,11 +13316,11 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 
 	/* restore vblank interrupts to correct state */
+	drm_crtc_vblank_reset(&crtc->base);
 	if (crtc->active) {
 		update_scanline_offset(crtc);
-		drm_vblank_on(dev, crtc->pipe);
-	} else
-		drm_vblank_off(dev, crtc->pipe);
+		drm_crtc_vblank_on(&crtc->base);
+	}
 
 	/* We need to sanitize the plane -> pipe mapping first because this will
 	 * disable the crtc (and hence change the state) if it is wrong. Note

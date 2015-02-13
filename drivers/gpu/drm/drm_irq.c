@@ -1226,6 +1226,38 @@ void drm_crtc_vblank_off(struct drm_crtc *crtc)
 EXPORT_SYMBOL(drm_crtc_vblank_off);
 
 /**
+ * drm_crtc_vblank_reset - reset vblank state to off on a CRTC
+ * @crtc: CRTC in question
+ *
+ * Drivers can use this function to reset the vblank state to off at load time.
+ * Drivers should use this together with the drm_crtc_vblank_off() and
+ * drm_crtc_vblank_on() functions. The difference compared to
+ * drm_crtc_vblank_off() is that this function doesn't save the vblank counter
+ * and hence doesn't need to call any driver hooks.
+ */
+void drm_crtc_vblank_reset(struct drm_crtc *drm_crtc)
+{
+	struct drm_device *dev = drm_crtc->dev;
+	unsigned long irqflags;
+	int crtc = drm_crtc_index(drm_crtc);
+	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
+
+	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	/*
+	 * Prevent subsequent drm_vblank_get() from enabling the vblank
+	 * interrupt by bumping the refcount.
+	 */
+	if (!vblank->inmodeset) {
+		atomic_inc(&vblank->refcount);
+		vblank->inmodeset = 1;
+	}
+	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+
+	WARN_ON(!list_empty(&dev->vblank_event_list));
+}
+EXPORT_SYMBOL(drm_crtc_vblank_reset);
+
+/**
  * drm_vblank_on - enable vblank events on a CRTC
  * @dev: DRM device
  * @crtc: CRTC in question
