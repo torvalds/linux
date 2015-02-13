@@ -4808,12 +4808,24 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		return;
 	}
 
-	if (INTEL_INFO(dev)->gen > 6 && INTEL_INFO(dev)->gen < 8) {
+	if (INTEL_INFO(dev)->gen >= 8) {
+		switch (index) {
+		case DRRS_HIGH_RR:
+			intel_dp_set_m_n(intel_crtc, M1_N1);
+			break;
+		case DRRS_LOW_RR:
+			intel_dp_set_m_n(intel_crtc, M2_N2);
+			break;
+		case DRRS_MAX_RR:
+		default:
+			DRM_ERROR("Unsupported refreshrate type\n");
+		}
+	} else if (INTEL_INFO(dev)->gen > 6) {
 		reg = PIPECONF(intel_crtc->config->cpu_transcoder);
 		val = I915_READ(reg);
+
 		if (index > DRRS_HIGH_RR) {
 			val |= PIPECONF_EDP_RR_MODE_SWITCH;
-			intel_dp_set_m_n(intel_crtc);
 		} else {
 			val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
 		}
