@@ -2763,7 +2763,6 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
-		struct intel_ringbuffer *ringbuf;
 
 		request = list_first_entry(&ring->request_list,
 					   struct drm_i915_gem_request,
@@ -2774,23 +2773,12 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 
 		trace_i915_gem_request_retire(request);
 
-		/* This is one of the few common intersection points
-		 * between legacy ringbuffer submission and execlists:
-		 * we need to tell them apart in order to find the correct
-		 * ringbuffer to which the request belongs to.
-		 */
-		if (i915.enable_execlists) {
-			struct intel_context *ctx = request->ctx;
-			ringbuf = ctx->engine[ring->id].ringbuf;
-		} else
-			ringbuf = ring->buffer;
-
 		/* We know the GPU must have read the request to have
 		 * sent us the seqno + interrupt, so use the position
 		 * of tail of the request to update the last known position
 		 * of the GPU head.
 		 */
-		ringbuf->last_retired_head = request->postfix;
+		request->ringbuf->last_retired_head = request->postfix;
 
 		i915_gem_free_request(request);
 	}
