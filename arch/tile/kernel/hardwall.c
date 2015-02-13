@@ -909,11 +909,8 @@ static void hardwall_destroy(struct hardwall_info *info)
 static int hardwall_proc_show(struct seq_file *sf, void *v)
 {
 	struct hardwall_info *info = sf->private;
-	char buf[256];
 
-	int rc = cpulist_scnprintf(buf, sizeof(buf), &info->cpumask);
-	buf[rc++] = '\n';
-	seq_write(sf, buf, rc);
+	seq_printf(sf, "%*pbl\n", cpumask_pr_args(&info->cpumask));
 	return 0;
 }
 
