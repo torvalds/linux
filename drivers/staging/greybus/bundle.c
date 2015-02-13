@@ -126,6 +126,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 interface_id)
  */
 void gb_bundle_destroy(struct gb_interface *intf)
 {
+	LIST_HEAD(list);
 	struct gb_bundle *bundle;
 	struct gb_bundle *temp;
 
@@ -133,12 +134,14 @@ void gb_bundle_destroy(struct gb_interface *intf)
 		return;
 
 	spin_lock_irq(&gb_bundles_lock);
-	list_for_each_entry_safe(bundle, temp, &intf->bundles, links) {
+	list_splice_init(&intf->bundles, &list);
+	spin_unlock_irq(&gb_bundles_lock);
+
+	list_for_each_entry_safe(bundle, temp, &list, links) {
 		list_del(&bundle->links);
 		gb_bundle_connections_exit(bundle);
 		device_del(&bundle->dev);
 	}
-	spin_unlock_irq(&gb_bundles_lock);
 }
 
 int gb_bundle_init(struct gb_interface *intf, u8 bundle_id, u8 device_id)
