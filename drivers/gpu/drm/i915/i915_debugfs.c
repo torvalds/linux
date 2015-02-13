@@ -580,7 +580,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 			seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",
 				   work->flip_queued_vblank,
 				   work->flip_ready_vblank,
-				   drm_vblank_count(dev, crtc->pipe));
+				   drm_crtc_vblank_count(&crtc->base));
 			if (work->enable_stall_check)
 				seq_puts(m, "Stall check enabled, ");
 			else

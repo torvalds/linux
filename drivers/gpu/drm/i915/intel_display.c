@@ -9661,10 +9661,10 @@ static bool __intel_pageflip_stall_check(struct drm_device *dev,
 		    !i915_gem_request_completed(work->flip_queued_req, true))
 			return false;
 
-		work->flip_ready_vblank = drm_vblank_count(dev, intel_crtc->pipe);
+		work->flip_ready_vblank = drm_crtc_vblank_count(crtc);
 	}
 
-	if (drm_vblank_count(dev, intel_crtc->pipe) - work->flip_ready_vblank < 3)
+	if (drm_crtc_vblank_count(crtc) - work->flip_ready_vblank < 3)
 		return false;
 
 	/* Potential stall - if we see that the flip has happened,
@@ -9695,7 +9695,8 @@ void intel_check_page_flip(struct drm_device *dev, int pipe)
 	spin_lock(&dev->event_lock);
 	if (intel_crtc->unpin_work && __intel_pageflip_stall_check(dev, crtc)) {
 		WARN_ONCE(1, "Kicking stuck page flip: queued at %d, now %d\n",
-			 intel_crtc->unpin_work->flip_queued_vblank, drm_vblank_count(dev, pipe));
+			 intel_crtc->unpin_work->flip_queued_vblank,
+			 drm_vblank_count(dev, pipe));
 		page_flip_completed(intel_crtc);
 	}
 	spin_unlock(&dev->event_lock);
@@ -9837,7 +9838,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 					intel_ring_get_request(ring));
 	}
 
-	work->flip_queued_vblank = drm_vblank_count(dev, intel_crtc->pipe);
+	work->flip_queued_vblank = drm_crtc_vblank_count(crtc);
 	work->enable_stall_check = true;
 
 	i915_gem_track_fb(intel_fb_obj(work->old_fb), obj,

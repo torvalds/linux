@@ -98,7 +98,7 @@ bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
 	if (min <= 0 || max <= 0)
 		return false;
 
-	if (WARN_ON(drm_vblank_get(dev, pipe)))
+	if (WARN_ON(drm_crtc_vblank_get(&crtc->base)))
 		return false;
 
 	local_irq_disable();
@@ -132,7 +132,7 @@ bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
 
 	finish_wait(wq, &wait);
 
-	drm_vblank_put(dev, pipe);
+	drm_crtc_vblank_put(&crtc->base);
 
 	*start_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
 
