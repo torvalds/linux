@@ -453,10 +453,6 @@ struct dvb_usb_device {
 	struct module *owner;
 
 	void *priv;
-
-#ifdef CONFIG_MEDIA_CONTROLLER_DVB
-	struct media_device *media_dev;
-#endif
 };
 
 extern int dvb_usb_device_init(struct usb_interface *,
