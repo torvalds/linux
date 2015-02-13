@@ -100,6 +100,7 @@
 				isl12057: isl12057@68 {
 					compatible = "isil,isl12057";
 					reg = <0x68>;
+					isil,irq2-can-wakeup-machine;
 				};
 
 				/* Controller for rear fan #1 of 3 (Protechnic
