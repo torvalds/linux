@@ -1319,11 +1319,6 @@ static void print_symbol_events(const char *event_glob, unsigned type,
  */
 void print_events(const char *event_glob, bool name_only)
 {
-	if (!name_only) {
-		printf("\n");
-		printf("List of pre-defined events (to be used in -e):\n");
-	}
-
 	print_symbol_events(event_glob, PERF_TYPE_HARDWARE,
 			    event_symbols_hw, PERF_COUNT_HW_MAX, name_only);
 

@@ -41,6 +41,9 @@ int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 		return 0;
 	}
 
+	if (!raw_dump)
+		printf("\nList of pre-defined events (to be used in -e):\n\n");
+
 	if (argc == 0) {
 		print_events(NULL, false);
 		return 0;
