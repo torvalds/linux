@@ -33,6 +33,7 @@
 #define MWIFIEX_MAX_BSS_NUM         (3)
 
 #define MWIFIEX_DMA_ALIGN_SZ	    64
+#define MWIFIEX_RX_HEADROOM	    64
 #define MAX_TXPD_SZ		    32
 #define INTF_HDR_ALIGN		     4
 

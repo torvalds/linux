@@ -140,6 +140,9 @@ enum {
 
 #define MWIFIEX_DRV_INFO_SIZE_MAX 0x40000
 
+/* Address alignment */
+#define MWIFIEX_ALIGN_ADDR(p, a) (((long)(p) + (a) - 1) & ~((a) - 1))
+
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
 	u32 num_cmd_sleep_cfm_host_to_card_failure;
@@ -1418,6 +1421,7 @@ u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
 			    u8 rx_rate, u8 ht_info);
 
 void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter);
+void *mwifiex_alloc_rx_buf(int rx_len, gfp_t flags);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
