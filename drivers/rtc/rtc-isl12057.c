@@ -457,6 +457,40 @@ static int isl12057_check_rtc_status(struct device *dev, struct regmap *regmap)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+/*
+ * One would expect the device to be marked as a wakeup source only
+ * when an IRQ pin of the RTC is routed to an interrupt line of the
+ * CPU. In practice, such an IRQ pin can be connected to a PMIC and
+ * this allows the device to be powered up when RTC alarm rings. This
+ * is for instance the case on ReadyNAS 102, 104 and 2120. On those
+ * devices with no IRQ driectly connected to the SoC, the RTC chip
+ * can be forced as a wakeup source by stating that explicitly in
+ * the device's .dts file using the "isil,irq2-can-wakeup-machine"
+ * boolean property. This will guarantee 'wakealarm' sysfs entry is
+ * available on the device.
+ *
+ * The function below returns 1, i.e. the capability of the chip to
+ * wakeup the device, based on IRQ availability or if the boolean
+ * property has been set in the .dts file. Otherwise, it returns 0.
+ */
+
+static bool isl12057_can_wakeup_machine(struct device *dev)
+{
+	struct isl12057_rtc_data *data = dev_get_drvdata(dev);
+
+	return (data->irq || of_property_read_bool(dev->of_node,
+					      "isil,irq2-can-wakeup-machine"));
+}
+#else
+static bool isl12057_can_wakeup_machine(struct device *dev)
+{
+	struct isl12057_rtc_data *data = dev_get_drvdata(dev);
+
+	return !!data->irq;
+}
+#endif
+
 static int isl12057_rtc_alarm_irq_enable(struct device *dev,
 					 unsigned int enable)
 {
@@ -555,7 +589,8 @@ static int isl12057_probe(struct i2c_client *client,
 				client->irq, ret);
 	}
 
-	device_init_wakeup(dev, !!data->irq);
+	if (isl12057_can_wakeup_machine(dev))
+		device_init_wakeup(dev, true);
 
 	data->rtc = devm_rtc_device_register(dev, DRV_NAME, &rtc_ops,
 					     THIS_MODULE);
@@ -576,9 +611,7 @@ err:
 
 static int isl12057_remove(struct i2c_client *client)
 {
-	struct isl12057_rtc_data *rtc_data = dev_get_drvdata(&client->dev);
-
-	if (rtc_data->irq)
+	if (isl12057_can_wakeup_machine(&client->dev))
 		device_init_wakeup(&client->dev, false);
 
 	return 0;
@@ -589,7 +622,7 @@ static int isl12057_rtc_suspend(struct device *dev)
 {
 	struct isl12057_rtc_data *rtc_data = dev_get_drvdata(dev);
 
-	if (device_may_wakeup(dev))
+	if (rtc_data->irq && device_may_wakeup(dev))
 		return enable_irq_wake(rtc_data->irq);
 
 	return 0;
@@ -599,7 +632,7 @@ static int isl12057_rtc_resume(struct device *dev)
 {
 	struct isl12057_rtc_data *rtc_data = dev_get_drvdata(dev);
 
-	if (device_may_wakeup(dev))
+	if (rtc_data->irq && device_may_wakeup(dev))
 		return disable_irq_wake(rtc_data->irq);
 
 	return 0;
