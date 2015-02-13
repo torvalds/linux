@@ -4854,7 +4854,8 @@ sub process {
 # check for seq_printf uses that could be seq_puts
 		if ($sline =~ /\bseq_printf\s*\(.*"\s*\)\s*;\s*$/) {
 			my $fmt = get_quoted_string($line, $rawline);
-			if ($fmt ne "" && $fmt !~ /[^\\]\%/) {
+			$fmt =~ s/%%//g;
+			if ($fmt !~ /%/) {
 				if (WARN("PREFER_SEQ_PUTS",
 					 "Prefer seq_puts to seq_printf\n" . $herecurr) &&
 				    $fix) {
