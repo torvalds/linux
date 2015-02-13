@@ -769,20 +769,21 @@ static unsigned wait_for_vq_desc(struct virtqueue *vq,
 	 * that: no rmb() required.
 	 */
 
-	/*
-	 * If this is an indirect entry, then this buffer contains a descriptor
-	 * table which we handle as if it's any normal descriptor chain.
-	 */
-	if (desc[i].flags & VRING_DESC_F_INDIRECT) {
-		if (desc[i].len % sizeof(struct vring_desc))
-			errx(1, "Invalid size for indirect buffer table");
-
-		max = desc[i].len / sizeof(struct vring_desc);
-		desc = check_pointer(desc[i].addr, desc[i].len);
-		i = 0;
-	}
-
 	do {
+		/*
+		 * If this is an indirect entry, then this buffer contains a
+		 * descriptor table which we handle as if it's any normal
+		 * descriptor chain.
+		 */
+		if (desc[i].flags & VRING_DESC_F_INDIRECT) {
+			if (desc[i].len % sizeof(struct vring_desc))
+				errx(1, "Invalid size for indirect buffer table");
+
+			max = desc[i].len / sizeof(struct vring_desc);
+			desc = check_pointer(desc[i].addr, desc[i].len);
+			i = 0;
+		}
+
 		/* Grab the first descriptor, and check it's OK. */
 		iov[*out_num + *in_num].iov_len = desc[i].len;
 		iov[*out_num + *in_num].iov_base
