@@ -3689,7 +3689,22 @@ sub process {
 					 $op eq '*' or $op eq '/' or
 					 $op eq '%')
 				{
-					if ($ctx =~ /Wx[^WCE]|[^WCE]xW/) {
+					if ($check) {
+						if (defined $fix_elements[$n + 2] && $ctx !~ /[EW]x[EW]/) {
+							if (CHK("SPACING",
+								"spaces preferred around that '$op' $at\n" . $hereptr)) {
+								$good = rtrim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]) . " ";
+								$fix_elements[$n + 2] =~ s/^\s+//;
+								$line_fixed = 1;
+							}
+						} elsif (!defined $fix_elements[$n + 2] && $ctx !~ /Wx[OE]/) {
+							if (CHK("SPACING",
+								"space preferred before that '$op' $at\n" . $hereptr)) {
+								$good = rtrim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]);
+								$line_fixed = 1;
+							}
+						}
+					} elsif ($ctx =~ /Wx[^WCE]|[^WCE]xW/) {
 						if (ERROR("SPACING",
 							  "need consistent spacing around '$op' $at\n" . $hereptr)) {
 							$good = rtrim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]) . " ";
