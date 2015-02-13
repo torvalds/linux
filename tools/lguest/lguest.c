@@ -66,6 +66,7 @@ typedef uint8_t u8;
 #define VIRTIO_CONFIG_NO_LEGACY
 #define VIRTIO_PCI_NO_LEGACY
 #define VIRTIO_BLK_NO_LEGACY
+#define VIRTIO_NET_NO_LEGACY
 
 /* Use in-kernel ones, which defines VIRTIO_F_VERSION_1 */
 #include "../../include/uapi/linux/virtio_config.h"
@@ -2816,7 +2817,7 @@ static int get_tun_device(char tapif[IFNAMSIZ])
 	 * about our expanded header (which is called
 	 * virtio_net_hdr_mrg_rxbuf in the legacy system).
 	 */
-	vnet_hdr_sz = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+	vnet_hdr_sz = sizeof(struct virtio_net_hdr_v1);
 	if (ioctl(netfd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0)
 		err(1, "Setting tun header size to %u", vnet_hdr_sz);
 
