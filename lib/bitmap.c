@@ -136,8 +136,6 @@ void __bitmap_shift_right(unsigned long *dst, const unsigned long *src,
 			lower &= mask;
 		lower >>= rem;
 		dst[k] = lower | upper;
-		if (left && k == lim - 1)
-			dst[k] &= mask;
 	}
 	if (off)
 		memset(&dst[lim - off], 0, off*sizeof(unsigned long));
