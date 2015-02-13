@@ -133,6 +133,7 @@ struct abb5zes3_rtc_data {
 	int irq;
 
 	bool battery_low;
+	bool timer_alarm; /* current alarm is via timer A */
 };
 
 /*
@@ -187,6 +188,22 @@ static int _abb5zes3_rtc_update_alarm(struct device *dev, bool enable)
 				 enable ? ABB5ZES3_REG_CTRL1_AIE : 0);
 	if (ret)
 		dev_err(dev, "%s: writing alarm INT failed (%d)\n",
+			__func__, ret);
+
+	return ret;
+}
+
+/* Enable or disable timer (watchdog timer A interrupt generation) */
+static int _abb5zes3_rtc_update_timer(struct device *dev, bool enable)
+{
+	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regmap_update_bits(data->regmap, ABB5ZES3_REG_CTRL2,
+				 ABB5ZES3_REG_CTRL2_WTAIE,
+				 enable ? ABB5ZES3_REG_CTRL2_WTAIE : 0);
+	if (ret)
+		dev_err(dev, "%s: writing timer INT failed (%d)\n",
 			__func__, ret);
 
 	return ret;
@@ -277,7 +294,92 @@ static int abb5zes3_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return ret;
 }
 
-static int abb5zes3_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
+/*
+ * Set provided TAQ and Timer A registers (TIMA_CLK and TIMA) based on
+ * given number of seconds.
+ */
+static inline void sec_to_timer_a(u8 secs, u8 *taq, u8 *timer_a)
+{
+	*taq = ABB5ZES3_REG_TIMA_CLK_TAQ1; /* 1Hz */
+	*timer_a = secs;
+}
+
+/*
+ * Return current number of seconds in Timer A. As we only use
+ * timer A with a 1Hz freq, this is what we expect to have.
+ */
+static inline int sec_from_timer_a(u8 *secs, u8 taq, u8 timer_a)
+{
+	if (taq != ABB5ZES3_REG_TIMA_CLK_TAQ1) /* 1Hz */
+		return -EINVAL;
+
+	*secs = timer_a;
+
+	return 0;
+}
+
+/*
+ * Read alarm currently configured via a watchdog timer using timer A. This
+ * is done by reading current RTC time and adding remaining timer time.
+ */
+static int _abb5zes3_rtc_read_timer(struct device *dev,
+				    struct rtc_wkalrm *alarm)
+{
+	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
+	struct rtc_time rtc_tm, *alarm_tm = &alarm->time;
+	u8 regs[ABB5ZES3_TIMA_SEC_LEN + 1];
+	unsigned long rtc_secs;
+	unsigned int reg;
+	u8 timer_secs;
+	int ret;
+
+	/*
+	 * Instead of doing two separate calls, because they are consecutive,
+	 * we grab both clockout register and Timer A section. The latter is
+	 * used to decide if timer A is enabled (as a watchdog timer).
+	 */
+	ret = regmap_bulk_read(data->regmap, ABB5ZES3_REG_TIM_CLK, regs,
+			       ABB5ZES3_TIMA_SEC_LEN + 1);
+	if (ret) {
+		dev_err(dev, "%s: reading Timer A section failed (%d)\n",
+			__func__, ret);
+		goto err;
+	}
+
+	/* get current time ... */
+	ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
+	if (ret)
+		goto err;
+
+	/* ... convert to seconds ... */
+	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
+	if (ret)
+		goto err;
+
+	/* ... add remaining timer A time ... */
+	ret = sec_from_timer_a(&timer_secs, regs[1], regs[2]);
+	if (ret)
+		goto err;
+
+	/* ... and convert back. */
+	rtc_time_to_tm(rtc_secs + timer_secs, alarm_tm);
+
+	ret = regmap_read(data->regmap, ABB5ZES3_REG_CTRL2, &reg);
+	if (ret) {
+		dev_err(dev, "%s: reading ctrl reg failed (%d)\n",
+			__func__, ret);
+		goto err;
+	}
+
+	alarm->enabled = !!(reg & ABB5ZES3_REG_CTRL2_WTAIE);
+
+err:
+	return ret;
+}
+
+/* Read alarm currently configured via a RTC alarm registers. */
+static int _abb5zes3_rtc_read_alarm(struct device *dev,
+				    struct rtc_wkalrm *alarm)
 {
 	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
 	struct rtc_time rtc_tm, *alarm_tm = &alarm->time;
@@ -286,7 +388,6 @@ static int abb5zes3_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned int reg;
 	int ret;
 
-	mutex_lock(&data->lock);
 	ret = regmap_bulk_read(data->regmap, ABB5ZES3_REG_ALRM_MN, regs,
 			       ABB5ZES3_ALRM_SEC_LEN);
 	if (ret) {
@@ -340,13 +441,39 @@ static int abb5zes3_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	alarm->enabled = !!(reg & ABB5ZES3_REG_CTRL1_AIE);
 
 err:
+	return ret;
+}
+
+/*
+ * As the Alarm mechanism supported by the chip is only accurate to the
+ * minute, we use the watchdog timer mechanism provided by timer A
+ * (up to 256 seconds w/ a second accuracy) for low alarm values (below
+ * 4 minutes). Otherwise, we use the common alarm mechanism provided
+ * by the chip. In order for that to work, we keep track of currently
+ * configured timer type via 'timer_alarm' flag in our private data
+ * structure.
+ */
+static int abb5zes3_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
+{
+	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	mutex_lock(&data->lock);
+	if (data->timer_alarm)
+		ret = _abb5zes3_rtc_read_timer(dev, alarm);
+	else
+		ret = _abb5zes3_rtc_read_alarm(dev, alarm);
 	mutex_unlock(&data->lock);
 
 	return ret;
 }
 
-/* ALARM is only accurate to the minute (not the second) */
-static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
+/*
+ * Set alarm using chip alarm mechanism. It is only accurate to the
+ * minute (not the second). The function expects alarm interrupt to
+ * be disabled.
+ */
+static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
 	struct rtc_time *alarm_tm = &alarm->time;
@@ -355,7 +482,6 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	struct rtc_time rtc_tm;
 	int ret, enable = 1;
 
-	mutex_lock(&data->lock);
 	ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
 	if (ret)
 		goto err;
@@ -397,18 +523,13 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		}
 	}
 
-	/* Disable the alarm before modifying it */
-	ret = _abb5zes3_rtc_update_alarm(dev, 0);
-	if (ret < 0) {
-		dev_err(dev, "%s: unable to disable the alarm (%d)\n",
-			__func__, ret);
-		goto err;
-	}
-
-	/* Program alarm registers */
-	regs[0] = bin2bcd(alarm_tm->tm_min) & 0x7f;  /* minute */
-	regs[1] = bin2bcd(alarm_tm->tm_hour) & 0x3f; /* hour */
-	regs[2] = bin2bcd(alarm_tm->tm_mday) & 0x3f; /* day of the month */
+	/*
+	 * Program all alarm registers but DW one. For each register, setting
+	 * MSB to 0 enables associated alarm.
+	 */
+	regs[0] = bin2bcd(alarm_tm->tm_min) & 0x7f;
+	regs[1] = bin2bcd(alarm_tm->tm_hour) & 0x3f;
+	regs[2] = bin2bcd(alarm_tm->tm_mday) & 0x3f;
 	regs[3] = ABB5ZES3_REG_ALRM_DW_AE; /* do not match day of the week */
 
 	ret = regmap_bulk_write(data->regmap, ABB5ZES3_REG_ALRM_MN, regs,
@@ -419,15 +540,115 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		goto err;
 	}
 
-	/* Enable or disable alarm */
+	/* Record currently configured alarm is not a timer */
+	data->timer_alarm = 0;
+
+	/* Enable or disable alarm interrupt generation */
 	ret = _abb5zes3_rtc_update_alarm(dev, enable);
 
 err:
-	mutex_unlock(&data->lock);
-
 	return ret;
 }
 
+/*
+ * Set alarm using timer watchdog (via timer A) mechanism. The function expects
+ * timer A interrupt to be disabled.
+ */
+static int _abb5zes3_rtc_set_timer(struct device *dev, struct rtc_wkalrm *alarm,
+				   u8 secs)
+{
+	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
+	u8 regs[ABB5ZES3_TIMA_SEC_LEN];
+	u8 mask = ABB5ZES3_REG_TIM_CLK_TAC0 | ABB5ZES3_REG_TIM_CLK_TAC1;
+	int ret = 0;
+
+	/* Program given number of seconds to Timer A registers */
+	sec_to_timer_a(secs, &regs[0], &regs[1]);
+	ret = regmap_bulk_write(data->regmap, ABB5ZES3_REG_TIMA_CLK, regs,
+				ABB5ZES3_TIMA_SEC_LEN);
+	if (ret < 0) {
+		dev_err(dev, "%s: writing timer section failed\n", __func__);
+		goto err;
+	}
+
+	/* Configure Timer A as a watchdog timer */
+	ret = regmap_update_bits(data->regmap, ABB5ZES3_REG_TIM_CLK,
+				 mask, ABB5ZES3_REG_TIM_CLK_TAC1);
+	if (ret)
+		dev_err(dev, "%s: failed to update timer\n", __func__);
+
+	/* Record currently configured alarm is a timer */
+	data->timer_alarm = 1;
+
+	/* Enable or disable timer interrupt generation */
+	ret = _abb5zes3_rtc_update_timer(dev, alarm->enabled);
+
+err:
+	return ret;
+}
+
+/*
+ * The chip has an alarm which is only accurate to the minute. In order to
+ * handle alarms below that limit, we use the watchdog timer function of
+ * timer A. More precisely, the timer method is used for alarms below 240
+ * seconds.
+ */
+static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
+{
+	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
+	struct rtc_time *alarm_tm = &alarm->time;
+	unsigned long rtc_secs, alarm_secs;
+	struct rtc_time rtc_tm;
+	int ret;
+
+	mutex_lock(&data->lock);
+	ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
+	if (ret)
+		goto err;
+
+	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
+	if (ret)
+		goto err;
+
+	ret = rtc_tm_to_time(alarm_tm, &alarm_secs);
+	if (ret)
+		goto err;
+
+	/* Let's first disable both the alarm and the timer interrupts */
+	ret = _abb5zes3_rtc_update_alarm(dev, false);
+	if (ret < 0) {
+		dev_err(dev, "%s: unable to disable alarm (%d)\n", __func__,
+			ret);
+		goto err;
+	}
+	ret = _abb5zes3_rtc_update_timer(dev, false);
+	if (ret < 0) {
+		dev_err(dev, "%s: unable to disable timer (%d)\n", __func__,
+			ret);
+		goto err;
+	}
+
+	data->timer_alarm = 0;
+
+	/*
+	 * Let's now configure the alarm; if we are expected to ring in
+	 * more than 240s, then we setup an alarm. Otherwise, a timer.
+	 */
+	if ((alarm_secs > rtc_secs) && ((alarm_secs - rtc_secs) <= 240))
+		ret = _abb5zes3_rtc_set_timer(dev, alarm,
+					      alarm_secs - rtc_secs);
+	else
+		ret = _abb5zes3_rtc_set_alarm(dev, alarm);
+
+ err:
+	mutex_unlock(&data->lock);
+
+	if (ret)
+		dev_err(dev, "%s: unable to configure alarm (%d)\n", __func__,
+			ret);
+
+	return ret;
+ }
 
 /* Enable or disable battery low irq generation */
 static inline int _abb5zes3_rtc_battery_low_irq_enable(struct regmap *regmap,
@@ -446,7 +667,7 @@ static inline int _abb5zes3_rtc_battery_low_irq_enable(struct regmap *regmap,
 static int abb5zes3_rtc_check_setup(struct device *dev)
 {
 	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
-	struct regmap *regmap =  data->regmap;
+	struct regmap *regmap = data->regmap;
 	unsigned int reg;
 	int ret;
 	u8 mask;
@@ -579,7 +800,10 @@ static int abb5zes3_rtc_alarm_irq_enable(struct device *dev,
 
 	if (rtc_data->irq) {
 		mutex_lock(&rtc_data->lock);
-		ret = _abb5zes3_rtc_update_alarm(dev, enable);
+		if (rtc_data->timer_alarm)
+			ret = _abb5zes3_rtc_update_timer(dev, enable);
+		else
+			ret = _abb5zes3_rtc_update_alarm(dev, enable);
 		mutex_unlock(&rtc_data->lock);
 	}
 
@@ -625,6 +849,23 @@ static irqreturn_t _abb5zes3_rtc_interrupt(int irq, void *data)
 		/* Acknowledge and disable the alarm */
 		_abb5zes3_rtc_clear_alarm(dev);
 		_abb5zes3_rtc_update_alarm(dev, 0);
+
+		handled = IRQ_HANDLED;
+	}
+
+	/* Check watchdog Timer A flag */
+	if (regs[ABB5ZES3_REG_CTRL2] & ABB5ZES3_REG_CTRL2_WTAF) {
+		dev_dbg(dev, "RTC timer!\n");
+
+		rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
+
+		/*
+		 * Acknowledge and disable the alarm. Note: WTAF
+		 * flag had been cleared when reading CTRL2
+		 */
+		_abb5zes3_rtc_update_timer(dev, 0);
+
+		rtc_data->timer_alarm = 0;
 
 		handled = IRQ_HANDLED;
 	}
@@ -711,14 +952,6 @@ static int abb5zes3_probe(struct i2c_client *client,
 			__func__, ret);
 		goto err;
 	}
-
-	/*
-	 * AB-B5Z5E only supports a coarse granularity alarm (one minute
-	 * resolution up to one month) so we cannot support UIE mode
-	 * using the device's alarm. Note it should be feasible to support
-	 * such a feature using one of the two timers the device provides.
-	 */
-	data->rtc->uie_unsupported = 1;
 
 	/* Enable battery low detection interrupt if battery not already low */
 	if (!data->battery_low && data->irq) {
