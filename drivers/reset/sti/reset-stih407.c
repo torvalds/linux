@@ -11,7 +11,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <dt-bindings/reset-controller/stih407-resets.h>
+#include <dt-bindings/reset/stih407-resets.h>
 #include "reset-syscfg.h"
 
 /* STiH407 Peripheral powerdown definitions. */

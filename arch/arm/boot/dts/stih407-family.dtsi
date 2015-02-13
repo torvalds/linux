@@ -9,7 +9,7 @@
 #include "stih407-pinctrl.dtsi"
 #include <dt-bindings/mfd/st-lpc.h>
 #include <dt-bindings/phy/phy.h>
-#include <dt-bindings/reset-controller/stih407-resets.h>
+#include <dt-bindings/reset/stih407-resets.h>
 #include <dt-bindings/interrupt-controller/irq-st.h>
 / {
 	#address-cells = <1>;

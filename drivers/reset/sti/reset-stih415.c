@@ -13,7 +13,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include <dt-bindings/reset-controller/stih415-resets.h>
+#include <dt-bindings/reset/stih415-resets.h>
 
 #include "reset-syscfg.h"
 
