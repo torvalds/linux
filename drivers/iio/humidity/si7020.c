@@ -126,7 +126,7 @@ static int si7020_probe(struct i2c_client *client,
 	/* Wait the maximum power-up time after software reset. */
 	msleep(15);
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*client));
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
