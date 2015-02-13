@@ -1,6 +1,7 @@
 #ifndef _FS_NFSD_PNFS_H
 #define _FS_NFSD_PNFS_H 1
 
+#ifdef CONFIG_NFSD_V4
 #include <linux/exportfs.h>
 #include <linux/nfsd/export.h>
 
@@ -50,6 +51,7 @@ __be32 nfsd4_return_client_layouts(struct svc_rqst *rqstp,
 int nfsd4_set_deviceid(struct nfsd4_deviceid *id, const struct svc_fh *fhp,
 		u32 device_generation);
 struct nfsd4_deviceid_map *nfsd4_find_devid_map(int idx);
+#endif /* CONFIG_NFSD_V4 */
 
 #ifdef CONFIG_NFSD_PNFS
 void nfsd4_setup_layout_type(struct svc_export *exp);
@@ -59,6 +61,9 @@ void nfsd4_return_all_file_layouts(struct nfs4_client *clp,
 int nfsd4_init_pnfs(void);
 void nfsd4_exit_pnfs(void);
 #else
+struct nfs4_client;
+struct nfs4_file;
+
 static inline void nfsd4_setup_layout_type(struct svc_export *exp)
 {
 }
