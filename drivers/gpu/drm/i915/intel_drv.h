@@ -1115,7 +1115,11 @@ bool intel_fbc_enabled(struct drm_device *dev);
 void intel_fbc_update(struct drm_device *dev);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
 void intel_fbc_disable(struct drm_device *dev);
-void bdw_fbc_sw_flush(struct drm_device *dev, u32 value);
+void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
+			  unsigned int frontbuffer_bits,
+			  enum fb_op_origin origin);
+void intel_fbc_flush(struct drm_i915_private *dev_priv,
+		     unsigned int frontbuffer_bits);
 
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port);

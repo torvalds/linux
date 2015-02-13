@@ -118,8 +118,6 @@ static void intel_mark_fb_busy(struct drm_device *dev,
 			continue;
 
 		intel_increase_pllclock(dev, pipe);
-		if (ring && intel_fbc_enabled(dev))
-			ring->fbc_dirty = true;
 	}
 }
 
@@ -160,6 +158,7 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 
 	intel_psr_invalidate(dev, obj->frontbuffer_bits);
 	intel_edp_drrs_invalidate(dev, obj->frontbuffer_bits);
+	intel_fbc_invalidate(dev_priv, obj->frontbuffer_bits, origin);
 }
 
 /**
@@ -187,16 +186,7 @@ void intel_frontbuffer_flush(struct drm_device *dev,
 
 	intel_edp_drrs_flush(dev, frontbuffer_bits);
 	intel_psr_flush(dev, frontbuffer_bits);
-
-	/*
-	 * FIXME: Unconditional fbc flushing here is a rather gross hack and
-	 * needs to be reworked into a proper frontbuffer tracking scheme like
-	 * psr employs.
-	 */
-	if (dev_priv->fbc.need_sw_cache_clean) {
-		dev_priv->fbc.need_sw_cache_clean = false;
-		bdw_fbc_sw_flush(dev, FBC_REND_CACHE_CLEAN);
-	}
+	intel_fbc_flush(dev_priv, frontbuffer_bits);
 }
 
 /**

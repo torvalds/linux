@@ -805,6 +805,8 @@ struct i915_fbc {
 	unsigned long uncompressed_size;
 	unsigned threshold;
 	unsigned int fb_id;
+	unsigned int possible_framebuffer_bits;
+	unsigned int busy_bits;
 	struct intel_crtc *crtc;
 	int y;
 
@@ -816,14 +818,6 @@ struct i915_fbc {
 	/* Tracks whether the HW is actually enabled, not whether the feature is
 	 * possible. */
 	bool enabled;
-
-	/* On gen8 some rings cannont perform fbc clean operation so for now
-	 * we are doing this on SW with mmio.
-	 * This variable works in the opposite information direction
-	 * of ring->fbc_dirty telling software on frontbuffer tracking
-	 * to perform the cache clean on sw side.
-	 */
-	bool need_sw_cache_clean;
 
 	struct intel_fbc_work {
 		struct delayed_work work;

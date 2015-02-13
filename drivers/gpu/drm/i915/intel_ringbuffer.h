@@ -267,7 +267,6 @@ struct  intel_engine_cs {
 	 */
 	struct drm_i915_gem_request *outstanding_lazy_request;
 	bool gpu_caches_dirty;
-	bool fbc_dirty;
 
 	wait_queue_head_t irq_queue;
 
