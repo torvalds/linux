@@ -475,10 +475,16 @@ static bool set_no_fbc_reason(struct drm_i915_private *dev_priv,
 
 static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	struct drm_crtc *crtc = NULL, *tmp_crtc;
+	enum pipe pipe;
+	bool pipe_a_only = false;
 
-	for_each_crtc(dev, tmp_crtc) {
+	if (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8)
+		pipe_a_only = true;
+
+	for_each_pipe(dev_priv, pipe) {
+		tmp_crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
 		if (intel_crtc_active(tmp_crtc) &&
 		    to_intel_crtc(tmp_crtc)->primary_enabled) {
 			if (crtc) {
@@ -488,6 +494,9 @@ static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 			}
 			crtc = tmp_crtc;
 		}
+
+		if (pipe_a_only)
+			break;
 	}
 
 	if (!crtc || crtc->primary->fb == NULL) {
