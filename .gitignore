@@ -53,6 +53,11 @@ Module.symvers
 /debian/
 
 #
+# tar directory (make tar*-pkg)
+#
+/tar-install/
+
+#
 # git files that we don't want to ignore even it they are dot-files
 #
 !.gitignore
