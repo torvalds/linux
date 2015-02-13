@@ -473,6 +473,32 @@ static bool set_no_fbc_reason(struct drm_i915_private *dev_priv,
 	return true;
 }
 
+static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct drm_crtc *crtc = NULL, *tmp_crtc;
+
+	for_each_crtc(dev, tmp_crtc) {
+		if (intel_crtc_active(tmp_crtc) &&
+		    to_intel_crtc(tmp_crtc)->primary_enabled) {
+			if (crtc) {
+				if (set_no_fbc_reason(dev_priv, FBC_MULTIPLE_PIPES))
+					DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
+				return NULL;
+			}
+			crtc = tmp_crtc;
+		}
+	}
+
+	if (!crtc || crtc->primary->fb == NULL) {
+		if (set_no_fbc_reason(dev_priv, FBC_NO_OUTPUT))
+			DRM_DEBUG_KMS("no output, disabling\n");
+		return NULL;
+	}
+
+	return crtc;
+}
+
 /**
  * intel_fbc_update - enable/disable FBC as needed
  * @dev: the drm_device
@@ -495,7 +521,7 @@ static bool set_no_fbc_reason(struct drm_i915_private *dev_priv,
 void intel_fbc_update(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = NULL, *tmp_crtc;
+	struct drm_crtc *crtc = NULL;
 	struct intel_crtc *intel_crtc;
 	struct drm_framebuffer *fb;
 	struct drm_i915_gem_object *obj;
@@ -530,23 +556,9 @@ void intel_fbc_update(struct drm_device *dev)
 	 *   - new fb is too large to fit in compressed buffer
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
-	for_each_crtc(dev, tmp_crtc) {
-		if (intel_crtc_active(tmp_crtc) &&
-		    to_intel_crtc(tmp_crtc)->primary_enabled) {
-			if (crtc) {
-				if (set_no_fbc_reason(dev_priv, FBC_MULTIPLE_PIPES))
-					DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
-				goto out_disable;
-			}
-			crtc = tmp_crtc;
-		}
-	}
-
-	if (!crtc || crtc->primary->fb == NULL) {
-		if (set_no_fbc_reason(dev_priv, FBC_NO_OUTPUT))
-			DRM_DEBUG_KMS("no output, disabling\n");
+	crtc = intel_fbc_find_crtc(dev_priv);
+	if (!crtc)
 		goto out_disable;
-	}
 
 	intel_crtc = to_intel_crtc(crtc);
 	fb = crtc->primary->fb;
