@@ -1364,13 +1364,8 @@ ff_layout_mark_request_commit(struct nfs_page *req,
 	nfs_list_add_request(req, list);
 	cinfo->mds->ncommit++;
 	spin_unlock(cinfo->lock);
-	if (!cinfo->dreq) {
-		inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-		inc_bdi_stat(inode_to_bdi(page_file_mapping(req->wb_page)->host),
-			     BDI_RECLAIMABLE);
-		__mark_inode_dirty(req->wb_context->dentry->d_inode,
-				   I_DIRTY_DATASYNC);
-	}
+	if (!cinfo->dreq)
+		nfs_mark_page_unstable(req->wb_page);
 }
 
 static u32 calc_ds_index_from_commit(struct pnfs_layout_segment *lseg, u32 i)
