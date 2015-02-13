@@ -4461,12 +4461,18 @@ sub process {
 
 # check for unnecessary blank lines around braces
 		if (($line =~ /^.\s*}\s*$/ && $prevrawline =~ /^.\s*$/)) {
-			CHK("BRACES",
-			    "Blank lines aren't necessary before a close brace '}'\n" . $hereprev);
+			if (CHK("BRACES",
+				"Blank lines aren't necessary before a close brace '}'\n" . $hereprev) &&
+			    $fix && $prevrawline =~ /^\+/) {
+				fix_delete_line($fixlinenr - 1, $prevrawline);
+			}
 		}
 		if (($rawline =~ /^.\s*$/ && $prevline =~ /^..*{\s*$/)) {
-			CHK("BRACES",
-			    "Blank lines aren't necessary after an open brace '{'\n" . $hereprev);
+			if (CHK("BRACES",
+				"Blank lines aren't necessary after an open brace '{'\n" . $hereprev) &&
+			    $fix) {
+				fix_delete_line($fixlinenr, $rawline);
+			}
 		}
 
 # no volatiles please
