@@ -1932,10 +1932,6 @@ static int __init it87_find(unsigned short *address,
 		sio_data->skip_in |= (1 << 5); /* No VIN5 */
 		sio_data->skip_in |= (1 << 6); /* No VIN6 */
 
-		/* no fan4 */
-		sio_data->skip_pwm |= (1 << 3);
-		sio_data->skip_fan |= (1 << 3);
-
 		sio_data->internal |= (1 << 1); /* in7 is VSB */
 		sio_data->internal |= (1 << 3); /* in9 is AVCC */
 
