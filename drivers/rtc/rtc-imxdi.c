@@ -313,7 +313,7 @@ static irqreturn_t dryice_norm_irq(int irq, void *dev_id)
 	dier = __raw_readl(imxdi->ioaddr + DIER);
 
 	/* handle write complete and write error cases */
-	if ((dier & DIER_WCIE)) {
+	if (dier & DIER_WCIE) {
 		/*If the write wait queue is empty then there is no pending
 		  operations. It means the interrupt is for DryIce -Security.
 		  IRQ must be returned as none.*/
@@ -322,7 +322,7 @@ static irqreturn_t dryice_norm_irq(int irq, void *dev_id)
 
 		/* DSR_WCF clears itself on DSR read */
 		dsr = __raw_readl(imxdi->ioaddr + DSR);
-		if ((dsr & (DSR_WCF | DSR_WEF))) {
+		if (dsr & (DSR_WCF | DSR_WEF)) {
 			/* mask the interrupt */
 			di_int_disable(imxdi, DIER_WCIE);
 
@@ -335,7 +335,7 @@ static irqreturn_t dryice_norm_irq(int irq, void *dev_id)
 	}
 
 	/* handle the alarm case */
-	if ((dier & DIER_CAIE)) {
+	if (dier & DIER_CAIE) {
 		/* DSR_WCF clears itself on DSR read */
 		dsr = __raw_readl(imxdi->ioaddr + DSR);
 		if (dsr & DSR_CAF) {
