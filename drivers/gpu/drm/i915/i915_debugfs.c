@@ -4362,6 +4362,8 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned int s_tot = 0, ss_tot = 0, ss_per = 0, eu_tot = 0, eu_per = 0;
 
 	if (INTEL_INFO(dev)->gen < 9)
 		return -ENODEV;
@@ -4383,6 +4385,54 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		   yesno(INTEL_INFO(dev)->has_subslice_pg));
 	seq_printf(m, "  Has EU Power Gating: %s\n",
 		   yesno(INTEL_INFO(dev)->has_eu_pg));
+
+	seq_puts(m, "SSEU Device Status\n");
+	if (IS_SKYLAKE(dev)) {
+		const int s_max = 3, ss_max = 4;
+		int s, ss;
+		u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
+
+		s_reg[0] = I915_READ(GEN9_SLICE0_PGCTL_ACK);
+		s_reg[1] = I915_READ(GEN9_SLICE1_PGCTL_ACK);
+		s_reg[2] = I915_READ(GEN9_SLICE2_PGCTL_ACK);
+		eu_reg[0] = I915_READ(GEN9_SLICE0_SS01_EU_PGCTL_ACK);
+		eu_reg[1] = I915_READ(GEN9_SLICE0_SS23_EU_PGCTL_ACK);
+		eu_reg[2] = I915_READ(GEN9_SLICE1_SS01_EU_PGCTL_ACK);
+		eu_reg[3] = I915_READ(GEN9_SLICE1_SS23_EU_PGCTL_ACK);
+		eu_reg[4] = I915_READ(GEN9_SLICE2_SS01_EU_PGCTL_ACK);
+		eu_reg[5] = I915_READ(GEN9_SLICE2_SS23_EU_PGCTL_ACK);
+		eu_mask[0] = GEN9_PGCTL_SSA_EU08_ACK |
+			     GEN9_PGCTL_SSA_EU19_ACK |
+			     GEN9_PGCTL_SSA_EU210_ACK |
+			     GEN9_PGCTL_SSA_EU311_ACK;
+		eu_mask[1] = GEN9_PGCTL_SSB_EU08_ACK |
+			     GEN9_PGCTL_SSB_EU19_ACK |
+			     GEN9_PGCTL_SSB_EU210_ACK |
+			     GEN9_PGCTL_SSB_EU311_ACK;
+
+		for (s = 0; s < s_max; s++) {
+			if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
+				/* skip disabled slice */
+				continue;
+
+			s_tot++;
+			ss_per = INTEL_INFO(dev)->subslice_per_slice;
+			ss_tot += ss_per;
+			for (ss = 0; ss < ss_max; ss++) {
+				unsigned int eu_cnt;
+
+				eu_cnt = 2 * hweight32(eu_reg[2*s + ss/2] &
+						       eu_mask[ss%2]);
+				eu_tot += eu_cnt;
+				eu_per = max(eu_per, eu_cnt);
+			}
+		}
+	}
+	seq_printf(m, "  Enabled Slice Total: %u\n", s_tot);
+	seq_printf(m, "  Enabled Subslice Total: %u\n", ss_tot);
+	seq_printf(m, "  Enabled Subslice Per Slice: %u\n", ss_per);
+	seq_printf(m, "  Enabled EU Total: %u\n", eu_tot);
+	seq_printf(m, "  Enabled EU Per Subslice: %u\n", eu_per);
 
 	return 0;
 }
