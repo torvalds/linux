@@ -1180,35 +1180,35 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 	priv->features &= ~disable_features;
 
-	err = pci_enable_device(dev);
+	err = pcim_enable_device(dev);
 	if (err) {
 		dev_err(&dev->dev, "Failed to enable SMBus PCI device (%d)\n",
 			err);
-		goto exit;
+		return err;
 	}
+	pcim_pin_device(dev);
 
 	/* Determine the address of the SMBus area */
 	priv->smba = pci_resource_start(dev, SMBBAR);
 	if (!priv->smba) {
 		dev_err(&dev->dev,
 			"SMBus base address uninitialized, upgrade BIOS\n");
-		err = -ENODEV;
-		goto exit;
+		return -ENODEV;
 	}
 
 	err = acpi_check_resource_conflict(&dev->resource[SMBBAR]);
 	if (err) {
-		err = -ENODEV;
-		goto exit;
+		return -ENODEV;
 	}
 
-	err = pci_request_region(dev, SMBBAR, dev_driver_string(&dev->dev));
+	err = pcim_iomap_regions(dev, 1 << SMBBAR,
+				 dev_driver_string(&dev->dev));
 	if (err) {
 		dev_err(&dev->dev,
 			"Failed to request SMBus region 0x%lx-0x%Lx\n",
 			priv->smba,
 			(unsigned long long)pci_resource_end(dev, SMBBAR));
-		goto exit;
+		return err;
 	}
 
 	pci_read_config_byte(priv->pci_dev, SMBHSTCFG, &temp);
@@ -1276,7 +1276,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	err = i2c_add_adapter(&priv->adapter);
 	if (err) {
 		dev_err(&dev->dev, "Failed to add SMBus adapter\n");
-		goto exit_release;
+		return err;
 	}
 
 	i801_probe_optional_slaves(priv);
@@ -1286,11 +1286,6 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	pci_set_drvdata(dev, priv);
 
 	return 0;
-
-exit_release:
-	pci_release_region(dev, SMBBAR);
-exit:
-	return err;
 }
 
 static void i801_remove(struct pci_dev *dev)
@@ -1300,8 +1295,6 @@ static void i801_remove(struct pci_dev *dev)
 	i801_del_mux(priv);
 	i2c_del_adapter(&priv->adapter);
 	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
-
-	pci_release_region(dev, SMBBAR);
 
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on
