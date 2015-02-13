@@ -734,7 +734,7 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 
 	ret = gb_gpio_controller_setup(gb_gpio_controller);
 	if (ret)
-		goto out_err;
+		goto err_free_controller;
 
 	irqc = &gb_gpio_controller->irqc;
 	irqc->irq_ack = gb_gpio_ack_irq;
@@ -766,7 +766,7 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	ret = gpiochip_add(gpio);
 	if (ret) {
 		pr_err("Failed to register GPIO\n");
-		goto out_err;
+		goto err_free_lines;
 	}
 
 	ret = gb_gpio_irqchip_add(gpio, irqc, 0,
@@ -780,7 +780,9 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 
 irqchip_err:
 	gb_gpiochip_remove(gpio);
-out_err:
+err_free_lines:
+	kfree(gb_gpio_controller->lines);
+err_free_controller:
 	kfree(gb_gpio_controller);
 	return ret;
 }
@@ -795,6 +797,7 @@ static void gb_gpio_connection_exit(struct gb_connection *connection)
 	gb_gpio_irqchip_remove(gb_gpio_controller);
 	gb_gpiochip_remove(&gb_gpio_controller->chip);
 	/* kref_put(gb_gpio_controller->connection) */
+	kfree(gb_gpio_controller->lines);
 	kfree(gb_gpio_controller);
 }
 
