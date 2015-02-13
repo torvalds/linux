@@ -1721,7 +1721,7 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 			d->features_accepted |= val;
 		} else {
 			assert(d->mmio->cfg.guest_feature_select == 1);
-			d->features_accepted &= ((u64)0xFFFFFFFF << 32);
+			d->features_accepted &= 0xFFFFFFFF;
 			d->features_accepted |= ((u64)val) << 32;
 		}
 		if (d->features_accepted & ~d->features)
