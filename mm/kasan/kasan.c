@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
+#include <linux/memory.h>
 #include <linux/mm.h>
 #include <linux/printk.h>
 #include <linux/sched.h>
@@ -300,3 +301,23 @@ EXPORT_SYMBOL(__asan_storeN_noabort);
 /* to shut up compiler complaints */
 void __asan_handle_no_return(void) {}
 EXPORT_SYMBOL(__asan_handle_no_return);
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+static int kasan_mem_notifier(struct notifier_block *nb,
+			unsigned long action, void *data)
+{
+	return (action == MEM_GOING_ONLINE) ? NOTIFY_BAD : NOTIFY_OK;
+}
+
+static int __init kasan_memhotplug_init(void)
+{
+	pr_err("WARNING: KASan doesn't support memory hot-add\n");
+	pr_err("Memory hot-add will be disabled\n");
+
+	hotplug_memory_notifier(kasan_mem_notifier, 0);
+
+	return 0;
+}
+
+module_init(kasan_memhotplug_init);
+#endif
