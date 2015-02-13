@@ -223,8 +223,6 @@ struct i801_priv {
 #endif
 };
 
-static struct pci_driver i801_driver;
-
 #define FEATURE_SMBUS_PEC	(1 << 0)
 #define FEATURE_BLOCK_BUFFER	(1 << 1)
 #define FEATURE_BLOCK_PROC	(1 << 2)
@@ -1204,7 +1202,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto exit;
 	}
 
-	err = pci_request_region(dev, SMBBAR, i801_driver.name);
+	err = pci_request_region(dev, SMBBAR, dev_driver_string(&dev->dev));
 	if (err) {
 		dev_err(&dev->dev,
 			"Failed to request SMBus region 0x%lx-0x%Lx\n",
@@ -1256,7 +1254,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		init_waitqueue_head(&priv->waitq);
 
 		err = request_irq(dev->irq, i801_isr, IRQF_SHARED,
-				  i801_driver.name, priv);
+				  dev_driver_string(&dev->dev), priv);
 		if (err) {
 			dev_err(&dev->dev, "Failed to allocate irq %d: %d\n",
 				dev->irq, err);
