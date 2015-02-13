@@ -170,6 +170,9 @@ struct device {
 	/* Is it operational */
 	bool running;
 
+	/* Has it written FEATURES_OK but not re-checked it? */
+	bool wrote_features_ok;
+
 	/* PCI configuration */
 	union {
 		struct pci_config config;
@@ -668,7 +671,26 @@ static void trigger_irq(struct virtqueue *vq)
 		return;
 	vq->pending_used = 0;
 
-	/* If they don't want an interrupt, don't send one... */
+	/*
+	 * 2.4.7.1:
+	 *
+	 *  If the VIRTIO_F_EVENT_IDX feature bit is not negotiated:
+	 *    The driver MUST set flags to 0 or 1. 
+	 */
+	if (vq->vring.avail->flags > 1)
+		errx(1, "%s: avail->flags = %u\n",
+		     vq->dev->name, vq->vring.avail->flags);
+
+	/*
+	 * 2.4.7.2:
+	 *
+	 *  If the VIRTIO_F_EVENT_IDX feature bit is not negotiated:
+	 *
+	 *     - The device MUST ignore the used_event value.
+	 *     - After the device writes a descriptor index into the used ring:
+	 *         - If flags is 1, the device SHOULD NOT send an interrupt.
+	 *         - If flags is 0, the device MUST send an interrupt.
+	 */
 	if (vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT) {
 		return;
 	}
@@ -702,6 +724,14 @@ static unsigned wait_for_vq_desc(struct virtqueue *vq,
 	unsigned int i, head, max;
 	struct vring_desc *desc;
 	u16 last_avail = lg_last_avail(vq);
+
+	/*
+	 * 2.4.7.1:
+	 *
+	 *   The driver MUST handle spurious interrupts from the device.
+	 *
+	 * That's why this is a while loop.
+	 */
 
 	/* There's nothing available? */
 	while (last_avail == vq->vring.avail->idx) {
@@ -776,12 +806,62 @@ static unsigned wait_for_vq_desc(struct virtqueue *vq,
 		 * descriptor chain.
 		 */
 		if (desc[i].flags & VRING_DESC_F_INDIRECT) {
+			/* 2.4.5.3.1:
+			 *
+			 *  The driver MUST NOT set the VIRTQ_DESC_F_INDIRECT
+			 *  flag unless the VIRTIO_F_INDIRECT_DESC feature was
+			 *  negotiated.
+			 */
+			if (!(vq->dev->features_accepted &
+			      (1<<VIRTIO_RING_F_INDIRECT_DESC)))
+				errx(1, "%s: vq indirect not negotiated",
+				     vq->dev->name);
+
+			/*
+			 * 2.4.5.3.1:
+			 *
+			 *   The driver MUST NOT set the VIRTQ_DESC_F_INDIRECT
+			 *   flag within an indirect descriptor (ie. only one
+			 *   table per descriptor).
+			 */
+			if (desc != vq->vring.desc)
+				errx(1, "%s: Indirect within indirect",
+				     vq->dev->name);
+
+			/*
+			 * Proposed update VIRTIO-134 spells this out:
+			 *
+			 *   A driver MUST NOT set both VIRTQ_DESC_F_INDIRECT
+			 *   and VIRTQ_DESC_F_NEXT in flags.
+			 */
+			if (desc[i].flags & VRING_DESC_F_NEXT)
+				errx(1, "%s: indirect and next together",
+				     vq->dev->name);
+
 			if (desc[i].len % sizeof(struct vring_desc))
 				errx(1, "Invalid size for indirect buffer table");
+			/*
+			 * 2.4.5.3.2:
+			 *
+			 *  The device MUST ignore the write-only flag
+			 *  (flags&VIRTQ_DESC_F_WRITE) in the descriptor that
+			 *  refers to an indirect table.
+			 *
+			 * We ignore it here: :)
+			 */
 
 			max = desc[i].len / sizeof(struct vring_desc);
 			desc = check_pointer(desc[i].addr, desc[i].len);
 			i = 0;
+
+			/* 2.4.5.3.1:
+			 *
+			 *  A driver MUST NOT create a descriptor chain longer
+			 *  than the Queue Size of the device.
+			 */
+			if (max > vq->pci_config.queue_size)
+				errx(1, "%s: indirect has too many entries",
+				     vq->dev->name);
 		}
 
 		/* Grab the first descriptor, and check it's OK. */
@@ -1082,6 +1162,7 @@ static void reset_device(struct device *dev)
 		}
 	}
 	dev->running = false;
+	dev->wrote_features_ok = false;
 
 	/* Now we care if threads die. */
 	signal(SIGCHLD, (void *)kill_launcher);
@@ -1703,6 +1784,18 @@ static void check_virtqueue(struct device *d, struct virtqueue *vq)
 	    || vq->pci_config.queue_used_hi)
 		errx(1, "%s: invalid 64-bit queue address", d->name);
 
+	/*
+	 * 2.4.1:
+	 *
+	 *  The driver MUST ensure that the physical address of the first byte
+	 *  of each virtqueue part is a multiple of the specified alignment
+	 *  value in the above table.
+	 */
+	if (vq->pci_config.queue_desc_lo % 16
+	    || vq->pci_config.queue_avail_lo % 2
+	    || vq->pci_config.queue_used_lo % 4)
+		errx(1, "%s: invalid alignment in queue addresses", d->name);
+
 	/* Initialize the virtqueue and check they're all in range. */
 	vq->vring.num = vq->pci_config.queue_size;
 	vq->vring.desc = check_pointer(vq->pci_config.queue_desc_lo,
@@ -1715,6 +1808,16 @@ static void check_virtqueue(struct device *d, struct virtqueue *vq)
 				       sizeof(*vq->vring.used)
 				       + (sizeof(vq->vring.used->ring[0])
 					  * vq->vring.num));
+
+	/*
+	 * 2.4.9.1:
+	 *
+	 *   The driver MUST initialize flags in the used ring to 0
+	 *   when allocating the used ring.
+	 */
+	if (vq->vring.used->flags != 0)
+		errx(1, "%s: invalid initial used.flags %#x",
+		     d->name, vq->vring.used->flags);
 }
 
 static void start_virtqueue(struct virtqueue *vq)
@@ -1768,12 +1871,12 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 			d->mmio->cfg.device_feature = (d->features >> 32);
 		else
 			d->mmio->cfg.device_feature = 0;
-		goto write_through32;
+		goto feature_write_through32;
 	case offsetof(struct virtio_pci_mmio, cfg.guest_feature_select):
 		if (val > 1)
 			errx(1, "%s: Unexpected driver select %u",
 			     d->name, val);
-		goto write_through32;
+		goto feature_write_through32;
 	case offsetof(struct virtio_pci_mmio, cfg.guest_feature):
 		if (d->mmio->cfg.guest_feature_select == 0) {
 			d->features_accepted &= ~((u64)0xFFFFFFFF);
@@ -1783,11 +1886,19 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 			d->features_accepted &= 0xFFFFFFFF;
 			d->features_accepted |= ((u64)val) << 32;
 		}
+		/*
+		 * 2.2.1:
+		 *
+		 *   The driver MUST NOT accept a feature which the device did
+		 *   not offer
+		 */
 		if (d->features_accepted & ~d->features)
 			errx(1, "%s: over-accepted features %#llx of %#llx",
 			     d->name, d->features_accepted, d->features);
-		goto write_through32;
-	case offsetof(struct virtio_pci_mmio, cfg.device_status):
+		goto feature_write_through32;
+	case offsetof(struct virtio_pci_mmio, cfg.device_status): {
+		u8 prev;
+
 		verbose("%s: device status -> %#x\n", d->name, val);
 		/*
 		 * 4.1.4.3.1:
@@ -1795,8 +1906,15 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		 *  The device MUST reset when 0 is written to device_status,
 		 *  and present a 0 in device_status once that is done.
 		 */
-		if (val == 0)
+		if (val == 0) {
 			reset_device(d);
+			goto write_through8;
+		}
+
+		/* 2.1.1: The driver MUST NOT clear a device status bit. */
+		if (d->mmio->cfg.device_status & ~val)
+			errx(1, "%s: unset of device status bit %#x -> %#x",
+			     d->name, d->mmio->cfg.device_status, val);
 
 		/*
 		 * 2.1.2:
@@ -1808,7 +1926,67 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		    && !(d->mmio->cfg.device_status & VIRTIO_CONFIG_S_DRIVER_OK))
 			start_virtqueues(d);
 
+		/*
+		 * 3.1.1:
+		 *
+		 *   The driver MUST follow this sequence to initialize a device:
+		 *   - Reset the device.
+		 *   - Set the ACKNOWLEDGE status bit: the guest OS has
+                 *     notice the device.
+		 *   - Set the DRIVER status bit: the guest OS knows how
+                 *     to drive the device.
+		 *   - Read device feature bits, and write the subset
+		 *     of feature bits understood by the OS and driver
+		 *     to the device. During this step the driver MAY
+		 *     read (but MUST NOT write) the device-specific
+		 *     configuration fields to check that it can
+		 *     support the device before accepting it.
+		 *   - Set the FEATURES_OK status bit.  The driver
+		 *     MUST not accept new feature bits after this
+		 *     step.
+		 *   - Re-read device status to ensure the FEATURES_OK
+		 *     bit is still set: otherwise, the device does
+		 *     not support our subset of features and the
+		 *     device is unusable.
+		 *   - Perform device-specific setup, including
+		 *     discovery of virtqueues for the device,
+		 *     optional per-bus setup, reading and possibly
+		 *     writing the device’s virtio configuration
+		 *     space, and population of virtqueues.
+		 *   - Set the DRIVER_OK status bit. At this point the
+                 *     device is “live”.
+		 */
+		prev = 0;
+		switch (val & ~d->mmio->cfg.device_status) {
+		case VIRTIO_CONFIG_S_DRIVER_OK:
+			prev |= VIRTIO_CONFIG_S_FEATURES_OK; /* fall thru */
+		case VIRTIO_CONFIG_S_FEATURES_OK:
+			prev |= VIRTIO_CONFIG_S_DRIVER; /* fall thru */
+		case VIRTIO_CONFIG_S_DRIVER:
+			prev |= VIRTIO_CONFIG_S_ACKNOWLEDGE; /* fall thru */
+		case VIRTIO_CONFIG_S_ACKNOWLEDGE:
+			break;
+		default:
+			errx(1, "%s: unknown device status bit %#x -> %#x",
+			     d->name, d->mmio->cfg.device_status, val);
+		}
+		if (d->mmio->cfg.device_status != prev)
+			errx(1, "%s: unexpected status transition %#x -> %#x",
+			     d->name, d->mmio->cfg.device_status, val);
+
+		/* If they just wrote FEATURES_OK, we make sure they read */
+		switch (val & ~d->mmio->cfg.device_status) {
+		case VIRTIO_CONFIG_S_FEATURES_OK:
+			d->wrote_features_ok = true;
+			break;
+		case VIRTIO_CONFIG_S_DRIVER_OK:
+			if (d->wrote_features_ok)
+				errx(1, "%s: did not re-read FEATURES_OK",
+				     d->name);
+			break;
+		}
 		goto write_through8;
+	}
 	case offsetof(struct virtio_pci_mmio, cfg.queue_select):
 		vq = vq_by_num(d, val);
 		/*
@@ -1844,7 +2022,9 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 	case offsetof(struct virtio_pci_mmio, cfg.queue_msix_vector):
 		errx(1, "%s: attempt to set MSIX vector to %u",
 		     d->name, val);
-	case offsetof(struct virtio_pci_mmio, cfg.queue_enable):
+	case offsetof(struct virtio_pci_mmio, cfg.queue_enable): {
+		struct virtqueue *vq = vq_by_num(d, d->mmio->cfg.queue_select);
+
 		/*
 		 * 4.1.4.3.2:
 		 *
@@ -1852,17 +2032,27 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		 */
 		if (val != 1)
 			errx(1, "%s: setting queue_enable to %u", d->name, val);
-		d->mmio->cfg.queue_enable = val;
-		save_vq_config(&d->mmio->cfg,
-			       vq_by_num(d, d->mmio->cfg.queue_select));
+
 		/*
-		 * 4.1.4.3.2:
+		 * 3.1.1:
 		 *
-		 *  The driver MUST configure the other virtqueue fields before
-		 *  enabling the virtqueue with queue_enable.
+		 *  7. Perform device-specific setup, including discovery of
+		 *     virtqueues for the device, optional per-bus setup,
+		 *     reading and possibly writing the device’s virtio
+		 *     configuration space, and population of virtqueues.
+		 *  8. Set the DRIVER_OK status bit.
+		 *
+		 * All our devices require all virtqueues to be enabled, so
+		 * they should have done that before setting DRIVER_OK.
 		 */
-		check_virtqueue(d, vq_by_num(d, d->mmio->cfg.queue_select));
+		if (d->mmio->cfg.device_status & VIRTIO_CONFIG_S_DRIVER_OK)
+			errx(1, "%s: enabling vs after DRIVER_OK", d->name);
+
+		d->mmio->cfg.queue_enable = val;
+		save_vq_config(&d->mmio->cfg, vq);
+		check_virtqueue(d, vq);
 		goto write_through16;
+	}
 	case offsetof(struct virtio_pci_mmio, cfg.queue_notify_off):
 		errx(1, "%s: attempt to write to queue_notify_off", d->name);
 	case offsetof(struct virtio_pci_mmio, cfg.queue_desc_lo):
@@ -1880,6 +2070,26 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		if (d->mmio->cfg.queue_enable)
 			errx(1, "%s: changing queue on live device",
 			     d->name);
+
+		/*
+		 * 3.1.1:
+		 *
+		 *  The driver MUST follow this sequence to initialize a device:
+		 *...
+		 *  5. Set the FEATURES_OK status bit. The driver MUST not
+		 *  accept new feature bits after this step.
+		 */
+		if (!(d->mmio->cfg.device_status & VIRTIO_CONFIG_S_FEATURES_OK))
+			errx(1, "%s: enabling vs before FEATURES_OK", d->name);
+
+		/*
+		 *  6. Re-read device status to ensure the FEATURES_OK bit is
+		 *     still set...
+		 */
+		if (d->wrote_features_ok)
+			errx(1, "%s: didn't re-read FEATURES_OK before setup",
+			     d->name);
+
 		goto write_through32;
 	case offsetof(struct virtio_pci_mmio, notify):
 		vq = vq_by_num(d, val);
@@ -1909,6 +2119,27 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		errx(1, "%s: Unexpected write to offset %u", d->name, off);
 	}
 
+feature_write_through32:
+	/*
+	 * 3.1.1:
+	 *
+	 *   The driver MUST follow this sequence to initialize a device:
+	 *...
+	 *   - Set the DRIVER status bit: the guest OS knows how
+	 *     to drive the device.
+	 *   - Read device feature bits, and write the subset
+	 *     of feature bits understood by the OS and driver
+	 *     to the device.
+	 *...
+	 *   - Set the FEATURES_OK status bit. The driver MUST not
+	 *     accept new feature bits after this step.
+	 */
+	if (!(d->mmio->cfg.device_status & VIRTIO_CONFIG_S_DRIVER))
+		errx(1, "%s: feature write before VIRTIO_CONFIG_S_DRIVER",
+		     d->name);
+	if (d->mmio->cfg.device_status & VIRTIO_CONFIG_S_FEATURES_OK)
+		errx(1, "%s: feature write after VIRTIO_CONFIG_S_FEATURES_OK",
+		     d->name);
 
 	/*
 	 * 4.1.3.1:
@@ -1951,12 +2182,29 @@ static u32 emulate_mmio_read(struct device *d, u32 off, u32 mask)
 	case offsetof(struct virtio_pci_mmio, cfg.device_feature):
 	case offsetof(struct virtio_pci_mmio, cfg.guest_feature_select):
 	case offsetof(struct virtio_pci_mmio, cfg.guest_feature):
+		/*
+		 * 3.1.1:
+		 *
+		 *   The driver MUST follow this sequence to initialize a device:
+		 *...
+		 *   - Set the DRIVER status bit: the guest OS knows how
+		 *     to drive the device.
+		 *   - Read device feature bits, and write the subset
+		 *     of feature bits understood by the OS and driver
+		 *     to the device.
+		 */
+		if (!(d->mmio->cfg.device_status & VIRTIO_CONFIG_S_DRIVER))
+			errx(1, "%s: feature read before VIRTIO_CONFIG_S_DRIVER",
+			     d->name);
 		goto read_through32;
 	case offsetof(struct virtio_pci_mmio, cfg.msix_config):
 		errx(1, "%s: read of msix_config", d->name);
 	case offsetof(struct virtio_pci_mmio, cfg.num_queues):
 		goto read_through16;
 	case offsetof(struct virtio_pci_mmio, cfg.device_status):
+		/* As they did read, any write of FEATURES_OK is now fine. */
+		d->wrote_features_ok = false;
+		goto read_through8;
 	case offsetof(struct virtio_pci_mmio, cfg.config_generation):
 		/*
 		 * 4.1.4.3.1:
@@ -1971,6 +2219,15 @@ static u32 emulate_mmio_read(struct device *d, u32 off, u32 mask)
 		 */
 		goto read_through8;
 	case offsetof(struct virtio_pci_mmio, notify):
+		/*
+		 * 3.1.1:
+		 *
+		 *   The driver MUST NOT notify the device before setting
+		 *   DRIVER_OK.
+		 */
+		if (!(d->mmio->cfg.device_status & VIRTIO_CONFIG_S_DRIVER_OK))
+			errx(1, "%s: notify before VIRTIO_CONFIG_S_DRIVER_OK",
+			     d->name);
 		goto read_through16;
 	case offsetof(struct virtio_pci_mmio, isr):
 		if (mask != 0xFF)
@@ -1992,6 +2249,23 @@ static u32 emulate_mmio_read(struct device *d, u32 off, u32 mask)
 		if (off > d->mmio_size - 4)
 			errx(1, "%s: read past end (%#x)",
 			     d->name, getreg(eip));
+
+		/*
+		 * 3.1.1:
+		 *  The driver MUST follow this sequence to initialize a device:
+		 *...
+		 *  3. Set the DRIVER status bit: the guest OS knows how to
+		 *  drive the device.
+		 *  4. Read device feature bits, and write the subset of
+		 *  feature bits understood by the OS and driver to the
+		 *  device. During this step the driver MAY read (but MUST NOT
+		 *  write) the device-specific configuration fields to check
+		 *  that it can support the device before accepting it.
+		 */
+		if (!(d->mmio->cfg.device_status & VIRTIO_CONFIG_S_DRIVER))
+			errx(1, "%s: config read before VIRTIO_CONFIG_S_DRIVER",
+			     d->name);
+
 		if (mask == 0xFFFFFFFF)
 			goto read_through32;
 		else if (mask == 0xFFFF)
@@ -2200,6 +2474,10 @@ static void init_pci_config(struct pci_config *pci, u16 type,
 	 *
 	 *  The device MUST either present notify_off_multiplier as an even
 	 *  power of 2, or present notify_off_multiplier as 0.
+	 *
+	 * 2.1.2:
+	 *
+	 *   The device MUST initialize device status to 0 upon reset. 
 	 */
 	memset(pci, 0, sizeof(*pci));
 
@@ -2340,6 +2618,7 @@ static struct device *new_pci_device(const char *name, u16 type,
 	dev->name = name;
 	dev->vq = NULL;
 	dev->running = false;
+	dev->wrote_features_ok = false;
 	dev->mmio_size = sizeof(struct virtio_pci_mmio);
 	dev->mmio = calloc(1, dev->mmio_size);
 	dev->features = (u64)1 << VIRTIO_F_VERSION_1;
