@@ -110,6 +110,13 @@
 					};
 				};
 			};
+
+			can0: can@80032000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&can0_pins_a>;
+				xceiver-supply = <&reg_can0_vcc>;
+				status = "okay";
+			};
 		};
 
 		apbx@80040000 {
@@ -175,6 +182,14 @@
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio1 23 1>;
 			enable-active-high;
+		};
+
+		reg_can0_vcc: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "can0_vcc";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
 		};
 	};
 
