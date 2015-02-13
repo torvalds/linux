@@ -901,14 +901,13 @@ dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err)
 		return -ENODEV;
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc(&pdev->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 	pd->vdev = video_device_alloc();
-	if (!pd->vdev) {
-		err = -ENOMEM;
-		goto err_video_device_alloc;
-	}
+	if (!pd->vdev)
+		return -ENOMEM;
+
 	*pd->vdev = dt3155_vdev;
 	pci_set_drvdata(pdev, pd);    /* for use in dt3155_remove() */
 	video_set_drvdata(pd->vdev, pd);  /* for use in video_fops */
@@ -951,8 +950,7 @@ err_req_region:
 	pci_disable_device(pdev);
 err_enable_dev:
 	video_device_release(pd->vdev);
-err_video_device_alloc:
-	kfree(pd);
+
 	return err;
 }
 
@@ -970,7 +968,6 @@ dt3155_remove(struct pci_dev *pdev)
 	 * video_device_release() is invoked automatically
 	 * see: struct video_device dt3155_vdev
 	 */
-	kfree(pd);
 }
 
 static const struct pci_device_id pci_ids[] = {
