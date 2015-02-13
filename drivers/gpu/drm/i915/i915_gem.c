@@ -3756,7 +3756,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	}
 
 	if (write)
-		intel_fb_obj_invalidate(obj, NULL);
+		intel_fb_obj_invalidate(obj, NULL, ORIGIN_GTT);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -4071,7 +4071,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	}
 
 	if (write)
-		intel_fb_obj_invalidate(obj, NULL);
+		intel_fb_obj_invalidate(obj, NULL, ORIGIN_CPU);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,

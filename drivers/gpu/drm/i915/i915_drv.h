@@ -788,6 +788,13 @@ struct intel_context {
 	struct list_head link;
 };
 
+enum fb_op_origin {
+	ORIGIN_GTT,
+	ORIGIN_CPU,
+	ORIGIN_CS,
+	ORIGIN_FLIP,
+};
+
 struct i915_fbc {
 	unsigned long uncompressed_size;
 	unsigned threshold;

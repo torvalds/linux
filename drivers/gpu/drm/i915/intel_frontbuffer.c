@@ -127,6 +127,7 @@ static void intel_mark_fb_busy(struct drm_device *dev,
  * intel_fb_obj_invalidate - invalidate frontbuffer object
  * @obj: GEM object to invalidate
  * @ring: set for asynchronous rendering
+ * @origin: which operation caused the invalidation
  *
  * This function gets called every time rendering on the given object starts and
  * frontbuffer caching (fbc, low refresh rate for DRRS, panel self refresh) must
@@ -135,7 +136,8 @@ static void intel_mark_fb_busy(struct drm_device *dev,
  * scheduled.
  */
 void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
-			     struct intel_engine_cs *ring)
+			     struct intel_engine_cs *ring,
+			     enum fb_op_origin origin)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
