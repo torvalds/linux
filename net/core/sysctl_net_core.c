@@ -155,7 +155,7 @@ write_unlock:
 		rcu_read_unlock();
 
 		len = min(sizeof(kbuf) - 1, *lenp);
-		len = cpumask_scnprintf(kbuf, len, mask);
+		len = scnprintf(kbuf, len, "%*pb", cpumask_pr_args(mask));
 		if (!len) {
 			*lenp = 0;
 			goto done;
