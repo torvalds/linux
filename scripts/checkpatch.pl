@@ -2170,6 +2170,13 @@ sub process {
 			}
 		}
 
+# Check email subject for common tools that don't need to be mentioned
+		if ($in_header_lines &&
+		    $line =~ /^Subject:.*\b(?:checkpatch|sparse|smatch)\b[^:]/i) {
+			WARN("EMAIL_SUBJECT",
+			     "A patch subject line should describe the change not the tool that found it\n" . $herecurr);
+		}
+
 # Check for old stable address
 		if ($line =~ /^\s*cc:\s*.*<?\bstable\@kernel\.org\b>?.*$/i) {
 			ERROR("STABLE_ADDRESS",
