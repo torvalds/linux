@@ -182,32 +182,11 @@ static int force_on = 0;
  * 64-127: Reserved
  */
 struct root_entry {
-	u64	val;
-	u64	rsvd1;
+	u64	lo;
+	u64	hi;
 };
 #define ROOT_ENTRY_NR (VTD_PAGE_SIZE/sizeof(struct root_entry))
-static inline bool root_present(struct root_entry *root)
-{
-	return (root->val & 1);
-}
-static inline void set_root_present(struct root_entry *root)
-{
-	root->val |= 1;
-}
-static inline void set_root_value(struct root_entry *root, unsigned long value)
-{
-	root->val &= ~VTD_PAGE_MASK;
-	root->val |= value & VTD_PAGE_MASK;
-}
 
-static inline struct context_entry *
-get_context_addr_from_root(struct root_entry *root)
-{
-	return (struct context_entry *)
-		(root_present(root)?phys_to_virt(
-		root->val & VTD_PAGE_MASK) :
-		NULL);
-}
 
 /*
  * low 64 bits:
@@ -681,6 +660,40 @@ static void domain_update_iommu_cap(struct dmar_domain *domain)
 	domain->iommu_superpage = domain_update_iommu_superpage(NULL);
 }
 
+static inline struct context_entry *iommu_context_addr(struct intel_iommu *iommu,
+						       u8 bus, u8 devfn, int alloc)
+{
+	struct root_entry *root = &iommu->root_entry[bus];
+	struct context_entry *context;
+	u64 *entry;
+
+	if (ecap_ecs(iommu->ecap)) {
+		if (devfn >= 0x80) {
+			devfn -= 0x80;
+			entry = &root->hi;
+		}
+		devfn *= 2;
+	}
+	entry = &root->lo;
+	if (*entry & 1)
+		context = phys_to_virt(*entry & VTD_PAGE_MASK);
+	else {
+		unsigned long phy_addr;
+		if (!alloc)
+			return NULL;
+
+		context = alloc_pgtable_page(iommu->node);
+		if (!context)
+			return NULL;
+
+		__iommu_flush_cache(iommu, (void *)context, CONTEXT_SIZE);
+		phy_addr = virt_to_phys((void *)context);
+		*entry = phy_addr | 1;
+		__iommu_flush_cache(iommu, entry, sizeof(*entry));
+	}
+	return &context[devfn];
+}
+
 static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devfn)
 {
 	struct dmar_drhd_unit *drhd = NULL;
@@ -740,75 +753,36 @@ static void domain_flush_cache(struct dmar_domain *domain,
 		clflush_cache_range(addr, size);
 }
 
-/* Gets context entry for a given bus and devfn */
-static struct context_entry * device_to_context_entry(struct intel_iommu *iommu,
-		u8 bus, u8 devfn)
-{
-	struct root_entry *root;
-	struct context_entry *context;
-	unsigned long phy_addr;
-	unsigned long flags;
-
-	spin_lock_irqsave(&iommu->lock, flags);
-	root = &iommu->root_entry[bus];
-	context = get_context_addr_from_root(root);
-	if (!context) {
-		context = (struct context_entry *)
-				alloc_pgtable_page(iommu->node);
-		if (!context) {
-			spin_unlock_irqrestore(&iommu->lock, flags);
-			return NULL;
-		}
-		__iommu_flush_cache(iommu, (void *)context, CONTEXT_SIZE);
-		phy_addr = virt_to_phys((void *)context);
-		set_root_value(root, phy_addr);
-		set_root_present(root);
-		__iommu_flush_cache(iommu, root, sizeof(*root));
-	}
-	spin_unlock_irqrestore(&iommu->lock, flags);
-	return &context[devfn];
-}
-
 static int device_context_mapped(struct intel_iommu *iommu, u8 bus, u8 devfn)
 {
-	struct root_entry *root;
 	struct context_entry *context;
-	int ret;
+	int ret = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	root = &iommu->root_entry[bus];
-	context = get_context_addr_from_root(root);
-	if (!context) {
-		ret = 0;
-		goto out;
-	}
-	ret = context_present(&context[devfn]);
-out:
+	context = iommu_context_addr(iommu, bus, devfn, 0);
+	if (context)
+		ret = context_present(context);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 	return ret;
 }
 
 static void clear_context_table(struct intel_iommu *iommu, u8 bus, u8 devfn)
 {
-	struct root_entry *root;
 	struct context_entry *context;
 	unsigned long flags;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	root = &iommu->root_entry[bus];
-	context = get_context_addr_from_root(root);
+	context = iommu_context_addr(iommu, bus, devfn, 0);
 	if (context) {
-		context_clear_entry(&context[devfn]);
-		__iommu_flush_cache(iommu, &context[devfn], \
-			sizeof(*context));
+		context_clear_entry(context);
+		__iommu_flush_cache(iommu, context, sizeof(*context));
 	}
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
 static void free_context_table(struct intel_iommu *iommu)
 {
-	struct root_entry *root;
 	int i;
 	unsigned long flags;
 	struct context_entry *context;
@@ -818,10 +792,17 @@ static void free_context_table(struct intel_iommu *iommu)
 		goto out;
 	}
 	for (i = 0; i < ROOT_ENTRY_NR; i++) {
-		root = &iommu->root_entry[i];
-		context = get_context_addr_from_root(root);
+		context = iommu_context_addr(iommu, i, 0, 0);
 		if (context)
 			free_pgtable_page(context);
+
+		if (!ecap_ecs(iommu->ecap))
+			continue;
+
+		context = iommu_context_addr(iommu, i, 0x80, 0);
+		if (context)
+			free_pgtable_page(context);
+
 	}
 	free_pgtable_page(iommu->root_entry);
 	iommu->root_entry = NULL;
@@ -1145,14 +1126,16 @@ static int iommu_alloc_root_entry(struct intel_iommu *iommu)
 
 static void iommu_set_root_entry(struct intel_iommu *iommu)
 {
-	void *addr;
+	u64 addr;
 	u32 sts;
 	unsigned long flag;
 
-	addr = iommu->root_entry;
+	addr = virt_to_phys(iommu->root_entry);
+	if (ecap_ecs(iommu->ecap))
+		addr |= DMA_RTADDR_RTT;
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flag);
-	dmar_writeq(iommu->reg + DMAR_RTADDR_REG, virt_to_phys(addr));
+	dmar_writeq(iommu->reg + DMAR_RTADDR_REG, addr);
 
 	writel(iommu->gcmd | DMA_GCMD_SRTP, iommu->reg + DMAR_GCMD_REG);
 
@@ -1798,7 +1781,9 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	BUG_ON(translation != CONTEXT_TT_PASS_THROUGH &&
 	       translation != CONTEXT_TT_MULTI_LEVEL);
 
-	context = device_to_context_entry(iommu, bus, devfn);
+	spin_lock_irqsave(&iommu->lock, flags);
+	context = iommu_context_addr(iommu, bus, devfn, 1);
+	spin_unlock_irqrestore(&iommu->lock, flags);
 	if (!context)
 		return -ENOMEM;
 	spin_lock_irqsave(&iommu->lock, flags);
