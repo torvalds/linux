@@ -126,4 +126,7 @@ static inline void *virt_to_obj(struct kmem_cache *s,
 	return (void *)x - ((x - slab_page) % s->size);
 }
 
+void object_err(struct kmem_cache *s, struct page *page,
+		u8 *object, char *reason);
+
 #endif /* _LINUX_SLUB_DEF_H */
