@@ -47,6 +47,7 @@ EXPORT_SYMBOL(rtw_free_skb_premem);
 static int __init rtw_mem_init(void)
 {
 	int i;
+	u32 max_recvbuf_sz = 0;
 	SIZE_PTR tmpaddr=0;
 	SIZE_PTR alignment=0;
 	struct sk_buff *pskb=NULL;
@@ -62,9 +63,14 @@ static int __init rtw_mem_init(void)
 
 	skb_queue_head_init(&rtk_skb_mem_q);
 
+	if (max_recvbuf_sz == 0)
+		max_recvbuf_sz = MAX_RECVBUF_SZ;
+
+	DBG_871X("%s: max_recvbuf_sz: %d\n", __func__, max_recvbuf_sz);
+
 	for(i=0; i<NR_PREALLOC_RECV_SKB; i++)
 	{
-		pskb = __dev_alloc_skb(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+		pskb = __dev_alloc_skb(max_recvbuf_sz + RECVBUFF_ALIGN_SZ, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 		if(pskb)
 		{		
 			tmpaddr = (SIZE_PTR)pskb->data;

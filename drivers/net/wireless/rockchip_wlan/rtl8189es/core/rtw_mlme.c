@@ -1203,46 +1203,35 @@ _func_exit_;
 void rtw_surveydone_event_callback(_adapter	*adapter, u8 *pbuf)
 {
 	_irqL  irqL;
-	u8 timer_cancelled = _FALSE;
+	u8 timer_cancelled;
 	struct	mlme_priv	*pmlmepriv = &(adapter->mlmepriv);
 	
 #ifdef CONFIG_MLME_EXT	
-
 	mlmeext_surveydone_event_callback(adapter);
-
 #endif
 
-_func_enter_;			
+_func_enter_;
 
 	_enter_critical_bh(&pmlmepriv->lock, &irqL);
-	if(pmlmepriv->wps_probe_req_ie)
-	{
+	if(pmlmepriv->wps_probe_req_ie) {
 		u32 free_len = pmlmepriv->wps_probe_req_ie_len;
 		pmlmepriv->wps_probe_req_ie_len = 0;
 		rtw_mfree(pmlmepriv->wps_probe_req_ie, free_len);
-		pmlmepriv->wps_probe_req_ie = NULL;			
+		pmlmepriv->wps_probe_req_ie = NULL;
 	}
-	
-	RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,("rtw_surveydone_event_callback: fw_state:%x\n\n", get_fwstate(pmlmepriv)));
-	
-	if (check_fwstate(pmlmepriv,_FW_UNDER_SURVEY))
-	{
-		//u8 timer_cancelled;
 
-		timer_cancelled = _TRUE;
-		//_cancel_timer(&pmlmepriv->scan_to_timer, &timer_cancelled);
-		
-		_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
+	RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,("rtw_surveydone_event_callback: fw_state:%x\n\n", get_fwstate(pmlmepriv)));
+
+	if (check_fwstate(pmlmepriv,_FW_UNDER_SURVEY) == _FALSE) {
+		DBG_871X(FUNC_ADPT_FMT" fw_state:0x%x\n", FUNC_ADPT_ARG(adapter), get_fwstate(pmlmepriv));
+		//rtw_warn_on(1);
 	}
-	else {
-	
-		RT_TRACE(_module_rtl871x_mlme_c_,_drv_err_,("nic status =%x, survey done event comes too late!\n", get_fwstate(pmlmepriv)));	
-	}
+
+	_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
+
 	_exit_critical_bh(&pmlmepriv->lock, &irqL);
 
-	if(timer_cancelled)
-		_cancel_timer(&pmlmepriv->scan_to_timer, &timer_cancelled);
-
+	_cancel_timer(&pmlmepriv->scan_to_timer, &timer_cancelled);
 
 	_enter_critical_bh(&pmlmepriv->lock, &irqL);
 
@@ -1260,7 +1249,7 @@ _func_enter_;
 				
 		   		if(rtw_select_and_join_from_scanned_queue(pmlmepriv)==_SUCCESS)
 		   		{
-		       			_set_timer(&pmlmepriv->assoc_timer, MAX_JOIN_TIMEOUT );
+					_set_timer(&pmlmepriv->assoc_timer, MAX_JOIN_TIMEOUT );
                   		}
 		   		else	
 		  		{
@@ -4378,6 +4367,7 @@ void rtw_append_exented_cap(_adapter *padapter, u8 *out_ie, uint *pout_len)
 #endif //CONFIG_80211AC_VHT
 	u8	cap_content[8] = {0};
 	u8	*pframe;
+	u8	null_content[8] = {0};
 
 
 	if (phtpriv->bss_coexist) {
@@ -4390,7 +4380,16 @@ void rtw_append_exented_cap(_adapter *padapter, u8 *out_ie, uint *pout_len)
 	}
 #endif //CONFIG_80211AC_VHT
 
-	pframe = rtw_set_ie(out_ie+*pout_len, EID_EXTCapability, 8, cap_content , pout_len);
+	/*
+	 * From 802.11 specification,if a STA does not support any of
+	 * capabilities defined in the Extended Capabilities element,
+	 * then the STA is not required to transmit the
+	 * Extended Capabilities element.
+	 */
+	if (_FALSE == _rtw_memcmp(cap_content, null_content, 8)) {
+		pframe = rtw_set_ie(out_ie + *pout_len,
+				EID_EXTCapability, 8, cap_content , pout_len);
+	}
 }
 #endif
 
@@ -4534,3 +4533,18 @@ u8 rtw_get_buddy_bBusyTraffic(_adapter *padapter)
 }
 
 #endif //CONFIG_CONCURRENT_MODE
+
+static const char *miracast_mode_str[] = {
+	"DISABLED",
+	"SOURCE",
+	"SINK",
+	"INVALID",
+};
+
+const char *get_miracast_mode_str(int mode)
+{
+	if (mode < MIRACAST_DISABLED || mode >= MIRACAST_INVALID)
+		mode = MIRACAST_INVALID;
+
+	return miracast_mode_str[mode];
+}

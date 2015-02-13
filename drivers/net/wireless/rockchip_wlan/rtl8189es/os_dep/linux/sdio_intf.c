@@ -238,6 +238,7 @@ static u32 sdio_init(struct dvobj_priv *dvobj)
 	PSDIO_DATA psdio_data;
 	struct sdio_func *func;
 	int err;
+	int i = 0;
 
 _func_enter_;
 
@@ -247,8 +248,23 @@ _func_enter_;
 	//3 1. init SDIO bus
 	sdio_claim_host(func);
 
-	err = sdio_enable_func(func);
-	if (err) {
+	//try several times if fail
+	for(i=0; i<10; i++)
+	{
+		err = sdio_enable_func(func);
+		if(err)
+		{
+			printk("%s:err=%d,i=%d\n",__func__, err, i);
+			mdelay(2);
+			continue;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	if (i>=10 && err) {
 		dvobj->drv_dbg.dbg_sdio_init_error_cnt++;
 		DBG_8192C(KERN_CRIT "%s: sdio_enable_func FAIL(%d)!\n", __func__, err);
 		goto release;

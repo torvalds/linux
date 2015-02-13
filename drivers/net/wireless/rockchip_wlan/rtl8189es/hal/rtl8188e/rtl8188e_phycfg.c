@@ -806,9 +806,15 @@ s32 PHY_MACConfig8188E(PADAPTER Adapter)
 	}
 
 	// 2010.07.13 AMPDU aggregation number B
+#ifdef CONFIG_MINIMAL_MEMORY_USAGE
+	val |= 1;
+	val = val << 8;
+	val |= 1;
+#else
 	val |= MAX_AGGR_NUM;
 	val = val << 8;
 	val |= MAX_AGGR_NUM;
+#endif
 	rtw_write16(Adapter, REG_MAX_AGGR_NUM, val);
 	//rtw_write8(Adapter, REG_MAX_AGGR_NUM, 0x0B); 
 

@@ -34,17 +34,17 @@
 
 #ifdef CONFIG_EFUSE_CONFIG_FILE
 #ifndef EFUSE_MAP_PATH
-#define EFUSE_MAP_PATH "/system/etc/firmware/wifi_efuse_8189e.map"
+#define EFUSE_MAP_PATH "/system/etc/wifi/wifi_efuse_8189e.map"
 #endif //EFUSE_MAP_PATH
 #endif
 
 #define CONFIG_SDIO_HCI
 #define PLATFORM_LINUX
 
-#define CONFIG_IOCTL_CFG80211
+//#define CONFIG_IOCTL_CFG80211
 
 #ifdef CONFIG_IOCTL_CFG80211
-	#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
+	//#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
 	//#define CONFIG_DEBUG_CFG80211
 	#define CONFIG_SET_SCAN_DENY_TIMER
@@ -60,7 +60,7 @@
 #define CONFIG_80211N_HT
 #define CONFIG_RECV_REORDERING_CTRL
 
-#define CONFIG_CONCURRENT_MODE
+//#define CONFIG_CONCURRENT_MODE
 #ifdef CONFIG_CONCURRENT_MODE
 	#define CONFIG_TSF_RESET_OFFLOAD		// For 2 PORT TSF SYNC.
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
@@ -72,7 +72,7 @@
 #define CONFIG_AP_MODE
 #ifdef CONFIG_AP_MODE
 
-	#define CONFIG_INTERRUPT_BASED_TXBCN // Tx Beacon when driver early interrupt occurs	
+	#define CONFIG_INTERRUPT_BASED_TXBCN
 	#if defined(CONFIG_CONCURRENT_MODE) && defined(CONFIG_INTERRUPT_BASED_TXBCN)
 		#undef CONFIG_INTERRUPT_BASED_TXBCN
 	#endif
@@ -103,7 +103,7 @@
 	//#define CONFIG_DBG_P2P
 
 	#define CONFIG_P2P_PS
-	#define CONFIG_P2P_IPS
+	//#define CONFIG_P2P_IPS
 	#define CONFIG_P2P_OP_CHK_SOCIAL_CH
 	#define CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT  //replace CONFIG_P2P_CHK_INVITE_CH_LIST flag
 	#define CONFIG_P2P_INVITE_IOT
@@ -277,7 +277,7 @@
 /*
  * Debug Related Config
  */
-#define DBG	0
+#define DBG	1
 
 //#define CONFIG_DEBUG /* DBG_871X, etc... */
 //#define CONFIG_DEBUG_RTL871X /* RT_TRACE, RT_PRINT_DATA, _func_enter_, _func_exit_ */

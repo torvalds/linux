@@ -263,7 +263,7 @@ void update_recvframe_phyinfo_88e(
 	ODM_PACKET_INFO_T	pkt_info;
 	u8 *sa = NULL;
 	struct sta_priv *pstapriv;
-	struct sta_info *psta;
+	struct sta_info *psta = NULL;
 	//_irqL		irqL;
 	
 	pkt_info.bPacketMatchBSSID =_FALSE;
@@ -304,15 +304,22 @@ void update_recvframe_phyinfo_88e(
 	}	
 */	
 	sa = get_ta(wlanhdr);	
-	
-	pstapriv = &padapter->stapriv;
 	pkt_info.StationID = 0xFF;
-	psta = rtw_get_stainfo(pstapriv, sa);
-	if (psta)
-	{
-		pkt_info.StationID = psta->mac_id;		
-		//DBG_8192C("%s ==> StationID(%d)\n",__FUNCTION__,pkt_info.StationID);
-	}			
+
+	if (_rtw_memcmp(myid(&padapter->eeprompriv), sa, ETH_ALEN) == _TRUE) {
+		static u32 start_time = 0;
+
+		if ((start_time == 0) || (rtw_get_passing_time_ms(start_time) > 5000)) {
+			DBG_871X_LEVEL(_drv_always_, "Warning!!! %s: Confilc mac addr!!\n", __func__);
+			start_time = rtw_get_current_time();
+		}
+	} else {
+		pstapriv = &padapter->stapriv;
+		psta = rtw_get_stainfo(pstapriv, sa);
+		if (psta)
+			pkt_info.StationID = psta->mac_id;
+	}
+
 	pkt_info.DataRate = pattrib->data_rate;	
 	//rtl8188e_query_rx_phy_status(precvframe, pphy_status);
 

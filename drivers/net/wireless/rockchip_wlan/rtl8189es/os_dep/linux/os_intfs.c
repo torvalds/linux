@@ -43,7 +43,7 @@ int rtw_lbkmode = 0;//RTL8712_AIR_TRX;
 int rtw_network_mode = Ndis802_11IBSS;//Ndis802_11Infrastructure;//infra, ad-hoc, auto
 //NDIS_802_11_SSID	ssid;
 int rtw_channel = 1;//ad-hoc support requirement
-int rtw_wireless_mode = WIRELESS_MODE_MAX;
+int rtw_wireless_mode = WIRELESS_11BG_24N;
 int rtw_vrtl_carrier_sense = AUTO_VCS;
 int rtw_vcs_type = RTS_CTS;//*
 int rtw_rts_thresh = 2347;//*
@@ -54,11 +54,7 @@ int rtw_adhoc_tx_pwr = 1;
 int rtw_soft_ap = 0;
 //int smart_ps = 1;
 #ifdef CONFIG_POWER_SAVING
-#ifdef CONFIG_PLATFORM_INTEL_BYT
 int rtw_power_mgnt = PS_MODE_MAX;
-#else
-int rtw_power_mgnt = PS_MODE_MIN;
-#endif 
 #ifdef CONFIG_IPS_LEVEL_2
 int rtw_ips_mode = IPS_LEVEL_2;
 #else
@@ -3235,7 +3231,7 @@ int rtw_suspend_wow(_adapter *padapter)
 		}
 		#ifdef CONFIG_LPS
 		else
-			rtw_set_ps_mode(padapter, PS_MODE_DTIM, 0, 0, "WOWLAN");
+			rtw_set_ps_mode(padapter, PS_MODE_MAX, 0, 0, "WOWLAN");
 		#endif //#ifdef CONFIG_LPS
 
 	}
@@ -3679,6 +3675,7 @@ _func_enter_;
 
 	if (rtw_chk_roam_flags(padapter, RTW_ROAM_ON_RESUME)) {
 		if (pwrpriv->wowlan_wake_reason == FWDecisionDisconnect ||
+			pwrpriv->wowlan_wake_reason == Rx_Pairwisekey ||
 			pwrpriv->wowlan_wake_reason == Rx_DisAssoc ||
 			pwrpriv->wowlan_wake_reason == Rx_DeAuth) {
 
@@ -3704,6 +3701,7 @@ _func_enter_;
 	}
 
 	if (pwrpriv->wowlan_wake_reason == Rx_GTK ||
+		pwrpriv->wowlan_wake_reason == Rx_Pairwisekey ||
 		pwrpriv->wowlan_wake_reason == Rx_DisAssoc ||
 		pwrpriv->wowlan_wake_reason == Rx_DeAuth) {
 		rtw_lock_ext_suspend_timeout(8000);

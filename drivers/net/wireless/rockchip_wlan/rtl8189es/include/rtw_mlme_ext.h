@@ -493,6 +493,7 @@ struct mlme_ext_info
 
 #if defined(CONFIG_STA_MODE_SCAN_UNDER_AP_MODE) || defined(CONFIG_ATMEL_RC_PATCH)
 	u8 scan_cnt;
+	u8 backop_cnt;
 #endif //CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 };
 

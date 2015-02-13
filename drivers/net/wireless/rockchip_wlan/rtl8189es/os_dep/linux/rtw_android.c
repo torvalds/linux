@@ -76,6 +76,7 @@ const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
 
 	"MACADDR",
 
+	"BLOCK_SCAN",
 	"BLOCK",
 	"WFD-ENABLE",
 	"WFD-DISABLE",
@@ -409,6 +410,18 @@ int rtw_android_get_p2p_dev_addr(struct net_device *net, char *command, int tota
 	return bytes_written;
 }
 
+int rtw_android_set_block_scan(struct net_device *net, char *command, int total_len)
+{
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(net);
+	char *block_value = command + strlen(android_wifi_cmd_str[ANDROID_WIFI_CMD_BLOCK_SCAN]) + 1;
+
+	#ifdef CONFIG_IOCTL_CFG80211
+	adapter_wdev_data(adapter)->block_scan = (*block_value == '0')?_FALSE:_TRUE;
+	#endif
+
+	return 0;
+}
+
 int rtw_android_set_block(struct net_device *net, char *command, int total_len)
 {
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(net);
@@ -442,28 +455,6 @@ int rtw_android_getband(struct net_device *net, char *command, int total_len)
 	bytes_written = snprintf(command, total_len, "%u", adapter->setband);
 
 	return bytes_written;
-}
-
-enum {
-	MIRACAST_DISABLED = 0,
-	MIRACAST_SOURCE,
-	MIRACAST_SINK,
-	MIRACAST_INVALID,
-};
-
-static const char *miracast_mode_str[] = {
-	"DISABLED",
-	"SOURCE",
-	"SINK",
-	"INVALID",
-};
-
-static const char *get_miracast_mode_str(int mode)
-{
-	if (mode < MIRACAST_DISABLED || mode >= MIRACAST_INVALID)
-		mode = MIRACAST_INVALID;
-
-	return miracast_mode_str[mode];
 }
 
 int rtw_android_set_miracast_mode(struct net_device *net, char *command, int total_len)
@@ -659,7 +650,11 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	case ANDROID_WIFI_CMD_MACADDR:
 		bytes_written = rtw_android_get_macaddr(net, command, priv_cmd.total_len);
 		break;
-		
+
+	case ANDROID_WIFI_CMD_BLOCK_SCAN:
+		bytes_written = rtw_android_set_block_scan(net, command, priv_cmd.total_len);
+		break;
+
 	case ANDROID_WIFI_CMD_BLOCK:
 		bytes_written = rtw_android_set_block(net, command, priv_cmd.total_len);
 		break;
@@ -912,9 +907,14 @@ static struct resource *wifi_irqres = NULL;
 static int wifi_add_dev(void);
 static void wifi_del_dev(void);
 
+extern int rockchip_wifi_get_oob_irq(void);
 int rtw_android_wifictrl_func_add(void)
 {
 	int ret = 0;
+#if 1
+        oob_irq = rockchip_wifi_get_oob_irq();
+        printk("%s: rockchip_wifi_get_oob_irq :%d\n", __func__, oob_irq);
+#else
 	sema_init(&wifi_control_sem, 0);
 
 	ret = wifi_add_dev();
@@ -929,20 +929,22 @@ int rtw_android_wifictrl_func_add(void)
 		ret = -EINVAL;
 		DBG_871X("%s: platform_driver_register timeout\n", __FUNCTION__);
 	}
-
+#endif
 	return ret;
 }
 
 void rtw_android_wifictrl_func_del(void)
 {
+#if 0
 	if (g_wifidev_registered)
 	{
 		wifi_del_dev();
 		g_wifidev_registered = 0;
 	}
+#endif
 }
 
-void *wl_android_prealloc(int section, unsigned long size)
+void *rtw_wl_android_prealloc(int section, unsigned long size)
 {
 	void *alloc_ptr = NULL;
 	if (wifi_control_data && wifi_control_data->mem_prealloc) {

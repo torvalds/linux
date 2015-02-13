@@ -547,30 +547,34 @@ static void _InitQueueReservedPage(PADAPTER padapter)
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(padapter);
 	struct registry_priv	*pregistrypriv = &padapter->registrypriv;
 	u32			outEPNum	= (u32)pHalData->OutEpNumber;
-	u32			numHQ		= NORMAL_PAGE_NUM_HPQ_88E;
-	u32			numLQ		= NORMAL_PAGE_NUM_LPQ_88E;
-	u32			numNQ		= NORMAL_PAGE_NUM_NPQ_88E;
+	u32			numHQ		= 0;
+	u32			numLQ		= 0;
+	u32			numNQ		= 0;
 	u32			numPubQ	= 0x00;
 	u32			value32;
 	u8			value8;
 	BOOLEAN			bWiFiConfig	= pregistrypriv->wifi_spec;
 
-	if(bWiFiConfig)
-	{
+	if(bWiFiConfig){
 		if (pHalData->OutEpQueueSel & TX_SELE_HQ)
-		{
 			numHQ =  WMM_NORMAL_PAGE_NUM_HPQ_88E;
-		}
 
 		if (pHalData->OutEpQueueSel & TX_SELE_LQ)
-		{
 			numLQ = WMM_NORMAL_PAGE_NUM_LPQ_88E;
-		}
 
 		// NOTE: This step shall be proceed before writting REG_RQPN.
-		if (pHalData->OutEpQueueSel & TX_SELE_NQ) {
+		if (pHalData->OutEpQueueSel & TX_SELE_NQ)
 			numNQ = WMM_NORMAL_PAGE_NUM_NPQ_88E;
-		}
+	} else {
+		if(pHalData->OutEpQueueSel & TX_SELE_HQ)		
+			numHQ = NORMAL_PAGE_NUM_HPQ_88E;	
+		
+		if(pHalData->OutEpQueueSel & TX_SELE_LQ)
+			numLQ = NORMAL_PAGE_NUM_LPQ_88E;
+				
+		// NOTE: This step shall be proceed before writting REG_RQPN.		
+		if(pHalData->OutEpQueueSel & TX_SELE_NQ)
+			numNQ = NORMAL_PAGE_NUM_NPQ_88E;
 	}
 
 	value8 = (u8)_NPQ(numNQ);
@@ -898,6 +902,7 @@ static void HalRxAggr8188ESdio(PADAPTER padapter)
 	struct registry_priv *pregistrypriv;
 	u8	valueDMATimeout;
 	u8	valueDMAPageCount;
+	u32	pagesize = 0;
 
 
 	pregistrypriv = &padapter->registrypriv;
@@ -912,8 +917,18 @@ static void HalRxAggr8188ESdio(PADAPTER padapter)
 	}
 	else
 	{
+#ifdef CONFIG_MINIMAL_MEMORY_USAGE
+		valueDMATimeout = 0x06;
+		rtw_hal_get_def_var(padapter, HAL_DEF_TX_PAGE_SIZE, (u8 *)&pagesize);
+		if (pagesize != 0 && MAX_RECVBUF_SZ < 8192)
+		    valueDMAPageCount = (MAX_RECVBUF_SZ / pagesize) + 1;
+		else
+		    valueDMAPageCount = 0x24;
+		DBG_871X("%s DMAPageCount: 0x%02x\n", __func__, valueDMAPageCount);
+#else
 		valueDMATimeout = 0x06;
 		valueDMAPageCount = 0x24;
+#endif
 	}
 
 	rtw_write8(padapter, REG_RXDMA_AGG_PG_TH+1, valueDMATimeout);
@@ -1231,6 +1246,7 @@ static u32 rtl8188es_hal_init(PADAPTER padapter)
 	s32 ret;
 	u8	txpktbuf_bndy;
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(padapter);
+	PDM_ODM_T		pDM_Odm = &pHalData->odmpriv;
 	struct pwrctrl_priv		*pwrctrlpriv = adapter_to_pwrctl(padapter);
 	struct registry_priv	*pregistrypriv = &padapter->registrypriv;
 	u8 is92C = IS_92C_SERIAL(pHalData->VersionID);
@@ -1863,6 +1879,11 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC31);
 	//ack for xmit mgmt frames.
 	rtw_write32(padapter, REG_FWHW_TXQ_CTRL, rtw_read32(padapter, REG_FWHW_TXQ_CTRL)|BIT(12));
 #endif //CONFIG_XMIT_ACK
+
+	if (padapter->registrypriv.wifi_spec==1) {
+		ODM_SetBBReg(pDM_Odm,
+				rOFDM0_ECCAThreshold, bMaskDWord, 0x00fe0301);
+	}
 
 	//RT_TRACE(COMP_INIT, DBG_LOUD, ("<---Initializepadapter8192CSdio()\n"));
 	DBG_8192C("-rtl8188es_hal_init\n");

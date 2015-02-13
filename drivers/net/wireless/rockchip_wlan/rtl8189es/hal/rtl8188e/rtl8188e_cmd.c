@@ -41,13 +41,10 @@ static u8 _is_fw_read_cmd_down(_adapter* padapter, u8 msgbox_num)
 
 	do{
 		valid = rtw_read8(padapter,REG_HMETFR) & BIT(msgbox_num);
-		if(0 == valid ){
+		if (0 == valid)
 			read_down = _TRUE;
-		}
-#ifdef CONFIG_WOWLAN
 		else
 			rtw_msleep_os(1);
-#endif
 	}while( (!read_down) && (retry_cnts--));
 
 	return read_down;

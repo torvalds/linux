@@ -1457,7 +1457,7 @@ odm_Process_RSSIForDM(
 	u4Byte			Weighting=0;
 	PSTA_INFO_T           	pEntry;
 
-	if(pPktinfo->StationID == 0xFF)
+	if (pPktinfo->StationID >= ODM_ASSOCIATE_ENTRY_NUM)
 		return;
 
 #if (RTL8723B_SUPPORT == 1)||(RTL8821A_SUPPORT == 1)

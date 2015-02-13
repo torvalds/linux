@@ -56,6 +56,7 @@ s32 rtl8188es_init_recv_priv(PADAPTER padapter)
 {
 	s32			res;
 	u32			i, n;
+	u32 max_recvbuf_sz = 0;
 	struct recv_priv	*precvpriv;
 	struct recv_buf		*precvbuf;
 
@@ -96,7 +97,11 @@ s32 rtl8188es_init_recv_priv(PADAPTER padapter)
 			SIZE_PTR tmpaddr=0;
 			SIZE_PTR alignment=0;
 
-			precvbuf->pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+			rtw_hal_get_def_var(padapter, HAL_DEF_MAX_RECVBUF_SZ, &max_recvbuf_sz);
+			if (max_recvbuf_sz == 0)
+				max_recvbuf_sz = MAX_RECVBUF_SZ;
+
+			precvbuf->pskb = rtw_skb_alloc(max_recvbuf_sz + RECVBUFF_ALIGN_SZ);
 
 			if(precvbuf->pskb)
 			{
