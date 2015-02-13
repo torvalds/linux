@@ -4069,8 +4069,10 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	if (S_ISDIR(inode->i_mode)) {
 		int max_key_type = BTRFS_DIR_LOG_INDEX_KEY;
 
-		if (inode_only == LOG_INODE_EXISTS)
-			max_key_type = BTRFS_XATTR_ITEM_KEY;
+		if (inode_only == LOG_INODE_EXISTS) {
+			max_key_type = BTRFS_INODE_EXTREF_KEY;
+			max_key.type = max_key_type;
+		}
 		ret = drop_objectid_items(trans, log, path, ino, max_key_type);
 	} else {
 		if (inode_only == LOG_INODE_EXISTS) {
@@ -4092,18 +4094,31 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			if (err)
 				goto out_unlock;
 		}
-		if (test_and_clear_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-				       &BTRFS_I(inode)->runtime_flags)) {
-			clear_bit(BTRFS_INODE_COPY_EVERYTHING,
-				  &BTRFS_I(inode)->runtime_flags);
-			ret = btrfs_truncate_inode_items(trans, log,
-							 inode, 0, 0);
-		} else if (test_and_clear_bit(BTRFS_INODE_COPY_EVERYTHING,
-					      &BTRFS_I(inode)->runtime_flags) ||
+		if (test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+			     &BTRFS_I(inode)->runtime_flags)) {
+			if (inode_only == LOG_INODE_EXISTS) {
+				max_key.type = BTRFS_INODE_EXTREF_KEY;
+				ret = drop_objectid_items(trans, log, path, ino,
+							  max_key.type);
+			} else {
+				clear_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+					  &BTRFS_I(inode)->runtime_flags);
+				clear_bit(BTRFS_INODE_COPY_EVERYTHING,
+					  &BTRFS_I(inode)->runtime_flags);
+				ret = btrfs_truncate_inode_items(trans, log,
+								 inode, 0, 0);
+			}
+		} else if (test_bit(BTRFS_INODE_COPY_EVERYTHING,
+				    &BTRFS_I(inode)->runtime_flags) ||
 			   inode_only == LOG_INODE_EXISTS) {
-			if (inode_only == LOG_INODE_ALL)
+			if (inode_only == LOG_INODE_ALL) {
+				clear_bit(BTRFS_INODE_COPY_EVERYTHING,
+					  &BTRFS_I(inode)->runtime_flags);
 				fast_search = true;
-			max_key.type = BTRFS_XATTR_ITEM_KEY;
+				max_key.type = BTRFS_XATTR_ITEM_KEY;
+			} else {
+				max_key.type = BTRFS_INODE_EXTREF_KEY;
+			}
 			ret = drop_objectid_items(trans, log, path, ino,
 						  max_key.type);
 		} else {
