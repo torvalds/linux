@@ -1280,6 +1280,16 @@ config RTC_DRV_MV
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-mv.
 
+config RTC_DRV_ARMADA38X
+	tristate "Armada 38x Marvell SoC RTC"
+	depends on ARCH_MVEBU
+	help
+	  If you say yes here you will get support for the in-chip RTC
+	  that can be found in the Armada 38x Marvell's SoC device
+
+	  This driver can also be built as a module. If so, the module
+	  will be called armada38x-rtc.
+
 config RTC_DRV_PS3
 	tristate "PS3 RTC"
 	depends on PPC_PS3
