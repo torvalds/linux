@@ -557,28 +557,16 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	unsigned long high_frame;
 	unsigned long low_frame;
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+	const struct drm_display_mode *mode =
+		&intel_crtc->config->base.adjusted_mode;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		struct intel_crtc *intel_crtc =
-			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
-		const struct drm_display_mode *mode =
-			&intel_crtc->config->base.adjusted_mode;
-
-		htotal = mode->crtc_htotal;
-		hsync_start = mode->crtc_hsync_start;
-		vbl_start = mode->crtc_vblank_start;
-		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			vbl_start = DIV_ROUND_UP(vbl_start, 2);
-	} else {
-		enum transcoder cpu_transcoder = (enum transcoder) pipe;
-
-		htotal = ((I915_READ(HTOTAL(cpu_transcoder)) >> 16) & 0x1fff) + 1;
-		hsync_start = (I915_READ(HSYNC(cpu_transcoder))  & 0x1fff) + 1;
-		vbl_start = (I915_READ(VBLANK(cpu_transcoder)) & 0x1fff) + 1;
-		if ((I915_READ(PIPECONF(cpu_transcoder)) &
-		     PIPECONF_INTERLACE_MASK) != PIPECONF_PROGRESSIVE)
-			vbl_start = DIV_ROUND_UP(vbl_start, 2);
-	}
+	htotal = mode->crtc_htotal;
+	hsync_start = mode->crtc_hsync_start;
+	vbl_start = mode->crtc_vblank_start;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vbl_start = DIV_ROUND_UP(vbl_start, 2);
 
 	/* Convert to pixel count */
 	vbl_start *= htotal;
@@ -4316,10 +4304,8 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (!IS_GEN2(dev_priv))
 		dev->vblank_disable_immediate = true;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
-		dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
-	}
+	dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
+	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		dev->driver->irq_handler = cherryview_irq_handler;
