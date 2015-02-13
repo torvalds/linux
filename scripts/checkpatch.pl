@@ -5089,6 +5089,12 @@ sub process {
 			}
 		}
 
+# check for uses of __DATE__, __TIME__, __TIMESTAMP__
+		while ($line =~ /\b(__(?:DATE|TIME|TIMESTAMP)__)\b/g) {
+			ERROR("DATE_TIME",
+			      "Use of the '$1' macro makes the build non-deterministic\n" . $herecurr);
+		}
+
 # check for use of yield()
 		if ($line =~ /\byield\s*\(\s*\)/) {
 			WARN("YIELD",
