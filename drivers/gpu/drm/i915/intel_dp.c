@@ -4808,7 +4808,7 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		return;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 8) {
+	if (INTEL_INFO(dev)->gen >= 8 && !IS_CHERRYVIEW(dev)) {
 		switch (index) {
 		case DRRS_HIGH_RR:
 			intel_dp_set_m_n(intel_crtc, M1_N1);
