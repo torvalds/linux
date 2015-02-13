@@ -115,10 +115,8 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
  * Extended Capability Register
  */
 
-#define ecap_niotlb_iunits(e)	((((e) >> 24) & 0xff) + 1)
 #define ecap_iotlb_offset(e) 	((((e) >> 8) & 0x3ff) * 16)
-#define ecap_max_iotlb_offset(e) \
-	(ecap_iotlb_offset(e) + ecap_niotlb_iunits(e) * 16)
+#define ecap_max_iotlb_offset(e) (ecap_iotlb_offset(e) + 16)
 #define ecap_coherent(e)	((e) & 0x1)
 #define ecap_qis(e)		((e) & 0x2)
 #define ecap_pass_through(e)	((e >> 6) & 0x1)
