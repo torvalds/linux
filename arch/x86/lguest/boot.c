@@ -1222,15 +1222,13 @@ static void set_cfg_window(u32 cfg_offset, u32 off)
 			 off);
 }
 
-static u32 read_bar_via_cfg(u32 cfg_offset, u32 off)
-{
-	set_cfg_window(cfg_offset, off);
-	return read_pci_config(0, 1, 0,
-			       cfg_offset + sizeof(struct virtio_pci_cap));
-}
-
 static void write_bar_via_cfg(u32 cfg_offset, u32 off, u32 val)
 {
+	/*
+	 * We could set this up once, then leave it; nothing else in the *
+	 * kernel should touch these registers.  But if it went wrong, that
+	 * would be a horrible bug to find.
+	 */
 	set_cfg_window(cfg_offset, off);
 	write_pci_config(0, 1, 0,
 			 cfg_offset + sizeof(struct virtio_pci_cap), val);
@@ -1239,8 +1237,9 @@ static void write_bar_via_cfg(u32 cfg_offset, u32 off, u32 val)
 static void probe_pci_console(void)
 {
 	u8 cap, common_cap = 0, device_cap = 0;
-	/* Offsets within BAR0 */
-	u32 common_offset, device_offset;
+	/* Offset within BAR0 */
+	u32 device_offset;
+	u32 device_len;
 
 	/* Avoid recursive printk into here. */
 	console_cfg_offset = -1;
@@ -1263,7 +1262,7 @@ static void probe_pci_console(void)
 		u8 vndr = read_pci_config_byte(0, 1, 0, cap);
 		if (vndr == PCI_CAP_ID_VNDR) {
 			u8 type, bar;
-			u32 offset;
+			u32 offset, length;
 
 			type = read_pci_config_byte(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, cfg_type));
@@ -1271,18 +1270,15 @@ static void probe_pci_console(void)
 			    cap + offsetof(struct virtio_pci_cap, bar));
 			offset = read_pci_config(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, offset));
+			length = read_pci_config(0, 1, 0,
+			    cap + offsetof(struct virtio_pci_cap, length));
 
 			switch (type) {
-			case VIRTIO_PCI_CAP_COMMON_CFG:
-				if (bar == 0) {
-					common_cap = cap;
-					common_offset = offset;
-				}
-				break;
 			case VIRTIO_PCI_CAP_DEVICE_CFG:
 				if (bar == 0) {
 					device_cap = cap;
 					device_offset = offset;
+					device_len = length;
 				}
 				break;
 			case VIRTIO_PCI_CAP_PCI_CFG:
@@ -1292,32 +1288,27 @@ static void probe_pci_console(void)
 		}
 		cap = read_pci_config_byte(0, 1, 0, cap + PCI_CAP_LIST_NEXT);
 	}
-	if (!common_cap || !device_cap || !console_access_cap) {
+	if (!device_cap || !console_access_cap) {
 		printk(KERN_ERR "lguest: No caps (%u/%u/%u) in console!\n",
 		       common_cap, device_cap, console_access_cap);
 		return;
 	}
 
-
-#define write_common_config(reg, val)					\
-	write_bar_via_cfg(console_access_cap,				\
-			  common_offset+offsetof(struct virtio_pci_common_cfg,reg),\
-			  val)
-
-#define read_common_config(reg)						\
-	read_bar_via_cfg(console_access_cap,				\
-			 common_offset+offsetof(struct virtio_pci_common_cfg,reg))
-
-	/* Check features: they must offer EMERG_WRITE */
-	write_common_config(device_feature_select, 0);
-
-	if (!(read_common_config(device_feature)
-	      & (1 << VIRTIO_CONSOLE_F_EMERG_WRITE))) {
-		printk(KERN_ERR "lguest: console missing EMERG_WRITE\n");
+	/*
+	 * Note that we can't check features, until we've set the DRIVER
+	 * status bit.  We don't want to do that until we have a real driver,
+	 * so we just check that the device-specific config has room for
+	 * emerg_wr.  If it doesn't support VIRTIO_CONSOLE_F_EMERG_WRITE
+	 * it should ignore the access.
+	 */
+	if (device_len < (offsetof(struct virtio_console_config, emerg_wr)
+			  + sizeof(u32))) {
+		printk(KERN_ERR "lguest: console missing emerg_wr field\n");
 		return;
 	}
 
 	console_cfg_offset = device_offset;
+	printk(KERN_INFO "lguest: Console via virtio-pci emerg_wr\n");
 }
 
 /*
