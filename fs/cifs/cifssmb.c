@@ -2784,7 +2784,7 @@ copyRetry:
 int
 CIFSUnixCreateSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 		      const char *fromName, const char *toName,
-		      const struct nls_table *nls_codepage)
+		      const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -2804,9 +2804,9 @@ createSymLinkRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUTF16((__le16 *) pSMB->FileName, fromName,
-				    /* find define for this maxpathcomponent */
-				    PATH_MAX, nls_codepage);
+		    cifsConvertToUTF16((__le16 *) pSMB->FileName, fromName,
+				/* find define for this maxpathcomponent */
+					PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 
@@ -2828,9 +2828,9 @@ createSymLinkRetry:
 	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len_target =
-		    cifs_strtoUTF16((__le16 *) data_offset, toName, PATH_MAX
-				    /* find define for this maxpathcomponent */
-				    , nls_codepage);
+		    cifsConvertToUTF16((__le16 *) data_offset, toName,
+				/* find define for this maxpathcomponent */
+					PATH_MAX, nls_codepage, remap);
 		name_len_target++;	/* trailing null */
 		name_len_target *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
@@ -3034,7 +3034,7 @@ winCreateHardLinkRetry:
 int
 CIFSSMBUnixQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
 			const unsigned char *searchName, char **symlinkinfo,
-			const struct nls_table *nls_codepage)
+			const struct nls_table *nls_codepage, int remap)
 {
 /* SMB_QUERY_FILE_UNIX_LINK */
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
@@ -3055,8 +3055,9 @@ querySymLinkRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-			cifs_strtoUTF16((__le16 *) pSMB->FileName, searchName,
-					PATH_MAX, nls_codepage);
+			cifsConvertToUTF16((__le16 *) pSMB->FileName,
+					   searchName, PATH_MAX, nls_codepage,
+					   remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */

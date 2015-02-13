@@ -373,8 +373,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 	/* could have done a find first instead but this returns more info */
 	rc = CIFSSMBUnixQPathInfo(xid, tcon, full_path, &find_data,
-				  cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+				  cifs_sb->local_nls, cifs_remap(cifs_sb));
 	cifs_put_tlink(tlink);
 
 	if (!rc) {
@@ -2215,8 +2214,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		pTcon = tlink_tcon(tlink);
 		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, args,
 				    cifs_sb->local_nls,
-				    cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+				    cifs_remap(cifs_sb));
 		cifs_put_tlink(tlink);
 	}
 
