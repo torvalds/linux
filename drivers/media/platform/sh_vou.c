@@ -1168,10 +1168,10 @@ static int sh_vou_open(struct file *file)
 
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s()\n", __func__);
 
-	file->private_data = vou_file;
-
-	if (mutex_lock_interruptible(&vou_dev->fop_lock))
+	if (mutex_lock_interruptible(&vou_dev->fop_lock)) {
+		kfree(vou_file);
 		return -ERESTARTSYS;
+	}
 	if (atomic_inc_return(&vou_dev->use_count) == 1) {
 		int ret;
 		/* First open */
@@ -1183,6 +1183,7 @@ static int sh_vou_open(struct file *file)
 			pm_runtime_put(vou_dev->v4l2_dev.dev);
 			vou_dev->status = SH_VOU_IDLE;
 			mutex_unlock(&vou_dev->fop_lock);
+			kfree(vou_file);
 			return ret;
 		}
 	}
@@ -1194,6 +1195,8 @@ static int sh_vou_open(struct file *file)
 				       sizeof(struct videobuf_buffer),
 				       vou_dev->vdev, &vou_dev->fop_lock);
 	mutex_unlock(&vou_dev->fop_lock);
+
+	file->private_data = vou_file;
 
 	return 0;
 }
