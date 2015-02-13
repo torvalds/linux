@@ -626,9 +626,6 @@ static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
  * recursively up the tree.  (Calm down, calm down, we do the recursion
  * iteratively!)
  *
- * Most callers will set the "wake" flag, but the task initiating the
- * expedited grace period need not wake itself.
- *
  * Caller must hold sync_rcu_preempt_exp_mutex.
  */
 static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
@@ -663,26 +660,85 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 
 /*
  * Snapshot the tasks blocking the newly started preemptible-RCU expedited
- * grace period for the specified rcu_node structure.  If there are no such
- * tasks, report it up the rcu_node hierarchy.
+ * grace period for the specified rcu_node structure, phase 1.  If there
+ * are such tasks, set the ->expmask bits up the rcu_node tree and also
+ * set the ->expmask bits on the leaf rcu_node structures to tell phase 2
+ * that work is needed here.
  *
- * Caller must hold sync_rcu_preempt_exp_mutex and must exclude
- * CPU hotplug operations.
+ * Caller must hold sync_rcu_preempt_exp_mutex.
  */
 static void
-sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
+sync_rcu_preempt_exp_init1(struct rcu_state *rsp, struct rcu_node *rnp)
+{
+	unsigned long flags;
+	unsigned long mask;
+	struct rcu_node *rnp_up;
+
+	raw_spin_lock_irqsave(&rnp->lock, flags);
+	smp_mb__after_unlock_lock();
+	WARN_ON_ONCE(rnp->expmask);
+	WARN_ON_ONCE(rnp->exp_tasks);
+	if (!rcu_preempt_has_tasks(rnp)) {
+		/* No blocked tasks, nothing to do. */
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		return;
+	}
+	/* Call for Phase 2 and propagate ->expmask bits up the tree. */
+	rnp->expmask = 1;
+	rnp_up = rnp;
+	while (rnp_up->parent) {
+		mask = rnp_up->grpmask;
+		rnp_up = rnp_up->parent;
+		if (rnp_up->expmask & mask)
+			break;
+		raw_spin_lock(&rnp_up->lock); /* irqs already off */
+		smp_mb__after_unlock_lock();
+		rnp_up->expmask |= mask;
+		raw_spin_unlock(&rnp_up->lock); /* irqs still off */
+	}
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+}
+
+/*
+ * Snapshot the tasks blocking the newly started preemptible-RCU expedited
+ * grace period for the specified rcu_node structure, phase 2.  If the
+ * leaf rcu_node structure has its ->expmask field set, check for tasks.
+ * If there are some, clear ->expmask and set ->exp_tasks accordingly,
+ * then initiate RCU priority boosting.  Otherwise, clear ->expmask and
+ * invoke rcu_report_exp_rnp() to clear out the upper-level ->expmask bits,
+ * enabling rcu_read_unlock_special() to do the bit-clearing.
+ *
+ * Caller must hold sync_rcu_preempt_exp_mutex.
+ */
+static void
+sync_rcu_preempt_exp_init2(struct rcu_state *rsp, struct rcu_node *rnp)
 {
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	smp_mb__after_unlock_lock();
-	if (!rcu_preempt_has_tasks(rnp)) {
+	if (!rnp->expmask) {
+		/* Phase 1 didn't do anything, so Phase 2 doesn't either. */
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-		rcu_report_exp_rnp(rsp, rnp, false); /* No tasks, report. */
-	} else {
+		return;
+	}
+
+	/* Phase 1 is over. */
+	rnp->expmask = 0;
+
+	/*
+	 * If there are still blocked tasks, set up ->exp_tasks so that
+	 * rcu_read_unlock_special() will wake us and then boost them.
+	 */
+	if (rcu_preempt_has_tasks(rnp)) {
 		rnp->exp_tasks = rnp->blkd_tasks.next;
 		rcu_initiate_boost(rnp, flags);  /* releases rnp->lock */
+		return;
 	}
+
+	/* No longer any blocked tasks, so undo bit setting. */
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	rcu_report_exp_rnp(rsp, rnp, false);
 }
 
 /**
@@ -699,7 +755,6 @@ sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
  */
 void synchronize_rcu_expedited(void)
 {
-	unsigned long flags;
 	struct rcu_node *rnp;
 	struct rcu_state *rsp = &rcu_preempt_state;
 	unsigned long snap;
@@ -750,19 +805,16 @@ void synchronize_rcu_expedited(void)
 	/* force all RCU readers onto ->blkd_tasks lists. */
 	synchronize_sched_expedited();
 
-	/* Initialize ->expmask for all non-leaf rcu_node structures. */
-	rcu_for_each_nonleaf_node_breadth_first(rsp, rnp) {
-		raw_spin_lock_irqsave(&rnp->lock, flags);
-		smp_mb__after_unlock_lock();
-		rnp->expmask = rnp->qsmaskinit;
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	}
-
-	/* Snapshot current state of ->blkd_tasks lists. */
+	/*
+	 * Snapshot current state of ->blkd_tasks lists into ->expmask.
+	 * Phase 1 sets bits and phase 2 permits rcu_read_unlock_special()
+	 * to start clearing them.  Doing this in one phase leads to
+	 * strange races between setting and clearing bits, so just say "no"!
+	 */
 	rcu_for_each_leaf_node(rsp, rnp)
-		sync_rcu_preempt_exp_init(rsp, rnp);
-	if (NUM_RCU_NODES > 1)
-		sync_rcu_preempt_exp_init(rsp, rcu_get_root(rsp));
+		sync_rcu_preempt_exp_init1(rsp, rnp);
+	rcu_for_each_leaf_node(rsp, rnp)
+		sync_rcu_preempt_exp_init2(rsp, rnp);
 
 	put_online_cpus();
 
