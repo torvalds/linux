@@ -1741,7 +1741,7 @@ gen8_ring_put_irq(struct intel_engine_cs *ring)
 static int
 i965_dispatch_execbuffer(struct intel_engine_cs *ring,
 			 u64 offset, u32 length,
-			 unsigned flags)
+			 unsigned dispatch_flags)
 {
 	int ret;
 
@@ -1752,7 +1752,8 @@ i965_dispatch_execbuffer(struct intel_engine_cs *ring,
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
 			MI_BATCH_GTT |
-			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_I965));
+			(dispatch_flags & I915_DISPATCH_SECURE ?
+			 0 : MI_BATCH_NON_SECURE_I965));
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
 
@@ -1765,8 +1766,8 @@ i965_dispatch_execbuffer(struct intel_engine_cs *ring,
 #define I830_WA_SIZE max(I830_TLB_ENTRIES*4096, I830_BATCH_LIMIT)
 static int
 i830_dispatch_execbuffer(struct intel_engine_cs *ring,
-				u64 offset, u32 len,
-				unsigned flags)
+			 u64 offset, u32 len,
+			 unsigned dispatch_flags)
 {
 	u32 cs_offset = ring->scratch.gtt_offset;
 	int ret;
@@ -1784,7 +1785,7 @@ i830_dispatch_execbuffer(struct intel_engine_cs *ring,
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
 
-	if ((flags & I915_DISPATCH_PINNED) == 0) {
+	if ((dispatch_flags & I915_DISPATCH_PINNED) == 0) {
 		if (len > I830_BATCH_LIMIT)
 			return -ENOSPC;
 
@@ -1816,7 +1817,8 @@ i830_dispatch_execbuffer(struct intel_engine_cs *ring,
 		return ret;
 
 	intel_ring_emit(ring, MI_BATCH_BUFFER);
-	intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
+	intel_ring_emit(ring, offset | (dispatch_flags & I915_DISPATCH_SECURE ?
+					0 : MI_BATCH_NON_SECURE));
 	intel_ring_emit(ring, offset + len - 8);
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -1827,7 +1829,7 @@ i830_dispatch_execbuffer(struct intel_engine_cs *ring,
 static int
 i915_dispatch_execbuffer(struct intel_engine_cs *ring,
 			 u64 offset, u32 len,
-			 unsigned flags)
+			 unsigned dispatch_flags)
 {
 	int ret;
 
@@ -1836,7 +1838,8 @@ i915_dispatch_execbuffer(struct intel_engine_cs *ring,
 		return ret;
 
 	intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_GTT);
-	intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
+	intel_ring_emit(ring, offset | (dispatch_flags & I915_DISPATCH_SECURE ?
+					0 : MI_BATCH_NON_SECURE));
 	intel_ring_advance(ring);
 
 	return 0;
@@ -2395,9 +2398,10 @@ static int gen6_bsd_ring_flush(struct intel_engine_cs *ring,
 static int
 gen8_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 			      u64 offset, u32 len,
-			      unsigned flags)
+			      unsigned dispatch_flags)
 {
-	bool ppgtt = USES_PPGTT(ring->dev) && !(flags & I915_DISPATCH_SECURE);
+	bool ppgtt = USES_PPGTT(ring->dev) &&
+			!(dispatch_flags & I915_DISPATCH_SECURE);
 	int ret;
 
 	ret = intel_ring_begin(ring, 4);
@@ -2416,8 +2420,8 @@ gen8_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 
 static int
 hsw_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
-			      u64 offset, u32 len,
-			      unsigned flags)
+			     u64 offset, u32 len,
+			     unsigned dispatch_flags)
 {
 	int ret;
 
@@ -2427,7 +2431,7 @@ hsw_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
-			(flags & I915_DISPATCH_SECURE ?
+			(dispatch_flags & I915_DISPATCH_SECURE ?
 			 0 : MI_BATCH_PPGTT_HSW | MI_BATCH_NON_SECURE_HSW));
 	/* bit0-7 is the length on GEN6+ */
 	intel_ring_emit(ring, offset);
@@ -2439,7 +2443,7 @@ hsw_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 static int
 gen6_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 			      u64 offset, u32 len,
-			      unsigned flags)
+			      unsigned dispatch_flags)
 {
 	int ret;
 
@@ -2449,7 +2453,8 @@ gen6_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
-			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_I965));
+			(dispatch_flags & I915_DISPATCH_SECURE ?
+			 0 : MI_BATCH_NON_SECURE_I965));
 	/* bit0-7 is the length on GEN6+ */
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
