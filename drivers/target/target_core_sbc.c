@@ -692,6 +692,29 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 	return TCM_NO_SENSE;
 }
 
+static int
+sbc_check_dpofua(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
+{
+	if (cdb[1] & 0x10) {
+		if (!dev->dev_attrib.emulate_dpo) {
+			pr_err("Got CDB: 0x%02x with DPO bit set, but device"
+			       " does not advertise support for DPO\n", cdb[0]);
+			return -EINVAL;
+		}
+	}
+	if (cdb[1] & 0x8) {
+		if (!dev->dev_attrib.emulate_fua_write ||
+		    !dev->dev_attrib.emulate_write_cache) {
+			pr_err("Got CDB: 0x%02x with FUA bit set, but device"
+			       " does not advertise support for FUA write\n",
+			       cdb[0]);
+			return -EINVAL;
+		}
+		cmd->se_cmd_flags |= SCF_FUA;
+	}
+	return 0;
+}
+
 sense_reason_t
 sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 {
@@ -713,6 +736,9 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_10(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 
+		if (sbc_check_dpofua(dev, cmd, cdb))
+			return TCM_INVALID_CDB_FIELD;
+
 		ret = sbc_check_prot(dev, cmd, cdb, sectors, false);
 		if (ret)
 			return ret;
@@ -725,6 +751,9 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_12(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 
+		if (sbc_check_dpofua(dev, cmd, cdb))
+			return TCM_INVALID_CDB_FIELD;
+
 		ret = sbc_check_prot(dev, cmd, cdb, sectors, false);
 		if (ret)
 			return ret;
@@ -736,6 +765,9 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 	case READ_16:
 		sectors = transport_get_sectors_16(cdb);
 		cmd->t_task_lba = transport_lba_64(cdb);
+
+		if (sbc_check_dpofua(dev, cmd, cdb))
+			return TCM_INVALID_CDB_FIELD;
 
 		ret = sbc_check_prot(dev, cmd, cdb, sectors, false);
 		if (ret)
@@ -757,12 +789,13 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_10(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 
+		if (sbc_check_dpofua(dev, cmd, cdb))
+			return TCM_INVALID_CDB_FIELD;
+
 		ret = sbc_check_prot(dev, cmd, cdb, sectors, true);
 		if (ret)
 			return ret;
 
-		if (cdb[1] & 0x8)
-			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
@@ -771,12 +804,13 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_12(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 
+		if (sbc_check_dpofua(dev, cmd, cdb))
+			return TCM_INVALID_CDB_FIELD;
+
 		ret = sbc_check_prot(dev, cmd, cdb, sectors, true);
 		if (ret)
 			return ret;
 
-		if (cdb[1] & 0x8)
-			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
@@ -785,12 +819,13 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_16(cdb);
 		cmd->t_task_lba = transport_lba_64(cdb);
 
+		if (sbc_check_dpofua(dev, cmd, cdb))
+			return TCM_INVALID_CDB_FIELD;
+
 		ret = sbc_check_prot(dev, cmd, cdb, sectors, true);
 		if (ret)
 			return ret;
 
-		if (cdb[1] & 0x8)
-			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
@@ -801,6 +836,9 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return TCM_INVALID_CDB_FIELD;
 		sectors = transport_get_sectors_10(cdb);
 
+		if (sbc_check_dpofua(dev, cmd, cdb))
+			return TCM_INVALID_CDB_FIELD;
+
 		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 
@@ -810,8 +848,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		cmd->execute_rw = ops->execute_rw;
 		cmd->execute_cmd = sbc_execute_rw;
 		cmd->transport_complete_callback = &xdreadwrite_callback;
-		if (cdb[1] & 0x8)
-			cmd->se_cmd_flags |= SCF_FUA;
 		break;
 	case VARIABLE_LENGTH_CMD:
 	{
@@ -820,6 +856,8 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		case XDWRITEREAD_32:
 			sectors = transport_get_sectors_32(cdb);
 
+			if (sbc_check_dpofua(dev, cmd, cdb))
+				return TCM_INVALID_CDB_FIELD;
 			/*
 			 * Use WRITE_32 and READ_32 opcodes for the emulated
 			 * XDWRITE_READ_32 logic.
@@ -834,8 +872,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			cmd->execute_rw = ops->execute_rw;
 			cmd->execute_cmd = sbc_execute_rw;
 			cmd->transport_complete_callback = &xdreadwrite_callback;
-			if (cdb[1] & 0x8)
-				cmd->se_cmd_flags |= SCF_FUA;
 			break;
 		case WRITE_SAME_32:
 			sectors = transport_get_sectors_32(cdb);
