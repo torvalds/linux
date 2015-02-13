@@ -332,6 +332,35 @@ u64 notrace ktime_get_mono_fast_ns(void)
 }
 EXPORT_SYMBOL_GPL(ktime_get_mono_fast_ns);
 
+/* Suspend-time cycles value for halted fast timekeeper. */
+static cycle_t cycles_at_suspend;
+
+static cycle_t dummy_clock_read(struct clocksource *cs)
+{
+	return cycles_at_suspend;
+}
+
+/**
+ * halt_fast_timekeeper - Prevent fast timekeeper from accessing clocksource.
+ * @tk: Timekeeper to snapshot.
+ *
+ * It generally is unsafe to access the clocksource after timekeeping has been
+ * suspended, so take a snapshot of the readout base of @tk and use it as the
+ * fast timekeeper's readout base while suspended.  It will return the same
+ * number of cycles every time until timekeeping is resumed at which time the
+ * proper readout base for the fast timekeeper will be restored automatically.
+ */
+static void halt_fast_timekeeper(struct timekeeper *tk)
+{
+	static struct tk_read_base tkr_dummy;
+	struct tk_read_base *tkr = &tk->tkr;
+
+	memcpy(&tkr_dummy, tkr, sizeof(tkr_dummy));
+	cycles_at_suspend = tkr->read(tkr->clock);
+	tkr_dummy.read = dummy_clock_read;
+	update_fast_timekeeper(&tkr_dummy);
+}
+
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL_OLD
 
 static inline void update_vsyscall(struct timekeeper *tk)
@@ -1294,6 +1323,7 @@ static int timekeeping_suspend(void)
 	}
 
 	timekeeping_update(tk, TK_MIRROR);
+	halt_fast_timekeeper(tk);
 	write_seqcount_end(&tk_core.seq);
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 
