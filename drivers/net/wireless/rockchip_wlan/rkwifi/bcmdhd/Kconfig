@@ -1,9 +1,8 @@
 config BCMDHD
-	tristate "Broadcom 4329/30 wireless cards support"
-	depends on MMC
+	tristate "Broadcom FullMAC wireless cards support"
 	---help---
 	  This module adds support for wireless adapters based on
-	  Broadcom 4329/30 chipset.
+	  Broadcom FullMAC chipset.
 
 config BCMDHD_FW_PATH
 	depends on BCMDHD
@@ -35,17 +34,20 @@ config BCMDHD_WEXT
 	  Enables WEXT support
 
 choice
-    depends on BCMDHD
-    prompt "Interrupt type"
+	depends on BCMDHD
+	prompt "Interrupt type"
+	---help---
+	  Interrupt type
 config BCMDHD_OOB
 	depends on BCMDHD
 	bool "Out-of-Band Interrupt"
 	default y
 	---help---
-		Interrupt from WL_HOST_WAKE.
+	  Interrupt from WL_HOST_WAKE.
 config BCMDHD_SDIO_IRQ
-	depends on  BCMDHD
+	depends on BCMDHD
 	bool "In-Band Interrupt"
 	---help---
-		Interrupt from SDIO DAT[1]
+	  Interrupt from SDIO DAT[1]
 endchoice
+

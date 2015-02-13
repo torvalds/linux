@@ -324,15 +324,23 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 	} else {
 		win->area[0].y_addr = 0;
 		win->area[0].uv_addr = 0;
-		if (win->id == 0)
+		if (win->id == 0) {
 			lcdc_msk_reg(lcdc_dev,
 				     SYS_CTRL, m_WIN0_EN, v_WIN0_EN(0));
-		else if (win->id == 1)
+			lcdc_writel(lcdc_dev, WIN0_YRGB_MST,
+				    win->area[0].y_addr);
+			lcdc_writel(lcdc_dev, WIN0_CBR_MST,
+				    win->area[0].uv_addr);
+		} else if (win->id == 1) {
 			lcdc_msk_reg(lcdc_dev,
 				     SYS_CTRL, m_WIN1_EN, v_WIN1_EN(0));
-		else if (win->id == 2)
+			lcdc_writel(lcdc_dev, WIN1_MST, win->area[0].y_addr);
+		} else if (win->id == 2) {
 			lcdc_msk_reg(lcdc_dev,
-				     SYS_CTRL, m_HWC_EN, v_HWC_EN(0));
+				     SYS_CTRL, m_HWC_EN | m_HWC_LODAD_EN,
+				     v_HWC_EN(0) | v_HWC_LODAD_EN(0));
+			lcdc_writel(lcdc_dev, HWC_MST, win->area[0].y_addr);
+		}
 	}
 	rk3036_lcdc_alpha_cfg(lcdc_dev);
 }
@@ -508,6 +516,9 @@ static int rk3036_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 	/*backup reg config at uboot*/
 	rk_lcdc_read_reg_defalut_cfg(lcdc_dev);
+	if (lcdc_readl(lcdc_dev, AXI_BUS_CTRL) & m_TVE_DAC_DCLK_EN)
+		dev_drv->cur_screen->type = SCREEN_TVOUT;
+
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_AUTO_GATING_EN,
 		     v_AUTO_GATING_EN(0));
 	lcdc_cfg_done(lcdc_dev);
@@ -1015,7 +1026,9 @@ static int rk3036_lcdc_ovl_mgr(struct rk_lcdc_driver *dev_drv, int swap,
 	int ovl, needswap = 0;
 
 	if (!swap) {
-		if (win0->z_order > win1->z_order)
+		if (win0->z_order >= 0 &&
+		    win1->z_order >= 0 &&
+		    win0->z_order > win1->z_order)
 			needswap = 1;
 		else
 			needswap = 0;
@@ -1138,7 +1151,6 @@ static int rk3036_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	int i;
-	unsigned int mask, val;
 	struct rk_lcdc_win *win = NULL;
 
 	spin_lock(&lcdc_dev->reg_lock);
@@ -1166,30 +1178,8 @@ static int rk3036_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 			     v_LCDC_STANDBY(lcdc_dev->standby));
 		for (i = 0; i < ARRAY_SIZE(lcdc_win); i++) {
 			win = dev_drv->win[i];
-			if ((win->state == 0) && (win->last_state == 1)) {
-				switch (win->id) {
-				case 0:
-					mask =  m_WIN0_EN;
-					val  =  v_WIN0_EN(0);
-					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
-						     mask, val);
-					break;
-				case 1:
-					mask =  m_WIN1_EN;
-					val  =  v_WIN1_EN(0);
-					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
-						     mask, val);
-					break;
-				case 2:
-					mask =  m_HWC_EN;
-					val  =  v_HWC_EN(0);
-					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
-						     mask, val);
-					break;
-				default:
-					break;
-				}
-			}
+			if ((win->state == 0) && (win->last_state == 1))
+				lcdc_layer_update_regs(lcdc_dev, win);
 			win->last_state = win->state;
 		}
 		lcdc_cfg_done(lcdc_dev);

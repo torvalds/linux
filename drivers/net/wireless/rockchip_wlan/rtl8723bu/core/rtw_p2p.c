@@ -5277,10 +5277,6 @@ int rtw_p2p_enable(_adapter *padapter, enum P2P_ROLE role)
 			adapter_wdev_data(padapter)->p2p_enabled = _FALSE;
 #endif //CONFIG_IOCTL_CFG80211
 
-		if (_FAIL == rtw_pwr_wakeup(padapter)) {
-			ret = _FAIL;
-			goto exit;
-		}
 
 		//Disable P2P function
 		if(!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
@@ -5299,12 +5295,21 @@ int rtw_p2p_enable(_adapter *padapter, enum P2P_ROLE role)
 			rtw_p2p_set_pre_state(pwdinfo, P2P_STATE_NONE);
 			rtw_p2p_set_role(pwdinfo, P2P_ROLE_DISABLE);
 			_rtw_memset(&pwdinfo->rx_prov_disc_info, 0x00, sizeof(struct rx_provdisc_req_info));
+
+			/* Remove profiles in wifidirect_info structure. */
+			_rtw_memset( &pwdinfo->profileinfo[ 0 ], 0x00, sizeof( struct profile_info ) * P2P_MAX_PERSISTENT_GROUP_NUM );
+			pwdinfo->profileindex = 0;
 		}
 
 		rtw_hal_set_odm_var(padapter,HAL_ODM_P2P_STATE,NULL,_FALSE);
 		#ifdef CONFIG_WFD
 		rtw_hal_set_odm_var(padapter,HAL_ODM_WIFI_DISPLAY_STATE,NULL,_FALSE);
 		#endif
+
+		if (_FAIL == rtw_pwr_wakeup(padapter)) {
+			ret = _FAIL;
+			goto exit;
+		}
 
 		//Restore to initial setting.
 		update_tx_basic_rate(padapter, padapter->registrypriv.wireless_mode);

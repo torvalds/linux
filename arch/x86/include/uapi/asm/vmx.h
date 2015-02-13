@@ -65,6 +65,7 @@
 #define EXIT_REASON_EOI_INDUCED         45
 #define EXIT_REASON_EPT_VIOLATION       48
 #define EXIT_REASON_EPT_MISCONFIG       49
+#define EXIT_REASON_INVEPT              50
 #define EXIT_REASON_PREEMPTION_TIMER    52
 #define EXIT_REASON_WBINVD              54
 #define EXIT_REASON_XSETBV              55

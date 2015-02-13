@@ -1,6 +1,6 @@
 /*
  * $Copyright Open Broadcom Corporation$
- * $Id: typedefs.h 397286 2013-04-18 01:42:19Z $
+ * $Id: typedefs.h 484281 2014-06-12 22:42:26Z $
  */
 
 #ifndef _TYPEDEFS_H_
@@ -8,13 +8,29 @@
 
 #ifdef SITE_TYPEDEFS
 
-
+/*
+ * Define SITE_TYPEDEFS in the compile to include a site-specific
+ * typedef file "site_typedefs.h".
+ *
+ * If SITE_TYPEDEFS is not defined, then the code section below makes
+ * inferences about the compile environment based on defined symbols and
+ * possibly compiler pragmas.
+ *
+ * Following these two sections is the Default Typedefs section.
+ * This section is only processed if USE_TYPEDEF_DEFAULTS is
+ * defined. This section has a default set of typedefs and a few
+ * preprocessor symbols (TRUE, FALSE, NULL, ...).
+ */
 
 #include "site_typedefs.h"
 
 #else
 
-
+/*
+ * Infer the compile environment based on preprocessor symbols and pragmas.
+ * Override type definitions as needed, and include configuration-dependent
+ * header files to define types.
+ */
 
 #ifdef __cplusplus
 
@@ -26,12 +42,12 @@
 #define TRUE	true
 #endif
 
-#else	
+#else	/* ! __cplusplus */
 
 
-#endif	
+#endif	/* ! __cplusplus */
 
-#if defined(__x86_64__)
+#if defined(__LP64__)
 #define TYPEDEF_UINTPTR
 typedef unsigned long long int uintptr;
 #endif
@@ -52,39 +68,44 @@ typedef long unsigned int size_t;
 #define TYPEDEF_ULONG
 #endif
 
-
-
+/*
+ * If this is either a Linux hybrid build or the per-port code of a hybrid build
+ * then use the Linux header files to get some of the typedefs.  Otherwise, define
+ * them entirely in this file.  We can't always define the types because we get
+ * a duplicate typedef error; there is no way to "undefine" a typedef.
+ * We know when it's per-port code because each file defines LINUX_PORT at the top.
+ */
 #if !defined(LINUX_HYBRID) || defined(LINUX_PORT)
 #define TYPEDEF_UINT
 #ifndef TARGETENV_android
 #define TYPEDEF_USHORT
 #define TYPEDEF_ULONG
-#endif 
+#endif /* TARGETENV_android */
 #ifdef __KERNEL__
 #include <linux/version.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19))
 #define TYPEDEF_BOOL
-#endif	
-
+#endif	/* >= 2.6.19 */
+/* special detection for 2.6.18-128.7.1.0.1.el5 */
 #if (LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 18))
 #include <linux/compiler.h>
 #ifdef noinline_for_stack
 #define TYPEDEF_BOOL
 #endif
-#endif	
-#endif	
-#endif  
+#endif	/* == 2.6.18 */
+#endif	/* __KERNEL__ */
+#endif  /* !defined(LINUX_HYBRID) || defined(LINUX_PORT) */
 
 
-
-
-
+/* Do not support the (u)int64 types with strict ansi for GNU C */
 #if defined(__GNUC__) && defined(__STRICT_ANSI__)
 #define TYPEDEF_INT64
 #define TYPEDEF_UINT64
-#endif 
+#endif /* defined(__GNUC__) && defined(__STRICT_ANSI__) */
 
-
+/* ICL accepts unsigned 64 bit type only, and complains in ANSI mode
+ * for signed or unsigned
+ */
 #if defined(__ICL)
 
 #define TYPEDEF_INT64
@@ -93,45 +114,45 @@ typedef long unsigned int size_t;
 #define TYPEDEF_UINT64
 #endif
 
-#endif 
+#endif /* __ICL */
 
 #if !defined(__DJGPP__)
 
-
+/* pick up ushort & uint from standard types.h */
 #if defined(__KERNEL__)
 
-
+/* See note above */
 #if !defined(LINUX_HYBRID) || defined(LINUX_PORT)
-#include <linux/types.h>	
-#endif 
+#include <linux/types.h>	/* sys/types.h and linux/types.h are oil and water */
+#endif /* !defined(LINUX_HYBRID) || defined(LINUX_PORT) */
 
 #else
 
-
 #include <sys/types.h>
 
-#endif 
+#endif /* linux && __KERNEL__ */
 
 #endif 
 
 
-
-
+/* use the default typedefs in the next section of this file */
 #define USE_TYPEDEF_DEFAULTS
 
-#endif 
+#endif /* SITE_TYPEDEFS */
 
 
-
+/*
+ * Default Typedefs
+ */
 
 #ifdef USE_TYPEDEF_DEFAULTS
 #undef USE_TYPEDEF_DEFAULTS
 
 #ifndef TYPEDEF_BOOL
-typedef	 unsigned char	bool;
-#endif
+typedef	/* @abstract@ */ unsigned char	bool;
+#endif /* endif TYPEDEF_BOOL */
 
-
+/* define uchar, ushort, uint, ulong */
 
 #ifndef TYPEDEF_UCHAR
 typedef unsigned char	uchar;
@@ -149,7 +170,7 @@ typedef unsigned int	uint;
 typedef unsigned long	ulong;
 #endif
 
-
+/* define [u]int8/16/32/64, uintptr */
 
 #ifndef TYPEDEF_UINT8
 typedef unsigned char	uint8;
@@ -187,7 +208,7 @@ typedef signed int	int32;
 typedef signed long long int64;
 #endif
 
-
+/* define float32/64, float_t */
 
 #ifndef TYPEDEF_FLOAT32
 typedef float		float32;
@@ -197,26 +218,30 @@ typedef float		float32;
 typedef double		float64;
 #endif
 
-
+/*
+ * abstracted floating point type allows for compile time selection of
+ * single or double precision arithmetic.  Compiling with -DFLOAT32
+ * selects single precision; the default is double precision.
+ */
 
 #ifndef TYPEDEF_FLOAT_T
 
 #if defined(FLOAT32)
 typedef float32 float_t;
-#else 
+#else /* default to double precision floating point */
 typedef float64 float_t;
 #endif
 
-#endif 
+#endif /* TYPEDEF_FLOAT_T */
 
-
+/* define macro values */
 
 #ifndef FALSE
 #define FALSE	0
 #endif
 
 #ifndef TRUE
-#define TRUE	1  
+#define TRUE	1  /* TRUE */
 #endif
 
 #ifndef NULL
@@ -228,19 +253,19 @@ typedef float64 float_t;
 #endif
 
 #ifndef ON
-#define	ON	1  
+#define	ON	1  /* ON = 1 */
 #endif
 
-#define	AUTO	(-1) 
+#define	AUTO	(-1) /* Auto = -1 */
 
-
+/* define PTRSZ, INLINE */
 
 #ifndef PTRSZ
 #define	PTRSZ	sizeof(char*)
 #endif
 
 
-
+/* Detect compiler type. */
 #if defined(__GNUC__) || defined(__lint)
 	#define BWL_COMPILER_GNU
 #elif defined(__CC_ARM) && __CC_ARM
@@ -260,7 +285,7 @@ typedef float64 float_t;
 	#else
 		#define INLINE
 	#endif 
-#endif 
+#endif /* INLINE */
 
 #undef TYPEDEF_BOOL
 #undef TYPEDEF_UCHAR
@@ -280,14 +305,17 @@ typedef float64 float_t;
 #undef TYPEDEF_FLOAT64
 #undef TYPEDEF_FLOAT_T
 
-#endif 
+#endif /* USE_TYPEDEF_DEFAULTS */
 
-
+/* Suppress unused parameter warning */
 #define UNUSED_PARAMETER(x) (void)(x)
 
-
+/* Avoid warning for discarded const or volatile qualifier in special cases (-Wcast-qual) */
 #define DISCARD_QUAL(ptr, type) ((type *)(uintptr)(ptr))
 
-
+/*
+ * Including the bcmdefs.h here, to make sure everyone including typedefs.h
+ * gets this automatically
+*/
 #include <bcmdefs.h>
-#endif 
+#endif /* _TYPEDEFS_H_ */

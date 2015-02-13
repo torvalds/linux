@@ -295,6 +295,7 @@ void _InitTransferPageSize(PADAPTER padapter);
 
 void SetHwReg8188E(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8188E(PADAPTER padapter, u8 variable, u8 *val);
+u8 GetHalDefVar8188E(PADAPTER Adapter, HAL_DEF_VARIABLE eVariable, PVOID pValue);
 
 #endif //__RTL8188E_HAL_H__
 

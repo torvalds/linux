@@ -1861,7 +1861,7 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 		struct device_node *node;
 
 		node = of_parse_phandle(bank->of_node->parent,
-					"rockchip,pmu", 0);
+					"rockchip,pmugrf", 0);
 		if (!node) {
 			if (of_address_to_resource(bank->of_node, 1, &res)) {
 				dev_err(info->dev, "cannot find IO resource for bank\n");
@@ -2039,7 +2039,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	/* try to find the optional reference to the pmu syscon */
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
+	node = of_parse_phandle(np, "rockchip,pmugrf", 0);
 	if (node) {
 		info->regmap_pmu = syscon_node_to_regmap(node);
 		if (IS_ERR(info->regmap_pmu))

@@ -711,7 +711,11 @@ odm_RxPhyStatus92CSeries_Parsing(
 		// 2012/01/12 MH Use customeris signal strength from HalComRxdDesc.c/	
 		pPhyInfo->SignalStrength = (u1Byte)(SignalScaleMapping(pDM_Odm->Adapter, PWDB_ALL));//PWDB_ALL;
 #else
+#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
+		pPhyInfo->SignalStrength = (u1Byte)PWDB_ALL;
+#else
 		pPhyInfo->SignalStrength = (u1Byte)(odm_SignalScaleMapping(pDM_Odm, PWDB_ALL));//PWDB_ALL;
+#endif
 #endif
 	}
 	else
@@ -722,7 +726,12 @@ odm_RxPhyStatus92CSeries_Parsing(
 			// 2012/01/12 MH Use customeris signal strength from HalComRxdDesc.c/	
 			pPhyInfo->SignalStrength = (u1Byte)(SignalScaleMapping(pDM_Odm->Adapter, total_rssi/=rf_rx_num));//PWDB_ALL;
 #else
+#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
+			total_rssi/=rf_rx_num;
+			pPhyInfo->SignalStrength = (u1Byte)total_rssi;
+#else
 			pPhyInfo->SignalStrength = (u1Byte)(odm_SignalScaleMapping(pDM_Odm, total_rssi/=rf_rx_num));
+#endif
 #endif
 		}
 	}

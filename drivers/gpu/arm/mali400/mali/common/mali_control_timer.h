@@ -23,5 +23,7 @@ void mali_control_timer_suspend(mali_bool suspend);
 
 void mali_control_timer_add(u32 timeout);
 
+void mali_control_timer_mod(u32 timeout_in_ms);
+
 #endif /* __MALI_CONTROL_TIMER_H__ */
 

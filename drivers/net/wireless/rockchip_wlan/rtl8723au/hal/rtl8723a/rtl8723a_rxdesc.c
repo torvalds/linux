@@ -24,17 +24,6 @@
 #include <drv_types.h>
 #include <rtl8723a_hal.h>
 
-static s32  translate2dbm(u8 signal_strength_idx)
-{
-	s32	signal_power; // in dBm.
-
-
-	// Translate to dBm (x=0.5y-95).
-	signal_power = (s32)((signal_strength_idx + 1) >> 1);
-	signal_power -= 95;
-
-	return signal_power;
-}
 #if 0
 static u8 evm_db2percentage(s8 value)
 {
@@ -547,10 +536,10 @@ static void process_rssi(_adapter *padapter,union recv_frame *prframe)
 		
 		if(padapter->recvpriv.is_signal_dbg) {
 			padapter->recvpriv.signal_strength= padapter->recvpriv.signal_strength_dbg;
-			padapter->recvpriv.rssi=(s8)translate2dbm((u8)padapter->recvpriv.signal_strength_dbg);
+			padapter->recvpriv.rssi=(s8)translate_percentage_to_dbm(padapter->recvpriv.signal_strength_dbg);
 		} else {
 			padapter->recvpriv.signal_strength= tmp_val;
-			padapter->recvpriv.rssi=(s8)translate2dbm((u8)tmp_val);
+			padapter->recvpriv.rssi=(s8)translate_percentage_to_dbm(tmp_val);
 		}
 
 		RT_TRACE(_module_rtl871x_recv_c_,_drv_info_,("UI RSSI = %d, ui_rssi.TotalVal = %d, ui_rssi.TotalNum = %d\n", tmp_val, padapter->recvpriv.signal_strength_data.total_val,padapter->recvpriv.signal_strength_data.total_num));

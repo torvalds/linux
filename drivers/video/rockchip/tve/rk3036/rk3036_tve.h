@@ -114,6 +114,7 @@ struct rk3036_tve {
 	struct list_head		modelist;
 	struct rk_screen		screen;
 	int test_mode;
+	int saturation;
 };
 
 #endif

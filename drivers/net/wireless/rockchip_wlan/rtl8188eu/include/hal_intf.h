@@ -146,6 +146,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_DL_RSVD_PAGE,
 	HW_VAR_MACID_SLEEP,
 	HW_VAR_MACID_WAKEUP,
+	HW_VAR_DUMP_MAC_QUEUE_INFO,
 }HW_VARIABLES;
 
 typedef enum _HAL_DEF_VARIABLE{
@@ -623,8 +624,8 @@ c2h_id_filter rtw_hal_c2h_id_filter_ccx(_adapter *adapter);
 
 s32 rtw_hal_is_disable_sw_channel_plan(PADAPTER padapter);
 
-s32 rtw_hal_macid_sleep(PADAPTER padapter, u32 macid);
-s32 rtw_hal_macid_wakeup(PADAPTER padapter, u32 macid);
+s32 rtw_hal_macid_sleep(PADAPTER padapter, u8 macid);
+s32 rtw_hal_macid_wakeup(PADAPTER padapter, u8 macid);
 
 #ifdef CONFIG_BT_COEXIST
 s32 rtw_hal_fill_h2c_cmd(PADAPTER, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);

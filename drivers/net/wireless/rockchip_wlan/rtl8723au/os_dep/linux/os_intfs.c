@@ -47,18 +47,6 @@
 #include <rtw_br_ext.h>
 #endif //CONFIG_BR_EXT
 
-#ifdef CONFIG_RF_GAIN_OFFSET
-#ifdef CONFIG_RTL8723A
-#define	RF_GAIN_OFFSET_ON			BIT0
-#define		REG_RF_BB_GAIN_OFFSET	0x7f
-#define		RF_GAIN_OFFSET_MASK		0xfffff
-#else
-#define	RF_GAIN_OFFSET_ON			BIT4
-#define		REG_RF_BB_GAIN_OFFSET	0x55
-#define		RF_GAIN_OFFSET_MASK		0xfffff
-#endif  //CONFIG_RTL8723A
-#endif //CONFIG_RF_GAIN_OFFSET
-
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek Wireless Lan Driver");
 MODULE_AUTHOR("Realtek Semiconductor Corp.");
@@ -308,6 +296,10 @@ uint rtw_notch_filter = RTW_NOTCH_FILTER;
 module_param(rtw_notch_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
 
+uint rtw_hiq_filter = CONFIG_RTW_HIQ_FILTER;
+module_param(rtw_hiq_filter, uint, 0644);
+MODULE_PARM_DESC(rtw_hiq_filter, "0:allow all, 1:allow special, 2:deny all");
+
 static uint loadparam(PADAPTER padapter, _nic_hdl pnetdev);
 int _netdev_open(struct net_device *pnetdev);
 int netdev_open (struct net_device *pnetdev);
@@ -442,7 +434,8 @@ _func_enter_;
 	registry_par->force_igi = (u8)rtw_force_igi;
 #endif
 	registry_par->regulatory_tid = (u8)rtw_regulatory_id;
-	
+
+	registry_par->hiq_filter = (u8)rtw_hiq_filter;
 
 _func_exit_;
 
@@ -1727,10 +1720,6 @@ int _netdev_open(struct net_device *pnetdev)
 		
 		DBG_871X("MAC Address = "MAC_FMT"\n", MAC_ARG(pnetdev->dev_addr));
 
-#ifdef CONFIG_RF_GAIN_OFFSET
-		rtw_bb_rf_gain_offset(padapter);	
-#endif //CONFIG_RF_GAIN_OFFSET
-
 		status=rtw_start_drv_threads(padapter);
 		if(status ==_FAIL)
 		{			
@@ -1837,10 +1826,6 @@ int  ips_netdrv_open(_adapter *padapter)
 		goto netdev_open_error;
 	}
 	
-#ifdef CONFIG_RF_GAIN_OFFSET
-	rtw_bb_rf_gain_offset(padapter);	
-#endif //CONFIG_RF_GAIN_OFFSET
-
 	if(padapter->intf_start)
 	{
 		padapter->intf_start(padapter);
@@ -1910,57 +1895,6 @@ void rtw_ips_dev_unload(_adapter *padapter)
 	}
 
 }
-
-#ifdef CONFIG_RF_GAIN_OFFSET
-void rtw_bb_rf_gain_offset(_adapter *padapter)
-{
-	u8      value = padapter->eeprompriv.EEPROMRFGainOffset;
-	u8      tmp = 0x3e;
-	u32     res;
-
-	DBG_871X("+%s value: 0x%02x+\n", __func__, value);
-
-	if (value & RF_GAIN_OFFSET_ON) {
-		//DBG_871X("Offset RF Gain.\n");
-		//DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal=0x%x\n",padapter->eeprompriv.EEPROMRFGainVal);
-		if(padapter->eeprompriv.EEPROMRFGainVal != 0xff){
-#ifdef CONFIG_RTL8723A
-			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0xd, 0xffffffff);
-			//DBG_871X("Offset RF Gain. reg 0xd=0x%x\n",res);
-			res &= 0xfff87fff;
-
-			res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f)<< 15;
-			//DBG_871X("Offset RF Gain.    reg 0xd=0x%x\n",res);
-
-			rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res);
-
-			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0xe, 0xffffffff);
-			DBG_871X("Offset RF Gain. reg 0xe=0x%x\n",res);
-			res &= 0xfffffff0;
-
-			res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f);
-			//DBG_871X("Offset RF Gain.    reg 0xe=0x%x\n",res);
-
-			rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res);
-#else
-			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, 0xffffffff);
-			DBG_871X("REG_RF_BB_GAIN_OFFSET=%x \n",res);
-			res &= 0xfff87fff;
-			res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f)<< 15;
-			DBG_871X("write REG_RF_BB_GAIN_OFFSET=%x \n",res);
-			rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res);
-#endif
-		}
-		else
-		{
-			//DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal=0x%x  != 0xff, didn't run Kfree\n",padapter->eeprompriv.EEPROMRFGainVal);
-		}
-	} else {
-		//DBG_871X("Using the default RF gain.\n");
-	}
-
-}
-#endif //CONFIG_RF_GAIN_OFFSET
 
 int pm_netdev_open(struct net_device *pnetdev,u8 bnormal)
 {

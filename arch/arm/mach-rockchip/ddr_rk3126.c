@@ -2003,7 +2003,7 @@ static void __sramfunc idle_port(void)
 	;
 
 	/*resume clock gate status*/
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < 11; i++)
 		pCRU_Reg->CRU_CLKGATE_CON[i] = (clk_gate[i] | 0xffff0000);
 }
 
@@ -2046,7 +2046,7 @@ static void __sramfunc deidle_port(void)
 	;
 
 	/*resume clock gate status*/
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < 11; i++)
 		pCRU_Reg->CRU_CLKGATE_CON[i] = (clk_gate[i] | 0xffff0000);
 
 }
@@ -2111,7 +2111,9 @@ static void __sramfunc ddr_selfrefresh_exit(void)
 	pCRU_Reg->CRU_CLKGATE_CON[0] = ((0x1 << 2) << 16) | (0 << 2);	/*enable DDR PHY clock*/
 	dsb();
 	ddr_delayus(1);
-	pPHY_Reg->PHY_REG0 = (pPHY_Reg->PHY_REG0 | (0x3 << 2));	/*phy soft de-reset*/
+	pPHY_Reg->PHY_REG0 |= (1 << 2); /*soft de-reset analogue(dll)*/
+	ddr_delayus(5);
+	pPHY_Reg->PHY_REG0 |= (1 << 3);/*soft de-reset digital*/
 	pGRF_Reg->GRF_SOC_CON[2] = GRF_DDR_LP_DISB;
 	/*pPHY_Reg->PHY_REG264 |= (1<<1);*/
 	dsb();

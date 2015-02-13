@@ -226,6 +226,8 @@ struct registry_priv
 #endif
 	u8 regulatory_tid;
 	u8 qos_opt_enable;
+
+	u8 hiq_filter;
 };
 
 
@@ -386,6 +388,22 @@ struct int_logs {
 
 #endif
 
+struct cam_ctl_t {
+	_lock lock;
+	u64 bitmap;
+};
+
+struct cam_entry_cache {
+	u16 ctrl;
+	u8 mac[ETH_ALEN];
+	u8 key[16];
+};
+
+#define KEY_FMT "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
+#define KEY_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5], \
+	((u8*)(x))[6],((u8*)(x))[7],((u8*)(x))[8],((u8*)(x))[9],((u8*)(x))[10],((u8*)(x))[11], \
+	((u8*)(x))[12],((u8*)(x))[13],((u8*)(x))[14],((u8*)(x))[15]
+
 struct dvobj_priv
 {
 	_adapter *if1; //PRIMARY_ADAPTER
@@ -410,6 +428,9 @@ struct dvobj_priv
 
 	_adapter *padapters[IFACE_ID_MAX];
 	u8 iface_nums; // total number of ifaces used runtime
+
+	struct cam_ctl_t cam_ctl;
+	struct cam_entry_cache cam_cache[32];
 
 	//For 92D, DMDP have 2 interface.
 	u8	InterfaceNumber;

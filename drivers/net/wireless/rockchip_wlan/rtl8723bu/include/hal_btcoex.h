@@ -39,10 +39,12 @@ u8 hal_btcoex_IsBtExist(PADAPTER padapter);
 u8 hal_btcoex_IsBtDisabled(PADAPTER);
 void hal_btcoex_SetChipType(PADAPTER padapter, u8 chipType);
 u8 hal_btcoex_GetChipType(PADAPTER padapter);
-void hal_btcoex_SetPgAntNum(PADAPTER padapter, u8 antNum, BOOLEAN antInverse);
+void hal_btcoex_SetPgAntNum(PADAPTER padapter, u8 antNum);
 u8 hal_btcoex_GetPgAntNum(PADAPTER padapter);
+void hal_btcoex_SetSingleAntPath(PADAPTER padapter, u8 singleAntPath);
 
 u8 hal_btcoex_Initialize(PADAPTER padapter);
+void hal_btcoex_PowerOnSetting(PADAPTER padapter);
 void hal_btcoex_InitHwConfig(PADAPTER padapter, u8 bWifiOnly);
 
 void hal_btcoex_IpsNotify(PADAPTER padapter, u8 type);

@@ -89,6 +89,7 @@ dm_CheckStatistics(
 #endif
 }
 
+#ifdef CONFIG_SUPPORT_HW_WPS_PBC
 static void dm_CheckPbcGPIO(_adapter *padapter)
 {
 	u8	tmp1byte;
@@ -156,6 +157,7 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 #endif
 	}
 }
+#endif //#ifdef CONFIG_SUPPORT_HW_WPS_PBC
 
 #ifdef CONFIG_PCI_HCI
 //
@@ -559,16 +561,11 @@ _record_initrate:
 	}
 
 skip_dm:
-
-	// Check GPIO to determine current RF on/off and Pbc status.
-	// Check Hardware Radio ON/OFF or not
-#ifdef CONFIG_PCI_HCI
-	if(pHalData->bGpioHwWpsPbc)
-#endif
-	{
-		dm_CheckPbcGPIO(Adapter);				// Add by hpfan 2008-03-11
-	}
-
+#ifdef CONFIG_SUPPORT_HW_WPS_PBC
+	// Check GPIO to determine current Pbc status.
+	dm_CheckPbcGPIO(Adapter);
+#endif	
+	return;
 }
 
 void rtl8723a_init_dm_priv(IN PADAPTER Adapter)

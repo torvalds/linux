@@ -4451,7 +4451,7 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 		return PTR_ERR(lcdc_dev->grf_base);
 	}
 	lcdc_dev->pmugrf_base =
-		syscon_regmap_lookup_by_phandle(np, "rockchip,pmu");
+		syscon_regmap_lookup_by_phandle(np, "rockchip,pmugrf");
 	if (IS_ERR(lcdc_dev->pmugrf_base)) {
 		dev_err(&pdev->dev, "can't find lcdc pmu grf property\n");
 		return PTR_ERR(lcdc_dev->pmugrf_base);

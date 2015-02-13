@@ -33,11 +33,11 @@
 
 /*
  * The idmap and swapper page tables need some space reserved in the kernel
- * image. The idmap only requires a pgd and a next level table to (section) map
- * the kernel, while the swapper also maps the FDT and requires an additional
- * table to map an early UART. See __create_page_tables for more information.
+ * image. Both require a pgd and a next level table to (section) map the
+ * kernel. The the swapper also maps the FDT (see __create_page_tables for
+ * more information).
  */
-#define SWAPPER_DIR_SIZE	(3 * PAGE_SIZE)
+#define SWAPPER_DIR_SIZE	(2 * PAGE_SIZE)
 #define IDMAP_DIR_SIZE		(2 * PAGE_SIZE)
 
 #ifndef __ASSEMBLY__

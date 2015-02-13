@@ -445,6 +445,41 @@ static void iep_config_yuv_dns(struct IEP_MSG *iep_msg)
 
 static void iep_config_dil(struct IEP_MSG *iep_msg)
 {
+    int dein_mode;
+    switch (iep_msg->dein_mode) {
+    case IEP_DEINTERLACE_MODE_DISABLE:
+        dein_mode = dein_mode_bypass_dis;
+        break;
+    case IEP_DEINTERLACE_MODE_I2O1:
+        dein_mode = iep_msg->field_order == FIELD_ORDER_TOP_FIRST ? dein_mode_I2O1T : dein_mode_I2O1B;
+        break;
+    case IEP_DEINTERLACE_MODE_I4O1:
+#if 1
+        dein_mode = iep_msg->field_order == FIELD_ORDER_TOP_FIRST ? dein_mode_I4O1B : dein_mode_I4O1T;
+#else
+        dein_mode = iep_msg->field_order == FIELD_ORDER_TOP_FIRST ? dein_mode_I4O1T : dein_mode_I4O1B;
+#endif
+        break;
+    case IEP_DEINTERLACE_MODE_I4O2:
+        dein_mode = dein_mode_I4O2;
+        break;
+    case IEP_DEINTERLACE_MODE_BYPASS:
+        dein_mode = dein_mode_bypass;
+        break;
+    default:
+        IEP_ERR("unknown deinterlace mode, set deinterlace mode (bypass)\n");
+        dein_mode = dein_mode_bypass;
+    }
+
+    IEP_REGB_DIL_MODE(iep_msg->base, dein_mode);
+    //hf
+    IEP_REGB_DIL_HF_EN(iep_msg->base, iep_msg->dein_high_fre_en);
+    if (iep_msg->dein_high_fre_en == 1) IEP_REGB_DIL_HF_FCT(iep_msg->base, iep_msg->dein_high_fre_fct);
+    //ei
+    IEP_REGB_DIL_EI_MODE(iep_msg->base, iep_msg->dein_ei_mode);
+    IEP_REGB_DIL_EI_SMOOTH(iep_msg->base, iep_msg->dein_ei_smooth);
+    IEP_REGB_DIL_EI_SEL(iep_msg->base, iep_msg->dein_ei_sel);
+    if (iep_msg->dein_ei_sel == 0) IEP_REGB_DIL_EI_RADIUS(iep_msg->base, iep_msg->dein_ei_radius);
 	IEP_REGB_DIL_MTN_TAB0(iep_msg->base, 0x40404040);
 	IEP_REGB_DIL_MTN_TAB1(iep_msg->base, 0x3c3e3f3f);
 	IEP_REGB_DIL_MTN_TAB2(iep_msg->base, 0x3336393b);

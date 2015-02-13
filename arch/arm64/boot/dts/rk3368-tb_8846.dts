@@ -14,6 +14,7 @@
 
 	wireless-wlan {
 		compatible = "wlan-platdata";
+                rockchip,grf = <&grf>;
 
 		/* wifi_chip_type - wifi chip define
 		 * bcmwifi ==> like ap6xxx, rk90x;
@@ -40,7 +41,7 @@
 		WIFI,host_wake_irq = <&gpio3 GPIO_A6 GPIO_ACTIVE_HIGH>;
 		//WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	wireless-bluetooth {
@@ -189,7 +190,7 @@
 	io-domains {
 		compatible = "rockchip,rk3368-io-voltage-domain";
 		rockchip,grf = <&grf>;
-		rockchip,pmu = <&pmu_grf>;
+		rockchip,pmugrf = <&pmugrf>;
 
 		/*GRF_IO_VSEL*/
 		dvp-supply = <&ldo7_reg>;      /*DVPIO_VDD*/
@@ -767,8 +768,8 @@
 
 		ldo5_reg: regulator@8 {
 			regulator-name= "act_ldo5";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
 
 		};
 

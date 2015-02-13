@@ -4,7 +4,7 @@
 #
 # Epivers.h version support svn/sparse/gclient workspaces
 #
-# $Id: epivers.sh 363310 2012-10-17 03:37:57Z $
+# $Id: epivers.sh 389103 2013-03-05 17:24:49Z $
 #
 # Version generation works off of svn property HeadURL, if
 # not set it keys its versions from current svn workspace or
@@ -45,9 +45,10 @@ if [ -f epivers.h ]; then
 
 else # epivers.h doesn't exist
 
-	NULL="/dev/null"
-	svncmd="svn --non-interactive"
+	SVNCMD=${SVNCMD:-"svn --non-interactive"}
 	SRCBASE=${SRCBASE:-..}
+	NULL=/dev/null
+	[ -z "$VERBOSE" ] || NULL=/dev/stderr
 
 	# Check for the in file, if not there we're in the wrong directory
 	if [ ! -f epivers.h.in ]; then
@@ -56,7 +57,7 @@ else # epivers.h doesn't exist
 	fi
 
 	# Following SVNURL should be expanded on checkout
-	SVNURL='$HeadURL: http://svn.sj.broadcom.com/svn/wlansvn/proj/tags/DHD/DHD_REL_1_88_45/src/include/epivers.sh $'
+	SVNURL='$HeadURL: http://svn.sj.broadcom.com/svn/wlansvn/proj/tags/DHD/DHD_REL_1_201_34/src/include/epivers.sh $'
 
 	# .gclient_info is created by gclient checkout/sync steps
 	# and contains "DEPS='<deps-url1> <deps-url2> ..." entry
@@ -88,7 +89,7 @@ else # epivers.h doesn't exist
 	if echo "$SVNURL" | egrep -vq 'HeadURL.*epivers.sh.*|http://.*/DEPS'; then
 		[ -n "$VERBOSE" ] && \
 			echo "DBG: SVN URL ($SVNURL) wasn't expanded. Getting it from svn info"
-		SVNURL=$($svncmd info epivers.sh 2> $NULL | egrep "^URL:")
+		SVNURL=$($SVNCMD info epivers.sh 2> $NULL | egrep "^URL:")
 	fi
 
 	if echo "${TAG}" | grep -q "_BRANCH_\|_TWIG_"; then
@@ -131,7 +132,7 @@ else # epivers.h doesn't exist
 		[ -n "$VERBOSE" ] && \
 			echo "DBG: Fetching $GETCOMPVER from trunk"
 
-		$svncmd export -q \
+		$SVNCMD export -q \
 			^/proj/trunk/src/tools/build/${GETCOMPVER} \
 			${GETCOMPVER} 2> $NULL
 
@@ -304,7 +305,7 @@ else # epivers.h doesn't exist
 	fi
 
 	# Finally get version control revision number of <SRCBASE> (if any)
-	vc_version_num=$($svncmd info ${SRCBASE} 2> $NULL | awk -F': ' '/^Last Changed Rev: /{printf "%s", $2}')
+	vc_version_num=$($SVNCMD info ${SRCBASE} 2> $NULL | awk -F': ' '/^Last Changed Rev: /{printf "%s", $2}')
 
 	# OK, go do it
 	echo "maj=${maj}, min=${min}, rc=${rcnum}, inc=${incremental}, build=${build}"

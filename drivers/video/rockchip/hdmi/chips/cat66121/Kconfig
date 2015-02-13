@@ -1,9 +1,0 @@
-config SUPPORT_HDCP
-	bool "HDCP support"
-        depends on HDMI_CAT66121
-        default n
-	help
-	  HDCP Interface. This adds the High Definition Content Protection Interface.
-	  See http://www.digital-cp.com/ for HDCP specification.
-
-

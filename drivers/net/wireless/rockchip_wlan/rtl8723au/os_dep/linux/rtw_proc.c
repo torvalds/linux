@@ -250,6 +250,95 @@ static int proc_get_rf_reg_dump(struct seq_file *m, void *v)
 	return 0;
 }
 
+static int proc_get_mac_qinfo(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+
+	rtw_hal_get_hwreg(adapter, HW_VAR_DUMP_MAC_QUEUE_INFO, (u8 *)m);
+
+	return 0;
+}
+
+static int proc_get_cam(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	u8 i;
+
+	return 0;
+}
+
+static ssize_t proc_set_cam(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *adapter;
+
+	char tmp[32];
+	char cmd[4];
+	u8 id;
+
+	adapter = (_adapter *)rtw_netdev_priv(dev);
+	if (!adapter)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
+
+		/* c <id>: clear specific cam entry */
+		/* wfc <id>: write specific cam entry from cam cache */
+
+		int num = sscanf(tmp, "%s %hhu", cmd, &id);
+
+		if (num < 2)
+			return count;
+
+		if (strcmp("c", cmd) == 0) {
+			_clear_cam_entry(adapter, id);
+			adapter->securitypriv.hw_decrypted = _FALSE; /* temporarily set this for TX path to use SW enc */
+		} else if (strcmp("wfc", cmd) == 0) {
+			write_cam_from_cache(adapter, id);
+		}
+	}
+
+	return count;
+}
+
+static int proc_get_cam_cache(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	u8 i;
+
+	DBG_871X_SEL_NL(m, "cam bitmap:0x%016llx\n", dvobj->cam_ctl.bitmap);
+
+	DBG_871X_SEL_NL(m, "%-2s %-6s %-17s %-32s %-3s %-7s"
+		//" %-2s %-2s %-4s %-5s"
+		"\n"
+		, "id", "ctrl", "addr", "key", "kid", "type"
+		//, "MK", "GK", "MFB", "valid"
+	);
+
+	for (i=0;i<32;i++) {
+		if (dvobj->cam_cache[i].ctrl != 0)
+			DBG_871X_SEL_NL(m, "%2u 0x%04x "MAC_FMT" "KEY_FMT" %3u %-7s"
+				//" %2u %2u 0x%02x %5u"
+				"\n", i
+				, dvobj->cam_cache[i].ctrl
+				, MAC_ARG(dvobj->cam_cache[i].mac)
+				, KEY_ARG(dvobj->cam_cache[i].key)
+				, (dvobj->cam_cache[i].ctrl)&0x03
+				, security_type_str(((dvobj->cam_cache[i].ctrl)>>2)&0x07)
+				//, ((dvobj->cam_cache[i].ctrl)>>5)&0x01
+				//, ((dvobj->cam_cache[i].ctrl)>>6)&0x01
+				//, ((dvobj->cam_cache[i].ctrl)>>8)&0x7f
+				//, ((dvobj->cam_cache[i].ctrl)>>15)&0x01
+			);
+	}
+
+	return 0;
+}
+
 /*
 * rtw_adapter_proc:
 * init/deinit when register/unregister net_device
@@ -266,6 +355,9 @@ const struct rtw_proc_hdl adapter_proc_hdls [] = {
 	{"ap_info", proc_get_ap_info, NULL},
 	{"adapter_state", proc_get_adapter_state, NULL},
 	{"trx_info", proc_get_trx_info, NULL},
+	{"mac_qinfo", proc_get_mac_qinfo, NULL},
+	{"cam", proc_get_cam, proc_set_cam},
+	{"cam_cache", proc_get_cam_cache, NULL},
 
 #ifdef CONFIG_DBG_COUNTER
 	{"rx_logs", proc_get_rx_logs, NULL},
@@ -274,6 +366,7 @@ const struct rtw_proc_hdl adapter_proc_hdls [] = {
 #endif
 
 	{"fwdl_test_case", proc_get_dummy, proc_set_fwdl_test_case},
+	{"wait_hiq_empty", proc_get_dummy, proc_set_wait_hiq_empty},
 
 	{"mac_reg_dump", proc_get_mac_reg_dump, NULL},
 	{"bb_reg_dump", proc_get_bb_reg_dump, NULL},

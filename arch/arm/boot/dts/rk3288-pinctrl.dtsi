@@ -385,14 +385,14 @@
 		gpio7_i2c5 {
 			i2c5_sda:i2c5-sda {
 				rockchip,pins = <EDPHDMII2C_SDA>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_NORMAL>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
 
 			i2c5_scl:i2c5-scl {
 				rockchip,pins = <EDPHDMII2C_SCL>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_NORMAL>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -949,6 +949,20 @@
 			tsadc_gpio: tsadc-gpio {
 				rockchip,pins = <GPIO0_B2>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
+			};
+		};
+
+		gpio7_cec {
+			hdmi_cec: hdmi-cec {
+				rockchip,pins = <EDPHDMI_CECINOUTRESERVED>;
+				rockchip,pull = <VALUE_PULL_NORMAL>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+
+			hdmi_cec_gpio: hdmi-cec-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(EDPHDMI_CECINOUTRESERVED)>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 		};
 		//to add

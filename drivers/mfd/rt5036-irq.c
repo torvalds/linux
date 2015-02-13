@@ -167,9 +167,9 @@ static int rt5036_irq_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ii);
 	if (ii->irq >= 0) {
-		if (devm_request_irq
-		    (&pdev->dev, ii->irq, rt5036_irq_handler,
-		     IRQF_TRIGGER_FALLING | IRQF_NO_SUSPEND | IRQF_DISABLED,
+		if (devm_request_threaded_irq
+		    (&pdev->dev, ii->irq, NULL,rt5036_irq_handler,
+		     IRQF_TRIGGER_FALLING | IRQF_NO_SUSPEND | IRQF_ONESHOT,
 		     "rt5036_irq", ii)) {
 			dev_err(&pdev->dev, "request threaded irq fail\n");
 			goto out_dev;

@@ -416,7 +416,7 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 	}
 
 	/* try to find the optional reference to the pmu syscon */
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
+	node = of_parse_phandle(np, "rockchip,pmugrf", 0);
 	if (node) {
 		iod->pmu = syscon_node_to_regmap(node);
 		if (IS_ERR(iod->pmu))

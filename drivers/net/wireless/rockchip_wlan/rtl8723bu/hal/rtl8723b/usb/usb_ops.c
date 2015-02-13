@@ -755,7 +755,7 @@ _pkt *pskb
 		precvframe->u.hdr.precvbuf = NULL;	//can't access the precvbuf for new arch.
 		precvframe->u.hdr.len=0;
 
-		update_recvframe_attrib(padapter,precvframe, (struct recv_stat*)pbuf);
+		update_recvframe_attrib(padapter,precvframe, pbuf);
 
 		pattrib = &precvframe->u.hdr.attrib;
 		
@@ -771,8 +771,10 @@ _pkt *pskb
 
 		if((pattrib->pkt_len<=0) || (pkt_offset>transfer_len))
 		{	
-			RT_TRACE(_module_rtl871x_recv_c_,_drv_info_,("recvbuf2recvframe: pkt_len<=0\n"));
-			DBG_871X("%s()-%d: RX Warning!,pkt_len<=0 or pkt_offset> transfer_len \n", __FUNCTION__, __LINE__);	
+			DBG_871X("%s()-%d: RX Warning! pkt_len=%d pkt_offset=%d transfer_len=%d\n",
+				__FUNCTION__, __LINE__,
+				pattrib->pkt_len, pkt_offset, transfer_len);
+
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 			goto _exit_recvbuf2recvframe;
 		}
@@ -796,43 +798,42 @@ _pkt *pskb
 
 		if(pattrib->pkt_rpt_type == NORMAL_RX)//Normal rx packet
 		{
-
 			if(pattrib->physt)
 					pphy_status = (pbuf + RXDESC_OFFSET);
 #ifdef CONFIG_CONCURRENT_MODE
 			if(rtw_buddy_adapter_up(padapter))
-		{
+			{
 				if(pre_recv_entry(precvframe, (struct phy_stat*)pphy_status) != _SUCCESS)
-		{
+				{
 					RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
 						("recvbuf2recvframe: recv_entry(precvframe) != _SUCCESS\n"));
 				}
-		}
+			}
 #endif //CONFIG_CONCURRENT_MODE
 
-		if (pattrib->physt && pphy_status)
-			update_recvframe_phyinfo(precvframe, (struct phy_stat*)pphy_status);
+			if (pattrib->physt && pphy_status)
+				update_recvframe_phyinfo(precvframe, (struct phy_stat*)pphy_status);
 
-
-		if(rtw_recv_entry(precvframe) != _SUCCESS)
-		{
+			if(rtw_recv_entry(precvframe) != _SUCCESS) {
 				RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
 					("recvbuf2recvframe: rtw_recv_entry(precvframe) != _SUCCESS\n"));
-		}
-
+			}
 		}
 		else{ // pkt_rpt_type == TX_REPORT1-CCX, TX_REPORT2-TX RTP,HIS_REPORT-USB HISR RTP
 			if (pattrib->pkt_rpt_type == C2H_PACKET) {
 				C2H_EVT_HDR 	C2hEvent;
-				
+
 				u16 len_c2h = pattrib->pkt_len;
 				u8 *pbuf_c2h = precvframe->u.hdr.rx_data;
-				u8 *pdata_c2h;				
+				u8 *pdata_c2h;
 
 				C2hEvent.CmdID = pbuf_c2h[0];
 				C2hEvent.CmdSeq = pbuf_c2h[1];
 				C2hEvent.CmdLen = (len_c2h -2);
 				pdata_c2h = pbuf_c2h+2;
+
+				DBG_8192C("rx C2H_PACKET, ID=%d, seq=%d, len=%d\n",
+					C2hEvent.CmdID, C2hEvent.CmdSeq, C2hEvent.CmdLen);
 
 				if(C2hEvent.CmdID == C2H_CCX_TX_RPT)
 				{
@@ -844,8 +845,6 @@ _pkt *pskb
 					rtl8723bu_c2h_packet_handler(padapter, precvframe->u.hdr.rx_data, pattrib->pkt_len);
 #endif
 				}
-				DBG_8192C("rx C2H_PACKET \n");
-			
 			}
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 		}
@@ -1040,12 +1039,17 @@ void rtl8723bu_recv_tasklet(void *priv)
 	_pkt			*pskb;
 	_adapter		*padapter = (_adapter*)priv;
 	struct recv_priv	*precvpriv = &padapter->recvpriv;
-	
+	struct recv_buf		*precvbuf = NULL;	
+
 	while (NULL != (pskb = skb_dequeue(&precvpriv->rx_skb_queue)))
 	{
 		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved== _TRUE))
 		{
 			DBG_8192C("recv_tasklet => bDriverStopped or bSurpriseRemoved \n");
+#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
+			if(rtw_free_skb_premem(pskb)!=0)
+#endif //CONFIG_PREALLOC_RX_SKB_BUFFER
+
 			rtw_skb_free(pskb);
 			break;
 		}
@@ -1065,6 +1069,13 @@ void rtl8723bu_recv_tasklet(void *priv)
 #endif
 				
 	}
+	while (NULL != (precvbuf = rtw_dequeue_recvbuf(&precvpriv->recv_buf_pending_queue)))
+	{
+		DBG_871X("dequeue_recvbuf %p\n", precvbuf);
+		precvbuf->pskb = NULL;
+		precvbuf->reuse = _FALSE;
+		rtw_read_port(padapter, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf);
+	}	
 	
 }
 
@@ -1229,9 +1240,11 @@ _func_enter_;
 		if(precvbuf->pskb == NULL)		
 		{
 			RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("init_recvbuf(): alloc_skb fail!\n"));
-			DBG_871X("#### usb_read_port() alloc_skb fail!#####\n");
+			DBG_8192C("#### usb_read_port() alloc_skb fail!  precvbuf=%p #####\n", precvbuf);
+			//enqueue precvbuf and wait for free skb
+			rtw_enqueue_recvbuf(precvbuf, &precvpriv->recv_buf_pending_queue);
 			return _FAIL;
-		}	
+		}
 
 		tmpaddr = (SIZE_PTR)precvbuf->pskb->data;
         	alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);

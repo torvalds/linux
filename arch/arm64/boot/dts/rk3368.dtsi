@@ -133,15 +133,25 @@
 		      <0x0 0xffb72000 0 0x1000>;
 	};
 
-	pmu_grf: syscon@ff738000 {
-		compatible = "rockchip,rk3368-pmu-grf", "rockchip,pmu-grf", "syscon";
-		reg = <0x0 0xff738000 0x0 0x100>;
+	pmu: syscon@ff730000 {
+		compatible = "rockchip,rk3368-pmu", "rockchip,pmu", "syscon";
+		reg = <0x0 0xff730000 0x0 0x1000>;
+	};
+
+	pmugrf: syscon@ff738000 {
+		compatible = "rockchip,rk3368-pmugrf", "rockchip,pmugrf", "syscon";
+		reg = <0x0 0xff738000 0x0 0x1000>;
 	};
 
 	sgrf: syscon@ff740000 {
 		compatible = "rockchip,rk3368-sgrf", "rockchip,sgrf", "syscon";
 		reg = <0x0 0xff740000 0x0 0x1000>;
 
+	};
+
+	cru: syscon@ff760000 {
+		compatible = "rockchip,rk3368-cru", "rockchip,cru", "syscon";
+		reg = <0x0 0xff760000 0x0 0x1000>;
 	};
 
 	grf: syscon@ff770000 {
@@ -687,13 +697,13 @@
 	};
 
 	dsihost0: mipi@ff960000{
-		compatible = "rockchip,rk33x-dsi";
+		compatible = "rockchip,rk3368-dsi";
 		rockchip,prop = <0>;
-		reg = <0xff960000 0x4000>, <0xff968000 0x4000>;
+		reg = <0x0 0xff960000 0x0 0x4000>, <0x0 0xff968000 0x0 0x4000>;
 		reg-names = "mipi_dsi_host" ,"mipi_dsi_phy";
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_gates4 14>, <&clk_gates17 3>, <&clk_gates22 10>;
-		clock-names = "clk_mipi_24m", "pclk_mipi_dsi_host", "pclk_mipi_dsi_phy";
+		clocks = <&clk_gates4 14>, <&clk_gates22 10>, <&clk_gates17 3>;
+		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pclk_mipi_dsi_host";
 		status = "okay";
 	};
 
@@ -721,6 +731,7 @@
 	hdmi: hdmi@ff980000 {
 		compatible = "rockchip,rk3368-hdmi";
 		reg = <0x0 0xff980000 0x0 0x20000>;
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&hdmii2c_xfer &hdmi_cec>;
@@ -742,7 +753,7 @@
 	lcdc: lcdc@ff930000 {
 		 compatible = "rockchip,rk3368-lcdc";
 		 rockchip,grf = <&grf>;
-		 rockchip,pmu = <&pmu_grf>;
+		 rockchip,pmugrf = <&pmugrf>;
 		 rockchip,prop = <PRMRY>;
 		 rockchip,pwr18 = <0>;
 		 rockchip,iommu-enabled = <0>;
@@ -862,6 +873,22 @@
 		status = "disabled";
 	};
 
+	remotectl: pwm@ff680030 {
+		compatible = "rockchip,remotectl-pwm";
+		reg = <0x0 0xff680030 0x0 0x50>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm3_pin>;
+		clocks = <&clk_gates13 6>;
+		clock-names = "pclk_pwm";
+		dmas = <&pdma0 2>;
+		#dma-cells = <2>;
+		dma-names = "rx";
+		remote_pwm_id = <3>;
+		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	voppwm: pwm@ff9301a0 {
 		compatible = "rockchip,vop-pwm";
 		reg = <0x0 0xff9301a0 0x0 0x10>;
@@ -875,6 +902,11 @@
 
 	pvtm {
 		compatible = "rockchip,rk3368-pvtm";
+		rockchip,grf = <&grf>;
+	};
+
+	cpufreq {
+		compatible = "rockchip,rk3368-cpufreq";
 		rockchip,grf = <&grf>;
 	};
 
@@ -1174,6 +1206,7 @@
 		clock-names = "clk_crypto", "sclk_crypto", "mclk_crypto";
 		status = "okay";
 	};
+
 	dwc_control_usb: dwc-control-usb {
 		compatible = "rockchip,rk3368-dwc-control-usb";
 		rockchip,grf = <&grf>;
@@ -1188,8 +1221,8 @@
 		usb_bc{
 			compatible = "inno,phy";
 			regbase = &dwc_control_usb;
-			rk_usb,bvalid     = <0x04b 23 1>;
-			rk_usb,iddig      = <0x04b 26 1>;
+			rk_usb,bvalid     = <0x4bc 23 1>;
+			rk_usb,iddig      = <0x4bc 26 1>;
 			rk_usb,vdmsrcen   = <0x718 12 1>;
 			rk_usb,vdpsrcen   = <0x718 11 1>;
 			rk_usb,rdmpden    = <0x718 10 1>;
@@ -1255,7 +1288,7 @@
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3368-pinctrl";
 		rockchip,grf = <&grf>;
-		rockchip,pmu = <&pmu_grf>;
+		rockchip,pmugrf = <&pmugrf>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -1908,5 +1941,11 @@
                                                 <3 GPIO_D3 RK_FUNC_1 &pcfg_pull_none>;
                         };
 		};
+	};
+
+	reboot {
+		compatible = "rockchip,rk3368-reboot";
+		rockchip,cru = <&cru>;
+		rockchip,pmugrf = <&pmugrf>;
 	};
 };

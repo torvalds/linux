@@ -641,7 +641,7 @@ static void rga_try_set_reg(void)
             __dma_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[28]);
             #endif
 
-            #if defined(CONFIG_ARCH_RK30)
+            #if 1 
             rga_soft_reset();
             #endif
 

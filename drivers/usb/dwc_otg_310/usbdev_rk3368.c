@@ -1,6 +1,6 @@
 #include "usbdev_rk.h"
-#include "usbdev_grf_regs.h"
 #include "dwc_otg_regs.h"
+
 static struct dwc_otg_control_usb *control_usb;
 
 static u32 uoc_read(u32 reg)
@@ -197,7 +197,7 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3368 = {
 	.get_status = usb20otg_get_status,
 	.power_enable = usb20otg_power_enable,
 	.dwc_otg_uart_mode = dwc_otg_uart_mode,
-	/* .bc_detect_cb = rk_battery_charger_detect_cb, */
+	.bc_detect_cb = rk_battery_charger_detect_cb,
 };
 #endif
 
@@ -321,14 +321,14 @@ static inline void do_wakeup(struct work_struct *work)
 
 static void usb_battery_charger_detect_work(struct work_struct *work)
 {
-	/* rk_battery_charger_detect_cb(usb_battery_charger_detect(1)); */
+	rk_battery_charger_detect_cb(usb_battery_charger_detect(1));
 }
 
 /********** handler for bvalid irq **********/
 static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 {
 	/* clear irq */
-	uoc_write(UOC_HIWORD_UPDATE(0x1, 0x1, 3), 0x690);
+	uoc_write(UOC_HIWORD_UPDATE(0x1, 0x1, 3), 0x6a0);
 #ifdef CONFIG_RK_USB_UART
 	/* usb otg dp/dm switch to usb phy */
 	dwc_otg_uart_mode(NULL, PHY_USB_MODE);
@@ -355,7 +355,7 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 	wake_lock_init(&control_usb->usb_wakelock, WAKE_LOCK_SUSPEND,
 		       "usb_detect");
 	INIT_DELAYED_WORK(&control_usb->usb_det_wakeup_work, do_wakeup);
-#if 0
+
 	/*register otg_bvalid irq */
 	irq = platform_get_irq_byname(pdev, "otg_bvalid");
 	if ((irq > 0) && control_usb->usb_irq_wakeup) {
@@ -368,7 +368,7 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 			uoc_write(UOC_HIWORD_UPDATE(0x1, 0x1, 3), 0x680);
 		}
 	}
-#endif
+
 	return 0;
 }
 

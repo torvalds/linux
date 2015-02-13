@@ -30,18 +30,18 @@ static void __iomem *rk_grf_base;
 
 u32 cru_readl(u32 offset)
 {
-	return readl(rk_cru_base + (offset));
+	return readl_relaxed(rk_cru_base + (offset));
 }
 
 void cru_writel(u32 val, u32 offset)
 {
-	writel(val, rk_cru_base + (offset));
+	writel_relaxed(val, rk_cru_base + (offset));
 	dsb(sy);
 }
 
 u32 grf_readl(u32 offset)
 {
-	return readl(rk_grf_base + (offset));
+	return readl_relaxed(rk_grf_base + (offset));
 }
 
 struct rkclk_muxinfo {

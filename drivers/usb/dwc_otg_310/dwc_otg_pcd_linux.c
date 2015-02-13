@@ -1605,7 +1605,8 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 	struct dwc_otg_device *otg_dev = _pcd->otg_dev;
 	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
 
-	if (pldata->get_status(USB_STATUS_BVABLID)) {
+	if (pldata->get_status(USB_STATUS_BVABLID) &&
+	    pldata->get_status(USB_STATUS_ID)) {
 		/* if usb not connect before ,then start connect */
 		if (_pcd->vbus_status == USB_BC_TYPE_DISCNT) {
 			printk("***************vbus detect*****************\n");
@@ -1748,7 +1749,7 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 		/* host mode,enter usb phy mode */
 		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
 	}
-	schedule_delayed_work(&pcd->check_id_work, HZ);
+	schedule_delayed_work(&pcd->check_id_work, 8 * HZ);
 }
 
 #endif /* DWC_HOST_ONLY */

@@ -94,6 +94,10 @@ static int rk31xx_lvds_pwr_on(void)
         struct rk_lvds_device *lvds = rk31xx_lvds;
 
         if (lvds->screen.type == SCREEN_LVDS) {
+                /* set VOCM 900 mv and V-DIFF 350 mv */
+	        lvds_msk_reg(lvds, MIPIPHY_REGE4, m_VOCM | m_DIFF_V,
+			     v_VOCM(0) | v_DIFF_V(2));
+
                 /* power up lvds pll and ldo */
 	        lvds_msk_reg(lvds, MIPIPHY_REG1,
 	                     m_SYNC_RST | m_LDO_PWR_DOWN | m_PLL_PWR_DOWN,
@@ -139,13 +143,18 @@ static int rk31xx_lvds_pwr_off(void)
 static int rk31xx_lvds_disable(void)
 {
 	struct rk_lvds_device *lvds = rk31xx_lvds;
+	u32 val;
 
         if (unlikely(!lvds) || !lvds->sys_state)
                 return 0;
+	if (lvds->data->soc_type == LVDS_SOC_RK3368) {
+		val = v_RK3368_LVDSMODE_EN(0) | v_RK3368_MIPIPHY_TTL_EN(0);
+		lvds_grf_writel(lvds, GRF_SOC_CON7_LVDS, val);
+	} else {
+		grf_writel(v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(0), RK312X_GRF_LVDS_CON0);
+	}
 
-	grf_writel(v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(0), RK312X_GRF_LVDS_CON0);
-
-        rk31xx_lvds_pwr_off();
+	rk31xx_lvds_pwr_off();
 	rk31xx_lvds_clk_disable(lvds);
 
 #if !defined(CONFIG_RK_FPGA)

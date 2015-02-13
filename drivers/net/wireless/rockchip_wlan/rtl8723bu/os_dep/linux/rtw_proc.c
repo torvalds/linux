@@ -319,7 +319,7 @@ int proc_get_rx_info(struct seq_file *m, void *v)
 }	
 
 
-int proc_reset_rx_info(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+ssize_t proc_reset_rx_info(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
 {
 	struct net_device *dev = data;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
@@ -389,30 +389,66 @@ static int proc_get_cam_cache(struct seq_file *m, void *v)
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
 	u8 i;
 
-	DBG_871X_SEL_NL(m, "%-2s %-6s %-17s %-32s %-7s %-3s"
-		//" %-2s %-2s"
+	DBG_871X_SEL_NL(m, "cam bitmap:0x%016llx\n", dvobj->cam_ctl.bitmap);
+
+	DBG_871X_SEL_NL(m, "%-2s %-6s %-17s %-32s %-3s %-7s"
+		//" %-2s %-2s %-4s %-5s"
 		"\n"
-		, "id", "ctrl", "mac", "key", "type", "kid"
-		//, "DK", "GK"
+		, "id", "ctrl", "addr", "key", "kid", "type"
+		//, "MK", "GK", "MFB", "valid"
 	);
 
 	for (i=0;i<32;i++) {
 		if (dvobj->cam_cache[i].ctrl != 0)
-			DBG_871X_SEL_NL(m, "%2u 0x%04x "MAC_FMT" "KEY_FMT" %-7s %3u"
-				//" %2u %2u"
+			DBG_871X_SEL_NL(m, "%2u 0x%04x "MAC_FMT" "KEY_FMT" %3u %-7s"
+				//" %2u %2u 0x%02x %5u"
 				"\n", i
 				, dvobj->cam_cache[i].ctrl
 				, MAC_ARG(dvobj->cam_cache[i].mac)
 				, KEY_ARG(dvobj->cam_cache[i].key)
-				, security_type_str(((dvobj->cam_cache[i].ctrl)>>2)&0x07)
 				, (dvobj->cam_cache[i].ctrl)&0x03
+				, security_type_str(((dvobj->cam_cache[i].ctrl)>>2)&0x07)
 				//, ((dvobj->cam_cache[i].ctrl)>>5)&0x01
 				//, ((dvobj->cam_cache[i].ctrl)>>6)&0x01
+				//, ((dvobj->cam_cache[i].ctrl)>>8)&0x7f
+				//, ((dvobj->cam_cache[i].ctrl)>>15)&0x01
 			);
 	}
 
 	return 0;
 }
+
+#ifdef CONFIG_BT_COEXIST
+ssize_t proc_set_btinfo_evt(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32];
+	u8 btinfo[8];
+
+	if (count < 6)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+		int num = 0;
+
+		_rtw_memset(btinfo, 0, 8);
+		
+		num = sscanf(tmp, "%hhx %hhx %hhx %hhx %hhx %hhx %hhx %hhx"
+			, &btinfo[0], &btinfo[1], &btinfo[2], &btinfo[3]
+			, &btinfo[4], &btinfo[5], &btinfo[6], &btinfo[7]);
+
+		if (num < 6)
+			return -EINVAL;
+
+		btinfo[1] = num-2;
+
+		rtw_btinfo_cmd(padapter, btinfo, btinfo[1]+2);
+	}
+	
+	return count;
+}
+#endif
 
 /*
 * rtw_adapter_proc:
@@ -485,12 +521,23 @@ const struct rtw_proc_hdl adapter_proc_hdls [] = {
 #ifdef CONFIG_BT_COEXIST
 	{"btcoex_dbg", proc_get_btcoex_dbg, proc_set_btcoex_dbg},
 	{"btcoex", proc_get_btcoex_info, NULL},
+	{"btinfo_evt", proc_get_dummy, proc_set_btinfo_evt},
 #endif /* CONFIG_BT_COEXIST */
 
 #if defined(DBG_CONFIG_ERROR_DETECT)
 	{"sreset", proc_get_sreset, proc_set_sreset},
 #endif /* DBG_CONFIG_ERROR_DETECT */
 	{"linked_info_dump",proc_get_linked_info_dump,proc_set_linked_info_dump},
+#ifdef CONFIG_DBG_COUNTER
+	{"rx_logs", proc_get_rx_logs, NULL},
+	{"tx_logs", proc_get_tx_logs, NULL},
+	{"int_logs", proc_get_int_logs, NULL},
+#endif
+
+#ifdef CONFIG_PCI_HCI
+	{"rx_ring", proc_get_rx_ring, NULL},
+	{"tx_ring", proc_get_tx_ring, NULL},
+#endif
 };
 
 const int adapter_proc_hdls_num = sizeof(adapter_proc_hdls) / sizeof(struct rtw_proc_hdl);

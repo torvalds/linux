@@ -515,10 +515,21 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	u32 raw = 0;
 	struct vpu_service_info *pservice = data->pservice;
 	struct vpu_subdev_data *subdata, *n;
-	if (pservice->subcnt < 2 || pservice->curr_mode == data->mode) {
-		pservice->prev_mode = pservice->curr_mode;
+	if (pservice->subcnt < 2) {
+#if defined(CONFIG_VCODEC_MMU)
+		if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
+			set_bit(MMU_ACTIVATED, &data->state);
+			BUG_ON(!pservice->enabled);
+			if (pservice->enabled)
+				rockchip_iovmm_activate(data->dev);
+		}
+#endif
 		return;
 	}
+
+	if (pservice->curr_mode == data->mode)
+		return;
+
 	vpu_debug(3, "vcodec enter mode %d\n", data->mode);
 #if defined(CONFIG_VCODEC_MMU)
 	list_for_each_entry_safe(subdata, n, &pservice->subdev_list, lnk_service) {
@@ -663,11 +674,11 @@ static void vpu_reset(struct vpu_subdev_data *data)
 	pservice->reg_resev = NULL;
 
 #if defined(CONFIG_VCODEC_MMU)
-	if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
-		set_bit(MMU_ACTIVATED, &data->state);
+	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
+		clear_bit(MMU_ACTIVATED, &data->state);
 		BUG_ON(!pservice->enabled);
 		if (pservice->enabled)
-			rockchip_iovmm_activate(data->dev);
+			rockchip_iovmm_deactivate(data->dev);
 	}
 #endif
 }

@@ -579,6 +579,8 @@ int proc_get_trx_info(struct seq_file *m, void *v)
 	struct recv_priv  *precvpriv = &padapter->recvpriv;
 	struct hw_xmit *phwxmit;
 
+	dump_os_queue(m, padapter);
+
 	DBG_871X_SEL_NL(m, "free_xmitbuf_cnt=%d, free_xmitframe_cnt=%d\n"
 		, pxmitpriv->free_xmitbuf_cnt, pxmitpriv->free_xmitframe_cnt);
 	DBG_871X_SEL_NL(m, "free_ext_xmitbuf_cnt=%d, free_xframe_ext_cnt=%d\n"

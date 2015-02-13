@@ -72,9 +72,7 @@ int	rtl8723bu_init_recv_priv(_adapter *padapter)
 	//init recv_buf
 	_rtw_init_queue(&precvpriv->free_recv_buf_queue);
 
-#ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
 	_rtw_init_queue(&precvpriv->recv_buf_pending_queue);
-#endif	// CONFIG_USE_USB_BUFFER_ALLOC_RX
 
 	precvpriv->pallocated_recv_buf = rtw_zmalloc(NR_RECVBUFF *sizeof(struct recv_buf) + 4);
 	if(precvpriv->pallocated_recv_buf==NULL){
@@ -130,15 +128,22 @@ int	rtl8723bu_init_recv_priv(_adapter *padapter)
 
 		for(i=0; i<NR_PREALLOC_RECV_SKB; i++)
 		{
+
+#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
+			pskb = rtw_alloc_skb_premem();
+#else
 			pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+#endif
 
 			if(pskb)
 			{
 				pskb->dev = padapter->pnetdev;
 
+#ifndef CONFIG_PREALLOC_RX_SKB_BUFFER
 				tmpaddr = (SIZE_PTR)pskb->data;
 				alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
 				skb_reserve(pskb, (RECVBUFF_ALIGN_SZ - alignment));
+#endif //!
 
 				skb_queue_tail(&precvpriv->free_recv_skb_queue, pskb);
 			}
@@ -199,7 +204,24 @@ void rtl8723bu_free_recv_priv (_adapter *padapter)
 		DBG_8192C(KERN_WARNING "free_recv_skb_queue not empty, %d\n", skb_queue_len(&precvpriv->free_recv_skb_queue));
 	}
 
+#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
+	{
+		int i=0;
+		struct sk_buff *skb;
+
+		while ((skb = skb_dequeue(&precvpriv->free_recv_skb_queue)) != NULL)
+		{
+			if(i<NR_PREALLOC_RECV_SKB)
+				rtw_free_skb_premem(skb);
+			else				
+				_rtw_skb_free(skb);
+
+			i++;
+		}	
+	}	
+#else 
 	rtw_skb_queue_purge(&precvpriv->free_recv_skb_queue);
+#endif //CONFIG_PREALLOC_RX_SKB_BUFFER
 
 #endif
 
@@ -211,55 +233,41 @@ void rtl8723bu_free_recv_priv (_adapter *padapter)
 void update_recvframe_attrib(
 	PADAPTER padapter,
 	union recv_frame *precvframe,
-	struct recv_stat *prxstat)
+	u8 *prxstat)
 {
 	struct rx_pkt_attrib	*pattrib;
-	struct recv_stat	report;
-	PRXREPORT prxreport = (PRXREPORT)&report;
 
-	report.rxdw0 = le32_to_cpu(prxstat->rxdw0);
-	report.rxdw1 = le32_to_cpu(prxstat->rxdw1);
-	report.rxdw2 = le32_to_cpu(prxstat->rxdw2);
-	report.rxdw3 = le32_to_cpu(prxstat->rxdw3);
-	report.rxdw4 = le32_to_cpu(prxstat->rxdw4);
-	report.rxdw5 = le32_to_cpu(prxstat->rxdw5);
 
 	pattrib = &precvframe->u.hdr.attrib;
 	_rtw_memset(pattrib, 0, sizeof(struct rx_pkt_attrib));
 
 	// update rx report to recv_frame attribute
-	pattrib->pkt_rpt_type = prxreport->c2h_ind?C2H_PACKET:NORMAL_RX;
-//	DBG_871X("%s: pkt_rpt_type=%d\n", __func__, pattrib->pkt_rpt_type);
+	pattrib->pkt_len = (u16)GET_RX_STATUS_DESC_PKT_LEN_8723B(prxstat);
+	pattrib->pkt_rpt_type = GET_RX_STATUS_DESC_RPT_SEL_8723B(prxstat) ? C2H_PACKET : NORMAL_RX;
 
-	if (pattrib->pkt_rpt_type == NORMAL_RX)
-	{
+	if (pattrib->pkt_rpt_type == NORMAL_RX) {
 		// Normal rx packet
-		// update rx report to recv_frame attribute
-	pattrib->pkt_len = (u16)prxreport->pktlen;
-	pattrib->drvinfo_sz = (u8)(prxreport->drvinfosize << 3);
-	pattrib->physt = (u8)prxreport->physt;
+		pattrib->drvinfo_sz = (u8)GET_RX_STATUS_DESC_DRVINFO_SIZE_8723B(prxstat) << 3;
+		pattrib->shift_sz = (u8)GET_RX_STATUS_DESC_SHIFT_8723B(prxstat);
+		pattrib->physt = (u8)GET_RX_STATUS_DESC_PHY_STATUS_8723B(prxstat);
 
-	pattrib->crc_err = (u8)prxreport->crc32;
-	pattrib->icv_err = (u8)prxreport->icverr;
+		pattrib->crc_err = (u8)GET_RX_STATUS_DESC_CRC32_8723B(prxstat);
+		pattrib->icv_err = (u8)GET_RX_STATUS_DESC_ICV_8723B(prxstat);
 
-	pattrib->bdecrypted = (u8)(prxreport->swdec ? 0 : 1);
-	pattrib->encrypt = (u8)prxreport->security;
+		pattrib->bdecrypted = (u8)GET_RX_STATUS_DESC_SWDEC_8723B(prxstat) ? 0 : 1;
+		pattrib->encrypt = (u8)GET_RX_STATUS_DESC_SECURITY_8723B(prxstat);
 
-	pattrib->qos = (u8)prxreport->qos;
-	pattrib->priority = (u8)prxreport->tid;
+		pattrib->qos = (u8)GET_RX_STATUS_DESC_QOS_8723B(prxstat);
+		pattrib->priority = (u8)GET_RX_STATUS_DESC_TID_8723B(prxstat);
 
-	pattrib->amsdu = (u8)prxreport->amsdu;
+		pattrib->amsdu = (u8)GET_RX_STATUS_DESC_AMSDU_8723B(prxstat);
 
-	pattrib->seq_num = (u16)prxreport->seq;
-	pattrib->frag_num = (u8)prxreport->frag;
-	pattrib->mfrag = (u8)prxreport->mf;
-	pattrib->mdata = (u8)prxreport->md;
+		pattrib->seq_num = (u16)GET_RX_STATUS_DESC_SEQ_8723B(prxstat);
+		pattrib->frag_num = (u8)GET_RX_STATUS_DESC_FRAG_8723B(prxstat);
+		pattrib->mfrag = (u8)GET_RX_STATUS_DESC_MORE_FRAG_8723B(prxstat);
+		pattrib->mdata = (u8)GET_RX_STATUS_DESC_MORE_DATA_8723B(prxstat);
 
-		pattrib->data_rate = (u8)prxreport->rx_rate;
-	}
-	else
-	{
-		pattrib->pkt_len = (u16)prxreport->pktlen;
+		pattrib->data_rate = (u8)GET_RX_STATUS_DESC_RX_RATE_8723B(prxstat);
 	}
 }
 
@@ -331,6 +339,7 @@ void update_recvframe_phyinfo(
 	//rtl8723b_query_rx_phy_status(precvframe, pphy_status);
 	//_enter_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
 	 ODM_PhyStatusQuery(&pHalData->odmpriv,pPHYInfo,(u8 *)pphy_status,&(pkt_info));	
+	if(psta) psta->rssi = pattrib->phy_info.RecvSignalPower;
 	//_exit_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
 	precvframe->u.hdr.psta = NULL;
 	if (pkt_info.bPacketMatchBSSID &&

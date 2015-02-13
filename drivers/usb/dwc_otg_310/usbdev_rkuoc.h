@@ -31,6 +31,26 @@ static inline u32 grf_uoc_get(void *base, u32 offset, u32 bitmap, u32 mask)
 	return ret;
 }
 
+static inline void regmap_grf_uoc_set(struct regmap *grf, u32 offset,
+				      u32 bitmap, u32 mask, u32 val)
+{
+	unsigned int reg_val;
+
+	reg_val = (((((1 << mask) - 1) & val) |
+		   (((1 << mask) - 1) << 16)) << bitmap);
+	regmap_write(grf, offset, reg_val);
+}
+
+static inline u32 regmap_grf_uoc_get(struct regmap *grf, u32 offset,
+				     u32 bitmap, u32 mask)
+{
+	unsigned int ret;
+
+	regmap_read(grf, offset, &ret);
+	ret = (ret >> bitmap) & ((1 << mask) - 1);
+	return ret;
+}
+
 static inline bool uoc_field_valid(uoc_field_t *f)
 {
 	if ((f->b.bitmap < 32) && (f->b.mask < 32))

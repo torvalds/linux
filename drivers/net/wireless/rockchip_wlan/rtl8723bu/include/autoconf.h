@@ -40,10 +40,10 @@
 #define PLATFORM_LINUX	1
 
 
-#define CONFIG_IOCTL_CFG80211 1
+//#define CONFIG_IOCTL_CFG80211 1
 
 #ifdef CONFIG_IOCTL_CFG80211
-	#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
+	//#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
 	//#define CONFIG_DEBUG_CFG80211 
 	//#define CONFIG_DRV_ISSUE_PROV_REQ // IOT FOR S2
@@ -53,7 +53,6 @@
 /*
  * Internal  General Config
  */
-//#define CONFIG_PWRCTRL
 //#define CONFIG_H2CLBK
 
 #define CONFIG_EMBEDDED_FWIMG	1
@@ -104,7 +103,7 @@
 #endif
 
 
-#define CONFIG_CONCURRENT_MODE 1
+//#define CONFIG_CONCURRENT_MODE 1
 #ifdef CONFIG_CONCURRENT_MODE
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
 	#define CONFIG_RUNTIME_PORT_SWITCH
@@ -191,11 +190,14 @@
 #define CONFIG_LAYER2_ROAMING
 #define CONFIG_LAYER2_ROAMING_RESUME
 //#define CONFIG_ADAPTOR_INFO_CACHING_FILE // now just applied on 8192cu only, should make it general...
-#define CONFIG_RESUME_IN_WORKQUEUE
+//#define CONFIG_RESUME_IN_WORKQUEUE
 //#define CONFIG_SET_SCAN_DENY_TIMER
 #define CONFIG_LONG_DELAY_ISSUE
 #define CONFIG_NEW_SIGNAL_STAT_PROCESS
 //#define CONFIG_SIGNAL_DISPLAY_DBM //display RX signal with dbm
+#ifdef CONFIG_SIGNAL_DISPLAY_DBM
+//#define CONFIG_BACKGROUND_NOISE_MONITOR
+#endif
 #define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
 
 #define CONFIG_BR_EXT	1	// Enable NAT2.5 support for STA mode interface with a L2 Bridge
@@ -206,6 +208,8 @@
 #define CONFIG_TX_MCAST2UNI	1	// Support IP multicast->unicast
 //#define CONFIG_CHECK_AC_LIFETIME 1	// Check packet lifetime of 4 ACs.
 
+#define CONFIG_RF_GAIN_OFFSET
+
 
 /* 
  * Interface  Related Config 
@@ -213,7 +217,7 @@
 
 #ifndef CONFIG_MINIMAL_MEMORY_USAGE
 	#define CONFIG_USB_TX_AGGREGATION	1
-	#define CONFIG_USB_RX_AGGREGATION	1
+//	#define CONFIG_USB_RX_AGGREGATION	1
 #endif
 
 #define CONFIG_PREALLOC_RECV_SKB	1
@@ -290,32 +294,16 @@
 #define RTL8723AS_SUPPORT				0
 #define RTL8723AE_SUPPORT				0
 #define RTL8723A_SUPPORT				(RTL8723AU_SUPPORT|RTL8723AS_SUPPORT|RTL8723AE_SUPPORT)
-
 #define RTL8723_FPGA_VERIFICATION		0
 
-#define RTL8188EE_SUPPORT				0
-#define RTL8188EU_SUPPORT				0
-#define RTL8188ES_SUPPORT				0
-#define RTL8188E_SUPPORT				(RTL8188EE_SUPPORT|RTL8188EU_SUPPORT|RTL8188ES_SUPPORT)
-
-#define RTL8812E_SUPPORT				0
-
-#define RTL8812AU_SUPPORT				0
-
-#define RTL8812A_SUPPORT				(RTL8812E_SUPPORT|RTL8812AU_SUPPORT)
-
-
-
+#define RTL8188E_SUPPORT				0
+#define RTL8812A_SUPPORT				0
 #define RTL8821A_SUPPORT				0
-
-
 #define RTL8723B_SUPPORT				1
-
 #define RTL8192E_SUPPORT				0
+#define RTL8814A_SUPPORT				0
 
-#define RTL8813A_SUPPORT				0
-
-#define RATE_ADAPTIVE_SUPPORT 		0
+#define RATE_ADAPTIVE_SUPPORT 			0
 #define POWER_TRAINING_ACTIVE			0
 
 #ifdef CONFIG_USB_TX_AGGREGATION

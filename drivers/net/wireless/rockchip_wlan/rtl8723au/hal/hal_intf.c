@@ -142,24 +142,26 @@ uint	 rtw_hal_init(_adapter *padapter)
 	status = padapter->HalFunc.hal_init(padapter);
 
 	if(status == _SUCCESS){
-		for (i = 0; i<dvobj->iface_nums; i++) {
-			padapter = dvobj->padapters[i];
-			padapter->hw_init_completed = _TRUE;
-		}
+		for (i = 0; i<dvobj->iface_nums; i++)
+			dvobj->padapters[i]->hw_init_completed = _TRUE;
 			
 		if (padapter->registrypriv.notch_filter == 1)
 			rtw_hal_notch_filter(padapter, 1);
 
 		rtw_hal_reset_security_engine(padapter);
-		rtw_sec_restore_wep_key(padapter);
+
+		for (i = 0; i<dvobj->iface_nums; i++)
+			rtw_sec_restore_wep_key(dvobj->padapters[i]);
 
 		init_hw_mlme_ext(padapter);
+
+#ifdef CONFIG_RF_GAIN_OFFSET
+		rtw_bb_rf_gain_offset(padapter);
+#endif //CONFIG_RF_GAIN_OFFSET		
 	}
 	else{
-		for (i = 0; i<dvobj->iface_nums; i++) {
-			padapter = dvobj->padapters[i];
-			padapter->hw_init_completed = _FALSE;
-		}
+		for (i = 0; i<dvobj->iface_nums; i++)
+			dvobj->padapters[i]->hw_init_completed = _FALSE;
 		DBG_871X("rtw_hal_init: hal__init fail\n");
 	}
 
@@ -595,5 +597,45 @@ s32 rtw_hal_c2h_handler(_adapter *adapter, struct c2h_evt_hdr *c2h_evt)
 c2h_id_filter rtw_hal_c2h_id_filter_ccx(_adapter *adapter)
 {
 	return adapter->HalFunc.c2h_id_filter_ccx;
+}
+
+s32 rtw_hal_macid_sleep(PADAPTER padapter, u8 macid)
+{
+	u8 support;
+
+	support = _FALSE;
+	rtw_hal_get_def_var(padapter, HAL_DEF_MACID_SLEEP, &support);
+	if (_FALSE == support)
+		return _FAIL;
+
+	if (macid >= 32) {
+		DBG_871X_LEVEL(_drv_err_, FUNC_ADPT_FMT": Invalid macid(%u)\n",
+			FUNC_ADPT_ARG(padapter), macid);
+		return _FAIL;
+	}
+
+	rtw_hal_set_hwreg(padapter, HW_VAR_MACID_SLEEP, &macid);
+
+	return _SUCCESS;
+}
+
+s32 rtw_hal_macid_wakeup(PADAPTER padapter, u8 macid)
+{
+	u8 support;
+
+	support = _FALSE;
+	rtw_hal_get_def_var(padapter, HAL_DEF_MACID_SLEEP, &support);
+	if (_FALSE == support)
+		return _FAIL;
+
+	if (macid >= 32) {
+		DBG_871X_LEVEL(_drv_err_, FUNC_ADPT_FMT": Invalid macid(%u)\n",
+			FUNC_ADPT_ARG(padapter), macid);
+		return _FAIL;
+	}
+
+	rtw_hal_set_hwreg(padapter, HW_VAR_MACID_WAKEUP, &macid);
+
+	return _SUCCESS;
 }
 

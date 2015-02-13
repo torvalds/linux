@@ -104,6 +104,15 @@
 #define		_48M_RATE_	10
 #define		_54M_RATE_	11
 
+/********************************************************
+MCS rate definitions
+*********************************************************/
+#define MCS_RATE_1R	(0x000000ff)
+#define MCS_RATE_2R	(0x0000ffff)
+#define MCS_RATE_3R	(0x00ffffff)
+#define MCS_RATE_4R	(0xffffffff)
+#define MCS_RATE_2R_13TO15_OFF	(0x00001fff)
+
 
 extern unsigned char RTW_WPA_OUI[];
 extern unsigned char WMM_OUI[];
@@ -553,6 +562,9 @@ struct mlme_ext_priv
 	struct p2p_channels channel_list;
 	unsigned char	basicrate[NumRates];
 	unsigned char	datarate[NumRates];
+#ifdef CONFIG_80211N_HT
+	unsigned char default_supported_mcs_set[16];
+#endif
 	
 	struct ss_res		sitesurvey_res;		
 	struct mlme_ext_info	mlmext_info;//for sta/adhoc mode, including current scanning/connecting/connected related info.
@@ -600,6 +612,7 @@ struct mlme_ext_priv
 	
 };
 
+void init_mlme_default_rate_set(_adapter* padapter);
 int init_mlme_ext_priv(_adapter* padapter);
 int init_hw_mlme_ext(_adapter *padapter);
 void free_mlme_ext_priv (struct mlme_ext_priv *pmlmeext);
@@ -615,6 +628,7 @@ unsigned char networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta);
 
 u8 judge_network_type(_adapter *padapter, unsigned char *rate, int ratelen);
 void get_rate_set(_adapter *padapter, unsigned char *pbssrate, int *bssrate_len);
+void set_mcs_rate_by_mask(u8 *mcs_set, u32 mask);
 void UpdateBrateTbl(_adapter *padapter,u8 *mBratesOS);
 void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen);
 void change_band_update_ie(_adapter *padapter, WLAN_BSSID_EX *pnetwork);
@@ -725,7 +739,11 @@ unsigned int is_ap_in_tkip(_adapter *padapter);
 unsigned int is_ap_in_wep(_adapter *padapter);
 unsigned int should_forbid_n_rate(_adapter * padapter);
 
-extern uint rtw_get_camid(uint macid);
+s16 rtw_get_camid(_adapter *adapter, struct sta_info* sta, s16 kid);
+s16 rtw_camid_search(_adapter *adapter, u8 *addr, s16 kid);
+s16 rtw_camid_alloc(_adapter *adapter, struct sta_info *sta, u8 kid);
+void rtw_camid_free(_adapter *adapter, u8 cam_id);
+
 extern void rtw_alloc_macid(_adapter *padapter, struct sta_info *psta);
 extern void rtw_release_macid(_adapter *padapter, struct sta_info *psta);
 extern u8 rtw_search_max_mac_id(_adapter *padapter);
@@ -854,6 +872,7 @@ extern void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len);
 extern void correct_TSF(_adapter *padapter, struct mlme_ext_priv *pmlmeext);
 extern void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len);
 extern u8 traffic_status_watchdog(_adapter *padapter, u8 from_timer);
+
 
 #ifdef CONFIG_CONCURRENT_MODE
  sint check_buddy_mlmeinfo_state(_adapter *padapter, u32 state);

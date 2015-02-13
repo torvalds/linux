@@ -163,12 +163,12 @@ odm_RX_HWAntDiv_Init_88E(
 
 	pDM_Odm->AntType = ODM_AUTO_ANT;
 
-        #if (MP_DRIVER == 1)
+#if (MP_DRIVER == 1)
 	        pDM_Odm->AntDivType = CGCS_RX_SW_ANTDIV;
 	        ODM_SetBBReg(pDM_Odm, ODM_REG_IGI_A_11N , BIT7, 0); // disable HW AntDiv 
 	        ODM_SetBBReg(pDM_Odm, ODM_REG_LNA_SWITCH_11N , BIT31, 1);  // 1:CG, 0:CS
         	return;
-        #endif
+#else
 	
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("***8188E AntDiv_Init =>  AntDivType=[CGCS_RX_HW_ANTDIV]\n"));
 	
@@ -188,6 +188,7 @@ odm_RX_HWAntDiv_Init_88E(
 	
 	ODM_SetBBReg(pDM_Odm, ODM_REG_ANT_MAPPING1_11N , 0xFFFF, 0x0102);	//antenna mapping table
 
+#endif
 }
 
 VOID
@@ -197,12 +198,12 @@ odm_TRX_HWAntDiv_Init_88E(
 {
 	u4Byte	value32;
 	
-        #if (MP_DRIVER == 1)
+#if (MP_DRIVER == 1)
 	        pDM_Odm->AntDivType = CGCS_RX_SW_ANTDIV;
 	        ODM_SetBBReg(pDM_Odm, ODM_REG_IGI_A_11N , BIT7, 0); // disable HW AntDiv 
 	        ODM_SetBBReg(pDM_Odm, ODM_REG_RX_ANT_CTRL_11N , BIT5|BIT4|BIT3, 0); //Default RX   (0/1)
 	        return;
-        #endif
+#else
 
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("***8188E AntDiv_Init =>  AntDivType=[CG_TRX_HW_ANTDIV (SPDT)]\n"));
 	
@@ -228,6 +229,7 @@ odm_TRX_HWAntDiv_Init_88E(
 	}
 	else //MPchip
 		ODM_SetBBReg(pDM_Odm, ODM_REG_ANT_MAPPING1_11N , bMaskDWord, 0x0201);	//Reg914=3'b010, Reg915=3'b001
+#endif
 }
 
 VOID
@@ -244,7 +246,7 @@ odm_Smart_HWAntDiv_Init_88E(
 #if (MP_DRIVER == 1)
     ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("pDM_Odm->AntDivType: %d\n", pDM_Odm->AntDivType));
     return;
-#endif
+#else
 
 	for(i=0; i<6; i++)
 	{
@@ -335,6 +337,8 @@ odm_Smart_HWAntDiv_Init_88E(
 	//PHY_SetBBReg(Adapter, 0x864 , BIT11, 1);
 	//PHY_SetBBReg(Adapter, 0x860 , BIT9, 0);
 	//PHY_SetBBReg(Adapter, 0x860 , BIT8, 0);
+
+#endif
 }
 #endif //#if (RTL8188E_SUPPORT == 1)
 
@@ -2017,7 +2021,7 @@ ODM_AntDiv(
 	#if (RTL8821A_SUPPORT == 1)
 	else if(pDM_Odm->SupportICType == ODM_RTL8821)
 	{
-		if(pDM_Odm->bBtDisabled)  //BT disabled
+		if(!pDM_Odm->bBtEnabled)  //BT disabled
 		{
 			if(pDM_Odm->AntDivType == S0S1_SW_ANTDIV)
 			{

@@ -195,6 +195,7 @@ _func_enter_;
 	dvobj->processing_dev_remove = _FALSE;
 	_rtw_spinlock_init(&dvobj->lock);
 	dvobj->macid[1] = _TRUE; //macid=1 for bc/mc stainfo
+	_rtw_spinlock_init(&dvobj->cam_ctl.lock);
 	//spi init
 	/* This is the only SPI value that we need to set here, the rest
 	 * comes from the board-peripherals file */
@@ -236,6 +237,7 @@ free_dvobj:
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
 		_rtw_mutex_free(&dvobj->setbw_mutex);
+		_rtw_spinlock_free(&dvobj->cam_ctl.lock);
 		rtw_mfree((u8*)dvobj, sizeof(*dvobj));
 		dvobj = NULL;
 	}
@@ -260,6 +262,7 @@ _func_enter_;
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
 		_rtw_mutex_free(&dvobj->setbw_mutex);
+		_rtw_spinlock_free(&dvobj->cam_ctl.lock);
 		rtw_mfree((u8*)dvobj, sizeof(*dvobj));
 	}
 

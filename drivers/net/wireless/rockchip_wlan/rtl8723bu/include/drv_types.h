@@ -34,7 +34,10 @@
 #include <wlan_bssdef.h>
 #include <wifi.h>
 #include <ieee80211.h>
-
+#ifdef CONFIG_ARP_KEEP_ALIVE
+#include <net/neighbour.h>
+#include <net/arp.h>
+#endif
 
 #ifdef PLATFORM_OS_XP
 #include <drv_types_xp.h>
@@ -56,8 +59,6 @@ enum _NIC_VERSION {
 	RTL8716_NIC
 
 };
-
-#define CONFIG_SUSPEND_REFINE	
 
 typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 
@@ -111,6 +112,10 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <rtw_efuse.h>
 #include <rtw_version.h>
 #include <rtw_odm.h>
+
+#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
+#include <rtw_mem.h>
+#endif
 
 #ifdef CONFIG_P2P
 #include <rtw_p2p.h>
@@ -248,7 +253,7 @@ struct registry_priv
 	u8	low_power ;
 
 	u8	wifi_spec;// !turbo_mode
-
+	u8	special_rf_path; // 0: 2T2R ,1: only turn on path A 1T1R
 	u8	channel_plan;
 #ifdef CONFIG_BT_COEXIST
 	u8	btcoex;
@@ -320,6 +325,10 @@ struct registry_priv
 	u8 ext_iface_num;//primary/secondary iface is excluded
 #endif
 	u8 qos_opt_enable;
+
+	u8 hiq_filter;
+	u8 adaptivity_en;
+	u8 adaptivity_mode;
 };
 
 
@@ -359,6 +368,131 @@ enum _IFACE_ID {
 	IFACE_ID3,
 	IFACE_ID_MAX,
 };
+
+#ifdef CONFIG_DBG_COUNTER
+
+struct rx_logs {
+	u32 intf_rx;
+	u32 intf_rx_err_recvframe;
+	u32 intf_rx_err_skb;
+	u32 intf_rx_report;
+	u32 core_rx;
+	u32 core_rx_pre;
+	u32 core_rx_pre_ver_err;
+	u32 core_rx_pre_mgmt;
+	u32 core_rx_pre_mgmt_err_80211w;
+	u32 core_rx_pre_mgmt_err;
+	u32 core_rx_pre_ctrl;
+	u32 core_rx_pre_ctrl_err;
+	u32 core_rx_pre_data;
+	u32 core_rx_pre_data_wapi_seq_err;
+	u32 core_rx_pre_data_wapi_key_err;
+	u32 core_rx_pre_data_handled;
+	u32 core_rx_pre_data_err;
+	u32 core_rx_pre_data_unknown;
+	u32 core_rx_pre_unknown;
+	u32 core_rx_enqueue;
+	u32 core_rx_dequeue;
+	u32 core_rx_post;
+	u32 core_rx_post_decrypt;
+	u32 core_rx_post_decrypt_wep;
+	u32 core_rx_post_decrypt_tkip;
+	u32 core_rx_post_decrypt_aes;
+	u32 core_rx_post_decrypt_wapi;
+	u32 core_rx_post_decrypt_hw;
+	u32 core_rx_post_decrypt_unknown;
+	u32 core_rx_post_decrypt_err;
+	u32 core_rx_post_defrag_err;
+	u32 core_rx_post_portctrl_err;
+	u32 core_rx_post_indicate;
+	u32 core_rx_post_indicate_in_oder;
+	u32 core_rx_post_indicate_reoder;
+	u32 core_rx_post_indicate_err;
+	u32 os_indicate;
+	u32 os_indicate_ap_mcast;
+	u32 os_indicate_ap_forward;
+	u32 os_indicate_ap_self;
+	u32 os_indicate_err;
+	u32 os_netif_ok;
+	u32 os_netif_err;
+};
+
+struct tx_logs {
+	u32 os_tx;
+	u32 os_tx_err_up;
+	u32 os_tx_err_xmit;
+	u32 os_tx_m2u;
+	u32 os_tx_m2u_ignore_fw_linked;
+	u32 os_tx_m2u_ignore_self;
+	u32 os_tx_m2u_entry;
+	u32 os_tx_m2u_entry_err_xmit;
+	u32 os_tx_m2u_entry_err_skb;
+	u32 os_tx_m2u_stop;
+	u32 core_tx;
+	u32 core_tx_err_pxmitframe;
+	u32 core_tx_err_brtx;
+	u32 core_tx_upd_attrib;
+	u32 core_tx_upd_attrib_adhoc;
+	u32 core_tx_upd_attrib_sta;
+	u32 core_tx_upd_attrib_ap;
+	u32 core_tx_upd_attrib_unknown;
+	u32 core_tx_upd_attrib_dhcp;
+	u32 core_tx_upd_attrib_icmp;
+	u32 core_tx_upd_attrib_active;
+	u32 core_tx_upd_attrib_err_ucast_sta;
+	u32 core_tx_upd_attrib_err_ucast_ap_link;
+	u32 core_tx_upd_attrib_err_sta;
+	u32 core_tx_upd_attrib_err_link;
+	u32 core_tx_upd_attrib_err_sec;
+	u32 core_tx_ap_enqueue_warn_fwstate;
+	u32 core_tx_ap_enqueue_warn_sta;
+	u32 core_tx_ap_enqueue_warn_nosta;
+	u32 core_tx_ap_enqueue_warn_link;
+	u32 core_tx_ap_enqueue_warn_trigger;
+	u32 core_tx_ap_enqueue_mcast;
+	u32 core_tx_ap_enqueue_ucast;
+	u32 core_tx_ap_enqueue;
+	u32 intf_tx;
+	u32 intf_tx_pending_ac;
+	u32 intf_tx_pending_fw_under_survey;
+	u32 intf_tx_pending_fw_under_linking;
+	u32 intf_tx_pending_xmitbuf;
+	u32 intf_tx_enqueue;
+	u32 core_tx_enqueue;
+	u32 core_tx_enqueue_class;
+	u32 core_tx_enqueue_class_err_sta;
+	u32 core_tx_enqueue_class_err_nosta;
+	u32 core_tx_enqueue_class_err_fwlink;
+	u32 intf_tx_direct;
+	u32 intf_tx_direct_err_coalesce;
+	u32 intf_tx_dequeue;
+	u32 intf_tx_dequeue_err_coalesce;
+	u32 intf_tx_dump_xframe;
+	u32 intf_tx_dump_xframe_err_txdesc;
+	u32 intf_tx_dump_xframe_err_port;
+};
+
+struct int_logs {
+	u32 all;
+	u32 err;
+	u32 tbdok;
+	u32 tbder;
+	u32 bcnderr;
+	u32 bcndma;
+	u32 bcndma_e;
+	u32 rx;
+	u32 rx_rdu;
+	u32 rx_fovw;
+	u32 txfovw;
+	u32 mgntok;
+	u32 highdok;
+	u32 bkdok;
+	u32 bedok;
+	u32 vidok;
+	u32 vodok;
+};
+
+#endif // CONFIG_DBG_COUNTER
 
 struct debug_priv {
 	u32 dbg_sdio_free_irq_error_cnt;
@@ -418,6 +552,11 @@ struct rtw_traffic_statistics {
 	u32	cur_rx_tp; // Rx throughput in MBps.
 };
 
+struct cam_ctl_t {
+	_lock lock;
+	u64 bitmap;
+};
+
 struct cam_entry_cache {
 	u16 ctrl;
 	u8 mac[ETH_ALEN];
@@ -460,7 +599,8 @@ struct dvobj_priv
 	_adapter *padapters[IFACE_ID_MAX];
 	u8 iface_nums; // total number of ifaces used runtime
 
-	struct cam_entry_cache cam_cache[32];
+	struct cam_ctl_t cam_ctl;
+	struct cam_entry_cache cam_cache[TOTAL_CAM_ENTRY];
 
 	//For 92D, DMDP have 2 interface.
 	u8	InterfaceNumber;
@@ -869,9 +1009,21 @@ struct _ADAPTER{
 	PLOOPBACKDATA ploopback;
 #endif
 
+	//for debug purpose
 	u8 fix_rate;
+	u8 driver_vcs_en; //Enable=1, Disable=0 driver control vrtl_carrier_sense for tx
+	u8 driver_vcs_type;//force 0:disable VCS, 1:RTS-CTS, 2:CTS-to-self when vcs_en=1.
+	u8 driver_ampdu_spacing;//driver control AMPDU Density for peer sta's rx
+	u8 driver_rx_ampdu_factor;//0xff: disable drv ctrl, 0:8k, 1:16k, 2:32k, 3:64k;
+	u8 fix_ba_rxbuf_bz; /* 0~127, TODO:consider each sta and each TID */
 
 	unsigned char     in_cta_test;
+
+#ifdef CONFIG_DBG_COUNTER	
+	struct rx_logs rx_logs;
+	struct tx_logs tx_logs;
+	struct int_logs int_logs;
+#endif
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
@@ -927,6 +1079,17 @@ int rtw_dev_pno_set(struct net_device *net, pno_ssid_t* ssid, int num,
 void rtw_dev_pno_debug(struct net_device *net);
 #endif //CONFIG_PNO_SET_DEBUG
 #endif //CONFIG_PNO_SUPPORT
+
+#ifdef CONFIG_GPIO_API
+int rtw_get_gpio(struct net_device *netdev, int gpio_num);
+int rtw_set_gpio_output_value(struct net_device *netdev, int gpio_num, BOOLEAN isHigh);
+int rtw_config_gpio(struct net_device *netdev, int gpio_num, BOOLEAN isOutput);
+#endif
+
+#ifdef CONFIG_WOWLAN
+int rtw_suspend_wow(_adapter *padapter);
+int rtw_resume_process_wow(_adapter *padapter);
+#endif
 
 __inline static u8 *myid(struct eeprom_priv *peepriv)
 {

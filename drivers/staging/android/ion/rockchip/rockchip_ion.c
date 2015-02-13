@@ -117,6 +117,7 @@ struct ion_client *rockchip_ion_client_create(const char *name)
 }
 EXPORT_SYMBOL(rockchip_ion_client_create);
 
+#ifdef CONFIG_COMPAT
 struct compat_ion_phys_data {
 	compat_int_t handle;
 	compat_ulong_t phys;
@@ -161,6 +162,7 @@ static int compat_put_ion_phys_data(
 
 	return err;
 };
+#endif
 
 static int rockchip_ion_get_phys(struct ion_client *client, unsigned long arg)
 {
@@ -196,6 +198,7 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 	pr_debug("%s(%d): cmd=%x\n", __func__, __LINE__, cmd);
 
 	if (is_compat_task()) {
+#ifdef CONFIG_COMPAT
 		switch (cmd) {
 		case COMPAT_ION_IOC_GET_PHYS: {
 			struct compat_ion_phys_data __user *data32;
@@ -220,6 +223,7 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 		default:
 			return -ENOTTY;
 		}
+#endif
 	} else {
 		switch (cmd) {
 		case ION_IOC_GET_PHYS:

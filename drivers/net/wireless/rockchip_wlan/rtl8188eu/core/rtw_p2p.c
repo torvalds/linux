@@ -3474,8 +3474,9 @@ _func_enter_;
 			DBG_871X("%s, switch ch back to buddy's cur_channel=%d\n", __func__, pbuddy_mlmeext->cur_channel);
 
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-		
-			issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
+
+			if (check_buddy_fwstate(padapter, WIFI_FW_STATION_STATE))
+				issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 		}
 		else if( pwdinfo->driver_interface == DRIVER_WEXT )
 		{

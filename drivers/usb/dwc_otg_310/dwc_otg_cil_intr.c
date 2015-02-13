@@ -389,6 +389,7 @@ int32_t dwc_otg_handle_conn_id_status_change_intr(dwc_otg_core_if_t *core_if)
 	gintmsk_data_t gintmsk = {.d32 = 0 };
 	gintsts_data_t gintsts = {.d32 = 0 };
 
+	dwc_otg_disable_host_interrupts(core_if);
 	if (core_if->usb_mode != USB_MODE_NORMAL)
 		goto out;
 

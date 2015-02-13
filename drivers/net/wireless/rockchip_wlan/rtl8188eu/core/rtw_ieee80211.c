@@ -1379,23 +1379,23 @@ void rtw_macaddr_cfg(u8 *mac_addr)
         }
     }
 
-    if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
-         (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
-        ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
-         (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
-    {
-        mac[0] = 0x00;
-        mac[1] = 0xe0;
-        mac[2] = 0x4c;
-        mac[3] = 0x87;
-        mac[4] = 0x00;
-        mac[5] = 0x00;
-        // use default mac addresss
-        _rtw_memcpy(mac_addr, mac, ETH_ALEN);
-        DBG_871X("MAC Address from efuse error, assign default one !!!\n");
-    }
+	if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
+	     (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
+	    ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
+	     (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
+	{
+		mac[0] = 0x00;
+		mac[1] = 0xe0;
+		mac[2] = 0x4c;
+		mac[3] = 0x87;
+		mac[4] = 0x00;
+		mac[5] = 0x00;
+		// use default mac addresss
+		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
+		DBG_871X("MAC Address from efuse error, assign default one !!!\n");
+	}	
 
-    DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
+	DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
 }
 
 void dump_ies(u8 *buf, u32 buf_len)

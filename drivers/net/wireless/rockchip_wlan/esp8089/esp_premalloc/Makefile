@@ -1,5 +1,11 @@
 # copyright (c) 2011 - 2012 espressif system
-
+# linux_sdio
+#ifneq ($(KERNELRELEASE),)
+# kbuild part of makefile
+ARCH := arm
+CROSS_COMPILE := $(TOOLCHAIN_PREFIX)
+KSRC := $(KERNEL_DIR)
+MODPATH := $(shell pwd)
 DRIVER_NAME := esp_prealloc
 
 ####################### NORMAL OPTION ########################################

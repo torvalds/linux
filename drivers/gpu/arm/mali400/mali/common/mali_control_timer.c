@@ -18,17 +18,22 @@
 
 static u64 period_start_time = 0;
 
-static _mali_osk_timer_t *mali_control_timer = NULL;
+static _mali_osk_timer_t *mali_control_timer = NULL;    // .KP : mali_control_timer
 static mali_bool timer_running = MALI_FALSE;
 
 static u32 mali_control_timeout = 50;
 
-void mali_control_timer_add(u32 timeout)
+void mali_control_timer_add(u32 timeout)	// 'timeout' : 以 ms 为单位.
 {
 	_mali_osk_timer_add(mali_control_timer, _mali_osk_time_mstoticks(timeout));
 }
 
-static void mali_control_timer_callback(void *arg)
+void mali_control_timer_mod(u32 timeout_in_ms)
+{
+	_mali_osk_timer_mod(mali_control_timer, _mali_osk_time_mstoticks(timeout_in_ms));
+}
+
+static void mali_control_timer_callback(void *arg)  // .KP : mali_control_timer_callback
 {
 	if (mali_utilization_enabled()) {
 		struct mali_gpu_utilization_data *util_data = NULL;
@@ -45,8 +50,9 @@ static void mali_control_timer_callback(void *arg)
 #endif
 		}
 
-		if (MALI_TRUE == timer_running) {
-			mali_control_timer_add(mali_control_timeout);
+		if (MALI_TRUE == timer_running) {   // .CP : 
+			// mali_control_timer_add(mali_control_timeout);
+			mali_control_timer_mod(mali_control_timeout);
 		}
 	}
 }
