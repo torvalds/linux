@@ -316,12 +316,10 @@ static inline void task_context_switch_counts(struct seq_file *m,
 
 static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
 {
-	seq_puts(m, "Cpus_allowed:\t");
-	seq_cpumask(m, &task->cpus_allowed);
-	seq_putc(m, '\n');
-	seq_puts(m, "Cpus_allowed_list:\t");
-	seq_cpumask_list(m, &task->cpus_allowed);
-	seq_putc(m, '\n');
+	seq_printf(m, "Cpus_allowed:\t%*pb\n",
+		   cpumask_pr_args(&task->cpus_allowed));
+	seq_printf(m, "Cpus_allowed_list:\t%*pbl\n",
+		   cpumask_pr_args(&task->cpus_allowed));
 }
 
 int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
