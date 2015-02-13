@@ -1688,16 +1688,15 @@ static void restore_vq_config(struct virtio_pci_common_cfg *cfg,
 }
 
 /*
+ * 4.1.4.3.2:
+ *
+ *  The driver MUST configure the other virtqueue fields before
+ *  enabling the virtqueue with queue_enable.
+ *
  * When they enable the virtqueue, we check that their setup is valid.
  */
-static void enable_virtqueue(struct device *d, struct virtqueue *vq)
+static void check_virtqueue(struct device *d, struct virtqueue *vq)
 {
-	/*
-	 * Create stack for thread.  Since the stack grows upwards, we point
-	 * the stack pointer to the end of this region.
-	 */
-	char *stack = malloc(32768);
-
 	/* Because lguest is 32 bit, all the descriptor high bits must be 0 */
 	if (vq->pci_config.queue_desc_hi
 	    || vq->pci_config.queue_avail_hi
@@ -1716,7 +1715,15 @@ static void enable_virtqueue(struct device *d, struct virtqueue *vq)
 				       sizeof(*vq->vring.used)
 				       + (sizeof(vq->vring.used->ring[0])
 					  * vq->vring.num));
+}
 
+static void start_virtqueue(struct virtqueue *vq)
+{
+	/*
+	 * Create stack for thread.  Since the stack grows upwards, we point
+	 * the stack pointer to the end of this region.
+	 */
+	char *stack = malloc(32768);
 
 	/* Create a zero-initialized eventfd. */
 	vq->eventfd = eventfd(0, 0);
@@ -1730,6 +1737,16 @@ static void enable_virtqueue(struct device *d, struct virtqueue *vq)
 	vq->thread = clone(do_thread, stack + 32768, CLONE_VM | SIGCHLD, vq);
 	if (vq->thread == (pid_t)-1)
 		err(1, "Creating clone");
+}
+
+static void start_virtqueues(struct device *d)
+{
+	struct virtqueue *vq;
+
+	for (vq = d->vq; vq; vq = vq->next) {
+		if (vq->pci_config.queue_enable)
+			start_virtqueue(vq);
+	}
 }
 
 static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
@@ -1780,6 +1797,17 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		 */
 		if (val == 0)
 			reset_device(d);
+
+		/*
+		 * 2.1.2:
+		 *
+		 *  The device MUST NOT consume buffers or notify the driver
+		 *  before DRIVER_OK.
+		 */
+		if (val & VIRTIO_CONFIG_S_DRIVER_OK
+		    && !(d->mmio->cfg.device_status & VIRTIO_CONFIG_S_DRIVER_OK))
+			start_virtqueues(d);
+
 		goto write_through8;
 	case offsetof(struct virtio_pci_mmio, cfg.queue_select):
 		vq = vq_by_num(d, val);
@@ -1833,7 +1861,7 @@ static void emulate_mmio_write(struct device *d, u32 off, u32 val, u32 mask)
 		 *  The driver MUST configure the other virtqueue fields before
 		 *  enabling the virtqueue with queue_enable.
 		 */
-		enable_virtqueue(d, vq_by_num(d, d->mmio->cfg.queue_select));
+		check_virtqueue(d, vq_by_num(d, d->mmio->cfg.queue_select));
 		goto write_through16;
 	case offsetof(struct virtio_pci_mmio, cfg.queue_notify_off):
 		errx(1, "%s: attempt to write to queue_notify_off", d->name);
