@@ -96,8 +96,8 @@ extern int __bitmap_equal(const unsigned long *bitmap1,
 			  const unsigned long *bitmap2, unsigned int nbits);
 extern void __bitmap_complement(unsigned long *dst, const unsigned long *src,
 			unsigned int nbits);
-extern void __bitmap_shift_right(unsigned long *dst,
-                        const unsigned long *src, int shift, int bits);
+extern void __bitmap_shift_right(unsigned long *dst, const unsigned long *src,
+				unsigned int shift, unsigned int nbits);
 extern void __bitmap_shift_left(unsigned long *dst,
                         const unsigned long *src, int shift, int bits);
 extern int __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
@@ -313,13 +313,13 @@ static inline int bitmap_weight(const unsigned long *src, unsigned int nbits)
 	return __bitmap_weight(src, nbits);
 }
 
-static inline void bitmap_shift_right(unsigned long *dst,
-			const unsigned long *src, int n, int nbits)
+static inline void bitmap_shift_right(unsigned long *dst, const unsigned long *src,
+				unsigned int shift, int nbits)
 {
 	if (small_const_nbits(nbits))
-		*dst = (*src & BITMAP_LAST_WORD_MASK(nbits)) >> n;
+		*dst = (*src & BITMAP_LAST_WORD_MASK(nbits)) >> shift;
 	else
-		__bitmap_shift_right(dst, src, n, nbits);
+		__bitmap_shift_right(dst, src, shift, nbits);
 }
 
 static inline void bitmap_shift_left(unsigned long *dst,
