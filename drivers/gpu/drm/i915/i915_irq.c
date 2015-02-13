@@ -492,31 +492,6 @@ static void i915_enable_asle_pipestat(struct drm_device *dev)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-/**
- * i915_pipe_enabled - check if a pipe is enabled
- * @dev: DRM device
- * @pipe: pipe to check
- *
- * Reading certain registers when the pipe is disabled can hang the chip.
- * Use this routine to make sure the PLL is running and the pipe is active
- * before reading such registers if unsure.
- */
-static int
-i915_pipe_enabled(struct drm_device *dev, int pipe)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		/* Locking is horribly broken here, but whatever. */
-		struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-		return intel_crtc->active;
-	} else {
-		return I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE;
-	}
-}
-
 /*
  * This timing diagram depicts the video signal in and
  * around the vertical blanking period.
@@ -583,12 +558,6 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	unsigned long low_frame;
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
 
-	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
-				"pipe %c\n", pipe_name(pipe));
-		return 0;
-	}
-
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct intel_crtc *intel_crtc =
 			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
@@ -647,12 +616,6 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int reg = PIPE_FRMCOUNT_GM45(pipe);
-
-	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
-				 "pipe %c\n", pipe_name(pipe));
-		return 0;
-	}
 
 	return I915_READ(reg);
 }
@@ -2647,9 +2610,6 @@ static int i915_enable_vblank(struct drm_device *dev, int pipe)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
-	if (!i915_pipe_enabled(dev, pipe))
-		return -EINVAL;
-
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	if (INTEL_INFO(dev)->gen >= 4)
 		i915_enable_pipestat(dev_priv, pipe,
@@ -2669,9 +2629,6 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 	uint32_t bit = (INTEL_INFO(dev)->gen >= 7) ? DE_PIPE_VBLANK_IVB(pipe) :
 						     DE_PIPE_VBLANK(pipe);
 
-	if (!i915_pipe_enabled(dev, pipe))
-		return -EINVAL;
-
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_enable_display_irq(dev_priv, bit);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
@@ -2683,9 +2640,6 @@ static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-
-	if (!i915_pipe_enabled(dev, pipe))
-		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_enable_pipestat(dev_priv, pipe,
@@ -2699,9 +2653,6 @@ static int gen8_enable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-
-	if (!i915_pipe_enabled(dev, pipe))
-		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	dev_priv->de_irq_mask[pipe] &= ~GEN8_PIPE_VBLANK;
@@ -2753,9 +2704,6 @@ static void gen8_disable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-
-	if (!i915_pipe_enabled(dev, pipe))
-		return;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	dev_priv->de_irq_mask[pipe] |= GEN8_PIPE_VBLANK;
