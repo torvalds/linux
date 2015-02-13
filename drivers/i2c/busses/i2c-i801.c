@@ -1192,8 +1192,8 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Determine the address of the SMBus area */
 	priv->smba = pci_resource_start(dev, SMBBAR);
 	if (!priv->smba) {
-		dev_err(&dev->dev, "SMBus base address uninitialized, "
-			"upgrade BIOS\n");
+		dev_err(&dev->dev,
+			"SMBus base address uninitialized, upgrade BIOS\n");
 		err = -ENODEV;
 		goto exit;
 	}
@@ -1206,8 +1206,9 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	err = pci_request_region(dev, SMBBAR, i801_driver.name);
 	if (err) {
-		dev_err(&dev->dev, "Failed to request SMBus region "
-			"0x%lx-0x%Lx\n", priv->smba,
+		dev_err(&dev->dev,
+			"Failed to request SMBus region 0x%lx-0x%Lx\n",
+			priv->smba,
 			(unsigned long long)pci_resource_end(dev, SMBBAR));
 		goto exit;
 	}
