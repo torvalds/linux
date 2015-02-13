@@ -1042,8 +1042,8 @@ sie_exit:
 	EX_TABLE(sie_exit,.Lsie_fault)
 #endif
 
-		.section .rodata, "a"
-#define SYSCALL(esa,esame,emu)	.long esame
+	.section .rodata, "a"
+#define SYSCALL(esame,emu)	.long esame
 	.globl	sys_call_table
 sys_call_table:
 #include "syscalls.S"
@@ -1051,7 +1051,7 @@ sys_call_table:
 
 #ifdef CONFIG_COMPAT
 
-#define SYSCALL(esa,esame,emu)	.long emu
+#define SYSCALL(esame,emu)	.long emu
 	.globl	sys_call_table_emu
 sys_call_table_emu:
 #include "syscalls.S"
