@@ -1636,6 +1636,49 @@ cleanup_render_ring:
 	return ret;
 }
 
+static u32
+make_rpcs(struct drm_device *dev)
+{
+	u32 rpcs = 0;
+
+	/*
+	 * No explicit RPCS request is needed to ensure full
+	 * slice/subslice/EU enablement prior to Gen9.
+	*/
+	if (INTEL_INFO(dev)->gen < 9)
+		return 0;
+
+	/*
+	 * Starting in Gen9, render power gating can leave
+	 * slice/subslice/EU in a partially enabled state. We
+	 * must make an explicit request through RPCS for full
+	 * enablement.
+	*/
+	if (INTEL_INFO(dev)->has_slice_pg) {
+		rpcs |= GEN8_RPCS_S_CNT_ENABLE;
+		rpcs |= INTEL_INFO(dev)->slice_total <<
+			GEN8_RPCS_S_CNT_SHIFT;
+		rpcs |= GEN8_RPCS_ENABLE;
+	}
+
+	if (INTEL_INFO(dev)->has_subslice_pg) {
+		rpcs |= GEN8_RPCS_SS_CNT_ENABLE;
+		rpcs |= INTEL_INFO(dev)->subslice_per_slice <<
+			GEN8_RPCS_SS_CNT_SHIFT;
+		rpcs |= GEN8_RPCS_ENABLE;
+	}
+
+	if (INTEL_INFO(dev)->has_eu_pg) {
+		rpcs |= INTEL_INFO(dev)->eu_per_subslice <<
+			GEN8_RPCS_EU_MIN_SHIFT;
+		rpcs |= INTEL_INFO(dev)->eu_per_subslice <<
+			GEN8_RPCS_EU_MAX_SHIFT;
+		rpcs |= GEN8_RPCS_ENABLE;
+	}
+
+	return rpcs;
+}
+
 static int
 populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_obj,
 		    struct intel_engine_cs *ring, struct intel_ringbuffer *ringbuf)
@@ -1739,8 +1782,8 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	reg_state[CTX_PDP0_LDW+1] = lower_32_bits(ppgtt->pd_dma_addr[0]);
 	if (ring->id == RCS) {
 		reg_state[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
-		reg_state[CTX_R_PWR_CLK_STATE] = 0x20c8;
-		reg_state[CTX_R_PWR_CLK_STATE+1] = 0;
+		reg_state[CTX_R_PWR_CLK_STATE] = GEN8_R_PWR_CLK_STATE;
+		reg_state[CTX_R_PWR_CLK_STATE+1] = make_rpcs(dev);
 	}
 
 	kunmap_atomic(reg_state);
