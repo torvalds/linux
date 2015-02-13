@@ -26,11 +26,6 @@
 #include <linux/mfd/intel_soc_pmic.h>
 #include "intel_soc_pmic_core.h"
 
-/*
- * On some boards the PMIC interrupt may come from a GPIO line.
- * Try to lookup the ACPI table and see if such connection exists. If not,
- * return -ENOENT and use the IRQ provided by I2C.
- */
 static int intel_soc_pmic_find_gpio_irq(struct device *dev)
 {
 	struct gpio_desc *desc;
@@ -71,6 +66,11 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
 
 	pmic->regmap = devm_regmap_init_i2c(i2c, config->regmap_config);
 
+	/*
+	 * On some boards the PMIC interrupt may come from a GPIO line. Try to
+	 * lookup the ACPI table for a such connection and setup a GPIO
+	 * interrupt if it exists. Otherwise use the IRQ provided by I2C
+	 */
 	irq = intel_soc_pmic_find_gpio_irq(dev);
 	pmic->irq = (irq < 0) ? i2c->irq : irq;
 
