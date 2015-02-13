@@ -4850,18 +4850,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	if (sbi->s_journal && sbi->s_journal->j_task->io_context)
 		journal_ioprio = sbi->s_journal->j_task->io_context->ioprio;
 
-	/*
-	 * Allow the "check" option to be passed as a remount option.
-	 */
 	if (!parse_options(data, sb, NULL, &journal_ioprio, 1)) {
-		err = -EINVAL;
-		goto restore_opts;
-	}
-
-	if ((old_opts.s_mount_opt & EXT4_MOUNT_JOURNAL_CHECKSUM) ^
-	    test_opt(sb, JOURNAL_CHECKSUM)) {
-		ext4_msg(sb, KERN_ERR, "changing journal_checksum "
-			 "during remount not supported");
 		err = -EINVAL;
 		goto restore_opts;
 	}
