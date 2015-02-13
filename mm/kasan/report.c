@@ -64,6 +64,12 @@ static void print_error_description(struct kasan_access_info *info)
 	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
 		bug_type = "out of bounds access";
 		break;
+	case KASAN_STACK_LEFT:
+	case KASAN_STACK_MID:
+	case KASAN_STACK_RIGHT:
+	case KASAN_STACK_PARTIAL:
+		bug_type = "out of bounds on stack";
+		break;
 	}
 
 	pr_err("BUG: KASan: %s in %pS at addr %p\n",

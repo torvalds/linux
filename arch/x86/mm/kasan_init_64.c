@@ -189,11 +189,18 @@ void __init kasan_init(void)
 		if (map_range(&pfn_mapped[i]))
 			panic("kasan: unable to allocate shadow!");
 	}
-
 	populate_zero_shadow(kasan_mem_to_shadow((void *)PAGE_OFFSET + MAXMEM),
-				(void *)KASAN_SHADOW_END);
+			kasan_mem_to_shadow((void *)__START_KERNEL_map));
+
+	vmemmap_populate((unsigned long)kasan_mem_to_shadow(_stext),
+			(unsigned long)kasan_mem_to_shadow(_end),
+			NUMA_NO_NODE);
+
+	populate_zero_shadow(kasan_mem_to_shadow((void *)MODULES_VADDR),
+			(void *)KASAN_SHADOW_END);
 
 	memset(kasan_zero_page, 0, PAGE_SIZE);
 
 	load_cr3(init_level4_pgt);
+	init_task.kasan_depth = 0;
 }
