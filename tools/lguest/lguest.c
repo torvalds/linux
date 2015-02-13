@@ -126,7 +126,7 @@ static struct device_list devices;
 
 struct virtio_pci_cfg_cap {
 	struct virtio_pci_cap cap;
-	u32 window; /* Data for BAR access. */
+	u32 pci_cfg_data; /* Data for BAR access. */
 };
 
 struct virtio_pci_mmio {
@@ -1301,7 +1301,7 @@ static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
 		 */
 		iowrite(portoff, val, mask, &d->config_words[reg]);
 		return true;
-	} else if (&d->config_words[reg] == &d->config.cfg_access.window) {
+	} else if (&d->config_words[reg] == &d->config.cfg_access.pci_cfg_data) {
 		u32 write_mask;
 
 		/* Must be bar 0 */
@@ -1309,7 +1309,7 @@ static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
 			return false;
 
 		/* First copy what they wrote into the window */
-		iowrite(portoff, val, mask, &d->config.cfg_access.window);
+		iowrite(portoff, val, mask, &d->config.cfg_access.pci_cfg_data);
 
 		/*
 		 * Now emulate a write.  The mask we use is set by
@@ -1317,13 +1317,14 @@ static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
 		 */
 		write_mask = (1ULL<<(8*d->config.cfg_access.cap.length)) - 1;
 		verbose("Window writing %#x/%#x to bar %u, offset %u len %u\n",
-			d->config.cfg_access.window, write_mask,
+			d->config.cfg_access.pci_cfg_data, write_mask,
 			d->config.cfg_access.cap.bar,
 			d->config.cfg_access.cap.offset,
 			d->config.cfg_access.cap.length);
 
 		emulate_mmio_write(d, d->config.cfg_access.cap.offset,
-				   d->config.cfg_access.window, write_mask);
+				   d->config.cfg_access.pci_cfg_data,
+				   write_mask);
 		return true;
 	}
 
@@ -1342,7 +1343,7 @@ static void pci_data_ioread(u16 port, u32 mask, u32 *val)
 		return;
 
 	/* Read through the PCI MMIO access window is special */
-	if (&d->config_words[reg] == &d->config.cfg_access.window) {
+	if (&d->config_words[reg] == &d->config.cfg_access.pci_cfg_data) {
 		u32 read_mask;
 
 		/* Must be bar 0 */
@@ -1357,12 +1358,12 @@ static void pci_data_ioread(u16 port, u32 mask, u32 *val)
 		 * len, *not* this read!
 		 */
 		read_mask = (1ULL<<(8*d->config.cfg_access.cap.length))-1;
-		d->config.cfg_access.window
+		d->config.cfg_access.pci_cfg_data
 			= emulate_mmio_read(d,
 					    d->config.cfg_access.cap.offset,
 					    read_mask);
 		verbose("Window read %#x/%#x from bar %u, offset %u len %u\n",
-			d->config.cfg_access.window, read_mask,
+			d->config.cfg_access.pci_cfg_data, read_mask,
 			d->config.cfg_access.cap.bar,
 			d->config.cfg_access.cap.offset,
 			d->config.cfg_access.cap.length);
