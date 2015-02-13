@@ -474,10 +474,8 @@ static int _opp_add_dynamic(struct device *dev, unsigned long freq,
 
 	/* allocate new OPP node */
 	new_opp = kzalloc(sizeof(*new_opp), GFP_KERNEL);
-	if (!new_opp) {
-		dev_warn(dev, "%s: Unable to create new OPP node\n", __func__);
+	if (!new_opp)
 		return -ENOMEM;
-	}
 
 	/* Hold our list modification lock here */
 	mutex_lock(&dev_opp_list_lock);
@@ -695,10 +693,8 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 
 	/* keep the node allocated */
 	new_opp = kmalloc(sizeof(*new_opp), GFP_KERNEL);
-	if (!new_opp) {
-		dev_warn(dev, "%s: Unable to create OPP\n", __func__);
+	if (!new_opp)
 		return -ENOMEM;
-	}
 
 	mutex_lock(&dev_opp_list_lock);
 
