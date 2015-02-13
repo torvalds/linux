@@ -253,7 +253,7 @@ int i915_gem_stolen_setup_compression(struct drm_device *dev, int size, int fb_c
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return -ENODEV;
 
-	if (size < dev_priv->fbc.uncompressed_size)
+	if (size <= dev_priv->fbc.uncompressed_size)
 		return 0;
 
 	/* Release any current block */
