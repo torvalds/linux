@@ -1251,6 +1251,20 @@ static int ath10k_mac_vif_recalc_ps_poll_count(struct ath10k_vif *arvif)
 	return 0;
 }
 
+static int ath10k_mac_ps_vif_count(struct ath10k *ar)
+{
+	struct ath10k_vif *arvif;
+	int num = 0;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	list_for_each_entry(arvif, &ar->arvifs, list)
+		if (arvif->ps)
+			num++;
+
+	return num;
+}
+
 static int ath10k_mac_vif_setup_ps(struct ath10k_vif *arvif)
 {
 	struct ath10k *ar = arvif->ar;
@@ -1260,13 +1274,24 @@ static int ath10k_mac_vif_setup_ps(struct ath10k_vif *arvif)
 	enum wmi_sta_ps_mode psmode;
 	int ret;
 	int ps_timeout;
+	bool enable_ps;
 
 	lockdep_assert_held(&arvif->ar->conf_mutex);
 
 	if (arvif->vif->type != NL80211_IFTYPE_STATION)
 		return 0;
 
-	if (vif->bss_conf.ps) {
+	enable_ps = arvif->ps;
+
+	if (enable_ps && ath10k_mac_ps_vif_count(ar) > 1 &&
+	    !test_bit(ATH10K_FW_FEATURE_MULTI_VIF_PS_SUPPORT,
+		      ar->fw_features)) {
+		ath10k_warn(ar, "refusing to enable ps on vdev %i: not supported by fw\n",
+			    arvif->vdev_id);
+		enable_ps = false;
+	}
+
+	if (enable_ps) {
 		psmode = WMI_STA_PS_MODE_ENABLED;
 		param = WMI_STA_PS_PARAM_INACTIVITY_TIME;
 
@@ -3650,7 +3675,9 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_PS) {
-		ret = ath10k_mac_vif_setup_ps(arvif);
+		arvif->ps = vif->bss_conf.ps;
+
+		ret = ath10k_config_ps(ar);
 		if (ret)
 			ath10k_warn(ar, "failed to setup ps on vdev %i: %d\n",
 				    arvif->vdev_id, ret);

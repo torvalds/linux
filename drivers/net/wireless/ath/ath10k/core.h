@@ -308,6 +308,7 @@ struct ath10k_vif {
 	bool is_started;
 	bool is_up;
 	bool spectral_enabled;
+	bool ps;
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 
@@ -432,6 +433,12 @@ enum ath10k_fw_features {
 	 * code.
 	 */
 	ATH10K_FW_FEATURE_WMI_10_2 = 4,
+
+	/* Some firmware revisions lack proper multi-interface client powersave
+	 * implementation. Enabling PS could result in connection drops,
+	 * traffic stalls, etc.
+	 */
+	ATH10K_FW_FEATURE_MULTI_VIF_PS_SUPPORT = 5,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
