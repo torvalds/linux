@@ -2162,7 +2162,14 @@ replay:
 		}
 		err = rtnl_configure_link(dev, ifm);
 		if (err < 0) {
-			unregister_netdevice(dev);
+			if (ops->newlink) {
+				LIST_HEAD(list_kill);
+
+				ops->dellink(dev, &list_kill);
+				unregister_netdevice_many(&list_kill);
+			} else {
+				unregister_netdevice(dev);
+			}
 			goto out;
 		}
 
