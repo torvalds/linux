@@ -1876,25 +1876,28 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 
 	if (mvm->net_detect) {
 		iwl_mvm_query_netdetect_reasons(mvm, vif);
+		/* has unlocked the mutex, so skip that */
+		goto out;
 	} else {
 		keep = iwl_mvm_query_wakeup_reasons(mvm, vif);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (keep)
 			mvm->keep_vif = vif;
+		/* has unlocked the mutex, so skip that */
+		goto out_iterate;
 #endif
 	}
-	/* has unlocked the mutex, so skip that */
-	goto out;
 
  out_unlock:
 	mutex_unlock(&mvm->mutex);
 
- out:
+out_iterate:
 	if (!test)
 		ieee80211_iterate_active_interfaces_rtnl(mvm->hw,
 			IEEE80211_IFACE_ITER_NORMAL,
 			iwl_mvm_d3_disconnect_iter, keep ? vif : NULL);
 
+out:
 	/* return 1 to reconfigure the device */
 	set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 	set_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status);
