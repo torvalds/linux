@@ -596,6 +596,59 @@ error:
 }
 #endif /* CONFIG_NET_DSA_HWMON */
 
+static int mv88e6xxx_wait(struct dsa_switch *ds, int reg, int offset, u16 mask)
+{
+	unsigned long timeout = jiffies + HZ / 10;
+
+	while (time_before(jiffies, timeout)) {
+		int ret;
+
+		ret = REG_READ(reg, offset);
+		if (!(ret & mask))
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+	return -ETIMEDOUT;
+}
+
+int mv88e6xxx_phy_wait(struct dsa_switch *ds)
+{
+	return mv88e6xxx_wait(ds, REG_GLOBAL2, 0x18, 0x8000);
+}
+
+int mv88e6xxx_eeprom_load_wait(struct dsa_switch *ds)
+{
+	return mv88e6xxx_wait(ds, REG_GLOBAL2, 0x14, 0x0800);
+}
+
+int mv88e6xxx_eeprom_busy_wait(struct dsa_switch *ds)
+{
+	return mv88e6xxx_wait(ds, REG_GLOBAL2, 0x14, 0x8000);
+}
+
+int mv88e6xxx_phy_read_indirect(struct dsa_switch *ds, int addr, int regnum)
+{
+	int ret;
+
+	REG_WRITE(REG_GLOBAL2, 0x18, 0x9800 | (addr << 5) | regnum);
+
+	ret = mv88e6xxx_phy_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	return REG_READ(REG_GLOBAL2, 0x19);
+}
+
+int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int addr, int regnum,
+				 u16 val)
+{
+	REG_WRITE(REG_GLOBAL2, 0x19, val);
+	REG_WRITE(REG_GLOBAL2, 0x18, 0x9400 | (addr << 5) | regnum);
+
+	return mv88e6xxx_phy_wait(ds);
+}
+
 static int __init mv88e6xxx_init(void)
 {
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6131)
