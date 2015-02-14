@@ -293,6 +293,11 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 		if (!ops->execute_write_same_unmap)
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
+		if (!dev->dev_attrib.emulate_tpws) {
+			pr_err("Got WRITE_SAME w/ UNMAP=1, but backend device"
+			       " has emulate_tpws disabled\n");
+			return TCM_UNSUPPORTED_SCSI_OPCODE;
+		}
 		cmd->execute_cmd = ops->execute_write_same_unmap;
 		return 0;
 	}
