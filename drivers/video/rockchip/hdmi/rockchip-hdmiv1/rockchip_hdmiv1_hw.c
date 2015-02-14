@@ -796,6 +796,15 @@ static int rockchip_hdmiv1_config_audio(struct hdmi *hdmi_drv,
 	hdmi_writel(hdmi_dev, AUDIO_N_H, (N >> 16) & 0x0F);
 	hdmi_writel(hdmi_dev, AUDIO_N_M, (N >> 8) & 0xFF);
 	hdmi_writel(hdmi_dev, AUDIO_N_L, N & 0xFF);
+
+	/*Set hdmi nlpcm mode to support hdmi bitstream*/
+	if (audio->type == HDMI_AUDIO_NLPCM)
+		hdmi_writel(hdmi_dev, AUDIO_CHANNEL_STATUS,
+			    v_AUDIO_STATUS_NLPCM(1));
+	else
+		hdmi_writel(hdmi_dev, AUDIO_CHANNEL_STATUS,
+			    v_AUDIO_STATUS_NLPCM(0));
+
 	rockchip_hdmiv1_config_aai(hdmi_drv);
 
 	return 0;
