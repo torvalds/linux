@@ -158,6 +158,9 @@ static void *__dma_alloc_noncoherent(struct device *dev, size_t size,
 	if (!ptr)
 		goto no_mem;
 
+	if (flags & __GFP_ZERO)
+		memset(ptr, 0, size);
+
 	/* remove any dirty cache lines on the kernel alias */
 	__dma_flush_range(ptr, ptr + size);
 
