@@ -5336,7 +5336,7 @@ EXPORT_SYMBOL(netdev_upper_dev_unlink);
 /**
  * netdev_bonding_info_change - Dispatch event about slave change
  * @dev: device
- * @netdev_bonding_info: info to dispatch
+ * @bonding_info: info to dispatch
  *
  * Send NETDEV_BONDING_INFO to netdev notifiers with info.
  * The caller must hold the RTNL lock.
