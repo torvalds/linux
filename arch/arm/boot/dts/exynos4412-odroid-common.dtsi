@@ -690,6 +690,7 @@
 		interrupt-names = "gp", "gp_mmu", "pp_0", "pp_mmu_0", "pp_1", "pp_mmu_1",
 			"pp_2", "pp_mmu_2", "pp_3", "pp_mmu_3";
 
+		gpu-supply = <&buck4_reg>;
 	};
 };
 
