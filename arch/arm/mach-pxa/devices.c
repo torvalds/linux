@@ -17,6 +17,7 @@
 #include <linux/platform_data/camera-pxa.h>
 #include <mach/audio.h>
 #include <mach/hardware.h>
+#include <linux/platform_data/mmp_dma.h>
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
 #include "devices.h"
@@ -1192,4 +1193,40 @@ void __init pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info)
 
 	pd->dev.platform_data = info;
 	platform_device_add(pd);
+}
+
+static struct mmp_dma_platdata pxa_dma_pdata = {
+	.dma_channels	= 0,
+};
+
+static struct resource pxa_dma_resource[] = {
+	[0] = {
+		.start	= 0x40000000,
+		.end	= 0x4000ffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DMA,
+		.end	= IRQ_DMA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 pxadma_dmamask = 0xffffffffUL;
+
+static struct platform_device pxa2xx_pxa_dma = {
+	.name		= "pxa-dma",
+	.id		= 0,
+	.dev		= {
+		.dma_mask = &pxadma_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(pxa_dma_resource),
+	.resource	= pxa_dma_resource,
+};
+
+void __init pxa2xx_set_dmac_info(int nb_channels)
+{
+	pxa_dma_pdata.dma_channels = nb_channels;
+	pxa_register_device(&pxa2xx_pxa_dma, &pxa_dma_pdata);
 }
