@@ -129,9 +129,6 @@ struct a2mp_physlink_rsp {
 #define A2MP_STATUS_PHYS_LINK_EXISTS		0x05
 #define A2MP_STATUS_SECURITY_VIOLATION		0x06
 
-extern struct list_head amp_mgr_list;
-extern struct mutex amp_mgr_list_lock;
-
 struct amp_mgr *amp_mgr_get(struct amp_mgr *mgr);
 int amp_mgr_put(struct amp_mgr *mgr);
 u8 __next_ident(struct amp_mgr *mgr);

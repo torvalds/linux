@@ -22,8 +22,8 @@
 #define A2MP_FEAT_EXT	0x8000
 
 /* Global AMP Manager list */
-LIST_HEAD(amp_mgr_list);
-DEFINE_MUTEX(amp_mgr_list_lock);
+static LIST_HEAD(amp_mgr_list);
+static DEFINE_MUTEX(amp_mgr_list_lock);
 
 /* A2MP build & send command helper functions */
 static struct a2mp_cmd *__a2mp_build(u8 code, u8 ident, u16 len, void *data)
