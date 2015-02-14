@@ -962,6 +962,11 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (!ops->execute_unmap)
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
+		if (!dev->dev_attrib.emulate_tpu) {
+			pr_err("Got UNMAP, but backend device has"
+			       " emulate_tpu disabled\n");
+			return TCM_UNSUPPORTED_SCSI_OPCODE;
+		}
 		size = get_unaligned_be16(&cdb[7]);
 		cmd->execute_cmd = ops->execute_unmap;
 		break;
