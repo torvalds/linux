@@ -20,7 +20,6 @@ struct perf_session {
 	struct machines		machines;
 	struct perf_evlist	*evlist;
 	struct trace_event	tevent;
-	struct events_stats	stats;
 	bool			repipe;
 	bool			one_mmap;
 	void			*one_mmap_addr;
