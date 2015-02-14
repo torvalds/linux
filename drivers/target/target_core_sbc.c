@@ -37,6 +37,9 @@
 #include "target_core_alua.h"
 
 static sense_reason_t
+sbc_check_prot(struct se_device *, struct se_cmd *, unsigned char *, u32, bool);
+
+static sense_reason_t
 sbc_emulate_readcapacity(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -254,6 +257,7 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	struct se_device *dev = cmd->se_dev;
 	sector_t end_lba = dev->transport->get_blocks(dev) + 1;
 	unsigned int sectors = sbc_get_write_same_sectors(cmd);
+	sense_reason_t ret;
 
 	if ((flags[0] & 0x04) || (flags[0] & 0x02)) {
 		pr_err("WRITE_SAME PBDATA and LBDATA"
@@ -294,6 +298,10 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	}
 	if (!ops->execute_write_same)
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
+
+	ret = sbc_check_prot(dev, cmd, &cmd->t_task_cdb[0], sectors, true);
+	if (ret)
+		return ret;
 
 	cmd->execute_cmd = ops->execute_write_same;
 	return 0;
