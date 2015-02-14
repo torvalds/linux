@@ -689,7 +689,7 @@ at86rf230_sync_state_change_complete(void *context)
 static int
 at86rf230_sync_state_change(struct at86rf230_local *lp, unsigned int state)
 {
-	int rc;
+	unsigned long rc;
 
 	at86rf230_async_state_change(lp, &lp->state, state,
 				     at86rf230_sync_state_change_complete,
