@@ -242,7 +242,7 @@ static void nfs_direct_release_pages(struct page **pages, unsigned int npages)
 void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
 			      struct nfs_direct_req *dreq)
 {
-	cinfo->lock = &dreq->lock;
+	cinfo->lock = &dreq->inode->i_lock;
 	cinfo->mds = &dreq->mds_cinfo;
 	cinfo->ds = &dreq->ds_cinfo;
 	cinfo->dreq = dreq;
