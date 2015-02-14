@@ -797,8 +797,7 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 		sample_read__printf(sample, evsel->attr.read_format);
 }
 
-static struct machine *
-	perf_session__find_machine_for_cpumode(struct perf_session *session,
+static struct machine *machines__find_for_cpumode(struct machines *machines,
 					       union perf_event *event,
 					       struct perf_sample *sample)
 {
@@ -816,14 +815,13 @@ static struct machine *
 		else
 			pid = sample->pid;
 
-		machine = perf_session__find_machine(session, pid);
+		machine = machines__find(machines, pid);
 		if (!machine)
-			machine = perf_session__findnew_machine(session,
-						DEFAULT_GUEST_KERNEL_ID);
+			machine = machines__find(machines, DEFAULT_GUEST_KERNEL_ID);
 		return machine;
 	}
 
-	return &session->machines.host;
+	return &machines->host;
 }
 
 static int deliver_sample_value(struct perf_session *session,
@@ -907,8 +905,7 @@ int perf_session__deliver_event(struct perf_session *session,
 
 	evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
-	machine = perf_session__find_machine_for_cpumode(session, event,
-							 sample);
+	machine = machines__find_for_cpumode(&session->machines, event, sample);
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
