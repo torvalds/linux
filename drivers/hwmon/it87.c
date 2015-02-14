@@ -11,6 +11,7 @@
  *  similar parts.  The other devices are supported by different drivers.
  *
  *  Supports: IT8603E  Super I/O chip w/LPC interface
+ *            IT8620E  Super I/O chip w/LPC interface
  *            IT8623E  Super I/O chip w/LPC interface
  *            IT8705F  Super I/O chip w/LPC interface
  *            IT8712F  Super I/O chip w/LPC interface
@@ -69,7 +70,7 @@
 #define DRVNAME "it87"
 
 enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8771,
-	     it8772, it8781, it8782, it8783, it8786, it8790, it8603 };
+	     it8772, it8781, it8782, it8783, it8786, it8790, it8603, it8620 };
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
@@ -155,12 +156,14 @@ static inline void superio_exit(void)
 #define IT8786E_DEVID 0x8786
 #define IT8790E_DEVID 0x8790
 #define IT8603E_DEVID 0x8603
+#define IT8620E_DEVID 0x8620
 #define IT8623E_DEVID 0x8623
 #define IT87_ACT_REG  0x30
 #define IT87_BASE_REG 0x60
 
 /* Logical device 7 registers (IT8712F and later) */
 #define IT87_SIO_GPIO1_REG	0x25
+#define IT87_SIO_GPIO2_REG	0x26
 #define IT87_SIO_GPIO3_REG	0x27
 #define IT87_SIO_GPIO5_REG	0x29
 #define IT87_SIO_PINX1_REG	0x2a	/* Pin selection */
@@ -373,6 +376,14 @@ static const struct it87_devices it87_devices[] = {
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
+		.peci_mask = 0x07,
+	},
+	[it8620] = {
+		.name = "it8620",
+		.suffix = "E",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_FIVE_FANS
+		  | FEAT_IN7_INTERNAL,
 		.peci_mask = 0x07,
 	},
 };
@@ -1850,6 +1861,9 @@ static int __init it87_find(unsigned short *address,
 	case IT8623E_DEVID:
 		sio_data->type = it8603;
 		break;
+	case IT8620E_DEVID:
+		sio_data->type = it8620;
+		break;
 	case 0xffff:	/* No device at all */
 		goto exit;
 	default:
@@ -1983,6 +1997,33 @@ static int __init it87_find(unsigned short *address,
 		sio_data->skip_in |= (1 << 6); /* No VIN6 */
 
 		sio_data->internal |= (1 << 3); /* in9 is AVCC */
+
+		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
+	} else if (sio_data->type == it8620) {
+		int reg;
+
+		superio_select(GPIO);
+
+		/* Check for fan4, fan5 */
+		reg = superio_inb(IT87_SIO_GPIO2_REG);
+		if (!(reg & (1 << 5)))
+			sio_data->skip_fan |= (1 << 3);
+		if (!(reg & (1 << 4)))
+			sio_data->skip_fan |= (1 << 4);
+
+		/* Check for pwm3, fan3 */
+		reg = superio_inb(IT87_SIO_GPIO3_REG);
+		if (reg & (1 << 6))
+			sio_data->skip_pwm |= (1 << 2);
+		if (reg & (1 << 7))
+			sio_data->skip_fan |= (1 << 2);
+
+		/* Check for pwm2, fan2 */
+		reg = superio_inb(IT87_SIO_GPIO5_REG);
+		if (reg & (1 << 1))
+			sio_data->skip_pwm |= (1 << 1);
+		if (reg & (1 << 2))
+			sio_data->skip_fan |= (1 << 1);
 
 		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
 	} else {
