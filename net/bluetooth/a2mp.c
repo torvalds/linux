@@ -45,7 +45,7 @@ static struct a2mp_cmd *__a2mp_build(u8 code, u8 ident, u16 len, void *data)
 	return cmd;
 }
 
-void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data)
+static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data)
 {
 	struct l2cap_chan *chan = mgr->a2mp_chan;
 	struct a2mp_cmd *cmd;
