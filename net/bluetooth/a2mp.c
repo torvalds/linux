@@ -19,6 +19,8 @@
 #include "a2mp.h"
 #include "amp.h"
 
+#define A2MP_FEAT_EXT	0x8000
+
 /* Global AMP Manager list */
 LIST_HEAD(amp_mgr_list);
 DEFINE_MUTEX(amp_mgr_list_lock);

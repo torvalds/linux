@@ -17,8 +17,6 @@
 
 #include <net/bluetooth/l2cap.h>
 
-#define A2MP_FEAT_EXT	0x8000
-
 enum amp_mgr_state {
 	READ_LOC_AMP_INFO,
 	READ_LOC_AMP_ASSOC,
