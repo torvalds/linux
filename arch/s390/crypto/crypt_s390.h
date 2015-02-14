@@ -369,14 +369,10 @@ static inline int crypt_s390_func_available(int func,
 
 	if (facility_mask & CRYPT_S390_MSA && !test_facility(17))
 		return 0;
-
-	if (facility_mask & CRYPT_S390_MSA3 &&
-	    (!test_facility(2) || !test_facility(76)))
+	if (facility_mask & CRYPT_S390_MSA3 && !test_facility(76))
 		return 0;
-	if (facility_mask & CRYPT_S390_MSA4 &&
-	    (!test_facility(2) || !test_facility(77)))
+	if (facility_mask & CRYPT_S390_MSA4 && !test_facility(77))
 		return 0;
-
 	switch (func & CRYPT_S390_OP_MASK) {
 	case CRYPT_S390_KM:
 		ret = crypt_s390_km(KM_QUERY, &status, NULL, NULL, 0);

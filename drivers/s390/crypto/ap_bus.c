@@ -165,7 +165,7 @@ static inline int ap_instructions_available(void)
  */
 static int ap_interrupts_available(void)
 {
-	return test_facility(2) && test_facility(65);
+	return test_facility(65);
 }
 
 /**
@@ -176,7 +176,7 @@ static int ap_interrupts_available(void)
  */
 static int ap_configuration_available(void)
 {
-	return test_facility(2) && test_facility(12);
+	return test_facility(12);
 }
 
 /**
