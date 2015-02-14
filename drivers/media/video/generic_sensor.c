@@ -1278,7 +1278,9 @@ int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
  static void sensor_af_workqueue(struct work_struct *work)
 {
 	struct rk_sensor_focus_work *sensor_work = container_of(work, struct rk_sensor_focus_work, dwork.work);
-	struct i2c_client *client = sensor_work->client;
+	struct i2c_client *client = sensor_work->client;	
+    struct soc_camera_subdev_desc *ssdd = client->dev.platform_data;
+	struct soc_camera_device *icd = ssdd->socdev;
 	struct generic_sensor*sensor = to_generic_sensor(client);
 	//struct rk_sensor_focus_cmd_info cmdinfo;
 	int zone_tm_pos[4];
@@ -1298,7 +1300,7 @@ int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
     				SENSOR_TR("WqCmd_af_init is failed in sensor_af_workqueue!");
     			} else {
     				if(sensor->sensor_focus.focus_delay != WqCmd_af_invalid) {
-    					generic_sensor_af_workqueue_set(client->dev.platform_data,sensor->sensor_focus.focus_delay,0,false);
+    					generic_sensor_af_workqueue_set(icd,sensor->sensor_focus.focus_delay,0,false);
     					sensor->sensor_focus.focus_delay = WqCmd_af_invalid;
     				}
                     sensor->sensor_focus.focus_state = FocusState_Inited;

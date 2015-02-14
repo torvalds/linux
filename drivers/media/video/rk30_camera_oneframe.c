@@ -293,8 +293,10 @@ static u32 CHIP_NAME;
 		 1. use of_find_node_by_name to get vpu node instead of of_find_compatible_node 
 *v0.1.e:
 		 1. support focus mode.
+*v0.1.f:
+         1. focus mode have some bug,fix it.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xe)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xf)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
