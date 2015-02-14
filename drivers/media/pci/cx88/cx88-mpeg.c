@@ -732,7 +732,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
 	if (IS_ERR(dev->alloc_ctx)) {
 		err = PTR_ERR(dev->alloc_ctx);
-		goto fail_core;
+		goto fail_dev;
 	}
 	dev->core = core;
 
@@ -754,6 +754,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 
  fail_free:
 	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
+ fail_dev:
 	kfree(dev);
  fail_core:
 	core->dvbdev = NULL;
