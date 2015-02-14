@@ -117,7 +117,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
 		return IXGBE_ERR_INVALID_MAC_ADDR;
 
-	memcpy(hw->mac.perm_addr, addr, ETH_ALEN);
+	ether_addr_copy(hw->mac.perm_addr, addr);
 	hw->mac.mc_filter_type = msgbuf[IXGBE_VF_MC_TYPE_WORD];
 
 	return 0;
@@ -219,7 +219,7 @@ static s32 ixgbevf_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr)
  **/
 static s32 ixgbevf_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
 {
-	memcpy(mac_addr, hw->mac.perm_addr, ETH_ALEN);
+	ether_addr_copy(mac_addr, hw->mac.perm_addr);
 
 	return 0;
 }
@@ -240,7 +240,7 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	msgbuf[0] |= index << IXGBE_VT_MSGINFO_SHIFT;
 	msgbuf[0] |= IXGBE_VF_SET_MACVLAN;
 	if (addr)
-		memcpy(msg_addr, addr, ETH_ALEN);
+		ether_addr_copy(msg_addr, addr);
 	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
 	if (!ret_val)
@@ -273,7 +273,7 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 
 	memset(msgbuf, 0, sizeof(msgbuf));
 	msgbuf[0] = IXGBE_VF_SET_MAC_ADDR;
-	memcpy(msg_addr, addr, ETH_ALEN);
+	ether_addr_copy(msg_addr, addr);
 	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
 	if (!ret_val)
