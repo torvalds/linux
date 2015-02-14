@@ -54,7 +54,10 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 
 	/* screen type & face */
 	screen->type = SCREEN_HDMI;
-	screen->color_mode = COLOR_YCBCR;
+	if (hdmi->edid.sink_hdmi)
+		screen->color_mode = COLOR_YCBCR;
+	else
+		screen->color_mode = COLOR_RGB;
 	if (hdmi->vic & HDMI_VIDEO_YUV420)
 		screen->face = OUT_YUV_420;
 	else

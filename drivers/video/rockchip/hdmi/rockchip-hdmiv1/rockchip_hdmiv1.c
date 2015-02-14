@@ -327,8 +327,9 @@ static int rockchip_hdmiv1_probe(struct platform_device *pdev)
 
 	fb_register_client(&rockchip_hdmiv1_fb_notifier);
 	rockchip_hdmiv1_initial(hdmi_dev->hdmi);
-	rk_display_device_enable(hdmi_dev->hdmi->ddev);
+
 	if (rk_fb_get_display_policy() == DISPLAY_POLICY_BOX) {
+		rk_display_device_enable(hdmi_dev->hdmi->ddev);
 		delay_work = hdmi_submit_work(hdmi_dev->hdmi,
 					      HDMI_HPD_CHANGE, 0, NULL);
 		if (delay_work)

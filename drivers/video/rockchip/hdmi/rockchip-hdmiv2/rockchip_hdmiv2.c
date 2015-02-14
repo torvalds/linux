@@ -442,7 +442,8 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 				    hdmi_dev->debugfs_dir,
 				    hdmi_dev, &rockchip_hdmiv2_reg_fops);
 #endif
-	rk_display_device_enable(hdmi_dev->hdmi->ddev);
+	if (rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
+		rk_display_device_enable(hdmi_dev->hdmi->ddev);
 
 #ifndef HDMI_INT_USE_POLL
 	/* get and request the IRQ */
