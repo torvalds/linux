@@ -119,11 +119,7 @@ static int mali_platform_init_clk(void)
 	if (mali_platform_clk_enable()) return 1;
 
 #ifdef CONFIG_REGULATOR
-#ifdef USING_MALI_PMM
-	g3d_regulator = regulator_get(&mali_platform_device.dev, "vdd_g3d");
-#else
-	g3d_regulator = regulator_get(NULL, "vdd_g3d");
-#endif
+	g3d_regulator = regulator_get(&(mali_platform_device->dev), "gpu");
 
 	if (IS_ERR(g3d_regulator)) {
 		MALI_PRINT_ERROR(("Mali platform: failed to get g3d regulator\n"));
