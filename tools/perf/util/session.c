@@ -688,14 +688,14 @@ static void stack_user__printf(struct stack_dump *dump)
 	       dump->size, dump->offset);
 }
 
-static void perf_session__print_tstamp(struct perf_session *session,
+static void perf_evlist__print_tstamp(struct perf_evlist *evlist,
 				       union perf_event *event,
 				       struct perf_sample *sample)
 {
-	u64 sample_type = __perf_evlist__combined_sample_type(session->evlist);
+	u64 sample_type = __perf_evlist__combined_sample_type(evlist);
 
 	if (event->header.type != PERF_RECORD_SAMPLE &&
-	    !perf_evlist__sample_id_all(session->evlist)) {
+	    !perf_evlist__sample_id_all(evlist)) {
 		fputs("-1 -1 ", stdout);
 		return;
 	}
@@ -737,7 +737,7 @@ static void sample_read__printf(struct perf_sample *sample, u64 read_format)
 			sample->read.one.id, sample->read.one.value);
 }
 
-static void dump_event(struct perf_session *session, union perf_event *event,
+static void dump_event(struct perf_evlist *evlist, union perf_event *event,
 		       u64 file_offset, struct perf_sample *sample)
 {
 	if (!dump_trace)
@@ -749,7 +749,7 @@ static void dump_event(struct perf_session *session, union perf_event *event,
 	trace_event(event);
 
 	if (sample)
-		perf_session__print_tstamp(session, event, sample);
+		perf_evlist__print_tstamp(evlist, event, sample);
 
 	printf("%#" PRIx64 " [%#x]: PERF_RECORD_%s", file_offset,
 	       event->header.size, perf_event__name(event->header.type));
@@ -901,7 +901,7 @@ int perf_session__deliver_event(struct perf_session *session,
 	struct perf_evsel *evsel;
 	struct machine *machine;
 
-	dump_event(session, event, file_offset, sample);
+	dump_event(evlist, event, file_offset, sample);
 
 	evsel = perf_evlist__id2evsel(evlist, sample->id);
 
@@ -953,7 +953,7 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	int fd = perf_data_file__fd(session->file);
 	int err;
 
-	dump_event(session, event, file_offset, NULL);
+	dump_event(session->evlist, event, file_offset, NULL);
 
 	/* These events are processed right away */
 	switch (event->header.type) {
