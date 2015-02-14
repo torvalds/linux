@@ -236,7 +236,12 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	DBG("%s", __func__);
 	if (hdmi->ops->remove)
 		hdmi->ops->remove(hdmi);
-
+	#ifdef CONFIG_SWITCH
+	if ((hdmi->edid.baseaudio_support &&
+	     hdmi->edid.sink_hdmi) ||
+	     rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
+		switch_set_state(&(hdmi->switchdev), 0);
+	#endif
 	list_for_each_safe(pos, n, &hdmi->edid.modelist) {
 		list_del(pos);
 		kfree(pos);
@@ -259,12 +264,6 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	}
 	hdmi->hotplug = HDMI_HPD_REMOVED;
 	hdmi_send_uevent(hdmi, KOBJ_REMOVE);
-	#ifdef CONFIG_SWITCH
-	if ((hdmi->edid.baseaudio_support &&
-	     hdmi->edid.sink_hdmi) ||
-	    rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
-		switch_set_state(&(hdmi->switchdev), 0);
-	#endif
 }
 
 static void hdmi_work_queue(struct work_struct *work)
