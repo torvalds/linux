@@ -110,7 +110,7 @@ static int sg_count(struct scatterlist *sg_list)
 
 	while (!sg_is_last(sg)) {
 		sg_nents++;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 
 	return sg_nents;
@@ -744,7 +744,7 @@ static int __init bfin_crypto_crc_mod_init(void)
 
 	ret = platform_driver_register(&bfin_crypto_crc_driver);
 	if (ret) {
-		pr_info(KERN_ERR "unable to register driver\n");
+		pr_err("unable to register driver\n");
 		return ret;
 	}
 

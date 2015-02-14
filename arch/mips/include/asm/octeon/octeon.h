@@ -44,11 +44,6 @@ extern int octeon_get_boot_num_arguments(void);
 extern const char *octeon_get_boot_argument(int arg);
 extern void octeon_hal_setup_reserved32(void);
 extern void octeon_user_io_init(void);
-struct octeon_cop2_state;
-extern unsigned long octeon_crypto_enable(struct octeon_cop2_state *state);
-extern void octeon_crypto_disable(struct octeon_cop2_state *state,
-				  unsigned long flags);
-extern asmlinkage void octeon_cop2_restore(struct octeon_cop2_state *task);
 
 extern void octeon_init_cvmcount(void);
 extern void octeon_setup_delays(void);
