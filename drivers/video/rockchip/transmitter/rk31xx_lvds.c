@@ -262,7 +262,8 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
 			v_RK3368_MIPIPHY_LANE0_EN(1) |
 			v_RK3368_MIPIDPI_FORCEX_EN(1);
 		lvds_grf_writel(lvds, GRF_SOC_CON7_LVDS, val);
-
+		val = v_RK3368_FORCE_JETAG(0);
+		lvds_grf_writel(lvds, GRF_SOC_CON15_LVDS, val);
 		/*val = v_MIPITTL_CLK_EN(1) | v_MIPITTL_LANE0_EN(1) |
 		v_MIPITTL_LANE1_EN(1) | v_MIPITTL_LANE2_EN(1) |
 		v_MIPITTL_LANE3_EN(1);

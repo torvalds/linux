@@ -114,6 +114,8 @@ enum {
 #define v_LANE0_EN(x)           BITS_MASK(x, 1, 7)
 
 #define GRF_SOC_CON7_LVDS	0x041c
+#define GRF_SOC_CON15_LVDS      0x043c
+#define v_RK3368_FORCE_JETAG(x) (BITS_MASK(x, 1, 13) | BITS_EN(1, 13))
 enum {
 	LVDS_SOC_RK312X,
 	LVDS_SOC_RK3368
