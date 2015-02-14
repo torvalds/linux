@@ -1758,6 +1758,8 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 		&rtl28xxu_props, "Sveon STV21", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_SVEON_STV27,
 		&rtl28xxu_props, "Sveon STV27", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_TURBOX_DTT_2000,
+		&rtl28xxu_props, "TURBO-X Pure TV Tuner DTT-2000", NULL) },
 
 	/* RTL2832P devices: */
 	{ DVB_USB_DEVICE(USB_VID_HANFTEK, 0x0131,
