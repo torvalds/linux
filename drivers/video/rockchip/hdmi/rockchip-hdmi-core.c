@@ -80,6 +80,8 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	video.vic = hdmi->vic & HDMI_VIC_MASK;
 	if (hdmi->vic & HDMI_VIDEO_YUV420)
 		video.color_input = HDMI_COLOR_YCBCR420;
+	else if (hdmi->edid.sink_hdmi == 0)
+		video.color_input = HDMI_COLOR_RGB_0_255;
 	else
 		video.color_input = HDMI_COLOR_YCBCR444;
 	video.sink_hdmi = hdmi->edid.sink_hdmi;
