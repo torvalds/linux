@@ -235,6 +235,14 @@ enum {
 #define N_96K		0x3000
 #define N_192K		0x6000
 
+#define AUDIO_CHANNEL_STATUS		0x3e
+	#define m_AUDIO_STATUS_NLPCM		(1 << 7)
+	#define m_AUDIO_STATUS_USE		(1 << 6)
+	#define m_AUDIO_STATUS_COPYRIGHT	(1 << 5)
+	#define m_AUDIO_STATUS_ADDITION		(3 << 2)
+	#define m_AUDIO_STATUS_CLK_ACCURACY	(2 << 0)
+
+	#define v_AUDIO_STATUS_NLPCM(n)		((n & 1) << 7)
 #define AUDIO_N_H			0x3f
 #define AUDIO_N_M			0x40
 #define AUDIO_N_L			0x41
