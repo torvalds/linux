@@ -1186,7 +1186,7 @@ __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 no_in_dev:
 
 	/* Not loopback addresses on loopback should be preferred
-	   in this case. It is importnat that lo is the first interface
+	   in this case. It is important that lo is the first interface
 	   in dev_base list.
 	 */
 	for_each_netdev_rcu(net, dev) {
