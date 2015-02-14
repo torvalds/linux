@@ -3857,7 +3857,9 @@ int btrfs_check_data_free_space(struct inode *inode, u64 bytes)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 used;
-	int ret = 0, committed = 0;
+	int ret = 0;
+	int committed = 0;
+	int have_pinned_space = 1;
 
 	/* make sure bytes are sectorsize aligned */
 	bytes = ALIGN(bytes, root->sectorsize);
@@ -3925,11 +3927,12 @@ alloc:
 
 		/*
 		 * If we don't have enough pinned space to deal with this
-		 * allocation don't bother committing the transaction.
+		 * allocation, and no removed chunk in current transaction,
+		 * don't bother committing the transaction.
 		 */
 		if (percpu_counter_compare(&data_sinfo->total_bytes_pinned,
 					   bytes) < 0)
-			committed = 1;
+			have_pinned_space = 0;
 		spin_unlock(&data_sinfo->lock);
 
 		/* commit the current transaction and try again */
@@ -3941,10 +3944,15 @@ commit_trans:
 			trans = btrfs_join_transaction(root);
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
-			ret = btrfs_commit_transaction(trans, root);
-			if (ret)
-				return ret;
-			goto again;
+			if (have_pinned_space ||
+			    trans->transaction->have_free_bgs) {
+				ret = btrfs_commit_transaction(trans, root);
+				if (ret)
+					return ret;
+				goto again;
+			} else {
+				btrfs_end_transaction(trans, root);
+			}
 		}
 
 		trace_btrfs_space_reservation(root->fs_info,
