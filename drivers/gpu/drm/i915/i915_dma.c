@@ -650,13 +650,24 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 				continue;
 
 			for (ss = 0; ss < ss_max; ss++) {
+				u32 n_disabled;
+
 				if (ss_disable & (0x1 << ss))
 					/* skip disabled subslice */
 					continue;
 
-				info->eu_total += eu_max -
-						  hweight8(eu_disable[s] >>
-							   (ss * eu_max));
+				n_disabled = hweight8(eu_disable[s] >>
+						      (ss * eu_max));
+
+				/*
+				 * Record which subslice(s) has(have) 7 EUs. we
+				 * can tune the hash used to spread work among
+				 * subslices if they are unbalanced.
+				 */
+				if (eu_max - n_disabled == 7)
+					info->subslice_7eu[s] |= 1 << ss;
+
+				info->eu_total += eu_max - n_disabled;
 			}
 		}
 

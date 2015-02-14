@@ -1002,6 +1002,49 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	return 0;
 }
 
+static int skl_tune_iz_hashing(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u8 vals[3] = { 0, 0, 0 };
+	unsigned int i;
+
+	for (i = 0; i < 3; i++) {
+		u8 ss;
+
+		/*
+		 * Only consider slices where one, and only one, subslice has 7
+		 * EUs
+		 */
+		if (hweight8(dev_priv->info.subslice_7eu[i]) != 1)
+			continue;
+
+		/*
+		 * subslice_7eu[i] != 0 (because of the check above) and
+		 * ss_max == 4 (maximum number of subslices possible per slice)
+		 *
+		 * ->    0 <= ss <= 3;
+		 */
+		ss = ffs(dev_priv->info.subslice_7eu[i]) - 1;
+		vals[i] = 3 - ss;
+	}
+
+	if (vals[0] == 0 && vals[1] == 0 && vals[2] == 0)
+		return 0;
+
+	/* Tune IZ hashing. See intel_device_info_runtime_init() */
+	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
+			    GEN9_IZ_HASHING_MASK(2) |
+			    GEN9_IZ_HASHING_MASK(1) |
+			    GEN9_IZ_HASHING_MASK(0),
+			    GEN9_IZ_HASHING(2, vals[2]) |
+			    GEN9_IZ_HASHING(1, vals[1]) |
+			    GEN9_IZ_HASHING(0, vals[0]));
+
+	return 0;
+}
+
+
 static int skl_init_workarounds(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -1014,7 +1057,7 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
-	return 0;
+	return skl_tune_iz_hashing(ring);
 }
 
 int init_workarounds_ring(struct intel_engine_cs *ring)

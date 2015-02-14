@@ -1351,6 +1351,8 @@ enum skl_disp_power_wells {
 #define   GEN6_WIZ_HASHING_16x4				GEN6_WIZ_HASHING(1, 0)
 #define   GEN6_WIZ_HASHING_MASK				GEN6_WIZ_HASHING(1, 1)
 #define   GEN6_TD_FOUR_ROW_DISPATCH_DISABLE		(1 << 5)
+#define   GEN9_IZ_HASHING_MASK(slice)			(0x3 << (slice * 2))
+#define   GEN9_IZ_HASHING(slice, val)			((val) << (slice * 2))
 
 #define GFX_MODE	0x02520
 #define GFX_MODE_GEN7	0x0229c
