@@ -479,7 +479,7 @@
 				buck1_reg: buck@1 {
 					regulator-compatible = "BUCK1";
 					regulator-name = "vdd_mif";
-					regulator-min-microvolt = <1100000>;
+					regulator-min-microvolt = <850000>;
 					regulator-max-microvolt = <1100000>;
 					regulator-always-on;
 					regulator-boot-on;
@@ -499,8 +499,8 @@
 				buck3_reg: buck@3 {
 					regulator-compatible = "BUCK3";
 					regulator-name = "vdd_int";
-					regulator-min-microvolt = <1125000>;
-					regulator-max-microvolt = <1125000>;
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1150000>;
 					regulator-always-on;
 					regulator-boot-on;
 					BUCK3-supply = <&reg_sysvdd>;
