@@ -131,7 +131,6 @@ struct a2mp_physlink_rsp {
 
 struct amp_mgr *amp_mgr_get(struct amp_mgr *mgr);
 int amp_mgr_put(struct amp_mgr *mgr);
-u8 __next_ident(struct amp_mgr *mgr);
 struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 				       struct sk_buff *skb);
 void a2mp_discover_amp(struct l2cap_chan *chan);

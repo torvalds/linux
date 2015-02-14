@@ -69,7 +69,7 @@ static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *dat
 	kfree(cmd);
 }
 
-u8 __next_ident(struct amp_mgr *mgr)
+static u8 __next_ident(struct amp_mgr *mgr)
 {
 	if (++mgr->ident == 0)
 		mgr->ident = 1;
