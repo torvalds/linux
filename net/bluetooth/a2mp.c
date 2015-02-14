@@ -77,6 +77,23 @@ u8 __next_ident(struct amp_mgr *mgr)
 	return mgr->ident;
 }
 
+static struct amp_mgr *amp_mgr_lookup_by_state(u8 state)
+{
+	struct amp_mgr *mgr;
+
+	mutex_lock(&amp_mgr_list_lock);
+	list_for_each_entry(mgr, &amp_mgr_list, list) {
+		if (test_and_clear_bit(state, &mgr->state)) {
+			amp_mgr_get(mgr);
+			mutex_unlock(&amp_mgr_list_lock);
+			return mgr;
+		}
+	}
+	mutex_unlock(&amp_mgr_list_lock);
+
+	return NULL;
+}
+
 /* hci_dev_list shall be locked */
 static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl)
 {
@@ -860,23 +877,6 @@ struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 	BT_DBG("mgr: %p chan %p", mgr, mgr->a2mp_chan);
 
 	return mgr->a2mp_chan;
-}
-
-struct amp_mgr *amp_mgr_lookup_by_state(u8 state)
-{
-	struct amp_mgr *mgr;
-
-	mutex_lock(&amp_mgr_list_lock);
-	list_for_each_entry(mgr, &amp_mgr_list, list) {
-		if (test_and_clear_bit(state, &mgr->state)) {
-			amp_mgr_get(mgr);
-			mutex_unlock(&amp_mgr_list_lock);
-			return mgr;
-		}
-	}
-	mutex_unlock(&amp_mgr_list_lock);
-
-	return NULL;
 }
 
 void a2mp_send_getinfo_rsp(struct hci_dev *hdev)
