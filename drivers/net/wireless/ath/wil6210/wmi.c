@@ -874,7 +874,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 		struct wmi_pcp_started_event evt;
 	} __packed reply;
 
-	if (!wil->secure_pcp)
+	if (!wil->privacy)
 		cmd.disable_sec = 1;
 
 	if ((cmd.pcp_max_assoc_sta > WIL6210_MAX_CID) ||

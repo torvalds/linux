@@ -769,7 +769,7 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, bcon->assocresp_ies_len,
 		   bcon->assocresp_ies);
 
-	wil->secure_pcp = info->privacy;
+	wil->privacy = info->privacy;
 
 	netif_carrier_on(ndev);
 

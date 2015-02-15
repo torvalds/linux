@@ -540,7 +540,7 @@ struct wil6210_priv {
 	wait_queue_head_t wq; /* for all wait_event() use */
 	/* profile */
 	u32 monitor_flags;
-	u32 secure_pcp; /* create secure PCP? */
+	u32 privacy; /* secure connection? */
 	int sinfo_gen;
 	/* interrupt moderation */
 	u32 tx_max_burst_duration;
