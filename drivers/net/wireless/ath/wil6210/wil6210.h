@@ -241,16 +241,10 @@ struct RGF_BL {
 	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
 
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
-	#define JTAG_DEV_ID_MARLON_B0	(0x0612072f)
-	#define JTAG_DEV_ID_SPARROW_A0	(0x0632072f)
-	#define JTAG_DEV_ID_SPARROW_A1	(0x1632072f)
 	#define JTAG_DEV_ID_SPARROW_B0	(0x2632072f)
 
 enum {
 	HW_VER_UNKNOWN,
-	HW_VER_MARLON_B0,  /* JTAG_DEV_ID_MARLON_B0  */
-	HW_VER_SPARROW_A0, /* JTAG_DEV_ID_SPARROW_A0 */
-	HW_VER_SPARROW_A1, /* JTAG_DEV_ID_SPARROW_A1 */
 	HW_VER_SPARROW_B0, /* JTAG_DEV_ID_SPARROW_B0 */
 };
 
@@ -494,8 +488,6 @@ enum {
 };
 
 enum {
-	hw_capability_reset_v2 = 0,
-	hw_capability_advanced_itr_moderation = 1,
 	hw_capability_last
 };
 
