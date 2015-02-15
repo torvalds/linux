@@ -3332,9 +3332,10 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 	list_del(&arvif->list);
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
-		ret = ath10k_peer_delete(arvif->ar, arvif->vdev_id, vif->addr);
+		ret = ath10k_wmi_peer_delete(arvif->ar, arvif->vdev_id,
+					     vif->addr);
 		if (ret)
-			ath10k_warn(ar, "failed to remove peer for AP vdev %i: %d\n",
+			ath10k_warn(ar, "failed to submit AP self-peer removal on vdev %i: %d\n",
 				    arvif->vdev_id, ret);
 
 		kfree(arvif->u.ap.noa_data);
@@ -3347,6 +3348,21 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 	if (ret)
 		ath10k_warn(ar, "failed to delete WMI vdev %i: %d\n",
 			    arvif->vdev_id, ret);
+
+	/* Some firmware revisions don't notify host about self-peer removal
+	 * until after associated vdev is deleted.
+	 */
+	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
+		ret = ath10k_wait_for_peer_deleted(ar, arvif->vdev_id,
+						   vif->addr);
+		if (ret)
+			ath10k_warn(ar, "failed to remove AP self-peer on vdev %i: %d\n",
+				    arvif->vdev_id, ret);
+
+		spin_lock_bh(&ar->data_lock);
+		ar->num_peers--;
+		spin_unlock_bh(&ar->data_lock);
+	}
 
 	ath10k_peer_cleanup(ar, arvif->vdev_id);
 
