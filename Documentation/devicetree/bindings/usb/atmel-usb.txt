@@ -51,7 +51,10 @@ usb1: gadget@fffa4000 {
 Atmel High-Speed USB device controller
 
 Required properties:
- - compatible: Should be "atmel,at91sam9rl-udc"
+ - compatible: Should be one of the following
+	       "at91sam9rl-udc"
+	       "at91sam9g45-udc"
+	       "sama5d3-udc"
  - reg: Address and length of the register set for the device
  - interrupts: Should contain usba interrupt
  - ep childnode: To specify the number of endpoints and their properties.

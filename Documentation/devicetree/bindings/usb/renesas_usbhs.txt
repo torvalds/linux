@@ -14,6 +14,8 @@ Optional properties:
 			 function should be enabled
   - phys: phandle + phy specifier pair
   - phy-names: must be "usb"
+  - dmas: Must contain a list of references to DMA specifiers.
+  - dma-names : Must contain a list of DMA names, "tx" or "rx".
 
 Example:
 	usbhs: usb@e6590000 {

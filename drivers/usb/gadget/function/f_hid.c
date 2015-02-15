@@ -759,7 +759,7 @@ static struct f_hid_opts_attribute f_hid_opts_##name =			\
 
 F_HID_OPT(subclass, 8, 255);
 F_HID_OPT(protocol, 8, 255);
-F_HID_OPT(report_length, 16, 65536);
+F_HID_OPT(report_length, 16, 65535);
 
 static ssize_t f_hid_opts_report_desc_show(struct f_hid_opts *opts, char *page)
 {

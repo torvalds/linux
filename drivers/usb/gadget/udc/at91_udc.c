@@ -176,7 +176,7 @@ static int proc_udc_show(struct seq_file *s, void *unused)
 		udc->enabled
 			? (udc->vbus ? "active" : "enabled")
 			: "disabled",
-		udc->selfpowered ? "self" : "VBUS",
+		udc->gadget.is_selfpowered ? "self" : "VBUS",
 		udc->suspended ? ", suspended" : "",
 		udc->driver ? udc->driver->driver.name : "(none)");
 
@@ -1000,7 +1000,7 @@ static int at91_set_selfpowered(struct usb_gadget *gadget, int is_on)
 	unsigned long	flags;
 
 	spin_lock_irqsave(&udc->lock, flags);
-	udc->selfpowered = (is_on != 0);
+	gadget->is_selfpowered = (is_on != 0);
 	spin_unlock_irqrestore(&udc->lock, flags);
 	return 0;
 }
@@ -1149,7 +1149,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 	 */
 	case ((USB_DIR_IN|USB_TYPE_STANDARD|USB_RECIP_DEVICE) << 8)
 			| USB_REQ_GET_STATUS:
-		tmp = (udc->selfpowered << USB_DEVICE_SELF_POWERED);
+		tmp = (udc->gadget.is_selfpowered << USB_DEVICE_SELF_POWERED);
 		if (at91_udp_read(udc, AT91_UDP_GLB_STAT) & AT91_UDP_ESR)
 			tmp |= (1 << USB_DEVICE_REMOTE_WAKEUP);
 		PACKET("get device status\n");
@@ -1653,7 +1653,7 @@ static int at91_start(struct usb_gadget *gadget,
 	udc->driver = driver;
 	udc->gadget.dev.of_node = udc->pdev->dev.of_node;
 	udc->enabled = 1;
-	udc->selfpowered = 1;
+	udc->gadget.is_selfpowered = 1;
 
 	return 0;
 }

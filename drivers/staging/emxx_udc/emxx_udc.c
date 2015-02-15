@@ -1608,7 +1608,7 @@ static int std_req_get_status(struct nbu2ss_udc *udc)
 	switch (recipient) {
 	case USB_RECIP_DEVICE:
 		if (udc->ctrl.wIndex == 0x0000) {
-			if (udc->self_powered)
+			if (udc->gadget.is_selfpowered)
 				status_data |= (1 << USB_DEVICE_SELF_POWERED);
 
 			if (udc->remote_wakeup)
@@ -3117,7 +3117,7 @@ static int nbu2ss_gad_wakeup(struct usb_gadget *pgadget)
 static int nbu2ss_gad_set_selfpowered(struct usb_gadget *pgadget,
 					int is_selfpowered)
 {
-	struct nbu2ss_udc	*udc;
+	struct nbu2ss_udc       *udc;
 	unsigned long		flags;
 
 /*	INFO("=== %s()\n", __func__); */
@@ -3130,7 +3130,7 @@ static int nbu2ss_gad_set_selfpowered(struct usb_gadget *pgadget,
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
 
 	spin_lock_irqsave(&udc->lock, flags);
-	udc->self_powered = (is_selfpowered != 0);
+	pgadget->is_selfpowered = (is_selfpowered != 0);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	return 0;
@@ -3308,7 +3308,7 @@ static int __init nbu2ss_drv_contest_init(
 	spin_lock_init(&udc->lock);
 	udc->dev = &pdev->dev;
 
-	udc->self_powered = 1;
+	udc->gadget.is_selfpowered = 1;
 	udc->devstate = USB_STATE_NOTATTACHED;
 	udc->pdev = pdev;
 	udc->mA = 0;
