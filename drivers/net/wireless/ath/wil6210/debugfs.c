@@ -103,23 +103,30 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 				   % vring->size;
 			int avail = vring->size - used - 1;
 			char name[10];
+			char sidle[10];
 			/* performance monitoring */
 			cycles_t now = get_cycles();
 			uint64_t idle = txdata->idle * 100;
 			uint64_t total = now - txdata->begin;
 
-			do_div(idle, total);
+			if (total != 0) {
+				do_div(idle, total);
+				snprintf(sidle, sizeof(sidle), "%3d%%",
+					 (int)idle);
+			} else {
+				snprintf(sidle, sizeof(sidle), "N/A");
+			}
 			txdata->begin = now;
 			txdata->idle = 0ULL;
 
 			snprintf(name, sizeof(name), "tx_%2d", i);
 
 			seq_printf(s,
-				   "\n%pM CID %d TID %d BACK([%d] %d TU A%s) [%3d|%3d] idle %3d%%\n",
-				   wil->sta[cid].addr, cid, tid,
-				   txdata->agg_wsize, txdata->agg_timeout,
-				   txdata->agg_amsdu ? "+" : "-",
-				   used, avail, (int)idle);
+				"\n%pM CID %d TID %d BACK([%d] %d TU A%s) [%3d|%3d] idle %s\n",
+				wil->sta[cid].addr, cid, tid,
+				txdata->agg_wsize, txdata->agg_timeout,
+				txdata->agg_amsdu ? "+" : "-",
+				used, avail, sidle);
 
 			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
