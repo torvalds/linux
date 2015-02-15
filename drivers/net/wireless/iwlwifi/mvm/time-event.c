@@ -750,8 +750,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 	 * request
 	 */
 	list_for_each_entry(te_data, &mvm->time_event_list, list) {
-		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE &&
-		    te_data->running) {
+		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
 			is_p2p = true;
 			goto remove_te;
@@ -766,10 +765,8 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 	 * request
 	 */
 	list_for_each_entry(te_data, &mvm->aux_roc_te_list, list) {
-		if (te_data->running) {
-			mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
-			goto remove_te;
-		}
+		mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
+		goto remove_te;
 	}
 
 remove_te:
