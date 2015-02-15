@@ -2080,8 +2080,7 @@ ath10k_wmi_tlv_op_gen_pdev_set_wmm(struct ath10k *ar,
 }
 
 static struct sk_buff *
-ath10k_wmi_tlv_op_gen_request_stats(struct ath10k *ar,
-				    enum wmi_stats_id stats_id)
+ath10k_wmi_tlv_op_gen_request_stats(struct ath10k *ar, u32 stats_mask)
 {
 	struct wmi_request_stats_cmd *cmd;
 	struct wmi_tlv *tlv;
@@ -2095,7 +2094,7 @@ ath10k_wmi_tlv_op_gen_request_stats(struct ath10k *ar,
 	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_REQUEST_STATS_CMD);
 	tlv->len = __cpu_to_le16(sizeof(*cmd));
 	cmd = (void *)tlv->value;
-	cmd->stats_id = __cpu_to_le32(stats_id);
+	cmd->stats_id = __cpu_to_le32(stats_mask);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv request stats\n");
 	return skb;

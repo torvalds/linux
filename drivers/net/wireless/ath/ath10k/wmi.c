@@ -4974,7 +4974,7 @@ ath10k_wmi_op_gen_pdev_set_wmm(struct ath10k *ar,
 }
 
 static struct sk_buff *
-ath10k_wmi_op_gen_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id)
+ath10k_wmi_op_gen_request_stats(struct ath10k *ar, u32 stats_mask)
 {
 	struct wmi_request_stats_cmd *cmd;
 	struct sk_buff *skb;
@@ -4984,9 +4984,10 @@ ath10k_wmi_op_gen_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id)
 		return ERR_PTR(-ENOMEM);
 
 	cmd = (struct wmi_request_stats_cmd *)skb->data;
-	cmd->stats_id = __cpu_to_le32(stats_id);
+	cmd->stats_id = __cpu_to_le32(stats_mask);
 
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi request stats %d\n", (int)stats_id);
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi request stats 0x%08x\n",
+		   stats_mask);
 	return skb;
 }
 
