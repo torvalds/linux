@@ -1779,6 +1779,68 @@ static int ath10k_setup_peer_smps(struct ath10k *ar, struct ath10k_vif *arvif,
 					 ath10k_smps_map[smps]);
 }
 
+static int ath10k_mac_vif_recalc_txbf(struct ath10k *ar,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_sta_vht_cap vht_cap)
+{
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	int ret;
+	u32 param;
+	u32 value;
+
+	if (!(ar->vht_cap_info &
+	      (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+	       IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE |
+	       IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+	       IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)))
+		return 0;
+
+	param = ar->wmi.vdev_param->txbf;
+	value = 0;
+
+	if (WARN_ON(param == WMI_VDEV_PARAM_UNSUPPORTED))
+		return 0;
+
+	/* The following logic is correct. If a remote STA advertises support
+	 * for being a beamformer then we should enable us being a beamformee.
+	 */
+
+	if (ar->vht_cap_info &
+	    (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+	     IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE)) {
+		if (vht_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE)
+			value |= WMI_VDEV_PARAM_TXBF_SU_TX_BFEE;
+
+		if (vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)
+			value |= WMI_VDEV_PARAM_TXBF_MU_TX_BFEE;
+	}
+
+	if (ar->vht_cap_info &
+	    (IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+	     IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)) {
+		if (vht_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE)
+			value |= WMI_VDEV_PARAM_TXBF_SU_TX_BFER;
+
+		if (vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE)
+			value |= WMI_VDEV_PARAM_TXBF_MU_TX_BFER;
+	}
+
+	if (value & WMI_VDEV_PARAM_TXBF_MU_TX_BFEE)
+		value |= WMI_VDEV_PARAM_TXBF_SU_TX_BFEE;
+
+	if (value & WMI_VDEV_PARAM_TXBF_MU_TX_BFER)
+		value |= WMI_VDEV_PARAM_TXBF_SU_TX_BFER;
+
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, param, value);
+	if (ret) {
+		ath10k_warn(ar, "failed to submit vdev param txbf 0x%x: %d\n",
+			    value, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 /* can be called only in mac80211 callbacks due to `key_count` usage */
 static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
@@ -1787,6 +1849,7 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	struct ieee80211_sta_ht_cap ht_cap;
+	struct ieee80211_sta_vht_cap vht_cap;
 	struct wmi_peer_assoc_complete_arg peer_arg;
 	struct ieee80211_sta *ap_sta;
 	int ret;
@@ -1809,6 +1872,7 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 	/* ap_sta must be accessed only within rcu section which must be left
 	 * before calling ath10k_setup_peer_smps() which might sleep. */
 	ht_cap = ap_sta->ht_cap;
+	vht_cap = ap_sta->vht_cap;
 
 	ret = ath10k_peer_assoc_prepare(ar, vif, ap_sta, &peer_arg);
 	if (ret) {
@@ -1831,6 +1895,13 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 	if (ret) {
 		ath10k_warn(ar, "failed to setup peer SMPS for vdev %i: %d\n",
 			    arvif->vdev_id, ret);
+		return;
+	}
+
+	ret = ath10k_mac_vif_recalc_txbf(ar, vif, vht_cap);
+	if (ret) {
+		ath10k_warn(ar, "failed to recalc txbf for vdev %i on bss %pM: %d\n",
+			    arvif->vdev_id, bss_conf->bssid, ret);
 		return;
 	}
 
@@ -1858,6 +1929,7 @@ static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ieee80211_sta_vht_cap vht_cap = {};
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
@@ -1871,6 +1943,13 @@ static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
 			    arvif->vdev_id, ret);
 
 	arvif->def_wep_key_idx = -1;
+
+	ret = ath10k_mac_vif_recalc_txbf(ar, vif, vht_cap);
+	if (ret) {
+		ath10k_warn(ar, "failed to recalc txbf for vdev %i: %d\n",
+			    arvif->vdev_id, ret);
+		return;
+	}
 
 	arvif->is_up = false;
 }
