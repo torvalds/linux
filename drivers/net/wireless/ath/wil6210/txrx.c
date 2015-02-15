@@ -53,32 +53,36 @@ static inline int wil_vring_is_full(struct vring *vring)
 	return wil_vring_next_tail(vring) == vring->swhead;
 }
 
-/*
- * Available space in Tx Vring
- */
-static inline int wil_vring_avail_tx(struct vring *vring)
+/* Used space in Tx Vring */
+static inline int wil_vring_used_tx(struct vring *vring)
 {
 	u32 swhead = vring->swhead;
 	u32 swtail = vring->swtail;
-	int used = (vring->size + swhead - swtail) % vring->size;
-
-	return vring->size - used - 1;
+	return (vring->size + swhead - swtail) % vring->size;
 }
 
-/**
- * wil_vring_wmark_low - low watermark for available descriptor space
- */
+/* Available space in Tx Vring */
+static inline int wil_vring_avail_tx(struct vring *vring)
+{
+	return vring->size - wil_vring_used_tx(vring) - 1;
+}
+
+/* wil_vring_wmark_low - low watermark for available descriptor space */
 static inline int wil_vring_wmark_low(struct vring *vring)
 {
 	return vring->size/8;
 }
 
-/**
- * wil_vring_wmark_high - high watermark for available descriptor space
- */
+/* wil_vring_wmark_high - high watermark for available descriptor space */
 static inline int wil_vring_wmark_high(struct vring *vring)
 {
 	return vring->size/4;
+}
+
+/* wil_val_in_range - check if value in [min,max) */
+static inline bool wil_val_in_range(int val, int min, int max)
+{
+	return val >= min && val < max;
 }
 
 static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
@@ -98,8 +102,7 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 		vring->va = NULL;
 		return -ENOMEM;
 	}
-	/*
-	 * vring->va should be aligned on its size rounded up to power of 2
+	/* vring->va should be aligned on its size rounded up to power of 2
 	 * This is granted by the dma_alloc_coherent
 	 */
 	vring->va = dma_alloc_coherent(dev, sz, &vring->pa, GFP_KERNEL);
@@ -921,6 +924,7 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	struct vring_tx_data *txdata = &wil->vring_tx_data[vring_index];
 	uint i = swhead;
 	dma_addr_t pa;
+	int used;
 
 	wil_dbg_txrx(wil, "%s()\n", __func__);
 
@@ -996,8 +1000,14 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	 */
 	vring->ctx[i].skb = skb_get(skb);
 
-	if (wil_vring_is_empty(vring)) /* performance monitoring */
+	/* performance monitoring */
+	used = wil_vring_used_tx(vring);
+	if (wil_val_in_range(vring_idle_trsh,
+			     used, used + nr_frags + 1)) {
 		txdata->idle += get_cycles() - txdata->last_idle;
+		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
+			     vring_index, used, used + nr_frags + 1);
+	}
 
 	/* advance swhead */
 	wil_vring_advance_head(vring, nr_frags + 1);
@@ -1141,6 +1151,8 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 	int cid = wil->vring2cid_tid[ringid][0];
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
 	volatile struct vring_tx_desc *_d;
+	int used_before_complete;
+	int used_new;
 
 	if (unlikely(!vring->va)) {
 		wil_err(wil, "Tx irq[%d]: vring not initialized\n", ringid);
@@ -1153,6 +1165,8 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 	}
 
 	wil_dbg_txrx(wil, "%s(%d)\n", __func__, ringid);
+
+	used_before_complete = wil_vring_used_tx(vring);
 
 	while (!wil_vring_is_empty(vring)) {
 		int new_swtail;
@@ -1215,8 +1229,12 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		}
 	}
 
-	if (wil_vring_is_empty(vring)) { /* performance monitoring */
-		wil_dbg_txrx(wil, "Ring[%2d] empty\n", ringid);
+	/* performance monitoring */
+	used_new = wil_vring_used_tx(vring);
+	if (wil_val_in_range(vring_idle_trsh,
+			     used_new, used_before_complete)) {
+		wil_dbg_txrx(wil, "Ring[%2d] idle %d -> %d\n",
+			     ringid, used_before_complete, used_new);
 		txdata->last_idle = get_cycles();
 	}
 
