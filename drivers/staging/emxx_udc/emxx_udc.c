@@ -3249,42 +3249,6 @@ static const char *gp_ep_name[NUM_ENDPOINTS] = {
 };
 
 /*-------------------------------------------------------------------------*/
-static void __init nbu2ss_drv_set_ep_info(
-	struct nbu2ss_udc	*udc,
-	struct nbu2ss_ep	*ep,
-	const char *name)
-{
-	ep->udc = udc;
-	ep->desc = NULL;
-
-	ep->ep.driver_data = NULL;
-	ep->ep.name = name;
-	ep->ep.ops = &nbu2ss_ep_ops;
-
-	if (isdigit(name[2])) {
-
-		long	num;
-		int	res;
-		char	tempbuf[2];
-
-		tempbuf[0] = name[2];
-		tempbuf[1] = '\0';
-		res = kstrtol(tempbuf, 16, &num);
-
-		if (num == 0)
-			ep->ep.maxpacket = EP0_PACKETSIZE;
-		else
-			ep->ep.maxpacket = EP_PACKETSIZE;
-
-	} else {
-		ep->ep.maxpacket = EP_PACKETSIZE;
-	}
-
-	list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
-	INIT_LIST_HEAD(&ep->queue);
-}
-
-/*-------------------------------------------------------------------------*/
 static void __init nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
 {
 	int	i;
@@ -3292,9 +3256,21 @@ static void __init nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 	udc->gadget.ep0 = &udc->ep[0].ep;
 
+	for (i = 0; i < NUM_ENDPOINTS; i++) {
+		struct nbu2ss_ep *ep = &udc->ep[i];
 
-	for (i = 0; i < NUM_ENDPOINTS; i++)
-		nbu2ss_drv_set_ep_info(udc, &udc->ep[i], gp_ep_name[i]);
+		ep->udc = udc;
+		ep->desc = NULL;
+
+		ep->ep.driver_data = NULL;
+		ep->ep.name = gp_ep_name[i];
+		ep->ep.ops = &nbu2ss_ep_ops;
+
+		ep->ep.maxpacket = (i == 0 ? EP0_PACKETSIZE : EP_PACKETSIZE);
+
+		list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
+		INIT_LIST_HEAD(&ep->queue);
+	}
 
 	list_del_init(&udc->ep[0].ep.ep_list);
 }

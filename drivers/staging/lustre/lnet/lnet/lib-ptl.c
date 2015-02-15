@@ -262,10 +262,10 @@ lnet_mt_of_match(struct lnet_match_info *info, struct lnet_msg *msg)
 {
 	struct lnet_match_table	*mtable;
 	struct lnet_portal	*ptl;
-	int			nmaps;
-	int			rotor;
-	int			routed;
-	int			cpt;
+	unsigned int		nmaps;
+	unsigned int		rotor;
+	unsigned int		cpt;
+	bool			routed;
 
 	/* NB: called w/o lock */
 	LASSERT(info->mi_portal < the_lnet.ln_nportals);

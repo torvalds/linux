@@ -93,21 +93,4 @@ void BBvSetRxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
 void BBvSetDeepSleep(struct vnt_private *, unsigned char byLocalID);
 void BBvExitDeepSleep(struct vnt_private *, unsigned char byLocalID);
 
-/* timer for antenna diversity */
-
-void
-TimerSQ3CallBack(
-	unsigned long
-);
-
-void
-TimerState1CallBack(
-	unsigned long
-);
-
-void BBvAntennaDiversity(struct vnt_private *,
-			 unsigned char byRxRate, unsigned char bySQ3);
-void
-BBvClearAntDivSQ3Value(struct vnt_private *);
-
 #endif /* __BASEBAND_H__ */

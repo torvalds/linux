@@ -358,7 +358,7 @@ struct lu_client_seq {
 	 * Service uuid, passed from MDT + seq name to form unique seq name to
 	 * use it with procfs.
 	 */
-	char		    lcs_name[80];
+	char		    lcs_name[LUSTRE_MDT_MAXNAMELEN];
 
 	/*
 	 * Sequence width, that is how many objects may be allocated in one
@@ -408,7 +408,7 @@ struct lu_server_seq {
 	 * Service uuid, passed from MDT + seq name to form unique seq name to
 	 * use it with procfs.
 	 */
-	char		    lss_name[80];
+	char		    lss_name[LUSTRE_MDT_MAXNAMELEN];
 
 	/*
 	 * Allocation chunks for super and meta sequences. Default values are
