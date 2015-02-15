@@ -29,10 +29,6 @@ bool no_fw_recovery;
 module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_recovery, " disable automatic FW error recovery");
 
-static bool no_fw_load = true;
-module_param(no_fw_load, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(no_fw_load, " do not download FW, use one in on-card flash.");
-
 /* if not set via modparam, will be set to default value of 1/8 of
  * rx ring size during init flow
  */
@@ -532,6 +528,8 @@ static int wil_target_reset(struct wil6210_priv *wil)
 
 	wil_halt_cpu(wil);
 
+	/* clear all boot loader "ready" bits */
+	W(RGF_USER_BL + offsetof(struct RGF_BL, ready), 0);
 	/* Clear Fw Download notification */
 	C(RGF_USER_USAGE_6, BIT(0));
 
@@ -583,16 +581,16 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	/* TODO: check order here!!! Erez code is different */
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
-	/* wait until device ready. typical time is 200..250 msec */
+	/* wait until device ready. typical time is 20..80 msec */
 	do {
 		msleep(RST_DELAY);
-		x = R(RGF_USER_HW_MACHINE_STATE);
+		x = R(RGF_USER_BL + offsetof(struct RGF_BL, ready));
 		if (delay++ > RST_COUNT) {
-			wil_err(wil, "Reset not completed, hw_state 0x%08x\n",
+			wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
 				x);
 			return -ETIME;
 		}
-	} while (x != HW_MACHINE_BOOT_DONE);
+	} while (!(x & BIT_BL_READY));
 
 	if (!is_reset_v2)
 		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(8));
@@ -603,11 +601,6 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	return 0;
 }
 
-#undef R
-#undef W
-#undef S
-#undef C
-
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
 {
 	le32_to_cpus(&r->base);
@@ -615,6 +608,32 @@ void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
 	le16_to_cpus(&r->size);
 	le32_to_cpus(&r->tail);
 	le32_to_cpus(&r->head);
+}
+
+static int wil_get_bl_info(struct wil6210_priv *wil)
+{
+	struct net_device *ndev = wil_to_ndev(wil);
+	struct RGF_BL bl;
+
+	wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL), sizeof(bl));
+	le32_to_cpus(&bl.ready);
+	le32_to_cpus(&bl.version);
+	le32_to_cpus(&bl.rf_type);
+	le32_to_cpus(&bl.baseband_type);
+
+	if (!is_valid_ether_addr(bl.mac_address)) {
+		wil_err(wil, "BL: Invalid MAC %pM\n", bl.mac_address);
+		return -EINVAL;
+	}
+
+	ether_addr_copy(ndev->perm_addr, bl.mac_address);
+	if (!is_valid_ether_addr(ndev->dev_addr))
+		ether_addr_copy(ndev->dev_addr, bl.mac_address);
+	wil_info(wil,
+		 "Boot Loader: ver = %d MAC = %pM RF = 0x%08x bband = 0x%08x\n",
+		 bl.version, bl.mac_address, bl.rf_type, bl.baseband_type);
+
+	return 0;
 }
 
 static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
@@ -637,7 +656,7 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
  * After calling this routine, you're expected to reload
  * the firmware.
  */
-int wil_reset(struct wil6210_priv *wil)
+int wil_reset(struct wil6210_priv *wil, bool load_fw)
 {
 	int rc;
 
@@ -675,30 +694,36 @@ int wil_reset(struct wil6210_priv *wil)
 	if (rc)
 		return rc;
 
-	if (!no_fw_load) {
-		wil_info(wil, "Use firmware <%s>\n", WIL_FW_NAME);
+	rc = wil_get_bl_info(wil);
+	if (rc)
+		return rc;
+
+	if (load_fw) {
+		wil_info(wil, "Use firmware <%s> + board <%s>\n", WIL_FW_NAME,
+			 WIL_FW2_NAME);
+
 		wil_halt_cpu(wil);
 		/* Loading f/w from the file */
 		rc = wil_request_firmware(wil, WIL_FW_NAME);
 		if (rc)
 			return rc;
+		rc = wil_request_firmware(wil, WIL_FW2_NAME);
+		if (rc)
+			return rc;
 
-		/* clear any interrupts which on-card-firmware may have set */
+		/* Mark FW as loaded from host */
+		S(RGF_USER_USAGE_6, 1);
+
+		/* clear any interrupts which on-card-firmware
+		 * may have set
+		 */
 		wil6210_clear_irq(wil);
-		{ /* CAF_ICR - clear and mask */
-			u32 a = HOSTADDR(RGF_CAF_ICR) +
-				offsetof(struct RGF_ICR, ICR);
-			u32 m = HOSTADDR(RGF_CAF_ICR) +
-				offsetof(struct RGF_ICR, IMV);
-			u32 icr = ioread32(wil->csr + a);
+		/* CAF_ICR - clear and mask */
+		/* it is W1C, clear by writing back same value */
+		S(RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
+		W(RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
 
-			iowrite32(icr, wil->csr + a); /* W1C */
-			iowrite32(~0, wil->csr + m);
-			wmb(); /* wait for completion */
-		}
 		wil_release_cpu(wil);
-	} else {
-		wil_info(wil, "Use firmware from on-card flash\n");
 	}
 
 	/* init after reset */
@@ -706,14 +731,21 @@ int wil_reset(struct wil6210_priv *wil)
 	reinit_completion(&wil->wmi_ready);
 	reinit_completion(&wil->wmi_call);
 
-	wil_configure_interrupt_moderation(wil);
-	wil_unmask_irq(wil);
+	if (load_fw) {
+		wil_configure_interrupt_moderation(wil);
+		wil_unmask_irq(wil);
 
-	/* we just started MAC, wait for FW ready */
-	rc = wil_wait_for_fw_ready(wil);
+		/* we just started MAC, wait for FW ready */
+		rc = wil_wait_for_fw_ready(wil);
+	}
 
 	return rc;
 }
+
+#undef R
+#undef W
+#undef S
+#undef C
 
 void wil_fw_error_recovery(struct wil6210_priv *wil)
 {
@@ -730,7 +762,7 @@ int __wil_up(struct wil6210_priv *wil)
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 
-	rc = wil_reset(wil);
+	rc = wil_reset(wil, true);
 	if (rc)
 		return rc;
 
@@ -837,7 +869,7 @@ int __wil_down(struct wil6210_priv *wil)
 	if (!iter)
 		wil_err(wil, "timeout waiting for idle FW/HW\n");
 
-	wil_rx_fini(wil);
+	wil_reset(wil, false);
 
 	return 0;
 }

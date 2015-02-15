@@ -29,7 +29,8 @@ extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
 
 #define WIL_NAME "wil6210"
-#define WIL_FW_NAME "wil6210.fw"
+#define WIL_FW_NAME "wil6210.fw" /* code */
+#define WIL_FW2_NAME "wil6210.board" /* board & radio parameters */
 
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
@@ -120,6 +121,16 @@ struct RGF_ICR {
 	u32 IMC; /* Mask Clear, write 1 to clear */
 } __packed;
 
+struct RGF_BL {
+	u32 ready;		/* 0x880A3C bit [0] */
+#define BIT_BL_READY	BIT(0)
+	u32 version;		/* 0x880A40 version of the BL struct */
+	u32 rf_type;		/* 0x880A44 ID of the connected RF */
+	u32 baseband_type;	/* 0x880A48 ID of the baseband */
+	u8  mac_address[ETH_ALEN]; /* 0x880A4C permanent MAC */
+	u8 pad[2];
+} __packed;
+
 /* registers - FW addresses */
 #define RGF_USER_USAGE_1		(0x880004)
 #define RGF_USER_USAGE_6		(0x880018)
@@ -130,6 +141,7 @@ struct RGF_ICR {
 #define RGF_USER_MAC_CPU_0		(0x8801fc)
 	#define BIT_USER_MAC_CPU_MAN_RST	BIT(1) /* mac_cpu_man_rst */
 #define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
+#define RGF_USER_BL			(0x880A3C) /* Boot Loader */
 #define RGF_USER_FW_REV_ID		(0x880a8c) /* chip revision */
 #define RGF_USER_CLKS_CTL_0		(0x880abc)
 	#define BIT_USER_CLKS_CAR_AHB_SW_SEL	BIT(1) /* ref clk/PLL */
@@ -658,7 +670,7 @@ int wil_if_add(struct wil6210_priv *wil);
 void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
-int wil_reset(struct wil6210_priv *wil);
+int wil_reset(struct wil6210_priv *wil, bool no_fw);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
 int wil_up(struct wil6210_priv *wil);

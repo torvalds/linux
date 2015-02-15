@@ -549,7 +549,7 @@ static ssize_t wil_write_file_reset(struct file *file, const char __user *buf,
 	dev_close(ndev);
 	ndev->flags &= ~IFF_UP;
 	rtnl_unlock();
-	wil_reset(wil);
+	wil_reset(wil, true);
 
 	return len;
 }
