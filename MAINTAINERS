@@ -10196,6 +10196,13 @@ S:	Maintained
 F:	Documentation/usb/ohci.txt
 F:	drivers/usb/host/ohci*
 
+USB OTG FSM (Finite State Machine)
+M:	Peter Chen <Peter.Chen@freescale.com>
+T:	git git://github.com/hzpeterchen/linux-usb.git
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/common/usb-otg-fsm.c
+
 USB OVER IP DRIVER
 M:	Valentina Manea <valentina.manea.m@gmail.com>
 M:	Shuah Khan <shuah.kh@samsung.com>
