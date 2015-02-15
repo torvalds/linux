@@ -270,6 +270,10 @@ static int ubifs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		goto out_budg;
 	}
 
+	err = ubifs_init_security(dir, inode, &dentry->d_name);
+	if (err)
+		goto out_cancel;
+
 	mutex_lock(&dir_ui->ui_mutex);
 	dir->i_size += sz_change;
 	dir_ui->ui_size = dir->i_size;
@@ -726,6 +730,10 @@ static int ubifs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out_budg;
 	}
 
+	err = ubifs_init_security(dir, inode, &dentry->d_name);
+	if (err)
+		goto out_cancel;
+
 	mutex_lock(&dir_ui->ui_mutex);
 	insert_inode_hash(inode);
 	inc_nlink(inode);
@@ -806,6 +814,10 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	ui->data = dev;
 	ui->data_len = devlen;
 
+	err = ubifs_init_security(dir, inode, &dentry->d_name);
+	if (err)
+		goto out_cancel;
+
 	mutex_lock(&dir_ui->ui_mutex);
 	dir->i_size += sz_change;
 	dir_ui->ui_size = dir->i_size;
@@ -881,6 +893,10 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 	 */
 	ui->data_len = len;
 	inode->i_size = ubifs_inode(inode)->ui_size = len;
+
+	err = ubifs_init_security(dir, inode, &dentry->d_name);
+	if (err)
+		goto out_cancel;
 
 	mutex_lock(&dir_ui->ui_mutex);
 	dir->i_size += sz_change;

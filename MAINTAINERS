@@ -9990,19 +9990,14 @@ F:	drivers/scsi/ufs/
 
 UNSORTED BLOCK IMAGES (UBI)
 M:	Artem Bityutskiy <dedekind1@gmail.com>
+M:	Richard Weinberger <richard@nod.at>
 W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
 T:	git git://git.infradead.org/ubifs-2.6.git
-S:	Maintained
+S:	Supported
 F:	drivers/mtd/ubi/
 F:	include/linux/mtd/ubi.h
 F:	include/uapi/mtd/ubi-user.h
-
-UNSORTED BLOCK IMAGES (UBI) Fastmap
-M:	Richard Weinberger <richard@nod.at>
-L:	linux-mtd@lists.infradead.org
-S:	Maintained
-F:	drivers/mtd/ubi/fastmap.c
 
 USB ACM DRIVER
 M:	Oliver Neukum <oliver@neukum.org>
