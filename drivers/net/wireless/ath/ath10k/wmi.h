@@ -3057,8 +3057,12 @@ struct wmi_pdev_stats_peer {
 } __packed;
 
 enum wmi_stats_id {
-	WMI_REQUEST_PEER_STAT	= 0x01,
-	WMI_REQUEST_AP_STAT	= 0x02
+	WMI_STAT_PEER = BIT(0),
+	WMI_STAT_AP = BIT(1),
+	WMI_STAT_PDEV = BIT(2),
+	WMI_STAT_VDEV = BIT(3),
+	WMI_STAT_BCNFLT = BIT(4),
+	WMI_STAT_VDEV_RATE = BIT(5),
 };
 
 struct wlan_inst_rssi_args {
@@ -3093,7 +3097,7 @@ struct wmi_pdev_suspend_cmd {
 } __packed;
 
 struct wmi_stats_event {
-	__le32 stats_id; /* %WMI_REQUEST_ */
+	__le32 stats_id; /* WMI_STAT_ */
 	/*
 	 * number of pdev stats event structures
 	 * (wmi_pdev_stats) 0 or 1
