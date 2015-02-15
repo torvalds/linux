@@ -1,4 +1,4 @@
-EXTRA_CFLAGS += -DDG_NAME=\"dgnc-1.3-16\" -DDG_PART=\"40002369_F\"
+EXTRA_CFLAGS += -DDG_PART=\"40002369_F\"
 
 obj-$(CONFIG_DGNC) += dgnc.o
 
