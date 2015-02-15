@@ -1439,6 +1439,15 @@ struct wmi_tlv_sta_keepalive_cmd {
 	__le32 interval; /* in seconds */
 } __packed;
 
+struct wmi_tlv_stats_ev {
+	__le32 stats_id; /* WMI_STAT_ */
+	__le32 num_pdev_stats;
+	__le32 num_vdev_stats;
+	__le32 num_peer_stats;
+	__le32 num_bcnflt_stats;
+	__le32 num_chan_stats;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif

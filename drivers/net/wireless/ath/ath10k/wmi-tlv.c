@@ -869,16 +869,57 @@ static int ath10k_wmi_tlv_op_pull_rdy_ev(struct ath10k *ar,
 	return 0;
 }
 
+static void ath10k_wmi_tlv_pull_vdev_stats(const struct wmi_tlv_vdev_stats *src,
+					   struct ath10k_fw_stats_vdev *dst)
+{
+	int i;
+
+	dst->vdev_id = __le32_to_cpu(src->vdev_id);
+	dst->beacon_snr = __le32_to_cpu(src->beacon_snr);
+	dst->data_snr = __le32_to_cpu(src->data_snr);
+	dst->num_rx_frames = __le32_to_cpu(src->num_rx_frames);
+	dst->num_rts_fail = __le32_to_cpu(src->num_rts_fail);
+	dst->num_rts_success = __le32_to_cpu(src->num_rts_success);
+	dst->num_rx_err = __le32_to_cpu(src->num_rx_err);
+	dst->num_rx_discard = __le32_to_cpu(src->num_rx_discard);
+	dst->num_tx_not_acked = __le32_to_cpu(src->num_tx_not_acked);
+
+	for (i = 0; i < ARRAY_SIZE(src->num_tx_frames); i++)
+		dst->num_tx_frames[i] =
+			__le32_to_cpu(src->num_tx_frames[i]);
+
+	for (i = 0; i < ARRAY_SIZE(src->num_tx_frames_retries); i++)
+		dst->num_tx_frames_retries[i] =
+			__le32_to_cpu(src->num_tx_frames_retries[i]);
+
+	for (i = 0; i < ARRAY_SIZE(src->num_tx_frames_failures); i++)
+		dst->num_tx_frames_failures[i] =
+			__le32_to_cpu(src->num_tx_frames_failures[i]);
+
+	for (i = 0; i < ARRAY_SIZE(src->tx_rate_history); i++)
+		dst->tx_rate_history[i] =
+			__le32_to_cpu(src->tx_rate_history[i]);
+
+	for (i = 0; i < ARRAY_SIZE(src->beacon_rssi_history); i++)
+		dst->beacon_rssi_history[i] =
+			__le32_to_cpu(src->beacon_rssi_history[i]);
+}
+
 static int ath10k_wmi_tlv_op_pull_fw_stats(struct ath10k *ar,
 					   struct sk_buff *skb,
 					   struct ath10k_fw_stats *stats)
 {
 	const void **tb;
-	const struct wmi_stats_event *ev;
+	const struct wmi_tlv_stats_ev *ev;
 	const void *data;
-	u32 num_pdev_stats, num_vdev_stats, num_peer_stats;
+	u32 num_pdev_stats;
+	u32 num_vdev_stats;
+	u32 num_peer_stats;
+	u32 num_bcnflt_stats;
+	u32 num_chan_stats;
 	size_t data_len;
 	int ret;
+	int i;
 
 	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
 	if (IS_ERR(tb)) {
@@ -899,8 +940,73 @@ static int ath10k_wmi_tlv_op_pull_fw_stats(struct ath10k *ar,
 	num_pdev_stats = __le32_to_cpu(ev->num_pdev_stats);
 	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
+	num_bcnflt_stats = __le32_to_cpu(ev->num_bcnflt_stats);
+	num_chan_stats = __le32_to_cpu(ev->num_chan_stats);
 
-	WARN_ON(1); /* FIXME: not implemented yet */
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi tlv stats update pdev %i vdev %i peer %i bcnflt %i chan %i\n",
+		   num_pdev_stats, num_vdev_stats, num_peer_stats,
+		   num_bcnflt_stats, num_chan_stats);
+
+	for (i = 0; i < num_pdev_stats; i++) {
+		const struct wmi_pdev_stats *src;
+		struct ath10k_fw_stats_pdev *dst;
+
+		src = data;
+		if (data_len < sizeof(*src))
+			return -EPROTO;
+
+		data += sizeof(*src);
+		data_len -= sizeof(*src);
+
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ath10k_wmi_pull_pdev_stats_base(&src->base, dst);
+		ath10k_wmi_pull_pdev_stats_tx(&src->tx, dst);
+		ath10k_wmi_pull_pdev_stats_rx(&src->rx, dst);
+		list_add_tail(&dst->list, &stats->pdevs);
+	}
+
+	for (i = 0; i < num_vdev_stats; i++) {
+		const struct wmi_tlv_vdev_stats *src;
+		struct ath10k_fw_stats_vdev *dst;
+
+		src = data;
+		if (data_len < sizeof(*src))
+			return -EPROTO;
+
+		data += sizeof(*src);
+		data_len -= sizeof(*src);
+
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ath10k_wmi_tlv_pull_vdev_stats(src, dst);
+		list_add_tail(&dst->list, &stats->vdevs);
+	}
+
+	for (i = 0; i < num_peer_stats; i++) {
+		const struct wmi_10x_peer_stats *src;
+		struct ath10k_fw_stats_peer *dst;
+
+		src = data;
+		if (data_len < sizeof(*src))
+			return -EPROTO;
+
+		data += sizeof(*src);
+		data_len -= sizeof(*src);
+
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ath10k_wmi_pull_peer_stats(&src->old, dst);
+		dst->peer_rx_rate = __le32_to_cpu(src->peer_rx_rate);
+		list_add_tail(&dst->list, &stats->peers);
+	}
 
 	kfree(tb);
 	return 0;
