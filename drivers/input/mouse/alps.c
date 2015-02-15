@@ -117,7 +117,14 @@ static const struct alps_model_info alps_model_data[] = {
 	{ { 0x73, 0x00, 0x0a }, 0x00, { ALPS_PROTO_V2, 0xf8, 0xf8, ALPS_DUALPOINT } },		/* ThinkPad R61 8918-5QG */
 	{ { 0x73, 0x02, 0x0a }, 0x00, { ALPS_PROTO_V2, 0xf8, 0xf8, 0 } },
 	{ { 0x73, 0x02, 0x14 }, 0x00, { ALPS_PROTO_V2, 0xf8, 0xf8, ALPS_FW_BK_2 } },		/* Ahtec Laptop */
-	{ { 0x20, 0x02, 0x0e }, 0x00, { ALPS_PROTO_V2, 0xf8, 0xf8, ALPS_PASS | ALPS_DUALPOINT } },	/* XXX */
+
+	/*
+	 * XXX This entry is suspicious. First byte has zero lower nibble,
+	 * which is what a normal mouse would report. Also, the value 0x0e
+	 * isn't valid per PS/2 spec.
+	 */
+	{ { 0x20, 0x02, 0x0e }, 0x00, { ALPS_PROTO_V2, 0xf8, 0xf8, ALPS_PASS | ALPS_DUALPOINT } },
+
 	{ { 0x22, 0x02, 0x0a }, 0x00, { ALPS_PROTO_V2, 0xf8, 0xf8, ALPS_PASS | ALPS_DUALPOINT } },
 	{ { 0x22, 0x02, 0x14 }, 0x00, { ALPS_PROTO_V2, 0xff, 0xff, ALPS_PASS | ALPS_DUALPOINT } },	/* Dell Latitude D600 */
 	/* Dell Latitude E5500, E6400, E6500, Precision M4400 */
@@ -150,12 +157,6 @@ static void alps_set_abs_params_st(struct alps_data *priv,
 				   struct input_dev *dev1);
 static void alps_set_abs_params_mt(struct alps_data *priv,
 				   struct input_dev *dev1);
-
-/*
- * XXX - this entry is suspicious. First byte has zero lower nibble,
- * which is what a normal mouse would report. Also, the value 0x0e
- * isn't valid per PS/2 spec.
- */
 
 /* Packet formats are described in Documentation/input/alps.txt */
 
