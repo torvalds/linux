@@ -346,27 +346,6 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 	}
 }
 
-/*
- * Fast swap in place between 2 registers
- */
-static void wil_swap_u16(u16 *a, u16 *b)
-{
-	*a ^= *b;
-	*b ^= *a;
-	*a ^= *b;
-}
-
-static void wil_swap_ethaddr(void *data)
-{
-	struct ethhdr *eth = data;
-	u16 *s = (u16 *)eth->h_source;
-	u16 *d = (u16 *)eth->h_dest;
-
-	wil_swap_u16(s++, d++);
-	wil_swap_u16(s++, d++);
-	wil_swap_u16(s, d);
-}
-
 /**
  * reap 1 frame from @swhead
  *
@@ -386,7 +365,6 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	unsigned int sz = mtu_max + ETH_HLEN;
 	u16 dmalen;
 	u8 ftype;
-	u8 ds_bits;
 	int cid;
 	struct wil_net_stats *stats;
 
@@ -472,15 +450,6 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 		 * mis-calculates TCP checksum - if it should be 0x0,
 		 * it writes 0xffff in violation of RFC 1624
 		 */
-	}
-
-	ds_bits = wil_rxdesc_ds_bits(d);
-	if (ds_bits == 1) {
-		/*
-		 * HW bug - in ToDS mode, i.e. Rx on AP side,
-		 * addresses get swapped
-		 */
-		wil_swap_ethaddr(skb->data);
 	}
 
 	return skb;

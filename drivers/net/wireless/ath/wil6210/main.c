@@ -579,6 +579,10 @@ static int wil_target_reset(struct wil6210_priv *wil)
 
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
+	/* enable fix for HW bug related to the SA/DA swap in AP Rx */
+	S(RGF_DMA_OFUL_NID_0, BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN |
+	  BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC);
+
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
 }
