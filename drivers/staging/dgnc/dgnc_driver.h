@@ -46,6 +46,7 @@
 #define	PROCSTR		"dgnc"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
 #define	DRVSTR		"dgnc"			/* Driver name string	 */
+#define	DG_PART		"40002369_F"		/* RPM part number	 */
 
 #define TRC_TO_CONSOLE 1
 
