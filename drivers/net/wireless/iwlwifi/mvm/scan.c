@@ -230,7 +230,7 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 			 * If there is more than one active interface make
 			 * passive scan more fragmented.
 			 */
-			frag_passive_dwell = (global_cnt < 2) ? 40 : 20;
+			frag_passive_dwell = 40;
 			params->max_out_time = frag_passive_dwell;
 		} else {
 			params->suspend_time = 120;
