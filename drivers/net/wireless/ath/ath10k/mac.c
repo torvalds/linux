@@ -608,7 +608,7 @@ static int ath10k_monitor_vdev_start(struct ath10k *ar, int vdev_id)
 
 	ret = ath10k_vdev_setup_sync(ar);
 	if (ret) {
-		ath10k_warn(ar, "failed to synchronize setup for monitor vdev %i: %d\n",
+		ath10k_warn(ar, "failed to synchronize setup for monitor vdev %i start: %d\n",
 			    vdev_id, ret);
 		return ret;
 	}
@@ -655,7 +655,7 @@ static int ath10k_monitor_vdev_stop(struct ath10k *ar)
 
 	ret = ath10k_vdev_setup_sync(ar);
 	if (ret)
-		ath10k_warn(ar, "failed to synchronise monitor vdev %i: %d\n",
+		ath10k_warn(ar, "failed to synchronize monitor vdev %i stop: %d\n",
 			    ar->monitor_vdev_id, ret);
 
 	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac monitor vdev %i stopped\n",
@@ -924,8 +924,9 @@ static int ath10k_vdev_start_restart(struct ath10k_vif *arvif, bool restart)
 
 	ret = ath10k_vdev_setup_sync(ar);
 	if (ret) {
-		ath10k_warn(ar, "failed to synchronise setup for vdev %i: %d\n",
-			    arg.vdev_id, ret);
+		ath10k_warn(ar,
+			    "failed to synchronize setup for vdev %i restart %d: %d\n",
+			    arg.vdev_id, restart, ret);
 		return ret;
 	}
 
@@ -963,7 +964,7 @@ static int ath10k_vdev_stop(struct ath10k_vif *arvif)
 
 	ret = ath10k_vdev_setup_sync(ar);
 	if (ret) {
-		ath10k_warn(ar, "failed to syncronise setup for vdev %i: %d\n",
+		ath10k_warn(ar, "failed to synchronize setup for vdev %i stop: %d\n",
 			    arvif->vdev_id, ret);
 		return ret;
 	}
