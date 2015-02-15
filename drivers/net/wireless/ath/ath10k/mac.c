@@ -2551,6 +2551,17 @@ static int ath10k_start_scan(struct ath10k *ar,
 		return -ETIMEDOUT;
 	}
 
+	/* If we failed to start the scan, return error code at
+	 * this point.  This is probably due to some issue in the
+	 * firmware, but no need to wedge the driver due to that...
+	 */
+	spin_lock_bh(&ar->data_lock);
+	if (ar->scan.state == ATH10K_SCAN_IDLE) {
+		spin_unlock_bh(&ar->data_lock);
+		return -EINVAL;
+	}
+	spin_unlock_bh(&ar->data_lock);
+
 	/* Add a 200ms margin to account for event/command processing */
 	ieee80211_queue_delayed_work(ar->hw, &ar->scan.timeout,
 				     msecs_to_jiffies(arg->max_scan_time+200));
