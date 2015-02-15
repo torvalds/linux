@@ -544,6 +544,14 @@ int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static inline void iwl_mvm_restart_early_start(struct iwl_mvm *mvm)
+{
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000)
+		iwl_clear_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
+	else
+		iwl_write_prph(mvm->trans, DBGC_IN_SAMPLE, 1);
+}
+
 int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 conf_id)
 {
 	u8 *ptr;
@@ -553,6 +561,14 @@ int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 conf_id)
 	if (WARN_ONCE(conf_id >= ARRAY_SIZE(mvm->fw->dbg_conf_tlv),
 		      "Invalid configuration %d\n", conf_id))
 		return -EINVAL;
+
+	/* EARLY START - firmware's configuration is hard coded */
+	if ((!mvm->fw->dbg_conf_tlv[conf_id] ||
+	     !mvm->fw->dbg_conf_tlv[conf_id]->num_of_hcmds) &&
+	    conf_id == FW_DBG_START_FROM_ALIVE) {
+		iwl_mvm_restart_early_start(mvm);
+		return 0;
+	}
 
 	if (!mvm->fw->dbg_conf_tlv[conf_id])
 		return -EINVAL;
@@ -663,6 +679,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
 	mvm->fw_dbg_conf = FW_DBG_INVALID;
+	/* if we have a destination, assume EARLY START */
+	if (mvm->fw->dbg_dest_tlv)
+		mvm->fw_dbg_conf = FW_DBG_START_FROM_ALIVE;
 	iwl_mvm_start_fw_dbg_conf(mvm, FW_DBG_START_FROM_ALIVE);
 
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
