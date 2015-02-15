@@ -198,6 +198,11 @@ struct rpc_xprt {
 	unsigned int		bind_index;	/* bind function index */
 
 	/*
+	 * Multipath
+	 */
+	struct list_head	xprt_switch;
+
+	/*
 	 * Connection of transports
 	 */
 	unsigned long		bind_timeout,
