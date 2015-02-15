@@ -370,11 +370,11 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 
 	BUILD_BUG_ON(sizeof(struct vring_rx_desc) > sizeof(skb->cb));
 
-	if (wil_vring_is_empty(vring))
+	if (unlikely(wil_vring_is_empty(vring)))
 		return NULL;
 
 	_d = &vring->va[vring->swhead].rx;
-	if (!(_d->dma.status & RX_DMA_STATUS_DU)) {
+	if (unlikely(!(_d->dma.status & RX_DMA_STATUS_DU))) {
 		/* it is not error, we just reached end of Rx done area */
 		return NULL;
 	}
@@ -394,7 +394,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
-	if (dmalen > sz) {
+	if (unlikely(dmalen > sz)) {
 		wil_err(wil, "Rx size too large: %d bytes!\n", dmalen);
 		kfree_skb(skb);
 		return NULL;
@@ -423,14 +423,14 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	 * in Rx descriptor. If type is not data, it is 802.11 frame as is
 	 */
 	ftype = wil_rxdesc_ftype(d) << 2;
-	if (ftype != IEEE80211_FTYPE_DATA) {
+	if (unlikely(ftype != IEEE80211_FTYPE_DATA)) {
 		wil_dbg_txrx(wil, "Non-data frame ftype 0x%08x\n", ftype);
 		/* TODO: process it */
 		kfree_skb(skb);
 		return NULL;
 	}
 
-	if (skb->len < ETH_HLEN) {
+	if (unlikely(skb->len < ETH_HLEN)) {
 		wil_err(wil, "Short frame, len = %d\n", skb->len);
 		/* TODO: process it (i.e. BAR) */
 		kfree_skb(skb);
@@ -441,9 +441,9 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	 * and in case of error drop the packet
 	 * higher stack layers will handle retransmission (if required)
 	 */
-	if (d->dma.status & RX_DMA_STATUS_L4I) {
+	if (likely(d->dma.status & RX_DMA_STATUS_L4I)) {
 		/* L4 protocol identified, csum calculated */
-		if ((d->dma.error & RX_DMA_ERROR_L4_ERR) == 0)
+		if (likely((d->dma.error & RX_DMA_ERROR_L4_ERR) == 0))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		/* If HW reports bad checksum, let IP stack re-check it
 		 * For example, HW don't understand Microsoft IP stack that
@@ -472,7 +472,7 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
 			(next_tail != v->swhead) && (count-- > 0);
 			v->swtail = next_tail) {
 		rc = wil_vring_alloc_skb(wil, v, v->swtail, headroom);
-		if (rc) {
+		if (unlikely(rc)) {
 			wil_err(wil, "Error %d in wil_rx_refill[%d]\n",
 				rc, v->swtail);
 			break;
@@ -534,7 +534,7 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 	struct vring *v = &wil->vring_rx;
 	struct sk_buff *skb;
 
-	if (!v->va) {
+	if (unlikely(!v->va)) {
 		wil_err(wil, "Rx IRQ while Rx not yet initialized\n");
 		return;
 	}
@@ -927,7 +927,7 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	if (unlikely(!txdata->enabled))
 		return -EINVAL;
 
-	if (avail < 1 + nr_frags) {
+	if (unlikely(avail < 1 + nr_frags)) {
 		wil_err_ratelimited(wil,
 				    "Tx ring[%2d] full. No space for %d fragments\n",
 				    vring_index, 1 + nr_frags);
@@ -948,7 +948,7 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	/* 1-st segment */
 	wil_tx_desc_map(d, pa, skb_headlen(skb), vring_index);
 	/* Process TCP/UDP checksum offloading */
-	if (wil_tx_desc_offload_cksum_set(wil, d, skb)) {
+	if (unlikely(wil_tx_desc_offload_cksum_set(wil, d, skb))) {
 		wil_err(wil, "Tx[%2d] Failed to set cksum, drop packet\n",
 			vring_index);
 		goto dma_error;
@@ -1051,18 +1051,18 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	int rc;
 
 	wil_dbg_txrx(wil, "%s()\n", __func__);
-	if (!test_bit(wil_status_fwready, wil->status)) {
+	if (unlikely(!test_bit(wil_status_fwready, wil->status))) {
 		if (!pr_once_fw) {
 			wil_err(wil, "FW not ready\n");
 			pr_once_fw = true;
 		}
 		goto drop;
 	}
-	if (!test_bit(wil_status_fwconnected, wil->status)) {
+	if (unlikely(!test_bit(wil_status_fwconnected, wil->status))) {
 		wil_err(wil, "FW not connected\n");
 		goto drop;
 	}
-	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR) {
+	if (unlikely(wil->wdev->iftype == NL80211_IFTYPE_MONITOR)) {
 		wil_err(wil, "Xmit in monitor mode not supported\n");
 		goto drop;
 	}
@@ -1078,7 +1078,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		else
 			vring = wil_tx_bcast(wil, skb);
 	}
-	if (!vring) {
+	if (unlikely(!vring)) {
 		wil_dbg_txrx(wil, "No Tx VRING found for %pM\n", eth->h_dest);
 		goto drop;
 	}
@@ -1086,7 +1086,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	rc = wil_tx_vring(wil, vring, skb);
 
 	/* do we still have enough room in the vring? */
-	if (wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring)) {
+	if (unlikely(wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring))) {
 		netif_tx_stop_all_queues(wil_to_ndev(wil));
 		wil_dbg_txrx(wil, "netif_tx_stop : ring full\n");
 	}
@@ -1142,12 +1142,12 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
 	volatile struct vring_tx_desc *_d;
 
-	if (!vring->va) {
+	if (unlikely(!vring->va)) {
 		wil_err(wil, "Tx irq[%d]: vring not initialized\n", ringid);
 		return 0;
 	}
 
-	if (!txdata->enabled) {
+	if (unlikely(!txdata->enabled)) {
 		wil_info(wil, "Tx irq[%d]: vring disabled\n", ringid);
 		return 0;
 	}
@@ -1165,7 +1165,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		/* TODO: check we are not past head */
 
 		_d = &vring->va[lf].tx;
-		if (!(_d->dma.status & TX_DMA_STATUS_DU))
+		if (unlikely(!(_d->dma.status & TX_DMA_STATUS_DU)))
 			break;
 
 		new_swtail = (lf + 1) % vring->size;
@@ -1193,7 +1193,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 			wil_txdesc_unmap(dev, d, ctx);
 
 			if (skb) {
-				if (d->dma.error == 0) {
+				if (likely(d->dma.error == 0)) {
 					ndev->stats.tx_packets++;
 					stats->tx_packets++;
 					ndev->stats.tx_bytes += skb->len;
