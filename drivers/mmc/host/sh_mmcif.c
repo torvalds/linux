@@ -1312,14 +1312,14 @@ static void mmcif_timeout_work(struct work_struct *work)
 		/* Don't run after mmc_remove_host() */
 		return;
 
-	dev_err(&host->pd->dev, "Timeout waiting for %u on CMD%u\n",
-		host->wait_for, mrq->cmd->opcode);
-
 	spin_lock_irqsave(&host->lock, flags);
 	if (host->state == STATE_IDLE) {
 		spin_unlock_irqrestore(&host->lock, flags);
 		return;
 	}
+
+	dev_err(&host->pd->dev, "Timeout waiting for %u on CMD%u\n",
+		host->wait_for, mrq->cmd->opcode);
 
 	host->state = STATE_TIMEOUT;
 	spin_unlock_irqrestore(&host->lock, flags);
