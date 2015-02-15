@@ -84,7 +84,7 @@ config OF_RESOLVE
 	bool
 
 config OF_OVERLAY
-	bool
+	bool "Device Tree overlays"
 	depends on OF
 	select OF_DYNAMIC
 	select OF_RESOLVE
