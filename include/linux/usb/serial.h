@@ -190,8 +190,7 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  * @num_ports: the number of different ports this device will have.
  * @bulk_in_size: minimum number of bytes to allocate for bulk-in buffer
  *	(0 = end-point size)
- * @bulk_out_size: minimum number of bytes to allocate for bulk-out buffer
- *	(0 = end-point size)
+ * @bulk_out_size: bytes to allocate for bulk-out buffer (0 = end-point size)
  * @calc_num_ports: pointer to a function to determine how many ports this
  *	device has dynamically.  It will be called after the probe()
  *	callback is called, but before attach()
