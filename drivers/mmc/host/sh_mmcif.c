@@ -875,6 +875,7 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 	struct mmc_command *cmd = mrq->cmd;
 	u32 opc = cmd->opcode;
 	u32 mask;
+	unsigned long flags;
 
 	switch (opc) {
 	/* response busy check */
@@ -909,10 +910,12 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 	/* set arg */
 	sh_mmcif_writel(host->addr, MMCIF_CE_ARG, cmd->arg);
 	/* set cmd */
+	spin_lock_irqsave(&host->lock, flags);
 	sh_mmcif_writel(host->addr, MMCIF_CE_CMD_SET, opc);
 
 	host->wait_for = MMCIF_WAIT_FOR_CMD;
 	schedule_delayed_work(&host->timeout_work, host->timeout);
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static void sh_mmcif_stop_cmd(struct sh_mmcif_host *host,
@@ -1171,6 +1174,12 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 	struct sh_mmcif_host *host = dev_id;
 	struct mmc_request *mrq;
 	bool wait = false;
+	unsigned long flags;
+	int wait_work;
+
+	spin_lock_irqsave(&host->lock, flags);
+	wait_work = host->wait_for;
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	cancel_delayed_work_sync(&host->timeout_work);
 
@@ -1188,7 +1197,7 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 	 * All handlers return true, if processing continues, and false, if the
 	 * request has to be completed - successfully or not
 	 */
-	switch (host->wait_for) {
+	switch (wait_work) {
 	case MMCIF_WAIT_FOR_REQUEST:
 		/* We're too late, the timeout has already kicked in */
 		mutex_unlock(&host->thread_lock);
