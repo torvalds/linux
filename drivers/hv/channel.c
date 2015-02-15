@@ -73,14 +73,14 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	unsigned long flags;
 	int ret, t, err = 0;
 
-	spin_lock_irqsave(&newchannel->sc_lock, flags);
+	spin_lock_irqsave(&newchannel->lock, flags);
 	if (newchannel->state == CHANNEL_OPEN_STATE) {
 		newchannel->state = CHANNEL_OPENING_STATE;
 	} else {
-		spin_unlock_irqrestore(&newchannel->sc_lock, flags);
+		spin_unlock_irqrestore(&newchannel->lock, flags);
 		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&newchannel->sc_lock, flags);
+	spin_unlock_irqrestore(&newchannel->lock, flags);
 
 	newchannel->onchannel_callback = onchannelcallback;
 	newchannel->channel_callback_context = context;
@@ -366,8 +366,8 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	unsigned long flags;
 	int ret = 0;
 
-	next_gpadl_handle = atomic_read(&vmbus_connection.next_gpadl_handle);
-	atomic_inc(&vmbus_connection.next_gpadl_handle);
+	next_gpadl_handle =
+		(atomic_inc_return(&vmbus_connection.next_gpadl_handle) - 1);
 
 	ret = create_gpadl_header(kbuffer, size, &msginfo, &msgcount);
 	if (ret)
@@ -682,6 +682,50 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vmbus_sendpacket_pagebuffer);
+
+/*
+ * vmbus_sendpacket_multipagebuffer - Send a multi-page buffer packet
+ * using a GPADL Direct packet type.
+ * The buffer includes the vmbus descriptor.
+ */
+int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
+			      struct vmbus_packet_mpb_array *desc,
+			      u32 desc_size,
+			      void *buffer, u32 bufferlen, u64 requestid)
+{
+	int ret;
+	u32 packetlen;
+	u32 packetlen_aligned;
+	struct kvec bufferlist[3];
+	u64 aligned_data = 0;
+	bool signal = false;
+
+	packetlen = desc_size + bufferlen;
+	packetlen_aligned = ALIGN(packetlen, sizeof(u64));
+
+	/* Setup the descriptor */
+	desc->type = VM_PKT_DATA_USING_GPA_DIRECT;
+	desc->flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+	desc->dataoffset8 = desc_size >> 3; /* in 8-bytes grandularity */
+	desc->length8 = (u16)(packetlen_aligned >> 3);
+	desc->transactionid = requestid;
+	desc->rangecount = 1;
+
+	bufferlist[0].iov_base = desc;
+	bufferlist[0].iov_len = desc_size;
+	bufferlist[1].iov_base = buffer;
+	bufferlist[1].iov_len = bufferlen;
+	bufferlist[2].iov_base = &aligned_data;
+	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
+
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
+
+	if (ret == 0 && signal)
+		vmbus_setevent(channel);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vmbus_sendpacket_mpb_desc);
 
 /*
  * vmbus_sendpacket_multipagebuffer - Send a multi-page buffer packet
