@@ -35,7 +35,6 @@
 #define	MAX_MSS_DENSITY_1T				0x0A
 
 #define RF6052_MAX_TX_PWR				0x3F
-#define RF6052_MAX_REG					0x3F
 #define RF6052_MAX_PATH					2
 
 #define	PHY_RSSI_SLID_WIN_MAX				100
