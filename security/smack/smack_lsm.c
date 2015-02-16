@@ -3818,6 +3818,18 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	}
 #endif /* CONFIG_IPV6 */
 
+#ifdef CONFIG_SECURITY_SMACK_NETFILTER
+	/*
+	 * If there is a secmark use it rather than the CIPSO label.
+	 * If there is no secmark fall back to CIPSO.
+	 * The secmark is assumed to reflect policy better.
+	 */
+	if (skb && skb->secmark != 0) {
+		skp = smack_from_secid(skb->secmark);
+		goto access_check;
+	}
+#endif /* CONFIG_SECURITY_SMACK_NETFILTER */
+
 	netlbl_secattr_init(&secattr);
 	rc = netlbl_skbuff_getattr(skb, family, &secattr);
 	if (rc == 0)
@@ -3825,6 +3837,10 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	else
 		skp = &smack_known_huh;
 	netlbl_secattr_destroy(&secattr);
+
+#ifdef CONFIG_SECURITY_SMACK_NETFILTER
+access_check:
+#endif
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
