@@ -136,18 +136,22 @@ static const char *arizona_cable[] = {
 
 static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info);
 
-static void arizona_extcon_do_magic(struct arizona_extcon_info *info,
-				    unsigned int magic)
+static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
+				    bool clamp)
 {
 	struct arizona *arizona = info->arizona;
+	unsigned int val = 0;
 	int ret;
+
+	if (clamp)
+		val = ARIZONA_RMV_SHRT_HP1L;
 
 	mutex_lock(&arizona->dapm->card->dapm_mutex);
 
-	arizona->hpdet_magic = magic;
+	arizona->hpdet_clamp = clamp;
 
-	/* Keep the HP output stages disabled while doing the magic */
-	if (magic) {
+	/* Keep the HP output stages disabled while doing the clamp */
+	if (clamp) {
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
 					 ARIZONA_OUT1L_ENA |
@@ -158,20 +162,20 @@ static void arizona_extcon_do_magic(struct arizona_extcon_info *info,
 				 ret);
 	}
 
-	ret = regmap_update_bits(arizona->regmap, 0x225, 0x4000,
-				 magic);
+	ret = regmap_update_bits(arizona->regmap, ARIZONA_HP_CTRL_1L,
+				 ARIZONA_RMV_SHRT_HP1L, val);
 	if (ret != 0)
-		dev_warn(arizona->dev, "Failed to do magic: %d\n",
+		dev_warn(arizona->dev, "Failed to do clamp: %d\n",
 				 ret);
 
-	ret = regmap_update_bits(arizona->regmap, 0x226, 0x4000,
-				 magic);
+	ret = regmap_update_bits(arizona->regmap, ARIZONA_HP_CTRL_1R,
+				 ARIZONA_RMV_SHRT_HP1R, val);
 	if (ret != 0)
-		dev_warn(arizona->dev, "Failed to do magic: %d\n",
+		dev_warn(arizona->dev, "Failed to do clamp: %d\n",
 			 ret);
 
-	/* Restore the desired state while not doing the magic */
-	if (!magic) {
+	/* Restore the desired state while not doing the clamp */
+	if (!clamp) {
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
 					 ARIZONA_OUT1L_ENA |
@@ -603,7 +607,7 @@ done:
 			   ARIZONA_HP_IMPEDANCE_RANGE_MASK | ARIZONA_HP_POLL,
 			   0);
 
-	arizona_extcon_do_magic(info, 0);
+	arizona_extcon_hp_clamp(info, false);
 
 	if (id_gpio)
 		gpio_set_value_cansleep(id_gpio, 0);
@@ -648,7 +652,7 @@ static void arizona_identify_headphone(struct arizona_extcon_info *info)
 	if (info->mic)
 		arizona_stop_mic(info);
 
-	arizona_extcon_do_magic(info, 0x4000);
+	arizona_extcon_hp_clamp(info, true);
 
 	ret = regmap_update_bits(arizona->regmap,
 				 ARIZONA_ACCESSORY_DETECT_MODE_1,
@@ -699,7 +703,7 @@ static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info)
 
 	info->hpdet_active = true;
 
-	arizona_extcon_do_magic(info, 0x4000);
+	arizona_extcon_hp_clamp(info, true);
 
 	ret = regmap_update_bits(arizona->regmap,
 				 ARIZONA_ACCESSORY_DETECT_MODE_1,
