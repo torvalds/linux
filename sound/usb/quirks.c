@@ -1111,6 +1111,11 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	}
 }
 
+bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
+{
+	/* MS Lifecam HD-5000 doesn't support reading the sample rate. */
+	return chip->usb_id == USB_ID(0x045E, 0x076D);
+}
 
 /* Marantz/Denon USB DACs need a vendor cmd to switch
  * between PCM and native DSD mode
