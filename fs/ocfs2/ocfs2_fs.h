@@ -229,6 +229,8 @@
 #define OCFS2_CHAIN_FL		(0x00000400)	/* Chain allocator */
 #define OCFS2_DEALLOC_FL	(0x00000800)	/* Truncate log */
 #define OCFS2_QUOTA_FL		(0x00001000)	/* Quota file */
+#define OCFS2_DIO_ORPHANED_FL	(0X00002000)	/* On the orphan list especially
+						 * for dio */
 
 /*
  * Flags on ocfs2_dinode.i_dyn_features
@@ -729,7 +731,9 @@ struct ocfs2_dinode {
 					   inode belongs to.  Only valid
 					   if allocated from a
 					   discontiguous block group */
-/*A0*/	__le64 i_reserved2[3];
+/*A0*/	__le16 i_dio_orphaned_slot;	/* only used for append dio write */
+	__le16 i_reserved1[3];
+	__le64 i_reserved2[2];
 /*B8*/	union {
 		__le64 i_pad1;		/* Generic way to refer to this
 					   64bit union */
