@@ -79,7 +79,6 @@ struct pnv_ioda_pe {
 #ifdef CONFIG_EEH
 struct pnv_eeh_ops {
 	int (*reset)(struct eeh_pe *pe, int option);
-	int (*next_error)(struct eeh_pe **pe);
 };
 #endif /* CONFIG_EEH */
 
