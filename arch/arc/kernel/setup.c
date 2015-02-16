@@ -412,6 +412,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	char *str;
 	int cpu_id = ptr_to_cpu(v);
 
+	if (!cpu_online(cpu_id)) {
+		seq_printf(m, "processor [%d]\t: Offline\n", cpu_id);
+		goto done;
+	}
+
 	str = (char *)__get_free_page(GFP_TEMPORARY);
 	if (!str)
 		goto done;
@@ -429,7 +434,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	free_page((unsigned long)str);
 done:
-	seq_printf(m, "\n\n");
+	seq_printf(m, "\n");
 
 	return 0;
 }

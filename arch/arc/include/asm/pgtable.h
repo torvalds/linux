@@ -257,7 +257,8 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 #define pmd_clear(xp)			do { pmd_val(*(xp)) = 0; } while (0)
 
 #define pte_page(x) (mem_map + \
-		(unsigned long)(((pte_val(x) - PAGE_OFFSET) >> PAGE_SHIFT)))
+		(unsigned long)(((pte_val(x) - CONFIG_LINUX_LINK_BASE) >> \
+				PAGE_SHIFT)))
 
 #define mk_pte(page, pgprot)						\
 ({									\
