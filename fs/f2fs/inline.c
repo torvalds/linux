@@ -386,15 +386,12 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *name,
 	struct page *ipage;
 	unsigned int bit_pos;
 	f2fs_hash_t name_hash;
-	struct f2fs_dir_entry *de;
 	size_t namelen = name->len;
 	struct f2fs_inline_dentry *dentry_blk = NULL;
+	struct f2fs_dentry_ptr d;
 	int slots = GET_DENTRY_SLOTS(namelen);
 	struct page *page;
 	int err = 0;
-	int i;
-
-	name_hash = f2fs_dentry_hash(name);
 
 	ipage = get_node_page(sbi, dir->i_ino);
 	if (IS_ERR(ipage))
@@ -418,14 +415,11 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *name,
 	}
 
 	f2fs_wait_on_page_writeback(ipage, NODE);
-	de = &dentry_blk->dentry[bit_pos];
-	de->hash_code = name_hash;
-	de->name_len = cpu_to_le16(namelen);
-	memcpy(dentry_blk->filename[bit_pos], name->name, name->len);
-	de->ino = cpu_to_le32(inode->i_ino);
-	set_de_type(de, inode);
-	for (i = 0; i < slots; i++)
-		test_and_set_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
+
+	name_hash = f2fs_dentry_hash(name);
+	make_dentry_ptr(&d, (void *)dentry_blk, 2);
+	f2fs_update_dentry(inode, &d, name, name_hash, bit_pos);
+
 	set_page_dirty(ipage);
 
 	/* we don't need to mark_inode_dirty now */

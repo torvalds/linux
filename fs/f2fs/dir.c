@@ -474,6 +474,24 @@ next:
 	goto next;
 }
 
+void f2fs_update_dentry(struct inode *inode, struct f2fs_dentry_ptr *d,
+				const struct qstr *name, f2fs_hash_t name_hash,
+				unsigned int bit_pos)
+{
+	struct f2fs_dir_entry *de;
+	int slots = GET_DENTRY_SLOTS(name->len);
+	int i;
+
+	de = &d->dentry[bit_pos];
+	de->hash_code = name_hash;
+	de->name_len = cpu_to_le16(name->len);
+	memcpy(d->filename[bit_pos], name->name, name->len);
+	de->ino = cpu_to_le32(inode->i_ino);
+	set_de_type(de, inode);
+	for (i = 0; i < slots; i++)
+		test_and_set_bit_le(bit_pos + i, (void *)d->bitmap);
+}
+
 /*
  * Caller should grab and release a rwsem by calling f2fs_lock_op() and
  * f2fs_unlock_op().
@@ -486,15 +504,14 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 	unsigned int current_depth;
 	unsigned long bidx, block;
 	f2fs_hash_t dentry_hash;
-	struct f2fs_dir_entry *de;
 	unsigned int nbucket, nblock;
 	size_t namelen = name->len;
 	struct page *dentry_page = NULL;
 	struct f2fs_dentry_block *dentry_blk = NULL;
+	struct f2fs_dentry_ptr d;
 	int slots = GET_DENTRY_SLOTS(namelen);
 	struct page *page;
 	int err = 0;
-	int i;
 
 	if (f2fs_has_inline_dentry(dir)) {
 		err = f2fs_add_inline_entry(dir, name, inode);
@@ -553,14 +570,10 @@ add_dentry:
 		err = PTR_ERR(page);
 		goto fail;
 	}
-	de = &dentry_blk->dentry[bit_pos];
-	de->hash_code = dentry_hash;
-	de->name_len = cpu_to_le16(namelen);
-	memcpy(dentry_blk->filename[bit_pos], name->name, name->len);
-	de->ino = cpu_to_le32(inode->i_ino);
-	set_de_type(de, inode);
-	for (i = 0; i < slots; i++)
-		test_and_set_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
+
+	make_dentry_ptr(&d, (void *)dentry_blk, 1);
+	f2fs_update_dentry(inode, &d, name, dentry_hash, bit_pos);
+
 	set_page_dirty(dentry_page);
 
 	/* we don't need to mark_inode_dirty now */
