@@ -9,8 +9,7 @@
  *
  *  Like the IA-64, we are a recent enough port (we are *starting*
  *  with glibc2.2) that we do not need to support the old non-realtime
- *  Linux signals.  Therefore we don't.  HP/UX signals will go in
- *  arch/parisc/hpux/signal.c when we figure out how to do them.
+ *  Linux signals.  Therefore we don't.
  */
 
 #include <linux/sched.h>
