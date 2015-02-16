@@ -284,12 +284,12 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 		  AR_MCI_INTERRUPT_RX_MSG_CONT_RST);
 	REG_WRITE(ah, AR_MCI_INTERRUPT_RAW, AR_MCI_INTERRUPT_BT_PRI);
 
-	if (mci->is_2g) {
+	if (mci->is_2g && MCI_ANT_ARCH_PA_LNA_SHARED(mci)) {
 		ar9003_mci_send_lna_transfer(ah, true);
 		udelay(5);
 	}
 
-	if ((mci->is_2g && !mci->update_2g5g)) {
+	if (mci->is_2g && !mci->update_2g5g && MCI_ANT_ARCH_PA_LNA_SHARED(mci)) {
 		if (ar9003_mci_wait_for_interrupt(ah,
 					AR_MCI_INTERRUPT_RX_MSG_RAW,
 					AR_MCI_INTERRUPT_RX_MSG_LNA_INFO,
