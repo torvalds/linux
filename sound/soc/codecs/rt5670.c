@@ -223,7 +223,6 @@ static bool rt5670_volatile_register(struct device *dev, unsigned int reg)
 	case RT5670_ADC_EQ_CTRL1:
 	case RT5670_EQ_CTRL1:
 	case RT5670_ALC_CTRL_1:
-	case RT5670_IRQ_CTRL1:
 	case RT5670_IRQ_CTRL2:
 	case RT5670_INT_IRQ_ST:
 	case RT5670_IL_CMD:
