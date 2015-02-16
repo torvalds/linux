@@ -118,6 +118,10 @@ enum mci_gpm_coex_bt_update_flags_op {
 #define ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_SHARED     0x03
 #define ATH_MCI_ANT_ARCH_3_ANT                   0x04
 
+#define MCI_ANT_ARCH_PA_LNA_SHARED(mci)					\
+	((MS(mci->config, ATH_MCI_CONFIG_ANT_ARCH) == ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_SHARED) || \
+	 (MS(mci->config, ATH_MCI_CONFIG_ANT_ARCH) == ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_SHARED))
+
 enum mci_message_header {		/* length of payload */
 	MCI_LNA_CTRL     = 0x10,        /* len = 0 */
 	MCI_CONT_NACK    = 0x20,        /* len = 0 */

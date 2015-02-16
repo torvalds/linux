@@ -973,8 +973,12 @@ int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		  (SM(0xe801, AR_MCI_MSG_ATTRIBUTES_TABLE_INVALID_HDR) |
 		   SM(0x0000, AR_MCI_MSG_ATTRIBUTES_TABLE_CHECKSUM)));
 
-	REG_CLR_BIT(ah, AR_MCI_TX_CTRL,
-		    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
+	if (MCI_ANT_ARCH_PA_LNA_SHARED(mci))
+		REG_CLR_BIT(ah, AR_MCI_TX_CTRL,
+			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
+	else
+		REG_SET_BIT(ah, AR_MCI_TX_CTRL,
+			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 
 	ar9003_mci_observation_set_up(ah);
 
