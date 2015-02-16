@@ -198,7 +198,7 @@ static int pseries_add_memory(struct device_node *np)
 	return (ret < 0) ? -EINVAL : 0;
 }
 
-static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
+static int pseries_update_drconf_memory(struct of_reconfig_data *pr)
 {
 	struct of_drconf_cell *new_drmem, *old_drmem;
 	unsigned long memblock_size;
@@ -210,7 +210,7 @@ static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
 	if (!memblock_size)
 		return -EINVAL;
 
-	p = (u32 *)of_get_property(pr->dn, "ibm,dynamic-memory", NULL);
+	p = (u32 *) pr->old_prop->value;
 	if (!p)
 		return -EINVAL;
 
@@ -245,9 +245,9 @@ static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
 }
 
 static int pseries_memory_notifier(struct notifier_block *nb,
-				   unsigned long action, void *node)
+				   unsigned long action, void *data)
 {
-	struct of_prop_reconfig *pr;
+	struct of_reconfig_data *rd = data;
 	int err = 0;
 
 	switch (action) {
@@ -258,9 +258,8 @@ static int pseries_memory_notifier(struct notifier_block *nb,
 		err = pseries_remove_memory(node);
 		break;
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr = (struct of_prop_reconfig *)node;
-		if (!strcmp(pr->prop->name, "ibm,dynamic-memory"))
-			err = pseries_update_drconf_memory(pr);
+		if (!strcmp(rd->prop->name, "ibm,dynamic-memory"))
+			err = pseries_update_drconf_memory(rd);
 		break;
 	}
 	return notifier_from_errno(err);
