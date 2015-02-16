@@ -9306,7 +9306,6 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(intel_fb_obj(work->old_fb));
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
-	drm_framebuffer_unreference(work->old_fb);
 
 	intel_fbc_update(dev);
 
@@ -9315,6 +9314,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_frontbuffer_flip_complete(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
+	drm_framebuffer_unreference(work->old_fb);
 
 	BUG_ON(atomic_read(&to_intel_crtc(work->crtc)->unpin_work_count) == 0);
 	atomic_dec(&to_intel_crtc(work->crtc)->unpin_work_count);
@@ -9978,10 +9978,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (atomic_read(&intel_crtc->unpin_work_count) >= 2)
 		flush_workqueue(dev_priv->wq);
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		goto cleanup;
-
 	/* Reference the objects for the scheduled work. */
 	drm_framebuffer_reference(work->old_fb);
 	drm_gem_object_reference(&obj->base);
@@ -9990,6 +9986,10 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	update_state_fb(crtc->primary);
 
 	work->pending_flip_obj = obj;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto cleanup;
 
 	atomic_inc(&intel_crtc->unpin_work_count);
 	intel_crtc->reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
@@ -10055,13 +10055,14 @@ cleanup_unpin:
 	intel_unpin_fb_obj(obj);
 cleanup_pending:
 	atomic_dec(&intel_crtc->unpin_work_count);
+	mutex_unlock(&dev->struct_mutex);
+cleanup:
 	crtc->primary->fb = old_fb;
 	update_state_fb(crtc->primary);
-	drm_framebuffer_unreference(work->old_fb);
-	drm_gem_object_unreference(&obj->base);
-	mutex_unlock(&dev->struct_mutex);
 
-cleanup:
+	drm_gem_object_unreference_unlocked(&obj->base);
+	drm_framebuffer_unreference(work->old_fb);
+
 	spin_lock_irq(&dev->event_lock);
 	intel_crtc->unpin_work = NULL;
 	spin_unlock_irq(&dev->event_lock);
