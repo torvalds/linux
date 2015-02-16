@@ -25,6 +25,9 @@
 
 #include <linux/types.h>
 
+#ifndef __KERNEL__
+#include <stdlib.h>
+#endif
 
 /*
  *  protocol version
