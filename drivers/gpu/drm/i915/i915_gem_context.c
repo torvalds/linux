@@ -296,11 +296,15 @@ void i915_gem_context_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	/* In execlists mode we will unreference the context when the execlist
-	 * queue is cleared and the requests destroyed.
-	 */
-	if (i915.enable_execlists)
+	if (i915.enable_execlists) {
+		struct intel_context *ctx;
+
+		list_for_each_entry(ctx, &dev_priv->context_list, link) {
+			intel_lr_context_reset(dev, ctx);
+		}
+
 		return;
+	}
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct intel_engine_cs *ring = &dev_priv->ring[i];

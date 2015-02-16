@@ -1991,3 +1991,38 @@ error_unpin_ctx:
 	drm_gem_object_unreference(&ctx_obj->base);
 	return ret;
 }
+
+void intel_lr_context_reset(struct drm_device *dev,
+			struct intel_context *ctx)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
+	int i;
+
+	for_each_ring(ring, dev_priv, i) {
+		struct drm_i915_gem_object *ctx_obj =
+				ctx->engine[ring->id].state;
+		struct intel_ringbuffer *ringbuf =
+				ctx->engine[ring->id].ringbuf;
+		uint32_t *reg_state;
+		struct page *page;
+
+		if (!ctx_obj)
+			continue;
+
+		if (i915_gem_object_get_pages(ctx_obj)) {
+			WARN(1, "Failed get_pages for context obj\n");
+			continue;
+		}
+		page = i915_gem_object_get_page(ctx_obj, 1);
+		reg_state = kmap_atomic(page);
+
+		reg_state[CTX_RING_HEAD+1] = 0;
+		reg_state[CTX_RING_TAIL+1] = 0;
+
+		kunmap_atomic(reg_state);
+
+		ringbuf->head = 0;
+		ringbuf->tail = 0;
+	}
+}
