@@ -2357,11 +2357,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 static int btrfs_read_roots(struct btrfs_fs_info *fs_info,
 			    struct btrfs_root *tree_root)
 {
-	struct btrfs_root *extent_root;
-	struct btrfs_root *dev_root;
-	struct btrfs_root *csum_root;
-	struct btrfs_root *quota_root;
-	struct btrfs_root *uuid_root;
+	struct btrfs_root *root;
 	struct btrfs_key location;
 	int ret;
 
@@ -2369,45 +2365,45 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info,
 	location.type = BTRFS_ROOT_ITEM_KEY;
 	location.offset = 0;
 
-	extent_root = btrfs_read_tree_root(tree_root, &location);
-	if (IS_ERR(extent_root))
-		return PTR_ERR(extent_root);
-	set_bit(BTRFS_ROOT_TRACK_DIRTY, &extent_root->state);
-	fs_info->extent_root = extent_root;
+	root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+	set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
+	fs_info->extent_root = root;
 
 	location.objectid = BTRFS_DEV_TREE_OBJECTID;
-	dev_root = btrfs_read_tree_root(tree_root, &location);
-	if (IS_ERR(dev_root))
-		return PTR_ERR(dev_root);
-	set_bit(BTRFS_ROOT_TRACK_DIRTY, &dev_root->state);
-	fs_info->dev_root = dev_root;
+	root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+	set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
+	fs_info->dev_root = root;
 	btrfs_init_devices_late(fs_info);
 
 	location.objectid = BTRFS_CSUM_TREE_OBJECTID;
-	csum_root = btrfs_read_tree_root(tree_root, &location);
-	if (IS_ERR(csum_root))
-		return PTR_ERR(csum_root);
-	set_bit(BTRFS_ROOT_TRACK_DIRTY, &csum_root->state);
-	fs_info->csum_root = csum_root;
+	root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+	set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
+	fs_info->csum_root = root;
 
 	location.objectid = BTRFS_QUOTA_TREE_OBJECTID;
-	quota_root = btrfs_read_tree_root(tree_root, &location);
-	if (!IS_ERR(quota_root)) {
-		set_bit(BTRFS_ROOT_TRACK_DIRTY, &quota_root->state);
+	root = btrfs_read_tree_root(tree_root, &location);
+	if (!IS_ERR(root)) {
+		set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 		fs_info->quota_enabled = 1;
 		fs_info->pending_quota_state = 1;
-		fs_info->quota_root = quota_root;
+		fs_info->quota_root = root;
 	}
 
 	location.objectid = BTRFS_UUID_TREE_OBJECTID;
-	uuid_root = btrfs_read_tree_root(tree_root, &location);
-	if (IS_ERR(uuid_root)) {
-		ret = PTR_ERR(uuid_root);
+	root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(root)) {
+		ret = PTR_ERR(root);
 		if (ret != -ENOENT)
 			return ret;
 	} else {
-		set_bit(BTRFS_ROOT_TRACK_DIRTY, &uuid_root->state);
-		fs_info->uuid_root = uuid_root;
+		set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
+		fs_info->uuid_root = root;
 	}
 
 	return 0;
