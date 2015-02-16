@@ -831,11 +831,6 @@ int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	ath_dbg(common, MCI, "MCI Reset (full_sleep = %d, is_2g = %d)\n",
 		is_full_sleep, is_2g);
 
-	if (!mci->gpm_addr && !mci->sched_addr) {
-		ath_err(common, "MCI GPM and schedule buffers are not allocated\n");
-		return -ENOMEM;
-	}
-
 	if (REG_READ(ah, AR_BTCOEX_CTRL) == 0xdeadbeef) {
 		ath_err(common, "BTCOEX control register is dead\n");
 		return -EINVAL;
