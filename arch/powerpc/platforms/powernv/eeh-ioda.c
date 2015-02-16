@@ -531,25 +531,6 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 }
 
 /**
- * ioda_eeh_get_log - Retrieve error log
- * @pe: frozen PE
- * @severity: permanent or temporary error
- * @drv_log: device driver log
- * @len: length of device driver log
- *
- * Retrieve error log, which contains log from device driver
- * and firmware.
- */
-static int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
-			    char *drv_log, unsigned long len)
-{
-	if (!eeh_has_flag(EEH_EARLY_DUMP_LOG))
-		pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
-
-	return 0;
-}
-
-/**
  * ioda_eeh_configure_bridge - Configure the PCI bridges for the indicated PE
  * @pe: EEH PE
  *
@@ -905,7 +886,6 @@ struct pnv_eeh_ops ioda_eeh_ops = {
 	.set_option		= ioda_eeh_set_option,
 	.get_state		= ioda_eeh_get_state,
 	.reset			= ioda_eeh_reset,
-	.get_log		= ioda_eeh_get_log,
 	.configure_bridge	= ioda_eeh_configure_bridge,
 	.next_error		= ioda_eeh_next_error
 };

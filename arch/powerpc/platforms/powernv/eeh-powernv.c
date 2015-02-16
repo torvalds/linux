@@ -533,14 +533,10 @@ static int pnv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
 static int pnv_eeh_get_log(struct eeh_pe *pe, int severity,
 			   char *drv_log, unsigned long len)
 {
-	struct pci_controller *hose = pe->phb;
-	struct pnv_phb *phb = hose->private_data;
-	int ret = -EEXIST;
+	if (!eeh_has_flag(EEH_EARLY_DUMP_LOG))
+		pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
 
-	if (phb->eeh_ops && phb->eeh_ops->get_log)
-		ret = phb->eeh_ops->get_log(pe, severity, drv_log, len);
-
-	return ret;
+	return 0;
 }
 
 /**
