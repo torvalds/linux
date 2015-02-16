@@ -2227,7 +2227,7 @@ static int btrfs_init_workqueues(struct btrfs_fs_info *fs_info,
 		struct btrfs_fs_devices *fs_devices)
 {
 	int max_active = fs_info->thread_pool_size;
-	int flags = WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_UNBOUND;
+	unsigned int flags = WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_UNBOUND;
 
 	fs_info->workers =
 		btrfs_alloc_workqueue("worker", flags | WQ_HIGHPRI,
