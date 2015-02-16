@@ -6120,30 +6120,23 @@ static int snd_hdspm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_hdspm_playback_release(struct snd_pcm_substream *substream)
+static int snd_hdspm_release(struct snd_pcm_substream *substream)
 {
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	spin_lock_irq(&hdspm->lock);
 
-	hdspm->playback_pid = -1;
-	hdspm->playback_substream = NULL;
+	if (playback) {
+		hdspm->playback_pid = -1;
+		hdspm->playback_substream = NULL;
+	} else {
+		hdspm->capture_pid = -1;
+		hdspm->capture_substream = NULL;
+	}
 
 	spin_unlock_irq(&hdspm->lock);
 
-	return 0;
-}
-
-static int snd_hdspm_capture_release(struct snd_pcm_substream *substream)
-{
-	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
-
-	spin_lock_irq(&hdspm->lock);
-
-	hdspm->capture_pid = -1;
-	hdspm->capture_substream = NULL;
-
-	spin_unlock_irq(&hdspm->lock);
 	return 0;
 }
 
@@ -6363,7 +6356,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 
 static struct snd_pcm_ops snd_hdspm_playback_ops = {
 	.open = snd_hdspm_open,
-	.close = snd_hdspm_playback_release,
+	.close = snd_hdspm_release,
 	.ioctl = snd_hdspm_ioctl,
 	.hw_params = snd_hdspm_hw_params,
 	.hw_free = snd_hdspm_hw_free,
@@ -6375,7 +6368,7 @@ static struct snd_pcm_ops snd_hdspm_playback_ops = {
 
 static struct snd_pcm_ops snd_hdspm_capture_ops = {
 	.open = snd_hdspm_open,
-	.close = snd_hdspm_capture_release,
+	.close = snd_hdspm_release,
 	.ioctl = snd_hdspm_ioctl,
 	.hw_params = snd_hdspm_hw_params,
 	.hw_free = snd_hdspm_hw_free,
