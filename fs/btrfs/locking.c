@@ -280,6 +280,9 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 	if (blockers) {
 		WARN_ON(atomic_read(&eb->spinning_writers));
 		atomic_dec(&eb->blocking_writers);
+		/*
+		 * Make sure counter is updated before we wake up waiters.
+		 */
 		smp_mb();
 		if (waitqueue_active(&eb->write_lock_wq))
 			wake_up(&eb->write_lock_wq);

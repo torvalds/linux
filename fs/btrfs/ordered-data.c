@@ -345,6 +345,9 @@ int btrfs_dec_test_first_ordered_pending(struct inode *inode,
 
 	if (entry->bytes_left == 0) {
 		ret = test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
+		/*
+		 * Implicit memory barrier after test_and_set_bit
+		 */
 		if (waitqueue_active(&entry->wait))
 			wake_up(&entry->wait);
 	} else {
@@ -409,6 +412,9 @@ have_entry:
 
 	if (entry->bytes_left == 0) {
 		ret = test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
+		/*
+		 * Implicit memory barrier after test_and_set_bit
+		 */
 		if (waitqueue_active(&entry->wait))
 			wake_up(&entry->wait);
 	} else {
