@@ -407,14 +407,61 @@ static int pnv_eeh_set_option(struct eeh_pe *pe, int option)
 {
 	struct pci_controller *hose = pe->phb;
 	struct pnv_phb *phb = hose->private_data;
-	int ret = -EEXIST;
+	bool freeze_pe = false;
+	int opt, ret = 0;
+	s64 rc;
 
-	/*
-	 * What we need do is pass it down for hardware
-	 * implementation to handle it.
-	 */
-	if (phb->eeh_ops && phb->eeh_ops->set_option)
-		ret = phb->eeh_ops->set_option(pe, option);
+	/* Sanity check on option */
+	switch (option) {
+	case EEH_OPT_DISABLE:
+		return -EPERM;
+	case EEH_OPT_ENABLE:
+		return 0;
+	case EEH_OPT_THAW_MMIO:
+		opt = OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO;
+		break;
+	case EEH_OPT_THAW_DMA:
+		opt = OPAL_EEH_ACTION_CLEAR_FREEZE_DMA;
+		break;
+	case EEH_OPT_FREEZE_PE:
+		freeze_pe = true;
+		opt = OPAL_EEH_ACTION_SET_FREEZE_ALL;
+		break;
+	default:
+		pr_warn("%s: Invalid option %d\n", __func__, option);
+		return -EINVAL;
+	}
+
+	/* If PHB supports compound PE, to handle it */
+	if (freeze_pe) {
+		if (phb->freeze_pe) {
+			phb->freeze_pe(phb, pe->addr);
+		} else {
+			rc = opal_pci_eeh_freeze_set(phb->opal_id,
+						     pe->addr, opt);
+			if (rc != OPAL_SUCCESS) {
+				pr_warn("%s: Failure %lld freezing "
+					"PHB#%x-PE#%x\n",
+					__func__, rc,
+					phb->hose->global_number, pe->addr);
+				ret = -EIO;
+			}
+		}
+	} else {
+		if (phb->unfreeze_pe) {
+			ret = phb->unfreeze_pe(phb, pe->addr, opt);
+		} else {
+			rc = opal_pci_eeh_freeze_clear(phb->opal_id,
+						       pe->addr, opt);
+			if (rc != OPAL_SUCCESS) {
+				pr_warn("%s: Failure %lld enable %d "
+					"for PHB#%x-PE#%x\n",
+					__func__, rc, option,
+					phb->hose->global_number, pe->addr);
+				ret = -EIO;
+			}
+		}
+	}
 
 	return ret;
 }

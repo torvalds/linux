@@ -34,89 +34,6 @@
 #include "powernv.h"
 #include "pci.h"
 
-/**
- * ioda_eeh_set_option - Set EEH operation or I/O setting
- * @pe: EEH PE
- * @option: options
- *
- * Enable or disable EEH option for the indicated PE. The
- * function also can be used to enable I/O or DMA for the
- * PE.
- */
-static int ioda_eeh_set_option(struct eeh_pe *pe, int option)
-{
-	struct pci_controller *hose = pe->phb;
-	struct pnv_phb *phb = hose->private_data;
-	bool freeze_pe = false;
-	int enable, ret = 0;
-	s64 rc;
-
-	/* Check on PE number */
-	if (pe->addr < 0 || pe->addr >= phb->ioda.total_pe) {
-		pr_err("%s: PE address %x out of range [0, %x] "
-		       "on PHB#%x\n",
-			__func__, pe->addr, phb->ioda.total_pe,
-			hose->global_number);
-		return -EINVAL;
-	}
-
-	switch (option) {
-	case EEH_OPT_DISABLE:
-		return -EPERM;
-	case EEH_OPT_ENABLE:
-		return 0;
-	case EEH_OPT_THAW_MMIO:
-		enable = OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO;
-		break;
-	case EEH_OPT_THAW_DMA:
-		enable = OPAL_EEH_ACTION_CLEAR_FREEZE_DMA;
-		break;
-	case EEH_OPT_FREEZE_PE:
-		freeze_pe = true;
-		enable = OPAL_EEH_ACTION_SET_FREEZE_ALL;
-		break;
-	default:
-		pr_warn("%s: Invalid option %d\n",
-			__func__, option);
-		return -EINVAL;
-	}
-
-	/* If PHB supports compound PE, to handle it */
-	if (freeze_pe) {
-		if (phb->freeze_pe) {
-			phb->freeze_pe(phb, pe->addr);
-		} else {
-			rc = opal_pci_eeh_freeze_set(phb->opal_id,
-						     pe->addr,
-						     enable);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld freezing "
-					"PHB#%x-PE#%x\n",
-					__func__, rc,
-					phb->hose->global_number, pe->addr);
-				ret = -EIO;
-			}
-		}
-	} else {
-		if (phb->unfreeze_pe) {
-			ret = phb->unfreeze_pe(phb, pe->addr, enable);
-		} else {
-			rc = opal_pci_eeh_freeze_clear(phb->opal_id,
-						       pe->addr,
-						       enable);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld enable %d "
-					"for PHB#%x-PE#%x\n",
-					__func__, rc, option,
-					phb->hose->global_number, pe->addr);
-				ret = -EIO;
-			}
-		}
-	}
-
-	return ret;
-}
-
 static void ioda_eeh_phb_diag(struct eeh_pe *pe)
 {
 	struct pnv_phb *phb = pe->phb->private_data;
@@ -869,7 +786,6 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 }
 
 struct pnv_eeh_ops ioda_eeh_ops = {
-	.set_option		= ioda_eeh_set_option,
 	.get_state		= ioda_eeh_get_state,
 	.reset			= ioda_eeh_reset,
 	.next_error		= ioda_eeh_next_error
