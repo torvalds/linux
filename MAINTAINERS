@@ -34,7 +34,7 @@ trivial patch so apply some common sense.
 	generalized kernel feature ready for next time.
 
 	PLEASE check your patch with the automated style checker
-	(scripts/checkpatch.pl) to catch trival style violations.
+	(scripts/checkpatch.pl) to catch trivial style violations.
 	See Documentation/CodingStyle for guidance here.
 
 	PLEASE CC: the maintainers and mailing lists that are generated
