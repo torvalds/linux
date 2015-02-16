@@ -38,7 +38,7 @@
 
 #define SIRFSOC_TIMER_REG_CNT 6
 
-static unsigned long marco_timer_rate;
+static unsigned long atlas7_timer_rate;
 
 static const u32 sirfsoc_timer_reg_list[SIRFSOC_TIMER_REG_CNT] = {
 	SIRFSOC_TIMER_WATCHDOG_EN,
@@ -195,7 +195,7 @@ static int sirfsoc_local_timer_setup(struct clock_event_device *ce)
 	ce->rating = 200;
 	ce->set_mode = sirfsoc_timer_set_mode;
 	ce->set_next_event = sirfsoc_timer_set_next_event;
-	clockevents_calc_mult_shift(ce, marco_timer_rate, 60);
+	clockevents_calc_mult_shift(ce, atlas7_timer_rate, 60);
 	ce->max_delta_ns = clockevent_delta2ns(-2, ce);
 	ce->min_delta_ns = clockevent_delta2ns(2, ce);
 	ce->cpumask = cpumask_of(cpu);
@@ -255,9 +255,8 @@ static void __init sirfsoc_clockevent_init(void)
 }
 
 /* initialize the kernel jiffy timer source */
-static void __init sirfsoc_marco_timer_init(struct device_node *np)
+static void __init sirfsoc_atlas7_timer_init(struct device_node *np)
 {
-	u32 timer_div;
 	struct clk *clk;
 
 	clk = of_clk_get(np, 0);
@@ -265,7 +264,7 @@ static void __init sirfsoc_marco_timer_init(struct device_node *np)
 
 	BUG_ON(clk_prepare_enable(clk));
 
-	marco_timer_rate = clk_get_rate(clk);
+	atlas7_timer_rate = clk_get_rate(clk);
 
 	/* timer dividers: 0, not divided */
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_64COUNTER_CTRL);
@@ -283,7 +282,7 @@ static void __init sirfsoc_marco_timer_init(struct device_node *np)
 	/* Clear all interrupts */
 	writel_relaxed(0xFFFF, sirfsoc_timer_base + SIRFSOC_TIMER_INTR_STATUS);
 
-	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, marco_timer_rate));
+	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, atlas7_timer_rate));
 
 	sirfsoc_clockevent_init();
 }
@@ -302,6 +301,6 @@ static void __init sirfsoc_of_timer_init(struct device_node *np)
 	if (!sirfsoc_timer1_irq.irq)
 		panic("No irq passed for timer1 via DT\n");
 
-	sirfsoc_marco_timer_init(np);
+	sirfsoc_atlas7_timer_init(np);
 }
-CLOCKSOURCE_OF_DECLARE(sirfsoc_marco_timer, "sirf,marco-tick", sirfsoc_of_timer_init );
+CLOCKSOURCE_OF_DECLARE(sirfsoc_atlas7_timer, "sirf,atlas7-tick", sirfsoc_of_timer_init);
