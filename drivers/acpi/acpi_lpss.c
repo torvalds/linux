@@ -125,7 +125,7 @@ static struct lpss_device_desc lpt_dev_desc = {
 };
 
 static struct lpss_device_desc lpt_i2c_dev_desc = {
-	.flags = LPSS_CLK | LPSS_LTR,
+	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_LTR,
 	.prv_offset = 0x800,
 };
 
