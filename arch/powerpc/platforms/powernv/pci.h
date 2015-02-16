@@ -78,7 +78,6 @@ struct pnv_ioda_pe {
 /* IOC dependent EEH operations */
 #ifdef CONFIG_EEH
 struct pnv_eeh_ops {
-	int (*post_init)(struct pci_controller *hose);
 	int (*set_option)(struct eeh_pe *pe, int option);
 	int (*get_state)(struct eeh_pe *pe);
 	int (*reset)(struct eeh_pe *pe, int option);

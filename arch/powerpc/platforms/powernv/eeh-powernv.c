@@ -12,6 +12,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/init.h>
@@ -37,6 +38,8 @@
 
 #include "powernv.h"
 #include "pci.h"
+
+static bool pnv_eeh_nb_init = false;
 
 /**
  * pnv_eeh_init - EEH platform dependent initialization
@@ -85,6 +88,139 @@ static int pnv_eeh_init(void)
 	return 0;
 }
 
+static int pnv_eeh_event(struct notifier_block *nb,
+			 unsigned long events, void *change)
+{
+	uint64_t changed_evts = (uint64_t)change;
+
+	/*
+	 * We simply send special EEH event if EEH has
+	 * been enabled, or clear pending events in
+	 * case that we enable EEH soon
+	 */
+	if (!(changed_evts & OPAL_EVENT_PCI_ERROR) ||
+	    !(events & OPAL_EVENT_PCI_ERROR))
+		return 0;
+
+	if (eeh_enabled())
+		eeh_send_failure_event(NULL);
+	else
+		opal_notifier_update_evt(OPAL_EVENT_PCI_ERROR, 0x0ul);
+
+	return 0;
+}
+
+static struct notifier_block pnv_eeh_nb = {
+	.notifier_call	= pnv_eeh_event,
+	.next		= NULL,
+	.priority	= 0
+};
+
+#ifdef CONFIG_DEBUG_FS
+static ssize_t pnv_eeh_ei_write(struct file *filp,
+				const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct pci_controller *hose = filp->private_data;
+	struct eeh_dev *edev;
+	struct eeh_pe *pe;
+	int pe_no, type, func;
+	unsigned long addr, mask;
+	char buf[50];
+	int ret;
+
+	if (!eeh_ops || !eeh_ops->err_inject)
+		return -ENXIO;
+
+	/* Copy over argument buffer */
+	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, user_buf, count);
+	if (!ret)
+		return -EFAULT;
+
+	/* Retrieve parameters */
+	ret = sscanf(buf, "%x:%x:%x:%lx:%lx",
+		     &pe_no, &type, &func, &addr, &mask);
+	if (ret != 5)
+		return -EINVAL;
+
+	/* Retrieve PE */
+	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
+	if (!edev)
+		return -ENOMEM;
+	edev->phb = hose;
+	edev->pe_config_addr = pe_no;
+	pe = eeh_pe_get(edev);
+	kfree(edev);
+	if (!pe)
+		return -ENODEV;
+
+	/* Do error injection */
+	ret = eeh_ops->err_inject(pe, type, func, addr, mask);
+	return ret < 0 ? ret : count;
+}
+
+static const struct file_operations pnv_eeh_ei_fops = {
+	.open	= simple_open,
+	.llseek	= no_llseek,
+	.write	= pnv_eeh_ei_write,
+};
+
+static int pnv_eeh_dbgfs_set(void *data, int offset, u64 val)
+{
+	struct pci_controller *hose = data;
+	struct pnv_phb *phb = hose->private_data;
+
+	out_be64(phb->regs + offset, val);
+	return 0;
+}
+
+static int pnv_eeh_dbgfs_get(void *data, int offset, u64 *val)
+{
+	struct pci_controller *hose = data;
+	struct pnv_phb *phb = hose->private_data;
+
+	*val = in_be64(phb->regs + offset);
+	return 0;
+}
+
+static int pnv_eeh_outb_dbgfs_set(void *data, u64 val)
+{
+	return pnv_eeh_dbgfs_set(data, 0xD10, val);
+}
+
+static int pnv_eeh_outb_dbgfs_get(void *data, u64 *val)
+{
+	return pnv_eeh_dbgfs_get(data, 0xD10, val);
+}
+
+static int pnv_eeh_inbA_dbgfs_set(void *data, u64 val)
+{
+	return pnv_eeh_dbgfs_set(data, 0xD90, val);
+}
+
+static int pnv_eeh_inbA_dbgfs_get(void *data, u64 *val)
+{
+	return pnv_eeh_dbgfs_get(data, 0xD90, val);
+}
+
+static int pnv_eeh_inbB_dbgfs_set(void *data, u64 val)
+{
+	return pnv_eeh_dbgfs_set(data, 0xE10, val);
+}
+
+static int pnv_eeh_inbB_dbgfs_get(void *data, u64 *val)
+{
+	return pnv_eeh_dbgfs_get(data, 0xE10, val);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_outb_dbgfs_ops, pnv_eeh_outb_dbgfs_get,
+			pnv_eeh_outb_dbgfs_set, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_inbA_dbgfs_ops, pnv_eeh_inbA_dbgfs_get,
+			pnv_eeh_inbA_dbgfs_set, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_inbB_dbgfs_ops, pnv_eeh_inbB_dbgfs_get,
+			pnv_eeh_inbB_dbgfs_set, "0x%llx\n");
+#endif /* CONFIG_DEBUG_FS */
+
 /**
  * pnv_eeh_post_init - EEH platform dependent post initialization
  *
@@ -99,15 +235,53 @@ static int pnv_eeh_post_init(void)
 	struct pnv_phb *phb;
 	int ret = 0;
 
+	/* Register OPAL event notifier */
+	if (!pnv_eeh_nb_init) {
+		ret = opal_notifier_register(&pnv_eeh_nb);
+		if (ret) {
+			pr_warn("%s: Can't register OPAL event notifier (%d)\n",
+				__func__, ret);
+			return ret;
+		}
+
+		pnv_eeh_nb_init = true;
+	}
+
 	list_for_each_entry(hose, &hose_list, list_node) {
 		phb = hose->private_data;
 
-		if (phb->eeh_ops && phb->eeh_ops->post_init) {
-			ret = phb->eeh_ops->post_init(hose);
-			if (ret)
-				break;
-		}
+		/*
+		 * If EEH is enabled, we're going to rely on that.
+		 * Otherwise, we restore to conventional mechanism
+		 * to clear frozen PE during PCI config access.
+		 */
+		if (eeh_enabled())
+			phb->flags |= PNV_PHB_FLAG_EEH;
+		else
+			phb->flags &= ~PNV_PHB_FLAG_EEH;
+
+		/* Create debugfs entries */
+#ifdef CONFIG_DEBUG_FS
+		if (phb->has_dbgfs || !phb->dbgfs)
+			continue;
+
+		phb->has_dbgfs = 1;
+		debugfs_create_file("err_injct", 0200,
+				    phb->dbgfs, hose,
+				    &pnv_eeh_ei_fops);
+
+		debugfs_create_file("err_injct_outbound", 0600,
+				    phb->dbgfs, hose,
+				    &pnv_eeh_outb_dbgfs_ops);
+		debugfs_create_file("err_injct_inboundA", 0600,
+				    phb->dbgfs, hose,
+				    &pnv_eeh_inbA_dbgfs_ops);
+		debugfs_create_file("err_injct_inboundB", 0600,
+				    phb->dbgfs, hose,
+				    &pnv_eeh_inbB_dbgfs_ops);
+#endif /* CONFIG_DEBUG_FS */
 	}
+
 
 	return ret;
 }
