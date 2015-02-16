@@ -46,173 +46,6 @@ static void ioda_eeh_phb_diag(struct eeh_pe *pe)
 			__func__, pe->phb->global_number, rc);
 }
 
-static int ioda_eeh_get_phb_state(struct eeh_pe *pe)
-{
-	struct pnv_phb *phb = pe->phb->private_data;
-	u8 fstate;
-	__be16 pcierr;
-	s64 rc;
-	int result = 0;
-
-	rc = opal_pci_eeh_freeze_status(phb->opal_id,
-					pe->addr,
-					&fstate,
-					&pcierr,
-					NULL);
-	if (rc != OPAL_SUCCESS) {
-		pr_warn("%s: Failure %lld getting PHB#%x state\n",
-			__func__, rc, phb->hose->global_number);
-		return EEH_STATE_NOT_SUPPORT;
-	}
-
-	/*
-	 * Check PHB state. If the PHB is frozen for the
-	 * first time, to dump the PHB diag-data.
-	 */
-	if (be16_to_cpu(pcierr) != OPAL_EEH_PHB_ERROR) {
-		result = (EEH_STATE_MMIO_ACTIVE  |
-			  EEH_STATE_DMA_ACTIVE   |
-			  EEH_STATE_MMIO_ENABLED |
-			  EEH_STATE_DMA_ENABLED);
-	} else if (!(pe->state & EEH_PE_ISOLATED)) {
-		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
-		ioda_eeh_phb_diag(pe);
-
-		if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
-			pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
-	}
-
-	return result;
-}
-
-static int ioda_eeh_get_pe_state(struct eeh_pe *pe)
-{
-	struct pnv_phb *phb = pe->phb->private_data;
-	u8 fstate;
-	__be16 pcierr;
-	s64 rc;
-	int result;
-
-	/*
-	 * We don't clobber hardware frozen state until PE
-	 * reset is completed. In order to keep EEH core
-	 * moving forward, we have to return operational
-	 * state during PE reset.
-	 */
-	if (pe->state & EEH_PE_RESET) {
-		result = (EEH_STATE_MMIO_ACTIVE  |
-			  EEH_STATE_DMA_ACTIVE   |
-			  EEH_STATE_MMIO_ENABLED |
-			  EEH_STATE_DMA_ENABLED);
-		return result;
-	}
-
-	/*
-	 * Fetch PE state from hardware. If the PHB
-	 * supports compound PE, let it handle that.
-	 */
-	if (phb->get_pe_state) {
-		fstate = phb->get_pe_state(phb, pe->addr);
-	} else {
-		rc = opal_pci_eeh_freeze_status(phb->opal_id,
-						pe->addr,
-						&fstate,
-						&pcierr,
-						NULL);
-		if (rc != OPAL_SUCCESS) {
-			pr_warn("%s: Failure %lld getting PHB#%x-PE%x state\n",
-				__func__, rc, phb->hose->global_number, pe->addr);
-			return EEH_STATE_NOT_SUPPORT;
-		}
-	}
-
-	/* Figure out state */
-	switch (fstate) {
-	case OPAL_EEH_STOPPED_NOT_FROZEN:
-		result = (EEH_STATE_MMIO_ACTIVE  |
-			  EEH_STATE_DMA_ACTIVE   |
-			  EEH_STATE_MMIO_ENABLED |
-			  EEH_STATE_DMA_ENABLED);
-		break;
-	case OPAL_EEH_STOPPED_MMIO_FREEZE:
-		result = (EEH_STATE_DMA_ACTIVE |
-			  EEH_STATE_DMA_ENABLED);
-		break;
-	case OPAL_EEH_STOPPED_DMA_FREEZE:
-		result = (EEH_STATE_MMIO_ACTIVE |
-			  EEH_STATE_MMIO_ENABLED);
-		break;
-	case OPAL_EEH_STOPPED_MMIO_DMA_FREEZE:
-		result = 0;
-		break;
-	case OPAL_EEH_STOPPED_RESET:
-		result = EEH_STATE_RESET_ACTIVE;
-		break;
-	case OPAL_EEH_STOPPED_TEMP_UNAVAIL:
-		result = EEH_STATE_UNAVAILABLE;
-		break;
-	case OPAL_EEH_STOPPED_PERM_UNAVAIL:
-		result = EEH_STATE_NOT_SUPPORT;
-		break;
-	default:
-		result = EEH_STATE_NOT_SUPPORT;
-		pr_warn("%s: Invalid PHB#%x-PE#%x state %x\n",
-			__func__, phb->hose->global_number,
-			pe->addr, fstate);
-	}
-
-	/*
-	 * If PHB supports compound PE, to freeze all
-	 * slave PEs for consistency.
-	 *
-	 * If the PE is switching to frozen state for the
-	 * first time, to dump the PHB diag-data.
-	 */
-	if (!(result & EEH_STATE_NOT_SUPPORT) &&
-	    !(result & EEH_STATE_UNAVAILABLE) &&
-	    !(result & EEH_STATE_MMIO_ACTIVE) &&
-	    !(result & EEH_STATE_DMA_ACTIVE)  &&
-	    !(pe->state & EEH_PE_ISOLATED)) {
-		if (phb->freeze_pe)
-			phb->freeze_pe(phb, pe->addr);
-
-		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
-		ioda_eeh_phb_diag(pe);
-
-		if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
-			pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
-	}
-
-	return result;
-}
-
-/**
- * ioda_eeh_get_state - Retrieve the state of PE
- * @pe: EEH PE
- *
- * The PE's state should be retrieved from the PEEV, PEST
- * IODA tables. Since the OPAL has exported the function
- * to do it, it'd better to use that.
- */
-static int ioda_eeh_get_state(struct eeh_pe *pe)
-{
-	struct pnv_phb *phb = pe->phb->private_data;
-
-	/* Sanity check on PE number. PHB PE should have 0 */
-	if (pe->addr < 0 ||
-	    pe->addr >= phb->ioda.total_pe) {
-		pr_warn("%s: PHB#%x-PE#%x out of range [0, %x]\n",
-			__func__, phb->hose->global_number,
-			pe->addr, phb->ioda.total_pe);
-		return EEH_STATE_NOT_SUPPORT;
-	}
-
-	if (pe->type & EEH_PE_PHB)
-		return ioda_eeh_get_phb_state(pe);
-
-	return ioda_eeh_get_pe_state(pe);
-}
-
 static s64 ioda_eeh_phb_poll(struct pnv_phb *phb)
 {
 	s64 rc = OPAL_HARDWARE;
@@ -759,7 +592,7 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 					break;
 
 				/* Frozen parent PE ? */
-				state = ioda_eeh_get_state(parent_pe);
+				state = eeh_ops->get_state(parent_pe, NULL);
 				if (state > 0 &&
 				    (state & active_flags) != active_flags)
 					*pe = parent_pe;
@@ -786,7 +619,6 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 }
 
 struct pnv_eeh_ops ioda_eeh_ops = {
-	.get_state		= ioda_eeh_get_state,
 	.reset			= ioda_eeh_reset,
 	.next_error		= ioda_eeh_next_error
 };
