@@ -1163,9 +1163,13 @@ static inline int ap_test_config_card_id(unsigned int id)
  */
 static inline int ap_test_config_domain(unsigned int domain)
 {
-	if (!ap_configuration)
-		return 1;
-	return ap_test_config(ap_configuration->aqm, domain);
+	if (!ap_configuration)	  /* QCI not supported */
+		if (domain < 16)
+			return 1; /* then domains 0...15 are configured */
+		else
+			return 0;
+	else
+		return ap_test_config(ap_configuration->aqm, domain);
 }
 
 /**

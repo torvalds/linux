@@ -1,7 +1,7 @@
 
 uname_M := $(shell uname -m 2>/dev/null || echo not)
 
-ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
+RAW_ARCH := $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
                                   -e s/arm.*/arm/ -e s/sa110/arm/ \
                                   -e s/s390x/s390/ -e s/parisc64/parisc/ \
                                   -e s/ppc.*/powerpc/ -e s/mips.*/mips/ \
@@ -9,23 +9,23 @@ ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
                                   -e s/tile.*/tile/ )
 
 # Additional ARCH settings for x86
-ifeq ($(ARCH),i386)
-  override ARCH := x86
+ifeq ($(RAW_ARCH),i386)
+  ARCH ?= x86
 endif
 
-ifeq ($(ARCH),x86_64)
-  override ARCH := x86
-  IS_X86_64 := 0
-  ifeq (, $(findstring m32,$(CFLAGS)))
-    IS_X86_64 := $(shell echo __x86_64__ | ${CC} -E -x c - | tail -n 1)
-    RAW_ARCH := x86_64
+ifeq ($(RAW_ARCH),x86_64)
+  ARCH ?= x86
+
+  ifneq (, $(findstring m32,$(CFLAGS)))
+    RAW_ARCH := x86_32
   endif
 endif
 
-ifeq (${IS_X86_64}, 1)
+ARCH ?= $(RAW_ARCH)
+
+LP64 := $(shell echo __LP64__ | ${CC} ${CFLAGS} -E -x c - | tail -n 1)
+ifeq ($(LP64), 1)
   IS_64_BIT := 1
-else ifeq ($(ARCH),x86)
-  IS_64_BIT := 0
 else
-  IS_64_BIT := $(shell echo __LP64__ | ${CC} ${CFLAGS} -E -x c - | tail -n 1)
+  IS_64_BIT := 0
 endif

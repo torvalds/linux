@@ -52,20 +52,19 @@
 #define kfd_alloc_struct(ptr_to_struct)	\
 	((typeof(ptr_to_struct)) kzalloc(sizeof(*ptr_to_struct), GFP_KERNEL))
 
-/* Kernel module parameter to specify maximum number of supported processes */
-extern int max_num_of_processes;
-
-#define KFD_MAX_NUM_OF_PROCESSES_DEFAULT 32
 #define KFD_MAX_NUM_OF_PROCESSES 512
+#define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
 
 /*
- * Kernel module parameter to specify maximum number of supported queues
- * per process
+ * Kernel module parameter to specify maximum number of supported queues per
+ * device
  */
-extern int max_num_of_queues_per_process;
+extern int max_num_of_queues_per_device;
 
-#define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS_DEFAULT 128
-#define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
+#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE_DEFAULT 4096
+#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
+	(KFD_MAX_NUM_OF_PROCESSES *			\
+			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
 
 #define KFD_KERNEL_QUEUE_SIZE 2048
 
@@ -135,22 +134,10 @@ struct kfd_dev {
 
 	struct kgd2kfd_shared_resources shared_resources;
 
-	void *interrupt_ring;
-	size_t interrupt_ring_size;
-	atomic_t interrupt_ring_rptr;
-	atomic_t interrupt_ring_wptr;
-	struct work_struct interrupt_work;
-	spinlock_t interrupt_lock;
-
 	/* QCM Device instance */
 	struct device_queue_manager *dqm;
 
 	bool init_complete;
-	/*
-	 * Interrupts of interest to KFD are copied
-	 * from the HW ring into a SW ring.
-	 */
-	bool interrupts_active;
 };
 
 /* KGD2KFD callbacks */
@@ -531,10 +518,7 @@ struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev);
 struct kfd_dev *kfd_topology_enum_kfd_devices(uint8_t idx);
 
 /* Interrupts */
-int kfd_interrupt_init(struct kfd_dev *dev);
-void kfd_interrupt_exit(struct kfd_dev *dev);
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
-bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry);
 
 /* Power Management */
 void kgd2kfd_suspend(struct kfd_dev *kfd);

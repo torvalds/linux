@@ -146,7 +146,8 @@ int radeon_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_pri
 	struct radeon_bo_va *bo_va;
 	int r;
 
-	if (rdev->family < CHIP_CAYMAN) {
+	if ((rdev->family < CHIP_CAYMAN) ||
+	    (!rdev->accel_working)) {
 		return 0;
 	}
 
@@ -176,7 +177,8 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 	struct radeon_bo_va *bo_va;
 	int r;
 
-	if (rdev->family < CHIP_CAYMAN) {
+	if ((rdev->family < CHIP_CAYMAN) ||
+	    (!rdev->accel_working)) {
 		return;
 	}
 
@@ -576,7 +578,7 @@ error_unreserve:
 error_free:
 	drm_free_large(vm_bos);
 
-	if (r)
+	if (r && r != -ERESTARTSYS)
 		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
 }
 

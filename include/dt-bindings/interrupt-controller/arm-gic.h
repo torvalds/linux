@@ -7,14 +7,14 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 
-/* interrupt specific cell 0 */
+/* interrupt specifier cell 0 */
 
 #define GIC_SPI 0
 #define GIC_PPI 1
 
 /*
  * Interrupt specifier cell 2.
- * The flaggs in irq.h are valid, plus those below.
+ * The flags in irq.h are valid, plus those below.
  */
 #define GIC_CPU_MASK_RAW(x) ((x) << 8)
 #define GIC_CPU_MASK_SIMPLE(num) GIC_CPU_MASK_RAW((1 << (num)) - 1)

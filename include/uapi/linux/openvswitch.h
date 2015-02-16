@@ -174,6 +174,10 @@ enum ovs_packet_attr {
 	OVS_PACKET_ATTR_USERDATA,    /* OVS_ACTION_ATTR_USERSPACE arg. */
 	OVS_PACKET_ATTR_EGRESS_TUN_KEY,  /* Nested OVS_TUNNEL_KEY_ATTR_*
 					    attributes. */
+	OVS_PACKET_ATTR_UNUSED1,
+	OVS_PACKET_ATTR_UNUSED2,
+	OVS_PACKET_ATTR_PROBE,      /* Packet operation is a feature probe,
+				       error logging should be suppressed. */
 	__OVS_PACKET_ATTR_MAX
 };
 

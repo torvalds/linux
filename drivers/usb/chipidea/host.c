@@ -91,6 +91,7 @@ static int host_start(struct ci_hdrc *ci)
 	if (!hcd)
 		return -ENOMEM;
 
+	dev_set_drvdata(ci->dev, ci);
 	hcd->rsrc_start = ci->hw_bank.phys;
 	hcd->rsrc_len = ci->hw_bank.size;
 	hcd->regs = ci->hw_bank.abs;

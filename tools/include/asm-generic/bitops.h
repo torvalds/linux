@@ -22,6 +22,8 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
+#include <asm-generic/bitops/hweight.h>
+
 #include <asm-generic/bitops/atomic.h>
 
 #endif /* __TOOLS_ASM_GENERIC_BITOPS_H */
