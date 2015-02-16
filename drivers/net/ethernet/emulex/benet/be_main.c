@@ -2064,18 +2064,23 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp, u32 frags_needed)
 	}
 }
 
-static struct be_eth_tx_compl *be_tx_compl_get(struct be_queue_info *tx_cq)
+static struct be_tx_compl_info *be_tx_compl_get(struct be_tx_obj *txo)
 {
-	struct be_eth_tx_compl *txcp = queue_tail_node(tx_cq);
+	struct be_queue_info *tx_cq = &txo->cq;
+	struct be_tx_compl_info *txcp = &txo->txcp;
+	struct be_eth_tx_compl *compl = queue_tail_node(tx_cq);
 
-	if (txcp->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] == 0)
+	if (compl->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] == 0)
 		return NULL;
 
+	/* Ensure load ordering of valid bit dword and other dwords below */
 	rmb();
-	be_dws_le_to_cpu(txcp, sizeof(*txcp));
+	be_dws_le_to_cpu(compl, sizeof(*compl));
 
-	txcp->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] = 0;
+	txcp->status = GET_TX_COMPL_BITS(status, compl);
+	txcp->end_index = GET_TX_COMPL_BITS(wrb_index, compl);
 
+	compl->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] = 0;
 	queue_tail_inc(tx_cq);
 	return txcp;
 }
@@ -2196,9 +2201,9 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 {
 	u16 end_idx, notified_idx, cmpl = 0, timeo = 0, num_wrbs = 0;
 	struct device *dev = &adapter->pdev->dev;
-	struct be_tx_obj *txo;
+	struct be_tx_compl_info *txcp;
 	struct be_queue_info *txq;
-	struct be_eth_tx_compl *txcp;
+	struct be_tx_obj *txo;
 	int i, pending_txqs;
 
 	/* Stop polling for compls when HW has been silent for 10ms */
@@ -2209,10 +2214,10 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 			cmpl = 0;
 			num_wrbs = 0;
 			txq = &txo->q;
-			while ((txcp = be_tx_compl_get(&txo->cq))) {
-				end_idx = GET_TX_COMPL_BITS(wrb_index, txcp);
-				num_wrbs += be_tx_compl_process(adapter, txo,
-								end_idx);
+			while ((txcp = be_tx_compl_get(txo))) {
+				num_wrbs +=
+					be_tx_compl_process(adapter, txo,
+							    txcp->end_index);
 				cmpl++;
 			}
 			if (cmpl) {
@@ -2571,7 +2576,7 @@ loop_continue:
 	return work_done;
 }
 
-static inline void be_update_tx_err(struct be_tx_obj *txo, u32 status)
+static inline void be_update_tx_err(struct be_tx_obj *txo, u8 status)
 {
 	switch (status) {
 	case BE_TX_COMP_HDR_PARSE_ERR:
@@ -2586,7 +2591,7 @@ static inline void be_update_tx_err(struct be_tx_obj *txo, u32 status)
 	}
 }
 
-static inline void lancer_update_tx_err(struct be_tx_obj *txo, u32 status)
+static inline void lancer_update_tx_err(struct be_tx_obj *txo, u8 status)
 {
 	switch (status) {
 	case LANCER_TX_COMP_LSO_ERR:
@@ -2611,22 +2616,18 @@ static inline void lancer_update_tx_err(struct be_tx_obj *txo, u32 status)
 static void be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 			  int idx)
 {
-	struct be_eth_tx_compl *txcp;
 	int num_wrbs = 0, work_done = 0;
-	u32 compl_status;
-	u16 last_idx;
+	struct be_tx_compl_info *txcp;
 
-	while ((txcp = be_tx_compl_get(&txo->cq))) {
-		last_idx = GET_TX_COMPL_BITS(wrb_index, txcp);
-		num_wrbs += be_tx_compl_process(adapter, txo, last_idx);
+	while ((txcp = be_tx_compl_get(txo))) {
+		num_wrbs += be_tx_compl_process(adapter, txo, txcp->end_index);
 		work_done++;
 
-		compl_status = GET_TX_COMPL_BITS(status, txcp);
-		if (compl_status) {
+		if (txcp->status) {
 			if (lancer_chip(adapter))
-				lancer_update_tx_err(txo, compl_status);
+				lancer_update_tx_err(txo, txcp->status);
 			else
-				be_update_tx_err(txo, compl_status);
+				be_update_tx_err(txo, txcp->status);
 		}
 	}
 

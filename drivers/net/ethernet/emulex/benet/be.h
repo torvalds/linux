@@ -238,10 +238,17 @@ struct be_tx_stats {
 	struct u64_stats_sync sync_compl;
 };
 
+/* Structure to hold some data of interest obtained from a TX CQE */
+struct be_tx_compl_info {
+	u8 status;		/* Completion status */
+	u16 end_index;		/* Completed TXQ Index */
+};
+
 struct be_tx_obj {
 	u32 db_offset;
 	struct be_queue_info q;
 	struct be_queue_info cq;
+	struct be_tx_compl_info txcp;
 	/* Remember the skbs that were transmitted */
 	struct sk_buff *sent_skb_list[TX_Q_LEN];
 	struct be_tx_stats stats;
