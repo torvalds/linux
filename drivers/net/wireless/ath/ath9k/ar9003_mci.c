@@ -821,6 +821,25 @@ static void ar9003_mci_osla_setup(struct ath_hw *ah, bool enable)
 		      AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN, 1);
 }
 
+static void ar9003_mci_stat_setup(struct ath_hw *ah)
+{
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+
+	if (!AR_SREV_9565(ah))
+		return;
+
+	if (mci->config & ATH_MCI_CONFIG_MCI_STAT_DBG) {
+		REG_RMW_FIELD(ah, AR_MCI_DBG_CNT_CTRL,
+			      AR_MCI_DBG_CNT_CTRL_ENABLE, 1);
+		REG_RMW_FIELD(ah, AR_MCI_DBG_CNT_CTRL,
+			      AR_MCI_DBG_CNT_CTRL_BT_LINKID,
+			      MCI_STAT_ALL_BT_LINKID);
+	} else {
+		REG_RMW_FIELD(ah, AR_MCI_DBG_CNT_CTRL,
+			      AR_MCI_DBG_CNT_CTRL_ENABLE, 0);
+	}
+}
+
 static void ar9003_mci_set_btcoex_ctrl_9565_1ANT(struct ath_hw *ah)
 {
 	u32 regval;
@@ -984,10 +1003,8 @@ int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 
 	mci->ready = true;
 	ar9003_mci_prep_interface(ah);
+	ar9003_mci_stat_setup(ah);
 
-	if (AR_SREV_9565(ah))
-		REG_RMW_FIELD(ah, AR_MCI_DBG_CNT_CTRL,
-			      AR_MCI_DBG_CNT_CTRL_ENABLE, 0);
 	if (en_int)
 		ar9003_mci_enable_interrupt(ah);
 

@@ -265,9 +265,14 @@
 #define AR_MCI_MISC                                     0x1a74
 #define AR_MCI_MISC_HW_FIX_EN                           0x00000001
 #define AR_MCI_MISC_HW_FIX_EN_S                         0
+
 #define AR_MCI_DBG_CNT_CTRL                             0x1a78
 #define AR_MCI_DBG_CNT_CTRL_ENABLE                      0x00000001
 #define AR_MCI_DBG_CNT_CTRL_ENABLE_S                    0
+#define AR_MCI_DBG_CNT_CTRL_BT_LINKID                   0x000007f8
+#define AR_MCI_DBG_CNT_CTRL_BT_LINKID_S                 3
+
+#define MCI_STAT_ALL_BT_LINKID                          0xffff
 
 #define AR_MCI_INTERRUPT_DEFAULT (AR_MCI_INTERRUPT_SW_MSG_DONE         | \
 				  AR_MCI_INTERRUPT_RX_INVALID_HDR      | \
