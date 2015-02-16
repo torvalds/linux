@@ -606,7 +606,9 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	dgnc_create_ports_sysfiles(brd);
 
 	/* init our poll helper tasklet */
-	tasklet_init(&brd->helper_tasklet, brd->bd_ops->tasklet, (unsigned long) brd);
+	tasklet_init(&brd->helper_tasklet,
+		     brd->bd_ops->tasklet,
+		     (unsigned long) brd);
 
 	spin_lock_irqsave(&dgnc_global_lock, flags);
 	brd->msgbuf = NULL;
