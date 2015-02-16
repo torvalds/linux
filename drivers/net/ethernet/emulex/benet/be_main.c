@@ -811,67 +811,63 @@ static void unmap_tx_frag(struct device *dev, struct be_eth_wrb *wrb,
 	}
 }
 
-/* Returns the number of WRBs used up by the skb */
-static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
-			   struct sk_buff *skb,
-			   struct be_wrb_params *wrb_params)
+/* Grab a WRB header for xmit */
+static u16 be_tx_get_wrb_hdr(struct be_tx_obj *txo)
 {
-	u32 i, copied = 0, wrb_cnt = skb_wrb_cnt(skb);
-	struct device *dev = &adapter->pdev->dev;
-	struct be_queue_info *txq = &txo->q;
-	struct be_eth_hdr_wrb *hdr;
-	bool map_single = false;
-	struct be_eth_wrb *wrb;
-	dma_addr_t busaddr;
-	u16 head = txq->head;
+	u16 head = txo->q.head;
 
-	hdr = queue_head_node(txq);
+	queue_head_inc(&txo->q);
+	return head;
+}
+
+/* Set up the WRB header for xmit */
+static void be_tx_setup_wrb_hdr(struct be_adapter *adapter,
+				struct be_tx_obj *txo,
+				struct be_wrb_params *wrb_params,
+				struct sk_buff *skb, u16 head)
+{
+	u32 num_frags = skb_wrb_cnt(skb);
+	struct be_queue_info *txq = &txo->q;
+	struct be_eth_hdr_wrb *hdr = queue_index_node(txq, head);
+
 	wrb_fill_hdr(adapter, hdr, wrb_params, skb);
 	be_dws_cpu_to_le(hdr, sizeof(*hdr));
-
-	queue_head_inc(txq);
-
-	if (skb->len > skb->data_len) {
-		int len = skb_headlen(skb);
-
-		busaddr = dma_map_single(dev, skb->data, len, DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, busaddr))
-			goto dma_err;
-		map_single = true;
-		wrb = queue_head_node(txq);
-		wrb_fill(wrb, busaddr, len);
-		queue_head_inc(txq);
-		copied += len;
-	}
-
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
-
-		busaddr = skb_frag_dma_map(dev, frag, 0,
-					   skb_frag_size(frag), DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, busaddr))
-			goto dma_err;
-		wrb = queue_head_node(txq);
-		wrb_fill(wrb, busaddr, skb_frag_size(frag));
-		queue_head_inc(txq);
-		copied += skb_frag_size(frag);
-	}
 
 	BUG_ON(txo->sent_skb_list[head]);
 	txo->sent_skb_list[head] = skb;
 	txo->last_req_hdr = head;
-	atomic_add(wrb_cnt, &txq->used);
-	txo->last_req_wrb_cnt = wrb_cnt;
-	txo->pend_wrb_cnt += wrb_cnt;
+	atomic_add(num_frags, &txq->used);
+	txo->last_req_wrb_cnt = num_frags;
+	txo->pend_wrb_cnt += num_frags;
+}
 
-	be_tx_stats_update(txo, skb);
-	return wrb_cnt;
+/* Setup a WRB fragment (buffer descriptor) for xmit */
+static void be_tx_setup_wrb_frag(struct be_tx_obj *txo, dma_addr_t busaddr,
+				 int len)
+{
+	struct be_eth_wrb *wrb;
+	struct be_queue_info *txq = &txo->q;
 
-dma_err:
-	/* Bring the queue back to the state it was in before this
-	 * routine was invoked.
-	 */
+	wrb = queue_head_node(txq);
+	wrb_fill(wrb, busaddr, len);
+	queue_head_inc(txq);
+}
+
+/* Bring the queue back to the state it was in before be_xmit_enqueue() routine
+ * was invoked. The producer index is restored to the previous packet and the
+ * WRBs of the current packet are unmapped. Invoked to handle tx setup errors.
+ */
+static void be_xmit_restore(struct be_adapter *adapter,
+			    struct be_tx_obj *txo, u16 head, bool map_single,
+			    u32 copied)
+{
+	struct device *dev;
+	struct be_eth_wrb *wrb;
+	struct be_queue_info *txq = &txo->q;
+
+	dev = &adapter->pdev->dev;
 	txq->head = head;
+
 	/* skip the first wrb (hdr); it's not mapped */
 	queue_head_inc(txq);
 	while (copied) {
@@ -879,10 +875,60 @@ dma_err:
 		unmap_tx_frag(dev, wrb, map_single);
 		map_single = false;
 		copied -= le32_to_cpu(wrb->frag_len);
-		adapter->drv_stats.dma_map_errors++;
 		queue_head_inc(txq);
 	}
+
 	txq->head = head;
+}
+
+/* Enqueue the given packet for transmit. This routine allocates WRBs for the
+ * packet, dma maps the packet buffers and sets up the WRBs. Returns the number
+ * of WRBs used up by the packet.
+ */
+static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
+			   struct sk_buff *skb,
+			   struct be_wrb_params *wrb_params)
+{
+	u32 i, copied = 0, wrb_cnt = skb_wrb_cnt(skb);
+	struct device *dev = &adapter->pdev->dev;
+	struct be_queue_info *txq = &txo->q;
+	bool map_single = false;
+	u16 head = txq->head;
+	dma_addr_t busaddr;
+	int len;
+
+	head = be_tx_get_wrb_hdr(txo);
+
+	if (skb->len > skb->data_len) {
+		len = skb_headlen(skb);
+
+		busaddr = dma_map_single(dev, skb->data, len, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, busaddr))
+			goto dma_err;
+		map_single = true;
+		be_tx_setup_wrb_frag(txo, busaddr, len);
+		copied += len;
+	}
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		len = skb_frag_size(frag);
+
+		busaddr = skb_frag_dma_map(dev, frag, 0, len, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, busaddr))
+			goto dma_err;
+		be_tx_setup_wrb_frag(txo, busaddr, len);
+		copied += len;
+	}
+
+	be_tx_setup_wrb_hdr(adapter, txo, wrb_params, skb, head);
+
+	be_tx_stats_update(txo, skb);
+	return wrb_cnt;
+
+dma_err:
+	adapter->drv_stats.dma_map_errors++;
+	be_xmit_restore(adapter, txo, head, map_single, copied);
 	return 0;
 }
 
