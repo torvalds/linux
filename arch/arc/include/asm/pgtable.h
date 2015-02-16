@@ -61,6 +61,7 @@
 #define _PAGE_WRITE         (1<<4)	/* Page has user write perm (H) */
 #define _PAGE_READ          (1<<5)	/* Page has user read perm (H) */
 #define _PAGE_DIRTY         (1<<6)	/* Page modified (dirty) (S) */
+#define _PAGE_SPECIAL       (1<<7)
 #define _PAGE_GLOBAL        (1<<8)	/* Page is global (H) */
 #define _PAGE_PRESENT       (1<<10)	/* TLB entry is valid (H) */
 
@@ -72,6 +73,7 @@
 #define _PAGE_READ          (1<<3)	/* Page has user read perm (H) */
 #define _PAGE_ACCESSED      (1<<4)	/* Page is accessed (S) */
 #define _PAGE_DIRTY         (1<<5)	/* Page modified (dirty) (S) */
+#define _PAGE_SPECIAL       (1<<6)
 
 #if (CONFIG_ARC_MMU_VER >= 4)
 #define _PAGE_WTHRU         (1<<7)	/* Page cache mode write-thru (H) */
@@ -292,7 +294,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 #define pte_write(pte)		(pte_val(pte) & _PAGE_WRITE)
 #define pte_dirty(pte)		(pte_val(pte) & _PAGE_DIRTY)
 #define pte_young(pte)		(pte_val(pte) & _PAGE_ACCESSED)
-#define pte_special(pte)	(0)
+#define pte_special(pte)	(pte_val(pte) & _PAGE_SPECIAL)
 
 #define PTE_BIT_FUNC(fn, op) \
 	static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
@@ -305,8 +307,9 @@ PTE_BIT_FUNC(mkold,	&= ~(_PAGE_ACCESSED));
 PTE_BIT_FUNC(mkyoung,	|= (_PAGE_ACCESSED));
 PTE_BIT_FUNC(exprotect,	&= ~(_PAGE_EXECUTE));
 PTE_BIT_FUNC(mkexec,	|= (_PAGE_EXECUTE));
+PTE_BIT_FUNC(mkspecial,	|= (_PAGE_SPECIAL));
 
-static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
+#define __HAVE_ARCH_PTE_SPECIAL
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
