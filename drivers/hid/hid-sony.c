@@ -1134,7 +1134,7 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 	int ret;
 	const int buf_size =
 		max(SIXAXIS_REPORT_0xF2_SIZE, SIXAXIS_REPORT_0xF5_SIZE);
-	char *buf = kmalloc(buf_size, GFP_KERNEL);
+	__u8 *buf = kmalloc(buf_size, GFP_KERNEL);
 
 	if (!buf)
 		return -ENOMEM;
