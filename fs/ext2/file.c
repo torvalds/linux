@@ -109,7 +109,7 @@ const struct file_operations ext2_file_operations = {
 };
 
 #ifdef CONFIG_FS_DAX
-const struct file_operations ext2_xip_file_operations = {
+const struct file_operations ext2_dax_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= new_sync_read,
 	.write		= new_sync_write,
