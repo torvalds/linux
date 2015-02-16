@@ -1131,17 +1131,17 @@ static void sony_input_configured(struct hid_device *hdev,
  */
 static int sixaxis_set_operational_usb(struct hid_device *hdev)
 {
-	int ret;
 	const int buf_size =
 		max(SIXAXIS_REPORT_0xF2_SIZE, SIXAXIS_REPORT_0xF5_SIZE);
-	__u8 *buf = kmalloc(buf_size, GFP_KERNEL);
+	__u8 *buf;
+	int ret;
 
+	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	ret = hid_hw_raw_request(hdev, 0xf2, buf, SIXAXIS_REPORT_0xF2_SIZE,
 				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
-
 	if (ret < 0) {
 		hid_err(hdev, "can't set operational mode: step 1\n");
 		goto out;
@@ -1153,14 +1153,12 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 	 */
 	ret = hid_hw_raw_request(hdev, 0xf5, buf, SIXAXIS_REPORT_0xF5_SIZE,
 				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
-
 	if (ret < 0) {
 		hid_err(hdev, "can't set operational mode: step 2\n");
 		goto out;
 	}
 
 	ret = hid_hw_output_report(hdev, buf, 1);
-
 	if (ret < 0)
 		hid_err(hdev, "can't set operational mode: step 3\n");
 
