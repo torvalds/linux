@@ -2147,8 +2147,8 @@ static void __exit sony_exit(void)
 {
 	dbg_hid("Sony:%s\n", __func__);
 
-	ida_destroy(&sony_device_id_allocator);
 	hid_unregister_driver(&sony_driver);
+	ida_destroy(&sony_device_id_allocator);
 }
 module_init(sony_init);
 module_exit(sony_exit);
