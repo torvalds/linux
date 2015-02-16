@@ -593,7 +593,7 @@ static u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 		if (!time_out)
 			break;
 
-		offset = ar9003_mci_get_next_gpm_offset(ah, false, &more_data);
+		offset = ar9003_mci_get_next_gpm_offset(ah, &more_data);
 
 		if (offset == MCI_GPM_INVALID)
 			continue;
@@ -657,7 +657,7 @@ static u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 		time_out = 0;
 
 	while (more_data == MCI_GPM_MORE) {
-		offset = ar9003_mci_get_next_gpm_offset(ah, false, &more_data);
+		offset = ar9003_mci_get_next_gpm_offset(ah, &more_data);
 		if (offset == MCI_GPM_INVALID)
 			break;
 
@@ -986,7 +986,8 @@ int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	regval &= ~SM(1, AR_MCI_COMMAND2_RESET_RX);
 	REG_WRITE(ah, AR_MCI_COMMAND2, regval);
 
-	ar9003_mci_get_next_gpm_offset(ah, true, NULL);
+	/* Init GPM offset after MCI Reset Rx */
+	ar9003_mci_state(ah, MCI_STATE_INIT_GPM_OFFSET);
 
 	REG_WRITE(ah, AR_MCI_MSG_ATTRIBUTES_TABLE,
 		  (SM(0xe801, AR_MCI_MSG_ATTRIBUTES_TABLE_INVALID_HDR) |
@@ -1280,6 +1281,14 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 		}
 		value &= AR_BTCOEX_CTRL_MCI_MODE_EN;
 		break;
+	case MCI_STATE_INIT_GPM_OFFSET:
+		value = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+
+		if (value < mci->gpm_len)
+			mci->gpm_idx = value;
+		else
+			mci->gpm_idx = 0;
+		break;
 	case MCI_STATE_LAST_SCHD_MSG_OFFSET:
 		value = MS(REG_READ(ah, AR_MCI_RX_STATUS),
 				    AR_MCI_RX_LAST_SCHD_MSG_INDEX);
@@ -1426,20 +1435,10 @@ void ar9003_mci_check_gpm_offset(struct ath_hw *ah)
 	mci->gpm_idx = 0;
 }
 
-u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more)
+u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, u32 *more)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 offset, more_gpm = 0, gpm_ptr;
-
-	if (first) {
-		gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
-
-		if (gpm_ptr >= mci->gpm_len)
-			gpm_ptr = 0;
-
-		mci->gpm_idx = gpm_ptr;
-		return gpm_ptr;
-	}
 
 	/*
 	 * This could be useful to avoid new GPM message interrupt which
