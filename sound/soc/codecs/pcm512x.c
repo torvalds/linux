@@ -863,26 +863,27 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 		dacsrc_rate = sck_rate;
 	}
 
+	osr_div = DIV_ROUND_CLOSEST(dac_rate, osr_rate);
+	if (osr_div > 128) {
+		dev_err(dev, "Failed to find OSR divider\n");
+		return -EINVAL;
+	}
+
 	dac_div = DIV_ROUND_CLOSEST(dacsrc_rate, dac_rate);
 	if (dac_div > 128) {
 		dev_err(dev, "Failed to find DAC divider\n");
 		return -EINVAL;
 	}
+	dac_rate = dacsrc_rate / dac_div;
 
-	ncp_div = DIV_ROUND_CLOSEST(dacsrc_rate / dac_div, 1536000);
-	if (ncp_div > 128 || dacsrc_rate / dac_div / ncp_div > 2048000) {
+	ncp_div = DIV_ROUND_CLOSEST(dac_rate, 1536000);
+	if (ncp_div > 128 || dac_rate / ncp_div > 2048000) {
 		/* run NCP no faster than 2048000 Hz, but why? */
-		ncp_div = DIV_ROUND_UP(dacsrc_rate / dac_div, 2048000);
+		ncp_div = DIV_ROUND_UP(dac_rate, 2048000);
 		if (ncp_div > 128) {
 			dev_err(dev, "Failed to find NCP divider\n");
 			return -EINVAL;
 		}
-	}
-
-	osr_div = DIV_ROUND_CLOSEST(dac_rate, osr_rate);
-	if (osr_div > 128) {
-		dev_err(dev, "Failed to find OSR divider\n");
-		return -EINVAL;
 	}
 
 	idac = mck_rate / (dsp_div * sample_rate);
