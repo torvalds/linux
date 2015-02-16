@@ -456,20 +456,23 @@ static const struct tpm_input_header tpm2_shutdown_header = {
  * @chip:		TPM chip to use.
  * @shutdown_type	shutdown type. The value is either
  *			TPM_SU_CLEAR or TPM_SU_STATE.
- *
- * 0 is returned when the operation is successful. If a negative number is
- * returned it remarks a POSIX error code. If a positive number is returned
- * it remarks a TPM error.
  */
-int tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
+void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
 {
 	struct tpm2_cmd cmd;
+	int rc;
 
 	cmd.header.in = tpm2_shutdown_header;
-
 	cmd.params.startup_in.startup_type = cpu_to_be16(shutdown_type);
-	return tpm_transmit_cmd(chip, &cmd, sizeof(cmd),
-				"stopping the TPM");
+
+	rc = tpm_transmit_cmd(chip, &cmd, sizeof(cmd), "stopping the TPM");
+
+	/* In places where shutdown command is sent there's no much we can do
+	 * except print the error code on a system failure.
+	 */
+	if (rc < 0)
+		dev_warn(chip->pdev, "transmit returned %d while stopping the TPM",
+			 rc);
 }
 EXPORT_SYMBOL_GPL(tpm2_shutdown);
 
@@ -598,20 +601,46 @@ EXPORT_SYMBOL_GPL(tpm2_do_selftest);
 /**
  * tpm2_gen_interrupt() - generate an interrupt
  * @chip: TPM chip to use
- * @quiet: surpress the error message
  *
  * 0 is returned when the operation is successful. If a negative number is
  * returned it remarks a POSIX error code. If a positive number is returned
  * it remarks a TPM error.
  */
-int tpm2_gen_interrupt(struct tpm_chip *chip, bool quiet)
+int tpm2_gen_interrupt(struct tpm_chip *chip)
 {
-	const char *desc = NULL;
 	u32 dummy;
 
-	if (!quiet)
-		desc = "attempting to generate an interrupt";
-
-	return tpm2_get_tpm_pt(chip, TPM2_CAP_TPM_PROPERTIES, &dummy, desc);
+	return tpm2_get_tpm_pt(chip, 0x100, &dummy,
+			       "attempting to generate an interrupt");
 }
 EXPORT_SYMBOL_GPL(tpm2_gen_interrupt);
+
+/**
+ * tpm2_probe() - probe TPM 2.0
+ * @chip: TPM chip to use
+ *
+ * Send idempotent TPM 2.0 command and see whether TPM 2.0 chip replied based on
+ * the reply tag.
+ */
+int tpm2_probe(struct tpm_chip *chip)
+{
+	struct tpm2_cmd cmd;
+	int rc;
+
+	cmd.header.in = tpm2_get_tpm_pt_header;
+	cmd.params.get_tpm_pt_in.cap_id = cpu_to_be32(TPM2_CAP_TPM_PROPERTIES);
+	cmd.params.get_tpm_pt_in.property_id = cpu_to_be32(0x100);
+	cmd.params.get_tpm_pt_in.property_cnt = cpu_to_be32(1);
+
+	rc = tpm_transmit(chip, (const char *) &cmd, sizeof(cmd));
+	if (rc <  0)
+		return rc;
+	else if (rc < TPM_HEADER_SIZE)
+		return -EFAULT;
+
+	if (be16_to_cpu(cmd.header.out.tag) == TPM2_ST_NO_SESSIONS)
+		chip->flags |= TPM_CHIP_FLAG_TPM2;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tpm2_probe);

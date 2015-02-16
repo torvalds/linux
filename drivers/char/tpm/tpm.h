@@ -432,7 +432,8 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,
 			u32 *value, const char *desc);
 
 extern int tpm2_startup(struct tpm_chip *chip, u16 startup_type);
-extern int tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type);
+extern void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type);
 extern unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *, u32);
 extern int tpm2_do_selftest(struct tpm_chip *chip);
-extern int tpm2_gen_interrupt(struct tpm_chip *chip, bool quiet);
+extern int tpm2_gen_interrupt(struct tpm_chip *chip);
+extern int tpm2_probe(struct tpm_chip *chip);

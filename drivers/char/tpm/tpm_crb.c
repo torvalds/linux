@@ -95,21 +95,7 @@ struct crb_priv {
 	u8 __iomem *rsp;
 };
 
-#ifdef CONFIG_PM_SLEEP
-static int crb_resume(struct device *dev)
-{
-	int rc;
-	struct tpm_chip *chip = dev_get_drvdata(dev);
-
-	rc = tpm2_shutdown(chip, TPM2_SU_STATE);
-	if (!rc)
-		rc = tpm2_do_selftest(chip);
-
-	return rc;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(crb_pm, tpm_pm_suspend, crb_resume);
+static SIMPLE_DEV_PM_OPS(crb_pm, tpm_pm_suspend, tpm_pm_resume);
 
 static u8 crb_status(struct tpm_chip *chip)
 {
@@ -326,6 +312,10 @@ static int crb_acpi_remove(struct acpi_device *device)
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
 	tpm_chip_unregister(chip);
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		tpm2_shutdown(chip, TPM2_SU_CLEAR);
+
 	return 0;
 }
 
