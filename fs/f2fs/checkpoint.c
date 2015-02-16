@@ -276,7 +276,7 @@ continue_unlock:
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
-			if (f2fs_write_meta_page(page, &wbc)) {
+			if (mapping->a_ops->writepage(page, &wbc)) {
 				unlock_page(page);
 				break;
 			}
