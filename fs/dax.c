@@ -20,7 +20,44 @@
 #include <linux/fs.h>
 #include <linux/genhd.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <linux/uio.h>
+
+int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+{
+	struct block_device *bdev = inode->i_sb->s_bdev;
+	sector_t sector = block << (inode->i_blkbits - 9);
+
+	might_sleep();
+	do {
+		void *addr;
+		unsigned long pfn;
+		long count;
+
+		count = bdev_direct_access(bdev, sector, &addr, &pfn, size);
+		if (count < 0)
+			return count;
+		BUG_ON(size < count);
+		while (count > 0) {
+			unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
+			if (pgsz > count)
+				pgsz = count;
+			if (pgsz < PAGE_SIZE)
+				memset(addr, 0, pgsz);
+			else
+				clear_page(addr);
+			addr += pgsz;
+			size -= pgsz;
+			count -= pgsz;
+			BUG_ON(pgsz & 511);
+			sector += pgsz / 512;
+			cond_resched();
+		}
+	} while (size);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dax_clear_blocks);
 
 static long dax_get_addr(struct buffer_head *bh, void **addr, unsigned blkbits)
 {

@@ -2589,6 +2589,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
 
 ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
 		loff_t, get_block_t, dio_iodone_t, int flags);
+int dax_clear_blocks(struct inode *, sector_t block, long size);
 
 #ifdef CONFIG_FS_XIP
 extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
