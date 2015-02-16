@@ -212,6 +212,11 @@
 #define AR_BTCOEX_CTRL_SPDT_POLARITY                    0x80000000
 #define AR_BTCOEX_CTRL_SPDT_POLARITY_S                  31
 
+#define AR_BTCOEX_WL_WEIGHTS0                           0x18b0
+#define AR_BTCOEX_WL_WEIGHTS1                           0x18b4
+#define AR_BTCOEX_WL_WEIGHTS2                           0x18b8
+#define AR_BTCOEX_WL_WEIGHTS3                           0x18bc
+
 #define AR_BTCOEX_MAX_TXPWR(_x)                         (0x18c0 + ((_x) << 2))
 #define AR_BTCOEX_WL_LNA                                0x1940
 #define AR_BTCOEX_RFGAIN_CTRL                           0x1944
