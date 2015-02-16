@@ -406,12 +406,42 @@ static int pnv_eeh_err_inject(struct eeh_pe *pe, int type, int func,
 {
 	struct pci_controller *hose = pe->phb;
 	struct pnv_phb *phb = hose->private_data;
-	int ret = -EEXIST;
+	s64 rc;
 
-	if (phb->eeh_ops && phb->eeh_ops->err_inject)
-		ret = phb->eeh_ops->err_inject(pe, type, func, addr, mask);
+	/* Sanity check on error type */
+	if (type != OPAL_ERR_INJECT_TYPE_IOA_BUS_ERR &&
+	    type != OPAL_ERR_INJECT_TYPE_IOA_BUS_ERR64) {
+		pr_warn("%s: Invalid error type %d\n",
+			__func__, type);
+		return -ERANGE;
+	}
 
-	return ret;
+	if (func < OPAL_ERR_INJECT_FUNC_IOA_LD_MEM_ADDR ||
+	    func > OPAL_ERR_INJECT_FUNC_IOA_DMA_WR_TARGET) {
+		pr_warn("%s: Invalid error function %d\n",
+			__func__, func);
+		return -ERANGE;
+	}
+
+	/* Firmware supports error injection ? */
+	if (!opal_check_token(OPAL_PCI_ERR_INJECT)) {
+		pr_warn("%s: Firmware doesn't support error injection\n",
+			__func__);
+		return -ENXIO;
+	}
+
+	/* Do error injection */
+	rc = opal_pci_err_inject(phb->opal_id, pe->addr,
+				 type, func, addr, mask);
+	if (rc != OPAL_SUCCESS) {
+		pr_warn("%s: Failure %lld injecting error "
+			"%d-%d to PHB#%x-PE#%x\n",
+			__func__, rc, type, func,
+			hose->global_number, pe->addr);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static inline bool pnv_eeh_cfg_blocked(struct device_node *dn)
