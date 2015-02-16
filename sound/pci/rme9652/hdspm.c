@@ -6354,19 +6354,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	return 0;
 }
 
-static struct snd_pcm_ops snd_hdspm_playback_ops = {
-	.open = snd_hdspm_open,
-	.close = snd_hdspm_release,
-	.ioctl = snd_hdspm_ioctl,
-	.hw_params = snd_hdspm_hw_params,
-	.hw_free = snd_hdspm_hw_free,
-	.prepare = snd_hdspm_prepare,
-	.trigger = snd_hdspm_trigger,
-	.pointer = snd_hdspm_hw_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
-};
-
-static struct snd_pcm_ops snd_hdspm_capture_ops = {
+static struct snd_pcm_ops snd_hdspm_ops = {
 	.open = snd_hdspm_open,
 	.close = snd_hdspm_release,
 	.ioctl = snd_hdspm_ioctl,
@@ -6462,9 +6450,9 @@ static int snd_hdspm_create_pcm(struct snd_card *card,
 	strcpy(pcm->name, hdspm->card_name);
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-			&snd_hdspm_playback_ops);
+			&snd_hdspm_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
-			&snd_hdspm_capture_ops);
+			&snd_hdspm_ops);
 
 	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
 
