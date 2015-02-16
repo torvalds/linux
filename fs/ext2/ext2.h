@@ -380,7 +380,7 @@ struct ext2_inode {
 #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
 #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
 #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
-#ifdef CONFIG_FS_XIP
+#ifdef CONFIG_FS_DAX
 #define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
 #else
 #define EXT2_MOUNT_XIP			0
