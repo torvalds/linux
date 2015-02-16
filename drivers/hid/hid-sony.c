@@ -1139,9 +1139,29 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 	ret = hid_hw_raw_request(hdev, 0xf2, buf, 17, HID_FEATURE_REPORT,
 				 HID_REQ_GET_REPORT);
 
-	if (ret < 0)
-		hid_err(hdev, "can't set operational mode\n");
+	if (ret < 0) {
+		hid_err(hdev, "can't set operational mode: step 1\n");
+		goto out;
+	}
 
+	/*
+	 * Some compatible controllers like the Speedlink Strike FX and
+	 * Gasia need another query plus an USB interrupt to get operational.
+	 */
+	ret = hid_hw_raw_request(hdev, 0xf5, buf, 8, HID_FEATURE_REPORT,
+				 HID_REQ_GET_REPORT);
+
+	if (ret < 0) {
+		hid_err(hdev, "can't set operational mode: step 2\n");
+		goto out;
+	}
+
+	ret = hid_hw_output_report(hdev, buf, 1);
+
+	if (ret < 0)
+		hid_err(hdev, "can't set operational mode: step 3\n");
+
+out:
 	kfree(buf);
 
 	return ret;
