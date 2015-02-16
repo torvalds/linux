@@ -109,7 +109,14 @@ enum mci_gpm_coex_bt_update_flags_op {
 #define ATH_MCI_CONFIG_MCI_OBS_MASK     (ATH_MCI_CONFIG_MCI_OBS_MCI  | \
 					 ATH_MCI_CONFIG_MCI_OBS_TXRX | \
 					 ATH_MCI_CONFIG_MCI_OBS_BT)
+
 #define ATH_MCI_CONFIG_MCI_OBS_GPIO     0x0000002F
+
+#define ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_NON_SHARED 0x00
+#define ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_SHARED     0x01
+#define ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_NON_SHARED 0x02
+#define ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_SHARED     0x03
+#define ATH_MCI_ANT_ARCH_3_ANT                   0x04
 
 enum mci_message_header {		/* length of payload */
 	MCI_LNA_CTRL     = 0x10,        /* len = 0 */

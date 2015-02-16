@@ -821,6 +821,61 @@ static void ar9003_mci_osla_setup(struct ath_hw *ah, bool enable)
 		      AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN, 1);
 }
 
+static void ar9003_mci_set_btcoex_ctrl_9565_1ANT(struct ath_hw *ah)
+{
+	u32 regval;
+
+	regval = SM(1, AR_BTCOEX_CTRL_AR9462_MODE) |
+		 SM(1, AR_BTCOEX_CTRL_WBTIMER_EN) |
+		 SM(1, AR_BTCOEX_CTRL_PA_SHARED) |
+		 SM(1, AR_BTCOEX_CTRL_LNA_SHARED) |
+		 SM(1, AR_BTCOEX_CTRL_NUM_ANTENNAS) |
+		 SM(1, AR_BTCOEX_CTRL_RX_CHAIN_MASK) |
+		 SM(0, AR_BTCOEX_CTRL_1_CHAIN_ACK) |
+		 SM(0, AR_BTCOEX_CTRL_1_CHAIN_BCN) |
+		 SM(0, AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
+
+	REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2,
+		      AR_BTCOEX_CTRL2_TX_CHAIN_MASK, 0x1);
+	REG_WRITE(ah, AR_BTCOEX_CTRL, regval);
+}
+
+static void ar9003_mci_set_btcoex_ctrl_9565_2ANT(struct ath_hw *ah)
+{
+	u32 regval;
+
+	regval = SM(1, AR_BTCOEX_CTRL_AR9462_MODE) |
+		 SM(1, AR_BTCOEX_CTRL_WBTIMER_EN) |
+		 SM(0, AR_BTCOEX_CTRL_PA_SHARED) |
+		 SM(0, AR_BTCOEX_CTRL_LNA_SHARED) |
+		 SM(2, AR_BTCOEX_CTRL_NUM_ANTENNAS) |
+		 SM(1, AR_BTCOEX_CTRL_RX_CHAIN_MASK) |
+		 SM(0, AR_BTCOEX_CTRL_1_CHAIN_ACK) |
+		 SM(0, AR_BTCOEX_CTRL_1_CHAIN_BCN) |
+		 SM(0, AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
+
+	REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2,
+		      AR_BTCOEX_CTRL2_TX_CHAIN_MASK, 0x0);
+	REG_WRITE(ah, AR_BTCOEX_CTRL, regval);
+}
+
+static void ar9003_mci_set_btcoex_ctrl_9462(struct ath_hw *ah)
+{
+	u32 regval;
+
+        regval = SM(1, AR_BTCOEX_CTRL_AR9462_MODE) |
+		 SM(1, AR_BTCOEX_CTRL_WBTIMER_EN) |
+		 SM(1, AR_BTCOEX_CTRL_PA_SHARED) |
+		 SM(1, AR_BTCOEX_CTRL_LNA_SHARED) |
+		 SM(2, AR_BTCOEX_CTRL_NUM_ANTENNAS) |
+		 SM(3, AR_BTCOEX_CTRL_RX_CHAIN_MASK) |
+		 SM(0, AR_BTCOEX_CTRL_1_CHAIN_ACK) |
+		 SM(0, AR_BTCOEX_CTRL_1_CHAIN_BCN) |
+		 SM(0, AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
+
+	REG_WRITE(ah, AR_BTCOEX_CTRL, regval);
+}
+
 int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		     bool is_full_sleep)
 {
@@ -845,25 +900,16 @@ int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	* To avoid MCI state machine be affected by incoming remote MCI msgs,
 	* MCI mode will be enabled later, right before reset the MCI TX and RX.
 	*/
-
-	regval = SM(1, AR_BTCOEX_CTRL_AR9462_MODE) |
-		 SM(1, AR_BTCOEX_CTRL_WBTIMER_EN) |
-		 SM(1, AR_BTCOEX_CTRL_PA_SHARED) |
-		 SM(1, AR_BTCOEX_CTRL_LNA_SHARED) |
-		 SM(0, AR_BTCOEX_CTRL_1_CHAIN_ACK) |
-		 SM(0, AR_BTCOEX_CTRL_1_CHAIN_BCN) |
-		 SM(0, AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
 	if (AR_SREV_9565(ah)) {
-		regval |= SM(1, AR_BTCOEX_CTRL_NUM_ANTENNAS) |
-			  SM(1, AR_BTCOEX_CTRL_RX_CHAIN_MASK);
-		REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2,
-			      AR_BTCOEX_CTRL2_TX_CHAIN_MASK, 0x1);
-	} else {
-		regval |= SM(2, AR_BTCOEX_CTRL_NUM_ANTENNAS) |
-			  SM(3, AR_BTCOEX_CTRL_RX_CHAIN_MASK);
-	}
+		u8 ant = MS(mci->config, ATH_MCI_CONFIG_ANT_ARCH);
 
-	REG_WRITE(ah, AR_BTCOEX_CTRL, regval);
+		if (ant == ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_SHARED)
+			ar9003_mci_set_btcoex_ctrl_9565_1ANT(ah);
+		else
+			ar9003_mci_set_btcoex_ctrl_9565_2ANT(ah);
+	} else {
+		ar9003_mci_set_btcoex_ctrl_9462(ah);
+	}
 
 	if (is_2g && !(mci->config & ATH_MCI_CONFIG_DISABLE_OSLA))
 		ar9003_mci_osla_setup(ah, true);
