@@ -420,10 +420,9 @@ static int wm_coeff_put(struct snd_kcontrol *kcontrol,
 
 	memcpy(ctl->cache, p, ctl->len);
 
-	if (!ctl->enabled) {
-		ctl->set = 1;
+	ctl->set = 1;
+	if (!ctl->enabled)
 		return 0;
-	}
 
 	return wm_coeff_write_control(kcontrol, p, ctl->len);
 }
