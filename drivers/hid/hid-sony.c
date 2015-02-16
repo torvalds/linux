@@ -803,6 +803,7 @@ union sixaxis_output_report_01 {
 #define DS4_REPORT_0x11_SIZE 78
 #define DS4_REPORT_0x81_SIZE 7
 #define SIXAXIS_REPORT_0xF2_SIZE 17
+#define SIXAXIS_REPORT_0xF5_SIZE 8
 
 static spinlock_t sony_dev_list_lock;
 static LIST_HEAD(sony_device_list);
@@ -1131,13 +1132,15 @@ static void sony_input_configured(struct hid_device *hdev,
 static int sixaxis_set_operational_usb(struct hid_device *hdev)
 {
 	int ret;
-	char *buf = kmalloc(18, GFP_KERNEL);
+	const int buf_size =
+		max(SIXAXIS_REPORT_0xF2_SIZE, SIXAXIS_REPORT_0xF5_SIZE);
+	char *buf = kmalloc(buf_size, GFP_KERNEL);
 
 	if (!buf)
 		return -ENOMEM;
 
-	ret = hid_hw_raw_request(hdev, 0xf2, buf, 17, HID_FEATURE_REPORT,
-				 HID_REQ_GET_REPORT);
+	ret = hid_hw_raw_request(hdev, 0xf2, buf, SIXAXIS_REPORT_0xF2_SIZE,
+				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 
 	if (ret < 0) {
 		hid_err(hdev, "can't set operational mode: step 1\n");
@@ -1148,8 +1151,8 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 	 * Some compatible controllers like the Speedlink Strike FX and
 	 * Gasia need another query plus an USB interrupt to get operational.
 	 */
-	ret = hid_hw_raw_request(hdev, 0xf5, buf, 8, HID_FEATURE_REPORT,
-				 HID_REQ_GET_REPORT);
+	ret = hid_hw_raw_request(hdev, 0xf5, buf, SIXAXIS_REPORT_0xF5_SIZE,
+				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 
 	if (ret < 0) {
 		hid_err(hdev, "can't set operational mode: step 2\n");
