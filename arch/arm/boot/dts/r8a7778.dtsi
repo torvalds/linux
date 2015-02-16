@@ -41,6 +41,13 @@
 		spi2 = &hspi2;
 	};
 
+	bsc: bus@1c000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x1c000000>;
+	};
+
 	ether: ethernet@fde00000 {
 		compatible = "renesas,ether-r8a7778";
 		reg = <0xfde00000 0x400>;
