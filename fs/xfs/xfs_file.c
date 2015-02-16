@@ -36,6 +36,7 @@
 #include "xfs_trace.h"
 #include "xfs_log.h"
 #include "xfs_icache.h"
+#include "xfs_pnfs.h"
 
 #include <linux/aio.h>
 #include <linux/dcache.h>
@@ -554,6 +555,10 @@ restart:
 	if (error)
 		return error;
 
+	error = xfs_break_layouts(inode, iolock);
+	if (error)
+		return error;
+
 	/*
 	 * If the offset is beyond the size of the file, we need to zero any
 	 * blocks that fall between the existing EOF and the start of this
@@ -822,6 +827,7 @@ xfs_file_fallocate(
 	struct xfs_inode	*ip = XFS_I(inode);
 	long			error;
 	enum xfs_prealloc_flags	flags = 0;
+	uint			iolock = XFS_IOLOCK_EXCL;
 	loff_t			new_size = 0;
 
 	if (!S_ISREG(inode->i_mode))
@@ -830,7 +836,11 @@ xfs_file_fallocate(
 		     FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE))
 		return -EOPNOTSUPP;
 
-	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+	xfs_ilock(ip, iolock);
+	error = xfs_break_layouts(inode, &iolock);
+	if (error)
+		goto out_unlock;
+
 	if (mode & FALLOC_FL_PUNCH_HOLE) {
 		error = xfs_free_file_space(ip, offset, len);
 		if (error)
@@ -894,7 +904,7 @@ xfs_file_fallocate(
 	}
 
 out_unlock:
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	xfs_iunlock(ip, iolock);
 	return error;
 }
 

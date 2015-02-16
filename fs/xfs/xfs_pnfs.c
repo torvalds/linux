@@ -19,6 +19,36 @@
 #include "xfs_pnfs.h"
 
 /*
+ * Ensure that we do not have any outstanding pNFS layouts that can be used by
+ * clients to directly read from or write to this inode.  This must be called
+ * before every operation that can remove blocks from the extent map.
+ * Additionally we call it during the write operation, where aren't concerned
+ * about exposing unallocated blocks but just want to provide basic
+ * synchronization between a local writer and pNFS clients.  mmap writes would
+ * also benefit from this sort of synchronization, but due to the tricky locking
+ * rules in the page fault path we don't bother.
+ */
+int
+xfs_break_layouts(
+	struct inode		*inode,
+	uint			*iolock)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	int			error;
+
+	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL));
+
+	while ((error = break_layout(inode, false) == -EWOULDBLOCK)) {
+		xfs_iunlock(ip, *iolock);
+		error = break_layout(inode, true);
+		*iolock = XFS_IOLOCK_EXCL;
+		xfs_ilock(ip, *iolock);
+	}
+
+	return error;
+}
+
+/*
  * Get a unique ID including its location so that the client can identify
  * the exported device.
  */
