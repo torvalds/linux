@@ -530,20 +530,6 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 	return ret;
 }
 
-/**
- * ioda_eeh_configure_bridge - Configure the PCI bridges for the indicated PE
- * @pe: EEH PE
- *
- * For particular PE, it might have included PCI bridges. In order
- * to make the PE work properly, those PCI bridges should be configured
- * correctly. However, we need do nothing on P7IOC since the reset
- * function will do everything that should be covered by the function.
- */
-static int ioda_eeh_configure_bridge(struct eeh_pe *pe)
-{
-	return 0;
-}
-
 static void ioda_eeh_hub_diag_common(struct OpalIoP7IOCErrorData *data)
 {
 	/* GEM */
@@ -886,6 +872,5 @@ struct pnv_eeh_ops ioda_eeh_ops = {
 	.set_option		= ioda_eeh_set_option,
 	.get_state		= ioda_eeh_get_state,
 	.reset			= ioda_eeh_reset,
-	.configure_bridge	= ioda_eeh_configure_bridge,
 	.next_error		= ioda_eeh_next_error
 };

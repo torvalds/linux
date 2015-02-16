@@ -549,14 +549,7 @@ static int pnv_eeh_get_log(struct eeh_pe *pe, int severity,
  */
 static int pnv_eeh_configure_bridge(struct eeh_pe *pe)
 {
-	struct pci_controller *hose = pe->phb;
-	struct pnv_phb *phb = hose->private_data;
-	int ret = 0;
-
-	if (phb->eeh_ops && phb->eeh_ops->configure_bridge)
-		ret = phb->eeh_ops->configure_bridge(pe);
-
-	return ret;
+	return 0;
 }
 
 /**
