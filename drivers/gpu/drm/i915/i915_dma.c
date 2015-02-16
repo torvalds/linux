@@ -92,6 +92,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_VEBOX:
 		value = intel_ring_initialized(&dev_priv->ring[VECS]);
 		break;
+	case I915_PARAM_HAS_BSD2:
+		value = intel_ring_initialized(&dev_priv->ring[VCS2]);
+		break;
 	case I915_PARAM_HAS_RELAXED_FENCING:
 		value = 1;
 		break;
@@ -141,6 +144,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = i915_cmd_parser_get_version();
 		break;
 	case I915_PARAM_HAS_COHERENT_PHYS_GTT:
+		value = 1;
+		break;
+	case I915_PARAM_MMAP_VERSION:
 		value = 1;
 		break;
 	default:
@@ -598,6 +604,17 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 			info->num_pipes = 0;
 		}
 	}
+
+	if (IS_CHERRYVIEW(dev)) {
+		u32 fuse, mask_eu;
+
+		fuse = I915_READ(CHV_FUSE_GT);
+		mask_eu = fuse & (CHV_FGT_EU_DIS_SS0_R0_MASK |
+				  CHV_FGT_EU_DIS_SS0_R1_MASK |
+				  CHV_FGT_EU_DIS_SS1_R0_MASK |
+				  CHV_FGT_EU_DIS_SS1_R1_MASK);
+		info->eu_total = 16 - hweight32(mask_eu);
+	}
 }
 
 /**
@@ -773,6 +790,14 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_freewq;
 	}
 
+	dev_priv->gpu_error.hangcheck_wq =
+		alloc_ordered_workqueue("i915-hangcheck", 0);
+	if (dev_priv->gpu_error.hangcheck_wq == NULL) {
+		DRM_ERROR("Failed to create our hangcheck workqueue.\n");
+		ret = -ENOMEM;
+		goto out_freedpwq;
+	}
+
 	intel_irq_init(dev_priv);
 	intel_uncore_sanitize(dev);
 
@@ -847,6 +872,8 @@ out_gem_unload:
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
+	destroy_workqueue(dev_priv->gpu_error.hangcheck_wq);
+out_freedpwq:
 	destroy_workqueue(dev_priv->dp_wq);
 out_freewq:
 	destroy_workqueue(dev_priv->wq);
@@ -917,8 +944,7 @@ int i915_driver_unload(struct drm_device *dev)
 	}
 
 	/* Free error state after interrupts are fully disabled. */
-	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
-	cancel_work_sync(&dev_priv->gpu_error.work);
+	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	i915_destroy_error_state(dev);
 
 	if (dev->pdev->msi_enabled)
@@ -932,6 +958,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_cleanup_ringbuffer(dev);
+		i915_gem_batch_pool_fini(&dev_priv->mm.batch_pool);
 		i915_gem_context_fini(dev);
 		mutex_unlock(&dev->struct_mutex);
 		i915_gem_cleanup_stolen(dev);
@@ -942,6 +969,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	destroy_workqueue(dev_priv->dp_wq);
 	destroy_workqueue(dev_priv->wq);
+	destroy_workqueue(dev_priv->gpu_error.hangcheck_wq);
 	pm_qos_remove_request(&dev_priv->pm_qos);
 
 	i915_global_gtt_cleanup(dev);
@@ -1008,6 +1036,13 @@ void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	kfree(file_priv);
 }
 
+static int
+i915_gem_reject_pin_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file)
+{
+	return -ENODEV;
+}
+
 const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_INIT, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_FLUSH, drm_noop, DRM_AUTH),
@@ -1029,8 +1064,8 @@ const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_INIT, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(I915_GEM_EXECBUFFER, i915_gem_execbuffer, DRM_AUTH|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(I915_GEM_EXECBUFFER2, i915_gem_execbuffer2, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(I915_GEM_PIN, i915_gem_pin_ioctl, DRM_AUTH|DRM_ROOT_ONLY|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(I915_GEM_UNPIN, i915_gem_unpin_ioctl, DRM_AUTH|DRM_ROOT_ONLY|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(I915_GEM_PIN, i915_gem_reject_pin_ioctl, DRM_AUTH|DRM_ROOT_ONLY|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(I915_GEM_UNPIN, i915_gem_reject_pin_ioctl, DRM_AUTH|DRM_ROOT_ONLY|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(I915_GEM_BUSY, i915_gem_busy_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_SET_CACHING, i915_gem_set_caching_ioctl, DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_GET_CACHING, i915_gem_get_caching_ioctl, DRM_UNLOCKED|DRM_RENDER_ALLOW),
@@ -1059,6 +1094,8 @@ const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_REG_READ, i915_reg_read_ioctl, DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GET_RESET_STATS, i915_get_reset_stats_ioctl, DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_USERPTR, i915_gem_userptr_ioctl, DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_GETPARAM, i915_gem_context_getparam_ioctl, DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_SETPARAM, i915_gem_context_setparam_ioctl, DRM_UNLOCKED|DRM_RENDER_ALLOW),
 };
 
 int i915_max_ioctl = ARRAY_SIZE(i915_ioctls);

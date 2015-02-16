@@ -115,7 +115,7 @@ bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_display_power_is_enabled - unlocked check for a power domain
+ * intel_display_power_is_enabled - check for a power domain
  * @dev_priv: i915 device instance
  * @domain: power domain to check
  *
@@ -703,6 +703,10 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |		\
 	BIT(POWER_DOMAIN_PORT_CRT) |			\
 	BIT(POWER_DOMAIN_PLLS) |			\
+	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_AUX_B) |			\
+	BIT(POWER_DOMAIN_AUX_C) |			\
+	BIT(POWER_DOMAIN_AUX_D) |			\
 	BIT(POWER_DOMAIN_INIT))
 #define HSW_DISPLAY_POWER_DOMAINS (				\
 	(POWER_DOMAIN_MASK & ~HSW_ALWAYS_ON_POWER_DOMAINS) |	\
@@ -724,24 +728,30 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_PORT_DDI_C_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_CRT) |		\
+	BIT(POWER_DOMAIN_AUX_B) |		\
+	BIT(POWER_DOMAIN_AUX_C) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_B_LANES_01_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_B_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_B) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_B_LANES_23_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_B) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_C) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_C) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define CHV_PIPE_A_POWER_DOMAINS (	\
@@ -761,20 +771,25 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_B) |		\
+	BIT(POWER_DOMAIN_AUX_C) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define CHV_DPIO_CMN_D_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_D) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_D) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_D) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {

@@ -165,14 +165,25 @@ void mdp5_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 int mdp5_irq_domain_init(struct mdp5_kms *mdp5_kms);
 void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
+static inline bool pipe_supports_yuv(enum mdp5_pipe pipe)
+{
+	switch (pipe) {
+	case SSPP_VIG0:
+	case SSPP_VIG1:
+	case SSPP_VIG2:
+	case SSPP_VIG3:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static inline
 uint32_t mdp5_get_formats(enum mdp5_pipe pipe, uint32_t *pixel_formats,
 		uint32_t max_formats)
 {
-	/* TODO when we have YUV, we need to filter supported formats
-	 * based on pipe id..
-	 */
-	return mdp_get_formats(pixel_formats, max_formats);
+	return mdp_get_formats(pixel_formats, max_formats,
+				!pipe_supports_yuv(pipe));
 }
 
 void mdp5_plane_install_properties(struct drm_plane *plane,

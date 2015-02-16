@@ -31,6 +31,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include "intel_drv.h"
@@ -908,14 +909,14 @@ intel_tv_mode_valid(struct drm_connector *connector,
 
 static void
 intel_tv_get_config(struct intel_encoder *encoder,
-		    struct intel_crtc_config *pipe_config)
+		    struct intel_crtc_state *pipe_config)
 {
-	pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
+	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static bool
 intel_tv_compute_config(struct intel_encoder *encoder,
-			struct intel_crtc_config *pipe_config)
+			struct intel_crtc_state *pipe_config)
 {
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
@@ -923,12 +924,12 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	if (!tv_mode)
 		return false;
 
-	pipe_config->adjusted_mode.crtc_clock = tv_mode->clock;
+	pipe_config->base.adjusted_mode.crtc_clock = tv_mode->clock;
 	DRM_DEBUG_KMS("forcing bpc to 8 for TV\n");
 	pipe_config->pipe_bpp = 8*3;
 
 	/* TV has it's own notion of sync and other mode flags, so clear them. */
-	pipe_config->adjusted_mode.flags = 0;
+	pipe_config->base.adjusted_mode.flags = 0;
 
 	/*
 	 * FIXME: We don't check whether the input mode is actually what we want
@@ -1512,7 +1513,9 @@ static const struct drm_connector_funcs intel_tv_connector_funcs = {
 	.detect = intel_tv_detect,
 	.destroy = intel_tv_destroy,
 	.set_property = intel_tv_set_property,
+	.atomic_get_property = intel_connector_atomic_get_property,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_helper_funcs intel_tv_connector_helper_funcs = {

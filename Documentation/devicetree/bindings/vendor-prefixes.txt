@@ -25,6 +25,7 @@ asahi-kasei	Asahi Kasei Corp.
 atmel	Atmel Corporation
 auo	AU Optronics Corporation
 avago	Avago Technologies
+avic	Shanghai AVIC Optoelectronics Co., Ltd.
 bosch	Bosch Sensortec GmbH
 brcm	Broadcom Corporation
 buffalo	Buffalo, Inc.
@@ -68,6 +69,7 @@ fsl	Freescale Semiconductor
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 geniatech	Geniatech, Inc.
+giantplus	Giantplus Technology Co., Ltd.
 globalscale	Globalscale Technologies, Inc.
 gmt	Global Mixed-mode Technology, Inc.
 google	Google, Inc.
@@ -126,6 +128,7 @@ onnn	ON Semiconductor Corp.
 opencores	OpenCores.org
 ovti	OmniVision Technologies
 panasonic	Panasonic Corporation
+parade	Parade Technologies Inc.
 pericom	Pericom Technology Inc.
 phytec	PHYTEC Messtechnik GmbH
 picochip	Picochip Ltd

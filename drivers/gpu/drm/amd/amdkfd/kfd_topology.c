@@ -27,6 +27,7 @@
 #include <linux/acpi.h>
 #include <linux/hash.h>
 #include <linux/cpufreq.h>
+#include <linux/log2.h>
 
 #include "kfd_priv.h"
 #include "kfd_crat.h"
@@ -630,10 +631,10 @@ static struct kobj_type cache_type = {
 static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		char *buffer)
 {
-	ssize_t ret;
 	struct kfd_topology_device *dev;
 	char public_name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
 	uint32_t i;
+	uint32_t log_max_watch_addr;
 
 	/* Making sure that the buffer is an empty string */
 	buffer[0] = 0;
@@ -641,8 +642,10 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 	if (strcmp(attr->name, "gpu_id") == 0) {
 		dev = container_of(attr, struct kfd_topology_device,
 				attr_gpuid);
-		ret = sysfs_show_32bit_val(buffer, dev->gpu_id);
-	} else if (strcmp(attr->name, "name") == 0) {
+		return sysfs_show_32bit_val(buffer, dev->gpu_id);
+	}
+
+	if (strcmp(attr->name, "name") == 0) {
 		dev = container_of(attr, struct kfd_topology_device,
 				attr_name);
 		for (i = 0; i < KFD_TOPOLOGY_PUBLIC_NAME_SIZE; i++) {
@@ -652,80 +655,90 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 				break;
 		}
 		public_name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE-1] = 0x0;
-		ret = sysfs_show_str_val(buffer, public_name);
-	} else {
-		dev = container_of(attr, struct kfd_topology_device,
-				attr_props);
-		sysfs_show_32bit_prop(buffer, "cpu_cores_count",
-				dev->node_props.cpu_cores_count);
-		sysfs_show_32bit_prop(buffer, "simd_count",
-				dev->node_props.simd_count);
-
-		if (dev->mem_bank_count < dev->node_props.mem_banks_count) {
-			pr_warn("kfd: mem_banks_count truncated from %d to %d\n",
-					dev->node_props.mem_banks_count,
-					dev->mem_bank_count);
-			sysfs_show_32bit_prop(buffer, "mem_banks_count",
-					dev->mem_bank_count);
-		} else {
-			sysfs_show_32bit_prop(buffer, "mem_banks_count",
-					dev->node_props.mem_banks_count);
-		}
-
-		sysfs_show_32bit_prop(buffer, "caches_count",
-				dev->node_props.caches_count);
-		sysfs_show_32bit_prop(buffer, "io_links_count",
-				dev->node_props.io_links_count);
-		sysfs_show_32bit_prop(buffer, "cpu_core_id_base",
-				dev->node_props.cpu_core_id_base);
-		sysfs_show_32bit_prop(buffer, "simd_id_base",
-				dev->node_props.simd_id_base);
-		sysfs_show_32bit_prop(buffer, "capability",
-				dev->node_props.capability);
-		sysfs_show_32bit_prop(buffer, "max_waves_per_simd",
-				dev->node_props.max_waves_per_simd);
-		sysfs_show_32bit_prop(buffer, "lds_size_in_kb",
-				dev->node_props.lds_size_in_kb);
-		sysfs_show_32bit_prop(buffer, "gds_size_in_kb",
-				dev->node_props.gds_size_in_kb);
-		sysfs_show_32bit_prop(buffer, "wave_front_size",
-				dev->node_props.wave_front_size);
-		sysfs_show_32bit_prop(buffer, "array_count",
-				dev->node_props.array_count);
-		sysfs_show_32bit_prop(buffer, "simd_arrays_per_engine",
-				dev->node_props.simd_arrays_per_engine);
-		sysfs_show_32bit_prop(buffer, "cu_per_simd_array",
-				dev->node_props.cu_per_simd_array);
-		sysfs_show_32bit_prop(buffer, "simd_per_cu",
-				dev->node_props.simd_per_cu);
-		sysfs_show_32bit_prop(buffer, "max_slots_scratch_cu",
-				dev->node_props.max_slots_scratch_cu);
-		sysfs_show_32bit_prop(buffer, "vendor_id",
-				dev->node_props.vendor_id);
-		sysfs_show_32bit_prop(buffer, "device_id",
-				dev->node_props.device_id);
-		sysfs_show_32bit_prop(buffer, "location_id",
-				dev->node_props.location_id);
-
-		if (dev->gpu) {
-			sysfs_show_32bit_prop(buffer, "max_engine_clk_fcompute",
-					kfd2kgd->get_max_engine_clock_in_mhz(
-						dev->gpu->kgd));
-			sysfs_show_64bit_prop(buffer, "local_mem_size",
-					kfd2kgd->get_vmem_size(dev->gpu->kgd));
-
-			sysfs_show_32bit_prop(buffer, "fw_version",
-					kfd2kgd->get_fw_version(
-							dev->gpu->kgd,
-							KGD_ENGINE_MEC1));
-
-		}
-
-		ret = sysfs_show_32bit_prop(buffer, "max_engine_clk_ccompute",
-				cpufreq_quick_get_max(0)/1000);
+		return sysfs_show_str_val(buffer, public_name);
 	}
 
-	return ret;
+	dev = container_of(attr, struct kfd_topology_device,
+			attr_props);
+	sysfs_show_32bit_prop(buffer, "cpu_cores_count",
+			dev->node_props.cpu_cores_count);
+	sysfs_show_32bit_prop(buffer, "simd_count",
+			dev->node_props.simd_count);
+
+	if (dev->mem_bank_count < dev->node_props.mem_banks_count) {
+		pr_warn("kfd: mem_banks_count truncated from %d to %d\n",
+				dev->node_props.mem_banks_count,
+				dev->mem_bank_count);
+		sysfs_show_32bit_prop(buffer, "mem_banks_count",
+				dev->mem_bank_count);
+	} else {
+		sysfs_show_32bit_prop(buffer, "mem_banks_count",
+				dev->node_props.mem_banks_count);
+	}
+
+	sysfs_show_32bit_prop(buffer, "caches_count",
+			dev->node_props.caches_count);
+	sysfs_show_32bit_prop(buffer, "io_links_count",
+			dev->node_props.io_links_count);
+	sysfs_show_32bit_prop(buffer, "cpu_core_id_base",
+			dev->node_props.cpu_core_id_base);
+	sysfs_show_32bit_prop(buffer, "simd_id_base",
+			dev->node_props.simd_id_base);
+	sysfs_show_32bit_prop(buffer, "capability",
+			dev->node_props.capability);
+	sysfs_show_32bit_prop(buffer, "max_waves_per_simd",
+			dev->node_props.max_waves_per_simd);
+	sysfs_show_32bit_prop(buffer, "lds_size_in_kb",
+			dev->node_props.lds_size_in_kb);
+	sysfs_show_32bit_prop(buffer, "gds_size_in_kb",
+			dev->node_props.gds_size_in_kb);
+	sysfs_show_32bit_prop(buffer, "wave_front_size",
+			dev->node_props.wave_front_size);
+	sysfs_show_32bit_prop(buffer, "array_count",
+			dev->node_props.array_count);
+	sysfs_show_32bit_prop(buffer, "simd_arrays_per_engine",
+			dev->node_props.simd_arrays_per_engine);
+	sysfs_show_32bit_prop(buffer, "cu_per_simd_array",
+			dev->node_props.cu_per_simd_array);
+	sysfs_show_32bit_prop(buffer, "simd_per_cu",
+			dev->node_props.simd_per_cu);
+	sysfs_show_32bit_prop(buffer, "max_slots_scratch_cu",
+			dev->node_props.max_slots_scratch_cu);
+	sysfs_show_32bit_prop(buffer, "vendor_id",
+			dev->node_props.vendor_id);
+	sysfs_show_32bit_prop(buffer, "device_id",
+			dev->node_props.device_id);
+	sysfs_show_32bit_prop(buffer, "location_id",
+			dev->node_props.location_id);
+
+	if (dev->gpu) {
+		log_max_watch_addr =
+			__ilog2_u32(dev->gpu->device_info->num_of_watch_points);
+
+		if (log_max_watch_addr) {
+			dev->node_props.capability |=
+					HSA_CAP_WATCH_POINTS_SUPPORTED;
+
+			dev->node_props.capability |=
+				((log_max_watch_addr <<
+					HSA_CAP_WATCH_POINTS_TOTALBITS_SHIFT) &
+				HSA_CAP_WATCH_POINTS_TOTALBITS_MASK);
+		}
+
+		sysfs_show_32bit_prop(buffer, "max_engine_clk_fcompute",
+				kfd2kgd->get_max_engine_clock_in_mhz(
+					dev->gpu->kgd));
+		sysfs_show_64bit_prop(buffer, "local_mem_size",
+				kfd2kgd->get_vmem_size(dev->gpu->kgd));
+
+		sysfs_show_32bit_prop(buffer, "fw_version",
+				kfd2kgd->get_fw_version(
+						dev->gpu->kgd,
+						KGD_ENGINE_MEC1));
+	}
+
+	return sysfs_show_32bit_prop(buffer, "max_engine_clk_ccompute",
+					cpufreq_quick_get_max(0)/1000);
 }
 
 static const struct sysfs_ops node_ops = {

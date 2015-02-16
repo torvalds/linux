@@ -140,26 +140,6 @@ static void mdp4_crtc_destroy(struct drm_crtc *crtc)
 	kfree(mdp4_crtc);
 }
 
-static void mdp4_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	struct mdp4_kms *mdp4_kms = get_kms(crtc);
-	bool enabled = (mode == DRM_MODE_DPMS_ON);
-
-	DBG("%s: mode=%d", mdp4_crtc->name, mode);
-
-	if (enabled != mdp4_crtc->enabled) {
-		if (enabled) {
-			mdp4_enable(mdp4_kms);
-			mdp_irq_register(&mdp4_kms->base, &mdp4_crtc->err);
-		} else {
-			mdp_irq_unregister(&mdp4_kms->base, &mdp4_crtc->err);
-			mdp4_disable(mdp4_kms);
-		}
-		mdp4_crtc->enabled = enabled;
-	}
-}
-
 static bool mdp4_crtc_mode_fixup(struct drm_crtc *crtc,
 		const struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -304,27 +284,38 @@ static void mdp4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	}
 }
 
-static void mdp4_crtc_prepare(struct drm_crtc *crtc)
+static void mdp4_crtc_disable(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	struct mdp4_kms *mdp4_kms = get_kms(crtc);
+
 	DBG("%s", mdp4_crtc->name);
-	/* make sure we hold a ref to mdp clks while setting up mode: */
-	drm_crtc_vblank_get(crtc);
-	mdp4_enable(get_kms(crtc));
-	mdp4_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+
+	if (WARN_ON(!mdp4_crtc->enabled))
+		return;
+
+	mdp_irq_unregister(&mdp4_kms->base, &mdp4_crtc->err);
+	mdp4_disable(mdp4_kms);
+
+	mdp4_crtc->enabled = false;
 }
 
-static void mdp4_crtc_commit(struct drm_crtc *crtc)
+static void mdp4_crtc_enable(struct drm_crtc *crtc)
 {
-	mdp4_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	struct mdp4_kms *mdp4_kms = get_kms(crtc);
+
+	DBG("%s", mdp4_crtc->name);
+
+	if (WARN_ON(mdp4_crtc->enabled))
+		return;
+
+	mdp4_enable(mdp4_kms);
+	mdp_irq_register(&mdp4_kms->base, &mdp4_crtc->err);
+
 	crtc_flush(crtc);
-	/* drop the ref to mdp clk's that we got in prepare: */
-	mdp4_disable(get_kms(crtc));
-	drm_crtc_vblank_put(crtc);
-}
 
-static void mdp4_crtc_load_lut(struct drm_crtc *crtc)
-{
+	mdp4_crtc->enabled = true;
 }
 
 static int mdp4_crtc_atomic_check(struct drm_crtc *crtc,
@@ -508,14 +499,10 @@ static const struct drm_crtc_funcs mdp4_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs mdp4_crtc_helper_funcs = {
-	.dpms = mdp4_crtc_dpms,
 	.mode_fixup = mdp4_crtc_mode_fixup,
 	.mode_set_nofb = mdp4_crtc_mode_set_nofb,
-	.mode_set = drm_helper_crtc_mode_set,
-	.mode_set_base = drm_helper_crtc_mode_set_base,
-	.prepare = mdp4_crtc_prepare,
-	.commit = mdp4_crtc_commit,
-	.load_lut = mdp4_crtc_load_lut,
+	.disable = mdp4_crtc_disable,
+	.enable = mdp4_crtc_enable,
 	.atomic_check = mdp4_crtc_atomic_check,
 	.atomic_begin = mdp4_crtc_atomic_begin,
 	.atomic_flush = mdp4_crtc_atomic_flush,

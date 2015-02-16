@@ -22,6 +22,7 @@
 /*
  * exynos drm gem buffer structure.
  *
+ * @cookie: cookie returned by dma_alloc_attrs
  * @kvaddr: kernel virtual address to allocated memory region.
  * *userptr: user space address.
  * @dma_addr: bus address(accessed by dma) to allocated memory region.
@@ -35,6 +36,7 @@
  *	VM_PFNMAP or not.
  */
 struct exynos_drm_gem_buf {
+	void 			*cookie;
 	void __iomem		*kvaddr;
 	unsigned long		userptr;
 	dma_addr_t		dma_addr;

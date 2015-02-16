@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include "intel_drv.h"
@@ -1007,7 +1008,7 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 	}
 
 	if (intel_sdvo->rgb_quant_range_selectable) {
-		if (intel_crtc->config.limited_color_range)
+		if (intel_crtc->config->limited_color_range)
 			frame.avi.quantization_range =
 				HDMI_QUANTIZATION_RANGE_LIMITED;
 		else
@@ -1085,7 +1086,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 	return true;
 }
 
-static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_config *pipe_config)
+static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_state *pipe_config)
 {
 	unsigned dotclock = pipe_config->port_clock;
 	struct dpll *clock = &pipe_config->dpll;
@@ -1112,11 +1113,11 @@ static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_config *pipe_config)
 }
 
 static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
-				      struct intel_crtc_config *pipe_config)
+				      struct intel_crtc_state *pipe_config)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
-	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
-	struct drm_display_mode *mode = &pipe_config->requested_mode;
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	struct drm_display_mode *mode = &pipe_config->base.mode;
 
 	DRM_DEBUG_KMS("forcing bpc to 8 for SDVO\n");
 	pipe_config->pipe_bpp = 8*3;
@@ -1181,8 +1182,8 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(intel_encoder->base.crtc);
 	struct drm_display_mode *adjusted_mode =
-		&crtc->config.adjusted_mode;
-	struct drm_display_mode *mode = &crtc->config.requested_mode;
+		&crtc->config->base.adjusted_mode;
+	struct drm_display_mode *mode = &crtc->config->base.mode;
 	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
@@ -1224,7 +1225,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 	if (!intel_sdvo_set_target_input(intel_sdvo))
 		return;
 
-	if (crtc->config.has_hdmi_sink) {
+	if (crtc->config->has_hdmi_sink) {
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
@@ -1244,7 +1245,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 		DRM_INFO("Setting input timings on %s failed\n",
 			 SDVO_NAME(intel_sdvo));
 
-	switch (crtc->config.pixel_multiplier) {
+	switch (crtc->config->pixel_multiplier) {
 	default:
 		WARN(1, "unknown pixel mutlipler specified\n");
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
@@ -1259,7 +1260,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (!HAS_PCH_SPLIT(dev) && crtc->config.limited_color_range)
+		if (!HAS_PCH_SPLIT(dev) && crtc->config->limited_color_range)
 			sdvox |= HDMI_COLOR_RANGE_16_235;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
@@ -1289,7 +1290,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */
 	} else {
-		sdvox |= (crtc->config.pixel_multiplier - 1)
+		sdvox |= (crtc->config->pixel_multiplier - 1)
 			<< SDVO_PORT_MULTIPLY_SHIFT;
 	}
 
@@ -1338,7 +1339,7 @@ static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
 }
 
 static void intel_sdvo_get_config(struct intel_encoder *encoder,
-				  struct intel_crtc_config *pipe_config)
+				  struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1370,7 +1371,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 			flags |= DRM_MODE_FLAG_NVSYNC;
 	}
 
-	pipe_config->adjusted_mode.flags |= flags;
+	pipe_config->base.adjusted_mode.flags |= flags;
 
 	/*
 	 * pixel multiplier readout is tricky: Only on i915g/gm it is stored in
@@ -1392,7 +1393,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev))
 		ironlake_check_encoder_dotclock(pipe_config, dotclock);
 
-	pipe_config->adjusted_mode.crtc_clock = dotclock;
+	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
 
 	/* Cross check the port pixel multiplier with the sdvo encoder state. */
 	if (intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_CLOCK_RATE_MULT,
@@ -1616,6 +1617,9 @@ static uint16_t intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 {
 	struct drm_device *dev = intel_sdvo->base.base.dev;
 	uint16_t hotplug;
+
+	if (!I915_HAS_HOTPLUG(dev))
+		return 0;
 
 	/* HW Erratum: SDVO Hotplug is broken on all i945G chips, there's noise
 	 * on the line. */
@@ -2187,7 +2191,9 @@ static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
 	.detect = intel_sdvo_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_sdvo_set_property,
+	.atomic_get_property = intel_connector_atomic_get_property,
 	.destroy = intel_sdvo_destroy,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_helper_funcs intel_sdvo_connector_helper_funcs = {
