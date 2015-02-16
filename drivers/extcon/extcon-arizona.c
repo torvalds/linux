@@ -140,11 +140,24 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 				    bool clamp)
 {
 	struct arizona *arizona = info->arizona;
-	unsigned int val = 0;
+	unsigned int mask = 0, val = 0;
 	int ret;
 
-	if (clamp)
-		val = ARIZONA_RMV_SHRT_HP1L;
+	switch (arizona->type) {
+	case WM5110:
+		mask = ARIZONA_HP1L_SHRTO | ARIZONA_HP1L_FLWR |
+		       ARIZONA_HP1L_SHRTI;
+		if (clamp)
+			val = ARIZONA_HP1L_SHRTO;
+		else
+			val = ARIZONA_HP1L_FLWR | ARIZONA_HP1L_SHRTI;
+		break;
+	default:
+		mask = ARIZONA_RMV_SHRT_HP1L;
+		if (clamp)
+			val = ARIZONA_RMV_SHRT_HP1L;
+		break;
+	};
 
 	mutex_lock(&arizona->dapm->card->dapm_mutex);
 
@@ -163,13 +176,13 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	}
 
 	ret = regmap_update_bits(arizona->regmap, ARIZONA_HP_CTRL_1L,
-				 ARIZONA_RMV_SHRT_HP1L, val);
+				 mask, val);
 	if (ret != 0)
 		dev_warn(arizona->dev, "Failed to do clamp: %d\n",
 				 ret);
 
 	ret = regmap_update_bits(arizona->regmap, ARIZONA_HP_CTRL_1R,
-				 ARIZONA_RMV_SHRT_HP1R, val);
+				 mask, val);
 	if (ret != 0)
 		dev_warn(arizona->dev, "Failed to do clamp: %d\n",
 			 ret);
