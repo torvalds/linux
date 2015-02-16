@@ -2078,9 +2078,6 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	phb->get_pe_state = pnv_ioda_get_pe_state;
 	phb->freeze_pe = pnv_ioda_freeze_pe;
 	phb->unfreeze_pe = pnv_ioda_unfreeze_pe;
-#ifdef CONFIG_EEH
-	phb->eeh_ops = &ioda_eeh_ops;
-#endif
 
 	/* Setup RID -> PE mapping function */
 	phb->bdfn_to_pe = pnv_ioda_bdfn_to_pe;
