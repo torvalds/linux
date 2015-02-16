@@ -1290,12 +1290,6 @@ static inline int f2fs_has_inline_dentry(struct inode *inode)
 	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_DENTRY);
 }
 
-static inline void *inline_dentry_addr(struct page *page)
-{
-	struct f2fs_inode *ri = F2FS_INODE(page);
-	return (void *)&(ri->i_addr[1]);
-}
-
 static inline void f2fs_dentry_kunmap(struct inode *dir, struct page *page)
 {
 	if (!f2fs_has_inline_dentry(dir))
