@@ -683,7 +683,7 @@ struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
 	if (skb->protocol != htons(ETH_P_IP))
 		return skb;
 
-	if (!skb_copy_bits(skb, 0, &iph, sizeof(iph)))
+	if (skb_copy_bits(skb, 0, &iph, sizeof(iph)) < 0)
 		return skb;
 
 	if (iph.ihl < 5 || iph.version != 4)
