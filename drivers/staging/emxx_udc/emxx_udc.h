@@ -535,7 +535,7 @@ typedef struct _T_FC_REGS {
 
 	u8 Reserved1200[0x1000-0x200];	/* Reserved */
 
-} __attribute__ ((aligned(32))) T_FC_REGS, *PT_FC_REGS;
+} __aligned(32) T_FC_REGS, *PT_FC_REGS;
 
 
 
