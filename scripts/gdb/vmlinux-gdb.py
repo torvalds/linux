@@ -23,3 +23,4 @@ except:
               "work.\n")
 else:
     import linux.utils
+    import linux.symbols
