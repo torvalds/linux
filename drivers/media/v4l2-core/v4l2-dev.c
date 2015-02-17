@@ -357,34 +357,6 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
 		if (lock)
 			mutex_unlock(lock);
-	} else if (vdev->fops->ioctl) {
-		/* This code path is a replacement for the BKL. It is a major
-		 * hack but it will have to do for those drivers that are not
-		 * yet converted to use unlocked_ioctl.
-		 *
-		 * All drivers implement struct v4l2_device, so we use the
-		 * lock defined there to serialize the ioctls.
-		 *
-		 * However, if the driver sleeps, then it blocks all ioctls
-		 * since the lock is still held. This is very common for
-		 * VIDIOC_DQBUF since that normally waits for a frame to arrive.
-		 * As a result any other ioctl calls will proceed very, very
-		 * slowly since each call will have to wait for the VIDIOC_QBUF
-		 * to finish. Things that should take 0.01s may now take 10-20
-		 * seconds.
-		 *
-		 * The workaround is to *not* take the lock for VIDIOC_DQBUF.
-		 * This actually works OK for videobuf-based drivers, since
-		 * videobuf will take its own internal lock.
-		 */
-		struct mutex *m = &vdev->v4l2_dev->ioctl_lock;
-
-		if (cmd != VIDIOC_DQBUF && mutex_lock_interruptible(m))
-			return -ERESTARTSYS;
-		if (video_is_registered(vdev))
-			ret = vdev->fops->ioctl(filp, cmd, arg);
-		if (cmd != VIDIOC_DQBUF)
-			mutex_unlock(m);
 	} else
 		ret = -ENOTTY;
 
