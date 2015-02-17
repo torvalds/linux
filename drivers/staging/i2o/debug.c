@@ -22,7 +22,7 @@ void i2o_report_status(const char *severity, const char *str,
 	u16 detailed_status = msg[4] & 0xFFFF;
 
 	if (cmd == I2O_CMD_UTIL_EVT_REGISTER)
-		return;		// No status in this reply
+		return;		/* No status in this reply */
 
 	printk("%s%s: ", severity, str);
 
