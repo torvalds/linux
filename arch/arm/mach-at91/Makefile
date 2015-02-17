@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y		:= setup.o sysirq_mask.o
+obj-y		:= setup.o
 
 obj-$(CONFIG_SOC_AT91SAM9)	+= sam9_smc.o
 
@@ -19,8 +19,8 @@ obj-$(CONFIG_SOC_SAMA5D3)	+= sama5d3.o
 obj-$(CONFIG_SOC_SAMA5D4)	+= sama5d4.o
 
 # AT91SAM board with device-tree
-obj-$(CONFIG_MACH_AT91RM9200_DT) += board-dt-rm9200.o
-obj-$(CONFIG_MACH_AT91SAM9_DT) += board-dt-sam9.o
+obj-$(CONFIG_SOC_AT91RM9200) += board-dt-rm9200.o
+obj-$(CONFIG_SOC_AT91SAM9) += board-dt-sam9.o
 
 # SAMA5 board with device-tree
 obj-$(CONFIG_SOC_SAMA5)		+= board-dt-sama5.o

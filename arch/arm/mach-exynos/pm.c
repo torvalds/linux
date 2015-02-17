@@ -23,12 +23,13 @@
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
 
+#include <mach/map.h>
+
 #include <plat/pm-common.h>
 
 #include "common.h"
 #include "exynos-pmu.h"
 #include "regs-pmu.h"
-#include "regs-sys.h"
 
 static inline void __iomem *exynos_boot_vector_addr(void)
 {

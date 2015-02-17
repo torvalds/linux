@@ -48,8 +48,8 @@
 	compatible = "renesas,koelsch", "renesas,r8a7791";
 
 	aliases {
-		serial6 = &scif0;
-		serial7 = &scif1;
+		serial0 = &scif0;
+		serial1 = &scif1;
 	};
 
 	chosen {

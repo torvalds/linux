@@ -51,8 +51,6 @@ static void __init at91sam9260_map_io(void)
 static void __init at91sam9260_initialize(void)
 {
 	arm_pm_idle = at91sam9_idle;
-
-	at91_sysirq_mask_rtt(AT91SAM9260_BASE_RTT);
 }
 
 AT91_SOC_START(at91sam9260)
