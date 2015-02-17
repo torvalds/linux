@@ -3931,7 +3931,8 @@ alloc:
 		 * don't bother committing the transaction.
 		 */
 		if (percpu_counter_compare(&data_sinfo->total_bytes_pinned,
-					   bytes) < 0)
+					   used + bytes -
+					   data_sinfo->total_bytes) < 0)
 			have_pinned_space = 0;
 		spin_unlock(&data_sinfo->lock);
 
