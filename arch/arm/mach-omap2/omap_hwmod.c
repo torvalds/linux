@@ -2155,8 +2155,8 @@ static int _enable(struct omap_hwmod *oh)
 		if (soc_ops.disable_module)
 			soc_ops.disable_module(oh);
 		_disable_clocks(oh);
-		pr_debug("omap_hwmod: %s: _wait_target_ready: %d\n",
-			 oh->name, r);
+		pr_err("omap_hwmod: %s: _wait_target_ready failed: %d\n",
+		       oh->name, r);
 
 		if (oh->clkdm)
 			clkdm_hwmod_disable(oh->clkdm, oh);

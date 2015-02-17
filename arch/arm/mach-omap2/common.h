@@ -118,7 +118,8 @@ void omap3630_init_early(void);
 void omap3_init_early(void);	/* Do not use this one */
 void am33xx_init_early(void);
 void am35xx_init_early(void);
-void ti81xx_init_early(void);
+void ti814x_init_early(void);
+void ti816x_init_early(void);
 void am33xx_init_early(void);
 void am43xx_init_early(void);
 void am43xx_init_late(void);
@@ -167,6 +168,14 @@ static inline void am33xx_restart(enum reboot_mode mode, const char *cmd)
 void omap3xxx_restart(enum reboot_mode mode, const char *cmd);
 #else
 static inline void omap3xxx_restart(enum reboot_mode mode, const char *cmd)
+{
+}
+#endif
+
+#ifdef CONFIG_SOC_TI81XX
+void ti81xx_restart(enum reboot_mode mode, const char *cmd);
+#else
+static inline void ti81xx_restart(enum reboot_mode mode, const char *cmd)
 {
 }
 #endif
