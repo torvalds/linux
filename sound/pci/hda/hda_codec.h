@@ -174,15 +174,22 @@ struct hda_codec_preset {
 	int (*patch)(struct hda_codec *codec);
 };
 	
-struct hda_codec_preset_list {
+#define HDA_CODEC_ID_GENERIC_HDMI	0x00000101
+#define HDA_CODEC_ID_GENERIC		0x00000201
+
+struct hda_codec_driver {
+	struct device_driver driver;
 	const struct hda_codec_preset *preset;
-	struct module *owner;
-	struct list_head list;
 };
 
-/* initial hook */
-int snd_hda_add_codec_preset(struct hda_codec_preset_list *preset);
-int snd_hda_delete_codec_preset(struct hda_codec_preset_list *preset);
+int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
+			       struct module *owner);
+#define hda_codec_driver_register(drv) \
+	__hda_codec_driver_register(drv, KBUILD_MODNAME, THIS_MODULE)
+void hda_codec_driver_unregister(struct hda_codec_driver *drv);
+#define module_hda_codec_driver(drv) \
+	module_driver(drv, hda_codec_driver_register, \
+		      hda_codec_driver_unregister)
 
 /* ops set by the preset patch */
 struct hda_codec_ops {
@@ -286,11 +293,10 @@ struct hda_codec {
 	u32 vendor_id;
 	u32 subsystem_id;
 	u32 revision_id;
+	u32 probe_id; /* overridden id for probing */
 
 	/* detected preset */
 	const struct hda_codec_preset *preset;
-	struct module *owner;
-	int (*parser)(struct hda_codec *codec);
 	const char *vendor_name;	/* codec vendor name */
 	const char *chip_name;		/* codec chip name */
 	const char *modelname;	/* model name for preset */
@@ -407,6 +413,11 @@ struct hda_codec {
 	/* additional init verbs */
 	struct snd_array verbs;
 };
+
+#define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, dev)
+#define hda_codec_dev(_dev)	(&(_dev)->dev)
+
+extern struct bus_type snd_hda_bus_type;
 
 /* direction */
 enum {

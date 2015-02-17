@@ -319,20 +319,8 @@ MODULE_ALIAS("snd-hda-codec-id:18540018");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Si3054 HD-audio modem codec");
 
-static struct hda_codec_preset_list si3054_list = {
+static struct hda_codec_driver si3054_driver = {
 	.preset = snd_hda_preset_si3054,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_si3054_init(void)
-{
-	return snd_hda_add_codec_preset(&si3054_list);
-}
-
-static void __exit patch_si3054_exit(void)
-{
-	snd_hda_delete_codec_preset(&si3054_list);
-}
-
-module_init(patch_si3054_init)
-module_exit(patch_si3054_exit)
+module_hda_codec_driver(si3054_driver);

@@ -351,12 +351,6 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 				     struct hda_multi_out *mout);
 
 /*
- * generic codec parser
- */
-int snd_hda_parse_generic_codec(struct hda_codec *codec);
-int snd_hda_parse_hdmi_codec(struct hda_codec *codec);
-
-/*
  * generic proc interface
  */
 #ifdef CONFIG_PROC_FS
@@ -783,9 +777,13 @@ void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen);
 
 /*
  */
-#define codec_err(codec, fmt, args...) dev_err(&(codec)->dev, fmt, ##args)
-#define codec_warn(codec, fmt, args...) dev_warn(&(codec)->dev, fmt, ##args)
-#define codec_info(codec, fmt, args...) dev_info(&(codec)->dev, fmt, ##args)
-#define codec_dbg(codec, fmt, args...) dev_dbg(&(codec)->dev, fmt, ##args)
+#define codec_err(codec, fmt, args...) \
+	dev_err(hda_codec_dev(codec), fmt, ##args)
+#define codec_warn(codec, fmt, args...) \
+	dev_warn(hda_codec_dev(codec), fmt, ##args)
+#define codec_info(codec, fmt, args...) \
+	dev_info(hda_codec_dev(codec), fmt, ##args)
+#define codec_dbg(codec, fmt, args...) \
+	dev_dbg(hda_codec_dev(codec), fmt, ##args)
 
 #endif /* __SOUND_HDA_LOCAL_H */
