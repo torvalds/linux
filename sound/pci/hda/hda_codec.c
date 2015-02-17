@@ -762,10 +762,7 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 		return 0;
 
 	trace_hda_unsol_event(bus, res, res_ex);
-	unsol = bus->unsol;
-	if (!unsol)
-		return 0;
-
+	unsol = &bus->unsol;
 	wp = (unsol->wp + 1) % HDA_UNSOL_QUEUE_SIZE;
 	unsol->wp = wp;
 
@@ -784,9 +781,8 @@ EXPORT_SYMBOL_GPL(snd_hda_queue_unsol_event);
  */
 static void process_unsol_events(struct work_struct *work)
 {
-	struct hda_bus_unsolicited *unsol =
-		container_of(work, struct hda_bus_unsolicited, work);
-	struct hda_bus *bus = unsol->bus;
+	struct hda_bus *bus = container_of(work, struct hda_bus, unsol.work);
+	struct hda_bus_unsolicited *unsol = &bus->unsol;
 	struct hda_codec *codec;
 	unsigned int rp, caddr, res;
 
@@ -805,27 +801,6 @@ static void process_unsol_events(struct work_struct *work)
 }
 
 /*
- * initialize unsolicited queue
- */
-static int init_unsol_queue(struct hda_bus *bus)
-{
-	struct hda_bus_unsolicited *unsol;
-
-	if (bus->unsol) /* already initialized */
-		return 0;
-
-	unsol = kzalloc(sizeof(*unsol), GFP_KERNEL);
-	if (!unsol) {
-		dev_err(bus->card->dev, "can't allocate unsolicited queue\n");
-		return -ENOMEM;
-	}
-	INIT_WORK(&unsol->work, process_unsol_events);
-	unsol->bus = bus;
-	bus->unsol = unsol;
-	return 0;
-}
-
-/*
  * destructor
  */
 static void snd_hda_bus_free(struct hda_bus *bus)
@@ -836,7 +811,6 @@ static void snd_hda_bus_free(struct hda_bus *bus)
 	WARN_ON(!list_empty(&bus->codec_list));
 	if (bus->workq)
 		flush_workqueue(bus->workq);
-	kfree(bus->unsol);
 	if (bus->ops.private_free)
 		bus->ops.private_free(bus);
 	if (bus->workq)
@@ -888,6 +862,7 @@ int snd_hda_bus_new(struct snd_card *card,
 	mutex_init(&bus->cmd_mutex);
 	mutex_init(&bus->prepare_mutex);
 	INIT_LIST_HEAD(&bus->codec_list);
+	INIT_WORK(&bus->unsol.work, process_unsol_events);
 
 	snprintf(bus->workq_name, sizeof(bus->workq_name),
 		 "hd-audio%d", card->number);
@@ -1687,12 +1662,6 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 	if (err < 0) {
 		unload_parser(codec);
 		return err;
-	}
-
-	if (codec->patch_ops.unsol_event) {
-		err = init_unsol_queue(codec->bus);
-		if (err < 0)
-			return err;
 	}
 
 	/* audio codec should override the mixer name */
