@@ -1107,6 +1107,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 		}
 		locks_copy_lock(new_fl, request);
 		locks_insert_lock_ctx(new_fl, &fl->fl_list);
+		fl = new_fl;
 		new_fl = NULL;
 	}
 	if (right) {
