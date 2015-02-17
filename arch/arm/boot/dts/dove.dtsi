@@ -451,6 +451,11 @@
 					marvell,function = "gpio";
 				};
 
+				pmx_pcie1_clkreq: pmx-pcie1-clkreq {
+					marvell,pins = "mpp9";
+					marvell,function = "pex1";
+				};
+
 				pmx_gpio_10: pmx-gpio-10 {
 					marvell,pins = "mpp10";
 					marvell,function = "gpio";
@@ -459,6 +464,11 @@
 				pmx_gpio_11: pmx-gpio-11 {
 					marvell,pins = "mpp11";
 					marvell,function = "gpio";
+				};
+
+				pmx_pcie0_clkreq: pmx-pcie0-clkreq {
+					marvell,pins = "mpp11";
+					marvell,function = "pex0";
 				};
 
 				pmx_gpio_12: pmx-gpio-12 {
@@ -566,6 +576,18 @@
 					marvell,function = "gpio";
 				};
 
+				pmx_spi1_4_7: pmx-spi1-4-7 {
+					marvell,pins = "mpp4", "mpp5",
+						"mpp6", "mpp7";
+					marvell,function = "spi1";
+				};
+
+				pmx_spi1_20_23: pmx-spi1-20-23 {
+					marvell,pins = "mpp20", "mpp21",
+						"mpp22", "mpp23";
+					marvell,function = "spi1";
+				};
+
 				pmx_uart1: pmx-uart1 {
 					marvell,pins = "mpp_uart1";
 					marvell,function = "uart1";
@@ -584,6 +606,36 @@
 				pmx_nand_gpo: pmx-nand-gpo {
 					marvell,pins = "mpp_nand";
 					marvell,function = "gpo";
+				};
+
+				pmx_i2c1: pmx-i2c1 {
+					marvell,pins = "mpp17", "mpp19";
+					marvell,function = "twsi";
+				};
+
+				pmx_i2c2: pmx-i2c2 {
+					marvell,pins = "mpp_audio1";
+					marvell,function = "twsi";
+				};
+
+				pmx_ssp_i2c2: pmx-ssp-i2c2 {
+					marvell,pins = "mpp_audio1";
+					marvell,function = "ssp/twsi";
+				};
+
+				pmx_i2cmux_0: pmx-i2cmux-0 {
+					marvell,pins = "twsi";
+					marvell,function = "twsi-opt1";
+				};
+
+				pmx_i2cmux_1: pmx-i2cmux-1 {
+					marvell,pins = "twsi";
+					marvell,function = "twsi-opt2";
+				};
+
+				pmx_i2cmux_2: pmx-i2cmux-2 {
+					marvell,pins = "twsi";
+					marvell,function = "twsi-opt3";
 				};
 			};
 
