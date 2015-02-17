@@ -1093,7 +1093,7 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 			}
 		}
 	}
-	input_mt_report_pointer_emulation(input, true);
+	input_mt_sync_frame(input);
 
 	wacom->num_contacts_left -= contacts_to_send;
 	if (wacom->num_contacts_left <= 0)
@@ -1144,7 +1144,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
 		}
 	}
-	input_mt_report_pointer_emulation(input, true);
+	input_mt_sync_frame(input);
 
 	wacom->num_contacts_left -= contacts_to_send;
 	if (wacom->num_contacts_left < 0)
@@ -1176,7 +1176,7 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 			contact_with_no_pen_down_count++;
 		}
 	}
-	input_mt_report_pointer_emulation(input, true);
+	input_mt_sync_frame(input);
 
 	/* keep touch state for pen event */
 	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
@@ -1638,7 +1638,7 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 		}
 	}
 
-	input_mt_report_pointer_emulation(input, true);
+	input_mt_sync_frame(input);
 
 	input_report_key(pad_input, BTN_LEFT, (data[1] & 0x08) != 0);
 	input_report_key(pad_input, BTN_FORWARD, (data[1] & 0x04) != 0);
@@ -1728,7 +1728,7 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 			wacom_bpt3_button_msg(wacom, data + offset);
 
 	}
-	input_mt_report_pointer_emulation(input, true);
+	input_mt_sync_frame(input);
 
 	return 1;
 }
