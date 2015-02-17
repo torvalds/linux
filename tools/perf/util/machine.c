@@ -460,14 +460,15 @@ int machine__process_lost_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
-static struct dso *machine__module_dso(struct machine *machine, const char *filename)
+static struct dso*
+machine__module_dso(struct machine *machine, struct kmod_path *m,
+		    const char *filename)
 {
 	struct dso *dso;
-	bool compressed;
 
-	dso = dsos__find(&machine->kernel_dsos, filename, false);
+	dso = dsos__find(&machine->kernel_dsos, m->name, true);
 	if (!dso) {
-		dso = dsos__addnew(&machine->kernel_dsos, filename);
+		dso = dsos__addnew(&machine->kernel_dsos, m->name);
 		if (dso == NULL)
 			return NULL;
 
@@ -477,8 +478,11 @@ static struct dso *machine__module_dso(struct machine *machine, const char *file
 			dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
 
 		/* _KMODULE_COMP should be next to _KMODULE */
-		if (is_kernel_module(filename, &compressed) && compressed)
+		if (m->kmod && m->comp)
 			dso->symtab_type++;
+
+		dso__set_short_name(dso, strdup(m->name), true);
+		dso__set_long_name(dso, strdup(filename), true);
 	}
 
 	return dso;
@@ -487,17 +491,25 @@ static struct dso *machine__module_dso(struct machine *machine, const char *file
 struct map *machine__new_module(struct machine *machine, u64 start,
 				const char *filename)
 {
-	struct map *map;
-	struct dso *dso = machine__module_dso(machine, filename);
+	struct map *map = NULL;
+	struct dso *dso;
+	struct kmod_path m;
 
-	if (dso == NULL)
+	if (kmod_path__parse_name(&m, filename))
 		return NULL;
+
+	dso = machine__module_dso(machine, &m, filename);
+	if (dso == NULL)
+		goto out;
 
 	map = map__new2(start, dso, MAP__FUNCTION);
 	if (map == NULL)
-		return NULL;
+		goto out;
 
 	map_groups__insert(&machine->kmaps, map);
+
+out:
+	free(m.name);
 	return map;
 }
 
@@ -1058,40 +1070,11 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 				strlen(kmmap_prefix) - 1) == 0;
 	if (event->mmap.filename[0] == '/' ||
 	    (!is_kernel_mmap && event->mmap.filename[0] == '[')) {
-
-		char short_module_name[1024];
-		char *name, *dot;
-
-		if (event->mmap.filename[0] == '/') {
-			name = strrchr(event->mmap.filename, '/');
-			if (name == NULL)
-				goto out_problem;
-
-			++name; /* skip / */
-			dot = strrchr(name, '.');
-			if (dot == NULL)
-				goto out_problem;
-			/* On some system, modules are compressed like .ko.gz */
-			if (is_supported_compression(dot + 1))
-				dot -= 3;
-			if (!is_kmodule_extension(dot + 1))
-				goto out_problem;
-			snprintf(short_module_name, sizeof(short_module_name),
-					"[%.*s]", (int)(dot - name), name);
-			strxfrchar(short_module_name, '-', '_');
-		} else
-			strcpy(short_module_name, event->mmap.filename);
-
 		map = machine__new_module(machine, event->mmap.start,
 					  event->mmap.filename);
 		if (map == NULL)
 			goto out_problem;
 
-		name = strdup(short_module_name);
-		if (name == NULL)
-			goto out_problem;
-
-		dso__set_short_name(map->dso, name, true);
 		map->end = map->start + event->mmap.len;
 	} else if (is_kernel_mmap) {
 		const char *symbol_name = (event->mmap.filename +
