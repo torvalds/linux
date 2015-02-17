@@ -302,7 +302,7 @@ void opal_notifier_disable(void)
  * Opal message notifier based on message type. Allow subscribers to get
  * notified for specific messgae type.
  */
-int opal_message_notifier_register(enum OpalMessageType msg_type,
+int opal_message_notifier_register(enum opal_msg_type msg_type,
 					struct notifier_block *nb)
 {
 	if (!nb) {

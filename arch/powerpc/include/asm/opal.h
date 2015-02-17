@@ -208,7 +208,7 @@ extern void hvc_opal_init_early(void);
 extern int opal_notifier_register(struct notifier_block *nb);
 extern int opal_notifier_unregister(struct notifier_block *nb);
 
-extern int opal_message_notifier_register(enum OpalMessageType msg_type,
+extern int opal_message_notifier_register(enum opal_msg_type msg_type,
 						struct notifier_block *nb);
 extern void opal_notifier_enable(void);
 extern void opal_notifier_disable(void);
