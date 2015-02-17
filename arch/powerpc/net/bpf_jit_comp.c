@@ -411,20 +411,8 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			PPC_SRWI(r_A, r_A, 5);
 			break;
 		case BPF_ANC | SKF_AD_CPU:
-#ifdef CONFIG_SMP
-			/*
-			 * PACA ptr is r13:
-			 * raw_smp_processor_id() = local_paca->paca_index
-			 */
-			BUILD_BUG_ON(FIELD_SIZEOF(struct paca_struct,
-						  paca_index) != 2);
-			PPC_LHZ_OFFS(r_A, 13,
-				     offsetof(struct paca_struct, paca_index));
-#else
-			PPC_LI(r_A, 0);
-#endif
+			PPC_BPF_LOAD_CPU(r_A);
 			break;
-
 			/*** Absolute loads from packet header/data ***/
 		case BPF_LD | BPF_W | BPF_ABS:
 			func = CHOOSE_LOAD_FUNC(K, sk_load_word);

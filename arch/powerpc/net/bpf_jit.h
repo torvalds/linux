@@ -154,6 +154,23 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 #define PPC_LL_OFFS(r, base, i) do { PPC_LWZ_OFFS(r, base, i); } while(0)
 #endif
 
+#ifdef CONFIG_SMP
+#ifdef CONFIG_PPC64
+#define PPC_BPF_LOAD_CPU(r)		\
+	do { BUILD_BUG_ON(FIELD_SIZEOF(struct paca_struct, paca_index) != 2);	\
+		PPC_LHZ_OFFS(r, 13, offsetof(struct paca_struct, paca_index));		\
+	} while (0)
+#else
+#define PPC_BPF_LOAD_CPU(r)     \
+	do { BUILD_BUG_ON(FIELD_SIZEOF(struct thread_info, cpu) != 4);			\
+		PPC_LHZ_OFFS(r, (1 & ~(THREAD_SIZE - 1)),							\
+				offsetof(struct thread_info, cpu));							\
+	} while(0)
+#endif
+#else
+#define PPC_BPF_LOAD_CPU(r) do { PPC_LI(r, 0); } while(0)
+#endif
+
 #define PPC_CMPWI(a, i)		EMIT(PPC_INST_CMPWI | ___PPC_RA(a) | IMM_L(i))
 #define PPC_CMPDI(a, i)		EMIT(PPC_INST_CMPDI | ___PPC_RA(a) | IMM_L(i))
 #define PPC_CMPLWI(a, i)	EMIT(PPC_INST_CMPLWI | ___PPC_RA(a) | IMM_L(i))
