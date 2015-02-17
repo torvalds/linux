@@ -370,7 +370,6 @@ header-y += snmp.h
 header-y += sock_diag.h
 header-y += socket.h
 header-y += sockios.h
-header-y += som.h
 header-y += sonet.h
 header-y += sonypi.h
 header-y += soundcard.h
