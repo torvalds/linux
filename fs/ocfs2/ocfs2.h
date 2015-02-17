@@ -500,6 +500,14 @@ static inline int ocfs2_writes_unwritten_extents(struct ocfs2_super *osb)
 	return 0;
 }
 
+static inline int ocfs2_supports_append_dio(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_ro_compat & OCFS2_FEATURE_RO_COMPAT_APPEND_DIO)
+		return 1;
+	return 0;
+}
+
+
 static inline int ocfs2_supports_inline_data(struct ocfs2_super *osb)
 {
 	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_INLINE_DATA)
