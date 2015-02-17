@@ -13,8 +13,6 @@
 #include <linux/gfp.h>
 #include "affs.h"
 
-extern const struct inode_operations affs_symlink_inode_operations;
-
 struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 {
 	struct affs_sb_info	*sbi = AFFS_SB(sb);
