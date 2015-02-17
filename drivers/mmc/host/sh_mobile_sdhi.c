@@ -261,8 +261,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			 */
 			dma_priv->chan_priv_tx = (void *)p->dma_slave_tx;
 			dma_priv->chan_priv_rx = (void *)p->dma_slave_rx;
-			dma_priv->slave_id_tx = p->dma_slave_tx;
-			dma_priv->slave_id_rx = p->dma_slave_rx;
 		}
 	}
 	dma_priv->filter = shdma_chan_filter;
