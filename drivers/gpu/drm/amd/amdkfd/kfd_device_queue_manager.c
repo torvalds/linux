@@ -68,6 +68,12 @@ unsigned int get_first_pipe(struct device_queue_manager *dqm)
 	return dqm->dev->shared_resources.first_compute_pipe;
 }
 
+unsigned int get_pipes_num(struct device_queue_manager *dqm)
+{
+	BUG_ON(!dqm || !dqm->dev);
+	return dqm->dev->shared_resources.compute_pipe_count;
+}
+
 static inline unsigned int get_pipes_num_cpsch(void)
 {
 	return PIPE_PER_ME_CP_SCHEDULING;
