@@ -990,7 +990,7 @@ found:
 }
 
 static void scsiback_do_add_lun(struct vscsibk_info *info, const char *state,
-				char *phy, struct ids_tuple *vir)
+				char *phy, struct ids_tuple *vir, int try)
 {
 	if (!scsiback_add_translation_entry(info, phy, vir)) {
 		if (xenbus_printf(XBT_NIL, info->dev->nodename, state,
@@ -998,7 +998,7 @@ static void scsiback_do_add_lun(struct vscsibk_info *info, const char *state,
 			pr_err("xenbus_printf error %s\n", state);
 			scsiback_del_translation_entry(info, vir);
 		}
-	} else {
+	} else if (!try) {
 		xenbus_printf(XBT_NIL, info->dev->nodename, state,
 			      "%d", XenbusStateClosed);
 	}
@@ -1058,10 +1058,19 @@ static void scsiback_do_1lun_hotplug(struct vscsibk_info *info, int op,
 
 	switch (op) {
 	case VSCSIBACK_OP_ADD_OR_DEL_LUN:
-		if (device_state == XenbusStateInitialising)
-			scsiback_do_add_lun(info, state, phy, &vir);
-		if (device_state == XenbusStateClosing)
+		switch (device_state) {
+		case XenbusStateInitialising:
+			scsiback_do_add_lun(info, state, phy, &vir, 0);
+			break;
+		case XenbusStateConnected:
+			scsiback_do_add_lun(info, state, phy, &vir, 1);
+			break;
+		case XenbusStateClosing:
 			scsiback_do_del_lun(info, state, &vir);
+			break;
+		default:
+			break;
+		}
 		break;
 
 	case VSCSIBACK_OP_UPDATEDEV_STATE:
