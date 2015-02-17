@@ -64,15 +64,16 @@ __affs_hash_dentry(struct qstr *qstr, toupper_t toupper, bool notruncate)
 {
 	const u8 *name = qstr->name;
 	unsigned long hash;
-	int i;
+	int retval;
+	u32 len;
 
-	i = affs_check_name(qstr->name, qstr->len, notruncate);
-	if (i)
-		return i;
+	retval = affs_check_name(qstr->name, qstr->len, notruncate);
+	if (retval)
+		return retval;
 
 	hash = init_name_hash();
-	i = min(qstr->len, 30u);
-	for (; i > 0; name++, i--)
+	len = min(qstr->len, 30u);
+	for (; len > 0; name++, len--)
 		hash = partial_name_hash(toupper(*name), hash);
 	qstr->hash = end_name_hash(hash);
 
@@ -173,7 +174,7 @@ int
 affs_hash_name(struct super_block *sb, const u8 *name, unsigned int len)
 {
 	toupper_t toupper = affs_get_toupper(sb);
-	int hash;
+	u32 hash;
 
 	hash = len = min(len, 30u);
 	for (; len > 0; len--)
