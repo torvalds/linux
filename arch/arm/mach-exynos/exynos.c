@@ -211,6 +211,10 @@ static void __init exynos_dt_machine_init(void)
 	if (!IS_ENABLED(CONFIG_SMP))
 		exynos_sysram_init();
 
+#ifdef CONFIG_ARM_EXYNOS_CPUIDLE
+	if (of_machine_is_compatible("samsung,exynos4210"))
+		exynos_cpuidle.dev.platform_data = &cpuidle_coupled_exynos_data;
+#endif
 	if (of_machine_is_compatible("samsung,exynos4210") ||
 	    of_machine_is_compatible("samsung,exynos4212") ||
 	    (of_machine_is_compatible("samsung,exynos4412") &&
