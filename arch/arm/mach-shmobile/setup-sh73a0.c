@@ -783,15 +783,6 @@ void __init sh73a0_add_early_devices(void)
 	shmobile_setup_console();
 }
 
-void __init sh73a0_add_standard_devices_dt(void)
-{
-	/* clocks are setup late during boot in the case of DT */
-#ifndef CONFIG_COMMON_CLK
-	sh73a0_clock_init();
-#endif
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
-
 #define RESCNT2 IOMEM(0xe6188020)
 static void sh73a0_restart(enum reboot_mode mode, const char *cmd)
 {
