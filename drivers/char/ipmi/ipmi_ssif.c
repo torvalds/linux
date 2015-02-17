@@ -1196,7 +1196,9 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 static int smi_type_proc_show(struct seq_file *m, void *v)
 {
-	return seq_puts(m, "ssif\n");
+	seq_puts(m, "ssif\n");
+
+	return seq_has_overflowed(m);
 }
 
 static int smi_type_proc_open(struct inode *inode, struct file *file)

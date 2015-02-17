@@ -2979,7 +2979,9 @@ static int smi_type_proc_show(struct seq_file *m, void *v)
 {
 	struct smi_info *smi = m->private;
 
-	return seq_printf(m, "%s\n", si_to_str[smi->si_type]);
+	seq_printf(m, "%s\n", si_to_str[smi->si_type]);
+
+	return seq_has_overflowed(m);
 }
 
 static int smi_type_proc_open(struct inode *inode, struct file *file)
@@ -3041,16 +3043,18 @@ static int smi_params_proc_show(struct seq_file *m, void *v)
 {
 	struct smi_info *smi = m->private;
 
-	return seq_printf(m,
-		       "%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
-		       si_to_str[smi->si_type],
-		       addr_space_to_str[smi->io.addr_type],
-		       smi->io.addr_data,
-		       smi->io.regspacing,
-		       smi->io.regsize,
-		       smi->io.regshift,
-		       smi->irq,
-		       smi->slave_addr);
+	seq_printf(m,
+		   "%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
+		   si_to_str[smi->si_type],
+		   addr_space_to_str[smi->io.addr_type],
+		   smi->io.addr_data,
+		   smi->io.regspacing,
+		   smi->io.regsize,
+		   smi->io.regshift,
+		   smi->irq,
+		   smi->slave_addr);
+
+	return seq_has_overflowed(m);
 }
 
 static int smi_params_proc_open(struct inode *inode, struct file *file)

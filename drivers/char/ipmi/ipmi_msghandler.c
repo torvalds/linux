@@ -1998,7 +1998,9 @@ static int smi_ipmb_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "%x", intf->channels[0].address);
 	for (i = 1; i < IPMI_MAX_CHANNELS; i++)
 		seq_printf(m, " %x", intf->channels[i].address);
-	return seq_putc(m, '\n');
+	seq_putc(m, '\n');
+
+	return seq_has_overflowed(m);
 }
 
 static int smi_ipmb_proc_open(struct inode *inode, struct file *file)
@@ -2017,9 +2019,11 @@ static int smi_version_proc_show(struct seq_file *m, void *v)
 {
 	ipmi_smi_t intf = m->private;
 
-	return seq_printf(m, "%u.%u\n",
-		       ipmi_version_major(&intf->bmc->id),
-		       ipmi_version_minor(&intf->bmc->id));
+	seq_printf(m, "%u.%u\n",
+		   ipmi_version_major(&intf->bmc->id),
+		   ipmi_version_minor(&intf->bmc->id));
+
+	return seq_has_overflowed(m);
 }
 
 static int smi_version_proc_open(struct inode *inode, struct file *file)
