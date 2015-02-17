@@ -486,8 +486,7 @@ affs_check_name(const unsigned char *name, int len, bool notruncate)
 	if (len > AFFSNAMEMAX) {
 		if (notruncate)
 			return -ENAMETOOLONG;
-		else
-			len = AFFSNAMEMAX;
+		len = AFFSNAMEMAX;
 	}
 	for (i = 0; i < len; i++) {
 		if (name[i] < ' ' || name[i] == ':'
