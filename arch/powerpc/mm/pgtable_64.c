@@ -782,7 +782,7 @@ pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
 {
 	pmd_t pmd;
 	/*
-	 * For a valid pte, we would have _PAGE_PRESENT or _PAGE_FILE always
+	 * For a valid pte, we would have _PAGE_PRESENT always
 	 * set. We use this to check THP page at pmd level.
 	 * leaf pte for huge page, bottom two bits != 00
 	 */

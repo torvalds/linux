@@ -34,7 +34,7 @@ trivial patch so apply some common sense.
 	generalized kernel feature ready for next time.
 
 	PLEASE check your patch with the automated style checker
-	(scripts/checkpatch.pl) to catch trival style violations.
+	(scripts/checkpatch.pl) to catch trivial style violations.
 	See Documentation/CodingStyle for guidance here.
 
 	PLEASE CC: the maintainers and mailing lists that are generated
@@ -2965,6 +2965,12 @@ S:	Supported
 F:	drivers/input/touchscreen/cyttsp*
 F:	include/linux/input/cyttsp.h
 
+DALLAS/MAXIM DS1685-FAMILY REAL TIME CLOCK
+M:	Joshua Kinard <kumba@gentoo.org>
+S:	Maintained
+F:	drivers/rtc/rtc-ds1685.c
+F:	include/linux/rtc/ds1685.h
+
 DAMA SLAVE for AX.25
 M:	Joerg Reuter <jreuter@yaina.de>
 W:	http://yaina.de/jreuter/
@@ -3152,6 +3158,12 @@ M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-diolan-u2c.c
+
+DIRECT ACCESS (DAX)
+M:	Matthew Wilcox <willy@linux.intel.com>
+L:	linux-fsdevel@vger.kernel.org
+S:	Supported
+F:	fs/dax.c
 
 DIRECTORY NOTIFICATION (DNOTIFY)
 M:	Eric Paris <eparis@parisplace.org>
@@ -6211,6 +6223,26 @@ L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/power/max14577_charger.c
 F:	drivers/power/max77693_charger.c
+
+MAXIM PMIC AND MUIC DRIVERS FOR EXYNOS BASED BOARDS
+M:	Chanwoo Choi <cw00.choi@samsung.com>
+M:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	drivers/*/max14577.c
+F:	drivers/*/max77686.c
+F:	drivers/*/max77693.c
+F:	drivers/extcon/extcon-max14577.c
+F:	drivers/extcon/extcon-max77693.c
+F:	drivers/rtc/rtc-max77686.c
+F:	drivers/clk/clk-max77686.c
+F:	Documentation/devicetree/bindings/mfd/max14577.txt
+F:	Documentation/devicetree/bindings/mfd/max77686.txt
+F:	Documentation/devicetree/bindings/mfd/max77693.txt
+F:	Documentation/devicetree/bindings/clock/maxim,max77686.txt
+F:	include/linux/mfd/max14577*.h
+F:	include/linux/mfd/max77686*.h
+F:	include/linux/mfd/max77693*.h
 
 MAXIRADIO FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
