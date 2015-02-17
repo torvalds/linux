@@ -54,7 +54,6 @@
 #include "core.h"
 #include "hcd.h"
 
-#define PCI_VENDOR_ID_SYNOPSYS		0x16c3
 #define PCI_PRODUCT_ID_HAPS_HSOTG	0xabc0
 
 static const char dwc2_driver_name[] = "dwc2";
