@@ -18,38 +18,28 @@ from linux import utils
 
 task_type = utils.CachedType("struct task_struct")
 
+def task_lists():
+    global task_type
+    task_ptr_type = task_type.get_type().pointer()
+    init_task = gdb.parse_and_eval("init_task").address
+    t = g = init_task
 
-class TaskList:
-    def __init__(self):
-        global task_type
-        self.task_ptr_type = task_type.get_type().pointer()
-        self.init_task = gdb.parse_and_eval("init_task")
-        self.curr_group = self.init_task.address
-        self.curr_task = None
+    while True:
+        while True:
+            yield t
 
-    def __iter__(self):
-        return self
+            t = utils.container_of(t['thread_group']['next'],
+                                   task_ptr_type, "thread_group")
+            if t == g:
+                break
 
-    def __next__(self):
-        t = self.curr_task
-        if not t or t == self.curr_group:
-            self.curr_group = \
-                utils.container_of(self.curr_group['tasks']['next'],
-                                   self.task_ptr_type, "tasks")
-            if self.curr_group == self.init_task.address:
-                raise StopIteration
-            t = self.curr_task = self.curr_group
-        else:
-            self.curr_task = \
-                utils.container_of(t['thread_group']['next'],
-                                   self.task_ptr_type, "thread_group")
-        return t
-
-    def next(self):
-        return self.__next__()
+        t = g = utils.container_of(g['tasks']['next'],
+                                   task_ptr_type, "tasks")
+        if t == init_task:
+            return
 
 def get_task_by_pid(pid):
-    for task in TaskList():
+    for task in task_lists():
         if int(task['pid']) == pid:
             return task
     return None
