@@ -13,7 +13,15 @@
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
 
-#include <bcm63xx_regs.h>
+#define RNG_CTRL			0x00
+#define RNG_EN				(1 << 0)
+
+#define RNG_STAT			0x04
+#define RNG_AVAIL_MASK			(0xff000000)
+
+#define RNG_DATA			0x08
+#define RNG_THRES			0x0c
+#define RNG_MASK			0x10
 
 struct bcm63xx_rng_priv {
 	struct clk *clk;
