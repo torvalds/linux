@@ -163,6 +163,7 @@ void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 int init_pipelines(struct device_queue_manager *dqm,
 		unsigned int pipes_num, unsigned int first_pipe);
+unsigned int get_first_pipe(struct device_queue_manager *dqm);
 
 extern inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {
