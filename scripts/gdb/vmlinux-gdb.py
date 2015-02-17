@@ -25,3 +25,4 @@ else:
     import linux.utils
     import linux.symbols
     import linux.modules
+    import linux.dmesg
