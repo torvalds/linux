@@ -54,6 +54,9 @@ config SUN5I_HSTIMER
 	select CLKSRC_MMIO
 	bool
 
+config TEGRA_TIMER
+	bool
+
 config VT8500_TIMER
 	bool
 

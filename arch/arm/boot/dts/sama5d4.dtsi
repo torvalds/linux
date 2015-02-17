@@ -103,6 +103,11 @@
 		};
 	};
 
+	ns_sram: sram@00210000 {
+		compatible = "mmio-sram";
+		reg = <0x00210000 0x10000>;
+	};
+
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -868,6 +873,11 @@
 				#size-cells = <0>;
 				clocks = <&twi2_clk>;
 				status = "disabled";
+			};
+
+			sfr: sfr@f8028000 {
+				compatible = "atmel,sama5d4-sfr", "syscon";
+				reg = <0xf8028000 0x60>;
 			};
 
 			mmc1: mmc@fc000000 {
