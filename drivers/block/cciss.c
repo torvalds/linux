@@ -139,8 +139,6 @@ static struct board_type products[] = {
 	{0x3214103C, "Smart Array E200i", &SA5_access},
 	{0x3215103C, "Smart Array E200i", &SA5_access},
 	{0x3237103C, "Smart Array E500", &SA5_access},
-	{0x3223103C, "Smart Array P800", &SA5_access},
-	{0x3234103C, "Smart Array P400", &SA5_access},
 	{0x323D103C, "Smart Array P700m", &SA5_access},
 };
 
@@ -574,8 +572,6 @@ static void cciss_procinit(ctlr_info_t *h)
 
 /* List of controllers which cannot be hard reset on kexec with reset_devices */
 static u32 unresettable_controller[] = {
-	0x324a103C, /* Smart Array P712m */
-	0x324b103C, /* SmartArray P711m */
 	0x3223103C, /* Smart Array P800 */
 	0x3234103C, /* Smart Array P400 */
 	0x3235103C, /* Smart Array P400i */
