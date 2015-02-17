@@ -715,9 +715,9 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
 
 	if (remount_ro) {
-		if (sb->s_pins.first) {
+		if (!hlist_empty(&sb->s_pins)) {
 			up_write(&sb->s_umount);
-			sb_pin_kill(sb);
+			group_pin_kill(&sb->s_pins);
 			down_write(&sb->s_umount);
 			if (!sb->s_root)
 				return 0;

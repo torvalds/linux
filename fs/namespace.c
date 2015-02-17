@@ -190,6 +190,14 @@ unsigned int mnt_get_count(struct mount *mnt)
 #endif
 }
 
+static void drop_mountpoint(struct fs_pin *p)
+{
+	struct mount *m = container_of(p, struct mount, mnt_umount);
+	dput(m->mnt_ex_mountpoint);
+	pin_remove(p);
+	mntput(&m->mnt);
+}
+
 static struct mount *alloc_vfsmnt(const char *name)
 {
 	struct mount *mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
@@ -229,6 +237,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 #ifdef CONFIG_FSNOTIFY
 		INIT_HLIST_HEAD(&mnt->mnt_fsnotify_marks);
 #endif
+		init_fs_pin(&mnt->mnt_umount, drop_mountpoint);
 	}
 	return mnt;
 
@@ -1289,7 +1298,6 @@ static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 
 static void namespace_unlock(void)
 {
-	struct mount *mnt;
 	struct hlist_head head = unmounted;
 
 	if (likely(hlist_empty(&head))) {
@@ -1299,23 +1307,11 @@ static void namespace_unlock(void)
 
 	head.first->pprev = &head.first;
 	INIT_HLIST_HEAD(&unmounted);
-
-	/* undo decrements we'd done in umount_tree() */
-	hlist_for_each_entry(mnt, &head, mnt_hash)
-		if (mnt->mnt_ex_mountpoint.mnt)
-			mntget(mnt->mnt_ex_mountpoint.mnt);
-
 	up_write(&namespace_sem);
 
 	synchronize_rcu();
 
-	while (!hlist_empty(&head)) {
-		mnt = hlist_entry(head.first, struct mount, mnt_hash);
-		hlist_del_init(&mnt->mnt_hash);
-		if (mnt->mnt_ex_mountpoint.mnt)
-			path_put(&mnt->mnt_ex_mountpoint);
-		mntput(&mnt->mnt);
-	}
+	group_pin_kill(&head);
 }
 
 static inline void namespace_lock(void)
@@ -1334,7 +1330,6 @@ void umount_tree(struct mount *mnt, int how)
 {
 	HLIST_HEAD(tmp_list);
 	struct mount *p;
-	struct mount *last = NULL;
 
 	for (p = mnt; p; p = next_mnt(p, mnt)) {
 		hlist_del_init_rcu(&p->mnt_hash);
@@ -1347,33 +1342,28 @@ void umount_tree(struct mount *mnt, int how)
 	if (how)
 		propagate_umount(&tmp_list);
 
-	hlist_for_each_entry(p, &tmp_list, mnt_hash) {
+	while (!hlist_empty(&tmp_list)) {
+		p = hlist_entry(tmp_list.first, struct mount, mnt_hash);
+		hlist_del_init_rcu(&p->mnt_hash);
 		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);
 		p->mnt_ns = NULL;
 		if (how < 2)
 			p->mnt.mnt_flags |= MNT_SYNC_UMOUNT;
+
+		pin_insert_group(&p->mnt_umount, &p->mnt_parent->mnt, &unmounted);
 		if (mnt_has_parent(p)) {
 			hlist_del_init(&p->mnt_mp_list);
 			put_mountpoint(p->mnt_mp);
 			mnt_add_count(p->mnt_parent, -1);
-			/* move the reference to mountpoint into ->mnt_ex_mountpoint */
-			p->mnt_ex_mountpoint.dentry = p->mnt_mountpoint;
-			p->mnt_ex_mountpoint.mnt = &p->mnt_parent->mnt;
+			/* old mountpoint will be dropped when we can do that */
+			p->mnt_ex_mountpoint = p->mnt_mountpoint;
 			p->mnt_mountpoint = p->mnt.mnt_root;
 			p->mnt_parent = p;
 			p->mnt_mp = NULL;
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
-		last = p;
-	}
-	if (last) {
-		last->mnt_hash.next = unmounted.first;
-		if (unmounted.first)
-			unmounted.first->pprev = &last->mnt_hash.next;
-		unmounted.first = tmp_list.first;
-		unmounted.first->pprev = &unmounted.first;
 	}
 }
 
