@@ -165,10 +165,6 @@
 #ifndef __ASSEMBLY__
 
 /* Other enums */
-enum OpalVendorApiTokens {
-	OPAL_START_VENDOR_API_RANGE = 1000, OPAL_END_VENDOR_API_RANGE = 1999
-};
-
 enum OpalFreezeState {
 	OPAL_EEH_STOPPED_NOT_FROZEN = 0,
 	OPAL_EEH_STOPPED_MMIO_FREEZE = 1,
@@ -236,25 +232,10 @@ enum OpalErrinjectFunc {
 	OPAL_ERR_INJECT_FUNC_IOA_DMA_WR_TARGET	= 19,
 };
 
-enum OpalShpcAction {
-	OPAL_SHPC_GET_LINK_STATE = 0,
-	OPAL_SHPC_GET_SLOT_STATE = 1
-};
-
-enum OpalShpcLinkState {
-	OPAL_SHPC_LINK_DOWN = 0,
-	OPAL_SHPC_LINK_UP = 1
-};
-
 enum OpalMmioWindowType {
 	OPAL_M32_WINDOW_TYPE = 1,
 	OPAL_M64_WINDOW_TYPE = 2,
 	OPAL_IO_WINDOW_TYPE  = 3
-};
-
-enum OpalShpcSlotState {
-	OPAL_SHPC_DEV_NOT_PRESENT = 0,
-	OPAL_SHPC_DEV_PRESENT = 1
 };
 
 enum OpalExceptionHandler {
@@ -348,29 +329,6 @@ enum OpalPciResetState {
 	OPAL_ASSERT_RESET   = 1
 };
 
-enum OpalPciMaskAction {
-	OPAL_UNMASK_ERROR_TYPE = 0,
-	OPAL_MASK_ERROR_TYPE = 1
-};
-
-enum OpalSlotLedType {
-	OPAL_SLOT_LED_ID_TYPE = 0,
-	OPAL_SLOT_LED_FAULT_TYPE = 1
-};
-
-enum OpalLedAction {
-	OPAL_TURN_OFF_LED = 0,
-	OPAL_TURN_ON_LED = 1,
-	OPAL_QUERY_LED_STATE_AFTER_BUSY = 2
-};
-
-enum OpalEpowStatus {
-	OPAL_EPOW_NONE = 0,
-	OPAL_EPOW_UPS = 1,
-	OPAL_EPOW_OVER_AMBIENT_TEMP = 2,
-	OPAL_EPOW_OVER_INTERNAL_TEMP = 3
-};
-
 /*
  * Address cycle types for LPC accesses. These also correspond
  * to the content of the first cell of the "reg" property for
@@ -439,11 +397,6 @@ enum OpalMemErr_ResilErrType {
 enum OpalMemErr_DynErrType {
 	OPAL_MEM_DYNAMIC_DEALLOC	= 0,
 };
-
-/* OpalMemoryErrorData->flags */
-#define OPAL_MEM_CORRECTED_ERROR	0x0001
-#define OPAL_MEM_THRESHOLD_EXCEEDED	0x0002
-#define OPAL_MEM_ACK_REQUIRED		0x8000
 
 struct OpalMemoryErrorData {
 	enum OpalMemErr_Version	version:8;	/* 0x00 */
