@@ -13,7 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
 
-#include <bcm63xx_io.h>
 #include <bcm63xx_regs.h>
 
 struct bcm63xx_rng_priv {
@@ -28,9 +27,9 @@ static int bcm63xx_rng_init(struct hwrng *rng)
 	struct bcm63xx_rng_priv *priv = to_rng_priv(rng);
 	u32 val;
 
-	val = bcm_readl(priv->regs + RNG_CTRL);
+	val = __raw_readl(priv->regs + RNG_CTRL);
 	val |= RNG_EN;
-	bcm_writel(val, priv->regs + RNG_CTRL);
+	__raw_writel(val, priv->regs + RNG_CTRL);
 
 	return 0;
 }
@@ -40,23 +39,23 @@ static void bcm63xx_rng_cleanup(struct hwrng *rng)
 	struct bcm63xx_rng_priv *priv = to_rng_priv(rng);
 	u32 val;
 
-	val = bcm_readl(priv->regs + RNG_CTRL);
+	val = __raw_readl(priv->regs + RNG_CTRL);
 	val &= ~RNG_EN;
-	bcm_writel(val, priv->regs + RNG_CTRL);
+	__raw_writel(val, priv->regs + RNG_CTRL);
 }
 
 static int bcm63xx_rng_data_present(struct hwrng *rng, int wait)
 {
 	struct bcm63xx_rng_priv *priv = to_rng_priv(rng);
 
-	return bcm_readl(priv->regs + RNG_STAT) & RNG_AVAIL_MASK;
+	return __raw_readl(priv->regs + RNG_STAT) & RNG_AVAIL_MASK;
 }
 
 static int bcm63xx_rng_data_read(struct hwrng *rng, u32 *data)
 {
 	struct bcm63xx_rng_priv *priv = to_rng_priv(rng);
 
-	*data = bcm_readl(priv->regs + RNG_DATA);
+	*data = __raw_readl(priv->regs + RNG_DATA);
 
 	return 4;
 }
