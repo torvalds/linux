@@ -456,8 +456,8 @@ static void update_bmc_sta(struct rtw_adapter *padapter)
 		       sizeof(struct stainfo_stats));
 
 		/* prepare for add_RATid23a */
-		supportRateNum = rtw_get_rateset_len23a((u8*)&pcur_network->SupportedRates);
-		network_type = rtw_check_network_type23a((u8*)&pcur_network->SupportedRates, supportRateNum, 1);
+		supportRateNum = rtw_get_rateset_len23a((u8 *)&pcur_network->SupportedRates);
+		network_type = rtw_check_network_type23a((u8 *)&pcur_network->SupportedRates, supportRateNum, 1);
 
 		memcpy(psta->bssrateset, &pcur_network->SupportedRates, supportRateNum);
 		psta->bssratelen = supportRateNum;
@@ -897,7 +897,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	pairwise_cipher = 0;
 	psecuritypriv->wpa_group_cipher = 0;
 	psecuritypriv->wpa_pairwise_cipher = 0;
-	for (p = ie; ;p += (ie_len + 2)) {
+	for (p = ie; ; p += (ie_len + 2)) {
 		p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
 				  pbss_network->IELength - (ie_len + 2));
 		if ((p) && (!memcmp(p+2, RTW_WPA_OUI23A_TYPE, 4))) {
@@ -924,7 +924,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	ie_len = 0;
 	pmlmepriv->qos_option = 0;
 	if (pregistrypriv->wmm_enable) {
-		for (p = ie; ;p += (ie_len + 2)) {
+		for (p = ie; ; p += (ie_len + 2)) {
 			p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
 					  (pbss_network->IELength -
 					   (ie_len + 2)));
@@ -1204,7 +1204,7 @@ static void update_bcn_p2p_ie(struct rtw_adapter *padapter)
 {
 }
 
-static void update_bcn_vendor_spec_ie(struct rtw_adapter *padapter, u8*oui)
+static void update_bcn_vendor_spec_ie(struct rtw_adapter *padapter, u8 *oui)
 {
 	DBG_8723A("%s\n", __func__);
 

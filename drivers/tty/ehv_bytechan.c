@@ -112,7 +112,6 @@ static void disable_tx_interrupt(struct ehv_bc_data *bc)
 static int find_console_handle(void)
 {
 	struct device_node *np = of_stdout;
-	const char *sprop = NULL;
 	const uint32_t *iprop;
 
 	/* We don't care what the aliased node is actually called.  We only

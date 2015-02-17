@@ -20,7 +20,7 @@
  * Driver: rti802
  * Description: Analog Devices RTI-802
  * Author: Anders Blomdell <anders.blomdell@control.lth.se>
- * Devices: (Analog Devices) RTI-802 [rti802]
+ * Devices: [Analog Devices] RTI-802 (rti802)
  * Status: works
  *
  * Configuration Options:

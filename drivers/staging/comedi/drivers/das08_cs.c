@@ -41,10 +41,7 @@ Command support does not exist, but could be added for this board.
 
 #include <linux/module.h>
 
-#include "../comedidev.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
+#include "../comedi_pcmcia.h"
 
 #include "das08.h"
 

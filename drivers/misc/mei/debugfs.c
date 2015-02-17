@@ -21,20 +21,22 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
+#include "client.h"
 #include "hw.h"
 
 static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 					size_t cnt, loff_t *ppos)
 {
 	struct mei_device *dev = fp->private_data;
-	struct mei_me_client *me_cl;
+	struct mei_me_client *me_cl, *n;
 	size_t bufsz = 1;
 	char *buf;
 	int i = 0;
 	int pos = 0;
 	int ret;
 
-#define HDR "  |id|fix|         UUID                       |con|msg len|sb|\n"
+#define HDR \
+"  |id|fix|         UUID                       |con|msg len|sb|refc|\n"
 
 	mutex_lock(&dev->device_lock);
 
@@ -54,16 +56,22 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 
-	list_for_each_entry(me_cl, &dev->me_clients, list) {
+	list_for_each_entry_safe(me_cl, n, &dev->me_clients, list) {
 
-		pos += scnprintf(buf + pos, bufsz - pos,
-			"%2d|%2d|%3d|%pUl|%3d|%7d|%2d|\n",
-			i++, me_cl->client_id,
-			me_cl->props.fixed_address,
-			&me_cl->props.protocol_name,
-			me_cl->props.max_number_of_connections,
-			me_cl->props.max_msg_length,
-			me_cl->props.single_recv_buf);
+		me_cl = mei_me_cl_get(me_cl);
+		if (me_cl) {
+			pos += scnprintf(buf + pos, bufsz - pos,
+				"%2d|%2d|%3d|%pUl|%3d|%7d|%2d|%4d|\n",
+				i++, me_cl->client_id,
+				me_cl->props.fixed_address,
+				&me_cl->props.protocol_name,
+				me_cl->props.max_number_of_connections,
+				me_cl->props.max_msg_length,
+				me_cl->props.single_recv_buf,
+				atomic_read(&me_cl->refcnt.refcount));
+		}
+
+		mei_me_cl_put(me_cl);
 	}
 out:
 	mutex_unlock(&dev->device_lock);

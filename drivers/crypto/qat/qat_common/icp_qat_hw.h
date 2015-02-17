@@ -301,5 +301,5 @@ struct icp_qat_hw_cipher_aes256_f8 {
 
 struct icp_qat_hw_cipher_algo_blk {
 	struct icp_qat_hw_cipher_aes256_f8 aes;
-};
+} __aligned(64);
 #endif

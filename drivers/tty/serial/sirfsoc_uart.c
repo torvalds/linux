@@ -177,7 +177,7 @@ static void sirfsoc_uart_stop_tx(struct uart_port *port)
 			dmaengine_pause(sirfport->tx_dma_chan);
 			sirfport->tx_dma_state = TX_DMA_PAUSE;
 		} else {
-			if (!sirfport->is_marco)
+			if (!sirfport->is_atlas7)
 				wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg) &
 				~uint_en->sirfsoc_txfifo_empty_en);
@@ -186,7 +186,7 @@ static void sirfsoc_uart_stop_tx(struct uart_port *port)
 				uint_en->sirfsoc_txfifo_empty_en);
 		}
 	} else {
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg) &
 				~uint_en->sirfsoc_txfifo_empty_en);
@@ -217,7 +217,7 @@ static void sirfsoc_uart_tx_with_dma(struct sirfsoc_uart_port *sirfport)
 	}
 	if (sirfport->tx_dma_state == TX_DMA_RUNNING)
 		return;
-	if (!sirfport->is_marco)
+	if (!sirfport->is_atlas7)
 		wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg)&
 				~(uint_en->sirfsoc_txfifo_empty_en));
@@ -244,7 +244,7 @@ static void sirfsoc_uart_tx_with_dma(struct sirfsoc_uart_port *sirfport)
 		}
 		if (tran_size < 4)
 			sirfsoc_uart_pio_tx_chars(sirfport, tran_size);
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg)|
 				uint_en->sirfsoc_txfifo_empty_en);
@@ -293,7 +293,7 @@ static void sirfsoc_uart_start_tx(struct uart_port *port)
 		sirfsoc_uart_pio_tx_chars(sirfport,
 			SIRFSOC_UART_IO_TX_REASONABLE_CNT);
 		wr_regl(port, ureg->sirfsoc_tx_fifo_op, SIRFUART_FIFO_START);
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 					rd_regl(port, ureg->sirfsoc_int_en_reg)|
 					uint_en->sirfsoc_txfifo_empty_en);
@@ -311,7 +311,7 @@ static void sirfsoc_uart_stop_rx(struct uart_port *port)
 
 	wr_regl(port, ureg->sirfsoc_rx_fifo_op, 0);
 	if (sirfport->rx_dma_chan) {
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg) &
 				~(SIRFUART_RX_DMA_INT_EN(port, uint_en) |
@@ -322,7 +322,7 @@ static void sirfsoc_uart_stop_rx(struct uart_port *port)
 					uint_en->sirfsoc_rx_done_en);
 		dmaengine_terminate_all(sirfport->rx_dma_chan);
 	} else {
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg)&
 				~(SIRFUART_RX_IO_INT_EN(port, uint_en)));
@@ -344,7 +344,7 @@ static void sirfsoc_uart_disable_ms(struct uart_port *port)
 	if (sirfport->uart_reg->uart_type == SIRF_REAL_UART) {
 		wr_regl(port, ureg->sirfsoc_afc_ctrl,
 				rd_regl(port, ureg->sirfsoc_afc_ctrl) & ~0x3FF);
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 					rd_regl(port, ureg->sirfsoc_int_en_reg)&
 					~uint_en->sirfsoc_cts_en);
@@ -380,7 +380,7 @@ static void sirfsoc_uart_enable_ms(struct uart_port *port)
 		wr_regl(port, ureg->sirfsoc_afc_ctrl,
 				rd_regl(port, ureg->sirfsoc_afc_ctrl) |
 				SIRFUART_AFC_TX_EN | SIRFUART_AFC_RX_EN);
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 					rd_regl(port, ureg->sirfsoc_int_en_reg)
 					| uint_en->sirfsoc_cts_en);
@@ -544,7 +544,7 @@ static void sirfsoc_rx_tmo_process_tl(unsigned long param)
 		sirfport->rx_io_count = 0;
 		wr_regl(port, ureg->sirfsoc_int_st_reg,
 				uint_st->sirfsoc_rx_done);
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg) &
 				~(uint_en->sirfsoc_rx_done_en));
@@ -555,7 +555,7 @@ static void sirfsoc_rx_tmo_process_tl(unsigned long param)
 	} else {
 		wr_regl(port, ureg->sirfsoc_int_st_reg,
 				uint_st->sirfsoc_rx_done);
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg) |
 				(uint_en->sirfsoc_rx_done_en));
@@ -578,7 +578,7 @@ static void sirfsoc_uart_handle_rx_tmo(struct sirfsoc_uart_port *sirfport)
 	dmaengine_terminate_all(sirfport->rx_dma_chan);
 	sirfport->rx_dma_items[sirfport->rx_issued].xmit.head =
 		SIRFSOC_RX_DMA_BUF_SIZE - tx_state.residue;
-	if (!sirfport->is_marco)
+	if (!sirfport->is_atlas7)
 		wr_regl(port, ureg->sirfsoc_int_en_reg,
 			rd_regl(port, ureg->sirfsoc_int_en_reg) &
 			~(uint_en->sirfsoc_rx_timeout_en));
@@ -598,7 +598,7 @@ static void sirfsoc_uart_handle_rx_done(struct sirfsoc_uart_port *sirfport)
 	sirfsoc_uart_pio_rx_chars(port, 4 - sirfport->rx_io_count);
 	if (sirfport->rx_io_count == 4) {
 		sirfport->rx_io_count = 0;
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg) &
 				~(uint_en->sirfsoc_rx_done_en));
@@ -748,7 +748,7 @@ static void sirfsoc_uart_start_next_rx_dma(struct uart_port *port)
 	for (i = 0; i < SIRFSOC_RX_LOOP_BUF_CNT; i++)
 		sirfsoc_rx_submit_one_dma_desc(port, i);
 	sirfport->rx_completed = sirfport->rx_issued = 0;
-	if (!sirfport->is_marco)
+	if (!sirfport->is_atlas7)
 		wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg) |
 				SIRFUART_RX_DMA_INT_EN(port, uint_en));
@@ -770,7 +770,7 @@ static void sirfsoc_uart_start_rx(struct uart_port *port)
 	if (sirfport->rx_dma_chan)
 		sirfsoc_uart_start_next_rx_dma(port);
 	else {
-		if (!sirfport->is_marco)
+		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 				rd_regl(port, ureg->sirfsoc_int_en_reg) |
 				SIRFUART_RX_IO_INT_EN(port, uint_en));
@@ -1124,7 +1124,7 @@ static void sirfsoc_uart_shutdown(struct uart_port *port)
 {
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
 	struct sirfsoc_register *ureg = &sirfport->uart_reg->uart_reg;
-	if (!sirfport->is_marco)
+	if (!sirfport->is_atlas7)
 		wr_regl(port, ureg->sirfsoc_int_en_reg, 0);
 	else
 		wr_regl(port, SIRFUART_INT_EN_CLR, ~0UL);
@@ -1271,7 +1271,7 @@ static struct uart_driver sirfsoc_uart_drv = {
 
 static struct of_device_id sirfsoc_uart_ids[] = {
 	{ .compatible = "sirf,prima2-uart", .data = &sirfsoc_uart,},
-	{ .compatible = "sirf,marco-uart", .data = &sirfsoc_uart},
+	{ .compatible = "sirf,atlas7-uart", .data = &sirfsoc_uart},
 	{ .compatible = "sirf,prima2-usp-uart", .data = &sirfsoc_usp},
 	{}
 };
@@ -1350,8 +1350,8 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 		gpio_direction_output(sirfport->rts_gpio, 1);
 	}
 usp_no_flow_control:
-	if (of_device_is_compatible(pdev->dev.of_node, "sirf,marco-uart"))
-		sirfport->is_marco = true;
+	if (of_device_is_compatible(pdev->dev.of_node, "sirf,atlas7-uart"))
+		sirfport->is_atlas7 = true;
 
 	if (of_property_read_u32(pdev->dev.of_node,
 			"fifosize",
@@ -1393,7 +1393,7 @@ usp_no_flow_control:
 		goto err;
 	}
 	port->uartclk = clk_get_rate(sirfport->clk);
-	if (of_device_is_compatible(pdev->dev.of_node, "sirf,marco-bt-uart")) {
+	if (of_device_is_compatible(pdev->dev.of_node, "sirf,atlas7-bt-uart")) {
 		sirfport->clk_general = devm_clk_get(&pdev->dev, "general");
 		if (IS_ERR(sirfport->clk_general)) {
 			ret = PTR_ERR(sirfport->clk_general);

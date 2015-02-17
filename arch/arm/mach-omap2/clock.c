@@ -620,6 +620,9 @@ void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks)
 
 	for (i = 0; i < num_clocks; i++) {
 		init_clk = clk_get(NULL, clk_names[i]);
+		if (WARN(IS_ERR(init_clk), "could not find init clock %s\n",
+				clk_names[i]))
+			continue;
 		clk_prepare_enable(init_clk);
 	}
 }

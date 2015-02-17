@@ -479,13 +479,13 @@ static void cryp_dma_setup_channel(struct cryp_device_data *device_data,
 		.dst_addr = device_data->phybase + CRYP_DMA_TX_FIFO,
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
 		.dst_maxburst = 4,
-        };
+	};
 	struct dma_slave_config cryp2mem = {
 		.direction = DMA_DEV_TO_MEM,
 		.src_addr = device_data->phybase + CRYP_DMA_RX_FIFO,
 		.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
 		.src_maxburst = 4,
-        };
+	};
 
 	dma_cap_zero(device_data->dma.mask);
 	dma_cap_set(DMA_SLAVE, device_data->dma.mask);
@@ -814,7 +814,7 @@ static int get_nents(struct scatterlist *sg, int nbytes)
 
 	while (nbytes > 0) {
 		nbytes -= sg->length;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 		nents++;
 	}
 
@@ -1774,8 +1774,8 @@ static int ux500_cryp_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ux500_cryp_pm, ux500_cryp_suspend, ux500_cryp_resume);
 
 static const struct of_device_id ux500_cryp_match[] = {
-        { .compatible = "stericsson,ux500-cryp" },
-        { },
+	{ .compatible = "stericsson,ux500-cryp" },
+	{ },
 };
 
 static struct platform_driver cryp_driver = {

@@ -36,13 +36,17 @@
 #include <linux/skbuff.h>
 #include <linux/ti_wilink_st.h>
 #include <linux/module.h>
-
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #define MAX_ST_DEVICES	3	/* Imagine 1 on each UART for now */
 static struct platform_device *st_kim_devices[MAX_ST_DEVICES];
 
 /**********************************************************************/
 /* internal functions */
+
+struct ti_st_plat_data	*dt_pdata;
+static struct ti_st_plat_data *get_platform_data(struct device *dev);
 
 /**
  * st_get_plat_device -
@@ -215,6 +219,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 {
 	unsigned short version = 0, chip = 0, min_ver = 0, maj_ver = 0;
 	const char read_ver_cmd[] = { 0x01, 0x01, 0x10, 0x00 };
+	long timeout;
 
 	pr_debug("%s", __func__);
 
@@ -224,10 +229,11 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 		return -EIO;
 	}
 
-	if (!wait_for_completion_interruptible_timeout(
-		&kim_gdata->kim_rcvd, msecs_to_jiffies(CMD_RESP_TIME))) {
-		pr_err(" waiting for ver info- timed out ");
-		return -ETIMEDOUT;
+	timeout = wait_for_completion_interruptible_timeout(
+		&kim_gdata->kim_rcvd, msecs_to_jiffies(CMD_RESP_TIME));
+	if (timeout <= 0) {
+		pr_err(" waiting for ver info- timed out or received signal");
+		return timeout ? -ERESTARTSYS : -ETIMEDOUT;
 	}
 	reinit_completion(&kim_gdata->kim_rcvd);
 	/* the positions 12 & 13 in the response buffer provide with the
@@ -391,13 +397,14 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 			break;
 		case ACTION_WAIT_EVENT:  /* wait */
 			pr_debug("W");
-			if (!wait_for_completion_interruptible_timeout(
+			err = wait_for_completion_interruptible_timeout(
 					&kim_gdata->kim_rcvd,
-					msecs_to_jiffies(CMD_RESP_TIME))) {
-				pr_err("response timeout during fw download ");
+					msecs_to_jiffies(CMD_RESP_TIME));
+			if (err <= 0) {
+				pr_err("response timeout/signaled during fw download ");
 				/* timed out */
 				release_firmware(kim_gdata->fw_entry);
-				return -ETIMEDOUT;
+				return err ? -ERESTARTSYS : -ETIMEDOUT;
 			}
 			reinit_completion(&kim_gdata->kim_rcvd);
 			break;
@@ -462,7 +469,12 @@ long st_kim_start(void *kim_data)
 	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
 
 	pr_info(" %s", __func__);
-	pdata = kim_gdata->kim_pdev->dev.platform_data;
+	if (kim_gdata->kim_pdev->dev.of_node) {
+		pr_debug("use device tree data");
+		pdata = dt_pdata;
+	} else {
+		pdata = kim_gdata->kim_pdev->dev.platform_data;
+	}
 
 	do {
 		/* platform specific enabling code here */
@@ -522,11 +534,17 @@ long st_kim_stop(void *kim_data)
 {
 	long err = 0;
 	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
-	struct ti_st_plat_data	*pdata =
-		kim_gdata->kim_pdev->dev.platform_data;
+	struct ti_st_plat_data	*pdata;
 	struct tty_struct	*tty = kim_gdata->core_data->tty;
 
 	reinit_completion(&kim_gdata->ldisc_installed);
+
+	if (kim_gdata->kim_pdev->dev.of_node) {
+		pr_debug("use device tree data");
+		pdata = dt_pdata;
+	} else
+		pdata = kim_gdata->kim_pdev->dev.platform_data;
+
 
 	if (tty) {	/* can be called before ldisc is installed */
 		/* Flush any pending characters in the driver and discipline. */
@@ -620,7 +638,7 @@ static ssize_t show_baud_rate(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct kim_data_s *kim_data = dev_get_drvdata(dev);
-	return sprintf(buf, "%ld\n", kim_data->baud_rate);
+	return sprintf(buf, "%d\n", kim_data->baud_rate);
 }
 
 static ssize_t show_flow_cntrl(struct device *dev,
@@ -676,12 +694,16 @@ void st_kim_ref(struct st_data_s **core_data, int id)
 	struct kim_data_s	*kim_gdata;
 	/* get kim_gdata reference from platform device */
 	pdev = st_get_plat_device(id);
-	if (!pdev) {
-		*core_data = NULL;
-		return;
-	}
+	if (!pdev)
+		goto err;
 	kim_gdata = platform_get_drvdata(pdev);
+	if (!kim_gdata)
+		goto err;
+
 	*core_data = kim_gdata->core_data;
+	return;
+err:
+	*core_data = NULL;
 }
 
 static int kim_version_open(struct inode *i, struct file *f)
@@ -715,12 +737,52 @@ static const struct file_operations list_debugfs_fops = {
  * board-*.c file
  */
 
+static const struct of_device_id kim_of_match[] = {
+{
+	.compatible = "kim",
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, kim_of_match);
+
+static struct ti_st_plat_data *get_platform_data(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	const u32 *dt_property;
+	int len;
+
+	dt_pdata = kzalloc(sizeof(*dt_pdata), GFP_KERNEL);
+
+	if (!dt_pdata)
+		pr_err("Can't allocate device_tree platform data\n");
+
+	dt_property = of_get_property(np, "dev_name", &len);
+	if (dt_property)
+		memcpy(&dt_pdata->dev_name, dt_property, len);
+	of_property_read_u32(np, "nshutdown_gpio",
+			     &dt_pdata->nshutdown_gpio);
+	of_property_read_u32(np, "flow_cntrl", &dt_pdata->flow_cntrl);
+	of_property_read_u32(np, "baud_rate", &dt_pdata->baud_rate);
+
+	return dt_pdata;
+}
+
 static struct dentry *kim_debugfs_dir;
 static int kim_probe(struct platform_device *pdev)
 {
 	struct kim_data_s	*kim_gdata;
-	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
+	struct ti_st_plat_data	*pdata;
 	int err;
+
+	if (pdev->dev.of_node)
+		pdata = get_platform_data(&pdev->dev);
+	else
+		pdata = pdev->dev.platform_data;
+
+	if (pdata == NULL) {
+		dev_err(&pdev->dev, "Platform Data is missing\n");
+		return -ENXIO;
+	}
 
 	if ((pdev->id != -1) && (pdev->id < MAX_ST_DEVICES)) {
 		/* multiple devices could exist */
@@ -750,14 +812,14 @@ static int kim_probe(struct platform_device *pdev)
 	kim_gdata->nshutdown = pdata->nshutdown_gpio;
 	err = gpio_request(kim_gdata->nshutdown, "kim");
 	if (unlikely(err)) {
-		pr_err(" gpio %ld request failed ", kim_gdata->nshutdown);
+		pr_err(" gpio %d request failed ", kim_gdata->nshutdown);
 		return err;
 	}
 
 	/* Configure nShutdown GPIO as output=0 */
 	err = gpio_direction_output(kim_gdata->nshutdown, 0);
 	if (unlikely(err)) {
-		pr_err(" unable to configure gpio %ld", kim_gdata->nshutdown);
+		pr_err(" unable to configure gpio %d", kim_gdata->nshutdown);
 		return err;
 	}
 	/* get reference of pdev for request_firmware
@@ -781,8 +843,7 @@ static int kim_probe(struct platform_device *pdev)
 	kim_debugfs_dir = debugfs_create_dir("ti-st", NULL);
 	if (!kim_debugfs_dir) {
 		pr_err(" debugfs entries creation failed ");
-		err = -EIO;
-		goto err_debugfs_dir;
+		return 0;
 	}
 
 	debugfs_create_file("version", S_IRUGO, kim_debugfs_dir,
@@ -790,9 +851,6 @@ static int kim_probe(struct platform_device *pdev)
 	debugfs_create_file("protocols", S_IRUGO, kim_debugfs_dir,
 				kim_gdata, &list_debugfs_fops);
 	return 0;
-
-err_debugfs_dir:
-	sysfs_remove_group(&pdev->dev.kobj, &uim_attr_grp);
 
 err_sysfs_group:
 	st_core_exit(kim_gdata->core_data);
@@ -806,8 +864,15 @@ err_core_init:
 static int kim_remove(struct platform_device *pdev)
 {
 	/* free the GPIOs requested */
-	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
+	struct ti_st_plat_data	*pdata;
 	struct kim_data_s	*kim_gdata;
+
+	if (pdev->dev.of_node) {
+		pr_debug("use device tree data");
+		pdata = dt_pdata;
+	} else {
+		pdata = pdev->dev.platform_data;
+	}
 
 	kim_gdata = platform_get_drvdata(pdev);
 
@@ -826,27 +891,44 @@ static int kim_remove(struct platform_device *pdev)
 
 	kfree(kim_gdata);
 	kim_gdata = NULL;
+	kfree(dt_pdata);
+	dt_pdata = NULL;
+
 	return 0;
 }
 
 static int kim_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
+	struct ti_st_plat_data	*pdata;
+
+	if (pdev->dev.of_node) {
+		pr_debug("use device tree data");
+		pdata = dt_pdata;
+	} else {
+		pdata = pdev->dev.platform_data;
+	}
 
 	if (pdata->suspend)
 		return pdata->suspend(pdev, state);
 
-	return -EOPNOTSUPP;
+	return 0;
 }
 
 static int kim_resume(struct platform_device *pdev)
 {
-	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
+	struct ti_st_plat_data	*pdata;
+
+	if (pdev->dev.of_node) {
+		pr_debug("use device tree data");
+		pdata = dt_pdata;
+	} else {
+		pdata = pdev->dev.platform_data;
+	}
 
 	if (pdata->resume)
 		return pdata->resume(pdev);
 
-	return -EOPNOTSUPP;
+	return 0;
 }
 
 /**********************************************************************/
@@ -858,6 +940,8 @@ static struct platform_driver kim_platform_driver = {
 	.resume = kim_resume,
 	.driver = {
 		.name = "kim",
+		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(kim_of_match),
 	},
 };
 

@@ -492,27 +492,6 @@ void __init am35xx_init_early(void)
 		omap_clk_soc_init = am35xx_dt_clk_init;
 }
 
-void __init ti81xx_init_early(void)
-{
-	omap2_set_globals_tap(OMAP343X_CLASS,
-			      OMAP2_L4_IO_ADDRESS(TI81XX_TAP_BASE));
-	omap2_set_globals_control(OMAP2_L4_IO_ADDRESS(TI81XX_CTRL_BASE),
-				  NULL);
-	omap2_set_globals_prm(OMAP2_L4_IO_ADDRESS(TI81XX_PRCM_BASE));
-	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(TI81XX_PRCM_BASE), NULL);
-	omap3xxx_check_revision();
-	ti81xx_check_features();
-	omap3xxx_voltagedomains_init();
-	omap3xxx_powerdomains_init();
-	omap3xxx_clockdomains_init();
-	omap3xxx_hwmod_init();
-	omap_hwmod_init_postsetup();
-	if (of_have_populated_dt())
-		omap_clk_soc_init = ti81xx_dt_clk_init;
-	else
-		omap_clk_soc_init = omap3xxx_clk_init;
-}
-
 void __init omap3_init_late(void)
 {
 	omap_common_late_init();
@@ -551,8 +530,51 @@ void __init am35xx_init_late(void)
 void __init ti81xx_init_late(void)
 {
 	omap_common_late_init();
-	omap3_pm_init();
 	omap2_clk_enable_autoidle_all();
+}
+#endif
+
+#ifdef CONFIG_SOC_TI81XX
+void __init ti814x_init_early(void)
+{
+	omap2_set_globals_tap(TI814X_CLASS,
+			      OMAP2_L4_IO_ADDRESS(TI81XX_TAP_BASE));
+	omap2_set_globals_control(OMAP2_L4_IO_ADDRESS(TI81XX_CTRL_BASE),
+				  NULL);
+	omap2_set_globals_prm(OMAP2_L4_IO_ADDRESS(TI81XX_PRCM_BASE));
+	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(TI81XX_PRCM_BASE), NULL);
+	omap3xxx_check_revision();
+	ti81xx_check_features();
+	am33xx_prm_init();
+	am33xx_cm_init();
+	omap3xxx_voltagedomains_init();
+	omap3xxx_powerdomains_init();
+	ti81xx_clockdomains_init();
+	ti81xx_hwmod_init();
+	omap_hwmod_init_postsetup();
+	if (of_have_populated_dt())
+		omap_clk_soc_init = ti81xx_dt_clk_init;
+}
+
+void __init ti816x_init_early(void)
+{
+	omap2_set_globals_tap(TI816X_CLASS,
+			      OMAP2_L4_IO_ADDRESS(TI81XX_TAP_BASE));
+	omap2_set_globals_control(OMAP2_L4_IO_ADDRESS(TI81XX_CTRL_BASE),
+				  NULL);
+	omap2_set_globals_prm(OMAP2_L4_IO_ADDRESS(TI81XX_PRCM_BASE));
+	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(TI81XX_PRCM_BASE), NULL);
+	omap3xxx_check_revision();
+	ti81xx_check_features();
+	am33xx_prm_init();
+	am33xx_cm_init();
+	omap3xxx_voltagedomains_init();
+	omap3xxx_powerdomains_init();
+	ti81xx_clockdomains_init();
+	ti81xx_hwmod_init();
+	omap_hwmod_init_postsetup();
+	if (of_have_populated_dt())
+		omap_clk_soc_init = ti81xx_dt_clk_init;
 }
 #endif
 

@@ -431,7 +431,6 @@ static struct platform_driver ohci_hcd_da8xx_driver = {
 	.resume		= ohci_da8xx_resume,
 #endif
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "ohci",
 	},
 };

@@ -79,6 +79,7 @@
 	pd_lcd1: lcd1-power-domain@10023CA0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CA0 0x20>;
+		#power-domain-cells = <0>;
 	};
 
 	l2c: l2-cache-controller@10502000 {
@@ -200,5 +201,13 @@
 			samsung,mainscaler-ext;
 			samsung,lcd-wb;
 		};
+	};
+
+	ppmu_lcd1: ppmu_lcd1@12240000 {
+		compatible = "samsung,exynos-ppmu";
+		reg = <0x12240000 0x2000>;
+		clocks = <&clock CLK_PPMULCD1>;
+		clock-names = "ppmu";
+		status = "disabled";
 	};
 };

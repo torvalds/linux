@@ -49,7 +49,7 @@ enum {
  */
 #define LNET_PROC_CPT_BITS	(LNET_CPT_BITS + 1)
 /* change version, 16 bits or 8 bits */
-#define LNET_PROC_VER_BITS	MAX(((MIN(LNET_LOFFT_BITS, 64)) / 4), 8)
+#define LNET_PROC_VER_BITS	max_t(size_t, min_t(size_t, LNET_LOFFT_BITS, 64) / 4, 8)
 
 #define LNET_PROC_HASH_BITS	LNET_PEER_HASH_BITS
 /*

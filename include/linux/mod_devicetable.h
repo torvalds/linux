@@ -53,9 +53,9 @@ struct ieee1394_device_id {
 
 /**
  * struct usb_device_id - identifies USB devices for probing and hotplugging
- * @match_flags: Bit mask controlling of the other fields are used to match
- *	against new devices.  Any field except for driver_info may be used,
- *	although some only make sense in conjunction with other fields.
+ * @match_flags: Bit mask controlling which of the other fields are used to
+ *	match against new devices. Any field except for driver_info may be
+ *	used, although some only make sense in conjunction with other fields.
  *	This is usually set by a USB_DEVICE_*() macro, which sets all
  *	other fields in this structure except for driver_info.
  * @idVendor: USB vendor ID for a device; numbers are assigned

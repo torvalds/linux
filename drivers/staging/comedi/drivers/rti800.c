@@ -19,8 +19,7 @@
 /*
  * Driver: rti800
  * Description: Analog Devices RTI-800/815
- * Devices: (Analog Devices) RTI-800 [rti800]
- *	    (Analog Devices) RTI-815 [rti815]
+ * Devices: [Analog Devices] RTI-800 (rti800), RTI-815 (rti815)
  * Author: David A. Schleef <ds@schleef.org>
  * Status: unknown
  * Updated: Fri, 05 Sep 2008 14:50:44 +0100

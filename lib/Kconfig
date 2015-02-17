@@ -14,7 +14,7 @@ config BITREVERSE
 	tristate
 
 config HAVE_ARCH_BITREVERSE
-	boolean
+	bool
 	default n
 	depends on BITREVERSE
 	help

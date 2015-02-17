@@ -586,6 +586,8 @@ struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
 	struct gen_pool **ptr, *pool;
 
 	ptr = devres_alloc(devm_gen_pool_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
 
 	pool = gen_pool_create(min_alloc_order, nid);
 	if (pool) {

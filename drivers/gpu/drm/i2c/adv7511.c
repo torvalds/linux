@@ -644,9 +644,6 @@ static int adv7511_encoder_mode_valid(struct drm_encoder *encoder,
 	if (mode->clock > 165000)
 		return MODE_CLOCK_HIGH;
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
-
 	return MODE_OK;
 }
 

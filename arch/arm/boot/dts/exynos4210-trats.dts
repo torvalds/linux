@@ -28,6 +28,7 @@
 
 	chosen {
 		bootargs = "console=ttySAC2,115200N8 root=/dev/mmcblk0p5 rootwait earlyprintk panic=5";
+		stdout-path = &serial_2;
 	};
 
 	regulators {
@@ -91,6 +92,7 @@
 	hsotg@12480000 {
 		vusb_d-supply = <&vusb_reg>;
 		vusb_a-supply = <&vusbdac_reg>;
+		dr_mode = "peripheral";
 		status = "okay";
 	};
 

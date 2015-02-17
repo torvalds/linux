@@ -1494,10 +1494,10 @@ static void xen_pvh_set_cr_flags(int cpu)
 	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu_init.
 	*/
 	if (cpu_has_pse)
-		set_in_cr4(X86_CR4_PSE);
+		cr4_set_bits_and_update_boot(X86_CR4_PSE);
 
 	if (cpu_has_pge)
-		set_in_cr4(X86_CR4_PGE);
+		cr4_set_bits_and_update_boot(X86_CR4_PGE);
 }
 
 /*

@@ -2817,8 +2817,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 			p += snprintf(p, buffer + maxlen - p, "relative");
 	}
 
-	if (!nodes_empty(nodes)) {
-		p += snprintf(p, buffer + maxlen - p, ":");
-	 	p += nodelist_scnprintf(p, buffer + maxlen - p, nodes);
-	}
+	if (!nodes_empty(nodes))
+		p += scnprintf(p, buffer + maxlen - p, ":%*pbl",
+			       nodemask_pr_args(&nodes));
 }

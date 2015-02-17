@@ -14,15 +14,19 @@
 #include "sti_layer.h"
 #include "sti_vtg.h"
 
+#define ALPHASWITCH     BIT(6)
 #define ENA_COLOR_FILL  BIT(8)
+#define BIGNOTLITTLE    BIT(23)
 #define WAIT_NEXT_VSYNC BIT(31)
 
 /* GDP color formats */
 #define GDP_RGB565      0x00
 #define GDP_RGB888      0x01
 #define GDP_RGB888_32   0x02
+#define GDP_XBGR8888    (GDP_RGB888_32 | BIGNOTLITTLE | ALPHASWITCH)
 #define GDP_ARGB8565    0x04
 #define GDP_ARGB8888    0x05
+#define GDP_ABGR8888	(GDP_ARGB8888 | BIGNOTLITTLE | ALPHASWITCH)
 #define GDP_ARGB1555    0x06
 #define GDP_ARGB4444    0x07
 #define GDP_CLUT8       0x0B
@@ -103,7 +107,9 @@ struct sti_gdp {
 
 static const uint32_t gdp_supported_formats[] = {
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_RGB565,
@@ -129,8 +135,12 @@ static int sti_gdp_fourcc2format(int fourcc)
 	switch (fourcc) {
 	case DRM_FORMAT_XRGB8888:
 		return GDP_RGB888_32;
+	case DRM_FORMAT_XBGR8888:
+		return GDP_XBGR8888;
 	case DRM_FORMAT_ARGB8888:
 		return GDP_ARGB8888;
+	case DRM_FORMAT_ABGR8888:
+		return GDP_ABGR8888;
 	case DRM_FORMAT_ARGB4444:
 		return GDP_ARGB4444;
 	case DRM_FORMAT_ARGB1555:
@@ -157,6 +167,7 @@ static int sti_gdp_get_alpharange(int format)
 	case GDP_ARGB8565:
 	case GDP_ARGB8888:
 	case GDP_AYCBR8888:
+	case GDP_ABGR8888:
 		return GAM_GDP_ALPHARANGE_255;
 	}
 	return 0;

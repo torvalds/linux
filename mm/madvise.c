@@ -239,7 +239,7 @@ static long madvise_willneed(struct vm_area_struct *vma,
 		return -EBADF;
 #endif
 
-	if (file->f_mapping->a_ops->get_xip_mem) {
+	if (IS_DAX(file_inode(file))) {
 		/* no bad return value, but ignore advice */
 		return 0;
 	}

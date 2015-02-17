@@ -128,11 +128,12 @@ struct usbdevfs_hub_portinfo {
 	char port [127];	/* e.g. port 3 connects to device 27 */
 };
 
-/* Device capability flags */
+/* System and bus capability flags */
 #define USBDEVFS_CAP_ZERO_PACKET		0x01
 #define USBDEVFS_CAP_BULK_CONTINUATION		0x02
 #define USBDEVFS_CAP_NO_PACKET_SIZE_LIM		0x04
 #define USBDEVFS_CAP_BULK_SCATTER_GATHER	0x08
+#define USBDEVFS_CAP_REAP_AFTER_DISCONNECT	0x10
 
 /* USBDEVFS_DISCONNECT_CLAIM flags & struct */
 

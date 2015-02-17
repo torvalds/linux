@@ -455,7 +455,7 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	/* this probably won't catch overruns since the card doesn't generate
 	 * overrun interrupts, but we might as well try */
 	if (status & OVRUN) {
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 		dev_err(dev->class_dev, "fifo overflow\n");
 	}
 

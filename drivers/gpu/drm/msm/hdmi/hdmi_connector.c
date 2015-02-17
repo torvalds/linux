@@ -386,7 +386,7 @@ hdmi_connector_best_encoder(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs hdmi_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = hdmi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = hdmi_connector_destroy,
@@ -426,7 +426,7 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 			DRM_CONNECTOR_POLL_DISCONNECT;
 
-	connector->interlace_allowed = 1;
+	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
 	drm_connector_register(connector);

@@ -264,7 +264,7 @@ static void i915_restore_display(struct drm_device *dev)
 	}
 
 	/* only restore FBC info on the platform that supports FBC*/
-	intel_disable_fbc(dev);
+	intel_fbc_disable(dev);
 
 	/* restore FBC interval */
 	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev))

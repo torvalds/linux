@@ -104,18 +104,18 @@ EXPORT_SYMBOL(__bitmap_complement);
  *   @dst : destination bitmap
  *   @src : source bitmap
  *   @shift : shift by this many bits
- *   @bits : bitmap size, in bits
+ *   @nbits : bitmap size, in bits
  *
  * Shifting right (dividing) means moving bits in the MS -> LS bit
  * direction.  Zeros are fed into the vacated MS positions and the
  * LS bits shifted off the bottom are lost.
  */
-void __bitmap_shift_right(unsigned long *dst,
-			const unsigned long *src, int shift, int bits)
+void __bitmap_shift_right(unsigned long *dst, const unsigned long *src,
+			unsigned shift, unsigned nbits)
 {
-	int k, lim = BITS_TO_LONGS(bits), left = bits % BITS_PER_LONG;
-	int off = shift/BITS_PER_LONG, rem = shift % BITS_PER_LONG;
-	unsigned long mask = (1UL << left) - 1;
+	unsigned k, lim = BITS_TO_LONGS(nbits);
+	unsigned off = shift/BITS_PER_LONG, rem = shift % BITS_PER_LONG;
+	unsigned long mask = BITMAP_LAST_WORD_MASK(nbits);
 	for (k = 0; off + k < lim; ++k) {
 		unsigned long upper, lower;
 
@@ -127,17 +127,15 @@ void __bitmap_shift_right(unsigned long *dst,
 			upper = 0;
 		else {
 			upper = src[off + k + 1];
-			if (off + k + 1 == lim - 1 && left)
+			if (off + k + 1 == lim - 1)
 				upper &= mask;
+			upper <<= (BITS_PER_LONG - rem);
 		}
 		lower = src[off + k];
-		if (left && off + k == lim - 1)
+		if (off + k == lim - 1)
 			lower &= mask;
-		dst[k] = lower >> rem;
-		if (rem)
-			dst[k] |= upper << (BITS_PER_LONG - rem);
-		if (left && k == lim - 1)
-			dst[k] &= mask;
+		lower >>= rem;
+		dst[k] = lower | upper;
 	}
 	if (off)
 		memset(&dst[lim - off], 0, off*sizeof(unsigned long));
@@ -150,18 +148,19 @@ EXPORT_SYMBOL(__bitmap_shift_right);
  *   @dst : destination bitmap
  *   @src : source bitmap
  *   @shift : shift by this many bits
- *   @bits : bitmap size, in bits
+ *   @nbits : bitmap size, in bits
  *
  * Shifting left (multiplying) means moving bits in the LS -> MS
  * direction.  Zeros are fed into the vacated LS bit positions
  * and those MS bits shifted off the top are lost.
  */
 
-void __bitmap_shift_left(unsigned long *dst,
-			const unsigned long *src, int shift, int bits)
+void __bitmap_shift_left(unsigned long *dst, const unsigned long *src,
+			unsigned int shift, unsigned int nbits)
 {
-	int k, lim = BITS_TO_LONGS(bits), left = bits % BITS_PER_LONG;
-	int off = shift/BITS_PER_LONG, rem = shift % BITS_PER_LONG;
+	int k;
+	unsigned int lim = BITS_TO_LONGS(nbits);
+	unsigned int off = shift/BITS_PER_LONG, rem = shift % BITS_PER_LONG;
 	for (k = lim - off - 1; k >= 0; --k) {
 		unsigned long upper, lower;
 
@@ -170,17 +169,11 @@ void __bitmap_shift_left(unsigned long *dst,
 		 * word below and make them the bottom rem bits of result.
 		 */
 		if (rem && k > 0)
-			lower = src[k - 1];
+			lower = src[k - 1] >> (BITS_PER_LONG - rem);
 		else
 			lower = 0;
-		upper = src[k];
-		if (left && k == lim - 1)
-			upper &= (1UL << left) - 1;
-		dst[k + off] = upper << rem;
-		if (rem)
-			dst[k + off] |= lower >> (BITS_PER_LONG - rem);
-		if (left && k + off == lim - 1)
-			dst[k + off] &= (1UL << left) - 1;
+		upper = src[k] << rem;
+		dst[k + off] = lower | upper;
 	}
 	if (off)
 		memset(dst, 0, off*sizeof(unsigned long));
@@ -377,45 +370,6 @@ EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
 #define BASEDEC 10		/* fancier cpuset lists input in decimal */
 
 /**
- * bitmap_scnprintf - convert bitmap to an ASCII hex string.
- * @buf: byte buffer into which string is placed
- * @buflen: reserved size of @buf, in bytes
- * @maskp: pointer to bitmap to convert
- * @nmaskbits: size of bitmap, in bits
- *
- * Exactly @nmaskbits bits are displayed.  Hex digits are grouped into
- * comma-separated sets of eight digits per set.  Returns the number of
- * characters which were written to *buf, excluding the trailing \0.
- */
-int bitmap_scnprintf(char *buf, unsigned int buflen,
-	const unsigned long *maskp, int nmaskbits)
-{
-	int i, word, bit, len = 0;
-	unsigned long val;
-	const char *sep = "";
-	int chunksz;
-	u32 chunkmask;
-
-	chunksz = nmaskbits & (CHUNKSZ - 1);
-	if (chunksz == 0)
-		chunksz = CHUNKSZ;
-
-	i = ALIGN(nmaskbits, CHUNKSZ) - CHUNKSZ;
-	for (; i >= 0; i -= CHUNKSZ) {
-		chunkmask = ((1ULL << chunksz) - 1);
-		word = i / BITS_PER_LONG;
-		bit = i % BITS_PER_LONG;
-		val = (maskp[word] >> bit) & chunkmask;
-		len += scnprintf(buf+len, buflen-len, "%s%0*lx", sep,
-			(chunksz+3)/4, val);
-		chunksz = CHUNKSZ;
-		sep = ",";
-	}
-	return len;
-}
-EXPORT_SYMBOL(bitmap_scnprintf);
-
-/**
  * __bitmap_parse - convert an ASCII hex string into a bitmap.
  * @buf: pointer to buffer containing string.
  * @buflen: buffer size in bytes.  If string is smaller than this
@@ -528,65 +482,6 @@ int bitmap_parse_user(const char __user *ubuf,
 }
 EXPORT_SYMBOL(bitmap_parse_user);
 
-/*
- * bscnl_emit(buf, buflen, rbot, rtop, bp)
- *
- * Helper routine for bitmap_scnlistprintf().  Write decimal number
- * or range to buf, suppressing output past buf+buflen, with optional
- * comma-prefix.  Return len of what was written to *buf, excluding the
- * trailing \0.
- */
-static inline int bscnl_emit(char *buf, int buflen, int rbot, int rtop, int len)
-{
-	if (len > 0)
-		len += scnprintf(buf + len, buflen - len, ",");
-	if (rbot == rtop)
-		len += scnprintf(buf + len, buflen - len, "%d", rbot);
-	else
-		len += scnprintf(buf + len, buflen - len, "%d-%d", rbot, rtop);
-	return len;
-}
-
-/**
- * bitmap_scnlistprintf - convert bitmap to list format ASCII string
- * @buf: byte buffer into which string is placed
- * @buflen: reserved size of @buf, in bytes
- * @maskp: pointer to bitmap to convert
- * @nmaskbits: size of bitmap, in bits
- *
- * Output format is a comma-separated list of decimal numbers and
- * ranges.  Consecutively set bits are shown as two hyphen-separated
- * decimal numbers, the smallest and largest bit numbers set in
- * the range.  Output format is compatible with the format
- * accepted as input by bitmap_parselist().
- *
- * The return value is the number of characters which were written to *buf
- * excluding the trailing '\0', as per ISO C99's scnprintf.
- */
-int bitmap_scnlistprintf(char *buf, unsigned int buflen,
-	const unsigned long *maskp, int nmaskbits)
-{
-	int len = 0;
-	/* current bit is 'cur', most recently seen range is [rbot, rtop] */
-	int cur, rbot, rtop;
-
-	if (buflen == 0)
-		return 0;
-	buf[0] = 0;
-
-	rbot = cur = find_first_bit(maskp, nmaskbits);
-	while (cur < nmaskbits) {
-		rtop = cur;
-		cur = find_next_bit(maskp, nmaskbits, cur+1);
-		if (cur >= nmaskbits || cur > rtop + 1) {
-			len = bscnl_emit(buf, buflen, rbot, rtop, len);
-			rbot = cur;
-		}
-	}
-	return len;
-}
-EXPORT_SYMBOL(bitmap_scnlistprintf);
-
 /**
  * bitmap_print_to_pagebuf - convert bitmap to list or hex format ASCII string
  * @list: indicates whether the bitmap must be list
@@ -605,8 +500,8 @@ int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
 	int n = 0;
 
 	if (len > 1) {
-		n = list ? bitmap_scnlistprintf(buf, len, maskp, nmaskbits) :
-			   bitmap_scnprintf(buf, len, maskp, nmaskbits);
+		n = list ? scnprintf(buf, len, "%*pbl", nmaskbits, maskp) :
+			   scnprintf(buf, len, "%*pb", nmaskbits, maskp);
 		buf[n++] = '\n';
 		buf[n] = '\0';
 	}
@@ -1191,16 +1086,17 @@ EXPORT_SYMBOL(bitmap_allocate_region);
  *
  * Require nbits % BITS_PER_LONG == 0.
  */
-void bitmap_copy_le(void *dst, const unsigned long *src, int nbits)
+#ifdef __BIG_ENDIAN
+void bitmap_copy_le(unsigned long *dst, const unsigned long *src, unsigned int nbits)
 {
-	unsigned long *d = dst;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < nbits/BITS_PER_LONG; i++) {
 		if (BITS_PER_LONG == 64)
-			d[i] = cpu_to_le64(src[i]);
+			dst[i] = cpu_to_le64(src[i]);
 		else
-			d[i] = cpu_to_le32(src[i]);
+			dst[i] = cpu_to_le32(src[i]);
 	}
 }
 EXPORT_SYMBOL(bitmap_copy_le);
+#endif

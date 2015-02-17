@@ -4658,10 +4658,10 @@ static ssize_t map_show(struct device_driver *ddp, char *buf)
 		return scnprintf(buf, PAGE_SIZE, "0-%u\n",
 				 sdebug_store_sectors);
 
-	count = bitmap_scnlistprintf(buf, PAGE_SIZE, map_storep, map_size);
-
+	count = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
+			  (int)map_size, map_storep);
 	buf[count++] = '\n';
-	buf[count++] = 0;
+	buf[count] = '\0';
 
 	return count;
 }

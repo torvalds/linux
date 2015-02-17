@@ -26,6 +26,7 @@
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include <drm/radeon_drm.h>
 #include "evergreend.h"
 #include "atom.h"
@@ -5286,7 +5287,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_audio_init(rdev);
+	r = radeon_audio_init(rdev);
 	if (r) {
 		DRM_ERROR("radeon: audio init failed\n");
 		return r;
@@ -5332,7 +5333,7 @@ int evergreen_resume(struct radeon_device *rdev)
 int evergreen_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
 	r700_cp_stop(rdev);
@@ -5482,7 +5483,7 @@ int evergreen_init(struct radeon_device *rdev)
 void evergreen_fini(struct radeon_device *rdev)
 {
 	radeon_pm_fini(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_dma_fini(rdev);
 	r600_irq_fini(rdev);

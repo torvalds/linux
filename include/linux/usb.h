@@ -82,7 +82,7 @@ struct usb_host_interface {
 	int extralen;
 	unsigned char *extra;   /* Extra descriptors */
 
-	/* array of desc.bNumEndpoint endpoints associated with this
+	/* array of desc.bNumEndpoints endpoints associated with this
 	 * interface setting.  these will be in no particular order.
 	 */
 	struct usb_host_endpoint *endpoint;
@@ -127,10 +127,6 @@ enum usb_interface_condition {
  *	to the sysfs representation for that device.
  * @pm_usage_cnt: PM usage counter for this interface
  * @reset_ws: Used for scheduling resets from atomic context.
- * @reset_running: set to 1 if the interface is currently running a
- *      queued reset so that usb_cancel_queued_reset() doesn't try to
- *      remove from the workqueue when running inside the worker
- *      thread. See __usb_queue_reset_device().
  * @resetting_device: USB core reset the device, so use alt setting 0 as
  *	current; needs bandwidth alloc after reset.
  *
@@ -181,7 +177,6 @@ struct usb_interface {
 	unsigned needs_remote_wakeup:1;	/* driver requires remote wakeup */
 	unsigned needs_altsetting0:1;	/* switch to altsetting 0 is pending */
 	unsigned needs_binding:1;	/* needs delayed unbind/rebind */
-	unsigned reset_running:1;
 	unsigned resetting_device:1;	/* true: bandwidth alloc after reset */
 
 	struct device dev;		/* interface specific device info */

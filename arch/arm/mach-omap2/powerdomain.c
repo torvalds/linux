@@ -115,7 +115,6 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	}
 	pwrdm->voltdm.ptr = voltdm;
 	INIT_LIST_HEAD(&pwrdm->voltdm_node);
-	voltdm_add_pwrdm(voltdm, pwrdm);
 skip_voltdm:
 	spin_lock_init(&pwrdm->_lock);
 
@@ -481,87 +480,6 @@ int pwrdm_add_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm)
 
 pac_exit:
 	return ret;
-}
-
-/**
- * pwrdm_del_clkdm - remove a clockdomain from a powerdomain
- * @pwrdm: struct powerdomain * to add the clockdomain to
- * @clkdm: struct clockdomain * to associate with a powerdomain
- *
- * Dissociate the clockdomain @clkdm from the powerdomain
- * @pwrdm. Returns -EINVAL if presented with invalid pointers; -ENOENT
- * if @clkdm was not associated with the powerdomain, or 0 upon
- * success.
- */
-int pwrdm_del_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm)
-{
-	int ret = -EINVAL;
-	int i;
-
-	if (!pwrdm || !clkdm)
-		return -EINVAL;
-
-	pr_debug("powerdomain: %s: dissociating clockdomain %s\n",
-		 pwrdm->name, clkdm->name);
-
-	for (i = 0; i < PWRDM_MAX_CLKDMS; i++)
-		if (pwrdm->pwrdm_clkdms[i] == clkdm)
-			break;
-
-	if (i == PWRDM_MAX_CLKDMS) {
-		pr_debug("powerdomain: %s: clkdm %s not associated?!\n",
-			 pwrdm->name, clkdm->name);
-		ret = -ENOENT;
-		goto pdc_exit;
-	}
-
-	pwrdm->pwrdm_clkdms[i] = NULL;
-
-	ret = 0;
-
-pdc_exit:
-	return ret;
-}
-
-/**
- * pwrdm_for_each_clkdm - call function on each clkdm in a pwrdm
- * @pwrdm: struct powerdomain * to iterate over
- * @fn: callback function *
- *
- * Call the supplied function @fn for each clockdomain in the powerdomain
- * @pwrdm.  The callback function can return anything but 0 to bail
- * out early from the iterator.  Returns -EINVAL if presented with
- * invalid pointers; or passes along the last return value of the
- * callback function, which should be 0 for success or anything else
- * to indicate failure.
- */
-int pwrdm_for_each_clkdm(struct powerdomain *pwrdm,
-			 int (*fn)(struct powerdomain *pwrdm,
-				   struct clockdomain *clkdm))
-{
-	int ret = 0;
-	int i;
-
-	if (!fn)
-		return -EINVAL;
-
-	for (i = 0; i < PWRDM_MAX_CLKDMS && !ret; i++)
-		if (pwrdm->pwrdm_clkdms[i])
-			ret = (*fn)(pwrdm, pwrdm->pwrdm_clkdms[i]);
-
-	return ret;
-}
-
-/**
- * pwrdm_get_voltdm - return a ptr to the voltdm that this pwrdm resides in
- * @pwrdm: struct powerdomain *
- *
- * Return a pointer to the struct voltageomain that the specified powerdomain
- * @pwrdm exists in.
- */
-struct voltagedomain *pwrdm_get_voltdm(struct powerdomain *pwrdm)
-{
-	return pwrdm->voltdm.ptr;
 }
 
 /**
