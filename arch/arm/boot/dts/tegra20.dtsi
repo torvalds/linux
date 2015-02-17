@@ -68,9 +68,9 @@
 			reset-names = "2d";
 		};
 
-		gr3d@54140000 {
+		gr3d@54180000 {
 			compatible = "nvidia,tegra20-gr3d";
-			reg = <0x54140000 0x00040000>;
+			reg = <0x54180000 0x00040000>;
 			clocks = <&tegra_car TEGRA20_CLK_GR3D>;
 			resets = <&tegra_car 24>;
 			reset-names = "3d";
@@ -130,9 +130,9 @@
 			status = "disabled";
 		};
 
-		dsi@542c0000 {
+		dsi@54300000 {
 			compatible = "nvidia,tegra20-dsi";
-			reg = <0x542c0000 0x00040000>;
+			reg = <0x54300000 0x00040000>;
 			clocks = <&tegra_car TEGRA20_CLK_DSI>;
 			resets = <&tegra_car 48>;
 			reset-names = "dsi";
@@ -140,7 +140,7 @@
 		};
 	};
 
-	timer@50004600 {
+	timer@50040600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x50040600 0x20>;
 		interrupts = <GIC_PPI 13
