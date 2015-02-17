@@ -483,11 +483,11 @@ affs_check_name(const unsigned char *name, int len, bool notruncate)
 {
 	int	 i;
 
-	if (len > 30) {
+	if (len > AFFSNAMEMAX) {
 		if (notruncate)
 			return -ENAMETOOLONG;
 		else
-			len = 30;
+			len = AFFSNAMEMAX;
 	}
 	for (i = 0; i < len; i++) {
 		if (name[i] < ' ' || name[i] == ':'
@@ -508,7 +508,7 @@ affs_check_name(const unsigned char *name, int len, bool notruncate)
 int
 affs_copy_name(unsigned char *bstr, struct dentry *dentry)
 {
-	u32 len = min(dentry->d_name.len, 30u);
+	u32 len = min(dentry->d_name.len, AFFSNAMEMAX);
 
 	*bstr++ = len;
 	memcpy(bstr, dentry->d_name.name, len);

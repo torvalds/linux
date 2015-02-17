@@ -114,7 +114,8 @@ inside:
 				break;
 			}
 
-			namelen = min(AFFS_TAIL(sb, fh_bh)->name[0], (u8)30);
+			namelen = min(AFFS_TAIL(sb, fh_bh)->name[0],
+				      (u8)AFFSNAMEMAX);
 			name = AFFS_TAIL(sb, fh_bh)->name + 1;
 			pr_debug("readdir(): dir_emit(\"%.*s\", ino=%u), hash=%d, f_pos=%llx\n",
 				 namelen, name, ino, hash_pos, ctx->pos);

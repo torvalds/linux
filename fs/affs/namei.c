@@ -72,7 +72,7 @@ __affs_hash_dentry(struct qstr *qstr, toupper_t toupper, bool notruncate)
 		return retval;
 
 	hash = init_name_hash();
-	len = min(qstr->len, 30u);
+	len = min(qstr->len, AFFSNAMEMAX);
 	for (; len > 0; name++, len--)
 		hash = partial_name_hash(toupper(*name), hash);
 	qstr->hash = end_name_hash(hash);
@@ -115,10 +115,10 @@ static inline int __affs_compare_dentry(unsigned int len,
 	 * If the names are longer than the allowed 30 chars,
 	 * the excess is ignored, so their length may differ.
 	 */
-	if (len >= 30) {
-		if (name->len < 30)
+	if (len >= AFFSNAMEMAX) {
+		if (name->len < AFFSNAMEMAX)
 			return 1;
-		len = 30;
+		len = AFFSNAMEMAX;
 	} else if (len != name->len)
 		return 1;
 
@@ -157,10 +157,10 @@ affs_match(struct dentry *dentry, const u8 *name2, toupper_t toupper)
 	const u8 *name = dentry->d_name.name;
 	int len = dentry->d_name.len;
 
-	if (len >= 30) {
-		if (*name2 < 30)
+	if (len >= AFFSNAMEMAX) {
+		if (*name2 < AFFSNAMEMAX)
 			return 0;
-		len = 30;
+		len = AFFSNAMEMAX;
 	} else if (len != *name2)
 		return 0;
 
@@ -176,7 +176,7 @@ affs_hash_name(struct super_block *sb, const u8 *name, unsigned int len)
 	toupper_t toupper = affs_get_toupper(sb);
 	u32 hash;
 
-	hash = len = min(len, 30u);
+	hash = len = min(len, AFFSNAMEMAX);
 	for (; len > 0; len--)
 		hash = (hash * 13 + toupper(*name++)) & 0x7ff;
 
