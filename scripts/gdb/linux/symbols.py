@@ -34,12 +34,23 @@ if hasattr(gdb, 'Breakpoint'):
             # enforce update if object file is not found
             cmd.module_files_updated = False
 
+            # Disable pagination while reporting symbol (re-)loading.
+            # The console input is blocked in this context so that we would
+            # get stuck waiting for the user to acknowledge paged output.
+            show_pagination = gdb.execute("show pagination", to_string=True)
+            pagination = show_pagination.endswith("on.\n")
+            gdb.execute("set pagination off")
+
             if module_name in cmd.loaded_modules:
                 gdb.write("refreshing all symbols to reload module "
                           "'{0}'\n".format(module_name))
                 cmd.load_all_symbols()
             else:
                 cmd.load_module_symbols(module)
+
+            # restore pagination state
+            gdb.execute("set pagination %s" % ("on" if pagination else "off"))
+
             return False
 
 
