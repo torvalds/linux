@@ -20,8 +20,7 @@ static struct msr __percpu *msrs;
  */
 static atomic_t drv_instances = ATOMIC_INIT(0);
 
-/* Per-node driver instances */
-static struct mem_ctl_info **mcis;
+/* Per-node stuff */
 static struct ecc_settings **ecc_stngs;
 
 /*
@@ -903,9 +902,17 @@ static int k8_early_channel_count(struct amd64_pvt *pvt)
 /* On F10h and later ErrAddr is MC4_ADDR[47:1] */
 static u64 get_error_address(struct amd64_pvt *pvt, struct mce *m)
 {
-	u64 addr;
+	u16 mce_nid = amd_get_nb_id(m->extcpu);
+	struct mem_ctl_info *mci;
 	u8 start_bit = 1;
 	u8 end_bit   = 47;
+	u64 addr;
+
+	mci = edac_mc_find(mce_nid);
+	if (!mci)
+		return 0;
+
+	pvt = mci->pvt_info;
 
 	if (pvt->fam == 0xf) {
 		start_bit = 3;
@@ -918,17 +925,13 @@ static u64 get_error_address(struct amd64_pvt *pvt, struct mce *m)
 	 * Erratum 637 workaround
 	 */
 	if (pvt->fam == 0x15) {
-		struct amd64_pvt *pvt;
 		u64 cc6_base, tmp_addr;
 		u32 tmp;
-		u16 mce_nid;
 		u8 intlv_en;
 
 		if ((addr & GENMASK_ULL(47, 24)) >> 24 != 0x00fdf7)
 			return addr;
 
-		mce_nid	= amd_get_nb_id(m->extcpu);
-		pvt	= mcis[mce_nid]->pvt_info;
 
 		amd64_read_pci_cfg(pvt->F1, DRAM_LOCAL_NODE_LIM, &tmp);
 		intlv_en = tmp >> 21 & 0x7;
@@ -1511,7 +1514,7 @@ static int f1x_lookup_addr_in_dct(u64 in_addr, u8 nid, u8 dct)
 	int cs_found = -EINVAL;
 	int csrow;
 
-	mci = mcis[nid];
+	mci = edac_mc_find(nid);
 	if (!mci)
 		return cs_found;
 
@@ -2837,8 +2840,6 @@ static int init_one_instance(struct pci_dev *F2)
 
 	amd_register_ecc_decoder(decode_bus_error);
 
-	mcis[nid] = mci;
-
 	atomic_inc(&drv_instances);
 
 	return 0;
@@ -2936,7 +2937,6 @@ static void remove_one_instance(struct pci_dev *pdev)
 
 	/* Free the EDAC CORE resources */
 	mci->pvt_info = NULL;
-	mcis[nid] = NULL;
 
 	kfree(pvt);
 	edac_mc_free(mci);
@@ -2974,7 +2974,7 @@ static void setup_pci_device(void)
 	if (pci_ctl)
 		return;
 
-	mci = mcis[0];
+	mci = edac_mc_find(0);
 	if (!mci)
 		return;
 
@@ -2998,9 +2998,8 @@ static int __init amd64_edac_init(void)
 		goto err_ret;
 
 	err = -ENOMEM;
-	mcis	  = kzalloc(amd_nb_num() * sizeof(mcis[0]), GFP_KERNEL);
 	ecc_stngs = kzalloc(amd_nb_num() * sizeof(ecc_stngs[0]), GFP_KERNEL);
-	if (!(mcis && ecc_stngs))
+	if (!ecc_stngs)
 		goto err_free;
 
 	msrs = msrs_alloc();
@@ -3031,9 +3030,6 @@ err_pci:
 	msrs = NULL;
 
 err_free:
-	kfree(mcis);
-	mcis = NULL;
-
 	kfree(ecc_stngs);
 	ecc_stngs = NULL;
 
@@ -3050,9 +3046,6 @@ static void __exit amd64_edac_exit(void)
 
 	kfree(ecc_stngs);
 	ecc_stngs = NULL;
-
-	kfree(mcis);
-	mcis = NULL;
 
 	msrs_free(msrs);
 	msrs = NULL;
