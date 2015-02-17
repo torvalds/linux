@@ -901,16 +901,6 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 		goto out;
 	}
 
-	/*
-	 * If a higher-priority process was blocked on the old file lock,
-	 * give it the opportunity to lock the file.
-	 */
-	if (found) {
-		spin_unlock(&ctx->flc_lock);
-		cond_resched();
-		spin_lock(&ctx->flc_lock);
-	}
-
 find_conflict:
 	list_for_each_entry(fl, &ctx->flc_flock, fl_list) {
 		if (!flock_locks_conflict(request, fl))
