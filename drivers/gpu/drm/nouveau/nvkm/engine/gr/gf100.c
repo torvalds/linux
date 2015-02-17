@@ -236,7 +236,7 @@ static int
 gf100_gr_set_shader_exceptions(struct nvkm_object *object, u32 mthd,
 			       void *pdata, u32 size)
 {
-	struct gf100_gr_priv *priv = (void *)nv_engine(object);
+	struct gf100_gr_priv *priv = (void *)object->engine;
 	if (size >= sizeof(u32)) {
 		u32 data = *(u32 *)pdata ? 0xffffffff : 0x00000000;
 		nv_wr32(priv, 0x419e44, data);
