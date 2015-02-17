@@ -1096,7 +1096,7 @@ static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 
 	ret = add_event_to_24x7_request(event, request_buffer);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = make_24x7_request(request_buffer, result_buffer);
 	if (ret) {
@@ -1109,6 +1109,8 @@ static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 	*count = be64_to_cpu(resb->elements[0].element_data[0]);
 
 out:
+	put_cpu_var(hv_24x7_reqb);
+	put_cpu_var(hv_24x7_resb);
 	return ret;
 }
 
