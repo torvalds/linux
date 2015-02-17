@@ -133,6 +133,45 @@
 		sysmgr@ffd06000 {
 			cpu1-start-addr = <0xffd06230>;
 		};
+
+		qspi: spi@ff809000 {
+			compatible = "cadence,qspi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xff809000 0x100>,
+				<0xffa00000 0x100000>;
+			interrupts = <0 100 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_main_clk>;
+			ext-decoder = <0>;  /* external decoder */
+			num-chipselect = <4>;
+			fifo-depth = <128>;
+			bus-num = <2>;
+			status = "okay";
+			flash0: n25q00@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "n25q00aa";
+				reg = <0>;      /* chip select */
+				spi-max-frequency = <100000000>;
+				m25p,fast-read;
+				page-size = <256>;
+				block-size = <16>; /* 2^16, 64KB */
+				read-delay = <4>;  /* delay value in read data capture register */
+				tshsl-ns = <50>;
+				tsd2d-ns = <50>;
+				tchsh-ns = <4>;
+				tslch-ns = <4>;
+
+				partition@qspi-boot {
+					label = "Boot and fpga data";
+					reg = <0x0 0x1B20000>;
+				};
+				partition@qspi-rootfs {
+					label = "Root Filesystem - JFFS2";
+					reg = <0x1B20000 0x64E0000>;
+				};
+			};
+		};
 	};
 };
 
@@ -183,18 +222,32 @@
 	};
 };
 
-&mmc {
-	num-slots = <1>;
-	supports-highspeed;
-	broken-cd;
-	altr,dw-mshc-ciu-div = <3>;
-	altr,dw-mshc-sdr-timing = <0 3>;
-	clock-frequency = <50000000>;
-	clock-freq-min-max = <400000 25000000>;
+&qspi {
+	status = "okay";
+	flash0: n25q00@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "n25q00aa";
+		reg = <0>;      /* chip select */
+		spi-max-frequency = <100000000>;
+		m25p,fast-read;
+		page-size = <256>;
+		block-size = <16>; /* 2^16, 64KB */
+		read-delay = <4>;  /* delay value in read data capture register */
+		tshsl-ns = <50>;
+		tsd2d-ns = <50>;
+		tchsh-ns = <4>;
+		tslch-ns = <4>;
 
-	slot@0 {
-		reg = <0>;
-		bus-width = <1>;
+		partition@qspi-boot {
+			label = "Boot and fpga data";
+			reg = <0x0 0x1B20000>;
+		};
+
+		partition@qspi-rootfs {
+			label = "Root Filesystem - JFFS2";
+			reg = <0x1B20000 0x64E0000>;
+		};
 	};
 };
 

@@ -294,11 +294,27 @@
 			fifo-depth = <0x400>;
 			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
 			clock-names = "biu", "ciu";
+			status = "disabled";
 		};
 
 		ocram: sram@ffe00000 {
 			compatible = "mmio-sram";
 			reg = <0xffe00000 0x40000>;
+		};
+
+		qspi: spi@ff809000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "cadence,qspi";
+			reg = <0xff809000 0x100>,
+				<0xffa00000 0x100000>;
+			interrupts = <0 100 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_main_clk>;
+			ext-decoder = <0>;  /* external decoder */
+			num-chipselect = <4>;
+			fifo-depth = <128>;
+			bus-num = <2>;
+			status = "disabled";
 		};
 
 		rst: rstmgr@ffd05000 {
