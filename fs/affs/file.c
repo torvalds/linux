@@ -398,6 +398,13 @@ affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
+	if (rw == WRITE) {
+		loff_t size = offset + count;
+
+		if (AFFS_I(inode)->mmu_private < size)
+			return 0;
+	}
+
 	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, affs_get_block);
 	if (ret < 0 && (rw & WRITE))
 		affs_write_failed(mapping, offset + count);
