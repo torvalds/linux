@@ -1247,7 +1247,7 @@ static const struct v4l2_file_operations vdev_fops = {
 	.open       = pvr2_v4l2_open,
 	.release    = pvr2_v4l2_release,
 	.read       = pvr2_v4l2_read,
-	.ioctl      = pvr2_v4l2_ioctl,
+	.unlocked_ioctl = pvr2_v4l2_ioctl,
 	.poll       = pvr2_v4l2_poll,
 };
 
