@@ -1779,7 +1779,6 @@ int ldlm_cancel_resource_local(struct ldlm_resource *res,
 		if (opaque != NULL && lock->l_ast_data != opaque) {
 			LDLM_ERROR(lock, "data %p doesn't match opaque %p",
 				   lock->l_ast_data, opaque);
-			//LBUG();
 			continue;
 		}
 
