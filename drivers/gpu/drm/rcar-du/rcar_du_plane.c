@@ -26,14 +26,9 @@
 #define RCAR_DU_COLORKEY_SOURCE		(1 << 24)
 #define RCAR_DU_COLORKEY_MASK		(1 << 24)
 
-struct rcar_du_kms_plane {
-	struct drm_plane plane;
-	struct rcar_du_plane *hwplane;
-};
-
 static inline struct rcar_du_plane *to_rcar_plane(struct drm_plane *plane)
 {
-	return container_of(plane, struct rcar_du_kms_plane, plane)->hwplane;
+	return container_of(plane, struct rcar_du_plane, plane);
 }
 
 static u32 rcar_du_plane_read(struct rcar_du_group *rgrp,
@@ -299,6 +294,9 @@ rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	unsigned int nplanes;
 	int ret;
 
+	if (plane->type != DRM_PLANE_TYPE_OVERLAY)
+		return -EINVAL;
+
 	format = rcar_du_format_info(fb->pixel_format);
 	if (format == NULL) {
 		dev_dbg(rcdu->dev, "%s: unsupported format %08x\n", __func__,
@@ -347,6 +345,9 @@ rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 static int rcar_du_plane_disable(struct drm_plane *plane)
 {
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
+
+	if (plane->type != DRM_PLANE_TYPE_OVERLAY)
+		return -EINVAL;
 
 	if (!rplane->enabled)
 		return 0;
@@ -453,7 +454,11 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_planes *planes = &rgrp->planes;
 	struct rcar_du_device *rcdu = rgrp->dev;
+	unsigned int num_planes;
+	unsigned int num_crtcs;
+	unsigned int crtcs;
 	unsigned int i;
+	int ret;
 
 	mutex_init(&planes->lock);
 	planes->free = 0xff;
@@ -478,44 +483,34 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	if (planes->zpos == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(planes->planes); ++i) {
+	 /* Create one primary plane per in this group CRTC and seven overlay
+	  * planes.
+	  */
+	num_crtcs = min(rcdu->num_crtcs - 2 * rgrp->index, 2U);
+	num_planes = num_crtcs + 7;
+
+	crtcs = ((1 << rcdu->num_crtcs) - 1) & (3 << (2 * rgrp->index));
+
+	for (i = 0; i < num_planes; ++i) {
+		enum drm_plane_type type = i < num_crtcs
+					 ? DRM_PLANE_TYPE_PRIMARY
+					 : DRM_PLANE_TYPE_OVERLAY;
 		struct rcar_du_plane *plane = &planes->planes[i];
 
 		plane->group = rgrp;
 		plane->hwindex = -1;
 		plane->alpha = 255;
 		plane->colorkey = RCAR_DU_COLORKEY_NONE;
-		plane->zpos = 0;
-	}
+		plane->zpos = type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
 
-	return 0;
-}
-
-int rcar_du_planes_register(struct rcar_du_group *rgrp)
-{
-	struct rcar_du_planes *planes = &rgrp->planes;
-	struct rcar_du_device *rcdu = rgrp->dev;
-	unsigned int crtcs;
-	unsigned int i;
-	int ret;
-
-	crtcs = ((1 << rcdu->num_crtcs) - 1) & (3 << (2 * rgrp->index));
-
-	for (i = 0; i < RCAR_DU_NUM_KMS_PLANES; ++i) {
-		struct rcar_du_kms_plane *plane;
-
-		plane = devm_kzalloc(rcdu->dev, sizeof(*plane), GFP_KERNEL);
-		if (plane == NULL)
-			return -ENOMEM;
-
-		plane->hwplane = &planes->planes[i + 2];
-		plane->hwplane->zpos = 1;
-
-		ret = drm_plane_init(rcdu->ddev, &plane->plane, crtcs,
-				     &rcar_du_plane_funcs, formats,
-				     ARRAY_SIZE(formats), false);
+		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
+					       &rcar_du_plane_funcs, formats,
+					       ARRAY_SIZE(formats), type);
 		if (ret < 0)
 			return ret;
+
+		if (type == DRM_PLANE_TYPE_PRIMARY)
+			continue;
 
 		drm_object_attach_property(&plane->plane.base,
 					   planes->alpha, 255);

@@ -439,13 +439,6 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		encoder->possible_clones = (1 << num_encoders) - 1;
 	}
 
-	/* Now that the CRTCs have been initialized register the planes. */
-	for (i = 0; i < num_groups; ++i) {
-		ret = rcar_du_planes_register(&rcdu->groups[i]);
-		if (ret < 0)
-			return ret;
-	}
-
 	drm_kms_helper_poll_init(dev);
 
 	if (dev->mode_config.num_connector) {
