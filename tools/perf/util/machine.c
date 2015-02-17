@@ -498,6 +498,11 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 	if (kmod_path__parse_name(&m, filename))
 		return NULL;
 
+	map = map_groups__find_by_name(&machine->kmaps, MAP__FUNCTION,
+				       m.name);
+	if (map)
+		goto out;
+
 	dso = machine__module_dso(machine, &m, filename);
 	if (dso == NULL)
 		goto out;
