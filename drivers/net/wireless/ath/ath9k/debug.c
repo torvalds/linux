@@ -1156,7 +1156,10 @@ static ssize_t write_file_tpc(struct file *file, const char __user *user_buf,
 
 	if (tpc_enabled != ah->tpc_enabled) {
 		ah->tpc_enabled = tpc_enabled;
-		ath9k_hw_set_txpowerlimit(ah, sc->cur_chan->txpower, false);
+
+		mutex_lock(&sc->mutex);
+		ath9k_set_txpower(sc, NULL);
+		mutex_unlock(&sc->mutex);
 	}
 
 	return count;
