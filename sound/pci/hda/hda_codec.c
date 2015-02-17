@@ -861,14 +861,12 @@ static int snd_hda_bus_dev_disconnect(struct snd_device *device)
 /**
  * snd_hda_bus_new - create a HDA bus
  * @card: the card entry
- * @temp: the template for hda_bus information
  * @busp: the pointer to store the created bus instance
  *
  * Returns 0 if successful, or a negative error code.
  */
 int snd_hda_bus_new(struct snd_card *card,
-			      const struct hda_bus_template *temp,
-			      struct hda_bus **busp)
+		    struct hda_bus **busp)
 {
 	struct hda_bus *bus;
 	int err;
@@ -876,11 +874,6 @@ int snd_hda_bus_new(struct snd_card *card,
 		.dev_disconnect = snd_hda_bus_dev_disconnect,
 		.dev_free = snd_hda_bus_dev_free,
 	};
-
-	if (snd_BUG_ON(!temp))
-		return -EINVAL;
-	if (snd_BUG_ON(!temp->ops.command || !temp->ops.get_response))
-		return -EINVAL;
 
 	if (busp)
 		*busp = NULL;
@@ -892,12 +885,6 @@ int snd_hda_bus_new(struct snd_card *card,
 	}
 
 	bus->card = card;
-	bus->private_data = temp->private_data;
-	bus->pci = temp->pci;
-	bus->modelname = temp->modelname;
-	bus->power_save = temp->power_save;
-	bus->ops = temp->ops;
-
 	mutex_init(&bus->cmd_mutex);
 	mutex_init(&bus->prepare_mutex);
 	INIT_LIST_HEAD(&bus->codec_list);

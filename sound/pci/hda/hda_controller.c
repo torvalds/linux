@@ -1815,39 +1815,45 @@ static int get_jackpoll_interval(struct azx *chip)
 	return j;
 }
 
+static struct hda_bus_ops bus_ops = {
+	.command = azx_send_cmd,
+	.get_response = azx_get_response,
+	.attach_pcm = azx_attach_pcm_stream,
+	.bus_reset = azx_bus_reset,
+#ifdef CONFIG_PM
+	.pm_notify = azx_power_notify,
+#endif
+#ifdef CONFIG_SND_HDA_DSP_LOADER
+	.load_dsp_prepare = azx_load_dsp_prepare,
+	.load_dsp_trigger = azx_load_dsp_trigger,
+	.load_dsp_cleanup = azx_load_dsp_cleanup,
+#endif
+};
+
 /* Codec initialization */
 int azx_codec_create(struct azx *chip, const char *model,
 		     unsigned int max_slots,
 		     int *power_save_to)
 {
-	struct hda_bus_template bus_temp;
+	struct hda_bus *bus;
 	int c, codecs, err;
 
-	memset(&bus_temp, 0, sizeof(bus_temp));
-	bus_temp.private_data = chip;
-	bus_temp.modelname = model;
-	bus_temp.pci = chip->pci;
-	bus_temp.ops.command = azx_send_cmd;
-	bus_temp.ops.get_response = azx_get_response;
-	bus_temp.ops.attach_pcm = azx_attach_pcm_stream;
-	bus_temp.ops.bus_reset = azx_bus_reset;
-#ifdef CONFIG_PM
-	bus_temp.power_save = power_save_to;
-	bus_temp.ops.pm_notify = azx_power_notify;
-#endif
-#ifdef CONFIG_SND_HDA_DSP_LOADER
-	bus_temp.ops.load_dsp_prepare = azx_load_dsp_prepare;
-	bus_temp.ops.load_dsp_trigger = azx_load_dsp_trigger;
-	bus_temp.ops.load_dsp_cleanup = azx_load_dsp_cleanup;
-#endif
-
-	err = snd_hda_bus_new(chip->card, &bus_temp, &chip->bus);
+	err = snd_hda_bus_new(chip->card, &bus);
 	if (err < 0)
 		return err;
 
+	chip->bus = bus;
+	bus->private_data = chip;
+	bus->pci = chip->pci;
+	bus->modelname = model;
+	bus->ops = bus_ops;
+#ifdef CONFIG_PM
+	bus->power_save = power_save_to;
+#endif
+
 	if (chip->driver_caps & AZX_DCAPS_RIRB_DELAY) {
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
-		chip->bus->needs_damn_long_delay = 1;
+		bus->needs_damn_long_delay = 1;
 	}
 
 	codecs = 0;
@@ -1883,15 +1889,15 @@ int azx_codec_create(struct azx *chip, const char *model,
 	 */
 	if (chip->driver_caps & AZX_DCAPS_SYNC_WRITE) {
 		dev_dbg(chip->card->dev, "Enable sync_write for stable communication\n");
-		chip->bus->sync_write = 1;
-		chip->bus->allow_bus_reset = 1;
+		bus->sync_write = 1;
+		bus->allow_bus_reset = 1;
 	}
 
 	/* Then create codec instances */
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			struct hda_codec *codec;
-			err = snd_hda_codec_new(chip->bus, c, &codec);
+			err = snd_hda_codec_new(bus, c, &codec);
 			if (err < 0)
 				continue;
 			codec->jackpoll_interval = get_jackpoll_interval(chip);

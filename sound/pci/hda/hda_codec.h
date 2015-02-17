@@ -101,15 +101,6 @@ struct hda_bus_ops {
 #endif
 };
 
-/* template to pass to the bus constructor */
-struct hda_bus_template {
-	void *private_data;
-	struct pci_dev *pci;
-	const char *modelname;
-	int *power_save;
-	struct hda_bus_ops ops;
-};
-
 /*
  * codec bus
  *
@@ -119,7 +110,6 @@ struct hda_bus_template {
 struct hda_bus {
 	struct snd_card *card;
 
-	/* copied from template */
 	void *private_data;
 	struct pci_dev *pci;
 	const char *modelname;
@@ -420,8 +410,7 @@ enum {
 /*
  * constructors
  */
-int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
-		    struct hda_bus **busp);
+int snd_hda_bus_new(struct snd_card *card, struct hda_bus **busp);
 int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 		      struct hda_codec **codecp);
 int snd_hda_codec_configure(struct hda_codec *codec);
