@@ -30,7 +30,7 @@ class TaskList:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         t = self.curr_task
         if not t or t == self.curr_group:
             self.curr_group = \
@@ -45,6 +45,8 @@ class TaskList:
                                    self.task_ptr_type, "thread_group")
         return t
 
+    def next(self):
+        return self.__next__()
 
 def get_task_by_pid(pid):
     for task in TaskList():

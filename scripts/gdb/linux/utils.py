@@ -83,7 +83,7 @@ def get_target_endianness():
         elif "big endian" in endian:
             target_endianness = BIG_ENDIAN
         else:
-            raise gdb.GdgError("unknown endianness '{0}'".format(endian))
+            raise gdb.GdgError("unknown endianness '{0}'".format(str(endian)))
     return target_endianness
 
 

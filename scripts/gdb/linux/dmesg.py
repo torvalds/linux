@@ -51,9 +51,10 @@ class LxDmesg(gdb.Command):
                 continue
 
             text_len = utils.read_u16(log_buf[pos + 10:pos + 12])
+            text = log_buf[pos + 16:pos + 16 + text_len]
             time_stamp = utils.read_u64(log_buf[pos:pos + 8])
 
-            for line in log_buf[pos + 16:pos + 16 + text_len].splitlines():
+            for line in memoryview(text).tobytes().splitlines():
                 gdb.write("[{time:12.6f}] {line}\n".format(
                     time=time_stamp / 1000000000.0,
                     line=line))

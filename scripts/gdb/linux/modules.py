@@ -30,13 +30,16 @@ class ModuleList:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         entry = self.curr_entry
         if entry != self.end_of_list:
             self.curr_entry = entry['next']
             return utils.container_of(entry, self.module_ptr_type, "list")
         else:
             raise StopIteration
+
+    def next(self):
+        return self.__next__()
 
 
 def find_module_by_name(name):
@@ -91,8 +94,8 @@ class LxLsmod(gdb.Command):
             gdb.write("{address} {name:<19} {size:>8}  {ref}".format(
                 address=str(module['module_core']).split()[0],
                 name=module['name'].string(),
-                size=module['core_size'],
-                ref=ref))
+                size=str(module['core_size']),
+                ref=str(ref)))
 
             source_list = module['source_list']
             t = self._module_use_type.get_type().pointer()

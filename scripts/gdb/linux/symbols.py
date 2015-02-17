@@ -73,7 +73,7 @@ lx-symbols command."""
 
     def _get_module_file(self, module_name):
         module_pattern = ".*/{0}\.ko$".format(
-            string.replace(module_name, "_", r"[_\-]"))
+            module_name.replace("_", r"[_\-]"))
         for name in self.module_files:
             if re.match(module_pattern, name) and os.path.exists(name):
                 return name
@@ -87,7 +87,7 @@ lx-symbols command."""
         attrs = sect_attrs['attrs']
         section_name_to_address = {
             attrs[n]['name'].string() : attrs[n]['address']
-            for n in range(sect_attrs['nsections'])}
+            for n in range(int(sect_attrs['nsections']))}
         args = []
         for section_name in [".data", ".data..read_mostly", ".rodata", ".bss"]:
             address = section_name_to_address.get(section_name)

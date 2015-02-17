@@ -82,7 +82,7 @@ class CpuList():
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         while self.bits == 0:
             self.entry += 1
             if self.entry == self.num_entries:
@@ -102,6 +102,9 @@ class CpuList():
         self.bit += 1
 
         return cpu
+
+    def next(self):
+        return self.__next__()
 
 
 class PerCpu(gdb.Function):
