@@ -61,50 +61,43 @@ def cpu_mask_invalidate(event):
         gdb.events.new_objfile.disconnect(cpu_mask_invalidate)
 
 
-class CpuList():
-    def __init__(self, mask_name):
-        global cpu_mask
-        self.mask = None
-        if mask_name in cpu_mask:
-            self.mask = cpu_mask[mask_name]
-        if self.mask is None:
-            self.mask = gdb.parse_and_eval(mask_name + ".bits")
-            if hasattr(gdb, 'events'):
-                cpu_mask[mask_name] = self.mask
-                gdb.events.stop.connect(cpu_mask_invalidate)
-                if hasattr(gdb.events, 'new_objfile'):
-                    gdb.events.new_objfile.connect(cpu_mask_invalidate)
-        self.bits_per_entry = self.mask[0].type.sizeof * 8
-        self.num_entries = self.mask.type.sizeof * 8 / self.bits_per_entry
-        self.entry = -1
-        self.bits = 0
+def cpu_list(mask_name):
+    global cpu_mask
+    mask = None
+    if mask_name in cpu_mask:
+        mask = cpu_mask[mask_name]
+    if mask is None:
+        mask = gdb.parse_and_eval(mask_name + ".bits")
+        if hasattr(gdb, 'events'):
+            cpu_mask[mask_name] = mask
+            gdb.events.stop.connect(cpu_mask_invalidate)
+            if hasattr(gdb.events, 'new_objfile'):
+                gdb.events.new_objfile.connect(cpu_mask_invalidate)
+    bits_per_entry = mask[0].type.sizeof * 8
+    num_entries = mask.type.sizeof * 8 / bits_per_entry
+    entry = -1
+    bits = 0
 
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        while self.bits == 0:
-            self.entry += 1
-            if self.entry == self.num_entries:
-                raise StopIteration
-            self.bits = self.mask[self.entry]
-            if self.bits != 0:
-                self.bit = 0
+    while True:
+        while bits == 0:
+            entry += 1
+            if entry == num_entries:
+                return
+            bits = mask[entry]
+            if bits != 0:
+                bit = 0
                 break
 
-        while self.bits & 1 == 0:
-            self.bits >>= 1
-            self.bit += 1
+        while bits & 1 == 0:
+            bits >>= 1
+            bit += 1
 
-        cpu = self.entry * self.bits_per_entry + self.bit
+        cpu = entry * bits_per_entry + bit
 
-        self.bits >>= 1
-        self.bit += 1
+        bits >>= 1
+        bit += 1
 
-        return cpu
-
-    def next(self):
-        return self.__next__()
+        yield cpu
 
 
 class PerCpu(gdb.Function):

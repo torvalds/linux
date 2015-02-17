@@ -75,7 +75,7 @@ class LxLsmod(gdb.Command):
         for module in module_list():
             ref = 0
             module_refptr = module['refptr']
-            for cpu in cpus.CpuList("cpu_possible_mask"):
+            for cpu in cpus.cpu_list("cpu_possible_mask"):
                 refptr = cpus.per_cpu(module_refptr, cpu)
                 ref += refptr['incs']
                 ref -= refptr['decs']
