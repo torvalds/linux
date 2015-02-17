@@ -175,7 +175,7 @@ static int exynos_disable_plane(struct drm_plane *plane)
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(plane->crtc);
 
-	if (exynos_crtc->ops->win_disable)
+	if (exynos_crtc && exynos_crtc->ops->win_disable)
 		exynos_crtc->ops->win_disable(exynos_crtc,
 					      exynos_plane->zpos);
 
