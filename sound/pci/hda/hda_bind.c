@@ -47,11 +47,11 @@ static struct hda_vendor_id hda_vendor_ids[] = {
 /*
  * find a matching codec preset
  */
-static int hda_bus_match(struct device *dev, struct device_driver *drv)
+static int hda_codec_match(struct hdac_device *dev, struct hdac_driver *drv)
 {
-	struct hda_codec *codec = container_of(dev, struct hda_codec, dev);
+	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
 	struct hda_codec_driver *driver =
-		container_of(drv, struct hda_codec_driver, driver);
+		container_of(drv, struct hda_codec_driver, core);
 	const struct hda_codec_preset *preset;
 	/* check probe_id instead of vendor_id if set */
 	u32 id = codec->probe_id ? codec->probe_id : codec->vendor_id;
@@ -154,20 +154,22 @@ static void hda_codec_driver_shutdown(struct device *dev)
 int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
 			       struct module *owner)
 {
-	drv->driver.name = name;
-	drv->driver.owner = owner;
-	drv->driver.bus = &snd_hda_bus_type;
-	drv->driver.probe = hda_codec_driver_probe;
-	drv->driver.remove = hda_codec_driver_remove;
-	drv->driver.shutdown = hda_codec_driver_shutdown;
-	drv->driver.pm = &hda_codec_driver_pm;
-	return driver_register(&drv->driver);
+	drv->core.driver.name = name;
+	drv->core.driver.owner = owner;
+	drv->core.driver.bus = &snd_hda_bus_type;
+	drv->core.driver.probe = hda_codec_driver_probe;
+	drv->core.driver.remove = hda_codec_driver_remove;
+	drv->core.driver.shutdown = hda_codec_driver_shutdown;
+	drv->core.driver.pm = &hda_codec_driver_pm;
+	drv->core.type = HDA_DEV_LEGACY;
+	drv->core.match = hda_codec_match;
+	return driver_register(&drv->core.driver);
 }
 EXPORT_SYMBOL_GPL(__hda_codec_driver_register);
 
 void hda_codec_driver_unregister(struct hda_codec_driver *drv)
 {
-	driver_unregister(&drv->driver);
+	driver_unregister(&drv->core.driver);
 }
 EXPORT_SYMBOL_GPL(hda_codec_driver_unregister);
 
@@ -319,24 +321,3 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 	return err;
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_configure);
-
-/*
- * bus registration
- */
-struct bus_type snd_hda_bus_type = {
-	.name = "hdaudio",
-	.match = hda_bus_match,
-};
-
-static int __init hda_codec_init(void)
-{
-	return bus_register(&snd_hda_bus_type);
-}
-
-static void __exit hda_codec_exit(void)
-{
-	bus_unregister(&snd_hda_bus_type);
-}
-
-module_init(hda_codec_init);
-module_exit(hda_codec_exit);

@@ -26,6 +26,7 @@
 #include <sound/control.h>
 #include <sound/pcm.h>
 #include <sound/hwdep.h>
+#include <sound/hdaudio.h>
 #include <sound/hda_verbs.h>
 
 /*
@@ -172,7 +173,7 @@ struct hda_codec_preset {
 #define HDA_CODEC_ID_GENERIC		0x00000201
 
 struct hda_codec_driver {
-	struct device_driver driver;
+	struct hdac_driver core;
 	const struct hda_codec_preset *preset;
 };
 
@@ -276,7 +277,7 @@ struct hda_pcm {
 
 /* codec information */
 struct hda_codec {
-	struct device dev;
+	struct hdac_device core;
 	struct hda_bus *bus;
 	struct snd_card *card;
 	unsigned int addr;	/* codec addr*/
@@ -409,10 +410,8 @@ struct hda_codec {
 	struct snd_array verbs;
 };
 
-#define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, dev)
-#define hda_codec_dev(_dev)	(&(_dev)->dev)
-
-extern struct bus_type snd_hda_bus_type;
+#define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, core.dev)
+#define hda_codec_dev(_dev)	(&(_dev)->core.dev)
 
 /* direction */
 enum {

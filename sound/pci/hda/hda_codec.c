@@ -1294,6 +1294,7 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 	dev_set_name(dev, "hdaudioC%dD%d", card->number, codec_addr);
 	dev_set_drvdata(dev, codec); /* for sysfs */
 	device_enable_async_suspend(dev);
+	codec->core.type = HDA_DEV_LEGACY;
 
 	codec->bus = bus;
 	codec->card = card;
