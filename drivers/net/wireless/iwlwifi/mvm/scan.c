@@ -82,6 +82,7 @@ struct iwl_mvm_scan_params {
 	struct _dwell {
 		u16 passive;
 		u16 active;
+		u16 fragmented;
 	} dwell[IEEE80211_NUM_BANDS];
 };
 
@@ -263,10 +264,10 @@ not_bound:
 
 	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
 		if (params->passive_fragmented)
-			params->dwell[band].passive = frag_passive_dwell;
-		else
-			params->dwell[band].passive =
-				iwl_mvm_get_passive_dwell(mvm, band);
+			params->dwell[band].fragmented = frag_passive_dwell;
+
+		params->dwell[band].passive = iwl_mvm_get_passive_dwell(mvm,
+									band);
 		params->dwell[band].active = iwl_mvm_get_active_dwell(mvm, band,
 								      n_ssids);
 	}
@@ -768,7 +769,7 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 	cmd->passive_dwell = params->dwell[IEEE80211_BAND_2GHZ].passive;
 	if (params->passive_fragmented)
 		cmd->fragmented_dwell =
-				params->dwell[IEEE80211_BAND_2GHZ].passive;
+				params->dwell[IEEE80211_BAND_2GHZ].fragmented;
 	cmd->rx_chain_select = iwl_mvm_scan_rx_chain(mvm);
 	cmd->max_out_time = cpu_to_le32(params->max_out_time);
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);
@@ -1214,7 +1215,7 @@ iwl_mvm_build_generic_umac_scan_cmd(struct iwl_mvm *mvm,
 	cmd->passive_dwell = params->dwell[IEEE80211_BAND_2GHZ].passive;
 	if (params->passive_fragmented)
 		cmd->fragmented_dwell =
-				params->dwell[IEEE80211_BAND_2GHZ].passive;
+				params->dwell[IEEE80211_BAND_2GHZ].fragmented;
 	cmd->max_out_time = cpu_to_le32(params->max_out_time);
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);
 	cmd->scan_priority = cpu_to_le32(IWL_SCAN_PRIORITY_HIGH);
