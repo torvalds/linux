@@ -14,7 +14,6 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/list.h>
-#include <linux/mutex.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
@@ -311,8 +310,10 @@ uvc_v4l2_release(struct file *file)
 
 	uvc_function_disconnect(uvc);
 
+	mutex_lock(&video->mutex);
 	uvcg_video_enable(video, 0);
 	uvcg_free_buffers(&video->queue);
+	mutex_unlock(&video->mutex);
 
 	file->private_data = NULL;
 	v4l2_fh_del(&handle->vfh);

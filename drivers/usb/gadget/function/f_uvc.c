@@ -447,6 +447,7 @@ uvc_register_video(struct uvc_device *uvc)
 	video->ioctl_ops = &uvc_v4l2_ioctl_ops;
 	video->release = video_device_release;
 	video->vfl_dir = VFL_DIR_TX;
+	video->lock = &uvc->video.mutex;
 	strlcpy(video->name, cdev->gadget->name, sizeof(video->name));
 
 	uvc->vdev = video;
@@ -918,6 +919,7 @@ static struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 	if (uvc == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&uvc->video.mutex);
 	uvc->state = UVC_STATE_DISCONNECTED;
 	opts = fi_to_f_uvc_opts(fi);
 

@@ -115,6 +115,7 @@ struct uvc_video
 	unsigned int width;
 	unsigned int height;
 	unsigned int imagesize;
+	struct mutex mutex;	/* protects frame parameters */
 
 	/* Requests */
 	unsigned int req_size;
