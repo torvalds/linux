@@ -83,18 +83,16 @@ static int bcm63xx_rng_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		dev_err(&pdev->dev, "no memory for private structure\n");
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	rng = kzalloc(sizeof(*rng), GFP_KERNEL);
+	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
 	if (!rng) {
-		dev_err(&pdev->dev, "no memory for rng structure\n");
 		ret = -ENOMEM;
-		goto out_free_priv;
+		goto out;
 	}
 
 	platform_set_drvdata(pdev, rng);
@@ -109,7 +107,7 @@ static int bcm63xx_rng_probe(struct platform_device *pdev)
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "no clock for device\n");
 		ret = PTR_ERR(clk);
-		goto out_free_rng;
+		goto out;
 	}
 
 	priv->clk = clk;
@@ -118,7 +116,7 @@ static int bcm63xx_rng_probe(struct platform_device *pdev)
 					resource_size(r), pdev->name)) {
 		dev_err(&pdev->dev, "request mem failed");
 		ret = -ENOMEM;
-		goto out_free_rng;
+		goto out;
 	}
 
 	priv->regs = devm_ioremap_nocache(&pdev->dev, r->start,
@@ -126,7 +124,7 @@ static int bcm63xx_rng_probe(struct platform_device *pdev)
 	if (!priv->regs) {
 		dev_err(&pdev->dev, "ioremap failed");
 		ret = -ENOMEM;
-		goto out_free_rng;
+		goto out;
 	}
 
 	clk_enable(clk);
@@ -143,10 +141,6 @@ static int bcm63xx_rng_probe(struct platform_device *pdev)
 
 out_clk_disable:
 	clk_disable(clk);
-out_free_rng:
-	kfree(rng);
-out_free_priv:
-	kfree(priv);
 out:
 	return ret;
 }
@@ -158,8 +152,6 @@ static int bcm63xx_rng_remove(struct platform_device *pdev)
 
 	hwrng_unregister(rng);
 	clk_disable(priv->clk);
-	kfree(priv);
-	kfree(rng);
 
 	return 0;
 }
