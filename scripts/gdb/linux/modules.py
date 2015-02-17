@@ -19,31 +19,20 @@ from linux import cpus, utils
 module_type = utils.CachedType("struct module")
 
 
-class ModuleList:
-    def __init__(self):
-        global module_type
-        self.module_ptr_type = module_type.get_type().pointer()
-        modules = gdb.parse_and_eval("modules")
-        self.curr_entry = modules['next']
-        self.end_of_list = modules.address
+def module_list():
+    global module_type
+    module_ptr_type = module_type.get_type().pointer()
+    modules = gdb.parse_and_eval("modules")
+    entry = modules['next']
+    end_of_list = modules.address
 
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        entry = self.curr_entry
-        if entry != self.end_of_list:
-            self.curr_entry = entry['next']
-            return utils.container_of(entry, self.module_ptr_type, "list")
-        else:
-            raise StopIteration
-
-    def next(self):
-        return self.__next__()
+    while entry != end_of_list:
+        yield utils.container_of(entry, module_ptr_type, "list")
+        entry = entry['next']
 
 
 def find_module_by_name(name):
-    for module in ModuleList():
+    for module in module_list():
         if module['name'].string() == name:
             return module
     return None
@@ -83,7 +72,7 @@ class LxLsmod(gdb.Command):
             "Address{0}    Module                  Size  Used by\n".format(
                 "        " if utils.get_long_type().sizeof == 8 else ""))
 
-        for module in ModuleList():
+        for module in module_list():
             ref = 0
             module_refptr = module['refptr']
             for cpu in cpus.CpuList("cpu_possible_mask"):

@@ -133,7 +133,7 @@ lx-symbols command."""
         gdb.execute("symbol-file vmlinux")
 
         self.loaded_modules = []
-        module_list = modules.ModuleList()
+        module_list = modules.module_list()
         if not module_list:
             gdb.write("no modules found\n")
         else:
