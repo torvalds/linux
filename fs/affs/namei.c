@@ -248,9 +248,8 @@ affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 int
 affs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	pr_debug("%s(dir=%d, %lu \"%pd\")\n",
-		 __func__, (u32)dir->i_ino, dentry->d_inode->i_ino,
-		dentry);
+	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
+		 dentry->d_inode->i_ino, dentry);
 
 	return affs_remove_header(dentry);
 }
@@ -317,9 +316,8 @@ affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 int
 affs_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	pr_debug("%s(dir=%u, %lu \"%pd\")\n",
-		__func__, (u32)dir->i_ino, dentry->d_inode->i_ino,
-		 dentry);
+	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
+		 dentry->d_inode->i_ino, dentry);
 
 	return affs_remove_header(dentry);
 }
@@ -404,8 +402,7 @@ affs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = old_dentry->d_inode;
 
-	pr_debug("%s(%u, %u, \"%pd\")\n",
-		 __func__, (u32)inode->i_ino, (u32)dir->i_ino,
+	pr_debug("%s(%lu, %lu, \"%pd\")\n", __func__, inode->i_ino, dir->i_ino,
 		 dentry);
 
 	return affs_add_entry(dir, inode, dentry, ST_LINKFILE);
@@ -419,9 +416,8 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct buffer_head *bh = NULL;
 	int retval;
 
-	pr_debug("%s(old=%u,\"%pd\" to new=%u,\"%pd\")\n",
-		 __func__, (u32)old_dir->i_ino, old_dentry,
-		 (u32)new_dir->i_ino, new_dentry);
+	pr_debug("%s(old=%lu,\"%pd\" to new=%lu,\"%pd\")\n", __func__,
+		 old_dir->i_ino, old_dentry, new_dir->i_ino, new_dentry);
 
 	retval = affs_check_name(new_dentry->d_name.name,
 				 new_dentry->d_name.len,
