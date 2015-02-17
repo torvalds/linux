@@ -588,6 +588,9 @@ MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
 static void tpm_tis_remove(struct tpm_chip *chip)
 {
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		tpm2_shutdown(chip, TPM2_SU_CLEAR);
+
 	iowrite32(~TPM_GLOBAL_INT_ENABLE &
 		  ioread32(chip->vendor.iobase +
 			   TPM_INT_ENABLE(chip->vendor.
@@ -639,12 +642,9 @@ static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
 		goto out_err;
 	}
 
-	/* Every TPM 2.x command has a higher ordinal than TPM 1.x commands.
-	 * Therefore, we can use an idempotent TPM 2.x command to probe TPM 2.x.
-	 */
-	rc = tpm2_gen_interrupt(chip, true);
-	if (rc == 0 || rc == TPM2_RC_INITIALIZE)
-		chip->flags |= TPM_CHIP_FLAG_TPM2;
+	rc = tpm2_probe(chip);
+	if (rc)
+		goto out_err;
 
 	vendor = ioread32(chip->vendor.iobase + TPM_DID_VID(0));
 	chip->vendor.manufacturer_id = vendor;
@@ -747,7 +747,7 @@ static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
 
 			/* Generate Interrupts */
 			if (chip->flags & TPM_CHIP_FLAG_TPM2)
-				tpm2_gen_interrupt(chip, false);
+				tpm2_gen_interrupt(chip);
 			else
 				tpm_gen_interrupt(chip);
 
@@ -865,25 +865,22 @@ static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
 static int tpm_tis_resume(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-	int ret = 0;
+	int ret;
 
 	if (chip->vendor.irq)
 		tpm_tis_reenable_interrupts(chip);
 
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
-		/* NOP if firmware properly does this. */
-		tpm2_startup(chip, TPM2_SU_STATE);
+	ret = tpm_pm_resume(dev);
+	if (ret)
+		return ret;
 
-		ret = tpm2_shutdown(chip, TPM2_SU_STATE);
-		if (!ret)
-			ret = tpm2_do_selftest(chip);
-	} else {
-		ret = tpm_pm_resume(dev);
-		if (!ret)
-			tpm_do_selftest(chip);
-	}
+	/* TPM 1.2 requires self-test on resume. This function actually returns
+	 * an error code but for unknown reason it isn't handled.
+	 */
+	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
+		tpm_do_selftest(chip);
 
-	return ret;
+	return 0;
 }
 #endif
 
