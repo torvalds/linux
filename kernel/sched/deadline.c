@@ -511,16 +511,10 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 						     struct sched_dl_entity,
 						     dl_timer);
 	struct task_struct *p = dl_task_of(dl_se);
+	unsigned long flags;
 	struct rq *rq;
-again:
-	rq = task_rq(p);
-	raw_spin_lock(&rq->lock);
 
-	if (rq != task_rq(p)) {
-		/* Task was moved, retrying. */
-		raw_spin_unlock(&rq->lock);
-		goto again;
-	}
+	rq = task_rq_lock(current, &flags);
 
 	/*
 	 * We need to take care of several possible races here:
@@ -555,7 +549,7 @@ again:
 		push_dl_task(rq);
 #endif
 unlock:
-	raw_spin_unlock(&rq->lock);
+	task_rq_unlock(rq, current, &flags);
 
 	return HRTIMER_NORESTART;
 }
