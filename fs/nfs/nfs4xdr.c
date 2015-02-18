@@ -1806,8 +1806,8 @@ static void encode_create_session(struct xdr_stream *xdr,
 
 	encode_op_hdr(xdr, OP_CREATE_SESSION, decode_create_session_maxsz, hdr);
 	p = reserve_space(xdr, 16 + 2*28 + 20 + clnt->cl_nodelen + 12);
-	p = xdr_encode_hyper(p, clp->cl_clientid);
-	*p++ = cpu_to_be32(clp->cl_seqid);			/*Sequence id */
+	p = xdr_encode_hyper(p, args->clientid);
+	*p++ = cpu_to_be32(args->seqid);			/*Sequence id */
 	*p++ = cpu_to_be32(args->flags);			/*flags */
 
 	/* Fore Channel */
@@ -5641,12 +5641,10 @@ static int decode_create_session(struct xdr_stream *xdr,
 {
 	__be32 *p;
 	int status;
-	struct nfs_client *clp = res->client;
-	struct nfs4_session *session = clp->cl_session;
 
 	status = decode_op_hdr(xdr, OP_CREATE_SESSION);
 	if (!status)
-		status = decode_sessionid(xdr, &session->sess_id);
+		status = decode_sessionid(xdr, &res->sessionid);
 	if (unlikely(status))
 		return status;
 
@@ -5654,13 +5652,13 @@ static int decode_create_session(struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, 8);
 	if (unlikely(!p))
 		goto out_overflow;
-	clp->cl_seqid = be32_to_cpup(p++);
-	session->flags = be32_to_cpup(p);
+	res->seqid = be32_to_cpup(p++);
+	res->flags = be32_to_cpup(p);
 
 	/* Channel attributes */
-	status = decode_chan_attrs(xdr, &session->fc_attrs);
+	status = decode_chan_attrs(xdr, &res->fc_attrs);
 	if (!status)
-		status = decode_chan_attrs(xdr, &session->bc_attrs);
+		status = decode_chan_attrs(xdr, &res->bc_attrs);
 	return status;
 out_overflow:
 	print_overflow_msg(__func__, xdr);

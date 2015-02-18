@@ -1185,6 +1185,8 @@ struct nfs41_exchange_id_res {
 
 struct nfs41_create_session_args {
 	struct nfs_client	       *client;
+	u64				clientid;
+	uint32_t			seqid;
 	uint32_t			flags;
 	uint32_t			cb_program;
 	struct nfs4_channel_attrs	fc_attrs;	/* Fore Channel */
@@ -1192,7 +1194,11 @@ struct nfs41_create_session_args {
 };
 
 struct nfs41_create_session_res {
-	struct nfs_client	       *client;
+	struct nfs4_sessionid		sessionid;
+	uint32_t			seqid;
+	uint32_t			flags;
+	struct nfs4_channel_attrs	fc_attrs;	/* Fore Channel */
+	struct nfs4_channel_attrs	bc_attrs;	/* Back Channel */
 };
 
 struct nfs41_reclaim_complete_args {
