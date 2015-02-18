@@ -569,19 +569,20 @@ static const struct lg4ff_compat_mode_switch *lg4ff_get_mode_switch_command(cons
 
 static int lg4ff_switch_compatibility_mode(struct hid_device *hid, const struct lg4ff_compat_mode_switch *s)
 {
-	struct usb_device *usbdev = hid_to_usb_dev(hid);
-	struct usbhid_device *usbhid = hid->driver_data;
+	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
+	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
+	__s32 *value = report->field[0]->value;
 	u8 i;
 
 	for (i = 0; i < s->cmd_count; i++) {
-		int xferd, ret;
-		u8 data[7];
+		u8 j;
 
-		memcpy(data, s->cmd + (7*i), 7);
-		ret = usb_interrupt_msg(usbdev, usbhid->urbout->pipe, data, 7, &xferd, USB_CTRL_SET_TIMEOUT);
-		if (ret)
-			return ret;
+		for (j = 0; j < 7; j++)
+			value[j] = s->cmd[j + (7*i)];
+
+		hid_hw_request(hid, report, HID_REQ_SET_REPORT);
 	}
+	hid_hw_wait(hid);
 	return 0;
 }
 
