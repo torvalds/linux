@@ -274,10 +274,13 @@ const char DIAG_TITLE[] = "[ TUNABLES ]";
 void show_dialogue(void)
 {
 	int j, x = 0, y = 0;
+	int rows, cols;
 	WINDOW *w = dialogue_window;
 
 	if (tui_disabled || !w)
 		return;
+
+	getmaxyx(w, rows, cols);
 
 	werase(w);
 	box(w, 0, 0);
@@ -297,10 +300,8 @@ void show_dialogue(void)
 	wattron(w, A_BOLD);
 	mvwprintw(w, DIAG_DEV_ROWS+1, 1, "Enter Choice [A-Z]?");
 	wattroff(w, A_BOLD);
-	/* y size of dialogue win is nr cdev + 5, so print legend
-	 * at the bottom line
-	 */
-	mvwprintw(w, ptdata.nr_cooling_dev+3, 1,
+	/* print legend at the bottom line */
+	mvwprintw(w, rows - 2, 1,
 		"Legend: A=Active, P=Passive, C=Critical");
 
 	wrefresh(dialogue_window);
