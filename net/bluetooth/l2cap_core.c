@@ -7252,12 +7252,15 @@ static struct l2cap_chan *l2cap_global_fixed_chan(struct l2cap_chan *c,
 	return NULL;
 }
 
-void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
+static void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 {
 	struct hci_dev *hdev = hcon->hdev;
 	struct l2cap_conn *conn;
 	struct l2cap_chan *pchan;
 	u8 dst_type;
+
+	if (hcon->type != ACL_LINK && hcon->type != LE_LINK)
+		return;
 
 	BT_DBG("hcon %p bdaddr %pMR status %d", hcon, &hcon->dst, status);
 
@@ -7543,6 +7546,7 @@ drop:
 
 static struct hci_cb l2cap_cb = {
 	.name		= "L2CAP",
+	.connect_cfm	= l2cap_connect_cfm,
 	.security_cfm	= l2cap_security_cfm,
 };
 
