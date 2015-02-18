@@ -41,7 +41,7 @@ struct dib3000mc_config {
 #define DEFAULT_DIB3000MC_I2C_ADDRESS 16
 #define DEFAULT_DIB3000P_I2C_ADDRESS  24
 
-#if IS_ENABLED(CONFIG_DVB_DIB3000MC)
+#if IS_REACHABLE(CONFIG_DVB_DIB3000MC)
 extern struct dvb_frontend *dib3000mc_attach(struct i2c_adapter *i2c_adap,
 					     u8 i2c_addr,
 					     struct dib3000mc_config *cfg);

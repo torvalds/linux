@@ -54,7 +54,7 @@ struct ts2020_config {
 	struct dvb_frontend *fe;
 };
 
-#if IS_ENABLED(CONFIG_DVB_TS2020)
+#if IS_REACHABLE(CONFIG_DVB_TS2020)
 
 extern struct dvb_frontend *ts2020_attach(
 	struct dvb_frontend *fe,
