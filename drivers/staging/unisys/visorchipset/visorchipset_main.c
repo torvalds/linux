@@ -98,19 +98,19 @@ static LIST_HEAD(DevInfoList);
 
 static struct visorchannel *ControlVm_channel;
 
-typedef struct {
+struct controlvm_payload_info {
 	u8 __iomem *ptr;	/* pointer to base address of payload pool */
 	u64 offset;		/* offset from beginning of controlvm
 				 * channel to beginning of payload * pool */
 	u32 bytes;		/* number of bytes in payload pool */
-} CONTROLVM_PAYLOAD_INFO;
+};
 
 /* Manages the request payload in the controlvm channel */
-static CONTROLVM_PAYLOAD_INFO ControlVm_payload_info;
+static struct controlvm_payload_info ControlVm_payload_info;
 
 static struct channel_header *Test_Vnic_channel;
 
-typedef struct {
+struct livedump_info {
 	struct controlvm_message_header Dumpcapture_header;
 	struct controlvm_message_header Gettextdump_header;
 	struct controlvm_message_header Dumpcomplete_header;
@@ -119,11 +119,11 @@ typedef struct {
 	ulong length;
 	atomic_t buffers_in_use;
 	ulong destination;
-} LIVEDUMP_INFO;
+};
 /* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
  * CONTROLVM_DUMP_GETTEXTDUMP / CONTROLVM_DUMP_COMPLETE conversation.
  */
-static LIVEDUMP_INFO LiveDump_info;
+static struct livedump_info LiveDump_info;
 
 /* The following globals are used to handle the scenario where we are unable to
  * offload the payload from a controlvm message due to memory requirements.  In
@@ -1374,12 +1374,12 @@ Away:
 /* When provided with the physical address of the controlvm channel
  * (phys_addr), the offset to the payload area we need to manage
  * (offset), and the size of this payload area (bytes), fills in the
- * CONTROLVM_PAYLOAD_INFO struct.  Returns TRUE for success or FALSE
+ * controlvm_payload_info struct.  Returns TRUE for success or FALSE
  * for failure.
  */
 static int
 initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
-				  CONTROLVM_PAYLOAD_INFO *info)
+				  struct controlvm_payload_info *info)
 {
 	u8 __iomem *payload = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
@@ -1390,7 +1390,7 @@ initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
 		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
 		goto Away;
 	}
-	memset(info, 0, sizeof(CONTROLVM_PAYLOAD_INFO));
+	memset(info, 0, sizeof(struct controlvm_payload_info));
 	if ((offset == 0) || (bytes == 0)) {
 		LOGERR("CONTROLVM_PAYLOAD_INIT Failed: request_payload_offset=%llu request_payload_bytes=%llu!",
 		     (u64) offset, (u64) bytes);
@@ -1422,13 +1422,13 @@ Away:
 }
 
 static void
-destroy_controlvm_payload_info(CONTROLVM_PAYLOAD_INFO *info)
+destroy_controlvm_payload_info(struct controlvm_payload_info *info)
 {
 	if (info->ptr != NULL) {
 		iounmap(info->ptr);
 		info->ptr = NULL;
 	}
-	memset(info, 0, sizeof(CONTROLVM_PAYLOAD_INFO));
+	memset(info, 0, sizeof(struct controlvm_payload_info));
 }
 
 static void
