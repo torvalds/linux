@@ -152,14 +152,11 @@ static struct mce_log mcelog = {
 void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
-	int ret = 0;
 
 	/* Emit the trace record: */
 	trace_mce_record(mce);
 
-	ret = atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
-	if (ret == NOTIFY_STOP)
-		return;
+	atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
 
 	mce->finished = 0;
 	wmb();
