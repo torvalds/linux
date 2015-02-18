@@ -128,13 +128,15 @@ struct vxlan_sock {
 #define VXLAN_F_REMCSUM_TX		0x200
 #define VXLAN_F_REMCSUM_RX		0x400
 #define VXLAN_F_GBP			0x800
+#define VXLAN_F_REMCSUM_NOPARTIAL	0x1000
 
 /* Flags that are used in the receive patch. These flags must match in
  * order for a socket to be shareable
  */
 #define VXLAN_F_RCV_FLAGS		(VXLAN_F_GBP |			\
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
-					 VXLAN_F_REMCSUM_RX)
+					 VXLAN_F_REMCSUM_RX |		\
+					 VXLAN_F_REMCSUM_NOPARTIAL)
 
 struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 				  vxlan_rcv_t *rcv, void *data,

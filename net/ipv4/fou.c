@@ -22,14 +22,18 @@ static LIST_HEAD(fou_list);
 struct fou {
 	struct socket *sock;
 	u8 protocol;
+	u8 flags;
 	u16 port;
 	struct udp_offload udp_offloads;
 	struct list_head list;
 };
 
+#define FOU_F_REMCSUM_NOPARTIAL BIT(0)
+
 struct fou_cfg {
 	u16 type;
 	u8 protocol;
+	u8 flags;
 	struct udp_port_cfg udp_config;
 };
 
@@ -64,24 +68,20 @@ static int fou_udp_recv(struct sock *sk, struct sk_buff *skb)
 }
 
 static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
-				  void *data, size_t hdrlen, u8 ipproto)
+				  void *data, size_t hdrlen, u8 ipproto,
+				  bool nopartial)
 {
 	__be16 *pd = data;
 	size_t start = ntohs(pd[0]);
 	size_t offset = ntohs(pd[1]);
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
 
-	if (skb->remcsum_offload) {
-		/* Already processed in GRO path */
-		skb->remcsum_offload = 0;
-		return guehdr;
-	}
-
 	if (!pskb_may_pull(skb, plen))
 		return NULL;
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 
-	skb_remcsum_process(skb, (void *)guehdr + hdrlen, start, offset);
+	skb_remcsum_process(skb, (void *)guehdr + hdrlen,
+			    start, offset, nopartial);
 
 	return guehdr;
 }
@@ -142,7 +142,9 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 
 		if (flags & GUE_PFLAG_REMCSUM) {
 			guehdr = gue_remcsum(skb, guehdr, data + doffset,
-					     hdrlen, guehdr->proto_ctype);
+					     hdrlen, guehdr->proto_ctype,
+					     !!(fou->flags &
+						FOU_F_REMCSUM_NOPARTIAL));
 			if (!guehdr)
 				goto drop;
 
@@ -214,7 +216,8 @@ out_unlock:
 
 static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 				      struct guehdr *guehdr, void *data,
-				      size_t hdrlen, u8 ipproto)
+				      size_t hdrlen, u8 ipproto,
+				      struct gro_remcsum *grc, bool nopartial)
 {
 	__be16 *pd = data;
 	size_t start = ntohs(pd[0]);
@@ -222,7 +225,7 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
 
 	if (skb->remcsum_offload)
-		return guehdr;
+		return NULL;
 
 	if (!NAPI_GRO_CB(skb)->csum_valid)
 		return NULL;
@@ -234,7 +237,8 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 			return NULL;
 	}
 
-	skb_gro_remcsum_process(skb, (void *)guehdr + hdrlen, start, offset);
+	skb_gro_remcsum_process(skb, (void *)guehdr + hdrlen,
+				start, offset, grc, nopartial);
 
 	skb->remcsum_offload = 1;
 
@@ -254,6 +258,10 @@ static struct sk_buff **gue_gro_receive(struct sk_buff **head,
 	void *data;
 	u16 doffset = 0;
 	int flush = 1;
+	struct fou *fou = container_of(uoff, struct fou, udp_offloads);
+	struct gro_remcsum grc;
+
+	skb_gro_remcsum_init(&grc);
 
 	off = skb_gro_offset(skb);
 	len = off + sizeof(*guehdr);
@@ -295,7 +303,9 @@ static struct sk_buff **gue_gro_receive(struct sk_buff **head,
 		if (flags & GUE_PFLAG_REMCSUM) {
 			guehdr = gue_gro_remcsum(skb, off, guehdr,
 						 data + doffset, hdrlen,
-						 guehdr->proto_ctype);
+						 guehdr->proto_ctype, &grc,
+						 !!(fou->flags &
+						    FOU_F_REMCSUM_NOPARTIAL));
 			if (!guehdr)
 				goto out;
 
@@ -345,6 +355,7 @@ out_unlock:
 	rcu_read_unlock();
 out:
 	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_remcsum_cleanup(skb, &grc);
 
 	return pp;
 }
@@ -455,6 +466,7 @@ static int fou_create(struct net *net, struct fou_cfg *cfg,
 
 	sk = sock->sk;
 
+	fou->flags = cfg->flags;
 	fou->port = cfg->udp_config.local_udp_port;
 
 	/* Initial for fou type */
@@ -541,6 +553,7 @@ static struct nla_policy fou_nl_policy[FOU_ATTR_MAX + 1] = {
 	[FOU_ATTR_AF] = { .type = NLA_U8, },
 	[FOU_ATTR_IPPROTO] = { .type = NLA_U8, },
 	[FOU_ATTR_TYPE] = { .type = NLA_U8, },
+	[FOU_ATTR_REMCSUM_NOPARTIAL] = { .type = NLA_FLAG, },
 };
 
 static int parse_nl_config(struct genl_info *info,
@@ -570,6 +583,9 @@ static int parse_nl_config(struct genl_info *info,
 
 	if (info->attrs[FOU_ATTR_TYPE])
 		cfg->type = nla_get_u8(info->attrs[FOU_ATTR_TYPE]);
+
+	if (info->attrs[FOU_ATTR_REMCSUM_NOPARTIAL])
+		cfg->flags |= FOU_F_REMCSUM_NOPARTIAL;
 
 	return 0;
 }

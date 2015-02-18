@@ -364,8 +364,6 @@ struct ssb_device_id {
 } __attribute__((packed, aligned(2)));
 #define SSB_DEVICE(_vendor, _coreid, _revision)  \
 	{ .vendor = _vendor, .coreid = _coreid, .revision = _revision, }
-#define SSB_DEVTABLE_END  \
-	{ 0, },
 
 #define SSB_ANY_VENDOR		0xFFFF
 #define SSB_ANY_ID		0xFFFF
@@ -380,8 +378,6 @@ struct bcma_device_id {
 } __attribute__((packed,aligned(2)));
 #define BCMA_CORE(_manuf, _id, _rev, _class)  \
 	{ .manuf = _manuf, .id = _id, .rev = _rev, .class = _class, }
-#define BCMA_CORETABLE_END  \
-	{ 0, },
 
 #define BCMA_ANY_MANUF		0xFFFF
 #define BCMA_ANY_ID		0xFFFF

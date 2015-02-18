@@ -1516,7 +1516,7 @@ int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb)
 /* Called with ovs_mutex or RCU read lock. */
 int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb)
 {
-	return ovs_nla_put_key(&flow->mask->key, &flow->key,
+	return ovs_nla_put_key(&flow->key, &flow->key,
 				OVS_FLOW_ATTR_KEY, false, skb);
 }
 
@@ -1746,7 +1746,7 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	struct sw_flow_key key;
 	struct ovs_tunnel_info *tun_info;
 	struct nlattr *a;
-	int err, start, opts_type;
+	int err = 0, start, opts_type;
 
 	ovs_match_init(&match, &key, NULL);
 	opts_type = ipv4_tun_from_nlattr(nla_data(attr), &match, false, log);
