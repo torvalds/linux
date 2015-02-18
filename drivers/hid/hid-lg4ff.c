@@ -30,6 +30,7 @@
 
 #include "usbhid/usbhid.h"
 #include "hid-lg.h"
+#include "hid-lg4ff.h"
 #include "hid-ids.h"
 
 #define to_hid_device(pdev) container_of(pdev, struct hid_device, dev)
@@ -803,7 +804,8 @@ static int lg4ff_handle_multimode_wheel(struct hid_device *hid, u16 *real_produc
 	/* Switch from "Driving Force" mode to native mode automatically.
 	 * Otherwise keep the wheel in its current mode */
 	if (reported_product_id == USB_DEVICE_ID_LOGITECH_WHEEL &&
-	    reported_product_id != *real_product_id) {
+	    reported_product_id != *real_product_id &&
+	    !lg4ff_no_autoswitch) {
 		const struct lg4ff_compat_mode_switch *s;
 
 		switch (*real_product_id) {
