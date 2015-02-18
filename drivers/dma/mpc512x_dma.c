@@ -800,79 +800,69 @@ err_prep:
 	return NULL;
 }
 
-static int mpc_dma_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-							unsigned long arg)
+static int mpc_dma_device_config(struct dma_chan *chan,
+				 struct dma_slave_config *cfg)
 {
-	struct mpc_dma_chan *mchan;
-	struct mpc_dma *mdma;
-	struct dma_slave_config *cfg;
+	struct mpc_dma_chan *mchan = dma_chan_to_mpc_dma_chan(chan);
 	unsigned long flags;
 
-	mchan = dma_chan_to_mpc_dma_chan(chan);
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		/* Disable channel requests */
-		mdma = dma_chan_to_mpc_dma(chan);
+	/*
+	 * Software constraints:
+	 *  - only transfers between a peripheral device and
+	 *     memory are supported;
+	 *  - only peripheral devices with 4-byte FIFO access register
+	 *     are supported;
+	 *  - minimal transfer chunk is 4 bytes and consequently
+	 *     source and destination addresses must be 4-byte aligned
+	 *     and transfer size must be aligned on (4 * maxburst)
+	 *     boundary;
+	 *  - during the transfer RAM address is being incremented by
+	 *     the size of minimal transfer chunk;
+	 *  - peripheral port's address is constant during the transfer.
+	 */
 
-		spin_lock_irqsave(&mchan->lock, flags);
-
-		out_8(&mdma->regs->dmacerq, chan->chan_id);
-		list_splice_tail_init(&mchan->prepared, &mchan->free);
-		list_splice_tail_init(&mchan->queued, &mchan->free);
-		list_splice_tail_init(&mchan->active, &mchan->free);
-
-		spin_unlock_irqrestore(&mchan->lock, flags);
-
-		return 0;
-
-	case DMA_SLAVE_CONFIG:
-		/*
-		 * Software constraints:
-		 *  - only transfers between a peripheral device and
-		 *     memory are supported;
-		 *  - only peripheral devices with 4-byte FIFO access register
-		 *     are supported;
-		 *  - minimal transfer chunk is 4 bytes and consequently
-		 *     source and destination addresses must be 4-byte aligned
-		 *     and transfer size must be aligned on (4 * maxburst)
-		 *     boundary;
-		 *  - during the transfer RAM address is being incremented by
-		 *     the size of minimal transfer chunk;
-		 *  - peripheral port's address is constant during the transfer.
-		 */
-
-		cfg = (void *)arg;
-
-		if (cfg->src_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES ||
-		    cfg->dst_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES ||
-		    !IS_ALIGNED(cfg->src_addr, 4) ||
-		    !IS_ALIGNED(cfg->dst_addr, 4)) {
-			return -EINVAL;
-		}
-
-		spin_lock_irqsave(&mchan->lock, flags);
-
-		mchan->src_per_paddr = cfg->src_addr;
-		mchan->src_tcd_nunits = cfg->src_maxburst;
-		mchan->dst_per_paddr = cfg->dst_addr;
-		mchan->dst_tcd_nunits = cfg->dst_maxburst;
-
-		/* Apply defaults */
-		if (mchan->src_tcd_nunits == 0)
-			mchan->src_tcd_nunits = 1;
-		if (mchan->dst_tcd_nunits == 0)
-			mchan->dst_tcd_nunits = 1;
-
-		spin_unlock_irqrestore(&mchan->lock, flags);
-
-		return 0;
-
-	default:
-		/* Unknown command */
-		break;
+	if (cfg->src_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES ||
+	    cfg->dst_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES ||
+	    !IS_ALIGNED(cfg->src_addr, 4) ||
+	    !IS_ALIGNED(cfg->dst_addr, 4)) {
+		return -EINVAL;
 	}
 
-	return -ENXIO;
+	spin_lock_irqsave(&mchan->lock, flags);
+
+	mchan->src_per_paddr = cfg->src_addr;
+	mchan->src_tcd_nunits = cfg->src_maxburst;
+	mchan->dst_per_paddr = cfg->dst_addr;
+	mchan->dst_tcd_nunits = cfg->dst_maxburst;
+
+	/* Apply defaults */
+	if (mchan->src_tcd_nunits == 0)
+		mchan->src_tcd_nunits = 1;
+	if (mchan->dst_tcd_nunits == 0)
+		mchan->dst_tcd_nunits = 1;
+
+	spin_unlock_irqrestore(&mchan->lock, flags);
+
+	return 0;
+}
+
+static int mpc_dma_device_terminate_all(struct dma_chan *chan)
+{
+	struct mpc_dma_chan *mchan = dma_chan_to_mpc_dma_chan(chan);
+	struct mpc_dma *mdma = dma_chan_to_mpc_dma(chan);
+	unsigned long flags;
+
+	/* Disable channel requests */
+	spin_lock_irqsave(&mchan->lock, flags);
+
+	out_8(&mdma->regs->dmacerq, chan->chan_id);
+	list_splice_tail_init(&mchan->prepared, &mchan->free);
+	list_splice_tail_init(&mchan->queued, &mchan->free);
+	list_splice_tail_init(&mchan->active, &mchan->free);
+
+	spin_unlock_irqrestore(&mchan->lock, flags);
+
+	return 0;
 }
 
 static int mpc_dma_probe(struct platform_device *op)
@@ -963,7 +953,8 @@ static int mpc_dma_probe(struct platform_device *op)
 	dma->device_tx_status = mpc_dma_tx_status;
 	dma->device_prep_dma_memcpy = mpc_dma_prep_memcpy;
 	dma->device_prep_slave_sg = mpc_dma_prep_slave_sg;
-	dma->device_control = mpc_dma_device_control;
+	dma->device_config = mpc_dma_device_config;
+	dma->device_terminate_all = mpc_dma_device_terminate_all;
 
 	INIT_LIST_HEAD(&dma->channels);
 	dma_cap_set(DMA_MEMCPY, dma->cap_mask);
