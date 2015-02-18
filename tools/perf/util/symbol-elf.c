@@ -69,6 +69,10 @@ static inline uint8_t elf_sym__type(const GElf_Sym *sym)
 	return GELF_ST_TYPE(sym->st_info);
 }
 
+#ifndef STT_GNU_IFUNC
+#define STT_GNU_IFUNC 10
+#endif
+
 static inline int elf_sym__is_function(const GElf_Sym *sym)
 {
 	return (elf_sym__type(sym) == STT_FUNC ||
@@ -859,10 +863,9 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		/* Reject ARM ELF "mapping symbols": these aren't unique and
 		 * don't identify functions, so will confuse the profile
 		 * output: */
-		if (ehdr.e_machine == EM_ARM) {
-			if (!strcmp(elf_name, "$a") ||
-			    !strcmp(elf_name, "$d") ||
-			    !strcmp(elf_name, "$t"))
+		if (ehdr.e_machine == EM_ARM || ehdr.e_machine == EM_AARCH64) {
+			if (elf_name[0] == '$' && strchr("adtx", elf_name[1])
+			    && (elf_name[2] == '\0' || elf_name[2] == '.'))
 				continue;
 		}
 

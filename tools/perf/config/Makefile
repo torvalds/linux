@@ -11,19 +11,27 @@ ifneq ($(obj-perf),)
 obj-perf := $(abspath $(obj-perf))/
 endif
 
+$(shell echo -n > .config-detected)
+detected     = $(shell echo "$(1)=y"       >> .config-detected)
+detected_var = $(shell echo "$(1)=$($(1))" >> .config-detected)
+
 LIB_INCLUDE := $(srctree)/tools/lib/
 CFLAGS := $(EXTRA_CFLAGS) $(EXTRA_WARNINGS)
 
 include $(src-perf)/config/Makefile.arch
 
+$(call detected_var,ARCH)
+
 NO_PERF_REGS := 1
 
 # Additional ARCH settings for x86
 ifeq ($(ARCH),x86)
+  $(call detected,CONFIG_X86)
   ifeq (${IS_64_BIT}, 1)
     CFLAGS += -DHAVE_ARCH_X86_64_SUPPORT
     ARCH_INCLUDE = ../../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memset_64.S
     LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
+    $(call detected,CONFIG_X86_64)
   else
     LIBUNWIND_LIBS = -lunwind -lunwind-x86
   endif
@@ -38,6 +46,10 @@ endif
 ifeq ($(ARCH),arm64)
   NO_PERF_REGS := 0
   LIBUNWIND_LIBS = -lunwind -lunwind-aarch64
+endif
+
+ifeq ($(NO_PERF_REGS),0)
+  $(call detected,CONFIG_PERF_REGS)
 endif
 
 # So far there's only x86 and arm libdw unwind support merged in perf.
@@ -114,6 +126,8 @@ ifdef PARSER_DEBUG
   PARSER_DEBUG_BISON := -t
   PARSER_DEBUG_FLEX  := -d
   CFLAGS             += -DPARSER_DEBUG
+  $(call detected_var,PARSER_DEBUG_BISON)
+  $(call detected_var,PARSER_DEBUG_FLEX)
 endif
 
 ifndef NO_LIBPYTHON
@@ -361,6 +375,7 @@ endif # NO_LIBELF
 ifndef NO_LIBELF
   CFLAGS += -DHAVE_LIBELF_SUPPORT
   EXTLIBS += -lelf
+  $(call detected,CONFIG_LIBELF)
 
   ifeq ($(feature-libelf-mmap), 1)
     CFLAGS += -DHAVE_LIBELF_MMAP_SUPPORT
@@ -381,6 +396,7 @@ ifndef NO_LIBELF
       CFLAGS += -DHAVE_DWARF_SUPPORT $(LIBDW_CFLAGS)
       LDFLAGS += $(LIBDW_LDFLAGS)
       EXTLIBS += -ldw
+      $(call detected,CONFIG_DWARF)
     endif # PERF_HAVE_DWARF_REGS
   endif # NO_DWARF
 endif # NO_LIBELF
@@ -408,9 +424,11 @@ ifdef NO_LIBUNWIND
     dwarf-post-unwind := 0
   else
     dwarf-post-unwind-text := libdw
+    $(call detected,CONFIG_LIBDW_DWARF_UNWIND)
   endif
 else
   dwarf-post-unwind-text := libunwind
+  $(call detected,CONFIG_LIBUNWIND)
   # Enable libunwind support by default.
   ifndef NO_LIBDW_DWARF_UNWIND
     NO_LIBDW_DWARF_UNWIND := 1
@@ -419,6 +437,7 @@ endif
 
 ifeq ($(dwarf-post-unwind),1)
   CFLAGS += -DHAVE_DWARF_UNWIND_SUPPORT
+  $(call detected,CONFIG_DWARF_UNWIND)
 else
   NO_DWARF_UNWIND := 1
 endif
@@ -447,6 +466,7 @@ ifndef NO_LIBAUDIT
   else
     CFLAGS += -DHAVE_LIBAUDIT_SUPPORT
     EXTLIBS += -laudit
+    $(call detected,CONFIG_AUDIT)
   endif
 endif
 
@@ -463,6 +483,7 @@ ifndef NO_SLANG
     CFLAGS += -I/usr/include/slang
     CFLAGS += -DHAVE_SLANG_SUPPORT
     EXTLIBS += -lslang
+    $(call detected,CONFIG_SLANG)
   endif
 endif
 
@@ -501,6 +522,7 @@ else
   else
     LDFLAGS += $(PERL_EMBED_LDFLAGS)
     EXTLIBS += $(PERL_EMBED_LIBADD)
+    $(call detected,CONFIG_LIBPERL)
   endif
 endif
 
@@ -560,6 +582,7 @@ else
           LDFLAGS += $(PYTHON_EMBED_LDFLAGS)
           EXTLIBS += $(PYTHON_EMBED_LIBADD)
           LANG_BINDINGS += $(obj-perf)python/perf.so
+          $(call detected,CONFIG_LIBPYTHON)
         endif
       endif
     endif
@@ -617,6 +640,7 @@ ifndef NO_ZLIB
   ifeq ($(feature-zlib), 1)
     CFLAGS += -DHAVE_ZLIB_SUPPORT
     EXTLIBS += -lz
+    $(call detected,CONFIG_ZLIB)
   else
     NO_ZLIB := 1
   endif
@@ -635,6 +659,7 @@ ifndef NO_LIBNUMA
   else
     CFLAGS += -DHAVE_LIBNUMA_SUPPORT
     EXTLIBS += -lnuma
+    $(call detected,CONFIG_NUMA)
   endif
 endif
 
@@ -815,3 +840,19 @@ endif
 ifeq ($(display_lib),1)
   $(info )
 endif
+
+$(call detected_var,bindir_SQ)
+$(call detected_var,PYTHON_WORD)
+ifneq ($(OUTPUT),)
+$(call detected_var,OUTPUT)
+endif
+$(call detected_var,htmldir_SQ)
+$(call detected_var,infodir_SQ)
+$(call detected_var,mandir_SQ)
+$(call detected_var,ETC_PERFCONFIG_SQ)
+$(call detected_var,prefix_SQ)
+$(call detected_var,perfexecdir_SQ)
+$(call detected_var,LIBDIR)
+$(call detected_var,GTK_CFLAGS)
+$(call detected_var,PERL_EMBED_CCOPTS)
+$(call detected_var,PYTHON_EMBED_CCOPTS)

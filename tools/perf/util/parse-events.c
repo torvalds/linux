@@ -175,9 +175,6 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
 
-	if (debugfs_valid_mountpoint(tracing_events_path))
-		return NULL;
-
 	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)
 		return NULL;
@@ -473,12 +470,6 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				char *sys, char *event)
 {
-	int ret;
-
-	ret = debugfs_valid_mountpoint(tracing_events_path);
-	if (ret)
-		return ret;
-
 	if (strpbrk(sys, "*?"))
 		return add_tracepoint_multi_sys(list, idx, sys, event);
 	else
@@ -1109,13 +1100,6 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
-	char sbuf[STRERR_BUFSIZE];
-
-	if (debugfs_valid_mountpoint(tracing_events_path)) {
-		printf("  [ Tracepoints not available: %s ]\n",
-			strerror_r(errno, sbuf, sizeof(sbuf)));
-		return;
-	}
 
 	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)
@@ -1162,9 +1146,6 @@ int is_valid_tracepoint(const char *event_string)
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
-
-	if (debugfs_valid_mountpoint(tracing_events_path))
-		return 0;
 
 	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)
@@ -1338,11 +1319,6 @@ static void print_symbol_events(const char *event_glob, unsigned type,
  */
 void print_events(const char *event_glob, bool name_only)
 {
-	if (!name_only) {
-		printf("\n");
-		printf("List of pre-defined events (to be used in -e):\n");
-	}
-
 	print_symbol_events(event_glob, PERF_TYPE_HARDWARE,
 			    event_symbols_hw, PERF_COUNT_HW_MAX, name_only);
 

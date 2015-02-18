@@ -125,8 +125,7 @@ static int build_id_cache__kcore_existing(const char *from_dir, char *to_dir,
 	return ret;
 }
 
-static int build_id_cache__add_kcore(const char *filename, const char *debugdir,
-				     bool force)
+static int build_id_cache__add_kcore(const char *filename, bool force)
 {
 	char dir[32], sbuildid[BUILD_ID_SIZE * 2 + 1];
 	char from_dir[PATH_MAX], to_dir[PATH_MAX];
@@ -143,7 +142,7 @@ static int build_id_cache__add_kcore(const char *filename, const char *debugdir,
 		return -1;
 
 	scnprintf(to_dir, sizeof(to_dir), "%s/[kernel.kcore]/%s",
-		  debugdir, sbuildid);
+		  buildid_dir, sbuildid);
 
 	if (!force &&
 	    !build_id_cache__kcore_existing(from_dir, to_dir, sizeof(to_dir))) {
@@ -155,7 +154,7 @@ static int build_id_cache__add_kcore(const char *filename, const char *debugdir,
 		return -1;
 
 	scnprintf(to_dir, sizeof(to_dir), "%s/[kernel.kcore]/%s/%s",
-		  debugdir, sbuildid, dir);
+		  buildid_dir, sbuildid, dir);
 
 	if (mkdir_p(to_dir, 0755))
 		return -1;
@@ -183,7 +182,7 @@ static int build_id_cache__add_kcore(const char *filename, const char *debugdir,
 	return 0;
 }
 
-static int build_id_cache__add_file(const char *filename, const char *debugdir)
+static int build_id_cache__add_file(const char *filename)
 {
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 	u8 build_id[BUILD_ID_SIZE];
@@ -195,7 +194,7 @@ static int build_id_cache__add_file(const char *filename, const char *debugdir)
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
-	err = build_id_cache__add_s(sbuild_id, debugdir, filename,
+	err = build_id_cache__add_s(sbuild_id, filename,
 				    false, false);
 	if (verbose)
 		pr_info("Adding %s %s: %s\n", sbuild_id, filename,
@@ -203,8 +202,7 @@ static int build_id_cache__add_file(const char *filename, const char *debugdir)
 	return err;
 }
 
-static int build_id_cache__remove_file(const char *filename,
-				       const char *debugdir)
+static int build_id_cache__remove_file(const char *filename)
 {
 	u8 build_id[BUILD_ID_SIZE];
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
@@ -217,7 +215,7 @@ static int build_id_cache__remove_file(const char *filename,
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
-	err = build_id_cache__remove_s(sbuild_id, debugdir);
+	err = build_id_cache__remove_s(sbuild_id);
 	if (verbose)
 		pr_info("Removing %s %s: %s\n", sbuild_id, filename,
 			err ? "FAIL" : "Ok");
@@ -252,8 +250,7 @@ static int build_id_cache__fprintf_missing(struct perf_session *session, FILE *f
 	return 0;
 }
 
-static int build_id_cache__update_file(const char *filename,
-				       const char *debugdir)
+static int build_id_cache__update_file(const char *filename)
 {
 	u8 build_id[BUILD_ID_SIZE];
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
@@ -266,11 +263,10 @@ static int build_id_cache__update_file(const char *filename,
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
-	err = build_id_cache__remove_s(sbuild_id, debugdir);
-	if (!err) {
-		err = build_id_cache__add_s(sbuild_id, debugdir, filename,
-					    false, false);
-	}
+	err = build_id_cache__remove_s(sbuild_id);
+	if (!err)
+		err = build_id_cache__add_s(sbuild_id, filename, false, false);
+
 	if (verbose)
 		pr_info("Updating %s %s: %s\n", sbuild_id, filename,
 			err ? "FAIL" : "Ok");
@@ -338,7 +334,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		list = strlist__new(true, add_name_list_str);
 		if (list) {
 			strlist__for_each(pos, list)
-				if (build_id_cache__add_file(pos->s, buildid_dir)) {
+				if (build_id_cache__add_file(pos->s)) {
 					if (errno == EEXIST) {
 						pr_debug("%s already in the cache\n",
 							 pos->s);
@@ -356,7 +352,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		list = strlist__new(true, remove_name_list_str);
 		if (list) {
 			strlist__for_each(pos, list)
-				if (build_id_cache__remove_file(pos->s, buildid_dir)) {
+				if (build_id_cache__remove_file(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
@@ -377,7 +373,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		list = strlist__new(true, update_name_list_str);
 		if (list) {
 			strlist__for_each(pos, list)
-				if (build_id_cache__update_file(pos->s, buildid_dir)) {
+				if (build_id_cache__update_file(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
@@ -391,8 +387,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		}
 	}
 
-	if (kcore_filename &&
-	    build_id_cache__add_kcore(kcore_filename, buildid_dir, force))
+	if (kcore_filename && build_id_cache__add_kcore(kcore_filename, force))
 		pr_warning("Couldn't add %s\n", kcore_filename);
 
 out:

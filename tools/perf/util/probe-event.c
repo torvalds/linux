@@ -41,6 +41,7 @@
 #include "symbol.h"
 #include "thread.h"
 #include <api/fs/debugfs.h>
+#include <api/fs/tracefs.h>
 #include "trace-event.h"	/* For __maybe_unused */
 #include "probe-event.h"
 #include "probe-finder.h"
@@ -1805,7 +1806,7 @@ static void print_open_warning(int err, bool is_kprobe)
 			   " - please rebuild kernel with %s.\n",
 			   is_kprobe ? 'k' : 'u', config);
 	} else if (err == -ENOTSUP)
-		pr_warning("Debugfs is not mounted.\n");
+		pr_warning("Tracefs or debugfs is not mounted.\n");
 	else
 		pr_warning("Failed to open %cprobe_events: %s\n",
 			   is_kprobe ? 'k' : 'u',
@@ -1816,7 +1817,7 @@ static void print_both_open_warning(int kerr, int uerr)
 {
 	/* Both kprobes and uprobes are disabled, warn it. */
 	if (kerr == -ENOTSUP && uerr == -ENOTSUP)
-		pr_warning("Debugfs is not mounted.\n");
+		pr_warning("Tracefs or debugfs is not mounted.\n");
 	else if (kerr == -ENOENT && uerr == -ENOENT)
 		pr_warning("Please rebuild kernel with CONFIG_KPROBE_EVENTS "
 			   "or/and CONFIG_UPROBE_EVENTS.\n");
@@ -1833,13 +1834,20 @@ static int open_probe_events(const char *trace_file, bool readwrite)
 {
 	char buf[PATH_MAX];
 	const char *__debugfs;
+	const char *tracing_dir = "";
 	int ret;
 
-	__debugfs = debugfs_find_mountpoint();
-	if (__debugfs == NULL)
-		return -ENOTSUP;
+	__debugfs = tracefs_find_mountpoint();
+	if (__debugfs == NULL) {
+		tracing_dir = "tracing/";
 
-	ret = e_snprintf(buf, PATH_MAX, "%s/%s", __debugfs, trace_file);
+		__debugfs = debugfs_find_mountpoint();
+		if (__debugfs == NULL)
+			return -ENOTSUP;
+	}
+
+	ret = e_snprintf(buf, PATH_MAX, "%s/%s%s",
+			 __debugfs, tracing_dir, trace_file);
 	if (ret >= 0) {
 		pr_debug("Opening %s write=%d\n", buf, readwrite);
 		if (readwrite && !probe_event_dry_run)
@@ -1855,12 +1863,12 @@ static int open_probe_events(const char *trace_file, bool readwrite)
 
 static int open_kprobe_events(bool readwrite)
 {
-	return open_probe_events("tracing/kprobe_events", readwrite);
+	return open_probe_events("kprobe_events", readwrite);
 }
 
 static int open_uprobe_events(bool readwrite)
 {
-	return open_probe_events("tracing/uprobe_events", readwrite);
+	return open_probe_events("uprobe_events", readwrite);
 }
 
 /* Get raw string list of current kprobe_events  or uprobe_events */

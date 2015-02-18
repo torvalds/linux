@@ -303,13 +303,26 @@ void set_term_quiet_input(struct termios *old)
 	tcsetattr(0, TCSANOW, &tc);
 }
 
-static void set_tracing_events_path(const char *mountpoint)
+static void set_tracing_events_path(const char *tracing, const char *mountpoint)
 {
-	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s",
-		 mountpoint, "tracing/events");
+	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s%s",
+		 mountpoint, tracing, "events");
 }
 
-const char *perf_debugfs_mount(const char *mountpoint)
+static const char *__perf_tracefs_mount(const char *mountpoint)
+{
+	const char *mnt;
+
+	mnt = tracefs_mount(mountpoint);
+	if (!mnt)
+		return NULL;
+
+	set_tracing_events_path("", mnt);
+
+	return mnt;
+}
+
+static const char *__perf_debugfs_mount(const char *mountpoint)
 {
 	const char *mnt;
 
@@ -317,7 +330,20 @@ const char *perf_debugfs_mount(const char *mountpoint)
 	if (!mnt)
 		return NULL;
 
-	set_tracing_events_path(mnt);
+	set_tracing_events_path("tracing/", mnt);
+
+	return mnt;
+}
+
+const char *perf_debugfs_mount(const char *mountpoint)
+{
+	const char *mnt;
+
+	mnt = __perf_tracefs_mount(mountpoint);
+	if (mnt)
+		return mnt;
+
+	mnt = __perf_debugfs_mount(mountpoint);
 
 	return mnt;
 }
@@ -325,12 +351,19 @@ const char *perf_debugfs_mount(const char *mountpoint)
 void perf_debugfs_set_path(const char *mntpt)
 {
 	snprintf(debugfs_mountpoint, strlen(debugfs_mountpoint), "%s", mntpt);
-	set_tracing_events_path(mntpt);
+	set_tracing_events_path("tracing/", mntpt);
+}
+
+static const char *find_tracefs(void)
+{
+	const char *path = __perf_tracefs_mount(NULL);
+
+	return path;
 }
 
 static const char *find_debugfs(void)
 {
-	const char *path = perf_debugfs_mount(NULL);
+	const char *path = __perf_debugfs_mount(NULL);
 
 	if (!path)
 		fprintf(stderr, "Your kernel does not support the debugfs filesystem");
@@ -344,6 +377,7 @@ static const char *find_debugfs(void)
  */
 const char *find_tracing_dir(void)
 {
+	const char *tracing_dir = "";
 	static char *tracing;
 	static int tracing_found;
 	const char *debugfs;
@@ -351,11 +385,15 @@ const char *find_tracing_dir(void)
 	if (tracing_found)
 		return tracing;
 
-	debugfs = find_debugfs();
-	if (!debugfs)
-		return NULL;
+	debugfs = find_tracefs();
+	if (!debugfs) {
+		tracing_dir = "/tracing";
+		debugfs = find_debugfs();
+		if (!debugfs)
+			return NULL;
+	}
 
-	if (asprintf(&tracing, "%s/tracing", debugfs) < 0)
+	if (asprintf(&tracing, "%s%s", debugfs, tracing_dir) < 0)
 		return NULL;
 
 	tracing_found = 1;
