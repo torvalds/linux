@@ -109,7 +109,7 @@ static int fair_share_throttle(struct thermal_zone_device *tz, int trip)
 			continue;
 
 		instance->target = get_target_state(tz, cdev,
-					tzp->tbp[i].weight, cur_trip_level);
+					instance->weight, cur_trip_level);
 
 		instance->cdev->updated = false;
 		thermal_cdev_update(cdev);

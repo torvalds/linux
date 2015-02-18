@@ -48,6 +48,7 @@ struct thermal_instance {
 	struct device_attribute attr;
 	struct list_head tz_node; /* node in tz->thermal_instances */
 	struct list_head cdev_node; /* node in cdev->thermal_instances */
+	unsigned int weight; /* The weight of the cooling device */
 };
 
 int thermal_register_governor(struct thermal_governor *);
