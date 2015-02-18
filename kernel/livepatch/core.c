@@ -314,12 +314,12 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 	rcu_read_lock();
 	func = list_first_or_null_rcu(&ops->func_stack, struct klp_func,
 				      stack_node);
-	rcu_read_unlock();
-
 	if (WARN_ON_ONCE(!func))
-		return;
+		goto unlock;
 
 	klp_arch_set_pc(regs, (unsigned long)func->new_func);
+unlock:
+	rcu_read_unlock();
 }
 
 static int klp_disable_func(struct klp_func *func)
