@@ -692,7 +692,9 @@ static int dvb_frontend_thread(void *data)
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	fe_status_t s;
 	enum dvbfe_algo algo;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	int ret;
+#endif
 
 	bool re_tune = false;
 	bool semheld = false;
