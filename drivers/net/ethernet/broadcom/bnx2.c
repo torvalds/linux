@@ -4984,8 +4984,6 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	bp->idle_chk_status_idx = 0xffff;
 
-	bp->rx_mode = BNX2_EMAC_RX_MODE_SORT_MODE;
-
 	/* Set up how to generate a link change interrupt. */
 	BNX2_WR(bp, BNX2_EMAC_ATTENTION_ENA, BNX2_EMAC_ATTENTION_ENA_LINK);
 
