@@ -7345,13 +7345,13 @@ static inline void l2cap_check_encryption(struct l2cap_chan *chan, u8 encrypt)
 	}
 }
 
-int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
+static void l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct l2cap_chan *chan;
 
 	if (!conn)
-		return 0;
+		return;
 
 	BT_DBG("conn %p status 0x%2.2x encrypt %u", conn, status, encrypt);
 
@@ -7434,8 +7434,6 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 	}
 
 	mutex_unlock(&conn->chan_lock);
-
-	return 0;
 }
 
 int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
@@ -7543,6 +7541,11 @@ drop:
 	return 0;
 }
 
+static struct hci_cb l2cap_cb = {
+	.name		= "L2CAP",
+	.security_cfm	= l2cap_security_cfm,
+};
+
 static int l2cap_debugfs_show(struct seq_file *f, void *p)
 {
 	struct l2cap_chan *c;
@@ -7584,6 +7587,8 @@ int __init l2cap_init(void)
 	if (err < 0)
 		return err;
 
+	hci_register_cb(&l2cap_cb);
+
 	if (IS_ERR_OR_NULL(bt_debugfs))
 		return 0;
 
@@ -7601,6 +7606,7 @@ int __init l2cap_init(void)
 void l2cap_exit(void)
 {
 	debugfs_remove(l2cap_debugfs);
+	hci_unregister_cb(&l2cap_cb);
 	l2cap_cleanup_sockets();
 }
 

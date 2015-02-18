@@ -506,7 +506,6 @@ int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
 void l2cap_connect_cfm(struct hci_conn *hcon, u8 status);
 int l2cap_disconn_ind(struct hci_conn *hcon);
 void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason);
-int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt);
 int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags);
 
 int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags);
@@ -1107,35 +1106,6 @@ static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason)
 		conn->disconn_cfm_cb(conn, reason);
 }
 
-static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
-{
-	__u8 encrypt;
-
-	if (conn->type != ACL_LINK && conn->type != LE_LINK)
-		return;
-
-	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
-		return;
-
-	encrypt = test_bit(HCI_CONN_ENCRYPT, &conn->flags) ? 0x01 : 0x00;
-	l2cap_security_cfm(conn, status, encrypt);
-
-	if (conn->security_cfm_cb)
-		conn->security_cfm_cb(conn, status);
-}
-
-static inline void hci_proto_encrypt_cfm(struct hci_conn *conn, __u8 status,
-								__u8 encrypt)
-{
-	if (conn->type != ACL_LINK && conn->type != LE_LINK)
-		return;
-
-	l2cap_security_cfm(conn, status, encrypt);
-
-	if (conn->security_cfm_cb)
-		conn->security_cfm_cb(conn, status);
-}
-
 /* ----- HCI callbacks ----- */
 struct hci_cb {
 	struct list_head list;
@@ -1153,8 +1123,6 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 	struct hci_cb *cb;
 	__u8 encrypt;
 
-	hci_proto_auth_cfm(conn, status);
-
 	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
 		return;
 
@@ -1166,6 +1134,9 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 			cb->security_cfm(conn, status, encrypt);
 	}
 	mutex_unlock(&hci_cb_list_lock);
+
+	if (conn->security_cfm_cb)
+		conn->security_cfm_cb(conn, status);
 }
 
 static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
@@ -1179,14 +1150,15 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
 	if (conn->pending_sec_level > conn->sec_level)
 		conn->sec_level = conn->pending_sec_level;
 
-	hci_proto_encrypt_cfm(conn, status, encrypt);
-
 	mutex_lock(&hci_cb_list_lock);
 	list_for_each_entry(cb, &hci_cb_list, list) {
 		if (cb->security_cfm)
 			cb->security_cfm(conn, status, encrypt);
 	}
 	mutex_unlock(&hci_cb_list_lock);
+
+	if (conn->security_cfm_cb)
+		conn->security_cfm_cb(conn, status);
 }
 
 static inline void hci_key_change_cfm(struct hci_conn *conn, __u8 status)
