@@ -499,7 +499,7 @@ struct hci_conn_params {
 extern struct list_head hci_dev_list;
 extern struct list_head hci_cb_list;
 extern rwlock_t hci_dev_list_lock;
-extern rwlock_t hci_cb_list_lock;
+extern struct mutex hci_cb_list_lock;
 
 /* ----- HCI interface to upper protocols ----- */
 int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
@@ -1160,12 +1160,12 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 
 	encrypt = test_bit(HCI_CONN_ENCRYPT, &conn->flags) ? 0x01 : 0x00;
 
-	read_lock(&hci_cb_list_lock);
+	mutex_lock(&hci_cb_list_lock);
 	list_for_each_entry(cb, &hci_cb_list, list) {
 		if (cb->security_cfm)
 			cb->security_cfm(conn, status, encrypt);
 	}
-	read_unlock(&hci_cb_list_lock);
+	mutex_unlock(&hci_cb_list_lock);
 }
 
 static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
@@ -1181,24 +1181,24 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
 
 	hci_proto_encrypt_cfm(conn, status, encrypt);
 
-	read_lock(&hci_cb_list_lock);
+	mutex_lock(&hci_cb_list_lock);
 	list_for_each_entry(cb, &hci_cb_list, list) {
 		if (cb->security_cfm)
 			cb->security_cfm(conn, status, encrypt);
 	}
-	read_unlock(&hci_cb_list_lock);
+	mutex_unlock(&hci_cb_list_lock);
 }
 
 static inline void hci_key_change_cfm(struct hci_conn *conn, __u8 status)
 {
 	struct hci_cb *cb;
 
-	read_lock(&hci_cb_list_lock);
+	mutex_lock(&hci_cb_list_lock);
 	list_for_each_entry(cb, &hci_cb_list, list) {
 		if (cb->key_change_cfm)
 			cb->key_change_cfm(conn, status);
 	}
-	read_unlock(&hci_cb_list_lock);
+	mutex_unlock(&hci_cb_list_lock);
 }
 
 static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status,
@@ -1206,12 +1206,12 @@ static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status,
 {
 	struct hci_cb *cb;
 
-	read_lock(&hci_cb_list_lock);
+	mutex_lock(&hci_cb_list_lock);
 	list_for_each_entry(cb, &hci_cb_list, list) {
 		if (cb->role_switch_cfm)
 			cb->role_switch_cfm(conn, status, role);
 	}
-	read_unlock(&hci_cb_list_lock);
+	mutex_unlock(&hci_cb_list_lock);
 }
 
 static inline bool eir_has_data_type(u8 *data, size_t data_len, u8 type)

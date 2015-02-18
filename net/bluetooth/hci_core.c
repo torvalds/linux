@@ -51,7 +51,7 @@ DEFINE_RWLOCK(hci_dev_list_lock);
 
 /* HCI callback list */
 LIST_HEAD(hci_cb_list);
-DEFINE_RWLOCK(hci_cb_list_lock);
+DEFINE_MUTEX(hci_cb_list_lock);
 
 /* HCI ID Numbering */
 static DEFINE_IDA(hci_index_ida);
@@ -3464,9 +3464,9 @@ int hci_register_cb(struct hci_cb *cb)
 {
 	BT_DBG("%p name %s", cb, cb->name);
 
-	write_lock(&hci_cb_list_lock);
+	mutex_lock(&hci_cb_list_lock);
 	list_add_tail(&cb->list, &hci_cb_list);
-	write_unlock(&hci_cb_list_lock);
+	mutex_unlock(&hci_cb_list_lock);
 
 	return 0;
 }
@@ -3476,9 +3476,9 @@ int hci_unregister_cb(struct hci_cb *cb)
 {
 	BT_DBG("%p name %s", cb, cb->name);
 
-	write_lock(&hci_cb_list_lock);
+	mutex_lock(&hci_cb_list_lock);
 	list_del(&cb->list);
-	write_unlock(&hci_cb_list_lock);
+	mutex_unlock(&hci_cb_list_lock);
 
 	return 0;
 }
