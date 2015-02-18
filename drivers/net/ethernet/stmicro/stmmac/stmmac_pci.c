@@ -24,7 +24,49 @@
 *******************************************************************************/
 
 #include <linux/pci.h>
+#include <linux/dmi.h>
+
 #include "stmmac.h"
+
+/*
+ * This struct is used to associate PCI Function of MAC controller on a board,
+ * discovered via DMI, with the address of PHY connected to the MAC. The
+ * negative value of the address means that MAC controller is not connected
+ * with PHY.
+ */
+struct stmmac_pci_dmi_data {
+	const char *name;
+	unsigned int func;
+	int phy_addr;
+};
+
+struct stmmac_pci_info {
+	struct pci_dev *pdev;
+	int (*setup)(struct plat_stmmacenet_data *plat,
+		     struct stmmac_pci_info *info);
+	struct stmmac_pci_dmi_data *dmi;
+};
+
+static int stmmac_pci_find_phy_addr(struct stmmac_pci_info *info)
+{
+	const char *name = dmi_get_system_info(DMI_BOARD_NAME);
+	unsigned int func = PCI_FUNC(info->pdev->devfn);
+	struct stmmac_pci_dmi_data *dmi;
+
+	/*
+	 * Galileo boards with old firmware don't support DMI. We always return
+	 * 1 here, so at least first found MAC controller would be probed.
+	 */
+	if (!name)
+		return 1;
+
+	for (dmi = info->dmi; dmi->name && *dmi->name; dmi++) {
+		if (!strcmp(dmi->name, name) && dmi->func == func)
+			return dmi->phy_addr;
+	}
+
+	return -ENODEV;
+}
 
 static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 {
@@ -48,6 +90,62 @@ static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 	plat->unicast_filter_entries = 1;
 }
 
+static int quark_default_data(struct plat_stmmacenet_data *plat,
+			      struct stmmac_pci_info *info)
+{
+	struct pci_dev *pdev = info->pdev;
+	int ret;
+
+	/*
+	 * Refuse to load the driver and register net device if MAC controller
+	 * does not connect to any PHY interface.
+	 */
+	ret = stmmac_pci_find_phy_addr(info);
+	if (ret < 0)
+		return ret;
+
+	plat->bus_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	plat->phy_addr = ret;
+	plat->interface = PHY_INTERFACE_MODE_RMII;
+	plat->clk_csr = 2;
+	plat->has_gmac = 1;
+	plat->force_sf_dma_mode = 1;
+
+	plat->mdio_bus_data->phy_reset = NULL;
+	plat->mdio_bus_data->phy_mask = 0;
+
+	plat->dma_cfg->pbl = 16;
+	plat->dma_cfg->burst_len = DMA_AXI_BLEN_256;
+	plat->dma_cfg->fixed_burst = 1;
+
+	/* Set default value for multicast hash bins */
+	plat->multicast_filter_bins = HASH_TABLE_SIZE;
+
+	/* Set default value for unicast filter entries */
+	plat->unicast_filter_entries = 1;
+
+	return 0;
+}
+
+static struct stmmac_pci_dmi_data quark_pci_dmi_data[] = {
+	{
+		.name = "Galileo",
+		.func = 6,
+		.phy_addr = 1,
+	},
+	{
+		.name = "GalileoGen2",
+		.func = 6,
+		.phy_addr = 1,
+	},
+	{}
+};
+
+static struct stmmac_pci_info quark_pci_info = {
+	.setup = quark_default_data,
+	.dmi = quark_pci_dmi_data,
+};
+
 /**
  * stmmac_pci_probe
  *
@@ -63,6 +161,7 @@ static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 static int stmmac_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
+	struct stmmac_pci_info *info = (struct stmmac_pci_info *)id->driver_data;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_priv *priv;
 	int i;
@@ -103,7 +202,17 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	stmmac_default_data(plat);
+	if (info) {
+		info->pdev = pdev;
+		if (info->setup) {
+			ret = info->setup(plat, info);
+			if (ret)
+				return ret;
+		}
+	} else
+		stmmac_default_data(plat);
+
+	pci_enable_msi(pdev);
 
 	priv = stmmac_dvr_probe(&pdev->dev, plat, pcim_iomap_table(pdev)[i]);
 	if (IS_ERR(priv)) {
@@ -155,11 +264,13 @@ static int stmmac_pci_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_pci_suspend, stmmac_pci_resume);
 
 #define STMMAC_VENDOR_ID 0x700
+#define STMMAC_QUARK_ID  0x0937
 #define STMMAC_DEVICE_ID 0x1108
 
 static const struct pci_device_id stmmac_id_table[] = {
 	{PCI_DEVICE(STMMAC_VENDOR_ID, STMMAC_DEVICE_ID)},
 	{PCI_DEVICE(PCI_VENDOR_ID_STMICRO, PCI_DEVICE_ID_STMICRO_MAC)},
+	{PCI_VDEVICE(INTEL, STMMAC_QUARK_ID), (kernel_ulong_t)&quark_pci_info},
 	{}
 };
 

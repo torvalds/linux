@@ -4,7 +4,6 @@
  * Copyright (c) 2013 ELAN Microelectronics Corp.
  *
  * Author: 林政維 (Duson Lin) <dusonlin@emc.com.tw>
- * Version: 1.5.5
  *
  * Based on cyapa driver:
  * copyright (c) 2011-2012 Cypress Semiconductor, Inc.
@@ -33,8 +32,9 @@
 #define ETP_FW_IAP_PAGE_ERR	(1 << 5)
 #define ETP_FW_IAP_INTF_ERR	(1 << 4)
 #define ETP_FW_PAGE_SIZE	64
-#define ETP_FW_PAGE_COUNT	768
-#define ETP_FW_SIZE		(ETP_FW_PAGE_SIZE * ETP_FW_PAGE_COUNT)
+#define ETP_FW_VAILDPAGE_COUNT	768
+#define ETP_FW_SIGNATURE_SIZE	6
+#define ETP_FW_SIGNATURE_ADDRESS	0xBFFA
 
 struct i2c_client;
 struct completion;

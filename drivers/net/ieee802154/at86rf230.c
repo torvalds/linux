@@ -427,7 +427,7 @@ at86rf230_reg_precious(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config at86rf230_regmap_spi_config = {
+static const struct regmap_config at86rf230_regmap_spi_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.write_flag_mask = CMD_REG | CMD_WRITE,
@@ -450,7 +450,7 @@ at86rf230_async_error_recover(void *context)
 	ieee802154_wake_queue(lp->hw);
 }
 
-static void
+static inline void
 at86rf230_async_error(struct at86rf230_local *lp,
 		      struct at86rf230_state_change *ctx, int rc)
 {
@@ -523,7 +523,6 @@ at86rf230_async_state_assert(void *context)
 				return;
 			}
 		}
-
 
 		dev_warn(&lp->spi->dev, "unexcept state change from 0x%02x to 0x%02x. Actual state: 0x%02x\n",
 			 ctx->from_state, ctx->to_state, trx_state);
@@ -655,7 +654,7 @@ at86rf230_async_state_change_start(void *context)
 		if (ctx->irq_enable)
 			enable_irq(lp->spi->irq);
 
-		at86rf230_async_error(lp, &lp->state, rc);
+		at86rf230_async_error(lp, ctx, rc);
 	}
 }
 
@@ -715,10 +714,7 @@ at86rf230_tx_complete(void *context)
 
 	enable_irq(lp->spi->irq);
 
-	if (lp->max_frame_retries <= 0)
-		ieee802154_xmit_complete(lp->hw, skb, true);
-	else
-		ieee802154_xmit_complete(lp->hw, skb, false);
+	ieee802154_xmit_complete(lp->hw, skb, !lp->tx_aret);
 }
 
 static void
@@ -753,15 +749,12 @@ at86rf230_tx_trac_check(void *context)
 	 * to STATE_FORCE_TRX_OFF then STATE_TX_ON to recover the transceiver
 	 * state to TX_ON.
 	 */
-	if (trac) {
+	if (trac)
 		at86rf230_async_state_change(lp, ctx, STATE_FORCE_TRX_OFF,
 					     at86rf230_tx_trac_error, true);
-		return;
-	}
-
-	at86rf230_tx_on(context);
+	else
+		at86rf230_tx_on(context);
 }
-
 
 static void
 at86rf230_tx_trac_status(void *context)
@@ -1082,7 +1075,7 @@ at86rf230_set_hw_addr_filt(struct ieee802154_hw *hw,
 		u16 addr = le16_to_cpu(filt->short_addr);
 
 		dev_vdbg(&lp->spi->dev,
-			"at86rf230_set_hw_addr_filt called for saddr\n");
+			 "at86rf230_set_hw_addr_filt called for saddr\n");
 		__at86rf230_write(lp, RG_SHORT_ADDR_0, addr);
 		__at86rf230_write(lp, RG_SHORT_ADDR_1, addr >> 8);
 	}
@@ -1091,7 +1084,7 @@ at86rf230_set_hw_addr_filt(struct ieee802154_hw *hw,
 		u16 pan = le16_to_cpu(filt->pan_id);
 
 		dev_vdbg(&lp->spi->dev,
-			"at86rf230_set_hw_addr_filt called for pan id\n");
+			 "at86rf230_set_hw_addr_filt called for pan id\n");
 		__at86rf230_write(lp, RG_PAN_ID_0, pan);
 		__at86rf230_write(lp, RG_PAN_ID_1, pan >> 8);
 	}
@@ -1101,14 +1094,14 @@ at86rf230_set_hw_addr_filt(struct ieee802154_hw *hw,
 
 		memcpy(addr, &filt->ieee_addr, 8);
 		dev_vdbg(&lp->spi->dev,
-			"at86rf230_set_hw_addr_filt called for IEEE addr\n");
+			 "at86rf230_set_hw_addr_filt called for IEEE addr\n");
 		for (i = 0; i < 8; i++)
 			__at86rf230_write(lp, RG_IEEE_ADDR_0 + i, addr[i]);
 	}
 
 	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
 		dev_vdbg(&lp->spi->dev,
-			"at86rf230_set_hw_addr_filt called for panc change\n");
+			 "at86rf230_set_hw_addr_filt called for panc change\n");
 		if (filt->pan_coord)
 			at86rf230_write_subreg(lp, SR_AACK_I_AM_COORD, 1);
 		else
@@ -1146,11 +1139,37 @@ at86rf230_set_lbt(struct ieee802154_hw *hw, bool on)
 }
 
 static int
-at86rf230_set_cca_mode(struct ieee802154_hw *hw, u8 mode)
+at86rf230_set_cca_mode(struct ieee802154_hw *hw,
+		       const struct wpan_phy_cca *cca)
 {
 	struct at86rf230_local *lp = hw->priv;
+	u8 val;
 
-	return at86rf230_write_subreg(lp, SR_CCA_MODE, mode);
+	/* mapping 802.15.4 to driver spec */
+	switch (cca->mode) {
+	case NL802154_CCA_ENERGY:
+		val = 1;
+		break;
+	case NL802154_CCA_CARRIER:
+		val = 2;
+		break;
+	case NL802154_CCA_ENERGY_CARRIER:
+		switch (cca->opt) {
+		case NL802154_CCA_OPT_ENERGY_CARRIER_AND:
+			val = 3;
+			break;
+		case NL802154_CCA_OPT_ENERGY_CARRIER_OR:
+			val = 0;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return at86rf230_write_subreg(lp, SR_CCA_MODE, val);
 }
 
 static int
@@ -1400,7 +1419,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	if (rc)
 		return rc;
 
-	rc = __at86rf230_read(lp, RG_PART_NUM, &version);
+	rc = __at86rf230_read(lp, RG_VERSION_NUM, &version);
 	if (rc)
 		return rc;
 
@@ -1410,10 +1429,11 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		return -EINVAL;
 	}
 
-	lp->hw->extra_tx_headroom = 0;
 	lp->hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AACK |
 			IEEE802154_HW_TXPOWER | IEEE802154_HW_ARET |
 			IEEE802154_HW_AFILT | IEEE802154_HW_PROMISCUOUS;
+
+	lp->hw->phy->cca.mode = NL802154_CCA_ENERGY;
 
 	switch (part) {
 	case 2:
@@ -1429,16 +1449,12 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		break;
 	case 7:
 		chip = "at86rf212";
-		if (version == 1) {
-			lp->data = &at86rf212_data;
-			lp->hw->flags |= IEEE802154_HW_LBT;
-			lp->hw->phy->channels_supported[0] = 0x00007FF;
-			lp->hw->phy->channels_supported[2] = 0x00007FF;
-			lp->hw->phy->current_channel = 5;
-			lp->hw->phy->symbol_duration = 25;
-		} else {
-			rc = -ENOTSUPP;
-		}
+		lp->data = &at86rf212_data;
+		lp->hw->flags |= IEEE802154_HW_LBT;
+		lp->hw->phy->channels_supported[0] = 0x00007FF;
+		lp->hw->phy->channels_supported[2] = 0x00007FF;
+		lp->hw->phy->current_channel = 5;
+		lp->hw->phy->symbol_duration = 25;
 		break;
 	case 11:
 		chip = "at86rf233";
@@ -1448,7 +1464,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		lp->hw->phy->symbol_duration = 16;
 		break;
 	default:
-		chip = "unkown";
+		chip = "unknown";
 		rc = -ENOTSUPP;
 		break;
 	}

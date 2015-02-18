@@ -97,25 +97,6 @@ static void brcmf_sdiod_dummy_irqhandler(struct sdio_func *func)
 {
 }
 
-static bool brcmf_sdiod_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
-{
-	bool is_err = false;
-#ifdef CONFIG_PM_SLEEP
-	is_err = atomic_read(&sdiodev->suspend);
-#endif
-	return is_err;
-}
-
-static void brcmf_sdiod_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
-				       wait_queue_head_t *wq)
-{
-#ifdef CONFIG_PM_SLEEP
-	int retry = 0;
-	while (atomic_read(&sdiodev->suspend) && retry++ != 30)
-		wait_event_timeout(*wq, false, HZ/100);
-#endif
-}
-
 int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret = 0;
@@ -244,10 +225,6 @@ static int brcmf_sdiod_request_data(struct brcmf_sdio_dev *sdiodev, u8 fn,
 	brcmf_dbg(SDIO, "rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
 		  write, fn, addr, regsz);
 
-	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_word_wait);
-	if (brcmf_sdiod_pm_resume_error(sdiodev))
-		return -EIO;
-
 	/* only allow byte access on F0 */
 	if (WARN_ON(regsz > 1 && !fn))
 		return -EINVAL;
@@ -292,6 +269,12 @@ static int brcmf_sdiod_request_data(struct brcmf_sdio_dev *sdiodev, u8 fn,
 	return ret;
 }
 
+static void brcmf_sdiod_nomedium_state(struct brcmf_sdio_dev *sdiodev)
+{
+	sdiodev->state = BRCMF_STATE_NOMEDIUM;
+	brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_DOWN);
+}
+
 static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 				   u8 regsz, void *data, bool write)
 {
@@ -299,7 +282,7 @@ static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	s32 retry = 0;
 	int ret;
 
-	if (sdiodev->bus_if->state == BRCMF_BUS_NOMEDIUM)
+	if (sdiodev->state == BRCMF_STATE_NOMEDIUM)
 		return -ENOMEDIUM;
 
 	/*
@@ -325,7 +308,7 @@ static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		 retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
 	if (ret == -ENOMEDIUM)
-		brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_NOMEDIUM);
+		brcmf_sdiod_nomedium_state(sdiodev);
 	else if (ret != 0) {
 		/*
 		 * SleepCSR register access can fail when
@@ -348,7 +331,7 @@ brcmf_sdiod_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 	int err = 0, i;
 	u8 addr[3];
 
-	if (sdiodev->bus_if->state == BRCMF_BUS_NOMEDIUM)
+	if (sdiodev->state == BRCMF_STATE_NOMEDIUM)
 		return -ENOMEDIUM;
 
 	addr[0] = (address >> 8) & SBSDIO_SBADDRLOW_MASK;
@@ -462,10 +445,6 @@ static int brcmf_sdiod_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	unsigned int req_sz;
 	int err;
 
-	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
-	if (brcmf_sdiod_pm_resume_error(sdiodev))
-		return -EIO;
-
 	/* Single skb use the standard mmc interface */
 	req_sz = pkt->len + 3;
 	req_sz &= (uint)~3;
@@ -481,7 +460,7 @@ static int brcmf_sdiod_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		err = sdio_readsb(sdiodev->func[fn], ((u8 *)(pkt->data)), addr,
 				  req_sz);
 	if (err == -ENOMEDIUM)
-		brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_NOMEDIUM);
+		brcmf_sdiod_nomedium_state(sdiodev);
 	return err;
 }
 
@@ -515,10 +494,6 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 
 	if (!pktlist->qlen)
 		return -EINVAL;
-
-	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
-	if (brcmf_sdiod_pm_resume_error(sdiodev))
-		return -EIO;
 
 	target_list = pktlist;
 	/* for host with broken sg support, prepare a page aligned list */
@@ -620,8 +595,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 
 		ret = mmc_cmd.error ? mmc_cmd.error : mmc_dat.error;
 		if (ret == -ENOMEDIUM) {
-			brcmf_bus_change_state(sdiodev->bus_if,
-					       BRCMF_BUS_NOMEDIUM);
+			brcmf_sdiod_nomedium_state(sdiodev);
 			break;
 		} else if (ret != 0) {
 			brcmf_err("CMD53 sg block %s failed %d\n",
@@ -996,18 +970,20 @@ out:
 }
 
 #define BRCMF_SDIO_DEVICE(dev_id)	\
-	{SDIO_DEVICE(BRCM_SDIO_VENDOR_ID_BROADCOM, dev_id)}
+	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, dev_id)}
 
 /* devices we support, null terminated */
 static const struct sdio_device_id brcmf_sdmmc_ids[] = {
-	BRCMF_SDIO_DEVICE(BRCM_SDIO_43143_DEVICE_ID),
-	BRCMF_SDIO_DEVICE(BRCM_SDIO_43241_DEVICE_ID),
-	BRCMF_SDIO_DEVICE(BRCM_SDIO_4329_DEVICE_ID),
-	BRCMF_SDIO_DEVICE(BRCM_SDIO_4330_DEVICE_ID),
-	BRCMF_SDIO_DEVICE(BRCM_SDIO_4334_DEVICE_ID),
-	BRCMF_SDIO_DEVICE(BRCM_SDIO_43362_DEVICE_ID),
-	BRCMF_SDIO_DEVICE(BRCM_SDIO_4335_4339_DEVICE_ID),
-	BRCMF_SDIO_DEVICE(BRCM_SDIO_4354_DEVICE_ID),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_43143),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_43241),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4329),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4330),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4334),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_43340),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_43341),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_43362),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4335_4339),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4354),
 	{ /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
@@ -1074,9 +1050,9 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		bus_if->wowl_supported = true;
 #endif
 
+	sdiodev->sleeping = false;
 	atomic_set(&sdiodev->suspend, false);
-	init_waitqueue_head(&sdiodev->request_word_wait);
-	init_waitqueue_head(&sdiodev->request_buffer_wait);
+	init_waitqueue_head(&sdiodev->idle_wait);
 
 	brcmf_dbg(SDIO, "F2 found, calling brcmf_sdiod_probe...\n");
 	err = brcmf_sdiod_probe(sdiodev);
@@ -1138,12 +1114,23 @@ void brcmf_sdio_wowl_config(struct device *dev, bool enabled)
 #ifdef CONFIG_PM_SLEEP
 static int brcmf_ops_sdio_suspend(struct device *dev)
 {
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	struct brcmf_bus *bus_if;
+	struct brcmf_sdio_dev *sdiodev;
 	mmc_pm_flag_t sdio_flags;
 
 	brcmf_dbg(SDIO, "Enter\n");
 
+	bus_if = dev_get_drvdata(dev);
+	sdiodev = bus_if->bus_priv.sdio;
+
+	/* wait for watchdog to go idle */
+	if (wait_event_timeout(sdiodev->idle_wait, sdiodev->sleeping,
+			       msecs_to_jiffies(3 * BRCMF_WD_POLL_MS)) == 0) {
+		brcmf_err("bus still active\n");
+		return -EBUSY;
+	}
+	/* disable watchdog */
+	brcmf_sdio_wd_timer(sdiodev->bus, 0);
 	atomic_set(&sdiodev->suspend, true);
 
 	if (sdiodev->wowl_enabled) {
@@ -1155,9 +1142,6 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 		if (sdio_set_host_pm_flags(sdiodev->func[1], sdio_flags))
 			brcmf_err("Failed to set pm_flags %x\n", sdio_flags);
 	}
-
-	brcmf_sdio_wd_timer(sdiodev->bus, 0);
-
 	return 0;
 }
 

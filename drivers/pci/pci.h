@@ -50,6 +50,10 @@ int pci_probe_reset_function(struct pci_dev *dev);
  *		for given device (the device's wake-up capability has to be
  *		enabled by @sleep_wake for this feature to work)
  *
+ * @need_resume: returns 'true' if the given device (which is currently
+ *		suspended) needs to be resumed to be configured for system
+ *		wakeup.
+ *
  * If given platform is generally capable of power managing PCI devices, all of
  * these callbacks are mandatory.
  */
@@ -59,6 +63,7 @@ struct pci_platform_pm_ops {
 	pci_power_t (*choose_state)(struct pci_dev *dev);
 	int (*sleep_wake)(struct pci_dev *dev, bool enable);
 	int (*run_wake)(struct pci_dev *dev, bool enable);
+	bool (*need_resume)(struct pci_dev *dev);
 };
 
 int pci_set_platform_pm(struct pci_platform_pm_ops *ops);
@@ -67,6 +72,7 @@ void pci_power_up(struct pci_dev *dev);
 void pci_disable_enabled_device(struct pci_dev *dev);
 int pci_finish_runtime_suspend(struct pci_dev *dev);
 int __pci_pme_wakeup(struct pci_dev *dev, void *ign);
+bool pci_dev_keep_suspended(struct pci_dev *dev);
 void pci_config_pm_runtime_get(struct pci_dev *dev);
 void pci_config_pm_runtime_put(struct pci_dev *dev);
 void pci_pm_init(struct pci_dev *dev);
@@ -208,6 +214,7 @@ void __pci_bus_size_bridges(struct pci_bus *bus,
 void __pci_bus_assign_resources(const struct pci_bus *bus,
 				struct list_head *realloc_head,
 				struct list_head *fail_head);
+bool pci_bus_clip_resource(struct pci_dev *dev, int idx);
 
 /**
  * pci_ari_enabled - query ARI forwarding status

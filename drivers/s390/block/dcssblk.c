@@ -438,7 +438,13 @@ dcssblk_save_store(struct device *dev, struct device_attribute *attr, const char
 			pr_info("All DCSSs that map to device %s are "
 				"saved\n", dev_info->segment_name);
 			list_for_each_entry(entry, &dev_info->seg_list, lh) {
-				segment_save(entry->segment_name);
+				if (entry->segment_type == SEG_TYPE_EN ||
+				    entry->segment_type == SEG_TYPE_SN)
+					pr_warn("DCSS %s is of type SN or EN"
+						" and cannot be saved\n",
+						entry->segment_name);
+				else
+					segment_save(entry->segment_name);
 			}
 		}  else {
 			// device is busy => we save it when it becomes
@@ -797,7 +803,12 @@ dcssblk_release(struct gendisk *disk, fmode_t mode)
 		pr_info("Device %s has become idle and is being saved "
 			"now\n", dev_info->segment_name);
 		list_for_each_entry(entry, &dev_info->seg_list, lh) {
-			segment_save(entry->segment_name);
+			if (entry->segment_type == SEG_TYPE_EN ||
+			    entry->segment_type == SEG_TYPE_SN)
+				pr_warn("DCSS %s is of type SN or EN and cannot"
+					" be saved\n", entry->segment_name);
+			else
+				segment_save(entry->segment_name);
 		}
 		dev_info->save_pending = 0;
 	}

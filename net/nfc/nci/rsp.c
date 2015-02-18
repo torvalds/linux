@@ -140,13 +140,31 @@ static void nci_rf_disc_map_rsp_packet(struct nci_dev *ndev,
 
 static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
+	struct nci_conn_info    *conn_info;
 	__u8 status = skb->data[0];
 
 	pr_debug("status 0x%x\n", status);
 
-	if (status == NCI_STATUS_OK)
+	if (status == NCI_STATUS_OK) {
 		atomic_set(&ndev->state, NCI_DISCOVERY);
 
+		conn_info = ndev->rf_conn_info;
+		if (!conn_info) {
+			conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
+						 sizeof(struct nci_conn_info),
+						 GFP_KERNEL);
+			if (!conn_info) {
+				status = NCI_STATUS_REJECTED;
+				goto exit;
+			}
+			conn_info->conn_id = NCI_STATIC_RF_CONN_ID;
+			INIT_LIST_HEAD(&conn_info->list);
+			list_add(&conn_info->list, &ndev->conn_info_list);
+			ndev->rf_conn_info = conn_info;
+		}
+	}
+
+exit:
 	nci_req_complete(ndev, status);
 }
 
@@ -178,6 +196,90 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 	}
 }
 
+static void nci_nfcee_discover_rsp_packet(struct nci_dev *ndev,
+					  struct sk_buff *skb)
+{
+	struct nci_nfcee_discover_rsp *discover_rsp;
+
+	if (skb->len != 2) {
+		nci_req_complete(ndev, NCI_STATUS_NFCEE_PROTOCOL_ERROR);
+		return;
+	}
+
+	discover_rsp = (struct nci_nfcee_discover_rsp *)skb->data;
+
+	if (discover_rsp->status != NCI_STATUS_OK ||
+	    discover_rsp->num_nfcee == 0)
+		nci_req_complete(ndev, discover_rsp->status);
+}
+
+static void nci_nfcee_mode_set_rsp_packet(struct nci_dev *ndev,
+					  struct sk_buff *skb)
+{
+	__u8 status = skb->data[0];
+
+	pr_debug("status 0x%x\n", status);
+	nci_req_complete(ndev, status);
+}
+
+static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
+					    struct sk_buff *skb)
+{
+	__u8 status = skb->data[0];
+	struct nci_conn_info *conn_info;
+	struct nci_core_conn_create_rsp *rsp;
+
+	pr_debug("status 0x%x\n", status);
+
+	if (status == NCI_STATUS_OK) {
+		rsp = (struct nci_core_conn_create_rsp *)skb->data;
+
+		conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
+					 sizeof(*conn_info), GFP_KERNEL);
+		if (!conn_info) {
+			status = NCI_STATUS_REJECTED;
+			goto exit;
+		}
+
+		conn_info->id = ndev->cur_id;
+		conn_info->conn_id = rsp->conn_id;
+
+		/* Note: data_exchange_cb and data_exchange_cb_context need to
+		 * be specify out of nci_core_conn_create_rsp_packet
+		 */
+
+		INIT_LIST_HEAD(&conn_info->list);
+		list_add(&conn_info->list, &ndev->conn_info_list);
+
+		if (ndev->cur_id == ndev->hci_dev->nfcee_id)
+			ndev->hci_dev->conn_info = conn_info;
+
+		conn_info->conn_id = rsp->conn_id;
+		conn_info->max_pkt_payload_len = rsp->max_ctrl_pkt_payload_len;
+		atomic_set(&conn_info->credits_cnt, rsp->credits_cnt);
+	}
+
+exit:
+	nci_req_complete(ndev, status);
+}
+
+static void nci_core_conn_close_rsp_packet(struct nci_dev *ndev,
+					   struct sk_buff *skb)
+{
+	struct nci_conn_info *conn_info;
+	__u8 status = skb->data[0];
+
+	pr_debug("status 0x%x\n", status);
+	if (status == NCI_STATUS_OK) {
+		conn_info = nci_get_conn_info_by_conn_id(ndev, ndev->cur_id);
+		if (conn_info) {
+			list_del(&conn_info->list);
+			devm_kfree(&ndev->nfc_dev->dev, conn_info);
+		}
+	}
+	nci_req_complete(ndev, status);
+}
+
 void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u16 rsp_opcode = nci_opcode(skb->data);
@@ -207,6 +309,14 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		nci_core_set_config_rsp_packet(ndev, skb);
 		break;
 
+	case NCI_OP_CORE_CONN_CREATE_RSP:
+		nci_core_conn_create_rsp_packet(ndev, skb);
+		break;
+
+	case NCI_OP_CORE_CONN_CLOSE_RSP:
+		nci_core_conn_close_rsp_packet(ndev, skb);
+		break;
+
 	case NCI_OP_RF_DISCOVER_MAP_RSP:
 		nci_rf_disc_map_rsp_packet(ndev, skb);
 		break;
@@ -221,6 +331,14 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	case NCI_OP_RF_DEACTIVATE_RSP:
 		nci_rf_deactivate_rsp_packet(ndev, skb);
+		break;
+
+	case NCI_OP_NFCEE_DISCOVER_RSP:
+		nci_nfcee_discover_rsp_packet(ndev, skb);
+		break;
+
+	case NCI_OP_NFCEE_MODE_SET_RSP:
+		nci_nfcee_mode_set_rsp_packet(ndev, skb);
 		break;
 
 	default:

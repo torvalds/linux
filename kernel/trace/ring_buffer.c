@@ -9,7 +9,6 @@
 #include <linux/trace_seq.h>
 #include <linux/spinlock.h>
 #include <linux/irq_work.h>
-#include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
 #include <linux/kthread.h>	/* for self test */
@@ -23,7 +22,6 @@
 #include <linux/hash.h>
 #include <linux/list.h>
 #include <linux/cpu.h>
-#include <linux/fs.h>
 
 #include <asm/local.h>
 
@@ -447,7 +445,10 @@ int ring_buffer_print_page_header(struct trace_seq *s)
 struct rb_irq_work {
 	struct irq_work			work;
 	wait_queue_head_t		waiters;
+	wait_queue_head_t		full_waiters;
 	bool				waiters_pending;
+	bool				full_waiters_pending;
+	bool				wakeup_full;
 };
 
 /*
@@ -529,6 +530,10 @@ static void rb_wake_up_waiters(struct irq_work *work)
 	struct rb_irq_work *rbwork = container_of(work, struct rb_irq_work, work);
 
 	wake_up_all(&rbwork->waiters);
+	if (rbwork->wakeup_full) {
+		rbwork->wakeup_full = false;
+		wake_up_all(&rbwork->full_waiters);
+	}
 }
 
 /**
@@ -553,9 +558,11 @@ int ring_buffer_wait(struct ring_buffer *buffer, int cpu, bool full)
 	 * data in any cpu buffer, or a specific buffer, put the
 	 * caller on the appropriate wait queue.
 	 */
-	if (cpu == RING_BUFFER_ALL_CPUS)
+	if (cpu == RING_BUFFER_ALL_CPUS) {
 		work = &buffer->irq_work;
-	else {
+		/* Full only makes sense on per cpu reads */
+		full = false;
+	} else {
 		if (!cpumask_test_cpu(cpu, buffer->cpumask))
 			return -ENODEV;
 		cpu_buffer = buffer->buffers[cpu];
@@ -564,7 +571,10 @@ int ring_buffer_wait(struct ring_buffer *buffer, int cpu, bool full)
 
 
 	while (true) {
-		prepare_to_wait(&work->waiters, &wait, TASK_INTERRUPTIBLE);
+		if (full)
+			prepare_to_wait(&work->full_waiters, &wait, TASK_INTERRUPTIBLE);
+		else
+			prepare_to_wait(&work->waiters, &wait, TASK_INTERRUPTIBLE);
 
 		/*
 		 * The events can happen in critical sections where
@@ -586,7 +596,10 @@ int ring_buffer_wait(struct ring_buffer *buffer, int cpu, bool full)
 		 * that is necessary is that the wake up happens after
 		 * a task has been queued. It's OK for spurious wake ups.
 		 */
-		work->waiters_pending = true;
+		if (full)
+			work->full_waiters_pending = true;
+		else
+			work->waiters_pending = true;
 
 		if (signal_pending(current)) {
 			ret = -EINTR;
@@ -615,7 +628,10 @@ int ring_buffer_wait(struct ring_buffer *buffer, int cpu, bool full)
 		schedule();
 	}
 
-	finish_wait(&work->waiters, &wait);
+	if (full)
+		finish_wait(&work->full_waiters, &wait);
+	else
+		finish_wait(&work->waiters, &wait);
 
 	return ret;
 }
@@ -1230,6 +1246,7 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int nr_pages, int cpu)
 	init_completion(&cpu_buffer->update_done);
 	init_irq_work(&cpu_buffer->irq_work.work, rb_wake_up_waiters);
 	init_waitqueue_head(&cpu_buffer->irq_work.waiters);
+	init_waitqueue_head(&cpu_buffer->irq_work.full_waiters);
 
 	bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
 			    GFP_KERNEL, cpu_to_node(cpu));
@@ -2801,6 +2818,8 @@ static void rb_commit(struct ring_buffer_per_cpu *cpu_buffer,
 static __always_inline void
 rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
 {
+	bool pagebusy;
+
 	if (buffer->irq_work.waiters_pending) {
 		buffer->irq_work.waiters_pending = false;
 		/* irq_work_queue() supplies it's own memory barriers */
@@ -2809,6 +2828,15 @@ rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
 
 	if (cpu_buffer->irq_work.waiters_pending) {
 		cpu_buffer->irq_work.waiters_pending = false;
+		/* irq_work_queue() supplies it's own memory barriers */
+		irq_work_queue(&cpu_buffer->irq_work.work);
+	}
+
+	pagebusy = cpu_buffer->reader_page == cpu_buffer->commit_page;
+
+	if (!pagebusy && cpu_buffer->irq_work.full_waiters_pending) {
+		cpu_buffer->irq_work.wakeup_full = true;
+		cpu_buffer->irq_work.full_waiters_pending = false;
 		/* irq_work_queue() supplies it's own memory barriers */
 		irq_work_queue(&cpu_buffer->irq_work.work);
 	}

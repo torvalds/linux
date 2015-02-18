@@ -39,6 +39,9 @@
 
 #include "server.h"
 
+#define TIPC_MAX_SUBSCRIPTIONS	65535
+#define TIPC_MAX_PUBLICATIONS	65535
+
 struct tipc_subscription;
 struct tipc_subscriber;
 
@@ -46,6 +49,7 @@ struct tipc_subscriber;
  * struct tipc_subscription - TIPC network topology subscription object
  * @subscriber: pointer to its subscriber
  * @seq: name sequence associated with subscription
+ * @net: point to network namespace
  * @timeout: duration of subscription (in ms)
  * @filter: event filtering to be done for subscription
  * @timer: timer governing subscription duration (optional)
@@ -58,7 +62,8 @@ struct tipc_subscriber;
 struct tipc_subscription {
 	struct tipc_subscriber *subscriber;
 	struct tipc_name_seq seq;
-	u32 timeout;
+	struct net *net;
+	unsigned long timeout;
 	u32 filter;
 	struct timer_list timer;
 	struct list_head nameseq_list;
@@ -69,13 +74,10 @@ struct tipc_subscription {
 
 int tipc_subscr_overlap(struct tipc_subscription *sub, u32 found_lower,
 			u32 found_upper);
-
 void tipc_subscr_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 				u32 found_upper, u32 event, u32 port_ref,
 				u32 node, int must);
-
-int tipc_subscr_start(void);
-
-void tipc_subscr_stop(void);
+int tipc_subscr_start(struct net *net);
+void tipc_subscr_stop(struct net *net);
 
 #endif

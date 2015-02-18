@@ -36,7 +36,7 @@ if grep -Pq '\x00' < $file
 then
 	print_warning Console output contains nul bytes, old qemu still running?
 fi
-egrep 'Badness|WARNING:|Warn|BUG|===========|Call Trace:|Oops:' < $file | grep -v 'ODEBUG: ' | grep -v 'Warning: unable to open an initial console' > $T
+egrep 'Badness|WARNING:|Warn|BUG|===========|Call Trace:|Oops:|Stall ended before state dump start' < $file | grep -v 'ODEBUG: ' | grep -v 'Warning: unable to open an initial console' > $T
 if test -s $T
 then
 	print_warning Assertion failure in $file $title

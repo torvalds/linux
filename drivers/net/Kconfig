@@ -197,6 +197,7 @@ config NETCONSOLE_DYNAMIC
 
 config NETPOLL
 	def_bool NETCONSOLE
+	select SRCU
 
 config NET_POLL_CONTROLLER
 	def_bool NETPOLL

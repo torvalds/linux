@@ -85,6 +85,12 @@ int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg)
 	ret = __mv88e6xxx_reg_read(bus, ds->pd->sw_addr, addr, reg);
 	mutex_unlock(&ps->smi_mutex);
 
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(ds->master_dev, "<- addr: 0x%.2x reg: 0x%.2x val: 0x%.4x\n",
+		addr, reg, ret);
+
 	return ret;
 }
 
@@ -127,6 +133,9 @@ int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 
 	if (bus == NULL)
 		return -EINVAL;
+
+	dev_dbg(ds->master_dev, "-> addr: 0x%.2x reg: 0x%.2x val: 0x%.4x\n",
+		addr, reg, val);
 
 	mutex_lock(&ps->smi_mutex);
 	ret = __mv88e6xxx_reg_write(bus, ds->pd->sw_addr, addr, reg, val);

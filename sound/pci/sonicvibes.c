@@ -30,6 +30,7 @@
 #include <linux/gameport.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -38,8 +39,6 @@
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
-
-#include <asm/io.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("S3 SonicVibes PCI");
@@ -880,8 +879,7 @@ static struct snd_pcm_ops snd_sonicvibes_capture_ops = {
 	.pointer =	snd_sonicvibes_capture_pointer,
 };
 
-static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device,
-			      struct snd_pcm **rpcm)
+static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -902,8 +900,6 @@ static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(sonic->pci), 64*1024, 128*1024);
 
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
@@ -1491,7 +1487,7 @@ static int snd_sonic_probe(struct pci_dev *pci,
 		(unsigned long long)pci_resource_start(pci, 1),
 		sonic->irq);
 
-	if ((err = snd_sonicvibes_pcm(sonic, 0, NULL)) < 0) {
+	if ((err = snd_sonicvibes_pcm(sonic, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}

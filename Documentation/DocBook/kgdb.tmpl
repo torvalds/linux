@@ -75,7 +75,7 @@
     a development machine and the other is the target machine.  The
     kernel to be debugged runs on the target machine. The development
     machine runs an instance of gdb against the vmlinux file which
-    contains the symbols (not boot image such as bzImage, zImage,
+    contains the symbols (not a boot image such as bzImage, zImage,
     uImage...).  In gdb the developer specifies the connection
     parameters and connects to kgdb.  The type of connection a
     developer makes with gdb depends on the availability of kgdb I/O
@@ -95,7 +95,7 @@
     <title>Kernel config options for kgdb</title>
     <para>
     To enable <symbol>CONFIG_KGDB</symbol> you should look under
-    "Kernel debugging" and select "KGDB: kernel debugger".
+    "Kernel hacking" / "Kernel debugging" and select "KGDB: kernel debugger".
     </para>
     <para>
     While it is not a hard requirement that you have symbols in your
@@ -105,7 +105,7 @@
     kernel with debug info" in the config menu.
     </para>
     <para>
-    It is advised, but not required that you turn on the
+    It is advised, but not required, that you turn on the
     <symbol>CONFIG_FRAME_POINTER</symbol> kernel option which is called "Compile the
     kernel with frame pointers" in the config menu.  This option
     inserts code to into the compiled executable which saves the frame
@@ -181,7 +181,7 @@
   <para>This section describes the various runtime kernel
   parameters that affect the configuration of the kernel debugger.
   The following chapter covers using kdb and kgdb as well as
-  provides some examples of the configuration parameters.</para>
+  providing some examples of the configuration parameters.</para>
    <sect1 id="kgdboc">
    <title>Kernel parameter: kgdboc</title>
    <para>The kgdboc driver was originally an abbreviation meant to
@@ -219,8 +219,8 @@
    <listitem><para>kbd = Keyboard</para></listitem>
    </itemizedlist>
    </para>
-   <para>You can configure kgdboc to use the keyboard, and or a serial
-   device depending on if you are using kdb and or kgdb, in one of the
+   <para>You can configure kgdboc to use the keyboard, and/or a serial
+   device depending on if you are using kdb and/or kgdb, in one of the
    following scenarios.  The order listed above must be observed if
    you use any of the optional configurations together.  Using kms +
    only gdb is generally not a useful combination.</para>
@@ -261,11 +261,8 @@
    </sect3>
    <sect3 id="kgdbocArgs3">
    <title>More examples</title>
-   <para>You can configure kgdboc to use the keyboard, and or a serial
-   device depending on if you are using kdb and or kgdb, in one of the
-   following scenarios.</para>
-   <para>You can configure kgdboc to use the keyboard, and or a serial device
-   depending on if you are using kdb and or kgdb, in one of the
+   <para>You can configure kgdboc to use the keyboard, and/or a serial device
+   depending on if you are using kdb and/or kgdb, in one of the
    following scenarios.
    <orderedlist>
    <listitem><para>kdb and kgdb over only a serial port</para>
@@ -315,7 +312,7 @@
    <para>
    The Kernel command line option <constant>kgdbwait</constant> makes
    kgdb wait for a debugger connection during booting of a kernel.  You
-   can only use this option you compiled a kgdb I/O driver into the
+   can only use this option if you compiled a kgdb I/O driver into the
    kernel and you specified the I/O driver configuration as a kernel
    command line option.  The kgdbwait parameter should always follow the
    configuration parameter for the kgdb I/O driver in the kernel
@@ -354,7 +351,7 @@
    </listitem>
    </orderedlist>
    <para>IMPORTANT NOTE: You cannot use kgdboc + kgdbcon on a tty that is an
-   active system console.  An example incorrect usage is <constant>console=ttyS0,115200 kgdboc=ttyS0 kgdbcon</constant>
+   active system console.  An example of incorrect usage is <constant>console=ttyS0,115200 kgdboc=ttyS0 kgdbcon</constant>
    </para>
    <para>It is possible to use this option with kgdboc on a tty that is not a system console.
    </para>
@@ -386,12 +383,12 @@
   <title>Quick start for kdb on a serial port</title>
   <para>This is a quick example of how to use kdb.</para>
   <para><orderedlist>
-  <listitem><para>Boot kernel with arguments:
+  <listitem><para>Configure kgdboc at boot using kernel parameters:
   <itemizedlist>
   <listitem><para><constant>console=ttyS0,115200 kgdboc=ttyS0,115200</constant></para></listitem>
   </itemizedlist></para>
   <para>OR</para>
-  <para>Configure kgdboc after the kernel booted; assuming you are using a serial port console:
+  <para>Configure kgdboc after the kernel has booted; assuming you are using a serial port console:
   <itemizedlist>
   <listitem><para><constant>echo ttyS0 &gt; /sys/module/kgdboc/parameters/kgdboc</constant></para></listitem>
   </itemizedlist>
@@ -442,12 +439,12 @@
   <title>Quick start for kdb using a keyboard connected console</title>
   <para>This is a quick example of how to use kdb with a keyboard.</para>
   <para><orderedlist>
-  <listitem><para>Boot kernel with arguments:
+  <listitem><para>Configure kgdboc at boot using kernel parameters:
   <itemizedlist>
   <listitem><para><constant>kgdboc=kbd</constant></para></listitem>
   </itemizedlist></para>
   <para>OR</para>
-  <para>Configure kgdboc after the kernel booted:
+  <para>Configure kgdboc after the kernel has booted:
   <itemizedlist>
   <listitem><para><constant>echo kbd &gt; /sys/module/kgdboc/parameters/kgdboc</constant></para></listitem>
   </itemizedlist>
@@ -501,12 +498,12 @@
   <title>Connecting with gdb to a serial port</title>
   <orderedlist>
   <listitem><para>Configure kgdboc</para>
-   <para>Boot kernel with arguments:
+   <para>Configure kgdboc at boot using kernel parameters:
    <itemizedlist>
     <listitem><para><constant>kgdboc=ttyS0,115200</constant></para></listitem>
    </itemizedlist></para>
    <para>OR</para>
-   <para>Configure kgdboc after the kernel booted:
+   <para>Configure kgdboc after the kernel has booted:
    <itemizedlist>
     <listitem><para><constant>echo ttyS0 &gt; /sys/module/kgdboc/parameters/kgdboc</constant></para></listitem>
    </itemizedlist></para>
@@ -536,7 +533,7 @@
   </para>
   </listitem>
   <listitem>
-    <para>Connect from from gdb</para>
+    <para>Connect from gdb</para>
     <para>
     Example (using a directly connected port):
     </para>
@@ -584,7 +581,7 @@
   <para>
   There are two ways to switch from kgdb to kdb: you can use gdb to
   issue a maintenance packet, or you can blindly type the command $3#33.
-  Whenever kernel debugger stops in kgdb mode it will print the
+  Whenever the kernel debugger stops in kgdb mode it will print the
   message <constant>KGDB or $3#33 for KDB</constant>.  It is important
   to note that you have to type the sequence correctly in one pass.
   You cannot type a backspace or delete because kgdb will interpret
@@ -704,7 +701,7 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
       <listitem><para>Registration and unregistration of architecture specific trap hooks</para></listitem>
       <listitem><para>Any special exception handling and cleanup</para></listitem>
       <listitem><para>NMI exception handling and cleanup</para></listitem>
-      <listitem><para>(optional)HW breakpoints</para></listitem>
+      <listitem><para>(optional) HW breakpoints</para></listitem>
       </itemizedlist>
       </para>
       </listitem>
@@ -760,7 +757,7 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
       a kgdb I/O driver for characters when it needs input.  The I/O
       driver is expected to return immediately if there is no data
       available.  Doing so allows for the future possibility to touch
-      watch dog hardware in such a way as to have a target system not
+      watchdog hardware in such a way as to have a target system not
       reset when these are enabled.
       </para>
       </listitem>
@@ -779,21 +776,25 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
       their &lt;asm/kgdb.h&gt; file.  These are:
       <itemizedlist>
         <listitem>
-	  <para>
-	  NUMREGBYTES: The size in bytes of all of the registers, so
-	  that we can ensure they will all fit into a packet.
-	  </para>
-	  <para>
-	  BUFMAX: The size in bytes of the buffer GDB will read into.
-	  This must be larger than NUMREGBYTES.
-	  </para>
-	  <para>
-	  CACHE_FLUSH_IS_SAFE: Set to 1 if it is always safe to call
-	  flush_cache_range or flush_icache_range.  On some architectures,
-	  these functions may not be safe to call on SMP since we keep other
-	  CPUs in a holding pattern.
-	  </para>
-	</listitem>
+          <para>
+          NUMREGBYTES: The size in bytes of all of the registers, so
+          that we can ensure they will all fit into a packet.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+          BUFMAX: The size in bytes of the buffer GDB will read into.
+          This must be larger than NUMREGBYTES.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+          CACHE_FLUSH_IS_SAFE: Set to 1 if it is always safe to call
+          flush_cache_range or flush_icache_range.  On some architectures,
+          these functions may not be safe to call on SMP since we keep other
+          CPUs in a holding pattern.
+          </para>
+        </listitem>
       </itemizedlist>
       </para>
       <para>
@@ -812,8 +813,8 @@ Task Addr       Pid   Parent [*] cpu State Thread     Command
   <para>
   The kgdboc driver is actually a very thin driver that relies on the
   underlying low level to the hardware driver having "polling hooks"
-  which the to which the tty driver is attached.  In the initial
-  implementation of kgdboc it the serial_core was changed to expose a
+  to which the tty driver is attached.  In the initial
+  implementation of kgdboc the serial_core was changed to expose a
   low level UART hook for doing polled mode reading and writing of a
   single character while in an atomic context.  When kgdb makes an I/O
   request to the debugger, kgdboc invokes a callback in the serial

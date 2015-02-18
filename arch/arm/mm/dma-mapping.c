@@ -1940,18 +1940,8 @@ void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping)
 }
 EXPORT_SYMBOL_GPL(arm_iommu_release_mapping);
 
-/**
- * arm_iommu_attach_device
- * @dev: valid struct device pointer
- * @mapping: io address space mapping structure (returned from
- *	arm_iommu_create_mapping)
- *
- * Attaches specified io address space mapping to the provided device,
- * More than one client might be attached to the same io address space
- * mapping.
- */
-int arm_iommu_attach_device(struct device *dev,
-			    struct dma_iommu_mapping *mapping)
+static int __arm_iommu_attach_device(struct device *dev,
+				     struct dma_iommu_mapping *mapping)
 {
 	int err;
 
@@ -1965,15 +1955,35 @@ int arm_iommu_attach_device(struct device *dev,
 	pr_debug("Attached IOMMU controller to %s device.\n", dev_name(dev));
 	return 0;
 }
-EXPORT_SYMBOL_GPL(arm_iommu_attach_device);
 
 /**
- * arm_iommu_detach_device
+ * arm_iommu_attach_device
  * @dev: valid struct device pointer
+ * @mapping: io address space mapping structure (returned from
+ *	arm_iommu_create_mapping)
  *
- * Detaches the provided device from a previously attached map.
+ * Attaches specified io address space mapping to the provided device.
+ * This replaces the dma operations (dma_map_ops pointer) with the
+ * IOMMU aware version.
+ *
+ * More than one client might be attached to the same io address space
+ * mapping.
  */
-void arm_iommu_detach_device(struct device *dev)
+int arm_iommu_attach_device(struct device *dev,
+			    struct dma_iommu_mapping *mapping)
+{
+	int err;
+
+	err = __arm_iommu_attach_device(dev, mapping);
+	if (err)
+		return err;
+
+	set_dma_ops(dev, &iommu_ops);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arm_iommu_attach_device);
+
+static void __arm_iommu_detach_device(struct device *dev)
 {
 	struct dma_iommu_mapping *mapping;
 
@@ -1988,6 +1998,19 @@ void arm_iommu_detach_device(struct device *dev)
 	dev->archdata.mapping = NULL;
 
 	pr_debug("Detached IOMMU controller from %s device.\n", dev_name(dev));
+}
+
+/**
+ * arm_iommu_detach_device
+ * @dev: valid struct device pointer
+ *
+ * Detaches the provided device from a previously attached map.
+ * This voids the dma operations (dma_map_ops pointer)
+ */
+void arm_iommu_detach_device(struct device *dev)
+{
+	__arm_iommu_detach_device(dev);
+	set_dma_ops(dev, NULL);
 }
 EXPORT_SYMBOL_GPL(arm_iommu_detach_device);
 
@@ -2011,7 +2034,7 @@ static bool arm_setup_iommu_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		return false;
 	}
 
-	if (arm_iommu_attach_device(dev, mapping)) {
+	if (__arm_iommu_attach_device(dev, mapping)) {
 		pr_warn("Failed to attached device %s to IOMMU_mapping\n",
 				dev_name(dev));
 		arm_iommu_release_mapping(mapping);
@@ -2025,7 +2048,10 @@ static void arm_teardown_iommu_dma_ops(struct device *dev)
 {
 	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
 
-	arm_iommu_detach_device(dev);
+	if (!mapping)
+		return;
+
+	__arm_iommu_detach_device(dev);
 	arm_iommu_release_mapping(mapping);
 }
 

@@ -141,7 +141,7 @@ struct miphy365x_phy {
 	bool pcie_tx_pol_inv;
 	bool sata_tx_pol_inv;
 	u32 sata_gen;
-	u64 ctrlreg;
+	u32 ctrlreg;
 	u8 type;
 };
 
@@ -179,7 +179,7 @@ static int miphy365x_set_path(struct miphy365x_phy *miphy_phy,
 	bool sata = (miphy_phy->type == MIPHY_TYPE_SATA);
 
 	return regmap_update_bits(miphy_dev->regmap,
-				  (unsigned int)miphy_phy->ctrlreg,
+				  miphy_phy->ctrlreg,
 				  SYSCFG_SELECT_SATA_MASK,
 				  sata << SYSCFG_SELECT_SATA_POS);
 }
@@ -445,7 +445,6 @@ int miphy365x_get_addr(struct device *dev, struct miphy365x_phy *miphy_phy,
 {
 	struct device_node *phynode = miphy_phy->phy->dev.of_node;
 	const char *name;
-	const __be32 *taddr;
 	int type = miphy_phy->type;
 	int ret;
 
@@ -453,22 +452,6 @@ int miphy365x_get_addr(struct device *dev, struct miphy365x_phy *miphy_phy,
 	if (ret) {
 		dev_err(dev, "no reg-names property not found\n");
 		return ret;
-	}
-
-	if (!strncmp(name, "syscfg", 6)) {
-		taddr = of_get_address(phynode, index, NULL, NULL);
-		if (!taddr) {
-			dev_err(dev, "failed to fetch syscfg address\n");
-			return -EINVAL;
-		}
-
-		miphy_phy->ctrlreg = of_translate_address(phynode, taddr);
-		if (miphy_phy->ctrlreg == OF_BAD_ADDR) {
-			dev_err(dev, "failed to translate syscfg address\n");
-			return -EINVAL;
-		}
-
-		return 0;
 	}
 
 	if (!((!strncmp(name, "sata", 4) && type == MIPHY_TYPE_SATA) ||
@@ -606,7 +589,15 @@ static int miphy365x_probe(struct platform_device *pdev)
 			return ret;
 
 		phy_set_drvdata(phy, miphy_dev->phys[port]);
+
 		port++;
+		/* sysconfig offsets are indexed from 1 */
+		ret = of_property_read_u32_index(np, "st,syscfg", port,
+					&miphy_phy->ctrlreg);
+		if (ret) {
+			dev_err(&pdev->dev, "No sysconfig offset found\n");
+			return ret;
+		}
 	}
 
 	provider = devm_of_phy_provider_register(&pdev->dev, miphy365x_xlate);

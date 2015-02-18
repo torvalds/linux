@@ -436,7 +436,7 @@ static int kgd_init_memory(struct kgd_dev *kgd)
 static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr)
 {
-	uint32_t mec = (++pipe_id / CIK_PIPE_PER_MEC) + 1;
+	uint32_t mec = (pipe_id / CIK_PIPE_PER_MEC) + 1;
 	uint32_t pipe = (pipe_id % CIK_PIPE_PER_MEC);
 
 	lock_srbm(kgd, mec, pipe, 0, 0);

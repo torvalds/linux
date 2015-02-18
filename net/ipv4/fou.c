@@ -70,7 +70,6 @@ static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 	size_t start = ntohs(pd[0]);
 	size_t offset = ntohs(pd[1]);
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
-	__wsum delta;
 
 	if (skb->remcsum_offload) {
 		/* Already processed in GRO path */
@@ -82,14 +81,7 @@ static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 		return NULL;
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 
-	if (unlikely(skb->ip_summed != CHECKSUM_COMPLETE))
-		__skb_checksum_complete(skb);
-
-	delta = remcsum_adjust((void *)guehdr + hdrlen,
-			       skb->csum, start, offset);
-
-	/* Adjust skb->csum since we changed the packet */
-	skb->csum = csum_add(skb->csum, delta);
+	skb_remcsum_process(skb, (void *)guehdr + hdrlen, start, offset);
 
 	return guehdr;
 }
@@ -174,7 +166,8 @@ drop:
 }
 
 static struct sk_buff **fou_gro_receive(struct sk_buff **head,
-					struct sk_buff *skb)
+					struct sk_buff *skb,
+					struct udp_offload *uoff)
 {
 	const struct net_offload *ops;
 	struct sk_buff **pp = NULL;
@@ -195,7 +188,8 @@ out_unlock:
 	return pp;
 }
 
-static int fou_gro_complete(struct sk_buff *skb, int nhoff)
+static int fou_gro_complete(struct sk_buff *skb, int nhoff,
+			    struct udp_offload *uoff)
 {
 	const struct net_offload *ops;
 	u8 proto = NAPI_GRO_CB(skb)->proto;
@@ -226,7 +220,6 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 	size_t start = ntohs(pd[0]);
 	size_t offset = ntohs(pd[1]);
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
-	__wsum delta;
 
 	if (skb->remcsum_offload)
 		return guehdr;
@@ -241,12 +234,7 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 			return NULL;
 	}
 
-	delta = remcsum_adjust((void *)guehdr + hdrlen,
-			       NAPI_GRO_CB(skb)->csum, start, offset);
-
-	/* Adjust skb->csum since we changed the packet */
-	skb->csum = csum_add(skb->csum, delta);
-	NAPI_GRO_CB(skb)->csum = csum_add(NAPI_GRO_CB(skb)->csum, delta);
+	skb_gro_remcsum_process(skb, (void *)guehdr + hdrlen, start, offset);
 
 	skb->remcsum_offload = 1;
 
@@ -254,7 +242,8 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 }
 
 static struct sk_buff **gue_gro_receive(struct sk_buff **head,
-					struct sk_buff *skb)
+					struct sk_buff *skb,
+					struct udp_offload *uoff)
 {
 	const struct net_offload **offloads;
 	const struct net_offload *ops;
@@ -360,7 +349,8 @@ out:
 	return pp;
 }
 
-static int gue_gro_complete(struct sk_buff *skb, int nhoff)
+static int gue_gro_complete(struct sk_buff *skb, int nhoff,
+			    struct udp_offload *uoff)
 {
 	const struct net_offload **offloads;
 	struct guehdr *guehdr = (struct guehdr *)(skb->data + nhoff);
@@ -490,7 +480,7 @@ static int fou_create(struct net *net, struct fou_cfg *cfg,
 	sk->sk_user_data = fou;
 	fou->sock = sock;
 
-	udp_set_convert_csum(sk, true);
+	inet_inc_convert_csum(sk);
 
 	sk->sk_allocation = GFP_ATOMIC;
 

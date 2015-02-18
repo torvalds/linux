@@ -1,5 +1,6 @@
 menuconfig PM_DEVFREQ
 	bool "Generic Dynamic Voltage and Frequency Scaling (DVFS) support"
+	select SRCU
 	help
 	  A device may have a list of frequencies and voltages available.
 	  devfreq, a generic DVFS framework can be registered for a device
@@ -86,5 +87,17 @@ config ARM_EXYNOS5_BUS_DEVFREQ
 	  This adds the DEVFREQ driver for Exynos5250 bus interface (vdd_int).
 	  It reads PPMU counters of memory controllers and adjusts the
 	  operating frequencies and voltages with OPP support.
+
+config ARM_TEGRA_DEVFREQ
+       tristate "Tegra DEVFREQ Driver"
+       depends on ARCH_TEGRA_124_SOC
+       select DEVFREQ_GOV_SIMPLE_ONDEMAND
+       select PM_OPP
+       help
+         This adds the DEVFREQ driver for the Tegra family of SoCs.
+         It reads ACTMON counters of memory controllers and adjusts the
+         operating frequencies and voltages with OPP support.
+
+source "drivers/devfreq/event/Kconfig"
 
 endif # PM_DEVFREQ

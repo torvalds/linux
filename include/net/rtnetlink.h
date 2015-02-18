@@ -46,6 +46,7 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
  *			    to create when creating a new device.
  *	@get_num_rx_queues: Function to determine number of receive queues
  *			    to create when creating a new device.
+ *	@get_link_net: Function to get the i/o netns of the device
  */
 struct rtnl_link_ops {
 	struct list_head	list;
@@ -93,6 +94,7 @@ struct rtnl_link_ops {
 	int			(*fill_slave_info)(struct sk_buff *skb,
 						   const struct net_device *dev,
 						   const struct net_device *slave_dev);
+	struct net		*(*get_link_net)(const struct net_device *dev);
 };
 
 int __rtnl_link_register(struct rtnl_link_ops *ops);

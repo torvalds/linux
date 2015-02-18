@@ -574,13 +574,16 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 	const char *ext = strrchr(name, '.');
 	char tmpbuf[] = "/tmp/perf-kmod-XXXXXX";
 
-	if ((type != DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP &&
-	     type != DSO_BINARY_TYPE__GUEST_KMODULE_COMP) ||
-	    type != dso->symtab_type)
+	if (type != DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP &&
+	    type != DSO_BINARY_TYPE__GUEST_KMODULE_COMP &&
+	    type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
 		return -1;
 
-	if (!ext || !is_supported_compression(ext + 1))
-		return -1;
+	if (!ext || !is_supported_compression(ext + 1)) {
+		ext = strrchr(dso->name, '.');
+		if (!ext || !is_supported_compression(ext + 1))
+			return -1;
+	}
 
 	fd = mkstemp(tmpbuf);
 	if (fd < 0)

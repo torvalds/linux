@@ -475,7 +475,8 @@ static int mlx4_en_tunnel_steer_add(struct mlx4_en_priv *priv, unsigned char *ad
 {
 	int err;
 
-	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
+	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN ||
+	    priv->mdev->dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC)
 		return 0; /* do nothing */
 
 	err = mlx4_tunnel_steer_add(priv->mdev->dev, addr, priv->port, qpn,
@@ -2061,6 +2062,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	/* Detach the netdev so tasks would not attempt to access it */
 	mutex_lock(&mdev->state_lock);
 	mdev->pndev[priv->port] = NULL;
+	mdev->upper[priv->port] = NULL;
 	mutex_unlock(&mdev->state_lock);
 
 	mlx4_en_free_resources(priv);
@@ -2199,6 +2201,10 @@ static int mlx4_en_set_features(struct net_device *netdev,
 		if (ret)
 			return ret;
 	}
+
+	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_HW_VLAN_CTAG_TX))
+		en_info(priv, "Turn %s TX vlan strip offload\n",
+			(features & NETIF_F_HW_VLAN_CTAG_TX) ? "ON" : "OFF");
 
 	if (features & NETIF_F_LOOPBACK)
 		priv->ctrl_flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);
@@ -2440,6 +2446,180 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 #endif
 };
 
+struct mlx4_en_bond {
+	struct work_struct work;
+	struct mlx4_en_priv *priv;
+	int is_bonded;
+	struct mlx4_port_map port_map;
+};
+
+static void mlx4_en_bond_work(struct work_struct *work)
+{
+	struct mlx4_en_bond *bond = container_of(work,
+						     struct mlx4_en_bond,
+						     work);
+	int err = 0;
+	struct mlx4_dev *dev = bond->priv->mdev->dev;
+
+	if (bond->is_bonded) {
+		if (!mlx4_is_bonded(dev)) {
+			err = mlx4_bond(dev);
+			if (err)
+				en_err(bond->priv, "Fail to bond device\n");
+		}
+		if (!err) {
+			err = mlx4_port_map_set(dev, &bond->port_map);
+			if (err)
+				en_err(bond->priv, "Fail to set port map [%d][%d]: %d\n",
+				       bond->port_map.port1,
+				       bond->port_map.port2,
+				       err);
+		}
+	} else if (mlx4_is_bonded(dev)) {
+		err = mlx4_unbond(dev);
+		if (err)
+			en_err(bond->priv, "Fail to unbond device\n");
+	}
+	dev_put(bond->priv->dev);
+	kfree(bond);
+}
+
+static int mlx4_en_queue_bond_work(struct mlx4_en_priv *priv, int is_bonded,
+				   u8 v2p_p1, u8 v2p_p2)
+{
+	struct mlx4_en_bond *bond = NULL;
+
+	bond = kzalloc(sizeof(*bond), GFP_ATOMIC);
+	if (!bond)
+		return -ENOMEM;
+
+	INIT_WORK(&bond->work, mlx4_en_bond_work);
+	bond->priv = priv;
+	bond->is_bonded = is_bonded;
+	bond->port_map.port1 = v2p_p1;
+	bond->port_map.port2 = v2p_p2;
+	dev_hold(priv->dev);
+	queue_work(priv->mdev->workqueue, &bond->work);
+	return 0;
+}
+
+int mlx4_en_netdev_event(struct notifier_block *this,
+			 unsigned long event, void *ptr)
+{
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	u8 port = 0;
+	struct mlx4_en_dev *mdev;
+	struct mlx4_dev *dev;
+	int i, num_eth_ports = 0;
+	bool do_bond = true;
+	struct mlx4_en_priv *priv;
+	u8 v2p_port1 = 0;
+	u8 v2p_port2 = 0;
+
+	if (!net_eq(dev_net(ndev), &init_net))
+		return NOTIFY_DONE;
+
+	mdev = container_of(this, struct mlx4_en_dev, nb);
+	dev = mdev->dev;
+
+	/* Go into this mode only when two network devices set on two ports
+	 * of the same mlx4 device are slaves of the same bonding master
+	 */
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
+		++num_eth_ports;
+		if (!port && (mdev->pndev[i] == ndev))
+			port = i;
+		mdev->upper[i] = mdev->pndev[i] ?
+			netdev_master_upper_dev_get(mdev->pndev[i]) : NULL;
+		/* condition not met: network device is a slave */
+		if (!mdev->upper[i])
+			do_bond = false;
+		if (num_eth_ports < 2)
+			continue;
+		/* condition not met: same master */
+		if (mdev->upper[i] != mdev->upper[i-1])
+			do_bond = false;
+	}
+	/* condition not met: 2 salves */
+	do_bond = (num_eth_ports ==  2) ? do_bond : false;
+
+	/* handle only events that come with enough info */
+	if ((do_bond && (event != NETDEV_BONDING_INFO)) || !port)
+		return NOTIFY_DONE;
+
+	priv = netdev_priv(ndev);
+	if (do_bond) {
+		struct netdev_notifier_bonding_info *notifier_info = ptr;
+		struct netdev_bonding_info *bonding_info =
+			&notifier_info->bonding_info;
+
+		/* required mode 1, 2 or 4 */
+		if ((bonding_info->master.bond_mode != BOND_MODE_ACTIVEBACKUP) &&
+		    (bonding_info->master.bond_mode != BOND_MODE_XOR) &&
+		    (bonding_info->master.bond_mode != BOND_MODE_8023AD))
+			do_bond = false;
+
+		/* require exactly 2 slaves */
+		if (bonding_info->master.num_slaves != 2)
+			do_bond = false;
+
+		/* calc v2p */
+		if (do_bond) {
+			if (bonding_info->master.bond_mode ==
+			    BOND_MODE_ACTIVEBACKUP) {
+				/* in active-backup mode virtual ports are
+				 * mapped to the physical port of the active
+				 * slave */
+				if (bonding_info->slave.state ==
+				    BOND_STATE_BACKUP) {
+					if (port == 1) {
+						v2p_port1 = 2;
+						v2p_port2 = 2;
+					} else {
+						v2p_port1 = 1;
+						v2p_port2 = 1;
+					}
+				} else { /* BOND_STATE_ACTIVE */
+					if (port == 1) {
+						v2p_port1 = 1;
+						v2p_port2 = 1;
+					} else {
+						v2p_port1 = 2;
+						v2p_port2 = 2;
+					}
+				}
+			} else { /* Active-Active */
+				/* in active-active mode a virtual port is
+				 * mapped to the native physical port if and only
+				 * if the physical port is up */
+				__s8 link = bonding_info->slave.link;
+
+				if (port == 1)
+					v2p_port2 = 2;
+				else
+					v2p_port1 = 1;
+				if ((link == BOND_LINK_UP) ||
+				    (link == BOND_LINK_FAIL)) {
+					if (port == 1)
+						v2p_port1 = 1;
+					else
+						v2p_port2 = 2;
+				} else { /* BOND_LINK_DOWN || BOND_LINK_BACK */
+					if (port == 1)
+						v2p_port1 = 2;
+					else
+						v2p_port2 = 1;
+				}
+			}
+		}
+	}
+
+	mlx4_en_queue_bond_work(priv, do_bond,
+				v2p_port1, v2p_port2);
+
+	return NOTIFY_DONE;
+}
+
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			struct mlx4_en_port_profile *prof)
 {
@@ -2457,7 +2637,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	netif_set_real_num_tx_queues(dev, prof->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, prof->rx_ring_num);
 
-	SET_NETDEV_DEV(dev, &mdev->dev->pdev->dev);
+	SET_NETDEV_DEV(dev, &mdev->dev->persist->pdev->dev);
 	dev->dev_port = port - 1;
 
 	/*
@@ -2622,6 +2802,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 
 	mdev->pndev[port] = dev;
+	mdev->upper[port] = NULL;
 
 	netif_carrier_off(dev);
 	mlx4_en_set_default_moderation(priv);

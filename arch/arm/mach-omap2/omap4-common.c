@@ -166,7 +166,7 @@ void __iomem *omap4_get_l2cache_base(void)
 	return l2cache_base;
 }
 
-static void omap4_l2c310_write_sec(unsigned long val, unsigned reg)
+void omap4_l2c310_write_sec(unsigned long val, unsigned reg)
 {
 	unsigned smc_op;
 
@@ -201,24 +201,10 @@ static void omap4_l2c310_write_sec(unsigned long val, unsigned reg)
 
 int __init omap_l2_cache_init(void)
 {
-	u32 aux_ctrl;
-
 	/* Static mapping, never released */
 	l2cache_base = ioremap(OMAP44XX_L2CACHE_BASE, SZ_4K);
 	if (WARN_ON(!l2cache_base))
 		return -ENOMEM;
-
-	/* 16-way associativity, parity disabled, way size - 64KB (es2.0 +) */
-	aux_ctrl = L2C_AUX_CTRL_SHARED_OVERRIDE |
-		   L310_AUX_CTRL_DATA_PREFETCH |
-		   L310_AUX_CTRL_INSTR_PREFETCH;
-
-	outer_cache.write_sec = omap4_l2c310_write_sec;
-	if (of_have_populated_dt())
-		l2x0_of_init(aux_ctrl, 0xcf9fffff);
-	else
-		l2x0_init(l2cache_base, aux_ctrl, 0xcf9fffff);
-
 	return 0;
 }
 #endif
@@ -255,6 +241,38 @@ static int __init omap4_sar_ram_init(void)
 	return 0;
 }
 omap_early_initcall(omap4_sar_ram_init);
+
+static struct of_device_id gic_match[] = {
+	{ .compatible = "arm,cortex-a9-gic", },
+	{ .compatible = "arm,cortex-a15-gic", },
+	{ },
+};
+
+static struct device_node *gic_node;
+
+unsigned int omap4_xlate_irq(unsigned int hwirq)
+{
+	struct of_phandle_args irq_data;
+	unsigned int irq;
+
+	if (!gic_node)
+		gic_node = of_find_matching_node(NULL, gic_match);
+
+	if (WARN_ON(!gic_node))
+		return hwirq;
+
+	irq_data.np = gic_node;
+	irq_data.args_count = 3;
+	irq_data.args[0] = 0;
+	irq_data.args[1] = hwirq - OMAP44XX_IRQ_GIC_START;
+	irq_data.args[2] = IRQ_TYPE_LEVEL_HIGH;
+
+	irq = irq_create_of_mapping(&irq_data);
+	if (WARN_ON(!irq))
+		irq = hwirq;
+
+	return irq;
+}
 
 void __init omap_gic_of_init(void)
 {

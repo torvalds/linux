@@ -379,7 +379,7 @@ done:
 static void flow_cache_flush_task(struct work_struct *work)
 {
 	struct netns_xfrm *xfrm = container_of(work, struct netns_xfrm,
-						flow_cache_gc_work);
+						flow_cache_flush_work);
 	struct net *net = container_of(xfrm, struct net, xfrm);
 
 	flow_cache_flush(net);

@@ -4363,16 +4363,7 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
 	mask |= dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED);
 	mask &= dev_priv->pm_rps_events;
 
-	/* IVB and SNB hard hangs on looping batchbuffer
-	 * if GEN6_PM_UP_EI_EXPIRED is masked.
-	 */
-	if (INTEL_INFO(dev_priv->dev)->gen <= 7 && !IS_HASWELL(dev_priv->dev))
-		mask |= GEN6_PM_RP_UP_EI_EXPIRED;
-
-	if (IS_GEN8(dev_priv->dev))
-		mask |= GEN8_PMINTR_REDIRECT_TO_NON_DISP;
-
-	return ~mask;
+	return gen6_sanitize_rps_pm_mask(dev_priv, ~mask);
 }
 
 /* gen6_set_rps is called to update the frequency request, but should also be
@@ -4441,7 +4432,8 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 		return;
 
 	/* Mask turbo interrupt so that they will not come in between */
-	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
+	I915_WRITE(GEN6_PMINTRMSK,
+		   gen6_sanitize_rps_pm_mask(dev_priv, ~0));
 
 	vlv_force_gfx_clock(dev_priv, true);
 

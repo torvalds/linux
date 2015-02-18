@@ -12,7 +12,7 @@
 #endif
 #include <asm/barrier.h>
 
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 
 /*
  * Size of EA range mapped by our pagetables.

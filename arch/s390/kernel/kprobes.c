@@ -69,7 +69,8 @@ static void copy_instruction(struct kprobe *p)
 		/*
 		 * If kprobes patches the instruction that is morphed by
 		 * ftrace make sure that kprobes always sees the branch
-		 * "jg .+24" that skips the mcount block
+		 * "jg .+24" that skips the mcount block or the "brcl 0,0"
+		 * in case of hotpatch.
 		 */
 		ftrace_generate_nop_insn((struct ftrace_insn *)p->ainsn.insn);
 		p->ainsn.is_ftrace_insn = 1;

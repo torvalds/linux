@@ -448,15 +448,12 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		mask = 0x800000; /* je */
 kbranch:	/* Emit compare if the branch targets are different */
 		if (filter->jt != filter->jf) {
-			if (K <= 16383)
-				/* chi %r5,<K> */
-				EMIT4_IMM(0xa75e0000, K);
-			else if (test_facility(21))
+			if (test_facility(21))
 				/* clfi %r5,<K> */
 				EMIT6_IMM(0xc25f0000, K);
 			else
-				/* c %r5,<d(K)>(%r13) */
-				EMIT4_DISP(0x5950d000, EMIT_CONST(K));
+				/* cl %r5,<d(K)>(%r13) */
+				EMIT4_DISP(0x5550d000, EMIT_CONST(K));
 		}
 branch:		if (filter->jt == filter->jf) {
 			if (filter->jt == 0)

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -183,15 +183,15 @@ struct acpi_rsdump_info acpi_rs_dump_address16[8] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_address16),
 	 "16-Bit WORD Address Space", NULL},
 	{ACPI_RSD_ADDRESS, 0, NULL, NULL},
-	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.granularity), "Granularity",
-	 NULL},
-	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.minimum), "Address Minimum",
-	 NULL},
-	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.maximum), "Address Maximum",
-	 NULL},
-	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.translation_offset),
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.address.granularity),
+	 "Granularity", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.address.minimum),
+	 "Address Minimum", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.address.maximum),
+	 "Address Maximum", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.address.translation_offset),
 	 "Translation Offset", NULL},
-	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.address_length),
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.address.address_length),
 	 "Address Length", NULL},
 	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(address16.resource_source), NULL, NULL}
 };
@@ -200,15 +200,15 @@ struct acpi_rsdump_info acpi_rs_dump_address32[8] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_address32),
 	 "32-Bit DWORD Address Space", NULL},
 	{ACPI_RSD_ADDRESS, 0, NULL, NULL},
-	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.granularity), "Granularity",
-	 NULL},
-	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.minimum), "Address Minimum",
-	 NULL},
-	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.maximum), "Address Maximum",
-	 NULL},
-	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.translation_offset),
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.address.granularity),
+	 "Granularity", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.address.minimum),
+	 "Address Minimum", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.address.maximum),
+	 "Address Maximum", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.address.translation_offset),
 	 "Translation Offset", NULL},
-	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.address_length),
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.address.address_length),
 	 "Address Length", NULL},
 	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(address32.resource_source), NULL, NULL}
 };
@@ -217,15 +217,15 @@ struct acpi_rsdump_info acpi_rs_dump_address64[8] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_address64),
 	 "64-Bit QWORD Address Space", NULL},
 	{ACPI_RSD_ADDRESS, 0, NULL, NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.granularity), "Granularity",
-	 NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.minimum), "Address Minimum",
-	 NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.maximum), "Address Maximum",
-	 NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.translation_offset),
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.address.granularity),
+	 "Granularity", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.address.minimum),
+	 "Address Minimum", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.address.maximum),
+	 "Address Maximum", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.address.translation_offset),
 	 "Translation Offset", NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.address_length),
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.address.address_length),
 	 "Address Length", NULL},
 	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(address64.resource_source), NULL, NULL}
 };
@@ -234,15 +234,16 @@ struct acpi_rsdump_info acpi_rs_dump_ext_address64[8] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_ext_address64),
 	 "64-Bit Extended Address Space", NULL},
 	{ACPI_RSD_ADDRESS, 0, NULL, NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.granularity),
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.address.granularity),
 	 "Granularity", NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.minimum),
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.address.minimum),
 	 "Address Minimum", NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.maximum),
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.address.maximum),
 	 "Address Maximum", NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.translation_offset),
+	{ACPI_RSD_UINT64,
+	 ACPI_RSD_OFFSET(ext_address64.address.translation_offset),
 	 "Translation Offset", NULL},
-	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.address_length),
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.address.address_length),
 	 "Address Length", NULL},
 	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.type_specific),
 	 "Type-Specific Attribute", NULL}

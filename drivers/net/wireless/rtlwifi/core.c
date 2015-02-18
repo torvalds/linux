@@ -95,7 +95,8 @@ void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
 }
 EXPORT_SYMBOL(rtl_bb_delay);
 
-void rtl_fw_cb(const struct firmware *firmware, void *context)
+static void rtl_fw_do_work(const struct firmware *firmware, void *context,
+			   bool is_wow)
 {
 	struct ieee80211_hw *hw = context;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -125,11 +126,30 @@ found_alt:
 		release_firmware(firmware);
 		return;
 	}
-	memcpy(rtlpriv->rtlhal.pfirmware, firmware->data, firmware->size);
+	if (!is_wow) {
+		memcpy(rtlpriv->rtlhal.pfirmware, firmware->data,
+		       firmware->size);
+		rtlpriv->rtlhal.fwsize = firmware->size;
+	} else {
+		memcpy(rtlpriv->rtlhal.wowlan_firmware, firmware->data,
+		       firmware->size);
+		rtlpriv->rtlhal.wowlan_fwsize = firmware->size;
+	}
 	rtlpriv->rtlhal.fwsize = firmware->size;
 	release_firmware(firmware);
 }
+
+void rtl_fw_cb(const struct firmware *firmware, void *context)
+{
+	rtl_fw_do_work(firmware, context, false);
+}
 EXPORT_SYMBOL(rtl_fw_cb);
+
+void rtl_wowlan_fw_cb(const struct firmware *firmware, void *context)
+{
+	rtl_fw_do_work(firmware, context, true);
+}
+EXPORT_SYMBOL(rtl_wowlan_fw_cb);
 
 /*mutex for start & stop is must here. */
 static int rtl_op_start(struct ieee80211_hw *hw)
@@ -990,6 +1010,16 @@ static int rtl_op_conf_tx(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void send_beacon_frame(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+
+	if (skb)
+		rtlpriv->intf_ops->adapter_tx(hw, NULL, skb, NULL);
+}
+
 static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *bss_conf,
@@ -1020,6 +1050,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 				if (rtlpriv->cfg->ops->linked_set_reg)
 					rtlpriv->cfg->ops->linked_set_reg(hw);
+				send_beacon_frame(hw, vif);
 			}
 		}
 		if ((changed & BSS_CHANGED_BEACON_ENABLED &&
@@ -1851,3 +1882,40 @@ bool rtl_btc_status_false(void)
 	return false;
 }
 EXPORT_SYMBOL_GPL(rtl_btc_status_false);
+
+void rtl_dm_diginit(struct ieee80211_hw *hw, u32 cur_igvalue)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
+
+	dm_digtable->dig_enable_flag = true;
+	dm_digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
+	dm_digtable->cur_igvalue = cur_igvalue;
+	dm_digtable->pre_igvalue = 0;
+	dm_digtable->cur_sta_cstate = DIG_STA_DISCONNECT;
+	dm_digtable->presta_cstate = DIG_STA_DISCONNECT;
+	dm_digtable->curmultista_cstate = DIG_MULTISTA_DISCONNECT;
+	dm_digtable->rssi_lowthresh = DM_DIG_THRESH_LOW;
+	dm_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
+	dm_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
+	dm_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
+	dm_digtable->rx_gain_max = DM_DIG_MAX;
+	dm_digtable->rx_gain_min = DM_DIG_MIN;
+	dm_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
+	dm_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
+	dm_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
+	dm_digtable->pre_cck_cca_thres = 0xff;
+	dm_digtable->cur_cck_cca_thres = 0x83;
+	dm_digtable->forbidden_igi = DM_DIG_MIN;
+	dm_digtable->large_fa_hit = 0;
+	dm_digtable->recover_cnt = 0;
+	dm_digtable->dig_min_0 = 0x25;
+	dm_digtable->dig_min_1 = 0x25;
+	dm_digtable->media_connect_0 = false;
+	dm_digtable->media_connect_1 = false;
+	rtlpriv->dm.dm_initialgain_enable = true;
+	dm_digtable->bt30_cur_igi = 0x32;
+	dm_digtable->pre_cck_pd_state = CCK_PD_STAGE_MAX;
+	dm_digtable->cur_cck_pd_state = CCK_PD_STAGE_LOWRSSI;
+}
+EXPORT_SYMBOL(rtl_dm_diginit);

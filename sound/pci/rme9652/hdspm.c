@@ -136,7 +136,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/math64.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -1957,10 +1957,8 @@ static void snd_hdspm_midi_output_timer(unsigned long data)
 	   leaving istimer wherever it was set before.
 	*/
 
-	if (hmidi->istimer) {
-		hmidi->timer.expires = 1 + jiffies;
-		add_timer(&hmidi->timer);
-	}
+	if (hmidi->istimer)
+		mod_timer(&hmidi->timer, 1 + jiffies);
 
 	spin_unlock_irqrestore (&hmidi->lock, flags);
 }
@@ -1975,11 +1973,9 @@ snd_hdspm_midi_output_trigger(struct snd_rawmidi_substream *substream, int up)
 	spin_lock_irqsave (&hmidi->lock, flags);
 	if (up) {
 		if (!hmidi->istimer) {
-			init_timer(&hmidi->timer);
-			hmidi->timer.function = snd_hdspm_midi_output_timer;
-			hmidi->timer.data = (unsigned long) hmidi;
-			hmidi->timer.expires = 1 + jiffies;
-			add_timer(&hmidi->timer);
+			setup_timer(&hmidi->timer, snd_hdspm_midi_output_timer,
+				    (unsigned long) hmidi);
+			mod_timer(&hmidi->timer, 1 + jiffies);
 			hmidi->istimer++;
 		}
 	} else {
@@ -6965,9 +6961,7 @@ static int snd_hdspm_free(struct hdspm * hdspm)
 		free_irq(hdspm->irq, (void *) hdspm);
 
 	kfree(hdspm->mixer);
-
-	if (hdspm->iobase)
-		iounmap(hdspm->iobase);
+	iounmap(hdspm->iobase);
 
 	if (hdspm->port)
 		pci_release_regions(hdspm->pci);

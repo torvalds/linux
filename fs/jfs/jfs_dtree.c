@@ -1040,8 +1040,8 @@ static int dtSplitUp(tid_t tid,
 		pxdlist.maxnpxd = 1;
 		pxdlist.npxd = 0;
 		pxd = &pxdlist.pxd[0];
-		PXDaddress(pxd, nxaddr)
-		    PXDlength(pxd, xlen + n);
+		PXDaddress(pxd, nxaddr);
+		PXDlength(pxd, xlen + n);
 		split->pxdlist = &pxdlist;
 		if ((rc = dtExtendPage(tid, ip, split, btstack))) {
 			nxaddr = addressPXD(pxd);

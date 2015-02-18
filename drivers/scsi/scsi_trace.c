@@ -143,7 +143,7 @@ scsi_trace_rw32(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "WRITE_SAME";
 		break;
 	default:
-		trace_seq_printf(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKNOWN");
 		goto out;
 	}
 
@@ -204,7 +204,7 @@ scsi_trace_service_action_in(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "GET_LBA_STATUS";
 		break;
 	default:
-		trace_seq_printf(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKNOWN");
 		goto out;
 	}
 
@@ -249,7 +249,7 @@ scsi_trace_misc(struct trace_seq *p, unsigned char *cdb, int len)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
-	trace_seq_printf(p, "-");
+	trace_seq_putc(p, '-');
 	trace_seq_putc(p, 0);
 
 	return ret;

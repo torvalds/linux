@@ -77,7 +77,7 @@ static int netpoll_start_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	features = netif_skb_features(skb);
 
-	if (vlan_tx_tag_present(skb) &&
+	if (skb_vlan_tag_present(skb) &&
 	    !vlan_hw_offload_capable(features, skb->vlan_proto)) {
 		skb = __vlan_hwaccel_push_inside(skb);
 		if (unlikely(!skb)) {

@@ -1715,12 +1715,11 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
 	int err;
 
-	bdi->capabilities = BDI_CAP_MAP_COPY;
-	err = bdi_setup_and_register(bdi, "btrfs", BDI_CAP_MAP_COPY);
+	err = bdi_setup_and_register(bdi, "btrfs");
 	if (err)
 		return err;
 
-	bdi->ra_pages	= default_backing_dev_info.ra_pages;
+	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
 	bdi->congested_fn	= btrfs_congested_fn;
 	bdi->congested_data	= info;
 	return 0;
@@ -2319,7 +2318,6 @@ int open_ctree(struct super_block *sb,
 	 */
 	fs_info->btree_inode->i_size = OFFSET_MAX;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
-	fs_info->btree_inode->i_mapping->backing_dev_info = &fs_info->bdi;
 
 	RB_CLEAR_NODE(&BTRFS_I(fs_info->btree_inode)->rb_node);
 	extent_io_tree_init(&BTRFS_I(fs_info->btree_inode)->io_tree,

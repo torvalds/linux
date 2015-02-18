@@ -71,22 +71,6 @@ static u32 *decode_read_list(u32 *va, u32 *vaend)
 }
 
 /*
- * Determine number of chunks and total bytes in chunk list. The chunk
- * list has already been verified to fit within the RPCRDMA header.
- */
-void svc_rdma_rcl_chunk_counts(struct rpcrdma_read_chunk *ch,
-			       int *ch_count, int *byte_count)
-{
-	/* compute the number of bytes represented by read chunks */
-	*byte_count = 0;
-	*ch_count = 0;
-	for (; ch->rc_discrim != 0; ch++) {
-		*byte_count = *byte_count + ntohl(ch->rc_target.rs_length);
-		*ch_count = *ch_count + 1;
-	}
-}
-
-/*
  * Decodes a write chunk list. The expected format is as follows:
  *    descrim  : xdr_one
  *    nchunks  : <count>

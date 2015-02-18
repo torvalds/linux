@@ -59,32 +59,50 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 	return mask;
 }
 
-static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
+static cpumask_t cpu_thread_map(unsigned int cpu)
+{
+	cpumask_t mask;
+	int i;
+
+	cpumask_copy(&mask, cpumask_of(cpu));
+	if (!topology_enabled || !MACHINE_HAS_TOPOLOGY)
+		return mask;
+	cpu -= cpu % (smp_cpu_mtid + 1);
+	for (i = 0; i <= smp_cpu_mtid; i++)
+		if (cpu_present(cpu + i))
+			cpumask_set_cpu(cpu + i, &mask);
+	return mask;
+}
+
+static struct mask_info *add_cpus_to_mask(struct topology_core *tl_core,
 					  struct mask_info *book,
 					  struct mask_info *socket,
 					  int one_socket_per_cpu)
 {
-	unsigned int cpu;
+	unsigned int core;
 
-	for_each_set_bit(cpu, &tl_cpu->mask[0], TOPOLOGY_CPU_BITS) {
-		unsigned int rcpu;
-		int lcpu;
+	for_each_set_bit(core, &tl_core->mask[0], TOPOLOGY_CORE_BITS) {
+		unsigned int rcore;
+		int lcpu, i;
 
-		rcpu = TOPOLOGY_CPU_BITS - 1 - cpu + tl_cpu->origin;
-		lcpu = smp_find_processor_id(rcpu);
+		rcore = TOPOLOGY_CORE_BITS - 1 - core + tl_core->origin;
+		lcpu = smp_find_processor_id(rcore << smp_cpu_mt_shift);
 		if (lcpu < 0)
 			continue;
-		cpumask_set_cpu(lcpu, &book->mask);
-		cpu_topology[lcpu].book_id = book->id;
-		cpumask_set_cpu(lcpu, &socket->mask);
-		cpu_topology[lcpu].core_id = rcpu;
-		if (one_socket_per_cpu) {
-			cpu_topology[lcpu].socket_id = rcpu;
-			socket = socket->next;
-		} else {
-			cpu_topology[lcpu].socket_id = socket->id;
+		for (i = 0; i <= smp_cpu_mtid; i++) {
+			cpu_topology[lcpu + i].book_id = book->id;
+			cpu_topology[lcpu + i].core_id = rcore;
+			cpu_topology[lcpu + i].thread_id = lcpu + i;
+			cpumask_set_cpu(lcpu + i, &book->mask);
+			cpumask_set_cpu(lcpu + i, &socket->mask);
+			if (one_socket_per_cpu)
+				cpu_topology[lcpu + i].socket_id = rcore;
+			else
+				cpu_topology[lcpu + i].socket_id = socket->id;
+			smp_cpu_set_polarization(lcpu + i, tl_core->pp);
 		}
-		smp_cpu_set_polarization(lcpu, tl_cpu->pp);
+		if (one_socket_per_cpu)
+			socket = socket->next;
 	}
 	return socket;
 }
@@ -108,7 +126,7 @@ static void clear_masks(void)
 static union topology_entry *next_tle(union topology_entry *tle)
 {
 	if (!tle->nl)
-		return (union topology_entry *)((struct topology_cpu *)tle + 1);
+		return (union topology_entry *)((struct topology_core *)tle + 1);
 	return (union topology_entry *)((struct topology_container *)tle + 1);
 }
 
@@ -231,9 +249,11 @@ static void update_cpu_masks(void)
 
 	spin_lock_irqsave(&topology_lock, flags);
 	for_each_possible_cpu(cpu) {
+		cpu_topology[cpu].thread_mask = cpu_thread_map(cpu);
 		cpu_topology[cpu].core_mask = cpu_group_map(&socket_info, cpu);
 		cpu_topology[cpu].book_mask = cpu_group_map(&book_info, cpu);
 		if (!MACHINE_HAS_TOPOLOGY) {
+			cpu_topology[cpu].thread_id = cpu;
 			cpu_topology[cpu].core_id = cpu;
 			cpu_topology[cpu].socket_id = cpu;
 			cpu_topology[cpu].book_id = cpu;
@@ -445,6 +465,12 @@ int topology_cpu_init(struct cpu *cpu)
 	return sysfs_create_group(&cpu->dev.kobj, &topology_cpu_attr_group);
 }
 
+const struct cpumask *cpu_thread_mask(int cpu)
+{
+	return &cpu_topology[cpu].thread_mask;
+}
+
+
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	return &cpu_topology[cpu].core_mask;
@@ -456,6 +482,7 @@ static const struct cpumask *cpu_book_mask(int cpu)
 }
 
 static struct sched_domain_topology_level s390_topology[] = {
+	{ cpu_thread_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
 	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
 	{ cpu_book_mask, SD_INIT_NAME(BOOK) },
 	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },

@@ -183,7 +183,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 		goto unlock_out;
 	}
 
-	error = bdi_setup_and_register(&vc->bdi, "coda", BDI_CAP_MAP_COPY);
+	error = bdi_setup_and_register(&vc->bdi, "coda");
 	if (error)
 		goto unlock_out;
 

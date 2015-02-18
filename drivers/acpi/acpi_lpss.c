@@ -1,7 +1,7 @@
 /*
  * ACPI support for Intel Lynxpoint LPSS.
  *
- * Copyright (C) 2013, 2014, Intel Corporation
+ * Copyright (C) 2013, Intel Corporation
  * Authors: Mika Westerberg <mika.westerberg@linux.intel.com>
  *          Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *
@@ -60,8 +60,6 @@ ACPI_MODULE_NAME("acpi_lpss");
 #define LPSS_CLK_DIVIDER		BIT(2)
 #define LPSS_LTR			BIT(3)
 #define LPSS_SAVE_CTX			BIT(4)
-#define LPSS_DEV_PROXY			BIT(5)
-#define LPSS_PROXY_REQ			BIT(6)
 
 struct lpss_private_data;
 
@@ -72,10 +70,8 @@ struct lpss_device_desc {
 	void (*setup)(struct lpss_private_data *pdata);
 };
 
-static struct device *proxy_device;
-
 static struct lpss_device_desc lpss_dma_desc = {
-	.flags = LPSS_CLK | LPSS_PROXY_REQ,
+	.flags = LPSS_CLK,
 };
 
 struct lpss_private_data {
@@ -129,7 +125,7 @@ static struct lpss_device_desc lpt_dev_desc = {
 };
 
 static struct lpss_device_desc lpt_i2c_dev_desc = {
-	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_LTR,
+	.flags = LPSS_CLK | LPSS_LTR,
 	.prv_offset = 0x800,
 };
 
@@ -150,24 +146,22 @@ static struct lpss_device_desc byt_pwm_dev_desc = {
 };
 
 static struct lpss_device_desc byt_uart_dev_desc = {
-	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX |
-		 LPSS_DEV_PROXY,
+	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX,
 	.prv_offset = 0x800,
 	.setup = lpss_uart_setup,
 };
 
 static struct lpss_device_desc byt_spi_dev_desc = {
-	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX |
-		 LPSS_DEV_PROXY,
+	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX,
 	.prv_offset = 0x400,
 };
 
 static struct lpss_device_desc byt_sdio_dev_desc = {
-	.flags = LPSS_CLK | LPSS_DEV_PROXY,
+	.flags = LPSS_CLK,
 };
 
 static struct lpss_device_desc byt_i2c_dev_desc = {
-	.flags = LPSS_CLK | LPSS_SAVE_CTX | LPSS_DEV_PROXY,
+	.flags = LPSS_CLK | LPSS_SAVE_CTX,
 	.prv_offset = 0x800,
 	.setup = byt_i2c_setup,
 };
@@ -313,7 +307,7 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 {
 	struct lpss_device_desc *dev_desc;
 	struct lpss_private_data *pdata;
-	struct resource_list_entry *rentry;
+	struct resource_entry *rentry;
 	struct list_head resource_list;
 	struct platform_device *pdev;
 	int ret;
@@ -333,13 +327,15 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 		goto err_out;
 
 	list_for_each_entry(rentry, &resource_list, node)
-		if (resource_type(&rentry->res) == IORESOURCE_MEM) {
+		if (resource_type(rentry->res) == IORESOURCE_MEM) {
 			if (dev_desc->prv_size_override)
 				pdata->mmio_size = dev_desc->prv_size_override;
 			else
-				pdata->mmio_size = resource_size(&rentry->res);
-			pdata->mmio_base = ioremap(rentry->res.start,
+				pdata->mmio_size = resource_size(rentry->res);
+			pdata->mmio_base = ioremap(rentry->res->start,
 						   pdata->mmio_size);
+			if (!pdata->mmio_base)
+				goto err_out;
 			break;
 		}
 
@@ -374,8 +370,6 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	adev->driver_data = pdata;
 	pdev = acpi_create_platform_device(adev);
 	if (!IS_ERR_OR_NULL(pdev)) {
-		if (!proxy_device && dev_desc->flags & LPSS_DEV_PROXY)
-			proxy_device = &pdev->dev;
 		return 1;
 	}
 
@@ -600,26 +594,13 @@ static int acpi_lpss_runtime_suspend(struct device *dev)
 	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
 		acpi_lpss_save_ctx(dev, pdata);
 
-	ret = acpi_dev_runtime_suspend(dev);
-	if (ret)
-		return ret;
-
-	if (pdata->dev_desc->flags & LPSS_PROXY_REQ && proxy_device)
-		return pm_runtime_put_sync_suspend(proxy_device);
-
-	return 0;
+	return acpi_dev_runtime_suspend(dev);
 }
 
 static int acpi_lpss_runtime_resume(struct device *dev)
 {
 	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
 	int ret;
-
-	if (pdata->dev_desc->flags & LPSS_PROXY_REQ && proxy_device) {
-		ret = pm_runtime_get_sync(proxy_device);
-		if (ret)
-			return ret;
-	}
 
 	ret = acpi_dev_runtime_resume(dev);
 	if (ret)

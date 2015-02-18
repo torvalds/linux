@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -262,45 +262,6 @@ acpi_get_table_header(char *signature,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_table_header)
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_unload_table_id
- *
- * PARAMETERS:  id            - Owner ID of the table to be removed.
- *
- * RETURN:      Status
- *
- * DESCRIPTION: This routine is used to force the unload of a table (by id)
- *
- ******************************************************************************/
-acpi_status acpi_unload_table_id(acpi_owner_id id)
-{
-	int i;
-	acpi_status status = AE_NOT_EXIST;
-
-	ACPI_FUNCTION_TRACE(acpi_unload_table_id);
-
-	/* Find table in the global table list */
-	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
-		if (id != acpi_gbl_root_table_list.tables[i].owner_id) {
-			continue;
-		}
-		/*
-		 * Delete all namespace objects owned by this table. Note that these
-		 * objects can appear anywhere in the namespace by virtue of the AML
-		 * "Scope" operator. Thus, we need to track ownership by an ID, not
-		 * simply a position within the hierarchy
-		 */
-		acpi_tb_delete_namespace_by_owner(i);
-		status = acpi_tb_release_owner_id(i);
-		acpi_tb_set_table_loaded_flag(i, FALSE);
-		break;
-	}
-	return_ACPI_STATUS(status);
-}
-
-ACPI_EXPORT_SYMBOL(acpi_unload_table_id)
 
 /*******************************************************************************
  *

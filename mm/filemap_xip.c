@@ -9,6 +9,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/backing-dev.h>
 #include <linux/pagemap.h>
 #include <linux/export.h>
 #include <linux/uio.h>
@@ -301,7 +302,6 @@ out:
 static const struct vm_operations_struct xip_file_vm_ops = {
 	.fault	= xip_file_fault,
 	.page_mkwrite	= filemap_page_mkwrite,
-	.remap_pages = generic_file_remap_pages,
 };
 
 int xip_file_mmap(struct file * file, struct vm_area_struct * vma)
@@ -410,7 +410,7 @@ xip_file_write(struct file *filp, const char __user *buf, size_t len,
 	count = len;
 
 	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = mapping->backing_dev_info;
+	current->backing_dev_info = inode_to_bdi(inode);
 
 	ret = generic_write_checks(filp, &pos, &count, S_ISBLK(inode->i_mode));
 	if (ret)

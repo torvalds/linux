@@ -36,7 +36,9 @@
 #ifndef _TIPC_SERVER_H
 #define _TIPC_SERVER_H
 
-#include "core.h"
+#include <linux/idr.h>
+#include <linux/tipc.h>
+#include <net/net_namespace.h>
 
 #define TIPC_SERVER_NAME_LEN	32
 
@@ -45,6 +47,7 @@
  * @conn_idr: identifier set of connection
  * @idr_lock: protect the connection identifier set
  * @idr_in_use: amount of allocated identifier entry
+ * @net: network namspace instance
  * @rcvbuf_cache: memory cache of server receive buffer
  * @rcv_wq: receive workqueue
  * @send_wq: send workqueue
@@ -61,16 +64,18 @@ struct tipc_server {
 	struct idr conn_idr;
 	spinlock_t idr_lock;
 	int idr_in_use;
+	struct net *net;
 	struct kmem_cache *rcvbuf_cache;
 	struct workqueue_struct *rcv_wq;
 	struct workqueue_struct *send_wq;
 	int max_rcvbuf_size;
-	void *(*tipc_conn_new) (int conid);
-	void (*tipc_conn_shutdown) (int conid, void *usr_data);
-	void (*tipc_conn_recvmsg) (int conid, struct sockaddr_tipc *addr,
-				   void *usr_data, void *buf, size_t len);
+	void *(*tipc_conn_new)(int conid);
+	void (*tipc_conn_shutdown)(int conid, void *usr_data);
+	void (*tipc_conn_recvmsg)(struct net *net, int conid,
+				  struct sockaddr_tipc *addr, void *usr_data,
+				  void *buf, size_t len);
 	struct sockaddr_tipc *saddr;
-	const char name[TIPC_SERVER_NAME_LEN];
+	char name[TIPC_SERVER_NAME_LEN];
 	int imp;
 	int type;
 };

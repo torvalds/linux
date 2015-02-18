@@ -1,7 +1,7 @@
 /*
  * net/sched/sch_fq.c Fair Queue Packet Scheduler (per flow pacing)
  *
- *  Copyright (C) 2013 Eric Dumazet <edumazet@google.com>
+ *  Copyright (C) 2013-2015 Eric Dumazet <edumazet@google.com>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -52,6 +52,7 @@
 #include <net/pkt_sched.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
+#include <net/tcp.h>
 
 /*
  * Per flow structure, dynamically allocated
@@ -92,6 +93,7 @@ struct fq_sched_data {
 	u32		flow_refill_delay;
 	u32		flow_max_rate;	/* optional max rate per flow */
 	u32		flow_plimit;	/* max packets per flow */
+	u32		orphan_mask;	/* mask for orphaned skb */
 	struct rb_root	*fq_root;
 	u8		rate_enable;
 	u8		fq_trees_log;
@@ -222,11 +224,20 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 	if (unlikely((skb->priority & TC_PRIO_MAX) == TC_PRIO_CONTROL))
 		return &q->internal;
 
-	if (unlikely(!sk)) {
+	/* SYNACK messages are attached to a listener socket.
+	 * 1) They are not part of a 'flow' yet
+	 * 2) We do not want to rate limit them (eg SYNFLOOD attack),
+	 *    especially if the listener set SO_MAX_PACING_RATE
+	 * 3) We pretend they are orphaned
+	 */
+	if (!sk || sk->sk_state == TCP_LISTEN) {
+		unsigned long hash = skb_get_hash(skb) & q->orphan_mask;
+
 		/* By forcing low order bit to 1, we make sure to not
 		 * collide with a local flow (socket pointers are word aligned)
 		 */
-		sk = (struct sock *)(skb_get_hash(skb) | 1L);
+		sk = (struct sock *)((hash << 1) | 1UL);
+		skb_orphan(skb);
 	}
 
 	root = &q->fq_root[hash_32((u32)(long)sk, q->fq_trees_log)];
@@ -445,7 +456,9 @@ begin:
 		goto begin;
 	}
 
-	if (unlikely(f->head && now < f->time_next_packet)) {
+	skb = f->head;
+	if (unlikely(skb && now < f->time_next_packet &&
+		     !skb_is_tcp_pure_ack(skb))) {
 		head->first = f->next;
 		fq_flow_set_throttled(q, f);
 		goto begin;
@@ -464,14 +477,17 @@ begin:
 		goto begin;
 	}
 	prefetch(&skb->end);
-	f->time_next_packet = now;
 	f->credit -= qdisc_pkt_len(skb);
 
 	if (f->credit > 0 || !q->rate_enable)
 		goto out;
 
+	/* Do not pace locally generated ack packets */
+	if (skb_is_tcp_pure_ack(skb))
+		goto out;
+
 	rate = q->flow_max_rate;
-	if (skb->sk && skb->sk->sk_state != TCP_TIME_WAIT)
+	if (skb->sk)
 		rate = min(skb->sk->sk_pacing_rate, rate);
 
 	if (rate != ~0U) {
@@ -670,8 +686,14 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 	if (tb[TCA_FQ_FLOW_PLIMIT])
 		q->flow_plimit = nla_get_u32(tb[TCA_FQ_FLOW_PLIMIT]);
 
-	if (tb[TCA_FQ_QUANTUM])
-		q->quantum = nla_get_u32(tb[TCA_FQ_QUANTUM]);
+	if (tb[TCA_FQ_QUANTUM]) {
+		u32 quantum = nla_get_u32(tb[TCA_FQ_QUANTUM]);
+
+		if (quantum > 0)
+			q->quantum = quantum;
+		else
+			err = -EINVAL;
+	}
 
 	if (tb[TCA_FQ_INITIAL_QUANTUM])
 		q->initial_quantum = nla_get_u32(tb[TCA_FQ_INITIAL_QUANTUM]);
@@ -697,6 +719,9 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 
 		q->flow_refill_delay = usecs_to_jiffies(usecs_delay);
 	}
+
+	if (tb[TCA_FQ_ORPHAN_MASK])
+		q->orphan_mask = nla_get_u32(tb[TCA_FQ_ORPHAN_MASK]);
 
 	if (!err) {
 		sch_tree_unlock(sch);
@@ -743,6 +768,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->delayed		= RB_ROOT;
 	q->fq_root		= NULL;
 	q->fq_trees_log		= ilog2(1024);
+	q->orphan_mask		= 1024 - 1;
 	qdisc_watchdog_init(&q->watchdog, sch);
 
 	if (opt)
@@ -772,6 +798,7 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_FQ_FLOW_MAX_RATE, q->flow_max_rate) ||
 	    nla_put_u32(skb, TCA_FQ_FLOW_REFILL_DELAY,
 			jiffies_to_usecs(q->flow_refill_delay)) ||
+	    nla_put_u32(skb, TCA_FQ_ORPHAN_MASK, q->orphan_mask) ||
 	    nla_put_u32(skb, TCA_FQ_BUCKETS_LOG, q->fq_trees_log))
 		goto nla_put_failure;
 

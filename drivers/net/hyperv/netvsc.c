@@ -217,7 +217,7 @@ static int netvsc_destroy_buf(struct netvsc_device *net_device)
 static int netvsc_init_buf(struct hv_device *device)
 {
 	int ret = 0;
-	int t;
+	unsigned long t;
 	struct netvsc_device *net_device;
 	struct nvsp_message *init_packet;
 	struct net_device *ndev;
@@ -409,7 +409,8 @@ static int negotiate_nvsp_ver(struct hv_device *device,
 			      struct nvsp_message *init_packet,
 			      u32 nvsp_ver)
 {
-	int ret, t;
+	int ret;
+	unsigned long t;
 
 	memset(init_packet, 0, sizeof(struct nvsp_message));
 	init_packet->hdr.msg_type = NVSP_MSG_TYPE_INIT;
@@ -684,9 +685,9 @@ static u32 netvsc_get_next_send_section(struct netvsc_device *net_device)
 	return ret_val;
 }
 
-u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
-			    unsigned int section_index,
-			    struct hv_netvsc_packet *packet)
+static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
+				   unsigned int section_index,
+				   struct hv_netvsc_packet *packet)
 {
 	char *start = net_device->send_buf;
 	char *dest = (start + (section_index * net_device->send_section_size));
@@ -716,7 +717,7 @@ int netvsc_send(struct hv_device *device,
 	u64 req_id;
 	unsigned int section_index = NETVSC_INVALID_INDEX;
 	u32 msg_size = 0;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	u16 q_idx = packet->q_idx;
 
 
@@ -743,8 +744,6 @@ int netvsc_send(struct hv_device *device,
 							   packet);
 			skb = (struct sk_buff *)
 			      (unsigned long)packet->send_completion_tid;
-			if (skb)
-				dev_kfree_skb_any(skb);
 			packet->page_buf_cnt = 0;
 		}
 	}
@@ -808,6 +807,13 @@ int netvsc_send(struct hv_device *device,
 	} else {
 		netdev_err(ndev, "Unable to send packet %p ret %d\n",
 			   packet, ret);
+	}
+
+	if (ret != 0) {
+		if (section_index != NETVSC_INVALID_INDEX)
+			netvsc_free_send_slot(net_device, section_index);
+	} else if (skb) {
+		dev_kfree_skb_any(skb);
 	}
 
 	return ret;

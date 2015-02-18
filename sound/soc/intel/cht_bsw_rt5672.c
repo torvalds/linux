@@ -140,6 +140,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
 	struct snd_soc_dai *codec_dai = runtime->codec_dai;
+	struct snd_soc_codec *codec = codec_dai->codec;
 
 	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
 	ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xF, 0xF, 4, 24);
@@ -148,6 +149,19 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
+	/* Select codec ASRC clock source to track I2S1 clock, because codec
+	 * is in slave mode and 100fs I2S format (BCLK = 100 * LRCLK) cannot
+	 * be supported by RT5672. Otherwise, ASRC will be disabled and cause
+	 * noise.
+	 */
+	rt5670_sel_asrc_clk_src(codec,
+				RT5670_DA_STEREO_FILTER
+				| RT5670_DA_MONO_L_FILTER
+				| RT5670_DA_MONO_R_FILTER
+				| RT5670_AD_STEREO_FILTER
+				| RT5670_AD_MONO_L_FILTER
+				| RT5670_AD_MONO_R_FILTER,
+				RT5670_CLK_SEL_I2S1_ASRC);
 	return 0;
 }
 
@@ -270,7 +284,6 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 static struct platform_driver snd_cht_mc_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "cht-bsw-rt5672",
 		.pm = &snd_soc_pm_ops,
 	},

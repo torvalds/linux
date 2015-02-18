@@ -775,7 +775,8 @@ static int wm5100_out_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event)
 {
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(w->codec);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
 
 	switch (w->reg) {
 	case WM5100_CHANNEL_ENABLES_1:
@@ -839,7 +840,7 @@ static int wm5100_post_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 

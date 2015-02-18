@@ -9,9 +9,11 @@ struct cpu;
 #ifdef CONFIG_SCHED_BOOK
 
 struct cpu_topology_s390 {
+	unsigned short thread_id;
 	unsigned short core_id;
 	unsigned short socket_id;
 	unsigned short book_id;
+	cpumask_t thread_mask;
 	cpumask_t core_mask;
 	cpumask_t book_mask;
 };
@@ -19,6 +21,8 @@ struct cpu_topology_s390 {
 extern struct cpu_topology_s390 cpu_topology[NR_CPUS];
 
 #define topology_physical_package_id(cpu)	(cpu_topology[cpu].socket_id)
+#define topology_thread_id(cpu)			(cpu_topology[cpu].thread_id)
+#define topology_thread_cpumask(cpu)		(&cpu_topology[cpu].thread_mask)
 #define topology_core_id(cpu)			(cpu_topology[cpu].core_id)
 #define topology_core_cpumask(cpu)		(&cpu_topology[cpu].core_mask)
 #define topology_book_id(cpu)			(cpu_topology[cpu].book_id)

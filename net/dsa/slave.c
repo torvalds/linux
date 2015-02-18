@@ -46,6 +46,7 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d:%.2x",
 			ds->index, ds->pd->sw_addr);
 	ds->slave_mii_bus->parent = ds->master_dev;
+	ds->slave_mii_bus->phy_mask = ~ds->phys_mii_mask;
 }
 
 
@@ -674,19 +675,6 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	}
 
 	netif_carrier_off(slave_dev);
-
-	if (p->phy != NULL) {
-		if (ds->drv->get_phy_flags)
-			p->phy->dev_flags |= ds->drv->get_phy_flags(ds, port);
-
-		phy_attach(slave_dev, dev_name(&p->phy->dev),
-			   PHY_INTERFACE_MODE_GMII);
-
-		p->phy->autoneg = AUTONEG_ENABLE;
-		p->phy->speed = 0;
-		p->phy->duplex = 0;
-		p->phy->advertising = p->phy->supported | ADVERTISED_Autoneg;
-	}
 
 	return slave_dev;
 }

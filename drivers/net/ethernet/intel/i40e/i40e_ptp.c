@@ -247,7 +247,12 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 	u32 prttsyn_stat;
 	int n;
 
-	if (!(pf->flags & I40E_FLAG_PTP))
+	/* Since we cannot turn off the Rx timestamp logic if the device is
+	 * configured for Tx timestamping, we check if Rx timestamping is
+	 * configured. We don't want to spuriously warn about Rx timestamp
+	 * hangs if we don't care about the timestamps.
+	 */
+	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_rx)
 		return;
 
 	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
@@ -305,6 +310,13 @@ void i40e_ptp_tx_hwtstamp(struct i40e_pf *pf)
 	u32 hi, lo;
 	u64 ns;
 
+	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_tx)
+		return;
+
+	/* don't attempt to timestamp if we don't have an skb */
+	if (!pf->ptp_tx_skb)
+		return;
+
 	lo = rd32(hw, I40E_PRTTSYN_TXTIME_L);
 	hi = rd32(hw, I40E_PRTTSYN_TXTIME_H);
 
@@ -338,7 +350,7 @@ void i40e_ptp_rx_hwtstamp(struct i40e_pf *pf, struct sk_buff *skb, u8 index)
 	/* Since we cannot turn off the Rx timestamp logic if the device is
 	 * doing Tx timestamping, check if Rx timestamping is configured.
 	 */
-	if (!pf->ptp_rx)
+	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_rx)
 		return;
 
 	hw = &pf->hw;
@@ -467,7 +479,12 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		pf->ptp_rx = false;
-		tsyntype = 0;
+		/* We set the type to V1, but do not enable UDP packet
+		 * recognition. In this way, we should be as close to
+		 * disabling PTP Rx timestamps as possible since V1 packets
+		 * are always UDP, since L2 packets are a V2 feature.
+		 */
+		tsyntype = I40E_PRTTSYN_CTL1_TSYNTYPE_V1;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
@@ -521,17 +538,18 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 		regval &= ~I40E_PFINT_ICR0_ENA_TIMESYNC_MASK;
 	wr32(hw, I40E_PFINT_ICR0_ENA, regval);
 
-	/* There is no simple on/off switch for Rx. To "disable" Rx support,
-	 * ignore any received timestamps, rather than turn off the clock.
+	/* Although there is no simple on/off switch for Rx, we "disable" Rx
+	 * timestamps by setting to V1 only mode and clear the UDP
+	 * recognition. This ought to disable all PTP Rx timestamps as V1
+	 * packets are always over UDP. Note that software is configured to
+	 * ignore Rx timestamps via the pf->ptp_rx flag.
 	 */
-	if (pf->ptp_rx) {
-		regval = rd32(hw, I40E_PRTTSYN_CTL1);
-		/* clear everything but the enable bit */
-		regval &= I40E_PRTTSYN_CTL1_TSYNENA_MASK;
-		/* now enable bits for desired Rx timestamps */
-		regval |= tsyntype;
-		wr32(hw, I40E_PRTTSYN_CTL1, regval);
-	}
+	regval = rd32(hw, I40E_PRTTSYN_CTL1);
+	/* clear everything but the enable bit */
+	regval &= I40E_PRTTSYN_CTL1_TSYNENA_MASK;
+	/* now enable bits for desired Rx timestamps */
+	regval |= tsyntype;
+	wr32(hw, I40E_PRTTSYN_CTL1, regval);
 
 	return 0;
 }

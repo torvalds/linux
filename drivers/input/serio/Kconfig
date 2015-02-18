@@ -281,4 +281,14 @@ config HYPERV_KEYBOARD
 	  To compile this driver as a module, choose M here: the module will
 	  be called hyperv_keyboard.
 
+config SERIO_SUN4I_PS2
+	tristate "Allwinner A10 PS/2 controller support"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	help
+	  This selects support for the PS/2 Host Controller on
+	  Allwinner A10.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sun4i-ps2.
+
 endif

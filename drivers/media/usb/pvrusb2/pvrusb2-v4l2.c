@@ -89,16 +89,6 @@ static int vbi_nr[PVR_NUM] = {[0 ... PVR_NUM-1] = -1};
 module_param_array(vbi_nr, int, NULL, 0444);
 MODULE_PARM_DESC(vbi_nr, "Offset for device's vbi dev minor");
 
-static struct v4l2_capability pvr_capability ={
-	.driver         = "pvrusb2",
-	.card           = "Hauppauge WinTV pvr-usb2",
-	.bus_info       = "usb",
-	.version        = LINUX_VERSION_CODE,
-	.capabilities   = (V4L2_CAP_VIDEO_CAPTURE |
-			   V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
-			   V4L2_CAP_READWRITE),
-};
-
 static struct v4l2_fmtdesc pvr_fmtdesc [] = {
 	{
 		.index          = 0,
@@ -160,10 +150,22 @@ static int pvr2_querycap(struct file *file, void *priv, struct v4l2_capability *
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
 
-	memcpy(cap, &pvr_capability, sizeof(struct v4l2_capability));
+	strlcpy(cap->driver, "pvrusb2", sizeof(cap->driver));
 	strlcpy(cap->bus_info, pvr2_hdw_get_bus_info(hdw),
 			sizeof(cap->bus_info));
 	strlcpy(cap->card, pvr2_hdw_get_desc(hdw), sizeof(cap->card));
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |
+			    V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
+			    V4L2_CAP_READWRITE | V4L2_CAP_DEVICE_CAPS;
+	switch (fh->pdi->devbase.vfl_type) {
+	case VFL_TYPE_GRABBER:
+		cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO;
+		break;
+	case VFL_TYPE_RADIO:
+		cap->device_caps = V4L2_CAP_RADIO;
+		break;
+	}
+	cap->device_caps |= V4L2_CAP_TUNER | V4L2_CAP_READWRITE;
 	return 0;
 }
 
@@ -1360,13 +1362,3 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 	pvr2_v4l2_destroy_no_lock(vp);
 	return NULL;
 }
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

@@ -37,6 +37,11 @@ static struct usb_device_id mwifiex_usb_table[] = {
 	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8797_PID_2,
 				       USB_CLASS_VENDOR_SPEC,
 				       USB_SUBCLASS_VENDOR_SPEC, 0xff)},
+	/* 8801 */
+	{USB_DEVICE(USB8XXX_VID, USB8801_PID_1)},
+	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8801_PID_2,
+				       USB_CLASS_VENDOR_SPEC,
+				       USB_SUBCLASS_VENDOR_SPEC, 0xff)},
 	/* 8897 */
 	{USB_DEVICE(USB8XXX_VID, USB8897_PID_1)},
 	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8897_PID_2,
@@ -361,11 +366,13 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	switch (id_product) {
 	case USB8766_PID_1:
 	case USB8797_PID_1:
+	case USB8801_PID_1:
 	case USB8897_PID_1:
 		card->usb_boot_state = USB8XXX_FW_DNLD;
 		break;
 	case USB8766_PID_2:
 	case USB8797_PID_2:
+	case USB8801_PID_2:
 	case USB8897_PID_2:
 		card->usb_boot_state = USB8XXX_FW_READY;
 		break;
@@ -792,11 +799,19 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	case USB8897_PID_2:
 		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
 		strcpy(adapter->fw_name, USB8897_DEFAULT_FW_NAME);
+		adapter->ext_scan = true;
 		break;
 	case USB8766_PID_1:
 	case USB8766_PID_2:
 		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 		strcpy(adapter->fw_name, USB8766_DEFAULT_FW_NAME);
+		adapter->ext_scan = true;
+		break;
+	case USB8801_PID_1:
+	case USB8801_PID_2:
+		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
+		strcpy(adapter->fw_name, USB8801_DEFAULT_FW_NAME);
+		adapter->ext_scan = false;
 		break;
 	case USB8797_PID_1:
 	case USB8797_PID_2:
@@ -930,7 +945,8 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	} while ((dnld_cmd != FW_HAS_LAST_BLOCK) && retries);
 
 cleanup:
-	dev_dbg(adapter->dev, "%s: %d bytes downloaded\n", __func__, tlen);
+	dev_notice(adapter->dev,
+		   "info: FW download over, size %d bytes\n", tlen);
 
 	kfree(recv_buff);
 	kfree(fwdata);
@@ -990,6 +1006,7 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
 	/* Simulation of HS_AWAKE event */
 	adapter->pm_wakeup_fw_try = false;
+	del_timer_sync(&adapter->wakeup_timer);
 	adapter->pm_wakeup_card_req = false;
 	adapter->ps_state = PS_STATE_AWAKE;
 
@@ -1008,6 +1025,13 @@ static void mwifiex_usb_submit_rem_rx_urbs(struct mwifiex_adapter *adapter)
 		ctx = &card->rx_data_list[i];
 		mwifiex_usb_submit_rx_urb(ctx, MWIFIEX_RX_DATA_BUF_SIZE);
 	}
+}
+
+/* This function is called after the card has woken up. */
+static inline int
+mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
+{
+	return 0;
 }
 
 static struct mwifiex_if_ops usb_ops = {
@@ -1074,4 +1098,5 @@ MODULE_VERSION(USB_VERSION);
 MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(USB8766_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(USB8797_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(USB8801_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(USB8897_DEFAULT_FW_NAME);

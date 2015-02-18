@@ -185,6 +185,16 @@ config SPI_DAVINCI
 	help
 	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
 
+config SPI_DLN2
+       tristate "Diolan DLN-2 USB SPI adapter"
+       depends on MFD_DLN2
+       help
+         If you say yes to this option, support will be included for Diolan
+         DLN2, a USB to SPI interface.
+
+         This driver can also be built as a module.  If so, the module
+         will be called spi-dln2.
+
 config SPI_EFM32
 	tristate "EFM32 SPI controller"
 	depends on OF && ARM && (ARCH_EFM32 || COMPILE_TEST)
@@ -279,7 +289,7 @@ config SPI_FSL_CPM
 	depends on FSL_SOC
 
 config SPI_FSL_SPI
-	bool "Freescale SPI controller and Aeroflex Gaisler GRLIB SPI controller"
+	tristate "Freescale SPI controller and Aeroflex Gaisler GRLIB SPI controller"
 	depends on OF
 	select SPI_FSL_LIB
 	select SPI_FSL_CPM if FSL_SOC
@@ -292,7 +302,6 @@ config SPI_FSL_SPI
 
 config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
-	select SPI_BITBANG
 	select REGMAP_MMIO
 	depends on SOC_VF610 || COMPILE_TEST
 	help
@@ -300,7 +309,7 @@ config SPI_FSL_DSPI
 	  mode. VF610 platform uses the controller.
 
 config SPI_FSL_ESPI
-	bool "Freescale eSPI controller"
+	tristate "Freescale eSPI controller"
 	depends on FSL_SOC
 	select SPI_FSL_LIB
 	help
@@ -460,7 +469,6 @@ config SPI_S3C24XX_FIQ
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
 	depends on (PLAT_SAMSUNG || ARCH_EXYNOS)
-	select S3C64XX_PL080 if ARCH_S3C64XX
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.
 
@@ -502,6 +510,13 @@ config SPI_SIRF
 	select SPI_BITBANG
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
+
+config SPI_ST_SSC4
+	tristate "STMicroelectronics SPI SSC-based driver"
+	depends on ARCH_STI
+	help
+	  STMicroelectronics SoCs support for SPI. If you say yes to
+	  this option, support will be included for the SSC driven SPI.
 
 config SPI_SUN4I
 	tristate "Allwinner A10 SoCs SPI controller"
@@ -594,7 +609,6 @@ config SPI_XTENSA_XTFPGA
 	  and is used to control daughterboard audio codec. It always transfers
 	  16 bit words in SPI mode 0, automatically asserting CS on transfer
 	  start and deasserting on end.
-
 
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"

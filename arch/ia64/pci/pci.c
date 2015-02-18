@@ -188,12 +188,12 @@ static u64 add_io_space(struct pci_root_info *info,
 
 	name = (char *)(iospace + 1);
 
-	min = addr->minimum;
-	max = min + addr->address_length - 1;
+	min = addr->address.minimum;
+	max = min + addr->address.address_length - 1;
 	if (addr->info.io.translation_type == ACPI_SPARSE_TRANSLATION)
 		sparse = 1;
 
-	space_nr = new_space(addr->translation_offset, sparse);
+	space_nr = new_space(addr->address.translation_offset, sparse);
 	if (space_nr == ~0)
 		goto free_resource;
 
@@ -247,7 +247,7 @@ static acpi_status resource_to_window(struct acpi_resource *resource,
 	if (ACPI_SUCCESS(status) &&
 	    (addr->resource_type == ACPI_MEMORY_RANGE ||
 	     addr->resource_type == ACPI_IO_RANGE) &&
-	    addr->address_length &&
+	    addr->address.address_length &&
 	    addr->producer_consumer == ACPI_PRODUCER)
 		return AE_OK;
 
@@ -284,7 +284,7 @@ static acpi_status add_window(struct acpi_resource *res, void *data)
 	if (addr.resource_type == ACPI_MEMORY_RANGE) {
 		flags = IORESOURCE_MEM;
 		root = &iomem_resource;
-		offset = addr.translation_offset;
+		offset = addr.address.translation_offset;
 	} else if (addr.resource_type == ACPI_IO_RANGE) {
 		flags = IORESOURCE_IO;
 		root = &ioport_resource;
@@ -297,8 +297,8 @@ static acpi_status add_window(struct acpi_resource *res, void *data)
 	resource = &info->res[info->res_num];
 	resource->name = info->name;
 	resource->flags = flags;
-	resource->start = addr.minimum + offset;
-	resource->end = resource->start + addr.address_length - 1;
+	resource->start = addr.address.minimum + offset;
+	resource->end = resource->start + addr.address.address_length - 1;
 	info->res_offset[info->res_num] = offset;
 
 	if (insert_resource(root, resource)) {
@@ -487,45 +487,39 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 	return 0;
 }
 
-static int is_valid_resource(struct pci_dev *dev, int idx)
-{
-	unsigned int i, type_mask = IORESOURCE_IO | IORESOURCE_MEM;
-	struct resource *devr = &dev->resource[idx], *busr;
-
-	if (!dev->bus)
-		return 0;
-
-	pci_bus_for_each_resource(dev->bus, busr, i) {
-		if (!busr || ((busr->flags ^ devr->flags) & type_mask))
-			continue;
-		if ((devr->start) && (devr->start >= busr->start) &&
-				(devr->end <= busr->end))
-			return 1;
-	}
-	return 0;
-}
-
-static void pcibios_fixup_resources(struct pci_dev *dev, int start, int limit)
-{
-	int i;
-
-	for (i = start; i < limit; i++) {
-		if (!dev->resource[i].flags)
-			continue;
-		if ((is_valid_resource(dev, i)))
-			pci_claim_resource(dev, i);
-	}
-}
-
 void pcibios_fixup_device_resources(struct pci_dev *dev)
 {
-	pcibios_fixup_resources(dev, 0, PCI_BRIDGE_RESOURCES);
+	int idx;
+
+	if (!dev->bus)
+		return;
+
+	for (idx = 0; idx < PCI_BRIDGE_RESOURCES; idx++) {
+		struct resource *r = &dev->resource[idx];
+
+		if (!r->flags || r->parent || !r->start)
+			continue;
+
+		pci_claim_resource(dev, idx);
+	}
 }
 EXPORT_SYMBOL_GPL(pcibios_fixup_device_resources);
 
 static void pcibios_fixup_bridge_resources(struct pci_dev *dev)
 {
-	pcibios_fixup_resources(dev, PCI_BRIDGE_RESOURCES, PCI_NUM_RESOURCES);
+	int idx;
+
+	if (!dev->bus)
+		return;
+
+	for (idx = PCI_BRIDGE_RESOURCES; idx < PCI_NUM_RESOURCES; idx++) {
+		struct resource *r = &dev->resource[idx];
+
+		if (!r->flags || r->parent || !r->start)
+			continue;
+
+		pci_claim_bridge_resource(dev, idx);
+	}
 }
 
 /*

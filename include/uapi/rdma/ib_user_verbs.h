@@ -90,7 +90,6 @@ enum {
 };
 
 enum {
-	IB_USER_VERBS_EX_CMD_QUERY_DEVICE = IB_USER_VERBS_CMD_QUERY_DEVICE,
 	IB_USER_VERBS_EX_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
 	IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
 };
@@ -200,32 +199,6 @@ struct ib_uverbs_query_device_resp {
 	__u8  local_ca_ack_delay;
 	__u8  phys_port_cnt;
 	__u8  reserved[4];
-};
-
-enum {
-	IB_USER_VERBS_EX_QUERY_DEVICE_ODP =		1ULL << 0,
-};
-
-struct ib_uverbs_ex_query_device {
-	__u32 comp_mask;
-	__u32 reserved;
-};
-
-struct ib_uverbs_odp_caps {
-	__u64 general_caps;
-	struct {
-		__u32 rc_odp_caps;
-		__u32 uc_odp_caps;
-		__u32 ud_odp_caps;
-	} per_transport_caps;
-	__u32 reserved;
-};
-
-struct ib_uverbs_ex_query_device_resp {
-	struct ib_uverbs_query_device_resp base;
-	__u32 comp_mask;
-	__u32 reserved;
-	struct ib_uverbs_odp_caps odp_caps;
 };
 
 struct ib_uverbs_query_port {

@@ -78,6 +78,9 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct com20020_priv),
 			    GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
 	ci = (struct com20020_pci_card_info *)id->driver_data;
 	priv->ci = ci;
 

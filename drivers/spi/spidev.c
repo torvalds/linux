@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -317,6 +313,37 @@ done:
 	return status;
 }
 
+static struct spi_ioc_transfer *
+spidev_get_ioc_message(unsigned int cmd, struct spi_ioc_transfer __user *u_ioc,
+		unsigned *n_ioc)
+{
+	struct spi_ioc_transfer	*ioc;
+	u32	tmp;
+
+	/* Check type, command number and direction */
+	if (_IOC_TYPE(cmd) != SPI_IOC_MAGIC
+			|| _IOC_NR(cmd) != _IOC_NR(SPI_IOC_MESSAGE(0))
+			|| _IOC_DIR(cmd) != _IOC_WRITE)
+		return ERR_PTR(-ENOTTY);
+
+	tmp = _IOC_SIZE(cmd);
+	if ((tmp % sizeof(struct spi_ioc_transfer)) != 0)
+		return ERR_PTR(-EINVAL);
+	*n_ioc = tmp / sizeof(struct spi_ioc_transfer);
+	if (*n_ioc == 0)
+		return NULL;
+
+	/* copy into scratch area */
+	ioc = kmalloc(tmp, GFP_KERNEL);
+	if (!ioc)
+		return ERR_PTR(-ENOMEM);
+	if (__copy_from_user(ioc, u_ioc, tmp)) {
+		kfree(ioc);
+		return ERR_PTR(-EFAULT);
+	}
+	return ioc;
+}
+
 static long
 spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -456,32 +483,15 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	default:
 		/* segmented and/or full-duplex I/O request */
-		if (_IOC_NR(cmd) != _IOC_NR(SPI_IOC_MESSAGE(0))
-				|| _IOC_DIR(cmd) != _IOC_WRITE) {
-			retval = -ENOTTY;
+		/* Check message and copy into scratch area */
+		ioc = spidev_get_ioc_message(cmd,
+				(struct spi_ioc_transfer __user *)arg, &n_ioc);
+		if (IS_ERR(ioc)) {
+			retval = PTR_ERR(ioc);
 			break;
 		}
-
-		tmp = _IOC_SIZE(cmd);
-		if ((tmp % sizeof(struct spi_ioc_transfer)) != 0) {
-			retval = -EINVAL;
-			break;
-		}
-		n_ioc = tmp / sizeof(struct spi_ioc_transfer);
-		if (n_ioc == 0)
-			break;
-
-		/* copy into scratch area */
-		ioc = kmalloc(tmp, GFP_KERNEL);
-		if (!ioc) {
-			retval = -ENOMEM;
-			break;
-		}
-		if (__copy_from_user(ioc, (void __user *)arg, tmp)) {
-			kfree(ioc);
-			retval = -EFAULT;
-			break;
-		}
+		if (!ioc)
+			break;	/* n_ioc is also 0 */
 
 		/* translate to spi_message, execute */
 		retval = spidev_message(spidev, ioc, n_ioc);
@@ -496,8 +506,67 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 #ifdef CONFIG_COMPAT
 static long
+spidev_compat_ioc_message(struct file *filp, unsigned int cmd,
+		unsigned long arg)
+{
+	struct spi_ioc_transfer __user	*u_ioc;
+	int				retval = 0;
+	struct spidev_data		*spidev;
+	struct spi_device		*spi;
+	unsigned			n_ioc, n;
+	struct spi_ioc_transfer		*ioc;
+
+	u_ioc = (struct spi_ioc_transfer __user *) compat_ptr(arg);
+	if (!access_ok(VERIFY_READ, u_ioc, _IOC_SIZE(cmd)))
+		return -EFAULT;
+
+	/* guard against device removal before, or while,
+	 * we issue this ioctl.
+	 */
+	spidev = filp->private_data;
+	spin_lock_irq(&spidev->spi_lock);
+	spi = spi_dev_get(spidev->spi);
+	spin_unlock_irq(&spidev->spi_lock);
+
+	if (spi == NULL)
+		return -ESHUTDOWN;
+
+	/* SPI_IOC_MESSAGE needs the buffer locked "normally" */
+	mutex_lock(&spidev->buf_lock);
+
+	/* Check message and copy into scratch area */
+	ioc = spidev_get_ioc_message(cmd, u_ioc, &n_ioc);
+	if (IS_ERR(ioc)) {
+		retval = PTR_ERR(ioc);
+		goto done;
+	}
+	if (!ioc)
+		goto done;	/* n_ioc is also 0 */
+
+	/* Convert buffer pointers */
+	for (n = 0; n < n_ioc; n++) {
+		ioc[n].rx_buf = (uintptr_t) compat_ptr(ioc[n].rx_buf);
+		ioc[n].tx_buf = (uintptr_t) compat_ptr(ioc[n].tx_buf);
+	}
+
+	/* translate to spi_message, execute */
+	retval = spidev_message(spidev, ioc, n_ioc);
+	kfree(ioc);
+
+done:
+	mutex_unlock(&spidev->buf_lock);
+	spi_dev_put(spi);
+	return retval;
+}
+
+static long
 spidev_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	if (_IOC_TYPE(cmd) == SPI_IOC_MAGIC
+			&& _IOC_NR(cmd) == _IOC_NR(SPI_IOC_MESSAGE(0))
+			&& _IOC_DIR(cmd) == _IOC_WRITE)
+		return spidev_compat_ioc_message(filp, cmd, arg);
+
 	return spidev_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
 }
 #else

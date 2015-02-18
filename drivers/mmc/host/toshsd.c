@@ -176,7 +176,8 @@ static irqreturn_t toshsd_thread_irq(int irq, void *dev_id)
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (!sg_miter_next(sg_miter))
-		return IRQ_HANDLED;
+		goto done;
+
 	buf = sg_miter->addr;
 
 	/* Ensure we dont read more than one block. The chip will interrupt us
@@ -198,6 +199,7 @@ static irqreturn_t toshsd_thread_irq(int irq, void *dev_id)
 	sg_miter->consumed = count;
 	sg_miter_stop(sg_miter);
 
+done:
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	return IRQ_HANDLED;
@@ -699,18 +701,7 @@ static struct pci_driver toshsd_driver = {
 	.driver.pm = &toshsd_pm_ops,
 };
 
-static int __init toshsd_drv_init(void)
-{
-	return pci_register_driver(&toshsd_driver);
-}
-
-static void __exit toshsd_drv_exit(void)
-{
-	pci_unregister_driver(&toshsd_driver);
-}
-
-module_init(toshsd_drv_init);
-module_exit(toshsd_drv_exit);
+module_pci_driver(toshsd_driver);
 
 MODULE_AUTHOR("Ondrej Zary, Richard Betts");
 MODULE_DESCRIPTION("Toshiba PCI Secure Digital Host Controller Interface driver");
