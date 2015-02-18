@@ -480,6 +480,42 @@ static void disable_int(struct pxa3xx_nand_info *info, uint32_t int_mask)
 	nand_writel(info, NDCR, ndcr | int_mask);
 }
 
+static void drain_fifo(struct pxa3xx_nand_info *info, void *data, int len)
+{
+	if (info->ecc_bch) {
+		int timeout;
+
+		/*
+		 * According to the datasheet, when reading from NDDB
+		 * with BCH enabled, after each 32 bytes reads, we
+		 * have to make sure that the NDSR.RDDREQ bit is set.
+		 *
+		 * Drain the FIFO 8 32 bits reads at a time, and skip
+		 * the polling on the last read.
+		 */
+		while (len > 8) {
+			__raw_readsl(info->mmio_base + NDDB, data, 8);
+
+			for (timeout = 0;
+			     !(nand_readl(info, NDSR) & NDSR_RDDREQ);
+			     timeout++) {
+				if (timeout >= 5) {
+					dev_err(&info->pdev->dev,
+						"Timeout on RDDREQ while draining the FIFO\n");
+					return;
+				}
+
+				mdelay(1);
+			}
+
+			data += 32;
+			len -= 8;
+		}
+	}
+
+	__raw_readsl(info->mmio_base + NDDB, data, len);
+}
+
 static void handle_data_pio(struct pxa3xx_nand_info *info)
 {
 	unsigned int do_bytes = min(info->data_size, info->chunk_size);
@@ -496,14 +532,14 @@ static void handle_data_pio(struct pxa3xx_nand_info *info)
 				      DIV_ROUND_UP(info->oob_size, 4));
 		break;
 	case STATE_PIO_READING:
-		__raw_readsl(info->mmio_base + NDDB,
-			     info->data_buff + info->data_buff_pos,
-			     DIV_ROUND_UP(do_bytes, 4));
+		drain_fifo(info,
+			   info->data_buff + info->data_buff_pos,
+			   DIV_ROUND_UP(do_bytes, 4));
 
 		if (info->oob_size > 0)
-			__raw_readsl(info->mmio_base + NDDB,
-				     info->oob_buff + info->oob_buff_pos,
-				     DIV_ROUND_UP(info->oob_size, 4));
+			drain_fifo(info,
+				   info->oob_buff + info->oob_buff_pos,
+				   DIV_ROUND_UP(info->oob_size, 4));
 		break;
 	default:
 		dev_err(&info->pdev->dev, "%s: invalid state %d\n", __func__,
