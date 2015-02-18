@@ -110,6 +110,18 @@ void write_status_bar(int x, char *line)
 	wrefresh(status_bar_window);
 }
 
+/* wrap at 5 */
+#define DIAG_DEV_ROWS  5
+/*
+ * list cooling devices + "set temp" entry; wraps after 5 rows, if they fit
+ */
+static int diag_dev_rows(void)
+{
+	int entries = ptdata.nr_cooling_dev + 1;
+	int rows = max(DIAG_DEV_ROWS, (entries + 1) / 2);
+	return min(rows, entries);
+}
+
 void setup_windows(void)
 {
 	int y_begin = 1;
@@ -134,7 +146,7 @@ void setup_windows(void)
 	 * dialogue window is a pop-up, when needed it lays on top of cdev win
 	 */
 
-	dialogue_window = subwin(stdscr, ptdata.nr_cooling_dev+5, maxx-50,
+	dialogue_window = subwin(stdscr, diag_dev_rows() + 5, maxx-50,
 				DIAG_Y, DIAG_X);
 
 	thermal_data_window = subwin(stdscr, ptdata.nr_tz_sensor *
@@ -270,7 +282,6 @@ void show_cooling_device(void)
 }
 
 const char DIAG_TITLE[] = "[ TUNABLES ]";
-#define DIAG_DEV_ROWS  5
 void show_dialogue(void)
 {
 	int j, x = 0, y = 0;
@@ -287,7 +298,7 @@ void show_dialogue(void)
 	mvwprintw(w, 0, maxx/4, DIAG_TITLE);
 	/* list all the available tunables */
 	for (j = 0; j <= ptdata.nr_cooling_dev; j++) {
-		y = j % DIAG_DEV_ROWS;
+		y = j % diag_dev_rows();
 		if (y == 0 && j != 0)
 			x += 20;
 		if (j == ptdata.nr_cooling_dev)
@@ -298,7 +309,7 @@ void show_dialogue(void)
 				ptdata.cdi[j].type, ptdata.cdi[j].instance);
 	}
 	wattron(w, A_BOLD);
-	mvwprintw(w, DIAG_DEV_ROWS+1, 1, "Enter Choice [A-Z]?");
+	mvwprintw(w, diag_dev_rows()+1, 1, "Enter Choice [A-Z]?");
 	wattroff(w, A_BOLD);
 	/* print legend at the bottom line */
 	mvwprintw(w, rows - 2, 1,
@@ -450,7 +461,7 @@ static void handle_input_choice(int ch)
 			snprintf(buf, sizeof(buf), "New Value for %.10s-%2d: ",
 				ptdata.cdi[cdev_id].type,
 				ptdata.cdi[cdev_id].instance);
-		write_dialogue_win(buf, DIAG_DEV_ROWS+2, 2);
+		write_dialogue_win(buf, diag_dev_rows() + 2, 2);
 		handle_input_val(cdev_id);
 	} else {
 		snprintf(buf, sizeof(buf), "Invalid selection %d", ch);
