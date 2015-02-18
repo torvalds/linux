@@ -8,6 +8,7 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/export.h>
+#include <linux/pm.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -138,7 +139,7 @@ int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
 	drv->driver.bus = &snd_hda_bus_type;
 	drv->driver.probe = hda_codec_driver_probe;
 	drv->driver.remove = hda_codec_driver_remove;
-	/* TODO: PM and others */
+	drv->driver.pm = &hda_codec_driver_pm;
 	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(__hda_codec_driver_register);

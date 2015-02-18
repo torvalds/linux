@@ -1250,6 +1250,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	dev->groups = snd_hda_dev_attr_groups;
 	dev_set_name(dev, "hdaudioC%dD%d", bus->card->number, codec_addr);
 	dev_set_drvdata(dev, codec); /* for sysfs */
+	device_enable_async_suspend(dev);
 
 	codec->bus = bus;
 	codec->addr = codec_addr;
@@ -3970,8 +3971,31 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	codec->in_pm = 0;
 	snd_hda_power_down(codec); /* flag down before returning */
 }
+
+static int hda_codec_driver_suspend(struct device *dev)
+{
+	struct hda_codec *codec = dev_to_hda_codec(dev);
+	int i;
+
+	cancel_delayed_work_sync(&codec->jackpoll_work);
+	for (i = 0; i < codec->num_pcms; i++)
+		snd_pcm_suspend_all(codec->pcm_info[i].pcm);
+	hda_call_codec_suspend(codec, false);
+	return 0;
+}
+
+static int hda_codec_driver_resume(struct device *dev)
+{
+	hda_call_codec_resume(dev_to_hda_codec(dev));
+	return 0;
+}
 #endif /* CONFIG_PM */
 
+/* referred in hda_bind.c */
+const struct dev_pm_ops hda_codec_driver_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(hda_codec_driver_suspend,
+				hda_codec_driver_resume)
+};
 
 /**
  * snd_hda_build_controls - build mixer controls
@@ -5505,77 +5529,26 @@ int snd_hda_add_imux_item(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_add_imux_item);
 
-
-#ifdef CONFIG_PM
-/*
- * power management
- */
-
-
-static void hda_async_suspend(void *data, async_cookie_t cookie)
-{
-	hda_call_codec_suspend(data, false);
-}
-
-static void hda_async_resume(void *data, async_cookie_t cookie)
-{
-	hda_call_codec_resume(data);
-}
-
 /**
- * snd_hda_suspend - suspend the codecs
- * @bus: the HDA bus
- *
- * Returns 0 if successful.
+ * snd_hda_bus_reset - Reset the bus
+ * @bus: HD-audio bus
  */
-int snd_hda_suspend(struct hda_bus *bus)
+void snd_hda_bus_reset(struct hda_bus *bus)
 {
 	struct hda_codec *codec;
-	ASYNC_DOMAIN_EXCLUSIVE(domain);
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
+		/* FIXME: maybe a better way needed for forced reset */
 		cancel_delayed_work_sync(&codec->jackpoll_work);
+#ifdef CONFIG_PM
 		if (hda_codec_is_power_on(codec)) {
-			if (bus->num_codecs > 1)
-				async_schedule_domain(hda_async_suspend, codec,
-						      &domain);
-			else
-				hda_call_codec_suspend(codec, false);
-		}
-	}
-
-	if (bus->num_codecs > 1)
-		async_synchronize_full_domain(&domain);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hda_suspend);
-
-/**
- * snd_hda_resume - resume the codecs
- * @bus: the HDA bus
- *
- * Returns 0 if successful.
- */
-int snd_hda_resume(struct hda_bus *bus)
-{
-	struct hda_codec *codec;
-	ASYNC_DOMAIN_EXCLUSIVE(domain);
-
-	list_for_each_entry(codec, &bus->codec_list, list) {
-		if (bus->num_codecs > 1)
-			async_schedule_domain(hda_async_resume, codec, &domain);
-		else
+			hda_call_codec_suspend(codec, false);
 			hda_call_codec_resume(codec);
+		}
+#endif
 	}
-
-	if (bus->num_codecs > 1)
-		async_synchronize_full_domain(&domain);
-
-	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_hda_resume);
-#endif /* CONFIG_PM */
+EXPORT_SYMBOL_GPL(snd_hda_bus_reset);
 
 /*
  * generic arrays

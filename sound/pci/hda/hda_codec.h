@@ -567,14 +567,12 @@ void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 
 int snd_hda_lock_devices(struct hda_bus *bus);
 void snd_hda_unlock_devices(struct hda_bus *bus);
+void snd_hda_bus_reset(struct hda_bus *bus);
 
 /*
  * power management
  */
-#ifdef CONFIG_PM
-int snd_hda_suspend(struct hda_bus *bus);
-int snd_hda_resume(struct hda_bus *bus);
-#endif
+extern const struct dev_pm_ops hda_codec_driver_pm;
 
 static inline
 int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)

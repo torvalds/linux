@@ -1780,15 +1780,8 @@ static void azx_bus_reset(struct hda_bus *bus)
 	bus->in_reset = 1;
 	azx_stop_chip(chip);
 	azx_init_chip(chip, true);
-#ifdef CONFIG_PM
-	if (chip->initialized) {
-		struct azx_pcm *p;
-		list_for_each_entry(p, &chip->pcm_list, list)
-			snd_pcm_suspend_all(p->pcm);
-		snd_hda_suspend(chip->bus);
-		snd_hda_resume(chip->bus);
-	}
-#endif
+	if (chip->initialized)
+		snd_hda_bus_reset(chip->bus);
 	bus->in_reset = 0;
 }
 

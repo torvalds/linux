@@ -249,14 +249,9 @@ static int hda_tegra_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
-	struct azx_pcm *p;
 	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	list_for_each_entry(p, &chip->pcm_list, list)
-		snd_pcm_suspend_all(p->pcm);
-	if (chip->initialized)
-		snd_hda_suspend(chip->bus);
 
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
@@ -277,7 +272,6 @@ static int hda_tegra_resume(struct device *dev)
 
 	azx_init_chip(chip, 1);
 
-	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
 	return 0;

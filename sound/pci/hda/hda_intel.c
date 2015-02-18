@@ -772,7 +772,6 @@ static int azx_suspend(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 	struct hda_intel *hda;
-	struct azx_pcm *p;
 
 	if (!card)
 		return 0;
@@ -784,10 +783,6 @@ static int azx_suspend(struct device *dev)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	azx_clear_irq_pending(chip);
-	list_for_each_entry(p, &chip->pcm_list, list)
-		snd_pcm_suspend_all(p->pcm);
-	if (chip->initialized)
-		snd_hda_suspend(chip->bus);
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	if (chip->irq >= 0) {
@@ -830,7 +825,6 @@ static int azx_resume(struct device *dev)
 
 	azx_init_chip(chip, true);
 
-	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
