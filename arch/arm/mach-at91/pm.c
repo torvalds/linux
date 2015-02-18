@@ -226,7 +226,7 @@ void at91_pm_set_standby(void (*at91_standby)(void))
 	}
 }
 
-static struct of_device_id ramc_ids[] = {
+static const struct of_device_id ramc_ids[] __initconst = {
 	{ .compatible = "atmel,at91rm9200-sdramc", .data = at91rm9200_standby },
 	{ .compatible = "atmel,at91sam9260-sdramc", .data = at91sam9_sdram_standby },
 	{ .compatible = "atmel,at91sam9g45-ddramc", .data = at91_ddr_standby },
@@ -234,7 +234,7 @@ static struct of_device_id ramc_ids[] = {
 	{ /*sentinel*/ }
 };
 
-static void at91_dt_ramc(void)
+static __init void at91_dt_ramc(void)
 {
 	struct device_node *np;
 	const struct of_device_id *of_id;
