@@ -144,11 +144,6 @@ static void s3c_cpufreq_setfvco(struct s3c_cpufreq_config *cfg)
 	(cfg->info->set_fvco)(cfg);
 }
 
-static inline void s3c_cpufreq_resume_clocks(void)
-{
-	cpu_cur.info->resume_clocks();
-}
-
 static inline void s3c_cpufreq_updateclk(struct clk *clk,
 					 unsigned int freq)
 {
@@ -416,9 +411,6 @@ static int s3c_cpufreq_resume(struct cpufreq_policy *policy)
 	s3c_freq_dbg("%s: resuming with policy %p\n", __func__, policy);
 
 	last_target = ~0;	/* invalidate last_target setting */
-
-	/* first, find out what speed we resumed at. */
-	s3c_cpufreq_resume_clocks();
 
 	/* whilst we will be called later on, we try and re-set the
 	 * cpu frequencies as soon as possible so that we do not end
