@@ -437,7 +437,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		t->name = analog_ops->info.name;
 	}
 
+#ifdef CONFIG_MEDIA_CONTROLLER
 	t->sd.entity.name = t->name;
+#endif
 
 	tuner_dbg("type set to %s\n", t->name);
 
