@@ -93,12 +93,6 @@ static void dmi_table(u8 *buf, int len, int num,
 		const struct dmi_header *dm = (const struct dmi_header *)data;
 
 		/*
-		 * 7.45 End-of-Table (Type 127) [SMBIOS reference spec v3.0.0]
-		 */
-		if (dm->type == DMI_ENTRY_END_OF_TABLE)
-			break;
-
-		/*
 		 *  We want to know the total length (formatted area and
 		 *  strings) before decoding to make sure we won't run off the
 		 *  table in dmi_decode or dmi_string
@@ -108,6 +102,13 @@ static void dmi_table(u8 *buf, int len, int num,
 			data++;
 		if (data - buf < len - 1)
 			decode(dm, private_data);
+
+		/*
+		 * 7.45 End-of-Table (Type 127) [SMBIOS reference spec v3.0.0]
+		 */
+		if (dm->type == DMI_ENTRY_END_OF_TABLE)
+			break;
+
 		data += 2;
 		i++;
 	}
