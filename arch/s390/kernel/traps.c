@@ -174,7 +174,7 @@ static inline void do_fp_trap(struct pt_regs *regs, int fpc)
 void translation_exception(struct pt_regs *regs)
 {
 	/* May never happen. */
-	die(regs, "Translation exception");
+	panic("Translation exception");
 }
 
 void illegal_op(struct pt_regs *regs)
