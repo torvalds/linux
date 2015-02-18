@@ -70,11 +70,6 @@ static struct delayed_work Periodic_controlvm_work;
 static struct workqueue_struct *Periodic_controlvm_workqueue;
 static DEFINE_SEMAPHORE(NotifierLock);
 
-typedef struct {
-	struct controlvm_message message;
-	unsigned int crc;
-} MESSAGE_ENVELOPE;
-
 static struct controlvm_message_header g_DiagMsgHdr;
 static struct controlvm_message_header g_ChipSetMsgHdr;
 static struct controlvm_message_header g_DelDumpMsgHdr;
