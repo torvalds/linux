@@ -33,6 +33,7 @@ struct adv7511 {
 
 	unsigned int current_edid_segment;
 	uint8_t edid_buf[256];
+	bool edid_read;
 
 	wait_queue_head_t wq;
 	struct drm_encoder *encoder;
@@ -379,68 +380,70 @@ static bool adv7511_hpd(struct adv7511 *adv7511)
 	return false;
 }
 
-static irqreturn_t adv7511_irq_handler(int irq, void *devid)
-{
-	struct adv7511 *adv7511 = devid;
-
-	if (adv7511_hpd(adv7511))
-		drm_helper_hpd_irq_event(adv7511->encoder->dev);
-
-	wake_up_all(&adv7511->wq);
-
-	return IRQ_HANDLED;
-}
-
-static unsigned int adv7511_is_interrupt_pending(struct adv7511 *adv7511,
-						 unsigned int irq)
+static int adv7511_irq_process(struct adv7511 *adv7511)
 {
 	unsigned int irq0, irq1;
-	unsigned int pending;
 	int ret;
 
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_INT(0), &irq0);
 	if (ret < 0)
-		return 0;
+		return ret;
+
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_INT(1), &irq1);
 	if (ret < 0)
-		return 0;
+		return ret;
 
-	pending = (irq1 << 8) | irq0;
+	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0);
+	regmap_write(adv7511->regmap, ADV7511_REG_INT(1), irq1);
 
-	return pending & irq;
-}
+	if (irq0 & ADV7511_INT0_HDP)
+		drm_helper_hpd_irq_event(adv7511->encoder->dev);
 
-static int adv7511_wait_for_interrupt(struct adv7511 *adv7511, int irq,
-				      int timeout)
-{
-	unsigned int pending;
-	int ret;
+	if (irq0 & ADV7511_INT0_EDID_READY || irq1 & ADV7511_INT1_DDC_ERROR) {
+		adv7511->edid_read = true;
 
-	if (adv7511->i2c_main->irq) {
-		ret = wait_event_interruptible_timeout(adv7511->wq,
-				adv7511_is_interrupt_pending(adv7511, irq),
-				msecs_to_jiffies(timeout));
-		if (ret <= 0)
-			return 0;
-		pending = adv7511_is_interrupt_pending(adv7511, irq);
-	} else {
-		if (timeout < 25)
-			timeout = 25;
-		do {
-			pending = adv7511_is_interrupt_pending(adv7511, irq);
-			if (pending)
-				break;
-			msleep(25);
-			timeout -= 25;
-		} while (timeout >= 25);
+		if (adv7511->i2c_main->irq)
+			wake_up_all(&adv7511->wq);
 	}
 
-	return pending;
+	return 0;
+}
+
+static irqreturn_t adv7511_irq_handler(int irq, void *devid)
+{
+	struct adv7511 *adv7511 = devid;
+	int ret;
+
+	ret = adv7511_irq_process(adv7511);
+	return ret < 0 ? IRQ_NONE : IRQ_HANDLED;
 }
 
 /* -----------------------------------------------------------------------------
  * EDID retrieval
  */
+
+static int adv7511_wait_for_edid(struct adv7511 *adv7511, int timeout)
+{
+	int ret;
+
+	if (adv7511->i2c_main->irq) {
+		ret = wait_event_interruptible_timeout(adv7511->wq,
+				adv7511->edid_read, msecs_to_jiffies(timeout));
+	} else {
+		for (; timeout > 0; timeout -= 25) {
+			ret = adv7511_irq_process(adv7511);
+			if (ret < 0)
+				break;
+
+			if (adv7511->edid_read)
+				break;
+
+			msleep(25);
+		}
+	}
+
+	return adv7511->edid_read ? 0 : -EIO;
+}
 
 static int adv7511_get_edid_block(void *data, u8 *buf, unsigned int block,
 				  size_t len)
@@ -463,20 +466,13 @@ static int adv7511_get_edid_block(void *data, u8 *buf, unsigned int block,
 			return ret;
 
 		if (status != 2) {
+			adv7511->edid_read = false;
 			regmap_write(adv7511->regmap, ADV7511_REG_EDID_SEGMENT,
 				     block);
-			ret = adv7511_wait_for_interrupt(adv7511,
-					ADV7511_INT0_EDID_READY |
-					(ADV7511_INT1_DDC_ERROR << 8), 200);
-
-			if (!(ret & ADV7511_INT0_EDID_READY))
-				return -EIO;
+			ret = adv7511_wait_for_edid(adv7511, 200);
+			if (ret < 0)
+				return ret;
 		}
-
-		regmap_write(adv7511->regmap, ADV7511_REG_INT(0),
-			     ADV7511_INT0_EDID_READY);
-		regmap_write(adv7511->regmap, ADV7511_REG_INT(1),
-			     ADV7511_INT1_DDC_ERROR);
 
 		/* Break this apart, hopefully more I2C controllers will
 		 * support 64 byte transfers than 256 byte transfers
