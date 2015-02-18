@@ -88,24 +88,13 @@ static long get_target_state(struct thermal_zone_device *tz,
  */
 static int fair_share_throttle(struct thermal_zone_device *tz, int trip)
 {
-	const struct thermal_zone_params *tzp;
-	struct thermal_cooling_device *cdev;
 	struct thermal_instance *instance;
-	int i;
 	int cur_trip_level = get_trip_level(tz);
 
-	if (!tz->tzp || !tz->tzp->tbp)
-		return -EINVAL;
+	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		struct thermal_cooling_device *cdev = instance->cdev;
 
-	tzp = tz->tzp;
-
-	for (i = 0; i < tzp->num_tbps; i++) {
-		if (!tzp->tbp[i].cdev)
-			continue;
-
-		cdev = tzp->tbp[i].cdev;
-		instance = get_thermal_instance(tz, cdev, trip);
-		if (!instance)
+		if (instance->trip != trip)
 			continue;
 
 		instance->target = get_target_state(tz, cdev,
