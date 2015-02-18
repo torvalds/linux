@@ -201,26 +201,47 @@ static const struct lg4ff_wheel_ident_checklist lg4ff_main_checklist = {
 };
 
 /* Compatibility mode switching commands */
-static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_dfp = {
+/* EXT_CMD9 - Understood by G27 and DFGT */
+static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext09_dfex = {
+	2,
+	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* Revert mode upon USB reset */
+	 0xf8, 0x09, 0x00, 0x01, 0x00, 0x00, 0x00}	/* Switch mode to DF-EX with detach */
+};
+
+static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext09_dfp = {
+	2,
+	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* Revert mode upon USB reset */
+	 0xf8, 0x09, 0x01, 0x01, 0x00, 0x00, 0x00}	/* Switch mode to DFP with detach */
+};
+
+static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext09_g25 = {
+	2,
+	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* Revert mode upon USB reset */
+	 0xf8, 0x09, 0x02, 0x01, 0x00, 0x00, 0x00}	/* Switch mode to G25 with detach */
+};
+
+static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext09_dfgt = {
+	2,
+	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* Revert mode upon USB reset */
+	 0xf8, 0x09, 0x03, 0x01, 0x00, 0x00, 0x00}	/* Switch mode to DFGT with detach */
+};
+
+static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext09_g27 = {
+	2,
+	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* Revert mode upon USB reset */
+	 0xf8, 0x09, 0x04, 0x01, 0x00, 0x00, 0x00}	/* Switch mode to G27 with detach */
+};
+
+/* EXT_CMD1 - Understood by DFP, G25, G27 and DFGT */
+static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext01_dfp = {
 	1,
 	{0xf8, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_dfgt = {
-	2,
-	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* 1st command */
-	 0xf8, 0x09, 0x03, 0x01, 0x00, 0x00, 0x00}	/* 2nd command */
-};
-
-static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_g25 = {
+/* EXT_CMD16 - Understood by G25 and G27 */
+static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext16_g25 = {
 	1,
 	{0xf8, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00}
-};
-
-static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_g27 = {
-	2,
-	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* 1st command */
-	 0xf8, 0x09, 0x04, 0x01, 0x00, 0x00, 0x00}	/* 2nd command */
 };
 
 /* Recalculates X axis value accordingly to currently selected range */
@@ -489,6 +510,63 @@ static void hid_lg4ff_set_range_dfp(struct hid_device *hid, __u16 range)
 	hid_hw_request(hid, report, HID_REQ_SET_REPORT);
 }
 
+static const struct lg4ff_compat_mode_switch *lg4ff_get_mode_switch_command(const u16 real_product_id, const u16 target_product_id)
+{
+	switch (real_product_id) {
+	case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
+		switch (target_product_id) {
+		case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
+			return &lg4ff_mode_switch_ext01_dfp;
+		/* DFP can only be switched to its native mode */
+		default:
+			return NULL;
+		}
+		break;
+	case USB_DEVICE_ID_LOGITECH_G25_WHEEL:
+		switch (target_product_id) {
+		case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
+			return &lg4ff_mode_switch_ext01_dfp;
+		case USB_DEVICE_ID_LOGITECH_G25_WHEEL:
+			return &lg4ff_mode_switch_ext16_g25;
+		/* G25 can only be switched to DFP mode or its native mode */
+		default:
+			return NULL;
+		}
+		break;
+	case USB_DEVICE_ID_LOGITECH_G27_WHEEL:
+		switch (target_product_id) {
+		case USB_DEVICE_ID_LOGITECH_WHEEL:
+			return &lg4ff_mode_switch_ext09_dfex;
+		case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
+			return &lg4ff_mode_switch_ext09_dfp;
+		case USB_DEVICE_ID_LOGITECH_G25_WHEEL:
+			return &lg4ff_mode_switch_ext09_g25;
+		case USB_DEVICE_ID_LOGITECH_G27_WHEEL:
+			return &lg4ff_mode_switch_ext09_g27;
+		/* G27 can only be switched to DF-EX, DFP, G25 or its native mode */
+		default:
+			return NULL;
+		}
+		break;
+	case USB_DEVICE_ID_LOGITECH_DFGT_WHEEL:
+		switch (target_product_id) {
+		case USB_DEVICE_ID_LOGITECH_WHEEL:
+			return &lg4ff_mode_switch_ext09_dfex;
+		case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
+			return &lg4ff_mode_switch_ext09_dfp;
+		case USB_DEVICE_ID_LOGITECH_DFGT_WHEEL:
+			return &lg4ff_mode_switch_ext09_dfgt;
+		/* DFGT can only be switched to DF-EX, DFP or its native mode */
+		default:
+			return NULL;
+		}
+		break;
+	/* No other wheels have multiple modes */
+	default:
+		return NULL;
+	}
+}
+
 static int lg4ff_switch_compatibility_mode(struct hid_device *hid, const struct lg4ff_compat_mode_switch *s)
 {
 	struct usb_device *usbdev = hid_to_usb_dev(hid);
@@ -558,7 +636,87 @@ static ssize_t lg4ff_alternate_modes_show(struct device *dev, struct device_attr
 
 static ssize_t lg4ff_alternate_modes_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	return -ENOSYS;
+	struct hid_device *hid = to_hid_device(dev);
+	struct lg4ff_device_entry *entry;
+	struct lg_drv_data *drv_data;
+	const struct lg4ff_compat_mode_switch *s;
+	u16 target_product_id = 0;
+	int i, ret;
+	char *lbuf;
+
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return -EINVAL;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return -EINVAL;
+	}
+
+	/* Allow \n at the end of the input parameter */
+	lbuf = kasprintf(GFP_KERNEL, "%s", buf);
+	if (!lbuf)
+		return -ENOMEM;
+
+	i = strlen(lbuf);
+	if (lbuf[i-1] == '\n') {
+		if (i == 1) {
+			kfree(lbuf);
+			return -EINVAL;
+		}
+		lbuf[i-1] = '\0';
+	}
+
+	for (i = 0; i < LG4FF_MODE_MAX_IDX; i++) {
+		const u16 mode_product_id = lg4ff_alternate_modes[i].product_id;
+		const char *tag = lg4ff_alternate_modes[i].tag;
+
+		if (entry->alternate_modes & BIT(i)) {
+			if (!strcmp(tag, lbuf)) {
+				if (!mode_product_id)
+					target_product_id = entry->real_product_id;
+				else
+					target_product_id = mode_product_id;
+				break;
+			}
+		}
+	}
+
+	if (i == LG4FF_MODE_MAX_IDX) {
+		hid_info(hid, "Requested mode \"%s\" is not supported by the device\n", lbuf);
+		kfree(lbuf);
+		return -EINVAL;
+	}
+	kfree(lbuf); /* Not needed anymore */
+
+	if (target_product_id == entry->product_id) /* Nothing to do */
+		return count;
+
+	/* Automatic switching has to be disabled for the switch to DF-EX mode to work correctly */
+	if (target_product_id == USB_DEVICE_ID_LOGITECH_WHEEL && !lg4ff_no_autoswitch) {
+		hid_info(hid, "\"%s\" cannot be switched to \"DF-EX\" mode. Load the \"hid_logitech\" module with \"lg4ff_no_autoswitch=1\" parameter set and try again\n",
+			 entry->real_name);
+		return -EINVAL;
+	}
+
+	/* Take care of hardware limitations */
+	if ((entry->real_product_id == USB_DEVICE_ID_LOGITECH_DFP_WHEEL || entry->real_product_id == USB_DEVICE_ID_LOGITECH_G25_WHEEL) &&
+	    entry->product_id > target_product_id) {
+		hid_info(hid, "\"%s\" cannot be switched back into \"%s\" mode\n", entry->real_name, lg4ff_alternate_modes[i].name);
+		return -EINVAL;
+	}
+
+	s = lg4ff_get_mode_switch_command(entry->real_product_id, target_product_id);
+	if (!s) {
+		hid_err(hid, "Invalid target product ID %X\n", target_product_id);
+		return -EINVAL;
+	}
+
+	ret = lg4ff_switch_compatibility_mode(hid, s);
+	return (ret == 0 ? count : ret);
 }
 static DEVICE_ATTR(alternate_modes, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH, lg4ff_alternate_modes_show, lg4ff_alternate_modes_store);
 
@@ -783,7 +941,8 @@ static u16 lg4ff_identify_multimode_wheel(struct hid_device *hid, const u16 repo
 		}
 	}
 
-	/* No match found. This is an unknown wheel model, do not touch it */
+	/* No match found. This is either Driving Force or an unknown
+	 * wheel model, do not touch it */
 	dbg_hid("Wheel with bcdDevice %X was not recognized as multimode wheel, leaving in its current mode\n", bcdDevice);
 	return 0;
 }
@@ -806,22 +965,9 @@ static int lg4ff_handle_multimode_wheel(struct hid_device *hid, u16 *real_produc
 	if (reported_product_id == USB_DEVICE_ID_LOGITECH_WHEEL &&
 	    reported_product_id != *real_product_id &&
 	    !lg4ff_no_autoswitch) {
-		const struct lg4ff_compat_mode_switch *s;
+		const struct lg4ff_compat_mode_switch *s = lg4ff_get_mode_switch_command(*real_product_id, *real_product_id);
 
-		switch (*real_product_id) {
-		case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
-			s = &lg4ff_mode_switch_dfp;
-			break;
-		case USB_DEVICE_ID_LOGITECH_G25_WHEEL:
-			s = &lg4ff_mode_switch_g25;
-			break;
-		case USB_DEVICE_ID_LOGITECH_G27_WHEEL:
-			s = &lg4ff_mode_switch_g27;
-			break;
-		case USB_DEVICE_ID_LOGITECH_DFGT_WHEEL:
-			s = &lg4ff_mode_switch_dfgt;
-			break;
-		default:
+		if (!s) {
 			hid_err(hid, "Invalid product id %X\n", *real_product_id);
 			return LG4FF_MMODE_NOT_MULTIMODE;
 		}
