@@ -157,7 +157,7 @@ config IPVLAN
       making it transparent to the connected L2 switch.
 
       Ipvlan devices can be added using the "ip" command from the
-      iproute2 package starting with the iproute2-X.Y.ZZ release:
+      iproute2 package starting with the iproute2-3.19 release:
 
       "ip link add link <main-dev> [ NAME ] type ipvlan"
 
