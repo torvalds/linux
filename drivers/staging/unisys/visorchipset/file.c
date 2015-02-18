@@ -36,7 +36,8 @@ static BOOL registered = FALSE;
 static int visorchipset_open(struct inode *inode, struct file *file);
 static int visorchipset_release(struct inode *inode, struct file *file);
 static int visorchipset_mmap(struct file *file, struct vm_area_struct *vma);
-long visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+static long visorchipset_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg);
 
 static const struct file_operations visorchipset_fops = {
 	.owner = THIS_MODULE,
@@ -165,7 +166,8 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-long visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long visorchipset_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
 {
 	s64 adjustment;
 	s64 vrtc_offset;
