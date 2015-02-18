@@ -16,6 +16,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_plane_helper.h>
 
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
@@ -43,6 +44,38 @@ static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 {
 	rcar_du_write(rgrp->dev, rgrp->mmio_offset + index * PLANE_OFF + reg,
 		      data);
+}
+
+static int rcar_du_plane_reserve_check(struct rcar_du_plane *plane,
+				       const struct rcar_du_format_info *format)
+{
+	struct rcar_du_group *rgrp = plane->group;
+	unsigned int free;
+	unsigned int i;
+	int ret;
+
+	mutex_lock(&rgrp->planes.lock);
+
+	free = rgrp->planes.free;
+
+	if (plane->hwindex != -1) {
+		free |= 1 << plane->hwindex;
+		if (plane->format->planes == 2)
+			free |= 1 << ((plane->hwindex + 1) % 8);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(rgrp->planes.planes); ++i) {
+		if (!(free & (1 << i)))
+			continue;
+
+		if (format->planes == 1 || free & (1 << ((i + 1) % 8)))
+			break;
+	}
+
+	ret = i == ARRAY_SIZE(rgrp->planes.planes) ? -EBUSY : 0;
+
+	mutex_unlock(&rgrp->planes.lock);
+	return ret;
 }
 
 int rcar_du_plane_reserve(struct rcar_du_plane *plane,
@@ -281,12 +314,8 @@ void rcar_du_plane_setup(struct rcar_du_plane *plane)
 	rcar_du_plane_update_base(plane);
 }
 
-static int
-rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
-		       struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-		       unsigned int crtc_w, unsigned int crtc_h,
-		       uint32_t src_x, uint32_t src_y,
-		       uint32_t src_w, uint32_t src_h)
+static int rcar_du_plane_atomic_check(struct drm_plane *plane,
+				      struct drm_plane_state *state)
 {
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
 	struct rcar_du_device *rcdu = rplane->group->dev;
@@ -294,63 +323,43 @@ rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	unsigned int nplanes;
 	int ret;
 
-	if (plane->type != DRM_PLANE_TYPE_OVERLAY)
-		return -EINVAL;
+	if (!state->fb || !state->crtc)
+		return 0;
 
-	format = rcar_du_format_info(fb->pixel_format);
-	if (format == NULL) {
-		dev_dbg(rcdu->dev, "%s: unsupported format %08x\n", __func__,
-			fb->pixel_format);
+	if (state->src_w >> 16 != state->crtc_w ||
+	    state->src_h >> 16 != state->crtc_h) {
+		dev_dbg(rcdu->dev, "%s: scaling not supported\n", __func__);
 		return -EINVAL;
 	}
 
-	if (src_w >> 16 != crtc_w || src_h >> 16 != crtc_h) {
-		dev_dbg(rcdu->dev, "%s: scaling not supported\n", __func__);
+	format = rcar_du_format_info(state->fb->pixel_format);
+	if (format == NULL) {
+		dev_dbg(rcdu->dev, "%s: unsupported format %08x\n", __func__,
+			state->fb->pixel_format);
 		return -EINVAL;
 	}
 
 	nplanes = rplane->format ? rplane->format->planes : 0;
 
-	/* Reallocate hardware planes if the number of required planes has
-	 * changed.
+	/* If the number of required planes has changed we will need to
+	 * reallocate hardware planes. Ensure free planes are available.
 	 */
 	if (format->planes != nplanes) {
-		rcar_du_plane_release(rplane);
-		ret = rcar_du_plane_reserve(rplane, format);
-		if (ret < 0)
+		ret = rcar_du_plane_reserve_check(rplane, format);
+		if (ret < 0) {
+			dev_dbg(rcdu->dev, "%s: no available hardware plane\n",
+				__func__);
 			return ret;
+		}
 	}
-
-	rplane->crtc = crtc;
-	rplane->format = format;
-
-	rplane->src_x = src_x >> 16;
-	rplane->src_y = src_y >> 16;
-	rplane->dst_x = crtc_x;
-	rplane->dst_y = crtc_y;
-	rplane->width = crtc_w;
-	rplane->height = crtc_h;
-
-	rcar_du_plane_compute_base(rplane, fb);
-	rcar_du_plane_setup(rplane);
-
-	mutex_lock(&rplane->group->planes.lock);
-	rplane->enabled = true;
-	rcar_du_crtc_update_planes(rplane->crtc);
-	mutex_unlock(&rplane->group->planes.lock);
 
 	return 0;
 }
 
-static int rcar_du_plane_disable(struct drm_plane *plane)
+static void rcar_du_plane_disable(struct rcar_du_plane *rplane)
 {
-	struct rcar_du_plane *rplane = to_rcar_plane(plane);
-
-	if (plane->type != DRM_PLANE_TYPE_OVERLAY)
-		return -EINVAL;
-
 	if (!rplane->enabled)
-		return 0;
+		return;
 
 	mutex_lock(&rplane->group->planes.lock);
 	rplane->enabled = false;
@@ -361,9 +370,55 @@ static int rcar_du_plane_disable(struct drm_plane *plane)
 
 	rplane->crtc = NULL;
 	rplane->format = NULL;
-
-	return 0;
 }
+
+static void rcar_du_plane_atomic_update(struct drm_plane *plane,
+					struct drm_plane_state *old_state)
+{
+	struct rcar_du_plane *rplane = to_rcar_plane(plane);
+	struct drm_plane_state *state = plane->state;
+	const struct rcar_du_format_info *format;
+	unsigned int nplanes;
+
+	if (!state->crtc) {
+		rcar_du_plane_disable(rplane);
+		return;
+	}
+
+	format = rcar_du_format_info(state->fb->pixel_format);
+	nplanes = rplane->format ? rplane->format->planes : 0;
+
+	/* Reallocate hardware planes if the number of required planes has
+	 * changed.
+	 */
+	if (format->planes != nplanes) {
+		rcar_du_plane_release(rplane);
+		rcar_du_plane_reserve(rplane, format);
+	}
+
+	rplane->crtc = state->crtc;
+	rplane->format = format;
+
+	rplane->src_x = state->src_x >> 16;
+	rplane->src_y = state->src_y >> 16;
+	rplane->dst_x = state->crtc_x;
+	rplane->dst_y = state->crtc_y;
+	rplane->width = state->crtc_w;
+	rplane->height = state->crtc_h;
+
+	rcar_du_plane_compute_base(rplane, state->fb);
+	rcar_du_plane_setup(rplane);
+
+	mutex_lock(&rplane->group->planes.lock);
+	rplane->enabled = true;
+	rcar_du_crtc_update_planes(rplane->crtc);
+	mutex_unlock(&rplane->group->planes.lock);
+}
+
+static const struct drm_plane_helper_funcs rcar_du_plane_helper_funcs = {
+	.atomic_check = rcar_du_plane_atomic_check,
+	.atomic_update = rcar_du_plane_atomic_update,
+};
 
 /* Both the .set_property and the .update_plane operations are called with the
  * mode_config lock held. There is this no need to explicitly protect access to
@@ -431,8 +486,8 @@ static int rcar_du_plane_set_property(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs rcar_du_plane_funcs = {
-	.update_plane = rcar_du_plane_update,
-	.disable_plane = rcar_du_plane_disable,
+	.update_plane = drm_plane_helper_update,
+	.disable_plane = drm_plane_helper_disable,
 	.set_property = rcar_du_plane_set_property,
 	.destroy = drm_plane_cleanup,
 };
@@ -508,6 +563,9 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 					       ARRAY_SIZE(formats), type);
 		if (ret < 0)
 			return ret;
+
+		drm_plane_helper_add(&plane->plane,
+				     &rcar_du_plane_helper_funcs);
 
 		if (type == DRM_PLANE_TYPE_PRIMARY)
 			continue;

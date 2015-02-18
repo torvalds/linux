@@ -357,12 +357,21 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_set_display_timing(rcrtc);
 	rcar_du_group_set_routing(rcrtc->group);
 
+	/* FIXME: Commit the planes state. This is required here as the CRTC can
+	 * be started from the DPMS and system resume handler, which don't go
+	 * through .atomic_plane_update() and .atomic_flush() to commit plane
+	 * state. Similarly a mode set operation without any update to planes
+	 * will not go through atomic plane configuration either. Additionally,
+	 * given that the plane state atomic commit occurs between CRTC disable
+	 * and enable, the hardware state could also be lost due to runtime PM,
+	 * requiring a full commit here. This will be fixed later after
+	 * switching to atomic updates completely.
+	 */
 	mutex_lock(&rcrtc->group->planes.lock);
 	rcrtc->plane->enabled = true;
 	rcar_du_crtc_update_planes(crtc);
 	mutex_unlock(&rcrtc->group->planes.lock);
 
-	/* Setup planes. */
 	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes.planes); ++i) {
 		struct rcar_du_plane *plane = &rcrtc->group->planes.planes[i];
 
@@ -570,6 +579,30 @@ static void rcar_du_crtc_disable(struct drm_crtc *crtc)
 	rcar_du_plane_release(rcrtc->plane);
 }
 
+static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	/* We need to access the hardware during atomic update, acquire a
+	 * reference to the CRTC.
+	 */
+	rcar_du_crtc_get(rcrtc);
+}
+
+static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	/* We're done, apply the configuration and drop the reference acquired
+	 * in .atomic_begin().
+	 */
+	mutex_lock(&rcrtc->group->planes.lock);
+	rcar_du_crtc_update_planes(crtc);
+	mutex_unlock(&rcrtc->group->planes.lock);
+
+	rcar_du_crtc_put(rcrtc);
+}
+
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.dpms = rcar_du_crtc_dpms,
 	.mode_fixup = rcar_du_crtc_mode_fixup,
@@ -578,6 +611,8 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.mode_set = rcar_du_crtc_mode_set,
 	.mode_set_base = rcar_du_crtc_mode_set_base,
 	.disable = rcar_du_crtc_disable,
+	.atomic_begin = rcar_du_crtc_atomic_begin,
+	.atomic_flush = rcar_du_crtc_atomic_flush,
 };
 
 static int rcar_du_crtc_page_flip(struct drm_crtc *crtc,
