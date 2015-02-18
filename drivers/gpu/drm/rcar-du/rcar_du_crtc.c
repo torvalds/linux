@@ -279,7 +279,7 @@ void rcar_du_crtc_cancel_page_flip(struct rcar_du_crtc *rcrtc,
 	if (event && event->base.file_priv == file) {
 		rcrtc->event = NULL;
 		event->base.destroy(&event->base);
-		drm_vblank_put(dev, rcrtc->index);
+		drm_crtc_vblank_put(&rcrtc->crtc);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -303,7 +303,7 @@ static void rcar_du_crtc_finish_page_flip(struct rcar_du_crtc *rcrtc)
 	wake_up(&rcrtc->flip_wait);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	drm_vblank_put(dev, rcrtc->index);
+	drm_crtc_vblank_put(&rcrtc->crtc);
 }
 
 static bool rcar_du_crtc_page_flip_pending(struct rcar_du_crtc *rcrtc)
@@ -383,6 +383,9 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 
 	rcar_du_group_start_stop(rcrtc->group, true);
 
+	/* Turn vertical blanking interrupt reporting back on. */
+	drm_crtc_vblank_on(crtc);
+
 	rcrtc->started = true;
 }
 
@@ -393,10 +396,12 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	if (!rcrtc->started)
 		return;
 
-	/* Wait for page flip completion before stopping the CRTC as userspace
-	 * excepts page flips to eventually complete.
+	/* Disable vertical blanking interrupt reporting. We first need to wait
+	 * for page flip completion before stopping the CRTC as userspace
+	 * expects page flips to eventually complete.
 	 */
 	rcar_du_crtc_wait_page_flip(rcrtc);
+	drm_crtc_vblank_off(crtc);
 
 	mutex_lock(&rcrtc->group->planes.lock);
 	rcrtc->plane->enabled = false;
@@ -596,7 +601,7 @@ static int rcar_du_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (event) {
 		event->pipe = rcrtc->index;
-		drm_vblank_get(dev, rcrtc->index);
+		drm_crtc_vblank_get(crtc);
 		spin_lock_irqsave(&dev->event_lock, flags);
 		rcrtc->event = event;
 		spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -692,6 +697,9 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 		return ret;
 
 	drm_crtc_helper_add(crtc, &crtc_helper_funcs);
+
+	/* Start with vertical blanking interrupt reporting disabled. */
+	drm_crtc_vblank_off(crtc);
 
 	/* Register the interrupt handler. */
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ_CLOCK)) {

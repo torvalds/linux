@@ -175,17 +175,19 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	if (IS_ERR(rcdu->mmio))
 		return PTR_ERR(rcdu->mmio);
 
+	/* Initialize vertical blanking interrupts handling. Start with vblank
+	 * disabled for all CRTCs.
+	 */
+	ret = drm_vblank_init(dev, (1 << rcdu->info->num_crtcs) - 1);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to initialize vblank\n");
+		goto done;
+	}
+
 	/* DRM/KMS objects */
 	ret = rcar_du_modeset_init(rcdu);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to initialize DRM/KMS\n");
-		goto done;
-	}
-
-	/* vblank handling */
-	ret = drm_vblank_init(dev, (1 << rcdu->num_crtcs) - 1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize vblank\n");
 		goto done;
 	}
 
