@@ -62,6 +62,54 @@ MODULE_ALIAS("rcupdate");
 
 module_param(rcu_expedited, int, 0);
 
+#ifndef CONFIG_TINY_RCU
+
+static atomic_t rcu_expedited_nesting;
+
+/*
+ * Should normal grace-period primitives be expedited?  Intended for
+ * use within RCU.  Note that this function takes the rcu_expedited
+ * sysfs/boot variable into account as well as the rcu_expedite_gp()
+ * nesting.  So looping on rcu_unexpedite_gp() until rcu_gp_is_expedited()
+ * returns false is a -really- bad idea.
+ */
+bool rcu_gp_is_expedited(void)
+{
+	return rcu_expedited || atomic_read(&rcu_expedited_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_gp_is_expedited);
+
+/**
+ * rcu_expedite_gp - Expedite future RCU grace periods
+ *
+ * After a call to this function, future calls to synchronize_rcu() and
+ * friends act as the corresponding synchronize_rcu_expedited() function
+ * had instead been called.
+ */
+void rcu_expedite_gp(void)
+{
+	atomic_inc(&rcu_expedited_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_expedite_gp);
+
+/**
+ * rcu_unexpedite_gp - Cancel prior rcu_expedite_gp() invocation
+ *
+ * Undo a prior call to rcu_expedite_gp().  If all prior calls to
+ * rcu_expedite_gp() are undone by a subsequent call to rcu_unexpedite_gp(),
+ * and if the rcu_expedited sysfs/boot parameter is not set, then all
+ * subsequent calls to synchronize_rcu() and friends will return to
+ * their normal non-expedited behavior.
+ */
+void rcu_unexpedite_gp(void)
+{
+	atomic_dec(&rcu_expedited_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
+
+#endif /* #ifndef CONFIG_TINY_RCU */
+
+
 #ifdef CONFIG_PREEMPT_RCU
 
 /*

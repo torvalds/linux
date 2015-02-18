@@ -48,6 +48,26 @@
 
 extern int rcu_expedited; /* for sysctl */
 
+#ifdef CONFIG_TINY_RCU
+/* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
+static inline bool rcu_gp_is_expedited(void)  /* Internal RCU use. */
+{
+	return false;
+}
+
+static inline void rcu_expedite_gp(void)
+{
+}
+
+static inline void rcu_unexpedite_gp(void)
+{
+}
+#else /* #ifdef CONFIG_TINY_RCU */
+bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
+void rcu_expedite_gp(void);
+void rcu_unexpedite_gp(void);
+#endif /* #else #ifdef CONFIG_TINY_RCU */
+
 enum rcutorture_type {
 	RCU_FLAVOR,
 	RCU_BH_FLAVOR,
