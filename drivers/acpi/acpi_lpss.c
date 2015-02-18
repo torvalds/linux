@@ -105,6 +105,8 @@ static void lpss_uart_setup(struct lpss_private_data *pdata)
 	}
 }
 
+#define LPSS_I2C_ENABLE			0x6c
+
 static void byt_i2c_setup(struct lpss_private_data *pdata)
 {
 	unsigned int offset;
@@ -117,6 +119,8 @@ static void byt_i2c_setup(struct lpss_private_data *pdata)
 
 	if (readl(pdata->mmio_base + pdata->dev_desc->prv_offset))
 		pdata->fixed_clk_rate = 133000000;
+
+	writel(0, pdata->mmio_base + LPSS_I2C_ENABLE);
 }
 
 static struct lpss_device_desc lpt_dev_desc = {
