@@ -714,12 +714,13 @@ static int cx231xx_enable_analog_tuner(struct cx231xx *dev)
 	if (!mdev)
 		return 0;
 
-/*
- * This will find the tuner that it is connected into the decoder.
- * Technically, this is not 100% correct, as the device may be using an
- * analog input instead of the tuner. However, we can't use the DVB for dvb
- * while the DMA engine is being used for V4L2.
- */
+	/*
+	 * This will find the tuner that is connected into the decoder.
+	 * Technically, this is not 100% correct, as the device may be
+	 * using an analog input instead of the tuner. However, as we can't
+	 * do DVB streaming while the DMA engine is being used for V4L2,
+	 * this should be enough for the actual needs.
+	 */
 	media_device_for_each_entity(entity, mdev) {
 		if (entity->type == MEDIA_ENT_T_V4L2_SUBDEV_DECODER) {
 			decoder = entity;
