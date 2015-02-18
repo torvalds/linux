@@ -5182,7 +5182,20 @@ static int cx25840_probe(struct i2c_client *client,
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &cx25840_ops);
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	/* TODO: need to represent analog inputs too */
+	/*
+	 * TODO: add media controller support for analog video inputs like
+	 * composite, svideo, etc.
+	 * A real input pad for this analog demod would be like:
+	 *                 ___________
+	 * TUNER --------> |         |
+	 *		   |         |
+	 * SVIDEO .......> | cx25840 |
+	 *		   |         |
+	 * COMPOSITE1 ...> |_________|
+	 *
+	 * However, at least for now, there's no much gain on modelling
+	 * those extra inputs. So, let's add it only when needed.
+	 */
 	state->pads[0].flags = MEDIA_PAD_FL_SINK;	/* Tuner or input */
 	state->pads[1].flags = MEDIA_PAD_FL_SOURCE;	/* Video */
 	state->pads[2].flags = MEDIA_PAD_FL_SOURCE;	/* VBI */
