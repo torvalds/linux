@@ -37,6 +37,7 @@
 #include <linux/backing-dev.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/reboot.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -356,6 +357,17 @@ unsigned mtd_mmap_capabilities(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(mtd_mmap_capabilities);
 #endif
 
+static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
+			       void *cmd)
+{
+	struct mtd_info *mtd;
+
+	mtd = container_of(n, struct mtd_info, reboot_notifier);
+	mtd->_reboot(mtd);
+
+	return NOTIFY_DONE;
+}
+
 /**
  *	add_mtd_device - register an MTD device
  *	@mtd: pointer to new MTD device info structure
@@ -544,6 +556,19 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			err = -ENODEV;
 	}
 
+	/*
+	 * FIXME: some drivers unfortunately call this function more than once.
+	 * So we have to check if we've already assigned the reboot notifier.
+	 *
+	 * Generally, we can make multiple calls work for most cases, but it
+	 * does cause problems with parse_mtd_partitions() above (e.g.,
+	 * cmdlineparts will register partitions more than once).
+	 */
+	if (mtd->_reboot && !mtd->reboot_notifier.notifier_call) {
+		mtd->reboot_notifier.notifier_call = mtd_reboot_notifier;
+		register_reboot_notifier(&mtd->reboot_notifier);
+	}
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(mtd_device_parse_register);
@@ -557,6 +582,9 @@ EXPORT_SYMBOL_GPL(mtd_device_parse_register);
 int mtd_device_unregister(struct mtd_info *master)
 {
 	int err;
+
+	if (master->_reboot)
+		unregister_reboot_notifier(&master->reboot_notifier);
 
 	err = del_mtd_partitions(master);
 	if (err)
