@@ -38,15 +38,6 @@ static int usb_serial_device_match(struct device *dev,
 	return 0;
 }
 
-static ssize_t port_number_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct usb_serial_port *port = to_usb_serial_port(dev);
-
-	return sprintf(buf, "%d\n", port->port_number);
-}
-static DEVICE_ATTR_RO(port_number);
-
 static int usb_serial_device_probe(struct device *dev)
 {
 	struct usb_serial_driver *driver;
@@ -73,18 +64,10 @@ static int usb_serial_device_probe(struct device *dev)
 			goto exit_with_autopm;
 	}
 
-	retval = device_create_file(dev, &dev_attr_port_number);
-	if (retval) {
-		if (driver->port_remove)
-			driver->port_remove(port);
-		goto exit_with_autopm;
-	}
-
 	minor = port->minor;
 	tty_dev = tty_register_device(usb_serial_tty_driver, minor, dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
-		device_remove_file(dev, &dev_attr_port_number);
 		if (driver->port_remove)
 			driver->port_remove(port);
 		goto exit_with_autopm;
@@ -122,8 +105,6 @@ static int usb_serial_device_remove(struct device *dev)
 
 	minor = port->minor;
 	tty_unregister_device(usb_serial_tty_driver, minor);
-
-	device_remove_file(&port->dev, &dev_attr_port_number);
 
 	driver = port->serial->type;
 	if (driver->port_remove)
