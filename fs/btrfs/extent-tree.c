@@ -4329,8 +4329,13 @@ out:
 static inline int need_do_async_reclaim(struct btrfs_space_info *space_info,
 					struct btrfs_fs_info *fs_info, u64 used)
 {
-	return (used >= div_factor_fine(space_info->total_bytes, 98) &&
-		!btrfs_fs_closing(fs_info) &&
+	u64 thresh = div_factor_fine(space_info->total_bytes, 98);
+
+	/* If we're just plain full then async reclaim just slows us down. */
+	if (space_info->bytes_used >= thresh)
+		return 0;
+
+	return (used >= thresh && !btrfs_fs_closing(fs_info) &&
 		!test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state));
 }
 
@@ -4385,10 +4390,7 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 		if (!btrfs_need_do_async_reclaim(space_info, fs_info,
 						 flush_state))
 			return;
-	} while (flush_state <= COMMIT_TRANS);
-
-	if (btrfs_need_do_async_reclaim(space_info, fs_info, flush_state))
-		queue_work(system_unbound_wq, work);
+	} while (flush_state < COMMIT_TRANS);
 }
 
 void btrfs_init_async_reclaim_work(struct work_struct *work)
