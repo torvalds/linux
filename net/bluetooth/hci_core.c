@@ -3465,7 +3465,7 @@ int hci_register_cb(struct hci_cb *cb)
 	BT_DBG("%p name %s", cb, cb->name);
 
 	write_lock(&hci_cb_list_lock);
-	list_add(&cb->list, &hci_cb_list);
+	list_add_tail(&cb->list, &hci_cb_list);
 	write_unlock(&hci_cb_list_lock);
 
 	return 0;
