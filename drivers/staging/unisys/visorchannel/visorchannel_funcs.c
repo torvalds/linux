@@ -416,9 +416,8 @@ signalremove_inner(struct visorchannel *channel, u32 queue, void *msg)
 {
 	struct signal_queue_header sig_hdr;
 
-	if (!sig_read_header(channel, queue, &sig_hdr)) {
+	if (!sig_read_header(channel, queue, &sig_hdr))
 		return FALSE;
-	}
 	if (sig_hdr.head == sig_hdr.tail)
 		return FALSE;	/* no signals to remove */
 
@@ -466,9 +465,8 @@ signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 {
 	struct signal_queue_header sig_hdr;
 
-	if (!sig_read_header(channel, queue, &sig_hdr)) {
+	if (!sig_read_header(channel, queue, &sig_hdr))
 		return FALSE;
-	}
 
 	sig_hdr.head = ((sig_hdr.head + 1) % sig_hdr.max_slots);
 	if (sig_hdr.head == sig_hdr.tail) {
