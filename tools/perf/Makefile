@@ -25,7 +25,7 @@ unexport MAKEFLAGS
 #
 ifeq ($(JOBS),)
   JOBS := $(shell grep -c ^processor /proc/cpuinfo 2>/dev/null)
-  ifeq ($(JOBS),)
+  ifeq ($(JOBS),0)
     JOBS := 1
   endif
 endif
