@@ -18,6 +18,8 @@
 static const char dmi_empty_string[] = "        ";
 
 static u32 dmi_ver __initdata;
+static u32 dmi_len;
+static u16 dmi_num;
 /*
  * Catch too early calls to dmi_check_system():
  */
@@ -78,7 +80,7 @@ static const char * __init dmi_string(const struct dmi_header *dm, u8 s)
  *	We have to be cautious here. We have seen BIOSes with DMI pointers
  *	pointing to completely the wrong place for example
  */
-static void dmi_table(u8 *buf, u32 len, int num,
+static void dmi_table(u8 *buf,
 		      void (*decode)(const struct dmi_header *, void *),
 		      void *private_data)
 {
@@ -89,7 +91,8 @@ static void dmi_table(u8 *buf, u32 len, int num,
 	 *	Stop when we see all the items the table claimed to have
 	 *	OR we run off the end of the table (also happens)
 	 */
-	while ((i < num) && (data - buf + sizeof(struct dmi_header)) <= len) {
+	while ((i < dmi_num) && (data - buf + sizeof(struct dmi_header))
+		<= dmi_len) {
 		const struct dmi_header *dm = (const struct dmi_header *)data;
 
 		/*
@@ -98,9 +101,9 @@ static void dmi_table(u8 *buf, u32 len, int num,
 		 *  table in dmi_decode or dmi_string
 		 */
 		data += dm->length;
-		while ((data - buf < len - 1) && (data[0] || data[1]))
+		while ((data - buf < dmi_len - 1) && (data[0] || data[1]))
 			data++;
-		if (data - buf < len - 1)
+		if (data - buf < dmi_len - 1)
 			decode(dm, private_data);
 
 		/*
@@ -115,8 +118,6 @@ static void dmi_table(u8 *buf, u32 len, int num,
 }
 
 static phys_addr_t dmi_base;
-static u32 dmi_len;
-static u16 dmi_num;
 
 static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
 		void *))
@@ -127,7 +128,7 @@ static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, dmi_len, dmi_num, decode, NULL);
+	dmi_table(buf, decode, NULL);
 
 	add_device_randomness(buf, dmi_len);
 
@@ -905,7 +906,7 @@ int dmi_walk(void (*decode)(const struct dmi_header *, void *),
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, dmi_len, dmi_num, decode, private_data);
+	dmi_table(buf, decode, private_data);
 
 	dmi_unmap(buf);
 	return 0;
