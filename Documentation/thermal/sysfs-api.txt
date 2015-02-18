@@ -194,6 +194,8 @@ thermal_zone_bind_cooling_device/thermal_zone_unbind_cooling_device.
 /sys/class/thermal/thermal_zone[0-*]:
     |---cdev[0-*]:		[0-*]th cooling device in current thermal zone
     |---cdev[0-*]_trip_point:	Trip point that cdev[0-*] is associated with
+    |---cdev[0-*]_weight:       Influence of the cooling device in
+                                this thermal zone
 
 Besides the thermal zone device sysfs I/F and cooling device sysfs I/F,
 the generic thermal driver also creates a hwmon sysfs I/F for each _type_
@@ -267,6 +269,14 @@ cdev[0-*]_trip_point
 	point.
 	RO, Optional
 
+cdev[0-*]_weight
+        The influence of cdev[0-*] in this thermal zone. This value
+        is relative to the rest of cooling devices in the thermal
+        zone. For example, if a cooling device has a weight double
+        than that of other, it's twice as effective in cooling the
+        thermal zone.
+        RW, Optional
+
 passive
 	Attribute is only present for zones in which the passive cooling
 	policy is not supported by native thermal driver. Default is zero
@@ -320,7 +330,8 @@ passive, active. If an ACPI thermal zone supports critical, passive,
 active[0] and active[1] at the same time, it may register itself as a
 thermal_zone_device (thermal_zone1) with 4 trip points in all.
 It has one processor and one fan, which are both registered as
-thermal_cooling_device.
+thermal_cooling_device. Both are considered to have the same
+effectiveness in cooling the thermal zone.
 
 If the processor is listed in _PSL method, and the fan is listed in _AL0
 method, the sys I/F structure will be built like this:
@@ -342,8 +353,10 @@ method, the sys I/F structure will be built like this:
     |---trip_point_3_type:	active1
     |---cdev0:			--->/sys/class/thermal/cooling_device0
     |---cdev0_trip_point:	1	/* cdev0 can be used for passive */
+    |---cdev0_weight:           1024
     |---cdev1:			--->/sys/class/thermal/cooling_device3
     |---cdev1_trip_point:	2	/* cdev1 can be used for active[0]*/
+    |---cdev1_weight:           1024
 
 |cooling_device0:
     |---type:			Processor
