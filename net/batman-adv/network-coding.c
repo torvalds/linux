@@ -275,7 +275,7 @@ static bool batadv_nc_to_purge_nc_path_decoding(struct batadv_priv *bat_priv,
 	 * max_buffer time
 	 */
 	return batadv_has_timed_out(nc_path->last_valid,
-				    bat_priv->nc.max_buffer_time*10);
+				    bat_priv->nc.max_buffer_time * 10);
 }
 
 /**
