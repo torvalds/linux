@@ -454,7 +454,7 @@ static struct cpufreq_driver s3c24xx_driver = {
 };
 
 
-int __init s3c_cpufreq_register(struct s3c_cpufreq_info *info)
+int s3c_cpufreq_register(struct s3c_cpufreq_info *info)
 {
 	if (!info || !info->name) {
 		printk(KERN_ERR "%s: failed to pass valid information\n",
