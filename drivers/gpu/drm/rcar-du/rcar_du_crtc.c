@@ -105,7 +105,7 @@ static void rcar_du_crtc_put(struct rcar_du_crtc *rcrtc)
 
 static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 {
-	const struct drm_display_mode *mode = &rcrtc->crtc.mode;
+	const struct drm_display_mode *mode = &rcrtc->crtc.state->adjusted_mode;
 	unsigned long mode_clock = mode->clock * 1000;
 	unsigned long clk;
 	u32 value;
@@ -368,7 +368,6 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	 * switching to atomic updates completely.
 	 */
 	mutex_lock(&rcrtc->group->planes.lock);
-	rcrtc->plane->enabled = true;
 	rcar_du_crtc_update_planes(crtc);
 	mutex_unlock(&rcrtc->group->planes.lock);
 
@@ -411,11 +410,6 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	 */
 	rcar_du_crtc_wait_page_flip(rcrtc);
 	drm_crtc_vblank_off(crtc);
-
-	mutex_lock(&rcrtc->group->planes.lock);
-	rcrtc->plane->enabled = false;
-	rcar_du_crtc_update_planes(crtc);
-	mutex_unlock(&rcrtc->group->planes.lock);
 
 	/* Select switch sync mode. This stops display operation and configures
 	 * the HSYNC and VSYNC signals as inputs.
@@ -492,58 +486,20 @@ static void rcar_du_crtc_mode_prepare(struct drm_crtc *crtc)
 	 */
 	rcar_du_crtc_get(rcrtc);
 
-	/* Stop the CRTC and release the plane. Force the DPMS mode to off as a
-	 * result.
-	 */
+	/* Stop the CRTC, force the DPMS mode to off as a result. */
 	rcar_du_crtc_stop(rcrtc);
-	rcar_du_plane_release(rcrtc->plane);
 
 	rcrtc->dpms = DRM_MODE_DPMS_OFF;
+	rcrtc->outputs = 0;
 }
 
-static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
-				 struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode,
-				 int x, int y,
-				 struct drm_framebuffer *old_fb)
+static void rcar_du_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
-	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
-	const struct rcar_du_format_info *format;
-	int ret;
-
-	format = rcar_du_format_info(crtc->primary->fb->pixel_format);
-	if (format == NULL) {
-		dev_dbg(rcdu->dev, "mode_set: unsupported format %08x\n",
-			crtc->primary->fb->pixel_format);
-		ret = -EINVAL;
-		goto error;
-	}
-
-	ret = rcar_du_plane_reserve(rcrtc->plane, format);
-	if (ret < 0)
-		goto error;
-
-	rcrtc->plane->format = format;
-
-	rcrtc->plane->src_x = x;
-	rcrtc->plane->src_y = y;
-	rcrtc->plane->width = mode->hdisplay;
-	rcrtc->plane->height = mode->vdisplay;
-
-	rcar_du_plane_compute_base(rcrtc->plane, crtc->primary->fb);
-
-	rcrtc->outputs = 0;
-
-	return 0;
-
-error:
-	/* There's no rollback/abort operation to clean up in case of error. We
-	 * thus need to release the reference to the CRTC acquired in prepare()
-	 * here.
+	/* No-op. We should configure the display timings here, but as we're
+	 * called with the CRTC disabled clocks might be off, and we thus can't
+	 * access the hardware. Let's just configure everything when enabling
+	 * the CRTC.
 	 */
-	rcar_du_crtc_put(rcrtc);
-	return ret;
 }
 
 static void rcar_du_crtc_mode_commit(struct drm_crtc *crtc)
@@ -558,25 +514,9 @@ static void rcar_du_crtc_mode_commit(struct drm_crtc *crtc)
 	rcrtc->dpms = DRM_MODE_DPMS_ON;
 }
 
-static int rcar_du_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-				      struct drm_framebuffer *old_fb)
-{
-	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-
-	rcrtc->plane->src_x = x;
-	rcrtc->plane->src_y = y;
-
-	rcar_du_crtc_update_base(rcrtc);
-
-	return 0;
-}
-
 static void rcar_du_crtc_disable(struct drm_crtc *crtc)
 {
-	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-
 	rcar_du_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-	rcar_du_plane_release(rcrtc->plane);
 }
 
 static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc)
@@ -608,8 +548,9 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.mode_fixup = rcar_du_crtc_mode_fixup,
 	.prepare = rcar_du_crtc_mode_prepare,
 	.commit = rcar_du_crtc_mode_commit,
-	.mode_set = rcar_du_crtc_mode_set,
-	.mode_set_base = rcar_du_crtc_mode_set_base,
+	.mode_set = drm_helper_crtc_mode_set,
+	.mode_set_nofb = rcar_du_crtc_mode_set_nofb,
+	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.disable = rcar_du_crtc_disable,
 	.atomic_begin = rcar_du_crtc_atomic_begin,
 	.atomic_flush = rcar_du_crtc_atomic_flush,

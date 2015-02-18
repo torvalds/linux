@@ -78,8 +78,8 @@ static int rcar_du_plane_reserve_check(struct rcar_du_plane *plane,
 	return ret;
 }
 
-int rcar_du_plane_reserve(struct rcar_du_plane *plane,
-			  const struct rcar_du_format_info *format)
+static int rcar_du_plane_reserve(struct rcar_du_plane *plane,
+				 const struct rcar_du_format_info *format)
 {
 	struct rcar_du_group *rgrp = plane->group;
 	unsigned int i;
@@ -112,7 +112,7 @@ done:
 	return ret;
 }
 
-void rcar_du_plane_release(struct rcar_du_plane *plane)
+static void rcar_du_plane_release(struct rcar_du_plane *plane)
 {
 	struct rcar_du_group *rgrp = plane->group;
 
@@ -363,7 +363,6 @@ static void rcar_du_plane_disable(struct rcar_du_plane *rplane)
 
 	mutex_lock(&rplane->group->planes.lock);
 	rplane->enabled = false;
-	rcar_du_crtc_update_planes(rplane->crtc);
 	mutex_unlock(&rplane->group->planes.lock);
 
 	rcar_du_plane_release(rplane);
@@ -411,7 +410,6 @@ static void rcar_du_plane_atomic_update(struct drm_plane *plane,
 
 	mutex_lock(&rplane->group->planes.lock);
 	rplane->enabled = true;
-	rcar_du_crtc_update_planes(rplane->crtc);
 	mutex_unlock(&rplane->group->planes.lock);
 }
 
