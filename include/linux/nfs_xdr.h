@@ -1167,8 +1167,15 @@ struct nfs41_impl_id {
 	struct nfstime4			date;
 };
 
+struct nfs41_bind_conn_to_session_args {
+	struct nfs_client		*client;
+	struct nfs4_sessionid		sessionid;
+	u32				dir;
+	bool				use_conn_in_rdma_mode;
+};
+
 struct nfs41_bind_conn_to_session_res {
-	struct nfs4_session		*session;
+	struct nfs4_sessionid		sessionid;
 	u32				dir;
 	bool				use_conn_in_rdma_mode;
 };

@@ -1715,17 +1715,17 @@ static void encode_secinfo(struct xdr_stream *xdr, const struct qstr *name, stru
 #if defined(CONFIG_NFS_V4_1)
 /* NFSv4.1 operations */
 static void encode_bind_conn_to_session(struct xdr_stream *xdr,
-				   struct nfs4_session *session,
+				   struct nfs41_bind_conn_to_session_args *args,
 				   struct compound_hdr *hdr)
 {
 	__be32 *p;
 
 	encode_op_hdr(xdr, OP_BIND_CONN_TO_SESSION,
 		decode_bind_conn_to_session_maxsz, hdr);
-	encode_opaque_fixed(xdr, session->sess_id.data, NFS4_MAX_SESSIONID_LEN);
+	encode_opaque_fixed(xdr, args->sessionid.data, NFS4_MAX_SESSIONID_LEN);
 	p = xdr_reserve_space(xdr, 8);
-	*p++ = cpu_to_be32(NFS4_CDFC4_FORE_OR_BOTH);
-	*p = 0;	/* use_conn_in_rdma_mode = False */
+	*p++ = cpu_to_be32(args->dir);
+	*p = (args->use_conn_in_rdma_mode) ? cpu_to_be32(1) : cpu_to_be32(0);
 }
 
 static void encode_op_map(struct xdr_stream *xdr, struct nfs4_op_map *op_map)
@@ -2734,14 +2734,14 @@ static void nfs4_xdr_enc_fsid_present(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_bind_conn_to_session(struct rpc_rqst *req,
 				struct xdr_stream *xdr,
-				struct nfs_client *clp)
+				struct nfs41_bind_conn_to_session_args *args)
 {
 	struct compound_hdr hdr = {
-		.minorversion = clp->cl_mvops->minor_version,
+		.minorversion = args->client->cl_mvops->minor_version,
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
-	encode_bind_conn_to_session(xdr, clp->cl_session, &hdr);
+	encode_bind_conn_to_session(xdr, args, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -5613,7 +5613,7 @@ static int decode_bind_conn_to_session(struct xdr_stream *xdr,
 
 	status = decode_op_hdr(xdr, OP_BIND_CONN_TO_SESSION);
 	if (!status)
-		status = decode_sessionid(xdr, &res->session->sess_id);
+		status = decode_sessionid(xdr, &res->sessionid);
 	if (unlikely(status))
 		return status;
 
