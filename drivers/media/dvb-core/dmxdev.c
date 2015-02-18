@@ -1141,7 +1141,7 @@ static const struct dvb_device dvbdev_demux = {
 	.users = 1,
 	.writers = 1,
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
-	.name = "demux",
+	.name = "dvb-demux",
 #endif
 	.fops = &dvb_demux_fops
 };
@@ -1217,7 +1217,7 @@ static const struct dvb_device dvbdev_dvr = {
 	.readers = 1,
 	.users = 1,
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
-	.name = "dvr",
+	.name = "dvb-dvr",
 #endif
 	.fops = &dvb_dvr_fops
 };

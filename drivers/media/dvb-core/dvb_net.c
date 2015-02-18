@@ -1467,7 +1467,7 @@ static const struct dvb_device dvbdev_net = {
 	.users = 1,
 	.writers = 1,
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
-	.name = "dvb net",
+	.name = "dvb-net",
 #endif
 	.fops = &dvb_net_fops,
 };
