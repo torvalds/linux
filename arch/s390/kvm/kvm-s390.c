@@ -110,7 +110,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 /* upper facilities limit for kvm */
 unsigned long kvm_s390_fac_list_mask[] = {
 	0xffe6fffbfcfdfc40UL,
-	0x005c800000000000UL,
+	0x005e800000000000UL,
 };
 
 unsigned long kvm_s390_fac_list_mask_size(void)
@@ -1313,7 +1313,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 						    CPUSTAT_SM |
 						    CPUSTAT_STOPPED);
 
-	if (test_kvm_facility(vcpu->kvm, 8))
+	if (test_kvm_facility(vcpu->kvm, 78))
+		atomic_set_mask(CPUSTAT_GED2, &vcpu->arch.sie_block->cpuflags);
+	else if (test_kvm_facility(vcpu->kvm, 8))
 		atomic_set_mask(CPUSTAT_GED, &vcpu->arch.sie_block->cpuflags);
 
 	kvm_s390_vcpu_setup_model(vcpu);
