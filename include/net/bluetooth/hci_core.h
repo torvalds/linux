@@ -504,11 +504,9 @@ extern struct mutex hci_cb_list_lock;
 /* ----- HCI interface to upper protocols ----- */
 int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int l2cap_disconn_ind(struct hci_conn *hcon);
-void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason);
 int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags);
 
 int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags);
-void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason);
 int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
 
 /* ----- Inquiry cache ----- */
@@ -1056,32 +1054,6 @@ static inline int hci_proto_disconn_ind(struct hci_conn *conn)
 	return l2cap_disconn_ind(conn);
 }
 
-static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason)
-{
-	switch (conn->type) {
-	case ACL_LINK:
-	case LE_LINK:
-		l2cap_disconn_cfm(conn, reason);
-		break;
-
-	case SCO_LINK:
-	case ESCO_LINK:
-		sco_disconn_cfm(conn, reason);
-		break;
-
-	/* L2CAP would be handled for BREDR chan */
-	case AMP_LINK:
-		break;
-
-	default:
-		BT_ERR("unknown link type %d", conn->type);
-		break;
-	}
-
-	if (conn->disconn_cfm_cb)
-		conn->disconn_cfm_cb(conn, reason);
-}
-
 /* ----- HCI callbacks ----- */
 struct hci_cb {
 	struct list_head list;
@@ -1089,6 +1061,7 @@ struct hci_cb {
 	char *name;
 
 	void (*connect_cfm)	(struct hci_conn *conn, __u8 status);
+	void (*disconn_cfm)	(struct hci_conn *conn, __u8 status);
 	void (*security_cfm)	(struct hci_conn *conn, __u8 status,
 								__u8 encrypt);
 	void (*key_change_cfm)	(struct hci_conn *conn, __u8 status);
@@ -1108,6 +1081,21 @@ static inline void hci_connect_cfm(struct hci_conn *conn, __u8 status)
 
 	if (conn->connect_cfm_cb)
 		conn->connect_cfm_cb(conn, status);
+}
+
+static inline void hci_disconn_cfm(struct hci_conn *conn, __u8 reason)
+{
+	struct hci_cb *cb;
+
+	mutex_lock(&hci_cb_list_lock);
+	list_for_each_entry(cb, &hci_cb_list, list) {
+		if (cb->disconn_cfm)
+			cb->disconn_cfm(conn, reason);
+	}
+	mutex_unlock(&hci_cb_list_lock);
+
+	if (conn->disconn_cfm_cb)
+		conn->disconn_cfm_cb(conn, reason);
 }
 
 static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)

@@ -2444,7 +2444,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	type = conn->type;
 
-	hci_proto_disconn_cfm(conn, ev->reason);
+	hci_disconn_cfm(conn, ev->reason);
 	hci_conn_del(conn);
 
 	/* Re-enable advertising if necessary, since it might
