@@ -4024,6 +4024,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		NAPI_GRO_CB(skb)->flush = 0;
 		NAPI_GRO_CB(skb)->free = 0;
 		NAPI_GRO_CB(skb)->udp_mark = 0;
+		NAPI_GRO_CB(skb)->gro_remcsum_start = 0;
 
 		/* Setup for GRO checksum validation */
 		switch (skb->ip_summed) {
@@ -5335,7 +5336,7 @@ EXPORT_SYMBOL(netdev_upper_dev_unlink);
 /**
  * netdev_bonding_info_change - Dispatch event about slave change
  * @dev: device
- * @netdev_bonding_info: info to dispatch
+ * @bonding_info: info to dispatch
  *
  * Send NETDEV_BONDING_INFO to netdev notifiers with info.
  * The caller must hold the RTNL lock.

@@ -31,7 +31,8 @@ struct sclp_cpu_entry {
 	u8 reserved0[2];
 	u8 : 3;
 	u8 siif : 1;
-	u8 : 4;
+	u8 sigpif : 1;
+	u8 : 3;
 	u8 reserved2[10];
 	u8 type;
 	u8 reserved1;
@@ -69,6 +70,7 @@ int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode);
 unsigned long sclp_get_hsa_size(void);
 void sclp_early_detect(void);
 int sclp_has_siif(void);
+int sclp_has_sigpif(void);
 unsigned int sclp_get_ibc(void);
 
 long _sclp_print_early(const char *);

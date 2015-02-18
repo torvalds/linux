@@ -6,15 +6,6 @@ config HAVE_AT91_UTMI
 config HAVE_AT91_USB_CLK
 	bool
 
-config HAVE_AT91_DBGU0
-	bool
-
-config HAVE_AT91_DBGU1
-	bool
-
-config HAVE_AT91_DBGU2
-	bool
-
 config COMMON_CLK_AT91
 	bool
 	select COMMON_CLK
@@ -24,15 +15,6 @@ config HAVE_AT91_SMD
 
 config HAVE_AT91_H32MX
 	bool
-
-config SOC_AT91SAM9
-	bool
-	select ATMEL_AIC_IRQ
-	select COMMON_CLK_AT91
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select MEMORY
-	select ATMEL_SDRAMC
 
 config SOC_SAMA5
 	bool
@@ -70,7 +52,6 @@ config SOC_SAMA5D3
 	bool "SAMA5D3 family"
 	select SOC_SAMA5
 	select HAVE_FB_ATMEL
-	select HAVE_AT91_DBGU1
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
@@ -81,7 +62,6 @@ config SOC_SAMA5D3
 config SOC_SAMA5D4
 	bool "SAMA5D4 family"
 	select SOC_SAMA5
-	select HAVE_AT91_DBGU2
 	select CLKSRC_MMIO
 	select CACHE_L2X0
 	select CACHE_PL310
@@ -101,91 +81,45 @@ config SOC_AT91RM9200
 	select COMMON_CLK_AT91
 	select CPU_ARM920T
 	select GENERIC_CLOCKEVENTS
-	select HAVE_AT91_DBGU0
 	select HAVE_AT91_USB_CLK
 
-config SOC_AT91SAM9260
-	bool "AT91SAM9260, AT91SAM9XE or AT91SAM9G20"
-	select HAVE_AT91_DBGU0
-	select SOC_AT91SAM9
-	select HAVE_AT91_USB_CLK
-	help
-	  Select this if you are using one of Atmel's AT91SAM9260, AT91SAM9XE
-	  or AT91SAM9G20 SoC.
-
-config SOC_AT91SAM9261
-	bool "AT91SAM9261 or AT91SAM9G10"
-	select HAVE_AT91_DBGU0
-	select HAVE_FB_ATMEL
-	select SOC_AT91SAM9
-	select HAVE_AT91_USB_CLK
-	help
-	  Select this if you are using one of Atmel's AT91SAM9261 or AT91SAM9G10 SoC.
-
-config SOC_AT91SAM9263
-	bool "AT91SAM9263"
-	select HAVE_AT91_DBGU1
-	select HAVE_FB_ATMEL
-	select SOC_AT91SAM9
-	select HAVE_AT91_USB_CLK
-
-config SOC_AT91SAM9RL
-	bool "AT91SAM9RL"
-	select HAVE_AT91_DBGU0
-	select HAVE_FB_ATMEL
-	select SOC_AT91SAM9
-	select HAVE_AT91_UTMI
-
-config SOC_AT91SAM9G45
-	bool "AT91SAM9G45 or AT91SAM9M10 families"
-	select HAVE_AT91_DBGU1
-	select HAVE_FB_ATMEL
-	select SOC_AT91SAM9
-	select HAVE_AT91_UTMI
-	select HAVE_AT91_USB_CLK
-	help
-	  Select this if you are using one of Atmel's AT91SAM9G45 family SoC.
-	  This support covers AT91SAM9G45, AT91SAM9G46, AT91SAM9M10 and AT91SAM9M11.
-
-config SOC_AT91SAM9X5
-	bool "AT91SAM9x5 family"
-	select HAVE_AT91_DBGU0
-	select HAVE_FB_ATMEL
-	select SOC_AT91SAM9
-	select HAVE_AT91_UTMI
+config SOC_AT91SAM9
+	bool "AT91SAM9"
+	select ATMEL_AIC_IRQ
+	select ATMEL_SDRAMC
+	select COMMON_CLK_AT91
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
-	help
-	  Select this if you are using one of Atmel's AT91SAM9x5 family SoC.
-	  This means that your SAM9 name finishes with a '5' (except if it is
-	  AT91SAM9G45!).
-	  This support covers AT91SAM9G15, AT91SAM9G25, AT91SAM9X25, AT91SAM9G35
-	  and AT91SAM9X35.
-
-config SOC_AT91SAM9N12
-	bool "AT91SAM9N12 family"
-	select HAVE_AT91_DBGU0
+	select HAVE_AT91_UTMI
 	select HAVE_FB_ATMEL
-	select SOC_AT91SAM9
-	select HAVE_AT91_USB_CLK
+	select MEMORY
 	help
-	  Select this if you are using Atmel's AT91SAM9N12 SoC.
-
-# ----------------------------------------------------------
+	  Select this if you are using one of those Atmel SoC:
+	    AT91SAM9260
+	    AT91SAM9261
+	    AT91SAM9263
+	    AT91SAM9G15
+	    AT91SAM9G20
+	    AT91SAM9G25
+	    AT91SAM9G35
+	    AT91SAM9G45
+	    AT91SAM9G46
+	    AT91SAM9M10
+	    AT91SAM9M11
+	    AT91SAM9N12
+	    AT91SAM9RL
+	    AT91SAM9X25
+	    AT91SAM9X35
+	    AT91SAM9XE
 endif # SOC_SAM_V4_V5
-
-config MACH_AT91RM9200_DT
-	def_bool SOC_AT91RM9200
-
-config MACH_AT91SAM9_DT
-	def_bool SOC_AT91SAM9
-
-# ----------------------------------------------------------
 
 comment "AT91 Feature Selections"
 
 config AT91_SLOW_CLOCK
 	bool "Suspend-to-RAM disables main oscillator"
+	select SRAM
 	depends on SUSPEND
 	help
 	  Select this if you want Suspend-to-RAM to save the most power

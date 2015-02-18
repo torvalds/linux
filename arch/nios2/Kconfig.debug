@@ -14,4 +14,15 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
+config EARLY_PRINTK
+	bool "Activate early kernel debugging"
+	default y
+	select SERIAL_CORE_CONSOLE
+	depends on SERIAL_ALTERA_JTAGUART_CONSOLE || SERIAL_ALTERA_UART_CONSOLE
+	help
+	  Enable early printk on console
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized.
+	  You should normally say N here, unless you want to debug such a crash.
+
 endmenu

@@ -241,6 +241,7 @@ config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
 	depends on PLAT_SAMSUNG || ARCH_EXYNOS
 	select SERIAL_CORE
+	select SERIAL_EARLYCON
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
 	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
@@ -481,16 +482,6 @@ config SERIAL_SA1100_CONSOLE
 	  "console=ttySA0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
-
-config SERIAL_MRST_MAX3110
-	tristate "SPI UART driver for Max3110"
-	depends on SPI_DW_PCI
-	select SERIAL_CORE
-	select SERIAL_CORE_CONSOLE
-	help
-	  This is the UART protocol driver for the MAX3110 device on
-	  the Intel Moorestown platform. On other systems use the max3100
-	  driver.
 
 config SERIAL_MFD_HSU
 	tristate "Medfield High Speed UART support"
@@ -1094,6 +1085,16 @@ config SERIAL_VT8500_CONSOLE
 	depends on SERIAL_VT8500=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_ETRAXFS
+	bool "ETRAX FS serial port support"
+	depends on ETRAX_ARCH_V32 && OF
+	select SERIAL_CORE
+
+config SERIAL_ETRAXFS_CONSOLE
+	bool "ETRAX FS serial console support"
+	depends on SERIAL_ETRAXFS
+	select SERIAL_CORE_CONSOLE
+
 config SERIAL_NETX
 	tristate "NetX serial port support"
 	depends on ARCH_NETX
@@ -1549,6 +1550,21 @@ config SERIAL_FSL_LPUART_CONSOLE
 	  If you have enabled the lpuart serial port on the Freescale SoCs,
 	  you can make it the console by answering Y to this option.
 
+config SERIAL_CONEXANT_DIGICOLOR
+	tristate "Conexant Digicolor CX92xxx USART serial port support"
+	depends on OF
+	select SERIAL_CORE
+	help
+	  Support for the on-chip USART on Conexant Digicolor SoCs.
+
+config SERIAL_CONEXANT_DIGICOLOR_CONSOLE
+	bool "Console on Conexant Digicolor serial port"
+	depends on SERIAL_CONEXANT_DIGICOLOR=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the USART serial port on Conexant Digicolor
+	  SoCs, you can make it the console by answering Y to this option.
+
 config SERIAL_ST_ASC
 	tristate "ST ASC serial port support"
 	select SERIAL_CORE
@@ -1576,6 +1592,24 @@ config SERIAL_MEN_Z135
 
 	  This driver can also be build as a module. If so, the module will be called
 	  men_z135_uart.ko
+
+config SERIAL_SPRD
+	tristate "Support for Spreadtrum serial"
+	depends on ARCH_SPRD
+	select SERIAL_CORE
+	help
+	  This enables the driver for the Spreadtrum's serial.
+
+config SERIAL_SPRD_CONSOLE
+	bool "Spreadtrum UART console support"
+	depends on SERIAL_SPRD=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Support for early debug console using Spreadtrum's serial. This enables
+	  the console before standard serial driver is probed. This is enabled
+	  with "earlycon" on the kernel command line. The console is
+	  enabled when early_param is processed.
 
 endmenu
 

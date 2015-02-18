@@ -12,6 +12,10 @@
 #include "exynos4412.dtsi"
 
 / {
+	chosen {
+		stdout-path = &serial_1;
+	};
+
 	firmware@0204F000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0204F000 0x1000>;
@@ -398,6 +402,7 @@
 	};
 
 	hsotg@12480000 {
+		dr_mode = "peripheral";
 		status = "okay";
 		vusb_d-supply = <&ldo15_reg>;
 		vusb_a-supply = <&ldo12_reg>;

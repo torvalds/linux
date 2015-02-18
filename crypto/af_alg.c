@@ -188,7 +188,7 @@ static int alg_setkey(struct sock *sk, char __user *ukey,
 	err = type->setkey(ask->private, key, keylen);
 
 out:
-	sock_kfree_s(sk, key, keylen);
+	sock_kzfree_s(sk, key, keylen);
 
 	return err;
 }
@@ -215,6 +215,13 @@ static int alg_setsockopt(struct socket *sock, int level, int optname,
 			goto unlock;
 
 		err = alg_setkey(sk, optval, optlen);
+		break;
+	case ALG_SET_AEAD_AUTHSIZE:
+		if (sock->state == SS_CONNECTED)
+			goto unlock;
+		if (!type->setauthsize)
+			goto unlock;
+		err = type->setauthsize(ask->private, optlen);
 	}
 
 unlock:
@@ -387,7 +394,7 @@ int af_alg_cmsg_send(struct msghdr *msg, struct af_alg_control *con)
 		if (cmsg->cmsg_level != SOL_ALG)
 			continue;
 
-		switch(cmsg->cmsg_type) {
+		switch (cmsg->cmsg_type) {
 		case ALG_SET_IV:
 			if (cmsg->cmsg_len < CMSG_LEN(sizeof(*con->iv)))
 				return -EINVAL;

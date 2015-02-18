@@ -768,7 +768,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 		mapping->flags = 0;
 		mapping_set_gfp_mask(mapping, GFP_NOFS);
 		mapping->private_data = NULL;
-		mapping->backing_dev_info = s->s_bdi;
 		mapping->writeback_index = 0;
 	}
 

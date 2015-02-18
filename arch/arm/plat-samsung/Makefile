@@ -26,12 +26,6 @@ obj-$(CONFIG_SAMSUNG_DEV_BACKLIGHT)	+= dev-backlight.o
 
 obj-$(CONFIG_S3C_SETUP_CAMIF)	+= setup-camif.o
 
-# DMA support
-
-obj-$(CONFIG_S3C_DMA)		+= dma.o s3c-dma-ops.o
-
-obj-$(CONFIG_SAMSUNG_DMADEV)	+= dma-ops.o
-
 # PM support
 
 obj-$(CONFIG_PM_SLEEP)		+= pm-common.o

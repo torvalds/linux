@@ -717,7 +717,7 @@ ksocknal_pack_msg_v1(ksock_tx_t *tx)
 	LASSERT(tx->tx_msg.ksm_type != KSOCK_MSG_NOOP);
 	LASSERT(tx->tx_lnetmsg != NULL);
 
-	tx->tx_iov[0].iov_base = (void *)&tx->tx_lnetmsg->msg_hdr;
+	tx->tx_iov[0].iov_base = &tx->tx_lnetmsg->msg_hdr;
 	tx->tx_iov[0].iov_len  = sizeof(lnet_hdr_t);
 
 	tx->tx_resid = tx->tx_nob = tx->tx_lnetmsg->msg_len + sizeof(lnet_hdr_t);
@@ -726,7 +726,7 @@ ksocknal_pack_msg_v1(ksock_tx_t *tx)
 static void
 ksocknal_pack_msg_v2(ksock_tx_t *tx)
 {
-	tx->tx_iov[0].iov_base = (void *)&tx->tx_msg;
+	tx->tx_iov[0].iov_base = &tx->tx_msg;
 
 	if (tx->tx_lnetmsg != NULL) {
 		LASSERT(tx->tx_msg.ksm_type != KSOCK_MSG_NOOP);

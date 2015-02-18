@@ -19,8 +19,7 @@
 /*
  * Driver: pcmuio
  * Description: Winsystems PC-104 based 48/96-channel DIO boards.
- * Devices: (Winsystems) PCM-UIO48A [pcmuio48]
- *	    (Winsystems) PCM-UIO96A [pcmuio96]
+ * Devices: [Winsystems] PCM-UIO48A (pcmuio48), PCM-UIO96A (pcmuio96)
  * Author: Calin Culianu <calin@ajvar.org>
  * Updated: Fri, 13 Jan 2006 12:01:01 -0500
  * Status: works

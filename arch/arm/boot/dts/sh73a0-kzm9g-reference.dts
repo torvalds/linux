@@ -179,7 +179,11 @@
 };
 
 &cmt1 {
-	status = "ok";
+	status = "okay";
+};
+
+&extal2_clk {
+	clock-frequency = <48000000>;
 };
 
 &i2c0 {

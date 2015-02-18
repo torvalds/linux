@@ -1803,6 +1803,7 @@ static int r8a66597_set_selfpowered(struct usb_gadget *gadget, int is_self)
 {
 	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
 
+	gadget->is_selfpowered = (is_self != 0);
 	if (is_self)
 		r8a66597->device_status |= 1 << USB_DEVICE_SELF_POWERED;
 	else

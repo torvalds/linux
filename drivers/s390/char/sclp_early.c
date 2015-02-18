@@ -54,6 +54,7 @@ static unsigned long sclp_hsa_size;
 static unsigned int sclp_max_cpu;
 static struct sclp_ipl_info sclp_ipl_info;
 static unsigned char sclp_siif;
+static unsigned char sclp_sigpif;
 static u32 sclp_ibc;
 static unsigned int sclp_mtid;
 static unsigned int sclp_mtid_cp;
@@ -140,6 +141,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 		if (boot_cpu_address != cpue->core_id)
 			continue;
 		sclp_siif = cpue->siif;
+		sclp_sigpif = cpue->sigpif;
 		break;
 	}
 
@@ -185,6 +187,12 @@ int sclp_has_siif(void)
 	return sclp_siif;
 }
 EXPORT_SYMBOL(sclp_has_siif);
+
+int sclp_has_sigpif(void)
+{
+	return sclp_sigpif;
+}
+EXPORT_SYMBOL(sclp_has_sigpif);
 
 unsigned int sclp_get_ibc(void)
 {

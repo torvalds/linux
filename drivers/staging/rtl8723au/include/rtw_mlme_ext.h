@@ -509,7 +509,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 			  struct ieee80211_mgmt *mgmt, u32 packet_len);
 void update_IOT_info23a(struct rtw_adapter *padapter);
 void update_capinfo23a(struct rtw_adapter *Adapter, u16 updateCap);
-void update_wireless_mode23a(struct rtw_adapter * padapter);
+void update_wireless_mode23a(struct rtw_adapter *padapter);
 void update_tx_basic_rate23a(struct rtw_adapter *padapter, u8 modulation);
 void update_bmc_sta_support_rate23a(struct rtw_adapter *padapter, u32 mac_id);
 int update_sta_support_rate23a(struct rtw_adapter *padapter, u8 *pvar_ie,

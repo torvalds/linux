@@ -153,6 +153,17 @@ config RTC_DRV_88PM80X
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-88pm80x.
 
+config RTC_DRV_ABB5ZES3
+       depends on I2C
+       select REGMAP_I2C
+       tristate "Abracon AB-RTCMC-32.768kHz-B5ZE-S3"
+       help
+	  If you say yes here you get support for the Abracon
+	  AB-RTCMC-32.768kHz-B5ZE-S3 I2C RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ab-b5ze-s3.
+
 config RTC_DRV_AS3722
 	tristate "ams AS3722 RTC driver"
 	depends on MFD_AS3722
@@ -790,6 +801,96 @@ config RTC_DRV_DS1553
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1553.
 
+config RTC_DRV_DS1685_FAMILY
+	tristate "Dallas/Maxim DS1685 Family"
+	help
+	  If you say yes here you get support for the Dallas/Maxim DS1685
+	  family of real time chips.  This family includes the DS1685/DS1687,
+	  DS1689/DS1693, DS17285/DS17287, DS17485/DS17487, and
+	  DS17885/DS17887 chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1685.
+
+choice
+	prompt "Subtype"
+	depends on RTC_DRV_DS1685_FAMILY
+	default RTC_DRV_DS1685
+
+config RTC_DRV_DS1685
+	bool "DS1685/DS1687"
+	help
+	  This enables support for the Dallas/Maxim DS1685/DS1687 real time
+	  clock chip.
+
+	  This chip is commonly found in SGI O2 (IP32) and SGI Octane (IP30)
+	  systems, as well as EPPC-405-UC modules by electronic system design
+	  GmbH.
+
+config RTC_DRV_DS1689
+	bool "DS1689/DS1693"
+	help
+	  This enables support for the Dallas/Maxim DS1689/DS1693 real time
+	  clock chip.
+
+	  This is an older RTC chip, supplanted by the DS1685/DS1687 above,
+	  which supports a few minor features such as Vcc, Vbat, and Power
+	  Cycle counters, plus a customer-specific, 8-byte ROM/Serial number.
+
+	  It also works for the even older DS1688/DS1691 RTC chips, which are
+	  virtually the same and carry the same model number.  Both chips
+	  have 114 bytes of user NVRAM.
+
+config RTC_DRV_DS17285
+	bool "DS17285/DS17287"
+	help
+	  This enables support for the Dallas/Maxim DS17285/DS17287 real time
+	  clock chip.
+
+	  This chip features 2kb of extended NV-SRAM.  It may possibly be
+	  found in some SGI O2 systems (rare).
+
+config RTC_DRV_DS17485
+	bool "DS17485/DS17487"
+	help
+	  This enables support for the Dallas/Maxim DS17485/DS17487 real time
+	  clock chip.
+
+	  This chip features 4kb of extended NV-SRAM.
+
+config RTC_DRV_DS17885
+	bool "DS17885/DS17887"
+	help
+	  This enables support for the Dallas/Maxim DS17885/DS17887 real time
+	  clock chip.
+
+	  This chip features 8kb of extended NV-SRAM.
+
+endchoice
+
+config RTC_DS1685_PROC_REGS
+	bool "Display register values in /proc"
+	depends on RTC_DRV_DS1685_FAMILY && PROC_FS
+	help
+	  Enable this to display a readout of all of the RTC registers in
+	  /proc/drivers/rtc.  Keep in mind that this can potentially lead
+	  to lost interrupts, as reading Control Register C will clear
+	  all pending IRQ flags.
+
+	  Unless you are debugging this driver, choose N.
+
+config RTC_DS1685_SYSFS_REGS
+	bool "SysFS access to RTC register bits"
+	depends on RTC_DRV_DS1685_FAMILY && SYSFS
+	help
+	  Enable this to provide access to the RTC control register bits
+	  in /sys.  Some of the bits are read-write, others are read-only.
+
+	  Keep in mind that reading Control C's bits automatically clears
+	  all pending IRQ flags - this can cause lost interrupts.
+
+	  If you know that you need access to these bits, choose Y, Else N.
+
 config RTC_DRV_DS1742
 	tristate "Maxim/Dallas DS1742/1743"
 	depends on HAS_IOMEM
@@ -1141,34 +1242,6 @@ config RTC_DRV_AT91SAM9
 	  probably want to use the real RTC block instead of the "RTT as an
 	  RTC" driver.
 
-config RTC_DRV_AT91SAM9_RTT
-	int
-	range 0 1
-	default 0
-	depends on RTC_DRV_AT91SAM9
-	help
-	  This option is only relevant for legacy board support and
-	  won't be used when booting a DT board.
-
-	  More than one RTT module is available. You can choose which
-	  one will be used as an RTC. The default of zero is normally
-	  OK to use, though some systems use that for non-RTC purposes.
-
-config RTC_DRV_AT91SAM9_GPBR
-	int
-	range 0 3
-	default 0
-	prompt "Backup Register Number"
-	depends on RTC_DRV_AT91SAM9
-	help
-	  This option is only relevant for legacy board support and
-	  won't be used when booting a DT board.
-
-	  The RTC driver needs to use one of the General Purpose Backup
-	  Registers (GPBRs) as well as the RTT. You can choose which one
-	  will be used. The default of zero is normally OK to use, but
-	  on some systems other software needs to use that register.
-
 config RTC_DRV_AU1XXX
 	tristate "Au1xxx Counter0 RTC support"
 	depends on MIPS_ALCHEMY
@@ -1268,6 +1341,16 @@ config RTC_DRV_MV
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-mv.
+
+config RTC_DRV_ARMADA38X
+	tristate "Armada 38x Marvell SoC RTC"
+	depends on ARCH_MVEBU
+	help
+	  If you say yes here you will get support for the in-chip RTC
+	  that can be found in the Armada 38x Marvell's SoC device
+
+	  This driver can also be built as a module. If so, the module
+	  will be called armada38x-rtc.
 
 config RTC_DRV_PS3
 	tristate "PS3 RTC"

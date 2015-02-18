@@ -332,7 +332,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 
 	ret = 0;
 	if (hdr->iovec_count) {
-		size_t iov_data_len;
+		struct iov_iter i;
 		struct iovec *iov = NULL;
 
 		ret = rw_copy_check_uvector(-1, hdr->dxferp, hdr->iovec_count,
@@ -342,20 +342,11 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 			goto out_free_cdb;
 		}
 
-		iov_data_len = ret;
-		ret = 0;
-
 		/* SG_IO howto says that the shorter of the two wins */
-		if (hdr->dxfer_len < iov_data_len) {
-			hdr->iovec_count = iov_shorten(iov,
-						       hdr->iovec_count,
-						       hdr->dxfer_len);
-			iov_data_len = hdr->dxfer_len;
-		}
+		iov_iter_init(&i, rq_data_dir(rq), iov, hdr->iovec_count,
+			      min_t(unsigned, ret, hdr->dxfer_len));
 
-		ret = blk_rq_map_user_iov(q, rq, NULL, (struct sg_iovec *) iov,
-					  hdr->iovec_count,
-					  iov_data_len, GFP_KERNEL);
+		ret = blk_rq_map_user_iov(q, rq, NULL, &i, GFP_KERNEL);
 		kfree(iov);
 	} else if (hdr->dxfer_len)
 		ret = blk_rq_map_user(q, rq, NULL, hdr->dxferp, hdr->dxfer_len,

@@ -237,7 +237,8 @@ struct lpuart_port {
 	unsigned int		rxfifo_size;
 	bool			lpuart32;
 
-	bool			lpuart_dma_use;
+	bool			lpuart_dma_tx_use;
+	bool			lpuart_dma_rx_use;
 	struct dma_chan		*dma_tx_chan;
 	struct dma_chan		*dma_rx_chan;
 	struct dma_async_tx_descriptor  *dma_tx_desc;
@@ -454,6 +455,15 @@ static int lpuart_dma_rx(struct lpuart_port *sport)
 	return 0;
 }
 
+static void lpuart_flush_buffer(struct uart_port *port)
+{
+	struct lpuart_port *sport = container_of(port, struct lpuart_port, port);
+	if (sport->lpuart_dma_tx_use) {
+		dmaengine_terminate_all(sport->dma_tx_chan);
+		sport->dma_tx_in_progress = 0;
+	}
+}
+
 static void lpuart_dma_rx_complete(void *arg)
 {
 	struct lpuart_port *sport = arg;
@@ -461,6 +471,7 @@ static void lpuart_dma_rx_complete(void *arg)
 	unsigned long flags;
 
 	async_tx_ack(sport->dma_rx_desc);
+	mod_timer(&sport->lpuart_timer, jiffies + sport->dma_rx_timeout);
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 
@@ -506,9 +517,6 @@ static inline void lpuart_prepare_rx(struct lpuart_port *sport)
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 
-	init_timer(&sport->lpuart_timer);
-	sport->lpuart_timer.function = lpuart_timer_func;
-	sport->lpuart_timer.data = (unsigned long)sport;
 	sport->lpuart_timer.expires = jiffies + sport->dma_rx_timeout;
 	add_timer(&sport->lpuart_timer);
 
@@ -571,7 +579,7 @@ static void lpuart_start_tx(struct uart_port *port)
 	temp = readb(port->membase + UARTCR2);
 	writeb(temp | UARTCR2_TIE, port->membase + UARTCR2);
 
-	if (sport->lpuart_dma_use) {
+	if (sport->lpuart_dma_tx_use) {
 		if (!uart_circ_empty(xmit) && !sport->dma_tx_in_progress)
 			lpuart_prepare_tx(sport);
 	} else {
@@ -758,19 +766,19 @@ out:
 static irqreturn_t lpuart_int(int irq, void *dev_id)
 {
 	struct lpuart_port *sport = dev_id;
-	unsigned char sts;
+	unsigned char sts, crdma;
 
 	sts = readb(sport->port.membase + UARTSR1);
+	crdma = readb(sport->port.membase + UARTCR5);
 
-	if (sts & UARTSR1_RDRF) {
-		if (sport->lpuart_dma_use)
+	if (sts & UARTSR1_RDRF && !(crdma & UARTCR5_RDMAS)) {
+		if (sport->lpuart_dma_rx_use)
 			lpuart_prepare_rx(sport);
 		else
 			lpuart_rxint(irq, dev_id);
 	}
-	if (sts & UARTSR1_TDRE &&
-		!(readb(sport->port.membase + UARTCR5) & UARTCR5_TDMAS)) {
-		if (sport->lpuart_dma_use)
+	if (sts & UARTSR1_TDRE && !(crdma & UARTCR5_TDMAS)) {
+		if (sport->lpuart_dma_tx_use)
 			lpuart_pio_tx(sport);
 		else
 			lpuart_txint(irq, dev_id);
@@ -953,26 +961,17 @@ static int lpuart_dma_tx_request(struct uart_port *port)
 {
 	struct lpuart_port *sport = container_of(port,
 					struct lpuart_port, port);
-	struct dma_chan *tx_chan;
 	struct dma_slave_config dma_tx_sconfig;
 	dma_addr_t dma_bus;
 	unsigned char *dma_buf;
 	int ret;
 
-	tx_chan  = dma_request_slave_channel(sport->port.dev, "tx");
-
-	if (!tx_chan) {
-		dev_err(sport->port.dev, "Dma tx channel request failed!\n");
-		return -ENODEV;
-	}
-
-	dma_bus = dma_map_single(tx_chan->device->dev,
+	dma_bus = dma_map_single(sport->dma_tx_chan->device->dev,
 				sport->port.state->xmit.buf,
 				UART_XMIT_SIZE, DMA_TO_DEVICE);
 
-	if (dma_mapping_error(tx_chan->device->dev, dma_bus)) {
+	if (dma_mapping_error(sport->dma_tx_chan->device->dev, dma_bus)) {
 		dev_err(sport->port.dev, "dma_map_single tx failed\n");
-		dma_release_channel(tx_chan);
 		return -ENOMEM;
 	}
 
@@ -981,16 +980,14 @@ static int lpuart_dma_tx_request(struct uart_port *port)
 	dma_tx_sconfig.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	dma_tx_sconfig.dst_maxburst = sport->txfifo_size;
 	dma_tx_sconfig.direction = DMA_MEM_TO_DEV;
-	ret = dmaengine_slave_config(tx_chan, &dma_tx_sconfig);
+	ret = dmaengine_slave_config(sport->dma_tx_chan, &dma_tx_sconfig);
 
 	if (ret < 0) {
 		dev_err(sport->port.dev,
 				"Dma slave config failed, err = %d\n", ret);
-		dma_release_channel(tx_chan);
 		return ret;
 	}
 
-	sport->dma_tx_chan = tx_chan;
 	sport->dma_tx_buf_virt = dma_buf;
 	sport->dma_tx_buf_bus = dma_bus;
 	sport->dma_tx_in_progress = 0;
@@ -1002,34 +999,24 @@ static int lpuart_dma_rx_request(struct uart_port *port)
 {
 	struct lpuart_port *sport = container_of(port,
 					struct lpuart_port, port);
-	struct dma_chan *rx_chan;
 	struct dma_slave_config dma_rx_sconfig;
 	dma_addr_t dma_bus;
 	unsigned char *dma_buf;
 	int ret;
-
-	rx_chan  = dma_request_slave_channel(sport->port.dev, "rx");
-
-	if (!rx_chan) {
-		dev_err(sport->port.dev, "Dma rx channel request failed!\n");
-		return -ENODEV;
-	}
 
 	dma_buf = devm_kzalloc(sport->port.dev,
 				FSL_UART_RX_DMA_BUFFER_SIZE, GFP_KERNEL);
 
 	if (!dma_buf) {
 		dev_err(sport->port.dev, "Dma rx alloc failed\n");
-		dma_release_channel(rx_chan);
 		return -ENOMEM;
 	}
 
-	dma_bus = dma_map_single(rx_chan->device->dev, dma_buf,
+	dma_bus = dma_map_single(sport->dma_rx_chan->device->dev, dma_buf,
 				FSL_UART_RX_DMA_BUFFER_SIZE, DMA_FROM_DEVICE);
 
-	if (dma_mapping_error(rx_chan->device->dev, dma_bus)) {
+	if (dma_mapping_error(sport->dma_rx_chan->device->dev, dma_bus)) {
 		dev_err(sport->port.dev, "dma_map_single rx failed\n");
-		dma_release_channel(rx_chan);
 		return -ENOMEM;
 	}
 
@@ -1037,16 +1024,14 @@ static int lpuart_dma_rx_request(struct uart_port *port)
 	dma_rx_sconfig.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	dma_rx_sconfig.src_maxburst = 1;
 	dma_rx_sconfig.direction = DMA_DEV_TO_MEM;
-	ret = dmaengine_slave_config(rx_chan, &dma_rx_sconfig);
+	ret = dmaengine_slave_config(sport->dma_rx_chan, &dma_rx_sconfig);
 
 	if (ret < 0) {
 		dev_err(sport->port.dev,
 				"Dma slave config failed, err = %d\n", ret);
-		dma_release_channel(rx_chan);
 		return ret;
 	}
 
-	sport->dma_rx_chan = rx_chan;
 	sport->dma_rx_buf_virt = dma_buf;
 	sport->dma_rx_buf_bus = dma_bus;
 	sport->dma_rx_in_progress = 0;
@@ -1058,31 +1043,24 @@ static void lpuart_dma_tx_free(struct uart_port *port)
 {
 	struct lpuart_port *sport = container_of(port,
 					struct lpuart_port, port);
-	struct dma_chan *dma_chan;
 
 	dma_unmap_single(sport->port.dev, sport->dma_tx_buf_bus,
 			UART_XMIT_SIZE, DMA_TO_DEVICE);
-	dma_chan = sport->dma_tx_chan;
-	sport->dma_tx_chan = NULL;
+
 	sport->dma_tx_buf_bus = 0;
 	sport->dma_tx_buf_virt = NULL;
-	dma_release_channel(dma_chan);
 }
 
 static void lpuart_dma_rx_free(struct uart_port *port)
 {
 	struct lpuart_port *sport = container_of(port,
 					struct lpuart_port, port);
-	struct dma_chan *dma_chan;
 
 	dma_unmap_single(sport->port.dev, sport->dma_rx_buf_bus,
 			FSL_UART_RX_DMA_BUFFER_SIZE, DMA_FROM_DEVICE);
 
-	dma_chan = sport->dma_rx_chan;
-	sport->dma_rx_chan = NULL;
 	sport->dma_rx_buf_bus = 0;
 	sport->dma_rx_buf_virt = NULL;
-	dma_release_channel(dma_chan);
 }
 
 static int lpuart_startup(struct uart_port *port)
@@ -1101,14 +1079,21 @@ static int lpuart_startup(struct uart_port *port)
 	sport->rxfifo_size = 0x1 << (((temp >> UARTPFIFO_RXSIZE_OFF) &
 		UARTPFIFO_FIFOSIZE_MASK) + 1);
 
-	/* Whether use dma support by dma request results */
-	if (lpuart_dma_tx_request(port) || lpuart_dma_rx_request(port)) {
-		sport->lpuart_dma_use = false;
-	} else {
-		sport->lpuart_dma_use = true;
+	if (sport->dma_rx_chan && !lpuart_dma_rx_request(port)) {
+		sport->lpuart_dma_rx_use = true;
+		setup_timer(&sport->lpuart_timer, lpuart_timer_func,
+			    (unsigned long)sport);
+	} else
+		sport->lpuart_dma_rx_use = false;
+
+
+	if (sport->dma_tx_chan && !lpuart_dma_tx_request(port)) {
+		sport->lpuart_dma_tx_use = true;
 		temp = readb(port->membase + UARTCR5);
+		temp &= ~UARTCR5_RDMAS;
 		writeb(temp | UARTCR5_TDMAS, port->membase + UARTCR5);
-	}
+	} else
+		sport->lpuart_dma_tx_use = false;
 
 	ret = devm_request_irq(port->dev, port->irq, lpuart_int, 0,
 				DRIVER_NAME, sport);
@@ -1179,10 +1164,13 @@ static void lpuart_shutdown(struct uart_port *port)
 
 	devm_free_irq(port->dev, port->irq, sport);
 
-	if (sport->lpuart_dma_use) {
-		lpuart_dma_tx_free(port);
-		lpuart_dma_rx_free(port);
+	if (sport->lpuart_dma_rx_use) {
+		lpuart_dma_rx_free(&sport->port);
+		del_timer_sync(&sport->lpuart_timer);
 	}
+
+	if (sport->lpuart_dma_tx_use)
+		lpuart_dma_tx_free(&sport->port);
 }
 
 static void lpuart32_shutdown(struct uart_port *port)
@@ -1304,7 +1292,7 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* update the per-port timeout */
 	uart_update_timeout(port, termios->c_cflag, baud);
 
-	if (sport->lpuart_dma_use) {
+	if (sport->lpuart_dma_rx_use) {
 		/* Calculate delay for 1.5 DMA buffers */
 		sport->dma_rx_timeout = (sport->port.timeout - HZ / 50) *
 					FSL_UART_RX_DMA_BUFFER_SIZE * 3 /
@@ -1517,6 +1505,7 @@ static struct uart_ops lpuart_pops = {
 	.release_port	= lpuart_release_port,
 	.config_port	= lpuart_config_port,
 	.verify_port	= lpuart_verify_port,
+	.flush_buffer	= lpuart_flush_buffer,
 };
 
 static struct uart_ops lpuart32_pops = {
@@ -1535,6 +1524,7 @@ static struct uart_ops lpuart32_pops = {
 	.release_port	= lpuart_release_port,
 	.config_port	= lpuart_config_port,
 	.verify_port	= lpuart_verify_port,
+	.flush_buffer	= lpuart_flush_buffer,
 };
 
 static struct lpuart_port *lpuart_ports[UART_NR];
@@ -1833,6 +1823,16 @@ static int lpuart_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	sport->dma_tx_chan = dma_request_slave_channel(sport->port.dev, "tx");
+	if (!sport->dma_tx_chan)
+		dev_info(sport->port.dev, "DMA tx channel request failed, "
+				"operating without tx DMA\n");
+
+	sport->dma_rx_chan = dma_request_slave_channel(sport->port.dev, "rx");
+	if (!sport->dma_rx_chan)
+		dev_info(sport->port.dev, "DMA rx channel request failed, "
+				"operating without rx DMA\n");
+
 	return 0;
 }
 
@@ -1844,6 +1844,12 @@ static int lpuart_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(sport->clk);
 
+	if (sport->dma_tx_chan)
+		dma_release_channel(sport->dma_tx_chan);
+
+	if (sport->dma_rx_chan)
+		dma_release_channel(sport->dma_rx_chan);
+
 	return 0;
 }
 
@@ -1851,6 +1857,19 @@ static int lpuart_remove(struct platform_device *pdev)
 static int lpuart_suspend(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
+	unsigned long temp;
+
+	if (sport->lpuart32) {
+		/* disable Rx/Tx and interrupts */
+		temp = lpuart32_read(sport->port.membase + UARTCTRL);
+		temp &= ~(UARTCTRL_TE | UARTCTRL_TIE | UARTCTRL_TCIE);
+		lpuart32_write(temp, sport->port.membase + UARTCTRL);
+	} else {
+		/* disable Rx/Tx and interrupts */
+		temp = readb(sport->port.membase + UARTCR2);
+		temp &= ~(UARTCR2_TE | UARTCR2_TIE | UARTCR2_TCIE);
+		writeb(temp, sport->port.membase + UARTCR2);
+	}
 
 	uart_suspend_port(&lpuart_reg, &sport->port);
 

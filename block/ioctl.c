@@ -198,7 +198,7 @@ static int blk_ioctl_zeroout(struct block_device *bdev, uint64_t start,
 	if (start + len > (i_size_read(bdev->bd_inode) >> 9))
 		return -EINVAL;
 
-	return blkdev_issue_zeroout(bdev, start, len, GFP_KERNEL);
+	return blkdev_issue_zeroout(bdev, start, len, GFP_KERNEL, false);
 }
 
 static int put_ushort(unsigned long arg, unsigned short val)

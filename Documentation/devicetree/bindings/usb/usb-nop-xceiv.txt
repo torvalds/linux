@@ -13,9 +13,14 @@ Optional properties:
 - clock-frequency: the clock frequency (in Hz) that the PHY clock must
   be configured to.
 
-- vcc-supply: phandle to the regulator that provides RESET to the PHY.
+- vcc-supply: phandle to the regulator that provides power to the PHY.
 
 - reset-gpios: Should specify the GPIO for reset.
+
+- vbus-detect-gpio: should specify the GPIO detecting a VBus insertion
+                    (see Documentation/devicetree/bindings/gpio/gpio.txt)
+- vbus-regulator : should specifiy the regulator supplying current drawn from
+  the VBus line (see Documentation/devicetree/bindings/regulator/regulator.txt).
 
 Example:
 
@@ -26,8 +31,11 @@ Example:
 		clock-names = "main_clk";
 		vcc-supply = <&hsusb1_vcc_regulator>;
 		reset-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		vbus-detect-gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+		vbus-regulator = <&vbus_regulator>;
 	};
 
 hsusb1_phy is a NOP USB PHY device that gets its clock from an oscillator
 and expects that clock to be configured to 19.2MHz by the NOP PHY driver.
 hsusb1_vcc_regulator provides power to the PHY and GPIO 7 controls RESET.
+GPIO 13 detects VBus insertion, and accordingly notifies the vbus-regulator.

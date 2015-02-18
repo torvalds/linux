@@ -858,7 +858,7 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		tty_flip_buffer_push(tport);
 
-		dev_notice(port->dev, "overrun error\n");
+		dev_dbg(port->dev, "overrun error\n");
 		copied++;
 	}
 
@@ -997,12 +997,15 @@ static inline unsigned long port_rx_irq_mask(struct uart_port *port)
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 {
 	unsigned short ssr_status, scr_status, err_enabled;
+	unsigned short slr_status = 0;
 	struct uart_port *port = ptr;
 	struct sci_port *s = to_sci_port(port);
 	irqreturn_t ret = IRQ_NONE;
 
 	ssr_status = serial_port_in(port, SCxSR);
 	scr_status = serial_port_in(port, SCSCR);
+	if (port->type == PORT_SCIF || port->type == PORT_HSCIF)
+		slr_status = serial_port_in(port, SCLSR);
 	err_enabled = scr_status & port_rx_irq_mask(port);
 
 	/* Tx Interrupt */
@@ -1015,8 +1018,11 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	 * DR flags
 	 */
 	if (((ssr_status & SCxSR_RDxF(port)) || s->chan_rx) &&
-	    (scr_status & SCSCR_RIE))
+	    (scr_status & SCSCR_RIE)) {
+		if (port->type == PORT_SCIF || port->type == PORT_HSCIF)
+			sci_handle_fifo_overrun(port);
 		ret = sci_rx_interrupt(irq, ptr);
+	}
 
 	/* Error Interrupt */
 	if ((ssr_status & SCxSR_ERRORS(port)) && err_enabled)
@@ -1025,6 +1031,12 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	/* Break Interrupt */
 	if ((ssr_status & SCxSR_BRK(port)) && err_enabled)
 		ret = sci_br_interrupt(irq, ptr);
+
+	/* Overrun Interrupt */
+	if (port->type == PORT_SCIF || port->type == PORT_HSCIF) {
+		if (slr_status & 0x01)
+			sci_handle_fifo_overrun(port);
+	}
 
 	return ret;
 }
@@ -2605,7 +2617,7 @@ static int sci_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int sci_suspend(struct device *dev)
+static __maybe_unused int sci_suspend(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
 
@@ -2615,7 +2627,7 @@ static int sci_suspend(struct device *dev)
 	return 0;
 }
 
-static int sci_resume(struct device *dev)
+static __maybe_unused int sci_resume(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
 
@@ -2625,10 +2637,7 @@ static int sci_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops sci_dev_pm_ops = {
-	.suspend	= sci_suspend,
-	.resume		= sci_resume,
-};
+static SIMPLE_DEV_PM_OPS(sci_dev_pm_ops, sci_suspend, sci_resume);
 
 static struct platform_driver sci_driver = {
 	.probe		= sci_probe,

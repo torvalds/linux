@@ -32,28 +32,10 @@
 #include "nouveau_connector.h"
 
 int
-nv04_display_early_init(struct drm_device *dev)
-{
-	/* ensure vblank interrupts are off, they can't be enabled until
-	 * drm_vblank has been initialised
-	 */
-	NVWriteCRTC(dev, 0, NV_PCRTC_INTR_EN_0, 0);
-	if (nv_two_heads(dev))
-		NVWriteCRTC(dev, 1, NV_PCRTC_INTR_EN_0, 0);
-
-	return 0;
-}
-
-void
-nv04_display_late_takedown(struct drm_device *dev)
-{
-}
-
-int
 nv04_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;

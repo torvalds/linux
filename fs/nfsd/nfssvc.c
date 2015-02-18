@@ -119,6 +119,7 @@ struct svc_program		nfsd_program = {
 static bool nfsd_supported_minorversions[NFSD_SUPPORTED_MINOR_VERSION + 1] = {
 	[0] = 1,
 	[1] = 1,
+	[2] = 1,
 };
 
 int nfsd_vers(int vers, enum vers_op change)

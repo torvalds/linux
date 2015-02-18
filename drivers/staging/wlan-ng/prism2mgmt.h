@@ -45,7 +45,7 @@
 * --------------------------------------------------------------------
 *
 * This file contains the constants and data structures for interaction
-* with the hfa384x Wireless LAN (WLAN) Media Access Contoller (MAC).
+* with the hfa384x Wireless LAN (WLAN) Media Access Controller (MAC).
 * The hfa384x is a portion of the Harris PRISM(tm) WLAN chipset.
 *
 * [Implementation and usage notes]
