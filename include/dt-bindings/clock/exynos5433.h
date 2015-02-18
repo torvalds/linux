@@ -1303,7 +1303,7 @@
 #define CLK_MOUT_ACLK_LITE_C_B				13
 #define CLK_MOUT_ACLK_LITE_C_A				14
 
-#define CLK_DIV_SCLK_ISP_WPWM				15
+#define CLK_DIV_SCLK_ISP_MPWM				15
 #define CLK_DIV_PCLK_CAM1_83				16
 #define CLK_DIV_PCLK_CAM1_166				17
 #define CLK_DIV_PCLK_DBG_CAM1				18

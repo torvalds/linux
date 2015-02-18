@@ -5165,7 +5165,7 @@ static struct samsung_mux_clock cam1_mux_clks[] __initdata = {
 
 static struct samsung_div_clock cam1_div_clks[] __initdata = {
 	/* DIV_CAM10 */
-	DIV(CLK_DIV_SCLK_ISP_WPWM, "div_sclk_isp_wpwm",
+	DIV(CLK_DIV_SCLK_ISP_MPWM, "div_sclk_isp_mpwm",
 			"div_pclk_cam1_83", DIV_CAM10, 16, 2),
 	DIV(CLK_DIV_PCLK_CAM1_83, "div_pclk_cam1_83",
 			"mout_aclk_cam1_333_user", DIV_CAM10, 12, 2),
@@ -5359,7 +5359,7 @@ static struct samsung_gate_clock cam1_gate_clks[] __initdata = {
 			ENABLE_PCLK_CAM1, 5, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_ISP_I2C0, "pclk_isp_i2c0", "div_pclk_cam1_83",
 			ENABLE_PCLK_CAM1, 4, CLK_IGNORE_UNUSED, 0),
-	GATE(CLK_PCLK_ISP_MPWM, "pclk_isp_wpwm", "div_pclk_cam1_83",
+	GATE(CLK_PCLK_ISP_MPWM, "pclk_isp_mpwm", "div_pclk_cam1_83",
 			ENABLE_PCLK_CAM1, 3, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_FD, "pclk_fd", "div_pclk_fd",
 			ENABLE_PCLK_CAM1, 3, CLK_IGNORE_UNUSED, 0),
@@ -5392,7 +5392,7 @@ static struct samsung_gate_clock cam1_gate_clks[] __initdata = {
 			ENABLE_SCLK_CAM1, 5, 0, 0),
 	GATE(CLK_SCLK_ISP_SPI0, "sclk_isp_spi0", "mout_sclk_isp_spi0_user",
 			ENABLE_SCLK_CAM1, 4, 0, 0),
-	GATE(CLK_SCLK_ISP_MPWM, "sclk_isp_wpwm", "div_sclk_isp_wpwm",
+	GATE(CLK_SCLK_ISP_MPWM, "sclk_isp_mpwm", "div_sclk_isp_mpwm",
 			ENABLE_SCLK_CAM1, 3, 0, 0),
 	GATE(CLK_PCLK_DBG_ISP, "sclk_dbg_isp", "div_pclk_dbg_cam1",
 			ENABLE_SCLK_CAM1, 2, 0, 0),
