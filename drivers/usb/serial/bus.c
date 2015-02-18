@@ -47,39 +47,42 @@ static int usb_serial_device_probe(struct device *dev)
 	int minor;
 
 	port = to_usb_serial_port(dev);
-	if (!port) {
-		retval = -ENODEV;
-		goto exit;
-	}
+	if (!port)
+		return -ENODEV;
 
 	/* make sure suspend/resume doesn't race against port_probe */
 	retval = usb_autopm_get_interface(port->serial->interface);
 	if (retval)
-		goto exit;
+		return retval;
 
 	driver = port->serial->type;
 	if (driver->port_probe) {
 		retval = driver->port_probe(port);
 		if (retval)
-			goto exit_with_autopm;
+			goto err_autopm_put;
 	}
 
 	minor = port->minor;
 	tty_dev = tty_register_device(usb_serial_tty_driver, minor, dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
-		if (driver->port_remove)
-			driver->port_remove(port);
-		goto exit_with_autopm;
+		goto err_port_remove;
 	}
+
+	usb_autopm_put_interface(port->serial->interface);
 
 	dev_info(&port->serial->dev->dev,
 		 "%s converter now attached to ttyUSB%d\n",
 		 driver->description, minor);
 
-exit_with_autopm:
+	return 0;
+
+err_port_remove:
+	if (driver->port_remove)
+		driver->port_remove(port);
+err_autopm_put:
 	usb_autopm_put_interface(port->serial->interface);
-exit:
+
 	return retval;
 }
 
