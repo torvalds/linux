@@ -293,6 +293,9 @@ void show_dialogue(void)
 
 	getmaxyx(w, rows, cols);
 
+	/* Silence compiler 'unused' warnings */
+	(void)cols;
+
 	werase(w);
 	box(w, 0, 0);
 	mvwprintw(w, 0, maxx/4, DIAG_TITLE);
