@@ -487,7 +487,8 @@ int qlcnic_nic_del_mac(struct qlcnic_adapter *adapter, const u8 *addr)
 	return err;
 }
 
-int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan)
+int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan,
+		       enum qlcnic_mac_type mac_type)
 {
 	struct qlcnic_mac_vlan_list *cur;
 	struct list_head *head;
@@ -513,8 +514,27 @@ int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan)
 	}
 
 	cur->vlan_id = vlan;
+	cur->mac_type = mac_type;
+
 	list_add_tail(&cur->list, &adapter->mac_list);
 	return 0;
+}
+
+void qlcnic_flush_mcast_mac(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_mac_vlan_list *cur;
+	struct list_head *head, *tmp;
+
+	list_for_each_safe(head, tmp, &adapter->mac_list) {
+		cur = list_entry(head, struct qlcnic_mac_vlan_list, list);
+		if (cur->mac_type != QLCNIC_MULTICAST_MAC)
+			continue;
+
+		qlcnic_sre_macaddr_change(adapter, cur->mac_addr,
+					  cur->vlan_id, QLCNIC_MAC_DEL);
+		list_del(&cur->list);
+		kfree(cur);
+	}
 }
 
 static void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
@@ -530,8 +550,9 @@ static void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
 
-	qlcnic_nic_add_mac(adapter, adapter->mac_addr, vlan);
-	qlcnic_nic_add_mac(adapter, bcast_addr, vlan);
+	qlcnic_nic_add_mac(adapter, adapter->mac_addr, vlan,
+			   QLCNIC_UNICAST_MAC);
+	qlcnic_nic_add_mac(adapter, bcast_addr, vlan, QLCNIC_BROADCAST_MAC);
 
 	if (netdev->flags & IFF_PROMISC) {
 		if (!(adapter->flags & QLCNIC_PROMISC_DISABLED))
@@ -540,8 +561,10 @@ static void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 		   (netdev_mc_count(netdev) > ahw->max_mc_count)) {
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
 	} else if (!netdev_mc_empty(netdev)) {
+		qlcnic_flush_mcast_mac(adapter);
 		netdev_for_each_mc_addr(ha, netdev)
-			qlcnic_nic_add_mac(adapter, ha->addr, vlan);
+			qlcnic_nic_add_mac(adapter, ha->addr, vlan,
+					   QLCNIC_MULTICAST_MAC);
 	}
 
 	/* configure unicast MAC address, if there is not sufficient space
@@ -551,7 +574,8 @@ static void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 		mode = VPORT_MISS_MODE_ACCEPT_ALL;
 	} else if (!netdev_uc_empty(netdev)) {
 		netdev_for_each_uc_addr(ha, netdev)
-			qlcnic_nic_add_mac(adapter, ha->addr, vlan);
+			qlcnic_nic_add_mac(adapter, ha->addr, vlan,
+					   QLCNIC_UNICAST_MAC);
 	}
 
 	if (mode == VPORT_MISS_MODE_ACCEPT_ALL &&

@@ -121,7 +121,11 @@ trap_table:
 	.word	instruction_trap	/* 27 */
 	.word	instruction_trap	/* 28 */
 	.word	instruction_trap	/* 29 */
-	.word	instruction_trap	/* 30 */
+#ifdef CONFIG_KGDB
+	.word	handle_kgdb_breakpoint	/* 30 KGDB breakpoint */
+#else
+	.word	instruction_trap		/* 30 */
+#endif
 	.word	handle_breakpoint	/* 31 */
 
 .text
@@ -444,6 +448,12 @@ handle_illegal:
 handle_diverror:
 	call	handle_diverror_c
 	br	ret_from_exception
+
+#ifdef CONFIG_KGDB
+handle_kgdb_breakpoint:
+	call	kgdb_breakpoint_c
+	br	ret_from_exception
+#endif
 
 /*
  * Beware - when entering resume, prev (the current task) is

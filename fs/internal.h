@@ -144,7 +144,7 @@ extern const struct file_operations pipefifo_fops;
 /*
  * fs_pin.c
  */
-extern void sb_pin_kill(struct super_block *sb);
+extern void group_pin_kill(struct hlist_head *p);
 extern void mnt_pin_kill(struct mount *m);
 
 /*

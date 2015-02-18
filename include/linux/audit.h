@@ -127,7 +127,6 @@ extern void __audit_syscall_entry(int major, unsigned long a0, unsigned long a1,
 extern void __audit_syscall_exit(int ret_success, long ret_value);
 extern struct filename *__audit_reusename(const __user char *uptr);
 extern void __audit_getname(struct filename *name);
-extern void audit_putname(struct filename *name);
 
 #define AUDIT_INODE_PARENT	1	/* dentry represents the parent */
 #define AUDIT_INODE_HIDDEN	2	/* audit record should be hidden */
@@ -351,8 +350,6 @@ static inline struct filename *audit_reusename(const __user char *name)
 	return NULL;
 }
 static inline void audit_getname(struct filename *name)
-{ }
-static inline void audit_putname(struct filename *name)
 { }
 static inline void __audit_inode(struct filename *name,
 					const struct dentry *dentry,
