@@ -129,9 +129,15 @@ temperature) and throttle appropriate devices.
     This structure defines the following parameters that are used to bind
     a zone with a cooling device for a particular trip point.
     .cdev: The cooling device pointer
-    .weight: The 'influence' of a particular cooling device on this zone.
-             This is on a percentage scale. The sum of all these weights
-             (for a particular zone) cannot exceed 100.
+    .weight: The 'influence' of a particular cooling device on this
+             zone. This is relative to the rest of the cooling
+             devices. For example, if all cooling devices have a
+             weight of 1, then they all contribute the same. You can
+             use percentages if you want, but it's not mandatory. A
+             weight of 0 means that this cooling device doesn't
+             contribute to the cooling of this zone unless all cooling
+             devices have a weight of 0. If all weights are 0, then
+             they all contribute the same.
     .trip_mask:This is a bit mask that gives the binding relation between
                this thermal zone and cdev, for a particular trip point.
                If nth bit is set, then the cdev and thermal zone are bound
