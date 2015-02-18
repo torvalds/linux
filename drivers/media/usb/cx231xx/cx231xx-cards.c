@@ -1586,7 +1586,9 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	cx231xx_media_device_register(dev, udev);
 
 	/* Create v4l2 device */
+#ifdef CONFIG_MEDIA_CONTROLLER
 	dev->v4l2_dev.mdev = dev->media_dev;
+#endif
 	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
 		dev_err(d, "v4l2_device_register failed\n");
