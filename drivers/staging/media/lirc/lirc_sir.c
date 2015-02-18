@@ -683,7 +683,7 @@ static int init_port(void)
 	}
 	pr_info("I/O port 0x%.4x, IRQ %d.\n", io, irq);
 
-	setup_timer(&timerlist, sir_timeout, 0xabadcafe);
+	setup_timer(&timerlist, sir_timeout, 0);
 
 	return 0;
 }
