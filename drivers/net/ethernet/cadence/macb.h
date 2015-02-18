@@ -229,7 +229,8 @@
 /* Bitfields in DMACFG. */
 #define GEM_FBLDO_OFFSET	0 /* fixed burst length for DMA */
 #define GEM_FBLDO_SIZE		5
-#define GEM_ENDIA_OFFSET	7 /* endian swap mode for packet data access */
+#define GEM_ENDIA_DESC_OFFSET	6 /* endian swap mode for management descriptor access */
+#define GEM_ENDIA_PKT_OFFSET	7 /* endian swap mode for packet data access */
 #define GEM_ENDIA_SIZE		1
 #define GEM_RXBMS_OFFSET	8 /* RX packet buffer memory size select */
 #define GEM_RXBMS_SIZE		2
@@ -423,17 +424,17 @@
 
 /* Register access macros */
 #define macb_readl(port,reg)				\
-	__raw_readl((port)->regs + MACB_##reg)
+	readl_relaxed((port)->regs + MACB_##reg)
 #define macb_writel(port,reg,value)			\
-	__raw_writel((value), (port)->regs + MACB_##reg)
+	writel_relaxed((value), (port)->regs + MACB_##reg)
 #define gem_readl(port, reg)				\
-	__raw_readl((port)->regs + GEM_##reg)
+	readl_relaxed((port)->regs + GEM_##reg)
 #define gem_writel(port, reg, value)			\
-	__raw_writel((value), (port)->regs + GEM_##reg)
+	writel_relaxed((value), (port)->regs + GEM_##reg)
 #define queue_readl(queue, reg)				\
-	__raw_readl((queue)->bp->regs + (queue)->reg)
+	readl_relaxed((queue)->bp->regs + (queue)->reg)
 #define queue_writel(queue, reg, value)			\
-	__raw_writel((value), (queue)->bp->regs + (queue)->reg)
+	writel_relaxed((value), (queue)->bp->regs + (queue)->reg)
 
 /* Conditional GEM/MACB macros.  These perform the operation to the correct
  * register dependent on whether the device is a GEM or a MACB.  For registers
