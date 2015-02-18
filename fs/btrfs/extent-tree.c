@@ -2657,7 +2657,8 @@ int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
 	struct btrfs_block_rsv *global_rsv;
 	u64 num_heads = trans->transaction->delayed_refs.num_heads_ready;
 	u64 csum_bytes = trans->transaction->delayed_refs.pending_csums;
-	u64 num_bytes;
+	u64 num_dirty_bgs = trans->transaction->num_dirty_bgs;
+	u64 num_bytes, num_dirty_bgs_bytes;
 	int ret = 0;
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
@@ -2666,17 +2667,21 @@ int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
 		num_bytes += (num_heads - 1) * root->nodesize;
 	num_bytes <<= 1;
 	num_bytes += btrfs_csum_bytes_to_leaves(root, csum_bytes) * root->nodesize;
+	num_dirty_bgs_bytes = btrfs_calc_trans_metadata_size(root,
+							     num_dirty_bgs);
 	global_rsv = &root->fs_info->global_block_rsv;
 
 	/*
 	 * If we can't allocate any more chunks lets make sure we have _lots_ of
 	 * wiggle room since running delayed refs can create more delayed refs.
 	 */
-	if (global_rsv->space_info->full)
+	if (global_rsv->space_info->full) {
+		num_dirty_bgs_bytes <<= 1;
 		num_bytes <<= 1;
+	}
 
 	spin_lock(&global_rsv->lock);
-	if (global_rsv->reserved <= num_bytes)
+	if (global_rsv->reserved <= num_bytes + num_dirty_bgs_bytes)
 		ret = 1;
 	spin_unlock(&global_rsv->lock);
 	return ret;
@@ -5408,6 +5413,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 		if (list_empty(&cache->dirty_list)) {
 			list_add_tail(&cache->dirty_list,
 				      &trans->transaction->dirty_bgs);
+				trans->transaction->num_dirty_bgs++;
 			btrfs_get_block_group(cache);
 		}
 		spin_unlock(&trans->transaction->dirty_bgs_lock);

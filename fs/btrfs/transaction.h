@@ -64,6 +64,7 @@ struct btrfs_transaction {
 	struct list_head pending_ordered;
 	struct list_head switch_commits;
 	struct list_head dirty_bgs;
+	u64 num_dirty_bgs;
 	spinlock_t dirty_bgs_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
