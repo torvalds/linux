@@ -34,9 +34,35 @@
 
 #define to_hid_device(pdev) container_of(pdev, struct hid_device, dev)
 
-#define LG4FF_MMODE_DONE 0
+#define LG4FF_MMODE_IS_MULTIMODE 0
 #define LG4FF_MMODE_SWITCHED 1
 #define LG4FF_MMODE_NOT_MULTIMODE 2
+
+#define LG4FF_MODE_NATIVE_IDX 0
+#define LG4FF_MODE_DFEX_IDX 1
+#define LG4FF_MODE_DFP_IDX 2
+#define LG4FF_MODE_G25_IDX 3
+#define LG4FF_MODE_DFGT_IDX 4
+#define LG4FF_MODE_G27_IDX 5
+#define LG4FF_MODE_MAX_IDX 6
+
+#define LG4FF_MODE_NATIVE BIT(LG4FF_MODE_NATIVE_IDX)
+#define LG4FF_MODE_DFEX BIT(LG4FF_MODE_DFEX_IDX)
+#define LG4FF_MODE_DFP BIT(LG4FF_MODE_DFP_IDX)
+#define LG4FF_MODE_G25 BIT(LG4FF_MODE_G25_IDX)
+#define LG4FF_MODE_DFGT BIT(LG4FF_MODE_DFGT_IDX)
+#define LG4FF_MODE_G27 BIT(LG4FF_MODE_G27_IDX)
+
+#define LG4FF_DFEX_TAG "DF-EX"
+#define LG4FF_DFEX_NAME "Driving Force / Formula EX"
+#define LG4FF_DFP_TAG "DFP"
+#define LG4FF_DFP_NAME "Driving Force Pro"
+#define LG4FF_G25_TAG "G25"
+#define LG4FF_G25_NAME "G25 Racing Wheel"
+#define LG4FF_G27_TAG "G27"
+#define LG4FF_G27_NAME "G27 Racing Wheel"
+#define LG4FF_DFGT_TAG "DFGT"
+#define LG4FF_DFGT_NAME "Driving Force GT"
 
 #define LG4FF_FFEX_REV_MAJ 0x21
 #define LG4FF_FFEX_REV_MIN 0x00
@@ -53,6 +79,10 @@ struct lg4ff_device_entry {
 	__u8  led_state;
 	struct led_classdev *led[5];
 #endif
+	u32 alternate_modes;
+	const char *real_tag;
+	const char *real_name;
+	u16 real_product_id;
 	struct list_head list;
 	void (*set_range)(struct hid_device *hid, u16 range);
 };
@@ -87,6 +117,19 @@ struct lg4ff_wheel_ident_checklist {
 	const struct lg4ff_wheel_ident_info *models[];
 };
 
+struct lg4ff_multimode_wheel {
+	const u16 product_id;
+	const u32 alternate_modes;
+	const char *real_tag;
+	const char *real_name;
+};
+
+struct lg4ff_alternate_mode {
+	const u16 product_id;
+	const char *tag;
+	const char *name;
+};
+
 static const struct lg4ff_wheel lg4ff_devices[] = {
 	{USB_DEVICE_ID_LOGITECH_WHEEL,       lg4ff_wheel_effects, 40, 270, NULL},
 	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL,  lg4ff_wheel_effects, 40, 270, NULL},
@@ -96,6 +139,30 @@ static const struct lg4ff_wheel lg4ff_devices[] = {
 	{USB_DEVICE_ID_LOGITECH_G27_WHEEL,   lg4ff_wheel_effects, 40, 900, hid_lg4ff_set_range_g25},
 	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2, lg4ff_wheel_effects, 40, 270, NULL},
 	{USB_DEVICE_ID_LOGITECH_WII_WHEEL,   lg4ff_wheel_effects, 40, 270, NULL}
+};
+
+static const struct lg4ff_multimode_wheel lg4ff_multimode_wheels[] = {
+	{USB_DEVICE_ID_LOGITECH_DFP_WHEEL,
+	 LG4FF_MODE_NATIVE | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
+	 LG4FF_DFP_TAG, LG4FF_DFP_NAME},
+	{USB_DEVICE_ID_LOGITECH_G25_WHEEL,
+	 LG4FF_MODE_NATIVE | LG4FF_MODE_G25 | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
+	 LG4FF_G25_TAG, LG4FF_G25_NAME},
+	{USB_DEVICE_ID_LOGITECH_DFGT_WHEEL,
+	 LG4FF_MODE_NATIVE | LG4FF_MODE_DFGT | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
+	 LG4FF_DFGT_TAG, LG4FF_DFGT_NAME},
+	{USB_DEVICE_ID_LOGITECH_G27_WHEEL,
+	 LG4FF_MODE_NATIVE | LG4FF_MODE_G27 | LG4FF_MODE_G25 | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
+	 LG4FF_G27_TAG, LG4FF_G27_NAME},
+};
+
+static const struct lg4ff_alternate_mode lg4ff_alternate_modes[] = {
+	[LG4FF_MODE_NATIVE_IDX] = {0, "native", ""},
+	[LG4FF_MODE_DFEX_IDX] = {USB_DEVICE_ID_LOGITECH_WHEEL, LG4FF_DFEX_TAG, LG4FF_DFEX_NAME},
+	[LG4FF_MODE_DFP_IDX] = {USB_DEVICE_ID_LOGITECH_DFP_WHEEL, LG4FF_DFP_TAG, LG4FF_DFP_NAME},
+	[LG4FF_MODE_G25_IDX] = {USB_DEVICE_ID_LOGITECH_G25_WHEEL, LG4FF_G25_TAG, LG4FF_G25_NAME},
+	[LG4FF_MODE_DFGT_IDX] = {USB_DEVICE_ID_LOGITECH_DFGT_WHEEL, LG4FF_DFGT_TAG, LG4FF_DFGT_NAME},
+	[LG4FF_MODE_G27_IDX] = {USB_DEVICE_ID_LOGITECH_G27_WHEEL, LG4FF_G27_TAG, LG4FF_G27_NAME}
 };
 
 /* Multimode wheel identificators */
@@ -439,6 +506,61 @@ static int lg4ff_switch_compatibility_mode(struct hid_device *hid, const struct 
 	return 0;
 }
 
+static ssize_t lg4ff_alternate_modes_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hid_device *hid = to_hid_device(dev);
+	struct lg4ff_device_entry *entry;
+	struct lg_drv_data *drv_data;
+	ssize_t count = 0;
+	int i;
+
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return 0;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return 0;
+	}
+
+	if (!entry->real_name) {
+		hid_err(hid, "NULL pointer to string\n");
+		return 0;
+	}
+
+	for (i = 0; i < LG4FF_MODE_MAX_IDX; i++) {
+		if (entry->alternate_modes & BIT(i)) {
+			/* Print tag and full name */
+			count += scnprintf(buf + count, PAGE_SIZE - count, "%s: %s",
+					   lg4ff_alternate_modes[i].tag,
+					   !lg4ff_alternate_modes[i].product_id ? entry->real_name : lg4ff_alternate_modes[i].name);
+			if (count >= PAGE_SIZE - 1)
+				return count;
+
+			/* Mark the currently active mode with an asterisk */
+			if (lg4ff_alternate_modes[i].product_id == entry->product_id ||
+			    (lg4ff_alternate_modes[i].product_id == 0 && entry->product_id == entry->real_product_id))
+				count += scnprintf(buf + count, PAGE_SIZE - count, " *\n");
+			else
+				count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
+
+			if (count >= PAGE_SIZE - 1)
+				return count;
+		}
+	}
+
+	return count;
+}
+
+static ssize_t lg4ff_alternate_modes_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	return -ENOSYS;
+}
+static DEVICE_ATTR(alternate_modes, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH, lg4ff_alternate_modes_show, lg4ff_alternate_modes_store);
+
 /* Read current range and display it in terminal */
 static ssize_t range_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
@@ -499,6 +621,41 @@ static ssize_t range_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 static DEVICE_ATTR_RW(range);
+
+static ssize_t lg4ff_real_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hid_device *hid = to_hid_device(dev);
+	struct lg4ff_device_entry *entry;
+	struct lg_drv_data *drv_data;
+	size_t count;
+
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return 0;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return 0;
+	}
+
+	if (!entry->real_tag || !entry->real_name) {
+		hid_err(hid, "NULL pointer to string\n");
+		return 0;
+	}
+
+	count = scnprintf(buf, PAGE_SIZE, "%s: %s\n", entry->real_tag, entry->real_name);
+	return count;
+}
+
+static ssize_t lg4ff_real_id_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	/* Real ID is a read-only value */
+	return -EPERM;
+}
+static DEVICE_ATTR(real_id, S_IRUGO, lg4ff_real_id_show, lg4ff_real_id_store);
 
 #ifdef CONFIG_LEDS_CLASS
 static void lg4ff_set_leds(struct hid_device *hid, __u8 leds)
@@ -664,7 +821,7 @@ static int lg4ff_handle_multimode_wheel(struct hid_device *hid, u16 *real_produc
 			break;
 		default:
 			hid_err(hid, "Invalid product id %X\n", *real_product_id);
-			return LG4FF_MMODE_DONE;
+			return LG4FF_MMODE_NOT_MULTIMODE;
 		}
 
 		ret = lg4ff_switch_compatibility_mode(hid, s);
@@ -672,12 +829,12 @@ static int lg4ff_handle_multimode_wheel(struct hid_device *hid, u16 *real_produc
 			/* Wheel could not have been switched to native mode,
 			 * leave it in "Driving Force" mode and continue */
 			hid_err(hid, "Unable to switch wheel mode, errno %d\n", ret);
-			return LG4FF_MMODE_DONE;
+			return LG4FF_MMODE_IS_MULTIMODE;
 		}
 		return LG4FF_MMODE_SWITCHED;
 	}
 
-	return LG4FF_MMODE_DONE;
+	return LG4FF_MMODE_IS_MULTIMODE;
 }
 
 
@@ -689,7 +846,8 @@ int lg4ff_init(struct hid_device *hid)
 	const u16 bcdDevice = le16_to_cpu(udesc->bcdDevice);
 	struct lg4ff_device_entry *entry;
 	struct lg_drv_data *drv_data;
-	int error, i, j, ret;
+	int error, i, j;
+	int mmode_ret, mmode_idx = -1;
 	u16 real_product_id;
 
 	/* Check that the report looks ok */
@@ -698,12 +856,12 @@ int lg4ff_init(struct hid_device *hid)
 
 	/* Check if a multimode wheel has been connected and
 	 * handle it appropriately */
-	ret = lg4ff_handle_multimode_wheel(hid, &real_product_id, bcdDevice);
+	mmode_ret = lg4ff_handle_multimode_wheel(hid, &real_product_id, bcdDevice);
 
 	/* Wheel has been told to switch to native mode. There is no point in going on
 	 * with the initialization as the wheel will do a USB reset when it switches mode
 	 */
-	if (ret == LG4FF_MMODE_SWITCHED)
+	if (mmode_ret == LG4FF_MMODE_SWITCHED)
 		return 0;
 
 	/* Check what wheel has been connected */
@@ -718,6 +876,18 @@ int lg4ff_init(struct hid_device *hid)
 		hid_err(hid, "Device is not supported by lg4ff driver. If you think it should be, consider reporting a bug to"
 			     "LKML, Simon Wood <simon@mungewell.org> or Michal Maly <madcatxster@gmail.com>\n");
 		return -1;
+	}
+
+	if (mmode_ret == LG4FF_MMODE_IS_MULTIMODE) {
+		for (mmode_idx = 0; mmode_idx < ARRAY_SIZE(lg4ff_multimode_wheels); mmode_idx++) {
+			if (real_product_id == lg4ff_multimode_wheels[mmode_idx].product_id)
+				break;
+		}
+
+		if (mmode_idx == ARRAY_SIZE(lg4ff_multimode_wheels)) {
+			hid_err(hid, "Device product ID %X is not listed as a multimode wheel", real_product_id);
+			return -1;
+		}
 	}
 
 	/* Set supported force feedback capabilities */
@@ -745,9 +915,16 @@ int lg4ff_init(struct hid_device *hid)
 	drv_data->device_props = entry;
 
 	entry->product_id = lg4ff_devices[i].product_id;
+	entry->real_product_id = real_product_id;
 	entry->min_range = lg4ff_devices[i].min_range;
 	entry->max_range = lg4ff_devices[i].max_range;
 	entry->set_range = lg4ff_devices[i].set_range;
+	if (mmode_ret == LG4FF_MMODE_IS_MULTIMODE) {
+		BUG_ON(mmode_idx == -1);
+		entry->alternate_modes = lg4ff_multimode_wheels[mmode_idx].alternate_modes;
+		entry->real_tag = lg4ff_multimode_wheels[mmode_idx].real_tag;
+		entry->real_name = lg4ff_multimode_wheels[mmode_idx].real_name;
+	}
 
 	/* Check if autocentering is available and
 	 * set the centering force to zero by default */
@@ -766,6 +943,14 @@ int lg4ff_init(struct hid_device *hid)
 	error = device_create_file(&hid->dev, &dev_attr_range);
 	if (error)
 		return error;
+	if (mmode_ret == LG4FF_MMODE_IS_MULTIMODE) {
+		error = device_create_file(&hid->dev, &dev_attr_real_id);
+		if (error)
+			return error;
+		error = device_create_file(&hid->dev, &dev_attr_alternate_modes);
+		if (error)
+			return error;
+	}
 	dbg_hid("sysfs interface created\n");
 
 	/* Set the maximum range to start with */
@@ -843,6 +1028,12 @@ int lg4ff_deinit(struct hid_device *hid)
 		goto out; /* Nothing more to do */
 
 	device_remove_file(&hid->dev, &dev_attr_range);
+
+	/* Multimode devices will have at least the "MODE_NATIVE" bit set */
+	if (entry->alternate_modes) {
+		device_remove_file(&hid->dev, &dev_attr_real_id);
+		device_remove_file(&hid->dev, &dev_attr_alternate_modes);
+	}
 
 #ifdef CONFIG_LEDS_CLASS
 	{
