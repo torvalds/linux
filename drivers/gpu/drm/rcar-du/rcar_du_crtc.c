@@ -99,6 +99,10 @@ static void rcar_du_crtc_put(struct rcar_du_crtc *rcrtc)
 	clk_disable_unprepare(rcrtc->clock);
 }
 
+/* -----------------------------------------------------------------------------
+ * Hardware Setup
+ */
+
 static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 {
 	const struct drm_display_mode *mode = &rcrtc->crtc.mode;
@@ -256,6 +260,55 @@ void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 			    dspr);
 }
 
+/* -----------------------------------------------------------------------------
+ * Page Flip
+ */
+
+void rcar_du_crtc_cancel_page_flip(struct rcar_du_crtc *rcrtc,
+				   struct drm_file *file)
+{
+	struct drm_pending_vblank_event *event;
+	struct drm_device *dev = rcrtc->crtc.dev;
+	unsigned long flags;
+
+	/* Destroy the pending vertical blanking event associated with the
+	 * pending page flip, if any, and disable vertical blanking interrupts.
+	 */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	event = rcrtc->event;
+	if (event && event->base.file_priv == file) {
+		rcrtc->event = NULL;
+		event->base.destroy(&event->base);
+		drm_vblank_put(dev, rcrtc->index);
+	}
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+}
+
+static void rcar_du_crtc_finish_page_flip(struct rcar_du_crtc *rcrtc)
+{
+	struct drm_pending_vblank_event *event;
+	struct drm_device *dev = rcrtc->crtc.dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	event = rcrtc->event;
+	rcrtc->event = NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	if (event == NULL)
+		return;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	drm_send_vblank_event(dev, rcrtc->index, event);
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	drm_vblank_put(dev, rcrtc->index);
+}
+
+/* -----------------------------------------------------------------------------
+ * Start/Stop and Suspend/Resume
+ */
+
 static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 {
 	struct drm_crtc *crtc = &rcrtc->crtc;
@@ -349,6 +402,10 @@ static void rcar_du_crtc_update_base(struct rcar_du_crtc *rcrtc)
 	rcar_du_plane_compute_base(rcrtc->plane, crtc->primary->fb);
 	rcar_du_plane_update_base(rcrtc->plane);
 }
+
+/* -----------------------------------------------------------------------------
+ * CRTC Functions
+ */
 
 static void rcar_du_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
@@ -485,65 +542,6 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.disable = rcar_du_crtc_disable,
 };
 
-void rcar_du_crtc_cancel_page_flip(struct rcar_du_crtc *rcrtc,
-				   struct drm_file *file)
-{
-	struct drm_pending_vblank_event *event;
-	struct drm_device *dev = rcrtc->crtc.dev;
-	unsigned long flags;
-
-	/* Destroy the pending vertical blanking event associated with the
-	 * pending page flip, if any, and disable vertical blanking interrupts.
-	 */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	event = rcrtc->event;
-	if (event && event->base.file_priv == file) {
-		rcrtc->event = NULL;
-		event->base.destroy(&event->base);
-		drm_vblank_put(dev, rcrtc->index);
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
-static void rcar_du_crtc_finish_page_flip(struct rcar_du_crtc *rcrtc)
-{
-	struct drm_pending_vblank_event *event;
-	struct drm_device *dev = rcrtc->crtc.dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	event = rcrtc->event;
-	rcrtc->event = NULL;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	if (event == NULL)
-		return;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	drm_send_vblank_event(dev, rcrtc->index, event);
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	drm_vblank_put(dev, rcrtc->index);
-}
-
-static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
-{
-	struct rcar_du_crtc *rcrtc = arg;
-	irqreturn_t ret = IRQ_NONE;
-	u32 status;
-
-	status = rcar_du_crtc_read(rcrtc, DSSR);
-	rcar_du_crtc_write(rcrtc, DSRCR, status & DSRCR_MASK);
-
-	if (status & DSSR_FRM) {
-		drm_handle_vblank(rcrtc->crtc.dev, rcrtc->index);
-		rcar_du_crtc_finish_page_flip(rcrtc);
-		ret = IRQ_HANDLED;
-	}
-
-	return ret;
-}
-
 static int rcar_du_crtc_page_flip(struct drm_crtc *crtc,
 				  struct drm_framebuffer *fb,
 				  struct drm_pending_vblank_event *event,
@@ -579,6 +577,32 @@ static const struct drm_crtc_funcs crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.page_flip = rcar_du_crtc_page_flip,
 };
+
+/* -----------------------------------------------------------------------------
+ * Interrupt Handling
+ */
+
+static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
+{
+	struct rcar_du_crtc *rcrtc = arg;
+	irqreturn_t ret = IRQ_NONE;
+	u32 status;
+
+	status = rcar_du_crtc_read(rcrtc, DSSR);
+	rcar_du_crtc_write(rcrtc, DSRCR, status & DSRCR_MASK);
+
+	if (status & DSSR_FRM) {
+		drm_handle_vblank(rcrtc->crtc.dev, rcrtc->index);
+		rcar_du_crtc_finish_page_flip(rcrtc);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
+
+/* -----------------------------------------------------------------------------
+ * Initialization
+ */
 
 int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 {
