@@ -15,6 +15,7 @@
 #define __RCAR_DU_CRTC_H__
 
 #include <linux/mutex.h>
+#include <linux/wait.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -32,6 +33,8 @@ struct rcar_du_crtc {
 	bool started;
 
 	struct drm_pending_vblank_event *event;
+	wait_queue_head_t flip_wait;
+
 	unsigned int outputs;
 	int dpms;
 

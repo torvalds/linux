@@ -300,9 +300,37 @@ static void rcar_du_crtc_finish_page_flip(struct rcar_du_crtc *rcrtc)
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	drm_send_vblank_event(dev, rcrtc->index, event);
+	wake_up(&rcrtc->flip_wait);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	drm_vblank_put(dev, rcrtc->index);
+}
+
+static bool rcar_du_crtc_page_flip_pending(struct rcar_du_crtc *rcrtc)
+{
+	struct drm_device *dev = rcrtc->crtc.dev;
+	unsigned long flags;
+	bool pending;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	pending = rcrtc->event != NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	return pending;
+}
+
+static void rcar_du_crtc_wait_page_flip(struct rcar_du_crtc *rcrtc)
+{
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
+
+	if (wait_event_timeout(rcrtc->flip_wait,
+			       !rcar_du_crtc_page_flip_pending(rcrtc),
+			       msecs_to_jiffies(50)))
+		return;
+
+	dev_warn(rcdu->dev, "page flip timeout\n");
+
+	rcar_du_crtc_finish_page_flip(rcrtc);
 }
 
 /* -----------------------------------------------------------------------------
@@ -364,6 +392,11 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 
 	if (!rcrtc->started)
 		return;
+
+	/* Wait for page flip completion before stopping the CRTC as userspace
+	 * excepts page flips to eventually complete.
+	 */
+	rcar_du_crtc_wait_page_flip(rcrtc);
 
 	mutex_lock(&rcrtc->group->planes.lock);
 	rcrtc->plane->enabled = false;
@@ -643,6 +676,8 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 		dev_info(rcdu->dev, "can't get external clock %u\n", index);
 		return -EPROBE_DEFER;
 	}
+
+	init_waitqueue_head(&rcrtc->flip_wait);
 
 	rcrtc->group = rgrp;
 	rcrtc->mmio_offset = mmio_offsets[index];
