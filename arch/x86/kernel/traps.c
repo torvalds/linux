@@ -734,7 +734,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 	/*
 	 * Save the info for the exception handler and clear the error.
 	 */
-	save_init_fpu(task);
+	unlazy_fpu(task);
 	task->thread.trap_nr = trapnr;
 	task->thread.error_code = error_code;
 	info.si_signo = SIGFPE;

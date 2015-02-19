@@ -119,10 +119,13 @@ void unlazy_fpu(struct task_struct *tsk)
 {
 	preempt_disable();
 	if (__thread_has_fpu(tsk)) {
-		__save_init_fpu(tsk);
-		__thread_fpu_end(tsk);
-	} else
-		tsk->thread.fpu_counter = 0;
+		if (use_eager_fpu()) {
+			__save_fpu(tsk);
+		} else {
+			__save_init_fpu(tsk);
+			__thread_fpu_end(tsk);
+		}
+	}
 	preempt_enable();
 }
 EXPORT_SYMBOL(unlazy_fpu);
@@ -246,7 +249,7 @@ int init_fpu(struct task_struct *tsk)
 	if (tsk_used_math(tsk)) {
 		if (cpu_has_fpu && tsk == current)
 			unlazy_fpu(tsk);
-		tsk->thread.fpu.last_cpu = ~0;
+		task_disable_lazy_fpu_restore(tsk);
 		return 0;
 	}
 

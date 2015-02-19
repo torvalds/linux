@@ -67,6 +67,34 @@ extern void finit_soft_fpu(struct i387_soft_struct *soft);
 static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
 #endif
 
+/*
+ * Must be run with preemption disabled: this clears the fpu_owner_task,
+ * on this CPU.
+ *
+ * This will disable any lazy FPU state restore of the current FPU state,
+ * but if the current thread owns the FPU, it will still be saved by.
+ */
+static inline void __cpu_disable_lazy_restore(unsigned int cpu)
+{
+	per_cpu(fpu_owner_task, cpu) = NULL;
+}
+
+/*
+ * Used to indicate that the FPU state in memory is newer than the FPU
+ * state in registers, and the FPU state should be reloaded next time the
+ * task is run. Only safe on the current task, or non-running tasks.
+ */
+static inline void task_disable_lazy_fpu_restore(struct task_struct *tsk)
+{
+	tsk->thread.fpu.last_cpu = ~0;
+}
+
+static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
+{
+	return new == this_cpu_read_stable(fpu_owner_task) &&
+		cpu == new->thread.fpu.last_cpu;
+}
+
 static inline int is_ia32_compat_frame(void)
 {
 	return config_enabled(CONFIG_IA32_EMULATION) &&
@@ -400,24 +428,6 @@ static inline void drop_init_fpu(struct task_struct *tsk)
  */
 typedef struct { int preload; } fpu_switch_t;
 
-/*
- * Must be run with preemption disabled: this clears the fpu_owner_task,
- * on this CPU.
- *
- * This will disable any lazy FPU state restore of the current FPU state,
- * but if the current thread owns the FPU, it will still be saved by.
- */
-static inline void __cpu_disable_lazy_restore(unsigned int cpu)
-{
-	per_cpu(fpu_owner_task, cpu) = NULL;
-}
-
-static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
-{
-	return new == this_cpu_read_stable(fpu_owner_task) &&
-		cpu == new->thread.fpu.last_cpu;
-}
-
 static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct task_struct *new, int cpu)
 {
 	fpu_switch_t fpu;
@@ -426,13 +436,17 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 	 * If the task has used the math, pre-load the FPU on xsave processors
 	 * or if the past 5 consecutive context-switches used math.
 	 */
-	fpu.preload = tsk_used_math(new) && (use_eager_fpu() ||
-					     new->thread.fpu_counter > 5);
+	fpu.preload = tsk_used_math(new) &&
+		      (use_eager_fpu() || new->thread.fpu_counter > 5);
+
 	if (__thread_has_fpu(old)) {
 		if (!__save_init_fpu(old))
-			cpu = ~0;
-		old->thread.fpu.last_cpu = cpu;
-		old->thread.fpu.has_fpu = 0;	/* But leave fpu_owner_task! */
+			task_disable_lazy_fpu_restore(old);
+		else
+			old->thread.fpu.last_cpu = cpu;
+
+		/* But leave fpu_owner_task! */
+		old->thread.fpu.has_fpu = 0;
 
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {
@@ -443,10 +457,10 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 			stts();
 	} else {
 		old->thread.fpu_counter = 0;
-		old->thread.fpu.last_cpu = ~0;
+		task_disable_lazy_fpu_restore(old);
 		if (fpu.preload) {
 			new->thread.fpu_counter++;
-			if (!use_eager_fpu() && fpu_lazy_restore(new, cpu))
+			if (fpu_lazy_restore(new, cpu))
 				fpu.preload = 0;
 			else
 				prefetch(new->thread.fpu.state);
@@ -517,24 +531,6 @@ static inline void __save_fpu(struct task_struct *tsk)
 			xsave_state(&tsk->thread.fpu.state->xsave, -1);
 	} else
 		fpu_fxsave(&tsk->thread.fpu);
-}
-
-/*
- * These disable preemption on their own and are safe
- */
-static inline void save_init_fpu(struct task_struct *tsk)
-{
-	WARN_ON_ONCE(!__thread_has_fpu(tsk));
-
-	if (use_eager_fpu()) {
-		__save_fpu(tsk);
-		return;
-	}
-
-	preempt_disable();
-	__save_init_fpu(tsk);
-	__thread_fpu_end(tsk);
-	preempt_enable();
 }
 
 /*
