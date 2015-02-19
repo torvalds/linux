@@ -49,7 +49,7 @@ extern int fbtft_gamma_parse_str(struct fbtft_par *par, unsigned long *curves,
 						const char *str, int size);
 
 static unsigned long debug;
-module_param(debug, ulong , 0);
+module_param(debug, ulong, 0);
 MODULE_PARM_DESC(debug, "override device debug level");
 
 static bool dma = true;
