@@ -223,6 +223,11 @@ static int __init test_rht_init(void)
 	return err;
 }
 
+static void __exit test_rht_exit(void)
+{
+}
+
 module_init(test_rht_init);
+module_exit(test_rht_exit);
 
 MODULE_LICENSE("GPL v2");
