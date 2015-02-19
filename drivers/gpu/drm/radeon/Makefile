@@ -81,7 +81,7 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	rv770_smc.o cypress_dpm.o btc_dpm.o sumo_dpm.o sumo_smc.o trinity_dpm.o \
 	trinity_smc.o ni_dpm.o si_smc.o si_dpm.o kv_smc.o kv_dpm.o ci_smc.o \
 	ci_dpm.o dce6_afmt.o radeon_vm.o radeon_ucode.o radeon_ib.o \
-	radeon_sync.o radeon_audio.o
+	radeon_sync.o radeon_audio.o radeon_dp_auxch.o
 
 radeon-$(CONFIG_MMU_NOTIFIER) += radeon_mn.o
 

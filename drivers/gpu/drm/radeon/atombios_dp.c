@@ -158,7 +158,7 @@ done:
 #define HEADER_SIZE (BARE_ADDRESS_SIZE + 1)
 
 static ssize_t
-radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
+radeon_dp_aux_transfer_atom(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
 	struct radeon_i2c_chan *chan =
 		container_of(aux, struct radeon_i2c_chan, aux);
@@ -226,11 +226,20 @@ radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 
 void radeon_dp_aux_init(struct radeon_connector *radeon_connector)
 {
+	struct drm_device *dev = radeon_connector->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
 	int ret;
 
 	radeon_connector->ddc_bus->rec.hpd = radeon_connector->hpd.hpd;
 	radeon_connector->ddc_bus->aux.dev = radeon_connector->base.kdev;
-	radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer;
+	if (ASIC_IS_DCE5(rdev)) {
+		if (radeon_auxch)
+			radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_native;
+		else
+			radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_atom;
+	} else {
+		radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_atom;
+	}
 
 	ret = drm_dp_aux_register(&radeon_connector->ddc_bus->aux);
 	if (!ret)
