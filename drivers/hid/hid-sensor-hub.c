@@ -223,10 +223,11 @@ done_proc:
 EXPORT_SYMBOL_GPL(sensor_hub_set_feature);
 
 int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
-				u32 field_index, s32 *value)
+			   u32 field_index, int buffer_size, void *buffer)
 {
 	struct hid_report *report;
 	struct sensor_hub_data *data = hid_get_drvdata(hsdev->hdev);
+	int report_size;
 	int ret = 0;
 
 	mutex_lock(&data->mutex);
@@ -238,7 +239,17 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	}
 	hid_hw_request(hsdev->hdev, report, HID_REQ_GET_REPORT);
 	hid_hw_wait(hsdev->hdev);
-	*value = report->field[field_index]->value[0];
+
+	/* calculate number of bytes required to read this field */
+	report_size = DIV_ROUND_UP(report->field[field_index]->report_size,
+				   8) *
+				   report->field[field_index]->report_count;
+	if (!report_size) {
+		ret = -EINVAL;
+		goto done_proc;
+	}
+	ret = min(report_size, buffer_size);
+	memcpy(buffer, report->field[field_index]->value, ret);
 
 done_proc:
 	mutex_unlock(&data->mutex);
