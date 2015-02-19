@@ -126,12 +126,8 @@ static int imr_read(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
 	if (ret)
 		return ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
+	return iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
 				reg++, &imr->wmask);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 /**
