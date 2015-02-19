@@ -711,7 +711,7 @@
 		compatible = "smsc,lan91c94";
 		interrupt-parent = <&gpio2>;
 		interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;	/* gpio54 */
-		reg = <1 0x300 0xf>;		/* 16 byte IO range at offset 0x300 */
+		reg = <1 0 0xf>;		/* 16 byte IO range */
 		bank-width = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ethernet_pins>;
