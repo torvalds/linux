@@ -58,9 +58,6 @@ struct cris_irq_allocation irq_allocations[NR_REAL_IRQS] =
 static unsigned long irq_regs[NR_CPUS] =
 {
   regi_irq,
-#ifdef CONFIG_SMP
-  regi_irq2,
-#endif
 };
 
 #if NR_REAL_IRQS > 32

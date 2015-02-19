@@ -46,8 +46,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 			(unsigned long)(n), sizeof(*(ptr))))
 #define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
 
-#ifndef CONFIG_SMP
 #include <asm-generic/cmpxchg.h>
-#endif
 
 #endif /* __ASM_CRIS_CMPXCHG__ */
