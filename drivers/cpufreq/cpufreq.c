@@ -1430,9 +1430,7 @@ static int __cpufreq_remove_dev_finish(struct device *dev,
 
 	down_write(&policy->rwsem);
 	cpus = cpumask_weight(policy->cpus);
-
-	if (cpus > 1)
-		cpumask_clear_cpu(cpu, policy->cpus);
+	cpumask_clear_cpu(cpu, policy->cpus);
 	up_write(&policy->rwsem);
 
 	/* If cpu is last user of policy, free policy */
