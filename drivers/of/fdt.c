@@ -157,7 +157,7 @@ static void * unflatten_dt_node(struct boot_param_header *blob,
 				__alignof__(struct device_node));
 	if (allnextpp) {
 		char *fn;
-		memset(np, 0, sizeof(*np));
+		of_node_init(np);
 		np->full_name = fn = ((char *)np) + sizeof(*np);
 		if (new_format) {
 			/* rebuild full path for new format */
@@ -188,7 +188,6 @@ static void * unflatten_dt_node(struct boot_param_header *blob,
 				dad->next->sibling = np;
 			dad->next = np;
 		}
-		kref_init(&np->kref);
 	}
 	/* process properties */
 	for (offset = fdt_first_property_offset(blob, *poffset);
@@ -336,6 +335,8 @@ static void __unflatten_device_tree(struct boot_param_header *blob,
 
 	/* Allocate memory for the expanded device tree */
 	mem = dt_alloc(size + 4, __alignof__(struct device_node));
+
+	memset((void *)mem, 0, size);
 
 	memset((void *)mem, 0, size);
 
