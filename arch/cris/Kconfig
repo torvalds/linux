@@ -36,6 +36,10 @@ config FORCE_MAX_ZONEORDER
 	int
 	default 6
 
+config TRACE_IRQFLAGS_SUPPORT
+	depends on ETRAX_ARCH_V32
+	def_bool y
+
 config CRIS
 	bool
 	default y

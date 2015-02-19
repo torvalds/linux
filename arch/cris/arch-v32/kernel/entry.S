@@ -240,6 +240,17 @@ ret_from_sys_call:
 
 	.type	_Rexit,@function
 _Rexit:
+#if defined(CONFIG_TRACE_IRQFLAGS)
+	addoq	+PT_ccs, $sp, $acr
+	move.d	[$acr], $r0
+	btstq	15, $r0		; I1
+	bpl	1f
+	nop
+	jsr	trace_hardirqs_on
+	nop
+1:
+#endif
+
 	;; This epilogue MUST match the prologues in multiple_interrupt, irq.h
 	;; and ptregs.h.
 	addq	4, $sp		; Skip orig_r10.
