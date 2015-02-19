@@ -207,6 +207,23 @@ struct cpufreq_policy *cpufreq_cpu_get_raw(unsigned int cpu)
 	return per_cpu(cpufreq_cpu_data, cpu);
 }
 
+/**
+ * cpufreq_cpu_get: returns policy for a cpu and marks it busy.
+ *
+ * @cpu: cpu to find policy for.
+ *
+ * This returns policy for 'cpu', returns NULL if it doesn't exist.
+ * It also increments the kobject reference count to mark it busy and so would
+ * require a corresponding call to cpufreq_cpu_put() to decrement it back.
+ * If corresponding call cpufreq_cpu_put() isn't made, the policy wouldn't be
+ * freed as that depends on the kobj count.
+ *
+ * It also takes a read-lock of 'cpufreq_rwsem' and doesn't put it back if a
+ * valid policy is found. This is done to make sure the driver doesn't get
+ * unregistered while the policy is being used.
+ *
+ * Return: A valid policy on success, otherwise NULL on failure.
+ */
 struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 {
 	struct cpufreq_policy *policy = NULL;
@@ -237,6 +254,16 @@ struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_get);
 
+/**
+ * cpufreq_cpu_put: Decrements the usage count of a policy
+ *
+ * @policy: policy earlier returned by cpufreq_cpu_get().
+ *
+ * This decrements the kobject reference count incremented earlier by calling
+ * cpufreq_cpu_get().
+ *
+ * It also drops the read-lock of 'cpufreq_rwsem' taken at cpufreq_cpu_get().
+ */
 void cpufreq_cpu_put(struct cpufreq_policy *policy)
 {
 	kobject_put(&policy->kobj);
