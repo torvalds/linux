@@ -403,4 +403,7 @@ struct azx {
 #define azx_sd_readb(chip, dev, reg) \
 	((chip)->ops->reg_readb((dev)->sd_addr + AZX_REG_##reg))
 
+#define azx_has_pm_runtime(chip) \
+	(!AZX_DCAPS_PM_RUNTIME || ((chip)->driver_caps & AZX_DCAPS_PM_RUNTIME))
+
 #endif /* __SOUND_HDA_PRIV_H */

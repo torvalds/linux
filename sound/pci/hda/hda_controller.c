@@ -1681,7 +1681,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	int i;
 
 #ifdef CONFIG_PM
-	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
+	if (azx_has_pm_runtime(chip))
 		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
 #endif
@@ -1784,7 +1784,7 @@ static void azx_power_notify(struct hda_bus *bus, bool power_up)
 {
 	struct azx *chip = bus->private_data;
 
-	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+	if (!azx_has_pm_runtime(chip))
 		return;
 
 	if (power_up)
