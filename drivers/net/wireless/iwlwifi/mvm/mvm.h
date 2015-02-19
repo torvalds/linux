@@ -1315,17 +1315,6 @@ int iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb,
 				      struct iwl_device_cmd *cmd);
 
-enum iwl_bt_kill_msk {
-	BT_KILL_MSK_DEFAULT,
-	BT_KILL_MSK_NEVER,
-	BT_KILL_MSK_ALWAYS,
-	BT_KILL_MSK_MAX,
-};
-
-extern const u8 iwl_bt_ack_kill_msk[BT_MAX_AG][BT_COEX_MAX_LUT];
-extern const u8 iwl_bt_cts_kill_msk[BT_MAX_AG][BT_COEX_MAX_LUT];
-extern const u32 iwl_bt_ctl_kill_msk[BT_KILL_MSK_MAX];
-
 /* beacon filtering */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void
