@@ -2362,22 +2362,19 @@ static int slic_if_init(struct adapter *adapter)
 
 	adapter->state = ADAPT_UP;
 	if (!card->loadtimerset) {
-		init_timer(&card->loadtimer);
+		setup_timer(&card->loadtimer, &slic_timer_load_check,
+			    (ulong)card);
 		card->loadtimer.expires =
 		    jiffies + (SLIC_LOADTIMER_PERIOD * HZ);
-		card->loadtimer.data = (ulong) card;
-		card->loadtimer.function = &slic_timer_load_check;
 		add_timer(&card->loadtimer);
 
 		card->loadtimerset = 1;
 	}
 
 	if (!adapter->pingtimerset) {
-		init_timer(&adapter->pingtimer);
+		setup_timer(&adapter->pingtimer, &slic_timer_ping, (ulong)dev);
 		adapter->pingtimer.expires =
 		    jiffies + (PING_TIMER_INTERVAL * HZ);
-		adapter->pingtimer.data = (ulong) dev;
-		adapter->pingtimer.function = &slic_timer_ping;
 		add_timer(&adapter->pingtimer);
 		adapter->pingtimerset = 1;
 		adapter->card->pingstatus = ISR_PINGMASK;
