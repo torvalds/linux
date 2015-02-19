@@ -1,4 +1,5 @@
 /*
+* Twomey OS
  *  linux/arch/arm/common/amba.c
  *
  *  Copyright (C) 2003 Deep Blue Solutions Ltd, All Rights Reserved.
