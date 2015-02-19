@@ -24,8 +24,6 @@
 #include "uisutils.h"
 #include "uisthread.h"
 
-#define KILL(a, b, c) kill_pid(find_vpid(a), b, c)
-
 /* this is shorter than using __FILE__ (full path name) in
  * debug/info/error messages
  */
