@@ -121,6 +121,7 @@ struct nvme_ns {
 	unsigned ns_id;
 	int lba_shift;
 	int ms;
+	int pi_type;
 	u64 mode_select_num_blocks;
 	u32 mode_select_block_len;
 };
@@ -138,6 +139,7 @@ struct nvme_iod {
 	int nents;		/* Used in scatterlist */
 	int length;		/* Of data, in bytes */
 	dma_addr_t first_dma;
+	struct scatterlist meta_sg[1]; /* metadata requires single contiguous buffer */
 	struct scatterlist sg[0];
 };
 
