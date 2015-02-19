@@ -159,9 +159,7 @@ static int powernv_add_idle_states(void)
 	struct device_node *power_mgt;
 	int nr_idle_states = 1; /* Snooze */
 	int dt_idle_states;
-	const __be32 *idle_state_flags;
-	u32 len_flags, flags;
-	u32 *latency_ns, *residency_ns;
+	u32 *latency_ns, *residency_ns, *flags;
 	int i, rc;
 
 	/* Currently we have snooze statically defined */
@@ -172,14 +170,19 @@ static int powernv_add_idle_states(void)
 		goto out;
 	}
 
-	idle_state_flags = of_get_property(power_mgt,
-				"ibm,cpu-idle-state-flags", &len_flags);
-	if (!idle_state_flags) {
-		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-flags in DT\n");
+	/* Read values of any property to determine the num of idle states */
+	dt_idle_states = of_property_count_u32_elems(power_mgt, "ibm,cpu-idle-state-flags");
+	if (dt_idle_states < 0) {
+		pr_warn("cpuidle-powernv: no idle states found in the DT\n");
 		goto out;
 	}
 
-	dt_idle_states = len_flags / sizeof(u32);
+	flags = kzalloc(sizeof(*flags) * dt_idle_states, GFP_KERNEL);
+	if (of_property_read_u32_array(power_mgt,
+			"ibm,cpu-idle-state-flags", flags, dt_idle_states)) {
+		pr_warn("cpuidle-powernv : missing ibm,cpu-idle-state-flags in DT\n");
+		goto out_free_flags;
+	}
 
 	latency_ns = kzalloc(sizeof(*latency_ns) * dt_idle_states, GFP_KERNEL);
 	rc = of_property_read_u32_array(power_mgt,
@@ -195,21 +198,19 @@ static int powernv_add_idle_states(void)
 
 	for (i = 0; i < dt_idle_states; i++) {
 
-		flags = be32_to_cpu(idle_state_flags[i]);
-
 		/*
 		 * Cpuidle accepts exit_latency and target_residency in us.
 		 * Use default target_residency values if f/w does not expose it.
 		 */
-		if (flags & OPAL_PM_NAP_ENABLED) {
+		if (flags[i] & OPAL_PM_NAP_ENABLED) {
 			/* Add NAP state */
 			strcpy(powernv_states[nr_idle_states].name, "Nap");
 			strcpy(powernv_states[nr_idle_states].desc, "Nap");
 			powernv_states[nr_idle_states].flags = 0;
 			powernv_states[nr_idle_states].target_residency = 100;
 			powernv_states[nr_idle_states].enter = &nap_loop;
-		} else if (flags & OPAL_PM_SLEEP_ENABLED ||
-			flags & OPAL_PM_SLEEP_ENABLED_ER1) {
+		} else if (flags[i] & OPAL_PM_SLEEP_ENABLED ||
+			flags[i] & OPAL_PM_SLEEP_ENABLED_ER1) {
 			/* Add FASTSLEEP state */
 			strcpy(powernv_states[nr_idle_states].name, "FastSleep");
 			strcpy(powernv_states[nr_idle_states].desc, "FastSleep");
@@ -232,6 +233,8 @@ static int powernv_add_idle_states(void)
 	kfree(residency_ns);
 out_free_latency:
 	kfree(latency_ns);
+out_free_flags:
+	kfree(flags);
 out:
 	return nr_idle_states;
 }
