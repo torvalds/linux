@@ -516,7 +516,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	/* create mixer controls */
-	err = azx_mixer_create(chip);
+	err = snd_hda_build_controls(chip->bus);
 	if (err < 0)
 		goto out_free;
 

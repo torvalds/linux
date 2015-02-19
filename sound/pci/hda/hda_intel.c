@@ -1923,7 +1923,7 @@ static int azx_probe_continue(struct azx *chip)
 		goto out_free;
 
 	/* create mixer controls */
-	err = azx_mixer_create(chip);
+	err = snd_hda_build_controls(chip->bus);
 	if (err < 0)
 		goto out_free;
 

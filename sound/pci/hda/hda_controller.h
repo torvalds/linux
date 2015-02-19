@@ -436,7 +436,6 @@ int azx_codec_create(struct azx *chip, const char *model,
 		     unsigned int max_slots,
 		     int *power_save_to);
 int azx_codec_configure(struct azx *chip);
-int azx_mixer_create(struct azx *chip);
 int azx_init_stream(struct azx *chip);
 
 void azx_notifier_register(struct azx *chip);

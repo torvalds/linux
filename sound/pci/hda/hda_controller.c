@@ -1923,13 +1923,6 @@ int azx_codec_configure(struct azx *chip)
 }
 EXPORT_SYMBOL_GPL(azx_codec_configure);
 
-/* mixer creation - all stuff is implemented in hda module */
-int azx_mixer_create(struct azx *chip)
-{
-	return snd_hda_build_controls(chip->bus);
-}
-EXPORT_SYMBOL_GPL(azx_mixer_create);
-
 
 static bool is_input_stream(struct azx *chip, unsigned char index)
 {
