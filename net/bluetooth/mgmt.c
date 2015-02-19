@@ -2116,8 +2116,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_SET_SSP, hdev) ||
-	    mgmt_pending_find(MGMT_OP_SET_HS, hdev)) {
+	if (mgmt_pending_find(MGMT_OP_SET_SSP, hdev)) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
 				 MGMT_STATUS_BUSY);
 		goto failed;
