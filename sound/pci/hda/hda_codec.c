@@ -46,23 +46,9 @@
 #define codec_in_pm(codec)	atomic_read(&(codec)->in_pm)
 #define hda_codec_is_power_on(codec) \
 	(!pm_runtime_suspended(hda_codec_dev(codec)))
-
-static void hda_call_pm_notify(struct hda_codec *codec, bool power_up)
-{
-	struct hda_bus *bus = codec->bus;
-
-	if ((power_up && codec->pm_up_notified) ||
-	    (!power_up && !codec->pm_up_notified))
-		return;
-	if (bus->ops.pm_notify)
-		bus->ops.pm_notify(bus, power_up);
-	codec->pm_up_notified = power_up;
-}
-
 #else
 #define codec_in_pm(codec)	0
 #define hda_codec_is_power_on(codec)	1
-#define hda_call_pm_notify(codec, state) {}
 #endif
 
 /**
@@ -1152,7 +1138,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	snd_array_free(&codec->spdif_out);
 	remove_conn_list(codec);
 	codec->bus->caddr_tbl[codec->addr] = NULL;
-	hda_call_pm_notify(codec, false); /* cancel leftover refcounts */
+	clear_bit(codec->addr, &codec->bus->codec_powered);
 	snd_hda_sysfs_clear(codec);
 	free_hda_cache(&codec->amp_cache);
 	free_hda_cache(&codec->cmd_cache);
@@ -1277,10 +1263,10 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	 * the caller has to power down appropriatley after initialization
 	 * phase.
 	 */
+	set_bit(codec->addr, &bus->codec_powered);
 	pm_runtime_set_active(hda_codec_dev(codec));
 	pm_runtime_get_noresume(hda_codec_dev(codec));
 	codec->power_jiffies = jiffies;
-	hda_call_pm_notify(codec, true);
 #endif
 
 	snd_hda_sysfs_init(codec);
@@ -1340,11 +1326,6 @@ int snd_hda_codec_new(struct hda_bus *bus,
 #endif
 	codec->epss = snd_hda_codec_get_supported_ps(codec, fg,
 					AC_PWRST_EPSS);
-#ifdef CONFIG_PM
-	if (!codec->d3_stop_clk || !codec->epss)
-		bus->power_keep_link_on = 1;
-#endif
-
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec, AC_PWRST_D0);
@@ -3954,7 +3935,6 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	hda_mark_cmd_cache_dirty(codec);
 
 	codec->power_jiffies = jiffies;
-	hda_call_pm_notify(codec, true);
 
 	hda_set_power_state(codec, AC_PWRST_D0);
 	restore_shutup_pins(codec);
@@ -3986,14 +3966,17 @@ static int hda_codec_runtime_suspend(struct device *dev)
 	for (i = 0; i < codec->num_pcms; i++)
 		snd_pcm_suspend_all(codec->pcm_info[i].pcm);
 	state = hda_call_codec_suspend(codec);
-	if (!codec->bus->power_keep_link_on && (state & AC_PWRST_CLK_STOP_OK))
-		hda_call_pm_notify(codec, false);
+	if (codec->d3_stop_clk && codec->epss && (state & AC_PWRST_CLK_STOP_OK))
+		clear_bit(codec->addr, &codec->bus->codec_powered);
 	return 0;
 }
 
 static int hda_codec_runtime_resume(struct device *dev)
 {
-	hda_call_codec_resume(dev_to_hda_codec(dev));
+	struct hda_codec *codec = dev_to_hda_codec(dev);
+
+	set_bit(codec->addr, &codec->bus->codec_powered);
+	hda_call_codec_resume(codec);
 	pm_runtime_mark_last_busy(dev);
 	return 0;
 }

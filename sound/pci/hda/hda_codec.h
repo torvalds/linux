@@ -83,10 +83,6 @@ struct hda_bus_ops {
 			  struct hda_pcm *pcm);
 	/* reset bus for retry verb */
 	void (*bus_reset)(struct hda_bus *bus);
-#ifdef CONFIG_PM
-	/* notify power-up/down from codec to controller */
-	void (*pm_notify)(struct hda_bus *bus, bool power_up);
-#endif
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 	/* prepare DSP transfer */
 	int (*load_dsp_prepare)(struct hda_bus *bus, unsigned int format,
@@ -150,10 +146,10 @@ struct hda_bus {
 	unsigned int rirb_error:1;	/* error in codec communication */
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
-	unsigned int power_keep_link_on:1; /* don't power off HDA link */
 	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
+	unsigned long codec_powered;	/* bit flags of powered codecs */
 };
 
 /*
@@ -372,7 +368,6 @@ struct hda_codec {
 	unsigned int dump_coef:1; /* dump processing coefs in codec proc file */
 #ifdef CONFIG_PM
 	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
-	unsigned int pm_up_notified:1;	/* PM notified to controller */
 	atomic_t in_pm;		/* suspend/resume being performed */
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;

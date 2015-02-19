@@ -1785,22 +1785,6 @@ static void azx_bus_reset(struct hda_bus *bus)
 	bus->in_reset = 0;
 }
 
-#ifdef CONFIG_PM
-/* power-up/down the controller */
-static void azx_power_notify(struct hda_bus *bus, bool power_up)
-{
-	struct azx *chip = bus->private_data;
-
-	if (!azx_has_pm_runtime(chip))
-		return;
-
-	if (power_up)
-		pm_runtime_get_sync(chip->card->dev);
-	else
-		pm_runtime_put_sync(chip->card->dev);
-}
-#endif
-
 static int get_jackpoll_interval(struct azx *chip)
 {
 	int i;
@@ -1827,9 +1811,6 @@ static struct hda_bus_ops bus_ops = {
 	.get_response = azx_get_response,
 	.attach_pcm = azx_attach_pcm_stream,
 	.bus_reset = azx_bus_reset,
-#ifdef CONFIG_PM
-	.pm_notify = azx_power_notify,
-#endif
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 	.load_dsp_prepare = azx_load_dsp_prepare,
 	.load_dsp_trigger = azx_load_dsp_trigger,

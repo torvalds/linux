@@ -918,7 +918,8 @@ static int azx_runtime_idle(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
-	if (!power_save_controller || !azx_has_pm_runtime(chip))
+	if (!power_save_controller || !azx_has_pm_runtime(chip) ||
+	    chip->bus->codec_powered)
 		return -EBUSY;
 
 	return 0;
@@ -1084,7 +1085,6 @@ static int azx_free(struct azx *chip)
 		azx_stop_chip(chip);
 	}
 
-	pci->dev.power.ignore_children = 0; /* FIXME */
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void*)chip);
 	if (chip->msi)
@@ -1794,7 +1794,6 @@ static int azx_probe(struct pci_dev *pci,
 		return err;
 	}
 
-	pci->dev.power.ignore_children = 1; /* FIXME */
 	err = azx_create(card, pci, dev, pci_id->driver_data,
 			 &pci_hda_ops, &chip);
 	if (err < 0)
