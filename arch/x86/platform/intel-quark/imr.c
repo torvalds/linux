@@ -277,10 +277,7 @@ static int imr_debugfs_register(struct imr_device *idev)
 {
 	idev->file = debugfs_create_file("imr_state", S_IFREG | S_IRUGO, NULL,
 					 idev, &imr_state_ops);
-	if (IS_ERR(idev->file))
-		return PTR_ERR(idev->file);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(idev->file);
 }
 
 /**
