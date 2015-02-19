@@ -1012,6 +1012,7 @@ tegra_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	copy->base.mode_changed = false;
+	copy->base.active_changed = false;
 	copy->base.planes_changed = false;
 	copy->base.event = NULL;
 
