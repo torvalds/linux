@@ -123,7 +123,7 @@ static int keene_cmd_set(struct keene_device *radio)
 	/* If bit 0 is set, then transmit mono, otherwise stereo.
 	   If bit 2 is set, then enable 75 us preemphasis, otherwise
 	   it is 50 us. */
-	radio->buffer[3] = (!radio->stereo) | (radio->preemph_75_us ? 4 : 0);
+	radio->buffer[3] = (radio->stereo ? 0 : 1) | (radio->preemph_75_us ? 4 : 0);
 	radio->buffer[4] = 0x00;
 	radio->buffer[5] = 0x00;
 	radio->buffer[6] = 0x00;
@@ -265,7 +265,7 @@ static int keene_s_ctrl(struct v4l2_ctrl *ctrl)
 		return keene_cmd_set(radio);
 
 	case V4L2_CID_AUDIO_COMPRESSION_GAIN:
-		radio->tx = db2tx[(ctrl->val - ctrl->minimum) / ctrl->step];
+		radio->tx = db2tx[(ctrl->val - (s32)ctrl->minimum) / (s32)ctrl->step];
 		return keene_cmd_set(radio);
 	}
 	return -EINVAL;
@@ -380,7 +380,6 @@ static int usb_keene_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, &radio->v4l2_dev);
 
 	video_set_drvdata(&radio->vdev, radio);
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->vdev.flags);
 
 	/* at least 11ms is needed in order to settle hardware */
 	msleep(20);
@@ -416,22 +415,5 @@ static struct usb_driver usb_keene_driver = {
 	.reset_resume		= usb_keene_resume,
 };
 
-static int __init keene_init(void)
-{
-	int retval = usb_register(&usb_keene_driver);
-
-	if (retval)
-		pr_err(KBUILD_MODNAME
-			": usb_register failed. Error number %d\n", retval);
-
-	return retval;
-}
-
-static void __exit keene_exit(void)
-{
-	usb_deregister(&usb_keene_driver);
-}
-
-module_init(keene_init);
-module_exit(keene_exit);
+module_usb_driver(usb_keene_driver);
 

@@ -29,12 +29,12 @@ struct dentry *qnx6_lookup(struct inode *dir, struct dentry *dentry,
 		foundinode = qnx6_iget(dir->i_sb, ino);
 		qnx6_put_page(page);
 		if (IS_ERR(foundinode)) {
-			QNX6DEBUG((KERN_ERR "qnx6: lookup->iget -> "
-				" error %ld\n", PTR_ERR(foundinode)));
+			pr_debug("lookup->iget ->  error %ld\n",
+				 PTR_ERR(foundinode));
 			return ERR_CAST(foundinode);
 		}
 	} else {
-		QNX6DEBUG((KERN_INFO "qnx6_lookup: not found %s\n", name));
+		pr_debug("%s(): not found %s\n", __func__, name);
 		return NULL;
 	}
 	d_add(dentry, foundinode);

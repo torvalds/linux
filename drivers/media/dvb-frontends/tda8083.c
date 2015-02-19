@@ -189,7 +189,7 @@ static int tda8083_set_tone (struct tda8083_state* state, fe_sec_tone_mode_t ton
 		return tda8083_writereg (state, 0x29, 0x80);
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int tda8083_set_voltage (struct tda8083_state* state, fe_sec_voltage_t voltage)
@@ -201,7 +201,7 @@ static int tda8083_set_voltage (struct tda8083_state* state, fe_sec_voltage_t vo
 		return tda8083_writereg (state, 0x20, 0x11);
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int tda8083_send_diseqc_burst (struct tda8083_state* state, fe_sec_mini_cmd_t burst)

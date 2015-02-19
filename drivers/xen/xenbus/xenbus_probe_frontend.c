@@ -154,7 +154,7 @@ static struct xen_bus_type xenbus_frontend = {
 		.probe		= xenbus_frontend_dev_probe,
 		.remove		= xenbus_dev_remove,
 		.shutdown	= xenbus_dev_shutdown,
-		.dev_attrs	= xenbus_dev_attrs,
+		.dev_groups	= xenbus_dev_groups,
 
 		.pm		= &xenbus_pm_ops,
 	},
@@ -317,13 +317,15 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 			 print_device_status);
 }
 
-int xenbus_register_frontend(struct xenbus_driver *drv)
+int __xenbus_register_frontend(struct xenbus_driver *drv, struct module *owner,
+			       const char *mod_name)
 {
 	int ret;
 
 	drv->read_otherend_details = read_backend_details;
 
-	ret = xenbus_register_driver_common(drv, &xenbus_frontend);
+	ret = xenbus_register_driver_common(drv, &xenbus_frontend,
+					    owner, mod_name);
 	if (ret)
 		return ret;
 
@@ -332,7 +334,7 @@ int xenbus_register_frontend(struct xenbus_driver *drv)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xenbus_register_frontend);
+EXPORT_SYMBOL_GPL(__xenbus_register_frontend);
 
 static DECLARE_WAIT_QUEUE_HEAD(backend_state_wq);
 static int backend_state;
@@ -496,7 +498,7 @@ subsys_initcall(xenbus_probe_frontend_init);
 #ifndef MODULE
 static int __init boot_wait_for_devices(void)
 {
-	if (xen_hvm_domain() && !xen_platform_pci_unplug)
+	if (!xen_has_pv_devices())
 		return -ENODEV;
 
 	ready_to_wait_for_devices = 1;

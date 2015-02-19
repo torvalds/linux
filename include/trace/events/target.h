@@ -96,7 +96,7 @@
 		scsi_opcode_name(WRITE_16),			\
 		scsi_opcode_name(VERIFY_16),			\
 		scsi_opcode_name(WRITE_SAME_16),		\
-		scsi_opcode_name(SERVICE_ACTION_IN),		\
+		scsi_opcode_name(SERVICE_ACTION_IN_16),		\
 		scsi_opcode_name(SAI_READ_CAPACITY_16),		\
 		scsi_opcode_name(SAI_GET_LBA_STATUS),		\
 		scsi_opcode_name(MI_REPORT_TARGET_PGS),		\
@@ -109,10 +109,10 @@
 
 #define show_task_attribute_name(val)				\
 	__print_symbolic(val,					\
-		{ MSG_SIMPLE_TAG,	"SIMPLE"	},	\
-		{ MSG_HEAD_TAG,		"HEAD"		},	\
-		{ MSG_ORDERED_TAG,	"ORDERED"	},	\
-		{ MSG_ACA_TAG,		"ACA"		} )
+		{ TCM_SIMPLE_TAG,	"SIMPLE"	},	\
+		{ TCM_HEAD_TAG,		"HEAD"		},	\
+		{ TCM_ORDERED_TAG,	"ORDERED"	},	\
+		{ TCM_ACA_TAG,		"ACA"		} )
 
 #define show_scsi_status_name(val)				\
 	__print_symbolic(val,					\
@@ -144,7 +144,7 @@ TRACE_EVENT(target_sequencer_start,
 	),
 
 	TP_fast_assign(
-		__entry->unpacked_lun	= cmd->se_lun->unpacked_lun;
+		__entry->unpacked_lun	= cmd->orig_fe_lun;
 		__entry->opcode		= cmd->t_task_cdb[0];
 		__entry->data_length	= cmd->data_length;
 		__entry->task_attribute	= cmd->sam_task_attr;
@@ -182,7 +182,7 @@ TRACE_EVENT(target_cmd_complete,
 	),
 
 	TP_fast_assign(
-		__entry->unpacked_lun	= cmd->se_lun->unpacked_lun;
+		__entry->unpacked_lun	= cmd->orig_fe_lun;
 		__entry->opcode		= cmd->t_task_cdb[0];
 		__entry->data_length	= cmd->data_length;
 		__entry->task_attribute	= cmd->sam_task_attr;

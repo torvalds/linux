@@ -67,8 +67,13 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 
 	raw_spin_lock(&desc->lock);
 
-	/* PER_CPU and nested thread interrupts are never polled */
-	if (irq_settings_is_per_cpu(desc) || irq_settings_is_nested_thread(desc))
+	/*
+	 * PER_CPU, nested thread interrupts and interrupts explicitely
+	 * marked polled are excluded from polling.
+	 */
+	if (irq_settings_is_per_cpu(desc) ||
+	    irq_settings_is_nested_thread(desc) ||
+	    irq_settings_is_polled(desc))
 		goto out;
 
 	/*
@@ -265,19 +270,118 @@ try_misrouted_irq(unsigned int irq, struct irq_desc *desc,
 	return action && (action->flags & IRQF_IRQPOLL);
 }
 
+#define SPURIOUS_DEFERRED	0x80000000
+
 void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		    irqreturn_t action_ret)
 {
-	if (desc->istate & IRQS_POLL_INPROGRESS)
-		return;
-
-	/* we get here again via the threaded handler */
-	if (action_ret == IRQ_WAKE_THREAD)
+	if (desc->istate & IRQS_POLL_INPROGRESS ||
+	    irq_settings_is_polled(desc))
 		return;
 
 	if (bad_action_ret(action_ret)) {
 		report_bad_irq(irq, desc, action_ret);
 		return;
+	}
+
+	/*
+	 * We cannot call note_interrupt from the threaded handler
+	 * because we need to look at the compound of all handlers
+	 * (primary and threaded). Aside of that in the threaded
+	 * shared case we have no serialization against an incoming
+	 * hardware interrupt while we are dealing with a threaded
+	 * result.
+	 *
+	 * So in case a thread is woken, we just note the fact and
+	 * defer the analysis to the next hardware interrupt.
+	 *
+	 * The threaded handlers store whether they sucessfully
+	 * handled an interrupt and we check whether that number
+	 * changed versus the last invocation.
+	 *
+	 * We could handle all interrupts with the delayed by one
+	 * mechanism, but for the non forced threaded case we'd just
+	 * add pointless overhead to the straight hardirq interrupts
+	 * for the sake of a few lines less code.
+	 */
+	if (action_ret & IRQ_WAKE_THREAD) {
+		/*
+		 * There is a thread woken. Check whether one of the
+		 * shared primary handlers returned IRQ_HANDLED. If
+		 * not we defer the spurious detection to the next
+		 * interrupt.
+		 */
+		if (action_ret == IRQ_WAKE_THREAD) {
+			int handled;
+			/*
+			 * We use bit 31 of thread_handled_last to
+			 * denote the deferred spurious detection
+			 * active. No locking necessary as
+			 * thread_handled_last is only accessed here
+			 * and we have the guarantee that hard
+			 * interrupts are not reentrant.
+			 */
+			if (!(desc->threads_handled_last & SPURIOUS_DEFERRED)) {
+				desc->threads_handled_last |= SPURIOUS_DEFERRED;
+				return;
+			}
+			/*
+			 * Check whether one of the threaded handlers
+			 * returned IRQ_HANDLED since the last
+			 * interrupt happened.
+			 *
+			 * For simplicity we just set bit 31, as it is
+			 * set in threads_handled_last as well. So we
+			 * avoid extra masking. And we really do not
+			 * care about the high bits of the handled
+			 * count. We just care about the count being
+			 * different than the one we saw before.
+			 */
+			handled = atomic_read(&desc->threads_handled);
+			handled |= SPURIOUS_DEFERRED;
+			if (handled != desc->threads_handled_last) {
+				action_ret = IRQ_HANDLED;
+				/*
+				 * Note: We keep the SPURIOUS_DEFERRED
+				 * bit set. We are handling the
+				 * previous invocation right now.
+				 * Keep it for the current one, so the
+				 * next hardware interrupt will
+				 * account for it.
+				 */
+				desc->threads_handled_last = handled;
+			} else {
+				/*
+				 * None of the threaded handlers felt
+				 * responsible for the last interrupt
+				 *
+				 * We keep the SPURIOUS_DEFERRED bit
+				 * set in threads_handled_last as we
+				 * need to account for the current
+				 * interrupt as well.
+				 */
+				action_ret = IRQ_NONE;
+			}
+		} else {
+			/*
+			 * One of the primary handlers returned
+			 * IRQ_HANDLED. So we don't care about the
+			 * threaded handlers on the same line. Clear
+			 * the deferred detection bit.
+			 *
+			 * In theory we could/should check whether the
+			 * deferred bit is set and take the result of
+			 * the previous run into account here as
+			 * well. But it's really not worth the
+			 * trouble. If every other interrupt is
+			 * handled we never trigger the spurious
+			 * detector. And if this is just the one out
+			 * of 100k unhandled ones which is handled
+			 * then we merily delay the spurious detection
+			 * by one hard interrupt. Not a real problem.
+			 */
+			desc->threads_handled_last &= ~SPURIOUS_DEFERRED;
+		}
 	}
 
 	if (unlikely(action_ret == IRQ_NONE)) {

@@ -94,12 +94,6 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
 	return 0;
 }
 
-struct page *follow_huge_addr(struct mm_struct *mm,
-			      unsigned long address, int write)
-{
-	return ERR_PTR(-EINVAL);
-}
-
 int pmd_huge(pmd_t pmd)
 {
 	return pmd_page_shift(pmd) > PAGE_SHIFT;
@@ -173,7 +167,7 @@ new_search:
 				mm->context.part_huge = 0;
 			return addr;
 		}
-		if (vma && (vma->vm_flags & MAP_HUGETLB)) {
+		if (vma->vm_flags & MAP_HUGETLB) {
 			/* space after a huge vma in 2nd level page table? */
 			if (vma->vm_end & HUGEPT_MASK) {
 				after_huge = 1;

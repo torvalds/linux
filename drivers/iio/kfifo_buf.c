@@ -7,10 +7,12 @@
 #include <linux/mutex.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/sched.h>
+#include <linux/poll.h>
 
 struct iio_kfifo {
 	struct iio_buffer buffer;
 	struct kfifo kf;
+	struct mutex user_lock;
 	int update_needed;
 };
 
@@ -31,38 +33,18 @@ static int iio_request_update_kfifo(struct iio_buffer *r)
 	int ret = 0;
 	struct iio_kfifo *buf = iio_to_kfifo(r);
 
-	if (!buf->update_needed)
-		goto error_ret;
-	kfifo_free(&buf->kf);
-	ret = __iio_allocate_kfifo(buf, buf->buffer.bytes_per_datum,
+	mutex_lock(&buf->user_lock);
+	if (buf->update_needed) {
+		kfifo_free(&buf->kf);
+		ret = __iio_allocate_kfifo(buf, buf->buffer.bytes_per_datum,
 				   buf->buffer.length);
-	r->stufftoread = false;
-error_ret:
+		buf->update_needed = false;
+	} else {
+		kfifo_reset_out(&buf->kf);
+	}
+	mutex_unlock(&buf->user_lock);
+
 	return ret;
-}
-
-static int iio_get_length_kfifo(struct iio_buffer *r)
-{
-	return r->length;
-}
-
-static IIO_BUFFER_ENABLE_ATTR;
-static IIO_BUFFER_LENGTH_ATTR;
-
-static struct attribute *iio_kfifo_attributes[] = {
-	&dev_attr_length.attr,
-	&dev_attr_enable.attr,
-	NULL,
-};
-
-static struct attribute_group iio_kfifo_attribute_group = {
-	.attrs = iio_kfifo_attributes,
-	.name = "buffer",
-};
-
-static int iio_get_bytes_per_datum_kfifo(struct iio_buffer *r)
-{
-	return r->bytes_per_datum;
 }
 
 static int iio_mark_update_needed_kfifo(struct iio_buffer *r)
@@ -94,15 +76,15 @@ static int iio_set_length_kfifo(struct iio_buffer *r, int length)
 }
 
 static int iio_store_to_kfifo(struct iio_buffer *r,
-			      u8 *data)
+			      const void *data)
 {
 	int ret;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
 	ret = kfifo_in(&kf->kf, data, 1);
 	if (ret != 1)
 		return -EBUSY;
-	r->stufftoread = true;
-	wake_up_interruptible(&r->pollq);
+
+	wake_up_interruptible_poll(&r->pollq, POLLIN | POLLRDNORM);
 
 	return 0;
 }
@@ -113,52 +95,127 @@ static int iio_read_first_n_kfifo(struct iio_buffer *r,
 	int ret, copied;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
 
-	if (n < r->bytes_per_datum || r->bytes_per_datum == 0)
-		return -EINVAL;
+	if (mutex_lock_interruptible(&kf->user_lock))
+		return -ERESTARTSYS;
 
-	ret = kfifo_to_user(&kf->kf, buf, n, &copied);
+	if (!kfifo_initialized(&kf->kf) || n < kfifo_esize(&kf->kf))
+		ret = -EINVAL;
+	else
+		ret = kfifo_to_user(&kf->kf, buf, n, &copied);
+	mutex_unlock(&kf->user_lock);
 	if (ret < 0)
 		return ret;
 
-	if (kfifo_is_empty(&kf->kf))
-		r->stufftoread = false;
-	/* verify it is still empty to avoid race */
-	if (!kfifo_is_empty(&kf->kf))
-		r->stufftoread = true;
-
 	return copied;
+}
+
+static bool iio_kfifo_buf_data_available(struct iio_buffer *r)
+{
+	struct iio_kfifo *kf = iio_to_kfifo(r);
+	bool empty;
+
+	mutex_lock(&kf->user_lock);
+	empty = kfifo_is_empty(&kf->kf);
+	mutex_unlock(&kf->user_lock);
+
+	return !empty;
+}
+
+static void iio_kfifo_buffer_release(struct iio_buffer *buffer)
+{
+	struct iio_kfifo *kf = iio_to_kfifo(buffer);
+
+	mutex_destroy(&kf->user_lock);
+	kfifo_free(&kf->kf);
+	kfree(kf);
 }
 
 static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.store_to = &iio_store_to_kfifo,
 	.read_first_n = &iio_read_first_n_kfifo,
+	.data_available = iio_kfifo_buf_data_available,
 	.request_update = &iio_request_update_kfifo,
-	.get_bytes_per_datum = &iio_get_bytes_per_datum_kfifo,
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_kfifo,
-	.get_length = &iio_get_length_kfifo,
 	.set_length = &iio_set_length_kfifo,
+	.release = &iio_kfifo_buffer_release,
 };
 
-struct iio_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
+struct iio_buffer *iio_kfifo_allocate(void)
 {
 	struct iio_kfifo *kf;
 
-	kf = kzalloc(sizeof *kf, GFP_KERNEL);
+	kf = kzalloc(sizeof(*kf), GFP_KERNEL);
 	if (!kf)
 		return NULL;
+
 	kf->update_needed = true;
 	iio_buffer_init(&kf->buffer);
-	kf->buffer.attrs = &iio_kfifo_attribute_group;
 	kf->buffer.access = &kfifo_access_funcs;
 	kf->buffer.length = 2;
+	mutex_init(&kf->user_lock);
+
 	return &kf->buffer;
 }
 EXPORT_SYMBOL(iio_kfifo_allocate);
 
 void iio_kfifo_free(struct iio_buffer *r)
 {
-	kfree(iio_to_kfifo(r));
+	iio_buffer_put(r);
 }
 EXPORT_SYMBOL(iio_kfifo_free);
+
+static void devm_iio_kfifo_release(struct device *dev, void *res)
+{
+	iio_kfifo_free(*(struct iio_buffer **)res);
+}
+
+static int devm_iio_kfifo_match(struct device *dev, void *res, void *data)
+{
+	struct iio_buffer **r = res;
+
+	if (WARN_ON(!r || !*r))
+		return 0;
+
+	return *r == data;
+}
+
+/**
+ * devm_iio_fifo_allocate - Resource-managed iio_kfifo_allocate()
+ * @dev:		Device to allocate kfifo buffer for
+ *
+ * RETURNS:
+ * Pointer to allocated iio_buffer on success, NULL on failure.
+ */
+struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
+{
+	struct iio_buffer **ptr, *r;
+
+	ptr = devres_alloc(devm_iio_kfifo_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	r = iio_kfifo_allocate();
+	if (r) {
+		*ptr = r;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return r;
+}
+EXPORT_SYMBOL(devm_iio_kfifo_allocate);
+
+/**
+ * devm_iio_fifo_free - Resource-managed iio_kfifo_free()
+ * @dev:		Device the buffer belongs to
+ * @r:			The buffer associated with the device
+ */
+void devm_iio_kfifo_free(struct device *dev, struct iio_buffer *r)
+{
+	WARN_ON(devres_release(dev, devm_iio_kfifo_release,
+			       devm_iio_kfifo_match, r));
+}
+EXPORT_SYMBOL(devm_iio_kfifo_free);
 
 MODULE_LICENSE("GPL");

@@ -1,0 +1,55 @@
+* Qualcomm SDHCI controller (sdhci-msm)
+
+This file documents differences between the core properties in mmc.txt
+and the properties used by the sdhci-msm driver.
+
+Required properties:
+- compatible: Should contain "qcom,sdhci-msm-v4".
+- reg: Base address and length of the register in the following order:
+	- Host controller register map (required)
+	- SD Core register map (required)
+- interrupts: Should contain an interrupt-specifiers for the interrupts:
+	- Host controller interrupt (required)
+- pinctrl-names: Should contain only one value - "default".
+- pinctrl-0: Should specify pin control groups used for this controller.
+- clocks: A list of phandle + clock-specifier pairs for the clocks listed in clock-names.
+- clock-names: Should contain the following:
+	"iface" - Main peripheral bus clock (PCLK/HCLK - AHB Bus clock) (required)
+	"core"	- SDC MMC clock (MCLK) (required)
+	"bus"	- SDCC bus voter clock (optional)
+
+Example:
+
+	sdhc_1: sdhci@f9824900 {
+		compatible = "qcom,sdhci-msm-v4";
+		reg = <0xf9824900 0x11c>, <0xf9824000 0x800>;
+		interrupts = <0 123 0>;
+		bus-width = <8>;
+		non-removable;
+
+		vmmc-supply = <&pm8941_l20>;
+		vqmmc-supply = <&pm8941_s3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdc1_clk &sdc1_cmd &sdc1_data>;
+
+		clocks = <&gcc GCC_SDCC1_APPS_CLK>, <&gcc GCC_SDCC1_AHB_CLK>;
+		clock-names = "core", "iface";
+	};
+
+	sdhc_2: sdhci@f98a4900 {
+		compatible = "qcom,sdhci-msm-v4";
+		reg = <0xf98a4900 0x11c>, <0xf98a4000 0x800>;
+		interrupts = <0 125 0>;
+		bus-width = <4>;
+		cd-gpios = <&msmgpio 62 0x1>;
+
+		vmmc-supply = <&pm8941_l21>;
+		vqmmc-supply = <&pm8941_l13>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdc2_clk &sdc2_cmd &sdc2_data>;
+
+		clocks = <&gcc GCC_SDCC2_APPS_CLK>, <&gcc GCC_SDCC2_AHB_CLK>;
+		clock-names = "core", "iface";
+	};

@@ -9,8 +9,9 @@
 #ifndef __PINMUX_SIRF_H__
 #define __PINMUX_SIRF_H__
 
-#define SIRFSOC_NUM_PADS    622
-#define SIRFSOC_RSC_PIN_MUX 0x4
+#define SIRFSOC_NUM_PADS		622
+#define SIRFSOC_RSC_USB_UART_SHARE	0
+#define SIRFSOC_RSC_PIN_MUX		0x4
 
 #define SIRFSOC_GPIO_PAD_EN(g)		((g)*0x100 + 0x84)
 #define SIRFSOC_GPIO_PAD_EN_CLR(g)	((g)*0x100 + 0x90)
@@ -48,7 +49,6 @@ struct sirfsoc_pmx {
 	u32 paden_regs[SIRFSOC_GPIO_NO_OF_BANKS];
 	u32 dspen_regs;
 	u32 rsc_regs[3];
-	bool is_marco;
 };
 
 /* SIRFSOC_GPIO_PAD_EN set */
@@ -61,6 +61,7 @@ struct sirfsoc_padmux {
 	unsigned long muxmask_counts;
 	const struct sirfsoc_muxmask *muxmask;
 	/* RSC_PIN_MUX set */
+	unsigned long ctrlreg;
 	unsigned long funcmask;
 	unsigned long funcval;
 };

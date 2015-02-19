@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2014 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -30,7 +28,6 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
 
 	bitmap_shift_left(seq_bits, seq_bits, n, BATADV_TQ_LOCAL_WINDOW_SIZE);
 }
-
 
 /* receive and process one packet within the sequence number window.
  *

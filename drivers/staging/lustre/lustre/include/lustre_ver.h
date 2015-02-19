@@ -10,7 +10,9 @@
 #define LUSTRE_FIX 0
 #define LUSTRE_VERSION_STRING "2.3.64"
 
-#define LUSTRE_VERSION_CODE OBD_OCD_VERSION(LUSTRE_MAJOR,LUSTRE_MINOR,LUSTRE_PATCH,LUSTRE_FIX)
+#define LUSTRE_VERSION_CODE OBD_OCD_VERSION(LUSTRE_MAJOR, \
+					    LUSTRE_MINOR, LUSTRE_PATCH, \
+					    LUSTRE_FIX)
 
 /* liblustre clients are only allowed to connect if their LUSTRE_FIX mismatches
  * by this amount (set in lustre/autoconf/lustre-version.ac). */

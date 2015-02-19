@@ -12,11 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR /PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
  */
 
 #include <linux/linkage.h>
@@ -37,13 +32,15 @@ ENTRY(shmobile_boot_scu)
 	lsl	r1, r1, #3		@ we will shift by cpu_id * 8 bits
 	ldr	r2, [r0, #8]		@ SCU Power Status Register
 	mov	r3, #3
-	bic	r2, r2, r3, lsl r1	@ Clear bits of our CPU (Run Mode)
+	lsl	r3, r3, r1
+	bic	r2, r2, r3		@ Clear bits of our CPU (Run Mode)
 	str	r2, [r0, #8]		@ write back
 
 	b	shmobile_invalidate_start
 ENDPROC(shmobile_boot_scu)
 
 	.text
+	.align	2
 	.globl	shmobile_scu_base
 shmobile_scu_base:
 	.space	4

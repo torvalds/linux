@@ -19,7 +19,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -1131,7 +1130,6 @@ MODULE_DEVICE_TABLE(of, envctrl_match);
 static struct platform_driver envctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = envctrl_match,
 	},
 	.probe		= envctrl_probe,

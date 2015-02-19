@@ -41,12 +41,12 @@
 #ifndef __FLD_INTERNAL_H
 #define __FLD_INTERNAL_H
 
-#include <lustre/lustre_idl.h>
-#include <dt_object.h>
+#include "../include/lustre/lustre_idl.h"
+#include "../include/dt_object.h"
 
-#include <linux/libcfs/libcfs.h>
-#include <lustre_req_layout.h>
-#include <lustre_fld.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_fld.h"
 
 enum {
 	LUSTRE_FLD_INIT = 1 << 0,
@@ -90,7 +90,7 @@ struct fld_cache {
 	int		      fci_threshold;
 
 	/**
-	 * Prefered number of cached entries */
+	 * Preferred number of cached entries */
 	int		      fci_cache_size;
 
 	/**
@@ -111,7 +111,7 @@ struct fld_cache {
 
 	/**
 	 * Cache name used for debug and messages. */
-	char		     fci_name[80];
+	char		     fci_name[LUSTRE_MDT_MAXNAMELEN];
 	unsigned int		 fci_no_shrink:1;
 };
 
@@ -139,38 +139,10 @@ enum {
 
 extern struct lu_fld_hash fld_hash[];
 
-
-struct fld_thread_info {
-	struct req_capsule *fti_pill;
-	__u64	       fti_key;
-	struct lu_seq_range fti_rec;
-	struct lu_seq_range fti_lrange;
-	struct lu_seq_range fti_irange;
-};
-
-extern struct lu_context_key fld_thread_key;
-
-int fld_index_init(const struct lu_env *env, struct lu_server_fld *fld,
-		   struct dt_device *dt);
-
-void fld_index_fini(const struct lu_env *env, struct lu_server_fld *fld);
-
-int fld_declare_index_create(const struct lu_env *env,
-			     struct lu_server_fld *fld,
-			     const struct lu_seq_range *new,
-			     struct thandle *th);
-
-int fld_index_create(const struct lu_env *env, struct lu_server_fld *fld,
-		     const struct lu_seq_range *new, struct thandle *th);
-
-int fld_index_lookup(const struct lu_env *env, struct lu_server_fld *fld,
-		     seqno_t seq, struct lu_seq_range *range);
-
 int fld_client_rpc(struct obd_export *exp,
 		   struct lu_seq_range *range, __u32 fld_op);
 
-#ifdef LPROCFS
-extern struct lprocfs_vars fld_server_proc_list[];
+#if defined (CONFIG_PROC_FS)
 extern struct lprocfs_vars fld_client_proc_list[];
 #endif
 
@@ -195,7 +167,7 @@ void fld_cache_delete(struct fld_cache *cache,
 void fld_cache_delete_nolock(struct fld_cache *cache,
 			     const struct lu_seq_range *range);
 int fld_cache_lookup(struct fld_cache *cache,
-		     const seqno_t seq, struct lu_seq_range *range);
+		     const u64 seq, struct lu_seq_range *range);
 
 struct fld_cache_entry*
 fld_cache_entry_lookup(struct fld_cache *cache, struct lu_seq_range *range);
@@ -218,6 +190,4 @@ fld_target_name(struct lu_fld_target *tar)
 	return (const char *)tar->ft_exp->exp_obd->obd_name;
 }
 
-extern proc_dir_entry_t *fld_type_proc_dir;
-extern struct file_operations fld_proc_seq_fops;
 #endif /* __FLD_INTERNAL_H */

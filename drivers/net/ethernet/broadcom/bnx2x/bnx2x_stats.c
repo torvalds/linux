@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
  * UDP CSUM errata workaround by Arik Gendelman
@@ -137,7 +137,7 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 			cpu_to_le16(bp->stats_counter++);
 
 		DP(BNX2X_MSG_STATS, "Sending statistics ramrod %d\n",
-			bp->fw_stats_req->hdr.drv_stats_counter);
+		   le16_to_cpu(bp->fw_stats_req->hdr.drv_stats_counter));
 
 		/* adjust the ramrod to include VF queues statistics */
 		bnx2x_iov_adjust_stats_req(bp);
@@ -196,11 +196,11 @@ static void bnx2x_hw_stats_post(struct bnx2x *bp)
 
 	} else if (bp->func_stx) {
 		*stats_comp = 0;
-		bnx2x_post_dmae(bp, dmae, INIT_DMAE_C(bp));
+		bnx2x_issue_dmae_with_comp(bp, dmae, stats_comp);
 	}
 }
 
-static int bnx2x_stats_comp(struct bnx2x *bp)
+static void bnx2x_stats_comp(struct bnx2x *bp)
 {
 	u32 *stats_comp = bnx2x_sp(bp, stats_comp);
 	int cnt = 10;
@@ -214,7 +214,6 @@ static int bnx2x_stats_comp(struct bnx2x *bp)
 		cnt--;
 		usleep_range(1000, 2000);
 	}
-	return 1;
 }
 
 /*
@@ -522,20 +521,16 @@ static void bnx2x_func_stats_init(struct bnx2x *bp)
 /* should be called under stats_sema */
 static void __bnx2x_stats_start(struct bnx2x *bp)
 {
-	/* vfs travel through here as part of the statistics FSM, but no action
-	 * is required
-	 */
-	if (IS_VF(bp))
-		return;
+	if (IS_PF(bp)) {
+		if (bp->port.pmf)
+			bnx2x_port_stats_init(bp);
 
-	if (bp->port.pmf)
-		bnx2x_port_stats_init(bp);
+		else if (bp->func_stx)
+			bnx2x_func_stats_init(bp);
 
-	else if (bp->func_stx)
-		bnx2x_func_stats_init(bp);
-
-	bnx2x_hw_stats_post(bp);
-	bnx2x_storm_stats_post(bp);
+		bnx2x_hw_stats_post(bp);
+		bnx2x_storm_stats_post(bp);
+	}
 
 	bp->stats_started = true;
 }
@@ -1634,6 +1629,11 @@ void bnx2x_stats_init(struct bnx2x *bp)
 	int /*abs*/port = BP_PORT(bp);
 	int mb_idx = BP_FW_MB_IDX(bp);
 
+	if (IS_VF(bp)) {
+		bnx2x_memset_stats(bp);
+		return;
+	}
+
 	bp->stats_pending = 0;
 	bp->executer_idx = 0;
 	bp->stats_counter = 0;
@@ -1996,4 +1996,15 @@ void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
 		       afex_stats->rx_frames_discarded_lo,
 		       estats->mac_discard);
 	}
+}
+
+void bnx2x_stats_safe_exec(struct bnx2x *bp,
+			   void (func_to_exec)(void *cookie),
+			   void *cookie){
+	if (down_timeout(&bp->stats_sema, HZ/10))
+		BNX2X_ERR("Unable to acquire stats lock\n");
+	bnx2x_stats_comp(bp);
+	func_to_exec(cookie);
+	__bnx2x_stats_start(bp);
+	up(&bp->stats_sema);
 }

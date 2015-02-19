@@ -35,9 +35,8 @@ struct thread_info {
 	int preempt_count;	/* 0 => preemptable, <0 => BUG */
 
 	mm_segment_t addr_limit;	/* thread address space */
-	struct restart_block restart_block;
 
-	u8 supervisor_stack[0];
+	u8 supervisor_stack[0] __aligned(8);
 };
 
 #else /* !__ASSEMBLY__ */
@@ -45,8 +44,6 @@ struct thread_info {
 #include <generated/asm-offsets.h>
 
 #endif
-
-#define PREEMPT_ACTIVE		0x10000000
 
 #ifdef CONFIG_4KSTACKS
 #define THREAD_SHIFT		12
@@ -76,9 +73,6 @@ struct thread_info {
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
-	.restart_block = {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -119,10 +113,8 @@ static inline int kstack_end(void *addr)
 #define TIF_SECCOMP		5	/* secure computing */
 #define TIF_RESTORE_SIGMASK	6	/* restore signal mask in do_signal() */
 #define TIF_NOTIFY_RESUME	7	/* callback before returning to user */
-#define TIF_POLLING_NRFLAG      8	/* true if poll_idle() is polling
-					   TIF_NEED_RESCHED */
-#define TIF_MEMDIE		9	/* is terminating due to OOM killer */
-#define TIF_SYSCALL_TRACEPOINT  10	/* syscall tracepoint instrumentation */
+#define TIF_MEMDIE		8	/* is terminating due to OOM killer */
+#define TIF_SYSCALL_TRACEPOINT	9	/* syscall tracepoint instrumentation */
 
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)

@@ -92,13 +92,9 @@
  *	wakeup_count - Report the number of wakeup events related to the device
  */
 
-static const char enabled[] = "enabled";
-static const char disabled[] = "disabled";
-
 const char power_group_name[] = "power";
 EXPORT_SYMBOL_GPL(power_group_name);
 
-#ifdef CONFIG_PM_RUNTIME
 static const char ctrl_auto[] = "auto";
 static const char ctrl_on[] = "on";
 
@@ -206,7 +202,7 @@ static ssize_t autosuspend_delay_ms_store(struct device *dev,
 	if (!dev->power.use_autosuspend)
 		return -EIO;
 
-	if (strict_strtol(buf, 10, &delay) != 0 || delay != (int) delay)
+	if (kstrtol(buf, 10, &delay) != 0 || delay != (int) delay)
 		return -EINVAL;
 
 	device_lock(dev);
@@ -218,15 +214,16 @@ static ssize_t autosuspend_delay_ms_store(struct device *dev,
 static DEVICE_ATTR(autosuspend_delay_ms, 0644, autosuspend_delay_ms_show,
 		autosuspend_delay_ms_store);
 
-static ssize_t pm_qos_latency_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t pm_qos_resume_latency_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
 {
-	return sprintf(buf, "%d\n", dev_pm_qos_requested_latency(dev));
+	return sprintf(buf, "%d\n", dev_pm_qos_requested_resume_latency(dev));
 }
 
-static ssize_t pm_qos_latency_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t n)
+static ssize_t pm_qos_resume_latency_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t n)
 {
 	s32 value;
 	int ret;
@@ -237,12 +234,47 @@ static ssize_t pm_qos_latency_store(struct device *dev,
 	if (value < 0)
 		return -EINVAL;
 
-	ret = dev_pm_qos_update_request(dev->power.qos->latency_req, value);
+	ret = dev_pm_qos_update_request(dev->power.qos->resume_latency_req,
+					value);
 	return ret < 0 ? ret : n;
 }
 
 static DEVICE_ATTR(pm_qos_resume_latency_us, 0644,
-		   pm_qos_latency_show, pm_qos_latency_store);
+		   pm_qos_resume_latency_show, pm_qos_resume_latency_store);
+
+static ssize_t pm_qos_latency_tolerance_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	s32 value = dev_pm_qos_get_user_latency_tolerance(dev);
+
+	if (value < 0)
+		return sprintf(buf, "auto\n");
+	else if (value == PM_QOS_LATENCY_ANY)
+		return sprintf(buf, "any\n");
+
+	return sprintf(buf, "%d\n", value);
+}
+
+static ssize_t pm_qos_latency_tolerance_store(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t n)
+{
+	s32 value;
+	int ret;
+
+	if (kstrtos32(buf, 0, &value)) {
+		if (!strcmp(buf, "auto") || !strcmp(buf, "auto\n"))
+			value = PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT;
+		else if (!strcmp(buf, "any") || !strcmp(buf, "any\n"))
+			value = PM_QOS_LATENCY_ANY;
+	}
+	ret = dev_pm_qos_update_user_latency_tolerance(dev, value);
+	return ret < 0 ? ret : n;
+}
+
+static DEVICE_ATTR(pm_qos_latency_tolerance_us, 0644,
+		   pm_qos_latency_tolerance_show, pm_qos_latency_tolerance_store);
 
 static ssize_t pm_qos_no_power_off_show(struct device *dev,
 					struct device_attribute *attr,
@@ -297,14 +329,16 @@ static ssize_t pm_qos_remote_wakeup_store(struct device *dev,
 
 static DEVICE_ATTR(pm_qos_remote_wakeup, 0644,
 		   pm_qos_remote_wakeup_show, pm_qos_remote_wakeup_store);
-#endif /* CONFIG_PM_RUNTIME */
 
 #ifdef CONFIG_PM_SLEEP
+static const char _enabled[] = "enabled";
+static const char _disabled[] = "disabled";
+
 static ssize_t
 wake_show(struct device * dev, struct device_attribute *attr, char * buf)
 {
 	return sprintf(buf, "%s\n", device_can_wakeup(dev)
-		? (device_may_wakeup(dev) ? enabled : disabled)
+		? (device_may_wakeup(dev) ? _enabled : _disabled)
 		: "");
 }
 
@@ -321,11 +355,11 @@ wake_store(struct device * dev, struct device_attribute *attr,
 	cp = memchr(buf, '\n', n);
 	if (cp)
 		len = cp - buf;
-	if (len == sizeof enabled - 1
-			&& strncmp(buf, enabled, sizeof enabled - 1) == 0)
+	if (len == sizeof _enabled - 1
+			&& strncmp(buf, _enabled, sizeof _enabled - 1) == 0)
 		device_set_wakeup_enable(dev, 1);
-	else if (len == sizeof disabled - 1
-			&& strncmp(buf, disabled, sizeof disabled - 1) == 0)
+	else if (len == sizeof _disabled - 1
+			&& strncmp(buf, _disabled, sizeof _disabled - 1) == 0)
 		device_set_wakeup_enable(dev, 0);
 	else
 		return -EINVAL;
@@ -495,8 +529,6 @@ static DEVICE_ATTR(wakeup_prevent_sleep_time_ms, 0444,
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_ADVANCED_DEBUG
-#ifdef CONFIG_PM_RUNTIME
-
 static ssize_t rtpm_usagecount_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -526,15 +558,13 @@ static DEVICE_ATTR(runtime_usage, 0444, rtpm_usagecount_show, NULL);
 static DEVICE_ATTR(runtime_active_kids, 0444, rtpm_children_show, NULL);
 static DEVICE_ATTR(runtime_enabled, 0444, rtpm_enabled_show, NULL);
 
-#endif
-
 #ifdef CONFIG_PM_SLEEP
-
 static ssize_t async_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	return sprintf(buf, "%s\n",
-			device_async_suspend_enabled(dev) ? enabled : disabled);
+			device_async_suspend_enabled(dev) ?
+				_enabled : _disabled);
 }
 
 static ssize_t async_store(struct device *dev, struct device_attribute *attr,
@@ -546,9 +576,10 @@ static ssize_t async_store(struct device *dev, struct device_attribute *attr,
 	cp = memchr(buf, '\n', n);
 	if (cp)
 		len = cp - buf;
-	if (len == sizeof enabled - 1 && strncmp(buf, enabled, len) == 0)
+	if (len == sizeof _enabled - 1 && strncmp(buf, _enabled, len) == 0)
 		device_enable_async_suspend(dev);
-	else if (len == sizeof disabled - 1 && strncmp(buf, disabled, len) == 0)
+	else if (len == sizeof _disabled - 1 &&
+		 strncmp(buf, _disabled, len) == 0)
 		device_disable_async_suspend(dev);
 	else
 		return -EINVAL;
@@ -557,7 +588,7 @@ static ssize_t async_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(async, 0644, async_show, async_store);
 
-#endif
+#endif /* CONFIG_PM_SLEEP */
 #endif /* CONFIG_PM_ADVANCED_DEBUG */
 
 static struct attribute *power_attrs[] = {
@@ -565,12 +596,10 @@ static struct attribute *power_attrs[] = {
 #ifdef CONFIG_PM_SLEEP
 	&dev_attr_async.attr,
 #endif
-#ifdef CONFIG_PM_RUNTIME
 	&dev_attr_runtime_status.attr,
 	&dev_attr_runtime_usage.attr,
 	&dev_attr_runtime_active_kids.attr,
 	&dev_attr_runtime_enabled.attr,
-#endif
 #endif /* CONFIG_PM_ADVANCED_DEBUG */
 	NULL,
 };
@@ -602,7 +631,6 @@ static struct attribute_group pm_wakeup_attr_group = {
 };
 
 static struct attribute *runtime_attrs[] = {
-#ifdef CONFIG_PM_RUNTIME
 #ifndef CONFIG_PM_ADVANCED_DEBUG
 	&dev_attr_runtime_status.attr,
 #endif
@@ -610,7 +638,6 @@ static struct attribute *runtime_attrs[] = {
 	&dev_attr_runtime_suspended_time.attr,
 	&dev_attr_runtime_active_time.attr,
 	&dev_attr_autosuspend_delay_ms.attr,
-#endif /* CONFIG_PM_RUNTIME */
 	NULL,
 };
 static struct attribute_group pm_runtime_attr_group = {
@@ -618,22 +645,27 @@ static struct attribute_group pm_runtime_attr_group = {
 	.attrs	= runtime_attrs,
 };
 
-static struct attribute *pm_qos_latency_attrs[] = {
-#ifdef CONFIG_PM_RUNTIME
+static struct attribute *pm_qos_resume_latency_attrs[] = {
 	&dev_attr_pm_qos_resume_latency_us.attr,
-#endif /* CONFIG_PM_RUNTIME */
 	NULL,
 };
-static struct attribute_group pm_qos_latency_attr_group = {
+static struct attribute_group pm_qos_resume_latency_attr_group = {
 	.name	= power_group_name,
-	.attrs	= pm_qos_latency_attrs,
+	.attrs	= pm_qos_resume_latency_attrs,
+};
+
+static struct attribute *pm_qos_latency_tolerance_attrs[] = {
+	&dev_attr_pm_qos_latency_tolerance_us.attr,
+	NULL,
+};
+static struct attribute_group pm_qos_latency_tolerance_attr_group = {
+	.name	= power_group_name,
+	.attrs	= pm_qos_latency_tolerance_attrs,
 };
 
 static struct attribute *pm_qos_flags_attrs[] = {
-#ifdef CONFIG_PM_RUNTIME
 	&dev_attr_pm_qos_no_power_off.attr,
 	&dev_attr_pm_qos_remote_wakeup.attr,
-#endif /* CONFIG_PM_RUNTIME */
 	NULL,
 };
 static struct attribute_group pm_qos_flags_attr_group = {
@@ -654,18 +686,23 @@ int dpm_sysfs_add(struct device *dev)
 		if (rc)
 			goto err_out;
 	}
-
 	if (device_can_wakeup(dev)) {
 		rc = sysfs_merge_group(&dev->kobj, &pm_wakeup_attr_group);
-		if (rc) {
-			if (pm_runtime_callbacks_present(dev))
-				sysfs_unmerge_group(&dev->kobj,
-						    &pm_runtime_attr_group);
-			goto err_out;
-		}
+		if (rc)
+			goto err_runtime;
+	}
+	if (dev->power.set_latency_tolerance) {
+		rc = sysfs_merge_group(&dev->kobj,
+				       &pm_qos_latency_tolerance_attr_group);
+		if (rc)
+			goto err_wakeup;
 	}
 	return 0;
 
+ err_wakeup:
+	sysfs_unmerge_group(&dev->kobj, &pm_wakeup_attr_group);
+ err_runtime:
+	sysfs_unmerge_group(&dev->kobj, &pm_runtime_attr_group);
  err_out:
 	sysfs_remove_group(&dev->kobj, &pm_attr_group);
 	return rc;
@@ -681,14 +718,14 @@ void wakeup_sysfs_remove(struct device *dev)
 	sysfs_unmerge_group(&dev->kobj, &pm_wakeup_attr_group);
 }
 
-int pm_qos_sysfs_add_latency(struct device *dev)
+int pm_qos_sysfs_add_resume_latency(struct device *dev)
 {
-	return sysfs_merge_group(&dev->kobj, &pm_qos_latency_attr_group);
+	return sysfs_merge_group(&dev->kobj, &pm_qos_resume_latency_attr_group);
 }
 
-void pm_qos_sysfs_remove_latency(struct device *dev)
+void pm_qos_sysfs_remove_resume_latency(struct device *dev)
 {
-	sysfs_unmerge_group(&dev->kobj, &pm_qos_latency_attr_group);
+	sysfs_unmerge_group(&dev->kobj, &pm_qos_resume_latency_attr_group);
 }
 
 int pm_qos_sysfs_add_flags(struct device *dev)
@@ -708,6 +745,7 @@ void rpm_sysfs_remove(struct device *dev)
 
 void dpm_sysfs_remove(struct device *dev)
 {
+	sysfs_unmerge_group(&dev->kobj, &pm_qos_latency_tolerance_attr_group);
 	dev_pm_qos_constraints_destroy(dev);
 	rpm_sysfs_remove(dev);
 	sysfs_unmerge_group(&dev->kobj, &pm_wakeup_attr_group);

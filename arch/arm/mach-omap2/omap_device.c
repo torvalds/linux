@@ -36,6 +36,7 @@
 #include <linux/of.h>
 #include <linux/notifier.h>
 
+#include "common.h"
 #include "soc.h"
 #include "omap_device.h"
 #include "omap_hwmod.h"
@@ -55,7 +56,7 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 
 	r = clk_get_sys(dev_name(&od->pdev->dev), clk_alias);
 	if (!IS_ERR(r)) {
-		dev_warn(&od->pdev->dev,
+		dev_dbg(&od->pdev->dev,
 			 "alias %s already exists\n", clk_alias);
 		clk_put(r);
 		return;
@@ -158,7 +159,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	}
 
 	od = omap_device_alloc(pdev, hwmods, oh_cnt);
-	if (!od) {
+	if (IS_ERR(od)) {
 		dev_err(&pdev->dev, "Cannot allocate omap_device for :%s\n",
 			oh_name);
 		ret = PTR_ERR(od);
@@ -183,6 +184,10 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 odbfd_exit1:
 	kfree(hwmods);
 odbfd_exit:
+	/* if data/we are at fault.. load up a fail handler */
+	if (ret)
+		pdev->dev.pm_domain = &omap_device_fail_pm_domain;
+
 	return ret;
 }
 
@@ -200,6 +205,7 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 	case BUS_NOTIFY_ADD_DEVICE:
 		if (pdev->dev.of_node)
 			omap_device_build_from_dt(pdev);
+		omap_auxdata_legacy_init(dev);
 		/* fall through */
 	default:
 		od = to_omap_device(pdev);
@@ -582,7 +588,7 @@ odbs_exit:
 	return ERR_PTR(ret);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int _od_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -604,6 +610,19 @@ static int _od_runtime_resume(struct device *dev)
 
 	return pm_generic_runtime_resume(dev);
 }
+
+static int _od_fail_runtime_suspend(struct device *dev)
+{
+	dev_warn(dev, "%s: FIXME: missing hwmod/omap_dev info\n", __func__);
+	return -ENODEV;
+}
+
+static int _od_fail_runtime_resume(struct device *dev)
+{
+	dev_warn(dev, "%s: FIXME: missing hwmod/omap_dev info\n", __func__);
+	return -ENODEV;
+}
+
 #endif
 
 #ifdef CONFIG_SUSPEND
@@ -621,6 +640,7 @@ static int _od_suspend_noirq(struct device *dev)
 
 	if (!ret && !pm_runtime_status_suspended(dev)) {
 		if (pm_generic_runtime_suspend(dev) == 0) {
+			pm_runtime_set_suspended(dev);
 			omap_device_idle(pdev);
 			od->flags |= OMAP_DEVICE_SUSPENDED;
 		}
@@ -634,10 +654,18 @@ static int _od_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 
-	if ((od->flags & OMAP_DEVICE_SUSPENDED) &&
-	    !pm_runtime_status_suspended(dev)) {
+	if (od->flags & OMAP_DEVICE_SUSPENDED) {
 		od->flags &= ~OMAP_DEVICE_SUSPENDED;
 		omap_device_enable(pdev);
+		/*
+		 * XXX: we run before core runtime pm has resumed itself. At
+		 * this point in time, we just restore the runtime pm state and
+		 * considering symmetric operations in resume, we donot expect
+		 * to fail. If we failed, something changed in core runtime_pm
+		 * framework OR some device driver messed things up, hence, WARN
+		 */
+		WARN(pm_runtime_set_active(dev),
+		     "Could not set %s runtime state active\n", dev_name(dev));
 		pm_generic_runtime_resume(dev);
 	}
 
@@ -647,6 +675,13 @@ static int _od_resume_noirq(struct device *dev)
 #define _od_suspend_noirq NULL
 #define _od_resume_noirq NULL
 #endif
+
+struct dev_pm_domain omap_device_fail_pm_domain = {
+	.ops = {
+		SET_RUNTIME_PM_OPS(_od_fail_runtime_suspend,
+				   _od_fail_runtime_resume, NULL)
+	}
+};
 
 struct dev_pm_domain omap_device_pm_domain = {
 	.ops = {
@@ -882,6 +917,10 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 static int __init omap_device_late_init(void)
 {
 	bus_for_each_dev(&platform_bus_type, NULL, NULL, omap_device_late_idle);
+
+	WARN(!of_have_populated_dt(),
+		"legacy booting deprecated, please update to boot with .dts\n");
+
 	return 0;
 }
 omap_late_initcall_sync(omap_device_late_init);

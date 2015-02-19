@@ -226,7 +226,7 @@ static int ds2482_wait_1wire_idle(struct ds2482_data *pdev)
 	}
 
 	if (retries >= DS2482_WAIT_IDLE_TIMEOUT)
-		printk(KERN_ERR "%s: timeout on channel %d\n",
+		pr_err("%s: timeout on channel %d\n",
 		       __func__, pdev->channel);
 
 	return temp;

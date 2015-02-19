@@ -19,6 +19,7 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 
+#include <mach/gpio-samsung.h>
 #include <asm/mach-types.h>
 
 #include "i2s.h"
@@ -54,20 +55,6 @@ static int smartq_hifi_hw_params(struct snd_pcm_substream *substream,
 		clk = 11289600;
 		break;
 	}
-
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-					     SND_SOC_DAIFMT_NB_NF |
-					     SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
-	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-					   SND_SOC_DAIFMT_NB_NF |
-					   SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
 
 	/* Use PCLK for I2S signal generation */
 	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_RCLKSRC_0,
@@ -161,8 +148,6 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "ROUT1");
 
 	/* set endpoints to default off mode */
-	snd_soc_dapm_enable_pin(dapm, "Internal Speaker");
-	snd_soc_dapm_enable_pin(dapm, "Internal Mic");
 	snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
 
 	/* Headphone jack detection */
@@ -183,6 +168,14 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
+static int smartq_wm8987_card_remove(struct snd_soc_card *card)
+{
+	snd_soc_jack_free_gpios(&smartq_jack, ARRAY_SIZE(smartq_jack_gpios),
+				smartq_jack_gpios);
+
+	return 0;
+}
+
 static struct snd_soc_dai_link smartq_dai[] = {
 	{
 		.name		= "wm8987",
@@ -192,6 +185,8 @@ static struct snd_soc_dai_link smartq_dai[] = {
 		.platform_name	= "samsung-i2s.0",
 		.codec_name	= "wm8750.0-0x1a",
 		.init		= smartq_wm8987_init,
+		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				  SND_SOC_DAIFMT_CBS_CFS,
 		.ops		= &smartq_hifi_ops,
 	},
 };
@@ -199,6 +194,7 @@ static struct snd_soc_dai_link smartq_dai[] = {
 static struct snd_soc_card snd_soc_smartq = {
 	.name = "SmartQ",
 	.owner = THIS_MODULE,
+	.remove = smartq_wm8987_card_remove,
 	.dai_link = smartq_dai,
 	.num_links = ARRAY_SIZE(smartq_dai),
 
@@ -260,8 +256,6 @@ err_unregister_device:
 static void __exit smartq_exit(void)
 {
 	gpio_free(S3C64XX_GPK(12));
-	snd_soc_jack_free_gpios(&smartq_jack, ARRAY_SIZE(smartq_jack_gpios),
-				smartq_jack_gpios);
 
 	platform_device_unregister(smartq_snd_device);
 }

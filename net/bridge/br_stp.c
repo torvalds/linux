@@ -12,6 +12,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/rculist.h>
+#include <net/switchdev.h>
 
 #include "br_private.h"
 #include "br_private_stp.h"
@@ -34,6 +35,17 @@ void br_log_state(const struct net_bridge_port *p)
 	br_info(p->br, "port %u(%s) entered %s state\n",
 		(unsigned int) p->port_no, p->dev->name,
 		br_port_state_names[p->state]);
+}
+
+void br_set_state(struct net_bridge_port *p, unsigned int state)
+{
+	int err;
+
+	p->state = state;
+	err = netdev_switch_port_stp_update(p->dev, state);
+	if (err && err != -EOPNOTSUPP)
+		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
+				(unsigned int) p->port_no, p->dev->name);
 }
 
 /* called under bridge lock */
@@ -107,7 +119,7 @@ static void br_root_port_block(const struct net_bridge *br,
 	br_notice(br, "port %u(%s) tried to become root port (blocked)",
 		  (unsigned int) p->port_no, p->dev->name);
 
-	p->state = BR_STATE_LISTENING;
+	br_set_state(p, BR_STATE_LISTENING);
 	br_log_state(p);
 	br_ifinfo_notify(RTM_NEWLINK, p);
 
@@ -209,7 +221,7 @@ static void br_record_config_information(struct net_bridge_port *p,
 	p->designated_age = jiffies - bpdu->message_age;
 
 	mod_timer(&p->message_age_timer, jiffies
-		  + (p->br->max_age - bpdu->message_age));
+		  + (bpdu->max_age - bpdu->message_age));
 }
 
 /* called under bridge lock */
@@ -387,7 +399,7 @@ static void br_make_blocking(struct net_bridge_port *p)
 		    p->state == BR_STATE_LEARNING)
 			br_topology_change_detection(p->br);
 
-		p->state = BR_STATE_BLOCKING;
+		br_set_state(p, BR_STATE_BLOCKING);
 		br_log_state(p);
 		br_ifinfo_notify(RTM_NEWLINK, p);
 
@@ -404,13 +416,13 @@ static void br_make_forwarding(struct net_bridge_port *p)
 		return;
 
 	if (br->stp_enabled == BR_NO_STP || br->forward_delay == 0) {
-		p->state = BR_STATE_FORWARDING;
+		br_set_state(p, BR_STATE_FORWARDING);
 		br_topology_change_detection(br);
 		del_timer(&p->forward_delay_timer);
 	} else if (br->stp_enabled == BR_KERNEL_STP)
-		p->state = BR_STATE_LISTENING;
+		br_set_state(p, BR_STATE_LISTENING);
 	else
-		p->state = BR_STATE_LEARNING;
+		br_set_state(p, BR_STATE_LEARNING);
 
 	br_multicast_enable_port(p);
 	br_log_state(p);
@@ -544,18 +556,27 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 
 }
 
-int br_set_forward_delay(struct net_bridge *br, unsigned long val)
+void __br_set_forward_delay(struct net_bridge *br, unsigned long t)
 {
-	unsigned long t = clock_t_to_jiffies(val);
-
-	if (br->stp_enabled != BR_NO_STP &&
-	    (t < BR_MIN_FORWARD_DELAY || t > BR_MAX_FORWARD_DELAY))
-		return -ERANGE;
-
-	spin_lock_bh(&br->lock);
 	br->bridge_forward_delay = t;
 	if (br_is_root_bridge(br))
 		br->forward_delay = br->bridge_forward_delay;
+}
+
+int br_set_forward_delay(struct net_bridge *br, unsigned long val)
+{
+	unsigned long t = clock_t_to_jiffies(val);
+	int err = -ERANGE;
+
+	spin_lock_bh(&br->lock);
+	if (br->stp_enabled != BR_NO_STP &&
+	    (t < BR_MIN_FORWARD_DELAY || t > BR_MAX_FORWARD_DELAY))
+		goto unlock;
+
+	__br_set_forward_delay(br, t);
+	err = 0;
+
+unlock:
 	spin_unlock_bh(&br->lock);
-	return 0;
+	return err;
 }

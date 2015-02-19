@@ -21,30 +21,22 @@
 static int st_press_spi_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
-	struct st_sensor_data *pdata;
+	struct st_sensor_data *press_data;
 	int err;
 
-	indio_dev = iio_device_alloc(sizeof(*pdata));
-	if (indio_dev == NULL) {
-		err = -ENOMEM;
-		goto iio_device_alloc_error;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*press_data));
+	if (indio_dev == NULL)
+		return -ENOMEM;
 
-	pdata = iio_priv(indio_dev);
-	pdata->dev = &spi->dev;
+	press_data = iio_priv(indio_dev);
 
-	st_sensors_spi_configure(indio_dev, spi, pdata);
+	st_sensors_spi_configure(indio_dev, spi, press_data);
 
 	err = st_press_common_probe(indio_dev);
 	if (err < 0)
-		goto st_press_common_probe_error;
+		return err;
 
 	return 0;
-
-st_press_common_probe_error:
-	iio_device_free(indio_dev);
-iio_device_alloc_error:
-	return err;
 }
 
 static int st_press_spi_remove(struct spi_device *spi)
@@ -55,6 +47,8 @@ static int st_press_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id st_press_id_table[] = {
+	{ LPS001WP_PRESS_DEV_NAME },
+	{ LPS25H_PRESS_DEV_NAME },
 	{ LPS331AP_PRESS_DEV_NAME },
 	{},
 };

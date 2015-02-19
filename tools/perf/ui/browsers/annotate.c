@@ -27,6 +27,7 @@ static struct annotate_browser_opt {
 	bool hide_src_code,
 	     use_offset,
 	     jump_arrows,
+	     show_linenr,
 	     show_nr_jumps;
 } annotate_browser__opts = {
 	.use_offset	= true,
@@ -128,7 +129,11 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	if (!*dl->line)
 		slsmg_write_nstring(" ", width - pcnt_width);
 	else if (dl->offset == -1) {
-		printed = scnprintf(bf, sizeof(bf), "%*s  ",
+		if (dl->line_nr && annotate_browser__opts.show_linenr)
+			printed = scnprintf(bf, sizeof(bf), "%-*d ",
+					ab->addr_width + 1, dl->line_nr);
+		else
+			printed = scnprintf(bf, sizeof(bf), "%*s  ",
 				    ab->addr_width, " ");
 		slsmg_write_nstring(bf, printed);
 		slsmg_write_nstring(dl->line, width - printed - pcnt_width + 1);
@@ -428,40 +433,52 @@ static void annotate_browser__init_asm_mode(struct annotate_browser *browser)
 	browser->b.nr_entries = browser->nr_asm_entries;
 }
 
+#define SYM_TITLE_MAX_SIZE (PATH_MAX + 64)
+
+static int sym_title(struct symbol *sym, struct map *map, char *title,
+		     size_t sz)
+{
+	return snprintf(title, sz, "%s  %s", sym->name, map->dso->long_name);
+}
+
 static bool annotate_browser__callq(struct annotate_browser *browser,
 				    struct perf_evsel *evsel,
 				    struct hist_browser_timer *hbt)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct disasm_line *dl = browser->selection;
-	struct symbol *sym = ms->sym;
 	struct annotation *notes;
-	struct symbol *target;
-	u64 ip;
+	struct addr_map_symbol target = {
+		.map = ms->map,
+		.addr = map__objdump_2mem(ms->map, dl->ops.target.addr),
+	};
+	char title[SYM_TITLE_MAX_SIZE];
 
 	if (!ins__is_call(dl->ins))
 		return false;
 
-	ip = ms->map->map_ip(ms->map, dl->ops.target.addr);
-	target = map__find_symbol(ms->map, ip, NULL);
-	if (target == NULL) {
+	if (map_groups__find_ams(&target, NULL) ||
+	    map__rip_2objdump(target.map, target.map->map_ip(target.map,
+							     target.addr)) !=
+	    dl->ops.target.addr) {
 		ui_helpline__puts("The called function was not found.");
 		return true;
 	}
 
-	notes = symbol__annotation(target);
+	notes = symbol__annotation(target.sym);
 	pthread_mutex_lock(&notes->lock);
 
-	if (notes->src == NULL && symbol__alloc_hist(target) < 0) {
+	if (notes->src == NULL && symbol__alloc_hist(target.sym) < 0) {
 		pthread_mutex_unlock(&notes->lock);
 		ui__warning("Not enough memory for annotating '%s' symbol!\n",
-			    target->name);
+			    target.sym->name);
 		return true;
 	}
 
 	pthread_mutex_unlock(&notes->lock);
-	symbol__tui_annotate(target, ms->map, evsel, hbt);
-	ui_browser__show_title(&browser->b, sym->name);
+	symbol__tui_annotate(target.sym, target.map, evsel, hbt);
+	sym_title(ms->sym, ms->map, title, sizeof(title));
+	ui_browser__show_title(&browser->b, title);
 	return true;
 }
 
@@ -495,12 +512,12 @@ static bool annotate_browser__jump(struct annotate_browser *browser)
 
 	dl = annotate_browser__find_offset(browser, dl->ops.target.offset, &idx);
 	if (dl == NULL) {
-		ui_helpline__puts("Invallid jump offset");
+		ui_helpline__puts("Invalid jump offset");
 		return true;
 	}
 
 	annotate_browser__set_top(browser, dl, idx);
-	
+
 	return true;
 }
 
@@ -653,8 +670,10 @@ static int annotate_browser__run(struct annotate_browser *browser,
 	const char *help = "Press 'h' for help on key bindings";
 	int delay_secs = hbt ? hbt->refresh : 0;
 	int key;
+	char title[SYM_TITLE_MAX_SIZE];
 
-	if (ui_browser__show(&browser->b, sym->name, help) < 0)
+	sym_title(sym, ms->map, title, sizeof(title));
+	if (ui_browser__show(&browser->b, title, help) < 0)
 		return -1;
 
 	annotate_browser__calc_percent(browser, evsel);
@@ -719,14 +738,19 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"o             Toggle disassembler output/simplified view\n"
 		"s             Toggle source code view\n"
 		"/             Search string\n"
+		"k             Toggle line numbers\n"
 		"r             Run available scripts\n"
-		"?             Search previous string\n");
+		"?             Search string backwards\n");
 			continue;
 		case 'r':
 			{
 				script_browse(NULL);
 				continue;
 			}
+		case 'k':
+			annotate_browser__opts.show_linenr =
+				!annotate_browser__opts.show_linenr;
+			break;
 		case 'H':
 			nd = browser->curr_hot;
 			break;
@@ -843,7 +867,6 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 
 		++browser->nr_jumps;
 	}
-		
 }
 
 static inline int width_jumps(int n)
@@ -970,6 +993,7 @@ static struct annotate_config {
 } annotate__configs[] = {
 	ANNOTATE_CFG(hide_src_code),
 	ANNOTATE_CFG(jump_arrows),
+	ANNOTATE_CFG(show_linenr),
 	ANNOTATE_CFG(show_nr_jumps),
 	ANNOTATE_CFG(use_offset),
 };

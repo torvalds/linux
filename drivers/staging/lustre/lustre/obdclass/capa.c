@@ -42,19 +42,18 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <asm/unistd.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/init.h>
+#include <linux/crypto.h>
 
-#include <obd_class.h>
-#include <lustre_debug.h>
-#include <lustre/lustre_idl.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_debug.h"
+#include "../include/lustre/lustre_idl.h"
 
 #include <linux/list.h>
-#include <lustre_capa.h>
+#include "../include/lustre_capa.h"
 
 #define NR_CAPAHASH 32
 #define CAPA_HASH_SIZE 3000	      /* for MDS & OSS */
@@ -76,6 +75,12 @@ EXPORT_SYMBOL(capa_cachep);
 EXPORT_SYMBOL(capa_list);
 EXPORT_SYMBOL(capa_lock);
 EXPORT_SYMBOL(capa_count);
+
+static inline
+unsigned int ll_crypto_tfm_alg_min_keysize(struct crypto_blkcipher *tfm)
+{
+	return crypto_blkcipher_tfm(tfm)->__crt_alg->cra_blkcipher.min_keysize;
+}
 
 struct hlist_head *init_capa_hash(void)
 {
@@ -138,9 +143,9 @@ static inline int capa_hashfn(struct lu_fid *fid)
  * client renew right after obtaining it. */
 static inline int capa_is_to_expire(struct obd_capa *oc)
 {
-	return cfs_time_before(cfs_time_sub(oc->c_expiry,
-				   cfs_time_seconds(oc->c_capa.lc_timeout)*2/3),
-			       cfs_time_current());
+	return time_before(cfs_time_sub(oc->c_expiry,
+					cfs_time_seconds(oc->c_capa.lc_timeout)*2/3),
+			   cfs_time_current());
 }
 
 static struct obd_capa *find_capa(struct lustre_capa *capa,
@@ -208,12 +213,11 @@ struct obd_capa *capa_add(struct hlist_head *hash, struct lustre_capa *capa)
 			capa_delete_lru(list);
 		spin_unlock(&capa_lock);
 		return ocapa;
-	} else {
-		capa_get(old);
-		spin_unlock(&capa_lock);
-		capa_put(ocapa);
-		return old;
 	}
+	capa_get(old);
+	spin_unlock(&capa_lock);
+	capa_put(ocapa);
+	return old;
 }
 EXPORT_SYMBOL(capa_add);
 
@@ -235,9 +239,26 @@ struct obd_capa *capa_lookup(struct hlist_head *hash, struct lustre_capa *capa,
 }
 EXPORT_SYMBOL(capa_lookup);
 
+static inline int ll_crypto_hmac(struct crypto_hash *tfm,
+				 u8 *key, unsigned int *keylen,
+				 struct scatterlist *sg,
+				 unsigned int size, u8 *result)
+{
+	struct hash_desc desc;
+	int	      rv;
+	desc.tfm   = tfm;
+	desc.flags = 0;
+	rv = crypto_hash_setkey(desc.tfm, key, *keylen);
+	if (rv) {
+		CERROR("failed to hash setkey: %d\n", rv);
+		return rv;
+	}
+	return crypto_hash_digest(&desc, sg, size, result);
+}
+
 int capa_hmac(__u8 *hmac, struct lustre_capa *capa, __u8 *key)
 {
-	struct ll_crypto_hash *tfm;
+	struct crypto_hash *tfm;
 	struct capa_hmac_alg  *alg;
 	int keylen;
 	struct scatterlist sl;
@@ -249,20 +270,20 @@ int capa_hmac(__u8 *hmac, struct lustre_capa *capa, __u8 *key)
 
 	alg = &capa_hmac_algs[capa_alg(capa)];
 
-	tfm = ll_crypto_alloc_hash(alg->ha_name, 0, 0);
-	if (!tfm) {
-		CERROR("crypto_alloc_tfm failed, check whether your kernel"
-		       "has crypto support!\n");
-		return -ENOMEM;
+	tfm = crypto_alloc_hash(alg->ha_name, 0, 0);
+	if (IS_ERR(tfm)) {
+		CERROR("crypto_alloc_tfm failed, check whether your kernel has crypto support!\n");
+		return PTR_ERR(tfm);
 	}
 	keylen = alg->ha_keylen;
 
+	sg_init_table(&sl, 1);
 	sg_set_page(&sl, virt_to_page(capa),
 		    offsetof(struct lustre_capa, lc_hmac),
 		    (unsigned long)(capa) % PAGE_CACHE_SIZE);
 
 	ll_crypto_hmac(tfm, key, &keylen, &sl, sl.length, hmac);
-	ll_crypto_free_hash(tfm);
+	crypto_free_hash(tfm);
 
 	return 0;
 }
@@ -270,107 +291,107 @@ EXPORT_SYMBOL(capa_hmac);
 
 int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 {
-	struct ll_crypto_cipher *tfm;
+	struct crypto_blkcipher *tfm;
 	struct scatterlist sd;
 	struct scatterlist ss;
 	struct blkcipher_desc desc;
 	unsigned int min;
 	int rc;
 	char alg[CRYPTO_MAX_ALG_NAME+1] = "aes";
-	ENTRY;
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = ll_crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0);
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
-		RETURN(PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	min = ll_crypto_tfm_alg_min_keysize(tfm);
 	if (keylen < min) {
 		CERROR("keylen at least %d bits for aes\n", min * 8);
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
-	rc = ll_crypto_blkcipher_setkey(tfm, key, min);
+	rc = crypto_blkcipher_setkey(tfm, key, min);
 	if (rc) {
 		CERROR("failed to setting key for aes\n");
-		GOTO(out, rc);
+		goto out;
 	}
 
+	sg_init_table(&sd, 1);
 	sg_set_page(&sd, virt_to_page(d), 16,
 		    (unsigned long)(d) % PAGE_CACHE_SIZE);
 
+	sg_init_table(&ss, 1);
 	sg_set_page(&ss, virt_to_page(s), 16,
 		    (unsigned long)(s) % PAGE_CACHE_SIZE);
 	desc.tfm   = tfm;
 	desc.info  = NULL;
 	desc.flags = 0;
-	rc = ll_crypto_blkcipher_encrypt(&desc, &sd, &ss, 16);
+	rc = crypto_blkcipher_encrypt(&desc, &sd, &ss, 16);
 	if (rc) {
 		CERROR("failed to encrypt for aes\n");
-		GOTO(out, rc);
+		goto out;
 	}
 
-	EXIT;
-
 out:
-	ll_crypto_free_blkcipher(tfm);
+	crypto_free_blkcipher(tfm);
 	return rc;
 }
 EXPORT_SYMBOL(capa_encrypt_id);
 
 int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 {
-	struct ll_crypto_cipher *tfm;
+	struct crypto_blkcipher *tfm;
 	struct scatterlist sd;
 	struct scatterlist ss;
 	struct blkcipher_desc desc;
 	unsigned int min;
 	int rc;
 	char alg[CRYPTO_MAX_ALG_NAME+1] = "aes";
-	ENTRY;
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = ll_crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0);
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
-		RETURN(PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	min = ll_crypto_tfm_alg_min_keysize(tfm);
 	if (keylen < min) {
 		CERROR("keylen at least %d bits for aes\n", min * 8);
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
-	rc = ll_crypto_blkcipher_setkey(tfm, key, min);
+	rc = crypto_blkcipher_setkey(tfm, key, min);
 	if (rc) {
 		CERROR("failed to setting key for aes\n");
-		GOTO(out, rc);
+		goto out;
 	}
 
+	sg_init_table(&sd, 1);
 	sg_set_page(&sd, virt_to_page(d), 16,
 		    (unsigned long)(d) % PAGE_CACHE_SIZE);
 
+	sg_init_table(&ss, 1);
 	sg_set_page(&ss, virt_to_page(s), 16,
 		    (unsigned long)(s) % PAGE_CACHE_SIZE);
 
 	desc.tfm   = tfm;
 	desc.info  = NULL;
 	desc.flags = 0;
-	rc = ll_crypto_blkcipher_decrypt(&desc, &sd, &ss, 16);
+	rc = crypto_blkcipher_decrypt(&desc, &sd, &ss, 16);
 	if (rc) {
 		CERROR("failed to decrypt for aes\n");
-		GOTO(out, rc);
+		goto out;
 	}
 
-	EXIT;
-
 out:
-	ll_crypto_free_blkcipher(tfm);
+	crypto_free_blkcipher(tfm);
 	return rc;
 }
 EXPORT_SYMBOL(capa_decrypt_id);
@@ -385,14 +406,13 @@ EXPORT_SYMBOL(capa_cpy);
 
 void _debug_capa(struct lustre_capa *c,
 		 struct libcfs_debug_msg_data *msgdata,
-		 const char *fmt, ... )
+		 const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
 	libcfs_debug_vmsg2(msgdata, fmt, args,
-			   " capability@%p fid "DFID" opc "LPX64" uid "LPU64
-			   " gid "LPU64" flags %u alg %d keyid %u timeout %u "
-			   "expiry %u\n", c, PFID(capa_fid(c)), capa_opc(c),
+			   " capability@%p fid " DFID " opc %#llx uid %llu gid %llu flags %u alg %d keyid %u timeout %u expiry %u\n",
+			   c, PFID(capa_fid(c)), capa_opc(c),
 			   capa_uid(c), capa_gid(c), capa_flags(c),
 			   capa_alg(c), capa_keyid(c), capa_timeout(c),
 			   capa_expiry(c));

@@ -1,0 +1,22 @@
+sun4i resistive touchscreen controller
+--------------------------------------
+
+Required properties:
+ - compatible: "allwinner,sun4i-a10-ts" or "allwinner,sun6i-a31-ts"
+ - reg: mmio address range of the chip
+ - interrupts: interrupt to which the chip is connected
+ - #thermal-sensor-cells: shall be 0
+
+Optional properties:
+ - allwinner,ts-attached: boolean indicating that an actual touchscreen is
+			  attached to the controller
+
+Example:
+
+	rtp: rtp@01c25000 {
+		compatible = "allwinner,sun4i-a10-ts";
+		reg = <0x01c25000 0x100>;
+		interrupts = <29>;
+		allwinner,ts-attached;
+		#thermal-sensor-cells = <0>;
+	};

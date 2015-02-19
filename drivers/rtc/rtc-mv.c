@@ -221,26 +221,18 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct rtc_plat_data *pdata;
-	resource_size_t size;
 	u32 rtc_time;
+	u32 rtc_date;
 	int ret = 0;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	size = resource_size(res);
-	if (!devm_request_mem_region(&pdev->dev, res->start, size,
-				     pdev->name))
-		return -EBUSY;
-
-	pdata->ioaddr = devm_ioremap(&pdev->dev, res->start, size);
-	if (!pdata->ioaddr)
-		return -ENOMEM;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pdata->ioaddr))
+		return PTR_ERR(pdata->ioaddr);
 
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	/* Not all SoCs require a clock.*/
@@ -264,6 +256,17 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 			ret = -ENODEV;
 			goto out;
 		}
+	}
+
+	/*
+	 * A date after January 19th, 2038 does not fit on 32 bits and
+	 * will confuse the kernel and userspace. Reset to a sane date
+	 * (January 1st, 2013) if we're after 2038.
+	 */
+	rtc_date = readl(pdata->ioaddr + RTC_DATE_REG_OFFS);
+	if (bcd2bin((rtc_date >> RTC_YEAR_OFFS) & 0xff) >= 38) {
+		dev_info(&pdev->dev, "invalid RTC date, resetting to January 1st, 2013\n");
+		writel(0x130101, pdata->ioaddr + RTC_DATE_REG_OFFS);
 	}
 
 	pdata->irq = platform_get_irq(pdev, 0);
@@ -316,7 +319,7 @@ static int __exit mv_rtc_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id rtc_mv_of_match_table[] = {
+static const struct of_device_id rtc_mv_of_match_table[] = {
 	{ .compatible = "marvell,orion-rtc", },
 	{}
 };
@@ -326,7 +329,6 @@ static struct platform_driver mv_rtc_driver = {
 	.remove		= __exit_p(mv_rtc_remove),
 	.driver		= {
 		.name	= "rtc-mv",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(rtc_mv_of_match_table),
 	},
 };

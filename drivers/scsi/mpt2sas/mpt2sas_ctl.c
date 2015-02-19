@@ -3,8 +3,9 @@
  * controllers
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_ctl.c
- * Copyright (C) 2007-2012  LSI Corporation
- *  (mailto:DL-MPTFusionLinux@lsi.com)
+ * Copyright (C) 2007-2014  LSI Corporation
+ * Copyright (C) 20013-2014 Avago Technologies
+ *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -397,18 +398,22 @@ mpt2sas_ctl_add_to_event_log(struct MPT2SAS_ADAPTER *ioc,
  * This function merely adds a new work task into ioc->firmware_event_thread.
  * The tasks are worked from _firmware_event_work in user context.
  *
- * Return 1 meaning mf should be freed from _base_interrupt
- *        0 means the mf is freed from this function.
+ * Returns void.
  */
-u8
+void
 mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	u32 reply)
 {
 	Mpi2EventNotificationReply_t *mpi_reply;
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
+	if (unlikely(!mpi_reply)) {
+		printk(MPT2SAS_ERR_FMT "mpi_reply not valid at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		return;
+	}
 	mpt2sas_ctl_add_to_event_log(ioc, mpi_reply);
-	return 1;
+	return;
 }
 
 /**
@@ -983,7 +988,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc, struct mpt2_ioctl_command karg,
 			mpt2sas_scsih_issue_tm(ioc,
 			    le16_to_cpu(mpi_request->FunctionDependent1), 0, 0,
 			    0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 10,
-			    0, TM_MUTEX_ON);
+			    TM_MUTEX_ON);
 			ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 		} else
 			mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,

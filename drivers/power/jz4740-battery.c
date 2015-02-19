@@ -73,7 +73,7 @@ static long jz_battery_read_voltage(struct jz_battery *battery)
 
 	mutex_lock(&battery->lock);
 
-	INIT_COMPLETION(battery->read_completion);
+	reinit_completion(&battery->read_completion);
 
 	enable_irq(battery->irq);
 	battery->cell->enable(battery->pdev);
@@ -406,7 +406,6 @@ static struct platform_driver jz_battery_driver = {
 	.remove		= jz_battery_remove,
 	.driver = {
 		.name = "jz4740-battery",
-		.owner = THIS_MODULE,
 		.pm = JZ_BATTERY_PM_OPS,
 	},
 };

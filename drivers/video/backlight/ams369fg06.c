@@ -325,10 +325,10 @@ static int ams369fg06_power_on(struct ams369fg06 *lcd)
 	if (!pd->reset) {
 		dev_err(lcd->dev, "reset is NULL.\n");
 		return -EINVAL;
-	} else {
-		pd->reset(lcd->ld);
-		msleep(pd->reset_delay);
 	}
+
+	pd->reset(lcd->ld);
+	msleep(pd->reset_delay);
 
 	ret = ams369fg06_ldi_init(lcd);
 	if (ret) {
@@ -410,11 +410,6 @@ static int ams369fg06_set_power(struct lcd_device *ld, int power)
 	return ams369fg06_power(lcd, power);
 }
 
-static int ams369fg06_get_brightness(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static int ams369fg06_set_brightness(struct backlight_device *bd)
 {
 	int ret = 0;
@@ -443,7 +438,6 @@ static struct lcd_ops ams369fg06_lcd_ops = {
 };
 
 static const struct backlight_ops ams369fg06_backlight_ops = {
-	.get_brightness = ams369fg06_get_brightness,
 	.update_status = ams369fg06_set_brightness,
 };
 
@@ -471,14 +465,14 @@ static int ams369fg06_probe(struct spi_device *spi)
 	lcd->spi = spi;
 	lcd->dev = &spi->dev;
 
-	lcd->lcd_pd = spi->dev.platform_data;
+	lcd->lcd_pd = dev_get_platdata(&spi->dev);
 	if (!lcd->lcd_pd) {
 		dev_err(&spi->dev, "platform data is NULL\n");
 		return -EINVAL;
 	}
 
-	ld = lcd_device_register("ams369fg06", &spi->dev, lcd,
-		&ams369fg06_lcd_ops);
+	ld = devm_lcd_device_register(&spi->dev, "ams369fg06", &spi->dev, lcd,
+					&ams369fg06_lcd_ops);
 	if (IS_ERR(ld))
 		return PTR_ERR(ld);
 
@@ -488,12 +482,11 @@ static int ams369fg06_probe(struct spi_device *spi)
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = MAX_BRIGHTNESS;
 
-	bd = backlight_device_register("ams369fg06-bl", &spi->dev, lcd,
-		&ams369fg06_backlight_ops, &props);
-	if (IS_ERR(bd)) {
-		ret =  PTR_ERR(bd);
-		goto out_lcd_unregister;
-	}
+	bd = devm_backlight_device_register(&spi->dev, "ams369fg06-bl",
+					&spi->dev, lcd,
+					&ams369fg06_backlight_ops, &props);
+	if (IS_ERR(bd))
+		return PTR_ERR(bd);
 
 	bd->props.brightness = DEFAULT_BRIGHTNESS;
 	lcd->bd = bd;
@@ -516,10 +509,6 @@ static int ams369fg06_probe(struct spi_device *spi)
 	dev_info(&spi->dev, "ams369fg06 panel driver has been probed.\n");
 
 	return 0;
-
-out_lcd_unregister:
-	lcd_device_unregister(ld);
-	return ret;
 }
 
 static int ams369fg06_remove(struct spi_device *spi)
@@ -527,9 +516,6 @@ static int ams369fg06_remove(struct spi_device *spi)
 	struct ams369fg06 *lcd = spi_get_drvdata(spi);
 
 	ams369fg06_power(lcd, FB_BLANK_POWERDOWN);
-	backlight_device_unregister(lcd->bd);
-	lcd_device_unregister(lcd->ld);
-
 	return 0;
 }
 

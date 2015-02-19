@@ -69,7 +69,8 @@ unsigned int get_field(unsigned int data, unsigned int field)
 {
 	int i;
 
-	BUG_ON(!field);
+	if (WARN_ON(!field))
+		return 0;
 	/* @field should always be greater than 0 */
 	for (i = 0; !(field & (1 << i)); )
 		i++;
@@ -81,7 +82,8 @@ void set_field(unsigned int *data, unsigned int field, unsigned int value)
 {
 	int i;
 
-	BUG_ON(!field);
+	if (WARN_ON(!field))
+		return;
 	/* @field should always be greater than 0 */
 	for (i = 0; !(field & (1 << i)); )
 		i++;

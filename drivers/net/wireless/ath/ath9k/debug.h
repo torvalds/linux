@@ -18,7 +18,6 @@
 #define DEBUG_H
 
 #include "hw.h"
-#include "rc.h"
 #include "dfs_debug.h"
 
 struct ath_txq;
@@ -27,10 +26,16 @@ struct fft_sample_tlv;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 #define TX_STAT_INC(q, c) sc->debug.stats.txstats[q].c++
+#define RX_STAT_INC(c) (sc->debug.stats.rxstats.c++)
 #define RESET_STAT_INC(sc, type) sc->debug.stats.reset[type]++
+#define ANT_STAT_INC(i, c) sc->debug.stats.ant_stats[i].c++
+#define ANT_LNA_INC(i, c) sc->debug.stats.ant_stats[i].lna_recv_cnt[c]++;
 #else
 #define TX_STAT_INC(q, c) do { } while (0)
+#define RX_STAT_INC(c)
 #define RESET_STAT_INC(sc, type) do { } while (0)
+#define ANT_STAT_INC(i, c) do { } while (0)
+#define ANT_LNA_INC(i, c) do { } while (0)
 #endif
 
 enum ath_reset_type {
@@ -38,11 +43,13 @@ enum ath_reset_type {
 	RESET_TYPE_BB_WATCHDOG,
 	RESET_TYPE_FATAL_INT,
 	RESET_TYPE_TX_ERROR,
+	RESET_TYPE_TX_GTT,
 	RESET_TYPE_TX_HANG,
 	RESET_TYPE_PLL_HANG,
 	RESET_TYPE_MAC_HANG,
 	RESET_TYPE_BEACON_STUCK,
 	RESET_TYPE_MCI,
+	RESET_TYPE_CALIBRATION,
 	__RESET_TYPE_MAX
 };
 
@@ -189,58 +196,39 @@ struct ath_tx_stats {
 #define TXSTATS sc->debug.stats.txstats
 #define PR(str, elem)							\
 	do {								\
-		len += snprintf(buf + len, size - len,			\
-				"%s%13u%11u%10u%10u\n", str,		\
-				TXSTATS[PR_QNUM(IEEE80211_AC_BE)].elem,	\
-				TXSTATS[PR_QNUM(IEEE80211_AC_BK)].elem,	\
-				TXSTATS[PR_QNUM(IEEE80211_AC_VI)].elem,	\
-				TXSTATS[PR_QNUM(IEEE80211_AC_VO)].elem); \
+		seq_printf(file, "%s%13u%11u%10u%10u\n", str,		\
+			   TXSTATS[PR_QNUM(IEEE80211_AC_BE)].elem,\
+			   TXSTATS[PR_QNUM(IEEE80211_AC_BK)].elem,\
+			   TXSTATS[PR_QNUM(IEEE80211_AC_VI)].elem,\
+			   TXSTATS[PR_QNUM(IEEE80211_AC_VO)].elem); \
 	} while(0)
 
-#define RX_STAT_INC(c) (sc->debug.stats.rxstats.c++)
+struct ath_rx_rate_stats {
+	struct {
+		u32 ht20_cnt;
+		u32 ht40_cnt;
+		u32 sgi_cnt;
+		u32 lgi_cnt;
+	} ht_stats[24];
 
-/**
- * struct ath_rx_stats - RX Statistics
- * @rx_pkts_all:  No. of total frames received, including ones that
-	may have had errors.
- * @rx_bytes_all:  No. of total bytes received, including ones that
-	may have had errors.
- * @crc_err: No. of frames with incorrect CRC value
- * @decrypt_crc_err: No. of frames whose CRC check failed after
-	decryption process completed
- * @phy_err: No. of frames whose reception failed because the PHY
-	encountered an error
- * @mic_err: No. of frames with incorrect TKIP MIC verification failure
- * @pre_delim_crc_err: Pre-Frame delimiter CRC error detections
- * @post_delim_crc_err: Post-Frame delimiter CRC error detections
- * @decrypt_busy_err: Decryption interruptions counter
- * @phy_err_stats: Individual PHY error statistics
- * @rx_len_err:  No. of frames discarded due to bad length.
- * @rx_oom_err:  No. of frames dropped due to OOM issues.
- * @rx_rate_err:  No. of frames dropped due to rate errors.
- * @rx_too_many_frags_err:  Frames dropped due to too-many-frags received.
- * @rx_beacons:  No. of beacons received.
- * @rx_frags:  No. of rx-fragements received.
- * @rx_spectral: No of spectral packets received.
- */
-struct ath_rx_stats {
-	u32 rx_pkts_all;
-	u32 rx_bytes_all;
-	u32 crc_err;
-	u32 decrypt_crc_err;
-	u32 phy_err;
-	u32 mic_err;
-	u32 pre_delim_crc_err;
-	u32 post_delim_crc_err;
-	u32 decrypt_busy_err;
-	u32 phy_err_stats[ATH9K_PHYERR_MAX];
-	u32 rx_len_err;
-	u32 rx_oom_err;
-	u32 rx_rate_err;
-	u32 rx_too_many_frags_err;
-	u32 rx_beacons;
-	u32 rx_frags;
-	u32 rx_spectral;
+	struct {
+		u32 ofdm_cnt;
+	} ofdm_stats[8];
+
+	struct {
+		u32 cck_lp_cnt;
+		u32 cck_sp_cnt;
+	} cck_stats[4];
+};
+
+#define ANT_MAIN 0
+#define ANT_ALT  1
+
+struct ath_antenna_stats {
+	u32 recv_cnt;
+	u32 rssi_avg;
+	u32 lna_recv_cnt[4];
+	u32 lna_attempt_cnt[4];
 };
 
 struct ath_stats {
@@ -248,6 +236,7 @@ struct ath_stats {
 	struct ath_tx_stats txstats[ATH9K_NUM_TX_QUEUES];
 	struct ath_rx_stats rxstats;
 	struct ath_dfs_stats dfs_stats;
+	struct ath_antenna_stats ant_stats[2];
 	u32 reset[__RESET_TYPE_MAX];
 };
 
@@ -277,17 +266,12 @@ void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta,
 			   struct dentry *dir);
-void ath9k_sta_remove_debugfs(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta,
-			      struct dentry *dir);
-
-void ath_debug_send_fft_sample(struct ath_softc *sc,
-			       struct fft_sample_tlv *fft_sample);
+void ath9k_debug_stat_ant(struct ath_softc *sc,
+			  struct ath_hw_antcomb_conf *div_ant_conf,
+			  int main_rssi_avg, int alt_rssi_avg);
+void ath9k_debug_sync_cause(struct ath_softc *sc, u32 sync_cause);
 
 #else
-
-#define RX_STAT_INC(c) /* NOP */
 
 static inline int ath9k_init_debug(struct ath_hw *ah)
 {
@@ -297,12 +281,10 @@ static inline int ath9k_init_debug(struct ath_hw *ah)
 static inline void ath9k_deinit_debug(struct ath_softc *sc)
 {
 }
-
 static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 					    enum ath9k_int status)
 {
 }
-
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     struct ath_buf *bf,
 				     struct ath_tx_status *ts,
@@ -310,12 +292,34 @@ static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     unsigned int flags)
 {
 }
-
 static inline void ath_debug_stat_rx(struct ath_softc *sc,
 				     struct ath_rx_status *rs)
 {
 }
+static inline void ath9k_debug_stat_ant(struct ath_softc *sc,
+					struct ath_hw_antcomb_conf *div_ant_conf,
+					int main_rssi_avg, int alt_rssi_avg)
+{
+
+}
+
+static inline void
+ath9k_debug_sync_cause(struct ath_softc *sc, u32 sync_cause)
+{
+}
 
 #endif /* CONFIG_ATH9K_DEBUGFS */
+
+#ifdef CONFIG_ATH9K_STATION_STATISTICS
+void ath_debug_rate_stats(struct ath_softc *sc,
+			  struct ath_rx_status *rs,
+			  struct sk_buff *skb);
+#else
+static inline void ath_debug_rate_stats(struct ath_softc *sc,
+					struct ath_rx_status *rs,
+					struct sk_buff *skb)
+{
+}
+#endif /* CONFIG_ATH9K_STATION_STATISTICS */
 
 #endif /* DEBUG_H */

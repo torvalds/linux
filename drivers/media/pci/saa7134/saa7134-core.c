@@ -69,6 +69,10 @@ module_param_named(no_overlay, saa7134_no_overlay, int, 0444);
 MODULE_PARM_DESC(no_overlay,"allow override overlay default (0 disables, 1 enables)"
 		" [some VIA/SIS chipsets are known to have problem with overlay]");
 
+bool saa7134_userptr;
+module_param(saa7134_userptr, bool, 0644);
+MODULE_PARM_DESC(saa7134_userptr, "enable page-aligned userptr support");
+
 static unsigned int video_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int vbi_nr[]   = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
@@ -156,6 +160,8 @@ static void request_module_async(struct work_struct *work){
 		request_module("saa7134-empress");
 	if (card_is_dvb(dev))
 		request_module("saa7134-dvb");
+	if (card_is_go7007(dev))
+		request_module("saa7134-go7007");
 	if (alsa) {
 		if (dev->pci->device != PCI_DEVICE_ID_PHILIPS_SAA7130)
 			request_module("saa7134-alsa");
@@ -203,16 +209,16 @@ int saa7134_buffer_count(unsigned int size, unsigned int count)
 
 int saa7134_buffer_startpage(struct saa7134_buf *buf)
 {
-	return saa7134_buffer_pages(buf->vb.bsize) * buf->vb.i;
+	return saa7134_buffer_pages(vb2_plane_size(&buf->vb2, 0)) * buf->vb2.v4l2_buf.index;
 }
 
 unsigned long saa7134_buffer_base(struct saa7134_buf *buf)
 {
 	unsigned long base;
-	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
+	struct sg_table *dma = vb2_dma_sg_plane_desc(&buf->vb2, 0);
 
 	base  = saa7134_buffer_startpage(buf) * 4096;
-	base += dma->sglist[0].offset;
+	base += dma->sgl[0].offset;
 	return base;
 }
 
@@ -237,14 +243,16 @@ int saa7134_pgtable_build(struct pci_dev *pci, struct saa7134_pgtable *pt,
 			  unsigned int startpage)
 {
 	__le32        *ptr;
-	unsigned int  i,p;
+	unsigned int  i, p;
 
 	BUG_ON(NULL == pt || NULL == pt->cpu);
 
 	ptr = pt->cpu + startpage;
-	for (i = 0; i < length; i++, list++)
+	for (i = 0; i < length; i++, list = sg_next(list)) {
 		for (p = 0; p * 4096 < list->length; p++, ptr++)
-			*ptr = cpu_to_le32(sg_dma_address(list) - list->offset);
+			*ptr = cpu_to_le32(sg_dma_address(list) +
+						list->offset + p * 4096);
+	}
 	return 0;
 }
 
@@ -258,44 +266,31 @@ void saa7134_pgtable_free(struct pci_dev *pci, struct saa7134_pgtable *pt)
 
 /* ------------------------------------------------------------------ */
 
-void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf)
-{
-	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
-	BUG_ON(in_interrupt());
-
-	videobuf_waiton(q, &buf->vb, 0, 0);
-	videobuf_dma_unmap(q->dev, dma);
-	videobuf_dma_free(dma);
-	buf->vb.state = VIDEOBUF_NEEDS_INIT;
-}
-
-/* ------------------------------------------------------------------ */
-
 int saa7134_buffer_queue(struct saa7134_dev *dev,
 			 struct saa7134_dmaqueue *q,
 			 struct saa7134_buf *buf)
 {
 	struct saa7134_buf *next = NULL;
+	unsigned long flags;
 
-	assert_spin_locked(&dev->slock);
-	dprintk("buffer_queue %p\n",buf);
+	spin_lock_irqsave(&dev->slock, flags);
+	dprintk("buffer_queue %p\n", buf);
 	if (NULL == q->curr) {
 		if (!q->need_two) {
 			q->curr = buf;
-			buf->activate(dev,buf,NULL);
+			buf->activate(dev, buf, NULL);
 		} else if (list_empty(&q->queue)) {
-			list_add_tail(&buf->vb.queue,&q->queue);
-			buf->vb.state = VIDEOBUF_QUEUED;
+			list_add_tail(&buf->entry, &q->queue);
 		} else {
-			next = list_entry(q->queue.next,struct saa7134_buf,
-					  vb.queue);
+			next = list_entry(q->queue.next, struct saa7134_buf,
+					  entry);
 			q->curr = buf;
-			buf->activate(dev,buf,next);
+			buf->activate(dev, buf, next);
 		}
 	} else {
-		list_add_tail(&buf->vb.queue,&q->queue);
-		buf->vb.state = VIDEOBUF_QUEUED;
+		list_add_tail(&buf->entry, &q->queue);
 	}
+	spin_unlock_irqrestore(&dev->slock, flags);
 	return 0;
 }
 
@@ -303,13 +298,12 @@ void saa7134_buffer_finish(struct saa7134_dev *dev,
 			   struct saa7134_dmaqueue *q,
 			   unsigned int state)
 {
-	assert_spin_locked(&dev->slock);
-	dprintk("buffer_finish %p\n",q->curr);
+	dprintk("buffer_finish %p\n", q->curr);
 
 	/* finish current buffer */
-	q->curr->vb.state = state;
-	v4l2_get_timestamp(&q->curr->vb.ts);
-	wake_up(&q->curr->vb.done);
+	v4l2_get_timestamp(&q->curr->vb2.v4l2_buf.timestamp);
+	q->curr->vb2.v4l2_buf.sequence = q->seq_nr++;
+	vb2_buffer_done(&q->curr->vb2, state);
 	q->curr = NULL;
 }
 
@@ -323,36 +317,31 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 
 	if (!list_empty(&q->queue)) {
 		/* activate next one from queue */
-		buf = list_entry(q->queue.next,struct saa7134_buf,vb.queue);
+		buf = list_entry(q->queue.next, struct saa7134_buf, entry);
 		dprintk("buffer_next %p [prev=%p/next=%p]\n",
-			buf,q->queue.prev,q->queue.next);
-		list_del(&buf->vb.queue);
+			buf, q->queue.prev, q->queue.next);
+		list_del(&buf->entry);
 		if (!list_empty(&q->queue))
-			next = list_entry(q->queue.next,struct saa7134_buf,
-					  vb.queue);
+			next = list_entry(q->queue.next, struct saa7134_buf, entry);
 		q->curr = buf;
-		buf->activate(dev,buf,next);
+		buf->activate(dev, buf, next);
 		dprintk("buffer_next #2 prev=%p/next=%p\n",
-			q->queue.prev,q->queue.next);
+			q->queue.prev, q->queue.next);
 	} else {
 		/* nothing to do -- just stop DMA */
-		dprintk("buffer_next %p\n",NULL);
+		dprintk("buffer_next %p\n", NULL);
 		saa7134_set_dmabits(dev);
 		del_timer(&q->timeout);
-
-		if (card_has_mpeg(dev))
-			if (dev->ts_started)
-				saa7134_ts_stop(dev);
 	}
 }
 
 void saa7134_buffer_timeout(unsigned long data)
 {
-	struct saa7134_dmaqueue *q = (struct saa7134_dmaqueue*)data;
+	struct saa7134_dmaqueue *q = (struct saa7134_dmaqueue *)data;
 	struct saa7134_dev *dev = q->dev;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->slock,flags);
+	spin_lock_irqsave(&dev->slock, flags);
 
 	/* try to reset the hardware (SWRST) */
 	saa_writeb(SAA7134_REGION_ENABLE, 0x00);
@@ -362,12 +351,32 @@ void saa7134_buffer_timeout(unsigned long data)
 	/* flag current buffer as failed,
 	   try to start over with the next one. */
 	if (q->curr) {
-		dprintk("timeout on %p\n",q->curr);
-		saa7134_buffer_finish(dev,q,VIDEOBUF_ERROR);
+		dprintk("timeout on %p\n", q->curr);
+		saa7134_buffer_finish(dev, q, VB2_BUF_STATE_ERROR);
 	}
-	saa7134_buffer_next(dev,q);
-	spin_unlock_irqrestore(&dev->slock,flags);
+	saa7134_buffer_next(dev, q);
+	spin_unlock_irqrestore(&dev->slock, flags);
 }
+
+void saa7134_stop_streaming(struct saa7134_dev *dev, struct saa7134_dmaqueue *q)
+{
+	unsigned long flags;
+	struct list_head *pos, *n;
+	struct saa7134_buf *tmp;
+
+	spin_lock_irqsave(&dev->slock, flags);
+	if (!list_empty(&q->queue)) {
+		list_for_each_safe(pos, n, &q->queue) {
+			 tmp = list_entry(pos, struct saa7134_buf, entry);
+			 vb2_buffer_done(&tmp->vb2, VB2_BUF_STATE_ERROR);
+			 list_del(pos);
+			 tmp = NULL;
+		}
+	}
+	spin_unlock_irqrestore(&dev->slock, flags);
+	saa7134_buffer_timeout((unsigned long)q); /* also calls del_timer(&q->timeout) */
+}
+EXPORT_SYMBOL_GPL(saa7134_stop_streaming);
 
 /* ------------------------------------------------------------------ */
 
@@ -388,12 +397,11 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 		ctrl |= SAA7134_MAIN_CTRL_TE0;
 		irq  |= SAA7134_IRQ1_INTE_RA0_1 |
 			SAA7134_IRQ1_INTE_RA0_0;
-		cap = dev->video_q.curr->vb.field;
+		cap = dev->field;
 	}
 
 	/* video capture -- dma 1+2 (planar modes) */
-	if (dev->video_q.curr &&
-	    dev->video_q.curr->fmt->planar) {
+	if (dev->video_q.curr && dev->fmt->planar) {
 		ctrl |= SAA7134_MAIN_CTRL_TE4 |
 			SAA7134_MAIN_CTRL_TE5;
 	}
@@ -557,8 +565,12 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 			saa7134_irq_vbi_done(dev,status);
 
 		if ((report & SAA7134_IRQ_REPORT_DONE_RA2) &&
-		    card_has_mpeg(dev))
-			saa7134_irq_ts_done(dev,status);
+		    card_has_mpeg(dev)) {
+			if (dev->mops->irq_ts_done != NULL)
+				dev->mops->irq_ts_done(dev, status);
+			else
+				saa7134_irq_ts_done(dev, status);
+		}
 
 		if (report & SAA7134_IRQ_REPORT_GPIO16) {
 			switch (dev->has_remote) {
@@ -751,6 +763,7 @@ static int saa7134_hwfini(struct saa7134_dev *dev)
 	saa7134_input_fini(dev);
 	saa7134_vbi_fini(dev);
 	saa7134_tvaudio_fini(dev);
+	saa7134_video_fini(dev);
 	return 0;
 }
 
@@ -802,10 +815,8 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 	*vfd = *template;
 	vfd->v4l2_dev  = &dev->v4l2_dev;
 	vfd->release = video_device_release;
-	vfd->debug   = video_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 dev->name, type, saa7134_boards[dev->board].name);
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	video_set_drvdata(vfd, dev);
 	return vfd;
 }
@@ -990,13 +1001,18 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	saa7134_board_init1(dev);
 	saa7134_hwinit1(dev);
 
+	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
+	if (IS_ERR(dev->alloc_ctx)) {
+		err = PTR_ERR(dev->alloc_ctx);
+		goto fail3;
+	}
 	/* get irq */
 	err = request_irq(pci_dev->irq, saa7134_irq,
-			  IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+			  IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       dev->name,pci_dev->irq);
-		goto fail3;
+		goto fail4;
 	}
 
 	/* wait a bit, register i2c bus */
@@ -1008,13 +1024,13 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 
 	/* load i2c helpers */
 	if (card_is_empress(dev)) {
-		struct v4l2_subdev *sd =
+		dev->empress_sd =
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"saa6752hs",
 				saa7134_boards[dev->board].empress_addr, NULL);
 
-		if (sd)
-			sd->grp_id = GRP_EMPRESS;
+		if (dev->empress_sd)
+			dev->empress_sd->grp_id = GRP_EMPRESS;
 	}
 
 	if (saa7134_boards[dev->board].rds_addr) {
@@ -1046,31 +1062,39 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		printk(KERN_INFO "%s: Overlay support disabled.\n", dev->name);
 
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
+	dev->video_dev->ctrl_handler = &dev->ctrl_handler;
+	dev->video_dev->lock = &dev->lock;
+	dev->video_dev->queue = &dev->video_vbq;
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
 	if (err < 0) {
 		printk(KERN_INFO "%s: can't register video device\n",
 		       dev->name);
-		goto fail4;
+		goto fail5;
 	}
 	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
 	       dev->name, video_device_node_name(dev->video_dev));
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
+	dev->vbi_dev->ctrl_handler = &dev->ctrl_handler;
+	dev->vbi_dev->lock = &dev->lock;
+	dev->vbi_dev->queue = &dev->vbi_vbq;
 
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
 	if (err < 0)
-		goto fail4;
+		goto fail5;
 	printk(KERN_INFO "%s: registered device %s\n",
 	       dev->name, video_device_node_name(dev->vbi_dev));
 
 	if (card_has_radio(dev)) {
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
+		dev->radio_dev->ctrl_handler = &dev->radio_ctrl_handler;
+		dev->radio_dev->lock = &dev->lock;
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[dev->nr]);
 		if (err < 0)
-			goto fail4;
+			goto fail5;
 		printk(KERN_INFO "%s: registered device %s\n",
 		       dev->name, video_device_node_name(dev->radio_dev));
 	}
@@ -1084,10 +1108,12 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	request_submodules(dev);
 	return 0;
 
- fail4:
+ fail5:
 	saa7134_unregister_video(dev);
 	saa7134_i2c_unregister(dev);
 	free_irq(pci_dev->irq, dev);
+ fail4:
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
  fail3:
 	saa7134_hwfini(dev);
 	iounmap(dev->lmmio);
@@ -1154,6 +1180,7 @@ static void saa7134_finidev(struct pci_dev *pci_dev)
 
 	/* release resources */
 	free_irq(pci_dev->irq, dev);
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 	iounmap(dev->lmmio);
 	release_mem_region(pci_resource_start(pci_dev,0),
 			   pci_resource_len(pci_dev,0));
@@ -1186,7 +1213,7 @@ static int saa7134_buffer_requeue(struct saa7134_dev *dev,
 
 	if (!list_empty(&q->queue))
 		next = list_entry(q->queue.next, struct saa7134_buf,
-					  vb.queue);
+					  entry);
 	buf->activate(dev, buf, next);
 
 	return 0;
@@ -1357,10 +1384,3 @@ EXPORT_SYMBOL(saa7134_pgtable_free);
 EXPORT_SYMBOL(saa7134_pgtable_build);
 EXPORT_SYMBOL(saa7134_pgtable_alloc);
 EXPORT_SYMBOL(saa7134_set_dmabits);
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

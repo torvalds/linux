@@ -97,10 +97,10 @@
 /*
  * super-class definitions.
  */
-#include <lu_object.h>
-#include <lvfs.h>
-#	include <linux/mutex.h>
-#	include <linux/radix-tree.h>
+#include "lu_object.h"
+#include "linux/lustre_compat25.h"
+#include <linux/mutex.h>
+#include <linux/radix-tree.h>
 
 struct inode;
 
@@ -758,7 +758,7 @@ struct cl_page {
 	/**
 	 * Debug information, the task is owning the page.
 	 */
-	task_t	      *cp_task;
+	struct task_struct	*cp_task;
 	/**
 	 * Owning IO request in cl_page_state::CPS_PAGEOUT and
 	 * cl_page_state::CPS_PAGEIN states. This field is maintained only in
@@ -768,11 +768,11 @@ struct cl_page {
 	/** List of references to this page, for debugging. */
 	struct lu_ref	    cp_reference;
 	/** Link to an object, for debugging. */
-	struct lu_ref_link      *cp_obj_ref;
+	struct lu_ref_link       cp_obj_ref;
 	/** Link to a queue, for debugging. */
-	struct lu_ref_link      *cp_queue_ref;
+	struct lu_ref_link       cp_queue_ref;
 	/** Per-page flags from enum cl_page_flags. Protected by a VM lock. */
-	unsigned		 cp_flags;
+	unsigned                 cp_flags;
 	/** Assigned if doing a sync_io */
 	struct cl_sync_io       *cp_sync_io;
 };
@@ -1314,7 +1314,7 @@ static inline int __page_in_use(const struct cl_page *page, int refc)
  * calls. To achieve this, every layer can implement ->clo_fits_into() method,
  * that is called by lock matching code (cl_lock_lookup()), and that can be
  * used to selectively disable matching of certain locks for certain IOs. For
- * exmaple, lov layer implements lov_lock_fits_into() that allow multi-stripe
+ * example, lov layer implements lov_lock_fits_into() that allow multi-stripe
  * locks to be matched only for truncates and O_APPEND writes.
  *
  * Interaction with DLM
@@ -1576,13 +1576,13 @@ struct cl_lock {
 	 * \see osc_lock_enqueue_wait(), lov_lock_cancel(), lov_sublock_wait().
 	 */
 	struct mutex		cll_guard;
-	task_t	   *cll_guarder;
+	struct task_struct	*cll_guarder;
 	int		   cll_depth;
 
 	/**
 	 * the owner for INTRANSIT state
 	 */
-	task_t	   *cll_intransit_owner;
+	struct task_struct	*cll_intransit_owner;
 	int		   cll_error;
 	/**
 	 * Number of holds on a lock. A hold prevents a lock from being
@@ -1625,7 +1625,7 @@ struct cl_lock {
 	/**
 	 * A reference for cl_lock::cll_descr::cld_obj. For debugging.
 	 */
-	struct lu_ref_link   *cll_obj_ref;
+	struct lu_ref_link    cll_obj_ref;
 #ifdef CONFIG_LOCKDEP
 	/* "dep_map" name is assumed by lockdep.h macros. */
 	struct lockdep_map    dep_map;
@@ -1869,7 +1869,7 @@ do {								    \
 struct cl_page_list {
 	unsigned	     pl_nr;
 	struct list_head	   pl_pages;
-	task_t	  *pl_owner;
+	struct task_struct	*pl_owner;
 };
 
 /**
@@ -2385,10 +2385,18 @@ struct cl_io {
 	 * Check if layout changed after the IO finishes. Mainly for HSM
 	 * requirement. If IO occurs to openning files, it doesn't need to
 	 * verify layout because HSM won't release openning files.
-	 * Right now, only two opertaions need to verify layout: glimpse
+	 * Right now, only two operations need to verify layout: glimpse
 	 * and setattr.
 	 */
-			     ci_verify_layout:1;
+			     ci_verify_layout:1,
+	/**
+	 * file is released, restore has to to be triggered by vvp layer
+	 */
+			     ci_restore_needed:1,
+	/**
+	 * O_NOATIME
+	 */
+			     ci_noatime:1;
 	/**
 	 * Number of pages owned by this IO. For invariant checking.
 	 */
@@ -2500,7 +2508,7 @@ struct cl_req_operations {
 	void (*cro_attr_set)(const struct lu_env *env,
 			     const struct cl_req_slice *slice,
 			     const struct cl_object *obj,
-			     struct cl_req_attr *attr, obd_valid flags);
+			     struct cl_req_attr *attr, u64 flags);
 	/**
 	 * Called top-to-bottom from cl_req_completion() to notify layers that
 	 * transfer completed. Has to free all state allocated by
@@ -2517,7 +2525,7 @@ struct cl_req_obj {
 	/** object itself */
 	struct cl_object   *ro_obj;
 	/** reference to cl_req_obj::ro_obj. For debugging. */
-	struct lu_ref_link *ro_obj_ref;
+	struct lu_ref_link  ro_obj_ref;
 	/* something else? Number of pages for a given object? */
 };
 
@@ -2548,7 +2556,7 @@ struct cl_req_obj {
  */
 struct cl_req {
 	enum cl_req_type      crq_type;
-	/** A list of pages being transfered */
+	/** A list of pages being transferred */
 	struct list_head	    crq_pages;
 	/** Number of pages in cl_req::crq_pages */
 	unsigned	      crq_nrpages;
@@ -3096,13 +3104,13 @@ struct cl_io *cl_io_top(struct cl_io *io);
 void cl_io_print(const struct lu_env *env, void *cookie,
 		 lu_printer_t printer, const struct cl_io *io);
 
-#define CL_IO_SLICE_CLEAN(foo_io, base)				 \
-do {								    \
-	typeof(foo_io) __foo_io = (foo_io);			     \
+#define CL_IO_SLICE_CLEAN(foo_io, base)					\
+do {									\
+	typeof(foo_io) __foo_io = (foo_io);				\
 									\
-	CLASSERT(offsetof(typeof(*__foo_io), base) == 0);	       \
-	memset(&__foo_io->base + 1, 0,				  \
-	       (sizeof *__foo_io) - sizeof __foo_io->base);	     \
+	CLASSERT(offsetof(typeof(*__foo_io), base) == 0);		\
+	memset(&__foo_io->base + 1, 0,					\
+	       sizeof(*__foo_io) - sizeof(__foo_io->base));		\
 } while (0)
 
 /** @} cl_io */
@@ -3174,7 +3182,7 @@ void cl_req_page_add  (const struct lu_env *env, struct cl_req *req,
 void cl_req_page_done (const struct lu_env *env, struct cl_page *page);
 int  cl_req_prep      (const struct lu_env *env, struct cl_req *req);
 void cl_req_attr_set  (const struct lu_env *env, struct cl_req *req,
-		       struct cl_req_attr *attr, obd_valid flags);
+		       struct cl_req_attr *attr, u64 flags);
 void cl_req_completion(const struct lu_env *env, struct cl_req *req, int ioret);
 
 /** \defgroup cl_sync_io cl_sync_io
@@ -3220,7 +3228,7 @@ void cl_sync_io_note(struct cl_sync_io *anchor, int ioret);
  *
  *     - call chains have no non-lustre portions inserted between lustre code.
  *
- * On a client both these assumtpion fails, because every user thread can
+ * On a client both these assumption fails, because every user thread can
  * potentially execute lustre code as part of a system call, and lustre calls
  * into VFS or MM that call back into lustre.
  *

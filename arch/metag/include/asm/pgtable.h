@@ -47,7 +47,6 @@
  */
 #define _PAGE_ACCESSED		_PAGE_ALWAYS_ZERO_1
 #define _PAGE_DIRTY		_PAGE_ALWAYS_ZERO_2
-#define _PAGE_FILE		_PAGE_ALWAYS_ZERO_3
 
 /* Pages owned, and protected by, the kernel. */
 #define _PAGE_KERNEL		_PAGE_PRIV
@@ -219,7 +218,6 @@ extern unsigned long empty_zero_page;
 static inline int pte_write(pte_t pte)   { return pte_val(pte) & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)   { return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)   { return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte)    { return pte_val(pte) & _PAGE_FILE; }
 static inline int pte_special(pte_t pte) { return 0; }
 
 static inline pte_t pte_wrprotect(pte_t pte) { pte_val(pte) &= (~_PAGE_WRITE); return pte; }
@@ -326,10 +324,6 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 					 ((offset) << 10) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
-
-#define PTE_FILE_MAX_BITS	22
-#define pte_to_pgoff(x)		(pte_val(x) >> 10)
-#define pgoff_to_pte(x)		__pte(((x) << 10) | _PAGE_FILE)
 
 #define kern_addr_valid(addr)	(1)
 

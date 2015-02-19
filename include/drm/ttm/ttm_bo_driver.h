@@ -36,6 +36,7 @@
 #include <ttm/ttm_placement.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_global.h>
+#include <drm/drm_vma_manager.h>
 #include <linux/workqueue.h>
 #include <linux/fs.h>
 #include <linux/spinlock.h>
@@ -132,6 +133,7 @@ struct ttm_tt {
  * struct ttm_dma_tt
  *
  * @ttm: Base ttm_tt struct.
+ * @cpu_address: The CPU address of the pages
  * @dma_address: The DMA (bus) addresses of the pages
  * @pages_list: used by some page allocation backend
  *
@@ -141,6 +143,7 @@ struct ttm_tt {
  */
 struct ttm_dma_tt {
 	struct ttm_tt ttm;
+	void **cpu_address;
 	dma_addr_t *dma_address;
 	struct list_head pages_list;
 };
@@ -181,6 +184,7 @@ struct ttm_mem_type_manager_func {
 	 * @man: Pointer to a memory type manager.
 	 * @bo: Pointer to the buffer object we're allocating space for.
 	 * @placement: Placement details.
+	 * @flags: Additional placement flags.
 	 * @mem: Pointer to a struct ttm_mem_reg to be filled in.
 	 *
 	 * This function should allocate space in the memory type managed
@@ -204,7 +208,7 @@ struct ttm_mem_type_manager_func {
 	 */
 	int  (*get_node)(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
-			 struct ttm_placement *placement,
+			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem);
 
 	/**
@@ -308,11 +312,6 @@ struct ttm_mem_type_manager {
  * @move: Callback for a driver to hook in accelerated functions to
  * move a buffer.
  * If set to NULL, a potentially slow memcpy() move is used.
- * @sync_obj_signaled: See ttm_fence_api.h
- * @sync_obj_wait: See ttm_fence_api.h
- * @sync_obj_flush: See ttm_fence_api.h
- * @sync_obj_unref: See ttm_fence_api.h
- * @sync_obj_ref: See ttm_fence_api.h
  */
 
 struct ttm_bo_driver {
@@ -414,23 +413,6 @@ struct ttm_bo_driver {
 	int (*verify_access) (struct ttm_buffer_object *bo,
 			      struct file *filp);
 
-	/**
-	 * In case a driver writer dislikes the TTM fence objects,
-	 * the driver writer can replace those with sync objects of
-	 * his / her own. If it turns out that no driver writer is
-	 * using these. I suggest we remove these hooks and plug in
-	 * fences directly. The bo driver needs the following functionality:
-	 * See the corresponding functions in the fence object API
-	 * documentation.
-	 */
-
-	bool (*sync_obj_signaled) (void *sync_obj);
-	int (*sync_obj_wait) (void *sync_obj,
-			      bool lazy, bool interruptible);
-	int (*sync_obj_flush) (void *sync_obj);
-	void (*sync_obj_unref) (void **sync_obj);
-	void *(*sync_obj_ref) (void *sync_obj);
-
 	/* hook to notify driver about a driver move so it
 	 * can do tiling things */
 	void (*move_notify)(struct ttm_buffer_object *bo,
@@ -517,9 +499,7 @@ struct ttm_bo_global {
  *
  * @driver: Pointer to a struct ttm_bo_driver struct setup by the driver.
  * @man: An array of mem_type_managers.
- * @fence_lock: Protects the synchronizing members on *all* bos belonging
- * to this device.
- * @addr_space_mm: Range manager for the device address space.
+ * @vma_manager: Address space manager
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
  * @val_seq: Current validation sequence.
@@ -537,14 +517,12 @@ struct ttm_bo_device {
 	struct list_head device_list;
 	struct ttm_bo_global *glob;
 	struct ttm_bo_driver *driver;
-	rwlock_t vm_lock;
 	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
-	spinlock_t fence_lock;
+
 	/*
-	 * Protected by the vm lock.
+	 * Protected by internal locks.
 	 */
-	struct rb_root addr_space_rb;
-	struct drm_mm addr_space_mm;
+	struct drm_vma_offset_manager vma_manager;
 
 	/*
 	 * Protected by the global:lru lock.
@@ -653,18 +631,6 @@ extern void ttm_tt_unbind(struct ttm_tt *ttm);
 extern int ttm_tt_swapin(struct ttm_tt *ttm);
 
 /**
- * ttm_tt_cache_flush:
- *
- * @pages: An array of pointers to struct page:s to flush.
- * @num_pages: Number of pages to flush.
- *
- * Flush the data of the indicated pages from the cpu caches.
- * This is used when changing caching attributes of the pages from
- * cache-coherent.
- */
-extern void ttm_tt_cache_flush(struct page *pages[], unsigned long num_pages);
-
-/**
  * ttm_tt_set_placement_caching:
  *
  * @ttm A struct ttm_tt the backing pages of which will change caching policy.
@@ -680,6 +646,15 @@ extern void ttm_tt_cache_flush(struct page *pages[], unsigned long num_pages);
 extern int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement);
 extern int ttm_tt_swapout(struct ttm_tt *ttm,
 			  struct file *persistent_swap_storage);
+
+/**
+ * ttm_tt_unpopulate - free pages from a ttm
+ *
+ * @ttm: Pointer to the ttm_tt structure
+ *
+ * Calls the driver method to free all pages from a ttm
+ */
+extern void ttm_tt_unpopulate(struct ttm_tt *ttm);
 
 /*
  * ttm_bo.c
@@ -738,6 +713,7 @@ extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
  * @bdev: A pointer to a struct ttm_bo_device to initialize.
  * @glob: A pointer to an initialized struct ttm_bo_global.
  * @driver: A pointer to a struct ttm_bo_driver set up by the caller.
+ * @mapping: The address space to use for this bo.
  * @file_page_offset: Offset into the device address space that is available
  * for buffer data. This ensures compatibility with other users of the
  * address space.
@@ -749,6 +725,7 @@ extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
 extern int ttm_bo_device_init(struct ttm_bo_device *bdev,
 			      struct ttm_bo_global *glob,
 			      struct ttm_bo_driver *driver,
+			      struct address_space *mapping,
 			      uint64_t file_page_offset, bool need_dma32);
 
 /**
@@ -777,7 +754,7 @@ extern void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
 extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
 
 /**
- * ttm_bo_reserve_nolru:
+ * __ttm_bo_reserve:
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
@@ -798,10 +775,10 @@ extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
  * -EALREADY: Bo already reserved using @ticket. This error code will only
  * be returned if @use_ticket is set to true.
  */
-static inline int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
-				       bool interruptible,
-				       bool no_wait, bool use_ticket,
-				       struct ww_acquire_ctx *ticket)
+static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
+				   bool interruptible,
+				   bool no_wait, bool use_ticket,
+				   struct ww_acquire_ctx *ticket)
 {
 	int ret = 0;
 
@@ -877,8 +854,7 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
 
 	WARN_ON(!atomic_read(&bo->kref.refcount));
 
-	ret = ttm_bo_reserve_nolru(bo, interruptible, no_wait, use_ticket,
-				    ticket);
+	ret = __ttm_bo_reserve(bo, interruptible, no_wait, use_ticket, ticket);
 	if (likely(ret == 0))
 		ttm_bo_del_sub_from_lru(bo);
 
@@ -918,20 +894,14 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 }
 
 /**
- * ttm_bo_unreserve_ticket
+ * __ttm_bo_unreserve
  * @bo: A pointer to a struct ttm_buffer_object.
- * @ticket: ww_acquire_ctx used for reserving
  *
- * Unreserve a previous reservation of @bo made with @ticket.
+ * Unreserve a previous reservation of @bo where the buffer object is
+ * already on lru lists.
  */
-static inline void ttm_bo_unreserve_ticket(struct ttm_buffer_object *bo,
-					   struct ww_acquire_ctx *t)
+static inline void __ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
-	if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
-		spin_lock(&bo->glob->lru_lock);
-		ttm_bo_add_to_lru(bo);
-		spin_unlock(&bo->glob->lru_lock);
-	}
 	ww_mutex_unlock(&bo->resv->lock);
 }
 
@@ -944,7 +914,25 @@ static inline void ttm_bo_unreserve_ticket(struct ttm_buffer_object *bo,
  */
 static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
-	ttm_bo_unreserve_ticket(bo, NULL);
+	if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
+		spin_lock(&bo->glob->lru_lock);
+		ttm_bo_add_to_lru(bo);
+		spin_unlock(&bo->glob->lru_lock);
+	}
+	__ttm_bo_unreserve(bo);
+}
+
+/**
+ * ttm_bo_unreserve_ticket
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @ticket: ww_acquire_ctx used for reserving
+ *
+ * Unreserve a previous reservation of @bo made with @ticket.
+ */
+static inline void ttm_bo_unreserve_ticket(struct ttm_buffer_object *bo,
+					   struct ww_acquire_ctx *t)
+{
+	ttm_bo_unreserve(bo);
 }
 
 /*
@@ -1012,7 +1000,7 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  * ttm_bo_move_accel_cleanup.
  *
  * @bo: A pointer to a struct ttm_buffer_object.
- * @sync_obj: A sync object that signals when moving is complete.
+ * @fence: A fence object that signals when moving is complete.
  * @evict: This is an evict move. Don't return until the buffer is idle.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
@@ -1026,7 +1014,7 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  */
 
 extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
-				     void *sync_obj,
+				     struct fence *fence,
 				     bool evict, bool no_wait_gpu,
 				     struct ttm_mem_reg *new_mem);
 /**

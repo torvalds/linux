@@ -21,6 +21,7 @@ int speakup_thread(void *data)
 	mutex_lock(&spk_mutex);
 	while (1) {
 		DEFINE_WAIT(wait);
+
 		while (1) {
 			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			our_sound = spk_unprocessed_sound;

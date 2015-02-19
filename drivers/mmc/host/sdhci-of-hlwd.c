@@ -58,6 +58,10 @@ static const struct sdhci_ops sdhci_hlwd_ops = {
 	.write_l = sdhci_hlwd_writel,
 	.write_w = sdhci_hlwd_writew,
 	.write_b = sdhci_hlwd_writeb,
+	.set_clock = sdhci_set_clock,
+	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 static const struct sdhci_pltfm_data sdhci_hlwd_pdata = {
@@ -85,7 +89,6 @@ MODULE_DEVICE_TABLE(of, sdhci_hlwd_of_match);
 static struct platform_driver sdhci_hlwd_driver = {
 	.driver = {
 		.name = "sdhci-hlwd",
-		.owner = THIS_MODULE,
 		.of_match_table = sdhci_hlwd_of_match,
 		.pm = SDHCI_PLTFM_PMOPS,
 	},

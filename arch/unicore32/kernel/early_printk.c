@@ -35,17 +35,11 @@ static struct console early_ocd_console = {
 
 static int __init setup_early_printk(char *buf)
 {
-	int keep_early;
-
 	if (!buf || early_console)
 		return 0;
 
-	if (strstr(buf, "keep"))
-		keep_early = 1;
-
 	early_console = &early_ocd_console;
-
-	if (keep_early)
+	if (strstr(buf, "keep"))
 		early_console->flags &= ~CON_BOOT;
 	else
 		early_console->flags |= CON_BOOT;

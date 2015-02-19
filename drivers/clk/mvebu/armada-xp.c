@@ -40,7 +40,7 @@
 
 enum { AXP_CPU_TO_NBCLK, AXP_CPU_TO_HCLK, AXP_CPU_TO_DRAMCLK };
 
-static const struct coreclk_ratio __initconst axp_coreclk_ratios[] = {
+static const struct coreclk_ratio axp_coreclk_ratios[] __initconst = {
 	{ .id = AXP_CPU_TO_NBCLK, .name = "nbclk" },
 	{ .id = AXP_CPU_TO_HCLK, .name = "hclk" },
 	{ .id = AXP_CPU_TO_DRAMCLK, .name = "dramclk" },
@@ -52,7 +52,7 @@ static u32 __init axp_get_tclk_freq(void __iomem *sar)
 	return 250000000;
 }
 
-static const u32 __initconst axp_cpu_freqs[] = {
+static const u32 axp_cpu_freqs[] __initconst = {
 	1000000000,
 	1066000000,
 	1200000000,
@@ -89,7 +89,7 @@ static u32 __init axp_get_cpu_freq(void __iomem *sar)
 	return cpu_freq;
 }
 
-static const int __initconst axp_nbclk_ratios[32][2] = {
+static const int axp_nbclk_ratios[32][2] __initconst = {
 	{0, 1}, {1, 2}, {2, 2}, {2, 2},
 	{1, 2}, {1, 2}, {1, 1}, {2, 3},
 	{0, 1}, {1, 2}, {2, 4}, {0, 1},
@@ -100,7 +100,7 @@ static const int __initconst axp_nbclk_ratios[32][2] = {
 	{0, 1}, {0, 1}, {0, 1}, {0, 1},
 };
 
-static const int __initconst axp_hclk_ratios[32][2] = {
+static const int axp_hclk_ratios[32][2] __initconst = {
 	{0, 1}, {1, 2}, {2, 6}, {2, 3},
 	{1, 3}, {1, 4}, {1, 2}, {2, 6},
 	{0, 1}, {1, 6}, {2, 10}, {0, 1},
@@ -111,7 +111,7 @@ static const int __initconst axp_hclk_ratios[32][2] = {
 	{0, 1}, {0, 1}, {0, 1}, {0, 1},
 };
 
-static const int __initconst axp_dramclk_ratios[32][2] = {
+static const int axp_dramclk_ratios[32][2] __initconst = {
 	{0, 1}, {1, 2}, {2, 3}, {2, 3},
 	{1, 3}, {1, 2}, {1, 2}, {2, 6},
 	{0, 1}, {1, 3}, {2, 5}, {0, 1},
@@ -158,18 +158,11 @@ static const struct coreclk_soc_desc axp_coreclks = {
 	.num_ratios = ARRAY_SIZE(axp_coreclk_ratios),
 };
 
-static void __init axp_coreclk_init(struct device_node *np)
-{
-	mvebu_coreclk_setup(np, &axp_coreclks);
-}
-CLK_OF_DECLARE(axp_core_clk, "marvell,armada-xp-core-clock",
-	       axp_coreclk_init);
-
 /*
  * Clock Gating Control
  */
 
-static const struct clk_gating_soc_desc __initconst axp_gating_desc[] = {
+static const struct clk_gating_soc_desc axp_gating_desc[] __initconst = {
 	{ "audio", NULL, 0, 0 },
 	{ "ge3", NULL, 1, 0 },
 	{ "ge2", NULL,  2, 0 },
@@ -202,9 +195,14 @@ static const struct clk_gating_soc_desc __initconst axp_gating_desc[] = {
 	{ }
 };
 
-static void __init axp_clk_gating_init(struct device_node *np)
+static void __init axp_clk_init(struct device_node *np)
 {
-	mvebu_clk_gating_setup(np, axp_gating_desc);
+	struct device_node *cgnp =
+		of_find_compatible_node(NULL, NULL, "marvell,armada-xp-gating-clock");
+
+	mvebu_coreclk_setup(np, &axp_coreclks);
+
+	if (cgnp)
+		mvebu_clk_gating_setup(cgnp, axp_gating_desc);
 }
-CLK_OF_DECLARE(axp_clk_gating, "marvell,armada-xp-gating-clock",
-	       axp_clk_gating_init);
+CLK_OF_DECLARE(axp_clk, "marvell,armada-xp-core-clock", axp_clk_init);

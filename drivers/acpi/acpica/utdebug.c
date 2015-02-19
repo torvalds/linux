@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 
@@ -110,8 +111,8 @@ void acpi_ut_track_stack_ptr(void)
  * RETURN:      Updated pointer to the function name
  *
  * DESCRIPTION: Remove the "Acpi" prefix from the function name, if present.
- *              This allows compiler macros such as __FUNCTION__ to be used
- *              with no change to the debug output.
+ *              This allows compiler macros such as __func__ to be used with no
+ *              change to the debug output.
  *
  ******************************************************************************/
 
@@ -184,21 +185,30 @@ acpi_debug_print(u32 requested_debug_level,
 		}
 
 		acpi_gbl_prev_thread_id = thread_id;
+		acpi_gbl_nesting_level = 0;
 	}
 
 	/*
 	 * Display the module name, current line number, thread ID (if requested),
 	 * current procedure nesting level, and the current procedure name
 	 */
-	acpi_os_printf("%8s-%04ld ", module_name, line_number);
+	acpi_os_printf("%9s-%04ld ", module_name, line_number);
 
+#ifdef ACPI_APPLICATION
+	/*
+	 * For acpi_exec/iASL only, emit the thread ID and nesting level.
+	 * Note: nesting level is really only useful during a single-thread
+	 * execution. Otherwise, multiple threads will keep resetting the
+	 * level.
+	 */
 	if (ACPI_LV_THREADS & acpi_dbg_level) {
 		acpi_os_printf("[%u] ", (u32)thread_id);
 	}
 
-	acpi_os_printf("[%02ld] %-22.22s: ",
-		       acpi_gbl_nesting_level,
-		       acpi_ut_trim_function_name(function_name));
+	acpi_os_printf("[%02ld] ", acpi_gbl_nesting_level);
+#endif
+
+	acpi_os_printf("%-22.22s: ", acpi_ut_trim_function_name(function_name));
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
@@ -419,7 +429,9 @@ acpi_ut_exit(u32 line_number,
 				 component_id, "%s\n", acpi_gbl_fn_exit_str);
 	}
 
-	acpi_gbl_nesting_level--;
+	if (acpi_gbl_nesting_level) {
+		acpi_gbl_nesting_level--;
+	}
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_exit)
@@ -466,7 +478,9 @@ acpi_ut_status_exit(u32 line_number,
 		}
 	}
 
-	acpi_gbl_nesting_level--;
+	if (acpi_gbl_nesting_level) {
+		acpi_gbl_nesting_level--;
+	}
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_status_exit)
@@ -503,7 +517,9 @@ acpi_ut_value_exit(u32 line_number,
 				 ACPI_FORMAT_UINT64(value));
 	}
 
-	acpi_gbl_nesting_level--;
+	if (acpi_gbl_nesting_level) {
+		acpi_gbl_nesting_level--;
+	}
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_value_exit)
@@ -539,7 +555,35 @@ acpi_ut_ptr_exit(u32 line_number,
 				 ptr);
 	}
 
-	acpi_gbl_nesting_level--;
+	if (acpi_gbl_nesting_level) {
+		acpi_gbl_nesting_level--;
+	}
 }
 
+#endif
+
+#ifdef ACPI_APPLICATION
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_log_error
+ *
+ * PARAMETERS:  format              - Printf format field
+ *              ...                 - Optional printf arguments
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print error message to the console, used by applications.
+ *
+ ******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE acpi_log_error(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	(void)acpi_ut_file_vprintf(ACPI_FILE_ERR, format, args);
+	va_end(args);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_log_error)
 #endif

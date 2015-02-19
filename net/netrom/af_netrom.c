@@ -30,7 +30,7 @@
 #include <linux/skbuff.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fcntl.h>
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/mm.h>
@@ -1011,7 +1011,7 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	skb_queue_head(&sk->sk_receive_queue, skb);
 
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb->len);
+		sk->sk_data_ready(sk);
 
 	bh_unlock_sock(sk);
 
@@ -1028,7 +1028,7 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct nr_sock *nr = nr_sk(sk);
-	struct sockaddr_ax25 *usax = (struct sockaddr_ax25 *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_ax25 *, usax, msg->msg_name);
 	int err;
 	struct sockaddr_ax25 sax;
 	struct sk_buff *skb;
@@ -1113,7 +1113,7 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb_put(skb, len);
 
 	/* User data follows immediately after the NET/ROM transport header */
-	if (memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len)) {
+	if (memcpy_from_msg(skb_transport_header(skb), msg, len)) {
 		kfree_skb(skb);
 		err = -EFAULT;
 		goto out;
@@ -1137,7 +1137,7 @@ static int nr_recvmsg(struct kiocb *iocb, struct socket *sock,
 		      struct msghdr *msg, size_t size, int flags)
 {
 	struct sock *sk = sock->sk;
-	struct sockaddr_ax25 *sax = (struct sockaddr_ax25 *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_ax25 *, sax, msg->msg_name);
 	size_t copied;
 	struct sk_buff *skb;
 	int er;
@@ -1167,7 +1167,7 @@ static int nr_recvmsg(struct kiocb *iocb, struct socket *sock,
 		msg->msg_flags |= MSG_TRUNC;
 	}
 
-	er = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	er = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (er < 0) {
 		skb_free_datagram(sk, skb);
 		release_sock(sk);
@@ -1179,9 +1179,8 @@ static int nr_recvmsg(struct kiocb *iocb, struct socket *sock,
 		sax->sax25_family = AF_NETROM;
 		skb_copy_from_linear_data_offset(skb, 7, sax->sax25_call.ax25_call,
 			      AX25_ADDR_LEN);
+		msg->msg_namelen = sizeof(*sax);
 	}
-
-	msg->msg_namelen = sizeof(*sax);
 
 	skb_free_datagram(sk, skb);
 
@@ -1419,7 +1418,7 @@ static int __init nr_proto_init(void)
 		struct net_device *dev;
 
 		sprintf(name, "nr%d", i);
-		dev = alloc_netdev(0, name, nr_setup);
+		dev = alloc_netdev(0, name, NET_NAME_UNKNOWN, nr_setup);
 		if (!dev) {
 			printk(KERN_ERR "NET/ROM: nr_proto_init - unable to allocate device structure\n");
 			goto fail;

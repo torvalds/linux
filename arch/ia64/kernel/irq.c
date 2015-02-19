@@ -42,7 +42,7 @@ ia64_vector __ia64_irq_to_vector(int irq)
 
 unsigned int __ia64_local_vector_to_irq (ia64_vector vec)
 {
-	return __get_cpu_var(vector_irq)[vec];
+	return __this_cpu_read(vector_irq[vec]);
 }
 #endif
 

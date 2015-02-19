@@ -208,7 +208,7 @@ MODULE_DEVICE_TABLE(eisa, hp100_eisa_tbl);
 #endif
 
 #ifdef CONFIG_PCI
-static DEFINE_PCI_DEVICE_TABLE(hp100_pci_tbl) = {
+static const struct pci_device_id hp100_pci_tbl[] = {
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2585A, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2585B, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2970A, PCI_ANY_ID, PCI_ANY_ID,},
@@ -490,7 +490,8 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 
 	eid = hp100_read_id(ioaddr);
 	if (eid == NULL) {	/* bad checksum? */
-		printk(KERN_WARNING "hp100_probe: bad ID checksum at base port 0x%x\n", ioaddr);
+		printk(KERN_WARNING "%s: bad ID checksum at base port 0x%x\n",
+		       __func__, ioaddr);
 		goto out2;
 	}
 
@@ -498,7 +499,9 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 	for (i = uc = 0; i < 7; i++)
 		uc += hp100_inb(LAN_ADDR + i);
 	if (uc != 0xff) {
-		printk(KERN_WARNING "hp100_probe: bad lan address checksum at port 0x%x)\n", ioaddr);
+		printk(KERN_WARNING
+		       "%s: bad lan address checksum at port 0x%x)\n",
+		       __func__, ioaddr);
 		err = -EIO;
 		goto out2;
 	}
@@ -1097,8 +1100,8 @@ static int hp100_open(struct net_device *dev)
 	/* New: if bus is PCI or EISA, interrupts might be shared interrupts */
 	if (request_irq(dev->irq, hp100_interrupt,
 			lp->bus == HP100_BUS_PCI || lp->bus ==
-			HP100_BUS_EISA ? IRQF_SHARED : IRQF_DISABLED,
-			"hp100", dev)) {
+			HP100_BUS_EISA ? IRQF_SHARED : 0,
+			dev->name, dev)) {
 		printk("hp100: %s: unable to get IRQ %d\n", dev->name, dev->irq);
 		return -EAGAIN;
 	}
@@ -1627,7 +1630,7 @@ static void hp100_clean_txring(struct net_device *dev)
 #endif
 		/* Conversion to new PCI API : NOP */
 		pci_unmap_single(lp->pci_dev, (dma_addr_t) lp->txrhead->pdl[1], lp->txrhead->pdl[2], PCI_DMA_TODEVICE);
-		dev_kfree_skb_any(lp->txrhead->skb);
+		dev_consume_skb_any(lp->txrhead->skb);
 		lp->txrhead->skb = NULL;
 		lp->txrhead = lp->txrhead->next;
 		lp->txrcommit--;
@@ -1745,7 +1748,7 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 	hp100_ints_on();
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 
 #ifdef HP100_DEBUG_TX
 	printk("hp100: %s: start_xmit: end\n", dev->name);

@@ -55,21 +55,19 @@
  * @{
  */
 
-#include <linux/lustre_net.h>
-
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 // #include <obd.h>
-#include <linux/lnet/lnet.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_ha.h>
-#include <lustre_sec.h>
-#include <lustre_import.h>
-#include <lprocfs_status.h>
-#include <lu_object.h>
-#include <lustre_req_layout.h>
+#include "../../include/linux/lnet/lnet.h"
+#include "lustre/lustre_idl.h"
+#include "lustre_ha.h"
+#include "lustre_sec.h"
+#include "lustre_import.h"
+#include "lprocfs_status.h"
+#include "lu_object.h"
+#include "lustre_req_layout.h"
 
-#include <obd_support.h>
-#include <lustre_ver.h>
+#include "obd_support.h"
+#include "lustre_ver.h"
 
 /* MD flags we _always_ use */
 #define PTLRPC_MD_OPTIONS  0
@@ -264,241 +262,9 @@
 #define LDLM_MAXREQSIZE   (5 * 1024)
 #define LDLM_MAXREPSIZE   (1024)
 
- /*
-  * MDS threads constants:
-  *
-  * Please see examples in "Thread Constants", MDS threads number will be at
-  * the comparable level of old versions, unless the server has many cores.
-  */
-#ifndef MDS_MAX_THREADS
-#define MDS_MAX_THREADS		1024
-#define MDS_MAX_OTHR_THREADS	256
-
-#else /* MDS_MAX_THREADS */
-#if MDS_MAX_THREADS < PTLRPC_NTHRS_INIT
-#undef MDS_MAX_THREADS
-#define MDS_MAX_THREADS	PTLRPC_NTHRS_INIT
-#endif
-#define MDS_MAX_OTHR_THREADS	max(PTLRPC_NTHRS_INIT, MDS_MAX_THREADS / 2)
-#endif
-
-/* default service */
-#define MDS_THR_FACTOR		8
-#define MDS_NTHRS_INIT		PTLRPC_NTHRS_INIT
-#define MDS_NTHRS_MAX		MDS_MAX_THREADS
-#define MDS_NTHRS_BASE		min(64, MDS_NTHRS_MAX)
-
-/* read-page service */
-#define MDS_RDPG_THR_FACTOR	4
-#define MDS_RDPG_NTHRS_INIT	PTLRPC_NTHRS_INIT
-#define MDS_RDPG_NTHRS_MAX	MDS_MAX_OTHR_THREADS
-#define MDS_RDPG_NTHRS_BASE	min(48, MDS_RDPG_NTHRS_MAX)
-
-/* these should be removed when we remove setattr service in the future */
-#define MDS_SETA_THR_FACTOR	4
-#define MDS_SETA_NTHRS_INIT	PTLRPC_NTHRS_INIT
-#define MDS_SETA_NTHRS_MAX	MDS_MAX_OTHR_THREADS
-#define MDS_SETA_NTHRS_BASE	min(48, MDS_SETA_NTHRS_MAX)
-
-/* non-affinity threads */
-#define MDS_OTHR_NTHRS_INIT	PTLRPC_NTHRS_INIT
-#define MDS_OTHR_NTHRS_MAX	MDS_MAX_OTHR_THREADS
-
-#define MDS_NBUFS		64
-
-/**
- * Assume file name length = FNAME_MAX = 256 (true for ext3).
- *	  path name length = PATH_MAX = 4096
- *	  LOV MD size max  = EA_MAX = 24 * 2000
- *		(NB: 24 is size of lov_ost_data)
- *	  LOV LOGCOOKIE size max = 32 * 2000
- *		(NB: 32 is size of llog_cookie)
- * symlink:  FNAME_MAX + PATH_MAX  <- largest
- * link:     FNAME_MAX + PATH_MAX  (mds_rec_link < mds_rec_create)
- * rename:   FNAME_MAX + FNAME_MAX
- * open:     FNAME_MAX + EA_MAX
- *
- * MDS_MAXREQSIZE ~= 4736 bytes =
- * lustre_msg + ldlm_request + mdt_body + mds_rec_create + FNAME_MAX + PATH_MAX
- * MDS_MAXREPSIZE ~= 8300 bytes = lustre_msg + llog_header
- *
- * Realistic size is about 512 bytes (20 character name + 128 char symlink),
- * except in the open case where there are a large number of OSTs in a LOV.
- */
 #define MDS_MAXREQSIZE		(5 * 1024)	/* >= 4736 */
-#define MDS_MAXREPSIZE		(9 * 1024)	/* >= 8300 */
 
-/**
- * MDS incoming request with LOV EA
- * 24 = sizeof(struct lov_ost_data), i.e: replay of opencreate
- */
-#define MDS_LOV_MAXREQSIZE	max(MDS_MAXREQSIZE, \
-				    362 + LOV_MAX_STRIPE_COUNT * 24)
-/**
- * MDS outgoing reply with LOV EA
- *
- * NB: max reply size Lustre 2.4+ client can get from old MDS is:
- * LOV_MAX_STRIPE_COUNT * (llog_cookie + lov_ost_data) + extra bytes
- *
- * but 2.4 or later MDS will never send reply with llog_cookie to any
- * version client. This macro is defined for server side reply buffer size.
- */
-#define MDS_LOV_MAXREPSIZE	MDS_LOV_MAXREQSIZE
-
-/**
- * This is the size of a maximum REINT_SETXATTR request:
- *
- *   lustre_msg		 56 (32 + 4 x 5 + 4)
- *   ptlrpc_body	184
- *   mdt_rec_setxattr	136
- *   lustre_capa	120
- *   name		256 (XATTR_NAME_MAX)
- *   value	      65536 (XATTR_SIZE_MAX)
- */
-#define MDS_EA_MAXREQSIZE	66288
-
-/**
- * These are the maximum request and reply sizes (rounded up to 1 KB
- * boundaries) for the "regular" MDS_REQUEST_PORTAL and MDS_REPLY_PORTAL.
- */
-#define MDS_REG_MAXREQSIZE	(((max(MDS_EA_MAXREQSIZE, \
-				       MDS_LOV_MAXREQSIZE) + 1023) >> 10) << 10)
-#define MDS_REG_MAXREPSIZE	MDS_REG_MAXREQSIZE
-
-/**
- * The update request includes all of updates from the create, which might
- * include linkea (4K maxim), together with other updates, we set it to 9K:
- * lustre_msg + ptlrpc_body + UPDATE_BUF_SIZE (8K)
- */
-#define MDS_OUT_MAXREQSIZE	(9 * 1024)
-#define MDS_OUT_MAXREPSIZE	MDS_MAXREPSIZE
-
-/** MDS_BUFSIZE = max_reqsize (w/o LOV EA) + max sptlrpc payload size */
-#define MDS_BUFSIZE		max(MDS_MAXREQSIZE + SPTLRPC_MAX_PAYLOAD, \
-				    8 * 1024)
-
-/**
- * MDS_REG_BUFSIZE should at least be MDS_REG_MAXREQSIZE + SPTLRPC_MAX_PAYLOAD.
- * However, we need to allocate a much larger buffer for it because LNet
- * requires each MD(rqbd) has at least MDS_REQ_MAXREQSIZE bytes left to avoid
- * dropping of maximum-sized incoming request.  So if MDS_REG_BUFSIZE is only a
- * little larger than MDS_REG_MAXREQSIZE, then it can only fit in one request
- * even there are about MDS_REG_MAX_REQSIZE bytes left in a rqbd, and memory
- * utilization is very low.
- *
- * In the meanwhile, size of rqbd can't be too large, because rqbd can't be
- * reused until all requests fit in it have been processed and released,
- * which means one long blocked request can prevent the rqbd be reused.
- * Now we set request buffer size to 160 KB, so even each rqbd is unlinked
- * from LNet with unused 65 KB, buffer utilization will be about 59%.
- * Please check LU-2432 for details.
- */
-#define MDS_REG_BUFSIZE		max(MDS_REG_MAXREQSIZE + SPTLRPC_MAX_PAYLOAD, \
-				    160 * 1024)
-
-/**
- * MDS_OUT_BUFSIZE = max_out_reqsize + max sptlrpc payload (~1K) which is
- * about 10K, for the same reason as MDS_REG_BUFSIZE, we also give some
- * extra bytes to each request buffer to improve buffer utilization rate.
-  */
-#define MDS_OUT_BUFSIZE		max(MDS_OUT_MAXREQSIZE + SPTLRPC_MAX_PAYLOAD, \
-				    24 * 1024)
-
-/** FLD_MAXREQSIZE == lustre_msg + __u32 padding + ptlrpc_body + opc */
-#define FLD_MAXREQSIZE  (160)
-
-/** FLD_MAXREPSIZE == lustre_msg + ptlrpc_body */
-#define FLD_MAXREPSIZE  (152)
-#define FLD_BUFSIZE	(1 << 12)
-
-/**
- * SEQ_MAXREQSIZE == lustre_msg + __u32 padding + ptlrpc_body + opc + lu_range +
- * __u32 padding */
-#define SEQ_MAXREQSIZE  (160)
-
-/** SEQ_MAXREPSIZE == lustre_msg + ptlrpc_body + lu_range */
-#define SEQ_MAXREPSIZE  (152)
-#define SEQ_BUFSIZE	(1 << 12)
-
-/** MGS threads must be >= 3, see bug 22458 comment #28 */
-#define MGS_NTHRS_INIT	(PTLRPC_NTHRS_INIT + 1)
-#define MGS_NTHRS_MAX	32
-
-#define MGS_NBUFS       64
-#define MGS_BUFSIZE     (8 * 1024)
-#define MGS_MAXREQSIZE  (7 * 1024)
-#define MGS_MAXREPSIZE  (9 * 1024)
-
- /*
-  * OSS threads constants:
-  *
-  * Given 8 as factor and 64 as base threads number
-  *
-  * example 1):
-  * On 8-core server configured to 2 partitions, we will have
-  * 64 + 8 * 4 = 96 threads for each partition, 192 total threads.
-  *
-  * example 2):
-  * On 32-core machine configured to 4 partitions, we will have
-  * 64 + 8 * 8 = 112 threads for each partition, so total threads number
-  * will be 112 * 4 = 448.
-  *
-  * example 3):
-  * On 64-core machine configured to 4 partitions, we will have
-  * 64 + 16 * 8 = 192 threads for each partition, so total threads number
-  * will be 192 * 4 = 768 which is above limit OSS_NTHRS_MAX(512), so we
-  * cut off the value to OSS_NTHRS_MAX(512) / 4 which is 128 threads
-  * for each partition.
-  *
-  * So we can see that with these constants, threads number wil be at the
-  * similar level of old versions, unless the server has many cores.
-  */
- /* depress threads factor for VM with small memory size */
-#define OSS_THR_FACTOR		min_t(int, 8, \
-				NUM_CACHEPAGES >> (28 - PAGE_CACHE_SHIFT))
-#define OSS_NTHRS_INIT		(PTLRPC_NTHRS_INIT + 1)
-#define OSS_NTHRS_BASE		64
-#define OSS_NTHRS_MAX		512
-
-/* threads for handling "create" request */
-#define OSS_CR_THR_FACTOR	1
-#define OSS_CR_NTHRS_INIT	PTLRPC_NTHRS_INIT
-#define OSS_CR_NTHRS_BASE	8
-#define OSS_CR_NTHRS_MAX	64
-
-/**
- * OST_IO_MAXREQSIZE ~=
- *	lustre_msg + ptlrpc_body + obdo + obd_ioobj +
- *	DT_MAX_BRW_PAGES * niobuf_remote
- *
- * - single object with 16 pages is 512 bytes
- * - OST_IO_MAXREQSIZE must be at least 1 page of cookies plus some spillover
- * - Must be a multiple of 1024
- * - actual size is about 18K
- */
-#define _OST_MAXREQSIZE_SUM (sizeof(struct lustre_msg) + \
-			     sizeof(struct ptlrpc_body) + \
-			     sizeof(struct obdo) + \
-			     sizeof(struct obd_ioobj) + \
-			     sizeof(struct niobuf_remote) * DT_MAX_BRW_PAGES)
-/**
- * FIEMAP request can be 4K+ for now
- */
 #define OST_MAXREQSIZE		(5 * 1024)
-#define OST_IO_MAXREQSIZE	max_t(int, OST_MAXREQSIZE, \
-				(((_OST_MAXREQSIZE_SUM - 1) | (1024 - 1)) + 1))
-
-#define OST_MAXREPSIZE		(9 * 1024)
-#define OST_IO_MAXREPSIZE	OST_MAXREPSIZE
-
-#define OST_NBUFS		64
-/** OST_BUFSIZE = max_reqsize + max sptlrpc payload size */
-#define OST_BUFSIZE		max_t(int, OST_MAXREQSIZE + 1024, 16 * 1024)
-/**
- * OST_IO_MAXREQSIZE is 18K, giving extra 46K can increase buffer utilization
- * rate of request buffer, please check comment of MDS_LOV_BUFSIZE for details.
- */
-#define OST_IO_BUFSIZE		max_t(int, OST_IO_MAXREQSIZE + 1024, 64 * 1024)
 
 /* Macro to hide a typecast. */
 #define ptlrpc_req_async_args(req) ((void *)&req->rq_async_args)
@@ -679,7 +445,7 @@ struct ptlrpc_reply_state {
 	lnet_handle_md_t       rs_md_h;
 	atomic_t	   rs_refcount;
 
-	/** Context for the sevice thread */
+	/** Context for the service thread */
 	struct ptlrpc_svc_ctx *rs_svc_ctx;
 	/** Reply buffer (actually sent to the client), encoded if needed */
 	struct lustre_msg     *rs_repbuf;       /* wrapper */
@@ -688,9 +454,9 @@ struct ptlrpc_reply_state {
 	/** Size of the reply message */
 	int		    rs_repdata_len;  /* wrapper msg length */
 	/**
-	 * Actual reply message. Its content is encrupted (if needed) to
+	 * Actual reply message. Its content is encrypted (if needed) to
 	 * produce reply buffer for actual sending. In simple case
-	 * of no network encryption we jus set \a rs_repbuf to \a rs_msg
+	 * of no network encryption we just set \a rs_repbuf to \a rs_msg
 	 */
 	struct lustre_msg     *rs_msg;	  /* reply message */
 
@@ -731,7 +497,7 @@ struct ptlrpc_request_pool {
 	spinlock_t prp_lock;
 	/** list of ptlrpc_request structs */
 	struct list_head prp_req_list;
-	/** Maximum message size that would fit into a rquest from this pool */
+	/** Maximum message size that would fit into a request from this pool */
 	int prp_rq_size;
 	/** Function to allocate more requests for this pool */
 	void (*prp_populate)(struct ptlrpc_request_pool *, int);
@@ -951,7 +717,7 @@ struct ptlrpc_nrs_pol_ops {
 	 *			 \a nrq
 	 * \param[in,out] nrq	 The request
 	 *
-	 * \pre spin_is_locked(&svcpt->scp_req_lock)
+	 * \pre assert_spin_locked(&svcpt->scp_req_lock)
 	 *
 	 * \see ptlrpc_nrs_req_stop_nolock()
 	 */
@@ -1136,9 +902,9 @@ struct ptlrpc_nrs_pol_conf {
 	 * different module to the one the NRS framework is held within
 	 * (currently ptlrpc), should set this field to THIS_MODULE.
 	 */
-	module_t			  *nc_owner;
+	struct module			  *nc_owner;
 	/**
-	 * Policy registration flags; a bitmast of \e nrs_policy_flags
+	 * Policy registration flags; a bitmask of \e nrs_policy_flags
 	 */
 	unsigned			   nc_flags;
 };
@@ -1211,7 +977,7 @@ struct ptlrpc_nrs_pol_desc {
 	 *   then unregistration and lprocfs operations will be properly
 	 *   serialized.
 	 */
-	module_t			       *pd_owner;
+	struct module			       *pd_owner;
 	/**
 	 * Bitmask of \e nrs_policy_flags
 	 */
@@ -1415,276 +1181,6 @@ struct nrs_fifo_req {
 /** @} fifo */
 
 /**
- * \name CRR-N
- *
- * CRR-N, Client Round Robin over NIDs
- * @{
- */
-
-/**
- * private data structure for CRR-N NRS
- */
-struct nrs_crrn_net {
-	struct ptlrpc_nrs_resource	cn_res;
-	cfs_binheap_t		       *cn_binheap;
-	cfs_hash_t		       *cn_cli_hash;
-	/**
-	 * Used when a new scheduling round commences, in order to synchronize
-	 * all clients with the new round number.
-	 */
-	__u64				cn_round;
-	/**
-	 * Determines the relevant ordering amongst request batches within a
-	 * scheduling round.
-	 */
-	__u64				cn_sequence;
-	/**
-	 * Round Robin quantum; the maximum number of RPCs that each request
-	 * batch for each client can have in a scheduling round.
-	 */
-	__u16				cn_quantum;
-};
-
-/**
- * Object representing a client in CRR-N, as identified by its NID
- */
-struct nrs_crrn_client {
-	struct ptlrpc_nrs_resource	cc_res;
-	struct hlist_node		cc_hnode;
-	lnet_nid_t			cc_nid;
-	/**
-	 * The round number against which this client is currently scheduling
-	 * requests.
-	 */
-	__u64				cc_round;
-	/**
-	 * The sequence number used for requests scheduled by this client during
-	 * the current round number.
-	 */
-	__u64				cc_sequence;
-	atomic_t			cc_ref;
-	/**
-	 * Round Robin quantum; the maximum number of RPCs the client is allowed
-	 * to schedule in a single batch of each round.
-	 */
-	__u16				cc_quantum;
-	/**
-	 * # of pending requests for this client, on all existing rounds
-	 */
-	__u16				cc_active;
-};
-
-/**
- * CRR-N NRS request definition
- */
-struct nrs_crrn_req {
-	/**
-	 * Round number for this request; shared with all other requests in the
-	 * same batch.
-	 */
-	__u64			cr_round;
-	/**
-	 * Sequence number for this request; shared with all other requests in
-	 * the same batch.
-	 */
-	__u64			cr_sequence;
-};
-
-/**
- * CRR-N policy operations.
- */
-enum nrs_ctl_crr {
-	/**
-	 * Read the RR quantum size of a CRR-N policy.
-	 */
-	NRS_CTL_CRRN_RD_QUANTUM = PTLRPC_NRS_CTL_1ST_POL_SPEC,
-	/**
-	 * Write the RR quantum size of a CRR-N policy.
-	 */
-	NRS_CTL_CRRN_WR_QUANTUM,
-};
-
-/** @} CRR-N */
-
-/**
- * \name ORR/TRR
- *
- * ORR/TRR (Object-based Round Robin/Target-based Round Robin) NRS policies
- * @{
- */
-
-/**
- * Lower and upper byte offsets of a brw RPC
- */
-struct nrs_orr_req_range {
-	__u64		or_start;
-	__u64		or_end;
-};
-
-/**
- * RPC types supported by the ORR/TRR policies
- */
-enum nrs_orr_supp {
-	NOS_OST_READ  = (1 << 0),
-	NOS_OST_WRITE = (1 << 1),
-	NOS_OST_RW    = (NOS_OST_READ | NOS_OST_WRITE),
-	/**
-	 * Default value for policies.
-	 */
-	NOS_DFLT      = NOS_OST_READ
-};
-
-/**
- * As unique keys for grouping RPCs together, we use the object's OST FID for
- * the ORR policy, and the OST index for the TRR policy.
- *
- * XXX: We waste some space for TRR policy instances by using a union, but it
- *	allows to consolidate some of the code between ORR and TRR, and these
- *	policies will probably eventually merge into one anyway.
- */
-struct nrs_orr_key {
-	union {
-		/** object FID for ORR */
-		struct lu_fid	ok_fid;
-		/** OST index for TRR */
-		__u32		ok_idx;
-	};
-};
-
-/**
- * The largest base string for unique hash/slab object names is
- * "nrs_orr_reg_", so 13 characters. We add 3 to this to be used for the CPT
- * id number, so this _should_ be more than enough for the maximum number of
- * CPTs on any system. If it does happen that this statement is incorrect,
- * nrs_orr_genobjname() will inevitably yield a non-unique name and cause
- * kmem_cache_create() to complain (on Linux), so the erroneous situation
- * will hopefully not go unnoticed.
- */
-#define NRS_ORR_OBJ_NAME_MAX	(sizeof("nrs_orr_reg_") + 3)
-
-/**
- * private data structure for ORR and TRR NRS
- */
-struct nrs_orr_data {
-	struct ptlrpc_nrs_resource	od_res;
-	cfs_binheap_t		       *od_binheap;
-	cfs_hash_t		       *od_obj_hash;
-	struct kmem_cache		       *od_cache;
-	/**
-	 * Used when a new scheduling round commences, in order to synchronize
-	 * all object or OST batches with the new round number.
-	 */
-	__u64				od_round;
-	/**
-	 * Determines the relevant ordering amongst request batches within a
-	 * scheduling round.
-	 */
-	__u64				od_sequence;
-	/**
-	 * RPC types that are currently supported.
-	 */
-	enum nrs_orr_supp		od_supp;
-	/**
-	 * Round Robin quantum; the maxium number of RPCs that each request
-	 * batch for each object or OST can have in a scheduling round.
-	 */
-	__u16				od_quantum;
-	/**
-	 * Whether to use physical disk offsets or logical file offsets.
-	 */
-	bool				od_physical;
-	/**
-	 * XXX: We need to provide a persistently allocated string to hold
-	 * unique object names for this policy, since in currently supported
-	 * versions of Linux by Lustre, kmem_cache_create() just sets a pointer
-	 * to the name string provided. kstrdup() is used in the version of
-	 * kmeme_cache_create() in current Linux mainline, so we may be able to
-	 * remove this in the future.
-	 */
-	char				od_objname[NRS_ORR_OBJ_NAME_MAX];
-};
-
-/**
- * Represents a backend-fs object or OST in the ORR and TRR policies
- * respectively
- */
-struct nrs_orr_object {
-	struct ptlrpc_nrs_resource	oo_res;
-	struct hlist_node		oo_hnode;
-	/**
-	 * The round number against which requests are being scheduled for this
-	 * object or OST
-	 */
-	__u64				oo_round;
-	/**
-	 * The sequence number used for requests scheduled for this object or
-	 * OST during the current round number.
-	 */
-	__u64				oo_sequence;
-	/**
-	 * The key of the object or OST for which this structure instance is
-	 * scheduling RPCs
-	 */
-	struct nrs_orr_key		oo_key;
-	atomic_t			oo_ref;
-	/**
-	 * Round Robin quantum; the maximum number of RPCs that are allowed to
-	 * be scheduled for the object or OST in a single batch of each round.
-	 */
-	__u16				oo_quantum;
-	/**
-	 * # of pending requests for this object or OST, on all existing rounds
-	 */
-	__u16				oo_active;
-};
-
-/**
- * ORR/TRR NRS request definition
- */
-struct nrs_orr_req {
-	/**
-	 * The offset range this request covers
-	 */
-	struct nrs_orr_req_range	or_range;
-	/**
-	 * Round number for this request; shared with all other requests in the
-	 * same batch.
-	 */
-	__u64				or_round;
-	/**
-	 * Sequence number for this request; shared with all other requests in
-	 * the same batch.
-	 */
-	__u64				or_sequence;
-	/**
-	 * For debugging purposes.
-	 */
-	struct nrs_orr_key		or_key;
-	/**
-	 * An ORR policy instance has filled in request information while
-	 * enqueueing the request on the service partition's regular NRS head.
-	 */
-	unsigned int			or_orr_set:1;
-	/**
-	 * A TRR policy instance has filled in request information while
-	 * enqueueing the request on the service partition's regular NRS head.
-	 */
-	unsigned int			or_trr_set:1;
-	/**
-	 * Request offset ranges have been filled in with logical offset
-	 * values.
-	 */
-	unsigned int			or_logical_set:1;
-	/**
-	 * Request offset ranges have been filled in with physical offset
-	 * values.
-	 */
-	unsigned int			or_physical_set:1;
-};
-
-/** @} ORR/TRR */
-
-/**
  * NRS request
  *
  * Instances of this object exist embedded within ptlrpc_request; the main
@@ -1708,7 +1204,6 @@ struct ptlrpc_nrs_request {
 	unsigned			nr_enqueued:1;
 	unsigned			nr_started:1;
 	unsigned			nr_finalized:1;
-	cfs_binheap_node_t		nr_node;
 
 	/**
 	 * Policy-specific fields, used for determining a request's scheduling
@@ -1719,12 +1214,6 @@ struct ptlrpc_nrs_request {
 		 * Fields for the FIFO policy
 		 */
 		struct nrs_fifo_req	fifo;
-		/**
-		 * CRR-N request defintion
-		 */
-		struct nrs_crrn_req	crr;
-		/** ORR and TRR share the same request definition */
-		struct nrs_orr_req	orr;
 	} nr_u;
 	/**
 	 * Externally-registering policies may want to use this to allocate
@@ -1784,7 +1273,7 @@ struct ptlrpc_request {
 	 * requests in time
 	 */
 	struct list_head rq_timed_list;
-	/** server-side history, used for debuging purposes. */
+	/** server-side history, used for debugging purposes. */
 	struct list_head rq_history_list;
 	/** server-side per-export list */
 	struct list_head rq_exp_list;
@@ -1823,7 +1312,8 @@ struct ptlrpc_request {
 		rq_replay:1,
 		rq_no_resend:1, rq_waiting:1, rq_receiving_reply:1,
 		rq_no_delay:1, rq_net_err:1, rq_wait_ctx:1,
-		rq_early:1, rq_must_unlink:1,
+		rq_early:1,
+		rq_req_unlink:1, rq_reply_unlink:1,
 		rq_memalloc:1,      /* req originated from "kswapd" */
 		/* server-side flags */
 		rq_packed_final:1,  /* packed final reply */
@@ -1845,7 +1335,7 @@ struct ptlrpc_request {
 	enum rq_phase rq_phase; /* one of RQ_PHASE_* */
 	enum rq_phase rq_next_phase; /* one of RQ_PHASE_* to be used next */
 	atomic_t rq_refcount;/* client-side refcount for SENT race,
-				    server-side refcounf for multiple replies */
+				    server-side refcount for multiple replies */
 
 	/** Portal to which this request would be sent */
 	short rq_request_portal;  /* XXX FIXME bug 249 */
@@ -1871,7 +1361,7 @@ struct ptlrpc_request {
 	/** xid */
 	__u64 rq_xid;
 	/**
-	 * List item to for replay list. Not yet commited requests get linked
+	 * List item to for replay list. Not yet committed requests get linked
 	 * there.
 	 * Also see \a rq_replay comment above.
 	 */
@@ -1944,9 +1434,9 @@ struct ptlrpc_request {
 	lnet_handle_md_t     rq_req_md_h;
 	struct ptlrpc_cb_id  rq_req_cbid;
 	/** optional time limit for send attempts */
-	cfs_duration_t       rq_delay_limit;
+	long       rq_delay_limit;
 	/** time request was first queued */
-	cfs_time_t	   rq_queued_time;
+	unsigned long	   rq_queued_time;
 
 	/* server-side... */
 	/** request arrival time */
@@ -2186,7 +1676,7 @@ void _debug_req(struct ptlrpc_request *req,
 	__attribute__ ((format (printf, 3, 4)));
 
 /**
- * Helper that decides if we need to print request accordig to current debug
+ * Helper that decides if we need to print request according to current debug
  * level settings
  */
 #define debug_req(msgdata, mask, cdls, req, fmt, a...)			\
@@ -2197,16 +1687,16 @@ do {									  \
 	    ((libcfs_debug & (mask)) != 0 &&				  \
 	     (libcfs_subsystem_debug & DEBUG_SUBSYSTEM) != 0))		\
 		_debug_req((req), msgdata, fmt, ##a);			 \
-} while(0)
+} while (0)
 
 /**
- * This is the debug print function you need to use to print request sturucture
+ * This is the debug print function you need to use to print request structure
  * content into lustre debug log.
  * for most callers (level is a constant) this is resolved at compile time */
 #define DEBUG_REQ(level, req, fmt, args...)				   \
 do {									  \
 	if ((level) & (D_ERROR | D_WARNING)) {				\
-		static cfs_debug_limit_state_t cdls;			  \
+		static struct cfs_debug_limit_state cdls;			  \
 		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, level, &cdls);	    \
 		debug_req(&msgdata, level, &cdls, req, "@@@ "fmt" ", ## args);\
 	} else {							      \
@@ -2322,8 +1812,13 @@ struct ptlrpc_thread {
 	pid_t t_pid;
 	/**
 	 * put watchdog in the structure per thread b=14840
+	 *
+	 * Lustre watchdog is removed for client in the hope
+	 * of a generic watchdog can be merged in kernel.
+	 * When that happens, we should add below back.
+	 *
+	 * struct lc_watchdog *t_watchdog;
 	 */
-	struct lc_watchdog *t_watchdog;
 	/**
 	 * the svc this thread belonged to b=18582
 	 */
@@ -2484,7 +1979,7 @@ struct ptlrpc_service {
 	/** limit of threads number for each partition */
 	int				srv_nthrs_cpt_limit;
 	/** Root of /proc dir tree for this service */
-	proc_dir_entry_t	   *srv_procroot;
+	struct proc_dir_entry	   *srv_procroot;
 	/** Pointer to statistic data for this service */
 	struct lprocfs_stats	   *srv_stats;
 	/** # hp per lp reqs to handle */
@@ -2582,7 +2077,7 @@ struct ptlrpc_service_part {
 	/** incoming reqs */
 	struct list_head			scp_req_incoming;
 	/** timeout before re-posting reqs, in tick */
-	cfs_duration_t			scp_rqbd_timeout;
+	long			scp_rqbd_timeout;
 	/**
 	 * all threads sleep on this. This wait-queue is signalled when new
 	 * incoming request arrives and when difficult reply has to be handled.
@@ -2631,9 +2126,9 @@ struct ptlrpc_service_part {
 	/** reqs waiting for replies */
 	struct ptlrpc_at_array		scp_at_array;
 	/** early reply timer */
-	timer_list_t			scp_at_timer;
+	struct timer_list		scp_at_timer;
 	/** debug */
-	cfs_time_t			scp_at_checktime;
+	unsigned long			scp_at_checktime;
 	/** check early replies */
 	unsigned			scp_at_check;
 	/** @} */
@@ -2820,7 +2315,7 @@ static inline int ptlrpc_client_bulk_active(struct ptlrpc_request *req)
 	desc = req->rq_bulk;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK) &&
-	    req->rq_bulk_deadline > cfs_time_current_sec())
+	    req->rq_bulk_deadline > get_seconds())
 		return 1;
 
 	if (!desc)
@@ -2850,6 +2345,8 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd);
  * request queues, request management, etc.
  * @{
  */
+void ptlrpc_request_committed(struct ptlrpc_request *req, int force);
+
 void ptlrpc_init_client(int req_portal, int rep_portal, char *name,
 			struct ptlrpc_client *);
 void ptlrpc_cleanup_client(struct obd_import *imp);
@@ -3130,17 +2627,14 @@ __u32 lustre_msg_get_timeout(struct lustre_msg *msg);
 __u32 lustre_msg_get_service_time(struct lustre_msg *msg);
 char *lustre_msg_get_jobid(struct lustre_msg *msg);
 __u32 lustre_msg_get_cksum(struct lustre_msg *msg);
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-__u32 lustre_msg_calc_cksum(struct lustre_msg *msg, int compat18);
-#else
-# warning "remove checksum compatibility support for b1_8"
 __u32 lustre_msg_calc_cksum(struct lustre_msg *msg);
-#endif
-void lustre_msg_set_handle(struct lustre_msg *msg,struct lustre_handle *handle);
+void lustre_msg_set_handle(struct lustre_msg *msg,
+			   struct lustre_handle *handle);
 void lustre_msg_set_type(struct lustre_msg *msg, __u32 type);
 void lustre_msg_set_opc(struct lustre_msg *msg, __u32 opc);
 void lustre_msg_set_last_xid(struct lustre_msg *msg, __u64 last_xid);
-void lustre_msg_set_last_committed(struct lustre_msg *msg,__u64 last_committed);
+void lustre_msg_set_last_committed(struct lustre_msg *msg,
+				   __u64 last_committed);
 void lustre_msg_set_versions(struct lustre_msg *msg, __u64 *versions);
 void lustre_msg_set_transno(struct lustre_msg *msg, __u64 transno);
 void lustre_msg_set_status(struct lustre_msg *msg, __u32 status);
@@ -3161,6 +2655,38 @@ lustre_shrink_reply(struct ptlrpc_request *req, int segment,
 	req->rq_replen = lustre_shrink_msg(req->rq_repmsg, segment,
 					   newlen, move_data);
 }
+
+#ifdef CONFIG_LUSTRE_TRANSLATE_ERRNOS
+
+static inline int ptlrpc_status_hton(int h)
+{
+	/*
+	 * Positive errnos must be network errnos, such as LUSTRE_EDEADLK,
+	 * ELDLM_LOCK_ABORTED, etc.
+	 */
+	if (h < 0)
+		return -lustre_errno_hton(-h);
+	else
+		return h;
+}
+
+static inline int ptlrpc_status_ntoh(int n)
+{
+	/*
+	 * See the comment in ptlrpc_status_hton().
+	 */
+	if (n < 0)
+		return -lustre_errno_ntoh(-n);
+	else
+		return n;
+}
+
+#else
+
+#define ptlrpc_status_hton(h) (h)
+#define ptlrpc_status_ntoh(n) (n)
+
+#endif
 /** @} */
 
 /** Change request phase of \a req to \a new_phase */
@@ -3194,7 +2720,7 @@ static inline int
 ptlrpc_client_early(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 0;
 	return req->rq_early;
 }
@@ -3206,7 +2732,7 @@ static inline int
 ptlrpc_client_replied(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 0;
 	return req->rq_replied;
 }
@@ -3216,7 +2742,7 @@ static inline int
 ptlrpc_client_recv(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 1;
 	return req->rq_receiving_reply;
 }
@@ -3228,11 +2754,12 @@ ptlrpc_client_recv_or_unlink(struct ptlrpc_request *req)
 
 	spin_lock(&req->rq_lock);
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec()) {
+	    req->rq_reply_deadline > get_seconds()) {
 		spin_unlock(&req->rq_lock);
 		return 1;
 	}
-	rc = req->rq_receiving_reply || req->rq_must_unlink;
+	rc = req->rq_receiving_reply;
+	rc = rc || req->rq_req_unlink || req->rq_reply_unlink;
 	spin_unlock(&req->rq_lock);
 	return rc;
 }
@@ -3291,9 +2818,9 @@ static inline int ptlrpc_req_get_repsize(struct ptlrpc_request *req)
 static inline int ptlrpc_send_limit_expired(struct ptlrpc_request *req)
 {
 	if (req->rq_delay_limit != 0 &&
-	    cfs_time_before(cfs_time_add(req->rq_queued_time,
-					 cfs_time_seconds(req->rq_delay_limit)),
-			    cfs_time_current())) {
+	    time_before(cfs_time_add(req->rq_queued_time,
+				     cfs_time_seconds(req->rq_delay_limit)),
+			cfs_time_current())) {
 		return 1;
 	}
 	return 0;
@@ -3364,12 +2891,10 @@ int ptlrpc_add_timeout_client(int time, enum timeout_event event,
 			      struct list_head *obd_list);
 int ptlrpc_del_timeout_client(struct list_head *obd_list,
 			      enum timeout_event event);
-struct ptlrpc_request * ptlrpc_prep_ping(struct obd_import *imp);
+struct ptlrpc_request *ptlrpc_prep_ping(struct obd_import *imp);
 int ptlrpc_obd_ping(struct obd_device *obd);
-cfs_time_t ptlrpc_suspend_wakeup_time(void);
 void ping_evictor_start(void);
 void ping_evictor_stop(void);
-int ptlrpc_check_and_wait_suspend(struct ptlrpc_request *req);
 void ptlrpc_pinger_ir_up(void);
 void ptlrpc_pinger_ir_down(void);
 /** @} */
@@ -3421,8 +2946,8 @@ void ptlrpcd_decref(void);
  * procfs output related functions
  * @{
  */
-const char* ll_opcode2str(__u32 opcode);
-#ifdef LPROCFS
+const char *ll_opcode2str(__u32 opcode);
+#if defined (CONFIG_PROC_FS)
 void ptlrpc_lprocfs_register_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes);
@@ -3432,15 +2957,6 @@ static inline void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd) {}
 static inline void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes) {}
 #endif
 /** @} */
-
-/* ptlrpc/llog_server.c */
-int llog_origin_handle_open(struct ptlrpc_request *req);
-int llog_origin_handle_destroy(struct ptlrpc_request *req);
-int llog_origin_handle_prev_block(struct ptlrpc_request *req);
-int llog_origin_handle_next_block(struct ptlrpc_request *req);
-int llog_origin_handle_read_header(struct ptlrpc_request *req);
-int llog_origin_handle_close(struct ptlrpc_request *req);
-int llog_origin_handle_cancel(struct ptlrpc_request *req);
 
 /* ptlrpc/llog_client.c */
 extern struct llog_operations llog_client_ops;

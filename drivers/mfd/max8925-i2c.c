@@ -37,7 +37,7 @@ static inline int max8925_read_device(struct i2c_client *i2c,
 static inline int max8925_write_device(struct i2c_client *i2c,
 				       int reg, int bytes, void *src)
 {
-	unsigned char buf[bytes + 1];
+	unsigned char buf[9];
 	int ret;
 
 	buf[0] = (unsigned char)reg;
@@ -151,7 +151,7 @@ static int max8925_dt_init(struct device_node *np, struct device *dev,
 static int max8925_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
-	struct max8925_platform_data *pdata = client->dev.platform_data;
+	struct max8925_platform_data *pdata = dev_get_platdata(&client->dev);
 	static struct max8925_chip *chip;
 	struct device_node *node = client->dev.of_node;
 
@@ -181,9 +181,18 @@ static int max8925_probe(struct i2c_client *client,
 	mutex_init(&chip->io_lock);
 
 	chip->rtc = i2c_new_dummy(chip->i2c->adapter, RTC_I2C_ADDR);
+	if (!chip->rtc) {
+		dev_err(chip->dev, "Failed to allocate I2C device for RTC\n");
+		return -ENODEV;
+	}
 	i2c_set_clientdata(chip->rtc, chip);
 
 	chip->adc = i2c_new_dummy(chip->i2c->adapter, ADC_I2C_ADDR);
+	if (!chip->adc) {
+		dev_err(chip->dev, "Failed to allocate I2C device for ADC\n");
+		i2c_unregister_device(chip->rtc);
+		return -ENODEV;
+	}
 	i2c_set_clientdata(chip->adc, chip);
 
 	device_init_wakeup(&client->dev, 1);
@@ -238,7 +247,7 @@ static struct i2c_driver max8925_driver = {
 		.name	= "max8925",
 		.owner	= THIS_MODULE,
 		.pm     = &max8925_pm_ops,
-		.of_match_table = of_match_ptr(max8925_dt_ids),
+		.of_match_table = max8925_dt_ids,
 	},
 	.probe		= max8925_probe,
 	.remove		= max8925_remove,
@@ -248,9 +257,11 @@ static struct i2c_driver max8925_driver = {
 static int __init max8925_i2c_init(void)
 {
 	int ret;
+
 	ret = i2c_add_driver(&max8925_driver);
 	if (ret != 0)
 		pr_err("Failed to register MAX8925 I2C driver: %d\n", ret);
+
 	return ret;
 }
 subsys_initcall(max8925_i2c_init);

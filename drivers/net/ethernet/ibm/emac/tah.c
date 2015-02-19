@@ -18,6 +18,7 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+#include <linux/of_address.h>
 #include <asm/io.h>
 
 #include "emac.h"
@@ -162,7 +163,6 @@ static struct of_device_id tah_match[] =
 static struct platform_driver tah_driver = {
 	.driver = {
 		.name = "emac-tah",
-		.owner = THIS_MODULE,
 		.of_match_table = tah_match,
 	},
 	.probe = tah_probe,

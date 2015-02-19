@@ -43,7 +43,6 @@
 extern bool pciehp_poll_mode;
 extern int pciehp_poll_time;
 extern bool pciehp_debug;
-extern bool pciehp_force;
 
 #define dbg(format, arg...)						\
 do {									\
@@ -77,6 +76,7 @@ struct slot {
 	struct hotplug_slot *hotplug_slot;
 	struct delayed_work work;	/* work for button event */
 	struct mutex lock;
+	struct mutex hotplug_lock;
 	struct workqueue_struct *wq;
 };
 
@@ -92,9 +92,10 @@ struct controller {
 	struct slot *slot;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u32 slot_cap;
+	u16 slot_ctrl;
 	struct timer_list poll_timer;
+	unsigned long cmd_started;	/* jiffies */
 	unsigned int cmd_busy:1;
-	unsigned int no_cmd_complete:1;
 	unsigned int link_active_reporting:1;
 	unsigned int notification_enabled:1;
 	unsigned int power_fault_detected;
@@ -110,6 +111,8 @@ struct controller {
 #define INT_BUTTON_PRESS		7
 #define INT_BUTTON_RELEASE		8
 #define INT_BUTTON_CANCEL		9
+#define INT_LINK_UP			10
+#define INT_LINK_DOWN			11
 
 #define STATIC_STATE			0
 #define BLINKINGON_STATE		1
@@ -125,7 +128,7 @@ struct controller {
 #define HP_SUPR_RM(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_HPS)
 #define EMI(ctrl)		((ctrl)->slot_cap & PCI_EXP_SLTCAP_EIP)
 #define NO_CMD_CMPL(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_NCCS)
-#define PSN(ctrl)		((ctrl)->slot_cap >> 19)
+#define PSN(ctrl)		(((ctrl)->slot_cap & PCI_EXP_SLTCAP_PSN) >> 19)
 
 int pciehp_sysfs_enable_slot(struct slot *slot);
 int pciehp_sysfs_disable_slot(struct slot *slot);
@@ -133,6 +136,7 @@ u8 pciehp_handle_attention_button(struct slot *p_slot);
 u8 pciehp_handle_switch_change(struct slot *p_slot);
 u8 pciehp_handle_presence_change(struct slot *p_slot);
 u8 pciehp_handle_power_fault(struct slot *p_slot);
+void pciehp_handle_linkstate_change(struct slot *p_slot);
 int pciehp_configure_device(struct slot *p_slot);
 int pciehp_unconfigure_device(struct slot *p_slot);
 void pciehp_queue_pushbutton_work(struct work_struct *work);
@@ -140,21 +144,23 @@ struct controller *pcie_init(struct pcie_device *dev);
 int pcie_init_notification(struct controller *ctrl);
 int pciehp_enable_slot(struct slot *p_slot);
 int pciehp_disable_slot(struct slot *p_slot);
-int pcie_enable_notification(struct controller *ctrl);
+void pcie_enable_notification(struct controller *ctrl);
 int pciehp_power_on_slot(struct slot *slot);
-int pciehp_power_off_slot(struct slot *slot);
-int pciehp_get_power_status(struct slot *slot, u8 *status);
-int pciehp_get_attention_status(struct slot *slot, u8 *status);
+void pciehp_power_off_slot(struct slot *slot);
+void pciehp_get_power_status(struct slot *slot, u8 *status);
+void pciehp_get_attention_status(struct slot *slot, u8 *status);
 
-int pciehp_set_attention_status(struct slot *slot, u8 status);
-int pciehp_get_latch_status(struct slot *slot, u8 *status);
-int pciehp_get_adapter_status(struct slot *slot, u8 *status);
+void pciehp_set_attention_status(struct slot *slot, u8 status);
+void pciehp_get_latch_status(struct slot *slot, u8 *status);
+void pciehp_get_adapter_status(struct slot *slot, u8 *status);
 int pciehp_query_power_fault(struct slot *slot);
 void pciehp_green_led_on(struct slot *slot);
 void pciehp_green_led_off(struct slot *slot);
 void pciehp_green_led_blink(struct slot *slot);
 int pciehp_check_link_status(struct controller *ctrl);
+bool pciehp_check_link_active(struct controller *ctrl);
 void pciehp_release_ctrl(struct controller *ctrl);
+int pciehp_reset_slot(struct slot *slot, int probe);
 
 static inline const char *slot_name(struct slot *slot)
 {
@@ -162,8 +168,6 @@ static inline const char *slot_name(struct slot *slot)
 }
 
 #ifdef CONFIG_ACPI
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
 #include <linux/pci-acpi.h>
 
 void __init pciehp_acpi_slot_detection_init(void);
@@ -179,5 +183,5 @@ static inline int pciehp_acpi_slot_detection_check(struct pci_dev *dev)
 {
 	return 0;
 }
-#endif 				/* CONFIG_ACPI */
+#endif				/* CONFIG_ACPI */
 #endif				/* _PCIEHP_H */

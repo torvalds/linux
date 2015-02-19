@@ -197,15 +197,7 @@ static int pcf2127_probe(struct i2c_client *client,
 				pcf2127_driver.driver.name,
 				&pcf2127_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(pcf2127->rtc))
-		return PTR_ERR(pcf2127->rtc);
-
-	return 0;
-}
-
-static int pcf2127_remove(struct i2c_client *client)
-{
-	return 0;
+	return PTR_ERR_OR_ZERO(pcf2127->rtc);
 }
 
 static const struct i2c_device_id pcf2127_id[] = {
@@ -229,7 +221,6 @@ static struct i2c_driver pcf2127_driver = {
 		.of_match_table = of_match_ptr(pcf2127_of_match),
 	},
 	.probe		= pcf2127_probe,
-	.remove		= pcf2127_remove,
 	.id_table	= pcf2127_id,
 };
 

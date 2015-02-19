@@ -46,7 +46,6 @@
 MODULE_AUTHOR("Miloslav Trmac <mitr@volny.cz>");
 MODULE_DESCRIPTION("Wistron laptop button driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.3");
 
 static bool force; /* = 0; */
 module_param(force, bool, 0);
@@ -276,6 +275,16 @@ static struct key_entry keymap_fs_amilo_pro_v3505[] __initdata = {
 	{ KE_KEY,       0x36, {KEY_WWW} },           /* www button */
 	{ KE_WIFI,      0x78 },                      /* satellite dish button */
 	{ KE_END,       0 }
+};
+
+static struct key_entry keymap_fs_amilo_pro_v8210[] __initdata = {
+	{ KE_KEY,       0x01, {KEY_HELP} },          /* Fn+F1 */
+	{ KE_KEY,       0x06, {KEY_DISPLAYTOGGLE} }, /* Fn+F4 */
+	{ KE_BLUETOOTH, 0x30 },                      /* Fn+F10 */
+	{ KE_KEY,       0x31, {KEY_MAIL} },          /* mail button */
+	{ KE_KEY,       0x36, {KEY_WWW} },           /* www button */
+	{ KE_WIFI,      0x78 },                      /* satelite dish button */
+	{ KE_END,       FE_WIFI_LED }
 };
 
 static struct key_entry keymap_fujitsu_n3510[] __initdata = {
@@ -563,7 +572,7 @@ static struct key_entry keymap_wistron_md96500[] __initdata = {
 	{ KE_KEY, 0x36, {KEY_WWW} },
 	{ KE_WIFI, 0x30 },
 	{ KE_BLUETOOTH, 0x44 },
-	{ KE_END, FE_UNTESTED }
+	{ KE_END, 0 }
 };
 
 static struct key_entry keymap_wistron_generic[] __initdata = {
@@ -635,7 +644,7 @@ static struct key_entry keymap_prestigio[] __initdata = {
  * a list of buttons and their key codes (reported when loading this module
  * with force=1) and the output of dmidecode to $MODULE_AUTHOR.
  */
-static const struct dmi_system_id __initconst dmi_ids[] = {
+static const struct dmi_system_id dmi_ids[] __initconst = {
 	{
 		/* Fujitsu-Siemens Amilo Pro V2000 */
 		.callback = dmi_matched,
@@ -653,6 +662,15 @@ static const struct dmi_system_id __initconst dmi_ids[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pro Edition V3505"),
 		},
 		.driver_data = keymap_fs_amilo_pro_v3505
+	},
+	{
+		/* Fujitsu-Siemens Amilo Pro Edition V8210 */
+		.callback = dmi_matched,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pro Series V8210"),
+		},
+		.driver_data = keymap_fs_amilo_pro_v8210
 	},
 	{
 		/* Fujitsu-Siemens Amilo M7400 */
@@ -972,6 +990,7 @@ static const struct dmi_system_id __initconst dmi_ids[] = {
 	},
 	{ NULL, }
 };
+MODULE_DEVICE_TABLE(dmi, dmi_ids);
 
 /* Copy the good keymap, as the original ones are free'd */
 static int __init copy_keymap(void)
@@ -1328,7 +1347,6 @@ static const struct dev_pm_ops wistron_pm_ops = {
 static struct platform_driver wistron_driver = {
 	.driver		= {
 		.name	= "wistron-bios",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &wistron_pm_ops,
 #endif

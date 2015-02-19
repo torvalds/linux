@@ -26,15 +26,23 @@ struct iio_prtc_trigger_info {
 	struct rtc_device *rtc;
 	int frequency;
 	struct rtc_task task;
+	bool state;
 };
 
 static int iio_trig_periodic_rtc_set_state(struct iio_trigger *trig, bool state)
 {
 	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
-	if (trig_info->frequency == 0)
+	int ret;
+
+	if (trig_info->frequency == 0 && state)
 		return -EINVAL;
-	printk(KERN_INFO "trigger frequency is %d\n", trig_info->frequency);
-	return rtc_irq_set_state(trig_info->rtc, &trig_info->task, state);
+	dev_dbg(&trig_info->rtc->dev, "trigger frequency is %d\n",
+			trig_info->frequency);
+	ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, state);
+	if (ret == 0)
+		trig_info->state = state;
+
+	return ret;
 }
 
 static ssize_t iio_trig_periodic_read_freq(struct device *dev,
@@ -43,6 +51,7 @@ static ssize_t iio_trig_periodic_read_freq(struct device *dev,
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
 	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
+
 	return sprintf(buf, "%u\n", trig_info->frequency);
 }
 
@@ -53,14 +62,22 @@ static ssize_t iio_trig_periodic_write_freq(struct device *dev,
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
 	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
-	unsigned long val;
+	int val;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoint(buf, 10, &val);
 	if (ret)
 		goto error_ret;
 
-	ret = rtc_irq_set_freq(trig_info->rtc, &trig_info->task, val);
+	if (val > 0) {
+		ret = rtc_irq_set_freq(trig_info->rtc, &trig_info->task, val);
+		if (ret == 0 && trig_info->state && trig_info->frequency == 0)
+			ret = rtc_irq_set_state(trig_info->rtc,
+						&trig_info->task, 1);
+	} else if (val == 0) {
+		ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, 0);
+	} else
+		ret = -EINVAL;
 	if (ret)
 		goto error_ret;
 
@@ -92,8 +109,7 @@ static const struct attribute_group *iio_trig_prtc_attr_groups[] = {
 
 static void iio_prtc_trigger_poll(void *private_data)
 {
-	/* Timestamp is not provided currently */
-	iio_trigger_poll(private_data, 0);
+	iio_trigger_poll(private_data);
 }
 
 static const struct iio_trigger_ops iio_prtc_trigger_ops = {
@@ -127,8 +143,7 @@ static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 		iio_trigger_set_drvdata(trig, trig_info);
 		trig->ops = &iio_prtc_trigger_ops;
 		/* RTC access */
-		trig_info->rtc
-			= rtc_class_open(pdata[i]);
+		trig_info->rtc = rtc_class_open(pdata[i]);
 		if (trig_info->rtc == NULL) {
 			ret = -EINVAL;
 			goto error_free_trig_info;
@@ -171,6 +186,7 @@ static int iio_trig_periodic_rtc_remove(struct platform_device *dev)
 {
 	struct iio_trigger *trig, *trig2;
 	struct iio_prtc_trigger_info *trig_info;
+
 	mutex_lock(&iio_prtc_trigger_list_lock);
 	list_for_each_entry_safe(trig,
 				 trig2,
@@ -191,12 +207,11 @@ static struct platform_driver iio_trig_periodic_rtc_driver = {
 	.remove = iio_trig_periodic_rtc_remove,
 	.driver = {
 		.name = "iio_prtc_trigger",
-		.owner = THIS_MODULE,
 	},
 };
 
 module_platform_driver(iio_trig_periodic_rtc_driver);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
-MODULE_DESCRIPTION("Periodic realtime clock  trigger for the iio subsystem");
+MODULE_DESCRIPTION("Periodic realtime clock trigger for the iio subsystem");
 MODULE_LICENSE("GPL v2");

@@ -31,18 +31,8 @@ static void __raw_writel(unsigned int value, unsigned int ptr)
 	*((volatile unsigned int *)ptr) = value;
 }
 
-#if defined(CONFIG_EP93XX_EARLY_UART1)
-#define UART_BASE		EP93XX_UART1_PHYS_BASE
-#elif defined(CONFIG_EP93XX_EARLY_UART2)
-#define UART_BASE		EP93XX_UART2_PHYS_BASE
-#elif defined(CONFIG_EP93XX_EARLY_UART3)
-#define UART_BASE		EP93XX_UART3_PHYS_BASE
-#else
-#define UART_BASE		EP93XX_UART1_PHYS_BASE
-#endif
-
-#define PHYS_UART_DATA		(UART_BASE + 0x00)
-#define PHYS_UART_FLAG		(UART_BASE + 0x18)
+#define PHYS_UART_DATA		(CONFIG_DEBUG_UART_PHYS + 0x00)
+#define PHYS_UART_FLAG		(CONFIG_DEBUG_UART_PHYS + 0x18)
 #define UART_FLAG_TXFF		0x20
 
 static inline void putc(int c)

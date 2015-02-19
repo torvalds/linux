@@ -1,7 +1,7 @@
 /*
  * ccw based virtio transport
  *
- * Copyright IBM Corp. 2012
+ * Copyright IBM Corp. 2012, 2014
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -27,11 +27,14 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/kvm_para.h>
+#include <linux/notifier.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
 #include <asm/virtio-ccw.h>
+#include <asm/isc.h>
+#include <asm/airq.h>
 
 /*
  * virtio related functions
@@ -52,19 +55,33 @@ struct virtio_ccw_device {
 	struct ccw_device *cdev;
 	__u32 curr_io;
 	int err;
+	unsigned int revision; /* Transport revision */
 	wait_queue_head_t wait_q;
 	spinlock_t lock;
 	struct list_head virtqueues;
 	unsigned long indicators;
 	unsigned long indicators2;
 	struct vq_config_block *config_block;
+	bool is_thinint;
+	bool going_away;
+	bool device_lost;
+	void *airq_info;
 };
 
-struct vq_info_block {
+struct vq_info_block_legacy {
 	__u64 queue;
 	__u32 align;
 	__u16 index;
 	__u16 num;
+} __packed;
+
+struct vq_info_block {
+	__u64 desc;
+	__u32 res0;
+	__u16 index;
+	__u16 num;
+	__u64 avail;
+	__u64 used;
 } __packed;
 
 struct virtio_feature_desc {
@@ -72,14 +89,49 @@ struct virtio_feature_desc {
 	__u8 index;
 } __packed;
 
+struct virtio_thinint_area {
+	unsigned long summary_indicator;
+	unsigned long indicator;
+	u64 bit_nr;
+	u8 isc;
+} __packed;
+
+struct virtio_rev_info {
+	__u16 revision;
+	__u16 length;
+	__u8 data[];
+};
+
+/* the highest virtio-ccw revision we support */
+#define VIRTIO_CCW_REV_MAX 1
+
 struct virtio_ccw_vq_info {
 	struct virtqueue *vq;
 	int num;
 	void *queue;
-	struct vq_info_block *info_block;
+	union {
+		struct vq_info_block s;
+		struct vq_info_block_legacy l;
+	} *info_block;
+	int bit_nr;
 	struct list_head node;
 	long cookie;
 };
+
+#define VIRTIO_AIRQ_ISC IO_SCH_ISC /* inherit from subchannel */
+
+#define VIRTIO_IV_BITS (L1_CACHE_BYTES * 8)
+#define MAX_AIRQ_AREAS 20
+
+static int virtio_ccw_use_airq = 1;
+
+struct airq_info {
+	rwlock_t lock;
+	u8 summary_indicator;
+	struct airq_struct airq;
+	struct airq_iv *aiv;
+};
+static struct airq_info *airq_areas[MAX_AIRQ_AREAS];
 
 #define CCW_CMD_SET_VQ 0x13
 #define CCW_CMD_VDEV_RESET 0x33
@@ -91,6 +143,8 @@ struct virtio_ccw_vq_info {
 #define CCW_CMD_WRITE_CONF 0x21
 #define CCW_CMD_WRITE_STATUS 0x31
 #define CCW_CMD_READ_VQ_CONF 0x32
+#define CCW_CMD_SET_IND_ADAPTER 0x73
+#define CCW_CMD_SET_VIRTIO_REV 0x83
 
 #define VIRTIO_CCW_DOING_SET_VQ 0x00010000
 #define VIRTIO_CCW_DOING_RESET 0x00040000
@@ -102,11 +156,132 @@ struct virtio_ccw_vq_info {
 #define VIRTIO_CCW_DOING_SET_IND 0x01000000
 #define VIRTIO_CCW_DOING_READ_VQ_CONF 0x02000000
 #define VIRTIO_CCW_DOING_SET_CONF_IND 0x04000000
+#define VIRTIO_CCW_DOING_SET_IND_ADAPTER 0x08000000
+#define VIRTIO_CCW_DOING_SET_VIRTIO_REV 0x10000000
 #define VIRTIO_CCW_INTPARM_MASK 0xffff0000
 
 static struct virtio_ccw_device *to_vc_device(struct virtio_device *vdev)
 {
 	return container_of(vdev, struct virtio_ccw_device, vdev);
+}
+
+static void drop_airq_indicator(struct virtqueue *vq, struct airq_info *info)
+{
+	unsigned long i, flags;
+
+	write_lock_irqsave(&info->lock, flags);
+	for (i = 0; i < airq_iv_end(info->aiv); i++) {
+		if (vq == (void *)airq_iv_get_ptr(info->aiv, i)) {
+			airq_iv_free_bit(info->aiv, i);
+			airq_iv_set_ptr(info->aiv, i, 0);
+			break;
+		}
+	}
+	write_unlock_irqrestore(&info->lock, flags);
+}
+
+static void virtio_airq_handler(struct airq_struct *airq)
+{
+	struct airq_info *info = container_of(airq, struct airq_info, airq);
+	unsigned long ai;
+
+	inc_irq_stat(IRQIO_VAI);
+	read_lock(&info->lock);
+	/* Walk through indicators field, summary indicator active. */
+	for (ai = 0;;) {
+		ai = airq_iv_scan(info->aiv, ai, airq_iv_end(info->aiv));
+		if (ai == -1UL)
+			break;
+		vring_interrupt(0, (void *)airq_iv_get_ptr(info->aiv, ai));
+	}
+	info->summary_indicator = 0;
+	smp_wmb();
+	/* Walk through indicators field, summary indicator not active. */
+	for (ai = 0;;) {
+		ai = airq_iv_scan(info->aiv, ai, airq_iv_end(info->aiv));
+		if (ai == -1UL)
+			break;
+		vring_interrupt(0, (void *)airq_iv_get_ptr(info->aiv, ai));
+	}
+	read_unlock(&info->lock);
+}
+
+static struct airq_info *new_airq_info(void)
+{
+	struct airq_info *info;
+	int rc;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return NULL;
+	rwlock_init(&info->lock);
+	info->aiv = airq_iv_create(VIRTIO_IV_BITS, AIRQ_IV_ALLOC | AIRQ_IV_PTR);
+	if (!info->aiv) {
+		kfree(info);
+		return NULL;
+	}
+	info->airq.handler = virtio_airq_handler;
+	info->airq.lsi_ptr = &info->summary_indicator;
+	info->airq.lsi_mask = 0xff;
+	info->airq.isc = VIRTIO_AIRQ_ISC;
+	rc = register_adapter_interrupt(&info->airq);
+	if (rc) {
+		airq_iv_release(info->aiv);
+		kfree(info);
+		return NULL;
+	}
+	return info;
+}
+
+static void destroy_airq_info(struct airq_info *info)
+{
+	if (!info)
+		return;
+
+	unregister_adapter_interrupt(&info->airq);
+	airq_iv_release(info->aiv);
+	kfree(info);
+}
+
+static unsigned long get_airq_indicator(struct virtqueue *vqs[], int nvqs,
+					u64 *first, void **airq_info)
+{
+	int i, j;
+	struct airq_info *info;
+	unsigned long indicator_addr = 0;
+	unsigned long bit, flags;
+
+	for (i = 0; i < MAX_AIRQ_AREAS && !indicator_addr; i++) {
+		if (!airq_areas[i])
+			airq_areas[i] = new_airq_info();
+		info = airq_areas[i];
+		if (!info)
+			return 0;
+		write_lock_irqsave(&info->lock, flags);
+		bit = airq_iv_alloc(info->aiv, nvqs);
+		if (bit == -1UL) {
+			/* Not enough vacancies. */
+			write_unlock_irqrestore(&info->lock, flags);
+			continue;
+		}
+		*first = bit;
+		*airq_info = info;
+		indicator_addr = (unsigned long)info->aiv->vector;
+		for (j = 0; j < nvqs; j++) {
+			airq_iv_set_ptr(info->aiv, bit + j,
+					(unsigned long)vqs[j]);
+		}
+		write_unlock_irqrestore(&info->lock, flags);
+	}
+	return indicator_addr;
+}
+
+static void virtio_ccw_drop_indicators(struct virtio_ccw_device *vcdev)
+{
+	struct virtio_ccw_vq_info *info;
+
+	list_for_each_entry(info, &vcdev->virtqueues, node)
+		drop_airq_indicator(info->vq, vcdev->airq_info);
 }
 
 static int doing_io(struct virtio_ccw_device *vcdev, __u32 flag)
@@ -145,6 +320,51 @@ static int ccw_io_helper(struct virtio_ccw_device *vcdev,
 	return ret ? ret : vcdev->err;
 }
 
+static void virtio_ccw_drop_indicator(struct virtio_ccw_device *vcdev,
+				      struct ccw1 *ccw)
+{
+	int ret;
+	unsigned long *indicatorp = NULL;
+	struct virtio_thinint_area *thinint_area = NULL;
+	struct airq_info *airq_info = vcdev->airq_info;
+
+	if (vcdev->is_thinint) {
+		thinint_area = kzalloc(sizeof(*thinint_area),
+				       GFP_DMA | GFP_KERNEL);
+		if (!thinint_area)
+			return;
+		thinint_area->summary_indicator =
+			(unsigned long) &airq_info->summary_indicator;
+		thinint_area->isc = VIRTIO_AIRQ_ISC;
+		ccw->cmd_code = CCW_CMD_SET_IND_ADAPTER;
+		ccw->count = sizeof(*thinint_area);
+		ccw->cda = (__u32)(unsigned long) thinint_area;
+	} else {
+		indicatorp = kmalloc(sizeof(&vcdev->indicators),
+				     GFP_DMA | GFP_KERNEL);
+		if (!indicatorp)
+			return;
+		*indicatorp = 0;
+		ccw->cmd_code = CCW_CMD_SET_IND;
+		ccw->count = sizeof(vcdev->indicators);
+		ccw->cda = (__u32)(unsigned long) indicatorp;
+	}
+	/* Deregister indicators from host. */
+	vcdev->indicators = 0;
+	ccw->flags = 0;
+	ret = ccw_io_helper(vcdev, ccw,
+			    vcdev->is_thinint ?
+			    VIRTIO_CCW_DOING_SET_IND_ADAPTER :
+			    VIRTIO_CCW_DOING_SET_IND);
+	if (ret && (ret != -ENODEV))
+		dev_info(&vcdev->cdev->dev,
+			 "Failed to deregister indicators (%d)\n", ret);
+	else if (vcdev->is_thinint)
+		virtio_ccw_drop_indicators(vcdev);
+	kfree(indicatorp);
+	kfree(thinint_area);
+}
+
 static inline long do_kvm_notify(struct subchannel_id schid,
 				 unsigned long queue_index,
 				 long cookie)
@@ -162,7 +382,7 @@ static inline long do_kvm_notify(struct subchannel_id schid,
 	return __rc;
 }
 
-static void virtio_ccw_kvm_notify(struct virtqueue *vq)
+static bool virtio_ccw_kvm_notify(struct virtqueue *vq)
 {
 	struct virtio_ccw_vq_info *info = vq->priv;
 	struct virtio_ccw_device *vcdev;
@@ -171,6 +391,9 @@ static void virtio_ccw_kvm_notify(struct virtqueue *vq)
 	vcdev = to_vc_device(info->vq->vdev);
 	ccw_device_get_schid(vcdev->cdev, &schid);
 	info->cookie = do_kvm_notify(schid, vq->index, info->cookie);
+	if (info->cookie < 0)
+		return false;
+	return true;
 }
 
 static int virtio_ccw_read_vq_conf(struct virtio_ccw_device *vcdev,
@@ -200,13 +423,22 @@ static void virtio_ccw_del_vq(struct virtqueue *vq, struct ccw1 *ccw)
 	spin_unlock_irqrestore(&vcdev->lock, flags);
 
 	/* Release from host. */
-	info->info_block->queue = 0;
-	info->info_block->align = 0;
-	info->info_block->index = index;
-	info->info_block->num = 0;
+	if (vcdev->revision == 0) {
+		info->info_block->l.queue = 0;
+		info->info_block->l.align = 0;
+		info->info_block->l.index = index;
+		info->info_block->l.num = 0;
+		ccw->count = sizeof(info->info_block->l);
+	} else {
+		info->info_block->s.desc = 0;
+		info->info_block->s.index = index;
+		info->info_block->s.num = 0;
+		info->info_block->s.avail = 0;
+		info->info_block->s.used = 0;
+		ccw->count = sizeof(info->info_block->s);
+	}
 	ccw->cmd_code = CCW_CMD_SET_VQ;
 	ccw->flags = 0;
-	ccw->count = sizeof(*info->info_block);
 	ccw->cda = (__u32)(unsigned long)(info->info_block);
 	ret = ccw_io_helper(vcdev, ccw,
 			    VIRTIO_CCW_DOING_SET_VQ | index);
@@ -229,11 +461,13 @@ static void virtio_ccw_del_vqs(struct virtio_device *vdev)
 {
 	struct virtqueue *vq, *n;
 	struct ccw1 *ccw;
+	struct virtio_ccw_device *vcdev = to_vc_device(vdev);
 
 	ccw = kzalloc(sizeof(*ccw), GFP_DMA | GFP_KERNEL);
 	if (!ccw)
 		return;
 
+	virtio_ccw_drop_indicator(vcdev, ccw);
 
 	list_for_each_entry_safe(vq, n, &vdev->vqs, list)
 		virtio_ccw_del_vq(vq, ccw);
@@ -287,13 +521,22 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 	}
 
 	/* Register it with the host. */
-	info->info_block->queue = (__u64)info->queue;
-	info->info_block->align = KVM_VIRTIO_CCW_RING_ALIGN;
-	info->info_block->index = i;
-	info->info_block->num = info->num;
+	if (vcdev->revision == 0) {
+		info->info_block->l.queue = (__u64)info->queue;
+		info->info_block->l.align = KVM_VIRTIO_CCW_RING_ALIGN;
+		info->info_block->l.index = i;
+		info->info_block->l.num = info->num;
+		ccw->count = sizeof(info->info_block->l);
+	} else {
+		info->info_block->s.desc = (__u64)info->queue;
+		info->info_block->s.index = i;
+		info->info_block->s.num = info->num;
+		info->info_block->s.avail = (__u64)virtqueue_get_avail(vq);
+		info->info_block->s.used = (__u64)virtqueue_get_used(vq);
+		ccw->count = sizeof(info->info_block->s);
+	}
 	ccw->cmd_code = CCW_CMD_SET_VQ;
 	ccw->flags = 0;
-	ccw->count = sizeof(*info->info_block);
 	ccw->cda = (__u32)(unsigned long)(info->info_block);
 	err = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_SET_VQ | i);
 	if (err) {
@@ -321,6 +564,54 @@ out_err:
 	}
 	kfree(info);
 	return ERR_PTR(err);
+}
+
+static int virtio_ccw_register_adapter_ind(struct virtio_ccw_device *vcdev,
+					   struct virtqueue *vqs[], int nvqs,
+					   struct ccw1 *ccw)
+{
+	int ret;
+	struct virtio_thinint_area *thinint_area = NULL;
+	struct airq_info *info;
+
+	thinint_area = kzalloc(sizeof(*thinint_area), GFP_DMA | GFP_KERNEL);
+	if (!thinint_area) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	/* Try to get an indicator. */
+	thinint_area->indicator = get_airq_indicator(vqs, nvqs,
+						     &thinint_area->bit_nr,
+						     &vcdev->airq_info);
+	if (!thinint_area->indicator) {
+		ret = -ENOSPC;
+		goto out;
+	}
+	info = vcdev->airq_info;
+	thinint_area->summary_indicator =
+		(unsigned long) &info->summary_indicator;
+	thinint_area->isc = VIRTIO_AIRQ_ISC;
+	ccw->cmd_code = CCW_CMD_SET_IND_ADAPTER;
+	ccw->flags = CCW_FLAG_SLI;
+	ccw->count = sizeof(*thinint_area);
+	ccw->cda = (__u32)(unsigned long)thinint_area;
+	ret = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_SET_IND_ADAPTER);
+	if (ret) {
+		if (ret == -EOPNOTSUPP) {
+			/*
+			 * The host does not support adapter interrupts
+			 * for virtio-ccw, stop trying.
+			 */
+			virtio_ccw_use_airq = 0;
+			pr_info("Adapter interrupts unsupported on host\n");
+		} else
+			dev_warn(&vcdev->cdev->dev,
+				 "enabling adapter interrupts = %d\n", ret);
+		virtio_ccw_drop_indicators(vcdev);
+	}
+out:
+	kfree(thinint_area);
+	return ret;
 }
 
 static int virtio_ccw_find_vqs(struct virtio_device *vdev, unsigned nvqs,
@@ -352,15 +643,23 @@ static int virtio_ccw_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	if (!indicatorp)
 		goto out;
 	*indicatorp = (unsigned long) &vcdev->indicators;
-	/* Register queue indicators with host. */
-	vcdev->indicators = 0;
-	ccw->cmd_code = CCW_CMD_SET_IND;
-	ccw->flags = 0;
-	ccw->count = sizeof(vcdev->indicators);
-	ccw->cda = (__u32)(unsigned long) indicatorp;
-	ret = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_SET_IND);
-	if (ret)
-		goto out;
+	if (vcdev->is_thinint) {
+		ret = virtio_ccw_register_adapter_ind(vcdev, vqs, nvqs, ccw);
+		if (ret)
+			/* no error, just fall back to legacy interrupts */
+			vcdev->is_thinint = 0;
+	}
+	if (!vcdev->is_thinint) {
+		/* Register queue indicators with host. */
+		vcdev->indicators = 0;
+		ccw->cmd_code = CCW_CMD_SET_IND;
+		ccw->flags = 0;
+		ccw->count = sizeof(vcdev->indicators);
+		ccw->cda = (__u32)(unsigned long) indicatorp;
+		ret = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_SET_IND);
+		if (ret)
+			goto out;
+	}
 	/* Register indicators2 with host for config changes */
 	*indicatorp = (unsigned long) &vcdev->indicators2;
 	vcdev->indicators2 = 0;
@@ -403,11 +702,12 @@ static void virtio_ccw_reset(struct virtio_device *vdev)
 	kfree(ccw);
 }
 
-static u32 virtio_ccw_get_features(struct virtio_device *vdev)
+static u64 virtio_ccw_get_features(struct virtio_device *vdev)
 {
 	struct virtio_ccw_device *vcdev = to_vc_device(vdev);
 	struct virtio_feature_desc *features;
-	int ret, rc;
+	int ret;
+	u64 rc;
 	struct ccw1 *ccw;
 
 	ccw = kzalloc(sizeof(*ccw), GFP_DMA | GFP_KERNEL);
@@ -420,7 +720,6 @@ static u32 virtio_ccw_get_features(struct virtio_device *vdev)
 		goto out_free;
 	}
 	/* Read the feature bits from the host. */
-	/* TODO: Features > 32 bits */
 	features->index = 0;
 	ccw->cmd_code = CCW_CMD_READ_FEAT;
 	ccw->flags = 0;
@@ -434,46 +733,79 @@ static u32 virtio_ccw_get_features(struct virtio_device *vdev)
 
 	rc = le32_to_cpu(features->features);
 
+	if (vcdev->revision == 0)
+		goto out_free;
+
+	/* Read second half of the feature bits from the host. */
+	features->index = 1;
+	ccw->cmd_code = CCW_CMD_READ_FEAT;
+	ccw->flags = 0;
+	ccw->count = sizeof(*features);
+	ccw->cda = (__u32)(unsigned long)features;
+	ret = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_READ_FEAT);
+	if (ret == 0)
+		rc |= (u64)le32_to_cpu(features->features) << 32;
+
 out_free:
 	kfree(features);
 	kfree(ccw);
 	return rc;
 }
 
-static void virtio_ccw_finalize_features(struct virtio_device *vdev)
+static int virtio_ccw_finalize_features(struct virtio_device *vdev)
 {
 	struct virtio_ccw_device *vcdev = to_vc_device(vdev);
 	struct virtio_feature_desc *features;
-	int i;
 	struct ccw1 *ccw;
+	int ret;
+
+	if (vcdev->revision >= 1 &&
+	    !__virtio_test_bit(vdev, VIRTIO_F_VERSION_1)) {
+		dev_err(&vdev->dev, "virtio: device uses revision 1 "
+			"but does not have VIRTIO_F_VERSION_1\n");
+		return -EINVAL;
+	}
 
 	ccw = kzalloc(sizeof(*ccw), GFP_DMA | GFP_KERNEL);
 	if (!ccw)
-		return;
+		return -ENOMEM;
 
 	features = kzalloc(sizeof(*features), GFP_DMA | GFP_KERNEL);
-	if (!features)
+	if (!features) {
+		ret = -ENOMEM;
 		goto out_free;
-
+	}
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
-	for (i = 0; i < sizeof(*vdev->features) / sizeof(features->features);
-	     i++) {
-		int highbits = i % 2 ? 32 : 0;
-		features->index = i;
-		features->features = cpu_to_le32(vdev->features[i / 2]
-						 >> highbits);
-		/* Write the feature bits to the host. */
-		ccw->cmd_code = CCW_CMD_WRITE_FEAT;
-		ccw->flags = 0;
-		ccw->count = sizeof(*features);
-		ccw->cda = (__u32)(unsigned long)features;
-		ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_WRITE_FEAT);
-	}
+	features->index = 0;
+	features->features = cpu_to_le32((u32)vdev->features);
+	/* Write the first half of the feature bits to the host. */
+	ccw->cmd_code = CCW_CMD_WRITE_FEAT;
+	ccw->flags = 0;
+	ccw->count = sizeof(*features);
+	ccw->cda = (__u32)(unsigned long)features;
+	ret = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_WRITE_FEAT);
+	if (ret)
+		goto out_free;
+
+	if (vcdev->revision == 0)
+		goto out_free;
+
+	features->index = 1;
+	features->features = cpu_to_le32(vdev->features >> 32);
+	/* Write the second half of the feature bits to the host. */
+	ccw->cmd_code = CCW_CMD_WRITE_FEAT;
+	ccw->flags = 0;
+	ccw->count = sizeof(*features);
+	ccw->cda = (__u32)(unsigned long)features;
+	ret = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_WRITE_FEAT);
+
 out_free:
 	kfree(features);
 	kfree(ccw);
+
+	return ret;
 }
 
 static void virtio_ccw_get_config(struct virtio_device *vdev,
@@ -549,7 +881,9 @@ static u8 virtio_ccw_get_status(struct virtio_device *vdev)
 static void virtio_ccw_set_status(struct virtio_device *vdev, u8 status)
 {
 	struct virtio_ccw_device *vcdev = to_vc_device(vdev);
+	u8 old_status = *vcdev->status;
 	struct ccw1 *ccw;
+	int ret;
 
 	ccw = kzalloc(sizeof(*ccw), GFP_DMA | GFP_KERNEL);
 	if (!ccw)
@@ -561,7 +895,10 @@ static void virtio_ccw_set_status(struct virtio_device *vdev, u8 status)
 	ccw->flags = 0;
 	ccw->count = sizeof(status);
 	ccw->cda = (__u32)(unsigned long)vcdev->status;
-	ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_WRITE_STATUS);
+	ret = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_WRITE_STATUS);
+	/* Write failed? We assume status is unchanged. */
+	if (ret)
+		*vcdev->status = old_status;
 	kfree(ccw);
 }
 
@@ -631,16 +968,24 @@ static void virtio_ccw_int_handler(struct ccw_device *cdev,
 	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
 	int i;
 	struct virtqueue *vq;
-	struct virtio_driver *drv;
 
+	if (!vcdev)
+		return;
 	/* Check if it's a notification from the host. */
 	if ((intparm == 0) &&
 	    (scsw_stctl(&irb->scsw) ==
 	     (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND))) {
 		/* OK */
 	}
-	if (irb_is_error(irb))
-		vcdev->err = -EIO; /* XXX - use real error */
+	if (irb_is_error(irb)) {
+		/* Command reject? */
+		if ((scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK) &&
+		    (irb->ecw[0] & SNS0_CMD_REJECT))
+			vcdev->err = -EOPNOTSUPP;
+		else
+			/* Map everything else to -EIO. */
+			vcdev->err = -EIO;
+	}
 	if (vcdev->curr_io & activity) {
 		switch (activity) {
 		case VIRTIO_CCW_DOING_READ_FEAT:
@@ -653,6 +998,8 @@ static void virtio_ccw_int_handler(struct ccw_device *cdev,
 		case VIRTIO_CCW_DOING_SET_CONF_IND:
 		case VIRTIO_CCW_DOING_RESET:
 		case VIRTIO_CCW_DOING_READ_VQ_CONF:
+		case VIRTIO_CCW_DOING_SET_IND_ADAPTER:
+		case VIRTIO_CCW_DOING_SET_VIRTIO_REV:
 			vcdev->curr_io &= ~activity;
 			wake_up(&vcdev->wait_q);
 			break;
@@ -673,11 +1020,7 @@ static void virtio_ccw_int_handler(struct ccw_device *cdev,
 		vring_interrupt(0, vq);
 	}
 	if (test_bit(0, &vcdev->indicators2)) {
-		drv = container_of(vcdev->vdev.dev.driver,
-				   struct virtio_driver, driver);
-
-		if (drv && drv->config_changed)
-			drv->config_changed(&vcdev->vdev);
+		virtio_config_changed(&vcdev->vdev);
 		clear_bit(0, &vcdev->indicators2);
 	}
 }
@@ -724,31 +1067,105 @@ static int virtio_ccw_probe(struct ccw_device *cdev)
 	return 0;
 }
 
+static struct virtio_ccw_device *virtio_grab_drvdata(struct ccw_device *cdev)
+{
+	unsigned long flags;
+	struct virtio_ccw_device *vcdev;
+
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	vcdev = dev_get_drvdata(&cdev->dev);
+	if (!vcdev || vcdev->going_away) {
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+		return NULL;
+	}
+	vcdev->going_away = true;
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+	return vcdev;
+}
+
 static void virtio_ccw_remove(struct ccw_device *cdev)
 {
-	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
+	unsigned long flags;
+	struct virtio_ccw_device *vcdev = virtio_grab_drvdata(cdev);
 
-	if (cdev->online) {
+	if (vcdev && cdev->online) {
+		if (vcdev->device_lost)
+			virtio_break_device(&vcdev->vdev);
 		unregister_virtio_device(&vcdev->vdev);
+		spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 		dev_set_drvdata(&cdev->dev, NULL);
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	}
 	cdev->handler = NULL;
 }
 
 static int virtio_ccw_offline(struct ccw_device *cdev)
 {
-	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
+	unsigned long flags;
+	struct virtio_ccw_device *vcdev = virtio_grab_drvdata(cdev);
 
+	if (!vcdev)
+		return 0;
+	if (vcdev->device_lost)
+		virtio_break_device(&vcdev->vdev);
 	unregister_virtio_device(&vcdev->vdev);
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	dev_set_drvdata(&cdev->dev, NULL);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	return 0;
 }
 
+static int virtio_ccw_set_transport_rev(struct virtio_ccw_device *vcdev)
+{
+	struct virtio_rev_info *rev;
+	struct ccw1 *ccw;
+	int ret;
+
+	ccw = kzalloc(sizeof(*ccw), GFP_DMA | GFP_KERNEL);
+	if (!ccw)
+		return -ENOMEM;
+	rev = kzalloc(sizeof(*rev), GFP_DMA | GFP_KERNEL);
+	if (!rev) {
+		kfree(ccw);
+		return -ENOMEM;
+	}
+
+	/* Set transport revision */
+	ccw->cmd_code = CCW_CMD_SET_VIRTIO_REV;
+	ccw->flags = 0;
+	ccw->count = sizeof(*rev);
+	ccw->cda = (__u32)(unsigned long)rev;
+
+	vcdev->revision = VIRTIO_CCW_REV_MAX;
+	do {
+		rev->revision = vcdev->revision;
+		/* none of our supported revisions carry payload */
+		rev->length = 0;
+		ret = ccw_io_helper(vcdev, ccw,
+				    VIRTIO_CCW_DOING_SET_VIRTIO_REV);
+		if (ret == -EOPNOTSUPP) {
+			if (vcdev->revision == 0)
+				/*
+				 * The host device does not support setting
+				 * the revision: let's operate it in legacy
+				 * mode.
+				 */
+				ret = 0;
+			else
+				vcdev->revision--;
+		}
+	} while (ret == -EOPNOTSUPP);
+
+	kfree(ccw);
+	kfree(rev);
+	return ret;
+}
 
 static int virtio_ccw_online(struct ccw_device *cdev)
 {
 	int ret;
 	struct virtio_ccw_device *vcdev;
+	unsigned long flags;
 
 	vcdev = kzalloc(sizeof(*vcdev), GFP_KERNEL);
 	if (!vcdev) {
@@ -768,6 +1185,8 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 		goto out_free;
 	}
 
+	vcdev->is_thinint = virtio_ccw_use_airq; /* at least try */
+
 	vcdev->vdev.dev.parent = &cdev->dev;
 	vcdev->vdev.dev.release = virtio_ccw_release_dev;
 	vcdev->vdev.config = &virtio_ccw_config_ops;
@@ -776,9 +1195,20 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 	INIT_LIST_HEAD(&vcdev->virtqueues);
 	spin_lock_init(&vcdev->lock);
 
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	dev_set_drvdata(&cdev->dev, vcdev);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	vcdev->vdev.id.vendor = cdev->id.cu_type;
 	vcdev->vdev.id.device = cdev->id.cu_model;
+
+	if (virtio_device_is_legacy_only(vcdev->vdev.id)) {
+		vcdev->revision = 0;
+	} else {
+		ret = virtio_ccw_set_transport_rev(vcdev);
+		if (ret)
+			goto out_free;
+	}
+
 	ret = register_virtio_device(&vcdev->vdev);
 	if (ret) {
 		dev_warn(&cdev->dev, "Failed to register virtio device: %d\n",
@@ -787,7 +1217,9 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 	}
 	return 0;
 out_put:
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	dev_set_drvdata(&cdev->dev, NULL);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	put_device(&vcdev->vdev.dev);
 	return ret;
 out_free:
@@ -801,8 +1233,26 @@ out_free:
 
 static int virtio_ccw_cio_notify(struct ccw_device *cdev, int event)
 {
-	/* TODO: Check whether we need special handling here. */
-	return 0;
+	int rc;
+	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
+
+	/*
+	 * Make sure vcdev is set
+	 * i.e. set_offline/remove callback not already running
+	 */
+	if (!vcdev)
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case CIO_GONE:
+		vcdev->device_lost = true;
+		rc = NOTIFY_DONE;
+		break;
+	default:
+		rc = NOTIFY_DONE;
+		break;
+	}
+	return rc;
 }
 
 static struct ccw_device_id virtio_ids[] = {
@@ -925,6 +1375,10 @@ module_init(virtio_ccw_init);
 
 static void __exit virtio_ccw_exit(void)
 {
+	int i;
+
 	ccw_driver_unregister(&virtio_ccw_driver);
+	for (i = 0; i < MAX_AIRQ_AREAS; i++)
+		destroy_airq_info(airq_areas[i]);
 }
 module_exit(virtio_ccw_exit);

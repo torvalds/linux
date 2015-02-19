@@ -37,13 +37,13 @@
  * future).
  *
  */
-#include <obd_class.h>
-#include <obd_support.h>
-#include <obd.h>
-#include <cl_object.h>
-#include <lclient.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/obd.h"
+#include "../include/cl_object.h"
+#include "../include/lclient.h"
 
-#include <lustre_lite.h>
+#include "../include/lustre_lite.h"
 
 
 /* Initialize the default and maximum LOV EA and cookie sizes.  This allows
@@ -56,28 +56,32 @@ int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp)
 	__u32 valsize = sizeof(struct lov_desc);
 	int rc, easize, def_easize, cookiesize;
 	struct lov_desc desc;
-	__u16 stripes;
-	ENTRY;
+	__u16 stripes, def_stripes;
 
 	rc = obd_get_info(NULL, dt_exp, sizeof(KEY_LOVDESC), KEY_LOVDESC,
 			  &valsize, &desc, NULL);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
-	stripes = min(desc.ld_tgt_count, (__u32)LOV_MAX_STRIPE_COUNT);
+	stripes = min_t(__u32, desc.ld_tgt_count, LOV_MAX_STRIPE_COUNT);
 	lsm.lsm_stripe_count = stripes;
 	easize = obd_size_diskmd(dt_exp, &lsm);
 
-	lsm.lsm_stripe_count = desc.ld_default_stripe_count;
+	def_stripes = min_t(__u32, desc.ld_default_stripe_count,
+			    LOV_MAX_STRIPE_COUNT);
+	lsm.lsm_stripe_count = def_stripes;
 	def_easize = obd_size_diskmd(dt_exp, &lsm);
 
 	cookiesize = stripes * sizeof(struct llog_cookie);
 
-	CDEBUG(D_HA, "updating max_mdsize/max_cookiesize: %d/%d\n",
-	       easize, cookiesize);
+	/* default cookiesize is 0 because from 2.4 server doesn't send
+	 * llog cookies to client. */
+	CDEBUG(D_HA,
+	       "updating def/max_easize: %d/%d def/max_cookiesize: 0/%d\n",
+	       def_easize, easize, cookiesize);
 
-	rc = md_init_ea_size(md_exp, easize, def_easize, cookiesize);
-	RETURN(rc);
+	rc = md_init_ea_size(md_exp, easize, def_easize, cookiesize, 0);
+	return rc;
 }
 
 /**
@@ -95,12 +99,11 @@ int cl_ocd_update(struct obd_device *host,
 	__u64 flags;
 	int   result;
 
-	ENTRY;
 	if (!strcmp(watched->obd_type->typ_name, LUSTRE_OSC_NAME)) {
 		cli = &watched->u.cli;
 		lco = owner;
 		flags = cli->cl_import->imp_connect_data.ocd_connect_flags;
-		CDEBUG(D_SUPER, "Changing connect_flags: "LPX64" -> "LPX64"\n",
+		CDEBUG(D_SUPER, "Changing connect_flags: %#llx -> %#llx\n",
 		       lco->lco_flags, flags);
 		mutex_lock(&lco->lco_lock);
 		lco->lco_flags &= flags;
@@ -116,7 +119,7 @@ int cl_ocd_update(struct obd_device *host,
 		       watched->obd_name);
 		result = -EINVAL;
 	}
-	RETURN(result);
+	return result;
 }
 
 #define GROUPLOCK_SCOPE "grouplock"
@@ -142,7 +145,9 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 
 	rc = cl_io_init(env, io, CIT_MISC, io->ci_obj);
 	if (rc) {
-		LASSERT(rc < 0);
+		/* Does not make sense to take GL for released layout */
+		if (rc > 0)
+			rc = -ENOTSUPP;
 		cl_env_put(env, &refcheck);
 		return rc;
 	}

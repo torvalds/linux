@@ -20,6 +20,7 @@
 */
 
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -31,6 +32,9 @@
 #include "stb0899_drv.h"
 #include "stb0899_priv.h"
 #include "stb0899_reg.h"
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
 static unsigned int verbose = 0;//1;
 module_param(verbose, int, 0644);
@@ -499,13 +503,20 @@ err:
 int stb0899_write_regs(struct stb0899_state *state, unsigned int reg, u8 *data, u32 count)
 {
 	int ret;
-	u8 buf[2 + count];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg i2c_msg = {
 		.addr	= state->config->demod_address,
 		.flags	= 0,
 		.buf	= buf,
 		.len	= 2 + count
 	};
+
+	if (2 + count > sizeof(buf)) {
+		printk(KERN_WARNING
+		       "%s: i2c wr reg=%04x: len=%d is too big!\n",
+		       KBUILD_MODNAME, reg, count);
+		return -EINVAL;
+	}
 
 	buf[0] = reg >> 8;
 	buf[1] = reg & 0xff;
@@ -681,7 +692,7 @@ static int stb0899_wait_diseqc_fifo_empty(struct stb0899_state *state, int timeo
 		reg = stb0899_read_reg(state, STB0899_DISSTATUS);
 		if (!STB0899_GETFIELD(FIFOFULL, reg))
 			break;
-		if ((jiffies - start) > timeout) {
+		if (time_after(jiffies, start + timeout)) {
 			dprintk(state->verbose, FE_ERROR, 1, "timed out !!");
 			return -ETIMEDOUT;
 		}
@@ -695,7 +706,7 @@ static int stb0899_send_diseqc_msg(struct dvb_frontend *fe, struct dvb_diseqc_ma
 	struct stb0899_state *state = fe->demodulator_priv;
 	u8 reg, i;
 
-	if (cmd->msg_len > 8)
+	if (cmd->msg_len > sizeof(cmd->msg))
 		return -EINVAL;
 
 	/* enable FIFO precharge	*/
@@ -723,7 +734,7 @@ static int stb0899_wait_diseqc_rxidle(struct stb0899_state *state, int timeout)
 
 	while (!STB0899_GETFIELD(RXEND, reg)) {
 		reg = stb0899_read_reg(state, STB0899_DISRX_ST0);
-		if (jiffies - start > timeout) {
+		if (time_after(jiffies, start + timeout)) {
 			dprintk(state->verbose, FE_ERROR, 1, "timed out!!");
 			return -ETIMEDOUT;
 		}
@@ -772,7 +783,7 @@ static int stb0899_wait_diseqc_txidle(struct stb0899_state *state, int timeout)
 
 	while (!STB0899_GETFIELD(TXIDLE, reg)) {
 		reg = stb0899_read_reg(state, STB0899_DISSTATUS);
-		if (jiffies - start > timeout) {
+		if (time_after(jiffies, start + timeout)) {
 			dprintk(state->verbose, FE_ERROR, 1, "timed out!!");
 			return -ETIMEDOUT;
 		}

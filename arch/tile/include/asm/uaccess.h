@@ -114,21 +114,23 @@ struct exception_table_entry {
 extern int fixup_exception(struct pt_regs *regs);
 
 /*
+ * This is a type: either unsigned long, if the argument fits into
+ * that type, or otherwise unsigned long long.
+ */
+#define __inttype(x) \
+	__typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
+
+/*
  * Support macros for __get_user().
- *
- * Implementation note: The "case 8" logic of casting to the type of
- * the result of subtracting the value from itself is basically a way
- * of keeping all integer types the same, but casting any pointers to
- * ptrdiff_t, i.e. also an integer type.  This way there are no
- * questionable casts seen by the compiler on an ILP32 platform.
- *
  * Note that __get_user() and __put_user() assume proper alignment.
  */
 
 #ifdef __LP64__
 #define _ASM_PTR	".quad"
+#define _ASM_ALIGN	".align 8"
 #else
 #define _ASM_PTR	".long"
+#define _ASM_ALIGN	".align 4"
 #endif
 
 #define __get_user_asm(OP, x, ptr, ret)					\
@@ -137,6 +139,7 @@ extern int fixup_exception(struct pt_regs *regs);
 		     "0: { movei %1, 0; movei %0, %3 }\n"		\
 		     "j 9f\n"						\
 		     ".section __ex_table,\"a\"\n"			\
+		     _ASM_ALIGN "\n"					\
 		     _ASM_PTR " 1b, 0b\n"				\
 		     ".popsection\n"					\
 		     "9:"						\
@@ -168,13 +171,14 @@ extern int fixup_exception(struct pt_regs *regs);
 			     "0: { movei %1, 0; movei %2, 0 }\n"	\
 			     "{ movei %0, %4; j 9f }\n"			\
 			     ".section __ex_table,\"a\"\n"		\
+			     ".align 4\n"				\
 			     ".word 1b, 0b\n"				\
 			     ".word 2b, 0b\n"				\
 			     ".popsection\n"				\
 			     "9:"					\
 			     : "=r" (ret), "=r" (__a), "=&r" (__b)	\
 			     : "r" (ptr), "i" (-EFAULT));		\
-		(x) = (__typeof(x))(__typeof((x)-(x)))			\
+		(x) = (__force __typeof(x))(__inttype(x))		\
 			(((u64)__hi32(__a, __b) << 32) |		\
 			 __lo32(__a, __b));				\
 	})
@@ -206,14 +210,16 @@ extern int __get_user_bad(void)
 #define __get_user(x, ptr)						\
 	({								\
 		int __ret;						\
+		typeof(x) _x;						\
 		__chk_user_ptr(ptr);					\
 		switch (sizeof(*(ptr))) {				\
-		case 1: __get_user_1(x, ptr, __ret); break;		\
-		case 2: __get_user_2(x, ptr, __ret); break;		\
-		case 4: __get_user_4(x, ptr, __ret); break;		\
-		case 8: __get_user_8(x, ptr, __ret); break;		\
+		case 1: __get_user_1(_x, ptr, __ret); break;		\
+		case 2: __get_user_2(_x, ptr, __ret); break;		\
+		case 4: __get_user_4(_x, ptr, __ret); break;		\
+		case 8: __get_user_8(_x, ptr, __ret); break;		\
 		default: __ret = __get_user_bad(); break;		\
 		}							\
+		(x) = (typeof(*(ptr))) _x;				\
 		__ret;							\
 	})
 
@@ -224,6 +230,7 @@ extern int __get_user_bad(void)
 		     ".pushsection .fixup,\"ax\"\n"			\
 		     "0: { movei %0, %3; j 9f }\n"			\
 		     ".section __ex_table,\"a\"\n"			\
+		     _ASM_ALIGN "\n"					\
 		     _ASM_PTR " 1b, 0b\n"				\
 		     ".popsection\n"					\
 		     "9:"						\
@@ -241,13 +248,14 @@ extern int __get_user_bad(void)
 #define __put_user_4(x, ptr, ret) __put_user_asm(sw, x, ptr, ret)
 #define __put_user_8(x, ptr, ret)					\
 	({								\
-		u64 __x = (__typeof((x)-(x)))(x);			\
+		u64 __x = (__force __inttype(x))(x);			\
 		int __lo = (int) __x, __hi = (int) (__x >> 32);		\
 		asm volatile("1: { sw %1, %2; addi %0, %1, 4 }\n"	\
 			     "2: { sw %0, %3; movei %0, 0 }\n"		\
 			     ".pushsection .fixup,\"ax\"\n"		\
 			     "0: { movei %0, %4; j 9f }\n"		\
 			     ".section __ex_table,\"a\"\n"		\
+			     ".align 4\n"				\
 			     ".word 1b, 0b\n"				\
 			     ".word 2b, 0b\n"				\
 			     ".popsection\n"				\
@@ -283,12 +291,13 @@ extern int __put_user_bad(void)
 #define __put_user(x, ptr)						\
 ({									\
 	int __ret;							\
+	typeof(*(ptr)) _x = (x);					\
 	__chk_user_ptr(ptr);						\
 	switch (sizeof(*(ptr))) {					\
-	case 1: __put_user_1(x, ptr, __ret); break;			\
-	case 2: __put_user_2(x, ptr, __ret); break;			\
-	case 4: __put_user_4(x, ptr, __ret); break;			\
-	case 8: __put_user_8(x, ptr, __ret); break;			\
+	case 1: __put_user_1(_x, ptr, __ret); break;			\
+	case 2: __put_user_2(_x, ptr, __ret); break;			\
+	case 4: __put_user_4(_x, ptr, __ret); break;			\
+	case 8: __put_user_8(_x, ptr, __ret); break;			\
 	default: __ret = __put_user_bad(); break;			\
 	}								\
 	__ret;								\
@@ -563,37 +572,6 @@ static inline unsigned long __must_check flush_user(
 {
 	if (access_ok(VERIFY_WRITE, mem, len))
 		return __flush_user(mem, len);
-	return len;
-}
-
-/**
- * inv_user: - Invalidate a block of memory in user space from cache.
- * @mem:   Destination address, in user space.
- * @len:   Number of bytes to invalidate.
- *
- * Returns number of bytes that could not be invalidated.
- * On success, this will be zero.
- *
- * Note that on Tile64, the "inv" operation is in fact a
- * "flush and invalidate", so cache write-backs will occur prior
- * to the cache being marked invalid.
- */
-extern unsigned long inv_user_asm(void __user *mem, unsigned long len);
-static inline unsigned long __must_check __inv_user(
-	void __user *mem, unsigned long len)
-{
-	int retval;
-
-	might_fault();
-	retval = inv_user_asm(mem, len);
-	mb_incoherent();
-	return retval;
-}
-static inline unsigned long __must_check inv_user(
-	void __user *mem, unsigned long len)
-{
-	if (access_ok(VERIFY_WRITE, mem, len))
-		return __inv_user(mem, len);
 	return len;
 }
 

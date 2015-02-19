@@ -62,6 +62,10 @@
 
 #include "imx21-hcd.h"
 
+#ifdef CONFIG_DYNAMIC_DEBUG
+#define DEBUG
+#endif
+
 #ifdef DEBUG
 #define DEBUG_LOG_FRAME(imx21, etd, event) \
 	(etd)->event##_frame = readl((imx21)->regs + USBH_FRMNUB)
@@ -824,13 +828,13 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
 			i = DIV_ROUND_UP(wrap_frame(
 					cur_frame - urb->start_frame),
 					urb->interval);
-			if (urb->transfer_flags & URB_ISO_ASAP) {
+
+			/* Treat underruns as if URB_ISO_ASAP was set */
+			if ((urb->transfer_flags & URB_ISO_ASAP) ||
+					i >= urb->number_of_packets) {
 				urb->start_frame = wrap_frame(urb->start_frame
 						+ i * urb->interval);
 				i = 0;
-			} else if (i >= urb->number_of_packets) {
-				ret = -EXDEV;
-				goto alloc_dmem_failed;
 			}
 		}
 	}
@@ -1170,11 +1174,11 @@ static int imx21_hc_urb_enqueue(struct usb_hcd *hcd,
 
 	dev_vdbg(imx21->dev,
 		"enqueue urb=%p ep=%p len=%d "
-		"buffer=%p dma=%08X setupBuf=%p setupDma=%08X\n",
+		"buffer=%p dma=%pad setupBuf=%p setupDma=%pad\n",
 		urb, ep,
 		urb->transfer_buffer_length,
-		urb->transfer_buffer, urb->transfer_dma,
-		urb->setup_packet, urb->setup_dma);
+		urb->transfer_buffer, &urb->transfer_dma,
+		urb->setup_packet, &urb->setup_dma);
 
 	if (usb_pipeisoc(urb->pipe))
 		return imx21_hc_urb_enqueue_isoc(hcd, ep, urb, mem_flags);
@@ -1478,9 +1482,8 @@ static int get_hub_descriptor(struct usb_hcd *hcd,
 	desc->bDescLength = 9;
 	desc->bPwrOn2PwrGood = 0;
 	desc->wHubCharacteristics = (__force __u16) cpu_to_le16(
-		0x0002 |	/* No power switching */
-		0x0010 |	/* No over current protection */
-		0);
+		HUB_CHAR_NO_LPSM |	/* No power switching */
+		HUB_CHAR_NO_OCPM);	/* No over current protection */
 
 	desc->u.hs.DeviceRemovable[0] = 1 << 1;
 	desc->u.hs.DeviceRemovable[1] = ~0;
@@ -1860,7 +1863,7 @@ static int imx21_probe(struct platform_device *pdev)
 	imx21 = hcd_to_imx21(hcd);
 	imx21->hcd = hcd;
 	imx21->dev = &pdev->dev;
-	imx21->pdata = pdev->dev.platform_data;
+	imx21->pdata = dev_get_platdata(&pdev->dev);
 	if (!imx21->pdata)
 		imx21->pdata = &default_pdata;
 
@@ -1906,6 +1909,7 @@ static int imx21_probe(struct platform_device *pdev)
 		dev_err(imx21->dev, "usb_add_hcd() returned %d\n", ret);
 		goto failed_add_hcd;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 
@@ -1926,7 +1930,7 @@ failed_request_mem:
 
 static struct platform_driver imx21_hcd_driver = {
 	.driver = {
-		   .name = (char *)hcd_name,
+		   .name = hcd_name,
 		   },
 	.probe = imx21_probe,
 	.remove = imx21_remove,

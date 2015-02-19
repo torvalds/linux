@@ -423,7 +423,6 @@ static struct platform_driver neponset_device_driver = {
 	.remove		= neponset_remove,
 	.driver		= {
 		.name	= "neponset",
-		.owner	= THIS_MODULE,
 		.pm	= PM_OPS,
 	},
 };

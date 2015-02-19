@@ -3,6 +3,7 @@
 
 #include <asm/page.h>   /* for __va, __pa */
 #include <arch/io.h>
+#include <asm-generic/iomap.h>
 #include <linux/kernel.h>
 
 struct cris_io_operations
@@ -111,6 +112,9 @@ static inline void writel(unsigned int b, volatile void __iomem *addr)
 	else
 		*(volatile unsigned int __force *) addr = b;
 }
+#define writeb_relaxed(b, addr) writeb(b, addr)
+#define writew_relaxed(b, addr) writew(b, addr)
+#define writel_relaxed(b, addr) writel(b, addr)
 #define __raw_writeb writeb
 #define __raw_writew writew
 #define __raw_writel writel
@@ -168,7 +172,11 @@ static inline void outsl(unsigned int port, const void *addr,
 }
 
 #define inb_p(port)             inb(port)
+#define inw_p(port)             inw(port)
+#define inl_p(port)             inl(port)
 #define outb_p(val, port)       outb((val), (port))
+#define outw_p(val, port)       outw((val), (port))
+#define outl_p(val, port)       outl((val), (port))
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem

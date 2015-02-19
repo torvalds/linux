@@ -216,7 +216,7 @@ static int handle_create(const char *nodename, umode_t mode, kuid_t uid,
 		newattrs.ia_gid = gid;
 		newattrs.ia_valid = ATTR_MODE|ATTR_UID|ATTR_GID;
 		mutex_lock(&dentry->d_inode->i_mutex);
-		notify_change(dentry, &newattrs);
+		notify_change(dentry, &newattrs, NULL);
 		mutex_unlock(&dentry->d_inode->i_mutex);
 
 		/* mark as kernel-created inode */
@@ -299,7 +299,7 @@ static int handle_remove(const char *nodename, struct device *dev)
 {
 	struct path parent;
 	struct dentry *dentry;
-	int deleted = 1;
+	int deleted = 0;
 	int err;
 
 	dentry = kern_path_locked(nodename, &parent);
@@ -322,9 +322,9 @@ static int handle_remove(const char *nodename, struct device *dev)
 			newattrs.ia_valid =
 				ATTR_UID|ATTR_GID|ATTR_MODE;
 			mutex_lock(&dentry->d_inode->i_mutex);
-			notify_change(dentry, &newattrs);
+			notify_change(dentry, &newattrs, NULL);
 			mutex_unlock(&dentry->d_inode->i_mutex);
-			err = vfs_unlink(parent.dentry->d_inode, dentry);
+			err = vfs_unlink(parent.dentry->d_inode, dentry, NULL);
 			if (!err || err == -ENOENT)
 				deleted = 1;
 		}

@@ -14,6 +14,6 @@ all: $(NET_PROGS)
 run_tests: all
 	@/bin/sh ./run_netsocktests || echo "sockettests: [FAIL]"
 	@/bin/sh ./run_afpackettests || echo "afpackettests: [FAIL]"
-
+	./test_bpf.sh
 clean:
 	$(RM) $(NET_PROGS)

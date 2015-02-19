@@ -93,7 +93,6 @@
 struct max8973_chip {
 	struct device *dev;
 	struct regulator_desc desc;
-	struct regulator_dev *rdev;
 	struct regmap *regmap;
 	bool enable_external_control;
 	int dvs_gpio;
@@ -371,7 +370,7 @@ static int max8973_probe(struct i2c_client *client,
 	struct max8973_chip *max;
 	int ret;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 
 	if (!pdata && !client->dev.of_node) {
 		dev_err(&client->dev, "No Platform data");
@@ -379,10 +378,8 @@ static int max8973_probe(struct i2c_client *client,
 	}
 
 	max = devm_kzalloc(&client->dev, sizeof(*max), GFP_KERNEL);
-	if (!max) {
-		dev_err(&client->dev, "Memory allocation for max failed\n");
+	if (!max)
 		return -ENOMEM;
-	}
 
 	max->regmap = devm_regmap_init_i2c(client, &max8973_regmap_config);
 	if (IS_ERR(max->regmap)) {
@@ -461,28 +458,20 @@ static int max8973_probe(struct i2c_client *client,
 
 	config.dev = &client->dev;
 	config.init_data = pdata ? pdata->reg_init_data :
-		of_get_regulator_init_data(&client->dev, client->dev.of_node);
+		of_get_regulator_init_data(&client->dev, client->dev.of_node,
+					   &max->desc);
 	config.driver_data = max;
 	config.of_node = client->dev.of_node;
 	config.regmap = max->regmap;
 
 	/* Register the regulators */
-	rdev = regulator_register(&max->desc, &config);
+	rdev = devm_regulator_register(&client->dev, &max->desc, &config);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
 		dev_err(max->dev, "regulator register failed, err %d\n", ret);
 		return ret;
 	}
 
-	max->rdev = rdev;
-	return 0;
-}
-
-static int max8973_remove(struct i2c_client *client)
-{
-	struct max8973_chip *max = i2c_get_clientdata(client);
-
-	regulator_unregister(max->rdev);
 	return 0;
 }
 
@@ -499,7 +488,6 @@ static struct i2c_driver max8973_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8973_probe,
-	.remove = max8973_remove,
 	.id_table = max8973_id,
 };
 

@@ -380,7 +380,6 @@ static int sead3_i2c_platform_resume(struct platform_device *pdev)
 static struct platform_driver sead3_i2c_platform_driver = {
 	.driver = {
 		.name	= "sead3-i2c",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= sead3_i2c_platform_probe,
 	.remove		= sead3_i2c_platform_remove,

@@ -43,12 +43,9 @@
 #include "migrate.h"
 
 
-#if CHIP_HAS_COHERENT_LOCAL_CACHE()
-
 /*
  * The noallocl2 option suppresses all use of the L2 cache to cache
- * locally from a remote home.  There's no point in using it if we
- * don't have coherent local caching, though.
+ * locally from a remote home.
  */
 static int __write_once noallocl2;
 static int __init set_noallocl2(char *str)
@@ -57,12 +54,6 @@ static int __init set_noallocl2(char *str)
 	return 0;
 }
 early_param("noallocl2", set_noallocl2);
-
-#else
-
-#define noallocl2 0
-
-#endif
 
 
 /*
@@ -124,7 +115,6 @@ void flush_remote(unsigned long cache_pfn, unsigned long cache_control,
 	struct cpumask cache_cpumask_copy, tlb_cpumask_copy;
 	struct cpumask *cache_cpumask, *tlb_cpumask;
 	HV_PhysAddr cache_pa;
-	char cache_buf[NR_CPUS*5], tlb_buf[NR_CPUS*5];
 
 	mb();   /* provided just to simplify "magic hypervisor" mode */
 
@@ -158,21 +148,19 @@ void flush_remote(unsigned long cache_pfn, unsigned long cache_control,
 			     asids, asidcount);
 	if (rc == 0)
 		return;
-	cpumask_scnprintf(cache_buf, sizeof(cache_buf), &cache_cpumask_copy);
-	cpumask_scnprintf(tlb_buf, sizeof(tlb_buf), &tlb_cpumask_copy);
 
-	pr_err("hv_flush_remote(%#llx, %#lx, %p [%s],"
-	       " %#lx, %#lx, %#lx, %p [%s], %p, %d) = %d\n",
-	       cache_pa, cache_control, cache_cpumask, cache_buf,
-	       (unsigned long)tlb_va, tlb_length, tlb_pgsize,
-	       tlb_cpumask, tlb_buf,
-	       asids, asidcount, rc);
+	pr_err("hv_flush_remote(%#llx, %#lx, %p [%*pb], %#lx, %#lx, %#lx, %p [%*pb], %p, %d) = %d\n",
+	       cache_pa, cache_control, cache_cpumask,
+	       cpumask_pr_args(&cache_cpumask_copy),
+	       (unsigned long)tlb_va, tlb_length, tlb_pgsize, tlb_cpumask,
+	       cpumask_pr_args(&tlb_cpumask_copy), asids, asidcount, rc);
 	panic("Unsafe to continue.");
 }
 
 static void homecache_finv_page_va(void* va, int home)
 {
-	if (home == smp_processor_id()) {
+	int cpu = get_cpu();
+	if (home == cpu) {
 		finv_buffer_local(va, PAGE_SIZE);
 	} else if (home == PAGE_HOME_HASH) {
 		finv_buffer_remote(va, PAGE_SIZE, 1);
@@ -180,6 +168,7 @@ static void homecache_finv_page_va(void* va, int home)
 		BUG_ON(home < 0 || home >= NR_CPUS);
 		finv_buffer_remote(va, PAGE_SIZE, 0);
 	}
+	put_cpu();
 }
 
 void homecache_finv_map_page(struct page *page, int home)
@@ -198,7 +187,7 @@ void homecache_finv_map_page(struct page *page, int home)
 #else
 	va = __fix_to_virt(FIX_HOMECACHE_BEGIN + smp_processor_id());
 #endif
-	ptep = virt_to_pte(NULL, (unsigned long)va);
+	ptep = virt_to_kpte(va);
 	pte = pfn_pte(page_to_pfn(page), PAGE_KERNEL);
 	__set_pte(ptep, pte_set_home(pte, home));
 	homecache_finv_page_va((void *)va, home);
@@ -263,10 +252,8 @@ static int pte_to_home(pte_t pte)
 		return PAGE_HOME_INCOHERENT;
 	case HV_PTE_MODE_UNCACHED:
 		return PAGE_HOME_UNCACHED;
-#if CHIP_HAS_CBOX_HOME_MAP()
 	case HV_PTE_MODE_CACHE_HASH_L3:
 		return PAGE_HOME_HASH;
-#endif
 	}
 	panic("Bad PTE %#llx\n", pte.val);
 }
@@ -274,10 +261,6 @@ static int pte_to_home(pte_t pte)
 /* Update the home of a PTE if necessary (can also be used for a pgprot_t). */
 pte_t pte_set_home(pte_t pte, int home)
 {
-	/* Check for non-linear file mapping "PTEs" and pass them through. */
-	if (pte_file(pte))
-		return pte;
-
 #if CHIP_HAS_MMIO()
 	/* Check for MMIO mappings and pass them through. */
 	if (hv_pte_get_mode(pte) == HV_PTE_MODE_MMIO)
@@ -323,20 +306,16 @@ pte_t pte_set_home(pte_t pte, int home)
 						      HV_PTE_MODE_CACHE_NO_L3);
 			}
 		} else
-#if CHIP_HAS_CBOX_HOME_MAP()
 		if (hash_default)
 			pte = hv_pte_set_mode(pte, HV_PTE_MODE_CACHE_HASH_L3);
 		else
-#endif
 			pte = hv_pte_set_mode(pte, HV_PTE_MODE_CACHE_NO_L3);
 		pte = hv_pte_set_nc(pte);
 		break;
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 	case PAGE_HOME_HASH:
 		pte = hv_pte_set_mode(pte, HV_PTE_MODE_CACHE_HASH_L3);
 		break;
-#endif
 
 	default:
 		BUG_ON(home < 0 || home >= NR_CPUS ||
@@ -346,7 +325,6 @@ pte_t pte_set_home(pte_t pte, int home)
 		break;
 	}
 
-#if CHIP_HAS_NC_AND_NOALLOC_BITS()
 	if (noallocl2)
 		pte = hv_pte_set_no_alloc_l2(pte);
 
@@ -355,7 +333,6 @@ pte_t pte_set_home(pte_t pte, int home)
 	    hv_pte_get_mode(pte) == HV_PTE_MODE_CACHE_NO_L3) {
 		pte = hv_pte_set_mode(pte, HV_PTE_MODE_UNCACHED);
 	}
-#endif
 
 	/* Checking this case here gives a better panic than from the hv. */
 	BUG_ON(hv_pte_get_mode(pte) == 0);
@@ -371,19 +348,13 @@ EXPORT_SYMBOL(pte_set_home);
  * so they're not suitable for anything but infrequent use.
  */
 
-#if CHIP_HAS_CBOX_HOME_MAP()
-static inline int initial_page_home(void) { return PAGE_HOME_HASH; }
-#else
-static inline int initial_page_home(void) { return 0; }
-#endif
-
 int page_home(struct page *page)
 {
 	if (PageHighMem(page)) {
-		return initial_page_home();
+		return PAGE_HOME_HASH;
 	} else {
 		unsigned long kva = (unsigned long)page_address(page);
-		return pte_to_home(*virt_to_pte(NULL, kva));
+		return pte_to_home(*virt_to_kpte(kva));
 	}
 }
 EXPORT_SYMBOL(page_home);
@@ -402,7 +373,7 @@ void homecache_change_page_home(struct page *page, int order, int home)
 		     NULL, 0);
 
 	for (i = 0; i < pages; ++i, kva += PAGE_SIZE) {
-		pte_t *ptep = virt_to_pte(NULL, kva);
+		pte_t *ptep = virt_to_kpte(kva);
 		pte_t pteval = *ptep;
 		BUG_ON(!pte_present(pteval) || pte_huge(pteval));
 		__set_pte(ptep, pte_set_home(pteval, home));
@@ -436,9 +407,9 @@ struct page *homecache_alloc_pages_node(int nid, gfp_t gfp_mask,
 void __homecache_free_pages(struct page *page, unsigned int order)
 {
 	if (put_page_testzero(page)) {
-		homecache_change_page_home(page, order, initial_page_home());
+		homecache_change_page_home(page, order, PAGE_HOME_HASH);
 		if (order == 0) {
-			free_hot_cold_page(page, 0);
+			free_hot_cold_page(page, false);
 		} else {
 			init_page_count(page);
 			__free_pages(page, order);

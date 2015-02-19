@@ -8,6 +8,7 @@
  * Written by Tony Lindgren <tony.lindgren@nokia.com>
  *
  * Added OMAP4/5 specific defines - Santosh Shilimkar<santosh.shilimkar@ti.com>
+ * Added DRA7xxx specific defines - Sricharan R<r.sricharan@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +36,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/bitops.h>
+#include <linux/of.h>
 
 /*
  * Test if multicore OMAP support is needed
@@ -102,6 +104,15 @@
 #  define MULTI_OMAP2
 # else
 #  define OMAP_NAME am43xx
+# endif
+#endif
+
+#ifdef CONFIG_SOC_DRA7XX
+# ifdef OMAP_NAME
+#  undef MULTI_OMAP2
+#  define MULTI_OMAP2
+# else
+#  define OMAP_NAME DRA7XX
 # endif
 #endif
 
@@ -233,6 +244,9 @@ IS_AM_SUBCLASS(437x, 0x437)
 #define cpu_is_omap447x()		0
 #define soc_is_omap54xx()		0
 #define soc_is_omap543x()		0
+#define soc_is_dra7xx()			0
+#define soc_is_dra74x()			0
+#define soc_is_dra72x()			0
 
 #if defined(MULTI_OMAP2)
 # if defined(CONFIG_ARCH_OMAP2)
@@ -379,6 +393,15 @@ IS_OMAP_TYPE(3430, 0x3430)
 # define soc_is_omap543x()		is_omap543x()
 #endif
 
+#if defined(CONFIG_SOC_DRA7XX)
+#undef soc_is_dra7xx
+#undef soc_is_dra74x
+#undef soc_is_dra72x
+#define soc_is_dra7xx()	(of_machine_is_compatible("ti,dra7"))
+#define soc_is_dra74x()	(of_machine_is_compatible("ti,dra74"))
+#define soc_is_dra72x()	(of_machine_is_compatible("ti,dra72"))
+#endif
+
 /* Various silicon revisions for omap2 */
 #define OMAP242X_CLASS		0x24200024
 #define OMAP2420_REV_ES1_0	OMAP242X_CLASS
@@ -400,13 +423,13 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define OMAP3630_REV_ES1_1	(OMAP363X_CLASS | (0x1 << 8))
 #define OMAP3630_REV_ES1_2	(OMAP363X_CLASS | (0x2 << 8))
 
-#define TI816X_CLASS		0x81600034
+#define TI816X_CLASS		0x81600081
 #define TI8168_REV_ES1_0	TI816X_CLASS
 #define TI8168_REV_ES1_1	(TI816X_CLASS | (0x1 << 8))
 #define TI8168_REV_ES2_0	(TI816X_CLASS | (0x2 << 8))
 #define TI8168_REV_ES2_1	(TI816X_CLASS | (0x3 << 8))
 
-#define TI814X_CLASS		0x81400034
+#define TI814X_CLASS		0x81400081
 #define TI8148_REV_ES1_0	TI814X_CLASS
 #define TI8148_REV_ES2_0	(TI814X_CLASS | (0x1 << 8))
 #define TI8148_REV_ES2_1	(TI814X_CLASS | (0x2 << 8))
@@ -421,7 +444,9 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define AM335X_REV_ES2_1	(AM335X_CLASS | (0x2 << 8))
 
 #define AM437X_CLASS		0x43700000
-#define AM437X_REV_ES1_0	AM437X_CLASS
+#define AM437X_REV_ES1_0	(AM437X_CLASS | (0x10 << 8))
+#define AM437X_REV_ES1_1	(AM437X_CLASS | (0x11 << 8))
+#define AM437X_REV_ES1_2	(AM437X_CLASS | (0x12 << 8))
 
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	(OMAP443X_CLASS | (0x10 << 8))
@@ -438,15 +463,19 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define OMAP4470_REV_ES1_0	(OMAP447X_CLASS | (0x10 << 8))
 
 #define OMAP54XX_CLASS		0x54000054
-#define OMAP5430_REV_ES1_0	(OMAP54XX_CLASS | (0x30 << 16) | (0x10 << 8))
 #define OMAP5430_REV_ES2_0	(OMAP54XX_CLASS | (0x30 << 16) | (0x20 << 8))
-#define OMAP5432_REV_ES1_0	(OMAP54XX_CLASS | (0x32 << 16) | (0x10 << 8))
 #define OMAP5432_REV_ES2_0	(OMAP54XX_CLASS | (0x32 << 16) | (0x20 << 8))
+
+#define DRA7XX_CLASS		0x07000000
+#define DRA752_REV_ES1_0	(DRA7XX_CLASS | (0x52 << 16) | (0x10 << 8))
+#define DRA752_REV_ES1_1	(DRA7XX_CLASS | (0x52 << 16) | (0x11 << 8))
+#define DRA722_REV_ES1_0	(DRA7XX_CLASS | (0x22 << 16) | (0x10 << 8))
 
 void omap2xxx_check_revision(void);
 void omap3xxx_check_revision(void);
 void omap4xxx_check_revision(void);
 void omap5xxx_check_revision(void);
+void dra7xxx_check_revision(void);
 void omap3xxx_check_features(void);
 void ti81xx_check_features(void);
 void am33xx_check_features(void);

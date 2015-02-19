@@ -19,7 +19,9 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/syscore_ops.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/io.h>
@@ -39,6 +41,7 @@
 #define MPIC_TIMER_TCR_ROVR_OFFSET	24
 
 #define TIMER_STOP			0x80000000
+#define GTCCR_TOG			0x80000000
 #define TIMERS_PER_GROUP		4
 #define MAX_TICKS			(~0U >> 1)
 #define MAX_TICKS_CASCADE		(~0U)
@@ -94,8 +97,11 @@ static void convert_ticks_to_time(struct timer_group_priv *priv,
 	time->tv_sec = (__kernel_time_t)div_u64(ticks, priv->timerfreq);
 	tmp_sec = (u64)time->tv_sec * (u64)priv->timerfreq;
 
-	time->tv_usec = (__kernel_suseconds_t)
-		div_u64((ticks - tmp_sec) * 1000000, priv->timerfreq);
+	time->tv_usec = 0;
+
+	if (tmp_sec <= ticks)
+		time->tv_usec = (__kernel_suseconds_t)
+			div_u64((ticks - tmp_sec) * 1000000, priv->timerfreq);
 
 	return;
 }
@@ -325,11 +331,13 @@ void mpic_get_remain_time(struct mpic_timer *handle, struct timeval *time)
 	casc_priv = priv->timer[handle->num].cascade_handle;
 	if (casc_priv) {
 		tmp_ticks = in_be32(&priv->regs[handle->num].gtccr);
+		tmp_ticks &= ~GTCCR_TOG;
 		ticks = ((u64)tmp_ticks & UINT_MAX) * (u64)MAX_TICKS_CASCADE;
 		tmp_ticks = in_be32(&priv->regs[handle->num - 1].gtccr);
 		ticks += tmp_ticks;
 	} else {
 		ticks = in_be32(&priv->regs[handle->num].gtccr);
+		ticks &= ~GTCCR_TOG;
 	}
 
 	convert_ticks_to_time(priv, ticks, time);

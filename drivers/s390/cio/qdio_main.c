@@ -338,10 +338,10 @@ again:
 		retries++;
 
 		if (!start_time) {
-			start_time = get_tod_clock();
+			start_time = get_tod_clock_fast();
 			goto again;
 		}
-		if ((get_tod_clock() - start_time) < QDIO_BUSY_BIT_PATIENCE)
+		if (get_tod_clock_fast() - start_time < QDIO_BUSY_BIT_PATIENCE)
 			goto again;
 	}
 	if (retries) {
@@ -409,17 +409,16 @@ static inline void qdio_stop_polling(struct qdio_q *q)
 		set_buf_state(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT);
 }
 
-static inline void account_sbals(struct qdio_q *q, int count)
+static inline void account_sbals(struct qdio_q *q, unsigned int count)
 {
-	int pos = 0;
+	int pos;
 
 	q->q_stats.nr_sbal_total += count;
 	if (count == QDIO_MAX_BUFFERS_MASK) {
 		q->q_stats.nr_sbals[7]++;
 		return;
 	}
-	while (count >>= 1)
-		pos++;
+	pos = ilog2(count);
 	q->q_stats.nr_sbals[pos]++;
 }
 
@@ -504,7 +503,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	int count, stop;
 	unsigned char state = 0;
 
-	q->timestamp = get_tod_clock();
+	q->timestamp = get_tod_clock_fast();
 
 	/*
 	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
@@ -528,7 +527,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	case SLSB_P_INPUT_PRIMED:
 		inbound_primed(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
-		if (atomic_sub(count, &q->nr_buf_used) == 0)
+		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals(q, count);
@@ -595,7 +594,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 	 * At this point we know, that inbound first_to_check
 	 * has (probably) not moved (see qdio_inbound_processing).
 	 */
-	if (get_tod_clock() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
+	if (get_tod_clock_fast() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x",
 			      q->first_to_check);
 		return 1;
@@ -728,7 +727,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	int count, stop;
 	unsigned char state = 0;
 
-	q->timestamp = get_tod_clock();
+	q->timestamp = get_tod_clock_fast();
 
 	if (need_siga_sync(q))
 		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&
@@ -996,7 +995,7 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 		}
 	}
 
-	if (!pci_out_supported(q))
+	if (!(irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED))
 		return;
 
 	for_each_output_queue(irq_ptr, q, i) {
@@ -1234,12 +1233,10 @@ int qdio_free(struct ccw_device *cdev)
 		return -ENODEV;
 
 	DBF_EVENT("qfree:%4x", cdev->private->schid.sch_no);
+	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf abandoned");
 	mutex_lock(&irq_ptr->setup_mutex);
 
-	if (irq_ptr->debug_area != NULL) {
-		debug_unregister(irq_ptr->debug_area);
-		irq_ptr->debug_area = NULL;
-	}
+	irq_ptr->debug_area = NULL;
 	cdev->private->qdio_data = NULL;
 	mutex_unlock(&irq_ptr->setup_mutex);
 
@@ -1276,7 +1273,8 @@ int qdio_allocate(struct qdio_initialize *init_data)
 		goto out_err;
 
 	mutex_init(&irq_ptr->setup_mutex);
-	qdio_allocate_dbf(init_data, irq_ptr);
+	if (qdio_allocate_dbf(init_data, irq_ptr))
+		goto out_rel;
 
 	/*
 	 * Allocate a page for the chsc calls in qdio_establish.
@@ -1751,6 +1749,97 @@ int qdio_stop_irq(struct ccw_device *cdev, int nr)
 		return 1;
 }
 EXPORT_SYMBOL(qdio_stop_irq);
+
+/**
+ * qdio_pnso_brinfo() - perform network subchannel op #0 - bridge info.
+ * @schid:		Subchannel ID.
+ * @cnc:		Boolean Change-Notification Control
+ * @response:		Response code will be stored at this address
+ * @cb: 		Callback function will be executed for each element
+ *			of the address list
+ * @priv:		Pointer passed from the caller to qdio_pnso_brinfo()
+ * @type:		Type of the address entry passed to the callback
+ * @entry:		Entry containg the address of the specified type
+ * @priv:		Pointer to pass to the callback function.
+ *
+ * Performs "Store-network-bridging-information list" operation and calls
+ * the callback function for every entry in the list. If "change-
+ * notification-control" is set, further changes in the address list
+ * will be reported via the IPA command.
+ */
+int qdio_pnso_brinfo(struct subchannel_id schid,
+		int cnc, u16 *response,
+		void (*cb)(void *priv, enum qdio_brinfo_entry_type type,
+				void *entry),
+		void *priv)
+{
+	struct chsc_pnso_area *rr;
+	int rc;
+	u32 prev_instance = 0;
+	int isfirstblock = 1;
+	int i, size, elems;
+
+	rr = (struct chsc_pnso_area *)get_zeroed_page(GFP_KERNEL);
+	if (rr == NULL)
+		return -ENOMEM;
+	do {
+		/* on the first iteration, naihdr.resume_token will be zero */
+		rc = chsc_pnso_brinfo(schid, rr, rr->naihdr.resume_token, cnc);
+		if (rc != 0 && rc != -EBUSY)
+			goto out;
+		if (rr->response.code != 1) {
+			rc = -EIO;
+			continue;
+		} else
+			rc = 0;
+
+		if (cb == NULL)
+			continue;
+
+		size = rr->naihdr.naids;
+		elems = (rr->response.length -
+				sizeof(struct chsc_header) -
+				sizeof(struct chsc_brinfo_naihdr)) /
+				size;
+
+		if (!isfirstblock && (rr->naihdr.instance != prev_instance)) {
+			/* Inform the caller that they need to scrap */
+			/* the data that was already reported via cb */
+				rc = -EAGAIN;
+				break;
+		}
+		isfirstblock = 0;
+		prev_instance = rr->naihdr.instance;
+		for (i = 0; i < elems; i++)
+			switch (size) {
+			case sizeof(struct qdio_brinfo_entry_l3_ipv6):
+				(*cb)(priv, l3_ipv6_addr,
+						&rr->entries.l3_ipv6[i]);
+				break;
+			case sizeof(struct qdio_brinfo_entry_l3_ipv4):
+				(*cb)(priv, l3_ipv4_addr,
+						&rr->entries.l3_ipv4[i]);
+				break;
+			case sizeof(struct qdio_brinfo_entry_l2):
+				(*cb)(priv, l2_addr_lnid,
+						&rr->entries.l2[i]);
+				break;
+			default:
+				WARN_ON_ONCE(1);
+				rc = -EIO;
+				goto out;
+			}
+	} while (rr->response.code == 0x0107 ||  /* channel busy */
+		  (rr->response.code == 1 && /* list stored */
+		   /* resume token is non-zero => list incomplete */
+		   (rr->naihdr.resume_token.t1 || rr->naihdr.resume_token.t2)));
+	(*response) = rr->response.code;
+
+out:
+	free_page((unsigned long)rr);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(qdio_pnso_brinfo);
 
 static int __init init_QDIO(void)
 {

@@ -27,6 +27,7 @@
 #include <asm/system_misc.h>
 #include <asm/proc-fns.h>
 #include <asm/mach-types.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include "common.h"
 #include "hardware.h"
@@ -41,7 +42,10 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 {
 	unsigned int wcr_enable;
 
-	if (wdog_clk)
+	if (!wdog_base)
+		goto reset_fallback;
+
+	if (!IS_ERR(wdog_clk))
 		clk_enable(wdog_clk);
 
 	if (cpu_is_mx1())
@@ -50,6 +54,15 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 		wcr_enable = (1 << 2);
 
 	/* Assert SRS signal */
+	__raw_writew(wcr_enable, wdog_base);
+	/*
+	 * Due to imx6q errata ERR004346 (WDOG: WDOG SRS bit requires to be
+	 * written twice), we add another two writes to ensure there must be at
+	 * least two writes happen in the same one 32kHz clock period.  We save
+	 * the target check here, since the writes shouldn't be a huge burden
+	 * for other platforms.
+	 */
+	__raw_writew(wcr_enable, wdog_base);
 	__raw_writew(wcr_enable, wdog_base);
 
 	/* wait for reset to assert... */
@@ -60,6 +73,7 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 	/* delay to allow the serial port to show the message */
 	mdelay(50);
 
+reset_fallback:
 	/* we'll take a jump through zero as a poor second */
 	soft_restart(0);
 }
@@ -69,29 +83,49 @@ void __init mxc_arch_reset_init(void __iomem *base)
 	wdog_base = base;
 
 	wdog_clk = clk_get_sys("imx2-wdt.0", NULL);
-	if (IS_ERR(wdog_clk)) {
+	if (IS_ERR(wdog_clk))
 		pr_warn("%s: failed to get wdog clock\n", __func__);
-		wdog_clk = NULL;
-		return;
-	}
-
-	clk_prepare(wdog_clk);
+	else
+		clk_prepare(wdog_clk);
 }
 
-void __init mxc_arch_reset_init_dt(void)
+#ifdef CONFIG_CACHE_L2X0
+void __init imx_init_l2cache(void)
 {
+	void __iomem *l2x0_base;
 	struct device_node *np;
+	unsigned int val;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx21-wdt");
-	wdog_base = of_iomap(np, 0);
-	WARN_ON(!wdog_base);
+	np = of_find_compatible_node(NULL, NULL, "arm,pl310-cache");
+	if (!np)
+		goto out;
 
-	wdog_clk = of_clk_get(np, 0);
-	if (IS_ERR(wdog_clk)) {
-		pr_warn("%s: failed to get wdog clock\n", __func__);
-		wdog_clk = NULL;
-		return;
+	l2x0_base = of_iomap(np, 0);
+	if (!l2x0_base) {
+		of_node_put(np);
+		goto out;
 	}
 
-	clk_prepare(wdog_clk);
+	/* Configure the L2 PREFETCH and POWER registers */
+	val = readl_relaxed(l2x0_base + L310_PREFETCH_CTRL);
+	val |= 0x70800000;
+	/*
+	 * The L2 cache controller(PL310) version on the i.MX6D/Q is r3p1-50rel0
+	 * The L2 cache controller(PL310) version on the i.MX6DL/SOLO/SL is r3p2
+	 * But according to ARM PL310 errata: 752271
+	 * ID: 752271: Double linefill feature can cause data corruption
+	 * Fault Status: Present in: r3p0, r3p1, r3p1-50rel0. Fixed in r3p2
+	 * Workaround: The only workaround to this erratum is to disable the
+	 * double linefill feature. This is the default behavior.
+	 */
+	if (cpu_is_imx6q())
+		val &= ~(1 << 30 | 1 << 23);
+	writel_relaxed(val, l2x0_base + L310_PREFETCH_CTRL);
+
+	iounmap(l2x0_base);
+	of_node_put(np);
+
+out:
+	l2x0_of_init(0, ~0);
 }
+#endif

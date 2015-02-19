@@ -1131,7 +1131,7 @@ static int tz1090_pinctrl_dt_subnode_to_map(struct device *dev,
 		function = NULL;
 	}
 
-	ret = pinconf_generic_parse_dt_config(np, &configs, &num_configs);
+	ret = pinconf_generic_parse_dt_config(np, NULL, &configs, &num_configs);
 	if (ret)
 		return ret;
 
@@ -1415,8 +1415,8 @@ found_mux:
  * the effect is the same as enabling the function on each individual pin in the
  * group.
  */
-static int tz1090_pinctrl_enable(struct pinctrl_dev *pctldev,
-				 unsigned int function, unsigned int group)
+static int tz1090_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+				  unsigned int function, unsigned int group)
 {
 	struct tz1090_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct tz1090_pingroup *grp;
@@ -1479,63 +1479,6 @@ mux_pins:
 }
 
 /**
- * tz1090_pinctrl_disable() - Disable a function on a pin group.
- * @pctldev:		Pin control data
- * @function:		Function index to disable
- * @group:		Group index to disable
- *
- * Disable a particular function on a group of pins. The per GPIO pin pseudo pin
- * groups can be used (in which case the pin will be taken out of peripheral
- * mode. Some convenience pin groups can also be used in which case the effect
- * is the same as enabling the function on each individual pin in the group.
- */
-static void tz1090_pinctrl_disable(struct pinctrl_dev *pctldev,
-				   unsigned int function, unsigned int group)
-{
-	struct tz1090_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct tz1090_pingroup *grp;
-	unsigned int pin_num, mux_group, i, npins;
-	const unsigned int *pins;
-
-	/* group of pins? */
-	if (group < ARRAY_SIZE(tz1090_groups)) {
-		grp = &tz1090_groups[group];
-		npins = grp->npins;
-		pins = grp->pins;
-		/*
-		 * All pins in the group must belong to the same mux group,
-		 * which allows us to just use the mux group of the first pin.
-		 * By explicitly listing permitted pingroups for each function
-		 * the pinmux core should ensure this is always the case.
-		 */
-	} else {
-		pin_num = group - ARRAY_SIZE(tz1090_groups);
-		npins = 1;
-		pins = &pin_num;
-	}
-	mux_group = tz1090_mux_pins[*pins];
-
-	/* no mux group, but can still be individually muxed to peripheral */
-	if (mux_group >= TZ1090_MUX_GROUP_MAX) {
-		if (function == TZ1090_MUX_PERIP)
-			goto unmux_pins;
-		return;
-	}
-
-	/* mux group already set to a different function? */
-	grp = &tz1090_mux_groups[mux_group];
-	dev_dbg(pctldev->dev, "%s: unmuxing %u pin(s) in '%s' from '%s'\n",
-		__func__, npins, grp->name, tz1090_functions[function].name);
-
-	/* subtract pins from ref count and unmux individually */
-	WARN_ON(grp->func_count < npins);
-	grp->func_count -= npins;
-unmux_pins:
-	for (i = 0; i < npins; ++i)
-		tz1090_pinctrl_perip_select(pmx, pins[i], false);
-}
-
-/**
  * tz1090_pinctrl_gpio_request_enable() - Put pin in GPIO mode.
  * @pctldev:		Pin control data
  * @range:		GPIO range
@@ -1574,8 +1517,7 @@ static struct pinmux_ops tz1090_pinmux_ops = {
 	.get_functions_count	= tz1090_pinctrl_get_funcs_count,
 	.get_function_name	= tz1090_pinctrl_get_func_name,
 	.get_function_groups	= tz1090_pinctrl_get_func_groups,
-	.enable			= tz1090_pinctrl_enable,
-	.disable		= tz1090_pinctrl_disable,
+	.set_mux		= tz1090_pinctrl_set_mux,
 	.gpio_request_enable	= tz1090_pinctrl_gpio_request_enable,
 	.gpio_disable_free	= tz1090_pinctrl_gpio_disable_free,
 };
@@ -1762,39 +1704,46 @@ static int tz1090_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int tz1090_pinconf_set(struct pinctrl_dev *pctldev,
-			      unsigned int pin, unsigned long config)
+			      unsigned int pin, unsigned long *configs,
+			      unsigned num_configs)
 {
 	struct tz1090_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	enum pin_config_param param = pinconf_to_config_param(config);
-	unsigned int arg = pinconf_to_config_argument(config);
+	enum pin_config_param param;
+	unsigned int arg;
 	int ret;
 	u32 reg, width, mask, shift, val, tmp;
 	unsigned long flags;
+	int i;
 
-	dev_dbg(pctldev->dev, "%s(pin=%s, config=%#lx)\n",
-		__func__, tz1090_pins[pin].name, config);
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
 
-	/* Get register information */
-	ret = tz1090_pinconf_reg(pctldev, pin, param, true,
-				 &reg, &width, &mask, &shift, &val);
-	if (ret < 0)
-		return ret;
+		dev_dbg(pctldev->dev, "%s(pin=%s, config=%#lx)\n",
+			__func__, tz1090_pins[pin].name, configs[i]);
 
-	/* Unpack argument and range check it */
-	if (arg > 1) {
-		dev_dbg(pctldev->dev, "%s: arg %u out of range\n",
-			__func__, arg);
-		return -EINVAL;
-	}
+		/* Get register information */
+		ret = tz1090_pinconf_reg(pctldev, pin, param, true,
+					 &reg, &width, &mask, &shift, &val);
+		if (ret < 0)
+			return ret;
 
-	/* Write register field */
-	__global_lock2(flags);
-	tmp = pmx_read(pmx, reg);
-	tmp &= ~mask;
-	if (arg)
-		tmp |= val << shift;
-	pmx_write(pmx, tmp, reg);
-	__global_unlock2(flags);
+		/* Unpack argument and range check it */
+		if (arg > 1) {
+			dev_dbg(pctldev->dev, "%s: arg %u out of range\n",
+				__func__, arg);
+			return -EINVAL;
+		}
+
+		/* Write register field */
+		__global_lock2(flags);
+		tmp = pmx_read(pmx, reg);
+		tmp &= ~mask;
+		if (arg)
+			tmp |= val << shift;
+		pmx_write(pmx, tmp, reg);
+		__global_unlock2(flags);
+	} /* for each config */
 
 	return 0;
 }
@@ -1894,68 +1843,81 @@ static int tz1090_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int tz1090_pinconf_group_set(struct pinctrl_dev *pctldev,
-				    unsigned int group, unsigned long config)
+				    unsigned int group, unsigned long *configs,
+				    unsigned num_configs)
 {
 	struct tz1090_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const struct tz1090_pingroup *g;
-	enum pin_config_param param = pinconf_to_config_param(config);
+	enum pin_config_param param;
 	unsigned int arg, pin, i;
 	const unsigned int *pit;
 	int ret;
 	u32 reg, width, mask, shift, val;
 	unsigned long flags;
 	const int *map;
+	int j;
 
 	if (group >= ARRAY_SIZE(tz1090_groups)) {
 		pin = group - ARRAY_SIZE(tz1090_groups);
-		return tz1090_pinconf_set(pctldev, pin, config);
+		return tz1090_pinconf_set(pctldev, pin, configs, num_configs);
 	}
 
 	g = &tz1090_groups[group];
 	if (g->npins == 1) {
 		pin = g->pins[0];
-		ret = tz1090_pinconf_set(pctldev, pin, config);
+		ret = tz1090_pinconf_set(pctldev, pin, configs, num_configs);
 		if (ret != -ENOTSUPP)
 			return ret;
 	}
 
-	dev_dbg(pctldev->dev, "%s(group=%s, config=%#lx)\n",
-		__func__, g->name, config);
+	for (j = 0; j < num_configs; j++) {
+		param = pinconf_to_config_param(configs[j]);
 
-	/* Get register information */
-	ret = tz1090_pinconf_group_reg(pctldev, g, param, true,
-				       &reg, &width, &mask, &shift, &map);
-	if (ret < 0) {
-		/*
-		 * Maybe we're trying to set a per-pin configuration of a group,
-		 * so do the pins one by one. This is mainly as a convenience.
-		 */
-		for (i = 0, pit = g->pins; i < g->npins; ++i, ++pit) {
-			ret = tz1090_pinconf_set(pctldev, *pit, config);
-			if (ret)
-				return ret;
-		}
-		return 0;
-	}
+		dev_dbg(pctldev->dev, "%s(group=%s, config=%#lx)\n",
+			__func__, g->name, configs[j]);
 
-	/* Unpack argument and map it to register value */
-	arg = pinconf_to_config_argument(config);
-	for (i = 0; i < BIT(width); ++i) {
-		if (map[i] == arg || (map[i] == -EINVAL && !arg)) {
-			/* Write register field */
-			__global_lock2(flags);
-			val = pmx_read(pmx, reg);
-			val &= ~mask;
-			val |= i << shift;
-			pmx_write(pmx, val, reg);
-			__global_unlock2(flags);
+		/* Get register information */
+		ret = tz1090_pinconf_group_reg(pctldev, g, param, true, &reg,
+						&width, &mask, &shift, &map);
+		if (ret < 0) {
+			/*
+			 * Maybe we're trying to set a per-pin configuration
+			 * of a group, so do the pins one by one. This is
+			 * mainly as a convenience.
+			 */
+			for (i = 0, pit = g->pins; i < g->npins; ++i, ++pit) {
+				ret = tz1090_pinconf_set(pctldev, *pit, configs,
+					num_configs);
+				if (ret)
+					return ret;
+			}
 			return 0;
 		}
-	}
 
-	dev_dbg(pctldev->dev, "%s: arg %u not supported\n",
-		__func__, arg);
-	return -EINVAL;
+		/* Unpack argument and map it to register value */
+		arg = pinconf_to_config_argument(configs[j]);
+		for (i = 0; i < BIT(width); ++i) {
+			if (map[i] == arg || (map[i] == -EINVAL && !arg)) {
+				/* Write register field */
+				__global_lock2(flags);
+				val = pmx_read(pmx, reg);
+				val &= ~mask;
+				val |= i << shift;
+				pmx_write(pmx, val, reg);
+				__global_unlock2(flags);
+				goto next_config;
+			}
+		}
+
+		dev_dbg(pctldev->dev, "%s: arg %u not supported\n",
+			__func__, arg);
+		return -EINVAL;
+
+next_config:
+		;
+	} /* for each config */
+
+	return 0;
 }
 
 static struct pinconf_ops tz1090_pinconf_ops = {
@@ -1996,25 +1958,9 @@ static int tz1090_pinctrl_probe(struct platform_device *pdev)
 	tz1090_pinctrl_desc.npins = ARRAY_SIZE(tz1090_pins);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Missing MEM resource\n");
-		return -ENODEV;
-	}
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res),
-				     dev_name(&pdev->dev))) {
-		dev_err(&pdev->dev,
-			"Couldn't request MEM resource\n");
-		return -ENODEV;
-	}
-
-	pmx->regs = devm_ioremap(&pdev->dev, res->start,
-				 resource_size(res));
-	if (!pmx->regs) {
-		dev_err(&pdev->dev, "Couldn't ioremap regs\n");
-		return -ENODEV;
-	}
+	pmx->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pmx->regs))
+		return PTR_ERR(pmx->regs);
 
 	pmx->pctl = pinctrl_register(&tz1090_pinctrl_desc, &pdev->dev, pmx);
 	if (!pmx->pctl) {
@@ -2046,7 +1992,6 @@ static struct of_device_id tz1090_pinctrl_of_match[] = {
 static struct platform_driver tz1090_pinctrl_driver = {
 	.driver = {
 		.name		= "tz1090-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= tz1090_pinctrl_of_match,
 	},
 	.probe	= tz1090_pinctrl_probe,

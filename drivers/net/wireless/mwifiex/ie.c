@@ -2,7 +2,7 @@
  * Marvell Wireless LAN device driver: management IE handling- setting and
  * deleting IE.
  *
- * Copyright (C) 2012, Marvell International Ltd.
+ * Copyright (C) 2012-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -82,20 +82,22 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 			     struct mwifiex_ie_list *ie_list)
 {
 	u16 travel_len, index, mask;
-	s16 input_len;
+	s16 input_len, tlv_len;
 	struct mwifiex_ie *ie;
 	u8 *tmp;
 
 	input_len = le16_to_cpu(ie_list->len);
-	travel_len = sizeof(struct host_cmd_tlv);
+	travel_len = sizeof(struct mwifiex_ie_types_header);
 
 	ie_list->len = 0;
 
-	while (input_len > 0) {
+	while (input_len >= sizeof(struct mwifiex_ie_types_header)) {
 		ie = (struct mwifiex_ie *)(((u8 *)ie_list) + travel_len);
-		input_len -= le16_to_cpu(ie->ie_length) + MWIFIEX_IE_HDR_SIZE;
-		travel_len += le16_to_cpu(ie->ie_length) + MWIFIEX_IE_HDR_SIZE;
+		tlv_len = le16_to_cpu(ie->ie_length);
+		travel_len += tlv_len + MWIFIEX_IE_HDR_SIZE;
 
+		if (input_len < tlv_len + MWIFIEX_IE_HDR_SIZE)
+			return -1;
 		index = le16_to_cpu(ie->ie_index);
 		mask = le16_to_cpu(ie->mgmt_subtype_mask);
 
@@ -132,12 +134,13 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 		le16_add_cpu(&ie_list->len,
 			     le16_to_cpu(priv->mgmt_ie[index].ie_length) +
 			     MWIFIEX_IE_HDR_SIZE);
+		input_len -= tlv_len + MWIFIEX_IE_HDR_SIZE;
 	}
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP)
-		return mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_SYS_CONFIG,
-					      HostCmd_ACT_GEN_SET,
-					      UAP_CUSTOM_IE_I, ie_list);
+		return mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
+					HostCmd_ACT_GEN_SET,
+					UAP_CUSTOM_IE_I, ie_list, false);
 
 	return 0;
 }
@@ -314,27 +317,27 @@ done:
 	return ret;
 }
 
-/* This function parses different IEs-tail IEs, beacon IEs, probe response IEs,
- * association response IEs from cfg80211_ap_settings function and sets these IE
- * to FW.
+/* This function parses  head and tail IEs, from cfg80211_beacon_data and sets
+ * these IE to FW.
  */
-int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
-			 struct cfg80211_beacon_data *info)
+static int mwifiex_uap_set_head_tail_ies(struct mwifiex_private *priv,
+					 struct cfg80211_beacon_data *info)
 {
 	struct mwifiex_ie *gen_ie;
-	struct ieee_types_header *rsn_ie, *wpa_ie = NULL;
-	u16 rsn_idx = MWIFIEX_AUTO_IDX_MASK, ie_len = 0;
+	struct ieee_types_header *rsn_ie = NULL, *wpa_ie = NULL;
+	struct ieee_types_header *chsw_ie = NULL;
+	u16 gen_idx = MWIFIEX_AUTO_IDX_MASK, ie_len = 0;
 	const u8 *vendor_ie;
 
-	if (info->tail && info->tail_len) {
-		gen_ie = kzalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
-		if (!gen_ie)
-			return -ENOMEM;
-		gen_ie->ie_index = cpu_to_le16(rsn_idx);
-		gen_ie->mgmt_subtype_mask = cpu_to_le16(MGMT_MASK_BEACON |
-							MGMT_MASK_PROBE_RESP |
-							MGMT_MASK_ASSOC_RESP);
+	gen_ie = kzalloc(sizeof(*gen_ie), GFP_KERNEL);
+	if (!gen_ie)
+		return -ENOMEM;
+	gen_ie->ie_index = cpu_to_le16(gen_idx);
+	gen_ie->mgmt_subtype_mask = cpu_to_le16(MGMT_MASK_BEACON |
+						MGMT_MASK_PROBE_RESP |
+						MGMT_MASK_ASSOC_RESP);
 
+	if (info->tail && info->tail_len) {
 		rsn_ie = (void *)cfg80211_find_ie(WLAN_EID_RSN,
 						  info->tail, info->tail_len);
 		if (rsn_ie) {
@@ -355,18 +358,40 @@ int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 			gen_ie->ie_length = cpu_to_le16(ie_len);
 		}
 
-		if (rsn_ie || wpa_ie) {
-			if (mwifiex_update_uap_custom_ie(priv, gen_ie, &rsn_idx,
-							 NULL, NULL,
-							 NULL, NULL)) {
-				kfree(gen_ie);
-				return -1;
-			}
-			priv->rsn_idx = rsn_idx;
+		chsw_ie = (void *)cfg80211_find_ie(WLAN_EID_CHANNEL_SWITCH,
+						   info->tail, info->tail_len);
+		if (chsw_ie) {
+			memcpy(gen_ie->ie_buffer + ie_len,
+			       chsw_ie, chsw_ie->len + 2);
+			ie_len += chsw_ie->len + 2;
+			gen_ie->ie_length = cpu_to_le16(ie_len);
 		}
-
-		kfree(gen_ie);
 	}
+
+	if (rsn_ie || wpa_ie || chsw_ie) {
+		if (mwifiex_update_uap_custom_ie(priv, gen_ie, &gen_idx, NULL,
+						 NULL, NULL, NULL)) {
+			kfree(gen_ie);
+			return -1;
+		}
+		priv->gen_idx = gen_idx;
+	}
+
+	kfree(gen_ie);
+	return 0;
+}
+
+/* This function parses different IEs-head & tail IEs, beacon IEs,
+ * probe response IEs, association response IEs from cfg80211_ap_settings
+ * function and sets these IE to FW.
+ */
+int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
+			 struct cfg80211_beacon_data *info)
+{
+	int ret;
+
+	ret = mwifiex_uap_set_head_tail_ies(priv, info);
+		return ret;
 
 	return mwifiex_set_mgmt_beacon_data_ies(priv, info);
 }
@@ -375,25 +400,25 @@ int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 int mwifiex_del_mgmt_ies(struct mwifiex_private *priv)
 {
 	struct mwifiex_ie *beacon_ie = NULL, *pr_ie = NULL;
-	struct mwifiex_ie *ar_ie = NULL, *rsn_ie = NULL;
+	struct mwifiex_ie *ar_ie = NULL, *gen_ie = NULL;
 	int ret = 0;
 
-	if (priv->rsn_idx != MWIFIEX_AUTO_IDX_MASK) {
-		rsn_ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
-		if (!rsn_ie)
+	if (priv->gen_idx != MWIFIEX_AUTO_IDX_MASK) {
+		gen_ie = kmalloc(sizeof(*gen_ie), GFP_KERNEL);
+		if (!gen_ie)
 			return -ENOMEM;
 
-		rsn_ie->ie_index = cpu_to_le16(priv->rsn_idx);
-		rsn_ie->mgmt_subtype_mask = cpu_to_le16(MWIFIEX_DELETE_MASK);
-		rsn_ie->ie_length = 0;
-		if (mwifiex_update_uap_custom_ie(priv, rsn_ie, &priv->rsn_idx,
+		gen_ie->ie_index = cpu_to_le16(priv->gen_idx);
+		gen_ie->mgmt_subtype_mask = cpu_to_le16(MWIFIEX_DELETE_MASK);
+		gen_ie->ie_length = 0;
+		if (mwifiex_update_uap_custom_ie(priv, gen_ie, &priv->gen_idx,
 						 NULL, &priv->proberesp_idx,
 						 NULL, &priv->assocresp_idx)) {
 			ret = -1;
 			goto done;
 		}
 
-		priv->rsn_idx = MWIFIEX_AUTO_IDX_MASK;
+		priv->gen_idx = MWIFIEX_AUTO_IDX_MASK;
 	}
 
 	if (priv->beacon_idx != MWIFIEX_AUTO_IDX_MASK) {
@@ -437,7 +462,6 @@ done:
 	kfree(beacon_ie);
 	kfree(pr_ie);
 	kfree(ar_ie);
-	kfree(rsn_ie);
 
 	return ret;
 }

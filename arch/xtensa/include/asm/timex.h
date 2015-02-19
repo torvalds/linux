@@ -1,17 +1,13 @@
 /*
- * include/asm-xtensa/timex.h
- *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2008 Tensilica Inc.
+ * Copyright (C) 2001 - 2013 Tensilica Inc.
  */
 
 #ifndef _XTENSA_TIMEX_H
 #define _XTENSA_TIMEX_H
-
-#ifdef __KERNEL__
 
 #include <asm/processor.h>
 #include <linux/stringify.h>
@@ -35,24 +31,13 @@
 # error "Bad timer number for Linux configurations!"
 #endif
 
-#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 extern unsigned long ccount_freq;
-#define CCOUNT_PER_JIFFY (ccount_freq / HZ)
-#else
-#define CCOUNT_PER_JIFFY (CONFIG_XTENSA_CPU_CLOCK*(1000000UL/HZ))
-#endif
-
 
 typedef unsigned long long cycles_t;
 
-/*
- * Only used for SMP.
- */
-
-extern cycles_t cacheflush_time;
-
 #define get_cycles()	(0)
 
+void local_timer_setup(unsigned cpu);
 
 /*
  * Register access.
@@ -87,5 +72,4 @@ static inline void set_linux_timer (unsigned long ccompare)
 	WSR_CCOMPARE(LINUX_TIMER, ccompare);
 }
 
-#endif	/* __KERNEL__ */
 #endif	/* _XTENSA_TIMEX_H */

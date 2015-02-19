@@ -121,7 +121,7 @@ static int orinoco_plx_cor_reset(struct orinoco_private *priv)
 	mdelay(1);
 
 	/* Just in case, wait more until the card is no longer busy */
-	timeout = jiffies + (PLX_RESET_TIME * HZ / 1000);
+	timeout = jiffies + msecs_to_jiffies(PLX_RESET_TIME);
 	reg = hermes_read_regn(hw, CMD);
 	while (time_before(jiffies, timeout) && (reg & HERMES_CMD_BUSY)) {
 		mdelay(1);
@@ -273,7 +273,6 @@ static int orinoco_plx_init_one(struct pci_dev *pdev,
 	free_irq(pdev->irq, priv);
 
  fail_irq:
-	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(priv);
 
  fail_alloc:
@@ -301,7 +300,6 @@ static void orinoco_plx_remove_one(struct pci_dev *pdev)
 
 	orinoco_if_del(priv);
 	free_irq(pdev->irq, priv);
-	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(priv);
 	pci_iounmap(pdev, priv->hw.iobase);
 	pci_iounmap(pdev, card->attr_io);
@@ -310,7 +308,7 @@ static void orinoco_plx_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(orinoco_plx_id_table) = {
+static const struct pci_device_id orinoco_plx_id_table[] = {
 	{0x111a, 0x1023, PCI_ANY_ID, PCI_ANY_ID,},	/* Siemens SpeedStream SS1023 */
 	{0x1385, 0x4100, PCI_ANY_ID, PCI_ANY_ID,},	/* Netgear MA301 */
 	{0x15e8, 0x0130, PCI_ANY_ID, PCI_ANY_ID,},	/* Correga  - does this work? */

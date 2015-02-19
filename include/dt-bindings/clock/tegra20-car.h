@@ -49,7 +49,7 @@
 /* 30 */
 #define TEGRA20_CLK_CACHE2 31
 
-#define TEGRA20_CLK_MEM 32
+#define TEGRA20_CLK_MC 32
 #define TEGRA20_CLK_AHBDMA 33
 #define TEGRA20_CLK_APBDMA 34
 /* 35 */
@@ -92,7 +92,7 @@
 #define TEGRA20_CLK_OWR 71
 #define TEGRA20_CLK_AFI 72
 #define TEGRA20_CLK_CSITE 73
-#define TEGRA20_CLK_PCIE_XCLK 74
+/* 74 */
 #define TEGRA20_CLK_AVPUCQ 75
 #define TEGRA20_CLK_LA 76
 /* 77 */

@@ -5,7 +5,6 @@ header-y += ipt_ECN.h
 header-y += ipt_LOG.h
 header-y += ipt_REJECT.h
 header-y += ipt_TTL.h
-header-y += ipt_ULOG.h
 header-y += ipt_ah.h
 header-y += ipt_ecn.h
 header-y += ipt_ttl.h

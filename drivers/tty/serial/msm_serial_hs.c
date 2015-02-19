@@ -1618,7 +1618,7 @@ static int msm_hs_probe(struct platform_device *pdev)
 	struct msm_hs_port *msm_uport;
 	struct resource *resource;
 	const struct msm_serial_hs_platform_data *pdata =
-						pdev->dev.platform_data;
+						dev_get_platdata(&pdev->dev);
 
 	if (pdev->id < 0 || pdev->id >= UARTDM_NR) {
 		printk(KERN_ERR "Invalid plaform device ID = %d\n", pdev->id);
@@ -1792,7 +1792,7 @@ static void __exit msm_serial_hs_exit(void)
 }
 module_exit(msm_serial_hs_exit);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int msm_hs_runtime_idle(struct device *dev)
 {
 	/*
@@ -1838,7 +1838,6 @@ static struct platform_driver msm_serial_hs_platform_driver = {
 	.remove = msm_hs_remove,
 	.driver = {
 		.name = "msm_serial_hs",
-		.owner = THIS_MODULE,
 		.pm   = &msm_hs_dev_pm_ops,
 	},
 };

@@ -29,13 +29,14 @@
 #include <linux/netfilter/nfnetlink_queue.h>
 #include <linux/list.h>
 #include <net/sock.h>
+#include <net/tcp_states.h>
 #include <net/netfilter/nf_queue.h>
 #include <net/netns/generic.h>
 #include <net/netfilter/nfnetlink_queue.h>
 
 #include <linux/atomic.h>
 
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 #include "../bridge/br_private.h"
 #endif
 
@@ -235,51 +236,6 @@ nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 	spin_unlock_bh(&queue->lock);
 }
 
-static void
-nfqnl_zcopy(struct sk_buff *to, const struct sk_buff *from, int len, int hlen)
-{
-	int i, j = 0;
-	int plen = 0; /* length of skb->head fragment */
-	struct page *page;
-	unsigned int offset;
-
-	/* dont bother with small payloads */
-	if (len <= skb_tailroom(to)) {
-		skb_copy_bits(from, 0, skb_put(to, len), len);
-		return;
-	}
-
-	if (hlen) {
-		skb_copy_bits(from, 0, skb_put(to, hlen), hlen);
-		len -= hlen;
-	} else {
-		plen = min_t(int, skb_headlen(from), len);
-		if (plen) {
-			page = virt_to_head_page(from->head);
-			offset = from->data - (unsigned char *)page_address(page);
-			__skb_fill_page_desc(to, 0, page, offset, plen);
-			get_page(page);
-			j = 1;
-			len -= plen;
-		}
-	}
-
-	to->truesize += len + plen;
-	to->len += len + plen;
-	to->data_len += len + plen;
-
-	for (i = 0; i < skb_shinfo(from)->nr_frags; i++) {
-		if (!len)
-			break;
-		skb_shinfo(to)->frags[j] = skb_shinfo(from)->frags[i];
-		skb_shinfo(to)->frags[j].size = min_t(int, skb_shinfo(to)->frags[j].size, len);
-		len -= skb_shinfo(to)->frags[j].size;
-		skb_frag_ref(to, j);
-		j++;
-	}
-	skb_shinfo(to)->nr_frags = j;
-}
-
 static int
 nfqnl_put_packet_info(struct sk_buff *nlskb, struct sk_buff *packet,
 		      bool csum_verify)
@@ -297,14 +253,39 @@ nfqnl_put_packet_info(struct sk_buff *nlskb, struct sk_buff *packet,
 	return flags ? nla_put_be32(nlskb, NFQA_SKB_INFO, htonl(flags)) : 0;
 }
 
+static int nfqnl_put_sk_uidgid(struct sk_buff *skb, struct sock *sk)
+{
+	const struct cred *cred;
+
+	if (sk->sk_state == TCP_TIME_WAIT)
+		return 0;
+
+	read_lock_bh(&sk->sk_callback_lock);
+	if (sk->sk_socket && sk->sk_socket->file) {
+		cred = sk->sk_socket->file->f_cred;
+		if (nla_put_be32(skb, NFQA_UID,
+		    htonl(from_kuid_munged(&init_user_ns, cred->fsuid))))
+			goto nla_put_failure;
+		if (nla_put_be32(skb, NFQA_GID,
+		    htonl(from_kgid_munged(&init_user_ns, cred->fsgid))))
+			goto nla_put_failure;
+	}
+	read_unlock_bh(&sk->sk_callback_lock);
+	return 0;
+
+nla_put_failure:
+	read_unlock_bh(&sk->sk_callback_lock);
+	return -1;
+}
+
 static struct sk_buff *
-nfqnl_build_packet_message(struct nfqnl_instance *queue,
+nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			   struct nf_queue_entry *entry,
 			   __be32 **packet_id_ptr)
 {
 	size_t size;
 	size_t data_len = 0, cap_len = 0;
-	int hlen = 0;
+	unsigned int hlen = 0;
 	struct sk_buff *skb;
 	struct nlattr *nla;
 	struct nfqnl_msg_packet_hdr *pmsg;
@@ -321,7 +302,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hdr))
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 #endif
@@ -356,14 +337,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		if (data_len > entskb->len)
 			data_len = entskb->len;
 
-		if (!entskb->head_frag ||
-		    skb_headlen(entskb) < L1_CACHE_BYTES ||
-		    skb_shinfo(entskb)->nr_frags >= MAX_SKB_FRAGS)
-			hlen = skb_headlen(entskb);
-
-		if (skb_has_frag_list(entskb))
-			hlen = entskb->len;
-		hlen = min_t(int, data_len, hlen);
+		hlen = skb_zerocopy_headlen(entskb);
+		hlen = min_t(unsigned int, hlen, data_len);
 		size += sizeof(struct nlattr) + hlen;
 		cap_len = entskb->len;
 		break;
@@ -372,15 +347,23 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (queue->flags & NFQA_CFG_F_CONNTRACK)
 		ct = nfqnl_ct_get(entskb, &size, &ctinfo);
 
-	skb = nfnetlink_alloc_skb(&init_net, size, queue->peer_portid,
+	if (queue->flags & NFQA_CFG_F_UID_GID) {
+		size +=  (nla_total_size(sizeof(u_int32_t))	/* uid */
+			+ nla_total_size(sizeof(u_int32_t)));	/* gid */
+	}
+
+	skb = nfnetlink_alloc_skb(net, size, queue->peer_portid,
 				  GFP_ATOMIC);
-	if (!skb)
+	if (!skb) {
+		skb_tx_error(entskb);
 		return NULL;
+	}
 
 	nlh = nlmsg_put(skb, 0, 0,
 			NFNL_SUBSYS_QUEUE << 8 | NFQNL_MSG_PACKET,
 			sizeof(struct nfgenmsg), 0);
 	if (!nlh) {
+		skb_tx_error(entskb);
 		kfree_skb(skb);
 		return NULL;
 	}
@@ -397,7 +380,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 	indev = entry->indev;
 	if (indev) {
-#ifndef CONFIG_BRIDGE_NETFILTER
+#if !IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		if (nla_put_be32(skb, NFQA_IFINDEX_INDEV, htonl(indev->ifindex)))
 			goto nla_put_failure;
 #else
@@ -427,7 +410,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	}
 
 	if (outdev) {
-#ifndef CONFIG_BRIDGE_NETFILTER
+#if !IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		if (nla_put_be32(skb, NFQA_IFINDEX_OUTDEV, htonl(outdev->ifindex)))
 			goto nla_put_failure;
 #else
@@ -484,6 +467,10 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 			goto nla_put_failure;
 	}
 
+	if ((queue->flags & NFQA_CFG_F_UID_GID) && entskb->sk &&
+	    nfqnl_put_sk_uidgid(skb, entskb->sk) < 0)
+		goto nla_put_failure;
+
 	if (ct && nfqnl_ct_put(skb, ct, ctinfo) < 0)
 		goto nla_put_failure;
 
@@ -504,13 +491,15 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		nla->nla_type = NFQA_PAYLOAD;
 		nla->nla_len = nla_attr_size(data_len);
 
-		nfqnl_zcopy(skb, entskb, data_len, hlen);
+		if (skb_zerocopy(skb, entskb, data_len, hlen))
+			goto nla_put_failure;
 	}
 
 	nlh->nlmsg_len = skb->len;
 	return skb;
 
 nla_put_failure:
+	skb_tx_error(entskb);
 	kfree_skb(skb);
 	net_err_ratelimited("nf_queue: error creating packet message\n");
 	return NULL;
@@ -525,7 +514,7 @@ __nfqnl_enqueue_packet(struct net *net, struct nfqnl_instance *queue,
 	__be32 *packet_id_ptr;
 	int failopen = 0;
 
-	nskb = nfqnl_build_packet_message(queue, entry, &packet_id_ptr);
+	nskb = nfqnl_build_packet_message(net, queue, entry, &packet_id_ptr);
 	if (nskb == NULL) {
 		err = -ENOMEM;
 		goto err_out;
@@ -580,7 +569,7 @@ nf_queue_entry_dup(struct nf_queue_entry *e)
 	return NULL;
 }
 
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 /* When called from bridge netfilter, skb->data must point to MAC header
  * before calling skb_gso_segment(). Else, original MAC header is lost
  * and segmented skbs will be sent to wrong destination.
@@ -676,7 +665,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	 * returned by nf_queue.  For instance, callers rely on -ECANCELED to
 	 * mean 'ignore this hook'.
 	 */
-	if (IS_ERR(segs))
+	if (IS_ERR_OR_NULL(segs))
 		goto out_err;
 	queued = 0;
 	err = 0;
@@ -774,7 +763,7 @@ dev_cmp(struct nf_queue_entry *entry, unsigned long ifindex)
 	if (entry->outdev)
 		if (entry->outdev->ifindex == ifindex)
 			return 1;
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (entry->skb->nf_bridge) {
 		if (entry->skb->nf_bridge->physindev &&
 		    entry->skb->nf_bridge->physindev->ifindex == ifindex)
@@ -862,6 +851,7 @@ static const struct nla_policy nfqa_verdict_policy[NFQA_MAX+1] = {
 	[NFQA_MARK]		= { .type = NLA_U32 },
 	[NFQA_PAYLOAD]		= { .type = NLA_UNSPEC },
 	[NFQA_CT]		= { .type = NLA_UNSPEC },
+	[NFQA_EXP]		= { .type = NLA_UNSPEC },
 };
 
 static const struct nla_policy nfqa_verdict_batch_policy[NFQA_MAX+1] = {
@@ -990,9 +980,14 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	if (entry == NULL)
 		return -ENOENT;
 
-	rcu_read_lock();
-	if (nfqa[NFQA_CT] && (queue->flags & NFQA_CFG_F_CONNTRACK))
+	if (nfqa[NFQA_CT]) {
 		ct = nfqnl_ct_parse(entry->skb, nfqa[NFQA_CT], &ctinfo);
+		if (ct && nfqa[NFQA_EXP]) {
+			nfqnl_attach_expect(ct, nfqa[NFQA_EXP],
+					    NETLINK_CB(skb).portid,
+					    nlmsg_report(nlh));
+		}
+	}
 
 	if (nfqa[NFQA_PAYLOAD]) {
 		u16 payload_len = nla_len(nfqa[NFQA_PAYLOAD]);
@@ -1003,9 +998,8 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 			verdict = NF_DROP;
 
 		if (ct)
-			nfqnl_ct_seq_adjust(skb, ct, ctinfo, diff);
+			nfqnl_ct_seq_adjust(entry->skb, ct, ctinfo, diff);
 	}
-	rcu_read_unlock();
 
 	if (nfqa[NFQA_MARK])
 		entry->skb->mark = ntohl(nla_get_be32(nfqa[NFQA_MARK]));
@@ -1248,12 +1242,13 @@ static int seq_show(struct seq_file *s, void *v)
 {
 	const struct nfqnl_instance *inst = v;
 
-	return seq_printf(s, "%5d %6d %5d %1d %5d %5d %5d %8d %2d\n",
-			  inst->queue_num,
-			  inst->peer_portid, inst->queue_total,
-			  inst->copy_mode, inst->copy_range,
-			  inst->queue_dropped, inst->queue_user_dropped,
-			  inst->id_sequence, 1);
+	seq_printf(s, "%5d %6d %5d %1d %5d %5d %5d %8d %2d\n",
+		   inst->queue_num,
+		   inst->peer_portid, inst->queue_total,
+		   inst->copy_mode, inst->copy_range,
+		   inst->queue_dropped, inst->queue_user_dropped,
+		   inst->id_sequence, 1);
+	return seq_has_overflowed(s);
 }
 
 static const struct seq_operations nfqnl_seq_ops = {

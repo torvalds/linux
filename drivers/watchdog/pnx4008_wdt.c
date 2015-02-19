@@ -23,9 +23,7 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/spinlock.h>
@@ -209,7 +207,6 @@ MODULE_DEVICE_TABLE(of, pnx4008_wdt_match);
 static struct platform_driver platform_wdt_driver = {
 	.driver = {
 		.name = "pnx4008-watchdog",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pnx4008_wdt_match),
 	},
 	.probe = pnx4008_wdt_probe,
@@ -233,5 +230,4 @@ MODULE_PARM_DESC(nowayout,
 		 "Set to 1 to keep watchdog running after device release");
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:pnx4008-watchdog");

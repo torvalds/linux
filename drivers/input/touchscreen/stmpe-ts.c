@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -385,7 +384,6 @@ static int stmpe_ts_remove(struct platform_device *pdev)
 static struct platform_driver stmpe_ts_driver = {
 	.driver = {
 		   .name = STMPE_TS_NAME,
-		   .owner = THIS_MODULE,
 		   },
 	.probe = stmpe_input_probe,
 	.remove = stmpe_ts_remove,

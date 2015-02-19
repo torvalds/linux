@@ -242,8 +242,8 @@ static int dbg_show(struct seq_file *s, void *_)
 	seq_printf(s, "mask2     %s\n", buf);
 	/* ignore ackint2 */
 
-	schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
-
+	queue_delayed_work(system_power_efficient_wq, &tps->work,
+			   POWER_POLL_DELAY);
 
 	/* VMAIN voltage, enable lowpower, etc */
 	value = i2c_smbus_read_byte_data(tps->client, TPS_VDCDC1);
@@ -400,7 +400,8 @@ static void tps65010_interrupt(struct tps65010 *tps)
 			&& (tps->chgstatus & (TPS_CHG_USB|TPS_CHG_AC)))
 		poll = 1;
 	if (poll)
-		schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
+		queue_delayed_work(system_power_efficient_wq, &tps->work,
+				   POWER_POLL_DELAY);
 
 	/* also potentially gpio-in rise or fall */
 }
@@ -448,7 +449,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 
 	disable_irq_nosync(irq);
 	set_bit(FLAG_IRQ_ENABLE, &tps->flags);
-	schedule_delayed_work(&tps->work, 0);
+	queue_delayed_work(system_power_efficient_wq, &tps->work, 0);
 	return IRQ_HANDLED;
 }
 
@@ -517,7 +518,7 @@ static struct tps65010 *the_tps;
 static int __exit tps65010_remove(struct i2c_client *client)
 {
 	struct tps65010		*tps = i2c_get_clientdata(client);
-	struct tps65010_board	*board = client->dev.platform_data;
+	struct tps65010_board	*board = dev_get_platdata(&client->dev);
 
 	if (board && board->teardown) {
 		int status = board->teardown(client, board->context);
@@ -529,7 +530,6 @@ static int __exit tps65010_remove(struct i2c_client *client)
 		free_irq(client->irq, tps);
 	cancel_delayed_work_sync(&tps->work);
 	debugfs_remove(tps->file);
-	kfree(tps);
 	the_tps = NULL;
 	return 0;
 }
@@ -539,7 +539,7 @@ static int tps65010_probe(struct i2c_client *client,
 {
 	struct tps65010		*tps;
 	int			status;
-	struct tps65010_board	*board = client->dev.platform_data;
+	struct tps65010_board	*board = dev_get_platdata(&client->dev);
 
 	if (the_tps) {
 		dev_dbg(&client->dev, "only one tps6501x chip allowed\n");
@@ -549,7 +549,7 @@ static int tps65010_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EINVAL;
 
-	tps = kzalloc(sizeof *tps, GFP_KERNEL);
+	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
 		return -ENOMEM;
 
@@ -567,7 +567,7 @@ static int tps65010_probe(struct i2c_client *client,
 		if (status < 0) {
 			dev_dbg(&client->dev, "can't get IRQ %d, err %d\n",
 					client->irq, status);
-			goto fail1;
+			return status;
 		}
 		/* annoying race here, ideally we'd have an option
 		 * to claim the irq now and enable it later.
@@ -667,9 +667,6 @@ static int tps65010_probe(struct i2c_client *client,
 	}
 
 	return 0;
-fail1:
-	kfree(tps);
-	return status;
 }
 
 static const struct i2c_device_id tps65010_id[] = {
@@ -718,7 +715,8 @@ int tps65010_set_vbus_draw(unsigned mA)
 			&& test_and_set_bit(
 				FLAG_VBUS_CHANGED, &the_tps->flags)) {
 		/* gadget drivers call this in_irq() */
-		schedule_delayed_work(&the_tps->work, 0);
+		queue_delayed_work(system_power_efficient_wq, &the_tps->work,
+				   0);
 	}
 	local_irq_restore(flags);
 

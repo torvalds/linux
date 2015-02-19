@@ -115,11 +115,11 @@ static const struct resource timberdale_ocores_resources[] = {
 	},
 };
 
-const struct max7301_platform_data timberdale_max7301_platform_data = {
+static const struct max7301_platform_data timberdale_max7301_platform_data = {
 	.base = 200
 };
 
-const struct mc33880_platform_data timberdale_mc33880_platform_data = {
+static const struct mc33880_platform_data timberdale_mc33880_platform_data = {
 	.base = 100
 };
 
@@ -374,7 +374,7 @@ static const struct resource timberdale_dma_resources[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar0_cfg0[] = {
+static const struct mfd_cell timberdale_cells_bar0_cfg0[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
@@ -431,7 +431,7 @@ static struct mfd_cell timberdale_cells_bar0_cfg0[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar0_cfg1[] = {
+static const struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
@@ -498,7 +498,7 @@ static struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar0_cfg2[] = {
+static const struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
@@ -548,7 +548,7 @@ static struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar0_cfg3[] = {
+static const struct mfd_cell timberdale_cells_bar0_cfg3[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
@@ -619,7 +619,7 @@ static const struct resource timberdale_sdhc_resources[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar1[] = {
+static const struct mfd_cell timberdale_cells_bar1[] = {
 	{
 		.name = "sdhci",
 		.num_resources = ARRAY_SIZE(timberdale_sdhc_resources),
@@ -627,7 +627,7 @@ static struct mfd_cell timberdale_cells_bar1[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar2[] = {
+static const struct mfd_cell timberdale_cells_bar2[] = {
 	{
 		.name = "sdhci",
 		.num_resources = ARRAY_SIZE(timberdale_sdhc_resources),
@@ -678,7 +678,7 @@ static int timb_probe(struct pci_dev *dev,
 	priv->ctl_mapbase = mapbase + CHIPCTLOFFSET;
 	if (!request_mem_region(priv->ctl_mapbase, CHIPCTLSIZE, "timb-ctl")) {
 		dev_err(&dev->dev, "Failed to request ctl mem\n");
-		goto err_request;
+		goto err_start;
 	}
 
 	priv->ctl_membase = ioremap(priv->ctl_mapbase, CHIPCTLSIZE);
@@ -715,7 +715,7 @@ static int timb_probe(struct pci_dev *dev,
 	for (i = 0; i < TIMBERDALE_NR_IRQS; i++)
 		msix_entries[i].entry = i;
 
-	err = pci_enable_msix(dev, msix_entries, TIMBERDALE_NR_IRQS);
+	err = pci_enable_msix_exact(dev, msix_entries, TIMBERDALE_NR_IRQS);
 	if (err) {
 		dev_err(&dev->dev,
 			"MSI-X init failed: %d, expected entries: %d\n",
@@ -781,7 +781,6 @@ static int timb_probe(struct pci_dev *dev,
 			priv->fw.major, priv->fw.minor, ip_setup);
 		err = -ENODEV;
 		goto err_mfd;
-		break;
 	}
 
 	if (err) {
@@ -829,13 +828,10 @@ err_config:
 	iounmap(priv->ctl_membase);
 err_ioremap:
 	release_mem_region(priv->ctl_mapbase, CHIPCTLSIZE);
-err_request:
-	pci_set_drvdata(dev, NULL);
 err_start:
 	pci_disable_device(dev);
 err_enable:
 	kfree(priv);
-	pci_set_drvdata(dev, NULL);
 	return -ENODEV;
 }
 
@@ -852,11 +848,10 @@ static void timb_remove(struct pci_dev *dev)
 
 	pci_disable_msix(dev);
 	pci_disable_device(dev);
-	pci_set_drvdata(dev, NULL);
 	kfree(priv);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(timberdale_pci_tbl) = {
+static const struct pci_device_id timberdale_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TIMB, PCI_DEVICE_ID_TIMB) },
 	{ 0 }
 };
@@ -869,34 +864,7 @@ static struct pci_driver timberdale_pci_driver = {
 	.remove = timb_remove,
 };
 
-static int __init timberdale_init(void)
-{
-	int err;
-
-	err = pci_register_driver(&timberdale_pci_driver);
-	if (err < 0) {
-		printk(KERN_ERR
-			"Failed to register PCI driver for %s device.\n",
-			timberdale_pci_driver.name);
-		return -ENODEV;
-	}
-
-	printk(KERN_INFO "Driver for %s has been successfully registered.\n",
-		timberdale_pci_driver.name);
-
-	return 0;
-}
-
-static void __exit timberdale_exit(void)
-{
-	pci_unregister_driver(&timberdale_pci_driver);
-
-	printk(KERN_INFO "Driver for %s has been successfully unregistered.\n",
-		timberdale_pci_driver.name);
-}
-
-module_init(timberdale_init);
-module_exit(timberdale_exit);
+module_pci_driver(timberdale_pci_driver);
 
 MODULE_AUTHOR("Mocean Laboratories <info@mocean-labs.com>");
 MODULE_VERSION(DRV_VERSION);

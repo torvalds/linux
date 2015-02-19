@@ -228,6 +228,7 @@ err_i2c:
 }
 
 static struct regulator_ops lp8755_buck_ops = {
+	.map_voltage = regulator_map_voltage_linear,
 	.list_voltage = regulator_list_voltage_linear,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -338,22 +339,18 @@ static int lp8755_regulator_init(struct lp8755_chip *pchip)
 		rconfig.init_data = pdata->buck_data[buck_num];
 		rconfig.of_node = pchip->dev->of_node;
 		pchip->rdev[buck_num] =
-		    regulator_register(&lp8755_regulators[buck_num], &rconfig);
+		    devm_regulator_register(pchip->dev,
+				    &lp8755_regulators[buck_num], &rconfig);
 		if (IS_ERR(pchip->rdev[buck_num])) {
 			ret = PTR_ERR(pchip->rdev[buck_num]);
 			pchip->rdev[buck_num] = NULL;
 			dev_err(pchip->dev, "regulator init failed: buck %d\n",
 				buck_num);
-			goto err_buck;
+			return ret;
 		}
 	}
 
 	return 0;
-
-err_buck:
-	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
-		regulator_unregister(pchip->rdev[icnt]);
-	return ret;
 }
 
 static irqreturn_t lp8755_irq_handler(int irq, void *data)
@@ -449,7 +446,7 @@ static int lp8755_probe(struct i2c_client *client,
 {
 	int ret, icnt;
 	struct lp8755_chip *pchip;
-	struct lp8755_platform_data *pdata = client->dev.platform_data;
+	struct lp8755_platform_data *pdata = dev_get_platdata(&client->dev);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c functionality check fail.\n");
@@ -489,23 +486,19 @@ static int lp8755_probe(struct i2c_client *client,
 	ret = lp8755_regulator_init(pchip);
 	if (ret < 0) {
 		dev_err(&client->dev, "fail to initialize regulators\n");
-		goto err_regulator;
+		goto err;
 	}
 
 	pchip->irq = client->irq;
 	ret = lp8755_int_config(pchip);
 	if (ret < 0) {
 		dev_err(&client->dev, "fail to irq config\n");
-		goto err_irq;
+		goto err;
 	}
 
 	return ret;
 
-err_irq:
-	for (icnt = 0; icnt < mphase_buck[pchip->mphase].nreg; icnt++)
-		regulator_unregister(pchip->rdev[icnt]);
-
-err_regulator:
+err:
 	/* output disable */
 	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 		lp8755_write(pchip, icnt, 0x00);
@@ -517,9 +510,6 @@ static int lp8755_remove(struct i2c_client *client)
 {
 	int icnt;
 	struct lp8755_chip *pchip = i2c_get_clientdata(client);
-
-	for (icnt = 0; icnt < mphase_buck[pchip->mphase].nreg; icnt++)
-		regulator_unregister(pchip->rdev[icnt]);
 
 	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 		lp8755_write(pchip, icnt, 0x00);

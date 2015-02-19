@@ -56,7 +56,6 @@ struct thread_info {
 	 * used for syscalls somehow;
 	 * seems to have a function pointer and four arguments
 	 */
-	struct restart_block    restart_block;
 	/* Points to the current pt_regs frame  */
 	struct pt_regs		*regs;
 	/*
@@ -73,10 +72,6 @@ struct thread_info {
 
 #endif  /* __ASSEMBLY__  */
 
-/*  looks like "linux/hardirq.h" uses this.  */
-
-#define PREEMPT_ACTIVE		0x10000000
-
 #ifndef __ASSEMBLY__
 
 #define INIT_THREAD_INFO(tsk)                   \
@@ -87,9 +82,6 @@ struct thread_info {
 	.cpu            = 0,                    \
 	.preempt_count  = 1,                    \
 	.addr_limit     = KERNEL_DS,            \
-	.restart_block = {                      \
-		.fn = do_no_restart_syscall,    \
-	},                                      \
 	.sp = 0,				\
 	.regs = NULL,			\
 }

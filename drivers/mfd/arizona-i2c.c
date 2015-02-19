@@ -17,17 +17,19 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <linux/mfd/arizona/core.h>
 
 #include "arizona.h"
 
 static int arizona_i2c_probe(struct i2c_client *i2c,
-					  const struct i2c_device_id *id)
+			     const struct i2c_device_id *id)
 {
 	struct arizona *arizona;
 	const struct regmap_config *regmap_config;
-	int ret, type;
+	unsigned long type;
+	int ret;
 
 	if (i2c->dev.of_node)
 		type = arizona_of_get_type(&i2c->dev);

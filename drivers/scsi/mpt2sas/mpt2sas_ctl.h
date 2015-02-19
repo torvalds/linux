@@ -3,8 +3,9 @@
  * controllers
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_ctl.h
- * Copyright (C) 2007-2012  LSI Corporation
- *  (mailto:DL-MPTFusionLinux@lsi.com)
+ * Copyright (C) 2007-2014  LSI Corporation
+ * Copyright (C) 20013-2014 Avago Technologies
+ *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -224,7 +225,7 @@ struct mpt2_ioctl_eventreport {
 };
 
 /**
- * struct mpt2_ioctl_command - generic mpt firmware passthru ioclt
+ * struct mpt2_ioctl_command - generic mpt firmware passthru ioctl
  * @hdr - generic header
  * @timeout - command timeout in seconds. (if zero then use driver default
  *  value).

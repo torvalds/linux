@@ -40,13 +40,11 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 void
-lnet_build_unlink_event (lnet_libmd_t *md, lnet_event_t *ev)
+lnet_build_unlink_event(lnet_libmd_t *md, lnet_event_t *ev)
 {
-	ENTRY;
-
 	memset(ev, 0, sizeof(*ev));
 
 	ev->status   = 0;
@@ -54,7 +52,6 @@ lnet_build_unlink_event (lnet_libmd_t *md, lnet_event_t *ev)
 	ev->type     = LNET_EVENT_UNLINK;
 	lnet_md_deconstruct(md, &ev->md);
 	lnet_md2handle(&ev->md_handle, md);
-	EXIT;
 }
 
 /*
@@ -319,7 +316,7 @@ lnet_msg_attach_md(lnet_msg_t *msg, lnet_libmd_t *md,
 	LASSERT(!msg->msg_routing);
 
 	msg->msg_md = md;
-	if (msg->msg_receiving) { /* commited for receiving */
+	if (msg->msg_receiving) { /* committed for receiving */
 		msg->msg_offset = offset;
 		msg->msg_wanted = mlen;
 	}
@@ -365,7 +362,7 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 	int		rc;
 	int		status = msg->msg_ev.status;
 
-	LASSERT (msg->msg_onactivelist);
+	LASSERT(msg->msg_onactivelist);
 
 	if (status == 0 && msg->msg_ack) {
 		/* Only send an ACK if the PUT completed successfully */
@@ -395,7 +392,7 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 		 * NB: message is committed for sending, we should return
 		 * on success because LND will finalize this message later.
 		 *
-		 * Also, there is possibility that message is commited for
+		 * Also, there is possibility that message is committed for
 		 * sending and also failed before delivering to LND,
 		 * i.e: ENOMEM, in that case we can't fall through either
 		 * because CPT for sending can be different with CPT for
@@ -417,7 +414,7 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 		 * NB: message is committed for sending, we should return
 		 * on success because LND will finalize this message later.
 		 *
-		 * Also, there is possibility that message is commited for
+		 * Also, there is possibility that message is committed for
 		 * sending and also failed before delivering to LND,
 		 * i.e: ENOMEM, in that case we can't fall through either:
 		 * - The rule is message must decommit for sending first if
@@ -435,7 +432,7 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 }
 
 void
-lnet_finalize (lnet_ni_t *ni, lnet_msg_t *msg, int status)
+lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int status)
 {
 	struct lnet_msg_container	*container;
 	int				my_slot;
@@ -443,7 +440,7 @@ lnet_finalize (lnet_ni_t *ni, lnet_msg_t *msg, int status)
 	int				rc;
 	int				i;
 
-	LASSERT (!in_interrupt ());
+	LASSERT(!in_interrupt());
 
 	if (msg == NULL)
 		return;
@@ -477,14 +474,14 @@ lnet_finalize (lnet_ni_t *ni, lnet_msg_t *msg, int status)
  again:
 	rc = 0;
 	if (!msg->msg_tx_committed && !msg->msg_rx_committed) {
-		/* not commited to network yet */
+		/* not committed to network yet */
 		LASSERT(!msg->msg_onactivelist);
 		lnet_msg_free(msg);
 		return;
 	}
 
 	/*
-	 * NB: routed message can be commited for both receiving and sending,
+	 * NB: routed message can be committed for both receiving and sending,
 	 * we should finalize in LIFO order and keep counters correct.
 	 * (finalize sending first then finalize receiving)
 	 */

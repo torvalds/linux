@@ -35,22 +35,6 @@
 struct task_struct;
 
 /*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
- */
-struct cpuinfo_frv {
-#ifdef CONFIG_MMU
-	unsigned long	*pgd_quick;
-	unsigned long	*pte_quick;
-	unsigned long	pgtable_cache_sz;
-#endif
-} __cacheline_aligned;
-
-extern struct cpuinfo_frv __nongprelbss boot_cpu_data;
-
-#define cpu_data		(&boot_cpu_data)
-#define current_cpu_data	boot_cpu_data
-
-/*
  * Bus types
  */
 #define EISA_bus 0
@@ -129,7 +113,8 @@ unsigned long get_wchan(struct task_struct *p);
 #define	KSTK_EIP(tsk)	((tsk)->thread.frame0->pc)
 #define	KSTK_ESP(tsk)	((tsk)->thread.frame0->sp)
 
-#define cpu_relax()    barrier()
+#define cpu_relax() barrier()
+#define cpu_relax_lowlatency() cpu_relax()
 
 /* data cache prefetch */
 #define ARCH_HAS_PREFETCH

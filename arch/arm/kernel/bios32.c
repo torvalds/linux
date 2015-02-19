@@ -18,8 +18,17 @@
 
 static int debug_pci;
 
+#ifdef CONFIG_PCI_MSI
+struct msi_controller *pcibios_msi_controller(struct pci_dev *dev)
+{
+	struct pci_sys_data *sysdata = dev->bus->sysdata;
+
+	return sysdata->msi_ctrl;
+}
+#endif
+
 /*
- * We can't use pci_find_device() here since we are
+ * We can't use pci_get_device() here since we are
  * called from interrupt context.
  */
 static void pcibios_bus_report_status(struct pci_bus *bus, u_int status_mask, int warn)
@@ -57,13 +66,10 @@ static void pcibios_bus_report_status(struct pci_bus *bus, u_int status_mask, in
 
 void pcibios_report_status(u_int status_mask, int warn)
 {
-	struct list_head *l;
+	struct pci_bus *bus;
 
-	list_for_each(l, &pci_root_buses) {
-		struct pci_bus *bus = pci_bus_b(l);
-
+	list_for_each_entry(bus, &pci_root_buses, node)
 		pcibios_bus_report_status(bus, status_mask, warn);
-	}
 }
 
 /*
@@ -358,7 +364,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	/*
 	 * Report what we did for this bus
 	 */
-	printk(KERN_INFO "PCI: bus%d: Fast back to back transfers %sabled\n",
+	pr_info("PCI: bus%d: Fast back to back transfers %sabled\n",
 		bus->number, (features & PCI_COMMAND_FAST_BACK) ? "en" : "dis");
 }
 EXPORT_SYMBOL(pcibios_fixup_bus);
@@ -416,17 +422,16 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 static int pcibios_init_resources(int busnr, struct pci_sys_data *sys)
 {
 	int ret;
-	struct pci_host_bridge_window *window;
+	struct resource_entry *window;
 
 	if (list_empty(&sys->resources)) {
 		pci_add_resource_offset(&sys->resources,
 			 &iomem_resource, sys->mem_offset);
 	}
 
-	list_for_each_entry(window, &sys->resources, list) {
+	resource_list_for_each_entry(window, &sys->resources)
 		if (resource_type(window->res) == IORESOURCE_IO)
 			return 0;
-	}
 
 	sys->io_res.start = (busnr * SZ_64K) ?  : pcibios_min_io;
 	sys->io_res.end = (busnr + 1) * SZ_64K - 1;
@@ -457,8 +462,8 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 		if (!sys)
 			panic("PCI: unable to allocate sys data!");
 
-#ifdef CONFIG_PCI_DOMAINS
-		sys->domain  = hw->domain;
+#ifdef CONFIG_PCI_MSI
+		sys->msi_ctrl = hw->msi_ctrl;
 #endif
 		sys->busnr   = busnr;
 		sys->swizzle = hw->swizzle;
@@ -525,17 +530,24 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 			 * Assign resources.
 			 */
 			pci_bus_assign_resources(bus);
-
-			/*
-			 * Enable bridges
-			 */
-			pci_enable_bridges(bus);
 		}
 
 		/*
 		 * Tell drivers about devices found.
 		 */
 		pci_bus_add_devices(bus);
+	}
+
+	list_for_each_entry(sys, &head, node) {
+		struct pci_bus *bus = sys->bus;
+
+		/* Configure PCI Express settings */
+		if (bus && !pci_has_flag(PCI_PROBE_ONLY)) {
+			struct pci_bus *child;
+
+			list_for_each_entry(child, &bus->children, node)
+				pcie_bus_configure_settings(child);
+		}
 	}
 }
 
@@ -597,41 +609,10 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
  */
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
-	u16 cmd, old_cmd;
-	int idx;
-	struct resource *r;
+	if (pci_has_flag(PCI_PROBE_ONLY))
+		return 0;
 
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	old_cmd = cmd;
-	for (idx = 0; idx < 6; idx++) {
-		/* Only set up the requested stuff */
-		if (!(mask & (1 << idx)))
-			continue;
-
-		r = dev->resource + idx;
-		if (!r->start && r->end) {
-			printk(KERN_ERR "PCI: Device %s not available because"
-			       " of resource collisions\n", pci_name(dev));
-			return -EINVAL;
-		}
-		if (r->flags & IORESOURCE_IO)
-			cmd |= PCI_COMMAND_IO;
-		if (r->flags & IORESOURCE_MEM)
-			cmd |= PCI_COMMAND_MEMORY;
-	}
-
-	/*
-	 * Bridges (eg, cardbus bridges) need to be fully enabled
-	 */
-	if ((dev->class >> 16) == PCI_BASE_CLASS_BRIDGE)
-		cmd |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
-
-	if (cmd != old_cmd) {
-		printk("PCI: enabling device %s (%04x -> %04x)\n",
-		       pci_name(dev), old_cmd, cmd);
-		pci_write_config_word(dev, PCI_COMMAND, cmd);
-	}
-	return 0;
+	return pci_enable_resources(dev, mask);
 }
 
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,

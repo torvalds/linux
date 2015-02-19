@@ -6,12 +6,9 @@
  * not have done anything significant (but they may have had interrupts
  * enabled briefly - prom_smp_finish() should not be responsible for enabling
  * interrupts...)
- *
- * FIXME: broken for SMTC
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/irqflags.h>
 #include <linux/cpumask.h>
 
@@ -33,14 +30,6 @@ void synchronise_count_master(int cpu)
 	int i;
 	unsigned long flags;
 	unsigned int initcount;
-
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC needs to synchronise per VPE, not per CPU
-	 * ignore for now
-	 */
-	return;
-#endif
 
 	printk(KERN_INFO "Synchronize counters for CPU %u: ", cpu);
 
@@ -110,14 +99,6 @@ void synchronise_count_slave(int cpu)
 {
 	int i;
 	unsigned int initcount;
-
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC needs to synchronise per VPE, not per CPU
-	 * ignore for now
-	 */
-	return;
-#endif
 
 	/*
 	 * Not every cpu is online at the time this gets called,

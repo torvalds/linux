@@ -21,7 +21,6 @@
 #include <linux/mman.h>
 #include <linux/personality.h>
 #include <linux/sys.h>
-#include <linux/user.h>
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/kallsyms.h>
@@ -32,15 +31,18 @@
 #include <asm/cpu.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
+#include <asm/msa.h>
 #include <asm/pgtable.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
+#include <asm/reg.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/elf.h>
 #include <asm/isadep.h>
 #include <asm/inst.h>
 #include <asm/stacktrace.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
@@ -60,15 +62,14 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 
 	/* New thread loses kernel privileges. */
 	status = regs->cp0_status & ~(ST0_CU0|ST0_CU1|ST0_FR|KU_MASK);
-#ifdef CONFIG_64BIT
-	status |= test_thread_flag(TIF_32BIT_REGS) ? 0 : ST0_FR;
-#endif
 	status |= KU_USER;
 	regs->cp0_status = status;
 	clear_used_math();
 	clear_fpu_owner();
-	if (cpu_has_dsp)
-		__init_dsp();
+	init_dsp();
+	clear_thread_flag(TIF_USEDMSA);
+	clear_thread_flag(TIF_MSA_CTX_LIVE);
+	disable_msa();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
 }
@@ -81,6 +82,30 @@ void flush_thread(void)
 {
 }
 
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
+{
+	/*
+	 * Save any process state which is live in hardware registers to the
+	 * parent context prior to duplication. This prevents the new child
+	 * state becoming stale if the parent is preempted before copy_thread()
+	 * gets a chance to save the parent's live hardware registers to the
+	 * child context.
+	 */
+	preempt_disable();
+
+	if (is_msa_enabled())
+		save_msa(current);
+	else if (is_fpu_owner())
+		_save_fp(current);
+
+	save_dsp(current);
+
+	preempt_enable();
+
+	*dst = *src;
+	return 0;
+}
+
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 	unsigned long arg, struct task_struct *p)
 {
@@ -90,16 +115,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->set_child_tid = p->clear_child_tid = NULL;
 
 	childksp = (unsigned long)task_stack_page(p) + THREAD_SIZE - 32;
-
-	preempt_disable();
-
-	if (is_fpu_owner())
-		save_fp(p);
-
-	if (cpu_has_dsp)
-		save_dsp(p);
-
-	preempt_enable();
 
 	/* set up new TSS. */
 	childregs = (struct pt_regs *) childksp - 1;
@@ -139,14 +154,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 */
 	childregs->cp0_status &= ~(ST0_CU2|ST0_CU1);
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC restores TCStatus after Status, and the CU bits
-	 * are aliased there.
-	 */
-	childregs->cp0_tcstatus &= ~(ST0_CU2|ST0_CU1);
-#endif
 	clear_tsk_thread_flag(p, TIF_USEDFPU);
+	clear_tsk_thread_flag(p, TIF_USEDMSA);
+	clear_tsk_thread_flag(p, TIF_MSA_CTX_LIVE);
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 	clear_tsk_thread_flag(p, TIF_FPUBOUND);
@@ -156,49 +166,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		ti->tp_value = regs->regs[7];
 
 	return 0;
-}
-
-/* Fill in the fpu structure for a core dump.. */
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
-{
-	memcpy(r, &current->thread.fpu, sizeof(current->thread.fpu));
-
-	return 1;
-}
-
-void elf_dump_regs(elf_greg_t *gp, struct pt_regs *regs)
-{
-	int i;
-
-	for (i = 0; i < EF_R0; i++)
-		gp[i] = 0;
-	gp[EF_R0] = 0;
-	for (i = 1; i <= 31; i++)
-		gp[EF_R0 + i] = regs->regs[i];
-	gp[EF_R26] = 0;
-	gp[EF_R27] = 0;
-	gp[EF_LO] = regs->lo;
-	gp[EF_HI] = regs->hi;
-	gp[EF_CP0_EPC] = regs->cp0_epc;
-	gp[EF_CP0_BADVADDR] = regs->cp0_badvaddr;
-	gp[EF_CP0_STATUS] = regs->cp0_status;
-	gp[EF_CP0_CAUSE] = regs->cp0_cause;
-#ifdef EF_UNUSED0
-	gp[EF_UNUSED0] = 0;
-#endif
-}
-
-int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
-{
-	elf_dump_regs(*regs, task_pt_regs(tsk));
-	return 1;
-}
-
-int dump_task_fpu(struct task_struct *t, elf_fpregset_t *fpr)
-{
-	memcpy(fpr, &t->thread.fpu, sizeof(current->thread.fpu));
-
-	return 1;
 }
 
 #ifdef CONFIG_CC_STACKPROTECTOR
@@ -233,21 +200,21 @@ static inline int is_ra_save_ins(union mips_instruction *ip)
 	 */
 	if (mm_insn_16bit(ip->halfword[0])) {
 		mmi.word = (ip->halfword[0] << 16);
-		return ((mmi.mm16_r5_format.opcode == mm_swsp16_op &&
-			 mmi.mm16_r5_format.rt == 31) ||
-			(mmi.mm16_m_format.opcode == mm_pool16c_op &&
-			 mmi.mm16_m_format.func == mm_swm16_op));
+		return (mmi.mm16_r5_format.opcode == mm_swsp16_op &&
+			mmi.mm16_r5_format.rt == 31) ||
+		       (mmi.mm16_m_format.opcode == mm_pool16c_op &&
+			mmi.mm16_m_format.func == mm_swm16_op);
 	}
 	else {
 		mmi.halfword[0] = ip->halfword[1];
 		mmi.halfword[1] = ip->halfword[0];
-		return ((mmi.mm_m_format.opcode == mm_pool32b_op &&
-			 mmi.mm_m_format.rd > 9 &&
-			 mmi.mm_m_format.base == 29 &&
-			 mmi.mm_m_format.func == mm_swm32_func) ||
-			(mmi.i_format.opcode == mm_sw32_op &&
-			 mmi.i_format.rs == 29 &&
-			 mmi.i_format.rt == 31));
+		return (mmi.mm_m_format.opcode == mm_pool32b_op &&
+			mmi.mm_m_format.rd > 9 &&
+			mmi.mm_m_format.base == 29 &&
+			mmi.mm_m_format.func == mm_swm32_func) ||
+		       (mmi.i_format.opcode == mm_sw32_op &&
+			mmi.i_format.rs == 29 &&
+			mmi.i_format.rt == 31);
 	}
 #else
 	/* sw / sd $ra, offset($sp) */
@@ -279,7 +246,7 @@ static inline int is_jump_ins(union mips_instruction *ip)
 	if (ip->r_format.opcode != mm_pool32a_op ||
 			ip->r_format.func != mm_pool32axf_op)
 		return 0;
-	return (((ip->u_format.uimmediate >> 6) & mm_jalr_op) == mm_jalr_op);
+	return ((ip->u_format.uimmediate >> 6) & mm_jalr_op) == mm_jalr_op;
 #else
 	if (ip->j_format.opcode == j_op)
 		return 1;
@@ -306,13 +273,13 @@ static inline int is_sp_move_ins(union mips_instruction *ip)
 		union mips_instruction mmi;
 
 		mmi.word = (ip->halfword[0] << 16);
-		return ((mmi.mm16_r3_format.opcode == mm_pool16d_op &&
-			 mmi.mm16_r3_format.simmediate && mm_addiusp_func) ||
-			(mmi.mm16_r5_format.opcode == mm_pool16d_op &&
-			 mmi.mm16_r5_format.rt == 29));
+		return (mmi.mm16_r3_format.opcode == mm_pool16d_op &&
+			mmi.mm16_r3_format.simmediate && mm_addiusp_func) ||
+		       (mmi.mm16_r5_format.opcode == mm_pool16d_op &&
+			mmi.mm16_r5_format.rt == 29);
 	}
-	return (ip->mm_i_format.opcode == mm_addiu32_op &&
-		 ip->mm_i_format.rt == 29 && ip->mm_i_format.rs == 29);
+	return ip->mm_i_format.opcode == mm_addiu32_op &&
+	       ip->mm_i_format.rt == 29 && ip->mm_i_format.rs == 29;
 #else
 	/* addiu/daddiu sp,sp,-imm */
 	if (ip->i_format.rs != 29 || ip->i_format.rt != 29)
@@ -577,4 +544,21 @@ unsigned long arch_align_stack(unsigned long sp)
 		sp -= get_random_int() & ~PAGE_MASK;
 
 	return sp & ALMASK;
+}
+
+static void arch_dump_stack(void *info)
+{
+	struct pt_regs *regs;
+
+	regs = get_irq_regs();
+
+	if (regs)
+		show_regs(regs);
+
+	dump_stack();
+}
+
+void arch_trigger_all_cpu_backtrace(bool include_self)
+{
+	smp_call_function(arch_dump_stack, NULL, 1);
 }

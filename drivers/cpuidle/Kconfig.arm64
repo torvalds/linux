@@ -1,0 +1,13 @@
+#
+# ARM64 CPU Idle drivers
+#
+
+config ARM64_CPUIDLE
+	bool "Generic ARM64 CPU idle Driver"
+	select DT_IDLE_STATES
+	help
+	  Select this to enable generic cpuidle driver for ARM64.
+	  It provides a generic idle driver whose idle states are configured
+	  at run-time through DT nodes. The CPUidle suspend backend is
+	  initialized by calling the CPU operations init idle hook
+	  provided by architecture code.

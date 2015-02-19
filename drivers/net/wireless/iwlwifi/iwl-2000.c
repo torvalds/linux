@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -75,6 +75,7 @@ static const struct iwl_base_params iwl2000_base_params = {
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
+	.scd_chain_ext_wa = true,
 };
 
 
@@ -88,6 +89,7 @@ static const struct iwl_base_params iwl2030_base_params = {
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
+	.scd_chain_ext_wa = true,
 };
 
 static const struct iwl_ht_params iwl2000_ht_params = {

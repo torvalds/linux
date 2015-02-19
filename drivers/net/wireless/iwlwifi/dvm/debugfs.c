@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -69,19 +69,7 @@
 } while (0)
 
 /* file operation */
-#define DEBUGFS_READ_FUNC(name)                                         \
-static ssize_t iwl_dbgfs_##name##_read(struct file *file,               \
-					char __user *user_buf,          \
-					size_t count, loff_t *ppos);
-
-#define DEBUGFS_WRITE_FUNC(name)                                        \
-static ssize_t iwl_dbgfs_##name##_write(struct file *file,              \
-					const char __user *user_buf,    \
-					size_t count, loff_t *ppos);
-
-
 #define DEBUGFS_READ_FILE_OPS(name)                                     \
-	DEBUGFS_READ_FUNC(name);                                        \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.read = iwl_dbgfs_##name##_read,				\
 	.open = simple_open,						\
@@ -89,7 +77,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 };
 
 #define DEBUGFS_WRITE_FILE_OPS(name)                                    \
-	DEBUGFS_WRITE_FUNC(name);                                       \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.write = iwl_dbgfs_##name##_write,                              \
 	.open = simple_open,						\
@@ -98,8 +85,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 
 
 #define DEBUGFS_READ_WRITE_FILE_OPS(name)                               \
-	DEBUGFS_READ_FUNC(name);                                        \
-	DEBUGFS_WRITE_FUNC(name);                                       \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.write = iwl_dbgfs_##name##_write,                              \
 	.read = iwl_dbgfs_##name##_read,                                \
@@ -367,12 +352,12 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 					channels[i].max_power,
 					channels[i].flags & IEEE80211_CHAN_RADAR ?
 					" (IEEE 802.11h required)" : "",
-					((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+					((channels[i].flags & IEEE80211_CHAN_NO_IR)
 					|| (channels[i].flags &
 					IEEE80211_CHAN_RADAR)) ? "" :
 					", IBSS",
 					channels[i].flags &
-					IEEE80211_CHAN_PASSIVE_SCAN ?
+					IEEE80211_CHAN_NO_IR ?
 					"passive only" : "active/passive");
 	}
 	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
@@ -390,12 +375,12 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 					channels[i].max_power,
 					channels[i].flags & IEEE80211_CHAN_RADAR ?
 					" (IEEE 802.11h required)" : "",
-					((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+					((channels[i].flags & IEEE80211_CHAN_NO_IR)
 					|| (channels[i].flags &
 					IEEE80211_CHAN_RADAR)) ? "" :
 					", IBSS",
 					channels[i].flags &
-					IEEE80211_CHAN_PASSIVE_SCAN ?
+					IEEE80211_CHAN_NO_IR ?
 					"passive only" : "active/passive");
 	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
@@ -1496,7 +1481,7 @@ static ssize_t iwl_dbgfs_ucode_bt_stats_read(struct file *file,
 
 	/* make request to uCode to retrieve statistics information */
 	mutex_lock(&priv->mutex);
-	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
+	ret = iwl_send_statistics_request(priv, 0, false);
 	mutex_unlock(&priv->mutex);
 
 	if (ret)
@@ -1883,7 +1868,7 @@ static ssize_t iwl_dbgfs_clear_ucode_statistics_write(struct file *file,
 
 	/* make request to uCode to retrieve statistics information */
 	mutex_lock(&priv->mutex);
-	iwl_send_statistics_request(priv, CMD_SYNC, true);
+	iwl_send_statistics_request(priv, 0, true);
 	mutex_unlock(&priv->mutex);
 
 	return count;
@@ -2203,7 +2188,6 @@ static int iwl_cmd_echo_test(struct iwl_priv *priv)
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_ECHO,
 		.len = { 0 },
-		.flags = CMD_SYNC,
 	};
 
 	ret = iwl_dvm_send_cmd(priv, &cmd);
@@ -2335,7 +2319,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 	mutex_lock(&priv->mutex);
 
 	/* take the return value to make compiler happy - it will fail anyway */
-	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_ERROR, CMD_SYNC, 0, NULL);
+	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_ERROR, 0, 0, NULL);
 
 	mutex_unlock(&priv->mutex);
 

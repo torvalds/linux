@@ -42,13 +42,8 @@ static const u8 adt7310_reg_table[] = {
 static int adt7310_spi_read_word(struct device *dev, u8 reg)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	int ret;
 
-	ret = spi_w8r16(spi, AD7310_COMMAND(reg) | ADT7310_CMD_READ);
-	if (ret < 0)
-		return ret;
-
-	return be16_to_cpu((__force __be16)ret);
+	return spi_w8r16be(spi, AD7310_COMMAND(reg) | ADT7310_CMD_READ);
 }
 
 static int adt7310_spi_write_word(struct device *dev, u8 reg, u16 data)

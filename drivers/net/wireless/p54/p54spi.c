@@ -193,7 +193,7 @@ static int p54spi_request_eeprom(struct ieee80211_hw *dev)
 	/* allow users to customize their eeprom.
 	 */
 
-	ret = request_firmware(&eeprom, "3826.eeprom", &priv->spi->dev);
+	ret = request_firmware_direct(&eeprom, "3826.eeprom", &priv->spi->dev);
 	if (ret < 0) {
 #ifdef CONFIG_P54_SPI_DEFAULT_EEPROM
 		dev_info(&priv->spi->dev, "loading default eeprom...\n");
@@ -636,7 +636,7 @@ static int p54spi_probe(struct spi_device *spi)
 	gpio_direction_input(p54spi_gpio_irq);
 
 	ret = request_irq(gpio_to_irq(p54spi_gpio_irq),
-			  p54spi_interrupt, IRQF_DISABLED, "p54spi",
+			  p54spi_interrupt, 0, "p54spi",
 			  priv->spi);
 	if (ret < 0) {
 		dev_err(&priv->spi->dev, "request_irq() failed");

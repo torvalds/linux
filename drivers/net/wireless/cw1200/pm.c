@@ -101,9 +101,8 @@ int cw1200_pm_init(struct cw1200_pm_state *pm,
 {
 	spin_lock_init(&pm->lock);
 
-	init_timer(&pm->stay_awake);
-	pm->stay_awake.data = (unsigned long)pm;
-	pm->stay_awake.function = cw1200_pm_stay_awake_tmo;
+	setup_timer(&pm->stay_awake, cw1200_pm_stay_awake_tmo,
+		    (unsigned long)pm);
 
 	return 0;
 }
@@ -225,7 +224,7 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		cw1200_set_pm(priv, &priv->powersave_mode);
 		if (wait_event_interruptible_timeout(priv->ps_mode_switch_done,
 						     !priv->ps_mode_switch_in_progress, 1*HZ) <= 0) {
-			goto revert3;
+			goto revert4;
 		}
 	}
 
@@ -254,11 +253,11 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	/* Stop serving thread */
 	if (cw1200_bh_suspend(priv))
-		goto revert4;
+		goto revert5;
 
 	ret = timer_pending(&priv->mcast_timeout);
 	if (ret)
-		goto revert5;
+		goto revert6;
 
 	/* Store suspend state */
 	pm_state->suspend_state = state;
@@ -280,9 +279,9 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	return 0;
 
-revert5:
+revert6:
 	WARN_ON(cw1200_bh_resume(priv));
-revert4:
+revert5:
 	cw1200_resume_work(priv, &priv->bss_loss_work,
 			   state->bss_loss_tmo);
 	cw1200_resume_work(priv, &priv->join_timeout,
@@ -291,6 +290,7 @@ revert4:
 			   state->direct_probe);
 	cw1200_resume_work(priv, &priv->link_id_gc_work,
 			   state->link_id_gc);
+revert4:
 	kfree(state);
 revert3:
 	wsm_set_udp_port_filter(priv, &cw1200_udp_port_filter_off);

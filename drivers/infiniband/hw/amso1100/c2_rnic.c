@@ -576,7 +576,8 @@ int c2_rnic_init(struct c2_dev *c2dev)
 		goto bail4;
 
 	/* Initialize cached the adapter limits */
-	if (c2_rnic_query(c2dev, &c2dev->props))
+	err = c2_rnic_query(c2dev, &c2dev->props);
+	if (err)
 		goto bail5;
 
 	/* Initialize the PD pool */

@@ -17,21 +17,14 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
-#include "xfs_alloc.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
-#include "xfs_itable.h"
-#include "xfs_bmap.h"
-#include "xfs_rtalloc.h"
 #include "xfs_error.h"
-#include "xfs_attr.h"
-#include "xfs_buf_item.h"
+#include "xfs_trans.h"
 #include "xfs_qm.h"
 
 
@@ -122,7 +115,7 @@ xfs_qm_newmount(
 			(uquotaondisk ? " usrquota" : ""),
 			(gquotaondisk ? " grpquota" : ""),
 			(pquotaondisk ? " prjquota" : ""));
-		return XFS_ERROR(EPERM);
+		return -EPERM;
 	}
 
 	if (XFS_IS_QUOTA_ON(mp) || quotaondisk) {

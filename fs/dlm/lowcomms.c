@@ -424,7 +424,7 @@ int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len)
 }
 
 /* Data available on socket or listen socket received a connect */
-static void lowcomms_data_ready(struct sock *sk, int count_unused)
+static void lowcomms_data_ready(struct sock *sk)
 {
 	struct connection *con = sock2con(sk);
 	if (con && !test_and_set_bit(CF_READ_PENDING, &con->flags))
@@ -617,6 +617,11 @@ static void retry_failed_sctp_send(struct connection *recv_con,
 	int nodeid = sn_send_failed->ssf_info.sinfo_ppid;
 
 	log_print("Retry sending %d bytes to node id %d", len, nodeid);
+	
+	if (!nodeid) {
+		log_print("Shouldn't resend data via listening connection.");
+		return;
+	}
 
 	con = nodeid2con(nodeid, 0);
 	if (!con) {
@@ -649,6 +654,7 @@ static void process_sctp_notification(struct connection *con,
 				      struct msghdr *msg, char *buf)
 {
 	union sctp_notification *sn = (union sctp_notification *)buf;
+	struct linger linger;
 
 	switch (sn->sn_header.sn_type) {
 	case SCTP_SEND_FAILED:
@@ -713,11 +719,11 @@ static void process_sctp_notification(struct connection *con,
 				return;
 
 			/* Peel off a new sock */
-			sctp_lock_sock(con->sock->sk);
+			lock_sock(con->sock->sk);
 			ret = sctp_do_peeloff(con->sock->sk,
 				sn->sn_assoc_change.sac_assoc_id,
 				&new_con->sock);
-			sctp_release_sock(con->sock->sk);
+			release_sock(con->sock->sk);
 			if (ret < 0) {
 				log_print("Can't peel off a socket for "
 					  "connection %d to node %d: err=%d",
@@ -726,6 +732,13 @@ static void process_sctp_notification(struct connection *con,
 				return;
 			}
 			add_sock(new_con->sock, new_con);
+
+			linger.l_onoff = 1;
+			linger.l_linger = 0;
+			ret = kernel_setsockopt(new_con->sock, SOL_SOCKET, SO_LINGER,
+						(char *)&linger, sizeof(linger));
+			if (ret < 0)
+				log_print("set socket option SO_LINGER failed");
 
 			log_print("connecting to %d sctp association %d",
 				 nodeid, (int)sn->sn_assoc_change.sac_assoc_id);

@@ -1,0 +1,160 @@
+Simple-Card:
+
+Simple-Card specifies audio DAI connections of SoC <-> codec.
+
+Required properties:
+
+- compatible				: "simple-audio-card"
+
+Optional properties:
+
+- simple-audio-card,name		: User specified audio sound card name, one string
+					  property.
+- simple-audio-card,widgets		: Please refer to widgets.txt.
+- simple-audio-card,routing		: A list of the connections between audio components.
+					  Each entry is a pair of strings, the first being the
+					  connection's sink, the second being the connection's
+					  source.
+- simple-audio-card,mclk-fs             : Multiplication factor between stream rate and codec
+  					  mclk.
+- simple-audio-card,hp-det-gpio		: Reference to GPIO that signals when
+					  headphones are attached.
+- simple-audio-card,mic-det-gpio	: Reference to GPIO that signals when
+					  a microphone is attached.
+
+Optional subnodes:
+
+- simple-audio-card,dai-link		: Container for dai-link level
+					  properties and the CPU and CODEC
+					  sub-nodes. This container may be
+					  omitted when the card has only one
+					  DAI link. See the examples and the
+					  section bellow.
+
+Dai-link subnode properties and subnodes:
+
+If dai-link subnode is omitted and the subnode properties are directly
+under "sound"-node the subnode property and subnode names have to be
+prefixed with "simple-audio-card,"-prefix.
+
+Required dai-link subnodes:
+
+- cpu					: CPU   sub-node
+- codec					: CODEC sub-node
+
+Optional dai-link subnode properties:
+
+- format				: CPU/CODEC common audio format.
+					  "i2s", "right_j", "left_j" , "dsp_a"
+					  "dsp_b", "ac97", "pdm", "msb", "lsb"
+- frame-master				: Indicates dai-link frame master.
+					  phandle to a cpu or codec subnode.
+- bitclock-master			: Indicates dai-link bit clock master.
+					  phandle to a cpu or codec subnode.
+- bitclock-inversion			: bool property. Add this if the
+					  dai-link uses bit clock inversion.
+- frame-inversion			: bool property. Add this if the
+					  dai-link uses frame clock inversion.
+
+For backward compatibility the frame-master and bitclock-master
+properties can be used as booleans in codec subnode to indicate if the
+codec is the dai-link frame or bit clock master. In this case there
+should be no dai-link node, the same properties should not be present
+at sound-node level, and the bitclock-inversion and frame-inversion
+properties should also be placed in the codec node if needed.
+
+Required CPU/CODEC subnodes properties:
+
+- sound-dai				: phandle and port of CPU/CODEC
+
+Optional CPU/CODEC subnodes properties:
+
+- dai-tdm-slot-num			: Please refer to tdm-slot.txt.
+- dai-tdm-slot-width			: Please refer to tdm-slot.txt.
+- clocks / system-clock-frequency	: specify subnode's clock if needed.
+					  it can be specified via "clocks" if system has
+					  clock node (= common clock), or "system-clock-frequency"
+					  (if system doens't support common clock)
+					  If a clock is specified, it is
+					  enabled with clk_prepare_enable()
+					  in dai startup() and disabled with
+					  clk_disable_unprepare() in dai
+					  shutdown().
+
+Example 1 - single DAI link:
+
+sound {
+	compatible = "simple-audio-card";
+	simple-audio-card,name = "VF610-Tower-Sound-Card";
+	simple-audio-card,format = "left_j";
+	simple-audio-card,bitclock-master = <&dailink0_master>;
+	simple-audio-card,frame-master = <&dailink0_master>;
+	simple-audio-card,widgets =
+		"Microphone", "Microphone Jack",
+		"Headphone", "Headphone Jack",
+		"Speaker", "External Speaker";
+	simple-audio-card,routing =
+		"MIC_IN", "Microphone Jack",
+		"Headphone Jack", "HP_OUT",
+		"External Speaker", "LINE_OUT";
+
+	simple-audio-card,cpu {
+		sound-dai = <&sh_fsi2 0>;
+	};
+
+	dailink0_master: simple-audio-card,codec {
+		sound-dai = <&ak4648>;
+		clocks = <&osc>;
+	};
+};
+
+&i2c0 {
+	ak4648: ak4648@12 {
+		#sound-dai-cells = <0>;
+		compatible = "asahi-kasei,ak4648";
+		reg = <0x12>;
+	};
+};
+
+sh_fsi2: sh_fsi2@ec230000 {
+	#sound-dai-cells = <1>;
+	compatible = "renesas,sh_fsi2";
+	reg = <0xec230000 0x400>;
+	interrupt-parent = <&gic>;
+	interrupts = <0 146 0x4>;
+};
+
+Example 2 - many DAI links:
+
+sound {
+	compatible = "simple-audio-card";
+	simple-audio-card,name = "Cubox Audio";
+
+	simple-audio-card,dai-link@0 {		/* I2S - HDMI */
+		format = "i2s";
+		cpu {
+			sound-dai = <&audio1 0>;
+		};
+		codec {
+			sound-dai = <&tda998x 0>;
+		};
+	};
+
+	simple-audio-card,dai-link@1 {		/* S/PDIF - HDMI */
+		cpu {
+			sound-dai = <&audio1 1>;
+		};
+		codec {
+			sound-dai = <&tda998x 1>;
+		};
+	};
+
+	simple-audio-card,dai-link@2 {		/* S/PDIF - S/PDIF */
+		cpu {
+			sound-dai = <&audio1 1>;
+		};
+		codec {
+			sound-dai = <&spdif_codec>;
+		};
+	};
+};

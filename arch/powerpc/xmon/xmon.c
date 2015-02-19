@@ -24,6 +24,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/bug.h>
+#include <linux/nmi.h>
+#include <linux/ctype.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
@@ -48,6 +50,12 @@
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
 #include <asm/paca.h>
+#endif
+
+#if defined(CONFIG_PPC_SPLPAR)
+#include <asm/plpar_wrappers.h>
+#else
+static inline long plapr_set_ciabr(unsigned long ciabr) {return 0; };
 #endif
 
 #include "nonstdio.h"
@@ -87,10 +95,9 @@ struct bpt {
 };
 
 /* Bits in bpt.enabled */
-#define BP_IABR_TE	1		/* IABR translation enabled */
-#define BP_IABR		2
-#define BP_TRAP		8
-#define BP_DABR		0x10
+#define BP_CIABR	1
+#define BP_TRAP		2
+#define BP_DABR		4
 
 #define NBPTS	256
 static struct bpt bpts[NBPTS];
@@ -171,15 +178,11 @@ extern void xmon_leave(void);
 #define REG		"%.8lx"
 #endif
 
+#ifdef __LITTLE_ENDIAN__
+#define GETWORD(v)	(((v)[3] << 24) + ((v)[2] << 16) + ((v)[1] << 8) + (v)[0])
+#else
 #define GETWORD(v)	(((v)[0] << 24) + ((v)[1] << 16) + ((v)[2] << 8) + (v)[3])
-
-#define isxdigit(c)	(('0' <= (c) && (c) <= '9') \
-			 || ('a' <= (c) && (c) <= 'f') \
-			 || ('A' <= (c) && (c) <= 'F'))
-#define isalnum(c)	(('0' <= (c) && (c) <= '9') \
-			 || ('a' <= (c) && (c) <= 'z') \
-			 || ('A' <= (c) && (c) <= 'Z'))
-#define isspace(c)	(c == ' ' || c == '\t' || c == 10 || c == 13 || c == 0)
+#endif
 
 static char *help_string = "\
 Commands:\n\
@@ -265,6 +268,45 @@ static inline void cinval(void *p)
 	asm volatile ("dcbi 0,%0; icbi 0,%0" : : "r" (p));
 }
 
+/**
+ * write_ciabr() - write the CIABR SPR
+ * @ciabr:	The value to write.
+ *
+ * This function writes a value to the CIARB register either directly
+ * through mtspr instruction if the kernel is in HV privilege mode or
+ * call a hypervisor function to achieve the same in case the kernel
+ * is in supervisor privilege mode.
+ */
+static void write_ciabr(unsigned long ciabr)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
+		return;
+
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		mtspr(SPRN_CIABR, ciabr);
+		return;
+	}
+	plapr_set_ciabr(ciabr);
+}
+
+/**
+ * set_ciabr() - set the CIABR
+ * @addr:	The value to set.
+ *
+ * This function sets the correct privilege value into the the HW
+ * breakpoint address before writing it up in the CIABR register.
+ */
+static void set_ciabr(unsigned long addr)
+{
+	addr &= ~CIABR_PRIV;
+
+	if (cpu_has_feature(CPU_FTR_HVMODE))
+		addr |= CIABR_PRIV_HYPER;
+	else
+		addr |= CIABR_PRIV_SUPER;
+	write_ciabr(addr);
+}
+
 /*
  * Disable surveillance (the service processor watchdog function)
  * while we are in xmon.
@@ -288,10 +330,11 @@ static inline void disable_surveillance(void)
 	args.token = rtas_token("set-indicator");
 	if (args.token == RTAS_UNKNOWN_SERVICE)
 		return;
-	args.nargs = 3;
-	args.nret = 1;
+	args.token = cpu_to_be32(args.token);
+	args.nargs = cpu_to_be32(3);
+	args.nret = cpu_to_be32(1);
 	args.rets = &args.args[3];
-	args.args[0] = SURVEILLANCE_TOKEN;
+	args.args[0] = cpu_to_be32(SURVEILLANCE_TOKEN);
 	args.args[1] = 0;
 	args.args[2] = 0;
 	enter_rtas(__pa(&args));
@@ -309,16 +352,23 @@ static void get_output_lock(void)
 
 	if (xmon_speaker == me)
 		return;
+
 	for (;;) {
-		if (xmon_speaker == 0) {
-			last_speaker = cmpxchg(&xmon_speaker, 0, me);
-			if (last_speaker == 0)
-				return;
-		}
-		timeout = 10000000;
+		last_speaker = cmpxchg(&xmon_speaker, 0, me);
+		if (last_speaker == 0)
+			return;
+
+		/*
+		 * Wait a full second for the lock, we might be on a slow
+		 * console, but check every 100us.
+		 */
+		timeout = 10000;
 		while (xmon_speaker == last_speaker) {
-			if (--timeout > 0)
+			if (--timeout > 0) {
+				udelay(100);
 				continue;
+			}
+
 			/* hostile takeover */
 			prev = cmpxchg(&xmon_speaker, last_speaker, me);
 			if (prev == last_speaker)
@@ -363,6 +413,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 #endif
 
 	local_irq_save(flags);
+	hard_irq_disable();
 
 	bp = in_breakpoint_table(regs->nip, &offset);
 	if (bp != NULL) {
@@ -397,7 +448,6 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	}
 
 	xmon_fault_jmp[cpu] = recurse_jmp;
-	cpumask_set_cpu(cpu, &cpus_in_xmon);
 
 	bp = NULL;
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_64BIT)) == (MSR_IR|MSR_64BIT))
@@ -409,7 +459,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		get_output_lock();
 		excprint(regs);
 		if (bp) {
-			printf("cpu 0x%x stopped at breakpoint 0x%x (",
+			printf("cpu 0x%x stopped at breakpoint 0x%lx (",
 			       cpu, BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
@@ -418,6 +468,8 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			       "can't continue\n");
 		release_output_lock();
 	}
+
+	cpumask_set_cpu(cpu, &cpus_in_xmon);
 
  waiting:
 	secondary = 1;
@@ -501,7 +553,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		excprint(regs);
 		bp = at_breakpoint(regs->nip);
 		if (bp) {
-			printf("Stopped at breakpoint %x (", BP_NUM(bp));
+			printf("Stopped at breakpoint %lx (", BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
 		if (unrecoverable_excp(regs))
@@ -546,6 +598,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 #endif
 	insert_cpu_bpts();
 
+	touch_nmi_watchdog();
 	local_irq_restore(flags);
 
 	return cmd != 'X' && cmd != EOF;
@@ -712,7 +765,7 @@ static void insert_bpts(void)
 
 	bp = bpts;
 	for (i = 0; i < NBPTS; ++i, ++bp) {
-		if ((bp->enabled & (BP_TRAP|BP_IABR)) == 0)
+		if ((bp->enabled & (BP_TRAP|BP_CIABR)) == 0)
 			continue;
 		if (mread(bp->address, &bp->instr[0], 4) != 4) {
 			printf("Couldn't read instruction at %lx, "
@@ -727,7 +780,7 @@ static void insert_bpts(void)
 			continue;
 		}
 		store_inst(&bp->instr[0]);
-		if (bp->enabled & BP_IABR)
+		if (bp->enabled & BP_CIABR)
 			continue;
 		if (mwrite(bp->address, &bpinstr, 4) != 4) {
 			printf("Couldn't write instruction at %lx, "
@@ -747,11 +800,11 @@ static void insert_cpu_bpts(void)
 		brk.address = dabr.address;
 		brk.type = (dabr.enabled & HW_BRK_TYPE_DABR) | HW_BRK_TYPE_PRIV_ALL;
 		brk.len = 8;
-		set_breakpoint(&brk);
+		__set_breakpoint(&brk);
 	}
-	if (iabr && cpu_has_feature(CPU_FTR_IABR))
-		mtspr(SPRN_IABR, iabr->address
-			 | (iabr->enabled & (BP_IABR|BP_IABR_TE)));
+
+	if (iabr)
+		set_ciabr(iabr->address);
 }
 
 static void remove_bpts(void)
@@ -762,7 +815,7 @@ static void remove_bpts(void)
 
 	bp = bpts;
 	for (i = 0; i < NBPTS; ++i, ++bp) {
-		if ((bp->enabled & (BP_TRAP|BP_IABR)) != BP_TRAP)
+		if ((bp->enabled & (BP_TRAP|BP_CIABR)) != BP_TRAP)
 			continue;
 		if (mread(bp->address, &instr, 4) == 4
 		    && instr == bpinstr
@@ -777,8 +830,7 @@ static void remove_bpts(void)
 static void remove_cpu_bpts(void)
 {
 	hw_breakpoint_disable();
-	if (cpu_has_feature(CPU_FTR_IABR))
-		mtspr(SPRN_IABR, 0);
+	write_ciabr(0);
 }
 
 /* Command interpreting routine */
@@ -892,7 +944,7 @@ cmds(struct pt_regs *excp)
 		case 'u':
 			dump_segments();
 			break;
-#elif defined(CONFIG_4xx)
+#elif defined(CONFIG_44x)
 		case 'u':
 			dump_tlb_44x();
 			break;
@@ -966,33 +1018,34 @@ static void bootcmds(void)
 	else if (cmd == 'h')
 		ppc_md.halt();
 	else if (cmd == 'p')
-		ppc_md.power_off();
+		if (pm_power_off)
+			pm_power_off();
 }
 
 static int cpu_cmd(void)
 {
 #ifdef CONFIG_SMP
-	unsigned long cpu;
+	unsigned long cpu, first_cpu, last_cpu;
 	int timeout;
-	int count;
 
 	if (!scanhex(&cpu)) {
 		/* print cpus waiting or in xmon */
 		printf("cpus stopped:");
-		count = 0;
+		last_cpu = first_cpu = NR_CPUS;
 		for_each_possible_cpu(cpu) {
 			if (cpumask_test_cpu(cpu, &cpus_in_xmon)) {
-				if (count == 0)
-					printf(" %x", cpu);
-				++count;
-			} else {
-				if (count > 1)
-					printf("-%x", cpu - 1);
-				count = 0;
+				if (cpu == last_cpu + 1) {
+					last_cpu = cpu;
+				} else {
+					if (last_cpu != first_cpu)
+						printf("-0x%lx", last_cpu);
+					last_cpu = first_cpu = cpu;
+					printf(" 0x%lx", cpu);
+				}
 			}
 		}
-		if (count > 1)
-			printf("-%x", NR_CPUS - 1);
+		if (last_cpu != first_cpu)
+			printf("-0x%lx", last_cpu);
 		printf("\n");
 		return 0;
 	}
@@ -1012,7 +1065,7 @@ static int cpu_cmd(void)
 			/* take control back */
 			mb();
 			xmon_owner = smp_processor_id();
-			printf("cpu %u didn't take control\n", cpu);
+			printf("cpu 0x%x didn't take control\n", cpu);
 			return 0;
 		}
 		barrier();
@@ -1074,7 +1127,7 @@ csum(void)
 	fcs = 0xffff;
 	for (i = 0; i < ncsum; ++i) {
 		if (mread(adrs+i, &v, 1) == 0) {
-			printf("csum stopped at %x\n", adrs+i);
+			printf("csum stopped at "REG"\n", adrs+i);
 			break;
 		}
 		fcs = FCS(fcs, v);
@@ -1112,7 +1165,7 @@ static char *breakpoint_help_string =
     "b <addr> [cnt]   set breakpoint at given instr addr\n"
     "bc               clear all breakpoints\n"
     "bc <n/addr>      clear breakpoint number n or at addr\n"
-    "bi <addr> [cnt]  set hardware instr breakpoint (POWER3/RS64 only)\n"
+    "bi <addr> [cnt]  set hardware instr breakpoint (POWER8 only)\n"
     "bd <addr> [cnt]  set hardware data breakpoint\n"
     "";
 
@@ -1151,13 +1204,13 @@ bpt_cmds(void)
 		break;
 
 	case 'i':	/* bi - hardware instr breakpoint */
-		if (!cpu_has_feature(CPU_FTR_IABR)) {
+		if (!cpu_has_feature(CPU_FTR_ARCH_207S)) {
 			printf("Hardware instruction breakpoint "
 			       "not supported on this cpu\n");
 			break;
 		}
 		if (iabr) {
-			iabr->enabled &= ~(BP_IABR | BP_IABR_TE);
+			iabr->enabled &= ~BP_CIABR;
 			iabr = NULL;
 		}
 		if (!scanhex(&a))
@@ -1166,7 +1219,7 @@ bpt_cmds(void)
 			break;
 		bp = new_breakpoint(a);
 		if (bp != NULL) {
-			bp->enabled |= BP_IABR | BP_IABR_TE;
+			bp->enabled |= BP_CIABR;
 			iabr = bp;
 		}
 		break;
@@ -1190,12 +1243,12 @@ bpt_cmds(void)
 			/* assume a breakpoint address */
 			bp = at_breakpoint(a);
 			if (bp == NULL) {
-				printf("No breakpoint at %x\n", a);
+				printf("No breakpoint at %lx\n", a);
 				break;
 			}
 		}
 
-		printf("Cleared breakpoint %x (", BP_NUM(bp));
+		printf("Cleared breakpoint %lx (", BP_NUM(bp));
 		xmon_print_symbol(bp->address, " ", ")\n");
 		bp->enabled = 0;
 		break;
@@ -1223,7 +1276,7 @@ bpt_cmds(void)
 				if (!bp->enabled)
 					continue;
 				printf("%2x %s   ", BP_NUM(bp),
-				    (bp->enabled & BP_IABR)? "inst": "trap");
+				    (bp->enabled & BP_CIABR) ? "inst": "trap");
 				xmon_print_symbol(bp->address, "  ", "\n");
 			}
 			break;
@@ -1256,11 +1309,18 @@ const char *getvecname(unsigned long vec)
 	case 0x700:	ret = "(Program Check)"; break;
 	case 0x800:	ret = "(FPU Unavailable)"; break;
 	case 0x900:	ret = "(Decrementer)"; break;
+	case 0x980:	ret = "(Hypervisor Decrementer)"; break;
+	case 0xa00:	ret = "(Doorbell)"; break;
 	case 0xc00:	ret = "(System Call)"; break;
 	case 0xd00:	ret = "(Single Step)"; break;
+	case 0xe40:	ret = "(Emulation Assist)"; break;
+	case 0xe60:	ret = "(HMI)"; break;
+	case 0xe80:	ret = "(Hypervisor Doorbell)"; break;
 	case 0xf00:	ret = "(Performance Monitor)"; break;
 	case 0xf20:	ret = "(Altivec Unavailable)"; break;
 	case 0x1300:	ret = "(Instruction Breakpoint)"; break;
+	case 0x1500:	ret = "(Denormalisation)"; break;
+	case 0x1700:	ret = "(Altivec Assist)"; break;
 	default: ret = "";
 	}
 	return ret;
@@ -1727,7 +1787,7 @@ mwrite(unsigned long adrs, void *buf, int size)
 		__delay(200);
 		n = size;
 	} else {
-		printf("*** Error writing address %x\n", adrs + n);
+		printf("*** Error writing address "REG"\n", adrs + n);
 	}
 	catch_memory_errors = 0;
 	return n;
@@ -2039,11 +2099,11 @@ static void dump_one_paca(int cpu)
 	DUMP(p, kernel_toc, "lx");
 	DUMP(p, kernelbase, "lx");
 	DUMP(p, kernel_msr, "lx");
-#ifdef CONFIG_PPC_STD_MMU_64
-	DUMP(p, stab_real, "lx");
-	DUMP(p, stab_addr, "lx");
-#endif
 	DUMP(p, emergency_sp, "p");
+#ifdef CONFIG_PPC_BOOK3S_64
+	DUMP(p, mc_emergency_sp, "p");
+	DUMP(p, in_mce, "x");
+#endif
 	DUMP(p, data_offset, "lx");
 	DUMP(p, hw_cpu_id, "x");
 	DUMP(p, cpu_start, "x");
@@ -2098,9 +2158,6 @@ static void dump_pacas(void)
 }
 #endif
 
-#define isxdigit(c)	(('0' <= (c) && (c) <= '9') \
-			 || ('a' <= (c) && (c) <= 'f') \
-			 || ('A' <= (c) && (c) <= 'F'))
 static void
 dump(void)
 {
@@ -2412,7 +2469,7 @@ static void proccall(void)
 		ret = func(args[0], args[1], args[2], args[3],
 			   args[4], args[5], args[6], args[7]);
 		sync();
-		printf("return value is %x\n", ret);
+		printf("return value is 0x%lx\n", ret);
 	} else {
 		printf("*** %x exception occurred\n", fault_except);
 	}
@@ -2503,7 +2560,7 @@ scanhex(unsigned long *vp)
 		int i;
 		for (i=0; i<63; i++) {
 			c = inchar();
-			if (isspace(c)) {
+			if (isspace(c) || c == '\0') {
 				termch = c;
 				break;
 			}
@@ -2671,13 +2728,13 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
-static void dump_slb(void)
+void dump_segments(void)
 {
 	int i;
 	unsigned long esid,vsid,valid;
 	unsigned long llp;
 
-	printf("SLB contents of cpu %x\n", smp_processor_id());
+	printf("SLB contents of cpu 0x%x\n", smp_processor_id());
 
 	for (i = 0; i < mmu_slb_size; i++) {
 		asm volatile("slbmfee  %0,%1" : "=r" (esid) : "r" (i));
@@ -2702,34 +2759,6 @@ static void dump_slb(void)
 				printf("\n");
 		}
 	}
-}
-
-static void dump_stab(void)
-{
-	int i;
-	unsigned long *tmp = (unsigned long *)local_paca->stab_addr;
-
-	printf("Segment table contents of cpu %x\n", smp_processor_id());
-
-	for (i = 0; i < PAGE_SIZE/16; i++) {
-		unsigned long a, b;
-
-		a = *tmp++;
-		b = *tmp++;
-
-		if (a || b) {
-			printf("%03d %016lx ", i, a);
-			printf("%016lx\n", b);
-		}
-	}
-}
-
-void dump_segments(void)
-{
-	if (mmu_has_feature(MMU_FTR_SLB))
-		dump_slb();
-	else
-		dump_stab();
 }
 #endif
 

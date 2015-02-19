@@ -139,7 +139,6 @@ static u8 cached_leden;
 static void twl4030_led_set_value(int led, int value)
 {
 	u8 mask = LEDEN_LEDAON | LEDEN_LEDAPWM;
-	int status;
 
 	if (led)
 		mask <<= 1;
@@ -148,8 +147,9 @@ static void twl4030_led_set_value(int led, int value)
 		cached_leden &= ~mask;
 	else
 		cached_leden |= mask;
-	status = twl_i2c_write_u8(TWL4030_MODULE_LED, cached_leden,
-				  TWL4030_LED_LEDEN_REG);
+
+	WARN_ON_ONCE(twl_i2c_write_u8(TWL4030_MODULE_LED, cached_leden,
+				      TWL4030_LED_LEDEN_REG));
 }
 
 static int twl4030_set_gpio_direction(int gpio, int is_input)
@@ -256,7 +256,7 @@ static int twl_request(struct gpio_chip *chip, unsigned offset)
 		/* optionally have the first two GPIOs switch vMMC1
 		 * and vMMC2 power supplies based on card presence.
 		 */
-		pdata = chip->dev->platform_data;
+		pdata = dev_get_platdata(chip->dev);
 		if (pdata)
 			value |= pdata->mmc_cd & 0x03;
 
@@ -300,7 +300,7 @@ static int twl_direction_in(struct gpio_chip *chip, unsigned offset)
 	if (offset < TWL4030_GPIO_MAX)
 		ret = twl4030_set_gpio_direction(offset, 1);
 	else
-		ret = -EINVAL;
+		ret = -EINVAL;	/* LED outputs can't be set as input */
 
 	if (!ret)
 		priv->direction &= ~BIT(offset);
@@ -354,17 +354,27 @@ static void twl_set(struct gpio_chip *chip, unsigned offset, int value)
 static int twl_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct gpio_twl4030_priv *priv = to_gpio_twl4030(chip);
+	int ret = 0;
 
 	mutex_lock(&priv->mutex);
-	if (offset < TWL4030_GPIO_MAX)
-		twl4030_set_gpio_dataout(offset, value);
+	if (offset < TWL4030_GPIO_MAX) {
+		ret = twl4030_set_gpio_direction(offset, 0);
+		if (ret) {
+			mutex_unlock(&priv->mutex);
+			return ret;
+		}
+	}
+
+	/*
+	 *  LED gpios i.e. offset >= TWL4030_GPIO_MAX are always output
+	 */
 
 	priv->direction |= BIT(offset);
 	mutex_unlock(&priv->mutex);
 
 	twl_set(chip, offset, value);
 
-	return 0;
+	return ret;
 }
 
 static int twl_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -386,7 +396,7 @@ static struct gpio_chip template_chip = {
 	.direction_output	= twl_direction_out,
 	.set			= twl_set,
 	.to_irq			= twl_to_irq,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 /*----------------------------------------------------------------------*/
@@ -435,13 +445,17 @@ static int gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
 
 static int gpio_twl4030_remove(struct platform_device *pdev);
 
-static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev)
+static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev,
+				struct twl4030_gpio_platform_data *pdata)
 {
 	struct twl4030_gpio_platform_data *omap_twl_info;
 
 	omap_twl_info = devm_kzalloc(dev, sizeof(*omap_twl_info), GFP_KERNEL);
 	if (!omap_twl_info)
 		return NULL;
+
+	if (pdata)
+		*omap_twl_info = *pdata;
 
 	omap_twl_info->use_leds = of_property_read_bool(dev->of_node,
 			"ti,use-leds");
@@ -460,7 +474,7 @@ static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev)
 
 static int gpio_twl4030_probe(struct platform_device *pdev)
 {
-	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct twl4030_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
 	struct gpio_twl4030_priv *priv;
 	int ret, irq_base;
@@ -500,7 +514,7 @@ no_irqs:
 	mutex_init(&priv->mutex);
 
 	if (node)
-		pdata = of_gpio_twl4030(&pdev->dev);
+		pdata = of_gpio_twl4030(&pdev->dev, pdata);
 
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "Platform data is missing\n");
@@ -540,7 +554,7 @@ no_irqs:
 
 	platform_set_drvdata(pdev, priv);
 
-	if (pdata && pdata->setup) {
+	if (pdata->setup) {
 		int status;
 
 		status = pdata->setup(&pdev->dev, priv->gpio_chip.base,
@@ -556,7 +570,7 @@ out:
 /* Cannot use as gpio_twl4030_probe() calls us */
 static int gpio_twl4030_remove(struct platform_device *pdev)
 {
-	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct twl4030_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct gpio_twl4030_priv *priv = platform_get_drvdata(pdev);
 	int status;
 
@@ -569,9 +583,7 @@ static int gpio_twl4030_remove(struct platform_device *pdev)
 		}
 	}
 
-	status = gpiochip_remove(&priv->gpio_chip);
-	if (status < 0)
-		return status;
+	gpiochip_remove(&priv->gpio_chip);
 
 	if (is_module())
 		return 0;
@@ -593,8 +605,7 @@ MODULE_ALIAS("platform:twl4030_gpio");
 static struct platform_driver gpio_twl4030_driver = {
 	.driver = {
 		.name	= "twl4030_gpio",
-		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(twl_gpio_match),
+		.of_match_table = twl_gpio_match,
 	},
 	.probe		= gpio_twl4030_probe,
 	.remove		= gpio_twl4030_remove,

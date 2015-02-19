@@ -19,6 +19,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/bootmem.h>
 #include <linux/mmzone.h>
 #include <linux/mm.h>
@@ -32,9 +33,6 @@
 #include <asm/hexagon_vm.h>
 #include <asm/vm_mmu.h>
 #include <asm/time.h>
-#ifdef CONFIG_OF
-#include <asm/prom.h>
-#endif
 
 char cmd_line[COMMAND_LINE_SIZE];
 static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;

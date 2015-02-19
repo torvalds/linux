@@ -41,6 +41,19 @@ struct r1conf {
 	 */
 	sector_t		next_resync;
 
+	/* When raid1 starts resync, we divide array into four partitions
+	 * |---------|--------------|---------------------|-------------|
+	 *        next_resync   start_next_window       end_window
+	 * start_next_window = next_resync + NEXT_NORMALIO_DISTANCE
+	 * end_window = start_next_window + NEXT_NORMALIO_DISTANCE
+	 * current_window_requests means the count of normalIO between
+	 *   start_next_window and end_window.
+	 * next_window_requests means the count of normalIO after end_window.
+	 * */
+	sector_t		start_next_window;
+	int			current_window_requests;
+	int			next_window_requests;
+
 	spinlock_t		device_lock;
 
 	/* list of 'struct r1bio' that need to be processed by raid1d,
@@ -65,6 +78,7 @@ struct r1conf {
 	int			nr_waiting;
 	int			nr_queued;
 	int			barrier;
+	int			array_frozen;
 
 	/* Set to 1 if a full sync is needed, (fresh device added).
 	 * Cleared when a sync completes.
@@ -75,7 +89,6 @@ struct r1conf {
 	 * recovery to be attempted as we expect a read error.
 	 */
 	int			recovery_disabled;
-
 
 	/* poolinfo contains information about the content of the
 	 * mempools - it changes when the array grows or shrinks
@@ -88,7 +101,6 @@ struct r1conf {
 	 * a read error.
 	 */
 	struct page		*tmppage;
-
 
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.
@@ -111,6 +123,7 @@ struct r1bio {
 						 * in this BehindIO request
 						 */
 	sector_t		sector;
+	sector_t		start_next_window;
 	int			sectors;
 	unsigned long		state;
 	struct mddev		*mddev;
@@ -157,7 +170,4 @@ struct r1bio {
  */
 #define	R1BIO_MadeGood 7
 #define	R1BIO_WriteError 8
-
-extern int md_raid1_congested(struct mddev *mddev, int bits);
-
 #endif

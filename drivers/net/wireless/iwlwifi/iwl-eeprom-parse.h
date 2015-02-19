@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,16 +81,17 @@ struct iwl_nvm_data {
 	bool sku_cap_band_24GHz_enable;
 	bool sku_cap_band_52GHz_enable;
 	bool sku_cap_11n_enable;
+	bool sku_cap_11ac_enable;
 	bool sku_cap_amt_enable;
 	bool sku_cap_ipan_enable;
 
-	u8 radio_cfg_type;
+	u16 radio_cfg_type;
 	u8 radio_cfg_step;
 	u8 radio_cfg_dash;
 	u8 radio_cfg_pnum;
 	u8 valid_tx_ant, valid_rx_ant;
 
-	u16 nvm_version;
+	u32 nvm_version;
 	s8 max_tx_pwr_half_dbm;
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];

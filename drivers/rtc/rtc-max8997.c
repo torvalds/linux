@@ -523,7 +523,6 @@ static const struct platform_device_id rtc_id[] = {
 static struct platform_driver max8997_rtc_driver = {
 	.driver		= {
 		.name	= "max8997-rtc",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= max8997_rtc_probe,
 	.shutdown	= max8997_rtc_shutdown,

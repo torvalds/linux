@@ -1,0 +1,24 @@
+Generic USB Properties
+
+Optional properties:
+ - maximum-speed: tells USB controllers we want to work up to a certain
+			speed. Valid arguments are "super-speed", "high-speed",
+			"full-speed" and "low-speed". In case this isn't passed
+			via DT, USB controllers should default to their maximum
+			HW capability.
+ - dr_mode: tells Dual-Role USB controllers that we want to work on a
+			particular mode. Valid arguments are "host",
+			"peripheral" and "otg". In case this attribute isn't
+			passed via DT, USB DRD controllers should default to
+			OTG.
+
+This is an attribute to a USB controller such as:
+
+dwc3@4a030000 {
+	compatible = "synopsys,dwc3";
+	reg = <0x4a030000 0xcfff>;
+	interrupts = <0 92 4>
+	usb-phy = <&usb2_phy>, <&usb3,phy>;
+	maximum-speed = "super-speed";
+	dr_mode = "otg";
+};

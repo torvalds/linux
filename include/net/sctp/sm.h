@@ -21,16 +21,12 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email addresses:
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
@@ -42,9 +38,6 @@
  *    Daisy Chang <daisyc@us.ibm.com>
  *    Ardelle Fan <ardelle.fan@intel.com>
  *    Kevin Gao <kevin.gao@intel.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/types.h>
@@ -226,7 +219,7 @@ struct sctp_chunk *sctp_make_abort_no_data(const struct sctp_association *,
 				      const struct sctp_chunk *,
 				      __u32 tsn);
 struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *,
-					const struct msghdr *, size_t msg_len);
+					struct msghdr *, size_t msg_len);
 struct sctp_chunk *sctp_make_abort_violation(const struct sctp_association *,
 				   const struct sctp_chunk *,
 				   const __u8 *,
@@ -255,9 +248,9 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *,
 					      int, __be16);
 struct sctp_chunk *sctp_make_asconf_set_prim(struct sctp_association *asoc,
 					     union sctp_addr *addr);
-int sctp_verify_asconf(const struct sctp_association *asoc,
-		       struct sctp_paramhdr *param_hdr, void *chunk_end,
-		       struct sctp_paramhdr **errp);
+bool sctp_verify_asconf(const struct sctp_association *asoc,
+			struct sctp_chunk *chunk, bool addr_param_needed,
+			struct sctp_paramhdr **errp);
 struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 				       struct sctp_chunk *asconf);
 int sctp_process_asconf_ack(struct sctp_association *asoc,

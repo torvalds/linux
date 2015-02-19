@@ -30,7 +30,7 @@
 #include <linux/power_supply.h>
 #include <linux/apm-emulation.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/i2c/pxa-i2c.h>
 #include <linux/regulator/userspace-consumer.h>
 
@@ -378,7 +378,7 @@ static void __init em_x270_init_nand(void)
 
 	err = gpio_request(GPIO11_NAND_CS, "NAND CS");
 	if (err) {
-		pr_warning("EM-X270: failed to request NAND CS gpio\n");
+		pr_warn("EM-X270: failed to request NAND CS gpio\n");
 		return;
 	}
 
@@ -386,7 +386,7 @@ static void __init em_x270_init_nand(void)
 
 	err = gpio_request(nand_rb, "NAND R/B");
 	if (err) {
-		pr_warning("EM-X270: failed to request NAND R/B gpio\n");
+		pr_warn("EM-X270: failed to request NAND R/B gpio\n");
 		gpio_free(GPIO11_NAND_CS);
 		return;
 	}
@@ -564,8 +564,7 @@ static int em_x270_mci_init(struct device *dev,
 	}
 
 	err = request_irq(gpio_to_irq(mmc_cd), em_x270_detect_int,
-			      IRQF_DISABLED | IRQF_TRIGGER_RISING |
-			      IRQF_TRIGGER_FALLING,
+			      IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			      "MMC card detect", data);
 	if (err) {
 		dev_err(dev, "can't request MMC card detect IRQ: %d\n", err);

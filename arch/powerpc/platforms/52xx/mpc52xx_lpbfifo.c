@@ -245,7 +245,7 @@ static irqreturn_t mpc52xx_lpbfifo_irq(int irq, void *dev_id)
 
 	if (dma && !write) {
 		spin_unlock_irqrestore(&lpbfifo.lock, flags);
-		pr_err("bogus LPBFIFO IRQ (dma and not writting)\n");
+		pr_err("bogus LPBFIFO IRQ (dma and not writing)\n");
 		return IRQ_HANDLED;
 	}
 
@@ -564,7 +564,7 @@ static int mpc52xx_lpbfifo_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc52xx_lpbfifo_match[] = {
+static const struct of_device_id mpc52xx_lpbfifo_match[] = {
 	{ .compatible = "fsl,mpc5200-lpbfifo", },
 	{},
 };
@@ -572,7 +572,6 @@ static struct of_device_id mpc52xx_lpbfifo_match[] = {
 static struct platform_driver mpc52xx_lpbfifo_driver = {
 	.driver = {
 		.name = "mpc52xx-lpbfifo",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc52xx_lpbfifo_match,
 	},
 	.probe = mpc52xx_lpbfifo_probe,

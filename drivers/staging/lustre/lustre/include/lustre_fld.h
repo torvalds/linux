@@ -42,11 +42,8 @@
  * @{
  */
 
-#include <lustre/lustre_idl.h>
-#include <lustre_mdt.h>
-#include <dt_object.h>
-
-#include <linux/libcfs/libcfs.h>
+#include "lustre/lustre_idl.h"
+#include "../../include/linux/libcfs/libcfs.h"
 
 struct lu_client_fld;
 struct lu_server_fld;
@@ -75,7 +72,7 @@ struct lu_fld_target {
 struct lu_server_fld {
 	/**
 	 * Fld dir proc entry. */
-	proc_dir_entry_t    *lsf_proc_dir;
+	struct proc_dir_entry    *lsf_proc_dir;
 
 	/**
 	 * /fld file object device */
@@ -96,14 +93,14 @@ struct lu_server_fld {
 
 	/**
 	 * Fld service name in form "fld-srv-lustre-MDTXXX" */
-	char		     lsf_name[80];
+	char		     lsf_name[LUSTRE_MDT_MAXNAMELEN];
 
 };
 
 struct lu_client_fld {
 	/**
 	 * Client side proc entry. */
-	proc_dir_entry_t    *lcf_proc_dir;
+	struct proc_dir_entry    *lcf_proc_dir;
 
 	/**
 	 * List of exports client FLD knows about. */
@@ -127,48 +124,10 @@ struct lu_client_fld {
 
 	/**
 	 * Client fld proc entry name. */
-	char		     lcf_name[80];
-
-	const struct lu_context *lcf_ctx;
+	char		     lcf_name[LUSTRE_MDT_MAXNAMELEN];
 
 	int		      lcf_flags;
 };
-
-/**
- * number of blocks to reserve for particular operations. Should be function of
- * ... something. Stub for now.
- */
-enum {
-	/* one insert operation can involve two delete and one insert */
-	FLD_TXN_INDEX_INSERT_CREDITS  = 60,
-	FLD_TXN_INDEX_DELETE_CREDITS  = 20,
-};
-
-int fld_query(struct com_thread_info *info);
-
-/* Server methods */
-int fld_server_init(const struct lu_env *env, struct lu_server_fld *fld,
-		    struct dt_device *dt, const char *prefix, int mds_node_id,
-		    int type);
-
-void fld_server_fini(const struct lu_env *env, struct lu_server_fld *fld);
-
-int fld_declare_server_create(const struct lu_env *env,
-			      struct lu_server_fld *fld,
-			      struct lu_seq_range *new,
-			      struct thandle *th);
-
-int fld_server_create(const struct lu_env *env,
-		      struct lu_server_fld *fld,
-		      struct lu_seq_range *add_range,
-		      struct thandle *th);
-
-int fld_insert_entry(const struct lu_env *env,
-		     struct lu_server_fld *fld,
-		     const struct lu_seq_range *range);
-
-int fld_server_lookup(const struct lu_env *env, struct lu_server_fld *fld,
-		      seqno_t seq, struct lu_seq_range *range);
 
 /* Client methods */
 int fld_client_init(struct lu_client_fld *fld,
@@ -178,15 +137,14 @@ void fld_client_fini(struct lu_client_fld *fld);
 
 void fld_client_flush(struct lu_client_fld *fld);
 
-int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
+int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 		      __u32 flags, const struct lu_env *env);
 
 int fld_client_create(struct lu_client_fld *fld,
 		      struct lu_seq_range *range,
 		      const struct lu_env *env);
 
-int fld_client_delete(struct lu_client_fld *fld,
-		      seqno_t seq,
+int fld_client_delete(struct lu_client_fld *fld, u64 seq,
 		      const struct lu_env *env);
 
 int fld_client_add_target(struct lu_client_fld *fld,

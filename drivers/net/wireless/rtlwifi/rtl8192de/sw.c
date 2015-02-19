@@ -30,6 +30,7 @@
 #include "../wifi.h"
 #include "../core.h"
 #include "../pci.h"
+#include "../base.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -236,7 +237,7 @@ static struct rtl_hal_ops rtl8192de_hal_ops = {
 	.set_bw_mode = rtl92d_phy_set_bw_mode,
 	.switch_channel = rtl92d_phy_sw_chnl,
 	.dm_watchdog = rtl92d_dm_watchdog,
-	.scan_operation_backup = rtl92d_phy_scan_operation_backup,
+	.scan_operation_backup = rtl_phy_scan_operation_backup,
 	.set_rf_power_state = rtl92d_phy_set_rf_power_state,
 	.led_control = rtl92de_led_control,
 	.set_desc = rtl92de_set_desc,
@@ -250,6 +251,7 @@ static struct rtl_hal_ops rtl8192de_hal_ops = {
 	.get_rfreg = rtl92d_phy_query_rf_reg,
 	.set_rfreg = rtl92d_phy_set_rf_reg,
 	.linked_set_reg = rtl92d_linked_set_reg,
+	.get_btc_status = rtl_btc_status_false,
 };
 
 static struct rtl_mod_params rtl92de_mod_params = {
@@ -335,21 +337,21 @@ static struct rtl_hal_cfg rtl92de_hal_cfg = {
 	.maps[RTL_IMR_ROK] = IMR_ROK,
 	.maps[RTL_IBSS_INT_MASKS] = (IMR_BCNINT | IMR_TBDOK | IMR_TBDER),
 
-	.maps[RTL_RC_CCK_RATE1M] = DESC92_RATE1M,
-	.maps[RTL_RC_CCK_RATE2M] = DESC92_RATE2M,
-	.maps[RTL_RC_CCK_RATE5_5M] = DESC92_RATE5_5M,
-	.maps[RTL_RC_CCK_RATE11M] = DESC92_RATE11M,
-	.maps[RTL_RC_OFDM_RATE6M] = DESC92_RATE6M,
-	.maps[RTL_RC_OFDM_RATE9M] = DESC92_RATE9M,
-	.maps[RTL_RC_OFDM_RATE12M] = DESC92_RATE12M,
-	.maps[RTL_RC_OFDM_RATE18M] = DESC92_RATE18M,
-	.maps[RTL_RC_OFDM_RATE24M] = DESC92_RATE24M,
-	.maps[RTL_RC_OFDM_RATE36M] = DESC92_RATE36M,
-	.maps[RTL_RC_OFDM_RATE48M] = DESC92_RATE48M,
-	.maps[RTL_RC_OFDM_RATE54M] = DESC92_RATE54M,
+	.maps[RTL_RC_CCK_RATE1M] = DESC_RATE1M,
+	.maps[RTL_RC_CCK_RATE2M] = DESC_RATE2M,
+	.maps[RTL_RC_CCK_RATE5_5M] = DESC_RATE5_5M,
+	.maps[RTL_RC_CCK_RATE11M] = DESC_RATE11M,
+	.maps[RTL_RC_OFDM_RATE6M] = DESC_RATE6M,
+	.maps[RTL_RC_OFDM_RATE9M] = DESC_RATE9M,
+	.maps[RTL_RC_OFDM_RATE12M] = DESC_RATE12M,
+	.maps[RTL_RC_OFDM_RATE18M] = DESC_RATE18M,
+	.maps[RTL_RC_OFDM_RATE24M] = DESC_RATE24M,
+	.maps[RTL_RC_OFDM_RATE36M] = DESC_RATE36M,
+	.maps[RTL_RC_OFDM_RATE48M] = DESC_RATE48M,
+	.maps[RTL_RC_OFDM_RATE54M] = DESC_RATE54M,
 
-	.maps[RTL_RC_HT_RATEMCS7] = DESC92_RATEMCS7,
-	.maps[RTL_RC_HT_RATEMCS15] = DESC92_RATEMCS15,
+	.maps[RTL_RC_HT_RATEMCS7] = DESC_RATEMCS7,
+	.maps[RTL_RC_HT_RATEMCS15] = DESC_RATEMCS15,
 };
 
 static struct pci_device_id rtl92de_pci_ids[] = {

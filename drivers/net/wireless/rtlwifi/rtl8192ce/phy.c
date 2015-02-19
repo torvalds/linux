@@ -30,12 +30,16 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../ps.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "hw.h"
 #include "phy.h"
+#include "../rtl8192c/phy_common.h"
 #include "rf.h"
 #include "dm.h"
+#include "../rtl8192c/dm_common.h"
+#include "../rtl8192c/fw_common.h"
 #include "table.h"
 
 static bool _rtl92c_phy_config_mac_with_headerfile(struct ieee80211_hw *hw);
@@ -198,18 +202,7 @@ bool _rtl92ce_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 	}
 	if (configtype == BASEBAND_CONFIG_PHY_REG) {
 		for (i = 0; i < phy_reg_arraylen; i = i + 2) {
-			if (phy_regarray_table[i] == 0xfe)
-				mdelay(50);
-			else if (phy_regarray_table[i] == 0xfd)
-				mdelay(5);
-			else if (phy_regarray_table[i] == 0xfc)
-				mdelay(1);
-			else if (phy_regarray_table[i] == 0xfb)
-				udelay(50);
-			else if (phy_regarray_table[i] == 0xfa)
-				udelay(5);
-			else if (phy_regarray_table[i] == 0xf9)
-				udelay(1);
+			rtl_addr_delay(phy_regarray_table[i]);
 			rtl_set_bbreg(hw, phy_regarray_table[i], MASKDWORD,
 				      phy_regarray_table[i + 1]);
 			udelay(1);
@@ -245,18 +238,7 @@ bool _rtl92ce_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 
 	if (configtype == BASEBAND_CONFIG_PHY_REG) {
 		for (i = 0; i < phy_regarray_pg_len; i = i + 3) {
-			if (phy_regarray_table_pg[i] == 0xfe)
-				mdelay(50);
-			else if (phy_regarray_table_pg[i] == 0xfd)
-				mdelay(5);
-			else if (phy_regarray_table_pg[i] == 0xfc)
-				mdelay(1);
-			else if (phy_regarray_table_pg[i] == 0xfb)
-				udelay(50);
-			else if (phy_regarray_table_pg[i] == 0xfa)
-				udelay(5);
-			else if (phy_regarray_table_pg[i] == 0xf9)
-				udelay(1);
+			rtl_addr_delay(phy_regarray_table_pg[i]);
 
 			_rtl92c_store_pwrIndex_diffrate_offset(hw,
 					       phy_regarray_table_pg[i],
@@ -305,46 +287,16 @@ bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	switch (rfpath) {
 	case RF90_PATH_A:
 		for (i = 0; i < radioa_arraylen; i = i + 2) {
-			if (radioa_array_table[i] == 0xfe)
-				mdelay(50);
-			else if (radioa_array_table[i] == 0xfd)
-				mdelay(5);
-			else if (radioa_array_table[i] == 0xfc)
-				mdelay(1);
-			else if (radioa_array_table[i] == 0xfb)
-				udelay(50);
-			else if (radioa_array_table[i] == 0xfa)
-				udelay(5);
-			else if (radioa_array_table[i] == 0xf9)
-				udelay(1);
-			else {
-				rtl_set_rfreg(hw, rfpath, radioa_array_table[i],
-					      RFREG_OFFSET_MASK,
-					      radioa_array_table[i + 1]);
-				udelay(1);
-			}
+			rtl_rfreg_delay(hw, rfpath, radioa_array_table[i],
+					RFREG_OFFSET_MASK,
+					radioa_array_table[i + 1]);
 		}
 		break;
 	case RF90_PATH_B:
 		for (i = 0; i < radiob_arraylen; i = i + 2) {
-			if (radiob_array_table[i] == 0xfe) {
-				mdelay(50);
-			} else if (radiob_array_table[i] == 0xfd)
-				mdelay(5);
-			else if (radiob_array_table[i] == 0xfc)
-				mdelay(1);
-			else if (radiob_array_table[i] == 0xfb)
-				udelay(50);
-			else if (radiob_array_table[i] == 0xfa)
-				udelay(5);
-			else if (radiob_array_table[i] == 0xf9)
-				udelay(1);
-			else {
-				rtl_set_rfreg(hw, rfpath, radiob_array_table[i],
-					      RFREG_OFFSET_MASK,
-					      radiob_array_table[i + 1]);
-				udelay(1);
-			}
+			rtl_rfreg_delay(hw, rfpath, radiob_array_table[i],
+					RFREG_OFFSET_MASK,
+					radiob_array_table[i + 1]);
 		}
 		break;
 	case RF90_PATH_C:
@@ -354,6 +306,8 @@ bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	case RF90_PATH_D:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "switch case not processed\n");
+		break;
+	default:
 		break;
 	}
 	return true;
@@ -564,11 +518,12 @@ static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		}
 	case ERFSLEEP:{
 			if (ppsc->rfpwr_state == ERFOFF)
-				return false;
+				break;
 			for (queue_id = 0, i = 0;
 			     queue_id < RTL_PCI_MAX_TX_QUEUE_COUNT;) {
 				ring = &pcipriv->dev.tx_ring[queue_id];
-				if (skb_queue_len(&ring->queue) == 0) {
+				if (queue_id == BEACON_QUEUE ||
+				    skb_queue_len(&ring->queue) == 0) {
 					queue_id++;
 					continue;
 				} else {

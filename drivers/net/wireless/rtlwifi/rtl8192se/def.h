@@ -446,12 +446,14 @@
 /* DWORD 6 */
 #define SET_RX_STATUS__DESC_BUFF_ADDR(__pdesc, __val)	\
 	SET_BITS_OFFSET_LE(__pdesc + 24, 0, 32, __val)
+#define GET_RX_STATUS_DESC_BUFF_ADDR(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc + 24, 0, 32)
 
 #define SE_RX_HAL_IS_CCK_RATE(_pdesc)\
-	(GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE1M ||	\
-	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE2M ||	\
-	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE5_5M ||\
-	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE11M)
+	(GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC_RATE1M ||	\
+	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC_RATE2M ||	\
+	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC_RATE5_5M ||\
+	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC_RATE11M)
 
 enum rf_optype {
 	RF_OP_BY_SW_3WIRE = 0,

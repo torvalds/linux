@@ -1169,7 +1169,6 @@ int cpia2_register_camera(struct camera_data *cam)
 	cam->vdev.lock = &cam->v4l2_lock;
 	cam->vdev.ctrl_handler = hdl;
 	cam->vdev.v4l2_dev = &cam->v4l2_dev;
-	set_bit(V4L2_FL_USE_FH_PRIO, &cam->vdev.flags);
 
 	reset_camera_struct_v4l(cam);
 

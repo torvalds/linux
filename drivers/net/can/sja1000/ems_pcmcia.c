@@ -211,6 +211,7 @@ static int ems_pcmcia_add_card(struct pcmcia_device *pdev, unsigned long base)
 		priv = netdev_priv(dev);
 		priv->priv = card;
 		SET_NETDEV_DEV(dev, &pdev->dev);
+		dev->dev_id = i;
 
 		priv->irq_flags = IRQF_SHARED;
 		dev->irq = pdev->irq;

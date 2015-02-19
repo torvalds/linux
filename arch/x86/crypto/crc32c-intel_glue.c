@@ -280,5 +280,5 @@ MODULE_AUTHOR("Austin Zhang <austin.zhang@intel.com>, Kent Liu <kent.liu@intel.c
 MODULE_DESCRIPTION("CRC32c (Castagnoli) optimization using Intel Hardware.");
 MODULE_LICENSE("GPL");
 
-MODULE_ALIAS("crc32c");
-MODULE_ALIAS("crc32c-intel");
+MODULE_ALIAS_CRYPTO("crc32c");
+MODULE_ALIAS_CRYPTO("crc32c-intel");

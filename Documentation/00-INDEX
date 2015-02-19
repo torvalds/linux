@@ -40,7 +40,7 @@ IPMI.txt
 IRQ-affinity.txt
 	- how to select which CPU(s) handle which interrupt events on SMP.
 IRQ-domain.txt
-	- info on inerrupt numbering and setting up IRQ domains.
+	- info on interrupt numbering and setting up IRQ domains.
 IRQ.txt
 	- description of what an IRQ is.
 Intel-IOMMU.txt
@@ -77,6 +77,8 @@ arm/
 	- directory with info about Linux on the ARM architecture.
 arm64/
 	- directory with info about Linux on the 64 bit ARM architecture.
+assoc_array.txt
+	- generic associative array intro.
 atomic_ops.txt
 	- semantics and behavior of atomic and bitmask operations.
 auxdisplay/
@@ -87,6 +89,8 @@ bad_memory.txt
 	- how to use kernel parameters to exclude bad RAM regions.
 basic_profiling.txt
 	- basic instructions for those who wants to profile Linux kernel.
+bcache.txt
+	- Block-layer cache on fast SSDs to improve slow (raid) I/O performance.
 binfmt_misc.txt
 	- info on the kernel support for extra binary formats.
 blackfin/
@@ -157,8 +161,6 @@ digsig.txt
 	-info on the Digital Signature Verification API
 dma-buf-sharing.txt
 	- the DMA Buffer Sharing API Guide
-dmaengine.txt
-	-the DMA Engine API Guide
 dontdiff
 	- file containing a list of files that should never be diff'ed.
 driver-model/
@@ -171,6 +173,8 @@ early-userspace/
 	- info about initramfs, klibc, and userspace early during boot.
 edac.txt
 	- information on EDAC - Error Detection And Correction
+efi-stub.txt
+	- How to use the EFI boot stub to bypass GRUB or elilo on EFI systems.
 eisa.txt
 	- info on EISA bus support.
 email-clients.txt
@@ -195,12 +199,14 @@ futex-requeue-pi.txt
 	- info on requeueing of tasks from a non-PI futex to a PI futex
 gcov.txt
 	- use of GCC's coverage testing tool "gcov" with the Linux kernel
-gpio.txt
-	- overview of GPIO (General Purpose Input/Output) access conventions.
+gpio/
+	- gpio related documentation
 hid/
 	- directory with information on human interface devices
 highuid.txt
 	- notes on the change from 16 bit to 32 bit user/group IDs.
+hsi.txt
+	- HSI subsystem overview.
 hwspinlock.txt
 	- hardware spinlock provides hardware assistance for synchronization
 timers/
@@ -255,6 +261,8 @@ kernel-docs.txt
 	- listing of various WWW + books that document kernel internals.
 kernel-parameters.txt
 	- summary listing of command line / boot prompt args for the kernel.
+kernel-per-CPU-kthreads.txt
+	- List of all per-CPU kthreads and how they introduce jitter.
 kmemcheck.txt
 	- info on dynamic checker that detects uses of uninitialized memory.
 kmemleak.txt
@@ -267,6 +275,8 @@ kprobes.txt
 	- documents the kernel probes debugging feature.
 kref.txt
 	- docs on adding reference counters (krefs) to kernel objects.
+kselftest.txt
+	- small unittests for (some) individual codepaths in the kernel.
 laptops/
 	- directory with laptop related info and laptop driver documentation.
 ldm.txt
@@ -275,20 +285,22 @@ leds/
 	- directory with info about LED handling under Linux.
 local_ops.txt
 	- semantics and behavior of local atomic operations.
-lockdep-design.txt
-	- documentation on the runtime locking correctness validator.
-lockstat.txt
-	- info on collecting statistics on locks (and contention).
+locking/
+	- directory with info about kernel locking primitives
 lockup-watchdogs.txt
 	- info on soft and hard lockup detectors (aka nmi_watchdog).
 logo.gif
 	- full colour GIF image of Linux logo (penguin - Tux).
 logo.txt
 	- info on creator of above logo & site to get additional images from.
+lzo.txt
+	- kernel LZO decompressor input formats
 m68k/
 	- directory with info about Linux on Motorola 68k architecture.
 magic-number.txt
 	- list of magic numbers used to mark/protect kernel data structures.
+mailbox.txt
+	- How to write drivers for the common mailbox framework (IPC).
 md.txt
 	- info on boot arguments for the multiple devices driver.
 media-framework.txt
@@ -299,8 +311,6 @@ memory-devices/
 	- directory with info on parts like the Texas Instruments EMIF driver
 memory-hotplug.txt
 	- Hotpluggable memory support, how to use and current status.
-memory.txt
-	- info on typical Linux memory problems.
 metag/
 	- directory with info about Linux on Meta architecture.
 mips/
@@ -311,12 +321,12 @@ mmc/
 	- directory with info about the MMC subsystem
 mn10300/
 	- directory with info about the mn10300 architecture port
+module-signing.txt
+	- Kernel module signing for increased security when loading modules.
 mtd/
 	- directory with info about memory technology devices (flash)
 mono.txt
 	- how to execute Mono-based .NET binaries with the help of BINFMT_MISC.
-mutex-design.txt
-	- info on the generic mutex subsystem.
 namespaces/
 	- directory with various information about namespaces
 netlabel/
@@ -343,6 +353,8 @@ pcmcia/
 	- info on the Linux PCMCIA driver.
 percpu-rw-semaphore.txt
 	- RCU based read-write semaphore optimized for locking for reading
+phy.txt
+	- Description of the generic PHY framework.
 pi-futex.txt
 	- documentation on lightweight priority inheritance futexes.
 pinctrl.txt
@@ -381,10 +393,6 @@ robust-futexes.txt
 	- a description of what robust futexes are.
 rpmsg.txt
 	- info on the Remote Processor Messaging (rpmsg) Framework
-rt-mutex-design.txt
-	- description of the RealTime mutex implementation design.
-rt-mutex.txt
-	- desc. of RT-mutex subsystem with PI (Priority Inheritance) support.
 rtc.txt
 	- notes on how to use the Real Time Clock (aka CMOS clock) driver.
 s390/
@@ -401,8 +409,6 @@ serial-console.txt
 	- how to set up Linux with a serial line console as the default.
 sgi-ioc4.txt
 	- description of the SGI IOC4 PCI (multi function) device.
-sgi-visws.txt
-	- short blurb on the SGI Visual Workstations.
 sh/
 	- directory with info on porting Linux to a new architecture.
 smsc_ece1099.txt
@@ -413,8 +419,6 @@ sparse.txt
 	- info on how to obtain and use the sparse tool for typechecking.
 spi/
 	- overview of Linux kernel Serial Peripheral Interface (SPI) support.
-spinlocks.txt
-	- info on using spinlocks to provide exclusive access in kernel.
 stable_api_nonsense.txt
 	- info on why the kernel does not have a stable in-kernel api or abi.
 stable_kernel_rules.txt
@@ -431,6 +435,8 @@ sysrq.txt
 	- info on the magic SysRq key.
 target/
 	- directory with info on generating TCM v4 fabric .ko modules
+this_cpu_ops.txt
+	- List rationale behind and the way to use this_cpu operations.
 thermal/
 	- directory with information on managing thermal issues (CPU/temp)
 trace/
@@ -471,6 +477,8 @@ workqueue.txt
 	- information on the Concurrency Managed Workqueue implementation
 x86/x86_64/
 	- directory with info on Linux support for AMD x86-64 (Hammer) machines.
+xillybus.txt
+	- Overview and basic ui of xillybus driver
 xtensa/
 	- directory with documents relating to arch/xtensa port/implementation
 xz.txt

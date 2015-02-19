@@ -1014,24 +1014,21 @@ static CommandList_struct *cmd_special_alloc(ctlr_info_t *h)
 	u64bit temp64;
 	dma_addr_t cmd_dma_handle, err_dma_handle;
 
-	c = (CommandList_struct *) pci_alloc_consistent(h->pdev,
-		sizeof(CommandList_struct), &cmd_dma_handle);
+	c = pci_zalloc_consistent(h->pdev, sizeof(CommandList_struct),
+				  &cmd_dma_handle);
 	if (c == NULL)
 		return NULL;
-	memset(c, 0, sizeof(CommandList_struct));
 
 	c->cmdindex = -1;
 
-	c->err_info = (ErrorInfo_struct *)
-	    pci_alloc_consistent(h->pdev, sizeof(ErrorInfo_struct),
-		    &err_dma_handle);
+	c->err_info = pci_zalloc_consistent(h->pdev, sizeof(ErrorInfo_struct),
+					    &err_dma_handle);
 
 	if (c->err_info == NULL) {
 		pci_free_consistent(h->pdev,
 			sizeof(CommandList_struct), c, cmd_dma_handle);
 		return NULL;
 	}
-	memset(c->err_info, 0, sizeof(ErrorInfo_struct));
 
 	INIT_LIST_HEAD(&c->list);
 	c->busaddr = (__u32) cmd_dma_handle;
@@ -1189,6 +1186,7 @@ static int cciss_ioctl32_passthru(struct block_device *bdev, fmode_t mode,
 	int err;
 	u32 cp;
 
+	memset(&arg64, 0, sizeof(arg64));
 	err = 0;
 	err |=
 	    copy_from_user(&arg64.LUN_info, &arg32->LUN_info,
@@ -2807,7 +2805,7 @@ resend_cmd2:
 		/* erase the old error information */
 		memset(c->err_info, 0, sizeof(ErrorInfo_struct));
 		return_status = IO_OK;
-		INIT_COMPLETION(wait);
+		reinit_completion(&wait);
 		goto resend_cmd2;
 	}
 
@@ -3668,7 +3666,7 @@ static int add_to_scan_list(struct ctlr_info *h)
 		}
 	}
 	if (!found && !h->busy_scanning) {
-		INIT_COMPLETION(h->scan_wait);
+		reinit_completion(&h->scan_wait);
 		list_add_tail(&h->scan_list, &scan_q);
 		ret = 1;
 	}
@@ -4079,7 +4077,7 @@ static void cciss_interrupt_mode(ctlr_info_t *h)
 		goto default_int_mode;
 
 	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSIX)) {
-		err = pci_enable_msix(h->pdev, cciss_msix_entries, 4);
+		err = pci_enable_msix_exact(h->pdev, cciss_msix_entries, 4);
 		if (!err) {
 			h->intr[0] = cciss_msix_entries[0].vector;
 			h->intr[1] = cciss_msix_entries[1].vector;
@@ -4087,15 +4085,9 @@ static void cciss_interrupt_mode(ctlr_info_t *h)
 			h->intr[3] = cciss_msix_entries[3].vector;
 			h->msix_vector = 1;
 			return;
-		}
-		if (err > 0) {
-			dev_warn(&h->pdev->dev,
-				"only %d MSI-X vectors available\n", err);
-			goto default_int_mode;
 		} else {
 			dev_warn(&h->pdev->dev,
 				"MSI-X init failed %d\n", err);
-			goto default_int_mode;
 		}
 	}
 	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSI)) {
@@ -4257,6 +4249,13 @@ static void cciss_find_board_params(ctlr_info_t *h)
 	cciss_get_max_perf_mode_cmds(h);
 	h->nr_cmds = h->max_commands - 4 - cciss_tape_cmds;
 	h->maxsgentries = readl(&(h->cfgtable->MaxSGElements));
+	/*
+	 * The P600 may exhibit poor performnace under some workloads
+	 * if we use the value in the configuration table. Limit this
+	 * controller to MAXSGENTRIES (32) instead.
+	 */
+	if (h->board_id == 0x3225103C)
+		h->maxsgentries = MAXSGENTRIES;
 	/*
 	 * Limit in-command s/g elements to 32 save dma'able memory.
 	 * Howvever spec says if 0, use 31
@@ -4996,7 +4995,7 @@ reinit_after_soft_reset:
 
 	i = alloc_cciss_hba(pdev);
 	if (i < 0)
-		return -1;
+		return -ENOMEM;
 
 	h = hba[i];
 	h->pdev = pdev;
@@ -5175,7 +5174,7 @@ reinit_after_soft_reset:
 	rebuild_lun_table(h, 1, 0);
 	cciss_engage_scsi(h);
 	h->busy_initializing = 0;
-	return 1;
+	return 0;
 
 clean4:
 	cciss_free_cmd_pool(h);
@@ -5197,7 +5196,7 @@ clean_no_release_regions:
 	 */
 	pci_set_drvdata(pdev, NULL);
 	free_hba(h);
-	return -1;
+	return -ENODEV;
 }
 
 static void cciss_shutdown(struct pci_dev *pdev)

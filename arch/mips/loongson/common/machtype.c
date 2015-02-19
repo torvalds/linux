@@ -19,15 +19,16 @@
 #define MACHTYPE_LEN 50
 
 static const char *system_types[] = {
-	[MACH_LOONGSON_UNKNOWN]		"unknown loongson machine",
-	[MACH_LEMOTE_FL2E]		"lemote-fuloong-2e-box",
-	[MACH_LEMOTE_FL2F]		"lemote-fuloong-2f-box",
-	[MACH_LEMOTE_ML2F7]		"lemote-mengloong-2f-7inches",
-	[MACH_LEMOTE_YL2F89]		"lemote-yeeloong-2f-8.9inches",
-	[MACH_DEXXON_GDIUM2F10]		"dexxon-gdium-2f",
-	[MACH_LEMOTE_NAS]		"lemote-nas-2f",
-	[MACH_LEMOTE_LL2F]		"lemote-lynloong-2f",
-	[MACH_LOONGSON_END]		NULL,
+	[MACH_LOONGSON_UNKNOWN]	= "unknown loongson machine",
+	[MACH_LEMOTE_FL2E]	= "lemote-fuloong-2e-box",
+	[MACH_LEMOTE_FL2F]	= "lemote-fuloong-2f-box",
+	[MACH_LEMOTE_ML2F7]	= "lemote-mengloong-2f-7inches",
+	[MACH_LEMOTE_YL2F89]	= "lemote-yeeloong-2f-8.9inches",
+	[MACH_DEXXON_GDIUM2F10]	= "dexxon-gdium-2f",
+	[MACH_LEMOTE_NAS]	= "lemote-nas-2f",
+	[MACH_LEMOTE_LL2F]	= "lemote-lynloong-2f",
+	[MACH_LOONGSON_GENERIC]	= "generic-loongson-machine",
+	[MACH_LOONGSON_END]	= NULL,
 };
 
 const char *get_system_type(void)

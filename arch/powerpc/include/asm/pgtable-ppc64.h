@@ -12,7 +12,7 @@
 #endif
 #include <asm/barrier.h>
 
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 
 /*
  * Size of EA range mapped by our pagetables.
@@ -152,7 +152,7 @@
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
 				 || (pmd_val(pmd) & PMD_BAD_BITS))
-#define	pmd_present(pmd)	(pmd_val(pmd) != 0)
+#define	pmd_present(pmd)	(!pmd_none(pmd))
 #define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
 #define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
 extern struct page *pmd_page(pmd_t pmd);
@@ -164,9 +164,21 @@ extern struct page *pmd_page(pmd_t pmd);
 #define pud_present(pud)	(pud_val(pud) != 0)
 #define pud_clear(pudp)		(pud_val(*(pudp)) = 0)
 #define pud_page_vaddr(pud)	(pud_val(pud) & ~PUD_MASKED_BITS)
-#define pud_page(pud)		virt_to_page(pud_page_vaddr(pud))
 
+extern struct page *pud_page(pud_t pud);
+
+static inline pte_t pud_pte(pud_t pud)
+{
+	return __pte(pud_val(pud));
+}
+
+static inline pud_t pte_pud(pte_t pte)
+{
+	return __pud(pte_val(pte));
+}
+#define pud_write(pud)		pte_write(pud_pte(pud))
 #define pgd_set(pgdp, pudp)	({pgd_val(*(pgdp)) = (unsigned long)(pudp);})
+#define pgd_write(pgd)		pte_write(pgd_pte(pgd))
 
 /*
  * Find an entry in a page-table-directory.  We combine the address region
@@ -195,6 +207,7 @@ extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 static inline unsigned long pte_update(struct mm_struct *mm,
 				       unsigned long addr,
 				       pte_t *ptep, unsigned long clr,
+				       unsigned long set,
 				       int huge)
 {
 #ifdef PTE_ATOMIC_UPDATES
@@ -205,14 +218,15 @@ static inline unsigned long pte_update(struct mm_struct *mm,
 	andi.	%1,%0,%6\n\
 	bne-	1b \n\
 	andc	%1,%0,%4 \n\
+	or	%1,%1,%7\n\
 	stdcx.	%1,0,%3 \n\
 	bne-	1b"
 	: "=&r" (old), "=&r" (tmp), "=m" (*ptep)
-	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY)
+	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY), "r" (set)
 	: "cc" );
 #else
 	unsigned long old = pte_val(*ptep);
-	*ptep = __pte(old & ~clr);
+	*ptep = __pte((old & ~clr) | set);
 #endif
 	/* huge pages use the old page table lock */
 	if (!huge)
@@ -231,9 +245,9 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
 {
 	unsigned long old;
 
-       	if ((pte_val(*ptep) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
+	if ((pte_val(*ptep) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
 		return 0;
-	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0);
+	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0, 0);
 	return (old & _PAGE_ACCESSED) != 0;
 }
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
@@ -252,7 +266,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 	if ((pte_val(*ptep) & _PAGE_RW) == 0)
 		return;
 
-	pte_update(mm, addr, ptep, _PAGE_RW, 0);
+	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
 }
 
 static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
@@ -261,7 +275,7 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 	if ((pte_val(*ptep) & _PAGE_RW) == 0)
 		return;
 
-	pte_update(mm, addr, ptep, _PAGE_RW, 1);
+	pte_update(mm, addr, ptep, _PAGE_RW, 0, 1);
 }
 
 /*
@@ -284,14 +298,14 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long addr, pte_t *ptep)
 {
-	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 0);
+	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 0, 0);
 	return __pte(old);
 }
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 			     pte_t * ptep)
 {
-	pte_update(mm, addr, ptep, ~0UL, 0);
+	pte_update(mm, addr, ptep, ~0UL, 0, 0);
 }
 
 
@@ -326,11 +340,11 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HPTEFLAGS) == 0)
 
 #define pte_ERROR(e) \
-	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
+	pr_err("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
 #define pmd_ERROR(e) \
-	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
+	pr_err("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
 #define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 /* Encode and de-code a swap entry */
 #define __swp_type(entry)	(((entry).val >> 1) & 0x3f)
@@ -338,9 +352,6 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define __swp_entry(type, offset) ((swp_entry_t){((type)<< 1)|((offset)<<8)})
 #define __pte_to_swp_entry(pte)	((swp_entry_t){pte_val(pte) >> PTE_RPN_SHIFT})
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val << PTE_RPN_SHIFT })
-#define pte_to_pgoff(pte)	(pte_val(pte) >> PTE_RPN_SHIFT)
-#define pgoff_to_pte(off)	((pte_t) {((off) << PTE_RPN_SHIFT)|_PAGE_FILE})
-#define PTE_FILE_MAX_BITS	(BITS_PER_LONG - PTE_RPN_SHIFT)
 
 void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
 void pgtable_cache_init(void);
@@ -375,7 +386,7 @@ void pgtable_cache_init(void);
  * The last three bits are intentionally left to zero. This memory location
  * are also used as normal page PTE pointers. So if we have any pointers
  * left around while we collapse a hugepage, we need to make sure
- * _PAGE_PRESENT and _PAGE_FILE bits of that are zero when we look at them
+ * _PAGE_PRESENT bit of that is zero when we look at them
  */
 static inline unsigned int hpte_valid(unsigned char *hpte_slot_array, int index)
 {
@@ -394,6 +405,8 @@ static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
 	hpte_slot_array[index] = hidx << 4 | 0x1 << 3;
 }
 
+struct page *realmode_pfn_to_page(unsigned long pfn);
+
 static inline char *get_hpte_slot_array(pmd_t *pmdp)
 {
 	/*
@@ -409,7 +422,7 @@ static inline char *get_hpte_slot_array(pmd_t *pmdp)
 }
 
 extern void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
-				   pmd_t *pmdp);
+				   pmd_t *pmdp, unsigned long old_pmd);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 extern pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot);
 extern pmd_t mk_pmd(struct page *page, pgprot_t pgprot);
@@ -418,23 +431,28 @@ extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		       pmd_t *pmdp, pmd_t pmd);
 extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 				 pmd_t *pmd);
-
+/*
+ *
+ * For core kernel code by design pmd_trans_huge is never run on any hugetlbfs
+ * page. The hugetlbfs page table walking and mangling paths are totally
+ * separated form the core VM paths and they're differentiated by
+ *  VM_HUGETLB being set on vm_flags well before any pmd_trans_huge could run.
+ *
+ * pmd_trans_huge() is defined as false at build time if
+ * CONFIG_TRANSPARENT_HUGEPAGE=n to optimize away code blocks at build
+ * time in such case.
+ *
+ * For ppc64 we need to differntiate from explicit hugepages from THP, because
+ * for THP we also track the subpage details at the pmd level. We don't do
+ * that for explicit huge pages.
+ *
+ */
 static inline int pmd_trans_huge(pmd_t pmd)
 {
 	/*
 	 * leaf pte for huge page, bottom two bits != 00
 	 */
 	return (pmd_val(pmd) & 0x3) && (pmd_val(pmd) & _PAGE_THP_HUGE);
-}
-
-static inline int pmd_large(pmd_t pmd)
-{
-	/*
-	 * leaf pte for huge page, bottom two bits != 00
-	 */
-	if (pmd_trans_huge(pmd))
-		return pmd_val(pmd) & _PAGE_PRESENT;
-	return 0;
 }
 
 static inline int pmd_trans_splitting(pmd_t pmd)
@@ -446,6 +464,14 @@ static inline int pmd_trans_splitting(pmd_t pmd)
 
 extern int has_transparent_hugepage(void);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+static inline int pmd_large(pmd_t pmd)
+{
+	/*
+	 * leaf pte for huge page, bottom two bits != 00
+	 */
+	return ((pmd_val(pmd) & 0x3) != 0x0);
+}
 
 static inline pte_t pmd_pte(pmd_t pmd)
 {
@@ -463,6 +489,7 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
 }
 
 #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
+#define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
 #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
 #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
 #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
@@ -504,7 +531,9 @@ extern int pmdp_set_access_flags(struct vm_area_struct *vma,
 
 extern unsigned long pmd_hugepage_update(struct mm_struct *mm,
 					 unsigned long addr,
-					 pmd_t *pmdp, unsigned long clr);
+					 pmd_t *pmdp,
+					 unsigned long clr,
+					 unsigned long set);
 
 static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
 					      unsigned long addr, pmd_t *pmdp)
@@ -513,7 +542,7 @@ static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
 
 	if ((pmd_val(*pmdp) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
 		return 0;
-	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED);
+	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED, 0);
 	return ((old & _PAGE_ACCESSED) != 0);
 }
 
@@ -540,7 +569,7 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 	if ((pmd_val(*pmdp) & _PAGE_RW) == 0)
 		return;
 
-	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW);
+	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW, 0);
 }
 
 #define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
@@ -556,5 +585,18 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
 #define __HAVE_ARCH_PMDP_INVALIDATE
 extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 			    pmd_t *pmdp);
+
+#define pmd_move_must_withdraw pmd_move_must_withdraw
+struct spinlock;
+static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
+					 struct spinlock *old_pmd_ptl)
+{
+	/*
+	 * Archs like ppc64 use pgtable to store per pmd
+	 * specific information. So when we switch the pmd,
+	 * we should also withdraw and deposit the pgtable
+	 */
+	return true;
+}
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_PGTABLE_PPC64_H_ */

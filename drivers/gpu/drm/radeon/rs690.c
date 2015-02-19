@@ -28,6 +28,7 @@
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include "atom.h"
 #include "rs690d.h"
 
@@ -162,6 +163,16 @@ static void rs690_mc_init(struct radeon_device *rdev)
 	base = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
 	base = G_000100_MC_FB_START(base) << 16;
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	/* Some boards seem to be configured for 128MB of sideport memory,
+	 * but really only have 64MB.  Just skip the sideport and use
+	 * UMA memory.
+	 */
+	if (rdev->mc.igp_sideport_enabled &&
+	    (rdev->mc.real_vram_size == (384 * 1024 * 1024))) {
+		base += 128 * 1024 * 1024;
+		rdev->mc.real_vram_size -= 128 * 1024 * 1024;
+		rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
+	}
 
 	/* Use K8 direct mapping for fast fb access. */ 
 	rdev->fastfb_working = false;
@@ -345,9 +356,11 @@ static void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 		if (max_bandwidth.full > rdev->pm.sideport_bandwidth.full &&
 			rdev->pm.sideport_bandwidth.full)
 			max_bandwidth = rdev->pm.sideport_bandwidth;
-		read_delay_latency.full = dfixed_const(370 * 800 * 1000);
-		read_delay_latency.full = dfixed_div(read_delay_latency,
-			rdev->pm.igp_sideport_mclk);
+		read_delay_latency.full = dfixed_const(370 * 800);
+		a.full = dfixed_const(1000);
+		b.full = dfixed_div(rdev->pm.igp_sideport_mclk, a);
+		read_delay_latency.full = dfixed_div(read_delay_latency, b);
+		read_delay_latency.full = dfixed_mul(read_delay_latency, a);
 	} else {
 		if (max_bandwidth.full > rdev->pm.k8_bandwidth.full &&
 			rdev->pm.k8_bandwidth.full)
@@ -488,14 +501,10 @@ static void rs690_compute_mode_priority(struct radeon_device *rdev,
 		}
 		if (wm0->priority_mark.full > priority_mark02.full)
 			priority_mark02.full = wm0->priority_mark.full;
-		if (dfixed_trunc(priority_mark02) < 0)
-			priority_mark02.full = 0;
 		if (wm0->priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0->priority_mark_max.full;
 		if (wm1->priority_mark.full > priority_mark12.full)
 			priority_mark12.full = wm1->priority_mark.full;
-		if (dfixed_trunc(priority_mark12) < 0)
-			priority_mark12.full = 0;
 		if (wm1->priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1->priority_mark_max.full;
 		*d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
@@ -526,8 +535,6 @@ static void rs690_compute_mode_priority(struct radeon_device *rdev,
 		}
 		if (wm0->priority_mark.full > priority_mark02.full)
 			priority_mark02.full = wm0->priority_mark.full;
-		if (dfixed_trunc(priority_mark02) < 0)
-			priority_mark02.full = 0;
 		if (wm0->priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0->priority_mark_max.full;
 		*d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
@@ -555,8 +562,6 @@ static void rs690_compute_mode_priority(struct radeon_device *rdev,
 		}
 		if (wm1->priority_mark.full > priority_mark12.full)
 			priority_mark12.full = wm1->priority_mark.full;
-		if (dfixed_trunc(priority_mark12) < 0)
-			priority_mark12.full = 0;
 		if (wm1->priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1->priority_mark_max.full;
 		*d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
@@ -574,6 +579,9 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	u32 tmp;
 	u32 d1mode_priority_a_cnt, d1mode_priority_b_cnt;
 	u32 d2mode_priority_a_cnt, d2mode_priority_b_cnt;
+
+	if (!rdev->mode_info.mode_config_initialized)
+		return;
 
 	radeon_update_display_priority(rdev);
 
@@ -631,20 +639,27 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 
 uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg)
 {
+	unsigned long flags;
 	uint32_t r;
 
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_000078_MC_INDEX, S_000078_MC_IND_ADDR(reg));
 	r = RREG32(R_00007C_MC_DATA);
 	WREG32(R_000078_MC_INDEX, ~C_000078_MC_IND_ADDR);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 	return r;
 }
 
 void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_000078_MC_INDEX, S_000078_MC_IND_ADDR(reg) |
 		S_000078_MC_IND_WR_EN(1));
 	WREG32(R_00007C_MC_DATA, v);
 	WREG32(R_000078_MC_INDEX, 0x7F);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
 static void rs690_mc_program(struct radeon_device *rdev)
@@ -715,7 +730,7 @@ static int rs690_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_audio_init(rdev);
+	r = radeon_audio_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing audio\n");
 		return r;
@@ -755,7 +770,8 @@ int rs690_resume(struct radeon_device *rdev)
 
 int rs690_suspend(struct radeon_device *rdev)
 {
-	r600_audio_fini(rdev);
+	radeon_pm_suspend(rdev);
+	radeon_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	rs600_irq_disable(rdev);
@@ -765,7 +781,8 @@ int rs690_suspend(struct radeon_device *rdev)
 
 void rs690_fini(struct radeon_device *rdev)
 {
-	r600_audio_fini(rdev);
+	radeon_pm_fini(rdev);
+	radeon_audio_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
@@ -833,6 +850,9 @@ int rs690_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rs600_set_safe_registers(rdev);
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
 	rdev->accel_working = true;
 	r = rs690_startup(rdev);

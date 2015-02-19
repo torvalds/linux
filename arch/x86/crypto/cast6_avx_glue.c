@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
 #include <crypto/cast6.h>
 #include <crypto/cryptd.h>
@@ -37,7 +38,6 @@
 #include <crypto/xts.h>
 #include <asm/xcr.h>
 #include <asm/xsave.h>
-#include <asm/crypto/ablk_helper.h>
 #include <asm/crypto/glue_helper.h>
 
 #define CAST6_PARALLEL_BLOCKS 8
@@ -611,4 +611,4 @@ module_exit(cast6_exit);
 
 MODULE_DESCRIPTION("Cast6 Cipher Algorithm, AVX optimized");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("cast6");
+MODULE_ALIAS_CRYPTO("cast6");

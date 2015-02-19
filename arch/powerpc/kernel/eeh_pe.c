@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/string.h>
@@ -33,7 +32,22 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 
+static int eeh_pe_aux_size = 0;
 static LIST_HEAD(eeh_phb_pe);
+
+/**
+ * eeh_set_pe_aux_size - Set PE auxillary data size
+ * @size: PE auxillary data size
+ *
+ * Set PE auxillary data size
+ */
+void eeh_set_pe_aux_size(int size)
+{
+	if (size < 0)
+		return;
+
+	eeh_pe_aux_size = size;
+}
 
 /**
  * eeh_pe_alloc - Allocate PE
@@ -45,9 +59,16 @@ static LIST_HEAD(eeh_phb_pe);
 static struct eeh_pe *eeh_pe_alloc(struct pci_controller *phb, int type)
 {
 	struct eeh_pe *pe;
+	size_t alloc_size;
+
+	alloc_size = sizeof(struct eeh_pe);
+	if (eeh_pe_aux_size) {
+		alloc_size = ALIGN(alloc_size, cache_line_size());
+		alloc_size += eeh_pe_aux_size;
+	}
 
 	/* Allocate PHB PE */
-	pe = kzalloc(sizeof(struct eeh_pe), GFP_KERNEL);
+	pe = kzalloc(alloc_size, GFP_KERNEL);
 	if (!pe) return NULL;
 
 	/* Initialize PHB PE */
@@ -57,6 +78,8 @@ static struct eeh_pe *eeh_pe_alloc(struct pci_controller *phb, int type)
 	INIT_LIST_HEAD(&pe->child);
 	INIT_LIST_HEAD(&pe->edevs);
 
+	pe->data = (void *)pe + ALIGN(sizeof(struct eeh_pe),
+				      cache_line_size());
 	return pe;
 }
 
@@ -180,7 +203,8 @@ void *eeh_pe_dev_traverse(struct eeh_pe *root,
 	void *ret;
 
 	if (!root) {
-		pr_warning("%s: Invalid PE %p\n", __func__, root);
+		pr_warn("%s: Invalid PE %p\n",
+			__func__, root);
 		return NULL;
 	}
 
@@ -215,10 +239,18 @@ static void *__eeh_pe_get(void *data, void *flag)
 	if (pe->type & EEH_PE_PHB)
 		return NULL;
 
-	/* We prefer PE address */
-	if (edev->pe_config_addr &&
-	   (edev->pe_config_addr == pe->addr))
+	/*
+	 * We prefer PE address. For most cases, we should
+	 * have non-zero PE address
+	 */
+	if (eeh_has_flag(EEH_VALID_PE_ZERO)) {
+		if (edev->pe_config_addr == pe->addr)
+			return pe;
+	} else {
+		if (edev->pe_config_addr &&
+		    (edev->pe_config_addr == pe->addr))
 		return pe;
+	}
 
 	/* Try BDF address */
 	if (edev->config_addr &&
@@ -352,17 +384,6 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	pe->config_addr	= edev->config_addr;
 
 	/*
-	 * While doing PE reset, we probably hot-reset the
-	 * upstream bridge. However, the PCI devices including
-	 * the associated EEH devices might be removed when EEH
-	 * core is doing recovery. So that won't safe to retrieve
-	 * the bridge through downstream EEH device. We have to
-	 * trace the parent PCI bus, then the upstream bridge.
-	 */
-	if (eeh_probe_mode_dev())
-		pe->bus = eeh_dev_to_pci_dev(edev)->bus;
-
-	/*
 	 * Put the new EEH PE into hierarchy tree. If the parent
 	 * can't be found, the newly created PE will be attached
 	 * to PHB directly. Otherwise, we have to associate the
@@ -415,7 +436,7 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	}
 
 	/* Remove the EEH device */
-	pe = edev->pe;
+	pe = eeh_dev_to_pe(edev);
 	edev->pe = NULL;
 	list_del(&edev->list);
 
@@ -504,18 +525,25 @@ static void *__eeh_pe_state_mark(void *data, void *flag)
 	struct eeh_dev *edev, *tmp;
 	struct pci_dev *pdev;
 
-	/*
-	 * Mark the PE with the indicated state. Also,
-	 * the associated PCI device will be put into
-	 * I/O frozen state to avoid I/O accesses from
-	 * the PCI device driver.
-	 */
+	/* Keep the state of permanently removed PE intact */
+	if (pe->state & EEH_PE_REMOVED)
+		return NULL;
+
 	pe->state |= state;
+
+	/* Offline PCI devices if applicable */
+	if (!(state & EEH_PE_ISOLATED))
+		return NULL;
+
 	eeh_pe_for_each_dev(pe, edev, tmp) {
 		pdev = eeh_dev_to_pci_dev(edev);
 		if (pdev)
 			pdev->error_state = pci_channel_io_frozen;
 	}
+
+	/* Block PCI config access if required */
+	if (pe->state & EEH_PE_CFG_RESTRICTED)
+		pe->state |= EEH_PE_CFG_BLOCKED;
 
 	return NULL;
 }
@@ -533,6 +561,27 @@ void eeh_pe_state_mark(struct eeh_pe *pe, int state)
 	eeh_pe_traverse(pe, __eeh_pe_state_mark, &state);
 }
 
+static void *__eeh_pe_dev_mode_mark(void *data, void *flag)
+{
+	struct eeh_dev *edev = data;
+	int mode = *((int *)flag);
+
+	edev->mode |= mode;
+
+	return NULL;
+}
+
+/**
+ * eeh_pe_dev_state_mark - Mark state for all device under the PE
+ * @pe: EEH PE
+ *
+ * Mark specific state for all child devices of the PE.
+ */
+void eeh_pe_dev_mode_mark(struct eeh_pe *pe, int mode)
+{
+	eeh_pe_dev_traverse(pe, __eeh_pe_dev_mode_mark, &mode);
+}
+
 /**
  * __eeh_pe_state_clear - Clear state for the PE
  * @data: EEH PE
@@ -546,9 +595,35 @@ static void *__eeh_pe_state_clear(void *data, void *flag)
 {
 	struct eeh_pe *pe = (struct eeh_pe *)data;
 	int state = *((int *)flag);
+	struct eeh_dev *edev, *tmp;
+	struct pci_dev *pdev;
+
+	/* Keep the state of permanently removed PE intact */
+	if (pe->state & EEH_PE_REMOVED)
+		return NULL;
 
 	pe->state &= ~state;
+
+	/*
+	 * Special treatment on clearing isolated state. Clear
+	 * check count since last isolation and put all affected
+	 * devices to normal state.
+	 */
+	if (!(state & EEH_PE_ISOLATED))
+		return NULL;
+
 	pe->check_count = 0;
+	eeh_pe_for_each_dev(pe, edev, tmp) {
+		pdev = eeh_dev_to_pci_dev(edev);
+		if (!pdev)
+			continue;
+
+		pdev->error_state = pci_channel_io_normal;
+	}
+
+	/* Unblock PCI config access if required */
+	if (pe->state & EEH_PE_CFG_RESTRICTED)
+		pe->state &= ~EEH_PE_CFG_BLOCKED;
 
 	return NULL;
 }
@@ -737,6 +812,9 @@ static void *eeh_restore_one_device_bars(void *data, void *flag)
 	else
 		eeh_restore_device_bars(edev, dn);
 
+	if (eeh_ops->restore_config)
+		eeh_ops->restore_config(dn);
+
 	return NULL;
 }
 
@@ -754,6 +832,46 @@ void eeh_pe_restore_bars(struct eeh_pe *pe)
 	 * will take that.
 	 */
 	eeh_pe_dev_traverse(pe, eeh_restore_one_device_bars, NULL);
+}
+
+/**
+ * eeh_pe_loc_get - Retrieve location code binding to the given PE
+ * @pe: EEH PE
+ *
+ * Retrieve the location code of the given PE. If the primary PE bus
+ * is root bus, we will grab location code from PHB device tree node
+ * or root port. Otherwise, the upstream bridge's device tree node
+ * of the primary PE bus will be checked for the location code.
+ */
+const char *eeh_pe_loc_get(struct eeh_pe *pe)
+{
+	struct pci_bus *bus = eeh_pe_bus_get(pe);
+	struct device_node *dn = pci_bus_to_OF_node(bus);
+	const char *loc = NULL;
+
+	if (!dn)
+		goto out;
+
+	/* PHB PE or root PE ? */
+	if (pci_is_root_bus(bus)) {
+		loc = of_get_property(dn, "ibm,loc-code", NULL);
+		if (!loc)
+			loc = of_get_property(dn, "ibm,io-base-loc-code", NULL);
+		if (loc)
+			goto out;
+
+		/* Check the root port */
+		dn = dn->child;
+		if (!dn)
+			goto out;
+	}
+
+	loc = of_get_property(dn, "ibm,loc-code", NULL);
+	if (!loc)
+		loc = of_get_property(dn, "ibm,slot-location-code", NULL);
+
+out:
+	return loc ? loc : "N/A";
 }
 
 /**

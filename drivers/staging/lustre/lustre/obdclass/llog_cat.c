@@ -49,7 +49,7 @@
 #define DEBUG_SUBSYSTEM S_LOG
 
 
-#include <obd_class.h>
+#include "../include/obd_class.h"
 
 #include "llog_internal.h"
 
@@ -67,7 +67,6 @@ static int llog_cat_new_log(const struct lu_env *env,
 	struct llog_log_hdr *llh;
 	struct llog_logid_rec rec = { { 0 }, };
 	int rc, index, bitmap_size;
-	ENTRY;
 
 	llh = cathandle->lgh_hdr;
 	bitmap_size = LLOG_BITMAP_SIZE(llh);
@@ -77,27 +76,27 @@ static int llog_cat_new_log(const struct lu_env *env,
 	/* maximum number of available slots in catlog is bitmap_size - 2 */
 	if (llh->llh_cat_idx == index) {
 		CERROR("no free catalog slots for log...\n");
-		RETURN(-ENOSPC);
+		return -ENOSPC;
 	}
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_MDS_LLOG_CREATE_FAILED))
-		RETURN(-ENOSPC);
+		return -ENOSPC;
 
 	rc = llog_create(env, loghandle, th);
 	/* if llog is already created, no need to initialize it */
 	if (rc == -EEXIST) {
-		RETURN(0);
+		return 0;
 	} else if (rc != 0) {
 		CERROR("%s: can't create new plain llog in catalog: rc = %d\n",
 		       loghandle->lgh_ctxt->loc_obd->obd_name, rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = llog_init_handle(env, loghandle,
 			      LLOG_F_IS_PLAIN | LLOG_F_ZAP_WHEN_EMPTY,
 			      &cathandle->lgh_hdr->llh_tgtuuid);
 	if (rc)
-		GOTO(out_destroy, rc);
+		goto out_destroy;
 
 	if (index == 0)
 		index = 1;
@@ -115,7 +114,8 @@ static int llog_cat_new_log(const struct lu_env *env,
 	cathandle->lgh_last_idx = index;
 	llh->llh_tail.lrt_index = index;
 
-	CDEBUG(D_RPCTRACE,"new recovery log "DOSTID":%x for index %u of catalog"
+	CDEBUG(D_RPCTRACE,
+	       "new recovery log "DOSTID":%x for index %u of catalog"
 	       DOSTID"\n", POSTID(&loghandle->lgh_id.lgl_oi),
 	       loghandle->lgh_id.lgl_ogen, index,
 	       POSTID(&cathandle->lgh_id.lgl_oi));
@@ -131,13 +131,13 @@ static int llog_cat_new_log(const struct lu_env *env,
 	rc = llog_write_rec(env, cathandle, &rec.lid_hdr,
 			    &loghandle->u.phd.phd_cookie, 1, NULL, index, th);
 	if (rc < 0)
-		GOTO(out_destroy, rc);
+		goto out_destroy;
 
 	loghandle->lgh_hdr->llh_cat_idx = index;
-	RETURN(0);
+	return 0;
 out_destroy:
 	llog_destroy(env, loghandle);
-	RETURN(rc);
+	return rc;
 }
 
 /* Open an existent log handle and add it to the open list.
@@ -155,10 +155,8 @@ int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
 	struct llog_handle	*loghandle;
 	int			 rc = 0;
 
-	ENTRY;
-
 	if (cathandle == NULL)
-		RETURN(-EBADF);
+		return -EBADF;
 
 	down_write(&cathandle->lgh_lock);
 	list_for_each_entry(loghandle, &cathandle->u.chd.chd_head,
@@ -176,7 +174,8 @@ int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
 			}
 			loghandle->u.phd.phd_cat_handle = cathandle;
 			up_write(&cathandle->lgh_lock);
-			GOTO(out, rc = 0);
+			rc = 0;
+			goto out;
 		}
 	}
 	up_write(&cathandle->lgh_lock);
@@ -187,14 +186,14 @@ int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
 		CERROR("%s: error opening log id "DOSTID":%x: rc = %d\n",
 		       cathandle->lgh_ctxt->loc_obd->obd_name,
 		       POSTID(&logid->lgl_oi), logid->lgl_ogen, rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = llog_init_handle(env, loghandle, LLOG_F_IS_PLAIN, NULL);
 	if (rc < 0) {
 		llog_close(env, loghandle);
 		loghandle = NULL;
-		RETURN(rc);
+		return rc;
 	}
 
 	down_write(&cathandle->lgh_lock);
@@ -205,7 +204,6 @@ int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
 	loghandle->u.phd.phd_cookie.lgc_lgl = cathandle->lgh_id;
 	loghandle->u.phd.phd_cookie.lgc_index =
 				loghandle->lgh_hdr->llh_cat_idx;
-	EXIT;
 out:
 	llog_handle_get(loghandle);
 	*res = loghandle;
@@ -216,8 +214,6 @@ int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 {
 	struct llog_handle	*loghandle, *n;
 	int			 rc;
-
-	ENTRY;
 
 	list_for_each_entry_safe(loghandle, n, &cathandle->u.chd.chd_head,
 				     u.phd.phd_entry) {
@@ -232,8 +228,7 @@ int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 		    (llh->llh_count == 1)) {
 			rc = llog_destroy(env, loghandle);
 			if (rc)
-				CERROR("%s: failure destroying log during "
-				       "cleanup: rc = %d\n",
+				CERROR("%s: failure destroying log during cleanup: rc = %d\n",
 				       loghandle->lgh_ctxt->loc_obd->obd_name,
 				       rc);
 
@@ -246,7 +241,7 @@ int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 	if (cathandle->lgh_ctxt->loc_handle == cathandle)
 		cathandle->lgh_ctxt->loc_handle = NULL;
 	rc = llog_close(env, cathandle);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(llog_cat_close);
 
@@ -272,7 +267,6 @@ static struct llog_handle *llog_cat_current_log(struct llog_handle *cathandle,
 						struct thandle *th)
 {
 	struct llog_handle *loghandle = NULL;
-	ENTRY;
 
 	down_read_nested(&cathandle->lgh_lock, LLOGH_CAT);
 	loghandle = cathandle->u.chd.chd_current_log;
@@ -284,7 +278,7 @@ static struct llog_handle *llog_cat_current_log(struct llog_handle *cathandle,
 		if (llh == NULL ||
 		    loghandle->lgh_last_idx < LLOG_BITMAP_SIZE(llh) - 1) {
 			up_read(&cathandle->lgh_lock);
-			RETURN(loghandle);
+			return loghandle;
 		} else {
 			up_write(&loghandle->lgh_lock);
 		}
@@ -304,7 +298,7 @@ static struct llog_handle *llog_cat_current_log(struct llog_handle *cathandle,
 		LASSERT(llh);
 		if (loghandle->lgh_last_idx < LLOG_BITMAP_SIZE(llh) - 1) {
 			up_write(&cathandle->lgh_lock);
-			RETURN(loghandle);
+			return loghandle;
 		} else {
 			up_write(&loghandle->lgh_lock);
 		}
@@ -318,7 +312,7 @@ static struct llog_handle *llog_cat_current_log(struct llog_handle *cathandle,
 	down_write_nested(&loghandle->lgh_lock, LLOGH_LOG);
 	up_write(&cathandle->lgh_lock);
 	LASSERT(loghandle);
-	RETURN(loghandle);
+	return loghandle;
 }
 
 /* Add a single record to the recovery log(s) using a catalog
@@ -332,7 +326,6 @@ int llog_cat_add_rec(const struct lu_env *env, struct llog_handle *cathandle,
 {
 	struct llog_handle *loghandle;
 	int rc;
-	ENTRY;
 
 	LASSERT(rec->lrh_len <= LLOG_CHUNK_SIZE);
 	loghandle = llog_cat_current_log(cathandle, th);
@@ -343,7 +336,7 @@ int llog_cat_add_rec(const struct lu_env *env, struct llog_handle *cathandle,
 		rc = llog_cat_new_log(env, cathandle, loghandle, th);
 		if (rc < 0) {
 			up_write(&loghandle->lgh_lock);
-			RETURN(rc);
+			return rc;
 		}
 	}
 	/* now let's try to add the record */
@@ -361,7 +354,7 @@ int llog_cat_add_rec(const struct lu_env *env, struct llog_handle *cathandle,
 			rc = llog_cat_new_log(env, cathandle, loghandle, th);
 			if (rc < 0) {
 				up_write(&loghandle->lgh_lock);
-				RETURN(rc);
+				return rc;
 			}
 		}
 		/* now let's try to add the record */
@@ -372,7 +365,7 @@ int llog_cat_add_rec(const struct lu_env *env, struct llog_handle *cathandle,
 		up_write(&loghandle->lgh_lock);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(llog_cat_add_rec);
 
@@ -382,8 +375,6 @@ int llog_cat_declare_add_rec(const struct lu_env *env,
 {
 	struct llog_handle	*loghandle, *next;
 	int			 rc = 0;
-
-	ENTRY;
 
 	if (cathandle->u.chd.chd_current_log == NULL) {
 		/* declare new plain llog */
@@ -413,20 +404,20 @@ int llog_cat_declare_add_rec(const struct lu_env *env,
 		up_write(&cathandle->lgh_lock);
 	}
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	if (!llog_exist(cathandle->u.chd.chd_current_log)) {
 		rc = llog_declare_create(env, cathandle->u.chd.chd_current_log,
 					 th);
 		if (rc)
-			GOTO(out, rc);
+			goto out;
 		llog_declare_write_rec(env, cathandle, NULL, -1, th);
 	}
 	/* declare records in the llogs */
 	rc = llog_declare_write_rec(env, cathandle->u.chd.chd_current_log,
 				    rec, -1, th);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	next = cathandle->u.chd.chd_next_log;
 	if (next) {
@@ -437,7 +428,7 @@ int llog_cat_declare_add_rec(const struct lu_env *env,
 		llog_declare_write_rec(env, next, rec, -1, th);
 	}
 out:
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(llog_cat_declare_add_rec);
 
@@ -460,15 +451,15 @@ int llog_cat_add(const struct lu_env *env, struct llog_handle *cathandle,
 
 		th = dt_trans_create(env, dt);
 		if (IS_ERR(th))
-			RETURN(PTR_ERR(th));
+			return PTR_ERR(th);
 
 		rc = llog_cat_declare_add_rec(env, cathandle, rec, th);
 		if (rc)
-			GOTO(out_trans, rc);
+			goto out_trans;
 
 		rc = dt_trans_start_local(env, dt, th);
 		if (rc)
-			GOTO(out_trans, rc);
+			goto out_trans;
 		rc = llog_cat_add_rec(env, cathandle, rec, reccookie, buf, th);
 out_trans:
 		dt_trans_stop(env, dt, th);
@@ -479,7 +470,7 @@ out_trans:
 			rc = llog_cat_add_rec(env, cathandle, rec, reccookie,
 					      buf, th);
 	}
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(llog_cat_add);
 
@@ -497,8 +488,6 @@ int llog_cat_cancel_records(const struct lu_env *env,
 			    struct llog_cookie *cookies)
 {
 	int i, index, rc = 0, failed = 0;
-
-	ENTRY;
 
 	for (i = 0; i < count; i++, cookies++) {
 		struct llog_handle	*loghandle;
@@ -533,7 +522,7 @@ int llog_cat_cancel_records(const struct lu_env *env,
 		       cathandle->lgh_ctxt->loc_obd->obd_name, failed, count,
 		       rc);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(llog_cat_cancel_records);
 
@@ -545,10 +534,9 @@ int llog_cat_process_cb(const struct lu_env *env, struct llog_handle *cat_llh,
 	struct llog_handle *llh;
 	int rc;
 
-	ENTRY;
 	if (rec->lrh_type != LLOG_LOGID_MAGIC) {
 		CERROR("invalid record in catalog\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	CDEBUG(D_HA, "processing log "DOSTID":%x at index %u of catalog "
 	       DOSTID"\n", POSTID(&lir->lid_id.lgl_oi), lir->lid_id.lgl_ogen,
@@ -559,14 +547,13 @@ int llog_cat_process_cb(const struct lu_env *env, struct llog_handle *cat_llh,
 		CERROR("%s: cannot find handle for llog "DOSTID": %d\n",
 		       cat_llh->lgh_ctxt->loc_obd->obd_name,
 		       POSTID(&lir->lid_id.lgl_oi), rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	if (rec->lrh_index < d->lpd_startcat)
 		/* Skip processing of the logs until startcat */
-		RETURN(0);
-
-	if (d->lpd_startidx > 0) {
+		rc = 0;
+	else if (d->lpd_startidx > 0) {
 		struct llog_process_cat_data cd;
 
 		cd.lpcd_first_idx = d->lpd_startidx;
@@ -579,9 +566,10 @@ int llog_cat_process_cb(const struct lu_env *env, struct llog_handle *cat_llh,
 		rc = llog_process_or_fork(env, llh, d->lpd_cb, d->lpd_data,
 					  NULL, false);
 	}
+
 	llog_handle_put(llh);
 
-	RETURN(rc);
+	return rc;
 }
 
 int llog_cat_process_or_fork(const struct lu_env *env,
@@ -592,7 +580,6 @@ int llog_cat_process_or_fork(const struct lu_env *env,
 	struct llog_process_data d;
 	struct llog_log_hdr *llh = cat_llh->lgh_hdr;
 	int rc;
-	ENTRY;
 
 	LASSERT(llh->llh_flags & LLOG_F_IS_CAT);
 	d.lpd_data = data;
@@ -611,7 +598,7 @@ int llog_cat_process_or_fork(const struct lu_env *env,
 		rc = llog_process_or_fork(env, cat_llh, llog_cat_process_cb,
 					  &d, &cd, fork);
 		if (rc != 0)
-			RETURN(rc);
+			return rc;
 
 		cd.lpcd_first_idx = 0;
 		cd.lpcd_last_idx = cat_llh->lgh_last_idx;
@@ -622,7 +609,7 @@ int llog_cat_process_or_fork(const struct lu_env *env,
 					  &d, NULL, fork);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(llog_cat_process_or_fork);
 
@@ -645,7 +632,7 @@ static int llog_cat_reverse_process_cb(const struct lu_env *env,
 
 	if (le32_to_cpu(rec->lrh_type) != LLOG_LOGID_MAGIC) {
 		CERROR("invalid record in catalog\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	CDEBUG(D_HA, "processing log "DOSTID":%x at index %u of catalog "
 	       DOSTID"\n", POSTID(&lir->lid_id.lgl_oi), lir->lid_id.lgl_ogen,
@@ -656,12 +643,12 @@ static int llog_cat_reverse_process_cb(const struct lu_env *env,
 		CERROR("%s: cannot find handle for llog "DOSTID": %d\n",
 		       cat_llh->lgh_ctxt->loc_obd->obd_name,
 		       POSTID(&lir->lid_id.lgl_oi), rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = llog_reverse_process(env, llh, d->lpd_cb, d->lpd_data, NULL);
 	llog_handle_put(llh);
-	RETURN(rc);
+	return rc;
 }
 
 int llog_cat_reverse_process(const struct lu_env *env,
@@ -672,7 +659,6 @@ int llog_cat_reverse_process(const struct lu_env *env,
 	struct llog_process_cat_data cd;
 	struct llog_log_hdr *llh = cat_llh->lgh_hdr;
 	int rc;
-	ENTRY;
 
 	LASSERT(llh->llh_flags & LLOG_F_IS_CAT);
 	d.lpd_data = data;
@@ -688,7 +674,7 @@ int llog_cat_reverse_process(const struct lu_env *env,
 					  llog_cat_reverse_process_cb,
 					  &d, &cd);
 		if (rc != 0)
-			RETURN(rc);
+			return rc;
 
 		cd.lpcd_first_idx = le32_to_cpu(llh->llh_cat_idx);
 		cd.lpcd_last_idx = 0;
@@ -701,7 +687,7 @@ int llog_cat_reverse_process(const struct lu_env *env,
 					  &d, NULL);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(llog_cat_reverse_process);
 
@@ -709,7 +695,6 @@ int llog_cat_set_first_idx(struct llog_handle *cathandle, int index)
 {
 	struct llog_log_hdr *llh = cathandle->lgh_hdr;
 	int i, bitmap_size, idx;
-	ENTRY;
 
 	bitmap_size = LLOG_BITMAP_SIZE(llh);
 	if (llh->llh_cat_idx == (index - 1)) {
@@ -734,7 +719,7 @@ out:
 		       POSTID(&cathandle->lgh_id.lgl_oi), llh->llh_cat_idx);
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 /* Cleanup deleted plain llog traces from catalog */
@@ -760,8 +745,7 @@ int llog_cat_cleanup(const struct lu_env *env, struct llog_handle *cathandle,
 	llog_cat_set_first_idx(cathandle, index);
 	rc = llog_cancel_rec(env, cathandle, index);
 	if (rc == 0)
-		CDEBUG(D_HA, "cancel plain log at index"
-		       " %u of catalog "DOSTID"\n",
+		CDEBUG(D_HA, "cancel plain log at index %u of catalog " DOSTID "\n",
 		       index, POSTID(&cathandle->lgh_id.lgl_oi));
 	return rc;
 }
@@ -774,11 +758,9 @@ int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
 	struct llog_log_hdr	*llh;
 	int			 rc;
 
-	ENTRY;
-
 	if (rec->lrh_type != LLOG_LOGID_MAGIC) {
 		CERROR("invalid record in catalog\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	CDEBUG(D_HA, "processing log "DOSTID":%x at index %u of catalog "
@@ -794,7 +776,7 @@ int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
 			/* remove index from catalog */
 			llog_cat_cleanup(env, cathandle, NULL, rec->lrh_index);
 		}
-		RETURN(rc);
+		return rc;
 	}
 
 	llh = loghandle->lgh_hdr;
@@ -810,7 +792,7 @@ int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
 	}
 	llog_handle_put(loghandle);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(cat_cancel_cb);
 
@@ -822,12 +804,12 @@ int llog_cat_init_and_process(const struct lu_env *env,
 
 	rc = llog_init_handle(env, llh, LLOG_F_IS_CAT, NULL);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = llog_process_or_fork(env, llh, cat_cancel_cb, NULL, NULL, false);
 	if (rc)
-		CERROR("%s: llog_process() with cat_cancel_cb failed: rc = "
-		       "%d\n", llh->lgh_ctxt->loc_obd->obd_name, rc);
-	RETURN(0);
+		CERROR("%s: llog_process() with cat_cancel_cb failed: rc = %d\n",
+		       llh->lgh_ctxt->loc_obd->obd_name, rc);
+	return 0;
 }
 EXPORT_SYMBOL(llog_cat_init_and_process);

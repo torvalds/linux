@@ -128,7 +128,7 @@ async_tx_channel_switch(struct dma_async_tx_descriptor *depend_tx,
 		}
 		device->device_issue_pending(chan);
 	} else {
-		if (dma_wait_for_async_tx(depend_tx) != DMA_SUCCESS)
+		if (dma_wait_for_async_tx(depend_tx) != DMA_COMPLETE)
 			panic("%s: DMA error waiting for depend_tx\n",
 			      __func__);
 		tx->tx_submit(tx);
@@ -280,7 +280,7 @@ void async_tx_quiesce(struct dma_async_tx_descriptor **tx)
 		 * we are referring to the correct operation
 		 */
 		BUG_ON(async_tx_test_ack(*tx));
-		if (dma_wait_for_async_tx(*tx) != DMA_SUCCESS)
+		if (dma_wait_for_async_tx(*tx) != DMA_COMPLETE)
 			panic("%s: DMA error waiting for transaction\n",
 			      __func__);
 		async_tx_ack(*tx);

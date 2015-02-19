@@ -702,6 +702,15 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@inode points to the inode to use as a reference.
  *	The current task must be the one that nominated @inode.
  *	Return 0 if successful.
+ * @kernel_fw_from_file:
+ *	Load firmware from userspace (not called for built-in firmware).
+ *	@file contains the file structure pointing to the file containing
+ *	the firmware to load. This argument will be NULL if the firmware
+ *	was loaded via the uevent-triggered blob-based interface exposed
+ *	by CONFIG_FW_LOADER_USER_HELPER.
+ *	@buf pointer to buffer containing firmware contents.
+ *	@size length of the firmware contents.
+ *	Return 0 if permission is granted.
  * @kernel_module_request:
  *	Ability to trigger the kernel to automatically upcall to userspace for
  *	userspace to load a kernel module with the given name.
@@ -1040,6 +1049,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Allocate a security structure to the xp->security field; the security
  *	field is initialized to NULL when the xfrm_policy is allocated.
  *	Return 0 if operation was successful (memory to allocate, legal context)
+ *	@gfp is to specify the context for the allocation
  * @xfrm_policy_clone_security:
  *	@old_ctx contains an existing xfrm_sec_ctx.
  *	@new_ctxp contains a new xfrm_sec_ctx being cloned from old.
@@ -1052,17 +1062,25 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @xfrm_policy_delete_security:
  *	@ctx contains the xfrm_sec_ctx.
  *	Authorize deletion of xp->security.
- * @xfrm_state_alloc_security:
+ * @xfrm_state_alloc:
  *	@x contains the xfrm_state being added to the Security Association
  *	Database by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level SA generation program (e.g., setkey or racoon).
- *	@secid contains the secid from which to take the mls portion of the context.
  *	Allocate a security structure to the x->security field; the security
  *	field is initialized to NULL when the xfrm_state is allocated. Set the
- *	context to correspond to either sec_ctx or polsec, with the mls portion
- *	taken from secid in the latter case.
- *	Return 0 if operation was successful (memory to allocate, legal context).
+ *	context to correspond to sec_ctx. Return 0 if operation was successful
+ *	(memory to allocate, legal context).
+ * @xfrm_state_alloc_acquire:
+ *	@x contains the xfrm_state being added to the Security Association
+ *	Database by the XFRM system.
+ *	@polsec contains the policy's security context.
+ *	@secid contains the secid from which to take the mls portion of the
+ *	context.
+ *	Allocate a security structure to the x->security field; the security
+ *	field is initialized to NULL when the xfrm_state is allocated. Set the
+ *	context to correspond to secid. Return 0 if operation was successful
+ *	(memory to allocate, legal context).
  * @xfrm_state_free_security:
  *	@x contains the xfrm_state.
  *	Deallocate x->security.
@@ -1263,6 +1281,25 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@alter contains the flag indicating whether changes are to be made.
  *	Return 0 if permission is granted.
  *
+ * @binder_set_context_mgr
+ *	Check whether @mgr is allowed to be the binder context manager.
+ *	@mgr contains the task_struct for the task being registered.
+ *	Return 0 if permission is granted.
+ * @binder_transaction
+ *	Check whether @from is allowed to invoke a binder transaction call
+ *	to @to.
+ *	@from contains the task_struct for the sending task.
+ *	@to contains the task_struct for the receiving task.
+ * @binder_transfer_binder
+ *	Check whether @from is allowed to transfer a binder reference to @to.
+ *	@from contains the task_struct for the sending task.
+ *	@to contains the task_struct for the receiving task.
+ * @binder_transfer_file
+ *	Check whether @from is allowed to transfer @file to @to.
+ *	@from contains the task_struct for the sending task.
+ *	@file contains the struct file being transferred.
+ *	@to contains the task_struct for the receiving task.
+ *
  * @ptrace_access_check:
  *	Check permission before allowing the current process to trace the
  *	@child process.
@@ -1423,6 +1460,14 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
 struct security_operations {
 	char name[SECURITY_NAME_MAX + 1];
 
+	int (*binder_set_context_mgr) (struct task_struct *mgr);
+	int (*binder_transaction) (struct task_struct *from,
+				   struct task_struct *to);
+	int (*binder_transfer_binder) (struct task_struct *from,
+				       struct task_struct *to);
+	int (*binder_transfer_file) (struct task_struct *from,
+				     struct task_struct *to, struct file *file);
+
 	int (*ptrace_access_check) (struct task_struct *child, unsigned int mode);
 	int (*ptrace_traceme) (struct task_struct *parent);
 	int (*capget) (struct task_struct *target,
@@ -1492,7 +1537,7 @@ struct security_operations {
 	int (*inode_alloc_security) (struct inode *inode);
 	void (*inode_free_security) (struct inode *inode);
 	int (*inode_init_security) (struct inode *inode, struct inode *dir,
-				    const struct qstr *qstr, char **name,
+				    const struct qstr *qstr, const char **name,
 				    void **value, size_t *len);
 	int (*inode_create) (struct inode *dir,
 			     struct dentry *dentry, umode_t mode);
@@ -1541,7 +1586,7 @@ struct security_operations {
 	int (*file_lock) (struct file *file, unsigned int cmd);
 	int (*file_fcntl) (struct file *file, unsigned int cmd,
 			   unsigned long arg);
-	int (*file_set_fowner) (struct file *file);
+	void (*file_set_fowner) (struct file *file);
 	int (*file_send_sigiotask) (struct task_struct *tsk,
 				    struct fown_struct *fown, int sig);
 	int (*file_receive) (struct file *file);
@@ -1556,6 +1601,7 @@ struct security_operations {
 	void (*cred_transfer)(struct cred *new, const struct cred *old);
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
+	int (*kernel_fw_from_file)(struct file *file, char *buf, size_t size);
 	int (*kernel_module_request)(char *kmod_name);
 	int (*kernel_module_from_file)(struct file *file);
 	int (*task_fix_setuid) (struct cred *new, const struct cred *old,
@@ -1675,13 +1721,15 @@ struct security_operations {
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	int (*xfrm_policy_alloc_security) (struct xfrm_sec_ctx **ctxp,
-			struct xfrm_user_sec_ctx *sec_ctx);
+			struct xfrm_user_sec_ctx *sec_ctx, gfp_t gfp);
 	int (*xfrm_policy_clone_security) (struct xfrm_sec_ctx *old_ctx, struct xfrm_sec_ctx **new_ctx);
 	void (*xfrm_policy_free_security) (struct xfrm_sec_ctx *ctx);
 	int (*xfrm_policy_delete_security) (struct xfrm_sec_ctx *ctx);
-	int (*xfrm_state_alloc_security) (struct xfrm_state *x,
-		struct xfrm_user_sec_ctx *sec_ctx,
-		u32 secid);
+	int (*xfrm_state_alloc) (struct xfrm_state *x,
+				 struct xfrm_user_sec_ctx *sec_ctx);
+	int (*xfrm_state_alloc_acquire) (struct xfrm_state *x,
+					 struct xfrm_sec_ctx *polsec,
+					 u32 secid);
 	void (*xfrm_state_free_security) (struct xfrm_state *x);
 	int (*xfrm_state_delete_security) (struct xfrm_state *x);
 	int (*xfrm_policy_lookup) (struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);
@@ -1697,7 +1745,7 @@ struct security_operations {
 	void (*key_free) (struct key *key);
 	int (*key_permission) (key_ref_t key_ref,
 			       const struct cred *cred,
-			       key_perm_t perm);
+			       unsigned perm);
 	int (*key_getsecurity)(struct key *key, char **_buffer);
 #endif	/* CONFIG_KEYS */
 
@@ -1718,6 +1766,13 @@ extern void __init security_fixup_ops(struct security_operations *ops);
 
 
 /* Security operations */
+int security_binder_set_context_mgr(struct task_struct *mgr);
+int security_binder_transaction(struct task_struct *from,
+				struct task_struct *to);
+int security_binder_transfer_binder(struct task_struct *from,
+				    struct task_struct *to);
+int security_binder_transfer_file(struct task_struct *from,
+				  struct task_struct *to, struct file *file);
 int security_ptrace_access_check(struct task_struct *child, unsigned int mode);
 int security_ptrace_traceme(struct task_struct *parent);
 int security_capget(struct task_struct *target,
@@ -1770,7 +1825,7 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 				 const struct qstr *qstr,
 				 initxattrs initxattrs, void *fs_data);
 int security_old_inode_init_security(struct inode *inode, struct inode *dir,
-				     const struct qstr *qstr, char **name,
+				     const struct qstr *qstr, const char **name,
 				     void **value, size_t *len);
 int security_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode);
 int security_inode_link(struct dentry *old_dentry, struct inode *dir,
@@ -1782,7 +1837,8 @@ int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 int security_inode_rmdir(struct inode *dir, struct dentry *dentry);
 int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
 int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
-			  struct inode *new_dir, struct dentry *new_dentry);
+			  struct inode *new_dir, struct dentry *new_dentry,
+			  unsigned int flags);
 int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
 int security_inode_permission(struct inode *inode, int mask);
@@ -1812,7 +1868,7 @@ int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
 			   unsigned long prot);
 int security_file_lock(struct file *file, unsigned int cmd);
 int security_file_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
-int security_file_set_fowner(struct file *file);
+void security_file_set_fowner(struct file *file);
 int security_file_send_sigiotask(struct task_struct *tsk,
 				 struct fown_struct *fown, int sig);
 int security_file_receive(struct file *file);
@@ -1825,6 +1881,7 @@ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
 void security_transfer_creds(struct cred *new, const struct cred *old);
 int security_kernel_act_as(struct cred *new, u32 secid);
 int security_kernel_create_files_as(struct cred *new, struct inode *inode);
+int security_kernel_fw_from_file(struct file *file, char *buf, size_t size);
 int security_kernel_module_request(char *kmod_name);
 int security_kernel_module_from_file(struct file *file);
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
@@ -1900,6 +1957,30 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  */
 
 static inline int security_init(void)
+{
+	return 0;
+}
+
+static inline int security_binder_set_context_mgr(struct task_struct *mgr)
+{
+	return 0;
+}
+
+static inline int security_binder_transaction(struct task_struct *from,
+					      struct task_struct *to)
+{
+	return 0;
+}
+
+static inline int security_binder_transfer_binder(struct task_struct *from,
+						  struct task_struct *to)
+{
+	return 0;
+}
+
+static inline int security_binder_transfer_file(struct task_struct *from,
+						struct task_struct *to,
+						struct file *file)
 {
 	return 0;
 }
@@ -2085,7 +2166,7 @@ static inline int security_dentry_init_security(struct dentry *dentry,
 static inline int security_inode_init_security(struct inode *inode,
 						struct inode *dir,
 						const struct qstr *qstr,
-						const initxattrs initxattrs,
+						const initxattrs xattrs,
 						void *fs_data)
 {
 	return 0;
@@ -2094,8 +2175,8 @@ static inline int security_inode_init_security(struct inode *inode,
 static inline int security_old_inode_init_security(struct inode *inode,
 						   struct inode *dir,
 						   const struct qstr *qstr,
-						   char **name, void **value,
-						   size_t *len)
+						   const char **name,
+						   void **value, size_t *len)
 {
 	return -EOPNOTSUPP;
 }
@@ -2150,7 +2231,8 @@ static inline int security_inode_mknod(struct inode *dir,
 static inline int security_inode_rename(struct inode *old_dir,
 					 struct dentry *old_dentry,
 					 struct inode *new_dir,
-					 struct dentry *new_dentry)
+					 struct dentry *new_dentry,
+					 unsigned int flags)
 {
 	return 0;
 }
@@ -2288,9 +2370,9 @@ static inline int security_file_fcntl(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-static inline int security_file_set_fowner(struct file *file)
+static inline void security_file_set_fowner(struct file *file)
 {
-	return 0;
+	return;
 }
 
 static inline int security_file_send_sigiotask(struct task_struct *tsk,
@@ -2346,6 +2428,12 @@ static inline int security_kernel_act_as(struct cred *cred, u32 secid)
 
 static inline int security_kernel_create_files_as(struct cred *cred,
 						  struct inode *inode)
+{
+	return 0;
+}
+
+static inline int security_kernel_fw_from_file(struct file *file,
+					       char *buf, size_t size)
 {
 	return 0;
 }
@@ -2849,7 +2937,8 @@ static inline void security_skb_owned_by(struct sk_buff *skb, struct sock *sk)
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 
-int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx);
+int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
+			       struct xfrm_user_sec_ctx *sec_ctx, gfp_t gfp);
 int security_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx, struct xfrm_sec_ctx **new_ctxp);
 void security_xfrm_policy_free(struct xfrm_sec_ctx *ctx);
 int security_xfrm_policy_delete(struct xfrm_sec_ctx *ctx);
@@ -2867,7 +2956,9 @@ void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl);
 
 #else	/* CONFIG_SECURITY_NETWORK_XFRM */
 
-static inline int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx)
+static inline int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
+					     struct xfrm_user_sec_ctx *sec_ctx,
+					     gfp_t gfp)
 {
 	return 0;
 }
@@ -2941,7 +3032,8 @@ int security_path_symlink(struct path *dir, struct dentry *dentry,
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 		       struct dentry *new_dentry);
 int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
-			 struct path *new_dir, struct dentry *new_dentry);
+			 struct path *new_dir, struct dentry *new_dentry,
+			 unsigned int flags);
 int security_path_chmod(struct path *path, umode_t mode);
 int security_path_chown(struct path *path, kuid_t uid, kgid_t gid);
 int security_path_chroot(struct path *path);
@@ -2989,7 +3081,8 @@ static inline int security_path_link(struct dentry *old_dentry,
 static inline int security_path_rename(struct path *old_dir,
 				       struct dentry *old_dentry,
 				       struct path *new_dir,
-				       struct dentry *new_dentry)
+				       struct dentry *new_dentry,
+				       unsigned int flags)
 {
 	return 0;
 }
@@ -3016,7 +3109,7 @@ static inline int security_path_chroot(struct path *path)
 int security_key_alloc(struct key *key, const struct cred *cred, unsigned long flags);
 void security_key_free(struct key *key);
 int security_key_permission(key_ref_t key_ref,
-			    const struct cred *cred, key_perm_t perm);
+			    const struct cred *cred, unsigned perm);
 int security_key_getsecurity(struct key *key, char **_buffer);
 
 #else
@@ -3034,7 +3127,7 @@ static inline void security_key_free(struct key *key)
 
 static inline int security_key_permission(key_ref_t key_ref,
 					  const struct cred *cred,
-					  key_perm_t perm)
+					  unsigned perm)
 {
 	return 0;
 }

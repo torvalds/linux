@@ -1233,7 +1233,6 @@ static struct pccard_operations pcic_operations = {
 static struct platform_driver i82365_driver = {
 	.driver = {
 		.name = "i82365",
-		.owner		= THIS_MODULE,
 	},
 };
 

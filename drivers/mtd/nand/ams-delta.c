@@ -17,7 +17,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
@@ -184,7 +183,7 @@ static int ams_delta_init(struct platform_device *pdev)
 		return -ENXIO;
 
 	/* Allocate memory for MTD device structure and private data */
-	ams_delta_mtd = kmalloc(sizeof(struct mtd_info) +
+	ams_delta_mtd = kzalloc(sizeof(struct mtd_info) +
 				sizeof(struct nand_chip), GFP_KERNEL);
 	if (!ams_delta_mtd) {
 		printk (KERN_WARNING "Unable to allocate E3 NAND MTD device structure.\n");
@@ -196,10 +195,6 @@ static int ams_delta_init(struct platform_device *pdev)
 
 	/* Get pointer to private data */
 	this = (struct nand_chip *) (&ams_delta_mtd[1]);
-
-	/* Initialize structures */
-	memset(ams_delta_mtd, 0, sizeof(struct mtd_info));
-	memset(this, 0, sizeof(struct nand_chip));
 
 	/* Link the private data with the MTD structure */
 	ams_delta_mtd->priv = this;
@@ -258,7 +253,6 @@ static int ams_delta_init(struct platform_device *pdev)
  out_mtd:
 	gpio_free_array(_mandatory_gpio, ARRAY_SIZE(_mandatory_gpio));
 out_gpio:
-	platform_set_drvdata(pdev, NULL);
 	gpio_free(AMS_DELTA_GPIO_PIN_NAND_RB);
 	iounmap(io_base);
 out_free:
@@ -292,7 +286,6 @@ static struct platform_driver ams_delta_nand_driver = {
 	.remove		= ams_delta_cleanup,
 	.driver		= {
 		.name	= "ams-delta-nand",
-		.owner	= THIS_MODULE,
 	},
 };
 

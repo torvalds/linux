@@ -44,7 +44,7 @@
 #define LUSTRE_TRACEFILE_PRIVATE
 #include "tracefile.h"
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 /* XXX move things up to the top, comment */
 union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS] __cacheline_aligned;
@@ -55,7 +55,7 @@ static struct tracefiled_ctl trace_tctl;
 struct mutex cfs_trace_thread_mutex;
 static int thread_running = 0;
 
-atomic_t cfs_tage_allocated = ATOMIC_INIT(0);
+static atomic_t cfs_tage_allocated = ATOMIC_INIT(0);
 
 static void put_pages_on_tcd_daemon_list(struct page_collection *pc,
 					 struct cfs_trace_cpu_data *tcd);
@@ -66,7 +66,7 @@ cfs_tage_from_list(struct list_head *list)
 	return list_entry(list, struct cfs_trace_page, linkage);
 }
 
-static struct cfs_trace_page *cfs_tage_alloc(int gfp)
+static struct cfs_trace_page *cfs_tage_alloc(gfp_t gfp)
 {
 	struct page	    *page;
 	struct cfs_trace_page *tage;
@@ -114,7 +114,7 @@ static void cfs_tage_to_tail(struct cfs_trace_page *tage,
 	list_move_tail(&tage->linkage, queue);
 }
 
-int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, int gfp,
+int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 			   struct list_head *stock)
 {
 	int i;
@@ -196,8 +196,7 @@ static void cfs_tcd_shrink(struct cfs_trace_cpu_data *tcd)
 	 */
 
 	if (printk_ratelimit())
-		printk(KERN_WARNING "debug daemon buffer overflowed; "
-		       "discarding 10%% of pages (%d of %ld)\n",
+		printk(KERN_WARNING "debug daemon buffer overflowed; discarding 10%% of pages (%d of %ld)\n",
 		       pgcount + 1, tcd->tcd_cur_pages);
 
 	INIT_LIST_HEAD(&pc.pc_pages);
@@ -275,11 +274,8 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	int			i;
 	int			remain;
 	int			mask = msgdata->msg_mask;
-	char		      *file = (char *)msgdata->msg_file;
-	cfs_debug_limit_state_t   *cdls = msgdata->msg_cdls;
-
-	if (strchr(file, '/'))
-		file = strrchr(file, '/') + 1;
+	const char		*file = kbasename(msgdata->msg_file);
+	struct cfs_debug_limit_state   *cdls = msgdata->msg_cdls;
 
 	tcd = cfs_trace_get_tcd();
 
@@ -360,8 +356,8 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	}
 
 	if (*(string_buf+needed-1) != '\n')
-		printk(KERN_INFO "format at %s:%d:%s doesn't end in "
-		       "newline\n", file, msgdata->msg_line, msgdata->msg_fn);
+		printk(KERN_INFO "format at %s:%d:%s doesn't end in newline\n",
+		       file, msgdata->msg_line, msgdata->msg_fn);
 
 	header.ph_len = known_size + needed;
 	debug_buf = (char *)page_address(tage->page) + tage->used;
@@ -419,12 +415,12 @@ console:
 			cdls->cdls_delay /= libcfs_console_backoff * 4;
 		} else {
 			cdls->cdls_delay *= libcfs_console_backoff;
-
-			if (cdls->cdls_delay < libcfs_console_min_delay)
-				cdls->cdls_delay = libcfs_console_min_delay;
-			else if (cdls->cdls_delay > libcfs_console_max_delay)
-				cdls->cdls_delay = libcfs_console_max_delay;
 		}
+
+		if (cdls->cdls_delay < libcfs_console_min_delay)
+			cdls->cdls_delay = libcfs_console_min_delay;
+		else if (cdls->cdls_delay > libcfs_console_max_delay)
+			cdls->cdls_delay = libcfs_console_max_delay;
 
 		/* ensure cdls_next is never zero after it's been seen */
 		cdls->cdls_next = (cfs_time_current() + cdls->cdls_delay) | 1;
@@ -529,7 +525,7 @@ static void collect_pages_on_all_cpus(struct page_collection *pc)
 	int i, cpu;
 
 	spin_lock(&pc->pc_lock);
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			list_splice_init(&tcd->tcd_pages, &pc->pc_pages);
 			tcd->tcd_cur_pages = 0;
@@ -562,7 +558,7 @@ static void put_pages_back_on_all_cpus(struct page_collection *pc)
 	int i, cpu;
 
 	spin_lock(&pc->pc_lock);
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			cur_head = tcd->tcd_pages.next;
 
@@ -630,7 +626,7 @@ static void put_pages_on_daemon_list(struct page_collection *pc)
 	struct cfs_trace_cpu_data *tcd;
 	int i, cpu;
 
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu)
 			put_pages_on_tcd_daemon_list(pc, tcd);
 	}
@@ -681,6 +677,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	struct file		*filp;
 	struct cfs_trace_page	*tage;
 	struct cfs_trace_page	*tmp;
+	char			*buf;
 	int rc;
 
 	DECL_MMSPACE;
@@ -711,11 +708,14 @@ int cfs_tracefile_dump_all_pages(char *filename)
 
 		__LASSERT_TAGE_INVARIANT(tage);
 
-		rc = filp_write(filp, page_address(tage->page),
-				tage->used, filp_poff(filp));
+		buf = kmap(tage->page);
+		rc = vfs_write(filp, (__force const char __user *)buf,
+			       tage->used, &filp->f_pos);
+		kunmap(tage->page);
+
 		if (rc != (int)tage->used) {
-			printk(KERN_WARNING "wanted to write %u but wrote "
-			       "%d\n", tage->used, rc);
+			printk(KERN_WARNING "wanted to write %u but wrote %d\n",
+			       tage->used, rc);
 			put_pages_back(&pc);
 			__LASSERT(list_empty(&pc.pc_pages));
 			break;
@@ -724,7 +724,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		cfs_tage_free(tage);
 	}
 	MMSPACE_CLOSE;
-	rc = filp_fsync(filp);
+	rc = vfs_fsync(filp, 1);
 	if (rc)
 		printk(KERN_ERR "sync returns %d\n", rc);
 close:
@@ -754,7 +754,7 @@ void cfs_trace_flush_pages(void)
 }
 
 int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
-			    const char *usr_buffer, int usr_buffer_nob)
+			    const char __user *usr_buffer, int usr_buffer_nob)
 {
 	int    nob;
 
@@ -762,7 +762,7 @@ int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
 		return -EOVERFLOW;
 
 	if (copy_from_user((void *)knl_buffer,
-			   (void *)usr_buffer, usr_buffer_nob))
+			   usr_buffer, usr_buffer_nob))
 		return -EFAULT;
 
 	nob = strnlen(knl_buffer, usr_buffer_nob);
@@ -781,7 +781,7 @@ int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
 }
 EXPORT_SYMBOL(cfs_trace_copyin_string);
 
-int cfs_trace_copyout_string(char *usr_buffer, int usr_buffer_nob,
+int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
 			     const char *knl_buffer, char *append)
 {
 	/* NB if 'append' != NULL, it's a single character to append to the
@@ -823,7 +823,7 @@ void cfs_trace_free_string_buffer(char *str, int nob)
 	kfree(str);
 }
 
-int cfs_trace_dump_debug_buffer_usrstr(void *usr_str, int usr_str_nob)
+int cfs_trace_dump_debug_buffer_usrstr(void __user *usr_str, int usr_str_nob)
 {
 	char	 *str;
 	int	   rc;
@@ -874,8 +874,8 @@ int cfs_trace_daemon_command(char *str)
 		strcpy(cfs_tracefile, str);
 
 		printk(KERN_INFO
-		       "Lustre: debug daemon will attempt to start writing "
-		       "to %s (%lukB max)\n", cfs_tracefile,
+		       "Lustre: debug daemon will attempt to start writing to %s (%lukB max)\n",
+		       cfs_tracefile,
 		       (long)(cfs_tracefile_size >> 10));
 
 		cfs_trace_start_thread();
@@ -885,7 +885,7 @@ int cfs_trace_daemon_command(char *str)
 	return rc;
 }
 
-int cfs_trace_daemon_command_usrstr(void *usr_str, int usr_str_nob)
+int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob)
 {
 	char *str;
 	int   rc;
@@ -913,15 +913,15 @@ int cfs_trace_set_debug_mb(int mb)
 
 	if (mb < num_possible_cpus()) {
 		printk(KERN_WARNING
-		       "Lustre: %d MB is too small for debug buffer size, "
-		       "setting it to %d MB.\n", mb, num_possible_cpus());
+		       "Lustre: %d MB is too small for debug buffer size, setting it to %d MB.\n",
+		       mb, num_possible_cpus());
 		mb = num_possible_cpus();
 	}
 
 	if (mb > limit) {
 		printk(KERN_WARNING
-		       "Lustre: %d MB is too large for debug buffer size, "
-		       "setting it to %d MB.\n", mb, limit);
+		       "Lustre: %d MB is too large for debug buffer size, setting it to %d MB.\n",
+		       mb, limit);
 		mb = limit;
 	}
 
@@ -938,7 +938,7 @@ int cfs_trace_set_debug_mb(int mb)
 	return 0;
 }
 
-int cfs_trace_set_debug_mb_usrstr(void *usr_str, int usr_str_nob)
+int cfs_trace_set_debug_mb_usrstr(void __user *usr_str, int usr_str_nob)
 {
 	char     str[32];
 	int      rc;
@@ -974,6 +974,7 @@ static int tracefiled(void *arg)
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
 	struct file *filp;
+	char *buf;
 	int last_loop = 0;
 	int rc;
 
@@ -1002,8 +1003,8 @@ static int tracefiled(void *arg)
 			if (IS_ERR(filp)) {
 				rc = PTR_ERR(filp);
 				filp = NULL;
-				printk(KERN_WARNING "couldn't open %s: "
-				       "%d\n", cfs_tracefile, rc);
+				printk(KERN_WARNING "couldn't open %s: %d\n",
+				       cfs_tracefile, rc);
 			}
 		}
 		cfs_tracefile_read_unlock();
@@ -1023,16 +1024,20 @@ static int tracefiled(void *arg)
 
 			if (f_pos >= (off_t)cfs_tracefile_size)
 				f_pos = 0;
-			else if (f_pos > (off_t)filp_size(filp))
-				f_pos = filp_size(filp);
+			else if (f_pos > i_size_read(file_inode(filp)))
+				f_pos = i_size_read(file_inode(filp));
 
-			rc = filp_write(filp, page_address(tage->page),
-					tage->used, &f_pos);
+			buf = kmap(tage->page);
+			rc = vfs_write(filp, (__force const char __user *)buf,
+				       tage->used, &f_pos);
+			kunmap(tage->page);
+
 			if (rc != (int)tage->used) {
-				printk(KERN_WARNING "wanted to write %u "
-				       "but wrote %d\n", tage->used, rc);
+				printk(KERN_WARNING "wanted to write %u but wrote %d\n",
+				       tage->used, rc);
 				put_pages_back(&pc);
 				__LASSERT(list_empty(&pc.pc_pages));
+				break;
 			}
 		}
 		MMSPACE_CLOSE;
@@ -1042,8 +1047,7 @@ static int tracefiled(void *arg)
 		if (!list_empty(&pc.pc_pages)) {
 			int i;
 
-			printk(KERN_ALERT "Lustre: trace pages aren't "
-			       " empty\n");
+			printk(KERN_ALERT "Lustre: trace pages aren't empty\n");
 			printk(KERN_ERR "total cpus(%d): ",
 			       num_possible_cpus());
 			for (i = 0; i < num_possible_cpus(); i++)
@@ -1056,8 +1060,8 @@ static int tracefiled(void *arg)
 			i = 0;
 			list_for_each_entry_safe(tage, tmp, &pc.pc_pages,
 						     linkage)
-				printk(KERN_ERR "page %d belongs to cpu "
-				       "%d\n", ++i, tage->cpu);
+				printk(KERN_ERR "page %d belongs to cpu %d\n",
+				       ++i, tage->cpu);
 			printk(KERN_ERR "There are %d pages unwritten\n",
 			       i);
 		}
@@ -1071,11 +1075,10 @@ end_loop:
 				break;
 			}
 		}
-		init_waitqueue_entry_current(&__wait);
+		init_waitqueue_entry(&__wait, current);
 		add_wait_queue(&tctl->tctl_waitq, &__wait);
 		set_current_state(TASK_INTERRUPTIBLE);
-		waitq_timedwait(&__wait, TASK_INTERRUPTIBLE,
-				    cfs_time_seconds(1));
+		schedule_timeout(cfs_time_seconds(1));
 		remove_wait_queue(&tctl->tctl_waitq, &__wait);
 	}
 	complete(&tctl->tctl_stop);
@@ -1159,7 +1162,7 @@ static void trace_cleanup_on_all_cpus(void)
 	struct cfs_trace_page *tmp;
 	int i, cpu;
 
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			tcd->tcd_shutting_down = 1;
 

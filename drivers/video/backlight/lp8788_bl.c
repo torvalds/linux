@@ -52,7 +52,7 @@ struct lp8788_bl {
 	struct pwm_device *pwm;
 };
 
-struct lp8788_bl_config default_bl_config = {
+static struct lp8788_bl_config default_bl_config = {
 	.bl_mode    = LP8788_BL_REGISTER_ONLY,
 	.dim_mode   = LP8788_DIM_EXPONENTIAL,
 	.full_scale = LP8788_FULLSCALE_1900uA,
@@ -63,13 +63,13 @@ struct lp8788_bl_config default_bl_config = {
 
 static inline bool is_brightness_ctrl_by_pwm(enum lp8788_bl_ctrl_mode mode)
 {
-	return (mode == LP8788_BL_COMB_PWM_BASED);
+	return mode == LP8788_BL_COMB_PWM_BASED;
 }
 
 static inline bool is_brightness_ctrl_by_register(enum lp8788_bl_ctrl_mode mode)
 {
-	return (mode == LP8788_BL_REGISTER_ONLY ||
-		mode == LP8788_BL_COMB_REGISTER_BASED);
+	return mode == LP8788_BL_REGISTER_ONLY ||
+		mode == LP8788_BL_COMB_REGISTER_BASED;
 }
 
 static int lp8788_backlight_configure(struct lp8788_bl *bl)
@@ -176,15 +176,9 @@ static int lp8788_bl_update_status(struct backlight_device *bl_dev)
 	return 0;
 }
 
-static int lp8788_bl_get_brightness(struct backlight_device *bl_dev)
-{
-	return bl_dev->props.brightness;
-}
-
 static const struct backlight_ops lp8788_bl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.update_status = lp8788_bl_update_status,
-	.get_brightness = lp8788_bl_get_brightness,
 };
 
 static int lp8788_backlight_register(struct lp8788_bl *bl)
@@ -321,7 +315,6 @@ static struct platform_driver lp8788_bl_driver = {
 	.remove = lp8788_backlight_remove,
 	.driver = {
 		.name = LP8788_DEV_BACKLIGHT,
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(lp8788_bl_driver);

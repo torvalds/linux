@@ -141,7 +141,7 @@ VECTOR   EV_Extension            ; 0x130, Extn Intruction Excp  (0x26)
 VECTOR   reserved                ; Reserved Exceptions
 .endr
 
-#include <linux/linkage.h>   /* ARC_{EXTRY,EXIT} */
+#include <linux/linkage.h>   /* {EXTRY,EXIT} */
 #include <asm/entry.h>       /* SAVE_ALL_{INT1,INT2,SYS...} */
 #include <asm/errno.h>
 #include <asm/arcregs.h>
@@ -156,7 +156,7 @@ ARCFP_DATA int1_saved_reg
 int1_saved_reg:
 	.zero 4
 
-/* Each Interrupt level needs it's own scratch */
+/* Each Interrupt level needs its own scratch */
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 
 ARCFP_DATA int2_saved_reg
@@ -184,7 +184,7 @@ reserved:		; processor restart
 ; ---------------------------------------------
 ;  Level 2 ISR: Can interrupt a Level 1 ISR
 ; ---------------------------------------------
-ARC_ENTRY handle_interrupt_level2
+ENTRY(handle_interrupt_level2)
 
 	; TODO-vineetg for SMP this wont work
 	; free up r9 as scratchpad
@@ -225,14 +225,14 @@ ARC_ENTRY handle_interrupt_level2
 
 	b   ret_from_exception
 
-ARC_EXIT handle_interrupt_level2
+END(handle_interrupt_level2)
 
 #endif
 
 ; ---------------------------------------------
 ;  Level 1 ISR
 ; ---------------------------------------------
-ARC_ENTRY handle_interrupt_level1
+ENTRY(handle_interrupt_level1)
 
 	/* free up r9 as scratchpad */
 #ifdef CONFIG_SMP
@@ -250,6 +250,14 @@ ARC_ENTRY handle_interrupt_level1
 	lr  r0, [icause1]
 	and r0, r0, 0x1f
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	; icause1 needs to be read early, before calling tracing, which
+	; can clobber scratch regs, hence use of stack to stash it
+	push r0
+	TRACE_ASM_IRQ_DISABLE
+	pop  r0
+#endif
+
 	bl.d  @arch_do_IRQ
 	mov r1, sp
 
@@ -257,7 +265,7 @@ ARC_ENTRY handle_interrupt_level1
 	sr r8, [AUX_IRQ_LV12]       ; clear bit in Sticky Status Reg
 
 	b   ret_from_exception
-ARC_EXIT handle_interrupt_level1
+END(handle_interrupt_level1)
 
 ;################### Non TLB Exception Handling #############################
 
@@ -265,14 +273,9 @@ ARC_EXIT handle_interrupt_level1
 ; Instruction Error Exception Handler
 ; ---------------------------------------------
 
-ARC_ENTRY instr_service
+ENTRY(instr_service)
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
@@ -281,38 +284,32 @@ ARC_ENTRY instr_service
 
 	bl  do_insterror_or_kprobe
 	b   ret_from_exception
-ARC_EXIT instr_service
+END(instr_service)
 
 ; ---------------------------------------------
 ; Memory Error Exception Handler
 ; ---------------------------------------------
 
-ARC_ENTRY mem_service
+ENTRY(mem_service)
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN r9
+
 	bl  do_memory_error
 	b   ret_from_exception
-ARC_EXIT mem_service
+END(mem_service)
 
 ; ---------------------------------------------
 ; Machine Check Exception Handler
 ; ---------------------------------------------
 
-ARC_ENTRY EV_MachineCheck
+ENTRY(EV_MachineCheck)
 
-	EXCPN_PROLOG_FREEUP_REG r9
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r2, [ecr]
 	lr  r0, [efa]
@@ -334,29 +331,23 @@ ARC_ENTRY EV_MachineCheck
 
 	j  do_machine_check_fault
 
-ARC_EXIT EV_MachineCheck
+END(EV_MachineCheck)
 
 ; ---------------------------------------------
 ; Protection Violation Exception Handler
 ; ---------------------------------------------
 
-ARC_ENTRY EV_TLBProtV
+ENTRY(EV_TLBProtV)
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	;Which mode (user/kernel) was the system in when Exception occured
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	;---------(3) Save some more regs-----------------
 	;  vineetg: Mar 6th: Random Seg Fault issue #1
 	;  ecr and efa were not saved in case an Intr sneaks in
 	;  after fake rtie
-	;
+
 	lr  r2, [ecr]
-	lr  r1, [efa]	; Faulting Data address
+	lr  r0, [efa]	; Faulting Data address
 
 	; --------(4) Return from CPU Exception Mode ---------
 	;  Fake a rtie, but rtie to next label
@@ -364,6 +355,8 @@ ARC_ENTRY EV_TLBProtV
 	;  mode with further Exceptions enabled
 
 	FAKE_RET_FROM_EXCPN r9
+
+	mov   r1, sp
 
 	;------ (5) Type of Protection Violation? ----------
 	;
@@ -375,16 +368,12 @@ ARC_ENTRY EV_TLBProtV
 	bbit1 r2, ECR_C_BIT_PROTV_MISALIG_DATA, 4f
 
 	;========= (6a) Access Violation Processing ========
-	mov r0, sp              ; pt_regs
 	bl  do_page_fault
 	b   ret_from_exception
 
 	;========== (6b) Non aligned access ============
 4:
-	mov r0, r1
-	mov r1, sp              ; pt_regs
 
-#ifdef  CONFIG_ARC_MISALIGN_ACCESS
 	SAVE_CALLEE_SAVED_USER
 	mov r2, sp              ; callee_regs
 
@@ -393,25 +382,17 @@ ARC_ENTRY EV_TLBProtV
 	; TBD: optimize - do this only if a callee reg was involved
 	; either a dst of emulated LD/ST or src with address-writeback
 	RESTORE_CALLEE_SAVED_USER
-#else
-	bl  do_misaligned_error
-#endif
 
 	b   ret_from_exception
 
-ARC_EXIT EV_TLBProtV
+END(EV_TLBProtV)
 
 ; ---------------------------------------------
 ; Privilege Violation Exception Handler
 ; ---------------------------------------------
-ARC_ENTRY EV_PrivilegeV
+ENTRY(EV_PrivilegeV)
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
@@ -420,24 +401,23 @@ ARC_ENTRY EV_PrivilegeV
 
 	bl  do_privilege_fault
 	b   ret_from_exception
-ARC_EXIT EV_PrivilegeV
+END(EV_PrivilegeV)
 
 ; ---------------------------------------------
 ; Extension Instruction Exception Handler
 ; ---------------------------------------------
-ARC_ENTRY EV_Extension
+ENTRY(EV_Extension)
 
-	EXCPN_PROLOG_FREEUP_REG r9
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN r9
+
 	bl  do_extension_fault
 	b   ret_from_exception
-ARC_EXIT EV_Extension
+END(EV_Extension)
 
 ;######################### System Call Tracing #########################
 
@@ -493,7 +473,7 @@ trap_with_param:
 	lr  r0, [efa]
 	mov r1, sp
 
-	; Now that we have read EFA, its safe to do "fake" rtie
+	; Now that we have read EFA, it is safe to do "fake" rtie
 	;   and get out of CPU exception mode
 	FAKE_RET_FROM_EXCPN r11
 
@@ -524,16 +504,9 @@ trap_with_param:
 ;   (2) Break Points
 ;------------------------------------------------------------------
 
-ARC_ENTRY EV_Trap
+ENTRY(EV_Trap)
 
-	; Need at least 1 reg to code the early exception prolog
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	;Which mode (user/kernel) was the system in when intr occured
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	;------- (4) What caused the Trap --------------
 	lr     r12, [ecr]
@@ -561,9 +534,9 @@ ARC_ENTRY EV_Trap
 	jl      [r9]        ; Entry into Sys Call Handler
 
 	; fall through to ret_from_system_call
-ARC_EXIT EV_Trap
+END(EV_Trap)
 
-ARC_ENTRY ret_from_system_call
+ENTRY(ret_from_system_call)
 
 	st  r0, [sp, PT_r0]     ; sys call return value in pt_regs
 
@@ -573,7 +546,7 @@ ARC_ENTRY ret_from_system_call
 ;
 ; If ret to user mode do we need to handle signals, schedule() et al.
 
-ARC_ENTRY ret_from_exception
+ENTRY(ret_from_exception)
 
 	; Pre-{IRQ,Trap,Exception} K/U mode from pt_regs->status32
 	ld  r8, [sp, PT_status32]   ; returning to User/Kernel Mode
@@ -605,6 +578,7 @@ resume_user_mode_begin:
 	; --- (Slow Path #2) pending signal  ---
 	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
 
+	GET_CURR_THR_INFO_FLAGS   r9
 	bbit0  r9, TIF_SIGPENDING, .Lchk_notify_resume
 
 	; Normal Trap/IRQ entry only saves Scratch (caller-saved) regs
@@ -640,6 +614,11 @@ resume_user_mode_begin:
 
 resume_kernel_mode:
 
+	; Disable Interrupts from this point on
+	; CONFIG_PREEMPT: This is a must for preempt_schedule_irq()
+	; !CONFIG_PREEMPT: To ensure restore_regs is intr safe
+	IRQ_DISABLE	r9
+
 #ifdef CONFIG_PREEMPT
 
 	; Can't preempt if preemption disabled
@@ -650,8 +629,6 @@ resume_kernel_mode:
 	; check if this task's NEED_RESCHED flag set
 	ld  r9, [r10, THREAD_INFO_FLAGS]
 	bbit0  r9, TIF_NEED_RESCHED, restore_regs
-
-	IRQ_DISABLE	r9
 
 	; Invoke PREEMPTION
 	bl      preempt_schedule_irq
@@ -665,12 +642,13 @@ resume_kernel_mode:
 ;
 ; Restore the saved sys context (common exit-path for EXCPN/IRQ/Trap)
 ; IRQ shd definitely not happen between now and rtie
+; All 2 entry points to here already disable interrupts
 
 restore_regs :
 
-	; Disable Interrupts while restoring reg-file back
-	; XXX can this be optimised out
-	IRQ_DISABLE_SAVE    r9, r10	;@r10 has prisitine (pre-disable) copy
+	TRACE_ASM_IRQ_ENABLE
+
+	lr	r10, [status32]
 
 	; Restore REG File. In case multiple Events outstanding,
 	; use the same priorty as rtie: EXCPN, L2 IRQ, L1 IRQ, None
@@ -700,9 +678,9 @@ not_exception:
 	brne r9, event_IRQ2, 149f
 
 	;------------------------------------------------------------------
-	; if L2 IRQ interrupted a L1 ISR,  we'd disbaled preemption earlier
-	; so that sched doesnt move to new task, causing L1 to be delayed
-	; undeterministically. Now that we've achieved that, lets reset
+	; if L2 IRQ interrupted an L1 ISR,  we'd disabled preemption earlier
+	; so that sched doesn't move to new task, causing L1 to be delayed
+	; undeterministically. Now that we've achieved that, let's reset
 	; things to what they were, before returning from L2 context
 	;----------------------------------------------------------------
 
@@ -750,30 +728,34 @@ not_level1_interrupt:
 debug_marker_syscall:
 	rtie
 
-ARC_EXIT ret_from_exception
+END(ret_from_exception)
 
-ARC_ENTRY ret_from_fork
+ENTRY(ret_from_fork)
 	; when the forked child comes here from the __switch_to function
 	; r0 has the last task pointer.
 	; put last task in scheduler queue
 	bl   @schedule_tail
 
-	; If kernel thread, jump to it's entry-point
 	ld   r9, [sp, PT_status32]
 	brne r9, 0, 1f
 
-	jl.d [r14]
-	mov  r0, r13		; arg to payload
+	jl.d [r14]		; kernel thread entry point
+	mov  r0, r13		; (see PF_KTHREAD block in copy_thread)
 
 1:
-	; special case of kernel_thread entry point returning back due to
-	; kernel_execve() - pretend return from syscall to ret to userland
+	; Return to user space
+	; 1. Any forked task (Reach here via BRne above)
+	; 2. First ever init task (Reach here via return from JL above)
+	;    This is the historic "kernel_execve" use-case, to return to init
+	;    user mode, in a round about way since that is always done from
+	;    a kernel thread which is executed via JL above but always returns
+	;    out whenever kernel_execve (now inline do_fork()) is involved
 	b    ret_from_exception
-ARC_EXIT ret_from_fork
+END(ret_from_fork)
 
 ;################### Special Sys Call Wrappers ##########################
 
-ARC_ENTRY sys_clone_wrapper
+ENTRY(sys_clone_wrapper)
 	SAVE_CALLEE_SAVED_USER
 	bl  @sys_clone
 	DISCARD_CALLEE_SAVED_USER
@@ -783,7 +765,7 @@ ARC_ENTRY sys_clone_wrapper
 	bnz  tracesys_exit
 
 	b ret_from_system_call
-ARC_EXIT sys_clone_wrapper
+END(sys_clone_wrapper)
 
 #ifdef CONFIG_ARC_DW2_UNWIND
 ; Workaround for bug 94179 (STAR ):

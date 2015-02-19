@@ -170,11 +170,13 @@ static void frontswap_selfshrink(void)
 		tgt_frontswap_pages = cur_frontswap_pages -
 			(cur_frontswap_pages / frontswap_hysteresis);
 	frontswap_shrink(tgt_frontswap_pages);
+	frontswap_inertia_counter = frontswap_inertia;
 }
 
 #endif /* CONFIG_FRONTSWAP */
 
 #define MB2PAGES(mb)	((mb) << (20 - PAGE_SHIFT))
+#define PAGES2MB(pages) ((pages) >> (20 - PAGE_SHIFT))
 
 /*
  * Use current balloon size, the goal (vm_committed_as), and hysteresis
@@ -265,8 +267,10 @@ static ssize_t store_selfballooning(struct device *dev,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	err = strict_strtoul(buf, 10, &tmp);
-	if (err || ((tmp != 0) && (tmp != 1)))
+	err = kstrtoul(buf, 10, &tmp);
+	if (err)
+		return err;
+	if ((tmp != 0) && (tmp != 1))
 		return -EINVAL;
 
 	xen_selfballooning_enabled = !!tmp;
@@ -292,8 +296,10 @@ static ssize_t store_selfballoon_interval(struct device *dev,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	err = strict_strtoul(buf, 10, &val);
-	if (err || val == 0)
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+	if (val == 0)
 		return -EINVAL;
 	selfballoon_interval = val;
 	return count;
@@ -314,8 +320,10 @@ static ssize_t store_selfballoon_downhys(struct device *dev,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	err = strict_strtoul(buf, 10, &val);
-	if (err || val == 0)
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+	if (val == 0)
 		return -EINVAL;
 	selfballoon_downhysteresis = val;
 	return count;
@@ -337,8 +345,10 @@ static ssize_t store_selfballoon_uphys(struct device *dev,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	err = strict_strtoul(buf, 10, &val);
-	if (err || val == 0)
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+	if (val == 0)
 		return -EINVAL;
 	selfballoon_uphysteresis = val;
 	return count;
@@ -360,8 +370,10 @@ static ssize_t store_selfballoon_min_usable_mb(struct device *dev,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	err = strict_strtoul(buf, 10, &val);
-	if (err || val == 0)
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+	if (val == 0)
 		return -EINVAL;
 	selfballoon_min_usable_mb = val;
 	return count;
@@ -384,8 +396,10 @@ static ssize_t store_selfballoon_reserved_mb(struct device *dev,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	err = strict_strtoul(buf, 10, &val);
-	if (err || val == 0)
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+	if (val == 0)
 		return -EINVAL;
 	selfballoon_reserved_mb = val;
 	return count;
@@ -410,8 +424,10 @@ static ssize_t store_frontswap_selfshrinking(struct device *dev,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	err = strict_strtoul(buf, 10, &tmp);
-	if (err || ((tmp != 0) && (tmp != 1)))
+	err = kstrtoul(buf, 10, &tmp);
+	if (err)
+		return err;
+	if ((tmp != 0) && (tmp != 1))
 		return -EINVAL;
 	frontswap_selfshrinking = !!tmp;
 	if (!was_enabled && !xen_selfballooning_enabled &&
@@ -437,8 +453,10 @@ static ssize_t store_frontswap_inertia(struct device *dev,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	err = strict_strtoul(buf, 10, &val);
-	if (err || val == 0)
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+	if (val == 0)
 		return -EINVAL;
 	frontswap_inertia = val;
 	frontswap_inertia_counter = val;
@@ -460,8 +478,10 @@ static ssize_t store_frontswap_hysteresis(struct device *dev,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	err = strict_strtoul(buf, 10, &val);
-	if (err || val == 0)
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+	if (val == 0)
 		return -EINVAL;
 	frontswap_hysteresis = val;
 	return count;
@@ -507,6 +527,7 @@ EXPORT_SYMBOL(register_xen_selfballooning);
 int xen_selfballoon_init(bool use_selfballooning, bool use_frontswap_selfshrink)
 {
 	bool enable = false;
+	unsigned long reserve_pages;
 
 	if (!xen_domain())
 		return -ENODEV;
@@ -531,6 +552,26 @@ int xen_selfballoon_init(bool use_selfballooning, bool use_frontswap_selfshrink)
 	if (!enable)
 		return -ENODEV;
 
+	/*
+	 * Give selfballoon_reserved_mb a default value(10% of total ram pages)
+	 * to make selfballoon not so aggressive.
+	 *
+	 * There are mainly two reasons:
+	 * 1) The original goal_page didn't consider some pages used by kernel
+	 *    space, like slab pages and memory used by device drivers.
+	 *
+	 * 2) The balloon driver may not give back memory to guest OS fast
+	 *    enough when the workload suddenly aquries a lot of physical memory.
+	 *
+	 * In both cases, the guest OS will suffer from memory pressure and
+	 * OOM killer may be triggered.
+	 * By reserving extra 10% of total ram pages, we can keep the system
+	 * much more reliably and response faster in some cases.
+	 */
+	if (!selfballoon_reserved_mb) {
+		reserve_pages = totalram_pages / 10;
+		selfballoon_reserved_mb = PAGES2MB(reserve_pages);
+	}
 	schedule_delayed_work(&selfballoon_worker, selfballoon_interval * HZ);
 
 	return 0;

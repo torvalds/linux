@@ -137,6 +137,7 @@ enum access_mode {
 
 /**
  * fsmc_nand_platform_data - platform specific NAND controller config
+ * @nand_timings: timing setup for the physical NAND interface
  * @partitions: partition table for the platform, use a default fallback
  * if this is NULL
  * @nr_partitions: the number of partitions in the previous entry

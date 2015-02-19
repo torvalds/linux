@@ -16,12 +16,13 @@
  */
 
 #include <linux/slab.h>
+#include <linux/if_ether.h>
 
 #include "htt.h"
 #include "core.h"
 #include "debug.h"
 
-static int ath10k_htt_htc_attach(struct ath10k_htt *htt)
+int ath10k_htt_connect(struct ath10k_htt *htt)
 {
 	struct ath10k_htc_svc_conn_req conn_req;
 	struct ath10k_htc_svc_conn_resp conn_resp;
@@ -36,7 +37,7 @@ static int ath10k_htt_htc_attach(struct ath10k_htt *htt)
 	/* connect to control service */
 	conn_req.service_id = ATH10K_HTC_SVC_ID_HTT_DATA_MSG;
 
-	status = ath10k_htc_connect_service(htt->ar->htc, &conn_req,
+	status = ath10k_htc_connect_service(&htt->ar->htc, &conn_req,
 					    &conn_resp);
 
 	if (status)
@@ -47,35 +48,11 @@ static int ath10k_htt_htc_attach(struct ath10k_htt *htt)
 	return 0;
 }
 
-struct ath10k_htt *ath10k_htt_attach(struct ath10k *ar)
+int ath10k_htt_init(struct ath10k *ar)
 {
-	struct ath10k_htt *htt;
-	int ret;
-
-	htt = kzalloc(sizeof(*htt), GFP_KERNEL);
-	if (!htt)
-		return NULL;
+	struct ath10k_htt *htt = &ar->htt;
 
 	htt->ar = ar;
-	htt->max_throughput_mbps = 800;
-
-	/*
-	 * Connect to HTC service.
-	 * This has to be done before calling ath10k_htt_rx_attach,
-	 * since ath10k_htt_rx_attach involves sending a rx ring configure
-	 * message to the target.
-	 */
-	if (ath10k_htt_htc_attach(htt))
-		goto err_htc_attach;
-
-	ret = ath10k_htt_tx_attach(htt);
-	if (ret) {
-		ath10k_err("could not attach htt tx (%d)\n", ret);
-		goto err_htc_attach;
-	}
-
-	if (ath10k_htt_rx_attach(htt))
-		goto err_rx_attach;
 
 	/*
 	 * Prefetch enough data to satisfy target
@@ -89,39 +66,31 @@ struct ath10k_htt *ath10k_htt_attach(struct ath10k *ar)
 		8 + /* llc snap */
 		2; /* ip4 dscp or ip6 priority */
 
-	return htt;
-
-err_rx_attach:
-	ath10k_htt_tx_detach(htt);
-err_htc_attach:
-	kfree(htt);
-	return NULL;
+	return 0;
 }
 
 #define HTT_TARGET_VERSION_TIMEOUT_HZ (3*HZ)
 
 static int ath10k_htt_verify_version(struct ath10k_htt *htt)
 {
-	ath10k_dbg(ATH10K_DBG_HTT,
-		   "htt target version %d.%d; host version %d.%d\n",
-		    htt->target_version_major,
-		    htt->target_version_minor,
-		    HTT_CURRENT_VERSION_MAJOR,
-		    HTT_CURRENT_VERSION_MINOR);
+	struct ath10k *ar = htt->ar;
 
-	if (htt->target_version_major != HTT_CURRENT_VERSION_MAJOR) {
-		ath10k_err("htt major versions are incompatible!\n");
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "htt target version %d.%d\n",
+		   htt->target_version_major, htt->target_version_minor);
+
+	if (htt->target_version_major != 2 &&
+	    htt->target_version_major != 3) {
+		ath10k_err(ar, "unsupported htt major version %d. supported versions are 2 and 3\n",
+			   htt->target_version_major);
 		return -ENOTSUPP;
 	}
-
-	if (htt->target_version_minor != HTT_CURRENT_VERSION_MINOR)
-		ath10k_warn("htt minor version differ but still compatible\n");
 
 	return 0;
 }
 
-int ath10k_htt_attach_target(struct ath10k_htt *htt)
+int ath10k_htt_setup(struct ath10k_htt *htt)
 {
+	struct ath10k *ar = htt->ar;
 	int status;
 
 	init_completion(&htt->target_version_received);
@@ -131,9 +100,9 @@ int ath10k_htt_attach_target(struct ath10k_htt *htt)
 		return status;
 
 	status = wait_for_completion_timeout(&htt->target_version_received,
-						HTT_TARGET_VERSION_TIMEOUT_HZ);
-	if (status <= 0) {
-		ath10k_warn("htt version request timed out\n");
+					     HTT_TARGET_VERSION_TIMEOUT_HZ);
+	if (status == 0) {
+		ath10k_warn(ar, "htt version request timed out\n");
 		return -ETIMEDOUT;
 	}
 
@@ -142,11 +111,4 @@ int ath10k_htt_attach_target(struct ath10k_htt *htt)
 		return status;
 
 	return ath10k_htt_send_rx_ring_cfg_ll(htt);
-}
-
-void ath10k_htt_detach(struct ath10k_htt *htt)
-{
-	ath10k_htt_rx_detach(htt);
-	ath10k_htt_tx_detach(htt);
-	kfree(htt);
 }

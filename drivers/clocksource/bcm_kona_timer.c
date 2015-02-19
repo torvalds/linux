@@ -17,6 +17,7 @@
 #include <linux/jiffies.h>
 #include <linux/clockchips.h>
 #include <linux/types.h>
+#include <linux/clk.h>
 
 #include <linux/io.h>
 #include <asm/mach/time.h>
@@ -67,9 +68,8 @@ static void kona_timer_disable_and_clear(void __iomem *base)
 }
 
 static void
-kona_timer_get_counter(void *timer_base, uint32_t *msw, uint32_t *lsw)
+kona_timer_get_counter(void __iomem *timer_base, uint32_t *msw, uint32_t *lsw)
 {
-	void __iomem *base = IOMEM(timer_base);
 	int loop_limit = 4;
 
 	/*
@@ -85,9 +85,9 @@ kona_timer_get_counter(void *timer_base, uint32_t *msw, uint32_t *lsw)
 	 */
 
 	while (--loop_limit) {
-		*msw = readl(base + KONA_GPTIMER_STCHI_OFFSET);
-		*lsw = readl(base + KONA_GPTIMER_STCLO_OFFSET);
-		if (*msw == readl(base + KONA_GPTIMER_STCHI_OFFSET))
+		*msw = readl(timer_base + KONA_GPTIMER_STCHI_OFFSET);
+		*lsw = readl(timer_base + KONA_GPTIMER_STCLO_OFFSET);
+		if (*msw == readl(timer_base + KONA_GPTIMER_STCHI_OFFSET))
 			break;
 	}
 	if (!loop_limit) {
@@ -96,29 +96,6 @@ kona_timer_get_counter(void *timer_base, uint32_t *msw, uint32_t *lsw)
 	}
 
 	return;
-}
-
-static const struct of_device_id bcm_timer_ids[] __initconst = {
-	{.compatible = "bcm,kona-timer"},
-	{},
-};
-
-static void __init kona_timers_init(struct device_node *node)
-{
-	u32 freq;
-
-	if (!of_property_read_u32(node, "clock-frequency", &freq))
-		arch_timer_rate = freq;
-	else
-		panic("clock-frequency not set in the .dts file");
-
-	/* Setup IRQ numbers */
-	timers.tmr_irq = irq_of_parse_and_map(node, 0);
-
-	/* Setup IO addresses */
-	timers.tmr_regs = of_iomap(node, 0);
-
-	kona_timer_disable_and_clear(timers.tmr_regs);
 }
 
 static int kona_timer_set_next_event(unsigned long clc,
@@ -195,10 +172,42 @@ static struct irqaction kona_timer_irq = {
 
 static void __init kona_timer_init(struct device_node *node)
 {
-	kona_timers_init(node);
+	u32 freq;
+	struct clk *external_clk;
+
+	if (!of_device_is_available(node)) {
+		pr_info("Kona Timer v1 marked as disabled in device tree\n");
+		return;
+	}
+
+	external_clk = of_clk_get_by_name(node, NULL);
+
+	if (!IS_ERR(external_clk)) {
+		arch_timer_rate = clk_get_rate(external_clk);
+		clk_prepare_enable(external_clk);
+	} else if (!of_property_read_u32(node, "clock-frequency", &freq)) {
+		arch_timer_rate = freq;
+	} else {
+		pr_err("Kona Timer v1 unable to determine clock-frequency");
+		return;
+	}
+
+	/* Setup IRQ numbers */
+	timers.tmr_irq = irq_of_parse_and_map(node, 0);
+
+	/* Setup IO addresses */
+	timers.tmr_regs = of_iomap(node, 0);
+
+	kona_timer_disable_and_clear(timers.tmr_regs);
+
 	kona_timer_clockevents_init();
 	setup_irq(timers.tmr_irq, &kona_timer_irq);
 	kona_timer_set_next_event((arch_timer_rate / HZ), NULL);
 }
 
+CLOCKSOURCE_OF_DECLARE(brcm_kona, "brcm,kona-timer", kona_timer_init);
+/*
+ * bcm,kona-timer is deprecated by brcm,kona-timer
+ * being kept here for driver compatibility
+ */
 CLOCKSOURCE_OF_DECLARE(bcm_kona, "bcm,kona-timer", kona_timer_init);

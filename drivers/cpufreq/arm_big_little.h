@@ -25,19 +25,17 @@
 
 struct cpufreq_arm_bL_ops {
 	char name[CPUFREQ_NAME_LEN];
-	int (*get_transition_latency)(struct device *cpu_dev);
 
 	/*
 	 * This must set opp table for cpu_dev in a similar way as done by
 	 * of_init_opp_table().
 	 */
 	int (*init_opp_table)(struct device *cpu_dev);
-};
 
-static inline int cpu_to_cluster(int cpu)
-{
-	return topology_physical_package_id(cpu);
-}
+	/* Optional */
+	int (*get_transition_latency)(struct device *cpu_dev);
+	void (*free_opp_table)(struct device *cpu_dev);
+};
 
 int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops);
 void bL_cpufreq_unregister(struct cpufreq_arm_bL_ops *ops);

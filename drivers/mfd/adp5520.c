@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -207,7 +206,7 @@ static int adp5520_remove_subdevs(struct adp5520_chip *chip)
 static int adp5520_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	struct adp5520_platform_data *pdata = client->dev.platform_data;
+	struct adp5520_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct platform_device *pdev;
 	struct adp5520_chip *chip;
 	int ret;

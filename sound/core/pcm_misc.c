@@ -142,11 +142,23 @@ static struct pcm_format_data pcm_formats[(INT)SNDRV_PCM_FORMAT_LAST+1] = {
 	},
 	[SNDRV_PCM_FORMAT_DSD_U8] = {
 		.width = 8, .phys = 8, .le = 1, .signd = 0,
-		.silence = {},
+		.silence = { 0x69 },
 	},
 	[SNDRV_PCM_FORMAT_DSD_U16_LE] = {
 		.width = 16, .phys = 16, .le = 1, .signd = 0,
-		.silence = {},
+		.silence = { 0x69, 0x69 },
+	},
+	[SNDRV_PCM_FORMAT_DSD_U32_LE] = {
+		.width = 32, .phys = 32, .le = 1, .signd = 0,
+		.silence = { 0x69, 0x69, 0x69, 0x69 },
+	},
+	[SNDRV_PCM_FORMAT_DSD_U16_BE] = {
+		.width = 16, .phys = 16, .le = 0, .signd = 0,
+		.silence = { 0x69, 0x69 },
+	},
+	[SNDRV_PCM_FORMAT_DSD_U32_BE] = {
+		.width = 32, .phys = 32, .le = 0, .signd = 0,
+		.silence = { 0x69, 0x69, 0x69, 0x69 },
 	},
 	/* FIXME: the following three formats are not defined properly yet */
 	[SNDRV_PCM_FORMAT_MPEG] = {
@@ -514,3 +526,42 @@ unsigned int snd_pcm_rate_bit_to_rate(unsigned int rate_bit)
 	return 0;
 }
 EXPORT_SYMBOL(snd_pcm_rate_bit_to_rate);
+
+static unsigned int snd_pcm_rate_mask_sanitize(unsigned int rates)
+{
+	if (rates & SNDRV_PCM_RATE_CONTINUOUS)
+		return SNDRV_PCM_RATE_CONTINUOUS;
+	else if (rates & SNDRV_PCM_RATE_KNOT)
+		return SNDRV_PCM_RATE_KNOT;
+	return rates;
+}
+
+/**
+ * snd_pcm_rate_mask_intersect - computes the intersection between two rate masks
+ * @rates_a: The first rate mask
+ * @rates_b: The second rate mask
+ *
+ * This function computes the rates that are supported by both rate masks passed
+ * to the function. It will take care of the special handling of
+ * SNDRV_PCM_RATE_CONTINUOUS and SNDRV_PCM_RATE_KNOT.
+ *
+ * Return: A rate mask containing the rates that are supported by both rates_a
+ * and rates_b.
+ */
+unsigned int snd_pcm_rate_mask_intersect(unsigned int rates_a,
+	unsigned int rates_b)
+{
+	rates_a = snd_pcm_rate_mask_sanitize(rates_a);
+	rates_b = snd_pcm_rate_mask_sanitize(rates_b);
+
+	if (rates_a & SNDRV_PCM_RATE_CONTINUOUS)
+		return rates_b;
+	else if (rates_b & SNDRV_PCM_RATE_CONTINUOUS)
+		return rates_a;
+	else if (rates_a & SNDRV_PCM_RATE_KNOT)
+		return rates_b;
+	else if (rates_b & SNDRV_PCM_RATE_KNOT)
+		return rates_a;
+	return rates_a & rates_b;
+}
+EXPORT_SYMBOL_GPL(snd_pcm_rate_mask_intersect);

@@ -46,10 +46,10 @@
 #ifndef LOV_CL_INTERNAL_H
 #define LOV_CL_INTERNAL_H
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd.h>
-#include <cl_object.h>
+#include "../include/obd.h"
+#include "../include/cl_object.h"
 #include "lov_internal.h"
 
 /** \defgroup lov lov
@@ -162,12 +162,27 @@ struct lov_device {
  * Layout type.
  */
 enum lov_layout_type {
-	/** empty file without body */
-	LLT_EMPTY,
-	/** striped file */
-	LLT_RAID0,
+	LLT_EMPTY,	/** empty file without body (mknod + truncate) */
+	LLT_RAID0,	/** striped file */
+	LLT_RELEASED,	/** file with no objects (data in HSM) */
 	LLT_NR
 };
+
+static inline char *llt2str(enum lov_layout_type llt)
+{
+	switch (llt) {
+	case LLT_EMPTY:
+		return "EMPTY";
+	case LLT_RAID0:
+		return "RAID0";
+	case LLT_RELEASED:
+		return "RELEASED";
+	case LLT_NR:
+		LBUG();
+	}
+	LBUG();
+	return "";
+}
 
 /**
  * lov-specific file state.
@@ -255,12 +270,14 @@ struct lov_object {
 		} raid0;
 		struct lov_layout_state_empty {
 		} empty;
+		struct lov_layout_state_released {
+		} released;
 	} u;
 	/**
 	 * Thread that acquired lov_object::lo_type_guard in an exclusive
 	 * mode.
 	 */
-	task_t	    *lo_owner;
+	struct task_struct	*lo_owner;
 };
 
 /**
@@ -498,12 +515,12 @@ struct lov_io {
 	 * starting position within a file, for the current io loop iteration
 	 * (stripe), used by ci_io_loop().
 	 */
-	obd_off	    lis_pos;
+	u64	    lis_pos;
 	/**
 	 * end position with in a file, for the current stripe io. This is
 	 * exclusive (i.e., next offset after last byte affected by io).
 	 */
-	obd_off	    lis_endpos;
+	u64	    lis_endpos;
 
 	int		lis_mem_frozen;
 	int		lis_stripe_count;
@@ -563,48 +580,50 @@ extern struct kmem_cache *lovsub_req_kmem;
 
 extern struct kmem_cache *lov_lock_link_kmem;
 
-int   lov_object_init     (const struct lu_env *env, struct lu_object *obj,
+int   lov_object_init(const struct lu_env *env, struct lu_object *obj,
 			   const struct lu_object_conf *conf);
-int   lovsub_object_init  (const struct lu_env *env, struct lu_object *obj,
+int   lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
 			   const struct lu_object_conf *conf);
-int   lov_lock_init       (const struct lu_env *env, struct cl_object *obj,
+int   lov_lock_init(const struct lu_env *env, struct cl_object *obj,
 			   struct cl_lock *lock, const struct cl_io *io);
-int   lov_io_init	 (const struct lu_env *env, struct cl_object *obj,
+int   lov_io_init(const struct lu_env *env, struct cl_object *obj,
 			   struct cl_io *io);
-int   lovsub_lock_init    (const struct lu_env *env, struct cl_object *obj,
+int   lovsub_lock_init(const struct lu_env *env, struct cl_object *obj,
 			   struct cl_lock *lock, const struct cl_io *io);
 
-int   lov_lock_init_raid0 (const struct lu_env *env, struct cl_object *obj,
+int   lov_lock_init_raid0(const struct lu_env *env, struct cl_object *obj,
 			   struct cl_lock *lock, const struct cl_io *io);
-int   lov_lock_init_empty (const struct lu_env *env, struct cl_object *obj,
+int   lov_lock_init_empty(const struct lu_env *env, struct cl_object *obj,
 			   struct cl_lock *lock, const struct cl_io *io);
-int   lov_io_init_raid0   (const struct lu_env *env, struct cl_object *obj,
+int   lov_io_init_raid0(const struct lu_env *env, struct cl_object *obj,
 			   struct cl_io *io);
-int   lov_io_init_empty   (const struct lu_env *env, struct cl_object *obj,
+int   lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 			   struct cl_io *io);
-void  lov_lock_unlink     (const struct lu_env *env, struct lov_lock_link *link,
+int   lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
+			   struct cl_io *io);
+void  lov_lock_unlink(const struct lu_env *env, struct lov_lock_link *link,
 			   struct lovsub_lock *sub);
 
 struct lov_io_sub *lov_sub_get(const struct lu_env *env, struct lov_io *lio,
 			       int stripe);
-void  lov_sub_put	     (struct lov_io_sub *sub);
-int   lov_sublock_modify  (const struct lu_env *env, struct lov_lock *lov,
+void  lov_sub_put(struct lov_io_sub *sub);
+int   lov_sublock_modify(const struct lu_env *env, struct lov_lock *lov,
 			   struct lovsub_lock *sublock,
 			   const struct cl_lock_descr *d, int idx);
 
 
-int   lov_page_init       (const struct lu_env *env, struct cl_object *ob,
+int   lov_page_init(const struct lu_env *env, struct cl_object *ob,
 			   struct cl_page *page, struct page *vmpage);
-int   lovsub_page_init    (const struct lu_env *env, struct cl_object *ob,
+int   lovsub_page_init(const struct lu_env *env, struct cl_object *ob,
 			   struct cl_page *page, struct page *vmpage);
 
-int   lov_page_init_empty (const struct lu_env *env,
+int   lov_page_init_empty(const struct lu_env *env,
 			   struct cl_object *obj,
 			   struct cl_page *page, struct page *vmpage);
-int   lov_page_init_raid0 (const struct lu_env *env,
+int   lov_page_init_raid0(const struct lu_env *env,
 			   struct cl_object *obj,
 			   struct cl_page *page, struct page *vmpage);
-struct lu_object *lov_object_alloc   (const struct lu_env *env,
+struct lu_object *lov_object_alloc(const struct lu_env *env,
 				      const struct lu_object_header *hdr,
 				      struct lu_device *dev);
 struct lu_object *lovsub_object_alloc(const struct lu_env *env,
@@ -614,7 +633,7 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
 					 struct lov_lock *lck,
 					 struct lovsub_lock *sub);
-struct lov_io_sub    *lov_page_subio    (const struct lu_env *env,
+struct lov_io_sub    *lov_page_subio(const struct lu_env *env,
 					 struct lov_io *lio,
 					 const struct cl_page_slice *slice);
 

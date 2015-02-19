@@ -36,18 +36,18 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 
-#include <obd_support.h>
-#include <obd.h>
-#include <lprocfs_status.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_net.h>
-#include <obd_class.h>
+#include "../include/obd_support.h"
+#include "../include/obd.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_net.h"
+#include "../include/obd_class.h"
 #include "ptlrpc_internal.h"
 
 
-struct ll_rpc_opcode {
-     __u32       opcode;
-     const char *opname;
+static struct ll_rpc_opcode {
+	__u32       opcode;
+	const char *opname;
 } ll_rpc_opcode_table[LUSTRE_MAX_OPCODES] = {
 	{ OST_REPLY,	"ost_reply" },
 	{ OST_GETATTR,      "ost_getattr" },
@@ -114,12 +114,12 @@ struct ll_rpc_opcode {
 	{ MGS_SET_INFO,     "mgs_set_info" },
 	{ MGS_CONFIG_READ,  "mgs_config_read" },
 	{ OBD_PING,	 "obd_ping" },
-	{ OBD_LOG_CANCEL,   "llog_origin_handle_cancel" },
+	{ OBD_LOG_CANCEL,	"llog_cancel" },
 	{ OBD_QC_CALLBACK,  "obd_quota_callback" },
 	{ OBD_IDX_READ,	    "dt_index_read" },
-	{ LLOG_ORIGIN_HANDLE_CREATE,     "llog_origin_handle_create" },
+	{ LLOG_ORIGIN_HANDLE_CREATE,	 "llog_origin_handle_open" },
 	{ LLOG_ORIGIN_HANDLE_NEXT_BLOCK, "llog_origin_handle_next_block" },
-	{ LLOG_ORIGIN_HANDLE_READ_HEADER,"llog_origin_handle_read_header" },
+	{ LLOG_ORIGIN_HANDLE_READ_HEADER, "llog_origin_handle_read_header" },
 	{ LLOG_ORIGIN_HANDLE_WRITE_REC,  "llog_origin_handle_write_rec" },
 	{ LLOG_ORIGIN_HANDLE_CLOSE,      "llog_origin_handle_close" },
 	{ LLOG_ORIGIN_CONNECT,	   "llog_origin_connect" },
@@ -130,15 +130,15 @@ struct ll_rpc_opcode {
 	{ QUOTA_DQREL,      "quota_release" },
 	{ SEQ_QUERY,	"seq_query" },
 	{ SEC_CTX_INIT,     "sec_ctx_init" },
-	{ SEC_CTX_INIT_CONT,"sec_ctx_init_cont" },
+	{ SEC_CTX_INIT_CONT, "sec_ctx_init_cont" },
 	{ SEC_CTX_FINI,     "sec_ctx_fini" },
 	{ FLD_QUERY,	"fld_query" },
 	{ UPDATE_OBJ,	    "update_obj" },
 };
 
-struct ll_eopcode {
-     __u32       opcode;
-     const char *opname;
+static struct ll_eopcode {
+	__u32       opcode;
+	const char *opname;
 } ll_eopcode_table[EXTRA_LAST_OPC] = {
 	{ LDLM_GLIMPSE_ENQUEUE, "ldlm_glimpse_enqueue" },
 	{ LDLM_PLAIN_ENQUEUE,   "ldlm_plain_enqueue" },
@@ -175,15 +175,17 @@ const char *ll_opcode2str(__u32 opcode)
 	return ll_rpc_opcode_table[offset].opname;
 }
 
-const char* ll_eopcode2str(__u32 opcode)
+static const char *ll_eopcode2str(__u32 opcode)
 {
 	LASSERT(ll_eopcode_table[opcode].opcode == opcode);
 	return ll_eopcode_table[opcode].opname;
 }
-#ifdef LPROCFS
-void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
-			     char *name, struct proc_dir_entry **procroot_ret,
-			     struct lprocfs_stats **stats_ret)
+
+#if defined (CONFIG_PROC_FS)
+static void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
+				    char *name,
+				    struct proc_dir_entry **procroot_ret,
+				    struct lprocfs_stats **stats_ret)
 {
 	struct proc_dir_entry *svc_procroot;
 	struct lprocfs_stats *svc_stats;
@@ -194,7 +196,8 @@ void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 	LASSERT(*procroot_ret == NULL);
 	LASSERT(*stats_ret == NULL);
 
-	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES+LUSTRE_MAX_OPCODES,0);
+	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES+LUSTRE_MAX_OPCODES,
+					0);
 	if (svc_stats == NULL)
 		return;
 
@@ -221,7 +224,7 @@ void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 	for (i = 0; i < EXTRA_LAST_OPC; i++) {
 		char *units;
 
-		switch(i) {
+		switch (i) {
 		case BRW_WRITE_BYTES:
 		case BRW_READ_BYTES:
 			units = "bytes";
@@ -283,8 +286,9 @@ ptlrpc_lprocfs_req_history_max_seq_show(struct seq_file *m, void *n)
 }
 
 static ssize_t
-ptlrpc_lprocfs_req_history_max_seq_write(struct file *file, const char *buffer,
-					 size_t count, loff_t *off)
+ptlrpc_lprocfs_req_history_max_seq_write(struct file *file,
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
 	int			    bufpages;
@@ -302,7 +306,7 @@ ptlrpc_lprocfs_req_history_max_seq_write(struct file *file, const char *buffer,
 	 * hose a kernel by allowing the request history to grow too
 	 * far. */
 	bufpages = (svc->srv_buf_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	if (val > num_physpages/(2 * bufpages))
+	if (val > totalram_pages / (2 * bufpages))
 		return -ERANGE;
 
 	spin_lock(&svc->srv_lock);
@@ -328,8 +332,9 @@ ptlrpc_lprocfs_threads_min_seq_show(struct seq_file *m, void *n)
 }
 
 static ssize_t
-ptlrpc_lprocfs_threads_min_seq_write(struct file *file, const char *buffer,
-				     size_t count, loff_t *off)
+ptlrpc_lprocfs_threads_min_seq_write(struct file *file,
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
 	int	val;
@@ -380,8 +385,9 @@ ptlrpc_lprocfs_threads_max_seq_show(struct seq_file *m, void *n)
 }
 
 static ssize_t
-ptlrpc_lprocfs_threads_max_seq_write(struct file *file, const char *buffer,
-				     size_t count, loff_t *off)
+ptlrpc_lprocfs_threads_max_seq_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
 	int	val;
@@ -449,7 +455,7 @@ void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
 {
 	LASSERT(policy != NULL);
 	LASSERT(info != NULL);
-	LASSERT(spin_is_locked(&policy->pol_nrs->nrs_lock));
+	assert_spin_locked(&policy->pol_nrs->nrs_lock);
 
 	memcpy(info->pi_name, policy->pol_desc->pd_name, NRS_POL_NAME_MAX);
 
@@ -480,7 +486,6 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	bool				hp = false;
 	int				i;
 	int				rc = 0;
-	ENTRY;
 
 	/**
 	 * Serialize NRS core lprocfs operations with policy registration/
@@ -500,8 +505,10 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	spin_unlock(&nrs->nrs_lock);
 
 	OBD_ALLOC(infos, num_pols * sizeof(*infos));
-	if (infos == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (infos == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 again:
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
@@ -613,11 +620,11 @@ out:
 
 	mutex_unlock(&nrs_core.nrs_mutex);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
- * The longest valid command string is the maxium policy name size, plus the
+ * The longest valid command string is the maximum policy name size, plus the
  * length of the " reg" substring
  */
 #define LPROCFS_NRS_WR_MAX_CMD	(NRS_POL_NAME_MAX + sizeof(" reg") - 1)
@@ -629,7 +636,8 @@ out:
  * if the optional token is omitted, the operation is performed on both the
  * regular and high-priority (if the service has one) NRS head.
  */
-static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file, const char *buffer,
+static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
+					const char __user *buffer,
 					size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
@@ -638,28 +646,35 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file, const char *buffe
 	char			       *cmd_copy = NULL;
 	char			       *token;
 	int				rc = 0;
-	ENTRY;
 
-	if (count >= LPROCFS_NRS_WR_MAX_CMD)
-		GOTO(out, rc = -EINVAL);
+	if (count >= LPROCFS_NRS_WR_MAX_CMD) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	OBD_ALLOC(cmd, LPROCFS_NRS_WR_MAX_CMD);
-	if (cmd == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (cmd == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 	/**
 	 * strsep() modifies its argument, so keep a copy
 	 */
 	cmd_copy = cmd;
 
-	if (copy_from_user(cmd, buffer, count))
-		GOTO(out, rc = -EFAULT);
+	if (copy_from_user(cmd, buffer, count)) {
+		rc = -EFAULT;
+		goto out;
+	}
 
 	cmd[count] = '\0';
 
 	token = strsep(&cmd, " ");
 
-	if (strlen(token) > NRS_POL_NAME_MAX - 1)
-		GOTO(out, rc = -EINVAL);
+	if (strlen(token) > NRS_POL_NAME_MAX - 1) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	/**
 	 * No [reg|hp] token has been specified
@@ -674,14 +689,17 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file, const char *buffe
 		queue = PTLRPC_NRS_QUEUE_REG;
 	else if (strcmp(cmd, "hp") == 0)
 		queue = PTLRPC_NRS_QUEUE_HP;
-	else
-		GOTO(out, rc = -EINVAL);
+	else {
+		rc = -EINVAL;
+		goto out;
+	}
 
 default_queue:
 
-	if (queue == PTLRPC_NRS_QUEUE_HP && !nrs_svc_has_hp(svc))
-		GOTO(out, rc = -ENODEV);
-	else if (queue == PTLRPC_NRS_QUEUE_BOTH && !nrs_svc_has_hp(svc))
+	if (queue == PTLRPC_NRS_QUEUE_HP && !nrs_svc_has_hp(svc)) {
+		rc = -ENODEV;
+		goto out;
+	} else if (queue == PTLRPC_NRS_QUEUE_BOTH && !nrs_svc_has_hp(svc))
 		queue = PTLRPC_NRS_QUEUE_REG;
 
 	/**
@@ -698,7 +716,7 @@ out:
 	if (cmd_copy)
 		OBD_FREE(cmd_copy, LPROCFS_NRS_WR_MAX_CMD);
 
-	RETURN(rc < 0 ? rc : count);
+	return rc < 0 ? rc : count;
 }
 LPROC_SEQ_FOPS(ptlrpc_lprocfs_nrs);
 
@@ -710,7 +728,7 @@ struct ptlrpc_srh_iterator {
 	struct ptlrpc_request	*srhi_req;
 };
 
-int
+static int
 ptlrpc_lprocfs_svc_req_history_seek(struct ptlrpc_service_part *svcpt,
 				    struct ptlrpc_srh_iterator *srhi,
 				    __u64 seq)
@@ -728,12 +746,11 @@ ptlrpc_lprocfs_svc_req_history_seek(struct ptlrpc_service_part *svcpt,
 		 * be near the head), we shouldn't have to do long
 		 * re-scans */
 		LASSERTF(srhi->srhi_seq == srhi->srhi_req->rq_history_seq,
-			 "%s:%d: seek seq "LPU64", request seq "LPU64"\n",
+			 "%s:%d: seek seq %llu, request seq %llu\n",
 			 svcpt->scp_service->srv_name, svcpt->scp_cpt,
 			 srhi->srhi_seq, srhi->srhi_req->rq_history_seq);
 		LASSERTF(!list_empty(&svcpt->scp_hist_reqs),
-			 "%s:%d: seek offset "LPU64", request seq "LPU64", "
-			 "last culled "LPU64"\n",
+			 "%s:%d: seek offset %llu, request seq %llu, last culled %llu\n",
 			 svcpt->scp_service->srv_name, svcpt->scp_cpt,
 			 seq, srhi->srhi_seq, svcpt->scp_hist_seq_culled);
 		e = &srhi->srhi_req->rq_history_list;
@@ -800,8 +817,8 @@ ptlrpc_lprocfs_svc_req_history_start(struct seq_file *s, loff_t *pos)
 	int				i;
 
 	if (sizeof(loff_t) != sizeof(__u64)) { /* can't support */
-		CWARN("Failed to read request history because size of loff_t "
-		      "%d can't match size of u64\n", (int)sizeof(loff_t));
+		CWARN("Failed to read request history because size of loff_t %d can't match size of u64\n",
+		      (int)sizeof(loff_t));
 		return NULL;
 	}
 
@@ -934,7 +951,7 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 		 * must be just as careful as the service's request
 		 * parser. Currently I only print stuff here I know is OK
 		 * to look at coz it was set up in request_in_callback()!!! */
-		seq_printf(s, LPD64":%s:%s:x"LPU64":%d:%s:%ld:%lds(%+lds) ",
+		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%ld:%lds(%+lds) ",
 			   req->rq_history_seq, libcfs_nid2str(req->rq_self),
 			   libcfs_id2str(req->rq_peer), req->rq_xid,
 			   req->rq_reqlen, ptlrpc_rqphase2str(req),
@@ -993,7 +1010,7 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 		cur	= at_get(&svcpt->scp_at_estimate);
 		worst	= svcpt->scp_at_estimate.at_worst_ever;
 		worstt	= svcpt->scp_at_estimate.at_worst_time;
-		s2dhms(&ts, cfs_time_current_sec() - worstt);
+		s2dhms(&ts, get_seconds() - worstt);
 
 		seq_printf(m, "%10s : cur %3u  worst %3u (at %ld, "
 			      DHMS_FMT" ago) ", "service",
@@ -1013,7 +1030,7 @@ static int ptlrpc_lprocfs_hp_ratio_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t ptlrpc_lprocfs_hp_ratio_seq_write(struct file *file,
-					     const char *buffer,
+					     const char __user *buffer,
 					     size_t count,
 					     loff_t *off)
 {
@@ -1163,7 +1180,7 @@ EXPORT_SYMBOL(ptlrpc_lprocfs_unregister_obd);
 
 #define BUFLEN (UUID_MAX + 5)
 
-int lprocfs_wr_evict_client(struct file *file, const char *buffer,
+int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
@@ -1186,13 +1203,13 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	}
 	tmpbuf = cfs_firststr(kbuf, min_t(unsigned long, BUFLEN - 1, count));
 	/* Kludge code(deadlock situation): the lprocfs lock has been held
-	 * since the client is evicted by writting client's
+	 * since the client is evicted by writing client's
 	 * uuid/nid to procfs "evict_client" entry. However,
 	 * obd_export_evict_by_uuid() will call lprocfs_remove() to destroy
 	 * the proc entries under the being destroyed export{}, so I have
 	 * to drop the lock at first here.
 	 * - jay, jxiong@clusterfs.com */
-	class_incref(obd, __FUNCTION__, current);
+	class_incref(obd, __func__, current);
 
 	if (strncmp(tmpbuf, "nid:", 4) == 0)
 		obd_export_evict_by_nid(obd, tmpbuf + 4);
@@ -1201,7 +1218,7 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	else
 		obd_export_evict_by_uuid(obd, tmpbuf);
 
-	class_decref(obd, __FUNCTION__, current);
+	class_decref(obd, __func__, current);
 
 out:
 	OBD_FREE(kbuf, BUFLEN);
@@ -1211,19 +1228,18 @@ EXPORT_SYMBOL(lprocfs_wr_evict_client);
 
 #undef BUFLEN
 
-int lprocfs_wr_ping(struct file *file, const char *buffer,
+int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 		    size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct ptlrpc_request *req;
 	int		    rc;
-	ENTRY;
 
 	LPROCFS_CLIMP_CHECK(obd);
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
 	LPROCFS_CLIMP_EXIT(obd);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	req->rq_send_state = LUSTRE_IMP_FULL;
 
@@ -1231,8 +1247,8 @@ int lprocfs_wr_ping(struct file *file, const char *buffer,
 
 	ptlrpc_req_finished(req);
 	if (rc >= 0)
-		RETURN(count);
-	RETURN(rc);
+		return count;
+	return rc;
 }
 EXPORT_SYMBOL(lprocfs_wr_ping);
 
@@ -1240,7 +1256,7 @@ EXPORT_SYMBOL(lprocfs_wr_ping);
  * The connection UUID is a node's primary NID. For example,
  * "echo connection=192.168.0.1@tcp0::instance > .../import".
  */
-int lprocfs_wr_import(struct file *file, const char *buffer,
+int lprocfs_wr_import(struct file *file, const char __user *buffer,
 		      size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
@@ -1259,14 +1275,18 @@ int lprocfs_wr_import(struct file *file, const char *buffer,
 	if (kbuf == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(kbuf, buffer, count))
-		GOTO(out, count = -EFAULT);
+	if (copy_from_user(kbuf, buffer, count)) {
+		count = -EFAULT;
+		goto out;
+	}
 
 	kbuf[count] = 0;
 
 	/* only support connection=uuid::instance now */
-	if (strncmp(prefix, kbuf, prefix_len) != 0)
-		GOTO(out, count = -EINVAL);
+	if (strncmp(prefix, kbuf, prefix_len) != 0) {
+		count = -EINVAL;
+		goto out;
+	}
 
 	uuid = kbuf + prefix_len;
 	ptr = strstr(uuid, "::");
@@ -1281,14 +1301,12 @@ int lprocfs_wr_import(struct file *file, const char *buffer,
 		if (*endptr) {
 			CERROR("config: wrong instance # %s\n", ptr);
 		} else if (inst != imp->imp_connect_data.ocd_instance) {
-			CDEBUG(D_INFO, "IR: %s is connecting to an obsoleted "
-			       "target(%u/%u), reconnecting...\n",
+			CDEBUG(D_INFO, "IR: %s is connecting to an obsoleted target(%u/%u), reconnecting...\n",
 			       imp->imp_obd->obd_name,
 			       imp->imp_connect_data.ocd_instance, inst);
 			do_reconn = 1;
 		} else {
-			CDEBUG(D_INFO, "IR: %s has already been connecting to "
-			       "new target(%u)\n",
+			CDEBUG(D_INFO, "IR: %s has already been connecting to new target(%u)\n",
 			       imp->imp_obd->obd_name, inst);
 		}
 	}
@@ -1316,7 +1334,7 @@ int lprocfs_rd_pinger_recov(struct seq_file *m, void *n)
 }
 EXPORT_SYMBOL(lprocfs_rd_pinger_recov);
 
-int lprocfs_wr_pinger_recov(struct file *file, const char *buffer,
+int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 		      size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
@@ -1342,4 +1360,4 @@ int lprocfs_wr_pinger_recov(struct file *file, const char *buffer,
 }
 EXPORT_SYMBOL(lprocfs_wr_pinger_recov);
 
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */

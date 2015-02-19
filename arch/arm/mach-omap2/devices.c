@@ -18,8 +18,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/pinctrl/machine.h>
-#include <linux/platform_data/omap4-keypad.h>
-#include <linux/wl12xx.h>
 #include <linux/platform_data/mailbox-omap.h>
 
 #include <asm/mach-types.h>
@@ -30,13 +28,13 @@
 #include "iomap.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
-#include "omap4-keypad.h"
 
 #include "soc.h"
 #include "common.h"
 #include "mux.h"
 #include "control.h"
 #include "devices.h"
+#include "display.h"
 
 #define L3_MODULES_MAX_LEN 12
 #define L3_MODULES 3
@@ -51,7 +49,7 @@ static int __init omap3_l3_init(void)
 	 * To avoid code running on other OMAPs in
 	 * multi-omap builds
 	 */
-	if (!(cpu_is_omap34xx()))
+	if (!(cpu_is_omap34xx()) || of_have_populated_dt())
 		return -ENODEV;
 
 	snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main");
@@ -68,62 +66,6 @@ static int __init omap3_l3_init(void)
 	return PTR_RET(pdev);
 }
 omap_postcore_initcall(omap3_l3_init);
-
-static int __init omap4_l3_init(void)
-{
-	int i;
-	struct omap_hwmod *oh[3];
-	struct platform_device *pdev;
-	char oh_name[L3_MODULES_MAX_LEN];
-
-	/* If dtb is there, the devices will be created dynamically */
-	if (of_have_populated_dt())
-		return -ENODEV;
-
-	/*
-	 * To avoid code running on other OMAPs in
-	 * multi-omap builds
-	 */
-	if (!cpu_is_omap44xx() && !soc_is_omap54xx())
-		return -ENODEV;
-
-	for (i = 0; i < L3_MODULES; i++) {
-		snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main_%d", i+1);
-
-		oh[i] = omap_hwmod_lookup(oh_name);
-		if (!(oh[i]))
-			pr_err("could not look up %s\n", oh_name);
-	}
-
-	pdev = omap_device_build_ss("omap_l3_noc", 0, oh, 3, NULL, 0);
-
-	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
-
-	return PTR_RET(pdev);
-}
-omap_postcore_initcall(omap4_l3_init);
-
-#if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
-
-static struct resource omap2cam_resources[] = {
-	{
-		.start		= OMAP24XX_CAMERA_BASE,
-		.end		= OMAP24XX_CAMERA_BASE + 0xfff,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= 24 + OMAP_INTC_START,
-		.flags		= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device omap2cam_device = {
-	.name		= "omap24xxcam",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(omap2cam_resources),
-	.resource	= omap2cam_resources,
-};
-#endif
 
 #if defined(CONFIG_IOMMU_API)
 
@@ -229,6 +171,9 @@ static struct omap_iommu_arch_data omap3_isp_iommu = {
 
 int omap3_init_camera(struct isp_platform_data *pdata)
 {
+	if (of_have_populated_dt())
+		omap3_isp_iommu.name = "480bd400.mmu";
+
 	omap3isp_device.dev.platform_data = pdata;
 	omap3isp_device.dev.archdata.iommu = &omap3_isp_iommu;
 
@@ -243,45 +188,6 @@ int omap3_init_camera(struct isp_platform_data *pdata)
 }
 
 #endif
-
-static inline void omap_init_camera(void)
-{
-#if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
-	if (cpu_is_omap24xx())
-		platform_device_register(&omap2cam_device);
-#endif
-}
-
-int __init omap4_keyboard_init(struct omap4_keypad_platform_data
-			*sdp4430_keypad_data, struct omap_board_data *bdata)
-{
-	struct platform_device *pdev;
-	struct omap_hwmod *oh;
-	struct omap4_keypad_platform_data *keypad_data;
-	unsigned int id = -1;
-	char *oh_name = "kbd";
-	char *name = "omap4-keypad";
-
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-		pr_err("Could not look up %s\n", oh_name);
-		return -ENODEV;
-	}
-
-	keypad_data = sdp4430_keypad_data;
-
-	pdev = omap_device_build(name, id, oh, keypad_data,
-				 sizeof(struct omap4_keypad_platform_data));
-
-	if (IS_ERR(pdev)) {
-		WARN(1, "Can't build omap_device for %s:%s.\n",
-						name, oh->name);
-		return PTR_ERR(pdev);
-	}
-	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
-
-	return 0;
-}
 
 #if defined(CONFIG_OMAP2PLUS_MBOX) || defined(CONFIG_OMAP2PLUS_MBOX_MODULE)
 static inline void __init omap_init_mbox(void)
@@ -325,71 +231,6 @@ static void omap_init_audio(void)
 
 #else
 static inline void omap_init_audio(void) {}
-#endif
-
-#if defined(CONFIG_SND_OMAP_SOC_MCPDM) || \
-		defined(CONFIG_SND_OMAP_SOC_MCPDM_MODULE)
-
-static void __init omap_init_mcpdm(void)
-{
-	struct omap_hwmod *oh;
-	struct platform_device *pdev;
-
-	oh = omap_hwmod_lookup("mcpdm");
-	if (!oh)
-		return;
-
-	pdev = omap_device_build("omap-mcpdm", -1, oh, NULL, 0);
-	WARN(IS_ERR(pdev), "Can't build omap_device for omap-mcpdm.\n");
-}
-#else
-static inline void omap_init_mcpdm(void) {}
-#endif
-
-#if defined(CONFIG_SND_OMAP_SOC_DMIC) || \
-		defined(CONFIG_SND_OMAP_SOC_DMIC_MODULE)
-
-static void __init omap_init_dmic(void)
-{
-	struct omap_hwmod *oh;
-	struct platform_device *pdev;
-
-	oh = omap_hwmod_lookup("dmic");
-	if (!oh)
-		return;
-
-	pdev = omap_device_build("omap-dmic", -1, oh, NULL, 0);
-	WARN(IS_ERR(pdev), "Can't build omap_device for omap-dmic.\n");
-}
-#else
-static inline void omap_init_dmic(void) {}
-#endif
-
-#if defined(CONFIG_SND_OMAP_SOC_OMAP_HDMI) || \
-		defined(CONFIG_SND_OMAP_SOC_OMAP_HDMI_MODULE)
-
-static struct platform_device omap_hdmi_audio = {
-	.name	= "omap-hdmi-audio",
-	.id	= -1,
-};
-
-static void __init omap_init_hdmi_audio(void)
-{
-	struct omap_hwmod *oh;
-	struct platform_device *pdev;
-
-	oh = omap_hwmod_lookup("dss_hdmi");
-	if (!oh)
-		return;
-
-	pdev = omap_device_build("omap-hdmi-audio-dai", -1, oh, NULL, 0);
-	WARN(IS_ERR(pdev),
-	     "Can't build omap_device for omap-hdmi-audio-dai.\n");
-
-	platform_device_register(&omap_hdmi_audio);
-}
-#else
-static inline void omap_init_hdmi_audio(void) {}
 #endif
 
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
@@ -504,47 +345,13 @@ static struct platform_device omap_vout_device = {
 	.resource 	= &omap_vout_resource[0],
 	.id		= -1,
 };
-static void omap_init_vout(void)
+
+int __init omap_init_vout(void)
 {
-	if (platform_device_register(&omap_vout_device) < 0)
-		printk(KERN_ERR "Unable to register OMAP-VOUT device\n");
+	return platform_device_register(&omap_vout_device);
 }
 #else
-static inline void omap_init_vout(void) {}
-#endif
-
-#if IS_ENABLED(CONFIG_WL12XX)
-
-static struct wl12xx_platform_data wl12xx __initdata;
-
-void __init omap_init_wl12xx_of(void)
-{
-	int ret;
-
-	if (!of_have_populated_dt())
-		return;
-
-	if (of_machine_is_compatible("ti,omap4-sdp")) {
-		wl12xx.board_ref_clock = WL12XX_REFCLOCK_26;
-		wl12xx.board_tcxo_clock = WL12XX_TCXOCLOCK_26;
-		wl12xx.irq = gpio_to_irq(53);
-	} else if (of_machine_is_compatible("ti,omap4-panda")) {
-		wl12xx.board_ref_clock = WL12XX_REFCLOCK_38;
-		wl12xx.irq = gpio_to_irq(53);
-	} else {
-		return;
-	}
-
-	ret = wl12xx_set_platform_data(&wl12xx);
-	if (ret) {
-		pr_err("error setting wl12xx data: %d\n", ret);
-		return;
-	}
-}
-#else
-static inline void omap_init_wl12xx_of(void)
-{
-}
+int __init omap_init_vout(void) { return 0; }
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -560,24 +367,42 @@ static int __init omap2_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_audio();
-	omap_init_camera();
-	omap_init_hdmi_audio();
-	omap_init_mbox();
 	/* If dtb is there, the devices will be created dynamically */
 	if (!of_have_populated_dt()) {
-		omap_init_dmic();
-		omap_init_mcpdm();
+		omap_init_mbox();
 		omap_init_mcspi();
 		omap_init_sham();
 		omap_init_aes();
-	} else {
-		/* These can be removed when bindings are done */
-		omap_init_wl12xx_of();
+		omap_init_rng();
 	}
 	omap_init_sti();
-	omap_init_rng();
-	omap_init_vout();
 
 	return 0;
 }
 omap_arch_initcall(omap2_init_devices);
+
+static int __init omap_gpmc_init(void)
+{
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
+	char *oh_name = "gpmc";
+
+	/*
+	 * if the board boots up with a populated DT, do not
+	 * manually add the device from this initcall
+	 */
+	if (of_have_populated_dt())
+		return -ENODEV;
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return -ENODEV;
+	}
+
+	pdev = omap_device_build("omap-gpmc", -1, oh, NULL, 0);
+	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
+
+	return PTR_RET(pdev);
+}
+omap_postcore_initcall(omap_gpmc_init);

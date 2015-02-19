@@ -281,7 +281,7 @@ fail:
 	return ret;
 }
 
-static struct drm_fb_helper_funcs omap_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs omap_fb_helper_funcs = {
 	.fb_probe = omap_fbdev_create,
 };
 
@@ -325,7 +325,7 @@ struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
 
 	helper = &fbdev->base;
 
-	helper->funcs = &omap_fb_helper_funcs;
+	drm_fb_helper_prepare(dev, helper, &omap_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper,
 			priv->num_crtcs, priv->num_connectors);
@@ -334,17 +334,23 @@ struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	drm_fb_helper_single_add_all_connectors(helper);
+	ret = drm_fb_helper_single_add_all_connectors(helper);
+	if (ret)
+		goto fini;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);
 
-	drm_fb_helper_initial_config(helper, 32);
+	ret = drm_fb_helper_initial_config(helper, 32);
+	if (ret)
+		goto fini;
 
 	priv->fbdev = helper;
 
 	return helper;
 
+fini:
+	drm_fb_helper_fini(helper);
 fail:
 	kfree(fbdev);
 	return NULL;
@@ -370,6 +376,9 @@ void omap_fbdev_free(struct drm_device *dev)
 	drm_fb_helper_fini(helper);
 
 	fbdev = to_omap_fbdev(priv->fbdev);
+
+	/* release the ref taken in omap_fbdev_create() */
+	omap_gem_put_paddr(fbdev->bo);
 
 	/* this will free the backing object */
 	if (fbdev->fb) {

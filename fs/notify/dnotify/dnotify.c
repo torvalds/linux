@@ -69,8 +69,8 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
 	if (old_mask == new_mask)
 		return;
 
-	if (fsn_mark->i.inode)
-		fsnotify_recalc_inode_mask(fsn_mark->i.inode);
+	if (fsn_mark->inode)
+		fsnotify_recalc_inode_mask(fsn_mark->inode);
 }
 
 /*
@@ -82,20 +82,23 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  * events.
  */
 static int dnotify_handle_event(struct fsnotify_group *group,
+				struct inode *inode,
 				struct fsnotify_mark *inode_mark,
 				struct fsnotify_mark *vfsmount_mark,
-				struct fsnotify_event *event)
+				u32 mask, void *data, int data_type,
+				const unsigned char *file_name, u32 cookie)
 {
 	struct dnotify_mark *dn_mark;
-	struct inode *to_tell;
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
 	struct fown_struct *fown;
-	__u32 test_mask = event->mask & ~FS_EVENT_ON_CHILD;
+	__u32 test_mask = mask & ~FS_EVENT_ON_CHILD;
+
+	/* not a dir, dnotify doesn't care */
+	if (!S_ISDIR(inode->i_mode))
+		return 0;
 
 	BUG_ON(vfsmount_mark);
-
-	to_tell = event->to_tell;
 
 	dn_mark = container_of(inode_mark, struct dnotify_mark, fsn_mark);
 
@@ -122,23 +125,6 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	return 0;
 }
 
-/*
- * Given an inode and mask determine if dnotify would be interested in sending
- * userspace notification for that pair.
- */
-static bool dnotify_should_send_event(struct fsnotify_group *group,
-				      struct inode *inode,
-				      struct fsnotify_mark *inode_mark,
-				      struct fsnotify_mark *vfsmount_mark,
-				      __u32 mask, void *data, int data_type)
-{
-	/* not a dir, dnotify doesn't care */
-	if (!S_ISDIR(inode->i_mode))
-		return false;
-
-	return true;
-}
-
 static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 {
 	struct dnotify_mark *dn_mark = container_of(fsn_mark,
@@ -152,10 +138,6 @@ static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 
 static struct fsnotify_ops dnotify_fsnotify_ops = {
 	.handle_event = dnotify_handle_event,
-	.should_send_event = dnotify_should_send_event,
-	.free_group_priv = NULL,
-	.freeing_mark = NULL,
-	.free_event_priv = NULL,
 };
 
 /*
@@ -364,13 +346,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		goto out;
 	}
 
-	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
-	if (error) {
-		/* if we added, we must shoot */
-		if (dn_mark == new_dn_mark)
-			destroy = 1;
-		goto out;
-	}
+	__f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
 
 	error = attach_dn(dn, dn_mark, id, fd, filp, mask);
 	/* !error means that we attached the dn to the dn_mark, so don't free it */

@@ -53,19 +53,11 @@ NI manuals:
 
 */
 
-#include "../comedidev.h"
+#include <linux/module.h>
 
-#include <linux/delay.h>
-#include <linux/slab.h>
+#include "../comedi_pcmcia.h"
 
-#include "8253.h"
-#include "8255.h"
-#include "comedi_fc.h"
 #include "ni_labpc.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
-#include <pcmcia/ds.h>
 
 static const struct labpc_boardinfo labpc_cs_boards[] = {
 	{
@@ -80,7 +72,6 @@ static int labpc_auto_attach(struct comedi_device *dev,
 			     unsigned long context)
 {
 	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-	struct labpc_private *devpriv;
 	int ret;
 
 	/* The ni_labpc driver needs the board_ptr */
@@ -95,11 +86,6 @@ static int labpc_auto_attach(struct comedi_device *dev,
 
 	if (!link->irq)
 		return -EINVAL;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
 
 	return labpc_common_attach(dev, link->irq, IRQF_SHARED);
 }

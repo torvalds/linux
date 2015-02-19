@@ -31,14 +31,11 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
-
+#include <linux/acpi.h>
+#include <acpi/processor.h>
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>
 #endif
-
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/processor.h>
 
 #define PREFIX "ACPI: "
 
@@ -159,22 +156,9 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
  */
 static void acpi_processor_ppc_ost(acpi_handle handle, int status)
 {
-	union acpi_object params[2] = {
-		{.type = ACPI_TYPE_INTEGER,},
-		{.type = ACPI_TYPE_INTEGER,},
-	};
-	struct acpi_object_list arg_list = {2, params};
-	acpi_handle temp;
-
-	params[0].integer.value = ACPI_PROCESSOR_NOTIFY_PERFORMANCE;
-	params[1].integer.value =  status;
-
-	/* when there is no _OST , skip it */
-	if (ACPI_FAILURE(acpi_get_handle(handle, "_OST", &temp)))
-		return;
-
-	acpi_evaluate_object(handle, "_OST", &arg_list, NULL);
-	return;
+	if (acpi_has_method(handle, "_OST"))
+		acpi_evaluate_ost(handle, ACPI_PROCESSOR_NOTIFY_PERFORMANCE,
+				  status, NULL);
 }
 
 int acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
@@ -238,28 +222,6 @@ void acpi_processor_ppc_exit(void)
 					    CPUFREQ_POLICY_NOTIFIER);
 
 	acpi_processor_ppc_status &= ~PPC_REGISTERED;
-}
-
-/*
- * Do a quick check if the systems looks like it should use ACPI
- * cpufreq. We look at a _PCT method being available, but don't
- * do a whole lot of sanity checks.
- */
-void acpi_processor_load_module(struct acpi_processor *pr)
-{
-	static int requested;
-	acpi_status status = 0;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-
-	if (!arch_has_acpi_pdc() || requested)
-		return;
-	status = acpi_evaluate_object(pr->handle, "_PCT", NULL, &buffer);
-	if (!ACPI_FAILURE(status)) {
-		printk(KERN_INFO PREFIX "Requesting acpi_cpufreq\n");
-		request_module_nowait("acpi_cpufreq");
-		requested = 1;
-	}
-	kfree(buffer.pointer);
 }
 
 static int acpi_processor_get_performance_control(struct acpi_processor *pr)
@@ -468,14 +430,11 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 int acpi_processor_get_performance_info(struct acpi_processor *pr)
 {
 	int result = 0;
-	acpi_status status = AE_OK;
-	acpi_handle handle = NULL;
 
 	if (!pr || !pr->performance || !pr->handle)
 		return -EINVAL;
 
-	status = acpi_get_handle(pr->handle, "_PCT", &handle);
-	if (ACPI_FAILURE(status)) {
+	if (!acpi_has_method(pr->handle, "_PCT")) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "ACPI-based processor performance control unavailable\n"));
 		return -ENODEV;
@@ -501,7 +460,7 @@ int acpi_processor_get_performance_info(struct acpi_processor *pr)
 	 */
  update_bios:
 #ifdef CONFIG_X86
-	if (ACPI_SUCCESS(acpi_get_handle(pr->handle, "_PPC", &handle))){
+	if (acpi_has_method(pr->handle, "_PPC")) {
 		if(boot_cpu_has(X86_FEATURE_EST))
 			printk(KERN_WARNING FW_BUG "BIOS needs update for CPU "
 			       "frequency support\n");

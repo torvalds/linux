@@ -24,6 +24,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "evergreend.h"
 #include "r600_dpm.h"
 #include "cypress_dpm.h"
@@ -299,7 +300,9 @@ void cypress_program_response_times(struct radeon_device *rdev)
 static int cypress_pcie_performance_request(struct radeon_device *rdev,
 					    u8 perf_req, bool advertise)
 {
+#if defined(CONFIG_ACPI)
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+#endif
 	u32 tmp;
 
 	udelay(10);
@@ -1549,7 +1552,7 @@ int cypress_populate_smc_voltage_tables(struct radeon_device *rdev,
 
 		table->voltageMaskTable.highMask[RV770_SMC_VOLTAGEMASK_VDDCI] = 0;
 		table->voltageMaskTable.lowMask[RV770_SMC_VOLTAGEMASK_VDDCI] =
-			cpu_to_be32(eg_pi->vddc_voltage_table.mask_low);
+			cpu_to_be32(eg_pi->vddci_voltage_table.mask_low);
 	}
 
 	return 0;
@@ -1903,21 +1906,6 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 	if (pi->mg_clock_gating)
 		cypress_mg_clock_gating_enable(rdev, true);
 
-	if (rdev->irq.installed &&
-	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		PPSMC_Result result;
-
-		ret = rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
-		if (ret)
-			return ret;
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-		result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-	}
-
 	rv770_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
 	return 0;
@@ -2014,20 +2002,16 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
-	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
-	if (ret) {
-		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
-		return ret;
-	}
-
 	return 0;
 }
 
+#if 0
 void cypress_dpm_reset_asic(struct radeon_device *rdev)
 {
 	rv770_restrict_performance_levels_before_switch(rdev);
 	rv770_set_boot_state(rdev);
 }
+#endif
 
 void cypress_dpm_display_configuration_changed(struct radeon_device *rdev)
 {
@@ -2054,6 +2038,10 @@ int cypress_dpm_init(struct radeon_device *rdev)
 	eg_pi->acpi_vddci = 0;
 	pi->min_vddc_in_table = 0;
 	pi->max_vddc_in_table = 0;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = rv7xx_parse_power_table(rdev);
 	if (ret)
@@ -2166,7 +2154,8 @@ bool cypress_dpm_vblank_too_short(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
-	u32 switch_limit = pi->mem_gddr5 ? 450 : 300;
+	/* we never hit the non-gddr5 limit so disable it */
+	u32 switch_limit = pi->mem_gddr5 ? 450 : 0;
 
 	if (vblank_time < switch_limit)
 		return true;

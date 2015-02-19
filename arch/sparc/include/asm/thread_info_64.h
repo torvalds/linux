@@ -58,12 +58,11 @@ struct thread_info {
 	unsigned long		gsr[7];
 	unsigned long		xfsr[7];
 
-	struct restart_block	restart_block;
-
 	struct pt_regs		*kern_una_regs;
 	unsigned int		kern_una_insn;
 
-	unsigned long		fpregs[0] __attribute__ ((aligned(64)));
+	unsigned long		fpregs[(7 * 256) / sizeof(unsigned long)]
+		__attribute__ ((aligned(64)));
 };
 
 #endif /* !(__ASSEMBLY__) */
@@ -91,10 +90,9 @@ struct thread_info {
 #define TI_RWIN_SPTRS	0x000003c8
 #define TI_GSR		0x00000400
 #define TI_XFSR		0x00000438
-#define TI_RESTART_BLOCK 0x00000470
-#define TI_KUNA_REGS	0x000004a0
-#define TI_KUNA_INSN	0x000004a8
-#define TI_FPREGS	0x000004c0
+#define TI_KUNA_REGS	0x00000470
+#define TI_KUNA_INSN	0x00000478
+#define TI_FPREGS	0x00000480
 
 /* We embed this in the uppermost byte of thread_info->flags */
 #define FAULT_CODE_WRITE	0x01	/* Write access, implies D-TLB	   */
@@ -102,6 +100,7 @@ struct thread_info {
 #define FAULT_CODE_ITLB		0x04	/* Miss happened in I-TLB	   */
 #define FAULT_CODE_WINFIXUP	0x08	/* Miss happened during spill/fill */
 #define FAULT_CODE_BLKCOMMIT	0x10	/* Use blk-commit ASI in copy_page */
+#define	FAULT_CODE_BAD_RA	0x20	/* Bad RA for sun4v		   */
 
 #if PAGE_SHIFT == 13
 #define THREAD_SIZE (2*PAGE_SIZE)
@@ -110,8 +109,6 @@ struct thread_info {
 #define THREAD_SIZE PAGE_SIZE
 #define THREAD_SHIFT PAGE_SHIFT
 #endif /* PAGE_SHIFT == 13 */
-
-#define PREEMPT_ACTIVE		0x10000000
 
 /*
  * macros/functions for gaining access to the thread information structure
@@ -124,9 +121,6 @@ struct thread_info {
 	.current_ds	=	ASI_P,			\
 	.exec_domain	=	&default_exec_domain,	\
 	.preempt_count	=	INIT_PREEMPT_COUNT,	\
-	.restart_block	= {				\
-		.fn	=	do_no_restart_syscall,	\
-	},						\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -192,7 +186,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TIF_UNALIGNED		5	/* allowed to do unaligned accesses */
 /* flag bit 6 is available */
 #define TIF_32BIT		7	/* 32-bit binary */
-/* flag bit 8 is available */
+#define TIF_NOHZ		8	/* in adaptive nohz mode */
 #define TIF_SECCOMP		9	/* secure computing */
 #define TIF_SYSCALL_AUDIT	10	/* syscall auditing active */
 #define TIF_SYSCALL_TRACEPOINT	11	/* syscall tracepoint instrumentation */
@@ -210,6 +204,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_UNALIGNED		(1<<TIF_UNALIGNED)
 #define _TIF_32BIT		(1<<TIF_32BIT)
+#define _TIF_NOHZ		(1<<TIF_NOHZ)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
@@ -219,6 +214,8 @@ register struct thread_info *current_thread_info_reg asm("g6");
 				 _TIF_DO_NOTIFY_RESUME_MASK | \
 				 _TIF_NEED_RESCHED)
 #define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING)
+
+#define is_32bit_task()	(test_thread_flag(TIF_32BIT))
 
 /*
  * Thread-synchronous status.

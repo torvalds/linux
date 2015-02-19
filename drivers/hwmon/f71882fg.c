@@ -369,7 +369,6 @@ static int f71882fg_remove(struct platform_device *pdev);
 
 static struct platform_driver f71882fg_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 	.probe		= f71882fg_probe,
@@ -2267,7 +2266,7 @@ static int f71882fg_create_fan_sysfs_files(
 static int f71882fg_probe(struct platform_device *pdev)
 {
 	struct f71882fg_data *data;
-	struct f71882fg_sio_data *sio_data = pdev->dev.platform_data;
+	struct f71882fg_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	int nr_fans = f71882fg_nr_fans[sio_data->type];
 	int nr_temps = f71882fg_nr_temps[sio_data->type];
 	int err, i;
@@ -2420,7 +2419,6 @@ static int f71882fg_probe(struct platform_device *pdev)
 exit_unregister_sysfs:
 	f71882fg_remove(pdev); /* Will unregister the sysfs files for us */
 	return err; /* f71882fg_remove() also frees our data */
-	return err;
 }
 
 static int f71882fg_remove(struct platform_device *pdev)

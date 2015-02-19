@@ -129,9 +129,7 @@ static int longrun_verify_policy(struct cpufreq_policy *policy)
 		return -EINVAL;
 
 	policy->cpu = 0;
-	cpufreq_verify_within_limits(policy,
-		policy->cpuinfo.min_freq,
-		policy->cpuinfo.max_freq);
+	cpufreq_verify_within_cpu_limits(policy);
 
 	if ((policy->policy != CPUFREQ_POLICY_POWERSAVE) &&
 	    (policy->policy != CPUFREQ_POLICY_PERFORMANCE))
@@ -286,7 +284,6 @@ static struct cpufreq_driver longrun_driver = {
 	.get		= longrun_get,
 	.init		= longrun_cpu_init,
 	.name		= "longrun",
-	.owner		= THIS_MODULE,
 };
 
 static const struct x86_cpu_id longrun_ids[] = {

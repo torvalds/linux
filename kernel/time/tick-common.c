@@ -33,6 +33,21 @@ DEFINE_PER_CPU(struct tick_device, tick_cpu_device);
  */
 ktime_t tick_next_period;
 ktime_t tick_period;
+
+/*
+ * tick_do_timer_cpu is a timer core internal variable which holds the CPU NR
+ * which is responsible for calling do_timer(), i.e. the timekeeping stuff. This
+ * variable has two functions:
+ *
+ * 1) Prevent a thundering herd issue of a gazillion of CPUs trying to grab the
+ *    timekeeping lock all at once. Only the CPU which is assigned to do the
+ *    update is handling it.
+ *
+ * 2) Hand off the duty in the NOHZ idle case by setting the value to
+ *    TICK_DO_TIMER_NONE, i.e. a non existing CPU. So the next cpu which looks
+ *    at it will take over and keep the time keeping alive.  The handover
+ *    procedure also covers cpu hotplug.
+ */
 int tick_do_timer_cpu __read_mostly = TICK_DO_TIMER_BOOT;
 
 /*
@@ -70,6 +85,7 @@ static void tick_periodic(int cpu)
 
 		do_timer(1);
 		write_sequnlock(&jiffies_lock);
+		update_wall_time();
 	}
 
 	update_process_times(user_mode(get_irq_regs()));
@@ -82,18 +98,19 @@ static void tick_periodic(int cpu)
 void tick_handle_periodic(struct clock_event_device *dev)
 {
 	int cpu = smp_processor_id();
-	ktime_t next;
+	ktime_t next = dev->next_event;
 
 	tick_periodic(cpu);
 
 	if (dev->mode != CLOCK_EVT_MODE_ONESHOT)
 		return;
-	/*
-	 * Setup the next period for devices, which do not have
-	 * periodic mode:
-	 */
-	next = ktime_add(dev->next_event, tick_period);
 	for (;;) {
+		/*
+		 * Setup the next period for devices, which do not have
+		 * periodic mode:
+		 */
+		next = ktime_add(next, tick_period);
+
 		if (!clockevents_program_event(dev, next, false))
 			return;
 		/*
@@ -102,12 +119,11 @@ void tick_handle_periodic(struct clock_event_device *dev)
 		 * to be sure we're using a real hardware clocksource.
 		 * Otherwise we could get trapped in an infinite
 		 * loop, as the tick_periodic() increments jiffies,
-		 * when then will increment time, posibly causing
+		 * which then will increment time, possibly causing
 		 * the loop to trigger again and again.
 		 */
 		if (timekeeping_valid_for_hres())
 			tick_periodic(cpu);
-		next = ktime_add(next, tick_period);
 	}
 }
 
@@ -208,7 +224,7 @@ static void tick_setup_device(struct tick_device *td,
 
 void tick_install_replacement(struct clock_event_device *newdev)
 {
-	struct tick_device *td = &__get_cpu_var(tick_cpu_device);
+	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
 	int cpu = smp_processor_id();
 
 	clockevents_exchange_device(td->evtdev, newdev);
@@ -260,7 +276,7 @@ static bool tick_check_preferred(struct clock_event_device *curdev,
 bool tick_check_replacement(struct clock_event_device *curdev,
 			    struct clock_event_device *newdev)
 {
-	if (tick_check_percpu(curdev, newdev, smp_processor_id()))
+	if (!tick_check_percpu(curdev, newdev, smp_processor_id()))
 		return false;
 
 	return tick_check_preferred(curdev, newdev);
@@ -358,14 +374,14 @@ void tick_shutdown(unsigned int *cpup)
 
 void tick_suspend(void)
 {
-	struct tick_device *td = &__get_cpu_var(tick_cpu_device);
+	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
 
 	clockevents_shutdown(td->evtdev);
 }
 
 void tick_resume(void)
 {
-	struct tick_device *td = &__get_cpu_var(tick_cpu_device);
+	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
 	int broadcast = tick_resume_broadcast();
 
 	clockevents_set_mode(td->evtdev, CLOCK_EVT_MODE_RESUME);
@@ -378,10 +394,61 @@ void tick_resume(void)
 	}
 }
 
+static DEFINE_RAW_SPINLOCK(tick_freeze_lock);
+static unsigned int tick_freeze_depth;
+
+/**
+ * tick_freeze - Suspend the local tick and (possibly) timekeeping.
+ *
+ * Check if this is the last online CPU executing the function and if so,
+ * suspend timekeeping.  Otherwise suspend the local tick.
+ *
+ * Call with interrupts disabled.  Must be balanced with %tick_unfreeze().
+ * Interrupts must not be enabled before the subsequent %tick_unfreeze().
+ */
+void tick_freeze(void)
+{
+	raw_spin_lock(&tick_freeze_lock);
+
+	tick_freeze_depth++;
+	if (tick_freeze_depth == num_online_cpus()) {
+		timekeeping_suspend();
+	} else {
+		tick_suspend();
+		tick_suspend_broadcast();
+	}
+
+	raw_spin_unlock(&tick_freeze_lock);
+}
+
+/**
+ * tick_unfreeze - Resume the local tick and (possibly) timekeeping.
+ *
+ * Check if this is the first CPU executing the function and if so, resume
+ * timekeeping.  Otherwise resume the local tick.
+ *
+ * Call with interrupts disabled.  Must be balanced with %tick_freeze().
+ * Interrupts must not be enabled after the preceding %tick_freeze().
+ */
+void tick_unfreeze(void)
+{
+	raw_spin_lock(&tick_freeze_lock);
+
+	if (tick_freeze_depth == num_online_cpus())
+		timekeeping_resume();
+	else
+		tick_resume();
+
+	tick_freeze_depth--;
+
+	raw_spin_unlock(&tick_freeze_lock);
+}
+
 /**
  * tick_init - initialize the tick control
  */
 void __init tick_init(void)
 {
 	tick_broadcast_init();
+	tick_nohz_init();
 }

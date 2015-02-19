@@ -2590,7 +2590,7 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180] = {
-		/* Michael Krufky <mkrufky@m1k.net>
+		/* Michael Krufky <mkrufky@linuxtv.org>
 		 * Uses Alps Electric TDHU2, containing NXT2004 ATSC Decoder
 		 * AFAIK, there is no analog demod, thus,
 		 * no support for analog television.
@@ -5827,6 +5827,29 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0000800,
 		},
 	},
+	[SAA7134_BOARD_WIS_VOYAGER] = {
+		.name           = "WIS Voyager or compatible",
+		.audio_clock    = 0x00200000,
+		.tuner_type	= TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg		= SAA7134_MPEG_GO7007,
+		.inputs		= { {
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+		}, {
+			.name = name_tv,
+			.vmux = 3,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_svideo,
+			.vmux = 6,
+		.amux = LINE1,
+		} },
+	},
 
 };
 
@@ -7080,6 +7103,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x2055, /* AverTV Satellite Hybrid+FM A706 */
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_A706,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1905, /* WIS */
+		.subdevice    = 0x7007,
+		.driver_data  = SAA7134_BOARD_WIS_VOYAGER,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -8045,8 +8074,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		break;
 	} /* switch() */
 
-	/* initialize tuner */
-	if (TUNER_ABSENT != dev->tuner_type) {
+	/* initialize tuner (don't do this when resuming) */
+	if (!dev->insuspend && TUNER_ABSENT != dev->tuner_type) {
 		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
 
 		/* Note: radio tuner address is always filled in,

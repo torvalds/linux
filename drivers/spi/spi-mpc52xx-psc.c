@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -248,7 +247,8 @@ static void mpc52xx_psc_spi_work(struct work_struct *work)
 		}
 
 		m->status = status;
-		m->complete(m->context);
+		if (m->complete)
+			m->complete(m->context);
 
 		if (status || !cs_change)
 			mpc52xx_psc_spi_deactivate_cs(spi);
@@ -366,7 +366,7 @@ static irqreturn_t mpc52xx_psc_spi_isr(int irq, void *dev_id)
 static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 				u32 size, unsigned int irq, s16 bus_num)
 {
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct mpc52xx_psc_spi *mps;
 	struct spi_master *master;
 	int ret;
@@ -383,8 +383,8 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 
 	mps->irq = irq;
 	if (pdata == NULL) {
-		dev_warn(dev, "probe called without platform data, no "
-				"cs_control function will be called\n");
+		dev_warn(dev,
+			 "probe called without platform data, no cs_control function will be called\n");
 		mps->cs_control = NULL;
 		mps->sysclk = 0;
 		master->bus_num = bus_num;
@@ -508,7 +508,6 @@ static struct platform_driver mpc52xx_psc_spi_of_driver = {
 	.remove = mpc52xx_psc_spi_of_remove,
 	.driver = {
 		.name = "mpc52xx-psc-spi",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc52xx_psc_spi_of_match,
 	},
 };

@@ -62,6 +62,7 @@ struct dma_page {		/* cacheable header for 'allocation' bytes */
 };
 
 static DEFINE_MUTEX(pools_lock);
+static DEFINE_MUTEX(pools_reg_lock);
 
 static ssize_t
 show_pools(struct device *dev, struct device_attribute *attr, char *buf)
@@ -132,29 +133,27 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 {
 	struct dma_pool *retval;
 	size_t allocation;
+	bool empty = false;
 
-	if (align == 0) {
+	if (align == 0)
 		align = 1;
-	} else if (align & (align - 1)) {
+	else if (align & (align - 1))
 		return NULL;
-	}
 
-	if (size == 0) {
+	if (size == 0)
 		return NULL;
-	} else if (size < 4) {
+	else if (size < 4)
 		size = 4;
-	}
 
 	if ((size % align) != 0)
 		size = ALIGN(size, align);
 
 	allocation = max_t(size_t, size, PAGE_SIZE);
 
-	if (!boundary) {
+	if (!boundary)
 		boundary = allocation;
-	} else if ((boundary < size) || (boundary & (boundary - 1))) {
+	else if ((boundary < size) || (boundary & (boundary - 1)))
 		return NULL;
-	}
 
 	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
 	if (!retval)
@@ -170,25 +169,36 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 	retval->boundary = boundary;
 	retval->allocation = allocation;
 
-	if (dev) {
-		int ret;
+	INIT_LIST_HEAD(&retval->pools);
 
-		mutex_lock(&pools_lock);
-		if (list_empty(&dev->dma_pools))
-			ret = device_create_file(dev, &dev_attr_pools);
-		else
-			ret = 0;
-		/* note:  not currently insisting "name" be unique */
-		if (!ret)
-			list_add(&retval->pools, &dev->dma_pools);
-		else {
+	/*
+	 * pools_lock ensures that the ->dma_pools list does not get corrupted.
+	 * pools_reg_lock ensures that there is not a race between
+	 * dma_pool_create() and dma_pool_destroy() or within dma_pool_create()
+	 * when the first invocation of dma_pool_create() failed on
+	 * device_create_file() and the second assumes that it has been done (I
+	 * know it is a short window).
+	 */
+	mutex_lock(&pools_reg_lock);
+	mutex_lock(&pools_lock);
+	if (list_empty(&dev->dma_pools))
+		empty = true;
+	list_add(&retval->pools, &dev->dma_pools);
+	mutex_unlock(&pools_lock);
+	if (empty) {
+		int err;
+
+		err = device_create_file(dev, &dev_attr_pools);
+		if (err) {
+			mutex_lock(&pools_lock);
+			list_del(&retval->pools);
+			mutex_unlock(&pools_lock);
+			mutex_unlock(&pools_reg_lock);
 			kfree(retval);
-			retval = NULL;
+			return NULL;
 		}
-		mutex_unlock(&pools_lock);
-	} else
-		INIT_LIST_HEAD(&retval->pools);
-
+	}
+	mutex_unlock(&pools_reg_lock);
 	return retval;
 }
 EXPORT_SYMBOL(dma_pool_create);
@@ -259,11 +269,17 @@ static void pool_free_page(struct dma_pool *pool, struct dma_page *page)
  */
 void dma_pool_destroy(struct dma_pool *pool)
 {
+	bool empty = false;
+
+	mutex_lock(&pools_reg_lock);
 	mutex_lock(&pools_lock);
 	list_del(&pool->pools);
 	if (pool->dev && list_empty(&pool->dev->dma_pools))
-		device_remove_file(pool->dev, &dev_attr_pools);
+		empty = true;
 	mutex_unlock(&pools_lock);
+	if (empty)
+		device_remove_file(pool->dev, &dev_attr_pools);
+	mutex_unlock(&pools_reg_lock);
 
 	while (!list_empty(&pool->page_list)) {
 		struct dma_page *page;
@@ -341,10 +357,10 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 				continue;
 			if (pool->dev)
 				dev_err(pool->dev,
-					"dma_pool_alloc %s, %p (corruped)\n",
+					"dma_pool_alloc %s, %p (corrupted)\n",
 					pool->name, retval);
 			else
-				pr_err("dma_pool_alloc %s, %p (corruped)\n",
+				pr_err("dma_pool_alloc %s, %p (corrupted)\n",
 					pool->name, retval);
 
 			/*
@@ -508,7 +524,6 @@ void dmam_pool_destroy(struct dma_pool *pool)
 {
 	struct device *dev = pool->dev;
 
-	WARN_ON(devres_destroy(dev, dmam_pool_release, dmam_pool_match, pool));
-	dma_pool_destroy(pool);
+	WARN_ON(devres_release(dev, dmam_pool_release, dmam_pool_match, pool));
 }
 EXPORT_SYMBOL(dmam_pool_destroy);

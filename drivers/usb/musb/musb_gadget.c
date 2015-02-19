@@ -76,13 +76,21 @@ static inline void map_dma_buffer(struct musb_request *request,
 		return;
 
 	if (request->request.dma == DMA_ADDR_INVALID) {
-		request->request.dma = dma_map_single(
+		dma_addr_t dma_addr;
+		int ret;
+
+		dma_addr = dma_map_single(
 				musb->controller,
 				request->request.buf,
 				request->request.length,
 				request->tx
 					? DMA_TO_DEVICE
 					: DMA_FROM_DEVICE);
+		ret = dma_mapping_error(musb->controller, dma_addr);
+		if (ret)
+			return;
+
+		request->request.dma = dma_addr;
 		request->map_state = MUSB_MAPPED;
 	} else {
 		dma_sync_single_for_device(musb->controller,
@@ -168,7 +176,7 @@ __acquires(ep->musb->lock)
 				ep->end_point.name, request,
 				req->request.actual, req->request.length,
 				request->status);
-	req->request.complete(&req->ep->end_point, &req->request);
+	usb_gadget_giveback_request(&req->ep->end_point, &req->request);
 	spin_lock(&musb->lock);
 	ep->busy = busy;
 }
@@ -357,47 +365,49 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			}
 		}
 
-#elif defined(CONFIG_USB_TI_CPPI_DMA)
-		/* program endpoint CSR first, then setup DMA */
-		csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
-		csr |= MUSB_TXCSR_DMAENAB | MUSB_TXCSR_DMAMODE |
-		       MUSB_TXCSR_MODE;
-		musb_writew(epio, MUSB_TXCSR,
-			(MUSB_TXCSR_P_WZC_BITS & ~MUSB_TXCSR_P_UNDERRUN)
-				| csr);
-
-		/* ensure writebuffer is empty */
-		csr = musb_readw(epio, MUSB_TXCSR);
-
-		/* NOTE host side sets DMAENAB later than this; both are
-		 * OK since the transfer dma glue (between CPPI and Mentor
-		 * fifos) just tells CPPI it could start.  Data only moves
-		 * to the USB TX fifo when both fifos are ready.
-		 */
-
-		/* "mode" is irrelevant here; handle terminating ZLPs like
-		 * PIO does, since the hardware RNDIS mode seems unreliable
-		 * except for the last-packet-is-already-short case.
-		 */
-		use_dma = use_dma && c->channel_program(
-				musb_ep->dma, musb_ep->packet_sz,
-				0,
-				request->dma + request->actual,
-				request_size);
-		if (!use_dma) {
-			c->channel_release(musb_ep->dma);
-			musb_ep->dma = NULL;
-			csr &= ~MUSB_TXCSR_DMAENAB;
-			musb_writew(epio, MUSB_TXCSR, csr);
-			/* invariant: prequest->buf is non-null */
-		}
-#elif defined(CONFIG_USB_TUSB_OMAP_DMA)
-		use_dma = use_dma && c->channel_program(
-				musb_ep->dma, musb_ep->packet_sz,
-				request->zero,
-				request->dma + request->actual,
-				request_size);
 #endif
+		if (is_cppi_enabled()) {
+			/* program endpoint CSR first, then setup DMA */
+			csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
+			csr |= MUSB_TXCSR_DMAENAB | MUSB_TXCSR_DMAMODE |
+				MUSB_TXCSR_MODE;
+			musb_writew(epio, MUSB_TXCSR, (MUSB_TXCSR_P_WZC_BITS &
+						~MUSB_TXCSR_P_UNDERRUN) | csr);
+
+			/* ensure writebuffer is empty */
+			csr = musb_readw(epio, MUSB_TXCSR);
+
+			/*
+			 * NOTE host side sets DMAENAB later than this; both are
+			 * OK since the transfer dma glue (between CPPI and
+			 * Mentor fifos) just tells CPPI it could start. Data
+			 * only moves to the USB TX fifo when both fifos are
+			 * ready.
+			 */
+			/*
+			 * "mode" is irrelevant here; handle terminating ZLPs
+			 * like PIO does, since the hardware RNDIS mode seems
+			 * unreliable except for the
+			 * last-packet-is-already-short case.
+			 */
+			use_dma = use_dma && c->channel_program(
+					musb_ep->dma, musb_ep->packet_sz,
+					0,
+					request->dma + request->actual,
+					request_size);
+			if (!use_dma) {
+				c->channel_release(musb_ep->dma);
+				musb_ep->dma = NULL;
+				csr &= ~MUSB_TXCSR_DMAENAB;
+				musb_writew(epio, MUSB_TXCSR, csr);
+				/* invariant: prequest->buf is non-null */
+			}
+		} else if (tusb_dma_omap())
+			use_dma = use_dma && c->channel_program(
+					musb_ep->dma, musb_ep->packet_sz,
+					request->zero,
+					request->dma + request->actual,
+					request_size);
 	}
 #endif
 
@@ -1111,7 +1121,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			case USB_ENDPOINT_XFER_BULK:	s = "bulk"; break;
 			case USB_ENDPOINT_XFER_INT:	s = "int"; break;
 			default:			s = "iso"; break;
-			}; s; }),
+			} s; }),
 			musb_ep->is_in ? "IN" : "OUT",
 			musb_ep->dma ? "dma, " : "",
 			musb_ep->packet_sz);
@@ -1266,7 +1276,8 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 		dev_dbg(musb->controller, "req %p queued to %s while ep %s\n",
 				req, ep->name, "disabled");
 		status = -ESHUTDOWN;
-		goto cleanup;
+		unmap_dma_buffer(request, musb);
+		goto unlock;
 	}
 
 	/* add request to the list */
@@ -1276,7 +1287,7 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 	if (!musb_ep->busy && &request->list == musb_ep->req_list.next)
 		musb_ep_restart(musb, request);
 
-cleanup:
+unlock:
 	spin_unlock_irqrestore(&musb->lock, lockflags);
 	return status;
 }
@@ -1535,7 +1546,7 @@ static int musb_gadget_wakeup(struct usb_gadget *gadget)
 
 	spin_lock_irqsave(&musb->lock, flags);
 
-	switch (musb->xceiv->state) {
+	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_B_PERIPHERAL:
 		/* NOTE:  OTG state machine doesn't include B_SUSPENDED;
 		 * that's part of the standard usb 1.1 state machine, and
@@ -1576,7 +1587,7 @@ static int musb_gadget_wakeup(struct usb_gadget *gadget)
 		goto done;
 	default:
 		dev_dbg(musb->controller, "Unhandled wake: %s\n",
-			usb_otg_state_string(musb->xceiv->state));
+			usb_otg_state_string(musb->xceiv->otg->state));
 		goto done;
 	}
 
@@ -1601,9 +1612,7 @@ done:
 static int
 musb_gadget_set_self_powered(struct usb_gadget *gadget, int is_selfpowered)
 {
-	struct musb	*musb = gadget_to_musb(gadget);
-
-	musb->is_self_powered = !!is_selfpowered;
+	gadget->is_selfpowered = !!is_selfpowered;
 	return 0;
 }
 
@@ -1673,8 +1682,7 @@ static int musb_gadget_pullup(struct usb_gadget *gadget, int is_on)
 
 static int musb_gadget_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int musb_gadget_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int musb_gadget_stop(struct usb_gadget *g);
 
 static const struct usb_gadget_ops musb_gadget_operations = {
 	.get_frame		= musb_gadget_get_frame,
@@ -1716,14 +1724,14 @@ init_peripheral_ep(struct musb *musb, struct musb_ep *ep, u8 epnum, int is_in)
 	ep->end_point.name = ep->name;
 	INIT_LIST_HEAD(&ep->end_point.ep_list);
 	if (!epnum) {
-		ep->end_point.maxpacket = 64;
+		usb_ep_set_maxpacket_limit(&ep->end_point, 64);
 		ep->end_point.ops = &musb_g_ep0_ops;
 		musb->g.ep0 = &ep->end_point;
 	} else {
 		if (is_in)
-			ep->end_point.maxpacket = hw_ep->max_packet_sz_tx;
+			usb_ep_set_maxpacket_limit(&ep->end_point, hw_ep->max_packet_sz_tx);
 		else
-			ep->end_point.maxpacket = hw_ep->max_packet_sz_rx;
+			usb_ep_set_maxpacket_limit(&ep->end_point, hw_ep->max_packet_sz_rx);
 		ep->end_point.ops = &musb_ep_ops;
 		list_add_tail(&ep->end_point.ep_list, &musb->g.ep_list);
 	}
@@ -1779,9 +1787,17 @@ int musb_gadget_setup(struct musb *musb)
 	musb->g.max_speed = USB_SPEED_HIGH;
 	musb->g.speed = USB_SPEED_UNKNOWN;
 
+	MUSB_DEV_MODE(musb);
+	musb->xceiv->otg->default_a = 0;
+	musb->xceiv->otg->state = OTG_STATE_B_IDLE;
+
 	/* this "gadget" abstracts/virtualizes the controller */
 	musb->g.name = musb_driver_name;
+#if IS_ENABLED(CONFIG_USB_MUSB_DUAL_ROLE)
 	musb->g.is_otg = 1;
+#elif IS_ENABLED(CONFIG_USB_MUSB_GADGET)
+	musb->g.is_otg = 0;
+#endif
 
 	musb_g_init_endpoints(musb);
 
@@ -1801,6 +1817,8 @@ err:
 
 void musb_gadget_cleanup(struct musb *musb)
 {
+	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+		return;
 	usb_del_gadget_udc(&musb->g);
 }
 
@@ -1830,8 +1848,6 @@ static int musb_gadget_start(struct usb_gadget *g,
 
 	pm_runtime_get_sync(musb->controller);
 
-	dev_dbg(musb->controller, "registering driver %s\n", driver->function);
-
 	musb->softconnect = 0;
 	musb->gadget_driver = driver;
 
@@ -1839,8 +1855,10 @@ static int musb_gadget_start(struct usb_gadget *g,
 	musb->is_active = 1;
 
 	otg_set_peripheral(otg, &musb->g);
-	musb->xceiv->state = OTG_STATE_B_IDLE;
+	musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 	spin_unlock_irqrestore(&musb->lock, flags);
+
+	musb_start(musb);
 
 	/* REVISIT:  funcall to other code, which also
 	 * handles power budgeting ... this way also
@@ -1902,8 +1920,7 @@ static void stop_activity(struct musb *musb, struct usb_gadget_driver *driver)
  *
  * @param driver the gadget driver to unregister
  */
-static int musb_gadget_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int musb_gadget_stop(struct usb_gadget *g)
 {
 	struct musb	*musb = gadget_to_musb(g);
 	unsigned long	flags;
@@ -1922,11 +1939,9 @@ static int musb_gadget_stop(struct usb_gadget *g,
 
 	(void) musb_gadget_vbus_draw(&musb->g, 0);
 
-	musb->xceiv->state = OTG_STATE_UNDEFINED;
-	stop_activity(musb, driver);
+	musb->xceiv->otg->state = OTG_STATE_UNDEFINED;
+	stop_activity(musb, NULL);
 	otg_set_peripheral(musb->xceiv->otg, NULL);
-
-	dev_dbg(musb->controller, "unregistering driver %s\n", driver->function);
 
 	musb->is_active = 0;
 	musb->gadget_driver = NULL;
@@ -1951,7 +1966,7 @@ static int musb_gadget_stop(struct usb_gadget *g,
 void musb_g_resume(struct musb *musb)
 {
 	musb->is_suspended = 0;
-	switch (musb->xceiv->state) {
+	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_B_IDLE:
 		break;
 	case OTG_STATE_B_WAIT_ACON:
@@ -1965,7 +1980,7 @@ void musb_g_resume(struct musb *musb)
 		break;
 	default:
 		WARNING("unhandled RESUME transition (%s)\n",
-				usb_otg_state_string(musb->xceiv->state));
+				usb_otg_state_string(musb->xceiv->otg->state));
 	}
 }
 
@@ -1977,10 +1992,10 @@ void musb_g_suspend(struct musb *musb)
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 	dev_dbg(musb->controller, "devctl %02x\n", devctl);
 
-	switch (musb->xceiv->state) {
+	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_B_IDLE:
 		if ((devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS)
-			musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
+			musb->xceiv->otg->state = OTG_STATE_B_PERIPHERAL;
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		musb->is_suspended = 1;
@@ -1995,7 +2010,7 @@ void musb_g_suspend(struct musb *musb)
 		 * A_PERIPHERAL may need care too
 		 */
 		WARNING("unhandled SUSPEND transition (%s)\n",
-				usb_otg_state_string(musb->xceiv->state));
+				usb_otg_state_string(musb->xceiv->otg->state));
 	}
 }
 
@@ -2026,22 +2041,22 @@ void musb_g_disconnect(struct musb *musb)
 		spin_lock(&musb->lock);
 	}
 
-	switch (musb->xceiv->state) {
+	switch (musb->xceiv->otg->state) {
 	default:
 		dev_dbg(musb->controller, "Unhandled disconnect %s, setting a_idle\n",
-			usb_otg_state_string(musb->xceiv->state));
-		musb->xceiv->state = OTG_STATE_A_IDLE;
+			usb_otg_state_string(musb->xceiv->otg->state));
+		musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 		MUSB_HST_MODE(musb);
 		break;
 	case OTG_STATE_A_PERIPHERAL:
-		musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
+		musb->xceiv->otg->state = OTG_STATE_A_WAIT_BCON;
 		MUSB_HST_MODE(musb);
 		break;
 	case OTG_STATE_B_WAIT_ACON:
 	case OTG_STATE_B_HOST:
 	case OTG_STATE_B_PERIPHERAL:
 	case OTG_STATE_B_IDLE:
-		musb->xceiv->state = OTG_STATE_B_IDLE;
+		musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		break;
 	case OTG_STATE_B_SRP_INIT:
 		break;
@@ -2066,9 +2081,12 @@ __acquires(musb->lock)
 				: NULL
 			);
 
-	/* report disconnect, if we didn't already (flushing EP state) */
-	if (musb->g.speed != USB_SPEED_UNKNOWN)
-		musb_g_disconnect(musb);
+	/* report reset, if we didn't already (flushing EP state) */
+	if (musb->gadget_driver && musb->g.speed != USB_SPEED_UNKNOWN) {
+		spin_unlock(&musb->lock);
+		usb_gadget_udc_reset(&musb->g, musb->gadget_driver);
+		spin_lock(&musb->lock);
+	}
 
 	/* clear HR */
 	else if (devctl & MUSB_DEVCTL_HR)
@@ -2095,11 +2113,19 @@ __acquires(musb->lock)
 	/* Normal reset, as B-Device;
 	 * or else after HNP, as A-Device
 	 */
-	if (devctl & MUSB_DEVCTL_BDEVICE) {
-		musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
+	if (!musb->g.is_otg) {
+		/* USB device controllers that are not OTG compatible
+		 * may not have DEVCTL register in silicon.
+		 * In that case, do not rely on devctl for setting
+		 * peripheral mode.
+		 */
+		musb->xceiv->otg->state = OTG_STATE_B_PERIPHERAL;
+		musb->g.is_a_peripheral = 0;
+	} else if (devctl & MUSB_DEVCTL_BDEVICE) {
+		musb->xceiv->otg->state = OTG_STATE_B_PERIPHERAL;
 		musb->g.is_a_peripheral = 0;
 	} else {
-		musb->xceiv->state = OTG_STATE_A_PERIPHERAL;
+		musb->xceiv->otg->state = OTG_STATE_A_PERIPHERAL;
 		musb->g.is_a_peripheral = 1;
 	}
 

@@ -101,7 +101,7 @@ static inline void native_wbinvd(void)
 	asm volatile("wbinvd": : :"memory");
 }
 
-extern void native_load_gs_index(unsigned);
+extern asmlinkage void native_load_gs_index(unsigned);
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
@@ -137,17 +137,17 @@ static inline void write_cr3(unsigned long x)
 	native_write_cr3(x);
 }
 
-static inline unsigned long read_cr4(void)
+static inline unsigned long __read_cr4(void)
 {
 	return native_read_cr4();
 }
 
-static inline unsigned long read_cr4_safe(void)
+static inline unsigned long __read_cr4_safe(void)
 {
 	return native_read_cr4_safe();
 }
 
-static inline void write_cr4(unsigned long x)
+static inline void __write_cr4(unsigned long x)
 {
 	native_write_cr4(x);
 }
@@ -189,6 +189,14 @@ static inline void clts(void)
 static inline void clflush(volatile void *__p)
 {
 	asm volatile("clflush %0" : "+m" (*(volatile char __force *)__p));
+}
+
+static inline void clflushopt(volatile void *__p)
+{
+	alternative_io(".byte " __stringify(NOP_DS_PREFIX) "; clflush %P0",
+		       ".byte 0x66; clflush %P0",
+		       X86_FEATURE_CLFLUSHOPT,
+		       "+m" (*(volatile char __force *)__p));
 }
 
 #define nop() asm volatile ("nop")

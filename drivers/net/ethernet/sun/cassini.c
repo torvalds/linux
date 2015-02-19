@@ -14,9 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * This driver uses the sungem driver (c) David Miller
  * (davem@redhat.com) as its basis.
@@ -231,7 +229,7 @@ static u16 link_modes[] = {
 	CAS_BMCR_SPEED1000|BMCR_FULLDPLX /* 5 : 1000bt full duplex */
 };
 
-static DEFINE_PCI_DEVICE_TABLE(cas_pci_tbl) = {
+static const struct pci_device_id cas_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_CASSINI,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SATURN,
@@ -248,7 +246,7 @@ static inline void cas_lock_tx(struct cas *cp)
 	int i;
 
 	for (i = 0; i < N_TX_RINGS; i++)
-		spin_lock(&cp->tx_lock[i]);
+		spin_lock_nested(&cp->tx_lock[i], i);
 }
 
 static inline void cas_lock_all(struct cas *cp)
@@ -3354,7 +3352,7 @@ use_random_mac_addr:
 #if defined(CONFIG_SPARC)
 	addr = of_get_property(cp->of_node, "local-mac-address", NULL);
 	if (addr != NULL) {
-		memcpy(dev_addr, addr, 6);
+		memcpy(dev_addr, addr, ETH_ALEN);
 		goto done;
 	}
 #endif
@@ -4964,7 +4962,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_cmd |= PCI_COMMAND_PARITY;
 	pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
 	if (pci_try_set_mwi(pdev))
-		pr_warning("Could not enable MWI for %s\n", pci_name(pdev));
+		pr_warn("Could not enable MWI for %s\n", pci_name(pdev));
 
 	cas_program_bridge(pdev);
 
@@ -5168,7 +5166,6 @@ err_out_free_netdev:
 
 err_out_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return -ENODEV;
 }
 
@@ -5182,8 +5179,7 @@ static void cas_remove_one(struct pci_dev *pdev)
 	cp = netdev_priv(dev);
 	unregister_netdev(dev);
 
-	if (cp->fw_data)
-		vfree(cp->fw_data);
+	vfree(cp->fw_data);
 
 	mutex_lock(&cp->pm_mutex);
 	cancel_work_sync(&cp->reset_task);
@@ -5206,7 +5202,6 @@ static void cas_remove_one(struct pci_dev *pdev)
 	free_netdev(dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM

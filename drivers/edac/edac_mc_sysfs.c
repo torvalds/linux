@@ -7,7 +7,7 @@
  *
  * Written Doug Thompson <norsk5@xmission.com> www.softwarebitmaker.com
  *
- * (c) 2012-2013 - Mauro Carvalho Chehab <mchehab@redhat.com>
+ * (c) 2012-2013 - Mauro Carvalho Chehab
  *	The entire API were re-written, and ported to use struct device
  *
  */
@@ -52,16 +52,20 @@ int edac_mc_get_poll_msec(void)
 
 static int edac_set_poll_msec(const char *val, struct kernel_param *kp)
 {
-	long l;
+	unsigned long l;
 	int ret;
 
 	if (!val)
 		return -EINVAL;
 
-	ret = strict_strtol(val, 0, &l);
-	if (ret == -EINVAL || ((int)l != l))
+	ret = kstrtoul(val, 0, &l);
+	if (ret)
+		return ret;
+
+	if (l < 1000)
 		return -EINVAL;
-	*((int *)kp->arg) = l;
+
+	*((unsigned long *)kp->arg) = l;
 
 	/* notify edac_mc engine to reset the poll period */
 	edac_mc_reset_delay_period(l);
@@ -104,7 +108,9 @@ static const char * const mem_types[] = {
 	[MEM_RDDR2] = "Registered-DDR2",
 	[MEM_XDR] = "XDR",
 	[MEM_DDR3] = "Unbuffered-DDR3",
-	[MEM_RDDR3] = "Registered-DDR3"
+	[MEM_RDDR3] = "Registered-DDR3",
+	[MEM_DDR4] = "Unbuffered-DDR4",
+	[MEM_RDDR4] = "Registered-DDR4"
 };
 
 static const char * const dev_types[] = {
@@ -151,7 +157,7 @@ struct dev_ch_attribute {
 };
 
 #define DEVICE_CHANNEL(_name, _mode, _show, _store, _var) \
-	struct dev_ch_attribute dev_attr_legacy_##_name = \
+	static struct dev_ch_attribute dev_attr_legacy_##_name = \
 		{ __ATTR(_name, _mode, _show, _store), (_var) }
 
 #define to_channel(k) (container_of(k, struct dev_ch_attribute, attr)->channel)
@@ -366,7 +372,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 {
 	int err, chan;
 
-	if (csrow->nr_channels >= EDAC_NR_CHANNELS)
+	if (csrow->nr_channels > EDAC_NR_CHANNELS)
 		return -ENODEV;
 
 	csrow->dev.type = &csrow_attr_type;
@@ -844,20 +850,20 @@ static const struct file_operations debug_fake_inject_fops = {
 #endif
 
 /* default Control file */
-DEVICE_ATTR(reset_counters, S_IWUSR, NULL, mci_reset_counters_store);
+static DEVICE_ATTR(reset_counters, S_IWUSR, NULL, mci_reset_counters_store);
 
 /* default Attribute files */
-DEVICE_ATTR(mc_name, S_IRUGO, mci_ctl_name_show, NULL);
-DEVICE_ATTR(size_mb, S_IRUGO, mci_size_mb_show, NULL);
-DEVICE_ATTR(seconds_since_reset, S_IRUGO, mci_seconds_show, NULL);
-DEVICE_ATTR(ue_noinfo_count, S_IRUGO, mci_ue_noinfo_show, NULL);
-DEVICE_ATTR(ce_noinfo_count, S_IRUGO, mci_ce_noinfo_show, NULL);
-DEVICE_ATTR(ue_count, S_IRUGO, mci_ue_count_show, NULL);
-DEVICE_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
-DEVICE_ATTR(max_location, S_IRUGO, mci_max_location_show, NULL);
+static DEVICE_ATTR(mc_name, S_IRUGO, mci_ctl_name_show, NULL);
+static DEVICE_ATTR(size_mb, S_IRUGO, mci_size_mb_show, NULL);
+static DEVICE_ATTR(seconds_since_reset, S_IRUGO, mci_seconds_show, NULL);
+static DEVICE_ATTR(ue_noinfo_count, S_IRUGO, mci_ue_noinfo_show, NULL);
+static DEVICE_ATTR(ce_noinfo_count, S_IRUGO, mci_ce_noinfo_show, NULL);
+static DEVICE_ATTR(ue_count, S_IRUGO, mci_ue_count_show, NULL);
+static DEVICE_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
+static DEVICE_ATTR(max_location, S_IRUGO, mci_max_location_show, NULL);
 
 /* memory scrubber attribute file */
-DEVICE_ATTR(sdram_scrub_rate, 0, NULL, NULL);
+static DEVICE_ATTR(sdram_scrub_rate, 0, NULL, NULL);
 
 static struct attribute *mci_attrs[] = {
 	&dev_attr_reset_counters.attr,
@@ -912,7 +918,7 @@ void __exit edac_debugfs_exit(void)
 	debugfs_remove(edac_debugfs);
 }
 
-int edac_create_debug_nodes(struct mem_ctl_info *mci)
+static int edac_create_debug_nodes(struct mem_ctl_info *mci)
 {
 	struct dentry *d, *parent;
 	char name[80];
@@ -983,7 +989,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 
 	err = bus_register(mci->bus);
 	if (err < 0)
-		return err;
+		goto fail_free_name;
 
 	/* get the /sys/devices/system/edac subsys reference */
 	mci->dev.type = &mci_attr_type;
@@ -999,9 +1005,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	err = device_add(&mci->dev);
 	if (err < 0) {
 		edac_dbg(1, "failure: create device %s\n", dev_name(&mci->dev));
-		bus_unregister(mci->bus);
-		kfree(mci->bus->name);
-		return err;
+		goto fail_unregister_bus;
 	}
 
 	if (mci->set_sdram_scrub_rate || mci->get_sdram_scrub_rate) {
@@ -1009,15 +1013,16 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 			dev_attr_sdram_scrub_rate.attr.mode |= S_IRUGO;
 			dev_attr_sdram_scrub_rate.show = &mci_sdram_scrub_rate_show;
 		}
+
 		if (mci->set_sdram_scrub_rate) {
 			dev_attr_sdram_scrub_rate.attr.mode |= S_IWUSR;
 			dev_attr_sdram_scrub_rate.store = &mci_sdram_scrub_rate_store;
 		}
-		err = device_create_file(&mci->dev,
-					 &dev_attr_sdram_scrub_rate);
+
+		err = device_create_file(&mci->dev, &dev_attr_sdram_scrub_rate);
 		if (err) {
 			edac_dbg(1, "failure: create sdram_scrub_rate\n");
-			goto fail2;
+			goto fail_unregister_dev;
 		}
 	}
 	/*
@@ -1026,8 +1031,9 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	for (i = 0; i < mci->tot_dimms; i++) {
 		struct dimm_info *dimm = mci->dimms[i];
 		/* Only expose populated DIMMs */
-		if (dimm->nr_pages == 0)
+		if (!dimm->nr_pages)
 			continue;
+
 #ifdef CONFIG_EDAC_DEBUG
 		edac_dbg(1, "creating dimm%d, located at ", i);
 		if (edac_debug_level >= 1) {
@@ -1042,14 +1048,14 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 		err = edac_create_dimm_object(mci, dimm, i);
 		if (err) {
 			edac_dbg(1, "failure: create dimm %d obj\n", i);
-			goto fail;
+			goto fail_unregister_dimm;
 		}
 	}
 
 #ifdef CONFIG_EDAC_LEGACY_SYSFS
 	err = edac_create_csrow_objects(mci);
 	if (err < 0)
-		goto fail;
+		goto fail_unregister_dimm;
 #endif
 
 #ifdef CONFIG_EDAC_DEBUG
@@ -1057,16 +1063,19 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 #endif
 	return 0;
 
-fail:
+fail_unregister_dimm:
 	for (i--; i >= 0; i--) {
 		struct dimm_info *dimm = mci->dimms[i];
-		if (dimm->nr_pages == 0)
+		if (!dimm->nr_pages)
 			continue;
+
 		device_unregister(&dimm->dev);
 	}
-fail2:
+fail_unregister_dev:
 	device_unregister(&mci->dev);
+fail_unregister_bus:
 	bus_unregister(mci->bus);
+fail_free_name:
 	kfree(mci->bus->name);
 	return err;
 }

@@ -9,7 +9,7 @@
  * option) any later version.
  */
 
-/include/ "mpc5121.dtsi"
+#include <mpc5121.dtsi>
 
 / {
 	model = "mpc5121ads";

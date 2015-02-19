@@ -105,15 +105,9 @@ MODULE_DESCRIPTION ("Linux for S/390 IUCV network driver");
 
 DECLARE_PER_CPU(char[256], iucv_dbf_txt_buf);
 
-/* Allow to sort out low debug levels early to avoid wasted sprints */
-static inline int iucv_dbf_passes(debug_info_t *dbf_grp, int level)
-{
-	return (level <= dbf_grp->level);
-}
-
 #define IUCV_DBF_TEXT_(name, level, text...) \
 	do { \
-		if (iucv_dbf_passes(iucv_dbf_##name, level)) { \
+		if (debug_level_enabled(iucv_dbf_##name, level)) { \
 			char* __buf = get_cpu_var(iucv_dbf_txt_buf); \
 			sprintf(__buf, text); \
 			debug_text_event(iucv_dbf_##name, level, __buf); \
@@ -184,7 +178,7 @@ struct connection_profile {
 	unsigned long doios_multi;
 	unsigned long txlen;
 	unsigned long tx_time;
-	struct timespec send_stamp;
+	unsigned long send_stamp;
 	unsigned long tx_pending;
 	unsigned long tx_max_pending;
 };
@@ -493,12 +487,9 @@ DEFINE_PER_CPU(char[256], iucv_dbf_txt_buf);
 
 static void iucv_unregister_dbf_views(void)
 {
-	if (iucv_dbf_setup)
-		debug_unregister(iucv_dbf_setup);
-	if (iucv_dbf_data)
-		debug_unregister(iucv_dbf_data);
-	if (iucv_dbf_trace)
-		debug_unregister(iucv_dbf_trace);
+	debug_unregister(iucv_dbf_setup);
+	debug_unregister(iucv_dbf_data);
+	debug_unregister(iucv_dbf_trace);
 }
 static int iucv_register_dbf_views(void)
 {
@@ -745,8 +736,12 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 
 	IUCV_DBF_TEXT(trace, 4, __func__);
 
-	if (conn && conn->netdev)
-		privptr = netdev_priv(conn->netdev);
+	if (!conn || !conn->netdev) {
+		IUCV_DBF_TEXT(data, 2,
+			      "Send confirmation for unlinked connection\n");
+		return;
+	}
+	privptr = netdev_priv(conn->netdev);
 	conn->prof.tx_pending--;
 	if (single_flag) {
 		if ((skb = skb_dequeue(&conn->commit_queue))) {
@@ -788,7 +783,7 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 
 	header.next = 0;
 	memcpy(skb_put(conn->tx_buff, NETIUCV_HDRLEN), &header, NETIUCV_HDRLEN);
-	conn->prof.send_stamp = current_kernel_time();
+	conn->prof.send_stamp = jiffies;
 	txmsg.class = 0;
 	txmsg.tag = 0;
 	rc = iucv_message_send(conn->path, &txmsg, 0, 0,
@@ -1222,7 +1217,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 		memcpy(skb_put(nskb, NETIUCV_HDRLEN), &header,  NETIUCV_HDRLEN);
 
 		fsm_newstate(conn->fsm, CONN_STATE_TX);
-		conn->prof.send_stamp = current_kernel_time();
+		conn->prof.send_stamp = jiffies;
 
 		msg.tag = 1;
 		msg.class = 0;
@@ -2017,7 +2012,7 @@ static struct net_device *netiucv_init_netdevice(char *username, char *userdata)
 	struct net_device *dev;
 
 	dev = alloc_netdev(sizeof(struct netiucv_priv), "iucv%d",
-			   netiucv_setup_netdevice);
+			   NET_NAME_UNKNOWN, netiucv_setup_netdevice);
 	if (!dev)
 		return NULL;
 	rtnl_lock();

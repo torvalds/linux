@@ -16,6 +16,8 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/lockd/lockd.h>
 
+#include <uapi/linux/nfs2.h>
+
 #define NLMDBG_FACILITY		NLMDBG_XDR
 
 
@@ -90,14 +92,6 @@ nlm_decode_fh(__be32 *p, struct nfs_fh *f)
 	f->size = NFS2_FHSIZE;
 	memset(f->data, 0, sizeof(f->data));
 	memcpy(f->data, p, NFS2_FHSIZE);
-	return p + XDR_QUADLEN(NFS2_FHSIZE);
-}
-
-static inline __be32 *
-nlm_encode_fh(__be32 *p, struct nfs_fh *f)
-{
-	*p++ = htonl(NFS2_FHSIZE);
-	memcpy(p, f->data, NFS2_FHSIZE);
 	return p + XDR_QUADLEN(NFS2_FHSIZE);
 }
 

@@ -1,7 +1,7 @@
 config SCSI_QLA_FC
 	tristate "QLogic QLA2XXX Fibre Channel Support"
 	depends on PCI && SCSI
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	select FW_LOADER
 	---help---
 	This qla2xxx driver supports all QLogic Fibre Channel
@@ -31,7 +31,7 @@ config SCSI_QLA_FC
 config TCM_QLA2XXX
 	tristate "TCM_QLA2XXX fabric module for Qlogic 2xxx series target mode HBAs"
 	depends on SCSI_QLA_FC && TARGET_CORE
-	select LIBFC
+	depends on LIBFC
 	select BTREE
 	default n
 	---help---

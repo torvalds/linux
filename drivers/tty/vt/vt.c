@@ -156,6 +156,8 @@ static void console_callback(struct work_struct *ignored);
 static void blank_screen_t(unsigned long dummy);
 static void set_palette(struct vc_data *vc);
 
+#define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
+
 static int printable;		/* Is console ready for printing? */
 int default_utf8 = true;
 module_param(default_utf8, int, S_IRUGO | S_IWUSR);
@@ -498,6 +500,7 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 #endif
 	if (DO_UPDATE(vc))
 		do_update_region(vc, (unsigned long) p, count);
+	notify_update(vc);
 }
 
 /* used by selection: complement pointer position */
@@ -514,6 +517,7 @@ void complement_pos(struct vc_data *vc, int offset)
 		scr_writew(old, screenpos(vc, old_offset, 1));
 		if (DO_UPDATE(vc))
 			vc->vc_sw->con_putc(vc, old, oldy, oldx);
+		notify_update(vc);
 	}
 
 	old_offset = offset;
@@ -531,8 +535,8 @@ void complement_pos(struct vc_data *vc, int offset)
 			oldy = (offset >> 1) / vc->vc_cols;
 			vc->vc_sw->con_putc(vc, new, oldy, oldx);
 		}
+		notify_update(vc);
 	}
-
 }
 
 static void insert_char(struct vc_data *vc, unsigned int nr)
@@ -735,7 +739,7 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	vc->vc_num = num;
 	vc->vc_display_fg = &master_display_fg;
 	vc->vc_uni_pagedir_loc = &vc->vc_uni_pagedir;
-	vc->vc_uni_pagedir = 0;
+	vc->vc_uni_pagedir = NULL;
 	vc->vc_hi_font_mask = 0;
 	vc->vc_complement_mask = 0;
 	vc->vc_can_do_color = 0;
@@ -828,7 +832,7 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  *	If the caller passes a tty structure then update the termios winsize
  *	information and perform any necessary signal handling.
  *
- *	Caller must hold the console semaphore. Takes the termios mutex and
+ *	Caller must hold the console semaphore. Takes the termios rwsem and
  *	ctrl_lock of the tty IFF a tty is passed.
  */
 
@@ -972,7 +976,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
  *	the actual work.
  *
  *	Takes the console sem and the called methods then take the tty
- *	termios_mutex and the tty ctrl_lock in that order.
+ *	termios_rwsem and the tty ctrl_lock in that order.
  */
 static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 {
@@ -1164,6 +1168,8 @@ static void csi_J(struct vc_data *vc, int vpar)
 			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
 				    vc->vc_screenbuf_size >> 1);
 			set_origin(vc);
+			if (CON_IS_VISIBLE(vc))
+				update_screen(vc);
 			/* fall through */
 		case 2: /* erase whole display */
 			count = vc->vc_cols * vc->vc_rows;
@@ -1227,6 +1233,52 @@ static void default_attr(struct vc_data *vc)
 	vc->vc_reverse = 0;
 	vc->vc_blink = 0;
 	vc->vc_color = vc->vc_def_color;
+}
+
+struct rgb { u8 r; u8 g; u8 b; };
+
+struct rgb rgb_from_256(int i)
+{
+	struct rgb c;
+	if (i < 8) {            /* Standard colours. */
+		c.r = i&1 ? 0xaa : 0x00;
+		c.g = i&2 ? 0xaa : 0x00;
+		c.b = i&4 ? 0xaa : 0x00;
+	} else if (i < 16) {
+		c.r = i&1 ? 0xff : 0x55;
+		c.g = i&2 ? 0xff : 0x55;
+		c.b = i&4 ? 0xff : 0x55;
+	} else if (i < 232) {   /* 6x6x6 colour cube. */
+		c.r = (i - 16) / 36 * 85 / 2;
+		c.g = (i - 16) / 6 % 6 * 85 / 2;
+		c.b = (i - 16) % 6 * 85 / 2;
+	} else                  /* Grayscale ramp. */
+		c.r = c.g = c.b = i * 10 - 2312;
+	return c;
+}
+
+static void rgb_foreground(struct vc_data *vc, struct rgb c)
+{
+	u8 hue, max = c.r;
+	if (c.g > max)
+		max = c.g;
+	if (c.b > max)
+		max = c.b;
+	hue = (c.r > max/2 ? 4 : 0)
+	    | (c.g > max/2 ? 2 : 0)
+	    | (c.b > max/2 ? 1 : 0);
+	if (hue == 7 && max <= 0x55)
+		hue = 0, vc->vc_intensity = 2;
+	else
+		vc->vc_intensity = (max > 0xaa) + 1;
+	vc->vc_color = (vc->vc_color & 0xf0) | hue;
+}
+
+static void rgb_background(struct vc_data *vc, struct rgb c)
+{
+	/* For backgrounds, err on the dark side. */
+	vc->vc_color = (vc->vc_color & 0x0f)
+		| (c.r&0x80) >> 1 | (c.g&0x80) >> 2 | (c.b&0x80) >> 3;
 }
 
 /* console_lock is held */
@@ -1300,21 +1352,59 @@ static void csi_m(struct vc_data *vc)
 			case 27:
 				vc->vc_reverse = 0;
 				break;
-			case 38: /* ANSI X3.64-1979 (SCO-ish?)
-				  * Enables underscore, white foreground
-				  * with white underscore (Linux - use
-				  * default foreground).
+			case 38: /* ITU T.416
+				  * Higher colour modes.
+				  * They break the usual properties of SGR codes
+				  * and thus need to be detected and ignored by
+				  * hand.  Strictly speaking, that standard also
+				  * wants : rather than ; as separators, contrary
+				  * to ECMA-48, but no one produces such codes
+				  * and almost no one accepts them.
 				  */
-				vc->vc_color = (vc->vc_def_color & 0x0f) | (vc->vc_color & 0xf0);
-				vc->vc_underline = 1;
+				i++;
+				if (i > vc->vc_npar)
+					break;
+				if (vc->vc_par[i] == 5 &&  /* 256 colours */
+				    i < vc->vc_npar) {     /* ubiquitous */
+					i++;
+					rgb_foreground(vc,
+						rgb_from_256(vc->vc_par[i]));
+				} else if (vc->vc_par[i] == 2 &&  /* 24 bit */
+				           i <= vc->vc_npar + 3) {/* extremely rare */
+					struct rgb c = {
+						.r = vc->vc_par[i + 1],
+						.g = vc->vc_par[i + 2],
+						.b = vc->vc_par[i + 3],
+					};
+					rgb_foreground(vc, c);
+					i += 3;
+				}
+				/* Subcommands 3 (CMY) and 4 (CMYK) are so insane
+				 * there's no point in supporting them.
+				 */
 				break;
-			case 39: /* ANSI X3.64-1979 (SCO-ish?)
-				  * Disable underline option.
-				  * Reset colour to default? It did this
-				  * before...
-				  */
+			case 48:
+				i++;
+				if (i > vc->vc_npar)
+					break;
+				if (vc->vc_par[i] == 5 &&  /* 256 colours */
+				    i < vc->vc_npar) {
+					i++;
+					rgb_background(vc,
+						rgb_from_256(vc->vc_par[i]));
+				} else if (vc->vc_par[i] == 2 && /* 24 bit */
+				           i <= vc->vc_npar + 3) {
+					struct rgb c = {
+						.r = vc->vc_par[i + 1],
+						.g = vc->vc_par[i + 2],
+						.b = vc->vc_par[i + 3],
+					};
+					rgb_background(vc, c);
+					i += 3;
+				}
+				break;
+			case 39:
 				vc->vc_color = (vc->vc_def_color & 0x0f) | (vc->vc_color & 0xf0);
-				vc->vc_underline = 0;
 				break;
 			case 49:
 				vc->vc_color = (vc->vc_def_color & 0xf0) | (vc->vc_color & 0x0f);
@@ -1579,9 +1669,9 @@ static void restore_cur(struct vc_data *vc)
 	vc->vc_need_wrap = 0;
 }
 
-enum { ESnormal, ESesc, ESsquare, ESgetpars, ESgotpars, ESfunckey,
+enum { ESnormal, ESesc, ESsquare, ESgetpars, ESfunckey,
 	EShash, ESsetG0, ESsetG1, ESpercent, ESignore, ESnonstd,
-	ESpalette };
+	ESpalette, ESosc };
 
 /* console_lock is held (except via vc_init()) */
 static void reset_terminal(struct vc_data *vc, int do_clear)
@@ -1641,11 +1731,15 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 	 *  Control characters can be used in the _middle_
 	 *  of an escape sequence.
 	 */
+	if (vc->vc_state == ESosc && c>=8 && c<=13) /* ... except for OSC */
+		return;
 	switch (c) {
 	case 0:
 		return;
 	case 7:
-		if (vc->vc_bell_duration)
+		if (vc->vc_state == ESosc)
+			vc->vc_state = ESnormal;
+		else if (vc->vc_bell_duration)
 			kd_mksound(vc->vc_bell_pitch, vc->vc_bell_duration);
 		return;
 	case 8:
@@ -1756,7 +1850,9 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		} else if (c=='R') {   /* reset palette */
 			reset_palette(vc);
 			vc->vc_state = ESnormal;
-		} else
+		} else if (c>='0' && c<='9')
+			vc->vc_state = ESosc;
+		else
 			vc->vc_state = ESnormal;
 		return;
 	case ESpalette:
@@ -1796,9 +1892,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			vc->vc_par[vc->vc_npar] *= 10;
 			vc->vc_par[vc->vc_npar] += c - '0';
 			return;
-		} else
-			vc->vc_state = ESgotpars;
-	case ESgotpars:
+		}
 		vc->vc_state = ESnormal;
 		switch(c) {
 		case 'h':
@@ -2011,6 +2105,8 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		if (vc->vc_charset == 1)
 			vc->vc_translate = set_translate(vc->vc_G1_charset, vc);
 		vc->vc_state = ESnormal;
+		return;
+	case ESosc:
 		return;
 	default:
 		vc->vc_state = ESnormal;
@@ -2809,8 +2905,10 @@ static void con_shutdown(struct tty_struct *tty)
 	console_unlock();
 }
 
+static int default_color           = 7; /* white */
 static int default_italic_color    = 2; // green (ASCII)
 static int default_underline_color = 3; // cyan (ASCII)
+module_param_named(color, default_color, int, S_IRUGO | S_IWUSR);
 module_param_named(italic, default_italic_color, int, S_IRUGO | S_IWUSR);
 module_param_named(underline, default_underline_color, int, S_IRUGO | S_IWUSR);
 
@@ -2832,7 +2930,7 @@ static void vc_init(struct vc_data *vc, unsigned int rows,
 		vc->vc_palette[k++] = default_grn[j] ;
 		vc->vc_palette[k++] = default_blu[j] ;
 	}
-	vc->vc_def_color       = 0x07;   /* white */
+	vc->vc_def_color       = default_color;
 	vc->vc_ulcolor         = default_underline_color;
 	vc->vc_itcolor         = default_italic_color;
 	vc->vc_halfcolor       = 0x08;   /* grey */
@@ -3136,8 +3234,7 @@ int do_unbind_con_driver(const struct consw *csw, int first, int last, int deflt
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		con_back = &registered_con_driver[i];
 
-		if (con_back->con &&
-		    !(con_back->flag & CON_DRIVER_FLAG_MODULE)) {
+		if (con_back->con && con_back->con != csw) {
 			defcsw = con_back->con;
 			retval = 0;
 			break;
@@ -3223,11 +3320,8 @@ static int vt_bind(struct con_driver *con)
 		if (first == 0 && last == MAX_NR_CONSOLES -1)
 			deflt = 1;
 
-		if (first != -1) {
-			console_lock();
+		if (first != -1)
 			do_bind_con_driver(csw, first, last, deflt);
-			console_unlock();
-		}
 
 		first = -1;
 		last = -1;
@@ -3242,6 +3336,7 @@ static int vt_unbind(struct con_driver *con)
 {
 	const struct consw *csw = NULL;
 	int i, more = 1, first = -1, last = -1, deflt = 0;
+	int ret;
 
  	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
 	    con_is_graphics(con->con, con->first, con->last))
@@ -3266,9 +3361,9 @@ static int vt_unbind(struct con_driver *con)
 			deflt = 1;
 
 		if (first != -1) {
-			console_lock();
-			do_unbind_con_driver(csw, first, last, deflt);
-			console_unlock();
+			ret = do_unbind_con_driver(csw, first, last, deflt);
+			if (ret != 0)
+				return ret;
 		}
 
 		first = -1;
@@ -3296,10 +3391,14 @@ static ssize_t store_bind(struct device *dev, struct device_attribute *attr,
 	struct con_driver *con = dev_get_drvdata(dev);
 	int bind = simple_strtoul(buf, NULL, 0);
 
+	console_lock();
+
 	if (bind)
 		vt_bind(con);
 	else
 		vt_unbind(con);
+
+	console_unlock();
 
 	return count;
 }
@@ -3555,17 +3654,19 @@ err:
  */
 int do_unregister_con_driver(const struct consw *csw)
 {
-	int i, retval = -ENODEV;
+	int i;
 
 	/* cannot unregister a bound driver */
 	if (con_is_bound(csw))
-		goto err;
+		return -EBUSY;
+
+	if (csw == conswitchp)
+		return -EINVAL;
 
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		struct con_driver *con_driver = &registered_con_driver[i];
 
-		if (con_driver->con == csw &&
-		    con_driver->flag & CON_DRIVER_FLAG_MODULE) {
+		if (con_driver->con == csw) {
 			vtconsole_deinit_device(con_driver);
 			device_destroy(vtconsole_class,
 				       MKDEV(0, con_driver->node));
@@ -3576,12 +3677,11 @@ int do_unregister_con_driver(const struct consw *csw)
 			con_driver->flag = 0;
 			con_driver->first = 0;
 			con_driver->last = 0;
-			retval = 0;
-			break;
+			return 0;
 		}
 	}
-err:
-	return retval;
+
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(do_unregister_con_driver);
 
@@ -3755,8 +3855,8 @@ void do_unblank_screen(int leaving_gfx)
 		return;
 	if (!vc_cons_allocated(fg_console)) {
 		/* impossible */
-		pr_warning("unblank_screen: tty %d not allocated ??\n",
-			   fg_console+1);
+		pr_warn("unblank_screen: tty %d not allocated ??\n",
+			fg_console + 1);
 		return;
 	}
 	vc = vc_cons[fg_console].d;

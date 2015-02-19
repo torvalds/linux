@@ -21,6 +21,8 @@
 #include <linux/seq_file.h>
 #include <linux/time.h>
 
+#include "timekeeping_internal.h"
+
 static unsigned int sleep_time_bin[32] = {0};
 
 static int tk_debug_show_sleep_time(struct seq_file *s, void *data)
@@ -65,7 +67,7 @@ static int __init tk_debug_sleep_time_init(void)
 }
 late_initcall(tk_debug_sleep_time_init);
 
-void tk_debug_account_sleep_time(struct timespec *t)
+void tk_debug_account_sleep_time(struct timespec64 *t)
 {
 	sleep_time_bin[fls(t->tv_sec)]++;
 }

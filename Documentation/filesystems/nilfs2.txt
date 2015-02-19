@@ -25,9 +25,8 @@ available from the following download page.  At least "mkfs.nilfs2",
 cleaner or garbage collector) are required.  Details on the tools are
 described in the man pages included in the package.
 
-Project web page:    http://www.nilfs.org/en/
-Download page:       http://www.nilfs.org/en/download.html
-Git tree web page:   http://www.nilfs.org/git/
+Project web page:    http://nilfs.sourceforge.net/
+Download page:       http://nilfs.sourceforge.net/en/download.html
 List info:           http://vger.kernel.org/vger-lists.html#linux-nilfs
 
 Caveats
@@ -80,6 +79,69 @@ discard			This enables/disables the use of discard/TRIM commands.
 nodiscard(*)		The discard/TRIM commands are sent to the underlying
 			block device when blocks are freed.  This is useful
 			for SSD devices and sparse/thinly-provisioned LUNs.
+
+Ioctls
+======
+
+There is some NILFS2 specific functionality which can be accessed by applications
+through the system call interfaces. The list of all NILFS2 specific ioctls are
+shown in the table below.
+
+Table of NILFS2 specific ioctls
+..............................................................................
+ Ioctl			        Description
+ NILFS_IOCTL_CHANGE_CPMODE      Change mode of given checkpoint between
+			        checkpoint and snapshot state. This ioctl is
+			        used in chcp and mkcp utilities.
+
+ NILFS_IOCTL_DELETE_CHECKPOINT  Remove checkpoint from NILFS2 file system.
+			        This ioctl is used in rmcp utility.
+
+ NILFS_IOCTL_GET_CPINFO         Return info about requested checkpoints. This
+			        ioctl is used in lscp utility and by
+			        nilfs_cleanerd daemon.
+
+ NILFS_IOCTL_GET_CPSTAT         Return checkpoints statistics. This ioctl is
+			        used by lscp, rmcp utilities and by
+			        nilfs_cleanerd daemon.
+
+ NILFS_IOCTL_GET_SUINFO         Return segment usage info about requested
+			        segments. This ioctl is used in lssu,
+			        nilfs_resize utilities and by nilfs_cleanerd
+			        daemon.
+
+ NILFS_IOCTL_SET_SUINFO         Modify segment usage info of requested
+				segments. This ioctl is used by
+				nilfs_cleanerd daemon to skip unnecessary
+				cleaning operation of segments and reduce
+				performance penalty or wear of flash device
+				due to redundant move of in-use blocks.
+
+ NILFS_IOCTL_GET_SUSTAT         Return segment usage statistics. This ioctl
+			        is used in lssu, nilfs_resize utilities and
+			        by nilfs_cleanerd daemon.
+
+ NILFS_IOCTL_GET_VINFO          Return information on virtual block addresses.
+			        This ioctl is used by nilfs_cleanerd daemon.
+
+ NILFS_IOCTL_GET_BDESCS         Return information about descriptors of disk
+			        block numbers. This ioctl is used by
+			        nilfs_cleanerd daemon.
+
+ NILFS_IOCTL_CLEAN_SEGMENTS     Do garbage collection operation in the
+			        environment of requested parameters from
+			        userspace. This ioctl is used by
+			        nilfs_cleanerd daemon.
+
+ NILFS_IOCTL_SYNC               Make a checkpoint. This ioctl is used in
+			        mkcp utility.
+
+ NILFS_IOCTL_RESIZE             Resize NILFS2 volume. This ioctl is used
+			        by nilfs_resize utility.
+
+ NILFS_IOCTL_SET_ALLOC_RANGE    Define lower limit of segments in bytes and
+			        upper limit of segments in bytes. This ioctl
+			        is used by nilfs_resize utility.
 
 NILFS2 usage
 ============

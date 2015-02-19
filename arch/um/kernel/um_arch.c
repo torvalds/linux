@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
+#include <asm/sections.h>
 #include <asm/setup.h>
 #include <as-layout.h>
 #include <arch.h>
@@ -234,7 +235,6 @@ static int panic_exit(struct notifier_block *self, unsigned long unused1,
 		      void *unused2)
 {
 	bust_spinlocks(1);
-	show_regs(&(current->thread.regs));
 	bust_spinlocks(0);
 	uml_exitcode = 1;
 	os_dump_core();
@@ -348,12 +348,7 @@ int __init linux_main(int argc, char **argv)
 	start_vm = VMALLOC_START;
 
 	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
-	if (init_maps(physmem_size, iomem_size, highmem)) {
-		printf("Failed to allocate mem_map for %Lu bytes of physical "
-		       "memory and %Lu bytes of highmem\n", physmem_size,
-		       highmem);
-		exit(1);
-	}
+	mem_total_pages(physmem_size, iomem_size, highmem);
 
 	virtmem_size = physmem_size;
 	stack = (unsigned long) argv;

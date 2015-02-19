@@ -56,12 +56,11 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include <lustre_dlm.h>
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
+#include "../include/lustre_dlm.h"
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
 #include <linux/list.h>
-
 #include "ldlm_internal.h"
 
 int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
@@ -95,20 +94,12 @@ ldlm_flocks_overlap(struct ldlm_lock *lock, struct ldlm_lock *new)
 		lock->l_policy_data.l_flock.start));
 }
 
-static inline int ldlm_flock_blocking_link(struct ldlm_lock *req,
-					   struct ldlm_lock *lock)
+static inline void ldlm_flock_blocking_link(struct ldlm_lock *req,
+					    struct ldlm_lock *lock)
 {
-	int rc = 0;
-
 	/* For server only */
 	if (req->l_export == NULL)
-		return 0;
-
-	if (unlikely(req->l_export->exp_flock_hash == NULL)) {
-		rc = ldlm_init_flock_export(req->l_export);
-		if (rc)
-			goto error;
-	}
+		return;
 
 	LASSERT(hlist_unhashed(&req->l_exp_flock_hash));
 
@@ -121,8 +112,6 @@ static inline int ldlm_flock_blocking_link(struct ldlm_lock *req,
 	cfs_hash_add(req->l_export->exp_flock_hash,
 		     &req->l_policy_data.l_flock.owner,
 		     &req->l_exp_flock_hash);
-error:
-	return rc;
 }
 
 static inline void ldlm_flock_blocking_unlink(struct ldlm_lock *req)
@@ -142,8 +131,6 @@ static inline void ldlm_flock_blocking_unlink(struct ldlm_lock *req)
 static inline void
 ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
 {
-	ENTRY;
-
 	LDLM_DEBUG(lock, "ldlm_flock_destroy(mode: %d, flags: 0x%llx)",
 		   mode, flags);
 
@@ -162,7 +149,6 @@ ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
 	}
 
 	ldlm_lock_destroy_nolock(lock);
-	EXIT;
 }
 
 /**
@@ -198,6 +184,7 @@ ldlm_flock_deadlock(struct ldlm_lock *req, struct ldlm_lock *bl_lock)
 		if (lock == NULL)
 			break;
 
+		LASSERT(req != lock);
 		flock = &lock->l_policy_data.l_flock;
 		LASSERT(flock->owner == bl_owner);
 		bl_owner = flock->blocking_owner;
@@ -215,6 +202,26 @@ ldlm_flock_deadlock(struct ldlm_lock *req, struct ldlm_lock *bl_lock)
 	class_export_put(bl_exp);
 
 	return 0;
+}
+
+static void ldlm_flock_cancel_on_deadlock(struct ldlm_lock *lock,
+					  struct list_head *work_list)
+{
+	CDEBUG(D_INFO, "reprocess deadlock req=%p\n", lock);
+
+	if ((exp_connect_flags(lock->l_export) &
+				OBD_CONNECT_FLOCK_DEAD) == 0) {
+		CERROR(
+		      "deadlock found, but client doesn't support flock canceliation\n");
+	} else {
+		LASSERT(lock->l_completion_ast);
+		LASSERT((lock->l_flags & LDLM_FL_AST_SENT) == 0);
+		lock->l_flags |= LDLM_FL_AST_SENT | LDLM_FL_CANCEL_ON_BLOCK |
+			LDLM_FL_FLOCK_DEADLOCK;
+		ldlm_flock_blocking_unlink(lock);
+		ldlm_resource_unlink_lock(lock);
+		ldlm_add_ast_work_item(lock, NULL, work_list);
+	}
 }
 
 /**
@@ -252,12 +259,10 @@ ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
 	int overlaps = 0;
 	int splitted = 0;
 	const struct ldlm_callback_suite null_cbs = { NULL };
-	int rc;
-	ENTRY;
 
-	CDEBUG(D_DLMTRACE, "flags %#llx owner "LPU64" pid %u mode %u start "
-	       LPU64" end "LPU64"\n", *flags,
-	       new->l_policy_data.l_flock.owner,
+	CDEBUG(D_DLMTRACE,
+	       "flags %#llx owner %llu pid %u mode %u start %llu end %llu\n",
+	       *flags, new->l_policy_data.l_flock.owner,
 	       new->l_policy_data.l_flock.pid, mode,
 	       req->l_policy_data.l_flock.start,
 	       req->l_policy_data.l_flock.end);
@@ -286,6 +291,8 @@ reprocess:
 			}
 		}
 	} else {
+		int reprocess_failed = 0;
+
 		lockmode_verify(mode);
 
 		/* This loop determines if there are existing locks
@@ -307,13 +314,20 @@ reprocess:
 			if (!ldlm_flocks_overlap(lock, req))
 				continue;
 
-			if (!first_enq)
-				RETURN(LDLM_ITER_CONTINUE);
+			if (!first_enq) {
+				reprocess_failed = 1;
+				if (ldlm_flock_deadlock(req, lock)) {
+					ldlm_flock_cancel_on_deadlock(req,
+							work_list);
+					return LDLM_ITER_CONTINUE;
+				}
+				continue;
+			}
 
 			if (*flags & LDLM_FL_BLOCK_NOWAIT) {
 				ldlm_flock_destroy(req, mode, *flags);
 				*err = -EAGAIN;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 
 			if (*flags & LDLM_FL_TEST_LOCK) {
@@ -326,32 +340,33 @@ reprocess:
 				req->l_policy_data.l_flock.end =
 					lock->l_policy_data.l_flock.end;
 				*flags |= LDLM_FL_LOCK_CHANGED;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
+
+			/* add lock to blocking list before deadlock
+			 * check to prevent race */
+			ldlm_flock_blocking_link(req, lock);
 
 			if (ldlm_flock_deadlock(req, lock)) {
+				ldlm_flock_blocking_unlink(req);
 				ldlm_flock_destroy(req, mode, *flags);
 				*err = -EDEADLK;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 
-			rc = ldlm_flock_blocking_link(req, lock);
-			if (rc) {
-				ldlm_flock_destroy(req, mode, *flags);
-				*err = rc;
-				RETURN(LDLM_ITER_STOP);
-			}
 			ldlm_resource_add_lock(res, &res->lr_waiting, req);
 			*flags |= LDLM_FL_BLOCK_GRANTED;
-			RETURN(LDLM_ITER_STOP);
+			return LDLM_ITER_STOP;
 		}
+		if (reprocess_failed)
+			return LDLM_ITER_CONTINUE;
 	}
 
 	if (*flags & LDLM_FL_TEST_LOCK) {
 		ldlm_flock_destroy(req, mode, *flags);
 		req->l_req_mode = LCK_NL;
 		*flags |= LDLM_FL_LOCK_CHANGED;
-		RETURN(LDLM_ITER_STOP);
+		return LDLM_ITER_STOP;
 	}
 
 	/* In case we had slept on this lock request take it off of the
@@ -463,7 +478,7 @@ reprocess:
 				ldlm_flock_destroy(req, lock->l_granted_mode,
 						   *flags);
 				*err = -ENOLCK;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 			goto reprocess;
 		}
@@ -483,7 +498,8 @@ reprocess:
 			new->l_policy_data.l_flock.end + 1;
 		new2->l_conn_export = lock->l_conn_export;
 		if (lock->l_export != NULL) {
-			new2->l_export = class_export_lock_get(lock->l_export, new2);
+			new2->l_export = class_export_lock_get(lock->l_export,
+							       new2);
 			if (new2->l_export->exp_lock_hash &&
 			    hlist_unhashed(&new2->l_exp_hash))
 				cfs_hash_add(new2->l_export->exp_lock_hash,
@@ -530,7 +546,7 @@ reprocess:
 		ldlm_flock_destroy(req, mode, *flags);
 
 	ldlm_resource_dump(D_INFO, res);
-	RETURN(LDLM_ITER_CONTINUE);
+	return LDLM_ITER_CONTINUE;
 }
 
 struct ldlm_flock_wait_data {
@@ -542,7 +558,6 @@ static void
 ldlm_flock_interrupted_wait(void *data)
 {
 	struct ldlm_lock *lock;
-	ENTRY;
 
 	lock = ((struct ldlm_flock_wait_data *)data)->fwd_lock;
 
@@ -553,8 +568,6 @@ ldlm_flock_interrupted_wait(void *data)
 	/* client side - set flag to prevent lock from being put on LRU list */
 	lock->l_flags |= LDLM_FL_CBPENDING;
 	unlock_res_and_lock(lock);
-
-	EXIT;
 }
 
 /**
@@ -577,7 +590,6 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	struct l_wait_info	      lwi;
 	ldlm_error_t		    err;
 	int			     rc = 0;
-	ENTRY;
 
 	CDEBUG(D_DLMTRACE, "flags: 0x%llx data: %p getlk: %p\n",
 	       flags, data, getlk);
@@ -595,7 +607,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 
 		/* Need to wake up the waiter if we were evicted */
 		wake_up(&lock->l_waitq);
-		RETURN(0);
+		return 0;
 	}
 
 	LASSERT(flags != LDLM_FL_WAIT_NOREPROC);
@@ -607,11 +619,10 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 			goto granted;
 		/* CP AST RPC: lock get granted, wake it up */
 		wake_up(&lock->l_waitq);
-		RETURN(0);
+		return 0;
 	}
 
-	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, "
-		   "sleeping");
+	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, sleeping");
 	fwd.fwd_lock = lock;
 	obd = class_exp2obd(lock->l_conn_export);
 
@@ -633,26 +644,26 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	if (rc) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
 			   rc);
-		RETURN(rc);
+		return rc;
 	}
 
 granted:
 	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT, 10);
 
-	if (lock->l_destroyed) {
+	if (lock->l_flags & LDLM_FL_DESTROYED) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: destroyed");
-		RETURN(0);
+		return 0;
 	}
 
 	if (lock->l_flags & LDLM_FL_FAILED) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed");
-		RETURN(-EIO);
+		return -EIO;
 	}
 
 	if (rc) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
 			   rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	LDLM_DEBUG(lock, "client-side enqueue granted");
@@ -665,27 +676,27 @@ granted:
 	/* ldlm_lock_enqueue() has already placed lock on the granted list. */
 	list_del_init(&lock->l_res_link);
 
-	if (flags & LDLM_FL_TEST_LOCK) {
+	if (lock->l_flags & LDLM_FL_FLOCK_DEADLOCK) {
+		LDLM_DEBUG(lock, "client-side enqueue deadlock received");
+		rc = -EDEADLK;
+	} else if (flags & LDLM_FL_TEST_LOCK) {
 		/* fcntl(F_GETLK) request */
 		/* The old mode was saved in getlk->fl_type so that if the mode
 		 * in the lock changes we can decref the appropriate refcount.*/
-		ldlm_flock_destroy(lock, flock_type(getlk),
-				   LDLM_FL_WAIT_NOREPROC);
+		ldlm_flock_destroy(lock, getlk->fl_type, LDLM_FL_WAIT_NOREPROC);
 		switch (lock->l_granted_mode) {
 		case LCK_PR:
-			flock_set_type(getlk, F_RDLCK);
+			getlk->fl_type = F_RDLCK;
 			break;
 		case LCK_PW:
-			flock_set_type(getlk, F_WRLCK);
+			getlk->fl_type = F_WRLCK;
 			break;
 		default:
-			flock_set_type(getlk, F_UNLCK);
+			getlk->fl_type = F_UNLCK;
 		}
-		flock_set_pid(getlk, (pid_t)lock->l_policy_data.l_flock.pid);
-		flock_set_start(getlk,
-				(loff_t)lock->l_policy_data.l_flock.start);
-		flock_set_end(getlk,
-			      (loff_t)lock->l_policy_data.l_flock.end);
+		getlk->fl_pid = (pid_t)lock->l_policy_data.l_flock.pid;
+		getlk->fl_start = (loff_t)lock->l_policy_data.l_flock.start;
+		getlk->fl_end = (loff_t)lock->l_policy_data.l_flock.end;
 	} else {
 		__u64 noreproc = LDLM_FL_WAIT_NOREPROC;
 
@@ -694,15 +705,13 @@ granted:
 		ldlm_process_flock_lock(lock, &noreproc, 1, &err, NULL);
 	}
 	unlock_res_and_lock(lock);
-	RETURN(0);
+	return rc;
 }
 EXPORT_SYMBOL(ldlm_flock_completion_ast);
 
 int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			    void *data, int flag)
 {
-	ENTRY;
-
 	LASSERT(lock);
 	LASSERT(flag == LDLM_CB_CANCELING);
 
@@ -710,7 +719,7 @@ int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 	lock_res_and_lock(lock);
 	ldlm_flock_blocking_unlink(lock);
 	unlock_res_and_lock(lock);
-	RETURN(0);
+	return 0;
 }
 
 void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
@@ -751,7 +760,7 @@ void ldlm_flock_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
  * Export handle<->flock hash operations.
  */
 static unsigned
-ldlm_export_flock_hash(cfs_hash_t *hs, const void *key, unsigned mask)
+ldlm_export_flock_hash(struct cfs_hash *hs, const void *key, unsigned mask)
 {
 	return cfs_hash_u64_hash(*(__u64 *)key, mask);
 }
@@ -778,7 +787,7 @@ ldlm_export_flock_object(struct hlist_node *hnode)
 }
 
 static void
-ldlm_export_flock_get(cfs_hash_t *hs, struct hlist_node *hnode)
+ldlm_export_flock_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ldlm_lock *lock;
 	struct ldlm_flock *flock;
@@ -793,7 +802,7 @@ ldlm_export_flock_get(cfs_hash_t *hs, struct hlist_node *hnode)
 }
 
 static void
-ldlm_export_flock_put(cfs_hash_t *hs, struct hlist_node *hnode)
+ldlm_export_flock_put(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ldlm_lock *lock;
 	struct ldlm_flock *flock;
@@ -822,6 +831,9 @@ static cfs_hash_ops_t ldlm_export_flock_ops = {
 
 int ldlm_init_flock_export(struct obd_export *exp)
 {
+	if (strcmp(exp->exp_obd->obd_type->typ_name, LUSTRE_MDT_NAME) != 0)
+		return 0;
+
 	exp->exp_flock_hash =
 		cfs_hash_create(obd_uuid2str(&exp->exp_client_uuid),
 				HASH_EXP_LOCK_CUR_BITS,
@@ -831,19 +843,17 @@ int ldlm_init_flock_export(struct obd_export *exp)
 				&ldlm_export_flock_ops,
 				CFS_HASH_DEFAULT | CFS_HASH_NBLK_CHANGE);
 	if (!exp->exp_flock_hash)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ldlm_init_flock_export);
 
 void ldlm_destroy_flock_export(struct obd_export *exp)
 {
-	ENTRY;
 	if (exp->exp_flock_hash) {
 		cfs_hash_putref(exp->exp_flock_hash);
 		exp->exp_flock_hash = NULL;
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_destroy_flock_export);

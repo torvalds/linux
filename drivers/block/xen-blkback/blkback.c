@@ -47,6 +47,7 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 #include <xen/balloon.h>
+#include <xen/grant_table.h>
 #include "common.h"
 
 /*
@@ -100,7 +101,7 @@ module_param(log_stats, int, 0644);
 
 #define BLKBACK_INVALID_HANDLE (~0)
 
-/* Number of free pages to remove on each call to free_xenballooned_pages */
+/* Number of free pages to remove on each call to gnttab_free_pages */
 #define NUM_BATCH_FREE_PAGES 10
 
 static inline int get_free_page(struct xen_blkif *blkif, struct page **page)
@@ -111,7 +112,7 @@ static inline int get_free_page(struct xen_blkif *blkif, struct page **page)
 	if (list_empty(&blkif->free_pages)) {
 		BUG_ON(blkif->free_pages_num != 0);
 		spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
-		return alloc_xenballooned_pages(1, page, false);
+		return gnttab_alloc_pages(1, page);
 	}
 	BUG_ON(blkif->free_pages_num == 0);
 	page[0] = list_first_entry(&blkif->free_pages, struct page, lru);
@@ -151,14 +152,14 @@ static inline void shrink_free_pagepool(struct xen_blkif *blkif, int num)
 		blkif->free_pages_num--;
 		if (++num_pages == NUM_BATCH_FREE_PAGES) {
 			spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
-			free_xenballooned_pages(num_pages, page);
+			gnttab_free_pages(num_pages, page);
 			spin_lock_irqsave(&blkif->free_pages_lock, flags);
 			num_pages = 0;
 		}
 	}
 	spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
 	if (num_pages != 0)
-		free_xenballooned_pages(num_pages, page);
+		gnttab_free_pages(num_pages, page);
 }
 
 #define vaddr(page) ((unsigned long)pfn_to_kaddr(page_to_pfn(page)))
@@ -262,6 +263,17 @@ static void put_persistent_gnt(struct xen_blkif *blkif,
 	atomic_dec(&blkif->persistent_gnt_in_use);
 }
 
+static void free_persistent_gnts_unmap_callback(int result,
+						struct gntab_unmap_queue_data *data)
+{
+	struct completion *c = data->data;
+
+	/* BUG_ON used to reproduce existing behaviour,
+	   but is this the best way to deal with this? */
+	BUG_ON(result);
+	complete(c);
+}
+
 static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
                                  unsigned int num)
 {
@@ -269,8 +281,17 @@ static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct persistent_gnt *persistent_gnt;
 	struct rb_node *n;
-	int ret = 0;
 	int segs_to_unmap = 0;
+	struct gntab_unmap_queue_data unmap_data;
+	struct completion unmap_completion;
+
+	init_completion(&unmap_completion);
+
+	unmap_data.data = &unmap_completion;
+	unmap_data.done = &free_persistent_gnts_unmap_callback;
+	unmap_data.pages = pages;
+	unmap_data.unmap_ops = unmap;
+	unmap_data.kunmap_ops = NULL;
 
 	foreach_grant_safe(persistent_gnt, n, root, node) {
 		BUG_ON(persistent_gnt->handle ==
@@ -285,9 +306,11 @@ static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
 
 		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST ||
 			!rb_next(&persistent_gnt->node)) {
-			ret = gnttab_unmap_refs(unmap, NULL, pages,
-				segs_to_unmap);
-			BUG_ON(ret);
+
+			unmap_data.count = segs_to_unmap;
+			gnttab_unmap_refs_async(&unmap_data);
+			wait_for_completion(&unmap_completion);
+
 			put_free_pages(blkif, pages, segs_to_unmap);
 			segs_to_unmap = 0;
 		}
@@ -299,7 +322,7 @@ static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
 	BUG_ON(num != 0);
 }
 
-static void unmap_purged_grants(struct work_struct *work)
+void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
@@ -375,7 +398,7 @@ static void purge_persistent_gnt(struct xen_blkif *blkif)
 
 	pr_debug(DRV_PFX "Going to purge %u persistent grants\n", num_clean);
 
-	INIT_LIST_HEAD(&blkif->persistent_purge_list);
+	BUG_ON(!list_empty(&blkif->persistent_purge_list));
 	root = &blkif->persistent_gnts;
 purge_list:
 	foreach_grant_safe(persistent_gnt, n, root, node) {
@@ -420,7 +443,6 @@ finished:
 	blkif->vbd.overflow_max_grants = 0;
 
 	/* We can defer this work */
-	INIT_WORK(&blkif->persistent_purge_work, unmap_purged_grants);
 	schedule_work(&blkif->persistent_purge_work);
 	pr_debug(DRV_PFX "Purged %u/%u\n", (total - num_clean), total);
 	return;
@@ -625,16 +647,8 @@ purge_gnt_list:
 			print_stats(blkif);
 	}
 
-	/* Since we are shutting down remove all pages from the buffer */
-	shrink_free_pagepool(blkif, 0 /* All */);
-
-	/* Free all persistent grant pages */
-	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts))
-		free_persistent_gnts(blkif, &blkif->persistent_gnts,
-			blkif->persistent_gnt_c);
-
-	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
-	blkif->persistent_gnt_c = 0;
+	/* Drain pending purge work */
+	flush_work(&blkif->persistent_purge_work);
 
 	if (log_stats)
 		print_stats(blkif);
@@ -646,17 +660,30 @@ purge_gnt_list:
 }
 
 /*
- * Unmap the grant references, and also remove the M2P over-rides
- * used in the 'pending_req'.
+ * Remove persistent grants and empty the pool of free pages
  */
-static void xen_blkbk_unmap(struct xen_blkif *blkif,
-                            struct grant_page *pages[],
-                            int num)
+void xen_blkbk_free_caches(struct xen_blkif *blkif)
 {
-	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	struct page *unmap_pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	/* Free all persistent grant pages */
+	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts))
+		free_persistent_gnts(blkif, &blkif->persistent_gnts,
+			blkif->persistent_gnt_c);
+
+	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
+	blkif->persistent_gnt_c = 0;
+
+	/* Since we are shutting down remove all pages from the buffer */
+	shrink_free_pagepool(blkif, 0 /* All */);
+}
+
+static unsigned int xen_blkbk_unmap_prepare(
+	struct xen_blkif *blkif,
+	struct grant_page **pages,
+	unsigned int num,
+	struct gnttab_unmap_grant_ref *unmap_ops,
+	struct page **unmap_pages)
+{
 	unsigned int i, invcount = 0;
-	int ret;
 
 	for (i = 0; i < num; i++) {
 		if (pages[i]->persistent_gnt != NULL) {
@@ -666,21 +693,95 @@ static void xen_blkbk_unmap(struct xen_blkif *blkif,
 		if (pages[i]->handle == BLKBACK_INVALID_HANDLE)
 			continue;
 		unmap_pages[invcount] = pages[i]->page;
-		gnttab_set_unmap_op(&unmap[invcount], vaddr(pages[i]->page),
+		gnttab_set_unmap_op(&unmap_ops[invcount], vaddr(pages[i]->page),
 				    GNTMAP_host_map, pages[i]->handle);
 		pages[i]->handle = BLKBACK_INVALID_HANDLE;
-		if (++invcount == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
-			ret = gnttab_unmap_refs(unmap, NULL, unmap_pages,
-			                        invcount);
+		invcount++;
+       }
+
+       return invcount;
+}
+
+static void xen_blkbk_unmap_and_respond_callback(int result, struct gntab_unmap_queue_data *data)
+{
+	struct pending_req* pending_req = (struct pending_req*) (data->data);
+	struct xen_blkif *blkif = pending_req->blkif;
+
+	/* BUG_ON used to reproduce existing behaviour,
+	   but is this the best way to deal with this? */
+	BUG_ON(result);
+
+	put_free_pages(blkif, data->pages, data->count);
+	make_response(blkif, pending_req->id,
+		      pending_req->operation, pending_req->status);
+	free_req(blkif, pending_req);
+	/*
+	 * Make sure the request is freed before releasing blkif,
+	 * or there could be a race between free_req and the
+	 * cleanup done in xen_blkif_free during shutdown.
+	 *
+	 * NB: The fact that we might try to wake up pending_free_wq
+	 * before drain_complete (in case there's a drain going on)
+	 * it's not a problem with our current implementation
+	 * because we can assure there's no thread waiting on
+	 * pending_free_wq if there's a drain going on, but it has
+	 * to be taken into account if the current model is changed.
+	 */
+	if (atomic_dec_and_test(&blkif->inflight) && atomic_read(&blkif->drain)) {
+		complete(&blkif->drain_complete);
+	}
+	xen_blkif_put(blkif);
+}
+
+static void xen_blkbk_unmap_and_respond(struct pending_req *req)
+{
+	struct gntab_unmap_queue_data* work = &req->gnttab_unmap_data;
+	struct xen_blkif *blkif = req->blkif;
+	struct grant_page **pages = req->segments;
+	unsigned int invcount;
+
+	invcount = xen_blkbk_unmap_prepare(blkif, pages, req->nr_pages,
+					   req->unmap, req->unmap_pages);
+
+	work->data = req;
+	work->done = xen_blkbk_unmap_and_respond_callback;
+	work->unmap_ops = req->unmap;
+	work->kunmap_ops = NULL;
+	work->pages = req->unmap_pages;
+	work->count = invcount;
+
+	gnttab_unmap_refs_async(&req->gnttab_unmap_data);
+}
+
+
+/*
+ * Unmap the grant references.
+ *
+ * This could accumulate ops up to the batch size to reduce the number
+ * of hypercalls, but since this is only used in error paths there's
+ * no real need.
+ */
+static void xen_blkbk_unmap(struct xen_blkif *blkif,
+                            struct grant_page *pages[],
+                            int num)
+{
+	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page *unmap_pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	unsigned int invcount = 0;
+	int ret;
+
+	while (num) {
+		unsigned int batch = min(num, BLKIF_MAX_SEGMENTS_PER_REQUEST);
+		
+		invcount = xen_blkbk_unmap_prepare(blkif, pages, batch,
+						   unmap, unmap_pages);
+		if (invcount) {
+			ret = gnttab_unmap_refs(unmap, NULL, unmap_pages, invcount);
 			BUG_ON(ret);
 			put_free_pages(blkif, unmap_pages, invcount);
-			invcount = 0;
 		}
-	}
-	if (invcount) {
-		ret = gnttab_unmap_refs(unmap, NULL, unmap_pages, invcount);
-		BUG_ON(ret);
-		put_free_pages(blkif, unmap_pages, invcount);
+		pages += batch;
+		num -= batch;
 	}
 }
 
@@ -755,6 +856,7 @@ again:
 			BUG_ON(new_map_idx >= segs_to_map);
 			if (unlikely(map[new_map_idx].status != 0)) {
 				pr_debug(DRV_PFX "invalid buffer -- could not remap it\n");
+				put_free_pages(blkif, &pages[seg_idx]->page, 1);
 				pages[seg_idx]->handle = BLKBACK_INVALID_HANDLE;
 				ret |= 1;
 				goto next;
@@ -838,7 +940,7 @@ static int xen_blkbk_parse_indirect(struct blkif_request *req,
 	struct grant_page **pages = pending_req->indirect_pages;
 	struct xen_blkif *blkif = pending_req->blkif;
 	int indirect_grefs, rc, n, nseg, i;
-	struct blkif_request_segment_aligned *segments = NULL;
+	struct blkif_request_segment *segments = NULL;
 
 	nseg = pending_req->nr_pages;
 	indirect_grefs = INDIRECT_PAGES(nseg);
@@ -887,6 +989,8 @@ static int dispatch_discard_io(struct xen_blkif *blkif,
 	unsigned long secure;
 	struct phys_req preq;
 
+	xen_blkif_get(blkif);
+
 	preq.sector_number = req->u.discard.sector_number;
 	preq.nr_sects      = req->u.discard.nr_sectors;
 
@@ -899,7 +1003,6 @@ static int dispatch_discard_io(struct xen_blkif *blkif,
 	}
 	blkif->st_ds_req++;
 
-	xen_blkif_get(blkif);
 	secure = (blkif->vbd.discard_secure &&
 		 (req->u.discard.flag & BLKIF_DISCARD_SECURE)) ?
 		 BLKDEV_DISCARD_SECURE : 0;
@@ -933,9 +1036,7 @@ static void xen_blk_drain_io(struct xen_blkif *blkif)
 {
 	atomic_set(&blkif->drain, 1);
 	do {
-		/* The initial value is one, and one refcnt taken at the
-		 * start of the xen_blkif_schedule thread. */
-		if (atomic_read(&blkif->refcnt) <= 2)
+		if (atomic_read(&blkif->inflight) == 0)
 			break;
 		wait_for_completion_interruptible_timeout(
 				&blkif->drain_complete, HZ);
@@ -974,19 +1075,8 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 	 * the grant references associated with 'request' and provide
 	 * the proper response on the ring.
 	 */
-	if (atomic_dec_and_test(&pending_req->pendcnt)) {
-		xen_blkbk_unmap(pending_req->blkif,
-		                pending_req->segments,
-		                pending_req->nr_pages);
-		make_response(pending_req->blkif, pending_req->id,
-			      pending_req->operation, pending_req->status);
-		xen_blkif_put(pending_req->blkif);
-		if (atomic_read(&pending_req->blkif->refcnt) <= 2) {
-			if (atomic_read(&pending_req->blkif->drain))
-				complete(&pending_req->blkif->drain_complete);
-		}
-		free_req(pending_req->blkif, pending_req);
-	}
+	if (atomic_dec_and_test(&pending_req->pendcnt))
+		xen_blkbk_unmap_and_respond(pending_req);
 }
 
 /*
@@ -1239,6 +1329,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	 * below (in "!bio") if we are handling a BLKIF_OP_DISCARD.
 	 */
 	xen_blkif_get(blkif);
+	atomic_inc(&blkif->inflight);
 
 	for (i = 0; i < nseg; i++) {
 		while ((bio == NULL) ||
@@ -1256,7 +1347,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 			bio->bi_bdev    = preq.bdev;
 			bio->bi_private = pending_req;
 			bio->bi_end_io  = end_block_io_op;
-			bio->bi_sector  = preq.sector_number;
+			bio->bi_iter.bi_sector  = preq.sector_number;
 		}
 
 		preq.sector_number += seg[i].nsec;

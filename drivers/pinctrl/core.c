@@ -153,9 +153,7 @@ int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name)
 		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
 		/* Pin space may be sparse */
-		if (desc == NULL)
-			continue;
-		if (desc->name && !strcmp(name, desc->name))
+		if (desc && !strcmp(name, desc->name))
 			return pin;
 	}
 
@@ -357,14 +355,17 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio)
 	/* Loop over the pin controllers */
 	list_for_each_entry(pctldev, &pinctrldev_list, node) {
 		/* Loop over the ranges */
+		mutex_lock(&pctldev->mutex);
 		list_for_each_entry(range, &pctldev->gpio_ranges, node) {
 			/* Check if any gpio range overlapped with gpio chip */
 			if (range->base + range->npins - 1 < chip->base ||
 			    range->base > chip->base + chip->ngpio - 1)
 				continue;
+			mutex_unlock(&pctldev->mutex);
 			mutex_unlock(&pinctrldev_list_mutex);
 			return true;
 		}
+		mutex_unlock(&pctldev->mutex);
 	}
 
 	mutex_unlock(&pinctrldev_list_mutex);
@@ -392,6 +393,8 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 {
 	struct pinctrl_dev *pctldev = NULL;
 
+	mutex_lock(&pinctrldev_list_mutex);
+
 	/* Loop over the pin controllers */
 	list_for_each_entry(pctldev, &pinctrldev_list, node) {
 		struct pinctrl_gpio_range *range;
@@ -400,9 +403,12 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 		if (range != NULL) {
 			*outdev = pctldev;
 			*outrange = range;
+			mutex_unlock(&pinctrldev_list_mutex);
 			return 0;
 		}
 	}
+
+	mutex_unlock(&pinctrldev_list_mutex);
 
 	return -EPROBE_DEFER;
 }
@@ -455,6 +461,23 @@ struct pinctrl_dev *pinctrl_find_and_add_gpio_range(const char *devname,
 	return pctldev;
 }
 EXPORT_SYMBOL_GPL(pinctrl_find_and_add_gpio_range);
+
+int pinctrl_get_group_pins(struct pinctrl_dev *pctldev, const char *pin_group,
+				const unsigned **pins, unsigned *num_pins)
+{
+	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
+	int gs;
+
+	if (!pctlops->get_group_pins)
+		return -EINVAL;
+
+	gs = pinctrl_get_group_selector(pctldev, pin_group);
+	if (gs < 0)
+		return gs;
+
+	return pctlops->get_group_pins(pctldev, gs, pins, num_pins);
+}
+EXPORT_SYMBOL_GPL(pinctrl_get_group_pins);
 
 /**
  * pinctrl_find_gpio_range_from_pin() - locate the GPIO range for a pin
@@ -556,10 +579,14 @@ int pinctrl_request_gpio(unsigned gpio)
 		return ret;
 	}
 
+	mutex_lock(&pctldev->mutex);
+
 	/* Convert to the pin controllers number space */
 	pin = gpio_to_pin(range, gpio);
 
 	ret = pinmux_request_gpio(pctldev, range, pin, gpio);
+
+	mutex_unlock(&pctldev->mutex);
 
 	return ret;
 }
@@ -827,7 +854,9 @@ static struct pinctrl *create_pinctrl(struct device *dev)
 	kref_init(&p->users);
 
 	/* Add the pinctrl handle to the global list */
+	mutex_lock(&pinctrl_list_mutex);
 	list_add_tail(&p->node, &pinctrl_list);
+	mutex_unlock(&pinctrl_list_mutex);
 
 	return p;
 }
@@ -963,29 +992,15 @@ int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *state)
 
 	if (p->state) {
 		/*
-		 * The set of groups with a mux configuration in the old state
-		 * may not be identical to the set of groups with a mux setting
-		 * in the new state. While this might be unusual, it's entirely
-		 * possible for the "user"-supplied mapping table to be written
-		 * that way. For each group that was configured in the old state
-		 * but not in the new state, this code puts that group into a
-		 * safe/disabled state.
+		 * For each pinmux setting in the old state, forget SW's record
+		 * of mux owner for that pingroup. Any pingroups which are
+		 * still owned by the new state will be re-acquired by the call
+		 * to pinmux_enable_setting() in the loop below.
 		 */
 		list_for_each_entry(setting, &p->state->settings, node) {
-			bool found = false;
 			if (setting->type != PIN_MAP_TYPE_MUX_GROUP)
 				continue;
-			list_for_each_entry(setting2, &state->settings, node) {
-				if (setting2->type != PIN_MAP_TYPE_MUX_GROUP)
-					continue;
-				if (setting2->data.mux.group ==
-						setting->data.mux.group) {
-					found = true;
-					break;
-				}
-			}
-			if (!found)
-				pinmux_disable_setting(setting);
+			pinmux_disable_setting(setting);
 		}
 	}
 
@@ -1228,22 +1243,35 @@ EXPORT_SYMBOL_GPL(pinctrl_force_default);
 #ifdef CONFIG_PM
 
 /**
+ * pinctrl_pm_select_state() - select pinctrl state for PM
+ * @dev: device to select default state for
+ * @state: state to set
+ */
+static int pinctrl_pm_select_state(struct device *dev,
+				   struct pinctrl_state *state)
+{
+	struct dev_pin_info *pins = dev->pins;
+	int ret;
+
+	if (IS_ERR(state))
+		return 0; /* No such state */
+	ret = pinctrl_select_state(pins->p, state);
+	if (ret)
+		dev_err(dev, "failed to activate pinctrl state %s\n",
+			state->name);
+	return ret;
+}
+
+/**
  * pinctrl_pm_select_default_state() - select default pinctrl state for PM
  * @dev: device to select default state for
  */
 int pinctrl_pm_select_default_state(struct device *dev)
 {
-	struct dev_pin_info *pins = dev->pins;
-	int ret;
-
-	if (!pins)
+	if (!dev->pins)
 		return 0;
-	if (IS_ERR(pins->default_state))
-		return 0; /* No default state */
-	ret = pinctrl_select_state(pins->p, pins->default_state);
-	if (ret)
-		dev_err(dev, "failed to activate default pinctrl state\n");
-	return ret;
+
+	return pinctrl_pm_select_state(dev, dev->pins->default_state);
 }
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_default_state);
 
@@ -1253,17 +1281,10 @@ EXPORT_SYMBOL_GPL(pinctrl_pm_select_default_state);
  */
 int pinctrl_pm_select_sleep_state(struct device *dev)
 {
-	struct dev_pin_info *pins = dev->pins;
-	int ret;
-
-	if (!pins)
+	if (!dev->pins)
 		return 0;
-	if (IS_ERR(pins->sleep_state))
-		return 0; /* No sleep state */
-	ret = pinctrl_select_state(pins->p, pins->sleep_state);
-	if (ret)
-		dev_err(dev, "failed to activate pinctrl sleep state\n");
-	return ret;
+
+	return pinctrl_pm_select_state(dev, dev->pins->sleep_state);
 }
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_sleep_state);
 
@@ -1273,17 +1294,10 @@ EXPORT_SYMBOL_GPL(pinctrl_pm_select_sleep_state);
  */
 int pinctrl_pm_select_idle_state(struct device *dev)
 {
-	struct dev_pin_info *pins = dev->pins;
-	int ret;
-
-	if (!pins)
+	if (!dev->pins)
 		return 0;
-	if (IS_ERR(pins->idle_state))
-		return 0; /* No idle state */
-	ret = pinctrl_select_state(pins->p, pins->idle_state);
-	if (ret)
-		dev_err(dev, "failed to activate pinctrl idle state\n");
-	return ret;
+
+	return pinctrl_pm_select_state(dev, dev->pins->idle_state);
 }
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_idle_state);
 #endif
@@ -1337,15 +1351,16 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 
 	seq_puts(s, "registered pin groups:\n");
 	while (selector < ngroups) {
-		const unsigned *pins;
-		unsigned num_pins;
+		const unsigned *pins = NULL;
+		unsigned num_pins = 0;
 		const char *gname = ops->get_group_name(pctldev, selector);
 		const char *pname;
-		int ret;
+		int ret = 0;
 		int i;
 
-		ret = ops->get_group_pins(pctldev, selector,
-					  &pins, &num_pins);
+		if (ops->get_group_pins)
+			ret = ops->get_group_pins(pctldev, selector,
+						  &pins, &num_pins);
 		if (ret)
 			seq_printf(s, "%s [ERROR GETTING PINS]\n",
 				   gname);
@@ -1619,8 +1634,10 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 			    device_root, pctldev, &pinctrl_groups_ops);
 	debugfs_create_file("gpio-ranges", S_IFREG | S_IRUGO,
 			    device_root, pctldev, &pinctrl_gpioranges_ops);
-	pinmux_init_device_debugfs(device_root, pctldev);
-	pinconf_init_device_debugfs(device_root, pctldev);
+	if (pctldev->desc->pmxops)
+		pinmux_init_device_debugfs(device_root, pctldev);
+	if (pctldev->desc->confops)
+		pinconf_init_device_debugfs(device_root, pctldev);
 }
 
 static void pinctrl_remove_device_debugfs(struct pinctrl_dev *pctldev)
@@ -1667,8 +1684,7 @@ static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
 
 	if (!ops ||
 	    !ops->get_groups_count ||
-	    !ops->get_group_name ||
-	    !ops->get_group_pins)
+	    !ops->get_group_name)
 		return -EINVAL;
 
 	if (ops->dt_node_to_map && !ops->dt_free_map)
@@ -1785,14 +1801,15 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 	if (pctldev == NULL)
 		return;
 
-	mutex_lock(&pinctrldev_list_mutex);
 	mutex_lock(&pctldev->mutex);
-
 	pinctrl_remove_device_debugfs(pctldev);
+	mutex_unlock(&pctldev->mutex);
 
 	if (!IS_ERR(pctldev->p))
 		pinctrl_put(pctldev->p);
 
+	mutex_lock(&pinctrldev_list_mutex);
+	mutex_lock(&pctldev->mutex);
 	/* TODO: check that no pinmuxes are still active? */
 	list_del(&pctldev->node);
 	/* Destroy descriptor tree */

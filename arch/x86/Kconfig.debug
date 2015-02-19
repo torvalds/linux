@@ -59,6 +59,16 @@ config EARLY_PRINTK_DBGP
 	  with klogd/syslogd or the X server. You should normally N here,
 	  unless you want to debug such a crash. You need usb debug device.
 
+config EARLY_PRINTK_EFI
+	bool "Early printk via the EFI framebuffer"
+	depends on EFI && EARLY_PRINTK
+	select FONT_SUPPORT
+	---help---
+	  Write kernel log output directly into the EFI framebuffer.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized.
+
 config X86_PTDUMP
 	bool "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL
@@ -70,6 +80,15 @@ config X86_PTDUMP
 	  It is probably not a good idea to enable this feature in a production
 	  kernel.
 	  If in doubt, say "N"
+
+config EFI_PGT_DUMP
+	bool "Dump the EFI pagetable"
+	depends on EFI && X86_PTDUMP
+	---help---
+	  Enable this if you want to dump the EFI page table before
+	  enabling virtual mode. This can be used to debug miscellaneous
+	  issues with the mapping of the EFI runtime regions into that
+	  table.
 
 config DEBUG_RODATA
 	bool "Write protect kernel read-only data structures"
@@ -174,6 +193,7 @@ config HAVE_MMIOTRACE_SUPPORT
 config X86_DECODER_SELFTEST
 	bool "x86 instruction decoder selftest"
 	depends on DEBUG_KERNEL && KPROBES
+	depends on !COMPILE_TEST
 	---help---
 	 Perform x86 instruction decoder selftests at build time.
 	 This option is useful for checking the sanity of x86 instruction

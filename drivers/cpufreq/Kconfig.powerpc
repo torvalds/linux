@@ -1,7 +1,6 @@
 config CPU_FREQ_CBE
 	tristate "CBE frequency scaling"
 	depends on CBE_RAS && PPC_CELL
-	select CPU_FREQ_TABLE
 	default m
 	help
 	  This adds the cpufreq driver for Cell BE processors.
@@ -20,7 +19,6 @@ config CPU_FREQ_CBE_PMI
 config CPU_FREQ_MAPLE
 	bool "Support for Maple 970FX Evaluation Board"
 	depends on PPC_MAPLE
-	select CPU_FREQ_TABLE
 	help
 	  This adds support for frequency switching on Maple 970FX
 	  Evaluation Board and compatible boards (IBM JS2x blades).
@@ -28,7 +26,6 @@ config CPU_FREQ_MAPLE
 config PPC_CORENET_CPUFREQ
 	tristate "CPU frequency scaling driver for Freescale E500MC SoCs"
 	depends on PPC_E500MC && OF && COMMON_CLK
-	select CPU_FREQ_TABLE
 	select CLK_PPC_CORENET
 	help
 	  This adds the CPUFreq driver support for Freescale e500mc,
@@ -38,7 +35,6 @@ config PPC_CORENET_CPUFREQ
 config CPU_FREQ_PMAC
 	bool "Support for Apple PowerBooks"
 	depends on ADB_PMU && PPC32
-	select CPU_FREQ_TABLE
 	help
 	  This adds support for frequency switching on Apple PowerBooks,
 	  this currently includes some models of iBook & Titanium
@@ -47,7 +43,6 @@ config CPU_FREQ_PMAC
 config CPU_FREQ_PMAC64
 	bool "Support for some Apple G5s"
 	depends on PPC_PMAC && PPC64
-	select CPU_FREQ_TABLE
 	help
 	  This adds support for frequency switching on Apple iMac G5,
 	  and some of the more recent desktop G5 machines as well.
@@ -55,8 +50,15 @@ config CPU_FREQ_PMAC64
 config PPC_PASEMI_CPUFREQ
 	bool "Support for PA Semi PWRficient"
 	depends on PPC_PASEMI
-	select CPU_FREQ_TABLE
 	default y
 	help
 	  This adds the support for frequency switching on PA Semi
 	  PWRficient processors.
+
+config POWERNV_CPUFREQ
+       tristate "CPU frequency scaling for IBM POWERNV platform"
+       depends on PPC_POWERNV
+       default y
+       help
+	 This adds support for CPU frequency switching on IBM POWERNV
+	 platform

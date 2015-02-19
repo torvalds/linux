@@ -1390,7 +1390,7 @@ static void rp_unthrottle(struct tty_struct *tty)
 	       tty->ldisc.chars_in_buffer(tty));
 #endif
 
-	if (rocket_paranoia_check(info, "rp_throttle"))
+	if (rocket_paranoia_check(info, "rp_unthrottle"))
 		return;
 
 	if (I_IXOFF(tty))
@@ -1458,7 +1458,7 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 
 	orig_jiffies = jiffies;
 #ifdef ROCKET_DEBUG_WAIT_UNTIL_SENT
-	printk(KERN_INFO "In RP_wait_until_sent(%d) (jiff=%lu)...\n", timeout,
+	printk(KERN_INFO "In %s(%d) (jiff=%lu)...\n", __func__, timeout,
 	       jiffies);
 	printk(KERN_INFO "cps=%d...\n", info->cps);
 #endif
@@ -1744,7 +1744,7 @@ static void rp_flush_buffer(struct tty_struct *tty)
 
 #ifdef CONFIG_PCI
 
-static DEFINE_PCI_DEVICE_TABLE(rocket_pci_ids) = {
+static const struct pci_device_id rocket_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP4QUAD) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP8OCTA) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_URP8OCTA) },

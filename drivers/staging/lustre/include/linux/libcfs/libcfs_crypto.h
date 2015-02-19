@@ -31,7 +31,7 @@
 struct cfs_crypto_hash_type {
 	char		*cht_name;      /**< hash algorithm name, equal to
 					 * format name for crypto api */
-	unsigned int    cht_key;	/**< init key by default (vaild for
+	unsigned int    cht_key;	/**< init key by default (valid for
 					 * 4 bytes context like crc32, adler */
 	unsigned int    cht_size;       /**< hash digest size */
 };
@@ -83,8 +83,7 @@ static inline const char *cfs_crypto_hash_name(unsigned char hash_alg)
 	ht = cfs_crypto_hash_type(hash_alg);
 	if (ht)
 		return ht->cht_name;
-	else
-		return "unknown";
+	return "unknown";
 }
 
 /**     Return digest size for valid algorithm identifier or 0 */
@@ -95,8 +94,7 @@ static inline int cfs_crypto_hash_digestsize(unsigned char hash_alg)
 	ht = cfs_crypto_hash_type(hash_alg);
 	if (ht)
 		return ht->cht_size;
-	else
-		return 0;
+	return 0;
 }
 
 /**     Return hash identifier for valid hash algorithm name or 0xFF */
@@ -136,13 +134,13 @@ int cfs_crypto_hash_digest(unsigned char alg,
 /* cfs crypto hash descriptor */
 struct cfs_crypto_hash_desc;
 
-/**     Allocate and initialize desriptor for hash algorithm.
+/**     Allocate and initialize descriptor for hash algorithm.
  *      @param alg	    algorithm id
  *      @param key	    initial value for algorithm, if it is NULL,
  *			    default initial value should be used.
  *      @param key_len	len of initial value
  *      @returns	      pointer to descriptor of hash instance
- *      @retval ERR_PTR(error) when errors occured.
+ *      @retval ERR_PTR(error) when errors occurred.
  */
 struct cfs_crypto_hash_desc*
 	cfs_crypto_hash_init(unsigned char alg,
@@ -175,7 +173,7 @@ int cfs_crypto_hash_update(struct cfs_crypto_hash_desc *desc, const void *buf,
  *     @param desc	      hash descriptor
  *     @param hash	      buffer pointer to store hash digest
  *     @param hash_len	  pointer to hash buffer size, if NULL
- *			      destory hash descriptor
+ *			      destroy hash descriptor
  *     @returns		 status of operation
  *     @retval -ENOSPC	  if hash is NULL, or *hash_len less than
  *			      digest size
@@ -195,7 +193,7 @@ int cfs_crypto_register(void);
 void cfs_crypto_unregister(void);
 
 /**     Return hash speed in Mbytes per second for valid hash algorithm
- *      identifier. If test was unsuccessfull -1 would be return.
+ *      identifier. If test was unsuccessful -1 would be returned.
  */
 int cfs_crypto_hash_speed(unsigned char hash_alg);
 #endif

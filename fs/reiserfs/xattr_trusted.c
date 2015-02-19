@@ -5,7 +5,7 @@
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
 #include "xattr.h"
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int
 trusted_get(struct dentry *dentry, const char *name, void *buffer, size_t size,

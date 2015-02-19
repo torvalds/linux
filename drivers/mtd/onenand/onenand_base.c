@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -2556,10 +2555,6 @@ static int onenand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	int ret;
 
-	/* Check for invalid offset */
-	if (ofs > mtd->size)
-		return -EINVAL;
-
 	onenand_get_device(mtd, FL_READING);
 	ret = onenand_block_isbad_nolock(mtd, ofs, 0);
 	onenand_release_device(mtd);
@@ -3242,20 +3237,17 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 /**
  * onenand_get_fact_prot_info - [MTD Interface] Read factory OTP info
  * @param mtd		MTD device structure
- * @param buf		the databuffer to put/get data
  * @param len		number of bytes to read
+ * @param retlen	pointer to variable to store the number of read bytes
+ * @param buf		the databuffer to put/get data
  *
  * Read factory OTP info.
  */
-static int onenand_get_fact_prot_info(struct mtd_info *mtd,
-			struct otp_info *buf, size_t len)
+static int onenand_get_fact_prot_info(struct mtd_info *mtd, size_t len,
+				      size_t *retlen, struct otp_info *buf)
 {
-	size_t retlen;
-	int ret;
-
-	ret = onenand_otp_walk(mtd, 0, len, &retlen, (u_char *) buf, NULL, MTD_OTP_FACTORY);
-
-	return ret ? : retlen;
+	return onenand_otp_walk(mtd, 0, len, retlen, (u_char *) buf, NULL,
+				MTD_OTP_FACTORY);
 }
 
 /**
@@ -3277,20 +3269,17 @@ static int onenand_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
 /**
  * onenand_get_user_prot_info - [MTD Interface] Read user OTP info
  * @param mtd		MTD device structure
- * @param buf		the databuffer to put/get data
+ * @param retlen	pointer to variable to store the number of read bytes
  * @param len		number of bytes to read
+ * @param buf		the databuffer to put/get data
  *
  * Read user OTP info.
  */
-static int onenand_get_user_prot_info(struct mtd_info *mtd,
-			struct otp_info *buf, size_t len)
+static int onenand_get_user_prot_info(struct mtd_info *mtd, size_t len,
+				      size_t *retlen, struct otp_info *buf)
 {
-	size_t retlen;
-	int ret;
-
-	ret = onenand_otp_walk(mtd, 0, len, &retlen, (u_char *) buf, NULL, MTD_OTP_USER);
-
-	return ret ? : retlen;
+	return onenand_otp_walk(mtd, 0, len, retlen, (u_char *) buf, NULL,
+				MTD_OTP_USER);
 }
 
 /**
@@ -3529,7 +3518,7 @@ static int flexonenand_get_boundary(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
 	unsigned die, bdry;
-	int ret, syscfg, locked;
+	int syscfg, locked;
 
 	/* Disable ECC */
 	syscfg = this->read_word(this->base + ONENAND_REG_SYS_CFG1);
@@ -3540,7 +3529,7 @@ static int flexonenand_get_boundary(struct mtd_info *mtd)
 		this->wait(mtd, FL_SYNCING);
 
 		this->command(mtd, FLEXONENAND_CMD_READ_PI, die, 0);
-		ret = this->wait(mtd, FL_READING);
+		this->wait(mtd, FL_READING);
 
 		bdry = this->read_word(this->base + ONENAND_DATARAM);
 		if ((bdry >> FLEXONENAND_PI_UNLOCK_SHIFT) == 3)
@@ -3550,7 +3539,7 @@ static int flexonenand_get_boundary(struct mtd_info *mtd)
 		this->boundary[die] = bdry & FLEXONENAND_PI_MASK;
 
 		this->command(mtd, ONENAND_CMD_RESET, 0, 0);
-		ret = this->wait(mtd, FL_RESETING);
+		this->wait(mtd, FL_RESETING);
 
 		printk(KERN_INFO "Die %d boundary: %d%s\n", die,
 		       this->boundary[die], locked ? "(Locked)" : "(Unlocked)");
@@ -3734,7 +3723,7 @@ static int flexonenand_set_boundary(struct mtd_info *mtd, int die,
 
 	/* Check is boundary is locked */
 	this->command(mtd, FLEXONENAND_CMD_READ_PI, die, 0);
-	ret = this->wait(mtd, FL_READING);
+	this->wait(mtd, FL_READING);
 
 	thisboundary = this->read_word(this->base + ONENAND_DATARAM);
 	if ((thisboundary >> FLEXONENAND_PI_UNLOCK_SHIFT) != 3) {
@@ -3835,7 +3824,7 @@ static int onenand_chip_probe(struct mtd_info *mtd)
 static int onenand_probe(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
-	int maf_id, dev_id, ver_id;
+	int dev_id, ver_id;
 	int density;
 	int ret;
 
@@ -3843,8 +3832,7 @@ static int onenand_probe(struct mtd_info *mtd)
 	if (ret)
 		return ret;
 
-	/* Read manufacturer and device IDs from Register */
-	maf_id = this->read_word(this->base + ONENAND_REG_MANUFACTURER_ID);
+	/* Device and version IDs from Register */
 	dev_id = this->read_word(this->base + ONENAND_REG_DEVICE_ID);
 	ver_id = this->read_word(this->base + ONENAND_REG_VERSION_ID);
 	this->technology = this->read_word(this->base + ONENAND_REG_TECHNOLOGY);
@@ -4000,11 +3988,8 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	/* Allocate buffers, if necessary */
 	if (!this->page_buf) {
 		this->page_buf = kzalloc(mtd->writesize, GFP_KERNEL);
-		if (!this->page_buf) {
-			printk(KERN_ERR "%s: Can't allocate page_buf\n",
-				__func__);
+		if (!this->page_buf)
 			return -ENOMEM;
-		}
 #ifdef CONFIG_MTD_ONENAND_VERIFY_WRITE
 		this->verify_buf = kzalloc(mtd->writesize, GFP_KERNEL);
 		if (!this->verify_buf) {
@@ -4017,8 +4002,6 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	if (!this->oob_buf) {
 		this->oob_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
 		if (!this->oob_buf) {
-			printk(KERN_ERR "%s: Can't allocate oob_buf\n",
-				__func__);
 			if (this->options & ONENAND_PAGEBUF_ALLOC) {
 				this->options &= ~ONENAND_PAGEBUF_ALLOC;
 				kfree(this->page_buf);

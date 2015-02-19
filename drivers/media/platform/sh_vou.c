@@ -286,7 +286,7 @@ static int sh_vou_buf_prepare(struct videobuf_queue *vq,
 	vb->size = vb->height * bytes_per_line;
 	if (vb->baddr && vb->bsize < vb->size) {
 		/* User buffer too small */
-		dev_warn(vq->dev, "User buffer too small: [%u] @ %lx\n",
+		dev_warn(vq->dev, "User buffer too small: [%zu] @ %lx\n",
 			 vb->bsize, vb->baddr);
 		return -EINVAL;
 	}
@@ -302,9 +302,10 @@ static int sh_vou_buf_prepare(struct videobuf_queue *vq,
 	}
 
 	dev_dbg(vou_dev->v4l2_dev.dev,
-		"%s(): fmt #%d, %u bytes per line, phys 0x%x, type %d, state %d\n",
+		"%s(): fmt #%d, %u bytes per line, phys %pad, type %d, state %d\n",
 		__func__, vou_dev->pix_idx, bytes_per_line,
-		videobuf_to_dma_contig(vb), vb->memory, vb->state);
+		({ dma_addr_t addr = videobuf_to_dma_contig(vb); &addr; }),
+		vb->memory, vb->state);
 
 	return 0;
 }
@@ -395,7 +396,8 @@ static int sh_vou_querycap(struct file *file, void  *priv,
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s()\n", __func__);
 
 	strlcpy(cap->card, "SuperH VOU", sizeof(cap->card));
-	cap->capabilities = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -442,7 +444,7 @@ static void sh_vou_configure_geometry(struct sh_vou_device *vou_dev,
 				      int pix_idx, int w_idx, int h_idx)
 {
 	struct sh_vou_fmt *fmt = vou_fmt + pix_idx;
-	unsigned int black_left, black_top, width_max, height_max,
+	unsigned int black_left, black_top, width_max,
 		frame_in_height, frame_out_height, frame_out_top;
 	struct v4l2_rect *rect = &vou_dev->rect;
 	struct v4l2_pix_format *pix = &vou_dev->pix;
@@ -450,10 +452,10 @@ static void sh_vou_configure_geometry(struct sh_vou_device *vou_dev,
 
 	if (vou_dev->std & V4L2_STD_525_60) {
 		width_max = 858;
-		height_max = 262;
+		/* height_max = 262; */
 	} else {
 		width_max = 864;
-		height_max = 312;
+		/* height_max = 312; */
 	}
 
 	frame_in_height = pix->height / 2;
@@ -679,7 +681,7 @@ static int sh_vou_s_fmt_vid_out(struct file *file, void *priv,
 	struct sh_vou_geometry geo;
 	struct v4l2_mbus_framefmt mbfmt = {
 		/* Revisit: is this the correct code? */
-		.code = V4L2_MBUS_FMT_YUYV8_2X8,
+		.code = MEDIA_BUS_FMT_YUYV8_2X8,
 		.field = V4L2_FIELD_INTERLACED,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 	};
@@ -732,7 +734,7 @@ static int sh_vou_s_fmt_vid_out(struct file *file, void *priv,
 	/* Sanity checks */
 	if ((unsigned)mbfmt.width > VOU_MAX_IMAGE_WIDTH ||
 	    (unsigned)mbfmt.height > img_height_max ||
-	    mbfmt.code != V4L2_MBUS_FMT_YUYV8_2X8)
+	    mbfmt.code != MEDIA_BUS_FMT_YUYV8_2X8)
 		return -EIO;
 
 	if (mbfmt.width != geo.output.width ||
@@ -776,7 +778,7 @@ static int sh_vou_try_fmt_vid_out(struct file *file, void *priv,
 	v4l_bound_align_image(&pix->width, 0, VOU_MAX_IMAGE_WIDTH, 1,
 			      &pix->height, 0, VOU_MAX_IMAGE_HEIGHT, 1, 0);
 
-	for (i = 0; ARRAY_SIZE(vou_fmt); i++)
+	for (i = 0; i < ARRAY_SIZE(vou_fmt); i++)
 		if (vou_fmt[i].pfmt == pix->pixelformat)
 			return 0;
 
@@ -942,7 +944,7 @@ static int sh_vou_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 	struct sh_vou_geometry geo;
 	struct v4l2_mbus_framefmt mbfmt = {
 		/* Revisit: is this the correct code? */
-		.code = V4L2_MBUS_FMT_YUYV8_2X8,
+		.code = MEDIA_BUS_FMT_YUYV8_2X8,
 		.field = V4L2_FIELD_INTERLACED,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 	};
@@ -993,7 +995,7 @@ static int sh_vou_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 	/* Sanity checks */
 	if ((unsigned)mbfmt.width > VOU_MAX_IMAGE_WIDTH ||
 	    (unsigned)mbfmt.height > img_height_max ||
-	    mbfmt.code != V4L2_MBUS_FMT_YUYV8_2X8)
+	    mbfmt.code != MEDIA_BUS_FMT_YUYV8_2X8)
 		return -EIO;
 
 	geo.output.width = mbfmt.width;
@@ -1052,7 +1054,6 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 	static unsigned long j;
 	struct videobuf_buffer *vb;
 	static int cnt;
-	static int side;
 	u32 irq_status = sh_vou_reg_a_read(vou_dev, VOUIR), masked;
 	u32 vou_status = sh_vou_reg_a_read(vou_dev, VOUSTR);
 
@@ -1080,7 +1081,7 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 		irq_status, masked, vou_status, cnt);
 
 	cnt++;
-	side = vou_status & 0x10000;
+	/* side = vou_status & 0x10000; */
 
 	/* Clear only set interrupts */
 	sh_vou_reg_a_write(vou_dev, VOUIR, masked);
@@ -1449,7 +1450,6 @@ static struct platform_driver __refdata sh_vou = {
 	.remove  = sh_vou_remove,
 	.driver  = {
 		.name	= "sh-vou",
-		.owner	= THIS_MODULE,
 	},
 };
 

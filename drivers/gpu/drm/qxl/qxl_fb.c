@@ -108,7 +108,7 @@ static void qxl_fb_dirty_flush(struct fb_info *info)
 	u32 x1, x2, y1, y2;
 
 	/* TODO: hard coding 32 bpp */
-	int stride = qfbdev->qfb.base.pitches[0] * 4;
+	int stride = qfbdev->qfb.base.pitches[0];
 
 	x1 = qfbdev->dirty.x1;
 	x2 = qfbdev->dirty.x2;
@@ -625,7 +625,8 @@ static int qxl_fb_find_or_create_single(
 		struct drm_fb_helper *helper,
 		struct drm_fb_helper_surface_size *sizes)
 {
-	struct qxl_fbdev *qfbdev = (struct qxl_fbdev *)helper;
+	struct qxl_fbdev *qfbdev =
+		container_of(helper, struct qxl_fbdev, helper);
 	int new_fb = 0;
 	int ret;
 
@@ -660,7 +661,7 @@ static int qxl_fbdev_destroy(struct drm_device *dev, struct qxl_fbdev *qfbdev)
 	return 0;
 }
 
-static struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
 	.fb_probe = qxl_fb_find_or_create_single,
 };
 
@@ -676,20 +677,33 @@ int qxl_fbdev_init(struct qxl_device *qdev)
 
 	qfbdev->qdev = qdev;
 	qdev->mode_info.qfbdev = qfbdev;
-	qfbdev->helper.funcs = &qxl_fb_helper_funcs;
 	spin_lock_init(&qfbdev->delayed_ops_lock);
 	INIT_LIST_HEAD(&qfbdev->delayed_ops);
+
+	drm_fb_helper_prepare(qdev->ddev, &qfbdev->helper,
+			      &qxl_fb_helper_funcs);
+
 	ret = drm_fb_helper_init(qdev->ddev, &qfbdev->helper,
 				 qxl_num_crtc /* num_crtc - QXL supports just 1 */,
 				 QXLFB_CONN_LIMIT);
-	if (ret) {
-		kfree(qfbdev);
-		return ret;
-	}
+	if (ret)
+		goto free;
 
-	drm_fb_helper_single_add_all_connectors(&qfbdev->helper);
-	drm_fb_helper_initial_config(&qfbdev->helper, bpp_sel);
+	ret = drm_fb_helper_single_add_all_connectors(&qfbdev->helper);
+	if (ret)
+		goto fini;
+
+	ret = drm_fb_helper_initial_config(&qfbdev->helper, bpp_sel);
+	if (ret)
+		goto fini;
+
 	return 0;
+
+fini:
+	drm_fb_helper_fini(&qfbdev->helper);
+free:
+	kfree(qfbdev);
+	return ret;
 }
 
 void qxl_fbdev_fini(struct qxl_device *qdev)

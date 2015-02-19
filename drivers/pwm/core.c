@@ -30,10 +30,9 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
-#define MAX_PWMS 1024
+#include <dt-bindings/pwm/pwm.h>
 
-/* flags in the third cell of the DT PWM specifier */
-#define PWM_SPEC_POLARITY	(1 << 0)
+#define MAX_PWMS 1024
 
 static DEFINE_MUTEX(pwm_lookup_lock);
 static LIST_HEAD(pwm_lookup_list);
@@ -149,7 +148,7 @@ of_pwm_xlate_with_flags(struct pwm_chip *pc, const struct of_phandle_args *args)
 
 	pwm_set_period(pwm, args->args[1]);
 
-	if (args->args[2] & PWM_SPEC_POLARITY)
+	if (args->args[2] & PWM_POLARITY_INVERTED)
 		pwm_set_polarity(pwm, PWM_POLARITY_INVERSED);
 	else
 		pwm_set_polarity(pwm, PWM_POLARITY_NORMAL);
@@ -193,7 +192,7 @@ static void of_pwmchip_add(struct pwm_chip *chip)
 
 static void of_pwmchip_remove(struct pwm_chip *chip)
 {
-	if (chip->dev && chip->dev->of_node)
+	if (chip->dev)
 		of_node_put(chip->dev->of_node);
 }
 
@@ -237,7 +236,7 @@ int pwmchip_add(struct pwm_chip *chip)
 	int ret;
 
 	if (!chip || !chip->dev || !chip->ops || !chip->ops->config ||
-	    !chip->ops->enable || !chip->ops->disable)
+	    !chip->ops->enable || !chip->ops->disable || !chip->npwm)
 		return -EINVAL;
 
 	mutex_lock(&pwm_lock);
@@ -603,9 +602,8 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	struct pwm_device *pwm = ERR_PTR(-EPROBE_DEFER);
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct pwm_chip *chip = NULL;
-	unsigned int index = 0;
 	unsigned int best = 0;
-	struct pwm_lookup *p;
+	struct pwm_lookup *p, *chosen = NULL;
 	unsigned int match;
 
 	/* look up via DT first */
@@ -652,8 +650,7 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 
 		if (match > best) {
-			chip = pwmchip_find_by_name(p->provider);
-			index = p->index;
+			chosen = p;
 
 			if (match != 3)
 				best = match;
@@ -662,11 +659,22 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 	}
 
-	if (chip)
-		pwm = pwm_request_from_chip(chip, index, con_id ?: dev_id);
+	if (!chosen)
+		goto out;
 
+	chip = pwmchip_find_by_name(chosen->provider);
+	if (!chip)
+		goto out;
+
+	pwm = pwm_request_from_chip(chip, chosen->index, con_id ?: dev_id);
+	if (IS_ERR(pwm))
+		goto out;
+
+	pwm_set_period(pwm, chosen->period);
+	pwm_set_polarity(pwm, chosen->polarity);
+
+out:
 	mutex_unlock(&pwm_lookup_lock);
-
 	return pwm;
 }
 EXPORT_SYMBOL_GPL(pwm_get);
@@ -809,12 +817,12 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 		seq_printf(s, " pwm-%-3d (%-20.20s):", i, pwm->label);
 
 		if (test_bit(PWMF_REQUESTED, &pwm->flags))
-			seq_printf(s, " requested");
+			seq_puts(s, " requested");
 
 		if (test_bit(PWMF_ENABLED, &pwm->flags))
-			seq_printf(s, " enabled");
+			seq_puts(s, " enabled");
 
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 }
 

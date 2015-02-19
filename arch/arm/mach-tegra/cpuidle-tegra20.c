@@ -19,23 +19,23 @@
  * more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/clk/tegra.h>
+#include <linux/clockchips.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
-#include <linux/clockchips.h>
-#include <linux/clk/tegra.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
-#include <asm/suspend.h>
 #include <asm/smp_plat.h>
+#include <asm/suspend.h>
 
-#include "pm.h"
-#include "sleep.h"
+#include "flowctrl.h"
 #include "iomap.h"
 #include "irq.h"
-#include "flowctrl.h"
+#include "pm.h"
+#include "sleep.h"
 
 #ifdef CONFIG_PM_SLEEP
 static bool abort_flag;
@@ -59,8 +59,7 @@ static struct cpuidle_driver tegra_idle_driver = {
 			.exit_latency     = 5000,
 			.target_residency = 10000,
 			.power_usage      = 0,
-			.flags            = CPUIDLE_FLAG_TIME_VALID |
-			CPUIDLE_FLAG_COUPLED,
+			.flags            = CPUIDLE_FLAG_COUPLED,
 			.name             = "powered-down",
 			.desc             = "CPU power gated",
 		},
@@ -210,6 +209,18 @@ static int tegra20_idle_lp2_coupled(struct cpuidle_device *dev,
 	return entered_lp2 ? index : 0;
 }
 #endif
+
+/*
+ * Tegra20 HW appears to have a bug such that PCIe device interrupts, whether
+ * they are legacy IRQs or MSI, are lost when LP2 is enabled. To work around
+ * this, simply disable LP2 if the PCI driver and DT node are both enabled.
+ */
+void tegra20_cpuidle_pcie_irqs_in_use(void)
+{
+	pr_info_once(
+		"Disabling cpuidle LP2 state, since PCIe IRQs are in use\n");
+	tegra_idle_driver.states[1].disabled = true;
+}
 
 int __init tegra20_cpuidle_init(void)
 {

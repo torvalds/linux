@@ -96,6 +96,7 @@ int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn)
 	int err;
 
 	memset(&in, 0, sizeof(in));
+	memset(&out, 0, sizeof(out));
 	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DEALLOC_UAR);
 	in.uarn = cpu_to_be32(uarn);
 	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
@@ -174,11 +175,11 @@ int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari)
 	for (i = 0; i < tot_uuars; i++) {
 		bf = &uuari->bfs[i];
 
-		bf->buf_size = dev->caps.bf_reg_size / 2;
+		bf->buf_size = dev->caps.gen.bf_reg_size / 2;
 		bf->uar = &uuari->uars[i / MLX5_BF_REGS_PER_PAGE];
 		bf->regreg = uuari->uars[i / MLX5_BF_REGS_PER_PAGE].map;
 		bf->reg = NULL; /* Add WC support */
-		bf->offset = (i % MLX5_BF_REGS_PER_PAGE) * dev->caps.bf_reg_size +
+		bf->offset = (i % MLX5_BF_REGS_PER_PAGE) * dev->caps.gen.bf_reg_size +
 			MLX5_BF_OFFSET;
 		bf->need_lock = need_uuar_lock(i);
 		spin_lock_init(&bf->lock);

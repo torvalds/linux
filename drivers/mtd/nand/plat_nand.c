@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -30,7 +31,7 @@ static const char *part_probe_types[] = { "cmdlinepart", NULL };
  */
 static int plat_nand_probe(struct platform_device *pdev)
 {
-	struct platform_nand_data *pdata = pdev->dev.platform_data;
+	struct platform_nand_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mtd_part_parser_data ppdata;
 	struct plat_nand_data *data;
 	struct resource *res;
@@ -47,30 +48,16 @@ static int plat_nand_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
 	/* Allocate memory for the device structure (and zero it) */
-	data = kzalloc(sizeof(struct plat_nand_data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "failed to allocate device structure.\n");
+	data = devm_kzalloc(&pdev->dev, sizeof(struct plat_nand_data),
+			    GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
-	}
 
-	if (!request_mem_region(res->start, resource_size(res),
-				dev_name(&pdev->dev))) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		err = -EBUSY;
-		goto out_free;
-	}
-
-	data->io_base = ioremap(res->start, resource_size(res));
-	if (data->io_base == NULL) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		err = -EIO;
-		goto out_release_io;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	data->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->io_base))
+		return PTR_ERR(data->io_base);
 
 	data->chip.priv = &data;
 	data->mtd.priv = &data->chip;
@@ -122,12 +109,6 @@ static int plat_nand_probe(struct platform_device *pdev)
 out:
 	if (pdata->ctrl.remove)
 		pdata->ctrl.remove(pdev);
-	platform_set_drvdata(pdev, NULL);
-	iounmap(data->io_base);
-out_release_io:
-	release_mem_region(res->start, resource_size(res));
-out_free:
-	kfree(data);
 	return err;
 }
 
@@ -137,17 +118,11 @@ out_free:
 static int plat_nand_remove(struct platform_device *pdev)
 {
 	struct plat_nand_data *data = platform_get_drvdata(pdev);
-	struct platform_nand_data *pdata = pdev->dev.platform_data;
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct platform_nand_data *pdata = dev_get_platdata(&pdev->dev);
 
 	nand_release(&data->mtd);
 	if (pdata->ctrl.remove)
 		pdata->ctrl.remove(pdev);
-	iounmap(data->io_base);
-	release_mem_region(res->start, resource_size(res));
-	kfree(data);
 
 	return 0;
 }
@@ -163,7 +138,6 @@ static struct platform_driver plat_nand_driver = {
 	.remove	= plat_nand_remove,
 	.driver	= {
 		.name		= "gen_nand",
-		.owner		= THIS_MODULE,
 		.of_match_table = plat_nand_match,
 	},
 };

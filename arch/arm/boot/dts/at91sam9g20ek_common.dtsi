@@ -26,6 +26,14 @@
 			compatible = "atmel,osc", "fixed-clock";
 			clock-frequency = <18432000>;
 		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <18432000>;
+		};
 	};
 
 	ahb {
@@ -96,7 +104,6 @@
 			};
 
 			spi0: spi@fffc8000 {
-				status = "okay";
 				cs-gpios = <0>, <&pioC 11 0>, <0>, <0>;
 				mtd_dataflash@0 {
 					compatible = "atmel,at45", "atmel,dataflash";
@@ -105,7 +112,21 @@
 				};
 			};
 
+			shdwc@fffffd10 {
+				atmel,wakeup-counter = <10>;
+				atmel,wakeup-rtt-timer;
+			};
+
+			rtc@fffffd20 {
+				atmel,rtt-rtc-time-reg = <&gpbr 0x0>;
+				status = "okay";
+			};
+
 			watchdog@fffffd40 {
+				status = "okay";
+			};
+
+			gpbr: syscon@fffffd50 {
 				status = "okay";
 			};
 		};

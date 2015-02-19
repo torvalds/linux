@@ -13,23 +13,31 @@
 						 * whether IO subsystem is idle
 						 * or not
 						 */
-#define GC_THREAD_MIN_SLEEP_TIME	30000	/* milliseconds */
-#define GC_THREAD_MAX_SLEEP_TIME	60000
-#define GC_THREAD_NOGC_SLEEP_TIME	300000	/* wait 5 min */
+#define DEF_GC_THREAD_MIN_SLEEP_TIME	30000	/* milliseconds */
+#define DEF_GC_THREAD_MAX_SLEEP_TIME	60000
+#define DEF_GC_THREAD_NOGC_SLEEP_TIME	300000	/* wait 5 min */
 #define LIMIT_INVALID_BLOCK	40 /* percentage over total user space */
 #define LIMIT_FREE_BLOCK	40 /* percentage over invalid + free space */
 
 /* Search max. number of dirty segments to select a victim segment */
-#define MAX_VICTIM_SEARCH	20
+#define DEF_MAX_VICTIM_SEARCH 4096 /* covers 8GB */
 
 struct f2fs_gc_kthread {
 	struct task_struct *f2fs_gc_task;
 	wait_queue_head_t gc_wait_queue_head;
+
+	/* for gc sleep time */
+	unsigned int min_sleep_time;
+	unsigned int max_sleep_time;
+	unsigned int no_gc_sleep_time;
+
+	/* for changing gc mode */
+	unsigned int gc_idle;
 };
 
-struct inode_entry {
-	struct list_head list;
-	struct inode *inode;
+struct gc_inode_list {
+	struct list_head ilist;
+	struct radix_tree_root iroot;
 };
 
 /*
@@ -56,26 +64,26 @@ static inline block_t limit_free_user_blocks(struct f2fs_sb_info *sbi)
 	return (long)(reclaimable_user_blocks * LIMIT_FREE_BLOCK) / 100;
 }
 
-static inline long increase_sleep_time(long wait)
+static inline void increase_sleep_time(struct f2fs_gc_kthread *gc_th,
+								long *wait)
 {
-	if (wait == GC_THREAD_NOGC_SLEEP_TIME)
-		return wait;
+	if (*wait == gc_th->no_gc_sleep_time)
+		return;
 
-	wait += GC_THREAD_MIN_SLEEP_TIME;
-	if (wait > GC_THREAD_MAX_SLEEP_TIME)
-		wait = GC_THREAD_MAX_SLEEP_TIME;
-	return wait;
+	*wait += gc_th->min_sleep_time;
+	if (*wait > gc_th->max_sleep_time)
+		*wait = gc_th->max_sleep_time;
 }
 
-static inline long decrease_sleep_time(long wait)
+static inline void decrease_sleep_time(struct f2fs_gc_kthread *gc_th,
+								long *wait)
 {
-	if (wait == GC_THREAD_NOGC_SLEEP_TIME)
-		wait = GC_THREAD_MAX_SLEEP_TIME;
+	if (*wait == gc_th->no_gc_sleep_time)
+		*wait = gc_th->max_sleep_time;
 
-	wait -= GC_THREAD_MIN_SLEEP_TIME;
-	if (wait <= GC_THREAD_MIN_SLEEP_TIME)
-		wait = GC_THREAD_MIN_SLEEP_TIME;
-	return wait;
+	*wait -= gc_th->min_sleep_time;
+	if (*wait <= gc_th->min_sleep_time)
+		*wait = gc_th->min_sleep_time;
 }
 
 static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
@@ -83,7 +91,7 @@ static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
 	block_t invalid_user_blocks = sbi->user_block_count -
 					written_block_count(sbi);
 	/*
-	 * Background GC is triggered with the following condition.
+	 * Background GC is triggered with the following conditions.
 	 * 1. There are a number of invalid blocks.
 	 * 2. There is not enough free space.
 	 */

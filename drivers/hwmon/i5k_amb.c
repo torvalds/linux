@@ -3,7 +3,7 @@
  * temperature sensors
  * Copyright (C) 2007 IBM
  *
- * Author: Darrick J. Wong <djwong@us.ibm.com>
+ * Author: Darrick J. Wong <darrick.wong@oracle.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -581,7 +581,6 @@ static int i5k_amb_remove(struct platform_device *pdev)
 
 static struct platform_driver i5k_amb_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = DRVNAME,
 	},
 	.probe = i5k_amb_probe,
@@ -609,7 +608,7 @@ static void __exit i5k_amb_exit(void)
 	platform_driver_unregister(&i5k_amb_driver);
 }
 
-MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
+MODULE_AUTHOR("Darrick J. Wong <darrick.wong@oracle.com>");
 MODULE_DESCRIPTION("Intel 5000 chipset FB-DIMM AMB temperature sensor");
 MODULE_LICENSE("GPL");
 

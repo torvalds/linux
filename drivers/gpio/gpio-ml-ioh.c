@@ -242,7 +242,7 @@ static void ioh_gpio_setup(struct ioh_gpio *chip, int num_port)
 	gpio->dbg_show = NULL;
 	gpio->base = -1;
 	gpio->ngpio = num_port;
-	gpio->can_sleep = 0;
+	gpio->can_sleep = false;
 	gpio->to_irq = ioh_gpio_to_irq;
 }
 
@@ -497,8 +497,7 @@ err_irq_alloc_descs:
 err_gpiochip_add:
 	while (--i >= 0) {
 		chip--;
-		if (gpiochip_remove(&chip->gpio))
-			dev_err(&pdev->dev, "Failed gpiochip_remove(%d)\n", i);
+		gpiochip_remove(&chip->gpio);
 	}
 	kfree(chip_save);
 
@@ -519,7 +518,6 @@ err_pci_enable:
 
 static void ioh_gpio_remove(struct pci_dev *pdev)
 {
-	int err;
 	int i;
 	struct ioh_gpio *chip = pci_get_drvdata(pdev);
 	void *chip_save;
@@ -530,9 +528,7 @@ static void ioh_gpio_remove(struct pci_dev *pdev)
 
 	for (i = 0; i < 8; i++, chip++) {
 		irq_free_descs(chip->irq_base, num_ports[i]);
-		err = gpiochip_remove(&chip->gpio);
-		if (err)
-			dev_err(&pdev->dev, "Failed gpiochip_remove\n");
+		gpiochip_remove(&chip->gpio);
 	}
 
 	chip = chip_save;
@@ -596,7 +592,7 @@ static int ioh_gpio_resume(struct pci_dev *pdev)
 #define ioh_gpio_resume NULL
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(ioh_gpio_pcidev_id) = {
+static const struct pci_device_id ioh_gpio_pcidev_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x802E) },
 	{ 0, }
 };

@@ -92,7 +92,6 @@ il4965_check_abort_status(struct il_priv *il, u8 frame_count, u32 status)
  * EEPROM
  */
 struct il_mod_params il4965_mod_params = {
-	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	/* the rest are 0 by default */
 };
@@ -574,9 +573,11 @@ il4965_translate_rx_status(struct il_priv *il, u32 decrypt_in)
 	return decrypt_out;
 }
 
+#define SMALL_PACKET_SIZE 256
+
 static void
 il4965_pass_packet_to_mac80211(struct il_priv *il, struct ieee80211_hdr *hdr,
-			       u16 len, u32 ampdu_status, struct il_rx_buf *rxb,
+			       u32 len, u32 ampdu_status, struct il_rx_buf *rxb,
 			       struct ieee80211_rx_status *stats)
 {
 	struct sk_buff *skb;
@@ -598,21 +599,25 @@ il4965_pass_packet_to_mac80211(struct il_priv *il, struct ieee80211_hdr *hdr,
 	    il_set_decrypted_flag(il, hdr, ampdu_status, stats))
 		return;
 
-	skb = dev_alloc_skb(128);
+	skb = dev_alloc_skb(SMALL_PACKET_SIZE);
 	if (!skb) {
 		IL_ERR("dev_alloc_skb failed\n");
 		return;
 	}
 
-	skb_add_rx_frag(skb, 0, rxb->page, (void *)hdr - rxb_addr(rxb), len,
-			len);
+	if (len <= SMALL_PACKET_SIZE) {
+		memcpy(skb_put(skb, len), hdr, len);
+	} else {
+		skb_add_rx_frag(skb, 0, rxb->page, (void *)hdr - rxb_addr(rxb),
+				len, PAGE_SIZE << il->hw_params.rx_page_order);
+		il->alloc_rxb_page--;
+		rxb->page = NULL;
+	}
 
 	il_update_stats(il, false, fc, len);
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
 	ieee80211_rx(il->hw, skb);
-	il->alloc_rxb_page--;
-	rxb->page = NULL;
 }
 
 /* Called for N_RX (legacy ABG frames), or
@@ -665,7 +670,7 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	}
 
 	if ((unlikely(phy_res->cfg_phy_cnt > 20))) {
-		D_DROP("dsp size out of range [0,20]: %d/n",
+		D_DROP("dsp size out of range [0,20]: %d\n",
 		       phy_res->cfg_phy_cnt);
 		return;
 	}
@@ -799,7 +804,7 @@ il4965_get_channels_for_scan(struct il_priv *il, struct ieee80211_vif *vif,
 		}
 
 		if (!is_active || il_is_channel_passive(ch_info) ||
-		    (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN))
+		    (chan->flags & IEEE80211_CHAN_NO_IR))
 			scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
 		else
 			scan_ch->type = SCAN_CHANNEL_TYPE_ACTIVE;
@@ -4268,17 +4273,7 @@ il4965_rx_handle(struct il_priv *il)
 		len = le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK;
 		len += sizeof(u32);	/* account for status word */
 
-		/* Reclaim a command buffer only if this packet is a response
-		 *   to a (driver-originated) command.
-		 * If the packet (e.g. Rx frame) originated from uCode,
-		 *   there is no command buffer to reclaim.
-		 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
-		 *   but apparently a few don't get set; catch them here. */
-		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME) &&
-		    (pkt->hdr.cmd != N_RX_PHY) && (pkt->hdr.cmd != N_RX) &&
-		    (pkt->hdr.cmd != N_RX_MPDU) &&
-		    (pkt->hdr.cmd != N_COMPRESSED_BA) &&
-		    (pkt->hdr.cmd != N_STATS) && (pkt->hdr.cmd != C_TX);
+		reclaim = il_need_reclaim(il, pkt);
 
 		/* Based on type of command response or notification,
 		 *   handle those that need handling via function in
@@ -4464,9 +4459,9 @@ il4965_irq_tasklet(struct il_priv *il)
 			set_bit(S_RFKILL, &il->status);
 		} else {
 			clear_bit(S_RFKILL, &il->status);
-			wiphy_rfkill_set_hw_state(il->hw->wiphy, hw_rf_kill);
 			il_force_reset(il, true);
 		}
+		wiphy_rfkill_set_hw_state(il->hw->wiphy, hw_rf_kill);
 
 		handled |= CSR_INT_BIT_RF_KILL;
 	}
@@ -4638,7 +4633,7 @@ il4965_store_tx_power(struct device *d, struct device_attribute *attr,
 	else {
 		ret = il_set_tx_power(il, val, false);
 		if (ret)
-			IL_ERR("failed setting tx power (0x%d).\n", ret);
+			IL_ERR("failed setting tx power (0x%08x).\n", ret);
 		else
 			ret = count;
 	}
@@ -5762,9 +5757,8 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 	    IEEE80211_HW_REPORTS_TX_ACK_STATUS | IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 	if (il->cfg->sku & IL_SKU_N)
-		hw->flags |=
-		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-		    IEEE80211_HW_SUPPORTS_STATIC_SMPS;
+		hw->wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS |
+				       NL80211_FEATURE_STATIC_SMPS;
 
 	hw->sta_data_size = sizeof(struct il_station_priv);
 	hw->vif_data_size = sizeof(struct il_vif_priv);
@@ -5772,9 +5766,9 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 	hw->wiphy->interface_modes =
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->wiphy->flags |=
-	    WIPHY_FLAG_CUSTOM_REGULATORY | WIPHY_FLAG_DISABLE_BEACON_HINTS |
-	    WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				       REGULATORY_DISABLE_BEACON_HINTS;
 
 	/*
 	 * For now, disable PS by default because it affects
@@ -6069,7 +6063,7 @@ il4965_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 void
-il4965_mac_channel_switch(struct ieee80211_hw *hw,
+il4965_mac_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  struct ieee80211_channel_switch *ch_switch)
 {
 	struct il_priv *il = hw->priv;
@@ -6253,13 +6247,10 @@ il4965_setup_deferred_work(struct il_priv *il)
 
 	INIT_WORK(&il->txpower_work, il4965_bg_txpower_work);
 
-	init_timer(&il->stats_periodic);
-	il->stats_periodic.data = (unsigned long)il;
-	il->stats_periodic.function = il4965_bg_stats_periodic;
+	setup_timer(&il->stats_periodic, il4965_bg_stats_periodic,
+		    (unsigned long)il);
 
-	init_timer(&il->watchdog);
-	il->watchdog.data = (unsigned long)il;
-	il->watchdog.function = il_bg_watchdog;
+	setup_timer(&il->watchdog, il_bg_watchdog, (unsigned long)il);
 
 	tasklet_init(&il->irq_tasklet,
 		     (void (*)(unsigned long))il4965_irq_tasklet,
@@ -6700,7 +6691,6 @@ out_free_eeprom:
 out_iounmap:
 	iounmap(il->hw_base);
 out_pci_release_regions:
-	pci_set_drvdata(pdev, NULL);
 	pci_release_regions(pdev);
 out_pci_disable_device:
 	pci_disable_device(pdev);
@@ -6781,7 +6771,6 @@ il4965_pci_remove(struct pci_dev *pdev)
 	iounmap(il->hw_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	il4965_uninit_drv(il);
 
@@ -6807,7 +6796,7 @@ il4965_txq_set_sched(struct il_priv *il, u32 mask)
  *****************************************************************************/
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
-static DEFINE_PCI_DEVICE_TABLE(il4965_hw_card_ids) = {
+static const struct pci_device_id il4965_hw_card_ids[] = {
 	{IL_PCI_DEVICE(0x4229, PCI_ANY_ID, il4965_cfg)},
 	{IL_PCI_DEVICE(0x4230, PCI_ANY_ID, il4965_cfg)},
 	{0}
@@ -6872,6 +6861,6 @@ module_param_named(11n_disable, il4965_mod_params.disable_11n, int, S_IRUGO);
 MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
 module_param_named(amsdu_size_8K, il4965_mod_params.amsdu_size_8K, int,
 		   S_IRUGO);
-MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0 [disabled])");
 module_param_named(fw_restart, il4965_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");

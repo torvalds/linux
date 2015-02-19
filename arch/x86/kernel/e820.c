@@ -184,9 +184,9 @@ void __init e820_print_map(char *who)
  * overwritten in the same location, starting at biosmap.
  *
  * The integer pointed to by pnr_map must be valid on entry (the
- * current number of valid entries located at biosmap) and will
- * be updated on return, with the new number of valid entries
- * (something no more than max_nr_map.)
+ * current number of valid entries located at biosmap). If the
+ * sanitizing succeeds the *pnr_map will be updated with the new
+ * number of valid entries (something no more than max_nr_map).
  *
  * The return value from sanitize_e820_map() is zero if it
  * successfully 'sanitized' the map entries passed in, and is -1
@@ -561,23 +561,15 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
 
 void __init update_e820(void)
 {
-	u32 nr_map;
-
-	nr_map = e820.nr_map;
-	if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr_map))
+	if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map))
 		return;
-	e820.nr_map = nr_map;
 	printk(KERN_INFO "e820: modified physical RAM map:\n");
 	e820_print_map("modified");
 }
 static void __init update_e820_saved(void)
 {
-	u32 nr_map;
-
-	nr_map = e820_saved.nr_map;
-	if (sanitize_e820_map(e820_saved.map, ARRAY_SIZE(e820_saved.map), &nr_map))
-		return;
-	e820_saved.nr_map = nr_map;
+	sanitize_e820_map(e820_saved.map, ARRAY_SIZE(e820_saved.map),
+				&e820_saved.nr_map);
 }
 #define MAX_GAP_END 0x100000000ull
 /*
@@ -658,15 +650,18 @@ __init void e820_setup_gap(void)
  * boot_params.e820_map, others are passed via SETUP_E820_EXT node of
  * linked list of struct setup_data, which is parsed here.
  */
-void __init parse_e820_ext(struct setup_data *sdata)
+void __init parse_e820_ext(u64 phys_addr, u32 data_len)
 {
 	int entries;
 	struct e820entry *extmap;
+	struct setup_data *sdata;
 
+	sdata = early_memremap(phys_addr, data_len);
 	entries = sdata->len / sizeof(struct e820entry);
 	extmap = (struct e820entry *)(sdata->data);
 	__append_e820_map(extmap, entries);
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	early_iounmap(sdata, data_len);
 	printk(KERN_INFO "e820: extended physical RAM map:\n");
 	e820_print_map("extended");
 }
@@ -679,15 +674,14 @@ void __init parse_e820_ext(struct setup_data *sdata)
  * hibernation (32 bit) or software suspend and suspend to RAM (64 bit).
  *
  * This function requires the e820 map to be sorted and without any
- * overlapping entries and assumes the first e820 area to be RAM.
+ * overlapping entries.
  */
 void __init e820_mark_nosave_regions(unsigned long limit_pfn)
 {
 	int i;
-	unsigned long pfn;
+	unsigned long pfn = 0;
 
-	pfn = PFN_DOWN(e820.map[0].addr + e820.map[0].size);
-	for (i = 1; i < e820.nr_map; i++) {
+	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
 
 		if (pfn < PFN_UP(ei->addr))
@@ -896,11 +890,9 @@ early_param("memmap", parse_memmap_opt);
 void __init finish_e820_parsing(void)
 {
 	if (userdef) {
-		u32 nr = e820.nr_map;
-
-		if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr) < 0)
+		if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map),
+					&e820.nr_map) < 0)
 			early_panic("Invalid user supplied memory map");
-		e820.nr_map = nr;
 
 		printk(KERN_INFO "e820: user-defined physical RAM map:\n");
 		e820_print_map("user");
@@ -1112,12 +1104,12 @@ void __init memblock_find_dma_reserve(void)
 	 * at first, and assume boot_mem will not take below MAX_DMA_PFN
 	 */
 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL) {
-		start_pfn = min_t(unsigned long, start_pfn, MAX_DMA_PFN);
-		end_pfn = min_t(unsigned long, end_pfn, MAX_DMA_PFN);
+		start_pfn = min(start_pfn, MAX_DMA_PFN);
+		end_pfn = min(end_pfn, MAX_DMA_PFN);
 		nr_pages += end_pfn - start_pfn;
 	}
 
-	for_each_free_mem_range(u, MAX_NUMNODES, &start, &end, NULL) {
+	for_each_free_mem_range(u, NUMA_NO_NODE, &start, &end, NULL) {
 		start_pfn = min_t(unsigned long, PFN_UP(start), MAX_DMA_PFN);
 		end_pfn = min_t(unsigned long, PFN_DOWN(end), MAX_DMA_PFN);
 		if (start_pfn < end_pfn)

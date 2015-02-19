@@ -254,12 +254,6 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-int
-pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	return pci_enable_resources(dev, mask);
-}
-
 /*
  *  If we set up a device for bus mastering, we need to check the latency
  *  timer as certain firmware forgets to set it properly, as seen
@@ -291,8 +285,12 @@ pcibios_claim_one_bus(struct pci_bus *b)
 			if (r->parent || !r->start || !r->flags)
 				continue;
 			if (pci_has_flag(PCI_PROBE_ONLY) ||
-			    (r->flags & IORESOURCE_PCI_FIXED))
-				pci_claim_resource(dev, i);
+			    (r->flags & IORESOURCE_PCI_FIXED)) {
+				if (pci_claim_resource(dev, i) == 0)
+					continue;
+
+				pci_claim_bridge_resource(dev, i);
+			}
 		}
 	}
 

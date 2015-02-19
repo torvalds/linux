@@ -15,11 +15,9 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -599,8 +597,6 @@ static int octeon_i2c_probe(struct platform_device *pdev)
 	}
 	dev_info(i2c->dev, "version %s\n", DRV_VERSION);
 
-	of_i2c_register_devices(&i2c->adap);
-
 	return 0;
 
 out:
@@ -627,7 +623,6 @@ static struct platform_driver octeon_i2c_driver = {
 	.probe		= octeon_i2c_probe,
 	.remove		= octeon_i2c_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
 		.of_match_table = octeon_i2c_match,
 	},

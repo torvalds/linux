@@ -1,9 +1,11 @@
-* Marvell Armada 370/XP thermal management
+* Marvell Armada 370/375/380/XP thermal management
 
 Required properties:
 
 - compatible:	Should be set to one of the following:
 		marvell,armada370-thermal
+		marvell,armada375-thermal
+		marvell,armada380-thermal
 		marvell,armadaxp-thermal
 
 - reg:		Device's register space.

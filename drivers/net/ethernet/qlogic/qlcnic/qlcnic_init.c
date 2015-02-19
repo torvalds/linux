@@ -127,12 +127,14 @@ void qlcnic_reset_rx_buffers_list(struct qlcnic_adapter *adapter)
 	}
 }
 
-void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter)
+void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter,
+			       struct qlcnic_host_tx_ring *tx_ring)
 {
 	struct qlcnic_cmd_buffer *cmd_buf;
 	struct qlcnic_skb_frag *buffrag;
 	int i, j;
-	struct qlcnic_host_tx_ring *tx_ring = adapter->tx_ring;
+
+	spin_lock(&tx_ring->tx_clean_lock);
 
 	cmd_buf = tx_ring->cmd_buf_arr;
 	for (i = 0; i < tx_ring->num_desc; i++) {
@@ -157,6 +159,8 @@ void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter)
 		}
 		cmd_buf++;
 	}
+
+	spin_unlock(&tx_ring->tx_clean_lock);
 }
 
 void qlcnic_free_sw_resources(struct qlcnic_adapter *adapter)
@@ -236,12 +240,18 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 		spin_lock_init(&rds_ring->lock);
 	}
 
-	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		sds_ring->irq = adapter->msix_entries[ring].vector;
 		sds_ring->adapter = adapter;
 		sds_ring->num_desc = adapter->num_rxd;
-
+		if (qlcnic_82xx_check(adapter)) {
+			if (qlcnic_check_multi_tx(adapter) &&
+			    !adapter->ahw->diag_test)
+				sds_ring->tx_ring = &adapter->tx_ring[ring];
+			else
+				sds_ring->tx_ring = &adapter->tx_ring[0];
+		}
 		for (i = 0; i < NUM_RCV_DESC_RINGS; i++)
 			INIT_LIST_HEAD(&sds_ring->free_list[i]);
 	}
@@ -527,7 +537,7 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_3 + 0xc, 0);
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_4 + 0x8, 0);
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_4 + 0xc, 0);
-	msleep(1);
+	usleep_range(1000, 1500);
 
 	QLC_SHARED_REG_WR32(adapter, QLCNIC_PEG_HALT_STATUS1, 0);
 	QLC_SHARED_REG_WR32(adapter, QLCNIC_PEG_HALT_STATUS2, 0);
@@ -1188,7 +1198,7 @@ qlcnic_load_firmware(struct qlcnic_adapter *adapter)
 			flashaddr += 8;
 		}
 	}
-	msleep(1);
+	usleep_range(1000, 1500);
 
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_0 + 0x18, 0x1020);
 	QLCWR32(adapter, QLCNIC_ROMUSB_GLB_SW_RESET, 0x80001e);
@@ -1285,7 +1295,7 @@ next:
 		rc = qlcnic_validate_firmware(adapter);
 		if (rc != 0) {
 			release_firmware(adapter->fw);
-			msleep(1);
+			usleep_range(1000, 1500);
 			goto next;
 		}
 	}

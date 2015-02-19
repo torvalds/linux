@@ -51,6 +51,9 @@
 #define CPU_BASED_MONITOR_EXITING               0x20000000
 #define CPU_BASED_PAUSE_EXITING                 0x40000000
 #define CPU_BASED_ACTIVATE_SECONDARY_CONTROLS   0x80000000
+
+#define CPU_BASED_ALWAYSON_WITHOUT_TRUE_MSR	0x0401e172
+
 /*
  * Definitions of Secondary Processor-Based VM-Execution Controls.
  */
@@ -66,6 +69,8 @@
 #define SECONDARY_EXEC_PAUSE_LOOP_EXITING	0x00000400
 #define SECONDARY_EXEC_ENABLE_INVPCID		0x00001000
 #define SECONDARY_EXEC_SHADOW_VMCS              0x00004000
+#define SECONDARY_EXEC_ENABLE_PML               0x00020000
+#define SECONDARY_EXEC_XSAVES			0x00100000
 
 
 #define PIN_BASED_EXT_INTR_MASK                 0x00000001
@@ -76,7 +81,7 @@
 
 #define PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR	0x00000016
 
-#define VM_EXIT_SAVE_DEBUG_CONTROLS             0x00000002
+#define VM_EXIT_SAVE_DEBUG_CONTROLS             0x00000004
 #define VM_EXIT_HOST_ADDR_SPACE_SIZE            0x00000200
 #define VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL      0x00001000
 #define VM_EXIT_ACK_INTR_ON_EXIT                0x00008000
@@ -85,21 +90,24 @@
 #define VM_EXIT_SAVE_IA32_EFER                  0x00100000
 #define VM_EXIT_LOAD_IA32_EFER                  0x00200000
 #define VM_EXIT_SAVE_VMX_PREEMPTION_TIMER       0x00400000
+#define VM_EXIT_CLEAR_BNDCFGS                   0x00800000
 
 #define VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR	0x00036dff
 
-#define VM_ENTRY_LOAD_DEBUG_CONTROLS            0x00000002
+#define VM_ENTRY_LOAD_DEBUG_CONTROLS            0x00000004
 #define VM_ENTRY_IA32E_MODE                     0x00000200
 #define VM_ENTRY_SMM                            0x00000400
 #define VM_ENTRY_DEACT_DUAL_MONITOR             0x00000800
 #define VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL     0x00002000
 #define VM_ENTRY_LOAD_IA32_PAT			0x00004000
 #define VM_ENTRY_LOAD_IA32_EFER                 0x00008000
+#define VM_ENTRY_LOAD_BNDCFGS                   0x00010000
 
 #define VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR	0x000011ff
 
 #define VMX_MISC_PREEMPTION_TIMER_RATE_MASK	0x0000001f
 #define VMX_MISC_SAVE_EFER_LMA			0x00000020
+#define VMX_MISC_ACTIVITY_HLT			0x00000040
 
 /* VMCS Encodings */
 enum vmcs_field {
@@ -114,6 +122,7 @@ enum vmcs_field {
 	GUEST_LDTR_SELECTOR             = 0x0000080c,
 	GUEST_TR_SELECTOR               = 0x0000080e,
 	GUEST_INTR_STATUS               = 0x00000810,
+	GUEST_PML_INDEX			= 0x00000812,
 	HOST_ES_SELECTOR                = 0x00000c00,
 	HOST_CS_SELECTOR                = 0x00000c02,
 	HOST_SS_SELECTOR                = 0x00000c04,
@@ -133,6 +142,8 @@ enum vmcs_field {
 	VM_EXIT_MSR_LOAD_ADDR_HIGH      = 0x00002009,
 	VM_ENTRY_MSR_LOAD_ADDR          = 0x0000200a,
 	VM_ENTRY_MSR_LOAD_ADDR_HIGH     = 0x0000200b,
+	PML_ADDRESS			= 0x0000200e,
+	PML_ADDRESS_HIGH		= 0x0000200f,
 	TSC_OFFSET                      = 0x00002010,
 	TSC_OFFSET_HIGH                 = 0x00002011,
 	VIRTUAL_APIC_PAGE_ADDR          = 0x00002012,
@@ -153,6 +164,8 @@ enum vmcs_field {
 	EOI_EXIT_BITMAP3_HIGH           = 0x00002023,
 	VMREAD_BITMAP                   = 0x00002026,
 	VMWRITE_BITMAP                  = 0x00002028,
+	XSS_EXIT_BITMAP                 = 0x0000202C,
+	XSS_EXIT_BITMAP_HIGH            = 0x0000202D,
 	GUEST_PHYSICAL_ADDRESS          = 0x00002400,
 	GUEST_PHYSICAL_ADDRESS_HIGH     = 0x00002401,
 	VMCS_LINK_POINTER               = 0x00002800,
@@ -173,6 +186,8 @@ enum vmcs_field {
 	GUEST_PDPTR2_HIGH               = 0x0000280f,
 	GUEST_PDPTR3                    = 0x00002810,
 	GUEST_PDPTR3_HIGH               = 0x00002811,
+	GUEST_BNDCFGS                   = 0x00002812,
+	GUEST_BNDCFGS_HIGH              = 0x00002813,
 	HOST_IA32_PAT			= 0x00002c00,
 	HOST_IA32_PAT_HIGH		= 0x00002c01,
 	HOST_IA32_EFER			= 0x00002c02,
@@ -387,6 +402,7 @@ enum vmcs_field {
 #define VMX_EPT_EXTENT_INDIVIDUAL_ADDR		0
 #define VMX_EPT_EXTENT_CONTEXT			1
 #define VMX_EPT_EXTENT_GLOBAL			2
+#define VMX_EPT_EXTENT_SHIFT			24
 
 #define VMX_EPT_EXECUTE_ONLY_BIT		(1ull)
 #define VMX_EPT_PAGE_WALK_4_BIT			(1ull << 6)
@@ -394,6 +410,7 @@ enum vmcs_field {
 #define VMX_EPTP_WB_BIT				(1ull << 14)
 #define VMX_EPT_2MB_PAGE_BIT			(1ull << 16)
 #define VMX_EPT_1GB_PAGE_BIT			(1ull << 17)
+#define VMX_EPT_INVEPT_BIT			(1ull << 20)
 #define VMX_EPT_AD_BIT				    (1ull << 21)
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)

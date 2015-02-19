@@ -508,7 +508,8 @@ static void pwc_isoc_cleanup(struct pwc_device *pdev)
 }
 
 /* Must be called with vb_queue_lock hold */
-static void pwc_cleanup_queued_bufs(struct pwc_device *pdev)
+static void pwc_cleanup_queued_bufs(struct pwc_device *pdev,
+				    enum vb2_buffer_state state)
 {
 	unsigned long flags = 0;
 
@@ -519,7 +520,7 @@ static void pwc_cleanup_queued_bufs(struct pwc_device *pdev)
 		buf = list_entry(pdev->queued_bufs.next, struct pwc_frame_buf,
 				 list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb, state);
 	}
 	spin_unlock_irqrestore(&pdev->queued_bufs_lock, flags);
 }
@@ -614,17 +615,20 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int buffer_finish(struct vb2_buffer *vb)
+static void buffer_finish(struct vb2_buffer *vb)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vb->vb2_queue);
 	struct pwc_frame_buf *buf = container_of(vb, struct pwc_frame_buf, vb);
 
-	/*
-	 * Application has called dqbuf and is getting back a buffer we've
-	 * filled, take the pwc data we've stored in buf->data and decompress
-	 * it into a usable format, storing the result in the vb2_buffer
-	 */
-	return pwc_decompress(pdev, buf);
+	if (vb->state == VB2_BUF_STATE_DONE) {
+		/*
+		 * Application has called dqbuf and is getting back a buffer
+		 * we've filled, take the pwc data we've stored in buf->data
+		 * and decompress it into a usable format, storing the result
+		 * in the vb2_buffer.
+		 */
+		pwc_decompress(pdev, buf);
+	}
 }
 
 static void buffer_cleanup(struct vb2_buffer *vb)
@@ -671,29 +675,28 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 		pwc_set_leds(pdev, 0, 0);
 		pwc_camera_power(pdev, 0);
 		/* And cleanup any queued bufs!! */
-		pwc_cleanup_queued_bufs(pdev);
+		pwc_cleanup_queued_bufs(pdev, VB2_BUF_STATE_QUEUED);
 	}
 	mutex_unlock(&pdev->v4l2_lock);
 
 	return r;
 }
 
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 
-	if (mutex_lock_interruptible(&pdev->v4l2_lock))
-		return -ERESTARTSYS;
+	mutex_lock(&pdev->v4l2_lock);
 	if (pdev->udev) {
 		pwc_set_leds(pdev, 0, 0);
 		pwc_camera_power(pdev, 0);
 		pwc_isoc_cleanup(pdev);
 	}
 
-	pwc_cleanup_queued_bufs(pdev);
+	pwc_cleanup_queued_bufs(pdev, VB2_BUF_STATE_ERROR);
+	if (pdev->fill_buf)
+		vb2_buffer_done(&pdev->fill_buf->vb, VB2_BUF_STATE_ERROR);
 	mutex_unlock(&pdev->v4l2_lock);
-
-	return 0;
 }
 
 static struct vb2_ops pwc_vb_queue_ops = {
@@ -1001,7 +1004,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pdev->vb_queue.buf_struct_size = sizeof(struct pwc_frame_buf);
 	pdev->vb_queue.ops = &pwc_vb_queue_ops;
 	pdev->vb_queue.mem_ops = &vb2_vmalloc_memops;
-	pdev->vb_queue.timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	pdev->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	rc = vb2_queue_init(&pdev->vb_queue);
 	if (rc < 0) {
 		PWC_ERROR("Oops, could not initialize vb2 queue.\n");
@@ -1013,7 +1016,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	strcpy(pdev->vdev.name, name);
 	pdev->vdev.queue = &pdev->vb_queue;
 	pdev->vdev.queue->lock = &pdev->vb_queue_lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &pdev->vdev.flags);
 	video_set_drvdata(&pdev->vdev, pdev);
 
 	pdev->release = le16_to_cpu(udev->descriptor.bcdDevice);
@@ -1039,7 +1041,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	/* Set the leds off */
 	pwc_set_leds(pdev, 0, 0);
 
-	/* Setup intial videomode */
+	/* Setup initial videomode */
 	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT,
 				V4L2_PIX_FMT_YUV420, 30, &compression, 1);
 	if (rc)
@@ -1078,7 +1080,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	/* register webcam snapshot button input device */
 	pdev->button_dev = input_allocate_device();
 	if (!pdev->button_dev) {
-		PWC_ERROR("Err, insufficient memory for webcam snapshot button device.");
 		rc = -ENOMEM;
 		goto err_video_unreg;
 	}
@@ -1127,7 +1128,6 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 	if (pdev->vb_queue.streaming)
 		pwc_isoc_cleanup(pdev);
 	pdev->udev = NULL;
-	pwc_cleanup_queued_bufs(pdev);
 
 	v4l2_device_disconnect(&pdev->v4l2_dev);
 	video_unregister_device(&pdev->vdev);

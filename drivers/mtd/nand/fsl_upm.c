@@ -18,6 +18,7 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/mtd.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
@@ -346,7 +347,6 @@ MODULE_DEVICE_TABLE(of, of_fun_match);
 static struct platform_driver of_fun_driver = {
 	.driver = {
 		.name = "fsl,upm-nand",
-		.owner = THIS_MODULE,
 		.of_match_table = of_fun_match,
 	},
 	.probe		= fun_probe,

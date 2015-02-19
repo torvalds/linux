@@ -26,14 +26,13 @@
  *
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 
 #include <mach/da8xx.h>
 #include <linux/platform_data/usb-davinci.h>
@@ -86,6 +85,7 @@
 struct da8xx_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	struct platform_device	*phy;
 	struct clk		*clk;
 };
 
@@ -198,20 +198,20 @@ static void otg_timer(unsigned long _musb)
 	 */
 	devctl = musb_readb(mregs, MUSB_DEVCTL);
 	dev_dbg(musb->controller, "Poll devctl %02x (%s)\n", devctl,
-		usb_otg_state_string(musb->xceiv->state));
+		usb_otg_state_string(musb->xceiv->otg->state));
 
 	spin_lock_irqsave(&musb->lock, flags);
-	switch (musb->xceiv->state) {
+	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_WAIT_BCON:
 		devctl &= ~MUSB_DEVCTL_SESSION;
 		musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
 
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 		if (devctl & MUSB_DEVCTL_BDEVICE) {
-			musb->xceiv->state = OTG_STATE_B_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 			MUSB_DEV_MODE(musb);
 		} else {
-			musb->xceiv->state = OTG_STATE_A_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 			MUSB_HST_MODE(musb);
 		}
 		break;
@@ -226,7 +226,7 @@ static void otg_timer(unsigned long _musb)
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 			break;
 		}
-		musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 		musb_writel(musb->ctrl_base, DA8XX_USB_INTR_SRC_SET_REG,
 			    MUSB_INTR_VBUSERROR << DA8XX_INTR_USB_SHIFT);
 		break;
@@ -248,7 +248,7 @@ static void otg_timer(unsigned long _musb)
 		if (devctl & MUSB_DEVCTL_BDEVICE)
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 		else
-			musb->xceiv->state = OTG_STATE_A_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 		break;
 	default:
 		break;
@@ -265,9 +265,9 @@ static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 
 	/* Never idle if active, or when VBUS timeout is not set as host */
 	if (musb->is_active || (musb->a_wait_bcon == 0 &&
-				musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
+				musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON)) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
-			usb_otg_state_string(musb->xceiv->state));
+			usb_otg_state_string(musb->xceiv->otg->state));
 		del_timer(&otg_workaround);
 		last_timer = jiffies;
 		return;
@@ -280,7 +280,7 @@ static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 	last_timer = timeout;
 
 	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
-		usb_otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->otg->state),
 		jiffies_to_msecs(timeout - jiffies));
 	mod_timer(&otg_workaround, timeout);
 }
@@ -341,26 +341,26 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 			 * devctl.
 			 */
 			musb->int_usb &= ~MUSB_INTR_VBUSERROR;
-			musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VFALL;
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			otg->default_a = 1;
-			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
 			del_timer(&otg_workaround);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
 			otg->default_a = 0;
-			musb->xceiv->state = OTG_STATE_B_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 			portstate(musb->port1_status &= ~USB_PORT_STAT_POWER);
 		}
 
 		dev_dbg(musb->controller, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
-				usb_otg_state_string(musb->xceiv->state),
+				usb_otg_state_string(musb->xceiv->otg->state),
 				err ? " ERROR" : "",
 				devctl);
 		ret = IRQ_HANDLED;
@@ -375,7 +375,7 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 		musb_writel(reg_base, DA8XX_USB_END_OF_INTR_REG, 0);
 
 	/* Poll for ID change */
-	if (musb->xceiv->state == OTG_STATE_B_IDLE)
+	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE)
 		mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -419,7 +419,6 @@ static int da8xx_musb_init(struct musb *musb)
 	if (!rev)
 		goto fail;
 
-	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		ret = -EPROBE_DEFER;
@@ -454,15 +453,16 @@ static int da8xx_musb_exit(struct musb *musb)
 	phy_off();
 
 	usb_put_phy(musb->xceiv);
-	usb_nop_xceiv_unregister();
 
 	return 0;
 }
 
 static const struct musb_platform_ops da8xx_ops = {
+	.quirks		= MUSB_INDEXED_EP,
 	.init		= da8xx_musb_init,
 	.exit		= da8xx_musb_exit,
 
+	.fifo_mode	= 2,
 	.enable		= da8xx_musb_enable,
 	.disable	= da8xx_musb_disable,
 
@@ -472,15 +472,19 @@ static const struct musb_platform_ops da8xx_ops = {
 	.set_vbus	= da8xx_musb_set_vbus,
 };
 
-static u64 da8xx_dmamask = DMA_BIT_MASK(32);
+static const struct platform_device_info da8xx_dev_info = {
+	.name		= "musb-hdrc",
+	.id		= PLATFORM_DEVID_AUTO,
+	.dma_mask	= DMA_BIT_MASK(32),
+};
 
 static int da8xx_probe(struct platform_device *pdev)
 {
 	struct resource musb_resources[2];
-	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
+	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct platform_device		*musb;
 	struct da8xx_glue		*glue;
-
+	struct platform_device_info	pinfo;
 	struct clk			*clk;
 
 	int				ret = -ENOMEM;
@@ -489,12 +493,6 @@ static int da8xx_probe(struct platform_device *pdev)
 	if (!glue) {
 		dev_err(&pdev->dev, "failed to allocate glue context\n");
 		goto err0;
-	}
-
-	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err1;
 	}
 
 	clk = clk_get(&pdev->dev, "usb20");
@@ -510,16 +508,16 @@ static int da8xx_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	musb->dev.parent		= &pdev->dev;
-	musb->dev.dma_mask		= &da8xx_dmamask;
-	musb->dev.coherent_dma_mask	= da8xx_dmamask;
-
 	glue->dev			= &pdev->dev;
-	glue->musb			= musb;
 	glue->clk			= clk;
 
 	pdata->platform_ops		= &da8xx_ops;
 
+	glue->phy = usb_phy_generic_register();
+	if (IS_ERR(glue->phy)) {
+		ret = PTR_ERR(glue->phy);
+		goto err5;
+	}
 	platform_set_drvdata(pdev, glue);
 
 	memset(musb_resources, 0x00, sizeof(*musb_resources) *
@@ -535,26 +533,24 @@ static int da8xx_probe(struct platform_device *pdev)
 	musb_resources[1].end = pdev->resource[1].end;
 	musb_resources[1].flags = pdev->resource[1].flags;
 
-	ret = platform_device_add_resources(musb, musb_resources,
-			ARRAY_SIZE(musb_resources));
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err5;
-	}
+	pinfo = da8xx_dev_info;
+	pinfo.parent = &pdev->dev;
+	pinfo.res = musb_resources;
+	pinfo.num_res = ARRAY_SIZE(musb_resources);
+	pinfo.data = pdata;
+	pinfo.size_data = sizeof(*pdata);
 
-	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err5;
-	}
-
-	ret = platform_device_add(musb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err5;
+	glue->musb = musb = platform_device_register_full(&pinfo);
+	if (IS_ERR(musb)) {
+		ret = PTR_ERR(musb);
+		dev_err(&pdev->dev, "failed to register musb device: %d\n", ret);
+		goto err6;
 	}
 
 	return 0;
+
+err6:
+	usb_phy_generic_unregister(glue->phy);
 
 err5:
 	clk_disable(clk);
@@ -563,9 +559,6 @@ err4:
 	clk_put(clk);
 
 err3:
-	platform_device_put(musb);
-
-err1:
 	kfree(glue);
 
 err0:
@@ -577,6 +570,7 @@ static int da8xx_remove(struct platform_device *pdev)
 	struct da8xx_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
+	usb_phy_generic_unregister(glue->phy);
 	clk_disable(glue->clk);
 	clk_put(glue->clk);
 	kfree(glue);

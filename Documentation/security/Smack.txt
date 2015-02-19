@@ -3,7 +3,7 @@
     "Good for you, you've decided to clean the elevator!"
     - The Elevator, from Dark Star
 
-Smack is the the Simplified Mandatory Access Control Kernel.
+Smack is the Simplified Mandatory Access Control Kernel.
 Smack is a kernel based implementation of mandatory access
 control that includes simplicity in its primary design goals.
 
@@ -204,6 +204,16 @@ onlycap
 	these capabilities are effective at for processes with any
 	label. The value is set by writing the desired label to the
 	file or cleared by writing "-" to the file.
+ptrace
+	This is used to define the current ptrace policy
+	0 - default: this is the policy that relies on smack access rules.
+	    For the PTRACE_READ a subject needs to have a read access on
+	    object. For the PTRACE_ATTACH a read-write access is required.
+	1 - exact: this is the policy that limits PTRACE_ATTACH. Attach is
+	    only allowed when subject's and object's labels are equal.
+	    PTRACE_READ is not affected. Can be overriden with CAP_SYS_PTRACE.
+	2 - draconian: this policy behaves like the 'exact' above with an
+	    exception that it can't be overriden with CAP_SYS_PTRACE.
 revoke-subject
 	Writing a Smack label here sets the access to '-' for all access
 	rules with that subject label.

@@ -350,10 +350,10 @@ PD Record codes
 
 /*-------------------------------------------------------------*/
 /* Commonly used basic types */
-typedef struct hfa384x_bytestr {
+struct hfa384x_bytestr {
 	u16 len;
 	u8 data[0];
-} __packed hfa384x_bytestr_t;
+} __packed;
 
 typedef struct hfa384x_bytestr32 {
 	u16 len;
@@ -531,14 +531,14 @@ typedef struct hfa384x_rx_frame {
 	u16 reserved2;
 
 	/*-- 802.11 Header Information (802.11 byte order) --*/
-	u16 frame_control;
+	__le16 frame_control;
 	u16 duration_id;
 	u8 address1[6];
 	u8 address2[6];
 	u8 address3[6];
 	u16 sequence_control;
 	u8 address4[6];
-	u16 data_len;		/* hfa384x (little endian) format */
+	__le16 data_len;		/* hfa384x (little endian) format */
 
 	/*-- 802.3 Header Information --*/
 	u8 dest_addr[6];
@@ -879,7 +879,7 @@ typedef struct hfa384x_usb_error {
 /* Unions for packaging all the known packet types together */
 
 typedef union hfa384x_usbout {
-	u16 type;
+	__le16 type;
 	hfa384x_usb_txfrm_t txfrm;
 	hfa384x_usb_cmdreq_t cmdreq;
 	hfa384x_usb_wridreq_t wridreq;
@@ -889,7 +889,7 @@ typedef union hfa384x_usbout {
 } __packed hfa384x_usbout_t;
 
 typedef union hfa384x_usbin {
-	u16 type;
+	__le16 type;
 	hfa384x_usb_rxfrm_t rxfrm;
 	hfa384x_usb_txfrm_t txfrm;
 	hfa384x_usb_infofrm_t infofrm;
@@ -1268,7 +1268,7 @@ typedef struct hfa384x {
 	hfa384x_downloadbuffer_t bufinfo;
 	u16 dltimeout;
 
-	int scanflag;		/* to signal scan comlete */
+	int scanflag;		/* to signal scan complete */
 	int join_ap;		/* are we joined to a specific ap */
 	int join_retries;	/* number of join retries till we fail */
 	hfa384x_JoinRequest_data_t joinreq;	/* join request saved data */
@@ -1376,6 +1376,7 @@ int hfa384x_drvr_setconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len);
 static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
 {
 	int result = 0;
+
 	result = hfa384x_drvr_getconfig(hw, rid, val, sizeof(u16));
 	if (result == 0)
 		*((u16 *) val) = le16_to_cpu(*((u16 *) val));
@@ -1385,6 +1386,7 @@ static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
 static inline int hfa384x_drvr_setconfig16(hfa384x_t *hw, u16 rid, u16 val)
 {
 	u16 value = cpu_to_le16(val);
+
 	return hfa384x_drvr_setconfig(hw, rid, &value, sizeof(value));
 }
 
@@ -1402,6 +1404,7 @@ static inline int
 hfa384x_drvr_setconfig16_async(hfa384x_t *hw, u16 rid, u16 val)
 {
 	u16 value = cpu_to_le16(val);
+
 	return hfa384x_drvr_setconfig_async(hw, rid, &value, sizeof(value),
 					    NULL, NULL);
 }

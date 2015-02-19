@@ -10,7 +10,6 @@
 
 /* Architected bits */
 #define _PAGE_PRESENT	0x000001 /* software: pte contains a translation */
-#define _PAGE_FILE	0x000002 /* (!present only) software: pte holds file offset */
 #define _PAGE_SW1	0x000002
 #define _PAGE_BAP_SR	0x000004
 #define _PAGE_BAP_UR	0x000008
@@ -40,7 +39,7 @@
 #define _PAGE_U1	0x010000
 #define _PAGE_U0	0x020000
 #define _PAGE_ACCESSED	0x040000
-#define _PAGE_LENDIAN	0x080000
+#define _PAGE_ENDIAN	0x080000
 #define _PAGE_GUARDED	0x100000
 #define _PAGE_COHERENT	0x200000 /* M: enforce memory coherence */
 #define _PAGE_NO_CACHE	0x400000 /* I: cache inhibit */

@@ -98,7 +98,7 @@ long omap2_round_to_table_rate(struct clk_hw *hw, unsigned long rate,
 int omap2_select_table_rate(struct clk_hw *hw, unsigned long rate,
 			    unsigned long parent_rate)
 {
-	u32 cur_rate, done_rate, bypass = 0, tmp;
+	u32 cur_rate, done_rate, bypass = 0;
 	const struct prcm_config *prcm;
 	unsigned long found_speed = 0;
 	unsigned long flags;
@@ -141,23 +141,11 @@ int omap2_select_table_rate(struct clk_hw *hw, unsigned long rate,
 		else
 			done_rate = CORE_CLK_SRC_DPLL;
 
-		/* MPU divider */
-		omap2_cm_write_mod_reg(prcm->cm_clksel_mpu, MPU_MOD, CM_CLKSEL);
-
-		/* dsp + iva1 div(2420), iva2.1(2430) */
-		omap2_cm_write_mod_reg(prcm->cm_clksel_dsp,
-				 OMAP24XX_DSP_MOD, CM_CLKSEL);
-
-		omap2_cm_write_mod_reg(prcm->cm_clksel_gfx, GFX_MOD, CM_CLKSEL);
-
-		/* Major subsystem dividers */
-		tmp = omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL1) & OMAP24XX_CLKSEL_DSS2_MASK;
-		omap2_cm_write_mod_reg(prcm->cm_clksel1_core | tmp, CORE_MOD,
-				 CM_CLKSEL1);
-
-		if (cpu_is_omap2430())
-			omap2_cm_write_mod_reg(prcm->cm_clksel_mdm,
-					 OMAP2430_MDM_MOD, CM_CLKSEL);
+		omap2xxx_cm_set_mod_dividers(prcm->cm_clksel_mpu,
+					     prcm->cm_clksel_dsp,
+					     prcm->cm_clksel_gfx,
+					     prcm->cm_clksel1_core,
+					     prcm->cm_clksel_mdm);
 
 		/* x2 to enter omap2xxx_sdrc_init_params() */
 		omap2xxx_sdrc_reprogram(CORE_CLK_SRC_DPLL_X2, 1);
@@ -220,3 +208,56 @@ void omap2xxx_clkt_vps_late_init(void)
 		clk_put(c);
 	}
 }
+
+#ifdef CONFIG_OF
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
+
+static const struct clk_ops virt_prcm_set_ops = {
+	.recalc_rate	= &omap2_table_mpu_recalc,
+	.set_rate	= &omap2_select_table_rate,
+	.round_rate	= &omap2_round_to_table_rate,
+};
+
+/**
+ * omap2xxx_clkt_vps_init - initialize virt_prcm_set clock
+ *
+ * Does a manual init for the virtual prcm DVFS clock for OMAP2. This
+ * function is called only from omap2 DT clock init, as the virtual
+ * node is not modelled in the DT clock data.
+ */
+void omap2xxx_clkt_vps_init(void)
+{
+	struct clk_init_data init = { NULL };
+	struct clk_hw_omap *hw = NULL;
+	struct clk *clk;
+	const char *parent_name = "mpu_ck";
+	struct clk_lookup *lookup = NULL;
+
+	omap2xxx_clkt_vps_late_init();
+	omap2xxx_clkt_vps_check_bootloader_rates();
+
+	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	lookup = kzalloc(sizeof(*lookup), GFP_KERNEL);
+	if (!hw || !lookup)
+		goto cleanup;
+	init.name = "virt_prcm_set";
+	init.ops = &virt_prcm_set_ops;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	hw->hw.init = &init;
+
+	clk = clk_register(NULL, &hw->hw);
+
+	lookup->dev_id = NULL;
+	lookup->con_id = "cpufreq_ck";
+	lookup->clk = clk;
+
+	clkdev_add(lookup);
+	return;
+cleanup:
+	kfree(hw);
+	kfree(lookup);
+}
+#endif

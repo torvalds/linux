@@ -115,12 +115,12 @@ static void qxl_gc_work(struct work_struct *work)
 	qxl_garbage_collect(qdev);
 }
 
-int qxl_device_init(struct qxl_device *qdev,
+static int qxl_device_init(struct qxl_device *qdev,
 		    struct drm_device *ddev,
 		    struct pci_dev *pdev,
 		    unsigned long flags)
 {
-	int r;
+	int r, sb;
 
 	qdev->dev = &pdev->dev;
 	qdev->ddev = ddev;
@@ -136,21 +136,39 @@ int qxl_device_init(struct qxl_device *qdev,
 	qdev->rom_base = pci_resource_start(pdev, 2);
 	qdev->rom_size = pci_resource_len(pdev, 2);
 	qdev->vram_base = pci_resource_start(pdev, 0);
-	qdev->surfaceram_base = pci_resource_start(pdev, 1);
-	qdev->surfaceram_size = pci_resource_len(pdev, 1);
 	qdev->io_base = pci_resource_start(pdev, 3);
 
 	qdev->vram_mapping = io_mapping_create_wc(qdev->vram_base, pci_resource_len(pdev, 0));
-	qdev->surface_mapping = io_mapping_create_wc(qdev->surfaceram_base, qdev->surfaceram_size);
-	DRM_DEBUG_KMS("qxl: vram %llx-%llx(%dM %dk), surface %llx-%llx(%dM %dk)\n",
+
+	if (pci_resource_len(pdev, 4) > 0) {
+		/* 64bit surface bar present */
+		sb = 4;
+		qdev->surfaceram_base = pci_resource_start(pdev, sb);
+		qdev->surfaceram_size = pci_resource_len(pdev, sb);
+		qdev->surface_mapping =
+			io_mapping_create_wc(qdev->surfaceram_base,
+					     qdev->surfaceram_size);
+	}
+	if (qdev->surface_mapping == NULL) {
+		/* 64bit surface bar not present (or mapping failed) */
+		sb = 1;
+		qdev->surfaceram_base = pci_resource_start(pdev, sb);
+		qdev->surfaceram_size = pci_resource_len(pdev, sb);
+		qdev->surface_mapping =
+			io_mapping_create_wc(qdev->surfaceram_base,
+					     qdev->surfaceram_size);
+	}
+
+	DRM_DEBUG_KMS("qxl: vram %llx-%llx(%dM %dk), surface %llx-%llx(%dM %dk, %s)\n",
 		 (unsigned long long)qdev->vram_base,
 		 (unsigned long long)pci_resource_end(pdev, 0),
 		 (int)pci_resource_len(pdev, 0) / 1024 / 1024,
 		 (int)pci_resource_len(pdev, 0) / 1024,
 		 (unsigned long long)qdev->surfaceram_base,
-		 (unsigned long long)pci_resource_end(pdev, 1),
+		 (unsigned long long)pci_resource_end(pdev, sb),
 		 (int)qdev->surfaceram_size / 1024 / 1024,
-		 (int)qdev->surfaceram_size / 1024);
+		 (int)qdev->surfaceram_size / 1024,
+		 (sb == 4) ? "64bit" : "32bit");
 
 	qdev->rom = ioremap(qdev->rom_base, qdev->rom_size);
 	if (!qdev->rom) {
@@ -205,6 +223,7 @@ int qxl_device_init(struct qxl_device *qdev,
 
 	idr_init(&qdev->release_idr);
 	spin_lock_init(&qdev->release_idr_lock);
+	spin_lock_init(&qdev->release_lock);
 
 	idr_init(&qdev->surf_id_idr);
 	spin_lock_init(&qdev->surf_id_idr_lock);
@@ -230,9 +249,13 @@ int qxl_device_init(struct qxl_device *qdev,
 	qdev->surfaces_mem_slot = setup_slot(qdev, 1,
 		(unsigned long)qdev->surfaceram_base,
 		(unsigned long)qdev->surfaceram_base + qdev->surfaceram_size);
-	DRM_INFO("main mem slot %d [%lx,%x)\n",
-		qdev->main_mem_slot,
-		(unsigned long)qdev->vram_base, qdev->rom->ram_header_offset);
+	DRM_INFO("main mem slot %d [%lx,%x]\n",
+		 qdev->main_mem_slot,
+		 (unsigned long)qdev->vram_base, qdev->rom->ram_header_offset);
+	DRM_INFO("surface mem slot %d [%lx,%lx]\n",
+		 qdev->surfaces_mem_slot,
+		 (unsigned long)qdev->surfaceram_base,
+		 (unsigned long)qdev->surfaceram_size);
 
 
 	qdev->gc_queue = create_singlethread_workqueue("qxl_gc");
@@ -275,6 +298,9 @@ int qxl_driver_unload(struct drm_device *dev)
 
 	if (qdev == NULL)
 		return 0;
+
+	drm_vblank_cleanup(dev);
+
 	qxl_modeset_fini(qdev);
 	qxl_device_fini(qdev);
 
@@ -302,15 +328,20 @@ int qxl_driver_load(struct drm_device *dev, unsigned long flags)
 	if (r)
 		goto out;
 
+	r = drm_vblank_init(dev, 1);
+	if (r)
+		goto unload;
+
 	r = qxl_modeset_init(qdev);
-	if (r) {
-		qxl_driver_unload(dev);
-		goto out;
-	}
+	if (r)
+		goto unload;
 
 	drm_kms_helper_poll_init(qdev->ddev);
 
 	return 0;
+unload:
+	qxl_driver_unload(dev);
+
 out:
 	kfree(qdev);
 	return r;

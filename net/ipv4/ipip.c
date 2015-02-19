@@ -149,13 +149,13 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				 t->dev->ifindex, 0, IPPROTO_IPIP, 0);
+				 t->parms.link, 0, IPPROTO_IPIP, 0);
 		err = 0;
 		goto out;
 	}
 
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, dev_net(skb->dev), t->dev->ifindex, 0,
+		ipv4_redirect(skb, dev_net(skb->dev), t->parms.link, 0,
 			      IPPROTO_IPIP, 0);
 		err = 0;
 		goto out;
@@ -190,14 +190,13 @@ static int ipip_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph;
 
-	if (iptunnel_pull_header(skb, 0, tpi.proto))
-		goto drop;
-
 	iph = ip_hdr(skb);
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
 			iph->saddr, iph->daddr, 0);
 	if (tunnel) {
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+			goto drop;
+		if (iptunnel_pull_header(skb, 0, tpi.proto))
 			goto drop;
 		return ip_tunnel_rcv(tunnel, skb, &tpi, log_ecn_error);
 	}
@@ -221,17 +220,19 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(skb->protocol != htons(ETH_P_IP)))
 		goto tx_error;
 
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
+	skb = iptunnel_handle_offloads(skb, false, SKB_GSO_IPIP);
+	if (IS_ERR(skb))
+		goto out;
+
+	skb_set_inner_ipproto(skb, IPPROTO_IPIP);
 
 	ip_tunnel_xmit(skb, dev, tiph, tiph->protocol);
 	return NETDEV_TX_OK;
 
 tx_error:
+	kfree_skb(skb);
+out:
 	dev->stats.tx_errors++;
-	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -276,6 +277,7 @@ static const struct net_device_ops ipip_netdev_ops = {
 #define IPIP_FEATURES (NETIF_F_SG |		\
 		       NETIF_F_FRAGLIST |	\
 		       NETIF_F_HIGHDMA |	\
+		       NETIF_F_GSO_SOFTWARE |	\
 		       NETIF_F_HW_CSUM)
 
 static void ipip_tunnel_setup(struct net_device *dev)
@@ -286,9 +288,8 @@ static void ipip_tunnel_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
-	dev->features		|= NETIF_F_NETNS_LOCAL;
 	dev->features		|= NETIF_F_LLTX;
-	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
+	netif_keep_dst(dev);
 
 	dev->features		|= IPIP_FEATURES;
 	dev->hw_features	|= IPIP_FEATURES;
@@ -302,7 +303,8 @@ static int ipip_tunnel_init(struct net_device *dev)
 	memcpy(dev->dev_addr, &tunnel->parms.iph.saddr, 4);
 	memcpy(dev->broadcast, &tunnel->parms.iph.daddr, 4);
 
-	tunnel->hlen = 0;
+	tunnel->tun_hlen = 0;
+	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen;
 	tunnel->parms.iph.protocol = IPPROTO_IPIP;
 	return ip_tunnel_init(dev);
 }
@@ -341,10 +343,53 @@ static void ipip_netlink_parms(struct nlattr *data[],
 		parms->iph.frag_off = htons(IP_DF);
 }
 
+/* This function returns true when ENCAP attributes are present in the nl msg */
+static bool ipip_netlink_encap_parms(struct nlattr *data[],
+				     struct ip_tunnel_encap *ipencap)
+{
+	bool ret = false;
+
+	memset(ipencap, 0, sizeof(*ipencap));
+
+	if (!data)
+		return ret;
+
+	if (data[IFLA_IPTUN_ENCAP_TYPE]) {
+		ret = true;
+		ipencap->type = nla_get_u16(data[IFLA_IPTUN_ENCAP_TYPE]);
+	}
+
+	if (data[IFLA_IPTUN_ENCAP_FLAGS]) {
+		ret = true;
+		ipencap->flags = nla_get_u16(data[IFLA_IPTUN_ENCAP_FLAGS]);
+	}
+
+	if (data[IFLA_IPTUN_ENCAP_SPORT]) {
+		ret = true;
+		ipencap->sport = nla_get_be16(data[IFLA_IPTUN_ENCAP_SPORT]);
+	}
+
+	if (data[IFLA_IPTUN_ENCAP_DPORT]) {
+		ret = true;
+		ipencap->dport = nla_get_be16(data[IFLA_IPTUN_ENCAP_DPORT]);
+	}
+
+	return ret;
+}
+
 static int ipip_newlink(struct net *src_net, struct net_device *dev,
 			struct nlattr *tb[], struct nlattr *data[])
 {
 	struct ip_tunnel_parm p;
+	struct ip_tunnel_encap ipencap;
+
+	if (ipip_netlink_encap_parms(data, &ipencap)) {
+		struct ip_tunnel *t = netdev_priv(dev);
+		int err = ip_tunnel_encap_setup(t, &ipencap);
+
+		if (err < 0)
+			return err;
+	}
 
 	ipip_netlink_parms(data, &p);
 	return ip_tunnel_newlink(dev, tb, &p);
@@ -354,6 +399,15 @@ static int ipip_changelink(struct net_device *dev, struct nlattr *tb[],
 			   struct nlattr *data[])
 {
 	struct ip_tunnel_parm p;
+	struct ip_tunnel_encap ipencap;
+
+	if (ipip_netlink_encap_parms(data, &ipencap)) {
+		struct ip_tunnel *t = netdev_priv(dev);
+		int err = ip_tunnel_encap_setup(t, &ipencap);
+
+		if (err < 0)
+			return err;
+	}
 
 	ipip_netlink_parms(data, &p);
 
@@ -379,6 +433,14 @@ static size_t ipip_get_size(const struct net_device *dev)
 		nla_total_size(1) +
 		/* IFLA_IPTUN_PMTUDISC */
 		nla_total_size(1) +
+		/* IFLA_IPTUN_ENCAP_TYPE */
+		nla_total_size(2) +
+		/* IFLA_IPTUN_ENCAP_FLAGS */
+		nla_total_size(2) +
+		/* IFLA_IPTUN_ENCAP_SPORT */
+		nla_total_size(2) +
+		/* IFLA_IPTUN_ENCAP_DPORT */
+		nla_total_size(2) +
 		0;
 }
 
@@ -395,6 +457,17 @@ static int ipip_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_IPTUN_PMTUDISC,
 		       !!(parm->iph.frag_off & htons(IP_DF))))
 		goto nla_put_failure;
+
+	if (nla_put_u16(skb, IFLA_IPTUN_ENCAP_TYPE,
+			tunnel->encap.type) ||
+	    nla_put_be16(skb, IFLA_IPTUN_ENCAP_SPORT,
+			 tunnel->encap.sport) ||
+	    nla_put_be16(skb, IFLA_IPTUN_ENCAP_DPORT,
+			 tunnel->encap.dport) ||
+	    nla_put_u16(skb, IFLA_IPTUN_ENCAP_FLAGS,
+			tunnel->encap.flags))
+		goto nla_put_failure;
+
 	return 0;
 
 nla_put_failure:
@@ -408,6 +481,10 @@ static const struct nla_policy ipip_policy[IFLA_IPTUN_MAX + 1] = {
 	[IFLA_IPTUN_TTL]		= { .type = NLA_U8 },
 	[IFLA_IPTUN_TOS]		= { .type = NLA_U8 },
 	[IFLA_IPTUN_PMTUDISC]		= { .type = NLA_U8 },
+	[IFLA_IPTUN_ENCAP_TYPE]		= { .type = NLA_U16 },
+	[IFLA_IPTUN_ENCAP_FLAGS]	= { .type = NLA_U16 },
+	[IFLA_IPTUN_ENCAP_SPORT]	= { .type = NLA_U16 },
+	[IFLA_IPTUN_ENCAP_DPORT]	= { .type = NLA_U16 },
 };
 
 static struct rtnl_link_ops ipip_link_ops __read_mostly = {
@@ -421,6 +498,7 @@ static struct rtnl_link_ops ipip_link_ops __read_mostly = {
 	.dellink	= ip_tunnel_dellink,
 	.get_size	= ipip_get_size,
 	.fill_info	= ipip_fill_info,
+	.get_link_net	= ip_tunnel_get_link_net,
 };
 
 static struct xfrm_tunnel ipip_handler __read_mostly = {
@@ -437,7 +515,7 @@ static int __net_init ipip_init_net(struct net *net)
 static void __net_exit ipip_exit_net(struct net *net)
 {
 	struct ip_tunnel_net *itn = net_generic(net, ipip_net_id);
-	ip_tunnel_delete_net(itn);
+	ip_tunnel_delete_net(itn, &ipip_link_ops);
 }
 
 static struct pernet_operations ipip_net_ops = {
@@ -487,4 +565,5 @@ static void __exit ipip_fini(void)
 module_init(ipip_init);
 module_exit(ipip_fini);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_RTNL_LINK("ipip");
 MODULE_ALIAS_NETDEV("tunl0");

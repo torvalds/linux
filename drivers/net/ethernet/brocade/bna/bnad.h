@@ -71,7 +71,7 @@ struct bnad_rx_ctrl {
 #define BNAD_NAME			"bna"
 #define BNAD_NAME_LEN			64
 
-#define BNAD_VERSION			"3.2.21.1"
+#define BNAD_VERSION			"3.2.23.0"
 
 #define BNAD_MAILBOX_MSIX_INDEX		0
 #define BNAD_MAILBOX_MSIX_VECTORS	1
@@ -84,7 +84,7 @@ struct bnad_rx_ctrl {
 #define BNAD_IOCETH_TIMEOUT	     10000
 
 #define BNAD_MIN_Q_DEPTH		512
-#define BNAD_MAX_RXQ_DEPTH		2048
+#define BNAD_MAX_RXQ_DEPTH		16384
 #define BNAD_MAX_TXQ_DEPTH		2048
 
 #define BNAD_JUMBO_MTU			9000
@@ -104,6 +104,9 @@ struct bnad_rx_ctrl {
 /* Resource limits */
 #define BNAD_NUM_TXQ			(bnad->num_tx * bnad->num_txq_per_tx)
 #define BNAD_NUM_RXP			(bnad->num_rx * bnad->num_rxp_per_rx)
+
+#define BNAD_FRAME_SIZE(_mtu) \
+	(ETH_HLEN + VLAN_HLEN + (_mtu) + ETH_FCS_LEN)
 
 /*
  * DATA STRUCTURES
@@ -219,6 +222,7 @@ struct bnad_rx_info {
 
 struct bnad_tx_vector {
 	DEFINE_DMA_UNMAP_ADDR(dma_addr);
+	DEFINE_DMA_UNMAP_LEN(dma_len);
 };
 
 struct bnad_tx_unmap {
@@ -234,33 +238,38 @@ struct bnad_rx_vector {
 
 struct bnad_rx_unmap {
 	struct page		*page;
-	u32			page_offset;
 	struct sk_buff		*skb;
 	struct bnad_rx_vector	vector;
+	u32			page_offset;
 };
 
 enum bnad_rxbuf_type {
 	BNAD_RXBUF_NONE		= 0,
-	BNAD_RXBUF_SKB		= 1,
+	BNAD_RXBUF_SK_BUFF	= 1,
 	BNAD_RXBUF_PAGE		= 2,
-	BNAD_RXBUF_MULTI	= 3
+	BNAD_RXBUF_MULTI_BUFF	= 3
 };
 
-#define BNAD_RXBUF_IS_PAGE(_type)	((_type) == BNAD_RXBUF_PAGE)
+#define BNAD_RXBUF_IS_SK_BUFF(_type)	((_type) == BNAD_RXBUF_SK_BUFF)
+#define BNAD_RXBUF_IS_MULTI_BUFF(_type)	((_type) == BNAD_RXBUF_MULTI_BUFF)
 
 struct bnad_rx_unmap_q {
 	int			reuse_pi;
 	int			alloc_order;
 	u32			map_size;
 	enum bnad_rxbuf_type	type;
-	struct bnad_rx_unmap	unmap[0];
+	struct bnad_rx_unmap	unmap[0] ____cacheline_aligned;
 };
+
+#define BNAD_PCI_DEV_IS_CAT2(_bnad) \
+	((_bnad)->pcidev->device == BFA_PCI_DEVICE_ID_CT2)
 
 /* Bit mask values for bnad->cfg_flags */
 #define	BNAD_CF_DIM_ENABLED		0x01	/* DIM */
 #define	BNAD_CF_PROMISC			0x02
 #define BNAD_CF_ALLMULTI		0x04
-#define	BNAD_CF_MSIX			0x08	/* If in MSIx mode */
+#define	BNAD_CF_DEFAULT			0x08
+#define	BNAD_CF_MSIX			0x10	/* If in MSIx mode */
 
 /* Defines for run_flags bit-mask */
 /* Set, tested & cleared using xxx_bit() functions */
@@ -367,43 +376,41 @@ struct bnad_drvinfo {
  * EXTERN VARIABLES
  */
 extern const struct firmware *bfi_fw;
-extern u32		bnad_rxqs_per_cq;
 
 /*
  * EXTERN PROTOTYPES
  */
-extern u32 *cna_get_firmware_buf(struct pci_dev *pdev);
+u32 *cna_get_firmware_buf(struct pci_dev *pdev);
 /* Netdev entry point prototypes */
-extern void bnad_set_rx_mode(struct net_device *netdev);
-extern struct net_device_stats *bnad_get_netdev_stats(
-				struct net_device *netdev);
-extern int bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr);
-extern int bnad_enable_default_bcast(struct bnad *bnad);
-extern void bnad_restore_vlans(struct bnad *bnad, u32 rx_id);
-extern void bnad_set_ethtool_ops(struct net_device *netdev);
-extern void bnad_cb_completion(void *arg, enum bfa_status status);
+void bnad_set_rx_mode(struct net_device *netdev);
+struct net_device_stats *bnad_get_netdev_stats(struct net_device *netdev);
+int bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr);
+int bnad_enable_default_bcast(struct bnad *bnad);
+void bnad_restore_vlans(struct bnad *bnad, u32 rx_id);
+void bnad_set_ethtool_ops(struct net_device *netdev);
+void bnad_cb_completion(void *arg, enum bfa_status status);
 
 /* Configuration & setup */
-extern void bnad_tx_coalescing_timeo_set(struct bnad *bnad);
-extern void bnad_rx_coalescing_timeo_set(struct bnad *bnad);
+void bnad_tx_coalescing_timeo_set(struct bnad *bnad);
+void bnad_rx_coalescing_timeo_set(struct bnad *bnad);
 
-extern int bnad_setup_rx(struct bnad *bnad, u32 rx_id);
-extern int bnad_setup_tx(struct bnad *bnad, u32 tx_id);
-extern void bnad_destroy_tx(struct bnad *bnad, u32 tx_id);
-extern void bnad_destroy_rx(struct bnad *bnad, u32 rx_id);
+int bnad_setup_rx(struct bnad *bnad, u32 rx_id);
+int bnad_setup_tx(struct bnad *bnad, u32 tx_id);
+void bnad_destroy_tx(struct bnad *bnad, u32 tx_id);
+void bnad_destroy_rx(struct bnad *bnad, u32 rx_id);
 
 /* Timer start/stop protos */
-extern void bnad_dim_timer_start(struct bnad *bnad);
+void bnad_dim_timer_start(struct bnad *bnad);
 
 /* Statistics */
-extern void bnad_netdev_qstats_fill(struct bnad *bnad,
-		struct rtnl_link_stats64 *stats);
-extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
-		struct rtnl_link_stats64 *stats);
+void bnad_netdev_qstats_fill(struct bnad *bnad,
+			     struct rtnl_link_stats64 *stats);
+void bnad_netdev_hwstats_fill(struct bnad *bnad,
+			      struct rtnl_link_stats64 *stats);
 
 /* Debugfs */
-void	bnad_debugfs_init(struct bnad *bnad);
-void	bnad_debugfs_uninit(struct bnad *bnad);
+void bnad_debugfs_init(struct bnad *bnad);
+void bnad_debugfs_uninit(struct bnad *bnad);
 
 /* MACROS */
 /* To set & get the stats counters */

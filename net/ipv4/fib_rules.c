@@ -62,6 +62,10 @@ int __fib_lookup(struct net *net, struct flowi4 *flp, struct fib_result *res)
 	else
 		res->tclassid = 0;
 #endif
+
+	if (err == -ESRCH)
+		err = -ENETUNREACH;
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(__fib_lookup);
@@ -77,30 +81,55 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 		break;
 
 	case FR_ACT_UNREACHABLE:
-		err = -ENETUNREACH;
-		goto errout;
+		return -ENETUNREACH;
 
 	case FR_ACT_PROHIBIT:
-		err = -EACCES;
-		goto errout;
+		return -EACCES;
 
 	case FR_ACT_BLACKHOLE:
 	default:
-		err = -EINVAL;
-		goto errout;
+		return -EINVAL;
 	}
 
-	tbl = fib_get_table(rule->fr_net, rule->table);
-	if (!tbl)
-		goto errout;
+	rcu_read_lock();
 
-	err = fib_table_lookup(tbl, &flp->u.ip4, (struct fib_result *) arg->result, arg->flags);
-	if (err > 0)
-		err = -EAGAIN;
-errout:
+	tbl = fib_get_table(rule->fr_net, rule->table);
+	if (tbl)
+		err = fib_table_lookup(tbl, &flp->u.ip4,
+				       (struct fib_result *)arg->result,
+				       arg->flags);
+
+	rcu_read_unlock();
 	return err;
 }
 
+static bool fib4_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg)
+{
+	struct fib_result *result = (struct fib_result *) arg->result;
+	struct net_device *dev = NULL;
+
+	if (result->fi)
+		dev = result->fi->fib_dev;
+
+	/* do not accept result if the route does
+	 * not meet the required prefix length
+	 */
+	if (result->prefixlen <= rule->suppress_prefixlen)
+		goto suppress_route;
+
+	/* do not accept result if the route uses a device
+	 * belonging to a forbidden interface group
+	 */
+	if (rule->suppress_ifgroup != -1 && dev && dev->group == rule->suppress_ifgroup)
+		goto suppress_route;
+
+	return false;
+
+suppress_route:
+	if (!(arg->flags & FIB_LOOKUP_NOREF))
+		fib_info_put(result->fi);
+	return true;
+}
 
 static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
@@ -267,6 +296,7 @@ static const struct fib_rules_ops __net_initconst fib4_rules_ops_template = {
 	.rule_size	= sizeof(struct fib4_rule),
 	.addr_size	= sizeof(u32),
 	.action		= fib4_rule_action,
+	.suppress	= fib4_rule_suppress,
 	.match		= fib4_rule_match,
 	.configure	= fib4_rule_configure,
 	.delete		= fib4_rule_delete,

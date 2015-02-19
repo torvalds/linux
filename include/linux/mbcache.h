@@ -3,19 +3,21 @@
 
   (C) 2001 by Andreas Gruenbacher, <a.gruenbacher@computer.org>
 */
-
 struct mb_cache_entry {
 	struct list_head		e_lru_list;
 	struct mb_cache			*e_cache;
 	unsigned short			e_used;
 	unsigned short			e_queued;
+	atomic_t			e_refcnt;
 	struct block_device		*e_bdev;
 	sector_t			e_block;
-	struct list_head		e_block_list;
+	struct hlist_bl_node		e_block_list;
 	struct {
-		struct list_head	o_list;
+		struct hlist_bl_node	o_list;
 		unsigned int		o_key;
 	} e_index;
+	struct hlist_bl_head		*e_block_hash_p;
+	struct hlist_bl_head		*e_index_hash_p;
 };
 
 struct mb_cache {
@@ -25,8 +27,8 @@ struct mb_cache {
 	int				c_max_entries;
 	int				c_bucket_bits;
 	struct kmem_cache		*c_entry_cache;
-	struct list_head		*c_block_hash;
-	struct list_head		*c_index_hash;
+	struct hlist_bl_head		*c_block_hash;
+	struct hlist_bl_head		*c_index_hash;
 };
 
 /* Functions on caches */

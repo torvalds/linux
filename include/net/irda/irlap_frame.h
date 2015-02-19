@@ -24,9 +24,7 @@
  *     GNU General Public License for more details.
  * 
  *     You should have received a copy of the GNU General Public License 
- *     along with this program; if not, write to the Free Software 
- *     Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
- *     MA 02111-1307 USA
+ *     along with this program; if not, see <http://www.gnu.org/licenses/>.
  *     
  ********************************************************************/
 
@@ -163,7 +161,7 @@ void irlap_resend_rejected_frame(struct irlap_cb *self, int command);
 void irlap_send_ui_frame(struct irlap_cb *self, struct sk_buff *skb,
 			 __u8 caddr, int command);
 
-extern int irlap_insert_qos_negotiation_params(struct irlap_cb *self, 
-					       struct sk_buff *skb);
+int irlap_insert_qos_negotiation_params(struct irlap_cb *self,
+					struct sk_buff *skb);
 
 #endif

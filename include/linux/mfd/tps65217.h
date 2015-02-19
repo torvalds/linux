@@ -60,6 +60,8 @@
 #define TPS65217_REG_SEQ5		0X1D
 #define TPS65217_REG_SEQ6		0X1E
 
+#define TPS65217_REG_MAX		TPS65217_REG_SEQ6
+
 /* Register field definitions */
 #define TPS65217_CHIPID_CHIP_MASK	0xF0
 #define TPS65217_CHIPID_REV_MASK	0x0F
@@ -244,24 +246,6 @@ struct tps65217_board {
 };
 
 /**
- * struct tps_info - packages regulator constraints
- * @name:		Voltage regulator name
- * @min_uV:		minimum micro volts
- * @max_uV:		minimum micro volts
- * @vsel_to_uv:		Function pointer to get voltage from selector
- * @uv_to_vsel:		Function pointer to get selector from voltage
- *
- * This data is used to check the regualtor voltage limits while setting.
- */
-struct tps_info {
-	const char *name;
-	int min_uV;
-	int max_uV;
-	int (*vsel_to_uv)(unsigned int vsel);
-	int (*uv_to_vsel)(int uV, unsigned int *vsel);
-};
-
-/**
  * struct tps65217 - tps65217 sub-driver chip access routines
  *
  * Device data may be used to access the TPS65217 chip
@@ -270,10 +254,8 @@ struct tps_info {
 struct tps65217 {
 	struct device *dev;
 	struct tps65217_board *pdata;
-	unsigned int id;
+	unsigned long id;
 	struct regulator_desc desc[TPS65217_NUM_REGULATOR];
-	struct regulator_dev *rdev[TPS65217_NUM_REGULATOR];
-	struct tps_info *info[TPS65217_NUM_REGULATOR];
 	struct regmap *regmap;
 };
 
@@ -282,7 +264,7 @@ static inline struct tps65217 *dev_to_tps65217(struct device *dev)
 	return dev_get_drvdata(dev);
 }
 
-static inline int tps65217_chip_id(struct tps65217 *tps65217)
+static inline unsigned long tps65217_chip_id(struct tps65217 *tps65217)
 {
 	return tps65217->id;
 }

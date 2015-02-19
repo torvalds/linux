@@ -107,8 +107,6 @@ static int act200l_open(struct sir_dev *dev)
 {
 	struct qos_info *qos = &dev->qos;
 
-	IRDA_DEBUG(2, "%s()\n", __func__ );
-
 	/* Power on the dongle */
 	sirdev_set_dtr_rts(dev, TRUE, TRUE);
 
@@ -124,8 +122,6 @@ static int act200l_open(struct sir_dev *dev)
 
 static int act200l_close(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __func__ );
-
 	/* Power off the dongle */
 	sirdev_set_dtr_rts(dev, FALSE, FALSE);
 
@@ -142,8 +138,6 @@ static int act200l_change_speed(struct sir_dev *dev, unsigned speed)
 {
 	u8 control[3];
 	int ret = 0;
-
-	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	/* Clear DTR and set RTS to enter command mode */
 	sirdev_set_dtr_rts(dev, FALSE, TRUE);
@@ -212,8 +206,6 @@ static int act200l_reset(struct sir_dev *dev)
 	};
 	int ret = 0;
 
-	IRDA_DEBUG(2, "%s()\n", __func__ );
-
 	switch (state) {
 	case SIRDEV_STATE_DONGLE_RESET:
 		/* Reset the dongle : set RTS low for 25 ms */
@@ -240,7 +232,8 @@ static int act200l_reset(struct sir_dev *dev)
 		dev->speed = 9600;
 		break;
 	default:
-		IRDA_ERROR("%s(), unknown state %d\n", __func__, state);
+		net_err_ratelimited("%s(), unknown state %d\n",
+				    __func__, state);
 		ret = -1;
 		break;
 	}

@@ -28,7 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
-#include <linux/miscdevice.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
@@ -314,7 +313,6 @@ static struct platform_driver ie6xx_wdt_driver = {
 	.remove		= ie6xx_wdt_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -344,5 +342,4 @@ module_exit(ie6xx_wdt_exit);
 MODULE_AUTHOR("Alexander Stein <alexander.stein@systec-electronic.com>");
 MODULE_DESCRIPTION("Intel Atom E6xx Watchdog Device Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:" DRIVER_NAME);

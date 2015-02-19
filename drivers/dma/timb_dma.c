@@ -154,38 +154,6 @@ static bool __td_dma_done_ack(struct timb_dma_chan *td_chan)
 	return done;
 }
 
-static void __td_unmap_desc(struct timb_dma_chan *td_chan, const u8 *dma_desc,
-	bool single)
-{
-	dma_addr_t addr;
-	int len;
-
-	addr = (dma_desc[7] << 24) | (dma_desc[6] << 16) | (dma_desc[5] << 8) |
-		dma_desc[4];
-
-	len = (dma_desc[3] << 8) | dma_desc[2];
-
-	if (single)
-		dma_unmap_single(chan2dev(&td_chan->chan), addr, len,
-			DMA_TO_DEVICE);
-	else
-		dma_unmap_page(chan2dev(&td_chan->chan), addr, len,
-			DMA_TO_DEVICE);
-}
-
-static void __td_unmap_descs(struct timb_dma_desc *td_desc, bool single)
-{
-	struct timb_dma_chan *td_chan = container_of(td_desc->txd.chan,
-		struct timb_dma_chan, chan);
-	u8 *descs;
-
-	for (descs = td_desc->desc_list; ; descs += TIMB_DMA_DESC_SIZE) {
-		__td_unmap_desc(td_chan, descs, single);
-		if (descs[0] & 0x02)
-			break;
-	}
-}
-
 static int td_fill_desc(struct timb_dma_chan *td_chan, u8 *dma_desc,
 	struct scatterlist *sg, bool last)
 {
@@ -293,10 +261,7 @@ static void __td_finish(struct timb_dma_chan *td_chan)
 
 	list_move(&td_desc->desc_node, &td_chan->free_list);
 
-	if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP))
-		__td_unmap_descs(td_desc,
-			txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE);
-
+	dma_descriptor_unmap(txd);
 	/*
 	 * The API requires that no submissions are done from a
 	 * callback, so we don't need to drop the lock here
@@ -596,17 +561,13 @@ static struct dma_async_tx_descriptor *td_prep_slave_sg(struct dma_chan *chan,
 	return &td_desc->txd;
 }
 
-static int td_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-		      unsigned long arg)
+static int td_terminate_all(struct dma_chan *chan)
 {
 	struct timb_dma_chan *td_chan =
 		container_of(chan, struct timb_dma_chan, chan);
 	struct timb_dma_desc *td_desc, *_td_desc;
 
 	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
-
-	if (cmd != DMA_TERMINATE_ALL)
-		return -ENXIO;
 
 	/* first the easy part, put the queue into the free list */
 	spin_lock_bh(&td_chan->lock);
@@ -669,7 +630,7 @@ static irqreturn_t td_irq(int irq, void *devid)
 
 static int td_probe(struct platform_device *pdev)
 {
-	struct timb_dma_platform_data *pdata = pdev->dev.platform_data;
+	struct timb_dma_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct timb_dma *td;
 	struct resource *iomem;
 	int irq;
@@ -732,7 +693,7 @@ static int td_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_SLAVE, td->dma.cap_mask);
 	dma_cap_set(DMA_PRIVATE, td->dma.cap_mask);
 	td->dma.device_prep_slave_sg = td_prep_slave_sg;
-	td->dma.device_control = td_control;
+	td->dma.device_terminate_all = td_terminate_all;
 
 	td->dma.dev = &pdev->dev;
 
@@ -818,7 +779,6 @@ static int td_remove(struct platform_device *pdev)
 static struct platform_driver td_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner  = THIS_MODULE,
 	},
 	.probe	= td_probe,
 	.remove	= td_remove,

@@ -26,6 +26,17 @@ static char temp_stack[4096];
 #endif
 
 /**
+ * x86_acpi_enter_sleep_state - enter sleep state
+ * @state: Sleep state to enter.
+ *
+ * Wrapper around acpi_enter_sleep_state() to be called by assmebly.
+ */
+acpi_status asmlinkage __visible x86_acpi_enter_sleep_state(u8 state)
+{
+	return acpi_enter_sleep_state(state);
+}
+
+/**
  * x86_acpi_suspend_lowlevel - save kernel state
  *
  * Create an identity mapped page table and copy the wakeup routine to
@@ -67,7 +78,7 @@ int x86_acpi_suspend_lowlevel(void)
 
 	header->pmode_cr0 = read_cr0();
 	if (__this_cpu_read(cpu_info.cpuid_level) >= 0) {
-		header->pmode_cr4 = read_cr4();
+		header->pmode_cr4 = __read_cr4();
 		header->pmode_behavior |= (1 << WAKEUP_BEHAVIOR_RESTORE_CR4);
 	}
 	if (!rdmsr_safe(MSR_IA32_MISC_ENABLE,

@@ -12,11 +12,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irqflags.h>
+#include <linux/cpu_pm.h>
 
 #include <asm/mcpm.h>
 #include <asm/cacheflush.h>
 #include <asm/idmap.h>
 #include <asm/cputype.h>
+#include <asm/suspend.h>
 
 extern unsigned long mcpm_entry_vectors[MAX_NR_CLUSTERS][MAX_CPUS_PER_CLUSTER];
 
@@ -27,6 +29,17 @@ void mcpm_set_entry_vector(unsigned cpu, unsigned cluster, void *ptr)
 	sync_cache_w(&mcpm_entry_vectors[cluster][cpu]);
 }
 
+extern unsigned long mcpm_entry_early_pokes[MAX_NR_CLUSTERS][MAX_CPUS_PER_CLUSTER][2];
+
+void mcpm_set_early_poke(unsigned cpu, unsigned cluster,
+			 unsigned long poke_phys_addr, unsigned long poke_val)
+{
+	unsigned long *poke = &mcpm_entry_early_pokes[cluster][cpu][0];
+	poke[0] = poke_phys_addr;
+	poke[1] = poke_val;
+	__sync_cache_range_w(poke, 2 * sizeof(*poke));
+}
+
 static const struct mcpm_platform_ops *platform_ops;
 
 int __init mcpm_platform_register(const struct mcpm_platform_ops *ops)
@@ -35,6 +48,11 @@ int __init mcpm_platform_register(const struct mcpm_platform_ops *ops)
 		return -EBUSY;
 	platform_ops = ops;
 	return 0;
+}
+
+bool mcpm_is_available(void)
+{
+	return (platform_ops) ? true : false;
 }
 
 int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster)
@@ -51,7 +69,8 @@ void mcpm_cpu_power_down(void)
 {
 	phys_reset_t phys_reset;
 
-	BUG_ON(!platform_ops);
+	if (WARN_ON_ONCE(!platform_ops || !platform_ops->power_down))
+		return;
 	BUG_ON(!irqs_disabled());
 
 	/*
@@ -89,11 +108,27 @@ void mcpm_cpu_power_down(void)
 	BUG();
 }
 
+int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster)
+{
+	int ret;
+
+	if (WARN_ON_ONCE(!platform_ops || !platform_ops->wait_for_powerdown))
+		return -EUNATCH;
+
+	ret = platform_ops->wait_for_powerdown(cpu, cluster);
+	if (ret)
+		pr_warn("%s: cpu %u, cluster %u failed to power down (%d)\n",
+			__func__, cpu, cluster, ret);
+
+	return ret;
+}
+
 void mcpm_cpu_suspend(u64 expected_residency)
 {
 	phys_reset_t phys_reset;
 
-	BUG_ON(!platform_ops);
+	if (WARN_ON_ONCE(!platform_ops || !platform_ops->suspend))
+		return;
 	BUG_ON(!irqs_disabled());
 
 	/* Very similar to mcpm_cpu_power_down() */
@@ -112,6 +147,56 @@ int mcpm_cpu_powered_up(void)
 		platform_ops->powered_up();
 	return 0;
 }
+
+#ifdef CONFIG_ARM_CPU_SUSPEND
+
+static int __init nocache_trampoline(unsigned long _arg)
+{
+	void (*cache_disable)(void) = (void *)_arg;
+	unsigned int mpidr = read_cpuid_mpidr();
+	unsigned int cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+	unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	phys_reset_t phys_reset;
+
+	mcpm_set_entry_vector(cpu, cluster, cpu_resume);
+	setup_mm_for_reboot();
+
+	__mcpm_cpu_going_down(cpu, cluster);
+	BUG_ON(!__mcpm_outbound_enter_critical(cpu, cluster));
+	cache_disable();
+	__mcpm_outbound_leave_critical(cluster, CLUSTER_DOWN);
+	__mcpm_cpu_down(cpu, cluster);
+
+	phys_reset = (phys_reset_t)(unsigned long)virt_to_phys(cpu_reset);
+	phys_reset(virt_to_phys(mcpm_entry_point));
+	BUG();
+}
+
+int __init mcpm_loopback(void (*cache_disable)(void))
+{
+	int ret;
+
+	/*
+	 * We're going to soft-restart the current CPU through the
+	 * low-level MCPM code by leveraging the suspend/resume
+	 * infrastructure. Let's play it safe by using cpu_pm_enter()
+	 * in case the CPU init code path resets the VFP or similar.
+	 */
+	local_irq_disable();
+	local_fiq_disable();
+	ret = cpu_pm_enter();
+	if (!ret) {
+		ret = cpu_suspend((unsigned long)cache_disable, nocache_trampoline);
+		cpu_pm_exit();
+	}
+	local_fiq_enable();
+	local_irq_enable();
+	if (ret)
+		pr_err("%s returned %d\n", __func__, ret);
+	return ret;
+}
+
+#endif
 
 struct sync_struct mcpm_sync;
 
@@ -138,7 +223,7 @@ void __mcpm_cpu_down(unsigned int cpu, unsigned int cluster)
 	dmb();
 	mcpm_sync.clusters[cluster].cpus[cpu].cpu = CPU_DOWN;
 	sync_cache_w(&mcpm_sync.clusters[cluster].cpus[cpu].cpu);
-	dsb_sev();
+	sev();
 }
 
 /*
@@ -154,7 +239,7 @@ void __mcpm_outbound_leave_critical(unsigned int cluster, int state)
 	dmb();
 	mcpm_sync.clusters[cluster].cluster = state;
 	sync_cache_w(&mcpm_sync.clusters[cluster].cluster);
-	dsb_sev();
+	sev();
 }
 
 /*

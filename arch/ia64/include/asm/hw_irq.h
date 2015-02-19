@@ -132,7 +132,6 @@ extern int reserve_irq_vector (int vector);
 extern void __setup_vector_irq(int cpu);
 extern void ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect);
 extern void ia64_native_register_percpu_irq (ia64_vector vec, struct irqaction *action);
-extern int check_irq_used (int irq);
 extern void destroy_and_reserve_irq (unsigned int irq);
 
 #if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
@@ -160,7 +159,7 @@ static inline ia64_vector __ia64_irq_to_vector(int irq)
 static inline unsigned int
 __ia64_local_vector_to_irq (ia64_vector vec)
 {
-	return __get_cpu_var(vector_irq)[vec];
+	return __this_cpu_read(vector_irq[vec]);
 }
 #endif
 

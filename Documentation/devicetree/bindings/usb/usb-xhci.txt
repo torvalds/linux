@@ -1,0 +1,21 @@
+USB xHCI controllers
+
+Required properties:
+  - compatible: should be one of "generic-xhci",
+    "marvell,armada-375-xhci", "marvell,armada-380-xhci",
+    "renesas,xhci-r8a7790", "renesas,xhci-r8a7791" (deprecated:
+    "xhci-platform").
+  - reg: should contain address and length of the standard XHCI
+    register set for the device.
+  - interrupts: one XHCI interrupt should be described here.
+
+Optional properties:
+  - clocks: reference to a clock
+  - usb3-lpm-capable: determines if platform is USB3 LPM capable
+
+Example:
+	usb@f0931000 {
+		compatible = "generic-xhci";
+		reg = <0xf0931000 0x8c8>;
+		interrupts = <0x0 0x4e 0x0>;
+	};

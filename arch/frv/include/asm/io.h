@@ -243,6 +243,9 @@ static inline void writel(uint32_t datum, volatile void __iomem *addr)
 		__flush_PCI_writes();
 }
 
+#define writeb_relaxed writeb
+#define writew_relaxed writew
+#define writel_relaxed writel
 
 /* Values for nocacheflag and cmode */
 #define IOMAP_FULL_CACHING		0

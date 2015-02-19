@@ -10,6 +10,8 @@
 #ifndef _TRIPEPS4_H_
 #define _TRIPEPS4_H_
 
+#include "irqs.h" /* PXA_GPIO_TO_IRQ */
+
 /* physical memory regions */
 #define TRIZEPS4_FLASH_PHYS	(PXA_CS0_PHYS)  /* Flash region */
 #define TRIZEPS4_DISK_PHYS	(PXA_CS1_PHYS)  /* Disk On Chip region */

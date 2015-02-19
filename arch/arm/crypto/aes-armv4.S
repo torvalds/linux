@@ -35,6 +35,7 @@
 @ that is being targetted.
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 .text
 
@@ -148,7 +149,7 @@ AES_Te:
 @ 		 const AES_KEY *key) {
 .align	5
 ENTRY(AES_encrypt)
-	sub	r3,pc,#8		@ AES_encrypt
+	adr	r3,AES_encrypt
 	stmdb   sp!,{r1,r4-r12,lr}
 	mov	r12,r0		@ inp
 	mov	r11,r2
@@ -381,7 +382,7 @@ _armv4_AES_encrypt:
 .align	5
 ENTRY(private_AES_set_encrypt_key)
 _armv4_AES_set_encrypt_key:
-	sub	r3,pc,#8		@ AES_set_encrypt_key
+	adr	r3,_armv4_AES_set_encrypt_key
 	teq	r0,#0
 	moveq	r0,#-1
 	beq	.Labrt
@@ -648,7 +649,7 @@ _armv4_AES_set_encrypt_key:
 
 .Ldone:	mov	r0,#0
 	ldmia   sp!,{r4-r12,lr}
-.Labrt:	mov	pc,lr
+.Labrt:	ret	lr
 ENDPROC(private_AES_set_encrypt_key)
 
 .align	5
@@ -843,7 +844,7 @@ AES_Td:
 @ 		 const AES_KEY *key) {
 .align	5
 ENTRY(AES_decrypt)
-	sub	r3,pc,#8		@ AES_decrypt
+	adr	r3,AES_decrypt
 	stmdb   sp!,{r1,r4-r12,lr}
 	mov	r12,r0		@ inp
 	mov	r11,r2

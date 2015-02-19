@@ -20,6 +20,18 @@ config EARLY_PRINTK
 	  doesn't cooperate with an X server. You should normally say N here,
 	  unless you want to debug such a crash.
 
+config EARLY_PRINTK_8250
+	bool
+	depends on EARLY_PRINTK && USE_GENERIC_EARLY_PRINTK_8250
+	default y
+	help
+	  "8250/16550 and compatible serial early printk driver"
+	  If you say Y here, it will be possible to use a 8250/16550 serial
+	  port as the boot console.
+
+config USE_GENERIC_EARLY_PRINTK_8250
+	bool
+
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
 	default n
@@ -67,15 +79,6 @@ config CMDLINE_OVERRIDE
 
 	  Normally, you will choose 'N' here.
 
-config SMTC_IDLE_HOOK_DEBUG
-	bool "Enable additional debug checks before going into CPU idle loop"
-	depends on DEBUG_KERNEL && MIPS_MT_SMTC
-	help
-	  This option enables Enable additional debug checks before going into
-	  CPU idle loop.  For details on these checks, see
-	  arch/mips/kernel/smtc.c.  This debugging option result in significant
-	  overhead so should be disabled in production kernels.
-
 config SB1XXX_CORELIS
 	bool "Corelis Debugger"
 	depends on SIBYTE_SB1xxx_SOC
@@ -118,5 +121,18 @@ config SPINLOCK_TEST
 	default n
 	help
 	  Add several files to the debugfs to test spinlock speed.
+
+config FP32XX_HYBRID_FPRS
+	bool "Run FP32 & FPXX code with hybrid FPRs"
+	depends on MIPS_O32_FP64_SUPPORT
+	help
+	  The hybrid FPR scheme is normally used only when a program needs to
+	  execute a mix of FP32 & FP64A code, since the trapping & emulation
+	  that it entails is expensive. When enabled, this option will lead
+	  to the kernel running programs which use the FP32 & FPXX FP ABIs
+	  using the hybrid FPR scheme, which can be useful for debugging
+	  purposes.
+
+	  If unsure, say N.
 
 endmenu

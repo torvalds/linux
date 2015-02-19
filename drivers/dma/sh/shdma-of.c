@@ -33,7 +33,8 @@ static struct dma_chan *shdma_of_xlate(struct of_phandle_args *dma_spec,
 	/* Only slave DMA channels can be allocated via DT */
 	dma_cap_set(DMA_SLAVE, mask);
 
-	chan = dma_request_channel(mask, shdma_chan_filter, (void *)id);
+	chan = dma_request_channel(mask, shdma_chan_filter,
+				   (void *)(uintptr_t)id);
 	if (chan)
 		to_shdma_chan(chan)->hw_req = id;
 
@@ -42,11 +43,8 @@ static struct dma_chan *shdma_of_xlate(struct of_phandle_args *dma_spec,
 
 static int shdma_of_probe(struct platform_device *pdev)
 {
-	const struct of_dev_auxdata *lookup = pdev->dev.platform_data;
+	const struct of_dev_auxdata *lookup = dev_get_platdata(&pdev->dev);
 	int ret;
-
-	if (!lookup)
-		return -EINVAL;
 
 	ret = of_dma_controller_register(pdev->dev.of_node,
 					 shdma_of_xlate, pdev);
@@ -68,7 +66,6 @@ MODULE_DEVICE_TABLE(of, sh_dmae_of_match);
 
 static struct platform_driver shdma_of = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "shdma-of",
 		.of_match_table = shdma_of_match,
 	},

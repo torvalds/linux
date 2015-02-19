@@ -16,7 +16,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-#include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -348,6 +347,7 @@ static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
 			dev->can.state = CAN_STATE_BUS_OFF;
 			cf->can_id |= CAN_ERR_BUSOFF;
 
+			dev->can.can_stats.bus_off++;
 			can_bus_off(dev->netdev);
 		} else if (state & SJA1000_SR_ES) {
 			dev->can.state = CAN_STATE_ERROR_WARNING;
@@ -435,10 +435,9 @@ static void ems_usb_read_bulk_callback(struct urb *urb)
 	if (urb->actual_length > CPC_HEADER_SIZE) {
 		struct ems_cpc_msg *msg;
 		u8 *ibuf = urb->transfer_buffer;
-		u8 msg_count, again, start;
+		u8 msg_count, start;
 
 		msg_count = ibuf[0] & ~0x80;
-		again = ibuf[0] & 0x80;
 
 		start = CPC_HEADER_SIZE;
 
@@ -625,6 +624,7 @@ static int ems_usb_start(struct ems_usb *dev)
 			usb_unanchor_urb(urb);
 			usb_free_coherent(dev->udev, RX_BUFFER_SIZE, buf,
 					  urb->transfer_dma);
+			usb_free_urb(urb);
 			break;
 		}
 
@@ -798,8 +798,8 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	 * allowed (MAX_TX_URBS).
 	 */
 	if (!context) {
-		usb_unanchor_urb(urb);
 		usb_free_coherent(dev->udev, size, buf, urb->transfer_dma);
+		usb_free_urb(urb);
 
 		netdev_warn(netdev, "couldn't find free context\n");
 
@@ -883,6 +883,7 @@ static const struct net_device_ops ems_usb_netdev_ops = {
 	.ndo_open = ems_usb_open,
 	.ndo_stop = ems_usb_close,
 	.ndo_start_xmit = ems_usb_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct can_bittiming_const ems_usb_bittiming_const = {

@@ -13,16 +13,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/delay.h>
@@ -299,7 +289,7 @@ static u32 hist_get_buf_size(struct omap3isp_hist_config *conf)
 
 /*
  * hist_validate_params - Helper function to check user given params.
- * @user_cfg: Pointer to user configuration structure.
+ * @new_conf: Pointer to user configuration structure.
  *
  * Returns 0 on success configuration.
  */
@@ -351,7 +341,7 @@ static int hist_validate_params(struct ispstat *hist, void *new_conf)
 
 	buf_size = hist_get_buf_size(user_cfg);
 	if (buf_size > user_cfg->buf_size)
-		/* User's buf_size request wasn't enoght */
+		/* User's buf_size request wasn't enough */
 		user_cfg->buf_size = buf_size;
 	else if (user_cfg->buf_size > OMAP3ISP_HIST_MAX_BUF_SIZE)
 		user_cfg->buf_size = OMAP3ISP_HIST_MAX_BUF_SIZE;

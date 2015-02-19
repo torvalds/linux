@@ -96,6 +96,9 @@
 #define R600_TEMP_RANGE_MIN (90 * 1000)
 #define R600_TEMP_RANGE_MAX (120 * 1000)
 
+#define FDO_PWM_MODE_STATIC  1
+#define FDO_PWM_MODE_STATIC_RPM 5
+
 enum r600_power_level {
 	R600_POWER_LEVEL_LOW = 0,
 	R600_POWER_LEVEL_MEDIUM = 1,
@@ -130,6 +133,7 @@ void r600_dpm_print_cap_info(u32 caps);
 void r600_dpm_print_ps_status(struct radeon_device *rdev,
 			      struct radeon_ps *rps);
 u32 r600_dpm_get_vblank_time(struct radeon_device *rdev);
+u32 r600_dpm_get_vrefresh(struct radeon_device *rdev);
 bool r600_is_uvd_state(u32 class, u32 class2);
 void r600_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
 			    u32 *p, u32 *u);
@@ -212,9 +216,9 @@ void r600_wait_for_power_level(struct radeon_device *rdev,
 void r600_start_dpm(struct radeon_device *rdev);
 void r600_stop_dpm(struct radeon_device *rdev);
 
-int r600_set_thermal_temperature_range(struct radeon_device *rdev,
-				       int min_temp, int max_temp);
 bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor);
+
+int r600_get_platform_caps(struct radeon_device *rdev);
 
 int r600_parse_extended_power_table(struct radeon_device *rdev);
 void r600_free_extended_power_table(struct radeon_device *rdev);
@@ -223,5 +227,10 @@ enum radeon_pcie_gen r600_get_pcie_gen_support(struct radeon_device *rdev,
 					       u32 sys_mask,
 					       enum radeon_pcie_gen asic_gen,
 					       enum radeon_pcie_gen default_gen);
+
+u16 r600_get_pcie_lane_support(struct radeon_device *rdev,
+			       u16 asic_lanes,
+			       u16 default_lanes);
+u8 r600_encode_pci_lane_width(u32 lanes);
 
 #endif

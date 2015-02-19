@@ -14,6 +14,7 @@
 #include <linux/gfp.h>
 #include <linux/cpu.h>
 #include <asm/ctl_reg.h>
+#include <asm/io.h>
 
 /*
  * This function writes to kernel memory bypassing DAT and possible
@@ -127,7 +128,7 @@ void memcpy_absolute(void *dest, void *src, size_t count)
 /*
  * Copy memory from kernel (real) to user (virtual)
  */
-int copy_to_user_real(void __user *dest, void *src, size_t count)
+int copy_to_user_real(void __user *dest, void *src, unsigned long count)
 {
 	int offs = 0, size, rc;
 	char *buf;
@@ -141,32 +142,6 @@ int copy_to_user_real(void __user *dest, void *src, size_t count)
 		if (memcpy_real(buf, src + offs, size))
 			goto out;
 		if (copy_to_user(dest + offs, buf, size))
-			goto out;
-		offs += size;
-	}
-	rc = 0;
-out:
-	free_page((unsigned long) buf);
-	return rc;
-}
-
-/*
- * Copy memory from user (virtual) to kernel (real)
- */
-int copy_from_user_real(void *dest, void __user *src, size_t count)
-{
-	int offs = 0, size, rc;
-	char *buf;
-
-	buf = (char *) __get_free_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	rc = -EFAULT;
-	while (offs < count) {
-		size = min(PAGE_SIZE, count - offs);
-		if (copy_from_user(buf, src + offs, size))
-			goto out;
-		if (memcpy_real(dest + offs, buf, size))
 			goto out;
 		offs += size;
 	}
@@ -201,7 +176,7 @@ static int is_swapped(unsigned long addr)
  * For swapped prefix pages a new buffer is returned that contains a copy of
  * the absolute memory. The buffer size is maximum one page large.
  */
-void *xlate_dev_mem_ptr(unsigned long addr)
+void *xlate_dev_mem_ptr(phys_addr_t addr)
 {
 	void *bounce = (void *) addr;
 	unsigned long size;
@@ -222,7 +197,7 @@ void *xlate_dev_mem_ptr(unsigned long addr)
 /*
  * Free converted buffer for /dev/mem access (if necessary)
  */
-void unxlate_dev_mem_ptr(unsigned long addr, void *buf)
+void unxlate_dev_mem_ptr(phys_addr_t addr, void *buf)
 {
 	if ((void *) addr != buf)
 		free_page((unsigned long) buf);

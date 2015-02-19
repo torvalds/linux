@@ -42,6 +42,7 @@
 #include "board-mx31lite.h"
 #include "common.h"
 #include "devices-imx31.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx3.h"
 #include "ulpi.h"
@@ -269,7 +270,7 @@ static void __init mx31lite_init(void)
 	/* SMSC9117 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_SFS6), "sms9117-irq");
 	if (ret)
-		pr_warning("could not get LAN irq gpio\n");
+		pr_warn("could not get LAN irq gpio\n");
 	else {
 		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_SFS6));
 		smsc911x_resources[1].start =
@@ -291,7 +292,6 @@ MACHINE_START(MX31LITE, "LogicPD i.MX31 SOM")
 	.map_io = mx31lite_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
 	.init_time	= mx31lite_timer_init,
 	.init_machine = mx31lite_init,
 	.restart	= mxc_restart,

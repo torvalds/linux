@@ -11,19 +11,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/cpufreq.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/kernel_stat.h>
-#include <linux/kobject.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/notifier.h>
-#include <linux/percpu-defs.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/types.h>
-
 #include "cpufreq_governor.h"
 
 /* Conservative governor macros */
@@ -79,6 +67,7 @@ static void cs_check_cpu(int cpu, unsigned int load)
 			return;
 
 		dbs_info->requested_freq += get_freq_target(cs_tuners, policy);
+
 		if (dbs_info->requested_freq > policy->max)
 			dbs_info->requested_freq = policy->max;
 
@@ -94,14 +83,17 @@ static void cs_check_cpu(int cpu, unsigned int load)
 
 	/* Check for frequency decrease */
 	if (load < cs_tuners->down_threshold) {
+		unsigned int freq_target;
 		/*
 		 * if we cannot reduce the frequency anymore, break out early
 		 */
 		if (policy->cur == policy->min)
 			return;
 
-		dbs_info->requested_freq -= get_freq_target(cs_tuners, policy);
-		if (dbs_info->requested_freq < policy->min)
+		freq_target = get_freq_target(cs_tuners, policy);
+		if (dbs_info->requested_freq > freq_target)
+			dbs_info->requested_freq -= freq_target;
+		else
 			dbs_info->requested_freq = policy->min;
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
@@ -329,7 +321,7 @@ static int cs_init(struct dbs_data *dbs_data)
 {
 	struct cs_dbs_tuners *tuners;
 
-	tuners = kzalloc(sizeof(struct cs_dbs_tuners), GFP_KERNEL);
+	tuners = kzalloc(sizeof(*tuners), GFP_KERNEL);
 	if (!tuners) {
 		pr_err("%s: kzalloc failed\n", __func__);
 		return -ENOMEM;

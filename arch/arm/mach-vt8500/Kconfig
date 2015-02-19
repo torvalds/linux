@@ -1,11 +1,7 @@
 config ARCH_VT8500
 	bool
-	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
-	select CLKSRC_OF
-	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
 	select VT8500_TIMER
 	select PINCTRL
 	help
@@ -22,7 +18,6 @@ config ARCH_WM8750
 	bool "WonderMedia WM8750"
 	depends on ARCH_MULTI_V6
 	select ARCH_VT8500
-	select CPU_V6
 	help
 	  Support for WonderMedia WM8750 System-on-Chip.
 
@@ -30,6 +25,5 @@ config ARCH_WM8850
 	bool "WonderMedia WM8850"
 	depends on ARCH_MULTI_V7
 	select ARCH_VT8500
-	select CPU_V7
 	help
 	  Support for WonderMedia WM8850 System-on-Chip.

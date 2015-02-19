@@ -38,17 +38,17 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_support.h>
-#include <obd_class.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
 
 
 static inline __u32 consume(int nob, __u8 **ptr)
 {
 	__u32 value;
 
-	LASSERT(nob <= sizeof value);
+	LASSERT(nob <= sizeof(value));
 
 	for (value = 0; nob > 0; --nob)
 		value = (value << 8) | *((*ptr)++);
@@ -61,7 +61,7 @@ static void uuid_unpack(class_uuid_t in, __u16 *uu, int nr)
 {
 	__u8 *ptr = in;
 
-	LASSERT(nr * sizeof *uu == sizeof(class_uuid_t));
+	LASSERT(nr * sizeof(*uu) == sizeof(class_uuid_t));
 
 	while (nr-- > 0)
 		CONSUME(uu[nr], &ptr);

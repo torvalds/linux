@@ -251,7 +251,8 @@ static inline void native_load_tls(struct thread_struct *t, unsigned int cpu)
 		gdt[GDT_ENTRY_TLS_MIN + i] = t->tls_array[i];
 }
 
-#define _LDT_empty(info)				\
+/* This intentionally ignores lm, since 32-bit apps don't have that field. */
+#define LDT_empty(info)					\
 	((info)->base_addr		== 0	&&	\
 	 (info)->limit			== 0	&&	\
 	 (info)->contents		== 0	&&	\
@@ -261,11 +262,18 @@ static inline void native_load_tls(struct thread_struct *t, unsigned int cpu)
 	 (info)->seg_not_present	== 1	&&	\
 	 (info)->useable		== 0)
 
-#ifdef CONFIG_X86_64
-#define LDT_empty(info) (_LDT_empty(info) && ((info)->lm == 0))
-#else
-#define LDT_empty(info) (_LDT_empty(info))
-#endif
+/* Lots of programs expect an all-zero user_desc to mean "no segment at all". */
+static inline bool LDT_zero(const struct user_desc *info)
+{
+	return (info->base_addr		== 0 &&
+		info->limit		== 0 &&
+		info->contents		== 0 &&
+		info->read_exec_only	== 0 &&
+		info->seg_32bit		== 0 &&
+		info->limit_in_pages	== 0 &&
+		info->seg_not_present	== 0 &&
+		info->useable		== 0);
+}
 
 static inline void clear_LDT(void)
 {
@@ -327,10 +335,25 @@ static inline void write_trace_idt_entry(int entry, const gate_desc *gate)
 {
 	write_idt_entry(trace_idt_table, entry, gate);
 }
+
+static inline void _trace_set_gate(int gate, unsigned type, void *addr,
+				   unsigned dpl, unsigned ist, unsigned seg)
+{
+	gate_desc s;
+
+	pack_gate(&s, type, (unsigned long)addr, dpl, ist, seg);
+	/*
+	 * does not need to be atomic because it is only done once at
+	 * setup time
+	 */
+	write_trace_idt_entry(gate, &s);
+}
 #else
 static inline void write_trace_idt_entry(int entry, const gate_desc *gate)
 {
 }
+
+#define _trace_set_gate(gate, type, addr, dpl, ist, seg)
 #endif
 
 static inline void _set_gate(int gate, unsigned type, void *addr,
@@ -353,11 +376,14 @@ static inline void _set_gate(int gate, unsigned type, void *addr,
  * Pentium F0 0F bugfix can have resulted in the mapped
  * IDT being write-protected.
  */
-static inline void set_intr_gate(unsigned int n, void *addr)
-{
-	BUG_ON((unsigned)n > 0xFF);
-	_set_gate(n, GATE_INTERRUPT, addr, 0, 0, __KERNEL_CS);
-}
+#define set_intr_gate(n, addr)						\
+	do {								\
+		BUG_ON((unsigned)n > 0xFF);				\
+		_set_gate(n, GATE_INTERRUPT, (void *)addr, 0, 0,	\
+			  __KERNEL_CS);					\
+		_trace_set_gate(n, GATE_INTERRUPT, (void *)trace_##addr,\
+				0, 0, __KERNEL_CS);			\
+	} while (0)
 
 extern int first_system_vector;
 /* used_vectors is BITMAP for irq is not managed by percpu vector_irq */
@@ -374,37 +400,10 @@ static inline void alloc_system_vector(int vector)
 	}
 }
 
-#ifdef CONFIG_TRACING
-static inline void trace_set_intr_gate(unsigned int gate, void *addr)
-{
-	gate_desc s;
-
-	pack_gate(&s, GATE_INTERRUPT, (unsigned long)addr, 0, 0, __KERNEL_CS);
-	write_idt_entry(trace_idt_table, gate, &s);
-}
-
-static inline void __trace_alloc_intr_gate(unsigned int n, void *addr)
-{
-	trace_set_intr_gate(n, addr);
-}
-#else
-static inline void trace_set_intr_gate(unsigned int gate, void *addr)
-{
-}
-
-#define __trace_alloc_intr_gate(n, addr)
-#endif
-
-static inline void __alloc_intr_gate(unsigned int n, void *addr)
-{
-	set_intr_gate(n, addr);
-}
-
 #define alloc_intr_gate(n, addr)				\
 	do {							\
 		alloc_system_vector(n);				\
-		__alloc_intr_gate(n, addr);			\
-		__trace_alloc_intr_gate(n, trace_##addr);	\
+		set_intr_gate(n, addr);				\
 	} while (0)
 
 /*

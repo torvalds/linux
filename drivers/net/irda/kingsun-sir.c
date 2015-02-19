@@ -64,7 +64,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/device.h>
@@ -115,7 +114,6 @@ struct kingsun_cb {
 					   (usually 8) */
 
 	iobuff_t  	  rx_buff;	/* receive unwrap state machine */
-	struct timeval	  rx_time;
 	spinlock_t lock;
 	int receiving;
 
@@ -236,7 +234,6 @@ static void kingsun_rcv_irq(struct urb *urb)
 						  &kingsun->netdev->stats,
 						  &kingsun->rx_buff, bytes[i]);
 			}
-			do_gettimeofday(&kingsun->rx_time);
 			kingsun->receiving =
 				(kingsun->rx_buff.state != OUTSIDE_FRAME)
 				? 1 : 0;
@@ -274,7 +271,6 @@ static int kingsun_net_open(struct net_device *netdev)
 
 	skb_reserve(kingsun->rx_buff.skb, 1);
 	kingsun->rx_buff.head = kingsun->rx_buff.skb->data;
-	do_gettimeofday(&kingsun->rx_time);
 
 	kingsun->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!kingsun->rx_urb)
@@ -554,8 +550,8 @@ static int kingsun_probe(struct usb_interface *intf,
 	return 0;
 
 free_mem:
-	if (kingsun->out_buf) kfree(kingsun->out_buf);
-	if (kingsun->in_buf) kfree(kingsun->in_buf);
+	kfree(kingsun->out_buf);
+	kfree(kingsun->in_buf);
 	free_netdev(net);
 err_out1:
 	return ret;

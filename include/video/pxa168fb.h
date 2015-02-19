@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-mmp/include/mach/pxa168fb.h
- *
  *  Copyright (C) 2009 Marvell International Ltd.
  *
  * This program is free software; you can redistribute it and/or modify

@@ -1,0 +1,10 @@
+#
+# Unisys uislib configuration
+#
+
+config UNISYS_UISLIB
+	tristate "Unisys uislib driver"
+	depends on UNISYSSPAR && UNISYS_VISORCHIPSET && HAS_IOMEM
+	---help---
+	If you say Y here, you will enable the Unisys uislib driver.
+

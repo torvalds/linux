@@ -30,7 +30,6 @@ struct thread_info {
 						   saved by debug handler
 						   when setting up
 						   trampoline */
-	struct restart_block	restart_block;
 	__u8			supervisor_stack[0];
 };
 
@@ -41,9 +40,6 @@ struct thread_info {
 	.flags		= 0,						\
 	.cpu		= 0,						\
 	.preempt_count	= INIT_PREEMPT_COUNT,				\
-	.restart_block	= {						\
-		.fn	= do_no_restart_syscall				\
-	}								\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -65,8 +61,6 @@ static inline struct thread_info *current_thread_info(void)
 #define put_thread_info(ti) put_task_struct((ti)->task)
 
 #endif /* !__ASSEMBLY__ */
-
-#define PREEMPT_ACTIVE		0x40000000
 
 /*
  * Thread information flags

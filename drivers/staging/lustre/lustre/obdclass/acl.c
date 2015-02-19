@@ -41,10 +41,10 @@
  */
 
 #define DEBUG_SUBSYSTEM S_SEC
-#include <lu_object.h>
-#include <lustre_acl.h>
-#include <lustre_eacl.h>
-#include <obd_support.h>
+#include "../include/lu_object.h"
+#include "../include/lustre_acl.h"
+#include "../include/lustre_eacl.h"
+#include "../include/obd_support.h"
 
 #ifdef CONFIG_FS_POSIX_ACL
 
@@ -144,10 +144,9 @@ lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size)
 {
 	int count, i, esize;
 	ext_acl_xattr_header *new;
-	ENTRY;
 
 	if (unlikely(size < 0))
-		RETURN(ERR_PTR(-EINVAL));
+		return ERR_PTR(-EINVAL);
 	else if (!size)
 		count = 0;
 	else
@@ -155,7 +154,7 @@ lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size)
 	esize = CFS_ACL_XATTR_SIZE(count, ext_acl_xattr);
 	OBD_ALLOC(new, esize);
 	if (unlikely(new == NULL))
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	new->a_count = cpu_to_le32(count);
 	for (i = 0; i < count; i++) {
@@ -165,29 +164,28 @@ lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size)
 		new->a_entries[i].e_stat = cpu_to_le32(ES_UNK);
 	}
 
-	RETURN(new);
+	return new;
 }
 EXPORT_SYMBOL(lustre_posix_acl_xattr_2ext);
 
 /*
  * Filter out the "nobody" entries in the posix ACL.
  */
-int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
+int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, size_t size,
 				  posix_acl_xattr_header **out)
 {
 	int count, i, j, rc = 0;
 	__u32 id;
 	posix_acl_xattr_header *new;
-	ENTRY;
 
-	if (unlikely(size < 0))
-		RETURN(-EINVAL);
-	else if (!size)
-		RETURN(0);
+	if (!size)
+		return 0;
+	if (size < sizeof(*new))
+		return -EINVAL;
 
 	OBD_ALLOC(new, size);
 	if (unlikely(new == NULL))
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	new->a_version = cpu_to_le32(CFS_ACL_XATTR_VERSION);
 	count = CFS_ACL_XATTR_COUNT(size, posix_acl_xattr);
@@ -198,8 +196,10 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 		case ACL_GROUP_OBJ:
 		case ACL_MASK:
 		case ACL_OTHER:
-			if (id != ACL_UNDEFINED_ID)
-				GOTO(_out, rc = -EIO);
+			if (id != ACL_UNDEFINED_ID) {
+				rc = -EIO;
+				goto _out;
+			}
 
 			memcpy(&new->a_entries[j++], &header->a_entries[i],
 			       sizeof(posix_acl_xattr_entry));
@@ -217,7 +217,8 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 				       sizeof(posix_acl_xattr_entry));
 			break;
 		default:
-			GOTO(_out, rc = -EIO);
+			rc = -EIO;
+			goto _out;
 		}
 	}
 
@@ -228,7 +229,6 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 		*out = new;
 		rc = 0;
 	}
-	EXIT;
 
 _out:
 	if (rc) {
@@ -302,7 +302,6 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 	posix_acl_xattr_entry pe = {ACL_MASK, 0, ACL_UNDEFINED_ID};
 	posix_acl_xattr_header *new;
 	ext_acl_xattr_entry *ee, ae;
-	ENTRY;
 
 	lustre_posix_acl_cpu_to_le(&pe, &pe);
 	ee = lustre_ext_acl_xattr_search(ext_header, &pe, &pos);
@@ -312,7 +311,7 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 		posix_size = CFS_ACL_XATTR_SIZE(posix_count, posix_acl_xattr);
 		OBD_ALLOC(new, posix_size);
 		if (unlikely(new == NULL))
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 
 		new->a_version = cpu_to_le32(CFS_ACL_XATTR_VERSION);
 		for (i = 0, j = 0; i < ext_count; i++) {
@@ -322,8 +321,10 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 			case ACL_USER_OBJ:
 			case ACL_GROUP_OBJ:
 			case ACL_OTHER:
-				if (ae.e_id != ACL_UNDEFINED_ID)
-					GOTO(_out, rc = -EIO);
+				if (ae.e_id != ACL_UNDEFINED_ID) {
+					rc = -EIO;
+					goto _out;
+				}
 
 				if (ae.e_stat != ES_DEL) {
 					new->a_entries[j].e_tag =
@@ -340,7 +341,8 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 				if (ae.e_stat == ES_DEL)
 					break;
 			default:
-				GOTO(_out, rc = -EIO);
+				rc = -EIO;
+				goto _out;
 			}
 		}
 	} else {
@@ -349,7 +351,7 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 		int ori_posix_count;
 
 		if (unlikely(size < 0))
-			RETURN(-EINVAL);
+			return -EINVAL;
 		else if (!size)
 			ori_posix_count = 0;
 		else
@@ -360,7 +362,7 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 			CFS_ACL_XATTR_SIZE(posix_count, posix_acl_xattr);
 		OBD_ALLOC(new, posix_size);
 		if (unlikely(new == NULL))
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 
 		new->a_version = cpu_to_le32(CFS_ACL_XATTR_VERSION);
 		/* 1. process the unchanged ACL entries
@@ -397,7 +399,6 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 		*out = new;
 		rc = 0;
 	}
-	EXIT;
 
 _out:
 	if (rc) {
@@ -420,10 +421,9 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 	posix_acl_xattr_entry pae;
 	ext_acl_xattr_header *new;
 	ext_acl_xattr_entry *ee, eae;
-	ENTRY;
 
 	if (unlikely(size < 0))
-		RETURN(ERR_PTR(-EINVAL));
+		return ERR_PTR(-EINVAL);
 	else if (!size)
 		posix_count = 0;
 	else
@@ -434,7 +434,7 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 
 	OBD_ALLOC(new, ext_size);
 	if (unlikely(new == NULL))
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	for (i = 0, j = 0; i < posix_count; i++) {
 		lustre_posix_acl_le_to_cpu(&pae, &posix_header->a_entries[i]);
@@ -443,8 +443,10 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 		case ACL_GROUP_OBJ:
 		case ACL_MASK:
 		case ACL_OTHER:
-			if (pae.e_id != ACL_UNDEFINED_ID)
-				GOTO(out, rc = -EIO);
+			if (pae.e_id != ACL_UNDEFINED_ID) {
+				rc = -EIO;
+				goto out;
+		}
 		case ACL_USER:
 			/* ignore "nobody" entry. */
 			if (pae.e_id == NOBODY_UID)
@@ -507,7 +509,8 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 			}
 			break;
 		default:
-			GOTO(out, rc = -EIO);
+			rc = -EIO;
+			goto out;
 		}
 	}
 
@@ -532,7 +535,6 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 	new->a_count = cpu_to_le32(j);
 	/* free unused space. */
 	rc = lustre_ext_acl_xattr_reduce_space(&new, ext_count);
-	EXIT;
 
 out:
 	if (rc) {

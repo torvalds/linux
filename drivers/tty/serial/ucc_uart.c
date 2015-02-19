@@ -25,6 +25,8 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 
@@ -269,7 +271,7 @@ static unsigned int qe_uart_tx_empty(struct uart_port *port)
 			return 1;
 
 		bdp++;
-	};
+	}
 }
 
 /*
@@ -431,16 +433,6 @@ static void qe_uart_stop_rx(struct uart_port *port)
 		container_of(port, struct uart_qe_port, port);
 
 	clrbits16(&qe_port->uccp->uccm, UCC_UART_UCCE_RX);
-}
-
-/*
- * Enable status change interrupts
- *
- * We don't support status change interrupts, but we need to define this
- * function otherwise the kernel will panic.
- */
-static void qe_uart_enable_ms(struct uart_port *port)
-{
 }
 
 /* Start or stop sending  break signal
@@ -934,7 +926,7 @@ static void qe_uart_set_termios(struct uart_port *port,
 	port->read_status_mask = BD_SC_EMPTY | BD_SC_OV;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= BD_SC_FR | BD_SC_PR;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= BD_SC_BR;
 
 	/*
@@ -1100,7 +1092,6 @@ static struct uart_ops qe_uart_pops = {
 	.stop_tx	= qe_uart_stop_tx,
 	.start_tx       = qe_uart_start_tx,
 	.stop_rx	= qe_uart_stop_rx,
-	.enable_ms      = qe_uart_enable_ms,
 	.break_ctl      = qe_uart_break_ctl,
 	.startup	= qe_uart_startup,
 	.shutdown       = qe_uart_shutdown,
@@ -1494,7 +1485,6 @@ MODULE_DEVICE_TABLE(of, ucc_uart_match);
 static struct platform_driver ucc_uart_of_driver = {
 	.driver = {
 		.name = "ucc_uart",
-		.owner = THIS_MODULE,
 		.of_match_table    = ucc_uart_match,
 	},
 	.probe  	= ucc_uart_probe,

@@ -45,7 +45,7 @@
 * --------------------------------------------------------------------
 *
 * This file contains the constants and data structures for interaction
-* with the hfa384x Wireless LAN (WLAN) Media Access Contoller (MAC).
+* with the hfa384x Wireless LAN (WLAN) Media Access Controller (MAC).
 * The hfa384x is a portion of the Harris PRISM(tm) WLAN chipset.
 *
 * [Implementation and usage notes]
@@ -92,8 +92,10 @@ void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr);
 void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len);
 
 /* byte string conversion functions*/
-void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr);
-void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr);
+void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
+			     p80211pstrd_t *pstr);
+void prism2mgmt_bytestr2pstr(struct hfa384x_bytestr *bytestr,
+			     p80211pstrd_t *pstr);
 
 /* functions to convert Group Addresses */
 void prism2mgmt_get_grpaddr(u32 did, p80211pstrd_t *pstr, hfa384x_t *priv);
@@ -106,5 +108,10 @@ void prism2sta_processing_defer(struct work_struct *data);
 
 void prism2sta_commsqual_defer(struct work_struct *data);
 void prism2sta_commsqual_timer(unsigned long data);
+
+/* Interface callback functions, passing data back up to the cfg80211 layer */
+void prism2_connect_result(wlandevice_t *wlandev, u8 failed);
+void prism2_disconnected(wlandevice_t *wlandev);
+void prism2_roamed(wlandevice_t *wlandev);
 
 #endif

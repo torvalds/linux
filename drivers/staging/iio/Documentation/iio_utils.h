@@ -34,6 +34,7 @@ inline int iioutils_break_up_name(const char *full_name,
 	char *current;
 	char *w, *r;
 	char *working;
+
 	current = strdup(full_name);
 	working = strtok(current, "_\0");
 	w = working;
@@ -77,7 +78,6 @@ struct iio_channel_info {
 	uint64_t mask;
 	unsigned be;
 	unsigned is_signed;
-	unsigned enabled;
 	unsigned location;
 };
 
@@ -319,7 +319,7 @@ inline int build_channel_array(const char *device_dir,
 				free(filename);
 				goto error_close_dir;
 			}
-			fscanf(sysfsfp, "%u", &ret);
+			fscanf(sysfsfp, "%i", &ret);
 			if (ret == 1)
 				(*counter)++;
 			fclose(sysfsfp);
@@ -335,6 +335,8 @@ inline int build_channel_array(const char *device_dir,
 	while (ent = readdir(dp), ent != NULL) {
 		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
 			   "_en") == 0) {
+			int current_enabled = 0;
+
 			current = &(*ci_array)[count++];
 			ret = asprintf(&filename,
 				       "%s/%s", scan_el_dir, ent->d_name);
@@ -350,10 +352,10 @@ inline int build_channel_array(const char *device_dir,
 				ret = -errno;
 				goto error_cleanup_array;
 			}
-			fscanf(sysfsfp, "%u", &current->enabled);
+			fscanf(sysfsfp, "%i", &current_enabled);
 			fclose(sysfsfp);
 
-			if (!current->enabled) {
+			if (!current_enabled) {
 				free(filename);
 				count--;
 				continue;
@@ -502,10 +504,11 @@ inline int find_type_by_name(const char *name, const char *type)
 
 inline int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 {
-	int ret;
+	int ret = 0;
 	FILE *sysfsfp;
 	int test;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
+
 	if (temp == NULL)
 		return -ENOMEM;
 	sprintf(temp, "%s/%s", basedir, filename);
@@ -554,6 +557,7 @@ int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
 	int ret = 0;
 	FILE  *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
+
 	if (temp == NULL) {
 		printf("Memory allocation failed\n");
 		return -ENOMEM;
@@ -614,6 +618,7 @@ int read_sysfs_posint(char *filename, char *basedir)
 	int ret;
 	FILE  *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
+
 	if (temp == NULL) {
 		printf("Memory allocation failed");
 		return -ENOMEM;
@@ -633,9 +638,10 @@ error_free:
 
 int read_sysfs_float(char *filename, char *basedir, float *val)
 {
-	float ret = 0;
+	int ret = 0;
 	FILE  *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
+
 	if (temp == NULL) {
 		printf("Memory allocation failed");
 		return -ENOMEM;
@@ -647,6 +653,29 @@ int read_sysfs_float(char *filename, char *basedir, float *val)
 		goto error_free;
 	}
 	fscanf(sysfsfp, "%f\n", val);
+	fclose(sysfsfp);
+error_free:
+	free(temp);
+	return ret;
+}
+
+int read_sysfs_string(const char *filename, const char *basedir, char *str)
+{
+	int ret = 0;
+	FILE  *sysfsfp;
+	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
+
+	if (temp == NULL) {
+		printf("Memory allocation failed");
+		return -ENOMEM;
+	}
+	sprintf(temp, "%s/%s", basedir, filename);
+	sysfsfp = fopen(temp, "r");
+	if (sysfsfp == NULL) {
+		ret = -errno;
+		goto error_free;
+	}
+	fscanf(sysfsfp, "%s\n", str);
 	fclose(sysfsfp);
 error_free:
 	free(temp);

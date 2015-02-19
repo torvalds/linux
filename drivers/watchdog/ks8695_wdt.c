@@ -296,7 +296,6 @@ static struct platform_driver ks8695wdt_driver = {
 	.resume		= ks8695wdt_resume,
 	.driver		= {
 		.name	= "ks8695_wdt",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -323,5 +322,4 @@ module_exit(ks8695_wdt_exit);
 MODULE_AUTHOR("Andrew Victor");
 MODULE_DESCRIPTION("Watchdog driver for KS8695");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:ks8695_wdt");

@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
@@ -759,7 +758,7 @@ struct ca0132_spec {
 /*
  * CA0132 codec access
  */
-unsigned int codec_send_command(struct hda_codec *codec, hda_nid_t nid,
+static unsigned int codec_send_command(struct hda_codec *codec, hda_nid_t nid,
 		unsigned int verb, unsigned int parm, unsigned int *res)
 {
 	unsigned int response;
@@ -868,7 +867,7 @@ static int chipio_write_data_multiple(struct hda_codec *codec,
 	int status = 0;
 
 	if (data == NULL) {
-		snd_printdd(KERN_ERR "chipio_write_data null ptr\n");
+		codec_dbg(codec, "chipio_write_data null ptr\n");
 		return -EINVAL;
 	}
 
@@ -1407,12 +1406,12 @@ static int dspio_scp(struct hda_codec *codec,
 		return -EINVAL;
 
 	if (dir == SCP_GET && reply == NULL) {
-		snd_printdd(KERN_ERR "dspio_scp get but has no buffer\n");
+		codec_dbg(codec, "dspio_scp get but has no buffer\n");
 		return -EINVAL;
 	}
 
 	if (reply != NULL && (reply_len == NULL || (*reply_len == 0))) {
-		snd_printdd(KERN_ERR "dspio_scp bad resp buf len parms\n");
+		codec_dbg(codec, "dspio_scp bad resp buf len parms\n");
 		return -EINVAL;
 	}
 
@@ -1430,7 +1429,7 @@ static int dspio_scp(struct hda_codec *codec,
 					sizeof(scp_reply), &ret_bytes);
 
 	if (status < 0) {
-		snd_printdd(KERN_ERR "dspio_scp: send scp msg failed\n");
+		codec_dbg(codec, "dspio_scp: send scp msg failed\n");
 		return status;
 	}
 
@@ -1449,17 +1448,17 @@ static int dspio_scp(struct hda_codec *codec,
 					/ sizeof(unsigned int);
 
 		if (*reply_len < ret_size*sizeof(unsigned int)) {
-			snd_printdd(KERN_ERR "reply too long for buf\n");
+			codec_dbg(codec, "reply too long for buf\n");
 			return -EINVAL;
 		} else if (ret_size != reply_data_size) {
-			snd_printdd(KERN_ERR "RetLen and HdrLen .NE.\n");
+			codec_dbg(codec, "RetLen and HdrLen .NE.\n");
 			return -EINVAL;
 		} else {
 			*reply_len = ret_size*sizeof(unsigned int);
 			memcpy(reply, scp_reply.data, *reply_len);
 		}
 	} else {
-		snd_printdd(KERN_ERR "reply ill-formed or errflag set\n");
+		codec_dbg(codec, "reply ill-formed or errflag set\n");
 		return -EIO;
 	}
 
@@ -1489,22 +1488,22 @@ static int dspio_alloc_dma_chan(struct hda_codec *codec, unsigned int *dma_chan)
 	int status = 0;
 	unsigned int size = sizeof(dma_chan);
 
-	snd_printdd(KERN_INFO "     dspio_alloc_dma_chan() -- begin\n");
+	codec_dbg(codec, "     dspio_alloc_dma_chan() -- begin\n");
 	status = dspio_scp(codec, MASTERCONTROL, MASTERCONTROL_ALLOC_DMA_CHAN,
 			SCP_GET, NULL, 0, dma_chan, &size);
 
 	if (status < 0) {
-		snd_printdd(KERN_INFO "dspio_alloc_dma_chan: SCP Failed\n");
+		codec_dbg(codec, "dspio_alloc_dma_chan: SCP Failed\n");
 		return status;
 	}
 
 	if ((*dma_chan + 1) == 0) {
-		snd_printdd(KERN_INFO "no free dma channels to allocate\n");
+		codec_dbg(codec, "no free dma channels to allocate\n");
 		return -EBUSY;
 	}
 
-	snd_printdd("dspio_alloc_dma_chan: chan=%d\n", *dma_chan);
-	snd_printdd(KERN_INFO "     dspio_alloc_dma_chan() -- complete\n");
+	codec_dbg(codec, "dspio_alloc_dma_chan: chan=%d\n", *dma_chan);
+	codec_dbg(codec, "     dspio_alloc_dma_chan() -- complete\n");
 
 	return status;
 }
@@ -1517,18 +1516,18 @@ static int dspio_free_dma_chan(struct hda_codec *codec, unsigned int dma_chan)
 	int status = 0;
 	unsigned int dummy = 0;
 
-	snd_printdd(KERN_INFO "     dspio_free_dma_chan() -- begin\n");
-	snd_printdd("dspio_free_dma_chan: chan=%d\n", dma_chan);
+	codec_dbg(codec, "     dspio_free_dma_chan() -- begin\n");
+	codec_dbg(codec, "dspio_free_dma_chan: chan=%d\n", dma_chan);
 
 	status = dspio_scp(codec, MASTERCONTROL, MASTERCONTROL_ALLOC_DMA_CHAN,
 			   SCP_SET, &dma_chan, sizeof(dma_chan), NULL, &dummy);
 
 	if (status < 0) {
-		snd_printdd(KERN_INFO "dspio_free_dma_chan: SCP Failed\n");
+		codec_dbg(codec, "dspio_free_dma_chan: SCP Failed\n");
 		return status;
 	}
 
-	snd_printdd(KERN_INFO "     dspio_free_dma_chan() -- complete\n");
+	codec_dbg(codec, "     dspio_free_dma_chan() -- complete\n");
 
 	return status;
 }
@@ -1576,14 +1575,14 @@ static int dsp_reset(struct hda_codec *codec)
 	unsigned int res;
 	int retry = 20;
 
-	snd_printdd("dsp_reset\n");
+	codec_dbg(codec, "dsp_reset\n");
 	do {
 		res = dspio_send(codec, VENDOR_DSPIO_DSP_INIT, 0);
 		retry--;
 	} while (res == -EIO && retry);
 
 	if (!retry) {
-		snd_printdd("dsp_reset timeout\n");
+		codec_dbg(codec, "dsp_reset timeout\n");
 		return -EIO;
 	}
 
@@ -1636,39 +1635,39 @@ static int dsp_dma_setup_common(struct hda_codec *codec,
 	unsigned int active;
 	bool code, yram;
 
-	snd_printdd(KERN_INFO "-- dsp_dma_setup_common() -- Begin ---------\n");
+	codec_dbg(codec, "-- dsp_dma_setup_common() -- Begin ---------\n");
 
 	if (dma_chan >= DSPDMAC_DMA_CFG_CHANNEL_COUNT) {
-		snd_printdd(KERN_ERR "dma chan num invalid\n");
+		codec_dbg(codec, "dma chan num invalid\n");
 		return -EINVAL;
 	}
 
 	if (dsp_is_dma_active(codec, dma_chan)) {
-		snd_printdd(KERN_ERR "dma already active\n");
+		codec_dbg(codec, "dma already active\n");
 		return -EBUSY;
 	}
 
 	dsp_addx = dsp_chip_to_dsp_addx(chip_addx, &code, &yram);
 
 	if (dsp_addx == INVALID_CHIP_ADDRESS) {
-		snd_printdd(KERN_ERR "invalid chip addr\n");
+		codec_dbg(codec, "invalid chip addr\n");
 		return -ENXIO;
 	}
 
 	chnl_prop = DSPDMAC_CHNLPROP_AC_MASK;
 	active = 0;
 
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    start reg pgm\n");
+	codec_dbg(codec, "   dsp_dma_setup_common()    start reg pgm\n");
 
 	if (ovly) {
 		status = chipio_read(codec, DSPDMAC_CHNLPROP_INST_OFFSET,
 				     &chnl_prop);
 
 		if (status < 0) {
-			snd_printdd(KERN_ERR "read CHNLPROP Reg fail\n");
+			codec_dbg(codec, "read CHNLPROP Reg fail\n");
 			return status;
 		}
-		snd_printdd(KERN_INFO "dsp_dma_setup_common() Read CHNLPROP\n");
+		codec_dbg(codec, "dsp_dma_setup_common() Read CHNLPROP\n");
 	}
 
 	if (!code)
@@ -1680,20 +1679,20 @@ static int dsp_dma_setup_common(struct hda_codec *codec,
 
 	status = chipio_write(codec, DSPDMAC_CHNLPROP_INST_OFFSET, chnl_prop);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write CHNLPROP Reg fail\n");
+		codec_dbg(codec, "write CHNLPROP Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write CHNLPROP\n");
+	codec_dbg(codec, "   dsp_dma_setup_common()    Write CHNLPROP\n");
 
 	if (ovly) {
 		status = chipio_read(codec, DSPDMAC_ACTIVE_INST_OFFSET,
 				     &active);
 
 		if (status < 0) {
-			snd_printdd(KERN_ERR "read ACTIVE Reg fail\n");
+			codec_dbg(codec, "read ACTIVE Reg fail\n");
 			return status;
 		}
-		snd_printdd(KERN_INFO "dsp_dma_setup_common() Read ACTIVE\n");
+		codec_dbg(codec, "dsp_dma_setup_common() Read ACTIVE\n");
 	}
 
 	active &= (~(1 << (DSPDMAC_ACTIVE_AAR_LOBIT + dma_chan))) &
@@ -1701,35 +1700,35 @@ static int dsp_dma_setup_common(struct hda_codec *codec,
 
 	status = chipio_write(codec, DSPDMAC_ACTIVE_INST_OFFSET, active);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write ACTIVE Reg fail\n");
+		codec_dbg(codec, "write ACTIVE Reg fail\n");
 		return status;
 	}
 
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write ACTIVE\n");
+	codec_dbg(codec, "   dsp_dma_setup_common()    Write ACTIVE\n");
 
 	status = chipio_write(codec, DSPDMAC_AUDCHSEL_INST_OFFSET(dma_chan),
 			      port_map_mask);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write AUDCHSEL Reg fail\n");
+		codec_dbg(codec, "write AUDCHSEL Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write AUDCHSEL\n");
+	codec_dbg(codec, "   dsp_dma_setup_common()    Write AUDCHSEL\n");
 
 	status = chipio_write(codec, DSPDMAC_IRQCNT_INST_OFFSET(dma_chan),
 			DSPDMAC_IRQCNT_BICNT_MASK | DSPDMAC_IRQCNT_CICNT_MASK);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write IRQCNT Reg fail\n");
+		codec_dbg(codec, "write IRQCNT Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup_common()    Write IRQCNT\n");
+	codec_dbg(codec, "   dsp_dma_setup_common()    Write IRQCNT\n");
 
-	snd_printdd(
+	codec_dbg(codec,
 		   "ChipA=0x%x,DspA=0x%x,dmaCh=%u, "
 		   "CHSEL=0x%x,CHPROP=0x%x,Active=0x%x\n",
 		   chip_addx, dsp_addx, dma_chan,
 		   port_map_mask, chnl_prop, active);
 
-	snd_printdd(KERN_INFO "-- dsp_dma_setup_common() -- Complete ------\n");
+	codec_dbg(codec, "-- dsp_dma_setup_common() -- Complete ------\n");
 
 	return 0;
 }
@@ -1755,20 +1754,20 @@ static int dsp_dma_setup(struct hda_codec *codec,
 	const unsigned int max_dma_count = 1 << (DSPDMAC_XFRCNT_BCNT_HIBIT -
 						DSPDMAC_XFRCNT_BCNT_LOBIT + 1);
 
-	snd_printdd(KERN_INFO "-- dsp_dma_setup() -- Begin ---------\n");
+	codec_dbg(codec, "-- dsp_dma_setup() -- Begin ---------\n");
 
 	if (count > max_dma_count) {
-		snd_printdd(KERN_ERR "count too big\n");
+		codec_dbg(codec, "count too big\n");
 		return -EINVAL;
 	}
 
 	dsp_addx = dsp_chip_to_dsp_addx(chip_addx, &code, &yram);
 	if (dsp_addx == INVALID_CHIP_ADDRESS) {
-		snd_printdd(KERN_ERR "invalid chip addr\n");
+		codec_dbg(codec, "invalid chip addr\n");
 		return -ENXIO;
 	}
 
-	snd_printdd(KERN_INFO "   dsp_dma_setup()    start reg pgm\n");
+	codec_dbg(codec, "   dsp_dma_setup()    start reg pgm\n");
 
 	addr_field = dsp_addx << DSPDMAC_DMACFG_DBADR_LOBIT;
 	incr_field   = 0;
@@ -1785,10 +1784,10 @@ static int dsp_dma_setup(struct hda_codec *codec,
 	status = chipio_write(codec, DSPDMAC_DMACFG_INST_OFFSET(dma_chan),
 				dma_cfg);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write DMACFG Reg fail\n");
+		codec_dbg(codec, "write DMACFG Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup()    Write DMACFG\n");
+	codec_dbg(codec, "   dsp_dma_setup()    Write DMACFG\n");
 
 	adr_ofs = (count - 1) << (DSPDMAC_DSPADROFS_BOFS_LOBIT +
 							(code ? 0 : 1));
@@ -1796,10 +1795,10 @@ static int dsp_dma_setup(struct hda_codec *codec,
 	status = chipio_write(codec, DSPDMAC_DSPADROFS_INST_OFFSET(dma_chan),
 				adr_ofs);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write DSPADROFS Reg fail\n");
+		codec_dbg(codec, "write DSPADROFS Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup()    Write DSPADROFS\n");
+	codec_dbg(codec, "   dsp_dma_setup()    Write DSPADROFS\n");
 
 	base_cnt = (count - 1) << DSPDMAC_XFRCNT_BCNT_LOBIT;
 
@@ -1810,17 +1809,17 @@ static int dsp_dma_setup(struct hda_codec *codec,
 	status = chipio_write(codec,
 				DSPDMAC_XFRCNT_INST_OFFSET(dma_chan), xfr_cnt);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write XFRCNT Reg fail\n");
+		codec_dbg(codec, "write XFRCNT Reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "   dsp_dma_setup()    Write XFRCNT\n");
+	codec_dbg(codec, "   dsp_dma_setup()    Write XFRCNT\n");
 
-	snd_printdd(
+	codec_dbg(codec,
 		   "ChipA=0x%x, cnt=0x%x, DMACFG=0x%x, "
 		   "ADROFS=0x%x, XFRCNT=0x%x\n",
 		   chip_addx, count, dma_cfg, adr_ofs, xfr_cnt);
 
-	snd_printdd(KERN_INFO "-- dsp_dma_setup() -- Complete ---------\n");
+	codec_dbg(codec, "-- dsp_dma_setup() -- Complete ---------\n");
 
 	return 0;
 }
@@ -1834,17 +1833,17 @@ static int dsp_dma_start(struct hda_codec *codec,
 	unsigned int reg = 0;
 	int status = 0;
 
-	snd_printdd(KERN_INFO "-- dsp_dma_start() -- Begin ---------\n");
+	codec_dbg(codec, "-- dsp_dma_start() -- Begin ---------\n");
 
 	if (ovly) {
 		status = chipio_read(codec,
 				     DSPDMAC_CHNLSTART_INST_OFFSET, &reg);
 
 		if (status < 0) {
-			snd_printdd(KERN_ERR "read CHNLSTART reg fail\n");
+			codec_dbg(codec, "read CHNLSTART reg fail\n");
 			return status;
 		}
-		snd_printdd(KERN_INFO "-- dsp_dma_start()    Read CHNLSTART\n");
+		codec_dbg(codec, "-- dsp_dma_start()    Read CHNLSTART\n");
 
 		reg &= ~(DSPDMAC_CHNLSTART_EN_MASK |
 				DSPDMAC_CHNLSTART_DIS_MASK);
@@ -1853,10 +1852,10 @@ static int dsp_dma_start(struct hda_codec *codec,
 	status = chipio_write(codec, DSPDMAC_CHNLSTART_INST_OFFSET,
 			reg | (1 << (dma_chan + DSPDMAC_CHNLSTART_EN_LOBIT)));
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write CHNLSTART reg fail\n");
+		codec_dbg(codec, "write CHNLSTART reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "-- dsp_dma_start() -- Complete ---------\n");
+	codec_dbg(codec, "-- dsp_dma_start() -- Complete ---------\n");
 
 	return status;
 }
@@ -1870,17 +1869,17 @@ static int dsp_dma_stop(struct hda_codec *codec,
 	unsigned int reg = 0;
 	int status = 0;
 
-	snd_printdd(KERN_INFO "-- dsp_dma_stop() -- Begin ---------\n");
+	codec_dbg(codec, "-- dsp_dma_stop() -- Begin ---------\n");
 
 	if (ovly) {
 		status = chipio_read(codec,
 				     DSPDMAC_CHNLSTART_INST_OFFSET, &reg);
 
 		if (status < 0) {
-			snd_printdd(KERN_ERR "read CHNLSTART reg fail\n");
+			codec_dbg(codec, "read CHNLSTART reg fail\n");
 			return status;
 		}
-		snd_printdd(KERN_INFO "-- dsp_dma_stop()    Read CHNLSTART\n");
+		codec_dbg(codec, "-- dsp_dma_stop()    Read CHNLSTART\n");
 		reg &= ~(DSPDMAC_CHNLSTART_EN_MASK |
 				DSPDMAC_CHNLSTART_DIS_MASK);
 	}
@@ -1888,10 +1887,10 @@ static int dsp_dma_stop(struct hda_codec *codec,
 	status = chipio_write(codec, DSPDMAC_CHNLSTART_INST_OFFSET,
 			reg | (1 << (dma_chan + DSPDMAC_CHNLSTART_DIS_LOBIT)));
 	if (status < 0) {
-		snd_printdd(KERN_ERR "write CHNLSTART reg fail\n");
+		codec_dbg(codec, "write CHNLSTART reg fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "-- dsp_dma_stop() -- Complete ---------\n");
+	codec_dbg(codec, "-- dsp_dma_stop() -- Complete ---------\n");
 
 	return status;
 }
@@ -1974,17 +1973,17 @@ static int dsp_allocate_ports(struct hda_codec *codec,
 {
 	int status;
 
-	snd_printdd(KERN_INFO "     dsp_allocate_ports() -- begin\n");
+	codec_dbg(codec, "     dsp_allocate_ports() -- begin\n");
 
 	if ((rate_multi != 1) && (rate_multi != 2) && (rate_multi != 4)) {
-		snd_printdd(KERN_ERR "bad rate multiple\n");
+		codec_dbg(codec, "bad rate multiple\n");
 		return -EINVAL;
 	}
 
 	status = dsp_allocate_router_ports(codec, num_chans,
 					   rate_multi, 0, port_map);
 
-	snd_printdd(KERN_INFO "     dsp_allocate_ports() -- complete\n");
+	codec_dbg(codec, "     dsp_allocate_ports() -- complete\n");
 
 	return status;
 }
@@ -2001,7 +2000,7 @@ static int dsp_allocate_ports_format(struct hda_codec *codec,
 	unsigned int rate_multi = sample_rate_mul / sample_rate_div;
 
 	if ((rate_multi != 1) && (rate_multi != 2) && (rate_multi != 4)) {
-		snd_printdd(KERN_ERR "bad rate multiple\n");
+		codec_dbg(codec, "bad rate multiple\n");
 		return -EINVAL;
 	}
 
@@ -2019,14 +2018,14 @@ static int dsp_free_ports(struct hda_codec *codec)
 {
 	int status;
 
-	snd_printdd(KERN_INFO "     dsp_free_ports() -- begin\n");
+	codec_dbg(codec, "     dsp_free_ports() -- begin\n");
 
 	status = dsp_free_router_ports(codec);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "free router ports fail\n");
+		codec_dbg(codec, "free router ports fail\n");
 		return status;
 	}
-	snd_printdd(KERN_INFO "     dsp_free_ports() -- complete\n");
+	codec_dbg(codec, "     dsp_free_ports() -- complete\n");
 
 	return status;
 }
@@ -2047,14 +2046,14 @@ enum dma_state {
 	DMA_STATE_RUN   = 1
 };
 
-static int dma_convert_to_hda_format(
+static int dma_convert_to_hda_format(struct hda_codec *codec,
 		unsigned int sample_rate,
 		unsigned short channels,
 		unsigned short *hda_format)
 {
 	unsigned int format_val;
 
-	format_val = snd_hda_calc_stream_format(
+	format_val = snd_hda_calc_stream_format(codec,
 				sample_rate,
 				channels,
 				SNDRV_PCM_FORMAT_S32_LE,
@@ -2091,8 +2090,6 @@ static int dma_reset(struct dma_engine *dma)
 static int dma_set_state(struct dma_engine *dma, enum dma_state state)
 {
 	bool cmd;
-
-	snd_printdd("dma_set_state state=%d\n", state);
 
 	switch (state) {
 	case DMA_STATE_STOP:
@@ -2196,7 +2193,7 @@ static int dspxfr_hci_write(struct hda_codec *codec,
 	unsigned int count;
 
 	if (fls == NULL || fls->chip_addr != g_chip_addr_magic_value) {
-		snd_printdd(KERN_ERR "hci_write invalid params\n");
+		codec_dbg(codec, "hci_write invalid params\n");
 		return -EINVAL;
 	}
 
@@ -2205,7 +2202,7 @@ static int dspxfr_hci_write(struct hda_codec *codec,
 	while (count >= 2) {
 		status = chipio_write(codec, data[0], data[1]);
 		if (status < 0) {
-			snd_printdd(KERN_ERR "hci_write chipio failed\n");
+			codec_dbg(codec, "hci_write chipio failed\n");
 			return status;
 		}
 		count -= 2;
@@ -2265,12 +2262,12 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 	}
 
 	if (hci_write && (!fls || is_last(fls))) {
-		snd_printdd("hci_write\n");
+		codec_dbg(codec, "hci_write\n");
 		return dspxfr_hci_write(codec, hci_write);
 	}
 
 	if (fls == NULL || dma_engine == NULL || port_map_mask == 0) {
-		snd_printdd("Invalid Params\n");
+		codec_dbg(codec, "Invalid Params\n");
 		return -EINVAL;
 	}
 
@@ -2286,7 +2283,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 	if (!UC_RANGE(chip_addx, words_to_write) &&
 	    !X_RANGE_ALL(chip_addx, words_to_write) &&
 	    !Y_RANGE_ALL(chip_addx, words_to_write)) {
-		snd_printdd("Invalid chip_addx Params\n");
+		codec_dbg(codec, "Invalid chip_addx Params\n");
 		return -EINVAL;
 	}
 
@@ -2296,7 +2293,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 	buffer_addx = dma_get_buffer_addr(dma_engine);
 
 	if (buffer_addx == NULL) {
-		snd_printdd(KERN_ERR "dma_engine buffer NULL\n");
+		codec_dbg(codec, "dma_engine buffer NULL\n");
 		return -EINVAL;
 	}
 
@@ -2309,7 +2306,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 			(num_chans * sample_rate_mul / sample_rate_div));
 
 	if (hda_frame_size_words == 0) {
-		snd_printdd(KERN_ERR "frmsz zero\n");
+		codec_dbg(codec, "frmsz zero\n");
 		return -EINVAL;
 	}
 
@@ -2317,14 +2314,14 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 				(unsigned int)(UC_RANGE(chip_addx, 1) ?
 				65536 : 32768));
 	buffer_size_words -= buffer_size_words % hda_frame_size_words;
-	snd_printdd(
+	codec_dbg(codec,
 		   "chpadr=0x%08x frmsz=%u nchan=%u "
 		   "rate_mul=%u div=%u bufsz=%u\n",
 		   chip_addx, hda_frame_size_words, num_chans,
 		   sample_rate_mul, sample_rate_div, buffer_size_words);
 
 	if (buffer_size_words < hda_frame_size_words) {
-		snd_printdd(KERN_ERR "dspxfr_one_seg:failed\n");
+		codec_dbg(codec, "dspxfr_one_seg:failed\n");
 		return -EINVAL;
 	}
 
@@ -2338,7 +2335,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 
 	while (words_to_write != 0) {
 		run_size_words = min(buffer_size_words, words_to_write);
-		snd_printdd("dspxfr (seg loop)cnt=%u rs=%u remainder=%u\n",
+		codec_dbg(codec, "dspxfr (seg loop)cnt=%u rs=%u remainder=%u\n",
 			    words_to_write, run_size_words, remainder_words);
 		dma_xfer(dma_engine, data, run_size_words*sizeof(u32));
 		if (!comm_dma_setup_done) {
@@ -2360,7 +2357,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 		if (status < 0)
 			return status;
 		if (!dsp_is_dma_active(codec, dma_chan)) {
-			snd_printdd(KERN_ERR "dspxfr:DMA did not start\n");
+			codec_dbg(codec, "dspxfr:DMA did not start\n");
 			return -EIO;
 		}
 		status = dma_set_state(dma_engine, DMA_STATE_RUN);
@@ -2392,7 +2389,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 		if (dma_active)
 			break;
 
-		snd_printdd(KERN_INFO "+++++ DMA complete\n");
+		codec_dbg(codec, "+++++ DMA complete\n");
 		dma_set_state(dma_engine, DMA_STATE_STOP);
 		status = dma_reset(dma_engine);
 
@@ -2420,7 +2417,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
  * @reloc: Relocation address for loading single-segment overlays, or 0 for
  *	   no relocation
  * @sample_rate: sampling rate of the stream used for DSP download
- * @number_channels: channels of the stream used for DSP download
+ * @channels: channels of the stream used for DSP download
  * @ovly: TRUE if overlay format is required
  *
  * Returns zero or a negative error code.
@@ -2455,7 +2452,7 @@ static int dspxfr_image(struct hda_codec *codec,
 	}
 
 	dma_engine->codec = codec;
-	dma_convert_to_hda_format(sample_rate, channels, &hda_format);
+	dma_convert_to_hda_format(codec, sample_rate, channels, &hda_format);
 	dma_engine->m_converter_format = hda_format;
 	dma_engine->buf_size = (ovly ? DSP_DMA_WRITE_BUFLEN_OVLY :
 			DSP_DMA_WRITE_BUFLEN_INIT) * 2;
@@ -2466,7 +2463,7 @@ static int dspxfr_image(struct hda_codec *codec,
 					hda_format, &response);
 
 	if (status < 0) {
-		snd_printdd(KERN_ERR "set converter format fail\n");
+		codec_dbg(codec, "set converter format fail\n");
 		goto exit;
 	}
 
@@ -2481,7 +2478,7 @@ static int dspxfr_image(struct hda_codec *codec,
 	if (ovly) {
 		status = dspio_alloc_dma_chan(codec, &dma_chan);
 		if (status < 0) {
-			snd_printdd(KERN_ERR "alloc dmachan fail\n");
+			codec_dbg(codec, "alloc dmachan fail\n");
 			dma_chan = INVALID_DMA_CHANNEL;
 			goto exit;
 		}
@@ -2491,7 +2488,7 @@ static int dspxfr_image(struct hda_codec *codec,
 	status = dsp_allocate_ports_format(codec, hda_format,
 					&port_map_mask);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "alloc ports fail\n");
+		codec_dbg(codec, "alloc ports fail\n");
 		goto exit;
 	}
 
@@ -2499,13 +2496,13 @@ static int dspxfr_image(struct hda_codec *codec,
 	status = codec_set_converter_stream_channel(codec,
 			WIDGET_CHIP_CTRL, stream_id, 0, &response);
 	if (status < 0) {
-		snd_printdd(KERN_ERR "set stream chan fail\n");
+		codec_dbg(codec, "set stream chan fail\n");
 		goto exit;
 	}
 
 	while ((fls_data != NULL) && !is_last(fls_data)) {
 		if (!is_valid(fls_data)) {
-			snd_printdd(KERN_ERR "FLS check fail\n");
+			codec_dbg(codec, "FLS check fail\n");
 			status = -EINVAL;
 			goto exit;
 		}
@@ -2548,7 +2545,7 @@ exit:
  */
 static void dspload_post_setup(struct hda_codec *codec)
 {
-	snd_printdd(KERN_INFO "---- dspload_post_setup ------\n");
+	codec_dbg(codec, "---- dspload_post_setup ------\n");
 
 	/*set DSP speaker to 2.0 configuration*/
 	chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x18), 0x08080080);
@@ -2559,10 +2556,7 @@ static void dspload_post_setup(struct hda_codec *codec)
 }
 
 /**
- * Download DSP from a DSP Image Fast Load structure. This structure is a
- * linear, non-constant sized element array of structures, each of which
- * contain the count of the data to be loaded, the data itself, and the
- * corresponding starting chip address of the starting data location.
+ * dspload_image - Download DSP from a DSP Image Fast Load structure.
  *
  * @codec: the HDA codec
  * @fls: pointer to a fast load image
@@ -2573,6 +2567,10 @@ static void dspload_post_setup(struct hda_codec *codec)
  * @router_chans: number of audio router channels to be allocated (0 means use
  *		  internal defaults; max is 32)
  *
+ * Download DSP from a DSP Image Fast Load structure. This structure is a
+ * linear, non-constant sized element array of structures, each of which
+ * contain the count of the data to be loaded, the data itself, and the
+ * corresponding starting chip address of the starting data location.
  * Returns zero or a negative error code.
  */
 static int dspload_image(struct hda_codec *codec,
@@ -2586,7 +2584,7 @@ static int dspload_image(struct hda_codec *codec,
 	unsigned int sample_rate;
 	unsigned short channels;
 
-	snd_printdd(KERN_INFO "---- dspload_image begin ------\n");
+	codec_dbg(codec, "---- dspload_image begin ------\n");
 	if (router_chans == 0) {
 		if (!ovly)
 			router_chans = DMA_TRANSFER_FRAME_SIZE_NWORDS;
@@ -2603,27 +2601,27 @@ static int dspload_image(struct hda_codec *codec,
 	}
 
 	do {
-		snd_printdd(KERN_INFO "Ready to program DMA\n");
+		codec_dbg(codec, "Ready to program DMA\n");
 		if (!ovly)
 			status = dsp_reset(codec);
 
 		if (status < 0)
 			break;
 
-		snd_printdd(KERN_INFO "dsp_reset() complete\n");
+		codec_dbg(codec, "dsp_reset() complete\n");
 		status = dspxfr_image(codec, fls, reloc, sample_rate, channels,
 				      ovly);
 
 		if (status < 0)
 			break;
 
-		snd_printdd(KERN_INFO "dspxfr_image() complete\n");
+		codec_dbg(codec, "dspxfr_image() complete\n");
 		if (autostart && !ovly) {
 			dspload_post_setup(codec);
 			status = dsp_set_run_state(codec);
 		}
 
-		snd_printdd(KERN_INFO "LOAD FINISHED\n");
+		codec_dbg(codec, "LOAD FINISHED\n");
 	} while (0);
 
 	return status;
@@ -2662,60 +2660,6 @@ static bool dspload_wait_loaded(struct hda_codec *codec)
 }
 
 /*
- * PCM stuffs
- */
-static void ca0132_setup_stream(struct hda_codec *codec, hda_nid_t nid,
-				 u32 stream_tag,
-				 int channel_id, int format)
-{
-	unsigned int oldval, newval;
-
-	if (!nid)
-		return;
-
-	snd_printdd(
-		   "ca0132_setup_stream: NID=0x%x, stream=0x%x, "
-		   "channel=%d, format=0x%x\n",
-		   nid, stream_tag, channel_id, format);
-
-	/* update the format-id if changed */
-	oldval = snd_hda_codec_read(codec, nid, 0,
-				    AC_VERB_GET_STREAM_FORMAT,
-				    0);
-	if (oldval != format) {
-		msleep(20);
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_STREAM_FORMAT,
-				    format);
-	}
-
-	oldval = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
-	newval = (stream_tag << 4) | channel_id;
-	if (oldval != newval) {
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_CHANNEL_STREAMID,
-				    newval);
-	}
-}
-
-static void ca0132_cleanup_stream(struct hda_codec *codec, hda_nid_t nid)
-{
-	unsigned int val;
-
-	if (!nid)
-		return;
-
-	snd_printdd(KERN_INFO "ca0132_cleanup_stream: NID=0x%x\n", nid);
-
-	val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
-	if (!val)
-		return;
-
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, 0);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID, 0);
-}
-
-/*
  * PCM callbacks
  */
 static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
@@ -2726,7 +2670,7 @@ static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	ca0132_setup_stream(codec, spec->dacs[0], stream_tag, 0, format);
+	snd_hda_codec_setup_stream(codec, spec->dacs[0], stream_tag, 0, format);
 
 	return 0;
 }
@@ -2745,7 +2689,7 @@ static int ca0132_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	if (spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID])
 		msleep(50);
 
-	ca0132_cleanup_stream(codec, spec->dacs[0]);
+	snd_hda_codec_cleanup_stream(codec, spec->dacs[0]);
 
 	return 0;
 }
@@ -2822,10 +2766,8 @@ static int ca0132_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 					unsigned int format,
 					struct snd_pcm_substream *substream)
 {
-	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_setup_stream(codec, spec->adcs[substream->number],
-			    stream_tag, 0, format);
+	snd_hda_codec_setup_stream(codec, hinfo->nid,
+				   stream_tag, 0, format);
 
 	return 0;
 }
@@ -2839,7 +2781,7 @@ static int ca0132_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	if (spec->dsp_state == DSP_DOWNLOADING)
 		return 0;
 
-	ca0132_cleanup_stream(codec, hinfo->nid);
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
 	return 0;
 }
 
@@ -3188,7 +3130,7 @@ static int ca0132_select_out(struct hda_codec *codec)
 	unsigned int tmp;
 	int err;
 
-	snd_printdd(KERN_INFO "ca0132_select_out\n");
+	codec_dbg(codec, "ca0132_select_out\n");
 
 	snd_hda_power_up(codec);
 
@@ -3206,7 +3148,7 @@ static int ca0132_select_out(struct hda_codec *codec)
 		spec->cur_out_type = SPEAKER_OUT;
 
 	if (spec->cur_out_type == SPEAKER_OUT) {
-		snd_printdd(KERN_INFO "ca0132_select_out speaker\n");
+		codec_dbg(codec, "ca0132_select_out speaker\n");
 		/*speaker out config*/
 		tmp = FLOAT_ONE;
 		err = dspio_set_uint_param(codec, 0x80, 0x04, tmp);
@@ -3239,7 +3181,7 @@ static int ca0132_select_out(struct hda_codec *codec)
 		snd_hda_set_pin_ctl(codec, spec->out_pins[0],
 				    pin_ctl | PIN_OUT);
 	} else {
-		snd_printdd(KERN_INFO "ca0132_select_out hp\n");
+		codec_dbg(codec, "ca0132_select_out hp\n");
 		/*headphone out config*/
 		tmp = FLOAT_ZERO;
 		err = dspio_set_uint_param(codec, 0x80, 0x04, tmp);
@@ -3283,8 +3225,14 @@ static void ca0132_unsol_hp_delayed(struct work_struct *work)
 {
 	struct ca0132_spec *spec = container_of(
 		to_delayed_work(work), struct ca0132_spec, unsol_hp_work);
+	struct hda_jack_tbl *jack;
+
 	ca0132_select_out(spec->codec);
-	snd_hda_jack_report_sync(spec->codec);
+	jack = snd_hda_jack_tbl_get(spec->codec, UNSOL_TAG_HP);
+	if (jack) {
+		jack->block_report = 0;
+		snd_hda_jack_report_sync(spec->codec);
+	}
 }
 
 static void ca0132_set_dmic(struct hda_codec *codec, int enable);
@@ -3344,7 +3292,7 @@ static int ca0132_select_mic(struct hda_codec *codec)
 	int jack_present;
 	int auto_jack;
 
-	snd_printdd(KERN_INFO "ca0132_select_mic\n");
+	codec_dbg(codec, "ca0132_select_mic\n");
 
 	snd_hda_power_up(codec);
 
@@ -3466,7 +3414,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 			val = 0;
 	}
 
-	snd_printdd(KERN_INFO "ca0132_effect_set: nid=0x%x, val=%ld\n",
+	codec_dbg(codec, "ca0132_effect_set: nid=0x%x, val=%ld\n",
 		    nid, val);
 
 	on = (val == 0) ? FLOAT_ZERO : FLOAT_ONE;
@@ -3488,7 +3436,7 @@ static int ca0132_pe_switch_set(struct hda_codec *codec)
 	hda_nid_t nid;
 	int i, ret = 0;
 
-	snd_printdd(KERN_INFO "ca0132_pe_switch_set: val=%ld\n",
+	codec_dbg(codec, "ca0132_pe_switch_set: val=%ld\n",
 		    spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID]);
 
 	i = OUT_EFFECT_START_NID - EFFECT_START_NID;
@@ -3534,7 +3482,7 @@ static int ca0132_cvoice_switch_set(struct hda_codec *codec)
 	int i, ret = 0;
 	unsigned int oldval;
 
-	snd_printdd(KERN_INFO "ca0132_cvoice_switch_set: val=%ld\n",
+	codec_dbg(codec, "ca0132_cvoice_switch_set: val=%ld\n",
 		    spec->effects_switch[CRYSTAL_VOICE - EFFECT_START_NID]);
 
 	i = IN_EFFECT_START_NID - EFFECT_START_NID;
@@ -3664,7 +3612,7 @@ static int ca0132_voicefx_put(struct snd_kcontrol *kcontrol,
 	if (sel >= items)
 		return 0;
 
-	snd_printdd(KERN_INFO "ca0132_voicefx_put: sel=%d, preset=%s\n",
+	codec_dbg(codec, "ca0132_voicefx_put: sel=%d, preset=%s\n",
 		    sel, ca0132_voicefx_presets[sel].name);
 
 	/*
@@ -3735,7 +3683,7 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
 	long *valp = ucontrol->value.integer.value;
 	int changed = 1;
 
-	snd_printdd(KERN_INFO "ca0132_switch_put: nid=0x%x, val=%ld\n",
+	codec_dbg(codec, "ca0132_switch_put: nid=0x%x, val=%ld\n",
 		    nid, *valp);
 
 	snd_hda_power_up(codec);
@@ -4173,12 +4121,6 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
 	}
 }
 
-static void ca0132_init_unsol(struct hda_codec *codec)
-{
-	snd_hda_jack_detect_enable(codec, UNSOL_TAG_HP, UNSOL_TAG_HP);
-	snd_hda_jack_detect_enable(codec, UNSOL_TAG_AMIC1, UNSOL_TAG_AMIC1);
-}
-
 static void refresh_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir)
 {
 	unsigned int caps;
@@ -4198,7 +4140,7 @@ static void ca0132_set_dmic(struct hda_codec *codec, int enable)
 	u8 val;
 	unsigned int oldval;
 
-	snd_printdd(KERN_INFO "ca0132_set_dmic: enable=%d\n", enable);
+	codec_dbg(codec, "ca0132_set_dmic: enable=%d\n", enable);
 
 	oldval = stop_mic1(codec);
 	ca0132_set_vipsource(codec, 0);
@@ -4306,7 +4248,7 @@ static void ca0132_refresh_widget_caps(struct hda_codec *codec)
 	int i;
 	hda_nid_t nid;
 
-	snd_printdd(KERN_INFO "ca0132_refresh_widget_caps.\n");
+	codec_dbg(codec, "ca0132_refresh_widget_caps.\n");
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++)
 		codec->wcaps[i] = snd_hda_param_read(codec, nid,
@@ -4435,6 +4377,9 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 	return; /* NOP */
 #endif
 
+	if (spec->dsp_state == DSP_DOWNLOAD_FAILED)
+		return; /* don't retry failures */
+
 	chipio_enable_clocks(codec);
 	spec->dsp_state = DSP_DOWNLOADING;
 	if (!ca0132_download_dsp_images(codec))
@@ -4446,11 +4391,12 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 		ca0132_set_dsp_msr(codec, true);
 }
 
-static void ca0132_process_dsp_response(struct hda_codec *codec)
+static void ca0132_process_dsp_response(struct hda_codec *codec,
+					struct hda_jack_callback *callback)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	snd_printdd(KERN_INFO "ca0132_process_dsp_response\n");
+	codec_dbg(codec, "ca0132_process_dsp_response\n");
 	if (spec->wait_scp) {
 		if (dspio_get_response_data(codec) >= 0)
 			spec->wait_scp = 0;
@@ -4459,36 +4405,31 @@ static void ca0132_process_dsp_response(struct hda_codec *codec)
 	dspio_clear_response_queue(codec);
 }
 
-static void ca0132_unsol_event(struct hda_codec *codec, unsigned int res)
+static void hp_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (((res >> AC_UNSOL_RES_TAG_SHIFT) & 0x3f) == UNSOL_TAG_DSP) {
-		ca0132_process_dsp_response(codec);
-	} else {
-		res = snd_hda_jack_get_action(codec,
-				(res >> AC_UNSOL_RES_TAG_SHIFT) & 0x3f);
+	/* Delay enabling the HP amp, to let the mic-detection
+	 * state machine run.
+	 */
+	cancel_delayed_work_sync(&spec->unsol_hp_work);
+	queue_delayed_work(codec->bus->workq, &spec->unsol_hp_work,
+			   msecs_to_jiffies(500));
+	cb->tbl->block_report = 1;
+}
 
-		snd_printdd(KERN_INFO "snd_hda_jack_get_action: 0x%x\n", res);
+static void amic_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
+{
+	ca0132_select_mic(codec);
+}
 
-		switch (res) {
-		case UNSOL_TAG_HP:
-			/* Delay enabling the HP amp, to let the mic-detection
-			 * state machine run.
-			 */
-			cancel_delayed_work_sync(&spec->unsol_hp_work);
-			queue_delayed_work(codec->bus->workq,
-					   &spec->unsol_hp_work,
-					   msecs_to_jiffies(500));
-			break;
-		case UNSOL_TAG_AMIC1:
-			ca0132_select_mic(codec);
-			snd_hda_jack_report_sync(codec);
-			break;
-		default:
-			break;
-		}
-	}
+static void ca0132_init_unsol(struct hda_codec *codec)
+{
+	snd_hda_jack_detect_enable_callback(codec, UNSOL_TAG_HP, hp_callback);
+	snd_hda_jack_detect_enable_callback(codec, UNSOL_TAG_AMIC1,
+					    amic_callback);
+	snd_hda_jack_detect_enable_callback(codec, UNSOL_TAG_DSP,
+					    ca0132_process_dsp_response);
 }
 
 /*
@@ -4499,8 +4440,6 @@ static void ca0132_unsol_event(struct hda_codec *codec, unsigned int res)
 static struct hda_verb ca0132_base_init_verbs[] = {
 	/*enable ct extension*/
 	{0x15, VENDOR_CHIPIO_CT_EXTENSIONS_ENABLE, 0x1},
-	/*enable DSP node unsol, needed for DSP download*/
-	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | UNSOL_TAG_DSP},
 	{}
 };
 
@@ -4611,10 +4550,13 @@ static int ca0132_init(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	spec->dsp_state = DSP_DOWNLOAD_INIT;
+	if (spec->dsp_state != DSP_DOWNLOAD_FAILED)
+		spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->curr_chip_addx = INVALID_CHIP_ADDRESS;
 
 	snd_hda_power_up(codec);
+
+	ca0132_init_unsol(codec);
 
 	ca0132_init_params(codec);
 	ca0132_init_flags(codec);
@@ -4637,8 +4579,6 @@ static int ca0132_init(struct hda_codec *codec)
 
 	for (i = 0; i < spec->num_init_verbs; i++)
 		snd_hda_sequence_write(codec, spec->init_verbs[i]);
-
-	ca0132_init_unsol(codec);
 
 	ca0132_select_out(codec);
 	ca0132_select_mic(codec);
@@ -4667,7 +4607,7 @@ static struct hda_codec_ops ca0132_patch_ops = {
 	.build_pcms = ca0132_build_pcms,
 	.init = ca0132_init,
 	.free = ca0132_free,
-	.unsol_event = ca0132_unsol_event,
+	.unsol_event = snd_hda_jack_unsol_event,
 };
 
 static void ca0132_config(struct hda_codec *codec)
@@ -4714,7 +4654,7 @@ static int patch_ca0132(struct hda_codec *codec)
 	struct ca0132_spec *spec;
 	int err;
 
-	snd_printdd("patch_ca0132\n");
+	codec_dbg(codec, "patch_ca0132\n");
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -4722,6 +4662,7 @@ static int patch_ca0132(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->codec = codec;
 
+	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
 	spec->mixers[0] = ca0132_mixer;
 
@@ -4742,6 +4683,8 @@ static int patch_ca0132(struct hda_codec *codec)
 		return err;
 
 	codec->patch_ops = ca0132_patch_ops;
+	codec->pcm_format_first = 1;
+	codec->no_sticky_stream = 1;
 
 	return 0;
 }

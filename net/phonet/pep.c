@@ -272,8 +272,8 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 
 	hdr = pnp_hdr(skb);
 	if (hdr->data[0] != PN_PEP_TYPE_COMMON) {
-		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP type: %u\n",
-				(unsigned int)hdr->data[0]);
+		net_dbg_ratelimited("Phonet unknown PEP type: %u\n",
+				    (unsigned int)hdr->data[0]);
 		return -EOPNOTSUPP;
 	}
 
@@ -304,8 +304,8 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	default:
-		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP indication: %u\n",
-				(unsigned int)hdr->data[1]);
+		net_dbg_ratelimited("Phonet unknown PEP indication: %u\n",
+				    (unsigned int)hdr->data[1]);
 		return -EOPNOTSUPP;
 	}
 	if (wake)
@@ -451,8 +451,8 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	default:
-		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP message: %u\n",
-				hdr->message_id);
+		net_dbg_ratelimited("Phonet unknown PEP message: %u\n",
+				    hdr->message_id);
 		err = -EINVAL;
 	}
 out:
@@ -462,10 +462,9 @@ out:
 queue:
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
-	err = skb->len;
 	skb_queue_tail(queue, skb);
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, err);
+		sk->sk_data_ready(sk);
 	return NET_RX_SUCCESS;
 }
 
@@ -587,10 +586,9 @@ static int pipe_handler_do_rcv(struct sock *sk, struct sk_buff *skb)
 		pn->rx_credits--;
 		skb->dev = NULL;
 		skb_set_owner_r(skb, sk);
-		err = skb->len;
 		skb_queue_tail(&sk->sk_receive_queue, skb);
 		if (!sock_flag(sk, SOCK_DEAD))
-			sk->sk_data_ready(sk, err);
+			sk->sk_data_ready(sk);
 		return NET_RX_SUCCESS;
 
 	case PNS_PEP_CONNECT_RESP:
@@ -698,7 +696,7 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 		skb_queue_head(&sk->sk_receive_queue, skb);
 		sk_acceptq_added(sk);
 		if (!sock_flag(sk, SOCK_DEAD))
-			sk->sk_data_ready(sk, 0);
+			sk->sk_data_ready(sk);
 		return NET_RX_SUCCESS;
 
 	case PNS_PEP_DISCONNECT_REQ:
@@ -1143,7 +1141,7 @@ static int pep_sendmsg(struct kiocb *iocb, struct sock *sk,
 		return err;
 
 	skb_reserve(skb, MAX_PHONET_HEADER + 3 + pn->aligned);
-	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	err = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (err < 0)
 		goto outfree;
 
@@ -1298,7 +1296,7 @@ copy:
 	else
 		len = skb->len;
 
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, len);
+	err = skb_copy_datagram_msg(skb, 0, msg, len);
 	if (!err)
 		err = (flags & MSG_TRUNC) ? skb->len : len;
 

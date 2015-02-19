@@ -34,7 +34,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb/input.h>
@@ -89,9 +88,9 @@
 #define USB_DEVICE_ID_APPLE_WELLSPRING7A_ISO	0x025a
 #define USB_DEVICE_ID_APPLE_WELLSPRING7A_JIS	0x025b
 /* MacbookAir6,2 (unibody, June 2013) */
-#define USB_DEVICE_ID_APPLE_WELLSPRING8_ANSI	0x0291
-#define USB_DEVICE_ID_APPLE_WELLSPRING8_ISO	0x0292
-#define USB_DEVICE_ID_APPLE_WELLSPRING8_JIS	0x0293
+#define USB_DEVICE_ID_APPLE_WELLSPRING8_ANSI	0x0290
+#define USB_DEVICE_ID_APPLE_WELLSPRING8_ISO	0x0291
+#define USB_DEVICE_ID_APPLE_WELLSPRING8_JIS	0x0292
 
 #define BCM5974_DEVICE(prod) {					\
 	.match_flags = (USB_DEVICE_ID_MATCH_DEVICE |		\
@@ -565,7 +564,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 		dev->index[n++] = &f[i];
 	}
 
-	input_mt_assign_slots(input, dev->slots, dev->pos, n);
+	input_mt_assign_slots(input, dev->slots, dev->pos, n, 0);
 
 	for (i = 0; i < n; i++)
 		report_finger_data(input, dev->slots[i],

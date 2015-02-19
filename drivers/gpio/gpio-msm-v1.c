@@ -686,7 +686,7 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 	irq_set_chained_handler(irq1, msm_gpio_irq_handler);
 	irq_set_chained_handler(irq2, msm_gpio_irq_handler);
 	irq_set_irq_wake(irq1, 1);
-	irq_set_irq_wake(irq2, 2);
+	irq_set_irq_wake(irq2, 1);
 	return 0;
 }
 
@@ -701,7 +701,6 @@ MODULE_DEVICE_TABLE(platform, gpio_msm_v1_device_ids);
 static struct platform_driver gpio_msm_v1_driver = {
 	.driver = {
 		.name = "gpio-msm-v1",
-		.owner = THIS_MODULE,
 	},
 	.probe = gpio_msm_v1_probe,
 	.id_table = gpio_msm_v1_device_ids,

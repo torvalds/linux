@@ -57,10 +57,13 @@
  *	which are then pulled up with an external resistor. Setting this
  *	config will enable open drain mode, the argument is ignored.
  * @PIN_CONFIG_DRIVE_OPEN_SOURCE: the pin will be driven with open source
- *	(open emitter). Setting this config will enable open drain mode, the
+ *	(open emitter). Setting this config will enable open source mode, the
  *	argument is ignored.
  * @PIN_CONFIG_DRIVE_STRENGTH: the pin will sink or source at most the current
  *	passed as argument. The argument is in mA.
+ * @PIN_CONFIG_INPUT_ENABLE: enable the pin's input.  Note that this does not
+ *	affect the pin's ability to drive output.  1 enables input, 0 disables
+ *	input.
  * @PIN_CONFIG_INPUT_SCHMITT_ENABLE: control schmitt-trigger mode on the pin.
  *      If the argument != 0, schmitt-trigger mode is enabled. If it's 0,
  *      schmitt-trigger mode is disabled.
@@ -82,8 +85,10 @@
  *	operation, if several modes of operation are supported these can be
  *	passed in the argument on a custom form, else just use argument 1
  *	to indicate low power mode, argument 0 turns low power mode off.
- * @PIN_CONFIG_OUTPUT: this will configure the pin in output, use argument
- *	1 to indicate high level, argument 0 to indicate low level.
+ * @PIN_CONFIG_OUTPUT: this will configure the pin as an output. Use argument
+ *	1 to indicate high level, argument 0 to indicate low level. (Please
+ *	see Documentation/pinctrl.txt, section "GPIO mode pitfalls" for a
+ *	discussion around this parameter.)
  * @PIN_CONFIG_END: this is the last enumerator for pin configurations, if
  *	you need to pass in custom configurations to the pin controller, use
  *	PIN_CONFIG_END+1 as the base offset.
@@ -99,6 +104,7 @@ enum pin_config_param {
 	PIN_CONFIG_DRIVE_OPEN_DRAIN,
 	PIN_CONFIG_DRIVE_OPEN_SOURCE,
 	PIN_CONFIG_DRIVE_STRENGTH,
+	PIN_CONFIG_INPUT_ENABLE,
 	PIN_CONFIG_INPUT_SCHMITT_ENABLE,
 	PIN_CONFIG_INPUT_SCHMITT,
 	PIN_CONFIG_INPUT_DEBOUNCE,
@@ -108,6 +114,18 @@ enum pin_config_param {
 	PIN_CONFIG_OUTPUT,
 	PIN_CONFIG_END = 0x7FFF,
 };
+
+#ifdef CONFIG_DEBUG_FS
+#define PCONFDUMP(a, b, c, d) { .param = a, .display = b, .format = c, \
+				.has_arg = d }
+
+struct pin_config_item {
+	const enum pin_config_param param;
+	const char * const display;
+	const char * const format;
+	bool has_arg;
+};
+#endif /* CONFIG_DEBUG_FS */
 
 /*
  * Helpful configuration macro to be used in tables etc.
@@ -136,6 +154,56 @@ static inline unsigned long pinconf_to_config_packed(enum pin_config_param param
 {
 	return PIN_CONF_PACKED(param, argument);
 }
+
+#ifdef CONFIG_OF
+
+#include <linux/device.h>
+#include <linux/pinctrl/machine.h>
+struct pinctrl_dev;
+struct pinctrl_map;
+
+struct pinconf_generic_params {
+	const char * const property;
+	enum pin_config_param param;
+	u32 default_value;
+};
+
+int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
+		struct device_node *np, struct pinctrl_map **map,
+		unsigned *reserved_maps, unsigned *num_maps,
+		enum pinctrl_map_type type);
+int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
+		struct device_node *np_config, struct pinctrl_map **map,
+		unsigned *num_maps, enum pinctrl_map_type type);
+
+static inline int pinconf_generic_dt_node_to_map_group(
+		struct pinctrl_dev *pctldev, struct device_node *np_config,
+		struct pinctrl_map **map, unsigned *num_maps)
+{
+	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
+			PIN_MAP_TYPE_CONFIGS_GROUP);
+}
+
+static inline int pinconf_generic_dt_node_to_map_pin(
+		struct pinctrl_dev *pctldev, struct device_node *np_config,
+		struct pinctrl_map **map, unsigned *num_maps)
+{
+	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
+			PIN_MAP_TYPE_CONFIGS_PIN);
+}
+
+static inline int pinconf_generic_dt_node_to_map_all(
+		struct pinctrl_dev *pctldev, struct device_node *np_config,
+		struct pinctrl_map **map, unsigned *num_maps)
+{
+	/*
+	 * passing the type as PIN_MAP_TYPE_INVALID causes the underlying parser
+	 * to infer the map type from the DT properties used.
+	 */
+	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
+			PIN_MAP_TYPE_INVALID);
+}
+#endif
 
 #endif /* CONFIG_GENERIC_PINCONF */
 

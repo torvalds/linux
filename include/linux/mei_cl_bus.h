@@ -3,6 +3,7 @@
 
 #include <linux/device.h>
 #include <linux/uuid.h>
+#include <linux/mod_devicetable.h>
 
 struct mei_cl_device;
 
@@ -24,8 +25,8 @@ int __mei_cl_driver_register(struct mei_cl_driver *driver,
 
 void mei_cl_driver_unregister(struct mei_cl_driver *driver);
 
-int mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length);
-int mei_cl_recv(struct mei_cl_device *device, u8 *buf, size_t length);
+ssize_t mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length);
+ssize_t  mei_cl_recv(struct mei_cl_device *device, u8 *buf, size_t length);
 
 typedef void (*mei_cl_event_cb_t)(struct mei_cl_device *device,
 			       u32 events, void *context);

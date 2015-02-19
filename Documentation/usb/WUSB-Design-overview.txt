@@ -25,7 +25,7 @@ updated content.
     * Design-overview.txt-1.8
 
 This code implements a Ultra Wide Band stack for Linux, as well as
-drivers for the the USB based UWB radio controllers defined in the
+drivers for the USB based UWB radio controllers defined in the
 Wireless USB 1.0 specification (including Wireless USB host controller
 and an Intel WiNET controller).
 
@@ -161,19 +161,10 @@ now on), such as to start/stop beaconing, scan, allocate bandwidth, etc.
 The main building block here is the UWB device (struct uwb_dev). For
 each device that pops up in radio presence (ie: the UWB host receives a
 beacon from it) you get a struct uwb_dev that will show up in
-/sys/class/uwb and in /sys/bus/uwb/devices.
+/sys/bus/uwb/devices.
 
-For each RC that is detected, a new struct uwb_rc is created. In turn, a
-RC is also a device, so they also show in /sys/class/uwb and
-/sys/bus/uwb/devices, but at the same time, only radio controllers show
-up in /sys/class/uwb_rc.
-
-    *
-
-      [*] The reason for RCs being also devices is that not only we can
-      see them while enumerating the system device tree, but also on the
-      radio (their beacons and stuff), so the handling has to be
-      likewise to that of a device.
+For each RC that is detected, a new struct uwb_rc and struct uwb_dev are
+created. An entry is also created in /sys/class/uwb_rc for each RC.
 
 Each RC driver is implemented by a separate driver that plugs into the
 interface that the UWB stack provides through a struct uwb_rc_ops. The
@@ -246,7 +237,7 @@ the beacon cache of dead devices].
 
       Device lists
 
-All UWB devices are kept in the list of the struct bus_type uwb_bus.
+All UWB devices are kept in the list of the struct bus_type uwb_bus_type.
 
 
       Bandwidth allocation
@@ -317,7 +308,7 @@ HC picks the /DN_Connect/ out (nep module sends to notif.c for delivery
 into /devconnect/). This process starts the authentication process for
 the device. First we allocate a /fake port/ and assign an
 unauthenticated address (128 to 255--what we really do is
-0x80 | fake_port_idx). We fiddle with the fake port status and /khubd/
+0x80 | fake_port_idx). We fiddle with the fake port status and /hub_wq/
 sees a new connection, so he moves on to enable the fake port with a reset.
 
 So now we are in the reset path -- we know we have a non-yet enumerated
@@ -326,7 +317,7 @@ device with an unauthorized address; we ask user space to authenticate
 exchange (FIXME: not yet done) and issue a /set address 0/ to bring the
 device to the default state. Device is authenticated.
 
-From here, the USB stack takes control through the usb_hcd ops. khubd
+From here, the USB stack takes control through the usb_hcd ops. hub_wq
 has seen the port status changes, as we have been toggling them. It will
 start enumerating and doing transfers through usb_hcd->urb_enqueue() to
 read descriptors and move our data.
@@ -340,7 +331,7 @@ Keep Alive IE; it responds with a /DN_Alive/ pong during the DNTS (this
 arrives to us as a notification through
 devconnect.c:wusb_handle_dn_alive(). If a device times out, we
 disconnect it from the system (cleaning up internal information and
-toggling the bits in the fake hub port, which kicks khubd into removing
+toggling the bits in the fake hub port, which kicks hub_wq into removing
 the rest of the stuff).
 
 This is done through devconnect:__wusb_check_devs(), which will scan the

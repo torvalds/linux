@@ -18,6 +18,10 @@ Supported chips:
     Prefix: 'tmp432'
     Addresses scanned: I2C 0x4c, 0x4d
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp432.html
+  * Texas Instruments TMP435
+    Prefix: 'tmp435'
+    Addresses scanned: I2C 0x37, 0x48 - 0x4f
+    Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp435.html
 
 Authors:
          Hans de Goede <hdegoede@redhat.com>
@@ -27,8 +31,8 @@ Description
 -----------
 
 This driver implements support for Texas Instruments TMP401, TMP411,
-TMP431, and TMP432 chips. These chips implement one or two remote and
-one local temperature sensors. Temperature is measured in degrees
+TMP431, TMP432 and TMP435 chips. These chips implement one or two remote
+and one local temperature sensors. Temperature is measured in degrees
 Celsius. Resolution of the remote sensor is 0.0625 degree. Local
 sensor resolution can be set to 0.5, 0.25, 0.125 or 0.0625 degree (not
 supported by the driver so far, so using the default resolution of 0.5

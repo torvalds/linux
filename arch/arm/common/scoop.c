@@ -182,7 +182,6 @@ static int scoop_probe(struct platform_device *pdev)
 	struct scoop_config *inf;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int ret;
-	int temp;
 
 	if (!mem)
 		return -EINVAL;
@@ -232,8 +231,6 @@ static int scoop_probe(struct platform_device *pdev)
 
 	return 0;
 
-	if (devptr->gpio.base != -1)
-		temp = gpiochip_remove(&devptr->gpio);
 err_gpio:
 	platform_set_drvdata(pdev, NULL);
 err_ioremap:
@@ -246,18 +243,12 @@ err_ioremap:
 static int scoop_remove(struct platform_device *pdev)
 {
 	struct scoop_dev *sdev = platform_get_drvdata(pdev);
-	int ret;
 
 	if (!sdev)
 		return -EINVAL;
 
-	if (sdev->gpio.base != -1) {
-		ret = gpiochip_remove(&sdev->gpio);
-		if (ret) {
-			dev_err(&pdev->dev, "Can't remove gpio chip: %d\n", ret);
-			return ret;
-		}
-	}
+	if (sdev->gpio.base != -1)
+		gpiochip_remove(&sdev->gpio);
 
 	platform_set_drvdata(pdev, NULL);
 	iounmap(sdev->base);

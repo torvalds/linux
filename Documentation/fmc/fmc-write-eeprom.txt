@@ -9,7 +9,12 @@ Overwriting the EEPROM is not something you should do daily, and it is
 expected to only happen during manufacturing. For this reason, the
 module makes it unlikely for the random user to change a working EEPROM.
 
-The module takes the following measures:
+However, since the EEPROM may include application-specific information
+other than the identification, later versions of this packages added
+write-support through sysfs. See *note Accessing the EEPROM::.
+
+To avoid damaging the EEPROM content, the module takes the following
+measures:
 
    * It accepts a `file=' argument (within /lib/firmware) and if no
      such argument is received, it doesn't write anything to EEPROM
@@ -70,56 +75,24 @@ first time.
         [  132.899872]  fake-fmc: Product name: FmcDelay1ns4cha
 
 
-Writing to the EEPROM
+Accessing the EEPROM
 =====================
 
-Once you have created a binary file for your EEPROM, you can write it
-to the storage medium using the fmc-write-eeprom (See *note
-fmc-write-eeprom::, while relying on a carrier driver.  The procedure
-here shown here uses the SPEC driver
-(`http://www.ohwr.org/projects/spec-sw').
+The bus creates a sysfs binary file called eeprom for each mezzanine it
+knows about:
 
-The example assumes no driver is already loaded (actually, I unloaded
-them by hand as everything loads automatically at boot time after you
-installed the modules), and shows kernel messages together with
-commands. Here the prompt is spusa.root# and two SPEC cards are plugged
-in the system.
+        spusa.root# cd /sys/bus/fmc/devices; ls -l */eeprom
+        -r--r--r-- 1 root root 8192 Feb 21 12:30 FmcAdc100m14b4cha-0800/eeprom
+        -r--r--r-- 1 root root 8192 Feb 21 12:30 FmcDelay1ns4cha-0200/eeprom
+        -r--r--r-- 1 root root 8192 Feb 21 12:30 FmcDio5cha-0400/eeprom
 
-     spusa.root# insmod fmc.ko
-     spusa.root# insmod spec.ko
-     [13972.382818] spec 0000:02:00.0:  probe for device 0002:0000
-     [13972.392773] spec 0000:02:00.0: got file "fmc/spec-init.bin", 1484404 (0x16a674) bytes
-     [13972.591388] spec 0000:02:00.0: FPGA programming successful
-     [13972.883011] spec 0000:02:00.0: EEPROM has no FRU information
-     [13972.888719] spec 0000:02:00.0: No device_id filled, using index
-     [13972.894676] spec 0000:02:00.0: No mezzanine_name found
-     [13972.899863] /home/rubini/wip/spec-sw/kernel/spec-gpio.c - spec_gpio_init
-     [13972.906578] spec 0000:04:00.0:  probe for device 0004:0000
-     [13972.916509] spec 0000:04:00.0: got file "fmc/spec-init.bin", 1484404 (0x16a674) bytes
-     [13973.115096] spec 0000:04:00.0: FPGA programming successful
-     [13973.401798] spec 0000:04:00.0: EEPROM has no FRU information
-     [13973.407474] spec 0000:04:00.0: No device_id filled, using index
-     [13973.413417] spec 0000:04:00.0: No mezzanine_name found
-     [13973.418600] /home/rubini/wip/spec-sw/kernel/spec-gpio.c - spec_gpio_init
-     spusa.root# ls /sys/bus/fmc/devices
-     fmc-0000  fmc-0001
-     spusa.root# insmod fmc-write-eeprom.ko busid=0x0200 file=fdelay-eeprom.bin
-     [14103.966259] spec 0000:02:00.0: Matching an generic driver (no ID)
-     [14103.975519] spec 0000:02:00.0: programming 6155 bytes
-     [14126.373762] spec 0000:02:00.0: write_eeprom: success
-     [14126.378770] spec 0000:04:00.0: Matching an generic driver (no ID)
-     [14126.384903] spec 0000:04:00.0: fmc_write_eeprom: no filename given: not programming
-     [14126.392600] fmc_write_eeprom: probe of fmc-0001 failed with error -2
+Everybody can read the files and the superuser can also modify it, but
+the operation may on the carrier driver, if the carrier is unable to
+access the I2C bus.  For example, the spec driver can access the bus
+only with its golden gateware: after a mezzanine driver reprogrammed
+the FPGA with a custom circuit, the carrier is unable to access the
+EEPROM and returns ENOTSUPP.
 
-Reading back the EEPROM
-=======================
-
-In order to read back the binary content of the EEPROM of your
-mezzanine device, the bus creates a read-only sysfs file called eeprom
-for each mezzanine it knows about:
-
-   spusa.root# cd /sys/bus/fmc/devices; ls -l */eeprom
-   -r--r--r-- 1 root root 8192 Apr  9 16:53 FmcDelay1ns4cha-f001/eeprom
-   -r--r--r-- 1 root root 8192 Apr  9 17:19 fake-design-for-testing-f002/eeprom
-   -r--r--r-- 1 root root 8192 Apr  9 17:19 fake-design-for-testing-f003/eeprom
-   -r--r--r-- 1 root root 8192 Apr  9 17:19 fmc-f004/eeprom
+An alternative way to write the EEPROM is the mezzanine driver
+fmc-write-eeprom (See *note fmc-write-eeprom::), but the procedure is
+more complex.

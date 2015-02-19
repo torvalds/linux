@@ -93,6 +93,7 @@ enum {
 	} while (0)
 
 #define WL1251_DEFAULT_RX_CONFIG (CFG_UNI_FILTER_EN |	\
+				  CFG_MC_FILTER_EN |	\
 				  CFG_BSSID_FILTER_EN)
 
 #define WL1251_DEFAULT_RX_FILTER (CFG_RX_PRSP_EN |  \
@@ -275,9 +276,11 @@ struct wl1251 {
 	void *if_priv;
 	const struct wl1251_if_operations *if_ops;
 
-	void (*set_power)(bool enable);
+	int power_gpio;
 	int irq;
 	bool use_eeprom;
+
+	struct regulator *vio;
 
 	spinlock_t wl_lock;
 
@@ -303,6 +306,8 @@ struct wl1251 {
 	u8 bss_type;
 	u8 listen_int;
 	int channel;
+	bool monitor_present;
+	bool joined;
 
 	void *target_mem_map;
 	struct acx_data_path_params_resp *data_path;
@@ -368,6 +373,9 @@ struct wl1251 {
 	/* PSM mode requested */
 	bool psm_requested;
 
+	/* retry counter for PSM entries */
+	u8 psm_entry_retry;
+
 	u16 beacon_int;
 	u8 dtim_period;
 
@@ -424,8 +432,8 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 #define CHIP_ID_1271_PG10	           (0x4030101)
 #define CHIP_ID_1271_PG20	           (0x4030111)
 
-#define WL1251_FW_NAME "wl1251-fw.bin"
-#define WL1251_NVS_NAME "wl1251-nvs.bin"
+#define WL1251_FW_NAME "ti-connectivity/wl1251-fw.bin"
+#define WL1251_NVS_NAME "ti-connectivity/wl1251-nvs.bin"
 
 #define WL1251_POWER_ON_SLEEP 10 /* in milliseconds */
 

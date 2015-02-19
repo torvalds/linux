@@ -165,7 +165,7 @@ static ssize_t s3c_hwmon_ch_show(struct device *dev,
 {
 	struct sensor_device_attribute *sen_attr = to_sensor_dev_attr(attr);
 	struct s3c_hwmon *hwmon = platform_get_drvdata(to_platform_device(dev));
-	struct s3c_hwmon_pdata *pdata = dev->platform_data;
+	struct s3c_hwmon_pdata *pdata = dev_get_platdata(dev);
 	struct s3c_hwmon_chcfg *cfg;
 	int ret;
 
@@ -194,7 +194,7 @@ static ssize_t s3c_hwmon_label_show(struct device *dev,
 				    char *buf)
 {
 	struct sensor_device_attribute *sen_attr = to_sensor_dev_attr(attr);
-	struct s3c_hwmon_pdata *pdata = dev->platform_data;
+	struct s3c_hwmon_pdata *pdata = dev_get_platdata(dev);
 	struct s3c_hwmon_chcfg *cfg;
 
 	cfg = pdata->in[sen_attr->index];
@@ -274,7 +274,7 @@ static void s3c_hwmon_remove_attr(struct device *dev,
 */
 static int s3c_hwmon_probe(struct platform_device *dev)
 {
-	struct s3c_hwmon_pdata *pdata = dev->dev.platform_data;
+	struct s3c_hwmon_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct s3c_hwmon *hwmon;
 	int ret = 0;
 	int i;
@@ -285,10 +285,8 @@ static int s3c_hwmon_probe(struct platform_device *dev)
 	}
 
 	hwmon = devm_kzalloc(&dev->dev, sizeof(struct s3c_hwmon), GFP_KERNEL);
-	if (hwmon == NULL) {
-		dev_err(&dev->dev, "no memory\n");
+	if (hwmon == NULL)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(dev, hwmon);
 
@@ -380,7 +378,6 @@ static int s3c_hwmon_remove(struct platform_device *dev)
 static struct platform_driver s3c_hwmon_driver = {
 	.driver	= {
 		.name		= "s3c-hwmon",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= s3c_hwmon_probe,
 	.remove		= s3c_hwmon_remove,

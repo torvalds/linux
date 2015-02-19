@@ -14,7 +14,7 @@ int nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS);
 
 struct nouveau_abi16_ntfy {
 	struct list_head head;
-	struct nouveau_mm_node *node;
+	struct nvkm_mm_node *node;
 	u32 handle;
 };
 
@@ -23,13 +23,12 @@ struct nouveau_abi16_chan {
 	struct nouveau_channel *chan;
 	struct list_head notifiers;
 	struct nouveau_bo *ntfy;
-	struct nouveau_vma ntfy_vma;
-	struct nouveau_mm  heap;
+	struct nvkm_vma ntfy_vma;
+	struct nvkm_mm  heap;
 };
 
 struct nouveau_abi16 {
-	struct nouveau_object *client;
-	struct nouveau_object *device;
+	struct nvif_device device;
 	struct list_head channels;
 	u64 handles;
 };

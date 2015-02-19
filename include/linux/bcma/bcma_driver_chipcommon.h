@@ -640,7 +640,14 @@ struct bcma_drv_cc {
 	spinlock_t gpio_lock;
 #ifdef CONFIG_BCMA_DRIVER_GPIO
 	struct gpio_chip gpio;
+	struct irq_domain *irq_domain;
 #endif
+};
+
+struct bcma_drv_cc_b {
+	struct bcma_device *core;
+	u8 setup_done:1;
+	void __iomem *mii;
 };
 
 /* Register access */
@@ -697,5 +704,7 @@ extern void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc,
 extern void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid);
 
 extern u32 bcma_pmu_get_bus_clock(struct bcma_drv_cc *cc);
+
+void bcma_chipco_b_mii_write(struct bcma_drv_cc_b *ccb, u32 offset, u32 value);
 
 #endif /* LINUX_BCMA_DRIVER_CC_H_ */

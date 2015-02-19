@@ -997,6 +997,11 @@ struct conf_conn_settings {
 	 * whether we can go to ELP.
 	 */
 	u8 sta_sleep_auth;
+
+	/*
+	 * Default RX BA Activity filter configuration
+	 */
+	u8 suspend_rx_ba_activity;
 } __packed;
 
 enum {
@@ -1274,6 +1279,9 @@ struct conf_rx_streaming_settings {
 	u8 always;
 } __packed;
 
+#define CONF_FWLOG_MIN_MEM_BLOCKS	2
+#define CONF_FWLOG_MAX_MEM_BLOCKS	16
+
 struct conf_fwlog {
 	/* Continuous or on-demand */
 	u8 mode;
@@ -1281,7 +1289,7 @@ struct conf_fwlog {
 	/*
 	 * Number of memory blocks dedicated for the FW logger
 	 *
-	 * Range: 1-3, or 0 to disable the FW logger
+	 * Range: 2-16, or 0 to disable the FW logger
 	 */
 	u8 mem_blocks;
 
@@ -1344,7 +1352,7 @@ struct conf_recovery_settings {
  * version, the two LSB are the lower driver's private conf
  * version.
  */
-#define WLCORE_CONF_VERSION	(0x0005 << 16)
+#define WLCORE_CONF_VERSION	(0x0006 << 16)
 #define WLCORE_CONF_MASK	0xffff0000
 #define WLCORE_CONF_SIZE	(sizeof(struct wlcore_conf_header) +	\
 				 sizeof(struct wlcore_conf))

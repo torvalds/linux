@@ -127,6 +127,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <linux/stat.h>
 #include <linux/init.h>
 #include <linux/poll.h>
+#include <linux/jiffies.h>
 #include <net/net_namespace.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
@@ -481,7 +482,7 @@ static struct sock *dn_alloc_sock(struct net *net, struct socket *sock, gfp_t gf
 
 	sk->sk_backlog_rcv = dn_nsp_backlog_rcv;
 	sk->sk_destruct    = dn_destruct;
-	sk->sk_no_check    = 1;
+	sk->sk_no_check_tx = 1;
 	sk->sk_family      = PF_DECnet;
 	sk->sk_protocol    = 0;
 	sk->sk_allocation  = gfp;
@@ -598,7 +599,7 @@ int dn_destroy_timer(struct sock *sk)
 	if (sk->sk_socket)
 		return 0;
 
-	if ((jiffies - scp->stamp) >= (HZ * decnet_time_wait)) {
+	if (time_after_eq(jiffies, scp->stamp + HZ * decnet_time_wait)) {
 		dn_unhash_sock(sk);
 		sock_put(sk);
 		return 1;
@@ -1759,7 +1760,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if ((chunk + copied) > size)
 			chunk = size - copied;
 
-		if (memcpy_toiovec(msg->msg_iov, skb->data, chunk)) {
+		if (memcpy_to_msg(msg, skb->data, chunk)) {
 			rv = -EFAULT;
 			break;
 		}
@@ -1808,6 +1809,7 @@ out:
 		rv = (flags & MSG_PEEK) ? -sk->sk_err : sock_error(sk);
 
 	if ((rv >= 0) && msg->msg_name) {
+		__sockaddr_check_size(sizeof(struct sockaddr_dn));
 		memcpy(msg->msg_name, &scp->peer, sizeof(struct sockaddr_dn));
 		msg->msg_namelen = sizeof(struct sockaddr_dn);
 	}
@@ -1914,7 +1916,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 	int err = 0;
 	size_t sent = 0;
 	int addr_len = msg->msg_namelen;
-	struct sockaddr_dn *addr = (struct sockaddr_dn *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_dn *, addr, msg->msg_name);
 	struct sk_buff *skb = NULL;
 	struct dn_skb_cb *cb;
 	size_t len;
@@ -2030,7 +2032,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		skb_reserve(skb, 64 + DN_MAX_NSP_DATA_HEADER);
 
-		if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+		if (memcpy_from_msg(skb_put(skb, len), msg, len)) {
 			err = -EFAULT;
 			goto out;
 		}
@@ -2102,8 +2104,6 @@ static int dn_device_event(struct notifier_block *this, unsigned long event,
 static struct notifier_block dn_dev_notifier = {
 	.notifier_call = dn_device_event,
 };
-
-extern int dn_route_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 
 static struct packet_type dn_dix_packet_type __read_mostly = {
 	.type =		cpu_to_be16(ETH_P_DNA_RT),
@@ -2351,9 +2351,6 @@ static const struct proto_ops dn_proto_ops = {
 	.mmap =		sock_no_mmap,
 	.sendpage =	sock_no_sendpage,
 };
-
-void dn_register_sysctl(void);
-void dn_unregister_sysctl(void);
 
 MODULE_DESCRIPTION("The Linux DECnet Network Protocol");
 MODULE_AUTHOR("Linux DECnet Project Team");

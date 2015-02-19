@@ -186,7 +186,7 @@ void ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *keyconf,
 EXPORT_SYMBOL(ieee80211_get_tkip_p1k_iv);
 
 void ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
-                               const u8 *ta, u32 iv32, u16 *p1k)
+			       const u8 *ta, u32 iv32, u16 *p1k)
 {
 	const u8 *tk = &keyconf->key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
 	struct tkip_ctx ctx;

@@ -44,13 +44,13 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <obd_cksum.h>
-#include <lustre/ll_fiemap.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/obd_cksum.h"
+#include "../include/lustre/ll_fiemap.h"
 
 static inline int lustre_msg_hdr_size_v2(int count)
 {
@@ -115,7 +115,7 @@ int lustre_msg_check_version(struct lustre_msg *msg, __u32 version)
 EXPORT_SYMBOL(lustre_msg_check_version);
 
 /* early reply size */
-int lustre_msg_early_size()
+int lustre_msg_early_size(void)
 {
 	static int size = 0;
 	if (!size) {
@@ -123,7 +123,7 @@ int lustre_msg_early_size()
 		 * with the old client (< 2.3) which doesn't have pb_jobid
 		 * in the ptlrpc_body.
 		 *
-		 * XXX Remove this whenever we dorp interoprability with such
+		 * XXX Remove this whenever we drop interoprability with such
 		 *     client.
 		 */
 		__u32 pblen = sizeof(struct ptlrpc_body_v2);
@@ -244,15 +244,7 @@ int lustre_pack_request(struct ptlrpc_request *req, __u32 magic, int count,
 	LASSERT(lens[MSG_PTLRPC_BODY_OFF] == sizeof(struct ptlrpc_body));
 
 	/* only use new format, we don't need to be compatible with 1.4 */
-	magic = LUSTRE_MSG_MAGIC_V2;
-
-	switch (magic) {
-	case LUSTRE_MSG_MAGIC_V2:
-		return lustre_pack_request_v2(req, count, lens, bufs);
-	default:
-		LASSERTF(0, "incorrect message magic: %08x\n", magic);
-		return -EINVAL;
-	}
+	return lustre_pack_request_v2(req, count, lens, bufs);
 }
 EXPORT_SYMBOL(lustre_pack_request);
 
@@ -274,8 +266,8 @@ do {									\
 	spin_unlock(&ptlrpc_rs_debug_lock);				\
 } while (0)
 #else
-# define PTLRPC_RS_DEBUG_LRU_ADD(rs) do {} while(0)
-# define PTLRPC_RS_DEBUG_LRU_DEL(rs) do {} while(0)
+# define PTLRPC_RS_DEBUG_LRU_ADD(rs) do {} while (0)
+# define PTLRPC_RS_DEBUG_LRU_DEL(rs) do {} while (0)
 #endif
 
 struct ptlrpc_reply_state *
@@ -308,6 +300,7 @@ lustre_get_emerg_rs(struct ptlrpc_service_part *svcpt)
 	spin_unlock(&svcpt->scp_rep_lock);
 
 	memset(rs, 0, svcpt->scp_service->srv_max_reply_size);
+	rs->rs_size = svcpt->scp_service->srv_max_reply_size;
 	rs->rs_svcpt = svcpt;
 	rs->rs_prealloc = 1;
 out:
@@ -329,7 +322,6 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 {
 	struct ptlrpc_reply_state *rs;
 	int			msg_len, rc;
-	ENTRY;
 
 	LASSERT(req->rq_reply_state == NULL);
 
@@ -342,7 +334,7 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 	msg_len = lustre_msg_size_v2(count, lens);
 	rc = sptlrpc_svc_alloc_rs(req, msg_len);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rs = req->rq_reply_state;
 	atomic_set(&rs->rs_refcount, 1);    /* 1 ref for rq_reply_state */
@@ -363,7 +355,7 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 
 	PTLRPC_RS_DEBUG_LRU_ADD(rs);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(lustre_pack_reply_v2);
 
@@ -420,8 +412,8 @@ void *lustre_msg_buf_v2(struct lustre_msg_v2 *m, int n, int min_size)
 
 	buflen = m->lm_buflens[n];
 	if (unlikely(buflen < min_size)) {
-		CERROR("msg %p buffer[%d] size %d too small "
-		       "(required %d, opc=%d)\n", m, n, buflen, min_size,
+		CERROR("msg %p buffer[%d] size %d too small (required %d, opc=%d)\n",
+		       m, n, buflen, min_size,
 		       n == MSG_PTLRPC_BODY_OFF ? -1 : lustre_msg_get_opc(m));
 		return NULL;
 	}
@@ -508,14 +500,14 @@ void lustre_free_reply_state(struct ptlrpc_reply_state *rs)
 {
 	PTLRPC_RS_DEBUG_LRU_DEL(rs);
 
-	LASSERT (atomic_read(&rs->rs_refcount) == 0);
-	LASSERT (!rs->rs_difficult || rs->rs_handled);
-	LASSERT (!rs->rs_on_net);
-	LASSERT (!rs->rs_scheduled);
-	LASSERT (rs->rs_export == NULL);
-	LASSERT (rs->rs_nlocks == 0);
-	LASSERT (list_empty(&rs->rs_exp_list));
-	LASSERT (list_empty(&rs->rs_obd_list));
+	LASSERT(atomic_read(&rs->rs_refcount) == 0);
+	LASSERT(!rs->rs_difficult || rs->rs_handled);
+	LASSERT(!rs->rs_on_net);
+	LASSERT(!rs->rs_scheduled);
+	LASSERT(rs->rs_export == NULL);
+	LASSERT(rs->rs_nlocks == 0);
+	LASSERT(list_empty(&rs->rs_exp_list));
+	LASSERT(list_empty(&rs->rs_obd_list));
 
 	sptlrpc_svc_free_rs(rs);
 }
@@ -549,8 +541,8 @@ static int lustre_unpack_msg_v2(struct lustre_msg_v2 *m, int len)
 	required_len = lustre_msg_hdr_size_v2(m->lm_bufcount);
 	if (len < required_len) {
 		/* didn't receive all the buffer lengths */
-		CERROR ("message length %d too small for %d buflens\n",
-			len, m->lm_bufcount);
+		CERROR("message length %d too small for %d buflens\n",
+		       len, m->lm_bufcount);
 		return -EINVAL;
 	}
 
@@ -574,7 +566,6 @@ static int lustre_unpack_msg_v2(struct lustre_msg_v2 *m, int len)
 int __lustre_unpack_msg(struct lustre_msg *m, int len)
 {
 	int required_len, rc;
-	ENTRY;
 
 	/* We can provide a slightly better error log, if we check the
 	 * message magic and version first.  In the future, struct
@@ -588,12 +579,12 @@ int __lustre_unpack_msg(struct lustre_msg *m, int len)
 		/* can't even look inside the message */
 		CERROR("message length %d too small for magic/version check\n",
 		       len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	rc = lustre_unpack_msg_v2(m, len);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(__lustre_unpack_msg);
 
@@ -638,9 +629,12 @@ static inline int lustre_unpack_ptlrpc_body_v2(struct ptlrpc_request *req,
 	}
 
 	if ((pb->pb_version & ~LUSTRE_VERSION_MASK) != PTLRPC_MSG_VERSION) {
-		 CERROR("wrong lustre_msg version %08x\n", pb->pb_version);
-		 return -EINVAL;
+		CERROR("wrong lustre_msg version %08x\n", pb->pb_version);
+		return -EINVAL;
 	}
+
+	if (!inout)
+		pb->pb_status = ptlrpc_status_ntoh(pb->pb_status);
 
 	return 0;
 }
@@ -748,28 +742,26 @@ char *lustre_msg_string(struct lustre_msg *m, int index, int max_len)
 	}
 
 	if (str == NULL) {
-		CERROR ("can't unpack string in msg %p buffer[%d]\n", m, index);
+		CERROR("can't unpack string in msg %p buffer[%d]\n", m, index);
 		return NULL;
 	}
 
 	slen = strnlen(str, blen);
 
 	if (slen == blen) {		     /* not NULL terminated */
-		CERROR("can't unpack non-NULL terminated string in "
-			"msg %p buffer[%d] len %d\n", m, index, blen);
+		CERROR("can't unpack non-NULL terminated string in msg %p buffer[%d] len %d\n",
+		       m, index, blen);
 		return NULL;
 	}
 
 	if (max_len == 0) {
 		if (slen != blen - 1) {
-			CERROR("can't unpack short string in msg %p "
-			       "buffer[%d] len %d: strlen %d\n",
+			CERROR("can't unpack short string in msg %p buffer[%d] len %d: strlen %d\n",
 			       m, index, blen, slen);
 			return NULL;
 		}
 	} else if (slen > max_len) {
-		CERROR("can't unpack oversized string in msg %p "
-		       "buffer[%d] len %d strlen %d: max %d expected\n",
+		CERROR("can't unpack oversized string in msg %p buffer[%d] len %d strlen %d: max %d expected\n",
 		       m, index, blen, slen, max_len);
 		return NULL;
 	}
@@ -1319,43 +1311,17 @@ __u32 lustre_msg_get_cksum(struct lustre_msg *msg)
 	}
 }
 
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-/*
- * In 1.6 and 1.8 the checksum was computed only on struct ptlrpc_body as
- * it was in 1.6 (88 bytes, smaller than the full size in 1.8).  It makes
- * more sense to compute the checksum on the full ptlrpc_body, regardless
- * of what size it is, but in order to keep interoperability with 1.8 we
- * can optionally also checksum only the first 88 bytes (caller decides). */
-# define ptlrpc_body_cksum_size_compat18	 88
-
-__u32 lustre_msg_calc_cksum(struct lustre_msg *msg, int compat18)
-#else
-# warning "remove checksum compatibility support for b1_8"
 __u32 lustre_msg_calc_cksum(struct lustre_msg *msg)
-#endif
 {
 	switch (msg->lm_magic) {
 	case LUSTRE_MSG_MAGIC_V2: {
 		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-		__u32 crc;
-		unsigned int hsize = 4;
-		__u32 len = compat18 ? ptlrpc_body_cksum_size_compat18 :
-			    lustre_msg_buflen(msg, MSG_PTLRPC_BODY_OFF);
-		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
-		cfs_crypto_hash_digest(CFS_HASH_ALG_CRC32, (unsigned char *)pb,
-				       len, NULL, 0, (unsigned char *)&crc,
-				       &hsize);
-		return crc;
-#else
-# warning "remove checksum compatibility support for b1_8"
 		__u32 crc;
 		unsigned int hsize = 4;
 		cfs_crypto_hash_digest(CFS_HASH_ALG_CRC32, (unsigned char *)pb,
 				   lustre_msg_buflen(msg, MSG_PTLRPC_BODY_OFF),
 				   NULL, 0, (unsigned char *)&crc, &hsize);
 		return crc;
-#endif
 	}
 	default:
 		CERROR("incorrect message magic: %08x\n", msg->lm_magic);
@@ -1544,7 +1510,7 @@ void lustre_msg_set_jobid(struct lustre_msg *msg, char *jobid)
 		__u32 opc = lustre_msg_get_opc(msg);
 		struct ptlrpc_body *pb;
 
-		/* Don't set jobid for ldlm ast RPCs, they've been shrinked.
+		/* Don't set jobid for ldlm ast RPCs, they've been shrunk.
 		 * See the comment in ptlrpc_request_pack(). */
 		if (!opc || opc == LDLM_BL_CALLBACK ||
 		    opc == LDLM_CP_CALLBACK || opc == LDLM_GL_CALLBACK)
@@ -1606,18 +1572,17 @@ EXPORT_SYMBOL(ptlrpc_req_set_repsize);
  */
 int do_set_info_async(struct obd_import *imp,
 		      int opcode, int version,
-		      obd_count keylen, void *key,
-		      obd_count vallen, void *val,
+		      u32 keylen, void *key,
+		      u32 vallen, void *val,
 		      struct ptlrpc_request_set *set)
 {
 	struct ptlrpc_request *req;
 	char		  *tmp;
 	int		    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(imp, &RQF_OBD_SET_INFO);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	req_capsule_set_size(&req->rq_pill, &RMF_SETINFO_KEY,
 			     RCL_CLIENT, keylen);
@@ -1626,7 +1591,7 @@ int do_set_info_async(struct obd_import *imp,
 	rc = ptlrpc_request_pack(req, version, opcode);
 	if (rc) {
 		ptlrpc_request_free(req);
-		RETURN(rc);
+		return rc;
 	}
 
 	tmp = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_KEY);
@@ -1644,7 +1609,7 @@ int do_set_info_async(struct obd_import *imp,
 		ptlrpc_req_finished(req);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(do_set_info_async);
 
@@ -1653,25 +1618,25 @@ EXPORT_SYMBOL(do_set_info_async);
  */
 void lustre_swab_ptlrpc_body(struct ptlrpc_body *b)
 {
-	__swab32s (&b->pb_type);
-	__swab32s (&b->pb_version);
-	__swab32s (&b->pb_opc);
-	__swab32s (&b->pb_status);
-	__swab64s (&b->pb_last_xid);
-	__swab64s (&b->pb_last_seen);
-	__swab64s (&b->pb_last_committed);
-	__swab64s (&b->pb_transno);
-	__swab32s (&b->pb_flags);
-	__swab32s (&b->pb_op_flags);
-	__swab32s (&b->pb_conn_cnt);
-	__swab32s (&b->pb_timeout);
-	__swab32s (&b->pb_service_time);
-	__swab32s (&b->pb_limit);
-	__swab64s (&b->pb_slv);
-	__swab64s (&b->pb_pre_versions[0]);
-	__swab64s (&b->pb_pre_versions[1]);
-	__swab64s (&b->pb_pre_versions[2]);
-	__swab64s (&b->pb_pre_versions[3]);
+	__swab32s(&b->pb_type);
+	__swab32s(&b->pb_version);
+	__swab32s(&b->pb_opc);
+	__swab32s(&b->pb_status);
+	__swab64s(&b->pb_last_xid);
+	__swab64s(&b->pb_last_seen);
+	__swab64s(&b->pb_last_committed);
+	__swab64s(&b->pb_transno);
+	__swab32s(&b->pb_flags);
+	__swab32s(&b->pb_op_flags);
+	__swab32s(&b->pb_conn_cnt);
+	__swab32s(&b->pb_timeout);
+	__swab32s(&b->pb_service_time);
+	__swab32s(&b->pb_limit);
+	__swab64s(&b->pb_slv);
+	__swab64s(&b->pb_pre_versions[0]);
+	__swab64s(&b->pb_pre_versions[1]);
+	__swab64s(&b->pb_pre_versions[2]);
+	__swab64s(&b->pb_pre_versions[3]);
 	CLASSERT(offsetof(typeof(*b), pb_padding) != 0);
 	/* While we need to maintain compatibility between
 	 * clients and servers without ptlrpc_body_v2 (< 2.3)
@@ -1723,33 +1688,33 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 	CLASSERT(offsetof(typeof(*ocd), paddingF) != 0);
 }
 
-void lustre_swab_obdo (struct obdo  *o)
+void lustre_swab_obdo(struct obdo  *o)
 {
-	__swab64s (&o->o_valid);
+	__swab64s(&o->o_valid);
 	lustre_swab_ost_id(&o->o_oi);
-	__swab64s (&o->o_parent_seq);
-	__swab64s (&o->o_size);
-	__swab64s (&o->o_mtime);
-	__swab64s (&o->o_atime);
-	__swab64s (&o->o_ctime);
-	__swab64s (&o->o_blocks);
-	__swab64s (&o->o_grant);
-	__swab32s (&o->o_blksize);
-	__swab32s (&o->o_mode);
-	__swab32s (&o->o_uid);
-	__swab32s (&o->o_gid);
-	__swab32s (&o->o_flags);
-	__swab32s (&o->o_nlink);
-	__swab32s (&o->o_parent_oid);
-	__swab32s (&o->o_misc);
-	__swab64s (&o->o_ioepoch);
-	__swab32s (&o->o_stripe_idx);
-	__swab32s (&o->o_parent_ver);
+	__swab64s(&o->o_parent_seq);
+	__swab64s(&o->o_size);
+	__swab64s(&o->o_mtime);
+	__swab64s(&o->o_atime);
+	__swab64s(&o->o_ctime);
+	__swab64s(&o->o_blocks);
+	__swab64s(&o->o_grant);
+	__swab32s(&o->o_blksize);
+	__swab32s(&o->o_mode);
+	__swab32s(&o->o_uid);
+	__swab32s(&o->o_gid);
+	__swab32s(&o->o_flags);
+	__swab32s(&o->o_nlink);
+	__swab32s(&o->o_parent_oid);
+	__swab32s(&o->o_misc);
+	__swab64s(&o->o_ioepoch);
+	__swab32s(&o->o_stripe_idx);
+	__swab32s(&o->o_parent_ver);
 	/* o_handle is opaque */
 	/* o_lcookie is swabbed elsewhere */
-	__swab32s (&o->o_uid_h);
-	__swab32s (&o->o_gid_h);
-	__swab64s (&o->o_data_version);
+	__swab32s(&o->o_uid_h);
+	__swab32s(&o->o_gid_h);
+	__swab64s(&o->o_data_version);
 	CLASSERT(offsetof(typeof(*o), o_padding_4) != 0);
 	CLASSERT(offsetof(typeof(*o), o_padding_5) != 0);
 	CLASSERT(offsetof(typeof(*o), o_padding_6) != 0);
@@ -1757,19 +1722,19 @@ void lustre_swab_obdo (struct obdo  *o)
 }
 EXPORT_SYMBOL(lustre_swab_obdo);
 
-void lustre_swab_obd_statfs (struct obd_statfs *os)
+void lustre_swab_obd_statfs(struct obd_statfs *os)
 {
-	__swab64s (&os->os_type);
-	__swab64s (&os->os_blocks);
-	__swab64s (&os->os_bfree);
-	__swab64s (&os->os_bavail);
-	__swab64s (&os->os_files);
-	__swab64s (&os->os_ffree);
+	__swab64s(&os->os_type);
+	__swab64s(&os->os_blocks);
+	__swab64s(&os->os_bfree);
+	__swab64s(&os->os_bavail);
+	__swab64s(&os->os_files);
+	__swab64s(&os->os_ffree);
 	/* no need to swab os_fsid */
-	__swab32s (&os->os_bsize);
-	__swab32s (&os->os_namelen);
-	__swab64s (&os->os_maxbytes);
-	__swab32s (&os->os_state);
+	__swab32s(&os->os_bsize);
+	__swab32s(&os->os_namelen);
+	__swab64s(&os->os_maxbytes);
+	__swab32s(&os->os_state);
 	CLASSERT(offsetof(typeof(*os), os_fprecreated) != 0);
 	CLASSERT(offsetof(typeof(*os), os_spare2) != 0);
 	CLASSERT(offsetof(typeof(*os), os_spare3) != 0);
@@ -1790,21 +1755,21 @@ void lustre_swab_obd_ioobj(struct obd_ioobj *ioo)
 }
 EXPORT_SYMBOL(lustre_swab_obd_ioobj);
 
-void lustre_swab_niobuf_remote (struct niobuf_remote *nbr)
+void lustre_swab_niobuf_remote(struct niobuf_remote *nbr)
 {
-	__swab64s (&nbr->offset);
-	__swab32s (&nbr->len);
-	__swab32s (&nbr->flags);
+	__swab64s(&nbr->offset);
+	__swab32s(&nbr->len);
+	__swab32s(&nbr->flags);
 }
 EXPORT_SYMBOL(lustre_swab_niobuf_remote);
 
-void lustre_swab_ost_body (struct ost_body *b)
+void lustre_swab_ost_body(struct ost_body *b)
 {
-	lustre_swab_obdo (&b->oa);
+	lustre_swab_obdo(&b->oa);
 }
 EXPORT_SYMBOL(lustre_swab_ost_body);
 
-void lustre_swab_ost_last_id(obd_id *id)
+void lustre_swab_ost_last_id(u64 *id)
 {
 	__swab64s(id);
 }
@@ -1861,45 +1826,45 @@ void lustre_swab_lquota_lvb(struct lquota_lvb *lvb)
 }
 EXPORT_SYMBOL(lustre_swab_lquota_lvb);
 
-void lustre_swab_mdt_body (struct mdt_body *b)
+void lustre_swab_mdt_body(struct mdt_body *b)
 {
-	lustre_swab_lu_fid (&b->fid1);
-	lustre_swab_lu_fid (&b->fid2);
+	lustre_swab_lu_fid(&b->fid1);
+	lustre_swab_lu_fid(&b->fid2);
 	/* handle is opaque */
-	__swab64s (&b->valid);
-	__swab64s (&b->size);
-	__swab64s (&b->mtime);
-	__swab64s (&b->atime);
-	__swab64s (&b->ctime);
-	__swab64s (&b->blocks);
-	__swab64s (&b->ioepoch);
-	CLASSERT(offsetof(typeof(*b), unused1) != 0);
-	__swab32s (&b->fsuid);
-	__swab32s (&b->fsgid);
-	__swab32s (&b->capability);
-	__swab32s (&b->mode);
-	__swab32s (&b->uid);
-	__swab32s (&b->gid);
-	__swab32s (&b->flags);
-	__swab32s (&b->rdev);
-	__swab32s (&b->nlink);
+	__swab64s(&b->valid);
+	__swab64s(&b->size);
+	__swab64s(&b->mtime);
+	__swab64s(&b->atime);
+	__swab64s(&b->ctime);
+	__swab64s(&b->blocks);
+	__swab64s(&b->ioepoch);
+	__swab64s(&b->t_state);
+	__swab32s(&b->fsuid);
+	__swab32s(&b->fsgid);
+	__swab32s(&b->capability);
+	__swab32s(&b->mode);
+	__swab32s(&b->uid);
+	__swab32s(&b->gid);
+	__swab32s(&b->flags);
+	__swab32s(&b->rdev);
+	__swab32s(&b->nlink);
 	CLASSERT(offsetof(typeof(*b), unused2) != 0);
-	__swab32s (&b->suppgid);
-	__swab32s (&b->eadatasize);
-	__swab32s (&b->aclsize);
-	__swab32s (&b->max_mdsize);
-	__swab32s (&b->max_cookiesize);
-	__swab32s (&b->uid_h);
-	__swab32s (&b->gid_h);
+	__swab32s(&b->suppgid);
+	__swab32s(&b->eadatasize);
+	__swab32s(&b->aclsize);
+	__swab32s(&b->max_mdsize);
+	__swab32s(&b->max_cookiesize);
+	__swab32s(&b->uid_h);
+	__swab32s(&b->gid_h);
 	CLASSERT(offsetof(typeof(*b), padding_5) != 0);
 }
 EXPORT_SYMBOL(lustre_swab_mdt_body);
 
-void lustre_swab_mdt_ioepoch (struct mdt_ioepoch *b)
+void lustre_swab_mdt_ioepoch(struct mdt_ioepoch *b)
 {
 	/* handle is opaque */
-	 __swab64s (&b->ioepoch);
-	 __swab32s (&b->flags);
+	 __swab64s(&b->ioepoch);
+	 __swab32s(&b->flags);
 	 CLASSERT(offsetof(typeof(*b), padding) != 0);
 }
 EXPORT_SYMBOL(lustre_swab_mdt_ioepoch);
@@ -1957,49 +1922,49 @@ void lustre_swab_mgs_config_res(struct mgs_config_res *body)
 }
 EXPORT_SYMBOL(lustre_swab_mgs_config_res);
 
-static void lustre_swab_obd_dqinfo (struct obd_dqinfo *i)
+static void lustre_swab_obd_dqinfo(struct obd_dqinfo *i)
 {
-	__swab64s (&i->dqi_bgrace);
-	__swab64s (&i->dqi_igrace);
-	__swab32s (&i->dqi_flags);
-	__swab32s (&i->dqi_valid);
+	__swab64s(&i->dqi_bgrace);
+	__swab64s(&i->dqi_igrace);
+	__swab32s(&i->dqi_flags);
+	__swab32s(&i->dqi_valid);
 }
 
-static void lustre_swab_obd_dqblk (struct obd_dqblk *b)
+static void lustre_swab_obd_dqblk(struct obd_dqblk *b)
 {
-	__swab64s (&b->dqb_ihardlimit);
-	__swab64s (&b->dqb_isoftlimit);
-	__swab64s (&b->dqb_curinodes);
-	__swab64s (&b->dqb_bhardlimit);
-	__swab64s (&b->dqb_bsoftlimit);
-	__swab64s (&b->dqb_curspace);
-	__swab64s (&b->dqb_btime);
-	__swab64s (&b->dqb_itime);
-	__swab32s (&b->dqb_valid);
+	__swab64s(&b->dqb_ihardlimit);
+	__swab64s(&b->dqb_isoftlimit);
+	__swab64s(&b->dqb_curinodes);
+	__swab64s(&b->dqb_bhardlimit);
+	__swab64s(&b->dqb_bsoftlimit);
+	__swab64s(&b->dqb_curspace);
+	__swab64s(&b->dqb_btime);
+	__swab64s(&b->dqb_itime);
+	__swab32s(&b->dqb_valid);
 	CLASSERT(offsetof(typeof(*b), dqb_padding) != 0);
 }
 
-void lustre_swab_obd_quotactl (struct obd_quotactl *q)
+void lustre_swab_obd_quotactl(struct obd_quotactl *q)
 {
-	__swab32s (&q->qc_cmd);
-	__swab32s (&q->qc_type);
-	__swab32s (&q->qc_id);
-	__swab32s (&q->qc_stat);
-	lustre_swab_obd_dqinfo (&q->qc_dqinfo);
-	lustre_swab_obd_dqblk (&q->qc_dqblk);
+	__swab32s(&q->qc_cmd);
+	__swab32s(&q->qc_type);
+	__swab32s(&q->qc_id);
+	__swab32s(&q->qc_stat);
+	lustre_swab_obd_dqinfo(&q->qc_dqinfo);
+	lustre_swab_obd_dqblk(&q->qc_dqblk);
 }
 EXPORT_SYMBOL(lustre_swab_obd_quotactl);
 
-void lustre_swab_mdt_remote_perm (struct mdt_remote_perm *p)
+void lustre_swab_mdt_remote_perm(struct mdt_remote_perm *p)
 {
-	__swab32s (&p->rp_uid);
-	__swab32s (&p->rp_gid);
-	__swab32s (&p->rp_fsuid);
-	__swab32s (&p->rp_fsuid_h);
-	__swab32s (&p->rp_fsgid);
-	__swab32s (&p->rp_fsgid_h);
-	__swab32s (&p->rp_access_perm);
-	__swab32s (&p->rp_padding);
+	__swab32s(&p->rp_uid);
+	__swab32s(&p->rp_gid);
+	__swab32s(&p->rp_fsuid);
+	__swab32s(&p->rp_fsuid_h);
+	__swab32s(&p->rp_fsgid);
+	__swab32s(&p->rp_fsgid_h);
+	__swab32s(&p->rp_access_perm);
+	__swab32s(&p->rp_padding);
 };
 EXPORT_SYMBOL(lustre_swab_mdt_remote_perm);
 
@@ -2089,31 +2054,31 @@ void lustre_swab_mdt_rec_reint (struct mdt_rec_reint *rr)
 };
 EXPORT_SYMBOL(lustre_swab_mdt_rec_reint);
 
-void lustre_swab_lov_desc (struct lov_desc *ld)
+void lustre_swab_lov_desc(struct lov_desc *ld)
 {
-	__swab32s (&ld->ld_tgt_count);
-	__swab32s (&ld->ld_active_tgt_count);
-	__swab32s (&ld->ld_default_stripe_count);
-	__swab32s (&ld->ld_pattern);
-	__swab64s (&ld->ld_default_stripe_size);
-	__swab64s (&ld->ld_default_stripe_offset);
-	__swab32s (&ld->ld_qos_maxage);
+	__swab32s(&ld->ld_tgt_count);
+	__swab32s(&ld->ld_active_tgt_count);
+	__swab32s(&ld->ld_default_stripe_count);
+	__swab32s(&ld->ld_pattern);
+	__swab64s(&ld->ld_default_stripe_size);
+	__swab64s(&ld->ld_default_stripe_offset);
+	__swab32s(&ld->ld_qos_maxage);
 	/* uuid endian insensitive */
 }
 EXPORT_SYMBOL(lustre_swab_lov_desc);
 
-void lustre_swab_lmv_desc (struct lmv_desc *ld)
+void lustre_swab_lmv_desc(struct lmv_desc *ld)
 {
-	__swab32s (&ld->ld_tgt_count);
-	__swab32s (&ld->ld_active_tgt_count);
-	__swab32s (&ld->ld_default_stripe_count);
-	__swab32s (&ld->ld_pattern);
-	__swab64s (&ld->ld_default_hash_size);
-	__swab32s (&ld->ld_qos_maxage);
+	__swab32s(&ld->ld_tgt_count);
+	__swab32s(&ld->ld_active_tgt_count);
+	__swab32s(&ld->ld_default_stripe_count);
+	__swab32s(&ld->ld_pattern);
+	__swab64s(&ld->ld_default_hash_size);
+	__swab32s(&ld->ld_qos_maxage);
 	/* uuid endian insensitive */
 }
 
-void lustre_swab_lmv_stripe_md (struct lmv_stripe_md *mea)
+void lustre_swab_lmv_stripe_md(struct lmv_stripe_md *mea)
 {
 	__swab32s(&mea->mea_magic);
 	__swab32s(&mea->mea_count);
@@ -2142,13 +2107,13 @@ void lustre_swab_lmv_user_md(struct lmv_user_md *lum)
 }
 EXPORT_SYMBOL(lustre_swab_lmv_user_md);
 
-static void print_lum (struct lov_user_md *lum)
+static void print_lum(struct lov_user_md *lum)
 {
 	CDEBUG(D_OTHER, "lov_user_md %p:\n", lum);
 	CDEBUG(D_OTHER, "\tlmm_magic: %#x\n", lum->lmm_magic);
 	CDEBUG(D_OTHER, "\tlmm_pattern: %#x\n", lum->lmm_pattern);
-	CDEBUG(D_OTHER, "\tlmm_object_id: "LPU64"\n", lmm_oi_id(&lum->lmm_oi));
-	CDEBUG(D_OTHER, "\tlmm_object_gr: "LPU64"\n", lmm_oi_seq(&lum->lmm_oi));
+	CDEBUG(D_OTHER, "\tlmm_object_id: %llu\n", lmm_oi_id(&lum->lmm_oi));
+	CDEBUG(D_OTHER, "\tlmm_object_gr: %llu\n", lmm_oi_seq(&lum->lmm_oi));
 	CDEBUG(D_OTHER, "\tlmm_stripe_size: %#x\n", lum->lmm_stripe_size);
 	CDEBUG(D_OTHER, "\tlmm_stripe_count: %#x\n", lum->lmm_stripe_count);
 	CDEBUG(D_OTHER, "\tlmm_stripe_offset/lmm_layout_gen: %#x\n",
@@ -2163,7 +2128,6 @@ static void lustre_swab_lmm_oi(struct ost_id *oi)
 
 static void lustre_swab_lov_user_md_common(struct lov_user_md_v1 *lum)
 {
-	ENTRY;
 	__swab32s(&lum->lmm_magic);
 	__swab32s(&lum->lmm_pattern);
 	lustre_swab_lmm_oi(&lum->lmm_oi);
@@ -2171,31 +2135,25 @@ static void lustre_swab_lov_user_md_common(struct lov_user_md_v1 *lum)
 	__swab16s(&lum->lmm_stripe_count);
 	__swab16s(&lum->lmm_stripe_offset);
 	print_lum(lum);
-	EXIT;
 }
 
 void lustre_swab_lov_user_md_v1(struct lov_user_md_v1 *lum)
 {
-	ENTRY;
 	CDEBUG(D_IOCTL, "swabbing lov_user_md v1\n");
 	lustre_swab_lov_user_md_common(lum);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_v1);
 
 void lustre_swab_lov_user_md_v3(struct lov_user_md_v3 *lum)
 {
-	ENTRY;
 	CDEBUG(D_IOCTL, "swabbing lov_user_md v3\n");
 	lustre_swab_lov_user_md_common((struct lov_user_md_v1 *)lum);
 	/* lmm_pool_name nothing to do with char */
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_v3);
 
 void lustre_swab_lov_mds_md(struct lov_mds_md *lmm)
 {
-	ENTRY;
 	CDEBUG(D_IOCTL, "swabbing lov_mds_md\n");
 	__swab32s(&lmm->lmm_magic);
 	__swab32s(&lmm->lmm_pattern);
@@ -2203,7 +2161,6 @@ void lustre_swab_lov_mds_md(struct lov_mds_md *lmm)
 	__swab32s(&lmm->lmm_stripe_size);
 	__swab16s(&lmm->lmm_stripe_count);
 	__swab16s(&lmm->lmm_layout_gen);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_mds_md);
 
@@ -2211,26 +2168,25 @@ void lustre_swab_lov_user_md_objects(struct lov_user_ost_data *lod,
 				     int stripe_count)
 {
 	int i;
-	ENTRY;
+
 	for (i = 0; i < stripe_count; i++) {
 		lustre_swab_ost_id(&(lod[i].l_ost_oi));
 		__swab32s(&(lod[i].l_ost_gen));
 		__swab32s(&(lod[i].l_ost_idx));
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_objects);
 
-void lustre_swab_ldlm_res_id (struct ldlm_res_id *id)
+void lustre_swab_ldlm_res_id(struct ldlm_res_id *id)
 {
 	int  i;
 
 	for (i = 0; i < RES_NAME_SIZE; i++)
-		__swab64s (&id->name[i]);
+		__swab64s(&id->name[i]);
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_res_id);
 
-void lustre_swab_ldlm_policy_data (ldlm_wire_policy_data_t *d)
+void lustre_swab_ldlm_policy_data(ldlm_wire_policy_data_t *d)
 {
 	/* the lock data is a union and the first two fields are always an
 	 * extent so it's ok to process an LDLM_EXTENT and LDLM_FLOCK lock
@@ -2243,46 +2199,46 @@ void lustre_swab_ldlm_policy_data (ldlm_wire_policy_data_t *d)
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_policy_data);
 
-void lustre_swab_ldlm_intent (struct ldlm_intent *i)
+void lustre_swab_ldlm_intent(struct ldlm_intent *i)
 {
-	__swab64s (&i->opc);
+	__swab64s(&i->opc);
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_intent);
 
-void lustre_swab_ldlm_resource_desc (struct ldlm_resource_desc *r)
+void lustre_swab_ldlm_resource_desc(struct ldlm_resource_desc *r)
 {
-	__swab32s (&r->lr_type);
+	__swab32s(&r->lr_type);
 	CLASSERT(offsetof(typeof(*r), lr_padding) != 0);
-	lustre_swab_ldlm_res_id (&r->lr_name);
+	lustre_swab_ldlm_res_id(&r->lr_name);
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_resource_desc);
 
-void lustre_swab_ldlm_lock_desc (struct ldlm_lock_desc *l)
+void lustre_swab_ldlm_lock_desc(struct ldlm_lock_desc *l)
 {
-	lustre_swab_ldlm_resource_desc (&l->l_resource);
-	__swab32s (&l->l_req_mode);
-	__swab32s (&l->l_granted_mode);
-	lustre_swab_ldlm_policy_data (&l->l_policy_data);
+	lustre_swab_ldlm_resource_desc(&l->l_resource);
+	__swab32s(&l->l_req_mode);
+	__swab32s(&l->l_granted_mode);
+	lustre_swab_ldlm_policy_data(&l->l_policy_data);
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_lock_desc);
 
-void lustre_swab_ldlm_request (struct ldlm_request *rq)
+void lustre_swab_ldlm_request(struct ldlm_request *rq)
 {
-	__swab32s (&rq->lock_flags);
-	lustre_swab_ldlm_lock_desc (&rq->lock_desc);
-	__swab32s (&rq->lock_count);
+	__swab32s(&rq->lock_flags);
+	lustre_swab_ldlm_lock_desc(&rq->lock_desc);
+	__swab32s(&rq->lock_count);
 	/* lock_handle[] opaque */
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_request);
 
-void lustre_swab_ldlm_reply (struct ldlm_reply *r)
+void lustre_swab_ldlm_reply(struct ldlm_reply *r)
 {
-	__swab32s (&r->lock_flags);
+	__swab32s(&r->lock_flags);
 	CLASSERT(offsetof(typeof(*r), lock_padding) != 0);
-	lustre_swab_ldlm_lock_desc (&r->lock_desc);
+	lustre_swab_ldlm_lock_desc(&r->lock_desc);
 	/* lock_handle opaque */
-	__swab64s (&r->lock_policy_res1);
-	__swab64s (&r->lock_policy_res2);
+	__swab64s(&r->lock_policy_res1);
+	__swab64s(&r->lock_policy_res2);
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_reply);
 
@@ -2300,15 +2256,15 @@ void lustre_swab_quota_body(struct quota_body *b)
 void dump_ioo(struct obd_ioobj *ioo)
 {
 	CDEBUG(D_RPCTRACE,
-	       "obd_ioobj: ioo_oid="DOSTID", ioo_max_brw=%#x, "
-	       "ioo_bufct=%d\n", POSTID(&ioo->ioo_oid), ioo->ioo_max_brw,
+	       "obd_ioobj: ioo_oid=" DOSTID ", ioo_max_brw=%#x, ioo_bufct=%d\n",
+	       POSTID(&ioo->ioo_oid), ioo->ioo_max_brw,
 	       ioo->ioo_bufcnt);
 }
 EXPORT_SYMBOL(dump_ioo);
 
 void dump_rniobuf(struct niobuf_remote *nb)
 {
-	CDEBUG(D_RPCTRACE, "niobuf_remote: offset="LPU64", len=%d, flags=%x\n",
+	CDEBUG(D_RPCTRACE, "niobuf_remote: offset=%llu, len=%d, flags=%x\n",
 	       nb->offset, nb->len, nb->flags);
 }
 EXPORT_SYMBOL(dump_rniobuf);
@@ -2321,20 +2277,20 @@ void dump_obdo(struct obdo *oa)
 	if (valid & OBD_MD_FLID)
 		CDEBUG(D_RPCTRACE, "obdo: id = "DOSTID"\n", POSTID(&oa->o_oi));
 	if (valid & OBD_MD_FLFID)
-		CDEBUG(D_RPCTRACE, "obdo: o_parent_seq = "LPX64"\n",
+		CDEBUG(D_RPCTRACE, "obdo: o_parent_seq = %#llx\n",
 		       oa->o_parent_seq);
 	if (valid & OBD_MD_FLSIZE)
-		CDEBUG(D_RPCTRACE, "obdo: o_size = "LPD64"\n", oa->o_size);
+		CDEBUG(D_RPCTRACE, "obdo: o_size = %lld\n", oa->o_size);
 	if (valid & OBD_MD_FLMTIME)
-		CDEBUG(D_RPCTRACE, "obdo: o_mtime = "LPD64"\n", oa->o_mtime);
+		CDEBUG(D_RPCTRACE, "obdo: o_mtime = %lld\n", oa->o_mtime);
 	if (valid & OBD_MD_FLATIME)
-		CDEBUG(D_RPCTRACE, "obdo: o_atime = "LPD64"\n", oa->o_atime);
+		CDEBUG(D_RPCTRACE, "obdo: o_atime = %lld\n", oa->o_atime);
 	if (valid & OBD_MD_FLCTIME)
-		CDEBUG(D_RPCTRACE, "obdo: o_ctime = "LPD64"\n", oa->o_ctime);
+		CDEBUG(D_RPCTRACE, "obdo: o_ctime = %lld\n", oa->o_ctime);
 	if (valid & OBD_MD_FLBLOCKS)   /* allocation of space */
-		CDEBUG(D_RPCTRACE, "obdo: o_blocks = "LPD64"\n", oa->o_blocks);
+		CDEBUG(D_RPCTRACE, "obdo: o_blocks = %lld\n", oa->o_blocks);
 	if (valid & OBD_MD_FLGRANT)
-		CDEBUG(D_RPCTRACE, "obdo: o_grant = "LPD64"\n", oa->o_grant);
+		CDEBUG(D_RPCTRACE, "obdo: o_grant = %lld\n", oa->o_grant);
 	if (valid & OBD_MD_FLBLKSZ)
 		CDEBUG(D_RPCTRACE, "obdo: o_blksize = %d\n", oa->o_blksize);
 	if (valid & (OBD_MD_FLTYPE | OBD_MD_FLMODE))
@@ -2360,7 +2316,7 @@ void dump_obdo(struct obdo *oa)
 		CDEBUG(D_RPCTRACE, "obdo: o_parent_oid = %x\n",
 		       oa->o_parent_oid);
 	if (valid & OBD_MD_FLEPOCH)
-		CDEBUG(D_RPCTRACE, "obdo: o_ioepoch = "LPD64"\n",
+		CDEBUG(D_RPCTRACE, "obdo: o_ioepoch = %lld\n",
 		       oa->o_ioepoch);
 	if (valid & OBD_MD_FLFID) {
 		CDEBUG(D_RPCTRACE, "obdo: o_stripe_idx = %u\n",
@@ -2369,11 +2325,10 @@ void dump_obdo(struct obdo *oa)
 		       oa->o_parent_ver);
 	}
 	if (valid & OBD_MD_FLHANDLE)
-		CDEBUG(D_RPCTRACE, "obdo: o_handle = "LPD64"\n",
+		CDEBUG(D_RPCTRACE, "obdo: o_handle = %lld\n",
 		       oa->o_handle.cookie);
 	if (valid & OBD_MD_FLCOOKIE)
-		CDEBUG(D_RPCTRACE, "obdo: o_lcookie = "
-		       "(llog_cookie dumping not yet implemented)\n");
+		CDEBUG(D_RPCTRACE, "obdo: o_lcookie = (llog_cookie dumping not yet implemented)\n");
 }
 EXPORT_SYMBOL(dump_obdo);
 
@@ -2418,7 +2373,7 @@ static inline int rep_ptlrpc_body_swabbed(struct ptlrpc_request *req)
 
 void _debug_req(struct ptlrpc_request *req,
 		struct libcfs_debug_msg_data *msgdata,
-		const char *fmt, ... )
+		const char *fmt, ...)
 {
 	int req_ok = req->rq_reqmsg != NULL;
 	int rep_ok = req->rq_repmsg != NULL;
@@ -2437,17 +2392,15 @@ void _debug_req(struct ptlrpc_request *req,
 
 	va_start(args, fmt);
 	libcfs_debug_vmsg2(msgdata, fmt, args,
-			   " req@%p x"LPU64"/t"LPD64"("LPD64") o%d->%s@%s:%d/%d"
-			   " lens %d/%d e %d to %d dl "CFS_TIME_T" ref %d "
-			   "fl "REQ_FLAGS_FMT"/%x/%x rc %d/%d\n",
+			   " req@%p x%llu/t%lld(%lld) o%d->%s@%s:%d/%d lens %d/%d e %d to %d dl " CFS_TIME_T " ref %d fl " REQ_FLAGS_FMT "/%x/%x rc %d/%d\n",
 			   req, req->rq_xid, req->rq_transno,
 			   req_ok ? lustre_msg_get_transno(req->rq_reqmsg) : 0,
 			   req_ok ? lustre_msg_get_opc(req->rq_reqmsg) : -1,
 			   req->rq_import ?
-				req->rq_import->imp_obd->obd_name :
-				req->rq_export ?
-				     req->rq_export->exp_client_uuid.uuid :
-				     "<?>",
+			   req->rq_import->imp_obd->obd_name :
+			   req->rq_export ?
+			   req->rq_export->exp_client_uuid.uuid :
+			   "<?>",
 			   libcfs_nid2str(nid),
 			   req->rq_request_portal, req->rq_reply_portal,
 			   req->rq_reqlen, req->rq_replen,
@@ -2459,26 +2412,27 @@ void _debug_req(struct ptlrpc_request *req,
 			   rep_ok ? lustre_msg_get_flags(req->rq_repmsg) : -1,
 			   req->rq_status,
 			   rep_ok ? lustre_msg_get_status(req->rq_repmsg) : -1);
+	va_end(args);
 }
 EXPORT_SYMBOL(_debug_req);
 
 void lustre_swab_lustre_capa(struct lustre_capa *c)
 {
 	lustre_swab_lu_fid(&c->lc_fid);
-	__swab64s (&c->lc_opc);
-	__swab64s (&c->lc_uid);
-	__swab64s (&c->lc_gid);
-	__swab32s (&c->lc_flags);
-	__swab32s (&c->lc_keyid);
-	__swab32s (&c->lc_timeout);
-	__swab32s (&c->lc_expiry);
+	__swab64s(&c->lc_opc);
+	__swab64s(&c->lc_uid);
+	__swab64s(&c->lc_gid);
+	__swab32s(&c->lc_flags);
+	__swab32s(&c->lc_keyid);
+	__swab32s(&c->lc_timeout);
+	__swab32s(&c->lc_expiry);
 }
 EXPORT_SYMBOL(lustre_swab_lustre_capa);
 
 void lustre_swab_lustre_capa_key(struct lustre_capa_key *k)
 {
-	__swab64s (&k->lk_seq);
-	__swab32s (&k->lk_keyid);
+	__swab64s(&k->lk_seq);
+	__swab32s(&k->lk_keyid);
 	CLASSERT(offsetof(typeof(*k), lk_padding) != 0);
 }
 EXPORT_SYMBOL(lustre_swab_lustre_capa_key);
@@ -2573,3 +2527,10 @@ void lustre_swab_swap_layouts(struct mdc_swap_layouts *msl)
 	__swab64s(&msl->msl_flags);
 }
 EXPORT_SYMBOL(lustre_swab_swap_layouts);
+
+void lustre_swab_close_data(struct close_data *cd)
+{
+	lustre_swab_lu_fid(&cd->cd_fid);
+	__swab64s(&cd->cd_data_version);
+}
+EXPORT_SYMBOL(lustre_swab_close_data);

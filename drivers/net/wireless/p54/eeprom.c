@@ -16,7 +16,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/sort.h>
@@ -197,9 +196,9 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 		dest->max_power = chan->max_power;
 		priv->survey[*chan_num].channel = &tmp->channels[j];
 		priv->survey[*chan_num].filled = SURVEY_INFO_NOISE_DBM |
-			SURVEY_INFO_CHANNEL_TIME |
-			SURVEY_INFO_CHANNEL_TIME_BUSY |
-			SURVEY_INFO_CHANNEL_TIME_TX;
+			SURVEY_INFO_TIME |
+			SURVEY_INFO_TIME_BUSY |
+			SURVEY_INFO_TIME_TX;
 		dest->hw_value = (*chan_num);
 		j++;
 		(*chan_num)++;

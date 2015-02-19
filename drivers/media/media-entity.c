@@ -20,6 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/bitmap.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <media/media-entity.h>
@@ -121,7 +122,6 @@ static struct media_entity *stack_pop(struct media_entity_graph *graph)
 	return entity;
 }
 
-#define stack_peek(en)	((en)->stack[(en)->top - 1].entity)
 #define link_top(en)	((en)->stack[(en)->top].link)
 #define stack_top(en)	((en)->stack[(en)->top].entity)
 
@@ -140,6 +140,12 @@ void media_entity_graph_walk_start(struct media_entity_graph *graph,
 {
 	graph->top = 0;
 	graph->stack[graph->top].entity = NULL;
+	bitmap_zero(graph->entities, MEDIA_ENTITY_ENUM_MAX_ID);
+
+	if (WARN_ON(entity->id >= MEDIA_ENTITY_ENUM_MAX_ID))
+		return;
+
+	__set_bit(entity->id, graph->entities);
 	stack_push(graph, entity);
 }
 EXPORT_SYMBOL_GPL(media_entity_graph_walk_start);
@@ -180,9 +186,11 @@ media_entity_graph_walk_next(struct media_entity_graph *graph)
 
 		/* Get the entity in the other end of the link . */
 		next = media_entity_other(entity, link);
+		if (WARN_ON(next->id >= MEDIA_ENTITY_ENUM_MAX_ID))
+			return NULL;
 
-		/* Was it the entity we came here from? */
-		if (next == stack_peek(graph)) {
+		/* Has the entity already been visited? */
+		if (__test_and_set_bit(next->id, graph->entities)) {
 			link_top(graph)++;
 			continue;
 		}
@@ -227,6 +235,8 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
+		DECLARE_BITMAP(active, entity->num_pads);
+		DECLARE_BITMAP(has_no_links, entity->num_pads);
 		unsigned int i;
 
 		entity->stream_count++;
@@ -240,20 +250,56 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 		if (!entity->ops || !entity->ops->link_validate)
 			continue;
 
+		bitmap_zero(active, entity->num_pads);
+		bitmap_fill(has_no_links, entity->num_pads);
+
 		for (i = 0; i < entity->num_links; i++) {
 			struct media_link *link = &entity->links[i];
+			struct media_pad *pad = link->sink->entity == entity
+						? link->sink : link->source;
 
-			/* Is this pad part of an enabled link? */
-			if (!(link->flags & MEDIA_LNK_FL_ENABLED))
-				continue;
+			/* Mark that a pad is connected by a link. */
+			bitmap_clear(has_no_links, pad->index, 1);
 
-			/* Are we the sink or not? */
-			if (link->sink->entity != entity)
+			/*
+			 * Pads that either do not need to connect or
+			 * are connected through an enabled link are
+			 * fine.
+			 */
+			if (!(pad->flags & MEDIA_PAD_FL_MUST_CONNECT) ||
+			    link->flags & MEDIA_LNK_FL_ENABLED)
+				bitmap_set(active, pad->index, 1);
+
+			/*
+			 * Link validation will only take place for
+			 * sink ends of the link that are enabled.
+			 */
+			if (link->sink != pad ||
+			    !(link->flags & MEDIA_LNK_FL_ENABLED))
 				continue;
 
 			ret = entity->ops->link_validate(link);
-			if (ret < 0 && ret != -ENOIOCTLCMD)
+			if (ret < 0 && ret != -ENOIOCTLCMD) {
+				dev_dbg(entity->parent->dev,
+					"link validation failed for \"%s\":%u -> \"%s\":%u, error %d\n",
+					entity->name, link->source->index,
+					link->sink->entity->name,
+					link->sink->index, ret);
 				goto error;
+			}
+		}
+
+		/* Either no links or validated links are fine. */
+		bitmap_or(active, active, has_no_links, entity->num_pads);
+
+		if (!bitmap_full(active, entity->num_pads)) {
+			ret = -EPIPE;
+			dev_dbg(entity->parent->dev,
+				"\"%s\":%u must be connected by an enabled link\n",
+				entity->name,
+				(unsigned)find_first_zero_bit(
+					active, entity->num_pads));
+			goto error;
 		}
 	}
 

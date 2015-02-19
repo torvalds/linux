@@ -9,7 +9,6 @@
  * Copyright (C) 1998 Gleb Raiko & Vladimir Roganov
  * Copyright (C) 2001, 2004, 2007  Maciej W. Rozycki
  */
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/smp.h>

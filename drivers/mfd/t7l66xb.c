@@ -87,7 +87,7 @@ static int t7l66xb_mmc_enable(struct platform_device *mmc)
 	unsigned long flags;
 	u8 dev_ctl;
 
-	clk_enable(t7l66xb->clk32k);
+	clk_prepare_enable(t7l66xb->clk32k);
 
 	spin_lock_irqsave(&t7l66xb->lock, flags);
 
@@ -118,7 +118,7 @@ static int t7l66xb_mmc_disable(struct platform_device *mmc)
 
 	spin_unlock_irqrestore(&t7l66xb->lock, flags);
 
-	clk_disable(t7l66xb->clk32k);
+	clk_disable_unprepare(t7l66xb->clk32k);
 
 	return 0;
 }
@@ -281,11 +281,11 @@ static void t7l66xb_detach_irq(struct platform_device *dev)
 static int t7l66xb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct t7l66xb *t7l66xb = platform_get_drvdata(dev);
-	struct t7l66xb_platform_data *pdata = dev->dev.platform_data;
+	struct t7l66xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 
 	if (pdata && pdata->suspend)
 		pdata->suspend(dev);
-	clk_disable(t7l66xb->clk48m);
+	clk_disable_unprepare(t7l66xb->clk48m);
 
 	return 0;
 }
@@ -293,9 +293,9 @@ static int t7l66xb_suspend(struct platform_device *dev, pm_message_t state)
 static int t7l66xb_resume(struct platform_device *dev)
 {
 	struct t7l66xb *t7l66xb = platform_get_drvdata(dev);
-	struct t7l66xb_platform_data *pdata = dev->dev.platform_data;
+	struct t7l66xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 
-	clk_enable(t7l66xb->clk48m);
+	clk_prepare_enable(t7l66xb->clk48m);
 	if (pdata && pdata->resume)
 		pdata->resume(dev);
 
@@ -313,7 +313,7 @@ static int t7l66xb_resume(struct platform_device *dev)
 
 static int t7l66xb_probe(struct platform_device *dev)
 {
-	struct t7l66xb_platform_data *pdata = dev->dev.platform_data;
+	struct t7l66xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 	struct t7l66xb *t7l66xb;
 	struct resource *iomem, *rscr;
 	int ret;
@@ -369,7 +369,7 @@ static int t7l66xb_probe(struct platform_device *dev)
 		goto err_ioremap;
 	}
 
-	clk_enable(t7l66xb->clk48m);
+	clk_prepare_enable(t7l66xb->clk48m);
 
 	if (pdata && pdata->enable)
 		pdata->enable(dev);
@@ -409,14 +409,14 @@ err_noirq:
 
 static int t7l66xb_remove(struct platform_device *dev)
 {
-	struct t7l66xb_platform_data *pdata = dev->dev.platform_data;
+	struct t7l66xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 	struct t7l66xb *t7l66xb = platform_get_drvdata(dev);
 	int ret;
 
 	ret = pdata->disable(dev);
-	clk_disable(t7l66xb->clk48m);
+	clk_disable_unprepare(t7l66xb->clk48m);
 	clk_put(t7l66xb->clk48m);
-	clk_disable(t7l66xb->clk32k);
+	clk_disable_unprepare(t7l66xb->clk32k);
 	clk_put(t7l66xb->clk32k);
 	t7l66xb_detach_irq(dev);
 	iounmap(t7l66xb->scr);
@@ -431,7 +431,6 @@ static int t7l66xb_remove(struct platform_device *dev)
 static struct platform_driver t7l66xb_platform_driver = {
 	.driver = {
 		.name	= "t7l66xb",
-		.owner	= THIS_MODULE,
 	},
 	.suspend	= t7l66xb_suspend,
 	.resume		= t7l66xb_resume,

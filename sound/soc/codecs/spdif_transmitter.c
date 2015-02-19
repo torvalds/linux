@@ -24,11 +24,25 @@
 
 #define DRV_NAME "spdif-dit"
 
-#define STUB_RATES	SNDRV_PCM_RATE_8000_96000
-#define STUB_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
+#define STUB_RATES	SNDRV_PCM_RATE_8000_192000
+#define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
+			SNDRV_PCM_FMTBIT_S20_3LE | \
+			SNDRV_PCM_FMTBIT_S24_LE)
 
+static const struct snd_soc_dapm_widget dit_widgets[] = {
+	SND_SOC_DAPM_OUTPUT("spdif-out"),
+};
 
-static struct snd_soc_codec_driver soc_codec_spdif_dit;
+static const struct snd_soc_dapm_route dit_routes[] = {
+	{ "spdif-out", NULL, "Playback" },
+};
+
+static struct snd_soc_codec_driver soc_codec_spdif_dit = {
+	.dapm_widgets = dit_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(dit_widgets),
+	.dapm_routes = dit_routes,
+	.num_dapm_routes = ARRAY_SIZE(dit_routes),
+};
 
 static struct snd_soc_dai_driver dit_stub_dai = {
 	.name		= "dit-hifi",
@@ -66,7 +80,6 @@ static struct platform_driver spdif_dit_driver = {
 	.remove		= spdif_dit_remove,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(spdif_dit_dt_ids),
 	},
 };

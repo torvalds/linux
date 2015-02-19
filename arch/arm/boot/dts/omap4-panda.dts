@@ -9,3 +9,8 @@
 
 #include "omap443x.dtsi"
 #include "omap4-panda-common.dtsi"
+
+/ {
+	model = "TI OMAP4 PandaBoard";
+	compatible = "ti,omap4-panda", "ti,omap4430", "ti,omap4";
+};

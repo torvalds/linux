@@ -14,9 +14,10 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci.h>
 #include <net/bluetooth/hci_core.h>
-#include <net/bluetooth/a2mp.h>
-#include <net/bluetooth/amp.h>
 #include <crypto/hash.h>
+
+#include "a2mp.h"
+#include "amp.h"
 
 /* Remote AMP Controllers interface */
 void amp_ctrl_get(struct amp_ctrl *ctrl)
@@ -110,10 +111,11 @@ static u8 __next_handle(struct amp_mgr *mgr)
 struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
 			     u8 remote_id, bool out)
 {
-	bdaddr_t *dst = mgr->l2cap_conn->dst;
+	bdaddr_t *dst = &mgr->l2cap_conn->hcon->dst;
 	struct hci_conn *hcon;
+	u8 role = out ? HCI_ROLE_MASTER : HCI_ROLE_SLAVE;
 
-	hcon = hci_conn_add(hdev, AMP_LINK, dst);
+	hcon = hci_conn_add(hdev, AMP_LINK, dst, role);
 	if (!hcon)
 		return NULL;
 
@@ -124,7 +126,6 @@ struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
 	hcon->handle = __next_handle(mgr);
 	hcon->remote_id = remote_id;
 	hcon->amp_mgr = amp_mgr_get(mgr);
-	hcon->out = out;
 
 	return hcon;
 }
@@ -132,8 +133,9 @@ struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
 /* AMP crypto key generation interface */
 static int hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
 {
-	int ret = 0;
 	struct crypto_shash *tfm;
+	struct shash_desc *shash;
+	int ret;
 
 	if (!ksize)
 		return -EINVAL;
@@ -147,19 +149,24 @@ static int hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
 	ret = crypto_shash_setkey(tfm, key, ksize);
 	if (ret) {
 		BT_DBG("crypto_ahash_setkey failed: err %d", ret);
-	} else {
-		struct {
-			struct shash_desc shash;
-			char ctx[crypto_shash_descsize(tfm)];
-		} desc;
-
-		desc.shash.tfm = tfm;
-		desc.shash.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-
-		ret = crypto_shash_digest(&desc.shash, plaintext, psize,
-					  output);
+		goto failed;
 	}
 
+	shash = kzalloc(sizeof(*shash) + crypto_shash_descsize(tfm),
+			GFP_KERNEL);
+	if (!shash) {
+		ret = -ENOMEM;
+		goto failed;
+	}
+
+	shash->tfm = tfm;
+	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	ret = crypto_shash_digest(shash, plaintext, psize, output);
+
+	kfree(shash);
+
+failed:
 	crypto_free_shash(tfm);
 	return ret;
 }
@@ -409,7 +416,8 @@ void amp_create_logical_link(struct l2cap_chan *chan)
 	struct hci_cp_create_accept_logical_link cp;
 	struct hci_dev *hdev;
 
-	BT_DBG("chan %p hs_hcon %p dst %pMR", chan, hs_hcon, chan->conn->dst);
+	BT_DBG("chan %p hs_hcon %p dst %pMR", chan, hs_hcon,
+	       &chan->conn->hcon->dst);
 
 	if (!hs_hcon)
 		return;

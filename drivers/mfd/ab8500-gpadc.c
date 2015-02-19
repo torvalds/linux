@@ -867,6 +867,7 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 		gpadc->cal_data[ADC_INPUT_VBAT].offset);
 }
 
+#ifdef CONFIG_PM
 static int ab8500_gpadc_runtime_suspend(struct device *dev)
 {
 	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
@@ -885,7 +886,9 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
 		dev_err(dev, "Failed to enable vtvout LDO: %d\n", ret);
 	return ret;
 }
+#endif
 
+#ifdef CONFIG_PM_SLEEP
 static int ab8500_gpadc_suspend(struct device *dev)
 {
 	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
@@ -913,6 +916,7 @@ static int ab8500_gpadc_resume(struct device *dev)
 	mutex_unlock(&gpadc->ab8500_gpadc_lock);
 	return ret;
 }
+#endif
 
 static int ab8500_gpadc_probe(struct platform_device *pdev)
 {
@@ -1040,7 +1044,6 @@ static struct platform_driver ab8500_gpadc_driver = {
 	.remove = ab8500_gpadc_remove,
 	.driver = {
 		.name = "ab8500-gpadc",
-		.owner = THIS_MODULE,
 		.pm = &ab8500_gpadc_pm_ops,
 	},
 };

@@ -694,9 +694,8 @@ lba_fixup_bus(struct pci_bus *bus)
 		int i;
 		/* PCI-PCI Bridge */
 		pci_read_bridge_bases(bus);
-		for (i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++) {
-			pci_claim_resource(bus->self, i);
-		}
+		for (i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++)
+			pci_claim_bridge_resource(bus->self, i);
 	} else {
 		/* Host-PCI Bridge */
 		int err;
@@ -1590,7 +1589,6 @@ lba_driver_probe(struct parisc_device *dev)
 		lba_dump_res(&lba_dev->hba.lmmio_space, 2);
 #endif
 	}
-	pci_enable_bridges(lba_bus);
 
 	/*
 	** Once PCI register ops has walked the bus, access to config

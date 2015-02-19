@@ -10,20 +10,22 @@
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-    MA 02110-1301 USA.							     */
+    GNU General Public License for more details.			     */
 /* ------------------------------------------------------------------------- */
 
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>.
    All SMBus-related things are written by Frodo Looijaard <frodol@dds.nl>
    SMBus 2.0 support by Mark Studebaker <mdsxyz123@yahoo.com> and
-   Jean Delvare <khali@linux-fr.org>
+   Jean Delvare <jdelvare@suse.de>
    Mux support by Rodolfo Giometti <giometti@enneenne.com> and
-   Michael Lawnick <michael.lawnick.ext@nsn.com> */
+   Michael Lawnick <michael.lawnick.ext@nsn.com>
+   OF support is copyright (c) 2008 Jochen Friedrich <jochen@scram.de>
+   (based on a previous patch from Jon Smirl <jonsmirl@gmail.com>) and
+   (c) 2013  Wolfram Sang <wsa@the-dreams.de>
+   I2C ACPI code Copyright (C) 2014 Intel Corp
+   Author: Lan Tianyu <tianyu.lan@intel.com>
+   I2C slave support (c) 2014 by Wolfram Sang <wsa@sang-engineering.com>
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -35,17 +37,25 @@
 #include <linux/init.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
+#include <linux/clk/clk-conf.h>
 #include <linux/completion.h>
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
 #include <linux/rwsem.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/acpi.h>
+#include <linux/jump_label.h>
 #include <asm/uaccess.h>
+#include <linux/err.h>
 
 #include "i2c-core.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/i2c.h>
 
 /* core_lock protects i2c_adapter_idr, and guarantees
    that device detection, deletion of detected devices, and attach_adapter
@@ -55,6 +65,381 @@ static DEFINE_IDR(i2c_adapter_idr);
 
 static struct device_type i2c_client_type;
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
+
+static struct static_key i2c_trace_msg = STATIC_KEY_INIT_FALSE;
+
+void i2c_transfer_trace_reg(void)
+{
+	static_key_slow_inc(&i2c_trace_msg);
+}
+
+void i2c_transfer_trace_unreg(void)
+{
+	static_key_slow_dec(&i2c_trace_msg);
+}
+
+#if defined(CONFIG_ACPI)
+struct acpi_i2c_handler_data {
+	struct acpi_connection_info info;
+	struct i2c_adapter *adapter;
+};
+
+struct gsb_buffer {
+	u8	status;
+	u8	len;
+	union {
+		u16	wdata;
+		u8	bdata;
+		u8	data[0];
+	};
+} __packed;
+
+static int acpi_i2c_add_resource(struct acpi_resource *ares, void *data)
+{
+	struct i2c_board_info *info = data;
+
+	if (ares->type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
+		struct acpi_resource_i2c_serialbus *sb;
+
+		sb = &ares->data.i2c_serial_bus;
+		if (sb->type == ACPI_RESOURCE_SERIAL_TYPE_I2C) {
+			info->addr = sb->slave_address;
+			if (sb->access_mode == ACPI_I2C_10BIT_MODE)
+				info->flags |= I2C_CLIENT_TEN;
+		}
+	} else if (info->irq < 0) {
+		struct resource r;
+
+		if (acpi_dev_resource_interrupt(ares, 0, &r))
+			info->irq = r.start;
+	}
+
+	/* Tell the ACPI core to skip this resource */
+	return 1;
+}
+
+static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
+				       void *data, void **return_value)
+{
+	struct i2c_adapter *adapter = data;
+	struct list_head resource_list;
+	struct i2c_board_info info;
+	struct acpi_device *adev;
+	int ret;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return AE_OK;
+	if (acpi_bus_get_status(adev) || !adev->status.present)
+		return AE_OK;
+
+	memset(&info, 0, sizeof(info));
+	info.acpi_node.companion = adev;
+	info.irq = -1;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list,
+				     acpi_i2c_add_resource, &info);
+	acpi_dev_free_resource_list(&resource_list);
+
+	if (ret < 0 || !info.addr)
+		return AE_OK;
+
+	adev->power.flags.ignore_parent = true;
+	strlcpy(info.type, dev_name(&adev->dev), sizeof(info.type));
+	if (!i2c_new_device(adapter, &info)) {
+		adev->power.flags.ignore_parent = false;
+		dev_err(&adapter->dev,
+			"failed to add I2C device %s from ACPI\n",
+			dev_name(&adev->dev));
+	}
+
+	return AE_OK;
+}
+
+/**
+ * acpi_i2c_register_devices - enumerate I2C slave devices behind adapter
+ * @adap: pointer to adapter
+ *
+ * Enumerate all I2C slave devices behind this adapter by walking the ACPI
+ * namespace. When a device is found it will be added to the Linux device
+ * model and bound to the corresponding ACPI handle.
+ */
+static void acpi_i2c_register_devices(struct i2c_adapter *adap)
+{
+	acpi_handle handle;
+	acpi_status status;
+
+	if (!adap->dev.parent)
+		return;
+
+	handle = ACPI_HANDLE(adap->dev.parent);
+	if (!handle)
+		return;
+
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+				     acpi_i2c_add_device, NULL,
+				     adap, NULL);
+	if (ACPI_FAILURE(status))
+		dev_warn(&adap->dev, "failed to enumerate I2C slaves\n");
+}
+
+#else /* CONFIG_ACPI */
+static inline void acpi_i2c_register_devices(struct i2c_adapter *adap) { }
+#endif /* CONFIG_ACPI */
+
+#ifdef CONFIG_ACPI_I2C_OPREGION
+static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
+		u8 cmd, u8 *data, u8 data_len)
+{
+
+	struct i2c_msg msgs[2];
+	int ret;
+	u8 *buffer;
+
+	buffer = kzalloc(data_len, GFP_KERNEL);
+	if (!buffer)
+		return AE_NO_MEMORY;
+
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags;
+	msgs[0].len = 1;
+	msgs[0].buf = &cmd;
+
+	msgs[1].addr = client->addr;
+	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].len = data_len;
+	msgs[1].buf = buffer;
+
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+	if (ret < 0)
+		dev_err(&client->adapter->dev, "i2c read failed\n");
+	else
+		memcpy(data, buffer, data_len);
+
+	kfree(buffer);
+	return ret;
+}
+
+static int acpi_gsb_i2c_write_bytes(struct i2c_client *client,
+		u8 cmd, u8 *data, u8 data_len)
+{
+
+	struct i2c_msg msgs[1];
+	u8 *buffer;
+	int ret = AE_OK;
+
+	buffer = kzalloc(data_len + 1, GFP_KERNEL);
+	if (!buffer)
+		return AE_NO_MEMORY;
+
+	buffer[0] = cmd;
+	memcpy(buffer + 1, data, data_len);
+
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags;
+	msgs[0].len = data_len + 1;
+	msgs[0].buf = buffer;
+
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+	if (ret < 0)
+		dev_err(&client->adapter->dev, "i2c write failed\n");
+
+	kfree(buffer);
+	return ret;
+}
+
+static acpi_status
+acpi_i2c_space_handler(u32 function, acpi_physical_address command,
+			u32 bits, u64 *value64,
+			void *handler_context, void *region_context)
+{
+	struct gsb_buffer *gsb = (struct gsb_buffer *)value64;
+	struct acpi_i2c_handler_data *data = handler_context;
+	struct acpi_connection_info *info = &data->info;
+	struct acpi_resource_i2c_serialbus *sb;
+	struct i2c_adapter *adapter = data->adapter;
+	struct i2c_client client;
+	struct acpi_resource *ares;
+	u32 accessor_type = function >> 16;
+	u8 action = function & ACPI_IO_MASK;
+	acpi_status ret;
+	int status;
+
+	ret = acpi_buffer_to_resource(info->connection, info->length, &ares);
+	if (ACPI_FAILURE(ret))
+		return ret;
+
+	if (!value64 || ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS) {
+		ret = AE_BAD_PARAMETER;
+		goto err;
+	}
+
+	sb = &ares->data.i2c_serial_bus;
+	if (sb->type != ACPI_RESOURCE_SERIAL_TYPE_I2C) {
+		ret = AE_BAD_PARAMETER;
+		goto err;
+	}
+
+	memset(&client, 0, sizeof(client));
+	client.adapter = adapter;
+	client.addr = sb->slave_address;
+	client.flags = 0;
+
+	if (sb->access_mode == ACPI_I2C_10BIT_MODE)
+		client.flags |= I2C_CLIENT_TEN;
+
+	switch (accessor_type) {
+	case ACPI_GSB_ACCESS_ATTRIB_SEND_RCV:
+		if (action == ACPI_READ) {
+			status = i2c_smbus_read_byte(&client);
+			if (status >= 0) {
+				gsb->bdata = status;
+				status = 0;
+			}
+		} else {
+			status = i2c_smbus_write_byte(&client, gsb->bdata);
+		}
+		break;
+
+	case ACPI_GSB_ACCESS_ATTRIB_BYTE:
+		if (action == ACPI_READ) {
+			status = i2c_smbus_read_byte_data(&client, command);
+			if (status >= 0) {
+				gsb->bdata = status;
+				status = 0;
+			}
+		} else {
+			status = i2c_smbus_write_byte_data(&client, command,
+					gsb->bdata);
+		}
+		break;
+
+	case ACPI_GSB_ACCESS_ATTRIB_WORD:
+		if (action == ACPI_READ) {
+			status = i2c_smbus_read_word_data(&client, command);
+			if (status >= 0) {
+				gsb->wdata = status;
+				status = 0;
+			}
+		} else {
+			status = i2c_smbus_write_word_data(&client, command,
+					gsb->wdata);
+		}
+		break;
+
+	case ACPI_GSB_ACCESS_ATTRIB_BLOCK:
+		if (action == ACPI_READ) {
+			status = i2c_smbus_read_block_data(&client, command,
+					gsb->data);
+			if (status >= 0) {
+				gsb->len = status;
+				status = 0;
+			}
+		} else {
+			status = i2c_smbus_write_block_data(&client, command,
+					gsb->len, gsb->data);
+		}
+		break;
+
+	case ACPI_GSB_ACCESS_ATTRIB_MULTIBYTE:
+		if (action == ACPI_READ) {
+			status = acpi_gsb_i2c_read_bytes(&client, command,
+					gsb->data, info->access_length);
+			if (status > 0)
+				status = 0;
+		} else {
+			status = acpi_gsb_i2c_write_bytes(&client, command,
+					gsb->data, info->access_length);
+		}
+		break;
+
+	default:
+		pr_info("protocol(0x%02x) is not supported.\n", accessor_type);
+		ret = AE_BAD_PARAMETER;
+		goto err;
+	}
+
+	gsb->status = status;
+
+ err:
+	ACPI_FREE(ares);
+	return ret;
+}
+
+
+static int acpi_i2c_install_space_handler(struct i2c_adapter *adapter)
+{
+	acpi_handle handle;
+	struct acpi_i2c_handler_data *data;
+	acpi_status status;
+
+	if (!adapter->dev.parent)
+		return -ENODEV;
+
+	handle = ACPI_HANDLE(adapter->dev.parent);
+
+	if (!handle)
+		return -ENODEV;
+
+	data = kzalloc(sizeof(struct acpi_i2c_handler_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->adapter = adapter;
+	status = acpi_bus_attach_private_data(handle, (void *)data);
+	if (ACPI_FAILURE(status)) {
+		kfree(data);
+		return -ENOMEM;
+	}
+
+	status = acpi_install_address_space_handler(handle,
+				ACPI_ADR_SPACE_GSBUS,
+				&acpi_i2c_space_handler,
+				NULL,
+				data);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&adapter->dev, "Error installing i2c space handler\n");
+		acpi_bus_detach_private_data(handle);
+		kfree(data);
+		return -ENOMEM;
+	}
+
+	acpi_walk_dep_device_list(handle);
+	return 0;
+}
+
+static void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter)
+{
+	acpi_handle handle;
+	struct acpi_i2c_handler_data *data;
+	acpi_status status;
+
+	if (!adapter->dev.parent)
+		return;
+
+	handle = ACPI_HANDLE(adapter->dev.parent);
+
+	if (!handle)
+		return;
+
+	acpi_remove_address_space_handler(handle,
+				ACPI_ADR_SPACE_GSBUS,
+				&acpi_i2c_space_handler);
+
+	status = acpi_bus_get_private_data(handle, (void **)&data);
+	if (ACPI_SUCCESS(status))
+		kfree(data);
+
+	acpi_bus_detach_private_data(handle);
+}
+#else /* CONFIG_ACPI_I2C_OPREGION */
+static inline void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter)
+{ }
+
+static inline int acpi_i2c_install_space_handler(struct i2c_adapter *adapter)
+{ return 0; }
+#endif /* CONFIG_ACPI_I2C_OPREGION */
 
 /* ------------------------------------------------------------------------- */
 
@@ -98,6 +483,11 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
+	int rc;
+
+	rc = acpi_device_uevent_modalias(dev, env);
+	if (rc != -ENODEV)
+		return rc;
 
 	if (add_uevent_var(env, "MODALIAS=%s%s",
 			   I2C_MODULE_PREFIX, client->name))
@@ -239,20 +629,38 @@ static int i2c_device_probe(struct device *dev)
 	if (!client)
 		return 0;
 
+	if (!client->irq && dev->of_node) {
+		int irq = of_irq_get(dev->of_node, 0);
+
+		if (irq == -EPROBE_DEFER)
+			return irq;
+		if (irq < 0)
+			irq = 0;
+
+		client->irq = irq;
+	}
+
 	driver = to_i2c_driver(dev->driver);
 	if (!driver->probe || !driver->id_table)
 		return -ENODEV;
-	client->driver = driver;
+
 	if (!device_can_wakeup(&client->dev))
 		device_init_wakeup(&client->dev,
 					client->flags & I2C_CLIENT_WAKE);
 	dev_dbg(dev, "probe\n");
 
-	status = driver->probe(client, i2c_match_id(driver->id_table, client));
-	if (status) {
-		client->driver = NULL;
-		i2c_set_clientdata(client, NULL);
+	status = of_clk_set_defaults(dev->of_node, false);
+	if (status < 0)
+		return status;
+
+	status = dev_pm_domain_attach(&client->dev, true);
+	if (status != -EPROBE_DEFER) {
+		status = driver->probe(client, i2c_match_id(driver->id_table,
+					client));
+		if (status)
+			dev_pm_domain_detach(&client->dev, true);
 	}
+
 	return status;
 }
 
@@ -260,7 +668,7 @@ static int i2c_device_remove(struct device *dev)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
 	struct i2c_driver	*driver;
-	int			status;
+	int status = 0;
 
 	if (!client || !dev->driver)
 		return 0;
@@ -269,14 +677,12 @@ static int i2c_device_remove(struct device *dev)
 	if (driver->remove) {
 		dev_dbg(dev, "remove\n");
 		status = driver->remove(client);
-	} else {
-		dev->driver = NULL;
-		status = 0;
 	}
-	if (status == 0) {
-		client->driver = NULL;
-		i2c_set_clientdata(client, NULL);
-	}
+
+	if (dev->of_node)
+		irq_dispose_mapping(client->irq);
+
+	dev_pm_domain_detach(&client->dev, true);
 	return status;
 }
 
@@ -403,6 +809,12 @@ static ssize_t
 show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	int len;
+
+	len = acpi_device_modalias(dev, buf, PAGE_SIZE -1);
+	if (len != -ENODEV)
+		return len;
+
 	return sprintf(buf, "%s%s\n", I2C_MODULE_PREFIX, client->name);
 }
 
@@ -609,6 +1021,22 @@ void i2c_unlock_adapter(struct i2c_adapter *adapter)
 }
 EXPORT_SYMBOL_GPL(i2c_unlock_adapter);
 
+static void i2c_dev_set_name(struct i2c_adapter *adap,
+			     struct i2c_client *client)
+{
+	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
+
+	if (adev) {
+		dev_set_name(&client->dev, "i2c-%s", acpi_dev_name(adev));
+		return;
+	}
+
+	/* For 10-bit clients, add an arbitrary offset to avoid collisions */
+	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
+		     client->addr | ((client->flags & I2C_CLIENT_TEN)
+				     ? 0xa000 : 0));
+}
+
 /**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
@@ -665,12 +1093,9 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
 	client->dev.of_node = info->of_node;
-	ACPI_HANDLE_SET(&client->dev, info->acpi_node.handle);
+	ACPI_COMPANION_SET(&client->dev, info->acpi_node.companion);
 
-	/* For 10-bit clients, add an arbitrary offset to avoid collisions */
-	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
-		     client->addr | ((client->flags & I2C_CLIENT_TEN)
-				     ? 0xa000 : 0));
+	i2c_dev_set_name(adap, client);
 	status = device_register(&client->dev);
 	if (status)
 		goto out_err;
@@ -954,6 +1379,108 @@ static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 	up_read(&__i2c_board_lock);
 }
 
+/* OF support code */
+
+#if IS_ENABLED(CONFIG_OF)
+static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
+						 struct device_node *node)
+{
+	struct i2c_client *result;
+	struct i2c_board_info info = {};
+	struct dev_archdata dev_ad = {};
+	const __be32 *addr;
+	int len;
+
+	dev_dbg(&adap->dev, "of_i2c: register %s\n", node->full_name);
+
+	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
+		dev_err(&adap->dev, "of_i2c: modalias failure on %s\n",
+			node->full_name);
+		return ERR_PTR(-EINVAL);
+	}
+
+	addr = of_get_property(node, "reg", &len);
+	if (!addr || (len < sizeof(int))) {
+		dev_err(&adap->dev, "of_i2c: invalid reg on %s\n",
+			node->full_name);
+		return ERR_PTR(-EINVAL);
+	}
+
+	info.addr = be32_to_cpup(addr);
+	if (info.addr > (1 << 10) - 1) {
+		dev_err(&adap->dev, "of_i2c: invalid addr=%x on %s\n",
+			info.addr, node->full_name);
+		return ERR_PTR(-EINVAL);
+	}
+
+	info.of_node = of_node_get(node);
+	info.archdata = &dev_ad;
+
+	if (of_get_property(node, "wakeup-source", NULL))
+		info.flags |= I2C_CLIENT_WAKE;
+
+	request_module("%s%s", I2C_MODULE_PREFIX, info.type);
+
+	result = i2c_new_device(adap, &info);
+	if (result == NULL) {
+		dev_err(&adap->dev, "of_i2c: Failure registering %s\n",
+			node->full_name);
+		of_node_put(node);
+		return ERR_PTR(-EINVAL);
+	}
+	return result;
+}
+
+static void of_i2c_register_devices(struct i2c_adapter *adap)
+{
+	struct device_node *node;
+
+	/* Only register child devices if the adapter has a node pointer set */
+	if (!adap->dev.of_node)
+		return;
+
+	dev_dbg(&adap->dev, "of_i2c: walking child nodes\n");
+
+	for_each_available_child_of_node(adap->dev.of_node, node)
+		of_i2c_register_device(adap, node);
+}
+
+static int of_dev_node_match(struct device *dev, void *data)
+{
+	return dev->of_node == data;
+}
+
+/* must call put_device() when done with returned i2c_client device */
+struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&i2c_bus_type, NULL, node,
+					 of_dev_node_match);
+	if (!dev)
+		return NULL;
+
+	return i2c_verify_client(dev);
+}
+EXPORT_SYMBOL(of_find_i2c_device_by_node);
+
+/* must call put_device() when done with returned i2c_adapter device */
+struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&i2c_bus_type, NULL, node,
+					 of_dev_node_match);
+	if (!dev)
+		return NULL;
+
+	return i2c_verify_adapter(dev);
+}
+EXPORT_SYMBOL(of_find_i2c_adapter_by_node);
+#else
+static void of_i2c_register_devices(struct i2c_adapter *adap) { }
+#endif /* CONFIG_OF */
+
 static int i2c_do_add_adapter(struct i2c_driver *driver,
 			      struct i2c_adapter *adap)
 {
@@ -1058,6 +1585,10 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 
 exit_recovery:
 	/* create pre-declared device nodes */
+	of_i2c_register_devices(adap);
+	acpi_i2c_register_devices(adap);
+	acpi_i2c_install_space_handler(adap);
+
 	if (adap->nr < __i2c_first_dynamic_bus_num)
 		i2c_scan_static_board_info(adap);
 
@@ -1230,6 +1761,7 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 		return;
 	}
 
+	acpi_i2c_remove_space_handler(adap);
 	/* Tell drivers about this removal */
 	mutex_lock(&core_lock);
 	bus_for_each_drv(&i2c_bus_type, NULL, adap,
@@ -1281,7 +1813,6 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	memset(&adap->dev, 0, sizeof(adap->dev));
 }
 EXPORT_SYMBOL(i2c_del_adapter);
-
 
 /* ------------------------------------------------------------------------- */
 
@@ -1410,9 +1941,14 @@ static int i2c_cmd(struct device *dev, void *_arg)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
 	struct i2c_cmd_arg	*arg = _arg;
+	struct i2c_driver	*driver;
 
-	if (client && client->driver && client->driver->command)
-		client->driver->command(client, arg->cmd, arg->arg);
+	if (!client || !client->dev.driver)
+		return 0;
+
+	driver = to_i2c_driver(client->dev.driver);
+	if (driver->command)
+		driver->command(client, arg->cmd, arg->arg);
 	return 0;
 }
 
@@ -1425,6 +1961,52 @@ void i2c_clients_command(struct i2c_adapter *adap, unsigned int cmd, void *arg)
 	device_for_each_child(&adap->dev, &cmd_arg, i2c_cmd);
 }
 EXPORT_SYMBOL(i2c_clients_command);
+
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
+			 void *arg)
+{
+	struct of_reconfig_data *rd = arg;
+	struct i2c_adapter *adap;
+	struct i2c_client *client;
+
+	switch (of_reconfig_get_state_change(action, rd)) {
+	case OF_RECONFIG_CHANGE_ADD:
+		adap = of_find_i2c_adapter_by_node(rd->dn->parent);
+		if (adap == NULL)
+			return NOTIFY_OK;	/* not for us */
+
+		client = of_i2c_register_device(adap, rd->dn);
+		put_device(&adap->dev);
+
+		if (IS_ERR(client)) {
+			pr_err("%s: failed to create for '%s'\n",
+					__func__, rd->dn->full_name);
+			return notifier_from_errno(PTR_ERR(client));
+		}
+		break;
+	case OF_RECONFIG_CHANGE_REMOVE:
+		/* find our device by node */
+		client = of_find_i2c_device_by_node(rd->dn);
+		if (client == NULL)
+			return NOTIFY_OK;	/* no? not meant for us */
+
+		/* unregister takes one ref away */
+		i2c_unregister_device(client);
+
+		/* and put the reference of the find */
+		put_device(&client->dev);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+static struct notifier_block i2c_of_notifier = {
+	.notifier_call = of_i2c_notify,
+};
+#else
+extern struct notifier_block i2c_of_notifier;
+#endif /* CONFIG_OF_DYNAMIC */
 
 static int __init i2c_init(void)
 {
@@ -1443,6 +2025,10 @@ static int __init i2c_init(void)
 	retval = i2c_add_driver(&dummy_driver);
 	if (retval)
 		goto class_err;
+
+	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
+		WARN_ON(of_reconfig_notifier_register(&i2c_of_notifier));
+
 	return 0;
 
 class_err:
@@ -1456,11 +2042,14 @@ bus_err:
 
 static void __exit i2c_exit(void)
 {
+	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
+		WARN_ON(of_reconfig_notifier_unregister(&i2c_of_notifier));
 	i2c_del_driver(&dummy_driver);
 #ifdef CONFIG_I2C_COMPAT
 	class_compat_unregister(i2c_adapter_compat_class);
 #endif
 	bus_unregister(&i2c_bus_type);
+	tracepoint_synchronize_unregister();
 }
 
 /* We must initialize early, because some subsystems register i2c drivers
@@ -1491,6 +2080,19 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	unsigned long orig_jiffies;
 	int ret, try;
 
+	/* i2c_trace_msg gets enabled when tracepoint i2c_transfer gets
+	 * enabled.  This is an efficient way of keeping the for-loop from
+	 * being executed when not needed.
+	 */
+	if (static_key_false(&i2c_trace_msg)) {
+		int i;
+		for (i = 0; i < num; i++)
+			if (msgs[i].flags & I2C_M_RD)
+				trace_i2c_read(adap, &msgs[i], i);
+			else
+				trace_i2c_write(adap, &msgs[i], i);
+	}
+
 	/* Retry automatically on arbitration loss */
 	orig_jiffies = jiffies;
 	for (ret = 0, try = 0; try <= adap->retries; try++) {
@@ -1499,6 +2101,14 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			break;
 		if (time_after(jiffies, orig_jiffies + adap->timeout))
 			break;
+	}
+
+	if (static_key_false(&i2c_trace_msg)) {
+		int i;
+		for (i = 0; i < ret; i++)
+			if (msgs[i].flags & I2C_M_RD)
+				trace_i2c_reply(adap, &msgs[i], i);
+		trace_i2c_result(adap, i, ret);
 	}
 
 	return ret;
@@ -1665,7 +2275,8 @@ static int i2c_default_probe(struct i2c_adapter *adap, unsigned short addr)
 		err = i2c_smbus_xfer(adap, addr, 0, I2C_SMBUS_READ, 0,
 				     I2C_SMBUS_BYTE, &dummy);
 	else {
-		dev_warn(&adap->dev, "No suitable probing method supported\n");
+		dev_warn(&adap->dev, "No suitable probing method supported for address 0x%02X\n",
+			 addr);
 		err = -EOPNOTSUPP;
 	}
 
@@ -1715,6 +2326,13 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 		struct i2c_client *client;
 
 		/* Detection succeeded, instantiate the device */
+		if (adapter->class & I2C_CLASS_DEPRECATED)
+			dev_warn(&adapter->dev,
+				"This adapter will soon drop class based instantiation of devices. "
+				"Please make sure client 0x%02x gets instantiated by other means. "
+				"Check 'Documentation/i2c/instantiating-devices' for details.\n",
+				info.addr);
+
 		dev_dbg(&adapter->dev, "Creating %s at 0x%02x\n",
 			info.type, info.addr);
 		client = i2c_new_device(adapter, &info);
@@ -1737,6 +2355,16 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	address_list = driver->address_list;
 	if (!driver->detect || !address_list)
 		return 0;
+
+	/* Warn that the adapter lost class based instantiation */
+	if (adapter->class == I2C_CLASS_DEPRECATED) {
+		dev_dbg(&adapter->dev,
+			"This adapter dropped support for I2C classes and "
+			"won't auto-detect %s devices anymore. If you need it, check "
+			"'Documentation/i2c/instantiating-devices' for alternatives.\n",
+			driver->driver.name);
+		return 0;
+	}
 
 	/* Stop here if the classes do not match */
 	if (!(adapter->class & driver->class))
@@ -1825,7 +2453,8 @@ EXPORT_SYMBOL(i2c_get_adapter);
 
 void i2c_put_adapter(struct i2c_adapter *adap)
 {
-	module_put(adap->owner);
+	if (adap)
+		module_put(adap->owner);
 }
 EXPORT_SYMBOL(i2c_put_adapter);
 
@@ -2294,6 +2923,14 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 	int try;
 	s32 res;
 
+	/* If enabled, the following two tracepoints are conditional on
+	 * read_write and protocol.
+	 */
+	trace_smbus_write(adapter, addr, flags, read_write,
+			  command, protocol, data);
+	trace_smbus_read(adapter, addr, flags, read_write,
+			 command, protocol);
+
 	flags &= I2C_M_TEN | I2C_CLIENT_PEC | I2C_CLIENT_SCCB;
 
 	if (adapter->algo->smbus_xfer) {
@@ -2314,17 +2951,76 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 		i2c_unlock_adapter(adapter);
 
 		if (res != -EOPNOTSUPP || !adapter->algo->master_xfer)
-			return res;
+			goto trace;
 		/*
 		 * Fall back to i2c_smbus_xfer_emulated if the adapter doesn't
 		 * implement native support for the SMBus operation.
 		 */
 	}
 
-	return i2c_smbus_xfer_emulated(adapter, addr, flags, read_write,
-				       command, protocol, data);
+	res = i2c_smbus_xfer_emulated(adapter, addr, flags, read_write,
+				      command, protocol, data);
+
+trace:
+	/* If enabled, the reply tracepoint is conditional on read_write. */
+	trace_smbus_reply(adapter, addr, flags, read_write,
+			  command, protocol, data);
+	trace_smbus_result(adapter, addr, flags, read_write,
+			   command, protocol, res);
+
+	return res;
 }
 EXPORT_SYMBOL(i2c_smbus_xfer);
+
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
+{
+	int ret;
+
+	if (!client || !slave_cb)
+		return -EINVAL;
+
+	if (!(client->flags & I2C_CLIENT_TEN)) {
+		/* Enforce stricter address checking */
+		ret = i2c_check_addr_validity(client->addr);
+		if (ret)
+			return ret;
+	}
+
+	if (!client->adapter->algo->reg_slave)
+		return -EOPNOTSUPP;
+
+	client->slave_cb = slave_cb;
+
+	i2c_lock_adapter(client->adapter);
+	ret = client->adapter->algo->reg_slave(client);
+	i2c_unlock_adapter(client->adapter);
+
+	if (ret)
+		client->slave_cb = NULL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i2c_slave_register);
+
+int i2c_slave_unregister(struct i2c_client *client)
+{
+	int ret;
+
+	if (!client->adapter->algo->unreg_slave)
+		return -EOPNOTSUPP;
+
+	i2c_lock_adapter(client->adapter);
+	ret = client->adapter->algo->unreg_slave(client);
+	i2c_unlock_adapter(client->adapter);
+
+	if (ret == 0)
+		client->slave_cb = NULL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i2c_slave_unregister);
+#endif
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");
 MODULE_DESCRIPTION("I2C-Bus main module");

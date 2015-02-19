@@ -85,7 +85,6 @@ pcbit_l2_write(struct pcbit_dev *dev, ulong msg, ushort refnum,
 	}
 	if ((frame = kmalloc(sizeof(struct frame_buf),
 			     GFP_ATOMIC)) == NULL) {
-		printk(KERN_WARNING "pcbit_2_write: kmalloc failed\n");
 		dev_kfree_skb(skb);
 		return -1;
 	}

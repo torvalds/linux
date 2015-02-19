@@ -32,11 +32,13 @@
  *
  */
 
-#include <linux/lustre_quota.h>
+#include <linux/fs.h>
+#include <linux/quota.h>
+#include <linux/quotaops.h>
 
-#include <dt_object.h>
-#include <lustre_fid.h>
-#include <lustre_dlm.h>
+#include "dt_object.h"
+#include "lustre_fid.h"
+#include "lustre_dlm.h"
 
 #ifndef MAX_IQ_TIME
 #define MAX_IQ_TIME  604800     /* (7*24*60*60) 1 week */
@@ -140,7 +142,7 @@ struct qsd_instance;
  *		(i.e. when ->ldo_recovery_complete is called). This is used
  *		to notify the qsd layer that quota should now be enforced
  *		again via the qsd_op_begin/end functions. The last step of the
- *		reintegration prodecure (namely usage reconciliation) will be
+ *		reintegration procedure (namely usage reconciliation) will be
  *		completed during start.
  *
  * - qsd_fini(): is used to release a qsd_instance structure allocated with
@@ -168,7 +170,7 @@ struct qsd_instance;
  * enforcement. Arguments are documented where each function is defined.  */
 
 struct qsd_instance *qsd_init(const struct lu_env *, char *, struct dt_device *,
-			      proc_dir_entry_t *);
+			      struct proc_dir_entry *);
 int qsd_prepare(const struct lu_env *, struct qsd_instance *);
 int qsd_start(const struct lu_env *, struct qsd_instance *);
 void qsd_fini(const struct lu_env *, struct qsd_instance *);

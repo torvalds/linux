@@ -46,6 +46,11 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_TIMESTAMP] = "timestamp",
 	[IIO_CAPACITANCE] = "capacitance",
 	[IIO_ALTVOLTAGE] = "altvoltage",
+	[IIO_CCT] = "cct",
+	[IIO_PRESSURE] = "pressure",
+	[IIO_HUMIDITYRELATIVE] = "humidityrelative",
+	[IIO_ACTIVITY] = "activity",
+	[IIO_STEPS] = "steps",
 };
 
 static const char * const iio_ev_type_text[] = {
@@ -54,6 +59,7 @@ static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_ROC] = "roc",
 	[IIO_EV_TYPE_THRESH_ADAPTIVE] = "thresh_adaptive",
 	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
+	[IIO_EV_TYPE_CHANGE] = "change",
 };
 
 static const char * const iio_ev_dir_text[] = {
@@ -66,6 +72,14 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_X] = "x",
 	[IIO_MOD_Y] = "y",
 	[IIO_MOD_Z] = "z",
+	[IIO_MOD_X_AND_Y] = "x&y",
+	[IIO_MOD_X_AND_Z] = "x&z",
+	[IIO_MOD_Y_AND_Z] = "y&z",
+	[IIO_MOD_X_AND_Y_AND_Z] = "x&y&z",
+	[IIO_MOD_X_OR_Y] = "x|y",
+	[IIO_MOD_X_OR_Z] = "x|z",
+	[IIO_MOD_Y_OR_Z] = "y|z",
+	[IIO_MOD_X_OR_Y_OR_Z] = "x|y|z",
 	[IIO_MOD_LIGHT_BOTH] = "both",
 	[IIO_MOD_LIGHT_IR] = "ir",
 	[IIO_MOD_ROOT_SUM_SQUARED_X_Y] = "sqrt(x^2+y^2)",
@@ -74,6 +88,17 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_LIGHT_RED] = "red",
 	[IIO_MOD_LIGHT_GREEN] = "green",
 	[IIO_MOD_LIGHT_BLUE] = "blue",
+	[IIO_MOD_QUATERNION] = "quaternion",
+	[IIO_MOD_TEMP_AMBIENT] = "ambient",
+	[IIO_MOD_TEMP_OBJECT] = "object",
+	[IIO_MOD_NORTH_MAGN] = "from_north_magnetic",
+	[IIO_MOD_NORTH_TRUE] = "from_north_true",
+	[IIO_MOD_NORTH_MAGN_TILT_COMP] = "from_north_magnetic_tilt_comp",
+	[IIO_MOD_NORTH_TRUE_TILT_COMP] = "from_north_true_tilt_comp",
+	[IIO_MOD_RUNNING] = "running",
+	[IIO_MOD_JOGGING] = "jogging",
+	[IIO_MOD_WALKING] = "walking",
+	[IIO_MOD_STILL] = "still",
 };
 
 static bool event_is_known(struct iio_event_data *event)
@@ -100,6 +125,11 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_TIMESTAMP:
 	case IIO_CAPACITANCE:
 	case IIO_ALTVOLTAGE:
+	case IIO_CCT:
+	case IIO_PRESSURE:
+	case IIO_HUMIDITYRELATIVE:
+	case IIO_ACTIVITY:
+	case IIO_STEPS:
 		break;
 	default:
 		return false;
@@ -110,6 +140,14 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MOD_X:
 	case IIO_MOD_Y:
 	case IIO_MOD_Z:
+	case IIO_MOD_X_AND_Y:
+	case IIO_MOD_X_AND_Z:
+	case IIO_MOD_Y_AND_Z:
+	case IIO_MOD_X_AND_Y_AND_Z:
+	case IIO_MOD_X_OR_Y:
+	case IIO_MOD_X_OR_Z:
+	case IIO_MOD_Y_OR_Z:
+	case IIO_MOD_X_OR_Y_OR_Z:
 	case IIO_MOD_LIGHT_BOTH:
 	case IIO_MOD_LIGHT_IR:
 	case IIO_MOD_ROOT_SUM_SQUARED_X_Y:
@@ -118,6 +156,17 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MOD_LIGHT_RED:
 	case IIO_MOD_LIGHT_GREEN:
 	case IIO_MOD_LIGHT_BLUE:
+	case IIO_MOD_QUATERNION:
+	case IIO_MOD_TEMP_AMBIENT:
+	case IIO_MOD_TEMP_OBJECT:
+	case IIO_MOD_NORTH_MAGN:
+	case IIO_MOD_NORTH_TRUE:
+	case IIO_MOD_NORTH_MAGN_TILT_COMP:
+	case IIO_MOD_NORTH_TRUE_TILT_COMP:
+	case IIO_MOD_RUNNING:
+	case IIO_MOD_JOGGING:
+	case IIO_MOD_WALKING:
+	case IIO_MOD_STILL:
 		break;
 	default:
 		return false;
@@ -129,6 +178,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_EV_TYPE_ROC:
 	case IIO_EV_TYPE_THRESH_ADAPTIVE:
 	case IIO_EV_TYPE_MAG_ADAPTIVE:
+	case IIO_EV_TYPE_CHANGE:
 		break;
 	default:
 		return false;
@@ -138,6 +188,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_EV_DIR_EITHER:
 	case IIO_EV_DIR_RISING:
 	case IIO_EV_DIR_FALLING:
+	case IIO_EV_DIR_NONE:
 		break;
 	default:
 		return false;
@@ -178,9 +229,11 @@ static void print_event(struct iio_event_data *event)
 	else if (chan >= 0)
 		printf("channel: %d, ", chan);
 
-	printf("evtype: %s, direction: %s\n",
-		iio_ev_type_text[ev_type],
-		iio_ev_dir_text[dir]);
+	printf("evtype: %s", iio_ev_type_text[ev_type]);
+
+	if (dir != IIO_EV_DIR_NONE)
+		printf(", direction: %s", iio_ev_dir_text[dir]);
+	printf("\n");
 }
 
 int main(int argc, char **argv)

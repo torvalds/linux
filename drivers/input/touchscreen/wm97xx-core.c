@@ -70,11 +70,11 @@
  * Documentation/input/input-programming.txt for more details.
  */
 
-static int abs_x[3] = {350, 3900, 5};
+static int abs_x[3] = {150, 4000, 5};
 module_param_array(abs_x, int, NULL, 0);
 MODULE_PARM_DESC(abs_x, "Touchscreen absolute X min, max, fuzz");
 
-static int abs_y[3] = {320, 3750, 40};
+static int abs_y[3] = {200, 4000, 40};
 module_param_array(abs_y, int, NULL, 0);
 MODULE_PARM_DESC(abs_y, "Touchscreen absolute Y min, max, fuzz");
 
@@ -584,7 +584,7 @@ static void wm97xx_ts_input_close(struct input_dev *idev)
 static int wm97xx_probe(struct device *dev)
 {
 	struct wm97xx *wm;
-	struct wm97xx_pdata *pdata = dev->platform_data;
+	struct wm97xx_pdata *pdata = dev_get_platdata(dev);
 	int ret = 0, id = 0;
 
 	wm = kzalloc(sizeof(struct wm97xx), GFP_KERNEL);

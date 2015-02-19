@@ -660,7 +660,7 @@ static int x1205_probe(struct i2c_client *client,
 
 	err = x1205_sysfs_register(&client->dev);
 	if (err)
-		return err;
+		dev_err(&client->dev, "Unable to create sysfs entries\n");
 
 	return 0;
 }

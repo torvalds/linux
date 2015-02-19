@@ -209,7 +209,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		break;
 
 	case RED_PROB_MARK:
-		sch->qstats.overlimits++;
+		qdisc_qstats_overlimit(sch);
 		if (!gred_use_ecn(t) || !INET_ECN_set_ce(skb)) {
 			q->stats.prob_drop++;
 			goto congestion_drop;
@@ -219,7 +219,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		break;
 
 	case RED_HARD_MARK:
-		sch->qstats.overlimits++;
+		qdisc_qstats_overlimit(sch);
 		if (gred_use_harddrop(t) || !gred_use_ecn(t) ||
 		    !INET_ECN_set_ce(skb)) {
 			q->stats.forced_drop++;
@@ -370,8 +370,8 @@ static inline int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps)
 
 	for (i = table->DPs; i < MAX_DPs; i++) {
 		if (table->tab[i]) {
-			pr_warning("GRED: Warning: Destroying "
-				   "shadowed VQ 0x%x\n", i);
+			pr_warn("GRED: Warning: Destroying shadowed VQ 0x%x\n",
+				i);
 			gred_destroy_vq(table->tab[i]);
 			table->tab[i] = NULL;
 		}

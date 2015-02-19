@@ -1,7 +1,8 @@
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
- *  Copyright (c) 2009-2012  LSI Corporation.
+ *  Copyright (c) 2009-2013  LSI Corporation
+ *  Copyright (c) 2013-2014  Avago Technologies
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -14,19 +15,20 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  FILE: megaraid_sas_fusion.h
  *
- *  Authors: LSI Corporation
+ *  Authors: Avago Technologies
  *           Manoj Jose
  *           Sumant Patro
+ *           Kashyap Desai <kashyap.desai@avagotech.com>
+ *           Sumit Saxena <sumit.saxena@avagotech.com>
  *
- *  Send feedback to: <megaraidlinux@lsi.com>
+ *  Send feedback to: megaraidlinux.pdl@avagotech.com
  *
- *  Mail to: LSI Corporation, 1621 Barber Lane, Milpitas, CA 95035
- *     ATTN: Linuxraid
+ *  Mail to: Avago Technologies, 350 West Trimble Road, Building 90,
+ *  San Jose, California 95131
  */
 
 #ifndef _MEGARAID_SAS_FUSION_H_
@@ -86,15 +88,21 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 
 #define MEGASAS_FP_CMD_LEN	16
 #define MEGASAS_FUSION_IN_RESET 0
+#define THRESHOLD_REPLY_COUNT 50
 
 /*
- * Raid Context structure which describes MegaRAID specific IO Paramenters
+ * Raid Context structure which describes MegaRAID specific IO Parameters
  * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
  */
 
 struct RAID_CONTEXT {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+	u8	nseg:4;
+	u8	Type:4;
+#else
 	u8	Type:4;
 	u8	nseg:4;
+#endif
 	u8	resvd0;
 	u16     timeoutValue;
 	u8      regLockFlags;
@@ -299,8 +307,8 @@ struct MPI2_RAID_SCSI_IO_REQUEST {
  */
 struct MEGASAS_RAID_MFA_IO_REQUEST_DESCRIPTOR {
 	u32     RequestFlags:8;
-	u32     MessageAddress1:24; /* bits 31:8*/
-	u32     MessageAddress2;      /* bits 61:32 */
+	u32     MessageAddress1:24;
+	u32     MessageAddress2;
 };
 
 /* Default Request Descriptor */
@@ -468,13 +476,19 @@ struct MPI2_IOC_INIT_REQUEST {
 #define MAX_ROW_SIZE 32
 #define MAX_RAIDMAP_ROW_SIZE (MAX_ROW_SIZE)
 #define MAX_LOGICAL_DRIVES 64
+#define MAX_LOGICAL_DRIVES_EXT 256
 #define MAX_RAIDMAP_LOGICAL_DRIVES (MAX_LOGICAL_DRIVES)
 #define MAX_RAIDMAP_VIEWS (MAX_LOGICAL_DRIVES)
 #define MAX_ARRAYS 128
 #define MAX_RAIDMAP_ARRAYS (MAX_ARRAYS)
+#define MAX_ARRAYS_EXT	256
+#define MAX_API_ARRAYS_EXT (MAX_ARRAYS_EXT)
 #define MAX_PHYSICAL_DEVICES 256
 #define MAX_RAIDMAP_PHYSICAL_DEVICES (MAX_PHYSICAL_DEVICES)
 #define MR_DCMD_LD_MAP_GET_INFO             0x0300e101
+#define MR_DCMD_CTRL_SHARED_HOST_MEM_ALLOC  0x010e8485   /* SR-IOV HB alloc*/
+#define MR_DCMD_LD_VF_MAP_GET_ALL_LDS_111   0x03200200
+#define MR_DCMD_LD_VF_MAP_GET_ALL_LDS       0x03150200
 
 struct MR_DEV_HANDLE_INFO {
 	u16     curDevHdl;
@@ -518,6 +532,19 @@ struct MR_SPAN_BLOCK_INFO {
 
 struct MR_LD_RAID {
 	struct {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved4:7;
+		u32	fpNonRWCapable:1;
+		u32     fpReadAcrossStripe:1;
+		u32     fpWriteAcrossStripe:1;
+		u32     fpReadCapable:1;
+		u32     fpWriteCapable:1;
+		u32     encryptionType:8;
+		u32     pdPiMode:4;
+		u32     ldPiMode:4;
+		u32     reserved5:3;
+		u32     fpCapable:1;
+#else
 		u32     fpCapable:1;
 		u32     reserved5:3;
 		u32     ldPiMode:4;
@@ -527,7 +554,9 @@ struct MR_LD_RAID {
 		u32     fpReadCapable:1;
 		u32     fpWriteAcrossStripe:1;
 		u32     fpReadAcrossStripe:1;
-		u32     reserved4:8;
+		u32	fpNonRWCapable:1;
+		u32     reserved4:7;
+#endif
 	} capability;
 	u32     reserved6;
 	u64     size;
@@ -551,7 +580,9 @@ struct MR_LD_RAID {
 		u32 reserved:31;
 	} flags;
 
-	u8      reserved3[0x5C];
+	u8	LUN[8]; /* 0x24 8 byte LUN field used for SCSI IO's */
+	u8	fpIoTimeoutForLd;/*0x2C timeout value used by driver in FP IO*/
+	u8      reserved3[0x80-0x2D]; /* 0x2D */
 };
 
 struct MR_LD_SPAN_MAP {
@@ -571,7 +602,6 @@ struct MR_FW_RAID_MAP {
 			u32         maxArrays;
 		} validationInfo;
 		u32             version[5];
-		u32             reserved1[5];
 	};
 
 	u32                 ldCount;
@@ -597,6 +627,8 @@ struct IO_REQUEST_INFO {
 	u8 start_span;
 	u8 reserved;
 	u64 start_row;
+	u8  span_arm;	/* span[7:5], arm[4:0] */
+	u8  pd_after_lb;
 };
 
 struct MR_LD_TARGET_SYNC {
@@ -648,14 +680,14 @@ struct megasas_cmd_fusion {
 	u32 sync_cmd_idx;
 	u32 index;
 	u8 flags;
+	u8 pd_r1_lb;
 };
 
 struct LD_LOAD_BALANCE_INFO {
 	u8	loadBalanceFlag;
 	u8	reserved1;
-	u16     raid1DevHandle[2];
-	atomic_t     scsi_pending_cmds[2];
-	u64     last_accessed_block[2];
+	atomic_t     scsi_pending_cmds[MAX_PHYSICAL_DEVICES];
+	u64     last_accessed_block[MAX_PHYSICAL_DEVICES];
 };
 
 /* SPAN_SET is info caclulated from span info from Raid map per LD */
@@ -683,11 +715,86 @@ struct MR_FW_RAID_MAP_ALL {
 	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES - 1];
 } __attribute__ ((packed));
 
+struct MR_DRV_RAID_MAP {
+	/* total size of this structure, including this field.
+	 * This feild will be manupulated by driver for ext raid map,
+	 * else pick the value from firmware raid map.
+	 */
+	u32                 totalSize;
+
+	union {
+	struct {
+		u32         maxLd;
+		u32         maxSpanDepth;
+		u32         maxRowSize;
+		u32         maxPdCount;
+		u32         maxArrays;
+	} validationInfo;
+	u32             version[5];
+	};
+
+	/* timeout value used by driver in FP IOs*/
+	u8                  fpPdIoTimeoutSec;
+	u8                  reserved2[7];
+
+	u16                 ldCount;
+	u16                 arCount;
+	u16                 spanCount;
+	u16                 reserve3;
+
+	struct MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
+	u8                  ldTgtIdToLd[MAX_LOGICAL_DRIVES_EXT];
+	struct MR_ARRAY_INFO       arMapInfo[MAX_API_ARRAYS_EXT];
+	struct MR_LD_SPAN_MAP      ldSpanMap[1];
+
+};
+
+/* Driver raid map size is same as raid map ext
+ * MR_DRV_RAID_MAP_ALL is created to sync with old raid.
+ * And it is mainly for code re-use purpose.
+ */
+struct MR_DRV_RAID_MAP_ALL {
+
+	struct MR_DRV_RAID_MAP raidMap;
+	struct MR_LD_SPAN_MAP      ldSpanMap[MAX_LOGICAL_DRIVES_EXT - 1];
+} __packed;
+
+
+
+struct MR_FW_RAID_MAP_EXT {
+	/* Not usred in new map */
+	u32                 reserved;
+
+	union {
+	struct {
+		u32         maxLd;
+		u32         maxSpanDepth;
+		u32         maxRowSize;
+		u32         maxPdCount;
+		u32         maxArrays;
+	} validationInfo;
+	u32             version[5];
+	};
+
+	u8                  fpPdIoTimeoutSec;
+	u8                  reserved2[7];
+
+	u16                 ldCount;
+	u16                 arCount;
+	u16                 spanCount;
+	u16                 reserve3;
+
+	struct MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
+	u8                  ldTgtIdToLd[MAX_LOGICAL_DRIVES_EXT];
+	struct MR_ARRAY_INFO       arMapInfo[MAX_API_ARRAYS_EXT];
+	struct MR_LD_SPAN_MAP      ldSpanMap[MAX_LOGICAL_DRIVES_EXT];
+};
+
 struct fusion_context {
 	struct megasas_cmd_fusion **cmd_list;
 	struct list_head cmd_pool;
 
-	spinlock_t cmd_pool_lock;
+	spinlock_t mpt_pool_lock;
 
 	dma_addr_t req_frames_desc_phys;
 	u8 *req_frames_desc;
@@ -719,10 +826,16 @@ struct fusion_context {
 	struct MR_FW_RAID_MAP_ALL *ld_map[2];
 	dma_addr_t ld_map_phys[2];
 
-	u32 map_sz;
+	/*Non dma-able memory. Driver local copy.*/
+	struct MR_DRV_RAID_MAP_ALL *ld_drv_map[2];
+
+	u32 max_map_sz;
+	u32 current_map_sz;
+	u32 drv_map_sz;
+	u32 drv_map_pages;
 	u8 fast_path_io;
-	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES];
-	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES];
+	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
+	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 };
 
 union desc_value {
@@ -732,5 +845,6 @@ union desc_value {
 		u32 high;
 	} u;
 };
+
 
 #endif /* _MEGARAID_SAS_FUSION_H_ */

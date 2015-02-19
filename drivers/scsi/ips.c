@@ -374,6 +374,7 @@ static struct scsi_host_template ips_driver_template = {
 	.sg_tablesize		= IPS_MAX_SG,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.no_write_same		= 1,
 };
 
 
@@ -527,7 +528,7 @@ ips_setup(char *ips_str)
 		 * Update the variables
 		 */
 		for (i = 0; i < ARRAY_SIZE(options); i++) {
-			if (strnicmp
+			if (strncasecmp
 			    (key, options[i].option_name,
 			     strlen(options[i].option_name)) == 0) {
 				if (value)
@@ -1209,7 +1210,7 @@ ips_slave_configure(struct scsi_device * SDptr)
 		min = ha->max_cmds / 2;
 		if (ha->enq->ucLogDriveCount <= 2)
 			min = ha->max_cmds - 1;
-		scsi_adjust_queue_depth(SDptr, MSG_ORDERED_TAG, min);
+		scsi_change_queue_depth(SDptr, min);
 	}
 
 	SDptr->skip_ms_page_8 = 1;
@@ -2037,15 +2038,14 @@ ips_host_info(ips_ha_t *ha, struct seq_file *m)
 {
 	METHOD_TRACE("ips_host_info", 1);
 
-	seq_printf(m, "\nIBM ServeRAID General Information:\n\n");
+	seq_puts(m, "\nIBM ServeRAID General Information:\n\n");
 
 	if ((le32_to_cpu(ha->nvram->signature) == IPS_NVRAM_P5_SIG) &&
 	    (le16_to_cpu(ha->nvram->adapter_type) != 0))
 		seq_printf(m, "\tController Type                   : %s\n",
 			  ips_adapter_name[ha->ad_type - 1]);
 	else
-		seq_printf(m,
-			  "\tController Type                   : Unknown\n");
+		seq_puts(m, "\tController Type                   : Unknown\n");
 
 	if (ha->io_addr)
 		seq_printf(m,
@@ -2137,7 +2137,7 @@ ips_host_info(ips_ha_t *ha, struct seq_file *m)
 	seq_printf(m, "\tCurrent Active PT Commands        : %d\n",
 		  ha->num_ioctl);
 
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 
 	return 0;
 }

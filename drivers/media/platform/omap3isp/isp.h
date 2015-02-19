@@ -12,16 +12,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #ifndef OMAP3_ISP_CORE_H
@@ -44,8 +34,6 @@
 #include "ispcsiphy.h"
 #include "ispcsi2.h"
 #include "ispccp2.h"
-
-#define IOMMU_FLAG (IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_8)
 
 #define ISP_TOK_TERM		0xFFFFFFFF	/*
 						 * terminating token for ISP
@@ -135,6 +123,7 @@ struct isp_xclk {
 	struct isp_device *isp;
 	struct clk_hw hw;
 	struct clk_lookup *lookup;
+	struct clk *clk;
 	enum isp_xclk_id id;
 
 	spinlock_t lock;	/* Protects enabled and divider */
@@ -151,10 +140,10 @@ struct isp_xclk {
  *             regions.
  * @mmio_base_phys: Array with physical L4 bus addresses for ISP register
  *                  regions.
- * @mmio_size: Array with ISP register regions size in bytes.
- * @raw_dmamask: Raw DMA mask
+ * @mapping: IOMMU mapping
  * @stat_lock: Spinlock for handling statistics
  * @isp_mutex: Mutex for serializing requests to ISP.
+ * @stop_failure: Indicates that an entity failed to stop.
  * @crashed: Bitmask of crashed entities (indexed by entity ID)
  * @has_context: Context has been saved at least once and can be restored.
  * @ref_count: Reference count for handling multiple ISP requests.
@@ -171,7 +160,6 @@ struct isp_xclk {
  * @isp_res: Pointer to current settings for ISP Resizer.
  * @isp_prev: Pointer to current settings for ISP Preview.
  * @isp_ccdc: Pointer to current settings for ISP CCDC.
- * @iommu: Pointer to requested IOMMU instance for ISP.
  * @platform_cb: ISP driver callback function pointers for platform code
  *
  * This structure is used to store the OMAP ISP Information.
@@ -188,13 +176,13 @@ struct isp_device {
 
 	void __iomem *mmio_base[OMAP3_ISP_IOMEM_LAST];
 	unsigned long mmio_base_phys[OMAP3_ISP_IOMEM_LAST];
-	resource_size_t mmio_size[OMAP3_ISP_IOMEM_LAST];
 
-	u64 raw_dmamask;
+	struct dma_iommu_mapping *mapping;
 
 	/* ISP Obj */
 	spinlock_t stat_lock;	/* common lock for statistic drivers */
 	struct mutex isp_mutex;	/* For handling ref_count field */
+	bool stop_failure;
 	u32 crashed;
 	int has_context;
 	int ref_count;
@@ -221,8 +209,6 @@ struct isp_device {
 
 	unsigned int sbl_resources;
 	unsigned int subclk_resources;
-
-	struct iommu_domain *domain;
 };
 
 #define v4l2_dev_to_isp_device(dev) \
@@ -240,6 +226,7 @@ int omap3isp_module_sync_is_stopping(wait_queue_head_t *wait,
 
 int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
 				 enum isp_pipeline_stream_state state);
+void omap3isp_pipeline_cancel_stream(struct isp_pipeline *pipe);
 void omap3isp_configure_bridge(struct isp_device *isp,
 			       enum ccdc_input_entity input,
 			       const struct isp_parallel_platform_data *pdata,
@@ -266,7 +253,7 @@ void omap3isp_unregister_entities(struct platform_device *pdev);
 
 /*
  * isp_reg_readl - Read value of an OMAP3 ISP register
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  * @isp_mmio_range: Range to which the register offset refers to.
  * @reg_offset: Register offset to read from.
  *
@@ -281,7 +268,7 @@ u32 isp_reg_readl(struct isp_device *isp, enum isp_mem_resources isp_mmio_range,
 
 /*
  * isp_reg_writel - Write value to an OMAP3 ISP register
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  * @reg_value: 32 bit value to write to the register.
  * @isp_mmio_range: Range to which the register offset refers to.
  * @reg_offset: Register offset to write into.
@@ -294,8 +281,8 @@ void isp_reg_writel(struct isp_device *isp, u32 reg_value,
 }
 
 /*
- * isp_reg_and - Clear individual bits in an OMAP3 ISP register
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * isp_reg_clr - Clear individual bits in an OMAP3 ISP register
+ * @isp: Device pointer specific to the OMAP3 ISP.
  * @mmio_range: Range to which the register offset refers to.
  * @reg: Register offset to work on.
  * @clr_bits: 32 bit value which would be cleared in the register.
@@ -311,7 +298,7 @@ void isp_reg_clr(struct isp_device *isp, enum isp_mem_resources mmio_range,
 
 /*
  * isp_reg_set - Set individual bits in an OMAP3 ISP register
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  * @mmio_range: Range to which the register offset refers to.
  * @reg: Register offset to work on.
  * @set_bits: 32 bit value which would be set in the register.
@@ -327,7 +314,7 @@ void isp_reg_set(struct isp_device *isp, enum isp_mem_resources mmio_range,
 
 /*
  * isp_reg_clr_set - Clear and set invidial bits in an OMAP3 ISP register
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  * @mmio_range: Range to which the register offset refers to.
  * @reg: Register offset to work on.
  * @clr_bits: 32 bit value which would be cleared in the register.

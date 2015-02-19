@@ -773,7 +773,6 @@ static int platform_pmic_battery_remove(struct platform_device *pdev)
 static struct platform_driver platform_pmic_battery_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = platform_pmic_battery_probe,
 	.remove = platform_pmic_battery_remove,

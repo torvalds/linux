@@ -1020,8 +1020,12 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 
 	/* Fetch the update interval */
 	ret = ti_bandgap_read_update_interval(bgp, id, &interval);
-	if (ret || !interval)
+	if (ret)
 		goto unfreeze;
+
+	/* Set the interval to 1 ms if bandgap counter delay is not set */
+	if (interval == 0)
+		interval = 1;
 
 	*trend = (t1 - t2) / interval;
 
@@ -1151,7 +1155,7 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	/* register shadow for context save and restore */
 	bgp->regval = devm_kzalloc(&pdev->dev, sizeof(*bgp->regval) *
 				   bgp->conf->sensor_count, GFP_KERNEL);
-	if (!bgp) {
+	if (!bgp->regval) {
 		dev_err(&pdev->dev, "Unable to allocate mem for driver ref\n");
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1244,7 +1248,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	clk_rate = clk_round_rate(bgp->div_clk,
 				  bgp->conf->sensors[0].ts_data->max_freq);
 	if (clk_rate < bgp->conf->sensors[0].ts_data->min_freq ||
-	    clk_rate == 0xffffffff) {
+	    clk_rate <= 0) {
 		ret = -ENODEV;
 		dev_err(&pdev->dev, "wrong clock rate (%d)\n", clk_rate);
 		goto put_clks;
@@ -1496,10 +1500,8 @@ static int ti_bandgap_resume(struct device *dev)
 
 	return ti_bandgap_restore_ctxt(bgp);
 }
-static const struct dev_pm_ops ti_bandgap_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ti_bandgap_suspend,
-				ti_bandgap_resume)
-};
+static SIMPLE_DEV_PM_OPS(ti_bandgap_dev_pm_ops, ti_bandgap_suspend,
+			 ti_bandgap_resume);
 
 #define DEV_PM_OPS	(&ti_bandgap_dev_pm_ops)
 #else

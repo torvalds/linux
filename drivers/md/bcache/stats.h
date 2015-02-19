@@ -38,7 +38,9 @@ struct cache_accounting {
 	struct cache_stats day;
 };
 
-struct search;
+struct cache_set;
+struct cached_dev;
+struct bcache_device;
 
 void bch_cache_accounting_init(struct cache_accounting *acc,
 			       struct closure *parent);
@@ -50,9 +52,10 @@ void bch_cache_accounting_clear(struct cache_accounting *acc);
 
 void bch_cache_accounting_destroy(struct cache_accounting *acc);
 
-void bch_mark_cache_accounting(struct search *s, bool hit, bool bypass);
-void bch_mark_cache_readahead(struct search *s);
-void bch_mark_cache_miss_collision(struct search *s);
-void bch_mark_sectors_bypassed(struct search *s, int sectors);
+void bch_mark_cache_accounting(struct cache_set *, struct bcache_device *,
+			       bool, bool);
+void bch_mark_cache_readahead(struct cache_set *, struct bcache_device *);
+void bch_mark_cache_miss_collision(struct cache_set *, struct bcache_device *);
+void bch_mark_sectors_bypassed(struct cache_set *, struct cached_dev *, int);
 
 #endif /* _BCACHE_STATS_H_ */

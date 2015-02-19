@@ -106,7 +106,7 @@ snd_seq_oss_synth_register(struct snd_seq_device *dev)
 	unsigned long flags;
 
 	if ((rec = kzalloc(sizeof(*rec), GFP_KERNEL)) == NULL) {
-		snd_printk(KERN_ERR "can't malloc synth info\n");
+		pr_err("ALSA: seq_oss: can't malloc synth info\n");
 		return -ENOMEM;
 	}
 	rec->seq_device = -1;
@@ -130,7 +130,7 @@ snd_seq_oss_synth_register(struct snd_seq_device *dev)
 	if (i >= max_synth_devs) {
 		if (max_synth_devs >= SNDRV_SEQ_OSS_MAX_SYNTH_DEVS) {
 			spin_unlock_irqrestore(&register_lock, flags);
-			snd_printk(KERN_ERR "no more synth slot\n");
+			pr_err("ALSA: seq_oss: no more synth slot\n");
 			kfree(rec);
 			return -ENOMEM;
 		}
@@ -138,7 +138,6 @@ snd_seq_oss_synth_register(struct snd_seq_device *dev)
 	}
 	rec->seq_device = i;
 	synth_devs[i] = rec;
-	debug_printk(("synth %s registered %d\n", rec->name, i));
 	spin_unlock_irqrestore(&register_lock, flags);
 	dev->driver_data = rec;
 #ifdef SNDRV_OSS_INFO_DEV_SYNTH
@@ -163,7 +162,7 @@ snd_seq_oss_synth_unregister(struct snd_seq_device *dev)
 	}
 	if (index >= max_synth_devs) {
 		spin_unlock_irqrestore(&register_lock, flags);
-		snd_printk(KERN_ERR "can't unregister synth\n");
+		pr_err("ALSA: seq_oss: can't unregister synth\n");
 		return -EINVAL;
 	}
 	synth_devs[index] = NULL;
@@ -248,7 +247,7 @@ snd_seq_oss_synth_setup(struct seq_oss_devinfo *dp)
 		if (info->nr_voices > 0) {
 			info->ch = kcalloc(info->nr_voices, sizeof(struct seq_oss_chinfo), GFP_KERNEL);
 			if (!info->ch) {
-				snd_printk(KERN_ERR "Cannot malloc\n");
+				pr_err("ALSA: seq_oss: Cannot malloc voices\n");
 				rec->oper.close(&info->arg);
 				module_put(rec->oper.owner);
 				snd_use_lock_free(&rec->use_lock);
@@ -256,7 +255,6 @@ snd_seq_oss_synth_setup(struct seq_oss_devinfo *dp)
 			}
 			reset_channels(info);
 		}
-		debug_printk(("synth %d assigned\n", i));
 		info->opened++;
 		rec->opened++;
 		dp->synth_opened++;
@@ -326,7 +324,6 @@ snd_seq_oss_synth_cleanup(struct seq_oss_devinfo *dp)
 			if (rec == NULL)
 				continue;
 			if (rec->opened > 0) {
-				debug_printk(("synth %d closed\n", i));
 				rec->oper.close(&info->arg);
 				module_put(rec->oper.owner);
 				rec->opened = 0;

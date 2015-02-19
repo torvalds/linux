@@ -139,9 +139,8 @@ static const struct watchdog_info ident = {
 static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			   unsigned long arg)
 {
-	unsigned int new_margin;
 	int __user *int_arg = (int __user *)arg;
-	int ret = -ENOTTY;
+	int new_margin, ret = -ENOTTY;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
@@ -224,7 +223,6 @@ static void __exit footbridge_watchdog_exit(void)
 MODULE_AUTHOR("Phil Blundell <pb@nexus.co.uk>");
 MODULE_DESCRIPTION("Footbridge watchdog driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(soft_margin, int, 0);
 MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");

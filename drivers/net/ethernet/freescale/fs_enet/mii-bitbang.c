@@ -15,13 +15,13 @@
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/platform_device.h>
 #include <linux/mdio-bitbang.h>
+#include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 
@@ -224,7 +224,6 @@ MODULE_DEVICE_TABLE(of, fs_enet_mdio_bb_match);
 static struct platform_driver fs_enet_bb_mdio_driver = {
 	.driver = {
 		.name = "fsl-bb-mdio",
-		.owner = THIS_MODULE,
 		.of_match_table = fs_enet_mdio_bb_match,
 	},
 	.probe = fs_enet_mdio_probe,

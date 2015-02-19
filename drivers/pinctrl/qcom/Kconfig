@@ -1,0 +1,71 @@
+if (ARCH_QCOM || COMPILE_TEST)
+
+config PINCTRL_MSM
+	bool
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+
+config PINCTRL_APQ8064
+	tristate "Qualcomm APQ8064 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found in the Qualcomm APQ8064 platform.
+
+config PINCTRL_APQ8084
+	tristate "Qualcomm APQ8084 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found in the Qualcomm APQ8084 platform.
+
+config PINCTRL_IPQ8064
+	tristate "Qualcomm IPQ8064 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found in the Qualcomm IPQ8064 platform.
+
+config PINCTRL_MSM8960
+	tristate "Qualcomm 8960 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found in the Qualcomm 8960 platform.
+
+config PINCTRL_MSM8X74
+	tristate "Qualcomm 8x74 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found in the Qualcomm 8974 platform.
+
+config PINCTRL_MSM8916
+	tristate "Qualcomm 8916 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found on the Qualcomm 8916 platform.
+
+config PINCTRL_QCOM_SPMI_PMIC
+       tristate "Qualcomm SPMI PMIC pin controller driver"
+       depends on GPIOLIB && OF && SPMI
+       select REGMAP_SPMI
+       select PINMUX
+       select PINCONF
+       select GENERIC_PINCONF
+       help
+         This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+         Qualcomm GPIO and MPP blocks found in the Qualcomm PMIC's chips,
+         which are using SPMI for communication with SoC. Example PMIC's
+         devices are pm8841, pm8941 and pma8084.
+
+endif

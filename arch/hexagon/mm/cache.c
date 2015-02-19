@@ -68,6 +68,7 @@ void flush_icache_range(unsigned long start, unsigned long end)
 	);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL(flush_icache_range);
 
 void hexagon_clean_dcache_range(unsigned long start, unsigned long end)
 {
@@ -125,4 +126,14 @@ void flush_cache_all_hexagon(void)
 	__vmcache_l2kill();
 	local_irq_restore(flags);
 	mb();
+}
+
+void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
+		       unsigned long vaddr, void *dst, void *src, int len)
+{
+	memcpy(dst, src, len);
+	if (vma->vm_flags & VM_EXEC) {
+		flush_icache_range((unsigned long) dst,
+		(unsigned long) dst + len);
+	}
 }

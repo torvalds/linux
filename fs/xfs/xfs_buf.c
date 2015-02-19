@@ -34,15 +34,15 @@
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
 
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
-#include "xfs_log.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 
 static kmem_zone_t *xfs_buf_zone;
-
-static struct workqueue_struct *xfslogd_workqueue;
 
 #ifdef XFS_BUF_LOCK_TRACKING
 # define XB_SET_OWNER(bp)	((bp)->b_last_holder = current->pid)
@@ -80,54 +80,6 @@ xfs_buf_vmap_len(
 }
 
 /*
- * xfs_buf_lru_add - add a buffer to the LRU.
- *
- * The LRU takes a new reference to the buffer so that it will only be freed
- * once the shrinker takes the buffer off the LRU.
- */
-STATIC void
-xfs_buf_lru_add(
-	struct xfs_buf	*bp)
-{
-	struct xfs_buftarg *btp = bp->b_target;
-
-	spin_lock(&btp->bt_lru_lock);
-	if (list_empty(&bp->b_lru)) {
-		atomic_inc(&bp->b_hold);
-		list_add_tail(&bp->b_lru, &btp->bt_lru);
-		btp->bt_lru_nr++;
-		bp->b_lru_flags &= ~_XBF_LRU_DISPOSE;
-	}
-	spin_unlock(&btp->bt_lru_lock);
-}
-
-/*
- * xfs_buf_lru_del - remove a buffer from the LRU
- *
- * The unlocked check is safe here because it only occurs when there are not
- * b_lru_ref counts left on the inode under the pag->pag_buf_lock. it is there
- * to optimise the shrinker removing the buffer from the LRU and calling
- * xfs_buf_free(). i.e. it removes an unnecessary round trip on the
- * bt_lru_lock.
- */
-STATIC void
-xfs_buf_lru_del(
-	struct xfs_buf	*bp)
-{
-	struct xfs_buftarg *btp = bp->b_target;
-
-	if (list_empty(&bp->b_lru))
-		return;
-
-	spin_lock(&btp->bt_lru_lock);
-	if (!list_empty(&bp->b_lru)) {
-		list_del_init(&bp->b_lru);
-		btp->bt_lru_nr--;
-	}
-	spin_unlock(&btp->bt_lru_lock);
-}
-
-/*
  * When we mark a buffer stale, we remove the buffer from the LRU and clear the
  * b_lru_ref count so that the buffer is freed immediately when the buffer
  * reference count falls to zero. If the buffer is already on the LRU, we need
@@ -150,20 +102,14 @@ xfs_buf_stale(
 	 */
 	bp->b_flags &= ~_XBF_DELWRI_Q;
 
-	atomic_set(&(bp)->b_lru_ref, 0);
-	if (!list_empty(&bp->b_lru)) {
-		struct xfs_buftarg *btp = bp->b_target;
+	spin_lock(&bp->b_lock);
+	atomic_set(&bp->b_lru_ref, 0);
+	if (!(bp->b_state & XFS_BSTATE_DISPOSE) &&
+	    (list_lru_del(&bp->b_target->bt_lru, &bp->b_lru)))
+		atomic_dec(&bp->b_hold);
 
-		spin_lock(&btp->bt_lru_lock);
-		if (!list_empty(&bp->b_lru) &&
-		    !(bp->b_lru_flags & _XBF_LRU_DISPOSE)) {
-			list_del_init(&bp->b_lru);
-			btp->bt_lru_nr--;
-			atomic_dec(&bp->b_hold);
-		}
-		spin_unlock(&btp->bt_lru_lock);
-	}
 	ASSERT(atomic_read(&bp->b_hold) >= 1);
+	spin_unlock(&bp->b_lock);
 }
 
 static int
@@ -182,7 +128,7 @@ xfs_buf_get_maps(
 	bp->b_maps = kmem_zalloc(map_count * sizeof(struct xfs_buf_map),
 				KM_NOFS);
 	if (!bp->b_maps)
-		return ENOMEM;
+		return -ENOMEM;
 	return 0;
 }
 
@@ -227,6 +173,7 @@ _xfs_buf_alloc(
 	INIT_LIST_HEAD(&bp->b_list);
 	RB_CLEAR_NODE(&bp->b_rbnode);
 	sema_init(&bp->b_sema, 0); /* held, no waiters */
+	spin_lock_init(&bp->b_lock);
 	XB_SET_OWNER(bp);
 	bp->b_target = target;
 	bp->b_flags = flags;
@@ -267,8 +214,7 @@ _xfs_buf_alloc(
 STATIC int
 _xfs_buf_get_pages(
 	xfs_buf_t		*bp,
-	int			page_count,
-	xfs_buf_flags_t		flags)
+	int			page_count)
 {
 	/* Make sure that we have a page list */
 	if (bp->b_pages == NULL) {
@@ -303,7 +249,7 @@ _xfs_buf_free_pages(
  *	Releases the specified buffer.
  *
  * 	The modification state of any associated pages is left unchanged.
- * 	The buffer most not be on any hash - use xfs_buf_rele instead for
+ * 	The buffer must not be on any hash - use xfs_buf_rele instead for
  * 	hashed and refcounted buffers
  */
 void
@@ -381,7 +327,7 @@ use_alloc_page:
 	end = (BBTOB(bp->b_maps[0].bm_bn + bp->b_length) + PAGE_SIZE - 1)
 								>> PAGE_SHIFT;
 	page_count = end - start;
-	error = _xfs_buf_get_pages(bp, page_count, flags);
+	error = _xfs_buf_get_pages(bp, page_count);
 	if (unlikely(error))
 		return error;
 
@@ -396,7 +342,7 @@ retry:
 		if (unlikely(page == NULL)) {
 			if (flags & XBF_READ_AHEAD) {
 				bp->b_page_count = i;
-				error = ENOMEM;
+				error = -ENOMEM;
 				goto out_free_pages;
 			}
 
@@ -447,7 +393,17 @@ _xfs_buf_map_pages(
 		bp->b_addr = NULL;
 	} else {
 		int retried = 0;
+		unsigned noio_flag;
 
+		/*
+		 * vm_map_ram() will allocate auxillary structures (e.g.
+		 * pagetables) with GFP_KERNEL, yet we are likely to be under
+		 * GFP_NOFS context here. Hence we need to tell memory reclaim
+		 * that we are in such a context via PF_MEMALLOC_NOIO to prevent
+		 * memory reclaim re-entering the filesystem here and
+		 * potentially deadlocking.
+		 */
+		noio_flag = memalloc_noio_save();
 		do {
 			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
 						-1, PAGE_KERNEL);
@@ -455,6 +411,7 @@ _xfs_buf_map_pages(
 				break;
 			vm_unmap_aliases();
 		} while (retried++ <= 1);
+		memalloc_noio_restore(noio_flag);
 
 		if (!bp->b_addr)
 			return -ENOMEM;
@@ -496,17 +453,17 @@ _xfs_buf_find(
 	numbytes = BBTOB(numblks);
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
-	ASSERT(!(numbytes < (1 << btp->bt_sshift)));
-	ASSERT(!(BBTOB(blkno) & (xfs_off_t)btp->bt_smask));
+	ASSERT(!(numbytes < btp->bt_meta_sectorsize));
+	ASSERT(!(BBTOB(blkno) & (xfs_off_t)btp->bt_meta_sectormask));
 
 	/*
 	 * Corrupted block numbers can get through to here, unfortunately, so we
 	 * have to check that the buffer falls within the filesystem bounds.
 	 */
 	eofs = XFS_FSB_TO_BB(btp->bt_mount, btp->bt_mount->m_sb.sb_dblocks);
-	if (blkno >= eofs) {
+	if (blkno < 0 || blkno >= eofs) {
 		/*
-		 * XXX (dgc): we should really be returning EFSCORRUPTED here,
+		 * XXX (dgc): we should really be returning -EFSCORRUPTED here,
 		 * but none of the higher level infrastructure supports
 		 * returning a specific error on buffer lookup failures.
 		 */
@@ -642,7 +599,7 @@ found:
 		error = _xfs_buf_map_pages(bp, flags);
 		if (unlikely(error)) {
 			xfs_warn(target->bt_mount,
-				"%s: failed to map pages\n", __func__);
+				"%s: failed to map pagesn", __func__);
 			xfs_buf_relse(bp);
 			return NULL;
 		}
@@ -664,10 +621,11 @@ _xfs_buf_read(
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
-	xfs_buf_iorequest(bp);
-	if (flags & XBF_ASYNC)
+	if (flags & XBF_ASYNC) {
+		xfs_buf_submit(bp);
 		return 0;
-	return xfs_buf_iowait(bp);
+	}
+	return xfs_buf_submit_wait(bp);
 }
 
 xfs_buf_t *
@@ -728,30 +686,39 @@ xfs_buf_readahead_map(
  * Read an uncached buffer from disk. Allocates and returns a locked
  * buffer containing the disk contents or nothing.
  */
-struct xfs_buf *
+int
 xfs_buf_read_uncached(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		daddr,
 	size_t			numblks,
 	int			flags,
+	struct xfs_buf		**bpp,
 	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf		*bp;
 
+	*bpp = NULL;
+
 	bp = xfs_buf_get_uncached(target, numblks, flags);
 	if (!bp)
-		return NULL;
+		return -ENOMEM;
 
 	/* set up the buffer for a read IO */
 	ASSERT(bp->b_map_count == 1);
-	bp->b_bn = daddr;
+	bp->b_bn = XFS_BUF_DADDR_NULL;  /* always null for uncached buffers */
 	bp->b_maps[0].bm_bn = daddr;
 	bp->b_flags |= XBF_READ;
 	bp->b_ops = ops;
 
-	xfsbdstrat(target->bt_mount, bp);
-	xfs_buf_iowait(bp);
-	return bp;
+	xfs_buf_submit_wait(bp);
+	if (bp->b_error) {
+		int	error = bp->b_error;
+		xfs_buf_relse(bp);
+		return error;
+	}
+
+	*bpp = bp;
+	return 0;
 }
 
 /*
@@ -814,7 +781,7 @@ xfs_buf_associate_memory(
 	bp->b_pages = NULL;
 	bp->b_addr = mem;
 
-	rval = _xfs_buf_get_pages(bp, page_count, 0);
+	rval = _xfs_buf_get_pages(bp, page_count);
 	if (rval)
 		return rval;
 
@@ -847,7 +814,7 @@ xfs_buf_get_uncached(
 		goto fail;
 
 	page_count = PAGE_ALIGN(numblks << BBSHIFT) >> PAGE_SHIFT;
-	error = _xfs_buf_get_pages(bp, page_count, 0);
+	error = _xfs_buf_get_pages(bp, page_count);
 	if (error)
 		goto fail_free_buf;
 
@@ -861,7 +828,7 @@ xfs_buf_get_uncached(
 	error = _xfs_buf_map_pages(bp, 0);
 	if (unlikely(error)) {
 		xfs_warn(target->bt_mount,
-			"%s: failed to map pages\n", __func__);
+			"%s: failed to map pages", __func__);
 		goto fail_free_mem;
 	}
 
@@ -916,12 +883,33 @@ xfs_buf_rele(
 
 	ASSERT(atomic_read(&bp->b_hold) > 0);
 	if (atomic_dec_and_lock(&bp->b_hold, &pag->pag_buf_lock)) {
-		if (!(bp->b_flags & XBF_STALE) &&
-			   atomic_read(&bp->b_lru_ref)) {
-			xfs_buf_lru_add(bp);
+		spin_lock(&bp->b_lock);
+		if (!(bp->b_flags & XBF_STALE) && atomic_read(&bp->b_lru_ref)) {
+			/*
+			 * If the buffer is added to the LRU take a new
+			 * reference to the buffer for the LRU and clear the
+			 * (now stale) dispose list state flag
+			 */
+			if (list_lru_add(&bp->b_target->bt_lru, &bp->b_lru)) {
+				bp->b_state &= ~XFS_BSTATE_DISPOSE;
+				atomic_inc(&bp->b_hold);
+			}
+			spin_unlock(&bp->b_lock);
 			spin_unlock(&pag->pag_buf_lock);
 		} else {
-			xfs_buf_lru_del(bp);
+			/*
+			 * most of the time buffers will already be removed from
+			 * the LRU, so optimise that case by checking for the
+			 * XFS_BSTATE_DISPOSE flag indicating the last list the
+			 * buffer was on was the disposal list
+			 */
+			if (!(bp->b_state & XFS_BSTATE_DISPOSE)) {
+				list_lru_del(&bp->b_target->bt_lru, &bp->b_lru);
+			} else {
+				ASSERT(list_empty(&bp->b_lru));
+			}
+			spin_unlock(&bp->b_lock);
+
 			ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 			rb_erase(&bp->b_rbnode, &pag->pag_buf_tree);
 			spin_unlock(&pag->pag_buf_lock);
@@ -1014,53 +1002,56 @@ xfs_buf_wait_unpin(
  *	Buffer Utility Routines
  */
 
-STATIC void
-xfs_buf_iodone_work(
-	struct work_struct	*work)
+void
+xfs_buf_ioend(
+	struct xfs_buf	*bp)
 {
-	struct xfs_buf		*bp =
-		container_of(work, xfs_buf_t, b_iodone_work);
-	bool			read = !!(bp->b_flags & XBF_READ);
+	bool		read = bp->b_flags & XBF_READ;
+
+	trace_xfs_buf_iodone(bp, _RET_IP_);
 
 	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 
-	/* only validate buffers that were read without errors */
-	if (read && bp->b_ops && !bp->b_error && (bp->b_flags & XBF_DONE))
+	/*
+	 * Pull in IO completion errors now. We are guaranteed to be running
+	 * single threaded, so we don't need the lock to read b_io_error.
+	 */
+	if (!bp->b_error && bp->b_io_error)
+		xfs_buf_ioerror(bp, bp->b_io_error);
+
+	/* Only validate buffers that were read without errors */
+	if (read && !bp->b_error && bp->b_ops) {
+		ASSERT(!bp->b_iodone);
 		bp->b_ops->verify_read(bp);
+	}
+
+	if (!bp->b_error)
+		bp->b_flags |= XBF_DONE;
 
 	if (bp->b_iodone)
 		(*(bp->b_iodone))(bp);
 	else if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);
-	else {
-		ASSERT(read && bp->b_ops);
+	else
 		complete(&bp->b_iowait);
-	}
+}
+
+static void
+xfs_buf_ioend_work(
+	struct work_struct	*work)
+{
+	struct xfs_buf		*bp =
+		container_of(work, xfs_buf_t, b_ioend_work);
+
+	xfs_buf_ioend(bp);
 }
 
 void
-xfs_buf_ioend(
-	struct xfs_buf	*bp,
-	int		schedule)
+xfs_buf_ioend_async(
+	struct xfs_buf	*bp)
 {
-	bool		read = !!(bp->b_flags & XBF_READ);
-
-	trace_xfs_buf_iodone(bp, _RET_IP_);
-
-	if (bp->b_error == 0)
-		bp->b_flags |= XBF_DONE;
-
-	if (bp->b_iodone || (read && bp->b_ops) || (bp->b_flags & XBF_ASYNC)) {
-		if (schedule) {
-			INIT_WORK(&bp->b_iodone_work, xfs_buf_iodone_work);
-			queue_work(xfslogd_workqueue, &bp->b_iodone_work);
-		} else {
-			xfs_buf_iodone_work(&bp->b_iodone_work);
-		}
-	} else {
-		bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
-		complete(&bp->b_iowait);
-	}
+	INIT_WORK(&bp->b_ioend_work, xfs_buf_ioend_work);
+	queue_work(bp->b_ioend_wq, &bp->b_ioend_work);
 }
 
 void
@@ -1068,8 +1059,8 @@ xfs_buf_ioerror(
 	xfs_buf_t		*bp,
 	int			error)
 {
-	ASSERT(error >= 0 && error <= 0xffff);
-	bp->b_error = (unsigned short)error;
+	ASSERT(error <= 0 && error >= -1000);
+	bp->b_error = error;
 	trace_xfs_buf_ioerror(bp, error, _RET_IP_);
 }
 
@@ -1080,97 +1071,7 @@ xfs_buf_ioerror_alert(
 {
 	xfs_alert(bp->b_target->bt_mount,
 "metadata I/O error: block 0x%llx (\"%s\") error %d numblks %d",
-		(__uint64_t)XFS_BUF_ADDR(bp), func, bp->b_error, bp->b_length);
-}
-
-/*
- * Called when we want to stop a buffer from getting written or read.
- * We attach the EIO error, muck with its flags, and call xfs_buf_ioend
- * so that the proper iodone callbacks get called.
- */
-STATIC int
-xfs_bioerror(
-	xfs_buf_t *bp)
-{
-#ifdef XFSERRORDEBUG
-	ASSERT(XFS_BUF_ISREAD(bp) || bp->b_iodone);
-#endif
-
-	/*
-	 * No need to wait until the buffer is unpinned, we aren't flushing it.
-	 */
-	xfs_buf_ioerror(bp, EIO);
-
-	/*
-	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag.
-	 */
-	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDONE(bp);
-	xfs_buf_stale(bp);
-
-	xfs_buf_ioend(bp, 0);
-
-	return EIO;
-}
-
-/*
- * Same as xfs_bioerror, except that we are releasing the buffer
- * here ourselves, and avoiding the xfs_buf_ioend call.
- * This is meant for userdata errors; metadata bufs come with
- * iodone functions attached, so that we can track down errors.
- */
-STATIC int
-xfs_bioerror_relse(
-	struct xfs_buf	*bp)
-{
-	int64_t		fl = bp->b_flags;
-	/*
-	 * No need to wait until the buffer is unpinned.
-	 * We aren't flushing it.
-	 *
-	 * chunkhold expects B_DONE to be set, whether
-	 * we actually finish the I/O or not. We don't want to
-	 * change that interface.
-	 */
-	XFS_BUF_UNREAD(bp);
-	XFS_BUF_DONE(bp);
-	xfs_buf_stale(bp);
-	bp->b_iodone = NULL;
-	if (!(fl & XBF_ASYNC)) {
-		/*
-		 * Mark b_error and B_ERROR _both_.
-		 * Lot's of chunkcache code assumes that.
-		 * There's no reason to mark error for
-		 * ASYNC buffers.
-		 */
-		xfs_buf_ioerror(bp, EIO);
-		complete(&bp->b_iowait);
-	} else {
-		xfs_buf_relse(bp);
-	}
-
-	return EIO;
-}
-
-STATIC int
-xfs_bdstrat_cb(
-	struct xfs_buf	*bp)
-{
-	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
-		trace_xfs_bdstrat_shut(bp, _RET_IP_);
-		/*
-		 * Metadata write that didn't get logged but
-		 * written delayed anyway. These aren't associated
-		 * with a transaction, and can be ignored.
-		 */
-		if (!bp->b_iodone && !XFS_BUF_ISREAD(bp))
-			return xfs_bioerror_relse(bp);
-		else
-			return xfs_bioerror(bp);
-	}
-
-	xfs_buf_iorequest(bp);
-	return 0;
+		(__uint64_t)XFS_BUF_ADDR(bp), func, -bp->b_error, bp->b_length);
 }
 
 int
@@ -1182,44 +1083,15 @@ xfs_bwrite(
 	ASSERT(xfs_buf_islocked(bp));
 
 	bp->b_flags |= XBF_WRITE;
-	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q);
+	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q |
+			 XBF_WRITE_FAIL | XBF_DONE);
 
-	xfs_bdstrat_cb(bp);
-
-	error = xfs_buf_iowait(bp);
+	error = xfs_buf_submit_wait(bp);
 	if (error) {
 		xfs_force_shutdown(bp->b_target->bt_mount,
 				   SHUTDOWN_META_IO_ERROR);
 	}
 	return error;
-}
-
-/*
- * Wrapper around bdstrat so that we can stop data from going to disk in case
- * we are shutting down the filesystem.  Typically user data goes thru this
- * path; one of the exceptions is the superblock.
- */
-void
-xfsbdstrat(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
-{
-	if (XFS_FORCED_SHUTDOWN(mp)) {
-		trace_xfs_bdstrat_shut(bp, _RET_IP_);
-		xfs_bioerror_relse(bp);
-		return;
-	}
-
-	xfs_buf_iorequest(bp);
-}
-
-STATIC void
-_xfs_buf_ioend(
-	xfs_buf_t		*bp,
-	int			schedule)
-{
-	if (atomic_dec_and_test(&bp->b_io_remaining) == 1)
-		xfs_buf_ioend(bp, schedule);
 }
 
 STATIC void
@@ -1233,13 +1105,18 @@ xfs_buf_bio_end_io(
 	 * don't overwrite existing errors - otherwise we can lose errors on
 	 * buffers that require multiple bios to complete.
 	 */
-	if (!bp->b_error)
-		xfs_buf_ioerror(bp, -error);
+	if (error) {
+		spin_lock(&bp->b_lock);
+		if (!bp->b_io_error)
+			bp->b_io_error = error;
+		spin_unlock(&bp->b_lock);
+	}
 
 	if (!bp->b_error && xfs_buf_is_vmapped(bp) && (bp->b_flags & XBF_READ))
 		invalidate_kernel_vmap_range(bp->b_addr, xfs_buf_vmap_len(bp));
 
-	_xfs_buf_ioend(bp, 1);
+	if (atomic_dec_and_test(&bp->b_io_remaining) == 1)
+		xfs_buf_ioend_async(bp);
 	bio_put(bio);
 }
 
@@ -1285,7 +1162,7 @@ next_chunk:
 
 	bio = bio_alloc(GFP_NOIO, nr_pages);
 	bio->bi_bdev = bp->b_target->bt_bdev;
-	bio->bi_sector = sector;
+	bio->bi_iter.bi_sector = sector;
 	bio->bi_end_io = xfs_buf_bio_end_io;
 	bio->bi_private = bp;
 
@@ -1307,7 +1184,7 @@ next_chunk:
 		total_nr_pages--;
 	}
 
-	if (likely(bio->bi_size)) {
+	if (likely(bio->bi_iter.bi_size)) {
 		if (xfs_buf_is_vmapped(bp)) {
 			flush_kernel_vmap_range(bp->b_addr,
 						xfs_buf_vmap_len(bp));
@@ -1318,10 +1195,10 @@ next_chunk:
 	} else {
 		/*
 		 * This is guaranteed not to be the last io reference count
-		 * because the caller (xfs_buf_iorequest) holds a count itself.
+		 * because the caller (xfs_buf_submit) holds a count itself.
 		 */
 		atomic_dec(&bp->b_io_remaining);
-		xfs_buf_ioerror(bp, EIO);
+		xfs_buf_ioerror(bp, -EIO);
 		bio_put(bio);
 	}
 
@@ -1342,6 +1219,13 @@ _xfs_buf_ioapply(
 	 * left over from previous use of the buffer (e.g. failed readahead).
 	 */
 	bp->b_error = 0;
+
+	/*
+	 * Initialize the I/O completion workqueue if we haven't yet or the
+	 * submitter has not opted to specify a custom one.
+	 */
+	if (!bp->b_ioend_wq)
+		bp->b_ioend_wq = bp->b_target->bt_mount->m_buf_workqueue;
 
 	if (bp->b_flags & XBF_WRITE) {
 		if (bp->b_flags & XBF_SYNCIO)
@@ -1364,6 +1248,20 @@ _xfs_buf_ioapply(
 				xfs_force_shutdown(bp->b_target->bt_mount,
 						   SHUTDOWN_CORRUPT_INCORE);
 				return;
+			}
+		} else if (bp->b_bn != XFS_BUF_DADDR_NULL) {
+			struct xfs_mount *mp = bp->b_target->bt_mount;
+
+			/*
+			 * non-crc filesystems don't attach verifiers during
+			 * log recovery, so don't warn for such filesystems.
+			 */
+			if (xfs_sb_version_hascrc(&mp->m_sb)) {
+				xfs_warn(mp,
+					"%s: no ops on block 0x%llx/0x%x",
+					__func__, bp->b_bn, bp->b_length);
+				xfs_hex_dump(bp->b_addr, 64);
+				dump_stack();
 			}
 		}
 	} else if (bp->b_flags & XBF_READ_AHEAD) {
@@ -1394,45 +1292,131 @@ _xfs_buf_ioapply(
 	blk_finish_plug(&plug);
 }
 
+/*
+ * Asynchronous IO submission path. This transfers the buffer lock ownership and
+ * the current reference to the IO. It is not safe to reference the buffer after
+ * a call to this function unless the caller holds an additional reference
+ * itself.
+ */
 void
-xfs_buf_iorequest(
-	xfs_buf_t		*bp)
+xfs_buf_submit(
+	struct xfs_buf	*bp)
 {
-	trace_xfs_buf_iorequest(bp, _RET_IP_);
+	trace_xfs_buf_submit(bp, _RET_IP_);
 
 	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
+	ASSERT(bp->b_flags & XBF_ASYNC);
+
+	/* on shutdown we stale and complete the buffer immediately */
+	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
+		xfs_buf_ioerror(bp, -EIO);
+		bp->b_flags &= ~XBF_DONE;
+		xfs_buf_stale(bp);
+		xfs_buf_ioend(bp);
+		return;
+	}
 
 	if (bp->b_flags & XBF_WRITE)
 		xfs_buf_wait_unpin(bp);
+
+	/* clear the internal error state to avoid spurious errors */
+	bp->b_io_error = 0;
+
+	/*
+	 * The caller's reference is released during I/O completion.
+	 * This occurs some time after the last b_io_remaining reference is
+	 * released, so after we drop our Io reference we have to have some
+	 * other reference to ensure the buffer doesn't go away from underneath
+	 * us. Take a direct reference to ensure we have safe access to the
+	 * buffer until we are finished with it.
+	 */
 	xfs_buf_hold(bp);
 
-	/* Set the count to 1 initially, this will stop an I/O
-	 * completion callout which happens before we have started
-	 * all the I/O from calling xfs_buf_ioend too early.
+	/*
+	 * Set the count to 1 initially, this will stop an I/O completion
+	 * callout which happens before we have started all the I/O from calling
+	 * xfs_buf_ioend too early.
 	 */
 	atomic_set(&bp->b_io_remaining, 1);
 	_xfs_buf_ioapply(bp);
-	_xfs_buf_ioend(bp, 1);
+
+	/*
+	 * If _xfs_buf_ioapply failed, we can get back here with only the IO
+	 * reference we took above. If we drop it to zero, run completion so
+	 * that we don't return to the caller with completion still pending.
+	 */
+	if (atomic_dec_and_test(&bp->b_io_remaining) == 1) {
+		if (bp->b_error)
+			xfs_buf_ioend(bp);
+		else
+			xfs_buf_ioend_async(bp);
+	}
 
 	xfs_buf_rele(bp);
+	/* Note: it is not safe to reference bp now we've dropped our ref */
 }
 
 /*
- * Waits for I/O to complete on the buffer supplied.  It returns immediately if
- * no I/O is pending or there is already a pending error on the buffer.  It
- * returns the I/O error code, if any, or 0 if there was no error.
+ * Synchronous buffer IO submission path, read or write.
  */
 int
-xfs_buf_iowait(
-	xfs_buf_t		*bp)
+xfs_buf_submit_wait(
+	struct xfs_buf	*bp)
 {
+	int		error;
+
+	trace_xfs_buf_submit_wait(bp, _RET_IP_);
+
+	ASSERT(!(bp->b_flags & (_XBF_DELWRI_Q | XBF_ASYNC)));
+
+	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
+		xfs_buf_ioerror(bp, -EIO);
+		xfs_buf_stale(bp);
+		bp->b_flags &= ~XBF_DONE;
+		return -EIO;
+	}
+
+	if (bp->b_flags & XBF_WRITE)
+		xfs_buf_wait_unpin(bp);
+
+	/* clear the internal error state to avoid spurious errors */
+	bp->b_io_error = 0;
+
+	/*
+	 * For synchronous IO, the IO does not inherit the submitters reference
+	 * count, nor the buffer lock. Hence we cannot release the reference we
+	 * are about to take until we've waited for all IO completion to occur,
+	 * including any xfs_buf_ioend_async() work that may be pending.
+	 */
+	xfs_buf_hold(bp);
+
+	/*
+	 * Set the count to 1 initially, this will stop an I/O completion
+	 * callout which happens before we have started all the I/O from calling
+	 * xfs_buf_ioend too early.
+	 */
+	atomic_set(&bp->b_io_remaining, 1);
+	_xfs_buf_ioapply(bp);
+
+	/*
+	 * make sure we run completion synchronously if it raced with us and is
+	 * already complete.
+	 */
+	if (atomic_dec_and_test(&bp->b_io_remaining) == 1)
+		xfs_buf_ioend(bp);
+
+	/* wait for completion before gathering the error from the buffer */
 	trace_xfs_buf_iowait(bp, _RET_IP_);
-
-	if (!bp->b_error)
-		wait_for_completion(&bp->b_iowait);
-
+	wait_for_completion(&bp->b_iowait);
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
-	return bp->b_error;
+	error = bp->b_error;
+
+	/*
+	 * all done now, we can release the hold that keeps the buffer
+	 * referenced for the entire IO.
+	 */
+	xfs_buf_rele(bp);
+	return error;
 }
 
 xfs_caddr_t
@@ -1501,83 +1485,128 @@ xfs_buf_iomove(
  * returned. These buffers will have an elevated hold count, so wait on those
  * while freeing all the buffers only held by the LRU.
  */
+static enum lru_status
+xfs_buftarg_wait_rele(
+	struct list_head	*item,
+	struct list_lru_one	*lru,
+	spinlock_t		*lru_lock,
+	void			*arg)
+
+{
+	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
+	struct list_head	*dispose = arg;
+
+	if (atomic_read(&bp->b_hold) > 1) {
+		/* need to wait, so skip it this pass */
+		trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
+		return LRU_SKIP;
+	}
+	if (!spin_trylock(&bp->b_lock))
+		return LRU_SKIP;
+
+	/*
+	 * clear the LRU reference count so the buffer doesn't get
+	 * ignored in xfs_buf_rele().
+	 */
+	atomic_set(&bp->b_lru_ref, 0);
+	bp->b_state |= XFS_BSTATE_DISPOSE;
+	list_lru_isolate_move(lru, item, dispose);
+	spin_unlock(&bp->b_lock);
+	return LRU_REMOVED;
+}
+
 void
 xfs_wait_buftarg(
 	struct xfs_buftarg	*btp)
 {
-	struct xfs_buf		*bp;
+	LIST_HEAD(dispose);
+	int loop = 0;
 
-restart:
-	spin_lock(&btp->bt_lru_lock);
-	while (!list_empty(&btp->bt_lru)) {
-		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
-		if (atomic_read(&bp->b_hold) > 1) {
-			trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
-			list_move_tail(&bp->b_lru, &btp->bt_lru);
-			spin_unlock(&btp->bt_lru_lock);
-			delay(100);
-			goto restart;
+	/* loop until there is nothing left on the lru list. */
+	while (list_lru_count(&btp->bt_lru)) {
+		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
+			      &dispose, LONG_MAX);
+
+		while (!list_empty(&dispose)) {
+			struct xfs_buf *bp;
+			bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
+			list_del_init(&bp->b_lru);
+			if (bp->b_flags & XBF_WRITE_FAIL) {
+				xfs_alert(btp->bt_mount,
+"Corruption Alert: Buffer at block 0x%llx had permanent write failures!\n"
+"Please run xfs_repair to determine the extent of the problem.",
+					(long long)bp->b_bn);
+			}
+			xfs_buf_rele(bp);
 		}
-		/*
-		 * clear the LRU reference count so the buffer doesn't get
-		 * ignored in xfs_buf_rele().
-		 */
-		atomic_set(&bp->b_lru_ref, 0);
-		spin_unlock(&btp->bt_lru_lock);
-		xfs_buf_rele(bp);
-		spin_lock(&btp->bt_lru_lock);
+		if (loop++ != 0)
+			delay(100);
 	}
-	spin_unlock(&btp->bt_lru_lock);
 }
 
-int
-xfs_buftarg_shrink(
+static enum lru_status
+xfs_buftarg_isolate(
+	struct list_head	*item,
+	struct list_lru_one	*lru,
+	spinlock_t		*lru_lock,
+	void			*arg)
+{
+	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
+	struct list_head	*dispose = arg;
+
+	/*
+	 * we are inverting the lru lock/bp->b_lock here, so use a trylock.
+	 * If we fail to get the lock, just skip it.
+	 */
+	if (!spin_trylock(&bp->b_lock))
+		return LRU_SKIP;
+	/*
+	 * Decrement the b_lru_ref count unless the value is already
+	 * zero. If the value is already zero, we need to reclaim the
+	 * buffer, otherwise it gets another trip through the LRU.
+	 */
+	if (!atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
+		spin_unlock(&bp->b_lock);
+		return LRU_ROTATE;
+	}
+
+	bp->b_state |= XFS_BSTATE_DISPOSE;
+	list_lru_isolate_move(lru, item, dispose);
+	spin_unlock(&bp->b_lock);
+	return LRU_REMOVED;
+}
+
+static unsigned long
+xfs_buftarg_shrink_scan(
 	struct shrinker		*shrink,
 	struct shrink_control	*sc)
 {
 	struct xfs_buftarg	*btp = container_of(shrink,
 					struct xfs_buftarg, bt_shrinker);
-	struct xfs_buf		*bp;
-	int nr_to_scan = sc->nr_to_scan;
 	LIST_HEAD(dispose);
+	unsigned long		freed;
 
-	if (!nr_to_scan)
-		return btp->bt_lru_nr;
-
-	spin_lock(&btp->bt_lru_lock);
-	while (!list_empty(&btp->bt_lru)) {
-		if (nr_to_scan-- <= 0)
-			break;
-
-		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
-
-		/*
-		 * Decrement the b_lru_ref count unless the value is already
-		 * zero. If the value is already zero, we need to reclaim the
-		 * buffer, otherwise it gets another trip through the LRU.
-		 */
-		if (!atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
-			list_move_tail(&bp->b_lru, &btp->bt_lru);
-			continue;
-		}
-
-		/*
-		 * remove the buffer from the LRU now to avoid needing another
-		 * lock round trip inside xfs_buf_rele().
-		 */
-		list_move(&bp->b_lru, &dispose);
-		btp->bt_lru_nr--;
-		bp->b_lru_flags |= _XBF_LRU_DISPOSE;
-	}
-	spin_unlock(&btp->bt_lru_lock);
+	freed = list_lru_shrink_walk(&btp->bt_lru, sc,
+				     xfs_buftarg_isolate, &dispose);
 
 	while (!list_empty(&dispose)) {
+		struct xfs_buf *bp;
 		bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
 		list_del_init(&bp->b_lru);
 		xfs_buf_rele(bp);
 	}
 
-	return btp->bt_lru_nr;
+	return freed;
+}
+
+static unsigned long
+xfs_buftarg_shrink_count(
+	struct shrinker		*shrink,
+	struct shrink_control	*sc)
+{
+	struct xfs_buftarg	*btp = container_of(shrink,
+					struct xfs_buftarg, bt_shrinker);
+	return list_lru_shrink_count(&btp->bt_lru, sc);
 }
 
 void
@@ -1586,6 +1615,7 @@ xfs_free_buftarg(
 	struct xfs_buftarg	*btp)
 {
 	unregister_shrinker(&btp->bt_shrinker);
+	list_lru_destroy(&btp->bt_lru);
 
 	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_blkdev_issue_flush(btp);
@@ -1593,16 +1623,14 @@ xfs_free_buftarg(
 	kmem_free(btp);
 }
 
-STATIC int
-xfs_setsize_buftarg_flags(
+int
+xfs_setsize_buftarg(
 	xfs_buftarg_t		*btp,
-	unsigned int		blocksize,
-	unsigned int		sectorsize,
-	int			verbose)
+	unsigned int		sectorsize)
 {
-	btp->bt_bsize = blocksize;
-	btp->bt_sshift = ffs(sectorsize) - 1;
-	btp->bt_smask = sectorsize - 1;
+	/* Set up metadata sector size info */
+	btp->bt_meta_sectorsize = sectorsize;
+	btp->bt_meta_sectormask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
 		char name[BDEVNAME_SIZE];
@@ -1610,43 +1638,35 @@ xfs_setsize_buftarg_flags(
 		bdevname(btp->bt_bdev, name);
 
 		xfs_warn(btp->bt_mount,
-			"Cannot set_blocksize to %u on device %s\n",
+			"Cannot set_blocksize to %u on device %s",
 			sectorsize, name);
-		return EINVAL;
+		return -EINVAL;
 	}
+
+	/* Set up device logical sector size mask */
+	btp->bt_logical_sectorsize = bdev_logical_block_size(btp->bt_bdev);
+	btp->bt_logical_sectormask = bdev_logical_block_size(btp->bt_bdev) - 1;
 
 	return 0;
 }
 
 /*
- *	When allocating the initial buffer target we have not yet
- *	read in the superblock, so don't know what sized sectors
- *	are being used is at this early stage.  Play safe.
+ * When allocating the initial buffer target we have not yet
+ * read in the superblock, so don't know what sized sectors
+ * are being used at this early stage.  Play safe.
  */
 STATIC int
 xfs_setsize_buftarg_early(
 	xfs_buftarg_t		*btp,
 	struct block_device	*bdev)
 {
-	return xfs_setsize_buftarg_flags(btp,
-			PAGE_SIZE, bdev_logical_block_size(bdev), 0);
-}
-
-int
-xfs_setsize_buftarg(
-	xfs_buftarg_t		*btp,
-	unsigned int		blocksize,
-	unsigned int		sectorsize)
-{
-	return xfs_setsize_buftarg_flags(btp, blocksize, sectorsize, 1);
+	return xfs_setsize_buftarg(btp, bdev_logical_block_size(bdev));
 }
 
 xfs_buftarg_t *
 xfs_alloc_buftarg(
 	struct xfs_mount	*mp,
-	struct block_device	*bdev,
-	int			external,
-	const char		*fsname)
+	struct block_device	*bdev)
 {
 	xfs_buftarg_t		*btp;
 
@@ -1656,15 +1676,17 @@ xfs_alloc_buftarg(
 	btp->bt_dev =  bdev->bd_dev;
 	btp->bt_bdev = bdev;
 	btp->bt_bdi = blk_get_backing_dev_info(bdev);
-	if (!btp->bt_bdi)
-		goto error;
 
-	INIT_LIST_HEAD(&btp->bt_lru);
-	spin_lock_init(&btp->bt_lru_lock);
 	if (xfs_setsize_buftarg_early(btp, bdev))
 		goto error;
-	btp->bt_shrinker.shrink = xfs_buftarg_shrink;
+
+	if (list_lru_init(&btp->bt_lru))
+		goto error;
+
+	btp->bt_shrinker.count_objects = xfs_buftarg_shrink_count;
+	btp->bt_shrinker.scan_objects = xfs_buftarg_shrink_scan;
 	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
+	btp->bt_shrinker.flags = SHRINKER_NUMA_AWARE;
 	register_shrinker(&btp->bt_shrinker);
 	return btp;
 
@@ -1786,14 +1808,20 @@ __xfs_buf_delwri_submit(
 
 	blk_start_plug(&plug);
 	list_for_each_entry_safe(bp, n, io_list, b_list) {
-		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_ASYNC);
-		bp->b_flags |= XBF_WRITE;
+		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_ASYNC | XBF_WRITE_FAIL);
+		bp->b_flags |= XBF_WRITE | XBF_ASYNC;
 
-		if (!wait) {
-			bp->b_flags |= XBF_ASYNC;
+		/*
+		 * we do all Io submission async. This means if we need to wait
+		 * for IO completion we need to take an extra reference so the
+		 * buffer is still valid on the other side.
+		 */
+		if (wait)
+			xfs_buf_hold(bp);
+		else
 			list_del_init(&bp->b_list);
-		}
-		xfs_bdstrat_cb(bp);
+
+		xfs_buf_submit(bp);
 	}
 	blk_finish_plug(&plug);
 
@@ -1840,7 +1868,10 @@ xfs_buf_delwri_submit(
 		bp = list_first_entry(&io_list, struct xfs_buf, b_list);
 
 		list_del_init(&bp->b_list);
-		error2 = xfs_buf_iowait(bp);
+
+		/* locking the buffer will wait for async IO completion. */
+		xfs_buf_lock(bp);
+		error2 = bp->b_error;
 		xfs_buf_relse(bp);
 		if (!error)
 			error = error2;
@@ -1857,15 +1888,8 @@ xfs_buf_init(void)
 	if (!xfs_buf_zone)
 		goto out;
 
-	xfslogd_workqueue = alloc_workqueue("xfslogd",
-					WQ_MEM_RECLAIM | WQ_HIGHPRI, 1);
-	if (!xfslogd_workqueue)
-		goto out_free_buf_zone;
-
 	return 0;
 
- out_free_buf_zone:
-	kmem_zone_destroy(xfs_buf_zone);
  out:
 	return -ENOMEM;
 }
@@ -1873,6 +1897,5 @@ xfs_buf_init(void)
 void
 xfs_buf_terminate(void)
 {
-	destroy_workqueue(xfslogd_workqueue);
 	kmem_zone_destroy(xfs_buf_zone);
 }

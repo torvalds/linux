@@ -26,7 +26,7 @@ struct brport_attribute {
 	int (*store)(struct net_bridge_port *, unsigned long);
 };
 
-#define BRPORT_ATTR(_name,_mode,_show,_store)		        \
+#define BRPORT_ATTR(_name, _mode, _show, _store)		\
 const struct brport_attribute brport_attr_##_name = { 	        \
 	.attr = {.name = __stringify(_name), 			\
 		 .mode = _mode },				\
@@ -41,20 +41,30 @@ static ssize_t show_##_name(struct net_bridge_port *p, char *buf) \
 }								\
 static int store_##_name(struct net_bridge_port *p, unsigned long v) \
 {								\
-	unsigned long flags = p->flags;				\
-	if (v)							\
-		flags |= _mask;					\
-	else							\
-		flags &= ~_mask;				\
-	if (flags != p->flags) {				\
-		p->flags = flags;				\
-		br_ifinfo_notify(RTM_NEWLINK, p);		\
-	}							\
-	return 0;						\
+	return store_flag(p, v, _mask);				\
 }								\
 static BRPORT_ATTR(_name, S_IRUGO | S_IWUSR,			\
 		   show_##_name, store_##_name)
 
+static int store_flag(struct net_bridge_port *p, unsigned long v,
+		      unsigned long mask)
+{
+	unsigned long flags;
+
+	flags = p->flags;
+
+	if (v)
+		flags |= mask;
+	else
+		flags &= ~mask;
+
+	if (flags != p->flags) {
+		p->flags = flags;
+		br_port_flags_change(p, mask);
+		br_ifinfo_notify(RTM_NEWLINK, p);
+	}
+	return 0;
+}
 
 static ssize_t show_path_cost(struct net_bridge_port *p, char *buf)
 {
@@ -160,6 +170,7 @@ BRPORT_ATTR_FLAG(bpdu_guard, BR_BPDU_GUARD);
 BRPORT_ATTR_FLAG(root_block, BR_ROOT_BLOCK);
 BRPORT_ATTR_FLAG(learning, BR_LEARNING);
 BRPORT_ATTR_FLAG(unicast_flood, BR_FLOOD);
+BRPORT_ATTR_FLAG(proxyarp, BR_PROXYARP);
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 static ssize_t show_multicast_router(struct net_bridge_port *p, char *buf)
@@ -203,27 +214,28 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_multicast_router,
 	&brport_attr_multicast_fast_leave,
 #endif
+	&brport_attr_proxyarp,
 	NULL
 };
 
 #define to_brport_attr(_at) container_of(_at, struct brport_attribute, attr)
 #define to_brport(obj)	container_of(obj, struct net_bridge_port, kobj)
 
-static ssize_t brport_show(struct kobject * kobj,
-			   struct attribute * attr, char * buf)
+static ssize_t brport_show(struct kobject *kobj,
+			   struct attribute *attr, char *buf)
 {
-	struct brport_attribute * brport_attr = to_brport_attr(attr);
-	struct net_bridge_port * p = to_brport(kobj);
+	struct brport_attribute *brport_attr = to_brport_attr(attr);
+	struct net_bridge_port *p = to_brport(kobj);
 
 	return brport_attr->show(p, buf);
 }
 
-static ssize_t brport_store(struct kobject * kobj,
-			    struct attribute * attr,
-			    const char * buf, size_t count)
+static ssize_t brport_store(struct kobject *kobj,
+			    struct attribute *attr,
+			    const char *buf, size_t count)
 {
-	struct brport_attribute * brport_attr = to_brport_attr(attr);
-	struct net_bridge_port * p = to_brport(kobj);
+	struct brport_attribute *brport_attr = to_brport_attr(attr);
+	struct net_bridge_port *p = to_brport(kobj);
 	ssize_t ret = -EINVAL;
 	char *endp;
 	unsigned long val;

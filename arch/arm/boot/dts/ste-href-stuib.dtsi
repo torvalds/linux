@@ -1,0 +1,121 @@
+/*
+ * Copyright 2012 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		vdd-supply = <&ab8500_ldo_aux1_reg>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&prox_stuib_mode>, <&hall_stuib_mode>;
+
+		button@139 {
+			/* Proximity sensor */
+			gpios = <&gpio6 25 0x4>;
+			linux,code = <11>; /* SW_FRONT_PROXIMITY */
+			label = "SFH7741 Proximity Sensor";
+		};
+		button@145 {
+			/* Hall sensor */
+			gpios = <&gpio4 17 0x4>;
+			linux,code = <0>; /* SW_LID */
+			label = "HED54XXU11 Hall Effect Sensor";
+		};
+	};
+
+	soc {
+		i2c@80004000 {
+			stmpe1601: stmpe1601@40 {
+				compatible = "st,stmpe1601";
+				reg = <0x40>;
+				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+				interrupt-parent = <&gpio6>;
+				interrupt-controller;
+				vcc-supply = <&db8500_vsmps2_reg>;
+				vio-supply = <&db8500_vsmps2_reg>;
+
+				wakeup-source;
+				st,autosleep-timeout = <1024>;
+
+				stmpe_keypad {
+					compatible = "st,stmpe-keypad";
+
+					debounce-interval = <64>;
+					st,scan-count = <8>;
+					st,no-autorepeat;
+
+					linux,keymap = <0x205006b
+							0x4010074
+							0x3050072
+							0x1030004
+							0x502006a
+							0x500000a
+							0x5008b
+							0x706001c
+							0x405000b
+							0x6070003
+							0x3040067
+							0x303006c
+							0x60400e7
+							0x602009e
+							0x4020073
+							0x5050002
+							0x4030069
+							0x3020008>;
+				};
+			};
+		};
+
+		i2c@80110000 {
+			bu21013_tp@5c {
+				compatible = "rohm,bu21013_tp";
+				reg = <0x5c>;
+				avdd-supply = <&ab8500_ldo_aux1_reg>;
+
+				rohm,touch-max-x = <384>;
+				rohm,touch-max-y = <704>;
+				rohm,flip-y;
+			};
+
+			bu21013_tp@5d {
+				compatible = "rohm,bu21013_tp";
+				reg = <0x5d>;
+				avdd-supply = <&ab8500_ldo_aux1_reg>;
+
+				rohm,touch-max-x = <384>;
+				rohm,touch-max-y = <704>;
+				rohm,flip-y;
+			};
+		};
+
+		pinctrl {
+			prox {
+				prox_stuib_mode: prox_stuib {
+					stuib_cfg {
+						pins = "GPIO217_AH12";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			hall {
+				hall_stuib_mode: stuib_tvk {
+					stuib_cfg {
+						pins = "GPIO145_C13";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+		};
+	};
+};

@@ -172,14 +172,14 @@ you can boot the kernel with the 'no_console_suspend' parameter and try to log
 kernel messages using the serial console.  This may provide you with some
 information about the reasons of the suspend (resume) failure.  Alternatively,
 it may be possible to use a FireWire port for debugging with firescope
-(ftp://ftp.firstfloor.org/pub/ak/firescope/).  On x86 it is also possible to
+(http://v3.sk/~lkundrak/firescope/).  On x86 it is also possible to
 use the PM_TRACE mechanism documented in Documentation/power/s2ram.txt .
 
 2. Testing suspend to RAM (STR)
 
 To verify that the STR works, it is generally more convenient to use the s2ram
 tool available from http://suspend.sf.net and documented at
-http://en.opensuse.org/SDB:Suspend_to_RAM.
+http://en.opensuse.org/SDB:Suspend_to_RAM (S2RAM_LINK).
 
 Namely, after writing "freezer", "devices", "platform", "processors", or "core"
 into /sys/power/pm_test (available if the kernel is compiled with
@@ -194,10 +194,10 @@ Among other things, the testing with the help of /sys/power/pm_test may allow
 you to identify drivers that fail to suspend or resume their devices.  They
 should be unloaded every time before an STR transition.
 
-Next, you can follow the instructions at http://en.opensuse.org/s2ram to test
-the system, but if it does not work "out of the box", you may need to boot it
-with "init=/bin/bash" and test s2ram in the minimal configuration.  In that
-case, you may be able to search for failing drivers by following the procedure
+Next, you can follow the instructions at S2RAM_LINK to test the system, but if
+it does not work "out of the box", you may need to boot it with
+"init=/bin/bash" and test s2ram in the minimal configuration.  In that case,
+you may be able to search for failing drivers by following the procedure
 analogous to the one described in section 1.  If you find some failing drivers,
 you will have to unload them every time before an STR transition (ie. before
 you run s2ram), and please report the problems with them.

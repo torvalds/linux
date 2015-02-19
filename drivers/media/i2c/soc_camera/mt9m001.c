@@ -53,13 +53,13 @@
 
 /* MT9M001 has only one fixed colorspace per pixelcode */
 struct mt9m001_datafmt {
-	enum v4l2_mbus_pixelcode	code;
+	u32	code;
 	enum v4l2_colorspace		colorspace;
 };
 
 /* Find a data format by a pixel code in an array */
 static const struct mt9m001_datafmt *mt9m001_find_datafmt(
-	enum v4l2_mbus_pixelcode code, const struct mt9m001_datafmt *fmt,
+	u32 code, const struct mt9m001_datafmt *fmt,
 	int n)
 {
 	int i;
@@ -75,14 +75,14 @@ static const struct mt9m001_datafmt mt9m001_colour_fmts[] = {
 	 * Order important: first natively supported,
 	 * second supported with a GPIO extender
 	 */
-	{V4L2_MBUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
-	{V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
 };
 
 static const struct mt9m001_datafmt mt9m001_monochrome_fmts[] = {
 	/* Order important - see above */
-	{V4L2_MBUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
 };
 
 struct mt9m001 {
@@ -403,7 +403,7 @@ static int mt9m001_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctrl->val <= ctrl->default_value) {
 			/* Pack it into 0..1 step 0.125, register values 0..8 */
 			unsigned long range = ctrl->default_value - ctrl->minimum;
-			data = ((ctrl->val - ctrl->minimum) * 8 + range / 2) / range;
+			data = ((ctrl->val - (s32)ctrl->minimum) * 8 + range / 2) / range;
 
 			dev_dbg(&client->dev, "Setting gain %d\n", data);
 			data = reg_write(client, MT9M001_GLOBAL_GAIN, data);
@@ -413,7 +413,7 @@ static int mt9m001_s_ctrl(struct v4l2_ctrl *ctrl)
 			/* Pack it into 1.125..15 variable step, register values 9..67 */
 			/* We assume qctrl->maximum - qctrl->default_value - 1 > 0 */
 			unsigned long range = ctrl->maximum - ctrl->default_value - 1;
-			unsigned long gain = ((ctrl->val - ctrl->default_value - 1) *
+			unsigned long gain = ((ctrl->val - (s32)ctrl->default_value - 1) *
 					       111 + range / 2) / range + 9;
 
 			if (gain <= 32)
@@ -434,7 +434,7 @@ static int mt9m001_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_AUTO:
 		if (ctrl->val == V4L2_EXPOSURE_MANUAL) {
 			unsigned long range = exp->maximum - exp->minimum;
-			unsigned long shutter = ((exp->val - exp->minimum) * 1048 +
+			unsigned long shutter = ((exp->val - (s32)exp->minimum) * 1048 +
 						 range / 2) / range + 1;
 
 			dev_dbg(&client->dev,
@@ -563,7 +563,7 @@ static struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
 };
 
 static int mt9m001_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			    enum v4l2_mbus_pixelcode *code)
+			    u32 *code)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m001 *mt9m001 = to_mt9m001(client);

@@ -109,9 +109,6 @@ struct pt1_adapter {
 	int sleep;
 };
 
-#define pt1_printk(level, pt1, format, arg...)	\
-	dev_printk(level, &(pt1)->pdev->dev, format, ##arg)
-
 static void pt1_write_reg(struct pt1 *pt1, int reg, u32 data)
 {
 	writel(data, pt1->regs + reg * 4);
@@ -154,7 +151,7 @@ static int pt1_sync(struct pt1 *pt1)
 			return 0;
 		pt1_write_reg(pt1, 0, 0x00000008);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not sync\n");
+	dev_err(&pt1->pdev->dev, "could not sync\n");
 	return -EIO;
 }
 
@@ -179,7 +176,7 @@ static int pt1_unlock(struct pt1 *pt1)
 			return 0;
 		schedule_timeout_uninterruptible((HZ + 999) / 1000);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not unlock\n");
+	dev_err(&pt1->pdev->dev, "could not unlock\n");
 	return -EIO;
 }
 
@@ -193,7 +190,7 @@ static int pt1_reset_pci(struct pt1 *pt1)
 			return 0;
 		schedule_timeout_uninterruptible((HZ + 999) / 1000);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not reset PCI\n");
+	dev_err(&pt1->pdev->dev, "could not reset PCI\n");
 	return -EIO;
 }
 
@@ -207,7 +204,7 @@ static int pt1_reset_ram(struct pt1 *pt1)
 			return 0;
 		schedule_timeout_uninterruptible((HZ + 999) / 1000);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not reset RAM\n");
+	dev_err(&pt1->pdev->dev, "could not reset RAM\n");
 	return -EIO;
 }
 
@@ -224,7 +221,7 @@ static int pt1_do_enable_ram(struct pt1 *pt1)
 		}
 		schedule_timeout_uninterruptible((HZ + 999) / 1000);
 	}
-	pt1_printk(KERN_ERR, pt1, "could not enable RAM\n");
+	dev_err(&pt1->pdev->dev, "could not enable RAM\n");
 	return -EIO;
 }
 
@@ -1076,7 +1073,6 @@ static void pt1_remove(struct pci_dev *pdev)
 	pt1_update_power(pt1);
 	pt1_cleanup_adapters(pt1);
 	i2c_del_adapter(&pt1->i2c_adap);
-	pci_set_drvdata(pdev, NULL);
 	kfree(pt1);
 	pci_iounmap(pdev, regs);
 	pci_release_regions(pdev);
@@ -1198,7 +1194,6 @@ err_i2c_del_adapter:
 err_pt1_cleanup_adapters:
 	pt1_cleanup_adapters(pt1);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	kfree(pt1);
 err_pci_iounmap:
 	pci_iounmap(pdev, regs);

@@ -35,16 +35,16 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
-static int config_on_load = 0;
-CFS_MODULE_PARM(config_on_load, "i", int, 0444,
-		"configure network at module load");
+static int config_on_load;
+module_param(config_on_load, int, 0444);
+MODULE_PARM_DESC(config_on_load, "configure network at module load");
 
 static struct mutex lnet_config_mutex;
 
-int
-lnet_configure (void *arg)
+static int
+lnet_configure(void *arg)
 {
 	/* 'arg' only there so I can be passed to cfs_create_thread() */
 	int    rc = 0;
@@ -63,8 +63,8 @@ lnet_configure (void *arg)
 	return rc;
 }
 
-int
-lnet_unconfigure (void)
+static int
+lnet_unconfigure(void)
 {
 	int   refcount;
 
@@ -83,7 +83,7 @@ lnet_unconfigure (void)
 	return (refcount == 0) ? 0 : -EBUSY;
 }
 
-int
+static int
 lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
 {
 	int   rc;
@@ -108,24 +108,23 @@ lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
 	}
 }
 
-DECLARE_IOCTL_HANDLER(lnet_ioctl_handler, lnet_ioctl);
+static DECLARE_IOCTL_HANDLER(lnet_ioctl_handler, lnet_ioctl);
 
-int
+static int __init
 init_lnet(void)
 {
 	int		  rc;
-	ENTRY;
 
 	mutex_init(&lnet_config_mutex);
 
 	rc = LNetInit();
 	if (rc != 0) {
 		CERROR("LNetInit: error %d\n", rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = libcfs_register_ioctl(&lnet_ioctl_handler);
-	LASSERT (rc == 0);
+	LASSERT(rc == 0);
 
 	if (config_on_load) {
 		/* Have to schedule a separate thread to avoid deadlocking
@@ -133,16 +132,16 @@ init_lnet(void)
 		(void) kthread_run(lnet_configure, NULL, "lnet_initd");
 	}
 
-	RETURN(0);
+	return 0;
 }
 
-void
+static void __exit
 fini_lnet(void)
 {
 	int rc;
 
 	rc = libcfs_deregister_ioctl(&lnet_ioctl_handler);
-	LASSERT (rc == 0);
+	LASSERT(rc == 0);
 
 	LNetFini();
 }
@@ -150,5 +149,7 @@ fini_lnet(void)
 MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
 MODULE_DESCRIPTION("Portals v3.1");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("1.0.0");
 
-cfs_module(lnet, "1.0.0", init_lnet, fini_lnet);
+module_init(init_lnet);
+module_exit(fini_lnet);

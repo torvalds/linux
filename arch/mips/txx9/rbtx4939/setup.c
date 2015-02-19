@@ -245,7 +245,6 @@ static int __init rbtx4939_led_probe(struct platform_device *pdev)
 static struct platform_driver rbtx4939_led_driver = {
 	.driver	 = {
 		.name = "rbtx4939-led",
-		.owner = THIS_MODULE,
 	},
 };
 

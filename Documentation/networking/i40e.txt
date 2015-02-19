@@ -1,0 +1,118 @@
+Linux Base Driver for the Intel(R) Ethernet Controller XL710 Family
+===================================================================
+
+Intel i40e Linux driver.
+Copyright(c) 2013 Intel Corporation.
+
+Contents
+========
+
+- Identifying Your Adapter
+- Additional Configurations
+- Performance Tuning
+- Known Issues
+- Support
+
+
+Identifying Your Adapter
+========================
+
+The driver in this release is compatible with the Intel Ethernet
+Controller XL710 Family.
+
+For more information on how to identify your adapter, go to the Adapter &
+Driver ID Guide at:
+
+    http://support.intel.com/support/network/sb/CS-012904.htm
+
+
+Enabling the driver
+===================
+
+The driver is enabled via the standard kernel configuration system,
+using the make command:
+
+     Make oldconfig/silentoldconfig/menuconfig/etc.
+
+The driver is located in the menu structure at:
+
+	-> Device Drivers
+	  -> Network device support (NETDEVICES [=y])
+	    -> Ethernet driver support
+	      -> Intel devices
+	        -> Intel(R) Ethernet Controller XL710 Family
+
+Additional Configurations
+=========================
+
+  Generic Receive Offload (GRO)
+  -----------------------------
+  The driver supports the in-kernel software implementation of GRO.  GRO has
+  shown that by coalescing Rx traffic into larger chunks of data, CPU
+  utilization can be significantly reduced when under large Rx load.  GRO is
+  an evolution of the previously-used LRO interface.  GRO is able to coalesce
+  other protocols besides TCP.  It's also safe to use with configurations that
+  are problematic for LRO, namely bridging and iSCSI.
+
+  Ethtool
+  -------
+  The driver utilizes the ethtool interface for driver configuration and
+  diagnostics, as well as displaying statistical information. The latest
+  ethtool version is required for this functionality.
+
+  The latest release of ethtool can be found from
+  https://www.kernel.org/pub/software/network/ethtool
+
+  Data Center Bridging (DCB)
+  --------------------------
+  DCB configuration is not currently supported.
+
+  FCoE
+  ----
+  The driver supports Fiber Channel over Ethernet (FCoE) and Data Center
+  Bridging (DCB) functionality. Configuring DCB and FCoE is outside the scope
+  of this driver doc. Refer to http://www.open-fcoe.org/ for FCoE project
+  information and http://www.open-lldp.org/ or email list
+  e1000-eedc@lists.sourceforge.net for DCB information.
+
+  MAC and VLAN anti-spoofing feature
+  ----------------------------------
+  When a malicious driver attempts to send a spoofed packet, it is dropped by
+  the hardware and not transmitted.  An interrupt is sent to the PF driver
+  notifying it of the spoof attempt.
+
+  When a spoofed packet is detected the PF driver will send the following
+  message to the system log (displayed by  the "dmesg" command):
+
+  Spoof event(s) detected on VF (n)
+
+  Where n=the VF that attempted to do the spoofing.
+
+
+Performance Tuning
+==================
+
+An excellent article on performance tuning can be found at:
+
+http://www.redhat.com/promo/summit/2008/downloads/pdf/Thursday/Mark_Wagner.pdf
+
+
+Known Issues
+============
+
+
+Support
+=======
+
+For general information, go to the Intel support website at:
+
+    http://support.intel.com
+
+or the Intel Wired Networking project hosted by Sourceforge at:
+
+    http://e1000.sourceforge.net
+
+If an issue is identified with the released source code on the supported
+kernel with a supported adapter, email the specific information related
+to the issue to e1000-devel@lists.sourceforge.net and copy
+netdev@vger.kernel.org.

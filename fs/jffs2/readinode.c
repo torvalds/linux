@@ -224,7 +224,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 
 	dbg_readinode("insert fragment %#04x-%#04x, ver %u at %08x\n", tn->fn->ofs, fn_end, tn->version, ref_offset(tn->fn->raw));
 
-	/* If a node has zero dsize, we only have to keep if it if it might be the
+	/* If a node has zero dsize, we only have to keep it if it might be the
 	   node with highest version -- i.e. the one which will end up as f->metadata.
 	   Note that such nodes won't be REF_UNCHECKED since there are no data to
 	   check anyway. */
@@ -543,33 +543,13 @@ static int jffs2_build_inode_fragtree(struct jffs2_sb_info *c,
 
 static void jffs2_free_tmp_dnode_info_list(struct rb_root *list)
 {
-	struct rb_node *this;
-	struct jffs2_tmp_dnode_info *tn;
+	struct jffs2_tmp_dnode_info *tn, *next;
 
-	this = list->rb_node;
-
-	/* Now at bottom of tree */
-	while (this) {
-		if (this->rb_left)
-			this = this->rb_left;
-		else if (this->rb_right)
-			this = this->rb_right;
-		else {
-			tn = rb_entry(this, struct jffs2_tmp_dnode_info, rb);
+	rbtree_postorder_for_each_entry_safe(tn, next, list, rb) {
 			jffs2_free_full_dnode(tn->fn);
 			jffs2_free_tmp_dnode_info(tn);
-
-			this = rb_parent(this);
-			if (!this)
-				break;
-
-			if (this->rb_left == &tn->rb)
-				this->rb_left = NULL;
-			else if (this->rb_right == &tn->rb)
-				this->rb_right = NULL;
-			else BUG();
-		}
 	}
+
 	*list = RB_ROOT;
 }
 

@@ -19,6 +19,7 @@ static inline u16 combine_8_to_16(u8 lower, u8 upper)
 {
 	u16 _lower = lower;
 	u16 _upper = upper;
+
 	return _lower | (_upper << 8);
 }
 
@@ -31,10 +32,11 @@ irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private)
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
 	if (st->trigger_on) {
-		iio_trigger_poll(st->trig, iio_get_time_ns());
+		iio_trigger_poll(st->trig);
 		return IRQ_HANDLED;
-	} else
-		return IRQ_WAKE_THREAD;
+	}
+
+	return IRQ_WAKE_THREAD;
 }
 
 static const u8 read_all_tx_array[] = {
@@ -111,7 +113,7 @@ static int lis3l02dq_get_buffer_element(struct iio_dev *indio_dev,
 				u8 *buf)
 {
 	int ret, i;
-	u8 *rx_array ;
+	u8 *rx_array;
 	s16 *data = (s16 *)buf;
 	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
 				       indio_dev->masklength);
@@ -146,11 +148,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		len = lis3l02dq_get_buffer_element(indio_dev, data);
 
-	  /* Guaranteed to be aligned with 8 byte boundary */
-	if (indio_dev->scan_timestamp)
-		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
-			= pf->timestamp;
-	iio_push_to_buffers(indio_dev, (u8 *)data);
+	iio_push_to_buffers_with_timestamp(indio_dev, data, pf->timestamp);
 
 	kfree(data);
 done:
@@ -264,8 +262,7 @@ static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 		else
 			break;
 	if (i == 5)
-		printk(KERN_INFO
-		       "Failed to clear the interrupt for lis3l02dq\n");
+		pr_info("Failed to clear the interrupt for lis3l02dq\n");
 
 	/* irq reenabled so success! */
 	return 0;
@@ -387,7 +384,6 @@ error_ret:
 }
 
 static const struct iio_buffer_setup_ops lis3l02dq_buffer_setup_ops = {
-	.preenable = &iio_sw_buffer_preenable,
 	.postenable = &lis3l02dq_buffer_postenable,
 	.predisable = &lis3l02dq_buffer_predisable,
 };
@@ -397,11 +393,11 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 	int ret;
 	struct iio_buffer *buffer;
 
-	buffer = iio_kfifo_allocate(indio_dev);
+	buffer = iio_kfifo_allocate();
 	if (!buffer)
 		return -ENOMEM;
 
-	indio_dev->buffer = buffer;
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	buffer->scan_timestamp = true;
 	indio_dev->setup_ops = &lis3l02dq_buffer_setup_ops;

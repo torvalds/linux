@@ -52,9 +52,6 @@ static const struct snd_pcm_hardware bf5xx_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_MMAP_VALID |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_S24_LE |
-				   SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 0x10000,
 	.periods_min		= 1,
@@ -293,19 +290,19 @@ static int bf5xx_pcm_silence(struct snd_pcm_substream *substream,
 	unsigned int sample_size = runtime->sample_bits / 8;
 	void *buf = runtime->dma_area;
 	struct bf5xx_i2s_pcm_data *dma_data;
-	unsigned int offset, size;
+	unsigned int offset, samples;
 
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	if (dma_data->tdm_mode) {
 		offset = pos * 8 * sample_size;
-		size = count * 8 * sample_size;
+		samples = count * 8;
 	} else {
 		offset = frames_to_bytes(runtime, pos);
-		size = frames_to_bytes(runtime, count);
+		samples = count * runtime->channels;
 	}
 
-	snd_pcm_format_set_silence(runtime->format, buf + offset, size);
+	snd_pcm_format_set_silence(runtime->format, buf + offset, samples);
 
 	return 0;
 }
@@ -323,18 +320,16 @@ static struct snd_pcm_ops bf5xx_pcm_i2s_ops = {
 	.silence	= bf5xx_pcm_silence,
 };
 
-static u64 bf5xx_pcm_dmamask = DMA_BIT_MASK(32);
-
 static int bf5xx_pcm_i2s_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	size_t size = bf5xx_pcm_hardware.buffer_bytes_max;
+	int ret;
 
 	pr_debug("%s enter\n", __func__);
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &bf5xx_pcm_dmamask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	return snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
 				SNDRV_DMA_TYPE_DEV, card->dev, size, size);
@@ -359,7 +354,6 @@ static int bfin_i2s_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver bfin_i2s_pcm_driver = {
 	.driver = {
 		.name = "bfin-i2s-pcm-audio",
-		.owner = THIS_MODULE,
 	},
 
 	.probe = bfin_i2s_soc_platform_probe,

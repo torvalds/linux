@@ -125,14 +125,9 @@ flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vma
 void mark_rodata_ro(void);
 #endif
 
-#ifdef CONFIG_PA8X00
-/* Only pa8800, pa8900 needs this */
-
 #include <asm/kmap_types.h>
 
 #define ARCH_HAS_KMAP
-
-void kunmap_parisc(void *addr);
 
 static inline void *kmap(struct page *page)
 {
@@ -142,7 +137,7 @@ static inline void *kmap(struct page *page)
 
 static inline void kunmap(struct page *page)
 {
-	kunmap_parisc(page_address(page));
+	flush_kernel_dcache_page_addr(page_address(page));
 }
 
 static inline void *kmap_atomic(struct page *page)
@@ -153,14 +148,13 @@ static inline void *kmap_atomic(struct page *page)
 
 static inline void __kunmap_atomic(void *addr)
 {
-	kunmap_parisc(addr);
+	flush_kernel_dcache_page_addr(addr);
 	pagefault_enable();
 }
 
 #define kmap_atomic_prot(page, prot)	kmap_atomic(page)
 #define kmap_atomic_pfn(pfn)	kmap_atomic(pfn_to_page(pfn))
 #define kmap_atomic_to_page(ptr)	virt_to_page(ptr)
-#endif
 
 #endif /* _PARISC_CACHEFLUSH_H */
 

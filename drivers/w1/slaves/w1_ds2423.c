@@ -40,14 +40,8 @@
 #define COUNTER_COUNT 4
 #define READ_BYTE_COUNT 42
 
-static ssize_t w1_counter_read(struct device *device,
-	struct device_attribute *attr, char *buf);
-
-static struct device_attribute w1_counter_attr =
-	__ATTR(w1_slave, S_IRUGO, w1_counter_read, NULL);
-
-static ssize_t w1_counter_read(struct device *device,
-	struct device_attribute *attr, char *out_buf)
+static ssize_t w1_slave_show(struct device *device,
+			     struct device_attribute *attr, char *out_buf)
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
 	struct w1_master *dev = sl->master;
@@ -128,19 +122,16 @@ static ssize_t w1_counter_read(struct device *device,
 	return PAGE_SIZE - c;
 }
 
-static int w1_f1d_add_slave(struct w1_slave *sl)
-{
-	return device_create_file(&sl->dev, &w1_counter_attr);
-}
+static DEVICE_ATTR_RO(w1_slave);
 
-static void w1_f1d_remove_slave(struct w1_slave *sl)
-{
-	device_remove_file(&sl->dev, &w1_counter_attr);
-}
+static struct attribute *w1_f1d_attrs[] = {
+	&dev_attr_w1_slave.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(w1_f1d);
 
 static struct w1_family_ops w1_f1d_fops = {
-	.add_slave      = w1_f1d_add_slave,
-	.remove_slave   = w1_f1d_remove_slave,
+	.groups		= w1_f1d_groups,
 };
 
 static struct w1_family w1_family_1d = {

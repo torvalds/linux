@@ -78,7 +78,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
 	unsigned long page, addr;
-	int write;
+	unsigned long flags = 0;
 	int fault;
 	siginfo_t info;
 
@@ -116,6 +116,9 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
 	 */
 	if (in_atomic() || !mm)
 		goto bad_area_nosemaphore;
+
+	if (error_code & ACE_USERMODE)
+		flags |= FAULT_FLAG_USER;
 
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
@@ -166,14 +169,13 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
  */
 good_area:
 	info.si_code = SEGV_ACCERR;
-	write = 0;
 	switch (error_code & (ACE_WRITE|ACE_PROTECTION)) {
 		default:	/* 3: write, present */
 			/* fall through */
 		case ACE_WRITE:	/* write, not present */
 			if (!(vma->vm_flags & VM_WRITE))
 				goto bad_area;
-			write++;
+			flags |= FAULT_FLAG_WRITE;
 			break;
 		case ACE_PROTECTION:	/* read, present */
 		case 0:		/* read, not present */
@@ -194,10 +196,12 @@ good_area:
 	 */
 	addr = (address & PAGE_MASK);
 	set_thread_fault_code(error_code);
-	fault = handle_mm_fault(mm, vma, addr, write ? FAULT_FLAG_WRITE : 0);
+	fault = handle_mm_fault(mm, vma, addr, flags);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGSEGV)
+			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();

@@ -153,7 +153,6 @@ static int pm80x_onkey_remove(struct platform_device *pdev)
 static struct platform_driver pm80x_onkey_driver = {
 	.driver = {
 		   .name = "88pm80x-onkey",
-		   .owner = THIS_MODULE,
 		   .pm = &pm80x_onkey_pm_ops,
 		   },
 	.probe = pm80x_onkey_probe,

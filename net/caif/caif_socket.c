@@ -124,7 +124,6 @@ static void caif_flow_ctrl(struct sock *sk, int mode)
 static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
-	int skb_len;
 	unsigned long flags;
 	struct sk_buff_head *list = &sk->sk_receive_queue;
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
@@ -153,14 +152,13 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	 * may be freed by other threads of control pulling packets
 	 * from the queue.
 	 */
-	skb_len = skb->len;
 	spin_lock_irqsave(&list->lock, flags);
 	if (!sock_flag(sk, SOCK_DEAD))
 		__skb_queue_tail(list, skb);
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb_len);
+		sk->sk_data_ready(sk);
 	else
 		kfree_skb(skb);
 	return 0;
@@ -286,8 +284,6 @@ static int caif_seqpkt_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (m->msg_flags&MSG_OOB)
 		goto read_error;
 
-	m->msg_namelen = 0;
-
 	skb = skb_recv_datagram(sk, flags, 0 , &ret);
 	if (!skb)
 		goto read_error;
@@ -297,7 +293,7 @@ static int caif_seqpkt_recvmsg(struct kiocb *iocb, struct socket *sock,
 		copylen = len;
 	}
 
-	ret = skb_copy_datagram_iovec(skb, 0, m->msg_iov, copylen);
+	ret = skb_copy_datagram_msg(skb, 0, m, copylen);
 	if (ret)
 		goto out_free;
 
@@ -361,8 +357,6 @@ static int caif_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (flags&MSG_OOB)
 		goto out;
 
-	msg->msg_namelen = 0;
-
 	/*
 	 * Lock the socket to prevent queue disordering
 	 * while sleeps in memcpy_tomsg
@@ -424,7 +418,7 @@ unlock:
 		}
 		release_sock(sk);
 		chunk = min_t(unsigned int, skb->len, size);
-		if (memcpy_toiovec(msg->msg_iov, skb->data, chunk)) {
+		if (memcpy_to_msg(msg, skb->data, chunk)) {
 			skb_queue_head(&sk->sk_receive_queue, skb);
 			if (copied == 0)
 				copied = -EFAULT;
@@ -541,7 +535,7 @@ static int caif_seqpkt_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto err;
 
 	ret = -EINVAL;
-	if (unlikely(msg->msg_iov->iov_base == NULL))
+	if (unlikely(msg->msg_iter.iov->iov_base == NULL))
 		goto err;
 	noblock = msg->msg_flags & MSG_DONTWAIT;
 
@@ -572,7 +566,7 @@ static int caif_seqpkt_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	skb_reserve(skb, cf_sk->headroom);
 
-	ret = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	ret = memcpy_from_msg(skb_put(skb, len), msg, len);
 
 	if (ret)
 		goto err;
@@ -647,7 +641,7 @@ static int caif_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		 */
 		size = min_t(int, size, skb_tailroom(skb));
 
-		err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
+		err = memcpy_from_msg(skb_put(skb, size), msg, size);
 		if (err) {
 			kfree_skb(skb);
 			goto out_err;
@@ -914,8 +908,7 @@ static int caif_release(struct socket *sock)
 	sock->sk = NULL;
 
 	WARN_ON(IS_ERR(cf_sk->debugfs_socket_dir));
-	if (cf_sk->debugfs_socket_dir != NULL)
-		debugfs_remove_recursive(cf_sk->debugfs_socket_dir);
+	debugfs_remove_recursive(cf_sk->debugfs_socket_dir);
 
 	lock_sock(&(cf_sk->sk));
 	sk->sk_state = CAIF_DISCONNECTED;

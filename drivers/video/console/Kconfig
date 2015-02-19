@@ -8,7 +8,8 @@ config VGA_CONSOLE
 	bool "VGA text console" if EXPERT || !X86
 	depends on !4xx && !8xx && !SPARC && !M68K && !PARISC && !FRV && \
 		!SUPERH && !BLACKFIN && !AVR32 && !MN10300 && !CRIS && \
-		(!ARM || ARCH_FOOTBRIDGE || ARCH_INTEGRATOR || ARCH_NETWINDER)
+		(!ARM || ARCH_FOOTBRIDGE || ARCH_INTEGRATOR || ARCH_NETWINDER) && \
+		!ARM64
 	default y
 	help
 	  Saying Y here will allow you to use Linux in text mode through a
@@ -76,23 +77,28 @@ config DUMMY_CONSOLE
 
 config DUMMY_CONSOLE_COLUMNS
         int "Initial number of console screen columns"
-        depends on PARISC && DUMMY_CONSOLE
-        default "160"
+        depends on DUMMY_CONSOLE && !ARM
+        default 160 if PARISC
+        default 80
         help
-          The default value is 160, which should fit a 1280x1024 monitor.
+          On PA-RISC, the default value is 160, which should fit a 1280x1024
+          monitor.
           Select 80 if you use a 640x480 resolution by default.
 
 config DUMMY_CONSOLE_ROWS
         int "Initial number of console screen rows"
-        depends on PARISC && DUMMY_CONSOLE
-        default "64"
+        depends on DUMMY_CONSOLE && !ARM
+        default 64 if PARISC
+        default 25
         help
-          The default value is 64, which should fit a 1280x1024 monitor.
+          On PA-RISC, the default value is 64, which should fit a 1280x1024
+          monitor.
           Select 25 if you use a 640x480 resolution by default.
 
 config FRAMEBUFFER_CONSOLE
 	tristate "Framebuffer Console support"
-	depends on FB
+	depends on FB && !UML
+	select VT_HW_CONSOLE_BINDING
 	select CRC32
 	select FONT_SUPPORT
 	help

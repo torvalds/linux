@@ -57,7 +57,7 @@ static const struct file_operations name## _ops = {			\
 					    wl, &name## _ops);		\
 		if (!entry || IS_ERR(entry))				\
 			goto err;					\
-	} while (0);
+	} while (0)
 
 
 #define DEBUGFS_ADD_PREFIX(prefix, name, parent)			\
@@ -66,7 +66,7 @@ static const struct file_operations name## _ops = {			\
 				    wl, &prefix## _## name## _ops);	\
 		if (!entry || IS_ERR(entry))				\
 			goto err;					\
-	} while (0);
+	} while (0)
 
 #define DEBUGFS_FWSTATS_FILE(sub, name, fmt, struct_type)		\
 static ssize_t sub## _ ##name## _read(struct file *file,		\

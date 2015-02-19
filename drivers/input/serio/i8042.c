@@ -67,6 +67,10 @@ static bool i8042_notimeout;
 module_param_named(notimeout, i8042_notimeout, bool, 0);
 MODULE_PARM_DESC(notimeout, "Ignore timeouts signalled by i8042");
 
+static bool i8042_kbdreset;
+module_param_named(kbdreset, i8042_kbdreset, bool, 0);
+MODULE_PARM_DESC(kbdreset, "Reset device connected to KBD port");
+
 #ifdef CONFIG_X86
 static bool i8042_dritek;
 module_param_named(dritek, i8042_dritek, bool, 0);
@@ -87,6 +91,8 @@ MODULE_PARM_DESC(debug, "Turn i8042 debugging mode on and off");
 #endif
 
 static bool i8042_bypass_aux_irq_test;
+static char i8042_kbd_firmware_id[128];
+static char i8042_aux_firmware_id[128];
 
 #include "i8042.h"
 
@@ -223,21 +229,26 @@ static int i8042_flush(void)
 {
 	unsigned long flags;
 	unsigned char data, str;
-	int i = 0;
+	int count = 0;
+	int retval = 0;
 
 	spin_lock_irqsave(&i8042_lock, flags);
 
-	while (((str = i8042_read_status()) & I8042_STR_OBF) && (i < I8042_BUFFER_SIZE)) {
-		udelay(50);
-		data = i8042_read_data();
-		i++;
-		dbg("%02x <- i8042 (flush, %s)\n",
-		    data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
+	while ((str = i8042_read_status()) & I8042_STR_OBF) {
+		if (count++ < I8042_BUFFER_SIZE) {
+			udelay(50);
+			data = i8042_read_data();
+			dbg("%02x <- i8042 (flush, %s)\n",
+			    data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
+		} else {
+			retval = -EIO;
+			break;
+		}
 	}
 
 	spin_unlock_irqrestore(&i8042_lock, flags);
 
-	return i;
+	return retval;
 }
 
 /*
@@ -783,6 +794,16 @@ static int __init i8042_check_aux(void)
 		return -1;
 
 /*
+ * Reset keyboard (needed on some laptops to successfully detect
+ * touchpad, e.g., some Gigabyte laptop models with Elantech
+ * touchpads).
+ */
+	if (i8042_kbdreset) {
+		pr_warn("Attempting to reset device connected to KBD port\n");
+		i8042_kbd_write(NULL, (unsigned char) 0xff);
+	}
+
+/*
  * Test AUX IRQ delivery to make sure BIOS did not grab the IRQ and
  * used it for a PCI card or somethig else.
  */
@@ -849,7 +870,7 @@ static int __init i8042_check_aux(void)
 
 static int i8042_controller_check(void)
 {
-	if (i8042_flush() == I8042_BUFFER_SIZE) {
+	if (i8042_flush()) {
 		pr_err("No controller found\n");
 		return -ENODEV;
 	}
@@ -1031,7 +1052,7 @@ static void i8042_controller_reset(bool force_reset)
 /*
  * i8042_panic_blink() will turn the keyboard LEDs on or off and is called
  * when kernel panics. Flashing LEDs is useful for users running X who may
- * not see the console and will help distingushing panics from "real"
+ * not see the console and will help distinguishing panics from "real"
  * lockups.
  *
  * Note that DELAY has a limit of 10ms so we will not get stuck here
@@ -1213,6 +1234,8 @@ static int __init i8042_create_kbd_port(void)
 	serio->dev.parent	= &i8042_platform_device->dev;
 	strlcpy(serio->name, "i8042 KBD port", sizeof(serio->name));
 	strlcpy(serio->phys, I8042_KBD_PHYS_DESC, sizeof(serio->phys));
+	strlcpy(serio->firmware_id, i8042_kbd_firmware_id,
+		sizeof(serio->firmware_id));
 
 	port->serio = serio;
 	port->irq = I8042_KBD_IRQ;
@@ -1239,10 +1262,14 @@ static int __init i8042_create_aux_port(int idx)
 	if (idx < 0) {
 		strlcpy(serio->name, "i8042 AUX port", sizeof(serio->name));
 		strlcpy(serio->phys, I8042_AUX_PHYS_DESC, sizeof(serio->phys));
+		strlcpy(serio->firmware_id, i8042_aux_firmware_id,
+			sizeof(serio->firmware_id));
 		serio->close = i8042_port_close;
 	} else {
 		snprintf(serio->name, sizeof(serio->name), "i8042 AUX%d port", idx);
 		snprintf(serio->phys, sizeof(serio->phys), I8042_MUX_PHYS_DESC, idx + 1);
+		strlcpy(serio->firmware_id, i8042_aux_firmware_id,
+			sizeof(serio->firmware_id));
 	}
 
 	port->serio = serio;
@@ -1450,7 +1477,6 @@ static int i8042_remove(struct platform_device *dev)
 static struct platform_driver i8042_driver = {
 	.driver		= {
 		.name	= "i8042",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &i8042_pm_ops,
 #endif

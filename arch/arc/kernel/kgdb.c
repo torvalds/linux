@@ -158,11 +158,6 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 	return -1;
 }
 
-unsigned long kgdb_arch_pc(int exception, struct pt_regs *regs)
-{
-	return instruction_pointer(regs);
-}
-
 int kgdb_arch_init(void)
 {
 	single_step_data.armed = 0;
@@ -194,6 +189,18 @@ void kgdb_arch_exit(void)
 void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 {
 	instruction_pointer(regs) = ip;
+}
+
+static void kgdb_call_nmi_hook(void *ignored)
+{
+	kgdb_nmicallback(raw_smp_processor_id(), NULL);
+}
+
+void kgdb_roundup_cpus(unsigned long flags)
+{
+	local_irq_enable();
+	smp_call_function(kgdb_call_nmi_hook, NULL, 0);
+	local_irq_disable();
 }
 
 struct kgdb_arch arch_kgdb_ops = {

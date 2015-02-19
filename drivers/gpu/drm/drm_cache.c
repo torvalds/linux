@@ -32,6 +32,13 @@
 #include <drm/drmP.h>
 
 #if defined(CONFIG_X86)
+#include <asm/smp.h>
+
+/*
+ * clflushopt is an unordered instruction which needs fencing with mfence or
+ * sfence to avoid ordering issues.  For drm_clflush_page this fencing happens
+ * in the caller.
+ */
 static void
 drm_clflush_page(struct page *page)
 {
@@ -44,7 +51,7 @@ drm_clflush_page(struct page *page)
 
 	page_virtual = kmap_atomic(page);
 	for (i = 0; i < PAGE_SIZE; i += size)
-		clflush(page_virtual + i);
+		clflushopt(page_virtual + i);
 	kunmap_atomic(page_virtual);
 }
 
@@ -58,12 +65,6 @@ static void drm_cache_flush_clflush(struct page *pages[],
 		drm_clflush_page(*pages++);
 	mb();
 }
-
-static void
-drm_clflush_ipi_handler(void *null)
-{
-	wbinvd();
-}
 #endif
 
 void
@@ -76,7 +77,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 		return;
 	}
 
-	if (on_each_cpu(drm_clflush_ipi_handler, NULL, 1) != 0)
+	if (wbinvd_on_all_cpus())
 		printk(KERN_ERR "Timed out waiting for cache flush.\n");
 
 #elif defined(__powerpc__)
@@ -115,7 +116,7 @@ drm_clflush_sg(struct sg_table *st)
 		return;
 	}
 
-	if (on_each_cpu(drm_clflush_ipi_handler, NULL, 1) != 0)
+	if (wbinvd_on_all_cpus())
 		printk(KERN_ERR "Timed out waiting for cache flush.\n");
 #else
 	printk(KERN_ERR "Architecture has no drm_cache.c support\n");
@@ -125,20 +126,20 @@ drm_clflush_sg(struct sg_table *st)
 EXPORT_SYMBOL(drm_clflush_sg);
 
 void
-drm_clflush_virt_range(char *addr, unsigned long length)
+drm_clflush_virt_range(void *addr, unsigned long length)
 {
 #if defined(CONFIG_X86)
 	if (cpu_has_clflush) {
-		char *end = addr + length;
+		void *end = addr + length;
 		mb();
 		for (; addr < end; addr += boot_cpu_data.x86_clflush_size)
-			clflush(addr);
-		clflush(end - 1);
+			clflushopt(addr);
+		clflushopt(end - 1);
 		mb();
 		return;
 	}
 
-	if (on_each_cpu(drm_clflush_ipi_handler, NULL, 1) != 0)
+	if (wbinvd_on_all_cpus())
 		printk(KERN_ERR "Timed out waiting for cache flush.\n");
 #else
 	printk(KERN_ERR "Architecture has no drm_cache.c support\n");

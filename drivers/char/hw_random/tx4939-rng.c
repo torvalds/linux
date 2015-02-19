@@ -110,12 +110,10 @@ static int __init tx4939_rng_probe(struct platform_device *dev)
 	struct resource *r;
 	int i;
 
-	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!r)
-		return -EBUSY;
 	rngdev = devm_kzalloc(&dev->dev, sizeof(*rngdev), GFP_KERNEL);
 	if (!rngdev)
 		return -ENOMEM;
+	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	rngdev->base = devm_ioremap_resource(&dev->dev, r);
 	if (IS_ERR(rngdev->base))
 		return PTR_ERR(rngdev->base);
@@ -160,7 +158,6 @@ static int __exit tx4939_rng_remove(struct platform_device *dev)
 static struct platform_driver tx4939_rng_driver = {
 	.driver		= {
 		.name	= "tx4939-rng",
-		.owner	= THIS_MODULE,
 	},
 	.remove = tx4939_rng_remove,
 };

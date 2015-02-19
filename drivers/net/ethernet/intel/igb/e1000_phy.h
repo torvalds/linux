@@ -1,29 +1,25 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #ifndef _E1000_PHY_H_
 #define _E1000_PHY_H_
@@ -70,7 +66,6 @@ s32  igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data);
 s32  igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data);
 s32  igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data);
-s32  e1000_write_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 data);
 s32  igb_copper_link_setup_82580(struct e1000_hw *hw);
 s32  igb_get_phy_info_82580(struct e1000_hw *hw);
 s32  igb_phy_force_speed_duplex_82580(struct e1000_hw *hw);
@@ -156,7 +151,6 @@ s32  igb_check_polarity_m88(struct e1000_hw *hw);
 #define GS40G_MAC_LB			0x4140
 #define GS40G_MAC_SPEED_1G		0X0006
 #define GS40G_COPPER_SPEC		0x0010
-#define GS40G_CS_POWER_DOWN		0x0002
 #define GS40G_LINE_LB			0x4000
 
 /* SFP modules ID memory locations */

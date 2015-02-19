@@ -37,10 +37,10 @@
 #ifndef _MDC_INTERNAL_H
 #define _MDC_INTERNAL_H
 
-#include <lustre_mdc.h>
-#include <lustre_mds.h>
+#include "../include/lustre_mdc.h"
+#include "../include/lustre_mds.h"
 
-#ifdef LPROCFS
+#if defined CONFIG_PROC_FS
 void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars)
@@ -69,9 +69,10 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		     const void *data, int datalen, __u32 mode, __u32 uid,
 		     __u32 gid, cfs_cap_t capability, __u64 rdev);
 void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		   __u32 mode, __u64 rdev, __u32 flags, const void *data,
+		   __u32 mode, __u64 rdev, __u64 flags, const void *data,
 		   int datalen);
 void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
+void mdc_getxattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
 void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
 void mdc_rename_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		     const char *old, int oldlen, const char *new, int newlen);
@@ -100,14 +101,14 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		struct lustre_handle *lockh, void *lmm, int lmmsize,
 		struct ptlrpc_request **req, __u64 extra_lock_flags);
 
-int mdc_resource_get_unused(struct obd_export *exp, struct lu_fid *fid,
+int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 			    struct list_head *cancels, ldlm_mode_t mode,
 			    __u64 bits);
 /* mdc/mdc_request.c */
 int mdc_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
 		  struct md_op_data *op_data);
 
-int mdc_open(struct obd_export *exp, obd_id ino, int type, int flags,
+int mdc_open(struct obd_export *exp, u64 ino, int type, int flags,
 	     struct lov_mds_md *lmm, int lmm_size, struct lustre_handle *fh,
 	     struct ptlrpc_request **);
 
@@ -121,7 +122,7 @@ int mdc_free_lustre_md(struct obd_export *exp, struct lustre_md *md);
 
 int mdc_set_open_replay_data(struct obd_export *exp,
 			     struct obd_client_handle *och,
-			     struct ptlrpc_request *open_req);
+			     struct lookup_intent *it);
 
 int mdc_clear_open_replay_data(struct obd_export *exp,
 			       struct obd_client_handle *och);

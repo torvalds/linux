@@ -74,6 +74,13 @@ static struct platform_device my_hid = {
 	You can add as many HID functions as you want, only limited by
 	the amount of interrupt endpoints your gadget driver supports.
 
+Configuration with configfs
+
+	Instead of adding fake platform devices and drivers in order to pass
+	some data to the kernel, if HID is a part of a gadget composed with
+	configfs the hidg_func_descriptor.report_desc is passed to the kernel
+	by writing the appropriate stream of bytes to a configfs attribute.
+
 Send and receive HID reports
 
 	HID reports can be sent/received using read/write on the

@@ -62,7 +62,7 @@ MODULE_LICENSE("GPL");
 /* ======================== Local structures ======================== */
 
 
-typedef struct btuart_info_t {
+struct btuart_info {
 	struct pcmcia_device *p_dev;
 
 	struct hci_dev *hdev;
@@ -75,7 +75,7 @@ typedef struct btuart_info_t {
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
-} btuart_info_t;
+};
 
 
 static int btuart_config(struct pcmcia_device *link);
@@ -127,7 +127,7 @@ static int btuart_write(unsigned int iobase, int fifo_size, __u8 *buf, int len)
 }
 
 
-static void btuart_write_wakeup(btuart_info_t *info)
+static void btuart_write_wakeup(struct btuart_info *info)
 {
 	if (!info) {
 		BT_ERR("Unknown device");
@@ -149,7 +149,8 @@ static void btuart_write_wakeup(btuart_info_t *info)
 		if (!pcmcia_dev_present(info->p_dev))
 			return;
 
-		if (!(skb = skb_dequeue(&(info->txq))))
+		skb = skb_dequeue(&(info->txq));
+		if (!skb)
 			break;
 
 		/* Send frame */
@@ -171,7 +172,7 @@ static void btuart_write_wakeup(btuart_info_t *info)
 }
 
 
-static void btuart_receive(btuart_info_t *info)
+static void btuart_receive(struct btuart_info *info)
 {
 	unsigned int iobase;
 	int boguscount = 0;
@@ -190,7 +191,8 @@ static void btuart_receive(btuart_info_t *info)
 		if (info->rx_skb == NULL) {
 			info->rx_state = RECV_WAIT_PACKET_TYPE;
 			info->rx_count = 0;
-			if (!(info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC))) {
+			info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
+			if (!info->rx_skb) {
 				BT_ERR("Can't allocate mem for new packet");
 				return;
 			}
@@ -198,7 +200,6 @@ static void btuart_receive(btuart_info_t *info)
 
 		if (info->rx_state == RECV_WAIT_PACKET_TYPE) {
 
-			info->rx_skb->dev = (void *) info->hdev;
 			bt_cb(info->rx_skb)->pkt_type = inb(iobase + UART_RX);
 
 			switch (bt_cb(info->rx_skb)->pkt_type) {
@@ -265,7 +266,7 @@ static void btuart_receive(btuart_info_t *info)
 					break;
 
 				case RECV_WAIT_DATA:
-					hci_recv_frame(info->rx_skb);
+					hci_recv_frame(info->hdev, info->rx_skb);
 					info->rx_skb = NULL;
 					break;
 
@@ -285,7 +286,7 @@ static void btuart_receive(btuart_info_t *info)
 
 static irqreturn_t btuart_interrupt(int irq, void *dev_inst)
 {
-	btuart_info_t *info = dev_inst;
+	struct btuart_info *info = dev_inst;
 	unsigned int iobase;
 	int boguscount = 0;
 	int iir, lsr;
@@ -339,7 +340,8 @@ static irqreturn_t btuart_interrupt(int irq, void *dev_inst)
 }
 
 
-static void btuart_change_speed(btuart_info_t *info, unsigned int speed)
+static void btuart_change_speed(struct btuart_info *info,
+				unsigned int speed)
 {
 	unsigned long flags;
 	unsigned int iobase;
@@ -396,7 +398,7 @@ static void btuart_change_speed(btuart_info_t *info, unsigned int speed)
 
 static int btuart_hci_flush(struct hci_dev *hdev)
 {
-	btuart_info_t *info = hci_get_drvdata(hdev);
+	struct btuart_info *info = hci_get_drvdata(hdev);
 
 	/* Drop TX queue */
 	skb_queue_purge(&(info->txq));
@@ -424,17 +426,9 @@ static int btuart_hci_close(struct hci_dev *hdev)
 }
 
 
-static int btuart_hci_send_frame(struct sk_buff *skb)
+static int btuart_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	btuart_info_t *info;
-	struct hci_dev *hdev = (struct hci_dev *)(skb->dev);
-
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
-		return -ENODEV;
-	}
-
-	info = hci_get_drvdata(hdev);
+	struct btuart_info *info = hci_get_drvdata(hdev);
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -458,17 +452,11 @@ static int btuart_hci_send_frame(struct sk_buff *skb)
 }
 
 
-static int btuart_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
-
-
 
 /* ======================== Card services HCI interaction ======================== */
 
 
-static int btuart_open(btuart_info_t *info)
+static int btuart_open(struct btuart_info *info)
 {
 	unsigned long flags;
 	unsigned int iobase = info->p_dev->resource[0]->start;
@@ -495,11 +483,10 @@ static int btuart_open(btuart_info_t *info)
 	hci_set_drvdata(hdev, info);
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
-	hdev->open     = btuart_hci_open;
-	hdev->close    = btuart_hci_close;
-	hdev->flush    = btuart_hci_flush;
-	hdev->send     = btuart_hci_send_frame;
-	hdev->ioctl    = btuart_hci_ioctl;
+	hdev->open  = btuart_hci_open;
+	hdev->close = btuart_hci_close;
+	hdev->flush = btuart_hci_flush;
+	hdev->send  = btuart_hci_send_frame;
 
 	spin_lock_irqsave(&(info->lock), flags);
 
@@ -535,7 +522,7 @@ static int btuart_open(btuart_info_t *info)
 }
 
 
-static int btuart_close(btuart_info_t *info)
+static int btuart_close(struct btuart_info *info)
 {
 	unsigned long flags;
 	unsigned int iobase = info->p_dev->resource[0]->start;
@@ -564,7 +551,7 @@ static int btuart_close(btuart_info_t *info)
 
 static int btuart_probe(struct pcmcia_device *link)
 {
-	btuart_info_t *info;
+	struct btuart_info *info;
 
 	/* Create new info device */
 	info = devm_kzalloc(&link->dev, sizeof(*info), GFP_KERNEL);
@@ -627,7 +614,7 @@ static int btuart_check_config_notpicky(struct pcmcia_device *p_dev,
 
 static int btuart_config(struct pcmcia_device *link)
 {
-	btuart_info_t *info = link->priv;
+	struct btuart_info *info = link->priv;
 	int i;
 	int try;
 
@@ -668,7 +655,7 @@ failed:
 
 static void btuart_release(struct pcmcia_device *link)
 {
-	btuart_info_t *info = link->priv;
+	struct btuart_info *info = link->priv;
 
 	btuart_close(info);
 

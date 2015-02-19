@@ -31,6 +31,7 @@
 
 enum context { IN_KERNEL = 1, IN_USER = 2 };
 enum ser { SER_REQUIRED = 1, NO_SER = 2 };
+enum exception { EXCP_CONTEXT = 1, NO_EXCP = 2 };
 
 static struct severity {
 	u64 mask;
@@ -40,6 +41,7 @@ static struct severity {
 	unsigned char mcgres;
 	unsigned char ser;
 	unsigned char context;
+	unsigned char excp;
 	unsigned char covered;
 	char *msg;
 } severities[] = {
@@ -48,6 +50,8 @@ static struct severity {
 #define  USER		.context = IN_USER
 #define  SER		.ser = SER_REQUIRED
 #define  NOSER		.ser = NO_SER
+#define  EXCP		.excp = EXCP_CONTEXT
+#define  NOEXCP		.excp = NO_EXCP
 #define  BITCLR(x)	.mask = x, .result = 0
 #define  BITSET(x)	.mask = x, .result = x
 #define  MCGMASK(x, y)	.mcgmask = x, .mcgres = y
@@ -62,7 +66,7 @@ static struct severity {
 		),
 	MCESEV(
 		NO, "Not enabled",
-		BITCLR(MCI_STATUS_EN)
+		EXCP, BITCLR(MCI_STATUS_EN)
 		),
 	MCESEV(
 		PANIC, "Processor context corrupt",
@@ -71,16 +75,20 @@ static struct severity {
 	/* When MCIP is not set something is very confused */
 	MCESEV(
 		PANIC, "MCIP not set in MCA handler",
-		MCGMASK(MCG_STATUS_MCIP, 0)
+		EXCP, MCGMASK(MCG_STATUS_MCIP, 0)
 		),
 	/* Neither return not error IP -- no chance to recover -> PANIC */
 	MCESEV(
 		PANIC, "Neither restart nor error IP",
-		MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, 0)
+		EXCP, MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, 0)
 		),
 	MCESEV(
 		PANIC, "In kernel and no restart IP",
-		KERNEL, MCGMASK(MCG_STATUS_RIPV, 0)
+		EXCP, KERNEL, MCGMASK(MCG_STATUS_RIPV, 0)
+		),
+	MCESEV(
+		DEFERRED, "Deferred error",
+		NOSER, MASK(MCI_STATUS_UC|MCI_STATUS_DEFERRED|MCI_STATUS_POISON, MCI_STATUS_DEFERRED)
 		),
 	MCESEV(
 		KEEP, "Corrected error",
@@ -89,7 +97,7 @@ static struct severity {
 
 	/* ignore OVER for UCNA */
 	MCESEV(
-		KEEP, "Uncorrected no action required",
+		UCNA, "Uncorrected no action required",
 		SER, MASK(MCI_UC_SAR, MCI_STATUS_UC)
 		),
 	MCESEV(
@@ -178,8 +186,9 @@ static int error_context(struct mce *m)
 	return ((m->cs & 3) == 3) ? IN_USER : IN_KERNEL;
 }
 
-int mce_severity(struct mce *m, int tolerant, char **msg)
+int mce_severity(struct mce *m, int tolerant, char **msg, bool is_excp)
 {
+	enum exception excp = (is_excp ? EXCP_CONTEXT : NO_EXCP);
 	enum context ctx = error_context(m);
 	struct severity *s;
 
@@ -193,6 +202,8 @@ int mce_severity(struct mce *m, int tolerant, char **msg)
 		if (s->ser == NO_SER && mca_cfg.ser)
 			continue;
 		if (s->context && ctx != s->context)
+			continue;
+		if (s->excp && excp != s->excp)
 			continue;
 		if (msg)
 			*msg = s->msg;

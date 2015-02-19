@@ -164,7 +164,9 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	clk_prepare_enable(mxc_rng->clk);
+	err = clk_prepare_enable(mxc_rng->clk);
+	if (err)
+		goto out;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mxc_rng->mem = devm_ioremap_resource(&pdev->dev, res);
@@ -204,7 +206,6 @@ static int __exit mxc_rnga_remove(struct platform_device *pdev)
 static struct platform_driver mxc_rnga_driver = {
 	.driver = {
 		   .name = "mxc_rnga",
-		   .owner = THIS_MODULE,
 		   },
 	.remove = __exit_p(mxc_rnga_remove),
 };

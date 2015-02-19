@@ -20,7 +20,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 MODULE_LICENSE("GPL");
 
@@ -29,24 +29,16 @@ static ssize_t irst_show_wakeup_events(struct device *dev,
 				       char *buf)
 {
 	struct acpi_device *acpi;
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *result;
+	unsigned long long value;
 	acpi_status status;
 
 	acpi = to_acpi_device(dev);
 
-	status = acpi_evaluate_object(acpi->handle, "GFFS", NULL, &output);
-	if (!ACPI_SUCCESS(status))
+	status = acpi_evaluate_integer(acpi->handle, "GFFS", NULL, &value);
+	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
-	result = output.pointer;
-
-	if (result->type != ACPI_TYPE_INTEGER) {
-		kfree(result);
-		return -EINVAL;
-	}
-
-	return sprintf(buf, "%lld\n", result->integer.value);
+	return sprintf(buf, "%lld\n", value);
 }
 
 static ssize_t irst_store_wakeup_events(struct device *dev,
@@ -54,8 +46,6 @@ static ssize_t irst_store_wakeup_events(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct acpi_device *acpi;
-	struct acpi_object_list input;
-	union acpi_object param;
 	acpi_status status;
 	unsigned long value;
 	int error;
@@ -67,15 +57,9 @@ static ssize_t irst_store_wakeup_events(struct device *dev,
 	if (error)
 		return error;
 
-	param.type = ACPI_TYPE_INTEGER;
-	param.integer.value = value;
+	status = acpi_execute_simple_method(acpi->handle, "SFFS", value);
 
-	input.count = 1;
-	input.pointer = &param;
-
-	status = acpi_evaluate_object(acpi->handle, "SFFS", &input, NULL);
-
-	if (!ACPI_SUCCESS(status))
+	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
 	return count;
@@ -91,24 +75,16 @@ static ssize_t irst_show_wakeup_time(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct acpi_device *acpi;
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *result;
+	unsigned long long value;
 	acpi_status status;
 
 	acpi = to_acpi_device(dev);
 
-	status = acpi_evaluate_object(acpi->handle, "GFTV", NULL, &output);
-	if (!ACPI_SUCCESS(status))
+	status = acpi_evaluate_integer(acpi->handle, "GFTV", NULL, &value);
+	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
-	result = output.pointer;
-
-	if (result->type != ACPI_TYPE_INTEGER) {
-		kfree(result);
-		return -EINVAL;
-	}
-
-	return sprintf(buf, "%lld\n", result->integer.value);
+	return sprintf(buf, "%lld\n", value);
 }
 
 static ssize_t irst_store_wakeup_time(struct device *dev,
@@ -116,8 +92,6 @@ static ssize_t irst_store_wakeup_time(struct device *dev,
 				      const char *buf, size_t count)
 {
 	struct acpi_device *acpi;
-	struct acpi_object_list input;
-	union acpi_object param;
 	acpi_status status;
 	unsigned long value;
 	int error;
@@ -129,15 +103,9 @@ static ssize_t irst_store_wakeup_time(struct device *dev,
 	if (error)
 		return error;
 
-	param.type = ACPI_TYPE_INTEGER;
-	param.integer.value = value;
+	status = acpi_execute_simple_method(acpi->handle, "SFTV", value);
 
-	input.count = 1;
-	input.pointer = &param;
-
-	status = acpi_evaluate_object(acpi->handle, "SFTV", &input, NULL);
-
-	if (!ACPI_SUCCESS(status))
+	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
 	return count;
@@ -151,21 +119,16 @@ static struct device_attribute irst_timeout_attr = {
 
 static int irst_add(struct acpi_device *acpi)
 {
-	int error = 0;
+	int error;
 
 	error = device_create_file(&acpi->dev, &irst_timeout_attr);
-	if (error)
-		goto out;
+	if (unlikely(error))
+		return error;
 
 	error = device_create_file(&acpi->dev, &irst_wakeup_attr);
-	if (error)
-		goto out_timeout;
+	if (unlikely(error))
+		device_remove_file(&acpi->dev, &irst_timeout_attr);
 
-	return 0;
-
-out_timeout:
-	device_remove_file(&acpi->dev, &irst_timeout_attr);
-out:
 	return error;
 }
 
@@ -193,17 +156,6 @@ static struct acpi_driver irst_driver = {
 	},
 };
 
-static int irst_init(void)
-{
-	return acpi_bus_register_driver(&irst_driver);
-}
-
-static void irst_exit(void)
-{
-	acpi_bus_unregister_driver(&irst_driver);
-}
-
-module_init(irst_init);
-module_exit(irst_exit);
+module_acpi_driver(irst_driver);
 
 MODULE_DEVICE_TABLE(acpi, irst_ids);

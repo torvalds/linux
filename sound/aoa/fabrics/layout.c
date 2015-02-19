@@ -644,7 +644,7 @@ static int n##_control_put(struct snd_kcontrol *kcontrol,		\
 			   struct snd_ctl_elem_value *ucontrol)		\
 {									\
 	struct gpio_runtime *gpio = snd_kcontrol_chip(kcontrol);	\
-	if (gpio->methods && gpio->methods->get_##n)			\
+	if (gpio->methods && gpio->methods->set_##n)			\
 		gpio->methods->set_##n(gpio,				\
 			!!ucontrol->value.integer.value[0]);		\
 	return 1;							\
@@ -1135,7 +1135,7 @@ static int aoa_fabric_layout_resume(struct soundbus_dev *sdev)
 {
 	struct layout_dev *ldev = dev_get_drvdata(&sdev->ofdev.dev);
 
-	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_off)
+	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_restore)
 		ldev->gpio.methods->all_amps_restore(&ldev->gpio);
 
 	return 0;

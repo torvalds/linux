@@ -217,7 +217,10 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_init(dev);
 	dev->mode_config.funcs = (void *)&mga_mode_funcs;
-	dev->mode_config.preferred_depth = 24;
+	if (IS_G200_SE(mdev) && mdev->mc.vram_size < (2048*1024))
+		dev->mode_config.preferred_depth = 16;
+	else
+		dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
 
 	r = mgag200_modeset_init(mdev);
@@ -310,20 +313,7 @@ int mgag200_dumb_create(struct drm_file *file,
 	return 0;
 }
 
-int mgag200_dumb_destroy(struct drm_file *file,
-		     struct drm_device *dev,
-		     uint32_t handle)
-{
-	return drm_gem_handle_delete(file, handle);
-}
-
-int mgag200_gem_init_object(struct drm_gem_object *obj)
-{
-	BUG();
-	return 0;
-}
-
-void mgag200_bo_unref(struct mgag200_bo **bo)
+static void mgag200_bo_unref(struct mgag200_bo **bo)
 {
 	struct ttm_buffer_object *tbo;
 
@@ -332,24 +322,20 @@ void mgag200_bo_unref(struct mgag200_bo **bo)
 
 	tbo = &((*bo)->bo);
 	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
-
+	*bo = NULL;
 }
 
 void mgag200_gem_free_object(struct drm_gem_object *obj)
 {
 	struct mgag200_bo *mgag200_bo = gem_to_mga_bo(obj);
 
-	if (!mgag200_bo)
-		return;
 	mgag200_bo_unref(&mgag200_bo);
 }
 
 
 static inline u64 mgag200_bo_mmap_offset(struct mgag200_bo *bo)
 {
-	return bo->bo.addr_space_offset;
+	return drm_vma_node_offset_addr(&bo->bo.vma_node);
 }
 
 int

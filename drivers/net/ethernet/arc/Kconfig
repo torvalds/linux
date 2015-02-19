@@ -17,15 +17,29 @@ config NET_VENDOR_ARC
 
 if NET_VENDOR_ARC
 
-config ARC_EMAC
-	tristate "ARC EMAC support"
+config ARC_EMAC_CORE
+	tristate
 	select MII
 	select PHYLIB
+
+config ARC_EMAC
+	tristate "ARC EMAC support"
+	select ARC_EMAC_CORE
 	depends on OF_IRQ
 	depends on OF_NET
 	---help---
 	  On some legacy ARC (Synopsys) FPGA boards such as ARCAngel4/ML50x
 	  non-standard on-chip ethernet device ARC EMAC 10/100 is used.
 	  Say Y here if you have such a board.  If unsure, say N.
+
+config EMAC_ROCKCHIP
+	tristate "Rockchip EMAC support"
+	select ARC_EMAC_CORE
+	depends on OF_IRQ && OF_NET && REGULATOR
+	---help---
+	  Support for Rockchip RK3066/RK3188 EMAC ethernet controllers.
+	  This selects Rockchip SoC glue layer support for the
+	  emac device driver. This driver is used for RK3066/RK3188
+	  EMAC ethernet controller.
 
 endif # NET_VENDOR_ARC

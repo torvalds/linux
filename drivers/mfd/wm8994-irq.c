@@ -193,7 +193,7 @@ int wm8994_irq_init(struct wm8994 *wm8994)
 {
 	int ret;
 	unsigned long irqflags;
-	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
+	struct wm8994_pdata *pdata = dev_get_platdata(wm8994->dev);
 
 	if (!wm8994->irq) {
 		dev_warn(wm8994->dev,
@@ -262,8 +262,10 @@ int wm8994_irq_init(struct wm8994 *wm8994)
 
 	return 0;
 }
+EXPORT_SYMBOL(wm8994_irq_init);
 
 void wm8994_irq_exit(struct wm8994 *wm8994)
 {
 	regmap_del_irq_chip(wm8994->irq, wm8994->irq_data);
 }
+EXPORT_SYMBOL(wm8994_irq_exit);

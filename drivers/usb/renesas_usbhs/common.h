@@ -17,6 +17,7 @@
 #ifndef RENESAS_USB_DRIVER_H
 #define RENESAS_USB_DRIVER_H
 
+#include <linux/extcon.h>
 #include <linux/platform_device.h>
 #include <linux/usb/renesas_usbhs.h>
 
@@ -102,6 +103,10 @@ struct usbhs_priv;
 #define DEVADD8		0x00E0
 #define DEVADD9		0x00E2
 #define DEVADDA		0x00E4
+#define D2FIFOSEL	0x00F0	/* for R-Car Gen2 */
+#define D2FIFOCTR	0x00F2	/* for R-Car Gen2 */
+#define D3FIFOSEL	0x00F4	/* for R-Car Gen2 */
+#define D3FIFOCTR	0x00F6	/* for R-Car Gen2 */
 
 /* SYSCFG */
 #define SCKE	(1 << 10)	/* USB Module Clock Enable */
@@ -250,6 +255,8 @@ struct usbhs_priv {
 	struct delayed_work notify_hotplug_work;
 	struct platform_device *pdev;
 
+	struct extcon_dev *edev;
+
 	spinlock_t		lock;
 
 	u32 flags;
@@ -268,6 +275,9 @@ struct usbhs_priv {
 	 * fifo control
 	 */
 	struct usbhs_fifo_info fifo_info;
+
+	struct usb_phy *usb_phy;
+	struct phy *phy;
 };
 
 /*

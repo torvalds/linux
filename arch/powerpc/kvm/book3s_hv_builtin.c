@@ -6,228 +6,166 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cpu.h>
 #include <linux/kvm_host.h>
 #include <linux/preempt.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/bootmem.h>
 #include <linux/init.h>
+#include <linux/memblock.h>
+#include <linux/sizes.h>
+#include <linux/cma.h>
+#include <linux/bitops.h>
 
 #include <asm/cputable.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 
-#define KVM_LINEAR_RMA		0
-#define KVM_LINEAR_HPT		1
-
-static void __init kvm_linear_init_one(ulong size, int count, int type);
-static struct kvmppc_linear_info *kvm_alloc_linear(int type);
-static void kvm_release_linear(struct kvmppc_linear_info *ri);
-
-int kvm_hpt_order = KVM_DEFAULT_HPT_ORDER;
-EXPORT_SYMBOL_GPL(kvm_hpt_order);
-
-/*************** RMA *************/
+#define KVM_CMA_CHUNK_ORDER	18
 
 /*
- * This maintains a list of RMAs (real mode areas) for KVM guests to use.
- * Each RMA has to be physically contiguous and of a size that the
- * hardware supports.  PPC970 and POWER7 support 64MB, 128MB and 256MB,
- * and other larger sizes.  Since we are unlikely to be allocate that
- * much physically contiguous memory after the system is up and running,
- * we preallocate a set of RMAs in early boot for KVM to use.
+ * Hash page table alignment on newer cpus(CPU_FTR_ARCH_206)
+ * should be power of 2.
  */
-static unsigned long kvm_rma_size = 64 << 20;	/* 64MB */
-static unsigned long kvm_rma_count;
-
-/* Work out RMLS (real mode limit selector) field value for a given RMA size.
-   Assumes POWER7 or PPC970. */
-static inline int lpcr_rmls(unsigned long rma_size)
-{
-	switch (rma_size) {
-	case 32ul << 20:	/* 32 MB */
-		if (cpu_has_feature(CPU_FTR_ARCH_206))
-			return 8;	/* only supported on POWER7 */
-		return -1;
-	case 64ul << 20:	/* 64 MB */
-		return 3;
-	case 128ul << 20:	/* 128 MB */
-		return 7;
-	case 256ul << 20:	/* 256 MB */
-		return 4;
-	case 1ul << 30:		/* 1 GB */
-		return 2;
-	case 16ul << 30:	/* 16 GB */
-		return 1;
-	case 256ul << 30:	/* 256 GB */
-		return 0;
-	default:
-		return -1;
-	}
-}
-
-static int __init early_parse_rma_size(char *p)
-{
-	if (!p)
-		return 1;
-
-	kvm_rma_size = memparse(p, &p);
-
-	return 0;
-}
-early_param("kvm_rma_size", early_parse_rma_size);
-
-static int __init early_parse_rma_count(char *p)
-{
-	if (!p)
-		return 1;
-
-	kvm_rma_count = simple_strtoul(p, NULL, 0);
-
-	return 0;
-}
-early_param("kvm_rma_count", early_parse_rma_count);
-
-struct kvmppc_linear_info *kvm_alloc_rma(void)
-{
-	return kvm_alloc_linear(KVM_LINEAR_RMA);
-}
-EXPORT_SYMBOL_GPL(kvm_alloc_rma);
-
-void kvm_release_rma(struct kvmppc_linear_info *ri)
-{
-	kvm_release_linear(ri);
-}
-EXPORT_SYMBOL_GPL(kvm_release_rma);
-
-/*************** HPT *************/
-
+#define HPT_ALIGN_PAGES		((1 << 18) >> PAGE_SHIFT) /* 256k */
 /*
- * This maintains a list of big linear HPT tables that contain the GVA->HPA
- * memory mappings. If we don't reserve those early on, we might not be able
- * to get a big (usually 16MB) linear memory region from the kernel anymore.
+ * By default we reserve 5% of memory for hash pagetable allocation.
  */
+static unsigned long kvm_cma_resv_ratio = 5;
 
-static unsigned long kvm_hpt_count;
+static struct cma *kvm_cma;
 
-static int __init early_parse_hpt_count(char *p)
+static int __init early_parse_kvm_cma_resv(char *p)
 {
+	pr_debug("%s(%s)\n", __func__, p);
 	if (!p)
-		return 1;
-
-	kvm_hpt_count = simple_strtoul(p, NULL, 0);
-
-	return 0;
+		return -EINVAL;
+	return kstrtoul(p, 0, &kvm_cma_resv_ratio);
 }
-early_param("kvm_hpt_count", early_parse_hpt_count);
+early_param("kvm_cma_resv_ratio", early_parse_kvm_cma_resv);
 
-struct kvmppc_linear_info *kvm_alloc_hpt(void)
+struct page *kvm_alloc_hpt(unsigned long nr_pages)
 {
-	return kvm_alloc_linear(KVM_LINEAR_HPT);
+	VM_BUG_ON(order_base_2(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
+
+	return cma_alloc(kvm_cma, nr_pages, order_base_2(HPT_ALIGN_PAGES));
 }
 EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
 
-void kvm_release_hpt(struct kvmppc_linear_info *li)
+void kvm_release_hpt(struct page *page, unsigned long nr_pages)
 {
-	kvm_release_linear(li);
+	cma_release(kvm_cma, page, nr_pages);
 }
 EXPORT_SYMBOL_GPL(kvm_release_hpt);
 
-/*************** generic *************/
-
-static LIST_HEAD(free_linears);
-static DEFINE_SPINLOCK(linear_lock);
-
-static void __init kvm_linear_init_one(ulong size, int count, int type)
+/**
+ * kvm_cma_reserve() - reserve area for kvm hash pagetable
+ *
+ * This function reserves memory from early allocator. It should be
+ * called by arch specific code once the memblock allocator
+ * has been activated and all other subsystems have already allocated/reserved
+ * memory.
+ */
+void __init kvm_cma_reserve(void)
 {
-	unsigned long i;
-	unsigned long j, npages;
-	void *linear;
-	struct page *pg;
-	const char *typestr;
-	struct kvmppc_linear_info *linear_info;
+	unsigned long align_size;
+	struct memblock_region *reg;
+	phys_addr_t selected_size = 0;
 
-	if (!count)
+	/*
+	 * We need CMA reservation only when we are in HV mode
+	 */
+	if (!cpu_has_feature(CPU_FTR_HVMODE))
 		return;
+	/*
+	 * We cannot use memblock_phys_mem_size() here, because
+	 * memblock_analyze() has not been called yet.
+	 */
+	for_each_memblock(memory, reg)
+		selected_size += memblock_region_memory_end_pfn(reg) -
+				 memblock_region_memory_base_pfn(reg);
 
-	typestr = (type == KVM_LINEAR_RMA) ? "RMA" : "HPT";
-
-	npages = size >> PAGE_SHIFT;
-	linear_info = alloc_bootmem(count * sizeof(struct kvmppc_linear_info));
-	for (i = 0; i < count; ++i) {
-		linear = alloc_bootmem_align(size, size);
-		pr_debug("Allocated KVM %s at %p (%ld MB)\n", typestr, linear,
-			 size >> 20);
-		linear_info[i].base_virt = linear;
-		linear_info[i].base_pfn = __pa(linear) >> PAGE_SHIFT;
-		linear_info[i].npages = npages;
-		linear_info[i].type = type;
-		list_add_tail(&linear_info[i].list, &free_linears);
-		atomic_set(&linear_info[i].use_count, 0);
-
-		pg = pfn_to_page(linear_info[i].base_pfn);
-		for (j = 0; j < npages; ++j) {
-			atomic_inc(&pg->_count);
-			++pg;
-		}
-	}
-}
-
-static struct kvmppc_linear_info *kvm_alloc_linear(int type)
-{
-	struct kvmppc_linear_info *ri, *ret;
-
-	ret = NULL;
-	spin_lock(&linear_lock);
-	list_for_each_entry(ri, &free_linears, list) {
-		if (ri->type != type)
-			continue;
-
-		list_del(&ri->list);
-		atomic_inc(&ri->use_count);
-		memset(ri->base_virt, 0, ri->npages << PAGE_SHIFT);
-		ret = ri;
-		break;
-	}
-	spin_unlock(&linear_lock);
-	return ret;
-}
-
-static void kvm_release_linear(struct kvmppc_linear_info *ri)
-{
-	if (atomic_dec_and_test(&ri->use_count)) {
-		spin_lock(&linear_lock);
-		list_add_tail(&ri->list, &free_linears);
-		spin_unlock(&linear_lock);
-
+	selected_size = (selected_size * kvm_cma_resv_ratio / 100) << PAGE_SHIFT;
+	if (selected_size) {
+		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
+			 (unsigned long)selected_size / SZ_1M);
+		align_size = HPT_ALIGN_PAGES << PAGE_SHIFT;
+		cma_declare_contiguous(0, selected_size, 0, align_size,
+			KVM_CMA_CHUNK_ORDER - PAGE_SHIFT, false, &kvm_cma);
 	}
 }
 
 /*
- * Called at boot time while the bootmem allocator is active,
- * to allocate contiguous physical memory for the hash page
- * tables for guests.
+ * Real-mode H_CONFER implementation.
+ * We check if we are the only vcpu out of this virtual core
+ * still running in the guest and not ceded.  If so, we pop up
+ * to the virtual-mode implementation; if not, just return to
+ * the guest.
  */
-void __init kvm_linear_init(void)
+long int kvmppc_rm_h_confer(struct kvm_vcpu *vcpu, int target,
+			    unsigned int yield_count)
 {
-	/* HPT */
-	kvm_linear_init_one(1 << kvm_hpt_order, kvm_hpt_count, KVM_LINEAR_HPT);
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	int threads_running;
+	int threads_ceded;
+	int threads_conferring;
+	u64 stop = get_tb() + 10 * tb_ticks_per_usec;
+	int rv = H_SUCCESS; /* => don't yield */
 
-	/* RMA */
-	/* Only do this on PPC970 in HV mode */
-	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
-	    !cpu_has_feature(CPU_FTR_ARCH_201))
-		return;
-
-	if (!kvm_rma_size || !kvm_rma_count)
-		return;
-
-	/* Check that the requested size is one supported in hardware */
-	if (lpcr_rmls(kvm_rma_size) < 0) {
-		pr_err("RMA size of 0x%lx not supported\n", kvm_rma_size);
-		return;
+	set_bit(vcpu->arch.ptid, &vc->conferring_threads);
+	while ((get_tb() < stop) && (VCORE_EXIT_COUNT(vc) == 0)) {
+		threads_running = VCORE_ENTRY_COUNT(vc);
+		threads_ceded = hweight32(vc->napping_threads);
+		threads_conferring = hweight32(vc->conferring_threads);
+		if (threads_ceded + threads_conferring >= threads_running) {
+			rv = H_TOO_HARD; /* => do yield */
+			break;
+		}
 	}
-
-	kvm_linear_init_one(kvm_rma_size, kvm_rma_count, KVM_LINEAR_RMA);
+	clear_bit(vcpu->arch.ptid, &vc->conferring_threads);
+	return rv;
 }
+
+/*
+ * When running HV mode KVM we need to block certain operations while KVM VMs
+ * exist in the system. We use a counter of VMs to track this.
+ *
+ * One of the operations we need to block is onlining of secondaries, so we
+ * protect hv_vm_count with get/put_online_cpus().
+ */
+static atomic_t hv_vm_count;
+
+void kvm_hv_vm_activated(void)
+{
+	get_online_cpus();
+	atomic_inc(&hv_vm_count);
+	put_online_cpus();
+}
+EXPORT_SYMBOL_GPL(kvm_hv_vm_activated);
+
+void kvm_hv_vm_deactivated(void)
+{
+	get_online_cpus();
+	atomic_dec(&hv_vm_count);
+	put_online_cpus();
+}
+EXPORT_SYMBOL_GPL(kvm_hv_vm_deactivated);
+
+bool kvm_hv_mode_active(void)
+{
+	return atomic_read(&hv_vm_count) != 0;
+}
+
+extern int hcall_real_table[], hcall_real_table_end[];
+
+int kvmppc_hcall_impl_hv_realmode(unsigned long cmd)
+{
+	cmd /= 4;
+	if (cmd < hcall_real_table_end - hcall_real_table &&
+	    hcall_real_table[cmd])
+		return 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvmppc_hcall_impl_hv_realmode);

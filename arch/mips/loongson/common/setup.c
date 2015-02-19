@@ -10,6 +10,7 @@
 #include <linux/module.h>
 
 #include <asm/wbflush.h>
+#include <asm/bootinfo.h>
 
 #include <loongson.h>
 
@@ -17,9 +18,6 @@
 #include <linux/console.h>
 #include <linux/screen_info.h>
 #endif
-
-void (*__wbflush)(void);
-EXPORT_SYMBOL(__wbflush);
 
 static void wbflush_loongson(void)
 {
@@ -32,10 +30,11 @@ static void wbflush_loongson(void)
 	    ".set mips0\n\t");
 }
 
+void (*__wbflush)(void) = wbflush_loongson;
+EXPORT_SYMBOL(__wbflush);
+
 void __init plat_mem_setup(void)
 {
-	__wbflush = wbflush_loongson;
-
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
 	conswitchp = &vga_con;

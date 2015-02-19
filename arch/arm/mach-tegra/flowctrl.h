@@ -28,9 +28,18 @@
 #define FLOW_CTRL_SCLK_RESUME		(1 << 27)
 #define FLOW_CTRL_HALT_CPU_IRQ		(1 << 10)
 #define	FLOW_CTRL_HALT_CPU_FIQ		(1 << 8)
+#define FLOW_CTRL_HALT_LIC_IRQ		(1 << 11)
+#define FLOW_CTRL_HALT_LIC_FIQ		(1 << 10)
+#define FLOW_CTRL_HALT_GIC_IRQ		(1 << 9)
+#define FLOW_CTRL_HALT_GIC_FIQ		(1 << 8)
 #define FLOW_CTRL_CPU0_CSR		0x8
 #define	FLOW_CTRL_CSR_INTR_FLAG		(1 << 15)
 #define FLOW_CTRL_CSR_EVENT_FLAG	(1 << 14)
+#define FLOW_CTRL_CSR_ENABLE_EXT_CRAIL	(1 << 13)
+#define FLOW_CTRL_CSR_ENABLE_EXT_NCPU	(1 << 12)
+#define FLOW_CTRL_CSR_ENABLE_EXT_MASK ( \
+		FLOW_CTRL_CSR_ENABLE_EXT_NCPU | \
+		FLOW_CTRL_CSR_ENABLE_EXT_CRAIL)
 #define FLOW_CTRL_CSR_ENABLE		(1 << 0)
 #define FLOW_CTRL_HALT_CPU1_EVENTS	0x14
 #define FLOW_CTRL_CPU1_CSR		0x18
@@ -50,6 +59,8 @@ void flowctrl_write_cpu_halt(unsigned int cpuid, u32 value);
 
 void flowctrl_cpu_suspend_enter(unsigned int cpuid);
 void flowctrl_cpu_suspend_exit(unsigned int cpuid);
+
+void tegra_flowctrl_init(void);
 #endif
 
 #endif

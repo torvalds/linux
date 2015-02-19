@@ -10,6 +10,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 #include <asm/smp_scu.h>
 #include <asm/memory.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -334,7 +335,7 @@ ENDPROC(omap4_cpu_resume)
 
 #ifndef CONFIG_OMAP4_ERRATA_I688
 ENTRY(omap_bus_sync)
-	mov	pc, lr
+	ret	lr
 ENDPROC(omap_bus_sync)
 #endif
 

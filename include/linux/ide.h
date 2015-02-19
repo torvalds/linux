@@ -18,14 +18,10 @@
 #include <linux/completion.h>
 #include <linux/pm.h>
 #include <linux/mutex.h>
-#ifdef CONFIG_BLK_DEV_IDEACPI
-#include <acpi/acpi.h>
-#endif
-#include <asm/byteorder.h>
-#include <asm/io.h>
-
 /* for request_sense */
 #include <linux/cdrom.h>
+#include <asm/byteorder.h>
+#include <asm/io.h>
 
 #if defined(CONFIG_CRIS) || defined(CONFIG_FRV) || defined(CONFIG_MN10300)
 # define SUPPORT_VLB_SYNC 0
@@ -1514,7 +1510,7 @@ static inline void ide_set_max_pio(ide_drive_t *drive)
 
 char *ide_media_string(ide_drive_t *);
 
-extern struct device_attribute ide_dev_attrs[];
+extern const struct attribute_group *ide_dev_groups[];
 extern struct bus_type ide_bus_type;
 extern struct class *ide_port_class;
 

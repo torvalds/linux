@@ -33,9 +33,6 @@
 #include <asm/edac.h>
 #include "edac_core.h"
 #include "edac_module.h"
-
-#define CREATE_TRACE_POINTS
-#define TRACE_INCLUDE_PATH ../../include/ras
 #include <ras/ras_event.h>
 
 /* lock to memory controller's control array */
@@ -128,27 +125,27 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 
 #endif				/* CONFIG_EDAC_DEBUG */
 
-/*
- * keep those in sync with the enum mem_type
- */
-const char *edac_mem_types[] = {
-	"Empty csrow",
-	"Reserved csrow type",
-	"Unknown csrow type",
-	"Fast page mode RAM",
-	"Extended data out RAM",
-	"Burst Extended data out RAM",
-	"Single data rate SDRAM",
-	"Registered single data rate SDRAM",
-	"Double data rate SDRAM",
-	"Registered Double data rate SDRAM",
-	"Rambus DRAM",
-	"Unbuffered DDR2 RAM",
-	"Fully buffered DDR2",
-	"Registered DDR2 RAM",
-	"Rambus XDR",
-	"Unbuffered DDR3 RAM",
-	"Registered DDR3 RAM",
+const char * const edac_mem_types[] = {
+	[MEM_EMPTY]	= "Empty csrow",
+	[MEM_RESERVED]	= "Reserved csrow type",
+	[MEM_UNKNOWN]	= "Unknown csrow type",
+	[MEM_FPM]	= "Fast page mode RAM",
+	[MEM_EDO]	= "Extended data out RAM",
+	[MEM_BEDO]	= "Burst Extended data out RAM",
+	[MEM_SDR]	= "Single data rate SDRAM",
+	[MEM_RDR]	= "Registered single data rate SDRAM",
+	[MEM_DDR]	= "Double data rate SDRAM",
+	[MEM_RDDR]	= "Registered Double data rate SDRAM",
+	[MEM_RMBS]	= "Rambus DRAM",
+	[MEM_DDR2]	= "Unbuffered DDR2 RAM",
+	[MEM_FB_DDR2]	= "Fully buffered DDR2",
+	[MEM_RDDR2]	= "Registered DDR2 RAM",
+	[MEM_XDR]	= "Rambus XDR",
+	[MEM_DDR3]	= "Unbuffered DDR3 RAM",
+	[MEM_RDDR3]	= "Registered DDR3 RAM",
+	[MEM_LRDDR3]	= "Load-Reduced DDR3 RAM",
+	[MEM_DDR4]	= "Unbuffered DDR4 RAM",
+	[MEM_RDDR4]	= "Registered DDR4 RAM",
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
 
@@ -559,7 +556,8 @@ static void edac_mc_workq_function(struct work_struct *work_req)
  *
  *		called with the mem_ctls_mutex held
  */
-static void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
+static void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec,
+				bool init)
 {
 	edac_dbg(0, "\n");
 
@@ -567,7 +565,9 @@ static void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
 	if (mci->op_state != OP_RUNNING_POLL)
 		return;
 
-	INIT_DELAYED_WORK(&mci->work, edac_mc_workq_function);
+	if (init)
+		INIT_DELAYED_WORK(&mci->work, edac_mc_workq_function);
+
 	mod_delayed_work(edac_workqueue, &mci->work, msecs_to_jiffies(msec));
 }
 
@@ -601,7 +601,7 @@ static void edac_mc_workq_teardown(struct mem_ctl_info *mci)
  *	user space has updated our poll period value, need to
  *	reset our workq delays
  */
-void edac_mc_reset_delay_period(int value)
+void edac_mc_reset_delay_period(unsigned long value)
 {
 	struct mem_ctl_info *mci;
 	struct list_head *item;
@@ -611,7 +611,7 @@ void edac_mc_reset_delay_period(int value)
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
 
-		edac_mc_workq_setup(mci, (unsigned long) value);
+		edac_mc_workq_setup(mci, value, false);
 	}
 
 	mutex_unlock(&mem_ctls_mutex);
@@ -782,14 +782,16 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 		/* This instance is NOW RUNNING */
 		mci->op_state = OP_RUNNING_POLL;
 
-		edac_mc_workq_setup(mci, edac_mc_get_poll_msec());
+		edac_mc_workq_setup(mci, edac_mc_get_poll_msec(), true);
 	} else {
 		mci->op_state = OP_RUNNING_INTERRUPT;
 	}
 
 	/* Report action taken */
-	edac_mc_printk(mci, KERN_INFO, "Giving out device to '%s' '%s':"
-		" DEV %s\n", mci->mod_name, mci->ctl_name, edac_dev_name(mci));
+	edac_mc_printk(mci, KERN_INFO,
+		"Giving out device to module %s controller %s: DEV %s (%s)\n",
+		mci->mod_name, mci->ctl_name, mci->dev_name,
+		edac_op_state_to_string(mci->op_state));
 
 	edac_mc_owner = mci->mod_name;
 
@@ -1013,7 +1015,7 @@ static void edac_ce_error(struct mem_ctl_info *mci,
 	}
 	edac_inc_ce_error(mci, enable_per_layer_report, pos, error_count);
 
-	if (mci->scrub_mode & SCRUB_SW_SRC) {
+	if (mci->scrub_mode == SCRUB_SW_SRC) {
 		/*
 			* Some memory controllers (called MCs below) can remap
 			* memory so that it is still available at a different

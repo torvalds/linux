@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2014 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_BITARRAY_H_
@@ -31,8 +29,7 @@ static inline int batadv_test_bit(const unsigned long *seq_bits,
 	diff = last_seqno - curr_seqno;
 	if (diff < 0 || diff >= BATADV_TQ_LOCAL_WINDOW_SIZE)
 		return 0;
-	else
-		return test_bit(diff, seq_bits) != 0;
+	return test_bit(diff, seq_bits) != 0;
 }
 
 /* turn corresponding bit on, so we can remember that we got the packet */

@@ -18,8 +18,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+this program; if not, see <http://www.gnu.org/licenses/>.
 
  * Comment:
  * jul/08/2002 : Rx buffer length should use Rx ring ptr.	
@@ -30,7 +29,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
  ********************************************************************/
 #ifndef via_IRCC_H
 #define via_IRCC_H
-#include <linux/time.h>
 #include <linux/spinlock.h>
 #include <linux/pm.h>
 #include <linux/types.h>
@@ -106,9 +104,6 @@ struct via_ircc_cb {
 	dma_addr_t rx_buff_dma;
 
 	__u8 ier;		/* Interrupt enable register */
-
-	struct timeval stamp;
-	struct timeval now;
 
 	spinlock_t lock;	/* For serializing operations */
 

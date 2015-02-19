@@ -45,14 +45,42 @@
  */
 static int powernv_eeh_init(void)
 {
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+
 	/* We require OPALv3 */
 	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
-		pr_warning("%s: OPALv3 is required !\n", __func__);
+		pr_warn("%s: OPALv3 is required !\n",
+			__func__);
 		return -EINVAL;
 	}
 
-	/* Set EEH probe mode */
-	eeh_probe_mode_set(EEH_PROBE_MODE_DEV);
+	/* Set probe mode */
+	eeh_add_flag(EEH_PROBE_MODE_DEV);
+
+	/*
+	 * P7IOC blocks PCI config access to frozen PE, but PHB3
+	 * doesn't do that. So we have to selectively enable I/O
+	 * prior to collecting error log.
+	 */
+	list_for_each_entry(hose, &hose_list, list_node) {
+		phb = hose->private_data;
+
+		if (phb->model == PNV_PHB_MODEL_P7IOC)
+			eeh_add_flag(EEH_ENABLE_IO_FOR_LOG);
+
+		/*
+		 * PE#0 should be regarded as valid by EEH core
+		 * if it's not the reserved one. Currently, we
+		 * have the reserved PE#0 and PE#127 for PHB3
+		 * and P7IOC separately. So we should regard
+		 * PE#0 as valid for P7IOC.
+		 */
+		if (phb->ioda.reserved_pe != 0)
+			eeh_add_flag(EEH_VALID_PE_ZERO);
+
+		break;
+	}
 
 	return 0;
 }
@@ -107,6 +135,7 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	struct pnv_phb *phb = hose->private_data;
 	struct device_node *dn = pci_device_to_OF_node(dev);
 	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	int ret;
 
 	/*
 	 * When probing the root bridge, which doesn't have any
@@ -126,6 +155,7 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	edev->mode	&= 0xFFFFFF00;
 	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
 		edev->mode |= EEH_DEV_BRIDGE;
+	edev->pcix_cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (pci_is_pcie(dev)) {
 		edev->pcie_cap = pci_pcie_cap(dev);
 
@@ -133,22 +163,56 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 			edev->mode |= EEH_DEV_ROOT_PORT;
 		else if (pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM)
 			edev->mode |= EEH_DEV_DS_PORT;
+
+		edev->aer_cap = pci_find_ext_capability(dev,
+							PCI_EXT_CAP_ID_ERR);
 	}
 
 	edev->config_addr	= ((dev->bus->number << 8) | dev->devfn);
 	edev->pe_config_addr	= phb->bdfn_to_pe(phb, dev->bus, dev->devfn & 0xff);
 
 	/* Create PE */
-	eeh_add_to_parent_pe(edev);
+	ret = eeh_add_to_parent_pe(edev);
+	if (ret) {
+		pr_warn("%s: Can't add PCI dev %s to parent PE (%d)\n",
+			__func__, pci_name(dev), ret);
+		return ret;
+	}
+
+	/*
+	 * If the PE contains any one of following adapters, the
+	 * PCI config space can't be accessed when dumping EEH log.
+	 * Otherwise, we will run into fenced PHB caused by shortage
+	 * of outbound credits in the adapter. The PCI config access
+	 * should be blocked until PE reset. MMIO access is dropped
+	 * by hardware certainly. In order to drop PCI config requests,
+	 * one more flag (EEH_PE_CFG_RESTRICTED) is introduced, which
+	 * will be checked in the backend for PE state retrival. If
+	 * the PE becomes frozen for the first time and the flag has
+	 * been set for the PE, we will set EEH_PE_CFG_BLOCKED for
+	 * that PE to block its config space.
+	 *
+	 * Broadcom Austin 4-ports NICs (14e4:1657)
+	 * Broadcom Shiner 2-ports 10G NICs (14e4:168e)
+	 */
+	if ((dev->vendor == PCI_VENDOR_ID_BROADCOM && dev->device == 0x1657) ||
+	    (dev->vendor == PCI_VENDOR_ID_BROADCOM && dev->device == 0x168e))
+		edev->pe->state |= EEH_PE_CFG_RESTRICTED;
+
+	/*
+	 * Cache the PE primary bus, which can't be fetched when
+	 * full hotplug is in progress. In that case, all child
+	 * PCI devices of the PE are expected to be removed prior
+	 * to PE reset.
+	 */
+	if (!edev->pe->bus)
+		edev->pe->bus = dev->bus;
 
 	/*
 	 * Enable EEH explicitly so that we will do EEH check
 	 * while accessing I/O stuff
-	 *
-	 * FIXME: Enable that for PHB3 later
 	 */
-	if (phb->type == PNV_PHB_IODA1)
-		eeh_subsystem_enabled = 1;
+	eeh_add_flag(EEH_ENABLED);
 
 	/* Save memory bars */
 	eeh_save_bars(edev);
@@ -272,8 +336,8 @@ static int powernv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
 
 		max_wait -= mwait;
 		if (max_wait <= 0) {
-			pr_warning("%s: Timeout getting PE#%x's state (%d)\n",
-				   __func__, pe->addr, max_wait);
+			pr_warn("%s: Timeout getting PE#%x's state (%d)\n",
+				__func__, pe->addr, max_wait);
 			return EEH_STATE_NOT_SUPPORT;
 		}
 
@@ -293,7 +357,7 @@ static int powernv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
  * Retrieve the temporary or permanent error from the PE.
  */
 static int powernv_eeh_get_log(struct eeh_pe *pe, int severity,
-			char *drv_log, unsigned long len)
+			       char *drv_log, unsigned long len)
 {
 	struct pci_controller *hose = pe->phb;
 	struct pnv_phb *phb = hose->private_data;
@@ -326,6 +390,64 @@ static int powernv_eeh_configure_bridge(struct eeh_pe *pe)
 }
 
 /**
+ * powernv_pe_err_inject - Inject specified error to the indicated PE
+ * @pe: the indicated PE
+ * @type: error type
+ * @func: specific error type
+ * @addr: address
+ * @mask: address mask
+ *
+ * The routine is called to inject specified error, which is
+ * determined by @type and @func, to the indicated PE for
+ * testing purpose.
+ */
+static int powernv_eeh_err_inject(struct eeh_pe *pe, int type, int func,
+				  unsigned long addr, unsigned long mask)
+{
+	struct pci_controller *hose = pe->phb;
+	struct pnv_phb *phb = hose->private_data;
+	int ret = -EEXIST;
+
+	if (phb->eeh_ops && phb->eeh_ops->err_inject)
+		ret = phb->eeh_ops->err_inject(pe, type, func, addr, mask);
+
+	return ret;
+}
+
+static inline bool powernv_eeh_cfg_blocked(struct device_node *dn)
+{
+	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+
+	if (!edev || !edev->pe)
+		return false;
+
+	if (edev->pe->state & EEH_PE_CFG_BLOCKED)
+		return true;
+
+	return false;
+}
+
+static int powernv_eeh_read_config(struct device_node *dn,
+				   int where, int size, u32 *val)
+{
+	if (powernv_eeh_cfg_blocked(dn)) {
+		*val = 0xFFFFFFFF;
+		return PCIBIOS_SET_FAILED;
+	}
+
+	return pnv_pci_cfg_read(dn, where, size, val);
+}
+
+static int powernv_eeh_write_config(struct device_node *dn,
+				    int where, int size, u32 val)
+{
+	if (powernv_eeh_cfg_blocked(dn))
+		return PCIBIOS_SET_FAILED;
+
+	return pnv_pci_cfg_write(dn, where, size, val);
+}
+
+/**
  * powernv_eeh_next_error - Retrieve next EEH error to handle
  * @pe: Affected PE
  *
@@ -347,6 +469,27 @@ static int powernv_eeh_next_error(struct eeh_pe **pe)
 	return -EEXIST;
 }
 
+static int powernv_eeh_restore_config(struct device_node *dn)
+{
+	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	struct pnv_phb *phb;
+	s64 ret;
+
+	if (!edev)
+		return -EEXIST;
+
+	phb = edev->phb->private_data;
+	ret = opal_pci_reinit(phb->opal_id,
+			      OPAL_REINIT_PCI_DEV, edev->config_addr);
+	if (ret) {
+		pr_warn("%s: Can't reinit PCI dev 0x%x (%lld)\n",
+			__func__, edev->config_addr, ret);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static struct eeh_ops powernv_eeh_ops = {
 	.name                   = "powernv",
 	.init                   = powernv_eeh_init,
@@ -360,9 +503,11 @@ static struct eeh_ops powernv_eeh_ops = {
 	.wait_state             = powernv_eeh_wait_state,
 	.get_log                = powernv_eeh_get_log,
 	.configure_bridge       = powernv_eeh_configure_bridge,
-	.read_config            = pnv_pci_cfg_read,
-	.write_config           = pnv_pci_cfg_write,
-	.next_error		= powernv_eeh_next_error
+	.err_inject		= powernv_eeh_err_inject,
+	.read_config            = powernv_eeh_read_config,
+	.write_config           = powernv_eeh_write_config,
+	.next_error		= powernv_eeh_next_error,
+	.restore_config		= powernv_eeh_restore_config
 };
 
 /**
@@ -375,9 +520,7 @@ static int __init eeh_powernv_init(void)
 {
 	int ret = -EINVAL;
 
-	if (!machine_is(powernv))
-		return ret;
-
+	eeh_set_pe_aux_size(PNV_PCI_DIAG_BUF_SIZE);
 	ret = eeh_ops_register(&powernv_eeh_ops);
 	if (!ret)
 		pr_info("EEH: PowerNV platform initialized\n");
@@ -386,5 +529,4 @@ static int __init eeh_powernv_init(void)
 
 	return ret;
 }
-
-early_initcall(eeh_powernv_init);
+machine_early_initcall(powernv, eeh_powernv_init);

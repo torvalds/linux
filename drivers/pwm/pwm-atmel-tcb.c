@@ -249,6 +249,8 @@ static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		}
 	}
 
+	cmr |= (tcbpwm->div & ATMEL_TC_TCCLKS);
+
 	__raw_writel(cmr, regs + ATMEL_TC_REG(group, CMR));
 
 	if (index == 0)
@@ -305,7 +307,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		i = slowclk;
 		rate = 32768;
 		min = div_u64(NSEC_PER_SEC, rate);
-		max = min << 16;
+		max = min << tc->tcb_config->counter_width;
 
 		/* If period is too big return ERANGE error */
 		if (max < period_ns)
@@ -377,7 +379,7 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	tc = atmel_tc_alloc(tcblock, "tcb-pwm");
+	tc = atmel_tc_alloc(tcblock);
 	if (tc == NULL) {
 		dev_err(&pdev->dev, "failed to allocate Timer Counter Block\n");
 		return -ENOMEM;
@@ -434,7 +436,6 @@ MODULE_DEVICE_TABLE(of, atmel_tcb_pwm_dt_ids);
 static struct platform_driver atmel_tcb_pwm_driver = {
 	.driver = {
 		.name = "atmel-tcb-pwm",
-		.owner = THIS_MODULE,
 		.of_match_table = atmel_tcb_pwm_dt_ids,
 	},
 	.probe = atmel_tcb_pwm_probe,

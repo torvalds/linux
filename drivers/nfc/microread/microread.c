@@ -13,10 +13,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -501,9 +501,13 @@ static void microread_target_discovered(struct nfc_hci_dev *hdev, u8 gate,
 		targets->sens_res =
 			 be16_to_cpu(*(u16 *)&skb->data[MICROREAD_EMCF_A_ATQA]);
 		targets->sel_res = skb->data[MICROREAD_EMCF_A_SAK];
-		memcpy(targets->nfcid1, &skb->data[MICROREAD_EMCF_A_UID],
-		       skb->data[MICROREAD_EMCF_A_LEN]);
 		targets->nfcid1_len = skb->data[MICROREAD_EMCF_A_LEN];
+		if (targets->nfcid1_len > sizeof(targets->nfcid1)) {
+			r = -EINVAL;
+			goto exit_free;
+		}
+		memcpy(targets->nfcid1, &skb->data[MICROREAD_EMCF_A_UID],
+		       targets->nfcid1_len);
 		break;
 	case MICROREAD_GATE_ID_MREAD_ISO_A_3:
 		targets->supported_protocols =
@@ -511,9 +515,13 @@ static void microread_target_discovered(struct nfc_hci_dev *hdev, u8 gate,
 		targets->sens_res =
 			 be16_to_cpu(*(u16 *)&skb->data[MICROREAD_EMCF_A3_ATQA]);
 		targets->sel_res = skb->data[MICROREAD_EMCF_A3_SAK];
-		memcpy(targets->nfcid1, &skb->data[MICROREAD_EMCF_A3_UID],
-		       skb->data[MICROREAD_EMCF_A3_LEN]);
 		targets->nfcid1_len = skb->data[MICROREAD_EMCF_A3_LEN];
+		if (targets->nfcid1_len > sizeof(targets->nfcid1)) {
+			r = -EINVAL;
+			goto exit_free;
+		}
+		memcpy(targets->nfcid1, &skb->data[MICROREAD_EMCF_A3_UID],
+		       targets->nfcid1_len);
 		break;
 	case MICROREAD_GATE_ID_MREAD_ISO_B:
 		targets->supported_protocols = NFC_PROTO_ISO14443_B_MASK;
@@ -546,13 +554,14 @@ exit:
 	kfree_skb(skb);
 
 	if (r)
-		pr_err("Failed to handle discovered target err=%d", r);
+		pr_err("Failed to handle discovered target err=%d\n", r);
 }
 
-static int microread_event_received(struct nfc_hci_dev *hdev, u8 gate,
+static int microread_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 				     u8 event, struct sk_buff *skb)
 {
 	int r;
+	u8 gate = hdev->pipes[pipe].gate;
 	u8 mode;
 
 	pr_info("Microread received event 0x%x to gate 0x%x\n", event, gate);
@@ -656,7 +665,6 @@ int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 
 	info = kzalloc(sizeof(struct microread_info), GFP_KERNEL);
 	if (!info) {
-		pr_err("Cannot allocate memory for microread_info.\n");
 		r = -ENOMEM;
 		goto err_info_alloc;
 	}
@@ -686,7 +694,7 @@ int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 					     MICROREAD_CMD_TAILROOM,
 					     phy_payload);
 	if (!info->hdev) {
-		pr_err("Cannot allocate nfc hdev.\n");
+		pr_err("Cannot allocate nfc hdev\n");
 		r = -ENOMEM;
 		goto err_alloc_hdev;
 	}

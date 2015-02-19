@@ -42,6 +42,11 @@
 #define	ATC_DEFAULT_CFG		(ATC_FIFOCFG_HALFFIFO)
 #define	ATC_DEFAULT_CTRLB	(ATC_SIF(AT_DMA_MEM_IF) \
 				|ATC_DIF(AT_DMA_MEM_IF))
+#define ATC_DMA_BUSWIDTHS\
+	(BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED) |\
+	BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) |\
+	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) |\
+	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
 
 /*
  * Initial number of descriptors to allocate for each channel. This could
@@ -294,14 +299,16 @@ static int atc_get_bytes_left(struct dma_chan *chan)
 			ret = -EINVAL;
 			goto out;
 		}
-		atchan->remain_desc -= (desc_cur->lli.ctrla & ATC_BTSIZE_MAX)
-						<< (desc_first->tx_width);
-		if (atchan->remain_desc < 0) {
+
+		count = (desc_cur->lli.ctrla & ATC_BTSIZE_MAX)
+			<< desc_first->tx_width;
+		if (atchan->remain_desc < count) {
 			ret = -EINVAL;
 			goto out;
-		} else {
-			ret = atchan->remain_desc;
 		}
+
+		atchan->remain_desc -= count;
+		ret = atchan->remain_desc;
 	} else {
 		/*
 		 * Get residual bytes when current
@@ -344,31 +351,7 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	/* move myself to free_list */
 	list_move(&desc->desc_node, &atchan->free_list);
 
-	/* unmap dma addresses (not on slave channels) */
-	if (!atchan->chan_common.private) {
-		struct device *parent = chan2parent(&atchan->chan_common);
-		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-				dma_unmap_single(parent,
-						desc->lli.daddr,
-						desc->len, DMA_FROM_DEVICE);
-			else
-				dma_unmap_page(parent,
-						desc->lli.daddr,
-						desc->len, DMA_FROM_DEVICE);
-		}
-		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-				dma_unmap_single(parent,
-						desc->lli.saddr,
-						desc->len, DMA_TO_DEVICE);
-			else
-				dma_unmap_page(parent,
-						desc->lli.saddr,
-						desc->len, DMA_TO_DEVICE);
-		}
-	}
-
+	dma_descriptor_unmap(txd);
 	/* for cyclic transfers,
 	 * no need to replay callback function while stopping */
 	if (!atc_chan_is_cyclic(atchan)) {
@@ -917,12 +900,11 @@ atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
  * @period_len: number of bytes for each period
  * @direction: transfer direction, to or from device
  * @flags: tx descriptor status flags
- * @context: transfer context (ignored)
  */
 static struct dma_async_tx_descriptor *
 atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 		size_t period_len, enum dma_transfer_direction direction,
-		unsigned long flags, void *context)
+		unsigned long flags)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma_slave	*atslave = chan->private;
@@ -995,10 +977,12 @@ err_out:
 	return NULL;
 }
 
-static int set_runtime_config(struct dma_chan *chan,
-			      struct dma_slave_config *sconfig)
+static int atc_config(struct dma_chan *chan,
+		      struct dma_slave_config *sconfig)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+
+	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
 	/* Check if it is chan is configured for slave transfers */
 	if (!chan->private)
@@ -1012,9 +996,7 @@ static int set_runtime_config(struct dma_chan *chan,
 	return 0;
 }
 
-
-static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-		       unsigned long arg)
+static int atc_pause(struct dma_chan *chan)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
@@ -1023,60 +1005,82 @@ static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 
 	LIST_HEAD(list);
 
-	dev_vdbg(chan2dev(chan), "atc_control (%d)\n", cmd);
+	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
-	if (cmd == DMA_PAUSE) {
-		spin_lock_irqsave(&atchan->lock, flags);
+	spin_lock_irqsave(&atchan->lock, flags);
 
-		dma_writel(atdma, CHER, AT_DMA_SUSP(chan_id));
-		set_bit(ATC_IS_PAUSED, &atchan->status);
+	dma_writel(atdma, CHER, AT_DMA_SUSP(chan_id));
+	set_bit(ATC_IS_PAUSED, &atchan->status);
 
-		spin_unlock_irqrestore(&atchan->lock, flags);
-	} else if (cmd == DMA_RESUME) {
-		if (!atc_chan_is_paused(atchan))
-			return 0;
+	spin_unlock_irqrestore(&atchan->lock, flags);
 
-		spin_lock_irqsave(&atchan->lock, flags);
+	return 0;
+}
 
-		dma_writel(atdma, CHDR, AT_DMA_RES(chan_id));
-		clear_bit(ATC_IS_PAUSED, &atchan->status);
+static int atc_resume(struct dma_chan *chan)
+{
+	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+	struct at_dma		*atdma = to_at_dma(chan->device);
+	int			chan_id = atchan->chan_common.chan_id;
+	unsigned long		flags;
 
-		spin_unlock_irqrestore(&atchan->lock, flags);
-	} else if (cmd == DMA_TERMINATE_ALL) {
-		struct at_desc	*desc, *_desc;
-		/*
-		 * This is only called when something went wrong elsewhere, so
-		 * we don't really care about the data. Just disable the
-		 * channel. We still have to poll the channel enable bit due
-		 * to AHB/HSB limitations.
-		 */
-		spin_lock_irqsave(&atchan->lock, flags);
+	LIST_HEAD(list);
 
-		/* disabling channel: must also remove suspend state */
-		dma_writel(atdma, CHDR, AT_DMA_RES(chan_id) | atchan->mask);
+	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
-		/* confirm that this channel is disabled */
-		while (dma_readl(atdma, CHSR) & atchan->mask)
-			cpu_relax();
+	if (!atc_chan_is_paused(atchan))
+		return 0;
 
-		/* active_list entries will end up before queued entries */
-		list_splice_init(&atchan->queue, &list);
-		list_splice_init(&atchan->active_list, &list);
+	spin_lock_irqsave(&atchan->lock, flags);
 
-		/* Flush all pending and queued descriptors */
-		list_for_each_entry_safe(desc, _desc, &list, desc_node)
-			atc_chain_complete(atchan, desc);
+	dma_writel(atdma, CHDR, AT_DMA_RES(chan_id));
+	clear_bit(ATC_IS_PAUSED, &atchan->status);
 
-		clear_bit(ATC_IS_PAUSED, &atchan->status);
-		/* if channel dedicated to cyclic operations, free it */
-		clear_bit(ATC_IS_CYCLIC, &atchan->status);
+	spin_unlock_irqrestore(&atchan->lock, flags);
 
-		spin_unlock_irqrestore(&atchan->lock, flags);
-	} else if (cmd == DMA_SLAVE_CONFIG) {
-		return set_runtime_config(chan, (struct dma_slave_config *)arg);
-	} else {
-		return -ENXIO;
-	}
+	return 0;
+}
+
+static int atc_terminate_all(struct dma_chan *chan)
+{
+	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+	struct at_dma		*atdma = to_at_dma(chan->device);
+	int			chan_id = atchan->chan_common.chan_id;
+	struct at_desc		*desc, *_desc;
+	unsigned long		flags;
+
+	LIST_HEAD(list);
+
+	dev_vdbg(chan2dev(chan), "%s\n", __func__);
+
+	/*
+	 * This is only called when something went wrong elsewhere, so
+	 * we don't really care about the data. Just disable the
+	 * channel. We still have to poll the channel enable bit due
+	 * to AHB/HSB limitations.
+	 */
+	spin_lock_irqsave(&atchan->lock, flags);
+
+	/* disabling channel: must also remove suspend state */
+	dma_writel(atdma, CHDR, AT_DMA_RES(chan_id) | atchan->mask);
+
+	/* confirm that this channel is disabled */
+	while (dma_readl(atdma, CHSR) & atchan->mask)
+		cpu_relax();
+
+	/* active_list entries will end up before queued entries */
+	list_splice_init(&atchan->queue, &list);
+	list_splice_init(&atchan->active_list, &list);
+
+	/* Flush all pending and queued descriptors */
+	list_for_each_entry_safe(desc, _desc, &list, desc_node)
+		atc_chain_complete(atchan, desc);
+
+	clear_bit(ATC_IS_PAUSED, &atchan->status);
+	/* if channel dedicated to cyclic operations, free it */
+	clear_bit(ATC_IS_CYCLIC, &atchan->status);
+
+	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	return 0;
 }
@@ -1102,7 +1106,7 @@ atc_tx_status(struct dma_chan *chan,
 	int bytes = 0;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 	/*
 	 * There's no point calculating the residue if there's
@@ -1528,7 +1532,14 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		/* controller can do slave DMA: can trigger cyclic transfers */
 		dma_cap_set(DMA_CYCLIC, atdma->dma_common.cap_mask);
 		atdma->dma_common.device_prep_dma_cyclic = atc_prep_dma_cyclic;
-		atdma->dma_common.device_control = atc_control;
+		atdma->dma_common.device_config = atc_config;
+		atdma->dma_common.device_pause = atc_pause;
+		atdma->dma_common.device_resume = atc_resume;
+		atdma->dma_common.device_terminate_all = atc_terminate_all;
+		atdma->dma_common.src_addr_widths = ATC_DMA_BUSWIDTHS;
+		atdma->dma_common.dst_addr_widths = ATC_DMA_BUSWIDTHS;
+		atdma->dma_common.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+		atdma->dma_common.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	}
 
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
@@ -1593,7 +1604,6 @@ static int at_dma_remove(struct platform_device *pdev)
 
 		/* Disable interrupts */
 		atc_disable_chan_irq(atdma, chan->chan_id);
-		tasklet_disable(&atchan->tasklet);
 
 		tasklet_kill(&atchan->tasklet);
 		list_del(&chan->device_node);
@@ -1646,7 +1656,7 @@ static void atc_suspend_cyclic(struct at_dma_chan *atchan)
 	if (!atc_chan_is_paused(atchan)) {
 		dev_warn(chan2dev(chan),
 		"cyclic channel not paused, should be done by channel user\n");
-		atc_control(chan, DMA_PAUSE, 0);
+		atc_pause(chan);
 	}
 
 	/* now preserve additional data for cyclic operations */

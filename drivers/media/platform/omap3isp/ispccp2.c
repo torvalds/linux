@@ -12,16 +12,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/delay.h>
@@ -211,7 +201,7 @@ static void ccp2_mem_enable(struct isp_ccp2_device *ccp2, u8 enable)
 /*
  * ccp2_phyif_config - Initialize CCP2 phy interface config
  * @ccp2: Pointer to ISP CCP2 device
- * @config: CCP2 platform data
+ * @pdata: CCP2 platform data
  *
  * Configure the CCP2 physical interface module from platform data.
  *
@@ -299,10 +289,10 @@ static void ccp2_lcx_config(struct isp_ccp2_device *ccp2,
 	u32 val, format;
 
 	switch (config->format) {
-	case V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
 		format = ISPCCP2_LCx_CTRL_FORMAT_RAW8_DPCM10_VP;
 		break;
-	case V4L2_MBUS_FMT_SGRBG10_1X10:
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
 	default:
 		format = ISPCCP2_LCx_CTRL_FORMAT_RAW10_VP;	/* RAW10+VP */
 		break;
@@ -448,7 +438,7 @@ static void ccp2_mem_configure(struct isp_ccp2_device *ccp2,
 	u32 val, hwords;
 
 	if (sink_pixcode != source_pixcode &&
-	    sink_pixcode == V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8)
+	    sink_pixcode == MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8)
 		dpcm_decompress = 1;
 
 	ccp2_pwr_cfg(ccp2);
@@ -518,7 +508,7 @@ static void ccp2_mem_configure(struct isp_ccp2_device *ccp2,
 		       ISPCCP2_LCM_IRQSTATUS_EOF_IRQ,
 		       OMAP3_ISP_IOMEM_CCP2, ISPCCP2_LCM_IRQSTATUS);
 
-	/* Enable LCM interupts */
+	/* Enable LCM interrupts */
 	isp_reg_set(isp, OMAP3_ISP_IOMEM_CCP2, ISPCCP2_LCM_IRQENABLE,
 		    ISPCCP2_LCM_IRQSTATUS_EOF_IRQ |
 		    ISPCCP2_LCM_IRQSTATUS_OCPERROR_IRQ);
@@ -549,7 +539,7 @@ static void ccp2_isr_buffer(struct isp_ccp2_device *ccp2)
 
 	buffer = omap3isp_video_buffer_next(&ccp2->video_in);
 	if (buffer != NULL)
-		ccp2_set_inaddr(ccp2, buffer->isp_addr);
+		ccp2_set_inaddr(ccp2, buffer->dma);
 
 	pipe->state |= ISP_PIPELINE_IDLE_INPUT;
 
@@ -614,8 +604,8 @@ void omap3isp_ccp2_isr(struct isp_ccp2_device *ccp2)
  */
 
 static const unsigned int ccp2_fmts[] = {
-	V4L2_MBUS_FMT_SGRBG10_1X10,
-	V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8,
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+	MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
 };
 
 /*
@@ -653,8 +643,8 @@ static void ccp2_try_format(struct isp_ccp2_device *ccp2,
 
 	switch (pad) {
 	case CCP2_PAD_SINK:
-		if (fmt->code != V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8)
-			fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+		if (fmt->code != MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8)
+			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
 		if (ccp2->input == CCP2_INPUT_SENSOR) {
 			fmt->width = clamp_t(u32, fmt->width,
@@ -681,7 +671,7 @@ static void ccp2_try_format(struct isp_ccp2_device *ccp2,
 		 */
 		format = __ccp2_get_format(ccp2, fh, CCP2_PAD_SINK, which);
 		memcpy(fmt, format, sizeof(*fmt));
-		fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+		fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 		break;
 	}
 
@@ -818,7 +808,7 @@ static int ccp2_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	memset(&format, 0, sizeof(format));
 	format.pad = CCP2_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
 	ccp2_set_format(sd, fh, &format);
@@ -940,7 +930,7 @@ static int ccp2_video_queue(struct isp_video *video, struct isp_buffer *buffer)
 {
 	struct isp_ccp2_device *ccp2 = &video->isp->isp_ccp2;
 
-	ccp2_set_inaddr(ccp2, buffer->isp_addr);
+	ccp2_set_inaddr(ccp2, buffer->dma);
 	return 0;
 }
 
@@ -1076,7 +1066,8 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 	v4l2_set_subdevdata(sd, ccp2);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
-	pads[CCP2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[CCP2_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 	pads[CCP2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ccp2_media_ops;
@@ -1095,7 +1086,7 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 	 * implementation we use a fixed 32 bytes alignment regardless of the
 	 * input format and width. If strict 128 bits alignment support is
 	 * required ispvideo will need to be made aware of this special dual
-	 * alignement requirements.
+	 * alignment requirements.
 	 */
 	ccp2->video_in.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
 	ccp2->video_in.bpl_alignment = 32;

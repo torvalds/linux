@@ -268,6 +268,26 @@ static __u8 easypen_m610x_rdesc_fixed[] = {
 	0xC0                          /*  End Collection                  */
 };
 
+static __u8 *kye_consumer_control_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize, int offset, const char *device_name) {
+	/*
+	 * the fixup that need to be done:
+	 *   - change Usage Maximum in the Comsumer Control
+	 *     (report ID 3) to a reasonable value
+	 */
+	if (*rsize >= offset + 31 &&
+	    /* Usage Page (Consumer Devices) */
+	    rdesc[offset] == 0x05 && rdesc[offset + 1] == 0x0c &&
+	    /* Usage (Consumer Control) */
+	    rdesc[offset + 2] == 0x09 && rdesc[offset + 3] == 0x01 &&
+	    /*   Usage Maximum > 12287 */
+	    rdesc[offset + 10] == 0x2a && rdesc[offset + 12] > 0x2f) {
+		hid_info(hdev, "fixing up %s report descriptor\n", device_name);
+		rdesc[offset + 12] = 0x2f;
+	}
+	return rdesc;
+}
+
 static __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
@@ -280,7 +300,7 @@ static __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		 *   - change the button usage range to 4-7 for the extra
 		 *     buttons
 		 */
-		if (*rsize >= 74 &&
+		if (*rsize >= 75 &&
 			rdesc[61] == 0x05 && rdesc[62] == 0x08 &&
 			rdesc[63] == 0x19 && rdesc[64] == 0x08 &&
 			rdesc[65] == 0x29 && rdesc[66] == 0x0f &&
@@ -303,6 +323,7 @@ static __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		}
 		break;
 	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X:
+	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X_2:
 		if (*rsize == MOUSEPEN_I608X_RDESC_ORIG_SIZE) {
 			rdesc = mousepen_i608x_rdesc_fixed;
 			*rsize = sizeof(mousepen_i608x_rdesc_fixed);
@@ -315,23 +336,16 @@ static __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		}
 		break;
 	case USB_DEVICE_ID_GENIUS_GILA_GAMING_MOUSE:
-		/*
-		 * the fixup that need to be done:
-		 *   - change Usage Maximum in the Comsumer Control
-		 *     (report ID 3) to a reasonable value
-		 */
-		if (*rsize >= 135 &&
-			/* Usage Page (Consumer Devices) */
-			rdesc[104] == 0x05 && rdesc[105] == 0x0c &&
-			/* Usage (Consumer Control) */
-			rdesc[106] == 0x09 && rdesc[107] == 0x01 &&
-			/*   Usage Maximum > 12287 */
-			rdesc[114] == 0x2a && rdesc[116] > 0x2f) {
-			hid_info(hdev,
-				 "fixing up Genius Gila Gaming Mouse "
-				 "report descriptor\n");
-			rdesc[116] = 0x2f;
-		}
+		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 104,
+					"Genius Gila Gaming Mouse");
+		break;
+	case USB_DEVICE_ID_GENIUS_GX_IMPERATOR:
+		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 83,
+					"Genius Gx Imperator Keyboard");
+		break;
+	case USB_DEVICE_ID_GENIUS_MANTICORE:
+		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 104,
+					"Genius Manticore Keyboard");
 		break;
 	}
 	return rdesc;
@@ -402,12 +416,21 @@ static int kye_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	switch (id->product) {
 	case USB_DEVICE_ID_KYE_EASYPEN_I405X:
 	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X:
+	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X_2:
 	case USB_DEVICE_ID_KYE_EASYPEN_M610X:
 		ret = kye_tablet_enable(hdev);
 		if (ret) {
 			hid_err(hdev, "tablet enabling failed\n");
 			goto enabling_err;
 		}
+		break;
+	case USB_DEVICE_ID_GENIUS_MANTICORE:
+		/*
+		 * The manticore keyboard needs to have all the interfaces
+		 * opened at least once to be fully functional.
+		 */
+		if (hid_hw_open(hdev))
+			hid_hw_close(hdev);
 		break;
 	}
 
@@ -425,9 +448,15 @@ static const struct hid_device_id kye_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_MOUSEPEN_I608X) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_KYE_MOUSEPEN_I608X_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_EASYPEN_M610X) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_GENIUS_GILA_GAMING_MOUSE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_GENIUS_GX_IMPERATOR) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_GENIUS_MANTICORE) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, kye_devices);

@@ -56,6 +56,8 @@ struct qmi_wwan_state {
 /* default ethernet address used by the modem */
 static const u8 default_modem_addr[ETH_ALEN] = {0x02, 0x50, 0xf3};
 
+static const u8 buggy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
+
 /* Make up an ethernet header if the packet doesn't have one.
  *
  * A firmware bug common among several devices cause them to send raw
@@ -80,10 +82,10 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	__be16 proto;
 
-	/* usbnet rx_complete guarantees that skb->len is at least
-	 * hard_header_len, so we can inspect the dest address without
-	 * checking skb->len
-	 */
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len)
+		return 0;
+
 	switch (skb->data[0] & 0xf0) {
 	case 0x40:
 		proto = htons(ETH_P_IP);
@@ -143,24 +145,28 @@ static const struct net_device_ops qmi_wwan_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/* using a counter to merge subdriver requests with our own into a combined state */
+/* using a counter to merge subdriver requests with our own into a
+ * combined state
+ */
 static int qmi_wwan_manage_power(struct usbnet *dev, int on)
 {
 	struct qmi_wwan_state *info = (void *)&dev->data;
-	int rv = 0;
+	int rv;
 
-	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__, atomic_read(&info->pmcount), on);
+	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__,
+		atomic_read(&info->pmcount), on);
 
-	if ((on && atomic_add_return(1, &info->pmcount) == 1) || (!on && atomic_dec_and_test(&info->pmcount))) {
-		/* need autopm_get/put here to ensure the usbcore sees the new value */
+	if ((on && atomic_add_return(1, &info->pmcount) == 1) ||
+	    (!on && atomic_dec_and_test(&info->pmcount))) {
+		/* need autopm_get/put here to ensure the usbcore sees
+		 * the new value
+		 */
 		rv = usb_autopm_get_interface(dev->intf);
-		if (rv < 0)
-			goto err;
 		dev->intf->needs_remote_wakeup = on;
-		usb_autopm_put_interface(dev->intf);
+		if (!rv)
+			usb_autopm_put_interface(dev->intf);
 	}
-err:
-	return rv;
+	return 0;
 }
 
 static int qmi_wwan_cdc_wdm_manage_power(struct usb_interface *intf, int on)
@@ -199,7 +205,8 @@ static int qmi_wwan_register_subdriver(struct usbnet *dev)
 	atomic_set(&info->pmcount, 0);
 
 	/* register subdriver */
-	subdriver = usb_cdc_wdm_register(info->control, &dev->status->desc, 4096, &qmi_wwan_cdc_wdm_manage_power);
+	subdriver = usb_cdc_wdm_register(info->control, &dev->status->desc,
+					 4096, &qmi_wwan_cdc_wdm_manage_power);
 	if (IS_ERR(subdriver)) {
 		dev_err(&info->control->dev, "subdriver registration failed\n");
 		rv = PTR_ERR(subdriver);
@@ -228,7 +235,8 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct usb_driver *driver = driver_of(intf);
 	struct qmi_wwan_state *info = (void *)&dev->data;
 
-	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) < sizeof(struct qmi_wwan_state)));
+	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) <
+		      sizeof(struct qmi_wwan_state)));
 
 	/* set up initial state */
 	info->control = intf;
@@ -250,7 +258,8 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto err;
 			}
 			if (h->bLength != sizeof(struct usb_cdc_header_desc)) {
-				dev_dbg(&intf->dev, "CDC header len %u\n", h->bLength);
+				dev_dbg(&intf->dev, "CDC header len %u\n",
+					h->bLength);
 				goto err;
 			}
 			break;
@@ -260,7 +269,8 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto err;
 			}
 			if (h->bLength != sizeof(struct usb_cdc_union_desc)) {
-				dev_dbg(&intf->dev, "CDC union len %u\n", h->bLength);
+				dev_dbg(&intf->dev, "CDC union len %u\n",
+					h->bLength);
 				goto err;
 			}
 			cdc_union = (struct usb_cdc_union_desc *)buf;
@@ -271,15 +281,15 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto err;
 			}
 			if (h->bLength != sizeof(struct usb_cdc_ether_desc)) {
-				dev_dbg(&intf->dev, "CDC ether len %u\n",  h->bLength);
+				dev_dbg(&intf->dev, "CDC ether len %u\n",
+					h->bLength);
 				goto err;
 			}
 			cdc_ether = (struct usb_cdc_ether_desc *)buf;
 			break;
 		}
 
-		/*
-		 * Remember which CDC functional descriptors we've seen.  Works
+		/* Remember which CDC functional descriptors we've seen.  Works
 		 * for all types we care about, of which USB_CDC_ETHERNET_TYPE
 		 * (0x0f) is the highest numbered
 		 */
@@ -293,10 +303,14 @@ next_desc:
 
 	/* Use separate control and data interfaces if we found a CDC Union */
 	if (cdc_union) {
-		info->data = usb_ifnum_to_if(dev->udev, cdc_union->bSlaveInterface0);
-		if (desc->bInterfaceNumber != cdc_union->bMasterInterface0 || !info->data) {
-			dev_err(&intf->dev, "bogus CDC Union: master=%u, slave=%u\n",
-				cdc_union->bMasterInterface0, cdc_union->bSlaveInterface0);
+		info->data = usb_ifnum_to_if(dev->udev,
+					     cdc_union->bSlaveInterface0);
+		if (desc->bInterfaceNumber != cdc_union->bMasterInterface0 ||
+		    !info->data) {
+			dev_err(&intf->dev,
+				"bogus CDC Union: master=%u, slave=%u\n",
+				cdc_union->bMasterInterface0,
+				cdc_union->bSlaveInterface0);
 			goto err;
 		}
 	}
@@ -320,10 +334,12 @@ next_desc:
 		usb_driver_release_interface(driver, info->data);
 	}
 
-	/* Never use the same address on both ends of the link, even
-	 * if the buggy firmware told us to.
+	/* Never use the same address on both ends of the link, even if the
+	 * buggy firmware told us to. Or, if device is assigned the well-known
+	 * buggy firmware MAC address, replace it with a random address,
 	 */
-	if (!compare_ether_addr(dev->net->dev_addr, default_modem_addr))
+	if (ether_addr_equal(dev->net->dev_addr, default_modem_addr) ||
+	    ether_addr_equal(dev->net->dev_addr, buggy_fw_addr))
 		eth_hw_addr_random(dev->net);
 
 	/* make MAC addr easily distinguishable from an IP header */
@@ -374,8 +390,7 @@ static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
 	struct qmi_wwan_state *info = (void *)&dev->data;
 	int ret;
 
-	/*
-	 * Both usbnet_suspend() and subdriver->suspend() MUST return 0
+	/* Both usbnet_suspend() and subdriver->suspend() MUST return 0
 	 * in system sleep context, otherwise, the resume callback has
 	 * to recover device from previous suspend failure.
 	 */
@@ -383,7 +398,8 @@ static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
 	if (ret < 0)
 		goto err;
 
-	if (intf == info->control && info->subdriver && info->subdriver->suspend)
+	if (intf == info->control && info->subdriver &&
+	    info->subdriver->suspend)
 		ret = info->subdriver->suspend(intf, message);
 	if (ret < 0)
 		usbnet_resume(intf);
@@ -396,14 +412,15 @@ static int qmi_wwan_resume(struct usb_interface *intf)
 	struct usbnet *dev = usb_get_intfdata(intf);
 	struct qmi_wwan_state *info = (void *)&dev->data;
 	int ret = 0;
-	bool callsub = (intf == info->control && info->subdriver && info->subdriver->resume);
+	bool callsub = (intf == info->control && info->subdriver &&
+			info->subdriver->resume);
 
 	if (callsub)
 		ret = info->subdriver->resume(intf);
 	if (ret < 0)
 		goto err;
 	ret = usbnet_resume(intf);
-	if (ret < 0 && callsub && info->subdriver->suspend)
+	if (ret < 0 && callsub)
 		info->subdriver->suspend(intf, PMSG_SUSPEND);
 err:
 	return ret;
@@ -487,6 +504,13 @@ static const struct usb_device_id products[] = {
 		                              USB_CDC_PROTO_NONE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
+	{	/* Novatel Expedite E371 */
+		USB_DEVICE_AND_INTERFACE_INFO(0x1410, 0x9011,
+		                              USB_CLASS_COMM,
+		                              USB_CDC_SUBCLASS_ETHERNET,
+		                              USB_CDC_PROTO_NONE),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
 	{	/* Dell Wireless 5800 (Novatel E362) */
 		USB_DEVICE_AND_INTERFACE_INFO(0x413C, 0x8195,
 					      USB_CLASS_COMM,
@@ -518,8 +542,154 @@ static const struct usb_device_id products[] = {
 
 	/* 3. Combined interface devices matching on interface number */
 	{QMI_FIXED_INTF(0x0408, 0xea42, 4)},	/* Yota / Megafon M100-1 */
+	{QMI_FIXED_INTF(0x05c6, 0x7000, 0)},
+	{QMI_FIXED_INTF(0x05c6, 0x7001, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x7002, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x7101, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x7101, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x7101, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x7102, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x7102, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x7102, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x8000, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x8001, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9000, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9003, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9005, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x900a, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x900b, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x900c, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x900c, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x900c, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x900d, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x900f, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x900f, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x900f, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9010, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9010, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9011, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9011, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9021, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x9022, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x9025, 4)},	/* Alcatel-sbell ASB TL131 TDD LTE  (China Mobile) */
+	{QMI_FIXED_INTF(0x05c6, 0x9026, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x902e, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9031, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9032, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9033, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9033, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9033, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9033, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9035, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9036, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9037, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9038, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x903b, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x903c, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x903d, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x903e, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9043, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9046, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9046, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9046, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9047, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x9047, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9047, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x904c, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x904c, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x904c, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x904c, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9050, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9052, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9053, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9053, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9054, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9054, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9056, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 9)},
+	{QMI_FIXED_INTF(0x05c6, 0x9064, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9065, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9065, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9066, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9066, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9067, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9069, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9069, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9069, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9069, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9070, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9070, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9075, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9077, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9077, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9077, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9077, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9078, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9080, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9080, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9080, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9080, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9083, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9084, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x920d, 0)},
+	{QMI_FIXED_INTF(0x05c6, 0x920d, 5)},
+	{QMI_FIXED_INTF(0x0846, 0x68a2, 8)},
 	{QMI_FIXED_INTF(0x12d1, 0x140c, 1)},	/* Huawei E173 */
 	{QMI_FIXED_INTF(0x12d1, 0x14ac, 1)},	/* Huawei E1820 */
+	{QMI_FIXED_INTF(0x16d8, 0x6003, 0)},	/* CMOTech 6003 */
+	{QMI_FIXED_INTF(0x16d8, 0x6007, 0)},	/* CMOTech CHE-628S */
+	{QMI_FIXED_INTF(0x16d8, 0x6008, 0)},	/* CMOTech CMU-301 */
+	{QMI_FIXED_INTF(0x16d8, 0x6280, 0)},	/* CMOTech CHU-628 */
+	{QMI_FIXED_INTF(0x16d8, 0x7001, 0)},	/* CMOTech CHU-720S */
+	{QMI_FIXED_INTF(0x16d8, 0x7002, 0)},	/* CMOTech 7002 */
+	{QMI_FIXED_INTF(0x16d8, 0x7003, 4)},	/* CMOTech CHU-629K */
+	{QMI_FIXED_INTF(0x16d8, 0x7004, 3)},	/* CMOTech 7004 */
+	{QMI_FIXED_INTF(0x16d8, 0x7006, 5)},	/* CMOTech CGU-629 */
+	{QMI_FIXED_INTF(0x16d8, 0x700a, 4)},	/* CMOTech CHU-629S */
+	{QMI_FIXED_INTF(0x16d8, 0x7211, 0)},	/* CMOTech CHU-720I */
+	{QMI_FIXED_INTF(0x16d8, 0x7212, 0)},	/* CMOTech 7212 */
+	{QMI_FIXED_INTF(0x16d8, 0x7213, 0)},	/* CMOTech 7213 */
+	{QMI_FIXED_INTF(0x16d8, 0x7251, 1)},	/* CMOTech 7251 */
+	{QMI_FIXED_INTF(0x16d8, 0x7252, 1)},	/* CMOTech 7252 */
+	{QMI_FIXED_INTF(0x16d8, 0x7253, 1)},	/* CMOTech 7253 */
 	{QMI_FIXED_INTF(0x19d2, 0x0002, 1)},
 	{QMI_FIXED_INTF(0x19d2, 0x0012, 1)},
 	{QMI_FIXED_INTF(0x19d2, 0x0017, 3)},
@@ -570,22 +740,51 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x19d2, 0x1255, 3)},
 	{QMI_FIXED_INTF(0x19d2, 0x1255, 4)},
 	{QMI_FIXED_INTF(0x19d2, 0x1256, 4)},
+	{QMI_FIXED_INTF(0x19d2, 0x1270, 5)},	/* ZTE MF667 */
 	{QMI_FIXED_INTF(0x19d2, 0x1401, 2)},
 	{QMI_FIXED_INTF(0x19d2, 0x1402, 2)},	/* ZTE MF60 */
 	{QMI_FIXED_INTF(0x19d2, 0x1424, 2)},
 	{QMI_FIXED_INTF(0x19d2, 0x1425, 2)},
 	{QMI_FIXED_INTF(0x19d2, 0x1426, 2)},	/* ZTE MF91 */
+	{QMI_FIXED_INTF(0x19d2, 0x1428, 2)},	/* Telewell TW-LTE 4G v2 */
 	{QMI_FIXED_INTF(0x19d2, 0x2002, 4)},	/* ZTE (Vodafone) K3765-Z */
 	{QMI_FIXED_INTF(0x0f3d, 0x68a2, 8)},    /* Sierra Wireless MC7700 */
 	{QMI_FIXED_INTF(0x114f, 0x68a2, 8)},    /* Sierra Wireless MC7750 */
 	{QMI_FIXED_INTF(0x1199, 0x68a2, 8)},	/* Sierra Wireless MC7710 in QMI mode */
 	{QMI_FIXED_INTF(0x1199, 0x68a2, 19)},	/* Sierra Wireless MC7710 in QMI mode */
+	{QMI_FIXED_INTF(0x1199, 0x68c0, 8)},	/* Sierra Wireless MC73xx */
+	{QMI_FIXED_INTF(0x1199, 0x68c0, 10)},	/* Sierra Wireless MC73xx */
 	{QMI_FIXED_INTF(0x1199, 0x901c, 8)},    /* Sierra Wireless EM7700 */
+	{QMI_FIXED_INTF(0x1199, 0x901f, 8)},    /* Sierra Wireless EM7355 */
+	{QMI_FIXED_INTF(0x1199, 0x9041, 8)},	/* Sierra Wireless MC7305/MC7355 */
+	{QMI_FIXED_INTF(0x1199, 0x9051, 8)},	/* Netgear AirCard 340U */
+	{QMI_FIXED_INTF(0x1199, 0x9053, 8)},	/* Sierra Wireless Modem */
+	{QMI_FIXED_INTF(0x1199, 0x9054, 8)},	/* Sierra Wireless Modem */
+	{QMI_FIXED_INTF(0x1199, 0x9055, 8)},	/* Netgear AirCard 341U */
+	{QMI_FIXED_INTF(0x1199, 0x9056, 8)},	/* Sierra Wireless Modem */
+	{QMI_FIXED_INTF(0x1199, 0x9057, 8)},
+	{QMI_FIXED_INTF(0x1199, 0x9061, 8)},	/* Sierra Wireless Modem */
 	{QMI_FIXED_INTF(0x1bbb, 0x011e, 4)},	/* Telekom Speedstick LTE II (Alcatel One Touch L100V LTE) */
+	{QMI_FIXED_INTF(0x1bbb, 0x0203, 2)},	/* Alcatel L800MA */
 	{QMI_FIXED_INTF(0x2357, 0x0201, 4)},	/* TP-LINK HSUPA Modem MA180 */
 	{QMI_FIXED_INTF(0x2357, 0x9000, 4)},	/* TP-LINK MA260 */
 	{QMI_FIXED_INTF(0x1bc7, 0x1200, 5)},	/* Telit LE920 */
-	{QMI_FIXED_INTF(0x1e2d, 0x12d1, 4)},	/* Cinterion PLxx */
+	{QMI_FIXED_INTF(0x1bc7, 0x1201, 2)},	/* Telit LE920 */
+	{QMI_FIXED_INTF(0x0b3c, 0xc000, 4)},	/* Olivetti Olicard 100 */
+	{QMI_FIXED_INTF(0x0b3c, 0xc001, 4)},	/* Olivetti Olicard 120 */
+	{QMI_FIXED_INTF(0x0b3c, 0xc002, 4)},	/* Olivetti Olicard 140 */
+	{QMI_FIXED_INTF(0x0b3c, 0xc004, 6)},	/* Olivetti Olicard 155 */
+	{QMI_FIXED_INTF(0x0b3c, 0xc005, 6)},	/* Olivetti Olicard 200 */
+	{QMI_FIXED_INTF(0x0b3c, 0xc00a, 6)},	/* Olivetti Olicard 160 */
+	{QMI_FIXED_INTF(0x0b3c, 0xc00b, 4)},	/* Olivetti Olicard 500 */
+	{QMI_FIXED_INTF(0x1e2d, 0x0060, 4)},	/* Cinterion PLxx */
+	{QMI_FIXED_INTF(0x1e2d, 0x0053, 4)},	/* Cinterion PHxx,PXxx */
+	{QMI_FIXED_INTF(0x413c, 0x81a2, 8)},	/* Dell Wireless 5806 Gobi(TM) 4G LTE Mobile Broadband Card */
+	{QMI_FIXED_INTF(0x413c, 0x81a3, 8)},	/* Dell Wireless 5570 HSPA+ (42Mbps) Mobile Broadband Card */
+	{QMI_FIXED_INTF(0x413c, 0x81a4, 8)},	/* Dell Wireless 5570e HSPA+ (42Mbps) Mobile Broadband Card */
+	{QMI_FIXED_INTF(0x413c, 0x81a8, 8)},	/* Dell Wireless 5808 Gobi(TM) 4G LTE Mobile Broadband Card */
+	{QMI_FIXED_INTF(0x413c, 0x81a9, 8)},	/* Dell Wireless 5808e Gobi(TM) 4G LTE Mobile Broadband Card */
+	{QMI_FIXED_INTF(0x03f0, 0x581d, 4)},	/* HP lt4112 LTE/HSPA+ Gobi 4G Module (Huawei me906e) */
 
 	/* 4. Gobi 1000 devices */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
@@ -612,7 +811,6 @@ static const struct usb_device_id products[] = {
 	{QMI_GOBI_DEVICE(0x413c, 0x8186)},	/* Dell Gobi 2000 Modem device (N0218, VU936) */
 	{QMI_GOBI_DEVICE(0x413c, 0x8194)},	/* Dell Gobi 3000 Composite */
 	{QMI_GOBI_DEVICE(0x05c6, 0x920b)},	/* Generic Gobi 2000 Modem device */
-	{QMI_GOBI_DEVICE(0x05c6, 0x920d)},	/* Gobi 3000 Composite */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9225)},	/* Sony Gobi 2000 Modem device (N0279, VU730) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9245)},	/* Samsung Gobi 2000 Modem device (VL176) */
 	{QMI_GOBI_DEVICE(0x03f0, 0x251d)},	/* HP Gobi 2000 Modem device (VP412) */
@@ -648,7 +846,8 @@ static const struct usb_device_id products[] = {
 };
 MODULE_DEVICE_TABLE(usb, products);
 
-static int qmi_wwan_probe(struct usb_interface *intf, const struct usb_device_id *prod)
+static int qmi_wwan_probe(struct usb_interface *intf,
+			  const struct usb_device_id *prod)
 {
 	struct usb_device_id *id = (struct usb_device_id *)prod;
 

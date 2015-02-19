@@ -64,8 +64,9 @@ struct pcie_port_property
    *  will not consider it an error if the link comes up as a x8 link. */
   uint8_t allow_x8: 1;
 
-  /** Reserved. */
-  uint8_t reserved: 1;
+  /** If true, this link is connected to a device which may or may not
+   *  be present. */
+  uint8_t removable: 1;
 
 };
 
@@ -167,6 +168,9 @@ pcie_stream_intr_config_sel_t;
 struct pcie_trio_ports_property
 {
   struct pcie_port_property ports[TILEGX_TRIO_PCIES];
+
+  /** Set if this TRIO belongs to a Gx72 device. */
+  uint8_t is_gx72;
 };
 
 /* Flags indicating traffic class. */

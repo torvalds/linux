@@ -149,7 +149,7 @@ struct sh_mobile_ceu_cam {
 	/* Camera cropping rectangle */
 	struct v4l2_rect rect;
 	const struct soc_mbus_pixelfmt *extra_fmt;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 };
 
 static struct sh_mobile_ceu_buffer *to_ceu_vb(struct vb2_buffer *vb)
@@ -471,7 +471,7 @@ static int sh_mobile_ceu_videobuf_init(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
+static void sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
 {
 	struct soc_camera_device *icd = container_of(q, struct soc_camera_device, vb2_vidq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -487,7 +487,7 @@ static int sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
 
 	spin_unlock_irq(&pcdev->lock);
 
-	return sh_mobile_ceu_soft_reset(pcdev);
+	sh_mobile_ceu_soft_reset(pcdev);
 }
 
 static struct vb2_ops sh_mobile_ceu_videobuf_ops = {
@@ -496,8 +496,8 @@ static struct vb2_ops sh_mobile_ceu_videobuf_ops = {
 	.buf_queue	= sh_mobile_ceu_videobuf_queue,
 	.buf_cleanup	= sh_mobile_ceu_videobuf_release,
 	.buf_init	= sh_mobile_ceu_videobuf_init,
-	.wait_prepare	= soc_camera_unlock,
-	.wait_finish	= soc_camera_lock,
+	.wait_prepare	= vb2_ops_wait_prepare,
+	.wait_finish	= vb2_ops_wait_finish,
 	.stop_streaming	= sh_mobile_ceu_stop_streaming,
 };
 
@@ -610,13 +610,12 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 static int sh_mobile_ceu_clock_start(struct soc_camera_host *ici)
 {
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	int ret;
 
 	pm_runtime_get_sync(ici->v4l2_dev.dev);
 
 	pcdev->buf_total = 0;
 
-	ret = sh_mobile_ceu_soft_reset(pcdev);
+	sh_mobile_ceu_soft_reset(pcdev);
 
 	return 0;
 }
@@ -862,16 +861,16 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd)
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
 		switch (cam->code) {
-		case V4L2_MBUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_UYVY8_2X8:
 			value = 0x00000000; /* Cb0, Y0, Cr0, Y1 */
 			break;
-		case V4L2_MBUS_FMT_VYUY8_2X8:
+		case MEDIA_BUS_FMT_VYUY8_2X8:
 			value = 0x00000100; /* Cr0, Y0, Cb0, Y1 */
 			break;
-		case V4L2_MBUS_FMT_YUYV8_2X8:
+		case MEDIA_BUS_FMT_YUYV8_2X8:
 			value = 0x00000200; /* Y0, Cb0, Y1, Cr0 */
 			break;
-		case V4L2_MBUS_FMT_YVYU8_2X8:
+		case MEDIA_BUS_FMT_YVYU8_2X8:
 			value = 0x00000300; /* Y0, Cr0, Y1, Cb0 */
 			break;
 		default:
@@ -1049,7 +1048,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 	int ret, k, n;
 	int formats = 0;
 	struct sh_mobile_ceu_cam *cam;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	const struct soc_mbus_pixelfmt *fmt;
 
 	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
@@ -1142,10 +1141,10 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 		cam->extra_fmt = NULL;
 
 	switch (code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
-	case V4L2_MBUS_FMT_VYUY8_2X8:
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
 		if (cam->extra_fmt)
 			break;
 
@@ -1653,20 +1652,25 @@ static int sh_mobile_ceu_querycap(struct soc_camera_host *ici,
 				  struct v4l2_capability *cap)
 {
 	strlcpy(cap->card, "SuperH_Mobile_CEU", sizeof(cap->card));
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+
 	return 0;
 }
 
 static int sh_mobile_ceu_init_videobuf(struct vb2_queue *q,
 				       struct soc_camera_device *icd)
 {
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = icd;
 	q->ops = &sh_mobile_ceu_videobuf_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct sh_mobile_ceu_buffer);
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->lock = &ici->host_lock;
 
 	return vb2_queue_init(q);
 }
@@ -1801,7 +1805,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 
 	/* request irq */
 	err = devm_request_irq(&pdev->dev, pcdev->irq, sh_mobile_ceu_irq,
-			       IRQF_DISABLED, dev_name(&pdev->dev), pcdev);
+			       0, dev_name(&pdev->dev), pcdev);
 	if (err) {
 		dev_err(&pdev->dev, "Unable to register CEU interrupt.\n");
 		goto exit_release_mem;
@@ -1837,9 +1841,9 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		for (j = 0; pcdev->pdata->asd_sizes[j]; j++) {
 			for (i = 0; i < pcdev->pdata->asd_sizes[j]; i++, asd++) {
 				dev_dbg(&pdev->dev, "%s(): subdev #%d, type %u\n",
-					__func__, i, (*asd)->bus_type);
-				if ((*asd)->bus_type == V4L2_ASYNC_BUS_PLATFORM &&
-				    !strncmp(name, (*asd)->match.platform.name,
+					__func__, i, (*asd)->match_type);
+				if ((*asd)->match_type == V4L2_ASYNC_MATCH_DEVNAME &&
+				    !strncmp(name, (*asd)->match.device_name.name,
 					     sizeof(name) - 1)) {
 					pcdev->csi2_asd = *asd;
 					break;
@@ -2010,7 +2014,6 @@ MODULE_DEVICE_TABLE(of, sh_mobile_ceu_of_match);
 static struct platform_driver sh_mobile_ceu_driver = {
 	.driver		= {
 		.name	= "sh_mobile_ceu",
-		.owner	= THIS_MODULE,
 		.pm	= &sh_mobile_ceu_dev_pm_ops,
 		.of_match_table = sh_mobile_ceu_of_match,
 	},

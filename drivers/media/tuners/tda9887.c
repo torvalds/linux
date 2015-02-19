@@ -536,8 +536,8 @@ static int tda9887_status(struct dvb_frontend *fe)
 	unsigned char buf[1];
 	int rc;
 
-	memset(buf,0,sizeof(buf));
-	if (1 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props,buf,1)))
+	rc = tuner_i2c_xfer_recv(&priv->i2c_props, buf, 1);
+	if (rc != 1)
 		tuner_info("i2c i/o error: rc == %d (should be 1)\n", rc);
 	dump_read_message(fe, buf);
 	return 0;
@@ -707,11 +707,3 @@ struct dvb_frontend *tda9887_attach(struct dvb_frontend *fe,
 EXPORT_SYMBOL_GPL(tda9887_attach);
 
 MODULE_LICENSE("GPL");
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

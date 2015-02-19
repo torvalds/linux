@@ -16,10 +16,10 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/completion.h>
 #include <linux/io.h>
@@ -38,7 +38,9 @@ struct mpc512x_psc_spi {
 	struct mpc512x_psc_fifo __iomem *fifo;
 	unsigned int irq;
 	u8 bits_per_word;
-	u32 mclk;
+	struct clk *clk_mclk;
+	struct clk *clk_ipg;
+	u32 mclk_rate;
 
 	struct completion txisrdone;
 };
@@ -72,6 +74,7 @@ static void mpc512x_psc_spi_activate_cs(struct spi_device *spi)
 	struct mpc52xx_psc __iomem *psc = mps->psc;
 	u32 sicr;
 	u32 ccr;
+	int speed;
 	u16 bclkdiv;
 
 	sicr = in_be32(&psc->sicr);
@@ -95,10 +98,10 @@ static void mpc512x_psc_spi_activate_cs(struct spi_device *spi)
 
 	ccr = in_be32(&psc->ccr);
 	ccr &= 0xFF000000;
-	if (cs->speed_hz)
-		bclkdiv = (mps->mclk / cs->speed_hz) - 1;
-	else
-		bclkdiv = (mps->mclk / 1000000) - 1;	/* default 1MHz */
+	speed = cs->speed_hz;
+	if (!speed)
+		speed = 1000000;	/* default 1MHz */
+	bclkdiv = (mps->mclk_rate / speed) - 1;
 
 	ccr |= (((bclkdiv & 0xff) << 16) | (((bclkdiv >> 8) & 0xff) << 8));
 	out_be32(&psc->ccr, ccr);
@@ -164,7 +167,7 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 			}
 
 			/* have the ISR trigger when the TX FIFO is empty */
-			INIT_COMPLETION(mps->txisrdone);
+			reinit_completion(&mps->txisrdone);
 			out_be32(&fifo->txisr, MPC512x_PSC_FIFO_EMPTY);
 			out_be32(&fifo->tximr, MPC512x_PSC_FIFO_EMPTY);
 			wait_for_completion(&mps->txisrdone);
@@ -297,7 +300,8 @@ static int mpc512x_psc_spi_msg_xfer(struct spi_master *master,
 	}
 
 	m->status = status;
-	m->complete(m->context);
+	if (m->complete)
+		m->complete(m->context);
 
 	if (status || !cs_change)
 		mpc512x_psc_spi_deactivate_cs(spi);
@@ -386,18 +390,10 @@ static int mpc512x_psc_spi_port_config(struct spi_master *master,
 {
 	struct mpc52xx_psc __iomem *psc = mps->psc;
 	struct mpc512x_psc_fifo __iomem *fifo = mps->fifo;
-	struct clk *spiclk;
-	int ret = 0;
-	char name[32];
 	u32 sicr;
 	u32 ccr;
+	int speed;
 	u16 bclkdiv;
-
-	sprintf(name, "psc%d_mclk", master->bus_num);
-	spiclk = clk_get(&master->dev, name);
-	clk_enable(spiclk);
-	mps->mclk = clk_get_rate(spiclk);
-	clk_put(spiclk);
 
 	/* Reset the PSC into a known state */
 	out_8(&psc->command, MPC52xx_PSC_RST_RX);
@@ -425,7 +421,8 @@ static int mpc512x_psc_spi_port_config(struct spi_master *master,
 
 	ccr = in_be32(&psc->ccr);
 	ccr &= 0xFF000000;
-	bclkdiv = (mps->mclk / 1000000) - 1;	/* default 1MHz */
+	speed = 1000000;	/* default 1MHz */
+	bclkdiv = (mps->mclk_rate / speed) - 1;
 	ccr |= (((bclkdiv & 0xff) << 16) | (((bclkdiv >> 8) & 0xff) << 8));
 	out_be32(&psc->ccr, ccr);
 
@@ -445,7 +442,7 @@ static int mpc512x_psc_spi_port_config(struct spi_master *master,
 
 	mps->bits_per_word = 8;
 
-	return ret;
+	return 0;
 }
 
 static irqreturn_t mpc512x_psc_spi_isr(int irq, void *dev_id)
@@ -469,16 +466,15 @@ static void mpc512x_spi_cs_control(struct spi_device *spi, bool onoff)
 	gpio_set_value(spi->cs_gpio, onoff);
 }
 
-/* bus_num is used only for the case dev->platform_data == NULL */
 static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
-					      u32 size, unsigned int irq,
-					      s16 bus_num)
+					      u32 size, unsigned int irq)
 {
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct mpc512x_psc_spi *mps;
 	struct spi_master *master;
 	int ret;
 	void *tempp;
+	struct clk *clk;
 
 	master = spi_alloc_master(dev, sizeof *mps);
 	if (master == NULL)
@@ -490,7 +486,6 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 
 	if (pdata == NULL) {
 		mps->cs_control = mpc512x_spi_cs_control;
-		master->bus_num = bus_num;
 	} else {
 		mps->cs_control = pdata->cs_control;
 		master->bus_num = pdata->bus_num;
@@ -505,7 +500,7 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	master->cleanup = mpc512x_psc_spi_cleanup;
 	master->dev.of_node = dev->of_node;
 
-	tempp = ioremap(regaddr, size);
+	tempp = devm_ioremap(dev, regaddr, size);
 	if (!tempp) {
 		dev_err(dev, "could not ioremap I/O port range\n");
 		ret = -EFAULT;
@@ -514,28 +509,48 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	mps->psc = tempp;
 	mps->fifo =
 		(struct mpc512x_psc_fifo *)(tempp + sizeof(struct mpc52xx_psc));
-
-	ret = request_irq(mps->irq, mpc512x_psc_spi_isr, IRQF_SHARED,
-			  "mpc512x-psc-spi", mps);
+	ret = devm_request_irq(dev, mps->irq, mpc512x_psc_spi_isr, IRQF_SHARED,
+				"mpc512x-psc-spi", mps);
 	if (ret)
 		goto free_master;
 	init_completion(&mps->txisrdone);
 
+	clk = devm_clk_get(dev, "mclk");
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		goto free_master;
+	}
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		goto free_master;
+	mps->clk_mclk = clk;
+	mps->mclk_rate = clk_get_rate(clk);
+
+	clk = devm_clk_get(dev, "ipg");
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		goto free_mclk_clock;
+	}
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		goto free_mclk_clock;
+	mps->clk_ipg = clk;
+
 	ret = mpc512x_psc_spi_port_config(master, mps);
 	if (ret < 0)
-		goto free_irq;
+		goto free_ipg_clock;
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(dev, master);
 	if (ret < 0)
-		goto free_irq;
+		goto free_ipg_clock;
 
 	return ret;
 
-free_irq:
-	free_irq(mps->irq, mps);
+free_ipg_clock:
+	clk_disable_unprepare(mps->clk_ipg);
+free_mclk_clock:
+	clk_disable_unprepare(mps->clk_mclk);
 free_master:
-	if (mps->psc)
-		iounmap(mps->psc);
 	spi_master_put(master);
 
 	return ret;
@@ -543,14 +558,11 @@ free_master:
 
 static int mpc512x_psc_spi_do_remove(struct device *dev)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct mpc512x_psc_spi *mps = spi_master_get_devdata(master);
 
-	spi_unregister_master(master);
-	free_irq(mps->irq, mps);
-	if (mps->psc)
-		iounmap(mps->psc);
-	spi_master_put(master);
+	clk_disable_unprepare(mps->clk_mclk);
+	clk_disable_unprepare(mps->clk_ipg);
 
 	return 0;
 }
@@ -559,7 +571,6 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *op)
 {
 	const u32 *regaddr_p;
 	u64 regaddr64, size64;
-	s16 id = -1;
 
 	regaddr_p = of_get_address(op->dev.of_node, 0, &size64, NULL);
 	if (!regaddr_p) {
@@ -568,16 +579,8 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *op)
 	}
 	regaddr64 = of_translate_address(op->dev.of_node, regaddr_p);
 
-	/* get PSC id (0..11, used by port_config) */
-	id = of_alias_get_id(op->dev.of_node, "spi");
-	if (id < 0) {
-		dev_err(&op->dev, "no alias id for %s\n",
-			op->dev.of_node->full_name);
-		return id;
-	}
-
 	return mpc512x_psc_spi_do_probe(&op->dev, (u32) regaddr64, (u32) size64,
-				irq_of_parse_and_map(op->dev.of_node, 0), id);
+				irq_of_parse_and_map(op->dev.of_node, 0));
 }
 
 static int mpc512x_psc_spi_of_remove(struct platform_device *op)
@@ -597,7 +600,6 @@ static struct platform_driver mpc512x_psc_spi_of_driver = {
 	.remove = mpc512x_psc_spi_of_remove,
 	.driver = {
 		.name = "mpc512x-psc-spi",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc512x_psc_spi_of_match,
 	},
 };

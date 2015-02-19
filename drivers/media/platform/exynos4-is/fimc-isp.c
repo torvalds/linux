@@ -25,6 +25,7 @@
 #include <media/v4l2-device.h>
 
 #include "media-dev.h"
+#include "fimc-isp-video.h"
 #include "fimc-is-command.h"
 #include "fimc-is-param.h"
 #include "fimc-is-regs.h"
@@ -40,21 +41,21 @@ static const struct fimc_fmt fimc_isp_formats[FIMC_ISP_NUM_FORMATS] = {
 		.depth		= { 8 },
 		.color		= FIMC_FMT_RAW8,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_SGRBG8_1X8,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG8_1X8,
 	}, {
 		.name		= "RAW10 (GRBG)",
 		.fourcc		= V4L2_PIX_FMT_SGRBG10,
 		.depth		= { 10 },
 		.color		= FIMC_FMT_RAW10,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_SGRBG10_1X10,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
 	}, {
 		.name		= "RAW12 (GRBG)",
 		.fourcc		= V4L2_PIX_FMT_SGRBG12,
 		.depth		= { 12 },
 		.color		= FIMC_FMT_RAW12,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_SGRBG12_1X12,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG12_1X12,
 	},
 };
 
@@ -93,8 +94,8 @@ void fimc_isp_irq_handler(struct fimc_is *is)
 	is->i2h_cmd.args[1] = mcuctl_read(is, MCUCTL_REG_ISSR(21));
 
 	fimc_is_fw_clear_irq1(is, FIMC_IS_INT_FRAME_DONE_ISP);
+	fimc_isp_video_irq_handler(is);
 
-	/* TODO: Complete ISP DMA interrupt handler */
 	wake_up(&is->irq_queue);
 }
 
@@ -148,7 +149,7 @@ static int fimc_isp_subdev_get_fmt(struct v4l2_subdev *sd,
 
 		if (fmt->pad == FIMC_ISP_SD_PAD_SRC_FIFO) {
 			mf->colorspace = V4L2_COLORSPACE_JPEG;
-			mf->code = V4L2_MBUS_FMT_YUV10_1X30;
+			mf->code = MEDIA_BUS_FMT_YUV10_1X30;
 		}
 	}
 
@@ -174,7 +175,7 @@ static void __isp_subdev_try_format(struct fimc_isp *isp,
 				FIMC_ISP_SINK_WIDTH_MAX, 0,
 				&mf->height, FIMC_ISP_SINK_HEIGHT_MIN,
 				FIMC_ISP_SINK_HEIGHT_MAX, 0, 0);
-		mf->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+		mf->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	} else {
 		if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
 			format = v4l2_subdev_get_try_format(fh,
@@ -187,7 +188,7 @@ static void __isp_subdev_try_format(struct fimc_isp *isp,
 		mf->height = format->height - FIMC_ISP_CAC_MARGIN_HEIGHT;
 
 		if (fmt->pad == FIMC_ISP_SD_PAD_SRC_FIFO) {
-			mf->code = V4L2_MBUS_FMT_YUV10_1X30;
+			mf->code = MEDIA_BUS_FMT_YUV10_1X30;
 			mf->colorspace = V4L2_COLORSPACE_JPEG;
 		} else {
 			mf->code = format->code;
@@ -388,7 +389,33 @@ static int fimc_isp_subdev_open(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int fimc_isp_subdev_registered(struct v4l2_subdev *sd)
+{
+	struct fimc_isp *isp = v4l2_get_subdevdata(sd);
+	int ret;
+
+	/* Use pipeline object allocated by the media device. */
+	isp->video_capture.ve.pipe = v4l2_get_subdev_hostdata(sd);
+
+	ret = fimc_isp_video_device_register(isp, sd->v4l2_dev,
+			V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+	if (ret < 0)
+		isp->video_capture.ve.pipe = NULL;
+
+	return ret;
+}
+
+static void fimc_isp_subdev_unregistered(struct v4l2_subdev *sd)
+{
+	struct fimc_isp *isp = v4l2_get_subdevdata(sd);
+
+	fimc_isp_video_device_unregister(isp,
+			V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+}
+
 static const struct v4l2_subdev_internal_ops fimc_is_subdev_internal_ops = {
+	.registered = fimc_isp_subdev_registered,
+	.unregistered = fimc_isp_subdev_unregistered,
 	.open = fimc_isp_subdev_open,
 };
 
@@ -511,7 +538,7 @@ static int __ctrl_set_metering(struct fimc_is *is, unsigned int value)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	__is_set_isp_metering(is, IS_METERING_CONFIG_CMD, val);
 	return 0;
@@ -653,11 +680,11 @@ static void __isp_subdev_set_default_format(struct fimc_isp *isp)
 				FIMC_ISP_CAC_MARGIN_WIDTH;
 	isp->sink_fmt.height = DEFAULT_PREVIEW_STILL_HEIGHT +
 				FIMC_ISP_CAC_MARGIN_HEIGHT;
-	isp->sink_fmt.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	isp->sink_fmt.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
 	isp->src_fmt.width = DEFAULT_PREVIEW_STILL_WIDTH;
 	isp->src_fmt.height = DEFAULT_PREVIEW_STILL_HEIGHT;
-	isp->src_fmt.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	isp->src_fmt.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	__is_set_frame_size(is, &isp->src_fmt);
 }
 
@@ -672,6 +699,8 @@ int fimc_isp_subdev_create(struct fimc_isp *isp)
 	mutex_init(&isp->subdev_lock);
 
 	v4l2_subdev_init(sd, &fimc_is_subdev_ops);
+
+	sd->owner = THIS_MODULE;
 	sd->grp_id = GRP_ID_FIMC_IS;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(sd->name, sizeof(sd->name), "FIMC-IS-ISP");

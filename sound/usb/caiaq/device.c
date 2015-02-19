@@ -235,6 +235,31 @@ int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *cdev,
 			   cdev->ep1_out_buf, len+1, &actual_len, 200);
 }
 
+int snd_usb_caiaq_send_command_bank(struct snd_usb_caiaqdev *cdev,
+			       unsigned char command,
+			       unsigned char bank,
+			       const unsigned char *buffer,
+			       int len)
+{
+	int actual_len;
+	struct usb_device *usb_dev = cdev->chip.dev;
+
+	if (!usb_dev)
+		return -EIO;
+
+	if (len > EP1_BUFSIZE - 2)
+		len = EP1_BUFSIZE - 2;
+
+	if (buffer && len > 0)
+		memcpy(cdev->ep1_out_buf+2, buffer, len);
+
+	cdev->ep1_out_buf[0] = command;
+	cdev->ep1_out_buf[1] = bank;
+
+	return usb_bulk_msg(usb_dev, usb_sndbulkpipe(usb_dev, 1),
+			   cdev->ep1_out_buf, len+2, &actual_len, 200);
+}
+
 int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *cdev,
 		   		    int rate, int depth, int bpp)
 {
@@ -393,8 +418,9 @@ static int create_card(struct usb_device *usb_dev,
 	if (devnum >= SNDRV_CARDS)
 		return -ENODEV;
 
-	err = snd_card_create(index[devnum], id[devnum], THIS_MODULE,
-			      sizeof(struct snd_usb_caiaqdev), &card);
+	err = snd_card_new(&intf->dev,
+			   index[devnum], id[devnum], THIS_MODULE,
+			   sizeof(struct snd_usb_caiaqdev), &card);
 	if (err < 0)
 		return err;
 
@@ -404,7 +430,6 @@ static int create_card(struct usb_device *usb_dev,
 	cdev->chip.usb_id = USB_ID(le16_to_cpu(usb_dev->descriptor.idVendor),
 				  le16_to_cpu(usb_dev->descriptor.idProduct));
 	spin_lock_init(&cdev->spinlock);
-	snd_card_set_dev(card, &intf->dev);
 
 	*cardp = card;
 	return 0;

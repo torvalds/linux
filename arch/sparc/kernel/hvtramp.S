@@ -3,7 +3,6 @@
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
  */
 
-#include <linux/init.h>
 
 #include <asm/thread_info.h>
 #include <asm/hypervisor.h>
@@ -110,7 +109,6 @@ hv_cpu_startup:
 	sllx		%g5, THREAD_SHIFT, %g5
 	sub		%g5, (STACKFRAME_SZ + STACK_BIAS), %g5
 	add		%g6, %g5, %sp
-	mov		0, %fp
 
 	call		init_irqwork_curcpu
 	 nop

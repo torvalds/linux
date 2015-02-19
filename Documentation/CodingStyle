@@ -392,7 +392,12 @@ The goto statement comes in handy when a function exits from multiple
 locations and some common work such as cleanup has to be done.  If there is no
 cleanup needed then just return directly.
 
-The rationale is:
+Choose label names which say what the goto does or why the goto exists.  An
+example of a good name could be "out_buffer:" if the goto frees "buffer".  Avoid
+using GW-BASIC names like "err1:" and "err2:".  Also don't name them after the
+goto location like "err_kmalloc_failed:"
+
+The rationale for using gotos is:
 
 - unconditional statements are easier to understand and follow
 - nesting is reduced
@@ -403,9 +408,10 @@ The rationale is:
 int fun(int a)
 {
 	int result = 0;
-	char *buffer = kmalloc(SIZE);
+	char *buffer;
 
-	if (buffer == NULL)
+	buffer = kmalloc(SIZE, GFP_KERNEL);
+	if (!buffer)
 		return -ENOMEM;
 
 	if (condition1) {
@@ -413,13 +419,24 @@ int fun(int a)
 			...
 		}
 		result = 1;
-		goto out;
+		goto out_buffer;
 	}
 	...
-out:
+out_buffer:
 	kfree(buffer);
 	return result;
 }
+
+A common type of bug to be aware of it "one err bugs" which look like this:
+
+err:
+	kfree(foo->bar);
+	kfree(foo);
+	return ret;
+
+The bug in this code is that on some exit paths "foo" is NULL.  Normally the
+fix for this is to split it up into two error labels "err_bar:" and "err_foo:".
+
 
 		Chapter 8: Commenting
 
@@ -510,6 +527,7 @@ values.  To do the latter, you can stick the following in your .emacs file:
                          (string-match (expand-file-name "~/src/linux-trees")
                                        filename))
                 (setq indent-tabs-mode t)
+                (setq show-trailing-whitespace t)
                 (c-set-style "linux-tabs-only")))))
 
 This will make emacs go better with the kernel coding style for C
@@ -660,15 +678,23 @@ There are a number of driver model diagnostic macros in <linux/device.h>
 which you should use to make sure messages are matched to the right device
 and driver, and are tagged with the right level:  dev_err(), dev_warn(),
 dev_info(), and so forth.  For messages that aren't associated with a
-particular device, <linux/printk.h> defines pr_debug() and pr_info().
+particular device, <linux/printk.h> defines pr_notice(), pr_info(),
+pr_warn(), pr_err(), etc.
 
 Coming up with good debugging messages can be quite a challenge; and once
-you have them, they can be a huge help for remote troubleshooting.  Such
-messages should be compiled out when the DEBUG symbol is not defined (that
-is, by default they are not included).  When you use dev_dbg() or pr_debug(),
-that's automatic.  Many subsystems have Kconfig options to turn on -DDEBUG.
-A related convention uses VERBOSE_DEBUG to add dev_vdbg() messages to the
-ones already enabled by DEBUG.
+you have them, they can be a huge help for remote troubleshooting.  However
+debug message printing is handled differently than printing other non-debug
+messages.  While the other pr_XXX() functions print unconditionally,
+pr_debug() does not; it is compiled out by default, unless either DEBUG is
+defined or CONFIG_DYNAMIC_DEBUG is set.  That is true for dev_dbg() also,
+and a related convention uses VERBOSE_DEBUG to add dev_vdbg() messages to
+the ones already enabled by DEBUG.
+
+Many subsystems have Kconfig debug options to turn on -DDEBUG in the
+corresponding Makefile; in other cases specific files #define DEBUG.  And
+when a debug message should be unconditionally printed, such as if it is
+already inside a debug-related #ifdef section, printk(KERN_DEBUG ...) can be
+used.
 
 
 		Chapter 14: Allocating memory
@@ -836,6 +862,49 @@ next instruction in the assembly output:
 	     "more_magic %reg2, %reg3"
 	     : /* outputs */ : /* inputs */ : /* clobbers */);
 
+
+		Chapter 20: Conditional Compilation
+
+Wherever possible, don't use preprocessor conditionals (#if, #ifdef) in .c
+files; doing so makes code harder to read and logic harder to follow.  Instead,
+use such conditionals in a header file defining functions for use in those .c
+files, providing no-op stub versions in the #else case, and then call those
+functions unconditionally from .c files.  The compiler will avoid generating
+any code for the stub calls, producing identical results, but the logic will
+remain easy to follow.
+
+Prefer to compile out entire functions, rather than portions of functions or
+portions of expressions.  Rather than putting an ifdef in an expression, factor
+out part or all of the expression into a separate helper function and apply the
+conditional to that function.
+
+If you have a function or variable which may potentially go unused in a
+particular configuration, and the compiler would warn about its definition
+going unused, mark the definition as __maybe_unused rather than wrapping it in
+a preprocessor conditional.  (However, if a function or variable *always* goes
+unused, delete it.)
+
+Within code, where possible, use the IS_ENABLED macro to convert a Kconfig
+symbol into a C boolean expression, and use it in a normal C conditional:
+
+	if (IS_ENABLED(CONFIG_SOMETHING)) {
+		...
+	}
+
+The compiler will constant-fold the conditional away, and include or exclude
+the block of code just as with an #ifdef, so this will not add any runtime
+overhead.  However, this approach still allows the C compiler to see the code
+inside the block, and check it for correctness (syntax, types, symbol
+references, etc).  Thus, you still have to use an #ifdef if the code inside the
+block references symbols that will not exist if the condition is not met.
+
+At the end of any non-trivial #if or #ifdef block (more than a few lines),
+place a comment after the #endif on the same line, noting the conditional
+expression used.  For instance:
+
+#ifdef CONFIG_SOMETHING
+...
+#endif /* CONFIG_SOMETHING */
 
 
 		Appendix I: References

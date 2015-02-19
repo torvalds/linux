@@ -72,6 +72,19 @@ __acquires(bitmap->lock)
 	/* this page has not been allocated yet */
 
 	spin_unlock_irq(&bitmap->lock);
+	/* It is possible that this is being called inside a
+	 * prepare_to_wait/finish_wait loop from raid5c:make_request().
+	 * In general it is not permitted to sleep in that context as it
+	 * can cause the loop to spin freely.
+	 * That doesn't apply here as we can only reach this point
+	 * once with any loop.
+	 * When this function completes, either bp[page].map or
+	 * bp[page].hijacked.  In either case, this function will
+	 * abort before getting to this point again.  So there is
+	 * no risk of a free-spin, and so it is safe to assert
+	 * that sleeping here is allowed.
+	 */
+	sched_annotate_sleep();
 	mappage = kzalloc(PAGE_SIZE, GFP_NOIO);
 	spin_lock_irq(&bitmap->lock);
 
@@ -669,17 +682,13 @@ static inline unsigned long file_page_offset(struct bitmap_storage *store,
 /*
  * return a pointer to the page in the filemap that contains the given bit
  *
- * this lookup is complicated by the fact that the bitmap sb might be exactly
- * 1 page (e.g., x86) or less than 1 page -- so the bitmap might start on page
- * 0 or page 1
  */
 static inline struct page *filemap_get_page(struct bitmap_storage *store,
 					    unsigned long chunk)
 {
 	if (file_page_index(store, chunk) >= store->file_pages)
 		return NULL;
-	return store->filemap[file_page_index(store, chunk)
-			      - file_page_index(store, 0)];
+	return store->filemap[file_page_index(store, chunk)];
 }
 
 static int bitmap_storage_alloc(struct bitmap_storage *store,
@@ -883,7 +892,6 @@ void bitmap_unplug(struct bitmap *bitmap)
 {
 	unsigned long i;
 	int dirty, need_write;
-	int wait = 0;
 
 	if (!bitmap || !bitmap->storage.filemap ||
 	    test_bit(BITMAP_STALE, &bitmap->flags))
@@ -901,16 +909,13 @@ void bitmap_unplug(struct bitmap *bitmap)
 			clear_page_attr(bitmap, i, BITMAP_PAGE_PENDING);
 			write_page(bitmap, bitmap->storage.filemap[i], 0);
 		}
-		if (dirty)
-			wait = 1;
 	}
-	if (wait) { /* if any writes were performed, we need to wait on them */
-		if (bitmap->storage.file)
-			wait_event(bitmap->write_wait,
-				   atomic_read(&bitmap->pending_writes)==0);
-		else
-			md_super_wait(bitmap->mddev);
-	}
+	if (bitmap->storage.file)
+		wait_event(bitmap->write_wait,
+			   atomic_read(&bitmap->pending_writes)==0);
+	else
+		md_super_wait(bitmap->mddev);
+
 	if (test_bit(BITMAP_WRITE_ERROR, &bitmap->flags))
 		bitmap_file_kick(bitmap);
 }
@@ -1614,7 +1619,9 @@ void bitmap_destroy(struct mddev *mddev)
 		return;
 
 	mutex_lock(&mddev->bitmap_info.mutex);
+	spin_lock(&mddev->lock);
 	mddev->bitmap = NULL; /* disconnect from the md device */
+	spin_unlock(&mddev->lock);
 	mutex_unlock(&mddev->bitmap_info.mutex);
 	if (mddev->thread)
 		mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
@@ -1635,7 +1642,7 @@ int bitmap_create(struct mddev *mddev)
 	sector_t blocks = mddev->resync_max_sectors;
 	struct file *file = mddev->bitmap_info.file;
 	int err;
-	struct sysfs_dirent *bm = NULL;
+	struct kernfs_node *bm = NULL;
 
 	BUILD_BUG_ON(sizeof(bitmap_super_t) != 256);
 
@@ -1654,9 +1661,9 @@ int bitmap_create(struct mddev *mddev)
 	bitmap->mddev = mddev;
 
 	if (mddev->kobj.sd)
-		bm = sysfs_get_dirent(mddev->kobj.sd, NULL, "bitmap");
+		bm = sysfs_get_dirent(mddev->kobj.sd, "bitmap");
 	if (bm) {
-		bitmap->sysfs_can_clear = sysfs_get_dirent(bm, NULL, "can_clear");
+		bitmap->sysfs_can_clear = sysfs_get_dirent(bm, "can_clear");
 		sysfs_put(bm);
 	} else
 		bitmap->sysfs_can_clear = NULL;
@@ -1988,7 +1995,6 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 		if (mddev->bitmap_info.file) {
 			struct file *f = mddev->bitmap_info.file;
 			mddev->bitmap_info.file = NULL;
-			restore_bitmap_write_access(f);
 			fput(f);
 		}
 	} else {
@@ -2205,11 +2211,13 @@ __ATTR(metadata, S_IRUGO|S_IWUSR, metadata_show, metadata_store);
 static ssize_t can_clear_show(struct mddev *mddev, char *page)
 {
 	int len;
+	spin_lock(&mddev->lock);
 	if (mddev->bitmap)
 		len = sprintf(page, "%s\n", (mddev->bitmap->need_sync ?
 					     "false" : "true"));
 	else
 		len = sprintf(page, "\n");
+	spin_unlock(&mddev->lock);
 	return len;
 }
 
@@ -2234,10 +2242,15 @@ __ATTR(can_clear, S_IRUGO|S_IWUSR, can_clear_show, can_clear_store);
 static ssize_t
 behind_writes_used_show(struct mddev *mddev, char *page)
 {
+	ssize_t ret;
+	spin_lock(&mddev->lock);
 	if (mddev->bitmap == NULL)
-		return sprintf(page, "0\n");
-	return sprintf(page, "%lu\n",
-		       mddev->bitmap->behind_writes_used);
+		ret = sprintf(page, "0\n");
+	else
+		ret = sprintf(page, "%lu\n",
+			      mddev->bitmap->behind_writes_used);
+	spin_unlock(&mddev->lock);
+	return ret;
 }
 
 static ssize_t

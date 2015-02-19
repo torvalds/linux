@@ -40,6 +40,7 @@ struct snd_usb_audio {
 	struct rw_semaphore shutdown_rwsem;
 	unsigned int shutdown:1;
 	unsigned int probing:1;
+	unsigned int in_pm:1;
 	unsigned int autosuspended:1;	
 	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
 	
@@ -55,11 +56,19 @@ struct snd_usb_audio {
 	struct list_head mixer_list;	/* list of mixer interfaces */
 
 	int setup;			/* from the 'device_setup' module param */
-	int nrpacks;			/* from the 'nrpacks' module param */
 	bool autoclock;			/* from the 'autoclock' module param */
 
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
 };
+
+#define usb_audio_err(chip, fmt, args...) \
+	dev_err(&(chip)->dev->dev, fmt, ##args)
+#define usb_audio_warn(chip, fmt, args...) \
+	dev_warn(&(chip)->dev->dev, fmt, ##args)
+#define usb_audio_info(chip, fmt, args...) \
+	dev_info(&(chip)->dev->dev, fmt, ##args)
+#define usb_audio_dbg(chip, fmt, args...) \
+	dev_dbg(&(chip)->dev->dev, fmt, ##args)
 
 /*
  * Information about devices with broken descriptors

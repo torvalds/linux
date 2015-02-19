@@ -332,25 +332,21 @@
 				reg = <0x2120 0x18>;
 
 				phy1: ethernet-phy@1 {
-					device_type = "ethernet-phy";
 					compatible = "national,DP83848VV";
 					reg = <1>;
 				};
 
 				phy2: ethernet-phy@2 {
-					device_type = "ethernet-phy";
 					compatible = "broadcom,BCM5481UA2KMLG";
 					reg = <2>;
 				};
 
 				phy3: ethernet-phy@3 {
-					device_type = "ethernet-phy";
 					compatible = "national,DP83848VV";
 					reg = <3>;
 				};
 
 				phy4: ethernet-phy@4 {
-					device_type = "ethernet-phy";
 					compatible = "broadcom,BCM5481UA2KMLG";
 					reg = <4>;
 				};

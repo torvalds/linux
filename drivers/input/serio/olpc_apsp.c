@@ -16,7 +16,6 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/serio.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -183,9 +182,6 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base)) {
 		dev_err(&pdev->dev, "Failed to map WTM registers\n");
@@ -266,7 +262,7 @@ static int olpc_apsp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id olpc_apsp_dt_ids[] = {
+static const struct of_device_id olpc_apsp_dt_ids[] = {
 	{ .compatible = "olpc,ap-sp", },
 	{}
 };
@@ -277,7 +273,6 @@ static struct platform_driver olpc_apsp_driver = {
 	.remove		= olpc_apsp_remove,
 	.driver		= {
 		.name	= "olpc-apsp",
-		.owner	= THIS_MODULE,
 		.of_match_table = olpc_apsp_dt_ids,
 	},
 };

@@ -12,7 +12,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/ftrace.h>
 #include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/pfn.h>
@@ -206,6 +205,7 @@ static noinline __init void clear_bss_section(void)
  */
 static noinline __init void init_kernel_storage_key(void)
 {
+#if PAGE_DEFAULT_KEY
 	unsigned long end_pfn, init_pfn;
 
 	end_pfn = PFN_UP(__pa(&_end));
@@ -213,6 +213,7 @@ static noinline __init void init_kernel_storage_key(void)
 	for (init_pfn = 0 ; init_pfn < end_pfn; init_pfn++)
 		page_set_storage_key(init_pfn << PAGE_SHIFT,
 				     PAGE_DEFAULT_KEY, 0);
+#endif
 }
 
 static __initdata char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
@@ -256,13 +257,19 @@ static __init void setup_topology(void)
 static void early_pgm_check_handler(void)
 {
 	const struct exception_table_entry *fixup;
+	unsigned long cr0, cr0_new;
 	unsigned long addr;
 
 	addr = S390_lowcore.program_old_psw.addr;
 	fixup = search_exception_tables(addr & PSW_ADDR_INSN);
 	if (!fixup)
 		disabled_wait(0);
+	/* Disable low address protection before storing into lowcore. */
+	__ctl_store(cr0, 0, 0);
+	cr0_new = cr0 & ~(1UL << 28);
+	__ctl_load(cr0_new, 0, 0);
 	S390_lowcore.program_old_psw.addr = extable_fixup(fixup)|PSW_ADDR_AMODE;
+	__ctl_load(cr0, 0, 0);
 }
 
 static noinline __init void setup_lowcore_early(void)
@@ -378,16 +385,34 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (test_facility(27))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_LPP;
 	if (test_facility(50) && test_facility(73))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
-	if (test_facility(66))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_RRBM;
+	if (test_facility(51))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_LC;
+	if (test_facility(129))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
+	if (test_facility(128))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_CAD;
 #endif
 }
+
+static int __init nocad_setup(char *str)
+{
+	S390_lowcore.machine_flags &= ~MACHINE_FLAG_CAD;
+	return 0;
+}
+early_param("nocad", nocad_setup);
+
+static int __init cad_init(void)
+{
+	if (MACHINE_HAS_CAD)
+		/* Enable problem state CAD. */
+		__ctl_set_bit(2, 3);
+	return 0;
+}
+early_initcall(cad_init);
 
 static __init void rescue_initrd(void)
 {
@@ -481,9 +506,6 @@ void __init startup_init(void)
 	detect_diag44();
 	detect_machine_facilities();
 	setup_topology();
-	sclp_facilities_detect();
-#ifdef CONFIG_DYNAMIC_FTRACE
-	S390_lowcore.ftrace_func = (unsigned long)ftrace_caller;
-#endif
+	sclp_early_detect();
 	lockdep_on();
 }

@@ -24,7 +24,9 @@ EXPORT_SYMBOL(bcm63xx_regs_base);
 const int *bcm63xx_irqs;
 EXPORT_SYMBOL(bcm63xx_irqs);
 
-static u16 bcm63xx_cpu_id;
+u16 bcm63xx_cpu_id __read_mostly;
+EXPORT_SYMBOL(bcm63xx_cpu_id);
+
 static u8 bcm63xx_cpu_rev;
 static unsigned int bcm63xx_cpu_freq;
 static unsigned int bcm63xx_memory_size;
@@ -97,13 +99,6 @@ static const int bcm6368_irqs[] = {
 
 };
 
-u16 __bcm63xx_get_cpu_id(void)
-{
-	return bcm63xx_cpu_id;
-}
-
-EXPORT_SYMBOL(__bcm63xx_get_cpu_id);
-
 u8 bcm63xx_get_cpu_rev(void)
 {
 	return bcm63xx_cpu_rev;
@@ -123,7 +118,9 @@ unsigned int bcm63xx_get_memory_size(void)
 
 static unsigned int detect_cpu_clock(void)
 {
-	switch (bcm63xx_get_cpu_id()) {
+	u16 cpu_id = bcm63xx_get_cpu_id();
+
+	switch (cpu_id) {
 	case BCM3368_CPU_ID:
 		return 300000000;
 
@@ -249,7 +246,7 @@ static unsigned int detect_cpu_clock(void)
 	}
 
 	default:
-		BUG();
+		panic("Failed to detect clock for CPU with id=%04X\n", cpu_id);
 	}
 }
 
@@ -266,7 +263,7 @@ static unsigned int detect_memory_size(void)
 
 	if (BCMCPU_IS_6345()) {
 		val = bcm_sdram_readl(SDRAM_MBASE_REG);
-		return (val * 8 * 1024 * 1024);
+		return val * 8 * 1024 * 1024;
 	}
 
 	if (BCMCPU_IS_6338() || BCMCPU_IS_6348()) {
@@ -297,23 +294,22 @@ static unsigned int detect_memory_size(void)
 void __init bcm63xx_cpu_init(void)
 {
 	unsigned int tmp;
-	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int cpu = smp_processor_id();
 	u32 chipid_reg;
 
 	/* soc registers location depends on cpu type */
 	chipid_reg = 0;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_BMIPS3300:
-		if ((read_c0_prid() & 0xff00) != PRID_IMP_BMIPS3300_ALT)
+		if ((read_c0_prid() & PRID_IMP_MASK) != PRID_IMP_BMIPS3300_ALT)
 			__cpu_name[cpu] = "Broadcom BCM6338";
 		/* fall-through */
 	case CPU_BMIPS32:
 		chipid_reg = BCM_6345_PERF_BASE;
 		break;
 	case CPU_BMIPS4350:
-		switch ((read_c0_prid() & 0xff)) {
+		switch ((read_c0_prid() & PRID_REV_MASK)) {
 		case 0x04:
 			chipid_reg = BCM_3368_PERF_BASE;
 			break;

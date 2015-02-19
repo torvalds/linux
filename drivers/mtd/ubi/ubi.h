@@ -22,7 +22,6 @@
 #ifndef __UBI_UBI_H__
 #define __UBI_UBI_H__
 
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -51,13 +50,14 @@
 #define UBI_NAME_STR "ubi"
 
 /* Normal UBI messages */
-#define ubi_msg(fmt, ...) pr_notice("UBI: " fmt "\n", ##__VA_ARGS__)
+#define ubi_msg(ubi, fmt, ...) pr_notice(UBI_NAME_STR "%d: " fmt "\n", \
+					 ubi->ubi_num, ##__VA_ARGS__)
 /* UBI warning messages */
-#define ubi_warn(fmt, ...) pr_warn("UBI warning: %s: " fmt "\n",  \
-				   __func__, ##__VA_ARGS__)
+#define ubi_warn(ubi, fmt, ...) pr_warn(UBI_NAME_STR "%d warning: %s: " fmt "\n", \
+					ubi->ubi_num, __func__, ##__VA_ARGS__)
 /* UBI error messages */
-#define ubi_err(fmt, ...) pr_err("UBI error: %s: " fmt "\n",      \
-				 __func__, ##__VA_ARGS__)
+#define ubi_err(ubi, fmt, ...) pr_err(UBI_NAME_STR "%d error: %s: " fmt "\n", \
+				      ubi->ubi_num, __func__, ##__VA_ARGS__)
 
 /* Background thread name pattern */
 #define UBI_BGT_NAME_PATTERN "ubi_bgt%dd"
@@ -261,6 +261,7 @@ struct ubi_fm_pool {
  * @readers: number of users holding this volume in read-only mode
  * @writers: number of users holding this volume in read-write mode
  * @exclusive: whether somebody holds this volume in exclusive mode
+ * @metaonly: whether somebody is altering only meta data of this volume
  *
  * @reserved_pebs: how many physical eraseblocks are reserved for this volume
  * @vol_type: volume type (%UBI_DYNAMIC_VOLUME or %UBI_STATIC_VOLUME)
@@ -309,6 +310,7 @@ struct ubi_volume {
 	int readers;
 	int writers;
 	int exclusive;
+	int metaonly;
 
 	int reserved_pebs;
 	int vol_type;
@@ -339,7 +341,8 @@ struct ubi_volume {
 /**
  * struct ubi_volume_desc - UBI volume descriptor returned when it is opened.
  * @vol: reference to the corresponding volume description object
- * @mode: open mode (%UBI_READONLY, %UBI_READWRITE, or %UBI_EXCLUSIVE)
+ * @mode: open mode (%UBI_READONLY, %UBI_READWRITE, %UBI_EXCLUSIVE
+ * or %UBI_METAONLY)
  */
 struct ubi_volume_desc {
 	struct ubi_volume *vol;
@@ -390,7 +393,8 @@ struct ubi_debug_info {
  * @volumes_lock: protects @volumes, @rsvd_pebs, @avail_pebs, beb_rsvd_pebs,
  *                @beb_rsvd_level, @bad_peb_count, @good_peb_count, @vol_count,
  *                @vol->readers, @vol->writers, @vol->exclusive,
- *                @vol->ref_count, @vol->mapping and @vol->eba_tbl.
+ *                @vol->metaonly, @vol->ref_count, @vol->mapping and
+ *                @vol->eba_tbl.
  * @ref_count: count of references on the UBI device
  * @image_seq: image sequence number recorded on EC headers
  *
@@ -440,7 +444,8 @@ struct ubi_debug_info {
  *	     @move_to, @move_to_put @erase_pending, @wl_scheduled, @works,
  *	     @erroneous, and @erroneous_peb_count fields
  * @move_mutex: serializes eraseblock moves
- * @work_sem: synchronizes the WL worker with use tasks
+ * @work_sem: used to wait for all the scheduled works to finish and prevent
+ * new works from being submitted
  * @wl_scheduled: non-zero if the wear-leveling was scheduled
  * @lookuptbl: a table to quickly find a &struct ubi_wl_entry object for any
  *             physical eraseblock
@@ -714,14 +719,15 @@ struct ubi_attach_info {
  * @torture: if the physical eraseblock has to be tortured
  * @anchor: produce a anchor PEB to by used by fastmap
  *
- * The @func pointer points to the worker function. If the @cancel argument is
- * not zero, the worker has to free the resources and exit immediately. The
- * worker has to return zero in case of success and a negative error code in
+ * The @func pointer points to the worker function. If the @shutdown argument is
+ * not zero, the worker has to free the resources and exit immediately as the
+ * WL sub-system is shutting down.
+ * The worker has to return zero in case of success and a negative error code in
  * case of failure.
  */
 struct ubi_work {
 	struct list_head list;
-	int (*func)(struct ubi_device *ubi, struct ubi_work *wrk, int cancel);
+	int (*func)(struct ubi_device *ubi, struct ubi_work *wrk, int shutdown);
 	/* The below fields are only relevant to erasure works */
 	struct ubi_wl_entry *e;
 	int vol_id;
@@ -789,6 +795,9 @@ int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
 		      int lnum);
 int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		     void *buf, int offset, int len, int check);
+int ubi_eba_read_leb_sg(struct ubi_device *ubi, struct ubi_volume *vol,
+			struct ubi_sgl *sgl, int lnum, int offset, int len,
+			int check);
 int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		      const void *buf, int offset, int len);
 int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
@@ -863,6 +872,26 @@ size_t ubi_calc_fm_size(struct ubi_device *ubi);
 int ubi_update_fastmap(struct ubi_device *ubi);
 int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		     int fm_anchor);
+
+/* block.c */
+#ifdef CONFIG_MTD_UBI_BLOCK
+int ubiblock_init(void);
+void ubiblock_exit(void);
+int ubiblock_create(struct ubi_volume_info *vi);
+int ubiblock_remove(struct ubi_volume_info *vi);
+#else
+static inline int ubiblock_init(void) { return 0; }
+static inline void ubiblock_exit(void) {}
+static inline int ubiblock_create(struct ubi_volume_info *vi)
+{
+	return -ENOSYS;
+}
+static inline int ubiblock_remove(struct ubi_volume_info *vi)
+{
+	return -ENOSYS;
+}
+#endif
+
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.
@@ -966,7 +995,7 @@ static inline void ubi_ro_mode(struct ubi_device *ubi)
 {
 	if (!ubi->ro_mode) {
 		ubi->ro_mode = 1;
-		ubi_warn("switch to read-only mode");
+		ubi_warn(ubi, "switch to read-only mode");
 		dump_stack();
 	}
 }

@@ -111,6 +111,7 @@ enum {
 #define TCP_REPAIR_OPTIONS	22
 #define TCP_FASTOPEN		23	/* Enable FastOpen on listeners */
 #define TCP_TIMESTAMP		24
+#define TCP_NOTSENT_LOWAT	25	/* limit number of unsent bytes in write queue */
 
 struct tcp_repair_opt {
 	__u32	opt_code;
@@ -185,6 +186,9 @@ struct tcp_info {
 	__u32	tcpi_rcv_space;
 
 	__u32	tcpi_total_retrans;
+
+	__u64	tcpi_pacing_rate;
+	__u64	tcpi_max_pacing_rate;
 };
 
 /* for TCP_MD5SIG socket option */

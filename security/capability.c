@@ -12,6 +12,29 @@
 
 #include <linux/security.h>
 
+static int cap_binder_set_context_mgr(struct task_struct *mgr)
+{
+	return 0;
+}
+
+static int cap_binder_transaction(struct task_struct *from,
+				  struct task_struct *to)
+{
+	return 0;
+}
+
+static int cap_binder_transfer_binder(struct task_struct *from,
+				      struct task_struct *to)
+{
+	return 0;
+}
+
+static int cap_binder_transfer_file(struct task_struct *from,
+				    struct task_struct *to, struct file *file)
+{
+	return 0;
+}
+
 static int cap_syslog(int type)
 {
 	return 0;
@@ -116,7 +139,7 @@ static int cap_dentry_init_security(struct dentry *dentry, int mode,
 					struct qstr *name, void **ctx,
 					u32 *ctxlen)
 {
-	return 0;
+	return -EOPNOTSUPP;
 }
 
 static int cap_inode_alloc_security(struct inode *inode)
@@ -129,7 +152,7 @@ static void cap_inode_free_security(struct inode *inode)
 }
 
 static int cap_inode_init_security(struct inode *inode, struct inode *dir,
-				   const struct qstr *qstr, char **name,
+				   const struct qstr *qstr, const char **name,
 				   void **value, size_t *len)
 {
 	return -EOPNOTSUPP;
@@ -343,9 +366,9 @@ static int cap_file_fcntl(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-static int cap_file_set_fowner(struct file *file)
+static void cap_file_set_fowner(struct file *file)
 {
-	return 0;
+	return;
 }
 
 static int cap_file_send_sigiotask(struct task_struct *tsk,
@@ -397,6 +420,11 @@ static int cap_kernel_act_as(struct cred *new, u32 secid)
 }
 
 static int cap_kernel_create_files_as(struct cred *new, struct inode *inode)
+{
+	return 0;
+}
+
+static int cap_kernel_fw_from_file(struct file *file, char *buf, size_t size)
 {
 	return 0;
 }
@@ -757,7 +785,8 @@ static void cap_skb_owned_by(struct sk_buff *skb, struct sock *sk)
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static int cap_xfrm_policy_alloc_security(struct xfrm_sec_ctx **ctxp,
-					  struct xfrm_user_sec_ctx *sec_ctx)
+					  struct xfrm_user_sec_ctx *sec_ctx,
+					  gfp_t gfp)
 {
 	return 0;
 }
@@ -777,9 +806,15 @@ static int cap_xfrm_policy_delete_security(struct xfrm_sec_ctx *ctx)
 	return 0;
 }
 
-static int cap_xfrm_state_alloc_security(struct xfrm_state *x,
-					 struct xfrm_user_sec_ctx *sec_ctx,
-					 u32 secid)
+static int cap_xfrm_state_alloc(struct xfrm_state *x,
+				struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return 0;
+}
+
+static int cap_xfrm_state_alloc_acquire(struct xfrm_state *x,
+					struct xfrm_sec_ctx *polsec,
+					u32 secid)
 {
 	return 0;
 }
@@ -872,7 +907,7 @@ static void cap_key_free(struct key *key)
 }
 
 static int cap_key_permission(key_ref_t key_ref, const struct cred *cred,
-			      key_perm_t perm)
+			      unsigned perm)
 {
 	return 0;
 }
@@ -918,6 +953,10 @@ static void cap_audit_rule_free(void *lsmrule)
 
 void __init security_fixup_ops(struct security_operations *ops)
 {
+	set_to_cap_if_null(ops, binder_set_context_mgr);
+	set_to_cap_if_null(ops, binder_transaction);
+	set_to_cap_if_null(ops, binder_transfer_binder);
+	set_to_cap_if_null(ops, binder_transfer_file);
 	set_to_cap_if_null(ops, ptrace_access_check);
 	set_to_cap_if_null(ops, ptrace_traceme);
 	set_to_cap_if_null(ops, capget);
@@ -1008,6 +1047,7 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, cred_transfer);
 	set_to_cap_if_null(ops, kernel_act_as);
 	set_to_cap_if_null(ops, kernel_create_files_as);
+	set_to_cap_if_null(ops, kernel_fw_from_file);
 	set_to_cap_if_null(ops, kernel_module_request);
 	set_to_cap_if_null(ops, kernel_module_from_file);
 	set_to_cap_if_null(ops, task_fix_setuid);
@@ -1101,7 +1141,8 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, xfrm_policy_clone_security);
 	set_to_cap_if_null(ops, xfrm_policy_free_security);
 	set_to_cap_if_null(ops, xfrm_policy_delete_security);
-	set_to_cap_if_null(ops, xfrm_state_alloc_security);
+	set_to_cap_if_null(ops, xfrm_state_alloc);
+	set_to_cap_if_null(ops, xfrm_state_alloc_acquire);
 	set_to_cap_if_null(ops, xfrm_state_free_security);
 	set_to_cap_if_null(ops, xfrm_state_delete_security);
 	set_to_cap_if_null(ops, xfrm_policy_lookup);

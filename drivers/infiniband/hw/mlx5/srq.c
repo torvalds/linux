@@ -35,6 +35,7 @@
 #include <linux/mlx5/srq.h>
 #include <linux/slab.h>
 #include <rdma/ib_umem.h>
+#include <rdma/ib_user_verbs.h>
 
 #include "mlx5_ib.h"
 #include "user.h"
@@ -78,16 +79,27 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_create_srq ucmd;
+	size_t ucmdlen;
 	int err;
 	int npages;
 	int page_shift;
 	int ncont;
 	u32 offset;
 
-	if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
+	ucmdlen =
+		(udata->inlen - sizeof(struct ib_uverbs_cmd_hdr) <
+		 sizeof(ucmd)) ? (sizeof(ucmd) -
+				  sizeof(ucmd.reserved)) : sizeof(ucmd);
+
+	if (ib_copy_from_udata(&ucmd, udata, ucmdlen)) {
 		mlx5_ib_dbg(dev, "failed copy udata\n");
 		return -EFAULT;
 	}
+
+	if (ucmdlen == sizeof(ucmd) &&
+	    ucmd.reserved != 0)
+		return -EINVAL;
+
 	srq->wq_sig = !!(ucmd.flags & MLX5_SRQ_FLAG_SIGNATURE);
 
 	srq->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr, buf_size,
@@ -123,13 +135,13 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		goto err_in;
 	}
 
-	(*in)->ctx.log_pg_sz = page_shift - PAGE_SHIFT;
+	(*in)->ctx.log_pg_sz = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	(*in)->ctx.pgoff_cqn = cpu_to_be32(offset << 26);
 
 	return 0;
 
 err_in:
-	mlx5_vfree(*in);
+	kvfree(*in);
 
 err_umem:
 	ib_umem_release(srq->umem);
@@ -147,7 +159,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	int page_shift;
 	int npages;
 
-	err = mlx5_db_alloc(&dev->mdev, &srq->db);
+	err = mlx5_db_alloc(dev->mdev, &srq->db);
 	if (err) {
 		mlx5_ib_warn(dev, "alloc dbell rec failed\n");
 		return err;
@@ -155,7 +167,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 
 	*srq->db.db = 0;
 
-	if (mlx5_buf_alloc(&dev->mdev, buf_size, PAGE_SIZE * 2, &srq->buf)) {
+	if (mlx5_buf_alloc(dev->mdev, buf_size, PAGE_SIZE * 2, &srq->buf)) {
 		mlx5_ib_dbg(dev, "buf alloc failed\n");
 		err = -ENOMEM;
 		goto err_db;
@@ -192,18 +204,18 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	}
 	srq->wq_sig = !!srq_signature;
 
-	(*in)->ctx.log_pg_sz = page_shift - PAGE_SHIFT;
+	(*in)->ctx.log_pg_sz = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 
 	return 0;
 
 err_in:
-	mlx5_vfree(*in);
+	kvfree(*in);
 
 err_buf:
-	mlx5_buf_free(&dev->mdev, &srq->buf);
+	mlx5_buf_free(dev->mdev, &srq->buf);
 
 err_db:
-	mlx5_db_free(&dev->mdev, &srq->db);
+	mlx5_db_free(dev->mdev, &srq->db);
 	return err;
 }
 
@@ -217,8 +229,8 @@ static void destroy_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq)
 static void destroy_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq)
 {
 	kfree(srq->wrid);
-	mlx5_buf_free(&dev->mdev, &srq->buf);
-	mlx5_db_free(&dev->mdev, &srq->db);
+	mlx5_buf_free(dev->mdev, &srq->buf);
+	mlx5_db_free(dev->mdev, &srq->db);
 }
 
 struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
@@ -226,6 +238,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 				  struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct mlx5_general_caps *gen;
 	struct mlx5_ib_srq *srq;
 	int desc_size;
 	int buf_size;
@@ -235,11 +248,12 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	int is_xrc;
 	u32 flgs, xrcdn;
 
+	gen = &dev->mdev->caps.gen;
 	/* Sanity check SRQ size before proceeding */
-	if (init_attr->attr.max_wr >= dev->mdev.caps.max_srq_wqes) {
+	if (init_attr->attr.max_wr >= gen->max_srq_wqes) {
 		mlx5_ib_dbg(dev, "max_wr %d, cap %d\n",
 			    init_attr->attr.max_wr,
-			    dev->mdev.caps.max_srq_wqes);
+			    gen->max_srq_wqes);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -291,11 +305,11 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 
 	in->ctx.pd = cpu_to_be32(to_mpd(pd)->pdn);
 	in->ctx.db_record = cpu_to_be64(srq->db.dma);
-	err = mlx5_core_create_srq(&dev->mdev, &srq->msrq, in, inlen);
-	mlx5_vfree(in);
+	err = mlx5_core_create_srq(dev->mdev, &srq->msrq, in, inlen);
+	kvfree(in);
 	if (err) {
 		mlx5_ib_dbg(dev, "create SRQ failed, err %d\n", err);
-		goto err_srq;
+		goto err_usr_kern_srq;
 	}
 
 	mlx5_ib_dbg(dev, "create SRQ with srqn 0x%x\n", srq->msrq.srqn);
@@ -315,7 +329,9 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	return &srq->ibsrq;
 
 err_core:
-	mlx5_core_destroy_srq(&dev->mdev, &srq->msrq);
+	mlx5_core_destroy_srq(dev->mdev, &srq->msrq);
+
+err_usr_kern_srq:
 	if (pd->uobject)
 		destroy_srq_user(pd, srq);
 	else
@@ -343,7 +359,7 @@ int mlx5_ib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			return -EINVAL;
 
 		mutex_lock(&srq->mutex);
-		ret = mlx5_core_arm_srq(&dev->mdev, &srq->msrq, attr->srq_limit, 1);
+		ret = mlx5_core_arm_srq(dev->mdev, &srq->msrq, attr->srq_limit, 1);
 		mutex_unlock(&srq->mutex);
 
 		if (ret)
@@ -364,7 +380,7 @@ int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	if (!out)
 		return -ENOMEM;
 
-	ret = mlx5_core_query_srq(&dev->mdev, &srq->msrq, out);
+	ret = mlx5_core_query_srq(dev->mdev, &srq->msrq, out);
 	if (ret)
 		goto out_box;
 
@@ -382,15 +398,13 @@ int mlx5_ib_destroy_srq(struct ib_srq *srq)
 	struct mlx5_ib_dev *dev = to_mdev(srq->device);
 	struct mlx5_ib_srq *msrq = to_msrq(srq);
 
-	mlx5_core_destroy_srq(&dev->mdev, &msrq->msrq);
+	mlx5_core_destroy_srq(dev->mdev, &msrq->msrq);
 
 	if (srq->uobject) {
 		mlx5_ib_db_unmap_user(to_mucontext(srq->uobject->context), &msrq->db);
 		ib_umem_release(msrq->umem);
 	} else {
-		kfree(msrq->wrid);
-		mlx5_buf_free(&dev->mdev, &msrq->buf);
-		mlx5_db_free(&dev->mdev, &msrq->db);
+		destroy_srq_kernel(dev, msrq);
 	}
 
 	kfree(srq);

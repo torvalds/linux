@@ -37,7 +37,6 @@
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
@@ -1431,18 +1430,10 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		if (!sta_info->ht_sta)
 			return -EOPNOTSUPP;
 
-		rcu_read_lock();
-		if (rcu_dereference(sta_info->agg[tid])) {
-			rcu_read_unlock();
-			return -EBUSY;
-		}
-
 		tid_info = kzalloc(sizeof(struct carl9170_sta_tid),
 				   GFP_ATOMIC);
-		if (!tid_info) {
-			rcu_read_unlock();
+		if (!tid_info)
 			return -ENOMEM;
-		}
 
 		tid_info->hsn = tid_info->bsn = tid_info->snx = (*ssn);
 		tid_info->state = CARL9170_TID_STATE_PROGRESS;
@@ -1461,7 +1452,6 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		list_add_tail_rcu(&tid_info->list, &ar->tx_ampdu_list);
 		rcu_assign_pointer(sta_info->agg[tid], tid_info);
 		spin_unlock_bh(&ar->tx_ampdu_list_lock);
-		rcu_read_unlock();
 
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -1700,15 +1690,17 @@ found:
 		survey->filled |= SURVEY_INFO_IN_USE;
 
 	if (ar->fw.hw_counters) {
-		survey->filled |= SURVEY_INFO_CHANNEL_TIME |
-				  SURVEY_INFO_CHANNEL_TIME_BUSY |
-				  SURVEY_INFO_CHANNEL_TIME_TX;
+		survey->filled |= SURVEY_INFO_TIME |
+				  SURVEY_INFO_TIME_BUSY |
+				  SURVEY_INFO_TIME_TX;
 	}
 
 	return 0;
 }
 
-static void carl9170_op_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void carl9170_op_flush(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      u32 queues, bool drop)
 {
 	struct ar9170 *ar = hw->priv;
 	unsigned int vid;
@@ -1860,7 +1852,8 @@ void *carl9170_alloc(size_t priv_size)
 		     IEEE80211_HW_PS_NULLFUNC_STACK |
 		     IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
 		     IEEE80211_HW_SUPPORTS_RC_TABLE |
-		     IEEE80211_HW_SIGNAL_DBM;
+		     IEEE80211_HW_SIGNAL_DBM |
+		     IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
 
 	if (!modparam_noht) {
 		/*
@@ -1966,18 +1959,6 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	if (!ar->survey)
 		return -ENOMEM;
 	ar->num_channels = chans;
-
-	/*
-	 * I measured this, a bandswitch takes roughly
-	 * 135 ms and a frequency switch about 80.
-	 *
-	 * FIXME: measure these values again once EEPROM settings
-	 *	  are used, that will influence them!
-	 */
-	if (bands == 2)
-		ar->hw->channel_change_time = 135 * 1000;
-	else
-		ar->hw->channel_change_time = 80 * 1000;
 
 	regulatory->current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
 

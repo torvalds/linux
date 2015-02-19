@@ -17,19 +17,18 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
 #include <asm/suspend.h>
 
-#include <plat/regs-serial.h>
-
 #ifdef CONFIG_SAMSUNG_ATAGS
-#include <mach/hardware.h>
 #include <mach/map.h>
+#ifndef CONFIG_ARCH_EXYNOS
 #include <mach/regs-clock.h>
 #include <mach/regs-irq.h>
+#endif
 #include <mach/irqs.h>
 #endif
 
@@ -41,93 +40,6 @@
 /* for external use */
 
 unsigned long s3c_pm_flags;
-
-/* Debug code:
- *
- * This code supports debug output to the low level UARTs for use on
- * resume before the console layer is available.
-*/
-
-#ifdef CONFIG_SAMSUNG_PM_DEBUG
-extern void printascii(const char *);
-
-void s3c_pm_dbg(const char *fmt, ...)
-{
-	va_list va;
-	char buff[256];
-
-	va_start(va, fmt);
-	vsnprintf(buff, sizeof(buff), fmt, va);
-	va_end(va);
-
-	printascii(buff);
-}
-
-static inline void s3c_pm_debug_init(void)
-{
-	/* restart uart clocks so we can use them to output */
-	s3c_pm_debug_init_uart();
-}
-
-#else
-#define s3c_pm_debug_init() do { } while(0)
-
-#endif /* CONFIG_SAMSUNG_PM_DEBUG */
-
-/* Save the UART configurations if we are configured for debug. */
-
-unsigned char pm_uart_udivslot;
-
-#ifdef CONFIG_SAMSUNG_PM_DEBUG
-
-static struct pm_uart_save uart_save;
-
-static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
-{
-	void __iomem *regs = S3C_VA_UARTx(uart);
-
-	save->ulcon = __raw_readl(regs + S3C2410_ULCON);
-	save->ucon = __raw_readl(regs + S3C2410_UCON);
-	save->ufcon = __raw_readl(regs + S3C2410_UFCON);
-	save->umcon = __raw_readl(regs + S3C2410_UMCON);
-	save->ubrdiv = __raw_readl(regs + S3C2410_UBRDIV);
-
-	if (pm_uart_udivslot)
-		save->udivslot = __raw_readl(regs + S3C2443_DIVSLOT);
-
-	S3C_PMDBG("UART[%d]: ULCON=%04x, UCON=%04x, UFCON=%04x, UBRDIV=%04x\n",
-		  uart, save->ulcon, save->ucon, save->ufcon, save->ubrdiv);
-}
-
-static void s3c_pm_save_uarts(void)
-{
-	s3c_pm_save_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
-}
-
-static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
-{
-	void __iomem *regs = S3C_VA_UARTx(uart);
-
-	s3c_pm_arch_update_uart(regs, save);
-
-	__raw_writel(save->ulcon, regs + S3C2410_ULCON);
-	__raw_writel(save->ucon,  regs + S3C2410_UCON);
-	__raw_writel(save->ufcon, regs + S3C2410_UFCON);
-	__raw_writel(save->umcon, regs + S3C2410_UMCON);
-	__raw_writel(save->ubrdiv, regs + S3C2410_UBRDIV);
-
-	if (pm_uart_udivslot)
-		__raw_writel(save->udivslot, regs + S3C2443_DIVSLOT);
-}
-
-static void s3c_pm_restore_uarts(void)
-{
-	s3c_pm_restore_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
-}
-#else
-static void s3c_pm_save_uarts(void) { }
-static void s3c_pm_restore_uarts(void) { }
-#endif
 
 /* The IRQ ext-int code goes here, it is too small to currently bother
  * with its own file. */
@@ -151,62 +63,6 @@ int s3c_irqext_wake(struct irq_data *data, unsigned int state)
 		s3c_irqwake_eintmask &= ~bit;
 
 	return 0;
-}
-
-/* helper functions to save and restore register state */
-
-/**
- * s3c_pm_do_save() - save a set of registers for restoration on resume.
- * @ptr: Pointer to an array of registers.
- * @count: Size of the ptr array.
- *
- * Run through the list of registers given, saving their contents in the
- * array for later restoration when we wakeup.
- */
-void s3c_pm_do_save(struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++) {
-		ptr->val = __raw_readl(ptr->reg);
-		S3C_PMDBG("saved %p value %08lx\n", ptr->reg, ptr->val);
-	}
-}
-
-/**
- * s3c_pm_do_restore() - restore register values from the save list.
- * @ptr: Pointer to an array of registers.
- * @count: Size of the ptr array.
- *
- * Restore the register values saved from s3c_pm_do_save().
- *
- * Note, we do not use S3C_PMDBG() in here, as the system may not have
- * restore the UARTs state yet
-*/
-
-void s3c_pm_do_restore(struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++) {
-		printk(KERN_DEBUG "restore %p (restore %08lx, was %08x)\n",
-		       ptr->reg, ptr->val, __raw_readl(ptr->reg));
-
-		__raw_writel(ptr->val, ptr->reg);
-	}
-}
-
-/**
- * s3c_pm_do_restore_core() - early restore register values from save list.
- *
- * This is similar to s3c_pm_do_restore() except we try and minimise the
- * side effects of the function in case registers that hardware might need
- * to work has been restored.
- *
- * WARNING: Do not put any debug in here that may effect memory or use
- * peripherals, as things may be changing!
-*/
-
-void s3c_pm_do_restore_core(struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++)
-		__raw_writel(ptr->val, ptr->reg);
 }
 
 /* s3c2410_pm_show_resume_irqs

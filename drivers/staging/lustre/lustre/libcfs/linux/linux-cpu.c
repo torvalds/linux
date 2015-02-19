@@ -35,7 +35,7 @@
 
 #include <linux/cpu.h>
 #include <linux/sched.h>
-#include <linux/libcfs/libcfs.h>
+#include "../../../include/linux/libcfs/libcfs.h"
 
 #ifdef CONFIG_SMP
 
@@ -47,7 +47,8 @@
  * >1 : specify number of partitions
  */
 static int	cpu_npartitions;
-CFS_MODULE_PARM(cpu_npartitions, "i", int, 0444, "# of CPU partitions");
+module_param(cpu_npartitions, int, 0444);
+MODULE_PARM_DESC(cpu_npartitions, "# of CPU partitions");
 
 /**
  * modparam for setting CPU partitions patterns:
@@ -61,7 +62,8 @@ CFS_MODULE_PARM(cpu_npartitions, "i", int, 0444, "# of CPU partitions");
  * NB: If user specified cpu_pattern, cpu_npartitions will be ignored
  */
 static char	*cpu_pattern = "";
-CFS_MODULE_PARM(cpu_pattern, "s", charp, 0444, "CPU partitions pattern");
+module_param(cpu_pattern, charp, 0444);
+MODULE_PARM_DESC(cpu_pattern, "CPU partitions pattern");
 
 struct cfs_cpt_data {
 	/* serialize hotplug etc */
@@ -69,69 +71,29 @@ struct cfs_cpt_data {
 	/* reserved for hotplug */
 	unsigned long		cpt_version;
 	/* mutex to protect cpt_cpumask */
-	struct semaphore	cpt_mutex;
+	struct mutex		cpt_mutex;
 	/* scratch buffer for set/unset_node */
 	cpumask_t		*cpt_cpumask;
 };
 
 static struct cfs_cpt_data	cpt_data;
 
-void
-cfs_cpu_core_siblings(int cpu, cpumask_t *mask)
+static void cfs_cpu_core_siblings(int cpu, cpumask_t *mask)
 {
 	/* return cpumask of cores in the same socket */
 	cpumask_copy(mask, topology_core_cpumask(cpu));
 }
-EXPORT_SYMBOL(cfs_cpu_core_siblings);
-
-/* return number of cores in the same socket of \a cpu */
-int
-cfs_cpu_core_nsiblings(int cpu)
-{
-	int	num;
-
-	down(&cpt_data.cpt_mutex);
-
-	cfs_cpu_core_siblings(cpu, cpt_data.cpt_cpumask);
-	num = cpus_weight(*cpt_data.cpt_cpumask);
-
-	up(&cpt_data.cpt_mutex);
-
-	return num;
-}
-EXPORT_SYMBOL(cfs_cpu_core_nsiblings);
 
 /* return cpumask of HTs in the same core */
-void
-cfs_cpu_ht_siblings(int cpu, cpumask_t *mask)
+static void cfs_cpu_ht_siblings(int cpu, cpumask_t *mask)
 {
 	cpumask_copy(mask, topology_thread_cpumask(cpu));
 }
-EXPORT_SYMBOL(cfs_cpu_ht_siblings);
 
-/* return number of HTs in the same core of \a cpu */
-int
-cfs_cpu_ht_nsiblings(int cpu)
-{
-	int	num;
-
-	down(&cpt_data.cpt_mutex);
-
-	cfs_cpu_ht_siblings(cpu, cpt_data.cpt_cpumask);
-	num = cpus_weight(*cpt_data.cpt_cpumask);
-
-	up(&cpt_data.cpt_mutex);
-
-	return num;
-}
-EXPORT_SYMBOL(cfs_cpu_ht_nsiblings);
-
-void
-cfs_node_to_cpumask(int node, cpumask_t *mask)
+static void cfs_node_to_cpumask(int node, cpumask_t *mask)
 {
 	cpumask_copy(mask, cpumask_of_node(node));
 }
-EXPORT_SYMBOL(cfs_node_to_cpumask);
 
 void
 cfs_cpt_table_free(struct cfs_cpt_table *cptab)
@@ -371,8 +333,8 @@ cfs_cpt_unset_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu)
 		/* caller doesn't know the partition ID */
 		cpt = cptab->ctb_cpu2cpt[cpu];
 		if (cpt < 0) { /* not set in this CPT-table */
-			CDEBUG(D_INFO, "Try to unset cpu %d which is "
-				       "not in CPT-table %p\n", cpt, cptab);
+			CDEBUG(D_INFO, "Try to unset cpu %d which is not in CPT-table %p\n",
+			       cpt, cptab);
 			return;
 		}
 
@@ -422,8 +384,8 @@ cfs_cpt_set_cpumask(struct cfs_cpt_table *cptab, int cpt, cpumask_t *mask)
 	int	i;
 
 	if (cpus_weight(*mask) == 0 || any_online_cpu(*mask) == NR_CPUS) {
-		CDEBUG(D_INFO, "No online CPU is found in the CPU mask "
-			       "for CPU partition %d\n", cpt);
+		CDEBUG(D_INFO, "No online CPU is found in the CPU mask for CPU partition %d\n",
+		       cpt);
 		return 0;
 	}
 
@@ -458,14 +420,14 @@ cfs_cpt_set_node(struct cfs_cpt_table *cptab, int cpt, int node)
 		return 0;
 	}
 
-	down(&cpt_data.cpt_mutex);
+	mutex_lock(&cpt_data.cpt_mutex);
 
 	mask = cpt_data.cpt_cpumask;
 	cfs_node_to_cpumask(node, mask);
 
 	rc = cfs_cpt_set_cpumask(cptab, cpt, mask);
 
-	up(&cpt_data.cpt_mutex);
+	mutex_unlock(&cpt_data.cpt_mutex);
 
 	return rc;
 }
@@ -482,14 +444,14 @@ cfs_cpt_unset_node(struct cfs_cpt_table *cptab, int cpt, int node)
 		return;
 	}
 
-	down(&cpt_data.cpt_mutex);
+	mutex_lock(&cpt_data.cpt_mutex);
 
 	mask = cpt_data.cpt_cpumask;
 	cfs_node_to_cpumask(node, mask);
 
 	cfs_cpt_unset_cpumask(cptab, cpt, mask);
 
-	up(&cpt_data.cpt_mutex);
+	mutex_unlock(&cpt_data.cpt_mutex);
 }
 EXPORT_SYMBOL(cfs_cpt_unset_node);
 
@@ -617,9 +579,8 @@ cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt)
 	}
 
 	if (any_online_cpu(*cpumask) == NR_CPUS) {
-		CERROR("No online CPU found in CPU partition %d, did someone "
-		       "do CPU hotplug on system? You might need to reload "
-		       "Lustre modules to keep system working well.\n", cpt);
+		CERROR("No online CPU found in CPU partition %d, did someone do CPU hotplug on system? You might need to reload Lustre modules to keep system working well.\n",
+		       cpt);
 		return -EINVAL;
 	}
 
@@ -775,16 +736,12 @@ cfs_cpt_table_create(int ncpt)
 		ncpt = rc;
 
 	if (ncpt > num_online_cpus() || ncpt > 4 * rc) {
-		CWARN("CPU partition number %d is larger than suggested "
-		      "value (%d), your system may have performance"
-		      "issue or run out of memory while under pressure\n",
+		CWARN("CPU partition number %d is larger than suggested value (%d), your system may have performance issue or run out of memory while under pressure\n",
 		      ncpt, rc);
 	}
 
 	if (num_online_cpus() % ncpt != 0) {
-		CERROR("CPU number %d is not multiple of cpu_npartition %d, "
-		       "please try different cpu_npartitions value or"
-		       "set pattern string by cpu_pattern=STRING\n",
+		CERROR("CPU number %d is not multiple of cpu_npartition %d, please try different cpu_npartitions value or set pattern string by cpu_pattern=STRING\n",
 		       (int)num_online_cpus(), ncpt);
 		goto failed;
 	}
@@ -834,8 +791,7 @@ cfs_cpt_table_create(int ncpt)
 
 	if (cpt != ncpt ||
 	    num != cpus_weight(*cptab->ctb_parts[ncpt - 1].cpt_cpumask)) {
-		CERROR("Expect %d(%d) CPU partitions but got %d(%d), "
-		       "CPU hotplug/unplug while setting?\n",
+		CERROR("Expect %d(%d) CPU partitions but got %d(%d), CPU hotplug/unplug while setting?\n",
 		       cptab->ctb_nparts, num, cpt,
 		       cpus_weight(*cptab->ctb_parts[ncpt - 1].cpt_cpumask));
 		goto failed;
@@ -846,8 +802,7 @@ cfs_cpt_table_create(int ncpt)
 	return cptab;
 
  failed:
-	CERROR("Failed to setup CPU-partition-table with %d "
-	       "CPU-partitions, online HW nodes: %d, HW cpus: %d.\n",
+	CERROR("Failed to setup CPU-partition-table with %d CPU-partitions, online HW nodes: %d, HW cpus: %d.\n",
 	       ncpt, num_online_nodes(), num_online_cpus());
 
 	if (mask != NULL)
@@ -919,7 +874,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 			break;
 		}
 
-		if (sscanf(str, "%u%n", &cpt, &n) < 1) {
+		if (sscanf(str, "%d%n", &cpt, &n) < 1) {
 			CERROR("Invalid cpu pattern %s\n", str);
 			goto failed;
 		}
@@ -990,6 +945,7 @@ static int
 cfs_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	unsigned int  cpu = (unsigned long)hcpu;
+	bool	     warn;
 
 	switch (action) {
 	case CPU_DEAD:
@@ -1000,9 +956,20 @@ cfs_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 		cpt_data.cpt_version++;
 		spin_unlock(&cpt_data.cpt_lock);
 	default:
-		CWARN("Lustre: can't support CPU hotplug well now, "
-		      "performance and stability could be impacted"
-		      "[CPU %u notify: %lx]\n", cpu, action);
+		if (action != CPU_DEAD && action != CPU_DEAD_FROZEN) {
+			CDEBUG(D_INFO, "CPU changed [cpu %u action %lx]\n",
+			       cpu, action);
+			break;
+		}
+
+		mutex_lock(&cpt_data.cpt_mutex);
+		/* if all HTs in a core are offline, it may break affinity */
+		cfs_cpu_ht_siblings(cpu, cpt_data.cpt_cpumask);
+		warn = any_online_cpu(*cpt_data.cpt_cpumask) >= nr_cpu_ids;
+		mutex_unlock(&cpt_data.cpt_mutex);
+		CDEBUG(warn ? D_WARNING : D_INFO,
+		       "Lustre: can't support CPU plug-out well now, performance and stability could be impacted [CPU %u action: %lx]\n",
+		       cpu, action);
 	}
 
 	return NOTIFY_OK;
@@ -1042,7 +1009,7 @@ cfs_cpu_init(void)
 	}
 
 	spin_lock_init(&cpt_data.cpt_lock);
-	sema_init(&cpt_data.cpt_mutex, 1);
+	mutex_init(&cpt_data.cpt_mutex);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	register_hotcpu_notifier(&cfs_cpu_notifier);

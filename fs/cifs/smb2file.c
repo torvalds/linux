@@ -34,29 +34,6 @@
 #include "fscache.h"
 #include "smb2proto.h"
 
-void
-smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
-{
-	oplock &= 0xFF;
-	if (oplock == SMB2_OPLOCK_LEVEL_NOCHANGE)
-		return;
-	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE ||
-	    oplock == SMB2_OPLOCK_LEVEL_BATCH) {
-		cinode->clientCanCacheAll = true;
-		cinode->clientCanCacheRead = true;
-		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
-	} else if (oplock == SMB2_OPLOCK_LEVEL_II) {
-		cinode->clientCanCacheAll = false;
-		cinode->clientCanCacheRead = true;
-		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
-	} else {
-		cinode->clientCanCacheAll = false;
-		cinode->clientCanCacheRead = false;
-	}
-}
-
 int
 smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	       __u32 *oplock, FILE_ALL_INFO *buf)
@@ -73,7 +50,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 		goto out;
 	}
 
-	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + MAX_NAME * 2,
+	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
 			    GFP_KERNEL);
 	if (smb2_data == NULL) {
 		rc = -ENOMEM;
@@ -86,7 +63,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	if (oparms->tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING)
 		memcpy(smb2_oplock + 1, fid->lease_key, SMB2_LEASE_KEY_SIZE);
 
-	rc = SMB2_open(xid, oparms, smb2_path, smb2_oplock, smb2_data);
+	rc = SMB2_open(xid, oparms, smb2_path, smb2_oplock, smb2_data, NULL);
 	if (rc)
 		goto out;
 
@@ -134,7 +111,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 		return -EINVAL;
 
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kzalloc(max_num * sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -270,7 +247,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	}
 
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kzalloc(max_num * sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
 	if (!buf) {
 		free_xid(xid);
 		return -ENOMEM;

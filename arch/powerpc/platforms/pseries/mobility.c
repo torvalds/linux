@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
+#include <asm/machdep.h>
 #include <asm/rtas.h>
 #include "pseries.h"
 
@@ -28,7 +29,7 @@ struct update_props_workarea {
 	u32 state;
 	u64 reserved;
 	u32 nprops;
-};
+} __packed;
 
 #define NODE_ACTION_MASK	0xff000000
 #define NODE_COUNT_MASK		0x00ffffff
@@ -62,6 +63,7 @@ static int delete_dt_node(u32 phandle)
 		return -ENOENT;
 
 	dlpar_detach_node(dn);
+	of_node_put(dn);
 	return 0;
 }
 
@@ -119,7 +121,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 
 	if (!more) {
 		of_update_property(dn, new_prop);
-		new_prop = NULL;
+		*prop = NULL;
 	}
 
 	return 0;
@@ -130,7 +132,7 @@ static int update_dt_node(u32 phandle, s32 scope)
 	struct update_props_workarea *upwa;
 	struct device_node *dn;
 	struct property *prop = NULL;
-	int i, rc;
+	int i, rc, rtas_rc;
 	char *prop_data;
 	char *rtas_buf;
 	int update_properties_token;
@@ -154,25 +156,26 @@ static int update_dt_node(u32 phandle, s32 scope)
 	upwa->phandle = phandle;
 
 	do {
-		rc = mobility_rtas_call(update_properties_token, rtas_buf,
+		rtas_rc = mobility_rtas_call(update_properties_token, rtas_buf,
 					scope);
-		if (rc < 0)
+		if (rtas_rc < 0)
 			break;
 
 		prop_data = rtas_buf + sizeof(*upwa);
 
-		/* The first element of the buffer is the path of the node
-		 * being updated in the form of a 8 byte string length
-		 * followed by the string. Skip past this to get to the
-		 * properties being updated.
+		/* On the first call to ibm,update-properties for a node the
+		 * the first property value descriptor contains an empty
+		 * property name, the property value length encoded as u32,
+		 * and the property value is the node path being updated.
 		 */
-		vd = *prop_data++;
-		prop_data += vd;
+		if (*prop_data == 0) {
+			prop_data++;
+			vd = *(u32 *)prop_data;
+			prop_data += vd + sizeof(vd);
+			upwa->nprops--;
+		}
 
-		/* The path we skipped over is counted as one of the elements
-		 * returned so start counting at one.
-		 */
-		for (i = 1; i < upwa->nprops; i++) {
+		for (i = 0; i < upwa->nprops; i++) {
 			char *prop_name;
 
 			prop_name = prop_data;
@@ -202,7 +205,7 @@ static int update_dt_node(u32 phandle, s32 scope)
 				prop_data += vd;
 			}
 		}
-	} while (rc == 1);
+	} while (rtas_rc == 1);
 
 	of_node_put(dn);
 	kfree(rtas_buf);
@@ -215,17 +218,14 @@ static int add_dt_node(u32 parent_phandle, u32 drc_index)
 	struct device_node *parent_dn;
 	int rc;
 
-	dn = dlpar_configure_connector(drc_index);
+	parent_dn = of_find_node_by_phandle(parent_phandle);
+	if (!parent_dn)
+		return -ENOENT;
+
+	dn = dlpar_configure_connector(drc_index, parent_dn);
 	if (!dn)
 		return -ENOENT;
 
-	parent_dn = of_find_node_by_phandle(parent_phandle);
-	if (!parent_dn) {
-		dlpar_free_cc_nodes(dn);
-		return -ENOENT;
-	}
-
-	dn->parent = parent_dn;
 	rc = dlpar_attach_node(dn);
 	if (rc)
 		dlpar_free_cc_nodes(dn);
@@ -291,13 +291,6 @@ void post_mobility_fixup(void)
 	int rc;
 	int activate_fw_token;
 
-	rc = pseries_devicetree_update(MIGRATION_SCOPE);
-	if (rc) {
-		printk(KERN_ERR "Initial post-mobility device tree update "
-		       "failed: %d\n", rc);
-		return;
-	}
-
 	activate_fw_token = rtas_token("ibm,activate-firmware");
 	if (activate_fw_token == RTAS_UNKNOWN_SERVICE) {
 		printk(KERN_ERR "Could not make post-mobility "
@@ -305,16 +298,17 @@ void post_mobility_fixup(void)
 		return;
 	}
 
-	rc = rtas_call(activate_fw_token, 0, 1, NULL);
-	if (!rc) {
-		rc = pseries_devicetree_update(MIGRATION_SCOPE);
-		if (rc)
-			printk(KERN_ERR "Secondary post-mobility device tree "
-			       "update failed: %d\n", rc);
-	} else {
+	do {
+		rc = rtas_call(activate_fw_token, 0, 1, NULL);
+	} while (rtas_busy_delay(rc));
+
+	if (rc)
 		printk(KERN_ERR "Post-mobility activate-fw failed: %d\n", rc);
-		return;
-	}
+
+	rc = pseries_devicetree_update(MIGRATION_SCOPE);
+	if (rc)
+		printk(KERN_ERR "Post-mobility device tree update "
+			"failed: %d\n", rc);
 
 	return;
 }
@@ -322,34 +316,24 @@ void post_mobility_fixup(void)
 static ssize_t migrate_store(struct class *class, struct class_attribute *attr,
 			     const char *buf, size_t count)
 {
-	struct rtas_args args;
 	u64 streamid;
 	int rc;
+	int vasi_rc = 0;
 
-	rc = strict_strtoull(buf, 0, &streamid);
+	rc = kstrtou64(buf, 0, &streamid);
 	if (rc)
 		return rc;
-
-	memset(&args, 0, sizeof(args));
-	args.token = rtas_token("ibm,suspend-me");
-	args.nargs = 2;
-	args.nret = 1;
-
-	args.args[0] = streamid >> 32 ;
-	args.args[1] = streamid & 0xffffffff;
-	args.rets = &args.args[args.nargs];
 
 	do {
-		args.rets[0] = 0;
-		rc = rtas_ibm_suspend_me(&args);
-		if (!rc && args.rets[0] == RTAS_NOT_SUSPENDABLE)
+		rc = rtas_ibm_suspend_me(streamid, &vasi_rc);
+		if (!rc && vasi_rc == RTAS_NOT_SUSPENDABLE)
 			ssleep(1);
-	} while (!rc && args.rets[0] == RTAS_NOT_SUSPENDABLE);
+	} while (!rc && vasi_rc == RTAS_NOT_SUSPENDABLE);
 
 	if (rc)
 		return rc;
-	else if (args.rets[0])
-		return args.rets[0];
+	if (vasi_rc)
+		return vasi_rc;
 
 	post_mobility_fixup();
 	return count;
@@ -369,4 +353,4 @@ static int __init mobility_sysfs_init(void)
 
 	return rc;
 }
-device_initcall(mobility_sysfs_init);
+machine_device_initcall(pseries, mobility_sysfs_init);

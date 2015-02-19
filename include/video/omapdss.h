@@ -61,6 +61,7 @@ struct omap_overlay_manager;
 struct dss_lcd_mgr_config;
 struct snd_aes_iec958;
 struct snd_cea_861_aud_if;
+struct hdmi_avi_infoframe;
 
 enum omap_display_type {
 	OMAP_DISPLAY_TYPE_NONE		= 0,
@@ -165,13 +166,6 @@ enum omap_dss_display_state {
 	OMAP_DSS_DISPLAY_ACTIVE,
 };
 
-enum omap_dss_audio_state {
-	OMAP_DSS_AUDIO_DISABLED = 0,
-	OMAP_DSS_AUDIO_ENABLED,
-	OMAP_DSS_AUDIO_CONFIGURED,
-	OMAP_DSS_AUDIO_PLAYING,
-};
-
 struct omap_dss_audio {
 	struct snd_aes_iec958 *iec;
 	struct snd_cea_861_aud_if *cea;
@@ -250,19 +244,6 @@ struct rfbi_timings {
 	int converted;
 };
 
-void omap_rfbi_write_command(const void *buf, u32 len);
-void omap_rfbi_read_data(void *buf, u32 len);
-void omap_rfbi_write_data(const void *buf, u32 len);
-void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
-		u16 x, u16 y,
-		u16 w, u16 h);
-int omap_rfbi_enable_te(bool enable, unsigned line);
-int omap_rfbi_setup_te(enum omap_rfbi_te_mode mode,
-			     unsigned hs_pulse_time, unsigned vs_pulse_time,
-			     int hs_pol_inv, int vs_pol_inv, int extif_div);
-void rfbi_bus_lock(void);
-void rfbi_bus_unlock(void);
-
 /* DSI */
 
 enum omap_dss_dsi_trans_mode {
@@ -321,39 +302,6 @@ struct omap_dss_dsi_config {
 	enum omap_dss_dsi_trans_mode trans_mode;
 };
 
-void dsi_bus_lock(struct omap_dss_device *dssdev);
-void dsi_bus_unlock(struct omap_dss_device *dssdev);
-int dsi_vc_dcs_write(struct omap_dss_device *dssdev, int channel, u8 *data,
-		int len);
-int dsi_vc_generic_write(struct omap_dss_device *dssdev, int channel, u8 *data,
-		int len);
-int dsi_vc_dcs_write_0(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd);
-int dsi_vc_generic_write_0(struct omap_dss_device *dssdev, int channel);
-int dsi_vc_dcs_write_1(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
-		u8 param);
-int dsi_vc_generic_write_1(struct omap_dss_device *dssdev, int channel,
-		u8 param);
-int dsi_vc_generic_write_2(struct omap_dss_device *dssdev, int channel,
-		u8 param1, u8 param2);
-int dsi_vc_dcs_write_nosync(struct omap_dss_device *dssdev, int channel,
-		u8 *data, int len);
-int dsi_vc_generic_write_nosync(struct omap_dss_device *dssdev, int channel,
-		u8 *data, int len);
-int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
-		u8 *buf, int buflen);
-int dsi_vc_generic_read_0(struct omap_dss_device *dssdev, int channel, u8 *buf,
-		int buflen);
-int dsi_vc_generic_read_1(struct omap_dss_device *dssdev, int channel, u8 param,
-		u8 *buf, int buflen);
-int dsi_vc_generic_read_2(struct omap_dss_device *dssdev, int channel,
-		u8 param1, u8 param2, u8 *buf, int buflen);
-int dsi_vc_set_max_rx_packet_size(struct omap_dss_device *dssdev, int channel,
-		u16 len);
-int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel);
-int dsi_vc_send_bta_sync(struct omap_dss_device *dssdev, int channel);
-int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel);
-void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel);
-
 enum omapdss_version {
 	OMAPDSS_VER_UNKNOWN = 0,
 	OMAPDSS_VER_OMAP24xx,
@@ -365,11 +313,12 @@ enum omapdss_version {
 	OMAPDSS_VER_OMAP4430_ES2,	/* OMAP4430 ES2.0, 2.1, 2.2 */
 	OMAPDSS_VER_OMAP4,		/* All other OMAP4s */
 	OMAPDSS_VER_OMAP5,
+	OMAPDSS_VER_AM43xx,
+	OMAPDSS_VER_DRA7xx,
 };
 
 /* Board specific data */
 struct omap_dss_board_info {
-	int (*get_context_loss_count)(struct device *dev);
 	int num_devices;
 	struct omap_dss_device **devices;
 	struct omap_dss_device *default_device;
@@ -390,8 +339,8 @@ struct omap_video_timings {
 	u16 x_res;
 	/* Unit: pixels */
 	u16 y_res;
-	/* Unit: KHz */
-	u32 pixel_clock;
+	/* Unit: Hz */
+	u32 pixelclock;
 	/* Unit: pixel clocks */
 	u16 hsw;	/* Horizontal synchronization pulse width */
 	/* Unit: pixel clocks */
@@ -435,8 +384,8 @@ struct omap_dss_cpr_coefs {
 };
 
 struct omap_overlay_info {
-	u32 paddr;
-	u32 p_uv_addr;  /* for NV12 format */
+	dma_addr_t paddr;
+	dma_addr_t p_uv_addr;  /* for NV12 format */
 	u16 screen_width;
 	u16 width;
 	u16 height;
@@ -677,18 +626,9 @@ struct omapdss_hdmi_ops {
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
 	bool (*detect)(struct omap_dss_device *dssdev);
 
-	/*
-	 * Note: These functions might sleep. Do not call while
-	 * holding a spinlock/readlock.
-	 */
-	int (*audio_enable)(struct omap_dss_device *dssdev);
-	void (*audio_disable)(struct omap_dss_device *dssdev);
-	bool (*audio_supported)(struct omap_dss_device *dssdev);
-	int (*audio_config)(struct omap_dss_device *dssdev,
-		struct omap_dss_audio *audio);
-	/* Note: These functions may not sleep */
-	int (*audio_start)(struct omap_dss_device *dssdev);
-	void (*audio_stop)(struct omap_dss_device *dssdev);
+	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
+	int (*set_infoframe)(struct omap_dss_device *dssdev,
+		const struct hdmi_avi_infoframe *avi);
 };
 
 struct omapdss_dsi_ops {
@@ -749,10 +689,6 @@ struct omapdss_dsi_ops {
 };
 
 struct omap_dss_device {
-	/* old device, to be removed */
-	struct device old_dev;
-
-	/* new device, pointer to panel device */
 	struct device *dev;
 
 	struct module *owner;
@@ -764,9 +700,6 @@ struct omap_dss_device {
 
 	enum omap_display_type type;
 	enum omap_display_type output_type;
-
-	/* obsolete, to be removed */
-	enum omap_channel channel;
 
 	union {
 		struct {
@@ -827,11 +760,9 @@ struct omap_dss_device {
 
 	enum omap_display_caps caps;
 
-	struct omap_dss_device *output;
+	struct omap_dss_device *src;
 
 	enum omap_dss_display_state state;
-
-	enum omap_dss_audio_state audio_state;
 
 	/* OMAP DSS output specific fields */
 
@@ -843,10 +774,13 @@ struct omap_dss_device {
 	/* output instance */
 	enum omap_dss_output_id id;
 
+	/* the port number in the DT node */
+	int port_num;
+
 	/* dynamic fields */
 	struct omap_overlay_manager *manager;
 
-	struct omap_dss_device *device;
+	struct omap_dss_device *dst;
 };
 
 struct omap_dss_hdmi_data
@@ -857,8 +791,6 @@ struct omap_dss_hdmi_data
 };
 
 struct omap_dss_driver {
-	struct device_driver driver;
-
 	int (*probe)(struct omap_dss_device *);
 	void (*remove)(struct omap_dss_device *);
 
@@ -905,23 +837,9 @@ struct omap_dss_driver {
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
 	bool (*detect)(struct omap_dss_device *dssdev);
 
-	/*
-	 * For display drivers that support audio. This encompasses
-	 * HDMI and DisplayPort at the moment.
-	 */
-	/*
-	 * Note: These functions might sleep. Do not call while
-	 * holding a spinlock/readlock.
-	 */
-	int (*audio_enable)(struct omap_dss_device *dssdev);
-	void (*audio_disable)(struct omap_dss_device *dssdev);
-	bool (*audio_supported)(struct omap_dss_device *dssdev);
-	int (*audio_config)(struct omap_dss_device *dssdev,
-		struct omap_dss_audio *audio);
-	/* Note: These functions may not sleep */
-	int (*audio_start)(struct omap_dss_device *dssdev);
-	void (*audio_stop)(struct omap_dss_device *dssdev);
-
+	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
+	int (*set_hdmi_infoframe)(struct omap_dss_device *dssdev,
+		const struct hdmi_avi_infoframe *avi);
 };
 
 enum omapdss_version omapdss_get_version(void);
@@ -964,7 +882,7 @@ int omapdss_register_output(struct omap_dss_device *output);
 void omapdss_unregister_output(struct omap_dss_device *output);
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id);
 struct omap_dss_device *omap_dss_find_output(const char *name);
-struct omap_dss_device *omap_dss_find_output_by_node(struct device_node *node);
+struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *port);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);
@@ -1020,54 +938,6 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool replication, const struct omap_video_timings *mgr_timings,
 		bool mem_to_mem);
 
-#define to_dss_driver(x) container_of((x), struct omap_dss_driver, driver)
-#define to_dss_device(x) container_of((x), struct omap_dss_device, old_dev)
-
-void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
-		bool enable);
-int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
-int omapdss_dsi_set_config(struct omap_dss_device *dssdev,
-		const struct omap_dss_dsi_config *config);
-
-int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
-		void (*callback)(int, void *), void *data);
-int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel);
-int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id);
-void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel);
-int omapdss_dsi_configure_pins(struct omap_dss_device *dssdev,
-		const struct omap_dsi_pin_config *pin_cfg);
-
-int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
-void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
-		bool disconnect_lanes, bool enter_ulps);
-
-int omapdss_dpi_display_enable(struct omap_dss_device *dssdev);
-void omapdss_dpi_display_disable(struct omap_dss_device *dssdev);
-void omapdss_dpi_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings);
-int dpi_check_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings);
-void omapdss_dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines);
-
-int omapdss_sdi_display_enable(struct omap_dss_device *dssdev);
-void omapdss_sdi_display_disable(struct omap_dss_device *dssdev);
-void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings);
-void omapdss_sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs);
-
-int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev);
-void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev);
-int omap_rfbi_update(struct omap_dss_device *dssdev, void (*callback)(void *),
-		void *data);
-int omap_rfbi_configure(struct omap_dss_device *dssdev);
-void omapdss_rfbi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h);
-void omapdss_rfbi_set_pixel_size(struct omap_dss_device *dssdev,
-		int pixel_size);
-void omapdss_rfbi_set_data_lines(struct omap_dss_device *dssdev,
-		int data_lines);
-void omapdss_rfbi_set_interface_timings(struct omap_dss_device *dssdev,
-		struct rfbi_timings *timings);
-
 int omapdss_compat_init(void);
 void omapdss_compat_uninit(void);
 
@@ -1111,12 +981,26 @@ void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
 
 static inline bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
 {
-	return dssdev->output;
+	return dssdev->src;
 }
 
 static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
 {
 	return dssdev->state == OMAP_DSS_DISPLAY_ACTIVE;
 }
+
+struct device_node *
+omapdss_of_get_next_port(const struct device_node *parent,
+			 struct device_node *prev);
+
+struct device_node *
+omapdss_of_get_next_endpoint(const struct device_node *parent,
+			     struct device_node *prev);
+
+struct device_node *
+omapdss_of_get_first_endpoint(const struct device_node *parent);
+
+struct omap_dss_device *
+omapdss_of_find_source_for_first_ep(struct device_node *node);
 
 #endif

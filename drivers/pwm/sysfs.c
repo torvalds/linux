@@ -169,15 +169,7 @@ static struct attribute *pwm_attrs[] = {
 	&dev_attr_polarity.attr,
 	NULL
 };
-
-static const struct attribute_group pwm_attr_group = {
-	.attrs		= pwm_attrs,
-};
-
-static const struct attribute_group *pwm_attr_groups[] = {
-	&pwm_attr_group,
-	NULL,
-};
+ATTRIBUTE_GROUPS(pwm);
 
 static void pwm_export_release(struct device *child)
 {
@@ -205,7 +197,7 @@ static int pwm_export_child(struct device *parent, struct pwm_device *pwm)
 	export->child.release = pwm_export_release;
 	export->child.parent = parent;
 	export->child.devt = MKDEV(0, 0);
-	export->child.groups = pwm_attr_groups;
+	export->child.groups = pwm_groups;
 	dev_set_name(&export->child, "pwm%u", pwm->hwpwm);
 
 	ret = device_register(&export->child);
@@ -268,6 +260,7 @@ static ssize_t pwm_export_store(struct device *parent,
 
 	return ret ? : len;
 }
+static DEVICE_ATTR(export, 0200, NULL, pwm_export_store);
 
 static ssize_t pwm_unexport_store(struct device *parent,
 				  struct device_attribute *attr,
@@ -288,27 +281,29 @@ static ssize_t pwm_unexport_store(struct device *parent,
 
 	return ret ? : len;
 }
+static DEVICE_ATTR(unexport, 0200, NULL, pwm_unexport_store);
 
-static ssize_t pwm_npwm_show(struct device *parent,
-			     struct device_attribute *attr,
-			     char *buf)
+static ssize_t npwm_show(struct device *parent, struct device_attribute *attr,
+			 char *buf)
 {
 	const struct pwm_chip *chip = dev_get_drvdata(parent);
 
 	return sprintf(buf, "%u\n", chip->npwm);
 }
+static DEVICE_ATTR_RO(npwm);
 
-static struct device_attribute pwm_chip_attrs[] = {
-	__ATTR(export, 0200, NULL, pwm_export_store),
-	__ATTR(unexport, 0200, NULL, pwm_unexport_store),
-	__ATTR(npwm, 0444, pwm_npwm_show, NULL),
-	__ATTR_NULL,
+static struct attribute *pwm_chip_attrs[] = {
+	&dev_attr_export.attr,
+	&dev_attr_unexport.attr,
+	&dev_attr_npwm.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(pwm_chip);
 
 static struct class pwm_class = {
 	.name		= "pwm",
 	.owner		= THIS_MODULE,
-	.dev_attrs	= pwm_chip_attrs,
+	.dev_groups	= pwm_chip_groups,
 };
 
 static int pwmchip_sysfs_match(struct device *parent, const void *data)

@@ -30,8 +30,7 @@
 #include <linux/types.h>
 #include <linux/hardirq.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/dynamic_debug.h>
 
 #include "internal.h"
 
@@ -101,10 +100,6 @@ acpi_extract_package(union acpi_object *package,
 
 		union acpi_object *element = &(package->package.elements[i]);
 
-		if (!element) {
-			return AE_BAD_DATA;
-		}
-
 		switch (element->type) {
 
 		case ACPI_TYPE_INTEGER:
@@ -121,7 +116,7 @@ acpi_extract_package(union acpi_object *package,
 				break;
 			default:
 				printk(KERN_WARNING PREFIX "Invalid package element"
-					      " [%d]: got number, expecing"
+					      " [%d]: got number, expecting"
 					      " [%c]\n",
 					      i, format_string[i]);
 				return AE_BAD_DATA;
@@ -141,14 +136,28 @@ acpi_extract_package(union acpi_object *package,
 				break;
 			case 'B':
 				size_required +=
-				    sizeof(u8 *) +
-				    (element->buffer.length * sizeof(u8));
+				    sizeof(u8 *) + element->buffer.length;
 				tail_offset += sizeof(u8 *);
 				break;
 			default:
 				printk(KERN_WARNING PREFIX "Invalid package element"
 					      " [%d] got string/buffer,"
-					      " expecing [%c]\n",
+					      " expecting [%c]\n",
+					      i, format_string[i]);
+				return AE_BAD_DATA;
+				break;
+			}
+			break;
+		case ACPI_TYPE_LOCAL_REFERENCE:
+			switch (format_string[i]) {
+			case 'R':
+				size_required += sizeof(void *);
+				tail_offset += sizeof(void *);
+				break;
+			default:
+				printk(KERN_WARNING PREFIX "Invalid package element"
+					      " [%d] got reference,"
+					      " expecting [%c]\n",
 					      i, format_string[i]);
 				return AE_BAD_DATA;
 				break;
@@ -169,11 +178,19 @@ acpi_extract_package(union acpi_object *package,
 	/*
 	 * Validate output buffer.
 	 */
-	if (buffer->length < size_required) {
+	if (buffer->length == ACPI_ALLOCATE_BUFFER) {
+		buffer->pointer = ACPI_ALLOCATE_ZEROED(size_required);
+		if (!buffer->pointer)
+			return AE_NO_MEMORY;
 		buffer->length = size_required;
-		return AE_BUFFER_OVERFLOW;
-	} else if (buffer->length != size_required || !buffer->pointer) {
-		return AE_BAD_PARAMETER;
+	} else {
+		if (buffer->length < size_required) {
+			buffer->length = size_required;
+			return AE_BUFFER_OVERFLOW;
+		} else if (buffer->length != size_required ||
+			   !buffer->pointer) {
+			return AE_BAD_PARAMETER;
+		}
 	}
 
 	head = buffer->pointer;
@@ -237,14 +254,25 @@ acpi_extract_package(union acpi_object *package,
 				memcpy(tail, element->buffer.pointer,
 				       element->buffer.length);
 				head += sizeof(u8 *);
-				tail += element->buffer.length * sizeof(u8);
+				tail += element->buffer.length;
 				break;
 			default:
 				/* Should never get here */
 				break;
 			}
 			break;
-
+		case ACPI_TYPE_LOCAL_REFERENCE:
+			switch (format_string[i]) {
+			case 'R':
+				*(void **)head =
+				    (void *)element->reference.handle;
+				head += sizeof(void *);
+				break;
+			default:
+				/* Should never get here */
+				break;
+			}
+			break;
 		case ACPI_TYPE_PACKAGE:
 			/* TBD: handle nested packages... */
 		default:
@@ -318,22 +346,16 @@ acpi_evaluate_reference(acpi_handle handle,
 	package = buffer.pointer;
 
 	if ((buffer.length == 0) || !package) {
-		printk(KERN_ERR PREFIX "No return object (len %X ptr %p)\n",
-			    (unsigned)buffer.length, package);
 		status = AE_BAD_DATA;
 		acpi_util_eval_error(handle, pathname, status);
 		goto end;
 	}
 	if (package->type != ACPI_TYPE_PACKAGE) {
-		printk(KERN_ERR PREFIX "Expecting a [Package], found type %X\n",
-			    package->type);
 		status = AE_BAD_DATA;
 		acpi_util_eval_error(handle, pathname, status);
 		goto end;
 	}
 	if (!package->package.count) {
-		printk(KERN_ERR PREFIX "[Package] has zero elements (%p)\n",
-			    package);
 		status = AE_BAD_DATA;
 		acpi_util_eval_error(handle, pathname, status);
 		goto end;
@@ -352,17 +374,13 @@ acpi_evaluate_reference(acpi_handle handle,
 
 		if (element->type != ACPI_TYPE_LOCAL_REFERENCE) {
 			status = AE_BAD_DATA;
-			printk(KERN_ERR PREFIX
-				    "Expecting a [Reference] package element, found type %X\n",
-				    element->type);
 			acpi_util_eval_error(handle, pathname, status);
 			break;
 		}
 
 		if (!element->reference.handle) {
-			printk(KERN_WARNING PREFIX "Invalid reference in"
-			       " package %s\n", pathname);
 			status = AE_NULL_ENTRY;
+			acpi_util_eval_error(handle, pathname, status);
 			break;
 		}
 		/* Get the  acpi_handle. */
@@ -419,7 +437,7 @@ out:
 EXPORT_SYMBOL(acpi_get_physical_device_location);
 
 /**
- * acpi_evaluate_hotplug_ost: Evaluate _OST for hotplug operations
+ * acpi_evaluate_ost: Evaluate _OST for hotplug operations
  * @handle: ACPI device handle
  * @source_event: source event code
  * @status_code: status code
@@ -430,17 +448,15 @@ EXPORT_SYMBOL(acpi_get_physical_device_location);
  * When the platform does not support _OST, this function has no effect.
  */
 acpi_status
-acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
-		u32 status_code, struct acpi_buffer *status_buf)
+acpi_evaluate_ost(acpi_handle handle, u32 source_event, u32 status_code,
+		  struct acpi_buffer *status_buf)
 {
-#ifdef ACPI_HOTPLUG_OST
 	union acpi_object params[3] = {
 		{.type = ACPI_TYPE_INTEGER,},
 		{.type = ACPI_TYPE_INTEGER,},
 		{.type = ACPI_TYPE_BUFFER,}
 	};
 	struct acpi_object_list arg_list = {3, params};
-	acpi_status status;
 
 	params[0].integer.value = source_event;
 	params[1].integer.value = status_code;
@@ -452,13 +468,27 @@ acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
 		params[2].buffer.length = 0;
 	}
 
-	status = acpi_evaluate_object(handle, "_OST", &arg_list, NULL);
-	return status;
-#else
-	return AE_OK;
-#endif
+	return acpi_evaluate_object(handle, "_OST", &arg_list, NULL);
 }
-EXPORT_SYMBOL(acpi_evaluate_hotplug_ost);
+EXPORT_SYMBOL(acpi_evaluate_ost);
+
+/**
+ * acpi_handle_path: Return the object path of handle
+ *
+ * Caller must free the returned buffer
+ */
+static char *acpi_handle_path(acpi_handle handle)
+{
+	struct acpi_buffer buffer = {
+		.length = ACPI_ALLOCATE_BUFFER,
+		.pointer = NULL
+	};
+
+	if (in_interrupt() ||
+	    acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer) != AE_OK)
+		return NULL;
+	return buffer.pointer;
+}
 
 /**
  * acpi_handle_printk: Print message with ACPI prefix and object path
@@ -473,25 +503,212 @@ acpi_handle_printk(const char *level, acpi_handle handle, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	struct acpi_buffer buffer = {
-		.length = ACPI_ALLOCATE_BUFFER,
-		.pointer = NULL
-	};
 	const char *path;
 
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (in_interrupt() ||
-	    acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer) != AE_OK)
-		path = "<n/a>";
-	else
-		path = buffer.pointer;
-
-	printk("%sACPI: %s: %pV", level, path, &vaf);
+	path = acpi_handle_path(handle);
+	printk("%sACPI: %s: %pV", level, path ? path : "<n/a>" , &vaf);
 
 	va_end(args);
-	kfree(buffer.pointer);
+	kfree(path);
 }
 EXPORT_SYMBOL(acpi_handle_printk);
+
+#if defined(CONFIG_DYNAMIC_DEBUG)
+/**
+ * __acpi_handle_debug: pr_debug with ACPI prefix and object path
+ *
+ * This function is called through acpi_handle_debug macro and debug
+ * prints a message with ACPI prefix and object path. This function
+ * acquires the global namespace mutex to obtain an object path.  In
+ * interrupt context, it shows the object path as <n/a>.
+ */
+void
+__acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle,
+		    const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	const char *path;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	path = acpi_handle_path(handle);
+	__dynamic_pr_debug(descriptor, "ACPI: %s: %pV", path ? path : "<n/a>", &vaf);
+
+	va_end(args);
+	kfree(path);
+}
+EXPORT_SYMBOL(__acpi_handle_debug);
+#endif
+
+/**
+ * acpi_has_method: Check whether @handle has a method named @name
+ * @handle: ACPI device handle
+ * @name: name of object or method
+ *
+ * Check whether @handle has a method named @name.
+ */
+bool acpi_has_method(acpi_handle handle, char *name)
+{
+	acpi_handle tmp;
+
+	return ACPI_SUCCESS(acpi_get_handle(handle, name, &tmp));
+}
+EXPORT_SYMBOL(acpi_has_method);
+
+acpi_status acpi_execute_simple_method(acpi_handle handle, char *method,
+				       u64 arg)
+{
+	union acpi_object obj = { .type = ACPI_TYPE_INTEGER };
+	struct acpi_object_list arg_list = { .count = 1, .pointer = &obj, };
+
+	obj.integer.value = arg;
+
+	return acpi_evaluate_object(handle, method, &arg_list, NULL);
+}
+EXPORT_SYMBOL(acpi_execute_simple_method);
+
+/**
+ * acpi_evaluate_ej0: Evaluate _EJ0 method for hotplug operations
+ * @handle: ACPI device handle
+ *
+ * Evaluate device's _EJ0 method for hotplug operations.
+ */
+acpi_status acpi_evaluate_ej0(acpi_handle handle)
+{
+	acpi_status status;
+
+	status = acpi_execute_simple_method(handle, "_EJ0", 1);
+	if (status == AE_NOT_FOUND)
+		acpi_handle_warn(handle, "No _EJ0 support for device\n");
+	else if (ACPI_FAILURE(status))
+		acpi_handle_warn(handle, "Eject failed (0x%x)\n", status);
+
+	return status;
+}
+
+/**
+ * acpi_evaluate_lck: Evaluate _LCK method to lock/unlock device
+ * @handle: ACPI device handle
+ * @lock: lock device if non-zero, otherwise unlock device
+ *
+ * Evaluate device's _LCK method if present to lock/unlock device
+ */
+acpi_status acpi_evaluate_lck(acpi_handle handle, int lock)
+{
+	acpi_status status;
+
+	status = acpi_execute_simple_method(handle, "_LCK", !!lock);
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+		if (lock)
+			acpi_handle_warn(handle,
+				"Locking device failed (0x%x)\n", status);
+		else
+			acpi_handle_warn(handle,
+				"Unlocking device failed (0x%x)\n", status);
+	}
+
+	return status;
+}
+
+/**
+ * acpi_evaluate_dsm - evaluate device's _DSM method
+ * @handle: ACPI device handle
+ * @uuid: UUID of requested functions, should be 16 bytes
+ * @rev: revision number of requested function
+ * @func: requested function number
+ * @argv4: the function specific parameter
+ *
+ * Evaluate device's _DSM method with specified UUID, revision id and
+ * function number. Caller needs to free the returned object.
+ *
+ * Though ACPI defines the fourth parameter for _DSM should be a package,
+ * some old BIOSes do expect a buffer or an integer etc.
+ */
+union acpi_object *
+acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid, int rev, int func,
+		  union acpi_object *argv4)
+{
+	acpi_status ret;
+	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object params[4];
+	struct acpi_object_list input = {
+		.count = 4,
+		.pointer = params,
+	};
+
+	params[0].type = ACPI_TYPE_BUFFER;
+	params[0].buffer.length = 16;
+	params[0].buffer.pointer = (char *)uuid;
+	params[1].type = ACPI_TYPE_INTEGER;
+	params[1].integer.value = rev;
+	params[2].type = ACPI_TYPE_INTEGER;
+	params[2].integer.value = func;
+	if (argv4) {
+		params[3] = *argv4;
+	} else {
+		params[3].type = ACPI_TYPE_PACKAGE;
+		params[3].package.count = 0;
+		params[3].package.elements = NULL;
+	}
+
+	ret = acpi_evaluate_object(handle, "_DSM", &input, &buf);
+	if (ACPI_SUCCESS(ret))
+		return (union acpi_object *)buf.pointer;
+
+	if (ret != AE_NOT_FOUND)
+		acpi_handle_warn(handle,
+				"failed to evaluate _DSM (0x%x)\n", ret);
+
+	return NULL;
+}
+EXPORT_SYMBOL(acpi_evaluate_dsm);
+
+/**
+ * acpi_check_dsm - check if _DSM method supports requested functions.
+ * @handle: ACPI device handle
+ * @uuid: UUID of requested functions, should be 16 bytes at least
+ * @rev: revision number of requested functions
+ * @funcs: bitmap of requested functions
+ *
+ * Evaluate device's _DSM method to check whether it supports requested
+ * functions. Currently only support 64 functions at maximum, should be
+ * enough for now.
+ */
+bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
+{
+	int i;
+	u64 mask = 0;
+	union acpi_object *obj;
+
+	if (funcs == 0)
+		return false;
+
+	obj = acpi_evaluate_dsm(handle, uuid, rev, 0, NULL);
+	if (!obj)
+		return false;
+
+	/* For compatibility, old BIOSes may return an integer */
+	if (obj->type == ACPI_TYPE_INTEGER)
+		mask = obj->integer.value;
+	else if (obj->type == ACPI_TYPE_BUFFER)
+		for (i = 0; i < obj->buffer.length && i < 8; i++)
+			mask |= (((u8)obj->buffer.pointer[i]) << (i * 8));
+	ACPI_FREE(obj);
+
+	/*
+	 * Bit 0 indicates whether there's support for any functions other than
+	 * function 0 for the specified UUID and revision.
+	 */
+	if ((mask & 0x1) && (mask & funcs) == funcs)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(acpi_check_dsm);

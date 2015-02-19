@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) "llcp: %s: " fmt, __func__
@@ -526,13 +524,13 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *uaddr,
 
 static inline unsigned int llcp_accept_poll(struct sock *parent)
 {
-	struct nfc_llcp_sock *llcp_sock, *n, *parent_sock;
+	struct nfc_llcp_sock *llcp_sock, *parent_sock;
 	struct sock *sk;
 
 	parent_sock = nfc_llcp_sock(parent);
 
-	list_for_each_entry_safe(llcp_sock, n, &parent_sock->accept_queue,
-				 accept_queue) {
+	list_for_each_entry(llcp_sock, &parent_sock->accept_queue,
+			    accept_queue) {
 		sk = &llcp_sock->sk;
 
 		if (sk->sk_state == LLCP_CONNECTED)
@@ -702,7 +700,6 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 
 	llcp_sock->dev = dev;
 	llcp_sock->local = nfc_llcp_local_get(local);
-	llcp_sock->remote_miu = llcp_sock->local->remote_miu;
 	llcp_sock->ssap = nfc_llcp_get_local_ssap(local);
 	if (llcp_sock->ssap == LLCP_SAP_MAX) {
 		ret = -ENOMEM;
@@ -772,8 +769,8 @@ static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	lock_sock(sk);
 
 	if (sk->sk_type == SOCK_DGRAM) {
-		struct sockaddr_nfc_llcp *addr =
-			(struct sockaddr_nfc_llcp *)msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_nfc_llcp *, addr,
+				 msg->msg_name);
 
 		if (msg->msg_namelen < sizeof(*addr)) {
 			release_sock(sk);
@@ -807,8 +804,6 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	pr_debug("%p %zu\n", sk, len);
 
-	msg->msg_namelen = 0;
-
 	lock_sock(sk);
 
 	if (sk->sk_state == LLCP_CLOSED &&
@@ -837,7 +832,7 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	copied = min_t(unsigned int, rlen, len);
 
 	cskb = skb;
-	if (skb_copy_datagram_iovec(cskb, 0, msg->msg_iov, copied)) {
+	if (skb_copy_datagram_msg(cskb, 0, msg, copied)) {
 		if (!(flags & MSG_PEEK))
 			skb_queue_head(&sk->sk_receive_queue, skb);
 		return -EFAULT;
@@ -847,8 +842,8 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (sk->sk_type == SOCK_DGRAM && msg->msg_name) {
 		struct nfc_llcp_ui_cb *ui_cb = nfc_llcp_ui_skb_cb(skb);
-		struct sockaddr_nfc_llcp *sockaddr =
-			(struct sockaddr_nfc_llcp *) msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_nfc_llcp *, sockaddr,
+				 msg->msg_name);
 
 		msg->msg_namelen = sizeof(struct sockaddr_nfc_llcp);
 

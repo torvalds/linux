@@ -14,6 +14,7 @@
 
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/registers.h>
+#include <linux/device.h>
 
 #include "arizona.h"
 
@@ -223,6 +224,31 @@ static const struct reg_default wm5110_revb_patch[] = {
 	{ 0x80, 0x0 },
 };
 
+static const struct reg_default wm5110_revd_patch[] = {
+	{ 0x80, 0x3 },
+	{ 0x80, 0x3 },
+	{ 0x393, 0x27 },
+	{ 0x394, 0x27 },
+	{ 0x395, 0x27 },
+	{ 0x396, 0x27 },
+	{ 0x397, 0x27 },
+	{ 0x398, 0x26 },
+	{ 0x221, 0x90 },
+	{ 0x211, 0x8 },
+	{ 0x36c, 0x1fb },
+	{ 0x26e, 0x64 },
+	{ 0x26f, 0xea },
+	{ 0x270, 0x1f16 },
+	{ 0x51b, 0x1 },
+	{ 0x55b, 0x1 },
+	{ 0x59b, 0x1 },
+	{ 0x4f0, 0x633 },
+	{ 0x441, 0xc059 },
+	{ 0x209, 0x27 },
+	{ 0x80, 0x0 },
+	{ 0x80, 0x0 },
+};
+
 /* We use a function so we can use ARRAY_SIZE() */
 int wm5110_patch(struct arizona *arizona)
 {
@@ -235,7 +261,10 @@ int wm5110_patch(struct arizona *arizona)
 		return regmap_register_patch(arizona->regmap,
 					     wm5110_revb_patch,
 					     ARRAY_SIZE(wm5110_revb_patch));
-
+	case 3:
+		return regmap_register_patch(arizona->regmap,
+					     wm5110_revd_patch,
+					     ARRAY_SIZE(wm5110_revd_patch));
 	default:
 		return 0;
 	}
@@ -243,6 +272,12 @@ int wm5110_patch(struct arizona *arizona)
 EXPORT_SYMBOL_GPL(wm5110_patch);
 
 static const struct regmap_irq wm5110_aod_irqs[ARIZONA_NUM_IRQ] = {
+	[ARIZONA_IRQ_MICD_CLAMP_FALL] = {
+		.mask = ARIZONA_MICD_CLAMP_FALL_EINT1
+	},
+	[ARIZONA_IRQ_MICD_CLAMP_RISE] = {
+		.mask = ARIZONA_MICD_CLAMP_RISE_EINT1
+	},
 	[ARIZONA_IRQ_GP5_FALL] = { .mask = ARIZONA_GP5_FALL_EINT1 },
 	[ARIZONA_IRQ_GP5_RISE] = { .mask = ARIZONA_GP5_RISE_EINT1 },
 	[ARIZONA_IRQ_JD_FALL] = { .mask = ARIZONA_JD1_FALL_EINT1 },
@@ -305,11 +340,11 @@ static const struct regmap_irq wm5110_irqs[ARIZONA_NUM_IRQ] = {
 		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ1_EINT1
 	},
 
-	[ARIZONA_IRQ_SPK_SHUTDOWN_WARN] = {
-		.reg_offset = 2, .mask = ARIZONA_SPK_SHUTDOWN_WARN_EINT1
+	[ARIZONA_IRQ_SPK_OVERHEAT_WARN] = {
+		.reg_offset = 2, .mask = ARIZONA_SPK_OVERHEAT_WARN_EINT1
 	},
-	[ARIZONA_IRQ_SPK_SHUTDOWN] = {
-		.reg_offset = 2, .mask = ARIZONA_SPK_SHUTDOWN_EINT1
+	[ARIZONA_IRQ_SPK_OVERHEAT] = {
+		.reg_offset = 2, .mask = ARIZONA_SPK_OVERHEAT_EINT1
 	},
 	[ARIZONA_IRQ_HPDET] = {
 		.reg_offset = 2, .mask = ARIZONA_HPDET_EINT1
@@ -381,15 +416,27 @@ static const struct regmap_irq wm5110_irqs[ARIZONA_NUM_IRQ] = {
 	[ARIZONA_IRQ_ISRC2_CFG_ERR] = {
 		.reg_offset = 3, .mask = ARIZONA_ISRC2_CFG_ERR_EINT1
 	},
+	[ARIZONA_IRQ_HP3R_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP3R_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP3L_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP3L_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP2R_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP2R_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP2L_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP2L_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP1R_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP1R_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP1L_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP1L_DONE_EINT1
+	},
 
 	[ARIZONA_IRQ_BOOT_DONE] = {
 		.reg_offset = 4, .mask = ARIZONA_BOOT_DONE_EINT1
-	},
-	[ARIZONA_IRQ_DCS_DAC_DONE] = {
-		.reg_offset = 4, .mask = ARIZONA_DCS_DAC_DONE_EINT1
-	},
-	[ARIZONA_IRQ_DCS_HP_DONE] = {
-		.reg_offset = 4, .mask = ARIZONA_DCS_HP_DONE_EINT1
 	},
 	[ARIZONA_IRQ_FLL2_CLOCK_OK] = {
 		.reg_offset = 4, .mask = ARIZONA_FLL2_CLOCK_OK_EINT1
@@ -410,15 +457,215 @@ const struct regmap_irq_chip wm5110_irq = {
 };
 EXPORT_SYMBOL_GPL(wm5110_irq);
 
+static const struct regmap_irq wm5110_revd_irqs[ARIZONA_NUM_IRQ] = {
+	[ARIZONA_IRQ_GP4] = { .reg_offset = 0, .mask = ARIZONA_GP4_EINT1 },
+	[ARIZONA_IRQ_GP3] = { .reg_offset = 0, .mask = ARIZONA_GP3_EINT1 },
+	[ARIZONA_IRQ_GP2] = { .reg_offset = 0, .mask = ARIZONA_GP2_EINT1 },
+	[ARIZONA_IRQ_GP1] = { .reg_offset = 0, .mask = ARIZONA_GP1_EINT1 },
+
+	[ARIZONA_IRQ_DSP4_RAM_RDY] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP4_RAM_RDY_EINT1
+	},
+	[ARIZONA_IRQ_DSP3_RAM_RDY] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP3_RAM_RDY_EINT1
+	},
+	[ARIZONA_IRQ_DSP2_RAM_RDY] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP2_RAM_RDY_EINT1
+	},
+	[ARIZONA_IRQ_DSP1_RAM_RDY] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP1_RAM_RDY_EINT1
+	},
+	[ARIZONA_IRQ_DSP_IRQ8] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ8_EINT1
+	},
+	[ARIZONA_IRQ_DSP_IRQ7] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ7_EINT1
+	},
+	[ARIZONA_IRQ_DSP_IRQ6] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ6_EINT1
+	},
+	[ARIZONA_IRQ_DSP_IRQ5] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ5_EINT1
+	},
+	[ARIZONA_IRQ_DSP_IRQ4] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ4_EINT1
+	},
+	[ARIZONA_IRQ_DSP_IRQ3] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ3_EINT1
+	},
+	[ARIZONA_IRQ_DSP_IRQ2] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ2_EINT1
+	},
+	[ARIZONA_IRQ_DSP_IRQ1] = {
+		.reg_offset = 1, .mask = ARIZONA_DSP_IRQ1_EINT1
+	},
+
+	[ARIZONA_IRQ_SPK_OVERHEAT_WARN] = {
+		.reg_offset = 2, .mask = ARIZONA_SPK_OVERHEAT_WARN_EINT1
+	},
+	[ARIZONA_IRQ_SPK_OVERHEAT] = {
+		.reg_offset = 2, .mask = ARIZONA_SPK_OVERHEAT_EINT1
+	},
+	[ARIZONA_IRQ_HPDET] = {
+		.reg_offset = 2, .mask = ARIZONA_HPDET_EINT1
+	},
+	[ARIZONA_IRQ_MICDET] = {
+		.reg_offset = 2, .mask = ARIZONA_MICDET_EINT1
+	},
+	[ARIZONA_IRQ_WSEQ_DONE] = {
+		.reg_offset = 2, .mask = ARIZONA_WSEQ_DONE_EINT1
+	},
+	[ARIZONA_IRQ_DRC2_SIG_DET] = {
+		.reg_offset = 2, .mask = ARIZONA_DRC2_SIG_DET_EINT1
+	},
+	[ARIZONA_IRQ_DRC1_SIG_DET] = {
+		.reg_offset = 2, .mask = ARIZONA_DRC1_SIG_DET_EINT1
+	},
+	[ARIZONA_IRQ_ASRC2_LOCK] = {
+		.reg_offset = 2, .mask = ARIZONA_ASRC2_LOCK_EINT1
+	},
+	[ARIZONA_IRQ_ASRC1_LOCK] = {
+		.reg_offset = 2, .mask = ARIZONA_ASRC1_LOCK_EINT1
+	},
+	[ARIZONA_IRQ_UNDERCLOCKED] = {
+		.reg_offset = 2, .mask = ARIZONA_UNDERCLOCKED_EINT1
+	},
+	[ARIZONA_IRQ_OVERCLOCKED] = {
+		.reg_offset = 2, .mask = ARIZONA_OVERCLOCKED_EINT1
+	},
+	[ARIZONA_IRQ_FLL2_LOCK] = {
+		.reg_offset = 2, .mask = ARIZONA_FLL2_LOCK_EINT1
+	},
+	[ARIZONA_IRQ_FLL1_LOCK] = {
+		.reg_offset = 2, .mask = ARIZONA_FLL1_LOCK_EINT1
+	},
+	[ARIZONA_IRQ_CLKGEN_ERR] = {
+		.reg_offset = 2, .mask = ARIZONA_CLKGEN_ERR_EINT1
+	},
+	[ARIZONA_IRQ_CLKGEN_ERR_ASYNC] = {
+		.reg_offset = 2, .mask = ARIZONA_CLKGEN_ERR_ASYNC_EINT1
+	},
+
+	[ARIZONA_IRQ_CTRLIF_ERR] = {
+		.reg_offset = 3, .mask = ARIZONA_V2_CTRLIF_ERR_EINT1
+	},
+	[ARIZONA_IRQ_MIXER_DROPPED_SAMPLES] = {
+		.reg_offset = 3, .mask = ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT1
+	},
+	[ARIZONA_IRQ_ASYNC_CLK_ENA_LOW] = {
+		.reg_offset = 3, .mask = ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT1
+	},
+	[ARIZONA_IRQ_SYSCLK_ENA_LOW] = {
+		.reg_offset = 3, .mask = ARIZONA_V2_SYSCLK_ENA_LOW_EINT1
+	},
+	[ARIZONA_IRQ_ISRC1_CFG_ERR] = {
+		.reg_offset = 3, .mask = ARIZONA_V2_ISRC1_CFG_ERR_EINT1
+	},
+	[ARIZONA_IRQ_ISRC2_CFG_ERR] = {
+		.reg_offset = 3, .mask = ARIZONA_V2_ISRC2_CFG_ERR_EINT1
+	},
+	[ARIZONA_IRQ_ISRC3_CFG_ERR] = {
+		.reg_offset = 3, .mask = ARIZONA_V2_ISRC3_CFG_ERR_EINT1
+	},
+	[ARIZONA_IRQ_HP3R_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP3R_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP3L_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP3L_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP2R_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP2R_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP2L_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP2L_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP1R_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP1R_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP1L_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP1L_DONE_EINT1
+	},
+
+	[ARIZONA_IRQ_BOOT_DONE] = {
+		.reg_offset = 4, .mask = ARIZONA_BOOT_DONE_EINT1
+	},
+	[ARIZONA_IRQ_ASRC_CFG_ERR] = {
+		.reg_offset = 4, .mask = ARIZONA_V2_ASRC_CFG_ERR_EINT1
+	},
+	[ARIZONA_IRQ_FLL2_CLOCK_OK] = {
+		.reg_offset = 4, .mask = ARIZONA_FLL2_CLOCK_OK_EINT1
+	},
+	[ARIZONA_IRQ_FLL1_CLOCK_OK] = {
+		.reg_offset = 4, .mask = ARIZONA_FLL1_CLOCK_OK_EINT1
+	},
+
+	[ARIZONA_IRQ_DSP_SHARED_WR_COLL] = {
+		.reg_offset = 5, .mask = ARIZONA_DSP_SHARED_WR_COLL_EINT1
+	},
+	[ARIZONA_IRQ_SPK_SHUTDOWN] = {
+		.reg_offset = 5, .mask = ARIZONA_SPK_SHUTDOWN_EINT1
+	},
+	[ARIZONA_IRQ_SPK1R_SHORT] = {
+		.reg_offset = 5, .mask = ARIZONA_SPK1R_SHORT_EINT1
+	},
+	[ARIZONA_IRQ_SPK1L_SHORT] = {
+		.reg_offset = 5, .mask = ARIZONA_SPK1L_SHORT_EINT1
+	},
+	[ARIZONA_IRQ_HP3R_SC_NEG] = {
+		.reg_offset = 5, .mask = ARIZONA_HP3R_SC_NEG_EINT1
+	},
+	[ARIZONA_IRQ_HP3R_SC_POS] = {
+		.reg_offset = 5, .mask = ARIZONA_HP3R_SC_POS_EINT1
+	},
+	[ARIZONA_IRQ_HP3L_SC_NEG] = {
+		.reg_offset = 5, .mask = ARIZONA_HP3L_SC_NEG_EINT1
+	},
+	[ARIZONA_IRQ_HP3L_SC_POS] = {
+		.reg_offset = 5, .mask = ARIZONA_HP3L_SC_POS_EINT1
+	},
+	[ARIZONA_IRQ_HP2R_SC_NEG] = {
+		.reg_offset = 5, .mask = ARIZONA_HP2R_SC_NEG_EINT1
+	},
+	[ARIZONA_IRQ_HP2R_SC_POS] = {
+		.reg_offset = 5, .mask = ARIZONA_HP2R_SC_POS_EINT1
+	},
+	[ARIZONA_IRQ_HP2L_SC_NEG] = {
+		.reg_offset = 5, .mask = ARIZONA_HP2L_SC_NEG_EINT1
+	},
+	[ARIZONA_IRQ_HP2L_SC_POS] = {
+		.reg_offset = 5, .mask = ARIZONA_HP2L_SC_POS_EINT1
+	},
+	[ARIZONA_IRQ_HP1R_SC_NEG] = {
+		.reg_offset = 5, .mask = ARIZONA_HP1R_SC_NEG_EINT1
+	},
+	[ARIZONA_IRQ_HP1R_SC_POS] = {
+		.reg_offset = 5, .mask = ARIZONA_HP1R_SC_POS_EINT1
+	},
+	[ARIZONA_IRQ_HP1L_SC_NEG] = {
+		.reg_offset = 5, .mask = ARIZONA_HP1L_SC_NEG_EINT1
+	},
+	[ARIZONA_IRQ_HP1L_SC_POS] = {
+		.reg_offset = 5, .mask = ARIZONA_HP1L_SC_POS_EINT1
+	},
+};
+
+const struct regmap_irq_chip wm5110_revd_irq = {
+	.name = "wm5110 IRQ",
+	.status_base = ARIZONA_INTERRUPT_STATUS_1,
+	.mask_base = ARIZONA_INTERRUPT_STATUS_1_MASK,
+	.ack_base = ARIZONA_INTERRUPT_STATUS_1,
+	.num_regs = 6,
+	.irqs = wm5110_revd_irqs,
+	.num_irqs = ARRAY_SIZE(wm5110_revd_irqs),
+};
+EXPORT_SYMBOL_GPL(wm5110_revd_irq);
+
 static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000008, 0x0019 },    /* R8     - Ctrl IF SPI CFG 1 */
 	{ 0x00000009, 0x0001 },    /* R9     - Ctrl IF I2C1 CFG 1 */
 	{ 0x0000000A, 0x0001 },    /* R10    - Ctrl IF I2C2 CFG 1 */
 	{ 0x0000000B, 0x0036 },    /* R11    - Ctrl IF I2C1 CFG 2 */
 	{ 0x0000000C, 0x0036 },    /* R12    - Ctrl IF I2C2 CFG 2 */
-	{ 0x00000016, 0x0000 },    /* R22    - Write Sequencer Ctrl 0 */
-	{ 0x00000017, 0x0000 },    /* R23    - Write Sequencer Ctrl 1 */
-	{ 0x00000018, 0x0000 },    /* R24    - Write Sequencer Ctrl 2 */
 	{ 0x00000020, 0x0000 },    /* R32    - Tone Generator 1 */
 	{ 0x00000021, 0x1000 },    /* R33    - Tone Generator 2 */
 	{ 0x00000022, 0x0000 },    /* R34    - Tone Generator 3 */
@@ -433,10 +680,12 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000062, 0x01FF },    /* R98    - Sample Rate Sequence Select 2 */
 	{ 0x00000063, 0x01FF },    /* R99    - Sample Rate Sequence Select 3 */
 	{ 0x00000064, 0x01FF },    /* R100   - Sample Rate Sequence Select 4 */
-	{ 0x00000068, 0x01FF },    /* R104   - Always On Triggers Sequence Select 1 */
-	{ 0x00000069, 0x01FF },    /* R105   - Always On Triggers Sequence Select 2 */
-	{ 0x0000006A, 0x01FF },    /* R106   - Always On Triggers Sequence Select 3 */
-	{ 0x0000006B, 0x01FF },    /* R107   - Always On Triggers Sequence Select 4 */
+	{ 0x00000066, 0x01FF },    /* R102   - Always On Triggers Sequence Select 1 */
+	{ 0x00000067, 0x01FF },    /* R103   - Always On Triggers Sequence Select 2 */
+	{ 0x00000068, 0x01FF },    /* R104   - Always On Triggers Sequence Select 3 */
+	{ 0x00000069, 0x01FF },    /* R105   - Always On Triggers Sequence Select 4 */
+	{ 0x0000006A, 0x01FF },    /* R106   - Always On Triggers Sequence Select 5 */
+	{ 0x0000006B, 0x01FF },    /* R107   - Always On Triggers Sequence Select 6 */
 	{ 0x00000070, 0x0000 },    /* R112   - Comfort Noise Generator */
 	{ 0x00000090, 0x0000 },    /* R144   - Haptics Control 1 */
 	{ 0x00000091, 0x7FFF },    /* R145   - Haptics Control 2 */
@@ -453,6 +702,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000104, 0x0011 },    /* R260   - Sample rate 3 */
 	{ 0x00000112, 0x0305 },    /* R274   - Async clock 1 */
 	{ 0x00000113, 0x0011 },    /* R275   - Async sample rate 1 */
+	{ 0x00000114, 0x0011 },    /* R276   - Async sample rate 2 */
 	{ 0x00000149, 0x0000 },    /* R329   - Output system clock */
 	{ 0x0000014A, 0x0000 },    /* R330   - Output async clock */
 	{ 0x00000152, 0x0000 },    /* R338   - Rate Estimator 1 */
@@ -468,12 +718,14 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000176, 0x0000 },    /* R374   - FLL1 Control 6 */
 	{ 0x00000177, 0x0281 },    /* R375   - FLL1 Loop Filter Test 1 */
 	{ 0x00000178, 0x0000 },    /* R376   - FLL1 NCO Test 0 */
+	{ 0x00000179, 0x0000 },    /* R376   - FLL1 Control 7 */
 	{ 0x00000181, 0x0000 },    /* R385   - FLL1 Synchroniser 1 */
 	{ 0x00000182, 0x0000 },    /* R386   - FLL1 Synchroniser 2 */
 	{ 0x00000183, 0x0000 },    /* R387   - FLL1 Synchroniser 3 */
 	{ 0x00000184, 0x0000 },    /* R388   - FLL1 Synchroniser 4 */
 	{ 0x00000185, 0x0000 },    /* R389   - FLL1 Synchroniser 5 */
 	{ 0x00000186, 0x0000 },    /* R390   - FLL1 Synchroniser 6 */
+	{ 0x00000187, 0x0001 },    /* R390   - FLL1 Synchroniser 7 */
 	{ 0x00000189, 0x0000 },    /* R393   - FLL1 Spread Spectrum */
 	{ 0x0000018A, 0x0004 },    /* R394   - FLL1 GPIO Clock */
 	{ 0x00000191, 0x0000 },    /* R401   - FLL2 Control 1 */
@@ -484,30 +736,40 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000196, 0x0000 },    /* R406   - FLL2 Control 6 */
 	{ 0x00000197, 0x0000 },    /* R407   - FLL2 Loop Filter Test 1 */
 	{ 0x00000198, 0x0000 },    /* R408   - FLL2 NCO Test 0 */
+	{ 0x00000199, 0x0000 },    /* R408   - FLL2 Control 7 */
 	{ 0x000001A1, 0x0000 },    /* R417   - FLL2 Synchroniser 1 */
 	{ 0x000001A2, 0x0000 },    /* R418   - FLL2 Synchroniser 2 */
 	{ 0x000001A3, 0x0000 },    /* R419   - FLL2 Synchroniser 3 */
 	{ 0x000001A4, 0x0000 },    /* R420   - FLL2 Synchroniser 4 */
 	{ 0x000001A5, 0x0000 },    /* R421   - FLL2 Synchroniser 5 */
 	{ 0x000001A6, 0x0000 },    /* R422   - FLL2 Synchroniser 6 */
+	{ 0x000001A7, 0x0001 },    /* R422   - FLL2 Synchroniser 7 */
 	{ 0x000001A9, 0x0000 },    /* R425   - FLL2 Spread Spectrum */
 	{ 0x000001AA, 0x0004 },    /* R426   - FLL2 GPIO Clock */
 	{ 0x00000200, 0x0006 },    /* R512   - Mic Charge Pump 1 */
 	{ 0x00000210, 0x0184 },    /* R528   - LDO1 Control 1 */
-	{ 0x00000213, 0x0344 },    /* R531   - LDO2 Control 1 */
+	{ 0x00000213, 0x03E4 },    /* R531   - LDO2 Control 1 */
 	{ 0x00000218, 0x01A6 },    /* R536   - Mic Bias Ctrl 1 */
 	{ 0x00000219, 0x01A6 },    /* R537   - Mic Bias Ctrl 2 */
 	{ 0x0000021A, 0x01A6 },    /* R538   - Mic Bias Ctrl 3 */
 	{ 0x00000293, 0x0000 },    /* R659   - Accessory Detect Mode 1 */
-	{ 0x0000029B, 0x0020 },    /* R667   - Headphone Detect 1 */
+	{ 0x0000029B, 0x0028 },    /* R667   - Headphone Detect 1 */
 	{ 0x0000029C, 0x0000 },    /* R668   - Headphone Detect 2 */
+	{ 0x000002A2, 0x0000 },    /* R674   - Micd clamp control */
 	{ 0x000002A3, 0x1102 },    /* R675   - Mic Detect 1 */
 	{ 0x000002A4, 0x009F },    /* R676   - Mic Detect 2 */
+	{ 0x000002A5, 0x0000 },    /* R677   - Mic Detect 3 */
+	{ 0x000002A6, 0x3737 },    /* R678   - Mic Detect Level 1 */
+	{ 0x000002A7, 0x372C },    /* R679   - Mic Detect Level 2 */
+	{ 0x000002A8, 0x1422 },    /* R680   - Mic Detect Level 3 */
+	{ 0x000002A9, 0x300A },    /* R681   - Mic Detect Level 4 */
 	{ 0x000002C3, 0x0000 },    /* R707   - Mic noise mix control 1 */
+	{ 0x000002CB, 0x0000 },    /* R715   - Isolation control */
 	{ 0x000002D3, 0x0000 },    /* R723   - Jack detect analogue */
 	{ 0x00000300, 0x0000 },    /* R768   - Input Enables */
 	{ 0x00000308, 0x0000 },    /* R776   - Input Rate */
 	{ 0x00000309, 0x0022 },    /* R777   - Input Volume Ramp */
+	{ 0x0000030C, 0x0002 },    /* R780   - HPF Control */
 	{ 0x00000310, 0x2080 },    /* R784   - IN1L Control */
 	{ 0x00000311, 0x0180 },    /* R785   - ADC Digital Volume 1L */
 	{ 0x00000312, 0x0000 },    /* R786   - DMIC1L Control */
@@ -529,6 +791,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000328, 0x2000 },    /* R808   - IN4L Control */
 	{ 0x00000329, 0x0180 },    /* R809   - ADC Digital Volume 4L */
 	{ 0x0000032A, 0x0000 },    /* R810   - DMIC4L Control */
+	{ 0x0000032C, 0x0000 },    /* R812   - IN4R Control */
 	{ 0x0000032D, 0x0180 },    /* R813   - ADC Digital Volume 4R */
 	{ 0x0000032E, 0x0000 },    /* R814   - DMIC4R Control */
 	{ 0x00000400, 0x0000 },    /* R1024  - Output Enables 1 */
@@ -582,14 +845,18 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x0000043D, 0x0180 },    /* R1085  - DAC Digital Volume 6R */
 	{ 0x0000043E, 0x0080 },    /* R1086  - DAC Volume Limit 6R */
 	{ 0x0000043F, 0x0800 },    /* R1087  - Noise Gate Select 6R */
+	{ 0x00000440, 0x8FFF },    /* R1088  - DRE Enable */
 	{ 0x00000450, 0x0000 },    /* R1104  - DAC AEC Control 1 */
-	{ 0x00000458, 0x0001 },    /* R1112  - Noise Gate Control */
+	{ 0x00000458, 0x0000 },    /* R1112  - Noise Gate Control */
 	{ 0x00000480, 0x0040 },    /* R1152  - Class W ANC Threshold 1 */
 	{ 0x00000481, 0x0040 },    /* R1153  - Class W ANC Threshold 2 */
 	{ 0x00000490, 0x0069 },    /* R1168  - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 },    /* R1169  - PDM SPK1 CTRL 2 */
 	{ 0x00000492, 0x0069 },    /* R1170  - PDM SPK2 CTRL 1 */
 	{ 0x00000493, 0x0000 },    /* R1171  - PDM SPK2 CTRL 2 */
+	{ 0x000004A0, 0x3480 },    /* R1184  - HP1 Short Circuit Ctrl */
+	{ 0x000004A1, 0x3480 },    /* R1185  - HP2 Short Circuit Ctrl */
+	{ 0x000004A2, 0x3480 },    /* R1186  - HP3 Short Circuit Ctrl */
 	{ 0x00000500, 0x000C },    /* R1280  - AIF1 BCLK Ctrl */
 	{ 0x00000501, 0x0008 },    /* R1281  - AIF1 Tx Pin Ctrl */
 	{ 0x00000502, 0x0000 },    /* R1282  - AIF1 Rx Pin Ctrl */
@@ -628,8 +895,16 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000548, 0x1818 },    /* R1352  - AIF2 Frame Ctrl 2 */
 	{ 0x00000549, 0x0000 },    /* R1353  - AIF2 Frame Ctrl 3 */
 	{ 0x0000054A, 0x0001 },    /* R1354  - AIF2 Frame Ctrl 4 */
+	{ 0x0000054B, 0x0002 },    /* R1355  - AIF2 Frame Ctrl 5 */
+	{ 0x0000054C, 0x0003 },    /* R1356  - AIF2 Frame Ctrl 6 */
+	{ 0x0000054D, 0x0004 },    /* R1357  - AIF2 Frame Ctrl 7 */
+	{ 0x0000054E, 0x0005 },    /* R1358  - AIF2 Frame Ctrl 8 */
 	{ 0x00000551, 0x0000 },    /* R1361  - AIF2 Frame Ctrl 11 */
 	{ 0x00000552, 0x0001 },    /* R1362  - AIF2 Frame Ctrl 12 */
+	{ 0x00000553, 0x0002 },    /* R1363  - AIF2 Frame Ctrl 13 */
+	{ 0x00000554, 0x0003 },    /* R1364  - AIF2 Frame Ctrl 14 */
+	{ 0x00000555, 0x0004 },    /* R1365  - AIF2 Frame Ctrl 15 */
+	{ 0x00000556, 0x0005 },    /* R1366  - AIF2 Frame Ctrl 16 */
 	{ 0x00000559, 0x0000 },    /* R1369  - AIF2 Tx Enables */
 	{ 0x0000055A, 0x0000 },    /* R1370  - AIF2 Rx Enables */
 	{ 0x00000580, 0x000C },    /* R1408  - AIF3 BCLK Ctrl */
@@ -866,6 +1141,38 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x0000074D, 0x0080 },    /* R1869  - AIF2TX2MIX Input 3 Volume */
 	{ 0x0000074E, 0x0000 },    /* R1870  - AIF2TX2MIX Input 4 Source */
 	{ 0x0000074F, 0x0080 },    /* R1871  - AIF2TX2MIX Input 4 Volume */
+	{ 0x00000750, 0x0000 },    /* R1872  - AIF2TX3MIX Input 1 Source */
+	{ 0x00000751, 0x0080 },    /* R1873  - AIF2TX3MIX Input 1 Volume */
+	{ 0x00000752, 0x0000 },    /* R1874  - AIF2TX3MIX Input 2 Source */
+	{ 0x00000753, 0x0080 },    /* R1875  - AIF2TX3MIX Input 2 Volume */
+	{ 0x00000754, 0x0000 },    /* R1876  - AIF2TX3MIX Input 3 Source */
+	{ 0x00000755, 0x0080 },    /* R1877  - AIF2TX3MIX Input 3 Volume */
+	{ 0x00000756, 0x0000 },    /* R1878  - AIF2TX3MIX Input 4 Source */
+	{ 0x00000757, 0x0080 },    /* R1879  - AIF2TX3MIX Input 4 Volume */
+	{ 0x00000758, 0x0000 },    /* R1880  - AIF2TX4MIX Input 1 Source */
+	{ 0x00000759, 0x0080 },    /* R1881  - AIF2TX4MIX Input 1 Volume */
+	{ 0x0000075A, 0x0000 },    /* R1882  - AIF2TX4MIX Input 2 Source */
+	{ 0x0000075B, 0x0080 },    /* R1883  - AIF2TX4MIX Input 2 Volume */
+	{ 0x0000075C, 0x0000 },    /* R1884  - AIF2TX4MIX Input 3 Source */
+	{ 0x0000075D, 0x0080 },    /* R1885  - AIF2TX4MIX Input 3 Volume */
+	{ 0x0000075E, 0x0000 },    /* R1886  - AIF2TX4MIX Input 4 Source */
+	{ 0x0000075F, 0x0080 },    /* R1887  - AIF2TX4MIX Input 4 Volume */
+	{ 0x00000760, 0x0000 },    /* R1888  - AIF2TX5MIX Input 1 Source */
+	{ 0x00000761, 0x0080 },    /* R1889  - AIF2TX5MIX Input 1 Volume */
+	{ 0x00000762, 0x0000 },    /* R1890  - AIF2TX5MIX Input 2 Source */
+	{ 0x00000763, 0x0080 },    /* R1891  - AIF2TX5MIX Input 2 Volume */
+	{ 0x00000764, 0x0000 },    /* R1892  - AIF2TX5MIX Input 3 Source */
+	{ 0x00000765, 0x0080 },    /* R1893  - AIF2TX5MIX Input 3 Volume */
+	{ 0x00000766, 0x0000 },    /* R1894  - AIF2TX5MIX Input 4 Source */
+	{ 0x00000767, 0x0080 },    /* R1895  - AIF2TX5MIX Input 4 Volume */
+	{ 0x00000768, 0x0000 },    /* R1896  - AIF2TX6MIX Input 1 Source */
+	{ 0x00000769, 0x0080 },    /* R1897  - AIF2TX6MIX Input 1 Volume */
+	{ 0x0000076A, 0x0000 },    /* R1898  - AIF2TX6MIX Input 2 Source */
+	{ 0x0000076B, 0x0080 },    /* R1899  - AIF2TX6MIX Input 2 Volume */
+	{ 0x0000076C, 0x0000 },    /* R1900  - AIF2TX6MIX Input 3 Source */
+	{ 0x0000076D, 0x0080 },    /* R1901  - AIF2TX6MIX Input 3 Volume */
+	{ 0x0000076E, 0x0000 },    /* R1902  - AIF2TX6MIX Input 4 Source */
+	{ 0x0000076F, 0x0080 },    /* R1903  - AIF2TX6MIX Input 4 Volume */
 	{ 0x00000780, 0x0000 },    /* R1920  - AIF3TX1MIX Input 1 Source */
 	{ 0x00000781, 0x0080 },    /* R1921  - AIF3TX1MIX Input 1 Volume */
 	{ 0x00000782, 0x0000 },    /* R1922  - AIF3TX1MIX Input 2 Source */
@@ -1188,14 +1495,15 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000D0A, 0xFFFF },    /* R3338  - Interrupt Status 3 Mask */
 	{ 0x00000D0B, 0xFFFF },    /* R3339  - Interrupt Status 4 Mask */
 	{ 0x00000D0C, 0xFEFF },    /* R3340  - Interrupt Status 5 Mask */
+	{ 0x00000D0D, 0xFFFF },    /* R3341  - Interrupt Status 6 Mask */
 	{ 0x00000D0F, 0x0000 },    /* R3343  - Interrupt Control */
 	{ 0x00000D18, 0xFFFF },    /* R3352  - IRQ2 Status 1 Mask */
 	{ 0x00000D19, 0xFFFF },    /* R3353  - IRQ2 Status 2 Mask */
 	{ 0x00000D1A, 0xFFFF },    /* R3354  - IRQ2 Status 3 Mask */
 	{ 0x00000D1B, 0xFFFF },    /* R3355  - IRQ2 Status 4 Mask */
 	{ 0x00000D1C, 0xFFFF },    /* R3356  - IRQ2 Status 5 Mask */
+	{ 0x00000D1D, 0xFFFF },    /* R3357  - IRQ2 Status 6 Mask */
 	{ 0x00000D1F, 0x0000 },    /* R3359  - IRQ2 Control */
-	{ 0x00000D50, 0x0000 },    /* R3408  - AOD wkup and trig */
 	{ 0x00000D53, 0xFFFF },    /* R3411  - AOD IRQ Mask IRQ1 */
 	{ 0x00000D54, 0xFFFF },    /* R3412  - AOD IRQ Mask IRQ2 */
 	{ 0x00000D56, 0x0000 },    /* R3414  - Jack detect debounce */
@@ -1327,6 +1635,64 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00001404, 0x0000 },    /* R5124  - DSP4 Status 1 */
 };
 
+static bool wm5110_is_rev_b_adsp_memory(unsigned int reg)
+{
+	if ((reg >= 0x100000 && reg < 0x103000) ||
+	    (reg >= 0x180000 && reg < 0x181000) ||
+	    (reg >= 0x190000 && reg < 0x192000) ||
+	    (reg >= 0x1a8000 && reg < 0x1a9000) ||
+	    (reg >= 0x200000 && reg < 0x209000) ||
+	    (reg >= 0x280000 && reg < 0x281000) ||
+	    (reg >= 0x290000 && reg < 0x29a000) ||
+	    (reg >= 0x2a8000 && reg < 0x2aa000) ||
+	    (reg >= 0x300000 && reg < 0x30f000) ||
+	    (reg >= 0x380000 && reg < 0x382000) ||
+	    (reg >= 0x390000 && reg < 0x39e000) ||
+	    (reg >= 0x3a8000 && reg < 0x3b6000) ||
+	    (reg >= 0x400000 && reg < 0x403000) ||
+	    (reg >= 0x480000 && reg < 0x481000) ||
+	    (reg >= 0x490000 && reg < 0x492000) ||
+	    (reg >= 0x4a8000 && reg < 0x4a9000))
+		return true;
+	else
+		return false;
+}
+
+static bool wm5110_is_rev_d_adsp_memory(unsigned int reg)
+{
+	if ((reg >= 0x100000 && reg < 0x106000) ||
+	    (reg >= 0x180000 && reg < 0x182000) ||
+	    (reg >= 0x190000 && reg < 0x198000) ||
+	    (reg >= 0x1a8000 && reg < 0x1aa000) ||
+	    (reg >= 0x200000 && reg < 0x20f000) ||
+	    (reg >= 0x280000 && reg < 0x282000) ||
+	    (reg >= 0x290000 && reg < 0x29c000) ||
+	    (reg >= 0x2a6000 && reg < 0x2b4000) ||
+	    (reg >= 0x300000 && reg < 0x30f000) ||
+	    (reg >= 0x380000 && reg < 0x382000) ||
+	    (reg >= 0x390000 && reg < 0x3a2000) ||
+	    (reg >= 0x3a6000 && reg < 0x3b4000) ||
+	    (reg >= 0x400000 && reg < 0x406000) ||
+	    (reg >= 0x480000 && reg < 0x482000) ||
+	    (reg >= 0x490000 && reg < 0x498000) ||
+	    (reg >= 0x4a8000 && reg < 0x4aa000))
+		return true;
+	else
+		return false;
+}
+
+static bool wm5110_is_adsp_memory(struct device *dev, unsigned int reg)
+{
+	struct arizona *arizona = dev_get_drvdata(dev);
+
+	switch (arizona->rev) {
+	case 0 ... 2:
+		return wm5110_is_rev_b_adsp_memory(reg);
+	default:
+		return wm5110_is_rev_d_adsp_memory(reg);
+	}
+}
+
 static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -1358,6 +1724,8 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_2:
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_3:
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_4:
+	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_5:
+	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_6:
 	case ARIZONA_COMFORT_NOISE_GENERATOR:
 	case ARIZONA_HAPTICS_CONTROL_1:
 	case ARIZONA_HAPTICS_CONTROL_2:
@@ -1379,6 +1747,8 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ASYNC_CLOCK_1:
 	case ARIZONA_ASYNC_SAMPLE_RATE_1:
 	case ARIZONA_ASYNC_SAMPLE_RATE_1_STATUS:
+	case ARIZONA_ASYNC_SAMPLE_RATE_2:
+	case ARIZONA_ASYNC_SAMPLE_RATE_2_STATUS:
 	case ARIZONA_OUTPUT_SYSTEM_CLOCK:
 	case ARIZONA_OUTPUT_ASYNC_CLOCK:
 	case ARIZONA_RATE_ESTIMATOR_1:
@@ -1392,6 +1762,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL1_CONTROL_4:
 	case ARIZONA_FLL1_CONTROL_5:
 	case ARIZONA_FLL1_CONTROL_6:
+	case ARIZONA_FLL1_CONTROL_7:
 	case ARIZONA_FLL1_LOOP_FILTER_TEST_1:
 	case ARIZONA_FLL1_NCO_TEST_0:
 	case ARIZONA_FLL1_SYNCHRONISER_1:
@@ -1400,6 +1771,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL1_SYNCHRONISER_4:
 	case ARIZONA_FLL1_SYNCHRONISER_5:
 	case ARIZONA_FLL1_SYNCHRONISER_6:
+	case ARIZONA_FLL1_SYNCHRONISER_7:
 	case ARIZONA_FLL1_SPREAD_SPECTRUM:
 	case ARIZONA_FLL1_GPIO_CLOCK:
 	case ARIZONA_FLL2_CONTROL_1:
@@ -1408,6 +1780,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL2_CONTROL_4:
 	case ARIZONA_FLL2_CONTROL_5:
 	case ARIZONA_FLL2_CONTROL_6:
+	case ARIZONA_FLL2_CONTROL_7:
 	case ARIZONA_FLL2_LOOP_FILTER_TEST_1:
 	case ARIZONA_FLL2_NCO_TEST_0:
 	case ARIZONA_FLL2_SYNCHRONISER_1:
@@ -1416,6 +1789,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL2_SYNCHRONISER_4:
 	case ARIZONA_FLL2_SYNCHRONISER_5:
 	case ARIZONA_FLL2_SYNCHRONISER_6:
+	case ARIZONA_FLL2_SYNCHRONISER_7:
 	case ARIZONA_FLL2_SPREAD_SPECTRUM:
 	case ARIZONA_FLL2_GPIO_CLOCK:
 	case ARIZONA_MIC_CHARGE_PUMP_1:
@@ -1424,18 +1798,27 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_MIC_BIAS_CTRL_1:
 	case ARIZONA_MIC_BIAS_CTRL_2:
 	case ARIZONA_MIC_BIAS_CTRL_3:
+	case ARIZONA_HP_CTRL_1L:
+	case ARIZONA_HP_CTRL_1R:
 	case ARIZONA_ACCESSORY_DETECT_MODE_1:
 	case ARIZONA_HEADPHONE_DETECT_1:
 	case ARIZONA_HEADPHONE_DETECT_2:
+	case ARIZONA_MICD_CLAMP_CONTROL:
 	case ARIZONA_MIC_DETECT_1:
 	case ARIZONA_MIC_DETECT_2:
 	case ARIZONA_MIC_DETECT_3:
+	case ARIZONA_MIC_DETECT_LEVEL_1:
+	case ARIZONA_MIC_DETECT_LEVEL_2:
+	case ARIZONA_MIC_DETECT_LEVEL_3:
+	case ARIZONA_MIC_DETECT_LEVEL_4:
 	case ARIZONA_MIC_NOISE_MIX_CONTROL_1:
+	case ARIZONA_ISOLATION_CONTROL:
 	case ARIZONA_JACK_DETECT_ANALOGUE:
 	case ARIZONA_INPUT_ENABLES:
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_INPUT_RATE:
 	case ARIZONA_INPUT_VOLUME_RAMP:
+	case ARIZONA_HPF_CONTROL:
 	case ARIZONA_IN1L_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_1L:
 	case ARIZONA_DMIC1L_CONTROL:
@@ -1457,6 +1840,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_IN4L_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_4L:
 	case ARIZONA_DMIC4L_CONTROL:
+	case ARIZONA_IN4R_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_4R:
 	case ARIZONA_DMIC4R_CONTROL:
 	case ARIZONA_OUTPUT_ENABLES_1:
@@ -1512,12 +1896,16 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DAC_DIGITAL_VOLUME_6R:
 	case ARIZONA_DAC_VOLUME_LIMIT_6R:
 	case ARIZONA_NOISE_GATE_SELECT_6R:
+	case ARIZONA_DRE_ENABLE:
 	case ARIZONA_DAC_AEC_CONTROL_1:
 	case ARIZONA_NOISE_GATE_CONTROL:
 	case ARIZONA_PDM_SPK1_CTRL_1:
 	case ARIZONA_PDM_SPK1_CTRL_2:
 	case ARIZONA_PDM_SPK2_CTRL_1:
 	case ARIZONA_PDM_SPK2_CTRL_2:
+	case ARIZONA_HP1_SHORT_CIRCUIT_CTRL:
+	case ARIZONA_HP2_SHORT_CIRCUIT_CTRL:
+	case ARIZONA_HP3_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_AIF1_BCLK_CTRL:
 	case ARIZONA_AIF1_TX_PIN_CTRL:
 	case ARIZONA_AIF1_RX_PIN_CTRL:
@@ -1556,8 +1944,16 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AIF2_FRAME_CTRL_2:
 	case ARIZONA_AIF2_FRAME_CTRL_3:
 	case ARIZONA_AIF2_FRAME_CTRL_4:
+	case ARIZONA_AIF2_FRAME_CTRL_5:
+	case ARIZONA_AIF2_FRAME_CTRL_6:
+	case ARIZONA_AIF2_FRAME_CTRL_7:
+	case ARIZONA_AIF2_FRAME_CTRL_8:
 	case ARIZONA_AIF2_FRAME_CTRL_11:
 	case ARIZONA_AIF2_FRAME_CTRL_12:
+	case ARIZONA_AIF2_FRAME_CTRL_13:
+	case ARIZONA_AIF2_FRAME_CTRL_14:
+	case ARIZONA_AIF2_FRAME_CTRL_15:
+	case ARIZONA_AIF2_FRAME_CTRL_16:
 	case ARIZONA_AIF2_TX_ENABLES:
 	case ARIZONA_AIF2_RX_ENABLES:
 	case ARIZONA_AIF3_BCLK_CTRL:
@@ -1796,6 +2192,38 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AIF2TX2MIX_INPUT_3_VOLUME:
 	case ARIZONA_AIF2TX2MIX_INPUT_4_SOURCE:
 	case ARIZONA_AIF2TX2MIX_INPUT_4_VOLUME:
+	case ARIZONA_AIF2TX3MIX_INPUT_1_SOURCE:
+	case ARIZONA_AIF2TX3MIX_INPUT_1_VOLUME:
+	case ARIZONA_AIF2TX3MIX_INPUT_2_SOURCE:
+	case ARIZONA_AIF2TX3MIX_INPUT_2_VOLUME:
+	case ARIZONA_AIF2TX3MIX_INPUT_3_SOURCE:
+	case ARIZONA_AIF2TX3MIX_INPUT_3_VOLUME:
+	case ARIZONA_AIF2TX3MIX_INPUT_4_SOURCE:
+	case ARIZONA_AIF2TX3MIX_INPUT_4_VOLUME:
+	case ARIZONA_AIF2TX4MIX_INPUT_1_SOURCE:
+	case ARIZONA_AIF2TX4MIX_INPUT_1_VOLUME:
+	case ARIZONA_AIF2TX4MIX_INPUT_2_SOURCE:
+	case ARIZONA_AIF2TX4MIX_INPUT_2_VOLUME:
+	case ARIZONA_AIF2TX4MIX_INPUT_3_SOURCE:
+	case ARIZONA_AIF2TX4MIX_INPUT_3_VOLUME:
+	case ARIZONA_AIF2TX4MIX_INPUT_4_SOURCE:
+	case ARIZONA_AIF2TX4MIX_INPUT_4_VOLUME:
+	case ARIZONA_AIF2TX5MIX_INPUT_1_SOURCE:
+	case ARIZONA_AIF2TX5MIX_INPUT_1_VOLUME:
+	case ARIZONA_AIF2TX5MIX_INPUT_2_SOURCE:
+	case ARIZONA_AIF2TX5MIX_INPUT_2_VOLUME:
+	case ARIZONA_AIF2TX5MIX_INPUT_3_SOURCE:
+	case ARIZONA_AIF2TX5MIX_INPUT_3_VOLUME:
+	case ARIZONA_AIF2TX5MIX_INPUT_4_SOURCE:
+	case ARIZONA_AIF2TX5MIX_INPUT_4_VOLUME:
+	case ARIZONA_AIF2TX6MIX_INPUT_1_SOURCE:
+	case ARIZONA_AIF2TX6MIX_INPUT_1_VOLUME:
+	case ARIZONA_AIF2TX6MIX_INPUT_2_SOURCE:
+	case ARIZONA_AIF2TX6MIX_INPUT_2_VOLUME:
+	case ARIZONA_AIF2TX6MIX_INPUT_3_SOURCE:
+	case ARIZONA_AIF2TX6MIX_INPUT_3_VOLUME:
+	case ARIZONA_AIF2TX6MIX_INPUT_4_SOURCE:
+	case ARIZONA_AIF2TX6MIX_INPUT_4_VOLUME:
 	case ARIZONA_AIF3TX1MIX_INPUT_1_SOURCE:
 	case ARIZONA_AIF3TX1MIX_INPUT_1_VOLUME:
 	case ARIZONA_AIF3TX1MIX_INPUT_2_SOURCE:
@@ -2118,22 +2546,26 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INTERRUPT_STATUS_3:
 	case ARIZONA_INTERRUPT_STATUS_4:
 	case ARIZONA_INTERRUPT_STATUS_5:
+	case ARIZONA_INTERRUPT_STATUS_6:
 	case ARIZONA_INTERRUPT_STATUS_1_MASK:
 	case ARIZONA_INTERRUPT_STATUS_2_MASK:
 	case ARIZONA_INTERRUPT_STATUS_3_MASK:
 	case ARIZONA_INTERRUPT_STATUS_4_MASK:
 	case ARIZONA_INTERRUPT_STATUS_5_MASK:
+	case ARIZONA_INTERRUPT_STATUS_6_MASK:
 	case ARIZONA_INTERRUPT_CONTROL:
 	case ARIZONA_IRQ2_STATUS_1:
 	case ARIZONA_IRQ2_STATUS_2:
 	case ARIZONA_IRQ2_STATUS_3:
 	case ARIZONA_IRQ2_STATUS_4:
 	case ARIZONA_IRQ2_STATUS_5:
+	case ARIZONA_IRQ2_STATUS_6:
 	case ARIZONA_IRQ2_STATUS_1_MASK:
 	case ARIZONA_IRQ2_STATUS_2_MASK:
 	case ARIZONA_IRQ2_STATUS_3_MASK:
 	case ARIZONA_IRQ2_STATUS_4_MASK:
 	case ARIZONA_IRQ2_STATUS_5_MASK:
+	case ARIZONA_IRQ2_STATUS_6_MASK:
 	case ARIZONA_IRQ2_CONTROL:
 	case ARIZONA_INTERRUPT_RAW_STATUS_2:
 	case ARIZONA_INTERRUPT_RAW_STATUS_3:
@@ -2142,6 +2574,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INTERRUPT_RAW_STATUS_6:
 	case ARIZONA_INTERRUPT_RAW_STATUS_7:
 	case ARIZONA_INTERRUPT_RAW_STATUS_8:
+	case ARIZONA_INTERRUPT_RAW_STATUS_9:
 	case ARIZONA_IRQ_PIN_STATUS:
 	case ARIZONA_AOD_WKUP_AND_TRIG:
 	case ARIZONA_AOD_IRQ1:
@@ -2274,24 +2707,124 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:
 	case ARIZONA_DSP1_STATUS_3:
+	case ARIZONA_DSP1_STATUS_4:
+	case ARIZONA_DSP1_WDMA_BUFFER_1:
+	case ARIZONA_DSP1_WDMA_BUFFER_2:
+	case ARIZONA_DSP1_WDMA_BUFFER_3:
+	case ARIZONA_DSP1_WDMA_BUFFER_4:
+	case ARIZONA_DSP1_WDMA_BUFFER_5:
+	case ARIZONA_DSP1_WDMA_BUFFER_6:
+	case ARIZONA_DSP1_WDMA_BUFFER_7:
+	case ARIZONA_DSP1_WDMA_BUFFER_8:
+	case ARIZONA_DSP1_RDMA_BUFFER_1:
+	case ARIZONA_DSP1_RDMA_BUFFER_2:
+	case ARIZONA_DSP1_RDMA_BUFFER_3:
+	case ARIZONA_DSP1_RDMA_BUFFER_4:
+	case ARIZONA_DSP1_RDMA_BUFFER_5:
+	case ARIZONA_DSP1_RDMA_BUFFER_6:
+	case ARIZONA_DSP1_WDMA_CONFIG_1:
+	case ARIZONA_DSP1_WDMA_CONFIG_2:
+	case ARIZONA_DSP1_WDMA_OFFSET_1:
+	case ARIZONA_DSP1_RDMA_CONFIG_1:
+	case ARIZONA_DSP1_RDMA_OFFSET_1:
+	case ARIZONA_DSP1_EXTERNAL_START_SELECT_1:
+	case ARIZONA_DSP1_SCRATCH_0:
+	case ARIZONA_DSP1_SCRATCH_1:
+	case ARIZONA_DSP1_SCRATCH_2:
+	case ARIZONA_DSP1_SCRATCH_3:
 	case ARIZONA_DSP2_CONTROL_1:
 	case ARIZONA_DSP2_CLOCKING_1:
 	case ARIZONA_DSP2_STATUS_1:
 	case ARIZONA_DSP2_STATUS_2:
 	case ARIZONA_DSP2_STATUS_3:
+	case ARIZONA_DSP2_STATUS_4:
+	case ARIZONA_DSP2_WDMA_BUFFER_1:
+	case ARIZONA_DSP2_WDMA_BUFFER_2:
+	case ARIZONA_DSP2_WDMA_BUFFER_3:
+	case ARIZONA_DSP2_WDMA_BUFFER_4:
+	case ARIZONA_DSP2_WDMA_BUFFER_5:
+	case ARIZONA_DSP2_WDMA_BUFFER_6:
+	case ARIZONA_DSP2_WDMA_BUFFER_7:
+	case ARIZONA_DSP2_WDMA_BUFFER_8:
+	case ARIZONA_DSP2_RDMA_BUFFER_1:
+	case ARIZONA_DSP2_RDMA_BUFFER_2:
+	case ARIZONA_DSP2_RDMA_BUFFER_3:
+	case ARIZONA_DSP2_RDMA_BUFFER_4:
+	case ARIZONA_DSP2_RDMA_BUFFER_5:
+	case ARIZONA_DSP2_RDMA_BUFFER_6:
+	case ARIZONA_DSP2_WDMA_CONFIG_1:
+	case ARIZONA_DSP2_WDMA_CONFIG_2:
+	case ARIZONA_DSP2_WDMA_OFFSET_1:
+	case ARIZONA_DSP2_RDMA_CONFIG_1:
+	case ARIZONA_DSP2_RDMA_OFFSET_1:
+	case ARIZONA_DSP2_EXTERNAL_START_SELECT_1:
+	case ARIZONA_DSP2_SCRATCH_0:
+	case ARIZONA_DSP2_SCRATCH_1:
+	case ARIZONA_DSP2_SCRATCH_2:
+	case ARIZONA_DSP2_SCRATCH_3:
 	case ARIZONA_DSP3_CONTROL_1:
 	case ARIZONA_DSP3_CLOCKING_1:
 	case ARIZONA_DSP3_STATUS_1:
 	case ARIZONA_DSP3_STATUS_2:
 	case ARIZONA_DSP3_STATUS_3:
+	case ARIZONA_DSP3_STATUS_4:
+	case ARIZONA_DSP3_WDMA_BUFFER_1:
+	case ARIZONA_DSP3_WDMA_BUFFER_2:
+	case ARIZONA_DSP3_WDMA_BUFFER_3:
+	case ARIZONA_DSP3_WDMA_BUFFER_4:
+	case ARIZONA_DSP3_WDMA_BUFFER_5:
+	case ARIZONA_DSP3_WDMA_BUFFER_6:
+	case ARIZONA_DSP3_WDMA_BUFFER_7:
+	case ARIZONA_DSP3_WDMA_BUFFER_8:
+	case ARIZONA_DSP3_RDMA_BUFFER_1:
+	case ARIZONA_DSP3_RDMA_BUFFER_2:
+	case ARIZONA_DSP3_RDMA_BUFFER_3:
+	case ARIZONA_DSP3_RDMA_BUFFER_4:
+	case ARIZONA_DSP3_RDMA_BUFFER_5:
+	case ARIZONA_DSP3_RDMA_BUFFER_6:
+	case ARIZONA_DSP3_WDMA_CONFIG_1:
+	case ARIZONA_DSP3_WDMA_CONFIG_2:
+	case ARIZONA_DSP3_WDMA_OFFSET_1:
+	case ARIZONA_DSP3_RDMA_CONFIG_1:
+	case ARIZONA_DSP3_RDMA_OFFSET_1:
+	case ARIZONA_DSP3_EXTERNAL_START_SELECT_1:
+	case ARIZONA_DSP3_SCRATCH_0:
+	case ARIZONA_DSP3_SCRATCH_1:
+	case ARIZONA_DSP3_SCRATCH_2:
+	case ARIZONA_DSP3_SCRATCH_3:
 	case ARIZONA_DSP4_CONTROL_1:
 	case ARIZONA_DSP4_CLOCKING_1:
 	case ARIZONA_DSP4_STATUS_1:
 	case ARIZONA_DSP4_STATUS_2:
 	case ARIZONA_DSP4_STATUS_3:
+	case ARIZONA_DSP4_STATUS_4:
+	case ARIZONA_DSP4_WDMA_BUFFER_1:
+	case ARIZONA_DSP4_WDMA_BUFFER_2:
+	case ARIZONA_DSP4_WDMA_BUFFER_3:
+	case ARIZONA_DSP4_WDMA_BUFFER_4:
+	case ARIZONA_DSP4_WDMA_BUFFER_5:
+	case ARIZONA_DSP4_WDMA_BUFFER_6:
+	case ARIZONA_DSP4_WDMA_BUFFER_7:
+	case ARIZONA_DSP4_WDMA_BUFFER_8:
+	case ARIZONA_DSP4_RDMA_BUFFER_1:
+	case ARIZONA_DSP4_RDMA_BUFFER_2:
+	case ARIZONA_DSP4_RDMA_BUFFER_3:
+	case ARIZONA_DSP4_RDMA_BUFFER_4:
+	case ARIZONA_DSP4_RDMA_BUFFER_5:
+	case ARIZONA_DSP4_RDMA_BUFFER_6:
+	case ARIZONA_DSP4_WDMA_CONFIG_1:
+	case ARIZONA_DSP4_WDMA_CONFIG_2:
+	case ARIZONA_DSP4_WDMA_OFFSET_1:
+	case ARIZONA_DSP4_RDMA_CONFIG_1:
+	case ARIZONA_DSP4_RDMA_OFFSET_1:
+	case ARIZONA_DSP4_EXTERNAL_START_SELECT_1:
+	case ARIZONA_DSP4_SCRATCH_0:
+	case ARIZONA_DSP4_SCRATCH_1:
+	case ARIZONA_DSP4_SCRATCH_2:
+	case ARIZONA_DSP4_SCRATCH_3:
 		return true;
 	default:
-		return false;
+		return wm5110_is_adsp_memory(dev, reg);
 	}
 }
 
@@ -2300,12 +2833,18 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case ARIZONA_SOFTWARE_RESET:
 	case ARIZONA_DEVICE_REVISION:
+	case ARIZONA_WRITE_SEQUENCER_CTRL_0:
+	case ARIZONA_WRITE_SEQUENCER_CTRL_1:
+	case ARIZONA_WRITE_SEQUENCER_CTRL_2:
 	case ARIZONA_HAPTICS_STATUS:
 	case ARIZONA_SAMPLE_RATE_1_STATUS:
 	case ARIZONA_SAMPLE_RATE_2_STATUS:
 	case ARIZONA_SAMPLE_RATE_3_STATUS:
 	case ARIZONA_ASYNC_SAMPLE_RATE_1_STATUS:
+	case ARIZONA_ASYNC_SAMPLE_RATE_2_STATUS:
 	case ARIZONA_MIC_DETECT_3:
+	case ARIZONA_HP_CTRL_1L:
+	case ARIZONA_HP_CTRL_1R:
 	case ARIZONA_HEADPHONE_DETECT_2:
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_OUTPUT_STATUS_1:
@@ -2317,11 +2856,13 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INTERRUPT_STATUS_3:
 	case ARIZONA_INTERRUPT_STATUS_4:
 	case ARIZONA_INTERRUPT_STATUS_5:
+	case ARIZONA_INTERRUPT_STATUS_6:
 	case ARIZONA_IRQ2_STATUS_1:
 	case ARIZONA_IRQ2_STATUS_2:
 	case ARIZONA_IRQ2_STATUS_3:
 	case ARIZONA_IRQ2_STATUS_4:
 	case ARIZONA_IRQ2_STATUS_5:
+	case ARIZONA_IRQ2_STATUS_6:
 	case ARIZONA_INTERRUPT_RAW_STATUS_2:
 	case ARIZONA_INTERRUPT_RAW_STATUS_3:
 	case ARIZONA_INTERRUPT_RAW_STATUS_4:
@@ -2329,37 +2870,145 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INTERRUPT_RAW_STATUS_6:
 	case ARIZONA_INTERRUPT_RAW_STATUS_7:
 	case ARIZONA_INTERRUPT_RAW_STATUS_8:
+	case ARIZONA_INTERRUPT_RAW_STATUS_9:
 	case ARIZONA_IRQ_PIN_STATUS:
+	case ARIZONA_AOD_WKUP_AND_TRIG:
 	case ARIZONA_AOD_IRQ1:
 	case ARIZONA_AOD_IRQ2:
+	case ARIZONA_AOD_IRQ_RAW_STATUS:
+	case ARIZONA_FX_CTRL2:
 	case ARIZONA_ASRC_STATUS:
 	case ARIZONA_DSP_STATUS:
-	case ARIZONA_DSP1_CONTROL_1:
-	case ARIZONA_DSP1_CLOCKING_1:
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:
 	case ARIZONA_DSP1_STATUS_3:
+	case ARIZONA_DSP1_STATUS_4:
+	case ARIZONA_DSP1_WDMA_BUFFER_1:
+	case ARIZONA_DSP1_WDMA_BUFFER_2:
+	case ARIZONA_DSP1_WDMA_BUFFER_3:
+	case ARIZONA_DSP1_WDMA_BUFFER_4:
+	case ARIZONA_DSP1_WDMA_BUFFER_5:
+	case ARIZONA_DSP1_WDMA_BUFFER_6:
+	case ARIZONA_DSP1_WDMA_BUFFER_7:
+	case ARIZONA_DSP1_WDMA_BUFFER_8:
+	case ARIZONA_DSP1_RDMA_BUFFER_1:
+	case ARIZONA_DSP1_RDMA_BUFFER_2:
+	case ARIZONA_DSP1_RDMA_BUFFER_3:
+	case ARIZONA_DSP1_RDMA_BUFFER_4:
+	case ARIZONA_DSP1_RDMA_BUFFER_5:
+	case ARIZONA_DSP1_RDMA_BUFFER_6:
+	case ARIZONA_DSP1_WDMA_CONFIG_1:
+	case ARIZONA_DSP1_WDMA_CONFIG_2:
+	case ARIZONA_DSP1_WDMA_OFFSET_1:
+	case ARIZONA_DSP1_RDMA_CONFIG_1:
+	case ARIZONA_DSP1_RDMA_OFFSET_1:
+	case ARIZONA_DSP1_EXTERNAL_START_SELECT_1:
+	case ARIZONA_DSP1_SCRATCH_0:
+	case ARIZONA_DSP1_SCRATCH_1:
+	case ARIZONA_DSP1_SCRATCH_2:
+	case ARIZONA_DSP1_SCRATCH_3:
+	case ARIZONA_DSP1_CLOCKING_1:
 	case ARIZONA_DSP2_STATUS_1:
 	case ARIZONA_DSP2_STATUS_2:
 	case ARIZONA_DSP2_STATUS_3:
+	case ARIZONA_DSP2_STATUS_4:
+	case ARIZONA_DSP2_WDMA_BUFFER_1:
+	case ARIZONA_DSP2_WDMA_BUFFER_2:
+	case ARIZONA_DSP2_WDMA_BUFFER_3:
+	case ARIZONA_DSP2_WDMA_BUFFER_4:
+	case ARIZONA_DSP2_WDMA_BUFFER_5:
+	case ARIZONA_DSP2_WDMA_BUFFER_6:
+	case ARIZONA_DSP2_WDMA_BUFFER_7:
+	case ARIZONA_DSP2_WDMA_BUFFER_8:
+	case ARIZONA_DSP2_RDMA_BUFFER_1:
+	case ARIZONA_DSP2_RDMA_BUFFER_2:
+	case ARIZONA_DSP2_RDMA_BUFFER_3:
+	case ARIZONA_DSP2_RDMA_BUFFER_4:
+	case ARIZONA_DSP2_RDMA_BUFFER_5:
+	case ARIZONA_DSP2_RDMA_BUFFER_6:
+	case ARIZONA_DSP2_WDMA_CONFIG_1:
+	case ARIZONA_DSP2_WDMA_CONFIG_2:
+	case ARIZONA_DSP2_WDMA_OFFSET_1:
+	case ARIZONA_DSP2_RDMA_CONFIG_1:
+	case ARIZONA_DSP2_RDMA_OFFSET_1:
+	case ARIZONA_DSP2_EXTERNAL_START_SELECT_1:
+	case ARIZONA_DSP2_SCRATCH_0:
+	case ARIZONA_DSP2_SCRATCH_1:
+	case ARIZONA_DSP2_SCRATCH_2:
+	case ARIZONA_DSP2_SCRATCH_3:
+	case ARIZONA_DSP2_CLOCKING_1:
 	case ARIZONA_DSP3_STATUS_1:
 	case ARIZONA_DSP3_STATUS_2:
 	case ARIZONA_DSP3_STATUS_3:
+	case ARIZONA_DSP3_STATUS_4:
+	case ARIZONA_DSP3_WDMA_BUFFER_1:
+	case ARIZONA_DSP3_WDMA_BUFFER_2:
+	case ARIZONA_DSP3_WDMA_BUFFER_3:
+	case ARIZONA_DSP3_WDMA_BUFFER_4:
+	case ARIZONA_DSP3_WDMA_BUFFER_5:
+	case ARIZONA_DSP3_WDMA_BUFFER_6:
+	case ARIZONA_DSP3_WDMA_BUFFER_7:
+	case ARIZONA_DSP3_WDMA_BUFFER_8:
+	case ARIZONA_DSP3_RDMA_BUFFER_1:
+	case ARIZONA_DSP3_RDMA_BUFFER_2:
+	case ARIZONA_DSP3_RDMA_BUFFER_3:
+	case ARIZONA_DSP3_RDMA_BUFFER_4:
+	case ARIZONA_DSP3_RDMA_BUFFER_5:
+	case ARIZONA_DSP3_RDMA_BUFFER_6:
+	case ARIZONA_DSP3_WDMA_CONFIG_1:
+	case ARIZONA_DSP3_WDMA_CONFIG_2:
+	case ARIZONA_DSP3_WDMA_OFFSET_1:
+	case ARIZONA_DSP3_RDMA_CONFIG_1:
+	case ARIZONA_DSP3_RDMA_OFFSET_1:
+	case ARIZONA_DSP3_EXTERNAL_START_SELECT_1:
+	case ARIZONA_DSP3_SCRATCH_0:
+	case ARIZONA_DSP3_SCRATCH_1:
+	case ARIZONA_DSP3_SCRATCH_2:
+	case ARIZONA_DSP3_SCRATCH_3:
+	case ARIZONA_DSP3_CLOCKING_1:
 	case ARIZONA_DSP4_STATUS_1:
 	case ARIZONA_DSP4_STATUS_2:
 	case ARIZONA_DSP4_STATUS_3:
+	case ARIZONA_DSP4_STATUS_4:
+	case ARIZONA_DSP4_WDMA_BUFFER_1:
+	case ARIZONA_DSP4_WDMA_BUFFER_2:
+	case ARIZONA_DSP4_WDMA_BUFFER_3:
+	case ARIZONA_DSP4_WDMA_BUFFER_4:
+	case ARIZONA_DSP4_WDMA_BUFFER_5:
+	case ARIZONA_DSP4_WDMA_BUFFER_6:
+	case ARIZONA_DSP4_WDMA_BUFFER_7:
+	case ARIZONA_DSP4_WDMA_BUFFER_8:
+	case ARIZONA_DSP4_RDMA_BUFFER_1:
+	case ARIZONA_DSP4_RDMA_BUFFER_2:
+	case ARIZONA_DSP4_RDMA_BUFFER_3:
+	case ARIZONA_DSP4_RDMA_BUFFER_4:
+	case ARIZONA_DSP4_RDMA_BUFFER_5:
+	case ARIZONA_DSP4_RDMA_BUFFER_6:
+	case ARIZONA_DSP4_WDMA_CONFIG_1:
+	case ARIZONA_DSP4_WDMA_CONFIG_2:
+	case ARIZONA_DSP4_WDMA_OFFSET_1:
+	case ARIZONA_DSP4_RDMA_CONFIG_1:
+	case ARIZONA_DSP4_RDMA_OFFSET_1:
+	case ARIZONA_DSP4_EXTERNAL_START_SELECT_1:
+	case ARIZONA_DSP4_SCRATCH_0:
+	case ARIZONA_DSP4_SCRATCH_1:
+	case ARIZONA_DSP4_SCRATCH_2:
+	case ARIZONA_DSP4_SCRATCH_3:
+	case ARIZONA_DSP4_CLOCKING_1:
 		return true;
 	default:
-		return false;
+		return wm5110_is_adsp_memory(dev, reg);
 	}
 }
+
+#define WM5110_MAX_REGISTER 0x4a9fff
 
 const struct regmap_config wm5110_spi_regmap = {
 	.reg_bits = 32,
 	.pad_bits = 16,
 	.val_bits = 16,
 
-	.max_register = ARIZONA_DSP1_STATUS_2,
+	.max_register = WM5110_MAX_REGISTER,
 	.readable_reg = wm5110_readable_register,
 	.volatile_reg = wm5110_volatile_register,
 
@@ -2373,7 +3022,7 @@ const struct regmap_config wm5110_i2c_regmap = {
 	.reg_bits = 32,
 	.val_bits = 16,
 
-	.max_register = ARIZONA_DSP1_STATUS_2,
+	.max_register = WM5110_MAX_REGISTER,
 	.readable_reg = wm5110_readable_register,
 	.volatile_reg = wm5110_volatile_register,
 

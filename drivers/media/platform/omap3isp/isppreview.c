@@ -12,16 +12,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/device.h>
@@ -122,7 +112,7 @@ static struct omap3isp_prev_csc flr_prev_csc = {
 #define PREV_MAX_OUT_WIDTH_REV_15	4096
 
 /*
- * Coeficient Tables for the submodules in Preview.
+ * Coefficient Tables for the submodules in Preview.
  * Array is initialised with the values from.the tables text file.
  */
 
@@ -971,20 +961,19 @@ static void preview_setup_hw(struct isp_prev_device *prev, u32 update,
 
 /*
  * preview_config_ycpos - Configure byte layout of YUV image.
- * @mode: Indicates the required byte layout.
+ * @prev: pointer to previewer private structure
+ * @pixelcode: pixel code
  */
-static void
-preview_config_ycpos(struct isp_prev_device *prev,
-		     enum v4l2_mbus_pixelcode pixelcode)
+static void preview_config_ycpos(struct isp_prev_device *prev, u32 pixelcode)
 {
 	struct isp_device *isp = to_isp_device(prev);
 	enum preview_ycpos_mode mode;
 
 	switch (pixelcode) {
-	case V4L2_MBUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 		mode = YCPOS_CrYCbY;
 		break;
-	case V4L2_MBUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
 		mode = YCPOS_YCrYCb;
 		break;
 	default:
@@ -1037,16 +1026,16 @@ static void preview_config_input_format(struct isp_prev_device *prev,
 			    ISPPRV_PCR_WIDTH);
 
 	switch (info->flavor) {
-	case V4L2_MBUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
 		prev->params.cfa_order = 0;
 		break;
-	case V4L2_MBUS_FMT_SRGGB8_1X8:
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
 		prev->params.cfa_order = 1;
 		break;
-	case V4L2_MBUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
 		prev->params.cfa_order = 2;
 		break;
-	case V4L2_MBUS_FMT_SGBRG8_1X8:
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
 		prev->params.cfa_order = 3;
 		break;
 	default:
@@ -1079,12 +1068,21 @@ static void preview_config_input_format(struct isp_prev_device *prev,
  */
 static void preview_config_input_size(struct isp_prev_device *prev, u32 active)
 {
+	const struct v4l2_mbus_framefmt *format = &prev->formats[PREV_PAD_SINK];
 	struct isp_device *isp = to_isp_device(prev);
 	unsigned int sph = prev->crop.left;
 	unsigned int eph = prev->crop.left + prev->crop.width - 1;
 	unsigned int slv = prev->crop.top;
 	unsigned int elv = prev->crop.top + prev->crop.height - 1;
 	u32 features;
+
+	if (format->code != MEDIA_BUS_FMT_Y8_1X8 &&
+	    format->code != MEDIA_BUS_FMT_Y10_1X10) {
+		sph -= 2;
+		eph += 2;
+		slv -= 2;
+		elv += 2;
+	}
 
 	features = (prev->params.params[0].features & active)
 		 | (prev->params.params[1].features & ~active);
@@ -1363,8 +1361,8 @@ static void preview_init_params(struct isp_prev_device *prev)
 }
 
 /*
- * preview_max_out_width - Handle previewer hardware ouput limitations
- * @isp_revision : ISP revision
+ * preview_max_out_width - Handle previewer hardware output limitations
+ * @prev: pointer to previewer private structure
  * returns maximum width output for current isp revision
  */
 static unsigned int preview_max_out_width(struct isp_prev_device *prev)
@@ -1489,14 +1487,14 @@ static void preview_isr_buffer(struct isp_prev_device *prev)
 	if (prev->input == PREVIEW_INPUT_MEMORY) {
 		buffer = omap3isp_video_buffer_next(&prev->video_in);
 		if (buffer != NULL)
-			preview_set_inaddr(prev, buffer->isp_addr);
+			preview_set_inaddr(prev, buffer->dma);
 		pipe->state |= ISP_PIPELINE_IDLE_INPUT;
 	}
 
 	if (prev->output & PREVIEW_OUTPUT_MEMORY) {
 		buffer = omap3isp_video_buffer_next(&prev->video_out);
 		if (buffer != NULL) {
-			preview_set_outaddr(prev, buffer->isp_addr);
+			preview_set_outaddr(prev, buffer->dma);
 			restart = 1;
 		}
 		pipe->state |= ISP_PIPELINE_IDLE_OUTPUT;
@@ -1567,10 +1565,10 @@ static int preview_video_queue(struct isp_video *video,
 	struct isp_prev_device *prev = &video->isp->isp_prev;
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		preview_set_inaddr(prev, buffer->isp_addr);
+		preview_set_inaddr(prev, buffer->dma);
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		preview_set_outaddr(prev, buffer->isp_addr);
+		preview_set_outaddr(prev, buffer->dma);
 
 	return 0;
 }
@@ -1610,7 +1608,7 @@ static const struct v4l2_ctrl_ops preview_ctrl_ops = {
 
 /*
  * preview_ioctl - Handle preview module private ioctl's
- * @prev: pointer to preview context structure
+ * @sd: pointer to v4l2 subdev structure
  * @cmd: configuration command
  * @arg: configuration argument
  * return -EINVAL or zero on success
@@ -1709,21 +1707,21 @@ __preview_get_crop(struct isp_prev_device *prev, struct v4l2_subdev_fh *fh,
 
 /* previewer format descriptions */
 static const unsigned int preview_input_fmts[] = {
-	V4L2_MBUS_FMT_Y8_1X8,
-	V4L2_MBUS_FMT_SGRBG8_1X8,
-	V4L2_MBUS_FMT_SRGGB8_1X8,
-	V4L2_MBUS_FMT_SBGGR8_1X8,
-	V4L2_MBUS_FMT_SGBRG8_1X8,
-	V4L2_MBUS_FMT_Y10_1X10,
-	V4L2_MBUS_FMT_SGRBG10_1X10,
-	V4L2_MBUS_FMT_SRGGB10_1X10,
-	V4L2_MBUS_FMT_SBGGR10_1X10,
-	V4L2_MBUS_FMT_SGBRG10_1X10,
+	MEDIA_BUS_FMT_Y8_1X8,
+	MEDIA_BUS_FMT_SGRBG8_1X8,
+	MEDIA_BUS_FMT_SRGGB8_1X8,
+	MEDIA_BUS_FMT_SBGGR8_1X8,
+	MEDIA_BUS_FMT_SGBRG8_1X8,
+	MEDIA_BUS_FMT_Y10_1X10,
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SGBRG10_1X10,
 };
 
 static const unsigned int preview_output_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_1X16,
-	V4L2_MBUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_UYVY8_1X16,
+	MEDIA_BUS_FMT_YUYV8_1X16,
 };
 
 /*
@@ -1742,7 +1740,7 @@ static void preview_try_format(struct isp_prev_device *prev,
 			       struct v4l2_mbus_framefmt *fmt,
 			       enum v4l2_subdev_format_whence which)
 {
-	enum v4l2_mbus_pixelcode pixelcode;
+	u32 pixelcode;
 	struct v4l2_rect *crop;
 	unsigned int i;
 
@@ -1774,7 +1772,7 @@ static void preview_try_format(struct isp_prev_device *prev,
 
 		/* If not found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(preview_input_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 		break;
 
 	case PREV_PAD_SOURCE:
@@ -1782,13 +1780,13 @@ static void preview_try_format(struct isp_prev_device *prev,
 		*fmt = *__preview_get_format(prev, fh, PREV_PAD_SINK, which);
 
 		switch (pixelcode) {
-		case V4L2_MBUS_FMT_YUYV8_1X16:
-		case V4L2_MBUS_FMT_UYVY8_1X16:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+		case MEDIA_BUS_FMT_UYVY8_1X16:
 			fmt->code = pixelcode;
 			break;
 
 		default:
-			fmt->code = V4L2_MBUS_FMT_YUYV8_1X16;
+			fmt->code = MEDIA_BUS_FMT_YUYV8_1X16;
 			break;
 		}
 
@@ -1843,8 +1841,8 @@ static void preview_try_crop(struct isp_prev_device *prev,
 	 * and no columns in other modes. Increase the margins based on the sink
 	 * format.
 	 */
-	if (sink->code != V4L2_MBUS_FMT_Y8_1X8 &&
-	    sink->code != V4L2_MBUS_FMT_Y10_1X10) {
+	if (sink->code != MEDIA_BUS_FMT_Y8_1X8 &&
+	    sink->code != MEDIA_BUS_FMT_Y10_1X10) {
 		left += 2;
 		right -= 2;
 		top += 2;
@@ -2092,7 +2090,7 @@ static int preview_init_formats(struct v4l2_subdev *sd,
 	memset(&format, 0, sizeof(format));
 	format.pad = PREV_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
 	preview_set_format(sd, fh, &format);
@@ -2283,7 +2281,8 @@ static int preview_init_entities(struct isp_prev_device *prev)
 	v4l2_ctrl_handler_setup(&prev->ctrls);
 	sd->ctrl_handler = &prev->ctrls;
 
-	pads[PREV_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[PREV_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 	pads[PREV_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &preview_media_ops;
@@ -2340,7 +2339,7 @@ error_video_in:
 
 /*
  * omap3isp_preview_init - Previewer initialization.
- * @dev : Pointer to ISP device
+ * @isp : Pointer to ISP device
  * return -ENOMEM or zero on success
  */
 int omap3isp_preview_init(struct isp_device *isp)

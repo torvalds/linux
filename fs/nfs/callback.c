@@ -128,22 +128,24 @@ nfs41_callback_svc(void *vrqstp)
 		if (try_to_freeze())
 			continue;
 
-		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_INTERRUPTIBLE);
+		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_UNINTERRUPTIBLE);
 		spin_lock_bh(&serv->sv_cb_lock);
 		if (!list_empty(&serv->sv_cb_list)) {
 			req = list_first_entry(&serv->sv_cb_list,
 					struct rpc_rqst, rq_bc_list);
 			list_del(&req->rq_bc_list);
 			spin_unlock_bh(&serv->sv_cb_lock);
+			finish_wait(&serv->sv_cb_waitq, &wq);
 			dprintk("Invoking bc_svc_process()\n");
 			error = bc_svc_process(serv, req, rqstp);
 			dprintk("bc_svc_process() returned w/ error code= %d\n",
 				error);
 		} else {
 			spin_unlock_bh(&serv->sv_cb_lock);
-			schedule();
+			/* schedule_timeout to game the hung task watchdog */
+			schedule_timeout(60 * HZ);
+			finish_wait(&serv->sv_cb_waitq, &wq);
 		}
-		finish_wait(&serv->sv_cb_waitq, &wq);
 	}
 	return 0;
 }
@@ -164,8 +166,7 @@ nfs41_callback_up(struct svc_serv *serv)
 		svc_xprt_put(serv->sv_bc_xprt);
 		serv->sv_bc_xprt = NULL;
 	}
-	dprintk("--> %s return %ld\n", __func__,
-		IS_ERR(rqstp) ? PTR_ERR(rqstp) : 0);
+	dprintk("--> %s return %d\n", __func__, PTR_ERR_OR_ZERO(rqstp));
 	return rqstp;
 }
 
@@ -236,7 +237,7 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 
 	cb_info->serv = serv;
 	cb_info->rqst = rqstp;
-	cb_info->task = kthread_run(callback_svc, cb_info->rqst,
+	cb_info->task = kthread_create(callback_svc, cb_info->rqst,
 				    "nfsv4.%u-svc", minorversion);
 	if (IS_ERR(cb_info->task)) {
 		ret = PTR_ERR(cb_info->task);
@@ -245,6 +246,8 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 		cb_info->task = NULL;
 		return ret;
 	}
+	rqstp->rq_task = cb_info->task;
+	wake_up_process(cb_info->task);
 	dprintk("nfs_callback_up: service started\n");
 	return 0;
 }
@@ -428,6 +431,18 @@ check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
 	 */
 	if (p == NULL)
 		return 0;
+
+	/*
+	 * Did we get the acceptor from userland during the SETCLIENID
+	 * negotiation?
+	 */
+	if (clp->cl_acceptor)
+		return !strcmp(p, clp->cl_acceptor);
+
+	/*
+	 * Otherwise try to verify it using the cl_hostname. Note that this
+	 * doesn't work if a non-canonical hostname was used in the devname.
+	 */
 
 	/* Expect a GSS_C_NT_HOSTBASED_NAME like "nfs@serverhostname" */
 

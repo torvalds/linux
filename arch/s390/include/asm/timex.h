@@ -67,32 +67,36 @@ static inline void local_tick_enable(unsigned long long comp)
 	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
-#define CLOCK_TICK_RATE	1193180 /* Underlying HZ */
+#define CLOCK_TICK_RATE		1193180 /* Underlying HZ */
+#define STORE_CLOCK_EXT_SIZE	16	/* stcke writes 16 bytes */
 
 typedef unsigned long long cycles_t;
 
-static inline unsigned long long get_tod_clock(void)
-{
-	unsigned long long clk;
-
-#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
-	asm volatile(".insn s,0xb27c0000,%0" : "=Q" (clk) : : "cc");
-#else
-	asm volatile("stck %0" : "=Q" (clk) : : "cc");
-#endif
-	return clk;
-}
-
 static inline void get_tod_clock_ext(char *clk)
 {
-	asm volatile("stcke %0" : "=Q" (*clk) : : "cc");
+	typedef struct { char _[STORE_CLOCK_EXT_SIZE]; } addrtype;
+
+	asm volatile("stcke %0" : "=Q" (*(addrtype *) clk) : : "cc");
 }
 
-static inline unsigned long long get_tod_clock_xt(void)
+static inline unsigned long long get_tod_clock(void)
 {
-	unsigned char clk[16];
+	unsigned char clk[STORE_CLOCK_EXT_SIZE];
+
 	get_tod_clock_ext(clk);
 	return *((unsigned long long *)&clk[1]);
+}
+
+static inline unsigned long long get_tod_clock_fast(void)
+{
+#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
+	unsigned long long clk;
+
+	asm volatile("stckf %0" : "=Q" (clk) : : "cc");
+	return clk;
+#else
+	return get_tod_clock();
+#endif
 }
 
 static inline cycles_t get_cycles(void)
@@ -125,7 +129,7 @@ extern u64 sched_clock_base_cc;
  */
 static inline unsigned long long get_tod_clock_monotonic(void)
 {
-	return get_tod_clock_xt() - sched_clock_base_cc;
+	return get_tod_clock() - sched_clock_base_cc;
 }
 
 /**

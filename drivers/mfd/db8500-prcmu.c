@@ -25,6 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
@@ -465,7 +466,7 @@ static DEFINE_SPINLOCK(clk_mgt_lock);
 
 #define CLK_MGT_ENTRY(_name, _branch, _clk38div)[PRCMU_##_name] = \
 	{ (PRCM_##_name##_MGT), 0 , _branch, _clk38div}
-struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
+static struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
 	CLK_MGT_ENTRY(SGACLK, PLL_DIV, false),
 	CLK_MGT_ENTRY(UARTCLK, PLL_FIX, true),
 	CLK_MGT_ENTRY(MSP02CLK, PLL_FIX, true),
@@ -480,7 +481,6 @@ struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
 	CLK_MGT_ENTRY(PER6CLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(PER7CLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(LCDCLK, PLL_FIX, true),
-	CLK_MGT_ENTRY(BML8580CLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(BMLCLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(HSITXCLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(HSIRXCLK, PLL_DIV, true),
@@ -672,15 +672,6 @@ bool prcmu_has_arm_maxopp(void)
 {
 	return (readb(tcdm_base + PRCM_AVS_VARM_MAX_OPP) &
 		PRCM_AVS_ISMODEENABLE_MASK) == PRCM_AVS_ISMODEENABLE_MASK;
-}
-
-/**
- * prcmu_get_boot_status - PRCMU boot status checking
- * Returns: the current PRCMU boot status
- */
-int prcmu_get_boot_status(void)
-{
-	return readb(tcdm_base + PRCM_BOOT_STATUS);
 }
 
 /**
@@ -1734,18 +1725,17 @@ static struct cpufreq_frequency_table db8500_cpufreq_table[] = {
 
 static long round_armss_rate(unsigned long rate)
 {
+	struct cpufreq_frequency_table *pos;
 	long freq = 0;
-	int i = 0;
 
 	/* cpufreq table frequencies is in KHz. */
 	rate = rate / 1000;
 
 	/* Find the corresponding arm opp from the cpufreq table. */
-	while (db8500_cpufreq_table[i].frequency != CPUFREQ_TABLE_END) {
-		freq = db8500_cpufreq_table[i].frequency;
+	cpufreq_for_each_entry(pos, db8500_cpufreq_table) {
+		freq = pos->frequency;
 		if (freq == rate)
 			break;
-		i++;
 	}
 
 	/* Return the last valid value, even if a match was not found. */
@@ -1886,23 +1876,21 @@ static void set_clock_rate(u8 clock, unsigned long rate)
 
 static int set_armss_rate(unsigned long rate)
 {
-	int i = 0;
+	struct cpufreq_frequency_table *pos;
 
 	/* cpufreq table frequencies is in KHz. */
 	rate = rate / 1000;
 
 	/* Find the corresponding arm opp from the cpufreq table. */
-	while (db8500_cpufreq_table[i].frequency != CPUFREQ_TABLE_END) {
-		if (db8500_cpufreq_table[i].frequency == rate)
+	cpufreq_for_each_entry(pos, db8500_cpufreq_table)
+		if (pos->frequency == rate)
 			break;
-		i++;
-	}
 
-	if (db8500_cpufreq_table[i].frequency != rate)
+	if (pos->frequency != rate)
 		return -EINVAL;
 
 	/* Set the new arm opp. */
-	return db8500_prcmu_set_arm_opp(db8500_cpufreq_table[i].driver_data);
+	return db8500_prcmu_set_arm_opp(pos->driver_data);
 }
 
 static int set_plldsi_rate(unsigned long rate)
@@ -2303,9 +2291,6 @@ int prcmu_ac_wake_req(void)
 
 	if (!wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
 			msecs_to_jiffies(5000))) {
-#if defined(CONFIG_DBX500_PRCMU_DEBUG)
-		db8500_prcmu_debug_dump(__func__, true, true);
-#endif
 		pr_crit("prcmu: %s timed out (5 s) waiting for a reply.\n",
 			__func__);
 		ret = -EFAULT;
@@ -2319,7 +2304,7 @@ unlock_and_return:
 /**
  * prcmu_ac_sleep_req - called when ARM no longer needs to talk to modem
  */
-void prcmu_ac_sleep_req()
+void prcmu_ac_sleep_req(void)
 {
 	u32 val;
 
@@ -2679,16 +2664,12 @@ static struct irq_domain_ops db8500_irq_ops = {
 	.xlate  = irq_domain_xlate_twocell,
 };
 
-static int db8500_irq_init(struct device_node *np, int irq_base)
+static int db8500_irq_init(struct device_node *np)
 {
 	int i;
 
-	/* In the device tree case, just take some IRQs */
-	if (np)
-		irq_base = 0;
-
 	db8500_irq_domain = irq_domain_add_simple(
-		np, NUM_PRCMU_WAKEUPS, irq_base,
+		np, NUM_PRCMU_WAKEUPS, 0,
 		&db8500_irq_ops, NULL);
 
 	if (!db8500_irq_domain) {
@@ -3071,7 +3052,7 @@ static struct db8500_thsens_platform_data db8500_thsens_data = {
 	.num_trips = 4,
 };
 
-static struct mfd_cell common_prcmu_devs[] = {
+static const struct mfd_cell common_prcmu_devs[] = {
 	{
 		.name = "ux500_wdt",
 		.platform_data = &db8500_wdt_pdata,
@@ -3080,7 +3061,7 @@ static struct mfd_cell common_prcmu_devs[] = {
 	},
 };
 
-static struct mfd_cell db8500_prcmu_devs[] = {
+static const struct mfd_cell db8500_prcmu_devs[] = {
 	{
 		.name = "db8500-prcmu-regulators",
 		.of_compatible = "stericsson,db8500-prcmu-regulator",
@@ -3092,6 +3073,10 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 		.of_compatible = "stericsson,cpufreq-ux500",
 		.platform_data = &db8500_cpufreq_table,
 		.pdata_size = sizeof(db8500_cpufreq_table),
+	},
+	{
+		.name = "cpuidle-dbx500",
+		.of_compatible = "stericsson,cpuidle-dbx500",
 	},
 	{
 		.name = "db8500-thermal",
@@ -3111,11 +3096,11 @@ static void db8500_prcmu_update_cpufreq(void)
 }
 
 static int db8500_prcmu_register_ab8500(struct device *parent,
-					struct ab8500_platform_data *pdata,
-					int irq)
+					struct ab8500_platform_data *pdata)
 {
-	struct resource ab8500_resource = DEFINE_RES_IRQ(irq);
-	struct mfd_cell ab8500_cell = {
+	struct device_node *np;
+	struct resource ab8500_resource;
+	const struct mfd_cell ab8500_cell = {
 		.name = "ab8500-core",
 		.of_compatible = "stericsson,ab8500",
 		.id = AB8500_VERSION_AB8500,
@@ -3124,6 +3109,20 @@ static int db8500_prcmu_register_ab8500(struct device *parent,
 		.resources = &ab8500_resource,
 		.num_resources = 1,
 	};
+
+	if (!parent->of_node)
+		return -ENODEV;
+
+	/* Look up the device node, sneak the IRQ out of it */
+	for_each_child_of_node(parent->of_node, np) {
+		if (of_device_is_compatible(np, ab8500_cell.of_compatible))
+			break;
+	}
+	if (!np) {
+		dev_info(parent, "could not find AB8500 node in the device tree\n");
+		return -ENODEV;
+	}
+	of_irq_to_resource_table(np, &ab8500_resource, 1);
 
 	return mfd_add_devices(parent, 0, &ab8500_cell, 1, NULL, 0, NULL);
 }
@@ -3142,23 +3141,28 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu");
 	if (!res) {
 		dev_err(&pdev->dev, "no prcmu memory region provided\n");
-		return -ENOENT;
+		return -EINVAL;
 	}
 	prcmu_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!prcmu_base) {
 		dev_err(&pdev->dev,
 			"failed to ioremap prcmu register memory\n");
-		return -ENOENT;
+		return -ENOMEM;
 	}
 	init_prcm_registers();
 	dbx500_fw_version_init(pdev, pdata->version_offset);
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu-tcdm");
 	if (!res) {
 		dev_err(&pdev->dev, "no prcmu tcdm region provided\n");
-		return -ENOENT;
+		return -EINVAL;
 	}
 	tcdm_base = devm_ioremap(&pdev->dev, res->start,
 			resource_size(res));
+	if (!tcdm_base) {
+		dev_err(&pdev->dev,
+			"failed to ioremap prcmu-tcdm register memory\n");
+		return -ENOMEM;
+	}
 
 	/* Clean up the mailbox interrupts after pre-kernel code. */
 	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);
@@ -3166,18 +3170,17 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev, "no prcmu irq provided\n");
-		return -ENOENT;
+		return irq;
 	}
 
 	err = request_threaded_irq(irq, prcmu_irq_handler,
 	        prcmu_irq_thread_fn, IRQF_NO_SUSPEND, "prcmu", NULL);
 	if (err < 0) {
 		pr_err("prcmu: Failed to allocate IRQ_DB8500_PRCMU1.\n");
-		err = -EBUSY;
-		goto no_irq_return;
+		return err;
 	}
 
-	db8500_irq_init(np, pdata->irq_base);
+	db8500_irq_init(np);
 
 	prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
@@ -3198,21 +3201,18 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 		if (err) {
 			mfd_remove_devices(&pdev->dev);
 			pr_err("prcmu: Failed to add subdevices\n");
-			goto no_irq_return;
+			return err;
 		}
 	}
 
-	err = db8500_prcmu_register_ab8500(&pdev->dev, pdata->ab_platdata,
-					   pdata->ab_irq);
+	err = db8500_prcmu_register_ab8500(&pdev->dev, pdata->ab_platdata);
 	if (err) {
 		mfd_remove_devices(&pdev->dev);
 		pr_err("prcmu: Failed to add ab8500 subdevice\n");
-		goto no_irq_return;
+		return err;
 	}
 
 	pr_info("DB8500 PRCMU initialized\n");
-
-no_irq_return:
 	return err;
 }
 static const struct of_device_id db8500_prcmu_match[] = {
@@ -3223,7 +3223,6 @@ static const struct of_device_id db8500_prcmu_match[] = {
 static struct platform_driver db8500_prcmu_driver = {
 	.driver = {
 		.name = "db8500-prcmu",
-		.owner = THIS_MODULE,
 		.of_match_table = db8500_prcmu_match,
 	},
 	.probe = db8500_prcmu_probe,

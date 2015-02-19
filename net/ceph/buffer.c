@@ -6,6 +6,7 @@
 
 #include <linux/ceph/buffer.h>
 #include <linux/ceph/decode.h>
+#include <linux/ceph/libceph.h> /* for ceph_kvmalloc */
 
 struct ceph_buffer *ceph_buffer_new(size_t len, gfp_t gfp)
 {
@@ -15,16 +16,10 @@ struct ceph_buffer *ceph_buffer_new(size_t len, gfp_t gfp)
 	if (!b)
 		return NULL;
 
-	b->vec.iov_base = kmalloc(len, gfp | __GFP_NOWARN);
-	if (b->vec.iov_base) {
-		b->is_vmalloc = false;
-	} else {
-		b->vec.iov_base = __vmalloc(len, gfp | __GFP_HIGHMEM, PAGE_KERNEL);
-		if (!b->vec.iov_base) {
-			kfree(b);
-			return NULL;
-		}
-		b->is_vmalloc = true;
+	b->vec.iov_base = ceph_kvmalloc(len, gfp);
+	if (!b->vec.iov_base) {
+		kfree(b);
+		return NULL;
 	}
 
 	kref_init(&b->kref);
@@ -40,12 +35,7 @@ void ceph_buffer_release(struct kref *kref)
 	struct ceph_buffer *b = container_of(kref, struct ceph_buffer, kref);
 
 	dout("buffer_release %p\n", b);
-	if (b->vec.iov_base) {
-		if (b->is_vmalloc)
-			vfree(b->vec.iov_base);
-		else
-			kfree(b->vec.iov_base);
-	}
+	kvfree(b->vec.iov_base);
 	kfree(b);
 }
 EXPORT_SYMBOL(ceph_buffer_release);

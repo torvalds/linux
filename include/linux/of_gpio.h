@@ -52,6 +52,7 @@ extern int of_get_named_gpio_flags(struct device_node *np,
 
 extern int of_mm_gpiochip_add(struct device_node *np,
 			      struct of_mm_gpio_chip *mm_gc);
+extern void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc);
 
 extern void of_gpiochip_add(struct gpio_chip *gc);
 extern void of_gpiochip_remove(struct gpio_chip *gc);
@@ -116,16 +117,6 @@ static inline int of_gpio_count(struct device_node *np)
 	return of_gpio_named_count(np, "gpios");
 }
 
-/**
- * of_get_gpio_flags() - Get a GPIO number and flags to use with GPIO API
- * @np:		device node to get GPIO from
- * @index:	index of the GPIO
- * @flags:	a flags pointer to fill in
- *
- * Returns GPIO number to use with Linux generic GPIO API, or one of the errno
- * value on the error condition. If @flags is not NULL the function also fills
- * in flags for the GPIO.
- */
 static inline int of_get_gpio_flags(struct device_node *np, int index,
 		      enum of_gpio_flags *flags)
 {

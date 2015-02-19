@@ -22,9 +22,7 @@
  *     GNU General Public License for more details.
  * 
  *     You should have received a copy of the GNU General Public License 
- *     along with this program; if not, write to the Free Software 
- *     Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
- *     MA 02111-1307 USA
+ *     along with this program; if not, see <http://www.gnu.org/licenses/>.
  *     
  ********************************************************************/
 
@@ -92,8 +90,6 @@ static int old_belkin_open(struct sir_dev *dev)
 {
 	struct qos_info *qos = &dev->qos;
 
-	IRDA_DEBUG(2, "%s()\n", __func__);
-
 	/* Power on dongle */
 	sirdev_set_dtr_rts(dev, TRUE, TRUE);
 
@@ -110,8 +106,6 @@ static int old_belkin_open(struct sir_dev *dev)
 
 static int old_belkin_close(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __func__);
-
 	/* Power off dongle */
 	sirdev_set_dtr_rts(dev, FALSE, FALSE);
 
@@ -125,8 +119,6 @@ static int old_belkin_close(struct sir_dev *dev)
  */
 static int old_belkin_change_speed(struct sir_dev *dev, unsigned speed)
 {
-	IRDA_DEBUG(2, "%s()\n", __func__);
-
 	dev->speed = 9600;
 	return (speed==dev->speed) ? 0 : -EINVAL;
 }
@@ -139,8 +131,6 @@ static int old_belkin_change_speed(struct sir_dev *dev, unsigned speed)
  */
 static int old_belkin_reset(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __func__);
-
 	/* This dongles speed "defaults" to 9600 bps ;-) */
 	dev->speed = 9600;
 

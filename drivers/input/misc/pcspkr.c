@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i8253.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
 #include <linux/timex.h>
@@ -126,7 +125,6 @@ static const struct dev_pm_ops pcspkr_pm_ops = {
 static struct platform_driver pcspkr_platform_driver = {
 	.driver		= {
 		.name	= "pcspkr",
-		.owner	= THIS_MODULE,
 		.pm	= &pcspkr_pm_ops,
 	},
 	.probe		= pcspkr_probe,

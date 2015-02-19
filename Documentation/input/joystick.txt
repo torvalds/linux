@@ -116,7 +116,7 @@ your needs:
   For testing the joystick driver functionality, there is the jstest
 program in the utilities package. You run it by typing:
 
-	jstest /dev/js0
+	jstest /dev/input/js0
 
   And it should show a line with the joystick values, which update as you
 move the stick, and press its buttons. The axes should all be zero when the
@@ -136,7 +136,7 @@ joystick should be autocalibrated by the driver automagically. However, with
 some analog joysticks, that either do not use linear resistors, or if you
 want better precision, you can use the jscal program
 
-	jscal -c /dev/js0
+	jscal -c /dev/input/js0
 
  included in the joystick package to set better correction coefficients than
 what the driver would choose itself.
@@ -145,7 +145,7 @@ what the driver would choose itself.
 calibration using the jstest command, and if you do, you then can save the
 correction coefficients into a file
 
-	jscal -p /dev/js0 > /etc/joystick.cal
+	jscal -p /dev/input/js0 > /etc/joystick.cal
 
   And add a line to your rc script executing that file
 
@@ -556,7 +556,7 @@ interface, and "old" for the "0.x" interface. You run it by typing:
 
 5. FAQ
 ~~~~~~
-Q: Running 'jstest /dev/js0' results in "File not found" error. What's the
+Q: Running 'jstest /dev/input/js0' results in "File not found" error. What's the
    cause?
 A: The device files don't exist. Create them (see section 2.2).
 

@@ -45,11 +45,22 @@ directory apei/einj. The following files are provided.
   injection. Before this, please specify all necessary error
   parameters.
 
+- flags
+  Present for kernel version 3.13 and above. Used to specify which
+  of param{1..4} are valid and should be used by BIOS during injection.
+  Value is a bitmask as specified in ACPI5.0 spec for the
+  SET_ERROR_TYPE_WITH_ADDRESS data structure:
+	Bit 0 - Processor APIC field valid (see param3 below)
+	Bit 1 - Memory address and mask valid (param1 and param2)
+	Bit 2 - PCIe (seg,bus,dev,fn) valid (param4 below)
+  If set to zero, legacy behaviour is used where the type of injection
+  specifies just one bit set, and param1 is multiplexed.
+
 - param1
   This file is used to set the first error parameter value. Effect of
   parameter depends on error_type specified. For example, if error
   type is memory related type, the param1 should be a valid physical
-  memory address.
+  memory address. [Unless "flag" is set - see above]
 
 - param2
   This file is used to set the second error parameter value. Effect of
@@ -57,6 +68,12 @@ directory apei/einj. The following files are provided.
   type is memory related type, the param2 should be a physical memory
   address mask. Linux requires page or narrower granularity, say,
   0xfffffffffffff000.
+
+- param3
+  Used when the 0x1 bit is set in "flag" to specify the APIC id
+
+- param4
+  Used when the 0x4 bit is set in "flag" to specify target PCIe device
 
 - notrigger
   The EINJ mechanism is a two step process. First inject the error, then

@@ -4,7 +4,6 @@
  * Copyright (C) 2002, 2003, 2006 David S. Miller (davem@davemloft.net)
  */
 
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
@@ -21,8 +20,6 @@
 /* Slightly simplified from the non-hugepage variant because by
  * definition we don't have to worry about any page coloring stuff
  */
-#define VA_EXCLUDE_START (0x0000080000000000UL - (1UL << 32UL))
-#define VA_EXCLUDE_END   (0xfffff80000000000UL + (1UL << 32UL))
 
 static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *filp,
 							unsigned long addr,
@@ -218,12 +215,6 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	return entry;
 }
 
-struct page *follow_huge_addr(struct mm_struct *mm,
-			      unsigned long address, int write)
-{
-	return ERR_PTR(-EINVAL);
-}
-
 int pmd_huge(pmd_t pmd)
 {
 	return 0;
@@ -232,10 +223,4 @@ int pmd_huge(pmd_t pmd)
 int pud_huge(pud_t pud)
 {
 	return 0;
-}
-
-struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-			     pmd_t *pmd, int write)
-{
-	return NULL;
 }

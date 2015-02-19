@@ -10,9 +10,9 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/kernel_stat.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -57,12 +57,6 @@ static struct irq_chip user_irq_chip = {
 void __init init_IRQ(void)
 {
 	int i;
-
-	/* assembly irq entry code relies on this... */
-	if (HARDIRQ_MASK != 0x00ff0000) {
-		extern void hardirq_mask_is_broken(void);
-		hardirq_mask_is_broken();
-	}
 
 	for (i = IRQ_AUTO_1; i <= IRQ_AUTO_7; i++)
 		irq_set_chip_and_handler(i, &auto_irq_chip, handle_simple_irq);

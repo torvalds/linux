@@ -12,8 +12,8 @@
  *		    http://www.ite.com.tw/
  *
  *	Support of the watchdog timers, which are available on
- *	IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726
- *	and IT8728.
+ *	IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726,
+ *	IT8728 and IT8783.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -54,6 +54,7 @@
 
 /* Defaults for Module Parameter */
 #define DEFAULT_NOGAMEPORT	0
+#define DEFAULT_NOCIR		0
 #define DEFAULT_EXCLUSIVE	1
 #define DEFAULT_TIMEOUT		60
 #define DEFAULT_TESTMODE	0
@@ -86,6 +87,7 @@
 #define IT8721_ID	0x8721
 #define IT8726_ID	0x8726	/* the data sheet suggest wrongly 0x8716 */
 #define IT8728_ID	0x8728
+#define IT8783_ID	0x8783
 
 /* GPIO Configuration Registers LDN=0x07 */
 #define WDTCTRL		0x71
@@ -136,11 +138,13 @@
 #define WDTS_LOCKED	3
 #define WDTS_USE_GP	4
 #define WDTS_EXPECTED	5
+#define WDTS_USE_CIR	6
 
 static	unsigned int base, gpact, ciract, max_units, chip_type;
 static	unsigned long wdt_status;
 
 static	int nogameport = DEFAULT_NOGAMEPORT;
+static int nocir      = DEFAULT_NOCIR;
 static	int exclusive  = DEFAULT_EXCLUSIVE;
 static	int timeout    = DEFAULT_TIMEOUT;
 static	int testmode   = DEFAULT_TESTMODE;
@@ -149,6 +153,9 @@ static	bool nowayout   = DEFAULT_NOWAYOUT;
 module_param(nogameport, int, 0);
 MODULE_PARM_DESC(nogameport, "Forbid the activation of game port, default="
 		__MODULE_STRING(DEFAULT_NOGAMEPORT));
+module_param(nocir, int, 0);
+MODULE_PARM_DESC(nocir, "Forbid the use of Consumer IR interrupts to reset timer, default="
+		__MODULE_STRING(DEFAULT_NOCIR));
 module_param(exclusive, int, 0);
 MODULE_PARM_DESC(exclusive, "Watchdog exclusive device open, default="
 		__MODULE_STRING(DEFAULT_EXCLUSIVE));
@@ -258,9 +265,17 @@ static void wdt_keepalive(void)
 {
 	if (test_bit(WDTS_USE_GP, &wdt_status))
 		inb(base);
-	else
+	else if (test_bit(WDTS_USE_CIR, &wdt_status))
 		/* The timer reloads with around 5 msec delay */
 		outb(0x55, CIR_DR(base));
+	else {
+		if (superio_enter())
+			return;
+
+		superio_select(GPIO);
+		wdt_update_timeout();
+		superio_exit();
+	}
 	set_bit(WDTS_KEEPALIVE, &wdt_status);
 }
 
@@ -273,7 +288,7 @@ static int wdt_start(void)
 	superio_select(GPIO);
 	if (test_bit(WDTS_USE_GP, &wdt_status))
 		superio_outb(WDT_GAMEPORT, WDTCTRL);
-	else
+	else if (test_bit(WDTS_USE_CIR, &wdt_status))
 		superio_outb(WDT_CIRINT, WDTCTRL);
 	wdt_update_timeout();
 
@@ -619,6 +634,7 @@ static int __init it87_wdt_init(void)
 	case IT8720_ID:
 	case IT8721_ID:
 	case IT8728_ID:
+	case IT8783_ID:
 		max_units = 65535;
 		try_gameport = 0;
 		break;
@@ -660,7 +676,7 @@ static int __init it87_wdt_init(void)
 	}
 
 	/* If we haven't Gameport support, try to get CIR support */
-	if (!test_bit(WDTS_USE_GP, &wdt_status)) {
+	if (!nocir && !test_bit(WDTS_USE_GP, &wdt_status)) {
 		if (!request_region(CIR_BASE, 8, WATCHDOG_NAME)) {
 			if (gp_rreq_fail)
 				pr_err("I/O Address 0x%04x and 0x%04x already in use\n",
@@ -682,6 +698,7 @@ static int __init it87_wdt_init(void)
 			superio_select(GAMEPORT);
 			superio_outb(gpact, ACTREG);
 		}
+		set_bit(WDTS_USE_CIR, &wdt_status);
 	}
 
 	if (timeout < 1 || timeout > max_units * 60) {
@@ -707,7 +724,7 @@ static int __init it87_wdt_init(void)
 	}
 
 	/* Initialize CIR to use it as keepalive source */
-	if (!test_bit(WDTS_USE_GP, &wdt_status)) {
+	if (test_bit(WDTS_USE_CIR, &wdt_status)) {
 		outb(0x00, CIR_RCR(base));
 		outb(0xc0, CIR_TCR1(base));
 		outb(0x5c, CIR_TCR2(base));
@@ -717,9 +734,9 @@ static int __init it87_wdt_init(void)
 		outb(0x09, CIR_IER(base));
 	}
 
-	pr_info("Chip IT%04x revision %d initialized. timeout=%d sec (nowayout=%d testmode=%d exclusive=%d nogameport=%d)\n",
+	pr_info("Chip IT%04x revision %d initialized. timeout=%d sec (nowayout=%d testmode=%d exclusive=%d nogameport=%d nocir=%d)\n",
 		chip_type, chip_rev, timeout,
-		nowayout, testmode, exclusive, nogameport);
+		nowayout, testmode, exclusive, nogameport, nocir);
 
 	superio_exit();
 	return 0;
@@ -727,8 +744,10 @@ static int __init it87_wdt_init(void)
 err_out_reboot:
 	unregister_reboot_notifier(&wdt_notifier);
 err_out_region:
-	release_region(base, test_bit(WDTS_USE_GP, &wdt_status) ? 1 : 8);
-	if (!test_bit(WDTS_USE_GP, &wdt_status)) {
+	if (test_bit(WDTS_USE_GP, &wdt_status))
+		release_region(base, 1);
+	else if (test_bit(WDTS_USE_CIR, &wdt_status)) {
+		release_region(base, 8);
 		superio_select(CIR);
 		superio_outb(ciract, ACTREG);
 	}
@@ -754,7 +773,7 @@ static void __exit it87_wdt_exit(void)
 		if (test_bit(WDTS_USE_GP, &wdt_status)) {
 			superio_select(GAMEPORT);
 			superio_outb(gpact, ACTREG);
-		} else {
+		} else if (test_bit(WDTS_USE_CIR, &wdt_status)) {
 			superio_select(CIR);
 			superio_outb(ciract, ACTREG);
 		}
@@ -763,7 +782,11 @@ static void __exit it87_wdt_exit(void)
 
 	misc_deregister(&wdt_miscdev);
 	unregister_reboot_notifier(&wdt_notifier);
-	release_region(base, test_bit(WDTS_USE_GP, &wdt_status) ? 1 : 8);
+
+	if (test_bit(WDTS_USE_GP, &wdt_status))
+		release_region(base, 1);
+	else if (test_bit(WDTS_USE_CIR, &wdt_status))
+		release_region(base, 8);
 }
 
 module_init(it87_wdt_init);
@@ -772,4 +795,3 @@ module_exit(it87_wdt_exit);
 MODULE_AUTHOR("Oliver Schuster");
 MODULE_DESCRIPTION("Hardware Watchdog Device Driver for IT87xx EC-LPC I/O");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

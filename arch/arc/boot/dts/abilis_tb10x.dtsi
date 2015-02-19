@@ -62,9 +62,8 @@
 		};
 
 		iomux: iomux@FF10601c {
-			#address-cells = <1>;
-			#size-cells = <1>;
 			compatible = "abilis,tb10x-iomux";
+			#gpio-range-cells = <3>;
 			reg = <0xFF10601c 0x4>;
 		};
 
@@ -113,7 +112,7 @@
 			chan_allocation_order = <0>;
 			chan_priority = <1>;
 			block_size = <0x7ff>;
-			data_width = <2 0 0 0>;
+			data_width = <2>;
 			clocks = <&ahb_clk>;
 			clock-names = "hclk";
 		};

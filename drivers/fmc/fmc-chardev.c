@@ -143,18 +143,17 @@ static int fc_probe(struct fmc_device *fmc)
 	fc->misc.fops = &fc_fops;
 	fc->misc.name = kstrdup(dev_name(&fmc->dev), GFP_KERNEL);
 
-	spin_lock(&fc_lock);
 	ret = misc_register(&fc->misc);
 	if (ret < 0)
-		goto err_unlock;
+		goto out;
+	spin_lock(&fc_lock);
 	list_add(&fc->list, &fc_devices);
 	spin_unlock(&fc_lock);
 	dev_info(&fc->fmc->dev, "Created misc device \"%s\"\n",
 		 fc->misc.name);
 	return 0;
 
-err_unlock:
-	spin_unlock(&fc_lock);
+out:
 	kfree(fc->misc.name);
 	kfree(fc);
 	return ret;
@@ -174,10 +173,10 @@ static int fc_remove(struct fmc_device *fmc)
 
 	spin_lock(&fc_lock);
 	list_del(&fc->list);
+	spin_unlock(&fc_lock);
 	misc_deregister(&fc->misc);
 	kfree(fc->misc.name);
 	kfree(fc);
-	spin_unlock(&fc_lock);
 
 	return 0;
 }

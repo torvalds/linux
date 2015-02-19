@@ -287,7 +287,7 @@ void __is_set_sensor(struct fimc_is *is, int fps)
 	fimc_is_set_param_bit(is, PARAM_ISP_OTF_INPUT);
 }
 
-void __is_set_init_isp_aa(struct fimc_is *is)
+static void __maybe_unused __is_set_init_isp_aa(struct fimc_is *is)
 {
 	struct isp_param *isp;
 
@@ -667,7 +667,6 @@ void __is_set_fd_config_orientation_val(struct fimc_is *is, u32 val)
 void fimc_is_set_initial_params(struct fimc_is *is)
 {
 	struct global_param *global;
-	struct sensor_param *sensor;
 	struct isp_param *isp;
 	struct drc_param *drc;
 	struct fd_param *fd;
@@ -676,7 +675,6 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 
 	index = is->config_index;
 	global = &is->config[index].global;
-	sensor = &is->config[index].sensor;
 	isp = &is->config[index].isp;
 	drc = &is->config[index].drc;
 	fd = &is->config[index].fd;

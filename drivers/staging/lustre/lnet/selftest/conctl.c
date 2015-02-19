@@ -40,12 +40,12 @@
  * Author: Liang Zhen <liangzhen@clusterfs.com>
  */
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lib-lnet.h>
-#include <linux/lnet/lnetst.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lnetst.h"
 #include "console.h"
 
-int
+static int
 lst_session_new_ioctl(lstio_session_new_args_t *args)
 {
 	char      *name;
@@ -82,7 +82,7 @@ lst_session_new_ioctl(lstio_session_new_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_session_end_ioctl(lstio_session_end_args_t *args)
 {
 	if (args->lstio_ses_key != console_session.ses_key)
@@ -91,16 +91,16 @@ lst_session_end_ioctl(lstio_session_end_args_t *args)
 	return lstcon_session_end();
 }
 
-int
+static int
 lst_session_info_ioctl(lstio_session_info_args_t *args)
 {
 	/* no checking of key */
 
-	if (args->lstio_ses_idp   == NULL || /* address for ouput sid */
-	    args->lstio_ses_keyp  == NULL || /* address for ouput key */
-	    args->lstio_ses_featp  == NULL || /* address for ouput features */
+	if (args->lstio_ses_idp   == NULL || /* address for output sid */
+	    args->lstio_ses_keyp  == NULL || /* address for output key */
+	    args->lstio_ses_featp  == NULL || /* address for output features */
 	    args->lstio_ses_ndinfo == NULL || /* address for output ndinfo */
-	    args->lstio_ses_namep == NULL || /* address for ouput name */
+	    args->lstio_ses_namep == NULL || /* address for output name */
 	    args->lstio_ses_nmlen <= 0 ||
 	    args->lstio_ses_nmlen > LST_NAME_SIZE)
 		return -EINVAL;
@@ -113,7 +113,7 @@ lst_session_info_ioctl(lstio_session_info_args_t *args)
 				   args->lstio_ses_nmlen);
 }
 
-int
+static int
 lst_debug_ioctl(lstio_debug_args_t *args)
 {
 	char   *name   = NULL;
@@ -194,7 +194,7 @@ out:
 	return rc;
 }
 
-int
+static int
 lst_group_add_ioctl(lstio_group_add_args_t *args)
 {
 	char	   *name;
@@ -228,7 +228,7 @@ lst_group_add_ioctl(lstio_group_add_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_group_del_ioctl(lstio_group_del_args_t *args)
 {
 	int     rc;
@@ -262,7 +262,7 @@ lst_group_del_ioctl(lstio_group_del_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_group_update_ioctl(lstio_group_update_args_t *args)
 {
 	int     rc;
@@ -320,7 +320,7 @@ lst_group_update_ioctl(lstio_group_update_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
 {
 	unsigned feats;
@@ -365,7 +365,7 @@ lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_group_list_ioctl(lstio_group_list_args_t *args)
 {
 	if (args->lstio_grp_key != console_session.ses_key)
@@ -382,7 +382,7 @@ lst_group_list_ioctl(lstio_group_list_args_t *args)
 			      args->lstio_grp_namep);
 }
 
-int
+static int
 lst_group_info_ioctl(lstio_group_info_args_t *args)
 {
 	char	   *name;
@@ -446,7 +446,7 @@ lst_group_info_ioctl(lstio_group_info_args_t *args)
 	return 0;
 }
 
-int
+static int
 lst_batch_add_ioctl(lstio_batch_add_args_t *args)
 {
 	int	     rc;
@@ -480,7 +480,7 @@ lst_batch_add_ioctl(lstio_batch_add_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_batch_run_ioctl(lstio_batch_run_args_t *args)
 {
 	int	     rc;
@@ -515,7 +515,7 @@ lst_batch_run_ioctl(lstio_batch_run_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_batch_stop_ioctl(lstio_batch_stop_args_t *args)
 {
 	int	     rc;
@@ -551,7 +551,7 @@ lst_batch_stop_ioctl(lstio_batch_stop_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_batch_query_ioctl(lstio_batch_query_args_t *args)
 {
 	char   *name;
@@ -593,7 +593,7 @@ lst_batch_query_ioctl(lstio_batch_query_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_batch_list_ioctl(lstio_batch_list_args_t *args)
 {
 	if (args->lstio_bat_key != console_session.ses_key)
@@ -610,7 +610,7 @@ lst_batch_list_ioctl(lstio_batch_list_args_t *args)
 			      args->lstio_bat_namep);
 }
 
-int
+static int
 lst_batch_info_ioctl(lstio_batch_info_args_t *args)
 {
 	char	   *name;
@@ -675,7 +675,7 @@ lst_batch_info_ioctl(lstio_batch_info_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_stat_query_ioctl(lstio_stat_args_t *args)
 {
 	int	     rc;
@@ -721,14 +721,14 @@ lst_stat_query_ioctl(lstio_stat_args_t *args)
 	return rc;
 }
 
-int lst_test_add_ioctl(lstio_test_args_t *args)
+static int lst_test_add_ioctl(lstio_test_args_t *args)
 {
-	char	   *name;
-	char	   *srcgrp = NULL;
-	char	   *dstgrp = NULL;
-	void	   *param = NULL;
-	int	     ret = 0;
-	int	     rc = -ENOMEM;
+	char		*batch_name;
+	char		*src_name = NULL;
+	char		*dst_name = NULL;
+	void		*param = NULL;
+	int		ret = 0;
+	int		rc = -ENOMEM;
 
 	if (args->lstio_tes_resultp == NULL ||
 	    args->lstio_tes_retp == NULL ||
@@ -755,16 +755,16 @@ int lst_test_add_ioctl(lstio_test_args_t *args)
 	     args->lstio_tes_param_len > PAGE_CACHE_SIZE - sizeof(lstcon_test_t)))
 		return -EINVAL;
 
-	LIBCFS_ALLOC(name, args->lstio_tes_bat_nmlen + 1);
-	if (name == NULL)
+	LIBCFS_ALLOC(batch_name, args->lstio_tes_bat_nmlen + 1);
+	if (batch_name == NULL)
 		return rc;
 
-	LIBCFS_ALLOC(srcgrp, args->lstio_tes_sgrp_nmlen + 1);
-	if (srcgrp == NULL)
+	LIBCFS_ALLOC(src_name, args->lstio_tes_sgrp_nmlen + 1);
+	if (src_name == NULL)
 		goto out;
 
-	LIBCFS_ALLOC(dstgrp, args->lstio_tes_dgrp_nmlen + 1);
-	 if (dstgrp == NULL)
+	LIBCFS_ALLOC(dst_name, args->lstio_tes_dgrp_nmlen + 1);
+	 if (dst_name == NULL)
 		goto out;
 
 	if (args->lstio_tes_param != NULL) {
@@ -774,39 +774,37 @@ int lst_test_add_ioctl(lstio_test_args_t *args)
 	}
 
 	rc = -EFAULT;
-	if (copy_from_user(name,
-			      args->lstio_tes_bat_name,
-			      args->lstio_tes_bat_nmlen) ||
-	    copy_from_user(srcgrp,
-			      args->lstio_tes_sgrp_name,
-			      args->lstio_tes_sgrp_nmlen) ||
-	    copy_from_user(dstgrp,
-			      args->lstio_tes_dgrp_name,
-			      args->lstio_tes_dgrp_nmlen) ||
+	if (copy_from_user(batch_name, args->lstio_tes_bat_name,
+			   args->lstio_tes_bat_nmlen) ||
+	    copy_from_user(src_name, args->lstio_tes_sgrp_name,
+			   args->lstio_tes_sgrp_nmlen) ||
+	    copy_from_user(dst_name, args->lstio_tes_dgrp_name,
+			   args->lstio_tes_dgrp_nmlen) ||
 	    copy_from_user(param, args->lstio_tes_param,
 			      args->lstio_tes_param_len))
 		goto out;
 
-	rc = lstcon_test_add(name,
+	rc = lstcon_test_add(batch_name,
 			    args->lstio_tes_type,
 			    args->lstio_tes_loop,
 			    args->lstio_tes_concur,
 			    args->lstio_tes_dist, args->lstio_tes_span,
-			    srcgrp, dstgrp, param, args->lstio_tes_param_len,
+			    src_name, dst_name, param,
+			    args->lstio_tes_param_len,
 			    &ret, args->lstio_tes_resultp);
 
 	if (ret != 0)
 		rc = (copy_to_user(args->lstio_tes_retp, &ret,
 				       sizeof(ret))) ? -EFAULT : 0;
 out:
-	if (name != NULL)
-		LIBCFS_FREE(name, args->lstio_tes_bat_nmlen + 1);
+	if (batch_name != NULL)
+		LIBCFS_FREE(batch_name, args->lstio_tes_bat_nmlen + 1);
 
-	if (srcgrp != NULL)
-		LIBCFS_FREE(srcgrp, args->lstio_tes_sgrp_nmlen + 1);
+	if (src_name != NULL)
+		LIBCFS_FREE(src_name, args->lstio_tes_sgrp_nmlen + 1);
 
-	if (dstgrp != NULL)
-		LIBCFS_FREE(dstgrp, args->lstio_tes_dgrp_nmlen + 1);
+	if (dst_name != NULL)
+		LIBCFS_FREE(dst_name, args->lstio_tes_dgrp_nmlen + 1);
 
 	if (param != NULL)
 		LIBCFS_FREE(param, args->lstio_tes_param_len);
@@ -839,7 +837,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_data *data)
 
 	mutex_lock(&console_session.ses_mutex);
 
-	console_session.ses_laststamp = cfs_time_current_sec();
+	console_session.ses_laststamp = get_seconds();
 
 	if (console_session.ses_shutdown) {
 		rc = -ESHUTDOWN;

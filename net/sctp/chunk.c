@@ -18,23 +18,16 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Jon Grimm             <jgrimm@us.ibm.com>
  *    Sridhar Samudrala     <sri@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -171,7 +164,7 @@ static void sctp_datamsg_assign(struct sctp_datamsg *msg, struct sctp_chunk *chu
  */
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 					    struct sctp_sndrcvinfo *sinfo,
-					    struct msghdr *msgh, int msg_len)
+					    struct iov_iter *from)
 {
 	int max, whole, i, offset, over, err;
 	int len, first_len;
@@ -179,6 +172,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	struct sctp_chunk *chunk;
 	struct sctp_datamsg *msg;
 	struct list_head *pos, *temp;
+	size_t msg_len = iov_iter_count(from);
 	__u8 frag;
 
 	msg = sctp_datamsg_new(GFP_KERNEL);
@@ -201,13 +195,13 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* This is the biggest possible DATA chunk that can fit into
 	 * the packet
 	 */
-	max_data = asoc->pathmtu -
+	max_data = (asoc->pathmtu -
 		sctp_sk(asoc->base.sk)->pf->af->net_header_len -
-		sizeof(struct sctphdr) - sizeof(struct sctp_data_chunk);
+		sizeof(struct sctphdr) - sizeof(struct sctp_data_chunk)) & ~3;
 
 	max = asoc->frag_point;
 	/* If the the peer requested that we authenticate DATA chunks
-	 * we need to accound for bundling of the AUTH chunks along with
+	 * we need to account for bundling of the AUTH chunks along with
 	 * DATA.
 	 */
 	if (sctp_auth_send_cid(SCTP_CID_DATA, asoc)) {
@@ -261,7 +255,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		SCTP_INC_STATS_USER(sock_net(asoc->base.sk), SCTP_MIB_FRAGUSRMSGS);
 
 	/* Create chunks for all the full sized DATA chunks. */
-	for (i=0, len=first_len; i < whole; i++) {
+	for (i = 0, len = first_len; i < whole; i++) {
 		frag = SCTP_DATA_MIDDLE_FRAG;
 
 		if (0 == i)
@@ -286,11 +280,9 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 			goto errout;
 		}
 
-		err = sctp_user_addto_chunk(chunk, offset, len, msgh->msg_iov);
+		err = sctp_user_addto_chunk(chunk, len, from);
 		if (err < 0)
 			goto errout_chunk_free;
-
-		offset += len;
 
 		/* Put the chunk->skb back into the form expected by send.  */
 		__skb_pull(chunk->skb, (__u8 *)chunk->chunk_hdr
@@ -324,7 +316,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 			goto errout;
 		}
 
-		err = sctp_user_addto_chunk(chunk, offset, over,msgh->msg_iov);
+		err = sctp_user_addto_chunk(chunk, over, from);
 
 		/* Put the chunk->skb back into the form expected by send.  */
 		__skb_pull(chunk->skb, (__u8 *)chunk->chunk_hdr

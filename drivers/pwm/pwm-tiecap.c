@@ -26,7 +26,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "pwm-tipwmss.h"
 
@@ -208,17 +207,10 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct ecap_pwm_chip *pc;
 	u16 status;
-	struct pinctrl *pinctrl;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev, "unable to select pin group\n");
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!pc)
 		return -ENOMEM;
-	}
 
 	clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(clk)) {
@@ -285,11 +277,11 @@ static int ecap_pwm_remove(struct platform_device *pdev)
 	pwmss_submodule_state_change(pdev->dev.parent, PWMSS_ECAPCLK_STOP_REQ);
 	pm_runtime_put_sync(&pdev->dev);
 
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return pwmchip_remove(&pc->chip);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static void ecap_pwm_save_context(struct ecap_pwm_chip *pc)
 {
 	pm_runtime_get_sync(pc->chip.dev);
@@ -306,7 +298,6 @@ static void ecap_pwm_restore_context(struct ecap_pwm_chip *pc)
 	writew(pc->ctx.ecctl2, pc->mmio_base + ECCTL2);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int ecap_pwm_suspend(struct device *dev)
 {
 	struct ecap_pwm_chip *pc = dev_get_drvdata(dev);
@@ -340,7 +331,6 @@ static SIMPLE_DEV_PM_OPS(ecap_pwm_pm_ops, ecap_pwm_suspend, ecap_pwm_resume);
 static struct platform_driver ecap_pwm_driver = {
 	.driver = {
 		.name	= "ecap",
-		.owner	= THIS_MODULE,
 		.of_match_table = ecap_of_match,
 		.pm	= &ecap_pwm_pm_ops,
 	},

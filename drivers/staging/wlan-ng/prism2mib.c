@@ -85,7 +85,7 @@ struct mibrec {
 	u16 parm1;
 	u16 parm2;
 	u16 parm3;
-	int (*func) (struct mibrec *mib,
+	int (*func)(struct mibrec *mib,
 		     int isget,
 		     wlandevice_t *wlandev,
 		     hfa384x_t *hw,
@@ -672,8 +672,8 @@ static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 
 	if (!isget)
 		if ((*uint32) % 2) {
-			printk(KERN_WARNING "Attempt to set odd number "
-			       "FragmentationThreshold\n");
+			netdev_warn(wlandev->netdev,
+				    "Attempt to set odd number FragmentationThreshold\n");
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_not_supported;
 			return 0;
@@ -717,11 +717,10 @@ static int prism2mib_priv(struct mibrec *mib,
 {
 	p80211pstrd_t *pstr = (p80211pstrd_t *) data;
 
-	int result;
-
 	switch (mib->did) {
 	case DIDmib_lnx_lnxConfigTable_lnxRSNAIE:{
 			hfa384x_WPAData_t wpa;
+
 			if (isget) {
 				hfa384x_drvr_getconfig(hw,
 						       HFA384x_RID_CNFWPADATA,
@@ -733,16 +732,15 @@ static int prism2mib_priv(struct mibrec *mib,
 				wpa.datalen = cpu_to_le16(pstr->len);
 				memcpy(wpa.data, pstr->data, pstr->len);
 
-				result =
-				    hfa384x_drvr_setconfig(hw,
-						   HFA384x_RID_CNFWPADATA,
-						   (u8 *) &wpa,
-						   sizeof(wpa));
+				hfa384x_drvr_setconfig(hw,
+						       HFA384x_RID_CNFWPADATA,
+						       (u8 *) &wpa,
+						       sizeof(wpa));
 			}
 			break;
 		}
 	default:
-		printk(KERN_ERR "Unhandled DID 0x%08x\n", mib->did);
+		netdev_err(wlandev->netdev, "Unhandled DID 0x%08x\n", mib->did);
 	}
 
 	return 0;
@@ -763,7 +761,8 @@ static int prism2mib_priv(struct mibrec *mib,
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
+void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
+			     p80211pstrd_t *pstr)
 {
 	bytestr->len = cpu_to_le16((u16) (pstr->len));
 	memcpy(bytestr->data, pstr->data, pstr->len);
@@ -804,7 +803,8 @@ void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr)
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
+void prism2mgmt_bytestr2pstr(struct hfa384x_bytestr *bytestr,
+			     p80211pstrd_t *pstr)
 {
 	pstr->len = (u8) (le16_to_cpu((u16) (bytestr->len)));
 	memcpy(pstr->data, bytestr->data, pstr->len);

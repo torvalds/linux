@@ -314,7 +314,7 @@ Amd7930_empty_Dfifo(struct IsdnCardState *cs, int flag)
 
 							t += sprintf(t, "Amd7930: empty_Dfifo cnt: %d |", cs->rcvidx);
 							QuickHex(t, cs->rcvbuf, cs->rcvidx);
-							debugl1(cs, cs->dlog);
+							debugl1(cs, "%s", cs->dlog);
 						}
 						/* moves received data in sk-buffer */
 						memcpy(skb_put(skb, cs->rcvidx), cs->rcvbuf, cs->rcvidx);
@@ -406,7 +406,7 @@ Amd7930_fill_Dfifo(struct IsdnCardState *cs)
 
 		t += sprintf(t, "Amd7930: fill_Dfifo cnt: %d |", count);
 		QuickHex(t, deb_ptr, count);
-		debugl1(cs, cs->dlog);
+		debugl1(cs, "%s", cs->dlog);
 	}
 	/* AMD interrupts on */
 	AmdIrqOn(cs);

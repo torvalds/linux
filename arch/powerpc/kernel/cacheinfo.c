@@ -12,7 +12,6 @@
 
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
@@ -196,7 +195,7 @@ static void cache_cpu_set(struct cache *cache, int cpu)
 static int cache_size(const struct cache *cache, unsigned int *ret)
 {
 	const char *propname;
-	const u32 *cache_size;
+	const __be32 *cache_size;
 
 	propname = cache_type_info[cache->type].size_prop;
 
@@ -204,7 +203,7 @@ static int cache_size(const struct cache *cache, unsigned int *ret)
 	if (!cache_size)
 		return -ENODEV;
 
-	*ret = *cache_size;
+	*ret = of_read_number(cache_size, 1);
 	return 0;
 }
 
@@ -222,7 +221,7 @@ static int cache_size_kb(const struct cache *cache, unsigned int *ret)
 /* not cache_line_size() because that's a macro in include/linux/cache.h */
 static int cache_get_line_size(const struct cache *cache, unsigned int *ret)
 {
-	const u32 *line_size;
+	const __be32 *line_size;
 	int i, lim;
 
 	lim = ARRAY_SIZE(cache_type_info[cache->type].line_size_props);
@@ -239,14 +238,14 @@ static int cache_get_line_size(const struct cache *cache, unsigned int *ret)
 	if (!line_size)
 		return -ENODEV;
 
-	*ret = *line_size;
+	*ret = of_read_number(line_size, 1);
 	return 0;
 }
 
 static int cache_nr_sets(const struct cache *cache, unsigned int *ret)
 {
 	const char *propname;
-	const u32 *nr_sets;
+	const __be32 *nr_sets;
 
 	propname = cache_type_info[cache->type].nr_sets_prop;
 
@@ -254,7 +253,7 @@ static int cache_nr_sets(const struct cache *cache, unsigned int *ret)
 	if (!nr_sets)
 		return -ENODEV;
 
-	*ret = *nr_sets;
+	*ret = of_read_number(nr_sets, 1);
 	return 0;
 }
 
@@ -608,19 +607,16 @@ static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *att
 {
 	struct cache_index_dir *index;
 	struct cache *cache;
-	int len;
-	int n = 0;
+	int ret;
 
 	index = kobj_to_cache_index_dir(k);
 	cache = index->cache;
-	len = PAGE_SIZE - 2;
 
-	if (len > 1) {
-		n = cpumask_scnprintf(buf, len, &cache->shared_cpu_map);
-		buf[n++] = '\n';
-		buf[n] = '\0';
-	}
-	return n;
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%*pb\n",
+			cpumask_pr_args(&cache->shared_cpu_map));
+	buf[ret++] = '\n';
+	buf[ret] = '\0';
+	return ret;
 }
 
 static struct kobj_attribute cache_shared_cpu_map_attr =
@@ -757,7 +753,10 @@ void cacheinfo_cpu_online(unsigned int cpu_id)
 	cacheinfo_sysfs_populate(cpu_id, cache);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU /* functions needed for cpu offline */
+/* functions needed to remove cache entry for cpu offline or suspend/resume */
+
+#if (defined(CONFIG_PPC_PSERIES) && defined(CONFIG_SUSPEND)) || \
+    defined(CONFIG_HOTPLUG_CPU)
 
 static struct cache *cache_lookup_by_cpu(unsigned int cpu_id)
 {
@@ -793,6 +792,9 @@ static void remove_index_dirs(struct cache_dir *cache_dir)
 static void remove_cache_dir(struct cache_dir *cache_dir)
 {
 	remove_index_dirs(cache_dir);
+
+	/* Remove cache dir from sysfs */
+	kobject_del(cache_dir->kobj);
 
 	kobject_put(cache_dir->kobj);
 
@@ -841,4 +843,4 @@ void cacheinfo_cpu_offline(unsigned int cpu_id)
 	if (cache)
 		cache_cpu_clear(cache, cpu_id);
 }
-#endif /* CONFIG_HOTPLUG_CPU */
+#endif /* (CONFIG_PPC_PSERIES && CONFIG_SUSPEND) || CONFIG_HOTPLUG_CPU */

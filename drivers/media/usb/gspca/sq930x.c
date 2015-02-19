@@ -906,7 +906,8 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 	gspca_dev->cam.bulk_nurbs = 1;	/* there must be one URB only */
 	sd->do_ctrl = 0;
-	gspca_dev->cam.bulk_size = gspca_dev->width * gspca_dev->height + 8;
+	gspca_dev->cam.bulk_size = gspca_dev->pixfmt.width *
+			gspca_dev->pixfmt.height + 8;
 	return 0;
 }
 

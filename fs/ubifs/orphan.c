@@ -346,7 +346,6 @@ static int write_orph_nodes(struct ubifs_info *c, int atomic)
 		int lnum;
 
 		/* Unmap any unused LEBs after consolidation */
-		lnum = c->ohead_lnum + 1;
 		for (lnum = c->ohead_lnum + 1; lnum <= c->orph_last; lnum++) {
 			err = ubifs_leb_unmap(c, lnum);
 			if (err)
@@ -815,27 +814,10 @@ static int dbg_find_check_orphan(struct rb_root *root, ino_t inum)
 
 static void dbg_free_check_tree(struct rb_root *root)
 {
-	struct rb_node *this = root->rb_node;
-	struct check_orphan *o;
+	struct check_orphan *o, *n;
 
-	while (this) {
-		if (this->rb_left) {
-			this = this->rb_left;
-			continue;
-		} else if (this->rb_right) {
-			this = this->rb_right;
-			continue;
-		}
-		o = rb_entry(this, struct check_orphan, rb);
-		this = rb_parent(this);
-		if (this) {
-			if (this->rb_left == &o->rb)
-				this->rb_left = NULL;
-			else
-				this->rb_right = NULL;
-		}
+	rbtree_postorder_for_each_entry_safe(o, n, root, rb)
 		kfree(o);
-	}
 }
 
 static int dbg_orphan_check(struct ubifs_info *c, struct ubifs_zbranch *zbr,

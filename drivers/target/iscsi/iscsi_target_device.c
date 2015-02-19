@@ -2,9 +2,7 @@
  * This file contains the iSCSI Virtual Device and Disk Transport
  * agnostic related functions.
  *
- \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -60,11 +58,7 @@ void iscsit_increment_maxcmdsn(struct iscsi_cmd *cmd, struct iscsi_session *sess
 
 	cmd->maxcmdsn_inc = 1;
 
-	if (!mutex_trylock(&sess->cmdsn_mutex)) {
-		sess->max_cmd_sn += 1;
-		pr_debug("Updated MaxCmdSN to 0x%08x\n", sess->max_cmd_sn);
-		return;
-	}
+	mutex_lock(&sess->cmdsn_mutex);
 	sess->max_cmd_sn += 1;
 	pr_debug("Updated MaxCmdSN to 0x%08x\n", sess->max_cmd_sn);
 	mutex_unlock(&sess->cmdsn_mutex);

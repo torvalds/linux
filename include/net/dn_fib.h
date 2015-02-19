@@ -95,41 +95,38 @@ struct dn_fib_table {
 /*
  * dn_fib.c
  */
-extern void dn_fib_init(void);
-extern void dn_fib_cleanup(void);
+void dn_fib_init(void);
+void dn_fib_cleanup(void);
 
-extern int dn_fib_ioctl(struct socket *sock, unsigned int cmd, 
-			unsigned long arg);
-extern struct dn_fib_info *dn_fib_create_info(const struct rtmsg *r, 
-				struct nlattr *attrs[],
-				const struct nlmsghdr *nlh, int *errp);
-extern int dn_fib_semantic_match(int type, struct dn_fib_info *fi, 
-			const struct flowidn *fld,
-			struct dn_fib_res *res);
-extern void dn_fib_release_info(struct dn_fib_info *fi);
-extern void dn_fib_flush(void);
-extern void dn_fib_select_multipath(const struct flowidn *fld,
-					struct dn_fib_res *res);
+int dn_fib_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
+struct dn_fib_info *dn_fib_create_info(const struct rtmsg *r,
+				       struct nlattr *attrs[],
+				       const struct nlmsghdr *nlh, int *errp);
+int dn_fib_semantic_match(int type, struct dn_fib_info *fi,
+			  const struct flowidn *fld, struct dn_fib_res *res);
+void dn_fib_release_info(struct dn_fib_info *fi);
+void dn_fib_flush(void);
+void dn_fib_select_multipath(const struct flowidn *fld, struct dn_fib_res *res);
 
 /*
  * dn_tables.c
  */
-extern struct dn_fib_table *dn_fib_get_table(u32 n, int creat);
-extern struct dn_fib_table *dn_fib_empty_table(void);
-extern void dn_fib_table_init(void);
-extern void dn_fib_table_cleanup(void);
+struct dn_fib_table *dn_fib_get_table(u32 n, int creat);
+struct dn_fib_table *dn_fib_empty_table(void);
+void dn_fib_table_init(void);
+void dn_fib_table_cleanup(void);
 
 /*
  * dn_rules.c
  */
-extern void dn_fib_rules_init(void);
-extern void dn_fib_rules_cleanup(void);
-extern unsigned int dnet_addr_type(__le16 addr);
-extern int dn_fib_lookup(struct flowidn *fld, struct dn_fib_res *res);
+void dn_fib_rules_init(void);
+void dn_fib_rules_cleanup(void);
+unsigned int dnet_addr_type(__le16 addr);
+int dn_fib_lookup(struct flowidn *fld, struct dn_fib_res *res);
 
-extern int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb);
+int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
-extern void dn_fib_free_info(struct dn_fib_info *fi);
+void dn_fib_free_info(struct dn_fib_info *fi);
 
 static inline void dn_fib_info_put(struct dn_fib_info *fi)
 {

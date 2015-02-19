@@ -78,9 +78,69 @@ struct clk_notifier_data {
 	unsigned long		new_rate;
 };
 
+/**
+ * clk_notifier_register: register a clock rate-change notifier callback
+ * @clk: clock whose rate we are interested in
+ * @nb: notifier block with callback function pointer
+ *
+ * ProTip: debugging across notifier chains can be frustrating. Make sure that
+ * your notifier callback function prints a nice big warning in case of
+ * failure.
+ */
 int clk_notifier_register(struct clk *clk, struct notifier_block *nb);
 
+/**
+ * clk_notifier_unregister: unregister a clock rate-change notifier callback
+ * @clk: clock whose rate we are no longer interested in
+ * @nb: notifier block which will be unregistered
+ */
 int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
+
+/**
+ * clk_get_accuracy - obtain the clock accuracy in ppb (parts per billion)
+ *		      for a clock source.
+ * @clk: clock source
+ *
+ * This gets the clock source accuracy expressed in ppb.
+ * A perfect clock returns 0.
+ */
+long clk_get_accuracy(struct clk *clk);
+
+/**
+ * clk_set_phase - adjust the phase shift of a clock signal
+ * @clk: clock signal source
+ * @degrees: number of degrees the signal is shifted
+ *
+ * Shifts the phase of a clock signal by the specified degrees. Returns 0 on
+ * success, -EERROR otherwise.
+ */
+int clk_set_phase(struct clk *clk, int degrees);
+
+/**
+ * clk_get_phase - return the phase shift of a clock signal
+ * @clk: clock signal source
+ *
+ * Returns the phase shift of a clock node in degrees, otherwise returns
+ * -EERROR.
+ */
+int clk_get_phase(struct clk *clk);
+
+#else
+
+static inline long clk_get_accuracy(struct clk *clk)
+{
+	return -ENOTSUPP;
+}
+
+static inline long clk_set_phase(struct clk *clk, int phase)
+{
+	return -ENOTSUPP;
+}
+
+static inline long clk_get_phase(struct clk *clk)
+{
+	return -ENOTSUPP;
+}
 
 #endif
 
@@ -207,7 +267,7 @@ void clk_put(struct clk *clk);
 
 /**
  * devm_clk_put	- "free" a managed clock source
- * @dev: device used to acuqire the clock
+ * @dev: device used to acquire the clock
  * @clk: clock source acquired with devm_clk_get()
  *
  * Note: drivers must ensure that all clk_enable calls made on this

@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -41,41 +42,26 @@
 
 #define F_SWAPPED (bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1000_SWAPBOOT)
 
-struct pci_dev;
+const char *get_system_type(void);
 
-static const char *board_type_str(void)
-{
-	switch (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI))) {
-	case BCSR_WHOAMI_DB1000:
-		return "DB1000";
-	case BCSR_WHOAMI_DB1500:
-		return "DB1500";
-	case BCSR_WHOAMI_DB1100:
-		return "DB1100";
-	case BCSR_WHOAMI_PB1500:
-	case BCSR_WHOAMI_PB1500R2:
-		return "PB1500";
-	case BCSR_WHOAMI_PB1100:
-		return "PB1100";
-	default:
-		return "(unknown)";
-	}
-}
-
-const char *get_system_type(void)
-{
-	return board_type_str();
-}
-
-void __init board_setup(void)
+int __init db1000_board_setup(void)
 {
 	/* initialize board register space */
 	bcsr_init(DB1000_BCSR_PHYS_ADDR,
 		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
 
-	printk(KERN_INFO "AMD Alchemy %s Board\n", board_type_str());
+	switch (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI))) {
+	case BCSR_WHOAMI_DB1000:
+	case BCSR_WHOAMI_DB1500:
+	case BCSR_WHOAMI_DB1100:
+	case BCSR_WHOAMI_PB1500:
+	case BCSR_WHOAMI_PB1500R2:
+	case BCSR_WHOAMI_PB1100:
+		pr_info("AMD Alchemy %s Board\n", get_system_type());
+		return 0;
+	}
+	return -ENODEV;
 }
-
 
 static int db1500_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 {
@@ -114,17 +100,10 @@ static struct platform_device db1500_pci_host_dev = {
 	.resource	= alchemy_pci_host_res,
 };
 
-static int __init db1500_pci_init(void)
+int __init db1500_pci_setup(void)
 {
-	int id = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
-	if ((id == BCSR_WHOAMI_DB1500) || (id == BCSR_WHOAMI_PB1500) ||
-	    (id == BCSR_WHOAMI_PB1500R2))
-		return platform_device_register(&db1500_pci_host_dev);
-	return 0;
+	return platform_device_register(&db1500_pci_host_dev);
 }
-/* must be arch_initcall; MIPS PCI scans busses in a subsys_initcall */
-arch_initcall(db1500_pci_init);
-
 
 static struct resource au1100_lcd_resources[] = {
 	[0] = {
@@ -513,11 +492,12 @@ static struct platform_device *db1100_devs[] = {
 	&db1000_irda_dev,
 };
 
-static int __init db1000_dev_init(void)
+int __init db1000_dev_setup(void)
 {
 	int board = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
 	int c0, c1, d0, d1, s0, s1, flashsize = 32,  twosocks = 1;
 	unsigned long pfc;
+	struct clk *c, *p;
 
 	if (board == BCSR_WHOAMI_DB1500) {
 		c0 = AU1500_GPIO2_INT;
@@ -534,22 +514,30 @@ static int __init db1000_dev_init(void)
 		s0 = AU1100_GPIO1_INT;
 		s1 = AU1100_GPIO4_INT;
 
+		gpio_request(19, "sd0_cd");
+		gpio_request(20, "sd1_cd");
 		gpio_direction_input(19);	/* sd0 cd# */
 		gpio_direction_input(20);	/* sd1 cd# */
-		gpio_direction_input(21);	/* touch pendown# */
-		gpio_direction_input(207);	/* SPI MISO */
-		gpio_direction_output(208, 0);	/* SPI MOSI */
-		gpio_direction_output(209, 1);	/* SPI SCK */
-		gpio_direction_output(210, 1);	/* SPI CS# */
 
 		/* spi_gpio on SSI0 pins */
-		pfc = __raw_readl((void __iomem *)SYS_PINFUNC);
+		pfc = alchemy_rdsys(AU1000_SYS_PINFUNC);
 		pfc |= (1 << 0);	/* SSI0 pins as GPIOs */
-		__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
-		wmb();
+		alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
 
 		spi_register_board_info(db1100_spi_info,
 					ARRAY_SIZE(db1100_spi_info));
+
+		/* link LCD clock to AUXPLL */
+		p = clk_get(NULL, "auxpll_clk");
+		c = clk_get(NULL, "lcd_intclk");
+		if (!IS_ERR(c) && !IS_ERR(p)) {
+			clk_set_parent(c, p);
+			clk_set_rate(c, clk_get_rate(p));
+		}
+		if (!IS_ERR(c))
+			clk_put(c);
+		if (!IS_ERR(p))
+			clk_put(p);
 
 		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
 		platform_device_register(&db1100_spi_dev);
@@ -626,4 +614,3 @@ static int __init db1000_dev_init(void)
 	db1x_register_norflash(flashsize << 20, 4 /* 32bit */, F_SWAPPED);
 	return 0;
 }
-device_initcall(db1000_dev_init);

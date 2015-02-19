@@ -32,25 +32,16 @@ int st_press_trig_set_state(struct iio_trigger *trig, bool state)
 
 static int st_press_buffer_preenable(struct iio_dev *indio_dev)
 {
-	int err;
-
-	err = st_sensors_set_enable(indio_dev, true);
-	if (err < 0)
-		goto st_press_set_enable_error;
-
-	err = iio_sw_buffer_preenable(indio_dev);
-
-st_press_set_enable_error:
-	return err;
+	return st_sensors_set_enable(indio_dev, true);
 }
 
 static int st_press_buffer_postenable(struct iio_dev *indio_dev)
 {
 	int err;
-	struct st_sensor_data *pdata = iio_priv(indio_dev);
+	struct st_sensor_data *press_data = iio_priv(indio_dev);
 
-	pdata->buffer_data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (pdata->buffer_data == NULL) {
+	press_data->buffer_data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
+	if (press_data->buffer_data == NULL) {
 		err = -ENOMEM;
 		goto allocate_memory_error;
 	}
@@ -62,7 +53,7 @@ static int st_press_buffer_postenable(struct iio_dev *indio_dev)
 	return err;
 
 st_press_buffer_postenable_error:
-	kfree(pdata->buffer_data);
+	kfree(press_data->buffer_data);
 allocate_memory_error:
 	return err;
 }
@@ -70,7 +61,7 @@ allocate_memory_error:
 static int st_press_buffer_predisable(struct iio_dev *indio_dev)
 {
 	int err;
-	struct st_sensor_data *pdata = iio_priv(indio_dev);
+	struct st_sensor_data *press_data = iio_priv(indio_dev);
 
 	err = iio_triggered_buffer_predisable(indio_dev);
 	if (err < 0)
@@ -79,7 +70,7 @@ static int st_press_buffer_predisable(struct iio_dev *indio_dev)
 	err = st_sensors_set_enable(indio_dev, false);
 
 st_press_buffer_predisable_error:
-	kfree(pdata->buffer_data);
+	kfree(press_data->buffer_data);
 	return err;
 }
 

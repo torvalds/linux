@@ -2,6 +2,7 @@
  * ISP1704 USB Charger Detection driver
  *
  * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2012 - 2013 Pali Rohár <pali.rohar@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +29,8 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -65,10 +68,6 @@ struct isp1704_charger {
 	unsigned		present:1;
 	unsigned		online:1;
 	unsigned		current_max;
-
-	/* temp storage variables */
-	unsigned long		event;
-	unsigned		max_power;
 };
 
 static inline int isp1704_read(struct isp1704_charger *isp, u32 reg)
@@ -91,6 +90,8 @@ static void isp1704_charger_set_power(struct isp1704_charger *isp, bool on)
 
 	if (board && board->set_power)
 		board->set_power(on);
+	else if (board)
+		gpio_set_value(board->enable_gpio, on);
 }
 
 /*
@@ -231,56 +232,59 @@ static inline int isp1704_charger_detect(struct isp1704_charger *isp)
 	return ret;
 }
 
+static inline int isp1704_charger_detect_dcp(struct isp1704_charger *isp)
+{
+	if (isp1704_charger_detect(isp) &&
+			isp1704_charger_type(isp) == POWER_SUPPLY_TYPE_USB_DCP)
+		return true;
+	else
+		return false;
+}
+
 static void isp1704_charger_work(struct work_struct *data)
 {
-	int			detect;
-	unsigned long		event;
-	unsigned		power;
 	struct isp1704_charger	*isp =
 		container_of(data, struct isp1704_charger, work);
 	static DEFINE_MUTEX(lock);
 
-	event = isp->event;
-	power = isp->max_power;
-
 	mutex_lock(&lock);
 
-	if (event != USB_EVENT_NONE)
-		isp1704_charger_set_power(isp, 1);
-
-	switch (event) {
+	switch (isp->phy->last_event) {
 	case USB_EVENT_VBUS:
-		isp->online = true;
+		/* do not call wall charger detection more times */
+		if (!isp->present) {
+			isp->online = true;
+			isp->present = 1;
+			isp1704_charger_set_power(isp, 1);
 
-		/* detect charger */
-		detect = isp1704_charger_detect(isp);
+			/* detect wall charger */
+			if (isp1704_charger_detect_dcp(isp)) {
+				isp->psy.type = POWER_SUPPLY_TYPE_USB_DCP;
+				isp->current_max = 1800;
+			} else {
+				isp->psy.type = POWER_SUPPLY_TYPE_USB;
+				isp->current_max = 500;
+			}
 
-		if (detect) {
-			isp->present = detect;
-			isp->psy.type = isp1704_charger_type(isp);
-		}
-
-		switch (isp->psy.type) {
-		case POWER_SUPPLY_TYPE_USB_DCP:
-			isp->current_max = 1800;
-			break;
-		case POWER_SUPPLY_TYPE_USB_CDP:
-			/*
-			 * Only 500mA here or high speed chirp
-			 * handshaking may break
-			 */
-			isp->current_max = 500;
-			/* FALLTHROUGH */
-		case POWER_SUPPLY_TYPE_USB:
-		default:
 			/* enable data pullups */
 			if (isp->phy->otg->gadget)
 				usb_gadget_connect(isp->phy->otg->gadget);
 		}
+
+		if (isp->psy.type != POWER_SUPPLY_TYPE_USB_DCP) {
+			/*
+			 * Only 500mA here or high speed chirp
+			 * handshaking may break
+			 */
+			if (isp->current_max > 500)
+				isp->current_max = 500;
+
+			if (isp->current_max > 100)
+				isp->psy.type = POWER_SUPPLY_TYPE_USB_CDP;
+		}
 		break;
 	case USB_EVENT_NONE:
 		isp->online = false;
-		isp->current_max = 0;
 		isp->present = 0;
 		isp->current_max = 0;
 		isp->psy.type = POWER_SUPPLY_TYPE_USB;
@@ -298,12 +302,6 @@ static void isp1704_charger_work(struct work_struct *data)
 
 		isp1704_charger_set_power(isp, 0);
 		break;
-	case USB_EVENT_ENUMERATED:
-		if (isp->present)
-			isp->current_max = 1800;
-		else
-			isp->current_max = power;
-		break;
 	default:
 		goto out;
 	}
@@ -314,15 +312,10 @@ out:
 }
 
 static int isp1704_notifier_call(struct notifier_block *nb,
-		unsigned long event, void *power)
+		unsigned long val, void *v)
 {
 	struct isp1704_charger *isp =
 		container_of(nb, struct isp1704_charger, nb);
-
-	isp->event = event;
-
-	if (power)
-		isp->max_power = *((unsigned *)power);
 
 	schedule_work(&isp->work);
 
@@ -411,13 +404,46 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	struct isp1704_charger	*isp;
 	int			ret = -ENODEV;
 
+	struct isp1704_charger_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
+
+	if (np) {
+		int gpio = of_get_named_gpio(np, "nxp,enable-gpio", 0);
+
+		if (gpio < 0)
+			return gpio;
+
+		pdata = devm_kzalloc(&pdev->dev,
+			sizeof(struct isp1704_charger_data), GFP_KERNEL);
+		pdata->enable_gpio = gpio;
+
+		dev_info(&pdev->dev, "init gpio %d\n", pdata->enable_gpio);
+
+		ret = devm_gpio_request_one(&pdev->dev, pdata->enable_gpio,
+					GPIOF_OUT_INIT_HIGH, "isp1704_reset");
+		if (ret)
+			goto fail0;
+	}
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "missing platform data!\n");
+		return -ENODEV;
+	}
+
+
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
 		return -ENOMEM;
 
-	isp->phy = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (IS_ERR_OR_NULL(isp->phy))
+	if (np)
+		isp->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
+	else
+		isp->phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
+
+	if (IS_ERR(isp->phy)) {
+		ret = PTR_ERR(isp->phy);
 		goto fail0;
+	}
 
 	isp->dev = &pdev->dev;
 	platform_set_drvdata(pdev, isp);
@@ -462,20 +488,19 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	if (isp->phy->otg->gadget)
 		usb_gadget_disconnect(isp->phy->otg->gadget);
 
+	if (isp->phy->last_event == USB_EVENT_NONE)
+		isp1704_charger_set_power(isp, 0);
+
 	/* Detect charger if VBUS is valid (the cable was already plugged). */
-	ret = isp1704_read(isp, ULPI_USB_INT_STS);
-	isp1704_charger_set_power(isp, 0);
-	if ((ret & ULPI_INT_VBUS_VALID) && !isp->phy->otg->default_a) {
-		isp->event = USB_EVENT_VBUS;
+	if (isp->phy->last_event == USB_EVENT_VBUS &&
+			!isp->phy->otg->default_a)
 		schedule_work(&isp->work);
-	}
 
 	return 0;
 fail2:
 	power_supply_unregister(&isp->psy);
 fail1:
 	isp1704_charger_set_power(isp, 0);
-	usb_put_phy(isp->phy);
 fail0:
 	dev_err(&pdev->dev, "failed to register isp1704 with error %d\n", ret);
 
@@ -488,15 +513,23 @@ static int isp1704_charger_remove(struct platform_device *pdev)
 
 	usb_unregister_notifier(isp->phy, &isp->nb);
 	power_supply_unregister(&isp->psy);
-	usb_put_phy(isp->phy);
 	isp1704_charger_set_power(isp, 0);
 
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id omap_isp1704_of_match[] = {
+	{ .compatible = "nxp,isp1704", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_isp1704_of_match);
+#endif
+
 static struct platform_driver isp1704_charger_driver = {
 	.driver = {
 		.name = "isp1704_charger",
+		.of_match_table = of_match_ptr(omap_isp1704_of_match),
 	},
 	.probe = isp1704_charger_probe,
 	.remove = isp1704_charger_remove,

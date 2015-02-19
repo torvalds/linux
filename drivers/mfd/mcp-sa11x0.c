@@ -12,7 +12,6 @@
  *  MCP read/write timeouts from Jordi Colomer, rehacked by rmk.
  */
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -156,7 +155,7 @@ static struct mcp_ops mcp_sa11x0 = {
 
 static int mcp_sa11x0_probe(struct platform_device *dev)
 {
-	struct mcp_plat_data *data = dev->dev.platform_data;
+	struct mcp_plat_data *data = dev_get_platdata(&dev->dev);
 	struct resource *mem0, *mem1;
 	struct mcp_sa11x0 *m;
 	struct mcp *mcp;
@@ -300,7 +299,6 @@ static struct platform_driver mcp_sa11x0_driver = {
 	.remove		= mcp_sa11x0_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &mcp_sa11x0_pm_ops,
 	},
 };

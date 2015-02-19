@@ -14,9 +14,10 @@
  */
 
 #include <linux/init.h>
-#include <linux/irqchip/arm-gic.h>
 #include <linux/smp.h>
 #include <linux/of.h>
+#include <linux/delay.h>
+#include <uapi/linux/psci.h>
 
 #include <asm/psci.h>
 #include <asm/smp_plat.h>
@@ -67,6 +68,36 @@ void __ref psci_cpu_die(unsigned int cpu)
        /* We should never return */
        panic("psci: cpu %d failed to shutdown\n", cpu);
 }
+
+int __ref psci_cpu_kill(unsigned int cpu)
+{
+	int err, i;
+
+	if (!psci_ops.affinity_info)
+		return 1;
+	/*
+	 * cpu_kill could race with cpu_die and we can
+	 * potentially end up declaring this cpu undead
+	 * while it is dying. So, try again a few times.
+	 */
+
+	for (i = 0; i < 10; i++) {
+		err = psci_ops.affinity_info(cpu_logical_map(cpu), 0);
+		if (err == PSCI_0_2_AFFINITY_LEVEL_OFF) {
+			pr_info("CPU%d killed.\n", cpu);
+			return 1;
+		}
+
+		msleep(10);
+		pr_info("Retrying again to check for CPU kill\n");
+	}
+
+	pr_warn("CPU%d may not have shut down cleanly (AFFINITY_INFO reports %d)\n",
+			cpu, err);
+	/* Make platform_cpu_kill() fail. */
+	return 0;
+}
+
 #endif
 
 bool __init psci_smp_available(void)
@@ -79,5 +110,6 @@ struct smp_operations __initdata psci_smp_ops = {
 	.smp_boot_secondary	= psci_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= psci_cpu_die,
+	.cpu_kill		= psci_cpu_kill,
 #endif
 };

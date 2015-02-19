@@ -41,7 +41,7 @@
 #define DEBUG_SUBSYSTEM S_OSC
 
 /* class_name2obd() */
-#include <obd_class.h>
+#include "../include/obd_class.h"
 
 #include "osc_cl_internal.h"
 
@@ -61,32 +61,32 @@ struct lu_kmem_descr osc_caches[] = {
 	{
 		.ckd_cache = &osc_lock_kmem,
 		.ckd_name  = "osc_lock_kmem",
-		.ckd_size  = sizeof (struct osc_lock)
+		.ckd_size  = sizeof(struct osc_lock)
 	},
 	{
 		.ckd_cache = &osc_object_kmem,
 		.ckd_name  = "osc_object_kmem",
-		.ckd_size  = sizeof (struct osc_object)
+		.ckd_size  = sizeof(struct osc_object)
 	},
 	{
 		.ckd_cache = &osc_thread_kmem,
 		.ckd_name  = "osc_thread_kmem",
-		.ckd_size  = sizeof (struct osc_thread_info)
+		.ckd_size  = sizeof(struct osc_thread_info)
 	},
 	{
 		.ckd_cache = &osc_session_kmem,
 		.ckd_name  = "osc_session_kmem",
-		.ckd_size  = sizeof (struct osc_session)
+		.ckd_size  = sizeof(struct osc_session)
 	},
 	{
 		.ckd_cache = &osc_req_kmem,
 		.ckd_name  = "osc_req_kmem",
-		.ckd_size  = sizeof (struct osc_req)
+		.ckd_size  = sizeof(struct osc_req)
 	},
 	{
 		.ckd_cache = &osc_extent_kmem,
 		.ckd_name  = "osc_extent_kmem",
-		.ckd_size  = sizeof (struct osc_extent)
+		.ckd_size  = sizeof(struct osc_extent)
 	},
 	{
 		.ckd_cache = &osc_quota_kmem,
@@ -122,7 +122,7 @@ static void *osc_key_init(const struct lu_context *ctx,
 {
 	struct osc_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, osc_thread_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, osc_thread_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -132,6 +132,7 @@ static void osc_key_fini(const struct lu_context *ctx,
 			 struct lu_context_key *key, void *data)
 {
 	struct osc_thread_info *info = data;
+
 	OBD_SLAB_FREE_PTR(info, osc_thread_kmem);
 }
 
@@ -146,7 +147,7 @@ static void *osc_session_init(const struct lu_context *ctx,
 {
 	struct osc_session *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, osc_session_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, osc_session_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -156,6 +157,7 @@ static void osc_session_fini(const struct lu_context *ctx,
 			     struct lu_context_key *key, void *data)
 {
 	struct osc_session *info = data;
+
 	OBD_SLAB_FREE_PTR(info, osc_session_kmem);
 }
 
@@ -171,8 +173,7 @@ LU_TYPE_INIT_FINI(osc, &osc_key, &osc_session_key);
 static int osc_cl_process_config(const struct lu_env *env,
 				 struct lu_device *d, struct lustre_cfg *cfg)
 {
-	ENTRY;
-	RETURN(osc_process_config_base(d->ld_obd, cfg));
+	return osc_process_config_base(d->ld_obd, cfg);
 }
 
 static const struct lu_device_operations osc_lu_ops = {
@@ -188,13 +189,13 @@ static const struct cl_device_operations osc_cl_ops = {
 static int osc_device_init(const struct lu_env *env, struct lu_device *d,
 			   const char *name, struct lu_device *next)
 {
-	RETURN(0);
+	return 0;
 }
 
 static struct lu_device *osc_device_fini(const struct lu_env *env,
 					 struct lu_device *d)
 {
-	return 0;
+	return NULL;
 }
 
 static struct lu_device *osc_device_free(const struct lu_env *env,
@@ -218,7 +219,7 @@ static struct lu_device *osc_device_alloc(const struct lu_env *env,
 
 	OBD_ALLOC_PTR(od);
 	if (od == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	cl_device_init(&od->od_cl, t);
 	d = osc2lu_dev(od);
@@ -231,10 +232,10 @@ static struct lu_device *osc_device_alloc(const struct lu_env *env,
 	rc = osc_setup(obd, cfg);
 	if (rc) {
 		osc_device_free(env, d);
-		RETURN(ERR_PTR(rc));
+		return ERR_PTR(rc);
 	}
 	od->od_exp = obd->obd_self_export;
-	RETURN(d);
+	return d;
 }
 
 static const struct lu_device_type_operations osc_device_type_ops = {

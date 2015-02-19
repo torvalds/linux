@@ -128,59 +128,60 @@
 /* Bitfield Definitions */
 
 /* CS42L73_PWRCTL1 */
-#define PDN_ADCB		(1 << 7)
-#define PDN_DMICB		(1 << 6)
-#define PDN_ADCA		(1 << 5)
-#define PDN_DMICA		(1 << 4)
-#define PDN_LDO			(1 << 2)
-#define DISCHG_FILT		(1 << 1)
-#define PDN			(1 << 0)
+#define CS42L73_PDN_ADCB		(1 << 7)
+#define CS42L73_PDN_DMICB		(1 << 6)
+#define CS42L73_PDN_ADCA		(1 << 5)
+#define CS42L73_PDN_DMICA		(1 << 4)
+#define CS42L73_PDN_LDO			(1 << 2)
+#define CS42L73_DISCHG_FILT		(1 << 1)
+#define CS42L73_PDN			(1 << 0)
 
 /* CS42L73_PWRCTL2 */
-#define PDN_MIC2_BIAS		(1 << 7)
-#define PDN_MIC1_BIAS		(1 << 6)
-#define PDN_VSP			(1 << 4)
-#define PDN_ASP_SDOUT		(1 << 3)
-#define PDN_ASP_SDIN		(1 << 2)
-#define PDN_XSP_SDOUT		(1 << 1)
-#define PDN_XSP_SDIN		(1 << 0)
+#define CS42L73_PDN_MIC2_BIAS		(1 << 7)
+#define CS42L73_PDN_MIC1_BIAS		(1 << 6)
+#define CS42L73_PDN_VSP			(1 << 4)
+#define CS42L73_PDN_ASP_SDOUT		(1 << 3)
+#define CS42L73_PDN_ASP_SDIN		(1 << 2)
+#define CS42L73_PDN_XSP_SDOUT		(1 << 1)
+#define CS42L73_PDN_XSP_SDIN		(1 << 0)
 
 /* CS42L73_PWRCTL3 */
-#define PDN_THMS		(1 << 5)
-#define PDN_SPKLO		(1 << 4)
-#define PDN_EAR			(1 << 3)
-#define PDN_SPK			(1 << 2)
-#define PDN_LO			(1 << 1)
-#define PDN_HP			(1 << 0)
+#define CS42L73_PDN_THMS		(1 << 5)
+#define CS42L73_PDN_SPKLO		(1 << 4)
+#define CS42L73_PDN_EAR			(1 << 3)
+#define CS42L73_PDN_SPK			(1 << 2)
+#define CS42L73_PDN_LO			(1 << 1)
+#define CS42L73_PDN_HP			(1 << 0)
 
 /* Thermal Overload Detect. Requires interrupt ... */
-#define THMOVLD_150C		0
-#define THMOVLD_132C		1
-#define THMOVLD_115C		2
-#define THMOVLD_098C		3
+#define CS42L73_THMOVLD_150C		0
+#define CS42L73_THMOVLD_132C		1
+#define CS42L73_THMOVLD_115C		2
+#define CS42L73_THMOVLD_098C		3
 
+#define CS42L73_CHARGEPUMP_MASK	(0xF0)
 
 /* CS42L73_ASPC, CS42L73_XSPC, CS42L73_VSPC */
-#define	SP_3ST			(1 << 7)
-#define SPDIF_I2S		(0 << 6)
-#define SPDIF_PCM		(1 << 6)
-#define PCM_MODE0		(0 << 4)
-#define PCM_MODE1		(1 << 4)
-#define PCM_MODE2		(2 << 4)
-#define PCM_MODE_MASK		(3 << 4)
-#define PCM_BIT_ORDER		(1 << 3)
-#define MCK_SCLK_64FS		(0 << 0)
-#define MCK_SCLK_MCLK		(2 << 0)
-#define MCK_SCLK_PREMCLK	(3 << 0)
+#define	CS42L73_SP_3ST			(1 << 7)
+#define CS42L73_SPDIF_I2S		(0 << 6)
+#define CS42L73_SPDIF_PCM		(1 << 6)
+#define CS42L73_PCM_MODE0		(0 << 4)
+#define CS42L73_PCM_MODE1		(1 << 4)
+#define CS42L73_PCM_MODE2		(2 << 4)
+#define CS42L73_PCM_MODE_MASK		(3 << 4)
+#define CS42L73_PCM_BIT_ORDER		(1 << 3)
+#define CS42L73_MCK_SCLK_64FS		(0 << 0)
+#define CS42L73_MCK_SCLK_MCLK		(2 << 0)
+#define CS42L73_MCK_SCLK_PREMCLK	(3 << 0)
 
 /* CS42L73_xSPMMCC */
-#define MS_MASTER		(1 << 7)
+#define CS42L73_MS_MASTER		(1 << 7)
 
 
 /* CS42L73_DMMCC */
-#define MCLKDIS			(1 << 0)
-#define MCLKSEL_MCLK2		(1 << 4)
-#define MCLKSEL_MCLK1		(0 << 4)
+#define CS42L73_MCLKDIS			(1 << 0)
+#define CS42L73_MCLKSEL_MCLK2		(1 << 4)
+#define CS42L73_MCLKSEL_MCLK1		(0 << 4)
 
 /* CS42L73 MCLK derived from MCLK1 or MCLK2 */
 #define CS42L73_CLKID_MCLK1     0
@@ -194,28 +195,26 @@
 #define CS42L73_VSP		2
 
 /* IS1, IM1 */
-#define MIC2_SDET		(1 << 6)
-#define THMOVLD			(1 << 4)
-#define DIGMIXOVFL		(1 << 3)
-#define IPBOVFL			(1 << 1)
-#define IPAOVFL			(1 << 0)
+#define CS42L73_MIC2_SDET		(1 << 6)
+#define CS42L73_THMOVLD			(1 << 4)
+#define CS42L73_DIGMIXOVFL		(1 << 3)
+#define CS42L73_IPBOVFL			(1 << 1)
+#define CS42L73_IPAOVFL			(1 << 0)
 
 /* Analog Softramp */
-#define ANLGOSFT		(1 << 0)
+#define CS42L73_ANLGOSFT		(1 << 0)
 
 /* HP A/B Analog Mute */
-#define HPA_MUTE		(1 << 7)
+#define CS42L73_HPA_MUTE		(1 << 7)
 /* LO A/B Analog Mute	*/
-#define LOA_MUTE		(1 << 7)
+#define CS42L73_LOA_MUTE		(1 << 7)
 /* Digital Mute */
-#define HLAD_MUTE		(1 << 0)
-#define HLBD_MUTE		(1 << 1)
-#define SPKD_MUTE		(1 << 2)
-#define ESLD_MUTE		(1 << 3)
+#define CS42L73_HLAD_MUTE		(1 << 0)
+#define CS42L73_HLBD_MUTE		(1 << 1)
+#define CS42L73_SPKD_MUTE		(1 << 2)
+#define CS42L73_ESLD_MUTE		(1 << 3)
 
 /* Misc defines for codec */
-#define CS42L73_RESET_GPIO 143
-
 #define CS42L73_DEVID		0x00042A73
 #define CS42L73_MCLKX_MIN	5644800
 #define CS42L73_MCLKX_MAX	38400000

@@ -38,10 +38,6 @@
 #include "stk1160.h"
 #include "stk1160-reg.h"
 
-static unsigned int vidioc_debug;
-module_param(vidioc_debug, int, 0644);
-MODULE_PARM_DESC(vidioc_debug, "enable debug messages [vidioc]");
-
 static bool keep_buffers;
 module_param(keep_buffers, bool, 0644);
 MODULE_PARM_DESC(keep_buffers, "don't release buffers upon stop streaming");
@@ -379,6 +375,9 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	struct stk1160 *dev = video_drvdata(file);
 	struct vb2_queue *q = &dev->vb_vidq;
 
+	if (dev->norm == norm)
+		return 0;
+
 	if (vb2_is_busy(q))
 		return -EBUSY;
 
@@ -403,7 +402,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 
 	stk1160_set_std(dev);
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std,
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std,
 			dev->norm);
 
 	return 0;
@@ -440,9 +439,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct stk1160 *dev = video_drvdata(file);
 
-	if (vb2_is_busy(&dev->vb_vidq))
-		return -EBUSY;
-
 	if (i > STK1160_MAX_INPUT)
 		return -EINVAL;
 
@@ -475,7 +471,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct stk1160 *dev = video_drvdata(file);
 
 	/* Match host */
-	return stk1160_write_reg(dev, reg->reg, cpu_to_le16(reg->val));
+	return stk1160_write_reg(dev, reg->reg, reg->val);
 }
 #endif
 
@@ -583,10 +579,10 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 }
 
 /* abort streaming and wait for last buffer */
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct stk1160 *dev = vb2_get_drv_priv(vq);
-	return stk1160_stop_streaming(dev);
+	stk1160_stop_streaming(dev);
 }
 
 static struct vb2_ops stk1160_video_qops = {
@@ -641,7 +637,7 @@ int stk1160_vb2_setup(struct stk1160 *dev)
 	q->buf_struct_size = sizeof(struct stk1160_buffer);
 	q->ops = &stk1160_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	rc = vb2_queue_init(q);
 	if (rc < 0)
@@ -659,7 +655,6 @@ int stk1160_video_register(struct stk1160 *dev)
 
 	/* Initialize video_device with a template structure */
 	dev->vdev = v4l_template;
-	dev->vdev.debug = vidioc_debug;
 	dev->vdev.queue = &dev->vb_vidq;
 
 	/*
@@ -671,7 +666,6 @@ int stk1160_video_register(struct stk1160 *dev)
 
 	/* This will be used to set video_device parent */
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
 
 	/* NTSC is default */
 	dev->norm = V4L2_STD_NTSC_M;
@@ -682,7 +676,7 @@ int stk1160_video_register(struct stk1160 *dev)
 	dev->fmt = &format[0];
 	stk1160_set_std(dev);
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std,
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std,
 			dev->norm);
 
 	video_set_drvdata(&dev->vdev, dev);

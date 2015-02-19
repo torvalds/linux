@@ -58,6 +58,25 @@ static bool tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 	return seq == e_win && seq == end_seq;
 }
 
+static enum tcp_tw_status
+tcp_timewait_check_oow_rate_limit(struct inet_timewait_sock *tw,
+				  const struct sk_buff *skb, int mib_idx)
+{
+	struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
+
+	if (!tcp_oow_rate_limited(twsk_net(tw), skb, mib_idx,
+				  &tcptw->tw_last_oow_ack_time)) {
+		/* Send ACK. Note, we do not put the bucket,
+		 * it will be released by caller.
+		 */
+		return TCP_TW_ACK;
+	}
+
+	/* We are rate-limiting, so just release the tw sock and drop skb. */
+	inet_twsk_put(tw);
+	return TCP_TW_SUCCESS;
+}
+
 /*
  * * Main purpose of TIME-WAIT state is to close connection gracefully,
  *   when one of ends sits in LAST-ACK or CLOSING retransmitting FIN
@@ -116,7 +135,8 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		    !tcp_in_window(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq,
 				   tcptw->tw_rcv_nxt,
 				   tcptw->tw_rcv_nxt + tcptw->tw_rcv_wnd))
-			return TCP_TW_ACK;
+			return tcp_timewait_check_oow_rate_limit(
+				tw, skb, LINUX_MIB_TCPACKSKIPPEDFINWAIT2);
 
 		if (th->rst)
 			goto kill;
@@ -232,7 +252,7 @@ kill:
 		u32 isn = tcptw->tw_snd_nxt + 65535 + 2;
 		if (isn == 0)
 			isn++;
-		TCP_SKB_CB(skb)->when = isn;
+		TCP_SKB_CB(skb)->tcp_tw_isn = isn;
 		return TCP_TW_SYN;
 	}
 
@@ -250,10 +270,8 @@ kill:
 			inet_twsk_schedule(tw, &tcp_death_row, TCP_TIMEWAIT_LEN,
 					   TCP_TIMEWAIT_LEN);
 
-		/* Send ACK. Note, we do not put the bucket,
-		 * it will be released by caller.
-		 */
-		return TCP_TW_ACK;
+		return tcp_timewait_check_oow_rate_limit(
+			tw, skb, LINUX_MIB_TCPACKSKIPPEDTIMEWAIT);
 	}
 	inet_twsk_put(tw);
 	return TCP_TW_SUCCESS;
@@ -289,18 +307,17 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		tcptw->tw_ts_recent	= tp->rx_opt.ts_recent;
 		tcptw->tw_ts_recent_stamp = tp->rx_opt.ts_recent_stamp;
 		tcptw->tw_ts_offset	= tp->tsoffset;
+		tcptw->tw_last_oow_ack_time = 0;
 
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
-			struct inet6_timewait_sock *tw6;
 
-			tw->tw_ipv6_offset = inet6_tw_offset(sk->sk_prot);
-			tw6 = inet6_twsk((struct sock *)tw);
-			tw6->tw_v6_daddr = np->daddr;
-			tw6->tw_v6_rcv_saddr = np->rcv_saddr;
+			tw->tw_v6_daddr = sk->sk_v6_daddr;
+			tw->tw_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 			tw->tw_tclass = np->tclass;
-			tw->tw_ipv6only = np->ipv6only;
+			tw->tw_flowlabel = np->flow_label >> 12;
+			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
 
@@ -364,11 +381,68 @@ void tcp_twsk_destructor(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
-static inline void TCP_ECN_openreq_child(struct tcp_sock *tp,
-					 struct request_sock *req)
+void tcp_openreq_init_rwin(struct request_sock *req,
+			   struct sock *sk, struct dst_entry *dst)
+{
+	struct inet_request_sock *ireq = inet_rsk(req);
+	struct tcp_sock *tp = tcp_sk(sk);
+	__u8 rcv_wscale;
+	int mss = dst_metric_advmss(dst);
+
+	if (tp->rx_opt.user_mss && tp->rx_opt.user_mss < mss)
+		mss = tp->rx_opt.user_mss;
+
+	/* Set this up on the first call only */
+	req->window_clamp = tp->window_clamp ? : dst_metric(dst, RTAX_WINDOW);
+
+	/* limit the window selection if the user enforce a smaller rx buffer */
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
+	    (req->window_clamp > tcp_full_space(sk) || req->window_clamp == 0))
+		req->window_clamp = tcp_full_space(sk);
+
+	/* tcp_full_space because it is guaranteed to be the first packet */
+	tcp_select_initial_window(tcp_full_space(sk),
+		mss - (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
+		&req->rcv_wnd,
+		&req->window_clamp,
+		ireq->wscale_ok,
+		&rcv_wscale,
+		dst_metric(dst, RTAX_INITRWND));
+	ireq->rcv_wscale = rcv_wscale;
+}
+EXPORT_SYMBOL(tcp_openreq_init_rwin);
+
+static void tcp_ecn_openreq_child(struct tcp_sock *tp,
+				  const struct request_sock *req)
 {
 	tp->ecn_flags = inet_rsk(req)->ecn_ok ? TCP_ECN_OK : 0;
 }
+
+void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	u32 ca_key = dst_metric(dst, RTAX_CC_ALGO);
+	bool ca_got_dst = false;
+
+	if (ca_key != TCP_CA_UNSPEC) {
+		const struct tcp_congestion_ops *ca;
+
+		rcu_read_lock();
+		ca = tcp_ca_find_key(ca_key);
+		if (likely(ca && try_module_get(ca->owner))) {
+			icsk->icsk_ca_dst_locked = tcp_ca_dst_locked(dst);
+			icsk->icsk_ca_ops = ca;
+			ca_got_dst = true;
+		}
+		rcu_read_unlock();
+	}
+
+	if (!ca_got_dst && !try_module_get(icsk->icsk_ca_ops->owner))
+		tcp_assign_congestion_control(sk);
+
+	tcp_set_ca_state(sk, TCP_CA_Open);
+}
+EXPORT_SYMBOL_GPL(tcp_ca_openreq_child);
 
 /* This is not only more efficient than what we used to do, it eliminates
  * a lot of code duplication between IPv4/IPv6 SYN recv processing. -DaveM
@@ -400,8 +474,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 
 		tcp_init_wl(newtp, treq->rcv_isn);
 
-		newtp->srtt = 0;
-		newtp->mdev = TCP_TIMEOUT_INIT;
+		newtp->srtt_us = 0;
+		newtp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
 		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
 
 		newtp->packets_out = 0;
@@ -411,6 +485,9 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 		tcp_enable_early_retrans(newtp);
 		newtp->tlp_high_seq = 0;
+		newtp->lsndtime = treq->snt_synack;
+		newtp->last_oow_ack_time = 0;
+		newtp->total_retrans = req->num_retrans;
 
 		/* So many TCP implementations out there (incorrectly) count the
 		 * initial SYN frame in their delayed-ACK and congestion control
@@ -420,13 +497,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->snd_cwnd = TCP_INIT_CWND;
 		newtp->snd_cwnd_cnt = 0;
 
-		if (newicsk->icsk_ca_ops != &tcp_init_congestion_ops &&
-		    !try_module_get(newicsk->icsk_ca_ops->owner))
-			newicsk->icsk_ca_ops = &tcp_init_congestion_ops;
-
-		tcp_set_ca_state(newsk, TCP_CA_Open);
 		tcp_init_xmit_timers(newsk);
-		skb_queue_head_init(&newtp->out_of_order_queue);
+		__skb_queue_head_init(&newtp->out_of_order_queue);
 		newtp->write_seq = newtp->pushed_seq = treq->snt_isn + 1;
 
 		newtp->rx_opt.saw_tstamp = 0;
@@ -477,7 +549,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		if (skb->len >= TCP_MSS_DEFAULT + newtp->tcp_header_len)
 			newicsk->icsk_ack.last_seg_size = skb->len - newtp->tcp_header_len;
 		newtp->rx_opt.mss_clamp = req->mss;
-		TCP_ECN_openreq_child(newtp, req);
+		tcp_ecn_openreq_child(newtp, req);
 		newtp->fastopen_rsk = NULL;
 		newtp->syn_data_acked = 0;
 
@@ -553,7 +625,11 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		 * Reset timer after retransmitting SYNACK, similar to
 		 * the idea of fast retransmit in recovery.
 		 */
-		if (!inet_rtx_syn_ack(sk, req))
+		if (!tcp_oow_rate_limited(sock_net(sk), skb,
+					  LINUX_MIB_TCPACKSKIPPEDSYNRECV,
+					  &tcp_rsk(req)->last_oow_ack_time) &&
+
+		    !inet_rtx_syn_ack(sk, req))
 			req->expires = min(TCP_TIMEOUT_INIT << req->num_timeout,
 					   TCP_RTO_MAX) + jiffies;
 		return NULL;
@@ -666,12 +742,6 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (!(flg & TCP_FLAG_ACK))
 		return NULL;
 
-	/* Got ACK for our SYNACK, so update baseline for SYNACK RTT sample. */
-	if (tmp_opt.saw_tstamp && tmp_opt.rcv_tsecr)
-		tcp_rsk(req)->snt_synack = tmp_opt.rcv_tsecr;
-	else if (req->num_retrans) /* don't take RTT sample if retrans && ~TS */
-		tcp_rsk(req)->snt_synack = 0;
-
 	/* For Fast Open no more processing is needed (sk is the
 	 * child socket).
 	 */
@@ -751,7 +821,7 @@ int tcp_child_process(struct sock *parent, struct sock *child,
 					    skb->len);
 		/* Wakeup parent, send SIGIO */
 		if (state == TCP_SYN_RECV && child->sk_state != state)
-			parent->sk_data_ready(parent, 0);
+			parent->sk_data_ready(parent);
 	} else {
 		/* Alas, it is possible again, because we do lookup
 		 * in main socket hash table and lock on listening

@@ -8,7 +8,6 @@
 
 #undef DEBUG
 
-#include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/errno.h>
 #include <linux/signal.h>

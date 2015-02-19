@@ -31,20 +31,19 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 		   struct taskstats *stats, struct task_struct *tsk)
 {
 	const struct cred *tcred;
-	struct timespec uptime, ts;
 	cputime_t utime, stime, utimescaled, stimescaled;
-	u64 ac_etime;
+	u64 delta;
 
 	BUILD_BUG_ON(TS_COMM_LEN < TASK_COMM_LEN);
 
-	/* calculate task elapsed time in timespec */
-	do_posix_clock_monotonic_gettime(&uptime);
-	ts = timespec_sub(uptime, tsk->start_time);
-	/* rebase elapsed time to usec (should never be negative) */
-	ac_etime = timespec_to_ns(&ts);
-	do_div(ac_etime, NSEC_PER_USEC);
-	stats->ac_etime = ac_etime;
-	stats->ac_btime = get_seconds() - ts.tv_sec;
+	/* calculate task elapsed time in nsec */
+	delta = ktime_get_ns() - tsk->start_time;
+	/* Convert to micro seconds */
+	do_div(delta, NSEC_PER_USEC);
+	stats->ac_etime = delta;
+	/* Convert to seconds for btime */
+	do_div(delta, USEC_PER_SEC);
+	stats->ac_btime = get_seconds() - delta;
 	if (thread_group_leader(tsk)) {
 		stats->ac_exitcode = tsk->exit_code;
 		if (tsk->flags & PF_FORKNOEXEC)

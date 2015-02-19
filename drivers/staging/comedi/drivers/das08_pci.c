@@ -21,7 +21,7 @@
 /*
  * Driver: das08_pci
  * Description: DAS-08 PCI compatible boards
- * Devices: (ComputerBoards) PCI-DAS08 [pci-das08]
+ * Devices: [ComputerBoards] PCI-DAS08 (pci-das08)
  * Author: Warren Jasper, ds, Frank Hess
  * Updated: Fri, 31 Aug 2012 19:19:06 +0100
  * Status: works
@@ -31,13 +31,12 @@
  * Configuration Options: not applicable, uses PCI auto config
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
 
 #include "das08.h"
-
-#define PCI_DEVICE_ID_PCIDAS08		0x0029
 
 static const struct das08_board_struct das08_pci_boards[] = {
 	{
@@ -59,10 +58,9 @@ static int das08_pci_auto_attach(struct comedi_device *dev,
 	struct das08_private_struct *devpriv;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* The das08 driver needs the board_ptr */
 	dev->board_ptr = &das08_pci_boards[0];
@@ -79,7 +77,7 @@ static struct comedi_driver das08_pci_comedi_driver = {
 	.driver_name	= "pci-das08",
 	.module		= THIS_MODULE,
 	.auto_attach	= das08_pci_auto_attach,
-	.detach		= comedi_pci_disable,
+	.detach		= comedi_pci_detach,
 };
 
 static int das08_pci_probe(struct pci_dev *dev,
@@ -89,8 +87,8 @@ static int das08_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(das08_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_PCIDAS08) },
+static const struct pci_device_id das08_pci_table[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0029) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, das08_pci_table);

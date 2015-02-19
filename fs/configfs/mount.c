@@ -85,7 +85,7 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
 		inc_nlink(inode);
 	} else {
-		pr_debug("configfs: could not get root inode\n");
+		pr_debug("could not get root inode\n");
 		return -ENOMEM;
 	}
 
@@ -145,19 +145,13 @@ static int __init configfs_init(void)
 	if (!config_kobj)
 		goto out2;
 
-	err = configfs_inode_init();
+	err = register_filesystem(&configfs_fs_type);
 	if (err)
 		goto out3;
 
-	err = register_filesystem(&configfs_fs_type);
-	if (err)
-		goto out4;
-
 	return 0;
-out4:
-	printk(KERN_ERR "configfs: Unable to register filesystem!\n");
-	configfs_inode_exit();
 out3:
+	pr_err("Unable to register filesystem!\n");
 	kobject_put(config_kobj);
 out2:
 	kmem_cache_destroy(configfs_dir_cachep);
@@ -172,7 +166,6 @@ static void __exit configfs_exit(void)
 	kobject_put(config_kobj);
 	kmem_cache_destroy(configfs_dir_cachep);
 	configfs_dir_cachep = NULL;
-	configfs_inode_exit();
 }
 
 MODULE_AUTHOR("Oracle");

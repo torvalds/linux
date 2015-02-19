@@ -25,10 +25,10 @@
 #include <asm/cpu.h>
 
 #ifdef CONFIG_X86_32
-unsigned long saved_context_ebx;
-unsigned long saved_context_esp, saved_context_ebp;
-unsigned long saved_context_esi, saved_context_edi;
-unsigned long saved_context_eflags;
+__visible unsigned long saved_context_ebx;
+__visible unsigned long saved_context_esp, saved_context_ebp;
+__visible unsigned long saved_context_esi, saved_context_edi;
+__visible unsigned long saved_context_eflags;
 #endif
 struct saved_context saved_context;
 
@@ -105,11 +105,8 @@ static void __save_processor_state(struct saved_context *ctxt)
 	ctxt->cr0 = read_cr0();
 	ctxt->cr2 = read_cr2();
 	ctxt->cr3 = read_cr3();
-#ifdef CONFIG_X86_32
-	ctxt->cr4 = read_cr4_safe();
-#else
-/* CONFIG_X86_64 */
-	ctxt->cr4 = read_cr4();
+	ctxt->cr4 = __read_cr4_safe();
+#ifdef CONFIG_X86_64
 	ctxt->cr8 = read_cr8();
 #endif
 	ctxt->misc_enable_saved = !rdmsrl_safe(MSR_IA32_MISC_ENABLE,
@@ -165,7 +162,7 @@ static void fix_processor_context(void)
  *		by __save_processor_state()
  *	@ctxt - structure to load the registers contents from
  */
-static void __restore_processor_state(struct saved_context *ctxt)
+static void notrace __restore_processor_state(struct saved_context *ctxt)
 {
 	if (ctxt->misc_enable_saved)
 		wrmsrl(MSR_IA32_MISC_ENABLE, ctxt->misc_enable);
@@ -175,12 +172,12 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	/* cr4 was introduced in the Pentium CPU */
 #ifdef CONFIG_X86_32
 	if (ctxt->cr4)
-		write_cr4(ctxt->cr4);
+		__write_cr4(ctxt->cr4);
 #else
 /* CONFIG X86_64 */
 	wrmsrl(MSR_EFER, ctxt->efer);
 	write_cr8(ctxt->cr8);
-	write_cr4(ctxt->cr4);
+	__write_cr4(ctxt->cr4);
 #endif
 	write_cr3(ctxt->cr3);
 	write_cr2(ctxt->cr2);
@@ -239,7 +236,7 @@ static void __restore_processor_state(struct saved_context *ctxt)
 }
 
 /* Needed by apm.c */
-void restore_processor_state(void)
+void notrace restore_processor_state(void)
 {
 	__restore_processor_state(&saved_context);
 }

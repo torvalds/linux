@@ -19,8 +19,7 @@
 #define MMU_FTR_TYPE_40x		ASM_CONST(0x00000004)
 #define MMU_FTR_TYPE_44x		ASM_CONST(0x00000008)
 #define MMU_FTR_TYPE_FSL_E		ASM_CONST(0x00000010)
-#define MMU_FTR_TYPE_3E			ASM_CONST(0x00000020)
-#define MMU_FTR_TYPE_47x		ASM_CONST(0x00000040)
+#define MMU_FTR_TYPE_47x		ASM_CONST(0x00000020)
 
 /*
  * This is individual features
@@ -65,9 +64,9 @@
  */
 #define MMU_FTR_USE_PAIRED_MAS		ASM_CONST(0x01000000)
 
-/* MMU is SLB-based
+/* Doesn't support the B bit (1T segment) in SLBIE
  */
-#define MMU_FTR_SLB			ASM_CONST(0x02000000)
+#define MMU_FTR_NO_SLBIE_B		ASM_CONST(0x02000000)
 
 /* Support 16M large pages
  */
@@ -89,10 +88,6 @@
  */
 #define MMU_FTR_1T_SEGMENT		ASM_CONST(0x40000000)
 
-/* Doesn't support the B bit (1T segment) in SLBIE
- */
-#define MMU_FTR_NO_SLBIE_B		ASM_CONST(0x80000000)
-
 /* MMU feature bit sets for various CPUs */
 #define MMU_FTRS_DEFAULT_HPTE_ARCH_V2	\
 	MMU_FTR_HPTE_TABLE | MMU_FTR_PPCAS_ARCH_V2
@@ -106,13 +101,6 @@
 				MMU_FTR_CI_LARGE_PAGE
 #define MMU_FTRS_PA6T		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
 				MMU_FTR_CI_LARGE_PAGE | MMU_FTR_NO_SLBIE_B
-#define MMU_FTRS_A2		MMU_FTR_TYPE_3E | MMU_FTR_USE_TLBILX | \
-				MMU_FTR_USE_TLBIVAX_BCAST | \
-				MMU_FTR_LOCK_BCAST_INVAL | \
-				MMU_FTR_USE_TLBRSRV | \
-				MMU_FTR_USE_PAIRED_MAS | \
-				MMU_FTR_TLBIEL | \
-				MMU_FTR_16M_PAGE
 #ifndef __ASSEMBLY__
 #include <asm/cputable.h>
 
@@ -180,16 +168,17 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 #define MMU_PAGE_64K_AP	3	/* "Admixed pages" (hash64 only) */
 #define MMU_PAGE_256K	4
 #define MMU_PAGE_1M	5
-#define MMU_PAGE_4M	6
-#define MMU_PAGE_8M	7
-#define MMU_PAGE_16M	8
-#define MMU_PAGE_64M	9
-#define MMU_PAGE_256M	10
-#define MMU_PAGE_1G	11
-#define MMU_PAGE_16G	12
-#define MMU_PAGE_64G	13
+#define MMU_PAGE_2M	6
+#define MMU_PAGE_4M	7
+#define MMU_PAGE_8M	8
+#define MMU_PAGE_16M	9
+#define MMU_PAGE_64M	10
+#define MMU_PAGE_256M	11
+#define MMU_PAGE_1G	12
+#define MMU_PAGE_16G	13
+#define MMU_PAGE_64G	14
 
-#define MMU_PAGE_COUNT	14
+#define MMU_PAGE_COUNT	15
 
 #if defined(CONFIG_PPC_STD_MMU_64)
 /* 64-bit classic hash table MMU */

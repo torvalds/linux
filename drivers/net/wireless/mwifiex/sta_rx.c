@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: station RX data handling
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -17,6 +17,8 @@
  * this warranty disclaimer.
  */
 
+#include <uapi/linux/ipv6.h>
+#include <net/ndisc.h>
 #include "decl.h"
 #include "ioctl.h"
 #include "util.h"
@@ -24,6 +26,46 @@
 #include "main.h"
 #include "11n_aggr.h"
 #include "11n_rxreorder.h"
+
+/* This function checks if a frame is IPv4 ARP or IPv6 Neighbour advertisement
+ * frame. If frame has both source and destination mac address as same, this
+ * function drops such gratuitous frames.
+ */
+static bool
+mwifiex_discard_gratuitous_arp(struct mwifiex_private *priv,
+			       struct sk_buff *skb)
+{
+	const struct mwifiex_arp_eth_header *arp;
+	struct ethhdr *eth;
+	struct ipv6hdr *ipv6;
+	struct icmp6hdr *icmpv6;
+
+	eth = (struct ethhdr *)skb->data;
+	switch (ntohs(eth->h_proto)) {
+	case ETH_P_ARP:
+		arp = (void *)(skb->data + sizeof(struct ethhdr));
+		if (arp->hdr.ar_op == htons(ARPOP_REPLY) ||
+		    arp->hdr.ar_op == htons(ARPOP_REQUEST)) {
+			if (!memcmp(arp->ar_sip, arp->ar_tip, 4))
+				return true;
+		}
+		break;
+	case ETH_P_IPV6:
+		ipv6 = (void *)(skb->data + sizeof(struct ethhdr));
+		icmpv6 = (void *)(skb->data + sizeof(struct ethhdr) +
+				  sizeof(struct ipv6hdr));
+		if (NDISC_NEIGHBOUR_ADVERTISEMENT == icmpv6->icmp6_type) {
+			if (!memcmp(&ipv6->saddr, &ipv6->daddr,
+				    sizeof(struct in6_addr)))
+				return true;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return false;
+}
 
 /*
  * This function processes the received packet and forwards it
@@ -45,16 +87,23 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 	struct rx_packet_hdr *rx_pkt_hdr;
 	struct rxpd *local_rx_pd;
 	int hdr_chop;
-	struct ethhdr *eth_hdr;
-	u8 rfc1042_eth_hdr[ETH_ALEN] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
+	struct ethhdr *eth;
+	u16 rx_pkt_off, rx_pkt_len;
+	u8 *offset;
+	u8 adj_rx_rate = 0;
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 
-	rx_pkt_hdr = (void *)local_rx_pd +
-		     le16_to_cpu(local_rx_pd->rx_pkt_offset);
+	rx_pkt_off = le16_to_cpu(local_rx_pd->rx_pkt_offset);
+	rx_pkt_len = le16_to_cpu(local_rx_pd->rx_pkt_length);
+	rx_pkt_hdr = (void *)local_rx_pd + rx_pkt_off;
 
-	if (!memcmp(&rx_pkt_hdr->rfc1042_hdr,
-		    rfc1042_eth_hdr, sizeof(rfc1042_eth_hdr))) {
+	if ((!memcmp(&rx_pkt_hdr->rfc1042_hdr, bridge_tunnel_header,
+		     sizeof(bridge_tunnel_header))) ||
+	    (!memcmp(&rx_pkt_hdr->rfc1042_hdr, rfc1042_header,
+		     sizeof(rfc1042_header)) &&
+	     ntohs(rx_pkt_hdr->rfc1042_hdr.snap_type) != ETH_P_AARP &&
+	     ntohs(rx_pkt_hdr->rfc1042_hdr.snap_type) != ETH_P_IPX)) {
 		/*
 		 *  Replace the 803 header and rfc1042 header (llc/snap) with an
 		 *    EthernetII header, keep the src/dst and snap_type
@@ -64,7 +113,7 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 		 *  To create the Ethernet II, just move the src, dst address
 		 *    right before the snap_type.
 		 */
-		eth_hdr = (struct ethhdr *)
+		eth = (struct ethhdr *)
 			((u8 *) &rx_pkt_hdr->eth803_hdr
 			 + sizeof(rx_pkt_hdr->eth803_hdr) +
 			 sizeof(rx_pkt_hdr->rfc1042_hdr)
@@ -72,14 +121,14 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 			 - sizeof(rx_pkt_hdr->eth803_hdr.h_source)
 			 - sizeof(rx_pkt_hdr->rfc1042_hdr.snap_type));
 
-		memcpy(eth_hdr->h_source, rx_pkt_hdr->eth803_hdr.h_source,
-		       sizeof(eth_hdr->h_source));
-		memcpy(eth_hdr->h_dest, rx_pkt_hdr->eth803_hdr.h_dest,
-		       sizeof(eth_hdr->h_dest));
+		memcpy(eth->h_source, rx_pkt_hdr->eth803_hdr.h_source,
+		       sizeof(eth->h_source));
+		memcpy(eth->h_dest, rx_pkt_hdr->eth803_hdr.h_dest,
+		       sizeof(eth->h_dest));
 
 		/* Chop off the rxpd + the excess memory from the 802.2/llc/snap
 		   header that was removed. */
-		hdr_chop = (u8 *) eth_hdr - (u8 *) local_rx_pd;
+		hdr_chop = (u8 *) eth - (u8 *) local_rx_pd;
 	} else {
 		/* Chop off the rxpd */
 		hdr_chop = (u8 *) &rx_pkt_hdr->eth803_hdr -
@@ -90,9 +139,30 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 	   either the reconstructed EthII frame or the 802.2/llc/snap frame */
 	skb_pull(skb, hdr_chop);
 
+	if (priv->hs2_enabled &&
+	    mwifiex_discard_gratuitous_arp(priv, skb)) {
+		dev_dbg(priv->adapter->dev, "Bypassed Gratuitous ARP\n");
+		dev_kfree_skb_any(skb);
+		return 0;
+	}
+
+	if (ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
+	    ntohs(rx_pkt_hdr->eth803_hdr.h_proto) == ETH_P_TDLS) {
+		offset = (u8 *)local_rx_pd + rx_pkt_off;
+		mwifiex_process_tdls_action_frame(priv, offset, rx_pkt_len);
+	}
+
 	priv->rxpd_rate = local_rx_pd->rx_rate;
 
 	priv->rxpd_htinfo = local_rx_pd->ht_info;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
+	    GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		adj_rx_rate = mwifiex_adjust_data_rate(priv, priv->rxpd_rate,
+						       priv->rxpd_htinfo);
+		mwifiex_hist_data_add(priv, adj_rx_rate, local_rx_pd->snr,
+				      local_rx_pd->nf);
+	}
 
 	ret = mwifiex_recv_packet(priv, skb);
 	if (ret == -1)
@@ -122,6 +192,7 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 	struct rx_packet_hdr *rx_pkt_hdr;
 	u8 ta[ETH_ALEN];
 	u16 rx_pkt_type, rx_pkt_offset, rx_pkt_length, seq_num;
+	struct mwifiex_sta_node *sta_ptr;
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 	rx_pkt_type = le16_to_cpu(local_rx_pd->rx_pkt_type);
@@ -136,35 +207,11 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 			"wrong rx packet: len=%d, rx_pkt_offset=%d, rx_pkt_length=%d\n",
 			skb->len, rx_pkt_offset, rx_pkt_length);
 		priv->stats.rx_dropped++;
-
-		if (adapter->if_ops.data_complete)
-			adapter->if_ops.data_complete(adapter, skb);
-		else
-			dev_kfree_skb_any(skb);
-
+		dev_kfree_skb_any(skb);
 		return ret;
 	}
 
-	if (rx_pkt_type == PKT_TYPE_AMSDU) {
-		struct sk_buff_head list;
-		struct sk_buff *rx_skb;
-
-		__skb_queue_head_init(&list);
-
-		skb_pull(skb, rx_pkt_offset);
-		skb_trim(skb, rx_pkt_length);
-
-		ieee80211_amsdu_to_8023s(skb, &list, priv->curr_addr,
-					 priv->wdev->iftype, 0, false);
-
-		while (!skb_queue_empty(&list)) {
-			rx_skb = __skb_dequeue(&list);
-			ret = mwifiex_recv_packet(priv, rx_skb);
-			if (ret == -1)
-				dev_err(adapter->dev, "Rx of A-MSDU failed");
-		}
-		return 0;
-	} else if (rx_pkt_type == PKT_TYPE_MGMT) {
+	if (rx_pkt_type == PKT_TYPE_MGMT) {
 		ret = mwifiex_process_mgmt_packet(priv, skb);
 		if (ret)
 			dev_err(adapter->dev, "Rx of mgmt packet failed");
@@ -176,14 +223,28 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 	 * If the packet is not an unicast packet then send the packet
 	 * directly to os. Don't pass thru rx reordering
 	 */
-	if (!IS_11N_ENABLED(priv) ||
-	    memcmp(priv->curr_addr, rx_pkt_hdr->eth803_hdr.h_dest, ETH_ALEN)) {
+	if ((!IS_11N_ENABLED(priv) &&
+	     !(ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
+	       !(local_rx_pd->flags & MWIFIEX_RXPD_FLAGS_TDLS_PACKET))) ||
+	    !ether_addr_equal_unaligned(priv->curr_addr, rx_pkt_hdr->eth803_hdr.h_dest)) {
 		mwifiex_process_rx_packet(priv, skb);
 		return ret;
 	}
 
-	if (mwifiex_queuing_ra_based(priv)) {
+	if (mwifiex_queuing_ra_based(priv) ||
+	    (ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
+	     local_rx_pd->flags & MWIFIEX_RXPD_FLAGS_TDLS_PACKET)) {
 		memcpy(ta, rx_pkt_hdr->eth803_hdr.h_source, ETH_ALEN);
+		if (local_rx_pd->flags & MWIFIEX_RXPD_FLAGS_TDLS_PACKET &&
+		    local_rx_pd->priority < MAX_NUM_TID) {
+			sta_ptr = mwifiex_get_sta_entry(priv, ta);
+			if (sta_ptr)
+				sta_ptr->rx_seq[local_rx_pd->priority] =
+					      le16_to_cpu(local_rx_pd->seq_num);
+			mwifiex_auto_tdls_update_peer_signal(priv, ta,
+							     local_rx_pd->snr,
+							     local_rx_pd->nf);
+		}
 	} else {
 		if (rx_pkt_type != PKT_TYPE_BAR)
 			priv->rx_seq[local_rx_pd->priority] = seq_num;
@@ -195,12 +256,8 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 	ret = mwifiex_11n_rx_reorder_pkt(priv, seq_num, local_rx_pd->priority,
 					 ta, (u8) rx_pkt_type, skb);
 
-	if (ret || (rx_pkt_type == PKT_TYPE_BAR)) {
-		if (adapter->if_ops.data_complete)
-			adapter->if_ops.data_complete(adapter, skb);
-		else
-			dev_kfree_skb_any(skb);
-	}
+	if (ret || (rx_pkt_type == PKT_TYPE_BAR))
+		dev_kfree_skb_any(skb);
 
 	if (ret)
 		priv->stats.rx_dropped++;

@@ -27,6 +27,8 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_conntrack_seqadj.h>
+#include <net/netfilter/nf_conntrack_synproxy.h>
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
@@ -211,7 +213,7 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 	{
 /* REPLY */
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
-/*syn*/	   { sIV, sS2, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sS2 },
+/*syn*/	   { sIV, sS2, sIV, sIV, sIV, sIV, sIV, sSS, sIV, sS2 },
 /*
  *	sNO -> sIV	Never reached.
  *	sSS -> sS2	Simultaneous open
@@ -221,7 +223,7 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sFW -> sIV
  *	sCW -> sIV
  *	sLA -> sIV
- *	sTW -> sIV	Reopened connection, but server may not do it.
+ *	sTW -> sSS	Reopened connection, but server may have switched role
  *	sCL -> sIV
  */
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
@@ -300,16 +302,16 @@ static bool tcp_invert_tuple(struct nf_conntrack_tuple *tuple,
 }
 
 /* Print out the per-protocol part of the tuple. */
-static int tcp_print_tuple(struct seq_file *s,
-			   const struct nf_conntrack_tuple *tuple)
+static void tcp_print_tuple(struct seq_file *s,
+			    const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "sport=%hu dport=%hu ",
-			  ntohs(tuple->src.u.tcp.port),
-			  ntohs(tuple->dst.u.tcp.port));
+	seq_printf(s, "sport=%hu dport=%hu ",
+		   ntohs(tuple->src.u.tcp.port),
+		   ntohs(tuple->dst.u.tcp.port));
 }
 
 /* Print out the private part of the conntrack. */
-static int tcp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
+static void tcp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
 	enum tcp_conntrack state;
 
@@ -317,7 +319,7 @@ static int tcp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 	state = ct->proto.tcp.state;
 	spin_unlock_bh(&ct->lock);
 
-	return seq_printf(s, "%s ", tcp_conntrack_names[state]);
+	seq_printf(s, "%s ", tcp_conntrack_names[state]);
 }
 
 static unsigned int get_conntrack_index(const struct tcphdr *tcph)
@@ -495,21 +497,6 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 	}
 }
 
-#ifdef CONFIG_NF_NAT_NEEDED
-static inline s16 nat_offset(const struct nf_conn *ct,
-			     enum ip_conntrack_dir dir,
-			     u32 seq)
-{
-	typeof(nf_ct_nat_offset) get_offset = rcu_dereference(nf_ct_nat_offset);
-
-	return get_offset != NULL ? get_offset(ct, dir, seq) : 0;
-}
-#define NAT_OFFSET(ct, dir, seq) \
-	(nat_offset(ct, dir, seq))
-#else
-#define NAT_OFFSET(ct, dir, seq)	0
-#endif
-
 static bool tcp_in_window(const struct nf_conn *ct,
 			  struct ip_ct_tcp *state,
 			  enum ip_conntrack_dir dir,
@@ -525,7 +512,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	struct ip_ct_tcp_state *receiver = &state->seen[!dir];
 	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
 	__u32 seq, ack, sack, end, win, swin;
-	s16 receiver_offset;
+	s32 receiver_offset;
 	bool res, in_recv_win;
 
 	/*
@@ -540,7 +527,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		tcp_sack(skb, dataoff, tcph, &sack);
 
 	/* Take into account NAT sequence number mangling */
-	receiver_offset = NAT_OFFSET(ct, !dir, ack - 1);
+	receiver_offset = nf_ct_seq_offset(ct, !dir, ack - 1);
 	ack -= receiver_offset;
 	sack -= receiver_offset;
 
@@ -960,6 +947,21 @@ static int tcp_packet(struct nf_conn *ct,
 				  "state %s ", tcp_conntrack_names[old_state]);
 		return NF_ACCEPT;
 	case TCP_CONNTRACK_MAX:
+		/* Special case for SYN proxy: when the SYN to the server or
+		 * the SYN/ACK from the server is lost, the client may transmit
+		 * a keep-alive packet while in SYN_SENT state. This needs to
+		 * be associated with the original conntrack entry in order to
+		 * generate a new SYN with the correct sequence number.
+		 */
+		if (nfct_synproxy(ct) && old_state == TCP_CONNTRACK_SYN_SENT &&
+		    index == TCP_ACK_SET && dir == IP_CT_DIR_ORIGINAL &&
+		    ct->proto.tcp.last_dir == IP_CT_DIR_ORIGINAL &&
+		    ct->proto.tcp.seen[dir].td_end - 1 == ntohl(th->seq)) {
+			pr_debug("nf_ct_tcp: SYN proxy client keep alive\n");
+			spin_unlock_bh(&ct->lock);
+			return NF_ACCEPT;
+		}
+
 		/* Invalid packet */
 		pr_debug("nf_ct_tcp: Invalid dir=%i index=%u ostate=%u\n",
 			 dir, get_conntrack_index(th), old_state);

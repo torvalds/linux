@@ -234,6 +234,11 @@ of ftrace. Here is a list of some of the key files:
 	will be displayed on the same line as the function that
 	is returning registers.
 
+	If the callback registered to be traced by a function with
+	the "ip modify" attribute (thus the regs->ip can be changed),
+	an 'I' will be displayed on the same line as the function that
+	can be overridden.
+
   function_profile_enabled:
 
 	When set it will enable all functions with either the function
@@ -655,7 +660,11 @@ explains which is which.
 		  read the irq flags variable, an 'X' will always
 		  be printed here.
 
-  need-resched: 'N' task need_resched is set, '.' otherwise.
+  need-resched:
+	'N' both TIF_NEED_RESCHED and PREEMPT_NEED_RESCHED is set,
+	'n' only TIF_NEED_RESCHED is set,
+	'p' only PREEMPT_NEED_RESCHED is set,
+	'.' otherwise.
 
   hardirq/softirq:
 	'H' - hard irq occurred inside a softirq.
@@ -676,9 +685,11 @@ The above is mostly meaningful for kernel developers.
 	 needs to be fixed to be only relative to the same CPU.
 	 The marks are determined by the difference between this
 	 current trace and the next trace.
-	  '!' - greater than preempt_mark_thresh (default 100)
-	  '+' - greater than 1 microsecond
-	  ' ' - less than or equal to 1 microsecond.
+	  '$' - greater than 1 second
+	  '#' - greater than 1000 microsecond
+	  '!' - greater than 100 microsecond
+	  '+' - greater than 10 microsecond
+	  ' ' - less than or equal to 10 microsecond.
 
   The rest is the same as the 'trace' file.
 
@@ -735,7 +746,7 @@ Here are the available options:
 		 function as well as the function being traced.
 
   print-parent:
-   bash-4000  [01]  1477.606694: simple_strtoul <-strict_strtoul
+   bash-4000  [01]  1477.606694: simple_strtoul <-kstrtoul
 
   noprint-parent:
    bash-4000  [01]  1477.606694: simple_strtoul
@@ -759,7 +770,7 @@ Here are the available options:
             latency-format option is enabled.
 
     bash  4000 1 0 00000000 00010a95 [58127d26] 1720.415ms \
-    (+0.000ms): simple_strtoul (strict_strtoul)
+    (+0.000ms): simple_strtoul (kstrtoul)
 
   raw - This will display raw numbers. This option is best for
 	use with user applications that can translate the raw
@@ -1511,7 +1522,7 @@ Doing the same with chrt -r 5 and function-trace set.
   <idle>-0       3d.h4    1us+:      0:120:R   + [003]  2448: 94:R sleep
   <idle>-0       3d.h4    2us : ttwu_do_activate.constprop.87 <-try_to_wake_up
   <idle>-0       3d.h3    3us : check_preempt_curr <-ttwu_do_wakeup
-  <idle>-0       3d.h3    3us : resched_task <-check_preempt_curr
+  <idle>-0       3d.h3    3us : resched_curr <-check_preempt_curr
   <idle>-0       3dNh3    4us : task_woken_rt <-ttwu_do_wakeup
   <idle>-0       3dNh3    4us : _raw_spin_unlock <-try_to_wake_up
   <idle>-0       3dNh3    4us : sub_preempt_count <-_raw_spin_unlock
@@ -1729,7 +1740,7 @@ no pid
      yum-updatesd-3111  [003]  1637.254683: lock_hrtimer_base <-hrtimer_try_to_cancel
      yum-updatesd-3111  [003]  1637.254685: fget_light <-do_sys_poll
      yum-updatesd-3111  [003]  1637.254686: pipe_poll <-do_sys_poll
-# echo -1 > set_ftrace_pid
+# echo > set_ftrace_pid
 # cat trace |head
  # tracer: function
  #
@@ -1947,6 +1958,8 @@ want, depending on your needs.
 
   + means that the function exceeded 10 usecs.
   ! means that the function exceeded 100 usecs.
+  # means that the function exceeded 1000 usecs.
+  $ means that the function exceeded 1 sec.
 
 
 - The task/pid field displays the thread cmdline and pid which
@@ -1998,6 +2011,32 @@ want, depending on your needs.
   360.774529 |   1)               |                                        bit_waitqueue() {
   360.774530 |   1)   0.594 us    |                                          __phys_addr();
 
+
+The function name is always displayed after the closing bracket
+for a function if the start of that function is not in the
+trace buffer.
+
+Display of the function name after the closing bracket may be
+enabled for functions whose start is in the trace buffer,
+allowing easier searching with grep for function durations.
+It is default disabled.
+
+	hide: echo nofuncgraph-tail > trace_options
+	show: echo funcgraph-tail > trace_options
+
+  Example with nofuncgraph-tail (default):
+  0)               |      putname() {
+  0)               |        kmem_cache_free() {
+  0)   0.518 us    |          __phys_addr();
+  0)   1.757 us    |        }
+  0)   2.861 us    |      }
+
+  Example with funcgraph-tail:
+  0)               |      putname() {
+  0)               |        kmem_cache_free() {
+  0)   0.518 us    |          __phys_addr();
+  0)   1.757 us    |        } /* kmem_cache_free() */
+  0)   2.861 us    |      } /* putname() */
 
 You can put some comments on specific functions by using
 trace_printk() For example, if you want to put a comment inside

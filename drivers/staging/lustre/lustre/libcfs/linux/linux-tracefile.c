@@ -37,8 +37,8 @@
 #define DEBUG_SUBSYSTEM S_LNET
 #define LUSTRE_TRACEFILE_PRIVATE
 
-#include <linux/libcfs/libcfs.h>
-#include "tracefile.h"
+#include "../../../include/linux/libcfs/libcfs.h"
+#include "../tracefile.h"
 
 /* percents to share the total debug memory for each type */
 static unsigned int pages_factor[CFS_TCD_TYPE_MAX] = {
@@ -51,7 +51,7 @@ char *cfs_trace_console_buffers[NR_CPUS][CFS_TCD_TYPE_MAX];
 
 struct rw_semaphore cfs_tracefile_sem;
 
-int cfs_tracefile_init_arch()
+int cfs_tracefile_init_arch(void)
 {
 	int    i;
 	int    j;
@@ -96,7 +96,7 @@ out:
 	return -ENOMEM;
 }
 
-void cfs_tracefile_fini_arch()
+void cfs_tracefile_fini_arch(void)
 {
 	int    i;
 	int    j;
@@ -112,31 +112,29 @@ void cfs_tracefile_fini_arch()
 		kfree(cfs_trace_data[i]);
 		cfs_trace_data[i] = NULL;
 	}
-
-	fini_rwsem(&cfs_tracefile_sem);
 }
 
-void cfs_tracefile_read_lock()
+void cfs_tracefile_read_lock(void)
 {
 	down_read(&cfs_tracefile_sem);
 }
 
-void cfs_tracefile_read_unlock()
+void cfs_tracefile_read_unlock(void)
 {
 	up_read(&cfs_tracefile_sem);
 }
 
-void cfs_tracefile_write_lock()
+void cfs_tracefile_write_lock(void)
 {
 	down_write(&cfs_tracefile_sem);
 }
 
-void cfs_tracefile_write_unlock()
+void cfs_tracefile_write_unlock(void)
 {
 	up_write(&cfs_tracefile_sem);
 }
 
-cfs_trace_buf_type_t cfs_trace_buf_idx_get()
+cfs_trace_buf_type_t cfs_trace_buf_idx_get(void)
 {
 	if (in_irq())
 		return CFS_TCD_TYPE_IRQ;
@@ -153,6 +151,7 @@ cfs_trace_buf_type_t cfs_trace_buf_idx_get()
  * for details.
  */
 int cfs_trace_lock_tcd(struct cfs_trace_cpu_data *tcd, int walking)
+	__acquires(&tcd->tc_lock)
 {
 	__LASSERT(tcd->tcd_type < CFS_TCD_TYPE_MAX);
 	if (tcd->tcd_type == CFS_TCD_TYPE_IRQ)
@@ -167,6 +166,7 @@ int cfs_trace_lock_tcd(struct cfs_trace_cpu_data *tcd, int walking)
 }
 
 void cfs_trace_unlock_tcd(struct cfs_trace_cpu_data *tcd, int walking)
+	__releases(&tcd->tcd_lock)
 {
 	__LASSERT(tcd->tcd_type < CFS_TCD_TYPE_MAX);
 	if (tcd->tcd_type == CFS_TCD_TYPE_IRQ)
@@ -269,7 +269,7 @@ void cfs_print_to_console(struct ptldebug_header *hdr, int mask,
 
 int cfs_trace_max_debug_mb(void)
 {
-	int  total_mb = (num_physpages >> (20 - PAGE_SHIFT));
+	int  total_mb = (totalram_pages >> (20 - PAGE_SHIFT));
 
-	return MAX(512, (total_mb * 80)/100);
+	return max(512, (total_mb * 80)/100);
 }

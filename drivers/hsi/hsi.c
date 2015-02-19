@@ -26,6 +26,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include "hsi_core.h"
 
 static ssize_t modalias_show(struct device *dev,
@@ -33,11 +35,13 @@ static ssize_t modalias_show(struct device *dev,
 {
 	return sprintf(buf, "hsi:%s\n", dev_name(dev));
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute hsi_bus_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *hsi_bus_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(hsi_bus_dev);
 
 static int hsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -48,30 +52,55 @@ static int hsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static int hsi_bus_match(struct device *dev, struct device_driver *driver)
 {
-	return strcmp(dev_name(dev), driver->name) == 0;
+	if (of_driver_match_device(dev, driver))
+		return true;
+
+	if (strcmp(dev_name(dev), driver->name) == 0)
+		return true;
+
+	return false;
 }
 
 static struct bus_type hsi_bus_type = {
 	.name		= "hsi",
-	.dev_attrs	= hsi_bus_dev_attrs,
+	.dev_groups	= hsi_bus_dev_groups,
 	.match		= hsi_bus_match,
 	.uevent		= hsi_bus_uevent,
 };
 
 static void hsi_client_release(struct device *dev)
 {
-	kfree(to_hsi_client(dev));
+	struct hsi_client *cl = to_hsi_client(dev);
+
+	kfree(cl->tx_cfg.channels);
+	kfree(cl->rx_cfg.channels);
+	kfree(cl);
 }
 
-static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
+struct hsi_client *hsi_new_client(struct hsi_port *port,
+						struct hsi_board_info *info)
 {
 	struct hsi_client *cl;
+	size_t size;
 
 	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
 	if (!cl)
-		return;
+		return NULL;
+
 	cl->tx_cfg = info->tx_cfg;
+	if (cl->tx_cfg.channels) {
+		size = cl->tx_cfg.num_channels * sizeof(*cl->tx_cfg.channels);
+		cl->tx_cfg.channels = kzalloc(size , GFP_KERNEL);
+		memcpy(cl->tx_cfg.channels, info->tx_cfg.channels, size);
+	}
+
 	cl->rx_cfg = info->rx_cfg;
+	if (cl->rx_cfg.channels) {
+		size = cl->rx_cfg.num_channels * sizeof(*cl->rx_cfg.channels);
+		cl->rx_cfg.channels = kzalloc(size , GFP_KERNEL);
+		memcpy(cl->rx_cfg.channels, info->rx_cfg.channels, size);
+	}
+
 	cl->device.bus = &hsi_bus_type;
 	cl->device.parent = &port->device;
 	cl->device.release = hsi_client_release;
@@ -83,7 +112,10 @@ static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
 		pr_err("hsi: failed to register client: %s\n", info->name);
 		put_device(&cl->device);
 	}
+
+	return cl;
 }
+EXPORT_SYMBOL_GPL(hsi_new_client);
 
 static void hsi_scan_board_info(struct hsi_controller *hsi)
 {
@@ -99,12 +131,209 @@ static void hsi_scan_board_info(struct hsi_controller *hsi)
 		}
 }
 
-static int hsi_remove_client(struct device *dev, void *data __maybe_unused)
+#ifdef CONFIG_OF
+static struct hsi_board_info hsi_char_dev_info = {
+	.name = "hsi_char",
+};
+
+static int hsi_of_property_parse_mode(struct device_node *client, char *name,
+				      unsigned int *result)
+{
+	const char *mode;
+	int err;
+
+	err = of_property_read_string(client, name, &mode);
+	if (err < 0)
+		return err;
+
+	if (strcmp(mode, "stream") == 0)
+		*result = HSI_MODE_STREAM;
+	else if (strcmp(mode, "frame") == 0)
+		*result = HSI_MODE_FRAME;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int hsi_of_property_parse_flow(struct device_node *client, char *name,
+				      unsigned int *result)
+{
+	const char *flow;
+	int err;
+
+	err = of_property_read_string(client, name, &flow);
+	if (err < 0)
+		return err;
+
+	if (strcmp(flow, "synchronized") == 0)
+		*result = HSI_FLOW_SYNC;
+	else if (strcmp(flow, "pipeline") == 0)
+		*result = HSI_FLOW_PIPE;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int hsi_of_property_parse_arb_mode(struct device_node *client,
+					  char *name, unsigned int *result)
+{
+	const char *arb_mode;
+	int err;
+
+	err = of_property_read_string(client, name, &arb_mode);
+	if (err < 0)
+		return err;
+
+	if (strcmp(arb_mode, "round-robin") == 0)
+		*result = HSI_ARB_RR;
+	else if (strcmp(arb_mode, "priority") == 0)
+		*result = HSI_ARB_PRIO;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static void hsi_add_client_from_dt(struct hsi_port *port,
+						struct device_node *client)
+{
+	struct hsi_client *cl;
+	struct hsi_channel channel;
+	struct property *prop;
+	char name[32];
+	int length, cells, err, i, max_chan, mode;
+
+	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
+	if (!cl)
+		return;
+
+	err = of_modalias_node(client, name, sizeof(name));
+	if (err)
+		goto err;
+
+	dev_set_name(&cl->device, "%s", name);
+
+	err = hsi_of_property_parse_mode(client, "hsi-mode", &mode);
+	if (err) {
+		err = hsi_of_property_parse_mode(client, "hsi-rx-mode",
+						 &cl->rx_cfg.mode);
+		if (err)
+			goto err;
+
+		err = hsi_of_property_parse_mode(client, "hsi-tx-mode",
+						 &cl->tx_cfg.mode);
+		if (err)
+			goto err;
+	} else {
+		cl->rx_cfg.mode = mode;
+		cl->tx_cfg.mode = mode;
+	}
+
+	err = of_property_read_u32(client, "hsi-speed-kbps",
+				   &cl->tx_cfg.speed);
+	if (err)
+		goto err;
+	cl->rx_cfg.speed = cl->tx_cfg.speed;
+
+	err = hsi_of_property_parse_flow(client, "hsi-flow",
+					 &cl->rx_cfg.flow);
+	if (err)
+		goto err;
+
+	err = hsi_of_property_parse_arb_mode(client, "hsi-arb-mode",
+					     &cl->rx_cfg.arb_mode);
+	if (err)
+		goto err;
+
+	prop = of_find_property(client, "hsi-channel-ids", &length);
+	if (!prop) {
+		err = -EINVAL;
+		goto err;
+	}
+
+	cells = length / sizeof(u32);
+
+	cl->rx_cfg.num_channels = cells;
+	cl->tx_cfg.num_channels = cells;
+
+	cl->rx_cfg.channels = kzalloc(cells * sizeof(channel), GFP_KERNEL);
+	if (!cl->rx_cfg.channels) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	cl->tx_cfg.channels = kzalloc(cells * sizeof(channel), GFP_KERNEL);
+	if (!cl->tx_cfg.channels) {
+		err = -ENOMEM;
+		goto err2;
+	}
+
+	max_chan = 0;
+	for (i = 0; i < cells; i++) {
+		err = of_property_read_u32_index(client, "hsi-channel-ids", i,
+						 &channel.id);
+		if (err)
+			goto err3;
+
+		err = of_property_read_string_index(client, "hsi-channel-names",
+						    i, &channel.name);
+		if (err)
+			channel.name = NULL;
+
+		if (channel.id > max_chan)
+			max_chan = channel.id;
+
+		cl->rx_cfg.channels[i] = channel;
+		cl->tx_cfg.channels[i] = channel;
+	}
+
+	cl->rx_cfg.num_hw_channels = max_chan + 1;
+	cl->tx_cfg.num_hw_channels = max_chan + 1;
+
+	cl->device.bus = &hsi_bus_type;
+	cl->device.parent = &port->device;
+	cl->device.release = hsi_client_release;
+	cl->device.of_node = client;
+
+	if (device_register(&cl->device) < 0) {
+		pr_err("hsi: failed to register client: %s\n", name);
+		put_device(&cl->device);
+		goto err3;
+	}
+
+	return;
+
+err3:
+	kfree(cl->tx_cfg.channels);
+err2:
+	kfree(cl->rx_cfg.channels);
+err:
+	kfree(cl);
+	pr_err("hsi client: missing or incorrect of property: err=%d\n", err);
+}
+
+void hsi_add_clients_from_dt(struct hsi_port *port, struct device_node *clients)
+{
+	struct device_node *child;
+
+	/* register hsi-char device */
+	hsi_new_client(port, &hsi_char_dev_info);
+
+	for_each_available_child_of_node(clients, child)
+		hsi_add_client_from_dt(port, child);
+}
+EXPORT_SYMBOL_GPL(hsi_add_clients_from_dt);
+#endif
+
+int hsi_remove_client(struct device *dev, void *data __maybe_unused)
 {
 	device_unregister(dev);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hsi_remove_client);
 
 static int hsi_remove_port(struct device *dev, void *data __maybe_unused)
 {
@@ -126,6 +355,16 @@ static void hsi_port_release(struct device *dev)
 {
 	kfree(to_hsi_port(dev));
 }
+
+/**
+ * hsi_unregister_port - Unregister an HSI port
+ * @port: The HSI port to unregister
+ */
+void hsi_port_unregister_clients(struct hsi_port *port)
+{
+	device_for_each_child(&port->device, NULL, hsi_remove_client);
+}
+EXPORT_SYMBOL_GPL(hsi_port_unregister_clients);
 
 /**
  * hsi_unregister_controller - Unregister an HSI controller
@@ -470,7 +709,7 @@ int hsi_unregister_port_event(struct hsi_client *cl)
 EXPORT_SYMBOL_GPL(hsi_unregister_port_event);
 
 /**
- * hsi_event -Notifies clients about port events
+ * hsi_event - Notifies clients about port events
  * @port: Port where the event occurred
  * @event: The event type
  *
@@ -489,6 +728,32 @@ int hsi_event(struct hsi_port *port, unsigned long event)
 	return atomic_notifier_call_chain(&port->n_head, event, NULL);
 }
 EXPORT_SYMBOL_GPL(hsi_event);
+
+/**
+ * hsi_get_channel_id_by_name - acquire channel id by channel name
+ * @cl: HSI client, which uses the channel
+ * @name: name the channel is known under
+ *
+ * Clients can call this function to get the hsi channel ids similar to
+ * requesting IRQs or GPIOs by name. This function assumes the same
+ * channel configuration is used for RX and TX.
+ *
+ * Returns -errno on error or channel id on success.
+ */
+int hsi_get_channel_id_by_name(struct hsi_client *cl, char *name)
+{
+	int i;
+
+	if (!cl->rx_cfg.channels)
+		return -ENOENT;
+
+	for (i = 0; i < cl->rx_cfg.num_channels; i++)
+		if (!strcmp(cl->rx_cfg.channels[i].name, name))
+			return cl->rx_cfg.channels[i].id;
+
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(hsi_get_channel_id_by_name);
 
 static int __init hsi_init(void)
 {

@@ -1329,7 +1329,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 	qp_new_state = attr_mask & IB_QP_STATE ? attr->qp_state : qp_cur_state;
 	if (!smi_reset2init &&
 	    !ib_modify_qp_is_ok(qp_cur_state, qp_new_state, ibqp->qp_type,
-				attr_mask)) {
+				attr_mask, IB_LINK_LAYER_UNSPECIFIED)) {
 		ret = -EINVAL;
 		ehca_err(ibqp->device,
 			 "Invalid qp transition new_state=%x cur_state=%x "

@@ -21,6 +21,7 @@
 #include <linux/io.h>
 
 #include <sound/core.h>
+#include <sound/dmaengine_pcm.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
@@ -29,6 +30,8 @@
 #include <mach/hardware.h>
 #include <mach/ep93xx-regs.h>
 #include <linux/platform_data/dma-ep93xx.h>
+
+#include "ep93xx-pcm.h"
 
 #define EP93XX_I2S_TXCLKCFG		0x00
 #define EP93XX_I2S_RXCLKCFG		0x04
@@ -61,6 +64,8 @@ struct ep93xx_i2s_info {
 	struct clk			*sclk;
 	struct clk			*lrclk;
 	void __iomem			*regs;
+	struct snd_dmaengine_dai_dma_data dma_params_rx;
+	struct snd_dmaengine_dai_dma_data dma_params_tx;
 };
 
 static struct ep93xx_dma_data ep93xx_i2s_dma_data[] = {
@@ -140,8 +145,15 @@ static void ep93xx_i2s_disable(struct ep93xx_i2s_info *info, int stream)
 
 static int ep93xx_i2s_dai_probe(struct snd_soc_dai *dai)
 {
-	dai->playback_dma_data = &ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_PLAYBACK];
-	dai->capture_dma_data = &ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_CAPTURE];
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
+
+	info->dma_params_tx.filter_data =
+		&ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_PLAYBACK];
+	info->dma_params_rx.filter_data =
+		&ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_CAPTURE];
+
+	dai->playback_dma_data = &info->dma_params_tx;
+	dai->capture_dma_data = &info->dma_params_rx;
 
 	return 0;
 }
@@ -376,9 +388,6 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	info->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
@@ -408,10 +417,15 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_put_lrclk;
 
+	err = devm_ep93xx_pcm_platform_register(&pdev->dev);
+	if (err)
+		goto fail_unregister;
+
 	return 0;
 
+fail_unregister:
+	snd_soc_unregister_component(&pdev->dev);
 fail_put_lrclk:
-	dev_set_drvdata(&pdev->dev, NULL);
 	clk_put(info->lrclk);
 fail_put_sclk:
 	clk_put(info->sclk);
@@ -426,7 +440,6 @@ static int ep93xx_i2s_remove(struct platform_device *pdev)
 	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 	clk_put(info->lrclk);
 	clk_put(info->sclk);
 	clk_put(info->mclk);
@@ -438,7 +451,6 @@ static struct platform_driver ep93xx_i2s_driver = {
 	.remove	= ep93xx_i2s_remove,
 	.driver	= {
 		.name	= "ep93xx-i2s",
-		.owner	= THIS_MODULE,
 	},
 };
 

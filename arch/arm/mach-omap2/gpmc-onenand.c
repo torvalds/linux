@@ -15,14 +15,13 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/onenand_regs.h>
 #include <linux/io.h>
+#include <linux/omap-gpmc.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 #include <linux/err.h>
 
 #include <asm/mach/flash.h>
 
-#include "gpmc.h"
 #include "soc.h"
-#include "gpmc-onenand.h"
 
 #define	ONENAND_IO_SIZE	SZ_128K
 
@@ -272,9 +271,19 @@ static int omap2_onenand_setup_async(void __iomem *onenand_base)
 	struct gpmc_timings t;
 	int ret;
 
-	if (gpmc_onenand_data->of_node)
+	if (gpmc_onenand_data->of_node) {
 		gpmc_read_settings_dt(gpmc_onenand_data->of_node,
 				      &onenand_async);
+		if (onenand_async.sync_read || onenand_async.sync_write) {
+			if (onenand_async.sync_write)
+				gpmc_onenand_data->flags |=
+					ONENAND_SYNC_READWRITE;
+			else
+				gpmc_onenand_data->flags |= ONENAND_SYNC_READ;
+			onenand_async.sync_read = false;
+			onenand_async.sync_write = false;
+		}
+	}
 
 	omap2_onenand_set_async_mode(onenand_base);
 

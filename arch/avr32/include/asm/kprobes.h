@@ -16,6 +16,7 @@
 typedef u16	kprobe_opcode_t;
 #define BREAKPOINT_INSTRUCTION	0xd673	/* breakpoint */
 #define MAX_INSN_SIZE		2
+#define MAX_STACK_SIZE		64	/* 32 would probably be OK */
 
 #define kretprobe_blacklist_size 0
 
@@ -24,6 +25,19 @@ typedef u16	kprobe_opcode_t;
 /* Architecture specific copy of original instruction */
 struct arch_specific_insn {
 	kprobe_opcode_t	insn[MAX_INSN_SIZE];
+};
+
+struct prev_kprobe {
+	struct kprobe *kp;
+	unsigned int status;
+};
+
+/* per-cpu kprobe control block */
+struct kprobe_ctlblk {
+	unsigned int kprobe_status;
+	struct prev_kprobe prev_kprobe;
+	struct pt_regs jprobe_saved_regs;
+	char jprobes_stack[MAX_STACK_SIZE];
 };
 
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);

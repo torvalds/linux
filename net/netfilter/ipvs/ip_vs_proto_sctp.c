@@ -20,13 +20,18 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	sctp_sctphdr_t *sh, _sctph;
 
 	sh = skb_header_pointer(skb, iph->len, sizeof(_sctph), &_sctph);
-	if (sh == NULL)
+	if (sh == NULL) {
+		*verdict = NF_DROP;
 		return 0;
+	}
 
 	sch = skb_header_pointer(skb, iph->len + sizeof(sctp_sctphdr_t),
 				 sizeof(_schunkh), &_schunkh);
-	if (sch == NULL)
+	if (sch == NULL) {
+		*verdict = NF_DROP;
 		return 0;
+	}
+
 	net = skb_net(skb);
 	ipvs = net_ipvs(net);
 	rcu_read_lock();
@@ -66,15 +71,7 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 static void sctp_nat_csum(struct sk_buff *skb, sctp_sctphdr_t *sctph,
 			  unsigned int sctphoff)
 {
-	__u32 crc32;
-	struct sk_buff *iter;
-
-	crc32 = sctp_start_cksum((__u8 *)sctph, skb_headlen(skb) - sctphoff);
-	skb_walk_frags(skb, iter)
-		crc32 = sctp_update_cksum((u8 *) iter->data,
-					  skb_headlen(iter), crc32);
-	sctph->checksum = sctp_end_cksum(crc32);
-
+	sctph->checksum = sctp_compute_cksum(skb, sctphoff);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
@@ -84,6 +81,7 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	sctp_sctphdr_t *sctph;
 	unsigned int sctphoff = iph->len;
+	bool payload_csum = false;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -95,19 +93,31 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
-		if (!ip_vs_app_pkt_out(cp, skb))
+		ret = ip_vs_app_pkt_out(cp, skb);
+		if (ret == 0)
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 2)
+			payload_csum = true;
 	}
 
 	sctph = (void *) skb_network_header(skb) + sctphoff;
-	sctph->source = cp->vport;
 
-	sctp_nat_csum(skb, sctph, sctphoff);
+	/* Only update csum if we really have to */
+	if (sctph->source != cp->vport || payload_csum ||
+	    skb->ip_summed == CHECKSUM_PARTIAL) {
+		sctph->source = cp->vport;
+		sctp_nat_csum(skb, sctph, sctphoff);
+	} else {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
 
 	return 1;
 }
@@ -118,6 +128,7 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	sctp_sctphdr_t *sctph;
 	unsigned int sctphoff = iph->len;
+	bool payload_csum = false;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -129,19 +140,32 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
-		if (!ip_vs_app_pkt_in(cp, skb))
+		ret = ip_vs_app_pkt_in(cp, skb);
+		if (ret == 0)
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 2)
+			payload_csum = true;
 	}
 
 	sctph = (void *) skb_network_header(skb) + sctphoff;
-	sctph->dest = cp->dport;
 
-	sctp_nat_csum(skb, sctph, sctphoff);
+	/* Only update csum if we really have to */
+	if (sctph->dest != cp->dport || payload_csum ||
+	    (skb->ip_summed == CHECKSUM_PARTIAL &&
+	     !(skb_dst(skb)->dev->features & NETIF_F_SCTP_CSUM))) {
+		sctph->dest = cp->dport;
+		sctp_nat_csum(skb, sctph, sctphoff);
+	} else if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
 
 	return 1;
 }
@@ -151,10 +175,7 @@ sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 {
 	unsigned int sctphoff;
 	struct sctphdr *sh, _sctph;
-	struct sk_buff *iter;
-	__le32 cmp;
-	__le32 val;
-	__u32 tmp;
+	__le32 cmp, val;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
@@ -168,13 +189,7 @@ sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 		return 0;
 
 	cmp = sh->checksum;
-
-	tmp = sctp_start_cksum((__u8 *) sh, skb_headlen(skb));
-	skb_walk_frags(skb, iter)
-		tmp = sctp_update_cksum((__u8 *) iter->data,
-					skb_headlen(iter), tmp);
-
-	val = sctp_end_cksum(tmp);
+	val = sctp_compute_cksum(skb, sctphoff);
 
 	if (val != cmp) {
 		/* CRC failure, dump it. */
@@ -417,7 +432,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 				pd->pp->name,
 				((direction == IP_VS_DIR_OUTPUT) ?
 				 "output " : "input "),
-				IP_VS_DBG_ADDR(cp->af, &cp->daddr),
+				IP_VS_DBG_ADDR(cp->daf, &cp->daddr),
 				ntohs(cp->dport),
 				IP_VS_DBG_ADDR(cp->af, &cp->caddr),
 				ntohs(cp->cport),

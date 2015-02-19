@@ -316,7 +316,7 @@ static const u16 xmtfifo_sz[][NFIFO] = {
 static const char * const fifo_names[] = {
 	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
 #else
-static const char fifo_names[6][0];
+static const char fifo_names[6][1];
 #endif
 
 #ifdef DEBUG
@@ -445,18 +445,18 @@ static void brcms_c_detach_mfree(struct brcms_c_info *wlc)
 	kfree(wlc->protection);
 	kfree(wlc->stf);
 	kfree(wlc->bandstate[0]);
-	kfree(wlc->corestate->macstat_snapshot);
+	if (wlc->corestate)
+		kfree(wlc->corestate->macstat_snapshot);
 	kfree(wlc->corestate);
-	kfree(wlc->hw->bandstate[0]);
+	if (wlc->hw)
+		kfree(wlc->hw->bandstate[0]);
 	kfree(wlc->hw);
 	if (wlc->beacon)
 		dev_kfree_skb_any(wlc->beacon);
 	if (wlc->probe_resp)
 		dev_kfree_skb_any(wlc->probe_resp);
 
-	/* free the wlc */
 	kfree(wlc);
-	wlc = NULL;
 }
 
 static struct brcms_bss_cfg *brcms_c_bsscfg_malloc(uint unit)
@@ -882,8 +882,8 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	mcl = le16_to_cpu(txh->MacTxControlLow);
 
 	if (txs->phyerr)
-		brcms_err(wlc->hw->d11core, "phyerr 0x%x, rate 0x%x\n",
-			  txs->phyerr, txh->MainRates);
+		brcms_dbg_tx(wlc->hw->d11core, "phyerr 0x%x, rate 0x%x\n",
+			     txs->phyerr, txh->MainRates);
 
 	if (txs->frameid != le16_to_cpu(txh->TxFrameID)) {
 		brcms_err(wlc->hw->d11core, "frameid != txh->TxFrameID\n");
@@ -1009,8 +1009,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 		if (txh)
 			trace_brcms_txdesc(&wlc->hw->d11core->dev, txh,
 					   sizeof(*txh));
-		if (p)
-			brcmu_pkt_buf_free_skb(p);
+		brcmu_pkt_buf_free_skb(p);
 	}
 
 	if (dma && queue < NFIFO) {
@@ -1906,14 +1905,14 @@ static void brcms_c_get_macaddr(struct brcms_hardware *wlc_hw, u8 etheraddr[ETH_
 
 	/* If macaddr exists, use it (Sromrev4, CIS, ...). */
 	if (!is_zero_ether_addr(sprom->il0mac)) {
-		memcpy(etheraddr, sprom->il0mac, 6);
+		memcpy(etheraddr, sprom->il0mac, ETH_ALEN);
 		return;
 	}
 
 	if (wlc_hw->_nbands > 1)
-		memcpy(etheraddr, sprom->et1mac, 6);
+		memcpy(etheraddr, sprom->et1mac, ETH_ALEN);
 	else
-		memcpy(etheraddr, sprom->il0mac, 6);
+		memcpy(etheraddr, sprom->il0mac, ETH_ALEN);
 }
 
 /* power both the pll and external oscillator on/off */
@@ -3081,7 +3080,7 @@ static bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 static void brcms_c_statsupd(struct brcms_c_info *wlc)
 {
 	int i;
-	struct macstat macstats;
+	struct macstat *macstats;
 #ifdef DEBUG
 	u16 delta;
 	u16 rxf0ovfl;
@@ -3092,31 +3091,31 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 	if (!wlc->pub->up)
 		return;
 
+	macstats = wlc->core->macstat_snapshot;
+
 #ifdef DEBUG
 	/* save last rx fifo 0 overflow count */
-	rxf0ovfl = wlc->core->macstat_snapshot->rxf0ovfl;
+	rxf0ovfl = macstats->rxf0ovfl;
 
 	/* save last tx fifo  underflow count */
 	for (i = 0; i < NFIFO; i++)
-		txfunfl[i] = wlc->core->macstat_snapshot->txfunfl[i];
+		txfunfl[i] = macstats->txfunfl[i];
 #endif				/* DEBUG */
 
 	/* Read mac stats from contiguous shared memory */
-	brcms_b_copyfrom_objmem(wlc->hw, M_UCODE_MACSTAT, &macstats,
-				sizeof(struct macstat), OBJADDR_SHM_SEL);
+	brcms_b_copyfrom_objmem(wlc->hw, M_UCODE_MACSTAT, macstats,
+				sizeof(*macstats), OBJADDR_SHM_SEL);
 
 #ifdef DEBUG
 	/* check for rx fifo 0 overflow */
-	delta = (u16) (wlc->core->macstat_snapshot->rxf0ovfl - rxf0ovfl);
+	delta = (u16)(macstats->rxf0ovfl - rxf0ovfl);
 	if (delta)
 		brcms_err(wlc->hw->d11core, "wl%d: %u rx fifo 0 overflows!\n",
 			  wlc->pub->unit, delta);
 
 	/* check for tx fifo underflows */
 	for (i = 0; i < NFIFO; i++) {
-		delta =
-		    (u16) (wlc->core->macstat_snapshot->txfunfl[i] -
-			      txfunfl[i]);
+		delta = macstats->txfunfl[i] - txfunfl[i];
 		if (delta)
 			brcms_err(wlc->hw->d11core,
 				  "wl%d: %u tx fifo %d underflows!\n",
@@ -4652,7 +4651,9 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		wlc->band->phyrev = wlc_hw->band->phyrev;
 		wlc->band->radioid = wlc_hw->band->radioid;
 		wlc->band->radiorev = wlc_hw->band->radiorev;
-
+		brcms_dbg_info(core, "wl%d: phy %u/%u radio %x/%u\n", unit,
+			       wlc->band->phytype, wlc->band->phyrev,
+			       wlc->band->radioid, wlc->band->radiorev);
 		/* default contention windows size limits */
 		wlc_hw->band->CWmin = APHY_CWMIN;
 		wlc_hw->band->CWmax = PHY_CWMAX;
@@ -4667,7 +4668,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	brcms_c_coredisable(wlc_hw);
 
 	/* Match driver "down" state */
-	ai_pci_down(wlc_hw->sih);
+	bcma_core_pci_down(wlc_hw->d11core->bus);
 
 	/* turn off pll and xtal to match driver "down" state */
 	brcms_b_xtal(wlc_hw, OFF);
@@ -4703,41 +4704,6 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	wiphy_err(wiphy, "wl%d: brcms_b_attach: failed with err %d\n", unit,
 		  err);
 	return err;
-}
-
-static void brcms_c_attach_antgain_init(struct brcms_c_info *wlc)
-{
-	uint unit;
-	unit = wlc->pub->unit;
-
-	if ((wlc->band->antgain == -1) && (wlc->pub->sromrev == 1)) {
-		/* default antenna gain for srom rev 1 is 2 dBm (8 qdbm) */
-		wlc->band->antgain = 8;
-	} else if (wlc->band->antgain == -1) {
-		wiphy_err(wlc->wiphy, "wl%d: %s: Invalid antennas available in"
-			  " srom, using 2dB\n", unit, __func__);
-		wlc->band->antgain = 8;
-	} else {
-		s8 gain, fract;
-		/* Older sroms specified gain in whole dbm only.  In order
-		 * be able to specify qdbm granularity and remain backward
-		 * compatible the whole dbms are now encoded in only
-		 * low 6 bits and remaining qdbms are encoded in the hi 2 bits.
-		 * 6 bit signed number ranges from -32 - 31.
-		 *
-		 * Examples:
-		 * 0x1 = 1 db,
-		 * 0xc1 = 1.75 db (1 + 3 quarters),
-		 * 0x3f = -1 (-1 + 0 quarters),
-		 * 0x7f = -.75 (-1 + 1 quarters) = -3 qdbm.
-		 * 0xbf = -.50 (-1 + 2 quarters) = -2 qdbm.
-		 */
-		gain = wlc->band->antgain & 0x3f;
-		gain <<= 2;	/* Sign extend */
-		gain >>= 2;
-		fract = (wlc->band->antgain & 0xc0) >> 6;
-		wlc->band->antgain = 4 * gain + fract;
-	}
 }
 
 static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
@@ -4777,8 +4743,6 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 		wlc->band->antgain = sprom->antenna_gain.a1;
 	else
 		wlc->band->antgain = sprom->antenna_gain.a0;
-
-	brcms_c_attach_antgain_init(wlc);
 
 	return true;
 }
@@ -4868,14 +4832,11 @@ static void brcms_c_detach_module(struct brcms_c_info *wlc)
 /*
  * low level detach
  */
-static int brcms_b_detach(struct brcms_c_info *wlc)
+static void brcms_b_detach(struct brcms_c_info *wlc)
 {
 	uint i;
 	struct brcms_hw_band *band;
 	struct brcms_hardware *wlc_hw = wlc->hw;
-	int callbacks;
-
-	callbacks = 0;
 
 	brcms_b_detach_dmapio(wlc_hw);
 
@@ -4898,9 +4859,6 @@ static int brcms_b_detach(struct brcms_c_info *wlc)
 		ai_detach(wlc_hw->sih);
 		wlc_hw->sih = NULL;
 	}
-
-	return callbacks;
-
 }
 
 /*
@@ -4915,14 +4873,15 @@ static int brcms_b_detach(struct brcms_c_info *wlc)
  */
 uint brcms_c_detach(struct brcms_c_info *wlc)
 {
-	uint callbacks = 0;
+	uint callbacks;
 
 	if (wlc == NULL)
 		return 0;
 
-	callbacks += brcms_b_detach(wlc);
+	brcms_b_detach(wlc);
 
 	/* delete software timers */
+	callbacks = 0;
 	if (!brcms_c_radio_monitor_stop(wlc))
 		callbacks++;
 
@@ -5010,12 +4969,12 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 */
 	if (brcms_b_radio_read_hwdisabled(wlc_hw)) {
 		/* put SB PCI in down state again */
-		ai_pci_down(wlc_hw->sih);
+		bcma_core_pci_down(wlc_hw->d11core->bus);
 		brcms_b_xtal(wlc_hw, OFF);
 		return -ENOMEDIUM;
 	}
 
-	ai_pci_up(wlc_hw->sih);
+	bcma_core_pci_up(wlc_hw->d11core->bus);
 
 	/* reset the d11 core */
 	brcms_b_corereset(wlc_hw, BRCMS_USE_COREFLAGS);
@@ -5212,7 +5171,7 @@ static int brcms_b_down_finish(struct brcms_hardware *wlc_hw)
 
 		/* turn off primary xtal and pll */
 		if (!wlc_hw->noreset) {
-			ai_pci_down(wlc_hw->sih);
+			bcma_core_pci_down(wlc_hw->d11core->bus);
 			brcms_b_xtal(wlc_hw, OFF);
 		}
 	}
@@ -5693,7 +5652,7 @@ static bool brcms_c_chipmatch_pci(struct bcma_device *core)
 		return true;
 	if ((device == BCM43224_D11N_ID) || (device == BCM43225_D11N2G_ID))
 		return true;
-	if (device == BCM4313_D11N2G_ID)
+	if (device == BCM4313_D11N2G_ID || device == BCM4313_CHIP_ID)
 		return true;
 	if ((device == BCM43236_D11N_ID) || (device == BCM43236_D11N2G_ID))
 		return true;
@@ -7106,7 +7065,6 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 		     struct sk_buff *p,
 		     struct ieee80211_rx_status *rx_status)
 {
-	int preamble;
 	int channel;
 	u32 rspec;
 	unsigned char *plcp;
@@ -7189,7 +7147,6 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 			rx_status->rate_idx -= BRCMS_LEGACY_5G_RATE_OFFSET;
 
 		/* Determine short preamble and rate_idx */
-		preamble = 0;
 		if (is_cck_rate(rspec)) {
 			if (rxh->PhyRxStatus_0 & PRXS0_SHORTH)
 				rx_status->flag |= RX_FLAG_SHORTPRE;

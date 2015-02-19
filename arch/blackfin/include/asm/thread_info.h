@@ -42,7 +42,6 @@ struct thread_info {
 	int cpu;		/* cpu we're on */
 	int preempt_count;	/* 0 => preemptable, <0 => BUG */
 	mm_segment_t addr_limit;	/* address limit */
-	struct restart_block restart_block;
 #ifndef CONFIG_SMP
 	struct l1_scratch_task_info l1_task_info;
 #endif
@@ -58,9 +57,6 @@ struct thread_info {
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
-	.restart_block	= {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
 }
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
@@ -87,8 +83,6 @@ static inline struct thread_info *current_thread_info(void)
 #define TI_FLAGS	8
 #define TI_CPU		12
 #define TI_PREEMPT	16
-
-#define	PREEMPT_ACTIVE	0x4000000
 
 /*
  * thread information flag bit numbers

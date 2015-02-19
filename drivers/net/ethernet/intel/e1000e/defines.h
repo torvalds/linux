@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
@@ -35,9 +28,11 @@
 
 /* Definitions for power management and wakeup registers */
 /* Wake Up Control */
-#define E1000_WUC_APME       0x00000001 /* APM Enable */
-#define E1000_WUC_PME_EN     0x00000002 /* PME Enable */
-#define E1000_WUC_PHY_WAKE   0x00000100 /* if PHY supports wakeup */
+#define E1000_WUC_APME		0x00000001	/* APM Enable */
+#define E1000_WUC_PME_EN	0x00000002	/* PME Enable */
+#define E1000_WUC_PME_STATUS	0x00000004	/* PME Status */
+#define E1000_WUC_APMPME	0x00000008	/* Assert PME on APM Wakeup */
+#define E1000_WUC_PHY_WAKE	0x00000100	/* if PHY supports wakeup */
 
 /* Wake Up Filter Control */
 #define E1000_WUFC_LNKC 0x00000001 /* Link Status Change Wakeup Enable */
@@ -347,6 +342,7 @@
 #define E1000_TIPG_IPGR2_SHIFT  20
 
 #define MAX_JUMBO_FRAME_SIZE    0x3F00
+#define E1000_TX_PTR_GAP		0x1F
 
 /* Extended Configuration Control and Size */
 #define E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP      0x00000020

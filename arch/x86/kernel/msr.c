@@ -22,6 +22,8 @@
  * an SMP box will direct the access to CPU %d.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 
 #include <linux/types.h>
@@ -46,15 +48,15 @@ static struct class *msr_class;
 static loff_t msr_seek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
-	struct inode *inode = file->f_mapping->host;
+	struct inode *inode = file_inode(file);
 
 	mutex_lock(&inode->i_mutex);
 	switch (orig) {
-	case 0:
+	case SEEK_SET:
 		file->f_pos = offset;
 		ret = file->f_pos;
 		break;
-	case 1:
+	case SEEK_CUR:
 		file->f_pos += offset;
 		ret = file->f_pos;
 		break;
@@ -206,7 +208,7 @@ static int msr_device_create(int cpu)
 
 	dev = device_create(msr_class, NULL, MKDEV(MSR_MAJOR, cpu), NULL,
 			    "msr%d", cpu);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+	return PTR_ERR_OR_ZERO(dev);
 }
 
 static void msr_device_destroy(int cpu)
@@ -248,8 +250,7 @@ static int __init msr_init(void)
 	i = 0;
 
 	if (__register_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr", &msr_fops)) {
-		printk(KERN_ERR "msr: unable to get major %d for msr\n",
-		       MSR_MAJOR);
+		pr_err("unable to get major %d for msr\n", MSR_MAJOR);
 		err = -EBUSY;
 		goto out;
 	}
@@ -259,14 +260,15 @@ static int __init msr_init(void)
 		goto out_chrdev;
 	}
 	msr_class->devnode = msr_devnode;
-	get_online_cpus();
+
+	cpu_notifier_register_begin();
 	for_each_online_cpu(i) {
 		err = msr_device_create(i);
 		if (err != 0)
 			goto out_class;
 	}
-	register_hotcpu_notifier(&msr_class_cpu_notifier);
-	put_online_cpus();
+	__register_hotcpu_notifier(&msr_class_cpu_notifier);
+	cpu_notifier_register_done();
 
 	err = 0;
 	goto out;
@@ -275,7 +277,7 @@ out_class:
 	i = 0;
 	for_each_online_cpu(i)
 		msr_device_destroy(i);
-	put_online_cpus();
+	cpu_notifier_register_done();
 	class_destroy(msr_class);
 out_chrdev:
 	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
@@ -286,13 +288,14 @@ out:
 static void __exit msr_exit(void)
 {
 	int cpu = 0;
-	get_online_cpus();
+
+	cpu_notifier_register_begin();
 	for_each_online_cpu(cpu)
 		msr_device_destroy(cpu);
 	class_destroy(msr_class);
 	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
-	unregister_hotcpu_notifier(&msr_class_cpu_notifier);
-	put_online_cpus();
+	__unregister_hotcpu_notifier(&msr_class_cpu_notifier);
+	cpu_notifier_register_done();
 }
 
 module_init(msr_init);

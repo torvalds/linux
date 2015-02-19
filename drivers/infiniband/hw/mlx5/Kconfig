@@ -1,6 +1,6 @@
 config MLX5_INFINIBAND
 	tristate "Mellanox Connect-IB HCA support"
-	depends on NETDEVICES && ETHERNET && PCI && X86
+	depends on NETDEVICES && ETHERNET && PCI
 	select NET_VENDOR_MELLANOX
 	select MLX5_CORE
 	---help---

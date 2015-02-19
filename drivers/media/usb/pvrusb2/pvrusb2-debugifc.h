@@ -40,13 +40,3 @@ int pvr2_debugifc_docmd(struct pvr2_hdw *,
 			const char *buf_ptr,unsigned int buf_size);
 
 #endif /* __PVRUSB2_DEBUGIFC_H */
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

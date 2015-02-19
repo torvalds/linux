@@ -80,7 +80,7 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	blkg->q = q;
 	INIT_LIST_HEAD(&blkg->q_node);
 	blkg->blkcg = blkcg;
-	blkg->refcnt = 1;
+	atomic_set(&blkg->refcnt, 1);
 
 	/* root blkg uses @q->root_rl, init rl only for !root blkgs */
 	if (blkcg != &blkcg_root) {
@@ -185,7 +185,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	lockdep_assert_held(q->queue_lock);
 
 	/* blkg holds a reference to blkcg */
-	if (!css_tryget(&blkcg->css)) {
+	if (!css_tryget_online(&blkcg->css)) {
 		ret = -EINVAL;
 		goto err_free_blkg;
 	}
@@ -235,8 +235,13 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	blkg->online = true;
 	spin_unlock(&blkcg->lock);
 
-	if (!ret)
+	if (!ret) {
+		if (blkcg == &blkcg_root) {
+			q->root_blkg = blkg;
+			q->root_rl.blkg = blkg;
+		}
 		return blkg;
+	}
 
 	/* @blkg failed fully initialized, use the usual release path */
 	blkg_put(blkg);
@@ -331,8 +336,17 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	 * under queue_lock.  If it's not pointing to @blkg now, it never
 	 * will.  Hint assignment itself can race safely.
 	 */
-	if (rcu_dereference_raw(blkcg->blkg_hint) == blkg)
+	if (rcu_access_pointer(blkcg->blkg_hint) == blkg)
 		rcu_assign_pointer(blkcg->blkg_hint, NULL);
+
+	/*
+	 * If root blkg is destroyed.  Just clear the pointer since root_rl
+	 * does not take reference on root blkg.
+	 */
+	if (blkcg == &blkcg_root) {
+		blkg->q->root_blkg = NULL;
+		blkg->q->root_rl.blkg = NULL;
+	}
 
 	/*
 	 * Put the reference taken at the time of creation so that when all
@@ -360,13 +374,6 @@ static void blkg_destroy_all(struct request_queue *q)
 		blkg_destroy(blkg);
 		spin_unlock(&blkcg->lock);
 	}
-
-	/*
-	 * root blkg is destroyed.  Just clear the pointer since
-	 * root_rl does not take reference on root blkg.
-	 */
-	q->root_blkg = NULL;
-	q->root_rl.blkg = NULL;
 }
 
 /*
@@ -392,11 +399,8 @@ void __blkg_release_rcu(struct rcu_head *rcu_head)
 
 	/* release the blkcg and parent blkg refs this blkg has been holding */
 	css_put(&blkg->blkcg->css);
-	if (blkg->parent) {
-		spin_lock_irq(blkg->q->queue_lock);
+	if (blkg->parent)
 		blkg_put(blkg->parent);
-		spin_unlock_irq(blkg->q->queue_lock);
-	}
 
 	blkg_free(blkg);
 }
@@ -437,14 +441,27 @@ struct request_list *__blk_queue_next_rl(struct request_list *rl,
 	return &blkg->rl;
 }
 
-static int blkcg_reset_stats(struct cgroup *cgroup, struct cftype *cftype,
-			     u64 val)
+static int blkcg_reset_stats(struct cgroup_subsys_state *css,
+			     struct cftype *cftype, u64 val)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
+	struct blkcg *blkcg = css_to_blkcg(css);
 	struct blkcg_gq *blkg;
 	int i;
 
-	mutex_lock(&blkcg_pol_mutex);
+	/*
+	 * XXX: We invoke cgroup_add/rm_cftypes() under blkcg_pol_mutex
+	 * which ends up putting cgroup's internal cgroup_tree_mutex under
+	 * it; however, cgroup_tree_mutex is nested above cgroup file
+	 * active protection and grabbing blkcg_pol_mutex from a cgroup
+	 * file operation creates a possible circular dependency.  cgroup
+	 * internal locking is planned to go through further simplification
+	 * and this issue should go away soon.  For now, let's trylock
+	 * blkcg_pol_mutex and restart the write on failure.
+	 *
+	 * http://lkml.kernel.org/g/5363C04B.4010400@oracle.com
+	 */
+	if (!mutex_trylock(&blkcg_pol_mutex))
+		return restart_syscall();
 	spin_lock_irq(&blkcg->lock);
 
 	/*
@@ -614,15 +631,13 @@ u64 blkg_stat_recursive_sum(struct blkg_policy_data *pd, int off)
 {
 	struct blkcg_policy *pol = blkcg_policy[pd->plid];
 	struct blkcg_gq *pos_blkg;
-	struct cgroup *pos_cgrp;
-	u64 sum;
+	struct cgroup_subsys_state *pos_css;
+	u64 sum = 0;
 
 	lockdep_assert_held(pd->blkg->q->queue_lock);
 
-	sum = blkg_stat_read((void *)pd + off);
-
 	rcu_read_lock();
-	blkg_for_each_descendant_pre(pos_blkg, pos_cgrp, pd_to_blkg(pd)) {
+	blkg_for_each_descendant_pre(pos_blkg, pos_css, pd_to_blkg(pd)) {
 		struct blkg_policy_data *pos_pd = blkg_to_pd(pos_blkg, pol);
 		struct blkg_stat *stat = (void *)pos_pd + off;
 
@@ -649,16 +664,14 @@ struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkg_policy_data *pd,
 {
 	struct blkcg_policy *pol = blkcg_policy[pd->plid];
 	struct blkcg_gq *pos_blkg;
-	struct cgroup *pos_cgrp;
-	struct blkg_rwstat sum;
+	struct cgroup_subsys_state *pos_css;
+	struct blkg_rwstat sum = { };
 	int i;
 
 	lockdep_assert_held(pd->blkg->q->queue_lock);
 
-	sum = blkg_rwstat_read((void *)pd + off);
-
 	rcu_read_lock();
-	blkg_for_each_descendant_pre(pos_blkg, pos_cgrp, pd_to_blkg(pd)) {
+	blkg_for_each_descendant_pre(pos_blkg, pos_css, pd_to_blkg(pd)) {
 		struct blkg_policy_data *pos_pd = blkg_to_pd(pos_blkg, pol);
 		struct blkg_rwstat *rwstat = (void *)pos_pd + off;
 		struct blkg_rwstat tmp;
@@ -765,18 +778,18 @@ struct cftype blkcg_files[] = {
 
 /**
  * blkcg_css_offline - cgroup css_offline callback
- * @cgroup: cgroup of interest
+ * @css: css of interest
  *
- * This function is called when @cgroup is about to go away and responsible
- * for shooting down all blkgs associated with @cgroup.  blkgs should be
+ * This function is called when @css is about to go away and responsible
+ * for shooting down all blkgs associated with @css.  blkgs should be
  * removed while holding both q and blkcg locks.  As blkcg lock is nested
  * inside q lock, this function performs reverse double lock dancing.
  *
  * This is the blkcg counterpart of ioc_release_fn().
  */
-static void blkcg_css_offline(struct cgroup *cgroup)
+static void blkcg_css_offline(struct cgroup_subsys_state *css)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	spin_lock_irq(&blkcg->lock);
 
@@ -798,21 +811,20 @@ static void blkcg_css_offline(struct cgroup *cgroup)
 	spin_unlock_irq(&blkcg->lock);
 }
 
-static void blkcg_css_free(struct cgroup *cgroup)
+static void blkcg_css_free(struct cgroup_subsys_state *css)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	if (blkcg != &blkcg_root)
 		kfree(blkcg);
 }
 
-static struct cgroup_subsys_state *blkcg_css_alloc(struct cgroup *cgroup)
+static struct cgroup_subsys_state *
+blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 {
-	static atomic64_t id_seq = ATOMIC64_INIT(0);
 	struct blkcg *blkcg;
-	struct cgroup *parent = cgroup->parent;
 
-	if (!parent) {
+	if (!parent_css) {
 		blkcg = &blkcg_root;
 		goto done;
 	}
@@ -823,7 +835,6 @@ static struct cgroup_subsys_state *blkcg_css_alloc(struct cgroup *cgroup)
 
 	blkcg->cfq_weight = CFQ_WEIGHT_DEFAULT;
 	blkcg->cfq_leaf_weight = CFQ_WEIGHT_DEFAULT;
-	blkcg->id = atomic64_inc_return(&id_seq); /* root is 0, start from 1 */
 done:
 	spin_lock_init(&blkcg->lock);
 	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_ATOMIC);
@@ -859,6 +870,13 @@ void blkcg_drain_queue(struct request_queue *q)
 {
 	lockdep_assert_held(q->queue_lock);
 
+	/*
+	 * @q could be exiting and already have destroyed all blkgs as
+	 * indicated by NULL root_blkg.  If so, don't confuse policies.
+	 */
+	if (!q->root_blkg)
+		return;
+
 	blk_throtl_drain(q);
 }
 
@@ -883,14 +901,15 @@ void blkcg_exit_queue(struct request_queue *q)
  * of the main cic data structures.  For now we allow a task to change
  * its cgroup only if it's the only owner of its ioc.
  */
-static int blkcg_can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+static int blkcg_can_attach(struct cgroup_subsys_state *css,
+			    struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
 	struct io_context *ioc;
 	int ret = 0;
 
 	/* task_lock() is needed to avoid races with exit_io_context() */
-	cgroup_taskset_for_each(task, cgrp, tset) {
+	cgroup_taskset_for_each(task, tset) {
 		task_lock(task);
 		ioc = task->io_context;
 		if (ioc && atomic_read(&ioc->nr_tasks) > 1)
@@ -902,17 +921,22 @@ static int blkcg_can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 	return ret;
 }
 
-struct cgroup_subsys blkio_subsys = {
-	.name = "blkio",
+struct cgroup_subsys blkio_cgrp_subsys = {
 	.css_alloc = blkcg_css_alloc,
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,
-	.subsys_id = blkio_subsys_id,
-	.base_cftypes = blkcg_files,
-	.module = THIS_MODULE,
+	.legacy_cftypes = blkcg_files,
+#ifdef CONFIG_MEMCG
+	/*
+	 * This ensures that, if available, memcg is automatically enabled
+	 * together on the default hierarchy so that the owner cgroup can
+	 * be retrieved from writeback pages.
+	 */
+	.depends_on = 1 << memory_cgrp_id,
+#endif
 };
-EXPORT_SYMBOL_GPL(blkio_subsys);
+EXPORT_SYMBOL_GPL(blkio_cgrp_subsys);
 
 /**
  * blkcg_activate_policy - activate a blkcg policy on a request_queue
@@ -973,8 +997,6 @@ int blkcg_activate_policy(struct request_queue *q,
 		ret = PTR_ERR(blkg);
 		goto out_unlock;
 	}
-	q->root_blkg = blkg;
-	q->root_rl.blkg = blkg;
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node)
 		cnt++;
@@ -1104,7 +1126,8 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 
 	/* everything is in place, add intf files for the new policy */
 	if (pol->cftypes)
-		WARN_ON(cgroup_add_cftypes(&blkio_subsys, pol->cftypes));
+		WARN_ON(cgroup_add_legacy_cftypes(&blkio_cgrp_subsys,
+						  pol->cftypes));
 	ret = 0;
 out_unlock:
 	mutex_unlock(&blkcg_pol_mutex);
@@ -1127,7 +1150,7 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
 
 	/* kill the intf files first */
 	if (pol->cftypes)
-		cgroup_rm_cftypes(&blkio_subsys, pol->cftypes);
+		cgroup_rm_cftypes(pol->cftypes);
 
 	/* unregister and update blkgs */
 	blkcg_policy[pol->plid] = NULL;

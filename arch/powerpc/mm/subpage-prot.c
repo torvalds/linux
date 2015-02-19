@@ -78,7 +78,7 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	arch_enter_lazy_mmu_mode();
 	for (; npages > 0; --npages) {
-		pte_update(mm, addr, pte, 0, 0);
+		pte_update(mm, addr, pte, 0, 0, 0);
 		addr += PAGE_SIZE;
 		++pte;
 	}
@@ -105,7 +105,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 		limit = spt->maxaddr;
 	for (; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);
-		if (addr < 0x100000000) {
+		if (addr < 0x100000000UL) {
 			spm = spt->low_prot;
 		} else {
 			spm = spt->protptrs[addr >> SBP_L3_SHIFT];
@@ -134,7 +134,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 static int subpage_walk_pmd_entry(pmd_t *pmd, unsigned long addr,
 				  unsigned long end, struct mm_walk *walk)
 {
-	struct vm_area_struct *vma = walk->private;
+	struct vm_area_struct *vma = walk->vma;
 	split_huge_page_pmd(vma, addr, pmd);
 	return 0;
 }
@@ -163,9 +163,7 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
 		if (vma->vm_start >= (addr + len))
 			break;
 		vma->vm_flags |= VM_NOHUGEPAGE;
-		subpage_proto_walk.private = vma;
-		walk_page_range(vma->vm_start, vma->vm_end,
-				&subpage_proto_walk);
+		walk_page_vma(vma, &subpage_proto_walk);
 		vma = vma->vm_next;
 	}
 }
@@ -219,7 +217,7 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 	for (limit = addr + len; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);
 		err = -ENOMEM;
-		if (addr < 0x100000000) {
+		if (addr < 0x100000000UL) {
 			spm = spt->low_prot;
 		} else {
 			spm = spt->protptrs[addr >> SBP_L3_SHIFT];

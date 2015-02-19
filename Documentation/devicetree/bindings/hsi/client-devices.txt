@@ -1,0 +1,44 @@
+Each HSI port is supposed to have one child node, which
+symbols the remote device connected to the HSI port. The
+following properties are standardized for HSI clients:
+
+Required HSI configuration properties:
+
+- hsi-channel-ids:	A list of channel ids
+
+- hsi-rx-mode:		Receiver Bit transmission mode ("stream" or "frame")
+- hsi-tx-mode:		Transmitter Bit transmission mode ("stream" or "frame")
+- hsi-mode:		May be used instead hsi-rx-mode and hsi-tx-mode if
+			the transmission mode is the same for receiver and
+			transmitter
+- hsi-speed-kbps:	Max bit transmission speed in kbit/s
+- hsi-flow:		RX flow type ("synchronized" or "pipeline")
+- hsi-arb-mode:		Arbitration mode for TX frame ("round-robin", "priority")
+
+Optional HSI configuration properties:
+
+- hsi-channel-names:	A list with one name per channel specified in the
+			hsi-channel-ids property
+
+
+Device Tree node example for an HSI client:
+
+hsi-controller {
+	hsi-port {
+		modem: hsi-client {
+			compatible = "nokia,n900-modem";
+
+			hsi-channel-ids = <0>, <1>, <2>, <3>;
+			hsi-channel-names = "mcsaab-control",
+					    "speech-control",
+					    "speech-data",
+					    "mcsaab-data";
+			hsi-speed-kbps = <55000>;
+			hsi-mode = "frame";
+			hsi-flow = "synchronized";
+			hsi-arb-mode = "round-robin";
+
+			/* more client specific properties */
+		};
+	};
+};

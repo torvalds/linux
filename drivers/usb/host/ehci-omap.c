@@ -100,11 +100,11 @@ static const struct ehci_driver_overrides ehci_omap_overrides __initdata = {
 static int ehci_hcd_omap_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct usbhs_omap_platform_data *pdata = dev->platform_data;
+	struct usbhs_omap_platform_data *pdata = dev_get_platdata(dev);
 	struct resource	*res;
 	struct usb_hcd	*hcd;
 	void __iomem *regs;
-	int ret = -ENODEV;
+	int ret;
 	int irq;
 	int i;
 	struct omap_hcd	*omap;
@@ -119,7 +119,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 
 	/* For DT boot, get platform data from parent. i.e. usbhshost */
 	if (dev->of_node) {
-		pdata = dev->parent->platform_data;
+		pdata = dev_get_platdata(dev->parent);
 		dev->platform_data = pdata;
 	}
 
@@ -144,11 +144,11 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	 * Since shared usb code relies on it, set it here for now.
 	 * Once we have dma capability bindings this can go away.
 	 */
-	if (!dev->dma_mask)
-		dev->dma_mask = &dev->coherent_dma_mask;
-	if (!dev->coherent_dma_mask)
-		dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
+	ret = -ENODEV;
 	hcd = usb_create_hcd(&ehci_omap_hc_driver, dev,
 			dev_name(dev));
 	if (!hcd) {
@@ -215,6 +215,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to add hcd with err %d\n", ret);
 		goto err_pm_runtime;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	/*
 	 * Bring PHYs out of reset for non PHY modes.
@@ -278,14 +279,6 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void ehci_hcd_omap_shutdown(struct platform_device *pdev)
-{
-	struct usb_hcd *hcd = dev_get_drvdata(&pdev->dev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
-}
-
 static const struct of_device_id omap_ehci_dt_ids[] = {
 	{ .compatible = "ti,ehci-omap" },
 	{ }
@@ -296,7 +289,7 @@ MODULE_DEVICE_TABLE(of, omap_ehci_dt_ids);
 static struct platform_driver ehci_hcd_omap_driver = {
 	.probe			= ehci_hcd_omap_probe,
 	.remove			= ehci_hcd_omap_remove,
-	.shutdown		= ehci_hcd_omap_shutdown,
+	.shutdown		= usb_hcd_platform_shutdown,
 	/*.suspend		= ehci_hcd_omap_suspend, */
 	/*.resume		= ehci_hcd_omap_resume, */
 	.driver = {

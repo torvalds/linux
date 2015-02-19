@@ -74,8 +74,8 @@ static void faulty_fail(struct bio *bio, int error)
 {
 	struct bio *b = bio->bi_private;
 
-	b->bi_size = bio->bi_size;
-	b->bi_sector = bio->bi_sector;
+	b->bi_iter.bi_size = bio->bi_iter.bi_size;
+	b->bi_iter.bi_sector = bio->bi_iter.bi_sector;
 
 	bio_put(bio);
 
@@ -185,26 +185,31 @@ static void make_request(struct mddev *mddev, struct bio *bio)
 			return;
 		}
 
-		if (check_sector(conf, bio->bi_sector, bio_end_sector(bio), WRITE))
+		if (check_sector(conf, bio->bi_iter.bi_sector,
+				 bio_end_sector(bio), WRITE))
 			failit = 1;
 		if (check_mode(conf, WritePersistent)) {
-			add_sector(conf, bio->bi_sector, WritePersistent);
+			add_sector(conf, bio->bi_iter.bi_sector,
+				   WritePersistent);
 			failit = 1;
 		}
 		if (check_mode(conf, WriteTransient))
 			failit = 1;
 	} else {
 		/* read request */
-		if (check_sector(conf, bio->bi_sector, bio_end_sector(bio), READ))
+		if (check_sector(conf, bio->bi_iter.bi_sector,
+				 bio_end_sector(bio), READ))
 			failit = 1;
 		if (check_mode(conf, ReadTransient))
 			failit = 1;
 		if (check_mode(conf, ReadPersistent)) {
-			add_sector(conf, bio->bi_sector, ReadPersistent);
+			add_sector(conf, bio->bi_iter.bi_sector,
+				   ReadPersistent);
 			failit = 1;
 		}
 		if (check_mode(conf, ReadFixable)) {
-			add_sector(conf, bio->bi_sector, ReadFixable);
+			add_sector(conf, bio->bi_iter.bi_sector,
+				   ReadFixable);
 			failit = 1;
 		}
 	}
@@ -327,13 +332,11 @@ static int run(struct mddev *mddev)
 	return 0;
 }
 
-static int stop(struct mddev *mddev)
+static void faulty_free(struct mddev *mddev, void *priv)
 {
-	struct faulty_conf *conf = mddev->private;
+	struct faulty_conf *conf = priv;
 
 	kfree(conf);
-	mddev->private = NULL;
-	return 0;
 }
 
 static struct md_personality faulty_personality =
@@ -343,7 +346,7 @@ static struct md_personality faulty_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= make_request,
 	.run		= run,
-	.stop		= stop,
+	.free		= faulty_free,
 	.status		= status,
 	.check_reshape	= reshape,
 	.size		= faulty_size,

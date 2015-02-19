@@ -1,5 +1,5 @@
-/* USB OTG (On The Go) defines */
 /*
+ * USB PHY defines
  *
  * These APIs may be used between USB controllers.  USB device drivers
  * (for either host or peripheral roles) don't use these calls; they
@@ -77,7 +77,6 @@ struct usb_phy {
 	unsigned int		 flags;
 
 	enum usb_phy_type	type;
-	enum usb_otg_state	state;
 	enum usb_phy_events	last_event;
 
 	struct usb_otg		*otg;
@@ -107,9 +106,16 @@ struct usb_phy {
 	int	(*set_power)(struct usb_phy *x,
 				unsigned mA);
 
-	/* for non-OTG B devices: set transceiver into suspend mode */
+	/* Set transceiver into suspend mode */
 	int	(*set_suspend)(struct usb_phy *x,
 				int suspend);
+
+	/*
+	 * Set wakeup enable for PHY, in that case, the PHY can be
+	 * woken up from suspend status due to external events,
+	 * like vbus change, dp/dm change and id.
+	 */
+	int	(*set_wakeup)(struct usb_phy *x, bool enabled);
 
 	/* notify phy connect status change */
 	int	(*notify_connect)(struct usb_phy *x,
@@ -142,7 +148,7 @@ extern void usb_remove_phy(struct usb_phy *);
 /* helpers for direct access thru low-level io interface */
 static inline int usb_phy_io_read(struct usb_phy *x, u32 reg)
 {
-	if (x->io_ops && x->io_ops->read)
+	if (x && x->io_ops && x->io_ops->read)
 		return x->io_ops->read(x, reg);
 
 	return -EINVAL;
@@ -150,7 +156,7 @@ static inline int usb_phy_io_read(struct usb_phy *x, u32 reg)
 
 static inline int usb_phy_io_write(struct usb_phy *x, u32 val, u32 reg)
 {
-	if (x->io_ops && x->io_ops->write)
+	if (x && x->io_ops && x->io_ops->write)
 		return x->io_ops->write(x, val, reg);
 
 	return -EINVAL;
@@ -159,7 +165,7 @@ static inline int usb_phy_io_write(struct usb_phy *x, u32 val, u32 reg)
 static inline int
 usb_phy_init(struct usb_phy *x)
 {
-	if (x->init)
+	if (x && x->init)
 		return x->init(x);
 
 	return 0;
@@ -168,14 +174,14 @@ usb_phy_init(struct usb_phy *x)
 static inline void
 usb_phy_shutdown(struct usb_phy *x)
 {
-	if (x->shutdown)
+	if (x && x->shutdown)
 		x->shutdown(x);
 }
 
 static inline int
 usb_phy_vbus_on(struct usb_phy *x)
 {
-	if (!x->set_vbus)
+	if (!x || !x->set_vbus)
 		return 0;
 
 	return x->set_vbus(x, true);
@@ -184,7 +190,7 @@ usb_phy_vbus_on(struct usb_phy *x)
 static inline int
 usb_phy_vbus_off(struct usb_phy *x)
 {
-	if (!x->set_vbus)
+	if (!x || !x->set_vbus)
 		return 0;
 
 	return x->set_vbus(x, false);
@@ -203,6 +209,7 @@ extern void usb_put_phy(struct usb_phy *);
 extern void devm_usb_put_phy(struct device *dev, struct usb_phy *x);
 extern int usb_bind_phy(const char *dev_name, u8 index,
 				const char *phy_dev_name);
+extern void usb_phy_set_event(struct usb_phy *x, unsigned long event);
 #else
 static inline struct usb_phy *usb_get_phy(enum usb_phy_type type)
 {
@@ -244,6 +251,10 @@ static inline int usb_bind_phy(const char *dev_name, u8 index,
 {
 	return -EOPNOTSUPP;
 }
+
+static inline void usb_phy_set_event(struct usb_phy *x, unsigned long event)
+{
+}
 #endif
 
 static inline int
@@ -258,8 +269,17 @@ usb_phy_set_power(struct usb_phy *x, unsigned mA)
 static inline int
 usb_phy_set_suspend(struct usb_phy *x, int suspend)
 {
-	if (x->set_suspend != NULL)
+	if (x && x->set_suspend != NULL)
 		return x->set_suspend(x, suspend);
+	else
+		return 0;
+}
+
+static inline int
+usb_phy_set_wakeup(struct usb_phy *x, bool enabled)
+{
+	if (x && x->set_wakeup)
+		return x->set_wakeup(x, enabled);
 	else
 		return 0;
 }
@@ -267,7 +287,7 @@ usb_phy_set_suspend(struct usb_phy *x, int suspend)
 static inline int
 usb_phy_notify_connect(struct usb_phy *x, enum usb_device_speed speed)
 {
-	if (x->notify_connect)
+	if (x && x->notify_connect)
 		return x->notify_connect(x, speed);
 	else
 		return 0;
@@ -276,7 +296,7 @@ usb_phy_notify_connect(struct usb_phy *x, enum usb_device_speed speed)
 static inline int
 usb_phy_notify_disconnect(struct usb_phy *x, enum usb_device_speed speed)
 {
-	if (x->notify_disconnect)
+	if (x && x->notify_disconnect)
 		return x->notify_disconnect(x, speed);
 	else
 		return 0;

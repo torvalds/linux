@@ -8,7 +8,7 @@ significant performance improvement if reads from the compressed cache are
 faster than reads from a swap device.
 
 NOTE: Zswap is a new feature as of v3.11 and interacts heavily with memory
-reclaim.  This interaction has not be fully explored on the large set of
+reclaim.  This interaction has not been fully explored on the large set of
 potential configurations and workloads that exist.  For this reason, zswap
 is a work in progress and should be considered experimental.
 
@@ -23,7 +23,7 @@ Some potential benefits:
     drastically reducing life-shortening writes.
 
 Zswap evicts pages from compressed cache on an LRU basis to the backing swap
-device when the compressed pool reaches it size limit.  This requirement had
+device when the compressed pool reaches its size limit.  This requirement had
 been identified in prior community discussions.
 
 To enabled zswap, the "enabled" attribute must be set to 1 at boot time.  e.g.
@@ -37,7 +37,7 @@ the backing swap device in the case that the compressed pool is full.
 
 Zswap makes use of zbud for the managing the compressed memory pool.  Each
 allocation in zbud is not directly accessible by address.  Rather, a handle is
-return by the allocation routine and that handle must be mapped before being
+returned by the allocation routine and that handle must be mapped before being
 accessed.  The compressed memory pool grows on demand and shrinks as compressed
 pages are freed.  The pool is not preallocated.
 
@@ -56,7 +56,7 @@ in the swap_map goes to 0) the swap code calls the zswap invalidate function,
 via frontswap, to free the compressed entry.
 
 Zswap seeks to be simple in its policies.  Sysfs attributes allow for one user
-controlled policies:
+controlled policy:
 * max_pool_percent - The maximum percentage of memory that the compressed
     pool can occupy.
 

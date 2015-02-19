@@ -40,20 +40,20 @@
  *   Author: Oleg Drokin <oleg.drokin@sun.com>
  */
 
-#include <linux/libcfs/libcfs.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <obd.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/obd.h"
 
-# include <lustre_dlm.h>
-# include <lustre_lite.h>
-# include <lustre_mdc.h>
-# include <linux/pagemap.h>
-# include <linux/file.h>
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_mdc.h"
+#include <linux/pagemap.h>
+#include <linux/file.h>
 
-#include "cl_object.h"
-#include "lclient.h"
-# include "../llite/llite_internal.h"
+#include "../include/cl_object.h"
+#include "../include/lclient.h"
+#include "../llite/llite_internal.h"
 
 static const struct cl_lock_descr whole_file = {
 	.cld_start = 0,
@@ -93,7 +93,6 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 	struct cl_lock       *lock;
 	int result;
 
-	ENTRY;
 	result = 0;
 	if (!(lli->lli_flags & LLIF_MDS_SIZE_LOCK)) {
 		CDEBUG(D_DLMTRACE, "Glimpsing inode "DFID"\n", PFID(fid));
@@ -131,10 +130,10 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 			cio->cui_glimpse = 0;
 
 			if (lock == NULL)
-				RETURN(0);
+				return 0;
 
 			if (IS_ERR(lock))
-				RETURN(PTR_ERR(lock));
+				return PTR_ERR(lock);
 
 			LASSERT(agl == 0);
 			result = cl_wait(env, lock);
@@ -159,7 +158,7 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 		}
 	}
 
-	RETURN(result);
+	return result;
 }
 
 static int cl_io_get(struct inode *inode, struct lu_env **envout,
@@ -178,7 +177,7 @@ static int cl_io_get(struct inode *inode, struct lu_env **envout,
 			io->ci_obj = clob;
 			*envout = env;
 			*ioout  = io;
-			result = +1;
+			result = 1;
 		} else
 			result = PTR_ERR(env);
 	} else
@@ -203,11 +202,9 @@ int cl_glimpse_size0(struct inode *inode, int agl)
 	int		     result;
 	int		     refcheck;
 
-	ENTRY;
-
 	result = cl_io_get(inode, &env, &io, &refcheck);
 	if (result > 0) {
-	again:
+again:
 		io->ci_verify_layout = 1;
 		result = cl_io_init(env, io, CIT_MISC, io->ci_obj);
 		if (result > 0)
@@ -226,7 +223,7 @@ int cl_glimpse_size0(struct inode *inode, int agl)
 			goto again;
 		cl_env_put(env, &refcheck);
 	}
-	RETURN(result);
+	return result;
 }
 
 int cl_local_size(struct inode *inode)
@@ -240,14 +237,12 @@ int cl_local_size(struct inode *inode)
 	int		      result;
 	int		      refcheck;
 
-	ENTRY;
-
 	if (!cl_i2info(inode)->lli_has_smd)
-		RETURN(0);
+		return 0;
 
 	result = cl_io_get(inode, &env, &io, &refcheck);
 	if (result <= 0)
-		RETURN(result);
+		return result;
 
 	clob = io->ci_obj;
 	result = cl_io_init(env, io, CIT_MISC, clob);
@@ -270,5 +265,5 @@ int cl_local_size(struct inode *inode)
 	}
 	cl_io_fini(env, io);
 	cl_env_put(env, &refcheck);
-	RETURN(result);
+	return result;
 }

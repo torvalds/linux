@@ -688,7 +688,7 @@ static void ks_soft_reset(struct ks_net *ks, unsigned op)
 }
 
 
-void ks_enable_qmu(struct ks_net *ks)
+static void ks_enable_qmu(struct ks_net *ks)
 {
 	u16 w;
 
@@ -915,7 +915,7 @@ static int ks_net_open(struct net_device *netdev)
 	struct ks_net *ks = netdev_priv(netdev);
 	int err;
 
-#define	KS_INT_FLAGS	(IRQF_DISABLED|IRQF_TRIGGER_LOW)
+#define	KS_INT_FLAGS	IRQF_TRIGGER_LOW
 	/* lock the card, even if we may not actually do anything
 	 * else at the moment.
 	 */
@@ -1248,7 +1248,7 @@ static void ks_set_mac(struct ks_net *ks, u8 *data)
 	w = ((u & 0xFF) << 8) | ((u >> 8) & 0xFF);
 	ks_wrreg16(ks, KS_MARL, w);
 
-	memcpy(ks->mac_addr, data, 6);
+	memcpy(ks->mac_addr, data, ETH_ALEN);
 
 	if (ks->enabled)
 		ks_start_rx(ks);
@@ -1519,7 +1519,8 @@ static int ks_hw_init(struct ks_net *ks)
 	ks->all_mcast = 0;
 	ks->mcast_lst_size = 0;
 
-	ks->frame_head_info = kmalloc(MHEADER_SIZE, GFP_KERNEL);
+	ks->frame_head_info = devm_kmalloc(&ks->pdev->dev, MHEADER_SIZE,
+					   GFP_KERNEL);
 	if (!ks->frame_head_info)
 		return false;
 
@@ -1537,44 +1538,41 @@ MODULE_DEVICE_TABLE(of, ks8851_ml_dt_ids);
 
 static int ks8851_probe(struct platform_device *pdev)
 {
-	int err = -ENOMEM;
+	int err;
 	struct resource *io_d, *io_c;
 	struct net_device *netdev;
 	struct ks_net *ks;
 	u16 id, data;
 	const char *mac;
 
-	io_d = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	io_c = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-
-	if (!request_mem_region(io_d->start, resource_size(io_d), DRV_NAME))
-		goto err_mem_region;
-
-	if (!request_mem_region(io_c->start, resource_size(io_c), DRV_NAME))
-		goto err_mem_region1;
-
 	netdev = alloc_etherdev(sizeof(struct ks_net));
 	if (!netdev)
-		goto err_alloc_etherdev;
+		return -ENOMEM;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	ks = netdev_priv(netdev);
 	ks->netdev = netdev;
-	ks->hw_addr = ioremap(io_d->start, resource_size(io_d));
 
-	if (!ks->hw_addr)
-		goto err_ioremap;
+	io_d = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ks->hw_addr = devm_ioremap_resource(&pdev->dev, io_d);
+	if (IS_ERR(ks->hw_addr)) {
+		err = PTR_ERR(ks->hw_addr);
+		goto err_free;
+	}
 
-	ks->hw_addr_cmd = ioremap(io_c->start, resource_size(io_c));
-	if (!ks->hw_addr_cmd)
-		goto err_ioremap1;
+	io_c = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	ks->hw_addr_cmd = devm_ioremap_resource(&pdev->dev, io_c);
+	if (IS_ERR(ks->hw_addr_cmd)) {
+		err = PTR_ERR(ks->hw_addr_cmd);
+		goto err_free;
+	}
 
 	netdev->irq = platform_get_irq(pdev, 0);
 
 	if ((int)netdev->irq < 0) {
 		err = netdev->irq;
-		goto err_get_irq;
+		goto err_free;
 	}
 
 	ks->pdev = pdev;
@@ -1604,18 +1602,18 @@ static int ks8851_probe(struct platform_device *pdev)
 	if ((ks_rdreg16(ks, KS_CIDER) & ~CIDER_REV_MASK) != CIDER_ID) {
 		netdev_err(netdev, "failed to read device ID\n");
 		err = -ENODEV;
-		goto err_register;
+		goto err_free;
 	}
 
 	if (ks_read_selftest(ks)) {
 		netdev_err(netdev, "failed to read device ID\n");
 		err = -ENODEV;
-		goto err_register;
+		goto err_free;
 	}
 
 	err = register_netdev(netdev);
 	if (err)
-		goto err_register;
+		goto err_free;
 
 	platform_set_drvdata(pdev, netdev);
 
@@ -1636,7 +1634,7 @@ static int ks8851_probe(struct platform_device *pdev)
 	} else {
 		struct ks8851_mll_platform_data *pdata;
 
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 		if (!pdata) {
 			netdev_err(netdev, "No platform data\n");
 			err = -ENODEV;
@@ -1651,7 +1649,7 @@ static int ks8851_probe(struct platform_device *pdev)
 	}
 	netdev_info(netdev, "Mac address is: %pM\n", ks->mac_addr);
 
-	memcpy(netdev->dev_addr, ks->mac_addr, 6);
+	memcpy(netdev->dev_addr, ks->mac_addr, ETH_ALEN);
 
 	ks_set_mac(ks, netdev->dev_addr);
 
@@ -1663,32 +1661,17 @@ static int ks8851_probe(struct platform_device *pdev)
 
 err_pdata:
 	unregister_netdev(netdev);
-err_register:
-err_get_irq:
-	iounmap(ks->hw_addr_cmd);
-err_ioremap1:
-	iounmap(ks->hw_addr);
-err_ioremap:
+err_free:
 	free_netdev(netdev);
-err_alloc_etherdev:
-	release_mem_region(io_c->start, resource_size(io_c));
-err_mem_region1:
-	release_mem_region(io_d->start, resource_size(io_d));
-err_mem_region:
 	return err;
 }
 
 static int ks8851_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = platform_get_drvdata(pdev);
-	struct ks_net *ks = netdev_priv(netdev);
-	struct resource *iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	kfree(ks->frame_head_info);
 	unregister_netdev(netdev);
-	iounmap(ks->hw_addr);
 	free_netdev(netdev);
-	release_mem_region(iomem->start, resource_size(iomem));
 	return 0;
 
 }
@@ -1696,7 +1679,6 @@ static int ks8851_remove(struct platform_device *pdev)
 static struct platform_driver ks8851_platform_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table	= of_match_ptr(ks8851_ml_dt_ids),
 	},
 	.probe = ks8851_probe,

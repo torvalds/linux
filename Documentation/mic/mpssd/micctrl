@@ -1,0 +1,173 @@
+#!/bin/bash
+# Intel MIC Platform Software Stack (MPSS)
+#
+# Copyright(c) 2013 Intel Corporation.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2, as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# The full GNU General Public License is included in this distribution in
+# the file called "COPYING".
+#
+# Intel MIC User Space Tools.
+#
+# micctrl - Controls MIC boot/start/stop.
+#
+# chkconfig: 2345 95 05
+# description: start MPSS stack processing.
+#
+### BEGIN INIT INFO
+# Provides: micctrl
+### END INIT INFO
+
+# Source function library.
+. /etc/init.d/functions
+
+sysfs="/sys/class/mic"
+
+_status()
+{
+	f=$sysfs/$1
+	echo -e $1 state: "`cat $f/state`" shutdown_status: "`cat $f/shutdown_status`"
+}
+
+status()
+{
+	if [ "`echo $1 | head -c3`" == "mic" ]; then
+		_status $1
+		return $?
+	fi
+	for f in $sysfs/*
+	do
+		_status `basename $f`
+		RETVAL=$?
+		[ $RETVAL -ne 0 ] && return $RETVAL
+	done
+	return 0
+}
+
+_reset()
+{
+	f=$sysfs/$1
+	echo reset > $f/state
+}
+
+reset()
+{
+	if [ "`echo $1 | head -c3`" == "mic" ]; then
+		_reset $1
+		return $?
+	fi
+	for f in $sysfs/*
+	do
+		_reset `basename $f`
+		RETVAL=$?
+		[ $RETVAL -ne 0 ] && return $RETVAL
+	done
+	return 0
+}
+
+_boot()
+{
+	f=$sysfs/$1
+	echo "linux" > $f/bootmode
+	echo "mic/uos.img" > $f/firmware
+	echo "mic/$1.image" > $f/ramdisk
+	echo "boot" > $f/state
+}
+
+boot()
+{
+	if [ "`echo $1 | head -c3`" == "mic" ]; then
+		_boot $1
+		return $?
+	fi
+	for f in $sysfs/*
+	do
+		_boot `basename $f`
+		RETVAL=$?
+		[ $RETVAL -ne 0 ] && return $RETVAL
+	done
+	return 0
+}
+
+_shutdown()
+{
+	f=$sysfs/$1
+	echo shutdown > $f/state
+}
+
+shutdown()
+{
+	if [ "`echo $1 | head -c3`" == "mic" ]; then
+		_shutdown $1
+		return $?
+	fi
+	for f in $sysfs/*
+	do
+		_shutdown `basename $f`
+		RETVAL=$?
+		[ $RETVAL -ne 0 ] && return $RETVAL
+	done
+	return 0
+}
+
+_wait()
+{
+	f=$sysfs/$1
+	while [ "`cat $f/state`" != "offline" -a "`cat $f/state`" != "online" ]
+	do
+		sleep 1
+		echo -e "Waiting for $1 to go offline"
+	done
+}
+
+wait()
+{
+	if [ "`echo $1 | head -c3`" == "mic" ]; then
+		_wait $1
+		return $?
+	fi
+	# Wait for the cards to go offline
+	for f in $sysfs/*
+	do
+		_wait `basename $f`
+		RETVAL=$?
+		[ $RETVAL -ne 0 ] && return $RETVAL
+	done
+	return 0
+}
+
+if [ ! -d "$sysfs" ]; then
+	echo -e $"Module unloaded "
+	exit 3
+fi
+
+case $1 in
+	-s)
+		status $2
+		;;
+	-r)
+		reset $2
+		;;
+	-b)
+		boot $2
+		;;
+	-S)
+		shutdown $2
+		;;
+	-w)
+		wait $2
+		;;
+	*)
+		echo $"Usage: $0 {-s (status) |-r (reset) |-b (boot) |-S (shutdown) |-w (wait)}"
+		exit 2
+esac
+
+exit $?

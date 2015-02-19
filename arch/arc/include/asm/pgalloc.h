@@ -105,11 +105,16 @@ static inline pgtable_t
 pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	pgtable_t pte_pg;
+	struct page *page;
 
 	pte_pg = __get_free_pages(GFP_KERNEL | __GFP_REPEAT, __get_order_pte());
-	if (pte_pg) {
-		memzero((void *)pte_pg, PTRS_PER_PTE * 4);
-		pgtable_page_ctor(virt_to_page(pte_pg));
+	if (!pte_pg)
+		return 0;
+	memzero((void *)pte_pg, PTRS_PER_PTE * 4);
+	page = virt_to_page(pte_pg);
+	if (!pgtable_page_ctor(page)) {
+		__free_page(page);
+		return 0;
 	}
 
 	return pte_pg;

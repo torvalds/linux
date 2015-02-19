@@ -6,7 +6,7 @@
  *
  * Copyright (c) 2008 by:
  *	 Ben Woodard <woodard@redhat.com>
- *	 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *	 Mauro Carvalho Chehab
  *
  * Red Hat Inc. http://www.redhat.com
  *
@@ -1408,6 +1408,8 @@ static void i5400_remove_one(struct pci_dev *pdev)
 	/* retrieve references to resources, and free those resources */
 	i5400_put_devices(mci);
 
+	pci_disable_device(pdev);
+
 	edac_mc_free(mci);
 }
 
@@ -1416,7 +1418,7 @@ static void i5400_remove_one(struct pci_dev *pdev)
  *
  *	The "E500P" device is the first device supported.
  */
-static DEFINE_PCI_DEVICE_TABLE(i5400_pci_tbl) = {
+static const struct pci_device_id i5400_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5400_ERR)},
 	{0,}			/* 0 terminated list. */
 };
@@ -1467,7 +1469,7 @@ module_exit(i5400_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Woodard <woodard@redhat.com>");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
 MODULE_DESCRIPTION("MC Driver for Intel I5400 memory controllers - "
 		   I5400_REVISION);

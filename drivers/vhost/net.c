@@ -17,6 +17,7 @@
 #include <linux/workqueue.h>
 #include <linux/file.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include <linux/net.h>
 #include <linux/if_packet.h>
@@ -47,20 +48,21 @@ MODULE_PARM_DESC(experimental_zcopytx, "Enable Zero Copy TX;"
  * status internally; used for zerocopy tx only.
  */
 /* Lower device DMA failed */
-#define VHOST_DMA_FAILED_LEN	3
+#define VHOST_DMA_FAILED_LEN	((__force __virtio32)3)
 /* Lower device DMA done */
-#define VHOST_DMA_DONE_LEN	2
+#define VHOST_DMA_DONE_LEN	((__force __virtio32)2)
 /* Lower device DMA in progress */
-#define VHOST_DMA_IN_PROGRESS	1
+#define VHOST_DMA_IN_PROGRESS	((__force __virtio32)1)
 /* Buffer unused */
-#define VHOST_DMA_CLEAR_LEN	0
+#define VHOST_DMA_CLEAR_LEN	((__force __virtio32)0)
 
-#define VHOST_DMA_IS_DONE(len) ((len) >= VHOST_DMA_DONE_LEN)
+#define VHOST_DMA_IS_DONE(len) ((__force u32)(len) >= (__force u32)VHOST_DMA_DONE_LEN)
 
 enum {
 	VHOST_NET_FEATURES = VHOST_FEATURES |
 			 (1ULL << VHOST_NET_F_VIRTIO_NET_HDR) |
-			 (1ULL << VIRTIO_NET_F_MRG_RXBUF),
+			 (1ULL << VIRTIO_NET_F_MRG_RXBUF) |
+			 (1ULL << VIRTIO_F_VERSION_1),
 };
 
 enum {
@@ -70,17 +72,18 @@ enum {
 };
 
 struct vhost_net_ubuf_ref {
-	struct kref kref;
+	/* refcount follows semantics similar to kref:
+	 *  0: object is released
+	 *  1: no outstanding ubufs
+	 * >1: outstanding ubufs
+	 */
+	atomic_t refcount;
 	wait_queue_head_t wait;
 	struct vhost_virtqueue *vq;
 };
 
 struct vhost_net_virtqueue {
 	struct vhost_virtqueue vq;
-	/* hdr is used to store the virtio header.
-	 * Since each iovec has >= 1 byte length, we never need more than
-	 * header length entries to store the header. */
-	struct iovec hdr[sizeof(struct virtio_net_hdr_mrg_rxbuf)];
 	size_t vhost_hlen;
 	size_t sock_hlen;
 	/* vhost zerocopy support fields below: */
@@ -116,14 +119,6 @@ static void vhost_net_enable_zcopy(int vq)
 	vhost_net_zcopy_mask |= 0x1 << vq;
 }
 
-static void vhost_net_zerocopy_done_signal(struct kref *kref)
-{
-	struct vhost_net_ubuf_ref *ubufs;
-
-	ubufs = container_of(kref, struct vhost_net_ubuf_ref, kref);
-	wake_up(&ubufs->wait);
-}
-
 static struct vhost_net_ubuf_ref *
 vhost_net_ubuf_alloc(struct vhost_virtqueue *vq, bool zcopy)
 {
@@ -134,21 +129,24 @@ vhost_net_ubuf_alloc(struct vhost_virtqueue *vq, bool zcopy)
 	ubufs = kmalloc(sizeof(*ubufs), GFP_KERNEL);
 	if (!ubufs)
 		return ERR_PTR(-ENOMEM);
-	kref_init(&ubufs->kref);
+	atomic_set(&ubufs->refcount, 1);
 	init_waitqueue_head(&ubufs->wait);
 	ubufs->vq = vq;
 	return ubufs;
 }
 
-static void vhost_net_ubuf_put(struct vhost_net_ubuf_ref *ubufs)
+static int vhost_net_ubuf_put(struct vhost_net_ubuf_ref *ubufs)
 {
-	kref_put(&ubufs->kref, vhost_net_zerocopy_done_signal);
+	int r = atomic_sub_return(1, &ubufs->refcount);
+	if (unlikely(!r))
+		wake_up(&ubufs->wait);
+	return r;
 }
 
 static void vhost_net_ubuf_put_and_wait(struct vhost_net_ubuf_ref *ubufs)
 {
-	kref_put(&ubufs->kref, vhost_net_zerocopy_done_signal);
-	wait_event(ubufs->wait, !atomic_read(&ubufs->kref.refcount));
+	vhost_net_ubuf_put(ubufs);
+	wait_event(ubufs->wait, !atomic_read(&ubufs->refcount));
 }
 
 static void vhost_net_ubuf_put_wait_and_free(struct vhost_net_ubuf_ref *ubufs)
@@ -233,55 +231,17 @@ static bool vhost_sock_zcopy(struct socket *sock)
 		sock_flag(sock->sk, SOCK_ZEROCOPY);
 }
 
-/* Pop first len bytes from iovec. Return number of segments used. */
-static int move_iovec_hdr(struct iovec *from, struct iovec *to,
-			  size_t len, int iov_count)
-{
-	int seg = 0;
-	size_t size;
-
-	while (len && seg < iov_count) {
-		size = min(from->iov_len, len);
-		to->iov_base = from->iov_base;
-		to->iov_len = size;
-		from->iov_len -= size;
-		from->iov_base += size;
-		len -= size;
-		++from;
-		++to;
-		++seg;
-	}
-	return seg;
-}
-/* Copy iovec entries for len bytes from iovec. */
-static void copy_iovec_hdr(const struct iovec *from, struct iovec *to,
-			   size_t len, int iovcount)
-{
-	int seg = 0;
-	size_t size;
-
-	while (len && seg < iovcount) {
-		size = min(from->iov_len, len);
-		to->iov_base = from->iov_base;
-		to->iov_len = size;
-		len -= size;
-		++from;
-		++to;
-		++seg;
-	}
-}
-
 /* In case of DMA done not in order in lower device driver for some reason.
  * upend_idx is used to track end of used idx, done_idx is used to track head
  * of used idx. Once lower device DMA done contiguously, we will signal KVM
  * guest used idx.
  */
-static int vhost_zerocopy_signal_used(struct vhost_net *net,
-				      struct vhost_virtqueue *vq)
+static void vhost_zerocopy_signal_used(struct vhost_net *net,
+				       struct vhost_virtqueue *vq)
 {
 	struct vhost_net_virtqueue *nvq =
 		container_of(vq, struct vhost_net_virtqueue, vq);
-	int i;
+	int i, add;
 	int j = 0;
 
 	for (i = nvq->done_idx; i != nvq->upend_idx; i = (i + 1) % UIO_MAXIOV) {
@@ -289,37 +249,43 @@ static int vhost_zerocopy_signal_used(struct vhost_net *net,
 			vhost_net_tx_err(net);
 		if (VHOST_DMA_IS_DONE(vq->heads[i].len)) {
 			vq->heads[i].len = VHOST_DMA_CLEAR_LEN;
-			vhost_add_used_and_signal(vq->dev, vq,
-						  vq->heads[i].id, 0);
 			++j;
 		} else
 			break;
 	}
-	if (j)
-		nvq->done_idx = i;
-	return j;
+	while (j) {
+		add = min(UIO_MAXIOV - nvq->done_idx, j);
+		vhost_add_used_and_signal_n(vq->dev, vq,
+					    &vq->heads[nvq->done_idx], add);
+		nvq->done_idx = (nvq->done_idx + add) % UIO_MAXIOV;
+		j -= add;
+	}
 }
 
 static void vhost_zerocopy_callback(struct ubuf_info *ubuf, bool success)
 {
 	struct vhost_net_ubuf_ref *ubufs = ubuf->ctx;
 	struct vhost_virtqueue *vq = ubufs->vq;
-	int cnt = atomic_read(&ubufs->kref.refcount);
+	int cnt;
+
+	rcu_read_lock_bh();
+
+	/* set len to mark this desc buffers done DMA */
+	vq->heads[ubuf->desc].len = success ?
+		VHOST_DMA_DONE_LEN : VHOST_DMA_FAILED_LEN;
+	cnt = vhost_net_ubuf_put(ubufs);
 
 	/*
 	 * Trigger polling thread if guest stopped submitting new buffers:
-	 * in this case, the refcount after decrement will eventually reach 1
-	 * so here it is 2.
+	 * in this case, the refcount after decrement will eventually reach 1.
 	 * We also trigger polling periodically after each 16 packets
 	 * (the value 16 here is more or less arbitrary, it's tuned to trigger
 	 * less than 10% of times).
 	 */
-	if (cnt <= 2 || !(cnt % 16))
+	if (cnt <= 1 || !(cnt % 16))
 		vhost_poll_queue(&vq->poll);
-	/* set len to mark this desc buffers done DMA */
-	vq->heads[ubuf->desc].len = success ?
-		VHOST_DMA_DONE_LEN : VHOST_DMA_FAILED_LEN;
-	vhost_net_ubuf_put(ubufs);
+
+	rcu_read_unlock_bh();
 }
 
 /* Expects to be always run from workqueue - which acts as
@@ -328,14 +294,13 @@ static void handle_tx(struct vhost_net *net)
 {
 	struct vhost_net_virtqueue *nvq = &net->vqs[VHOST_NET_VQ_TX];
 	struct vhost_virtqueue *vq = &nvq->vq;
-	unsigned out, in, s;
+	unsigned out, in;
 	int head;
 	struct msghdr msg = {
 		.msg_name = NULL,
 		.msg_namelen = 0,
 		.msg_control = NULL,
 		.msg_controllen = 0,
-		.msg_iov = vq->iov,
 		.msg_flags = MSG_DONTWAIT,
 	};
 	size_t len, total_len = 0;
@@ -360,7 +325,14 @@ static void handle_tx(struct vhost_net *net)
 		if (zcopy)
 			vhost_zerocopy_signal_used(net, vq);
 
-		head = vhost_get_vq_desc(&net->dev, vq, vq->iov,
+		/* If more outstanding DMAs, queue the work.
+		 * Handle upend_idx wrap around
+		 */
+		if (unlikely((nvq->upend_idx + vq->num - VHOST_MAX_PEND)
+			      % UIO_MAXIOV == nvq->done_idx))
+			break;
+
+		head = vhost_get_vq_desc(vq, vq->iov,
 					 ARRAY_SIZE(vq->iov),
 					 &out, &in,
 					 NULL, NULL);
@@ -369,17 +341,6 @@ static void handle_tx(struct vhost_net *net)
 			break;
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
-			int num_pends;
-
-			/* If more outstanding DMAs, queue the work.
-			 * Handle upend_idx wrap around
-			 */
-			num_pends = likely(nvq->upend_idx >= nvq->done_idx) ?
-				    (nvq->upend_idx - nvq->done_idx) :
-				    (nvq->upend_idx + UIO_MAXIOV -
-				     nvq->done_idx);
-			if (unlikely(num_pends > VHOST_MAX_PEND))
-				break;
 			if (unlikely(vhost_enable_notify(&net->dev, vq))) {
 				vhost_disable_notify(&net->dev, vq);
 				continue;
@@ -392,53 +353,47 @@ static void handle_tx(struct vhost_net *net)
 			break;
 		}
 		/* Skip header. TODO: support TSO. */
-		s = move_iovec_hdr(vq->iov, nvq->hdr, hdr_size, out);
-		msg.msg_iovlen = out;
 		len = iov_length(vq->iov, out);
+		iov_iter_init(&msg.msg_iter, WRITE, vq->iov, out, len);
+		iov_iter_advance(&msg.msg_iter, hdr_size);
 		/* Sanity check */
-		if (!len) {
+		if (!iov_iter_count(&msg.msg_iter)) {
 			vq_err(vq, "Unexpected header len for TX: "
 			       "%zd expected %zd\n",
-			       iov_length(nvq->hdr, s), hdr_size);
+			       len, hdr_size);
 			break;
 		}
-		zcopy_used = zcopy && (len >= VHOST_GOODCOPY_LEN ||
-				       nvq->upend_idx != nvq->done_idx);
+		len = iov_iter_count(&msg.msg_iter);
+
+		zcopy_used = zcopy && len >= VHOST_GOODCOPY_LEN
+				   && (nvq->upend_idx + 1) % UIO_MAXIOV !=
+				      nvq->done_idx
+				   && vhost_net_tx_select_zcopy(net);
 
 		/* use msg_control to pass vhost zerocopy ubuf info to skb */
 		if (zcopy_used) {
-			vq->heads[nvq->upend_idx].id = head;
-			if (!vhost_net_tx_select_zcopy(net) ||
-			    len < VHOST_GOODCOPY_LEN) {
-				/* copy don't need to wait for DMA done */
-				vq->heads[nvq->upend_idx].len =
-							VHOST_DMA_DONE_LEN;
-				msg.msg_control = NULL;
-				msg.msg_controllen = 0;
-				ubufs = NULL;
-			} else {
-				struct ubuf_info *ubuf;
-				ubuf = nvq->ubuf_info + nvq->upend_idx;
+			struct ubuf_info *ubuf;
+			ubuf = nvq->ubuf_info + nvq->upend_idx;
 
-				vq->heads[nvq->upend_idx].len =
-					VHOST_DMA_IN_PROGRESS;
-				ubuf->callback = vhost_zerocopy_callback;
-				ubuf->ctx = nvq->ubufs;
-				ubuf->desc = nvq->upend_idx;
-				msg.msg_control = ubuf;
-				msg.msg_controllen = sizeof(ubuf);
-				ubufs = nvq->ubufs;
-				kref_get(&ubufs->kref);
-			}
+			vq->heads[nvq->upend_idx].id = cpu_to_vhost32(vq, head);
+			vq->heads[nvq->upend_idx].len = VHOST_DMA_IN_PROGRESS;
+			ubuf->callback = vhost_zerocopy_callback;
+			ubuf->ctx = nvq->ubufs;
+			ubuf->desc = nvq->upend_idx;
+			msg.msg_control = ubuf;
+			msg.msg_controllen = sizeof(ubuf);
+			ubufs = nvq->ubufs;
+			atomic_inc(&ubufs->refcount);
 			nvq->upend_idx = (nvq->upend_idx + 1) % UIO_MAXIOV;
-		} else
+		} else {
 			msg.msg_control = NULL;
+			ubufs = NULL;
+		}
 		/* TODO: Check specific error and bomb out unless ENOBUFS? */
 		err = sock->ops->sendmsg(NULL, sock, &msg, len);
 		if (unlikely(err < 0)) {
 			if (zcopy_used) {
-				if (ubufs)
-					vhost_net_ubuf_put(ubufs);
+				vhost_net_ubuf_put(ubufs);
 				nvq->upend_idx = ((unsigned)nvq->upend_idx - 1)
 					% UIO_MAXIOV;
 			}
@@ -473,7 +428,7 @@ static int peek_head_len(struct sock *sk)
 	head = skb_peek(&sk->sk_receive_queue);
 	if (likely(head)) {
 		len = head->len;
-		if (vlan_tx_tag_present(head))
+		if (skb_vlan_tag_present(head))
 			len += VLAN_HLEN;
 	}
 
@@ -504,15 +459,23 @@ static int get_rx_bufs(struct vhost_virtqueue *vq,
 	int headcount = 0;
 	unsigned d;
 	int r, nlogs = 0;
+	/* len is always initialized before use since we are always called with
+	 * datalen > 0.
+	 */
+	u32 uninitialized_var(len);
 
 	while (datalen > 0 && headcount < quota) {
 		if (unlikely(seg >= UIO_MAXIOV)) {
 			r = -ENOBUFS;
 			goto err;
 		}
-		d = vhost_get_vq_desc(vq->dev, vq, vq->iov + seg,
+		r = vhost_get_vq_desc(vq, vq->iov + seg,
 				      ARRAY_SIZE(vq->iov) - seg, &out,
 				      &in, log, log_num);
+		if (unlikely(r < 0))
+			goto err;
+
+		d = r;
 		if (d == vq->num) {
 			r = 0;
 			goto err;
@@ -527,16 +490,23 @@ static int get_rx_bufs(struct vhost_virtqueue *vq,
 			nlogs += *log_num;
 			log += *log_num;
 		}
-		heads[headcount].id = d;
-		heads[headcount].len = iov_length(vq->iov + seg, in);
-		datalen -= heads[headcount].len;
+		heads[headcount].id = cpu_to_vhost32(vq, d);
+		len = iov_length(vq->iov + seg, in);
+		heads[headcount].len = cpu_to_vhost32(vq, len);
+		datalen -= len;
 		++headcount;
 		seg += in;
 	}
-	heads[headcount - 1].len += datalen;
+	heads[headcount - 1].len = cpu_to_vhost32(vq, len + datalen);
 	*iovcount = seg;
 	if (unlikely(log))
 		*log_num = nlogs;
+
+	/* Detect overrun */
+	if (unlikely(datalen > 0)) {
+		r = UIO_MAXIOV + 1;
+		goto err;
+	}
 	return headcount;
 err:
 	vhost_discard_vq_desc(vq, headcount);
@@ -556,12 +526,11 @@ static void handle_rx(struct vhost_net *net)
 		.msg_namelen = 0,
 		.msg_control = NULL, /* FIXME: get and handle RX aux data. */
 		.msg_controllen = 0,
-		.msg_iov = vq->iov,
 		.msg_flags = MSG_DONTWAIT,
 	};
-	struct virtio_net_hdr_mrg_rxbuf hdr = {
-		.hdr.flags = 0,
-		.hdr.gso_type = VIRTIO_NET_HDR_GSO_NONE
+	struct virtio_net_hdr hdr = {
+		.flags = 0,
+		.gso_type = VIRTIO_NET_HDR_GSO_NONE
 	};
 	size_t total_len = 0;
 	int err, mergeable;
@@ -569,6 +538,8 @@ static void handle_rx(struct vhost_net *net)
 	size_t vhost_hlen, sock_hlen;
 	size_t vhost_len, sock_len;
 	struct socket *sock;
+	struct iov_iter fixup;
+	__virtio16 num_buffers;
 
 	mutex_lock(&vq->mutex);
 	sock = vq->private_data;
@@ -579,9 +550,9 @@ static void handle_rx(struct vhost_net *net)
 	vhost_hlen = nvq->vhost_hlen;
 	sock_hlen = nvq->sock_hlen;
 
-	vq_log = unlikely(vhost_has_feature(&net->dev, VHOST_F_LOG_ALL)) ?
+	vq_log = unlikely(vhost_has_feature(vq, VHOST_F_LOG_ALL)) ?
 		vq->log : NULL;
-	mergeable = vhost_has_feature(&net->dev, VIRTIO_NET_F_MRG_RXBUF);
+	mergeable = vhost_has_feature(vq, VIRTIO_NET_F_MRG_RXBUF);
 
 	while ((sock_len = peek_head_len(sock->sk))) {
 		sock_len += sock_hlen;
@@ -592,6 +563,14 @@ static void handle_rx(struct vhost_net *net)
 		/* On error, stop handling until the next kick. */
 		if (unlikely(headcount < 0))
 			break;
+		/* On overrun, truncate and discard */
+		if (unlikely(headcount > UIO_MAXIOV)) {
+			iov_iter_init(&msg.msg_iter, READ, vq->iov, 1, 1);
+			err = sock->ops->recvmsg(NULL, sock, &msg,
+						 1, MSG_DONTWAIT | MSG_TRUNC);
+			pr_debug("Discarded rx packet: len %zd\n", sock_len);
+			continue;
+		}
 		/* OK, now we need to know about added descriptors. */
 		if (!headcount) {
 			if (unlikely(vhost_enable_notify(&net->dev, vq))) {
@@ -605,14 +584,19 @@ static void handle_rx(struct vhost_net *net)
 			break;
 		}
 		/* We don't need to be notified again. */
-		if (unlikely((vhost_hlen)))
-			/* Skip header. TODO: support TSO. */
-			move_iovec_hdr(vq->iov, nvq->hdr, vhost_hlen, in);
-		else
-			/* Copy the header for use in VIRTIO_NET_F_MRG_RXBUF:
-			 * needed because recvmsg can modify msg_iov. */
-			copy_iovec_hdr(vq->iov, nvq->hdr, sock_hlen, in);
-		msg.msg_iovlen = in;
+		iov_iter_init(&msg.msg_iter, READ, vq->iov, in, vhost_len);
+		fixup = msg.msg_iter;
+		if (unlikely((vhost_hlen))) {
+			/* We will supply the header ourselves
+			 * TODO: support TSO.
+			 */
+			iov_iter_advance(&msg.msg_iter, vhost_hlen);
+		} else {
+			/* It'll come from socket; we'll need to patch
+			 * ->num_buffers over if VIRTIO_NET_F_MRG_RXBUF
+			 */
+			iov_iter_advance(&fixup, sizeof(hdr));
+		}
 		err = sock->ops->recvmsg(NULL, sock, &msg,
 					 sock_len, MSG_DONTWAIT | MSG_TRUNC);
 		/* Userspace might have consumed the packet meanwhile:
@@ -624,18 +608,18 @@ static void handle_rx(struct vhost_net *net)
 			vhost_discard_vq_desc(vq, headcount);
 			continue;
 		}
+		/* Supply virtio_net_hdr if VHOST_NET_F_VIRTIO_NET_HDR */
 		if (unlikely(vhost_hlen) &&
-		    memcpy_toiovecend(nvq->hdr, (unsigned char *)&hdr, 0,
-				      vhost_hlen)) {
+		    copy_to_iter(&hdr, sizeof(hdr), &fixup) != sizeof(hdr)) {
 			vq_err(vq, "Unable to write vnet_hdr at addr %p\n",
 			       vq->iov->iov_base);
 			break;
 		}
 		/* TODO: Should check and handle checksum. */
+
+		num_buffers = cpu_to_vhost16(vq, headcount);
 		if (likely(mergeable) &&
-		    memcpy_toiovecend(nvq->hdr, (unsigned char *)&headcount,
-				      offsetof(typeof(hdr), num_buffers),
-				      sizeof hdr.num_buffers)) {
+		    copy_to_iter(&num_buffers, 2, &fixup) != 2) {
 			vq_err(vq, "Failed num_buffers write");
 			vhost_discard_vq_desc(vq, headcount);
 			break;
@@ -688,16 +672,20 @@ static void handle_rx_net(struct vhost_work *work)
 
 static int vhost_net_open(struct inode *inode, struct file *f)
 {
-	struct vhost_net *n = kmalloc(sizeof *n, GFP_KERNEL);
+	struct vhost_net *n;
 	struct vhost_dev *dev;
 	struct vhost_virtqueue **vqs;
-	int r, i;
+	int i;
 
-	if (!n)
-		return -ENOMEM;
+	n = kmalloc(sizeof *n, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+	if (!n) {
+		n = vmalloc(sizeof *n);
+		if (!n)
+			return -ENOMEM;
+	}
 	vqs = kmalloc(VHOST_NET_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
 	if (!vqs) {
-		kfree(n);
+		kvfree(n);
 		return -ENOMEM;
 	}
 
@@ -714,12 +702,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 		n->vqs[i].vhost_hlen = 0;
 		n->vqs[i].sock_hlen = 0;
 	}
-	r = vhost_dev_init(dev, vqs, VHOST_NET_VQ_MAX);
-	if (r < 0) {
-		kfree(n);
-		kfree(vqs);
-		return r;
-	}
+	vhost_dev_init(dev, vqs, VHOST_NET_VQ_MAX);
 
 	vhost_poll_init(n->poll + VHOST_NET_VQ_TX, handle_tx_net, POLLOUT, dev);
 	vhost_poll_init(n->poll + VHOST_NET_VQ_RX, handle_rx_net, POLLIN, dev);
@@ -793,7 +776,7 @@ static void vhost_net_flush(struct vhost_net *n)
 		vhost_net_ubuf_put_and_wait(n->vqs[VHOST_NET_VQ_TX].ubufs);
 		mutex_lock(&n->vqs[VHOST_NET_VQ_TX].vq.mutex);
 		n->tx_flush = false;
-		kref_init(&n->vqs[VHOST_NET_VQ_TX].ubufs->kref);
+		atomic_set(&n->vqs[VHOST_NET_VQ_TX].ubufs->refcount, 1);
 		mutex_unlock(&n->vqs[VHOST_NET_VQ_TX].vq.mutex);
 	}
 }
@@ -810,14 +793,16 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	vhost_dev_cleanup(&n->dev, false);
 	vhost_net_vq_reset(n);
 	if (tx_sock)
-		fput(tx_sock->file);
+		sockfd_put(tx_sock);
 	if (rx_sock)
-		fput(rx_sock->file);
+		sockfd_put(rx_sock);
+	/* Make sure no callbacks are outstanding */
+	synchronize_rcu_bh();
 	/* We do an extra flush before freeing memory,
 	 * since jobs can re-queue themselves. */
 	vhost_net_flush(n);
 	kfree(n->dev.vqs);
-	kfree(n);
+	kvfree(n);
 	return 0;
 }
 
@@ -850,7 +835,7 @@ static struct socket *get_raw_socket(int fd)
 	}
 	return sock;
 err:
-	fput(sock->file);
+	sockfd_put(sock);
 	return ERR_PTR(r);
 }
 
@@ -956,7 +941,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 
 	if (oldsock) {
 		vhost_net_flush_vq(n, index);
-		fput(oldsock->file);
+		sockfd_put(oldsock);
 	}
 
 	mutex_unlock(&n->dev.mutex);
@@ -968,7 +953,7 @@ err_used:
 	if (ubufs)
 		vhost_net_ubuf_put_wait_and_free(ubufs);
 err_ubufs:
-	fput(sock->file);
+	sockfd_put(sock);
 err_vq:
 	mutex_unlock(&vq->mutex);
 err:
@@ -999,9 +984,9 @@ static long vhost_net_reset_owner(struct vhost_net *n)
 done:
 	mutex_unlock(&n->dev.mutex);
 	if (tx_sock)
-		fput(tx_sock->file);
+		sockfd_put(tx_sock);
 	if (rx_sock)
-		fput(rx_sock->file);
+		sockfd_put(rx_sock);
 	return err;
 }
 
@@ -1010,7 +995,8 @@ static int vhost_net_set_features(struct vhost_net *n, u64 features)
 	size_t vhost_hlen, sock_hlen, hdr_len;
 	int i;
 
-	hdr_len = (features & (1 << VIRTIO_NET_F_MRG_RXBUF)) ?
+	hdr_len = (features & ((1ULL << VIRTIO_NET_F_MRG_RXBUF) |
+			       (1ULL << VIRTIO_F_VERSION_1))) ?
 			sizeof(struct virtio_net_hdr_mrg_rxbuf) :
 			sizeof(struct virtio_net_hdr);
 	if (features & (1 << VHOST_NET_F_VIRTIO_NET_HDR)) {
@@ -1028,15 +1014,13 @@ static int vhost_net_set_features(struct vhost_net *n, u64 features)
 		mutex_unlock(&n->dev.mutex);
 		return -EFAULT;
 	}
-	n->dev.acked_features = features;
-	smp_wmb();
 	for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
 		mutex_lock(&n->vqs[i].vq.mutex);
+		n->vqs[i].vq.acked_features = features;
 		n->vqs[i].vhost_hlen = vhost_hlen;
 		n->vqs[i].sock_hlen = sock_hlen;
 		mutex_unlock(&n->vqs[i].vq.mutex);
 	}
-	vhost_net_flush(n);
 	mutex_unlock(&n->dev.mutex);
 	return 0;
 }

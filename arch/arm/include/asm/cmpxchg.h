@@ -2,6 +2,7 @@
 #define __ASM_ARM_CMPXCHG_H
 
 #include <linux/irqflags.h>
+#include <linux/prefetch.h>
 #include <asm/barrier.h>
 
 #if defined(CONFIG_CPU_SA1100) || defined(CONFIG_CPU_SA110)
@@ -35,6 +36,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 #endif
 
 	smp_mb();
+	prefetchw((const void *)ptr);
 
 	switch (size) {
 #if __LINUX_ARM_ARCH__ >= 6
@@ -138,6 +140,8 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 {
 	unsigned long oldval, res;
 
+	prefetchw((const void *)ptr);
+
 	switch (size) {
 #ifndef CONFIG_CPU_V6	/* min ARCH >= ARMv6K */
 	case 1:
@@ -223,6 +227,44 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 	return ret;
 }
 
+static inline unsigned long long __cmpxchg64(unsigned long long *ptr,
+					     unsigned long long old,
+					     unsigned long long new)
+{
+	unsigned long long oldval;
+	unsigned long res;
+
+	prefetchw(ptr);
+
+	__asm__ __volatile__(
+"1:	ldrexd		%1, %H1, [%3]\n"
+"	teq		%1, %4\n"
+"	teqeq		%H1, %H4\n"
+"	bne		2f\n"
+"	strexd		%0, %5, %H5, [%3]\n"
+"	teq		%0, #0\n"
+"	bne		1b\n"
+"2:"
+	: "=&r" (res), "=&r" (oldval), "+Qo" (*ptr)
+	: "r" (ptr), "r" (old), "r" (new)
+	: "cc");
+
+	return oldval;
+}
+
+static inline unsigned long long __cmpxchg64_mb(unsigned long long *ptr,
+						unsigned long long old,
+						unsigned long long new)
+{
+	unsigned long long ret;
+
+	smp_mb();
+	ret = __cmpxchg64(ptr, old, new);
+	smp_mb();
+
+	return ret;
+}
+
 #define cmpxchg_local(ptr,o,n)						\
 	((__typeof__(*(ptr)))__cmpxchg_local((ptr),			\
 				       (unsigned long)(o),		\
@@ -230,18 +272,16 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 				       sizeof(*(ptr))))
 
 #define cmpxchg64(ptr, o, n)						\
-	((__typeof__(*(ptr)))atomic64_cmpxchg(container_of((ptr),	\
-						atomic64_t,		\
-						counter),		\
-					      (unsigned long long)(o),	\
-					      (unsigned long long)(n)))
+	((__typeof__(*(ptr)))__cmpxchg64_mb((ptr),			\
+					(unsigned long long)(o),	\
+					(unsigned long long)(n)))
 
-#define cmpxchg64_local(ptr, o, n)					\
-	((__typeof__(*(ptr)))local64_cmpxchg(container_of((ptr),	\
-						local64_t,		\
-						a),			\
-					     (unsigned long long)(o),	\
-					     (unsigned long long)(n)))
+#define cmpxchg64_relaxed(ptr, o, n)					\
+	((__typeof__(*(ptr)))__cmpxchg64((ptr),				\
+					(unsigned long long)(o),	\
+					(unsigned long long)(n)))
+
+#define cmpxchg64_local(ptr, o, n)	cmpxchg64_relaxed((ptr), (o), (n))
 
 #endif	/* __LINUX_ARM_ARCH__ >= 6 */
 

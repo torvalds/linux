@@ -23,9 +23,6 @@
 #include "hw.h"
 #include "ce.h"
 
-/* FW dump area */
-#define REG_DUMP_COUNT_QCA988X 60
-
 /*
  * maximum number of bytes that can be handled atomically by DiagRead/DiagWrite
  */
@@ -38,26 +35,11 @@
 #define DIAG_TRANSFER_LIMIT 2048
 
 struct bmi_xfer {
-	struct completion done;
+	bool tx_done;
+	bool rx_done;
 	bool wait_for_resp;
 	u32 resp_len;
 };
-
-struct ath10k_pci_compl {
-	struct list_head list;
-	int send_or_recv;
-	struct ce_state *ce_state;
-	struct hif_ce_pipe_info *pipe_info;
-	void *transfer_context;
-	unsigned int nbytes;
-	unsigned int transfer_id;
-	unsigned int flags;
-};
-
-/* compl_state.send_or_recv */
-#define HIF_CE_COMPLETE_FREE 0
-#define HIF_CE_COMPLETE_SEND 1
-#define HIF_CE_COMPLETE_RECV 2
 
 /*
  * PCI-specific Target state
@@ -118,12 +100,12 @@ struct pcie_state {
  * NOTE: Structure is shared between Host software and Target firmware!
  */
 struct ce_pipe_config {
-	u32 pipenum;
-	u32 pipedir;
-	u32 nentries;
-	u32 nbytes_max;
-	u32 flags;
-	u32 reserved;
+	__le32 pipenum;
+	__le32 pipedir;
+	__le32 nentries;
+	__le32 nbytes_max;
+	__le32 flags;
+	__le32 reserved;
 };
 
 /*
@@ -145,23 +127,15 @@ struct ce_pipe_config {
 
 /* Establish a mapping between a service/direction and a pipe. */
 struct service_to_pipe {
-	u32 service_id;
-	u32 pipedir;
-	u32 pipenum;
-};
-
-enum ath10k_pci_features {
-	ATH10K_PCI_FEATURE_MSI_X		= 0,
-	ATH10K_PCI_FEATURE_HW_1_0_WARKAROUND	= 1,
-
-	/* keep last */
-	ATH10K_PCI_FEATURE_COUNT
+	__le32 service_id;
+	__le32 pipedir;
+	__le32 pipenum;
 };
 
 /* Per-pipe state. */
-struct hif_ce_pipe_info {
+struct ath10k_pci_pipe {
 	/* Handle of underlying Copy Engine */
-	struct ce_state *ce_hdl;
+	struct ath10k_ce_pipe *ce_hdl;
 
 	/* Our pipe number; facilitiates use of pipe_info ptrs. */
 	u8 pipe_num;
@@ -174,14 +148,13 @@ struct hif_ce_pipe_info {
 	/* protects compl_free and num_send_allowed */
 	spinlock_t pipe_lock;
 
-	/* List of free CE completion slots */
-	struct list_head compl_free;
-
-	/* Limit the number of outstanding send requests. */
-	int num_sends_allowed;
-
 	struct ath10k_pci *ar_pci;
 	struct tasklet_struct intr;
+};
+
+struct ath10k_pci_supp_chip {
+	u32 dev_id;
+	u32 rev_id;
 };
 
 struct ath10k_pci {
@@ -189,9 +162,6 @@ struct ath10k_pci {
 	struct device *dev;
 	struct ath10k *ar;
 	void __iomem *mem;
-	int cacheline_sz;
-
-	DECLARE_BITMAP(features, ATH10K_PCI_FEATURE_COUNT);
 
 	/*
 	 * Number of MSI interrupts granted, 0 --> using legacy PCI line
@@ -202,59 +172,29 @@ struct ath10k_pci {
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct msi_fw_err;
 
-	/* Number of Copy Engines supported */
-	unsigned int ce_count;
-
-	int started;
-
-	atomic_t keep_awake_count;
-	bool verified_awake;
-
-	/* List of CE completions to be processed */
-	struct list_head compl_process;
-
-	/* protects compl_processing and compl_process */
-	spinlock_t compl_lock;
-
-	bool compl_processing;
-
-	struct hif_ce_pipe_info pipe_info[CE_COUNT_MAX];
+	struct ath10k_pci_pipe pipe_info[CE_COUNT_MAX];
 
 	struct ath10k_hif_cb msg_callbacks_current;
 
-	/* Target address used to signal a pending firmware event */
-	u32 fw_indicator_address;
-
 	/* Copy Engine used for Diagnostic Accesses */
-	struct ce_state *ce_diag;
+	struct ath10k_ce_pipe *ce_diag;
 
 	/* FIXME: document what this really protects */
 	spinlock_t ce_lock;
 
 	/* Map CE id to ce_state */
-	struct ce_state *ce_id_to_state[CE_COUNT_MAX];
-
-	/* makes sure that dummy reads are atomic */
-	spinlock_t hw_v1_workaround_lock;
+	struct ath10k_ce_pipe ce_states[CE_COUNT_MAX];
+	struct timer_list rx_post_retry;
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 {
-	return ar->hif.priv;
+	return (struct ath10k_pci *)ar->drv_priv;
 }
 
-static inline u32 ath10k_pci_reg_read32(void __iomem *mem, u32 addr)
-{
-	return ioread32(mem + PCIE_LOCAL_BASE_ADDRESS + addr);
-}
-
-static inline void ath10k_pci_reg_write32(void __iomem *mem, u32 addr, u32 val)
-{
-	iowrite32(val, mem + PCIE_LOCAL_BASE_ADDRESS + addr);
-}
-
+#define ATH10K_PCI_RX_POST_RETRY_MS 50
 #define ATH_PCI_RESET_WAIT_MAX 10 /* ms */
-#define PCIE_WAKE_TIMEOUT 5000	/* 5ms */
+#define PCIE_WAKE_TIMEOUT 10000	/* 10ms */
 
 #define BAR_NUM 0
 
@@ -276,56 +216,23 @@ static inline void ath10k_pci_reg_write32(void __iomem *mem, u32 addr, u32 val)
 /* Wait up to this many Ms for a Diagnostic Access CE operation to complete */
 #define DIAG_ACCESS_CE_TIMEOUT_MS 10
 
-/*
- * This API allows the Host to access Target registers directly
- * and relatively efficiently over PCIe.
- * This allows the Host to avoid extra overhead associated with
- * sending a message to firmware and waiting for a response message
- * from firmware, as is done on other interconnects.
+/* Target exposes its registers for direct access. However before host can
+ * access them it needs to make sure the target is awake (ath10k_pci_wake,
+ * ath10k_pci_wake_wait, ath10k_pci_is_awake). Once target is awake it won't go
+ * to sleep unless host tells it to (ath10k_pci_sleep).
  *
- * Yet there is some complexity with direct accesses because the
- * Target's power state is not known a priori. The Host must issue
- * special PCIe reads/writes in order to explicitly wake the Target
- * and to verify that it is awake and will remain awake.
+ * If host tries to access target registers without waking it up it can
+ * scribble over host memory.
  *
- * Usage:
- *
- *   Use ath10k_pci_read32 and ath10k_pci_write32 to access Target space.
- *   These calls must be bracketed by ath10k_pci_wake and
- *   ath10k_pci_sleep.  A single BEGIN/END pair is adequate for
- *   multiple READ/WRITE operations.
- *
- *   Use ath10k_pci_wake to put the Target in a state in
- *   which it is legal for the Host to directly access it. This
- *   may involve waking the Target from a low power state, which
- *   may take up to 2Ms!
- *
- *   Use ath10k_pci_sleep to tell the Target that as far as
- *   this code path is concerned, it no longer needs to remain
- *   directly accessible.  BEGIN/END is under a reference counter;
- *   multiple code paths may issue BEGIN/END on a single targid.
+ * If target is asleep waking it up may take up to even 2ms.
  */
+
 static inline void ath10k_pci_write32(struct ath10k *ar, u32 offset,
 				      u32 value)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	void __iomem *addr = ar_pci->mem;
 
-	if (test_bit(ATH10K_PCI_FEATURE_HW_1_0_WARKAROUND, ar_pci->features)) {
-		unsigned long irq_flags;
-
-		spin_lock_irqsave(&ar_pci->hw_v1_workaround_lock, irq_flags);
-
-		ioread32(addr+offset+4); /* 3rd read prior to write */
-		ioread32(addr+offset+4); /* 2nd read prior to write */
-		ioread32(addr+offset+4); /* 1st read prior to write */
-		iowrite32(value, addr+offset);
-
-		spin_unlock_irqrestore(&ar_pci->hw_v1_workaround_lock,
-				       irq_flags);
-	} else {
-		iowrite32(value, addr+offset);
-	}
+	iowrite32(value, ar_pci->mem + offset);
 }
 
 static inline u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
@@ -335,21 +242,28 @@ static inline u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
 	return ioread32(ar_pci->mem + offset);
 }
 
-extern unsigned int ath10k_target_ps;
-
-void ath10k_do_pci_wake(struct ath10k *ar);
-void ath10k_do_pci_sleep(struct ath10k *ar);
-
-static inline void ath10k_pci_wake(struct ath10k *ar)
+static inline u32 ath10k_pci_soc_read32(struct ath10k *ar, u32 addr)
 {
-	if (ath10k_target_ps)
-		ath10k_do_pci_wake(ar);
+	return ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS + addr);
 }
 
-static inline void ath10k_pci_sleep(struct ath10k *ar)
+static inline void ath10k_pci_soc_write32(struct ath10k *ar, u32 addr, u32 val)
 {
-	if (ath10k_target_ps)
-		ath10k_do_pci_sleep(ar);
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + addr, val);
+}
+
+static inline u32 ath10k_pci_reg_read32(struct ath10k *ar, u32 addr)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	return ioread32(ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS + addr);
+}
+
+static inline void ath10k_pci_reg_write32(struct ath10k *ar, u32 addr, u32 val)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	iowrite32(val, ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS + addr);
 }
 
 #endif /* _PCI_H_ */

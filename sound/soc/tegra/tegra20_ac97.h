@@ -90,6 +90,5 @@ struct tegra20_ac97 {
 	struct regmap *regmap;
 	int reset_gpio;
 	int sync_gpio;
-	struct tegra_asoc_utils_data util_data;
 };
 #endif /* __TEGRA20_AC97_H__ */

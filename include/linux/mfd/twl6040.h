@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/regulator/consumer.h>
+#include <linux/clk.h>
 
 #define TWL6040_REG_ASICID		0x01
 #define TWL6040_REG_ASICREV		0x02
@@ -157,6 +158,7 @@
 #define TWL6040_I2CSEL			0x01
 #define TWL6040_RESETSPLIT		0x04
 #define TWL6040_INTCLRMODE		0x08
+#define TWL6040_I2CMODE(x)		((x & 0x3) << 4)
 
 /* STATUS (0x2E) fields */
 
@@ -185,6 +187,7 @@
 
 #define TWL6040_GPO_MAX	3
 
+/* TODO: All platform data struct can be removed */
 struct twl6040_codec_data {
 	u16 hs_left_step;
 	u16 hs_right_step;
@@ -221,6 +224,7 @@ struct twl6040 {
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *irq_data;
 	struct regulator_bulk_data supplies[2]; /* supplies for vio, v2v1 */
+	struct clk *clk32k;
 	struct mutex mutex;
 	struct mutex irq_mutex;
 	struct mfd_cell cells[TWL6040_CELLS];
@@ -229,7 +233,6 @@ struct twl6040 {
 	int audpwron;
 	int power_count;
 	int rev;
-	u8 vibra_ctrl_cache[2];
 
 	/* PLL configuration */
 	int pll;

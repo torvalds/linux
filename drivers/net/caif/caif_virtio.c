@@ -257,7 +257,6 @@ static int cfv_rx_poll(struct napi_struct *napi, int quota)
 	struct vringh_kiov *riov = &cfv->ctx.riov;
 	unsigned int skb_len;
 
-again:
 	do {
 		skb = NULL;
 
@@ -322,7 +321,6 @@ exit:
 		    napi_schedule_prep(napi)) {
 			vringh_notify_disable_kern(cfv->vr_rx);
 			__napi_schedule(napi);
-			goto again;
 		}
 		break;
 
@@ -661,7 +659,7 @@ static int cfv_probe(struct virtio_device *vdev)
 	int err = -EINVAL;
 
 	netdev = alloc_netdev(sizeof(struct cfv_info), cfv_netdev_name,
-			      cfv_netdev_setup);
+			      NET_NAME_UNKNOWN, cfv_netdev_setup);
 	if (!netdev)
 		return -ENOMEM;
 
@@ -686,18 +684,19 @@ static int cfv_probe(struct virtio_device *vdev)
 		goto err;
 
 	/* Get the CAIF configuration from virtio config space, if available */
-#define GET_VIRTIO_CONFIG_OPS(_v, _var, _f) \
-	((_v)->config->get(_v, offsetof(struct virtio_caif_transf_config, _f), \
-			   &_var, \
-			   FIELD_SIZEOF(struct virtio_caif_transf_config, _f)))
-
 	if (vdev->config->get) {
-		GET_VIRTIO_CONFIG_OPS(vdev, cfv->tx_hr, headroom);
-		GET_VIRTIO_CONFIG_OPS(vdev, cfv->rx_hr, headroom);
-		GET_VIRTIO_CONFIG_OPS(vdev, cfv->tx_tr, tailroom);
-		GET_VIRTIO_CONFIG_OPS(vdev, cfv->rx_tr, tailroom);
-		GET_VIRTIO_CONFIG_OPS(vdev, cfv->mtu, mtu);
-		GET_VIRTIO_CONFIG_OPS(vdev, cfv->mru, mtu);
+		virtio_cread(vdev, struct virtio_caif_transf_config, headroom,
+			     &cfv->tx_hr);
+		virtio_cread(vdev, struct virtio_caif_transf_config, headroom,
+			     &cfv->rx_hr);
+		virtio_cread(vdev, struct virtio_caif_transf_config, tailroom,
+			     &cfv->tx_tr);
+		virtio_cread(vdev, struct virtio_caif_transf_config, tailroom,
+			     &cfv->rx_tr);
+		virtio_cread(vdev, struct virtio_caif_transf_config, mtu,
+			     &cfv->mtu);
+		virtio_cread(vdev, struct virtio_caif_transf_config, mtu,
+			     &cfv->mru);
 	} else {
 		cfv->tx_hr = CFV_DEF_HEADROOM;
 		cfv->rx_hr = CFV_DEF_HEADROOM;

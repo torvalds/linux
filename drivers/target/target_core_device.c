@@ -4,7 +4,7 @@
  * This file contains the TCM Virtual Device and Disk Transport
  * agnostic related functions.
  *
- * (c) Copyright 2003-2012 RisingTide Systems LLC.
+ * (c) Copyright 2003-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -46,6 +46,9 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
+
+DEFINE_MUTEX(g_device_mutex);
+LIST_HEAD(g_device_list);
 
 static struct se_hba *lun0_hba;
 /* not static, needed by tpg.c */
@@ -89,6 +92,9 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->orig_fe_lun = unpacked_lun;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+
+		percpu_ref_get(&se_lun->lun_ref);
+		se_cmd->lun_ref_active = true;
 	}
 	spin_unlock_irqrestore(&se_sess->se_node_acl->device_list_lock, flags);
 
@@ -116,24 +122,20 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_cmd->se_lun = &se_sess->se_tpg->tpg_virt_lun0;
 		se_cmd->orig_fe_lun = 0;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+
+		percpu_ref_get(&se_lun->lun_ref);
+		se_cmd->lun_ref_active = true;
 	}
 
 	/* Directly associate cmd with se_dev */
 	se_cmd->se_dev = se_lun->lun_se_dev;
 
-	/* TODO: get rid of this and use atomics for stats */
 	dev = se_lun->lun_se_dev;
-	spin_lock_irqsave(&dev->stats_lock, flags);
-	dev->num_cmds++;
+	atomic_long_inc(&dev->num_cmds);
 	if (se_cmd->data_direction == DMA_TO_DEVICE)
-		dev->write_bytes += se_cmd->data_length;
+		atomic_long_add(se_cmd->data_length, &dev->write_bytes);
 	else if (se_cmd->data_direction == DMA_FROM_DEVICE)
-		dev->read_bytes += se_cmd->data_length;
-	spin_unlock_irqrestore(&dev->stats_lock, flags);
-
-	spin_lock_irqsave(&se_lun->lun_cmd_lock, flags);
-	list_add_tail(&se_cmd->se_lun_node, &se_lun->lun_cmd_list);
-	spin_unlock_irqrestore(&se_lun->lun_cmd_lock, flags);
+		atomic_long_add(se_cmd->data_length, &dev->read_bytes);
 
 	return 0;
 }
@@ -222,8 +224,7 @@ struct se_dev_entry *core_get_se_deve_from_rtpi(
 		if (port->sep_rtpi != rtpi)
 			continue;
 
-		atomic_inc(&deve->pr_ref_count);
-		smp_mb__after_atomic_inc();
+		atomic_inc_mb(&deve->pr_ref_count);
 		spin_unlock_irq(&nacl->device_list_lock);
 
 		return deve;
@@ -311,14 +312,14 @@ int core_enable_device_list_for_node(
 	deve = nacl->device_list[mapped_lun];
 
 	/*
-	 * Check if the call is handling demo mode -> explict LUN ACL
+	 * Check if the call is handling demo mode -> explicit LUN ACL
 	 * transition.  This transition must be for the same struct se_lun
 	 * + mapped_lun that was setup in demo mode..
 	 */
 	if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
 		if (deve->se_lun_acl != NULL) {
 			pr_err("struct se_dev_entry->se_lun_acl"
-			       " already set for demo mode -> explict"
+			       " already set for demo mode -> explicit"
 			       " LUN ACL transition\n");
 			spin_unlock_irq(&nacl->device_list_lock);
 			return -EINVAL;
@@ -326,7 +327,7 @@ int core_enable_device_list_for_node(
 		if (deve->se_lun != lun) {
 			pr_err("struct se_dev_entry->se_lun does"
 			       " match passed struct se_lun for demo mode"
-			       " -> explict LUN ACL transition\n");
+			       " -> explicit LUN ACL transition\n");
 			spin_unlock_irq(&nacl->device_list_lock);
 			return -EINVAL;
 		}
@@ -614,6 +615,7 @@ void core_dev_unexport(
 	dev->export_count--;
 	spin_unlock(&hba->device_lock);
 
+	lun->lun_sep = NULL;
 	lun->lun_se_dev = NULL;
 }
 
@@ -657,6 +659,7 @@ int se_dev_set_max_unmap_lba_count(
 			dev, dev->dev_attrib.max_unmap_lba_count);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_max_unmap_lba_count);
 
 int se_dev_set_max_unmap_block_desc_count(
 	struct se_device *dev,
@@ -668,6 +671,7 @@ int se_dev_set_max_unmap_block_desc_count(
 			dev, dev->dev_attrib.max_unmap_block_desc_count);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_max_unmap_block_desc_count);
 
 int se_dev_set_unmap_granularity(
 	struct se_device *dev,
@@ -678,6 +682,7 @@ int se_dev_set_unmap_granularity(
 			dev, dev->dev_attrib.unmap_granularity);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_unmap_granularity);
 
 int se_dev_set_unmap_granularity_alignment(
 	struct se_device *dev,
@@ -688,6 +693,7 @@ int se_dev_set_unmap_granularity_alignment(
 			dev, dev->dev_attrib.unmap_granularity_alignment);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_unmap_granularity_alignment);
 
 int se_dev_set_max_write_same_len(
 	struct se_device *dev,
@@ -698,6 +704,7 @@ int se_dev_set_max_write_same_len(
 			dev, dev->dev_attrib.max_write_same_len);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_max_write_same_len);
 
 static void dev_set_t10_wwn_model_alias(struct se_device *dev)
 {
@@ -736,6 +743,7 @@ int se_dev_set_emulate_model_alias(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_model_alias);
 
 int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 {
@@ -751,6 +759,7 @@ int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_dpo);
 
 int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 {
@@ -758,17 +767,12 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-
-	if (flag &&
-	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("emulate_fua_write not supported for pSCSI\n");
-		return -EINVAL;
-	}
 	dev->dev_attrib.emulate_fua_write = flag;
 	pr_debug("dev[%p]: SE Device Forced Unit Access WRITEs: %d\n",
 			dev, dev->dev_attrib.emulate_fua_write);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_fua_write);
 
 int se_dev_set_emulate_fua_read(struct se_device *dev, int flag)
 {
@@ -784,6 +788,7 @@ int se_dev_set_emulate_fua_read(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_fua_read);
 
 int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 {
@@ -792,14 +797,9 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 	if (flag &&
-	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("emulate_write_cache not supported for pSCSI\n");
+	    dev->transport->get_write_cache) {
+		pr_err("emulate_write_cache not supported for this device\n");
 		return -EINVAL;
-	}
-	if (dev->transport->get_write_cache) {
-		pr_warn("emulate_write_cache cannot be changed when underlying"
-			" HW reports WriteCacheEnabled, ignoring request\n");
-		return 0;
 	}
 
 	dev->dev_attrib.emulate_write_cache = flag;
@@ -807,6 +807,7 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 			dev, dev->dev_attrib.emulate_write_cache);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_write_cache);
 
 int se_dev_set_emulate_ua_intlck_ctrl(struct se_device *dev, int flag)
 {
@@ -827,6 +828,7 @@ int se_dev_set_emulate_ua_intlck_ctrl(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_ua_intlck_ctrl);
 
 int se_dev_set_emulate_tas(struct se_device *dev, int flag)
 {
@@ -847,6 +849,7 @@ int se_dev_set_emulate_tas(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_tas);
 
 int se_dev_set_emulate_tpu(struct se_device *dev, int flag)
 {
@@ -868,6 +871,7 @@ int se_dev_set_emulate_tpu(struct se_device *dev, int flag)
 				dev, flag);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_tpu);
 
 int se_dev_set_emulate_tpws(struct se_device *dev, int flag)
 {
@@ -889,6 +893,125 @@ int se_dev_set_emulate_tpws(struct se_device *dev, int flag)
 				dev, flag);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_tpws);
+
+int se_dev_set_emulate_caw(struct se_device *dev, int flag)
+{
+	if (flag != 0 && flag != 1) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	dev->dev_attrib.emulate_caw = flag;
+	pr_debug("dev[%p]: SE Device CompareAndWrite (AtomicTestandSet): %d\n",
+		 dev, flag);
+
+	return 0;
+}
+EXPORT_SYMBOL(se_dev_set_emulate_caw);
+
+int se_dev_set_emulate_3pc(struct se_device *dev, int flag)
+{
+	if (flag != 0 && flag != 1) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	dev->dev_attrib.emulate_3pc = flag;
+	pr_debug("dev[%p]: SE Device 3rd Party Copy (EXTENDED_COPY): %d\n",
+		dev, flag);
+
+	return 0;
+}
+EXPORT_SYMBOL(se_dev_set_emulate_3pc);
+
+int se_dev_set_pi_prot_type(struct se_device *dev, int flag)
+{
+	int rc, old_prot = dev->dev_attrib.pi_prot_type;
+
+	if (flag != 0 && flag != 1 && flag != 2 && flag != 3) {
+		pr_err("Illegal value %d for pi_prot_type\n", flag);
+		return -EINVAL;
+	}
+	if (flag == 2) {
+		pr_err("DIF TYPE2 protection currently not supported\n");
+		return -ENOSYS;
+	}
+	if (dev->dev_attrib.hw_pi_prot_type) {
+		pr_warn("DIF protection enabled on underlying hardware,"
+			" ignoring\n");
+		return 0;
+	}
+	if (!dev->transport->init_prot || !dev->transport->free_prot) {
+		/* 0 is only allowed value for non-supporting backends */
+		if (flag == 0)
+			return 0;
+
+		pr_err("DIF protection not supported by backend: %s\n",
+		       dev->transport->name);
+		return -ENOSYS;
+	}
+	if (!(dev->dev_flags & DF_CONFIGURED)) {
+		pr_err("DIF protection requires device to be configured\n");
+		return -ENODEV;
+	}
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to change SE Device PROT type while"
+		       " export_count is %d\n", dev, dev->export_count);
+		return -EINVAL;
+	}
+
+	dev->dev_attrib.pi_prot_type = flag;
+
+	if (flag && !old_prot) {
+		rc = dev->transport->init_prot(dev);
+		if (rc) {
+			dev->dev_attrib.pi_prot_type = old_prot;
+			return rc;
+		}
+
+	} else if (!flag && old_prot) {
+		dev->transport->free_prot(dev);
+	}
+	pr_debug("dev[%p]: SE Device Protection Type: %d\n", dev, flag);
+
+	return 0;
+}
+EXPORT_SYMBOL(se_dev_set_pi_prot_type);
+
+int se_dev_set_pi_prot_format(struct se_device *dev, int flag)
+{
+	int rc;
+
+	if (!flag)
+		return 0;
+
+	if (flag != 1) {
+		pr_err("Illegal value %d for pi_prot_format\n", flag);
+		return -EINVAL;
+	}
+	if (!dev->transport->format_prot) {
+		pr_err("DIF protection format not supported by backend %s\n",
+		       dev->transport->name);
+		return -ENOSYS;
+	}
+	if (!(dev->dev_flags & DF_CONFIGURED)) {
+		pr_err("DIF protection format requires device to be configured\n");
+		return -ENODEV;
+	}
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to format SE Device PROT type while"
+		       " export_count is %d\n", dev, dev->export_count);
+		return -EINVAL;
+	}
+
+	rc = dev->transport->format_prot(dev);
+	if (rc)
+		return rc;
+
+	pr_debug("dev[%p]: SE Device Protection Format complete\n", dev);
+
+	return 0;
+}
+EXPORT_SYMBOL(se_dev_set_pi_prot_format);
 
 int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 {
@@ -901,6 +1024,25 @@ int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 		(dev->dev_attrib.enforce_pr_isids) ? "Enabled" : "Disabled");
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_enforce_pr_isids);
+
+int se_dev_set_force_pr_aptpl(struct se_device *dev, int flag)
+{
+	if ((flag != 0) && (flag != 1)) {
+		printk(KERN_ERR "Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to set force_pr_aptpl while"
+		       " export_count is %d\n", dev, dev->export_count);
+		return -EINVAL;
+	}
+
+	dev->dev_attrib.force_pr_aptpl = flag;
+	pr_debug("dev[%p]: SE Device force_pr_aptpl: %d\n", dev, flag);
+	return 0;
+}
+EXPORT_SYMBOL(se_dev_set_force_pr_aptpl);
 
 int se_dev_set_is_nonrot(struct se_device *dev, int flag)
 {
@@ -913,6 +1055,7 @@ int se_dev_set_is_nonrot(struct se_device *dev, int flag)
 	       dev, flag);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_is_nonrot);
 
 int se_dev_set_emulate_rest_reord(struct se_device *dev, int flag)
 {
@@ -925,6 +1068,7 @@ int se_dev_set_emulate_rest_reord(struct se_device *dev, int flag)
 	pr_debug("dev[%p]: SE Device emulate_rest_reord: %d\n", dev, flag);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_rest_reord);
 
 /*
  * Note, this can only be called on unexported SE Device Object.
@@ -943,85 +1087,21 @@ int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 		return -EINVAL;
 	}
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
+	if (queue_depth > dev->dev_attrib.queue_depth) {
 		if (queue_depth > dev->dev_attrib.hw_queue_depth) {
-			pr_err("dev[%p]: Passed queue_depth: %u"
-				" exceeds TCM/SE_Device TCQ: %u\n",
-				dev, queue_depth,
+			pr_err("dev[%p]: Passed queue_depth:"
+				" %u exceeds TCM/SE_Device MAX"
+				" TCQ: %u\n", dev, queue_depth,
 				dev->dev_attrib.hw_queue_depth);
 			return -EINVAL;
 		}
-	} else {
-		if (queue_depth > dev->dev_attrib.queue_depth) {
-			if (queue_depth > dev->dev_attrib.hw_queue_depth) {
-				pr_err("dev[%p]: Passed queue_depth:"
-					" %u exceeds TCM/SE_Device MAX"
-					" TCQ: %u\n", dev, queue_depth,
-					dev->dev_attrib.hw_queue_depth);
-				return -EINVAL;
-			}
-		}
 	}
-
 	dev->dev_attrib.queue_depth = dev->queue_depth = queue_depth;
 	pr_debug("dev[%p]: SE Device TCQ Depth changed to: %u\n",
 			dev, queue_depth);
 	return 0;
 }
-
-int se_dev_set_fabric_max_sectors(struct se_device *dev, u32 fabric_max_sectors)
-{
-	int block_size = dev->dev_attrib.block_size;
-
-	if (dev->export_count) {
-		pr_err("dev[%p]: Unable to change SE Device"
-			" fabric_max_sectors while export_count is %d\n",
-			dev, dev->export_count);
-		return -EINVAL;
-	}
-	if (!fabric_max_sectors) {
-		pr_err("dev[%p]: Illegal ZERO value for"
-			" fabric_max_sectors\n", dev);
-		return -EINVAL;
-	}
-	if (fabric_max_sectors < DA_STATUS_MAX_SECTORS_MIN) {
-		pr_err("dev[%p]: Passed fabric_max_sectors: %u less than"
-			" DA_STATUS_MAX_SECTORS_MIN: %u\n", dev, fabric_max_sectors,
-				DA_STATUS_MAX_SECTORS_MIN);
-		return -EINVAL;
-	}
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		if (fabric_max_sectors > dev->dev_attrib.hw_max_sectors) {
-			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
-				" greater than TCM/SE_Device max_sectors:"
-				" %u\n", dev, fabric_max_sectors,
-				dev->dev_attrib.hw_max_sectors);
-			 return -EINVAL;
-		}
-	} else {
-		if (fabric_max_sectors > DA_STATUS_MAX_SECTORS_MAX) {
-			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
-				" greater than DA_STATUS_MAX_SECTORS_MAX:"
-				" %u\n", dev, fabric_max_sectors,
-				DA_STATUS_MAX_SECTORS_MAX);
-			return -EINVAL;
-		}
-	}
-	/*
-	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
-	 */
-	if (!block_size) {
-		block_size = 512;
-		pr_warn("Defaulting to 512 for zero block_size\n");
-	}
-	fabric_max_sectors = se_dev_align_max_sectors(fabric_max_sectors,
-						      block_size);
-
-	dev->dev_attrib.fabric_max_sectors = fabric_max_sectors;
-	pr_debug("dev[%p]: SE Device max_sectors changed to %u\n",
-			dev, fabric_max_sectors);
-	return 0;
-}
+EXPORT_SYMBOL(se_dev_set_queue_depth);
 
 int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 {
@@ -1031,15 +1111,10 @@ int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 			dev, dev->export_count);
 		return -EINVAL;
 	}
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("dev[%p]: Passed optimal_sectors cannot be"
-				" changed for TCM/pSCSI\n", dev);
-		return -EINVAL;
-	}
-	if (optimal_sectors > dev->dev_attrib.fabric_max_sectors) {
+	if (optimal_sectors > dev->dev_attrib.hw_max_sectors) {
 		pr_err("dev[%p]: Passed optimal_sectors %u cannot be"
-			" greater than fabric_max_sectors: %u\n", dev,
-			optimal_sectors, dev->dev_attrib.fabric_max_sectors);
+			" greater than hw_max_sectors: %u\n", dev,
+			optimal_sectors, dev->dev_attrib.hw_max_sectors);
 		return -EINVAL;
 	}
 
@@ -1048,6 +1123,7 @@ int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 			dev, optimal_sectors);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_optimal_sectors);
 
 int se_dev_set_block_size(struct se_device *dev, u32 block_size)
 {
@@ -1068,39 +1144,38 @@ int se_dev_set_block_size(struct se_device *dev, u32 block_size)
 		return -EINVAL;
 	}
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("dev[%p]: Not allowed to change block_size for"
-			" Physical Device, use for Linux/SCSI to change"
-			" block_size for underlying hardware\n", dev);
-		return -EINVAL;
-	}
-
 	dev->dev_attrib.block_size = block_size;
 	pr_debug("dev[%p]: SE Device block_size changed to %u\n",
 			dev, block_size);
+
+	if (dev->dev_attrib.max_bytes_per_io)
+		dev->dev_attrib.hw_max_sectors =
+			dev->dev_attrib.max_bytes_per_io / block_size;
+
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_block_size);
 
 struct se_lun *core_dev_add_lun(
 	struct se_portal_group *tpg,
 	struct se_device *dev,
-	u32 lun)
+	u32 unpacked_lun)
 {
-	struct se_lun *lun_p;
+	struct se_lun *lun;
 	int rc;
 
-	lun_p = core_tpg_pre_addlun(tpg, lun);
-	if (IS_ERR(lun_p))
-		return lun_p;
+	lun = core_tpg_alloc_lun(tpg, unpacked_lun);
+	if (IS_ERR(lun))
+		return lun;
 
-	rc = core_tpg_post_addlun(tpg, lun_p,
+	rc = core_tpg_add_lun(tpg, lun,
 				TRANSPORT_LUNFLAGS_READ_WRITE, dev);
 	if (rc < 0)
 		return ERR_PTR(rc);
 
 	pr_debug("%s_TPG[%u]_LUN[%u] - Activated %s Logical Unit from"
 		" CORE HBA: %u\n", tpg->se_tpg_tfo->get_fabric_name(),
-		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun_p->unpacked_lun,
+		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
 		tpg->se_tpg_tfo->get_fabric_name(), dev->se_hba->hba_id);
 	/*
 	 * Update LUN maps for dynamically added initiators when
@@ -1121,31 +1196,23 @@ struct se_lun *core_dev_add_lun(
 		spin_unlock_irq(&tpg->acl_node_lock);
 	}
 
-	return lun_p;
+	return lun;
 }
 
 /*      core_dev_del_lun():
  *
  *
  */
-int core_dev_del_lun(
+void core_dev_del_lun(
 	struct se_portal_group *tpg,
-	u32 unpacked_lun)
+	struct se_lun *lun)
 {
-	struct se_lun *lun;
-
-	lun = core_tpg_pre_dellun(tpg, unpacked_lun);
-	if (IS_ERR(lun))
-		return PTR_ERR(lun);
-
-	core_tpg_post_dellun(tpg, lun);
-
-	pr_debug("%s_TPG[%u]_LUN[%u] - Deactivated %s Logical Unit from"
+	pr_debug("%s_TPG[%u]_LUN[%u] - Deactivating %s Logical Unit from"
 		" device object\n", tpg->se_tpg_tfo->get_fabric_name(),
-		tpg->se_tpg_tfo->tpg_get_tag(tpg), unpacked_lun,
+		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
 		tpg->se_tpg_tfo->get_fabric_name());
 
-	return 0;
+	core_tpg_remove_lun(tpg, lun);
 }
 
 struct se_lun *core_get_lun_from_tpg(struct se_portal_group *tpg, u32 unpacked_lun)
@@ -1274,8 +1341,7 @@ int core_dev_add_initiator_node_lun_acl(
 
 	spin_lock(&lun->lun_acl_lock);
 	list_add_tail(&lacl->lacl_list, &lun->lun_acl_list);
-	atomic_inc(&lun->lun_acl_count);
-	smp_mb__after_atomic_inc();
+	atomic_inc_mb(&lun->lun_acl_count);
 	spin_unlock(&lun->lun_acl_lock);
 
 	pr_debug("%s_TPG[%hu]_LUN[%u->%u] - Added %s ACL for "
@@ -1287,7 +1353,8 @@ int core_dev_add_initiator_node_lun_acl(
 	 * Check to see if there are any existing persistent reservation APTPL
 	 * pre-registrations that need to be enabled for this LUN ACL..
 	 */
-	core_scsi3_check_aptpl_registration(lun->lun_se_dev, tpg, lun, lacl);
+	core_scsi3_check_aptpl_registration(lun->lun_se_dev, tpg, lun, nacl,
+					    lacl->mapped_lun);
 	return 0;
 }
 
@@ -1308,8 +1375,7 @@ int core_dev_del_initiator_node_lun_acl(
 
 	spin_lock(&lun->lun_acl_lock);
 	list_del(&lacl->lacl_list);
-	atomic_dec(&lun->lun_acl_count);
-	smp_mb__after_atomic_dec();
+	atomic_dec_mb(&lun->lun_acl_count);
 	spin_unlock(&lun->lun_acl_lock);
 
 	core_disable_device_list_for_node(lun, NULL, lacl->mapped_lun,
@@ -1378,6 +1444,7 @@ static void scsi_dump_inquiry(struct se_device *dev)
 struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct se_device *dev;
+	struct se_lun *xcopy_lun;
 
 	dev = hba->transport->alloc_device(hba, name);
 	if (!dev)
@@ -1386,6 +1453,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_link_magic = SE_DEV_LINK_MAGIC;
 	dev->se_hba = hba;
 	dev->transport = hba->transport;
+	dev->prot_length = sizeof(struct se_dif_v1_tuple);
 
 	INIT_LIST_HEAD(&dev->dev_list);
 	INIT_LIST_HEAD(&dev->dev_sep_list);
@@ -1393,13 +1461,14 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
 	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
-	spin_lock_init(&dev->stats_lock);
+	INIT_LIST_HEAD(&dev->g_dev_node);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
 	spin_lock_init(&dev->dev_reservation_lock);
 	spin_lock_init(&dev->se_port_lock);
 	spin_lock_init(&dev->se_tmr_lock);
 	spin_lock_init(&dev->qf_cmd_lock);
+	sema_init(&dev->caw_sem, 1);
 	atomic_set(&dev->dev_ordered_id, 0);
 	INIT_LIST_HEAD(&dev->t10_wwn.t10_vpd_list);
 	spin_lock_init(&dev->t10_wwn.t10_vpd_lock);
@@ -1409,6 +1478,8 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	spin_lock_init(&dev->t10_pr.aptpl_reg_lock);
 	INIT_LIST_HEAD(&dev->t10_alua.tg_pt_gps_list);
 	spin_lock_init(&dev->t10_alua.tg_pt_gps_lock);
+	INIT_LIST_HEAD(&dev->t10_alua.lba_map_list);
+	spin_lock_init(&dev->t10_alua.lba_map_lock);
 
 	dev->t10_wwn.t10_dev = dev;
 	dev->t10_alua.t10_dev = dev;
@@ -1423,7 +1494,11 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.emulate_tas = DA_EMULATE_TAS;
 	dev->dev_attrib.emulate_tpu = DA_EMULATE_TPU;
 	dev->dev_attrib.emulate_tpws = DA_EMULATE_TPWS;
+	dev->dev_attrib.emulate_caw = DA_EMULATE_CAW;
+	dev->dev_attrib.emulate_3pc = DA_EMULATE_3PC;
+	dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE0_PROT;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
+	dev->dev_attrib.force_pr_aptpl = DA_FORCE_PR_APTPL;
 	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
 	dev->dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;
 	dev->dev_attrib.max_unmap_lba_count = DA_MAX_UNMAP_LBA_COUNT;
@@ -1433,8 +1508,14 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.unmap_granularity_alignment =
 				DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT;
 	dev->dev_attrib.max_write_same_len = DA_MAX_WRITE_SAME_LEN;
-	dev->dev_attrib.fabric_max_sectors = DA_FABRIC_MAX_SECTORS;
-	dev->dev_attrib.optimal_sectors = DA_FABRIC_MAX_SECTORS;
+
+	xcopy_lun = &dev->xcopy_lun;
+	xcopy_lun->lun_se_dev = dev;
+	init_completion(&xcopy_lun->lun_shutdown_comp);
+	INIT_LIST_HEAD(&xcopy_lun->lun_acl_list);
+	spin_lock_init(&xcopy_lun->lun_acl_lock);
+	spin_lock_init(&xcopy_lun->lun_sep_lock);
+	init_completion(&xcopy_lun->lun_ref_comp);
 
 	return dev;
 }
@@ -1467,6 +1548,7 @@ int target_configure_device(struct se_device *dev)
 	dev->dev_attrib.hw_max_sectors =
 		se_dev_align_max_sectors(dev->dev_attrib.hw_max_sectors,
 					 dev->dev_attrib.hw_block_size);
+	dev->dev_attrib.optimal_sectors = dev->dev_attrib.hw_max_sectors;
 
 	dev->dev_index = scsi_get_new_index(SCSI_DEVICE_INDEX);
 	dev->creation_time = get_jiffies_64();
@@ -1510,6 +1592,11 @@ int target_configure_device(struct se_device *dev)
 	spin_lock(&hba->device_lock);
 	hba->dev_count++;
 	spin_unlock(&hba->device_lock);
+
+	mutex_lock(&g_device_mutex);
+	list_add_tail(&dev->g_dev_node, &g_device_list);
+	mutex_unlock(&g_device_mutex);
+
 	return 0;
 
 out_free_alua:
@@ -1528,14 +1615,22 @@ void target_free_device(struct se_device *dev)
 	if (dev->dev_flags & DF_CONFIGURED) {
 		destroy_workqueue(dev->tmr_wq);
 
+		mutex_lock(&g_device_mutex);
+		list_del(&dev->g_dev_node);
+		mutex_unlock(&g_device_mutex);
+
 		spin_lock(&hba->device_lock);
 		hba->dev_count--;
 		spin_unlock(&hba->device_lock);
 	}
 
 	core_alua_free_lu_gp_mem(dev);
+	core_alua_set_lba_map(dev, NULL, 0, 0);
 	core_scsi3_free_all_registrations(dev);
 	se_release_vpd_for_dev(dev);
+
+	if (dev->transport->free_prot)
+		dev->transport->free_prot(dev);
 
 	dev->transport->free_device(dev);
 }

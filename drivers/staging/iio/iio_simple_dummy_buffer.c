@@ -71,6 +71,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 		 * in the constant table fakedata.
 		 */
 		int i, j;
+
 		for (i = 0, j = 0;
 		     i < bitmap_weight(indio_dev->active_scan_mask,
 				       indio_dev->masklength);
@@ -82,11 +83,8 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 			len += 2;
 		}
 	}
-	/* Store the timestamp at an 8 byte aligned offset */
-	if (indio_dev->scan_timestamp)
-		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
-			= iio_get_time_ns();
-	iio_push_to_buffers(indio_dev, (u8 *)data);
+
+	iio_push_to_buffers_with_timestamp(indio_dev, data, iio_get_time_ns());
 
 	kfree(data);
 
@@ -101,14 +99,6 @@ done:
 }
 
 static const struct iio_buffer_setup_ops iio_simple_dummy_buffer_setup_ops = {
-	/*
-	 * iio_sw_buffer_preenable:
-	 * Generic function for equal sized ring elements + 64 bit timestamp
-	 * Assumes that any combination of channels can be enabled.
-	 * Typically replaced to implement restrictions on what combinations
-	 * can be captured (hardware scan modes).
-	 */
-	.preenable = &iio_sw_buffer_preenable,
 	/*
 	 * iio_triggered_buffer_postenable:
 	 * Generic function that simply attaches the pollfunc to the trigger.
@@ -125,20 +115,19 @@ static const struct iio_buffer_setup_ops iio_simple_dummy_buffer_setup_ops = {
 	.predisable = &iio_triggered_buffer_predisable,
 };
 
-int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *channels, unsigned int num_channels)
+int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 {
 	int ret;
 	struct iio_buffer *buffer;
 
 	/* Allocate a buffer to use - here a kfifo */
-	buffer = iio_kfifo_allocate(indio_dev);
+	buffer = iio_kfifo_allocate();
 	if (buffer == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
 
-	indio_dev->buffer = buffer;
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	/* Enable timestamps by default */
 	buffer->scan_timestamp = true;
@@ -183,14 +172,8 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev,
 	 */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 
-	ret = iio_buffer_register(indio_dev, channels, num_channels);
-	if (ret)
-		goto error_dealloc_pollfunc;
-
 	return 0;
 
-error_dealloc_pollfunc:
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
 error_free_buffer:
 	iio_kfifo_free(indio_dev->buffer);
 error_ret:
@@ -204,7 +187,6 @@ error_ret:
  */
 void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev)
 {
-	iio_buffer_unregister(indio_dev);
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	iio_kfifo_free(indio_dev->buffer);
 }

@@ -258,7 +258,6 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 static int davinci_vcif_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
-	davinci_soc_platform_unregister(&pdev->dev);
 
 	return 0;
 }
@@ -268,7 +267,6 @@ static struct platform_driver davinci_vcif_driver = {
 	.remove		= davinci_vcif_remove,
 	.driver		= {
 		.name	= "davinci-vcif",
-		.owner	= THIS_MODULE,
 	},
 };
 

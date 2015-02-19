@@ -226,6 +226,7 @@ static int nvec_power_get_property(struct power_supply *psy,
 				   union power_supply_propval *val)
 {
 	struct nvec_power *power = dev_get_drvdata(psy->dev->parent);
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = power->on;
@@ -431,7 +432,6 @@ static struct platform_driver nvec_power_driver = {
 	.remove = nvec_power_remove,
 	.driver = {
 		   .name = "nvec-power",
-		   .owner = THIS_MODULE,
 		   }
 };
 

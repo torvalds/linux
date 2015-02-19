@@ -85,6 +85,7 @@ struct regulator_state {
  *           bootloader then it will be enabled when the constraints are
  *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
+ * @ramp_disable: Disable ramp delay when initialising or when setting voltage.
  *
  * @input_uV: Input voltage for regulator when supplied by another regulator.
  *
@@ -95,6 +96,7 @@ struct regulator_state {
  * @initial_state: Suspend state to set by default.
  * @initial_mode: Mode to set at startup.
  * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
+ * @enable_time: Turn-on time of the rails (unit: microseconds)
  */
 struct regulation_constraints {
 
@@ -129,11 +131,13 @@ struct regulation_constraints {
 	unsigned int initial_mode;
 
 	unsigned int ramp_delay;
+	unsigned int enable_time;
 
 	/* constraint flags */
 	unsigned always_on:1;	/* regulator never off when system is on */
 	unsigned boot_on:1;	/* bootloader/firmware enabled regulator */
 	unsigned apply_uV:1;	/* apply uV constraint if min == max */
+	unsigned ramp_disable:1; /* disable ramp delay */
 };
 
 /**
@@ -187,19 +191,21 @@ struct regulator_init_data {
 	void *driver_data;	/* core does not touch this */
 };
 
-int regulator_suspend_prepare(suspend_state_t state);
-int regulator_suspend_finish(void);
-
 #ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
-void regulator_use_dummy_regulator(void);
+int regulator_suspend_prepare(suspend_state_t state);
+int regulator_suspend_finish(void);
 #else
 static inline void regulator_has_full_constraints(void)
 {
 }
-
-static inline void regulator_use_dummy_regulator(void)
+static inline int regulator_suspend_prepare(suspend_state_t state)
 {
+	return 0;
+}
+static inline int regulator_suspend_finish(void)
+{
+	return 0;
 }
 #endif
 

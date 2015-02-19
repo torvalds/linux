@@ -346,7 +346,8 @@ static void lanai_buf_allocate(struct lanai_buffer *buf,
 		 * everything, but the way the lanai uses DMA memory would
 		 * make that a terrific pain.  This is much simpler.
 		 */
-		buf->start = pci_alloc_consistent(pci, size, &buf->dmaaddr);
+		buf->start = dma_alloc_coherent(&pci->dev,
+						size, &buf->dmaaddr, GFP_KERNEL);
 		if (buf->start != NULL) {	/* Success */
 			/* Lanai requires 256-byte alignment of DMA bufs */
 			APRINTK((buf->dmaaddr & ~0xFFFFFF00) == 0,
@@ -372,8 +373,8 @@ static void lanai_buf_deallocate(struct lanai_buffer *buf,
 	struct pci_dev *pci)
 {
 	if (buf->start != NULL) {
-		pci_free_consistent(pci, lanai_buf_size(buf),
-		    buf->start, buf->dmaaddr);
+		dma_free_coherent(&pci->dev, lanai_buf_size(buf),
+				  buf->start, buf->dmaaddr);
 		buf->start = buf->end = buf->ptr = NULL;
 	}
 }
@@ -678,15 +679,6 @@ static inline void cardvcc_write(const struct lanai_vcc *lvcc,
 static inline int aal5_size(int size)
 {
 	int cells = (size + 8 + 47) / 48;
-	return cells * 48;
-}
-
-/* How many bytes can we send if we have "space" space, assuming we have
- * to send full cells
- */
-static inline int aal5_spacefor(int space)
-{
-	int cells = space / 48;
 	return cells * 48;
 }
 
@@ -1953,12 +1945,7 @@ static int lanai_pci_start(struct lanai_dev *lanai)
 		return -ENXIO;
 	}
 	pci_set_master(pci);
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) != 0) {
-		printk(KERN_WARNING DEV_LABEL
-		    "(itf %d): No suitable DMA available.\n", lanai->number);
-		return -EBUSY;
-	}
-	if (pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(32)) != 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32)) != 0) {
 		printk(KERN_WARNING DEV_LABEL
 		    "(itf %d): No suitable DMA available.\n", lanai->number);
 		return -EBUSY;
@@ -2614,27 +2601,7 @@ static struct pci_driver lanai_driver = {
 	.probe    = lanai_init_one,
 };
 
-static int __init lanai_module_init(void)
-{
-	int x;
-
-	x = pci_register_driver(&lanai_driver);
-	if (x != 0)
-		printk(KERN_ERR DEV_LABEL ": no adapter found\n");
-	return x;
-}
-
-static void __exit lanai_module_exit(void)
-{
-	/* We'll only get called when all the interfaces are already
-	 * gone, so there isn't much to do
-	 */
-	DPRINTK("cleanup_module()\n");
-	pci_unregister_driver(&lanai_driver);
-}
-
-module_init(lanai_module_init);
-module_exit(lanai_module_exit);
+module_pci_driver(lanai_driver);
 
 MODULE_AUTHOR("Mitchell Blank Jr <mitch@sfgoth.com>");
 MODULE_DESCRIPTION("Efficient Networks Speedstream 3010 driver");

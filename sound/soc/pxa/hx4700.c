@@ -127,14 +127,7 @@ static const struct snd_soc_dapm_route hx4700_audio_map[] = {
 static int hx4700_ak4641_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
-
-	/* NC codec pins */
-	/* FIXME: is anything connected here? */
-	snd_soc_dapm_nc_pin(dapm, "MOUT1");
-	snd_soc_dapm_nc_pin(dapm, "MICEXT");
-	snd_soc_dapm_nc_pin(dapm, "AUX");
 
 	/* Jack detection API stuff */
 	err = snd_soc_jack_new(codec, "Headphone Jack",
@@ -150,6 +143,13 @@ static int hx4700_ak4641_init(struct snd_soc_pcm_runtime *rtd)
 	err = snd_soc_jack_add_gpios(&hs_jack, 1, &hs_jack_gpio);
 
 	return err;
+}
+
+static int hx4700_card_remove(struct snd_soc_card *card)
+{
+	snd_soc_jack_free_gpios(&hs_jack, 1, &hs_jack_gpio);
+
+	return 0;
 }
 
 /* hx4700 digital audio interface glue - connects codec <--> CPU */
@@ -170,12 +170,14 @@ static struct snd_soc_dai_link hx4700_dai = {
 static struct snd_soc_card snd_soc_card_hx4700 = {
 	.name			= "iPAQ hx4700",
 	.owner			= THIS_MODULE,
+	.remove			= hx4700_card_remove,
 	.dai_link		= &hx4700_dai,
 	.num_links		= 1,
 	.dapm_widgets		= hx4700_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(hx4700_dapm_widgets),
 	.dapm_routes		= hx4700_audio_map,
 	.num_dapm_routes	= ARRAY_SIZE(hx4700_audio_map),
+	.fully_routed		= true,
 };
 
 static struct gpio hx4700_audio_gpios[] = {
@@ -206,7 +208,6 @@ static int hx4700_audio_probe(struct platform_device *pdev)
 
 static int hx4700_audio_remove(struct platform_device *pdev)
 {
-	snd_soc_jack_free_gpios(&hs_jack, 1, &hs_jack_gpio);
 	snd_soc_unregister_card(&snd_soc_card_hx4700);
 
 	gpio_set_value(GPIO92_HX4700_HP_DRIVER, 0);
@@ -219,7 +220,6 @@ static int hx4700_audio_remove(struct platform_device *pdev)
 static struct platform_driver hx4700_audio_driver = {
 	.driver	= {
 		.name = "hx4700-audio",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe	= hx4700_audio_probe,

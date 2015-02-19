@@ -147,7 +147,6 @@ SECTIONS
 		_edata = .;
 	} :data
 
-#ifdef CONFIG_X86_64
 
 	. = ALIGN(PAGE_SIZE);
 	__vvar_page = .;
@@ -165,11 +164,14 @@ SECTIONS
 #undef __VVAR_KERNEL_LDS
 #undef EMIT_VVAR
 
+		/*
+		 * Pad the rest of the page with zeros.  Otherwise the loader
+		 * can leave garbage here.
+		 */
+		. = __vvar_beginning_hack + PAGE_SIZE;
 	} :data
 
        . = ALIGN(__vvar_page + PAGE_SIZE, PAGE_SIZE);
-
-#endif /* CONFIG_X86_64 */
 
 	/* Init code and data - will be freed after init */
 	. = ALIGN(PAGE_SIZE);
@@ -184,6 +186,8 @@ SECTIONS
 	 * start another segment - init.
 	 */
 	PERCPU_VADDR(INTERNODE_CACHE_BYTES, 0, :percpu)
+	ASSERT(SIZEOF(.data..percpu) < CONFIG_PHYSICAL_START,
+	       "per-CPU data too large - increase CONFIG_PHYSICAL_START")
 #endif
 
 	INIT_TEXT_SECTION(PAGE_SIZE)
@@ -198,6 +202,15 @@ SECTIONS
 		*(.x86_cpu_dev.init)
 		__x86_cpu_dev_end = .;
 	}
+
+#ifdef CONFIG_X86_INTEL_MID
+	.x86_intel_mid_dev.init : AT(ADDR(.x86_intel_mid_dev.init) - \
+								LOAD_OFFSET) {
+		__x86_intel_mid_dev_start = .;
+		*(.x86_intel_mid_dev.init)
+		__x86_intel_mid_dev_end = .;
+	}
+#endif
 
 	/*
 	 * start address and size of operations which during runtime

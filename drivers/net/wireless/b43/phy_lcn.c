@@ -54,39 +54,6 @@ enum lcn_sense_type {
 	B43_SENSE_VBAT,
 };
 
-/* In theory it's PHY common function, move if needed */
-/* brcms_b_switch_macfreq */
-static void b43_phy_switch_macfreq(struct b43_wldev *dev, u8 spurmode)
-{
-	if (dev->dev->chip_id == 43224 || dev->dev->chip_id == 43225) {
-		switch (spurmode) {
-		case 2:		/* 126 Mhz */
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x2082);
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
-			break;
-		case 1:		/* 123 Mhz */
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x5341);
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
-			break;
-		default:	/* 120 Mhz */
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x8889);
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
-			break;
-		}
-	} else if (dev->phy.type == B43_PHYTYPE_LCN) {
-		switch (spurmode) {
-		case 1:		/* 82 Mhz */
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x7CE0);
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0xC);
-			break;
-		default:	/* 80 Mhz */
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0xCCCD);
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0xC);
-			break;
-		}
-	}
-}
-
 /**************************************************
  * Radio 2064.
  **************************************************/
@@ -609,7 +576,7 @@ static void b43_phy_lcn_txrx_spur_avoidance_mode(struct b43_wldev *dev,
 		b43_phy_write(dev, 0x93b, ((0 << 13) + 23));
 		b43_phy_write(dev, 0x93c, ((0 << 13) + 1989));
 	}
-	b43_phy_switch_macfreq(dev, enable);
+	b43_mac_switch_freq(dev, enable);
 }
 
 /**************************************************
@@ -843,22 +810,10 @@ static void b43_phy_lcn_op_adjust_txpower(struct b43_wldev *dev)
  * R/W ops.
  **************************************************/
 
-static u16 b43_phy_lcn_op_read(struct b43_wldev *dev, u16 reg)
-{
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
-	return b43_read16(dev, B43_MMIO_PHY_DATA);
-}
-
-static void b43_phy_lcn_op_write(struct b43_wldev *dev, u16 reg, u16 value)
-{
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
-	b43_write16(dev, B43_MMIO_PHY_DATA, value);
-}
-
 static void b43_phy_lcn_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
 				   u16 set)
 {
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_PHY_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_PHY_DATA,
 		    (b43_read16(dev, B43_MMIO_PHY_DATA) & mask) | set);
 }
@@ -868,14 +823,14 @@ static u16 b43_phy_lcn_op_radio_read(struct b43_wldev *dev, u16 reg)
 	/* LCN-PHY needs 0x200 for read access */
 	reg |= 0x200;
 
-	b43_write16(dev, B43_MMIO_RADIO24_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO24_CONTROL, reg);
 	return b43_read16(dev, B43_MMIO_RADIO24_DATA);
 }
 
 static void b43_phy_lcn_op_radio_write(struct b43_wldev *dev, u16 reg,
 				       u16 value)
 {
-	b43_write16(dev, B43_MMIO_RADIO24_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO24_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_RADIO24_DATA, value);
 }
 
@@ -888,8 +843,6 @@ const struct b43_phy_operations b43_phyops_lcn = {
 	.free			= b43_phy_lcn_op_free,
 	.prepare_structs	= b43_phy_lcn_op_prepare_structs,
 	.init			= b43_phy_lcn_op_init,
-	.phy_read		= b43_phy_lcn_op_read,
-	.phy_write		= b43_phy_lcn_op_write,
 	.phy_maskset		= b43_phy_lcn_op_maskset,
 	.radio_read		= b43_phy_lcn_op_radio_read,
 	.radio_write		= b43_phy_lcn_op_radio_write,

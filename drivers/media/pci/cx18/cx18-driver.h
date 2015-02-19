@@ -262,7 +262,7 @@ struct cx18_options {
 };
 
 /* per-mdl bit flags */
-#define CX18_F_M_NEED_SWAP  0	/* mdl buffer data must be endianess swapped */
+#define CX18_F_M_NEED_SWAP  0	/* mdl buffer data must be endianness swapped */
 
 /* per-stream, s_flags */
 #define CX18_F_S_CLAIMED 	3	/* this stream is claimed */
@@ -290,7 +290,7 @@ struct cx18_options {
  * list_entry_is_past_end - check if a previous loop cursor is off list end
  * @pos:	the type * previously used as a loop cursor.
  * @head:	the head for your list.
- * @member:	the name of the list_struct within the struct.
+ * @member:	the name of the list_head within the struct.
  *
  * Check if the entry's list_head is the head of the list, thus it's not a
  * real entry but was the loop cursor that walked past the end
@@ -379,6 +379,7 @@ struct cx18_stream {
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
 	u32 handle;			/* task handle */
+	u32 v4l2_dev_caps;		/* device capabilities */
 	unsigned int mdl_base_idx;
 
 	u32 id;

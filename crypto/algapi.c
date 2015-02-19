@@ -41,8 +41,20 @@ static inline int crypto_set_driver_name(struct crypto_alg *alg)
 	return 0;
 }
 
+static inline void crypto_check_module_sig(struct module *mod)
+{
+#ifdef CONFIG_CRYPTO_FIPS
+	if (fips_enabled && mod && !mod->sig_ok)
+		panic("Module %s signature verification failed in FIPS mode\n",
+		      mod->name);
+#endif
+	return;
+}
+
 static int crypto_check_alg(struct crypto_alg *alg)
 {
+	crypto_check_module_sig(alg->cra_module);
+
 	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
 		return -EINVAL;
 
@@ -430,6 +442,8 @@ int crypto_register_template(struct crypto_template *tmpl)
 
 	down_write(&crypto_alg_sem);
 
+	crypto_check_module_sig(tmpl->module);
+
 	list_for_each_entry(q, &crypto_template_list, list) {
 		if (q == tmpl)
 			goto out;
@@ -459,6 +473,7 @@ void crypto_unregister_template(struct crypto_template *tmpl)
 	list = &tmpl->instances;
 	hlist_for_each_entry(inst, list, list) {
 		int err = crypto_remove_alg(&inst->alg, &users);
+
 		BUG_ON(err);
 	}
 
@@ -495,8 +510,8 @@ static struct crypto_template *__crypto_lookup_template(const char *name)
 
 struct crypto_template *crypto_lookup_template(const char *name)
 {
-	return try_then_request_module(__crypto_lookup_template(name), "%s",
-				       name);
+	return try_then_request_module(__crypto_lookup_template(name),
+				       "crypto-%s", name);
 }
 EXPORT_SYMBOL_GPL(crypto_lookup_template);
 

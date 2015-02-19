@@ -1031,9 +1031,6 @@ static int vidioc_querycap(struct file *file, void *fh,
 	strcpy(cap->card, "meye");
 	sprintf(cap->bus_info, "PCI:%s", pci_name(meye.mchip_dev));
 
-	cap->version = (MEYE_DRIVER_MAJORVERSION << 8) +
-		       MEYE_DRIVER_MINORVERSION;
-
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 			    V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -1166,7 +1163,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh,
 	f->fmt.pix.sizeimage = f->fmt.pix.height *
 			       f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -1232,7 +1228,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *fh,
 	f->fmt.pix.sizeimage = f->fmt.pix.height *
 			       f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -1698,7 +1693,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	meye.mchip_irq = pcidev->irq;
 	if (request_irq(meye.mchip_irq, meye_irq,
-			IRQF_DISABLED | IRQF_SHARED, "meye", meye_irq)) {
+			IRQF_SHARED, "meye", meye_irq)) {
 		v4l2_err(v4l2_dev, "request_irq failed\n");
 		goto outreqirq;
 	}
@@ -1749,7 +1744,6 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	v4l2_ctrl_handler_setup(&meye.hdl);
 	meye.vdev->ctrl_handler = &meye.hdl;
-	set_bit(V4L2_FL_USE_FH_PRIO, &meye.vdev->flags);
 
 	if (video_register_device(meye.vdev, VFL_TYPE_GRABBER,
 				  video_nr) < 0) {

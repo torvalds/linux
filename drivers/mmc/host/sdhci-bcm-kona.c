@@ -24,7 +24,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
-#include <linux/version.h>
 #include <linux/mmc/slot-gpio.h>
 
 #include "sdhci-pltfm.h"
@@ -55,6 +54,7 @@
 
 struct sdhci_bcm_kona_dev {
 	struct mutex	write_lock; /* protect back to back writes */
+	struct clk	*external_clk;
 };
 
 
@@ -162,7 +162,7 @@ static int sdhci_bcm_kona_sd_card_emulate(struct sdhci_host *host, int insert)
 /*
  * SD card interrupt event callback
  */
-void sdhci_bcm_kona_card_event(struct sdhci_host *host)
+static void sdhci_bcm_kona_card_event(struct sdhci_host *host)
 {
 	if (mmc_gpio_get_cd(host->mmc) > 0) {
 		dev_dbg(mmc_dev(host->mmc),
@@ -206,9 +206,13 @@ static void sdhci_bcm_kona_init_74_clocks(struct sdhci_host *host,
 }
 
 static struct sdhci_ops sdhci_bcm_kona_ops = {
+	.set_clock = sdhci_set_clock,
 	.get_max_clock = sdhci_bcm_kona_get_max_clk,
 	.get_timeout_clock = sdhci_bcm_kona_get_timeout_clock,
 	.platform_send_init_74_clocks = sdhci_bcm_kona_init_74_clocks,
+	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 	.card_event = sdhci_bcm_kona_card_event,
 };
 
@@ -221,13 +225,14 @@ static struct sdhci_pltfm_data sdhci_pltfm_data_kona = {
 		SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 };
 
-static const struct of_device_id sdhci_bcm_kona_of_match[] __initdata = {
-	{ .compatible = "bcm,kona-sdhci"},
+static const struct of_device_id sdhci_bcm_kona_of_match[] = {
+	{ .compatible = "brcm,kona-sdhci"},
+	{ .compatible = "bcm,kona-sdhci"}, /* deprecated name */
 	{}
 };
 MODULE_DEVICE_TABLE(of, sdhci_bcm_kona_of_match);
 
-static int __init sdhci_bcm_kona_probe(struct platform_device *pdev)
+static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 {
 	struct sdhci_bcm_kona_dev *kona_dev = NULL;
 	struct sdhci_pltfm_host *pltfm_priv;
@@ -249,11 +254,31 @@ static int __init sdhci_bcm_kona_probe(struct platform_device *pdev)
 	kona_dev = sdhci_pltfm_priv(pltfm_priv);
 	mutex_init(&kona_dev->write_lock);
 
-	mmc_of_parse(host->mmc);
+	ret = mmc_of_parse(host->mmc);
+	if (ret)
+		goto err_pltfm_free;
 
 	if (!host->mmc->f_max) {
 		dev_err(&pdev->dev, "Missing max-freq for SDHCI cfg\n");
 		ret = -ENXIO;
+		goto err_pltfm_free;
+	}
+
+	/* Get and enable the external clock */
+	kona_dev->external_clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(kona_dev->external_clk)) {
+		dev_err(dev, "Failed to get external clock\n");
+		ret = PTR_ERR(kona_dev->external_clk);
+		goto err_pltfm_free;
+	}
+
+	if (clk_set_rate(kona_dev->external_clk, host->mmc->f_max) != 0) {
+		dev_err(dev, "Failed to set rate external clock\n");
+		goto err_pltfm_free;
+	}
+
+	if (clk_prepare_enable(kona_dev->external_clk) != 0) {
+		dev_err(dev, "Failed to enable external clock\n");
 		goto err_pltfm_free;
 	}
 
@@ -263,7 +288,7 @@ static int __init sdhci_bcm_kona_probe(struct platform_device *pdev)
 		(mmc_gpio_get_cd(host->mmc) != -ENOSYS) ? 'Y' : 'N',
 		(mmc_gpio_get_ro(host->mmc) != -ENOSYS) ? 'Y' : 'N');
 
-	if (host->mmc->caps | MMC_CAP_NONREMOVABLE)
+	if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
 	dev_dbg(dev, "is_8bit=%c\n",
@@ -271,7 +296,7 @@ static int __init sdhci_bcm_kona_probe(struct platform_device *pdev)
 
 	ret = sdhci_bcm_kona_sd_reset(host);
 	if (ret)
-		goto err_pltfm_free;
+		goto err_clk_disable;
 
 	sdhci_bcm_kona_sd_init(host);
 
@@ -282,7 +307,7 @@ static int __init sdhci_bcm_kona_probe(struct platform_device *pdev)
 	}
 
 	/* if device is eMMC, emulate card insert right here */
-	if (host->mmc->caps | MMC_CAP_NONREMOVABLE) {
+	if (host->mmc->caps & MMC_CAP_NONREMOVABLE) {
 		ret = sdhci_bcm_kona_sd_card_emulate(host, 1);
 		if (ret) {
 			dev_err(dev,
@@ -307,6 +332,9 @@ err_remove_host:
 err_reset:
 	sdhci_bcm_kona_sd_reset(host);
 
+err_clk_disable:
+	clk_disable_unprepare(kona_dev->external_clk);
+
 err_pltfm_free:
 	sdhci_pltfm_free(pdev);
 
@@ -314,19 +342,18 @@ err_pltfm_free:
 	return ret;
 }
 
-static int __exit sdhci_bcm_kona_remove(struct platform_device *pdev)
+static int sdhci_bcm_kona_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
-	int dead;
-	u32 scratch;
+	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
+	struct sdhci_bcm_kona_dev *kona_dev = sdhci_pltfm_priv(pltfm_priv);
+	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
 
-	dead = 0;
-	scratch = readl(host->ioaddr + SDHCI_INT_STATUS);
-	if (scratch == (u32)-1)
-		dead = 1;
 	sdhci_remove_host(host, dead);
 
-	sdhci_free_host(host);
+	clk_disable_unprepare(kona_dev->external_clk);
+
+	sdhci_pltfm_free(pdev);
 
 	return 0;
 }
@@ -334,12 +361,11 @@ static int __exit sdhci_bcm_kona_remove(struct platform_device *pdev)
 static struct platform_driver sdhci_bcm_kona_driver = {
 	.driver		= {
 		.name	= "sdhci-kona",
-		.owner	= THIS_MODULE,
 		.pm	= SDHCI_PLTFM_PMOPS,
-		.of_match_table = of_match_ptr(sdhci_bcm_kona_of_match),
+		.of_match_table = sdhci_bcm_kona_of_match,
 	},
 	.probe		= sdhci_bcm_kona_probe,
-	.remove		= __exit_p(sdhci_bcm_kona_remove),
+	.remove		= sdhci_bcm_kona_remove,
 };
 module_platform_driver(sdhci_bcm_kona_driver);
 

@@ -1,7 +1,7 @@
 /*
  *  w83627ehf - Driver for the hardware monitoring functionality of
  *		the Winbond W83627EHF Super-I/O chip
- *  Copyright (C) 2005-2012  Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2005-2012  Jean Delvare <jdelvare@suse.de>
  *  Copyright (C) 2006  Yuan Mu (Winbond),
  *			Rudolf Marek <r.marek@assembler.cz>
  *			David Hubbard <david.c.hubbard@gmail.com>
@@ -673,7 +673,7 @@ static void w83627ehf_write_fan_div(struct w83627ehf_data *data, int nr)
 static void w83627ehf_write_fan_div_common(struct device *dev,
 					   struct w83627ehf_data *data, int nr)
 {
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6776)
 		; /* no dividers, do nothing */
@@ -724,7 +724,7 @@ static void w83627ehf_update_fan_div(struct w83627ehf_data *data)
 static void w83627ehf_update_fan_div_common(struct device *dev,
 					    struct w83627ehf_data *data)
 {
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6776)
 		; /* no dividers, do nothing */
@@ -781,7 +781,7 @@ static void w83627ehf_update_pwm(struct w83627ehf_data *data)
 static void w83627ehf_update_pwm_common(struct device *dev,
 					struct w83627ehf_data *data)
 {
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6775 || sio_data->kind == nct6776)
 		nct6775_update_pwm(data);
@@ -792,7 +792,7 @@ static void w83627ehf_update_pwm_common(struct device *dev,
 static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	int i;
 
@@ -1392,7 +1392,7 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	int nr = sensor_attr->index;
 	unsigned long val;
 	int err;
@@ -1448,7 +1448,7 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	unsigned long val;
@@ -1527,7 +1527,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	u16 reg;
@@ -2065,7 +2065,7 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 static int w83627ehf_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	struct w83627ehf_data *data;
 	struct resource *res;
 	u8 en_vrm10;
@@ -2618,7 +2618,7 @@ static int w83627ehf_remove(struct platform_device *pdev)
 static int w83627ehf_suspend(struct device *dev)
 {
 	struct w83627ehf_data *data = w83627ehf_update_device(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	mutex_lock(&data->update_lock);
 	data->vbat = w83627ehf_read_value(data, W83627EHF_REG_VBAT);
@@ -2634,7 +2634,7 @@ static int w83627ehf_suspend(struct device *dev)
 static int w83627ehf_resume(struct device *dev)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	int i;
 
 	mutex_lock(&data->update_lock);
@@ -2694,6 +2694,8 @@ static int w83627ehf_resume(struct device *dev)
 static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
 	.suspend = w83627ehf_suspend,
 	.resume = w83627ehf_resume,
+	.freeze = w83627ehf_suspend,
+	.restore = w83627ehf_resume,
 };
 
 #define W83627EHF_DEV_PM_OPS	(&w83627ehf_dev_pm_ops)
@@ -2703,7 +2705,6 @@ static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
 
 static struct platform_driver w83627ehf_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 		.pm	= W83627EHF_DEV_PM_OPS,
 	},
@@ -2887,7 +2888,7 @@ static void __exit sensors_w83627ehf_exit(void)
 	platform_driver_unregister(&w83627ehf_driver);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("W83627EHF driver");
 MODULE_LICENSE("GPL");
 

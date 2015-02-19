@@ -18,7 +18,6 @@
 #include <linux/mii.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
@@ -476,8 +475,7 @@ static void ep93xx_free_buffers(struct ep93xx_priv *ep)
 		if (d)
 			dma_unmap_single(dev, d, PKT_BUF_SIZE, DMA_FROM_DEVICE);
 
-		if (ep->rx_buf[i] != NULL)
-			kfree(ep->rx_buf[i]);
+		kfree(ep->rx_buf[i]);
 	}
 
 	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
@@ -487,8 +485,7 @@ static void ep93xx_free_buffers(struct ep93xx_priv *ep)
 		if (d)
 			dma_unmap_single(dev, d, PKT_BUF_SIZE, DMA_TO_DEVICE);
 
-		if (ep->tx_buf[i] != NULL)
-			kfree(ep->tx_buf[i]);
+		kfree(ep->tx_buf[i]);
 	}
 
 	dma_free_coherent(dev, sizeof(struct ep93xx_descs), ep->descs,
@@ -814,7 +811,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 
 	if (pdev == NULL)
 		return -ENODEV;
-	data = pdev->dev.platform_data;
+	data = dev_get_platdata(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -882,7 +879,6 @@ static struct platform_driver ep93xx_eth_driver = {
 	.remove		= ep93xx_eth_remove,
 	.driver		= {
 		.name	= "ep93xx-eth",
-		.owner	= THIS_MODULE,
 	},
 };
 

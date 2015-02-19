@@ -85,6 +85,7 @@ extern void zfcp_fc_gs_destroy(struct zfcp_adapter *);
 extern int zfcp_fc_exec_bsg_job(struct fc_bsg_job *);
 extern int zfcp_fc_timeout_bsg_job(struct fc_bsg_job *);
 extern void zfcp_fc_sym_name_update(struct work_struct *);
+extern unsigned int zfcp_fc_port_scan_backoff(void);
 extern void zfcp_fc_conditional_port_scan(struct zfcp_adapter *);
 extern void zfcp_fc_inverse_conditional_port_scan(struct zfcp_adapter *);
 
@@ -126,8 +127,6 @@ extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *, struct zfcp_qdio_req *,
 extern int zfcp_qdio_open(struct zfcp_qdio *);
 extern void zfcp_qdio_close(struct zfcp_qdio *);
 extern void zfcp_qdio_siosl(struct zfcp_adapter *);
-extern struct zfcp_fsf_req *zfcp_fsf_get_req(struct zfcp_qdio *,
-					     struct qdio_buffer *);
 
 /* zfcp_scsi.c */
 extern struct scsi_transport_template *zfcp_scsi_transport_template;

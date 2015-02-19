@@ -38,6 +38,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sdio.h>
+#include <linux/mmc/slot-gpio.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
@@ -69,45 +70,41 @@ struct mxs_mmc_host {
 	unsigned char			bus_width;
 	spinlock_t			lock;
 	int				sdio_irq_en;
-	int				wp_gpio;
-	bool				wp_inverted;
-	bool				cd_inverted;
 	bool				broken_cd;
-	bool				non_removable;
 };
-
-static int mxs_mmc_get_ro(struct mmc_host *mmc)
-{
-	struct mxs_mmc_host *host = mmc_priv(mmc);
-	int ret;
-
-	if (!gpio_is_valid(host->wp_gpio))
-		return -EINVAL;
-
-	ret = gpio_get_value(host->wp_gpio);
-
-	if (host->wp_inverted)
-		ret = !ret;
-
-	return ret;
-}
 
 static int mxs_mmc_get_cd(struct mmc_host *mmc)
 {
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
+	int present, ret;
 
-	return host->non_removable || host->broken_cd ||
+	if (host->broken_cd)
+		return -ENOSYS;
+
+	ret = mmc_gpio_get_cd(mmc);
+	if (ret >= 0)
+		return ret;
+
+	present = mmc->caps & MMC_CAP_NEEDS_POLL ||
 		!(readl(ssp->base + HW_SSP_STATUS(ssp)) &
-		  BM_SSP_STATUS_CARD_DETECT) ^ host->cd_inverted;
+			BM_SSP_STATUS_CARD_DETECT);
+
+	if (mmc->caps2 & MMC_CAP2_CD_ACTIVE_HIGH)
+		present = !present;
+
+	return present;
 }
 
-static void mxs_mmc_reset(struct mxs_mmc_host *host)
+static int mxs_mmc_reset(struct mxs_mmc_host *host)
 {
 	struct mxs_ssp *ssp = &host->ssp;
 	u32 ctrl0, ctrl1;
+	int ret;
 
-	stmp_reset_block(ssp->base);
+	ret = stmp_reset_block(ssp->base);
+	if (ret)
+		return ret;
 
 	ctrl0 = BM_SSP_CTRL0_IGNORE_CRC;
 	ctrl1 = BF_SSP(0x3, CTRL1_SSP_MODE) |
@@ -132,6 +129,7 @@ static void mxs_mmc_reset(struct mxs_mmc_host *host)
 
 	writel(ctrl0, ssp->base + HW_SSP_CTRL0);
 	writel(ctrl1, ssp->base + HW_SSP_CTRL1(ssp));
+	return 0;
 }
 
 static void mxs_mmc_start_cmd(struct mxs_mmc_host *host,
@@ -545,7 +543,7 @@ static void mxs_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 
 static const struct mmc_host_ops mxs_mmc_ops = {
 	.request = mxs_mmc_request,
-	.get_ro = mxs_mmc_get_ro,
+	.get_ro = mmc_gpio_get_ro,
 	.get_cd = mxs_mmc_get_cd,
 	.set_ios = mxs_mmc_set_ios,
 	.enable_sdio_irq = mxs_mmc_enable_sdio_irq,
@@ -581,14 +579,11 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct resource *iores;
 	int ret = 0, irq_err;
 	struct regulator *reg_vmmc;
-	enum of_gpio_flags flags;
 	struct mxs_ssp *ssp;
-	u32 bus_width = 0;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
-	if (!iores || irq_err < 0)
-		return -EINVAL;
+	if (irq_err < 0)
+		return irq_err;
 
 	mmc = mmc_alloc_host(sizeof(struct mxs_mmc_host), &pdev->dev);
 	if (!mmc)
@@ -597,6 +592,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	ssp = &host->ssp;
 	ssp->dev = &pdev->dev;
+	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ssp->base = devm_ioremap_resource(&pdev->dev, iores);
 	if (IS_ERR(ssp->base)) {
 		ret = PTR_ERR(ssp->base);
@@ -618,21 +614,27 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ssp->clk = clk_get(&pdev->dev, NULL);
+	ssp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ssp->clk)) {
 		ret = PTR_ERR(ssp->clk);
 		goto out_mmc_free;
 	}
-	clk_prepare_enable(ssp->clk);
+	ret = clk_prepare_enable(ssp->clk);
+	if (ret)
+		goto out_mmc_free;
 
-	mxs_mmc_reset(host);
+	ret = mxs_mmc_reset(host);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to reset mmc: %d\n", ret);
+		goto out_clk_disable;
+	}
 
 	ssp->dmach = dma_request_slave_channel(&pdev->dev, "rx-tx");
 	if (!ssp->dmach) {
 		dev_err(mmc_dev(host->mmc),
 			"%s: failed to request dma\n", __func__);
 		ret = -ENODEV;
-		goto out_clk_put;
+		goto out_clk_disable;
 	}
 
 	/* set mmc core parameters */
@@ -640,23 +642,15 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	mmc->caps = MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED |
 		    MMC_CAP_SDIO_IRQ | MMC_CAP_NEEDS_POLL;
 
-	of_property_read_u32(np, "bus-width", &bus_width);
-	if (bus_width == 4)
-		mmc->caps |= MMC_CAP_4_BIT_DATA;
-	else if (bus_width == 8)
-		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
 	host->broken_cd = of_property_read_bool(np, "broken-cd");
-	host->non_removable = of_property_read_bool(np, "non-removable");
-	if (host->non_removable)
-		mmc->caps |= MMC_CAP_NONREMOVABLE;
-	host->wp_gpio = of_get_named_gpio_flags(np, "wp-gpios", 0, &flags);
-	if (flags & OF_GPIO_ACTIVE_LOW)
-		host->wp_inverted = 1;
-
-	host->cd_inverted = of_property_read_bool(np, "cd-inverted");
 
 	mmc->f_min = 400000;
 	mmc->f_max = 288000000;
+
+	ret = mmc_of_parse(mmc);
+	if (ret)
+		goto out_clk_disable;
+
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
 	mmc->max_segs = 52;
@@ -668,7 +662,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mmc);
 
 	ret = devm_request_irq(&pdev->dev, irq_err, mxs_mmc_irq_handler, 0,
-			       DRIVER_NAME, host);
+			       dev_name(&pdev->dev), host);
 	if (ret)
 		goto out_free_dma;
 
@@ -683,11 +677,9 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	return 0;
 
 out_free_dma:
-	if (ssp->dmach)
-		dma_release_channel(ssp->dmach);
-out_clk_put:
+	dma_release_channel(ssp->dmach);
+out_clk_disable:
 	clk_disable_unprepare(ssp->clk);
-	clk_put(ssp->clk);
 out_mmc_free:
 	mmc_free_host(mmc);
 	return ret;
@@ -705,26 +697,21 @@ static int mxs_mmc_remove(struct platform_device *pdev)
 		dma_release_channel(ssp->dmach);
 
 	clk_disable_unprepare(ssp->clk);
-	clk_put(ssp->clk);
 
 	mmc_free_host(mmc);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int mxs_mmc_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
-	int ret = 0;
-
-	ret = mmc_suspend_host(mmc);
 
 	clk_disable_unprepare(ssp->clk);
-
-	return ret;
+	return 0;
 }
 
 static int mxs_mmc_resume(struct device *dev)
@@ -732,20 +719,12 @@ static int mxs_mmc_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
-	int ret = 0;
 
-	clk_prepare_enable(ssp->clk);
-
-	ret = mmc_resume_host(mmc);
-
-	return ret;
+	return clk_prepare_enable(ssp->clk);
 }
-
-static const struct dev_pm_ops mxs_mmc_pm_ops = {
-	.suspend	= mxs_mmc_suspend,
-	.resume		= mxs_mmc_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(mxs_mmc_pm_ops, mxs_mmc_suspend, mxs_mmc_resume);
 
 static struct platform_driver mxs_mmc_driver = {
 	.probe		= mxs_mmc_probe,
@@ -753,10 +732,7 @@ static struct platform_driver mxs_mmc_driver = {
 	.id_table	= mxs_ssp_ids,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &mxs_mmc_pm_ops,
-#endif
 		.of_match_table = mxs_mmc_dt_ids,
 	},
 };

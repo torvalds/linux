@@ -5,8 +5,6 @@
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -18,23 +16,32 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * ########################################################################
+ *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-
 
 #include "ieee754sp.h"
 
-ieee754sp ieee754sp_mul(ieee754sp x, ieee754sp y)
+union ieee754sp ieee754sp_mul(union ieee754sp x, union ieee754sp y)
 {
+	int re;
+	int rs;
+	unsigned rm;
+	unsigned short lxm;
+	unsigned short hxm;
+	unsigned short lym;
+	unsigned short hym;
+	unsigned lrm;
+	unsigned hrm;
+	unsigned t;
+	unsigned at;
+
 	COMPXSP;
 	COMPYSP;
 
 	EXPLODEXSP;
 	EXPLODEYSP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	FLUSHXSP;
 	FLUSHYSP;
@@ -51,8 +58,8 @@ ieee754sp ieee754sp_mul(ieee754sp x, ieee754sp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
-		SETCX(IEEE754_INVALID_OPERATION);
-		return ieee754sp_nanxcpt(ieee754sp_indef(), "mul", x, y);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
+		return ieee754sp_nanxcpt(ieee754sp_indef());
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_QNAN):
@@ -68,12 +75,13 @@ ieee754sp ieee754sp_mul(ieee754sp x, ieee754sp y)
 		return x;
 
 
-		/* Infinity handling */
-
+	/*
+	 * Infinity handling
+	 */
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_INF):
-		SETCX(IEEE754_INVALID_OPERATION);
-		return ieee754sp_xcpt(ieee754sp_indef(), "mul", x, y);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
+		return ieee754sp_indef();
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_INF):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_INF):
@@ -108,63 +116,50 @@ ieee754sp ieee754sp_mul(ieee754sp x, ieee754sp y)
 	assert(xm & SP_HIDDEN_BIT);
 	assert(ym & SP_HIDDEN_BIT);
 
-	{
-		int re = xe + ye;
-		int rs = xs ^ ys;
-		unsigned rm;
+	re = xe + ye;
+	rs = xs ^ ys;
 
-		/* shunt to top of word */
-		xm <<= 32 - (SP_MBITS + 1);
-		ym <<= 32 - (SP_MBITS + 1);
+	/* shunt to top of word */
+	xm <<= 32 - (SP_FBITS + 1);
+	ym <<= 32 - (SP_FBITS + 1);
 
-		/* multiply 32bits xm,ym to give high 32bits rm with stickness
-		 */
-		{
-			unsigned short lxm = xm & 0xffff;
-			unsigned short hxm = xm >> 16;
-			unsigned short lym = ym & 0xffff;
-			unsigned short hym = ym >> 16;
-			unsigned lrm;
-			unsigned hrm;
+	/*
+	 * Multiply 32 bits xm, ym to give high 32 bits rm with stickness.
+	 */
+	lxm = xm & 0xffff;
+	hxm = xm >> 16;
+	lym = ym & 0xffff;
+	hym = ym >> 16;
 
-			lrm = lxm * lym;	/* 16 * 16 => 32 */
-			hrm = hxm * hym;	/* 16 * 16 => 32 */
+	lrm = lxm * lym;	/* 16 * 16 => 32 */
+	hrm = hxm * hym;	/* 16 * 16 => 32 */
 
-			{
-				unsigned t = lxm * hym; /* 16 * 16 => 32 */
-				{
-					unsigned at = lrm + (t << 16);
-					hrm += at < lrm;
-					lrm = at;
-				}
-				hrm = hrm + (t >> 16);
-			}
+	t = lxm * hym; /* 16 * 16 => 32 */
+	at = lrm + (t << 16);
+	hrm += at < lrm;
+	lrm = at;
+	hrm = hrm + (t >> 16);
 
-			{
-				unsigned t = hxm * lym; /* 16 * 16 => 32 */
-				{
-					unsigned at = lrm + (t << 16);
-					hrm += at < lrm;
-					lrm = at;
-				}
-				hrm = hrm + (t >> 16);
-			}
-			rm = hrm | (lrm != 0);
-		}
+	t = hxm * lym; /* 16 * 16 => 32 */
+	at = lrm + (t << 16);
+	hrm += at < lrm;
+	lrm = at;
+	hrm = hrm + (t >> 16);
 
-		/*
-		 * sticky shift down to normal rounding precision
-		 */
-		if ((int) rm < 0) {
-			rm = (rm >> (32 - (SP_MBITS + 1 + 3))) |
-			    ((rm << (SP_MBITS + 1 + 3)) != 0);
-			re++;
-		} else {
-			rm = (rm >> (32 - (SP_MBITS + 1 + 3 + 1))) |
-			    ((rm << (SP_MBITS + 1 + 3 + 1)) != 0);
-		}
-		assert(rm & (SP_HIDDEN_BIT << 3));
+	rm = hrm | (lrm != 0);
 
-		SPNORMRET2(rs, re, rm, "mul", x, y);
+	/*
+	 * Sticky shift down to normal rounding precision.
+	 */
+	if ((int) rm < 0) {
+		rm = (rm >> (32 - (SP_FBITS + 1 + 3))) |
+		    ((rm << (SP_FBITS + 1 + 3)) != 0);
+		re++;
+	} else {
+		rm = (rm >> (32 - (SP_FBITS + 1 + 3 + 1))) |
+		     ((rm << (SP_FBITS + 1 + 3 + 1)) != 0);
 	}
+	assert(rm & (SP_HIDDEN_BIT << 3));
+
+	return ieee754sp_format(rs, re, rm);
 }

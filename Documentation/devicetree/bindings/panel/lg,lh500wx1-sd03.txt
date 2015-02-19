@@ -1,0 +1,7 @@
+LG Corporation 5" HD TFT LCD panel
+
+Required properties:
+- compatible: should be "lg,lh500wx1-sd03"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

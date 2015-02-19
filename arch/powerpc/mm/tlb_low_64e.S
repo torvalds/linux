@@ -39,37 +39,49 @@
  *                                                                    *
  **********************************************************************/
 
+/*
+ * Note that, unlike non-bolted handlers, TLB_EXFRAME is not
+ * modified by the TLB miss handlers themselves, since the TLB miss
+ * handler code will not itself cause a recursive TLB miss.
+ *
+ * TLB_EXFRAME will be modified when crit/mc/debug exceptions are
+ * entered/exited.
+ */
 .macro tlb_prolog_bolted intnum addr
-	mtspr	SPRN_SPRG_GEN_SCRATCH,r13
+	mtspr	SPRN_SPRG_GEN_SCRATCH,r12
+	mfspr	r12,SPRN_SPRG_TLB_EXFRAME
+	std	r13,EX_TLB_R13(r12)
+	std	r10,EX_TLB_R10(r12)
 	mfspr	r13,SPRN_SPRG_PACA
-	std	r10,PACA_EXTLB+EX_TLB_R10(r13)
+
 	mfcr	r10
-	std	r11,PACA_EXTLB+EX_TLB_R11(r13)
+	std	r11,EX_TLB_R11(r12)
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
 	mfspr	r11, SPRN_SRR1
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 #endif
 	DO_KVM	\intnum, SPRN_SRR1
-	std	r16,PACA_EXTLB+EX_TLB_R16(r13)
+	std	r16,EX_TLB_R16(r12)
 	mfspr	r16,\addr		/* get faulting address */
-	std	r14,PACA_EXTLB+EX_TLB_R14(r13)
+	std	r14,EX_TLB_R14(r12)
 	ld	r14,PACAPGD(r13)
-	std	r15,PACA_EXTLB+EX_TLB_R15(r13)
-	std	r10,PACA_EXTLB+EX_TLB_CR(r13)
-	TLB_MISS_PROLOG_STATS_BOLTED
+	std	r15,EX_TLB_R15(r12)
+	std	r10,EX_TLB_CR(r12)
+	TLB_MISS_PROLOG_STATS
 .endm
 
 .macro tlb_epilog_bolted
-	ld	r14,PACA_EXTLB+EX_TLB_CR(r13)
-	ld	r10,PACA_EXTLB+EX_TLB_R10(r13)
-	ld	r11,PACA_EXTLB+EX_TLB_R11(r13)
+	ld	r14,EX_TLB_CR(r12)
+	ld	r10,EX_TLB_R10(r12)
+	ld	r11,EX_TLB_R11(r12)
+	ld	r13,EX_TLB_R13(r12)
 	mtcr	r14
-	ld	r14,PACA_EXTLB+EX_TLB_R14(r13)
-	ld	r15,PACA_EXTLB+EX_TLB_R15(r13)
-	TLB_MISS_RESTORE_STATS_BOLTED
-	ld	r16,PACA_EXTLB+EX_TLB_R16(r13)
-	mfspr	r13,SPRN_SPRG_GEN_SCRATCH
+	ld	r14,EX_TLB_R14(r12)
+	ld	r15,EX_TLB_R15(r12)
+	TLB_MISS_RESTORE_STATS
+	ld	r16,EX_TLB_R16(r12)
+	mfspr	r12,SPRN_SPRG_GEN_SCRATCH
 .endm
 
 /* Data TLB miss */
@@ -136,7 +148,7 @@ BEGIN_MMU_FTR_SECTION
 	 */
 	PPC_TLBSRX_DOT(0,R16)
 	ldx	r14,r14,r15		/* grab pgd entry */
-	beq	normal_tlb_miss_done	/* tlb exists already, bail */
+	beq	tlb_miss_done_bolted	/* tlb exists already, bail */
 MMU_FTR_SECTION_ELSE
 	ldx	r14,r14,r15		/* grab pgd entry */
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
@@ -192,6 +204,7 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 	mtspr	SPRN_MAS7_MAS3,r15
 	tlbwe
 
+tlb_miss_done_bolted:
 	TLB_MISS_STATS_X(MMSTAT_TLB_MISS_NORM_OK)
 	tlb_epilog_bolted
 	rfi
@@ -238,6 +251,230 @@ itlb_miss_fault_bolted:
 	oris	r11,r11,_PAGE_ACCESSED@h
 	beq	tlb_miss_common_bolted
 	b	itlb_miss_kernel_bolted
+
+#ifdef CONFIG_PPC_FSL_BOOK3E
+/*
+ * TLB miss handling for e6500 and derivatives, using hardware tablewalk.
+ *
+ * Linear mapping is bolted: no virtual page table or nested TLB misses
+ * Indirect entries in TLB1, hardware loads resulting direct entries
+ *    into TLB0
+ * No HES or NV hint on TLB1, so we need to do software round-robin
+ * No tlbsrx. so we need a spinlock, and we have to deal
+ *    with MAS-damage caused by tlbsx
+ * 4K pages only
+ */
+
+	START_EXCEPTION(instruction_tlb_miss_e6500)
+	tlb_prolog_bolted BOOKE_INTERRUPT_ITLB_MISS SPRN_SRR0
+
+	ld	r11,PACA_TCD_PTR(r13)
+	srdi.	r15,r16,60		/* get region */
+	ori	r16,r16,1
+
+	TLB_MISS_STATS_SAVE_INFO_BOLTED
+	bne	tlb_miss_kernel_e6500	/* user/kernel test */
+
+	b	tlb_miss_common_e6500
+
+	START_EXCEPTION(data_tlb_miss_e6500)
+	tlb_prolog_bolted BOOKE_INTERRUPT_DTLB_MISS SPRN_DEAR
+
+	ld	r11,PACA_TCD_PTR(r13)
+	srdi.	r15,r16,60		/* get region */
+	rldicr	r16,r16,0,62
+
+	TLB_MISS_STATS_SAVE_INFO_BOLTED
+	bne	tlb_miss_kernel_e6500	/* user vs kernel check */
+
+/*
+ * This is the guts of the TLB miss handler for e6500 and derivatives.
+ * We are entered with:
+ *
+ * r16 = page of faulting address (low bit 0 if data, 1 if instruction)
+ * r15 = crap (free to use)
+ * r14 = page table base
+ * r13 = PACA
+ * r11 = tlb_per_core ptr
+ * r10 = crap (free to use)
+ */
+tlb_miss_common_e6500:
+	crmove	cr2*4+2,cr0*4+2		/* cr2.eq != 0 if kernel address */
+
+BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
+	/*
+	 * Search if we already have an indirect entry for that virtual
+	 * address, and if we do, bail out.
+	 *
+	 * MAS6:IND should be already set based on MAS4
+	 */
+1:	lbarx	r15,0,r11
+	lhz	r10,PACAPACAINDEX(r13)
+	cmpdi	r15,0
+	cmpdi	cr1,r15,1	/* set cr1.eq = 0 for non-recursive */
+	addi	r10,r10,1
+	bne	2f
+	stbcx.	r10,0,r11
+	bne	1b
+3:
+	.subsection 1
+2:	cmpd	cr1,r15,r10	/* recursive lock due to mcheck/crit/etc? */
+	beq	cr1,3b		/* unlock will happen if cr1.eq = 0 */
+	lbz	r15,0(r11)
+	cmpdi	r15,0
+	bne	2b
+	b	1b
+	.previous
+
+	/*
+	 * Erratum A-008139 says that we can't use tlbwe to change
+	 * an indirect entry in any way (including replacing or
+	 * invalidating) if the other thread could be in the process
+	 * of a lookup.  The workaround is to invalidate the entry
+	 * with tlbilx before overwriting.
+	 */
+
+	lbz	r15,TCD_ESEL_NEXT(r11)
+	rlwinm	r10,r15,16,0xff0000
+	oris	r10,r10,MAS0_TLBSEL(1)@h
+	mtspr	SPRN_MAS0,r10
+	isync
+	tlbre
+	mfspr	r15,SPRN_MAS1
+	andis.	r15,r15,MAS1_VALID@h
+	beq	5f
+
+BEGIN_FTR_SECTION_NESTED(532)
+	mfspr	r10,SPRN_MAS8
+	rlwinm	r10,r10,0,0x80000fff  /* tgs,tlpid -> sgs,slpid */
+	mtspr	SPRN_MAS5,r10
+END_FTR_SECTION_NESTED(CPU_FTR_EMB_HV,CPU_FTR_EMB_HV,532)
+
+	mfspr	r10,SPRN_MAS1
+	rlwinm	r15,r10,0,0x3fff0000  /* tid -> spid */
+	rlwimi	r15,r10,20,0x00000003 /* ind,ts -> sind,sas */
+	mfspr	r10,SPRN_MAS6
+	mtspr	SPRN_MAS6,r15
+
+	mfspr	r15,SPRN_MAS2
+	isync
+	tlbilxva 0,r15
+	isync
+
+	mtspr	SPRN_MAS6,r10
+
+5:
+BEGIN_FTR_SECTION_NESTED(532)
+	li	r10,0
+	mtspr	SPRN_MAS8,r10
+	mtspr	SPRN_MAS5,r10
+END_FTR_SECTION_NESTED(CPU_FTR_EMB_HV,CPU_FTR_EMB_HV,532)
+
+	tlbsx	0,r16
+	mfspr	r10,SPRN_MAS1
+	andis.	r15,r10,MAS1_VALID@h
+	bne	tlb_miss_done_e6500
+FTR_SECTION_ELSE
+	mfspr	r10,SPRN_MAS1
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_SMT)
+
+	oris	r10,r10,MAS1_VALID@h
+	beq	cr2,4f
+	rlwinm	r10,r10,0,16,1		/* Clear TID */
+4:	mtspr	SPRN_MAS1,r10
+
+	/* Now, we need to walk the page tables. First check if we are in
+	 * range.
+	 */
+	rldicl.	r10,r16,64-PGTABLE_EADDR_SIZE,PGTABLE_EADDR_SIZE+4
+	bne-	tlb_miss_fault_e6500
+
+	rldicl	r15,r16,64-PGDIR_SHIFT+3,64-PGD_INDEX_SIZE-3
+	cmpldi	cr0,r14,0
+	clrrdi	r15,r15,3
+	beq-	tlb_miss_fault_e6500 /* No PGDIR, bail */
+	ldx	r14,r14,r15		/* grab pgd entry */
+
+	rldicl	r15,r16,64-PUD_SHIFT+3,64-PUD_INDEX_SIZE-3
+	clrrdi	r15,r15,3
+	cmpdi	cr0,r14,0
+	bge	tlb_miss_fault_e6500	/* Bad pgd entry or hugepage; bail */
+	ldx	r14,r14,r15		/* grab pud entry */
+
+	rldicl	r15,r16,64-PMD_SHIFT+3,64-PMD_INDEX_SIZE-3
+	clrrdi	r15,r15,3
+	cmpdi	cr0,r14,0
+	bge	tlb_miss_fault_e6500
+	ldx	r14,r14,r15		/* Grab pmd entry */
+
+	mfspr	r10,SPRN_MAS0
+	cmpdi	cr0,r14,0
+	bge	tlb_miss_fault_e6500
+
+	/* Now we build the MAS for a 2M indirect page:
+	 *
+	 * MAS 0   :	ESEL needs to be filled by software round-robin
+	 * MAS 1   :	Fully set up
+	 *               - PID already updated by caller if necessary
+	 *               - TSIZE for now is base ind page size always
+	 *               - TID already cleared if necessary
+	 * MAS 2   :	Default not 2M-aligned, need to be redone
+	 * MAS 3+7 :	Needs to be done
+	 */
+
+	ori	r14,r14,(BOOK3E_PAGESZ_4K << MAS3_SPSIZE_SHIFT)
+	mtspr	SPRN_MAS7_MAS3,r14
+
+	clrrdi	r15,r16,21		/* make EA 2M-aligned */
+	mtspr	SPRN_MAS2,r15
+
+	lbz	r15,TCD_ESEL_NEXT(r11)
+	lbz	r16,TCD_ESEL_MAX(r11)
+	lbz	r14,TCD_ESEL_FIRST(r11)
+	rlwimi	r10,r15,16,0x00ff0000	/* insert esel_next into MAS0 */
+	addi	r15,r15,1		/* increment esel_next */
+	mtspr	SPRN_MAS0,r10
+	cmpw	r15,r16
+	iseleq	r15,r14,r15		/* if next == last use first */
+	stb	r15,TCD_ESEL_NEXT(r11)
+
+	tlbwe
+
+tlb_miss_done_e6500:
+	.macro	tlb_unlock_e6500
+BEGIN_FTR_SECTION
+	beq	cr1,1f		/* no unlock if lock was recursively grabbed */
+	li	r15,0
+	isync
+	stb	r15,0(r11)
+1:
+END_FTR_SECTION_IFSET(CPU_FTR_SMT)
+	.endm
+
+	tlb_unlock_e6500
+	TLB_MISS_STATS_X(MMSTAT_TLB_MISS_NORM_OK)
+	tlb_epilog_bolted
+	rfi
+
+tlb_miss_kernel_e6500:
+	ld	r14,PACA_KERNELPGD(r13)
+	cmpldi	cr1,r15,8		/* Check for vmalloc region */
+	beq+	cr1,tlb_miss_common_e6500
+
+tlb_miss_fault_e6500:
+	tlb_unlock_e6500
+	/* We need to check if it was an instruction miss */
+	andi.	r16,r16,1
+	bne	itlb_miss_fault_e6500
+dtlb_miss_fault_e6500:
+	TLB_MISS_STATS_D(MMSTAT_TLB_MISS_NORM_FAULT)
+	tlb_epilog_bolted
+	b	exc_data_storage_book3e
+itlb_miss_fault_e6500:
+	TLB_MISS_STATS_I(MMSTAT_TLB_MISS_NORM_FAULT)
+	tlb_epilog_bolted
+	b	exc_instruction_storage_book3e
+#endif /* CONFIG_PPC_FSL_BOOK3E */
 
 /**********************************************************************
  *                                                                    *
@@ -918,7 +1155,8 @@ tlb_load_linear:
 	ld	r11,PACATOC(r13)
 	ld	r11,linear_map_top@got(r11)
 	ld	r10,0(r11)
-	cmpld	cr0,r10,r16
+	tovirt(10,10)
+	cmpld	cr0,r16,r10
 	bge	tlb_load_linear_fault
 
 	/* MAS1 need whole new setup. */

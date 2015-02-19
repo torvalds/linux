@@ -18,8 +18,8 @@
 #include "brcmu_wifi.h"
 #include "brcmu_utils.h"
 
-#include "dhd.h"
-#include "dhd_dbg.h"
+#include "core.h"
+#include "debug.h"
 #include "tracepoint.h"
 #include "fwsignal.h"
 #include "fweh.h"
@@ -185,6 +185,16 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		  ifevent->action, ifevent->ifidx, ifevent->bssidx,
 		  ifevent->flags, ifevent->role);
 
+	/* The P2P Device interface event must not be ignored
+	 * contrary to what firmware tells us. The only way to
+	 * distinguish the P2P Device is by looking at the ifidx
+	 * and bssidx received.
+	 */
+	if (!(ifevent->ifidx == 0 && ifevent->bssidx == 1) &&
+	    (ifevent->flags & BRCMF_E_IF_FLAG_NOIF)) {
+		brcmf_dbg(EVENT, "event can be ignored\n");
+		return;
+	}
 	if (ifevent->ifidx >= BRCMF_MAX_IFS) {
 		brcmf_err("invalid interface index: %u\n",
 			  ifevent->ifidx);
@@ -206,15 +216,13 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 				return;
 	}
 
-	if (ifevent->action == BRCMF_E_IF_CHANGE)
+	if (ifp && ifevent->action == BRCMF_E_IF_CHANGE)
 		brcmf_fws_reset_interface(ifp);
 
 	err = brcmf_fweh_call_event_handler(ifp, emsg->event_code, emsg, data);
 
-	if (ifevent->action == BRCMF_E_IF_DEL) {
-		brcmf_fws_del_interface(ifp);
-		brcmf_del_if(drvr, ifevent->bssidx);
-	}
+	if (ifp && ifevent->action == BRCMF_E_IF_DEL)
+		brcmf_remove_interface(drvr, ifevent->bssidx);
 }
 
 /**
@@ -289,7 +297,11 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 			goto event_free;
 		}
 
-		ifp = drvr->iflist[emsg.bsscfgidx];
+		if ((event->code == BRCMF_E_TDLS_PEER_EVENT) &&
+		    (emsg.bsscfgidx == 1))
+			ifp = drvr->iflist[0];
+		else
+			ifp = drvr->iflist[emsg.bsscfgidx];
 		err = brcmf_fweh_call_event_handler(ifp, event->code, &emsg,
 						    event->data);
 		if (err) {

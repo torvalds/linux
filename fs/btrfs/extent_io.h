@@ -11,8 +11,6 @@
 #define EXTENT_NEW (1 << 4)
 #define EXTENT_DELALLOC (1 << 5)
 #define EXTENT_DEFRAG (1 << 6)
-#define EXTENT_DEFRAG_DONE (1 << 7)
-#define EXTENT_BUFFER_FILLED (1 << 8)
 #define EXTENT_BOUNDARY (1 << 9)
 #define EXTENT_NODATASUM (1 << 10)
 #define EXTENT_DO_ACCOUNTING (1 << 11)
@@ -29,39 +27,39 @@
  */
 #define EXTENT_BIO_COMPRESSED 1
 #define EXTENT_BIO_TREE_LOG 2
+#define EXTENT_BIO_PARENT_LOCKED 4
 #define EXTENT_BIO_FLAG_SHIFT 16
 
 /* these are bit numbers for test/set bit */
 #define EXTENT_BUFFER_UPTODATE 0
-#define EXTENT_BUFFER_BLOCKING 1
 #define EXTENT_BUFFER_DIRTY 2
 #define EXTENT_BUFFER_CORRUPT 3
 #define EXTENT_BUFFER_READAHEAD 4	/* this got triggered by readahead */
 #define EXTENT_BUFFER_TREE_REF 5
 #define EXTENT_BUFFER_STALE 6
 #define EXTENT_BUFFER_WRITEBACK 7
-#define EXTENT_BUFFER_IOERR 8
+#define EXTENT_BUFFER_READ_ERR 8        /* read IO error */
 #define EXTENT_BUFFER_DUMMY 9
+#define EXTENT_BUFFER_IN_TREE 10
+#define EXTENT_BUFFER_WRITE_ERR 11    /* write IO error */
 
 /* these are flags for extent_clear_unlock_delalloc */
-#define EXTENT_CLEAR_UNLOCK_PAGE 0x1
-#define EXTENT_CLEAR_UNLOCK	 0x2
-#define EXTENT_CLEAR_DELALLOC	 0x4
-#define EXTENT_CLEAR_DIRTY	 0x8
-#define EXTENT_SET_WRITEBACK	 0x10
-#define EXTENT_END_WRITEBACK	 0x20
-#define EXTENT_SET_PRIVATE2	 0x40
-#define EXTENT_CLEAR_ACCOUNTING  0x80
+#define PAGE_UNLOCK		(1 << 0)
+#define PAGE_CLEAR_DIRTY	(1 << 1)
+#define PAGE_SET_WRITEBACK	(1 << 2)
+#define PAGE_END_WRITEBACK	(1 << 3)
+#define PAGE_SET_PRIVATE2	(1 << 4)
+#define PAGE_SET_ERROR		(1 << 5)
 
 /*
  * page->private values.  Every page that is controlled by the extent
  * map has page->private set to one.
  */
 #define EXTENT_PAGE_PRIVATE 1
-#define EXTENT_PAGE_PRIVATE_FIRST_PAGE 3
 
 struct extent_state;
 struct btrfs_root;
+struct btrfs_io_bio;
 
 typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
 				       struct bio *bio, int mirror_num,
@@ -77,8 +75,9 @@ struct extent_io_ops {
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
-	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end,
-				    struct extent_state *state, int mirror);
+	int (*readpage_end_io_hook)(struct btrfs_io_bio *io_bio, u64 phy_offset,
+				    struct page *page, u64 start, u64 end,
+				    int mirror);
 	int (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state, int uptodate);
 	void (*set_bit_hook)(struct inode *inode, struct extent_state *state,
@@ -94,12 +93,10 @@ struct extent_io_ops {
 
 struct extent_io_tree {
 	struct rb_root state;
-	struct radix_tree_root buffer;
 	struct address_space *mapping;
 	u64 dirty_bytes;
 	int track_uptodate;
 	spinlock_t lock;
-	spinlock_t buffer_lock;
 	struct extent_io_ops *ops;
 };
 
@@ -109,7 +106,6 @@ struct extent_state {
 	struct rb_node rb_node;
 
 	/* ADD NEW ELEMENTS AFTER THIS */
-	struct extent_io_tree *tree;
 	wait_queue_head_t wq;
 	atomic_t refs;
 	unsigned long state;
@@ -127,10 +123,8 @@ struct extent_state {
 struct extent_buffer {
 	u64 start;
 	unsigned long len;
-	unsigned long map_start;
-	unsigned long map_len;
 	unsigned long bflags;
-	struct extent_io_tree *tree;
+	struct btrfs_fs_info *fs_info;
 	spinlock_t refs_lock;
 	atomic_t refs;
 	atomic_t io_pages;
@@ -145,7 +139,9 @@ struct extent_buffer {
 	atomic_t blocking_readers;
 	atomic_t spinning_readers;
 	atomic_t spinning_writers;
-	int lock_nested;
+	short lock_nested;
+	/* >= 0 if eb belongs to a log tree, -1 otherwise */
+	short log_index;
 
 	/* protects write locks */
 	rwlock_t lock;
@@ -159,7 +155,6 @@ struct extent_buffer {
 	 * to unlock
 	 */
 	wait_queue_head_t read_lock_wq;
-	wait_queue_head_t lock_wq;
 	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
 #ifdef CONFIG_BTRFS_DEBUG
 	struct list_head leak_list;
@@ -200,6 +195,8 @@ int unlock_extent_cached(struct extent_io_tree *tree, u64 start, u64 end,
 int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end);
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 			  get_extent_t *get_extent, int mirror_num);
+int extent_read_full_page_nolock(struct extent_io_tree *tree, struct page *page,
+				 get_extent_t *get_extent, int mirror_num);
 int __init extent_io_init(void);
 void extent_io_exit(void);
 
@@ -261,20 +258,15 @@ int extent_readpages(struct extent_io_tree *tree,
 		     get_extent_t get_extent);
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len, get_extent_t *get_extent);
-int set_state_private(struct extent_io_tree *tree, u64 start, u64 private);
-void extent_cache_csums_dio(struct extent_io_tree *tree, u64 start, u32 csums[],
-			    int count);
-void extent_cache_csums(struct extent_io_tree *tree, struct bio *bio,
-			int bvec_index, u32 csums[], int count);
 int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private);
 void set_page_extent_mapped(struct page *page);
 
-struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
+struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start, unsigned long len);
 struct extent_buffer *alloc_dummy_extent_buffer(u64 start, unsigned long len);
 struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src);
-struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
-					 u64 start, unsigned long len);
+struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
+					 u64 start);
 void free_extent_buffer(struct extent_buffer *eb);
 void free_extent_buffer_stale(struct extent_buffer *eb);
 #define WAIT_NONE	0
@@ -291,12 +283,6 @@ static inline unsigned long num_extent_pages(u64 start, u64 len)
 		(start >> PAGE_CACHE_SHIFT);
 }
 
-static inline struct page *extent_buffer_page(struct extent_buffer *eb,
-					      unsigned long i)
-{
-	return eb->pages[i];
-}
-
 static inline void extent_buffer_get(struct extent_buffer *eb)
 {
 	atomic_inc(&eb->refs);
@@ -308,6 +294,9 @@ int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
 void read_extent_buffer(struct extent_buffer *eb, void *dst,
 			unsigned long start,
 			unsigned long len);
+int read_extent_buffer_to_user(struct extent_buffer *eb, void __user *dst,
+			       unsigned long start,
+			       unsigned long len);
 void write_extent_buffer(struct extent_buffer *eb, const void *src,
 			 unsigned long start, unsigned long len);
 void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
@@ -324,16 +313,17 @@ int set_extent_buffer_dirty(struct extent_buffer *eb);
 int set_extent_buffer_uptodate(struct extent_buffer *eb);
 int clear_extent_buffer_uptodate(struct extent_buffer *eb);
 int extent_buffer_uptodate(struct extent_buffer *eb);
+int extent_buffer_under_io(struct extent_buffer *eb);
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long min_len, char **map,
 		      unsigned long *map_start,
 		      unsigned long *map_len);
 int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
 int extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
-int extent_clear_unlock_delalloc(struct inode *inode,
-				struct extent_io_tree *tree,
-				u64 start, u64 end, struct page *locked_page,
-				unsigned long op);
+int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
+				 struct page *locked_page,
+				 unsigned long bits_to_clear,
+				 unsigned long page_ops);
 struct bio *
 btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 		gfp_t gfp_flags);
@@ -342,10 +332,50 @@ struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask);
 
 struct btrfs_fs_info;
 
-int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
-			u64 length, u64 logical, struct page *page,
-			int mirror_num);
+int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
+		      struct page *page, unsigned int pg_offset,
+		      int mirror_num);
+int clean_io_failure(struct inode *inode, u64 start, struct page *page,
+		     unsigned int pg_offset);
 int end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 			 int mirror_num);
+
+/*
+ * When IO fails, either with EIO or csum verification fails, we
+ * try other mirrors that might have a good copy of the data.  This
+ * io_failure_record is used to record state as we go through all the
+ * mirrors.  If another mirror has good data, the page is set up to date
+ * and things continue.  If a good mirror can't be found, the original
+ * bio end_io callback is called to indicate things have failed.
+ */
+struct io_failure_record {
+	struct page *page;
+	u64 start;
+	u64 len;
+	u64 logical;
+	unsigned long bio_flags;
+	int this_mirror;
+	int failed_mirror;
+	int in_validation;
+};
+
+void btrfs_free_io_failure_record(struct inode *inode, u64 start, u64 end);
+int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
+				struct io_failure_record **failrec_ret);
+int btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
+			   struct io_failure_record *failrec, int fail_mirror);
+struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
+				    struct io_failure_record *failrec,
+				    struct page *page, int pg_offset, int icsum,
+				    bio_end_io_t *endio_func, void *data);
+int free_io_failure(struct inode *inode, struct io_failure_record *rec);
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+noinline u64 find_lock_delalloc_range(struct inode *inode,
+				      struct extent_io_tree *tree,
+				      struct page *locked_page, u64 *start,
+				      u64 *end, u64 max_bytes);
+#endif
+struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
+					       u64 start, unsigned long len);
 #endif

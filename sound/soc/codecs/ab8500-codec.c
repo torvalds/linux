@@ -56,8 +56,7 @@
 #define GPIO31_DIR_OUTPUT			0x40
 
 /* Macrocell register definitions */
-#define AB8500_CTRL3_REG			0x0200
-#define AB8500_GPIO_DIR4_REG			0x1013
+#define AB8500_GPIO_DIR4_REG			0x13 /* Bank AB8500_MISC */
 
 /* Nr of FIR/IIR-coeff banks in ANC-block */
 #define AB8500_NR_OF_ANC_COEFF_BANKS		2
@@ -126,12 +125,14 @@ struct ab8500_codec_drvdata_dbg {
 
 /* Private data for AB8500 device-driver */
 struct ab8500_codec_drvdata {
+	struct regmap *regmap;
+	struct mutex ctrl_lock;
+
 	/* Sidetone */
 	long *sid_fir_values;
 	enum sid_state sid_status;
 
 	/* ANC */
-	struct mutex anc_lock;
 	long *anc_fir_values;
 	long *anc_iir_values;
 	enum anc_state anc_status;
@@ -166,48 +167,34 @@ static inline const char *amic_type_str(enum amic_type type)
  */
 
 /* Read a register from the audio-bank of AB8500 */
-static unsigned int ab8500_codec_read_reg(struct snd_soc_codec *codec,
-					unsigned int reg)
+static int ab8500_codec_read_reg(void *context, unsigned int reg,
+				 unsigned int *value)
 {
+	struct device *dev = context;
 	int status;
-	unsigned int value = 0;
 
 	u8 value8;
-	status = abx500_get_register_interruptible(codec->dev, AB8500_AUDIO,
-						reg, &value8);
-	if (status < 0) {
-		dev_err(codec->dev,
-			"%s: ERROR: Register (0x%02x:0x%02x) read failed (%d).\n",
-			__func__, (u8)AB8500_AUDIO, (u8)reg, status);
-	} else {
-		dev_dbg(codec->dev,
-			"%s: Read 0x%02x from register 0x%02x:0x%02x\n",
-			__func__, value8, (u8)AB8500_AUDIO, (u8)reg);
-		value = (unsigned int)value8;
-	}
-
-	return value;
-}
-
-/* Write to a register in the audio-bank of AB8500 */
-static int ab8500_codec_write_reg(struct snd_soc_codec *codec,
-				unsigned int reg, unsigned int value)
-{
-	int status;
-
-	status = abx500_set_register_interruptible(codec->dev, AB8500_AUDIO,
-						reg, value);
-	if (status < 0)
-		dev_err(codec->dev,
-			"%s: ERROR: Register (%02x:%02x) write failed (%d).\n",
-			__func__, (u8)AB8500_AUDIO, (u8)reg, status);
-	else
-		dev_dbg(codec->dev,
-			"%s: Wrote 0x%02x into register %02x:%02x\n",
-			__func__, (u8)value, (u8)AB8500_AUDIO, (u8)reg);
+	status = abx500_get_register_interruptible(dev, AB8500_AUDIO,
+						   reg, &value8);
+	*value = (unsigned int)value8;
 
 	return status;
 }
+
+/* Write to a register in the audio-bank of AB8500 */
+static int ab8500_codec_write_reg(void *context, unsigned int reg,
+				  unsigned int value)
+{
+	struct device *dev = context;
+
+	return abx500_set_register_interruptible(dev, AB8500_AUDIO,
+						 reg, value);
+}
+
+static const struct regmap_config ab8500_codec_regmap = {
+	.reg_read = ab8500_codec_read_reg,
+	.reg_write = ab8500_codec_write_reg,
+};
 
 /*
  * Controls - DAPM
@@ -1139,12 +1126,12 @@ static void anc_configure(struct snd_soc_codec *codec,
 static int sid_status_control_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 	ucontrol->value.integer.value[0] = drvdata->sid_status;
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
 }
@@ -1153,7 +1140,7 @@ static int sid_status_control_get(struct snd_kcontrol *kcontrol,
 static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 	unsigned int param, sidconf, val;
 	int status = 1;
@@ -1167,7 +1154,7 @@ static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 		return -EIO;
 	}
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 
 	sidconf = snd_soc_read(codec, AB8500_SIDFIRCONF);
 	if (((sidconf & BIT(AB8500_SIDFIRCONF_FIRSIDBUSY)) != 0)) {
@@ -1198,7 +1185,7 @@ static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 	drvdata->sid_status = SID_FIR_CONFIGURED;
 
 out:
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	dev_dbg(codec->dev, "%s: Exit\n", __func__);
 
@@ -1208,12 +1195,12 @@ out:
 static int anc_status_control_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 	ucontrol->value.integer.value[0] = drvdata->anc_status;
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
 }
@@ -1221,17 +1208,22 @@ static int anc_status_control_get(struct snd_kcontrol *kcontrol,
 static int anc_status_control_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 	struct device *dev = codec->dev;
 	bool apply_fir, apply_iir;
-	int req, status;
+	unsigned int req;
+	int status;
 
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
-	mutex_lock(&drvdata->anc_lock);
+	mutex_lock(&drvdata->ctrl_lock);
 
 	req = ucontrol->value.integer.value[0];
+	if (req >= ARRAY_SIZE(enum_anc_state)) {
+		status = -EINVAL;
+		goto cleanup;
+	}
 	if (req != ANC_APPLY_FIR_IIR && req != ANC_APPLY_FIR &&
 		req != ANC_APPLY_IIR) {
 		dev_err(dev, "%s: ERROR: Unsupported status to set '%s'!\n",
@@ -1252,9 +1244,7 @@ static int anc_status_control_put(struct snd_kcontrol *kcontrol,
 	}
 	snd_soc_dapm_sync(&codec->dapm);
 
-	mutex_lock(&codec->mutex);
 	anc_configure(codec, apply_fir, apply_iir);
-	mutex_unlock(&codec->mutex);
 
 	if (apply_fir) {
 		if (drvdata->anc_status == ANC_IIR_CONFIGURED)
@@ -1273,7 +1263,7 @@ static int anc_status_control_put(struct snd_kcontrol *kcontrol,
 	snd_soc_dapm_sync(&codec->dapm);
 
 cleanup:
-	mutex_unlock(&drvdata->anc_lock);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	if (status < 0)
 		dev_err(dev, "%s: Unable to configure ANC! (status = %d)\n",
@@ -1301,15 +1291,16 @@ static int filter_control_info(struct snd_kcontrol *kcontrol,
 static int filter_control_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct ab8500_codec_drvdata *drvdata = snd_soc_codec_get_drvdata(codec);
 	struct filter_control *fc =
 			(struct filter_control *)kcontrol->private_value;
 	unsigned int i;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 	for (i = 0; i < fc->count; i++)
 		ucontrol->value.integer.value[i] = fc->value[i];
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
 }
@@ -1317,15 +1308,16 @@ static int filter_control_get(struct snd_kcontrol *kcontrol,
 static int filter_control_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct ab8500_codec_drvdata *drvdata = snd_soc_codec_get_drvdata(codec);
 	struct filter_control *fc =
 			(struct filter_control *)kcontrol->private_value;
 	unsigned int i;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 	for (i = 0; i < fc->count; i++)
 		fc->value[i] = ucontrol->value.integer.value[i];
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
 }
@@ -1963,16 +1955,16 @@ static int ab8500_audio_setup_mics(struct snd_soc_codec *codec,
 	dev_dbg(codec->dev, "%s: Enter.\n", __func__);
 
 	/* Set DMic-clocks to outputs */
-	status = abx500_get_register_interruptible(codec->dev, (u8)AB8500_MISC,
-						(u8)AB8500_GPIO_DIR4_REG,
+	status = abx500_get_register_interruptible(codec->dev, AB8500_MISC,
+						AB8500_GPIO_DIR4_REG,
 						&value8);
 	if (status < 0)
 		return status;
 	value = value8 | GPIO27_DIR_OUTPUT | GPIO29_DIR_OUTPUT |
 		GPIO31_DIR_OUTPUT;
 	status = abx500_set_register_interruptible(codec->dev,
-						(u8)AB8500_MISC,
-						(u8)AB8500_GPIO_DIR4_REG,
+						AB8500_MISC,
+						AB8500_GPIO_DIR4_REG,
 						value);
 	if (status < 0)
 		return status;
@@ -2307,17 +2299,17 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	case 0:
 		break;
 	case 1:
-		slot = find_first_bit((unsigned long *)&tx_mask, 32);
+		slot = ffs(tx_mask);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, slot);
 		break;
 	case 2:
-		slot = find_first_bit((unsigned long *)&tx_mask, 32);
+		slot = ffs(tx_mask);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, slot);
-		slot = find_next_bit((unsigned long *)&tx_mask, 32, slot + 1);
+		slot = fls(tx_mask);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, slot);
 		break;
@@ -2348,18 +2340,18 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	case 0:
 		break;
 	case 1:
-		slot = find_first_bit((unsigned long *)&rx_mask, 32);
+		slot = ffs(rx_mask);
 		snd_soc_update_bits(codec, AB8500_ADSLOTSEL(slot),
 				AB8500_MASK_SLOT(slot),
 				AB8500_ADSLOTSELX_AD_OUT_TO_SLOT(AB8500_AD_OUT3, slot));
 		break;
 	case 2:
-		slot = find_first_bit((unsigned long *)&rx_mask, 32);
+		slot = ffs(rx_mask);
 		snd_soc_update_bits(codec,
 				AB8500_ADSLOTSEL(slot),
 				AB8500_MASK_SLOT(slot),
 				AB8500_ADSLOTSELX_AD_OUT_TO_SLOT(AB8500_AD_OUT3, slot));
-		slot = find_next_bit((unsigned long *)&rx_mask, 32, slot + 1);
+		slot = fls(rx_mask);
 		snd_soc_update_bits(codec,
 				AB8500_ADSLOTSEL(slot),
 				AB8500_MASK_SLOT(slot),
@@ -2527,12 +2519,10 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Override HW-defaults */
-	ab8500_codec_write_reg(codec,
-				AB8500_ANACONF5,
-				BIT(AB8500_ANACONF5_HSAUTOEN));
-	ab8500_codec_write_reg(codec,
-				AB8500_SHORTCIRCONF,
-				BIT(AB8500_SHORTCIRCONF_HSZCDDIS));
+	snd_soc_write(codec, AB8500_ANACONF5,
+		      BIT(AB8500_ANACONF5_HSAUTOEN));
+	snd_soc_write(codec, AB8500_SHORTCIRCONF,
+		      BIT(AB8500_SHORTCIRCONF_HSZCDDIS));
 
 	/* Add filter controls */
 	status = snd_soc_add_codec_controls(codec, ab8500_filter_controls,
@@ -2555,16 +2545,13 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 
 	(void)snd_soc_dapm_disable_pin(&codec->dapm, "ANC Configure Input");
 
-	mutex_init(&drvdata->anc_lock);
+	mutex_init(&drvdata->ctrl_lock);
 
 	return status;
 }
 
 static struct snd_soc_codec_driver ab8500_codec_driver = {
 	.probe =		ab8500_codec_probe,
-	.read =			ab8500_codec_read_reg,
-	.write =		ab8500_codec_write_reg,
-	.reg_word_size =	sizeof(u8),
 	.controls =		ab8500_ctrls,
 	.num_controls =		ARRAY_SIZE(ab8500_ctrls),
 	.dapm_widgets =		ab8500_dapm_widgets,
@@ -2583,9 +2570,20 @@ static int ab8500_codec_driver_probe(struct platform_device *pdev)
 	/* Create driver private-data struct */
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct ab8500_codec_drvdata),
 			GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
 	drvdata->sid_status = SID_UNCONFIGURED;
 	drvdata->anc_status = ANC_UNCONFIGURED;
 	dev_set_drvdata(&pdev->dev, drvdata);
+
+	drvdata->regmap = devm_regmap_init(&pdev->dev, NULL, &pdev->dev,
+					   &ab8500_codec_regmap);
+	if (IS_ERR(drvdata->regmap)) {
+		status = PTR_ERR(drvdata->regmap);
+		dev_err(&pdev->dev, "%s: Failed to allocate regmap: %d\n",
+			__func__, status);
+		return status;
+	}
 
 	dev_dbg(&pdev->dev, "%s: Register codec.\n", __func__);
 	status = snd_soc_register_codec(&pdev->dev, &ab8500_codec_driver,
@@ -2601,7 +2599,7 @@ static int ab8500_codec_driver_probe(struct platform_device *pdev)
 
 static int ab8500_codec_driver_remove(struct platform_device *pdev)
 {
-	dev_info(&pdev->dev, "%s Enter.\n", __func__);
+	dev_dbg(&pdev->dev, "%s Enter.\n", __func__);
 
 	snd_soc_unregister_codec(&pdev->dev);
 
@@ -2611,7 +2609,6 @@ static int ab8500_codec_driver_remove(struct platform_device *pdev)
 static struct platform_driver ab8500_codec_platform_driver = {
 	.driver	= {
 		.name	= "ab8500-codec",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ab8500_codec_driver_probe,
 	.remove		= ab8500_codec_driver_remove,

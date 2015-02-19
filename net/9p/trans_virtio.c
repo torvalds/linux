@@ -164,8 +164,7 @@ static void req_done(struct virtqueue *vq)
 		p9_debug(P9_DEBUG_TRANS, ": rc %p\n", rc);
 		p9_debug(P9_DEBUG_TRANS, ": lookup tag %d\n", rc->tag);
 		req = p9_tag_lookup(chan->client, rc->tag);
-		req->status = REQ_STATUS_RCVD;
-		p9_client_cb(chan->client, req);
+		p9_client_cb(chan->client, req, REQ_STATUS_RCVD);
 	}
 }
 
@@ -340,7 +339,10 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 		int count = nr_pages;
 		while (nr_pages) {
 			s = rest_of_page(data);
-			pages[index++] = kmap_to_page(data);
+			if (is_vmalloc_addr(data))
+				pages[index++] = vmalloc_to_page(data);
+			else
+				pages[index++] = kmap_to_page(data);
 			data += s;
 			nr_pages--;
 		}
@@ -522,6 +524,12 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	int err;
 	struct virtio_chan *chan;
 
+	if (!vdev->config->get) {
+		dev_err(&vdev->dev, "%s failure: config access disabled\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	chan = kmalloc(sizeof(struct virtio_chan), GFP_KERNEL);
 	if (!chan) {
 		pr_err("Failed to allocate virtio 9P channel\n");
@@ -544,9 +552,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 
 	chan->inuse = false;
 	if (virtio_has_feature(vdev, VIRTIO_9P_MOUNT_TAG)) {
-		vdev->config->get(vdev,
-				offsetof(struct virtio_9p_config, tag_len),
-				&tag_len, sizeof(tag_len));
+		virtio_cread(vdev, struct virtio_9p_config, tag_len, &tag_len);
 	} else {
 		err = -EINVAL;
 		goto out_free_vq;
@@ -556,8 +562,9 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 		err = -ENOMEM;
 		goto out_free_vq;
 	}
-	vdev->config->get(vdev, offsetof(struct virtio_9p_config, tag),
-			tag, tag_len);
+
+	virtio_cread_bytes(vdev, offsetof(struct virtio_9p_config, tag),
+			   tag, tag_len);
 	chan->tag = tag;
 	chan->tag_len = tag_len;
 	err = sysfs_create_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
@@ -574,9 +581,15 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	/* Ceiling limit to avoid denial of service attacks */
 	chan->p9_max_pages = nr_free_buffer_pages()/4;
 
+	virtio_device_ready(vdev);
+
 	mutex_lock(&virtio_9p_lock);
 	list_add_tail(&chan->chan_list, &virtio_chan_list);
 	mutex_unlock(&virtio_9p_lock);
+
+	/* Let udev rules use the new mount_tag attribute. */
+	kobject_uevent(&(vdev->dev.kobj), KOBJ_CHANGE);
+
 	return 0;
 
 out_free_tag:
@@ -654,6 +667,7 @@ static void p9_virtio_remove(struct virtio_device *vdev)
 	list_del(&chan->chan_list);
 	mutex_unlock(&virtio_9p_lock);
 	sysfs_remove_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
+	kobject_uevent(&(vdev->dev.kobj), KOBJ_CHANGE);
 	kfree(chan->tag);
 	kfree(chan->vc_wq);
 	kfree(chan);
@@ -694,7 +708,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	 * page in zero copy.
 	 */
 	.maxsize = PAGE_SIZE * (VIRTQUEUE_NUM - 3),
-	.def = 0,
+	.def = 1,
 	.owner = THIS_MODULE,
 };
 

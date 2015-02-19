@@ -1,7 +1,7 @@
 /*
  *  mxl111sf-i2c.c - driver for the MaxLinear MXL111SF
  *
- *  Copyright (C) 2010 Michael Krufky <mkrufky@kernellabs.com>
+ *  Copyright (C) 2010-2014 Michael Krufky <mkrufky@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -842,9 +842,3 @@ int mxl111sf_i2c_xfer(struct i2c_adapter *adap,
 
 	return i == num ? num : -EREMOTEIO;
 }
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

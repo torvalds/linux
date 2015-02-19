@@ -213,7 +213,7 @@ static int ad7192_setup(struct ad7192_state *st,
 	ret = spi_write(st->sd.spi, &ones, 6);
 	if (ret < 0)
 		goto out;
-	msleep(1); /* Wait for at least 500us */
+	usleep_range(500, 1000); /* Wait for at least 500us */
 
 	/* write/read test for device presence */
 	ret = ad_sd_read_reg(&st->sd, AD7192_REG_ID, 1, &id);
@@ -223,7 +223,8 @@ static int ad7192_setup(struct ad7192_state *st,
 	id &= AD7192_ID_MASK;
 
 	if (id != st->devid)
-		dev_warn(&st->sd.spi->dev, "device ID query failed (0x%X)\n", id);
+		dev_warn(&st->sd.spi->dev, "device ID query failed (0x%X)\n",
+			id);
 
 	switch (pdata->clock_source_sel) {
 	case AD7192_CLK_EXT_MCLK1_2:
@@ -611,7 +612,7 @@ static int ad7192_probe(struct spi_device *spi)
 	const struct ad7192_platform_data *pdata = spi->dev.platform_data;
 	struct ad7192_state *st;
 	struct iio_dev *indio_dev;
-	int ret , voltage_uv = 0;
+	int ret, voltage_uv = 0;
 
 	if (!pdata) {
 		dev_err(&spi->dev, "no platform data?\n");
@@ -623,17 +624,17 @@ static int ad7192_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = regulator_get(&spi->dev, "vcc");
+	st->reg = devm_regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 
 		voltage_uv = regulator_get_voltage(st->reg);
 	}
@@ -677,11 +678,6 @@ error_remove_trigger:
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
-
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -694,10 +690,8 @@ static int ad7192_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 
-	if (!IS_ERR(st->reg)) {
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
 
 	return 0;
 }

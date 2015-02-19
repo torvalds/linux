@@ -27,6 +27,11 @@
  */
 #include "capability_names.h"
 
+struct aa_fs_entry aa_fs_entry_caps[] = {
+	AA_FS_FILE_STRING("mask", AA_FS_CAPS_MASK),
+	{ }
+};
+
 struct audit_cache {
 	struct aa_profile *profile;
 	kernel_cap_t caps;
@@ -48,8 +53,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 
 /**
  * audit_caps - audit a capability
- * @profile: profile confining task (NOT NULL)
- * @task: task capability test was performed against (NOT NULL)
+ * @profile: profile being tested for confinement (NOT NULL)
  * @cap: capability tested
  * @error: error code returned by test
  *
@@ -58,8 +62,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  *
  * Returns: 0 or sa->error on success,  error code on failure
  */
-static int audit_caps(struct aa_profile *profile, struct task_struct *task,
-		      int cap, int error)
+static int audit_caps(struct aa_profile *profile, int cap, int error)
 {
 	struct audit_cache *ent;
 	int type = AUDIT_APPARMOR_AUTO;
@@ -68,7 +71,6 @@ static int audit_caps(struct aa_profile *profile, struct task_struct *task,
 	sa.type = LSM_AUDIT_DATA_CAP;
 	sa.aad = &aad;
 	sa.u.cap = cap;
-	sa.aad->tsk = task;
 	sa.aad->op = OP_CAPABLE;
 	sa.aad->error = error;
 
@@ -119,8 +121,7 @@ static int profile_capable(struct aa_profile *profile, int cap)
 
 /**
  * aa_capable - test permission to use capability
- * @task: task doing capability test against (NOT NULL)
- * @profile: profile confining @task (NOT NULL)
+ * @profile: profile being tested against (NOT NULL)
  * @cap: capability to be tested
  * @audit: whether an audit record should be generated
  *
@@ -128,8 +129,7 @@ static int profile_capable(struct aa_profile *profile, int cap)
  *
  * Returns: 0 on success, or else an error code.
  */
-int aa_capable(struct task_struct *task, struct aa_profile *profile, int cap,
-	       int audit)
+int aa_capable(struct aa_profile *profile, int cap, int audit)
 {
 	int error = profile_capable(profile, cap);
 
@@ -139,5 +139,5 @@ int aa_capable(struct task_struct *task, struct aa_profile *profile, int cap,
 		return error;
 	}
 
-	return audit_caps(profile, task, cap, error);
+	return audit_caps(profile, cap, error);
 }

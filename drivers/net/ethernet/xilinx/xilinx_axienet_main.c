@@ -22,11 +22,11 @@
 
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
+#include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
@@ -201,17 +201,15 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 	/*
 	 * Allocate the Tx and Rx buffer descriptors.
 	 */
-	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
-					 sizeof(*lp->tx_bd_v) * TX_BD_NUM,
-					 &lp->tx_bd_p,
-					 GFP_KERNEL | __GFP_ZERO);
+	lp->tx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
+					  sizeof(*lp->tx_bd_v) * TX_BD_NUM,
+					  &lp->tx_bd_p, GFP_KERNEL);
 	if (!lp->tx_bd_v)
 		goto out;
 
-	lp->rx_bd_v = dma_alloc_coherent(ndev->dev.parent,
-					 sizeof(*lp->rx_bd_v) * RX_BD_NUM,
-					 &lp->rx_bd_p,
-					 GFP_KERNEL | __GFP_ZERO);
+	lp->rx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
+					  sizeof(*lp->rx_bd_v) * RX_BD_NUM,
+					  &lp->rx_bd_p, GFP_KERNEL);
 	if (!lp->rx_bd_v)
 		goto out;
 
@@ -603,7 +601,8 @@ static void axienet_start_xmit_done(struct net_device *ndev)
 		size += status & XAXIDMA_BD_STS_ACTUAL_LEN_MASK;
 		packets++;
 
-		lp->tx_bd_ci = ++lp->tx_bd_ci % TX_BD_NUM;
+		++lp->tx_bd_ci;
+		lp->tx_bd_ci %= TX_BD_NUM;
 		cur_p = &lp->tx_bd_v[lp->tx_bd_ci];
 		status = cur_p->status;
 	}
@@ -689,7 +688,8 @@ static int axienet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 				     skb_headlen(skb), DMA_TO_DEVICE);
 
 	for (ii = 0; ii < num_frag; ii++) {
-		lp->tx_bd_tail = ++lp->tx_bd_tail % TX_BD_NUM;
+		++lp->tx_bd_tail;
+		lp->tx_bd_tail %= TX_BD_NUM;
 		cur_p = &lp->tx_bd_v[lp->tx_bd_tail];
 		frag = &skb_shinfo(skb)->frags[ii];
 		cur_p->phys = dma_map_single(ndev->dev.parent,
@@ -705,7 +705,8 @@ static int axienet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	tail_p = lp->tx_bd_p + sizeof(*lp->tx_bd_v) * lp->tx_bd_tail;
 	/* Start the transfer */
 	axienet_dma_out32(lp, XAXIDMA_TX_TDESC_OFFSET, tail_p);
-	lp->tx_bd_tail = ++lp->tx_bd_tail % TX_BD_NUM;
+	++lp->tx_bd_tail;
+	lp->tx_bd_tail %= TX_BD_NUM;
 
 	return NETDEV_TX_OK;
 }
@@ -755,7 +756,7 @@ static void axienet_recv(struct net_device *ndev)
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			}
 		} else if ((lp->features & XAE_FEATURE_PARTIAL_RX_CSUM) != 0 &&
-			   skb->protocol == __constant_htons(ETH_P_IP) &&
+			   skb->protocol == htons(ETH_P_IP) &&
 			   skb->len > 64) {
 			skb->csum = be32_to_cpu(cur_p->app3 & 0xFFFF);
 			skb->ip_summed = CHECKSUM_COMPLETE;
@@ -777,7 +778,8 @@ static void axienet_recv(struct net_device *ndev)
 		cur_p->status = 0;
 		cur_p->sw_id_offset = (u32) new_skb;
 
-		lp->rx_bd_ci = ++lp->rx_bd_ci % RX_BD_NUM;
+		++lp->rx_bd_ci;
+		lp->rx_bd_ci %= RX_BD_NUM;
 		cur_p = &lp->rx_bd_v[lp->rx_bd_ci];
 	}
 
@@ -1483,12 +1485,11 @@ static int axienet_of_probe(struct platform_device *op)
 	if (!ndev)
 		return -ENOMEM;
 
-	ether_setup(ndev);
 	platform_set_drvdata(op, ndev);
 
 	SET_NETDEV_DEV(ndev, &op->dev);
 	ndev->flags &= ~IFF_MULTICAST;  /* clear multicast */
-	ndev->features = NETIF_F_SG | NETIF_F_FRAGLIST;
+	ndev->features = NETIF_F_SG;
 	ndev->netdev_ops = &axienet_netdev_ops;
 	ndev->ethtool_ops = &axienet_ethtool_ops;
 
@@ -1500,6 +1501,7 @@ static int axienet_of_probe(struct platform_device *op)
 	lp->regs = of_iomap(op->dev.of_node, 0);
 	if (!lp->regs) {
 		dev_err(&op->dev, "could not map Axi Ethernet regs.\n");
+		ret = -ENOMEM;
 		goto nodev;
 	}
 	/* Setup checksum offload, but default to off if not specified */
@@ -1554,10 +1556,6 @@ static int axienet_of_probe(struct platform_device *op)
 		if ((be32_to_cpup(p)) >= 0x4000)
 			lp->jumbo_support = 1;
 	}
-	p = (__be32 *) of_get_property(op->dev.of_node, "xlnx,temac-type",
-				       NULL);
-	if (p)
-		lp->temac_type = be32_to_cpup(p);
 	p = (__be32 *) of_get_property(op->dev.of_node, "xlnx,phy-type", NULL);
 	if (p)
 		lp->phy_type = be32_to_cpup(p);
@@ -1566,6 +1564,7 @@ static int axienet_of_probe(struct platform_device *op)
 	np = of_parse_phandle(op->dev.of_node, "axistream-connected", 0);
 	if (!np) {
 		dev_err(&op->dev, "could not find DMA node\n");
+		ret = -ENODEV;
 		goto err_iounmap;
 	}
 	lp->dma_regs = of_iomap(np, 0);
@@ -1628,8 +1627,7 @@ static int axienet_of_remove(struct platform_device *op)
 	axienet_mdio_teardown(lp);
 	unregister_netdev(ndev);
 
-	if (lp->phy_node)
-		of_node_put(lp->phy_node);
+	of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
 
 	iounmap(lp->regs);
@@ -1644,7 +1642,6 @@ static struct platform_driver axienet_of_driver = {
 	.probe = axienet_of_probe,
 	.remove = axienet_of_remove,
 	.driver = {
-		 .owner = THIS_MODULE,
 		 .name = "xilinx_axienet",
 		 .of_match_table = axienet_of_match,
 	},

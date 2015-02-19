@@ -14,9 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution
  * in the file called "COPYING".
@@ -958,6 +956,7 @@ enum {
 #define NETXEN_PEG_HALT_STATUS2 	(NETXEN_CAM_RAM(0xac))
 #define NX_CRB_DEV_REF_COUNT		(NETXEN_CAM_RAM(0x138))
 #define NX_CRB_DEV_STATE		(NETXEN_CAM_RAM(0x140))
+#define NETXEN_ULA_KEY			(NETXEN_CAM_RAM(0x178))
 
 /* MiniDIMM related macros */
 #define NETXEN_DIMM_CAPABILITY		(NETXEN_CAM_RAM(0x258))

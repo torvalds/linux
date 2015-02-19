@@ -114,18 +114,18 @@ static void tcp_veno_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 		tcp_veno_init(sk);
 }
 
-static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
+static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct veno *veno = inet_csk_ca(sk);
 
 	if (!veno->doing_veno_now) {
-		tcp_reno_cong_avoid(sk, ack, in_flight);
+		tcp_reno_cong_avoid(sk, ack, acked);
 		return;
 	}
 
 	/* limited by applications */
-	if (!tcp_is_cwnd_limited(sk, in_flight))
+	if (!tcp_is_cwnd_limited(sk))
 		return;
 
 	/* We do the Veno calculations only if we got enough rtt samples */
@@ -133,7 +133,7 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 		/* We don't have enough rtt samples to do the Veno
 		 * calculation, so we'll behave like Reno.
 		 */
-		tcp_reno_cong_avoid(sk, ack, in_flight);
+		tcp_reno_cong_avoid(sk, ack, acked);
 	} else {
 		u64 target_cwnd;
 		u32 rtt;
@@ -144,7 +144,7 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 
 		rtt = veno->minrtt;
 
-		target_cwnd = (tp->snd_cwnd * veno->basertt);
+		target_cwnd = (u64)tp->snd_cwnd * veno->basertt;
 		target_cwnd <<= V_PARAM_SHIFT;
 		do_div(target_cwnd, rtt);
 
@@ -152,14 +152,14 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 
 		if (tp->snd_cwnd <= tp->snd_ssthresh) {
 			/* Slow start.  */
-			tcp_slow_start(tp);
+			tcp_slow_start(tp, acked);
 		} else {
 			/* Congestion avoidance. */
 			if (veno->diff < beta) {
 				/* In the "non-congestive state", increase cwnd
 				 *  every rtt.
 				 */
-				tcp_cong_avoid_ai(tp, tp->snd_cwnd);
+				tcp_cong_avoid_ai(tp, tp->snd_cwnd, 1);
 			} else {
 				/* In the "congestive state", increase cwnd
 				 * every other rtt.
@@ -175,7 +175,6 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 				} else
 					tp->snd_cwnd_cnt++;
 			}
-
 		}
 		if (tp->snd_cwnd < 2)
 			tp->snd_cwnd = 2;
@@ -202,7 +201,6 @@ static u32 tcp_veno_ssthresh(struct sock *sk)
 }
 
 static struct tcp_congestion_ops tcp_veno __read_mostly = {
-	.flags		= TCP_CONG_RTT_STAMP,
 	.init		= tcp_veno_init,
 	.ssthresh	= tcp_veno_ssthresh,
 	.cong_avoid	= tcp_veno_cong_avoid,

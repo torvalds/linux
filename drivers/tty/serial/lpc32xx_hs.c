@@ -279,7 +279,10 @@ static void __serial_lpc32xx_rx(struct uart_port *port)
 
 		tmp = readl(LPC32XX_HSUART_FIFO(port->membase));
 	}
+
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tport);
+	spin_lock(&port->lock);
 }
 
 static void __serial_lpc32xx_tx(struct uart_port *port)
@@ -351,10 +354,8 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 	}
 
 	/* Data received? */
-	if (status & (LPC32XX_HSU_RX_TIMEOUT_INT | LPC32XX_HSU_RX_TRIG_INT)) {
+	if (status & (LPC32XX_HSU_RX_TIMEOUT_INT | LPC32XX_HSU_RX_TRIG_INT))
 		__serial_lpc32xx_rx(port);
-		tty_flip_buffer_push(tport);
-	}
 
 	/* Transmit data request? */
 	if ((status & LPC32XX_HSU_TX_INT) && (!uart_tx_stopped(port))) {
@@ -424,12 +425,6 @@ static void serial_lpc32xx_stop_rx(struct uart_port *port)
 
 	writel((LPC32XX_HSU_BRK_INT | LPC32XX_HSU_RX_OE_INT |
 		LPC32XX_HSU_FE_INT), LPC32XX_HSUART_IIR(port->membase));
-}
-
-/* port->lock held by caller.  */
-static void serial_lpc32xx_enable_ms(struct uart_port *port)
-{
-	/* Modem status is not supported */
 }
 
 /* port->lock is not held.  */
@@ -657,7 +652,6 @@ static struct uart_ops serial_lpc32xx_pops = {
 	.stop_tx	= serial_lpc32xx_stop_tx,
 	.start_tx	= serial_lpc32xx_start_tx,
 	.stop_rx	= serial_lpc32xx_stop_rx,
-	.enable_ms	= serial_lpc32xx_enable_ms,
 	.break_ctl	= serial_lpc32xx_break_ctl,
 	.startup	= serial_lpc32xx_startup,
 	.shutdown	= serial_lpc32xx_shutdown,
@@ -774,7 +768,6 @@ static struct platform_driver serial_hs_lpc32xx_driver = {
 	.resume		= serial_hs_lpc32xx_resume,
 	.driver		= {
 		.name	= MODNAME,
-		.owner	= THIS_MODULE,
 		.of_match_table	= serial_hs_lpc32xx_dt_ids,
 	},
 };

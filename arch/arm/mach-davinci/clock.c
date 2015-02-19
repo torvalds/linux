@@ -133,7 +133,7 @@ EXPORT_SYMBOL(clk_get_rate);
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	if (clk == NULL || IS_ERR(clk))
-		return -EINVAL;
+		return 0;
 
 	if (clk->round_rate)
 		return clk->round_rate(clk, rate);
@@ -564,7 +564,7 @@ int davinci_set_refclk_rate(unsigned long rate)
 
 	refclk = clk_get(NULL, "ref");
 	if (IS_ERR(refclk)) {
-		pr_err("%s: failed to get reference clock.\n", __func__);
+		pr_err("%s: failed to get reference clock\n", __func__);
 		return PTR_ERR(refclk);
 	}
 

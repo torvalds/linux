@@ -2,10 +2,10 @@
  * Definitions for RTL8187 hardware
  *
  * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Based on the r8187 driver, which is:
- * Copyright 2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,6 +14,8 @@
 
 #ifndef RTL8187_H
 #define RTL8187_H
+
+#include <linux/cache.h>
 
 #include "rtl818x.h"
 #include "leds.h"
@@ -139,7 +141,10 @@ struct rtl8187_priv {
 	u8 aifsn[4];
 	u8 rfkill_mask;
 	struct {
-		__le64 buf;
+		union {
+			__le64 buf;
+			u8 dummy1[L1_CACHE_BYTES];
+		} ____cacheline_aligned;
 		struct sk_buff_head queue;
 	} b_tx_status; /* This queue is used by both -b and non-b devices */
 	struct mutex io_mutex;
@@ -147,7 +152,8 @@ struct rtl8187_priv {
 		u8 bits8;
 		__le16 bits16;
 		__le32 bits32;
-	} *io_dmabuf;
+		u8 dummy2[L1_CACHE_BYTES];
+	} *io_dmabuf ____cacheline_aligned;
 	bool rfkill_off;
 	u16 seqno;
 };

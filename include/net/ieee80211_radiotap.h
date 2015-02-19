@@ -230,6 +230,10 @@ enum ieee80211_radiotap_type {
 #define	IEEE80211_CHAN_PASSIVE	0x0200	/* Only passive scan allowed */
 #define	IEEE80211_CHAN_DYN	0x0400	/* Dynamic CCK-OFDM channel */
 #define	IEEE80211_CHAN_GFSK	0x0800	/* GFSK channel (FHSS PHY) */
+#define	IEEE80211_CHAN_GSM	0x1000	/* GSM (900 MHz) */
+#define	IEEE80211_CHAN_STURBO	0x2000	/* Static Turbo */
+#define	IEEE80211_CHAN_HALF	0x4000	/* Half channel (10 MHz wide) */
+#define	IEEE80211_CHAN_QUARTER	0x8000	/* Quarter channel (5 MHz wide) */
 
 /* For IEEE80211_RADIOTAP_FLAGS */
 #define	IEEE80211_RADIOTAP_F_CFP	0x01	/* sent/received
@@ -312,6 +316,10 @@ enum ieee80211_radiotap_type {
 #define IEEE80211_RADIOTAP_VHT_FLAG_LDPC_EXTRA_OFDM_SYM		0x10
 #define IEEE80211_RADIOTAP_VHT_FLAG_BEAMFORMED			0x20
 
+#define IEEE80211_RADIOTAP_CODING_LDPC_USER0			0x01
+#define IEEE80211_RADIOTAP_CODING_LDPC_USER1			0x02
+#define IEEE80211_RADIOTAP_CODING_LDPC_USER2			0x04
+#define IEEE80211_RADIOTAP_CODING_LDPC_USER3			0x08
 
 /* helpers */
 static inline int ieee80211_get_radiotap_len(unsigned char *data)

@@ -1,0 +1,71 @@
+1) OF selftest platform device
+
+** selftest
+
+Required properties:
+- compatible: must be "selftest"
+
+All other properties are optional.
+
+Example:
+	selftest {
+		compatible = "selftest";
+		status = "okay";
+	};
+
+2) OF selftest i2c adapter platform device
+
+** platform device unittest adapter
+
+Required properties:
+- compatible: must be selftest-i2c-bus
+
+Children nodes contain selftest i2c devices.
+
+Example:
+	selftest-i2c-bus {
+		compatible = "selftest-i2c-bus";
+		status = "okay";
+	};
+
+3) OF selftest i2c device
+
+** I2C selftest device
+
+Required properties:
+- compatible: must be selftest-i2c-dev
+
+All other properties are optional
+
+Example:
+	selftest-i2c-dev {
+		compatible = "selftest-i2c-dev";
+		status = "okay";
+	};
+
+4) OF selftest i2c mux device
+
+** I2C selftest mux
+
+Required properties:
+- compatible: must be selftest-i2c-mux
+
+Children nodes contain selftest i2c bus nodes per channel.
+
+Example:
+	selftest-i2c-mux {
+		compatible = "selftest-i2c-mux";
+		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		channel-0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			i2c-dev {
+				reg = <8>;
+				compatible = "selftest-i2c-dev";
+				status = "okay";
+			};
+		};
+	};

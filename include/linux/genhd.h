@@ -649,7 +649,7 @@ static inline void hd_ref_init(struct hd_struct *part)
 static inline void hd_struct_get(struct hd_struct *part)
 {
 	atomic_inc(&part->ref);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 }
 
 static inline int hd_struct_try_get(struct hd_struct *part)

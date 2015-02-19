@@ -325,7 +325,8 @@ static int wm8776_set_sysclk(struct snd_soc_dai *dai,
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8776_priv *wm8776 = snd_soc_codec_get_drvdata(codec);
 
-	BUG_ON(dai->driver->id >= ARRAY_SIZE(wm8776->sysclk));
+	if (WARN_ON(dai->driver->id >= ARRAY_SIZE(wm8776->sysclk)))
+		return -EINVAL;
 
 	wm8776->sysclk[dai->driver->id] = freq;
 
@@ -407,41 +408,15 @@ static struct snd_soc_dai_driver wm8776_dai[] = {
 	},
 };
 
-#ifdef CONFIG_PM
-static int wm8776_suspend(struct snd_soc_codec *codec)
-{
-	wm8776_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm8776_resume(struct snd_soc_codec *codec)
-{
-	wm8776_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define wm8776_suspend NULL
-#define wm8776_resume NULL
-#endif
-
 static int wm8776_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	ret = wm8776_reset(codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
 		return ret;
 	}
-
-	wm8776_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch the update bits; right channel only since we always
 	 * update both. */
@@ -451,19 +426,10 @@ static int wm8776_probe(struct snd_soc_codec *codec)
 	return ret;
 }
 
-/* power down chip */
-static int wm8776_remove(struct snd_soc_codec *codec)
-{
-	wm8776_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8776 = {
 	.probe = 	wm8776_probe,
-	.remove = 	wm8776_remove,
-	.suspend = 	wm8776_suspend,
-	.resume =	wm8776_resume,
 	.set_bias_level = wm8776_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8776_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8776_snd_controls),
@@ -531,7 +497,7 @@ static struct spi_driver wm8776_spi_driver = {
 };
 #endif /* CONFIG_SPI_MASTER */
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8776_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -583,7 +549,7 @@ static struct i2c_driver wm8776_i2c_driver = {
 static int __init wm8776_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8776_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register wm8776 I2C driver: %d\n",
@@ -603,7 +569,7 @@ module_init(wm8776_modinit);
 
 static void __exit wm8776_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8776_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)

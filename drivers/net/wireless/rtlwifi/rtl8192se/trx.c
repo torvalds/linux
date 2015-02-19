@@ -49,6 +49,12 @@ static u8 _rtl92se_map_hwqueue_to_fwqueue(struct sk_buff *skb,	u8 skb_queue)
 	if (ieee80211_is_nullfunc(fc))
 		return QSLT_HIGH;
 
+	/* Kernel commit 1bf4bbb4024dcdab changed EAPOL packets to use
+	 * queue V0 at priority 7; however, the RTL8192SE appears to have
+	 * that queue at priority 6
+	 */
+	if (skb->priority == 7)
+		return QSLT_VO;
 	return skb->priority;
 }
 
@@ -185,8 +191,8 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 		pstats->rxpower = rx_pwr_all;
 		pstats->recvsignalpower = rx_pwr_all;
 
-		if (pstats->is_ht && pstats->rate >= DESC92_RATEMCS8 &&
-		    pstats->rate <= DESC92_RATEMCS15)
+		if (pstats->is_ht && pstats->rate >= DESC_RATEMCS8 &&
+		    pstats->rate <= DESC_RATEMCS15)
 			max_spatial_stream = 2;
 		else
 			max_spatial_stream = 1;
@@ -258,7 +264,6 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 	struct rx_fwinfo *p_drvinfo;
 	u32 phystatus = (u32)GET_RX_STATUS_DESC_PHY_STATUS(pdesc);
 	struct ieee80211_hdr *hdr;
-	bool first_ampdu = false;
 
 	stats->length = (u16)GET_RX_STATUS_DESC_PKT_LEN(pdesc);
 	stats->rx_drvinfo_size = (u8)GET_RX_STATUS_DESC_DRVINFO_SIZE(pdesc) * 8;
@@ -306,19 +311,15 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 		hdr = (struct ieee80211_hdr *)(skb->data +
 		       stats->rx_drvinfo_size + stats->rx_bufshift);
 
-		if (!hdr) {
-			/* during testing, hdr was NULL here */
-			return false;
-		}
-		if ((ieee80211_is_robust_mgmt_frame(hdr)) &&
+		if ((_ieee80211_is_robust_mgmt_frame(hdr)) &&
 			(ieee80211_has_protected(hdr->frame_control)))
 			rx_status->flag &= ~RX_FLAG_DECRYPTED;
 		else
 			rx_status->flag |= RX_FLAG_DECRYPTED;
 	}
 
-	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
-			      stats->is_ht, stats->rate, first_ampdu);
+	rx_status->rate_idx = rtlwifi_rate_mapping(hw, stats->is_ht,
+						   false, stats->rate);
 
 	rx_status->mactime = stats->timestamp_low;
 	if (phystatus) {
@@ -329,15 +330,14 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 	}
 
 	/*rx_status->qual = stats->signal; */
-	rx_status->signal = stats->rssi + 10;
-	/*rx_status->noise = -stats->noise; */
+	rx_status->signal = stats->recvsignalpower + 10;
 
 	return true;
 }
 
 void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		struct ieee80211_hdr *hdr, u8 *pdesc_tx,
-		struct ieee80211_tx_info *info,
+		u8 *pbd_desc_tx, struct ieee80211_tx_info *info,
 		struct ieee80211_sta *sta,
 		struct sk_buff *skb,
 		u8 hw_queue, struct rtl_tcb_desc *ptcb_desc)
@@ -393,14 +393,14 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_RSVD_MACID(pdesc, reserved_macid);
 
 		SET_TX_DESC_TXHT(pdesc, ((ptcb_desc->hw_rate >=
-				 DESC92_RATEMCS0) ? 1 : 0));
+				 DESC_RATEMCS0) ? 1 : 0));
 
 		if (rtlhal->version == VERSION_8192S_ACUT) {
-			if (ptcb_desc->hw_rate == DESC92_RATE1M ||
-				ptcb_desc->hw_rate  == DESC92_RATE2M ||
-				ptcb_desc->hw_rate == DESC92_RATE5_5M ||
-				ptcb_desc->hw_rate == DESC92_RATE11M) {
-				ptcb_desc->hw_rate = DESC92_RATE12M;
+			if (ptcb_desc->hw_rate == DESC_RATE1M ||
+			    ptcb_desc->hw_rate  == DESC_RATE2M ||
+			    ptcb_desc->hw_rate == DESC_RATE5_5M ||
+			    ptcb_desc->hw_rate == DESC_RATE11M) {
+				ptcb_desc->hw_rate = DESC_RATE12M;
 			}
 		}
 
@@ -429,7 +429,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_RTS_BANDWIDTH(pdesc, 0);
 		SET_TX_DESC_RTS_SUB_CARRIER(pdesc, ptcb_desc->rts_sc);
 		SET_TX_DESC_RTS_SHORT(pdesc, ((ptcb_desc->rts_rate <=
-		       DESC92_RATE54M) ?
+		       DESC_RATE54M) ?
 		       (ptcb_desc->rts_use_shortpreamble ? 1 : 0)
 		       : (ptcb_desc->rts_use_shortgi ? 1 : 0)));
 
@@ -574,7 +574,8 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 	}
 }
 
-void rtl92se_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
+void rtl92se_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+		      u8 desc_name, u8 *val)
 {
 	if (istx) {
 		switch (desc_name) {
@@ -637,6 +638,9 @@ u32 rtl92se_get_desc(u8 *desc, bool istx, u8 desc_name)
 			break;
 		case HW_DESC_RXPKT_LEN:
 			ret = GET_RX_STATUS_DESC_PKT_LEN(desc);
+			break;
+		case HW_DESC_RXBUFF_ADDR:
+			ret = GET_RX_STATUS_DESC_BUFF_ADDR(desc);
 			break;
 		default:
 			RT_ASSERT(false, "ERR rxdesc :%d not process\n",

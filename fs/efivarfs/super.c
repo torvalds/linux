@@ -83,19 +83,10 @@ static int efivarfs_d_hash(const struct dentry *dentry, struct qstr *qstr)
 	return 0;
 }
 
-/*
- * Retaining negative dentries for an in-memory filesystem just wastes
- * memory and lookup time: arrange for them to be deleted immediately.
- */
-static int efivarfs_delete_dentry(const struct dentry *dentry)
-{
-	return 1;
-}
-
-static struct dentry_operations efivarfs_d_ops = {
+static const struct dentry_operations efivarfs_d_ops = {
 	.d_compare = efivarfs_d_compare,
 	.d_hash = efivarfs_d_hash,
-	.d_delete = efivarfs_delete_dentry,
+	.d_delete = always_delete_dentry,
 };
 
 static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
@@ -149,7 +140,7 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 
 	name[len] = '-';
 
-	efi_guid_unparse(&entry->var.VendorGuid, name + len + 1);
+	efi_guid_to_str(&entry->var.VendorGuid, name + len + 1);
 
 	name[len + EFI_VARIABLE_GUID_LEN+1] = '\0';
 
@@ -245,6 +236,7 @@ static void efivarfs_kill_sb(struct super_block *sb)
 }
 
 static struct file_system_type efivarfs_type = {
+	.owner   = THIS_MODULE,
 	.name    = "efivarfs",
 	.mount   = efivarfs_mount,
 	.kill_sb = efivarfs_kill_sb,
@@ -253,12 +245,17 @@ static struct file_system_type efivarfs_type = {
 static __init int efivarfs_init(void)
 {
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
-		return 0;
+		return -ENODEV;
 
 	if (!efivars_kobject())
-		return 0;
+		return -ENODEV;
 
 	return register_filesystem(&efivarfs_type);
+}
+
+static __exit void efivarfs_exit(void)
+{
+	unregister_filesystem(&efivarfs_type);
 }
 
 MODULE_AUTHOR("Matthew Garrett, Jeremy Kerr");
@@ -267,3 +264,4 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_FS("efivarfs");
 
 module_init(efivarfs_init);
+module_exit(efivarfs_exit);

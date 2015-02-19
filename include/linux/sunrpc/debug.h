@@ -10,22 +10,10 @@
 
 #include <uapi/linux/sunrpc/debug.h>
 
-
-/*
- * Enable RPC debugging/profiling.
- */
-#ifdef CONFIG_SUNRPC_DEBUG
-#define  RPC_DEBUG
-#endif
-#ifdef CONFIG_TRACEPOINTS
-#define RPC_TRACEPOINTS
-#endif
-/* #define  RPC_PROFILE */
-
 /*
  * Debugging macros etc
  */
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 extern unsigned int		rpc_debug;
 extern unsigned int		nfs_debug;
 extern unsigned int		nfsd_debug;
@@ -36,7 +24,7 @@ extern unsigned int		nlm_debug;
 #define dprintk_rcu(args...)	dfprintk_rcu(FACILITY, ## args)
 
 #undef ifdebug
-#ifdef RPC_DEBUG			
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define ifdebug(fac)		if (unlikely(rpc_debug & RPCDBG_##fac))
 
 # define dfprintk(fac, args...)	\
@@ -65,9 +53,55 @@ extern unsigned int		nlm_debug;
 /*
  * Sysctl interface for RPC debugging
  */
-#ifdef RPC_DEBUG
+
+struct rpc_clnt;
+struct rpc_xprt;
+
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 void		rpc_register_sysctl(void);
 void		rpc_unregister_sysctl(void);
+int		sunrpc_debugfs_init(void);
+void		sunrpc_debugfs_exit(void);
+int		rpc_clnt_debugfs_register(struct rpc_clnt *);
+void		rpc_clnt_debugfs_unregister(struct rpc_clnt *);
+int		rpc_xprt_debugfs_register(struct rpc_xprt *);
+void		rpc_xprt_debugfs_unregister(struct rpc_xprt *);
+#else
+static inline int
+sunrpc_debugfs_init(void)
+{
+	return 0;
+}
+
+static inline void
+sunrpc_debugfs_exit(void)
+{
+	return;
+}
+
+static inline int
+rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
+{
+	return 0;
+}
+
+static inline void
+rpc_clnt_debugfs_unregister(struct rpc_clnt *clnt)
+{
+	return;
+}
+
+static inline int
+rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
+{
+	return 0;
+}
+
+static inline void
+rpc_xprt_debugfs_unregister(struct rpc_xprt *xprt)
+{
+	return;
+}
 #endif
 
 #endif /* _LINUX_SUNRPC_DEBUG_H_ */

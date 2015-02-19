@@ -18,7 +18,6 @@
 
 #include "powerdomain.h"
 #include "clock.h"
-#include "omap_hwmod.h"
 
 /*
  * Clockdomain flags
@@ -98,6 +97,8 @@ struct clkdm_dep {
 /* Possible flags for struct clockdomain._flags */
 #define _CLKDM_FLAG_HWSUP_ENABLED		BIT(0)
 
+struct omap_hwmod;
+
 /**
  * struct clockdomain - OMAP clockdomain
  * @name: clockdomain name
@@ -132,7 +133,7 @@ struct clockdomain {
 	u8 _flags;
 	const u8 dep_bit;
 	const u8 prcm_partition;
-	const s16 cm_inst;
+	const u16 cm_inst;
 	const u16 clkdm_offs;
 	struct clkdm_dep *wkdep_srcs;
 	struct clkdm_dep *sleepdep_srcs;
@@ -215,8 +216,11 @@ extern void __init omap242x_clockdomains_init(void);
 extern void __init omap243x_clockdomains_init(void);
 extern void __init omap3xxx_clockdomains_init(void);
 extern void __init am33xx_clockdomains_init(void);
+extern void __init ti81xx_clockdomains_init(void);
 extern void __init omap44xx_clockdomains_init(void);
 extern void __init omap54xx_clockdomains_init(void);
+extern void __init dra7xx_clockdomains_init(void);
+void am43xx_clockdomains_init(void);
 
 extern void clkdm_add_autodeps(struct clockdomain *clkdm);
 extern void clkdm_del_autodeps(struct clockdomain *clkdm);
@@ -225,6 +229,7 @@ extern struct clkdm_ops omap2_clkdm_operations;
 extern struct clkdm_ops omap3_clkdm_operations;
 extern struct clkdm_ops omap4_clkdm_operations;
 extern struct clkdm_ops am33xx_clkdm_operations;
+extern struct clkdm_ops am43xx_clkdm_operations;
 
 extern struct clkdm_dep gfx_24xx_wkdeps[];
 extern struct clkdm_dep dsp_24xx_wkdeps[];

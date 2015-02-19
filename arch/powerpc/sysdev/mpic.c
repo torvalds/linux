@@ -24,7 +24,6 @@
 #include <linux/irq.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -535,7 +534,7 @@ static void __init mpic_scan_ht_pic(struct mpic *mpic, u8 __iomem *devbase,
 		mpic->fixups[irq].data = readl(base + 4) | 0x80000000;
 	}
 }
- 
+
 
 static void __init mpic_scan_ht_pics(struct mpic *mpic)
 {
@@ -886,25 +885,25 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 
 	/* Default: read HW settings */
 	if (flow_type == IRQ_TYPE_DEFAULT) {
-		switch(vold & (MPIC_INFO(VECPRI_POLARITY_MASK) |
-			       MPIC_INFO(VECPRI_SENSE_MASK))) {
-			case MPIC_INFO(VECPRI_SENSE_EDGE) |
-			     MPIC_INFO(VECPRI_POLARITY_POSITIVE):
-				flow_type = IRQ_TYPE_EDGE_RISING;
-				break;
-			case MPIC_INFO(VECPRI_SENSE_EDGE) |
-			     MPIC_INFO(VECPRI_POLARITY_NEGATIVE):
-				flow_type = IRQ_TYPE_EDGE_FALLING;
-				break;
-			case MPIC_INFO(VECPRI_SENSE_LEVEL) |
-			     MPIC_INFO(VECPRI_POLARITY_POSITIVE):
-				flow_type = IRQ_TYPE_LEVEL_HIGH;
-				break;
-			case MPIC_INFO(VECPRI_SENSE_LEVEL) |
-			     MPIC_INFO(VECPRI_POLARITY_NEGATIVE):
-				flow_type = IRQ_TYPE_LEVEL_LOW;
-				break;
-		}
+		int vold_ps;
+
+		vold_ps = vold & (MPIC_INFO(VECPRI_POLARITY_MASK) |
+				  MPIC_INFO(VECPRI_SENSE_MASK));
+
+		if (vold_ps == (MPIC_INFO(VECPRI_SENSE_EDGE) |
+				MPIC_INFO(VECPRI_POLARITY_POSITIVE)))
+			flow_type = IRQ_TYPE_EDGE_RISING;
+		else if	(vold_ps == (MPIC_INFO(VECPRI_SENSE_EDGE) |
+				     MPIC_INFO(VECPRI_POLARITY_NEGATIVE)))
+			flow_type = IRQ_TYPE_EDGE_FALLING;
+		else if (vold_ps == (MPIC_INFO(VECPRI_SENSE_LEVEL) |
+				     MPIC_INFO(VECPRI_POLARITY_POSITIVE)))
+			flow_type = IRQ_TYPE_LEVEL_HIGH;
+		else if (vold_ps == (MPIC_INFO(VECPRI_SENSE_LEVEL) |
+				     MPIC_INFO(VECPRI_POLARITY_NEGATIVE)))
+			flow_type = IRQ_TYPE_LEVEL_LOW;
+		else
+			WARN_ONCE(1, "mpic: unknown IRQ type %d\n", vold);
 	}
 
 	/* Apply to irq desc */
@@ -960,7 +959,7 @@ void mpic_set_vector(unsigned int virq, unsigned int vector)
 	mpic_irq_write(src, MPIC_INFO(IRQ_VECTOR_PRI), vecpri);
 }
 
-void mpic_set_destination(unsigned int virq, unsigned int cpuid)
+static void mpic_set_destination(unsigned int virq, unsigned int cpuid)
 {
 	struct mpic *mpic = mpic_from_irq(virq);
 	unsigned int src = virq_to_hw(virq);
@@ -1088,8 +1087,14 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 	 * is done here.
 	 */
 	if (!mpic_is_ipi(mpic, hw) && (mpic->flags & MPIC_NO_RESET)) {
+		int cpu;
+
+		preempt_disable();
+		cpu = mpic_processor_id(mpic);
+		preempt_enable();
+
 		mpic_set_vector(virq, hw);
-		mpic_set_destination(virq, mpic_processor_id(mpic));
+		mpic_set_destination(virq, cpu);
 		mpic_irq_set_priority(virq, 8);
 	}
 
@@ -1475,7 +1480,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	 * as a default instead of the value read from the HW.
 	 */
 	last_irq = (greg_feature & MPIC_GREG_FEATURE_LAST_SRC_MASK)
-				>> MPIC_GREG_FEATURE_LAST_SRC_SHIFT;	
+				>> MPIC_GREG_FEATURE_LAST_SRC_SHIFT;
 	if (isu_size)
 		last_irq = isu_size  * MPIC_MAX_ISU - 1;
 	of_property_read_u32(mpic->node, "last-interrupt-source", &last_irq);
@@ -1582,10 +1587,6 @@ void __init mpic_init(struct mpic *mpic)
 			num_timers = 8;
 	}
 
-	/* FSL mpic error interrupt intialization */
-	if (mpic->flags & MPIC_FSL_HAS_EIMR)
-		mpic_err_int_init(mpic, MPIC_FSL_ERR_INT);
-
 	/* Initialize timers to our reserved vectors and mask them for now */
 	for (i = 0; i < num_timers; i++) {
 		unsigned int offset = mpic_tm_offset(mpic, i);
@@ -1625,7 +1626,7 @@ void __init mpic_init(struct mpic *mpic)
 			/* start with vector = source number, and masked */
 			u32 vecpri = MPIC_VECPRI_MASK | i |
 				(8 << MPIC_VECPRI_PRIORITY_SHIFT);
-		
+
 			/* check if protected */
 			if (mpic->protected && test_bit(i, mpic->protected))
 				continue;
@@ -1634,7 +1635,7 @@ void __init mpic_init(struct mpic *mpic)
 			mpic_irq_write(i, MPIC_INFO(IRQ_DESTINATION), 1 << cpu);
 		}
 	}
-	
+
 	/* Init spurious vector */
 	mpic_write(mpic->gregs, MPIC_INFO(GREG_SPURIOUS), mpic->spurious_vec);
 
@@ -1669,6 +1670,10 @@ void __init mpic_init(struct mpic *mpic)
 			irq_set_chained_handler(virq, &mpic_cascade);
 		}
 	}
+
+	/* FSL mpic error interrupt intialization */
+	if (mpic->flags & MPIC_FSL_HAS_EIMR)
+		mpic_err_int_init(mpic, MPIC_FSL_ERR_INT);
 }
 
 void __init mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio)
@@ -1924,7 +1929,7 @@ int __init smp_mpic_probe(void)
 
 	DBG("smp_mpic_probe()...\n");
 
-	nr_cpus = cpumask_weight(cpu_possible_mask);
+	nr_cpus = num_possible_cpus();
 
 	DBG("nr_cpus: %d\n", nr_cpus);
 

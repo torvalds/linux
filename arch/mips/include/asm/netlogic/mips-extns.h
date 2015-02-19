@@ -146,7 +146,13 @@ static inline int hard_smp_processor_id(void)
 
 static inline int nlm_nodeid(void)
 {
-	return (__read_32bit_c0_register($15, 1) >> 5) & 0x3;
+	uint32_t prid = read_c0_prid() & PRID_IMP_MASK;
+
+	if ((prid == PRID_IMP_NETLOGIC_XLP9XX) ||
+			(prid == PRID_IMP_NETLOGIC_XLP5XX))
+		return (__read_32bit_c0_register($15, 1) >> 7) & 0x7;
+	else
+		return (__read_32bit_c0_register($15, 1) >> 5) & 0x3;
 }
 
 static inline unsigned int nlm_core_id(void)

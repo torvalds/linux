@@ -7,6 +7,7 @@
  *  zoned VM statistics
  *  Copyright (C) 2006 Silicon Graphics, Inc.,
  *		Christoph Lameter <christoph@lameter.com>
+ *  Copyright (C) 2008-2014 Christoph Lameter
  */
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -14,11 +15,20 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/cpumask.h>
 #include <linux/vmstat.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/debugfs.h>
 #include <linux/sched.h>
 #include <linux/math64.h>
 #include <linux/writeback.h>
 #include <linux/compaction.h>
+#include <linux/mm_inline.h>
+#include <linux/page_ext.h>
+#include <linux/page_owner.h>
+
+#include "internal.h"
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
 DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
@@ -197,14 +207,16 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
 			continue;
 
 		threshold = (*calculate_pressure)(zone);
-		for_each_possible_cpu(cpu)
+		for_each_online_cpu(cpu)
 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
 							= threshold;
 	}
 }
 
 /*
- * For use when we know that interrupts are disabled.
+ * For use when we know that interrupts are disabled,
+ * or when we know that preemption is disabled and that
+ * particular counter cannot be updated from interrupt context.
  */
 void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
 				int delta)
@@ -414,12 +426,26 @@ void dec_zone_page_state(struct page *page, enum zone_stat_item item)
 EXPORT_SYMBOL(dec_zone_page_state);
 #endif
 
+
 /*
- * Update the zone counters for one cpu.
- *
- * The cpu specified must be either the current cpu or a processor that
- * is not online. If it is the current cpu then the execution thread must
- * be pinned to the current cpu.
+ * Fold a differential into the global counters.
+ * Returns the number of counters updated.
+ */
+static int fold_diff(int *diff)
+{
+	int i;
+	int changes = 0;
+
+	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+		if (diff[i]) {
+			atomic_long_add(diff[i], &vm_stat[i]);
+			changes++;
+	}
+	return changes;
+}
+
+/*
+ * Update the zone counters for the current cpu.
  *
  * Note that refresh_cpu_vm_stats strives to only access
  * node local memory. The per cpu pagesets on remote zones are placed
@@ -431,8 +457,73 @@ EXPORT_SYMBOL(dec_zone_page_state);
  * statistics in the remote zone struct as well as the global cachelines
  * with the global counters. These could cause remote node cache line
  * bouncing and will have to be only done when necessary.
+ *
+ * The function returns the number of global counters updated.
  */
-void refresh_cpu_vm_stats(int cpu)
+static int refresh_cpu_vm_stats(void)
+{
+	struct zone *zone;
+	int i;
+	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
+	int changes = 0;
+
+	for_each_populated_zone(zone) {
+		struct per_cpu_pageset __percpu *p = zone->pageset;
+
+		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
+			int v;
+
+			v = this_cpu_xchg(p->vm_stat_diff[i], 0);
+			if (v) {
+
+				atomic_long_add(v, &zone->vm_stat[i]);
+				global_diff[i] += v;
+#ifdef CONFIG_NUMA
+				/* 3 seconds idle till flush */
+				__this_cpu_write(p->expire, 3);
+#endif
+			}
+		}
+		cond_resched();
+#ifdef CONFIG_NUMA
+		/*
+		 * Deal with draining the remote pageset of this
+		 * processor
+		 *
+		 * Check if there are pages remaining in this pageset
+		 * if not then there is nothing to expire.
+		 */
+		if (!__this_cpu_read(p->expire) ||
+			       !__this_cpu_read(p->pcp.count))
+			continue;
+
+		/*
+		 * We never drain zones local to this processor.
+		 */
+		if (zone_to_nid(zone) == numa_node_id()) {
+			__this_cpu_write(p->expire, 0);
+			continue;
+		}
+
+		if (__this_cpu_dec_return(p->expire))
+			continue;
+
+		if (__this_cpu_read(p->pcp.count)) {
+			drain_zone_pages(zone, this_cpu_ptr(&p->pcp));
+			changes++;
+		}
+#endif
+	}
+	changes += fold_diff(global_diff);
+	return changes;
+}
+
+/*
+ * Fold the data for an offline cpu into the global array.
+ * There cannot be any access by the offline cpu and therefore
+ * synchronization is simplified.
+ */
+void cpu_vm_stats_fold(int cpu)
 {
 	struct zone *zone;
 	int i;
@@ -445,52 +536,16 @@ void refresh_cpu_vm_stats(int cpu)
 
 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
 			if (p->vm_stat_diff[i]) {
-				unsigned long flags;
 				int v;
 
-				local_irq_save(flags);
 				v = p->vm_stat_diff[i];
 				p->vm_stat_diff[i] = 0;
-				local_irq_restore(flags);
 				atomic_long_add(v, &zone->vm_stat[i]);
 				global_diff[i] += v;
-#ifdef CONFIG_NUMA
-				/* 3 seconds idle till flush */
-				p->expire = 3;
-#endif
 			}
-		cond_resched();
-#ifdef CONFIG_NUMA
-		/*
-		 * Deal with draining the remote pageset of this
-		 * processor
-		 *
-		 * Check if there are pages remaining in this pageset
-		 * if not then there is nothing to expire.
-		 */
-		if (!p->expire || !p->pcp.count)
-			continue;
-
-		/*
-		 * We never drain zones local to this processor.
-		 */
-		if (zone_to_nid(zone) == numa_node_id()) {
-			p->expire = 0;
-			continue;
-		}
-
-		p->expire--;
-		if (p->expire)
-			continue;
-
-		if (p->pcp.count)
-			drain_zone_pages(zone, &p->pcp);
-#endif
 	}
 
-	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-		if (global_diff[i])
-			atomic_long_add(global_diff[i], &vm_stat[i]);
+	fold_diff(global_diff);
 }
 
 /*
@@ -618,27 +673,190 @@ int fragmentation_index(struct zone *zone, unsigned int order)
 }
 #endif
 
-#if defined(CONFIG_PROC_FS) || defined(CONFIG_COMPACTION)
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
+#if defined(CONFIG_PROC_FS) || defined(CONFIG_SYSFS) || defined(CONFIG_NUMA)
+#ifdef CONFIG_ZONE_DMA
+#define TEXT_FOR_DMA(xx) xx "_dma",
+#else
+#define TEXT_FOR_DMA(xx)
+#endif
 
-static char * const migratetype_names[MIGRATE_TYPES] = {
-	"Unmovable",
-	"Reclaimable",
-	"Movable",
-	"Reserve",
-#ifdef CONFIG_CMA
-	"CMA",
+#ifdef CONFIG_ZONE_DMA32
+#define TEXT_FOR_DMA32(xx) xx "_dma32",
+#else
+#define TEXT_FOR_DMA32(xx)
 #endif
-#ifdef CONFIG_MEMORY_ISOLATION
-	"Isolate",
+
+#ifdef CONFIG_HIGHMEM
+#define TEXT_FOR_HIGHMEM(xx) xx "_high",
+#else
+#define TEXT_FOR_HIGHMEM(xx)
 #endif
+
+#define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
+					TEXT_FOR_HIGHMEM(xx) xx "_movable",
+
+const char * const vmstat_text[] = {
+	/* enum zone_stat_item countes */
+	"nr_free_pages",
+	"nr_alloc_batch",
+	"nr_inactive_anon",
+	"nr_active_anon",
+	"nr_inactive_file",
+	"nr_active_file",
+	"nr_unevictable",
+	"nr_mlock",
+	"nr_anon_pages",
+	"nr_mapped",
+	"nr_file_pages",
+	"nr_dirty",
+	"nr_writeback",
+	"nr_slab_reclaimable",
+	"nr_slab_unreclaimable",
+	"nr_page_table_pages",
+	"nr_kernel_stack",
+	"nr_unstable",
+	"nr_bounce",
+	"nr_vmscan_write",
+	"nr_vmscan_immediate_reclaim",
+	"nr_writeback_temp",
+	"nr_isolated_anon",
+	"nr_isolated_file",
+	"nr_shmem",
+	"nr_dirtied",
+	"nr_written",
+	"nr_pages_scanned",
+
+#ifdef CONFIG_NUMA
+	"numa_hit",
+	"numa_miss",
+	"numa_foreign",
+	"numa_interleave",
+	"numa_local",
+	"numa_other",
+#endif
+	"workingset_refault",
+	"workingset_activate",
+	"workingset_nodereclaim",
+	"nr_anon_transparent_hugepages",
+	"nr_free_cma",
+
+	/* enum writeback_stat_item counters */
+	"nr_dirty_threshold",
+	"nr_dirty_background_threshold",
+
+#ifdef CONFIG_VM_EVENT_COUNTERS
+	/* enum vm_event_item counters */
+	"pgpgin",
+	"pgpgout",
+	"pswpin",
+	"pswpout",
+
+	TEXTS_FOR_ZONES("pgalloc")
+
+	"pgfree",
+	"pgactivate",
+	"pgdeactivate",
+
+	"pgfault",
+	"pgmajfault",
+
+	TEXTS_FOR_ZONES("pgrefill")
+	TEXTS_FOR_ZONES("pgsteal_kswapd")
+	TEXTS_FOR_ZONES("pgsteal_direct")
+	TEXTS_FOR_ZONES("pgscan_kswapd")
+	TEXTS_FOR_ZONES("pgscan_direct")
+	"pgscan_direct_throttle",
+
+#ifdef CONFIG_NUMA
+	"zone_reclaim_failed",
+#endif
+	"pginodesteal",
+	"slabs_scanned",
+	"kswapd_inodesteal",
+	"kswapd_low_wmark_hit_quickly",
+	"kswapd_high_wmark_hit_quickly",
+	"pageoutrun",
+	"allocstall",
+
+	"pgrotated",
+
+	"drop_pagecache",
+	"drop_slab",
+
+#ifdef CONFIG_NUMA_BALANCING
+	"numa_pte_updates",
+	"numa_huge_pte_updates",
+	"numa_hint_faults",
+	"numa_hint_faults_local",
+	"numa_pages_migrated",
+#endif
+#ifdef CONFIG_MIGRATION
+	"pgmigrate_success",
+	"pgmigrate_fail",
+#endif
+#ifdef CONFIG_COMPACTION
+	"compact_migrate_scanned",
+	"compact_free_scanned",
+	"compact_isolated",
+	"compact_stall",
+	"compact_fail",
+	"compact_success",
+#endif
+
+#ifdef CONFIG_HUGETLB_PAGE
+	"htlb_buddy_alloc_success",
+	"htlb_buddy_alloc_fail",
+#endif
+	"unevictable_pgs_culled",
+	"unevictable_pgs_scanned",
+	"unevictable_pgs_rescued",
+	"unevictable_pgs_mlocked",
+	"unevictable_pgs_munlocked",
+	"unevictable_pgs_cleared",
+	"unevictable_pgs_stranded",
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	"thp_fault_alloc",
+	"thp_fault_fallback",
+	"thp_collapse_alloc",
+	"thp_collapse_alloc_failed",
+	"thp_split",
+	"thp_zero_page_alloc",
+	"thp_zero_page_alloc_failed",
+#endif
+#ifdef CONFIG_MEMORY_BALLOON
+	"balloon_inflate",
+	"balloon_deflate",
+#ifdef CONFIG_BALLOON_COMPACTION
+	"balloon_migrate",
+#endif
+#endif /* CONFIG_MEMORY_BALLOON */
+#ifdef CONFIG_DEBUG_TLBFLUSH
+#ifdef CONFIG_SMP
+	"nr_tlb_remote_flush",
+	"nr_tlb_remote_flush_received",
+#endif /* CONFIG_SMP */
+	"nr_tlb_local_flush_all",
+	"nr_tlb_local_flush_one",
+#endif /* CONFIG_DEBUG_TLBFLUSH */
+
+#ifdef CONFIG_DEBUG_VM_VMACACHE
+	"vmacache_find_calls",
+	"vmacache_find_hits",
+	"vmacache_full_flushes",
+#endif
+#endif /* CONFIG_VM_EVENTS_COUNTERS */
 };
+#endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
 
+
+#if (defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)) || \
+     defined(CONFIG_PROC_FS)
 static void *frag_start(struct seq_file *m, loff_t *pos)
 {
 	pg_data_t *pgdat;
 	loff_t node = *pos;
+
 	for (pgdat = first_online_pgdat();
 	     pgdat && node;
 	     pgdat = next_online_pgdat(pgdat))
@@ -678,152 +896,20 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
 }
 #endif
 
-#if defined(CONFIG_PROC_FS) || defined(CONFIG_SYSFS) || defined(CONFIG_NUMA)
-#ifdef CONFIG_ZONE_DMA
-#define TEXT_FOR_DMA(xx) xx "_dma",
-#else
-#define TEXT_FOR_DMA(xx)
-#endif
-
-#ifdef CONFIG_ZONE_DMA32
-#define TEXT_FOR_DMA32(xx) xx "_dma32",
-#else
-#define TEXT_FOR_DMA32(xx)
-#endif
-
-#ifdef CONFIG_HIGHMEM
-#define TEXT_FOR_HIGHMEM(xx) xx "_high",
-#else
-#define TEXT_FOR_HIGHMEM(xx)
-#endif
-
-#define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
-					TEXT_FOR_HIGHMEM(xx) xx "_movable",
-
-const char * const vmstat_text[] = {
-	/* Zoned VM counters */
-	"nr_free_pages",
-	"nr_inactive_anon",
-	"nr_active_anon",
-	"nr_inactive_file",
-	"nr_active_file",
-	"nr_unevictable",
-	"nr_mlock",
-	"nr_anon_pages",
-	"nr_mapped",
-	"nr_file_pages",
-	"nr_dirty",
-	"nr_writeback",
-	"nr_slab_reclaimable",
-	"nr_slab_unreclaimable",
-	"nr_page_table_pages",
-	"nr_kernel_stack",
-	"nr_unstable",
-	"nr_bounce",
-	"nr_vmscan_write",
-	"nr_vmscan_immediate_reclaim",
-	"nr_writeback_temp",
-	"nr_isolated_anon",
-	"nr_isolated_file",
-	"nr_shmem",
-	"nr_dirtied",
-	"nr_written",
-
-#ifdef CONFIG_NUMA
-	"numa_hit",
-	"numa_miss",
-	"numa_foreign",
-	"numa_interleave",
-	"numa_local",
-	"numa_other",
-#endif
-	"nr_anon_transparent_hugepages",
-	"nr_free_cma",
-	"nr_dirty_threshold",
-	"nr_dirty_background_threshold",
-
-#ifdef CONFIG_VM_EVENT_COUNTERS
-	"pgpgin",
-	"pgpgout",
-	"pswpin",
-	"pswpout",
-
-	TEXTS_FOR_ZONES("pgalloc")
-
-	"pgfree",
-	"pgactivate",
-	"pgdeactivate",
-
-	"pgfault",
-	"pgmajfault",
-
-	TEXTS_FOR_ZONES("pgrefill")
-	TEXTS_FOR_ZONES("pgsteal_kswapd")
-	TEXTS_FOR_ZONES("pgsteal_direct")
-	TEXTS_FOR_ZONES("pgscan_kswapd")
-	TEXTS_FOR_ZONES("pgscan_direct")
-	"pgscan_direct_throttle",
-
-#ifdef CONFIG_NUMA
-	"zone_reclaim_failed",
-#endif
-	"pginodesteal",
-	"slabs_scanned",
-	"kswapd_inodesteal",
-	"kswapd_low_wmark_hit_quickly",
-	"kswapd_high_wmark_hit_quickly",
-	"pageoutrun",
-	"allocstall",
-
-	"pgrotated",
-
-#ifdef CONFIG_NUMA_BALANCING
-	"numa_pte_updates",
-	"numa_hint_faults",
-	"numa_hint_faults_local",
-	"numa_pages_migrated",
-#endif
-#ifdef CONFIG_MIGRATION
-	"pgmigrate_success",
-	"pgmigrate_fail",
-#endif
-#ifdef CONFIG_COMPACTION
-	"compact_migrate_scanned",
-	"compact_free_scanned",
-	"compact_isolated",
-	"compact_stall",
-	"compact_fail",
-	"compact_success",
-#endif
-
-#ifdef CONFIG_HUGETLB_PAGE
-	"htlb_buddy_alloc_success",
-	"htlb_buddy_alloc_fail",
-#endif
-	"unevictable_pgs_culled",
-	"unevictable_pgs_scanned",
-	"unevictable_pgs_rescued",
-	"unevictable_pgs_mlocked",
-	"unevictable_pgs_munlocked",
-	"unevictable_pgs_cleared",
-	"unevictable_pgs_stranded",
-
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	"thp_fault_alloc",
-	"thp_fault_fallback",
-	"thp_collapse_alloc",
-	"thp_collapse_alloc_failed",
-	"thp_split",
-	"thp_zero_page_alloc",
-	"thp_zero_page_alloc_failed",
-#endif
-
-#endif /* CONFIG_VM_EVENTS_COUNTERS */
-};
-#endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
-
-
 #ifdef CONFIG_PROC_FS
+static char * const migratetype_names[MIGRATE_TYPES] = {
+	"Unmovable",
+	"Reclaimable",
+	"Movable",
+	"Reserve",
+#ifdef CONFIG_CMA
+	"CMA",
+#endif
+#ifdef CONFIG_MEMORY_ISOLATION
+	"Isolate",
+#endif
+};
+
 static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
 						struct zone *zone)
 {
@@ -936,6 +1022,104 @@ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
 	return 0;
 }
 
+#ifdef CONFIG_PAGE_OWNER
+static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+							pg_data_t *pgdat,
+							struct zone *zone)
+{
+	struct page *page;
+	struct page_ext *page_ext;
+	unsigned long pfn = zone->zone_start_pfn, block_end_pfn;
+	unsigned long end_pfn = pfn + zone->spanned_pages;
+	unsigned long count[MIGRATE_TYPES] = { 0, };
+	int pageblock_mt, page_mt;
+	int i;
+
+	/* Scan block by block. First and last block may be incomplete */
+	pfn = zone->zone_start_pfn;
+
+	/*
+	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
+	 * a zone boundary, it will be double counted between zones. This does
+	 * not matter as the mixed block count will still be correct
+	 */
+	for (; pfn < end_pfn; ) {
+		if (!pfn_valid(pfn)) {
+			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
+			continue;
+		}
+
+		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+		block_end_pfn = min(block_end_pfn, end_pfn);
+
+		page = pfn_to_page(pfn);
+		pageblock_mt = get_pfnblock_migratetype(page, pfn);
+
+		for (; pfn < block_end_pfn; pfn++) {
+			if (!pfn_valid_within(pfn))
+				continue;
+
+			page = pfn_to_page(pfn);
+			if (PageBuddy(page)) {
+				pfn += (1UL << page_order(page)) - 1;
+				continue;
+			}
+
+			if (PageReserved(page))
+				continue;
+
+			page_ext = lookup_page_ext(page);
+
+			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
+				continue;
+
+			page_mt = gfpflags_to_migratetype(page_ext->gfp_mask);
+			if (pageblock_mt != page_mt) {
+				if (is_migrate_cma(pageblock_mt))
+					count[MIGRATE_MOVABLE]++;
+				else
+					count[pageblock_mt]++;
+
+				pfn = block_end_pfn;
+				break;
+			}
+			pfn += (1UL << page_ext->order) - 1;
+		}
+	}
+
+	/* Print counts */
+	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
+	for (i = 0; i < MIGRATE_TYPES; i++)
+		seq_printf(m, "%12lu ", count[i]);
+	seq_putc(m, '\n');
+}
+#endif /* CONFIG_PAGE_OWNER */
+
+/*
+ * Print out the number of pageblocks for each migratetype that contain pages
+ * of other types. This gives an indication of how well fallbacks are being
+ * contained by rmqueue_fallback(). It requires information from PAGE_OWNER
+ * to determine what is going on
+ */
+static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
+{
+#ifdef CONFIG_PAGE_OWNER
+	int mtype;
+
+	if (!page_owner_inited)
+		return;
+
+	drain_all_pages(NULL);
+
+	seq_printf(m, "\n%-23s", "Number of mixed blocks ");
+	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
+		seq_printf(m, "%12s ", migratetype_names[mtype]);
+	seq_putc(m, '\n');
+
+	walk_zones_in_node(m, pgdat, pagetypeinfo_showmixedcount_print);
+#endif /* CONFIG_PAGE_OWNER */
+}
+
 /*
  * This prints out statistics in relation to grouping pages by mobility.
  * It is expensive to collect so do not constantly read the file.
@@ -953,6 +1137,7 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
 	seq_putc(m, '\n');
 	pagetypeinfo_showfree(m, pgdat);
 	pagetypeinfo_showblockcount(m, pgdat);
+	pagetypeinfo_showmixedcount(m, pgdat);
 
 	return 0;
 }
@@ -1013,7 +1198,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   min_wmark_pages(zone),
 		   low_wmark_pages(zone),
 		   high_wmark_pages(zone),
-		   zone->pages_scanned,
+		   zone_page_state(zone, NR_PAGES_SCANNED),
 		   zone->spanned_pages,
 		   zone->present_pages,
 		   zone->managed_pages);
@@ -1023,10 +1208,10 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 				zone_page_state(zone, i));
 
 	seq_printf(m,
-		   "\n        protection: (%lu",
+		   "\n        protection: (%ld",
 		   zone->lowmem_reserve[0]);
 	for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); i++)
-		seq_printf(m, ", %lu", zone->lowmem_reserve[i]);
+		seq_printf(m, ", %ld", zone->lowmem_reserve[i]);
 	seq_printf(m,
 		   ")"
 		   "\n  pagesets");
@@ -1052,7 +1237,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n  all_unreclaimable: %u"
 		   "\n  start_pfn:         %lu"
 		   "\n  inactive_ratio:    %u",
-		   zone->all_unreclaimable,
+		   !zone_reclaimable(zone),
 		   zone->zone_start_pfn,
 		   zone->inactive_ratio);
 	seq_putc(m, '\n');
@@ -1174,20 +1359,122 @@ static const struct file_operations proc_vmstat_file_operations = {
 #ifdef CONFIG_SMP
 static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
 int sysctl_stat_interval __read_mostly = HZ;
+static cpumask_var_t cpu_stat_off;
 
 static void vmstat_update(struct work_struct *w)
 {
-	refresh_cpu_vm_stats(smp_processor_id());
-	schedule_delayed_work(&__get_cpu_var(vmstat_work),
+	if (refresh_cpu_vm_stats())
+		/*
+		 * Counters were updated so we expect more updates
+		 * to occur in the future. Keep on running the
+		 * update worker thread.
+		 */
+		schedule_delayed_work(this_cpu_ptr(&vmstat_work),
+			round_jiffies_relative(sysctl_stat_interval));
+	else {
+		/*
+		 * We did not update any counters so the app may be in
+		 * a mode where it does not cause counter updates.
+		 * We may be uselessly running vmstat_update.
+		 * Defer the checking for differentials to the
+		 * shepherd thread on a different processor.
+		 */
+		int r;
+		/*
+		 * Shepherd work thread does not race since it never
+		 * changes the bit if its zero but the cpu
+		 * online / off line code may race if
+		 * worker threads are still allowed during
+		 * shutdown / startup.
+		 */
+		r = cpumask_test_and_set_cpu(smp_processor_id(),
+			cpu_stat_off);
+		VM_BUG_ON(r);
+	}
+}
+
+/*
+ * Check if the diffs for a certain cpu indicate that
+ * an update is needed.
+ */
+static bool need_update(int cpu)
+{
+	struct zone *zone;
+
+	for_each_populated_zone(zone) {
+		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
+
+		BUILD_BUG_ON(sizeof(p->vm_stat_diff[0]) != 1);
+		/*
+		 * The fast way of checking if there are any vmstat diffs.
+		 * This works because the diffs are byte sized items.
+		 */
+		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS))
+			return true;
+
+	}
+	return false;
+}
+
+
+/*
+ * Shepherd worker thread that checks the
+ * differentials of processors that have their worker
+ * threads for vm statistics updates disabled because of
+ * inactivity.
+ */
+static void vmstat_shepherd(struct work_struct *w);
+
+static DECLARE_DELAYED_WORK(shepherd, vmstat_shepherd);
+
+static void vmstat_shepherd(struct work_struct *w)
+{
+	int cpu;
+
+	get_online_cpus();
+	/* Check processors whose vmstat worker threads have been disabled */
+	for_each_cpu(cpu, cpu_stat_off)
+		if (need_update(cpu) &&
+			cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
+
+			schedule_delayed_work_on(cpu,
+				&per_cpu(vmstat_work, cpu), 0);
+
+	put_online_cpus();
+
+	schedule_delayed_work(&shepherd,
+		round_jiffies_relative(sysctl_stat_interval));
+
+}
+
+static void __init start_shepherd_timer(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		INIT_DELAYED_WORK(per_cpu_ptr(&vmstat_work, cpu),
+			vmstat_update);
+
+	if (!alloc_cpumask_var(&cpu_stat_off, GFP_KERNEL))
+		BUG();
+	cpumask_copy(cpu_stat_off, cpu_online_mask);
+
+	schedule_delayed_work(&shepherd,
 		round_jiffies_relative(sysctl_stat_interval));
 }
 
-static void start_cpu_timer(int cpu)
+static void vmstat_cpu_dead(int node)
 {
-	struct delayed_work *work = &per_cpu(vmstat_work, cpu);
+	int cpu;
 
-	INIT_DEFERRABLE_WORK(work, vmstat_update);
-	schedule_delayed_work_on(cpu, work, __round_jiffies_relative(HZ, cpu));
+	get_online_cpus();
+	for_each_online_cpu(cpu)
+		if (cpu_to_node(cpu) == node)
+			goto end;
+
+	node_clear_state(node, N_CPU);
+end:
+	put_online_cpus();
 }
 
 /*
@@ -1204,21 +1491,22 @@ static int vmstat_cpuup_callback(struct notifier_block *nfb,
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
 		refresh_zone_stat_thresholds();
-		start_cpu_timer(cpu);
 		node_set_state(cpu_to_node(cpu), N_CPU);
+		cpumask_set_cpu(cpu, cpu_stat_off);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-		per_cpu(vmstat_work, cpu).work.func = NULL;
+		cpumask_clear_cpu(cpu, cpu_stat_off);
 		break;
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		start_cpu_timer(cpu);
+		cpumask_set_cpu(cpu, cpu_stat_off);
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		refresh_zone_stat_thresholds();
+		vmstat_cpu_dead(cpu_to_node(cpu));
 		break;
 	default:
 		break;
@@ -1233,12 +1521,11 @@ static struct notifier_block vmstat_notifier =
 static int __init setup_vmstat(void)
 {
 #ifdef CONFIG_SMP
-	int cpu;
+	cpu_notifier_register_begin();
+	__register_cpu_notifier(&vmstat_notifier);
 
-	register_cpu_notifier(&vmstat_notifier);
-
-	for_each_online_cpu(cpu)
-		start_cpu_timer(cpu);
+	start_shepherd_timer();
+	cpu_notifier_register_done();
 #endif
 #ifdef CONFIG_PROC_FS
 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
@@ -1251,8 +1538,6 @@ static int __init setup_vmstat(void)
 module_init(setup_vmstat)
 
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)
-#include <linux/debugfs.h>
-
 
 /*
  * Return an index indicating how much of the available free memory is

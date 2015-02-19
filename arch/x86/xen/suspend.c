@@ -12,8 +12,10 @@
 #include "xen-ops.h"
 #include "mmu.h"
 
-void xen_arch_pre_suspend(void)
+static void xen_pv_pre_suspend(void)
 {
+	xen_mm_pin_all();
+
 	xen_start_info->store_mfn = mfn_to_pfn(xen_start_info->store_mfn);
 	xen_start_info->console.domU.mfn =
 		mfn_to_pfn(xen_start_info->console.domU.mfn);
@@ -26,7 +28,7 @@ void xen_arch_pre_suspend(void)
 		BUG();
 }
 
-void xen_arch_hvm_post_suspend(int suspend_cancelled)
+static void xen_hvm_post_suspend(int suspend_cancelled)
 {
 #ifdef CONFIG_XEN_PVHVM
 	int cpu;
@@ -41,7 +43,7 @@ void xen_arch_hvm_post_suspend(int suspend_cancelled)
 #endif
 }
 
-void xen_arch_post_suspend(int suspend_cancelled)
+static void xen_pv_post_suspend(int suspend_cancelled)
 {
 	xen_build_mfn_list_list();
 
@@ -60,6 +62,21 @@ void xen_arch_post_suspend(int suspend_cancelled)
 		xen_vcpu_restore();
 	}
 
+	xen_mm_unpin_all();
+}
+
+void xen_arch_pre_suspend(void)
+{
+    if (xen_pv_domain())
+        xen_pv_pre_suspend();
+}
+
+void xen_arch_post_suspend(int cancelled)
+{
+    if (xen_pv_domain())
+        xen_pv_post_suspend(cancelled);
+    else
+        xen_hvm_post_suspend(cancelled);
 }
 
 static void xen_vcpu_notify_restore(void *data)

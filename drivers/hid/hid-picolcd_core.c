@@ -290,7 +290,7 @@ static ssize_t picolcd_operation_mode_store(struct device *dev,
 		buf += 10;
 		cnt -= 10;
 	}
-	if (!report)
+	if (!report || report->maxfield != 1)
 		return -EINVAL;
 
 	while (cnt > 0 && (buf[cnt-1] == '\n' || buf[cnt-1] == '\r'))
@@ -349,6 +349,12 @@ static int picolcd_raw_event(struct hid_device *hdev,
 
 	if (!data)
 		return 1;
+
+	if (size > 64) {
+		hid_warn(hdev, "invalid size value (%d) for picolcd raw event (%d)\n",
+				size, report->id);
+		return 0;
+	}
 
 	if (report->id == REPORT_KEY_STATE) {
 		if (data->input_keys)

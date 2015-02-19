@@ -22,6 +22,7 @@
 
 extern int smp_num_siblings;
 extern cpumask_t cpu_sibling_map[];
+extern cpumask_t cpu_core_map[];
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
@@ -42,8 +43,12 @@ extern int __cpu_logical_map[NR_CPUS];
 #define SMP_ICACHE_FLUSH	0x4
 /* Used by kexec crashdump to save all cpu's state */
 #define SMP_DUMP		0x8
+#define SMP_ASK_C0COUNT		0x10
 
 extern volatile cpumask_t cpu_callin_map;
+
+/* Mask of CPUs which are currently definitely operating coherently */
+extern cpumask_t cpu_coherent_mask;
 
 extern void asmlinkage smp_bootstrap(void);
 

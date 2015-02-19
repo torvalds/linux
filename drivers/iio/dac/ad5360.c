@@ -107,7 +107,12 @@ enum ad5360_type {
 		BIT(IIO_CHAN_INFO_OFFSET) |				\
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |			\
 		BIT(IIO_CHAN_INFO_CALIBBIAS),			\
-	.scan_type = IIO_ST('u', (bits), 16, 16 - (bits))	\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (bits),				\
+		.storagebits = 16,				\
+		.shift = 16 - (bits),				\
+	},							\
 }
 
 static const struct ad5360_chip_info ad5360_chip_info_tbl[] = {
@@ -379,15 +384,14 @@ static int ad5360_read_raw(struct iio_dev *indio_dev,
 		*val = ret >> chan->scan_type.shift;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		/* vout = 4 * vref * dac_code */
-		scale_uv = ad5360_get_channel_vref(st, chan->channel) * 4 * 100;
+		scale_uv = ad5360_get_channel_vref(st, chan->channel);
 		if (scale_uv < 0)
 			return scale_uv;
 
-		scale_uv >>= (chan->scan_type.realbits);
-		*val =  scale_uv / 100000;
-		*val2 = (scale_uv % 100000) * 10;
-		return IIO_VAL_INT_PLUS_MICRO;
+		/* vout = 4 * vref * dac_code */
+		*val = scale_uv * 4 / 1000;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = ad5360_read(indio_dev, AD5360_READBACK_OFFSET,
 			chan->address);
@@ -459,7 +463,7 @@ static int ad5360_probe(struct spi_device *spi)
 	unsigned int i;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
 		return  -ENOMEM;
@@ -480,13 +484,13 @@ static int ad5360_probe(struct spi_device *spi)
 	ret = ad5360_alloc_channels(indio_dev);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to allocate channel spec: %d\n", ret);
-		goto error_free;
+		return ret;
 	}
 
 	for (i = 0; i < st->chip_info->num_vrefs; ++i)
 		st->vref_reg[i].supply = ad5360_vref_name[i];
 
-	ret = regulator_bulk_get(&st->spi->dev, st->chip_info->num_vrefs,
+	ret = devm_regulator_bulk_get(&st->spi->dev, st->chip_info->num_vrefs,
 		st->vref_reg);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to request vref regulators: %d\n", ret);
@@ -496,7 +500,7 @@ static int ad5360_probe(struct spi_device *spi)
 	ret = regulator_bulk_enable(st->chip_info->num_vrefs, st->vref_reg);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to enable vref regulators: %d\n", ret);
-		goto error_free_reg;
+		goto error_free_channels;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -509,12 +513,8 @@ static int ad5360_probe(struct spi_device *spi)
 
 error_disable_reg:
 	regulator_bulk_disable(st->chip_info->num_vrefs, st->vref_reg);
-error_free_reg:
-	regulator_bulk_free(st->chip_info->num_vrefs, st->vref_reg);
 error_free_channels:
 	kfree(indio_dev->channels);
-error_free:
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -529,9 +529,6 @@ static int ad5360_remove(struct spi_device *spi)
 	kfree(indio_dev->channels);
 
 	regulator_bulk_disable(st->chip_info->num_vrefs, st->vref_reg);
-	regulator_bulk_free(st->chip_info->num_vrefs, st->vref_reg);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

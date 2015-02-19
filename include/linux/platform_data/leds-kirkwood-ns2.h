@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-kirkwood/include/mach/leds-ns2.h
- *
  * Platform data structure for Network Space v2 LED driver
  *
  * This file is licensed under the terms of the GNU General Public
@@ -8,8 +6,8 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __MACH_LEDS_NS2_H
-#define __MACH_LEDS_NS2_H
+#ifndef __LEDS_KIRKWOOD_NS2_H
+#define __LEDS_KIRKWOOD_NS2_H
 
 struct ns2_led {
 	const char	*name;
@@ -23,4 +21,4 @@ struct ns2_led_platform_data {
 	struct ns2_led	*leds;
 };
 
-#endif /* __MACH_LEDS_NS2_H */
+#endif /* __LEDS_KIRKWOOD_NS2_H */

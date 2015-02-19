@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -85,6 +85,7 @@ static const struct iwl_base_params iwl6000_base_params = {
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
+	.scd_chain_ext_wa = true,
 };
 
 static const struct iwl_base_params iwl6050_base_params = {
@@ -97,6 +98,7 @@ static const struct iwl_base_params iwl6050_base_params = {
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 1024,
 	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
+	.scd_chain_ext_wa = true,
 };
 
 static const struct iwl_base_params iwl6000_g2_base_params = {
@@ -109,6 +111,7 @@ static const struct iwl_base_params iwl6000_g2_base_params = {
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
+	.scd_chain_ext_wa = true,
 };
 
 static const struct iwl_ht_params iwl6000_ht_params = {
@@ -236,6 +239,12 @@ const struct iwl_cfg iwl6030_2bg_cfg = {
 
 const struct iwl_cfg iwl6035_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6235 AGN",
+	IWL_DEVICE_6035,
+	.ht_params = &iwl6000_ht_params,
+};
+
+const struct iwl_cfg iwl6035_2agn_sff_cfg = {
+	.name = "Intel(R) Centrino(R) Ultimate-N 6235 AGN",
 	IWL_DEVICE_6035,
 	.ht_params = &iwl6000_ht_params,
 };

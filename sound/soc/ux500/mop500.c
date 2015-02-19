@@ -52,6 +52,7 @@ static struct snd_soc_dai_link mop500_dai_links[] = {
 
 static struct snd_soc_card mop500_card = {
 	.name = "MOP500-card",
+	.owner = THIS_MODULE,
 	.probe = NULL,
 	.dai_link = mop500_dai_links,
 	.num_links = ARRAY_SIZE(mop500_dai_links),
@@ -62,12 +63,8 @@ static void mop500_of_node_put(void)
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		if (mop500_dai_links[i].cpu_of_node)
-			of_node_put((struct device_node *)
-				mop500_dai_links[i].cpu_of_node);
-		if (mop500_dai_links[i].codec_of_node)
-			of_node_put((struct device_node *)
-				mop500_dai_links[i].codec_of_node);
+		of_node_put(mop500_dai_links[i].cpu_of_node);
+		of_node_put(mop500_dai_links[i].codec_of_node);
 	}
 }
 
@@ -90,6 +87,8 @@ static int mop500_of_probe(struct platform_device *pdev,
 	for (i = 0; i < 2; i++) {
 		mop500_dai_links[i].cpu_of_node = msp_np[i];
 		mop500_dai_links[i].cpu_dai_name = NULL;
+		mop500_dai_links[i].platform_of_node = msp_np[i];
+		mop500_dai_links[i].platform_name = NULL;
 		mop500_dai_links[i].codec_of_node = codec_np;
 		mop500_dai_links[i].codec_name = NULL;
 	}
@@ -156,7 +155,6 @@ static const struct of_device_id snd_soc_mop500_match[] = {
 
 static struct platform_driver snd_soc_mop500_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "snd-soc-mop500",
 		.of_match_table = snd_soc_mop500_match,
 	},

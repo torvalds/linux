@@ -164,13 +164,11 @@
 					interrupt-parent = <&mpic>;
 					interrupts = <5 1>;
 					reg = <0x2>;
-					device_type = "ethernet-phy";
 				};
 				phy1: ethernet-phy@4 {
 					interrupt-parent = <&mpic>;
 					interrupts = <5 1>;
 					reg = <0x4>;
-					device_type = "ethernet-phy";
 				};
 				tbi0: tbi-phy@11 {
 					reg = <0x11>;

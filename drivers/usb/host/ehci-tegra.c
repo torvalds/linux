@@ -17,7 +17,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk/tegra.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -25,10 +24,11 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/tegra_usb.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
@@ -38,10 +38,6 @@
 
 #include "ehci.h"
 
-#define TEGRA_USB_BASE			0xC5000000
-#define TEGRA_USB2_BASE			0xC5004000
-#define TEGRA_USB3_BASE			0xC5008000
-
 #define PORT_WAKE_BITS (PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E)
 
 #define TEGRA_USB_DMA_ALIGN 32
@@ -50,19 +46,75 @@
 #define DRV_NAME "tegra-ehci"
 
 static struct hc_driver __read_mostly tegra_ehci_hc_driver;
+static bool usb1_reset_attempted;
 
-static int (*orig_hub_control)(struct usb_hcd *hcd,
-				u16 typeReq, u16 wValue, u16 wIndex,
-				char *buf, u16 wLength);
+struct tegra_ehci_soc_config {
+	bool has_hostpc;
+};
 
 struct tegra_ehci_hcd {
 	struct tegra_usb_phy *phy;
 	struct clk *clk;
-	struct usb_phy *transceiver;
+	struct reset_control *rst;
 	int port_resuming;
 	bool needs_double_reset;
 	enum tegra_usb_phy_port_speed port_speed;
 };
+
+/*
+ * The 1st USB controller contains some UTMI pad registers that are global for
+ * all the controllers on the chip. Those registers are also cleared when
+ * reset is asserted to the 1st controller. This means that the 1st controller
+ * can only be reset when no other controlled has finished probing. So we'll
+ * reset the 1st controller before doing any other setup on any of the
+ * controllers, and then never again.
+ *
+ * Since this is a PHY issue, the Tegra PHY driver should probably be doing
+ * the resetting of the USB controllers. But to keep compatibility with old
+ * device trees that don't have reset phandles in the PHYs, do it here.
+ * Those old DTs will be vulnerable to total USB breakage if the 1st EHCI
+ * device isn't the first one to finish probing, so warn them.
+ */
+static int tegra_reset_usb_controller(struct platform_device *pdev)
+{
+	struct device_node *phy_np;
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct tegra_ehci_hcd *tegra =
+		(struct tegra_ehci_hcd *)hcd_to_ehci(hcd)->priv;
+
+	phy_np = of_parse_phandle(pdev->dev.of_node, "nvidia,phy", 0);
+	if (!phy_np)
+		return -ENOENT;
+
+	if (!usb1_reset_attempted) {
+		struct reset_control *usb1_reset;
+
+		usb1_reset = of_reset_control_get(phy_np, "usb");
+		if (IS_ERR(usb1_reset)) {
+			dev_warn(&pdev->dev,
+				 "can't get utmi-pads reset from the PHY\n");
+			dev_warn(&pdev->dev,
+				 "continuing, but please update your DT\n");
+		} else {
+			reset_control_assert(usb1_reset);
+			udelay(1);
+			reset_control_deassert(usb1_reset);
+		}
+
+		reset_control_put(usb1_reset);
+		usb1_reset_attempted = true;
+	}
+
+	if (!of_property_read_bool(phy_np, "nvidia,has-utmi-pad-registers")) {
+		reset_control_assert(tegra->rst);
+		udelay(1);
+		reset_control_deassert(tegra->rst);
+	}
+
+	of_node_put(phy_np);
+
+	return 0;
+}
 
 static int tegra_ehci_internal_port_reset(
 	struct ehci_hcd	*ehci,
@@ -154,7 +206,7 @@ static int tegra_ehci_hub_control(
 		if (tegra->port_resuming && !(temp & PORT_SUSPEND)) {
 			/* Resume completed, re-enable disconnect detection */
 			tegra->port_resuming = 0;
-			tegra_usb_phy_postresume(hcd->phy);
+			tegra_usb_phy_postresume(hcd->usb_phy);
 		}
 	}
 
@@ -207,7 +259,7 @@ static int tegra_ehci_hub_control(
 			goto done;
 
 		/* Disable disconnect detection during port resume */
-		tegra_usb_phy_preresume(hcd->phy);
+		tegra_usb_phy_preresume(hcd->usb_phy);
 
 		ehci->reset_done[wIndex-1] = jiffies + msecs_to_jiffies(25);
 
@@ -236,7 +288,7 @@ static int tegra_ehci_hub_control(
 	spin_unlock_irqrestore(&ehci->lock, flags);
 
 	/* Handle the hub control events here */
-	return orig_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+	return ehci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
 
 done:
 	spin_unlock_irqrestore(&ehci->lock, flags);
@@ -322,68 +374,52 @@ static void tegra_ehci_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 	free_dma_aligned_buffer(urb);
 }
 
-static int setup_vbus_gpio(struct platform_device *pdev,
-			   struct tegra_ehci_platform_data *pdata)
-{
-	int err = 0;
-	int gpio;
+static const struct tegra_ehci_soc_config tegra30_soc_config = {
+	.has_hostpc = true,
+};
 
-	gpio = pdata->vbus_gpio;
-	if (!gpio_is_valid(gpio))
-		gpio = of_get_named_gpio(pdev->dev.of_node,
-					 "nvidia,vbus-gpio", 0);
-	if (!gpio_is_valid(gpio))
-		return 0;
+static const struct tegra_ehci_soc_config tegra20_soc_config = {
+	.has_hostpc = false,
+};
 
-	err = gpio_request(gpio, "vbus_gpio");
-	if (err) {
-		dev_err(&pdev->dev, "can't request vbus gpio %d", gpio);
-		return err;
-	}
-	err = gpio_direction_output(gpio, 1);
-	if (err) {
-		dev_err(&pdev->dev, "can't enable vbus\n");
-		return err;
-	}
-
-	return err;
-}
+static const struct of_device_id tegra_ehci_of_match[] = {
+	{ .compatible = "nvidia,tegra30-ehci", .data = &tegra30_soc_config },
+	{ .compatible = "nvidia,tegra20-ehci", .data = &tegra20_soc_config },
+	{ },
+};
 
 static int tegra_ehci_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
+	const struct tegra_ehci_soc_config *soc_config;
 	struct resource *res;
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
 	struct tegra_ehci_hcd *tegra;
-	struct tegra_ehci_platform_data *pdata;
 	int err = 0;
 	int irq;
-	struct device_node *np_phy;
 	struct usb_phy *u_phy;
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		dev_err(&pdev->dev, "Platform data missing\n");
-		return -EINVAL;
+	match = of_match_device(tegra_ehci_of_match, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
 	}
+	soc_config = match->data;
 
 	/* Right now device-tree probed devices don't get dma_mask set.
 	 * Since shared usb code relies on it, set it here for now.
 	 * Once we have dma capability bindings this can go away.
 	 */
-	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	if (!pdev->dev.coherent_dma_mask)
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-
-	setup_vbus_gpio(pdev, pdata);
+	err = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (err)
+		return err;
 
 	hcd = usb_create_hcd(&tegra_ehci_hc_driver, &pdev->dev,
 					dev_name(&pdev->dev));
 	if (!hcd) {
 		dev_err(&pdev->dev, "Unable to create HCD\n");
-		err = -ENOMEM;
-		goto cleanup_vbus_gpio;
+		return -ENOMEM;
 	}
 	platform_set_drvdata(pdev, hcd);
 	ehci = hcd_to_ehci(hcd);
@@ -398,47 +434,44 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto cleanup_hcd_create;
 	}
 
+	tegra->rst = devm_reset_control_get(&pdev->dev, "usb");
+	if (IS_ERR(tegra->rst)) {
+		dev_err(&pdev->dev, "Can't get ehci reset\n");
+		err = PTR_ERR(tegra->rst);
+		goto cleanup_hcd_create;
+	}
+
 	err = clk_prepare_enable(tegra->clk);
 	if (err)
-		goto cleanup_clk_get;
+		goto cleanup_hcd_create;
 
-	tegra_periph_reset_assert(tegra->clk);
-	udelay(1);
-	tegra_periph_reset_deassert(tegra->clk);
-
-	np_phy = of_parse_phandle(pdev->dev.of_node, "nvidia,phy", 0);
-	if (!np_phy) {
-		err = -ENODEV;
+	err = tegra_reset_usb_controller(pdev);
+	if (err)
 		goto cleanup_clk_en;
-	}
 
-	u_phy = tegra_usb_get_phy(np_phy);
+	u_phy = devm_usb_get_phy_by_phandle(&pdev->dev, "nvidia,phy", 0);
 	if (IS_ERR(u_phy)) {
-		err = PTR_ERR(u_phy);
+		err = -EPROBE_DEFER;
 		goto cleanup_clk_en;
 	}
-	hcd->phy = u_phy;
+	hcd->usb_phy = u_phy;
 
 	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
 		"nvidia,needs-double-reset");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get I/O memory\n");
-		err = -ENXIO;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		err = PTR_ERR(hcd->regs);
 		goto cleanup_clk_en;
 	}
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!hcd->regs) {
-		dev_err(&pdev->dev, "Failed to remap I/O memory\n");
-		err = -ENOMEM;
-		goto cleanup_clk_en;
-	}
-	ehci->caps = hcd->regs + 0x100;
 
-	err = usb_phy_init(hcd->phy);
+	ehci->caps = hcd->regs + 0x100;
+	ehci->has_hostpc = soc_config->has_hostpc;
+
+	err = usb_phy_init(hcd->usb_phy);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to initialize phy\n");
 		goto cleanup_clk_en;
@@ -447,13 +480,12 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	u_phy->otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 			     GFP_KERNEL);
 	if (!u_phy->otg) {
-		dev_err(&pdev->dev, "Failed to alloc memory for otg\n");
 		err = -ENOMEM;
 		goto cleanup_phy;
 	}
 	u_phy->otg->host = hcd_to_bus(hcd);
 
-	err = usb_phy_set_suspend(hcd->phy, 0);
+	err = usb_phy_set_suspend(hcd->usb_phy, 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to power on the phy\n");
 		goto cleanup_phy;
@@ -466,36 +498,25 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto cleanup_phy;
 	}
 
-	if (pdata->operating_mode == TEGRA_USB_OTG) {
-		tegra->transceiver =
-			devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
-		if (!IS_ERR(tegra->transceiver))
-			otg_set_host(tegra->transceiver->otg, &hcd->self);
-	} else {
-		tegra->transceiver = ERR_PTR(-ENODEV);
-	}
+	otg_set_host(u_phy->otg, &hcd->self);
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
-		goto cleanup_transceiver;
+		goto cleanup_otg_set_host;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return err;
 
-cleanup_transceiver:
-	if (!IS_ERR(tegra->transceiver))
-		otg_set_host(tegra->transceiver->otg, NULL);
+cleanup_otg_set_host:
+	otg_set_host(u_phy->otg, NULL);
 cleanup_phy:
-	usb_phy_shutdown(hcd->phy);
+	usb_phy_shutdown(hcd->usb_phy);
 cleanup_clk_en:
 	clk_disable_unprepare(tegra->clk);
-cleanup_clk_get:
-	clk_put(tegra->clk);
 cleanup_hcd_create:
 	usb_put_hcd(hcd);
-cleanup_vbus_gpio:
-	/* FIXME: Undo setup_vbus_gpio() here */
 	return err;
 }
 
@@ -505,14 +526,14 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	struct tegra_ehci_hcd *tegra =
 		(struct tegra_ehci_hcd *)hcd_to_ehci(hcd)->priv;
 
-	if (!IS_ERR(tegra->transceiver))
-		otg_set_host(tegra->transceiver->otg, NULL);
+	otg_set_host(hcd->usb_phy->otg, NULL);
 
-	usb_phy_shutdown(hcd->phy);
+	usb_phy_shutdown(hcd->usb_phy);
 	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
 
 	clk_disable_unprepare(tegra->clk);
+
+	usb_put_hcd(hcd);
 
 	return 0;
 }
@@ -525,11 +546,6 @@ static void tegra_ehci_hcd_shutdown(struct platform_device *pdev)
 		hcd->driver->shutdown(hcd);
 }
 
-static struct of_device_id tegra_ehci_of_match[] = {
-	{ .compatible = "nvidia,tegra20-ehci", },
-	{ },
-};
-
 static struct platform_driver tegra_ehci_driver = {
 	.probe		= tegra_ehci_probe,
 	.remove		= tegra_ehci_remove,
@@ -540,8 +556,31 @@ static struct platform_driver tegra_ehci_driver = {
 	}
 };
 
+static int tegra_ehci_reset(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	int retval;
+	int txfifothresh;
+
+	retval = ehci_setup(hcd);
+	if (retval)
+		return retval;
+
+	/*
+	 * We should really pull this value out of tegra_ehci_soc_config, but
+	 * to avoid needing access to it, make use of the fact that Tegra20 is
+	 * the only one so far that needs a value of 10, and Tegra20 is the
+	 * only one which doesn't set has_hostpc.
+	 */
+	txfifothresh = ehci->has_hostpc ? 0x10 : 10;
+	ehci_writel(ehci, txfifothresh << 16, &ehci->regs->txfill_tuning);
+
+	return 0;
+}
+
 static const struct ehci_driver_overrides tegra_overrides __initconst = {
 	.extra_priv_size	= sizeof(struct tegra_ehci_hcd),
+	.reset			= tegra_ehci_reset,
 };
 
 static int __init ehci_tegra_init(void)
@@ -561,8 +600,6 @@ static int __init ehci_tegra_init(void)
 	 * want to encourage others to override these functions by making it
 	 * too easy.
 	 */
-
-	orig_hub_control = tegra_ehci_hc_driver.hub_control;
 
 	tegra_ehci_hc_driver.map_urb_for_dma = tegra_ehci_map_urb_for_dma;
 	tegra_ehci_hc_driver.unmap_urb_for_dma = tegra_ehci_unmap_urb_for_dma;

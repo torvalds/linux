@@ -22,8 +22,9 @@ menuconfig NET_SCHED
 	  This code is considered to be experimental.
 
 	  To administer these schedulers, you'll need the user-level utilities
-	  from the package iproute2+tc at <ftp://ftp.tux.org/pub/net/ip-routing/>.
-	  That package also contains some documentation; for more, check out
+	  from the package iproute2+tc at
+	  <https://www.kernel.org/pub/linux/utils/net/iproute2/>.  That package
+	  also contains some documentation; for more, check out
 	  <http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2>.
 
 	  This Quality of Service (QoS) support will enable you to use
@@ -272,6 +273,42 @@ config NET_SCH_FQ_CODEL
 
 	  If unsure, say N.
 
+config NET_SCH_FQ
+	tristate "Fair Queue"
+	help
+	  Say Y here if you want to use the FQ packet scheduling algorithm.
+
+	  FQ does flow separation, and is able to respect pacing requirements
+	  set by TCP stack into sk->sk_pacing_rate (for localy generated
+	  traffic)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_fq.
+
+	  If unsure, say N.
+
+config NET_SCH_HHF
+	tristate "Heavy-Hitter Filter (HHF)"
+	help
+	  Say Y here if you want to use the Heavy-Hitter Filter (HHF)
+	  packet scheduling algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_hhf.
+
+config NET_SCH_PIE
+	tristate "Proportional Integral controller Enhanced (PIE) scheduler"
+	help
+	  Say Y here if you want to use the Proportional Integral controller
+	  Enhanced scheduler packet scheduling algorithm.
+	  For more information, please see
+	  http://tools.ietf.org/html/draft-pan-tsvwg-pie-00
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_pie.
+
+	  If unsure, say N.
+
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
 	depends on NET_CLS_ACT
@@ -300,7 +337,7 @@ config NET_SCH_PLUG
 	  of virtual machines by allowing the generated network output to be rolled
 	  back if needed.
 
-	  For more information, please refer to http://wiki.xensource.com/xenwiki/Remus
+	  For more information, please refer to <http://wiki.xenproject.org/wiki/Remus>
 
 	  Say Y here if you are using this kernel for Xen dom0 and
 	  want to protect Xen guests with Remus.
@@ -311,7 +348,7 @@ config NET_SCH_PLUG
 comment "Classification"
 
 config NET_CLS
-	boolean
+	bool
 
 config NET_CLS_BASIC
 	tristate "Elementary classification (BASIC)"
@@ -421,6 +458,7 @@ config NET_CLS_FLOW
 config NET_CLS_CGROUP
 	tristate "Control Group Classifier"
 	select NET_CLS
+	select CGROUP_NET_CLASSID
 	depends on CGROUPS
 	---help---
 	  Say Y here if you want to classify packets based on the control
@@ -428,6 +466,16 @@ config NET_CLS_CGROUP
 
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_cgroup.
+
+config NET_CLS_BPF
+	tristate "BPF-based classifier"
+	select NET_CLS
+	---help---
+	  If you say Y here, you will be able to classify packets based on
+	  programmable BPF (JIT'ed) filters as an alternative to ematches.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cls_bpf.
 
 config NET_EMATCH
 	bool "Extended Matches"
@@ -638,6 +686,41 @@ config NET_ACT_CSUM
 
 	  To compile this code as a module, choose M here: the
 	  module will be called act_csum.
+
+config NET_ACT_VLAN
+        tristate "Vlan manipulation"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to push or pop vlan headers.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_vlan.
+
+config NET_ACT_BPF
+        tristate "BPF based action"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to execute BPF code on packets. The BPF code will decide
+	  if the packet should be dropped or not.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_bpf.
+
+config NET_ACT_CONNMARK
+        tristate "Netfilter Connection Mark Retriever"
+        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+        depends on NF_CONNTRACK && NF_CONNTRACK_MARK
+        ---help---
+	  Say Y here to allow retrieving of conn mark
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_connmark.
 
 config NET_CLS_IND
 	bool "Incoming device classification"

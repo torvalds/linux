@@ -36,14 +36,13 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/libcfs/libcfs_crypto.h>
-#include <linux/lnet/lib-lnet.h>
-#include <linux/lnet/lnet.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/libcfs/libcfs_crypto.h"
+#include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lnet.h"
 #include "tracefile.h"
 
-void
-kportal_memhog_free (struct libcfs_device_userstate *ldu)
+static void kportal_memhog_free (struct libcfs_device_userstate *ldu)
 {
 	struct page **level0p = &ldu->ldu_memhog_root_page;
 	struct page **level1p;
@@ -86,8 +85,8 @@ kportal_memhog_free (struct libcfs_device_userstate *ldu)
 	LASSERT (ldu->ldu_memhog_pages == 0);
 }
 
-int
-kportal_memhog_alloc (struct libcfs_device_userstate *ldu, int npages, int flags)
+static int kportal_memhog_alloc(struct libcfs_device_userstate *ldu, int npages,
+		     gfp_t flags)
 {
 	struct page **level0p;
 	struct page **level1p;
@@ -118,7 +117,7 @@ kportal_memhog_alloc (struct libcfs_device_userstate *ldu, int npages, int flags
 	       count1 < PAGE_CACHE_SIZE/sizeof(struct page *)) {
 
 		if (cfs_signal_pending())
-			return (-EINTR);
+			return -EINTR;
 
 		*level1p = alloc_page(flags);
 		if (*level1p == NULL)
@@ -133,11 +132,11 @@ kportal_memhog_alloc (struct libcfs_device_userstate *ldu, int npages, int flags
 		       count2 < PAGE_CACHE_SIZE/sizeof(struct page *)) {
 
 			if (cfs_signal_pending())
-				return (-EINTR);
+				return -EINTR;
 
 			*level2p = alloc_page(flags);
 			if (*level2p == NULL)
-				return (-ENOMEM);
+				return -ENOMEM;
 			ldu->ldu_memhog_pages++;
 
 			level2p++;
@@ -155,7 +154,6 @@ kportal_memhog_alloc (struct libcfs_device_userstate *ldu, int npages, int flags
 static int libcfs_psdev_open(unsigned long flags, void *args)
 {
 	struct libcfs_device_userstate *ldu;
-	ENTRY;
 
 	try_module_get(THIS_MODULE);
 
@@ -166,14 +164,13 @@ static int libcfs_psdev_open(unsigned long flags, void *args)
 	}
 	*(struct libcfs_device_userstate **)args = ldu;
 
-	RETURN(0);
+	return 0;
 }
 
 /* called when closing /dev/device */
 static int libcfs_psdev_release(unsigned long flags, void *args)
 {
 	struct libcfs_device_userstate *ldu;
-	ENTRY;
 
 	ldu = (struct libcfs_device_userstate *)args;
 	if (ldu != NULL) {
@@ -182,7 +179,7 @@ static int libcfs_psdev_release(unsigned long flags, void *args)
 	}
 
 	module_put(THIS_MODULE);
-	RETURN(0);
+	return 0;
 }
 
 static struct rw_semaphore ioctl_list_sem;
@@ -218,16 +215,15 @@ int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand)
 }
 EXPORT_SYMBOL(libcfs_deregister_ioctl);
 
-static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
+static int libcfs_ioctl_int(struct cfs_psdev_file *pfile, unsigned long cmd,
 			    void *arg, struct libcfs_ioctl_data *data)
 {
 	int err = -EINVAL;
-	ENTRY;
 
 	switch (cmd) {
 	case IOC_LIBCFS_CLEAR_DEBUG:
 		libcfs_debug_clear_buffer();
-		RETURN(0);
+		return 0;
 	/*
 	 * case IOC_LIBCFS_PANIC:
 	 * Handled in arch/cfs_module.c
@@ -235,44 +231,9 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 	case IOC_LIBCFS_MARK_DEBUG:
 		if (data->ioc_inlbuf1 == NULL ||
 		    data->ioc_inlbuf1[data->ioc_inllen1 - 1] != '\0')
-			RETURN(-EINVAL);
+			return -EINVAL;
 		libcfs_debug_mark_buffer(data->ioc_inlbuf1);
-		RETURN(0);
-#if LWT_SUPPORT
-	case IOC_LIBCFS_LWT_CONTROL:
-		err = lwt_control ((data->ioc_flags & 1) != 0,
-				   (data->ioc_flags & 2) != 0);
-		break;
-
-	case IOC_LIBCFS_LWT_SNAPSHOT: {
-		cfs_cycles_t   now;
-		int	    ncpu;
-		int	    total_size;
-
-		err = lwt_snapshot (&now, &ncpu, &total_size,
-				    data->ioc_pbuf1, data->ioc_plen1);
-		data->ioc_u64[0] = now;
-		data->ioc_u32[0] = ncpu;
-		data->ioc_u32[1] = total_size;
-
-		/* Hedge against broken user/kernel typedefs (e.g. cycles_t) */
-		data->ioc_u32[2] = sizeof(lwt_event_t);
-		data->ioc_u32[3] = offsetof(lwt_event_t, lwte_where);
-
-		if (err == 0 &&
-		    libcfs_ioctl_popdata(arg, data, sizeof (*data)))
-			err = -EFAULT;
-		break;
-	}
-
-	case IOC_LIBCFS_LWT_LOOKUP_STRING:
-		err = lwt_lookup_string (&data->ioc_count, data->ioc_pbuf1,
-					 data->ioc_pbuf2, data->ioc_plen2);
-		if (err == 0 &&
-		    libcfs_ioctl_popdata(arg, data, sizeof (*data)))
-			err = -EFAULT;
-		break;
-#endif
+		return 0;
 	case IOC_LIBCFS_MEMHOG:
 		if (pfile->private_data == NULL) {
 			err = -EINVAL;
@@ -301,7 +262,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 			ping(data);
 			symbol_put(kping_client);
 		}
-		RETURN(0);
+		return 0;
 	}
 
 	default: {
@@ -322,7 +283,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 	}
 	}
 
-	RETURN(err);
+	return err;
 }
 
 static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *arg)
@@ -330,16 +291,16 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 	char    *buf;
 	struct libcfs_ioctl_data *data;
 	int err = 0;
-	ENTRY;
 
 	LIBCFS_ALLOC_GFP(buf, 1024, GFP_IOFS);
 	if (buf == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	/* 'cmd' and permissions get checked in our arch-specific caller */
 	if (libcfs_ioctl_getdata(buf, buf + 800, (void *)arg)) {
 		CERROR("PORTALS ioctl: data error\n");
-		GOTO(out, err = -EINVAL);
+		err = -EINVAL;
+		goto out;
 	}
 	data = (struct libcfs_ioctl_data *)buf;
 
@@ -347,7 +308,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 
 out:
 	LIBCFS_FREE(buf, 1024);
-	RETURN(err);
+	return err;
 }
 
 
@@ -365,14 +326,12 @@ MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
 MODULE_DESCRIPTION("Portals v3.1");
 MODULE_LICENSE("GPL");
 
-extern psdev_t libcfs_dev;
+extern struct miscdevice libcfs_dev;
 extern struct rw_semaphore cfs_tracefile_sem;
 extern struct mutex cfs_trace_thread_mutex;
 extern struct cfs_wi_sched *cfs_sched_rehash;
 
 extern void libcfs_init_nidstrings(void);
-extern int libcfs_arch_init(void);
-extern void libcfs_arch_cleanup(void);
 
 static int init_libcfs_module(void)
 {
@@ -389,24 +348,17 @@ static int init_libcfs_module(void)
 	rc = libcfs_debug_init(5 * 1024 * 1024);
 	if (rc < 0) {
 		printk(KERN_ERR "LustreError: libcfs_debug_init: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	rc = cfs_cpu_init();
 	if (rc != 0)
 		goto cleanup_debug;
 
-#if LWT_SUPPORT
-	rc = lwt_init();
-	if (rc != 0) {
-		CERROR("lwt_init: error %d\n", rc);
-		goto cleanup_debug;
-	}
-#endif
 	rc = misc_register(&libcfs_dev);
 	if (rc) {
 		CERROR("misc_register: error %d\n", rc);
-		goto cleanup_lwt;
+		goto cleanup_cpu;
 	}
 
 	rc = cfs_wi_startup();
@@ -426,7 +378,7 @@ static int init_libcfs_module(void)
 
 	rc = cfs_crypto_register();
 	if (rc) {
-		CERROR("cfs_crypto_regster: error %d\n", rc);
+		CERROR("cfs_crypto_register: error %d\n", rc);
 		goto cleanup_wi;
 	}
 
@@ -445,10 +397,8 @@ static int init_libcfs_module(void)
 	cfs_wi_shutdown();
  cleanup_deregister:
 	misc_deregister(&libcfs_dev);
- cleanup_lwt:
-#if LWT_SUPPORT
-	lwt_fini();
-#endif
+cleanup_cpu:
+	cfs_cpu_fini();
  cleanup_debug:
 	libcfs_debug_cleanup();
 	return rc;
@@ -475,9 +425,6 @@ static void exit_libcfs_module(void)
 	if (rc)
 		CERROR("misc_deregister error %d\n", rc);
 
-#if LWT_SUPPORT
-	lwt_fini();
-#endif
 	cfs_cpu_fini();
 
 	if (atomic_read(&libcfs_kmemory) != 0)
@@ -489,10 +436,9 @@ static void exit_libcfs_module(void)
 		printk(KERN_ERR "LustreError: libcfs_debug_cleanup: %d\n",
 		       rc);
 
-	fini_rwsem(&ioctl_list_sem);
-	fini_rwsem(&cfs_tracefile_sem);
-
 	libcfs_arch_cleanup();
 }
 
-cfs_module(libcfs, "1.0.0", init_libcfs_module, exit_libcfs_module);
+MODULE_VERSION("1.0.0");
+module_init(init_libcfs_module);
+module_exit(exit_libcfs_module);

@@ -30,6 +30,7 @@
 
 #include <asm/octeon/octeon.h>
 
+#include "ethernet-mem.h"
 #include "ethernet-defines.h"
 
 #include <asm/octeon/cvmx-fpa.h>
@@ -45,16 +46,12 @@
 static int cvm_oct_fill_hw_skbuff(int pool, int size, int elements)
 {
 	int freed = elements;
+
 	while (freed) {
-
 		struct sk_buff *skb = dev_alloc_skb(size + 256);
-		if (unlikely(skb == NULL)) {
-			pr_warning
-			    ("Failed to allocate skb for hardware pool %d\n",
-			     pool);
-			break;
-		}
 
+		if (unlikely(skb == NULL))
+			break;
 		skb_reserve(skb, 256 - (((unsigned long)skb->data) & 0x7f));
 		*(struct sk_buff **)(skb->data - sizeof(void *)) = skb;
 		cvmx_fpa_free(skb->data, pool, DONT_WRITEBACK(size / 128));
@@ -84,11 +81,11 @@ static void cvm_oct_free_hw_skbuff(int pool, int size, int elements)
 	} while (memory);
 
 	if (elements < 0)
-		pr_warning("Freeing of pool %u had too many skbuffs (%d)\n",
-		     pool, elements);
+		pr_warn("Freeing of pool %u had too many skbuffs (%d)\n",
+			pool, elements);
 	else if (elements > 0)
-		pr_warning("Freeing of pool %u is missing %d skbuffs\n",
-		       pool, elements);
+		pr_warn("Freeing of pool %u is missing %d skbuffs\n",
+			pool, elements);
 }
 
 /**
@@ -118,8 +115,8 @@ static int cvm_oct_fill_hw_memory(int pool, int size, int elements)
 		 */
 		memory = kmalloc(size + 256, GFP_ATOMIC);
 		if (unlikely(memory == NULL)) {
-			pr_warning("Unable to allocate %u bytes for FPA pool %d\n",
-				   elements * size, pool);
+			pr_warn("Unable to allocate %u bytes for FPA pool %d\n",
+				elements * size, pool);
 			break;
 		}
 		fpa = (char *)(((unsigned long)memory + 256) & ~0x7fUL);
@@ -140,6 +137,7 @@ static void cvm_oct_free_hw_memory(int pool, int size, int elements)
 {
 	char *memory;
 	char *fpa;
+
 	do {
 		fpa = cvmx_fpa_alloc(pool);
 		if (fpa) {
@@ -151,16 +149,17 @@ static void cvm_oct_free_hw_memory(int pool, int size, int elements)
 	} while (fpa);
 
 	if (elements < 0)
-		pr_warning("Freeing of pool %u had too many buffers (%d)\n",
+		pr_warn("Freeing of pool %u had too many buffers (%d)\n",
 			pool, elements);
 	else if (elements > 0)
-		pr_warning("Warning: Freeing of pool %u is missing %d buffers\n",
+		pr_warn("Warning: Freeing of pool %u is missing %d buffers\n",
 			pool, elements);
 }
 
 int cvm_oct_mem_fill_fpa(int pool, int size, int elements)
 {
 	int freed;
+
 	if (USE_SKBUFFS_IN_HW && pool == CVMX_FPA_PACKET_POOL)
 		freed = cvm_oct_fill_hw_skbuff(pool, size, elements);
 	else

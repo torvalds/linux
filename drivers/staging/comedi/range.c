@@ -1,20 +1,20 @@
 /*
-    module/range.c
-    comedi routines for voltage ranges
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * comedi/range.c
+ * comedi routines for voltage ranges
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 #include <linux/uaccess.h>
 #include "comedidev.h"
@@ -42,18 +42,18 @@ const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none} } };
 EXPORT_SYMBOL_GPL(range_unknown);
 
 /*
-	COMEDI_RANGEINFO
-	range information ioctl
-
-	arg:
-		pointer to rangeinfo structure
-
-	reads:
-		range info structure
-
-	writes:
-		n struct comedi_krange structures to rangeinfo->range_ptr
-*/
+ * COMEDI_RANGEINFO ioctl
+ * range information
+ *
+ * arg:
+ *	pointer to comedi_rangeinfo structure
+ *
+ * reads:
+ *	comedi_rangeinfo structure
+ *
+ * writes:
+ *	array of comedi_krange structures to rangeinfo->range_ptr pointer
+ */
 int do_rangeinfo_ioctl(struct comedi_device *dev,
 		       struct comedi_rangeinfo __user *arg)
 {
@@ -83,8 +83,10 @@ int do_rangeinfo_ioctl(struct comedi_device *dev,
 	}
 
 	if (RANGE_LENGTH(it.range_type) != lr->length) {
-		DPRINTK("wrong length %d should be %d (0x%08x)\n",
-			RANGE_LENGTH(it.range_type), lr->length, it.range_type);
+		dev_dbg(dev->class_dev,
+			"wrong length %d should be %d (0x%08x)\n",
+			RANGE_LENGTH(it.range_type),
+			lr->length, it.range_type);
 		return -EINVAL;
 	}
 
@@ -95,76 +97,35 @@ int do_rangeinfo_ioctl(struct comedi_device *dev,
 	return 0;
 }
 
-static int aref_invalid(struct comedi_subdevice *s, unsigned int chanspec)
-{
-	unsigned int aref;
-
-	/*  disable reporting invalid arefs... maybe someday */
-	return 0;
-
-	aref = CR_AREF(chanspec);
-	switch (aref) {
-	case AREF_DIFF:
-		if (s->subdev_flags & SDF_DIFF)
-			return 0;
-		break;
-	case AREF_COMMON:
-		if (s->subdev_flags & SDF_COMMON)
-			return 0;
-		break;
-	case AREF_GROUND:
-		if (s->subdev_flags & SDF_GROUND)
-			return 0;
-		break;
-	case AREF_OTHER:
-		if (s->subdev_flags & SDF_OTHER)
-			return 0;
-		break;
-	default:
-		break;
-	}
-	DPRINTK("subdevice does not support aref %i", aref);
-	return 1;
-}
-
-/*
-   This function checks each element in a channel/gain list to make
-   make sure it is valid.
+/**
+ * comedi_check_chanlist() - Validate each element in a chanlist.
+ * @s: comedi_subdevice struct
+ * @n: number of elements in the chanlist
+ * @chanlist: the chanlist to validate
 */
 int comedi_check_chanlist(struct comedi_subdevice *s, int n,
 			  unsigned int *chanlist)
 {
 	struct comedi_device *dev = s->device;
-	int i;
-	int chan;
+	unsigned int chanspec;
+	int chan, range_len, i;
 
-	if (s->range_table) {
-		for (i = 0; i < n; i++)
-			if (CR_CHAN(chanlist[i]) >= s->n_chan ||
-			    CR_RANGE(chanlist[i]) >= s->range_table->length
-			    || aref_invalid(s, chanlist[i])) {
-				dev_warn(dev->class_dev,
-					 "bad chanlist[%d]=0x%08x in_chan=%d range length=%d\n",
-					 i, chanlist[i], s->n_chan,
-					 s->range_table->length);
-				return -EINVAL;
-			}
-	} else if (s->range_table_list) {
-		for (i = 0; i < n; i++) {
-			chan = CR_CHAN(chanlist[i]);
-			if (chan >= s->n_chan ||
-			    CR_RANGE(chanlist[i]) >=
-			    s->range_table_list[chan]->length
-			    || aref_invalid(s, chanlist[i])) {
-				dev_warn(dev->class_dev,
-					 "bad chanlist[%d]=0x%08x\n",
-					 i, chanlist[i]);
-				return -EINVAL;
-			}
+	for (i = 0; i < n; i++) {
+		chanspec = chanlist[i];
+		chan = CR_CHAN(chanspec);
+		if (s->range_table)
+			range_len = s->range_table->length;
+		else if (s->range_table_list && chan < s->n_chan)
+			range_len = s->range_table_list[chan]->length;
+		else
+			range_len = 0;
+		if (chan >= s->n_chan ||
+		    CR_RANGE(chanspec) >= range_len) {
+			dev_warn(dev->class_dev,
+				 "bad chanlist[%d]=0x%08x chan=%d range length=%d\n",
+				 i, chanspec, chan, range_len);
+			return -EINVAL;
 		}
-	} else {
-		dev_err(dev->class_dev, "(bug) no range type list!\n");
-		return -EINVAL;
 	}
 	return 0;
 }

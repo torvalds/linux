@@ -41,11 +41,10 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 #include <asm/div64.h>
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_class.h>
-#include <obd_lov.h>
-#include <lustre/lustre_idl.h>
+#include "../include/obd_class.h"
+#include "../include/lustre/lustre_idl.h"
 
 #include "lov_internal.h"
 
@@ -57,7 +56,7 @@ struct lovea_unpack_args {
 static int lsm_lmm_verify_common(struct lov_mds_md *lmm, int lmm_bytes,
 				 __u16 stripe_count)
 {
-	if (stripe_count == 0 || stripe_count > LOV_V1_INSANE_STRIPE_COUNT) {
+	if (stripe_count > LOV_V1_INSANE_STRIPE_COUNT) {
 		CERROR("bad stripe count %d\n", stripe_count);
 		lov_dump_lmm_common(D_WARNING, lmm);
 		return -EINVAL;
@@ -69,7 +68,7 @@ static int lsm_lmm_verify_common(struct lov_mds_md *lmm, int lmm_bytes,
 		return -EINVAL;
 	}
 
-	if (lmm->lmm_pattern != cpu_to_le32(LOV_PATTERN_RAID0)) {
+	if (lov_pattern(le32_to_cpu(lmm->lmm_pattern)) != LOV_PATTERN_RAID0) {
 		CERROR("bad striping pattern\n");
 		lov_dump_lmm_common(D_WARNING, lmm);
 		return -EINVAL;
@@ -98,10 +97,10 @@ struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
 
 	OBD_ALLOC_LARGE(lsm, *size);
 	if (!lsm)
-		return NULL;;
+		return NULL;
 
 	for (i = 0; i < stripe_count; i++) {
-		OBD_SLAB_ALLOC_PTR_GFP(loi, lov_oinfo_slab, __GFP_IO);
+		OBD_SLAB_ALLOC_PTR_GFP(loi, lov_oinfo_slab, GFP_NOFS);
 		if (loi == NULL)
 			goto err;
 		lsm->lsm_oinfo[i] = loi;
@@ -144,18 +143,18 @@ static void lsm_unpackmd_common(struct lov_stripe_md *lsm,
 
 static void
 lsm_stripe_by_index_plain(struct lov_stripe_md *lsm, int *stripeno,
-			   obd_off *lov_off, obd_off *swidth)
+			   u64 *lov_off, u64 *swidth)
 {
 	if (swidth)
-		*swidth = (obd_off)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
+		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
 }
 
 static void
 lsm_stripe_by_offset_plain(struct lov_stripe_md *lsm, int *stripeno,
-			   obd_off *lov_off, obd_off *swidth)
+			   u64 *lov_off, u64 *swidth)
 {
 	if (swidth)
-		*swidth = (obd_off)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
+		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
 }
 
 static int lsm_destroy_plain(struct lov_stripe_md *lsm, struct obdo *oa,
@@ -197,6 +196,8 @@ static int lsm_lmm_verify_v1(struct lov_mds_md_v1 *lmm, int lmm_bytes,
 	}
 
 	*stripe_count = le16_to_cpu(lmm->lmm_stripe_count);
+	if (le32_to_cpu(lmm->lmm_pattern) & LOV_PATTERN_F_RELEASED)
+		*stripe_count = 0;
 
 	if (lmm_bytes < lov_mds_md_size(*stripe_count, LOV_MAGIC_V1)) {
 		CERROR("LOV EA V1 too small: %d, need %d\n",
@@ -213,11 +214,14 @@ int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
 {
 	struct lov_oinfo *loi;
 	int i;
+	int stripe_count;
 	__u64 stripe_maxbytes = OBD_OBJECT_EOF;
 
 	lsm_unpackmd_common(lsm, lmm);
 
-	for (i = 0; i < lsm->lsm_stripe_count; i++) {
+	stripe_count = lsm_is_released(lsm) ? 0 : lsm->lsm_stripe_count;
+
+	for (i = 0; i < stripe_count; i++) {
 		/* XXX LOV STACKING call down to osc_unpackmd() */
 		loi = lsm->lsm_oinfo[i];
 		ostid_le_to_cpu(&lmm->lmm_objects[i].l_ost_oi, &loi->loi_oi);
@@ -240,6 +244,8 @@ int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
 	}
 
 	lsm->lsm_maxbytes = stripe_maxbytes * lsm->lsm_stripe_count;
+	if (lsm->lsm_stripe_count == 0)
+		lsm->lsm_maxbytes = stripe_maxbytes * lov->desc.ld_tgt_count;
 
 	return 0;
 }
@@ -267,6 +273,8 @@ static int lsm_lmm_verify_v3(struct lov_mds_md *lmmv1, int lmm_bytes,
 	}
 
 	*stripe_count = le16_to_cpu(lmm->lmm_stripe_count);
+	if (le32_to_cpu(lmm->lmm_pattern) & LOV_PATTERN_F_RELEASED)
+		*stripe_count = 0;
 
 	if (lmm_bytes < lov_mds_md_size(*stripe_count, LOV_MAGIC_V3)) {
 		CERROR("LOV EA V3 too small: %d, need %d\n",
@@ -285,18 +293,22 @@ int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
 	struct lov_mds_md_v3 *lmm;
 	struct lov_oinfo *loi;
 	int i;
+	int stripe_count;
 	__u64 stripe_maxbytes = OBD_OBJECT_EOF;
 	int cplen = 0;
 
 	lmm = (struct lov_mds_md_v3 *)lmmv1;
 
 	lsm_unpackmd_common(lsm, (struct lov_mds_md_v1 *)lmm);
+
+	stripe_count = lsm_is_released(lsm) ? 0 : lsm->lsm_stripe_count;
+
 	cplen = strlcpy(lsm->lsm_pool_name, lmm->lmm_pool_name,
 			sizeof(lsm->lsm_pool_name));
 	if (cplen >= sizeof(lsm->lsm_pool_name))
 		return -E2BIG;
 
-	for (i = 0; i < lsm->lsm_stripe_count; i++) {
+	for (i = 0; i < stripe_count; i++) {
 		/* XXX LOV STACKING call down to osc_unpackmd() */
 		loi = lsm->lsm_oinfo[i];
 		ostid_le_to_cpu(&lmm->lmm_objects[i].l_ost_oi, &loi->loi_oi);
@@ -319,6 +331,8 @@ int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
 	}
 
 	lsm->lsm_maxbytes = stripe_maxbytes * lsm->lsm_stripe_count;
+	if (lsm->lsm_stripe_count == 0)
+		lsm->lsm_maxbytes = stripe_maxbytes * lov->desc.ld_tgt_count;
 
 	return 0;
 }
@@ -331,3 +345,13 @@ const struct lsm_operations lsm_v3_ops = {
 	.lsm_lmm_verify	 = lsm_lmm_verify_v3,
 	.lsm_unpackmd	   = lsm_unpackmd_v3,
 };
+
+void dump_lsm(unsigned int level, const struct lov_stripe_md *lsm)
+{
+	CDEBUG(level, "lsm %p, objid " DOSTID ", maxbytes %#llx, magic 0x%08X, stripe_size %u, stripe_count %u, refc: %d, layout_gen %u, pool [" LOV_POOLNAMEF "]\n",
+	       lsm,
+	       POSTID(&lsm->lsm_oi), lsm->lsm_maxbytes, lsm->lsm_magic,
+	       lsm->lsm_stripe_size, lsm->lsm_stripe_count,
+	       atomic_read(&lsm->lsm_refc), lsm->lsm_layout_gen,
+	       lsm->lsm_pool_name);
+}

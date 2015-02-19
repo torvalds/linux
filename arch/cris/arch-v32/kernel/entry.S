@@ -424,7 +424,7 @@ nmi_interrupt:
 	bpl     1f
 	nop
 	jsr	handle_watchdog_bite	; In time.c.
-        move.d	$sp, $r10		; Pointer to registers
+	move.d	$sp, $r10		; Pointer to registers
 1:	btstq	REG_BIT(intr_vect, r_nmi, ext), $r0
 	bpl     1f
 	nop
@@ -452,7 +452,7 @@ spurious_interrupt:
 	nop
 
 	;; This handles the case when multiple interrupts arrive at the same
-	;; time. Jump to the first set interrupt bit in a priotiry fashion. The
+	;; time. Jump to the first set interrupt bit in a priority fashion. The
 	;; hardware will call the unserved interrupts after the handler
 	;; finishes.
 	.type	multiple_interrupt, @function
@@ -885,13 +885,29 @@ sys_call_table:
 	.long sys_preadv
 	.long sys_pwritev
 	.long sys_setns			/* 335 */
+	.long sys_name_to_handle_at
+	.long sys_open_by_handle_at
+	.long sys_rt_tgsigqueueinfo
+	.long sys_perf_event_open
+	.long sys_recvmmsg		/* 340 */
+	.long sys_accept4
+	.long sys_fanotify_init
+	.long sys_fanotify_mark
+	.long sys_prlimit64
+	.long sys_clock_adjtime		/* 345 */
+	.long sys_syncfs
+	.long sys_sendmmsg
+	.long sys_process_vm_readv
+	.long sys_process_vm_writev
+	.long sys_kcmp			/* 350 */
+	.long sys_finit_module
 
-        /*
-         * NOTE!! This doesn't have to be exact - we just have
-         * to make sure we have _enough_ of the "sys_ni_syscall"
-         * entries. Don't panic if you notice that this hasn't
-         * been shrunk every time we add a new system call.
-         */
+	/*
+	 * NOTE!! This doesn't have to be exact - we just have
+	 * to make sure we have _enough_ of the "sys_ni_syscall"
+	 * entries. Don't panic if you notice that this hasn't
+	 * been shrunk every time we add a new system call.
+	 */
 
 	.rept NR_syscalls - (.-sys_call_table) / 4
 		.long sys_ni_syscall

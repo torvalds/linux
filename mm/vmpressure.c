@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/vmstat.h>
 #include <linux/eventfd.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/printk.h>
 #include <linux/vmpressure.h>
@@ -74,15 +75,10 @@ static struct vmpressure *work_to_vmpressure(struct work_struct *work)
 	return container_of(work, struct vmpressure, work);
 }
 
-static struct vmpressure *cg_to_vmpressure(struct cgroup *cg)
-{
-	return css_to_vmpressure(cgroup_subsys_state(cg, mem_cgroup_subsys_id));
-}
-
 static struct vmpressure *vmpressure_parent(struct vmpressure *vmpr)
 {
-	struct cgroup *cg = vmpressure_to_css(vmpr)->cgroup;
-	struct mem_cgroup *memcg = mem_cgroup_from_cont(cg);
+	struct cgroup_subsys_state *css = vmpressure_to_css(vmpr);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 
 	memcg = parent_mem_cgroup(memcg);
 	if (!memcg)
@@ -169,6 +165,7 @@ static void vmpressure_work_fn(struct work_struct *work)
 	unsigned long scanned;
 	unsigned long reclaimed;
 
+	spin_lock(&vmpr->sr_lock);
 	/*
 	 * Several contexts might be calling vmpressure(), so it is
 	 * possible that the work was rescheduled again before the old
@@ -177,11 +174,12 @@ static void vmpressure_work_fn(struct work_struct *work)
 	 * here. No need for any locks here since we don't care if
 	 * vmpr->reclaimed is in sync.
 	 */
-	if (!vmpr->scanned)
-		return;
-
-	spin_lock(&vmpr->sr_lock);
 	scanned = vmpr->scanned;
+	if (!scanned) {
+		spin_unlock(&vmpr->sr_lock);
+		return;
+	}
+
 	reclaimed = vmpr->reclaimed;
 	vmpr->scanned = 0;
 	vmpr->reclaimed = 0;
@@ -283,8 +281,7 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
 
 /**
  * vmpressure_register_event() - Bind vmpressure notifications to an eventfd
- * @cg:		cgroup that is interested in vmpressure notifications
- * @cft:	cgroup control files handle
+ * @memcg:	memcg that is interested in vmpressure notifications
  * @eventfd:	eventfd context to link notifications with
  * @args:	event arguments (used to set up a pressure level threshold)
  *
@@ -294,14 +291,12 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
  * threshold (one of vmpressure_str_levels, i.e. "low", "medium", or
  * "critical").
  *
- * This function should not be used directly, just pass it to (struct
- * cftype).register_event, and then cgroup core will handle everything by
- * itself.
+ * To be used as memcg event method.
  */
-int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+int vmpressure_register_event(struct mem_cgroup *memcg,
 			      struct eventfd_ctx *eventfd, const char *args)
 {
-	struct vmpressure *vmpr = cg_to_vmpressure(cg);
+	struct vmpressure *vmpr = memcg_to_vmpressure(memcg);
 	struct vmpressure_event *ev;
 	int level;
 
@@ -329,22 +324,19 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
 
 /**
  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
- * @cg:		cgroup handle
- * @cft:	cgroup control files handle
+ * @memcg:	memcg handle
  * @eventfd:	eventfd context that was used to link vmpressure with the @cg
  *
  * This function does internal manipulations to detach the @eventfd from
  * the vmpressure notifications, and then frees internal resources
  * associated with the @eventfd (but the @eventfd itself is not freed).
  *
- * This function should not be used directly, just pass it to (struct
- * cftype).unregister_event, and then cgroup core will handle everything
- * by itself.
+ * To be used as memcg event method.
  */
-void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
+void vmpressure_unregister_event(struct mem_cgroup *memcg,
 				 struct eventfd_ctx *eventfd)
 {
-	struct vmpressure *vmpr = cg_to_vmpressure(cg);
+	struct vmpressure *vmpr = memcg_to_vmpressure(memcg);
 	struct vmpressure_event *ev;
 
 	mutex_lock(&vmpr->events_lock);

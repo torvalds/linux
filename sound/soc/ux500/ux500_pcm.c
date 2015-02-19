@@ -28,12 +28,6 @@
 #include "ux500_msp_i2s.h"
 #include "ux500_pcm.h"
 
-#define UX500_PLATFORM_MIN_RATE 8000
-#define UX500_PLATFORM_MAX_RATE 48000
-
-#define UX500_PLATFORM_MIN_CHANNELS 1
-#define UX500_PLATFORM_MAX_CHANNELS 8
-
 #define UX500_PLATFORM_PERIODS_BYTES_MIN	128
 #define UX500_PLATFORM_PERIODS_BYTES_MAX	(64 * PAGE_SIZE)
 #define UX500_PLATFORM_PERIODS_MIN		2
@@ -45,15 +39,6 @@ static const struct snd_pcm_hardware ux500_pcm_hw = {
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_RESUME |
 		SNDRV_PCM_INFO_PAUSE,
-	.formats = SNDRV_PCM_FMTBIT_S16_LE |
-		SNDRV_PCM_FMTBIT_U16_LE |
-		SNDRV_PCM_FMTBIT_S16_BE |
-		SNDRV_PCM_FMTBIT_U16_BE,
-	.rates = SNDRV_PCM_RATE_KNOT,
-	.rate_min = UX500_PLATFORM_MIN_RATE,
-	.rate_max = UX500_PLATFORM_MAX_RATE,
-	.channels_min = UX500_PLATFORM_MIN_CHANNELS,
-	.channels_max = UX500_PLATFORM_MAX_CHANNELS,
 	.buffer_bytes_max = UX500_PLATFORM_BUFFER_BYTES_MAX,
 	.period_bytes_min = UX500_PLATFORM_PERIODS_BYTES_MIN,
 	.period_bytes_max = UX500_PLATFORM_PERIODS_BYTES_MAX,
@@ -65,13 +50,9 @@ static struct dma_chan *ux500_pcm_request_chan(struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_substream *substream)
 {
 	struct snd_soc_dai *dai = rtd->cpu_dai;
-	struct device *dev = dai->dev;
 	u16 per_data_width, mem_data_width;
 	struct stedma40_chan_cfg *dma_cfg;
 	struct ux500_msp_dma_params *dma_params;
-
-	dev_dbg(dev, "%s: MSP %d (%s): Enter.\n", __func__, dai->id,
-		snd_pcm_stream_str(substream));
 
 	dma_params = snd_soc_dai_get_dma_data(dai, substream);
 	dma_cfg = dma_params->dma_cfg;
@@ -108,26 +89,36 @@ static int ux500_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
 		struct dma_slave_config *slave_config)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct ux500_msp_dma_params *dma_params;
-	struct stedma40_chan_cfg *dma_cfg;
+	struct msp_i2s_platform_data *pdata = rtd->cpu_dai->dev->platform_data;
+	struct snd_dmaengine_dai_dma_data *snd_dma_params;
+	struct ux500_msp_dma_params *ste_dma_params;
+	dma_addr_t dma_addr;
 	int ret;
 
-	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-	dma_cfg = dma_params->dma_cfg;
+	if (pdata) {
+		ste_dma_params =
+			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+		dma_addr = ste_dma_params->tx_rx_addr;
+	} else {
+		snd_dma_params =
+			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+		dma_addr = snd_dma_params->addr;
+	}
 
 	ret = snd_hwparams_to_dma_slave_config(substream, params, slave_config);
 	if (ret)
 		return ret;
 
 	slave_config->dst_maxburst = 4;
-	slave_config->dst_addr_width = dma_cfg->dst_info.data_width;
 	slave_config->src_maxburst = 4;
-	slave_config->src_addr_width = dma_cfg->src_info.data_width;
+
+	slave_config->src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	slave_config->dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		slave_config->dst_addr = dma_params->tx_rx_addr;
+		slave_config->dst_addr = dma_addr;
 	else
-		slave_config->src_addr = dma_params->tx_rx_addr;
+		slave_config->src_addr = dma_addr;
 
 	return 0;
 }
@@ -139,15 +130,25 @@ static const struct snd_dmaengine_pcm_config ux500_dmaengine_pcm_config = {
 	.prepare_slave_config = ux500_pcm_prepare_slave_config,
 };
 
+static const struct snd_dmaengine_pcm_config ux500_dmaengine_of_pcm_config = {
+	.compat_request_channel = ux500_pcm_request_chan,
+	.prepare_slave_config = ux500_pcm_prepare_slave_config,
+};
+
 int ux500_pcm_register_platform(struct platform_device *pdev)
 {
+	const struct snd_dmaengine_pcm_config *pcm_config;
+	struct device_node *np = pdev->dev.of_node;
 	int ret;
 
-	ret = snd_dmaengine_pcm_register(&pdev->dev,
-			&ux500_dmaengine_pcm_config,
-			SND_DMAENGINE_PCM_FLAG_NO_RESIDUE |
-			SND_DMAENGINE_PCM_FLAG_COMPAT |
-			SND_DMAENGINE_PCM_FLAG_NO_DT);
+	if (np)
+		pcm_config = &ux500_dmaengine_of_pcm_config;
+	else
+		pcm_config = &ux500_dmaengine_pcm_config;
+
+	ret = snd_dmaengine_pcm_register(&pdev->dev, pcm_config,
+					 SND_DMAENGINE_PCM_FLAG_NO_RESIDUE |
+					 SND_DMAENGINE_PCM_FLAG_COMPAT);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"%s: ERROR: Failed to register platform '%s' (%d)!\n",

@@ -168,7 +168,7 @@ static void mma8450_close(struct input_polled_dev *dev)
  * I2C init/probing/exit functions
  */
 static int mma8450_probe(struct i2c_client *c,
-				   const struct i2c_device_id *id)
+			 const struct i2c_device_id *id)
 {
 	struct input_polled_dev *idev;
 	struct mma8450 *m;
@@ -203,6 +203,8 @@ static int mma8450_probe(struct i2c_client *c,
 		dev_err(&c->dev, "failed to register polled input device\n");
 		goto err_free_mem;
 	}
+
+	i2c_set_clientdata(c, m);
 
 	return 0;
 

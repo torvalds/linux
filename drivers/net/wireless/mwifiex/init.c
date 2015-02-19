@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: HW/FW Initialization
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -50,6 +50,18 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	spin_unlock_irqrestore(&tbl[priv->bss_priority].bss_prio_lock, flags);
 
 	return 0;
+}
+
+static void wakeup_timer_fn(unsigned long data)
+{
+	struct mwifiex_adapter *adapter = (struct mwifiex_adapter *)data;
+
+	dev_err(adapter->dev, "Firmware wakeup failed\n");
+	adapter->hw_status = MWIFIEX_HW_STATUS_RESET;
+	mwifiex_cancel_all_pending_cmd(adapter);
+
+	if (adapter->if_ops.card_reset)
+		adapter->if_ops.card_reset(adapter);
 }
 
 /*
@@ -135,6 +147,12 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 
 	priv->csa_chan = 0;
 	priv->csa_expire_time = 0;
+	priv->del_list_idx = 0;
+	priv->hs2_enabled = false;
+	priv->check_tdls_tx = false;
+	memcpy(priv->tos_to_tid_inv, tos_to_tid_inv, MAX_NUM_TID);
+
+	mwifiex_init_11h_params(priv);
 
 	return mwifiex_add_bss_prio_tbl(priv);
 }
@@ -209,6 +227,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->specific_scan_time = MWIFIEX_SPECIFIC_SCAN_CHAN_TIME;
 	adapter->active_scan_time = MWIFIEX_ACTIVE_SCAN_CHAN_TIME;
 	adapter->passive_scan_time = MWIFIEX_PASSIVE_SCAN_CHAN_TIME;
+	adapter->scan_chan_gap_time = MWIFIEX_DEF_SCAN_CHAN_GAP_TIME;
 
 	adapter->scan_probes = 1;
 
@@ -231,7 +250,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 
 	adapter->pm_wakeup_fw_try = false;
 
-	adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 	adapter->curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 
 	adapter->is_hs_configured = false;
@@ -278,7 +296,16 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	memset(&adapter->arp_filter, 0, sizeof(adapter->arp_filter));
 	adapter->arp_filter_size = 0;
 	adapter->max_mgmt_ie_index = MAX_MGMT_IE_INDEX;
-	adapter->empty_tx_q_cnt = 0;
+	adapter->ext_scan = false;
+	adapter->key_api_major_ver = 0;
+	adapter->key_api_minor_ver = 0;
+	memset(adapter->perm_addr, 0xff, ETH_ALEN);
+	adapter->iface_limit.sta_intf = MWIFIEX_MAX_STA_NUM;
+	adapter->iface_limit.uap_intf = MWIFIEX_MAX_UAP_NUM;
+	adapter->iface_limit.p2p_intf = MWIFIEX_MAX_P2P_NUM;
+
+	setup_timer(&adapter->wakeup_timer, wakeup_timer_fn,
+		    (unsigned long)adapter);
 }
 
 /*
@@ -361,6 +388,7 @@ static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 			list_del(&priv->tx_ba_stream_tbl_ptr);
 			list_del(&priv->rx_reorder_tbl_ptr);
 			list_del(&priv->sta_list);
+			list_del(&priv->auto_tdls_list);
 		}
 	}
 }
@@ -377,19 +405,17 @@ static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 static void
 mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 {
-	int i;
+	int idx;
 
 	if (!adapter) {
 		pr_err("%s: adapter is NULL\n", __func__);
 		return;
 	}
 
-	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i])
-			del_timer_sync(&adapter->priv[i]->scan_delay_timer);
-	}
-
+	del_timer(&adapter->wakeup_timer);
 	mwifiex_cancel_all_pending_cmd(adapter);
+	wake_up_interruptible(&adapter->cmd_wait_q.wait);
+	wake_up_interruptible(&adapter->hs_activate_wait_q);
 
 	/* Free lock variables */
 	mwifiex_free_lock_list(adapter);
@@ -398,12 +424,21 @@ mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 	dev_dbg(adapter->dev, "info: free cmd buffer\n");
 	mwifiex_free_cmd_buffer(adapter);
 
-	del_timer(&adapter->cmd_timer);
+	for (idx = 0; idx < adapter->num_mem_types; idx++) {
+		struct memory_type_mapping *entry =
+				&adapter->mem_type_mapping_tbl[idx];
 
-	dev_dbg(adapter->dev, "info: free scan table\n");
+		if (entry->mem_ptr) {
+			vfree(entry->mem_ptr);
+			entry->mem_ptr = NULL;
+		}
+		entry->mem_size = 0;
+	}
 
-	if (adapter->if_ops.cleanup_if)
-		adapter->if_ops.cleanup_if(adapter);
+	if (adapter->drv_info_dump) {
+		vfree(adapter->drv_info_dump);
+		adapter->drv_info_size = 0;
+	}
 
 	if (adapter->sleep_cfm)
 		dev_kfree_skb_any(adapter->sleep_cfm);
@@ -430,6 +465,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 			spin_lock_init(&priv->wmm.ra_list_spinlock);
 			spin_lock_init(&priv->curr_bcn_buf_lock);
 			spin_lock_init(&priv->sta_list_spinlock);
+			spin_lock_init(&priv->auto_tdls_lock);
 		}
 	}
 
@@ -443,8 +479,9 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	spin_lock_init(&adapter->cmd_free_q_lock);
 	spin_lock_init(&adapter->cmd_pending_q_lock);
 	spin_lock_init(&adapter->scan_pending_q_lock);
+	spin_lock_init(&adapter->rx_proc_lock);
 
-	skb_queue_head_init(&adapter->usb_rx_data_q);
+	skb_queue_head_init(&adapter->rx_data_q);
 
 	for (i = 0; i < adapter->priv_num; ++i) {
 		INIT_LIST_HEAD(&adapter->bss_prio_tbl[i].bss_prio_head);
@@ -460,9 +497,14 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 		INIT_LIST_HEAD(&priv->tx_ba_stream_tbl_ptr);
 		INIT_LIST_HEAD(&priv->rx_reorder_tbl_ptr);
 		INIT_LIST_HEAD(&priv->sta_list);
+		INIT_LIST_HEAD(&priv->auto_tdls_list);
+		skb_queue_head_init(&priv->tdls_txq);
 
 		spin_lock_init(&priv->tx_ba_stream_tbl_lock);
 		spin_lock_init(&priv->rx_reorder_tbl_lock);
+
+		spin_lock_init(&priv->ack_status_lock);
+		idr_init(&priv->ack_status_frames);
 	}
 
 	return 0;
@@ -515,7 +557,8 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
-			ret = mwifiex_sta_init_cmd(adapter->priv[i], first_sta);
+			ret = mwifiex_sta_init_cmd(adapter->priv[i], first_sta,
+						   true);
 			if (ret == -1)
 				return -1;
 
@@ -609,6 +652,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 	int ret = -EINPROGRESS;
 	struct mwifiex_private *priv;
 	s32 i;
+	unsigned long flags;
 	struct sk_buff *skb;
 
 	/* mwifiex already shutdown */
@@ -625,7 +669,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 	/* cancel current command */
 	if (adapter->curr_cmd) {
 		dev_warn(adapter->dev, "curr_cmd is still in processing\n");
-		del_timer(&adapter->cmd_timer);
+		del_timer_sync(&adapter->cmd_timer);
 		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 		adapter->curr_cmd = NULL;
 	}
@@ -638,24 +682,29 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 		if (adapter->priv[i]) {
 			priv = adapter->priv[i];
 
+			mwifiex_clean_auto_tdls(priv);
+			mwifiex_abort_cac(priv);
 			mwifiex_clean_txrx(priv);
 			mwifiex_delete_bss_prio_tbl(priv);
 		}
 	}
 
-	spin_lock(&adapter->mwifiex_lock);
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 
-	if (adapter->if_ops.data_complete) {
-		while ((skb = skb_dequeue(&adapter->usb_rx_data_q))) {
-			struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
+	while ((skb = skb_dequeue(&adapter->rx_data_q))) {
+		struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
 
-			priv = adapter->priv[rx_info->bss_num];
-			if (priv)
-				priv->stats.rx_dropped++;
+		atomic_dec(&adapter->rx_pending);
+		priv = adapter->priv[rx_info->bss_num];
+		if (priv)
+			priv->stats.rx_dropped++;
 
-			adapter->if_ops.data_complete(adapter, skb);
-		}
+		dev_kfree_skb_any(skb);
 	}
+
+	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+
+	spin_lock(&adapter->mwifiex_lock);
 
 	mwifiex_adapter_cleanup(adapter);
 
@@ -702,7 +751,6 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 		if (!adapter->winner) {
 			dev_notice(adapter->dev,
 				   "FW already running! Skip FW dnld\n");
-			poll_num = MAX_MULTI_INTERFACE_POLL_TRIES;
 			goto poll_fw;
 		}
 	}

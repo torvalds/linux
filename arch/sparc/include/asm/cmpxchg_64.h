@@ -42,7 +42,7 @@ static inline unsigned long xchg64(__volatile__ unsigned long *m, unsigned long 
 
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
-extern void __xchg_called_with_bad_pointer(void);
+void __xchg_called_with_bad_pointer(void);
 
 static inline unsigned long __xchg(unsigned long x, __volatile__ void * ptr,
 				       int size)
@@ -91,7 +91,7 @@ __cmpxchg_u64(volatile long *m, unsigned long old, unsigned long new)
 
 /* This function doesn't exist, so you'll get a linker error
    if something tries to do an invalid cmpxchg().  */
-extern void __cmpxchg_called_with_bad_pointer(void);
+void __cmpxchg_called_with_bad_pointer(void);
 
 static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)

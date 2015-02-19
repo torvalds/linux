@@ -44,6 +44,7 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <asm/facility.h>
+#include <linux/crypto.h>
 
 #include "ap_bus.h"
 
@@ -71,18 +72,18 @@ MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("Adjunct Processor Bus driver, " \
 		   "Copyright IBM Corp. 2006, 2012");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("z90crypt");
+MODULE_ALIAS_CRYPTO("z90crypt");
 
 /*
  * Module parameter
  */
 int ap_domain_index = -1;	/* Adjunct Processor Domain Index */
-module_param_named(domain, ap_domain_index, int, 0000);
+module_param_named(domain, ap_domain_index, int, S_IRUSR|S_IRGRP);
 MODULE_PARM_DESC(domain, "domain index for ap devices");
 EXPORT_SYMBOL(ap_domain_index);
 
 static int ap_thread_flag = 0;
-module_param_named(poll_thread, ap_thread_flag, int, 0000);
+module_param_named(poll_thread, ap_thread_flag, int, S_IRUSR|S_IRGRP);
 MODULE_PARM_DESC(poll_thread, "Turn on/off poll thread, default is 0 (off).");
 
 static struct device *ap_root_device = NULL;
@@ -200,6 +201,24 @@ ap_test_queue(ap_qid_t qid, int *queue_depth, int *device_type)
 	*device_type = (int) (reg2 >> 24);
 	*queue_depth = (int) (reg2 & 0xff);
 	return reg1;
+}
+
+/**
+ * ap_query_facilities(): PQAP(TAPQ) query facilities.
+ * @qid: The AP queue number
+ *
+ * Returns content of general register 2 after the PQAP(TAPQ)
+ * instruction was called.
+ */
+static inline unsigned long ap_query_facilities(ap_qid_t qid)
+{
+	register unsigned long reg0 asm ("0") = qid | 0x00800000UL;
+	register unsigned long reg1 asm ("1");
+	register unsigned long reg2 asm ("2") = 0UL;
+
+	asm volatile(".long 0xb2af0000"  /* PQAP(TAPQ) */
+		     : "+d" (reg0), "=d" (reg1), "+d" (reg2) : : "cc");
+	return reg2;
 }
 
 /**
@@ -413,7 +432,7 @@ __ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length,
 	register unsigned long reg2 asm ("2") = (unsigned long) msg;
 	register unsigned long reg3 asm ("3") = (unsigned long) length;
 	register unsigned long reg4 asm ("4") = (unsigned int) (psmid >> 32);
-	register unsigned long reg5 asm ("5") = (unsigned int) psmid;
+	register unsigned long reg5 asm ("5") = psmid & 0xffffffff;
 
 	if (special == 1)
 		reg0 |= 0x400000UL;
@@ -591,7 +610,13 @@ static int ap_init_queue(ap_qid_t qid)
 		if (rc != -ENODEV && rc != -EBUSY)
 			break;
 		if (i < AP_MAX_RESET - 1) {
-			udelay(5);
+			/* Time we are waiting until we give up (0.7sec * 90).
+			 * Since the actual request (in progress) will not
+			 * interrupted immediately for the reset command,
+			 * we have to be patient. In worst case we have to
+			 * wait 60sec + reset time (some msec).
+			 */
+			schedule_timeout(AP_RESET_TIMEOUT);
 			status = ap_test_queue(qid, &dummy, &dummy);
 		}
 	}
@@ -658,6 +683,17 @@ static ssize_t ap_hwtype_show(struct device *dev,
 }
 
 static DEVICE_ATTR(hwtype, 0444, ap_hwtype_show, NULL);
+
+static ssize_t ap_raw_hwtype_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct ap_device *ap_dev = to_ap_dev(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", ap_dev->raw_hwtype);
+}
+
+static DEVICE_ATTR(raw_hwtype, 0444, ap_raw_hwtype_show, NULL);
+
 static ssize_t ap_depth_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -728,6 +764,7 @@ static DEVICE_ATTR(ap_functions, 0444, ap_functions_show, NULL);
 
 static struct attribute *ap_dev_attrs[] = {
 	&dev_attr_hwtype.attr,
+	&dev_attr_raw_hwtype.attr,
 	&dev_attr_depth.attr,
 	&dev_attr_request_count.attr,
 	&dev_attr_requestq_count.attr,
@@ -895,10 +932,15 @@ static int ap_device_probe(struct device *dev)
 	int rc;
 
 	ap_dev->drv = ap_drv;
+
+	spin_lock_bh(&ap_device_list_lock);
+	list_add(&ap_dev->list, &ap_device_list);
+	spin_unlock_bh(&ap_device_list_lock);
+
 	rc = ap_drv->probe ? ap_drv->probe(ap_dev) : -ENODEV;
-	if (!rc) {
+	if (rc) {
 		spin_lock_bh(&ap_device_list_lock);
-		list_add(&ap_dev->list, &ap_device_list);
+		list_del_init(&ap_dev->list);
 		spin_unlock_bh(&ap_device_list_lock);
 	}
 	return rc;
@@ -983,6 +1025,51 @@ void ap_bus_force_rescan(void)
 EXPORT_SYMBOL(ap_bus_force_rescan);
 
 /*
+ * ap_test_config(): helper function to extract the nrth bit
+ *		     within the unsigned int array field.
+ */
+static inline int ap_test_config(unsigned int *field, unsigned int nr)
+{
+	if (nr > 0xFFu)
+		return 0;
+	return ap_test_bit((field + (nr >> 5)), (nr & 0x1f));
+}
+
+/*
+ * ap_test_config_card_id(): Test, whether an AP card ID is configured.
+ * @id AP card ID
+ *
+ * Returns 0 if the card is not configured
+ *	   1 if the card is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_card_id(unsigned int id)
+{
+	if (!ap_configuration)
+		return 1;
+	return ap_test_config(ap_configuration->apm, id);
+}
+
+/*
+ * ap_test_config_domain(): Test, whether an AP usage domain is configured.
+ * @domain AP usage domain ID
+ *
+ * Returns 0 if the usage domain is not configured
+ *	   1 if the usage domain is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_domain(unsigned int domain)
+{
+	if (!ap_configuration)	  /* QCI not supported */
+		if (domain < 16)
+			return 1; /* then domains 0...15 are configured */
+		else
+			return 0;
+	else
+		return ap_test_config(ap_configuration->aqm, domain);
+}
+
+/*
  * AP bus attributes.
  */
 static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
@@ -991,6 +1078,28 @@ static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
 }
 
 static BUS_ATTR(ap_domain, 0444, ap_domain_show, NULL);
+
+static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
+{
+	if (ap_configuration != NULL) { /* QCI not supported */
+		if (test_facility(76)) { /* format 1 - 256 bit domain field */
+			return snprintf(buf, PAGE_SIZE,
+				"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			ap_configuration->adm[0], ap_configuration->adm[1],
+			ap_configuration->adm[2], ap_configuration->adm[3],
+			ap_configuration->adm[4], ap_configuration->adm[5],
+			ap_configuration->adm[6], ap_configuration->adm[7]);
+		} else { /* format 0 - 16 bit domain field */
+			return snprintf(buf, PAGE_SIZE, "%08x%08x\n",
+			ap_configuration->adm[0], ap_configuration->adm[1]);
+		  }
+	} else {
+		return snprintf(buf, PAGE_SIZE, "not supported\n");
+	  }
+}
+
+static BUS_ATTR(ap_control_domain_mask, 0444,
+		ap_control_domain_mask_show, NULL);
 
 static ssize_t ap_config_time_show(struct bus_type *bus, char *buf)
 {
@@ -1075,51 +1184,52 @@ static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
 
 static BUS_ATTR(poll_timeout, 0644, poll_timeout_show, poll_timeout_store);
 
+static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
+{
+	ap_qid_t qid;
+	int i, nd, max_domain_id = -1;
+	unsigned long fbits;
+
+	if (ap_configuration) {
+		if (ap_domain_index >= 0 && ap_domain_index < AP_DOMAINS) {
+			for (i = 0; i < AP_DEVICES; i++) {
+				if (!ap_test_config_card_id(i))
+					continue;
+				qid = AP_MKQID(i, ap_domain_index);
+				fbits = ap_query_facilities(qid);
+				if (fbits & (1UL << 57)) {
+					/* the N bit is 0, Nd field is filled */
+					nd = (int)((fbits & 0x00FF0000UL)>>16);
+					if (nd > 0)
+						max_domain_id = nd;
+					else
+						max_domain_id = 15;
+				} else {
+					/* N bit is 1, max 16 domains */
+					max_domain_id = 15;
+				}
+				break;
+			}
+		}
+	} else {
+		/* no APXA support, older machines with max 16 domains */
+		max_domain_id = 15;
+	}
+	return snprintf(buf, PAGE_SIZE, "%d\n", max_domain_id);
+}
+
+static BUS_ATTR(ap_max_domain_id, 0444, ap_max_domain_id_show, NULL);
+
 static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_domain,
+	&bus_attr_ap_control_domain_mask,
 	&bus_attr_config_time,
 	&bus_attr_poll_thread,
 	&bus_attr_ap_interrupts,
 	&bus_attr_poll_timeout,
+	&bus_attr_ap_max_domain_id,
 	NULL,
 };
-
-static inline int ap_test_config(unsigned int *field, unsigned int nr)
-{
-	if (nr > 0xFFu)
-		return 0;
-	return ap_test_bit((field + (nr >> 5)), (nr & 0x1f));
-}
-
-/*
- * ap_test_config_card_id(): Test, whether an AP card ID is configured.
- * @id AP card ID
- *
- * Returns 0 if the card is not configured
- *	   1 if the card is configured or
- *	     if the configuration information is not available
- */
-static inline int ap_test_config_card_id(unsigned int id)
-{
-	if (!ap_configuration)
-		return 1;
-	return ap_test_config(ap_configuration->apm, id);
-}
-
-/*
- * ap_test_config_domain(): Test, whether an AP usage domain is configured.
- * @domain AP usage domain ID
- *
- * Returns 0 if the usage domain is not configured
- *	   1 if the usage domain is configured or
- *	     if the configuration information is not available
- */
-static inline int ap_test_config_domain(unsigned int domain)
-{
-	if (!ap_configuration)
-		return 1;
-	return ap_test_config(ap_configuration->aqm, domain);
-}
 
 /**
  * ap_query_configuration(): Query AP configuration information.
@@ -1153,6 +1263,10 @@ static int ap_select_domain(void)
 	int queue_depth, device_type, count, max_count, best_domain;
 	ap_qid_t qid;
 	int rc, i, j;
+
+	/* IF APXA isn't installed, only 16 domains could be defined */
+	if (!ap_configuration->ap_extended && (ap_domain_index > 15))
+		return -EINVAL;
 
 	/*
 	 * We want to use a single domain. Either the one specified with
@@ -1382,6 +1496,7 @@ static void ap_scan_bus(struct work_struct *unused)
 		default:
 			ap_dev->device_type = device_type;
 		}
+		ap_dev->raw_hwtype = device_type;
 
 		rc = ap_query_functions(qid, &device_functions);
 		if (!rc)
@@ -1774,7 +1889,7 @@ static int ap_poll_thread(void *data)
 	int requests;
 	struct ap_device *ap_dev;
 
-	set_user_nice(current, 19);
+	set_user_nice(current, MAX_NICE);
 	while (1) {
 		if (ap_suspend_flag)
 			return 0;
@@ -1866,9 +1981,15 @@ static void ap_reset_all(void)
 {
 	int i, j;
 
-	for (i = 0; i < AP_DOMAINS; i++)
-		for (j = 0; j < AP_DEVICES; j++)
+	for (i = 0; i < AP_DOMAINS; i++) {
+		if (!ap_test_config_domain(i))
+			continue;
+		for (j = 0; j < AP_DEVICES; j++) {
+			if (!ap_test_config_card_id(j))
+				continue;
 			ap_reset_queue(AP_MKQID(j, i));
+		}
+	}
 }
 
 static struct reset_call ap_reset_call = {

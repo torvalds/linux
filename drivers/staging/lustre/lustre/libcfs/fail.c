@@ -33,16 +33,18 @@
  * Lustre is a trademark of Oracle Corporation, Inc.
  */
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 unsigned long cfs_fail_loc = 0;
-unsigned int cfs_fail_val = 0;
-wait_queue_head_t cfs_race_waitq;
-int cfs_race_state;
-
 EXPORT_SYMBOL(cfs_fail_loc);
+
+unsigned int cfs_fail_val = 0;
 EXPORT_SYMBOL(cfs_fail_val);
+
+wait_queue_head_t cfs_race_waitq;
 EXPORT_SYMBOL(cfs_race_waitq);
+
+int cfs_race_state;
 EXPORT_SYMBOL(cfs_race_state);
 
 int __cfs_fail_check_set(__u32 id, __u32 value, int set)
@@ -101,18 +103,18 @@ int __cfs_fail_check_set(__u32 id, __u32 value, int set)
 	}
 
 	switch (set) {
-		case CFS_FAIL_LOC_NOSET:
-		case CFS_FAIL_LOC_VALUE:
-			break;
-		case CFS_FAIL_LOC_ORSET:
-			cfs_fail_loc |= value & ~(CFS_FAILED | CFS_FAIL_ONCE);
-			break;
-		case CFS_FAIL_LOC_RESET:
-			cfs_fail_loc = value;
-			break;
-		default:
-			LASSERTF(0, "called with bad set %u\n", set);
-			break;
+	case CFS_FAIL_LOC_NOSET:
+	case CFS_FAIL_LOC_VALUE:
+		break;
+	case CFS_FAIL_LOC_ORSET:
+		cfs_fail_loc |= value & ~(CFS_FAILED | CFS_FAIL_ONCE);
+		break;
+	case CFS_FAIL_LOC_RESET:
+		cfs_fail_loc = value;
+		break;
+	default:
+		LASSERTF(0, "called with bad set %u\n", set);
+		break;
 	}
 
 	return 1;
@@ -127,9 +129,8 @@ int __cfs_fail_timeout_set(__u32 id, __u32 value, int ms, int set)
 	if (ret) {
 		CERROR("cfs_fail_timeout id %x sleeping for %dms\n",
 		       id, ms);
-		schedule_timeout_and_set_state(TASK_UNINTERRUPTIBLE,
-						   cfs_time_seconds(ms) / 1000);
-		set_current_state(TASK_RUNNING);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(ms) / 1000);
 		CERROR("cfs_fail_timeout id %x awake\n", id);
 	}
 	return ret;

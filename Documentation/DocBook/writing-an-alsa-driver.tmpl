@@ -468,8 +468,6 @@
                   return err;
           }
 
-          snd_card_set_dev(card, &pci->dev);
-
           *rchip = chip;
           return 0;
   }
@@ -492,7 +490,8 @@
           }
 
           /* (2) */
-          err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+          err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                             0, &card);
           if (err < 0)
                   return err;
 
@@ -591,7 +590,8 @@
   struct snd_card *card;
   int err;
   ....
-  err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+  err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                     0, &card);
 ]]>
             </programlisting>
           </informalexample>
@@ -809,28 +809,34 @@
 
       <para>
         As mentioned above, to create a card instance, call
-      <function>snd_card_create()</function>.
+      <function>snd_card_new()</function>.
 
         <informalexample>
           <programlisting>
 <![CDATA[
   struct snd_card *card;
   int err;
-  err = snd_card_create(index, id, module, extra_size, &card);
+  err = snd_card_new(&pci->dev, index, id, module, extra_size, &card);
 ]]>
           </programlisting>
         </informalexample>
       </para>
 
       <para>
-        The function takes five arguments, the card-index number, the
-        id string, the module pointer (usually
+        The function takes six arguments: the parent device pointer,
+        the card-index number, the id string, the module pointer (usually
         <constant>THIS_MODULE</constant>),
         the size of extra-data space, and the pointer to return the
         card instance.  The extra_size argument is used to
         allocate card-&gt;private_data for the
         chip-specific data.  Note that these data
-        are allocated by <function>snd_card_create()</function>.
+        are allocated by <function>snd_card_new()</function>.
+      </para>
+
+      <para>
+	The first argument, the pointer of struct
+	<structname>device</structname>, specifies the parent device.
+	For PCI devices, typically &amp;pci-&gt; is passed there.
       </para>
     </section>
 
@@ -916,16 +922,16 @@
       </para>
 
       <section id="card-management-chip-specific-snd-card-new">
-        <title>1. Allocating via <function>snd_card_create()</function>.</title>
+        <title>1. Allocating via <function>snd_card_new()</function>.</title>
         <para>
           As mentioned above, you can pass the extra-data-length
-	  to the 4th argument of <function>snd_card_create()</function>, i.e.
+	  to the 5th argument of <function>snd_card_new()</function>, i.e.
 
           <informalexample>
             <programlisting>
 <![CDATA[
-  err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-                        sizeof(struct mychip), &card);
+  err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                     sizeof(struct mychip), &card);
 ]]>
             </programlisting>
           </informalexample>
@@ -954,7 +960,7 @@
 
         <para>
           After allocating a card instance via
-          <function>snd_card_create()</function> (with
+          <function>snd_card_new()</function> (with
           <constant>0</constant> on the 4th arg), call
           <function>kzalloc()</function>. 
 
@@ -963,7 +969,8 @@
 <![CDATA[
   struct snd_card *card;
   struct mychip *chip;
-  err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+  err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                     0, &card);
   .....
   chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 ]]>
@@ -1169,8 +1176,6 @@
                   snd_mychip_free(chip);
                   return err;
           }
-
-          snd_card_set_dev(card, &pci->dev);
 
           *rchip = chip;
           return 0;
@@ -1524,30 +1529,6 @@
         </informalexample>
       </para>
 
-    </section>
-
-    <section id="pci-resource-device-struct">
-      <title>Registration of Device Struct</title>
-      <para>
-	At some point, typically after calling <function>snd_device_new()</function>,
-	you need to register the struct <structname>device</structname> of the chip
-	you're handling for udev and co.  ALSA provides a macro for compatibility with
-	older kernels.  Simply call like the following:
-        <informalexample>
-          <programlisting>
-<![CDATA[
-  snd_card_set_dev(card, &pci->dev);
-]]>
-          </programlisting>
-        </informalexample>
-	so that it stores the PCI's device pointer to the card.  This will be
-	referred by ALSA core functions later when the devices are registered.
-      </para>
-      <para>
-	In the case of non-PCI, pass the proper device struct pointer of the BUS
-	instead.  (In the case of legacy ISA without PnP, you don't have to do
-	anything.)
-      </para>
     </section>
 
     <section id="pci-resource-entries">
@@ -2761,7 +2742,9 @@ struct _snd_pcm_runtime {
 
         <para>
           Another note is that this callback is non-atomic
-        (schedulable). This is important, because the
+        (schedulable) as default, i.e. when no
+	<structfield>nonatomic</structfield> flag set.
+	This is important, because the
         <structfield>trigger</structfield> callback 
         is atomic (non-schedulable). That is, mutexes or any
         schedule-related functions are not available in
@@ -2919,8 +2902,9 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          As mentioned, this callback is atomic.  You cannot call
-	  functions which may sleep.
+          As mentioned, this callback is atomic as default unless
+	  <structfield>nonatomic</structfield> flag set, and
+	  you cannot call functions which may sleep.
 	  The trigger callback should be as minimal as possible,
 	  just really triggering the DMA.  The other stuff should be
 	  initialized hw_params and prepare callbacks properly
@@ -2955,7 +2939,7 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          This callback is also atomic.
+          This callback is also atomic as default.
         </para>
       </section>
 
@@ -2991,7 +2975,7 @@ struct _snd_pcm_runtime {
 	is useful only for such a purpose.
 	</para>
 	<para>
-	  This callback is atomic.
+	  This callback is atomic as default.
 	</para>
       </section>
 
@@ -3192,6 +3176,21 @@ struct _snd_pcm_runtime {
       <para>
       All three atomic callbacks (trigger, pointer, and ack) are
       called with local interrupts disabled.
+      </para>
+
+      <para>
+      The recent changes in PCM core code, however, allow all PCM
+      operations to be non-atomic.  This assumes that the all caller
+      sides are in non-atomic contexts.  For example, the function
+      <function>snd_pcm_period_elapsed()</function> is called
+      typically from the interrupt handler.  But, if you set up the
+      driver to use a threaded interrupt handler, this call can be in
+      non-atomic context, too.  In such a case, you can set
+      <structfield>nonatomic</structfield> filed of
+      <structname>snd_pcm</structname> object after creating it.
+      When this flag is set, mutex and rwsem are used internally in
+      the PCM core instead of spin and rwlocks, so that you can call
+      all PCM functions safely in a non-atomic context.
       </para>
 
     </section>
@@ -3652,6 +3651,29 @@ struct _snd_pcm_runtime {
           strcpy(uinfo->value.enumerated.name,
                  texts[uinfo->value.enumerated.item]);
           return 0;
+  }
+]]>
+            </programlisting>
+          </informalexample>
+        </para>
+
+        <para>
+	  The above callback can be simplified with a helper function,
+	  <function>snd_ctl_enum_info</function>.  The final code
+	  looks like below.
+	  (You can pass ARRAY_SIZE(texts) instead of 4 in the third
+	   argument; it's a matter of taste.)
+
+          <informalexample>
+            <programlisting>
+<![CDATA[
+  static int snd_myctl_enum_info(struct snd_kcontrol *kcontrol,
+                          struct snd_ctl_elem_info *uinfo)
+  {
+          static char *texts[4] = {
+                  "First", "Second", "Third", "Fourth"
+          };
+          return snd_ctl_enum_info(uinfo, 1, 4, texts);
   }
 ]]>
             </programlisting>
@@ -5715,7 +5737,7 @@ struct _snd_pcm_runtime {
 	suspending the PCM operations via
 	<function>snd_pcm_suspend_all()</function> or
 	<function>snd_pcm_suspend()</function>.  It means that the PCM
-	streams are already stoppped when the register snapshot is
+	streams are already stopped when the register snapshot is
 	taken.  But, remember that you don't have to restart the PCM
 	stream in the resume callback. It'll be restarted via 
 	trigger call with <constant>SNDRV_PCM_TRIGGER_RESUME</constant>
@@ -5740,7 +5762,8 @@ struct _snd_pcm_runtime {
           struct mychip *chip;
           int err;
           ....
-          err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+          err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                             0, &card);
           ....
           chip = kzalloc(sizeof(*chip), GFP_KERNEL);
           ....
@@ -5752,7 +5775,7 @@ struct _snd_pcm_runtime {
       </informalexample>
 
 	When you created the chip data with
-	<function>snd_card_create()</function>, it's anyway accessible
+	<function>snd_card_new()</function>, it's anyway accessible
 	via <structfield>private_data</structfield> field.
 
       <informalexample>
@@ -5766,8 +5789,8 @@ struct _snd_pcm_runtime {
           struct mychip *chip;
           int err;
           ....
-          err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-                                sizeof(struct mychip), &card);
+          err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                             sizeof(struct mychip), &card);
           ....
           chip = card->private_data;
           ....

@@ -559,8 +559,8 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	char __iomem *vmss_port;
 
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, sizeof(vport),
-				&card);
+	err = snd_card_new(devptr, index[dev], id[dev], THIS_MODULE,
+			   sizeof(vport), &card);
 	if (err < 0)
 		return err;
 
@@ -625,7 +625,7 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	if (err < 0)
 		goto err_unmap2;
 
-	err = snd_wss_pcm(chip, 0, NULL);
+	err = snd_wss_pcm(chip, 0);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX
 			   "error creating new WSS PCM device\n");
@@ -667,8 +667,6 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	strcpy(card->shortname, "SC-6000");
 	sprintf(card->longname, "Gallant SC-6000 at 0x%lx, irq %d, dma %d",
 		mss_port[dev], xirq, xdma);
-
-	snd_card_set_dev(card, devptr);
 
 	err = snd_card_register(card);
 	if (err < 0)

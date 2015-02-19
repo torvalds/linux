@@ -223,9 +223,6 @@ static unsigned int __cbc_decrypt(struct blkcipher_desc *desc,
 			src -= 1;
 			dst -= 1;
 		} while (nbytes >= bsize * 4);
-
-		if (nbytes < bsize)
-			goto done;
 	}
 
 	/* Handle leftovers */
@@ -481,5 +478,5 @@ module_exit(fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Blowfish Cipher Algorithm, asm optimized");
-MODULE_ALIAS("blowfish");
-MODULE_ALIAS("blowfish-asm");
+MODULE_ALIAS_CRYPTO("blowfish");
+MODULE_ALIAS_CRYPTO("blowfish-asm");

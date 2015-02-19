@@ -200,7 +200,7 @@ static struct xen_bus_type xenbus_backend = {
 		.probe		= xenbus_dev_probe,
 		.remove		= xenbus_dev_remove,
 		.shutdown	= xenbus_dev_shutdown,
-		.dev_attrs	= xenbus_dev_attrs,
+		.dev_groups	= xenbus_dev_groups,
 	},
 };
 
@@ -234,13 +234,15 @@ int xenbus_dev_is_online(struct xenbus_device *dev)
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_is_online);
 
-int xenbus_register_backend(struct xenbus_driver *drv)
+int __xenbus_register_backend(struct xenbus_driver *drv, struct module *owner,
+			      const char *mod_name)
 {
 	drv->read_otherend_details = read_frontend_details;
 
-	return xenbus_register_driver_common(drv, &xenbus_backend);
+	return xenbus_register_driver_common(drv, &xenbus_backend,
+					     owner, mod_name);
 }
-EXPORT_SYMBOL_GPL(xenbus_register_backend);
+EXPORT_SYMBOL_GPL(__xenbus_register_backend);
 
 static int backend_probe_and_watch(struct notifier_block *notifier,
 				   unsigned long event,

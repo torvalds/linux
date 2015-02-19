@@ -217,14 +217,12 @@ static ssize_t show_number_of_sets(struct cache_info *this_leaf, char *buf)
 
 static ssize_t show_shared_cpu_map(struct cache_info *this_leaf, char *buf)
 {
-	ssize_t	len;
 	cpumask_t shared_cpu_map;
 
 	cpumask_and(&shared_cpu_map,
 				&this_leaf->shared_cpu_map, cpu_online_mask);
-	len = cpumask_scnprintf(buf, NR_CPUS+1, &shared_cpu_map);
-	len += sprintf(buf+len, "\n");
-	return len;
+	return scnprintf(buf, PAGE_SIZE, "%*pb\n",
+			 cpumask_pr_args(&shared_cpu_map));
 }
 
 static ssize_t show_type(struct cache_info *this_leaf, char *buf)
@@ -454,12 +452,16 @@ static int __init cache_sysfs_init(void)
 {
 	int i;
 
+	cpu_notifier_register_begin();
+
 	for_each_online_cpu(i) {
 		struct device *sys_dev = get_cpu_device((unsigned int)i);
 		cache_add_dev(sys_dev);
 	}
 
-	register_hotcpu_notifier(&cache_cpu_notifier);
+	__register_hotcpu_notifier(&cache_cpu_notifier);
+
+	cpu_notifier_register_done();
 
 	return 0;
 }

@@ -152,7 +152,7 @@ static int cc770_get_platform_data(struct platform_device *pdev,
 				   struct cc770_priv *priv)
 {
 
-	struct cc770_platform_data *pdata = pdev->dev.platform_data;
+	struct cc770_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	priv->can.clock.freq = pdata->osc_freq;
 	if (priv->cpu_interface & CPUIF_DSC)
@@ -203,7 +203,7 @@ static int cc770_platform_probe(struct platform_device *pdev)
 
 	if (pdev->dev.of_node)
 		err = cc770_get_of_node_data(pdev, priv);
-	else if (pdev->dev.platform_data)
+	else if (dev_get_platdata(&pdev->dev))
 		err = cc770_get_platform_data(pdev, priv);
 	else
 		err = -ENODEV;
@@ -264,7 +264,6 @@ MODULE_DEVICE_TABLE(of, cc770_platform_table);
 static struct platform_driver cc770_platform_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = cc770_platform_table,
 	},
 	.probe = cc770_platform_probe,

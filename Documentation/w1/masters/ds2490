@@ -21,8 +21,6 @@ Notes and limitations.
 - The weak pullup current is a minimum of 0.9mA and maximum of 6.0mA.
 - The 5V strong pullup is supported with a minimum of 5.9mA and a
   maximum of 30.4 mA.  (From DS2490.pdf)
-- While the ds2490 supports a hardware search the code doesn't take
-  advantage of it (in tested case it only returned first device).
 - The hardware will detect when devices are attached to the bus on the
   next bus (reset?) operation, however only a message is printed as
   the core w1 code doesn't make use of the information.  Connecting

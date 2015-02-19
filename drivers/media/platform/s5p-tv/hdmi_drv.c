@@ -37,6 +37,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-dv-timings.h>
 
 #include "regs-hdmi.h"
 
@@ -614,7 +615,7 @@ static int hdmi_s_power(struct v4l2_subdev *sd, int on)
 	else
 		ret = pm_runtime_put_sync(hdev->dev);
 	/* only values < 0 indicate errors */
-	return IS_ERR_VALUE(ret) ? ret : 0;
+	return ret < 0 ? ret : 0;
 }
 
 static int hdmi_s_dv_timings(struct v4l2_subdev *sd,
@@ -625,7 +626,7 @@ static int hdmi_s_dv_timings(struct v4l2_subdev *sd,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_timings); i++)
-		if (v4l_match_dv_timings(&hdmi_timings[i].dv_timings,
+		if (v4l2_match_dv_timings(&hdmi_timings[i].dv_timings,
 					timings, 0))
 			break;
 	if (i == ARRAY_SIZE(hdmi_timings)) {
@@ -659,7 +660,7 @@ static int hdmi_g_mbus_fmt(struct v4l2_subdev *sd,
 	memset(fmt, 0, sizeof(*fmt));
 	fmt->width = t->hact.end - t->hact.beg;
 	fmt->height = t->vact[0].end - t->vact[0].beg;
-	fmt->code = V4L2_MBUS_FMT_FIXED; /* means RGB888 */
+	fmt->code = MEDIA_BUS_FMT_FIXED; /* means RGB888 */
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	if (t->interlaced) {
 		fmt->field = V4L2_FIELD_INTERLACED;
@@ -673,6 +674,8 @@ static int hdmi_g_mbus_fmt(struct v4l2_subdev *sd,
 static int hdmi_enum_dv_timings(struct v4l2_subdev *sd,
 	struct v4l2_enum_dv_timings *timings)
 {
+	if (timings->pad != 0)
+		return -EINVAL;
 	if (timings->index >= ARRAY_SIZE(hdmi_timings))
 		return -EINVAL;
 	timings->timings = hdmi_timings[timings->index].dv_timings;
@@ -686,8 +689,11 @@ static int hdmi_dv_timings_cap(struct v4l2_subdev *sd,
 {
 	struct hdmi_device *hdev = sd_to_hdmi_dev(sd);
 
+	if (cap->pad != 0)
+		return -EINVAL;
+
 	/* Let the phy fill in the pixelclock range */
-	v4l2_subdev_call(hdev->phy_sd, video, dv_timings_cap, cap);
+	v4l2_subdev_call(hdev->phy_sd, pad, dv_timings_cap, cap);
 	cap->type = V4L2_DV_BT_656_1120;
 	cap->bt.min_width = 720;
 	cap->bt.max_width = 1920;
@@ -706,10 +712,13 @@ static const struct v4l2_subdev_core_ops hdmi_sd_core_ops = {
 static const struct v4l2_subdev_video_ops hdmi_sd_video_ops = {
 	.s_dv_timings = hdmi_s_dv_timings,
 	.g_dv_timings = hdmi_g_dv_timings,
-	.enum_dv_timings = hdmi_enum_dv_timings,
-	.dv_timings_cap = hdmi_dv_timings_cap,
 	.g_mbus_fmt = hdmi_g_mbus_fmt,
 	.s_stream = hdmi_s_stream,
+};
+
+static const struct v4l2_subdev_pad_ops hdmi_sd_pad_ops = {
+	.enum_dv_timings = hdmi_enum_dv_timings,
+	.dv_timings_cap = hdmi_dv_timings_cap,
 };
 
 static const struct v4l2_subdev_ops hdmi_sd_ops = {
@@ -1037,7 +1046,6 @@ static struct platform_driver hdmi_driver __refdata = {
 	.id_table = hdmi_driver_types,
 	.driver = {
 		.name = "s5p-hdmi",
-		.owner = THIS_MODULE,
 		.pm = &hdmi_pm_ops,
 	}
 };

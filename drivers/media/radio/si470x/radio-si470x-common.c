@@ -208,7 +208,7 @@ static int si470x_set_band(struct si470x_device *radio, int band)
 static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 {
 	int retval;
-	bool timed_out = 0;
+	bool timed_out = false;
 
 	/* start tuning */
 	radio->registers[CHANNEL] &= ~CHANNEL_CHAN;
@@ -218,7 +218,7 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 		goto done;
 
 	/* wait till tune operation has completed */
-	INIT_COMPLETION(radio->completion);
+	reinit_completion(&radio->completion);
 	retval = wait_for_completion_timeout(&radio->completion,
 			msecs_to_jiffies(tune_timeout));
 	if (!retval)
@@ -254,7 +254,7 @@ static unsigned int si470x_get_step(struct si470x_device *radio)
 	/* 2:  50 kHz */
 	default:
 		return 50 * 16;
-	};
+	}
 }
 
 
@@ -300,7 +300,7 @@ static int si470x_set_seek(struct si470x_device *radio,
 {
 	int band, retval;
 	unsigned int freq;
-	bool timed_out = 0;
+	bool timed_out = false;
 
 	/* set band */
 	if (seek->rangelow || seek->rangehigh) {
@@ -341,7 +341,7 @@ static int si470x_set_seek(struct si470x_device *radio,
 		return retval;
 
 	/* wait till tune operation has completed */
-	INIT_COMPLETION(radio->completion);
+	reinit_completion(&radio->completion);
 	retval = wait_for_completion_timeout(&radio->completion,
 			msecs_to_jiffies(seek_timeout));
 	if (!retval)

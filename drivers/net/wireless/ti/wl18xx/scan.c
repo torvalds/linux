@@ -113,6 +113,8 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				 req->ssids ? req->ssids[0].ssid_len : 0,
 				 req->ie,
 				 req->ie_len,
+				 NULL,
+				 0,
 				 false);
 		if (ret < 0) {
 			wl1271_error("2.4GHz PROBE request template failed");
@@ -128,6 +130,8 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				 req->ssids ? req->ssids[0].ssid_len : 0,
 				 req->ie,
 				 req->ie_len,
+				 NULL,
+				 0,
 				 false);
 		if (ret < 0) {
 			wl1271_error("5GHz PROBE request template failed");
@@ -161,7 +165,7 @@ static
 int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 				  struct wl12xx_vif *wlvif,
 				  struct cfg80211_sched_scan_request *req,
-				  struct ieee80211_sched_scan_ies *ies)
+				  struct ieee80211_scan_ies *ies)
 {
 	struct wl18xx_cmd_scan_params *cmd;
 	struct wlcore_scan_channels *cmd_channels = NULL;
@@ -237,8 +241,10 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 				 cmd->role_id, band,
 				 req->ssids ? req->ssids[0].ssid : NULL,
 				 req->ssids ? req->ssids[0].ssid_len : 0,
-				 ies->ie[band],
+				 ies->ies[band],
 				 ies->len[band],
+				 ies->common_ies,
+				 ies->common_ie_len,
 				 true);
 		if (ret < 0) {
 			wl1271_error("2.4GHz PROBE request template failed");
@@ -252,8 +258,10 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 				 cmd->role_id, band,
 				 req->ssids ? req->ssids[0].ssid : NULL,
 				 req->ssids ? req->ssids[0].ssid_len : 0,
-				 ies->ie[band],
+				 ies->ies[band],
 				 ies->len[band],
+				 ies->common_ies,
+				 ies->common_ie_len,
 				 true);
 		if (ret < 0) {
 			wl1271_error("5GHz PROBE request template failed");
@@ -277,7 +285,7 @@ out:
 
 int wl18xx_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			    struct cfg80211_sched_scan_request *req,
-			    struct ieee80211_sched_scan_ies *ies)
+			    struct ieee80211_scan_ies *ies)
 {
 	return wl18xx_scan_sched_scan_config(wl, wlvif, req, ies);
 }

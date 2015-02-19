@@ -15,15 +15,27 @@
 
 #include <sound/soc.h>
 
+static const struct snd_soc_dapm_widget bt_sco_widgets[] = {
+	SND_SOC_DAPM_INPUT("RX"),
+	SND_SOC_DAPM_OUTPUT("TX"),
+};
+
+static const struct snd_soc_dapm_route bt_sco_routes[] = {
+	{ "Capture", NULL, "RX" },
+	{ "TX", NULL, "Playback" },
+};
+
 static struct snd_soc_dai_driver bt_sco_dai = {
 	.name = "bt-sco-pcm",
 	.playback = {
+		.stream_name = "Playback",
 		.channels_min = 1,
 		.channels_max = 1,
 		.rates = SNDRV_PCM_RATE_8000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.capture = {
+		 .stream_name = "Capture",
 		.channels_min = 1,
 		.channels_max = 1,
 		.rates = SNDRV_PCM_RATE_8000,
@@ -31,7 +43,12 @@ static struct snd_soc_dai_driver bt_sco_dai = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_bt_sco;
+static struct snd_soc_codec_driver soc_codec_dev_bt_sco = {
+	.dapm_widgets = bt_sco_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(bt_sco_widgets),
+	.dapm_routes = bt_sco_routes,
+	.num_dapm_routes = ARRAY_SIZE(bt_sco_routes),
+};
 
 static int bt_sco_probe(struct platform_device *pdev)
 {
@@ -50,6 +67,9 @@ static struct platform_device_id bt_sco_driver_ids[] = {
 	{
 		.name		= "dfbmcs320",
 	},
+	{
+		.name		= "bt-sco",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(platform, bt_sco_driver_ids);
@@ -57,7 +77,6 @@ MODULE_DEVICE_TABLE(platform, bt_sco_driver_ids);
 static struct platform_driver bt_sco_driver = {
 	.driver = {
 		.name = "bt-sco",
-		.owner = THIS_MODULE,
 	},
 	.probe = bt_sco_probe,
 	.remove = bt_sco_remove,
@@ -67,5 +86,5 @@ static struct platform_driver bt_sco_driver = {
 module_platform_driver(bt_sco_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
-MODULE_DESCRIPTION("ASoC generic bluethooth sco link driver");
+MODULE_DESCRIPTION("ASoC generic bluetooth sco link driver");
 MODULE_LICENSE("GPL");

@@ -13,9 +13,9 @@
 #include <string.h>
 
 
-enum perf_target_errno perf_target__validate(struct perf_target *target)
+enum target_errno target__validate(struct target *target)
 {
-	enum perf_target_errno ret = PERF_ERRNO_TARGET__SUCCESS;
+	enum target_errno ret = TARGET_ERRNO__SUCCESS;
 
 	if (target->pid)
 		target->tid = target->pid;
@@ -23,42 +23,49 @@ enum perf_target_errno perf_target__validate(struct perf_target *target)
 	/* CPU and PID are mutually exclusive */
 	if (target->tid && target->cpu_list) {
 		target->cpu_list = NULL;
-		if (ret == PERF_ERRNO_TARGET__SUCCESS)
-			ret = PERF_ERRNO_TARGET__PID_OVERRIDE_CPU;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__PID_OVERRIDE_CPU;
 	}
 
 	/* UID and PID are mutually exclusive */
 	if (target->tid && target->uid_str) {
 		target->uid_str = NULL;
-		if (ret == PERF_ERRNO_TARGET__SUCCESS)
-			ret = PERF_ERRNO_TARGET__PID_OVERRIDE_UID;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__PID_OVERRIDE_UID;
 	}
 
 	/* UID and CPU are mutually exclusive */
 	if (target->uid_str && target->cpu_list) {
 		target->cpu_list = NULL;
-		if (ret == PERF_ERRNO_TARGET__SUCCESS)
-			ret = PERF_ERRNO_TARGET__UID_OVERRIDE_CPU;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__UID_OVERRIDE_CPU;
 	}
 
 	/* PID and SYSTEM are mutually exclusive */
 	if (target->tid && target->system_wide) {
 		target->system_wide = false;
-		if (ret == PERF_ERRNO_TARGET__SUCCESS)
-			ret = PERF_ERRNO_TARGET__PID_OVERRIDE_SYSTEM;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__PID_OVERRIDE_SYSTEM;
 	}
 
 	/* UID and SYSTEM are mutually exclusive */
 	if (target->uid_str && target->system_wide) {
 		target->system_wide = false;
-		if (ret == PERF_ERRNO_TARGET__SUCCESS)
-			ret = PERF_ERRNO_TARGET__UID_OVERRIDE_SYSTEM;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__UID_OVERRIDE_SYSTEM;
+	}
+
+	/* THREAD and SYSTEM/CPU are mutually exclusive */
+	if (target->per_thread && (target->system_wide || target->cpu_list)) {
+		target->per_thread = false;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__SYSTEM_OVERRIDE_THREAD;
 	}
 
 	return ret;
 }
 
-enum perf_target_errno perf_target__parse_uid(struct perf_target *target)
+enum target_errno target__parse_uid(struct target *target)
 {
 	struct passwd pwd, *result;
 	char buf[1024];
@@ -66,7 +73,7 @@ enum perf_target_errno perf_target__parse_uid(struct perf_target *target)
 
 	target->uid = UINT_MAX;
 	if (str == NULL)
-		return PERF_ERRNO_TARGET__SUCCESS;
+		return TARGET_ERRNO__SUCCESS;
 
 	/* Try user name first */
 	getpwnam_r(str, &pwd, buf, sizeof(buf), &result);
@@ -79,32 +86,33 @@ enum perf_target_errno perf_target__parse_uid(struct perf_target *target)
 		int uid = strtol(str, &endptr, 10);
 
 		if (*endptr != '\0')
-			return PERF_ERRNO_TARGET__INVALID_UID;
+			return TARGET_ERRNO__INVALID_UID;
 
 		getpwuid_r(uid, &pwd, buf, sizeof(buf), &result);
 
 		if (result == NULL)
-			return PERF_ERRNO_TARGET__USER_NOT_FOUND;
+			return TARGET_ERRNO__USER_NOT_FOUND;
 	}
 
 	target->uid = result->pw_uid;
-	return PERF_ERRNO_TARGET__SUCCESS;
+	return TARGET_ERRNO__SUCCESS;
 }
 
 /*
- * This must have a same ordering as the enum perf_target_errno.
+ * This must have a same ordering as the enum target_errno.
  */
-static const char *perf_target__error_str[] = {
+static const char *target__error_str[] = {
 	"PID/TID switch overriding CPU",
 	"PID/TID switch overriding UID",
 	"UID switch overriding CPU",
 	"PID/TID switch overriding SYSTEM",
 	"UID switch overriding SYSTEM",
+	"SYSTEM/CPU switch overriding PER-THREAD",
 	"Invalid User: %s",
 	"Problems obtaining information for user %s",
 };
 
-int perf_target__strerror(struct perf_target *target, int errnum,
+int target__strerror(struct target *target, int errnum,
 			  char *buf, size_t buflen)
 {
 	int idx;
@@ -124,21 +132,20 @@ int perf_target__strerror(struct perf_target *target, int errnum,
 		return 0;
 	}
 
-	if (errnum <  __PERF_ERRNO_TARGET__START ||
-	    errnum >= __PERF_ERRNO_TARGET__END)
+	if (errnum <  __TARGET_ERRNO__START || errnum >= __TARGET_ERRNO__END)
 		return -1;
 
-	idx = errnum - __PERF_ERRNO_TARGET__START;
-	msg = perf_target__error_str[idx];
+	idx = errnum - __TARGET_ERRNO__START;
+	msg = target__error_str[idx];
 
 	switch (errnum) {
-	case PERF_ERRNO_TARGET__PID_OVERRIDE_CPU
-	 ... PERF_ERRNO_TARGET__UID_OVERRIDE_SYSTEM:
+	case TARGET_ERRNO__PID_OVERRIDE_CPU ...
+	     TARGET_ERRNO__SYSTEM_OVERRIDE_THREAD:
 		snprintf(buf, buflen, "%s", msg);
 		break;
 
-	case PERF_ERRNO_TARGET__INVALID_UID:
-	case PERF_ERRNO_TARGET__USER_NOT_FOUND:
+	case TARGET_ERRNO__INVALID_UID:
+	case TARGET_ERRNO__USER_NOT_FOUND:
 		snprintf(buf, buflen, msg, target->uid_str);
 		break;
 

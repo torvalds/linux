@@ -24,6 +24,7 @@
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
 #include "hdpvr.h"
@@ -81,7 +82,7 @@ static void hdpvr_read_bulk_callback(struct urb *urb)
 }
 
 /*=========================================================================*/
-/* bufffer bits */
+/* buffer bits */
 
 /* function expects dev->io_mutex to be hold by caller */
 int hdpvr_cancel_queue(struct hdpvr_device *dev)
@@ -641,7 +642,7 @@ static int vidioc_s_dv_timings(struct file *file, void *_fh,
 	if (dev->status != STATUS_IDLE)
 		return -EBUSY;
 	for (i = 0; i < ARRAY_SIZE(hdpvr_dv_timings); i++)
-		if (v4l_match_dv_timings(timings, hdpvr_dv_timings + i, 0))
+		if (v4l2_match_dv_timings(timings, hdpvr_dv_timings + i, 0))
 			break;
 	if (i == ARRAY_SIZE(hdpvr_dv_timings))
 		return -EINVAL;
@@ -689,10 +690,8 @@ static int vidioc_query_dv_timings(struct file *file, void *_fh,
 		unsigned vsize;
 		unsigned fps;
 
-		hsize = bt->hfrontporch + bt->hsync + bt->hbackporch + bt->width;
-		vsize = bt->vfrontporch + bt->vsync + bt->vbackporch +
-			bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch +
-			bt->height;
+		hsize = V4L2_DV_BT_FRAME_WIDTH(bt);
+		vsize = V4L2_DV_BT_FRAME_HEIGHT(bt);
 		fps = (unsigned)bt->pixelclock / (hsize * vsize);
 		if (bt->width != vid_info.width ||
 		    bt->height != vid_info.height ||
@@ -927,7 +926,7 @@ static int hdpvr_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		if (dev->flags & HDPVR_FLAG_AC3_CAP) {
 			opt->audio_codec = ctrl->val;
-			return hdpvr_set_audio(dev, opt->audio_input,
+			return hdpvr_set_audio(dev, opt->audio_input + 1,
 					      opt->audio_codec);
 		}
 		return 0;
@@ -1023,14 +1022,13 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *_fh,
 	f->fmt.pix.pixelformat	= V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage	= dev->bulk_in_size;
 	f->fmt.pix.bytesperline	= 0;
-	f->fmt.pix.priv		= 0;
 	if (f->fmt.pix.width == 720) {
 		/* SDTV formats */
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 		f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	} else {
 		/* HDTV formats */
-		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE240M;
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
 		f->fmt.pix.field = V4L2_FIELD_NONE;
 	}
 	return 0;
@@ -1199,7 +1197,7 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	v4l2_ctrl_new_std_menu(hdl, &hdpvr_ctrl_ops,
 		V4L2_CID_MPEG_AUDIO_ENCODING,
 		ac3 ? V4L2_MPEG_AUDIO_ENCODING_AC3 : V4L2_MPEG_AUDIO_ENCODING_AAC,
-		0x7, V4L2_MPEG_AUDIO_ENCODING_AAC);
+		0x7, ac3 ? dev->options.audio_codec : V4L2_MPEG_AUDIO_ENCODING_AAC);
 	v4l2_ctrl_new_std_menu(hdl, &hdpvr_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_ENCODING,
 		V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 0x3,
@@ -1241,7 +1239,6 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	strcpy(dev->video_dev->name, "Hauppauge HD PVR");
 	dev->video_dev->v4l2_dev = &dev->v4l2_dev;
 	video_set_drvdata(dev->video_dev, dev);
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->video_dev->flags);
 
 	res = video_register_device(dev->video_dev, VFL_TYPE_GRABBER, devnum);
 	if (res < 0) {

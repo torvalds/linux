@@ -31,13 +31,12 @@ static void write_pen_release(int val)
 {
 	pen_release = val;
 	smp_wmb();
-	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
-	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+	sync_cache_w(&pen_release);
 }
 
 static DEFINE_SPINLOCK(boot_lock);
 
-void sti_secondary_init(unsigned int cpu)
+static void sti_secondary_init(unsigned int cpu)
 {
 	trace_hardirqs_off();
 
@@ -54,7 +53,7 @@ void sti_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-int sti_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int sti_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 
@@ -98,7 +97,7 @@ int sti_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return pen_release != -1 ? -ENOSYS : 0;
 }
 
-void __init sti_smp_prepare_cpus(unsigned int max_cpus)
+static void __init sti_smp_prepare_cpus(unsigned int max_cpus)
 {
 	void __iomem *scu_base = NULL;
 	struct device_node *np = of_find_compatible_node(

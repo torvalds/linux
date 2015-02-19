@@ -1,7 +1,7 @@
 /*
  * rcar_du_drv.c  --  R-Car Display Unit DRM driver
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -15,12 +15,14 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "rcar_du_crtc.h"
@@ -29,62 +31,97 @@
 #include "rcar_du_regs.h"
 
 /* -----------------------------------------------------------------------------
- * Core device operations
+ * Device Information
  */
 
-/*
- * rcar_du_get - Acquire a reference to the DU
- *
- * Acquiring a reference enables the device clock and setup core registers. A
- * reference must be held before accessing any hardware registers.
- *
- * This function must be called with the DRM mode_config lock held.
- *
- * Return 0 in case of success or a negative error code otherwise.
- */
-int rcar_du_get(struct rcar_du_device *rcdu)
-{
-	int ret;
+static const struct rcar_du_device_info rcar_du_r8a7779_info = {
+	.features = 0,
+	.num_crtcs = 2,
+	.routes = {
+		/* R8A7779 has two RGB outputs and one (currently unsupported)
+		 * TCON output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_DPAD1] = {
+			.possible_crtcs = BIT(1) | BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 1,
+		},
+	},
+	.num_lvds = 0,
+};
 
-	if (rcdu->use_count)
-		goto done;
+static const struct rcar_du_device_info rcar_du_r8a7790_info = {
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
+	.quirks = RCAR_DU_QUIRK_ALIGN_128B | RCAR_DU_QUIRK_LVDS_LANES,
+	.num_crtcs = 3,
+	.routes = {
+		/* R8A7790 has one RGB output, two LVDS outputs and one
+		 * (currently unsupported) TCON output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(2) | BIT(1) | BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_LVDS0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+			.port = 1,
+		},
+		[RCAR_DU_OUTPUT_LVDS1] = {
+			.possible_crtcs = BIT(2) | BIT(1),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+			.port = 2,
+		},
+	},
+	.num_lvds = 2,
+};
 
-	/* Enable clocks before accessing the hardware. */
-	ret = clk_prepare_enable(rcdu->clock);
-	if (ret < 0)
-		return ret;
+static const struct rcar_du_device_info rcar_du_r8a7791_info = {
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
+	.num_crtcs = 2,
+	.routes = {
+		/* R8A7791 has one RGB output, one LVDS output and one
+		 * (currently unsupported) TCON output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(1),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_LVDS0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+			.port = 1,
+		},
+	},
+	.num_lvds = 1,
+};
 
-	/* Enable extended features */
-	rcar_du_write(rcdu, DEFR, DEFR_CODE | DEFR_DEFE);
-	rcar_du_write(rcdu, DEFR2, DEFR2_CODE | DEFR2_DEFE2G);
-	rcar_du_write(rcdu, DEFR3, DEFR3_CODE | DEFR3_DEFE3);
-	rcar_du_write(rcdu, DEFR4, DEFR4_CODE);
-	rcar_du_write(rcdu, DEFR5, DEFR5_CODE | DEFR5_DEFE5);
+static const struct platform_device_id rcar_du_id_table[] = {
+	{ "rcar-du-r8a7779", (kernel_ulong_t)&rcar_du_r8a7779_info },
+	{ "rcar-du-r8a7790", (kernel_ulong_t)&rcar_du_r8a7790_info },
+	{ "rcar-du-r8a7791", (kernel_ulong_t)&rcar_du_r8a7791_info },
+	{ }
+};
 
-	/* Use DS1PR and DS2PR to configure planes priorities and connects the
-	 * superposition 0 to DU0 pins. DU1 pins will be configured dynamically.
-	 */
-	rcar_du_write(rcdu, DORCR, DORCR_PG1D_DS1 | DORCR_DPRS);
+MODULE_DEVICE_TABLE(platform, rcar_du_id_table);
 
-done:
-	rcdu->use_count++;
-	return 0;
-}
+static const struct of_device_id rcar_du_of_table[] = {
+	{ .compatible = "renesas,du-r8a7779", .data = &rcar_du_r8a7779_info },
+	{ .compatible = "renesas,du-r8a7790", .data = &rcar_du_r8a7790_info },
+	{ .compatible = "renesas,du-r8a7791", .data = &rcar_du_r8a7791_info },
+	{ }
+};
 
-/*
- * rcar_du_put - Release a reference to the DU
- *
- * Releasing the last reference disables the device clock.
- *
- * This function must be called with the DRM mode_config lock held.
- */
-void rcar_du_put(struct rcar_du_device *rcdu)
-{
-	if (--rcdu->use_count)
-		return;
-
-	clk_disable_unprepare(rcdu->clock);
-}
+MODULE_DEVICE_TABLE(of, rcar_du_of_table);
 
 /* -----------------------------------------------------------------------------
  * DRM operations
@@ -92,11 +129,16 @@ void rcar_du_put(struct rcar_du_device *rcdu)
 
 static int rcar_du_unload(struct drm_device *dev)
 {
+	struct rcar_du_device *rcdu = dev->dev_private;
+
+	if (rcdu->fbdev)
+		drm_fbdev_cma_fini(rcdu->fbdev);
+
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
-	drm_irq_uninstall(dev);
 
+	dev->irq_enabled = 0;
 	dev->dev_private = NULL;
 
 	return 0;
@@ -105,13 +147,12 @@ static int rcar_du_unload(struct drm_device *dev)
 static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 {
 	struct platform_device *pdev = dev->platformdev;
-	struct rcar_du_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *np = pdev->dev.of_node;
 	struct rcar_du_device *rcdu;
-	struct resource *ioarea;
 	struct resource *mem;
 	int ret;
 
-	if (pdata == NULL) {
+	if (np == NULL) {
 		dev_err(dev->dev, "no platform data\n");
 		return -ENODEV;
 	}
@@ -123,36 +164,16 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	rcdu->dev = &pdev->dev;
-	rcdu->pdata = pdata;
+	rcdu->info = np ? of_match_device(rcar_du_of_table, rcdu->dev)->data
+		   : (void *)platform_get_device_id(pdev)->driver_data;
 	rcdu->ddev = dev;
 	dev->dev_private = rcdu;
 
-	/* I/O resources and clocks */
+	/* I/O resources */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem == NULL) {
-		dev_err(&pdev->dev, "failed to get memory resource\n");
-		return -EINVAL;
-	}
-
-	ioarea = devm_request_mem_region(&pdev->dev, mem->start,
-					 resource_size(mem), pdev->name);
-	if (ioarea == NULL) {
-		dev_err(&pdev->dev, "failed to request memory region\n");
-		return -EBUSY;
-	}
-
-	rcdu->mmio = devm_ioremap_nocache(&pdev->dev, ioarea->start,
-					  resource_size(ioarea));
-	if (rcdu->mmio == NULL) {
-		dev_err(&pdev->dev, "failed to remap memory resource\n");
-		return -ENOMEM;
-	}
-
-	rcdu->clock = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(rcdu->clock)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
-		return -ENOENT;
-	}
+	rcdu->mmio = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(rcdu->mmio))
+		return PTR_ERR(rcdu->mmio);
 
 	/* DRM/KMS objects */
 	ret = rcar_du_modeset_init(rcdu);
@@ -161,18 +182,14 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 		goto done;
 	}
 
-	/* IRQ and vblank handling */
+	/* vblank handling */
 	ret = drm_vblank_init(dev, (1 << rcdu->num_crtcs) - 1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to initialize vblank\n");
 		goto done;
 	}
 
-	ret = drm_irq_install(dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to install IRQ handler\n");
-		goto done;
-	}
+	dev->irq_enabled = 1;
 
 	platform_set_drvdata(pdev, rcdu);
 
@@ -188,20 +205,15 @@ static void rcar_du_preclose(struct drm_device *dev, struct drm_file *file)
 	struct rcar_du_device *rcdu = dev->dev_private;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(rcdu->crtcs); ++i)
+	for (i = 0; i < rcdu->num_crtcs; ++i)
 		rcar_du_crtc_cancel_page_flip(&rcdu->crtcs[i], file);
 }
 
-static irqreturn_t rcar_du_irq(int irq, void *arg)
+static void rcar_du_lastclose(struct drm_device *dev)
 {
-	struct drm_device *dev = arg;
 	struct rcar_du_device *rcdu = dev->dev_private;
-	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(rcdu->crtcs); ++i)
-		rcar_du_crtc_irq(&rcdu->crtcs[i]);
-
-	return IRQ_HANDLED;
+	drm_fbdev_cma_restore_mode(rcdu->fbdev);
 }
 
 static int rcar_du_enable_vblank(struct drm_device *dev, int crtc)
@@ -230,18 +242,17 @@ static const struct file_operations rcar_du_fops = {
 #endif
 	.poll		= drm_poll,
 	.read		= drm_read,
-	.fasync		= drm_fasync,
 	.llseek		= no_llseek,
 	.mmap		= drm_gem_cma_mmap,
 };
 
 static struct drm_driver rcar_du_driver = {
-	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET
-				| DRIVER_PRIME,
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME,
 	.load			= rcar_du_load,
 	.unload			= rcar_du_unload,
 	.preclose		= rcar_du_preclose,
-	.irq_handler		= rcar_du_irq,
+	.lastclose		= rcar_du_lastclose,
+	.set_busid		= drm_platform_set_busid,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= rcar_du_enable_vblank,
 	.disable_vblank		= rcar_du_disable_vblank,
@@ -258,7 +269,7 @@ static struct drm_driver rcar_du_driver = {
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 	.dumb_create		= rcar_du_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_cma_dumb_destroy,
+	.dumb_destroy		= drm_gem_dumb_destroy,
 	.fops			= &rcar_du_fops,
 	.name			= "rcar-du",
 	.desc			= "Renesas R-Car Display Unit",
@@ -271,7 +282,7 @@ static struct drm_driver rcar_du_driver = {
  * Power management
  */
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int rcar_du_pm_suspend(struct device *dev)
 {
 	struct rcar_du_device *rcdu = dev_get_drvdata(dev);
@@ -308,7 +319,9 @@ static int rcar_du_probe(struct platform_device *pdev)
 
 static int rcar_du_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&rcar_du_driver, pdev);
+	struct rcar_du_device *rcdu = platform_get_drvdata(pdev);
+
+	drm_put_dev(rcdu->ddev);
 
 	return 0;
 }
@@ -317,10 +330,11 @@ static struct platform_driver rcar_du_platform_driver = {
 	.probe		= rcar_du_probe,
 	.remove		= rcar_du_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "rcar-du",
 		.pm	= &rcar_du_pm_ops,
+		.of_match_table = rcar_du_of_table,
 	},
+	.id_table	= rcar_du_id_table,
 };
 
 module_platform_driver(rcar_du_platform_driver);

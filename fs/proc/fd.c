@@ -11,6 +11,7 @@
 
 #include <linux/proc_fs.h>
 
+#include "../mount.h"
 #include "internal.h"
 #include "fd.h"
 
@@ -48,10 +49,12 @@ static int seq_show(struct seq_file *m, void *v)
 	}
 
 	if (!ret) {
-                seq_printf(m, "pos:\t%lli\nflags:\t0%o\n",
-			   (long long)file->f_pos, f_flags);
+		seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\n",
+			   (long long)file->f_pos, f_flags,
+			   real_mount(file->f_path.mnt)->mnt_id);
 		if (file->f_op->show_fdinfo)
-			ret = file->f_op->show_fdinfo(m, file);
+			file->f_op->show_fdinfo(m, file);
+		ret = seq_has_overflowed(m);
 		fput(file);
 	}
 
@@ -127,8 +130,6 @@ static int tid_fd_revalidate(struct dentry *dentry, unsigned int flags)
 		}
 		put_task_struct(task);
 	}
-
-	d_drop(dentry);
 	return 0;
 }
 
@@ -204,7 +205,7 @@ static struct dentry *proc_lookupfd_common(struct inode *dir,
 {
 	struct task_struct *task = get_proc_task(dir);
 	int result = -ENOENT;
-	unsigned fd = name_to_int(dentry);
+	unsigned fd = name_to_int(&dentry->d_name);
 
 	if (!task)
 		goto out_no_task;
@@ -228,8 +229,6 @@ static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 	if (!p)
 		return -ENOENT;
 
-	if (!dir_emit_dots(file, ctx))
-		goto out;
 	if (!dir_emit_dots(file, ctx))
 		goto out;
 	files = get_files_struct(p);
@@ -288,7 +287,7 @@ int proc_fd_permission(struct inode *inode, int mask)
 	int rv = generic_permission(inode, mask);
 	if (rv == 0)
 		return 0;
-	if (task_pid(current) == proc_pid(inode))
+	if (task_tgid(current) == proc_pid(inode))
 		rv = 0;
 	return rv;
 }

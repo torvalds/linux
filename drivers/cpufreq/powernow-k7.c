@@ -1,7 +1,6 @@
 /*
  *  AMD K7 Powernow driver.
  *  (C) 2003 Dave Jones on behalf of SuSE Labs.
- *  (C) 2003-2004 Dave Jones <davej@redhat.com>
  *
  *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon datasheets & sample CPUs kindly provided by AMD.
@@ -177,7 +176,7 @@ static int get_ranges(unsigned char *pst)
 	unsigned int speed;
 	u8 fid, vid;
 
-	powernow_table = kzalloc((sizeof(struct cpufreq_frequency_table) *
+	powernow_table = kzalloc((sizeof(*powernow_table) *
 				(number_scales + 1)), GFP_KERNEL);
 	if (!powernow_table)
 		return -ENOMEM;
@@ -248,7 +247,7 @@ static void change_VID(int vid)
 }
 
 
-static void change_speed(struct cpufreq_policy *policy, unsigned int index)
+static int powernow_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	u8 fid, vid;
 	struct cpufreq_freqs freqs;
@@ -269,8 +268,6 @@ static void change_speed(struct cpufreq_policy *policy, unsigned int index)
 
 	freqs.new = powernow_table[index].frequency;
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
 	/* Now do the magic poking into the MSRs.  */
 
 	if (have_a0 == 1)	/* A0 errata 5 */
@@ -290,7 +287,7 @@ static void change_speed(struct cpufreq_policy *policy, unsigned int index)
 	if (have_a0 == 1)
 		local_irq_enable();
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	return 0;
 }
 
 
@@ -309,8 +306,7 @@ static int powernow_acpi_init(void)
 		goto err0;
 	}
 
-	acpi_processor_perf = kzalloc(sizeof(struct acpi_processor_performance),
-				      GFP_KERNEL);
+	acpi_processor_perf = kzalloc(sizeof(*acpi_processor_perf), GFP_KERNEL);
 	if (!acpi_processor_perf) {
 		retval = -ENOMEM;
 		goto err0;
@@ -346,7 +342,7 @@ static int powernow_acpi_init(void)
 		goto err2;
 	}
 
-	powernow_table = kzalloc((sizeof(struct cpufreq_frequency_table) *
+	powernow_table = kzalloc((sizeof(*powernow_table) *
 				(number_scales + 1)), GFP_KERNEL);
 	if (!powernow_table) {
 		retval = -ENOMEM;
@@ -497,7 +493,7 @@ static int powernow_decode_bios(int maxfid, int startvid)
 					"relevant to this CPU).\n",
 					psb->numpst);
 
-			p += sizeof(struct psb_s);
+			p += sizeof(*psb);
 
 			pst = (struct pst_s *) p;
 
@@ -510,12 +506,12 @@ static int powernow_decode_bios(int maxfid, int startvid)
 				    (maxfid == pst->maxfid) &&
 				    (startvid == pst->startvid)) {
 					print_pst_entry(pst, j);
-					p = (char *)pst + sizeof(struct pst_s);
+					p = (char *)pst + sizeof(*pst);
 					ret = get_ranges(p);
 					return ret;
 				} else {
 					unsigned int k;
-					p = (char *)pst + sizeof(struct pst_s);
+					p = (char *)pst + sizeof(*pst);
 					for (k = 0; k < number_scales; k++)
 						p += 2;
 				}
@@ -533,27 +529,6 @@ static int powernow_decode_bios(int maxfid, int startvid)
 	return -ENODEV;
 }
 
-
-static int powernow_target(struct cpufreq_policy *policy,
-			    unsigned int target_freq,
-			    unsigned int relation)
-{
-	unsigned int newstate;
-
-	if (cpufreq_frequency_table_target(policy, powernow_table, target_freq,
-				relation, &newstate))
-		return -EINVAL;
-
-	change_speed(policy, newstate);
-
-	return 0;
-}
-
-
-static int powernow_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, powernow_table);
-}
 
 /*
  * We use the fact that the bus frequency is somehow
@@ -679,17 +654,11 @@ static int powernow_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency =
 		cpufreq_scale(2000000UL, fsb, latency);
 
-	policy->cur = powernow_get(0);
-
-	cpufreq_frequency_table_get_attr(powernow_table, policy->cpu);
-
-	return cpufreq_frequency_table_cpuinfo(policy, powernow_table);
+	return cpufreq_table_validate_and_show(policy, powernow_table);
 }
 
 static int powernow_cpu_exit(struct cpufreq_policy *policy)
 {
-	cpufreq_frequency_table_put_attr(policy->cpu);
-
 #ifdef CONFIG_X86_POWERNOW_K7_ACPI
 	if (acpi_processor_perf) {
 		acpi_processor_unregister_performance(acpi_processor_perf, 0);
@@ -702,14 +671,9 @@ static int powernow_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct freq_attr *powernow_table_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver powernow_driver = {
-	.verify		= powernow_verify,
-	.target		= powernow_target,
+	.verify		= cpufreq_generic_frequency_table_verify,
+	.target_index	= powernow_target,
 	.get		= powernow_get,
 #ifdef CONFIG_X86_POWERNOW_K7_ACPI
 	.bios_limit	= acpi_processor_get_bios_limit,
@@ -717,8 +681,7 @@ static struct cpufreq_driver powernow_driver = {
 	.init		= powernow_cpu_init,
 	.exit		= powernow_cpu_exit,
 	.name		= "powernow-k7",
-	.owner		= THIS_MODULE,
-	.attr		= powernow_table_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static int __init powernow_init(void)
@@ -737,7 +700,7 @@ static void __exit powernow_exit(void)
 module_param(acpi_force,  int, 0444);
 MODULE_PARM_DESC(acpi_force, "Force ACPI to be used.");
 
-MODULE_AUTHOR("Dave Jones <davej@redhat.com>");
+MODULE_AUTHOR("Dave Jones");
 MODULE_DESCRIPTION("Powernow driver for AMD K7 processors.");
 MODULE_LICENSE("GPL");
 

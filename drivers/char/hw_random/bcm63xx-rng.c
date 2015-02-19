@@ -162,7 +162,6 @@ static struct platform_driver bcm63xx_rng_driver = {
 	.remove		= bcm63xx_rng_remove,
 	.driver		= {
 		.name	= "bcm63xx-rng",
-		.owner	= THIS_MODULE,
 	},
 };
 

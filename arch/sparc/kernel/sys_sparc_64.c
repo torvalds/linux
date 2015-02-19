@@ -24,12 +24,14 @@
 #include <linux/personality.h>
 #include <linux/random.h>
 #include <linux/export.h>
+#include <linux/context_tracking.h>
 
 #include <asm/uaccess.h>
 #include <asm/utrap.h>
 #include <asm/unistd.h>
 
 #include "entry.h"
+#include "kernel.h"
 #include "systbls.h"
 
 /* #define DEBUG_UNIMP_SYSCALL */
@@ -38,9 +40,6 @@ asmlinkage unsigned long sys_getpagesize(void)
 {
 	return PAGE_SIZE;
 }
-
-#define VA_EXCLUDE_START (0x0000080000000000UL - (1UL << 32UL))
-#define VA_EXCLUDE_END   (0xfffff80000000000UL + (1UL << 32UL))
 
 /* Does addr --> addr+len fall within 4GB of the VA-space hole or
  * overflow past the end of the 64-bit address space?
@@ -499,6 +498,7 @@ asmlinkage unsigned long c_sys_nis_syscall(struct pt_regs *regs)
 
 asmlinkage void sparc_breakpoint(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
 
 	if (test_thread_flag(TIF_32BIT)) {
@@ -517,6 +517,7 @@ asmlinkage void sparc_breakpoint(struct pt_regs *regs)
 #ifdef DEBUG_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%lx nPC=%lx\n", regs->tpc, regs->tnpc);
 #endif
+	exception_exit(prev_state);
 }
 
 extern void check_pending(int signum);

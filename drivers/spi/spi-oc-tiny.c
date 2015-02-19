@@ -15,7 +15,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -153,62 +152,22 @@ static int tiny_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 		}
 
 		wait_for_completion(&hw->done);
-	} else if (txp && rxp) {
-		/* we need to tighten the transfer loop */
-		writeb(*txp++, hw->base + TINY_SPI_TXDATA);
-		if (t->len > 1) {
-			writeb(*txp++, hw->base + TINY_SPI_TXDATA);
-			for (i = 2; i < t->len; i++) {
-				u8 rx, tx = *txp++;
-				tiny_spi_wait_txr(hw);
-				rx = readb(hw->base + TINY_SPI_TXDATA);
-				writeb(tx, hw->base + TINY_SPI_TXDATA);
-				*rxp++ = rx;
-			}
-			tiny_spi_wait_txr(hw);
-			*rxp++ = readb(hw->base + TINY_SPI_TXDATA);
-		}
-		tiny_spi_wait_txe(hw);
-		*rxp++ = readb(hw->base + TINY_SPI_RXDATA);
-	} else if (rxp) {
-		writeb(0, hw->base + TINY_SPI_TXDATA);
-		if (t->len > 1) {
-			writeb(0,
-			       hw->base + TINY_SPI_TXDATA);
-			for (i = 2; i < t->len; i++) {
-				u8 rx;
-				tiny_spi_wait_txr(hw);
-				rx = readb(hw->base + TINY_SPI_TXDATA);
-				writeb(0, hw->base + TINY_SPI_TXDATA);
-				*rxp++ = rx;
-			}
-			tiny_spi_wait_txr(hw);
-			*rxp++ = readb(hw->base + TINY_SPI_TXDATA);
-		}
-		tiny_spi_wait_txe(hw);
-		*rxp++ = readb(hw->base + TINY_SPI_RXDATA);
-	} else if (txp) {
-		writeb(*txp++, hw->base + TINY_SPI_TXDATA);
-		if (t->len > 1) {
-			writeb(*txp++, hw->base + TINY_SPI_TXDATA);
-			for (i = 2; i < t->len; i++) {
-				u8 tx = *txp++;
-				tiny_spi_wait_txr(hw);
-				writeb(tx, hw->base + TINY_SPI_TXDATA);
-			}
-		}
-		tiny_spi_wait_txe(hw);
 	} else {
-		writeb(0, hw->base + TINY_SPI_TXDATA);
-		if (t->len > 1) {
-			writeb(0, hw->base + TINY_SPI_TXDATA);
-			for (i = 2; i < t->len; i++) {
+		/* we need to tighten the transfer loop */
+		writeb(txp ? *txp++ : 0, hw->base + TINY_SPI_TXDATA);
+		for (i = 1; i < t->len; i++) {
+			writeb(txp ? *txp++ : 0, hw->base + TINY_SPI_TXDATA);
+
+			if (rxp || (i != t->len - 1))
 				tiny_spi_wait_txr(hw);
-				writeb(0, hw->base + TINY_SPI_TXDATA);
-			}
+			if (rxp)
+				*rxp++ = readb(hw->base + TINY_SPI_TXDATA);
 		}
 		tiny_spi_wait_txe(hw);
+		if (rxp)
+			*rxp++ = readb(hw->base + TINY_SPI_RXDATA);
 	}
+
 	return t->len;
 }
 
@@ -285,7 +244,7 @@ static int tiny_spi_of_probe(struct platform_device *pdev)
 
 static int tiny_spi_probe(struct platform_device *pdev)
 {
-	struct tiny_spi_platform_data *platp = pdev->dev.platform_data;
+	struct tiny_spi_platform_data *platp = dev_get_platdata(&pdev->dev);
 	struct tiny_spi *hw;
 	struct spi_master *master;
 	struct resource *res;
@@ -306,24 +265,18 @@ static int tiny_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hw);
 
 	/* setup the state for the bitbang driver */
-	hw->bitbang.master = spi_master_get(master);
-	if (!hw->bitbang.master)
-		return err;
+	hw->bitbang.master = master;
 	hw->bitbang.setup_transfer = tiny_spi_setup_transfer;
 	hw->bitbang.chipselect = tiny_spi_chipselect;
 	hw->bitbang.txrx_bufs = tiny_spi_txrx_bufs;
 
 	/* find and map our resources */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		goto exit_busy;
-	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
-				     pdev->name))
-		goto exit_busy;
-	hw->base = devm_ioremap_nocache(&pdev->dev, res->start,
-					resource_size(res));
-	if (!hw->base)
-		goto exit_busy;
+	hw->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hw->base)) {
+		err = PTR_ERR(hw->base);
+		goto exit;
+	}
 	/* irq is optional */
 	hw->irq = platform_get_irq(pdev, 0);
 	if (hw->irq >= 0) {
@@ -337,8 +290,10 @@ static int tiny_spi_probe(struct platform_device *pdev)
 	if (platp) {
 		hw->gpio_cs_count = platp->gpio_cs_count;
 		hw->gpio_cs = platp->gpio_cs;
-		if (platp->gpio_cs_count && !platp->gpio_cs)
-			goto exit_busy;
+		if (platp->gpio_cs_count && !platp->gpio_cs) {
+			err = -EBUSY;
+			goto exit;
+		}
 		hw->freq = platp->freq;
 		hw->baudwidth = platp->baudwidth;
 	} else {
@@ -365,8 +320,6 @@ static int tiny_spi_probe(struct platform_device *pdev)
 exit_gpio:
 	while (i-- > 0)
 		gpio_free(hw->gpio_cs[i]);
-exit_busy:
-	err = -EBUSY;
 exit:
 	spi_master_put(master);
 	return err;
@@ -398,7 +351,6 @@ static struct platform_driver tiny_spi_driver = {
 	.remove = tiny_spi_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = NULL,
 		.of_match_table = of_match_ptr(tiny_spi_match),
 	},

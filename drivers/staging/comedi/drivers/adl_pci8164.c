@@ -18,7 +18,7 @@
 /*
  * Driver: adl_pci8164
  * Description: Driver for the Adlink PCI-8164 4 Axes Motion Control board
- * Devices: (ADLink) PCI-8164 [adl_pci8164]
+ * Devices: [ADLink] PCI-8164 (adl_pci8164)
  * Author: Michel Lachaine <mike@mikelachaine.ca>
  * Status: experimental
  * Updated: Mon, 14 Apr 2008 15:10:32 +0100
@@ -27,6 +27,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -134,7 +135,7 @@ static struct comedi_driver adl_pci8164_driver = {
 	.driver_name	= "adl_pci8164",
 	.module		= THIS_MODULE,
 	.auto_attach	= adl_pci8164_auto_attach,
-	.detach		= comedi_pci_disable,
+	.detach		= comedi_pci_detach,
 };
 
 static int adl_pci8164_pci_probe(struct pci_dev *dev,
@@ -144,7 +145,7 @@ static int adl_pci8164_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(adl_pci8164_pci_table) = {
+static const struct pci_device_id adl_pci8164_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x8164) },
 	{ 0 }
 };

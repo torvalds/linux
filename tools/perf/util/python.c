@@ -8,17 +8,30 @@
 #include "cpumap.h"
 #include "thread_map.h"
 
+/*
+ * Support debug printing even though util/debug.c is not linked.  That means
+ * implementing 'verbose' and 'eprintf'.
+ */
+int verbose;
+
+int eprintf(int level, int var, const char *fmt, ...)
+{
+	va_list args;
+	int ret = 0;
+
+	if (var >= level) {
+		va_start(args, fmt);
+		ret = vfprintf(stderr, fmt, args);
+		va_end(args);
+	}
+
+	return ret;
+}
+
 /* Define PyVarObject_HEAD_INIT for python 2.5 */
 #ifndef PyVarObject_HEAD_INIT
 # define PyVarObject_HEAD_INIT(type, size) PyObject_HEAD_INIT(type) size,
 #endif
-
-struct throttle_event {
-	struct perf_event_header header;
-	u64			 time;
-	u64			 id;
-	u64			 stream_id;
-};
 
 PyMODINIT_FUNC initperf(void);
 
@@ -723,7 +736,7 @@ static PyObject *pyrf_evlist__poll(struct pyrf_evlist *pevlist,
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|i", kwlist, &timeout))
 		return NULL;
 
-	n = poll(evlist->pollfd, evlist->nr_fds, timeout);
+	n = perf_evlist__poll(evlist, timeout);
 	if (n < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
@@ -740,9 +753,9 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
         PyObject *list = PyList_New(0);
 	int i;
 
-	for (i = 0; i < evlist->nr_fds; ++i) {
+	for (i = 0; i < evlist->pollfd.nr; ++i) {
 		PyObject *file;
-		FILE *fp = fdopen(evlist->pollfd[i].fd, "r");
+		FILE *fp = fdopen(evlist->pollfd.entries[i].fd, "r");
 
 		if (fp == NULL)
 			goto free_list;
@@ -755,7 +768,7 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
 			Py_DECREF(file);
 			goto free_list;
 		}
-			
+
 		Py_DECREF(file);
 	}
 
@@ -801,6 +814,8 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	if (event != NULL) {
 		PyObject *pyevent = pyrf_event__new(event);
 		struct pyrf_event *pevent = (struct pyrf_event *)pyevent;
+
+		perf_evlist__mmap_consume(evlist, cpu);
 
 		if (pyevent == NULL)
 			return PyErr_NoMemory();
@@ -893,9 +908,10 @@ static PyObject *pyrf_evlist__item(PyObject *obj, Py_ssize_t i)
 	if (i >= pevlist->evlist.nr_entries)
 		return NULL;
 
-	list_for_each_entry(pos, &pevlist->evlist.entries, node)
+	evlist__for_each(&pevlist->evlist, pos) {
 		if (i-- == 0)
 			break;
+	}
 
 	return Py_BuildValue("O", container_of(pos, struct pyrf_evsel, evsel));
 }
@@ -967,6 +983,7 @@ static struct {
 	{ "COUNT_SW_PAGE_FAULTS_MAJ",  PERF_COUNT_SW_PAGE_FAULTS_MAJ },
 	{ "COUNT_SW_ALIGNMENT_FAULTS", PERF_COUNT_SW_ALIGNMENT_FAULTS },
 	{ "COUNT_SW_EMULATION_FAULTS", PERF_COUNT_SW_EMULATION_FAULTS },
+	{ "COUNT_SW_DUMMY",            PERF_COUNT_SW_DUMMY },
 
 	{ "SAMPLE_IP",	      PERF_SAMPLE_IP },
 	{ "SAMPLE_TID",	      PERF_SAMPLE_TID },
@@ -1015,6 +1032,7 @@ PyMODINIT_FUNC initperf(void)
 	    pyrf_cpu_map__setup_types() < 0)
 		return;
 
+	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	Py_INCREF(&pyrf_evlist__type);

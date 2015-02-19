@@ -28,6 +28,8 @@
 
 #include <bcm47xx.h>
 #include <bcm47xx_nvram.h>
+#include <linux/if_ether.h>
+#include <linux/etherdevice.h>
 
 static void create_key(const char *prefix, const char *postfix,
 		       const char *name, char *buf, int len)
@@ -134,8 +136,22 @@ static void nvram_read_leddc(const char *prefix, const char *name,
 	*leddc_off_time = (val >> 16) & 0xff;
 }
 
+static void bcm47xx_nvram_parse_macaddr(char *buf, u8 macaddr[6])
+{
+	if (strchr(buf, ':'))
+		sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &macaddr[0],
+			&macaddr[1], &macaddr[2], &macaddr[3], &macaddr[4],
+			&macaddr[5]);
+	else if (strchr(buf, '-'))
+		sscanf(buf, "%hhx-%hhx-%hhx-%hhx-%hhx-%hhx", &macaddr[0],
+			&macaddr[1], &macaddr[2], &macaddr[3], &macaddr[4],
+			&macaddr[5]);
+	else
+		pr_warn("Can not parse mac address: %s\n", buf);
+}
+
 static void nvram_read_macaddr(const char *prefix, const char *name,
-			       u8 (*val)[6], bool fallback)
+			       u8 val[6], bool fallback)
 {
 	char buf[100];
 	int err;
@@ -144,11 +160,11 @@ static void nvram_read_macaddr(const char *prefix, const char *name,
 	if (err < 0)
 		return;
 
-	bcm47xx_nvram_parse_macaddr(buf, *val);
+	bcm47xx_nvram_parse_macaddr(buf, val);
 }
 
 static void nvram_read_alpha2(const char *prefix, const char *name,
-			     char (*val)[2], bool fallback)
+			     char val[2], bool fallback)
 {
 	char buf[10];
 	int err;
@@ -162,12 +178,13 @@ static void nvram_read_alpha2(const char *prefix, const char *name,
 		pr_warn("alpha2 is too long %s\n", buf);
 		return;
 	}
-	memcpy(val, buf, sizeof(val));
+	memcpy(val, buf, 2);
 }
 
 static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
 					const char *prefix, bool fallback)
 {
+	nvram_read_u16(prefix, NULL, "devid", &sprom->dev_id, 0, fallback);
 	nvram_read_u8(prefix, NULL, "ledbh0", &sprom->gpio0, 0xff, fallback);
 	nvram_read_u8(prefix, NULL, "ledbh1", &sprom->gpio1, 0xff, fallback);
 	nvram_read_u8(prefix, NULL, "ledbh2", &sprom->gpio2, 0xff, fallback);
@@ -180,7 +197,7 @@ static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
 		      fallback);
 	nvram_read_s8(prefix, NULL, "ag1", &sprom->antenna_gain.a1, 0,
 		      fallback);
-	nvram_read_alpha2(prefix, "ccode", &sprom->alpha2, fallback);
+	nvram_read_alpha2(prefix, "ccode", sprom->alpha2, fallback);
 }
 
 static void bcm47xx_fill_sprom_r12389(struct ssb_sprom *sprom,
@@ -630,23 +647,69 @@ static void bcm47xx_fill_sprom_path_r45(struct ssb_sprom *sprom,
 	}
 }
 
+static bool bcm47xx_is_valid_mac(u8 *mac)
+{
+	return mac && !(mac[0] == 0x00 && mac[1] == 0x90 && mac[2] == 0x4c);
+}
+
+static int bcm47xx_increase_mac_addr(u8 *mac, u8 num)
+{
+	u8 *oui = mac + ETH_ALEN/2 - 1;
+	u8 *p = mac + ETH_ALEN - 1;
+
+	do {
+		(*p) += num;
+		if (*p > num)
+			break;
+		p--;
+		num = 1;
+	} while (p != oui);
+
+	if (p == oui) {
+		pr_err("unable to fetch mac address\n");
+		return -ENOENT;
+	}
+	return 0;
+}
+
+static int mac_addr_used = 2;
+
 static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 					const char *prefix, bool fallback)
 {
-	nvram_read_macaddr(prefix, "et0macaddr", &sprom->et0mac, fallback);
+	nvram_read_macaddr(prefix, "et0macaddr", sprom->et0mac, fallback);
 	nvram_read_u8(prefix, NULL, "et0mdcport", &sprom->et0mdcport, 0,
 		      fallback);
 	nvram_read_u8(prefix, NULL, "et0phyaddr", &sprom->et0phyaddr, 0,
 		      fallback);
 
-	nvram_read_macaddr(prefix, "et1macaddr", &sprom->et1mac, fallback);
+	nvram_read_macaddr(prefix, "et1macaddr", sprom->et1mac, fallback);
 	nvram_read_u8(prefix, NULL, "et1mdcport", &sprom->et1mdcport, 0,
 		      fallback);
 	nvram_read_u8(prefix, NULL, "et1phyaddr", &sprom->et1phyaddr, 0,
 		      fallback);
 
-	nvram_read_macaddr(prefix, "macaddr", &sprom->il0mac, fallback);
-	nvram_read_macaddr(prefix, "il0macaddr", &sprom->il0mac, fallback);
+	nvram_read_macaddr(prefix, "macaddr", sprom->il0mac, fallback);
+	nvram_read_macaddr(prefix, "il0macaddr", sprom->il0mac, fallback);
+
+	/* The address prefix 00:90:4C is used by Broadcom in their initial
+	   configuration. When a mac address with the prefix 00:90:4C is used
+	   all devices from the same series are sharing the same mac address.
+	   To prevent mac address collisions we replace them with a mac address
+	   based on the base address. */
+	if (!bcm47xx_is_valid_mac(sprom->il0mac)) {
+		u8 mac[6];
+
+		nvram_read_macaddr(NULL, "et0macaddr", mac, false);
+		if (bcm47xx_is_valid_mac(mac)) {
+			int err = bcm47xx_increase_mac_addr(mac, mac_addr_used);
+
+			if (!err) {
+				ether_addr_copy(sprom->il0mac, mac);
+				mac_addr_used++;
+			}
+		}
+	}
 }
 
 static void bcm47xx_fill_board_data(struct ssb_sprom *sprom, const char *prefix,
@@ -752,3 +815,71 @@ void bcm47xx_fill_bcma_boardinfo(struct bcma_boardinfo *boardinfo,
 	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0, true);
 }
 #endif
+
+#if defined(CONFIG_BCM47XX_SSB)
+static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
+{
+	char prefix[10];
+
+	if (bus->bustype == SSB_BUSTYPE_PCI) {
+		memset(out, 0, sizeof(struct ssb_sprom));
+		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
+			 bus->host_pci->bus->number + 1,
+			 PCI_SLOT(bus->host_pci->devfn));
+		bcm47xx_fill_sprom(out, prefix, false);
+		return 0;
+	} else {
+		pr_warn("bcm47xx: unable to fill SPROM for given bustype.\n");
+		return -EINVAL;
+	}
+}
+#endif
+
+#if defined(CONFIG_BCM47XX_BCMA)
+static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
+{
+	char prefix[10];
+	struct bcma_device *core;
+
+	switch (bus->hosttype) {
+	case BCMA_HOSTTYPE_PCI:
+		memset(out, 0, sizeof(struct ssb_sprom));
+		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
+			 bus->host_pci->bus->number + 1,
+			 PCI_SLOT(bus->host_pci->devfn));
+		bcm47xx_fill_sprom(out, prefix, false);
+		return 0;
+	case BCMA_HOSTTYPE_SOC:
+		memset(out, 0, sizeof(struct ssb_sprom));
+		core = bcma_find_core(bus, BCMA_CORE_80211);
+		if (core) {
+			snprintf(prefix, sizeof(prefix), "sb/%u/",
+				 core->core_index);
+			bcm47xx_fill_sprom(out, prefix, true);
+		} else {
+			bcm47xx_fill_sprom(out, NULL, false);
+		}
+		return 0;
+	default:
+		pr_warn("bcm47xx: unable to fill SPROM for given bustype.\n");
+		return -EINVAL;
+	}
+}
+#endif
+
+/*
+ * On bcm47xx we need to register SPROM fallback handler very early, so we can't
+ * use anything like platform device / driver for this.
+ */
+void bcm47xx_sprom_register_fallbacks(void)
+{
+#if defined(CONFIG_BCM47XX_SSB)
+	if (ssb_arch_register_fallback_sprom(&bcm47xx_get_sprom_ssb))
+		pr_warn("Failed to registered ssb SPROM handler\n");
+#endif
+
+#if defined(CONFIG_BCM47XX_BCMA)
+	if (bcma_arch_register_fallback_sprom(&bcm47xx_get_sprom_bcma))
+		pr_warn("Failed to registered bcma SPROM handler\n");
+#endif
+}

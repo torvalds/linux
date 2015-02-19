@@ -36,7 +36,7 @@
 #define DPI 96
 #define VFREQ 60 /* Hz */
 #define TIMING_NAME "Linux WSXGA"
-#define ESTABLISHED_TIMINGS_BITS 0x00 /* none */
+/* No ESTABLISHED_TIMINGx_BITS */
 #define HSYNC_POL 1
 #define VSYNC_POL 1
 #define CRC 0x26

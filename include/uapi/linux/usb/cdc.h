@@ -56,6 +56,7 @@
 #define USB_CDC_OBEX_TYPE		0x15
 #define USB_CDC_NCM_TYPE		0x1a
 #define USB_CDC_MBIM_TYPE		0x1b
+#define USB_CDC_MBIM_EXTENDED_TYPE	0x1c
 
 /* "Header Functional Descriptor" from CDC spec  5.2.3.1 */
 struct usb_cdc_header_desc {
@@ -203,6 +204,17 @@ struct usb_cdc_mbim_desc {
 	__u8    bMaxFilterSize;
 	__le16  wMaxSegmentSize;
 	__u8    bmNetworkCapabilities;
+} __attribute__ ((packed));
+
+/* "MBIM Extended Functional Descriptor" from CDC MBIM spec 1.0 errata-1 */
+struct usb_cdc_mbim_extended_desc {
+	__u8	bLength;
+	__u8	bDescriptorType;
+	__u8	bDescriptorSubType;
+
+	__le16	bcdMBIMExtendedVersion;
+	__u8	bMaxOutstandingCommandMessages;
+	__le16	wMTU;
 } __attribute__ ((packed));
 
 /*-------------------------------------------------------------------------*/

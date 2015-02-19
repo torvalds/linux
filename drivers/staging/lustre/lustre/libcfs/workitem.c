@@ -41,7 +41,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 #define CFS_WS_NAME_LEN	 16
 
@@ -75,7 +75,7 @@ typedef struct cfs_wi_sched {
 	char			ws_name[CFS_WS_NAME_LEN];
 } cfs_wi_sched_t;
 
-struct cfs_workitem_data {
+static struct cfs_workitem_data {
 	/** serialize */
 	spinlock_t		wi_glock;
 	/** list of all schedulers */
@@ -288,8 +288,8 @@ cfs_wi_scheduler (void *arg)
 		}
 
 		cfs_wi_sched_unlock(sched);
-		cfs_wait_event_interruptible_exclusive(sched->ws_waitq,
-				!cfs_wi_sched_cansleep(sched), rc);
+		rc = wait_event_interruptible_exclusive(sched->ws_waitq,
+						!cfs_wi_sched_cansleep(sched));
 		cfs_wi_sched_lock(sched);
 	}
 
@@ -334,7 +334,8 @@ cfs_wi_sched_destroy(struct cfs_wi_sched *sched)
 		       sched->ws_nthreads, sched->ws_name);
 
 		spin_unlock(&cfs_wi_data.wi_glock);
-		cfs_pause(cfs_time_seconds(1) / 20);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1) / 20);
 		spin_lock(&cfs_wi_data.wi_glock);
 	}
 
@@ -364,6 +365,7 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 		return -ENOMEM;
 
 	strncpy(sched->ws_name, name, CFS_WS_NAME_LEN);
+	sched->ws_name[CFS_WS_NAME_LEN - 1] = '\0';
 	sched->ws_cptab = cptab;
 	sched->ws_cpt = cpt;
 
@@ -376,7 +378,8 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 	rc = 0;
 	while (nthrs > 0)  {
 		char	name[16];
-		task_t	*task;
+		struct task_struct *task;
+
 		spin_lock(&cfs_wi_data.wi_glock);
 		while (sched->ws_starting > 0) {
 			spin_unlock(&cfs_wi_data.wi_glock);
@@ -388,15 +391,15 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 		spin_unlock(&cfs_wi_data.wi_glock);
 
 		if (sched->ws_cptab != NULL && sched->ws_cpt >= 0) {
-			snprintf(name, sizeof(name), "%s_%02d_%02d",
+			snprintf(name, sizeof(name), "%s_%02d_%02u",
 				 sched->ws_name, sched->ws_cpt,
 				 sched->ws_nthreads);
 		} else {
-			snprintf(name, sizeof(name), "%s_%02d",
+			snprintf(name, sizeof(name), "%s_%02u",
 				 sched->ws_name, sched->ws_nthreads);
 		}
 
-		task = kthread_run(cfs_wi_scheduler, sched, name);
+		task = kthread_run(cfs_wi_scheduler, sched, "%s", name);
 		if (!IS_ERR(task)) {
 			nthrs--;
 			continue;
@@ -458,7 +461,8 @@ cfs_wi_shutdown (void)
 
 		while (sched->ws_nthreads != 0) {
 			spin_unlock(&cfs_wi_data.wi_glock);
-			cfs_pause(cfs_time_seconds(1) / 20);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(1) / 20);
 			spin_lock(&cfs_wi_data.wi_glock);
 		}
 		spin_unlock(&cfs_wi_data.wi_glock);

@@ -1,0 +1,25 @@
+Analog TV Connector
+===================
+
+Required properties:
+- compatible: "composite-video-connector" or "svideo-connector"
+
+Optional properties:
+- label: a symbolic name for the connector
+
+Required nodes:
+- Video port for TV input
+
+Example
+-------
+
+tv: connector {
+	compatible = "composite-video-connector";
+	label = "tv";
+
+	port {
+		tv_connector_in: endpoint {
+			remote-endpoint = <&venc_out>;
+		};
+	};
+};

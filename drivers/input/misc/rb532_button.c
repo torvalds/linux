@@ -87,7 +87,6 @@ static int rb532_button_remove(struct platform_device *pdev)
 
 	input_unregister_polled_device(poll_dev);
 	input_free_polled_device(poll_dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
 }
@@ -97,7 +96,6 @@ static struct platform_driver rb532_button_driver = {
 	.remove = rb532_button_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(rb532_button_driver);

@@ -23,6 +23,7 @@
 #include <bcm63xx_dev_enet.h>
 #include <bcm63xx_dev_dsp.h>
 #include <bcm63xx_dev_flash.h>
+#include <bcm63xx_dev_hsspi.h>
 #include <bcm63xx_dev_pcmcia.h>
 #include <bcm63xx_dev_spi.h>
 #include <bcm63xx_dev_usb_usbd.h>
@@ -914,6 +915,8 @@ int __init board_register_devices(void)
 #endif
 
 	bcm63xx_spi_register();
+
+	bcm63xx_hsspi_register();
 
 	bcm63xx_flash_register();
 

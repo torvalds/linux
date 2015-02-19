@@ -75,6 +75,7 @@ static int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
 					   DA9052_PARK_REGISTER,
 					   &val);
 		break;
+	case DA9053_BC:
 	default:
 		/*
 		 * For other chips parking of I2C register
@@ -86,7 +87,11 @@ static int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
 	return 0;
 }
 
-static int da9052_i2c_enable_multiwrite(struct da9052 *da9052)
+/*
+ * According to errata item 24, multiwrite mode should be avoided
+ * in order to prevent register data corruption after power-down.
+ */
+static int da9052_i2c_disable_multiwrite(struct da9052 *da9052)
 {
 	int reg_val, ret;
 
@@ -94,8 +99,8 @@ static int da9052_i2c_enable_multiwrite(struct da9052 *da9052)
 	if (ret < 0)
 		return ret;
 
-	if (reg_val & DA9052_CONTROL_B_WRITEMODE) {
-		reg_val &= ~DA9052_CONTROL_B_WRITEMODE;
+	if (!(reg_val & DA9052_CONTROL_B_WRITEMODE)) {
+		reg_val |= DA9052_CONTROL_B_WRITEMODE;
 		ret = regmap_write(da9052->regmap, DA9052_CONTROL_B_REG,
 				   reg_val);
 		if (ret < 0)
@@ -110,6 +115,7 @@ static const struct i2c_device_id da9052_i2c_id[] = {
 	{"da9053-aa", DA9053_AA},
 	{"da9053-ba", DA9053_BA},
 	{"da9053-bb", DA9053_BB},
+	{"da9053-bc", DA9053_BC},
 	{}
 };
 
@@ -117,8 +123,9 @@ static const struct i2c_device_id da9052_i2c_id[] = {
 static const struct of_device_id dialog_dt_ids[] = {
 	{ .compatible = "dlg,da9052", .data = &da9052_i2c_id[0] },
 	{ .compatible = "dlg,da9053-aa", .data = &da9052_i2c_id[1] },
-	{ .compatible = "dlg,da9053-ab", .data = &da9052_i2c_id[2] },
+	{ .compatible = "dlg,da9053-ba", .data = &da9052_i2c_id[2] },
 	{ .compatible = "dlg,da9053-bb", .data = &da9052_i2c_id[3] },
+	{ .compatible = "dlg,da9053-bc", .data = &da9052_i2c_id[4] },
 	{ /* sentinel */ }
 };
 #endif
@@ -132,13 +139,6 @@ static int da9052_i2c_probe(struct i2c_client *client,
 	da9052 = devm_kzalloc(&client->dev, sizeof(struct da9052), GFP_KERNEL);
 	if (!da9052)
 		return -ENOMEM;
-
-	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_info(&client->dev, "Error in %s:i2c_check_functionality\n",
-			 __func__);
-		return  -ENODEV;
-	}
 
 	da9052->dev = &client->dev;
 	da9052->chip_irq = client->irq;
@@ -154,7 +154,7 @@ static int da9052_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = da9052_i2c_enable_multiwrite(da9052);
+	ret = da9052_i2c_disable_multiwrite(da9052);
 	if (ret < 0)
 		return ret;
 

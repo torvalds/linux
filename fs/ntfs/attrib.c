@@ -1748,7 +1748,6 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 	if (page) {
 		set_page_dirty(page);
 		unlock_page(page);
-		mark_page_accessed(page);
 		page_cache_release(page);
 	}
 	ntfs_debug("Done.");

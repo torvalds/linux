@@ -54,7 +54,7 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CBCR,
 		.num_planes	= 1,
 		.num_comp	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 	}, {
 		.name		= "YUV 4:2:2 packed, CbYCrY",
 		.pixelformat	= V4L2_PIX_FMT_UYVY,
@@ -64,7 +64,7 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CBCR,
 		.num_planes	= 1,
 		.num_comp	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_UYVY8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 	}, {
 		.name		= "YUV 4:2:2 packed, CrYCbY",
 		.pixelformat	= V4L2_PIX_FMT_VYUY,
@@ -74,7 +74,7 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CRCB,
 		.num_planes	= 1,
 		.num_comp	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_VYUY8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
 	}, {
 		.name		= "YUV 4:2:2 packed, YCrYCb",
 		.pixelformat	= V4L2_PIX_FMT_YVYU,
@@ -84,7 +84,7 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CRCB,
 		.num_planes	= 1,
 		.num_comp	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_YVYU8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
 	}, {
 		.name		= "YUV 4:4:4 planar, YCbYCr",
 		.pixelformat	= V4L2_PIX_FMT_YUV32,
@@ -319,21 +319,22 @@ int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f)
 	return 0;
 }
 
-static u32 get_plane_info(struct gsc_frame *frm, u32 addr, u32 *index)
+static int get_plane_info(struct gsc_frame *frm, u32 addr, u32 *index, u32 *ret_addr)
 {
 	if (frm->addr.y == addr) {
 		*index = 0;
-		return frm->addr.y;
+		*ret_addr = frm->addr.y;
 	} else if (frm->addr.cb == addr) {
 		*index = 1;
-		return frm->addr.cb;
+		*ret_addr = frm->addr.cb;
 	} else if (frm->addr.cr == addr) {
 		*index = 2;
-		return frm->addr.cr;
+		*ret_addr = frm->addr.cr;
 	} else {
 		pr_err("Plane address is wrong");
 		return -EINVAL;
 	}
+	return 0;
 }
 
 void gsc_set_prefbuf(struct gsc_dev *gsc, struct gsc_frame *frm)
@@ -352,9 +353,11 @@ void gsc_set_prefbuf(struct gsc_dev *gsc, struct gsc_frame *frm)
 		u32 t_min, t_max;
 
 		t_min = min3(frm->addr.y, frm->addr.cb, frm->addr.cr);
-		low_addr = get_plane_info(frm, t_min, &low_plane);
+		if (get_plane_info(frm, t_min, &low_plane, &low_addr))
+			return;
 		t_max = max3(frm->addr.y, frm->addr.cb, frm->addr.cr);
-		high_addr = get_plane_info(frm, t_max, &high_plane);
+		if (get_plane_info(frm, t_max, &high_plane, &high_addr))
+			return;
 
 		mid_plane = 3 - (low_plane + high_plane);
 		if (mid_plane == 0)
@@ -852,8 +855,8 @@ int gsc_prepare_addr(struct gsc_ctx *ctx, struct vb2_buffer *vb,
 		(frame->fmt->pixelformat == V4L2_PIX_FMT_YVU420M))
 		swap(addr->cb, addr->cr);
 
-	pr_debug("ADDR: y= 0x%X  cb= 0x%X cr= 0x%X ret= %d",
-		addr->y, addr->cb, addr->cr, ret);
+	pr_debug("ADDR: y= %pad  cb= %pad cr= %pad ret= %d",
+		&addr->y, &addr->cb, &addr->cr, ret);
 
 	return ret;
 }
@@ -1086,7 +1089,7 @@ static int gsc_probe(struct platform_device *pdev)
 	else
 		gsc->id = pdev->id;
 
-	if (gsc->id < 0 || gsc->id >= drv_data->num_entities) {
+	if (gsc->id >= drv_data->num_entities) {
 		dev_err(dev, "Invalid platform device id: %d\n", gsc->id);
 		return -EINVAL;
 	}
@@ -1122,9 +1125,13 @@ static int gsc_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ret = gsc_register_m2m_device(gsc);
+	ret = v4l2_device_register(dev, &gsc->v4l2_dev);
 	if (ret)
 		goto err_clk;
+
+	ret = gsc_register_m2m_device(gsc);
+	if (ret)
+		goto err_v4l2;
 
 	platform_set_drvdata(pdev, gsc);
 	pm_runtime_enable(dev);
@@ -1147,6 +1154,8 @@ err_pm:
 	pm_runtime_put(dev);
 err_m2m:
 	gsc_unregister_m2m_device(gsc);
+err_v4l2:
+	v4l2_device_unregister(&gsc->v4l2_dev);
 err_clk:
 	gsc_clk_put(gsc);
 	return ret;
@@ -1157,6 +1166,7 @@ static int gsc_remove(struct platform_device *pdev)
 	struct gsc_dev *gsc = platform_get_drvdata(pdev);
 
 	gsc_unregister_m2m_device(gsc);
+	v4l2_device_unregister(&gsc->v4l2_dev);
 
 	vb2_dma_contig_cleanup_ctx(gsc->alloc_ctx);
 	pm_runtime_disable(&pdev->dev);
@@ -1210,12 +1220,12 @@ static int gsc_resume(struct device *dev)
 		spin_unlock_irqrestore(&gsc->slock, flags);
 		return 0;
 	}
-	gsc_hw_set_sw_reset(gsc);
-	gsc_wait_reset(gsc);
-
 	spin_unlock_irqrestore(&gsc->slock, flags);
 
-	return gsc_m2m_resume(gsc);
+	if (!pm_runtime_suspended(dev))
+		return gsc_runtime_resume(dev);
+
+	return 0;
 }
 
 static int gsc_suspend(struct device *dev)
@@ -1227,7 +1237,10 @@ static int gsc_suspend(struct device *dev)
 	if (test_and_set_bit(ST_SUSPEND, &gsc->state))
 		return 0;
 
-	return gsc_m2m_suspend(gsc);
+	if (!pm_runtime_suspended(dev))
+		return gsc_runtime_suspend(dev);
+
+	return 0;
 }
 
 static const struct dev_pm_ops gsc_pm_ops = {
@@ -1243,7 +1256,6 @@ static struct platform_driver gsc_driver = {
 	.id_table	= gsc_driver_ids,
 	.driver = {
 		.name	= GSC_MODULE_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &gsc_pm_ops,
 		.of_match_table = exynos_gsc_match,
 	}

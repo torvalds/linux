@@ -146,7 +146,7 @@ static void gsta_gpio_setup(struct gsta_gpio *chip) /* called from probe */
 	gpio->dbg_show = NULL;
 	gpio->base = gpio_base;
 	gpio->ngpio = GSTA_NR_GPIO;
-	gpio->can_sleep = 0;
+	gpio->can_sleep = false;
 	gpio->to_irq = gsta_gpio_to_irq;
 
 	/*
@@ -361,7 +361,7 @@ static int gsta_probe(struct platform_device *dev)
 	struct gsta_gpio *chip;
 	struct resource *res;
 
-	pdev = *(struct pci_dev **)(dev->dev.platform_data);
+	pdev = *(struct pci_dev **)dev_get_platdata(&dev->dev);
 	gpio_pdata = dev_get_platdata(&pdev->dev);
 
 	if (gpio_pdata == NULL)
@@ -429,7 +429,6 @@ err_free_descs:
 static struct platform_driver sta2x11_gpio_platform_driver = {
 	.driver = {
 		.name	= "sta2x11-gpio",
-		.owner	= THIS_MODULE,
 	},
 	.probe = gsta_probe,
 };

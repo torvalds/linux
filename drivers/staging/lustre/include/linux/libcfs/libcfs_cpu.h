@@ -75,11 +75,19 @@
 #ifndef __LIBCFS_CPU_H__
 #define __LIBCFS_CPU_H__
 
-#ifndef HAVE_LIBCFS_CPT
+/* any CPU partition */
+#define CFS_CPT_ANY		(-1)
 
-typedef unsigned long		cpumask_t;
-typedef unsigned long		nodemask_t;
-
+#ifdef CONFIG_SMP
+/**
+ * return cpumask of CPU partition \a cpt
+ */
+cpumask_t *cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt);
+/**
+ * print string information of cpt-table
+ */
+int cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len);
+#else /* !CONFIG_SMP */
 struct cfs_cpt_table {
 	/* # of CPU partitions */
 	int			ctb_nparts;
@@ -91,10 +99,18 @@ struct cfs_cpt_table {
 	__u64			ctb_version;
 };
 
-#endif /* !HAVE_LIBCFS_CPT */
+static inline cpumask_t *
+cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt)
+{
+	return NULL;
+}
 
-/* any CPU partition */
-#define CFS_CPT_ANY		(-1)
+static inline int
+cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len)
+{
+	return 0;
+}
+#endif /* CONFIG_SMP */
 
 extern struct cfs_cpt_table	*cfs_cpt_table;
 
@@ -107,26 +123,18 @@ void cfs_cpt_table_free(struct cfs_cpt_table *cptab);
  */
 struct cfs_cpt_table *cfs_cpt_table_alloc(unsigned int ncpt);
 /**
- * print string information of cpt-table
- */
-int cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len);
-/**
  * return total number of CPU partitions in \a cptab
  */
 int
 cfs_cpt_number(struct cfs_cpt_table *cptab);
 /**
- * return number of HW cores or hypter-threadings in a CPU partition \a cpt
+ * return number of HW cores or hyper-threadings in a CPU partition \a cpt
  */
 int cfs_cpt_weight(struct cfs_cpt_table *cptab, int cpt);
 /**
  * is there any online CPU in CPU partition \a cpt
  */
 int cfs_cpt_online(struct cfs_cpt_table *cptab, int cpt);
-/**
- * return cpumask of CPU partition \a cpt
- */
-cpumask_t *cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt);
 /**
  * return nodemask of CPU partition \a cpt
  */
@@ -144,7 +152,7 @@ int cfs_cpt_of_cpu(struct cfs_cpt_table *cptab, int cpu);
  */
 int cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt);
 /**
- * add \a cpu to CPU partion @cpt of \a cptab, return 1 for success,
+ * add \a cpu to CPU partition @cpt of \a cptab, return 1 for success,
  * otherwise 0 is returned
  */
 int cfs_cpt_set_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu);
@@ -195,18 +203,15 @@ void cfs_cpt_clear(struct cfs_cpt_table *cptab, int cpt);
 int cfs_cpt_spread_node(struct cfs_cpt_table *cptab, int cpt);
 
 /**
+ * return number of HTs in the same core of \a cpu
+ */
+int cfs_cpu_ht_nsiblings(int cpu);
+
+/**
  * iterate over all CPU partitions in \a cptab
  */
 #define cfs_cpt_for_each(i, cptab)	\
 	for (i = 0; i < cfs_cpt_number(cptab); i++)
-
-#ifndef __read_mostly
-# define __read_mostly
-#endif
-
-#ifndef ____cacheline_aligned
-#define ____cacheline_aligned
-#endif
 
 int  cfs_cpu_init(void);
 void cfs_cpu_fini(void);

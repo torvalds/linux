@@ -15,8 +15,6 @@
  *  -Conditionally disable interrupts (if they are not enabled, don't disable)
 */
 
-#ifdef __KERNEL__
-
 #include <asm/arcregs.h>
 
 /* status32 Reg bits related to Interrupt Handling */
@@ -43,6 +41,15 @@
 
 /******************************************************************
  * IRQ Control Macros
+ *
+ * All of them have "memory" clobber (compiler barrier) which is needed to
+ * ensure that LD/ST requiring irq safetly (R-M-W when LLSC is not available)
+ * are redone after IRQs are re-enabled (and gcc doesn't reuse stale register)
+ *
+ * Noted at the time of Abilis Timer List corruption
+ * 	Orig Bug + Rejected solution	: https://lkml.org/lkml/2013/3/29/67
+ * 	Reasoning			: https://lkml.org/lkml/2013/4/8/15
+ *
  ******************************************************************/
 
 /*
@@ -131,47 +138,42 @@ static inline int arch_irqs_disabled(void)
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
-static inline void arch_mask_irq(unsigned int irq)
-{
-	unsigned int ienb;
+#else
 
-	ienb = read_aux_reg(AUX_IENABLE);
-	ienb &= ~(1 << irq);
-	write_aux_reg(AUX_IENABLE, ienb);
-}
+#ifdef CONFIG_TRACE_IRQFLAGS
 
-static inline void arch_unmask_irq(unsigned int irq)
-{
-	unsigned int ienb;
+.macro TRACE_ASM_IRQ_DISABLE
+	bl	trace_hardirqs_off
+.endm
 
-	ienb = read_aux_reg(AUX_IENABLE);
-	ienb |= (1 << irq);
-	write_aux_reg(AUX_IENABLE, ienb);
-}
+.macro TRACE_ASM_IRQ_ENABLE
+	bl	trace_hardirqs_on
+.endm
 
 #else
+
+.macro TRACE_ASM_IRQ_DISABLE
+.endm
+
+.macro TRACE_ASM_IRQ_ENABLE
+.endm
+
+#endif
 
 .macro IRQ_DISABLE  scratch
 	lr	\scratch, [status32]
 	bic	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
 	flag	\scratch
-.endm
-
-.macro IRQ_DISABLE_SAVE  scratch, save
-	lr	\scratch, [status32]
-	mov	\save, \scratch		/* Make a copy */
-	bic	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
-	flag	\scratch
+	TRACE_ASM_IRQ_DISABLE
 .endm
 
 .macro IRQ_ENABLE  scratch
 	lr	\scratch, [status32]
 	or	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
 	flag	\scratch
+	TRACE_ASM_IRQ_ENABLE
 .endm
 
 #endif	/* __ASSEMBLY__ */
-
-#endif	/* KERNEL */
 
 #endif

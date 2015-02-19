@@ -409,6 +409,7 @@ enable_paging:
 /*
  * Check if it is 486
  */
+	movb $4,X86			# at least 486
 	cmpl $-1,X86_CPUID
 	je is486
 
@@ -436,7 +437,6 @@ enable_paging:
 	movl %edx,X86_CAPABILITY
 
 is486:
-	movb $4,X86
 	movl $0x50022,%ecx	# set AM, WP, NE and MP
 	movl %cr0,%eax
 	andl $0x80000011,%eax	# Save PG,PE,ET
@@ -544,6 +544,10 @@ ENDPROC(early_idt_handlers)
 	/* This is global to keep gas from relaxing the jumps */
 ENTRY(early_idt_handler)
 	cld
+
+	cmpl $2,(%esp)		# X86_TRAP_NMI
+	je is_nmi		# Ignore NMI
+
 	cmpl $2,%ss:early_recursion_flag
 	je hlt_loop
 	incl %ss:early_recursion_flag
@@ -594,8 +598,9 @@ ex_entry:
 	pop %edx
 	pop %ecx
 	pop %eax
-	addl $8,%esp		/* drop vector number and error code */
 	decl %ss:early_recursion_flag
+is_nmi:
+	addl $8,%esp		/* drop vector number and error code */
 	iret
 ENDPROC(early_idt_handler)
 

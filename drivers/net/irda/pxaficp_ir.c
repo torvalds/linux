@@ -915,7 +915,7 @@ static int pxa_irda_probe(struct platform_device *pdev)
 	err = register_netdev(dev);
 
 	if (err == 0)
-		dev_set_drvdata(&pdev->dev, dev);
+		platform_set_drvdata(pdev, dev);
 
 	if (err) {
 		if (si->pdata->shutdown)
@@ -966,7 +966,6 @@ static int pxa_irda_remove(struct platform_device *_dev)
 static struct platform_driver pxa_ir_driver = {
 	.driver         = {
 		.name   = "pxa2xx-ir",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa_irda_probe,
 	.remove		= pxa_irda_remove,

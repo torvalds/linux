@@ -23,6 +23,7 @@
  */
 
 #include <linux/thermal.h>
+#include <trace/events/thermal.h>
 
 #include "thermal_core.h"
 
@@ -34,6 +35,7 @@ static int get_trip_level(struct thermal_zone_device *tz)
 {
 	int count = 0;
 	unsigned long trip_temp;
+	enum thermal_trip_type trip_type;
 
 	if (tz->trips == 0 || !tz->ops->get_trip_temp)
 		return 0;
@@ -43,6 +45,16 @@ static int get_trip_level(struct thermal_zone_device *tz)
 		if (tz->temperature < trip_temp)
 			break;
 	}
+
+	/*
+	 * count > 0 only if temperature is greater than first trip
+	 * point, in which case, trip_point = count - 1
+	 */
+	if (count > 0) {
+		tz->ops->get_trip_type(tz, count - 1, &trip_type);
+		trace_thermal_zone_trip(tz, count - 1, trip_type);
+	}
+
 	return count;
 }
 

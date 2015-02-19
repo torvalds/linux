@@ -178,7 +178,7 @@ static int ipgre_err(struct sk_buff *skb, u32 info,
 	else
 		itn = net_generic(net, ipgre_net_id);
 
-	iph = (const struct iphdr *)skb->data;
+	iph = (const struct iphdr *)(icmp_hdr(skb) + 1);
 	t = ip_tunnel_lookup(itn, skb->dev->ifindex, tpi->flags,
 			     iph->daddr, iph->saddr, tpi->key);
 
@@ -217,6 +217,7 @@ static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 				  iph->saddr, iph->daddr, tpi->key);
 
 	if (tunnel) {
+		skb_pop_mac_header(skb);
 		ip_tunnel_rcv(tunnel, skb, tpi, log_ecn_error);
 		return PACKET_RCVD;
 	}
@@ -238,7 +239,9 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 	tpi.seq = htonl(tunnel->o_seqno);
 
 	/* Push GRE header. */
-	gre_build_header(skb, &tpi, tunnel->hlen);
+	gre_build_header(skb, &tpi, tunnel->tun_hlen);
+
+	skb_set_inner_protocol(skb, tpi.proto);
 
 	ip_tunnel_xmit(skb, dev, tnl_params, tnl_params->protocol);
 }
@@ -248,10 +251,6 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr *tnl_params;
-
-	skb = gre_handle_offloads(skb, !!(tunnel->parms.o_flags&TUNNEL_CSUM));
-	if (IS_ERR(skb))
-		goto out;
 
 	if (dev->header_ops) {
 		/* Need space for new headers */
@@ -265,6 +264,7 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 		 * to gre header.
 		 */
 		skb_pull(skb, tunnel->hlen + sizeof(struct iphdr));
+		skb_reset_mac_header(skb);
 	} else {
 		if (skb_cow_head(skb, dev->needed_headroom))
 			goto free_skb;
@@ -272,12 +272,16 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 		tnl_params = &tunnel->parms.iph;
 	}
 
+	skb = gre_handle_offloads(skb, !!(tunnel->parms.o_flags&TUNNEL_CSUM));
+	if (IS_ERR(skb))
+		goto out;
+
 	__gre_xmit(skb, dev, tnl_params, skb->protocol);
 
 	return NETDEV_TX_OK;
 
 free_skb:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 out:
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;
@@ -300,7 +304,7 @@ static netdev_tx_t gre_tap_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 free_skb:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 out:
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;
@@ -309,7 +313,7 @@ out:
 static int ipgre_tunnel_ioctl(struct net_device *dev,
 			      struct ifreq *ifr, int cmd)
 {
-	int err = 0;
+	int err;
 	struct ip_tunnel_parm p;
 
 	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
@@ -409,7 +413,7 @@ static int ipgre_open(struct net_device *dev)
 		struct flowi4 fl4;
 		struct rtable *rt;
 
-		rt = ip_route_output_gre(dev_net(dev), &fl4,
+		rt = ip_route_output_gre(t->net, &fl4,
 					 t->parms.iph.daddr,
 					 t->parms.iph.saddr,
 					 t->parms.o_key,
@@ -433,7 +437,7 @@ static int ipgre_close(struct net_device *dev)
 
 	if (ipv4_is_multicast(t->parms.iph.daddr) && t->mlink) {
 		struct in_device *in_dev;
-		in_dev = inetdev_by_index(dev_net(dev), t->mlink);
+		in_dev = inetdev_by_index(t->net, t->mlink);
 		if (in_dev)
 			ip_mc_dec_group(in_dev, t->parms.iph.daddr);
 	}
@@ -462,21 +466,27 @@ static const struct net_device_ops ipgre_netdev_ops = {
 static void ipgre_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipgre_netdev_ops;
+	dev->type		= ARPHRD_IPGRE;
 	ip_tunnel_setup(dev, ipgre_net_id);
 }
 
 static void __gre_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel;
+	int t_hlen;
 
 	tunnel = netdev_priv(dev);
-	tunnel->hlen = ip_gre_calc_hlen(tunnel->parms.o_flags);
+	tunnel->tun_hlen = ip_gre_calc_hlen(tunnel->parms.o_flags);
 	tunnel->parms.iph.protocol = IPPROTO_GRE;
 
-	dev->needed_headroom	= LL_MAX_HEADER + sizeof(struct iphdr) + 4;
-	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr) - 4;
+	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen;
 
-	dev->features		|= NETIF_F_NETNS_LOCAL | GRE_FEATURES;
+	t_hlen = tunnel->hlen + sizeof(struct iphdr);
+
+	dev->needed_headroom	= LL_MAX_HEADER + t_hlen + 4;
+	dev->mtu		= ETH_DATA_LEN - t_hlen - 4;
+
+	dev->features		|= GRE_FEATURES;
 	dev->hw_features	|= GRE_FEATURES;
 
 	if (!(tunnel->parms.o_flags & TUNNEL_SEQ)) {
@@ -500,9 +510,8 @@ static int ipgre_tunnel_init(struct net_device *dev)
 	memcpy(dev->dev_addr, &iph->saddr, 4);
 	memcpy(dev->broadcast, &iph->daddr, 4);
 
-	dev->type		= ARPHRD_IPGRE;
 	dev->flags		= IFF_NOARP;
-	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
+	netif_keep_dst(dev);
 	dev->addr_len		= 4;
 
 	if (iph->daddr) {
@@ -534,7 +543,7 @@ static int __net_init ipgre_init_net(struct net *net)
 static void __net_exit ipgre_exit_net(struct net *net)
 {
 	struct ip_tunnel_net *itn = net_generic(net, ipgre_net_id);
-	ip_tunnel_delete_net(itn);
+	ip_tunnel_delete_net(itn, &ipgre_link_ops);
 }
 
 static struct pernet_operations ipgre_net_ops = {
@@ -627,9 +636,44 @@ static void ipgre_netlink_parms(struct nlattr *data[], struct nlattr *tb[],
 		parms->iph.frag_off = htons(IP_DF);
 }
 
+/* This function returns true when ENCAP attributes are present in the nl msg */
+static bool ipgre_netlink_encap_parms(struct nlattr *data[],
+				      struct ip_tunnel_encap *ipencap)
+{
+	bool ret = false;
+
+	memset(ipencap, 0, sizeof(*ipencap));
+
+	if (!data)
+		return ret;
+
+	if (data[IFLA_GRE_ENCAP_TYPE]) {
+		ret = true;
+		ipencap->type = nla_get_u16(data[IFLA_GRE_ENCAP_TYPE]);
+	}
+
+	if (data[IFLA_GRE_ENCAP_FLAGS]) {
+		ret = true;
+		ipencap->flags = nla_get_u16(data[IFLA_GRE_ENCAP_FLAGS]);
+	}
+
+	if (data[IFLA_GRE_ENCAP_SPORT]) {
+		ret = true;
+		ipencap->sport = nla_get_be16(data[IFLA_GRE_ENCAP_SPORT]);
+	}
+
+	if (data[IFLA_GRE_ENCAP_DPORT]) {
+		ret = true;
+		ipencap->dport = nla_get_be16(data[IFLA_GRE_ENCAP_DPORT]);
+	}
+
+	return ret;
+}
+
 static int gre_tap_init(struct net_device *dev)
 {
 	__gre_tunnel_init(dev);
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	return ip_tunnel_init(dev);
 }
@@ -648,6 +692,7 @@ static void ipgre_tap_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	dev->netdev_ops		= &gre_tap_netdev_ops;
+	dev->priv_flags 	|= IFF_LIVE_ADDR_CHANGE;
 	ip_tunnel_setup(dev, gre_tap_net_id);
 }
 
@@ -655,6 +700,15 @@ static int ipgre_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
 	struct ip_tunnel_parm p;
+	struct ip_tunnel_encap ipencap;
+
+	if (ipgre_netlink_encap_parms(data, &ipencap)) {
+		struct ip_tunnel *t = netdev_priv(dev);
+		int err = ip_tunnel_encap_setup(t, &ipencap);
+
+		if (err < 0)
+			return err;
+	}
 
 	ipgre_netlink_parms(data, tb, &p);
 	return ip_tunnel_newlink(dev, tb, &p);
@@ -664,6 +718,15 @@ static int ipgre_changelink(struct net_device *dev, struct nlattr *tb[],
 			    struct nlattr *data[])
 {
 	struct ip_tunnel_parm p;
+	struct ip_tunnel_encap ipencap;
+
+	if (ipgre_netlink_encap_parms(data, &ipencap)) {
+		struct ip_tunnel *t = netdev_priv(dev);
+		int err = ip_tunnel_encap_setup(t, &ipencap);
+
+		if (err < 0)
+			return err;
+	}
 
 	ipgre_netlink_parms(data, tb, &p);
 	return ip_tunnel_changelink(dev, tb, &p);
@@ -692,6 +755,14 @@ static size_t ipgre_get_size(const struct net_device *dev)
 		nla_total_size(1) +
 		/* IFLA_GRE_PMTUDISC */
 		nla_total_size(1) +
+		/* IFLA_GRE_ENCAP_TYPE */
+		nla_total_size(2) +
+		/* IFLA_GRE_ENCAP_FLAGS */
+		nla_total_size(2) +
+		/* IFLA_GRE_ENCAP_SPORT */
+		nla_total_size(2) +
+		/* IFLA_GRE_ENCAP_DPORT */
+		nla_total_size(2) +
 		0;
 }
 
@@ -712,6 +783,17 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_GRE_PMTUDISC,
 		       !!(p->iph.frag_off & htons(IP_DF))))
 		goto nla_put_failure;
+
+	if (nla_put_u16(skb, IFLA_GRE_ENCAP_TYPE,
+			t->encap.type) ||
+	    nla_put_be16(skb, IFLA_GRE_ENCAP_SPORT,
+			 t->encap.sport) ||
+	    nla_put_be16(skb, IFLA_GRE_ENCAP_DPORT,
+			 t->encap.dport) ||
+	    nla_put_u16(skb, IFLA_GRE_ENCAP_FLAGS,
+			t->encap.flags))
+		goto nla_put_failure;
+
 	return 0;
 
 nla_put_failure:
@@ -729,6 +811,10 @@ static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_TTL]		= { .type = NLA_U8 },
 	[IFLA_GRE_TOS]		= { .type = NLA_U8 },
 	[IFLA_GRE_PMTUDISC]	= { .type = NLA_U8 },
+	[IFLA_GRE_ENCAP_TYPE]	= { .type = NLA_U16 },
+	[IFLA_GRE_ENCAP_FLAGS]	= { .type = NLA_U16 },
+	[IFLA_GRE_ENCAP_SPORT]	= { .type = NLA_U16 },
+	[IFLA_GRE_ENCAP_DPORT]	= { .type = NLA_U16 },
 };
 
 static struct rtnl_link_ops ipgre_link_ops __read_mostly = {
@@ -743,6 +829,7 @@ static struct rtnl_link_ops ipgre_link_ops __read_mostly = {
 	.dellink	= ip_tunnel_dellink,
 	.get_size	= ipgre_get_size,
 	.fill_info	= ipgre_fill_info,
+	.get_link_net	= ip_tunnel_get_link_net,
 };
 
 static struct rtnl_link_ops ipgre_tap_ops __read_mostly = {
@@ -757,6 +844,7 @@ static struct rtnl_link_ops ipgre_tap_ops __read_mostly = {
 	.dellink	= ip_tunnel_dellink,
 	.get_size	= ipgre_get_size,
 	.fill_info	= ipgre_fill_info,
+	.get_link_net	= ip_tunnel_get_link_net,
 };
 
 static int __net_init ipgre_tap_init_net(struct net *net)
@@ -767,7 +855,7 @@ static int __net_init ipgre_tap_init_net(struct net *net)
 static void __net_exit ipgre_tap_exit_net(struct net *net)
 {
 	struct ip_tunnel_net *itn = net_generic(net, gre_tap_net_id);
-	ip_tunnel_delete_net(itn);
+	ip_tunnel_delete_net(itn, &ipgre_tap_ops);
 }
 
 static struct pernet_operations ipgre_tap_net_ops = {

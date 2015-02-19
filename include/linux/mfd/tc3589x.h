@@ -111,7 +111,6 @@ enum tx3589x_block {
 #define TC3589x_INT_PORIRQ	7
 
 #define TC3589x_NR_INTERNAL_IRQS	8
-#define TC3589x_INT_GPIO(x)	(TC3589x_NR_INTERNAL_IRQS + (x))
 
 struct tc3589x {
 	struct mutex lock;
@@ -164,33 +163,13 @@ struct tc3589x_keypad_platform_data {
 };
 
 /**
- * struct tc3589x_gpio_platform_data - TC3589x GPIO platform data
- * @gpio_base: first gpio number assigned to TC3589x.  A maximum of
- *	       %TC3589x_NR_GPIOS GPIOs will be allocated.
- * @setup: callback for board-specific initialization
- * @remove: callback for board-specific teardown
- */
-struct tc3589x_gpio_platform_data {
-	int gpio_base;
-	void (*setup)(struct tc3589x *tc3589x, unsigned gpio_base);
-	void (*remove)(struct tc3589x *tc3589x, unsigned gpio_base);
-};
-
-/**
  * struct tc3589x_platform_data - TC3589x platform data
  * @block: bitmask of blocks to enable (use TC3589x_BLOCK_*)
- * @irq_base: base IRQ number.  %TC3589x_NR_IRQS irqs will be used.
- * @gpio: GPIO-specific platform data
  * @keypad: keypad-specific platform data
  */
 struct tc3589x_platform_data {
 	unsigned int block;
-	int irq_base;
-	struct tc3589x_gpio_platform_data *gpio;
 	const struct tc3589x_keypad_platform_data *keypad;
 };
-
-#define TC3589x_NR_GPIOS	24
-#define TC3589x_NR_IRQS		TC3589x_INT_GPIO(TC3589x_NR_GPIOS)
 
 #endif

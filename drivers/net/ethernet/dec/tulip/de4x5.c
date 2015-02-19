@@ -995,7 +995,6 @@ static void    de4x5_dbg_mii(struct net_device *dev, int k);
 static void    de4x5_dbg_media(struct net_device *dev);
 static void    de4x5_dbg_srom(struct de4x5_srom *p);
 static void    de4x5_dbg_rx(struct sk_buff *skb, int len);
-static int     de4x5_strncmp(char *a, char *b, int n);
 static int     dc21041_infoleaf(struct net_device *dev);
 static int     dc21140_infoleaf(struct net_device *dev);
 static int     dc21142_infoleaf(struct net_device *dev);
@@ -1321,7 +1320,7 @@ de4x5_open(struct net_device *dev)
     if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 		                                     lp->adapter_name, dev)) {
 	printk("de4x5_open(): Requested IRQ%d is busy - attemping FAST/SHARE...", dev->irq);
-	if (request_irq(dev->irq, de4x5_interrupt, IRQF_DISABLED | IRQF_SHARED,
+	if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 			                             lp->adapter_name, dev)) {
 	    printk("\n              Cannot get IRQ- reconfigure your hardware.\n");
 	    disable_ast(dev);
@@ -2319,7 +2318,7 @@ static void de4x5_pci_remove(struct pci_dev *pdev)
 	struct net_device *dev;
 	u_long iobase;
 
-	dev = dev_get_drvdata(&pdev->dev);
+	dev = pci_get_drvdata(pdev);
 	iobase = dev->base_addr;
 
 	unregister_netdev (dev);
@@ -2328,7 +2327,7 @@ static void de4x5_pci_remove(struct pci_dev *pdev)
 	pci_disable_device (pdev);
 }
 
-static struct pci_device_id de4x5_pci_tbl[] = {
+static const struct pci_device_id de4x5_pci_tbl[] = {
         { PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP,
           PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
         { PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP_PLUS,
@@ -3250,7 +3249,6 @@ srom_map_media(struct net_device *dev)
 	printk("%s: Bad media code [%d] detected in SROM!\n", dev->name,
 	                                                  lp->infoblock_media);
 	return -1;
-	break;
     }
 
     return 0;
@@ -4103,8 +4101,7 @@ get_hw_addr(struct net_device *dev)
 }
 
 /*
-** Test for enet addresses in the first 32 bytes. The built-in strncmp
-** didn't seem to work here...?
+** Test for enet addresses in the first 32 bytes.
 */
 static int
 de4x5_bad_srom(struct de4x5_private *lp)
@@ -4112,8 +4109,8 @@ de4x5_bad_srom(struct de4x5_private *lp)
     int i, status = 0;
 
     for (i = 0; i < ARRAY_SIZE(enet_det); i++) {
-	if (!de4x5_strncmp((char *)&lp->srom, (char *)&enet_det[i], 3) &&
-	    !de4x5_strncmp((char *)&lp->srom+0x10, (char *)&enet_det[i], 3)) {
+	if (!memcmp(&lp->srom, &enet_det[i], 3) &&
+	    !memcmp((char *)&lp->srom+0x10, &enet_det[i], 3)) {
 	    if (i == 0) {
 		status = SMC;
 	    } else if (i == 1) {
@@ -4124,18 +4121,6 @@ de4x5_bad_srom(struct de4x5_private *lp)
     }
 
     return status;
-}
-
-static int
-de4x5_strncmp(char *a, char *b, int n)
-{
-    int ret=0;
-
-    for (;n && !ret; n--) {
-	ret = *a++ - *b++;
-    }
-
-    return ret;
 }
 
 static void

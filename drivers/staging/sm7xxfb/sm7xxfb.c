@@ -56,7 +56,7 @@ struct smtcfb_info {
 	u32 colreg[17];
 };
 
-void __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
+void __iomem *smtc_regbaseaddress;	/* Memory Map IO starting address */
 
 static struct fb_var_screeninfo smtcfb_var = {
 	.xres           = 1024,
@@ -111,7 +111,7 @@ static struct vesa_mode vesa_mode_table[] = {
 	{"0x31B", 1280, 1024, 24},
 };
 
-struct screen_info smtc_scr_info;
+static struct screen_info smtc_scr_info;
 
 /* process command line options, get vga parameter */
 static int __init sm7xx_vga_setup(char *options)
@@ -130,7 +130,8 @@ static int __init sm7xx_vga_setup(char *options)
 	for (i = 0; i < ARRAY_SIZE(vesa_mode_table); i++) {
 		if (strstr(options, vesa_mode_table[i].index)) {
 			smtc_scr_info.lfb_width  = vesa_mode_table[i].lfb_width;
-			smtc_scr_info.lfb_height = vesa_mode_table[i].lfb_height;
+			smtc_scr_info.lfb_height =
+						vesa_mode_table[i].lfb_height;
 			smtc_scr_info.lfb_depth  = vesa_mode_table[i].lfb_depth;
 			return 0;
 		}
@@ -258,9 +259,9 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 		if (regno < 16) {
 			if (sfb->fb.var.bits_per_pixel == 16) {
 				u32 *pal = sfb->fb.pseudo_palette;
+
 				val = chan_to_field(red, &sfb->fb.var.red);
-				val |= chan_to_field(green, \
-						&sfb->fb.var.green);
+				val |= chan_to_field(green, &sfb->fb.var.green);
 				val |= chan_to_field(blue, &sfb->fb.var.blue);
 #ifdef __BIG_ENDIAN
 				pal[regno] =
@@ -273,9 +274,9 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 #endif
 			} else {
 				u32 *pal = sfb->fb.pseudo_palette;
+
 				val = chan_to_field(red, &sfb->fb.var.red);
-				val |= chan_to_field(green, \
-						&sfb->fb.var.green);
+				val |= chan_to_field(green, &sfb->fb.var.green);
 				val |= chan_to_field(blue, &sfb->fb.var.blue);
 #ifdef __BIG_ENDIAN
 				val =
@@ -297,7 +298,6 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 	}
 
 	return 0;
-
 }
 
 #ifdef __BIG_ENDIAN
@@ -351,8 +351,8 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf, size_t
 			dst++;
 		}
 		if (c & 3) {
-			u8 *dst8 = (u8 *) dst;
-			u8 __iomem *src8 = (u8 __iomem *) src;
+			u8 *dst8 = (u8 *)dst;
+			u8 __iomem *src8 = (u8 __iomem *)src;
 
 			for (i = c & 3; i--;) {
 				if (i & 1) {
@@ -362,7 +362,7 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf, size_t
 					src8 += 2;
 				}
 			}
-			src = (u32 __iomem *) src8;
+			src = (u32 __iomem *)src8;
 		}
 
 		if (copy_to_user(buf, buffer, c)) {
@@ -441,8 +441,8 @@ smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
 			src++;
 		}
 		if (c & 3) {
-			u8 *src8 = (u8 *) src;
-			u8 __iomem *dst8 = (u8 __iomem *) dst;
+			u8 *src8 = (u8 *)src;
+			u8 __iomem *dst8 = (u8 __iomem *)dst;
 
 			for (i = c & 3; i--;) {
 				if (i & 1) {
@@ -452,7 +452,7 @@ smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
 					dst8 += 2;
 				}
 			}
-			dst = (u32 __iomem *) dst8;
+			dst = (u32 __iomem *)dst8;
 		}
 
 		*ppos += c;
@@ -470,81 +470,78 @@ smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
 static void sm7xx_set_timing(struct smtcfb_info *sfb)
 {
 	int i = 0, j = 0;
-	u32 m_nScreenStride;
+	u32 m_nscreenstride;
 
 	dev_dbg(&sfb->pdev->dev,
-		"sfb->width=%d sfb->height=%d "
-		"sfb->fb.var.bits_per_pixel=%d sfb->hz=%d\n",
+		"sfb->width=%d sfb->height=%d sfb->fb.var.bits_per_pixel=%d sfb->hz=%d\n",
 		sfb->width, sfb->height, sfb->fb.var.bits_per_pixel, sfb->hz);
 
-	for (j = 0; j < numVGAModes; j++) {
-		if (VGAMode[j].mmSizeX == sfb->width &&
-		    VGAMode[j].mmSizeY == sfb->height &&
-		    VGAMode[j].bpp == sfb->fb.var.bits_per_pixel &&
-		    VGAMode[j].hz == sfb->hz) {
-
+	for (j = 0; j < numvgamodes; j++) {
+		if (vgamode[j].mmsizex == sfb->width &&
+		    vgamode[j].mmsizey == sfb->height &&
+		    vgamode[j].bpp == sfb->fb.var.bits_per_pixel &&
+		    vgamode[j].hz == sfb->hz) {
 			dev_dbg(&sfb->pdev->dev,
-				"VGAMode[j].mmSizeX=%d VGAMode[j].mmSizeY=%d "
-				"VGAMode[j].bpp=%d VGAMode[j].hz=%d\n",
-				VGAMode[j].mmSizeX, VGAMode[j].mmSizeY,
-				VGAMode[j].bpp, VGAMode[j].hz);
+				"vgamode[j].mmsizex=%d vgamode[j].mmSizeY=%d vgamode[j].bpp=%d vgamode[j].hz=%d\n",
+				vgamode[j].mmsizex, vgamode[j].mmsizey,
+				vgamode[j].bpp, vgamode[j].hz);
 
-			dev_dbg(&sfb->pdev->dev, "VGAMode index=%d\n", j);
+			dev_dbg(&sfb->pdev->dev, "vgamode index=%d\n", j);
 
 			smtc_mmiowb(0x0, 0x3c6);
 
 			smtc_seqw(0, 0x1);
 
-			smtc_mmiowb(VGAMode[j].Init_MISC, 0x3c2);
+			smtc_mmiowb(vgamode[j].init_misc, 0x3c2);
 
 			/* init SEQ register SR00 - SR04 */
 			for (i = 0; i < SIZE_SR00_SR04; i++)
-				smtc_seqw(i, VGAMode[j].Init_SR00_SR04[i]);
+				smtc_seqw(i, vgamode[j].init_sr00_sr04[i]);
 
 			/* init SEQ register SR10 - SR24 */
 			for (i = 0; i < SIZE_SR10_SR24; i++)
 				smtc_seqw(i + 0x10,
-					  VGAMode[j].Init_SR10_SR24[i]);
+					  vgamode[j].init_sr10_sr24[i]);
 
 			/* init SEQ register SR30 - SR75 */
 			for (i = 0; i < SIZE_SR30_SR75; i++)
-				if (((i + 0x30) != 0x62) \
-					&& ((i + 0x30) != 0x6a) \
-					&& ((i + 0x30) != 0x6b))
+				if ((i + 0x30) != 0x62 &&
+				    (i + 0x30) != 0x6a &&
+				    (i + 0x30) != 0x6b)
 					smtc_seqw(i + 0x30,
-						VGAMode[j].Init_SR30_SR75[i]);
+						  vgamode[j].init_sr30_sr75[i]);
 
 			/* init SEQ register SR80 - SR93 */
 			for (i = 0; i < SIZE_SR80_SR93; i++)
 				smtc_seqw(i + 0x80,
-					  VGAMode[j].Init_SR80_SR93[i]);
+					  vgamode[j].init_sr80_sr93[i]);
 
 			/* init SEQ register SRA0 - SRAF */
 			for (i = 0; i < SIZE_SRA0_SRAF; i++)
 				smtc_seqw(i + 0xa0,
-					  VGAMode[j].Init_SRA0_SRAF[i]);
+					  vgamode[j].init_sra0_sraf[i]);
 
 			/* init Graphic register GR00 - GR08 */
 			for (i = 0; i < SIZE_GR00_GR08; i++)
-				smtc_grphw(i, VGAMode[j].Init_GR00_GR08[i]);
+				smtc_grphw(i, vgamode[j].init_gr00_gr08[i]);
 
 			/* init Attribute register AR00 - AR14 */
 			for (i = 0; i < SIZE_AR00_AR14; i++)
-				smtc_attrw(i, VGAMode[j].Init_AR00_AR14[i]);
+				smtc_attrw(i, vgamode[j].init_ar00_ar14[i]);
 
 			/* init CRTC register CR00 - CR18 */
 			for (i = 0; i < SIZE_CR00_CR18; i++)
-				smtc_crtcw(i, VGAMode[j].Init_CR00_CR18[i]);
+				smtc_crtcw(i, vgamode[j].init_cr00_cr18[i]);
 
 			/* init CRTC register CR30 - CR4D */
 			for (i = 0; i < SIZE_CR30_CR4D; i++)
 				smtc_crtcw(i + 0x30,
-					   VGAMode[j].Init_CR30_CR4D[i]);
+					   vgamode[j].init_cr30_cr4d[i]);
 
 			/* init CRTC register CR90 - CRA7 */
 			for (i = 0; i < SIZE_CR90_CRA7; i++)
 				smtc_crtcw(i + 0x90,
-					   VGAMode[j].Init_CR90_CRA7[i]);
+					   vgamode[j].init_cr90_cra7[i]);
 		}
 	}
 	smtc_mmiowb(0x67, 0x3c2);
@@ -554,7 +551,7 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 	writel(0x0, sfb->vp_regs + 0x40);
 
 	/* set data width */
-	m_nScreenStride =
+	m_nscreenstride =
 		(sfb->width * sfb->fb.var.bits_per_pixel) / 64;
 	switch (sfb->fb.var.bits_per_pixel) {
 	case 8:
@@ -570,9 +567,8 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 		writel(0x00030000, sfb->vp_regs + 0x0);
 		break;
 	}
-	writel((u32) (((m_nScreenStride + 2) << 16) | m_nScreenStride),
+	writel((u32) (((m_nscreenstride + 2) << 16) | m_nscreenstride),
 	       sfb->vp_regs + 0x10);
-
 }
 
 static void smtc_set_timing(struct smtcfb_info *sfb)
@@ -586,7 +582,7 @@ static void smtc_set_timing(struct smtcfb_info *sfb)
 	}
 }
 
-void smtcfb_setmode(struct smtcfb_info *sfb)
+static void smtcfb_setmode(struct smtcfb_info *sfb)
 {
 	switch (sfb->fb.var.bits_per_pixel) {
 	case 32:
@@ -715,8 +711,8 @@ static void smtc_free_fb_info(struct smtcfb_info *sfb)
 
 static void smtc_unmap_mmio(struct smtcfb_info *sfb)
 {
-	if (sfb && smtc_RegBaseAddress)
-		smtc_RegBaseAddress = NULL;
+	if (sfb && smtc_regbaseaddress)
+		smtc_regbaseaddress = NULL;
 }
 
 /*
@@ -724,9 +720,8 @@ static void smtc_unmap_mmio(struct smtcfb_info *sfb)
  */
 
 static int smtc_map_smem(struct smtcfb_info *sfb,
-		struct pci_dev *pdev, u_long smem_len)
+			 struct pci_dev *pdev, u_long smem_len)
 {
-
 	sfb->fb.fix.smem_start = pci_resource_start(pdev, 0);
 
 #ifdef __BIG_ENDIAN
@@ -769,7 +764,7 @@ static inline void sm7xx_init_hw(void)
 }
 
 static int smtcfb_pci_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+			    const struct pci_device_id *ent)
 {
 	struct smtcfb_info *sfb;
 	u_long smem_size = 0x00800000;	/* default 8MB */
@@ -828,7 +823,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 #else
 		sfb->lfb = ioremap(mmio_base, 0x00800000);
 #endif
-		sfb->mmio = (smtc_RegBaseAddress =
+		sfb->mmio = (smtc_regbaseaddress =
 		    sfb->lfb + 0x00700000);
 		sfb->dp_regs = sfb->lfb + 0x00408000;
 		sfb->vp_regs = sfb->lfb + 0x0040c000;
@@ -838,7 +833,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 			dev_info(&pdev->dev, "sfb->lfb=%p", sfb->lfb);
 		}
 #endif
-		if (!smtc_RegBaseAddress) {
+		if (!smtc_regbaseaddress) {
 			dev_err(&pdev->dev,
 				"%s: unable to map memory mapped IO!",
 				sfb->fb.fix.id);
@@ -864,7 +859,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 		smem_size = SM722_VIDEOMEMORYSIZE;
 		sfb->dp_regs = ioremap(mmio_base, 0x00a00000);
 		sfb->lfb = sfb->dp_regs + 0x00200000;
-		sfb->mmio = (smtc_RegBaseAddress =
+		sfb->mmio = (smtc_regbaseaddress =
 		    sfb->dp_regs + 0x000c0000);
 		sfb->vp_regs = sfb->dp_regs + 0x800;
 
@@ -921,7 +916,7 @@ failed_free:
  * 0x712 (LynxEM+)
  * 0x720 (Lynx3DM, Lynx3DM+)
  */
-static DEFINE_PCI_DEVICE_TABLE(smtcfb_pci_table) = {
+static const struct pci_device_id smtcfb_pci_table[] = {
 	{ PCI_DEVICE(0x126f, 0x710), },
 	{ PCI_DEVICE(0x126f, 0x712), },
 	{ PCI_DEVICE(0x126f, 0x720), },
@@ -933,7 +928,6 @@ static void smtcfb_pci_remove(struct pci_dev *pdev)
 	struct smtcfb_info *sfb;
 
 	sfb = pci_get_drvdata(pdev);
-	pci_set_drvdata(pdev, NULL);
 	smtc_unmap_smem(sfb);
 	smtc_unmap_mmio(sfb);
 	unregister_framebuffer(&sfb->fb);

@@ -98,13 +98,13 @@ static inline int access_ok(int type, const void __user *addr,
 
 	if ((get_fs().seg < ((unsigned long)addr)) ||
 			(get_fs().seg < ((unsigned long)addr + size - 1))) {
-		pr_debug("ACCESS fail: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
+		pr_devel("ACCESS fail: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
 			type ? "WRITE" : "READ ", (__force u32)addr, (u32)size,
 			(u32)get_fs().seg);
 		return 0;
 	}
 ok:
-	pr_debug("ACCESS OK: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
+	pr_devel("ACCESS OK: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
 			type ? "WRITE" : "READ ", (__force u32)addr, (u32)size,
 			(u32)get_fs().seg);
 	return 1;
@@ -220,7 +220,7 @@ extern long __user_bad(void);
 	} else {							\
 		__gu_err = -EFAULT;					\
 	}								\
-	x = (typeof(*(ptr)))__gu_val;					\
+	x = (__force typeof(*(ptr)))__gu_val;				\
 	__gu_err;							\
 })
 
@@ -242,7 +242,7 @@ extern long __user_bad(void);
 	default:							\
 		/* __gu_val = 0; __gu_err = -EINVAL;*/ __gu_err = __user_bad();\
 	}								\
-	x = (__typeof__(*(ptr))) __gu_val;				\
+	x = (__force __typeof__(*(ptr))) __gu_val;			\
 	__gu_err;							\
 })
 
@@ -306,7 +306,7 @@ extern long __user_bad(void);
 
 #define __put_user_check(x, ptr, size)					\
 ({									\
-	typeof(*(ptr)) volatile __pu_val = x;					\
+	typeof(*(ptr)) volatile __pu_val = x;				\
 	typeof(*(ptr)) __user *__pu_addr = (ptr);			\
 	int __pu_err = 0;						\
 									\

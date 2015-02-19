@@ -184,7 +184,6 @@ static int pps_gpio_remove(struct platform_device *pdev)
 {
 	struct pps_gpio_device_data *data = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	pps_unregister_source(data->pps);
 	dev_info(&pdev->dev, "removed IRQ %d as PPS source\n", data->irq);
 	return 0;
@@ -201,8 +200,7 @@ static struct platform_driver pps_gpio_driver = {
 	.remove		= pps_gpio_remove,
 	.driver		= {
 		.name	= PPS_GPIO_NAME,
-		.owner	= THIS_MODULE,
-		.of_match_table	= of_match_ptr(pps_gpio_dt_ids),
+		.of_match_table	= pps_gpio_dt_ids,
 	},
 };
 

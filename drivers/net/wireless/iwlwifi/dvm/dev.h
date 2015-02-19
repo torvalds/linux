@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -270,7 +270,7 @@ struct iwl_sensitivity_ranges {
  * iwlXXXX_     <-- Hardware specific (implemented in iwl-XXXX.c for XXXX)
  *
  ****************************************************************************/
-extern void iwl_update_chain_flags(struct iwl_priv *priv);
+void iwl_update_chain_flags(struct iwl_priv *priv);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
 
 #define IWL_OPERATION_MODE_AUTO     0
@@ -540,7 +540,6 @@ struct iwl_rxon_context {
 enum iwl_scan_type {
 	IWL_SCAN_NORMAL,
 	IWL_SCAN_RADIO_RESET,
-	IWL_SCAN_ROC,
 };
 
 /**
@@ -825,12 +824,6 @@ struct iwl_priv {
 	struct reply_tx_error_statistics reply_tx_stats;
 	struct reply_agg_tx_error_statistics reply_agg_tx_stats;
 
-	/* remain-on-channel offload support */
-	struct ieee80211_channel *hw_roc_channel;
-	struct delayed_work hw_roc_disable_work;
-	int hw_roc_duration;
-	bool hw_roc_setup, hw_roc_start_notified;
-
 	/* bt coex */
 	u8 bt_enable_flag;
 	u8 bt_status;
@@ -895,9 +888,11 @@ struct iwl_priv {
 
 	struct iwl_event_log event_log;
 
+#ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;
 	unsigned long blink_on, blink_off;
 	bool led_registered;
+#endif
 
 	/* WoWLAN GTK rekey data */
 	u8 kck[NL80211_KCK_LEN], kek[NL80211_KEK_LEN];

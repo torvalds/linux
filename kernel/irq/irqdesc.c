@@ -14,6 +14,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/radix-tree.h>
 #include <linux/bitmap.h>
+#include <linux/irqdomain.h>
 
 #include "internals.h"
 
@@ -131,6 +132,16 @@ static void free_masks(struct irq_desc *desc)
 static inline void free_masks(struct irq_desc *desc) { }
 #endif
 
+void irq_lock_sparse(void)
+{
+	mutex_lock(&sparse_irq_lock);
+}
+
+void irq_unlock_sparse(void)
+{
+	mutex_unlock(&sparse_irq_lock);
+}
+
 static struct irq_desc *alloc_desc(int irq, int node, struct module *owner)
 {
 	struct irq_desc *desc;
@@ -167,6 +178,12 @@ static void free_desc(unsigned int irq)
 
 	unregister_irq_proc(irq, desc);
 
+	/*
+	 * sparse_irq_lock protects also show_interrupts() and
+	 * kstat_irq_usr(). Once we deleted the descriptor from the
+	 * sparse tree we can free it. Access in proc will fail to
+	 * lookup the descriptor.
+	 */
 	mutex_lock(&sparse_irq_lock);
 	delete_irq_desc(irq);
 	mutex_unlock(&sparse_irq_lock);
@@ -274,10 +291,16 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	return (irq < NR_IRQS) ? irq_desc + irq : NULL;
 }
+EXPORT_SYMBOL(irq_to_desc);
 
 static void free_desc(unsigned int irq)
 {
-	dynamic_irq_cleanup(irq);
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	desc_set_defaults(irq, desc, desc_node(desc), NULL);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
@@ -298,6 +321,20 @@ static int irq_expand_nr_irqs(unsigned int nr)
 	return -ENOMEM;
 }
 
+void irq_mark_irq(unsigned int irq)
+{
+	mutex_lock(&sparse_irq_lock);
+	bitmap_set(allocated_irqs, irq, 1);
+	mutex_unlock(&sparse_irq_lock);
+}
+
+#ifdef CONFIG_GENERIC_IRQ_LEGACY
+void irq_init_desc(unsigned int irq)
+{
+	free_desc(irq);
+}
+#endif
+
 #endif /* !CONFIG_SPARSE_IRQ */
 
 /**
@@ -315,6 +352,47 @@ int generic_handle_irq(unsigned int irq)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(generic_handle_irq);
+
+#ifdef CONFIG_HANDLE_DOMAIN_IRQ
+/**
+ * __handle_domain_irq - Invoke the handler for a HW irq belonging to a domain
+ * @domain:	The domain where to perform the lookup
+ * @hwirq:	The HW irq number to convert to a logical one
+ * @lookup:	Whether to perform the domain lookup or not
+ * @regs:	Register file coming from the low-level handling code
+ *
+ * Returns:	0 on success, or -EINVAL if conversion has failed
+ */
+int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
+			bool lookup, struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+	unsigned int irq = hwirq;
+	int ret = 0;
+
+	irq_enter();
+
+#ifdef CONFIG_IRQ_DOMAIN
+	if (lookup)
+		irq = irq_find_mapping(domain, hwirq);
+#endif
+
+	/*
+	 * Some hardware gives randomly wrong interrupts.  Rather
+	 * than crashing, do something sensible.
+	 */
+	if (unlikely(!irq || irq >= nr_irqs)) {
+		ack_bad_irq(irq);
+		ret = -EINVAL;
+	} else {
+		generic_handle_irq(irq);
+	}
+
+	irq_exit();
+	set_irq_regs(old_regs);
+	return ret;
+}
+#endif
 
 /* Dynamic interrupt handling */
 
@@ -362,6 +440,13 @@ __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 		if (from > irq)
 			return -EINVAL;
 		from = irq;
+	} else {
+		/*
+		 * For interrupts which are freely allocated the
+		 * architecture can force a lower bound to the @from
+		 * argument. x86 uses this to exclude the GSI space.
+		 */
+		from = arch_dynirq_lower_bound(from);
 	}
 
 	mutex_lock(&sparse_irq_lock);
@@ -388,30 +473,56 @@ err:
 }
 EXPORT_SYMBOL_GPL(__irq_alloc_descs);
 
+#ifdef CONFIG_GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 /**
- * irq_reserve_irqs - mark irqs allocated
- * @from:	mark from irq number
- * @cnt:	number of irqs to mark
+ * irq_alloc_hwirqs - Allocate an irq descriptor and initialize the hardware
+ * @cnt:	number of interrupts to allocate
+ * @node:	node on which to allocate
  *
- * Returns 0 on success or an appropriate error code
+ * Returns an interrupt number > 0 or 0, if the allocation fails.
  */
-int irq_reserve_irqs(unsigned int from, unsigned int cnt)
+unsigned int irq_alloc_hwirqs(int cnt, int node)
 {
-	unsigned int start;
-	int ret = 0;
+	int i, irq = __irq_alloc_descs(-1, 0, cnt, node, NULL);
 
-	if (!cnt || (from + cnt) > nr_irqs)
-		return -EINVAL;
+	if (irq < 0)
+		return 0;
 
-	mutex_lock(&sparse_irq_lock);
-	start = bitmap_find_next_zero_area(allocated_irqs, nr_irqs, from, cnt, 0);
-	if (start == from)
-		bitmap_set(allocated_irqs, start, cnt);
-	else
-		ret = -EEXIST;
-	mutex_unlock(&sparse_irq_lock);
-	return ret;
+	for (i = irq; cnt > 0; i++, cnt--) {
+		if (arch_setup_hwirq(i, node))
+			goto err;
+		irq_clear_status_flags(i, _IRQ_NOREQUEST);
+	}
+	return irq;
+
+err:
+	for (i--; i >= irq; i--) {
+		irq_set_status_flags(i, _IRQ_NOREQUEST | _IRQ_NOPROBE);
+		arch_teardown_hwirq(i);
+	}
+	irq_free_descs(irq, cnt);
+	return 0;
 }
+EXPORT_SYMBOL_GPL(irq_alloc_hwirqs);
+
+/**
+ * irq_free_hwirqs - Free irq descriptor and cleanup the hardware
+ * @from:	Free from irq number
+ * @cnt:	number of interrupts to free
+ *
+ */
+void irq_free_hwirqs(unsigned int from, int cnt)
+{
+	int i, j;
+
+	for (i = from, j = cnt; j > 0; i++, j--) {
+		irq_set_status_flags(i, _IRQ_NOREQUEST | _IRQ_NOPROBE);
+		arch_teardown_hwirq(i);
+	}
+	irq_free_descs(from, cnt);
+}
+EXPORT_SYMBOL_GPL(irq_free_hwirqs);
+#endif
 
 /**
  * irq_get_next_irq - get next allocated irq number
@@ -474,20 +585,20 @@ int irq_set_percpu_devid(unsigned int irq)
 	return 0;
 }
 
-/**
- * dynamic_irq_cleanup - cleanup a dynamically allocated irq
- * @irq:	irq number to initialize
- */
-void dynamic_irq_cleanup(unsigned int irq)
+void kstat_incr_irq_this_cpu(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc_set_defaults(irq, desc, desc_node(desc), NULL);
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 }
 
+/**
+ * kstat_irqs_cpu - Get the statistics for an interrupt on a cpu
+ * @irq:	The interrupt number
+ * @cpu:	The cpu number
+ *
+ * Returns the sum of interrupt counts on @cpu since boot for
+ * @irq. The caller must ensure that the interrupt is not removed
+ * concurrently.
+ */
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
@@ -496,6 +607,14 @@ unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 			*per_cpu_ptr(desc->kstat_irqs, cpu) : 0;
 }
 
+/**
+ * kstat_irqs - Get the statistics for an interrupt
+ * @irq:	The interrupt number
+ *
+ * Returns the sum of interrupt counts on all cpus since boot for
+ * @irq. The caller must ensure that the interrupt is not removed
+ * concurrently.
+ */
 unsigned int kstat_irqs(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
@@ -506,5 +625,24 @@ unsigned int kstat_irqs(unsigned int irq)
 		return 0;
 	for_each_possible_cpu(cpu)
 		sum += *per_cpu_ptr(desc->kstat_irqs, cpu);
+	return sum;
+}
+
+/**
+ * kstat_irqs_usr - Get the statistics for an interrupt
+ * @irq:	The interrupt number
+ *
+ * Returns the sum of interrupt counts on all cpus since boot for
+ * @irq. Contrary to kstat_irqs() this can be called from any
+ * preemptible context. It's protected against concurrent removal of
+ * an interrupt descriptor when sparse irqs are enabled.
+ */
+unsigned int kstat_irqs_usr(unsigned int irq)
+{
+	int sum;
+
+	irq_lock_sparse();
+	sum = kstat_irqs(irq);
+	irq_unlock_sparse();
 	return sum;
 }

@@ -28,7 +28,7 @@ Table of Contents
   1.6	Parallel port info in /proc/parport
   1.7	TTY info in /proc/tty
   1.8	Miscellaneous kernel statistics in /proc/stat
-  1.9 Ext4 file system parameters
+  1.9	Ext4 file system parameters
 
   2	Modifying System Parameters
 
@@ -42,6 +42,7 @@ Table of Contents
   3.6	/proc/<pid>/comm  & /proc/<pid>/task/<tid>/comm
   3.7   /proc/<pid>/task/<tid>/children - Information about task children
   3.8   /proc/<pid>/fdinfo/<fd> - Information about opened file
+  3.9   /proc/<pid>/map_files - Information about memory mapped files
 
   4	Configuring procfs
   4.1	Mount options
@@ -144,6 +145,8 @@ Table 1-1: Process specific entries in /proc
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
  smaps		a extension based on maps, showing the memory consumption of
 		each mapping and flags associated with it
+ numa_maps	an extension based on maps, showing the memory locality and
+		binding policy as well as mem usage (in pages) of each mapping.
 ..............................................................................
 
 For example, to get the status information of a process, all you have to do is
@@ -234,7 +237,7 @@ Table 1-2: Contents of the status files (as of 2.6.30-rc7)
  ShdPnd                      bitmap of shared pending signals for the process
  SigBlk                      bitmap of blocked signals
  SigIgn                      bitmap of ignored signals
- SigCgt                      bitmap of catched signals
+ SigCgt                      bitmap of caught signals
  CapInh                      bitmap of inheritable capabilities
  CapPrm                      bitmap of permitted capabilities
  CapEff                      bitmap of effective capabilities
@@ -300,7 +303,7 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   pending       bitmap of pending signals
   blocked       bitmap of blocked signals
   sigign        bitmap of ignored signals
-  sigcatch      bitmap of catched signals
+  sigcatch      bitmap of caught signals
   wchan         address where process went to sleep
   0             (place holder)
   0             (place holder)
@@ -460,6 +463,7 @@ manner. The codes are the following:
     nl  - non-linear mapping
     ar  - architecture specific flag
     dd  - do not include area into core dump
+    sd  - soft-dirty flag
     mm  - mixed map area
     hg  - huge page advise flag
     nh  - no-huge page advise flag
@@ -487,11 +491,46 @@ To clear the bits for the file mapped pages associated with the process
 To clear the soft-dirty bit
     > echo 4 > /proc/PID/clear_refs
 
+To reset the peak resident set size ("high water mark") to the process's
+current value:
+    > echo 5 > /proc/PID/clear_refs
+
 Any other value written to /proc/PID/clear_refs will have no effect.
 
 The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
 using /proc/kpageflags and number of times a page is mapped using
 /proc/kpagecount. For detailed explanation, see Documentation/vm/pagemap.txt.
+
+The /proc/pid/numa_maps is an extension based on maps, showing the memory
+locality and binding policy, as well as the memory usage (in pages) of
+each mapping. The output follows a general format where mapping details get
+summarized separated by blank spaces, one mapping per each file line:
+
+address   policy    mapping details
+
+00400000 default file=/usr/local/bin/app mapped=1 active=0 N3=1 kernelpagesize_kB=4
+00600000 default file=/usr/local/bin/app anon=1 dirty=1 N3=1 kernelpagesize_kB=4
+3206000000 default file=/lib64/ld-2.12.so mapped=26 mapmax=6 N0=24 N3=2 kernelpagesize_kB=4
+320621f000 default file=/lib64/ld-2.12.so anon=1 dirty=1 N3=1 kernelpagesize_kB=4
+3206220000 default file=/lib64/ld-2.12.so anon=1 dirty=1 N3=1 kernelpagesize_kB=4
+3206221000 default anon=1 dirty=1 N3=1 kernelpagesize_kB=4
+3206800000 default file=/lib64/libc-2.12.so mapped=59 mapmax=21 active=55 N0=41 N3=18 kernelpagesize_kB=4
+320698b000 default file=/lib64/libc-2.12.so
+3206b8a000 default file=/lib64/libc-2.12.so anon=2 dirty=2 N3=2 kernelpagesize_kB=4
+3206b8e000 default file=/lib64/libc-2.12.so anon=1 dirty=1 N3=1 kernelpagesize_kB=4
+3206b8f000 default anon=3 dirty=3 active=1 N3=3 kernelpagesize_kB=4
+7f4dc10a2000 default anon=3 dirty=3 N3=3 kernelpagesize_kB=4
+7f4dc10b4000 default anon=2 dirty=2 active=1 N3=2 kernelpagesize_kB=4
+7f4dc1200000 default file=/anon_hugepage\040(deleted) huge anon=1 dirty=1 N3=1 kernelpagesize_kB=2048
+7fff335f0000 default stack anon=3 dirty=3 N3=3 kernelpagesize_kB=4
+7fff3369d000 default mapped=1 mapmax=35 active=0 N3=1 kernelpagesize_kB=4
+
+Where:
+"address" is the starting address for the mapping;
+"policy" reports the NUMA memory policy set for the mapping (see vm/numa_memory_policy.txt);
+"mapping details" summarizes mapping data such as mapping type, page usage counters,
+node locality page counters (N0 == node0, N1 == node1, ...) and the kernel page
+size, in KB, that is backing the mapping up.
 
 1.2 Kernel data
 ---------------
@@ -546,7 +585,7 @@ Table 1-5: Kernel info in /proc
  sys         See chapter 2                                     
  sysvipc     Info of SysVIPC Resources (msg, sem, shm)		(2.4)
  tty	     Info of tty drivers
- uptime      System uptime                                     
+ uptime      Wall clock since boot, combined idle time of all cpus
  version     Kernel version                                    
  video	     bttv info of video resources			(2.4)
  vmallocinfo Show vmalloced areas
@@ -766,6 +805,7 @@ The "Locked" indicates whether the mapping is locked in memory or not.
 
 MemTotal:     16344972 kB
 MemFree:      13634064 kB
+MemAvailable: 14836172 kB
 Buffers:          3656 kB
 Cached:        1195708 kB
 SwapCached:          0 kB
@@ -798,6 +838,14 @@ AnonHugePages:   49152 kB
     MemTotal: Total usable ram (i.e. physical ram minus a few reserved
               bits and the kernel binary code)
      MemFree: The sum of LowFree+HighFree
+MemAvailable: An estimate of how much memory is available for starting new
+              applications, without swapping. Calculated from MemFree,
+              SReclaimable, the size of the file LRU lists, and the low
+              watermarks in each zone.
+              The estimate takes into account that the system needs some
+              page cache to function well, and that not all reclaimable
+              slab will be reclaimable, due to items being in use. The
+              impact of those factors will vary from system to system.
      Buffers: Relatively temporary storage for raw disk blocks
               shouldn't get tremendously large (20MB or so)
       Cached: in-memory cache for files read from the disk (the
@@ -844,7 +892,8 @@ WritebackTmp: Memory used by FUSE for temporary writeback buffers
               if strict overcommit accounting is enabled (mode 2 in
               'vm.overcommit_memory').
               The CommitLimit is calculated with the following formula:
-              CommitLimit = ('vm.overcommit_ratio' * Physical RAM) + Swap
+              CommitLimit = ([total RAM pages] - [total huge TLB pages]) *
+                             overcommit_ratio / 100 + [total swap pages]
               For example, on a system with 1G of physical RAM and 7G
               of swap with a `vm.overcommit_ratio` of 30 it would
               yield a CommitLimit of 7.3G.
@@ -854,16 +903,15 @@ Committed_AS: The amount of memory presently allocated on the system.
               The committed memory is a sum of all of the memory which
               has been allocated by processes, even if it has not been
               "used" by them as of yet. A process which malloc()'s 1G
-              of memory, but only touches 300M of it will only show up
-              as using 300M of memory even if it has the address space
-              allocated for the entire 1G. This 1G is memory which has
-              been "committed" to by the VM and can be used at any time
-              by the allocating application. With strict overcommit
-              enabled on the system (mode 2 in 'vm.overcommit_memory'),
-              allocations which would exceed the CommitLimit (detailed
-              above) will not be permitted. This is useful if one needs
-              to guarantee that processes will not fail due to lack of
-              memory once that memory has been successfully allocated.
+              of memory, but only touches 300M of it will show up as
+	      using 1G. This 1G is memory which has been "committed" to
+              by the VM and can be used at any time by the allocating
+              application. With strict overcommit enabled on the system
+              (mode 2 in 'vm.overcommit_memory'),allocations which would
+              exceed the CommitLimit (detailed above) will not be permitted.
+              This is useful if one needs to guarantee that processes will
+              not fail due to lack of memory once that memory has been
+              successfully allocated.
 VmallocTotal: total size of vmalloc memory area
  VmallocUsed: amount of vmalloc area which is used
 VmallocChunk: largest contiguous block of vmalloc area which is free
@@ -1236,8 +1284,9 @@ second).  The meanings of the columns are as follows, from left to right:
 
 The "intr" line gives counts of interrupts  serviced since boot time, for each
 of the  possible system interrupts.   The first  column  is the  total of  all
-interrupts serviced; each  subsequent column is the  total for that particular
-interrupt.
+interrupts serviced  including  unnumbered  architecture specific  interrupts;
+each  subsequent column is the  total for that particular numbered interrupt.
+Unnumbered interrupts are not shown, only summed into the total.
 
 The "ctxt" line gives the total number of context switches across all CPUs.
 
@@ -1261,7 +1310,7 @@ softirq.
 
 
 1.9 Ext4 file system parameters
-------------------------------
+-------------------------------
 
 Information about mounted ext4 file systems can be found in
 /proc/fs/ext4.  Each mounted filesystem will have a directory in
@@ -1377,8 +1426,8 @@ may allocate from based on an estimation of its current memory and swap use.
 For example, if a task is using all allowed memory, its badness score will be
 1000.  If it is using half of its allowed memory, its score will be 500.
 
-There is an additional factor included in the badness score: root
-processes are given 3% extra memory over other tasks.
+There is an additional factor included in the badness score: the current memory
+and swap usage is discounted by 3% for root processes.
 
 The amount of "allowed" memory depends on the context in which the oom killer
 was called.  If it is due to the memory assigned to the allocating task's cpuset
@@ -1639,18 +1688,21 @@ pids, so one need to either stop or freeze processes being inspected
 if precise results are needed.
 
 
-3.7	/proc/<pid>/fdinfo/<fd> - Information about opened file
+3.8	/proc/<pid>/fdinfo/<fd> - Information about opened file
 ---------------------------------------------------------------
 This file provides information associated with an opened file. The regular
-files have at least two fields -- 'pos' and 'flags'. The 'pos' represents
-the current offset of the opened file in decimal form [see lseek(2) for
-details] and 'flags' denotes the octal O_xxx mask the file has been
-created with [see open(2) for details].
+files have at least three fields -- 'pos', 'flags' and mnt_id. The 'pos'
+represents the current offset of the opened file in decimal form [see lseek(2)
+for details], 'flags' denotes the octal O_xxx mask the file has been
+created with [see open(2) for details] and 'mnt_id' represents mount ID of
+the file system containing the opened file [see 3.5 /proc/<pid>/mountinfo
+for details].
 
 A typical output is
 
 	pos:	0
 	flags:	0100002
+	mnt_id:	19
 
 The files such as eventfd, fsnotify, signalfd, epoll among the regular pos/flags
 pair provide additional information particular to the objects they represent.
@@ -1659,6 +1711,7 @@ pair provide additional information particular to the objects they represent.
 	~~~~~~~~~~~~~
 	pos:	0
 	flags:	04002
+	mnt_id:	9
 	eventfd-count:	5a
 
 	where 'eventfd-count' is hex value of a counter.
@@ -1667,6 +1720,7 @@ pair provide additional information particular to the objects they represent.
 	~~~~~~~~~~~~~~
 	pos:	0
 	flags:	04002
+	mnt_id:	9
 	sigmask:	0000000000000200
 
 	where 'sigmask' is hex value of the signal mask associated
@@ -1676,6 +1730,7 @@ pair provide additional information particular to the objects they represent.
 	~~~~~~~~~~~
 	pos:	0
 	flags:	02
+	mnt_id:	9
 	tfd:        5 events:       1d data: ffffffffffffffff
 
 	where 'tfd' is a target file descriptor number in decimal form,
@@ -1709,6 +1764,7 @@ pair provide additional information particular to the objects they represent.
 
 	pos:	0
 	flags:	02
+	mnt_id:	9
 	fanotify flags:10 event-flags:0
 	fanotify mnt_id:12 mflags:40 mask:38 ignored_mask:40000003
 	fanotify ino:4f969 sdev:800013 mflags:0 mask:3b ignored_mask:40000000 fhandle-bytes:8 fhandle-type:1 f_handle:69f90400c275b5b4
@@ -1725,6 +1781,47 @@ pair provide additional information particular to the objects they represent.
 	While the first three lines are mandatory and always printed, the rest is
 	optional and may be omitted if no marks created yet.
 
+	Timerfd files
+	~~~~~~~~~~~~~
+
+	pos:	0
+	flags:	02
+	mnt_id:	9
+	clockid: 0
+	ticks: 0
+	settime flags: 01
+	it_value: (0, 49406829)
+	it_interval: (1, 0)
+
+	where 'clockid' is the clock type and 'ticks' is the number of the timer expirations
+	that have occurred [see timerfd_create(2) for details]. 'settime flags' are
+	flags in octal form been used to setup the timer [see timerfd_settime(2) for
+	details]. 'it_value' is remaining time until the timer exiration.
+	'it_interval' is the interval for the timer. Note the timer might be set up
+	with TIMER_ABSTIME option which will be shown in 'settime flags', but 'it_value'
+	still exhibits timer's remaining time.
+
+3.9	/proc/<pid>/map_files - Information about memory mapped files
+---------------------------------------------------------------------
+This directory contains symbolic links which represent memory mapped files
+the process is maintaining.  Example output:
+
+     | lr-------- 1 root root 64 Jan 27 11:24 333c600000-333c620000 -> /usr/lib64/ld-2.18.so
+     | lr-------- 1 root root 64 Jan 27 11:24 333c81f000-333c820000 -> /usr/lib64/ld-2.18.so
+     | lr-------- 1 root root 64 Jan 27 11:24 333c820000-333c821000 -> /usr/lib64/ld-2.18.so
+     | ...
+     | lr-------- 1 root root 64 Jan 27 11:24 35d0421000-35d0422000 -> /usr/lib64/libselinux.so.1
+     | lr-------- 1 root root 64 Jan 27 11:24 400000-41a000 -> /usr/bin/ls
+
+The name of a link represents the virtual memory bounds of a mapping, i.e.
+vm_area_struct::vm_start-vm_area_struct::vm_end.
+
+The main purpose of the map_files is to retrieve a set of memory mapped
+files in a fast way instead of parsing /proc/<pid>/maps or
+/proc/<pid>/smaps, both of which contain many more records.  At the same
+time one can open(2) mappings from the listings of two processes and
+comparing their inode numbers to figure out which anonymous memory areas
+are actually shared.
 
 ------------------------------------------------------------------------------
 Configuring procfs

@@ -102,19 +102,21 @@ struct neigh_table dn_neigh_table = {
 	.id =				"dn_neigh_cache",
 	.parms ={
 		.tbl =			&dn_neigh_table,
-		.base_reachable_time =	30 * HZ,
-		.retrans_time =	1 * HZ,
-		.gc_staletime =	60 * HZ,
-		.reachable_time =		30 * HZ,
-		.delay_probe_time =	5 * HZ,
-		.queue_len_bytes =	64*1024,
-		.ucast_probes =	0,
-		.app_probes =		0,
-		.mcast_probes =	0,
-		.anycast_delay =	0,
-		.proxy_delay =		0,
-		.proxy_qlen =		0,
-		.locktime =		1 * HZ,
+		.reachable_time =	30 * HZ,
+		.data = {
+			[NEIGH_VAR_MCAST_PROBES] = 0,
+			[NEIGH_VAR_UCAST_PROBES] = 0,
+			[NEIGH_VAR_APP_PROBES] = 0,
+			[NEIGH_VAR_RETRANS_TIME] = 1 * HZ,
+			[NEIGH_VAR_BASE_REACHABLE_TIME] = 30 * HZ,
+			[NEIGH_VAR_DELAY_PROBE_TIME] = 5 * HZ,
+			[NEIGH_VAR_GC_STALETIME] = 60 * HZ,
+			[NEIGH_VAR_QUEUE_LEN_BYTES] = 64*1024,
+			[NEIGH_VAR_PROXY_QLEN] = 0,
+			[NEIGH_VAR_ANYCAST_DELAY] = 0,
+			[NEIGH_VAR_PROXY_DELAY] = 0,
+			[NEIGH_VAR_LOCKTIME] = 1 * HZ,
+		},
 	},
 	.gc_interval =			30 * HZ,
 	.gc_thresh1 =			128,
@@ -589,7 +591,7 @@ static const struct file_operations dn_neigh_seq_fops = {
 
 void __init dn_neigh_init(void)
 {
-	neigh_table_init(&dn_neigh_table);
+	neigh_table_init(NEIGH_DN_TABLE, &dn_neigh_table);
 	proc_create("decnet_neigh", S_IRUGO, init_net.proc_net,
 		    &dn_neigh_seq_fops);
 }
@@ -597,5 +599,5 @@ void __init dn_neigh_init(void)
 void __exit dn_neigh_cleanup(void)
 {
 	remove_proc_entry("decnet_neigh", init_net.proc_net);
-	neigh_table_clear(&dn_neigh_table);
+	neigh_table_clear(NEIGH_DN_TABLE, &dn_neigh_table);
 }

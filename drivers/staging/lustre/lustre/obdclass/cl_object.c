@@ -51,14 +51,14 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 /* class_put_type() */
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
 #include <linux/list.h>
-#include <linux/libcfs/libcfs_hash.h> /* for cfs_hash stuff */
-#include <cl_object.h>
+#include "../../include/linux/libcfs/libcfs_hash.h"	/* for cfs_hash stuff */
+#include "../include/cl_object.h"
 #include "cl_internal.h"
 
 static struct kmem_cache *cl_env_kmem;
@@ -79,7 +79,6 @@ int cl_object_header_init(struct cl_object_header *h)
 {
 	int result;
 
-	ENTRY;
 	result = lu_object_header_init(&h->coh_lu);
 	if (result == 0) {
 		spin_lock_init(&h->coh_page_guard);
@@ -94,7 +93,7 @@ int cl_object_header_init(struct cl_object_header *h)
 		INIT_LIST_HEAD(&h->coh_locks);
 		h->coh_page_bufsize = ALIGN(sizeof(struct cl_page), 8);
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_object_header_init);
 
@@ -194,6 +193,7 @@ static spinlock_t *cl_object_attr_guard(struct cl_object *o)
  * cl_object_attr_get(), cl_object_attr_set().
  */
 void cl_object_attr_lock(struct cl_object *o)
+	__acquires(cl_object_attr_guard(o))
 {
 	spin_lock(cl_object_attr_guard(o));
 }
@@ -203,6 +203,7 @@ EXPORT_SYMBOL(cl_object_attr_lock);
  * Releases data-attributes lock, acquired by cl_object_attr_lock().
  */
 void cl_object_attr_unlock(struct cl_object *o)
+	__releases(cl_object_attr_guard(o))
 {
 	spin_unlock(cl_object_attr_guard(o));
 }
@@ -221,8 +222,7 @@ int cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	LASSERT(spin_is_locked(cl_object_attr_guard(obj)));
-	ENTRY;
+	assert_spin_locked(cl_object_attr_guard(obj));
 
 	top = obj->co_lu.lo_header;
 	result = 0;
@@ -236,7 +236,7 @@ int cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
 			}
 		}
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_object_attr_get);
 
@@ -253,8 +253,7 @@ int cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	LASSERT(spin_is_locked(cl_object_attr_guard(obj)));
-	ENTRY;
+	assert_spin_locked(cl_object_attr_guard(obj));
 
 	top = obj->co_lu.lo_header;
 	result = 0;
@@ -269,7 +268,7 @@ int cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
 			}
 		}
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_object_attr_set);
 
@@ -287,7 +286,6 @@ int cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	ENTRY;
 	top = obj->co_lu.lo_header;
 	result = 0;
 	list_for_each_entry_reverse(obj, &top->loh_layers,
@@ -299,11 +297,10 @@ int cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 		}
 	}
 	LU_OBJECT_HEADER(D_DLMTRACE, env, lu_object_top(top),
-			 "size: "LPU64" mtime: "LPU64" atime: "LPU64" "
-			 "ctime: "LPU64" blocks: "LPU64"\n",
+			 "size: %llu mtime: %llu atime: %llu ctime: %llu blocks: %llu\n",
 			 lvb->lvb_size, lvb->lvb_mtime, lvb->lvb_atime,
 			 lvb->lvb_ctime, lvb->lvb_blocks);
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_object_glimpse);
 
@@ -316,7 +313,6 @@ int cl_conf_set(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	ENTRY;
 	top = obj->co_lu.lo_header;
 	result = 0;
 	list_for_each_entry(obj, &top->loh_layers, co_lu.lo_linkage) {
@@ -326,7 +322,7 @@ int cl_conf_set(const struct lu_env *env, struct cl_object *obj,
 				break;
 		}
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_conf_set);
 
@@ -362,10 +358,8 @@ EXPORT_SYMBOL(cl_object_kill);
  */
 void cl_object_prune(const struct lu_env *env, struct cl_object *obj)
 {
-	ENTRY;
 	cl_pages_prune(env, obj);
 	cl_locks_prune(env, obj, 1);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_object_prune);
 
@@ -515,7 +509,7 @@ EXPORT_SYMBOL(cl_site_stats_print);
  * about journal_info. Currently following fields in task_struct are identified
  * can be used for this purpose:
  *  - cl_env: for liblustre.
- *  - tux_info: ony on RedHat kernel.
+ *  - tux_info: only on RedHat kernel.
  *  - ...
  * \note As long as we use task_struct to store cl_env, we assume that once
  * called into Lustre, we'll never call into the other part of the kernel
@@ -584,9 +578,9 @@ static void cl_env_init0(struct cl_env *cle, void *debug)
  * The implementation of using hash table to connect cl_env and thread
  */
 
-static cfs_hash_t *cl_env_hash;
+static struct cfs_hash *cl_env_hash;
 
-static unsigned cl_env_hops_hash(cfs_hash_t *lh,
+static unsigned cl_env_hops_hash(struct cfs_hash *lh,
 				 const void *key, unsigned mask)
 {
 #if BITS_PER_LONG == 64
@@ -611,7 +605,7 @@ static int cl_env_hops_keycmp(const void *key, struct hlist_node *hn)
 	return (key == cle->ce_owner);
 }
 
-static void cl_env_hops_noop(cfs_hash_t *hs, struct hlist_node *hn)
+static void cl_env_hops_noop(struct cfs_hash *hs, struct hlist_node *hn)
 {
 	struct cl_env *cle = hlist_entry(hn, struct cl_env, ce_node);
 	LASSERT(cle->ce_magic == &cl_env_init0);
@@ -670,7 +664,8 @@ static int cl_env_store_init(void) {
 	return cl_env_hash != NULL ? 0 :-ENOMEM;
 }
 
-static void cl_env_store_fini(void) {
+static void cl_env_store_fini(void)
+{
 	cfs_hash_putref(cl_env_hash);
 }
 
@@ -691,7 +686,7 @@ static struct lu_env *cl_env_new(__u32 ctx_tags, __u32 ses_tags, void *debug)
 	struct lu_env *env;
 	struct cl_env *cle;
 
-	OBD_SLAB_ALLOC_PTR_GFP(cle, cl_env_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(cle, cl_env_kmem, GFP_NOFS);
 	if (cle != NULL) {
 		int rc;
 
@@ -941,13 +936,11 @@ EXPORT_SYMBOL(cl_env_nested_put);
  */
 void cl_attr2lvb(struct ost_lvb *lvb, const struct cl_attr *attr)
 {
-	ENTRY;
 	lvb->lvb_size   = attr->cat_size;
 	lvb->lvb_mtime  = attr->cat_mtime;
 	lvb->lvb_atime  = attr->cat_atime;
 	lvb->lvb_ctime  = attr->cat_ctime;
 	lvb->lvb_blocks = attr->cat_blocks;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_attr2lvb);
 
@@ -958,13 +951,11 @@ EXPORT_SYMBOL(cl_attr2lvb);
  */
 void cl_lvb2attr(struct cl_attr *attr, const struct ost_lvb *lvb)
 {
-	ENTRY;
 	attr->cat_size   = lvb->lvb_size;
 	attr->cat_mtime  = lvb->lvb_mtime;
 	attr->cat_atime  = lvb->lvb_atime;
 	attr->cat_ctime  = lvb->lvb_ctime;
 	attr->cat_blocks = lvb->lvb_blocks;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lvb2attr);
 

@@ -35,7 +35,7 @@
 #include <linux/pagemap.h>
 #include <linux/crypto.h>
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
@@ -201,9 +201,15 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 
 	msg_start = ptr + GSS_KRB5_TOK_HDR_LEN + kctx->gk5e->cksumlength;
 
-	*(__be16 *)(ptr + 2) = cpu_to_le16(kctx->gk5e->signalg);
-	memset(ptr + 4, 0xff, 4);
-	*(__be16 *)(ptr + 4) = cpu_to_le16(kctx->gk5e->sealalg);
+	/*
+	 * signalg and sealalg are stored as if they were converted from LE
+	 * to host endian, even though they're opaque pairs of bytes according
+	 * to the RFC.
+	 */
+	*(__le16 *)(ptr + 2) = cpu_to_le16(kctx->gk5e->signalg);
+	*(__le16 *)(ptr + 4) = cpu_to_le16(kctx->gk5e->sealalg);
+	ptr[6] = 0xff;
+	ptr[7] = 0xff;
 
 	gss_krb5_make_confounder(msg_start, conflen);
 
@@ -438,7 +444,7 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 	u8		*ptr, *plainhdr;
 	s32		now;
 	u8		flags = 0x00;
-	__be16		*be16ptr, ec = 0;
+	__be16		*be16ptr;
 	__be64		*be64ptr;
 	u32		err;
 
@@ -468,16 +474,16 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 	be16ptr = (__be16 *)ptr;
 
 	blocksize = crypto_blkcipher_blocksize(kctx->acceptor_enc);
-	*be16ptr++ = cpu_to_be16(ec);
+	*be16ptr++ = 0;
 	/* "inner" token header always uses 0 for RRC */
-	*be16ptr++ = cpu_to_be16(0);
+	*be16ptr++ = 0;
 
 	be64ptr = (__be64 *)be16ptr;
 	spin_lock(&krb5_seq_lock);
 	*be64ptr = cpu_to_be64(kctx->seq_send64++);
 	spin_unlock(&krb5_seq_lock);
 
-	err = (*kctx->gk5e->encrypt_v2)(kctx, offset, buf, ec, pages);
+	err = (*kctx->gk5e->encrypt_v2)(kctx, offset, buf, pages);
 	if (err)
 		return err;
 
@@ -489,7 +495,6 @@ static u32
 gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 {
 	s32		now;
-	u64		seqnum;
 	u8		*ptr;
 	u8		flags = 0x00;
 	u16		ec, rrc;
@@ -525,7 +530,10 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	ec = be16_to_cpup((__be16 *)(ptr + 4));
 	rrc = be16_to_cpup((__be16 *)(ptr + 6));
 
-	seqnum = be64_to_cpup((__be64 *)(ptr + 8));
+	/*
+	 * NOTE: the sequence number at ptr + 8 is skipped, rpcsec_gss
+	 * doesn't want it checked; see page 6 of rfc 2203.
+	 */
 
 	if (rrc != 0)
 		rotate_left(offset + 16, buf, rrc);
@@ -574,8 +582,8 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	buf->head[0].iov_len -= GSS_KRB5_TOK_HDR_LEN + headskip;
 	buf->len -= GSS_KRB5_TOK_HDR_LEN + headskip;
 
-	/* Trim off the checksum blob */
-	xdr_buf_trim(buf, GSS_KRB5_TOK_HDR_LEN + tailskip);
+	/* Trim off the trailing "extra count" and checksum blob */
+	xdr_buf_trim(buf, ec + GSS_KRB5_TOK_HDR_LEN + tailskip);
 	return GSS_S_COMPLETE;
 }
 

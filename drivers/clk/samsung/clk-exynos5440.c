@@ -9,11 +9,14 @@
  * Common Clock Framework support for Exynos5440 SoC.
 */
 
+#include <dt-bindings/clock/exynos5440.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
 
 #include "clk.h"
 #include "clk-pll.h"
@@ -22,90 +25,99 @@
 #define CPU_CLK_STATUS		0xfc
 #define MISC_DOUT1		0x558
 
-/*
- * Let each supported clock get a unique id. This id is used to lookup the clock
- * for device tree based platforms.
- */
-enum exynos5440_clks {
-	none, xtal, arm_clk,
-
-	spi_baud = 16, pb0_250, pr0_250, pr1_250, b_250, b_125, b_200, sata,
-	usb, gmac0, cs250, pb0_250_o, pr0_250_o, pr1_250_o, b_250_o, b_125_o,
-	b_200_o, sata_o, usb_o, gmac0_o, cs250_o,
-
-	nr_clks,
-};
+static void __iomem *reg_base;
 
 /* parent clock name list */
 PNAME(mout_armclk_p)	= { "cplla", "cpllb" };
 PNAME(mout_spi_p)	= { "div125", "div200" };
 
 /* fixed rate clocks generated outside the soc */
-struct samsung_fixed_rate_clock exynos5440_fixed_rate_ext_clks[] __initdata = {
-	FRATE(none, "xtal", NULL, CLK_IS_ROOT, 0),
+static struct samsung_fixed_rate_clock exynos5440_fixed_rate_ext_clks[] __initdata = {
+	FRATE(0, "xtal", NULL, CLK_IS_ROOT, 0),
 };
 
 /* fixed rate clocks */
-struct samsung_fixed_rate_clock exynos5440_fixed_rate_clks[] __initdata = {
-	FRATE(none, "ppll", NULL, CLK_IS_ROOT, 1000000000),
-	FRATE(none, "usb_phy0", NULL, CLK_IS_ROOT, 60000000),
-	FRATE(none, "usb_phy1", NULL, CLK_IS_ROOT, 60000000),
-	FRATE(none, "usb_ohci12", NULL, CLK_IS_ROOT, 12000000),
-	FRATE(none, "usb_ohci48", NULL, CLK_IS_ROOT, 48000000),
+static struct samsung_fixed_rate_clock exynos5440_fixed_rate_clks[] __initdata = {
+	FRATE(0, "ppll", NULL, CLK_IS_ROOT, 1000000000),
+	FRATE(0, "usb_phy0", NULL, CLK_IS_ROOT, 60000000),
+	FRATE(0, "usb_phy1", NULL, CLK_IS_ROOT, 60000000),
+	FRATE(0, "usb_ohci12", NULL, CLK_IS_ROOT, 12000000),
+	FRATE(0, "usb_ohci48", NULL, CLK_IS_ROOT, 48000000),
 };
 
 /* fixed factor clocks */
-struct samsung_fixed_factor_clock exynos5440_fixed_factor_clks[] __initdata = {
-	FFACTOR(none, "div250", "ppll", 1, 4, 0),
-	FFACTOR(none, "div200", "ppll", 1, 5, 0),
-	FFACTOR(none, "div125", "div250", 1, 2, 0),
+static struct samsung_fixed_factor_clock exynos5440_fixed_factor_clks[] __initdata = {
+	FFACTOR(0, "div250", "ppll", 1, 4, 0),
+	FFACTOR(0, "div200", "ppll", 1, 5, 0),
+	FFACTOR(0, "div125", "div250", 1, 2, 0),
 };
 
 /* mux clocks */
-struct samsung_mux_clock exynos5440_mux_clks[] __initdata = {
-	MUX(none, "mout_spi", mout_spi_p, MISC_DOUT1, 5, 1),
-	MUX_A(arm_clk, "arm_clk", mout_armclk_p,
+static struct samsung_mux_clock exynos5440_mux_clks[] __initdata = {
+	MUX(0, "mout_spi", mout_spi_p, MISC_DOUT1, 5, 1),
+	MUX_A(CLK_ARM_CLK, "arm_clk", mout_armclk_p,
 			CPU_CLK_STATUS, 0, 1, "armclk"),
 };
 
 /* divider clocks */
-struct samsung_div_clock exynos5440_div_clks[] __initdata = {
-	DIV(spi_baud, "div_spi", "mout_spi", MISC_DOUT1, 3, 2),
+static struct samsung_div_clock exynos5440_div_clks[] __initdata = {
+	DIV(CLK_SPI_BAUD, "div_spi", "mout_spi", MISC_DOUT1, 3, 2),
 };
 
 /* gate clocks */
-struct samsung_gate_clock exynos5440_gate_clks[] __initdata = {
-	GATE(pb0_250, "pb0_250", "div250", CLKEN_OV_VAL, 3, 0, 0),
-	GATE(pr0_250, "pr0_250", "div250", CLKEN_OV_VAL, 4, 0, 0),
-	GATE(pr1_250, "pr1_250", "div250", CLKEN_OV_VAL, 5, 0, 0),
-	GATE(b_250, "b_250", "div250", CLKEN_OV_VAL, 9, 0, 0),
-	GATE(b_125, "b_125", "div125", CLKEN_OV_VAL, 10, 0, 0),
-	GATE(b_200, "b_200", "div200", CLKEN_OV_VAL, 11, 0, 0),
-	GATE(sata, "sata", "div200", CLKEN_OV_VAL, 12, 0, 0),
-	GATE(usb, "usb", "div200", CLKEN_OV_VAL, 13, 0, 0),
-	GATE(gmac0, "gmac0", "div200", CLKEN_OV_VAL, 14, 0, 0),
-	GATE(cs250, "cs250", "div250", CLKEN_OV_VAL, 19, 0, 0),
-	GATE(pb0_250_o, "pb0_250_o", "pb0_250", CLKEN_OV_VAL, 3, 0, 0),
-	GATE(pr0_250_o, "pr0_250_o", "pr0_250", CLKEN_OV_VAL, 4, 0, 0),
-	GATE(pr1_250_o, "pr1_250_o", "pr1_250", CLKEN_OV_VAL, 5, 0, 0),
-	GATE(b_250_o, "b_250_o", "b_250", CLKEN_OV_VAL, 9, 0, 0),
-	GATE(b_125_o, "b_125_o", "b_125", CLKEN_OV_VAL, 10, 0, 0),
-	GATE(b_200_o, "b_200_o", "b_200", CLKEN_OV_VAL, 11, 0, 0),
-	GATE(sata_o, "sata_o", "sata", CLKEN_OV_VAL, 12, 0, 0),
-	GATE(usb_o, "usb_o", "usb", CLKEN_OV_VAL, 13, 0, 0),
-	GATE(gmac0_o, "gmac0_o", "gmac", CLKEN_OV_VAL, 14, 0, 0),
-	GATE(cs250_o, "cs250_o", "cs250", CLKEN_OV_VAL, 19, 0, 0),
+static struct samsung_gate_clock exynos5440_gate_clks[] __initdata = {
+	GATE(CLK_PB0_250, "pb0_250", "div250", CLKEN_OV_VAL, 3, 0, 0),
+	GATE(CLK_PR0_250, "pr0_250", "div250", CLKEN_OV_VAL, 4, 0, 0),
+	GATE(CLK_PR1_250, "pr1_250", "div250", CLKEN_OV_VAL, 5, 0, 0),
+	GATE(CLK_B_250, "b_250", "div250", CLKEN_OV_VAL, 9, 0, 0),
+	GATE(CLK_B_125, "b_125", "div125", CLKEN_OV_VAL, 10, 0, 0),
+	GATE(CLK_B_200, "b_200", "div200", CLKEN_OV_VAL, 11, 0, 0),
+	GATE(CLK_SATA, "sata", "div200", CLKEN_OV_VAL, 12, 0, 0),
+	GATE(CLK_USB, "usb", "div200", CLKEN_OV_VAL, 13, 0, 0),
+	GATE(CLK_GMAC0, "gmac0", "div200", CLKEN_OV_VAL, 14, 0, 0),
+	GATE(CLK_CS250, "cs250", "div250", CLKEN_OV_VAL, 19, 0, 0),
+	GATE(CLK_PB0_250_O, "pb0_250_o", "pb0_250", CLKEN_OV_VAL, 3, 0, 0),
+	GATE(CLK_PR0_250_O, "pr0_250_o", "pr0_250", CLKEN_OV_VAL, 4, 0, 0),
+	GATE(CLK_PR1_250_O, "pr1_250_o", "pr1_250", CLKEN_OV_VAL, 5, 0, 0),
+	GATE(CLK_B_250_O, "b_250_o", "b_250", CLKEN_OV_VAL, 9, 0, 0),
+	GATE(CLK_B_125_O, "b_125_o", "b_125", CLKEN_OV_VAL, 10, 0, 0),
+	GATE(CLK_B_200_O, "b_200_o", "b_200", CLKEN_OV_VAL, 11, 0, 0),
+	GATE(CLK_SATA_O, "sata_o", "sata", CLKEN_OV_VAL, 12, 0, 0),
+	GATE(CLK_USB_O, "usb_o", "usb", CLKEN_OV_VAL, 13, 0, 0),
+	GATE(CLK_GMAC0_O, "gmac0_o", "gmac", CLKEN_OV_VAL, 14, 0, 0),
+	GATE(CLK_CS250_O, "cs250_o", "cs250", CLKEN_OV_VAL, 19, 0, 0),
 };
 
-static __initdata struct of_device_id ext_clk_match[] = {
+static const struct of_device_id ext_clk_match[] __initconst = {
 	{ .compatible = "samsung,clock-xtal", .data = (void *)0, },
 	{},
 };
 
-/* register exynos5440 clocks */
-void __init exynos5440_clk_init(struct device_node *np)
+static int exynos5440_clk_restart_notify(struct notifier_block *this,
+		unsigned long code, void *unused)
 {
-	void __iomem *reg_base;
+	u32 val, status;
+
+	status = readl_relaxed(reg_base + 0xbc);
+	val = readl_relaxed(reg_base + 0xcc);
+	val = (val & 0xffff0000) | (status & 0xffff);
+	writel_relaxed(val, reg_base + 0xcc);
+
+	return NOTIFY_DONE;
+}
+
+/*
+ * Exynos5440 Clock restart notifier, handles restart functionality
+ */
+static struct notifier_block exynos5440_clk_restart_handler = {
+	.notifier_call = exynos5440_clk_restart_notify,
+	.priority = 128,
+};
+
+/* register exynos5440 clocks */
+static void __init exynos5440_clk_init(struct device_node *np)
+{
+	struct samsung_clk_provider *ctx;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -114,25 +126,33 @@ void __init exynos5440_clk_init(struct device_node *np)
 		return;
 	}
 
-	samsung_clk_init(np, reg_base, nr_clks, NULL, 0, NULL, 0);
-	samsung_clk_of_register_fixed_ext(exynos5440_fixed_rate_ext_clks,
+	ctx = samsung_clk_init(np, reg_base, CLK_NR_CLKS);
+	if (!ctx)
+		panic("%s: unable to allocate context.\n", __func__);
+
+	samsung_clk_of_register_fixed_ext(ctx, exynos5440_fixed_rate_ext_clks,
 		ARRAY_SIZE(exynos5440_fixed_rate_ext_clks), ext_clk_match);
 
 	samsung_clk_register_pll2550x("cplla", "xtal", reg_base + 0x1c, 0x10);
 	samsung_clk_register_pll2550x("cpllb", "xtal", reg_base + 0x20, 0x10);
 
-	samsung_clk_register_fixed_rate(exynos5440_fixed_rate_clks,
+	samsung_clk_register_fixed_rate(ctx, exynos5440_fixed_rate_clks,
 			ARRAY_SIZE(exynos5440_fixed_rate_clks));
-	samsung_clk_register_fixed_factor(exynos5440_fixed_factor_clks,
+	samsung_clk_register_fixed_factor(ctx, exynos5440_fixed_factor_clks,
 			ARRAY_SIZE(exynos5440_fixed_factor_clks));
-	samsung_clk_register_mux(exynos5440_mux_clks,
+	samsung_clk_register_mux(ctx, exynos5440_mux_clks,
 			ARRAY_SIZE(exynos5440_mux_clks));
-	samsung_clk_register_div(exynos5440_div_clks,
+	samsung_clk_register_div(ctx, exynos5440_div_clks,
 			ARRAY_SIZE(exynos5440_div_clks));
-	samsung_clk_register_gate(exynos5440_gate_clks,
+	samsung_clk_register_gate(ctx, exynos5440_gate_clks,
 			ARRAY_SIZE(exynos5440_gate_clks));
 
-	pr_info("Exynos5440: arm_clk = %ldHz\n", _get_rate("armclk"));
+	samsung_clk_of_add_provider(np, ctx);
+
+	if (register_restart_handler(&exynos5440_clk_restart_handler))
+		pr_warn("exynos5440 clock can't register restart handler\n");
+
+	pr_info("Exynos5440: arm_clk = %ldHz\n", _get_rate("arm_clk"));
 	pr_info("exynos5440 clock initialization complete\n");
 }
 CLK_OF_DECLARE(exynos5440_clk, "samsung,exynos5440-clock", exynos5440_clk_init);

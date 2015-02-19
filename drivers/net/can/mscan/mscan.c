@@ -16,8 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -290,18 +289,15 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-/* This function returns the old state to see where we came from */
-static enum can_state check_set_state(struct net_device *dev, u8 canrflg)
+static enum can_state get_new_state(struct net_device *dev, u8 canrflg)
 {
 	struct mscan_priv *priv = netdev_priv(dev);
-	enum can_state state, old_state = priv->can.state;
 
-	if (canrflg & MSCAN_CSCIF && old_state <= CAN_STATE_BUS_OFF) {
-		state = state_map[max(MSCAN_STATE_RX(canrflg),
-				      MSCAN_STATE_TX(canrflg))];
-		priv->can.state = state;
-	}
-	return old_state;
+	if (unlikely(canrflg & MSCAN_CSCIF))
+		return state_map[max(MSCAN_STATE_RX(canrflg),
+				 MSCAN_STATE_TX(canrflg))];
+
+	return priv->can.state;
 }
 
 static void mscan_get_rx_frame(struct net_device *dev, struct can_frame *frame)
@@ -350,7 +346,7 @@ static void mscan_get_err_frame(struct net_device *dev, struct can_frame *frame,
 	struct mscan_priv *priv = netdev_priv(dev);
 	struct mscan_regs __iomem *regs = priv->reg_base;
 	struct net_device_stats *stats = &dev->stats;
-	enum can_state old_state;
+	enum can_state new_state;
 
 	netdev_dbg(dev, "error interrupt (canrflg=%#x)\n", canrflg);
 	frame->can_id = CAN_ERR_FLAG;
@@ -364,27 +360,13 @@ static void mscan_get_err_frame(struct net_device *dev, struct can_frame *frame,
 		frame->data[1] = 0;
 	}
 
-	old_state = check_set_state(dev, canrflg);
-	/* State changed */
-	if (old_state != priv->can.state) {
-		switch (priv->can.state) {
-		case CAN_STATE_ERROR_WARNING:
-			frame->can_id |= CAN_ERR_CRTL;
-			priv->can.can_stats.error_warning++;
-			if ((priv->shadow_statflg & MSCAN_RSTAT_MSK) <
-			    (canrflg & MSCAN_RSTAT_MSK))
-				frame->data[1] |= CAN_ERR_CRTL_RX_WARNING;
-			if ((priv->shadow_statflg & MSCAN_TSTAT_MSK) <
-			    (canrflg & MSCAN_TSTAT_MSK))
-				frame->data[1] |= CAN_ERR_CRTL_TX_WARNING;
-			break;
-		case CAN_STATE_ERROR_PASSIVE:
-			frame->can_id |= CAN_ERR_CRTL;
-			priv->can.can_stats.error_passive++;
-			frame->data[1] |= CAN_ERR_CRTL_RX_PASSIVE;
-			break;
-		case CAN_STATE_BUS_OFF:
-			frame->can_id |= CAN_ERR_BUSOFF;
+	new_state = get_new_state(dev, canrflg);
+	if (new_state != priv->can.state) {
+		can_change_state(dev, frame,
+				 state_map[MSCAN_STATE_TX(canrflg)],
+				 state_map[MSCAN_STATE_RX(canrflg)]);
+
+		if (priv->can.state == CAN_STATE_BUS_OFF) {
 			/*
 			 * The MSCAN on the MPC5200 does recover from bus-off
 			 * automatically. To avoid that we stop the chip doing
@@ -397,9 +379,6 @@ static void mscan_get_err_frame(struct net_device *dev, struct can_frame *frame,
 					 MSCAN_SLPRQ | MSCAN_INITRQ);
 			}
 			can_bus_off(dev);
-			break;
-		default:
-			break;
 		}
 	}
 	priv->shadow_statflg = canrflg & MSCAN_STAT_MSK;
@@ -573,10 +552,21 @@ static int mscan_open(struct net_device *dev)
 	struct mscan_priv *priv = netdev_priv(dev);
 	struct mscan_regs __iomem *regs = priv->reg_base;
 
+	if (priv->clk_ipg) {
+		ret = clk_prepare_enable(priv->clk_ipg);
+		if (ret)
+			goto exit_retcode;
+	}
+	if (priv->clk_can) {
+		ret = clk_prepare_enable(priv->clk_can);
+		if (ret)
+			goto exit_dis_ipg_clock;
+	}
+
 	/* common open */
 	ret = open_candev(dev);
 	if (ret)
-		return ret;
+		goto exit_dis_can_clock;
 
 	napi_enable(&priv->napi);
 
@@ -604,6 +594,13 @@ exit_free_irq:
 exit_napi_disable:
 	napi_disable(&priv->napi);
 	close_candev(dev);
+exit_dis_can_clock:
+	if (priv->clk_can)
+		clk_disable_unprepare(priv->clk_can);
+exit_dis_ipg_clock:
+	if (priv->clk_ipg)
+		clk_disable_unprepare(priv->clk_ipg);
+exit_retcode:
 	return ret;
 }
 
@@ -621,13 +618,19 @@ static int mscan_close(struct net_device *dev)
 	close_candev(dev);
 	free_irq(dev->irq, dev);
 
+	if (priv->clk_can)
+		clk_disable_unprepare(priv->clk_can);
+	if (priv->clk_ipg)
+		clk_disable_unprepare(priv->clk_ipg);
+
 	return 0;
 }
 
 static const struct net_device_ops mscan_netdev_ops = {
-       .ndo_open               = mscan_open,
-       .ndo_stop               = mscan_close,
-       .ndo_start_xmit         = mscan_start_xmit,
+	.ndo_open	= mscan_open,
+	.ndo_stop	= mscan_close,
+	.ndo_start_xmit	= mscan_start_xmit,
+	.ndo_change_mtu	= can_change_mtu,
 };
 
 int register_mscandev(struct net_device *dev, int mscan_clksrc)

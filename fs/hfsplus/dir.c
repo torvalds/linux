@@ -12,10 +12,12 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/random.h>
+#include <linux/nls.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 #include "xattr.h"
+#include "acl.h"
 
 static inline void hfsplus_instantiate(struct dentry *dentry,
 				       struct inode *inode, u32 cnid)
@@ -42,7 +44,10 @@ static struct dentry *hfsplus_lookup(struct inode *dir, struct dentry *dentry,
 	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	if (err)
 		return ERR_PTR(err);
-	hfsplus_cat_build_key(sb, fd.search_key, dir->i_ino, &dentry->d_name);
+	err = hfsplus_cat_build_key(sb, fd.search_key, dir->i_ino,
+			&dentry->d_name);
+	if (unlikely(err < 0))
+		goto fail;
 again:
 	err = hfs_brec_read(&fd, &entry, sizeof(entry));
 	if (err) {
@@ -95,9 +100,11 @@ again:
 					be32_to_cpu(entry.file.permissions.dev);
 				str.len = sprintf(name, "iNode%d", linkid);
 				str.name = name;
-				hfsplus_cat_build_key(sb, fd.search_key,
+				err = hfsplus_cat_build_key(sb, fd.search_key,
 					HFSPLUS_SB(sb)->hidden_dir->i_ino,
 					&str);
+				if (unlikely(err < 0))
+					goto fail;
 				goto again;
 			}
 		} else if (!dentry->d_fsdata)
@@ -126,7 +133,7 @@ static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	int len, err;
-	char strbuf[HFSPLUS_MAX_STRLEN + 1];
+	char *strbuf;
 	hfsplus_cat_entry entry;
 	struct hfs_find_data fd;
 	struct hfsplus_readdir_data *rd;
@@ -138,7 +145,12 @@ static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	if (err)
 		return err;
-	hfsplus_cat_build_key(sb, fd.search_key, inode->i_ino, NULL);
+	strbuf = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_MAX_STRLEN + 1, GFP_KERNEL);
+	if (!strbuf) {
+		err = -ENOMEM;
+		goto out;
+	}
+	hfsplus_cat_build_key_with_cnid(sb, fd.search_key, inode->i_ino);
 	err = hfs_brec_find(&fd, hfs_find_rec_by_key);
 	if (err)
 		goto out;
@@ -192,7 +204,7 @@ static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset,
 			fd.entrylength);
 		type = be16_to_cpu(entry.type);
-		len = HFSPLUS_MAX_STRLEN;
+		len = NLS_MAX_CHARSET_SIZE * HFSPLUS_MAX_STRLEN;
 		err = hfsplus_uni2asc(sb, &fd.key->cat.name, strbuf, &len);
 		if (err)
 			goto out;
@@ -211,13 +223,31 @@ static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 				    be32_to_cpu(entry.folder.id), DT_DIR))
 				break;
 		} else if (type == HFSPLUS_FILE) {
+			u16 mode;
+			unsigned type = DT_UNKNOWN;
+
 			if (fd.entrylength < sizeof(struct hfsplus_cat_file)) {
 				pr_err("small file entry\n");
 				err = -EIO;
 				goto out;
 			}
+
+			mode = be16_to_cpu(entry.file.permissions.mode);
+			if (S_ISREG(mode))
+				type = DT_REG;
+			else if (S_ISLNK(mode))
+				type = DT_LNK;
+			else if (S_ISFIFO(mode))
+				type = DT_FIFO;
+			else if (S_ISCHR(mode))
+				type = DT_CHR;
+			else if (S_ISBLK(mode))
+				type = DT_BLK;
+			else if (S_ISSOCK(mode))
+				type = DT_SOCK;
+
 			if (!dir_emit(ctx, strbuf, len,
-				    be32_to_cpu(entry.file.id), DT_REG))
+				      be32_to_cpu(entry.file.id), type))
 				break;
 		} else {
 			pr_err("bad catalog entry type\n");
@@ -245,6 +275,7 @@ next:
 	}
 	memcpy(&rd->key, fd.key, sizeof(struct hfsplus_cat_key));
 out:
+	kfree(strbuf);
 	hfs_find_exit(&fd);
 	return err;
 }
@@ -528,7 +559,11 @@ const struct inode_operations hfsplus_dir_inode_operations = {
 	.setxattr		= generic_setxattr,
 	.getxattr		= generic_getxattr,
 	.listxattr		= hfsplus_listxattr,
-	.removexattr		= hfsplus_removexattr,
+	.removexattr		= generic_removexattr,
+#ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
+	.get_acl		= hfsplus_get_posix_acl,
+	.set_acl		= hfsplus_set_posix_acl,
+#endif
 };
 
 const struct file_operations hfsplus_dir_operations = {

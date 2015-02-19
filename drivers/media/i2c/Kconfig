@@ -177,7 +177,7 @@ comment "Video decoders"
 
 config VIDEO_ADV7180
 	tristate "Analog Devices ADV7180 decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	---help---
 	  Support for the Analog Devices ADV7180 video decoder.
 
@@ -205,6 +205,19 @@ config VIDEO_ADV7604
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7604.
+
+config VIDEO_ADV7842
+	tristate "Analog Devices ADV7842 decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	select HDMI
+	---help---
+	  Support for the Analog Devices ADV7842 video decoder.
+
+	  This is a Analog Devices Component/Graphics/SD Digitizer
+	  with 2:1 Multiplexed HDMI Receiver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7842.
 
 config VIDEO_BT819
 	tristate "BT819A VideoStream decoder"
@@ -271,15 +284,6 @@ config VIDEO_SAA711X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
-
-config VIDEO_SAA7191
-	tristate "Philips SAA7191 video decoder"
-	depends on VIDEO_V4L2 && I2C
-	---help---
-	  Support for the Philips SAA7191 video decoder.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa7191.
 
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
@@ -417,6 +421,17 @@ config VIDEO_ADV7393
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7393.
 
+config VIDEO_ADV7511
+	tristate "Analog Devices ADV7511 encoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  Support for the Analog Devices ADV7511 video encoder.
+
+	  This is a Analog Devices HDMI transmitter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7511.
+
 config VIDEO_AD9389B
 	tristate "Analog Devices AD9389B encoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
@@ -528,17 +543,10 @@ config VIDEO_MT9V032
 	tristate "Micron MT9V032 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
+	select REGMAP_I2C
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Micron
 	  MT9V032 752x480 CMOS sensor.
-
-config VIDEO_TCM825X
-	tristate "TCM825x camera sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_INT_DEVICE
-	depends on MEDIA_CAMERA_SUPPORT
-	---help---
-	  This is a driver for the Toshiba TCM825x VGA camera sensor.
-	  It is used for example in Nokia N800.
 
 config VIDEO_SR030PC30
 	tristate "Siliconfile SR030PC30 sensor support"
@@ -564,12 +572,27 @@ config VIDEO_S5K6AA
 	  This is a V4L2 sensor-level driver for Samsung S5K6AA(FX) 1.3M
 	  camera sensor with an embedded SoC image signal processor.
 
+config VIDEO_S5K6A3
+	tristate "Samsung S5K6A3 sensor support"
+	depends on MEDIA_CAMERA_SUPPORT
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a V4L2 sensor-level driver for Samsung S5K6A3 raw
+	  camera sensor.
+
 config VIDEO_S5K4ECGX
         tristate "Samsung S5K4ECGX sensor support"
         depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
         ---help---
           This is a V4L2 sensor-level driver for Samsung S5K4ECGX 5M
           camera sensor with an embedded SoC image signal processor.
+
+config VIDEO_S5K5BAF
+	tristate "Samsung S5K5BAF sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a V4L2 sensor-level driver for Samsung S5K5BAF 2M
+	  camera sensor with an embedded SoC image signal processor.
 
 source "drivers/media/i2c/smiapp/Kconfig"
 
@@ -598,6 +621,24 @@ config VIDEO_AS3645A
 	  This is a driver for the AS3645A and LM3555 flash controllers. It has
 	  build in control for flash, torch and indicator LEDs.
 
+config VIDEO_LM3560
+	tristate "LM3560 dual flash driver support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select REGMAP_I2C
+	---help---
+	  This is a driver for the lm3560 dual flash controllers. It controls
+	  flash, torch LEDs.
+
+config VIDEO_LM3646
+	tristate "LM3646 dual flash driver support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select REGMAP_I2C
+	---help---
+	  This is a driver for the lm3646 dual flash controllers. It controls
+	  flash, torch LEDs.
+
 comment "Video improvement chips"
 
 config VIDEO_UPD64031A
@@ -623,7 +664,20 @@ config VIDEO_UPD64083
 	  To compile this driver as a module, choose M here: the
 	  module will be called upd64083.
 
-comment "Miscelaneous helper chips"
+comment "Audio/Video compression chips"
+
+config VIDEO_SAA6752HS
+	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
+	depends on VIDEO_V4L2 && I2C
+	select CRC32
+	---help---
+	  Support for the Philips SAA6752HS MPEG-2 video and MPEG-audio/AC-3
+	  audio encoder with multiplexer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa6752hs.
+
+comment "Miscellaneous helper chips"
 
 config VIDEO_THS7303
 	tristate "THS7303/53 Video Amplifier"

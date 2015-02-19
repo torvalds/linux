@@ -27,7 +27,6 @@ struct mm_struct;
 #include <linux/cache.h>
 #include <linux/threads.h>
 #include <linux/math64.h>
-#include <linux/init.h>
 #include <linux/err.h>
 #include <linux/irqflags.h>
 
@@ -72,7 +71,7 @@ extern u16 __read_mostly tlb_lli_4m[NR_INFO];
 extern u16 __read_mostly tlb_lld_4k[NR_INFO];
 extern u16 __read_mostly tlb_lld_2m[NR_INFO];
 extern u16 __read_mostly tlb_lld_4m[NR_INFO];
-extern s8  __read_mostly tlb_flushall_shift;
+extern u16 __read_mostly tlb_lld_1g[NR_INFO];
 
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
@@ -128,7 +127,7 @@ struct cpuinfo_x86 {
 	/* Index into per_cpu list: */
 	u16			cpu_index;
 	u32			microcode;
-} __attribute__((__aligned__(SMP_CACHE_BYTES)));
+};
 
 #define X86_VENDOR_INTEL	0
 #define X86_VENDOR_CYRIX	1
@@ -152,7 +151,7 @@ extern __u32			cpu_caps_cleared[NCAPINTS];
 extern __u32			cpu_caps_set[NCAPINTS];
 
 #ifdef CONFIG_SMP
-DECLARE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
+DECLARE_PER_CPU_READ_MOSTLY(struct cpuinfo_x86, cpu_info);
 #define cpu_data(cpu)		per_cpu(cpu_info, cpu)
 #else
 #define cpu_info		boot_cpu_data
@@ -370,16 +369,34 @@ struct ymmh_struct {
 	u32 ymmh_space[64];
 };
 
+/* We don't support LWP yet: */
+struct lwp_struct {
+	u8 reserved[128];
+};
+
+struct bndreg {
+	u64 lower_bound;
+	u64 upper_bound;
+} __packed;
+
+struct bndcsr {
+	u64 bndcfgu;
+	u64 bndstatus;
+} __packed;
+
 struct xsave_hdr_struct {
 	u64 xstate_bv;
-	u64 reserved1[2];
-	u64 reserved2[5];
+	u64 xcomp_bv;
+	u64 reserved[6];
 } __attribute__((packed));
 
 struct xsave_struct {
 	struct i387_fxsave_struct i387;
 	struct xsave_hdr_struct xsave_hdr;
 	struct ymmh_struct ymmh;
+	struct lwp_struct lwp;
+	struct bndreg bndreg[4];
+	struct bndcsr bndcsr;
 	/* new processor state extensions will go here */
 } __attribute__ ((packed, aligned (64)));
 
@@ -412,7 +429,7 @@ union irq_stack_union {
 	};
 };
 
-DECLARE_PER_CPU_FIRST(union irq_stack_union, irq_stack_union);
+DECLARE_PER_CPU_FIRST(union irq_stack_union, irq_stack_union) __visible;
 DECLARE_INIT_PER_CPU(irq_stack_union);
 
 DECLARE_PER_CPU(char *, irq_stack_ptr);
@@ -432,6 +449,15 @@ struct stack_canary {
 };
 DECLARE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
 #endif
+/*
+ * per-CPU IRQ handling stacks
+ */
+struct irq_stack {
+	u32                     stack[THREAD_SIZE/sizeof(u32)];
+} __aligned(THREAD_SIZE);
+
+DECLARE_PER_CPU(struct irq_stack *, hardirq_stack);
+DECLARE_PER_CPU(struct irq_stack *, softirq_stack);
 #endif	/* X86_64 */
 
 extern unsigned int xstate_size;
@@ -488,6 +514,15 @@ struct thread_struct {
 	unsigned long		iopl;
 	/* Max allowed port in the bitmap, in bytes: */
 	unsigned		io_bitmap_max;
+	/*
+	 * fpu_counter contains the number of consecutive context switches
+	 * that the FPU is used. If this is over a threshold, the lazy fpu
+	 * saving becomes unlazy to save the trap. This is an unsigned char
+	 * so that after 256 times the counter wraps and the behavior turns
+	 * lazy again; this to deal with bursty apps that only use FPU for
+	 * a short time
+	 */
+	unsigned char fpu_counter;
 };
 
 /*
@@ -543,39 +578,6 @@ static inline void load_sp0(struct tss_struct *tss,
 
 #define set_iopl_mask native_set_iopl_mask
 #endif /* CONFIG_PARAVIRT */
-
-/*
- * Save the cr4 feature set we're using (ie
- * Pentium 4MB enable and PPro Global page
- * enable), so that any CPU's that boot up
- * after us can get the correct flags.
- */
-extern unsigned long mmu_cr4_features;
-extern u32 *trampoline_cr4_features;
-
-static inline void set_in_cr4(unsigned long mask)
-{
-	unsigned long cr4;
-
-	mmu_cr4_features |= mask;
-	if (trampoline_cr4_features)
-		*trampoline_cr4_features = mmu_cr4_features;
-	cr4 = read_cr4();
-	cr4 |= mask;
-	write_cr4(cr4);
-}
-
-static inline void clear_in_cr4(unsigned long mask)
-{
-	unsigned long cr4;
-
-	mmu_cr4_features &= ~mask;
-	if (trampoline_cr4_features)
-		*trampoline_cr4_features = mmu_cr4_features;
-	cr4 = read_cr4();
-	cr4 &= ~mask;
-	write_cr4(cr4);
-}
 
 typedef struct {
 	unsigned long		seg;
@@ -661,6 +663,8 @@ static inline void cpu_relax(void)
 	rep_nop();
 }
 
+#define cpu_relax_lowlatency() cpu_relax()
+
 /* Stop speculative execution and prefetching of modified code. */
 static inline void sync_core(void)
 {
@@ -689,29 +693,6 @@ static inline void sync_core(void)
 		     : "0" (1)
 		     : "ebx", "ecx", "edx", "memory");
 #endif
-}
-
-static inline void __monitor(const void *eax, unsigned long ecx,
-			     unsigned long edx)
-{
-	/* "monitor %eax, %ecx, %edx;" */
-	asm volatile(".byte 0x0f, 0x01, 0xc8;"
-		     :: "a" (eax), "c" (ecx), "d"(edx));
-}
-
-static inline void __mwait(unsigned long eax, unsigned long ecx)
-{
-	/* "mwait %eax, %ecx;" */
-	asm volatile(".byte 0x0f, 0x01, 0xc9;"
-		     :: "a" (eax), "c" (ecx));
-}
-
-static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
-{
-	trace_hardirqs_on();
-	/* "mwait %eax, %ecx;" */
-	asm volatile("sti; .byte 0x0f, 0x01, 0xc9;"
-		     :: "a" (eax), "c" (ecx));
 }
 
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
@@ -880,7 +861,13 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 #else
 /*
- * User space process size. 47bits minus one guard page.
+ * User space process size. 47bits minus one guard page.  The guard
+ * page is necessary on Intel CPUs: if a SYSCALL instruction is at
+ * the highest possible canonical userspace address, then that
+ * syscall will enter the kernel with a non-canonical return
+ * address, and SYSRET will explode dangerously.  We avoid this
+ * particular problem by preventing anything from being mapped
+ * at the maximum canonical address.
  */
 #define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
 
@@ -940,35 +927,39 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
 
+/* Register/unregister a process' MPX related resource */
+#define MPX_ENABLE_MANAGEMENT(tsk)	mpx_enable_management((tsk))
+#define MPX_DISABLE_MANAGEMENT(tsk)	mpx_disable_management((tsk))
+
+#ifdef CONFIG_X86_INTEL_MPX
+extern int mpx_enable_management(struct task_struct *tsk);
+extern int mpx_disable_management(struct task_struct *tsk);
+#else
+static inline int mpx_enable_management(struct task_struct *tsk)
+{
+	return -EINVAL;
+}
+static inline int mpx_disable_management(struct task_struct *tsk)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_X86_INTEL_MPX */
+
 extern u16 amd_get_nb_id(int cpu);
 
-struct aperfmperf {
-	u64 aperf, mperf;
-};
-
-static inline void get_aperfmperf(struct aperfmperf *am)
+static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 {
-	WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_APERFMPERF));
+	uint32_t base, eax, signature[3];
 
-	rdmsrl(MSR_IA32_APERF, am->aperf);
-	rdmsrl(MSR_IA32_MPERF, am->mperf);
-}
+	for (base = 0x40000000; base < 0x40010000; base += 0x100) {
+		cpuid(base, &eax, &signature[0], &signature[1], &signature[2]);
 
-#define APERFMPERF_SHIFT 10
+		if (!memcmp(sig, signature, 12) &&
+		    (leaves == 0 || ((eax - base) >= leaves)))
+			return base;
+	}
 
-static inline
-unsigned long calc_aperfmperf_ratio(struct aperfmperf *old,
-				    struct aperfmperf *new)
-{
-	u64 aperf = new->aperf - old->aperf;
-	u64 mperf = new->mperf - old->mperf;
-	unsigned long ratio = aperf;
-
-	mperf >>= APERFMPERF_SHIFT;
-	if (mperf)
-		ratio = div64_u64(aperf, mperf);
-
-	return ratio;
+	return 0;
 }
 
 extern unsigned long arch_align_stack(unsigned long sp);

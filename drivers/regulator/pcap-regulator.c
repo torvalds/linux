@@ -243,10 +243,11 @@ static int pcap_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 
 	config.dev = &pdev->dev;
-	config.init_data = pdev->dev.platform_data;
+	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = pcap;
 
-	rdev = regulator_register(&pcap_regulators[pdev->id], &config);
+	rdev = devm_regulator_register(&pdev->dev, &pcap_regulators[pdev->id],
+				       &config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
@@ -255,22 +256,11 @@ static int pcap_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pcap_regulator_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-
-	regulator_unregister(rdev);
-
-	return 0;
-}
-
 static struct platform_driver pcap_regulator_driver = {
 	.driver = {
 		.name	= "pcap-regulator",
-		.owner	= THIS_MODULE,
 	},
 	.probe	= pcap_regulator_probe,
-	.remove	= pcap_regulator_remove,
 };
 
 static int __init pcap_regulator_init(void)

@@ -1515,7 +1515,7 @@ static int scc_net_alloc(const char *name, struct scc_channel *scc)
 	int err;
 	struct net_device *dev;
 
-	dev = alloc_netdev(0, name, scc_net_setup);
+	dev = alloc_netdev(0, name, NET_NAME_UNKNOWN, scc_net_setup);
 	if (!dev) 
 		return -ENOMEM;
 
@@ -1734,7 +1734,7 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			if (!Ivec[hwcfg.irq].used && hwcfg.irq)
 			{
 				if (request_irq(hwcfg.irq, scc_isr,
-						IRQF_DISABLED, "AX.25 SCC",
+						0, "AX.25 SCC",
 						(void *)(long) hwcfg.irq))
 					printk(KERN_WARNING "z8530drv: warning, cannot get IRQ %d\n", hwcfg.irq);
 				else

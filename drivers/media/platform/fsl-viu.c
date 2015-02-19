@@ -21,6 +21,8 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <media/v4l2-common.h>
@@ -602,10 +604,11 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	strcpy(cap->driver, "viu");
 	strcpy(cap->card, "viu");
-	cap->capabilities =	V4L2_CAP_VIDEO_CAPTURE |
+	cap->device_caps =	V4L2_CAP_VIDEO_CAPTURE |
 				V4L2_CAP_STREAMING     |
 				V4L2_CAP_VIDEO_OVERLAY |
 				V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -962,7 +965,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 	struct viu_fh *fh = priv;
 
 	fh->dev->std = id;
-	decoder_call(fh->dev, core, s_std, id);
+	decoder_call(fh->dev, video, s_std, id);
 	return 0;
 }
 
@@ -1485,6 +1488,7 @@ static int viu_of_probe(struct platform_device *op)
 	struct viu_reg __iomem *viu_regs;
 	struct i2c_adapter *ad;
 	int ret, viu_irq;
+	struct clk *clk;
 
 	ret = of_address_to_resource(op->dev.of_node, 0, &r);
 	if (ret) {
@@ -1577,14 +1581,18 @@ static int viu_of_probe(struct platform_device *op)
 	}
 
 	/* enable VIU clock */
-	viu_dev->clk = clk_get(&op->dev, "viu_clk");
-	if (IS_ERR(viu_dev->clk)) {
-		dev_err(&op->dev, "failed to find the clock module!\n");
-		ret = -ENODEV;
+	clk = devm_clk_get(&op->dev, "ipg");
+	if (IS_ERR(clk)) {
+		dev_err(&op->dev, "failed to lookup the clock!\n");
+		ret = PTR_ERR(clk);
 		goto err_clk;
-	} else {
-		clk_enable(viu_dev->clk);
 	}
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		dev_err(&op->dev, "failed to enable the clock!\n");
+		goto err_clk;
+	}
+	viu_dev->clk = clk;
 
 	/* reset VIU module */
 	viu_reset(viu_dev->vr);
@@ -1602,8 +1610,7 @@ static int viu_of_probe(struct platform_device *op)
 	return ret;
 
 err_irq:
-	clk_disable(viu_dev->clk);
-	clk_put(viu_dev->clk);
+	clk_disable_unprepare(viu_dev->clk);
 err_clk:
 	video_unregister_device(viu_dev->vdev);
 err_vdev:
@@ -1626,8 +1633,7 @@ static int viu_of_remove(struct platform_device *op)
 	free_irq(dev->irq, (void *)dev);
 	irq_dispose_mapping(dev->irq);
 
-	clk_disable(dev->clk);
-	clk_put(dev->clk);
+	clk_disable_unprepare(dev->clk);
 
 	video_unregister_device(dev->vdev);
 	i2c_put_adapter(client->adapter);
@@ -1675,7 +1681,6 @@ static struct platform_driver viu_of_platform_driver = {
 #endif
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mpc512x_viu_of_match,
 	},
 };

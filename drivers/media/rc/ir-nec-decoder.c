@@ -1,6 +1,6 @@
 /* ir-nec-decoder.c - handle NEC IR Pulse/Space protocol
  *
- * Copyright (C) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -189,7 +189,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if (data->is_nec_x)
 			data->necx_repeat = true;
 
-		rc_keydown(dev, scancode, 0);
+		rc_keydown(dev, RC_TYPE_NEC, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
@@ -222,6 +222,6 @@ module_init(ir_nec_decode_init);
 module_exit(ir_nec_decode_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
 MODULE_DESCRIPTION("NEC IR protocol decoder");

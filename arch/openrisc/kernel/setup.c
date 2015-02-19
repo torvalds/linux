@@ -40,6 +40,7 @@
 #include <linux/device.h>
 #include <linux/of_platform.h>
 
+#include <asm/sections.h>
 #include <asm/segment.h>
 #include <asm/pgtable.h>
 #include <asm/types.h>
@@ -49,8 +50,6 @@
 #include <asm/delay.h>
 
 #include "vmlinux.h"
-
-char __initdata cmd_line[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
 
 static unsigned long __init setup_memory(void)
 {
@@ -77,7 +76,7 @@ static unsigned long __init setup_memory(void)
 
 	ram_start_pfn = PFN_UP(memory_start);
 	/* free_ram_start_pfn is first page after kernel */
-	free_ram_start_pfn = PFN_UP(__pa(&_end));
+	free_ram_start_pfn = PFN_UP(__pa(_end));
 	ram_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
 
 	max_pfn = ram_end_pfn;
@@ -209,15 +208,15 @@ void __init setup_cpuinfo(void)
  * Falls back on built-in device tree in case null pointer is passed.
  */
 
-void __init or32_early_setup(unsigned int fdt)
+void __init or32_early_setup(void *fdt)
 {
-	if (fdt) {
-		early_init_devtree((void*) fdt);
-		printk(KERN_INFO "FDT at 0x%08x\n", fdt);
-	} else {
-		early_init_devtree(__dtb_start);
-		printk(KERN_INFO "Compiled-in FDT at %p\n", __dtb_start);
+	if (fdt)
+		pr_info("FDT at %p\n", fdt);
+	else {
+		fdt = __dtb_start;
+		pr_info("Compiled-in FDT at %p\n", fdt);
 	}
+	early_init_devtree(fdt);
 }
 
 static int __init openrisc_device_probe(void)
@@ -285,15 +284,15 @@ void __init setup_arch(char **cmdline_p)
 {
 	unsigned long max_low_pfn;
 
-	unflatten_device_tree();
+	unflatten_and_copy_device_tree();
 
 	setup_cpuinfo();
 
 	/* process 1's initial memory region is the kernel code/data */
-	init_mm.start_code = (unsigned long)&_stext;
-	init_mm.end_code = (unsigned long)&_etext;
-	init_mm.end_data = (unsigned long)&_edata;
-	init_mm.brk = (unsigned long)&_end;
+	init_mm.start_code = (unsigned long)_stext;
+	init_mm.end_code = (unsigned long)_etext;
+	init_mm.end_data = (unsigned long)_edata;
+	init_mm.brk = (unsigned long)_end;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	initrd_start = (unsigned long)&__initrd_start;
@@ -316,7 +315,7 @@ void __init setup_arch(char **cmdline_p)
 		conswitchp = &dummy_con;
 #endif
 
-	*cmdline_p = cmd_line;
+	*cmdline_p = boot_command_line;
 
 	printk(KERN_INFO "OpenRISC Linux -- http://openrisc.net\n");
 }

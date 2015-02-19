@@ -1,41 +1,25 @@
 #ifndef _ASM_FIXMAP_H
 #define _ASM_FIXMAP_H
 
-/*
- * Nothing too fancy for now.
- *
- * On ARM we already have well known fixed virtual addresses imposed by
- * the architecture such as the vector page which is located at 0xffff0000,
- * therefore a second level page table is already allocated covering
- * 0xfff00000 upwards.
- *
- * The cache flushing code in proc-xscale.S uses the virtual area between
- * 0xfffe0000 and 0xfffeffff.
- */
+#define FIXADDR_START		0xffc00000UL
+#define FIXADDR_END		0xfff00000UL
+#define FIXADDR_TOP		(FIXADDR_END - PAGE_SIZE)
 
-#define FIXADDR_START		0xfff00000UL
-#define FIXADDR_TOP		0xfffe0000UL
-#define FIXADDR_SIZE		(FIXADDR_TOP - FIXADDR_START)
+#include <asm/kmap_types.h>
 
-#define FIX_KMAP_BEGIN		0
-#define FIX_KMAP_END		(FIXADDR_SIZE >> PAGE_SHIFT)
+enum fixed_addresses {
+	FIX_KMAP_BEGIN,
+	FIX_KMAP_END = FIX_KMAP_BEGIN + (KM_TYPE_NR * NR_CPUS) - 1,
 
-#define __fix_to_virt(x)	(FIXADDR_START + ((x) << PAGE_SHIFT))
-#define __virt_to_fix(x)	(((x) - FIXADDR_START) >> PAGE_SHIFT)
+	/* Support writing RO kernel text via kprobes, jump labels, etc. */
+	FIX_TEXT_POKE0,
+	FIX_TEXT_POKE1,
 
-extern void __this_fixmap_does_not_exist(void);
+	__end_of_fixed_addresses
+};
 
-static inline unsigned long fix_to_virt(const unsigned int idx)
-{
-	if (idx >= FIX_KMAP_END)
-		__this_fixmap_does_not_exist();
-	return __fix_to_virt(idx);
-}
+void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot);
 
-static inline unsigned int virt_to_fix(const unsigned long vaddr)
-{
-	BUG_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
-	return __virt_to_fix(vaddr);
-}
+#include <asm-generic/fixmap.h>
 
 #endif

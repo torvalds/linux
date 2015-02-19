@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
+#include <linux/of_address.h>
 #include <asm/io.h>
 
 #include "emac.h"
@@ -309,7 +310,6 @@ static struct of_device_id zmii_match[] =
 static struct platform_driver zmii_driver = {
 	.driver = {
 		.name = "emac-zmii",
-		.owner = THIS_MODULE,
 		.of_match_table = zmii_match,
 	},
 	.probe = zmii_probe,

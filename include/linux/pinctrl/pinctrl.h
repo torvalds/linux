@@ -24,6 +24,7 @@ struct pinctrl_dev;
 struct pinctrl_map;
 struct pinmux_ops;
 struct pinconf_ops;
+struct pin_config_item;
 struct gpio_chip;
 struct device_node;
 
@@ -32,10 +33,12 @@ struct device_node;
  * pins, pads or other muxable units in this struct
  * @number: unique pin number from the global pin number space
  * @name: a name for this pin
+ * @drv_data: driver-defined per-pin data. pinctrl core does not touch this
  */
 struct pinctrl_pin_desc {
 	unsigned number;
 	const char *name;
+	void *drv_data;
 };
 
 /* Convenience macro to define a single named or anonymous pin descriptor */
@@ -115,6 +118,12 @@ struct pinctrl_ops {
  * @confops: pin config operations vtable, if you support pin configuration in
  *	your driver
  * @owner: module providing the pin controller, used for refcounting
+ * @num_custom_params: Number of driver-specific custom parameters to be parsed
+ *	from the hardware description
+ * @custom_params: List of driver_specific custom parameters to be parsed from
+ *	the hardware description
+ * @custom_conf_items: Information how to print @params in debugfs, must be
+ *	the same size as the @custom_params, i.e. @num_custom_params
  */
 struct pinctrl_desc {
 	const char *name;
@@ -124,6 +133,11 @@ struct pinctrl_desc {
 	const struct pinmux_ops *pmxops;
 	const struct pinconf_ops *confops;
 	struct module *owner;
+#ifdef CONFIG_GENERIC_PINCONF
+	unsigned int num_custom_params;
+	const struct pinconf_generic_params *custom_params;
+	const struct pin_config_item *custom_conf_items;
+#endif
 };
 
 /* External interface to pin controller */
@@ -144,6 +158,9 @@ extern struct pinctrl_dev *pinctrl_find_and_add_gpio_range(const char *devname,
 extern struct pinctrl_gpio_range *
 pinctrl_find_gpio_range_from_pin(struct pinctrl_dev *pctldev,
 				 unsigned int pin);
+extern int pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
+				const char *pin_group, const unsigned **pins,
+				unsigned *num_pins);
 
 #ifdef CONFIG_OF
 extern struct pinctrl_dev *of_pinctrl_get(struct device_node *np);

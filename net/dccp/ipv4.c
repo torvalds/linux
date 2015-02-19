@@ -75,7 +75,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	rt = ip_route_connect(fl4, nexthop, inet->inet_saddr,
 			      RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
 			      IPPROTO_DCCP,
-			      orig_sport, orig_dport, sk, true);
+			      orig_sport, orig_dport, sk);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
@@ -140,7 +140,6 @@ failure:
 	inet->inet_dport = 0;
 	goto out;
 }
-
 EXPORT_SYMBOL_GPL(dccp_v4_connect);
 
 /*
@@ -174,6 +173,7 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 	mtu = dst_mtu(dst);
 
 	if (inet->pmtudisc != IP_PMTUDISC_DONT &&
+	    ip_sk_accept_pmtu(sk) &&
 	    inet_csk(sk)->icsk_pmtu_cookie > mtu) {
 		dccp_sync_mss(sk, mtu);
 
@@ -375,7 +375,6 @@ void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb)
 						 inet->inet_saddr,
 						 inet->inet_daddr);
 }
-
 EXPORT_SYMBOL_GPL(dccp_v4_send_check);
 
 static inline u64 dccp_v4_init_sequence(const struct sk_buff *skb)
@@ -409,9 +408,9 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	newinet		   = inet_sk(newsk);
 	ireq		   = inet_rsk(req);
-	newinet->inet_daddr	= ireq->rmt_addr;
-	newinet->inet_rcv_saddr = ireq->loc_addr;
-	newinet->inet_saddr	= ireq->loc_addr;
+	newinet->inet_daddr	= ireq->ir_rmt_addr;
+	newinet->inet_rcv_saddr = ireq->ir_loc_addr;
+	newinet->inet_saddr	= ireq->ir_loc_addr;
 	newinet->inet_opt	= ireq->opt;
 	ireq->opt	   = NULL;
 	newinet->mc_index  = inet_iif(skb);
@@ -443,7 +442,6 @@ put_and_exit:
 	dccp_done(newsk);
 	goto exit;
 }
-
 EXPORT_SYMBOL_GPL(dccp_v4_request_recv_sock);
 
 static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
@@ -516,10 +514,10 @@ static int dccp_v4_send_response(struct sock *sk, struct request_sock *req)
 		const struct inet_request_sock *ireq = inet_rsk(req);
 		struct dccp_hdr *dh = dccp_hdr(skb);
 
-		dh->dccph_checksum = dccp_v4_csum_finish(skb, ireq->loc_addr,
-							      ireq->rmt_addr);
-		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
-					    ireq->rmt_addr,
+		dh->dccph_checksum = dccp_v4_csum_finish(skb, ireq->ir_loc_addr,
+							      ireq->ir_rmt_addr);
+		err = ip_build_and_send_pkt(skb, sk, ireq->ir_loc_addr,
+					    ireq->ir_rmt_addr,
 					    ireq->opt);
 		err = net_xmit_eval(err);
 	}
@@ -641,8 +639,8 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop_and_free;
 
 	ireq = inet_rsk(req);
-	ireq->loc_addr = ip_hdr(skb)->daddr;
-	ireq->rmt_addr = ip_hdr(skb)->saddr;
+	ireq->ir_loc_addr = ip_hdr(skb)->daddr;
+	ireq->ir_rmt_addr = ip_hdr(skb)->saddr;
 
 	/*
 	 * Step 3: Process LISTEN state
@@ -669,7 +667,6 @@ drop:
 	DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
 	return -1;
 }
-
 EXPORT_SYMBOL_GPL(dccp_v4_conn_request);
 
 int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
@@ -728,7 +725,6 @@ discard:
 	kfree_skb(skb);
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(dccp_v4_do_rcv);
 
 /**
@@ -801,7 +797,6 @@ int dccp_invalid_packet(struct sk_buff *skb)
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(dccp_invalid_packet);
 
 /* this is called when real data arrives */
@@ -988,6 +983,7 @@ static const struct net_protocol dccp_v4_protocol = {
 	.err_handler	= dccp_v4_err,
 	.no_policy	= 1,
 	.netns_ok	= 1,
+	.icmp_strict_tag_validation = 1,
 };
 
 static const struct proto_ops inet_dccp_ops = {
@@ -1022,7 +1018,6 @@ static struct inet_protosw dccp_v4_protosw = {
 	.protocol	= IPPROTO_DCCP,
 	.prot		= &dccp_v4_prot,
 	.ops		= &inet_dccp_ops,
-	.no_check	= 0,
 	.flags		= INET_PROTOSW_ICSK,
 };
 

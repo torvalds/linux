@@ -6,7 +6,7 @@ Required properties:
 - interrupt-parent: the phandle for the interrupt controller
 - interrupts: touch controller interrupt
 - wakeup-gpios: the gpio pin to be used for waking up the controller
-  as well as uased as irq pin
+  and also used as irq pin
 
 Example:
 

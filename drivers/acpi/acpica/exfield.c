@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,9 +45,70 @@
 #include "accommon.h"
 #include "acdispat.h"
 #include "acinterp.h"
+#include "amlcode.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exfield")
+
+/* Local prototypes */
+static u32
+acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length);
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_get_serial_access_length
+ *
+ * PARAMETERS:  accessor_type   - The type of the protocol indicated by region
+ *                                field access attributes
+ *              access_length   - The access length of the region field
+ *
+ * RETURN:      Decoded access length
+ *
+ * DESCRIPTION: This routine returns the length of the generic_serial_bus
+ *              protocol bytes
+ *
+ ******************************************************************************/
+
+static u32
+acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length)
+{
+	u32 length;
+
+	switch (accessor_type) {
+	case AML_FIELD_ATTRIB_QUICK:
+
+		length = 0;
+		break;
+
+	case AML_FIELD_ATTRIB_SEND_RCV:
+	case AML_FIELD_ATTRIB_BYTE:
+
+		length = 1;
+		break;
+
+	case AML_FIELD_ATTRIB_WORD:
+	case AML_FIELD_ATTRIB_WORD_CALL:
+
+		length = 2;
+		break;
+
+	case AML_FIELD_ATTRIB_MULTIBYTE:
+	case AML_FIELD_ATTRIB_RAW_BYTES:
+	case AML_FIELD_ATTRIB_RAW_PROCESS:
+
+		length = access_length;
+		break;
+
+	case AML_FIELD_ATTRIB_BLOCK:
+	case AML_FIELD_ATTRIB_BLOCK_CALL:
+	default:
+
+		length = ACPI_GSBUS_BUFFER_SIZE - 2;
+		break;
+	}
+
+	return (length);
+}
 
 /*******************************************************************************
  *
@@ -63,8 +124,9 @@ ACPI_MODULE_NAME("exfield")
  *              Buffer, depending on the size of the field.
  *
  ******************************************************************************/
+
 acpi_status
-acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
+acpi_ex_read_data_from_field(struct acpi_walk_state * walk_state,
 			     union acpi_operand_object *obj_desc,
 			     union acpi_operand_object **ret_buffer_desc)
 {
@@ -73,6 +135,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	acpi_size length;
 	void *buffer;
 	u32 function;
+	u16 accessor_type;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_read_data_from_field, obj_desc);
 
@@ -116,9 +179,21 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 			    ACPI_READ | (obj_desc->field.attribute << 16);
 		} else if (obj_desc->field.region_obj->region.space_id ==
 			   ACPI_ADR_SPACE_GSBUS) {
-			length = ACPI_GSBUS_BUFFER_SIZE;
-			function =
-			    ACPI_READ | (obj_desc->field.attribute << 16);
+			accessor_type = obj_desc->field.attribute;
+			length = acpi_ex_get_serial_access_length(accessor_type,
+								  obj_desc->
+								  field.
+								  access_length);
+
+			/*
+			 * Add additional 2 bytes for the generic_serial_bus data buffer:
+			 *
+			 *     Status;      (Byte 0 of the data buffer)
+			 *     Length;      (Byte 1 of the data buffer)
+			 *     Data[x-1];   (Bytes 2-x of the arbitrary length data buffer)
+			 */
+			length += 2;
+			function = ACPI_READ | (accessor_type << 16);
 		} else {	/* IPMI */
 
 			length = ACPI_IPMI_BUFFER_SIZE;
@@ -178,6 +253,37 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 		buffer = &buffer_desc->integer.value;
 	}
 
+	if ((obj_desc->common.type == ACPI_TYPE_LOCAL_REGION_FIELD) &&
+	    (obj_desc->field.region_obj->region.space_id ==
+	     ACPI_ADR_SPACE_GPIO)) {
+		/*
+		 * For GPIO (general_purpose_io), the Address will be the bit offset
+		 * from the previous Connection() operator, making it effectively a
+		 * pin number index. The bit_length is the length of the field, which
+		 * is thus the number of pins.
+		 */
+		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+				  "GPIO FieldRead [FROM]:  Pin %u Bits %u\n",
+				  obj_desc->field.pin_number_index,
+				  obj_desc->field.bit_length));
+
+		/* Lock entire transaction if requested */
+
+		acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
+
+		/* Perform the write */
+
+		status = acpi_ex_access_region(obj_desc, 0,
+					       (u64 *)buffer, ACPI_READ);
+		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
+		if (ACPI_FAILURE(status)) {
+			acpi_ut_remove_reference(buffer_desc);
+		} else {
+			*ret_buffer_desc = buffer_desc;
+		}
+		return_ACPI_STATUS(status);
+	}
+
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 			  "FieldRead [TO]:   Obj %p, Type %X, Buf %p, ByteLen %X\n",
 			  obj_desc, obj_desc->common.type, buffer,
@@ -197,7 +303,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	status = acpi_ex_extract_from_field(obj_desc, buffer, (u32) length);
 	acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
-      exit:
+exit:
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_remove_reference(buffer_desc);
 	} else {
@@ -231,6 +337,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 	void *buffer;
 	union acpi_operand_object *buffer_desc;
 	u32 function;
+	u16 accessor_type;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_write_data_to_field, obj_desc);
 
@@ -284,9 +391,21 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 			    ACPI_WRITE | (obj_desc->field.attribute << 16);
 		} else if (obj_desc->field.region_obj->region.space_id ==
 			   ACPI_ADR_SPACE_GSBUS) {
-			length = ACPI_GSBUS_BUFFER_SIZE;
-			function =
-			    ACPI_WRITE | (obj_desc->field.attribute << 16);
+			accessor_type = obj_desc->field.attribute;
+			length = acpi_ex_get_serial_access_length(accessor_type,
+								  obj_desc->
+								  field.
+								  access_length);
+
+			/*
+			 * Add additional 2 bytes for the generic_serial_bus data buffer:
+			 *
+			 *     Status;      (Byte 0 of the data buffer)
+			 *     Length;      (Byte 1 of the data buffer)
+			 *     Data[x-1];   (Bytes 2-x of the arbitrary length data buffer)
+			 */
+			length += 2;
+			function = ACPI_WRITE | (accessor_type << 16);
 		} else {	/* IPMI */
 
 			length = ACPI_IPMI_BUFFER_SIZE;
@@ -324,6 +443,42 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
 		*result_desc = buffer_desc;
+		return_ACPI_STATUS(status);
+	} else if ((obj_desc->common.type == ACPI_TYPE_LOCAL_REGION_FIELD) &&
+		   (obj_desc->field.region_obj->region.space_id ==
+		    ACPI_ADR_SPACE_GPIO)) {
+		/*
+		 * For GPIO (general_purpose_io), we will bypass the entire field
+		 * mechanism and handoff the bit address and bit width directly to
+		 * the handler. The Address will be the bit offset
+		 * from the previous Connection() operator, making it effectively a
+		 * pin number index. The bit_length is the length of the field, which
+		 * is thus the number of pins.
+		 */
+		if (source_desc->common.type != ACPI_TYPE_INTEGER) {
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
+		}
+
+		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+				  "GPIO FieldWrite [FROM]: (%s:%X), Val %.8X  [TO]:  Pin %u Bits %u\n",
+				  acpi_ut_get_type_name(source_desc->common.
+							type),
+				  source_desc->common.type,
+				  (u32)source_desc->integer.value,
+				  obj_desc->field.pin_number_index,
+				  obj_desc->field.bit_length));
+
+		buffer = &source_desc->integer.value;
+
+		/* Lock entire transaction if requested */
+
+		acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
+
+		/* Perform the write */
+
+		status = acpi_ex_access_region(obj_desc, 0,
+					       (u64 *)buffer, ACPI_WRITE);
+		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 		return_ACPI_STATUS(status);
 	}
 

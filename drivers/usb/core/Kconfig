@@ -1,16 +1,8 @@
 #
 # USB Core configuration
 #
-config USB_DEBUG
-	bool "USB verbose debug messages"
-	help
-	  Say Y here if you want the USB core & hub drivers to produce a bunch
-	  of debug messages to the system log. Select this if you are having a
-	  problem with USB support and want to see more of what is going on.
-
 config USB_ANNOUNCE_NEW_DEVICES
 	bool "USB announce new devices"
-	default N
 	help
 	  Say Y here if you want the USB core to always announce the
 	  idVendor, idProduct, Manufacturer, Product, and SerialNumber
@@ -28,7 +20,7 @@ config USB_DEFAULT_PERSIST
 	bool "Enable USB persist by default"
 	default y
 	help
-	  Say N here if you don't want USB power session persistance
+	  Say N here if you don't want USB power session persistence
 	  enabled by default.  If you say N it will make suspended USB
 	  devices that lose power get reenumerated as if they had been
 	  unplugged, causing any mounted filesystems to be lost.  The
@@ -51,7 +43,7 @@ config USB_DYNAMIC_MINORS
 
 config USB_OTG
 	bool "OTG support"
-	depends on PM_RUNTIME
+	depends on PM
 	default n
 	help
 	  The most notable feature of USB OTG is support for a
@@ -64,21 +56,15 @@ config USB_OTG
 	  connector.
 
 config USB_OTG_WHITELIST
-	bool "Rely on OTG Targeted Peripherals List"
-	depends on USB_OTG || EXPERT
-	default y if USB_OTG
+	bool "Rely on OTG and EH Targeted Peripherals List"
+	depends on USB
 	help
 	  If you say Y here, the "otg_whitelist.h" file will be used as a
 	  product whitelist, so USB peripherals not listed there will be
 	  rejected during enumeration.  This behavior is required by the
-	  USB OTG specification for all devices not on your product's
+	  USB OTG and EH specification for all devices not on your product's
 	  "Targeted Peripherals List".  "Embedded Hosts" are likewise
 	  allowed to support only a limited number of peripherals.
-
-	  Otherwise, peripherals not listed there will only generate a
-	  warning and enumeration will continue.  That's more like what
-	  normal Linux-USB hosts do (other than the warning), and is
-	  convenient for many stages of product development.
 
 config USB_OTG_BLACKLIST_HUB
 	bool "Disable external hubs"
@@ -88,4 +74,13 @@ config USB_OTG_BLACKLIST_HUB
 	  external hubs.  OTG hosts are allowed to reduce hardware
 	  and software costs by not supporting external hubs.  So
 	  are "Embedded Hosts" that don't offer OTG support.
+
+config USB_OTG_FSM
+	tristate "USB 2.0 OTG FSM implementation"
+	depends on USB
+	select USB_OTG
+	select USB_PHY
+	help
+	  Implements OTG Finite State Machine as specified in On-The-Go
+	  and Embedded Host Supplement to the USB Revision 2.0 Specification.
 

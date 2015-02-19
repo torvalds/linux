@@ -114,12 +114,16 @@ over a rather long period of time, but improvements are always welcome!
 			http://www.openvms.compaq.com/wizard/wiz_2637.html
 
 		The rcu_dereference() primitive is also an excellent
-		documentation aid, letting the person reading the code
-		know exactly which pointers are protected by RCU.
+		documentation aid, letting the person reading the
+		code know exactly which pointers are protected by RCU.
 		Please note that compilers can also reorder code, and
 		they are becoming increasingly aggressive about doing
-		just that.  The rcu_dereference() primitive therefore
-		also prevents destructive compiler optimizations.
+		just that.  The rcu_dereference() primitive therefore also
+		prevents destructive compiler optimizations.  However,
+		with a bit of devious creativity, it is possible to
+		mishandle the return value from rcu_dereference().
+		Please see rcu_dereference.txt in this directory for
+		more information.
 
 		The rcu_dereference() primitive is used by the
 		various "_rcu()" list-traversal primitives, such
@@ -202,8 +206,8 @@ over a rather long period of time, but improvements are always welcome!
 	updater uses call_rcu_sched() or synchronize_sched(), then
 	the corresponding readers must disable preemption, possibly
 	by calling rcu_read_lock_sched() and rcu_read_unlock_sched().
-	If the updater uses synchronize_srcu() or call_srcu(),
-	the the corresponding readers must use srcu_read_lock() and
+	If the updater uses synchronize_srcu() or call_srcu(), then
+	the corresponding readers must use srcu_read_lock() and
 	srcu_read_unlock(), and with the same srcu_struct.  The rules for
 	the expedited primitives are the same as for their non-expedited
 	counterparts.  Mixing things up will result in confusion and
@@ -256,10 +260,10 @@ over a rather long period of time, but improvements are always welcome!
 		variations on this theme.
 
 	b.	Limiting update rate.  For example, if updates occur only
-		once per hour, then no explicit rate limiting is required,
-		unless your system is already badly broken.  The dcache
-		subsystem takes this approach -- updates are guarded
-		by a global lock, limiting their rate.
+		once per hour, then no explicit rate limiting is
+		required, unless your system is already badly broken.
+		Older versions of the dcache subsystem take this approach,
+		guarding updates with a global lock, limiting their rate.
 
 	c.	Trusted update -- if updates can only be done manually by
 		superuser or some other trusted user, then it might not
@@ -268,13 +272,21 @@ over a rather long period of time, but improvements are always welcome!
 		the machine.
 
 	d.	Use call_rcu_bh() rather than call_rcu(), in order to take
-		advantage of call_rcu_bh()'s faster grace periods.
+		advantage of call_rcu_bh()'s faster grace periods.  (This
+		is only a partial solution, though.)
 
 	e.	Periodically invoke synchronize_rcu(), permitting a limited
 		number of updates per grace period.
 
 	The same cautions apply to call_rcu_bh(), call_rcu_sched(),
 	call_srcu(), and kfree_rcu().
+
+	Note that although these primitives do take action to avoid memory
+	exhaustion when any given CPU has too many callbacks, a determined
+	user could still exhaust memory.  This is especially the case
+	if a system with a large number of CPUs has been configured to
+	offload all of its RCU callbacks onto a single CPU, or if the
+	system has relatively little free memory.
 
 9.	All RCU list-traversal primitives, which include
 	rcu_dereference(), list_for_each_entry_rcu(), and

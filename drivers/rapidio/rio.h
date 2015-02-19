@@ -48,8 +48,9 @@ extern struct rio_mport *rio_find_mport(int mport_id);
 extern int rio_mport_scan(int mport_id);
 
 /* Structures internal to the RIO core code */
-extern struct device_attribute rio_dev_attrs[];
-extern struct bus_attribute rio_bus_attrs[];
+extern const struct attribute_group *rio_dev_groups[];
+extern const struct attribute_group *rio_bus_groups[];
+extern const struct attribute_group *rio_mport_groups[];
 
 #define RIO_GET_DID(size, x)	(size ? (x & 0xffff) : ((x & 0x00ff0000) >> 16))
 #define RIO_SET_DID(size, x)	(size ? (x & 0xffff) : ((x & 0x000000ff) << 16))

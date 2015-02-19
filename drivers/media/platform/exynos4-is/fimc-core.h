@@ -27,7 +27,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 
 #define dbg(fmt, args...) \
 	pr_debug("%s:%d: " fmt "\n", __func__, __LINE__, ##args)
@@ -481,7 +481,6 @@ struct fimc_ctrls {
  * @flags:		additional flags for image conversion
  * @state:		flags to keep track of user configuration
  * @fimc_dev:		the FIMC device this context applies to
- * @m2m_ctx:		memory-to-memory device context
  * @fh:			v4l2 file handle
  * @ctrls:		v4l2 controls structure
  */
@@ -502,7 +501,6 @@ struct fimc_ctx {
 	u32			flags;
 	u32			state;
 	struct fimc_dev		*fimc_dev;
-	struct v4l2_m2m_ctx	*m2m_ctx;
 	struct v4l2_fh		fh;
 	struct fimc_ctrls	ctrls;
 };
@@ -581,8 +579,8 @@ static inline bool fimc_jpeg_fourcc(u32 pixelformat)
 
 static inline bool fimc_user_defined_mbus_fmt(u32 code)
 {
-	return (code == V4L2_MBUS_FMT_JPEG_1X8 ||
-		code == V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8);
+	return (code == MEDIA_BUS_FMT_JPEG_1X8 ||
+		code == MEDIA_BUS_FMT_S5C_UYVY_JPEG_1X8);
 }
 
 /* Return the alpha component bit mask */

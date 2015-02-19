@@ -22,7 +22,6 @@
  */
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/mfd/rc5t583.h>
 

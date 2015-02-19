@@ -6,8 +6,8 @@
 	model = "Avionic Design Tamonten Evaluation Carrier";
 	compatible = "ad,tec", "ad,tamonten", "nvidia,tegra20";
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 		};
 	};
@@ -29,6 +29,14 @@
 				    0
 				    0xffffffff
 				    0xffffffff>;
+		};
+	};
+
+	pcie-controller@80003000 {
+		status = "okay";
+
+		pci@1,0 {
+			status = "okay";
 		};
 	};
 
@@ -58,5 +66,46 @@
 			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
 			 <&tegra_car TEGRA20_CLK_CDEV1>;
 		clock-names = "pll_a", "pll_a_out0", "mclk";
+	};
+
+	regulators {
+		vcc_24v_reg: regulator@100 {
+			compatible = "regulator-fixed";
+			reg = <100>;
+			regulator-name = "vcc_24v";
+			regulator-min-microvolt = <24000000>;
+			regulator-max-microvolt = <24000000>;
+			regulator-always-on;
+		};
+
+		vdd_5v0_reg: regulator@101 {
+			compatible = "regulator-fixed";
+			reg = <101>;
+			regulator-name = "vdd_5v0";
+			vin-supply = <&vcc_24v_reg>;
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
+
+		vdd_3v3_reg: regulator@102 {
+			compatible = "regulator-fixed";
+			reg = <102>;
+			regulator-name = "vdd_3v3";
+			vin-supply = <&vcc_24v_reg>;
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		vdd_1v8_reg: regulator@103 {
+			compatible = "regulator-fixed";
+			reg = <103>;
+			regulator-name = "vdd_1v8";
+			vin-supply = <&vdd_3v3_reg>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
 	};
 };

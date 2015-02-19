@@ -19,8 +19,11 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/v4l2-dv-timings.h>
 
+#include <media/v4l2-dv-timings.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 
 #include "ths8200_regs.h"
@@ -42,18 +45,12 @@ struct ths8200_state {
 	struct v4l2_dv_timings dv_timings;
 };
 
-static const struct v4l2_dv_timings ths8200_timings[] = {
-	V4L2_DV_BT_CEA_720X480P59_94,
-	V4L2_DV_BT_CEA_1280X720P24,
-	V4L2_DV_BT_CEA_1280X720P25,
-	V4L2_DV_BT_CEA_1280X720P30,
-	V4L2_DV_BT_CEA_1280X720P50,
-	V4L2_DV_BT_CEA_1280X720P60,
-	V4L2_DV_BT_CEA_1920X1080P24,
-	V4L2_DV_BT_CEA_1920X1080P25,
-	V4L2_DV_BT_CEA_1920X1080P30,
-	V4L2_DV_BT_CEA_1920X1080P50,
-	V4L2_DV_BT_CEA_1920X1080P60,
+static const struct v4l2_dv_timings_cap ths8200_timings_cap = {
+	.type = V4L2_DV_BT_656_1120,
+	/* keep this initialization for compatibility with GCC < 4.4.6 */
+	.reserved = { 0 },
+	V4L2_INIT_BT_TIMINGS(0, 1920, 0, 1080, 25000000, 148500000,
+		V4L2_DV_BT_STD_CEA861, V4L2_DV_BT_CAP_PROGRESSIVE)
 };
 
 static inline struct ths8200_state *to_state(struct v4l2_subdev *sd)
@@ -61,24 +58,14 @@ static inline struct ths8200_state *to_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct ths8200_state, sd);
 }
 
-static inline unsigned hblanking(const struct v4l2_bt_timings *t)
-{
-	return t->hfrontporch + t->hsync + t->hbackporch;
-}
-
 static inline unsigned htotal(const struct v4l2_bt_timings *t)
 {
-	return t->width + t->hfrontporch + t->hsync + t->hbackporch;
-}
-
-static inline unsigned vblanking(const struct v4l2_bt_timings *t)
-{
-	return t->vfrontporch + t->vsync + t->vbackporch;
+	return V4L2_DV_BT_FRAME_WIDTH(t);
 }
 
 static inline unsigned vtotal(const struct v4l2_bt_timings *t)
 {
-	return t->height + t->vfrontporch + t->vsync + t->vbackporch;
+	return V4L2_DV_BT_FRAME_HEIGHT(t);
 }
 
 static int ths8200_read(struct v4l2_subdev *sd, u8 reg)
@@ -133,39 +120,6 @@ static int ths8200_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
-static void ths8200_print_timings(struct v4l2_subdev *sd,
-				  struct v4l2_dv_timings *timings,
-				  const char *txt, bool detailed)
-{
-	struct v4l2_bt_timings *bt = &timings->bt;
-	u32 htot, vtot;
-
-	if (timings->type != V4L2_DV_BT_656_1120)
-		return;
-
-	htot = htotal(bt);
-	vtot = vtotal(bt);
-
-	v4l2_info(sd, "%s %dx%d%s%d (%dx%d)",
-		  txt, bt->width, bt->height, bt->interlaced ? "i" : "p",
-		  (htot * vtot) > 0 ? ((u32)bt->pixelclock / (htot * vtot)) : 0,
-		  htot, vtot);
-
-	if (detailed) {
-		v4l2_info(sd, "    horizontal: fp = %d, %ssync = %d, bp = %d\n",
-			  bt->hfrontporch,
-			  (bt->polarities & V4L2_DV_HSYNC_POS_POL) ? "+" : "-",
-			  bt->hsync, bt->hbackporch);
-		v4l2_info(sd, "    vertical: fp = %d, %ssync = %d, bp = %d\n",
-			  bt->vfrontporch,
-			  (bt->polarities & V4L2_DV_VSYNC_POS_POL) ? "+" : "-",
-			  bt->vsync, bt->vbackporch);
-		v4l2_info(sd,
-			  "    pixelclock: %lld, flags: 0x%x, standards: 0x%x\n",
-			  bt->pixelclock, bt->flags, bt->standards);
-	}
-}
-
 static int ths8200_log_status(struct v4l2_subdev *sd)
 {
 	struct ths8200_state *state = to_state(sd);
@@ -182,9 +136,8 @@ static int ths8200_log_status(struct v4l2_subdev *sd)
 		  ths8200_read(sd, THS8200_DTG2_PIXEL_CNT_LSB),
 		  (ths8200_read(sd, THS8200_DTG2_LINE_CNT_MSB) & 0x07) * 256 +
 		  ths8200_read(sd, THS8200_DTG2_LINE_CNT_LSB));
-	ths8200_print_timings(sd, &state->dv_timings,
-			      "Configured format:", true);
-
+	v4l2_print_dv_timings(sd->name, "Configured format:",
+			      &state->dv_timings, true);
 	return 0;
 }
 
@@ -254,8 +207,8 @@ static void ths8200_core_init(struct v4l2_subdev *sd)
 	/* Disable embedded syncs on the output by setting
 	 * the amplitude to zero for all channels.
 	 */
-	ths8200_write(sd, THS8200_DTG1_Y_SYNC_MSB, 0x2a);
-	ths8200_write(sd, THS8200_DTG1_CBCR_SYNC_MSB, 0x2a);
+	ths8200_write(sd, THS8200_DTG1_Y_SYNC_MSB, 0x00);
+	ths8200_write(sd, THS8200_DTG1_CBCR_SYNC_MSB, 0x00);
 }
 
 static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
@@ -355,15 +308,15 @@ static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
 			     (htotal(bt) >> 8) & 0x1f);
 	ths8200_write(sd, THS8200_DTG2_HLENGTH_HDLY_LSB, htotal(bt));
 
-	/* v sync width transmitted */
-	ths8200_write(sd, THS8200_DTG2_VLENGTH1_LSB, (bt->vsync) & 0xff);
+	/* v sync width transmitted (must add 1 to get correct output) */
+	ths8200_write(sd, THS8200_DTG2_VLENGTH1_LSB, (bt->vsync + 1) & 0xff);
 	ths8200_write_and_or(sd, THS8200_DTG2_VLENGTH1_MSB_VDLY1_MSB, 0x3f,
-			     ((bt->vsync) >> 2) & 0xc0);
+			     ((bt->vsync + 1) >> 2) & 0xc0);
 
-	/* The pixel value v sync is asserted on */
+	/* The pixel value v sync is asserted on (must add 1 to get correct output) */
 	ths8200_write_and_or(sd, THS8200_DTG2_VLENGTH1_MSB_VDLY1_MSB, 0xf8,
-			     (vtotal(bt)>>8) & 0x7);
-	ths8200_write(sd, THS8200_DTG2_VDLY1_LSB, vtotal(bt));
+			     ((vtotal(bt) + 1) >> 8) & 0x7);
+	ths8200_write(sd, THS8200_DTG2_VDLY1_LSB, vtotal(bt) + 1);
 
 	/* For progressive video vlength2 must be set to all 0 and vdly2 must
 	 * be set to all 1.
@@ -373,11 +326,11 @@ static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
 	ths8200_write(sd, THS8200_DTG2_VDLY2_LSB, 0xff);
 
 	/* Internal delay factors to synchronize the sync pulses and the data */
-	/* Experimental values delays (hor 4, ver 1) */
-	ths8200_write(sd, THS8200_DTG2_HS_IN_DLY_MSB, (htotal(bt)>>8) & 0x1f);
-	ths8200_write(sd, THS8200_DTG2_HS_IN_DLY_LSB, (htotal(bt) - 4) & 0xff);
+	/* Experimental values delays (hor 0, ver 0) */
+	ths8200_write(sd, THS8200_DTG2_HS_IN_DLY_MSB, 0);
+	ths8200_write(sd, THS8200_DTG2_HS_IN_DLY_LSB, 0);
 	ths8200_write(sd, THS8200_DTG2_VS_IN_DLY_MSB, 0);
-	ths8200_write(sd, THS8200_DTG2_VS_IN_DLY_LSB, 1);
+	ths8200_write(sd, THS8200_DTG2_VS_IN_DLY_LSB, 0);
 
 	/* Polarity of received and transmitted sync signals */
 	if (bt->polarities & V4L2_DV_HSYNC_POS_POL) {
@@ -393,7 +346,7 @@ static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
 	/* Timing of video input bus is derived from HS, VS, and FID dedicated
 	 * inputs
 	 */
-	ths8200_write(sd, THS8200_DTG2_CNTL, 0x47 | polarity);
+	ths8200_write(sd, THS8200_DTG2_CNTL, 0x44 | polarity);
 
 	/* leave reset */
 	ths8200_s_stream(sd, true);
@@ -409,25 +362,15 @@ static int ths8200_s_dv_timings(struct v4l2_subdev *sd,
 				struct v4l2_dv_timings *timings)
 {
 	struct ths8200_state *state = to_state(sd);
-	int i;
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
 
-	if (timings->type != V4L2_DV_BT_656_1120)
+	if (!v4l2_valid_dv_timings(timings, &ths8200_timings_cap,
+				NULL, NULL))
 		return -EINVAL;
 
-	/* TODO Support interlaced formats */
-	if (timings->bt.interlaced) {
-		v4l2_dbg(1, debug, sd, "TODO Support interlaced formats\n");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(ths8200_timings); i++) {
-		if (v4l_match_dv_timings(&ths8200_timings[i], timings, 10))
-			break;
-	}
-
-	if (i == ARRAY_SIZE(ths8200_timings)) {
+	if (!v4l2_find_dv_timings_cap(timings, &ths8200_timings_cap, 10,
+				NULL, NULL)) {
 		v4l2_dbg(1, debug, sd, "Unsupported format\n");
 		return -EINVAL;
 	}
@@ -457,26 +400,20 @@ static int ths8200_g_dv_timings(struct v4l2_subdev *sd,
 static int ths8200_enum_dv_timings(struct v4l2_subdev *sd,
 				   struct v4l2_enum_dv_timings *timings)
 {
-	/* Check requested format index is within range */
-	if (timings->index >= ARRAY_SIZE(ths8200_timings))
+	if (timings->pad != 0)
 		return -EINVAL;
 
-	timings->timings = ths8200_timings[timings->index];
-
-	return 0;
+	return v4l2_enum_dv_timings_cap(timings, &ths8200_timings_cap,
+			NULL, NULL);
 }
 
 static int ths8200_dv_timings_cap(struct v4l2_subdev *sd,
 				  struct v4l2_dv_timings_cap *cap)
 {
-	cap->type = V4L2_DV_BT_656_1120;
-	cap->bt.max_width = 1920;
-	cap->bt.max_height = 1080;
-	cap->bt.min_pixelclock = 27000000;
-	cap->bt.max_pixelclock = 148500000;
-	cap->bt.standards = V4L2_DV_BT_STD_CEA861;
-	cap->bt.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE;
+	if (cap->pad != 0)
+		return -EINVAL;
 
+	*cap = ths8200_timings_cap;
 	return 0;
 }
 
@@ -485,6 +422,9 @@ static const struct v4l2_subdev_video_ops ths8200_video_ops = {
 	.s_stream = ths8200_s_stream,
 	.s_dv_timings = ths8200_s_dv_timings,
 	.g_dv_timings = ths8200_g_dv_timings,
+};
+
+static const struct v4l2_subdev_pad_ops ths8200_pad_ops = {
 	.enum_dv_timings = ths8200_enum_dv_timings,
 	.dv_timings_cap = ths8200_dv_timings_cap,
 };
@@ -493,6 +433,7 @@ static const struct v4l2_subdev_video_ops ths8200_video_ops = {
 static const struct v4l2_subdev_ops ths8200_ops = {
 	.core  = &ths8200_core_ops,
 	.video = &ths8200_video_ops,
+	.pad = &ths8200_pad_ops,
 };
 
 static int ths8200_probe(struct i2c_client *client,
@@ -500,6 +441,7 @@ static int ths8200_probe(struct i2c_client *client,
 {
 	struct ths8200_state *state;
 	struct v4l2_subdev *sd;
+	int error;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -517,6 +459,10 @@ static int ths8200_probe(struct i2c_client *client,
 
 	ths8200_core_init(sd);
 
+	error = v4l2_async_register_subdev(&state->sd);
+	if (error)
+		return error;
+
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 		  client->addr << 1, client->adapter->name);
 
@@ -526,12 +472,13 @@ static int ths8200_probe(struct i2c_client *client,
 static int ths8200_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ths8200_state *decoder = to_state(sd);
 
 	v4l2_dbg(1, debug, sd, "%s removed @ 0x%x (%s)\n", client->name,
 		 client->addr << 1, client->adapter->name);
 
 	ths8200_s_power(sd, false);
-
+	v4l2_async_unregister_subdev(&decoder->sd);
 	v4l2_device_unregister_subdev(sd);
 
 	return 0;
@@ -543,10 +490,19 @@ static struct i2c_device_id ths8200_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ths8200_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id ths8200_of_match[] = {
+	{ .compatible = "ti,ths8200", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, ths8200_of_match);
+#endif
+
 static struct i2c_driver ths8200_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "ths8200",
+		.of_match_table = of_match_ptr(ths8200_of_match),
 	},
 	.probe = ths8200_probe,
 	.remove = ths8200_remove,

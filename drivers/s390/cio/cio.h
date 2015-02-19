@@ -102,6 +102,8 @@ struct subchannel {
 	struct schib_config config;
 } __attribute__ ((aligned(8)));
 
+DECLARE_PER_CPU(struct irb, cio_irb);
+
 #define to_subchannel(n) container_of(n, struct subchannel, dev)
 
 extern int cio_validate_subchannel (struct subchannel *, struct subchannel_id);
@@ -120,9 +122,6 @@ extern int cio_commit_config(struct subchannel *sch);
 
 int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key);
 int cio_tm_intrg(struct subchannel *sch);
-
-void do_adapter_IO(u8 isc);
-void do_IRQ(struct pt_regs *);
 
 /* Use with care. */
 #ifdef CONFIG_CCW_CONSOLE

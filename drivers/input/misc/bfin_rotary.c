@@ -6,7 +6,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/pm.h>
@@ -92,7 +91,7 @@ static irqreturn_t bfin_rotary_isr(int irq, void *dev_id)
 
 static int bfin_rotary_probe(struct platform_device *pdev)
 {
-	struct bfin_rotary_platform_data *pdata = pdev->dev.platform_data;
+	struct bfin_rotary_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct bfin_rot *rotary;
 	struct input_dev *input;
 	int error;
@@ -257,7 +256,6 @@ static struct platform_driver bfin_rotary_device_driver = {
 	.remove		= bfin_rotary_remove,
 	.driver		= {
 		.name	= "bfin-rotary",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &bfin_rotary_pm_ops,
 #endif

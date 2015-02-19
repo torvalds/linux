@@ -334,7 +334,7 @@ static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
 		max_channel = 6;
 	}
 	if (channel > max_channel) {
-		printk("%s: bug, invalid RTSI_channel=%i\n", __func__, channel);
+		pr_err("%s: bug, invalid RTSI_channel=%i\n", __func__, channel);
 		return 0;
 	}
 	return 1 << (base_bit_shift + channel);
@@ -1090,7 +1090,7 @@ static inline int M_Offset_Static_AI_Control(int i)
 		0x263,
 	};
 	if (((unsigned)i) >= ARRAY_SIZE(offset)) {
-		printk("%s: invalid channel=%i\n", __func__, i);
+		pr_err("%s: invalid channel=%i\n", __func__, i);
 		return offset[0];
 	}
 	return offset[i];
@@ -1105,7 +1105,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 		0x267
 	};
 	if (((unsigned)channel) >= ARRAY_SIZE(offset)) {
-		printk("%s: invalid channel=%i\n", __func__, channel);
+		pr_err("%s: invalid channel=%i\n", __func__, channel);
 		return offset[0];
 	}
 	return offset[channel];
@@ -1114,7 +1114,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 static inline unsigned M_Offset_PFI_Output_Select(unsigned n)
 {
 	if (n < 1 || n > NUM_PFI_OUTPUT_SELECT_REGS) {
-		printk("%s: invalid pfi output select register=%i\n",
+		pr_err("%s: invalid pfi output select register=%i\n",
 		       __func__, n);
 		return M_Offset_PFI_Output_Select_1;
 	}
@@ -1171,7 +1171,7 @@ static inline unsigned MSeries_PLL_In_Source_Select_RTSI_Bits(unsigned
 							      RTSI_channel)
 {
 	if (RTSI_channel > 7) {
-		printk("%s: bug, invalid RTSI_channel=%i\n", __func__,
+		pr_err("%s: bug, invalid RTSI_channel=%i\n", __func__,
 		       RTSI_channel);
 		return 0;
 	}
@@ -1192,7 +1192,7 @@ static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 {
 	static const unsigned max_divisor = 0x10;
 	if (divisor < 1 || divisor > max_divisor) {
-		printk("%s: bug, invalid divisor=%i\n", __func__, divisor);
+		pr_err("%s: bug, invalid divisor=%i\n", __func__, divisor);
 		return 0;
 	}
 	return (divisor & 0xf) << 8;
@@ -1202,7 +1202,7 @@ static inline unsigned MSeries_PLL_Multiplier_Bits(unsigned multiplier)
 {
 	static const unsigned max_multiplier = 0x100;
 	if (multiplier < 1 || multiplier > max_multiplier) {
-		printk("%s: bug, invalid multiplier=%i\n", __func__,
+		pr_err("%s: bug, invalid multiplier=%i\n", __func__,
 		       multiplier);
 		return 0;
 	}
@@ -1283,14 +1283,6 @@ static inline unsigned MSeries_PFI_Output_Select_Source(unsigned channel,
 							unsigned bits)
 {
 	return (bits >> ((channel % 3) * 5)) & 0x1f;
-};
-
-enum MSeries_Gi_DMA_Config_Bits {
-	Gi_DMA_BankSW_Error_Bit = 0x10,
-	Gi_DMA_Reset_Bit = 0x8,
-	Gi_DMA_Int_Enable_Bit = 0x4,
-	Gi_DMA_Write_Bit = 0x2,
-	Gi_DMA_Enable_Bit = 0x1,
 };
 
 static inline unsigned MSeries_PFI_Filter_Select_Mask(unsigned channel)
@@ -1388,12 +1380,12 @@ enum Interrupt_C_Status_Bits {
 #define M_SERIES_EEPROM_SIZE 1024
 
 struct ni_board_struct {
+	const char *name;
 	int device_id;
 	int isapnp_id;
-	char *name;
 
 	int n_adchan;
-	int adbits;
+	unsigned int ai_maxdata;
 
 	int ai_fifo_depth;
 	unsigned int alwaysdither:1;
@@ -1401,107 +1393,99 @@ struct ni_board_struct {
 	int ai_speed;
 
 	int n_aochan;
-	int aobits;
+	unsigned int ao_maxdata;
 	int ao_fifo_depth;
 	const struct comedi_lrange *ao_range_table;
 	unsigned ao_speed;
 
-	unsigned num_p0_dio_channels;
-
 	int reg_type;
-	unsigned int ao_unipolar:1;
 	unsigned int has_8255:1;
-	unsigned int has_analog_trig:1;
+	unsigned int has_32dio_chan:1;
 
 	enum caldac_enum caldac[3];
 };
 
-#define MAX_N_AO_CHAN 8
-#define NUM_GPCT 2
+#define MAX_N_CALDACS	34
+#define MAX_N_AO_CHAN	8
+#define NUM_GPCT	2
 
-#define NI_PRIVATE_COMMON					\
-	uint16_t (*stc_readw)(struct comedi_device *dev, int register);	\
-	uint32_t (*stc_readl)(struct comedi_device *dev, int register);	\
-	void (*stc_writew)(struct comedi_device *dev, uint16_t value, int register);	\
-	void (*stc_writel)(struct comedi_device *dev, uint32_t value, int register);	\
-	\
-	unsigned short dio_output;				\
-	unsigned short dio_control;				\
-	int ao0p, ao1p;						\
-	int lastchan;						\
-	int last_do;						\
-	int rt_irq;						\
-	int irqmask;						\
-	int aimode;						\
-	int ai_continuous;					\
-	int blocksize;						\
-	int n_left;						\
-	unsigned int ai_calib_source;				\
-	unsigned int ai_calib_source_enabled;			\
-	spinlock_t window_lock; \
-	spinlock_t soft_reg_copy_lock; \
-	spinlock_t mite_channel_lock; \
-								\
-	int changain_state;					\
-	unsigned int changain_spec;				\
-								\
-	unsigned int caldac_maxdata_list[MAX_N_CALDACS];	\
-	unsigned short ao[MAX_N_AO_CHAN];					\
-	unsigned short caldacs[MAX_N_CALDACS];				\
-								\
-	unsigned short ai_cmd2;	\
-								\
-	unsigned short ao_conf[MAX_N_AO_CHAN];				\
-	unsigned short ao_mode1;				\
-	unsigned short ao_mode2;				\
-	unsigned short ao_mode3;				\
-	unsigned short ao_cmd1;					\
-	unsigned short ao_cmd2;					\
-	unsigned short ao_cmd3;					\
-	unsigned short ao_trigger_select;			\
-								\
-	struct ni_gpct_device *counter_dev;	\
-	unsigned short an_trig_etc_reg;				\
-								\
-	unsigned ai_offset[512];				\
-								\
-	unsigned long serial_interval_ns;                       \
-	unsigned char serial_hw_mode;                           \
-	unsigned short clock_and_fout;				\
-	unsigned short clock_and_fout2;				\
-								\
-	unsigned short int_a_enable_reg;			\
-	unsigned short int_b_enable_reg;			\
-	unsigned short io_bidirection_pin_reg;			\
-	unsigned short rtsi_trig_direction_reg;			\
-	unsigned short rtsi_trig_a_output_reg; \
-	unsigned short rtsi_trig_b_output_reg; \
-	unsigned short pfi_output_select_reg[NUM_PFI_OUTPUT_SELECT_REGS]; \
-	unsigned short ai_ao_select_reg; \
-	unsigned short g0_g1_select_reg; \
-	unsigned short cdio_dma_select_reg; \
-	\
-	unsigned clock_ns; \
-	unsigned clock_source; \
-	\
-	unsigned short atrig_mode;				\
-	unsigned short atrig_high;				\
-	unsigned short atrig_low;				\
-	\
-	unsigned short pwm_up_count;	\
-	unsigned short pwm_down_count;	\
-	\
-	short ai_fifo_buffer[0x2000];				\
-	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE]; \
-	uint32_t serial_number; \
-	\
-	struct mite_struct *mite; \
-	struct mite_channel *ai_mite_chan; \
-	struct mite_channel *ao_mite_chan;\
-	struct mite_channel *cdo_mite_chan;\
-	struct mite_dma_descriptor_ring *ai_mite_ring; \
-	struct mite_dma_descriptor_ring *ao_mite_ring; \
-	struct mite_dma_descriptor_ring *cdo_mite_ring; \
+struct ni_private {
+	unsigned short dio_output;
+	unsigned short dio_control;
+	int aimode;
+	unsigned int ai_calib_source;
+	unsigned int ai_calib_source_enabled;
+	spinlock_t window_lock;
+	spinlock_t soft_reg_copy_lock;
+	spinlock_t mite_channel_lock;
+
+	int changain_state;
+	unsigned int changain_spec;
+
+	unsigned int caldac_maxdata_list[MAX_N_CALDACS];
+	unsigned short caldacs[MAX_N_CALDACS];
+
+	unsigned short ai_cmd2;
+
+	unsigned short ao_conf[MAX_N_AO_CHAN];
+	unsigned short ao_mode1;
+	unsigned short ao_mode2;
+	unsigned short ao_mode3;
+	unsigned short ao_cmd1;
+	unsigned short ao_cmd2;
+	unsigned short ao_trigger_select;
+
+	struct ni_gpct_device *counter_dev;
+	unsigned short an_trig_etc_reg;
+
+	unsigned ai_offset[512];
+
+	unsigned long serial_interval_ns;
+	unsigned char serial_hw_mode;
+	unsigned short clock_and_fout;
+	unsigned short clock_and_fout2;
+
+	unsigned short int_a_enable_reg;
+	unsigned short int_b_enable_reg;
+	unsigned short io_bidirection_pin_reg;
+	unsigned short rtsi_trig_direction_reg;
+	unsigned short rtsi_trig_a_output_reg;
+	unsigned short rtsi_trig_b_output_reg;
+	unsigned short pfi_output_select_reg[NUM_PFI_OUTPUT_SELECT_REGS];
+	unsigned short ai_ao_select_reg;
+	unsigned short g0_g1_select_reg;
+	unsigned short cdio_dma_select_reg;
+
+	unsigned clock_ns;
+	unsigned clock_source;
+
+	unsigned short pwm_up_count;
+	unsigned short pwm_down_count;
+
+	unsigned short ai_fifo_buffer[0x2000];
+	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE];
+	__be32 serial_number;
+
+	struct mite_struct *mite;
+	struct mite_channel *ai_mite_chan;
+	struct mite_channel *ao_mite_chan;
+	struct mite_channel *cdo_mite_chan;
+	struct mite_dma_descriptor_ring *ai_mite_ring;
+	struct mite_dma_descriptor_ring *ao_mite_ring;
+	struct mite_dma_descriptor_ring *cdo_mite_ring;
 	struct mite_dma_descriptor_ring *gpct_mite_ring[NUM_GPCT];
+
+	/* ni_pcimio board type flags (based on the boardinfo reg_type) */
+	unsigned int is_m_series:1;
+	unsigned int is_6xxx:1;
+	unsigned int is_611x:1;
+	unsigned int is_6143:1;
+	unsigned int is_622x:1;
+	unsigned int is_625x:1;
+	unsigned int is_628x:1;
+	unsigned int is_67xx:1;
+	unsigned int is_6711:1;
+	unsigned int is_6713:1;
+};
 
 #endif /* _COMEDI_NI_STC_H */

@@ -1,8 +1,12 @@
 config VIDEO_EM28XX
-	tristate "Empia EM28xx USB video capture support"
+	tristate "Empia EM28xx USB devices support"
 	depends on VIDEO_DEV && I2C
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
+
+config VIDEO_EM28XX_V4L2
+	tristate "Empia EM28xx analog TV, video capture and/or webcam support"
+	depends on VIDEO_EM28XX
 	select VIDEOBUF2_VMALLOC
 	select VIDEO_SAA711X if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_TVP5150 if MEDIA_SUBDRV_AUTOSELECT
@@ -49,6 +53,12 @@ config VIDEO_EM28XX_DVB
 	select DVB_MB86A20S if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_QT1010 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA18271 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA18212 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_M88DS3103 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_M88TS2022 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_DRX39XYJ if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_SI2168 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
 	---help---
 	  This adds support for DVB cards based on the
 	  Empiatech em28xx chips.

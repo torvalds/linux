@@ -465,7 +465,11 @@ entSys:
 	.cfi_rel_offset	$16, SP_OFF+24
 	.cfi_rel_offset	$17, SP_OFF+32
 	.cfi_rel_offset	$18, SP_OFF+40
-	blbs	$3, strace
+#ifdef CONFIG_AUDITSYSCALL
+	lda     $6, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
+	and     $3, $6, $3
+#endif
+	bne     $3, strace
 	beq	$4, 1f
 	ldq	$27, 0($5)
 1:	jsr	$26, ($27), alpha_ni_syscall

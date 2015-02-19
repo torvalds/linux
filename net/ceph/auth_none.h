@@ -23,7 +23,7 @@ struct ceph_auth_none_info {
 	struct ceph_none_authorizer au;   /* we only need one; it's static */
 };
 
-extern int ceph_auth_none_init(struct ceph_auth_client *ac);
+int ceph_auth_none_init(struct ceph_auth_client *ac);
 
 #endif
 

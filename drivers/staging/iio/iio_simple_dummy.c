@@ -57,6 +57,48 @@ static const struct iio_dummy_accel_calibscale dummy_scales[] = {
 	{ 733, 13, 0x9 }, /* 733.000013 */
 };
 
+#ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
+
+/*
+ * simple event - triggered when value rises above
+ * a threshold
+ */
+static const struct iio_event_spec iio_dummy_event = {
+	.type = IIO_EV_TYPE_THRESH,
+	.dir = IIO_EV_DIR_RISING,
+	.mask_separate = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_ENABLE),
+};
+
+/*
+ * simple step detect event - triggered when a step is detected
+ */
+static const struct iio_event_spec step_detect_event = {
+	.type = IIO_EV_TYPE_CHANGE,
+	.dir = IIO_EV_DIR_NONE,
+	.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+};
+
+/*
+ * simple transition event - triggered when the reported running confidence
+ * value rises above a threshold value
+ */
+static const struct iio_event_spec iio_running_event = {
+	.type = IIO_EV_TYPE_THRESH,
+	.dir = IIO_EV_DIR_RISING,
+	.mask_separate = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_ENABLE),
+};
+
+/*
+ * simple transition event - triggered when the reported walking confidence
+ * value falls under a threshold value
+ */
+static const struct iio_event_spec iio_walking_event = {
+	.type = IIO_EV_TYPE_THRESH,
+	.dir = IIO_EV_DIR_FALLING,
+	.mask_separate = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_ENABLE),
+};
+#endif
+
 /*
  * iio_dummy_channels - Description of available channels
  *
@@ -90,6 +132,11 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		 * when converting to standard units (microvolts)
 		 */
 		BIT(IIO_CHAN_INFO_SCALE),
+		/*
+		 * sampling_frequency
+		 * The frequency in Hz at which the channels are sampled
+		 */
+		.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		/* The ordering of elements in the buffer via an enum */
 		.scan_index = voltage0,
 		.scan_type = { /* Description of storage in buffer */
@@ -99,12 +146,8 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 			.shift = 0, /* zero shift */
 		},
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
-		/*
-		 * simple event - triggered when value rises above
-		 * a threshold
-		 */
-		.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH,
-					 IIO_EV_DIR_RISING),
+		.event_spec = &iio_dummy_event,
+		.num_event_specs = 1,
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
 	},
 	/* Differential ADC channel in_voltage1-voltage2_raw etc*/
@@ -130,6 +173,10 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		 * input channels of type IIO_VOLTAGE.
 		 */
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
+		/*
+		 * sampling_frequency
+		 * The frequency in Hz at which the channels are sampled
+		 */
 		.scan_index = diffvoltage1m2,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
@@ -147,6 +194,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.channel2 = 4,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.scan_index = diffvoltage3m4,
 		.scan_type = {
 			.sign = 's',
@@ -173,6 +221,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		 */
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |
 		BIT(IIO_CHAN_INFO_CALIBBIAS),
+		.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.scan_index = accelx,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
@@ -190,9 +239,43 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.scan_index = -1, /* No buffer support */
 		.output = 1,
 		.indexed = 1,
 		.channel = 0,
+	},
+	{
+		.type = IIO_STEPS,
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_ENABLE) |
+			BIT(IIO_CHAN_INFO_CALIBHEIGHT),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.scan_index = -1, /* No buffer support */
+#ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
+		.event_spec = &step_detect_event,
+		.num_event_specs = 1,
+#endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
+	},
+	{
+		.type = IIO_ACTIVITY,
+		.modified = 1,
+		.channel2 = IIO_MOD_RUNNING,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.scan_index = -1, /* No buffer support */
+#ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
+		.event_spec = &iio_running_event,
+		.num_event_specs = 1,
+#endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
+	},
+	{
+		.type = IIO_ACTIVITY,
+		.modified = 1,
+		.channel2 = IIO_MOD_WALKING,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.scan_index = -1, /* No buffer support */
+#ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
+		.event_spec = &iio_walking_event,
+		.num_event_specs = 1,
+#endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
 	},
 };
 
@@ -242,24 +325,55 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 			break;
 		}
 		break;
+	case IIO_CHAN_INFO_PROCESSED:
+		switch (chan->type) {
+		case IIO_STEPS:
+			*val = st->steps;
+			ret = IIO_VAL_INT;
+			break;
+		case IIO_ACTIVITY:
+			switch (chan->channel2) {
+			case IIO_MOD_RUNNING:
+				*val = st->activity_running;
+				ret = IIO_VAL_INT;
+				break;
+			case IIO_MOD_WALKING:
+				*val = st->activity_walking;
+				ret = IIO_VAL_INT;
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+		break;
 	case IIO_CHAN_INFO_OFFSET:
 		/* only single ended adc -> 7 */
 		*val = 7;
 		ret = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		switch (chan->differential) {
-		case 0:
-			/* only single ended adc -> 0.001333 */
-			*val = 0;
-			*val2 = 1333;
-			ret = IIO_VAL_INT_PLUS_MICRO;
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			switch (chan->differential) {
+			case 0:
+				/* only single ended adc -> 0.001333 */
+				*val = 0;
+				*val2 = 1333;
+				ret = IIO_VAL_INT_PLUS_MICRO;
+				break;
+			case 1:
+				/* all differential adc channels ->
+				 * 0.000001344 */
+				*val = 0;
+				*val2 = 1344;
+				ret = IIO_VAL_INT_PLUS_NANO;
+			}
 			break;
-		case 1:
-			/* all differential adc channels -> 0.000001344 */
-			*val = 0;
-			*val2 = 1344;
-			ret = IIO_VAL_INT_PLUS_NANO;
+		default:
+			break;
 		}
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -272,6 +386,32 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 		*val2 = st->accel_calibscale->val2;
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*val = 3;
+		*val2 = 33;
+		ret = IIO_VAL_INT_PLUS_NANO;
+		break;
+	case IIO_CHAN_INFO_ENABLE:
+		switch (chan->type) {
+		case IIO_STEPS:
+			*val = st->steps_enabled;
+			ret = IIO_VAL_INT;
+			break;
+		default:
+			break;
+		}
+		break;
+	case IIO_CHAN_INFO_CALIBHEIGHT:
+		switch (chan->type) {
+		case IIO_STEPS:
+			*val = st->height;
+			ret = IIO_VAL_INT;
+			break;
+		default:
+			break;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -304,14 +444,45 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		if (chan->output == 0)
-			return -EINVAL;
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			if (chan->output == 0)
+				return -EINVAL;
 
-		/* Locking not required as writing single value */
-		mutex_lock(&st->lock);
-		st->dac_val = val;
-		mutex_unlock(&st->lock);
-		return 0;
+			/* Locking not required as writing single value */
+			mutex_lock(&st->lock);
+			st->dac_val = val;
+			mutex_unlock(&st->lock);
+			return 0;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_PROCESSED:
+		switch (chan->type) {
+		case IIO_STEPS:
+			mutex_lock(&st->lock);
+			st->steps = val;
+			mutex_unlock(&st->lock);
+			return 0;
+		case IIO_ACTIVITY:
+			if (val < 0)
+				val = 0;
+			if (val > 100)
+				val = 100;
+			switch (chan->channel2) {
+			case IIO_MOD_RUNNING:
+				st->activity_running = val;
+				return 0;
+			case IIO_MOD_WALKING:
+				st->activity_walking = val;
+				return 0;
+			default:
+				return -EINVAL;
+			}
+			break;
+		default:
+			return -EINVAL;
+		}
 	case IIO_CHAN_INFO_CALIBSCALE:
 		mutex_lock(&st->lock);
 		/* Compare against table - hard matching here */
@@ -330,6 +501,24 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 		st->accel_calibbias = val;
 		mutex_unlock(&st->lock);
 		return 0;
+	case IIO_CHAN_INFO_ENABLE:
+		switch (chan->type) {
+		case IIO_STEPS:
+			mutex_lock(&st->lock);
+			st->steps_enabled = val;
+			mutex_unlock(&st->lock);
+			return 0;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_CALIBHEIGHT:
+		switch (chan->type) {
+		case IIO_STEPS:
+			st->height = val;
+			return 0;
+		default:
+			return -EINVAL;
+		}
 
 	default:
 		return -EINVAL;
@@ -369,6 +558,9 @@ static int iio_dummy_init_device(struct iio_dev *indio_dev)
 	st->accel_val = 34;
 	st->accel_calibbias = -7;
 	st->accel_calibscale = &dummy_scales[0];
+	st->steps = 47;
+	st->activity_running = 98;
+	st->activity_walking = 4;
 
 	return 0;
 }
@@ -449,12 +641,7 @@ static int iio_dummy_probe(int index)
 	if (ret < 0)
 		goto error_free_device;
 
-	/*
-	 * Configure buffered capture support and register the channels with the
-	 * buffer, but avoid the output channel being registered by reducing the
-	 * number of channels by 1.
-	 */
-	ret = iio_simple_dummy_configure_buffer(indio_dev, iio_dummy_channels, 5);
+	ret = iio_simple_dummy_configure_buffer(indio_dev);
 	if (ret < 0)
 		goto error_unregister_events;
 
@@ -523,6 +710,7 @@ error_ret:
 static __init int iio_dummy_init(void)
 {
 	int i, ret;
+
 	if (instances > 10) {
 		instances = 1;
 		return -EINVAL;
@@ -550,6 +738,7 @@ module_init(iio_dummy_init);
 static __exit void iio_dummy_exit(void)
 {
 	int i;
+
 	for (i = 0; i < instances; i++)
 		iio_dummy_remove(i);
 	kfree(iio_dummy_devs);

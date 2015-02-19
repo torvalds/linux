@@ -26,8 +26,7 @@
 #include <linux/types.h>		/* For standard types (like size_t) */
 #include <linux/errno.h>		/* For the -ENODEV/... values */
 #include <linux/kernel.h>		/* For printk/... */
-#include <linux/miscdevice.h>		/* For MODULE_ALIAS_MISCDEV
-							(WATCHDOG_MINOR) */
+#include <linux/miscdevice.h>		/* For struct miscdevice */
 #include <linux/watchdog.h>		/* For the watchdog specific items */
 #include <linux/init.h>			/* For __init/__exit/... */
 #include <linux/fs.h>			/* For file operations */
@@ -454,7 +453,6 @@ static struct platform_driver sch311x_wdt_driver = {
 	.remove		= sch311x_wdt_remove,
 	.shutdown	= sch311x_wdt_shutdown,
 	.driver		= {
-		.owner = THIS_MODULE,
 		.name = DRV_NAME,
 	},
 };
@@ -545,5 +543,3 @@ module_exit(sch311x_wdt_exit);
 MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>");
 MODULE_DESCRIPTION("SMSC SCH311x WatchDog Timer Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-

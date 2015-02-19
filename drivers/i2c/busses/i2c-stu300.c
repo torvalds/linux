@@ -17,7 +17,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/of_i2c.h>
 
 /* the name of this kernel module */
 #define NAME "stu300"
@@ -802,7 +801,7 @@ static int stu300_xfer_msg(struct i2c_adapter *adap,
 	/* Check that the bus is free, or wait until some timeout occurs */
 	ret = stu300_wait_while_busy(dev);
 	if (ret != 0) {
-		dev_err(&dev->pdev->dev, "timout waiting for transfer "
+		dev_err(&dev->pdev->dev, "timeout waiting for transfer "
 		       "to commence.\n");
 		goto exit_disable;
 	}
@@ -860,8 +859,7 @@ static const struct i2c_algorithm stu300_algo = {
 	.functionality	= stu300_func,
 };
 
-static int __init
-stu300_probe(struct platform_device *pdev)
+static int stu300_probe(struct platform_device *pdev)
 {
 	struct stu300_dev *dev;
 	struct i2c_adapter *adap;
@@ -870,10 +868,8 @@ stu300_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct stu300_dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&pdev->dev, "could not allocate device struct\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	bus_nr = pdev->id;
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
@@ -884,9 +880,6 @@ stu300_probe(struct platform_device *pdev)
 
 	dev->pdev = pdev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
 	dev->virtbase = devm_ioremap_resource(&pdev->dev, res);
 	dev_dbg(&pdev->dev, "initialize bus device I2C%d on virtual "
 		"base %p\n", bus_nr, dev->virtbase);
@@ -916,7 +909,7 @@ stu300_probe(struct platform_device *pdev)
 	adap = &dev->adapter;
 	adap->owner = THIS_MODULE;
 	/* DDC class but actually often used for more generic I2C */
-	adap->class = I2C_CLASS_DDC;
+	adap->class = I2C_CLASS_DEPRECATED;
 	strlcpy(adap->name, "ST Microelectronics DDC I2C adapter",
 		sizeof(adap->name));
 	adap->nr = bus_nr;
@@ -936,12 +929,11 @@ stu300_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	dev_info(&pdev->dev, "ST DDC I2C @ %p, irq %d\n",
 		 dev->virtbase, dev->irq);
-	of_i2c_register_devices(adap);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int stu300_suspend(struct device *device)
 {
 	struct stu300_dev *dev = dev_get_drvdata(device);
@@ -971,8 +963,7 @@ static SIMPLE_DEV_PM_OPS(stu300_pm, stu300_suspend, stu300_resume);
 #define STU300_I2C_PM	NULL
 #endif
 
-static int __exit
-stu300_remove(struct platform_device *pdev)
+static int stu300_remove(struct platform_device *pdev)
 {
 	struct stu300_dev *dev = platform_get_drvdata(pdev);
 
@@ -990,17 +981,17 @@ static const struct of_device_id stu300_dt_match[] = {
 static struct platform_driver stu300_i2c_driver = {
 	.driver = {
 		.name	= NAME,
-		.owner	= THIS_MODULE,
 		.pm	= STU300_I2C_PM,
 		.of_match_table = stu300_dt_match,
 	},
-	.remove		= __exit_p(stu300_remove),
+	.probe = stu300_probe,
+	.remove = stu300_remove,
 
 };
 
 static int __init stu300_init(void)
 {
-	return platform_driver_probe(&stu300_i2c_driver, stu300_probe);
+	return platform_driver_register(&stu300_i2c_driver);
 }
 
 static void __exit stu300_exit(void)

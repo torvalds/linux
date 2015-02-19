@@ -53,21 +53,20 @@
 #include <linux/module.h>
 
 /* LUSTRE_VERSION_CODE */
-#include <lustre_ver.h>
+#include "../include/lustre_ver.h"
 
-#include <obd_support.h>
+#include "../include/obd_support.h"
 /* lustre_swab_mdt_body */
-#include <lustre/lustre_idl.h>
+#include "../include/lustre/lustre_idl.h"
 /* obd2cli_tgt() (required by DEBUG_REQ()) */
-#include <obd.h>
+#include "../include/obd.h"
 
 /* __REQ_LAYOUT_USER__ */
 #endif
 /* struct ptlrpc_request, lustre_msg* */
-#include <lustre_req_layout.h>
-#include <lustre_update.h>
-#include <lustre_acl.h>
-#include <lustre_debug.h>
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_acl.h"
+#include "../include/lustre_debug.h"
 
 /*
  * RQFs (see below) refer to two struct req_msg_field arrays describing the
@@ -143,6 +142,14 @@ static const struct req_msg_field *mdt_close_client[] = {
 	&RMF_MDT_EPOCH,
 	&RMF_REC_REINT,
 	&RMF_CAPA1
+};
+
+static const struct req_msg_field *mdt_release_close_client[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_MDT_EPOCH,
+	&RMF_REC_REINT,
+	&RMF_CAPA1,
+	&RMF_CLOSE_DATA
 };
 
 static const struct req_msg_field *obd_statfs_server[] = {
@@ -287,7 +294,8 @@ static const struct req_msg_field *mds_reint_setxattr_client[] = {
 	&RMF_REC_REINT,
 	&RMF_CAPA1,
 	&RMF_NAME,
-	&RMF_EADATA
+	&RMF_EADATA,
+	&RMF_DLM_REQ
 };
 
 static const struct req_msg_field *mdt_swap_layouts[] = {
@@ -452,6 +460,25 @@ static const struct req_msg_field *ldlm_intent_unlink_client[] = {
 	&RMF_REC_REINT,    /* coincides with mds_reint_unlink_client[] */
 	&RMF_CAPA1,
 	&RMF_NAME
+};
+
+static const struct req_msg_field *ldlm_intent_getxattr_client[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_DLM_REQ,
+	&RMF_LDLM_INTENT,
+	&RMF_MDT_BODY,
+	&RMF_CAPA1,
+};
+
+static const struct req_msg_field *ldlm_intent_getxattr_server[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_DLM_REP,
+	&RMF_MDT_BODY,
+	&RMF_MDT_MD,
+	&RMF_ACL, /* for req_capsule_extend/mdt_intent_policy */
+	&RMF_EADATA,
+	&RMF_EAVALS,
+	&RMF_EAVALS_LENS
 };
 
 static const struct req_msg_field *mds_getxattr_client[] = {
@@ -666,6 +693,7 @@ static struct req_format *req_formats[] = {
 	&RQF_MDS_GETXATTR,
 	&RQF_MDS_SYNC,
 	&RQF_MDS_CLOSE,
+	&RQF_MDS_RELEASE_CLOSE,
 	&RQF_MDS_PIN,
 	&RQF_MDS_UNPIN,
 	&RQF_MDS_READPAGE,
@@ -730,6 +758,7 @@ static struct req_format *req_formats[] = {
 	&RQF_LDLM_INTENT_OPEN,
 	&RQF_LDLM_INTENT_CREATE,
 	&RQF_LDLM_INTENT_UNLINK,
+	&RQF_LDLM_INTENT_GETXATTR,
 	&RQF_LDLM_INTENT_QUOTA,
 	&RQF_QUOTA_DQACQ,
 	&RQF_LOG_CANCEL,
@@ -738,7 +767,8 @@ static struct req_format *req_formats[] = {
 	&RQF_LLOG_ORIGIN_HANDLE_NEXT_BLOCK,
 	&RQF_LLOG_ORIGIN_HANDLE_PREV_BLOCK,
 	&RQF_LLOG_ORIGIN_HANDLE_READ_HEADER,
-	&RQF_LLOG_ORIGIN_CONNECT
+	&RQF_LLOG_ORIGIN_CONNECT,
+	&RQF_CONNECT,
 };
 
 struct req_msg_field {
@@ -884,6 +914,11 @@ struct req_msg_field RMF_PTLRPC_BODY =
 		    sizeof(struct ptlrpc_body), lustre_swab_ptlrpc_body, NULL);
 EXPORT_SYMBOL(RMF_PTLRPC_BODY);
 
+struct req_msg_field RMF_CLOSE_DATA =
+	DEFINE_MSGF("data_version", 0,
+		    sizeof(struct close_data), lustre_swab_close_data, NULL);
+EXPORT_SYMBOL(RMF_CLOSE_DATA);
+
 struct req_msg_field RMF_OBD_STATFS =
 	DEFINE_MSGF("obd_statfs", 0,
 		    sizeof(struct obd_statfs), lustre_swab_obd_statfs, NULL);
@@ -944,18 +979,7 @@ EXPORT_SYMBOL(RMF_CONN);
 struct req_msg_field RMF_CONNECT_DATA =
 	DEFINE_MSGF("cdata",
 		    RMF_F_NO_SIZE_CHECK /* we allow extra space for interop */,
-#if LUSTRE_VERSION_CODE > OBD_OCD_VERSION(2, 7, 50, 0)
 		    sizeof(struct obd_connect_data),
-#else
-/* For interoperability with 1.8 and 2.0 clients/servers.
- * The RPC verification code allows larger RPC buffers, but not
- * smaller buffers.  Until we no longer need to keep compatibility
- * with older servers/clients we can only check that the buffer
- * size is at least as large as obd_connect_data_v1.  That is not
- * not in itself harmful, since the chance of just corrupting this
- * field is low.  See JIRA LU-16 for details. */
-		    sizeof(struct obd_connect_data_v1),
-#endif
 		    lustre_swab_connect, NULL);
 EXPORT_SYMBOL(RMF_CONNECT_DATA);
 
@@ -997,6 +1021,9 @@ EXPORT_SYMBOL(RMF_REC_REINT);
 struct req_msg_field RMF_EADATA = DEFINE_MSGF("eadata", 0, -1,
 						    NULL, NULL);
 EXPORT_SYMBOL(RMF_EADATA);
+
+struct req_msg_field RMF_EAVALS = DEFINE_MSGF("eavals", 0, -1, NULL, NULL);
+EXPORT_SYMBOL(RMF_EAVALS);
 
 struct req_msg_field RMF_ACL =
 	DEFINE_MSGF("acl", RMF_F_NO_SIZE_CHECK,
@@ -1049,9 +1076,14 @@ struct req_msg_field RMF_RCS =
 		    lustre_swab_generic_32s, dump_rcs);
 EXPORT_SYMBOL(RMF_RCS);
 
+struct req_msg_field RMF_EAVALS_LENS =
+	DEFINE_MSGF("eavals_lens", RMF_F_STRUCT_ARRAY, sizeof(__u32),
+		lustre_swab_generic_32s, NULL);
+EXPORT_SYMBOL(RMF_EAVALS_LENS);
+
 struct req_msg_field RMF_OBD_ID =
-	DEFINE_MSGF("obd_id", 0,
-		    sizeof(obd_id), lustre_swab_ost_last_id, NULL);
+	DEFINE_MSGF("u64", 0,
+		    sizeof(u64), lustre_swab_ost_last_id, NULL);
 EXPORT_SYMBOL(RMF_OBD_ID);
 
 struct req_msg_field RMF_FID =
@@ -1406,10 +1438,21 @@ struct req_format RQF_LDLM_INTENT_UNLINK =
 			ldlm_intent_unlink_client, ldlm_intent_server);
 EXPORT_SYMBOL(RQF_LDLM_INTENT_UNLINK);
 
+struct req_format RQF_LDLM_INTENT_GETXATTR =
+	DEFINE_REQ_FMT0("LDLM_INTENT_GETXATTR",
+			ldlm_intent_getxattr_client,
+			ldlm_intent_getxattr_server);
+EXPORT_SYMBOL(RQF_LDLM_INTENT_GETXATTR);
+
 struct req_format RQF_MDS_CLOSE =
 	DEFINE_REQ_FMT0("MDS_CLOSE",
 			mdt_close_client, mds_last_unlink_server);
 EXPORT_SYMBOL(RQF_MDS_CLOSE);
+
+struct req_format RQF_MDS_RELEASE_CLOSE =
+	DEFINE_REQ_FMT0("MDS_CLOSE",
+			mdt_release_close_client, mds_last_unlink_server);
+EXPORT_SYMBOL(RQF_MDS_RELEASE_CLOSE);
 
 struct req_format RQF_MDS_PIN =
 	DEFINE_REQ_FMT0("MDS_PIN",
@@ -1503,6 +1546,10 @@ EXPORT_SYMBOL(RQF_LLOG_ORIGIN_HANDLE_READ_HEADER);
 struct req_format RQF_LLOG_ORIGIN_CONNECT =
 	DEFINE_REQ_FMT0("LLOG_ORIGIN_CONNECT", llogd_conn_body_only, empty);
 EXPORT_SYMBOL(RQF_LLOG_ORIGIN_CONNECT);
+
+struct req_format RQF_CONNECT =
+	DEFINE_REQ_FMT0("CONNECT", obd_connect_client, obd_connect_server);
+EXPORT_SYMBOL(RQF_CONNECT);
 
 struct req_format RQF_OST_CONNECT =
 	DEFINE_REQ_FMT0("OST_CONNECT",
@@ -1669,7 +1716,7 @@ void req_capsule_init(struct req_capsule *pill,
 	if (req != NULL && pill == &req->rq_pill && req->rq_pill_init)
 		return;
 
-	memset(pill, 0, sizeof *pill);
+	memset(pill, 0, sizeof(*pill));
 	pill->rc_req = req;
 	pill->rc_loc = location;
 	req_capsule_init_area(pill);
@@ -1808,7 +1855,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 		      const struct req_msg_field *field,
 		      enum req_location loc,
 		      int offset,
-		      void *value, int len, int dump, void (*swabber)( void *))
+		      void *value, int len, int dump, void (*swabber)(void *))
 {
 	void    *p;
 	int     i;
@@ -1824,8 +1871,11 @@ swabber_dumper_helper(struct req_capsule *pill,
 	else
 		do_swab = 0;
 
+	if (!field->rmf_dumper)
+		dump = 0;
+
 	if (!(field->rmf_flags & RMF_F_STRUCT_ARRAY)) {
-		if (dump && field->rmf_dumper) {
+		if (dump) {
 			CDEBUG(D_RPCTRACE, "Dump of %sfield %s follows\n",
 			       do_swab ? "unswabbed " : "", field->rmf_name);
 			field->rmf_dumper(value);
@@ -1835,8 +1885,8 @@ swabber_dumper_helper(struct req_capsule *pill,
 		swabber(value);
 		ptlrpc_buf_set_swabbed(pill->rc_req, inout, offset);
 		if (dump) {
-			CDEBUG(D_RPCTRACE, "Dump of swabbed field %s "
-			       "follows\n", field->rmf_name);
+			CDEBUG(D_RPCTRACE, "Dump of swabbed field %s follows\n",
+			       field->rmf_name);
 			field->rmf_dumper(value);
 		}
 
@@ -1851,18 +1901,17 @@ swabber_dumper_helper(struct req_capsule *pill,
 	for (p = value, i = 0, n = len / field->rmf_size;
 	     i < n;
 	     i++, p += field->rmf_size) {
-		if (dump && field->rmf_dumper) {
-			CDEBUG(D_RPCTRACE, "Dump of %sarray field %s, "
-			       "element %d follows\n",
+		if (dump) {
+			CDEBUG(D_RPCTRACE, "Dump of %sarray field %s, element %d follows\n",
 			       do_swab ? "unswabbed " : "", field->rmf_name, i);
 			field->rmf_dumper(p);
 		}
 		if (!do_swab)
 			continue;
 		swabber(p);
-		if (dump && field->rmf_dumper) {
-			CDEBUG(D_RPCTRACE, "Dump of swabbed array field %s, "
-			       "element %d follows\n", field->rmf_name, i);
+		if (dump) {
+			CDEBUG(D_RPCTRACE, "Dump of swabbed array field %s, element %d follows\n",
+			       field->rmf_name, i);
 			field->rmf_dumper(value);
 		}
 	}
@@ -1883,7 +1932,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 static void *__req_capsule_get(struct req_capsule *pill,
 			       const struct req_msg_field *field,
 			       enum req_location loc,
-			       void (*swabber)( void *),
+			       void (*swabber)(void *),
 			       int dump)
 {
 	const struct req_format *fmt;
@@ -1921,8 +1970,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 		 */
 		len = lustre_msg_buflen(msg, offset);
 		if ((len % field->rmf_size) != 0) {
-			CERROR("%s: array field size mismatch "
-			       "%d modulo %d != 0 (%d)\n",
+			CERROR("%s: array field size mismatch %d modulo %d != 0 (%d)\n",
 			       field->rmf_name, len, field->rmf_size, loc);
 			return NULL;
 		}
@@ -1935,8 +1983,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 
 	if (value == NULL) {
 		DEBUG_REQ(D_ERROR, pill->rc_req,
-			  "Wrong buffer for field `%s' (%d of %d) "
-			  "in format `%s': %d vs. %d (%s)\n",
+			  "Wrong buffer for field `%s' (%d of %d) in format `%s': %d vs. %d (%s)\n",
 			  field->rmf_name, offset, lustre_msg_bufcount(msg),
 			  fmt->rf_name, lustre_msg_buflen(msg, offset), len,
 			  rcl_names[loc]);
@@ -1951,7 +1998,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 /**
  * Dump a request and/or reply
  */
-void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
+static void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
 {
 	const struct    req_format *fmt;
 	const struct    req_msg_field *field;
@@ -1969,8 +2016,8 @@ void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
 			 * have a specific dumper
 			 */
 			len = req_capsule_get_size(pill, field, loc);
-			CDEBUG(D_RPCTRACE, "Field %s has no dumper function;"
-			       "field size is %d\n", field->rmf_name, len);
+			CDEBUG(D_RPCTRACE, "Field %s has no dumper function; field size is %d\n",
+			       field->rmf_name, len);
 		} else {
 			/* It's the dumping side-effect that we're interested in */
 			(void) __req_capsule_get(pill, field, loc, NULL, 1);
@@ -2093,7 +2140,7 @@ EXPORT_SYMBOL(req_capsule_server_sized_swab_get);
  * request (if the caller is executing on the server-side) or reply (if the
  * caller is executing on the client-side).
  *
- * This function convienient for use is code that could be executed on the
+ * This function convenient for use is code that could be executed on the
  * client and server alike.
  */
 const void *req_capsule_other_get(struct req_capsule *pill,
@@ -2122,8 +2169,7 @@ void req_capsule_set_size(struct req_capsule *pill,
 	    (size > 0)) {
 		if ((field->rmf_flags & RMF_F_STRUCT_ARRAY) &&
 		    (size % field->rmf_size != 0)) {
-			CERROR("%s: array field size mismatch "
-			       "%d %% %d != 0 (%d)\n",
+			CERROR("%s: array field size mismatch %d %% %d != 0 (%d)\n",
 			       field->rmf_name, size, field->rmf_size, loc);
 			LBUG();
 		} else if (!(field->rmf_flags & RMF_F_STRUCT_ARRAY) &&

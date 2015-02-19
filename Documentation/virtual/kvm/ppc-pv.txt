@@ -94,9 +94,23 @@ a bitmap of available features inside the magic page.
 The following enhancements to the magic page are currently available:
 
   KVM_MAGIC_FEAT_SR		Maps SR registers r/w in the magic page
+  KVM_MAGIC_FEAT_MAS0_TO_SPRG7	Maps MASn, ESR, PIR and high SPRGs
 
 For enhanced features in the magic page, please check for the existence of the
 feature before using them!
+
+Magic page flags
+================
+
+In addition to features that indicate whether a host is capable of a particular
+feature we also have a channel for a guest to tell the guest whether it's capable
+of something. This is what we call "flags".
+
+Flags are passed to the host in the low 12 bits of the Effective Address.
+
+The following flags are currently available for a guest to expose:
+
+  MAGIC_PAGE_FLAG_NOT_MAPPED_NX Guest handles NX bits correclty wrt magic page
 
 MSR bits
 ========
@@ -115,7 +129,7 @@ If any other bit changes in the MSR, please still use mtmsr(d).
 Patched instructions
 ====================
 
-The "ld" and "std" instructions are transormed to "lwz" and "stw" instructions
+The "ld" and "std" instructions are transformed to "lwz" and "stw" instructions
 respectively on 32 bit systems with an added offset of 4 to accommodate for big
 endianness.
 

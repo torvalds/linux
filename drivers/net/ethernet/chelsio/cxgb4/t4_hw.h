@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -48,11 +48,23 @@ enum {
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
 	L2T_SIZE       = 4096,  /* # of L2T entries */
+	PM_NSTATS      = 5,     /* # of PM stats */
 	MBOX_LEN       = 64,    /* mailbox size in bytes */
 	TRACE_LEN      = 112,   /* length of trace data and mask */
 	FILTER_OPT_LEN = 36,    /* filter tuple width for optional components */
 	NWOL_PAT       = 8,     /* # of WoL patterns */
 	WOL_PAT_LEN    = 128,   /* length of WoL patterns */
+};
+
+enum {
+	CIM_NUM_IBQ    = 6,     /* # of CIM IBQs */
+	CIM_NUM_OBQ    = 6,     /* # of CIM OBQs */
+	CIM_NUM_OBQ_T5 = 8,     /* # of CIM OBQs for T5 adapter */
+	CIMLA_SIZE     = 2048,  /* # of 32-bit words in CIM LA */
+	CIM_IBQ_SIZE   = 128,   /* # of 128-bit words in a CIM IBQ */
+	CIM_OBQ_SIZE   = 128,   /* # of 128-bit words in a CIM OBQ */
+	TPLA_SIZE      = 128,   /* # of 64-bit words in TP LA */
+	ULPRX_LA_SIZE  = 512,   /* # of 256-bit words in ULP_RX LA */
 };
 
 enum {
@@ -68,6 +80,7 @@ enum {
 	SGE_MAX_WR_LEN = 512,     /* max WR size in bytes */
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
+	SGE_MAX_IQ_SIZE = 65520,
 
 	SGE_TIMER_RSTRT_CNTR = 6, /* restart RX packet threshold counter */
 	SGE_TIMER_UPD_CIDX = 7,   /* update cidx only */
@@ -109,6 +122,18 @@ enum {
 	SGE_INGPADBOUNDARY_SHIFT = 5,/* ingress queue pad boundary */
 };
 
+/* PCI-e memory window access */
+enum pcie_memwin {
+	MEMWIN_NIC      = 0,
+	MEMWIN_RSVD1    = 1,
+	MEMWIN_RSVD2    = 2,
+	MEMWIN_RDMA     = 3,
+	MEMWIN_RSVD4    = 4,
+	MEMWIN_FOISCSI  = 5,
+	MEMWIN_CSIOSTOR = 6,
+	MEMWIN_RSVD7    = 7,
+};
+
 struct sge_qstat {                /* data written to SGE queue status entries */
 	__be32 qid;
 	__be16 cidx;
@@ -134,6 +159,7 @@ struct rsp_ctrl {
 #define RSPD_GEN(x)  ((x) >> 7)
 #define RSPD_TYPE(x) (((x) >> 4) & 3)
 
+#define V_QINTR_CNT_EN	   0x0
 #define QINTR_CNT_EN       0x1
 #define QINTR_TIMER_IDX(x) ((x) << 1)
 #define QINTR_TIMER_IDX_GET(x) (((x) >> 1) & 0x7)
@@ -174,7 +200,7 @@ enum {
 	 * Location of firmware image in FLASH.
 	 */
 	FLASH_FW_START_SEC = 8,
-	FLASH_FW_NSECS = 8,
+	FLASH_FW_NSECS = 16,
 	FLASH_FW_START = FLASH_START(FLASH_FW_START_SEC),
 	FLASH_FW_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FW_NSECS),
 
@@ -204,6 +230,12 @@ enum {
 	FLASH_CFG_NSECS = 1,
 	FLASH_CFG_START = FLASH_START(FLASH_CFG_START_SEC),
 	FLASH_CFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CFG_NSECS),
+
+	/* We don't support FLASH devices which can't support the full
+	 * standard set of sections which we need for normal
+	 * operations.
+	 */
+	FLASH_MIN_SIZE = FLASH_CFG_START + FLASH_CFG_MAX_SIZE,
 
 	FLASH_FPGA_CFG_START_SEC = 15,
 	FLASH_FPGA_CFG_START = FLASH_START(FLASH_FPGA_CFG_START_SEC),

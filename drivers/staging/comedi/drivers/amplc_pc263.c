@@ -33,12 +33,10 @@ connected to a reed-relay. Relay contacts are closed when output is 1.
 The state of the outputs can be read.
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
-#define PC263_DRIVER_NAME	"amplc_pc263"
-
 /* PC263 registers */
-#define PC263_IO_SIZE	2
 
 /*
  * Board descriptions for Amplicon PC263.
@@ -56,17 +54,16 @@ static const struct pc263_board pc263_boards[] = {
 
 static int pc263_do_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-		/* Write out the new digital output lines */
-		outb(s->state & 0xFF, dev->iobase);
-		outb(s->state >> 8, dev->iobase + 1);
+	if (comedi_dio_update_state(s, data)) {
+		outb(s->state & 0xff, dev->iobase);
+		outb((s->state >> 8) & 0xff, dev->iobase + 1);
 	}
+
+	data[1] = s->state;
+
 	return insn->n;
 }
 
@@ -75,7 +72,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], PC263_IO_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x2);
 	if (ret)
 		return ret;
 
@@ -86,7 +83,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	/* digital output subdevice */
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
@@ -94,13 +91,11 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* read initial relay state */
 	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
-	dev_info(dev->class_dev, "%s (base %#lx) attached\n", dev->board_name,
-		 dev->iobase);
 	return 0;
 }
 
 static struct comedi_driver amplc_pc263_driver = {
-	.driver_name = PC263_DRIVER_NAME,
+	.driver_name = "amplc_pc263",
 	.module = THIS_MODULE,
 	.attach = pc263_attach,
 	.detach = comedi_legacy_detach,

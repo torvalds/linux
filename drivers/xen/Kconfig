@@ -3,7 +3,6 @@ menu "Xen driver support"
 
 config XEN_BALLOON
 	bool "Xen memory balloon driver"
-	depends on !ARM
 	default y
 	help
 	  The balloon driver allows the Xen domain to request more memory from
@@ -140,7 +139,6 @@ config XEN_GRANT_DEV_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
-	depends on PCI && X86
 	select SWIOTLB
 
 config XEN_TMEM
@@ -173,6 +171,15 @@ config XEN_PCIDEV_BACKEND
 	  xen-pciback.hide=(03:00.0)(04:00.0)
 
 	  If in doubt, say m.
+
+config XEN_SCSI_BACKEND
+	tristate "XEN SCSI backend driver"
+	depends on XEN && XEN_BACKEND && TARGET_CORE
+	help
+	  The SCSI backend driver allows the kernel to export its SCSI Devices
+	  to other guests via a high-performance shared-memory interface.
+	  Only needed for systems running as XEN driver domains (e.g. Dom0) and
+	  if guests need generic access to SCSI devices.
 
 config XEN_PRIVCMD
 	tristate
@@ -223,7 +230,7 @@ config XEN_ACPI_PROCESSOR
 
 	  To do that the driver parses the Power Management data and uploads
 	  said information to the Xen hypervisor. Then the Xen hypervisor can
-	  select the proper Cx and Pxx states. It also registers itslef as the
+	  select the proper Cx and Pxx states. It also registers itself as the
 	  SMM so that other drivers (such as ACPI cpufreq scaling driver) will
 	  not load.
 
@@ -241,5 +248,9 @@ config XEN_MCE_LOG
 
 config XEN_HAVE_PVMMU
        bool
+
+config XEN_EFI
+	def_bool y
+	depends on X86_64 && EFI
 
 endmenu

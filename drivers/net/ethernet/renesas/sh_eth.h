@@ -1,5 +1,4 @@
-/*
- *  SuperH Ethernet device driver
+/*  SuperH Ethernet device driver
  *
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2012 Renesas Solutions Corp.
@@ -12,9 +11,6 @@
  *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  *  more details.
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  The full GNU General Public License is included in this distribution in
  *  the file called "COPYING".
@@ -31,8 +27,7 @@
 #define RX_RING_MIN	64
 #define TX_RING_MAX	1024
 #define RX_RING_MAX	1024
-#define ETHERSMALL		60
-#define PKT_BUF_SZ		1538
+#define PKT_BUF_SZ	1538
 #define SH_ETH_TSU_TIMEOUT_MS	500
 #define SH_ETH_TSU_CAM_ENTRIES	32
 
@@ -60,6 +55,7 @@ enum {
 	EDOCR,
 	TFUCR,
 	RFOCR,
+	RMIIMODE,
 	FCFTR,
 	RPADIR,
 	TRIMD,
@@ -156,17 +152,24 @@ enum {
 	SH_ETH_MAX_REGISTER_OFFSET,
 };
 
+enum {
+	SH_ETH_REG_GIGABIT,
+	SH_ETH_REG_FAST_RZ,
+	SH_ETH_REG_FAST_RCAR,
+	SH_ETH_REG_FAST_SH4,
+	SH_ETH_REG_FAST_SH3_SH2
+};
+
 /* Driver's parameters */
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
-#define SH4_SKB_RX_ALIGN	32
+#define SH_ETH_RX_ALIGN		32
 #else
-#define SH2_SH3_SKB_RX_ALIGN	2
+#define SH_ETH_RX_ALIGN		2
 #endif
 
-/*
- * Register's bits
+/* Register's bits
  */
-/* EDSR : sh7734, sh7757, sh7763, and r8a7740 only */
+/* EDSR : sh7734, sh7757, sh7763, r8a7740, and r7s72100 only */
 enum EDSR_BIT {
 	EDSR_ENT = 0x01, EDSR_ENR = 0x02,
 };
@@ -191,7 +194,7 @@ enum DMAC_T_BIT {
 	EDTRR_TRNS_ETHER = 0x01,
 };
 
-/* EDRRR*/
+/* EDRRR */
 enum EDRRR_R_BIT {
 	EDRRR_R = 0x01,
 };
@@ -313,7 +316,9 @@ enum TD_STS_BIT {
 #define TD_TFP	(TD_TFP1|TD_TFP0)
 
 /* RMCR */
-#define DEFAULT_RMCR_VALUE	0x00000000
+enum RMCR_BIT {
+	RMCR_RNC = 0x00000001,
+};
 
 /* ECMR */
 enum FELIC_MODE_BIT {
@@ -364,6 +369,8 @@ enum DESC_I_BIT {
 	DESC_I_RINT1 = 0x0001,
 };
 
+#define DEFAULT_TRSCER_ERR_MASK (DESC_I_RINT8 | DESC_I_RINT5 | DESC_I_TINT2)
+
 /* RPADIR */
 enum RPADIR_BIT {
 	RPADIR_PADS1 = 0x20000, RPADIR_PADS0 = 0x10000,
@@ -411,8 +418,7 @@ enum TSU_FWSLC_BIT {
 #define TSU_VTAG_ENABLE		0x80000000
 #define TSU_VTAG_VID_MASK	0x00000fff
 
-/*
- * The sh ether Tx buffer descriptors.
+/* The sh ether Tx buffer descriptors.
  * This structure should be 20 bytes.
  */
 struct sh_eth_txdesc {
@@ -426,10 +432,9 @@ struct sh_eth_txdesc {
 #endif
 	u32 addr;		/* TD2 */
 	u32 pad1;		/* padding data */
-} __attribute__((aligned(2), packed));
+} __aligned(2) __packed;
 
-/*
- * The sh ether Rx buffer descriptors.
+/* The sh ether Rx buffer descriptors.
  * This structure should be 20 bytes.
  */
 struct sh_eth_rxdesc {
@@ -443,7 +448,7 @@ struct sh_eth_rxdesc {
 #endif
 	u32 addr;		/* RD2 */
 	u32 pad0;		/* padding data */
-} __attribute__((aligned(2), packed));
+} __aligned(2) __packed;
 
 /* This structure is used by each CPU dependency handling. */
 struct sh_eth_cpu_data {
@@ -453,35 +458,39 @@ struct sh_eth_cpu_data {
 	void (*set_rate)(struct net_device *ndev);
 
 	/* mandatory initialize value */
-	unsigned long eesipr_value;
+	int register_type;
+	u32 eesipr_value;
 
 	/* optional initialize value */
-	unsigned long ecsr_value;
-	unsigned long ecsipr_value;
-	unsigned long fdr_value;
-	unsigned long fcftr_value;
-	unsigned long rpadir_value;
-	unsigned long rmcr_value;
+	u32 ecsr_value;
+	u32 ecsipr_value;
+	u32 fdr_value;
+	u32 fcftr_value;
+	u32 rpadir_value;
 
 	/* interrupt checking mask */
-	unsigned long tx_check;
-	unsigned long eesr_err_check;
+	u32 tx_check;
+	u32 eesr_err_check;
+
+	/* Error mask */
+	u32 trscer_err_mask;
 
 	/* hardware features */
-	unsigned long irq_flags;	/* IRQ configuration flags */
-	unsigned no_psr:1;		/* EtherC DO NOT have PSR */
-	unsigned apr:1;			/* EtherC have APR */
-	unsigned mpr:1;			/* EtherC have MPR */
-	unsigned tpauser:1;		/* EtherC have TPAUSER */
-	unsigned bculr:1;		/* EtherC have BCULR */
-	unsigned tsu:1;			/* EtherC have TSU */
-	unsigned hw_swap:1;		/* E-DMAC have DE bit in EDMR */
-	unsigned rpadir:1;		/* E-DMAC have RPADIR */
-	unsigned no_trimd:1;		/* E-DMAC DO NOT have TRIMD */
+	unsigned long irq_flags; /* IRQ configuration flags */
+	unsigned no_psr:1;	/* EtherC DO NOT have PSR */
+	unsigned apr:1;		/* EtherC have APR */
+	unsigned mpr:1;		/* EtherC have MPR */
+	unsigned tpauser:1;	/* EtherC have TPAUSER */
+	unsigned bculr:1;	/* EtherC have BCULR */
+	unsigned tsu:1;		/* EtherC have TSU */
+	unsigned hw_swap:1;	/* E-DMAC have DE bit in EDMR */
+	unsigned rpadir:1;	/* E-DMAC have RPADIR */
+	unsigned no_trimd:1;	/* E-DMAC DO NOT have TRIMD */
 	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
 	unsigned hw_crc:1;	/* E-DMAC have CSMR */
 	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
 	unsigned shift_rd0:1;	/* shift Rx descriptor word 0 right by 16 */
+	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 };
 
 struct sh_eth_private {
@@ -498,14 +507,15 @@ struct sh_eth_private {
 	struct sh_eth_txdesc *tx_ring;
 	struct sk_buff **rx_skbuff;
 	struct sk_buff **tx_skbuff;
-	spinlock_t lock;
-	u32 cur_rx, dirty_rx;	/* Producer/consumer ring indices */
+	spinlock_t lock;		/* Register access lock */
+	u32 cur_rx, dirty_rx;		/* Producer/consumer ring indices */
 	u32 cur_tx, dirty_tx;
-	u32 rx_buf_sz;		/* Based on MTU+slack. */
+	u32 rx_buf_sz;			/* Based on MTU+slack. */
 	int edmac_endian;
 	struct napi_struct napi;
+	bool irq_enabled;
 	/* MII transceiver section. */
-	u32 phy_id;					/* PHY ID */
+	u32 phy_id;			/* PHY ID */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
 	struct phy_device *phydev;	/* PHY device control */
 	int link;
@@ -513,11 +523,12 @@ struct sh_eth_private {
 	int msg_enable;
 	int speed;
 	int duplex;
-	int port;		/* for TSU */
-	int vlan_num_ids;	/* for VLAN tag filter */
+	int port;			/* for TSU */
+	int vlan_num_ids;		/* for VLAN tag filter */
 
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;
+	unsigned is_opened:1;
 };
 
 static inline void sh_eth_soft_swap(char *src, int len)
@@ -532,7 +543,7 @@ static inline void sh_eth_soft_swap(char *src, int len)
 #endif
 }
 
-static inline void sh_eth_write(struct net_device *ndev, unsigned long data,
+static inline void sh_eth_write(struct net_device *ndev, u32 data,
 				int enum_index)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -540,8 +551,7 @@ static inline void sh_eth_write(struct net_device *ndev, unsigned long data,
 	iowrite32(data, mdp->addr + mdp->reg_offset[enum_index]);
 }
 
-static inline unsigned long sh_eth_read(struct net_device *ndev,
-					int enum_index)
+static inline u32 sh_eth_read(struct net_device *ndev, int enum_index)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -554,14 +564,13 @@ static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
 	return mdp->tsu_addr + mdp->reg_offset[enum_index];
 }
 
-static inline void sh_eth_tsu_write(struct sh_eth_private *mdp,
-				unsigned long data, int enum_index)
+static inline void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
+				    int enum_index)
 {
 	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }
 
-static inline unsigned long sh_eth_tsu_read(struct sh_eth_private *mdp,
-					int enum_index)
+static inline u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
 {
 	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }

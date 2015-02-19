@@ -200,14 +200,14 @@ static int __init init_acpi_pm_clocksource(void)
 			if ((value2 < value1) && ((value2) < 0xFFF))
 				break;
 			printk(KERN_INFO "PM-Timer had inconsistent results:"
-			       " 0x%#llx, 0x%#llx - aborting.\n",
+			       " %#llx, %#llx - aborting.\n",
 			       value1, value2);
 			pmtmr_ioport = 0;
 			return -EINVAL;
 		}
 		if (i == ACPI_PM_READ_CHECKS) {
 			printk(KERN_INFO "PM-Timer failed consistency check "
-			       " (0x%#llx) - aborting.\n", value1);
+			       " (%#llx) - aborting.\n", value1);
 			pmtmr_ioport = 0;
 			return -ENODEV;
 		}

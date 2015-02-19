@@ -32,29 +32,22 @@ static void proc_evict_inode(struct inode *inode)
 {
 	struct proc_dir_entry *de;
 	struct ctl_table_header *head;
-	const struct proc_ns_operations *ns_ops;
-	void *ns;
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 
 	/* Stop tracking associated processes */
 	put_pid(PROC_I(inode)->pid);
 
 	/* Let go of any associated proc directory entry */
-	de = PROC_I(inode)->pde;
+	de = PDE(inode);
 	if (de)
 		pde_put(de);
 	head = PROC_I(inode)->sysctl;
 	if (head) {
-		rcu_assign_pointer(PROC_I(inode)->sysctl, NULL);
+		RCU_INIT_POINTER(PROC_I(inode)->sysctl, NULL);
 		sysctl_head_put(head);
 	}
-	/* Release any associated namespace */
-	ns_ops = PROC_I(inode)->ns.ns_ops;
-	ns = PROC_I(inode)->ns.ns;
-	if (ns_ops && ns)
-		ns_ops->put(ns);
 }
 
 static struct kmem_cache * proc_inode_cachep;
@@ -73,8 +66,7 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->pde = NULL;
 	ei->sysctl = NULL;
 	ei->sysctl_entry = NULL;
-	ei->ns.ns = NULL;
-	ei->ns.ns_ops = NULL;
+	ei->ns_ops = NULL;
 	inode = &ei->vfs_inode;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	return inode;
@@ -285,6 +277,32 @@ static int proc_reg_mmap(struct file *file, struct vm_area_struct *vma)
 	return rv;
 }
 
+static unsigned long
+proc_reg_get_unmapped_area(struct file *file, unsigned long orig_addr,
+			   unsigned long len, unsigned long pgoff,
+			   unsigned long flags)
+{
+	struct proc_dir_entry *pde = PDE(file_inode(file));
+	unsigned long rv = -EIO;
+
+	if (use_pde(pde)) {
+		typeof(proc_reg_get_unmapped_area) *get_area;
+
+		get_area = pde->proc_fops->get_unmapped_area;
+#ifdef CONFIG_MMU
+		if (!get_area)
+			get_area = current->mm->get_unmapped_area;
+#endif
+
+		if (get_area)
+			rv = get_area(file, orig_addr, len, pgoff, flags);
+		else
+			rv = orig_addr;
+		unuse_pde(pde);
+	}
+	return rv;
+}
+
 static int proc_reg_open(struct inode *inode, struct file *file)
 {
 	struct proc_dir_entry *pde = PDE(inode);
@@ -356,6 +374,7 @@ static const struct file_operations proc_reg_file_ops = {
 	.compat_ioctl	= proc_reg_compat_ioctl,
 #endif
 	.mmap		= proc_reg_mmap,
+	.get_unmapped_area = proc_reg_get_unmapped_area,
 	.open		= proc_reg_open,
 	.release	= proc_reg_release,
 };
@@ -368,6 +387,7 @@ static const struct file_operations proc_reg_file_ops_no_compat = {
 	.poll		= proc_reg_poll,
 	.unlocked_ioctl	= proc_reg_unlocked_ioctl,
 	.mmap		= proc_reg_mmap,
+	.get_unmapped_area = proc_reg_get_unmapped_area,
 	.open		= proc_reg_open,
 	.release	= proc_reg_release,
 };
@@ -414,6 +434,7 @@ struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 int proc_fill_super(struct super_block *s)
 {
 	struct inode *root_inode;
+	int ret;
 
 	s->s_flags |= MS_NODIRATIME | MS_NOSUID | MS_NOEXEC;
 	s->s_blocksize = 1024;
@@ -435,5 +456,9 @@ int proc_fill_super(struct super_block *s)
 		return -ENOMEM;
 	}
 
-	return proc_setup_self(s);
+	ret = proc_setup_self(s);
+	if (ret) {
+		return ret;
+	}
+	return proc_setup_thread_self(s);
 }

@@ -201,10 +201,7 @@ static int crypto_report(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 	if (!null_terminated(p->cru_name) || !null_terminated(p->cru_driver_name))
 		return -EINVAL;
 
-	if (!p->cru_driver_name[0])
-		return -EINVAL;
-
-	alg = crypto_alg_match(p, 1);
+	alg = crypto_alg_match(p, 0);
 	if (!alg)
 		return -ENOENT;
 
@@ -265,6 +262,9 @@ static int crypto_update_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct nlattr *priority = attrs[CRYPTOCFGA_PRIORITY_VAL];
 	LIST_HEAD(list);
 
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
+		return -EPERM;
+
 	if (!null_terminated(p->cru_name) || !null_terminated(p->cru_driver_name))
 		return -EINVAL;
 
@@ -294,6 +294,9 @@ static int crypto_del_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 {
 	struct crypto_alg *alg;
 	struct crypto_user_alg *p = nlmsg_data(nlh);
+
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (!null_terminated(p->cru_name) || !null_terminated(p->cru_driver_name))
 		return -EINVAL;
@@ -378,6 +381,9 @@ static int crypto_add_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct crypto_alg *alg;
 	struct crypto_user_alg *p = nlmsg_data(nlh);
 	struct nlattr *priority = attrs[CRYPTOCFGA_PRIORITY_VAL];
+
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (!null_terminated(p->cru_name) || !null_terminated(p->cru_driver_name))
 		return -EINVAL;
@@ -466,9 +472,6 @@ static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	type -= CRYPTO_MSG_BASE;
 	link = &crypto_dispatch[type];
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
 	if ((type == (CRYPTO_MSG_GETALG - CRYPTO_MSG_BASE) &&
 	    (nlh->nlmsg_flags & NLM_F_DUMP))) {
 		struct crypto_alg *alg;
@@ -531,3 +534,4 @@ module_exit(crypto_user_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Steffen Klassert <steffen.klassert@secunet.com>");
 MODULE_DESCRIPTION("Crypto userspace configuration API");
+MODULE_ALIAS("net-pf-16-proto-21");

@@ -44,20 +44,35 @@
 
 /* Video mode flags */
 /* bit compatible with the xorg definitions. */
-#define DRM_MODE_FLAG_PHSYNC	(1<<0)
-#define DRM_MODE_FLAG_NHSYNC	(1<<1)
-#define DRM_MODE_FLAG_PVSYNC	(1<<2)
-#define DRM_MODE_FLAG_NVSYNC	(1<<3)
-#define DRM_MODE_FLAG_INTERLACE	(1<<4)
-#define DRM_MODE_FLAG_DBLSCAN	(1<<5)
-#define DRM_MODE_FLAG_CSYNC	(1<<6)
-#define DRM_MODE_FLAG_PCSYNC	(1<<7)
-#define DRM_MODE_FLAG_NCSYNC	(1<<8)
-#define DRM_MODE_FLAG_HSKEW	(1<<9) /* hskew provided */
-#define DRM_MODE_FLAG_BCAST	(1<<10)
-#define DRM_MODE_FLAG_PIXMUX	(1<<11)
-#define DRM_MODE_FLAG_DBLCLK	(1<<12)
-#define DRM_MODE_FLAG_CLKDIV2	(1<<13)
+#define DRM_MODE_FLAG_PHSYNC			(1<<0)
+#define DRM_MODE_FLAG_NHSYNC			(1<<1)
+#define DRM_MODE_FLAG_PVSYNC			(1<<2)
+#define DRM_MODE_FLAG_NVSYNC			(1<<3)
+#define DRM_MODE_FLAG_INTERLACE			(1<<4)
+#define DRM_MODE_FLAG_DBLSCAN			(1<<5)
+#define DRM_MODE_FLAG_CSYNC			(1<<6)
+#define DRM_MODE_FLAG_PCSYNC			(1<<7)
+#define DRM_MODE_FLAG_NCSYNC			(1<<8)
+#define DRM_MODE_FLAG_HSKEW			(1<<9) /* hskew provided */
+#define DRM_MODE_FLAG_BCAST			(1<<10)
+#define DRM_MODE_FLAG_PIXMUX			(1<<11)
+#define DRM_MODE_FLAG_DBLCLK			(1<<12)
+#define DRM_MODE_FLAG_CLKDIV2			(1<<13)
+ /*
+  * When adding a new stereo mode don't forget to adjust DRM_MODE_FLAGS_3D_MAX
+  * (define not exposed to user space).
+  */
+#define DRM_MODE_FLAG_3D_MASK			(0x1f<<14)
+#define  DRM_MODE_FLAG_3D_NONE			(0<<14)
+#define  DRM_MODE_FLAG_3D_FRAME_PACKING		(1<<14)
+#define  DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE	(2<<14)
+#define  DRM_MODE_FLAG_3D_LINE_ALTERNATIVE	(3<<14)
+#define  DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL	(4<<14)
+#define  DRM_MODE_FLAG_3D_L_DEPTH		(5<<14)
+#define  DRM_MODE_FLAG_3D_L_DEPTH_GFX_GFX_DEPTH	(6<<14)
+#define  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM	(7<<14)
+#define  DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF	(8<<14)
+
 
 /* DPMS flags */
 /* bit compatible with the xorg definitions. */
@@ -72,6 +87,11 @@
 #define DRM_MODE_SCALE_FULLSCREEN	1 /* Full screen, ignore aspect */
 #define DRM_MODE_SCALE_CENTER		2 /* Centered, no scaling */
 #define DRM_MODE_SCALE_ASPECT		3 /* Full screen, preserve aspect */
+
+/* Picture aspect ratio options */
+#define DRM_MODE_PICTURE_ASPECT_NONE	0
+#define DRM_MODE_PICTURE_ASPECT_4_3	1
+#define DRM_MODE_PICTURE_ASPECT_16_9	2
 
 /* Dithering mode options */
 #define DRM_MODE_DITHERING_OFF	0
@@ -165,6 +185,8 @@ struct drm_mode_get_plane_res {
 #define DRM_MODE_ENCODER_LVDS	3
 #define DRM_MODE_ENCODER_TVDAC	4
 #define DRM_MODE_ENCODER_VIRTUAL 5
+#define DRM_MODE_ENCODER_DSI	6
+#define DRM_MODE_ENCODER_DPMST	7
 
 struct drm_mode_get_encoder {
 	__u32 encoder_id;
@@ -203,6 +225,7 @@ struct drm_mode_get_encoder {
 #define DRM_MODE_CONNECTOR_TV		13
 #define DRM_MODE_CONNECTOR_eDP		14
 #define DRM_MODE_CONNECTOR_VIRTUAL      15
+#define DRM_MODE_CONNECTOR_DSI		16
 
 struct drm_mode_get_connector {
 
@@ -223,6 +246,8 @@ struct drm_mode_get_connector {
 	__u32 connection;
 	__u32 mm_width, mm_height; /**< HxW in millimeters */
 	__u32 subpixel;
+
+	__u32 pad;
 };
 
 #define DRM_MODE_PROP_PENDING	(1<<0)
@@ -231,6 +256,28 @@ struct drm_mode_get_connector {
 #define DRM_MODE_PROP_ENUM	(1<<3) /* enumerated type with text strings */
 #define DRM_MODE_PROP_BLOB	(1<<4)
 #define DRM_MODE_PROP_BITMASK	(1<<5) /* bitmask of enumerated types */
+
+/* non-extended types: legacy bitmask, one bit per type: */
+#define DRM_MODE_PROP_LEGACY_TYPE  ( \
+		DRM_MODE_PROP_RANGE | \
+		DRM_MODE_PROP_ENUM | \
+		DRM_MODE_PROP_BLOB | \
+		DRM_MODE_PROP_BITMASK)
+
+/* extended-types: rather than continue to consume a bit per type,
+ * grab a chunk of the bits to use as integer type id.
+ */
+#define DRM_MODE_PROP_EXTENDED_TYPE	0x0000ffc0
+#define DRM_MODE_PROP_TYPE(n)		((n) << 6)
+#define DRM_MODE_PROP_OBJECT		DRM_MODE_PROP_TYPE(1)
+#define DRM_MODE_PROP_SIGNED_RANGE	DRM_MODE_PROP_TYPE(2)
+
+/* the PROP_ATOMIC flag is used to hide properties from userspace that
+ * is not aware of atomic properties.  This is mostly to work around
+ * older userspace (DDX drivers) that read/write each prop they find,
+ * witout being aware that this could be triggering a lengthy modeset.
+ */
+#define DRM_MODE_PROP_ATOMIC        0x80000000
 
 struct drm_mode_property_enum {
 	__u64 value;
@@ -246,6 +293,8 @@ struct drm_mode_get_property {
 	char name[DRM_PROP_NAME_LEN];
 
 	__u32 count_values;
+	/* This is only used to count enum values, not blobs. The _blobs is
+	 * simply because of a historical reason, i.e. backwards compat. */
 	__u32 count_enum_blobs;
 };
 
@@ -296,7 +345,7 @@ struct drm_mode_fb_cmd2 {
 
 	/*
 	 * In case of planar formats, this ioctl allows up to 4
-	 * buffer objects with offets and pitches per plane.
+	 * buffer objects with offsets and pitches per plane.
 	 * The pitch and offset order is dictated by the fourcc,
 	 * e.g. NV12 (http://fourcc.org/yuv.php#NV12) is described as:
 	 *
@@ -304,9 +353,9 @@ struct drm_mode_fb_cmd2 {
 	 *   followed by an interleaved U/V plane containing
 	 *   8 bit 2x2 subsampled colour difference samples.
 	 *
-	 * So it would consist of Y as offset[0] and UV as
-	 * offeset[1].  Note that offset[0] will generally
-	 * be 0.
+	 * So it would consist of Y as offsets[0] and UV as
+	 * offsets[1].  Note that offsets[0] will generally
+	 * be 0 (but this is not required).
 	 */
 	__u32 handles[4];
 	__u32 pitches[4]; /* pitch for each plane */
@@ -412,7 +461,8 @@ struct drm_mode_crtc_lut {
 };
 
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01
-#define DRM_MODE_PAGE_FLIP_FLAGS DRM_MODE_PAGE_FLIP_EVENT
+#define DRM_MODE_PAGE_FLIP_ASYNC 0x02
+#define DRM_MODE_PAGE_FLIP_FLAGS (DRM_MODE_PAGE_FLIP_EVENT|DRM_MODE_PAGE_FLIP_ASYNC)
 
 /*
  * Request a page flip on the specified crtc.
@@ -426,11 +476,14 @@ struct drm_mode_crtc_lut {
  * flip is already pending as the ioctl is called, EBUSY will be
  * returned.
  *
- * The ioctl supports one flag, DRM_MODE_PAGE_FLIP_EVENT, which will
- * request that drm sends back a vblank event (see drm.h: struct
- * drm_event_vblank) when the page flip is done.  The user_data field
- * passed in with this ioctl will be returned as the user_data field
- * in the vblank event struct.
+ * Flag DRM_MODE_PAGE_FLIP_EVENT requests that drm sends back a vblank
+ * event (see drm.h: struct drm_event_vblank) when the page flip is
+ * done.  The user_data field passed in with this ioctl will be
+ * returned as the user_data field in the vblank event struct.
+ *
+ * Flag DRM_MODE_PAGE_FLIP_ASYNC requests that the flip happen
+ * 'as soon as possible', meaning that it not delay waiting for vblank.
+ * This may cause tearing on the screen.
  *
  * The reserved field must be zero until we figure out something
  * clever to use it for.
@@ -471,6 +524,29 @@ struct drm_mode_map_dumb {
 
 struct drm_mode_destroy_dumb {
 	uint32_t handle;
+};
+
+/* page-flip flags are valid, plus: */
+#define DRM_MODE_ATOMIC_TEST_ONLY 0x0100
+#define DRM_MODE_ATOMIC_NONBLOCK  0x0200
+#define DRM_MODE_ATOMIC_ALLOW_MODESET 0x0400
+
+#define DRM_MODE_ATOMIC_FLAGS (\
+		DRM_MODE_PAGE_FLIP_EVENT |\
+		DRM_MODE_PAGE_FLIP_ASYNC |\
+		DRM_MODE_ATOMIC_TEST_ONLY |\
+		DRM_MODE_ATOMIC_NONBLOCK |\
+		DRM_MODE_ATOMIC_ALLOW_MODESET)
+
+struct drm_mode_atomic {
+	__u32 flags;
+	__u32 count_objs;
+	__u64 objs_ptr;
+	__u64 count_props_ptr;
+	__u64 props_ptr;
+	__u64 prop_values_ptr;
+	__u64 reserved;
+	__u64 user_data;
 };
 
 #endif

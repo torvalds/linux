@@ -15,11 +15,5 @@ struct netns_xt {
 	struct ebt_table *frame_filter;
 	struct ebt_table *frame_nat;
 #endif
-#if IS_ENABLED(CONFIG_IP_NF_TARGET_ULOG)
-	bool ulog_warn_deprecated;
-#endif
-#if IS_ENABLED(CONFIG_BRIDGE_EBT_ULOG)
-	bool ebt_ulog_warn_deprecated;
-#endif
 };
 #endif

@@ -6,6 +6,7 @@ menuconfig NET
 	bool "Networking support"
 	select NLATTR
 	select GENERIC_NET_UTILS
+	select BPF
 	---help---
 	  Unless you really know what you are doing, you should say Y here.
 	  The reason is that some programs need kernel networking support even
@@ -89,8 +90,12 @@ config NETWORK_SECMARK
 	  to nfmark, but designated for security purposes.
 	  If you are unsure how to answer this question, answer N.
 
+config NET_PTP_CLASSIFY
+	def_bool n
+
 config NETWORK_PHY_TIMESTAMPING
 	bool "Timestamping in PHY devices"
+	select NET_PTP_CLASSIFY
 	help
 	  This allows timestamping of network packets by PHYs with
 	  hardware timestamping capabilities. This option adds some
@@ -172,10 +177,11 @@ config NETFILTER_ADVANCED
 	  If unsure, say Y.
 
 config BRIDGE_NETFILTER
-	bool "Bridged IP/ARP packets filtering"
-	depends on BRIDGE && NETFILTER && INET
+	tristate "Bridged IP/ARP packets filtering"
+	depends on BRIDGE
+	depends on NETFILTER && INET
 	depends on NETFILTER_ADVANCED
-	default y
+	default m
 	---help---
 	  Enabling this option will let arptables resp. iptables see bridged
 	  ARP resp. IP traffic. If you want a bridging firewall, you probably
@@ -210,6 +216,7 @@ source "drivers/net/appletalk/Kconfig"
 source "net/x25/Kconfig"
 source "net/lapb/Kconfig"
 source "net/phonet/Kconfig"
+source "net/6lowpan/Kconfig"
 source "net/ieee802154/Kconfig"
 source "net/mac802154/Kconfig"
 source "net/sched/Kconfig"
@@ -220,36 +227,45 @@ source "net/openvswitch/Kconfig"
 source "net/vmw_vsock/Kconfig"
 source "net/netlink/Kconfig"
 source "net/mpls/Kconfig"
+source "net/hsr/Kconfig"
+source "net/switchdev/Kconfig"
 
 config RPS
-	boolean
-	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
+	bool
+	depends on SMP && SYSFS
 	default y
 
 config RFS_ACCEL
-	boolean
-	depends on RPS && GENERIC_HARDIRQS
+	bool
+	depends on RPS
 	select CPU_RMAP
 	default y
 
 config XPS
-	boolean
-	depends on SMP && USE_GENERIC_SMP_HELPERS
+	bool
+	depends on SMP
 	default y
 
-config NETPRIO_CGROUP
-	tristate "Network priority cgroup"
+config CGROUP_NET_PRIO
+	bool "Network priority cgroup"
 	depends on CGROUPS
 	---help---
 	  Cgroup subsystem for use in assigning processes to network priorities on
-	  a per-interface basis
+	  a per-interface basis.
+
+config CGROUP_NET_CLASSID
+	bool "Network classid cgroup"
+	depends on CGROUPS
+	---help---
+	  Cgroup subsystem for use as general purpose socket classid marker that is
+	  being used in cls_cgroup and for netfilter matching.
 
 config NET_RX_BUSY_POLL
-	boolean
+	bool
 	default y
 
 config BQL
-	boolean
+	bool
 	depends on SYSFS
 	select DQL
 	default y
@@ -266,7 +282,7 @@ config BPF_JIT
 	  this feature changing /proc/sys/net/core/bpf_jit_enable
 
 config NET_FLOW_LIMIT
-	boolean
+	bool
 	depends on RPS
 	default y
 	---help---
@@ -281,7 +297,7 @@ menu "Network testing"
 
 config NET_PKTGEN
 	tristate "Packet Generator (USE WITH CAUTION)"
-	depends on PROC_FS
+	depends on INET && PROC_FS
 	---help---
 	  This module will inject preconfigured packets, at a configurable
 	  rate, out of a given interface.  It is used for network interface

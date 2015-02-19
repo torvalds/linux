@@ -25,7 +25,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
@@ -400,8 +399,8 @@ static int scc_pciex_write_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 static struct pci_ops scc_pciex_pci_ops = {
-	scc_pciex_read_config,
-	scc_pciex_write_config,
+	.read = scc_pciex_read_config,
+	.write = scc_pciex_write_config,
 };
 
 static void pciex_clear_intr_all(unsigned int __iomem *base)
@@ -486,7 +485,6 @@ static __init int celleb_setup_pciex(struct device_node *node,
 				     struct pci_controller *phb)
 {
 	struct resource	r;
-	struct of_irq oirq;
 	int virq;
 
 	/* SMMIO registers; used inside this file */
@@ -507,12 +505,11 @@ static __init int celleb_setup_pciex(struct device_node *node,
 	phb->ops = &scc_pciex_pci_ops;
 
 	/* internal interrupt handler */
-	if (of_irq_map_one(node, 1, &oirq)) {
+	virq = irq_of_parse_and_map(node, 1);
+	if (!virq) {
 		pr_err("PCIEXC:Failed to map irq\n");
 		goto error;
 	}
-	virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
 	if (request_irq(virq, pciex_handle_internal_irq,
 			0, "pciex", (void *)phb)) {
 		pr_err("PCIEXC:Failed to request irq\n");

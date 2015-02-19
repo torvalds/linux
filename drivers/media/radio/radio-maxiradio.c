@@ -42,7 +42,7 @@
 #include <linux/videodev2.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <sound/tea575x-tuner.h>
+#include <media/tea575x.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
@@ -200,15 +200,4 @@ static struct pci_driver maxiradio_driver = {
 	.remove		= maxiradio_remove,
 };
 
-static int __init maxiradio_init(void)
-{
-	return pci_register_driver(&maxiradio_driver);
-}
-
-static void __exit maxiradio_exit(void)
-{
-	pci_unregister_driver(&maxiradio_driver);
-}
-
-module_init(maxiradio_init);
-module_exit(maxiradio_exit);
+module_pci_driver(maxiradio_driver);

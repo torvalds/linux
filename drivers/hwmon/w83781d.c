@@ -4,7 +4,7 @@
  * Copyright (c) 1998 - 2001  Frodo Looijaard <frodol@dds.nl>,
  *			      Philip Edelbrock <phil@netroedge.com>,
  *			      and Mark Studebaker <mdsxyz123@yahoo.com>
- * Copyright (c) 2007 - 2008  Jean Delvare <khali@linux-fr.org>
+ * Copyright (c) 2007 - 2008  Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1839,7 +1839,6 @@ w83781d_isa_remove(struct platform_device *pdev)
 
 static struct platform_driver w83781d_isa_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "w83781d",
 	},
 	.probe = w83781d_isa_probe,

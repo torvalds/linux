@@ -50,16 +50,16 @@ static const char *speaker_ref_text[] = {
 	"VMID",
 };
 
-static const struct soc_enum speaker_ref =
-	SOC_ENUM_SINGLE(WM8993_SPEAKER_MIXER, 8, 2, speaker_ref_text);
+static SOC_ENUM_SINGLE_DECL(speaker_ref,
+			    WM8993_SPEAKER_MIXER, 8, speaker_ref_text);
 
 static const char *speaker_mode_text[] = {
 	"Class D",
 	"Class AB",
 };
 
-static const struct soc_enum speaker_mode =
-	SOC_ENUM_SINGLE(WM8993_SPKMIXR_ATTENUATION, 8, 2, speaker_mode_text);
+static SOC_ENUM_SINGLE_DECL(speaker_mode,
+			    WM8993_SPKMIXR_ATTENUATION, 8, speaker_mode_text);
 
 static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
 {
@@ -183,10 +183,8 @@ static void wm_hubs_dcs_cache_set(struct snd_soc_codec *codec, u16 dcs_cfg)
 		return;
 
 	cache = devm_kzalloc(codec->dev, sizeof(*cache), GFP_KERNEL);
-	if (!cache) {
-		dev_err(codec->dev, "Failed to allocate DCS cache entry\n");
+	if (!cache)
 		return;
-	}
 
 	cache->left = snd_soc_read(codec, WM8993_LEFT_OUTPUT_VOLUME);
 	cache->left &= WM8993_HPOUT1L_VOL_MASK;
@@ -337,7 +335,7 @@ static void enable_dc_servo(struct snd_soc_codec *codec)
 static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
@@ -502,7 +500,7 @@ SOC_SINGLE_TLV("LINEOUT2 Volume", WM8993_LINE_OUTPUTS_VOLUME, 0, 1, 1,
 static int hp_supply_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -530,6 +528,7 @@ static int hp_supply_event(struct snd_soc_dapm_widget *w,
 				hubs->hp_startup_mode);
 			break;
 		}
+		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, WM8993_CHARGE_PUMP_1,
@@ -543,7 +542,7 @@ static int hp_supply_event(struct snd_soc_dapm_widget *w,
 static int hp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int reg = snd_soc_read(codec, WM8993_ANALOGUE_HP_0);
 
 	switch (event) {
@@ -595,7 +594,7 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 static int earpiece_event(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *control, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	u16 reg = snd_soc_read(codec, WM8993_ANTIPOP1) & ~WM8993_HPOUT2_IN_ENA;
 
 	switch (event) {
@@ -610,7 +609,7 @@ static int earpiece_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		break;
 	}
 
@@ -620,7 +619,7 @@ static int earpiece_event(struct snd_soc_dapm_widget *w,
 static int lineout_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *control, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	bool *flag;
 
@@ -650,7 +649,7 @@ static int lineout_event(struct snd_soc_dapm_widget *w,
 static int micbias_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 
 	switch (w->shift) {
@@ -699,9 +698,7 @@ EXPORT_SYMBOL_GPL(wm_hubs_update_class_w);
 static int class_w_put_volsw(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct snd_soc_codec *codec = widget->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
 	int ret;
 
 	ret = snd_soc_dapm_put_volsw(kcontrol, ucontrol);
@@ -721,9 +718,7 @@ static int class_w_put_volsw(struct snd_kcontrol *kcontrol,
 static int class_w_put_double(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct snd_soc_codec *codec = widget->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
 	int ret;
 
 	ret = snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
@@ -738,15 +733,15 @@ static const char *hp_mux_text[] = {
 	"DAC",
 };
 
-static const struct soc_enum hpl_enum =
-	SOC_ENUM_SINGLE(WM8993_OUTPUT_MIXER1, 8, 2, hp_mux_text);
+static SOC_ENUM_SINGLE_DECL(hpl_enum,
+			    WM8993_OUTPUT_MIXER1, 8, hp_mux_text);
 
 const struct snd_kcontrol_new wm_hubs_hpl_mux =
 	WM_HUBS_ENUM_W("Left Headphone Mux", hpl_enum);
 EXPORT_SYMBOL_GPL(wm_hubs_hpl_mux);
 
-static const struct soc_enum hpr_enum =
-	SOC_ENUM_SINGLE(WM8993_OUTPUT_MIXER2, 8, 2, hp_mux_text);
+static SOC_ENUM_SINGLE_DECL(hpr_enum,
+			    WM8993_OUTPUT_MIXER2, 8, hp_mux_text);
 
 const struct snd_kcontrol_new wm_hubs_hpr_mux =
 	WM_HUBS_ENUM_W("Right Headphone Mux", hpr_enum);

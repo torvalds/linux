@@ -19,6 +19,21 @@
  */
 
 /*
+ * INIT_LIST_HEAD_RCU - Initialize a list_head visible to RCU readers
+ * @list: list to be initialized
+ *
+ * You should instead use INIT_LIST_HEAD() for normal initialization and
+ * cleanup tasks, when readers have no access to the list being initialized.
+ * However, if the list being initialized is visible to readers, you
+ * need to keep the compiler from being too mischievous.
+ */
+static inline void INIT_LIST_HEAD_RCU(struct list_head *list)
+{
+	ACCESS_ONCE(list->next) = list;
+	ACCESS_ONCE(list->prev) = list;
+}
+
+/*
  * return the ->next pointer of a list_head in an rcu safe
  * way, we must not access it directly
  */
@@ -40,8 +55,8 @@ static inline void __list_add_rcu(struct list_head *new,
 	next->prev = new;
 }
 #else
-extern void __list_add_rcu(struct list_head *new,
-		struct list_head *prev, struct list_head *next);
+void __list_add_rcu(struct list_head *new,
+		    struct list_head *prev, struct list_head *next);
 #endif
 
 /**
@@ -191,9 +206,13 @@ static inline void list_splice_init_rcu(struct list_head *list,
 	if (list_empty(list))
 		return;
 
-	/* "first" and "last" tracking list, so initialize it. */
+	/*
+	 * "first" and "last" tracking list, so initialize it.  RCU readers
+	 * have access to this list, so we must use INIT_LIST_HEAD_RCU()
+	 * instead of INIT_LIST_HEAD().
+	 */
 
-	INIT_LIST_HEAD(list);
+	INIT_LIST_HEAD_RCU(list);
 
 	/*
 	 * At this point, the list body still points to the source list.
@@ -222,15 +241,16 @@ static inline void list_splice_init_rcu(struct list_head *list,
  * list_entry_rcu - get the struct for this entry
  * @ptr:        the &struct list_head pointer.
  * @type:       the type of the struct this is embedded in.
- * @member:     the name of the list_struct within the struct.
+ * @member:     the name of the list_head within the struct.
  *
  * This primitive may safely run concurrently with the _rcu list-mutation
  * primitives such as list_add_rcu() as long as it's guarded by rcu_read_lock().
  */
 #define list_entry_rcu(ptr, type, member) \
-	({typeof (*ptr) __rcu *__ptr = (typeof (*ptr) __rcu __force *)ptr; \
-	 container_of((typeof(ptr))rcu_dereference_raw(__ptr), type, member); \
-	})
+({ \
+	typeof(*ptr) __rcu *__ptr = (typeof(*ptr) __rcu __force *)ptr; \
+	container_of((typeof(ptr))rcu_dereference_raw(__ptr), type, member); \
+})
 
 /**
  * Where are list_empty_rcu() and list_first_entry_rcu()?
@@ -258,7 +278,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
  * list_first_or_null_rcu - get the first element from a list
  * @ptr:        the list head to take the element from.
  * @type:       the type of the struct this is embedded in.
- * @member:     the name of the list_struct within the struct.
+ * @member:     the name of the list_head within the struct.
  *
  * Note that if the list is empty, it returns NULL.
  *
@@ -266,16 +286,17 @@ static inline void list_splice_init_rcu(struct list_head *list,
  * primitives such as list_add_rcu() as long as it's guarded by rcu_read_lock().
  */
 #define list_first_or_null_rcu(ptr, type, member) \
-	({struct list_head *__ptr = (ptr); \
-	  struct list_head __rcu *__next = list_next_rcu(__ptr); \
-	  likely(__ptr != __next) ? container_of(__next, type, member) : NULL; \
-	})
+({ \
+	struct list_head *__ptr = (ptr); \
+	struct list_head *__next = ACCESS_ONCE(__ptr->next); \
+	likely(__ptr != __next) ? list_entry_rcu(__next, type, member) : NULL; \
+})
 
 /**
  * list_for_each_entry_rcu	-	iterate over rcu list of given type
  * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
- * @member:	the name of the list_struct within the struct.
+ * @member:	the name of the list_head within the struct.
  *
  * This list-traversal primitive may safely run concurrently with
  * the _rcu list-mutation primitives such as list_add_rcu()
@@ -290,7 +311,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
  * list_for_each_entry_continue_rcu - continue iteration over list of given type
  * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
- * @member:	the name of the list_struct within the struct.
+ * @member:	the name of the list_head within the struct.
  *
  * Continue to iterate over list of given type, continuing after
  * the current position.
@@ -411,9 +432,9 @@ static inline void hlist_add_before_rcu(struct hlist_node *n,
 }
 
 /**
- * hlist_add_after_rcu
- * @prev: the existing element to add the new element after.
+ * hlist_add_behind_rcu
  * @n: the new element to add to the hash list.
+ * @prev: the existing element to add the new element after.
  *
  * Description:
  * Adds the specified element to the specified hlist
@@ -428,8 +449,8 @@ static inline void hlist_add_before_rcu(struct hlist_node *n,
  * hlist_for_each_entry_rcu(), used to prevent memory-consistency
  * problems on Alpha CPUs.
  */
-static inline void hlist_add_after_rcu(struct hlist_node *prev,
-				       struct hlist_node *n)
+static inline void hlist_add_behind_rcu(struct hlist_node *n,
+					struct hlist_node *prev)
 {
 	n->next = prev->next;
 	n->pprev = &prev->next;
@@ -503,11 +524,11 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
  * @member:	the name of the hlist_node within the struct.
  */
 #define hlist_for_each_entry_continue_rcu(pos, member)			\
-	for (pos = hlist_entry_safe(rcu_dereference((pos)->member.next),\
-			typeof(*(pos)), member);			\
+	for (pos = hlist_entry_safe(rcu_dereference_raw(hlist_next_rcu( \
+			&(pos)->member)), typeof(*(pos)), member);	\
 	     pos;							\
-	     pos = hlist_entry_safe(rcu_dereference((pos)->member.next),\
-			typeof(*(pos)), member))
+	     pos = hlist_entry_safe(rcu_dereference_raw(hlist_next_rcu(	\
+			&(pos)->member)), typeof(*(pos)), member))
 
 /**
  * hlist_for_each_entry_continue_rcu_bh - iterate over a hlist continuing after current point
@@ -515,12 +536,21 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
  * @member:	the name of the hlist_node within the struct.
  */
 #define hlist_for_each_entry_continue_rcu_bh(pos, member)		\
-	for (pos = hlist_entry_safe(rcu_dereference_bh((pos)->member.next),\
-			typeof(*(pos)), member);			\
+	for (pos = hlist_entry_safe(rcu_dereference_bh(hlist_next_rcu(  \
+			&(pos)->member)), typeof(*(pos)), member);	\
 	     pos;							\
-	     pos = hlist_entry_safe(rcu_dereference_bh((pos)->member.next),\
-			typeof(*(pos)), member))
+	     pos = hlist_entry_safe(rcu_dereference_bh(hlist_next_rcu(	\
+			&(pos)->member)), typeof(*(pos)), member))
 
+/**
+ * hlist_for_each_entry_from_rcu - iterate over a hlist continuing from current point
+ * @pos:	the type * to use as a loop cursor.
+ * @member:	the name of the hlist_node within the struct.
+ */
+#define hlist_for_each_entry_from_rcu(pos, member)			\
+	for (; pos;							\
+	     pos = hlist_entry_safe(rcu_dereference((pos)->member.next),\
+			typeof(*(pos)), member))
 
 #endif	/* __KERNEL__ */
 #endif

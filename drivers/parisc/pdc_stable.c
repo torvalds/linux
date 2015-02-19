@@ -278,7 +278,7 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 {
 	struct hardware_path hwpath;
 	unsigned short i;
-	char in[count+1], *temp;
+	char in[64], *temp;
 	struct device *dev;
 	int ret;
 
@@ -286,8 +286,9 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 		return -EINVAL;
 
 	/* We'll use a local copy of buf */
-	memset(in, 0, count+1);
+	count = min_t(size_t, count, sizeof(in)-1);
 	strncpy(in, buf, count);
+	in[count] = '\0';
 	
 	/* Let's clean up the target. 0xff is a blank pattern */
 	memset(&hwpath, 0xff, sizeof(hwpath));
@@ -393,14 +394,15 @@ pdcspath_layer_write(struct pdcspath_entry *entry, const char *buf, size_t count
 {
 	unsigned int layers[6]; /* device-specific info (ctlr#, unit#, ...) */
 	unsigned short i;
-	char in[count+1], *temp;
+	char in[64], *temp;
 
 	if (!entry || !buf || !count)
 		return -EINVAL;
 
 	/* We'll use a local copy of buf */
-	memset(in, 0, count+1);
+	count = min_t(size_t, count, sizeof(in)-1);
 	strncpy(in, buf, count);
+	in[count] = '\0';
 	
 	/* Let's clean up the target. 0 is a blank pattern */
 	memset(&layers, 0, sizeof(layers));
@@ -755,7 +757,7 @@ static ssize_t pdcs_auto_write(struct kobject *kobj,
 {
 	struct pdcspath_entry *pathentry;
 	unsigned char flags;
-	char in[count+1], *temp;
+	char in[8], *temp;
 	char c;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -765,8 +767,9 @@ static ssize_t pdcs_auto_write(struct kobject *kobj,
 		return -EINVAL;
 
 	/* We'll use a local copy of buf */
-	memset(in, 0, count+1);
+	count = min_t(size_t, count, sizeof(in)-1);
 	strncpy(in, buf, count);
+	in[count] = '\0';
 
 	/* Current flags are stored in primary boot path entry */
 	pathentry = &pdcspath_entry_primary;

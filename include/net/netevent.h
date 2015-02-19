@@ -26,8 +26,8 @@ enum netevent_notif_type {
 	NETEVENT_REDIRECT,	   /* arg is struct netevent_redirect ptr */
 };
 
-extern int register_netevent_notifier(struct notifier_block *nb);
-extern int unregister_netevent_notifier(struct notifier_block *nb);
-extern int call_netevent_notifiers(unsigned long val, void *v);
+int register_netevent_notifier(struct notifier_block *nb);
+int unregister_netevent_notifier(struct notifier_block *nb);
+int call_netevent_notifiers(unsigned long val, void *v);
 
 #endif

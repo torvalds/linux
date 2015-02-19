@@ -37,76 +37,64 @@ struct ath6kl_fwlog_slot {
 
 #define ATH6KL_FWLOG_VALID_MASK 0x1ffff
 
-int ath6kl_printk(const char *level, const char *fmt, ...)
+void ath6kl_printk(const char *level, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	int rtn;
 
 	va_start(args, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	rtn = printk("%sath6kl: %pV", level, &vaf);
+	printk("%sath6kl: %pV", level, &vaf);
 
 	va_end(args);
-
-	return rtn;
 }
 EXPORT_SYMBOL(ath6kl_printk);
 
-int ath6kl_info(const char *fmt, ...)
+void ath6kl_info(const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = ath6kl_printk(KERN_INFO, "%pV", &vaf);
+	ath6kl_printk(KERN_INFO, "%pV", &vaf);
 	trace_ath6kl_log_info(&vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath6kl_info);
 
-int ath6kl_err(const char *fmt, ...)
+void ath6kl_err(const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = ath6kl_printk(KERN_ERR, "%pV", &vaf);
+	ath6kl_printk(KERN_ERR, "%pV", &vaf);
 	trace_ath6kl_log_err(&vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath6kl_err);
 
-int ath6kl_warn(const char *fmt, ...)
+void ath6kl_warn(const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = ath6kl_printk(KERN_WARNING, "%pV", &vaf);
+	ath6kl_printk(KERN_WARNING, "%pV", &vaf);
 	trace_ath6kl_log_warn(&vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath6kl_warn);
 
@@ -172,7 +160,6 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			   struct ath6kl_irq_proc_registers *irq_proc_reg,
 			   struct ath6kl_irq_enable_reg *irq_enable_reg)
 {
-
 	ath6kl_dbg(ATH6KL_DBG_IRQ, ("<------- Register Table -------->\n"));
 
 	if (irq_proc_reg != NULL) {
@@ -219,7 +206,6 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 				   "GMBOX lookahead alias 1:   0x%x\n",
 				   irq_proc_reg->rx_gmbox_lkahd_alias[1]);
 		}
-
 	}
 
 	if (irq_enable_reg != NULL) {
@@ -1396,7 +1382,6 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 						const char __user *user_buf,
 						size_t count, loff_t *ppos)
 {
-
 	struct ath6kl *ar = file->private_data;
 	struct ath6kl_vif *vif;
 	char buf[200];
@@ -1575,7 +1560,6 @@ static ssize_t ath6kl_delete_qos_write(struct file *file,
 				const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-
 	struct ath6kl *ar = file->private_data;
 	struct ath6kl_vif *vif;
 	char buf[100];

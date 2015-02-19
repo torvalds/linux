@@ -46,8 +46,8 @@
  * @{
  */
 
-#include <lustre/ll_fiemap.h>
-#include <linux/lustre_user.h>
+#include "ll_fiemap.h"
+#include "../linux/lustre_user.h"
 
 /* for statfs() */
 #define LL_SUPER_MAGIC 0x0BD00BD0
@@ -179,7 +179,7 @@ struct ost_id {
 	};
 };
 
-#define DOSTID LPX64":"LPU64
+#define DOSTID "%#llx:%llu"
 #define POSTID(oi) ostid_seq(oi), ostid_id(oi)
 
 /*
@@ -244,6 +244,9 @@ struct ost_id {
 #define LL_IOC_LMV_SETSTRIPE	    _IOWR('f', 240, struct lmv_user_md)
 #define LL_IOC_LMV_GETSTRIPE	    _IOWR('f', 241, struct lmv_user_md)
 #define LL_IOC_REMOVE_ENTRY	    _IOWR('f', 242, __u64)
+#define LL_IOC_SET_LEASE		_IOWR('f', 243, long)
+#define LL_IOC_GET_LEASE		_IO('f', 244)
+#define LL_IOC_HSM_IMPORT		_IOWR('f', 245, struct hsm_user_import)
 
 #define LL_STATFS_LMV	   1
 #define LL_STATFS_LOV	   2
@@ -262,13 +265,11 @@ struct ost_id {
 
 #define MAX_OBD_NAME 128 /* If this changes, a NEW ioctl must be added */
 
-/* Hopefully O_LOV_DELAY_CREATE does not conflict with standard O_xxx flags.
- * Previously it was defined as 0100000000 and conflicts with FMODE_NONOTIFY
- * which was added since kernel 2.6.36, so we redefine it as 020000000.
- * To be compatible with old version's statically linked binary, finally we
- * define it as (020000000 | 0100000000).
- * */
-#define O_LOV_DELAY_CREATE      0120000000
+/* Define O_LOV_DELAY_CREATE to be a mask that is not useful for regular
+ * files, but are unlikely to be used in practice and are not harmful if
+ * used incorrectly.  O_NOCTTY and FASYNC are only meaningful for character
+ * devices and are safe for use on new files (See LU-812, LU-4209). */
+#define O_LOV_DELAY_CREATE	(O_NOCTTY | FASYNC)
 
 #define LL_FILE_IGNORE_LOCK     0x00000001
 #define LL_FILE_GROUP_LOCKED    0x00000002
@@ -297,7 +298,7 @@ struct ost_id {
 #define LOV_MAX_STRIPE_COUNT_OLD 160
 /* This calculation is crafted so that input of 4096 will result in 160
  * which in turn is equal to old maximal stripe count.
- * XXX: In fact this is too simpified for now, what it also need is to get
+ * XXX: In fact this is too simplified for now, what it also need is to get
  * ea_type argument to clearly know how much space each stripe consumes.
  *
  * The limit of 12 pages is somewhat arbitrary, but is a reasonably large
@@ -346,6 +347,16 @@ struct lov_user_md_v3 {	   /* LOV EA user data (host-endian) */
 	char  lmm_pool_name[LOV_MAXPOOLNAME]; /* pool name */
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 } __attribute__((packed));
+
+static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
+{
+	if (lmm_magic == LOV_USER_MAGIC_V3)
+		return sizeof(struct lov_user_md_v3) +
+				stripes * sizeof(struct lov_user_ost_data_v1);
+	else
+		return sizeof(struct lov_user_md_v1) +
+				stripes * sizeof(struct lov_user_ost_data_v1);
+}
 
 /* Compile with -D_LARGEFILE64_SOURCE or -D_GNU_SOURCE (or #define) to
  * use this.  It is unsafe to #define those values in this header as it
@@ -415,8 +426,8 @@ struct obd_uuid {
 	char uuid[UUID_MAX];
 };
 
-static inline int obd_uuid_equals(const struct obd_uuid *u1,
-				  const struct obd_uuid *u2)
+static inline bool obd_uuid_equals(const struct obd_uuid *u1,
+				   const struct obd_uuid *u2)
 {
 	return strcmp((char *)u1->uuid, (char *)u2->uuid) == 0;
 }
@@ -433,7 +444,7 @@ static inline void obd_str2uuid(struct obd_uuid *uuid, const char *tmp)
 }
 
 /* For printf's only, make sure uuid is terminated */
-static inline char *obd_uuid2str(struct obd_uuid *uuid)
+static inline char *obd_uuid2str(const struct obd_uuid *uuid)
 {
 	if (uuid->uuid[sizeof(*uuid) - 1] != '\0') {
 		/* Obviously not safe, but for printfs, no real harm done...
@@ -462,7 +473,9 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 
 /* printf display format
    e.g. printf("file FID is "DFID"\n", PFID(fid)); */
-#define DFID_NOBRACE LPX64":0x%x:0x%x"
+#define FID_NOBRACE_LEN 40
+#define FID_LEN (FID_NOBRACE_LEN + 2)
+#define DFID_NOBRACE "%#llx:0x%x:0x%x"
 #define DFID "["DFID_NOBRACE"]"
 #define PFID(fid)     \
 	(fid)->f_seq, \
@@ -471,11 +484,7 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 
 /* scanf input parse format -- strip '[' first.
    e.g. sscanf(fidstr, SFID, RFID(&fid)); */
-/* #define SFID "0x"LPX64i":0x"LPSZX":0x"LPSZX""
-liblustreapi.c:2893: warning: format '%lx' expects type 'long unsigned int *', but argument 4 has type 'unsigned int *'
-liblustreapi.c:2893: warning: format '%lx' expects type 'long unsigned int *', but argument 5 has type 'unsigned int *'
-*/
-#define SFID "0x"LPX64i":0x%x:0x%x"
+#define SFID "0x%llx:0x%x:0x%x"
 #define RFID(fid)     \
 	&((fid)->f_seq), \
 	&((fid)->f_oid), \
@@ -608,10 +617,13 @@ struct if_quotactl {
 };
 
 /* swap layout flags */
-#define	SWAP_LAYOUTS_CHECK_DV1		(1 << 0)
-#define	SWAP_LAYOUTS_CHECK_DV2		(1 << 1)
-#define	SWAP_LAYOUTS_KEEP_MTIME		(1 << 2)
-#define	SWAP_LAYOUTS_KEEP_ATIME		(1 << 3)
+#define SWAP_LAYOUTS_CHECK_DV1		(1 << 0)
+#define SWAP_LAYOUTS_CHECK_DV2		(1 << 1)
+#define SWAP_LAYOUTS_KEEP_MTIME		(1 << 2)
+#define SWAP_LAYOUTS_KEEP_ATIME		(1 << 3)
+
+/* Swap XATTR_NAME_HSM as well, only on the MDT so far */
+#define SWAP_LAYOUTS_MDS_HSM		(1 << 31)
 struct lustre_swap_layouts {
 	__u64	sl_flags;
 	__u32	sl_fd;
@@ -742,7 +754,8 @@ static inline void hsm_set_cl_error(int *flags, int error)
 	*flags |= (error << CLF_HSM_ERR_L);
 }
 
-#define CR_MAXSIZE cfs_size_round(2*NAME_MAX + 1 + sizeof(struct changelog_rec))
+#define CR_MAXSIZE cfs_size_round(2*NAME_MAX + 1 + \
+				  sizeof(struct changelog_ext_rec))
 
 struct changelog_rec {
 	__u16		 cr_namelen;
@@ -828,7 +841,7 @@ struct ioc_data_version {
 				version. Dirty caches are left unchanged. */
 
 #ifndef offsetof
-# define offsetof(typ,memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
+# define offsetof(typ, memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
 #endif
 
 #define dot_lustre_name ".lustre"
@@ -911,7 +924,7 @@ struct hsm_state_set_ioc {
 
 /*
  * This structure describes the current in-progress action for a file.
- * it is retuned to user space and send over the wire
+ * it is returned to user space and send over the wire
  */
 struct hsm_current_action {
 	/**  The current undergoing action, if there is one */
@@ -984,12 +997,25 @@ static inline void *hur_data(struct hsm_user_request *hur)
 	return &(hur->hur_user_item[hur->hur_request.hr_itemcount]);
 }
 
-/** Compute the current length of the provided hsm_user_request. */
-static inline int hur_len(struct hsm_user_request *hur)
+/**
+ * Compute the current length of the provided hsm_user_request.  This returns -1
+ * instead of an errno because ssize_t is defined to be only [ -1, SSIZE_MAX ]
+ *
+ * return -1 on bounds check error.
+ */
+static inline ssize_t hur_len(struct hsm_user_request *hur)
 {
-	return offsetof(struct hsm_user_request,
-			hur_user_item[hur->hur_request.hr_itemcount]) +
-		hur->hur_request.hr_data_len;
+	__u64	size;
+
+	/* can't overflow a __u64 since hr_itemcount is only __u32 */
+	size = offsetof(struct hsm_user_request, hur_user_item[0]) +
+		(__u64)hur->hur_request.hr_itemcount *
+		sizeof(hur->hur_user_item[0]) + hur->hur_request.hr_data_len;
+
+	if (size != (ssize_t)size)
+		return -1;
+
+	return size;
 }
 
 /****** HSM RPCs to copytool *****/
@@ -1048,8 +1074,7 @@ static inline char *hai_dump_data_field(struct hsm_action_item *hai,
 	ptr = buffer;
 	sz = len;
 	data_len = hai->hai_len - sizeof(*hai);
-	for (i = 0 ; (i < data_len) && (sz > 0) ; i++)
-	{
+	for (i = 0 ; (i < data_len) && (sz > 0) ; i++) {
 		int cnt;
 
 		cnt = snprintf(ptr, sz, "%.2X",
@@ -1085,14 +1110,15 @@ static inline int cfs_size_round (int val)
 #endif
 
 /* Return pointer to first hai in action list */
-static inline struct hsm_action_item * hai_zero(struct hsm_action_list *hal)
+static inline struct hsm_action_item *hai_zero(struct hsm_action_list *hal)
 {
 	return (struct hsm_action_item *)(hal->hal_fsname +
 					  cfs_size_round(strlen(hal-> \
-								hal_fsname)));
+								hal_fsname)
+							 + 1));
 }
 /* Return pointer to next hai */
-static inline struct hsm_action_item * hai_next(struct hsm_action_item *hai)
+static inline struct hsm_action_item *hai_next(struct hsm_action_item *hai)
 {
 	return (struct hsm_action_item *)((char *)hai +
 					  cfs_size_round(hai->hai_len));
@@ -1104,14 +1130,28 @@ static inline int hal_size(struct hsm_action_list *hal)
 	int i, sz;
 	struct hsm_action_item *hai;
 
-	sz = sizeof(*hal) + cfs_size_round(strlen(hal->hal_fsname));
+	sz = sizeof(*hal) + cfs_size_round(strlen(hal->hal_fsname) + 1);
 	hai = hai_zero(hal);
-	for (i = 0 ; i < hal->hal_count ; i++) {
+	for (i = 0; i < hal->hal_count; i++, hai = hai_next(hai))
 		sz += cfs_size_round(hai->hai_len);
-		hai = hai_next(hai);
-	}
-	return(sz);
+
+	return sz;
 }
+
+/* HSM file import
+ * describe the attributes to be set on imported file
+ */
+struct hsm_user_import {
+	__u64		hui_size;
+	__u64		hui_atime;
+	__u64		hui_mtime;
+	__u32		hui_atime_ns;
+	__u32		hui_mtime_ns;
+	__u32		hui_uid;
+	__u32		hui_gid;
+	__u32		hui_mode;
+	__u32		hui_archive_id;
+};
 
 /* Copytool progress reporting */
 #define HP_FLAG_COMPLETED 0x01
@@ -1126,12 +1166,6 @@ struct hsm_progress {
 	__u32			padding;
 };
 
-/**
- * Use by copytool during any hsm request they handled.
- * This structure is initialized by llapi_hsm_copy_start()
- * which is an helper over the ioctl() interface
- * Store Lustre, internal use only, data.
- */
 struct hsm_copy {
 	__u64			hc_data_version;
 	__u16			hc_flags;

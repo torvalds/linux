@@ -37,10 +37,10 @@
 #define DEBUG_SUBSYSTEM S_RPC
 
 
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lustre_req_layout.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_req_layout.h"
 
 #include "ptlrpc_internal.h"
 
@@ -54,7 +54,6 @@ extern struct mutex ptlrpcd_mutex;
 __init int ptlrpc_init(void)
 {
 	int rc, cleanup_phase = 0;
-	ENTRY;
 
 	lustre_assert_wire_constants();
 #if RS_DEBUG
@@ -67,68 +66,83 @@ __init int ptlrpc_init(void)
 
 	rc = req_layout_init();
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = ptlrpc_hr_init();
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	cleanup_phase = 1;
+	rc = ptlrpc_request_cache_init();
+	if (rc)
+		goto cleanup;
 
+	cleanup_phase = 2;
 	rc = ptlrpc_init_portals();
 	if (rc)
-		GOTO(cleanup, rc);
-	cleanup_phase = 2;
+		goto cleanup;
+
+	cleanup_phase = 3;
 
 	rc = ptlrpc_connection_init();
 	if (rc)
-		GOTO(cleanup, rc);
-	cleanup_phase = 3;
+		goto cleanup;
 
+	cleanup_phase = 4;
 	ptlrpc_put_connection_superhack = ptlrpc_connection_put;
 
 	rc = ptlrpc_start_pinger();
 	if (rc)
-		GOTO(cleanup, rc);
-	cleanup_phase = 4;
+		goto cleanup;
 
+	cleanup_phase = 5;
 	rc = ldlm_init();
 	if (rc)
-		GOTO(cleanup, rc);
-	cleanup_phase = 5;
+		goto cleanup;
 
+	cleanup_phase = 6;
 	rc = sptlrpc_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 7;
 	rc = ptlrpc_nrs_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 8;
 	rc = tgt_mod_init();
 	if (rc)
-		GOTO(cleanup, rc);
-	RETURN(0);
+		goto cleanup;
+	return 0;
 
 cleanup:
-	switch(cleanup_phase) {
+	switch (cleanup_phase) {
 	case 8:
 		ptlrpc_nrs_fini();
+		/* Fall through */
 	case 7:
 		sptlrpc_fini();
-	case 5:
+		/* Fall through */
+	case 6:
 		ldlm_exit();
-	case 4:
+		/* Fall through */
+	case 5:
 		ptlrpc_stop_pinger();
-	case 3:
+		/* Fall through */
+	case 4:
 		ptlrpc_connection_fini();
-	case 2:
+		/* Fall through */
+	case 3:
 		ptlrpc_exit_portals();
+		/* Fall through */
+	case 2:
+		ptlrpc_request_cache_fini();
+		/* Fall through */
 	case 1:
 		ptlrpc_hr_fini();
 		req_layout_fini();
+		/* Fall through */
 	default: ;
 	}
 
@@ -143,6 +157,7 @@ static void __exit ptlrpc_exit(void)
 	ldlm_exit();
 	ptlrpc_stop_pinger();
 	ptlrpc_exit_portals();
+	ptlrpc_request_cache_fini();
 	ptlrpc_hr_fini();
 	ptlrpc_connection_fini();
 }
@@ -150,5 +165,7 @@ static void __exit ptlrpc_exit(void)
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Request Processor and Lock Management");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("1.0.0");
 
-cfs_module(ptlrpc, "1.0.0", ptlrpc_init, ptlrpc_exit);
+module_init(ptlrpc_init);
+module_exit(ptlrpc_exit);

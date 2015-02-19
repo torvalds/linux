@@ -39,6 +39,8 @@
 #include <linux/bitops.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_net.h>
 #include <linux/slab.h>
 
@@ -2312,7 +2314,7 @@ static int emac_check_deps(struct emac_instance *dev,
 		if (deps[i].ofdev == NULL)
 			continue;
 		if (deps[i].drvdata == NULL)
-			deps[i].drvdata = dev_get_drvdata(&deps[i].ofdev->dev);
+			deps[i].drvdata = platform_get_drvdata(deps[i].ofdev);
 		if (deps[i].drvdata != NULL)
 			there++;
 	}
@@ -2321,16 +2323,11 @@ static int emac_check_deps(struct emac_instance *dev,
 
 static void emac_put_deps(struct emac_instance *dev)
 {
-	if (dev->mal_dev)
-		of_dev_put(dev->mal_dev);
-	if (dev->zmii_dev)
-		of_dev_put(dev->zmii_dev);
-	if (dev->rgmii_dev)
-		of_dev_put(dev->rgmii_dev);
-	if (dev->mdio_dev)
-		of_dev_put(dev->mdio_dev);
-	if (dev->tah_dev)
-		of_dev_put(dev->tah_dev);
+	of_dev_put(dev->mal_dev);
+	of_dev_put(dev->zmii_dev);
+	of_dev_put(dev->rgmii_dev);
+	of_dev_put(dev->mdio_dev);
+	of_dev_put(dev->tah_dev);
 }
 
 static int emac_of_bus_notify(struct notifier_block *nb, unsigned long action,
@@ -2369,9 +2366,8 @@ static int emac_wait_deps(struct emac_instance *dev)
 	bus_unregister_notifier(&platform_bus_type, &emac_of_bus_notifier);
 	err = emac_check_deps(dev, deps) ? 0 : -ENODEV;
 	for (i = 0; i < EMAC_DEP_COUNT; i++) {
-		if (deps[i].node)
-			of_node_put(deps[i].node);
-		if (err && deps[i].ofdev)
+		of_node_put(deps[i].node);
+		if (err)
 			of_dev_put(deps[i].ofdev);
 	}
 	if (err == 0) {
@@ -2381,8 +2377,7 @@ static int emac_wait_deps(struct emac_instance *dev)
 		dev->tah_dev = deps[EMAC_DEP_TAH_IDX].ofdev;
 		dev->mdio_dev = deps[EMAC_DEP_MDIO_IDX].ofdev;
 	}
-	if (deps[EMAC_DEP_PREV_IDX].ofdev)
-		of_dev_put(deps[EMAC_DEP_PREV_IDX].ofdev);
+	of_dev_put(deps[EMAC_DEP_PREV_IDX].ofdev);
 	return err;
 }
 
@@ -2676,7 +2671,7 @@ static int emac_init_config(struct emac_instance *dev)
 		       np->full_name);
 		return -ENXIO;
 	}
-	memcpy(dev->ndev->dev_addr, p, 6);
+	memcpy(dev->ndev->dev_addr, p, ETH_ALEN);
 
 	/* IAHT and GAHT filter parameterization */
 	if (emac_has_feature(dev, EMAC_FTR_EMAC4SYNC)) {
@@ -2799,9 +2794,9 @@ static int emac_probe(struct platform_device *ofdev)
 		/*  display more info about what's missing ? */
 		goto err_reg_unmap;
 	}
-	dev->mal = dev_get_drvdata(&dev->mal_dev->dev);
+	dev->mal = platform_get_drvdata(dev->mal_dev);
 	if (dev->mdio_dev != NULL)
-		dev->mdio_instance = dev_get_drvdata(&dev->mdio_dev->dev);
+		dev->mdio_instance = platform_get_drvdata(dev->mdio_dev);
 
 	/* Register with MAL */
 	dev->commac.ops = &emac_commac_ops;
@@ -2877,7 +2872,7 @@ static int emac_probe(struct platform_device *ofdev)
 		dev->commac.ops = &emac_commac_sg_ops;
 	} else
 		ndev->netdev_ops = &emac_netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &emac_ethtool_ops);
+	ndev->ethtool_ops = &emac_ethtool_ops;
 
 	netif_carrier_off(ndev);
 
@@ -2892,7 +2887,7 @@ static int emac_probe(struct platform_device *ofdev)
 	 * fully initialized
 	 */
 	wmb();
-	dev_set_drvdata(&ofdev->dev, dev);
+	platform_set_drvdata(ofdev, dev);
 
 	/* There's a new kid in town ! Let's tell everybody */
 	wake_up_all(&emac_probe_wait);
@@ -2951,11 +2946,9 @@ static int emac_probe(struct platform_device *ofdev)
 
 static int emac_remove(struct platform_device *ofdev)
 {
-	struct emac_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct emac_instance *dev = platform_get_drvdata(ofdev);
 
 	DBG(dev, "remove" NL);
-
-	dev_set_drvdata(&ofdev->dev, NULL);
 
 	unregister_netdev(dev->ndev);
 
@@ -3009,7 +3002,6 @@ MODULE_DEVICE_TABLE(of, emac_match);
 static struct platform_driver emac_driver = {
 	.driver = {
 		.name = "emac",
-		.owner = THIS_MODULE,
 		.of_match_table = emac_match,
 	},
 	.probe = emac_probe,
@@ -3113,8 +3105,7 @@ static void __exit emac_exit(void)
 
 	/* Destroy EMAC boot list */
 	for (i = 0; i < EMAC_BOOT_LIST_SIZE; i++)
-		if (emac_boot_list[i])
-			of_node_put(emac_boot_list[i]);
+		of_node_put(emac_boot_list[i]);
 }
 
 module_init(emac_init);

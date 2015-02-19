@@ -29,6 +29,7 @@
 #include <media/v4l2-clk.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-image-sizes.h>
 
 /*
  * register offset
@@ -360,10 +361,6 @@
 #define SCAL0_ACTRL     0x08 /* Auto scaling factor control */
 #define SCAL1_2_ACTRL   0x04 /* Auto scaling factor control */
 
-#define VGA_WIDTH		640
-#define VGA_HEIGHT		480
-#define QVGA_WIDTH		320
-#define QVGA_HEIGHT		240
 #define OV772X_MAX_WIDTH	VGA_WIDTH
 #define OV772X_MAX_HEIGHT	VGA_HEIGHT
 
@@ -379,7 +376,7 @@
  */
 
 struct ov772x_color_format {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	enum v4l2_colorspace colorspace;
 	u8 dsp3;
 	u8 dsp4;
@@ -411,7 +408,7 @@ struct ov772x_priv {
  */
 static const struct ov772x_color_format ov772x_cfmts[] = {
 	{
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.dsp3		= 0x0,
 		.dsp4		= DSP_OFMT_YUV,
@@ -419,7 +416,7 @@ static const struct ov772x_color_format ov772x_cfmts[] = {
 		.com7		= OFMT_YUV,
 	},
 	{
-		.code		= V4L2_MBUS_FMT_YVYU8_2X8,
+		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.dsp3		= UV_ON,
 		.dsp4		= DSP_OFMT_YUV,
@@ -427,7 +424,7 @@ static const struct ov772x_color_format ov772x_cfmts[] = {
 		.com7		= OFMT_YUV,
 	},
 	{
-		.code		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.dsp3		= 0x0,
 		.dsp4		= DSP_OFMT_YUV,
@@ -435,7 +432,7 @@ static const struct ov772x_color_format ov772x_cfmts[] = {
 		.com7		= OFMT_YUV,
 	},
 	{
-		.code		= V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
+		.code		= MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.dsp3		= 0x0,
 		.dsp4		= DSP_OFMT_YUV,
@@ -443,7 +440,7 @@ static const struct ov772x_color_format ov772x_cfmts[] = {
 		.com7		= FMT_RGB555 | OFMT_RGB,
 	},
 	{
-		.code		= V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE,
+		.code		= MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.dsp3		= 0x0,
 		.dsp4		= DSP_OFMT_YUV,
@@ -451,7 +448,7 @@ static const struct ov772x_color_format ov772x_cfmts[] = {
 		.com7		= FMT_RGB555 | OFMT_RGB,
 	},
 	{
-		.code		= V4L2_MBUS_FMT_RGB565_2X8_LE,
+		.code		= MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.dsp3		= 0x0,
 		.dsp4		= DSP_OFMT_YUV,
@@ -459,7 +456,7 @@ static const struct ov772x_color_format ov772x_cfmts[] = {
 		.com7		= FMT_RGB565 | OFMT_RGB,
 	},
 	{
-		.code		= V4L2_MBUS_FMT_RGB565_2X8_BE,
+		.code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.dsp3		= 0x0,
 		.dsp4		= DSP_OFMT_YUV,
@@ -471,7 +468,7 @@ static const struct ov772x_color_format ov772x_cfmts[] = {
 		 * regardless of the COM7 value. We can thus only support 10-bit
 		 * Bayer until someone figures it out.
 		 */
-		.code		= V4L2_MBUS_FMT_SBGGR10_1X10,
+		.code		= MEDIA_BUS_FMT_SBGGR10_1X10,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.dsp3		= 0x0,
 		.dsp4		= DSP_OFMT_RAW10,
@@ -993,7 +990,7 @@ static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
 };
 
 static int ov772x_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   enum v4l2_mbus_pixelcode *code)
+			   u32 *code)
 {
 	if (index >= ARRAY_SIZE(ov772x_cfmts))
 		return -EINVAL;

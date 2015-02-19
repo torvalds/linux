@@ -211,8 +211,10 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	ret = 0;
 	if ((info->ct_events || info->exp_events) &&
 	    !nf_ct_ecache_ext_add(ct, info->ct_events, info->exp_events,
-				  GFP_KERNEL))
+				  GFP_KERNEL)) {
+		ret = -EINVAL;
 		goto err3;
+	}
 
 	if (info->helper[0]) {
 		ret = xt_ct_set_helper(ct, info->helper, par);
@@ -226,12 +228,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 			goto err3;
 	}
 
-	__set_bit(IPS_TEMPLATE_BIT, &ct->status);
-	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
-
-	/* Overload tuple linked list to put us in template list. */
-	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
-				 &par->net->ct.tmpl);
+	nf_conntrack_tmpl_insert(par->net, ct);
 out:
 	info->ct = ct;
 	return 0;

@@ -56,9 +56,6 @@ void wl1271_elp_work(struct work_struct *work)
 		goto out;
 
 	wl12xx_for_each_wlvif(wl, wlvif) {
-		if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-			goto out;
-
 		if (!test_bit(WLVIF_FLAG_IN_PS, &wlvif->flags) &&
 		    test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 			goto out;
@@ -83,6 +80,10 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 	struct wl12xx_vif *wlvif;
 	u32 timeout;
 
+	/* We do not enter elp sleep in PLT mode */
+	if (wl->plt)
+		return;
+
 	if (wl->sleep_auth != WL1271_PSM_ELP)
 		return;
 
@@ -91,9 +92,6 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 		return;
 
 	wl12xx_for_each_wlvif(wl, wlvif) {
-		if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-			return;
-
 		if (!test_bit(WLVIF_FLAG_IN_PS, &wlvif->flags) &&
 		    test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 			return;
@@ -104,6 +102,7 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 	ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
 				     msecs_to_jiffies(timeout));
 }
+EXPORT_SYMBOL_GPL(wl1271_ps_elp_sleep);
 
 int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 {
@@ -171,6 +170,7 @@ err:
 out:
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1271_ps_elp_wakeup);
 
 int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       enum wl1271_cmd_ps_mode mode)
@@ -276,7 +276,11 @@ void wl12xx_ps_link_start(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
-	if (test_bit(hlid, &wl->ap_ps_map))
+	if (WARN_ON_ONCE(wlvif->bss_type != BSS_TYPE_AP_BSS))
+		return;
+
+	if (!test_bit(hlid, wlvif->ap.sta_hlid_map) ||
+	    test_bit(hlid, &wl->ap_ps_map))
 		return;
 
 	wl1271_debug(DEBUG_PSM, "start mac80211 PSM on hlid %d pkts %d "

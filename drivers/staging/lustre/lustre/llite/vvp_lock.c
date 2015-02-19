@@ -39,8 +39,8 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 
-#include <obd.h>
-#include <lustre_lite.h>
+#include "../include/obd.h"
+#include "../include/lustre_lite.h"
 
 #include "vvp_internal.h"
 
@@ -63,8 +63,7 @@ static unsigned long vvp_lock_weigh(const struct lu_env *env,
 {
 	struct ccc_object *cob = cl2ccc(slice->cls_obj);
 
-	ENTRY;
-	RETURN(atomic_read(&cob->cob_mmap_cnt) > 0 ? ~0UL >> 2 : 0);
+	return atomic_read(&cob->cob_mmap_cnt) > 0 ? ~0UL >> 2 : 0;
 }
 
 static const struct cl_lock_operations vvp_lock_ops = {
@@ -72,6 +71,7 @@ static const struct cl_lock_operations vvp_lock_ops = {
 	.clo_fini      = ccc_lock_fini,
 	.clo_enqueue   = ccc_lock_enqueue,
 	.clo_wait      = ccc_lock_wait,
+	.clo_use       = ccc_lock_use,
 	.clo_unuse     = ccc_lock_unuse,
 	.clo_fits_into = ccc_lock_fits_into,
 	.clo_state     = ccc_lock_state,

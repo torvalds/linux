@@ -43,13 +43,13 @@ static bool ipv6_mapped_addr_any(const struct in6_addr *a)
 int ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct sockaddr_in6	*usin = (struct sockaddr_in6 *) uaddr;
-	struct inet_sock      	*inet = inet_sk(sk);
-	struct ipv6_pinfo      	*np = inet6_sk(sk);
-	struct in6_addr		*daddr, *final_p, final;
+	struct inet_sock	*inet = inet_sk(sk);
+	struct ipv6_pinfo	*np = inet6_sk(sk);
+	struct in6_addr	*daddr, *final_p, final;
 	struct dst_entry	*dst;
 	struct flowi6		fl6;
 	struct ip6_flowlabel	*flowlabel = NULL;
-	struct ipv6_txoptions   *opt;
+	struct ipv6_txoptions	*opt;
 	int			addr_type;
 	int			err;
 
@@ -73,7 +73,6 @@ int ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
 			if (flowlabel == NULL)
 				return -EINVAL;
-			usin->sin6_addr = flowlabel->dst;
 		}
 	}
 
@@ -107,16 +106,16 @@ ipv4_connected:
 		if (err)
 			goto out;
 
-		ipv6_addr_set_v4mapped(inet->inet_daddr, &np->daddr);
+		ipv6_addr_set_v4mapped(inet->inet_daddr, &sk->sk_v6_daddr);
 
 		if (ipv6_addr_any(&np->saddr) ||
 		    ipv6_mapped_addr_any(&np->saddr))
 			ipv6_addr_set_v4mapped(inet->inet_saddr, &np->saddr);
 
-		if (ipv6_addr_any(&np->rcv_saddr) ||
-		    ipv6_mapped_addr_any(&np->rcv_saddr)) {
+		if (ipv6_addr_any(&sk->sk_v6_rcv_saddr) ||
+		    ipv6_mapped_addr_any(&sk->sk_v6_rcv_saddr)) {
 			ipv6_addr_set_v4mapped(inet->inet_rcv_saddr,
-					       &np->rcv_saddr);
+					       &sk->sk_v6_rcv_saddr);
 			if (sk->sk_prot->rehash)
 				sk->sk_prot->rehash(sk);
 		}
@@ -145,7 +144,7 @@ ipv4_connected:
 		}
 	}
 
-	np->daddr = *daddr;
+	sk->sk_v6_daddr = *daddr;
 	np->flow_label = fl6.flowlabel;
 
 	inet->inet_dport = usin->sin6_port;
@@ -156,7 +155,7 @@ ipv4_connected:
 	 */
 
 	fl6.flowi6_proto = sk->sk_protocol;
-	fl6.daddr = np->daddr;
+	fl6.daddr = sk->sk_v6_daddr;
 	fl6.saddr = np->saddr;
 	fl6.flowi6_oif = sk->sk_bound_dev_if;
 	fl6.flowi6_mark = sk->sk_mark;
@@ -171,7 +170,7 @@ ipv4_connected:
 	opt = flowlabel ? flowlabel->opt : np->opt;
 	final_p = fl6_update_dst(&fl6, opt, &final);
 
-	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, true);
+	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 	err = 0;
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
@@ -183,16 +182,16 @@ ipv4_connected:
 	if (ipv6_addr_any(&np->saddr))
 		np->saddr = fl6.saddr;
 
-	if (ipv6_addr_any(&np->rcv_saddr)) {
-		np->rcv_saddr = fl6.saddr;
+	if (ipv6_addr_any(&sk->sk_v6_rcv_saddr)) {
+		sk->sk_v6_rcv_saddr = fl6.saddr;
 		inet->inet_rcv_saddr = LOOPBACK4_IPV6;
 		if (sk->sk_prot->rehash)
 			sk->sk_prot->rehash(sk);
 	}
 
 	ip6_dst_store(sk, dst,
-		      ipv6_addr_equal(&fl6.daddr, &np->daddr) ?
-		      &np->daddr : NULL,
+		      ipv6_addr_equal(&fl6.daddr, &sk->sk_v6_daddr) ?
+		      &sk->sk_v6_daddr : NULL,
 #ifdef CONFIG_IPV6_SUBTREES
 		      ipv6_addr_equal(&fl6.saddr, &np->saddr) ?
 		      &np->saddr :
@@ -200,11 +199,22 @@ ipv4_connected:
 		      NULL);
 
 	sk->sk_state = TCP_ESTABLISHED;
+	ip6_set_txhash(sk);
 out:
 	fl6_sock_release(flowlabel);
 	return err;
 }
 EXPORT_SYMBOL_GPL(ip6_datagram_connect);
+
+int ip6_datagram_connect_v6_only(struct sock *sk, struct sockaddr *uaddr,
+				 int addr_len)
+{
+	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, uaddr);
+	if (sin6->sin6_family != AF_INET6)
+		return -EAFNOSUPPORT;
+	return ip6_datagram_connect(sk, uaddr, addr_len);
+}
+EXPORT_SYMBOL_GPL(ip6_datagram_connect_v6_only);
 
 void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		     __be16 port, u32 info, u8 *payload)
@@ -315,15 +325,25 @@ void ipv6_local_rxpmtu(struct sock *sk, struct flowi6 *fl6, u32 mtu)
 	kfree_skb(skb);
 }
 
+static void ip6_datagram_prepare_pktinfo_errqueue(struct sk_buff *skb)
+{
+	int ifindex = skb->dev ? skb->dev->ifindex : -1;
+
+	if (skb->protocol == htons(ETH_P_IPV6))
+		IP6CB(skb)->iif = ifindex;
+	else
+		PKTINFO_SKB_CB(skb)->ipi_ifindex = ifindex;
+}
+
 /*
  *	Handle MSG_ERRQUEUE
  */
-int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
+int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sock_exterr_skb *serr;
-	struct sk_buff *skb, *skb2;
-	struct sockaddr_in6 *sin;
+	struct sk_buff *skb;
+	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin, msg->msg_name);
 	struct {
 		struct sock_extended_err ee;
 		struct sockaddr_in6	 offender;
@@ -332,7 +352,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 	int copied;
 
 	err = -EAGAIN;
-	skb = skb_dequeue(&sk->sk_error_queue);
+	skb = sock_dequeue_err_skb(sk);
 	if (skb == NULL)
 		goto out;
 
@@ -341,7 +361,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 		msg->msg_flags |= MSG_TRUNC;
 		copied = len;
 	}
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	err = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (err)
 		goto out_free_skb;
 
@@ -349,8 +369,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 
 	serr = SKB_EXT_ERR(skb);
 
-	sin = (struct sockaddr_in6 *)msg->msg_name;
-	if (sin) {
+	if (sin && skb->len) {
 		const unsigned char *nh = skb_network_header(skb);
 		sin->sin6_family = AF_INET6;
 		sin->sin6_flowinfo = 0;
@@ -369,28 +388,31 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 					       &sin->sin6_addr);
 			sin->sin6_scope_id = 0;
 		}
+		*addr_len = sizeof(*sin);
 	}
 
 	memcpy(&errhdr.ee, &serr->ee, sizeof(struct sock_extended_err));
 	sin = &errhdr.offender;
-	sin->sin6_family = AF_UNSPEC;
-	if (serr->ee.ee_origin != SO_EE_ORIGIN_LOCAL) {
+	memset(sin, 0, sizeof(*sin));
+	if (serr->ee.ee_origin != SO_EE_ORIGIN_LOCAL && skb->len) {
 		sin->sin6_family = AF_INET6;
-		sin->sin6_flowinfo = 0;
+		if (np->rxopt.all) {
+			if (serr->ee.ee_origin != SO_EE_ORIGIN_ICMP &&
+			    serr->ee.ee_origin != SO_EE_ORIGIN_ICMP6)
+				ip6_datagram_prepare_pktinfo_errqueue(skb);
+			ip6_datagram_recv_common_ctl(sk, msg, skb);
+		}
 		if (skb->protocol == htons(ETH_P_IPV6)) {
 			sin->sin6_addr = ipv6_hdr(skb)->saddr;
 			if (np->rxopt.all)
-				ip6_datagram_recv_ctl(sk, msg, skb);
+				ip6_datagram_recv_specific_ctl(sk, msg, skb);
 			sin->sin6_scope_id =
 				ipv6_iface_scope_id(&sin->sin6_addr,
 						    IP6CB(skb)->iif);
 		} else {
-			struct inet_sock *inet = inet_sk(sk);
-
 			ipv6_addr_set_v4mapped(ip_hdr(skb)->saddr,
 					       &sin->sin6_addr);
-			sin->sin6_scope_id = 0;
-			if (inet->cmsg_flags)
+			if (inet_sk(sk)->cmsg_flags)
 				ip_cmsg_recv(msg, skb);
 		}
 	}
@@ -402,17 +424,6 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 	msg->msg_flags |= MSG_ERRQUEUE;
 	err = copied;
 
-	/* Reset and regenerate socket error */
-	spin_lock_bh(&sk->sk_error_queue.lock);
-	sk->sk_err = 0;
-	if ((skb2 = skb_peek(&sk->sk_error_queue)) != NULL) {
-		sk->sk_err = SKB_EXT_ERR(skb2)->ee.ee_errno;
-		spin_unlock_bh(&sk->sk_error_queue.lock);
-		sk->sk_error_report(sk);
-	} else {
-		spin_unlock_bh(&sk->sk_error_queue.lock);
-	}
-
 out_free_skb:
 	kfree_skb(skb);
 out:
@@ -423,12 +434,13 @@ EXPORT_SYMBOL_GPL(ipv6_recv_error);
 /*
  *	Handle IPV6_RECVPATHMTU
  */
-int ipv6_recv_rxpmtu(struct sock *sk, struct msghdr *msg, int len)
+int ipv6_recv_rxpmtu(struct sock *sk, struct msghdr *msg, int len,
+		     int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sk_buff *skb;
-	struct sockaddr_in6 *sin;
 	struct ip6_mtuinfo mtu_info;
+	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin, msg->msg_name);
 	int err;
 	int copied;
 
@@ -442,7 +454,7 @@ int ipv6_recv_rxpmtu(struct sock *sk, struct msghdr *msg, int len)
 		msg->msg_flags |= MSG_TRUNC;
 		copied = len;
 	}
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	err = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (err)
 		goto out_free_skb;
 
@@ -450,13 +462,13 @@ int ipv6_recv_rxpmtu(struct sock *sk, struct msghdr *msg, int len)
 
 	memcpy(&mtu_info, IP6CBMTU(skb), sizeof(mtu_info));
 
-	sin = (struct sockaddr_in6 *)msg->msg_name;
 	if (sin) {
 		sin->sin6_family = AF_INET6;
 		sin->sin6_flowinfo = 0;
 		sin->sin6_port = 0;
 		sin->sin6_scope_id = mtu_info.ip6m_addr.sin6_scope_id;
 		sin->sin6_addr = mtu_info.ip6m_addr.sin6_addr;
+		*addr_len = sizeof(*sin);
 	}
 
 	put_cmsg(msg, SOL_IPV6, IPV6_PATHMTU, sizeof(mtu_info), &mtu_info);
@@ -470,20 +482,37 @@ out:
 }
 
 
-int ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
-			  struct sk_buff *skb)
+void ip6_datagram_recv_common_ctl(struct sock *sk, struct msghdr *msg,
+				 struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct inet6_skb_parm *opt = IP6CB(skb);
-	unsigned char *nh = skb_network_header(skb);
+	bool is_ipv6 = skb->protocol == htons(ETH_P_IPV6);
 
 	if (np->rxopt.bits.rxinfo) {
 		struct in6_pktinfo src_info;
 
-		src_info.ipi6_ifindex = opt->iif;
-		src_info.ipi6_addr = ipv6_hdr(skb)->daddr;
-		put_cmsg(msg, SOL_IPV6, IPV6_PKTINFO, sizeof(src_info), &src_info);
+		if (is_ipv6) {
+			src_info.ipi6_ifindex = IP6CB(skb)->iif;
+			src_info.ipi6_addr = ipv6_hdr(skb)->daddr;
+		} else {
+			src_info.ipi6_ifindex =
+				PKTINFO_SKB_CB(skb)->ipi_ifindex;
+			ipv6_addr_set_v4mapped(ip_hdr(skb)->daddr,
+					       &src_info.ipi6_addr);
+		}
+
+		if (src_info.ipi6_ifindex >= 0)
+			put_cmsg(msg, SOL_IPV6, IPV6_PKTINFO,
+				 sizeof(src_info), &src_info);
 	}
+}
+
+void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
+				    struct sk_buff *skb)
+{
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct inet6_skb_parm *opt = IP6CB(skb);
+	unsigned char *nh = skb_network_header(skb);
 
 	if (np->rxopt.bits.rxhlim) {
 		int hlim = ipv6_hdr(skb)->hop_limit;
@@ -601,7 +630,13 @@ int ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
 			put_cmsg(msg, SOL_IPV6, IPV6_ORIGDSTADDR, sizeof(sin6), &sin6);
 		}
 	}
-	return 0;
+}
+
+void ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
+			  struct sk_buff *skb)
+{
+	ip6_datagram_recv_common_ctl(sk, msg, skb);
+	ip6_datagram_recv_specific_ctl(sk, msg, skb);
 }
 EXPORT_SYMBOL_GPL(ip6_datagram_recv_ctl);
 
@@ -617,7 +652,7 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 	int len;
 	int err = 0;
 
-	for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+	for_each_cmsghdr(cmsg, msg) {
 		int addr_type;
 
 		if (!CMSG_OK(msg, cmsg)) {
@@ -666,7 +701,9 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 				int strict = __ipv6_addr_src_scope(addr_type) <= IPV6_ADDR_SCOPE_LINKLOCAL;
 				if (!(inet_sk(sk)->freebind || inet_sk(sk)->transparent) &&
 				    !ipv6_chk_addr(net, &src_info->ipi6_addr,
-						   strict ? dev : NULL, 0))
+						   strict ? dev : NULL, 0) &&
+				    !ipv6_chk_acast_addr_src(net, dev,
+							     &src_info->ipi6_addr))
 					err = -EINVAL;
 				else
 					fl6->saddr = src_info->ipi6_addr;
@@ -868,8 +905,8 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 			break;
 		    }
 		default:
-			LIMIT_NETDEBUG(KERN_DEBUG "invalid cmsg type: %d\n",
-				       cmsg->cmsg_type);
+			net_dbg_ratelimited("invalid cmsg type: %d\n",
+					    cmsg->cmsg_type);
 			err = -EINVAL;
 			goto exit_f;
 		}
@@ -883,14 +920,13 @@ EXPORT_SYMBOL_GPL(ip6_datagram_send_ctl);
 void ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
 			     __u16 srcp, __u16 destp, int bucket)
 {
-	struct ipv6_pinfo *np = inet6_sk(sp);
 	const struct in6_addr *dest, *src;
 
-	dest  = &np->daddr;
-	src   = &np->rcv_saddr;
+	dest  = &sp->sk_v6_daddr;
+	src   = &sp->sk_v6_rcv_saddr;
 	seq_printf(seq,
 		   "%5d: %08X%08X%08X%08X:%04X %08X%08X%08X%08X:%04X "
-		   "%02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %pK %d\n",
+		   "%02X %08X:%08X %02X:%08lX %08X %5u %8d %lu %d %pK %d\n",
 		   bucket,
 		   src->s6_addr32[0], src->s6_addr32[1],
 		   src->s6_addr32[2], src->s6_addr32[3], srcp,

@@ -41,9 +41,9 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 
-#include <obd.h>
-#include <lustre_lite.h>
-
+#include "../include/obd.h"
+#include "../include/lustre_lite.h"
+#include "llite_internal.h"
 #include "vvp_internal.h"
 
 /*****************************************************************************
@@ -57,7 +57,7 @@
  * "llite_" (var. "ll_") prefix.
  */
 
-struct kmem_cache *vvp_thread_kmem;
+static struct kmem_cache *vvp_thread_kmem;
 static struct kmem_cache *vvp_session_kmem;
 static struct lu_kmem_descr vvp_caches[] = {
 	{
@@ -80,7 +80,7 @@ static void *vvp_key_init(const struct lu_context *ctx,
 {
 	struct vvp_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, vvp_thread_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, vvp_thread_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -98,7 +98,7 @@ static void *vvp_session_key_init(const struct lu_context *ctx,
 {
 	struct vvp_session *session;
 
-	OBD_SLAB_ALLOC_PTR_GFP(session, vvp_session_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(session, vvp_session_kmem, GFP_NOFS);
 	if (session == NULL)
 		session = ERR_PTR(-ENOMEM);
 	return session;
@@ -213,7 +213,7 @@ int cl_sb_init(struct super_block *sb)
 		cl_env_put(env, &refcheck);
 	} else
 		rc = PTR_ERR(env);
-	RETURN(rc);
+	return rc;
 }
 
 int cl_sb_fini(struct super_block *sb)
@@ -224,7 +224,6 @@ int cl_sb_fini(struct super_block *sb)
 	int		refcheck;
 	int		result;
 
-	ENTRY;
 	sbi = ll_s2sbi(sb);
 	env = cl_env_get(&refcheck);
 	if (!IS_ERR(env)) {
@@ -247,7 +246,7 @@ int cl_sb_fini(struct super_block *sb)
 	 * automatically when last device is destroyed).
 	 */
 	lu_types_stop();
-	RETURN(result);
+	return result;
 }
 
 /****************************************************************************
@@ -298,7 +297,7 @@ static loff_t vvp_pgcache_id_pack(struct vvp_pgcache_id *id)
 		((__u64)id->vpi_bucket << PGC_OBJ_SHIFT);
 }
 
-static int vvp_pgcache_obj_get(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+static int vvp_pgcache_obj_get(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			       struct hlist_node *hnode, void *data)
 {
 	struct vvp_pgcache_id   *id  = data;
@@ -395,7 +394,7 @@ static loff_t vvp_pgcache_find(const struct lu_env *env,
 		seq_printf(seq, "%s"#flag, has_flags ? "|" : "");       \
 		has_flags = 1;					  \
 	}							       \
-} while(0)
+} while (0)
 
 static void vvp_pgcache_page_show(const struct lu_env *env,
 				  struct seq_file *seq, struct cl_page *page)
@@ -406,7 +405,7 @@ static void vvp_pgcache_page_show(const struct lu_env *env,
 
 	cpg = cl2ccc_page(cl_page_at(page, &vvp_device_type));
 	vmpage = cpg->cpg_page;
-	seq_printf(seq," %5i | %p %p %s %s %s %s | %p %lu/%u(%p) %lu %u [",
+	seq_printf(seq, " %5i | %p %p %s %s %s %s | %p %lu/%u(%p) %lu %u [",
 		   0 /* gen */,
 		   cpg, page,
 		   "none",
@@ -537,7 +536,7 @@ static int vvp_dump_pgcache_seq_open(struct inode *inode, struct file *filp)
 	return result;
 }
 
-struct file_operations vvp_dump_pgcache_file_ops = {
+const struct file_operations vvp_dump_pgcache_file_ops = {
 	.owner   = THIS_MODULE,
 	.open    = vvp_dump_pgcache_seq_open,
 	.read    = seq_read,

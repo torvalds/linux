@@ -1,0 +1,175 @@
+Samsung S5P/EXYNOS SoC series MIPI CSIS/DSIM DPHY
+-------------------------------------------------
+
+Required properties:
+- compatible : should be "samsung,s5pv210-mipi-video-phy";
+- #phy-cells : from the generic phy bindings, must be 1;
+- syscon - phandle to the PMU system controller;
+
+For "samsung,s5pv210-mipi-video-phy" compatible PHYs the second cell in
+the PHY specifier identifies the PHY and its meaning is as follows:
+  0 - MIPI CSIS 0,
+  1 - MIPI DSIM 0,
+  2 - MIPI CSIS 1,
+  3 - MIPI DSIM 1.
+
+Samsung EXYNOS SoC series Display Port PHY
+-------------------------------------------------
+
+Required properties:
+- compatible : should be one of the following supported values:
+	 - "samsung,exynos5250-dp-video-phy"
+	 - "samsung,exynos5420-dp-video-phy"
+- samsung,pmu-syscon: phandle for PMU system controller interface, used to
+		      control pmu registers for power isolation.
+- #phy-cells : from the generic PHY bindings, must be 0;
+
+Samsung S5P/EXYNOS SoC series USB PHY
+-------------------------------------------------
+
+Required properties:
+- compatible : should be one of the listed compatibles:
+	- "samsung,exynos3250-usb2-phy"
+	- "samsung,exynos4210-usb2-phy"
+	- "samsung,exynos4x12-usb2-phy"
+	- "samsung,exynos5250-usb2-phy"
+	- "samsung,s5pv210-usb2-phy"
+- reg : a list of registers used by phy driver
+	- first and obligatory is the location of phy modules registers
+- samsung,sysreg-phandle - handle to syscon used to control the system registers
+- samsung,pmureg-phandle - handle to syscon used to control PMU registers
+- #phy-cells : from the generic phy bindings, must be 1;
+- clocks and clock-names:
+	- the "phy" clock is required by the phy module, used as a gate
+	- the "ref" clock is used to get the rate of the clock provided to the
+	  PHY module
+
+The first phandle argument in the PHY specifier identifies the PHY, its
+meaning is compatible dependent. For the currently supported SoCs (Exynos 4210
+and Exynos 4212) it is as follows:
+  0 - USB device ("device"),
+  1 - USB host ("host"),
+  2 - HSIC0 ("hsic0"),
+  3 - HSIC1 ("hsic1"),
+Exynos3250 has only USB device phy available as phy 0.
+
+Exynos 4210 and Exynos 4212 use mode switching and require that mode switch
+register is supplied.
+
+Example:
+
+For Exynos 4412 (compatible with Exynos 4212):
+
+usbphy: phy@125b0000 {
+	compatible = "samsung,exynos4x12-usb2-phy";
+	reg = <0x125b0000 0x100>;
+	clocks = <&clock 305>, <&clock 2>;
+	clock-names = "phy", "ref";
+	status = "okay";
+	#phy-cells = <1>;
+	samsung,sysreg-phandle = <&sys_reg>;
+	samsung,pmureg-phandle = <&pmu_reg>;
+};
+
+Then the PHY can be used in other nodes such as:
+
+phy-consumer@12340000 {
+	phys = <&usbphy 2>;
+	phy-names = "phy";
+};
+
+Refer to DT bindings documentation of particular PHY consumer devices for more
+information about required PHYs and the way of specification.
+
+Samsung SATA PHY Controller
+---------------------------
+
+SATA PHY nodes are defined to describe on-chip SATA Physical layer controllers.
+Each SATA PHY controller should have its own node.
+
+Required properties:
+- compatible        : compatible list, contains "samsung,exynos5250-sata-phy"
+- reg : offset and length of the SATA PHY register set;
+- #phy-cells : must be zero
+- clocks : must be exactly one entry
+- clock-names : must be "sata_phyctrl"
+- samsung,exynos-sataphy-i2c-phandle : a phandle to the I2C device, no arguments
+- samsung,syscon-phandle : a phandle to the PMU system controller, no arguments
+
+Example:
+	sata_phy: sata-phy@12170000 {
+		compatible = "samsung,exynos5250-sata-phy";
+		reg = <0x12170000 0x1ff>;
+		clocks = <&clock 287>;
+		clock-names = "sata_phyctrl";
+		#phy-cells = <0>;
+		samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
+		samsung,syscon-phandle = <&pmu_syscon>;
+	};
+
+Device-Tree bindings for sataphy i2c client driver
+--------------------------------------------------
+
+Required properties:
+compatible: Should be "samsung,exynos-sataphy-i2c"
+- reg: I2C address of the sataphy i2c device.
+
+Example:
+
+	sata_phy_i2c:sata-phy@38 {
+		compatible = "samsung,exynos-sataphy-i2c";
+		reg = <0x38>;
+	};
+
+Samsung Exynos5 SoC series USB DRD PHY controller
+--------------------------------------------------
+
+Required properties:
+- compatible : Should be set to one of the following supported values:
+	- "samsung,exynos5250-usbdrd-phy" - for exynos5250 SoC,
+	- "samsung,exynos5420-usbdrd-phy" - for exynos5420 SoC.
+	- "samsung,exynos7-usbdrd-phy" - for exynos7 SoC.
+- reg : Register offset and length of USB DRD PHY register set;
+- clocks: Clock IDs array as required by the controller
+- clock-names: names of clocks correseponding to IDs in the clock property;
+	       Required clocks:
+	- phy: main PHY clock (same as USB DRD controller i.e. DWC3 IP clock),
+	       used for register access.
+	- ref: PHY's reference clock (usually crystal clock), used for
+	       PHY operations, associated by phy name. It is used to
+	       determine bit values for clock settings register.
+	       For Exynos5420 this is given as 'sclk_usbphy30' in CMU.
+	- optional clocks: Exynos7 SoC has now following additional
+			   gate clocks available:
+			   - phy_pipe: for PIPE3 phy
+			   - phy_utmi: for UTMI+ phy
+			   - itp: for ITP generation
+- samsung,pmu-syscon: phandle for PMU system controller interface, used to
+		      control pmu registers for power isolation.
+- #phy-cells : from the generic PHY bindings, must be 1;
+
+For "samsung,exynos5250-usbdrd-phy" and "samsung,exynos5420-usbdrd-phy"
+compatible PHYs, the second cell in the PHY specifier identifies the
+PHY id, which is interpreted as follows:
+  0 - UTMI+ type phy,
+  1 - PIPE3 type phy,
+
+Example:
+	usbdrd_phy: usbphy@12100000 {
+		compatible = "samsung,exynos5250-usbdrd-phy";
+		reg = <0x12100000 0x100>;
+		clocks = <&clock 286>, <&clock 1>;
+		clock-names = "phy", "ref";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		#phy-cells = <1>;
+	};
+
+- aliases: For SoCs like Exynos5420 having multiple USB 3.0 DRD PHY controllers,
+	   'usbdrd_phy' nodes should have numbered alias in the aliases node,
+	   in the form of usbdrdphyN, N = 0, 1... (depending on number of
+	   controllers).
+Example:
+	aliases {
+		usbdrdphy0 = &usb3_phy0;
+		usbdrdphy1 = &usb3_phy1;
+	};

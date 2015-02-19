@@ -1,0 +1,77 @@
+STMicroelectronics STi MIPHY365x PHY binding
+============================================
+
+This binding describes a miphy device that is used to control PHY hardware
+for SATA and PCIe.
+
+Required properties (controller (parent) node):
+- compatible    : Should be "st,miphy365x-phy"
+- st,syscfg     : Phandle / integer array property. Phandle of sysconfig group
+		  containing the miphy registers and integer array should contain
+		  an entry for each port sub-node, specifying the control
+		  register offset inside the sysconfig group.
+
+Required nodes	:  A sub-node is required for each channel the controller
+		   provides. Address range information including the usual
+		   'reg' and 'reg-names' properties are used inside these
+		   nodes to describe the controller's topology. These nodes
+		   are translated by the driver's .xlate() function.
+
+Required properties (port (child) node):
+- #phy-cells 	: Should be 1 (See second example)
+		  Cell after port phandle is device type from:
+			- MIPHY_TYPE_SATA
+			- MIPHY_TYPE_PCI
+- reg        	: Address and length of register sets for each device in
+		  "reg-names"
+- reg-names     : The names of the register addresses corresponding to the
+		  registers filled in "reg":
+			- sata:   For SATA devices
+			- pcie:   For PCIe devices
+
+Optional properties (port (child) node):
+- st,sata-gen	     :	Generation of locally attached SATA IP. Expected values
+			are {1,2,3). If not supplied generation 1 hardware will
+			be expected
+- st,pcie-tx-pol-inv :	Bool property to invert the polarity PCIe Tx (Txn/Txp)
+- st,sata-tx-pol-inv :	Bool property to invert the polarity SATA Tx (Txn/Txp)
+
+Example:
+
+	miphy365x_phy: miphy365x@fe382000 {
+		compatible      = "st,miphy365x-phy";
+		st,syscfg  	= <&syscfg_rear 0x824 0x828>;
+		#address-cells	= <1>;
+		#size-cells	= <1>;
+		ranges;
+
+		phy_port0: port@fe382000 {
+			reg = <0xfe382000 0x100>, <0xfe394000 0x100>;
+			reg-names = "sata", "pcie";
+			#phy-cells = <1>;
+			st,sata-gen = <3>;
+		};
+
+		phy_port1: port@fe38a000 {
+			reg = <0xfe38a000 0x100>, <0xfe804000 0x100>;;
+			reg-names = "sata", "pcie", "syscfg";
+			#phy-cells = <1>;
+			st,pcie-tx-pol-inv;
+		};
+	};
+
+Specifying phy control of devices
+=================================
+
+Device nodes should specify the configuration required in their "phys"
+property, containing a phandle to the phy port node and a device type.
+
+Example:
+
+#include <dt-bindings/phy/phy-miphy365x.h>
+
+	sata0: sata@fe380000 {
+		...
+		phys	  = <&phy_port0 MIPHY_TYPE_SATA>;
+		...
+	};

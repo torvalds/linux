@@ -36,13 +36,13 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <asm/irq.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/of_i2c.h>
 
 #include "i2c-ibm_iic.h"
 
@@ -759,9 +759,6 @@ static int iic_probe(struct platform_device *ofdev)
 	dev_info(&ofdev->dev, "using %s mode\n",
 		 dev->fast_mode ? "fast (400 kHz)" : "standard (100 kHz)");
 
-	/* Now register all the child nodes */
-	of_i2c_register_devices(adap);
-
 	return 0;
 
 error_cleanup:
@@ -805,7 +802,6 @@ static const struct of_device_id ibm_iic_match[] = {
 static struct platform_driver ibm_iic_driver = {
 	.driver = {
 		.name = "ibm-iic",
-		.owner = THIS_MODULE,
 		.of_match_table = ibm_iic_match,
 	},
 	.probe	= iic_probe,

@@ -33,6 +33,7 @@
 #include <linux/export.h>
 
 #include <asm/tlbflush.h>
+#include <asm/dma.h>
 
 #include "mmu_decl.h"
 
@@ -287,9 +288,7 @@ void __dma_free_coherent(size_t size, void *vaddr)
 			pte_clear(&init_mm, addr, ptep);
 			if (pfn_valid(pfn)) {
 				struct page *page = pfn_to_page(pfn);
-
-				ClearPageReserved(page);
-				__free_page(page);
+				__free_reserved_page(page);
 			}
 		}
 		addr += PAGE_SIZE;

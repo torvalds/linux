@@ -19,16 +19,12 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *   La Monte H.P. Yarroll <piggy@acm.org>
@@ -39,9 +35,6 @@
  *   Xingang Guo           <xingang.guo@intel.com>
  *   Sridhar Samudrala     <samudrala@us.ibm.com>
  *   Daisy Chang           <daisyc@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #ifndef __sctp_constants_h__
@@ -318,7 +311,7 @@ typedef enum {
 	SCTP_XMIT_OK,
 	SCTP_XMIT_PMTU_FULL,
 	SCTP_XMIT_RWND_FULL,
-	SCTP_XMIT_NAGLE_DELAY,
+	SCTP_XMIT_DELAY,
 } sctp_xmit_t;
 
 /* These are the commands for manipulating transports.  */

@@ -82,7 +82,7 @@ static int debug = -1;	/* defaults above */
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
-static DEFINE_PCI_DEVICE_TABLE(skge_id_table) = {
+static const struct pci_device_id skge_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_3COM, 0x1700) },	  /* 3Com 3C940 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_3COM, 0x80EB) },	  /* 3Com 3C940B */
 #ifdef CONFIG_SKGE_GENESIS
@@ -1107,7 +1107,7 @@ static u16 xm_phy_read(struct skge_hw *hw, int port, u16 reg)
 {
 	u16 v = 0;
 	if (__xm_phy_read(hw, port, reg, &v))
-		pr_warning("%s: phy read timed out\n", hw->dev[port]->name);
+		pr_warn("%s: phy read timed out\n", hw->dev[port]->name);
 	return v;
 }
 
@@ -1903,7 +1903,7 @@ static int gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
 			return 0;
 	}
 
-	pr_warning("%s: phy write timeout\n", hw->dev[port]->name);
+	pr_warn("%s: phy write timeout\n", hw->dev[port]->name);
 	return -EIO;
 }
 
@@ -1931,7 +1931,7 @@ static u16 gm_phy_read(struct skge_hw *hw, int port, u16 reg)
 {
 	u16 v = 0;
 	if (__gm_phy_read(hw, port, reg, &v))
-		pr_warning("%s: phy read timeout\n", hw->dev[port]->name);
+		pr_warn("%s: phy read timeout\n", hw->dev[port]->name);
 	return v;
 }
 
@@ -2845,7 +2845,7 @@ mapping_unwind:
 mapping_error:
 	if (net_ratelimit())
 		dev_warn(&hw->pdev->dev, "%s: tx mapping error\n", dev->name);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -3086,11 +3086,17 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 					       PCI_DMA_FROMDEVICE);
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
+		struct skge_element ee;
 		struct sk_buff *nskb;
 
 		nskb = netdev_alloc_skb_ip_align(dev, skge->rx_buf_size);
 		if (!nskb)
 			goto resubmit;
+
+		ee = *e;
+
+		skb = ee.skb;
+		prefetch(skb->data);
 
 		if (skge_rx_setup(skge, e, nskb, skge->rx_buf_size) < 0) {
 			dev_kfree_skb(nskb);
@@ -3098,11 +3104,9 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		}
 
 		pci_unmap_single(skge->hw->pdev,
-				 dma_unmap_addr(e, mapaddr),
-				 dma_unmap_len(e, maplen),
+				 dma_unmap_addr(&ee, mapaddr),
+				 dma_unmap_len(&ee, maplen),
 				 PCI_DMA_FROMDEVICE);
-		skb = e->skb;
-		prefetch(skb->data);
 	}
 
 	skb_put(skb, len);
@@ -3168,7 +3172,7 @@ static void skge_tx_done(struct net_device *dev)
 			pkts_compl++;
 			bytes_compl += e->skb->len;
 
-			dev_kfree_skb(e->skb);
+			dev_consume_skb_any(e->skb);
 		}
 	}
 	netdev_completed_queue(dev, pkts_compl, bytes_compl);
@@ -3429,10 +3433,9 @@ static irqreturn_t skge_intr(int irq, void *dev_id)
 
 	if (status & IS_HW_ERR)
 		skge_error_irq(hw);
-
+out:
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 	skge_read32(hw, B0_IMSK);
-out:
 	spin_unlock(&hw->hw_lock);
 
 	return IRQ_RETVAL(handled);
@@ -4042,7 +4045,6 @@ err_out_free_regions:
 	pci_release_regions(pdev);
 err_out_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 err_out:
 	return err;
 }
@@ -4086,7 +4088,6 @@ static void skge_remove(struct pci_dev *pdev)
 
 	iounmap(hw->regs);
 	kfree(hw);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -4195,6 +4196,13 @@ static struct dmi_system_id skge_32bit_dma_boards[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
 			DMI_MATCH(DMI_BOARD_NAME, "P5NSLI")
+		},
+	},
+	{
+		.ident = "FUJITSU SIEMENS A8NE-FM",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTek Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "A8NE-FM")
 		},
 	},
 	{}

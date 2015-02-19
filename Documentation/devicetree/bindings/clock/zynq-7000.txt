@@ -14,6 +14,7 @@ for all clock consumers of PS clocks.
 Required properties:
  - #clock-cells : Must be 1
  - compatible : "xlnx,ps7-clkc"
+ - reg : SLCR offset and size taken via syscon < 0x100 0x100 >
  - ps-clk-frequency : Frequency of the oscillator providing ps_clk in HZ
 		      (usually 33 MHz oscillators are used for Zynq platforms)
  - clock-output-names : List of strings used to name the clock outputs. Shall be
@@ -22,6 +23,10 @@ Required properties:
 Optional properties:
  - clocks : as described in the clock bindings
  - clock-names : as described in the clock bindings
+ - fclk-enable : Bit mask to enable FCLKs statically at boot time.
+		 Bit [0..3] correspond to FCLK0..FCLK3. The corresponding
+		 FCLK will only be enabled if it is actually running at
+		 boot time.
 
 Clock inputs:
 The following strings are optional parameters to the 'clock-names' property in
@@ -83,10 +88,11 @@ Clock outputs:
  47: dbg_apb
 
 Example:
-	clkc: clkc {
+	clkc: clkc@100 {
 		#clock-cells = <1>;
 		compatible = "xlnx,ps7-clkc";
 		ps-clk-frequency = <33333333>;
+		reg = <0x100 0x100>;
 		clock-output-names = "armpll", "ddrpll", "iopll", "cpu_6or4x",
 				"cpu_3or2x", "cpu_2x", "cpu_1x", "ddr2x", "ddr3x",
 				"dci", "lqspi", "smc", "pcap", "gem0", "gem1",

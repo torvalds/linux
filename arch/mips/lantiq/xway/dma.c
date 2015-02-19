@@ -220,10 +220,6 @@ ltq_dma_init(struct platform_device *pdev)
 	int i;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		panic("Failed to get dma resource");
-
-	/* remap dma register range */
 	ltq_dma_membase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ltq_dma_membase))
 		panic("Failed to remap dma resource");
@@ -265,7 +261,6 @@ static struct platform_driver dma_driver = {
 	.probe = ltq_dma_init,
 	.driver = {
 		.name = "dma-xway",
-		.owner = THIS_MODULE,
 		.of_match_table = dma_match,
 	},
 };

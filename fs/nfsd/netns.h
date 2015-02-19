@@ -29,14 +29,19 @@
 #define CLIENT_HASH_SIZE                (1 << CLIENT_HASH_BITS)
 #define CLIENT_HASH_MASK                (CLIENT_HASH_SIZE - 1)
 
-#define LOCKOWNER_INO_HASH_BITS		8
-#define LOCKOWNER_INO_HASH_SIZE		(1 << LOCKOWNER_INO_HASH_BITS)
-
 #define SESSION_HASH_SIZE	512
 
 struct cld_net;
 struct nfsd4_client_tracking_ops;
 
+/*
+ * Represents a nfsd "container". With respect to nfsv4 state tracking, the
+ * fields of interest are the *_id_hashtbls and the *_name_tree. These track
+ * the nfs4_client objects by either short or long form clientid.
+ *
+ * Each nfsd_net runs a nfs4_laundromat workqueue job when necessary to clean
+ * up expired clients and delegations within the container.
+ */
 struct nfsd_net {
 	struct cld_net *cld_net;
 
@@ -66,8 +71,6 @@ struct nfsd_net {
 	struct rb_root conf_name_tree;
 	struct list_head *unconf_id_hashtbl;
 	struct rb_root unconf_name_tree;
-	struct list_head *ownerstr_hashtbl;
-	struct list_head *lockowner_ino_hashtbl;
 	struct list_head *sessionid_hashtbl;
 	/*
 	 * client_lru holds client queue ordered by nfs4_client.cl_time
@@ -95,11 +98,18 @@ struct nfsd_net {
 	time_t nfsd4_grace;
 
 	bool nfsd_net_up;
+	bool lockd_up;
+
+	/* Time of server startup */
+	struct timeval nfssvc_boot;
 
 	/*
-	 * Time of server startup
+	 * Max number of connections this nfsd container will allow. Defaults
+	 * to '0' which is means that it bases this on the number of threads.
 	 */
-	struct timeval nfssvc_boot;
+	unsigned int max_connections;
+
+	u32 clientid_counter;
 
 	struct svc_serv *nfsd_serv;
 };

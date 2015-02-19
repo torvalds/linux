@@ -118,7 +118,6 @@ static void via_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 				  struct hda_codec *codec,
 				  struct snd_pcm_substream *substream,
 				  int action);
-static void via_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *tbl);
 
 static struct via_spec *via_new_spec(struct hda_codec *codec)
 {
@@ -138,6 +137,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 	spec->gen.indep_hp = 1;
 	spec->gen.keep_eapd_on = 1;
 	spec->gen.pcm_playback_hook = via_playback_pcm_hook;
+	spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_AUTO;
 	return spec;
 }
 
@@ -207,9 +207,9 @@ static void vt1708_stop_hp_work(struct hda_codec *codec)
 		return;
 	if (spec->hp_work_active) {
 		snd_hda_codec_write(codec, 0x1, 0, 0xf81, 1);
+		codec->jackpoll_interval = 0;
 		cancel_delayed_work_sync(&codec->jackpoll_work);
 		spec->hp_work_active = false;
-		codec->jackpoll_interval = 0;
 	}
 }
 
@@ -464,14 +464,8 @@ static void via_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 
 static void via_free(struct hda_codec *codec)
 {
-	struct via_spec *spec = codec->spec;
-
-	if (!spec)
-		return;
-
 	vt1708_stop_hp_work(codec);
-	snd_hda_gen_spec_free(&spec->gen);
-	kfree(spec);
+	snd_hda_gen_free(codec);
 }
 
 #ifdef CONFIG_PM
@@ -580,24 +574,11 @@ static const struct snd_kcontrol_new vt1708_jack_detect_ctl[] = {
 	{} /* terminator */
 };
 
-static void via_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *tbl)
-{
-	set_widgets_power_state(codec);
-	snd_hda_gen_hp_automute(codec, tbl);
-}
-
-static void via_line_automute(struct hda_codec *codec, struct hda_jack_tbl *tbl)
-{
-	set_widgets_power_state(codec);
-	snd_hda_gen_line_automute(codec, tbl);
-}
-
-static void via_jack_powerstate_event(struct hda_codec *codec, struct hda_jack_tbl *tbl)
+static void via_jack_powerstate_event(struct hda_codec *codec,
+				      struct hda_jack_callback *tbl)
 {
 	set_widgets_power_state(codec);
 }
-
-#define VIA_JACK_EVENT	(HDA_GEN_LAST_EVENT + 1)
 
 static void via_set_jack_unsol_events(struct hda_codec *codec)
 {
@@ -606,25 +587,17 @@ static void via_set_jack_unsol_events(struct hda_codec *codec)
 	hda_nid_t pin;
 	int i;
 
-	spec->gen.hp_automute_hook = via_hp_automute;
-	if (cfg->speaker_pins[0])
-		spec->gen.line_automute_hook = via_line_automute;
-
 	for (i = 0; i < cfg->line_outs; i++) {
 		pin = cfg->line_out_pins[i];
-		if (pin && !snd_hda_jack_tbl_get(codec, pin) &&
-		    is_jack_detectable(codec, pin))
+		if (pin && is_jack_detectable(codec, pin))
 			snd_hda_jack_detect_enable_callback(codec, pin,
-							    VIA_JACK_EVENT,
 							    via_jack_powerstate_event);
 	}
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		pin = cfg->line_out_pins[i];
-		if (pin && !snd_hda_jack_tbl_get(codec, pin) &&
-		    is_jack_detectable(codec, pin))
+		if (pin && is_jack_detectable(codec, pin))
 			snd_hda_jack_detect_enable_callback(codec, pin,
-							    VIA_JACK_EVENT,
 							    via_jack_powerstate_event);
 	}
 }

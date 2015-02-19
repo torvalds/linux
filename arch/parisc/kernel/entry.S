@@ -1774,10 +1774,6 @@ ENTRY(sys_rt_sigreturn_wrapper)
 ENDPROC(sys_rt_sigreturn_wrapper)
 
 ENTRY(syscall_exit)
-	/* NOTE: HP-UX syscalls also come through here
-	 * after hpux_syscall_exit fixes up return
-	 * values. */
-
 	/* NOTE: Not all syscalls exit this way.  rt_sigreturn will exit
 	 * via syscall_exit_rfi if the signal was received while the process
 	 * was running.
@@ -1788,22 +1784,6 @@ ENTRY(syscall_exit)
 	mfctl     %cr30, %r1
 	LDREG     TI_TASK(%r1),%r1
 	STREG     %r28,TASK_PT_GR28(%r1)
-
-#ifdef CONFIG_HPUX
-/* <linux/personality.h> cannot be easily included */
-#define PER_HPUX 0x10
-	ldw	TASK_PERSONALITY(%r1),%r19
-
-	/* We can't use "CMPIB<> PER_HPUX" since "im5" field is sign extended */
-	ldo	  -PER_HPUX(%r19), %r19
-	cmpib,COND(<>),n 0,%r19,1f
-
-	/* Save other hpux returns if personality is PER_HPUX */
-	STREG     %r22,TASK_PT_GR22(%r1)
-	STREG     %r29,TASK_PT_GR29(%r1)
-1:
-
-#endif /* CONFIG_HPUX */
 
 	/* Seems to me that dp could be wrong here, if the syscall involved
 	 * calling a module, and nothing got round to restoring dp on return.

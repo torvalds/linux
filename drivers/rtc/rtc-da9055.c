@@ -278,7 +278,7 @@ static int da9055_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	rtc->da9055 = dev_get_drvdata(pdev->dev.parent);
-	pdata = rtc->da9055->dev->platform_data;
+	pdata = dev_get_platdata(rtc->da9055->dev);
 	platform_set_drvdata(pdev, rtc);
 
 	ret = da9055_rtc_device_init(rtc->da9055, pdata);
@@ -302,7 +302,9 @@ static int da9055_rtc_probe(struct platform_device *pdev)
 	}
 
 	alm_irq = platform_get_irq_byname(pdev, "ALM");
-	alm_irq = regmap_irq_get_virq(rtc->da9055->irq_data, alm_irq);
+	if (alm_irq < 0)
+		return alm_irq;
+
 	ret = devm_request_threaded_irq(&pdev->dev, alm_irq, NULL,
 					da9055_rtc_alm_irq,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
@@ -389,7 +391,6 @@ static struct platform_driver da9055_rtc_driver = {
 	.probe  = da9055_rtc_probe,
 	.driver = {
 		.name   = "da9055-rtc",
-		.owner  = THIS_MODULE,
 		.pm = &da9055_rtc_pm_ops,
 	},
 };

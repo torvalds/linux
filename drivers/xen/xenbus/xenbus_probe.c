@@ -297,9 +297,13 @@ void xenbus_dev_shutdown(struct device *_dev)
 EXPORT_SYMBOL_GPL(xenbus_dev_shutdown);
 
 int xenbus_register_driver_common(struct xenbus_driver *drv,
-				  struct xen_bus_type *bus)
+				  struct xen_bus_type *bus,
+				  struct module *owner, const char *mod_name)
 {
+	drv->driver.name = drv->name ? drv->name : drv->ids[0].devicetype;
 	drv->driver.bus = &bus->bus;
+	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
 
 	return driver_register(&drv->driver);
 }
@@ -384,12 +388,14 @@ static ssize_t nodename_show(struct device *dev,
 {
 	return sprintf(buf, "%s\n", to_xenbus_device(dev)->nodename);
 }
+static DEVICE_ATTR_RO(nodename);
 
 static ssize_t devtype_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_xenbus_device(dev)->devicetype);
 }
+static DEVICE_ATTR_RO(devtype);
 
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
@@ -397,14 +403,24 @@ static ssize_t modalias_show(struct device *dev,
 	return sprintf(buf, "%s:%s\n", dev->bus->name,
 		       to_xenbus_device(dev)->devicetype);
 }
+static DEVICE_ATTR_RO(modalias);
 
-struct device_attribute xenbus_dev_attrs[] = {
-	__ATTR_RO(nodename),
-	__ATTR_RO(devtype),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *xenbus_dev_attrs[] = {
+	&dev_attr_nodename.attr,
+	&dev_attr_devtype.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
-EXPORT_SYMBOL_GPL(xenbus_dev_attrs);
+
+static const struct attribute_group xenbus_dev_group = {
+	.attrs = xenbus_dev_attrs,
+};
+
+const struct attribute_group *xenbus_dev_groups[] = {
+	&xenbus_dev_group,
+	NULL,
+};
+EXPORT_SYMBOL_GPL(xenbus_dev_groups);
 
 int xenbus_probe_node(struct xen_bus_type *bus,
 		      const char *type,

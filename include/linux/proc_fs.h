@@ -44,6 +44,10 @@ extern int remove_proc_subtree(const char *, struct proc_dir_entry *);
 
 #else /* CONFIG_PROC_FS */
 
+static inline void proc_root_init(void)
+{
+}
+
 static inline void proc_flush_task(struct task_struct *task)
 {
 }
@@ -69,6 +73,8 @@ static inline void proc_remove(struct proc_dir_entry *de) {}
 static inline int remove_proc_subtree(const char *name, struct proc_dir_entry *parent) { return 0; }
 
 #endif /* CONFIG_PROC_FS */
+
+struct net;
 
 static inline struct proc_dir_entry *proc_net_mkdir(
 	struct net *net, const char *name, struct proc_dir_entry *parent)

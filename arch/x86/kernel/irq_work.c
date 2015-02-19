@@ -22,14 +22,14 @@ static inline void __smp_irq_work_interrupt(void)
 	irq_work_run();
 }
 
-void smp_irq_work_interrupt(struct pt_regs *regs)
+__visible void smp_irq_work_interrupt(struct pt_regs *regs)
 {
 	irq_work_entering_irq();
 	__smp_irq_work_interrupt();
 	exiting_irq();
 }
 
-void smp_trace_irq_work_interrupt(struct pt_regs *regs)
+__visible void smp_trace_irq_work_interrupt(struct pt_regs *regs)
 {
 	irq_work_entering_irq();
 	trace_irq_work_entry(IRQ_WORK_VECTOR);
@@ -41,7 +41,7 @@ void smp_trace_irq_work_interrupt(struct pt_regs *regs)
 void arch_irq_work_raise(void)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
-	if (!cpu_has_apic)
+	if (!arch_irq_work_has_interrupt())
 		return;
 
 	apic->send_IPI_self(IRQ_WORK_VECTOR);

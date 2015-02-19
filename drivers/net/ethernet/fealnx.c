@@ -699,7 +699,6 @@ static void fealnx_remove_one(struct pci_dev *pdev)
 		pci_iounmap(pdev, np->mem);
 		free_netdev(dev);
 		pci_release_regions(pdev);
-		pci_set_drvdata(pdev, NULL);
 	} else
 		printk(KERN_ERR "fealnx: remove for unknown device\n");
 }
@@ -1937,7 +1936,7 @@ static int netdev_close(struct net_device *dev)
 	return 0;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(fealnx_pci_tbl) = {
+static const struct pci_device_id fealnx_pci_tbl[] = {
 	{0x1516, 0x0800, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x1516, 0x0803, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
 	{0x1516, 0x0891, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},

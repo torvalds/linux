@@ -17,7 +17,6 @@
  */
 
 #include <linux/irq.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/input.h>
@@ -86,7 +85,6 @@ static struct platform_driver retu_pwrbutton_driver = {
 	.remove		= retu_pwrbutton_remove,
 	.driver		= {
 		.name	= "retu-pwrbutton",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(retu_pwrbutton_driver);

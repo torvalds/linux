@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  * Copyright (c) 2006-2012 Wilocity .
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -28,9 +28,11 @@
 #define __WILOCITY_WMI_H__
 
 /* General */
-
+#define WILOCITY_MAX_ASSOC_STA (8)
+#define WILOCITY_DEFAULT_ASSOC_STA (1)
 #define WMI_MAC_LEN		(6)
 #define WMI_PROX_RANGE_NUM	(3)
+#define WMI_MAX_LOSS_DMG_BEACONS	(32)
 
 /* List of Commands */
 enum wmi_command_id {
@@ -48,7 +50,7 @@ enum wmi_command_id {
 	WMI_SET_WSC_STATUS_CMDID	= 0x0041,
 	WMI_PXMT_RANGE_CFG_CMDID	= 0x0042,
 	WMI_PXMT_SNR2_RANGE_CFG_CMDID	= 0x0043,
-	WMI_FAST_MEM_ACC_MODE_CMDID	= 0x0300,
+/*	WMI_FAST_MEM_ACC_MODE_CMDID	= 0x0300, */
 	WMI_MEM_READ_CMDID		= 0x0800,
 	WMI_MEM_WR_CMDID		= 0x0801,
 	WMI_ECHO_CMDID			= 0x0803,
@@ -102,6 +104,8 @@ enum wmi_command_id {
 	WMI_MAINTAIN_RESUME_CMDID	= 0x0851,
 	WMI_RS_MGMT_CMDID		= 0x0852,
 	WMI_RF_MGMT_CMDID		= 0x0853,
+	WMI_THERMAL_THROTTLING_CTRL_CMDID	= 0x0854,
+	WMI_THERMAL_THROTTLING_GET_STATUS_CMDID	= 0x0855,
 	/* Performance monitoring commands */
 	WMI_BF_CTRL_CMDID		= 0x0862,
 	WMI_NOTIFY_REQ_CMDID		= 0x0863,
@@ -136,6 +140,7 @@ enum wmi_command_id {
 	WMI_EAPOL_TX_CMDID		= 0xf04c,
 	WMI_MAC_ADDR_REQ_CMDID		= 0xf04d,
 	WMI_FW_VER_CMDID		= 0xf04e,
+	WMI_PMC_CMDID			= 0xf04f,
 };
 
 /*
@@ -179,7 +184,6 @@ enum wmi_crypto_type {
 	WMI_CRYPT_AES_GCMP		= 0x20,
 };
 
-
 enum wmi_connect_ctrl_flag_bits {
 	WMI_CONNECT_ASSOC_POLICY_USER		= 0x0001,
 	WMI_CONNECT_SEND_REASSOC		= 0x0002,
@@ -220,16 +224,6 @@ struct wmi_disconnect_sta_cmd {
 } __packed;
 
 /*
- * WMI_RECONNECT_CMDID
- */
-struct wmi_reconnect_cmd {
-	u8 channel;			/* hint */
-	u8 reserved;
-	u8 bssid[WMI_MAC_LEN];		/* mandatory if set */
-} __packed;
-
-
-/*
  * WMI_SET_PMK_CMDID
  */
 
@@ -242,7 +236,6 @@ struct wmi_reconnect_cmd {
 struct  wmi_set_pmk_cmd {
 	u8 pmk[WMI_PMK_LEN];
 } __packed;
-
 
 /*
  * WMI_SET_PASSPHRASE_CMDID
@@ -282,7 +275,6 @@ struct wmi_delete_cipher_key_cmd {
 	u8 mac[WMI_MAC_LEN];
 } __packed;
 
-
 /*
  * WMI_START_SCAN_CMDID
  *
@@ -296,11 +288,13 @@ enum wmi_scan_type {
 	WMI_LONG_SCAN		= 0,
 	WMI_SHORT_SCAN		= 1,
 	WMI_PBC_SCAN		= 2,
+	WMI_DIRECT_SCAN		= 3,
+	WMI_ACTIVE_SCAN		= 4,
 };
 
 struct wmi_start_scan_cmd {
-	u8 reserved[8];
-
+	u8 direct_scan_mac_addr[6];
+	u8 reserved[2];
 	__le32 home_dwell_time;	/* Max duration in the home channel(ms) */
 	__le32 force_scan_interval;	/* Time interval between scans (ms)*/
 	u8 scan_type;		/* wmi_scan_type */
@@ -357,7 +351,6 @@ struct wmi_set_appie_cmd {
 	u8 ie_info[0];
 } __packed;
 
-
 /*
  * WMI_PXMT_RANGE_CFG_CMDID
  */
@@ -386,6 +379,16 @@ struct wmi_rf_mgmt_cmd {
 	__le32 rf_mgmt_type;
 } __packed;
 
+/*
+ * WMI_THERMAL_THROTTLING_CTRL_CMDID
+ */
+#define THERMAL_THROTTLING_USE_DEFAULT_MAX_TXOP_LENGTH	(0xFFFFFFFF)
+
+struct wmi_thermal_throttling_ctrl_cmd {
+	__le32 time_on_usec;
+	__le32 time_off_usec;
+	__le32 max_txop_length_usec;
+} __packed;
 
 /*
  * WMI_RF_RX_TEST_CMDID
@@ -427,11 +430,10 @@ struct wmi_bcon_ctrl_cmd {
 	__le16 frag_num;
 	__le64 ss_mask;
 	u8 network_type;
-	u8 reserved;
+	u8 pcp_max_assoc_sta;
 	u8 disable_sec_offload;
 	u8 disable_sec;
 } __packed;
-
 
 /******* P2P ***********/
 
@@ -450,7 +452,7 @@ enum wmi_port_role {
 struct wmi_port_allocate_cmd {
 	u8 mac[WMI_MAC_LEN];
 	u8 port_role;
-	u8 midid;
+	u8 mid;
 } __packed;
 
 /*
@@ -467,6 +469,7 @@ struct wmi_delete_port_cmd {
 enum wmi_discovery_mode {
 	WMI_DISCOVERY_MODE_NON_OFFLOAD	= 0,
 	WMI_DISCOVERY_MODE_OFFLOAD	= 1,
+	WMI_DISCOVERY_MODE_PEER2PEER	= 2,
 };
 
 struct wmi_p2p_cfg_cmd {
@@ -493,7 +496,8 @@ struct wmi_power_mgmt_cfg_cmd {
  */
 struct wmi_pcp_start_cmd {
 	__le16 bcon_interval;
-	u8 reserved0[10];
+	u8 pcp_max_assoc_sta;
+	u8 reserved0[9];
 	u8 network_type;
 	u8 channel;
 	u8 disable_sec_offload;
@@ -598,6 +602,7 @@ struct wmi_vring_ba_en_cmd {
 	u8 ringid;
 	u8 agg_max_wsize;
 	__le16 ba_timeout;
+	u8 amsdu;
 } __packed;
 
 /*
@@ -659,6 +664,7 @@ enum wmi_cfg_rx_chain_cmd_action {
 enum wmi_cfg_rx_chain_cmd_decap_trans_type {
 	WMI_DECAP_TYPE_802_3			= 0,
 	WMI_DECAP_TYPE_NATIVE_WIFI		= 1,
+	WMI_DECAP_TYPE_NONE			= 2,
 };
 
 enum wmi_cfg_rx_chain_cmd_nwifi_ds_trans_type {
@@ -796,11 +802,18 @@ struct wmi_echo_cmd {
  *
  * Measure MAC and radio temperatures
  */
-struct wmi_temp_sense_cmd {
-	__le32 measure_marlon_m_en;
-	__le32 measure_marlon_r_en;
-} __packed;
 
+/* Possible modes for temperature measurement */
+enum wmi_temperature_measure_mode {
+	TEMPERATURE_USE_OLD_VALUE	= 0x1,
+	TEMPERATURE_MEASURE_NOW		= 0x2,
+};
+
+struct wmi_temp_sense_cmd {
+	__le32 measure_baseband_en;
+	__le32 measure_rf_en;
+	__le32 measure_mode;
+} __packed;
 
 /*
  * WMI Events
@@ -855,8 +868,10 @@ enum wmi_event_id {
 	WMI_BF_RXSS_MGMT_DONE_EVENTID		= 0x1839,
 	WMI_RS_MGMT_DONE_EVENTID		= 0x1852,
 	WMI_RF_MGMT_STATUS_EVENTID		= 0x1853,
+	WMI_THERMAL_THROTTLING_STATUS_EVENTID	= 0x1855,
 	WMI_BF_SM_MGMT_DONE_EVENTID		= 0x1838,
 	WMI_RX_MGMT_PACKET_EVENTID		= 0x1840,
+	WMI_TX_MGMT_PACKET_EVENTID		= 0x1841,
 
 	/* Performance monitoring events */
 	WMI_DATA_PORT_OPEN_EVENTID		= 0x1860,
@@ -870,6 +885,7 @@ enum wmi_event_id {
 	WMI_FLASH_READ_DONE_EVENTID		= 0x1902,
 	WMI_FLASH_WRITE_DONE_EVENTID		= 0x1903,
 	/*P2P*/
+	WMI_P2P_CFG_DONE_EVENTID		= 0x1910,
 	WMI_PORT_ALLOCATED_EVENTID		= 0x1911,
 	WMI_PORT_DELETED_EVENTID		= 0x1912,
 	WMI_LISTEN_STARTED_EVENTID		= 0x1914,
@@ -890,7 +906,6 @@ enum wmi_event_id {
  * Events data structures
  */
 
-
 enum wmi_fw_status {
 	WMI_FW_STATUS_SUCCESS,
 	WMI_FW_STATUS_FAILURE,
@@ -908,6 +923,15 @@ enum wmi_rf_status {
 
 struct wmi_rf_mgmt_status_event {
 	__le32 rf_status;
+} __packed;
+
+/*
+ * WMI_THERMAL_THROTTLING_STATUS_EVENTID
+ */
+struct wmi_thermal_throttling_status_event {
+	__le32 time_on_usec;
+	__le32 time_off_usec;
+	__le32 max_txop_length_usec;
 } __packed;
 
 /*
@@ -983,7 +1007,7 @@ struct wmi_ready_event {
  * WMI_NOTIFY_REQ_DONE_EVENTID
  */
 struct wmi_notify_req_done_event {
-	__le32 status;
+	__le32 status; /* beamforming status, 0: fail; 1: OK; 2: retrying */
 	__le64 tsf;
 	__le32 snr_val;
 	__le32 tx_tpt;
@@ -1040,16 +1064,23 @@ enum wmi_disconnect_reason {
 struct wmi_disconnect_event {
 	__le16 protocol_reason_status;	/* reason code, see 802.11 spec. */
 	u8 bssid[WMI_MAC_LEN];		/* set if known */
-	u8 disconnect_reason;		/* see wmi_disconnect_reason_e */
-	u8 assoc_resp_len;
-	u8 assoc_info[0];
+	u8 disconnect_reason;		/* see wmi_disconnect_reason */
+	u8 assoc_resp_len;	/* not used */
+	u8 assoc_info[0];	/* not used */
 } __packed;
 
 /*
  * WMI_SCAN_COMPLETE_EVENTID
  */
+enum scan_status {
+	WMI_SCAN_SUCCESS	= 0,
+	WMI_SCAN_FAILED		= 1,
+	WMI_SCAN_ABORTED	= 2,
+	WMI_SCAN_REJECTED	= 3,
+};
+
 struct wmi_scan_complete_event {
-	__le32 status;
+	__le32 status;	/* scan_status */
 } __packed;
 
 /*
@@ -1058,14 +1089,23 @@ struct wmi_scan_complete_event {
 enum wmi_vring_ba_status {
 	WMI_BA_AGREED			= 0,
 	WMI_BA_NON_AGREED		= 1,
+	/* BA_EN in middle of teardown flow */
+	WMI_BA_TD_WIP			= 2,
+	/* BA_DIS or BA_EN in middle of BA SETUP flow */
+	WMI_BA_SETUP_WIP		= 3,
+	/* BA_EN when the BA session is already active */
+	WMI_BA_SESSION_ACTIVE		= 4,
+	/* BA_DIS when the BA session is not active */
+	WMI_BA_SESSION_NOT_ACTIVE	= 5,
 };
 
 struct wmi_vring_ba_status_event {
-	__le16 status;
+	__le16 status; /* enum wmi_vring_ba_status */
 	u8 reserved[2];
 	u8 ringid;
 	u8 agg_wsize;
 	__le16 ba_timeout;
+	u8 amsdu;
 } __packed;
 
 /*
@@ -1076,7 +1116,6 @@ struct wmi_delba_event {
 	u8 from_initiator;
 	__le16 reason;
 } __packed;
-
 
 /*
  * WMI_VRING_CFG_DONE_EVENTID
@@ -1143,7 +1182,6 @@ struct wmi_data_port_open_event {
 	u8 reserved[3];
 } __packed;
 
-
 /*
  * WMI_GET_PCP_CHANNEL_EVENTID
  */
@@ -1152,6 +1190,13 @@ struct wmi_get_pcp_channel_event {
 	u8 reserved[3];
 } __packed;
 
+/*
+ * WMI_P2P_CFG_DONE_EVENTID
+ */
+struct wmi_p2p_cfg_done_event {
+	u8 status;	/* wmi_fw_status */
+	u8 reserved[3];
+} __packed;
 
 /*
 * WMI_PORT_ALLOCATED_EVENTID
@@ -1256,6 +1301,13 @@ struct wmi_rx_mgmt_info {
 	u8 channel;	/* From Radio MNGR */
 } __packed;
 
+/*
+ * WMI_TX_MGMT_PACKET_EVENTID
+ */
+struct wmi_tx_mgmt_packet_event {
+	u8 payload[0];
+} __packed;
+
 struct wmi_rx_mgmt_packet_event {
 	struct wmi_rx_mgmt_info info;
 	u8 payload[0];
@@ -1274,8 +1326,8 @@ struct wmi_echo_event {
  * Measure MAC and radio temperatures
  */
 struct wmi_temp_sense_done_event {
-	__le32 marlon_m_t1000;
-	__le32 marlon_r_t1000;
+	__le32 baseband_t1000;
+	__le32 rf_t1000;
 } __packed;
 
 #endif /* __WILOCITY_WMI_H__ */

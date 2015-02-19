@@ -1,4 +1,5 @@
 ashldi3.S
+bswapsdi2.S
 font.c
 lib1funcs.S
 hyp-stub.S

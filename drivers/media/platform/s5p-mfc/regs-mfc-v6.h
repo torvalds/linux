@@ -71,6 +71,7 @@
 #define S5P_FIMV_R2H_CMD_ENC_BUFFER_FUL_RET_V6	16
 #define S5P_FIMV_R2H_CMD_ERR_RET_V6		32
 
+#define S5P_FIMV_MFC_BUS_RESET_CTRL            0x7110
 #define S5P_FIMV_FW_VERSION_V6			0xf000
 
 #define S5P_FIMV_INSTANCE_ID_V6			0xf008
@@ -141,6 +142,7 @@
 #define S5P_FIMV_D_SLICE_IF_ENABLE_V6		0xf4c4
 #define S5P_FIMV_D_PICTURE_TAG_V6		0xf4c8
 #define S5P_FIMV_D_STREAM_DATA_SIZE_V6		0xf4d0
+#define S5P_FIMV_D_INIT_BUFFER_OPTIONS_V6	0xf47c
 
 /* Display information register */
 #define S5P_FIMV_D_DISPLAY_FRAME_WIDTH_V6	0xf500
@@ -229,6 +231,7 @@
 #define S5P_FIMV_E_PADDING_CTRL_V6		0xf7a4
 #define S5P_FIMV_E_MV_HOR_RANGE_V6		0xf7ac
 #define S5P_FIMV_E_MV_VER_RANGE_V6		0xf7b0
+#define S5P_FIMV_E_MV_RANGE_V6_MASK		0x3fff
 
 #define S5P_FIMV_E_VBV_BUFFER_SIZE_V6		0xf84c
 #define S5P_FIMV_E_VBV_INIT_DELAY_V6		0xf850
@@ -374,14 +377,13 @@
 #define S5P_FIMV_NUM_PIXELS_IN_MB_COL_V6	16
 
 /* Buffer size requirements defined by hardware */
-#define S5P_FIMV_TMV_BUFFER_SIZE_V6(w, h)	(((w) + 1) * ((h) + 1) * 8)
+#define S5P_FIMV_TMV_BUFFER_SIZE_V6(w, h)	(((w) + 1) * ((h) + 3) * 8)
 #define S5P_FIMV_ME_BUFFER_SIZE_V6(imw, imh, mbw, mbh) \
-	((DIV_ROUND_UP(imw, 64) *  DIV_ROUND_UP(imh, 64) * 256) + \
+	(((((imw + 127) / 64) * 16) *  DIV_ROUND_UP(imh, 64) * 256) + \
 	 (DIV_ROUND_UP((mbw) * (mbh), 32) * 16))
 #define S5P_FIMV_SCRATCH_BUF_SIZE_H264_DEC_V6(w, h)	(((w) * 192) + 64)
 #define S5P_FIMV_SCRATCH_BUF_SIZE_MPEG4_DEC_V6(w, h) \
-			((w) * ((h) * 64 + 144) + (2048/16 * (h) * 64) + \
-			 (2048/16 * 256 + 8320))
+			((w) * 144 + 8192 * (h) + 49216 + 1048576)
 #define S5P_FIMV_SCRATCH_BUF_SIZE_VC1_DEC_V6(w, h) \
 						(2096 * ((w) + (h) + 1))
 #define S5P_FIMV_SCRATCH_BUF_SIZE_H263_DEC_V6(w, h)	((w) * 400)

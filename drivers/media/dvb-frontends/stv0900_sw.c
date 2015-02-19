@@ -1081,7 +1081,7 @@ static int stv0900_wait_for_lock(struct stv0900_internal *intp,
 	lock = stv0900_get_demod_lock(intp, demod, dmd_timeout);
 
 	if (lock)
-		lock = lock && stv0900_get_fec_lock(intp, demod, fec_timeout);
+		lock = stv0900_get_fec_lock(intp, demod, fec_timeout);
 
 	if (lock) {
 		lock = 0;
@@ -1733,9 +1733,10 @@ static void stv0900_set_search_standard(struct stv0900_internal *intp,
 		break;
 	case STV0900_SEARCH_DSS:
 		dprintk("Search Standard = DSS\n");
-	case STV0900_SEARCH_DVBS2:
 		break;
+	case STV0900_SEARCH_DVBS2:
 		dprintk("Search Standard = DVBS2\n");
+		break;
 	case STV0900_AUTO_SEARCH:
 	default:
 		dprintk("Search Standard = AUTO\n");

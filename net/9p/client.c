@@ -204,7 +204,7 @@ free_and_return:
 	return ret;
 }
 
-struct p9_fcall *p9_fcall_alloc(int alloc_msize)
+static struct p9_fcall *p9_fcall_alloc(int alloc_msize)
 {
 	struct p9_fcall *fc;
 	fc = kmalloc(sizeof(struct p9_fcall) + alloc_msize, GFP_NOFS);
@@ -415,9 +415,17 @@ static void p9_free_req(struct p9_client *c, struct p9_req_t *r)
  * req: request received
  *
  */
-void p9_client_cb(struct p9_client *c, struct p9_req_t *req)
+void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status)
 {
 	p9_debug(P9_DEBUG_MUX, " tag %d\n", req->tc->tag);
+
+	/*
+	 * This barrier is needed to make sure any change made to req before
+	 * the other thread wakes up will indeed be seen by the waiting side.
+	 */
+	smp_wmb();
+	req->status = status;
+
 	wake_up(req->wq);
 	p9_debug(P9_DEBUG_MUX, "wakeup: %d\n", req->tc->tag);
 }
@@ -655,21 +663,13 @@ static int p9_client_flush(struct p9_client *c, struct p9_req_t *oldreq)
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-
 	/*
 	 * if we haven't received a response for oldreq,
-	 * remove it from the list, and notify the transport
-	 * layer that the reply will never arrive.
+	 * remove it from the list
 	 */
-	spin_lock(&c->lock);
-	if (oldreq->status == REQ_STATUS_FLSH) {
-		list_del(&oldreq->req_list);
-		spin_unlock(&c->lock);
+	if (oldreq->status == REQ_STATUS_SENT)
 		if (c->trans_mod->cancelled)
-			c->trans_mod->cancelled(c, req);
-	} else {
-		spin_unlock(&c->lock);
-	}
+			c->trans_mod->cancelled(c, oldreq);
 
 	p9_free_req(c, req);
 	return 0;
@@ -755,6 +755,12 @@ again:
 	/* Wait for the response */
 	err = wait_event_interruptible(*req->wq,
 				       req->status >= REQ_STATUS_RCVD);
+
+	/*
+	 * Make sure our req is coherent with regard to updates in other
+	 * threads - echoes to wmb() in the callback
+	 */
+	smp_rmb();
 
 	if ((err == -ERESTARTSYS) && (c->status == Connected)
 				  && (type == P9_TFLUSH)) {
@@ -953,7 +959,6 @@ static int p9_client_version(struct p9_client *c)
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	if (IS_ERR(req))
@@ -992,6 +997,7 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 {
 	int err;
 	struct p9_client *clnt;
+	char *client_id;
 
 	err = 0;
 	clnt = kmalloc(sizeof(struct p9_client), GFP_KERNEL);
@@ -1000,6 +1006,10 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 
 	clnt->trans_mod = NULL;
 	clnt->trans = NULL;
+
+	client_id = utsname()->nodename;
+	memcpy(clnt->name, client_id, strlen(client_id) + 1);
+
 	spin_lock_init(&clnt->lock);
 	INIT_LIST_HEAD(&clnt->fidlist);
 
@@ -1010,9 +1020,6 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	err = parse_opts(options, clnt);
 	if (err < 0)
 		goto destroy_tagpool;
-
-	if (!clnt->trans_mod)
-		clnt->trans_mod = v9fs_get_trans_by_name("virtio");
 
 	if (!clnt->trans_mod)
 		clnt->trans_mod = v9fs_get_default_trans();

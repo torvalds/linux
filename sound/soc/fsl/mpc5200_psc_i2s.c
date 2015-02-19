@@ -26,8 +26,7 @@
  * ALSA that we support all rates and let the codec driver decide what rates
  * are really supported.
  */
-#define PSC_I2S_RATES (SNDRV_PCM_RATE_5512 | SNDRV_PCM_RATE_8000_192000 | \
-			SNDRV_PCM_RATE_CONTINUOUS)
+#define PSC_I2S_RATES SNDRV_PCM_RATE_CONTINUOUS
 
 /**
  * PSC_I2S_FORMATS: audio formats supported by the PSC I2S mode
@@ -230,7 +229,6 @@ static struct platform_driver psc_i2s_driver = {
 	.remove = psc_i2s_of_remove,
 	.driver = {
 		.name = "mpc5200-psc-i2s",
-		.owner = THIS_MODULE,
 		.of_match_table = psc_i2s_match,
 	},
 };

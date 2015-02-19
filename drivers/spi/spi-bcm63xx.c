@@ -13,14 +13,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -30,12 +25,9 @@
 #include <linux/spi/spi.h>
 #include <linux/completion.h>
 #include <linux/err.h>
-#include <linux/workqueue.h>
 #include <linux/pm_runtime.h>
 
 #include <bcm63xx_dev_spi.h>
-
-#define PFX		KBUILD_MODNAME
 
 #define BCM63XX_SPI_MAX_PREPEND		15
 
@@ -169,9 +161,7 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 			       transfer_list);
 	}
 
-	len -= prepend_len;
-
-	init_completion(&bs->done);
+	reinit_completion(&bs->done);
 
 	/* Fill in the Message control register */
 	msg_ctl = (len << SPI_BYTE_CNT_SHIFT);
@@ -205,13 +195,7 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 	if (!timeout)
 		return -ETIMEDOUT;
 
-	/* read out all data */
-	rx_tail = bcm_spi_readb(bs, SPI_RX_TAIL);
-
-	if (do_rx && rx_tail != len)
-		return -EIO;
-
-	if (!rx_tail)
+	if (!do_rx)
 		return 0;
 
 	len = 0;
@@ -227,24 +211,6 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 		t = list_entry(t->transfer_list.next, struct spi_transfer,
 			       transfer_list);
 	}
-
-	return 0;
-}
-
-static int bcm63xx_spi_prepare_transfer(struct spi_master *master)
-{
-	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(&bs->pdev->dev);
-
-	return 0;
-}
-
-static int bcm63xx_spi_unprepare_transfer(struct spi_master *master)
-{
-	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	pm_runtime_put(&bs->pdev->dev);
 
 	return 0;
 }
@@ -353,46 +319,38 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 {
 	struct resource *r;
 	struct device *dev = &pdev->dev;
-	struct bcm63xx_spi_pdata *pdata = pdev->dev.platform_data;
+	struct bcm63xx_spi_pdata *pdata = dev_get_platdata(&pdev->dev);
 	int irq;
 	struct spi_master *master;
 	struct clk *clk;
 	struct bcm63xx_spi *bs;
 	int ret;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(dev, "no iomem\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(dev, "no irq\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
-	clk = clk_get(dev, "spi");
+	clk = devm_clk_get(dev, "spi");
 	if (IS_ERR(clk)) {
 		dev_err(dev, "no clock for device\n");
-		ret = PTR_ERR(clk);
-		goto out;
+		return PTR_ERR(clk);
 	}
 
 	master = spi_alloc_master(dev, sizeof(*bs));
 	if (!master) {
 		dev_err(dev, "out of memory\n");
-		ret = -ENOMEM;
-		goto out_clk;
+		return -ENOMEM;
 	}
 
 	bs = spi_master_get_devdata(master);
+	init_completion(&bs->done);
 
 	platform_set_drvdata(pdev, master);
 	bs->pdev = pdev;
 
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	bs->regs = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(bs->regs)) {
 		ret = PTR_ERR(bs->regs);
@@ -412,11 +370,10 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 
 	master->bus_num = pdata->bus_num;
 	master->num_chipselect = pdata->num_chipselect;
-	master->prepare_transfer_hardware = bcm63xx_spi_prepare_transfer;
-	master->unprepare_transfer_hardware = bcm63xx_spi_unprepare_transfer;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	master->auto_runtime_pm = true;
 	bs->msg_type_shift = pdata->msg_type_shift;
 	bs->msg_ctl_width = pdata->msg_ctl_width;
 	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));
@@ -433,11 +390,14 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize hardware */
-	clk_prepare_enable(bs->clk);
+	ret = clk_prepare_enable(bs->clk);
+	if (ret)
+		goto out_err;
+
 	bcm_spi_writeb(bs, SPI_INTR_CLEAR_ALL, SPI_INT_STATUS);
 
 	/* register and we are done */
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(dev, master);
 	if (ret) {
 		dev_err(dev, "spi register failed\n");
 		goto out_clk_disable;
@@ -452,36 +412,27 @@ out_clk_disable:
 	clk_disable_unprepare(clk);
 out_err:
 	spi_master_put(master);
-out_clk:
-	clk_put(clk);
-out:
 	return ret;
 }
 
 static int bcm63xx_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
+	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	spi_unregister_master(master);
 
 	/* reset spi block */
 	bcm_spi_writeb(bs, 0, SPI_INT_MASK);
 
 	/* HW shutdown */
 	clk_disable_unprepare(bs->clk);
-	clk_put(bs->clk);
-
-	spi_master_put(master);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int bcm63xx_spi_suspend(struct device *dev)
 {
-	struct spi_master *master =
-			platform_get_drvdata(to_platform_device(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
 	spi_master_suspend(master);
@@ -493,32 +444,28 @@ static int bcm63xx_spi_suspend(struct device *dev)
 
 static int bcm63xx_spi_resume(struct device *dev)
 {
-	struct spi_master *master =
-			platform_get_drvdata(to_platform_device(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
+	int ret;
 
-	clk_prepare_enable(bs->clk);
+	ret = clk_prepare_enable(bs->clk);
+	if (ret)
+		return ret;
 
 	spi_master_resume(master);
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops bcm63xx_spi_pm_ops = {
-	.suspend	= bcm63xx_spi_suspend,
-	.resume		= bcm63xx_spi_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(bcm63xx_spi_suspend, bcm63xx_spi_resume)
 };
-
-#define BCM63XX_SPI_PM_OPS	(&bcm63xx_spi_pm_ops)
-#else
-#define BCM63XX_SPI_PM_OPS	NULL
-#endif
 
 static struct platform_driver bcm63xx_spi_driver = {
 	.driver = {
 		.name	= "bcm63xx-spi",
-		.owner	= THIS_MODULE,
-		.pm	= BCM63XX_SPI_PM_OPS,
+		.pm	= &bcm63xx_spi_pm_ops,
 	},
 	.probe		= bcm63xx_spi_probe,
 	.remove		= bcm63xx_spi_remove,

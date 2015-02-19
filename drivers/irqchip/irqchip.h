@@ -11,6 +11,8 @@
 #ifndef _IRQCHIP_H
 #define _IRQCHIP_H
 
+#include <linux/of.h>
+
 /*
  * This macro must be used by the different irqchip drivers to declare
  * the association between their DT compatible string and their
@@ -21,9 +23,6 @@
  * @compstr: compatible string of the irqchip driver
  * @fn: initialization function
  */
-#define IRQCHIP_DECLARE(name,compstr,fn)				\
-	static const struct of_device_id irqchip_of_match_##name	\
-	__used __section(__irqchip_of_table)				\
-	= { .compatible = compstr, .data = fn }
+#define IRQCHIP_DECLARE(name, compat, fn) OF_DECLARE_2(irqchip, name, compat, fn)
 
 #endif

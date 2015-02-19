@@ -34,6 +34,10 @@
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
 	vmmc_aux-supply = <&vsim>;
+	/*
+	 * S6-3 must be in ON position for 8 bit mode to function
+	 * Else, use 4 bit mode
+	 */
 	bus-width = <8>;
 };
 
@@ -47,8 +51,8 @@
 
 &gpmc {
 	ranges = <0 0 0x10000000 0x08000000>,
-		 <1 0 0x28000000 0x08000000>,
-		 <2 0 0x20000000 0x10000000>;
+		 <1 0 0x28000000 0x1000000>,	/* CS1: 16MB for NAND */
+		 <2 0 0x20000000 0x1000000>;	/* CS2: 16MB for OneNAND */
 
 	nor@0,0 {
 		compatible = "cfi-flash";
@@ -84,15 +88,15 @@
 			label = "bootloader-nor";
 			reg = <0 0x40000>;
 		};
-		partition@0x40000 {
+		partition@40000 {
 			label = "params-nor";
 			reg = <0x40000 0x40000>;
 		};
-		partition@0x80000 {
+		partition@80000 {
 			label = "kernel-nor";
 			reg = <0x80000 0x200000>;
 		};
-		partition@0x280000 {
+		partition@280000 {
 			label = "filesystem-nor";
 			reg = <0x240000 0x7d80000>;
 		};
@@ -102,10 +106,9 @@
 		linux,mtd-name= "micron,mt29f1g08abb";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <1 0 0x08000000>;
-		nand-bus-width = <8>;
-
+		reg = <1 0 4>;	/* CS1, offset 0, IO size 4 */
 		ti,nand-ecc-opt = "sw";
+		nand-bus-width = <8>;
 		gpmc,cs-on-ns = <0>;
 		gpmc,cs-rd-off-ns = <36>;
 		gpmc,cs-wr-off-ns = <36>;
@@ -125,19 +128,19 @@
 			label = "xloader-nand";
 			reg = <0 0x80000>;
 		};
-		partition@0x80000 {
+		partition@80000 {
 			label = "bootloader-nand";
 			reg = <0x80000 0x140000>;
 		};
-		partition@0x1c0000 {
+		partition@1c0000 {
 			label = "params-nand";
 			reg = <0x1c0000 0xc0000>;
 		};
-		partition@0x280000 {
+		partition@280000 {
 			label = "kernel-nand";
 			reg = <0x280000 0x500000>;
 		};
-		partition@0x780000 {
+		partition@780000 {
 			label = "filesystem-nand";
 			reg = <0x780000 0x7880000>;
 		};
@@ -147,7 +150,7 @@
 		linux,mtd-name= "samsung,kfm2g16q2m-deb8";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <2 0 0x10000000>;
+		reg = <2 0 0x20000>;	/* CS2, offset 0, IO size 4 */
 
 		gpmc,device-width = <2>;
 		gpmc,mux-add-data = <2>;
@@ -170,19 +173,19 @@
 			label = "xloader-onenand";
 			reg = <0 0x80000>;
 		};
-		partition@0x80000 {
+		partition@80000 {
 			label = "bootloader-onenand";
 			reg = <0x80000 0x40000>;
 		};
-		partition@0xc0000 {
+		partition@c0000 {
 			label = "params-onenand";
 			reg = <0xc0000 0x20000>;
 		};
-		partition@0xe0000 {
+		partition@e0000 {
 			label = "kernel-onenand";
 			reg = <0xe0000 0x200000>;
 		};
-		partition@0x2e0000 {
+		partition@2e0000 {
 			label = "filesystem-onenand";
 			reg = <0x2e0000 0xfd20000>;
 		};

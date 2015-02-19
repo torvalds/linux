@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
 #include <crypto/ctr.h>
 #include <crypto/lrw.h>
@@ -22,7 +23,6 @@
 #include <asm/xcr.h>
 #include <asm/xsave.h>
 #include <asm/crypto/serpent-avx.h>
-#include <asm/crypto/ablk_helper.h>
 #include <asm/crypto/glue_helper.h>
 
 #define SERPENT_AVX2_PARALLEL_BLOCKS 16
@@ -558,5 +558,5 @@ module_exit(fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Serpent Cipher Algorithm, AVX2 optimized");
-MODULE_ALIAS("serpent");
-MODULE_ALIAS("serpent-asm");
+MODULE_ALIAS_CRYPTO("serpent");
+MODULE_ALIAS_CRYPTO("serpent-asm");

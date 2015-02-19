@@ -85,9 +85,13 @@ config GENERIC_HWEIGHT
 config PPC
 	bool
 	default y
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BINFMT_ELF
+	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select OF
 	select OF_EARLY_FLATTREE
+	select OF_RESERVED_MEM
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
@@ -97,7 +101,7 @@ config PPC
 	select VIRT_TO_BUS if !PPC64
 	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
-	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS if !CPU_LITTLE_ENDIAN
 	select HAVE_KPROBES
 	select HAVE_ARCH_KGDB
 	select HAVE_KRETPROBES
@@ -106,15 +110,14 @@ config PPC
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
-	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
 	select HAVE_DEBUG_KMEMLEAK
+	select ARCH_HAS_SG_CHAIN
 	select GENERIC_ATOMIC64 if PPC32
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
-	select HAVE_GENERIC_HARDIRQS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select SPARSE_IRQ
 	select IRQ_DOMAIN
@@ -126,10 +129,13 @@ config PPC
 	select HAVE_BPF_JIT if PPC64
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_TIME_VSYSCALL_OLD
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HAVE_MOD_ARCH_SPECIFIC
@@ -139,10 +145,24 @@ config PPC
 	select OLD_SIGSUSPEND
 	select OLD_SIGACTION if PPC32
 	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+	select ARCH_USE_CMPXCHG_LOCKREF if PPC64
+	select HAVE_ARCH_AUDITSYSCALL
+	select ARCH_SUPPORTS_ATOMIC_RMW
+	select DCACHE_WORD_ACCESS if PPC64 && CPU_LITTLE_ENDIAN
+	select NO_BOOTMEM
+	select HAVE_GENERIC_RCU_GUP
+
+config GENERIC_CSUM
+	def_bool CPU_LITTLE_ENDIAN
 
 config EARLY_PRINTK
 	bool
 	default y
+
+config PANIC_TIMEOUT
+	int
+	default 180
 
 config COMPAT
 	bool
@@ -167,7 +187,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
-	default !PPC_PSERIES || PCI
+	default PCI
 
 config PPC_OF
 	def_bool y
@@ -206,9 +226,6 @@ config DEFAULT_UIMAGE
 	  Used to allow a board to specify it wants a uImage built by default
 	default n
 
-config REDBOOT
-	bool
-
 config ARCH_HIBERNATION_POSSIBLE
 	bool
 	default y
@@ -239,6 +256,7 @@ config PPC_OF_PLATFORM_PCI
 	default n
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	depends on PPC32 || PPC_STD_MMU_64
 	def_bool y
 
 config ARCH_SUPPORTS_UPROBES
@@ -274,6 +292,10 @@ config PPC_ADV_DEBUG_DAC_RANGE
 config PPC_EMULATE_SSTEP
 	bool
 	default y if KPROBES || UPROBES || XMON || HAVE_HW_BREAKPOINT
+
+config ZONE_DMA32
+	bool
+	default y if PPC64
 
 source "init/Kconfig"
 
@@ -312,10 +334,32 @@ config MATH_EMULATION
 	  such as fsqrt on cores that do have an FPU but do not implement
 	  them (such as Freescale BookE).
 
+choice
+	prompt "Math emulation options"
+	default MATH_EMULATION_FULL
+	depends on MATH_EMULATION
+
+config	MATH_EMULATION_FULL
+	bool "Emulate all the floating point instructions"
+	---help---
+	  Select this option will enable the kernel to support to emulate
+	  all the floating point instructions. If your SoC doesn't have
+	  a FPU, you should select this.
+
+config MATH_EMULATION_HW_UNIMPLEMENTED
+	bool "Just emulate the FPU unimplemented instructions"
+	---help---
+	  Select this if you know there does have a hardware FPU on your
+	  SoC, but some floating point instructions are not implemented by that.
+
+endchoice
+
 config PPC_TRANSACTIONAL_MEM
        bool "Transactional Memory support for POWERPC"
        depends on PPC_BOOK3S_64
        depends on SMP
+       select ALTIVEC
+       select VSX
        default n
        ---help---
          Support user-mode Transactional Memory on POWERPC.
@@ -356,6 +400,12 @@ config ARCH_HAS_WALK_MEMORY
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
 
+config PPC64_SUPPORTS_MEMORY_FAILURE
+	bool "Add support for memory hwpoison"
+	depends on PPC_BOOK3S_64
+	default "y" if PPC_POWERNV
+	select ARCH_SUPPORTS_MEMORY_FAILURE
+
 config KEXEC
 	bool "kexec system call"
 	depends on (PPC_BOOK3S || FSL_BOOKE || (44x && !SMP))
@@ -369,15 +419,14 @@ config KEXEC
 
 	  It is an ongoing process to be certain the hardware in a machine
 	  is properly shutdown, so do not be surprised if this code does not
-	  initially work for you.  It may help to enable device hotplugging
-	  support.  As of this writing the exact hardware interface is
-	  strongly in flux, so no good recommendation can be made.
+	  initially work for you.  As of this writing the exact hardware
+	  interface is strongly in flux, so no good recommendation can be
+	  made.
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
 	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP)
-	select RELOCATABLE if PPC64 || 44x
-	select DYNAMIC_MEMSTART if FSL_BOOKE
+	select RELOCATABLE if (PPC64 && !COMPILE_TEST) || 44x || FSL_BOOKE
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
 	  The same kernel binary can be used as production kernel and dump
@@ -385,7 +434,7 @@ config CRASH_DUMP
 
 config FA_DUMP
 	bool "Firmware-assisted dump"
-	depends on PPC64 && PPC_RTAS && CRASH_DUMP
+	depends on PPC64 && PPC_RTAS && CRASH_DUMP && KEXEC
 	help
 	  A robust mechanism to get reliable kernel crash dump with
 	  assistance from firmware. This approach does not use kexec,
@@ -398,7 +447,7 @@ config FA_DUMP
 
 config IRQ_ALL_CPUS
 	bool "Distribute interrupts on all CPUs by default"
-	depends on SMP && !MV64360
+	depends on SMP
 	help
 	  This option gives the kernel permission to distribute IRQs across
 	  multiple CPUs.  Saying N here will route all IRQs to the first
@@ -415,6 +464,14 @@ config NODES_SHIFT
 	default "8" if PPC64
 	default "4"
 	depends on NEED_MULTIPLE_NODES
+
+config USE_PERCPU_NUMA_NODE_ID
+	def_bool y
+	depends on NUMA
+
+config HAVE_MEMORYLESS_NODES
+	def_bool y
+	depends on NUMA
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
@@ -497,10 +554,11 @@ config PPC_4K_PAGES
 	bool "4k page size"
 
 config PPC_16K_PAGES
-	bool "16k page size" if 44x
+	bool "16k page size" if 44x || PPC_8xx
 
 config PPC_64K_PAGES
 	bool "64k page size" if 44x || PPC_STD_MMU_64 || PPC_BOOK3E_64
+	depends on !PPC_FSL_BOOK3E
 	select PPC_HAS_HASH_64K if PPC_STD_MMU_64
 
 config PPC_256K_PAGES
@@ -555,6 +613,10 @@ config PPC_SUBPAGE_PROT
 	  to set access permissions (read/write, readonly, or no access)
 	  on the 4k subpages of each 64k page.
 
+config PPC_COPRO_BASE
+	bool
+	default n
+
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
 	depends on PPC64 && SMP
@@ -583,6 +645,15 @@ config CMDLINE
 	  pass arguments to the kernel. For these platforms, you can supply
 	  some command-line options at build time by entering them here.  In
 	  most cases you will need to specify the root device here.
+
+config CMDLINE_FORCE
+	bool "Always use the default kernel command string"
+	depends on CMDLINE_BOOL
+	help
+	  Always use the default kernel command string, even if the boot
+	  loader passes other arguments to the kernel.
+	  This is useful if you cannot or don't want to change the
+	  command-line options your boot loader passes to the kernel.
 
 config EXTRA_TARGETS
 	string "Additional default image types"
@@ -702,10 +773,6 @@ config FSL_LBC
 	  controller.  Also contains some common code used by
 	  drivers for specific local bus peripherals.
 
-config FSL_IFC
-	bool
-        depends on FSL_SOC
-
 config FSL_GTM
 	bool
 	depends on PPC_83xx || QUICC_ENGINE || CPM2
@@ -727,7 +794,6 @@ config PCI
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
-	select ARCH_SUPPORTS_MSI
 	select GENERIC_PCI_IOMAP
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of
@@ -768,7 +834,7 @@ config HAS_RAPIDIO
 	default n
 
 config RAPIDIO
-	bool "RapidIO support"
+	tristate "RapidIO support"
 	depends on HAS_RAPIDIO || PCI
 	help
 	  If you say Y here, the kernel will include drivers and
@@ -776,7 +842,7 @@ config RAPIDIO
 
 config FSL_RIO
 	bool "Freescale Embedded SRIO Controller support"
-	depends on RAPIDIO && HAS_RAPIDIO
+	depends on RAPIDIO = y && HAS_RAPIDIO
 	default "n"
 	---help---
 	  Include support for RapidIO controller on Freescale embedded
@@ -859,7 +925,7 @@ config DYNAMIC_MEMSTART
 
 config RELOCATABLE
 	bool "Build a relocatable kernel"
-	depends on ADVANCED_OPTIONS && FLATMEM && 44x
+	depends on ADVANCED_OPTIONS && FLATMEM && (44x || FSL_BOOKE)
 	select NONSTATIC_KERNEL
 	help
 	  This builds a kernel image that is capable of running at the
@@ -967,6 +1033,7 @@ endmenu
 if PPC64
 config RELOCATABLE
 	bool "Build a relocatable kernel"
+	depends on !COMPILE_TEST
 	select NONSTATIC_KERNEL
 	help
 	  This builds a kernel image that is capable of running anywhere
@@ -979,6 +1046,7 @@ config RELOCATABLE
 	  must live at a different physical address than the primary
 	  kernel.
 
+# This value must have zeroes in the bottom 60 bits otherwise lots will break
 config PAGE_OFFSET
 	hex
 	default "0xc000000000000000"
@@ -989,6 +1057,9 @@ config PHYSICAL_START
 	hex
 	default "0x00000000"
 endif
+
+config	ARCH_RANDOM
+	def_bool n
 
 source "net/Kconfig"
 
@@ -1010,11 +1081,6 @@ config KEYS_COMPAT
 	default y
 
 source "crypto/Kconfig"
-
-config PPC_CLOCK
-	bool
-	default n
-	select HAVE_CLK
 
 config PPC_LIB_RHEAP
 	bool

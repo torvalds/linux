@@ -81,6 +81,15 @@
 
 #define SO_SELECT_ERR_QUEUE	45
 
-#define SO_BUSY_POLL			46
+#define SO_BUSY_POLL		46
+
+#define SO_MAX_PACING_RATE	47
+
+#define SO_BPF_EXTENSIONS	48
+
+#define SO_INCOMING_CPU		49
+
+#define SO_ATTACH_BPF		50
+#define SO_DETACH_BPF		SO_DETACH_FILTER
 
 #endif /* _UAPI_ASM_SOCKET_H */

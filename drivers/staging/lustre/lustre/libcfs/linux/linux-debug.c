@@ -48,21 +48,16 @@
 #include <linux/errno.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
-#include <asm/uaccess.h>
 #include <linux/completion.h>
-
 #include <linux/fs.h>
-#include <linux/stat.h>
 #include <asm/uaccess.h>
 #include <linux/miscdevice.h>
-#include <linux/version.h>
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/libcfs/linux/portals_compat25.h>
+#include "../../../include/linux/libcfs/libcfs.h"
 
-#include "tracefile.h"
+#include "../tracefile.h"
 
 #include <linux/kallsyms.h>
 
@@ -82,26 +77,22 @@ void libcfs_run_debug_log_upcall(char *file)
 		"HOME=/",
 		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
 		NULL};
-	ENTRY;
 
 	argv[0] = lnet_debug_log_upcall;
 
 	LASSERTF(file != NULL, "called on a null filename\n");
-	argv[1] = file; //only need to pass the path of the file
+	argv[1] = file; /* only need to pass the path of the file */
 
 	argv[2] = NULL;
 
-	rc = USERMODEHELPER(argv[0], argv, envp);
+	rc = call_usermodehelper(argv[0], argv, envp, 1);
 	if (rc < 0 && rc != -ENOENT) {
-		CERROR("Error %d invoking LNET debug log upcall %s %s; "
-		       "check /proc/sys/lnet/debug_log_upcall\n",
+		CERROR("Error %d invoking LNET debug log upcall %s %s; check /proc/sys/lnet/debug_log_upcall\n",
 		       rc, argv[0], argv[1]);
 	} else {
 		CDEBUG(D_HA, "Invoked LNET debug log upcall %s %s\n",
 		       argv[0], argv[1]);
 	}
-
-	EXIT;
 }
 
 void libcfs_run_upcall(char **argv)
@@ -112,7 +103,6 @@ void libcfs_run_upcall(char **argv)
 		"HOME=/",
 		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
 		NULL};
-	ENTRY;
 
 	argv[0] = lnet_upcall;
 	argc = 1;
@@ -121,10 +111,9 @@ void libcfs_run_upcall(char **argv)
 
 	LASSERT(argc >= 2);
 
-	rc = USERMODEHELPER(argv[0], argv, envp);
+	rc = call_usermodehelper(argv[0], argv, envp, 1);
 	if (rc < 0 && rc != -ENOENT) {
-		CERROR("Error %d invoking LNET upcall %s %s%s%s%s%s%s%s%s; "
-		       "check /proc/sys/lnet/upcall\n",
+		CERROR("Error %d invoking LNET upcall %s %s%s%s%s%s%s%s%s; check /proc/sys/lnet/upcall\n",
 		       rc, argv[0], argv[1],
 		       argc < 3 ? "" : ",", argc < 3 ? "" : argv[2],
 		       argc < 4 ? "" : ",", argc < 4 ? "" : argv[3],
@@ -145,8 +134,7 @@ void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *msgdata)
 	char *argv[6];
 	char buf[32];
 
-	ENTRY;
-	snprintf (buf, sizeof buf, "%d", msgdata->msg_line);
+	snprintf(buf, sizeof(buf), "%d", msgdata->msg_line);
 
 	argv[1] = "LBUG";
 	argv[2] = (char *)msgdata->msg_file;
@@ -168,7 +156,7 @@ void lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 		/* not reached */
 	}
 
-	libcfs_debug_dumpstack(NULL);
+	dump_stack();
 	if (!libcfs_panic_on_lbug)
 		libcfs_debug_dumplog();
 	libcfs_run_lbug_upcall(msgdata);
@@ -177,54 +165,6 @@ void lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 	set_task_state(current, TASK_UNINTERRUPTIBLE);
 	while (1)
 		schedule();
-}
-
-
-#include <linux/nmi.h>
-#include <asm/stacktrace.h>
-
-
-static int print_trace_stack(void *data, char *name)
-{
-	printk(" <%s> ", name);
-	return 0;
-}
-
-# define RELIABLE reliable
-# define DUMP_TRACE_CONST const
-static void print_trace_address(void *data, unsigned long addr, int reliable)
-{
-	char fmt[32];
-	touch_nmi_watchdog();
-	sprintf(fmt, " [<%016lx>] %s%%s\n", addr, RELIABLE ? "": "? ");
-	__print_symbol(fmt, addr);
-}
-
-static DUMP_TRACE_CONST struct stacktrace_ops print_trace_ops = {
-	.stack = print_trace_stack,
-	.address = print_trace_address,
-	.walk_stack = print_context_stack,
-};
-
-void libcfs_debug_dumpstack(struct task_struct *tsk)
-{
-	/* dump_stack() */
-	/* show_trace() */
-	if (tsk == NULL)
-		tsk = current;
-	printk("Pid: %d, comm: %.20s\n", tsk->pid, tsk->comm);
-	/* show_trace_log_lvl() */
-	printk("\nCall Trace:\n");
-	dump_trace(tsk, NULL, NULL,
-		   0,
-		   &print_trace_ops, NULL);
-	printk("\n");
-}
-
-task_t *libcfs_current(void)
-{
-	CWARN("current task struct is %p\n", current);
-	return current;
 }
 
 static int panic_notifier(struct notifier_block *self, unsigned long unused1,
@@ -240,9 +180,9 @@ static int panic_notifier(struct notifier_block *self, unsigned long unused1,
 }
 
 static struct notifier_block libcfs_panic_notifier = {
-	notifier_call :     panic_notifier,
-	next :	      NULL,
-	priority :	  10000
+	.notifier_call	= panic_notifier,
+	.next		= NULL,
+	.priority	= 10000,
 };
 
 void libcfs_register_panic_notifier(void)
@@ -254,10 +194,6 @@ void libcfs_unregister_panic_notifier(void)
 {
 	atomic_notifier_chain_unregister(&panic_notifier_list, &libcfs_panic_notifier);
 }
-
-EXPORT_SYMBOL(libcfs_debug_dumpstack);
-EXPORT_SYMBOL(libcfs_current);
-
 
 EXPORT_SYMBOL(libcfs_run_upcall);
 EXPORT_SYMBOL(libcfs_run_lbug_upcall);

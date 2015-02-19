@@ -1,3 +1,6 @@
+config ARCH_OMAP
+	bool
+
 if ARCH_OMAP
 
 menu "TI OMAP Common Features"
@@ -86,9 +89,6 @@ config OMAP_MUX_WARNINGS
 	  to change the pin multiplexing setup.	 When there are no warnings
 	  printed, it's safe to deselect OMAP_MUX for your product.
 
-config OMAP_IOMMU_IVA2
-	bool
-
 config OMAP_MPU_TIMER
 	bool "Use mpu timer"
 	depends on ARCH_OMAP1
@@ -106,7 +106,7 @@ config OMAP_32K_TIMER
 	  This timer saves power compared to the OMAP_MPU_TIMER, and has
 	  support for no tick during idle. The 32KHz timer provides less
 	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
-	  currently only available for OMAP16XX, 24XX, 34XX and OMAP4/5.
+	  currently only available for OMAP16XX, 24XX, 34XX, OMAP4/5 and DRA7XX.
 
 	  On OMAP2PLUS this value is only used for CONFIG_HZ and
 	  CLOCK_TICK_RATE compile time calculation.

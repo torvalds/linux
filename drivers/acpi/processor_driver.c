@@ -41,8 +41,6 @@
 
 #include "internal.h"
 
-#define PREFIX "ACPI: "
-
 #define ACPI_PROCESSOR_NOTIFY_PERFORMANCE 0x80
 #define ACPI_PROCESSOR_NOTIFY_POWER	0x81
 #define ACPI_PROCESSOR_NOTIFY_THROTTLING	0x82
@@ -91,21 +89,17 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 		acpi_processor_ppc_has_changed(pr, 1);
 		if (saved == pr->performance_platform_limit)
 			break;
-		acpi_bus_generate_proc_event(device, event,
-					pr->performance_platform_limit);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						  dev_name(&device->dev), event,
 						  pr->performance_platform_limit);
 		break;
 	case ACPI_PROCESSOR_NOTIFY_POWER:
 		acpi_processor_cst_has_changed(pr);
-		acpi_bus_generate_proc_event(device, event, 0);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						  dev_name(&device->dev), event, 0);
 		break;
 	case ACPI_PROCESSOR_NOTIFY_THROTTLING:
 		acpi_processor_tstate_has_changed(pr);
-		acpi_bus_generate_proc_event(device, event, 0);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						  dev_name(&device->dev), event, 0);
 		break;
@@ -126,6 +120,14 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 	unsigned int cpu = (unsigned long)hcpu;
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 	struct acpi_device *device;
+	action &= ~CPU_TASKS_FROZEN;
+
+	/*
+	 * CPU_STARTING and CPU_DYING must not sleep. Return here since
+	 * acpi_bus_get_device() may sleep.
+	 */
+	if (action == CPU_STARTING || action == CPU_DYING)
+		return NOTIFY_DONE;
 
 	if (!pr || acpi_bus_get_device(pr->handle, &device))
 		return NOTIFY_DONE;
@@ -157,8 +159,7 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __refdata acpi_cpu_notifier =
-{
+static struct notifier_block __refdata acpi_cpu_notifier = {
 	    .notifier_call = acpi_cpu_soft_notify,
 };
 
@@ -176,10 +177,11 @@ static int __acpi_processor_start(struct acpi_device *device)
 
 #ifdef CONFIG_CPU_FREQ
 	acpi_processor_ppc_has_changed(pr, 0);
-	acpi_processor_load_module(pr);
 #endif
 	acpi_processor_get_throttling_info(pr);
-	acpi_processor_get_limit_info(pr);
+
+	if (pr->flags.throttling)
+		pr->flags.limit = 1;
 
 	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
 		acpi_processor_power_init(pr);
@@ -228,9 +230,9 @@ static int __acpi_processor_start(struct acpi_device *device)
 
 static int acpi_processor_start(struct device *dev)
 {
-	struct acpi_device *device;
+	struct acpi_device *device = ACPI_COMPANION(dev);
 
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &device))
+	if (!device)
 		return -ENODEV;
 
 	return __acpi_processor_start(device);
@@ -238,10 +240,10 @@ static int acpi_processor_start(struct device *dev)
 
 static int acpi_processor_stop(struct device *dev)
 {
-	struct acpi_device *device;
+	struct acpi_device *device = ACPI_COMPANION(dev);
 	struct acpi_processor *pr;
 
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &device))
+	if (!device)
 		return 0;
 
 	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,

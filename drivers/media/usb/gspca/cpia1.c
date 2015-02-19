@@ -1553,9 +1553,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		sd->params.format.videoSize = VIDEOSIZE_CIF;
 
 	sd->params.roi.colEnd = sd->params.roi.colStart +
-				(gspca_dev->width >> 3);
+				(gspca_dev->pixfmt.width >> 3);
 	sd->params.roi.rowEnd = sd->params.roi.rowStart +
-				(gspca_dev->height >> 2);
+				(gspca_dev->pixfmt.height >> 2);
 
 	/* And now set the camera to a known state */
 	ret = do_command(gspca_dev, CPIA_COMMAND_SetGrabMode,

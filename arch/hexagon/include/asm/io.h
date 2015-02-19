@@ -24,14 +24,9 @@
 #ifdef __KERNEL__
 
 #include <linux/types.h>
-#include <linux/delay.h>
-#include <linux/vmalloc.h>
-#include <asm/string.h>
-#include <asm/mem-layout.h>
 #include <asm/iomap.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
-#include <asm/tlbflush.h>
 
 /*
  * We don't have PCI yet.
@@ -188,6 +183,8 @@ static inline void writel(u32 data, volatile void __iomem *addr)
 #define writeb_relaxed __raw_writeb
 #define writew_relaxed __raw_writew
 #define writel_relaxed __raw_writel
+
+#define mmiowb()
 
 /*
  * Need an mtype somewhere in here, for cache type deals?

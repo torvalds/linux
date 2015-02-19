@@ -23,6 +23,7 @@
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/cpu-type.h>
 #include <asm/irq.h>
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
@@ -65,7 +66,7 @@ EXPORT_SYMBOL(ioasic_base);
 /*
  * IRQ routing and priority tables.  Priorites are set as follows:
  *
- *		KN01	KN230	KN02	KN02-BA KN02-CA KN03
+ *		KN01	KN230	KN02	KN02-BA	KN02-CA	KN03
  *
  * MEMORY	CPU	CPU	CPU	ASIC	CPU	CPU
  * RTC		CPU	CPU	CPU	ASIC	CPU	CPU
@@ -413,7 +414,7 @@ static void __init dec_init_kn02(void)
 
 /*
  * Machine-specific initialisation for KN02-BA, aka DS5000/1xx
- * (xx = 20, 25, 33), aka 3min.	 Also applies to KN04(-BA), aka
+ * (xx = 20, 25, 33), aka 3min.  Also applies to KN04(-BA), aka
  * DS5000/150, aka 4min.
  */
 static int kn02ba_interrupt[DEC_NR_INTS] __initdata = {
@@ -748,6 +749,10 @@ void __init arch_init_irq(void)
 		cpu_fpu_mask = 0;
 		dec_interrupt[DEC_IRQ_FPU] = -1;
 	}
+	/* Free the halt interrupt unused on R4k systems.  */
+	if (current_cpu_type() == CPU_R4000SC ||
+	    current_cpu_type() == CPU_R4400SC)
+		dec_interrupt[DEC_IRQ_HALT] = -1;
 
 	/* Register board interrupts: FPU and cascade. */
 	if (dec_interrupt[DEC_IRQ_FPU] >= 0)

@@ -1,0 +1,95 @@
+MSM SoC HSUSB controllers
+
+EHCI
+
+Required properties:
+- compatible:	Should contain "qcom,ehci-host"
+- regs:			offset and length of the register set in the memory map
+- usb-phy:		phandle for the PHY device
+
+Example EHCI controller device node:
+
+	ehci: ehci@f9a55000 {
+		compatible = "qcom,ehci-host";
+		reg = <0xf9a55000 0x400>;
+		usb-phy = <&usb_otg>;
+	};
+
+USB PHY with optional OTG:
+
+Required properties:
+- compatible:   Should contain:
+  "qcom,usb-otg-ci" for chipsets with ChipIdea 45nm PHY
+  "qcom,usb-otg-snps" for chipsets with Synopsys 28nm PHY
+
+- regs:         Offset and length of the register set in the memory map
+- interrupts:   interrupt-specifier for the OTG interrupt.
+
+- clocks:       A list of phandle + clock-specifier pairs for the
+                clocks listed in clock-names
+- clock-names:  Should contain the following:
+  "phy"         USB PHY reference clock
+  "core"        Protocol engine clock
+  "iface"       Interface bus clock
+  "alt_core"    Protocol engine clock for targets with asynchronous
+                reset methodology. (optional)
+
+- vdccx-supply: phandle to the regulator for the vdd supply for
+                digital circuit operation.
+- v1p8-supply:  phandle to the regulator for the 1.8V supply
+- v3p3-supply:  phandle to the regulator for the 3.3V supply
+
+- resets:       A list of phandle + reset-specifier pairs for the
+                resets listed in reset-names
+- reset-names:  Should contain the following:
+  "phy"         USB PHY controller reset
+  "link"        USB LINK controller reset
+
+- qcom,otg-control: OTG control (VBUS and ID notifications) can be one of
+                1 - PHY control
+                2 - PMIC control
+
+Optional properties:
+- dr_mode:      One of "host", "peripheral" or "otg". Defaults to "otg"
+
+- qcom,phy-init-sequence: PHY configuration sequence values. This is related to Device
+                Mode Eye Diagram test. Start address at which these values will be
+                written is ULPI_EXT_VENDOR_SPECIFIC. Value of -1 is reserved as
+                "do not overwrite default value at this address".
+                For example: qcom,phy-init-sequence = < -1 0x63 >;
+                Will update only value at address ULPI_EXT_VENDOR_SPECIFIC + 1.
+
+- qcom,phy-num: Select number of pyco-phy to use, can be one of
+                0 - PHY one, default
+                1 - Second PHY
+                Some platforms may have configuration to allow USB
+                controller work with any of the two HSPHYs present.
+
+- qcom,vdd-levels: This property must be a list of three integer values
+                (no, min, max) where each value represents either a voltage
+                in microvolts or a value corresponding to voltage corner.
+
+Example HSUSB OTG controller device node:
+
+    usb@f9a55000 {
+        compatible = "qcom,usb-otg-snps";
+        reg = <0xf9a55000 0x400>;
+        interrupts = <0 134 0>;
+        dr_mode = "peripheral";
+
+        clocks = <&gcc GCC_XO_CLK>, <&gcc GCC_USB_HS_SYSTEM_CLK>,
+                <&gcc GCC_USB_HS_AHB_CLK>;
+
+        clock-names = "phy", "core", "iface";
+
+        vddcx-supply = <&pm8841_s2_corner>;
+        v1p8-supply = <&pm8941_l6>;
+        v3p3-supply = <&pm8941_l24>;
+
+        resets = <&gcc GCC_USB2A_PHY_BCR>, <&gcc GCC_USB_HS_BCR>;
+        reset-names = "phy", "link";
+
+        qcom,otg-control = <1>;
+        qcom,phy-init-sequence = < -1 0x63 >;
+        qcom,vdd-levels = <1 5 7>;
+	};

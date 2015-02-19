@@ -238,6 +238,15 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
 	struct palmas_rtc *palmas_rtc = NULL;
 	int ret;
+	bool enable_bb_charging = false;
+	bool high_bb_charging;
+
+	if (pdev->dev.of_node) {
+		enable_bb_charging = of_property_read_bool(pdev->dev.of_node,
+					"ti,backup-battery-chargeable");
+		high_bb_charging = of_property_read_bool(pdev->dev.of_node,
+					"ti,backup-battery-charge-high-current");
+	}
 
 	palmas_rtc = devm_kzalloc(&pdev->dev, sizeof(struct palmas_rtc),
 			GFP_KERNEL);
@@ -253,6 +262,32 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 
 	palmas_rtc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, palmas_rtc);
+
+	if (enable_bb_charging) {
+		unsigned reg = PALMAS_BACKUP_BATTERY_CTRL_BBS_BBC_LOW_ICHRG;
+
+		if (high_bb_charging)
+			reg = 0;
+
+		ret = palmas_update_bits(palmas, PALMAS_PMU_CONTROL_BASE,
+			PALMAS_BACKUP_BATTERY_CTRL,
+			PALMAS_BACKUP_BATTERY_CTRL_BBS_BBC_LOW_ICHRG, reg);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"BACKUP_BATTERY_CTRL update failed, %d\n", ret);
+			return ret;
+		}
+
+		ret = palmas_update_bits(palmas, PALMAS_PMU_CONTROL_BASE,
+			PALMAS_BACKUP_BATTERY_CTRL,
+			PALMAS_BACKUP_BATTERY_CTRL_BB_CHG_EN,
+			PALMAS_BACKUP_BATTERY_CTRL_BB_CHG_EN);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"BACKUP_BATTERY_CTRL update failed, %d\n", ret);
+			return ret;
+		}
+	}
 
 	/* Start RTC */
 	ret = palmas_update_bits(palmas, PALMAS_RTC_BASE, PALMAS_RTC_CTRL_REG,
@@ -313,12 +348,11 @@ static int palmas_rtc_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops palmas_rtc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(palmas_rtc_suspend, palmas_rtc_resume)
-};
+static SIMPLE_DEV_PM_OPS(palmas_rtc_pm_ops, palmas_rtc_suspend,
+			 palmas_rtc_resume);
 
 #ifdef CONFIG_OF
-static struct of_device_id of_palmas_rtc_match[] = {
+static const struct of_device_id of_palmas_rtc_match[] = {
 	{ .compatible = "ti,palmas-rtc"},
 	{ },
 };
@@ -329,7 +363,6 @@ static struct platform_driver palmas_rtc_driver = {
 	.probe		= palmas_rtc_probe,
 	.remove		= palmas_rtc_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "palmas-rtc",
 		.pm	= &palmas_rtc_pm_ops,
 		.of_match_table = of_match_ptr(of_palmas_rtc_match),

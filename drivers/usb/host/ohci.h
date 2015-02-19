@@ -47,6 +47,7 @@ struct ed {
 	struct ed		*ed_next;	/* on schedule or rm_list */
 	struct ed		*ed_prev;	/* for non-interrupt EDs */
 	struct list_head	td_list;	/* "shadow list" of our TDs */
+	struct list_head	in_use_list;
 
 	/* create --> IDLE --> OPER --> ... --> IDLE --> destroy
 	 * usually:  OPER --> UNLINK --> (IDLE | OPER) --> ...
@@ -66,6 +67,13 @@ struct ed {
 
 	/* HC may see EDs on rm_list until next frame (frame_no == tick) */
 	u16			tick;
+
+	/* Detect TDs not added to the done queue */
+	unsigned		takeback_wdh_cnt;
+	struct td		*pending_td;
+#define	OKAY_TO_TAKEBACK(ohci, ed)			\
+		((int) (ohci->wdh_cnt - ed->takeback_wdh_cnt) >= 0)
+
 } __attribute__ ((aligned(16)));
 
 #define ED_MASK	((u32)~0x0f)		/* strip hw status in low addr bits */
@@ -380,7 +388,9 @@ struct ohci_hcd {
 	struct dma_pool		*td_cache;
 	struct dma_pool		*ed_cache;
 	struct td		*td_hash [TD_HASH_SIZE];
+	struct td		*dl_start, *dl_end;	/* the done list */
 	struct list_head	pending;
+	struct list_head	eds_in_use;	/* all EDs with at least 1 TD */
 
 	/*
 	 * driver state
@@ -392,6 +402,8 @@ struct ohci_hcd {
 	unsigned long		next_statechange;	/* suspend/resume */
 	u32			fminterval;		/* saved register */
 	unsigned		autostop:1;	/* rh auto stopping/stopped */
+	unsigned		working:1;
+	unsigned		restart_work:1;
 
 	unsigned long		flags;		/* for HC bugs */
 #define	OHCI_QUIRK_AMD756	0x01			/* erratum #4 */
@@ -405,22 +417,22 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_HUB_POWER	0x100			/* distrust firmware power/oc setup */
 #define	OHCI_QUIRK_AMD_PLL	0x200			/* AMD PLL quirk*/
 #define	OHCI_QUIRK_AMD_PREFETCH	0x400			/* pre-fetch for ISO transfer */
+#define	OHCI_QUIRK_GLOBAL_SUSPEND	0x800		/* must suspend ports */
+
 	// there are also chip quirks/bugs in init logic
+
+	unsigned		prev_frame_no;
+	unsigned		wdh_cnt, prev_wdh_cnt;
+	u32			prev_donehead;
+	struct timer_list	io_watchdog;
 
 	struct work_struct	nec_work;	/* Worker for NEC quirk */
 
-	/* Needed for ZF Micro quirk */
-	struct timer_list	unlink_watchdog;
-	unsigned		eds_scheduled;
-	struct ed		*ed_to_check;
-	unsigned		zf_delay;
-
-#ifdef DEBUG
 	struct dentry		*debug_dir;
 	struct dentry		*debug_async;
 	struct dentry		*debug_periodic;
 	struct dentry		*debug_registers;
-#endif
+
 	/* platform-specific data -- must come last */
 	unsigned long           priv[0] __aligned(sizeof(s64));
 
@@ -474,10 +486,6 @@ static inline struct usb_hcd *ohci_to_hcd (const struct ohci_hcd *ohci)
 
 /*-------------------------------------------------------------------------*/
 
-#ifndef DEBUG
-#define STUB_DEBUG_FILES
-#endif	/* DEBUG */
-
 #define ohci_dbg(ohci, fmt, args...) \
 	dev_dbg (ohci_to_hcd(ohci)->self.controller , fmt , ## args )
 #define ohci_err(ohci, fmt, args...) \
@@ -486,12 +494,6 @@ static inline struct usb_hcd *ohci_to_hcd (const struct ohci_hcd *ohci)
 	dev_info (ohci_to_hcd(ohci)->self.controller , fmt , ## args )
 #define ohci_warn(ohci, fmt, args...) \
 	dev_warn (ohci_to_hcd(ohci)->self.controller , fmt , ## args )
-
-#ifdef OHCI_VERBOSE_DEBUG
-#	define ohci_vdbg ohci_dbg
-#else
-#	define ohci_vdbg(ohci, fmt, args...) do { } while (0)
-#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -645,23 +647,22 @@ static inline u32 hc32_to_cpup (const struct ohci_hcd *ohci, const __hc32 *x)
 
 /*-------------------------------------------------------------------------*/
 
-/* HCCA frame number is 16 bits, but is accessed as 32 bits since not all
- * hardware handles 16 bit reads.  That creates a different confusion on
- * some big-endian SOC implementations.  Same thing happens with PSW access.
+/*
+ * The HCCA frame number is 16 bits, but is accessed as 32 bits since not all
+ * hardware handles 16 bit reads.  Depending on the SoC implementation, the
+ * frame number can wind up in either bits [31:16] (default) or
+ * [15:0] (OHCI_QUIRK_FRAME_NO) on big endian hosts.
+ *
+ * Somewhat similarly, the 16-bit PSW fields in a transfer descriptor are
+ * reordered on BE.
  */
-
-#ifdef CONFIG_PPC_MPC52xx
-#define big_endian_frame_no_quirk(ohci)	(ohci->flags & OHCI_QUIRK_FRAME_NO)
-#else
-#define big_endian_frame_no_quirk(ohci)	0
-#endif
 
 static inline u16 ohci_frame_no(const struct ohci_hcd *ohci)
 {
 	u32 tmp;
 	if (big_endian_desc(ohci)) {
 		tmp = be32_to_cpup((__force __be32 *)&ohci->hcca->frame_no);
-		if (!big_endian_frame_no_quirk(ohci))
+		if (!(ohci->flags & OHCI_QUIRK_FRAME_NO))
 			tmp >>= 16;
 	} else
 		tmp = le32_to_cpup((__force __le32 *)&ohci->hcca->frame_no);
@@ -738,3 +739,6 @@ extern int	ohci_setup(struct usb_hcd *hcd);
 extern int	ohci_suspend(struct usb_hcd *hcd, bool do_wakeup);
 extern int	ohci_resume(struct usb_hcd *hcd, bool hibernated);
 #endif
+extern int	ohci_hub_control(struct usb_hcd	*hcd, u16 typeReq, u16 wValue,
+				 u16 wIndex, char *buf, u16 wLength);
+extern int	ohci_hub_status_data(struct usb_hcd *hcd, char *buf);

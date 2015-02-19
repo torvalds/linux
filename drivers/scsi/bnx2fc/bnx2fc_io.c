@@ -1,7 +1,8 @@
-/* bnx2fc_io.c: Broadcom NetXtreme II Linux FCoE offload driver.
+/* bnx2fc_io.c: QLogic NetXtreme II Linux FCoE offload driver.
  * IO manager and SCSI IO processing.
  *
  * Copyright (c) 2008 - 2013 Broadcom Corporation
+ * Copyright (c) 2014, QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -282,6 +283,8 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba)
 				       arr_sz, GFP_KERNEL);
 	if (!cmgr->free_list_lock) {
 		printk(KERN_ERR PFX "failed to alloc free_list_lock\n");
+		kfree(cmgr->free_list);
+		cmgr->free_list = NULL;
 		goto mem_err;
 	}
 
@@ -594,13 +597,13 @@ static void bnx2fc_free_mp_resc(struct bnx2fc_cmd *io_req)
 		mp_req->mp_resp_bd = NULL;
 	}
 	if (mp_req->req_buf) {
-		dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				     mp_req->req_buf,
 				     mp_req->req_buf_dma);
 		mp_req->req_buf = NULL;
 	}
 	if (mp_req->resp_buf) {
-		dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				     mp_req->resp_buf,
 				     mp_req->resp_buf_dma);
 		mp_req->resp_buf = NULL;
@@ -622,7 +625,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 
 	mp_req->req_len = sizeof(struct fcp_cmnd);
 	io_req->data_xfer_len = mp_req->req_len;
-	mp_req->req_buf = dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
+	mp_req->req_buf = dma_alloc_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 					     &mp_req->req_buf_dma,
 					     GFP_ATOMIC);
 	if (!mp_req->req_buf) {
@@ -631,7 +634,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 		return FAILED;
 	}
 
-	mp_req->resp_buf = dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
+	mp_req->resp_buf = dma_alloc_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 					      &mp_req->resp_buf_dma,
 					      GFP_ATOMIC);
 	if (!mp_req->resp_buf) {
@@ -639,8 +642,8 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 		bnx2fc_free_mp_resc(io_req);
 		return FAILED;
 	}
-	memset(mp_req->req_buf, 0, PAGE_SIZE);
-	memset(mp_req->resp_buf, 0, PAGE_SIZE);
+	memset(mp_req->req_buf, 0, CNIC_PAGE_SIZE);
+	memset(mp_req->resp_buf, 0, CNIC_PAGE_SIZE);
 
 	/* Allocate and map mp_req_bd and mp_resp_bd */
 	sz = sizeof(struct fcoe_bd_ctx);
@@ -665,7 +668,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 	mp_req_bd = mp_req->mp_req_bd;
 	mp_req_bd->buf_addr_lo = (u32)addr & 0xffffffff;
 	mp_req_bd->buf_addr_hi = (u32)((u64)addr >> 32);
-	mp_req_bd->buf_len = PAGE_SIZE;
+	mp_req_bd->buf_len = CNIC_PAGE_SIZE;
 	mp_req_bd->flags = 0;
 
 	/*
@@ -677,7 +680,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 	addr = mp_req->resp_buf_dma;
 	mp_resp_bd->buf_addr_lo = (u32)addr & 0xffffffff;
 	mp_resp_bd->buf_addr_hi = (u32)((u64)addr >> 32);
-	mp_resp_bd->buf_len = PAGE_SIZE;
+	mp_resp_bd->buf_len = CNIC_PAGE_SIZE;
 	mp_resp_bd->flags = 0;
 
 	return SUCCESS;
@@ -1246,6 +1249,12 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 			kref_put(&io_req->refcount,
 				 bnx2fc_cmd_release); /* drop timer hold */
 		rc = bnx2fc_expl_logo(lport, io_req);
+		/* This only occurs when an task abort was requested while ABTS
+		   is in progress.  Setting the IO_CLEANUP flag will skip the
+		   RRQ process in the case when the fw generated SCSI_CMD cmpl
+		   was a result from the ABTS request rather than the CLEANUP
+		   request */
+		set_bit(BNX2FC_FLAG_IO_CLEANUP,	&io_req->req_flags);
 		goto out;
 	}
 
@@ -1442,9 +1451,9 @@ static void bnx2fc_lun_reset_cmpl(struct bnx2fc_cmd *io_req)
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	struct bnx2fc_cmd *cmd, *tmp;
-	int tm_lun = sc_cmd->device->lun;
+	u64 tm_lun = sc_cmd->device->lun;
+	u64 lun;
 	int rc = 0;
-	int lun;
 
 	/* called with tgt_lock held */
 	BNX2FC_IO_DBG(io_req, "Entered bnx2fc_lun_reset_cmpl\n");
@@ -1645,6 +1654,10 @@ static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req)
 	u64 addr;
 	int i;
 
+	/*
+	 * Use dma_map_sg directly to ensure we're using the correct
+	 * dev struct off of pcidev.
+	 */
 	sg_count = dma_map_sg(&hba->pcidev->dev, scsi_sglist(sc),
 			      scsi_sg_count(sc), sc->sc_data_direction);
 	scsi_for_each_sg(sc, sg, sg_count, i) {
@@ -1694,9 +1707,16 @@ static int bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req)
 static void bnx2fc_unmap_sg_list(struct bnx2fc_cmd *io_req)
 {
 	struct scsi_cmnd *sc = io_req->sc_cmd;
+	struct bnx2fc_interface *interface = io_req->port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 
-	if (io_req->bd_tbl->bd_valid && sc) {
-		scsi_dma_unmap(sc);
+	/*
+	 * Use dma_unmap_sg directly to ensure we're using the correct
+	 * dev struct off of pcidev.
+	 */
+	if (io_req->bd_tbl->bd_valid && sc && scsi_sg_count(sc)) {
+		dma_unmap_sg(&hba->pcidev->dev, scsi_sglist(sc),
+		    scsi_sg_count(sc), sc->sc_data_direction);
 		io_req->bd_tbl->bd_valid = 0;
 	}
 }
@@ -1705,7 +1725,6 @@ void bnx2fc_build_fcp_cmnd(struct bnx2fc_cmd *io_req,
 				  struct fcp_cmnd *fcp_cmnd)
 {
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
-	char tag[2];
 
 	memset(fcp_cmnd, 0, sizeof(struct fcp_cmnd));
 
@@ -1718,22 +1737,7 @@ void bnx2fc_build_fcp_cmnd(struct bnx2fc_cmd *io_req,
 	fcp_cmnd->fc_pri_ta = 0;
 	fcp_cmnd->fc_tm_flags = io_req->mp_req.tm_flags;
 	fcp_cmnd->fc_flags = io_req->io_req_flags;
-
-	if (scsi_populate_tag_msg(sc_cmd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			fcp_cmnd->fc_pri_ta = FCP_PTA_HEADQ;
-			break;
-		case ORDERED_QUEUE_TAG:
-			fcp_cmnd->fc_pri_ta = FCP_PTA_ORDERED;
-			break;
-		default:
-			fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
-			break;
-		}
-	} else {
-		fcp_cmnd->fc_pri_ta = 0;
-	}
+	fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
 }
 
 static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
@@ -1865,19 +1869,33 @@ int bnx2fc_queuecommand(struct Scsi_Host *host,
 		rc = SCSI_MLQUEUE_TARGET_BUSY;
 		goto exit_qcmd;
 	}
+	if (tgt->retry_delay_timestamp) {
+		if (time_after(jiffies, tgt->retry_delay_timestamp)) {
+			tgt->retry_delay_timestamp = 0;
+		} else {
+			/* If retry_delay timer is active, flow off the ML */
+			rc = SCSI_MLQUEUE_TARGET_BUSY;
+			goto exit_qcmd;
+		}
+	}
+
+	spin_lock_bh(&tgt->tgt_lock);
 
 	io_req = bnx2fc_cmd_alloc(tgt);
 	if (!io_req) {
 		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto exit_qcmd;
+		goto exit_qcmd_tgtlock;
 	}
 	io_req->sc_cmd = sc_cmd;
 
 	if (bnx2fc_post_io_req(tgt, io_req)) {
 		printk(KERN_ERR PFX "Unable to post io_req\n");
 		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto exit_qcmd;
+		goto exit_qcmd_tgtlock;
 	}
+
+exit_qcmd_tgtlock:
+	spin_unlock_bh(&tgt->tgt_lock);
 exit_qcmd:
 	return rc;
 }
@@ -1955,6 +1973,15 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 				 " fcp_resid = 0x%x\n",
 				io_req->cdb_status, io_req->fcp_resid);
 			sc_cmd->result = (DID_OK << 16) | io_req->cdb_status;
+
+			if (io_req->cdb_status == SAM_STAT_TASK_SET_FULL ||
+			    io_req->cdb_status == SAM_STAT_BUSY) {
+				/* Set the jiffies + retry_delay_timer * 100ms
+				   for the rport/tgt */
+				tgt->retry_delay_timestamp = jiffies +
+					fcp_rsp->retry_delay_timer * HZ / 10;
+			}
+
 		}
 		if (io_req->fcp_resid)
 			scsi_set_resid(sc_cmd, io_req->fcp_resid);
@@ -1983,6 +2010,8 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	int task_idx, index;
 	u16 xid;
 
+	/* bnx2fc_post_io_req() is called with the tgt_lock held */
+
 	/* Initialize rest of io_req fields */
 	io_req->cmd_type = BNX2FC_SCSI_CMD;
 	io_req->port = port;
@@ -2010,9 +2039,7 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	/* Build buffer descriptor list for firmware from sg list */
 	if (bnx2fc_build_bd_list_from_sg(io_req)) {
 		printk(KERN_ERR PFX "BD list creation failed\n");
-		spin_lock_bh(&tgt->tgt_lock);
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
-		spin_unlock_bh(&tgt->tgt_lock);
 		return -EAGAIN;
 	}
 
@@ -2024,19 +2051,15 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	task = &(task_page[index]);
 	bnx2fc_init_task(io_req, task);
 
-	spin_lock_bh(&tgt->tgt_lock);
-
 	if (tgt->flush_in_prog) {
 		printk(KERN_ERR PFX "Flush in progress..Host Busy\n");
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
-		spin_unlock_bh(&tgt->tgt_lock);
 		return -EAGAIN;
 	}
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
 		printk(KERN_ERR PFX "Session not ready...post_io\n");
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
-		spin_unlock_bh(&tgt->tgt_lock);
 		return -EAGAIN;
 	}
 
@@ -2054,6 +2077,5 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 
 	/* Ring doorbell */
 	bnx2fc_ring_doorbell(tgt);
-	spin_unlock_bh(&tgt->tgt_lock);
 	return 0;
 }

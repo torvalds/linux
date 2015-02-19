@@ -34,7 +34,6 @@ struct thread_info {
 					 	   0-0xBFFFFFFF for user-thread
 						   0-0xFFFFFFFF for kernel-thread
 						*/
-	struct restart_block    restart_block;
 
 	__u8			supervisor_stack[0];
 };
@@ -49,11 +48,8 @@ struct thread_info {
 #define TI_CPU		0x00000010
 #define TI_PRE_COUNT	0x00000014
 #define TI_ADDR_LIMIT	0x00000018
-#define TI_RESTART_BLOCK 0x000001C
 
 #endif
-
-#define PREEMPT_ACTIVE		0x10000000
 
 #define THREAD_SIZE		(PAGE_SIZE << 1)
 #define THREAD_SIZE_ORDER	1
@@ -70,9 +66,6 @@ struct thread_info {
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
-	.restart_block = {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)

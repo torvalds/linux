@@ -242,7 +242,7 @@ static int cyttsp_soft_reset(struct cyttsp *ts)
 	int retval;
 
 	/* wait for interrupt to set ready completion */
-	INIT_COMPLETION(ts->bl_ready);
+	reinit_completion(&ts->bl_ready);
 	ts->state = CY_BL_STATE;
 
 	enable_irq(ts->irq);
@@ -472,8 +472,7 @@ static int cyttsp_disable(struct cyttsp *ts)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int cyttsp_suspend(struct device *dev)
+static int __maybe_unused cyttsp_suspend(struct device *dev)
 {
 	struct cyttsp *ts = dev_get_drvdata(dev);
 	int retval = 0;
@@ -491,7 +490,7 @@ static int cyttsp_suspend(struct device *dev)
 	return retval;
 }
 
-static int cyttsp_resume(struct device *dev)
+static int __maybe_unused cyttsp_resume(struct device *dev)
 {
 	struct cyttsp *ts = dev_get_drvdata(dev);
 
@@ -506,8 +505,6 @@ static int cyttsp_resume(struct device *dev)
 
 	return 0;
 }
-
-#endif
 
 SIMPLE_DEV_PM_OPS(cyttsp_pm_ops, cyttsp_suspend, cyttsp_resume);
 EXPORT_SYMBOL_GPL(cyttsp_pm_ops);
@@ -534,7 +531,7 @@ static void cyttsp_close(struct input_dev *dev)
 struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 			    struct device *dev, int irq, size_t xfer_buf_size)
 {
-	const struct cyttsp_platform_data *pdata = dev->platform_data;
+	const struct cyttsp_platform_data *pdata = dev_get_platdata(dev);
 	struct cyttsp *ts;
 	struct input_dev *input_dev;
 	int error;
@@ -553,7 +550,7 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 
 	ts->dev = dev;
 	ts->input = input_dev;
-	ts->pdata = dev->platform_data;
+	ts->pdata = dev_get_platdata(dev);
 	ts->bus_ops = bus_ops;
 	ts->irq = irq;
 

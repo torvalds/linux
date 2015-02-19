@@ -110,7 +110,7 @@ static long ps3_hpte_remove(unsigned long hpte_group)
 
 static long ps3_hpte_updatepp(unsigned long slot, unsigned long newpp,
 			      unsigned long vpn, int psize, int apsize,
-			      int ssize, int local)
+			      int ssize, unsigned long inv_flags)
 {
 	int result;
 	u64 hpte_v, want_v, hpte_rs;

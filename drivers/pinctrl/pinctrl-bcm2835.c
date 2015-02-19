@@ -384,7 +384,7 @@ static struct gpio_chip bcm2835_gpio_chip = {
 	.to_irq = bcm2835_gpio_to_irq,
 	.base = -1,
 	.ngpio = BCM2835_NUM_GPIOS,
-	.can_sleep = 0,
+	.can_sleep = false,
 };
 
 static irqreturn_t bcm2835_gpio_irq_handler(int irq, void *dev_id)
@@ -830,7 +830,7 @@ static int bcm2835_pmx_get_function_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int bcm2835_pmx_enable(struct pinctrl_dev *pctldev,
+static int bcm2835_pmx_set(struct pinctrl_dev *pctldev,
 		unsigned func_selector,
 		unsigned group_selector)
 {
@@ -839,16 +839,6 @@ static int bcm2835_pmx_enable(struct pinctrl_dev *pctldev,
 	bcm2835_pinctrl_fsel_set(pc, group_selector, func_selector);
 
 	return 0;
-}
-
-static void bcm2835_pmx_disable(struct pinctrl_dev *pctldev,
-		unsigned func_selector,
-		unsigned group_selector)
-{
-	struct bcm2835_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
-
-	/* disable by setting to GPIO_IN */
-	bcm2835_pinctrl_fsel_set(pc, group_selector, BCM2835_FSEL_GPIO_IN);
 }
 
 static void bcm2835_pmx_gpio_disable_free(struct pinctrl_dev *pctldev,
@@ -879,8 +869,7 @@ static const struct pinmux_ops bcm2835_pmx_ops = {
 	.get_functions_count = bcm2835_pmx_get_functions_count,
 	.get_function_name = bcm2835_pmx_get_function_name,
 	.get_function_groups = bcm2835_pmx_get_function_groups,
-	.enable = bcm2835_pmx_enable,
-	.disable = bcm2835_pmx_disable,
+	.set_mux = bcm2835_pmx_set,
 	.gpio_disable_free = bcm2835_pmx_gpio_disable_free,
 	.gpio_set_direction = bcm2835_pmx_gpio_set_direction,
 };
@@ -893,28 +882,35 @@ static int bcm2835_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int bcm2835_pinconf_set(struct pinctrl_dev *pctldev,
-			unsigned pin, unsigned long config)
+			unsigned pin, unsigned long *configs,
+			unsigned num_configs)
 {
 	struct bcm2835_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
-	enum bcm2835_pinconf_param param = BCM2835_PINCONF_UNPACK_PARAM(config);
-	u16 arg = BCM2835_PINCONF_UNPACK_ARG(config);
+	enum bcm2835_pinconf_param param;
+	u16 arg;
 	u32 off, bit;
+	int i;
 
-	if (param != BCM2835_PINCONF_PARAM_PULL)
-		return -EINVAL;
+	for (i = 0; i < num_configs; i++) {
+		param = BCM2835_PINCONF_UNPACK_PARAM(configs[i]);
+		arg = BCM2835_PINCONF_UNPACK_ARG(configs[i]);
 
-	off = GPIO_REG_OFFSET(pin);
-	bit = GPIO_REG_SHIFT(pin);
+		if (param != BCM2835_PINCONF_PARAM_PULL)
+			return -EINVAL;
 
-	bcm2835_gpio_wr(pc, GPPUD, arg & 3);
-	/*
-	 * Docs say to wait 150 cycles, but not of what. We assume a
-	 * 1 MHz clock here, which is pretty slow...
-	 */
-	udelay(150);
-	bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), BIT(bit));
-	udelay(150);
-	bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), 0);
+		off = GPIO_REG_OFFSET(pin);
+		bit = GPIO_REG_SHIFT(pin);
+
+		bcm2835_gpio_wr(pc, GPPUD, arg & 3);
+		/*
+		 * Docs say to wait 150 cycles, but not of what. We assume a
+		 * 1 MHz clock here, which is pretty slow...
+		 */
+		udelay(150);
+		bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), BIT(bit));
+		udelay(150);
+		bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), 0);
+	} /* for each config */
 
 	return 0;
 }
@@ -1066,7 +1062,6 @@ static struct platform_driver bcm2835_pinctrl_driver = {
 	.remove = bcm2835_pinctrl_remove,
 	.driver = {
 		.name = MODULE_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = bcm2835_pinctrl_match,
 	},
 };

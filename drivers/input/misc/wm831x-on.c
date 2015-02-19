@@ -18,7 +18,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -139,7 +138,6 @@ static struct platform_driver wm831x_on_driver = {
 	.remove		= wm831x_on_remove,
 	.driver		= {
 		.name	= "wm831x-on",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(wm831x_on_driver);

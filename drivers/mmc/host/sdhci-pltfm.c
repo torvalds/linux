@@ -45,6 +45,10 @@ unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host)
 EXPORT_SYMBOL_GPL(sdhci_pltfm_clk_get_max_clock);
 
 static const struct sdhci_ops sdhci_pltfm_ops = {
+	.set_clock = sdhci_set_clock,
+	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 #ifdef CONFIG_OF
@@ -119,7 +123,6 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 				    size_t priv_size)
 {
 	struct sdhci_host *host;
-	struct device_node *np = pdev->dev.of_node;
 	struct resource *iomem;
 	int ret;
 
@@ -132,13 +135,8 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 	if (resource_size(iomem) < 0x100)
 		dev_err(&pdev->dev, "Invalid iomem size!\n");
 
-	/* Some PCI-based MFD need the parent here */
-	if (pdev->dev.parent != &platform_bus && !np)
-		host = sdhci_alloc_host(pdev->dev.parent,
-			sizeof(struct sdhci_pltfm_host) + priv_size);
-	else
-		host = sdhci_alloc_host(&pdev->dev,
-			sizeof(struct sdhci_pltfm_host) + priv_size);
+	host = sdhci_alloc_host(&pdev->dev,
+		sizeof(struct sdhci_pltfm_host) + priv_size);
 
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
@@ -237,19 +235,21 @@ int sdhci_pltfm_unregister(struct platform_device *pdev)
 EXPORT_SYMBOL_GPL(sdhci_pltfm_unregister);
 
 #ifdef CONFIG_PM
-static int sdhci_pltfm_suspend(struct device *dev)
+int sdhci_pltfm_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 
 	return sdhci_suspend_host(host);
 }
+EXPORT_SYMBOL_GPL(sdhci_pltfm_suspend);
 
-static int sdhci_pltfm_resume(struct device *dev)
+int sdhci_pltfm_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 
 	return sdhci_resume_host(host);
 }
+EXPORT_SYMBOL_GPL(sdhci_pltfm_resume);
 
 const struct dev_pm_ops sdhci_pltfm_pmops = {
 	.suspend	= sdhci_pltfm_suspend,

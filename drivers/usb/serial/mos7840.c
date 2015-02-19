@@ -24,7 +24,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -221,7 +220,6 @@ struct moschip_port {
 	__u8 shadowMCR;		/* last MCR value received */
 	char open;
 	char open_ports;
-	wait_queue_head_t wait_chase;	/* for handling sleeping while waiting for chase to finish */
 	struct usb_serial_port *port;	/* loop back to the owner of this object */
 
 	/* Offsets */
@@ -524,11 +522,11 @@ static void mos7840_set_led_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
-		dev_dbg(&urb->dev->dev, "%s - urb shutting down with status: %d",
+		dev_dbg(&urb->dev->dev, "%s - urb shutting down: %d\n",
 			__func__, urb->status);
 		break;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status received: %d",
+		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n",
 			__func__, urb->status);
 	}
 }
@@ -877,20 +875,14 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 	for (j = 0; j < NUM_URBS; ++j) {
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		mos7840_port->write_urb_pool[j] = urb;
-
-		if (urb == NULL) {
-			dev_err(&port->dev, "No more urbs???\n");
+		if (!urb)
 			continue;
-		}
 
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 								GFP_KERNEL);
 		if (!urb->transfer_buffer) {
 			usb_free_urb(urb);
 			mos7840_port->write_urb_pool[j] = NULL;
-			dev_err(&port->dev,
-				"%s-out of memory for urb buffers.\n",
-				__func__);
 			continue;
 		}
 	}
@@ -1100,9 +1092,6 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 		mos7840_port->read_urb_busy = false;
 	}
 
-	/* initialize our wait queues */
-	init_waitqueue_head(&mos7840_port->wait_chase);
-
 	/* initialize our port settings */
 	/* Must set to enable ints! */
 	mos7840_port->shadowMCR = MCR_MASTER_IE;
@@ -1192,10 +1181,7 @@ static void mos7840_close(struct usb_serial_port *port)
 	/* Freeing Write URBs */
 	for (j = 0; j < NUM_URBS; ++j) {
 		if (mos7840_port->write_urb_pool[j]) {
-			if (mos7840_port->write_urb_pool[j]->transfer_buffer)
-				kfree(mos7840_port->write_urb_pool[j]->
-				      transfer_buffer);
-
+			kfree(mos7840_port->write_urb_pool[j]->transfer_buffer);
 			usb_free_urb(mos7840_port->write_urb_pool[j]);
 		}
 	}
@@ -1228,47 +1214,6 @@ static void mos7840_close(struct usb_serial_port *port)
 	mos7840_port->open = 0;
 }
 
-/************************************************************************
- *
- * mos7840_block_until_chase_response
- *
- *	This function will block the close until one of the following:
- *		1. Response to our Chase comes from mos7840
- *		2. A timeout of 10 seconds without activity has expired
- *		   (1K of mos7840 data @ 2400 baud ==> 4 sec to empty)
- *
- ************************************************************************/
-
-static void mos7840_block_until_chase_response(struct tty_struct *tty,
-					struct moschip_port *mos7840_port)
-{
-	int timeout = msecs_to_jiffies(1000);
-	int wait = 10;
-	int count;
-
-	while (1) {
-		count = mos7840_chars_in_buffer(tty);
-
-		/* Check for Buffer status */
-		if (count <= 0)
-			return;
-
-		/* Block the thread for a while */
-		interruptible_sleep_on_timeout(&mos7840_port->wait_chase,
-					       timeout);
-		/* No activity.. count down section */
-		wait--;
-		if (wait == 0) {
-			dev_dbg(&mos7840_port->port->dev, "%s - TIMEOUT\n", __func__);
-			return;
-		} else {
-			/* Reset timeout value back to seconds */
-			wait = 10;
-		}
-	}
-
-}
-
 /*****************************************************************************
  * mos7840_break
  *	this function sends a break to the port
@@ -1291,9 +1236,6 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 
 	if (mos7840_port == NULL)
 		return;
-
-	/* flush and block until tx is empty */
-	mos7840_block_until_chase_response(tty, mos7840_port);
 
 	if (break_state == -1)
 		data = mos7840_port->shadowLCR | LCR_SET_BREAK;
@@ -1367,35 +1309,6 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	const unsigned char *current_position = data;
 	unsigned char *data1;
 
-#ifdef NOTMOS7840
-	Data = 0x00;
-	status = mos7840_get_uart_reg(port, LINE_CONTROL_REGISTER, &Data);
-	mos7840_port->shadowLCR = Data;
-	dev_dbg(&port->dev, "%s: LINE_CONTROL_REGISTER is %x\n", __func__, Data);
-	dev_dbg(&port->dev, "%s: mos7840_port->shadowLCR is %x\n", __func__, mos7840_port->shadowLCR);
-
-	/* Data = 0x03; */
-	/* status = mos7840_set_uart_reg(port,LINE_CONTROL_REGISTER,Data); */
-	/* mos7840_port->shadowLCR=Data;//Need to add later */
-
-	Data |= SERIAL_LCR_DLAB;	/* data latch enable in LCR 0x80 */
-	status = mos7840_set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
-
-	/* Data = 0x0c; */
-	/* status = mos7840_set_uart_reg(port,DIVISOR_LATCH_LSB,Data); */
-	Data = 0x00;
-	status = mos7840_get_uart_reg(port, DIVISOR_LATCH_LSB, &Data);
-	dev_dbg(&port->dev, "%s: DLL value is %x\n", __func__, Data);
-
-	Data = 0x0;
-	status = mos7840_get_uart_reg(port, DIVISOR_LATCH_MSB, &Data);
-	dev_dbg(&port->dev, "%s: DLM value is %x\n", __func__, Data);
-
-	Data = Data & ~SERIAL_LCR_DLAB;
-	dev_dbg(&port->dev, "%s: mos7840_port->shadowLCR is %x\n", __func__, mos7840_port->shadowLCR);
-	status = mos7840_set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
-#endif
-
 	if (mos7840_port_paranoia_check(port, __func__))
 		return -1;
 
@@ -1429,12 +1342,8 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (urb->transfer_buffer == NULL) {
 		urb->transfer_buffer =
 		    kmalloc(URB_TRANSFER_BUFFER_SIZE, GFP_KERNEL);
-
-		if (urb->transfer_buffer == NULL) {
-			dev_err_console(port, "%s no more kernel memory...\n",
-				__func__);
+		if (!urb->transfer_buffer)
 			goto exit;
-		}
 	}
 	transfer_size = min(count, URB_TRANSFER_BUFFER_SIZE);
 
@@ -1580,7 +1489,11 @@ static int mos7840_tiocmget(struct tty_struct *tty)
 		return -ENODEV;
 
 	status = mos7840_get_uart_reg(port, MODEM_STATUS_REGISTER, &msr);
+	if (status != 1)
+		return -EIO;
 	status = mos7840_get_uart_reg(port, MODEM_CONTROL_REGISTER, &mcr);
+	if (status != 1)
+		return -EIO;
 	result = ((mcr & MCR_DTR) ? TIOCM_DTR : 0)
 	    | ((mcr & MCR_RTS) ? TIOCM_RTS : 0)
 	    | ((mcr & MCR_LOOPBACK) ? TIOCM_LOOP : 0)
@@ -1672,37 +1585,6 @@ static int mos7840_calc_baud_rate_divisor(struct usb_serial_port *port,
 		*clk_sel_val = 0x70;
 	}
 	return 0;
-
-#ifdef NOTMCS7840
-
-	for (i = 0; i < ARRAY_SIZE(mos7840_divisor_table); i++) {
-		if (mos7840_divisor_table[i].BaudRate == baudrate) {
-			*divisor = mos7840_divisor_table[i].Divisor;
-			return 0;
-		}
-	}
-
-	/* After trying for all the standard baud rates    *
-	 * Try calculating the divisor for this baud rate  */
-
-	if (baudrate > 75 && baudrate < 230400) {
-		/* get the divisor */
-		custom = (__u16) (230400L / baudrate);
-
-		/* Check for round off */
-		round1 = (__u16) (2304000L / baudrate);
-		round = (__u16) (round1 - (custom * 10));
-		if (round > 4)
-			custom++;
-		*divisor = custom;
-
-		dev_dbg(&port->dev, " Baud %d = %d\n", baudrate, custom);
-		return 0;
-	}
-
-	dev_dbg(&port->dev, "%s", " Baud calculation Failed...\n");
-	return -1;
-#endif
 }
 
 /*****************************************************************************
@@ -1857,25 +1739,25 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	iflag = tty->termios.c_iflag;
 
 	/* Change the number of bits */
-	if (cflag & CSIZE) {
-		switch (cflag & CSIZE) {
-		case CS5:
-			lData = LCR_BITS_5;
-			break;
+	switch (cflag & CSIZE) {
+	case CS5:
+		lData = LCR_BITS_5;
+		break;
 
-		case CS6:
-			lData = LCR_BITS_6;
-			break;
+	case CS6:
+		lData = LCR_BITS_6;
+		break;
 
-		case CS7:
-			lData = LCR_BITS_7;
-			break;
-		default:
-		case CS8:
-			lData = LCR_BITS_8;
-			break;
-		}
+	case CS7:
+		lData = LCR_BITS_7;
+		break;
+
+	default:
+	case CS8:
+		lData = LCR_BITS_8;
+		break;
 	}
+
 	/* Change the Parity bit */
 	if (cflag & PARENB) {
 		if (cflag & PARODD) {
@@ -1962,7 +1844,7 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 
 	if (mos7840_port->read_urb_busy == false) {
 		mos7840_port->read_urb_busy = true;
-		status = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
+		status = usb_submit_urb(mos7840_port->read_urb, GFP_KERNEL);
 		if (status) {
 			dev_dbg(&port->dev, "usb_submit_urb(read bulk) failed, status = %d\n",
 			    status);
@@ -2026,7 +1908,7 @@ static void mos7840_set_termios(struct tty_struct *tty,
 
 	if (mos7840_port->read_urb_busy == false) {
 		mos7840_port->read_urb_busy = true;
-		status = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
+		status = usb_submit_urb(mos7840_port->read_urb, GFP_KERNEL);
 		if (status) {
 			dev_dbg(&port->dev, "usb_submit_urb(read bulk) failed, status = %d\n",
 			    status);
@@ -2113,8 +1995,6 @@ static int mos7840_ioctl(struct tty_struct *tty,
 
 	if (mos7840_port == NULL)
 		return -1;
-
-	dev_dbg(&port->dev, "%s - cmd = 0x%x\n", __func__, cmd);
 
 	switch (cmd) {
 		/* return number of bytes available */
@@ -2252,10 +2132,8 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 
 	dev_dbg(&port->dev, "mos7840_startup: configuring port %d\n", pnum);
 	mos7840_port = kzalloc(sizeof(struct moschip_port), GFP_KERNEL);
-	if (mos7840_port == NULL) {
-		dev_err(&port->dev, "%s - Out of memory\n", __func__);
+	if (!mos7840_port)
 		return -ENOMEM;
-	}
 
 	/* Initialize all port interrupt end point to port 0 int
 	 * endpoint. Our device has only one interrupt end point

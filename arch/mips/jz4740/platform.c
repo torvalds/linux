@@ -14,12 +14,13 @@
  */
 
 #include <linux/device.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
 
 #include <linux/dma-mapping.h>
+
+#include <linux/usb/musb.h>
 
 #include <asm/mach-jz4740/platform.h>
 #include <asm/mach-jz4740/base.h>
@@ -56,29 +57,35 @@ struct platform_device jz4740_usb_ohci_device = {
 	.resource	= jz4740_usb_ohci_resources,
 };
 
-/* UDC (USB gadget controller) */
-static struct resource jz4740_usb_gdt_resources[] = {
-	{
-		.start	= JZ4740_UDC_BASE_ADDR,
-		.end	= JZ4740_UDC_BASE_ADDR + 0x1000 - 1,
-		.flags	= IORESOURCE_MEM,
+/* USB Device Controller */
+struct platform_device jz4740_udc_xceiv_device = {
+	.name = "usb_phy_generic",
+	.id   = 0,
+};
+
+static struct resource jz4740_udc_resources[] = {
+	[0] = {
+		.start = JZ4740_UDC_BASE_ADDR,
+		.end   = JZ4740_UDC_BASE_ADDR + 0x10000 - 1,
+		.flags = IORESOURCE_MEM,
 	},
-	{
-		.start	= JZ4740_IRQ_UDC,
-		.end	= JZ4740_IRQ_UDC,
-		.flags	= IORESOURCE_IRQ,
+	[1] = {
+		.start = JZ4740_IRQ_UDC,
+		.end   = JZ4740_IRQ_UDC,
+		.flags = IORESOURCE_IRQ,
+		.name  = "mc",
 	},
 };
 
 struct platform_device jz4740_udc_device = {
-	.name		= "jz-udc",
-	.id		= -1,
-	.dev = {
-		.dma_mask = &jz4740_udc_device.dev.coherent_dma_mask,
+	.name = "musb-jz4740",
+	.id   = -1,
+	.dev  = {
+		.dma_mask          = &jz4740_udc_device.dev.coherent_dma_mask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
-	.num_resources	= ARRAY_SIZE(jz4740_usb_gdt_resources),
-	.resource	= jz4740_usb_gdt_resources,
+	.num_resources = ARRAY_SIZE(jz4740_udc_resources),
+	.resource      = jz4740_udc_resources,
 };
 
 /* MMC/SD controller */

@@ -44,11 +44,6 @@ extern int octeon_get_boot_num_arguments(void);
 extern const char *octeon_get_boot_argument(int arg);
 extern void octeon_hal_setup_reserved32(void);
 extern void octeon_user_io_init(void);
-struct octeon_cop2_state;
-extern unsigned long octeon_crypto_enable(struct octeon_cop2_state *state);
-extern void octeon_crypto_disable(struct octeon_cop2_state *state,
-				  unsigned long flags);
-extern asmlinkage void octeon_cop2_restore(struct octeon_cop2_state *task);
 
 extern void octeon_init_cvmcount(void);
 extern void octeon_setup_delays(void);
@@ -211,7 +206,6 @@ union octeon_cvmemctl {
 
 extern void octeon_write_lcd(const char *s);
 extern void octeon_check_cpu_bist(void);
-extern int octeon_get_boot_debug_flag(void);
 extern int octeon_get_boot_uart(void);
 
 struct uart_port;
@@ -250,5 +244,7 @@ extern void (*octeon_irq_setup_secondary)(void);
 
 typedef void (*octeon_irq_ip4_handler_t)(void);
 void octeon_irq_set_ip4_handler(octeon_irq_ip4_handler_t);
+
+extern void octeon_fixup_irqs(void);
 
 #endif /* __ASM_OCTEON_OCTEON_H */

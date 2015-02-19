@@ -501,7 +501,7 @@ static ssize_t picolcd_fb_update_rate_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(fb_update_rate, 0666, picolcd_fb_update_rate_show,
+static DEVICE_ATTR(fb_update_rate, 0664, picolcd_fb_update_rate_show,
 		picolcd_fb_update_rate_store);
 
 /* initialize Framebuffer device */
@@ -593,10 +593,14 @@ err_nomem:
 void picolcd_exit_framebuffer(struct picolcd_data *data)
 {
 	struct fb_info *info = data->fb_info;
-	struct picolcd_fb_data *fbdata = info->par;
+	struct picolcd_fb_data *fbdata;
 	unsigned long flags;
 
+	if (!info)
+		return;
+
 	device_remove_file(&data->hdev->dev, &dev_attr_fb_update_rate);
+	fbdata = info->par;
 
 	/* disconnect framebuffer from HID dev */
 	spin_lock_irqsave(&fbdata->lock, flags);

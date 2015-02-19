@@ -31,12 +31,9 @@
  * Author: liang@whamcloud.com
  */
 
-#ifndef EXPORT_SYMTAB
-# define EXPORT_SYMTAB
-#endif
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 struct cfs_var_array {
 	unsigned int		va_count;	/* # of buffers */

@@ -1,0 +1,20 @@
+/*
+ * Copyright (C) 2014 Russell King
+ */
+/dts-v1/;
+
+#include "imx6q.dtsi"
+#include "imx6qdl-cubox-i.dtsi"
+
+/ {
+	model = "SolidRun Cubox-i Dual/Quad";
+	compatible = "solidrun,cubox-i/q", "fsl,imx6q";
+};
+
+&sata {
+	status = "okay";
+	fsl,transmit-level-mV = <1104>;
+	fsl,transmit-boost-mdB = <0>;
+	fsl,transmit-atten-16ths = <9>;
+	fsl,no-spread-spectrum;
+};

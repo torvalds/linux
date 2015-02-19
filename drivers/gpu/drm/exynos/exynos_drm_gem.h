@@ -12,6 +12,8 @@
 #ifndef _EXYNOS_DRM_GEM_H_
 #define _EXYNOS_DRM_GEM_H_
 
+#include <drm/drm_gem.h>
+
 #define to_exynos_gem_obj(x)	container_of(x,\
 			struct exynos_drm_gem_obj, base)
 
@@ -20,6 +22,7 @@
 /*
  * exynos drm gem buffer structure.
  *
+ * @cookie: cookie returned by dma_alloc_attrs
  * @kvaddr: kernel virtual address to allocated memory region.
  * *userptr: user space address.
  * @dma_addr: bus address(accessed by dma) to allocated memory region.
@@ -33,6 +36,7 @@
  *	VM_PFNMAP or not.
  */
 struct exynos_drm_gem_buf {
+	void 			*cookie;
 	void __iomem		*kvaddr;
 	unsigned long		userptr;
 	dma_addr_t		dma_addr;
@@ -60,7 +64,7 @@ struct exynos_drm_gem_buf {
  * @vma: a pointer to vm_area.
  * @flags: indicate memory type to allocated buffer and cache attruibute.
  *
- * P.S. this object would be transfered to user as kms_bo.handle so
+ * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
  */
 struct exynos_drm_gem_obj {
@@ -111,17 +115,6 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 					unsigned int gem_handle,
 					struct drm_file *filp);
 
-/* get buffer offset to map to user space. */
-int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
-
-/*
- * mmap the physically continuous memory that a gem object contains
- * to user space.
- */
-int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
-
 /* map user space allocated by malloc to pages. */
 int exynos_drm_gem_userptr_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
@@ -135,9 +128,6 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 						unsigned int gem_handle,
 						struct drm_file *file_priv);
 
-/* initialize gem object. */
-int exynos_drm_gem_init_object(struct drm_gem_object *obj);
-
 /* free gem object. */
 void exynos_drm_gem_free_object(struct drm_gem_object *gem_obj);
 
@@ -150,15 +140,6 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 				   struct drm_device *dev, uint32_t handle,
 				   uint64_t *offset);
-
-/*
- * destroy memory region allocated.
- *	- a gem handle and physical memory region pointed by a gem object
- *	would be released by drm_gem_handle_delete().
- */
-int exynos_drm_gem_dumb_destroy(struct drm_file *file_priv,
-				struct drm_device *dev,
-				unsigned int handle);
 
 /* page fault handler and mmap fault address(virtual) to physical memory. */
 int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);

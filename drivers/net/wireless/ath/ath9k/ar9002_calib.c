@@ -33,15 +33,12 @@ static bool ar9002_hw_is_cal_supported(struct ath_hw *ah,
 	bool supported = false;
 	switch (ah->supp_cals & cal_type) {
 	case IQ_MISMATCH_CAL:
-		/* Run IQ Mismatch for non-CCK only */
-		if (!IS_CHAN_B(chan))
-			supported = true;
+		supported = true;
 		break;
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
 		/* Run ADC Gain Cal for non-CCK & non 2GHz-HT20 only */
-		if (!IS_CHAN_B(chan) &&
-		    !((IS_CHAN_2GHZ(chan) || IS_CHAN_A_FAST_CLOCK(ah, chan)) &&
+		if (!((IS_CHAN_2GHZ(chan) || IS_CHAN_A_FAST_CLOCK(ah, chan)) &&
 		      IS_CHAN_HT20(chan)))
 			supported = true;
 		break;
@@ -660,31 +657,29 @@ static void ar9002_hw_olc_temp_compensation(struct ath_hw *ah)
 		ar9280_hw_olc_temp_compensation(ah);
 }
 
-static bool ar9002_hw_calibrate(struct ath_hw *ah,
-				struct ath9k_channel *chan,
-				u8 rxchainmask,
-				bool longcal)
+static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
+			       u8 rxchainmask, bool longcal)
 {
-	bool iscaldone = true;
 	struct ath9k_cal_list *currCal = ah->cal_list_curr;
-	bool nfcal, nfcal_pending = false;
+	bool nfcal, nfcal_pending = false, percal_pending;
+	int ret;
 
 	nfcal = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF);
 	if (ah->caldata)
-		nfcal_pending = ah->caldata->nfcal_pending;
+		nfcal_pending = test_bit(NFCAL_PENDING, &ah->caldata->cal_flags);
 
-	if (currCal && !nfcal &&
-	    (currCal->calState == CAL_RUNNING ||
-	     currCal->calState == CAL_WAITING)) {
-		iscaldone = ar9002_hw_per_calibration(ah, chan,
-						      rxchainmask, currCal);
-		if (iscaldone) {
-			ah->cal_list_curr = currCal = currCal->calNext;
+	percal_pending = (currCal &&
+			  (currCal->calState == CAL_RUNNING ||
+			   currCal->calState == CAL_WAITING));
 
-			if (currCal->calState == CAL_WAITING) {
-				iscaldone = false;
-				ath9k_hw_reset_calibration(ah, currCal);
-			}
+	if (percal_pending && !nfcal) {
+		if (!ar9002_hw_per_calibration(ah, chan, rxchainmask, currCal))
+			return 0;
+
+		ah->cal_list_curr = currCal = currCal->calNext;
+		if (currCal->calState == CAL_WAITING) {
+			ath9k_hw_reset_calibration(ah, currCal);
+			return 0;
 		}
 	}
 
@@ -701,7 +696,9 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 			 * NF is slow time-variant, so it is OK to use a
 			 * historical value.
 			 */
-			ath9k_hw_loadnf(ah, ah->curchan);
+			ret = ath9k_hw_loadnf(ah, ah->curchan);
+			if (ret < 0)
+				return ret;
 		}
 
 		if (longcal) {
@@ -712,7 +709,7 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 		}
 	}
 
-	return iscaldone;
+	return !percal_pending;
 }
 
 /* Carrier leakage Calibration fix */
@@ -859,9 +856,11 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	/* Do PA Calibration */
 	ar9002_hw_pa_cal(ah, true);
+	ath9k_hw_loadnf(ah, chan);
+	ath9k_hw_start_nfcal(ah, true);
 
 	if (ah->caldata)
-		ah->caldata->nfcal_pending = true;
+		set_bit(NFCAL_PENDING, &ah->caldata->cal_flags);
 
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
 

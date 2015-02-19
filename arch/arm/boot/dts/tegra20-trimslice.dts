@@ -1,17 +1,24 @@
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "tegra20.dtsi"
 
 / {
 	model = "Compulab TrimSlice board";
 	compatible = "compulab,trimslice", "nvidia,tegra20";
 
+	aliases {
+		rtc0 = "/i2c@7000c500/rtc@56";
+		rtc1 = "/rtc@7000e000";
+		serial0 = &uarta;
+	};
+
 	memory {
 		reg = <0x00000000 0x40000000>;
 	};
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 
 			vdd-supply = <&hdmi_vdd_reg>;
@@ -23,7 +30,7 @@
 		};
 	};
 
-	pinmux {
+	pinmux@70000014 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -191,49 +198,49 @@
 					"dtb", "dtc", "dtd", "dte", "gmb",
 					"gme", "i2cp", "pta", "slxc", "slxd",
 					"spdi", "spdo", "uda";
-				nvidia,pull = <0>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_atb {
 				nvidia,pins = "atb", "cdev1", "cdev2", "dap1",
 					"gma", "gmc", "gmd", "gpu", "gpu7",
 					"gpv", "sdio1", "slxa", "slxk", "uac";
-				nvidia,pull = <0>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_ck32 {
 				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
 					"pmcc", "pmcd", "pmce", "xm2c", "xm2d";
-				nvidia,pull = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 			};
 			conf_csus {
 				nvidia,pins = "csus", "spia", "spib",
 					"spid", "spif";
-				nvidia,pull = <1>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_ddc {
 				nvidia,pins = "ddc", "dtf", "rm", "sdc", "sdd";
-				nvidia,pull = <2>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_hdint {
 				nvidia,pins = "hdint", "lcsn", "ldc", "lm1",
 					"lpw1", "lsc1", "lsck", "lsda", "lsdi",
 					"lvp0", "pmc";
-				nvidia,tristate = <1>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_irrx {
 				nvidia,pins = "irrx", "irtx", "kbca", "kbcb",
 					"kbcc", "kbcd", "kbce", "kbcf", "owc",
 					"spic", "spie", "spig", "spih", "uaa",
 					"uab", "uad", "uca", "ucb";
-				nvidia,pull = <2>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_lc {
 				nvidia,pins = "lc", "ls";
-				nvidia,pull = <2>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 			};
 			conf_ld0 {
 				nvidia,pins = "ld0", "ld1", "ld2", "ld3", "ld4",
@@ -243,17 +250,17 @@
 					"lhp1", "lhp2", "lhs", "lm0", "lpp",
 					"lpw0", "lpw2", "lsc0", "lspi", "lvp1",
 					"lvs", "sdb";
-				nvidia,tristate = <0>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_ld17_0 {
 				nvidia,pins = "ld17_0", "ld19_18", "ld21_20",
 					"ld23_22";
-				nvidia,pull = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
 			};
 			conf_spif {
 				nvidia,pins = "spif";
-				nvidia,pull = <1>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 		};
 	};
@@ -301,8 +308,8 @@
 		};
 	};
 
-	pmc {
-		nvidia,suspend-mode = <2>;
+	pmc@7000e400 {
+		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <5000>;
 		nvidia,cpu-pwr-off-time = <5000>;
 		nvidia,core-pwr-good-time = <3845 3845>;
@@ -310,9 +317,22 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
+	pcie-controller@80003000 {
+		status = "okay";
+
+		avdd-pex-supply = <&pci_vdd_reg>;
+		vdd-pex-supply = <&pci_vdd_reg>;
+		avdd-pex-pll-supply = <&pci_vdd_reg>;
+		avdd-plle-supply = <&pci_vdd_reg>;
+		vddio-pex-clk-supply = <&pci_clk_reg>;
+
+		pci@1,0 {
+			status = "okay";
+		};
+	};
+
 	usb@c5000000 {
 		status = "okay";
-		nvidia,vbus-gpio = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
 	};
 
 	usb-phy@c5000000 {
@@ -357,7 +377,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		clk32k_in: clock {
+		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
 			reg=<0>;
 			#clock-cells = <0>;
@@ -371,7 +391,7 @@
 		power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(X, 6) GPIO_ACTIVE_LOW>;
-			linux,code = <116>; /* KEY_POWER */
+			linux,code = <KEY_POWER>;
 			gpio-key,wakeup;
 		};
 	};
@@ -411,7 +431,27 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 170 0>; /* PV2 */
+			gpio = <&gpio TEGRA_GPIO(V, 2) 0>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		pci_clk_reg: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "pci_clk";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		pci_vdd_reg: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "pci_vdd";
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
+			regulator-always-on;
 		};
 	};
 

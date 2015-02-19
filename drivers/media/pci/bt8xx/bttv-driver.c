@@ -1126,9 +1126,9 @@ bttv_crop_calc_limits(struct bttv_crop *c)
 		c->min_scaled_height = 32;
 	} else {
 		c->min_scaled_width =
-			(max(48, c->rect.width >> 4) + 3) & ~3;
+			(max_t(unsigned int, 48, c->rect.width >> 4) + 3) & ~3;
 		c->min_scaled_height =
-			max(32, c->rect.height >> 4);
+			max_t(unsigned int, 32, c->rect.height >> 4);
 	}
 
 	c->max_scaled_width  = c->rect.width & ~3;
@@ -1182,7 +1182,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 		break;
 	}
 	id = tvnorm->v4l2_id;
-	bttv_call_all(btv, core, s_std, id);
+	bttv_call_all(btv, video, s_std, id);
 
 	return 0;
 }
@@ -1531,7 +1531,6 @@ bttv_switch_overlay(struct bttv *btv, struct bttv_fh *fh,
 {
 	struct bttv_buffer *old;
 	unsigned long flags;
-	int retval = 0;
 
 	dprintk("switch_overlay: enter [new=%p]\n", new);
 	if (new)
@@ -1551,7 +1550,7 @@ bttv_switch_overlay(struct bttv *btv, struct bttv_fh *fh,
 	if (NULL == new)
 		free_btres_lock(btv,fh,RESOURCE_OVERLAY);
 	dprintk("switch_overlay: done\n");
-	return retval;
+	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1875,8 +1874,10 @@ static void bttv_set_frequency(struct bttv *btv, const struct v4l2_frequency *f)
 	if (new_freq.type == V4L2_TUNER_RADIO) {
 		radio_enable(btv);
 		btv->radio_freq = new_freq.frequency;
-		if (btv->has_matchbox)
-			tea5757_set_freq(btv, btv->radio_freq);
+		if (btv->has_tea575x) {
+			btv->tea.freq = btv->radio_freq;
+			snd_tea575x_set_freq(&btv->tea);
+		}
 	} else {
 		btv->tv_freq = new_freq.frequency;
 	}
@@ -2024,7 +2025,7 @@ limit_scaled_size_lock       (struct bttv_fh *               fh,
 		/* We cannot scale up. When the scaled image is larger
 		   than crop.rect we adjust the crop.rect as required
 		   by the V4L2 spec, hence cropcap.bounds are our limit. */
-		max_width = min(b->width, (__s32) MAX_HACTIVE);
+		max_width = min_t(unsigned int, b->width, MAX_HACTIVE);
 		max_height = b->height;
 
 		/* We cannot capture the same line as video and VBI data.
@@ -2514,6 +2515,8 @@ static int bttv_querycap(struct file *file, void  *priv,
 		if (btv->has_saa6588)
 			cap->device_caps |= V4L2_CAP_READWRITE |
 						V4L2_CAP_RDS_CAPTURE;
+		if (btv->has_tea575x)
+			cap->device_caps |= V4L2_CAP_HW_FREQ_SEEK;
 	}
 	return 0;
 }
@@ -3243,6 +3246,9 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	if (btv->audio_mode_gpio)
 		btv->audio_mode_gpio(btv, t, 0);
 
+	if (btv->has_tea575x)
+		return snd_tea575x_g_tuner(&btv->tea, t);
+
 	return 0;
 }
 
@@ -3260,13 +3266,39 @@ static int radio_s_tuner(struct file *file, void *priv,
 	return 0;
 }
 
+static int radio_s_hw_freq_seek(struct file *file, void *priv,
+					const struct v4l2_hw_freq_seek *a)
+{
+	struct bttv_fh *fh = priv;
+	struct bttv *btv = fh->btv;
+
+	if (btv->has_tea575x)
+		return snd_tea575x_s_hw_freq_seek(file, &btv->tea, a);
+
+	return -ENOTTY;
+}
+
+static int radio_enum_freq_bands(struct file *file, void *priv,
+					 struct v4l2_frequency_band *band)
+{
+	struct bttv_fh *fh = priv;
+	struct bttv *btv = fh->btv;
+
+	if (btv->has_tea575x)
+		return snd_tea575x_enum_freq_bands(&btv->tea, band);
+
+	return -ENOTTY;
+}
+
 static ssize_t radio_read(struct file *file, char __user *data,
 			 size_t count, loff_t *ppos)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
 	struct saa6588_command cmd;
-	cmd.block_count = count/3;
+
+	cmd.block_count = count / 3;
+	cmd.nonblocking = file->f_flags & O_NONBLOCK;
 	cmd.buffer = data;
 	cmd.instance = file;
 	cmd.result = -ENODEV;
@@ -3315,6 +3347,8 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_tuner         = radio_s_tuner,
 	.vidioc_g_frequency     = bttv_g_frequency,
 	.vidioc_s_frequency     = bttv_s_frequency,
+	.vidioc_s_hw_freq_seek	= radio_s_hw_freq_seek,
+	.vidioc_enum_freq_bands	= radio_enum_freq_bands,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
@@ -3854,7 +3888,7 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 
 				btwrite(btread(BT848_INT_MASK) & (-1 ^ BT848_INT_GPINT),
 						BT848_INT_MASK);
-			};
+			}
 
 			bttv_print_irqbits(stat,astat);
 
@@ -3883,8 +3917,6 @@ static struct video_device *vdev_init(struct bttv *btv,
 	*vfd = *template;
 	vfd->v4l2_dev = &btv->c.v4l2_dev;
 	vfd->release = video_device_release;
-	vfd->debug   = bttv_debug;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	video_set_drvdata(vfd, btv);
 	snprintf(vfd->name, sizeof(vfd->name), "BT%d%s %s (%s)",
 		 btv->id, (btv->id==848 && btv->revision==0x12) ? "A" : "",
@@ -4086,7 +4118,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	/* disable irqs, register irq handler */
 	btwrite(0, BT848_INT_MASK);
 	result = request_irq(btv->c.pci->irq, bttv_irq,
-	    IRQF_SHARED | IRQF_DISABLED, btv->c.v4l2_dev.name, (void *)btv);
+	    IRQF_SHARED, btv->c.v4l2_dev.name, (void *)btv);
 	if (result < 0) {
 		pr_err("%d: can't get IRQ %d\n",
 		       bttv_num, btv->c.pci->irq);
@@ -4182,7 +4214,8 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	}
 	btv->std = V4L2_STD_PAL;
 	init_irqreg(btv);
-	v4l2_ctrl_handler_setup(hdl);
+	if (!bttv_tvcards[btv->c.type].no_video)
+		v4l2_ctrl_handler_setup(hdl);
 	if (hdl->error) {
 		result = hdl->error;
 		goto fail2;
@@ -4428,9 +4461,3 @@ static void __exit bttv_cleanup_module(void)
 
 module_init(bttv_init_module);
 module_exit(bttv_cleanup_module);
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

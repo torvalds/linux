@@ -31,9 +31,9 @@
 #include <linux/types.h>
 
 #define AP_DEVICES 64		/* Number of AP devices. */
-#define AP_DOMAINS 16		/* Number of AP domains. */
+#define AP_DOMAINS 256		/* Number of AP domains. */
 #define AP_MAX_RESET 90		/* Maximum number of resets. */
-#define AP_RESET_TIMEOUT (HZ/2)	/* Time in ticks for reset timeouts. */
+#define AP_RESET_TIMEOUT (HZ*0.7)	/* Time in ticks for reset timeouts. */
 #define AP_CONFIG_TIME 30	/* Time in seconds between AP bus rescans. */
 #define AP_POLL_TIME 1		/* Time in ticks between receive polls. */
 
@@ -45,9 +45,9 @@ extern int ap_domain_index;
  */
 typedef unsigned int ap_qid_t;
 
-#define AP_MKQID(_device,_queue) (((_device) & 63) << 8 | ((_queue) & 15))
+#define AP_MKQID(_device, _queue) (((_device) & 63) << 8 | ((_queue) & 255))
 #define AP_QID_DEVICE(_qid) (((_qid) >> 8) & 63)
-#define AP_QID_QUEUE(_qid) ((_qid) & 15)
+#define AP_QID_QUEUE(_qid) ((_qid) & 255)
 
 /**
  * structy ap_queue_status - Holds the AP queue status.
@@ -117,6 +117,7 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_DEVICE_TYPE_CEX3A	8
 #define AP_DEVICE_TYPE_CEX3C	9
 #define AP_DEVICE_TYPE_CEX4	10
+#define AP_DEVICE_TYPE_CEX5	11
 
 /*
  * Known function facilities
@@ -125,6 +126,8 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_FUNC_CRT4K 2
 #define AP_FUNC_COPRO 3
 #define AP_FUNC_ACCEL 4
+#define AP_FUNC_EP11  5
+#define AP_FUNC_APXA  6
 
 /*
  * AP reset flag states
@@ -159,6 +162,7 @@ struct ap_device {
 	ap_qid_t qid;			/* AP queue id. */
 	int queue_depth;		/* AP queue depth.*/
 	int device_type;		/* AP device type. */
+	int raw_hwtype;			/* AP raw hardware type. */
 	unsigned int functions;		/* AP device function bitfield. */
 	int unregistered;		/* marks AP device as unregistered */
 	struct timer_list timeout;	/* Timer for request timeouts. */

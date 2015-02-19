@@ -8,6 +8,8 @@
 #ifndef _ASM_ELF_H
 #define _ASM_ELF_H
 
+#include <linux/fs.h>
+#include <uapi/linux/elf.h>
 
 /* ELF header e_flags defines. */
 /* MIPS architecture level. */
@@ -28,6 +30,7 @@
 #define PT_MIPS_REGINFO		0x70000000
 #define PT_MIPS_RTPROC		0x70000001
 #define PT_MIPS_OPTIONS		0x70000002
+#define PT_MIPS_ABIFLAGS	0x70000003
 
 /* Flags in the e_flags field of the header */
 #define EF_MIPS_NOREORDER	0x00000001
@@ -36,6 +39,7 @@
 #define EF_MIPS_ABI2		0x00000020
 #define EF_MIPS_OPTIONS_FIRST	0x00000080
 #define EF_MIPS_32BITMODE	0x00000100
+#define EF_MIPS_FP64		0x00000200
 #define EF_MIPS_ABI		0x0000f000
 #define EF_MIPS_ARCH		0xf0000000
 
@@ -173,7 +177,43 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef double elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
+struct mips_elf_abiflags_v0 {
+	uint16_t version;	/* Version of flags structure */
+	uint8_t isa_level;	/* The level of the ISA: 1-5, 32, 64 */
+	uint8_t isa_rev;	/* The revision of ISA: 0 for MIPS V and below,
+				   1-n otherwise */
+	uint8_t gpr_size;	/* The size of general purpose registers */
+	uint8_t cpr1_size;	/* The size of co-processor 1 registers */
+	uint8_t cpr2_size;	/* The size of co-processor 2 registers */
+	uint8_t fp_abi;		/* The floating-point ABI */
+	uint32_t isa_ext;	/* Mask of processor-specific extensions */
+	uint32_t ases;		/* Mask of ASEs used */
+	uint32_t flags1;	/* Mask of general flags */
+	uint32_t flags2;
+};
+
+#define MIPS_ABI_FP_ANY		0	/* FP ABI doesn't matter */
+#define MIPS_ABI_FP_DOUBLE	1	/* -mdouble-float */
+#define MIPS_ABI_FP_SINGLE	2	/* -msingle-float */
+#define MIPS_ABI_FP_SOFT	3	/* -msoft-float */
+#define MIPS_ABI_FP_OLD_64	4	/* -mips32r2 -mfp64 */
+#define MIPS_ABI_FP_XX		5	/* -mfpxx */
+#define MIPS_ABI_FP_64		6	/* -mips32r2 -mfp64 */
+#define MIPS_ABI_FP_64A		7	/* -mips32r2 -mfp64 -mno-odd-spreg */
+
 #ifdef CONFIG_32BIT
+
+/*
+ * In order to be sure that we don't attempt to execute an O32 binary which
+ * requires 64 bit FP (FR=1) on a system which does not support it we refuse
+ * to execute any binary which has bits specified by the following macro set
+ * in its ELF header flags.
+ */
+#ifdef CONFIG_MIPS_O32_FP64_SUPPORT
+# define __MIPS_O32_FP64_MUST_BE_ZERO	0
+#else
+# define __MIPS_O32_FP64_MUST_BE_ZERO	EF_MIPS_FP64
+#endif
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -191,6 +231,8 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 		__res = 0;						\
 	if (((__h->e_flags & EF_MIPS_ABI) != 0) &&			\
 	    ((__h->e_flags & EF_MIPS_ABI) != EF_MIPS_ABI_O32))		\
+		__res = 0;						\
+	if (__h->e_flags & __MIPS_O32_FP64_MUST_BE_ZERO)		\
 		__res = 0;						\
 									\
 	__res;								\
@@ -247,10 +289,12 @@ extern struct mips_abi mips_abi_n32;
 
 #ifdef CONFIG_32BIT
 
-#define SET_PERSONALITY(ex)						\
+#define SET_PERSONALITY2(ex, state)					\
 do {									\
 	if (personality(current->personality) != PER_LINUX)		\
 		set_personality(PER_LINUX);				\
+									\
+	mips_set_personality_fp(state);					\
 									\
 	current->thread.abi = &mips_abi;				\
 } while (0)
@@ -271,39 +315,44 @@ do {									\
 #endif
 
 #ifdef CONFIG_MIPS32_O32
-#define __SET_PERSONALITY32_O32()					\
+#define __SET_PERSONALITY32_O32(ex, state)				\
 	do {								\
 		set_thread_flag(TIF_32BIT_REGS);			\
 		set_thread_flag(TIF_32BIT_ADDR);			\
+									\
+		mips_set_personality_fp(state);				\
+									\
 		current->thread.abi = &mips_abi_32;			\
 	} while (0)
 #else
-#define __SET_PERSONALITY32_O32()					\
+#define __SET_PERSONALITY32_O32(ex, state)				\
 	do { } while (0)
 #endif
 
 #ifdef CONFIG_MIPS32_COMPAT
-#define __SET_PERSONALITY32(ex)						\
+#define __SET_PERSONALITY32(ex, state)					\
 do {									\
 	if ((((ex).e_flags & EF_MIPS_ABI2) != 0) &&			\
 	     ((ex).e_flags & EF_MIPS_ABI) == 0)				\
 		__SET_PERSONALITY32_N32();				\
 	else								\
-		__SET_PERSONALITY32_O32();				\
+		__SET_PERSONALITY32_O32(ex, state);			\
 } while (0)
 #else
-#define __SET_PERSONALITY32(ex) do { } while (0)
+#define __SET_PERSONALITY32(ex, state) do { } while (0)
 #endif
 
-#define SET_PERSONALITY(ex)						\
+#define SET_PERSONALITY2(ex, state)					\
 do {									\
 	unsigned int p;							\
 									\
 	clear_thread_flag(TIF_32BIT_REGS);				\
+	clear_thread_flag(TIF_32BIT_FPREGS);				\
+	clear_thread_flag(TIF_HYBRID_FPREGS);				\
 	clear_thread_flag(TIF_32BIT_ADDR);				\
 									\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)			\
-		__SET_PERSONALITY32(ex);				\
+		__SET_PERSONALITY32(ex, state);				\
 	else								\
 		current->thread.abi = &mips_abi;			\
 									\
@@ -314,23 +363,7 @@ do {									\
 
 #endif /* CONFIG_64BIT */
 
-struct pt_regs;
-struct task_struct;
-
-extern void elf_dump_regs(elf_greg_t *, struct pt_regs *regs);
-extern int dump_task_regs(struct task_struct *, elf_gregset_t *);
-extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
-
-#ifndef ELF_CORE_COPY_REGS
-#define ELF_CORE_COPY_REGS(elf_regs, regs)			\
-	elf_dump_regs((elf_greg_t *)&(elf_regs), regs);
-#endif
-#ifndef ELF_CORE_COPY_TASK_REGS
-#define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
-#endif
-#define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs)			\
-	dump_task_fpu(tsk, elf_fpregs)
-
+#define CORE_DUMP_USE_REGSET
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This yields a mask that user programs can use to figure out what
@@ -380,5 +413,25 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 struct mm_struct;
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk
+
+struct arch_elf_state {
+	int fp_abi;
+	int interp_fp_abi;
+	int overall_abi;
+};
+
+#define INIT_ARCH_ELF_STATE {			\
+	.fp_abi = -1,				\
+	.interp_fp_abi = -1,			\
+	.overall_abi = -1,			\
+}
+
+extern int arch_elf_pt_proc(void *ehdr, void *phdr, struct file *elf,
+			    bool is_interp, struct arch_elf_state *state);
+
+extern int arch_check_elf(void *ehdr, bool has_interpreter,
+			  struct arch_elf_state *state);
+
+extern void mips_set_personality_fp(struct arch_elf_state *state);
 
 #endif /* _ASM_ELF_H */

@@ -27,9 +27,6 @@
 #include "trinity_dpm.h"
 #include "ppsmc.h"
 
-struct trinity_ps *trinity_get_ps(struct radeon_ps *rps);
-struct trinity_power_info *trinity_get_pi(struct radeon_device *rdev);
-
 static int trinity_notify_message_to_smu(struct radeon_device *rdev, u32 id)
 {
 	int i;
@@ -54,6 +51,14 @@ static int trinity_notify_message_to_smu(struct radeon_device *rdev, u32 id)
 	}
 
 	return 0;
+}
+
+int trinity_dpm_bapm_enable(struct radeon_device *rdev, bool enable)
+{
+	if (enable)
+		return trinity_notify_message_to_smu(rdev, PPSMC_MSG_EnableBAPM);
+	else
+		return trinity_notify_message_to_smu(rdev, PPSMC_MSG_DisableBAPM);
 }
 
 int trinity_dpm_config(struct radeon_device *rdev, bool enable)

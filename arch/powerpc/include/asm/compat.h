@@ -8,7 +8,11 @@
 #include <linux/sched.h>
 
 #define COMPAT_USER_HZ		100
+#ifdef __BIG_ENDIAN__
 #define COMPAT_UTS_MACHINE	"ppc\0\0"
+#else
+#define COMPAT_UTS_MACHINE	"ppcle\0\0"
+#endif
 
 typedef u32		compat_size_t;
 typedef s32		compat_ssize_t;
@@ -200,10 +204,11 @@ static inline void __user *arch_compat_alloc_user_space(long len)
 
 	/*
 	 * We can't access below the stack pointer in the 32bit ABI and
-	 * can access 288 bytes in the 64bit ABI
+	 * can access 288 bytes in the 64bit big-endian ABI,
+	 * or 512 bytes with the new ELFv2 little-endian ABI.
 	 */
 	if (!is_32bit_task())
-		usp -= 288;
+		usp -= USER_REDZONE_SIZE;
 
 	return (void __user *) (usp - len);
 }

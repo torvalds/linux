@@ -27,6 +27,8 @@
 #include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <asm/reg.h>
+#include <asm/copro.h>
 
 #define LS_SIZE (256 * 1024)
 #define LS_ADDR_MASK (LS_SIZE - 1)
@@ -235,6 +237,7 @@ extern long spu_sys_callback(struct spu_syscall_block *s);
 
 /* syscalls implemented in spufs */
 struct file;
+struct coredump_params;
 struct spufs_calls {
 	long (*create_thread)(const char __user *name,
 					unsigned int flags, umode_t mode,
@@ -242,7 +245,7 @@ struct spufs_calls {
 	long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);
 	int (*coredump_extra_notes_size)(void);
-	int (*coredump_extra_notes_write)(struct file *file, loff_t *foffset);
+	int (*coredump_extra_notes_write)(struct coredump_params *cprm);
 	void (*notify_spus_active)(void);
 	struct module *owner;
 };
@@ -275,9 +278,6 @@ void spu_remove_dev_attr(struct device_attribute *attr);
 
 int spu_add_dev_attr_group(struct attribute_group *attrs);
 void spu_remove_dev_attr_group(struct attribute_group *attrs);
-
-int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
-		unsigned long dsisr, unsigned *flt);
 
 /*
  * Notifier blocks:

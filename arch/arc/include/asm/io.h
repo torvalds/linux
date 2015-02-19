@@ -13,8 +13,6 @@
 #include <asm/byteorder.h>
 #include <asm/page.h>
 
-#define PCI_IOBASE ((void __iomem *)0)
-
 extern void __iomem *ioremap(unsigned long physaddr, unsigned long size);
 extern void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
 				  unsigned long flags);
@@ -99,6 +97,10 @@ static inline void __raw_writel(u32 w, volatile void __iomem *addr)
 	: "memory");
 
 }
+
+#define readb_relaxed readb
+#define readw_relaxed readw
+#define readl_relaxed readl
 
 #include <asm-generic/io.h>
 

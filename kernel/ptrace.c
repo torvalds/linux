@@ -28,12 +28,6 @@
 #include <linux/compat.h>
 
 
-static int ptrace_trapping_sleep_fn(void *flags)
-{
-	schedule();
-	return 0;
-}
-
 /*
  * ptrace a task: make the debugger its new parent and
  * move it to the ptrace list.
@@ -236,7 +230,7 @@ static int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 	 */
 	int dumpable = 0;
 	/* Don't let security modules deny introspection */
-	if (task == current)
+	if (same_thread_group(task, current))
 		return 0;
 	rcu_read_lock();
 	tcred = __task_cred(task);
@@ -257,7 +251,8 @@ ok:
 	if (task->mm)
 		dumpable = get_dumpable(task->mm);
 	rcu_read_lock();
-	if (!dumpable && !ptrace_has_cap(__task_cred(task)->user_ns, mode)) {
+	if (dumpable != SUID_DUMP_USER &&
+	    !ptrace_has_cap(__task_cred(task)->user_ns, mode)) {
 		rcu_read_unlock();
 		return -EPERM;
 	}
@@ -370,7 +365,7 @@ unlock_creds:
 out:
 	if (!retval) {
 		wait_on_bit(&task->jobctl, JOBCTL_TRAPPING_BIT,
-			    ptrace_trapping_sleep_fn, TASK_UNINTERRUPTIBLE);
+			    TASK_UNINTERRUPTIBLE);
 		proc_ptrace_connector(task, PTRACE_ATTACH);
 	}
 
@@ -490,36 +485,19 @@ static int ptrace_detach(struct task_struct *child, unsigned int data)
 
 /*
  * Detach all tasks we were using ptrace on. Called with tasklist held
- * for writing, and returns with it held too. But note it can release
- * and reacquire the lock.
+ * for writing.
  */
-void exit_ptrace(struct task_struct *tracer)
-	__releases(&tasklist_lock)
-	__acquires(&tasklist_lock)
+void exit_ptrace(struct task_struct *tracer, struct list_head *dead)
 {
 	struct task_struct *p, *n;
-	LIST_HEAD(ptrace_dead);
-
-	if (likely(list_empty(&tracer->ptraced)))
-		return;
 
 	list_for_each_entry_safe(p, n, &tracer->ptraced, ptrace_entry) {
 		if (unlikely(p->ptrace & PT_EXITKILL))
 			send_sig_info(SIGKILL, SEND_SIG_FORCED, p);
 
 		if (__ptrace_detach(tracer, p))
-			list_add(&p->ptrace_entry, &ptrace_dead);
+			list_add(&p->ptrace_entry, dead);
 	}
-
-	write_unlock_irq(&tasklist_lock);
-	BUG_ON(!list_empty(&tracer->ptraced));
-
-	list_for_each_entry_safe(p, n, &ptrace_dead, ptrace_entry) {
-		list_del_init(&p->ptrace_entry);
-		release_task(p);
-	}
-
-	write_lock_irq(&tasklist_lock);
 }
 
 int ptrace_readdata(struct task_struct *tsk, unsigned long src, char __user *dst, int len)
@@ -1099,7 +1077,6 @@ int generic_ptrace_pokedata(struct task_struct *tsk, unsigned long addr,
 }
 
 #if defined CONFIG_COMPAT
-#include <linux/compat.h>
 
 int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 			  compat_ulong_t addr, compat_ulong_t data)
@@ -1179,8 +1156,8 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 	return ret;
 }
 
-asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
-				  compat_long_t addr, compat_long_t data)
+COMPAT_SYSCALL_DEFINE4(ptrace, compat_long_t, request, compat_long_t, pid,
+		       compat_long_t, addr, compat_long_t, data)
 {
 	struct task_struct *child;
 	long ret;

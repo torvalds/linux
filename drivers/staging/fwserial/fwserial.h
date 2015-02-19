@@ -22,14 +22,14 @@
 #ifdef FWTTY_PROFILING
 #define DISTRIBUTION_MAX_SIZE     8192
 #define DISTRIBUTION_MAX_INDEX    (ilog2(DISTRIBUTION_MAX_SIZE) + 1)
-static inline void profile_size_distrib(unsigned stat[], unsigned val)
+static inline void fwtty_profile_data(unsigned stat[], unsigned val)
 {
 	int n = (val) ? min(ilog2(val) + 1, DISTRIBUTION_MAX_INDEX) : 0;
 	++stat[n];
 }
 #else
 #define DISTRIBUTION_MAX_INDEX    0
-#define profile_size_distrib(st, n)
+#define fwtty_profile_data(st, n)
 #endif
 
 /* Parameters for both VIRT_CABLE_PLUG & VIRT_CABLE_PLUG_RSP mgmt codes */
@@ -91,6 +91,7 @@ struct fwtty_peer {
 	struct rcu_head		rcu;
 
 	spinlock_t		lock;
+	work_func_t		workfn;
 	struct work_struct	work;
 	struct peer_work_params work_params;
 	struct timer_list	timer;
@@ -166,7 +167,6 @@ struct stats {
 	unsigned	sent;
 	unsigned	lost;
 	unsigned	throttled;
-	unsigned	watermark;
 	unsigned	reads[DISTRIBUTION_MAX_INDEX + 1];
 	unsigned	writes[DISTRIBUTION_MAX_INDEX + 1];
 	unsigned	txns[DISTRIBUTION_MAX_INDEX + 1];
@@ -182,12 +182,6 @@ struct fwconsole_ops {
 /* codes for console ops notify */
 #define FWCON_NOTIFY_ATTACH		1
 #define FWCON_NOTIFY_DETACH		2
-
-struct buffered_rx {
-	struct list_head	list;
-	size_t			n;
-	unsigned char		data[0];
-};
 
 /**
  * fwtty_port: structure used to track/represent underlying tty_port
@@ -223,11 +217,6 @@ struct buffered_rx {
  *         The work can race with the writer but concurrent sending is
  *         prevented with the IN_TX flag. Scheduled under lock to
  *         limit scheduling when fifo has just been drained.
- * @push: work responsible for pushing buffered rx to the ldisc.
- *	  rx can become buffered if the tty buffer is filled before the
- *	  ldisc throttles the sender.
- * @buf_list: list of buffered rx yet to be sent to ldisc
- * @buffered: byte count of buffered rx
  * @tx_fifo: fifo used to store & block-up writes for dma to remote
  * @max_payload: max bytes transmissable per dma (based on peer's max_payload)
  * @status_mask: UART_LSR_* bitmask significant to rx (based on termios)
@@ -267,9 +256,6 @@ struct fwtty_port {
 	spinlock_t		   lock;
 	unsigned		   mctrl;
 	struct delayed_work	   drain;
-	struct work_struct	   push;
-	struct list_head	   buf_list;
-	int			   buffered;
 	struct dma_fifo		   tx_fifo;
 	int			   max_payload;
 	unsigned		   status_mask;
@@ -291,7 +277,6 @@ struct fwtty_port {
 /* bit #s for flags field */
 #define IN_TX                      0
 #define STOP_TX                    1
-#define BUFFERING_RX		   2
 
 /* bitmasks for special mctrl/mstatus bits */
 #define OOB_RX_THROTTLE   0x00010000
@@ -307,8 +292,8 @@ struct fwtty_port {
 #define FREQ_BREAKS        (HZ / 50)
 
 /* Ports are allocated in blocks of num_ports for each fw_card */
-#define MAX_CARD_PORTS           32	/* max # of ports per card */
-#define MAX_TOTAL_PORTS          64	/* max # of ports total    */
+#define MAX_CARD_PORTS           CONFIG_FWTTY_MAX_CARD_PORTS
+#define MAX_TOTAL_PORTS          CONFIG_FWTTY_MAX_TOTAL_PORTS
 
 /* tuning parameters */
 #define FWTTY_PORT_TXFIFO_LEN	4096

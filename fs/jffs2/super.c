@@ -243,6 +243,7 @@ static int jffs2_remount_fs(struct super_block *sb, int *flags, char *data)
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 	int err;
 
+	sync_filesystem(sb);
 	err = jffs2_parse_options(c, data);
 	if (err)
 		return -EINVAL;

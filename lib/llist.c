@@ -24,7 +24,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/interrupt.h>
 #include <linux/llist.h>
 
 
@@ -81,3 +80,25 @@ struct llist_node *llist_del_first(struct llist_head *head)
 	return entry;
 }
 EXPORT_SYMBOL_GPL(llist_del_first);
+
+/**
+ * llist_reverse_order - reverse order of a llist chain
+ * @head:	first item of the list to be reversed
+ *
+ * Reverse the order of a chain of llist entries and return the
+ * new first entry.
+ */
+struct llist_node *llist_reverse_order(struct llist_node *head)
+{
+	struct llist_node *new_head = NULL;
+
+	while (head) {
+		struct llist_node *tmp = head;
+		head = head->next;
+		tmp->next = new_head;
+		new_head = tmp;
+	}
+
+	return new_head;
+}
+EXPORT_SYMBOL_GPL(llist_reverse_order);

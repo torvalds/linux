@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: ioctl data structures & APIs
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -60,8 +60,7 @@ enum {
 	BAND_A = 4,
 	BAND_GN = 8,
 	BAND_AN = 16,
-	BAND_GAC = 32,
-	BAND_AAC = 64,
+	BAND_AAC = 32,
 };
 
 #define MWIFIEX_WPA_PASSHPHRASE_LEN 64
@@ -86,6 +85,10 @@ struct wep_key {
 #define BAND_CONFIG_A           0x01
 #define MWIFIEX_SUPPORTED_RATES                 14
 #define MWIFIEX_SUPPORTED_RATES_EXT             32
+#define MWIFIEX_TDLS_SUPPORTED_RATES		8
+#define MWIFIEX_TDLS_DEF_QOS_CAPAB		0xf
+#define MWIFIEX_PRIO_BK				2
+#define MWIFIEX_PRIO_VI				5
 
 struct mwifiex_uap_bss_param {
 	u8 channel;
@@ -134,6 +137,8 @@ struct mwifiex_ds_get_stats {
 	u32 fcs_error;
 	u32 tx_frame;
 	u32 wep_icv_error[4];
+	u32 bcn_rcv_cnt;
+	u32 bcn_miss_cnt;
 };
 
 #define MWIFIEX_MAX_VER_STR_LEN    128
@@ -174,9 +179,14 @@ struct mwifiex_ds_rx_reorder_tbl {
 struct mwifiex_ds_tx_ba_stream_tbl {
 	u16 tid;
 	u8 ra[ETH_ALEN];
+	u8 amsdu;
 };
 
-#define DBG_CMD_NUM	5
+#define DBG_CMD_NUM    5
+
+struct tdls_peer_info {
+	u8 peer_addr[ETH_ALEN];
+};
 
 struct mwifiex_debug_info {
 	u32 int_counter;
@@ -189,6 +199,9 @@ struct mwifiex_debug_info {
 	u32 rx_tbl_num;
 	struct mwifiex_ds_rx_reorder_tbl rx_tbl
 		[MWIFIEX_MAX_RX_BASTREAM_SUPPORTED];
+	u32 tdls_peer_num;
+	struct tdls_peer_info tdls_list
+		[MWIFIEX_MAX_TDLS_PEER_SUPPORTED];
 	u16 ps_mode;
 	u32 ps_state;
 	u8 is_deep_sleep;
@@ -206,7 +219,7 @@ struct mwifiex_debug_info {
 	u32 num_cmd_assoc_success;
 	u32 num_cmd_assoc_failure;
 	u32 num_tx_timeout;
-	u32 num_cmd_timeout;
+	u8 is_cmd_timedout;
 	u16 timeout_cmd_id;
 	u16 timeout_cmd_act;
 	u16 last_cmd_id[DBG_CMD_NUM];
@@ -233,7 +246,10 @@ struct mwifiex_ds_encrypt_key {
 	u8 mac_addr[ETH_ALEN];
 	u32 is_wapi_key;
 	u8 pn[PN_LEN];		/* packet number */
+	u8 pn_len;
 	u8 is_igtk_key;
+	u8 is_current_wep_key;
+	u8 is_rx_seq_valid;
 };
 
 struct mwifiex_power_cfg {
@@ -296,7 +312,7 @@ struct mwifiex_ds_ant_cfg {
 	u32 rx_ant;
 };
 
-#define MWIFIEX_NUM_OF_CMD_BUFFER	20
+#define MWIFIEX_NUM_OF_CMD_BUFFER	50
 #define MWIFIEX_SIZE_OF_CMD_BUFFER	2048
 
 enum {
@@ -362,13 +378,13 @@ struct mwifiex_ds_misc_subsc_evt {
 	struct subsc_evt_cfg bcn_h_rssi_cfg;
 };
 
-#define MAX_BYTESEQ		6	/* non-adjustable */
-#define MWIFIEX_MAX_FILTERS	10
+#define MWIFIEX_MEF_MAX_BYTESEQ		6	/* non-adjustable */
+#define MWIFIEX_MEF_MAX_FILTERS		10
 
 struct mwifiex_mef_filter {
 	u16 repeat;
 	u16 offset;
-	s8 byte_seq[MAX_BYTESEQ + 1];
+	s8 byte_seq[MWIFIEX_MEF_MAX_BYTESEQ + 1];
 	u8 filt_type;
 	u8 filt_action;
 };
@@ -376,7 +392,7 @@ struct mwifiex_mef_filter {
 struct mwifiex_mef_entry {
 	u8 mode;
 	u8 action;
-	struct mwifiex_mef_filter filter[MWIFIEX_MAX_FILTERS];
+	struct mwifiex_mef_filter filter[MWIFIEX_MEF_MAX_FILTERS];
 };
 
 struct mwifiex_ds_mef_cfg {
@@ -395,6 +411,53 @@ struct mwifiex_ds_mef_cfg {
 enum {
 	MWIFIEX_FUNC_INIT = 1,
 	MWIFIEX_FUNC_SHUTDOWN,
+};
+
+enum COALESCE_OPERATION {
+	RECV_FILTER_MATCH_TYPE_EQ = 0x80,
+	RECV_FILTER_MATCH_TYPE_NE,
+};
+
+enum COALESCE_PACKET_TYPE {
+	PACKET_TYPE_UNICAST = 1,
+	PACKET_TYPE_MULTICAST = 2,
+	PACKET_TYPE_BROADCAST = 3
+};
+
+#define MWIFIEX_COALESCE_MAX_RULES	8
+#define MWIFIEX_COALESCE_MAX_BYTESEQ	4	/* non-adjustable */
+#define MWIFIEX_COALESCE_MAX_FILTERS	4
+#define MWIFIEX_MAX_COALESCING_DELAY	100     /* in msecs */
+
+struct filt_field_param {
+	u8 operation;
+	u8 operand_len;
+	u16 offset;
+	u8 operand_byte_stream[MWIFIEX_COALESCE_MAX_BYTESEQ];
+};
+
+struct mwifiex_coalesce_rule {
+	u16 max_coalescing_delay;
+	u8 num_of_fields;
+	u8 pkt_type;
+	struct filt_field_param params[MWIFIEX_COALESCE_MAX_FILTERS];
+};
+
+struct mwifiex_ds_coalesce_cfg {
+	u16 num_of_rules;
+	struct mwifiex_coalesce_rule rule[MWIFIEX_COALESCE_MAX_RULES];
+};
+
+struct mwifiex_ds_tdls_oper {
+	u16 tdls_action;
+	u8 peer_mac[ETH_ALEN];
+	u16 capability;
+	u8 qos_info;
+	u8 *ext_capab;
+	u8 ext_capab_len;
+	u8 *supp_rates;
+	u8 supp_rates_len;
+	u8 *ht_capab;
 };
 
 #endif /* !_MWIFIEX_IOCTL_H_ */

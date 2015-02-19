@@ -35,6 +35,7 @@
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -60,7 +61,6 @@
 #define CPU_FTR_NOEXECUTE	0
 #endif
 
-int init_bootmem_done;
 int mem_init_done;
 unsigned long long memory_limit;
 
@@ -128,7 +128,8 @@ int arch_add_memory(int nid, u64 start, u64 size)
 		return -EINVAL;
 
 	/* this should work for most non-highmem platforms */
-	zone = pgdata->node_zones;
+	zone = pgdata->node_zones +
+		zone_for_memory(nid, start, size, 0);
 
 	return __add_pages(nid, zone, start_pfn, nr_pages);
 }
@@ -139,9 +140,23 @@ int arch_remove_memory(u64 start, u64 size)
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	struct zone *zone;
+	int ret;
 
 	zone = page_zone(pfn_to_page(start_pfn));
-	return __remove_pages(zone, start_pfn, nr_pages);
+	ret = __remove_pages(zone, start_pfn, nr_pages);
+	if (ret)
+		return ret;
+
+	/* Remove htab bolted mappings for this section of memory */
+	start = (unsigned long)__va(start);
+	ret = remove_section_mapping(start, start + size);
+
+	/* Ensure all vmalloc mappings are flushed in case they also
+	 * hit that section of memory
+	 */
+	vm_unmap_aliases();
+
+	return ret;
 }
 #endif
 #endif /* CONFIG_MEMORY_HOTPLUG */
@@ -174,70 +189,23 @@ walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 }
 EXPORT_SYMBOL_GPL(walk_system_ram_range);
 
-/*
- * Initialize the bootmem system and give it all the memory we
- * have available.  If we are using highmem, we only put the
- * lowmem into the bootmem system.
- */
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-void __init do_init_bootmem(void)
+void __init initmem_init(void)
 {
-	unsigned long start, bootmap_pages;
-	unsigned long total_pages;
-	struct memblock_region *reg;
-	int boot_mapsize;
-
 	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
-	total_pages = (memblock_end_of_DRAM() - memstart_addr) >> PAGE_SHIFT;
+	min_low_pfn = MEMORY_START >> PAGE_SHIFT;
 #ifdef CONFIG_HIGHMEM
-	total_pages = total_lowmem >> PAGE_SHIFT;
 	max_low_pfn = lowmem_end_addr >> PAGE_SHIFT;
 #endif
-
-	/*
-	 * Find an area to use for the bootmem bitmap.  Calculate the size of
-	 * bitmap required as (Total Memory) / PAGE_SIZE / BITS_PER_BYTE.
-	 * Add 1 additional page in case the address isn't page-aligned.
-	 */
-	bootmap_pages = bootmem_bootmap_pages(total_pages);
-
-	start = memblock_alloc(bootmap_pages << PAGE_SHIFT, PAGE_SIZE);
-
-	min_low_pfn = MEMORY_START >> PAGE_SHIFT;
-	boot_mapsize = init_bootmem_node(NODE_DATA(0), start >> PAGE_SHIFT, min_low_pfn, max_low_pfn);
 
 	/* Place all memblock_regions in the same node and merge contiguous
 	 * memblock_regions
 	 */
-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, 0);
+	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
 
-	/* Add all physical memory to the bootmem map, mark each area
-	 * present.
-	 */
-#ifdef CONFIG_HIGHMEM
-	free_bootmem_with_active_regions(0, lowmem_end_addr >> PAGE_SHIFT);
-
-	/* reserve the sections we're already using */
-	for_each_memblock(reserved, reg) {
-		unsigned long top = reg->base + reg->size - 1;
-		if (top < lowmem_end_addr)
-			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-		else if (reg->base < lowmem_end_addr) {
-			unsigned long trunc_size = lowmem_end_addr - reg->base;
-			reserve_bootmem(reg->base, trunc_size, BOOTMEM_DEFAULT);
-		}
-	}
-#else
-	free_bootmem_with_active_regions(0, max_pfn);
-
-	/* reserve the sections we're already using */
-	for_each_memblock(reserved, reg)
-		reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-#endif
 	/* XXX need to clip this if using highmem? */
 	sparse_memory_present_with_active_regions(0);
-
-	init_bootmem_done = 1;
+	sparse_init();
 }
 
 /* mark pages that don't exist as nosave */
@@ -254,6 +222,60 @@ static int __init mark_nonram_nosave(void)
 	}
 	return 0;
 }
+#else /* CONFIG_NEED_MULTIPLE_NODES */
+static int __init mark_nonram_nosave(void)
+{
+	return 0;
+}
+#endif
+
+static bool zone_limits_final;
+
+static unsigned long max_zone_pfns[MAX_NR_ZONES] = {
+	[0 ... MAX_NR_ZONES - 1] = ~0UL
+};
+
+/*
+ * Restrict the specified zone and all more restrictive zones
+ * to be below the specified pfn.  May not be called after
+ * paging_init().
+ */
+void __init limit_zone_pfn(enum zone_type zone, unsigned long pfn_limit)
+{
+	int i;
+
+	if (WARN_ON(zone_limits_final))
+		return;
+
+	for (i = zone; i >= 0; i--) {
+		if (max_zone_pfns[i] > pfn_limit)
+			max_zone_pfns[i] = pfn_limit;
+	}
+}
+
+/*
+ * Find the least restrictive zone that is entirely below the
+ * specified pfn limit.  Returns < 0 if no suitable zone is found.
+ *
+ * pfn_limit must be u64 because it can exceed 32 bits even on 32-bit
+ * systems -- the DMA limit can be higher than any possible real pfn.
+ */
+int dma_pfn_limit_to_zone(u64 pfn_limit)
+{
+	enum zone_type top_zone = ZONE_NORMAL;
+	int i;
+
+#ifdef CONFIG_HIGHMEM
+	top_zone = ZONE_HIGHMEM;
+#endif
+
+	for (i = top_zone; i >= 0; i--) {
+		if (max_zone_pfns[i] <= pfn_limit)
+			return i;
+	}
+
+	return -EPERM;
+}
 
 /*
  * paging_init() sets up the page tables - in fact we've already done this.
@@ -262,7 +284,7 @@ void __init paging_init(void)
 {
 	unsigned long long total_ram = memblock_phys_mem_size();
 	phys_addr_t top_of_ram = memblock_end_of_DRAM();
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	enum zone_type top_zone;
 
 #ifdef CONFIG_PPC32
 	unsigned long v = __fix_to_virt(__end_of_fixed_addresses - 1);
@@ -284,21 +306,29 @@ void __init paging_init(void)
 	       (unsigned long long)top_of_ram, total_ram);
 	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (long int)((top_of_ram - total_ram) >> 20));
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+
 #ifdef CONFIG_HIGHMEM
-	max_zone_pfns[ZONE_DMA] = lowmem_end_addr >> PAGE_SHIFT;
-	max_zone_pfns[ZONE_HIGHMEM] = top_of_ram >> PAGE_SHIFT;
+	top_zone = ZONE_HIGHMEM;
+	limit_zone_pfn(ZONE_NORMAL, lowmem_end_addr >> PAGE_SHIFT);
 #else
-	max_zone_pfns[ZONE_DMA] = top_of_ram >> PAGE_SHIFT;
+	top_zone = ZONE_NORMAL;
 #endif
+
+	limit_zone_pfn(top_zone, top_of_ram >> PAGE_SHIFT);
+	zone_limits_final = true;
 	free_area_init_nodes(max_zone_pfns);
 
 	mark_nonram_nosave();
 }
-#endif /* ! CONFIG_NEED_MULTIPLE_NODES */
 
 void __init mem_init(void)
 {
+	/*
+	 * book3s is limited to 16 page sizes due to encoding this in
+	 * a 4-bit field for slices.
+	 */
+	BUILD_BUG_ON(MMU_PAGE_COUNT > 16);
+
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(0);
 #endif
@@ -498,7 +528,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
  * System memory should not be in /proc/iomem but various tools expect it
  * (eg kdump).
  */
-static int add_system_ram_resources(void)
+static int __init add_system_ram_resources(void)
 {
 	struct memblock_region *reg;
 
@@ -514,7 +544,7 @@ static int add_system_ram_resources(void)
 			res->name = "System RAM";
 			res->start = base;
 			res->end = base + size - 1;
-			res->flags = IORESOURCE_MEM;
+			res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 			WARN_ON(request_resource(&iomem_resource, res) < 0);
 		}
 	}

@@ -35,6 +35,39 @@ static const char hcd_name[] = "ehci-pci";
 #define PCI_DEVICE_ID_INTEL_CE4100_USB	0x2e70
 
 /*-------------------------------------------------------------------------*/
+#define PCI_DEVICE_ID_INTEL_QUARK_X1000_SOC		0x0939
+static inline bool is_intel_quark_x1000(struct pci_dev *pdev)
+{
+	return pdev->vendor == PCI_VENDOR_ID_INTEL &&
+		pdev->device == PCI_DEVICE_ID_INTEL_QUARK_X1000_SOC;
+}
+
+/*
+ * This is the list of PCI IDs for the devices that have EHCI USB class and
+ * specific drivers for that. One of the example is a ChipIdea device installed
+ * on some Intel MID platforms.
+ */
+static const struct pci_device_id bypass_pci_id_table[] = {
+	/* ChipIdea on Intel MID platform */
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0811), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0829), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xe006), },
+	{}
+};
+
+static inline bool is_bypassed_id(struct pci_dev *pdev)
+{
+	return !!pci_match_id(bypass_pci_id_table, pdev);
+}
+
+/*
+ * 0x84 is the offset of in/out threshold register,
+ * and it is the same offset as the register of 'hostpc'.
+ */
+#define	intel_quark_x1000_insnreg01	hostpc
+
+/* Maximum usable threshold value is 0x7f dwords for both IN and OUT */
+#define INTEL_QUARK_X1000_EHCI_MAX_THRESHOLD	0x007f007f
 
 /* called after powerup, by probe or system-pm "wakeup" */
 static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
@@ -50,6 +83,16 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 	if (!retval)
 		ehci_dbg(ehci, "MWI active\n");
 
+	/* Reset the threshold limit */
+	if (is_intel_quark_x1000(pdev)) {
+		/*
+		 * For the Intel QUARK X1000, raise the I/O threshold to the
+		 * maximum usable value in order to improve performance.
+		 */
+		ehci_writel(ehci, INTEL_QUARK_X1000_EHCI_MAX_THRESHOLD,
+			ehci->regs->intel_quark_x1000_insnreg01);
+	}
+
 	return 0;
 }
 
@@ -58,8 +101,6 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
-	struct pci_dev		*p_smbus;
-	u8			rev;
 	u32			temp;
 	int			retval;
 
@@ -175,22 +216,12 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		/* SB600 and old version of SB700 have a bug in EHCI controller,
 		 * which causes usb devices lose response in some cases.
 		 */
-		if ((pdev->device == 0x4386) || (pdev->device == 0x4396)) {
-			p_smbus = pci_get_device(PCI_VENDOR_ID_ATI,
-						 PCI_DEVICE_ID_ATI_SBX00_SMBUS,
-						 NULL);
-			if (!p_smbus)
-				break;
-			rev = p_smbus->revision;
-			if ((pdev->device == 0x4386) || (rev == 0x3a)
-			    || (rev == 0x3b)) {
-				u8 tmp;
-				ehci_info(ehci, "applying AMD SB600/SB700 USB "
-					"freeze workaround\n");
-				pci_read_config_byte(pdev, 0x53, &tmp);
-				pci_write_config_byte(pdev, 0x53, tmp | (1<<3));
-			}
-			pci_dev_put(p_smbus);
+		if ((pdev->device == 0x4386 || pdev->device == 0x4396) &&
+				usb_amd_hang_symptom_quirk()) {
+			u8 tmp;
+			ehci_info(ehci, "applying AMD SB600/SB700 USB freeze workaround\n");
+			pci_read_config_byte(pdev, 0x53, &tmp);
+			pci_write_config_byte(pdev, 0x53, tmp | (1<<3));
 		}
 		break;
 	case PCI_VENDOR_ID_NETMOS:
@@ -292,7 +323,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		}
 	}
 
-#ifdef	CONFIG_PM_RUNTIME
+#ifdef	CONFIG_PM
 	if (ehci->no_selective_suspend && device_can_wakeup(&pdev->dev))
 		ehci_warn(ehci, "selective suspend/wakeup unavailable\n");
 #endif
@@ -315,52 +346,10 @@ done:
  * Also they depend on separate root hub suspend/resume.
  */
 
-static bool usb_is_intel_switchable_ehci(struct pci_dev *pdev)
-{
-	return pdev->class == PCI_CLASS_SERIAL_USB_EHCI &&
-		pdev->vendor == PCI_VENDOR_ID_INTEL &&
-		(pdev->device == 0x1E26 ||
-		 pdev->device == 0x8C2D ||
-		 pdev->device == 0x8C26 ||
-		 pdev->device == 0x9C26);
-}
-
-static void ehci_enable_xhci_companion(void)
-{
-	struct pci_dev		*companion = NULL;
-
-	/* The xHCI and EHCI controllers are not on the same PCI slot */
-	for_each_pci_dev(companion) {
-		if (!usb_is_intel_switchable_xhci(companion))
-			continue;
-		usb_enable_xhci_ports(companion);
-		return;
-	}
-}
-
 static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
-
-	/* The BIOS on systems with the Intel Panther Point chipset may or may
-	 * not support xHCI natively.  That means that during system resume, it
-	 * may switch the ports back to EHCI so that users can use their
-	 * keyboard to select a kernel from GRUB after resume from hibernate.
-	 *
-	 * The BIOS is supposed to remember whether the OS had xHCI ports
-	 * enabled before resume, and switch the ports back to xHCI when the
-	 * BIOS/OS semaphore is written, but we all know we can't trust BIOS
-	 * writers.
-	 *
-	 * Unconditionally switch the ports back to xHCI after a system resume.
-	 * We can't tell whether the EHCI or xHCI controller will be resumed
-	 * first, so we have to do the port switchover in both drivers.  Writing
-	 * a '1' to the port switchover registers should have no effect if the
-	 * port was already switched over.
-	 */
-	if (usb_is_intel_switchable_ehci(pdev))
-		ehci_enable_xhci_companion();
 
 	if (ehci_resume(hcd, hibernated) != 0)
 		(void) ehci_pci_reinit(ehci, pdev);
@@ -381,6 +370,13 @@ static const struct ehci_driver_overrides pci_overrides __initconst = {
 
 /*-------------------------------------------------------------------------*/
 
+static int ehci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	if (is_bypassed_id(pdev))
+		return -ENODEV;
+	return usb_hcd_pci_probe(pdev, id);
+}
+
 /* PCI driver selection metadata; PCI hotplugging uses this */
 static const struct pci_device_id pci_ids [] = { {
 	/* handle any USB 2.0 EHCI controller */
@@ -399,11 +395,11 @@ static struct pci_driver ehci_pci_driver = {
 	.name =		(char *) hcd_name,
 	.id_table =	pci_ids,
 
-	.probe =	usb_hcd_pci_probe,
+	.probe =	ehci_pci_probe,
 	.remove =	usb_hcd_pci_remove,
 	.shutdown = 	usb_hcd_pci_shutdown,
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	.driver =	{
 		.pm =	&usb_hcd_pci_pm_ops
 	},

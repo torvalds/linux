@@ -29,7 +29,6 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/serio.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -169,7 +168,6 @@ static struct platform_driver rpckbd_driver = {
 	.remove		= rpckbd_remove,
 	.driver		= {
 		.name	= "kart",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(rpckbd_driver);

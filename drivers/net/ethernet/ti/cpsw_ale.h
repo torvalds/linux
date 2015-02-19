@@ -27,6 +27,7 @@ struct cpsw_ale {
 	struct cpsw_ale_params	params;
 	struct timer_list	timer;
 	unsigned long		ageout;
+	int			allmulti;
 };
 
 enum cpsw_ale_control {
@@ -34,6 +35,7 @@ enum cpsw_ale_control {
 	ALE_ENABLE,
 	ALE_CLEAR,
 	ALE_AGEOUT,
+	ALE_P0_UNI_FLOOD,
 	ALE_VLAN_NOLEARN,
 	ALE_NO_PORT_VLAN,
 	ALE_OUI_DENY,
@@ -47,6 +49,7 @@ enum cpsw_ale_control {
 	ALE_PORT_DROP_UNTAGGED,
 	ALE_PORT_DROP_UNKNOWN_VLAN,
 	ALE_PORT_NOLEARN,
+	ALE_PORT_NO_SA_UPDATE,
 	ALE_PORT_UNKNOWN_VLAN_MEMBER,
 	ALE_PORT_UNKNOWN_MCAST_FLOOD,
 	ALE_PORT_UNKNOWN_REG_MCAST_FLOOD,
@@ -78,6 +81,9 @@ enum cpsw_ale_port_state {
 #define ALE_MCAST_FWD_LEARN		2
 #define ALE_MCAST_FWD_2			3
 
+#define ALE_ENTRY_BITS		68
+#define ALE_ENTRY_WORDS	DIV_ROUND_UP(ALE_ENTRY_BITS, 32)
+
 struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params);
 int cpsw_ale_destroy(struct cpsw_ale *ale);
 
@@ -86,7 +92,7 @@ void cpsw_ale_stop(struct cpsw_ale *ale);
 
 int cpsw_ale_set_ageout(struct cpsw_ale *ale, int ageout);
 int cpsw_ale_flush(struct cpsw_ale *ale, int port_mask);
-int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask);
+int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask, int vid);
 int cpsw_ale_add_ucast(struct cpsw_ale *ale, u8 *addr, int port,
 		       int flags, u16 vid);
 int cpsw_ale_del_ucast(struct cpsw_ale *ale, u8 *addr, int port,
@@ -98,9 +104,11 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
 int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port, int untag,
 			int reg_mcast, int unreg_mcast);
 int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port);
+void cpsw_ale_set_allmulti(struct cpsw_ale *ale, int allmulti);
 
 int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control);
 int cpsw_ale_control_set(struct cpsw_ale *ale, int port,
 			 int control, int value);
+void cpsw_ale_dump(struct cpsw_ale *ale, u32 *data);
 
 #endif

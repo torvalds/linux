@@ -3,6 +3,7 @@
 
 #include <linux/jiffies.h>
 #include <linux/ktime.h>
+#include <linux/if_vlan.h>
 #include <net/sch_generic.h>
 
 struct qdisc_walker {
@@ -50,7 +51,7 @@ typedef long	psched_tdiff_t;
 
 static inline psched_time_t psched_get_time(void)
 {
-	return PSCHED_NS2TICKS(ktime_to_ns(ktime_get()));
+	return PSCHED_NS2TICKS(ktime_get_ns());
 }
 
 static inline psched_tdiff_t
@@ -64,40 +65,44 @@ struct qdisc_watchdog {
 	struct Qdisc	*qdisc;
 };
 
-extern void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc);
-extern void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires);
+void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc);
+void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires, bool throttle);
 
 static inline void qdisc_watchdog_schedule(struct qdisc_watchdog *wd,
 					   psched_time_t expires)
 {
-	qdisc_watchdog_schedule_ns(wd, PSCHED_TICKS2NS(expires));
+	qdisc_watchdog_schedule_ns(wd, PSCHED_TICKS2NS(expires), true);
 }
 
-extern void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);
+void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);
 
 extern struct Qdisc_ops pfifo_qdisc_ops;
 extern struct Qdisc_ops bfifo_qdisc_ops;
 extern struct Qdisc_ops pfifo_head_drop_qdisc_ops;
 
-extern int fifo_set_limit(struct Qdisc *q, unsigned int limit);
-extern struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
-				      unsigned int limit);
+int fifo_set_limit(struct Qdisc *q, unsigned int limit);
+struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
+			       unsigned int limit);
 
-extern int register_qdisc(struct Qdisc_ops *qops);
-extern int unregister_qdisc(struct Qdisc_ops *qops);
-extern void qdisc_list_del(struct Qdisc *q);
-extern struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle);
-extern struct Qdisc *qdisc_lookup_class(struct net_device *dev, u32 handle);
-extern struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
-		struct nlattr *tab);
-extern void qdisc_put_rtab(struct qdisc_rate_table *tab);
-extern void qdisc_put_stab(struct qdisc_size_table *tab);
-extern void qdisc_warn_nonwc(char *txt, struct Qdisc *qdisc);
-extern int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
-			   struct net_device *dev, struct netdev_queue *txq,
-			   spinlock_t *root_lock);
+int register_qdisc(struct Qdisc_ops *qops);
+int unregister_qdisc(struct Qdisc_ops *qops);
+void qdisc_get_default(char *id, size_t len);
+int qdisc_set_default(const char *id);
 
-extern void __qdisc_run(struct Qdisc *q);
+void qdisc_list_add(struct Qdisc *q);
+void qdisc_list_del(struct Qdisc *q);
+struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle);
+struct Qdisc *qdisc_lookup_class(struct net_device *dev, u32 handle);
+struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
+					struct nlattr *tab);
+void qdisc_put_rtab(struct qdisc_rate_table *tab);
+void qdisc_put_stab(struct qdisc_size_table *tab);
+void qdisc_warn_nonwc(const char *txt, struct Qdisc *qdisc);
+int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
+		    struct net_device *dev, struct netdev_queue *txq,
+		    spinlock_t *root_lock, bool validate);
+
+void __qdisc_run(struct Qdisc *q);
 
 static inline void qdisc_run(struct Qdisc *q)
 {
@@ -105,10 +110,21 @@ static inline void qdisc_run(struct Qdisc *q)
 		__qdisc_run(q);
 }
 
-extern int tc_classify_compat(struct sk_buff *skb, const struct tcf_proto *tp,
-			      struct tcf_result *res);
-extern int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+int tc_classify_compat(struct sk_buff *skb, const struct tcf_proto *tp,
 		       struct tcf_result *res);
+int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+		struct tcf_result *res);
+
+static inline __be16 tc_skb_protocol(const struct sk_buff *skb)
+{
+	/* We need to take extra care in case the skb came via
+	 * vlan accelerated path. In that case, use skb->vlan_proto
+	 * as the original vlan header was already stripped.
+	 */
+	if (skb_vlan_tag_present(skb))
+		return skb->vlan_proto;
+	return skb->protocol;
+}
 
 /* Calculate maximal size of packet seen by hard_start_xmit
    routine of this device.

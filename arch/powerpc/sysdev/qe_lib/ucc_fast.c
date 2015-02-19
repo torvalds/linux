@@ -13,7 +13,6 @@
  * option) any later version.
  */
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>

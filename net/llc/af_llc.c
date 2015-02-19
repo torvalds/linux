@@ -321,12 +321,12 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 		if (llc->dev) {
 			if (!addr->sllc_arphrd)
 				addr->sllc_arphrd = llc->dev->type;
-			if (llc_mac_null(addr->sllc_mac))
+			if (is_zero_ether_addr(addr->sllc_mac))
 				memcpy(addr->sllc_mac, llc->dev->dev_addr,
 				       IFHWADDRLEN);
 			if (addr->sllc_arphrd != llc->dev->type ||
-			    !llc_mac_match(addr->sllc_mac,
-					   llc->dev->dev_addr)) {
+			    !ether_addr_equal(addr->sllc_mac,
+					      llc->dev->dev_addr)) {
 				rc = -EINVAL;
 				llc->dev = NULL;
 			}
@@ -707,7 +707,7 @@ out:
 static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 			  struct msghdr *msg, size_t len, int flags)
 {
-	struct sockaddr_llc *uaddr = (struct sockaddr_llc *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_llc *, uaddr, msg->msg_name);
 	const int nonblock = flags & MSG_DONTWAIT;
 	struct sk_buff *skb = NULL;
 	struct sock *sk = sock->sk;
@@ -715,12 +715,10 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 	unsigned long cpu_flags;
 	size_t copied = 0;
 	u32 peek_seq = 0;
-	u32 *seq;
+	u32 *seq, skb_len;
 	unsigned long used;
 	int target;	/* Read at least this many bytes */
 	long timeo;
-
-	msg->msg_namelen = 0;
 
 	lock_sock(sk);
 	copied = -ENOTCONN;
@@ -814,14 +812,14 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 		}
 		continue;
 	found_ok_skb:
+		skb_len = skb->len;
 		/* Ok so how much can we use? */
 		used = skb->len - offset;
 		if (len < used)
 			used = len;
 
 		if (!(flags & MSG_TRUNC)) {
-			int rc = skb_copy_datagram_iovec(skb, offset,
-							 msg->msg_iov, used);
+			int rc = skb_copy_datagram_msg(skb, offset, msg, used);
 			if (rc) {
 				/* Exception. Bailout! */
 				if (!copied)
@@ -840,13 +838,13 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 		if (!(flags & MSG_PEEK)) {
 			spin_lock_irqsave(&sk->sk_receive_queue.lock, cpu_flags);
-			sk_eat_skb(sk, skb, false);
+			sk_eat_skb(sk, skb);
 			spin_unlock_irqrestore(&sk->sk_receive_queue.lock, cpu_flags);
 			*seq = 0;
 		}
 
 		/* Partial read */
-		if (used + offset < skb->len)
+		if (used + offset < skb_len)
 			continue;
 	} while (len > 0);
 
@@ -862,10 +860,10 @@ copy_uaddr:
 		llc_cmsg_rcv(msg, skb);
 
 	if (!(flags & MSG_PEEK)) {
-			spin_lock_irqsave(&sk->sk_receive_queue.lock, cpu_flags);
-			sk_eat_skb(sk, skb, false);
-			spin_unlock_irqrestore(&sk->sk_receive_queue.lock, cpu_flags);
-			*seq = 0;
+		spin_lock_irqsave(&sk->sk_receive_queue.lock, cpu_flags);
+		sk_eat_skb(sk, skb);
+		spin_unlock_irqrestore(&sk->sk_receive_queue.lock, cpu_flags);
+		*seq = 0;
 	}
 
 	goto out;
@@ -885,7 +883,7 @@ static int llc_ui_sendmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
-	struct sockaddr_llc *addr = (struct sockaddr_llc *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_llc *, addr, msg->msg_name);
 	int flags = msg->msg_flags;
 	int noblock = flags & MSG_DONTWAIT;
 	struct sk_buff *skb;
@@ -923,7 +921,7 @@ static int llc_ui_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb->dev      = llc->dev;
 	skb->protocol = llc_proto_type(addr->sllc_arphrd);
 	skb_reserve(skb, hdrlen);
-	rc = memcpy_fromiovec(skb_put(skb, copied), msg->msg_iov, copied);
+	rc = memcpy_from_msg(skb_put(skb, copied), msg, copied);
 	if (rc)
 		goto out;
 	if (sk->sk_type == SOCK_DGRAM || addr->sllc_ua) {

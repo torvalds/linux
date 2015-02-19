@@ -331,10 +331,9 @@ void free_descriptor_buffer(struct b43legacy_dmaring *ring,
 static int alloc_ringmemory(struct b43legacy_dmaring *ring)
 {
 	/* GFP flags must match the flags in free_ringmemory()! */
-	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
-					    B43legacy_DMA_RINGMEMSIZE,
-					    &(ring->dmabase),
-					    GFP_KERNEL | __GFP_ZERO);
+	ring->descbase = dma_zalloc_coherent(ring->dev->dev->dma_dev,
+					     B43legacy_DMA_RINGMEMSIZE,
+					     &(ring->dmabase), GFP_KERNEL);
 	if (!ring->descbase)
 		return -ENOMEM;
 
@@ -807,12 +806,9 @@ static int b43legacy_dma_set_mask(struct b43legacy_wldev *dev, u64 mask)
 	/* Try to set the DMA mask. If it fails, try falling back to a
 	 * lower mask, as we can always also support a lower one. */
 	while (1) {
-		err = dma_set_mask(dev->dev->dma_dev, mask);
-		if (!err) {
-			err = dma_set_coherent_mask(dev->dev->dma_dev, mask);
-			if (!err)
-				break;
-		}
+		err = dma_set_mask_and_coherent(dev->dev->dma_dev, mask);
+		if (!err)
+			break;
 		if (mask == DMA_BIT_MASK(64)) {
 			mask = DMA_BIT_MASK(32);
 			fallback = true;

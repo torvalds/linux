@@ -22,12 +22,15 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <linux/power/gpio-charger.h>
 
 struct gpio_charger {
 	const struct gpio_charger_platform_data *pdata;
 	unsigned int irq;
+	bool wakeup_enabled;
 
 	struct power_supply charger;
 };
@@ -54,7 +57,7 @@ static int gpio_charger_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = gpio_get_value_cansleep(pdata->gpio);
+		val->intval = !!gpio_get_value_cansleep(pdata->gpio);
 		val->intval ^= pdata->gpio_active_low;
 		break;
 	default:
@@ -68,6 +71,59 @@ static enum power_supply_property gpio_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
+static
+struct gpio_charger_platform_data *gpio_charger_parse_dt(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct gpio_charger_platform_data *pdata;
+	const char *chargetype;
+	enum of_gpio_flags flags;
+	int ret;
+
+	if (!np)
+		return ERR_PTR(-ENOENT);
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->name = np->name;
+
+	pdata->gpio = of_get_gpio_flags(np, 0, &flags);
+	if (pdata->gpio < 0) {
+		if (pdata->gpio != -EPROBE_DEFER)
+			dev_err(dev, "could not get charger gpio\n");
+		return ERR_PTR(pdata->gpio);
+	}
+
+	pdata->gpio_active_low = !!(flags & OF_GPIO_ACTIVE_LOW);
+
+	pdata->type = POWER_SUPPLY_TYPE_UNKNOWN;
+	ret = of_property_read_string(np, "charger-type", &chargetype);
+	if (ret >= 0) {
+		if (!strncmp("unknown", chargetype, 7))
+			pdata->type = POWER_SUPPLY_TYPE_UNKNOWN;
+		else if (!strncmp("battery", chargetype, 7))
+			pdata->type = POWER_SUPPLY_TYPE_BATTERY;
+		else if (!strncmp("ups", chargetype, 3))
+			pdata->type = POWER_SUPPLY_TYPE_UPS;
+		else if (!strncmp("mains", chargetype, 5))
+			pdata->type = POWER_SUPPLY_TYPE_MAINS;
+		else if (!strncmp("usb-sdp", chargetype, 7))
+			pdata->type = POWER_SUPPLY_TYPE_USB;
+		else if (!strncmp("usb-dcp", chargetype, 7))
+			pdata->type = POWER_SUPPLY_TYPE_USB_DCP;
+		else if (!strncmp("usb-cdp", chargetype, 7))
+			pdata->type = POWER_SUPPLY_TYPE_USB_CDP;
+		else if (!strncmp("usb-aca", chargetype, 7))
+			pdata->type = POWER_SUPPLY_TYPE_USB_ACA;
+		else
+			dev_warn(dev, "unknown charger type %s\n", chargetype);
+	}
+
+	return pdata;
+}
+
 static int gpio_charger_probe(struct platform_device *pdev)
 {
 	const struct gpio_charger_platform_data *pdata = pdev->dev.platform_data;
@@ -77,8 +133,13 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	int irq;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "No platform data\n");
-		return -EINVAL;
+		pdata = gpio_charger_parse_dt(&pdev->dev);
+		if (IS_ERR(pdata)) {
+			ret = PTR_ERR(pdata);
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev, "No platform data\n");
+			return ret;
+		}
 	}
 
 	if (!gpio_is_valid(pdata->gpio)) {
@@ -102,6 +163,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	charger->get_property = gpio_charger_get_property;
 	charger->supplied_to = pdata->supplied_to;
 	charger->num_supplicants = pdata->num_supplicants;
+	charger->of_node = pdev->dev.of_node;
 
 	ret = gpio_request(pdata->gpio, dev_name(&pdev->dev));
 	if (ret) {
@@ -136,6 +198,8 @@ static int gpio_charger_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio_charger);
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	return 0;
 
 err_gpio_free:
@@ -159,26 +223,46 @@ static int gpio_charger_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static int gpio_charger_suspend(struct device *dev)
+{
+	struct gpio_charger *gpio_charger = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		gpio_charger->wakeup_enabled =
+			!enable_irq_wake(gpio_charger->irq);
+
+	return 0;
+}
+
 static int gpio_charger_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
 
+	if (device_may_wakeup(dev) && gpio_charger->wakeup_enabled)
+		disable_irq_wake(gpio_charger->irq);
 	power_supply_changed(&gpio_charger->charger);
 
 	return 0;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(gpio_charger_pm_ops, NULL, gpio_charger_resume);
+static SIMPLE_DEV_PM_OPS(gpio_charger_pm_ops,
+		gpio_charger_suspend, gpio_charger_resume);
+
+static const struct of_device_id gpio_charger_match[] = {
+	{ .compatible = "gpio-charger" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, gpio_charger_match);
 
 static struct platform_driver gpio_charger_driver = {
 	.probe = gpio_charger_probe,
 	.remove = gpio_charger_remove,
 	.driver = {
 		.name = "gpio-charger",
-		.owner = THIS_MODULE,
 		.pm = &gpio_charger_pm_ops,
+		.of_match_table = gpio_charger_match,
 	},
 };
 

@@ -203,8 +203,6 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 int
 lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
-	LIST_HEAD(completions);
-	LIST_HEAD(txcmplq_completions);
 	LIST_HEAD(abort_list);
 	struct lpfc_sli  *psli = &phba->sli;
 	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
@@ -216,32 +214,27 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 			 "Data: x%x x%x x%x\n",
 			 ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
 			 ndlp->nlp_rpi);
-
+	/* Clean up all fabric IOs first.*/
 	lpfc_fabric_abort_nport(ndlp);
 
-	/* First check the txq */
+	/*
+	 * Lock the ELS ring txcmplq for SLI3/SLI4 and build a local list
+	 * of all ELS IOs that need an ABTS.  The IOs need to stay on the
+	 * txcmplq so that the abort operation completes them successfully.
+	 */
 	spin_lock_irq(&phba->hbalock);
-	list_for_each_entry_safe(iocb, next_iocb, &pring->txq, list) {
-		/* Check to see if iocb matches the nport we are looking for */
-		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp)) {
-			/* It matches, so deque and call compl with anp error */
-			list_move_tail(&iocb->list, &completions);
-		}
-	}
-
-	/* Next check the txcmplq */
-	list_splice_init(&pring->txcmplq, &txcmplq_completions);
-	spin_unlock_irq(&phba->hbalock);
-
-	list_for_each_entry_safe(iocb, next_iocb, &txcmplq_completions, list) {
-		/* Check to see if iocb matches the nport we are looking for */
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_lock(&pring->ring_lock);
+	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
+	/* Add to abort_list on on NDLP match. */
 		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp))
 			list_add_tail(&iocb->dlist, &abort_list);
 	}
-	spin_lock_irq(&phba->hbalock);
-	list_splice(&txcmplq_completions, &pring->txcmplq);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
 
+	/* Abort the targeted IOs and remove them from the abort list. */
 	list_for_each_entry_safe(iocb, next_iocb, &abort_list, dlist) {
 			spin_lock_irq(&phba->hbalock);
 			list_del_init(&iocb->dlist);
@@ -249,9 +242,28 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 			spin_unlock_irq(&phba->hbalock);
 	}
 
+	INIT_LIST_HEAD(&abort_list);
+
+	/* Now process the txq */
+	spin_lock_irq(&phba->hbalock);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_lock(&pring->ring_lock);
+
+	list_for_each_entry_safe(iocb, next_iocb, &pring->txq, list) {
+		/* Check to see if iocb matches the nport we are looking for */
+		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp)) {
+			list_del_init(&iocb->list);
+			list_add_tail(&iocb->list, &abort_list);
+		}
+	}
+
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_unlock(&pring->ring_lock);
+	spin_unlock_irq(&phba->hbalock);
+
 	/* Cancel all the IOCBs from the completions list */
-	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
-			      IOERR_SLI_ABORTED);
+	lpfc_sli_cancel_iocbs(phba, &abort_list,
+			      IOSTAT_LOCAL_REJECT, IOERR_SLI_ABORTED);
 
 	lpfc_cancel_retry_delay_tmo(phba->pport, ndlp);
 	return 0;
@@ -690,11 +702,15 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	ndlp->nlp_type &= ~(NLP_FCP_TARGET | NLP_FCP_INITIATOR);
 	ndlp->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
+	ndlp->nlp_flag &= ~NLP_FIRSTBURST;
 	if (npr->prliType == PRLI_FCP_TYPE) {
 		if (npr->initiatorFunc)
 			ndlp->nlp_type |= NLP_FCP_INITIATOR;
-		if (npr->targetFunc)
+		if (npr->targetFunc) {
 			ndlp->nlp_type |= NLP_FCP_TARGET;
+			if (npr->writeXferRdyDis)
+				ndlp->nlp_flag |= NLP_FIRSTBURST;
+		}
 		if (npr->Retry)
 			ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
 	}
@@ -1015,6 +1031,8 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
+	if (!prsp)
+		goto out;
 
 	lp = (uint32_t *) prsp->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
@@ -1676,12 +1694,16 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* Check out PRLI rsp */
 	ndlp->nlp_type &= ~(NLP_FCP_TARGET | NLP_FCP_INITIATOR);
 	ndlp->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
+	ndlp->nlp_flag &= ~NLP_FIRSTBURST;
 	if ((npr->acceptRspCode == PRLI_REQ_EXECUTED) &&
 	    (npr->prliType == PRLI_FCP_TYPE)) {
 		if (npr->initiatorFunc)
 			ndlp->nlp_type |= NLP_FCP_INITIATOR;
-		if (npr->targetFunc)
+		if (npr->targetFunc) {
 			ndlp->nlp_type |= NLP_FCP_TARGET;
+			if (npr->writeXferRdyDis)
+				ndlp->nlp_flag |= NLP_FIRSTBURST;
+		}
 		if (npr->Retry)
 			ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
 	}

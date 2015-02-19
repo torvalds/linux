@@ -63,14 +63,21 @@ extern void gfs2_ordered_del_inode(struct gfs2_inode *ip);
 extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 			    unsigned int ssize);
 
+extern void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
 extern int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
-extern void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl);
+enum gfs2_flush_type {
+	NORMAL_FLUSH = 0,
+	SYNC_FLUSH,
+	SHUTDOWN_FLUSH,
+	FREEZE_FLUSH
+};
+extern void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
+			   enum gfs2_flush_type type);
 extern void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
 extern void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
 extern void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc);
 
 extern void gfs2_log_shutdown(struct gfs2_sbd *sdp);
-extern void gfs2_meta_syncfs(struct gfs2_sbd *sdp);
 extern int gfs2_logd(void *data);
 extern void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
 extern void gfs2_write_revokes(struct gfs2_sbd *sdp);

@@ -488,7 +488,6 @@ static struct platform_driver wmt_pinctrl_driver = {
 	.remove	= vt8500_pinctrl_remove,
 	.driver = {
 		.name	= "pinctrl-vt8500",
-		.owner	= THIS_MODULE,
 		.of_match_table	= wmt_pinctrl_of_match,
 	},
 };

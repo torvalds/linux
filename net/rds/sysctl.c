@@ -71,14 +71,14 @@ static struct ctl_table rds_sysctl_rds_table[] = {
 	{
 		.procname	= "max_unacked_packets",
 		.data		= &rds_sysctl_max_unacked_packets,
-		.maxlen         = sizeof(unsigned long),
+		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec,
 	},
 	{
 		.procname	= "max_unacked_bytes",
 		.data		= &rds_sysctl_max_unacked_bytes,
-		.maxlen         = sizeof(unsigned long),
+		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec,
 	},
@@ -94,8 +94,7 @@ static struct ctl_table rds_sysctl_rds_table[] = {
 
 void rds_sysctl_exit(void)
 {
-	if (rds_sysctl_reg_table)
-		unregister_net_sysctl_table(rds_sysctl_reg_table);
+	unregister_net_sysctl_table(rds_sysctl_reg_table);
 }
 
 int rds_sysctl_init(void)

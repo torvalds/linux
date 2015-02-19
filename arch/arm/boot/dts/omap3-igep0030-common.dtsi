@@ -1,0 +1,60 @@
+/*
+ * Common Device Tree Source for IGEP COM MODULE
+ *
+ * Copyright (C) 2014 Javier Martinez Canillas <javier@collabora.co.uk>
+ * Copyright (C) 2014 Enric Balletbo i Serra <eballetbo@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "omap3-igep.dtsi"
+
+/ {
+	leds: gpio_leds {
+		compatible = "gpio-leds";
+
+		user0 {
+			 label = "omap3:red:user0";
+			 gpios = <&twl_gpio 18 GPIO_ACTIVE_LOW>;	/* LEDA */
+			 default-state = "off";
+		};
+
+		user1 {
+			 label = "omap3:green:user1";
+			 gpios = <&twl_gpio 19 GPIO_ACTIVE_LOW>;	/* LEDB */
+			 default-state = "off";
+		};
+
+		user2 {
+			 label = "omap3:red:user1";
+			 gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;		/* gpio_16 */
+			 default-state = "off";
+		};
+	};
+};
+
+&omap3_pmx_core {
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x216c, PIN_INPUT | MUX_MODE1)	/* mcbsp3_dx.uart2_cts */
+			OMAP3_CORE1_IOPAD(0x216e, PIN_OUTPUT | MUX_MODE1)	/* mcbsp3_dr.uart2_rts */
+			OMAP3_CORE1_IOPAD(0x2170, PIN_OUTPUT | MUX_MODE1)	/* mcbsp3_clk.uart2_tx */
+			OMAP3_CORE1_IOPAD(0x2172, PIN_INPUT | MUX_MODE1)	/* mcbsp3_fsx.uart2_rx */
+		>;
+	};
+};
+
+&omap3_pmx_core2 {
+	leds_core2_pins: pinmux_leds_core2_pins {
+		pinctrl-single,pins = <
+			OMAP3630_CORE2_IOPAD(0x25e0, PIN_OUTPUT | MUX_MODE4)	/* etk_d2.gpio_16 */
+		>;
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+};

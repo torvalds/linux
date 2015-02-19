@@ -5,7 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +31,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,6 +129,8 @@
 #define CSR_UCODE_DRV_GP1_CLR   (CSR_BASE+0x05c)
 #define CSR_UCODE_DRV_GP2       (CSR_BASE+0x060)
 
+#define CSR_MBOX_SET_REG	(CSR_BASE + 0x88)
+
 #define CSR_LED_REG             (CSR_BASE+0x094)
 #define CSR_DRAM_INT_TBL_REG	(CSR_BASE+0x0A0)
 #define CSR_MAC_SHADOW_REG_CTRL	(CSR_BASE+0x0A8) /* 6000 and up */
@@ -137,6 +141,13 @@
 
 /* Analog phase-lock-loop configuration  */
 #define CSR_ANA_PLL_CFG         (CSR_BASE+0x20c)
+
+/*
+ * CSR HW resources monitor registers
+ */
+#define CSR_MONITOR_CFG_REG		(CSR_BASE+0x214)
+#define CSR_MONITOR_STATUS_REG		(CSR_BASE+0x228)
+#define CSR_MONITOR_XTAL_RESOURCES	(0x00000010)
 
 /*
  * CSR Hardware Revision Workaround Register.  Indicates hardware rev;
@@ -173,6 +184,10 @@
 #define CSR_HW_IF_CONFIG_REG_BIT_NIC_READY	(0x00400000) /* PCI_OWN_SEM */
 #define CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE (0x02000000) /* ME_OWN */
 #define CSR_HW_IF_CONFIG_REG_PREPARE		  (0x08000000) /* WAKE_ME */
+#define CSR_HW_IF_CONFIG_REG_ENABLE_PME		  (0x10000000)
+#define CSR_HW_IF_CONFIG_REG_PERSIST_MODE	  (0x40000000) /* PERSISTENCE */
+
+#define CSR_MBOX_SET_REG_OS_ALIVE		BIT(5)
 
 #define CSR_INT_PERIODIC_DIS			(0x00) /* disable periodic int*/
 #define CSR_INT_PERIODIC_ENA			(0xFF) /* 255*32 usec ~ 8 msec*/
@@ -198,7 +213,8 @@
 				 CSR_INT_BIT_RF_KILL | \
 				 CSR_INT_BIT_SW_RX   | \
 				 CSR_INT_BIT_WAKEUP  | \
-				 CSR_INT_BIT_ALIVE)
+				 CSR_INT_BIT_ALIVE   | \
+				 CSR_INT_BIT_RX_PERIODIC)
 
 /* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
 #define CSR_FH_INT_BIT_ERR       (1 << 31) /* Error */
@@ -239,6 +255,7 @@
  *         001 -- MAC power-down
  *         010 -- PHY (radio) power-down
  *         011 -- Error
+ *    10:  XTAL ON request
  *   9-6:  SYS_CONFIG
  *         Indicates current system configuration, reflecting pins on chip
  *         as forced high/low by device circuit board.
@@ -270,6 +287,7 @@
 #define CSR_GP_CNTRL_REG_FLAG_INIT_DONE              (0x00000004)
 #define CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ         (0x00000008)
 #define CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP         (0x00000010)
+#define CSR_GP_CNTRL_REG_FLAG_XTAL_ON		     (0x00000400)
 
 #define CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN           (0x00000001)
 
@@ -282,23 +300,35 @@
 #define CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
 #define CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
 
-#define CSR_HW_REV_TYPE_MSK            (0x000FFF0)
-#define CSR_HW_REV_TYPE_5300           (0x0000020)
-#define CSR_HW_REV_TYPE_5350           (0x0000030)
-#define CSR_HW_REV_TYPE_5100           (0x0000050)
-#define CSR_HW_REV_TYPE_5150           (0x0000040)
-#define CSR_HW_REV_TYPE_1000           (0x0000060)
-#define CSR_HW_REV_TYPE_6x00           (0x0000070)
-#define CSR_HW_REV_TYPE_6x50           (0x0000080)
-#define CSR_HW_REV_TYPE_6150           (0x0000084)
-#define CSR_HW_REV_TYPE_6x05	       (0x00000B0)
-#define CSR_HW_REV_TYPE_6x30	       CSR_HW_REV_TYPE_6x05
-#define CSR_HW_REV_TYPE_6x35	       CSR_HW_REV_TYPE_6x05
-#define CSR_HW_REV_TYPE_2x30	       (0x00000C0)
-#define CSR_HW_REV_TYPE_2x00	       (0x0000100)
-#define CSR_HW_REV_TYPE_105	       (0x0000110)
-#define CSR_HW_REV_TYPE_135	       (0x0000120)
-#define CSR_HW_REV_TYPE_NONE           (0x00001F0)
+
+/**
+ *  hw_rev values
+ */
+enum {
+	SILICON_A_STEP = 0,
+	SILICON_B_STEP,
+	SILICON_C_STEP,
+};
+
+
+#define CSR_HW_REV_TYPE_MSK		(0x000FFF0)
+#define CSR_HW_REV_TYPE_5300		(0x0000020)
+#define CSR_HW_REV_TYPE_5350		(0x0000030)
+#define CSR_HW_REV_TYPE_5100		(0x0000050)
+#define CSR_HW_REV_TYPE_5150		(0x0000040)
+#define CSR_HW_REV_TYPE_1000		(0x0000060)
+#define CSR_HW_REV_TYPE_6x00		(0x0000070)
+#define CSR_HW_REV_TYPE_6x50		(0x0000080)
+#define CSR_HW_REV_TYPE_6150		(0x0000084)
+#define CSR_HW_REV_TYPE_6x05		(0x00000B0)
+#define CSR_HW_REV_TYPE_6x30		CSR_HW_REV_TYPE_6x05
+#define CSR_HW_REV_TYPE_6x35		CSR_HW_REV_TYPE_6x05
+#define CSR_HW_REV_TYPE_2x30		(0x00000C0)
+#define CSR_HW_REV_TYPE_2x00		(0x0000100)
+#define CSR_HW_REV_TYPE_105		(0x0000110)
+#define CSR_HW_REV_TYPE_135		(0x0000120)
+#define CSR_HW_REV_TYPE_7265D		(0x0000210)
+#define CSR_HW_REV_TYPE_NONE		(0x00001F0)
 
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)
@@ -395,6 +425,34 @@
 #define CSR_DRAM_INIT_TBL_WRAP_CHECK	(1 << 27)
 
 /*
+ * SHR target access (Shared block memory space)
+ *
+ * Shared internal registers can be accessed directly from PCI bus through SHR
+ * arbiter without need for the MAC HW to be powered up. This is possible due to
+ * indirect read/write via HEEP_CTRL_WRD_PCIEX_CTRL (0xEC) and
+ * HEEP_CTRL_WRD_PCIEX_DATA (0xF4) registers.
+ *
+ * Use iwl_write32()/iwl_read32() family to access these registers. The MAC HW
+ * need not be powered up so no "grab inc access" is required.
+ */
+
+/*
+ * Registers for accessing shared registers (e.g. SHR_APMG_GP1,
+ * SHR_APMG_XTAL_CFG). For example, to read from SHR_APMG_GP1 register (0x1DC),
+ * first, write to the control register:
+ * HEEP_CTRL_WRD_PCIEX_CTRL[15:0] = 0x1DC (offset of the SHR_APMG_GP1 register)
+ * HEEP_CTRL_WRD_PCIEX_CTRL[29:28] = 2 (read access)
+ * second, read from the data register HEEP_CTRL_WRD_PCIEX_DATA[31:0].
+ *
+ * To write the register, first, write to the data register
+ * HEEP_CTRL_WRD_PCIEX_DATA[31:0] and then:
+ * HEEP_CTRL_WRD_PCIEX_CTRL[15:0] = 0x1DC (offset of the SHR_APMG_GP1 register)
+ * HEEP_CTRL_WRD_PCIEX_CTRL[29:28] = 3 (write access)
+ */
+#define HEEP_CTRL_WRD_PCIEX_CTRL_REG	(CSR_BASE+0x0ec)
+#define HEEP_CTRL_WRD_PCIEX_DATA_REG	(CSR_BASE+0x0f4)
+
+/*
  * HBUS (Host-side Bus)
  *
  * HBUS registers are mapped directly into PCI bus space, but are used
@@ -463,14 +521,11 @@
  * the CSR_INT_COALESCING is an 8 bit register in 32-usec unit
  *
  * default interrupt coalescing timer is 64 x 32 = 2048 usecs
- * default interrupt coalescing calibration timer is 16 x 32 = 512 usecs
  */
 #define IWL_HOST_INT_TIMEOUT_MAX	(0xFF)
 #define IWL_HOST_INT_TIMEOUT_DEF	(0x40)
 #define IWL_HOST_INT_TIMEOUT_MIN	(0x0)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MAX	(0xFF)
-#define IWL_HOST_INT_CALIB_TIMEOUT_DEF	(0x10)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MIN	(0x0)
+#define IWL_HOST_INT_OPER_MODE		BIT(31)
 
 /*****************************************************************************
  *                        7000/3000 series SHR DTS addresses                 *

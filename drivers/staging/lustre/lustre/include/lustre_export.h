@@ -46,9 +46,9 @@
  * @{
  */
 
-#include <lprocfs_status.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_dlm.h>
+#include "lprocfs_status.h"
+#include "lustre/lustre_idl.h"
+#include "lustre_dlm.h"
 
 struct mds_client_data;
 struct mdt_client_data;
@@ -125,14 +125,14 @@ struct nid_stat {
 #define nidstat_getref(nidstat)						\
 do {									   \
 	atomic_inc(&(nidstat)->nid_exp_ref_count);			 \
-} while(0)
+} while (0)
 
 #define nidstat_putref(nidstat)						\
 do {									   \
 	atomic_dec(&(nidstat)->nid_exp_ref_count);			 \
 	LASSERTF(atomic_read(&(nidstat)->nid_exp_ref_count) >= 0,	  \
 		 "stat %p nid_exp_ref_count < 0\n", nidstat);		  \
-} while(0)
+} while (0)
 
 enum obd_option {
 	OBD_OPT_FORCE =	 0x0001,
@@ -192,24 +192,24 @@ struct obd_export {
 	struct obd_import	*exp_imp_reverse;
 	struct nid_stat	  *exp_nid_stats;
 	struct lprocfs_stats     *exp_md_stats;
-	/** Active connetion */
+	/** Active connection */
 	struct ptlrpc_connection *exp_connection;
-	/** Connection count value from last succesful reconnect rpc */
+	/** Connection count value from last successful reconnect rpc */
 	__u32		     exp_conn_cnt;
 	/** Hash list of all ldlm locks granted on this export */
-	cfs_hash_t	       *exp_lock_hash;
+	struct cfs_hash	       *exp_lock_hash;
 	/**
 	 * Hash list for Posix lock deadlock detection, added with
 	 * ldlm_lock::l_exp_flock_hash.
 	 */
-	cfs_hash_t	       *exp_flock_hash;
+	struct cfs_hash	       *exp_flock_hash;
 	struct list_head		exp_outstanding_replies;
 	struct list_head		exp_uncommitted_replies;
 	spinlock_t		  exp_uncommitted_replies_lock;
 	/** Last committed transno for this export */
 	__u64		     exp_last_committed;
 	/** When was last request received */
-	cfs_time_t		exp_last_request_time;
+	unsigned long		exp_last_request_time;
 	/** On replay all requests waiting for replay are linked here */
 	struct list_head		exp_req_replay_queue;
 	/**
@@ -245,7 +245,7 @@ struct obd_export {
 	enum lustre_sec_part      exp_sp_peer;
 	struct sptlrpc_flavor     exp_flvr;	     /* current */
 	struct sptlrpc_flavor     exp_flvr_old[2];      /* about-to-expire */
-	cfs_time_t		exp_flvr_expire[2];   /* seconds */
+	unsigned long		exp_flvr_expire[2];   /* seconds */
 
 	/** protects exp_hp_rpcs */
 	spinlock_t		  exp_rpc_lock;
@@ -294,11 +294,11 @@ static inline int exp_connect_multibulk(struct obd_export *exp)
 	return exp_max_brw_size(exp) > ONE_MB_BRW_SIZE;
 }
 
-static inline int exp_expired(struct obd_export *exp, cfs_duration_t age)
+static inline int exp_expired(struct obd_export *exp, long age)
 {
 	LASSERT(exp->exp_delayed);
-	return cfs_time_before(cfs_time_add(exp->exp_last_request_time, age),
-			       cfs_time_current_sec());
+	return time_before(cfs_time_add(exp->exp_last_request_time, age),
+			   get_seconds());
 }
 
 static inline int exp_connect_cancelset(struct obd_export *exp)
@@ -378,6 +378,23 @@ static inline bool imp_connect_lvb_type(struct obd_import *imp)
 		return true;
 	else
 		return false;
+}
+
+static inline __u64 exp_connect_ibits(struct obd_export *exp)
+{
+	struct obd_connect_data *ocd;
+
+	ocd = &exp->exp_connect_data;
+	return ocd->ocd_ibits_known;
+}
+
+static inline bool imp_connect_disp_stripe(struct obd_import *imp)
+{
+	struct obd_connect_data *ocd;
+
+	LASSERT(imp != NULL);
+	ocd = &imp->imp_connect_data;
+	return ocd->ocd_connect_flags & OBD_CONNECT_DISP_STRIPE;
 }
 
 extern struct obd_export *class_conn2export(struct lustre_handle *conn);

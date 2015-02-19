@@ -649,8 +649,9 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	clk_enable(rtc->clk);
 
 	rtc->capabilities = RTC_DEF_CAPABILITIES;
-	if (pdev->dev.platform_data) {
-		struct sh_rtc_platform_info *pinfo = pdev->dev.platform_data;
+	if (dev_get_platdata(&pdev->dev)) {
+		struct sh_rtc_platform_info *pinfo =
+			dev_get_platdata(&pdev->dev);
 
 		/*
 		 * Some CPUs have special capabilities in addition to the
@@ -781,7 +782,6 @@ static SIMPLE_DEV_PM_OPS(sh_rtc_pm_ops, sh_rtc_suspend, sh_rtc_resume);
 static struct platform_driver sh_rtc_platform_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &sh_rtc_pm_ops,
 	},
 	.remove		= __exit_p(sh_rtc_remove),

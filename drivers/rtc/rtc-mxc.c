@@ -377,31 +377,27 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	unsigned long rate;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
 	pdata->devtype = pdev->id_entry->driver_data;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name))
-		return -EBUSY;
-
-	pdata->ioaddr = devm_ioremap(&pdev->dev, res->start,
-				     resource_size(res));
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pdata->ioaddr))
+		return PTR_ERR(pdata->ioaddr);
 
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
 		dev_err(&pdev->dev, "unable to get clock!\n");
-		ret = PTR_ERR(pdata->clk);
-		goto exit_free_pdata;
+		return PTR_ERR(pdata->clk);
 	}
 
-	clk_prepare_enable(pdata->clk);
+	ret = clk_prepare_enable(pdata->clk);
+	if (ret)
+		return ret;
+
 	rate = clk_get_rate(pdata->clk);
 
 	if (rate == 32768)
@@ -453,8 +449,6 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 exit_put_clk:
 	clk_disable_unprepare(pdata->clk);
 
-exit_free_pdata:
-
 	return ret;
 }
 
@@ -495,7 +489,6 @@ static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		   .name	= "mxc_rtc",
 		   .pm		= &mxc_rtc_pm_ops,
-		   .owner	= THIS_MODULE,
 	},
 	.id_table = imx_rtc_devtype,
 	.probe = mxc_rtc_probe,

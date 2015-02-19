@@ -106,6 +106,9 @@ struct alx_priv {
 	u16 msg_enable;
 
 	bool msi;
+
+	/* protects hw.stats */
+	spinlock_t stats_lock;
 };
 
 extern const struct ethtool_ops alx_ethtool_ops;

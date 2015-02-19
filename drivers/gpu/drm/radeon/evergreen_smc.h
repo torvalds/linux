@@ -57,7 +57,7 @@ typedef struct SMC_Evergreen_MCRegisters SMC_Evergreen_MCRegisters;
 
 #define EVERGREEN_SMC_FIRMWARE_HEADER_LOCATION 0x100
 
-#define EVERGREEN_SMC_FIRMWARE_HEADER_softRegisters   0x0
+#define EVERGREEN_SMC_FIRMWARE_HEADER_softRegisters   0x8
 #define EVERGREEN_SMC_FIRMWARE_HEADER_stateTable      0xC
 #define EVERGREEN_SMC_FIRMWARE_HEADER_mcRegisterTable 0x20
 

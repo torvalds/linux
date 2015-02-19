@@ -1,0 +1,11 @@
+* Broadcom cable/DSL platforms
+
+SoCs:
+
+Required properties:
+- compatible: "brcm,bcm3384", "brcm,bcm33843"
+
+Boards:
+
+Required properties:
+- compatible: "brcm,bcm93384wvg"

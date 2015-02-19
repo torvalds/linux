@@ -20,6 +20,7 @@
 extern const struct phytbl_info dot11lcnphytbl_rx_gain_info_rev0[];
 extern const u32 dot11lcnphytbl_rx_gain_info_sz_rev0;
 extern const struct phytbl_info dot11lcn_sw_ctrl_tbl_info_4313;
+extern const struct phytbl_info dot11lcn_sw_ctrl_tbl_info_4313_bt_ipa;
 extern const struct phytbl_info dot11lcn_sw_ctrl_tbl_info_4313_epa;
 extern const struct phytbl_info dot11lcn_sw_ctrl_tbl_info_4313_epa_combo;
 extern const struct phytbl_info dot11lcn_sw_ctrl_tbl_info_4313_bt_epa;

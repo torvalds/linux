@@ -135,17 +135,15 @@ extern void unregister_srm_console(void);
 /* smp.c */
 extern void setup_smp(void);
 extern void handle_ipi(struct pt_regs *);
-extern void smp_percpu_timer_interrupt(struct pt_regs *);
 
 /* bios32.c */
 /* extern void reset_for_srm(void); */
 
 /* time.c */
-extern irqreturn_t timer_interrupt(int irq, void *dev);
+extern irqreturn_t rtc_timer_interrupt(int irq, void *dev);
+extern void init_clockevent(void);
 extern void common_init_rtc(void);
 extern unsigned long est_cycle_freq;
-extern unsigned int common_get_rtc_time(struct rtc_time *time);
-extern int common_set_rtc_time(struct rtc_time *time);
 
 /* smc37c93x.c */
 extern void SMC93x_Init(void);

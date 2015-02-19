@@ -45,6 +45,8 @@ static struct arm_ahb_div clk_consumer[] = {
 static char hsp_div_532[] = { 4, 8, 3, 0 };
 static char hsp_div_400[] = { 3, 6, 3, 0 };
 
+static struct clk_onecell_data clk_data;
+
 static const char *std_sel[] = {"ppll", "arm"};
 static const char *ipg_per_sel[] = {"ahb_per_div", "arm_per_div"};
 
@@ -73,7 +75,6 @@ int __init mx35_clocks_init(void)
 	u32 pdr0, consumer_sel, hsp_sel;
 	struct arm_ahb_div *aad;
 	unsigned char *hsp_div;
-	u32 i;
 
 	pdr0 = __raw_readl(base + MXC_CCM_PDR0);
 	consumer_sel = (pdr0 >> 16) & 0xf;
@@ -198,10 +199,7 @@ int __init mx35_clocks_init(void)
 	clk[iim_gate] = imx_clk_gate2("iim_gate", "ipg", base + MX35_CCM_CGR3,  2);
 	clk[gpu2d_gate] = imx_clk_gate2("gpu2d_gate", "ahb", base + MX35_CCM_CGR3,  4);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX35 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
 	clk_register_clkdev(clk[pata_gate], NULL, "pata_imx");
 	clk_register_clkdev(clk[can1_gate], NULL, "flexcan.0");
@@ -286,3 +284,13 @@ int __init mx35_clocks_init(void)
 
 	return 0;
 }
+
+static void __init mx35_clocks_init_dt(struct device_node *ccm_node)
+{
+	clk_data.clks = clk;
+	clk_data.clk_num = ARRAY_SIZE(clk);
+	of_clk_add_provider(ccm_node, of_clk_src_onecell_get, &clk_data);
+
+	mx35_clocks_init();
+}
+CLK_OF_DECLARE(imx35, "fsl,imx35-ccm", mx35_clocks_init_dt);

@@ -327,8 +327,8 @@ static int octeon_write_config(struct pci_bus *bus, unsigned int devfn,
 
 
 static struct pci_ops octeon_pci_ops = {
-	octeon_read_config,
-	octeon_write_config,
+	.read = octeon_read_config,
+	.write = octeon_write_config,
 };
 
 static struct resource octeon_pci_mem_resource = {
@@ -586,14 +586,15 @@ static int __init octeon_pci_setup(void)
 	else
 		octeon_dma_bar_type = OCTEON_DMA_BAR_TYPE_BIG;
 
-	/* PCI I/O and PCI MEM values */
-	set_io_port_base(OCTEON_PCI_IOSPACE_BASE);
-	ioport_resource.start = 0;
-	ioport_resource.end = OCTEON_PCI_IOSPACE_SIZE - 1;
 	if (!octeon_is_pci_host()) {
 		pr_notice("Not in host mode, PCI Controller not initialized\n");
 		return 0;
 	}
+
+	/* PCI I/O and PCI MEM values */
+	set_io_port_base(OCTEON_PCI_IOSPACE_BASE);
+	ioport_resource.start = 0;
+	ioport_resource.end = OCTEON_PCI_IOSPACE_SIZE - 1;
 
 	pr_notice("%s Octeon big bar support\n",
 		  (octeon_dma_bar_type ==
@@ -707,7 +708,7 @@ static int __init octeon_pci_setup(void)
 
 	if (IS_ERR(platform_device_register_simple("octeon_pci_edac",
 						   -1, NULL, 0)))
-		pr_err("Registation of co_pci_edac failed!\n");
+		pr_err("Registration of co_pci_edac failed!\n");
 
 	octeon_pci_dma_init();
 

@@ -21,7 +21,7 @@
 
 struct rate_control_ref {
 	struct ieee80211_local *local;
-	struct rate_control_ops *ops;
+	const struct rate_control_ops *ops;
 	void *priv;
 };
 
@@ -37,13 +37,35 @@ static inline void rate_control_tx_status(struct ieee80211_local *local,
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	if (!ref || !test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 		return;
 
-	ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
+	if (ref->ops->tx_status)
+		ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
+	else
+		ref->ops->tx_status_noskb(ref->priv, sband, ista, priv_sta, info);
 }
 
+static inline void
+rate_control_tx_status_noskb(struct ieee80211_local *local,
+			     struct ieee80211_supported_band *sband,
+			     struct sta_info *sta,
+			     struct ieee80211_tx_info *info)
+{
+	struct rate_control_ref *ref = local->rate_ctrl;
+	struct ieee80211_sta *ista = &sta->sta;
+	void *priv_sta = sta->rate_ctrl_priv;
+
+	if (!ref || !test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
+		return;
+
+	if (WARN_ON_ONCE(!ref->ops->tx_status_noskb))
+		return;
+
+	ref->ops->tx_status_noskb(ref->priv, sband, ista, priv_sta, info);
+}
 
 static inline void rate_control_rate_init(struct sta_info *sta)
 {
@@ -53,6 +75,8 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 	void *priv_sta = sta->rate_ctrl_priv;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
+
+	ieee80211_sta_set_rx_nss(sta);
 
 	if (!ref)
 		return;
@@ -66,11 +90,10 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 	}
 
 	sband = local->hw.wiphy->bands[chanctx_conf->def.chan->band];
+
+	ref->ops->rate_init(ref->priv, sband, &chanctx_conf->def, ista,
+			    priv_sta);
 	rcu_read_unlock();
-
-	ieee80211_sta_set_rx_nss(sta);
-
-	ref->ops->rate_init(ref->priv, sband, ista, priv_sta);
 	set_sta_flag(sta, WLAN_STA_RATE_CONTROL);
 }
 
@@ -81,10 +104,21 @@ static inline void rate_control_rate_update(struct ieee80211_local *local,
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
+	struct ieee80211_chanctx_conf *chanctx_conf;
 
-	if (ref && ref->ops->rate_update)
-		ref->ops->rate_update(ref->priv, sband, ista,
-				      priv_sta, changed);
+	if (ref && ref->ops->rate_update) {
+		rcu_read_lock();
+
+		chanctx_conf = rcu_dereference(sta->sdata->vif.chanctx_conf);
+		if (WARN_ON(!chanctx_conf)) {
+			rcu_read_unlock();
+			return;
+		}
+
+		ref->ops->rate_update(ref->priv, sband, &chanctx_conf->def,
+				      ista, priv_sta, changed);
+		rcu_read_unlock();
+	}
 	drv_sta_rc_update(local, sta->sdata, &sta->sta, changed);
 }
 
@@ -131,22 +165,9 @@ void rate_control_deinitialize(struct ieee80211_local *local);
 
 
 /* Rate control algorithms */
-#ifdef CONFIG_MAC80211_RC_PID
-extern int rc80211_pid_init(void);
-extern void rc80211_pid_exit(void);
-#else
-static inline int rc80211_pid_init(void)
-{
-	return 0;
-}
-static inline void rc80211_pid_exit(void)
-{
-}
-#endif
-
 #ifdef CONFIG_MAC80211_RC_MINSTREL
-extern int rc80211_minstrel_init(void);
-extern void rc80211_minstrel_exit(void);
+int rc80211_minstrel_init(void);
+void rc80211_minstrel_exit(void);
 #else
 static inline int rc80211_minstrel_init(void)
 {
@@ -158,8 +179,8 @@ static inline void rc80211_minstrel_exit(void)
 #endif
 
 #ifdef CONFIG_MAC80211_RC_MINSTREL_HT
-extern int rc80211_minstrel_ht_init(void);
-extern void rc80211_minstrel_ht_exit(void);
+int rc80211_minstrel_ht_init(void);
+void rc80211_minstrel_ht_exit(void);
 #else
 static inline int rc80211_minstrel_ht_init(void)
 {

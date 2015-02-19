@@ -18,16 +18,13 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/compiler.h>
-#include <linux/init.h>
 #include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
-#include <linux/of_gpio.h>
-#include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <linux/of_address.h>
 #include <linux/module.h>
+#include <linux/basic_mmio_gpio.h>
 
 #define GEF_GPIO_DIRECT		0x00
 #define GEF_GPIO_IN		0x04
@@ -39,160 +36,78 @@
 #define GEF_GPIO_OVERRUN	0x1C
 #define GEF_GPIO_MODE		0x20
 
-static void _gef_gpio_set(void __iomem *reg, unsigned int offset, int value)
-{
-	unsigned int data;
-
-	data = ioread32be(reg);
-	/* value: 0=low; 1=high */
-	if (value & 0x1)
-		data = data | (0x1 << offset);
-	else
-		data = data & ~(0x1 << offset);
-
-	iowrite32be(data, reg);
-}
-
-
-static int gef_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int data;
-	struct of_mm_gpio_chip *mmchip = to_of_mm_gpio_chip(chip);
-
-	data = ioread32be(mmchip->regs + GEF_GPIO_DIRECT);
-	data = data | (0x1 << offset);
-	iowrite32be(data, mmchip->regs + GEF_GPIO_DIRECT);
-
-	return 0;
-}
-
-static int gef_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int value)
-{
-	unsigned int data;
-	struct of_mm_gpio_chip *mmchip = to_of_mm_gpio_chip(chip);
-
-	/* Set direction before switching to input */
-	_gef_gpio_set(mmchip->regs + GEF_GPIO_OUT, offset, value);
-
-	data = ioread32be(mmchip->regs + GEF_GPIO_DIRECT);
-	data = data & ~(0x1 << offset);
-	iowrite32be(data, mmchip->regs + GEF_GPIO_DIRECT);
-
-	return 0;
-}
-
-static int gef_gpio_get(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int data;
-	int state = 0;
-	struct of_mm_gpio_chip *mmchip = to_of_mm_gpio_chip(chip);
-
-	data = ioread32be(mmchip->regs + GEF_GPIO_IN);
-	state = (int)((data >> offset) & 0x1);
-
-	return state;
-}
-
-static void gef_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
-{
-	struct of_mm_gpio_chip *mmchip = to_of_mm_gpio_chip(chip);
-
-	_gef_gpio_set(mmchip->regs + GEF_GPIO_OUT, offset, value);
-}
-
-static int __init gef_gpio_init(void)
-{
-	struct device_node *np;
-	int retval;
-	struct of_mm_gpio_chip *gef_gpio_chip;
-
-	for_each_compatible_node(np, NULL, "gef,sbc610-gpio") {
-
-		pr_debug("%s: Initialising GEF GPIO\n", np->full_name);
-
-		/* Allocate chip structure */
-		gef_gpio_chip = kzalloc(sizeof(*gef_gpio_chip), GFP_KERNEL);
-		if (!gef_gpio_chip) {
-			pr_err("%s: Unable to allocate structure\n",
-				np->full_name);
-			continue;
-		}
-
-		/* Setup pointers to chip functions */
-		gef_gpio_chip->gc.of_gpio_n_cells = 2;
-		gef_gpio_chip->gc.ngpio = 19;
-		gef_gpio_chip->gc.direction_input = gef_gpio_dir_in;
-		gef_gpio_chip->gc.direction_output = gef_gpio_dir_out;
-		gef_gpio_chip->gc.get = gef_gpio_get;
-		gef_gpio_chip->gc.set = gef_gpio_set;
-
-		/* This function adds a memory mapped GPIO chip */
-		retval = of_mm_gpiochip_add(np, gef_gpio_chip);
-		if (retval) {
-			kfree(gef_gpio_chip);
-			pr_err("%s: Unable to add GPIO\n", np->full_name);
-		}
-	}
-
-	for_each_compatible_node(np, NULL, "gef,sbc310-gpio") {
-
-		pr_debug("%s: Initialising GEF GPIO\n", np->full_name);
-
-		/* Allocate chip structure */
-		gef_gpio_chip = kzalloc(sizeof(*gef_gpio_chip), GFP_KERNEL);
-		if (!gef_gpio_chip) {
-			pr_err("%s: Unable to allocate structure\n",
-				np->full_name);
-			continue;
-		}
-
-		/* Setup pointers to chip functions */
-		gef_gpio_chip->gc.of_gpio_n_cells = 2;
-		gef_gpio_chip->gc.ngpio = 6;
-		gef_gpio_chip->gc.direction_input = gef_gpio_dir_in;
-		gef_gpio_chip->gc.direction_output = gef_gpio_dir_out;
-		gef_gpio_chip->gc.get = gef_gpio_get;
-		gef_gpio_chip->gc.set = gef_gpio_set;
-
-		/* This function adds a memory mapped GPIO chip */
-		retval = of_mm_gpiochip_add(np, gef_gpio_chip);
-		if (retval) {
-			kfree(gef_gpio_chip);
-			pr_err("%s: Unable to add GPIO\n", np->full_name);
-		}
-	}
-
-	for_each_compatible_node(np, NULL, "ge,imp3a-gpio") {
-
-		pr_debug("%s: Initialising GE GPIO\n", np->full_name);
-
-		/* Allocate chip structure */
-		gef_gpio_chip = kzalloc(sizeof(*gef_gpio_chip), GFP_KERNEL);
-		if (!gef_gpio_chip) {
-			pr_err("%s: Unable to allocate structure\n",
-				np->full_name);
-			continue;
-		}
-
-		/* Setup pointers to chip functions */
-		gef_gpio_chip->gc.of_gpio_n_cells = 2;
-		gef_gpio_chip->gc.ngpio = 16;
-		gef_gpio_chip->gc.direction_input = gef_gpio_dir_in;
-		gef_gpio_chip->gc.direction_output = gef_gpio_dir_out;
-		gef_gpio_chip->gc.get = gef_gpio_get;
-		gef_gpio_chip->gc.set = gef_gpio_set;
-
-		/* This function adds a memory mapped GPIO chip */
-		retval = of_mm_gpiochip_add(np, gef_gpio_chip);
-		if (retval) {
-			kfree(gef_gpio_chip);
-			pr_err("%s: Unable to add GPIO\n", np->full_name);
-		}
-	}
-
-	return 0;
+static const struct of_device_id gef_gpio_ids[] = {
+	{
+		.compatible	= "gef,sbc610-gpio",
+		.data		= (void *)19,
+	}, {
+		.compatible	= "gef,sbc310-gpio",
+		.data		= (void *)6,
+	}, {
+		.compatible	= "ge,imp3a-gpio",
+		.data		= (void *)16,
+	},
+	{ }
 };
-arch_initcall(gef_gpio_init);
+MODULE_DEVICE_TABLE(of, gef_gpio_ids);
+
+static int __init gef_gpio_probe(struct platform_device *pdev)
+{
+	const struct of_device_id *of_id =
+		of_match_device(gef_gpio_ids, &pdev->dev);
+	struct bgpio_chip *bgc;
+	void __iomem *regs;
+	int ret;
+
+	bgc = devm_kzalloc(&pdev->dev, sizeof(*bgc), GFP_KERNEL);
+	if (!bgc)
+		return -ENOMEM;
+
+	regs = of_iomap(pdev->dev.of_node, 0);
+	if (!regs)
+		return -ENOMEM;
+
+	ret = bgpio_init(bgc, &pdev->dev, 4, regs + GEF_GPIO_IN,
+			 regs + GEF_GPIO_OUT, NULL, NULL,
+			 regs + GEF_GPIO_DIRECT, BGPIOF_BIG_ENDIAN_BYTE_ORDER);
+	if (ret) {
+		dev_err(&pdev->dev, "bgpio_init failed\n");
+		goto err0;
+	}
+
+	/* Setup pointers to chip functions */
+	bgc->gc.label = devm_kstrdup(&pdev->dev, pdev->dev.of_node->full_name,
+				     GFP_KERNEL);
+	if (!bgc->gc.label) {
+		ret = -ENOMEM;
+		goto err0;
+	}
+
+	bgc->gc.base = -1;
+	bgc->gc.ngpio = (u16)(uintptr_t)of_id->data;
+	bgc->gc.of_gpio_n_cells = 2;
+	bgc->gc.of_node = pdev->dev.of_node;
+
+	/* This function adds a memory mapped GPIO chip */
+	ret = gpiochip_add(&bgc->gc);
+	if (ret)
+		goto err0;
+
+	return 0;
+err0:
+	iounmap(regs);
+	pr_err("%s: GPIO chip registration failed\n",
+			pdev->dev.of_node->full_name);
+	return ret;
+};
+
+static struct platform_driver gef_gpio_driver = {
+	.driver = {
+		.name		= "gef-gpio",
+		.of_match_table	= gef_gpio_ids,
+	},
+};
+module_platform_driver_probe(gef_gpio_driver, gef_gpio_probe);
 
 MODULE_DESCRIPTION("GE I/O FPGA GPIO driver");
 MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com");

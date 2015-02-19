@@ -45,6 +45,7 @@
 #define GSC_DST_FMT			(1 << 2)
 #define GSC_CTX_M2M			(1 << 3)
 #define GSC_CTX_STOP_REQ		(1 << 6)
+#define	GSC_CTX_ABORT			(1 << 7)
 
 enum gsc_dev_flags {
 	/* for global */
@@ -116,7 +117,7 @@ enum gsc_yuv_fmt {
  * @flags: flags indicating which operation mode format applies to
  */
 struct gsc_fmt {
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 	char	*name;
 	u32	pixelformat;
 	u32	color;
@@ -343,6 +344,7 @@ struct gsc_dev {
 	unsigned long			state;
 	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		vdev;
+	struct v4l2_device		v4l2_dev;
 };
 
 /**
@@ -462,18 +464,6 @@ static inline void gsc_hw_clear_irq(struct gsc_dev *dev, int irq)
 	else if (irq == GSC_IRQ_DONE)
 		cfg |= GSC_IRQ_STATUS_FRM_DONE_IRQ;
 	writel(cfg, dev->regs + GSC_IRQ);
-}
-
-static inline void gsc_lock(struct vb2_queue *vq)
-{
-	struct gsc_ctx *ctx = vb2_get_drv_priv(vq);
-	mutex_lock(&ctx->gsc_dev->lock);
-}
-
-static inline void gsc_unlock(struct vb2_queue *vq)
-{
-	struct gsc_ctx *ctx = vb2_get_drv_priv(vq);
-	mutex_unlock(&ctx->gsc_dev->lock);
 }
 
 static inline bool gsc_ctx_state_is_set(u32 mask, struct gsc_ctx *ctx)

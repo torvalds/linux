@@ -184,15 +184,16 @@ static void alx_schedule_reset(struct alx_priv *alx)
 	schedule_work(&alx->reset_wk);
 }
 
-static bool alx_clean_rx_irq(struct alx_priv *alx, int budget)
+static int alx_clean_rx_irq(struct alx_priv *alx, int budget)
 {
 	struct alx_rx_queue *rxq = &alx->rxq;
 	struct alx_rrd *rrd;
 	struct alx_buffer *rxb;
 	struct sk_buff *skb;
 	u16 length, rfd_cleaned = 0;
+	int work = 0;
 
-	while (budget > 0) {
+	while (work < budget) {
 		rrd = &rxq->rrd[rxq->rrd_read_idx];
 		if (!(rrd->word3 & cpu_to_le32(1 << RRD_UPDATED_SHIFT)))
 			break;
@@ -203,7 +204,7 @@ static bool alx_clean_rx_irq(struct alx_priv *alx, int budget)
 		    ALX_GET_FIELD(le32_to_cpu(rrd->word0),
 				  RRD_NOR) != 1) {
 			alx_schedule_reset(alx);
-			return 0;
+			return work;
 		}
 
 		rxb = &rxq->bufs[rxq->read_idx];
@@ -243,7 +244,7 @@ static bool alx_clean_rx_irq(struct alx_priv *alx, int budget)
 		}
 
 		napi_gro_receive(&alx->napi, skb);
-		budget--;
+		work++;
 
 next_pkt:
 		if (++rxq->read_idx == alx->rx_ringsz)
@@ -258,21 +259,22 @@ next_pkt:
 	if (rfd_cleaned)
 		alx_refill_rx_ring(alx, GFP_ATOMIC);
 
-	return budget > 0;
+	return work;
 }
 
 static int alx_poll(struct napi_struct *napi, int budget)
 {
 	struct alx_priv *alx = container_of(napi, struct alx_priv, napi);
 	struct alx_hw *hw = &alx->hw;
-	bool complete = true;
 	unsigned long flags;
+	bool tx_complete;
+	int work;
 
-	complete = alx_clean_tx_irq(alx) &&
-		   alx_clean_rx_irq(alx, budget);
+	tx_complete = alx_clean_tx_irq(alx);
+	work = alx_clean_rx_irq(alx, budget);
 
-	if (!complete)
-		return 1;
+	if (!tx_complete || work == budget)
+		return budget;
 
 	napi_complete(&alx->napi);
 
@@ -284,7 +286,7 @@ static int alx_poll(struct napi_struct *napi, int budget)
 
 	alx_post_write(hw);
 
-	return 0;
+	return work;
 }
 
 static irqreturn_t alx_intr_handle(struct alx_priv *alx, u32 intr)
@@ -535,7 +537,7 @@ static int alx_alloc_descriptors(struct alx_priv *alx)
 	if (!alx->descmem.virt)
 		goto out_free;
 
-	alx->txq.tpd = (void *)alx->descmem.virt;
+	alx->txq.tpd = alx->descmem.virt;
 	alx->txq.tpd_dma = alx->descmem.dma;
 
 	/* alignment requirement for next block */
@@ -1097,7 +1099,7 @@ static netdev_tx_t alx_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 drop:
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -1166,10 +1168,60 @@ static void alx_poll_controller(struct net_device *netdev)
 }
 #endif
 
+static struct rtnl_link_stats64 *alx_get_stats64(struct net_device *dev,
+					struct rtnl_link_stats64 *net_stats)
+{
+	struct alx_priv *alx = netdev_priv(dev);
+	struct alx_hw_stats *hw_stats = &alx->hw.stats;
+
+	spin_lock(&alx->stats_lock);
+
+	alx_update_hw_stats(&alx->hw);
+
+	net_stats->tx_bytes   = hw_stats->tx_byte_cnt;
+	net_stats->rx_bytes   = hw_stats->rx_byte_cnt;
+	net_stats->multicast  = hw_stats->rx_mcast;
+	net_stats->collisions = hw_stats->tx_single_col +
+				hw_stats->tx_multi_col +
+				hw_stats->tx_late_col +
+				hw_stats->tx_abort_col;
+
+	net_stats->rx_errors  = hw_stats->rx_frag +
+				hw_stats->rx_fcs_err +
+				hw_stats->rx_len_err +
+				hw_stats->rx_ov_sz +
+				hw_stats->rx_ov_rrd +
+				hw_stats->rx_align_err +
+				hw_stats->rx_ov_rxf;
+
+	net_stats->rx_fifo_errors   = hw_stats->rx_ov_rxf;
+	net_stats->rx_length_errors = hw_stats->rx_len_err;
+	net_stats->rx_crc_errors    = hw_stats->rx_fcs_err;
+	net_stats->rx_frame_errors  = hw_stats->rx_align_err;
+	net_stats->rx_dropped       = hw_stats->rx_ov_rrd;
+
+	net_stats->tx_errors = hw_stats->tx_late_col +
+			       hw_stats->tx_abort_col +
+			       hw_stats->tx_underrun +
+			       hw_stats->tx_trunc;
+
+	net_stats->tx_aborted_errors = hw_stats->tx_abort_col;
+	net_stats->tx_fifo_errors    = hw_stats->tx_underrun;
+	net_stats->tx_window_errors  = hw_stats->tx_late_col;
+
+	net_stats->tx_packets = hw_stats->tx_ok + net_stats->tx_errors;
+	net_stats->rx_packets = hw_stats->rx_ok + net_stats->rx_errors;
+
+	spin_unlock(&alx->stats_lock);
+
+	return net_stats;
+}
+
 static const struct net_device_ops alx_netdev_ops = {
 	.ndo_open               = alx_open,
 	.ndo_stop               = alx_stop,
 	.ndo_start_xmit         = alx_start_xmit,
+	.ndo_get_stats64        = alx_get_stats64,
 	.ndo_set_rx_mode        = alx_set_rx_mode,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = alx_set_mac_address,
@@ -1188,7 +1240,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct alx_priv *alx;
 	struct alx_hw *hw;
 	bool phy_configured;
-	int bars, pm_cap, err;
+	int bars, err;
 
 	err = pci_enable_device_mem(pdev);
 	if (err)
@@ -1198,19 +1250,13 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * shared register for the high 32 bits, so only a single, aligned,
 	 * 4 GB physical address range can be used for descriptors.
 	 */
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) &&
-	    !dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
 		dev_dbg(&pdev->dev, "DMA to 64-BIT addresses\n");
 	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err) {
-				dev_err(&pdev->dev,
-					"No usable DMA config, aborting\n");
-				goto out_pci_disable;
-			}
+			dev_err(&pdev->dev, "No usable DMA config, aborting\n");
+			goto out_pci_disable;
 		}
 	}
 
@@ -1225,17 +1271,12 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_enable_pcie_error_reporting(pdev);
 	pci_set_master(pdev);
 
-	pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
-	if (pm_cap == 0) {
+	if (!pdev->pm_cap) {
 		dev_err(&pdev->dev,
 			"Can't find power management capability, aborting\n");
 		err = -EIO;
 		goto out_pci_release;
 	}
-
-	err = pci_set_power_state(pdev, PCI_D0);
-	if (err)
-		goto out_pci_release;
 
 	netdev = alloc_etherdev(sizeof(*alx));
 	if (!netdev) {
@@ -1247,6 +1288,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	alx = netdev_priv(netdev);
 	spin_lock_init(&alx->hw.mdio_lock);
 	spin_lock_init(&alx->irq_lock);
+	spin_lock_init(&alx->stats_lock);
 	alx->dev = netdev;
 	alx->hw.pdev = pdev;
 	alx->msg_enable = NETIF_MSG_LINK | NETIF_MSG_HW | NETIF_MSG_IFUP |
@@ -1262,7 +1304,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	netdev->netdev_ops = &alx_netdev_ops;
-	SET_ETHTOOL_OPS(netdev, &alx_ethtool_ops);
+	netdev->ethtool_ops = &alx_ethtool_ops;
 	netdev->irq = pdev->irq;
 	netdev->watchdog_timeo = ALX_WATCHDOG_TIME;
 
@@ -1372,7 +1414,6 @@ static void alx_remove(struct pci_dev *pdev)
 
 	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	free_netdev(alx->dev);
 }
@@ -1394,6 +1435,9 @@ static int alx_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct alx_priv *alx = pci_get_drvdata(pdev);
+	struct alx_hw *hw = &alx->hw;
+
+	alx_reset_phy(hw);
 
 	if (!netif_running(alx->dev))
 		return 0;
@@ -1485,7 +1529,7 @@ static const struct pci_error_handlers alx_err_handlers = {
 	.resume         = alx_pci_error_resume,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(alx_pci_tbl) = {
+static const struct pci_device_id alx_pci_tbl[] = {
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_AR8161),
 	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_E2200),

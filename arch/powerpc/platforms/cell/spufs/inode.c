@@ -164,7 +164,7 @@ static void spufs_prune_dir(struct dentry *dir)
 	struct dentry *dentry, *tmp;
 
 	mutex_lock(&dir->d_inode->i_mutex);
-	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_u.d_child) {
+	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_child) {
 		spin_lock(&dentry->d_lock);
 		if (!(d_unhashed(dentry)) && dentry->d_inode) {
 			dget_dlock(dentry);
@@ -301,7 +301,7 @@ static int spufs_context_open(struct path *path)
 	int ret;
 	struct file *filp;
 
-	ret = get_unused_fd();
+	ret = get_unused_fd_flags(0);
 	if (ret < 0)
 		return ret;
 
@@ -518,7 +518,7 @@ static int spufs_gang_open(struct path *path)
 	int ret;
 	struct file *filp;
 
-	ret = get_unused_fd();
+	ret = get_unused_fd_flags(0);
 	if (ret < 0)
 		return ret;
 
@@ -620,12 +620,16 @@ spufs_parse_options(struct super_block *sb, char *options, struct inode *root)
 		case Opt_uid:
 			if (match_int(&args[0], &option))
 				return 0;
-			root->i_uid = option;
+			root->i_uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(root->i_uid))
+				return 0;
 			break;
 		case Opt_gid:
 			if (match_int(&args[0], &option))
 				return 0;
-			root->i_gid = option;
+			root->i_gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(root->i_gid))
+				return 0;
 			break;
 		case Opt_mode:
 			if (match_octal(&args[0], &option))

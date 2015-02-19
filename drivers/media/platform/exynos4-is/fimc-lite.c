@@ -30,7 +30,7 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 
 #include "common.h"
 #include "fimc-core.h"
@@ -48,7 +48,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_YCBYCR422,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.flags		= FMT_FLAGS_YUV,
 	}, {
 		.name		= "YUV 4:2:2 packed, CbYCrY",
@@ -57,7 +57,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_CBYCRY422,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_UYVY8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 		.flags		= FMT_FLAGS_YUV,
 	}, {
 		.name		= "YUV 4:2:2 packed, CrYCbY",
@@ -66,7 +66,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_CRYCBY422,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_VYUY8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
 		.flags		= FMT_FLAGS_YUV,
 	}, {
 		.name		= "YUV 4:2:2 packed, YCrYCb",
@@ -75,7 +75,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 16 },
 		.color		= FIMC_FMT_YCRYCB422,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_YVYU8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
 		.flags		= FMT_FLAGS_YUV,
 	}, {
 		.name		= "RAW8 (GRBG)",
@@ -84,25 +84,25 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.depth		= { 8 },
 		.color		= FIMC_FMT_RAW8,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_SGRBG8_1X8,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG8_1X8,
 		.flags		= FMT_FLAGS_RAW_BAYER,
 	}, {
 		.name		= "RAW10 (GRBG)",
 		.fourcc		= V4L2_PIX_FMT_SGRBG10,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
-		.depth		= { 10 },
+		.depth		= { 16 },
 		.color		= FIMC_FMT_RAW10,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_SGRBG10_1X10,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
 		.flags		= FMT_FLAGS_RAW_BAYER,
 	}, {
 		.name		= "RAW12 (GRBG)",
 		.fourcc		= V4L2_PIX_FMT_SGRBG12,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
-		.depth		= { 12 },
+		.depth		= { 16 },
 		.color		= FIMC_FMT_RAW12,
 		.memplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_SGRBG12_1X12,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG12_1X12,
 		.flags		= FMT_FLAGS_RAW_BAYER,
 	},
 };
@@ -350,14 +350,14 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 	return 0;
 }
 
-static int stop_streaming(struct vb2_queue *q)
+static void stop_streaming(struct vb2_queue *q)
 {
 	struct fimc_lite *fimc = q->drv_priv;
 
 	if (!fimc_lite_active(fimc))
-		return -EINVAL;
+		return;
 
-	return fimc_lite_stop_capture(fimc, false);
+	fimc_lite_stop_capture(fimc, false);
 }
 
 static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
@@ -546,7 +546,7 @@ static int fimc_lite_release(struct file *file)
 		mutex_unlock(&entity->parent->graph_mutex);
 	}
 
-	vb2_fop_release(file);
+	_vb2_fop_release(file, NULL);
 	pm_runtime_put(&fimc->pdev->dev);
 	clear_bit(ST_FLITE_SUSPENDED, &fimc->state);
 
@@ -1313,7 +1313,7 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct flite_buffer);
 	q->drv_priv = fimc;
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &fimc->lock;
 
 	ret = vb2_queue_init(q);
@@ -1504,16 +1504,17 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
+	if (!dev->of_node)
+		return -ENODEV;
+
 	fimc = devm_kzalloc(dev, sizeof(*fimc), GFP_KERNEL);
 	if (!fimc)
 		return -ENOMEM;
 
-	if (dev->of_node) {
-		of_id = of_match_node(flite_of_match, dev->of_node);
-		if (of_id)
-			drv_data = (struct flite_drvdata *)of_id->data;
-		fimc->index = of_alias_get_id(dev->of_node, "fimc-lite");
-	}
+	of_id = of_match_node(flite_of_match, dev->of_node);
+	if (of_id)
+		drv_data = (struct flite_drvdata *)of_id->data;
+	fimc->index = of_alias_get_id(dev->of_node, "fimc-lite");
 
 	if (!drv_data || fimc->index >= drv_data->num_instances ||
 						fimc->index < 0) {
@@ -1548,42 +1549,46 @@ static int fimc_lite_probe(struct platform_device *pdev)
 			       0, dev_name(dev), fimc);
 	if (ret) {
 		dev_err(dev, "Failed to install irq (%d)\n", ret);
-		goto err_clk;
+		goto err_clk_put;
 	}
 
 	/* The video node will be created within the subdev's registered() op */
 	ret = fimc_lite_create_capture_subdev(fimc);
 	if (ret)
-		goto err_clk;
+		goto err_clk_put;
 
 	platform_set_drvdata(pdev, fimc);
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		goto err_sd;
+
+	if (!pm_runtime_enabled(dev)) {
+		ret = clk_enable(fimc->clock);
+		if (ret < 0)
+			goto err_sd;
+	}
 
 	fimc->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 	if (IS_ERR(fimc->alloc_ctx)) {
 		ret = PTR_ERR(fimc->alloc_ctx);
-		goto err_pm;
+		goto err_clk_dis;
 	}
-
-	pm_runtime_put(dev);
 
 	fimc_lite_set_default_config(fimc);
 
 	dev_dbg(dev, "FIMC-LITE.%d registered successfully\n",
 		fimc->index);
 	return 0;
-err_pm:
-	pm_runtime_put(dev);
+
+err_clk_dis:
+	if (!pm_runtime_enabled(dev))
+		clk_disable(fimc->clock);
 err_sd:
 	fimc_lite_unregister_capture_subdev(fimc);
-err_clk:
+err_clk_put:
 	fimc_lite_clk_put(fimc);
 	return ret;
 }
 
+#ifdef CONFIG_PM
 static int fimc_lite_runtime_resume(struct device *dev)
 {
 	struct fimc_lite *fimc = dev_get_drvdata(dev);
@@ -1599,6 +1604,7 @@ static int fimc_lite_runtime_suspend(struct device *dev)
 	clk_disable(fimc->clock);
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int fimc_lite_resume(struct device *dev)
@@ -1714,7 +1720,6 @@ static struct platform_driver fimc_lite_driver = {
 	.driver = {
 		.of_match_table = flite_of_match,
 		.name		= FIMC_LITE_DRV_NAME,
-		.owner		= THIS_MODULE,
 		.pm		= &fimc_lite_pm_ops,
 	}
 };

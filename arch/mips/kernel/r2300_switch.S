@@ -67,7 +67,7 @@ LEAF(resume)
 1:
 
 #if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
-	PTR_L	t8, __stack_chk_guard
+	PTR_LA	t8, __stack_chk_guard
 	LONG_L	t9, TASK_STACK_CANARY(a1)
 	LONG_S	t9, 0(t8)
 #endif
@@ -120,6 +120,9 @@ LEAF(_restore_fp)
 
 #define FPU_DEFAULT  0x00000000
 
+	.set push
+	SET_HARDFLOAT
+
 LEAF(_init_fpu)
 	mfc0	t0, CP0_STATUS
 	li	t1, ST0_CU1
@@ -165,3 +168,5 @@ LEAF(_init_fpu)
 	mtc1	t0, $f31
 	jr	ra
 	END(_init_fpu)
+
+	.set pop

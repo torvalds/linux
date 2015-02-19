@@ -31,10 +31,10 @@
 #define LZ4_DEFAULT_UNCOMPRESSED_CHUNK_SIZE (8 << 20)
 #define ARCHIVE_MAGICNUMBER 0x184C2102
 
-STATIC inline int INIT unlz4(u8 *input, int in_len,
-				int (*fill) (void *, unsigned int),
-				int (*flush) (void *, unsigned int),
-				u8 *output, int *posp,
+STATIC inline int INIT unlz4(u8 *input, long in_len,
+				long (*fill)(void *, unsigned long),
+				long (*flush)(void *, unsigned long),
+				u8 *output, long *posp,
 				void (*error) (char *x))
 {
 	int ret = -1;
@@ -43,7 +43,7 @@ STATIC inline int INIT unlz4(u8 *input, int in_len,
 	u8 *inp;
 	u8 *inp_start;
 	u8 *outp;
-	int size = in_len;
+	long size = in_len;
 #ifdef PREBOOT
 	size_t out_len = get_unaligned_le32(input + in_len);
 #endif
@@ -83,13 +83,20 @@ STATIC inline int INIT unlz4(u8 *input, int in_len,
 	if (posp)
 		*posp = 0;
 
-	if (fill)
-		fill(inp, 4);
+	if (fill) {
+		size = fill(inp, 4);
+		if (size < 4) {
+			error("data corrupted");
+			goto exit_2;
+		}
+	}
 
 	chunksize = get_unaligned_le32(inp);
 	if (chunksize == ARCHIVE_MAGICNUMBER) {
-		inp += 4;
-		size -= 4;
+		if (!fill) {
+			inp += 4;
+			size -= 4;
+		}
 	} else {
 		error("invalid header");
 		goto exit_2;
@@ -100,29 +107,44 @@ STATIC inline int INIT unlz4(u8 *input, int in_len,
 
 	for (;;) {
 
-		if (fill)
-			fill(inp, 4);
+		if (fill) {
+			size = fill(inp, 4);
+			if (size == 0)
+				break;
+			if (size < 4) {
+				error("data corrupted");
+				goto exit_2;
+			}
+		}
 
 		chunksize = get_unaligned_le32(inp);
 		if (chunksize == ARCHIVE_MAGICNUMBER) {
-			inp += 4;
-			size -= 4;
+			if (!fill) {
+				inp += 4;
+				size -= 4;
+			}
 			if (posp)
 				*posp += 4;
 			continue;
 		}
-		inp += 4;
-		size -= 4;
+
 
 		if (posp)
 			*posp += 4;
 
-		if (fill) {
+		if (!fill) {
+			inp += 4;
+			size -= 4;
+		} else {
 			if (chunksize > lz4_compressbound(uncomp_chunksize)) {
 				error("chunk length is longer than allocated");
 				goto exit_2;
 			}
-			fill(inp, chunksize);
+			size = fill(inp, chunksize);
+			if (size < chunksize) {
+				error("data corrupted");
+				goto exit_2;
+			}
 		}
 #ifdef PREBOOT
 		if (out_len >= uncomp_chunksize) {
@@ -141,6 +163,7 @@ STATIC inline int INIT unlz4(u8 *input, int in_len,
 			goto exit_2;
 		}
 
+		ret = -1;
 		if (flush && flush(outp, dest_len) != dest_len)
 			goto exit_2;
 		if (output)
@@ -148,18 +171,17 @@ STATIC inline int INIT unlz4(u8 *input, int in_len,
 		if (posp)
 			*posp += chunksize;
 
-		size -= chunksize;
+		if (!fill) {
+			size -= chunksize;
 
-		if (size == 0)
-			break;
-		else if (size < 0) {
-			error("data corrupted");
-			goto exit_2;
+			if (size == 0)
+				break;
+			else if (size < 0) {
+				error("data corrupted");
+				goto exit_2;
+			}
+			inp += chunksize;
 		}
-
-		inp += chunksize;
-		if (fill)
-			inp = inp_start;
 	}
 
 	ret = 0;
@@ -174,11 +196,11 @@ exit_0:
 }
 
 #ifdef PREBOOT
-STATIC int INIT decompress(unsigned char *buf, int in_len,
-			      int(*fill)(void*, unsigned int),
-			      int(*flush)(void*, unsigned int),
+STATIC int INIT decompress(unsigned char *buf, long in_len,
+			      long (*fill)(void*, unsigned long),
+			      long (*flush)(void*, unsigned long),
 			      unsigned char *output,
-			      int *posp,
+			      long *posp,
 			      void(*error)(char *x)
 	)
 {

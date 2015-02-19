@@ -112,7 +112,7 @@ static void cache_init(void)
 	unsigned long ccr, flags;
 
 	jump_to_uncached();
-	ccr = __raw_readl(CCR);
+	ccr = __raw_readl(SH_CCR);
 
 	/*
 	 * At this point we don't know whether the cache is enabled or not - a
@@ -189,7 +189,7 @@ static void cache_init(void)
 
 	l2_cache_init();
 
-	__raw_writel(flags, CCR);
+	__raw_writel(flags, SH_CCR);
 	back_to_cached();
 }
 #else

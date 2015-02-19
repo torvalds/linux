@@ -257,11 +257,11 @@ static ssize_t chp_status_write(struct device *dev,
 	if (!num_args)
 		return count;
 
-	if (!strnicmp(cmd, "on", 2) || !strcmp(cmd, "1")) {
+	if (!strncasecmp(cmd, "on", 2) || !strcmp(cmd, "1")) {
 		mutex_lock(&cp->lock);
 		error = s390_vary_chpid(cp->chpid, 1);
 		mutex_unlock(&cp->lock);
-	} else if (!strnicmp(cmd, "off", 3) || !strcmp(cmd, "0")) {
+	} else if (!strncasecmp(cmd, "off", 3) || !strcmp(cmd, "0")) {
 		mutex_lock(&cp->lock);
 		error = s390_vary_chpid(cp->chpid, 0);
 		mutex_unlock(&cp->lock);
@@ -509,7 +509,7 @@ out:
  * On success return a newly allocated copy of the channel-path description
  * data associated with the given channel-path ID. Return %NULL on error.
  */
-void *chp_get_chp_desc(struct chp_id chpid)
+struct channel_path_desc *chp_get_chp_desc(struct chp_id chpid)
 {
 	struct channel_path *chp;
 	struct channel_path_desc *desc;

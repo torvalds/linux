@@ -14,9 +14,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef RT2800LIB_H
@@ -225,5 +223,9 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 int rt2800_get_survey(struct ieee80211_hw *hw, int idx,
 		      struct survey_info *survey);
 void rt2800_disable_wpdma(struct rt2x00_dev *rt2x00dev);
+
+void rt2800_get_txwi_rxwi_size(struct rt2x00_dev *rt2x00dev,
+			       unsigned short *txwi_size,
+			       unsigned short *rxwi_size);
 
 #endif /* RT2800LIB_H */

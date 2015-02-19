@@ -64,7 +64,6 @@ static struct genl_family net_drop_monitor_family = {
 	.hdrsize        = 0,
 	.name           = "NET_DM",
 	.version        = 2,
-	.maxattr        = NET_DM_CMD_MAX,
 };
 
 static DEFINE_PER_CPU(struct per_cpu_dm_data, dm_cpu_data);
@@ -106,6 +105,10 @@ static struct sk_buff *reset_per_cpu_data(struct per_cpu_dm_data *data)
 	return skb;
 }
 
+static struct genl_multicast_group dropmon_mcgrps[] = {
+	{ .name = "events", },
+};
+
 static void send_dm_alert(struct work_struct *work)
 {
 	struct sk_buff *skb;
@@ -116,7 +119,8 @@ static void send_dm_alert(struct work_struct *work)
 	skb = reset_per_cpu_data(data);
 
 	if (skb)
-		genlmsg_multicast(skb, 0, NET_DM_GRP_ALERT, GFP_KERNEL);
+		genlmsg_multicast(&net_drop_monitor_family, skb, 0,
+				  0, GFP_KERNEL);
 }
 
 /*
@@ -142,7 +146,7 @@ static void trace_drop_common(struct sk_buff *skb, void *location)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	data = &__get_cpu_var(dm_cpu_data);
+	data = this_cpu_ptr(&dm_cpu_data);
 	spin_lock(&data->lock);
 	dskb = data->skb;
 
@@ -285,10 +289,8 @@ static int net_dm_cmd_trace(struct sk_buff *skb,
 	switch (info->genlhdr->cmd) {
 	case NET_DM_CMD_START:
 		return set_all_monitor_traces(TRACE_ON);
-		break;
 	case NET_DM_CMD_STOP:
 		return set_all_monitor_traces(TRACE_OFF);
-		break;
 	}
 
 	return -ENOTSUPP;
@@ -333,7 +335,7 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct genl_ops dropmon_ops[] = {
+static const struct genl_ops dropmon_ops[] = {
 	{
 		.cmd = NET_DM_CMD_CONFIG,
 		.doit = net_dm_cmd_config,
@@ -364,13 +366,13 @@ static int __init init_net_drop_monitor(void)
 		return -ENOSPC;
 	}
 
-	rc = genl_register_family_with_ops(&net_drop_monitor_family,
-					   dropmon_ops,
-					   ARRAY_SIZE(dropmon_ops));
+	rc = genl_register_family_with_ops_groups(&net_drop_monitor_family,
+						  dropmon_ops, dropmon_mcgrps);
 	if (rc) {
 		pr_err("Could not create drop monitor netlink family\n");
 		return rc;
 	}
+	WARN_ON(net_drop_monitor_family.mcgrp_offset != NET_DM_GRP_ALERT);
 
 	rc = register_netdevice_notifier(&dropmon_net_notifier);
 	if (rc < 0) {

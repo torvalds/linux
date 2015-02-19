@@ -30,6 +30,8 @@
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
@@ -357,8 +359,7 @@ MODULE_DEVICE_TABLE(of, electra_cf_match);
 
 static struct platform_driver electra_cf_driver = {
 	.driver = {
-		.name = (char *)driver_name,
-		.owner = THIS_MODULE,
+		.name = driver_name,
 		.of_match_table = electra_cf_match,
 	},
 	.probe	  = electra_cf_probe,

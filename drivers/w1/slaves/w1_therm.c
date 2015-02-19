@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "../w1.h"
@@ -58,26 +59,35 @@ MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS28EA00));
 static int w1_strong_pullup = 1;
 module_param_named(strong_pullup, w1_strong_pullup, int, 0);
 
-
-static ssize_t w1_therm_read(struct device *device,
-	struct device_attribute *attr, char *buf);
-
-static struct device_attribute w1_therm_attr =
-	__ATTR(w1_slave, S_IRUGO, w1_therm_read, NULL);
-
 static int w1_therm_add_slave(struct w1_slave *sl)
 {
-	return device_create_file(&sl->dev, &w1_therm_attr);
+	sl->family_data = kzalloc(9, GFP_KERNEL);
+	if (!sl->family_data)
+		return -ENOMEM;
+	return 0;
 }
 
 static void w1_therm_remove_slave(struct w1_slave *sl)
 {
-	device_remove_file(&sl->dev, &w1_therm_attr);
+	kfree(sl->family_data);
+	sl->family_data = NULL;
 }
+
+static ssize_t w1_slave_show(struct device *device,
+	struct device_attribute *attr, char *buf);
+
+static DEVICE_ATTR_RO(w1_slave);
+
+static struct attribute *w1_therm_attrs[] = {
+	&dev_attr_w1_slave.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(w1_therm);
 
 static struct w1_family_ops w1_therm_fops = {
 	.add_slave	= w1_therm_add_slave,
 	.remove_slave	= w1_therm_remove_slave,
+	.groups		= w1_therm_groups,
 };
 
 static struct w1_family w1_therm_family_DS18S20 = {
@@ -178,7 +188,7 @@ static inline int w1_convert_temp(u8 rom[9], u8 fid)
 }
 
 
-static ssize_t w1_therm_read(struct device *device,
+static ssize_t w1_slave_show(struct device *device,
 	struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
@@ -259,12 +269,13 @@ static ssize_t w1_therm_read(struct device *device,
 	c -= snprintf(buf + PAGE_SIZE - c, c, ": crc=%02x %s\n",
 			   crc, (verdict) ? "YES" : "NO");
 	if (verdict)
-		memcpy(sl->rom, rom, sizeof(sl->rom));
+		memcpy(sl->family_data, rom, sizeof(rom));
 	else
 		dev_warn(device, "Read failed CRC check\n");
 
 	for (i = 0; i < 9; ++i)
-		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", sl->rom[i]);
+		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ",
+			      ((u8 *)sl->family_data)[i]);
 
 	c -= snprintf(buf + PAGE_SIZE - c, c, "t=%d\n",
 		w1_convert_temp(rom, sl->family->fid));

@@ -82,12 +82,16 @@
 #define	CG_SPLL_FUNC_CNTL_2				0x604
 #define		SCLK_MUX_SEL(x)				((x) << 0)
 #define		SCLK_MUX_SEL_MASK			(0x1ff << 0)
+#define		SCLK_MUX_UPDATE				(1 << 26)
 #define	CG_SPLL_FUNC_CNTL_3				0x608
 #define		SPLL_FB_DIV(x)				((x) << 0)
 #define		SPLL_FB_DIV_MASK			(0x3ffffff << 0)
 #define		SPLL_DITHEN				(1 << 28)
+#define	CG_SPLL_STATUS					0x60c
+#define		SPLL_CHG_STATUS				(1 << 1)
 
 #define MPLL_CNTL_MODE                                  0x61c
+#       define MPLL_MCLK_SEL                            (1 << 11)
 #       define SS_SSEN                                  (1 << 24)
 #       define SS_DSMODE_EN                             (1 << 25)
 
@@ -505,6 +509,7 @@
 #define DCCG_AUDIO_DTO1_MODULE            0x05c4
 #define DCCG_AUDIO_DTO1_LOAD              0x05c8
 #define DCCG_AUDIO_DTO1_CNTL              0x05cc
+#       define DCCG_AUDIO_DTO1_USE_512FBR_DTO (1 << 3)
 
 /* DCE 4.0 AFMT */
 #define HDMI_CONTROL                         0x7030
@@ -513,10 +518,11 @@
 #       define HDMI_ERROR_ACK                (1 << 8)
 #       define HDMI_ERROR_MASK               (1 << 9)
 #       define HDMI_DEEP_COLOR_ENABLE        (1 << 24)
-#       define HDMI_DEEP_COLOR_DEPTH         (((x) & 3) << 28)
+#       define HDMI_DEEP_COLOR_DEPTH(x)      (((x) & 3) << 28)
 #       define HDMI_24BIT_DEEP_COLOR         0
 #       define HDMI_30BIT_DEEP_COLOR         1
 #       define HDMI_36BIT_DEEP_COLOR         2
+#       define HDMI_DEEP_COLOR_DEPTH_MASK    (3 << 28)
 #define HDMI_STATUS                          0x7034
 #       define HDMI_ACTIVE_AVMUTE            (1 << 0)
 #       define HDMI_AUDIO_PACKET_ERROR       (1 << 16)
@@ -714,6 +720,13 @@
 #define AFMT_GENERIC0_7                      0x7138
 
 /* DCE4/5 ELD audio interface */
+#define AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER          0x5f78
+#define		SPEAKER_ALLOCATION(x)			(((x) & 0x7f) << 0)
+#define		SPEAKER_ALLOCATION_MASK			(0x7f << 0)
+#define		SPEAKER_ALLOCATION_SHIFT		0
+#define		HDMI_CONNECTION				(1 << 16)
+#define		DP_CONNECTION				(1 << 17)
+
 #define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR0        0x5f84 /* LPCM */
 #define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR1        0x5f88 /* AC3 */
 #define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR2        0x5f8c /* MPEG1 */
@@ -742,6 +755,44 @@
  * bit5 = 176.4 kHz
  * bit6 = 192 kHz
  */
+
+#define AZ_CHANNEL_COUNT_CONTROL                          0x5fe4
+#       define HBR_CHANNEL_COUNT(x)                       (((x) & 0x7) << 0)
+#       define COMPRESSED_CHANNEL_COUNT(x)                (((x) & 0x7) << 4)
+/* HBR_CHANNEL_COUNT, COMPRESSED_CHANNEL_COUNT
+ * 0   = use stream header
+ * 1-7 = channel count - 1
+ */
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_LIPSYNC         0x5fe8
+#       define VIDEO_LIPSYNC(x)                           (((x) & 0xff) << 0)
+#       define AUDIO_LIPSYNC(x)                           (((x) & 0xff) << 8)
+/* VIDEO_LIPSYNC, AUDIO_LIPSYNC
+ * 0   = invalid
+ * x   = legal delay value
+ * 255 = sync not supported
+ */
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_HBR             0x5fec
+#       define HBR_CAPABLE                                (1 << 0) /* enabled by default */
+
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_AV_ASSOCIATION0 0x5ff4
+#       define DISPLAY0_TYPE(x)                           (((x) & 0x3) << 0)
+#       define DISPLAY_TYPE_NONE                   0
+#       define DISPLAY_TYPE_HDMI                   1
+#       define DISPLAY_TYPE_DP                     2
+#       define DISPLAY0_ID(x)                             (((x) & 0x3f) << 2)
+#       define DISPLAY1_TYPE(x)                           (((x) & 0x3) << 8)
+#       define DISPLAY1_ID(x)                             (((x) & 0x3f) << 10)
+#       define DISPLAY2_TYPE(x)                           (((x) & 0x3) << 16)
+#       define DISPLAY2_ID(x)                             (((x) & 0x3f) << 18)
+#       define DISPLAY3_TYPE(x)                           (((x) & 0x3) << 24)
+#       define DISPLAY3_ID(x)                             (((x) & 0x3f) << 26)
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_AV_ASSOCIATION1 0x5ff8
+#       define DISPLAY4_TYPE(x)                           (((x) & 0x3) << 0)
+#       define DISPLAY4_ID(x)                             (((x) & 0x3f) << 2)
+#       define DISPLAY5_TYPE(x)                           (((x) & 0x3) << 8)
+#       define DISPLAY5_ID(x)                             (((x) & 0x3f) << 10)
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_AV_NUMBER       0x5ffc
+#       define NUMBER_OF_DISPLAY_ID(x)                    (((x) & 0x7) << 0)
 
 #define AZ_HOT_PLUG_CONTROL                               0x5e78
 #       define AZ_FORCE_CODEC_WAKE                        (1 << 0)
@@ -1153,6 +1204,10 @@
 #       define LATENCY_LOW_WATERMARK(x)                   ((x) << 0)
 #       define LATENCY_HIGH_WATERMARK(x)                  ((x) << 16)
 
+#define	PIPE0_DMIF_BUFFER_CONTROL			  0x0ca0
+#       define DMIF_BUFFERS_ALLOCATED(x)                  ((x) << 0)
+#       define DMIF_BUFFERS_ALLOCATED_COMPLETED           (1 << 4)
+
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
 #       define IH_IB_SIZE(x)                              ((x) << 1) /* log2 */
@@ -1300,6 +1355,38 @@
 #       define DC_HPDx_CONNECTION_TIMER(x)                ((x) << 0)
 #       define DC_HPDx_RX_INT_TIMER(x)                    ((x) << 16)
 #       define DC_HPDx_EN                                 (1 << 28)
+
+/* DCE4/5/6 FMT blocks */
+#define FMT_DYNAMIC_EXP_CNTL                 0x6fb4
+#       define FMT_DYNAMIC_EXP_EN            (1 << 0)
+#       define FMT_DYNAMIC_EXP_MODE          (1 << 4)
+        /* 0 = 10bit -> 12bit, 1 = 8bit -> 12bit */
+#define FMT_CONTROL                          0x6fb8
+#       define FMT_PIXEL_ENCODING            (1 << 16)
+        /* 0 = RGB 4:4:4 or YCbCr 4:4:4, 1 = YCbCr 4:2:2 */
+#define FMT_BIT_DEPTH_CONTROL                0x6fc8
+#       define FMT_TRUNCATE_EN               (1 << 0)
+#       define FMT_TRUNCATE_DEPTH            (1 << 4)
+#       define FMT_SPATIAL_DITHER_EN         (1 << 8)
+#       define FMT_SPATIAL_DITHER_MODE(x)    ((x) << 9)
+#       define FMT_SPATIAL_DITHER_DEPTH      (1 << 12)
+#       define FMT_FRAME_RANDOM_ENABLE       (1 << 13)
+#       define FMT_RGB_RANDOM_ENABLE         (1 << 14)
+#       define FMT_HIGHPASS_RANDOM_ENABLE    (1 << 15)
+#       define FMT_TEMPORAL_DITHER_EN        (1 << 16)
+#       define FMT_TEMPORAL_DITHER_DEPTH     (1 << 20)
+#       define FMT_TEMPORAL_DITHER_OFFSET(x) ((x) << 21)
+#       define FMT_TEMPORAL_LEVEL            (1 << 24)
+#       define FMT_TEMPORAL_DITHER_RESET     (1 << 25)
+#       define FMT_25FRC_SEL(x)              ((x) << 26)
+#       define FMT_50FRC_SEL(x)              ((x) << 28)
+#       define FMT_75FRC_SEL(x)              ((x) << 30)
+#define FMT_CLAMP_CONTROL                    0x6fe4
+#       define FMT_CLAMP_DATA_EN             (1 << 0)
+#       define FMT_CLAMP_COLOR_FORMAT(x)     ((x) << 16)
+#       define FMT_CLAMP_6BPC                0
+#       define FMT_CLAMP_8BPC                1
+#       define FMT_CLAMP_10BPC               2
 
 /* ASYNC DMA */
 #define DMA_RB_RPTR                                       0xd008
@@ -1490,7 +1577,7 @@
  * 6. COMMAND [29:22] | BYTE_COUNT [20:0]
  */
 #              define PACKET3_CP_DMA_DST_SEL(x)    ((x) << 20)
-                /* 0 - SRC_ADDR
+                /* 0 - DST_ADDR
 		 * 1 - GDS
 		 */
 #              define PACKET3_CP_DMA_ENGINE(x)     ((x) << 27)
@@ -1505,7 +1592,7 @@
 #              define PACKET3_CP_DMA_CP_SYNC       (1 << 31)
 /* COMMAND */
 #              define PACKET3_CP_DMA_DIS_WC        (1 << 21)
-#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 23)
+#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
                 /* 0 - none
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32

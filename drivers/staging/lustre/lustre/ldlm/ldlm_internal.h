@@ -36,23 +36,46 @@
 
 #define MAX_STRING_SIZE 128
 
-extern atomic_t ldlm_srv_namespace_nr;
-extern atomic_t ldlm_cli_namespace_nr;
+extern int ldlm_srv_namespace_nr;
+extern int ldlm_cli_namespace_nr;
 extern struct mutex ldlm_srv_namespace_lock;
 extern struct list_head ldlm_srv_namespace_list;
 extern struct mutex ldlm_cli_namespace_lock;
-extern struct list_head ldlm_cli_namespace_list;
+extern struct list_head ldlm_cli_active_namespace_list;
+extern struct list_head ldlm_cli_inactive_namespace_list;
 
-static inline atomic_t *ldlm_namespace_nr(ldlm_side_t client)
+static inline int ldlm_namespace_nr_read(ldlm_side_t client)
 {
 	return client == LDLM_NAMESPACE_SERVER ?
-		&ldlm_srv_namespace_nr : &ldlm_cli_namespace_nr;
+		ldlm_srv_namespace_nr : ldlm_cli_namespace_nr;
+}
+
+static inline void ldlm_namespace_nr_inc(ldlm_side_t client)
+{
+	if (client == LDLM_NAMESPACE_SERVER)
+		ldlm_srv_namespace_nr++;
+	else
+		ldlm_cli_namespace_nr++;
+}
+
+static inline void ldlm_namespace_nr_dec(ldlm_side_t client)
+{
+	if (client == LDLM_NAMESPACE_SERVER)
+		ldlm_srv_namespace_nr--;
+	else
+		ldlm_cli_namespace_nr--;
 }
 
 static inline struct list_head *ldlm_namespace_list(ldlm_side_t client)
 {
 	return client == LDLM_NAMESPACE_SERVER ?
-		&ldlm_srv_namespace_list : &ldlm_cli_namespace_list;
+		&ldlm_srv_namespace_list : &ldlm_cli_active_namespace_list;
+}
+
+static inline struct list_head *ldlm_namespace_inactive_list(ldlm_side_t client)
+{
+	return client == LDLM_NAMESPACE_SERVER ?
+		&ldlm_srv_namespace_list : &ldlm_cli_inactive_namespace_list;
 }
 
 static inline struct mutex *ldlm_namespace_lock(ldlm_side_t client)
@@ -60,6 +83,17 @@ static inline struct mutex *ldlm_namespace_lock(ldlm_side_t client)
 	return client == LDLM_NAMESPACE_SERVER ?
 		&ldlm_srv_namespace_lock : &ldlm_cli_namespace_lock;
 }
+
+/* ns_bref is the number of resources in this namespace */
+static inline int ldlm_ns_empty(struct ldlm_namespace *ns)
+{
+	return atomic_read(&ns->ns_bref) == 0;
+}
+
+void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *, ldlm_side_t);
+void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *,
+					    ldlm_side_t);
+struct ldlm_namespace *ldlm_namespace_first_locked(ldlm_side_t);
 
 /* ldlm_request.c */
 /* Cancel lru flag, it indicates we cancel aged locks. */
@@ -159,8 +193,8 @@ void ldlm_destroy_flock_export(struct obd_export *exp);
 void l_check_ns_lock(struct ldlm_namespace *ns);
 void l_check_no_ns_lock(struct ldlm_namespace *ns);
 
-extern proc_dir_entry_t *ldlm_svc_proc_dir;
-extern proc_dir_entry_t *ldlm_type_proc_dir;
+extern struct proc_dir_entry *ldlm_svc_proc_dir;
+extern struct proc_dir_entry *ldlm_type_proc_dir;
 
 struct ldlm_state {
 	struct ptlrpc_service *ldlm_cb_service;
@@ -181,6 +215,7 @@ static inline struct ldlm_extent *
 ldlm_interval_extent(struct ldlm_interval *node)
 {
 	struct ldlm_lock *lock;
+
 	LASSERT(!list_empty(&node->li_group));
 
 	lock = list_entry(node->li_group.next, struct ldlm_lock,
@@ -211,11 +246,12 @@ typedef enum ldlm_policy_res ldlm_policy_res_t;
 									    \
 		return lprocfs_rd_uint(m, &tmp);			    \
 	}								    \
-	struct __##var##__dummy_read {;} /* semicolon catcher */
+	struct __##var##__dummy_read {; } /* semicolon catcher */
 
 #define LDLM_POOL_PROC_WRITER(var, type)				    \
-	int lprocfs_wr_##var(struct file *file, const char *buffer,	    \
-			     unsigned long count, void *data)		    \
+	static int lprocfs_wr_##var(struct file *file,			    \
+				const char __user *buffer,		    \
+				unsigned long count, void *data)	    \
 	{								    \
 		struct ldlm_pool *pl = data;				    \
 		type tmp;						    \
@@ -233,7 +269,7 @@ typedef enum ldlm_policy_res ldlm_policy_res_t;
 									    \
 		return rc;						    \
 	}								    \
-	struct __##var##__dummy_write {;} /* semicolon catcher */
+	struct __##var##__dummy_write {; } /* semicolon catcher */
 
 static inline int is_granted_or_cancelled(struct ldlm_lock *lock)
 {

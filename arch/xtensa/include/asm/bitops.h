@@ -21,13 +21,7 @@
 
 #include <asm/processor.h>
 #include <asm/byteorder.h>
-
-#ifdef CONFIG_SMP
-# error SMP not supported on this architecture
-#endif
-
-#define smp_mb__before_clear_bit()	barrier()
-#define smp_mb__after_clear_bit()	barrier()
+#include <asm/barrier.h>
 
 #include <asm-generic/bitops/non-atomic.h>
 

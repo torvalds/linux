@@ -115,27 +115,46 @@ ip_vs_sh_get(struct ip_vs_service *svc, struct ip_vs_sh_state *s,
 }
 
 
-/* As ip_vs_sh_get, but with fallback if selected server is unavailable */
+/* As ip_vs_sh_get, but with fallback if selected server is unavailable
+ *
+ * The fallback strategy loops around the table starting from a "random"
+ * point (in fact, it is chosen to be the original hash value to make the
+ * algorithm deterministic) to find a new server.
+ */
 static inline struct ip_vs_dest *
 ip_vs_sh_get_fallback(struct ip_vs_service *svc, struct ip_vs_sh_state *s,
 		      const union nf_inet_addr *addr, __be16 port)
 {
-	unsigned int offset;
-	unsigned int hash;
+	unsigned int offset, roffset;
+	unsigned int hash, ihash;
 	struct ip_vs_dest *dest;
 
+	/* first try the dest it's supposed to go to */
+	ihash = ip_vs_sh_hashkey(svc->af, addr, port, 0);
+	dest = rcu_dereference(s->buckets[ihash].dest);
+	if (!dest)
+		return NULL;
+	if (!is_unavailable(dest))
+		return dest;
+
+	IP_VS_DBG_BUF(6, "SH: selected unavailable server %s:%d, reselecting",
+		      IP_VS_DBG_ADDR(dest->af, &dest->addr), ntohs(dest->port));
+
+	/* if the original dest is unavailable, loop around the table
+	 * starting from ihash to find a new dest
+	 */
 	for (offset = 0; offset < IP_VS_SH_TAB_SIZE; offset++) {
-		hash = ip_vs_sh_hashkey(svc->af, addr, port, offset);
+		roffset = (offset + ihash) % IP_VS_SH_TAB_SIZE;
+		hash = ip_vs_sh_hashkey(svc->af, addr, port, roffset);
 		dest = rcu_dereference(s->buckets[hash].dest);
 		if (!dest)
 			break;
-		if (is_unavailable(dest))
-			IP_VS_DBG_BUF(6, "SH: selected unavailable server "
-				      "%s:%d (offset %d)",
-				      IP_VS_DBG_ADDR(svc->af, &dest->addr),
-				      ntohs(dest->port), offset);
-		else
+		if (!is_unavailable(dest))
 			return dest;
+		IP_VS_DBG_BUF(6, "SH: selected unavailable "
+			      "server %s:%d (offset %d), reselecting",
+			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
+			      ntohs(dest->port), roffset);
 	}
 
 	return NULL;
@@ -173,7 +192,7 @@ ip_vs_sh_reassign(struct ip_vs_sh_state *s, struct ip_vs_service *svc)
 			RCU_INIT_POINTER(b->dest, dest);
 
 			IP_VS_DBG_BUF(6, "assigned i: %d dest: %s weight: %d\n",
-				      i, IP_VS_DBG_ADDR(svc->af, &dest->addr),
+				      i, IP_VS_DBG_ADDR(dest->af, &dest->addr),
 				      atomic_read(&dest->weight));
 
 			/* Don't move to next dest until filling weight */
@@ -269,14 +288,20 @@ ip_vs_sh_get_port(const struct sk_buff *skb, struct ip_vs_iphdr *iph)
 	switch (iph->protocol) {
 	case IPPROTO_TCP:
 		th = skb_header_pointer(skb, iph->len, sizeof(_tcph), &_tcph);
+		if (unlikely(th == NULL))
+			return 0;
 		port = th->source;
 		break;
 	case IPPROTO_UDP:
 		uh = skb_header_pointer(skb, iph->len, sizeof(_udph), &_udph);
+		if (unlikely(uh == NULL))
+			return 0;
 		port = uh->source;
 		break;
 	case IPPROTO_SCTP:
 		sh = skb_header_pointer(skb, iph->len, sizeof(_sctph), &_sctph);
+		if (unlikely(sh == NULL))
+			return 0;
 		port = sh->source;
 		break;
 	default:
@@ -317,7 +342,7 @@ ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 
 	IP_VS_DBG_BUF(6, "SH: source IP address %s --> server %s:%d\n",
 		      IP_VS_DBG_ADDR(svc->af, &iph->saddr),
-		      IP_VS_DBG_ADDR(svc->af, &dest->addr),
+		      IP_VS_DBG_ADDR(dest->af, &dest->addr),
 		      ntohs(dest->port));
 
 	return dest;

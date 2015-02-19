@@ -462,9 +462,9 @@ static int aac_slave_configure(struct scsi_device *sdev)
 			depth = 256;
 		else if (depth < 2)
 			depth = 2;
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
+		scsi_change_queue_depth(sdev, depth);
 	} else
-		scsi_adjust_queue_depth(sdev, 0, 1);
+		scsi_change_queue_depth(sdev, 1);
 
 	return 0;
 }
@@ -478,12 +478,8 @@ static int aac_slave_configure(struct scsi_device *sdev)
  *	total capacity and the queue depth supported by the target device.
  */
 
-static int aac_change_queue_depth(struct scsi_device *sdev, int depth,
-				  int reason)
+static int aac_change_queue_depth(struct scsi_device *sdev, int depth)
 {
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
 	if (sdev->tagged_supported && (sdev->type == TYPE_DISK) &&
 	    (sdev_channel(sdev) == CONTAINER_CHANNEL)) {
 		struct scsi_device * dev;
@@ -504,10 +500,10 @@ static int aac_change_queue_depth(struct scsi_device *sdev, int depth,
 			depth = 256;
 		else if (depth < 2)
 			depth = 2;
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
-	} else
-		scsi_adjust_queue_depth(sdev, 0, 1);
-	return sdev->queue_depth;
+		return scsi_change_queue_depth(sdev, depth);
+	}
+
+	return scsi_change_queue_depth(sdev, 1);
 }
 
 static ssize_t aac_show_raid_level(struct device *dev, struct device_attribute *attr, char *buf)
@@ -551,11 +547,11 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 	int count;
 	int ret = FAILED;
 
-	printk(KERN_ERR "%s: Host adapter abort request (%d,%d,%d,%d)\n",
+	printk(KERN_ERR "%s: Host adapter abort request (%d,%d,%d,%llu)\n",
 		AAC_DRIVERNAME,
 		host->host_no, sdev_channel(dev), sdev_id(dev), dev->lun);
 	switch (cmd->cmnd[0]) {
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		if (!(aac->raw_io_interface) ||
 		    !(aac->raw_io_64) ||
 		    ((cmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))
@@ -771,6 +767,8 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 static int aac_compat_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 {
 	struct aac_dev *dev = (struct aac_dev *)sdev->host->hostdata;
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
 	return aac_compat_do_ioctl(dev, cmd, (unsigned long)arg);
 }
 
@@ -1079,6 +1077,7 @@ static struct scsi_host_template aac_driver_template = {
 #endif
 	.use_clustering			= ENABLE_CLUSTERING,
 	.emulated			= 1,
+	.no_write_same			= 1,
 };
 
 static void __aac_shutdown(struct aac_dev * aac)
@@ -1149,6 +1148,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->irq = pdev->irq;
 	shost->unique_id = unique_id;
 	shost->max_cmd_len = 16;
+	shost->use_cmd_list = 1;
 
 	aac = (struct aac_dev *)shost->hostdata;
 	aac->base_start = pci_resource_start(pdev, 0);

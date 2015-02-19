@@ -3,9 +3,10 @@
 #
 
 config MLX4_EN
-	tristate "Mellanox Technologies 10Gbit Ethernet support"
+	tristate "Mellanox Technologies 1/10/40Gbit Ethernet support"
 	depends on PCI
 	select MLX4_CORE
+	select PTP_1588_CLOCK
 	---help---
 	  This driver supports Mellanox Technologies ConnectX Ethernet
 	  devices.
@@ -21,6 +22,13 @@ config MLX4_EN_DCB
 	  This flag is depended on the kernel's DCB support.
 
 	  If unsure, set to Y
+
+config MLX4_EN_VXLAN
+	bool "VXLAN offloads Support"
+	default y
+	depends on MLX4_EN && VXLAN && !(MLX4_EN=y && VXLAN=m)
+	---help---
+	  Say Y here if you want to use VXLAN offloads in the driver.
 
 config MLX4_CORE
 	tristate

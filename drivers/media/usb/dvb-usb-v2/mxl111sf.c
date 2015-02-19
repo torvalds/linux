@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Michael Krufky (mkrufky@kernellabs.com)
+ * Copyright (C) 2010-2014 Michael Krufky (mkrufky@linuxtv.org)
  *
  *   This program is free software; you can redistribute it and/or modify it
  *   under the terms of the GNU General Public License as published by the Free
@@ -23,16 +23,19 @@
 #include "lgdt3305.h"
 #include "lg2160.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 int dvb_usb_mxl111sf_debug;
 module_param_named(debug, dvb_usb_mxl111sf_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level "
 		 "(1=info, 2=xfer, 4=i2c, 8=reg, 16=adv (or-able)).");
 
-int dvb_usb_mxl111sf_isoc;
+static int dvb_usb_mxl111sf_isoc;
 module_param_named(isoc, dvb_usb_mxl111sf_isoc, int, 0644);
 MODULE_PARM_DESC(isoc, "enable usb isoc xfer (0=bulk, 1=isoc).");
 
-int dvb_usb_mxl111sf_spi;
+static int dvb_usb_mxl111sf_spi;
 module_param_named(spi, dvb_usb_mxl111sf_spi, int, 0644);
 MODULE_PARM_DESC(spi, "use spi rather than tp for data xfer (0=tp, 1=spi).");
 
@@ -40,7 +43,7 @@ MODULE_PARM_DESC(spi, "use spi rather than tp for data xfer (0=tp, 1=spi).");
 #define ANT_PATH_EXTERNAL 1
 #define ANT_PATH_INTERNAL 2
 
-int dvb_usb_mxl111sf_rfswitch =
+static int dvb_usb_mxl111sf_rfswitch =
 #if 0
 		ANT_PATH_AUTO;
 #else
@@ -57,7 +60,12 @@ int mxl111sf_ctrl_msg(struct dvb_usb_device *d,
 {
 	int wo = (rbuf == NULL || rlen == 0); /* write-only */
 	int ret;
-	u8 sndbuf[1+wlen];
+	u8 sndbuf[MAX_XFER_SIZE];
+
+	if (1 + wlen > sizeof(sndbuf)) {
+		pr_warn("%s: len=%d is too big!\n", __func__, wlen);
+		return -EOPNOTSUPP;
+	}
 
 	pr_debug("%s(wlen = %d, rlen = %d)\n", __func__, wlen, rlen);
 
@@ -97,7 +105,7 @@ int mxl111sf_read_reg(struct mxl111sf_state *state, u8 addr, u8 *data)
 		ret = -EINVAL;
 	}
 
-	pr_debug("R: (0x%02x, 0x%02x)\n", addr, *data);
+	pr_debug("R: (0x%02x, 0x%02x)\n", addr, buf[1]);
 fail:
 	return ret;
 }
@@ -121,7 +129,7 @@ int mxl111sf_write_reg_mask(struct mxl111sf_state *state,
 				   u8 addr, u8 mask, u8 data)
 {
 	int ret;
-	u8 val;
+	u8 val = 0;
 
 	if (mask != 0xff) {
 		ret = mxl111sf_read_reg(state, addr, &val);
@@ -258,7 +266,7 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int err;
 
-	/* exit if we didnt initialize the driver yet */
+	/* exit if we didn't initialize the driver yet */
 	if (!state->chip_id) {
 		mxl_debug("driver not yet initialized, exit.");
 		goto fail;
@@ -314,7 +322,7 @@ static int mxl111sf_adap_fe_sleep(struct dvb_frontend *fe)
 	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int err;
 
-	/* exit if we didnt initialize the driver yet */
+	/* exit if we didn't initialize the driver yet */
 	if (!state->chip_id) {
 		mxl_debug("driver not yet initialized, exit.");
 		goto fail;
@@ -879,7 +887,7 @@ static u32 mxl111sf_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-struct i2c_algorithm mxl111sf_i2c_algo = {
+static struct i2c_algorithm mxl111sf_i2c_algo = {
 	.master_xfer   = mxl111sf_i2c_xfer,
 	.functionality = mxl111sf_i2c_func,
 #ifdef NEED_ALGO_CONTROL
@@ -1413,13 +1421,7 @@ static struct usb_driver mxl111sf_usb_driver = {
 
 module_usb_driver(mxl111sf_usb_driver);
 
-MODULE_AUTHOR("Michael Krufky <mkrufky@kernellabs.com>");
+MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");
 MODULE_DESCRIPTION("Driver for MaxLinear MxL111SF");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

@@ -38,6 +38,9 @@
 #include <net/rtnetlink.h>
 #include <linux/u64_stats_sync.h>
 
+#define DRV_NAME	"dummy"
+#define DRV_VERSION	"1.0"
+
 static int numdummies = 1;
 
 /* fake multicast ability */
@@ -63,10 +66,10 @@ static struct rtnl_link_stats64 *dummy_get_stats64(struct net_device *dev,
 
 		dstats = per_cpu_ptr(dev->dstats, i);
 		do {
-			start = u64_stats_fetch_begin_bh(&dstats->syncp);
+			start = u64_stats_fetch_begin_irq(&dstats->syncp);
 			tbytes = dstats->tx_bytes;
 			tpackets = dstats->tx_packets;
-		} while (u64_stats_fetch_retry_bh(&dstats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&dstats->syncp, start));
 		stats->tx_bytes += tbytes;
 		stats->tx_packets += tpackets;
 	}
@@ -88,7 +91,7 @@ static netdev_tx_t dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int dummy_dev_init(struct net_device *dev)
 {
-	dev->dstats = alloc_percpu(struct pcpu_dstats);
+	dev->dstats = netdev_alloc_pcpu_stats(struct pcpu_dstats);
 	if (!dev->dstats)
 		return -ENOMEM;
 
@@ -120,12 +123,24 @@ static const struct net_device_ops dummy_netdev_ops = {
 	.ndo_change_carrier	= dummy_change_carrier,
 };
 
+static void dummy_get_drvinfo(struct net_device *dev,
+			      struct ethtool_drvinfo *info)
+{
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+}
+
+static const struct ethtool_ops dummy_ethtool_ops = {
+	.get_drvinfo            = dummy_get_drvinfo,
+};
+
 static void dummy_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
 	/* Initialize the device structure. */
 	dev->netdev_ops = &dummy_netdev_ops;
+	dev->ethtool_ops = &dummy_ethtool_ops;
 	dev->destructor = free_netdev;
 
 	/* Fill in device structure with ethernet-generic values. */
@@ -150,7 +165,7 @@ static int dummy_validate(struct nlattr *tb[], struct nlattr *data[])
 }
 
 static struct rtnl_link_ops dummy_link_ops __read_mostly = {
-	.kind		= "dummy",
+	.kind		= DRV_NAME,
 	.setup		= dummy_setup,
 	.validate	= dummy_validate,
 };
@@ -164,7 +179,7 @@ static int __init dummy_init_one(void)
 	struct net_device *dev_dummy;
 	int err;
 
-	dev_dummy = alloc_netdev(0, "dummy%d", dummy_setup);
+	dev_dummy = alloc_netdev(0, "dummy%d", NET_NAME_UNKNOWN, dummy_setup);
 	if (!dev_dummy)
 		return -ENOMEM;
 
@@ -209,4 +224,5 @@ static void __exit dummy_cleanup_module(void)
 module_init(dummy_init_module);
 module_exit(dummy_cleanup_module);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_RTNL_LINK("dummy");
+MODULE_ALIAS_RTNL_LINK(DRV_NAME);
+MODULE_VERSION(DRV_VERSION);

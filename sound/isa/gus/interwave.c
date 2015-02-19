@@ -442,18 +442,11 @@ static void snd_interwave_detect_memory(struct snd_gus_card *gus)
 	for (bank_pos = 0; bank_pos < 16L * 1024L * 1024L; bank_pos += 4L * 1024L * 1024L) {
 		for (i = 0; i < 8; ++i)
 			iwave[i] = snd_gf1_peek(gus, bank_pos + i);
-#ifdef CONFIG_SND_DEBUG_ROM
-		printk(KERN_DEBUG "ROM at 0x%06x = %*phC\n", bank_pos,
-				  8, iwave);
-#endif
 		if (strncmp(iwave, "INTRWAVE", 8))
 			continue;	/* first check */
 		csum = 0;
 		for (i = 0; i < sizeof(struct rom_hdr); i++)
 			csum += snd_gf1_peek(gus, bank_pos + i);
-#ifdef CONFIG_SND_DEBUG_ROM
-		printk(KERN_DEBUG "ROM checksum = 0x%x (computed)\n", csum);
-#endif
 		if (csum != 0)
 			continue;	/* not valid rom */
 		gus->gf1.rom_banks++;
@@ -626,14 +619,15 @@ static void snd_interwave_free(struct snd_card *card)
 		free_irq(iwcard->irq, (void *)iwcard);
 }
 
-static int snd_interwave_card_new(int dev, struct snd_card **cardp)
+static int snd_interwave_card_new(struct device *pdev, int dev,
+				  struct snd_card **cardp)
 {
 	struct snd_card *card;
 	struct snd_interwave *iwcard;
 	int err;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_interwave), &card);
+	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_interwave), &card);
 	if (err < 0)
 		return err;
 	iwcard = card->private_data;
@@ -653,7 +647,6 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 #ifdef SNDRV_STB
 	struct snd_i2c_bus *i2c_bus;
 #endif
-	struct snd_pcm *pcm;
 	char *str;
 	int err;
 
@@ -701,14 +694,15 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 	if (err < 0)
 		return err;
 
-	err = snd_wss_pcm(wss, 0, &pcm);
+	err = snd_wss_pcm(wss, 0);
 	if (err < 0)
 		return err;
 
-	sprintf(pcm->name + strlen(pcm->name), " rev %c", gus->revision + 'A');
-	strcat(pcm->name, " (codec)");
+	sprintf(wss->pcm->name + strlen(wss->pcm->name), " rev %c",
+		gus->revision + 'A');
+	strcat(wss->pcm->name, " (codec)");
 
-	err = snd_wss_timer(wss, 2, NULL);
+	err = snd_wss_timer(wss, 2);
 	if (err < 0)
 		return err;
 
@@ -717,7 +711,7 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 		return err;
 
 	if (pcm_channels[dev] > 0) {
-		err = snd_gf1_pcm_new(gus, 1, 1, NULL);
+		err = snd_gf1_pcm_new(gus, 1, 1);
 		if (err < 0)
 			return err;
 	}
@@ -746,7 +740,7 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 #endif
 
 	gus->uart_enable = midi[dev];
-	if ((err = snd_gf1_rawmidi_new(gus, 0, NULL)) < 0)
+	if ((err = snd_gf1_rawmidi_new(gus, 0)) < 0)
 		return err;
 
 #ifndef SNDRV_STB
@@ -780,11 +774,10 @@ static int snd_interwave_isa_probe1(int dev, struct device *devptr)
 	struct snd_card *card;
 	int err;
 
-	err = snd_interwave_card_new(dev, &card);
+	err = snd_interwave_card_new(devptr, dev, &card);
 	if (err < 0)
 		return err;
 
-	snd_card_set_dev(card, devptr);
 	if ((err = snd_interwave_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -877,7 +870,7 @@ static int snd_interwave_pnp_detect(struct pnp_card_link *pcard,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 				
-	res = snd_interwave_card_new(dev, &card);
+	res = snd_interwave_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)
 		return res;
 
@@ -885,7 +878,6 @@ static int snd_interwave_pnp_detect(struct pnp_card_link *pcard,
 		snd_card_free(card);
 		return res;
 	}
-	snd_card_set_dev(card, &pcard->card->dev);
 	if ((res = snd_interwave_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return res;

@@ -38,6 +38,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/rtc.h>
@@ -327,7 +328,7 @@ kfree_exit:
 
 static int pcf2123_remove(struct spi_device *spi)
 {
-	struct pcf2123_plat_data *pdata = spi->dev.platform_data;
+	struct pcf2123_plat_data *pdata = dev_get_platdata(&spi->dev);
 	int i;
 
 	if (pdata) {
@@ -340,10 +341,19 @@ static int pcf2123_remove(struct spi_device *spi)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id pcf2123_dt_ids[] = {
+	{ .compatible = "nxp,rtc-pcf2123", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, pcf2123_dt_ids);
+#endif
+
 static struct spi_driver pcf2123_driver = {
 	.driver	= {
 			.name	= "rtc-pcf2123",
 			.owner	= THIS_MODULE,
+			.of_match_table = of_match_ptr(pcf2123_dt_ids),
 	},
 	.probe	= pcf2123_probe,
 	.remove	= pcf2123_remove,

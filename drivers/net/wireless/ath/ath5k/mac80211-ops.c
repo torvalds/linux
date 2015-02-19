@@ -202,7 +202,7 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&ah->lock);
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ret = ath5k_chan_set(ah, conf->chandef.chan);
+		ret = ath5k_chan_set(ah, &conf->chandef);
 		if (ret < 0)
 			goto unlock;
 	}
@@ -473,6 +473,8 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	/* Set the cached hw filter flags, this will later actually
 	 * be set in HW */
 	ah->filter_flags = rfilt;
+	/* Store current FIF filter flags */
+	ah->fif_filter_flags = *new_flags;
 
 	mutex_unlock(&ah->lock);
 }
@@ -545,7 +547,9 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 
 static void
-ath5k_sw_scan_start(struct ieee80211_hw *hw)
+ath5k_sw_scan_start(struct ieee80211_hw *hw,
+		    struct ieee80211_vif *vif,
+		    const u8 *mac_addr)
 {
 	struct ath5k_hw *ah = hw->priv;
 	if (!ah->assoc)
@@ -554,7 +558,7 @@ ath5k_sw_scan_start(struct ieee80211_hw *hw)
 
 
 static void
-ath5k_sw_scan_complete(struct ieee80211_hw *hw)
+ath5k_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ath5k_hw *ah = hw->priv;
 	ath5k_hw_set_ledstate(ah, ah->assoc ?
@@ -668,10 +672,10 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
 	spin_lock_bh(&common->cc_lock);
 	ath_hw_cycle_counters_update(common);
 	if (cc->cycles > 0) {
-		ah->survey.channel_time += cc->cycles / div;
-		ah->survey.channel_time_busy += cc->rx_busy / div;
-		ah->survey.channel_time_rx += cc->rx_frame / div;
-		ah->survey.channel_time_tx += cc->tx_frame / div;
+		ah->survey.time += cc->cycles / div;
+		ah->survey.time_busy += cc->rx_busy / div;
+		ah->survey.time_rx += cc->rx_frame / div;
+		ah->survey.time_tx += cc->tx_frame / div;
 	}
 	memset(cc, 0, sizeof(*cc));
 	spin_unlock_bh(&common->cc_lock);
@@ -681,10 +685,11 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
 	survey->channel = conf->chandef.chan;
 	survey->noise = ah->ah_noise_floor;
 	survey->filled = SURVEY_INFO_NOISE_DBM |
-			SURVEY_INFO_CHANNEL_TIME |
-			SURVEY_INFO_CHANNEL_TIME_BUSY |
-			SURVEY_INFO_CHANNEL_TIME_RX |
-			SURVEY_INFO_CHANNEL_TIME_TX;
+			SURVEY_INFO_IN_USE |
+			SURVEY_INFO_TIME |
+			SURVEY_INFO_TIME_BUSY |
+			SURVEY_INFO_TIME_RX |
+			SURVEY_INFO_TIME_TX;
 
 	return 0;
 }
@@ -701,7 +706,7 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
  * reset.
  */
 static void
-ath5k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
+ath5k_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 {
 	struct ath5k_hw *ah = hw->priv;
 

@@ -28,6 +28,7 @@ ALC269/270/275/276/28x/29x
   alc269-dmic		Enable ALC269(VA) digital mic workaround
   alc271-dmic		Enable ALC271X digital mic workaround
   inv-dmic		Inverted internal mic workaround
+  headset-mic		Indicates a combined headset (headphone+mic) jack
   lenovo-dock   	Enables docking station I/O for some Lenovos
   dell-headset-multi	Headset jack, which can also be used as mic-in
   dell-headset-dock	Headset jack (without mic-in), and also dock I/O
@@ -112,14 +113,10 @@ AD1984
 
 AD1986A
 =======
-  6stack	6-jack, separate surrounds (default)
   3stack	3-stack, shared surrounds
   laptop	2-channel only (FSC V2060, Samsung M50)
-  laptop-eapd	2-channel with EAPD (ASUS A6J)
-  laptop-automute 2-channel with EAPD and HP-automute (Lenovo N100)
-  ultra		2-channel with EAPD (Samsung Ultra tablet PC)
-  samsung	2-channel with EAPD (Samsung R65)
-  samsung-p50	2-channel with HP-automute (Samsung P50)
+  laptop-imic	2-channel with built-in mic
+  eapd		Turn on EAPD constantly
 
 AD1988/AD1988B/AD1989A/AD1989B
 ==============================
@@ -244,6 +241,7 @@ STAC9227/9228/9229/927x
   5stack-no-fp	D965 5stack without front panel
   dell-3stack	Dell Dimension E520
   dell-bios	Fixes with Dell BIOS setup
+  dell-bios-amic Fixes with Dell BIOS setup including analog mic
   volknob	Fixes with volume-knob widget 0x24
   auto		BIOS setup (default)
 
@@ -282,7 +280,17 @@ STAC92HD83*
   hp-zephyr	HP Zephyr
   hp-led	HP with broken BIOS for mute LED
   hp-inv-led	HP with broken BIOS for inverted mute LED
+  hp-mic-led	HP with mic-mute LED
+  headset-jack	Dell Latitude with a 4-pin headset jack
+  hp-envy-bass	Pin fixup for HP Envy bass speaker (NID 0x0f)
+  hp-envy-ts-bass Pin fixup for HP Envy TS bass speaker (NID 0x10)
+  hp-bnb13-eq	Hardware equalizer setup for HP laptops
   auto		BIOS setup (default)
+
+STAC92HD95
+==========
+  hp-led	LED support for HP laptops
+  hp-bass	Bass HPF setup for HP Spectre 13
 
 STAC9872
 ========
@@ -293,6 +301,12 @@ Cirrus Logic CS4206/4207
 ========================
   mbp55		MacBook Pro 5,5
   imac27	IMac 27 Inch
+  auto		BIOS setup (default)
+
+Cirrus Logic CS4208
+===================
+  mba6		MacBook Air 6,1 and 6,2
+  gpio0		Enable GPIO 0 amp
   auto		BIOS setup (default)
 
 VIA VT17xx/VT18xx/VT20xx

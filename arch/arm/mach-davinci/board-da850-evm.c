@@ -18,8 +18,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/at24.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/input.h>
 #include <linux/input/tps6507x-ts.h>
 #include <linux/mfd/tps6507x.h>
@@ -28,16 +28,19 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/gpio-davinci.h>
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mtd-davinci-aemif.h>
 #include <linux/platform_data/spi-davinci.h>
 #include <linux/platform_data/uio_pruss.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
+#include <linux/regulator/fixed.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/wl12xx.h>
 
+#include <mach/common.h>
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
 #include <mach/mux.h>
@@ -356,6 +359,9 @@ static inline void da850_evm_setup_nor_nand(void)
 
 		platform_add_devices(da850_evm_devices,
 					ARRAY_SIZE(da850_evm_devices));
+
+		if (davinci_aemif_setup(&da850_evm_nandflash_device))
+			pr_warn("%s: Cannot configure AEMIF.\n", __func__);
 	}
 }
 
@@ -446,8 +452,7 @@ static void da850_evm_ui_keys_init(unsigned gpio)
 	for (i = 0; i < DA850_N_UI_PB; i++) {
 		button = &da850_evm_ui_keys[i];
 		button->code = KEY_F8 - i;
-		button->desc = (char *)
-				da850_evm_ui_exp[DA850_EVM_UI_EXP_PB8 + i];
+		button->desc = da850_evm_ui_exp[DA850_EVM_UI_EXP_PB8 + i];
 		button->gpio = gpio + DA850_EVM_UI_EXP_PB8 + i;
 	}
 }
@@ -622,15 +627,13 @@ static void da850_evm_bb_keys_init(unsigned gpio)
 	struct gpio_keys_button *button;
 
 	button = &da850_evm_bb_keys[0];
-	button->desc = (char *)
-		da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_PB1];
+	button->desc = da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_PB1];
 	button->gpio = gpio + DA850_EVM_BB_EXP_USER_PB1;
 
 	for (i = 0; i < DA850_N_BB_USER_SW; i++) {
 		button = &da850_evm_bb_keys[i + 1];
 		button->code = SW_LID + i;
-		button->desc = (char *)
-				da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_SW1 + i];
+		button->desc = da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_SW1 + i];
 		button->gpio = gpio + DA850_EVM_BB_EXP_USER_SW1 + i;
 	}
 }
@@ -746,10 +749,6 @@ static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
 	.bus_delay	= 0,	/* usec */
 };
 
-static struct davinci_uart_config da850_evm_uart_config __initdata = {
-	.enabled_uarts = 0x7,
-};
-
 /* davinci da850 evm audio machine driver */
 static u8 da850_iis_serializer_direction[] = {
 	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
@@ -841,6 +840,16 @@ static int da850_lcd_hw_init(void)
 	return 0;
 }
 
+/* Fixed regulator support */
+static struct regulator_consumer_supply fixed_supplies[] = {
+	/* Baseboard 3.3V: 5V -> TPS73701DCQ -> 3.3V */
+	REGULATOR_SUPPLY("AVDD", "1-0018"),
+	REGULATOR_SUPPLY("DRVDD", "1-0018"),
+
+	/* Baseboard 1.8V: 5V -> TPS73701DCQ -> 1.8V */
+	REGULATOR_SUPPLY("DVDD", "1-0018"),
+};
+
 /* TPS65070 voltage regulator support */
 
 /* 3.3V */
@@ -864,6 +873,7 @@ static struct regulator_consumer_supply tps65070_dcdc2_consumers[] = {
 	{
 		.supply = "dvdd3318_c",
 	},
+	REGULATOR_SUPPLY("IOVDD", "1-0018"),
 };
 
 /* 1.2V */
@@ -935,6 +945,7 @@ static struct regulator_init_data tps65070_regulator_data[] = {
 			.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
 				REGULATOR_CHANGE_STATUS),
 			.boot_on = 1,
+			.always_on = 1,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(tps65070_dcdc2_consumers),
 		.consumer_supplies = tps65070_dcdc2_consumers,
@@ -1249,12 +1260,10 @@ static struct vpif_capture_config da850_vpif_capture_config = {
 
 static struct adv7343_platform_data adv7343_pdata = {
 	.mode_config = {
-		.dac_3 = 1,
-		.dac_2 = 1,
-		.dac_1 = 1,
+		.dac = { 1, 1, 1 },
 	},
 	.sd_config = {
-		.sd_dac_out1 = 1,
+		.sd_dac_out = { 1 },
 	},
 };
 
@@ -1443,6 +1452,12 @@ static __init void da850_evm_init(void)
 {
 	int ret;
 
+	ret = da850_register_gpio();
+	if (ret)
+		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
+
+	regulator_register_fixed(0, fixed_supplies, ARRAY_SIZE(fixed_supplies));
+
 	ret = pmic_tps65070_init();
 	if (ret)
 		pr_warn("%s: TPS65070 PMIC init failed: %d\n", __func__, ret);
@@ -1494,7 +1509,7 @@ static __init void da850_evm_init(void)
 				__func__, ret);
 	}
 
-	davinci_serial_init(&da850_evm_uart_config);
+	davinci_serial_init(da8xx_serial_device);
 
 	i2c_register_board_info(1, da850_evm_i2c_devices,
 			ARRAY_SIZE(da850_evm_i2c_devices));

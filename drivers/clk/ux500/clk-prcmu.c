@@ -36,7 +36,7 @@ static int clk_prcmu_prepare(struct clk_hw *hw)
 	if (!ret)
 		clk->is_prepared = 1;
 
-	return ret;;
+	return ret;
 }
 
 static void clk_prcmu_unprepare(struct clk_hw *hw)

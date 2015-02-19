@@ -11,13 +11,14 @@
 
 /dts-v1/;
 /include/ "wm8850.dtsi"
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "Wondermedia WM8850-W70v2 Tablet";
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 0 50000 1>;	/* duty inverted */
+		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
 
 		brightness-levels = <0 40 60 80 100 130 190 255>;
 		default-brightness-level = <5>;

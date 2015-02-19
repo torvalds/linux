@@ -26,8 +26,8 @@
 
 */
 
-#define blogic_drvr_version		"2.1.16"
-#define blogic_drvr_date		"18 July 2002"
+#define blogic_drvr_version		"2.1.17"
+#define blogic_drvr_date		"12 September 2013"
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -311,12 +311,14 @@ static struct blogic_ccb *blogic_alloc_ccb(struct blogic_adapter *adapter)
   caller.
 */
 
-static void blogic_dealloc_ccb(struct blogic_ccb *ccb)
+static void blogic_dealloc_ccb(struct blogic_ccb *ccb, int dma_unmap)
 {
 	struct blogic_adapter *adapter = ccb->adapter;
 
-	scsi_dma_unmap(ccb->command);
-	pci_unmap_single(adapter->pci_device, ccb->sensedata,
+	if (ccb->command != NULL)
+		scsi_dma_unmap(ccb->command);
+	if (dma_unmap)
+		pci_unmap_single(adapter->pci_device, ccb->sensedata,
 			 ccb->sense_datalen, PCI_DMA_FROMDEVICE);
 
 	ccb->command = NULL;
@@ -696,7 +698,7 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 	while ((pci_device = pci_get_device(PCI_VENDOR_ID_BUSLOGIC,
 					PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER,
 					pci_device)) != NULL) {
-		struct blogic_adapter *adapter = adapter;
+		struct blogic_adapter *host_adapter = adapter;
 		struct blogic_adapter_info adapter_info;
 		enum blogic_isa_ioport mod_ioaddr_req;
 		unsigned char bus;
@@ -744,9 +746,9 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 		   known and enabled, note that the particular Standard ISA I/O
 		   Address should not be probed.
 		 */
-		adapter->io_addr = io_addr;
-		blogic_intreset(adapter);
-		if (blogic_cmd(adapter, BLOGIC_INQ_PCI_INFO, NULL, 0,
+		host_adapter->io_addr = io_addr;
+		blogic_intreset(host_adapter);
+		if (blogic_cmd(host_adapter, BLOGIC_INQ_PCI_INFO, NULL, 0,
 				&adapter_info, sizeof(adapter_info)) ==
 				sizeof(adapter_info)) {
 			if (adapter_info.isa_port < 6)
@@ -762,7 +764,7 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 		   I/O Address assigned at system initialization.
 		 */
 		mod_ioaddr_req = BLOGIC_IO_DISABLE;
-		blogic_cmd(adapter, BLOGIC_MOD_IOADDR, &mod_ioaddr_req,
+		blogic_cmd(host_adapter, BLOGIC_MOD_IOADDR, &mod_ioaddr_req,
 				sizeof(mod_ioaddr_req), NULL, 0);
 		/*
 		   For the first MultiMaster Host Adapter enumerated,
@@ -779,12 +781,12 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 
 			fetch_localram.offset = BLOGIC_AUTOSCSI_BASE + 45;
 			fetch_localram.count = sizeof(autoscsi_byte45);
-			blogic_cmd(adapter, BLOGIC_FETCH_LOCALRAM,
+			blogic_cmd(host_adapter, BLOGIC_FETCH_LOCALRAM,
 					&fetch_localram, sizeof(fetch_localram),
 					&autoscsi_byte45,
 					sizeof(autoscsi_byte45));
-			blogic_cmd(adapter, BLOGIC_GET_BOARD_ID, NULL, 0, &id,
-					sizeof(id));
+			blogic_cmd(host_adapter, BLOGIC_GET_BOARD_ID, NULL, 0,
+					&id, sizeof(id));
 			if (id.fw_ver_digit1 == '5')
 				force_scan_order =
 					autoscsi_byte45.force_scan_order;
@@ -2325,12 +2327,12 @@ static int blogic_slaveconfig(struct scsi_device *dev)
 		if (qdepth == 0)
 			qdepth = BLOGIC_MAX_AUTO_TAG_DEPTH;
 		adapter->qdepth[tgt_id] = qdepth;
-		scsi_adjust_queue_depth(dev, MSG_SIMPLE_TAG, qdepth);
+		scsi_change_queue_depth(dev, qdepth);
 	} else {
 		adapter->tagq_ok &= ~(1 << tgt_id);
 		qdepth = adapter->untag_qdepth;
 		adapter->qdepth[tgt_id] = qdepth;
-		scsi_adjust_queue_depth(dev, 0, qdepth);
+		scsi_change_queue_depth(dev, qdepth);
 	}
 	qdepth = 0;
 	for (tgt_id = 0; tgt_id < adapter->maxdev; tgt_id++)
@@ -2762,8 +2764,8 @@ static void blogic_process_ccbs(struct blogic_adapter *adapter)
 			/*
 			   Place CCB back on the Host Adapter's free list.
 			 */
-			blogic_dealloc_ccb(ccb);
-#if 0				/* this needs to be redone different for new EH */
+			blogic_dealloc_ccb(ccb, 1);
+#if 0			/* this needs to be redone different for new EH */
 			/*
 			   Bus Device Reset CCBs have the command field
 			   non-NULL only when a Bus Device Reset was requested
@@ -2791,7 +2793,7 @@ static void blogic_process_ccbs(struct blogic_adapter *adapter)
 				if (ccb->status == BLOGIC_CCB_RESET &&
 						ccb->tgt_id == tgt_id) {
 					command = ccb->command;
-					blogic_dealloc_ccb(ccb);
+					blogic_dealloc_ccb(ccb, 1);
 					adapter->active_cmds[tgt_id]--;
 					command->result = DID_RESET << 16;
 					command->scsi_done(command);
@@ -2862,7 +2864,7 @@ static void blogic_process_ccbs(struct blogic_adapter *adapter)
 			/*
 			   Place CCB back on the Host Adapter's free list.
 			 */
-			blogic_dealloc_ccb(ccb);
+			blogic_dealloc_ccb(ccb, 1);
 			/*
 			   Call the SCSI Command Completion Routine.
 			 */
@@ -3034,6 +3036,7 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command,
 	int buflen = scsi_bufflen(command);
 	int count;
 	struct blogic_ccb *ccb;
+	dma_addr_t sense_buf;
 
 	/*
 	   SCSI REQUEST_SENSE commands will be executed automatically by the
@@ -3179,10 +3182,17 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command,
 	}
 	memcpy(ccb->cdb, cdb, cdblen);
 	ccb->sense_datalen = SCSI_SENSE_BUFFERSIZE;
-	ccb->sensedata = pci_map_single(adapter->pci_device,
+	ccb->command = command;
+	sense_buf = pci_map_single(adapter->pci_device,
 				command->sense_buffer, ccb->sense_datalen,
 				PCI_DMA_FROMDEVICE);
-	ccb->command = command;
+	if (dma_mapping_error(&adapter->pci_device->dev, sense_buf)) {
+		blogic_err("DMA mapping for sense data buffer failed\n",
+				adapter);
+		blogic_dealloc_ccb(ccb, 0);
+		return SCSI_MLQUEUE_HOST_BUSY;
+	}
+	ccb->sensedata = sense_buf;
 	command->scsi_done = comp_cb;
 	if (blogic_multimaster_type(adapter)) {
 		/*
@@ -3203,7 +3213,7 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command,
 			if (!blogic_write_outbox(adapter, BLOGIC_MBOX_START,
 						ccb)) {
 				blogic_warn("Still unable to write Outgoing Mailbox - " "Host Adapter Dead?\n", adapter);
-				blogic_dealloc_ccb(ccb);
+				blogic_dealloc_ccb(ccb, 1);
 				command->result = DID_ERROR << 16;
 				command->scsi_done(command);
 			}
@@ -3337,7 +3347,7 @@ static int blogic_resetadapter(struct blogic_adapter *adapter, bool hard_reset)
 
 	for (ccb = adapter->all_ccbs; ccb != NULL; ccb = ccb->next_all)
 		if (ccb->status == BLOGIC_CCB_ACTIVE)
-			blogic_dealloc_ccb(ccb);
+			blogic_dealloc_ccb(ccb, 1);
 	/*
 	 * Wait a few seconds between the Host Adapter Hard Reset which
 	 * initiates a SCSI Bus Reset and issuing any SCSI Commands.  Some
@@ -3475,7 +3485,7 @@ static int blogic_show_info(struct seq_file *m, struct Scsi_Host *shost)
 	seq_printf(m, "\n\
 Current Driver Queue Depth:	%d\n\
 Currently Allocated CCBs:	%d\n", adapter->drvr_qdepth, adapter->alloc_ccbs);
-	seq_printf(m, "\n\n\
+	seq_puts(m, "\n\n\
 			   DATA TRANSFER STATISTICS\n\
 \n\
 Target	Tagged Queuing	Queue Depth  Active  Attempted	Completed\n\
@@ -3490,7 +3500,7 @@ Target	Tagged Queuing	Queue Depth  Active  Attempted	Completed\n\
 		seq_printf(m,
 				  "	    %3d       %3u    %9u	%9u\n", adapter->qdepth[tgt], adapter->active_cmds[tgt], tgt_stats[tgt].cmds_tried, tgt_stats[tgt].cmds_complete);
 	}
-	seq_printf(m, "\n\
+	seq_puts(m, "\n\
 Target  Read Commands  Write Commands   Total Bytes Read    Total Bytes Written\n\
 ======  =============  ==============  ===================  ===================\n");
 	for (tgt = 0; tgt < adapter->maxdev; tgt++) {
@@ -3507,7 +3517,7 @@ Target  Read Commands  Write Commands   Total Bytes Read    Total Bytes Written\
 		else
 			seq_printf(m, "	     %9u\n", tgt_stats[tgt].byteswritten.units);
 	}
-	seq_printf(m, "\n\
+	seq_puts(m, "\n\
 Target  Command    0-1KB      1-2KB      2-4KB      4-8KB     8-16KB\n\
 ======  =======  =========  =========  =========  =========  =========\n");
 	for (tgt = 0; tgt < adapter->maxdev; tgt++) {
@@ -3523,7 +3533,7 @@ Target  Command    0-1KB      1-2KB      2-4KB      4-8KB     8-16KB\n\
 			    tgt_stats[tgt].write_sz_buckets[0],
 			    tgt_stats[tgt].write_sz_buckets[1], tgt_stats[tgt].write_sz_buckets[2], tgt_stats[tgt].write_sz_buckets[3], tgt_stats[tgt].write_sz_buckets[4]);
 	}
-	seq_printf(m, "\n\
+	seq_puts(m, "\n\
 Target  Command   16-32KB    32-64KB   64-128KB   128-256KB   256KB+\n\
 ======  =======  =========  =========  =========  =========  =========\n");
 	for (tgt = 0; tgt < adapter->maxdev; tgt++) {
@@ -3539,7 +3549,7 @@ Target  Command   16-32KB    32-64KB   64-128KB   128-256KB   256KB+\n\
 			    tgt_stats[tgt].write_sz_buckets[5],
 			    tgt_stats[tgt].write_sz_buckets[6], tgt_stats[tgt].write_sz_buckets[7], tgt_stats[tgt].write_sz_buckets[8], tgt_stats[tgt].write_sz_buckets[9]);
 	}
-	seq_printf(m, "\n\n\
+	seq_puts(m, "\n\n\
 			   ERROR RECOVERY STATISTICS\n\
 \n\
 	  Command Aborts      Bus Device Resets	  Host Adapter Resets\n\
@@ -3883,7 +3893,7 @@ __setup("BusLogic=", blogic_setup);
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ }
 };*/
-static DEFINE_PCI_DEVICE_TABLE(blogic_pci_tbl) = {
+static const struct pci_device_id blogic_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER_NC)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_FLASHPOINT)},

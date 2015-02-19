@@ -307,7 +307,7 @@
 		clocks = <&i2c0_clk>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		ab3100: ab3100@0x48 {
+		ab3100: ab3100@48 {
 			compatible = "stericsson,ab3100";
 			reg = <0x48>;
 			interrupt-parent = <&vica>;
@@ -385,10 +385,10 @@
 		clocks = <&i2c1_clk>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		fwcam0: fwcam@0x10 {
+		fwcam0: fwcam@10 {
 			reg = <0x10>;
 		};
-		fwcam1: fwcam@0x5d {
+		fwcam1: fwcam@5d {
 			reg = <0x5d>;
 		};
 	};
@@ -442,8 +442,8 @@
 			clock-names = "apb_pclk", "mclk";
 			max-frequency = <24000000>;
 			bus-width = <4>; // SD-card slot
-			mmc-cap-mmc-highspeed;
-			mmc-cap-sd-highspeed;
+			cap-mmc-highspeed;
+			cap-sd-highspeed;
 			cd-gpios = <&gpio 12 0x4>;
 			cd-inverted;
 			vmmc-supply = <&ab3100_ldo_g_reg>;
@@ -457,7 +457,7 @@
 			interrupt-parent = <&vica>;
 			interrupts = <23>;
 			clocks = <&spi_clk>, <&spi_clk>;
-			clock-names = "apb_pclk", "spi_clk";
+			clock-names = "SSPCLK", "apb_pclk";
 			dmas = <&dmac 27 &dmac 28>;
 			dma-names = "tx", "rx";
 			num-cs = <3>;

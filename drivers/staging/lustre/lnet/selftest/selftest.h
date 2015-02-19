@@ -43,11 +43,11 @@
 
 #define LNET_ONLY
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
-#include <linux/lnet/lib-lnet.h>
-#include <linux/lnet/lib-types.h>
-#include <linux/lnet/lnetst.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lnet.h"
+#include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lib-types.h"
+#include "../../include/linux/lnet/lnetst.h"
 
 #include "rpc.h"
 #include "timer.h"
@@ -334,7 +334,7 @@ typedef struct {
 	atomic_t      sn_refcount;
 	atomic_t      sn_brw_errors;
 	atomic_t      sn_ping_errors;
-	cfs_time_t	sn_started;
+	unsigned long	sn_started;
 } sfw_session_t;
 
 #define sfw_sid_equal(sid0, sid1)     ((sid0).ses_nid == (sid1).ses_nid && \
@@ -350,7 +350,7 @@ typedef struct {
 } sfw_batch_t;
 
 typedef struct {
-	int  (*tso_init)(struct sfw_test_instance *tsi); /* intialize test client */
+	int  (*tso_init)(struct sfw_test_instance *tsi); /* initialize test client */
 	void (*tso_fini)(struct sfw_test_instance *tsi); /* finalize test client */
 	int  (*tso_prep_rpc)(struct sfw_test_unit *tsu,
 			     lnet_process_id_t dest,
@@ -572,10 +572,11 @@ swi_state2str (int state)
 #undef STATE2STR
 }
 
-#define UNUSED(x)       ( (void)(x) )
-
-
-#define selftest_wait_events()	cfs_pause(cfs_time_seconds(1) / 10)
+#define selftest_wait_events()					\
+	do {							\
+		set_current_state(TASK_UNINTERRUPTIBLE);	\
+		schedule_timeout(cfs_time_seconds(1) / 10);	\
+	} while (0)
 
 
 #define lst_wait_until(cond, lock, fmt, ...)				\
@@ -607,5 +608,17 @@ srpc_wait_service_shutdown(srpc_service_t *sv)
 		selftest_wait_events();
 	}
 }
+
+extern sfw_test_client_ops_t brw_test_client;
+void brw_init_test_client(void);
+
+extern srpc_service_t brw_test_service;
+void brw_init_test_service(void);
+
+extern sfw_test_client_ops_t ping_test_client;
+void ping_init_test_client(void);
+
+extern srpc_service_t ping_test_service;
+void ping_init_test_service(void);
 
 #endif /* __SELFTEST_SELFTEST_H__ */

@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/log2.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
@@ -555,7 +556,6 @@ struct d40_gen_dmac {
  * later
  * @reg_val_backup_chan: Backup data for standard channel parameter registers.
  * @gcc_pwr_off_mask: Mask to maintain the channels that can be turned off.
- * @initialized: true if the dma has been initialized
  * @gen_dmac: the struct for generic registers values to represent u8500/8540
  * DMA controller
  */
@@ -593,7 +593,6 @@ struct d40_base {
 	u32				  reg_val_backup_v4[BACKUP_REGS_SZ_MAX];
 	u32				 *reg_val_backup_chan;
 	u16				  gcc_pwr_off_mask;
-	bool				  initialized;
 	struct d40_gen_dmac		  gen_dmac;
 };
 
@@ -1055,62 +1054,6 @@ static int d40_sg_2_dmalen(struct scatterlist *sgl, int sg_len,
 	return len;
 }
 
-
-#ifdef CONFIG_PM
-static void dma40_backup(void __iomem *baseaddr, u32 *backup,
-			 u32 *regaddr, int num, bool save)
-{
-	int i;
-
-	for (i = 0; i < num; i++) {
-		void __iomem *addr = baseaddr + regaddr[i];
-
-		if (save)
-			backup[i] = readl_relaxed(addr);
-		else
-			writel_relaxed(backup[i], addr);
-	}
-}
-
-static void d40_save_restore_registers(struct d40_base *base, bool save)
-{
-	int i;
-
-	/* Save/Restore channel specific registers */
-	for (i = 0; i < base->num_phy_chans; i++) {
-		void __iomem *addr;
-		int idx;
-
-		if (base->phy_res[i].reserved)
-			continue;
-
-		addr = base->virtbase + D40_DREG_PCBASE + i * D40_DREG_PCDELTA;
-		idx = i * ARRAY_SIZE(d40_backup_regs_chan);
-
-		dma40_backup(addr, &base->reg_val_backup_chan[idx],
-			     d40_backup_regs_chan,
-			     ARRAY_SIZE(d40_backup_regs_chan),
-			     save);
-	}
-
-	/* Save/Restore global registers */
-	dma40_backup(base->virtbase, base->reg_val_backup,
-		     d40_backup_regs, ARRAY_SIZE(d40_backup_regs),
-		     save);
-
-	/* Save/Restore registers only existing on dma40 v3 and later */
-	if (base->gen_dmac.backup)
-		dma40_backup(base->virtbase, base->reg_val_backup_v4,
-			     base->gen_dmac.backup,
-			base->gen_dmac.backup_size,
-			save);
-}
-#else
-static void d40_save_restore_registers(struct d40_base *base, bool save)
-{
-}
-#endif
-
 static int __d40_execute_command_phy(struct d40_chan *d40c,
 				     enum d40_command command)
 {
@@ -1486,16 +1429,22 @@ static bool d40_tx_is_linked(struct d40_chan *d40c)
 	return is_link;
 }
 
-static int d40_pause(struct d40_chan *d40c)
+static int d40_pause(struct dma_chan *chan)
 {
+	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	int res = 0;
 	unsigned long flags;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	if (!d40c->busy)
 		return 0;
 
-	pm_runtime_get_sync(d40c->base->dev);
 	spin_lock_irqsave(&d40c->lock, flags);
+	pm_runtime_get_sync(d40c->base->dev);
 
 	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
 
@@ -1505,10 +1454,16 @@ static int d40_pause(struct d40_chan *d40c)
 	return res;
 }
 
-static int d40_resume(struct d40_chan *d40c)
+static int d40_resume(struct dma_chan *chan)
 {
+	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	int res = 0;
 	unsigned long flags;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	if (!d40c->busy)
 		return 0;
@@ -1640,6 +1595,7 @@ static void dma_tasklet(unsigned long data)
 	struct d40_chan *d40c = (struct d40_chan *) data;
 	struct d40_desc *d40d;
 	unsigned long flags;
+	bool callback_active;
 	dma_async_tx_callback callback;
 	void *callback_param;
 
@@ -1667,6 +1623,7 @@ static void dma_tasklet(unsigned long data)
 	}
 
 	/* Callback to client */
+	callback_active = !!(d40d->txd.flags & DMA_PREP_INTERRUPT);
 	callback = d40d->txd.callback;
 	callback_param = d40d->txd.callback_param;
 
@@ -1689,7 +1646,7 @@ static void dma_tasklet(unsigned long data)
 
 	spin_unlock_irqrestore(&d40c->lock, flags);
 
-	if (callback && (d40d->txd.flags & DMA_PREP_INTERRUPT))
+	if (callback_active && callback)
 		callback(callback_param);
 
 	return;
@@ -2408,6 +2365,7 @@ static void d40_set_prio_realtime(struct d40_chan *d40c)
 #define D40_DT_FLAGS_DIR(flags)        ((flags >> 1) & 0x1)
 #define D40_DT_FLAGS_BIG_ENDIAN(flags) ((flags >> 2) & 0x1)
 #define D40_DT_FLAGS_FIXED_CHAN(flags) ((flags >> 3) & 0x1)
+#define D40_DT_FLAGS_HIGH_PRIO(flags)  ((flags >> 4) & 0x1)
 
 static struct dma_chan *d40_xlate(struct of_phandle_args *dma_spec,
 				  struct of_dma *ofdma)
@@ -2444,6 +2402,9 @@ static struct dma_chan *d40_xlate(struct of_phandle_args *dma_spec,
 		cfg.phy_channel = dma_spec->args[1];
 		cfg.use_fixed_channel = true;
 	}
+
+	if (D40_DT_FLAGS_HIGH_PRIO(flags))
+		cfg.high_priority = true;
 
 	return dma_request_channel(cap, stedma40_filter, &cfg);
 }
@@ -2582,8 +2543,7 @@ d40_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 static struct dma_async_tx_descriptor *
 dma40_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 		     size_t buf_len, size_t period_len,
-		     enum dma_transfer_direction direction, unsigned long flags,
-		     void *context)
+		     enum dma_transfer_direction direction, unsigned long flags)
 {
 	unsigned int periods = buf_len / period_len;
 	struct dma_async_tx_descriptor *txd;
@@ -2591,6 +2551,9 @@ dma40_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 	int i;
 
 	sg = kcalloc(periods + 1, sizeof(struct scatterlist), GFP_NOWAIT);
+	if (!sg)
+		return NULL;
+
 	for (i = 0; i < periods; i++) {
 		sg_dma_address(&sg[i]) = dma_addr;
 		sg_dma_len(&sg[i]) = period_len;
@@ -2623,7 +2586,7 @@ static enum dma_status d40_tx_status(struct dma_chan *chan,
 	}
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS)
+	if (ret != DMA_COMPLETE)
 		dma_set_residue(txstate, stedma40_residue(chan));
 
 	if (d40_is_paused(d40c))
@@ -2653,11 +2616,16 @@ static void d40_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&d40c->lock, flags);
 }
 
-static void d40_terminate_all(struct dma_chan *chan)
+static int d40_terminate_all(struct dma_chan *chan)
 {
 	unsigned long flags;
 	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	int ret;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
@@ -2676,6 +2644,7 @@ static void d40_terminate_all(struct dma_chan *chan)
 	d40c->busy = false;
 
 	spin_unlock_irqrestore(&d40c->lock, flags);
+	return 0;
 }
 
 static int
@@ -2721,6 +2690,11 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	dma_addr_t config_addr;
 	u32 src_maxburst, dst_maxburst;
 	int ret;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	src_addr_width = config->src_addr_width;
 	src_maxburst = config->src_maxburst;
@@ -2793,8 +2767,8 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	    src_addr_width >  DMA_SLAVE_BUSWIDTH_8_BYTES   ||
 	    dst_addr_width <= DMA_SLAVE_BUSWIDTH_UNDEFINED ||
 	    dst_addr_width >  DMA_SLAVE_BUSWIDTH_8_BYTES   ||
-	    ((src_addr_width > 1) && (src_addr_width & 1)) ||
-	    ((dst_addr_width > 1) && (dst_addr_width & 1)))
+	    !is_power_of_2(src_addr_width) ||
+	    !is_power_of_2(dst_addr_width))
 		return -EINVAL;
 
 	cfg->src_info.data_width = src_addr_width;
@@ -2828,35 +2802,6 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 		src_maxburst, dst_maxburst);
 
 	return 0;
-}
-
-static int d40_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-		       unsigned long arg)
-{
-	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
-
-	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Channel is not allocated!\n");
-		return -EINVAL;
-	}
-
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		d40_terminate_all(chan);
-		return 0;
-	case DMA_PAUSE:
-		return d40_pause(d40c);
-	case DMA_RESUME:
-		return d40_resume(d40c);
-	case DMA_SLAVE_CONFIG:
-		return d40_set_runtime_config(chan,
-			(struct dma_slave_config *) arg);
-	default:
-		break;
-	}
-
-	/* Other commands are unimplemented */
-	return -ENXIO;
 }
 
 /* Initialization functions */
@@ -2919,7 +2864,10 @@ static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 	dev->device_free_chan_resources = d40_free_chan_resources;
 	dev->device_issue_pending = d40_issue_pending;
 	dev->device_tx_status = d40_tx_status;
-	dev->device_control = d40_control;
+	dev->device_config = d40_set_runtime_config;
+	dev->device_pause = d40_pause;
+	dev->device_resume = d40_resume;
+	dev->device_terminate_all = d40_terminate_all;
 	dev->dev = base->dev;
 }
 
@@ -2988,16 +2936,86 @@ failure1:
 }
 
 /* Suspend resume functionality */
-#ifdef CONFIG_PM
-static int dma40_pm_suspend(struct device *dev)
+#ifdef CONFIG_PM_SLEEP
+static int dma40_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct d40_base *base = platform_get_drvdata(pdev);
+	int ret;
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret)
+		return ret;
+
+	if (base->lcpa_regulator)
+		ret = regulator_disable(base->lcpa_regulator);
+	return ret;
+}
+
+static int dma40_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct d40_base *base = platform_get_drvdata(pdev);
 	int ret = 0;
 
-	if (base->lcpa_regulator)
-		ret = regulator_disable(base->lcpa_regulator);
-	return ret;
+	if (base->lcpa_regulator) {
+		ret = regulator_enable(base->lcpa_regulator);
+		if (ret)
+			return ret;
+	}
+
+	return pm_runtime_force_resume(dev);
+}
+#endif
+
+#ifdef CONFIG_PM
+static void dma40_backup(void __iomem *baseaddr, u32 *backup,
+			 u32 *regaddr, int num, bool save)
+{
+	int i;
+
+	for (i = 0; i < num; i++) {
+		void __iomem *addr = baseaddr + regaddr[i];
+
+		if (save)
+			backup[i] = readl_relaxed(addr);
+		else
+			writel_relaxed(backup[i], addr);
+	}
+}
+
+static void d40_save_restore_registers(struct d40_base *base, bool save)
+{
+	int i;
+
+	/* Save/Restore channel specific registers */
+	for (i = 0; i < base->num_phy_chans; i++) {
+		void __iomem *addr;
+		int idx;
+
+		if (base->phy_res[i].reserved)
+			continue;
+
+		addr = base->virtbase + D40_DREG_PCBASE + i * D40_DREG_PCDELTA;
+		idx = i * ARRAY_SIZE(d40_backup_regs_chan);
+
+		dma40_backup(addr, &base->reg_val_backup_chan[idx],
+			     d40_backup_regs_chan,
+			     ARRAY_SIZE(d40_backup_regs_chan),
+			     save);
+	}
+
+	/* Save/Restore global registers */
+	dma40_backup(base->virtbase, base->reg_val_backup,
+		     d40_backup_regs, ARRAY_SIZE(d40_backup_regs),
+		     save);
+
+	/* Save/Restore registers only existing on dma40 v3 and later */
+	if (base->gen_dmac.backup)
+		dma40_backup(base->virtbase, base->reg_val_backup_v4,
+			     base->gen_dmac.backup,
+			base->gen_dmac.backup_size,
+			save);
 }
 
 static int dma40_runtime_suspend(struct device *dev)
@@ -3020,36 +3038,20 @@ static int dma40_runtime_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct d40_base *base = platform_get_drvdata(pdev);
 
-	if (base->initialized)
-		d40_save_restore_registers(base, false);
+	d40_save_restore_registers(base, false);
 
 	writel_relaxed(D40_DREG_GCC_ENABLE_ALL,
 		       base->virtbase + D40_DREG_GCC);
 	return 0;
 }
-
-static int dma40_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct d40_base *base = platform_get_drvdata(pdev);
-	int ret = 0;
-
-	if (base->lcpa_regulator)
-		ret = regulator_enable(base->lcpa_regulator);
-
-	return ret;
-}
+#endif
 
 static const struct dev_pm_ops dma40_pm_ops = {
-	.suspend		= dma40_pm_suspend,
-	.runtime_suspend	= dma40_runtime_suspend,
-	.runtime_resume		= dma40_runtime_resume,
-	.resume			= dma40_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(dma40_suspend, dma40_resume)
+	SET_RUNTIME_PM_OPS(dma40_runtime_suspend,
+				dma40_runtime_resume,
+				NULL)
 };
-#define DMA40_PM_OPS	(&dma40_pm_ops)
-#else
-#define DMA40_PM_OPS	NULL
-#endif
 
 /* Initialization functions. */
 
@@ -3139,7 +3141,7 @@ static int __init d40_phy_res_init(struct d40_base *base)
 
 static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 {
-	struct stedma40_platform_data *plat_data = pdev->dev.platform_data;
+	struct stedma40_platform_data *plat_data = dev_get_platdata(&pdev->dev);
 	struct clk *clk = NULL;
 	void __iomem *virtbase = NULL;
 	struct resource *res = NULL;
@@ -3226,8 +3228,8 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	num_log_chans = num_phy_chans * D40_MAX_LOG_CHAN_PER_PHY;
 
 	dev_info(&pdev->dev,
-		 "hardware rev: %d @ 0x%x with %d physical and %d logical channels\n",
-		 rev, res->start, num_phy_chans, num_log_chans);
+		 "hardware rev: %d @ %pa with %d physical and %d logical channels\n",
+		 rev, &res->start, num_phy_chans, num_log_chans);
 
 	base = kzalloc(ALIGN(sizeof(struct d40_base), 4) +
 		       (num_phy_chans + num_log_chans + num_memcpy_chans) *
@@ -3427,6 +3429,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 
 			d40_err(base->dev, "Failed to allocate %d pages.\n",
 				base->lcla_pool.pages);
+			ret = -ENOMEM;
 
 			for (j = 0; j < i; j++)
 				free_pages(page_list[j], base->lcla_pool.pages);
@@ -3485,7 +3488,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 {
 	struct stedma40_platform_data *pdata;
 	int num_phy = 0, num_memcpy = 0, num_disabled = 0;
-	const const __be32 *list;
+	const __be32 *list;
 
 	pdata = devm_kzalloc(&pdev->dev,
 			     sizeof(struct stedma40_platform_data),
@@ -3516,7 +3519,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 	list = of_get_property(np, "disabled-channels", &num_disabled);
 	num_disabled /= sizeof(*list);
 
-	if (num_disabled > STEDMA40_MAX_PHYS || num_disabled < 0) {
+	if (num_disabled >= STEDMA40_MAX_PHYS || num_disabled < 0) {
 		d40_err(&pdev->dev,
 			"Invalid number of disabled channels specified (%d)\n",
 			num_disabled);
@@ -3535,7 +3538,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 
 static int __init d40_probe(struct platform_device *pdev)
 {
-	struct stedma40_platform_data *plat_data = pdev->dev.platform_data;
+	struct stedma40_platform_data *plat_data = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	int ret = -ENOENT;
 	struct d40_base *base = NULL;
@@ -3579,9 +3582,7 @@ static int __init d40_probe(struct platform_device *pdev)
 	if (request_mem_region(res->start, resource_size(res),
 			       D40_NAME " I/O lcpa") == NULL) {
 		ret = -EBUSY;
-		d40_err(&pdev->dev,
-			"Failed to request LCPA region 0x%x-0x%x\n",
-			res->start, res->end);
+		d40_err(&pdev->dev, "Failed to request LCPA region %pR\n", res);
 		goto failure;
 	}
 
@@ -3589,8 +3590,8 @@ static int __init d40_probe(struct platform_device *pdev)
 	val = readl(base->virtbase + D40_DREG_LCPA);
 	if (res->start != val && val != 0) {
 		dev_warn(&pdev->dev,
-			 "[%s] Mismatch LCPA dma 0x%x, def 0x%x\n",
-			 __func__, val, res->start);
+			 "[%s] Mismatch LCPA dma 0x%x, def %pa\n",
+			 __func__, val, &res->start);
 	} else
 		writel(res->start, base->virtbase + D40_DREG_LCPA);
 
@@ -3637,12 +3638,6 @@ static int __init d40_probe(struct platform_device *pdev)
 		goto failure;
 	}
 
-	pm_runtime_irq_safe(base->dev);
-	pm_runtime_set_autosuspend_delay(base->dev, DMA40_AUTOSUSPEND_DELAY);
-	pm_runtime_use_autosuspend(base->dev);
-	pm_runtime_enable(base->dev);
-	pm_runtime_resume(base->dev);
-
 	if (base->plat_data->use_esram_lcla) {
 
 		base->lcpa_regulator = regulator_get(base->dev, "lcla_esram");
@@ -3663,7 +3658,15 @@ static int __init d40_probe(struct platform_device *pdev)
 		}
 	}
 
-	base->initialized = true;
+	writel_relaxed(D40_DREG_GCC_ENABLE_ALL, base->virtbase + D40_DREG_GCC);
+
+	pm_runtime_irq_safe(base->dev);
+	pm_runtime_set_autosuspend_delay(base->dev, DMA40_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(base->dev);
+	pm_runtime_mark_last_busy(base->dev);
+	pm_runtime_set_active(base->dev);
+	pm_runtime_enable(base->dev);
+
 	ret = d40_dmaengine_init(base, num_reserved_chans);
 	if (ret)
 		goto failure;
@@ -3744,9 +3747,8 @@ static const struct of_device_id d40_match[] = {
 
 static struct platform_driver d40_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = D40_NAME,
-		.pm = DMA40_PM_OPS,
+		.pm = &dma40_pm_ops,
 		.of_match_table = d40_match,
 	},
 };

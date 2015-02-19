@@ -622,7 +622,7 @@ static const struct net_device_ops w5100_netdev_ops = {
 
 static int w5100_hw_probe(struct platform_device *pdev)
 {
-	struct wiznet_platform_data *data = pdev->dev.platform_data;
+	struct wiznet_platform_data *data = dev_get_platdata(&pdev->dev);
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct w5100_priv *priv = netdev_priv(ndev);
 	const char *name = netdev_name(ndev);
@@ -638,14 +638,11 @@ static int w5100_hw_probe(struct platform_device *pdev)
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem)
-		return -ENXIO;
+	priv->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
+
 	mem_size = resource_size(mem);
-	if (!devm_request_mem_region(&pdev->dev, mem->start, mem_size, name))
-		return -EBUSY;
-	priv->base = devm_ioremap(&pdev->dev, mem->start, mem_size);
-	if (!priv->base)
-		return -EBUSY;
 
 	spin_lock_init(&priv->reg_lock);
 	priv->indirect = mem_size < W5100_BUS_DIRECT_SIZE;
@@ -709,7 +706,6 @@ static int w5100_probe(struct platform_device *pdev)
 	priv = netdev_priv(ndev);
 	priv->ndev = ndev;
 
-	ether_setup(ndev);
 	ndev->netdev_ops = &w5100_netdev_ops;
 	ndev->ethtool_ops = &w5100_ethtool_ops;
 	ndev->watchdog_timeo = HZ;
@@ -792,7 +788,6 @@ static SIMPLE_DEV_PM_OPS(w5100_pm_ops, w5100_suspend, w5100_resume);
 static struct platform_driver w5100_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &w5100_pm_ops,
 	},
 	.probe		= w5100_probe,

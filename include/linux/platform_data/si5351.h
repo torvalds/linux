@@ -8,20 +8,6 @@
 struct clk;
 
 /**
- * enum si5351_variant - SiLabs Si5351 chip variant
- * @SI5351_VARIANT_A: Si5351A (8 output clocks, XTAL input)
- * @SI5351_VARIANT_A3: Si5351A MSOP10 (3 output clocks, XTAL input)
- * @SI5351_VARIANT_B: Si5351B (8 output clocks, XTAL/VXCO input)
- * @SI5351_VARIANT_C: Si5351C (8 output clocks, XTAL/CLKIN input)
- */
-enum si5351_variant {
-	SI5351_VARIANT_A = 1,
-	SI5351_VARIANT_A3 = 2,
-	SI5351_VARIANT_B = 3,
-	SI5351_VARIANT_C = 4,
-};
-
-/**
  * enum si5351_pll_src - Si5351 pll clock source
  * @SI5351_PLL_SRC_DEFAULT: default, do not change eeprom config
  * @SI5351_PLL_SRC_XTAL: pll source clock is XTAL input
@@ -115,14 +101,12 @@ struct si5351_clkout_config {
 
 /**
  * struct si5351_platform_data - Platform data for the Si5351 clock driver
- * @variant: Si5351 chip variant
  * @clk_xtal: xtal input clock
  * @clk_clkin: clkin input clock
  * @pll_src: array of pll source clock setting
  * @clkout: array of clkout configuration
  */
 struct si5351_platform_data {
-	enum si5351_variant variant;
 	struct clk *clk_xtal;
 	struct clk *clk_clkin;
 	enum si5351_pll_src pll_src[2];

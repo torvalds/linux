@@ -228,14 +228,14 @@ static void gcm_hash_final_done(struct crypto_async_request *areq, int err);
 
 static int gcm_hash_update(struct aead_request *req,
 			   struct crypto_gcm_req_priv_ctx *pctx,
-			   crypto_completion_t complete,
+			   crypto_completion_t compl,
 			   struct scatterlist *src,
 			   unsigned int len)
 {
 	struct ahash_request *ahreq = &pctx->u.ahreq;
 
 	ahash_request_set_callback(ahreq, aead_request_flags(req),
-				   complete, req);
+				   compl, req);
 	ahash_request_set_crypt(ahreq, src, NULL, len);
 
 	return crypto_ahash_update(ahreq);
@@ -244,12 +244,12 @@ static int gcm_hash_update(struct aead_request *req,
 static int gcm_hash_remain(struct aead_request *req,
 			   struct crypto_gcm_req_priv_ctx *pctx,
 			   unsigned int remain,
-			   crypto_completion_t complete)
+			   crypto_completion_t compl)
 {
 	struct ahash_request *ahreq = &pctx->u.ahreq;
 
 	ahash_request_set_callback(ahreq, aead_request_flags(req),
-				   complete, req);
+				   compl, req);
 	sg_init_one(pctx->src, gcm_zeroes, remain);
 	ahash_request_set_crypt(ahreq, pctx->src, NULL, remain);
 
@@ -375,14 +375,14 @@ static void __gcm_hash_assoc_remain_done(struct aead_request *req, int err)
 {
 	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
 	struct crypto_gcm_ghash_ctx *gctx = &pctx->ghash_ctx;
-	crypto_completion_t complete;
+	crypto_completion_t compl;
 	unsigned int remain = 0;
 
 	if (!err && gctx->cryptlen) {
 		remain = gcm_remain(gctx->cryptlen);
-		complete = remain ? gcm_hash_crypt_done :
+		compl = remain ? gcm_hash_crypt_done :
 			gcm_hash_crypt_remain_done;
-		err = gcm_hash_update(req, pctx, complete,
+		err = gcm_hash_update(req, pctx, compl,
 				      gctx->src, gctx->cryptlen);
 		if (err == -EINPROGRESS || err == -EBUSY)
 			return;
@@ -429,14 +429,14 @@ static void gcm_hash_assoc_done(struct crypto_async_request *areq, int err)
 static void __gcm_hash_init_done(struct aead_request *req, int err)
 {
 	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
-	crypto_completion_t complete;
+	crypto_completion_t compl;
 	unsigned int remain = 0;
 
 	if (!err && req->assoclen) {
 		remain = gcm_remain(req->assoclen);
-		complete = remain ? gcm_hash_assoc_done :
+		compl = remain ? gcm_hash_assoc_done :
 			gcm_hash_assoc_remain_done;
-		err = gcm_hash_update(req, pctx, complete,
+		err = gcm_hash_update(req, pctx, compl,
 				      req->assoc, req->assoclen);
 		if (err == -EINPROGRESS || err == -EBUSY)
 			return;
@@ -462,7 +462,7 @@ static int gcm_hash(struct aead_request *req,
 	struct crypto_gcm_ghash_ctx *gctx = &pctx->ghash_ctx;
 	struct crypto_gcm_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	unsigned int remain;
-	crypto_completion_t complete;
+	crypto_completion_t compl;
 	int err;
 
 	ahash_request_set_tfm(ahreq, ctx->ghash);
@@ -473,8 +473,8 @@ static int gcm_hash(struct aead_request *req,
 	if (err)
 		return err;
 	remain = gcm_remain(req->assoclen);
-	complete = remain ? gcm_hash_assoc_done : gcm_hash_assoc_remain_done;
-	err = gcm_hash_update(req, pctx, complete, req->assoc, req->assoclen);
+	compl = remain ? gcm_hash_assoc_done : gcm_hash_assoc_remain_done;
+	err = gcm_hash_update(req, pctx, compl, req->assoc, req->assoclen);
 	if (err)
 		return err;
 	if (remain) {
@@ -484,8 +484,8 @@ static int gcm_hash(struct aead_request *req,
 			return err;
 	}
 	remain = gcm_remain(gctx->cryptlen);
-	complete = remain ? gcm_hash_crypt_done : gcm_hash_crypt_remain_done;
-	err = gcm_hash_update(req, pctx, complete, gctx->src, gctx->cryptlen);
+	compl = remain ? gcm_hash_crypt_done : gcm_hash_crypt_remain_done;
+	err = gcm_hash_update(req, pctx, compl, gctx->src, gctx->cryptlen);
 	if (err)
 		return err;
 	if (remain) {
@@ -582,7 +582,7 @@ static int crypto_gcm_verify(struct aead_request *req,
 
 	crypto_xor(auth_tag, iauth_tag, 16);
 	scatterwalk_map_and_copy(iauth_tag, req->src, cryptlen, authsize, 0);
-	return memcmp(iauth_tag, auth_tag, authsize) ? -EBADMSG : 0;
+	return crypto_memneq(iauth_tag, auth_tag, authsize) ? -EBADMSG : 0;
 }
 
 static void gcm_decrypt_done(struct crypto_async_request *areq, int err)
@@ -1441,6 +1441,7 @@ module_exit(crypto_gcm_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Galois/Counter Mode");
 MODULE_AUTHOR("Mikko Herranen <mh1@iki.fi>");
-MODULE_ALIAS("gcm_base");
-MODULE_ALIAS("rfc4106");
-MODULE_ALIAS("rfc4543");
+MODULE_ALIAS_CRYPTO("gcm_base");
+MODULE_ALIAS_CRYPTO("rfc4106");
+MODULE_ALIAS_CRYPTO("rfc4543");
+MODULE_ALIAS_CRYPTO("gcm");

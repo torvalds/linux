@@ -44,6 +44,7 @@ static struct mesh_table __rcu *mesh_paths;
 static struct mesh_table __rcu *mpp_paths; /* Store paths for MPP&MAP */
 
 int mesh_paths_generation;
+int mpp_paths_generation;
 
 /* This lock will have the grow table function as writer and add / delete nodes
  * as readers. RCU provides sufficient protection only when reading the table
@@ -287,8 +288,10 @@ static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 	struct sk_buff_head failq;
 	unsigned long flags;
 
-	BUG_ON(gate_mpath == from_mpath);
-	BUG_ON(!gate_mpath->next_hop);
+	if (WARN_ON(gate_mpath == from_mpath))
+		return;
+	if (WARN_ON(!gate_mpath->next_hop))
+		return;
 
 	__skb_queue_head_init(&failq);
 
@@ -402,6 +405,33 @@ mesh_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
 			}
 			return node->mpath;
 		}
+	}
+
+	return NULL;
+}
+
+/**
+ * mpp_path_lookup_by_idx - look up a path in the proxy path table by its index
+ * @idx: index
+ * @sdata: local subif, or NULL for all entries
+ *
+ * Returns: pointer to the proxy path structure, or NULL if not found.
+ *
+ * Locking: must be called within a read rcu section.
+ */
+struct mesh_path *
+mpp_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
+{
+	struct mesh_table *tbl = rcu_dereference(mpp_paths);
+	struct mpath_node *node;
+	int i;
+	int j = 0;
+
+	for_each_mesh_entry(tbl, node, i) {
+		if (sdata && node->mpath->sdata != sdata)
+			continue;
+		if (j++ == idx)
+			return node->mpath;
 	}
 
 	return NULL;
@@ -689,6 +719,9 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 
 	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
+
+	mpp_paths_generation++;
+
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPP_TABLE,  &ifmsh->wrkq_flags);
 		ieee80211_queue_work(&local->hw, &sdata->work);
@@ -722,13 +755,12 @@ void mesh_plink_broken(struct sta_info *sta)
 	struct mpath_node *node;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	int i;
-	__le16 reason = cpu_to_le16(WLAN_REASON_MESH_PATH_DEST_UNREACHABLE);
 
 	rcu_read_lock();
 	tbl = rcu_dereference(mesh_paths);
 	for_each_mesh_entry(tbl, node, i) {
 		mpath = node->mpath;
-		if (rcu_dereference(mpath->next_hop) == sta &&
+		if (rcu_access_pointer(mpath->next_hop) == sta &&
 		    mpath->flags & MESH_PATH_ACTIVE &&
 		    !(mpath->flags & MESH_PATH_FIXED)) {
 			spin_lock_bh(&mpath->state_lock);
@@ -736,9 +768,9 @@ void mesh_plink_broken(struct sta_info *sta)
 			++mpath->sn;
 			spin_unlock_bh(&mpath->state_lock);
 			mesh_path_error_tx(sdata,
-					   sdata->u.mesh.mshcfg.element_ttl,
-					   mpath->dst, cpu_to_le32(mpath->sn),
-					   reason, bcast);
+				sdata->u.mesh.mshcfg.element_ttl,
+				mpath->dst, mpath->sn,
+				WLAN_REASON_MESH_PATH_DEST_UNREACHABLE, bcast);
 		}
 	}
 	rcu_read_unlock();
@@ -793,7 +825,7 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	tbl = resize_dereference_mesh_paths();
 	for_each_mesh_entry(tbl, node, i) {
 		mpath = node->mpath;
-		if (rcu_dereference(mpath->next_hop) == sta) {
+		if (rcu_access_pointer(mpath->next_hop) == sta) {
 			spin_lock(&tbl->hashwlock[i]);
 			__mesh_path_del(tbl, node);
 			spin_unlock(&tbl->hashwlock[i]);

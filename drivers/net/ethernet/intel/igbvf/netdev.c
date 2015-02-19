@@ -1043,11 +1043,11 @@ static void igbvf_set_interrupt_capability(struct igbvf_adapter *adapter)
 		for (i = 0; i < 3; i++)
 			adapter->msix_entries[i].entry = i;
 
-		err = pci_enable_msix(adapter->pdev,
-		                      adapter->msix_entries, 3);
+		err = pci_enable_msix_range(adapter->pdev,
+		                            adapter->msix_entries, 3, 3);
 	}
 
-	if (err) {
+	if (err < 0) {
 		/* MSI-X failed */
 		dev_err(&adapter->pdev->dev,
 		        "Failed to initialize MSI-X interrupts.\n");
@@ -1745,7 +1745,7 @@ static int igbvf_set_mac(struct net_device *netdev, void *p)
 
 	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
 
-	if (memcmp(addr->sa_data, hw->mac.addr, 6))
+	if (!ether_addr_equal(addr->sa_data, hw->mac.addr))
 		return -EADDRNOTAVAIL;
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
@@ -1907,29 +1907,28 @@ static void igbvf_watchdog_task(struct work_struct *work)
 
 static int igbvf_tso(struct igbvf_adapter *adapter,
                      struct igbvf_ring *tx_ring,
-                     struct sk_buff *skb, u32 tx_flags, u8 *hdr_len)
+		     struct sk_buff *skb, u32 tx_flags, u8 *hdr_len,
+		     __be16 protocol)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
-	unsigned int i;
-	int err;
 	struct igbvf_buffer *buffer_info;
 	u32 info = 0, tu_cmd = 0;
 	u32 mss_l4len_idx, l4len;
+	unsigned int i;
+	int err;
+
 	*hdr_len = 0;
 
-	if (skb_header_cloned(skb)) {
-		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-		if (err) {
-			dev_err(&adapter->pdev->dev,
-			        "igbvf_tso returning an error\n");
-			return err;
-		}
+	err = skb_cow_head(skb, 0);
+	if (err < 0) {
+		dev_err(&adapter->pdev->dev, "igbvf_tso returning an error\n");
+		return err;
 	}
 
 	l4len = tcp_hdrlen(skb);
 	*hdr_len += l4len;
 
-	if (skb->protocol == htons(ETH_P_IP)) {
+	if (protocol == htons(ETH_P_IP)) {
 		struct iphdr *iph = ip_hdr(skb);
 		iph->tot_len = 0;
 		iph->check = 0;
@@ -1960,7 +1959,7 @@ static int igbvf_tso(struct igbvf_adapter *adapter,
 	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
 	tu_cmd |= (E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT);
 
-	if (skb->protocol == htons(ETH_P_IP))
+	if (protocol == htons(ETH_P_IP))
 		tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
 	tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
 
@@ -1986,7 +1985,8 @@ static int igbvf_tso(struct igbvf_adapter *adapter,
 
 static inline bool igbvf_tx_csum(struct igbvf_adapter *adapter,
                                  struct igbvf_ring *tx_ring,
-                                 struct sk_buff *skb, u32 tx_flags)
+				 struct sk_buff *skb, u32 tx_flags,
+				 __be16 protocol)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
 	unsigned int i;
@@ -2013,13 +2013,13 @@ static inline bool igbvf_tx_csum(struct igbvf_adapter *adapter,
 		tu_cmd |= (E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT);
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			switch (skb->protocol) {
-			case __constant_htons(ETH_P_IP):
+			switch (protocol) {
+			case htons(ETH_P_IP):
 				tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
 				if (ip_hdr(skb)->protocol == IPPROTO_TCP)
 					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
 				break;
-			case __constant_htons(ETH_P_IPV6):
+			case htons(ETH_P_IPV6):
 				if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
 					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
 				break;
@@ -2213,6 +2213,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 	u8 hdr_len = 0;
 	int count = 0;
 	int tso = 0;
+	__be16 protocol = vlan_get_protocol(skb);
 
 	if (test_bit(__IGBVF_DOWN, &adapter->state)) {
 		dev_kfree_skb_any(skb);
@@ -2236,18 +2237,19 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		tx_flags |= IGBVF_TX_FLAGS_VLAN;
-		tx_flags |= (vlan_tx_tag_get(skb) << IGBVF_TX_FLAGS_VLAN_SHIFT);
+		tx_flags |= (skb_vlan_tag_get(skb) <<
+			     IGBVF_TX_FLAGS_VLAN_SHIFT);
 	}
 
-	if (skb->protocol == htons(ETH_P_IP))
+	if (protocol == htons(ETH_P_IP))
 		tx_flags |= IGBVF_TX_FLAGS_IPV4;
 
 	first = tx_ring->next_to_use;
 
 	tso = skb_is_gso(skb) ?
-		igbvf_tso(adapter, tx_ring, skb, tx_flags, &hdr_len) : 0;
+		igbvf_tso(adapter, tx_ring, skb, tx_flags, &hdr_len, protocol) : 0;
 	if (unlikely(tso < 0)) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -2255,7 +2257,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	if (tso)
 		tx_flags |= IGBVF_TX_FLAGS_TSO;
-	else if (igbvf_tx_csum(adapter, tx_ring, skb, tx_flags) &&
+	else if (igbvf_tx_csum(adapter, tx_ring, skb, tx_flags, protocol) &&
 	         (skb->ip_summed == CHECKSUM_PARTIAL))
 		tx_flags |= IGBVF_TX_FLAGS_CSUM;
 
@@ -2343,10 +2345,9 @@ static int igbvf_change_mtu(struct net_device *netdev, int new_mtu)
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
-	if ((new_mtu < 68) || (max_frame > MAX_JUMBO_FRAME_SIZE)) {
-		dev_err(&adapter->pdev->dev, "Invalid MTU setting\n");
+	if (new_mtu < 68 || new_mtu > INT_MAX - ETH_HLEN - ETH_FCS_LEN ||
+	    max_frame > MAX_JUMBO_FRAME_SIZE)
 		return -EINVAL;
-	}
 
 #define MAX_STD_JUMBO_FRAME_SIZE 9234
 	if (max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
@@ -2638,21 +2639,15 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	pci_using_dac = 0;
-	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (!err)
-			pci_using_dac = 1;
+		pci_using_dac = 1;
 	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err) {
-				dev_err(&pdev->dev, "No usable DMA "
-				        "configuration, aborting\n");
-				goto err_dma;
-			}
+			dev_err(&pdev->dev, "No usable DMA "
+			        "configuration, aborting\n");
+			goto err_dma;
 		}
 	}
 
@@ -2699,7 +2694,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ei->get_variants) {
 		err = ei->get_variants(adapter);
 		if (err)
-			goto err_ioremap;
+			goto err_get_variants;
 	}
 
 	/* setup adapter struct */
@@ -2796,6 +2791,7 @@ err_hw_init:
 	kfree(adapter->rx_ring);
 err_sw_init:
 	igbvf_reset_interrupt_capability(adapter);
+err_get_variants:
 	iounmap(adapter->hw.hw_addr);
 err_ioremap:
 	free_netdev(netdev);
@@ -2861,7 +2857,7 @@ static const struct pci_error_handlers igbvf_err_handler = {
 	.resume = igbvf_io_resume,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(igbvf_pci_tbl) = {
+static const struct pci_device_id igbvf_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_VF), board_vf },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_VF), board_i350_vf },
 	{ } /* terminate list */

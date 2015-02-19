@@ -48,19 +48,16 @@
  * @{
  */
 
-# include <linux/fs.h>
-# include <linux/dcache.h>
-# ifdef CONFIG_FS_POSIX_ACL
-#  include <linux/posix_acl_xattr.h>
-# endif /* CONFIG_FS_POSIX_ACL */
-# include <linux/lustre_intent.h>
-#include <lustre_handles.h>
-#include <linux/libcfs/libcfs.h>
-#include <obd_class.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_lib.h>
-#include <lustre_dlm.h>
-#include <lustre_export.h>
+#include <linux/fs.h>
+#include <linux/dcache.h>
+#include "lustre_intent.h"
+#include "lustre_handles.h"
+#include "../../include/linux/libcfs/libcfs.h"
+#include "obd_class.h"
+#include "lustre/lustre_idl.h"
+#include "lustre_lib.h"
+#include "lustre_dlm.h"
+#include "lustre_export.h"
 
 struct ptlrpc_client;
 struct obd_export;
@@ -84,9 +81,8 @@ static inline void mdc_init_rpc_lock(struct mdc_rpc_lock *lck)
 static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	ENTRY;
-
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP))
+	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+			   it->it_op == IT_LAYOUT))
 		return;
 
 	/* This would normally block until the existing request finishes.
@@ -123,8 +119,9 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP))
-		goto out;
+	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+			   it->it_op == IT_LAYOUT))
+		return;
 
 	if (lck->rpcl_it == MDC_FAKE_RPCL_IT) { /* OBD_FAIL_MDC_RPCS_SEM */
 		mutex_lock(&lck->rpcl_mutex);
@@ -141,21 +138,28 @@ static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 	}
 
 	mutex_unlock(&lck->rpcl_mutex);
- out:
-	EXIT;
 }
 
+/* Update the maximum observed easize and cookiesize.  The default easize
+ * and cookiesize is initialized to the minimum value but allowed to grow
+ * up to a single page in size if required to handle the common case.
+ */
 static inline void mdc_update_max_ea_from_body(struct obd_export *exp,
 					       struct mdt_body *body)
 {
 	if (body->valid & OBD_MD_FLMODEASIZE) {
-		if (exp->exp_obd->u.cli.cl_max_mds_easize < body->max_mdsize)
-			exp->exp_obd->u.cli.cl_max_mds_easize =
-						body->max_mdsize;
-		if (exp->exp_obd->u.cli.cl_max_mds_cookiesize <
-						body->max_cookiesize)
-			exp->exp_obd->u.cli.cl_max_mds_cookiesize =
-						body->max_cookiesize;
+		struct client_obd *cli = &exp->exp_obd->u.cli;
+
+		if (cli->cl_max_mds_easize < body->max_mdsize) {
+			cli->cl_max_mds_easize = body->max_mdsize;
+			cli->cl_default_mds_easize =
+			    min_t(__u32, body->max_mdsize, PAGE_CACHE_SIZE);
+		}
+		if (cli->cl_max_mds_cookiesize < body->max_cookiesize) {
+			cli->cl_max_mds_cookiesize = body->max_cookiesize;
+			cli->cl_default_mds_cookiesize =
+			    min_t(__u32, body->max_cookiesize, PAGE_CACHE_SIZE);
+		}
 	}
 }
 
@@ -170,6 +174,17 @@ int it_disposition(struct lookup_intent *it, int flag);
 void it_clear_disposition(struct lookup_intent *it, int flag);
 void it_set_disposition(struct lookup_intent *it, int flag);
 int it_open_error(int phase, struct lookup_intent *it);
+
+static inline bool cl_is_lov_delay_create(unsigned int flags)
+{
+	return (flags & O_LOV_DELAY_CREATE) == O_LOV_DELAY_CREATE;
+}
+
+static inline void cl_lov_delay_create_clear(unsigned int *flags)
+{
+	if ((*flags & O_LOV_DELAY_CREATE) == O_LOV_DELAY_CREATE)
+		*flags &= ~O_LOV_DELAY_CREATE;
+}
 
 /** @} mdc */
 

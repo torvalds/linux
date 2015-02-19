@@ -211,6 +211,7 @@ static int mace_probe(struct platform_device *pdev)
 	mp = netdev_priv(dev);
 
 	mp->device = &pdev->dev;
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	dev->base_addr = (u32)MACE_BASE;
@@ -767,7 +768,6 @@ static struct platform_driver mac_mace_driver = {
 	.remove = mac_mace_device_remove,
 	.driver	= {
 		.name	= mac_mace_string,
-		.owner	= THIS_MODULE,
 	},
 };
 

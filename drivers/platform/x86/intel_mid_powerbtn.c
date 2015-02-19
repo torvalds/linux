@@ -66,10 +66,8 @@ static int mfld_pb_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	input = input_allocate_device();
-	if (!input) {
-		dev_err(&pdev->dev, "Input device allocation error\n");
+	if (!input)
 		return -ENOMEM;
-	}
 
 	input->name = pdev->name;
 	input->phys = "power-button/input0";
@@ -128,7 +126,6 @@ static int mfld_pb_remove(struct platform_device *pdev)
 
 	free_irq(irq, input);
 	input_unregister_device(input);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -136,7 +133,6 @@ static int mfld_pb_remove(struct platform_device *pdev)
 static struct platform_driver mfld_pb_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe	= mfld_pb_probe,
 	.remove	= mfld_pb_remove,

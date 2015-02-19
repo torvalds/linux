@@ -22,16 +22,15 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand_ecc.h>
-#include <asm/fsl_ifc.h>
+#include <linux/fsl_ifc.h>
 
-#define FSL_IFC_V1_1_0	0x01010000
 #define ERR_BYTE		0xFF /* Value returned for read
 					bytes when read failed	*/
 #define IFC_TIMEOUT_MSECS	500  /* Maximum number of mSecs to wait
@@ -56,7 +55,7 @@ struct fsl_ifc_nand_ctrl {
 	struct nand_hw_control controller;
 	struct fsl_ifc_mtd *chips[FSL_IFC_BANK_COUNT];
 
-	u8 __iomem *addr;	/* Address of assigned IFC buffer	*/
+	void __iomem *addr;	/* Address of assigned IFC buffer	*/
 	unsigned int page;	/* Last page written to / read from	*/
 	unsigned int read_bytes;/* Number of bytes read during command	*/
 	unsigned int column;	/* Saved column from SEQIN		*/
@@ -135,6 +134,69 @@ static struct nand_ecclayout oob_4096_ecc8 = {
 	.oobfree = { {2, 6}, {136, 82} },
 };
 
+/* 8192-byte page size with 4-bit ECC */
+static struct nand_ecclayout oob_8192_ecc4 = {
+	.eccbytes = 128,
+	.eccpos = {
+		8, 9, 10, 11, 12, 13, 14, 15,
+		16, 17, 18, 19, 20, 21, 22, 23,
+		24, 25, 26, 27, 28, 29, 30, 31,
+		32, 33, 34, 35, 36, 37, 38, 39,
+		40, 41, 42, 43, 44, 45, 46, 47,
+		48, 49, 50, 51, 52, 53, 54, 55,
+		56, 57, 58, 59, 60, 61, 62, 63,
+		64, 65, 66, 67, 68, 69, 70, 71,
+		72, 73, 74, 75, 76, 77, 78, 79,
+		80, 81, 82, 83, 84, 85, 86, 87,
+		88, 89, 90, 91, 92, 93, 94, 95,
+		96, 97, 98, 99, 100, 101, 102, 103,
+		104, 105, 106, 107, 108, 109, 110, 111,
+		112, 113, 114, 115, 116, 117, 118, 119,
+		120, 121, 122, 123, 124, 125, 126, 127,
+		128, 129, 130, 131, 132, 133, 134, 135,
+	},
+	.oobfree = { {2, 6}, {136, 208} },
+};
+
+/* 8192-byte page size with 8-bit ECC -- requires 218-byte OOB */
+static struct nand_ecclayout oob_8192_ecc8 = {
+	.eccbytes = 256,
+	.eccpos = {
+		8, 9, 10, 11, 12, 13, 14, 15,
+		16, 17, 18, 19, 20, 21, 22, 23,
+		24, 25, 26, 27, 28, 29, 30, 31,
+		32, 33, 34, 35, 36, 37, 38, 39,
+		40, 41, 42, 43, 44, 45, 46, 47,
+		48, 49, 50, 51, 52, 53, 54, 55,
+		56, 57, 58, 59, 60, 61, 62, 63,
+		64, 65, 66, 67, 68, 69, 70, 71,
+		72, 73, 74, 75, 76, 77, 78, 79,
+		80, 81, 82, 83, 84, 85, 86, 87,
+		88, 89, 90, 91, 92, 93, 94, 95,
+		96, 97, 98, 99, 100, 101, 102, 103,
+		104, 105, 106, 107, 108, 109, 110, 111,
+		112, 113, 114, 115, 116, 117, 118, 119,
+		120, 121, 122, 123, 124, 125, 126, 127,
+		128, 129, 130, 131, 132, 133, 134, 135,
+		136, 137, 138, 139, 140, 141, 142, 143,
+		144, 145, 146, 147, 148, 149, 150, 151,
+		152, 153, 154, 155, 156, 157, 158, 159,
+		160, 161, 162, 163, 164, 165, 166, 167,
+		168, 169, 170, 171, 172, 173, 174, 175,
+		176, 177, 178, 179, 180, 181, 182, 183,
+		184, 185, 186, 187, 188, 189, 190, 191,
+		192, 193, 194, 195, 196, 197, 198, 199,
+		200, 201, 202, 203, 204, 205, 206, 207,
+		208, 209, 210, 211, 212, 213, 214, 215,
+		216, 217, 218, 219, 220, 221, 222, 223,
+		224, 225, 226, 227, 228, 229, 230, 231,
+		232, 233, 234, 235, 236, 237, 238, 239,
+		240, 241, 242, 243, 244, 245, 246, 247,
+		248, 249, 250, 251, 252, 253, 254, 255,
+		256, 257, 258, 259, 260, 261, 262, 263,
+	},
+	.oobfree = { {2, 6}, {264, 80} },
+};
 
 /*
  * Generic flash bbt descriptors
@@ -441,20 +503,29 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		if (mtd->writesize > 512) {
 			nand_fcr0 =
 				(NAND_CMD_SEQIN << IFC_NAND_FCR0_CMD0_SHIFT) |
-				(NAND_CMD_PAGEPROG << IFC_NAND_FCR0_CMD1_SHIFT);
+				(NAND_CMD_STATUS << IFC_NAND_FCR0_CMD1_SHIFT) |
+				(NAND_CMD_PAGEPROG << IFC_NAND_FCR0_CMD2_SHIFT);
 
 			iowrite32be(
-				(IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
-				(IFC_FIR_OP_CA0 << IFC_NAND_FIR0_OP1_SHIFT) |
-				(IFC_FIR_OP_RA0 << IFC_NAND_FIR0_OP2_SHIFT) |
-				(IFC_FIR_OP_WBCD << IFC_NAND_FIR0_OP3_SHIFT) |
-				(IFC_FIR_OP_CW1 << IFC_NAND_FIR0_OP4_SHIFT),
-				&ifc->ifc_nand.nand_fir0);
+				 (IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
+				 (IFC_FIR_OP_CA0 << IFC_NAND_FIR0_OP1_SHIFT) |
+				 (IFC_FIR_OP_RA0 << IFC_NAND_FIR0_OP2_SHIFT) |
+				 (IFC_FIR_OP_WBCD  << IFC_NAND_FIR0_OP3_SHIFT) |
+				 (IFC_FIR_OP_CMD2 << IFC_NAND_FIR0_OP4_SHIFT),
+				 &ifc->ifc_nand.nand_fir0);
+			iowrite32be(
+				 (IFC_FIR_OP_CW1 << IFC_NAND_FIR1_OP5_SHIFT) |
+				 (IFC_FIR_OP_RDSTAT <<
+					IFC_NAND_FIR1_OP6_SHIFT) |
+				 (IFC_FIR_OP_NOP << IFC_NAND_FIR1_OP7_SHIFT),
+				 &ifc->ifc_nand.nand_fir1);
 		} else {
 			nand_fcr0 = ((NAND_CMD_PAGEPROG <<
 					IFC_NAND_FCR0_CMD1_SHIFT) |
 				    (NAND_CMD_SEQIN <<
-					IFC_NAND_FCR0_CMD2_SHIFT));
+					IFC_NAND_FCR0_CMD2_SHIFT) |
+				    (NAND_CMD_STATUS <<
+					IFC_NAND_FCR0_CMD3_SHIFT));
 
 			iowrite32be(
 				(IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
@@ -463,8 +534,13 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 				(IFC_FIR_OP_RA0 << IFC_NAND_FIR0_OP3_SHIFT) |
 				(IFC_FIR_OP_WBCD << IFC_NAND_FIR0_OP4_SHIFT),
 				&ifc->ifc_nand.nand_fir0);
-			iowrite32be(IFC_FIR_OP_CW1 << IFC_NAND_FIR1_OP5_SHIFT,
-				    &ifc->ifc_nand.nand_fir1);
+			iowrite32be(
+				 (IFC_FIR_OP_CMD1 << IFC_NAND_FIR1_OP5_SHIFT) |
+				 (IFC_FIR_OP_CW3 << IFC_NAND_FIR1_OP6_SHIFT) |
+				 (IFC_FIR_OP_RDSTAT <<
+					IFC_NAND_FIR1_OP7_SHIFT) |
+				 (IFC_FIR_OP_NOP << IFC_NAND_FIR1_OP8_SHIFT),
+				  &ifc->ifc_nand.nand_fir1);
 
 			if (column >= mtd->writesize)
 				nand_fcr0 |=
@@ -514,7 +590,10 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		 * The chip always seems to report that it is
 		 * write-protected, even when it is not.
 		 */
-		setbits8(ifc_nand_ctrl->addr, NAND_STATUS_WP);
+		if (chip->options & NAND_BUSWIDTH_16)
+			setbits16(ifc_nand_ctrl->addr, NAND_STATUS_WP);
+		else
+			setbits8(ifc_nand_ctrl->addr, NAND_STATUS_WP);
 		return;
 
 	case NAND_CMD_RESET:
@@ -559,7 +638,7 @@ static void fsl_ifc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 		len = bufsize - ifc_nand_ctrl->index;
 	}
 
-	memcpy_toio(&ifc_nand_ctrl->addr[ifc_nand_ctrl->index], buf, len);
+	memcpy_toio(ifc_nand_ctrl->addr + ifc_nand_ctrl->index, buf, len);
 	ifc_nand_ctrl->index += len;
 }
 
@@ -571,13 +650,16 @@ static uint8_t fsl_ifc_read_byte(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
 	struct fsl_ifc_mtd *priv = chip->priv;
+	unsigned int offset;
 
 	/*
 	 * If there are still bytes in the IFC buffer, then use the
 	 * next byte.
 	 */
-	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes)
-		return in_8(&ifc_nand_ctrl->addr[ifc_nand_ctrl->index++]);
+	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes) {
+		offset = ifc_nand_ctrl->index++;
+		return in_8(ifc_nand_ctrl->addr + offset);
+	}
 
 	dev_err(priv->dev, "%s: beyond end of buffer\n", __func__);
 	return ERR_BYTE;
@@ -598,8 +680,7 @@ static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
 	 * next byte.
 	 */
 	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes) {
-		data = in_be16((uint16_t __iomem *)&ifc_nand_ctrl->
-			       addr[ifc_nand_ctrl->index]);
+		data = in_be16(ifc_nand_ctrl->addr + ifc_nand_ctrl->index);
 		ifc_nand_ctrl->index += 2;
 		return (uint8_t) data;
 	}
@@ -624,7 +705,7 @@ static void fsl_ifc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 
 	avail = min((unsigned int)len,
 			ifc_nand_ctrl->read_bytes - ifc_nand_ctrl->index);
-	memcpy_fromio(buf, &ifc_nand_ctrl->addr[ifc_nand_ctrl->index], avail);
+	memcpy_fromio(buf, ifc_nand_ctrl->addr + ifc_nand_ctrl->index, avail);
 	ifc_nand_ctrl->index += avail;
 
 	if (len > avail)
@@ -718,8 +799,6 @@ static int fsl_ifc_chip_init_tail(struct mtd_info *mtd)
 							chip->page_shift);
 	dev_dbg(priv->dev, "%s: nand->phys_erase_shift = %d\n", __func__,
 							chip->phys_erase_shift);
-	dev_dbg(priv->dev, "%s: nand->ecclayout = %p\n", __func__,
-							chip->ecclayout);
 	dev_dbg(priv->dev, "%s: nand->ecc.mode = %d\n", __func__,
 							chip->ecc.mode);
 	dev_dbg(priv->dev, "%s: nand->ecc.steps = %d\n", __func__,
@@ -797,7 +876,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 	struct nand_chip *chip = &priv->chip;
 	struct nand_ecclayout *layout;
-	u32 csor, ver;
+	u32 csor;
 
 	/* Fill in fsl_ifc_mtd structure */
 	priv->mtd.priv = chip;
@@ -823,7 +902,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	/* set up nand options */
 	chip->bbt_options = NAND_BBT_USE_FLASH;
-
+	chip->options = NAND_NO_SUBPAGE_WRITE;
 
 	if (ioread32be(&ifc->cspr_cs[priv->bank].cspr) & CSPR_PORT_SIZE_16) {
 		chip->read_byte = fsl_ifc_read_byte16;
@@ -872,10 +951,24 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 		} else {
 			layout = &oob_4096_ecc8;
 			chip->ecc.bytes = 16;
+			chip->ecc.strength = 8;
 		}
 
 		priv->bufnum_mask = 1;
 		break;
+
+	case CSOR_NAND_PGS_8K:
+		if ((csor & CSOR_NAND_ECC_MODE_MASK) ==
+		    CSOR_NAND_ECC_MODE_4) {
+			layout = &oob_8192_ecc4;
+		} else {
+			layout = &oob_8192_ecc8;
+			chip->ecc.bytes = 16;
+			chip->ecc.strength = 8;
+		}
+
+		priv->bufnum_mask = 0;
+	break;
 
 	default:
 		dev_err(priv->dev, "bad csor %#x: bad page size\n", csor);
@@ -890,8 +983,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 		chip->ecc.mode = NAND_ECC_SOFT;
 	}
 
-	ver = ioread32be(&ifc->ifc_rev);
-	if (ver == FSL_IFC_V1_1_0)
+	if (ctrl->version == FSL_IFC_VERSION_1_1_0)
 		fsl_ifc_sram_init(priv);
 
 	return 0;
@@ -907,8 +999,6 @@ static int fsl_ifc_chip_remove(struct fsl_ifc_mtd *priv)
 		iounmap(priv->vbase);
 
 	ifc_nand_ctrl->chips[priv->bank] = NULL;
-	dev_set_drvdata(priv->dev, NULL);
-	kfree(priv);
 
 	return 0;
 }
@@ -953,12 +1043,12 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	}
 
 	/* find which chip select it is connected to */
-	for (bank = 0; bank < FSL_IFC_BANK_COUNT; bank++) {
+	for (bank = 0; bank < fsl_ifc_ctrl_dev->banks; bank++) {
 		if (match_bank(ifc, bank, res.start))
 			break;
 	}
 
-	if (bank >= FSL_IFC_BANK_COUNT) {
+	if (bank >= fsl_ifc_ctrl_dev->banks) {
 		dev_err(&dev->dev, "%s: address did not match any chip selects\n",
 			__func__);
 		return -ENODEV;
@@ -972,7 +1062,6 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	if (!fsl_ifc_ctrl_dev->nand) {
 		ifc_nand_ctrl = kzalloc(sizeof(*ifc_nand_ctrl), GFP_KERNEL);
 		if (!ifc_nand_ctrl) {
-			dev_err(&dev->dev, "failed to allocate memory\n");
 			mutex_unlock(&fsl_ifc_nand_mutex);
 			return -ENOMEM;
 		}
@@ -1013,7 +1102,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		    IFC_NAND_EVTER_INTR_FTOERIR_EN |
 		    IFC_NAND_EVTER_INTR_WPERIR_EN,
 		    &ifc->ifc_nand.nand_evter_intr_en);
-	priv->mtd.name = kasprintf(GFP_KERNEL, "%x.flash", (unsigned)res.start);
+	priv->mtd.name = kasprintf(GFP_KERNEL, "%llx.flash", (u64)res.start);
 	if (!priv->mtd.name) {
 		ret = -ENOMEM;
 		goto err;
@@ -1076,32 +1165,13 @@ static const struct of_device_id fsl_ifc_nand_match[] = {
 static struct platform_driver fsl_ifc_nand_driver = {
 	.driver = {
 		.name	= "fsl,ifc-nand",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_ifc_nand_match,
 	},
 	.probe       = fsl_ifc_nand_probe,
 	.remove      = fsl_ifc_nand_remove,
 };
 
-static int __init fsl_ifc_nand_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&fsl_ifc_nand_driver);
-	if (ret)
-		printk(KERN_ERR "fsl-ifc: Failed to register platform"
-				"driver\n");
-
-	return ret;
-}
-
-static void __exit fsl_ifc_nand_exit(void)
-{
-	platform_driver_unregister(&fsl_ifc_nand_driver);
-}
-
-module_init(fsl_ifc_nand_init);
-module_exit(fsl_ifc_nand_exit);
+module_platform_driver(fsl_ifc_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Freescale");

@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
+#include <linux/of_address.h>
 #include <asm/io.h>
 
 #include "emac.h"
@@ -44,6 +45,7 @@
 
 /* RGMIIx_SSR */
 #define RGMII_SSR_MASK(idx)	(0x7 << ((idx) * 8))
+#define RGMII_SSR_10(idx)	(0x1 << ((idx) * 8))
 #define RGMII_SSR_100(idx)	(0x2 << ((idx) * 8))
 #define RGMII_SSR_1000(idx)	(0x4 << ((idx) * 8))
 
@@ -138,6 +140,8 @@ void rgmii_set_speed(struct platform_device *ofdev, int input, int speed)
 		ssr |= RGMII_SSR_1000(input);
 	else if (speed == SPEED_100)
 		ssr |= RGMII_SSR_100(input);
+	else if (speed == SPEED_10)
+		ssr |= RGMII_SSR_10(input);
 
 	out_be32(&p->ssr, ssr);
 
@@ -315,7 +319,6 @@ static struct of_device_id rgmii_match[] =
 static struct platform_driver rgmii_driver = {
 	.driver = {
 		.name = "emac-rgmii",
-		.owner = THIS_MODULE,
 		.of_match_table = rgmii_match,
 	},
 	.probe = rgmii_probe,

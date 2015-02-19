@@ -36,11 +36,14 @@ int main(int argc, char *argv[])
 	uint32_t olen;
 	long ilen;
 	unsigned long offs;
-	FILE *f;
+	unsigned long run_size;
+	FILE *f = NULL;
+	int retval = 1;
 
-	if (argc < 2) {
-		fprintf(stderr, "Usage: %s compressed_file\n", argv[0]);
-		return 1;
+	if (argc < 3) {
+		fprintf(stderr, "Usage: %s compressed_file run_size\n",
+				argv[0]);
+		goto bail;
 	}
 
 	/* Get the information for the compressed kernel image first */
@@ -48,7 +51,7 @@ int main(int argc, char *argv[])
 	f = fopen(argv[1], "r");
 	if (!f) {
 		perror(argv[1]);
-		return 1;
+		goto bail;
 	}
 
 
@@ -58,12 +61,11 @@ int main(int argc, char *argv[])
 
 	if (fread(&olen, sizeof(olen), 1, f) != 1) {
 		perror(argv[1]);
-		return 1;
+		goto bail;
 	}
 
 	ilen = ftell(f);
 	olen = get_unaligned_le32(&olen);
-	fclose(f);
 
 	/*
 	 * Now we have the input (compressed) and output (uncompressed)
@@ -74,6 +76,7 @@ int main(int argc, char *argv[])
 	offs += olen >> 12;	/* Add 8 bytes for each 32K block */
 	offs += 64*1024 + 128;	/* Add 64K + 128 bytes slack */
 	offs = (offs+4095) & ~4095; /* Round to a 4K boundary */
+	run_size = atoi(argv[2]);
 
 	printf(".section \".rodata..compressed\",\"a\",@progbits\n");
 	printf(".globl z_input_len\n");
@@ -85,11 +88,17 @@ int main(int argc, char *argv[])
 	/* z_extract_offset_negative allows simplification of head_32.S */
 	printf(".globl z_extract_offset_negative\n");
 	printf("z_extract_offset_negative = -0x%lx\n", offs);
+	printf(".globl z_run_size\n");
+	printf("z_run_size = %lu\n", run_size);
 
 	printf(".globl input_data, input_data_end\n");
 	printf("input_data:\n");
 	printf(".incbin \"%s\"\n", argv[1]);
 	printf("input_data_end:\n");
 
-	return 0;
+	retval = 0;
+bail:
+	if (f)
+		fclose(f);
+	return retval;
 }

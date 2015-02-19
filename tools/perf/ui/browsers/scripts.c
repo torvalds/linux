@@ -84,22 +84,22 @@ static void script_browser__write(struct ui_browser *browser,
 	slsmg_write_nstring(sline->line, browser->width);
 }
 
-static int script_browser__run(struct perf_script_browser *self)
+static int script_browser__run(struct perf_script_browser *browser)
 {
 	int key;
 
-	if (ui_browser__show(&self->b, self->script_name,
+	if (ui_browser__show(&browser->b, browser->script_name,
 			     "Press <- or ESC to exit") < 0)
 		return -1;
 
 	while (1) {
-		key = ui_browser__run(&self->b, 0);
+		key = ui_browser__run(&browser->b, 0);
 
 		/* We can add some special key handling here if needed */
 		break;
 	}
 
-	ui_browser__hide(&self->b);
+	ui_browser__hide(&browser->b);
 	return key;
 }
 
@@ -173,8 +173,7 @@ int script_browse(const char *script_opt)
 	if (script.b.width > AVERAGE_LINE_LEN)
 		script.b.width = AVERAGE_LINE_LEN;
 
-	if (line)
-		free(line);
+	free(line);
 	pclose(fp);
 
 	script.nr_lines = nr_entries;

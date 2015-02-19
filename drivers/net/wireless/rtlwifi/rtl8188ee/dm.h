@@ -156,7 +156,6 @@
 #define	DM_REG_SLEEP_11N				0xEE0
 #define	DM_REG_PMPD_ANAEN_11N				0xEEC
 
-
 /*MAC REG LIST*/
 #define	DM_REG_BB_RST_11N				0x02
 #define	DM_REG_ANTSEL_PIN_11N				0x4C
@@ -168,8 +167,9 @@
 #define	DM_REG_EDCA_BK_11N				0x50C
 #define	DM_REG_TXPAUSE_11N				0x522
 #define	DM_REG_RESP_TX_11N				0x6D8
-#define	DM_REG_ANT_TRAIN_1				0x7b0
-#define	DM_REG_ANT_TRAIN_2				0x7b4
+#define	DM_REG_ANT_TRAIN_PARA1_11N			0x7b0
+#define	DM_REG_ANT_TRAIN_PARA2_11N			0x7b4
+
 
 /*DIG Related*/
 #define	DM_BIT_IGI_11N					0x0000007F
@@ -186,29 +186,13 @@
 #define BW_AUTO_SWITCH_HIGH_LOW				25
 #define BW_AUTO_SWITCH_LOW_HIGH				30
 
-#define DM_DIG_THRESH_HIGH				40
-#define DM_DIG_THRESH_LOW				35
-
-#define DM_FALSEALARM_THRESH_LOW			400
-#define DM_FALSEALARM_THRESH_HIGH			1000
-
-#define DM_DIG_MAX					0x3e
-#define DM_DIG_MIN					0x1e
-
-#define DM_DIG_MAX_AP					0x32
-#define DM_DIG_MIN_AP					0x20
-
 #define DM_DIG_FA_UPPER					0x3e
 #define DM_DIG_FA_LOWER					0x1e
 #define DM_DIG_FA_TH0					0x200
 #define DM_DIG_FA_TH1					0x300
 #define DM_DIG_FA_TH2					0x400
 
-#define DM_DIG_BACKOFF_MAX				12
-#define DM_DIG_BACKOFF_MIN				-4
-#define DM_DIG_BACKOFF_DEFAULT				10
-
-#define RXPATHSELECTION_SS_TH_LOW			30
+#define RXPATHSELECTION_SS_TH_W				30
 #define RXPATHSELECTION_DIFF_TH				18
 
 #define DM_RATR_STA_INIT				0
@@ -232,20 +216,22 @@
 
 #define TX_POWER_NEAR_FIELD_THRESH_LVL2			74
 #define TX_POWER_NEAR_FIELD_THRESH_LVL1			67
-#define TXPWRTRACK_MAX_IDX				6
+#define TXPWRTRACK_MAX_IDX				 6
 
 struct swat_t {
 	u8 failure_cnt;
 	u8 try_flag;
 	u8 stop_trying;
+
 	long pre_rssi;
 	long trying_threshold;
 	u8 cur_antenna;
 	u8 pre_antenna;
+
 };
 
 enum FAT_STATE {
-	FAT_NORMAL_STATE	= 0,
+	FAT_NORMAL_STATE = 0,
 	FAT_TRAINING_STATE = 1,
 };
 
@@ -258,14 +244,6 @@ enum tag_dynamic_init_gain_operation_type_definition {
 	DIG_TYPE_ENABLE = 5,
 	DIG_TYPE_DISABLE = 6,
 	DIG_OP_TYPE_MAX
-};
-
-enum tag_cck_packet_detection_threshold_type_definition {
-	CCK_PD_STAGE_LOWRSSI = 0,
-	CCK_PD_STAGE_HIGHRSSI = 1,
-	CCK_FA_STAGE_LOW = 2,
-	CCK_FA_STAGE_HIGH = 3,
-	CCK_PD_STAGE_MAX = 4,
 };
 
 enum dm_1r_cca_e {
@@ -286,23 +264,6 @@ enum dm_sw_ant_switch_e {
 	ANS_ANTENNA_MAX = 3,
 };
 
-enum dm_dig_ext_port_alg_e {
-	DIG_EXT_PORT_STAGE_0 = 0,
-	DIG_EXT_PORT_STAGE_1 = 1,
-	DIG_EXT_PORT_STAGE_2 = 2,
-	DIG_EXT_PORT_STAGE_3 = 3,
-	DIG_EXT_PORT_STAGE_MAX = 4,
-};
-
-enum dm_dig_connect_e {
-	DIG_STA_DISCONNECT = 0,
-	DIG_STA_CONNECT = 1,
-	DIG_STA_BEFORE_CONNECT = 2,
-	DIG_MULTISTA_DISCONNECT = 3,
-	DIG_MULTISTA_CONNECT = 4,
-	DIG_CONNECT_MAX
-};
-
 enum pwr_track_control_method {
 	BBSWING,
 	TXAGC
@@ -310,8 +271,9 @@ enum pwr_track_control_method {
 
 void rtl88e_dm_set_tx_ant_by_tx_info(struct ieee80211_hw *hw,
 				     u8 *pdesc, u32 mac_id);
-void rtl88e_dm_ant_sel_statistics(struct ieee80211_hw *hw, u8 antsel_tr_mux,
-				  u32 mac_id, u32 rx_pwdb_all);
+void rtl88e_dm_ant_sel_statistics(struct ieee80211_hw *hw,
+				  u8 antsel_tr_mux, u32 mac_id,
+				  u32 rx_pwdb_all);
 void rtl88e_dm_fast_antenna_training_callback(unsigned long data);
 void rtl88e_dm_init(struct ieee80211_hw *hw);
 void rtl88e_dm_watchdog(struct ieee80211_hw *hw);
@@ -320,7 +282,5 @@ void rtl88e_dm_init_edca_turbo(struct ieee80211_hw *hw);
 void rtl88e_dm_check_txpower_tracking(struct ieee80211_hw *hw);
 void rtl88e_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw);
 void rtl88e_dm_txpower_track_adjust(struct ieee80211_hw *hw,
-				    u8 type, u8 *pdirection,
-				    u32 *poutwrite_val);
-
+	u8 type, u8 *pdirection, u32 *poutwrite_val);
 #endif

@@ -145,6 +145,8 @@
 
 
 /* Index of Codec Private Register definition */
+#define RT5640_CHPUMP_INT_REG1			0x24
+#define RT5640_MAMP_INT_REG2			0x37
 #define RT5640_3D_SPK				0x63
 #define RT5640_WND_1				0x6c
 #define RT5640_WND_2				0x6d
@@ -153,6 +155,7 @@
 #define RT5640_WND_5				0x70
 #define RT5640_WND_8				0x73
 #define RT5640_DIP_SPK_INF			0x75
+#define RT5640_HP_DCC_INT1			0x77
 #define RT5640_EQ_BW_LOP			0xa0
 #define RT5640_EQ_GN_LOP			0xa1
 #define RT5640_EQ_FC_BP1			0xa2
@@ -188,6 +191,13 @@
 #define RT5640_L_VOL_SFT			8
 #define RT5640_R_VOL_MASK			(0x3f)
 #define RT5640_R_VOL_SFT			0
+
+/* SW Reset & Device ID (0x00) */
+#define RT5640_ID_MASK				(0x3 << 1)
+#define RT5640_ID_5639				(0x0 << 1)
+#define RT5640_ID_5640				(0x2 << 1)
+#define RT5640_ID_5642				(0x3 << 1)
+
 
 /* IN1 and IN2 Control (0x0d) */
 /* IN3 and IN4 Control (0x0e) */
@@ -973,8 +983,6 @@
 #define RT5640_SCLK_SRC_SFT			14
 #define RT5640_SCLK_SRC_MCLK			(0x0 << 14)
 #define RT5640_SCLK_SRC_PLL1			(0x1 << 14)
-#define RT5640_SCLK_SRC_PLL1T			(0x2 << 14)
-#define RT5640_SCLK_SRC_RCCLK			(0x3 << 14) /* 15MHz */
 #define RT5640_PLL1_SRC_MASK			(0x3 << 12)
 #define RT5640_PLL1_SRC_SFT			12
 #define RT5640_PLL1_SRC_MCLK			(0x0 << 12)
@@ -1201,6 +1209,14 @@
 #define RT5640_CP_FQ2_SFT			4
 #define RT5640_CP_FQ3_MASK			(0x7)
 #define RT5640_CP_FQ3_SFT			0
+#define RT5640_CP_FQ_1_5_KHZ			0
+#define RT5640_CP_FQ_3_KHZ			1
+#define RT5640_CP_FQ_6_KHZ			2
+#define RT5640_CP_FQ_12_KHZ			3
+#define RT5640_CP_FQ_24_KHZ			4
+#define RT5640_CP_FQ_48_KHZ			5
+#define RT5640_CP_FQ_96_KHZ			6
+#define RT5640_CP_FQ_192_KHZ			7
 
 /* HPOUT charge pump (0x91) */
 #define RT5640_OSW_L_MASK			(0x1 << 11)
@@ -2063,13 +2079,6 @@ enum {
 	RT5640_DMIC2,
 };
 
-struct rt5640_pll_code {
-	bool m_bp; /* Indicates bypass m code or not. */
-	int m_code;
-	int n_code;
-	int k_code;
-};
-
 struct rt5640_priv {
 	struct snd_soc_codec *codec;
 	struct rt5640_platform_data pdata;
@@ -2081,12 +2090,14 @@ struct rt5640_priv {
 	int bclk[RT5640_AIFS];
 	int master[RT5640_AIFS];
 
-	struct rt5640_pll_code pll_code;
 	int pll_src;
 	int pll_in;
 	int pll_out;
 
-	int dmic_en;
+	bool hp_mute;
 };
+
+int rt5640_dmic_enable(struct snd_soc_codec *codec,
+		       bool dmic1_data_pin, bool dmic2_data_pin);
 
 #endif

@@ -46,13 +46,12 @@
 #ifndef OSC_CL_INTERNAL_H
 #define OSC_CL_INTERNAL_H
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd.h>
+#include "../include/obd.h"
 /* osc_build_res_name() */
-#include <obd_ost.h>
-#include <cl_object.h>
-#include <lclient.h>
+#include "../include/cl_object.h"
+#include "../include/lclient.h"
 #include "osc_internal.h"
 
 /** \defgroup osc osc
@@ -118,7 +117,7 @@ struct osc_object {
 	 * True if locking against this stripe got -EUSERS.
 	 */
 	int		oo_contended;
-	cfs_time_t	 oo_contention_time;
+	unsigned long	 oo_contention_time;
 	/**
 	 * List of pages in transfer.
 	 */
@@ -176,7 +175,16 @@ static inline void osc_object_unlock(struct osc_object *obj)
 
 static inline int osc_object_is_locked(struct osc_object *obj)
 {
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
 	return spin_is_locked(&obj->oo_lock);
+#else
+	/*
+	 * It is not perfect to return true all the time.
+	 * But since this function is only used for assertion
+	 * and checking, it seems OK.
+	 */
+	return 1;
+#endif
 }
 
 /*
@@ -299,7 +307,7 @@ struct osc_lock {
 				 ols_flush:1,
 	/**
 	 * if set, the osc_lock is a glimpse lock. For glimpse locks, we treat
-	 * the EVAVAIL error as torerable, this will make upper logic happy
+	 * the EVAVAIL error as tolerable, this will make upper logic happy
 	 * to wait all glimpse locks to each OSTs to be completed.
 	 * Glimpse lock converts to normal lock if the server lock is
 	 * granted.
@@ -374,11 +382,11 @@ struct osc_page {
 	/**
 	 * Thread that submitted this page for transfer. For debugging.
 	 */
-	task_t	   *ops_submitter;
+	struct task_struct	*ops_submitter;
 	/**
 	 * Submit time - the time when the page is starting RPC. For debugging.
 	 */
-	cfs_time_t	    ops_submit_time;
+	unsigned long	    ops_submit_time;
 
 	/**
 	 * A lock of which we hold a reference covers this page. Only used by
@@ -426,7 +434,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 		     enum cl_req_type crt, int brw_flags);
 int osc_cancel_async_page(const struct lu_env *env, struct osc_page *ops);
 int osc_set_async_flags(struct osc_object *obj, struct osc_page *opg,
-			obd_flag async_flags);
+			u32 async_flags);
 int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 			struct page *page, loff_t offset);
 int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
@@ -660,7 +668,7 @@ struct osc_extent {
 	/** lock covering this extent */
 	struct cl_lock    *oe_osclock;
 	/** terminator of this extent. Must be true if this extent is in IO. */
-	task_t	*oe_owner;
+	struct task_struct	*oe_owner;
 	/** return value of writeback. If somebody is waiting for this extent,
 	 * this value can be known by outside world. */
 	int		oe_rc;
@@ -670,7 +678,7 @@ struct osc_extent {
 
 int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 		      int sent, int rc);
-int osc_extent_release(const struct lu_env *env, struct osc_extent *ext);
+void osc_extent_release(const struct lu_env *env, struct osc_extent *ext);
 
 /** @} osc */
 

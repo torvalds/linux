@@ -176,8 +176,10 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 
 	sd->id = irq_domain_add_legacy(pdev->dev.of_node, SDV_NUM_PUB_GPIOS,
 				sd->irq_base, 0, &irq_domain_sdv_ops, sd);
-	if (!sd->id)
+	if (!sd->id) {
+		ret = -ENODEV;
 		goto out_free_irq;
+	}
 	return 0;
 out_free_irq:
 	free_irq(pdev->irq, sd);
@@ -212,8 +214,10 @@ static int sdv_gpio_probe(struct pci_dev *pdev,
 	}
 
 	addr = pci_resource_start(pdev, GPIO_BAR);
-	if (!addr)
+	if (!addr) {
+		ret = -ENODEV;
 		goto release_reg;
+	}
 	sd->gpio_pub_base = ioremap(addr, pci_resource_len(pdev, GPIO_BAR));
 
 	prop = of_get_property(pdev->dev.of_node, "intel,muxctl", &len);
@@ -261,16 +265,14 @@ static void sdv_gpio_remove(struct pci_dev *pdev)
 	free_irq(pdev->irq, sd);
 	irq_free_descs(sd->irq_base, SDV_NUM_PUB_GPIOS);
 
-	if (gpiochip_remove(&sd->bgpio.gc))
-		dev_err(&pdev->dev, "gpiochip_remove() failed.\n");
-
+	gpiochip_remove(&sd->bgpio.gc);
 	pci_release_region(pdev, GPIO_BAR);
 	iounmap(sd->gpio_pub_base);
 	pci_disable_device(pdev);
 	kfree(sd);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(sdv_gpio_pci_ids) = {
+static const struct pci_device_id sdv_gpio_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_SDV_GPIO) },
 	{ 0, },
 };

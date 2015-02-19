@@ -16,11 +16,11 @@ PPC64_CACHES:
         .tc             ppc64_caches[TC],ppc64_caches
         .section        ".text"
 
-_GLOBAL(copy_page)
+_GLOBAL_TOC(copy_page)
 BEGIN_FTR_SECTION
 	lis	r5,PAGE_SIZE@h
 FTR_SECTION_ELSE
-	b	.copypage_power7
+	b	copypage_power7
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
 	ori	r5,r5,PAGE_SIZE@l
 BEGIN_FTR_SECTION

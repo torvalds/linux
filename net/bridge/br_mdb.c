@@ -9,6 +9,7 @@
 #include <net/netlink.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
+#include <net/addrconf.h>
 #endif
 
 #include "br_private.h"
@@ -61,7 +62,8 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 
 	for (i = 0; i < mdb->max; i++) {
 		struct net_bridge_mdb_entry *mp;
-		struct net_bridge_port_group *p, **pp;
+		struct net_bridge_port_group *p;
+		struct net_bridge_port_group __rcu **pp;
 		struct net_bridge_port *port;
 
 		hlist_for_each_entry_rcu(mp, &mdb->mhash[i], hlist[mdb->ver]) {
@@ -188,7 +190,8 @@ static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
 
 	nla_nest_end(skb, nest2);
 	nla_nest_end(skb, nest);
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 end:
 	nla_nest_end(skb, nest);
@@ -253,7 +256,7 @@ static bool is_valid_mdb_entry(struct br_mdb_entry *entry)
 			return false;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (entry->addr.proto == htons(ETH_P_IPV6)) {
-		if (!ipv6_is_transient_multicast(&entry->addr.u.ip6))
+		if (ipv6_addr_is_ll_all_nodes(&entry->addr.u.ip6))
 			return false;
 #endif
 	} else
@@ -274,7 +277,7 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_device *dev;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY, NULL);
+	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY_MAX, NULL);
 	if (err < 0)
 		return err;
 
@@ -414,16 +417,20 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	if (!netif_running(br->dev) || br->multicast_disabled)
 		return -EINVAL;
 
-	if (timer_pending(&br->multicast_querier_timer))
-		return -EBUSY;
-
 	ip.proto = entry->addr.proto;
-	if (ip.proto == htons(ETH_P_IP))
+	if (ip.proto == htons(ETH_P_IP)) {
+		if (timer_pending(&br->ip4_other_query.timer))
+			return -EBUSY;
+
 		ip.u.ip4 = entry->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
-	else
+	} else {
+		if (timer_pending(&br->ip6_other_query.timer))
+			return -EBUSY;
+
 		ip.u.ip6 = entry->addr.u.ip6;
 #endif
+	}
 
 	spin_lock_bh(&br->multicast_lock);
 	mdb = mlock_dereference(br->mdb, br);
@@ -447,7 +454,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 		call_rcu_bh(&p->rcu, br_multicast_free_pg);
 		err = 0;
 
-		if (!mp->ports && !mp->mglist && mp->timer_armed &&
+		if (!mp->ports && !mp->mglist &&
 		    netif_running(br->dev))
 			mod_timer(&mp->timer, jiffies);
 		break;

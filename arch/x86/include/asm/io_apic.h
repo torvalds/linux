@@ -98,6 +98,8 @@ struct IR_IO_APIC_route_entry {
 #define IOAPIC_AUTO     -1
 #define IOAPIC_EDGE     0
 #define IOAPIC_LEVEL    1
+#define	IOAPIC_MAP_ALLOC		0x1
+#define	IOAPIC_MAP_CHECK		0x2
 
 #ifdef CONFIG_X86_IO_APIC
 
@@ -118,9 +120,6 @@ extern int mp_irq_entries;
 /* MP IRQ source entries */
 extern struct mpc_intsrc mp_irqs[MAX_IRQ_SOURCES];
 
-/* non-0 if default (table-less) MP configuration */
-extern int mpc_default_type;
-
 /* Older SiS APIC requires we rewrite the index register */
 extern int sis_apic_bug;
 
@@ -133,8 +132,9 @@ extern int noioapicquirk;
 /* -1 if "noapic" boot option passed */
 extern int noioapicreroute;
 
-/* 1 if the timer IRQ uses the '8259A Virtual Wire' mode */
-extern int timer_through_8259;
+extern unsigned long io_apic_irqs;
+
+#define IO_APIC_IRQ(x) (((x) >= NR_IRQS_LEGACY) || ((1 << (x)) & io_apic_irqs))
 
 /*
  * If we use the IO-APIC for IRQ routing, disable automatic
@@ -143,45 +143,67 @@ extern int timer_through_8259;
 #define io_apic_assign_pci_irqs \
 	(mp_irq_entries && !skip_ioapic_setup && io_apic_irqs)
 
-struct io_apic_irq_attr;
 struct irq_cfg;
-extern int io_apic_set_pci_routing(struct device *dev, int irq,
-		 struct io_apic_irq_attr *irq_attr);
-void setup_IO_APIC_irq_extra(u32 gsi);
 extern void ioapic_insert_resources(void);
+extern int arch_early_ioapic_init(void);
 
-extern int native_setup_ioapic_entry(int, struct IO_APIC_route_entry *,
-				     unsigned int, int,
-				     struct io_apic_irq_attr *);
 extern int native_setup_ioapic_entry(int, struct IO_APIC_route_entry *,
 				     unsigned int, int,
 				     struct io_apic_irq_attr *);
 extern void eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg);
 
-extern void native_compose_msi_msg(struct pci_dev *pdev,
-				   unsigned int irq, unsigned int dest,
-				   struct msi_msg *msg, u8 hpet_id);
 extern void native_eoi_ioapic_pin(int apic, int pin, int vector);
-int io_apic_setup_irq_pin_once(unsigned int irq, int node, struct io_apic_irq_attr *attr);
 
 extern int save_ioapic_entries(void);
 extern void mask_ioapic_entries(void);
 extern int restore_ioapic_entries(void);
 
-extern int get_nr_irqs_gsi(void);
-
 extern void setup_ioapic_ids_from_mpc(void);
 extern void setup_ioapic_ids_from_mpc_nocheck(void);
+
+struct io_apic_irq_attr {
+	int ioapic;
+	int ioapic_pin;
+	int trigger;
+	int polarity;
+};
+
+enum ioapic_domain_type {
+	IOAPIC_DOMAIN_INVALID,
+	IOAPIC_DOMAIN_LEGACY,
+	IOAPIC_DOMAIN_STRICT,
+	IOAPIC_DOMAIN_DYNAMIC,
+};
+
+struct device_node;
+struct irq_domain;
+struct irq_domain_ops;
+
+struct ioapic_domain_cfg {
+	enum ioapic_domain_type		type;
+	const struct irq_domain_ops	*ops;
+	struct device_node		*dev;
+};
 
 struct mp_ioapic_gsi{
 	u32 gsi_base;
 	u32 gsi_end;
 };
-extern struct mp_ioapic_gsi  mp_gsi_routing[];
 extern u32 gsi_top;
-int mp_find_ioapic(u32 gsi);
-int mp_find_ioapic_pin(int ioapic, u32 gsi);
-void __init mp_register_ioapic(int id, u32 address, u32 gsi_base);
+
+extern int mp_find_ioapic(u32 gsi);
+extern int mp_find_ioapic_pin(int ioapic, u32 gsi);
+extern u32 mp_pin_to_gsi(int ioapic, int pin);
+extern int mp_map_gsi_to_irq(u32 gsi, unsigned int flags);
+extern void mp_unmap_irq(int irq);
+extern int mp_register_ioapic(int id, u32 address, u32 gsi_base,
+			      struct ioapic_domain_cfg *cfg);
+extern int mp_unregister_ioapic(u32 gsi_base);
+extern int mp_ioapic_registered(u32 gsi_base);
+extern int mp_irqdomain_map(struct irq_domain *domain, unsigned int virq,
+			    irq_hw_number_t hwirq);
+extern void mp_irqdomain_unmap(struct irq_domain *domain, unsigned int virq);
+extern int mp_set_gsi_attr(u32 gsi, int trigger, int polarity, int node);
 extern void __init pre_init_apic_IRQ0(void);
 
 extern void mp_save_irq(struct mpc_intsrc *m);
@@ -215,18 +237,25 @@ static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned 
 
 extern void io_apic_eoi(unsigned int apic, unsigned int vector);
 
+extern void setup_IO_APIC(void);
+extern void enable_IO_APIC(void);
+extern void disable_IO_APIC(void);
+extern void setup_ioapic_dest(void);
+extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin);
+extern void print_IO_APICs(void);
 #else  /* !CONFIG_X86_IO_APIC */
 
+#define IO_APIC_IRQ(x)		0
 #define io_apic_assign_pci_irqs 0
 #define setup_ioapic_ids_from_mpc x86_init_noop
-static const int timer_through_8259 = 0;
 static inline void ioapic_insert_resources(void) { }
+static inline int arch_early_ioapic_init(void) { return 0; }
+static inline void print_IO_APICs(void) {}
 #define gsi_top (NR_IRQS_LEGACY)
 static inline int mp_find_ioapic(u32 gsi) { return 0; }
-
-struct io_apic_irq_attr;
-static inline int io_apic_set_pci_routing(struct device *dev, int irq,
-		 struct io_apic_irq_attr *irq_attr) { return 0; }
+static inline u32 mp_pin_to_gsi(int ioapic, int pin) { return UINT_MAX; }
+static inline int mp_map_gsi_to_irq(u32 gsi, unsigned int flags) { return gsi; }
+static inline void mp_unmap_irq(int irq) { }
 
 static inline int save_ioapic_entries(void)
 {
@@ -249,8 +278,12 @@ static inline void disable_ioapic_support(void) { }
 #define native_io_apic_print_entries	NULL
 #define native_ioapic_set_affinity	NULL
 #define native_setup_ioapic_entry	NULL
-#define native_compose_msi_msg		NULL
 #define native_eoi_ioapic_pin		NULL
+
+static inline void setup_IO_APIC(void) { }
+static inline void enable_IO_APIC(void) { }
+static inline void setup_ioapic_dest(void) { }
+
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */

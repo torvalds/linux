@@ -314,7 +314,6 @@ static int tps6507x_ts_remove(struct platform_device *pdev)
 static struct platform_driver tps6507x_ts_driver = {
 	.driver = {
 		.name = "tps6507x-ts",
-		.owner = THIS_MODULE,
 	},
 	.probe = tps6507x_ts_probe,
 	.remove = tps6507x_ts_remove,

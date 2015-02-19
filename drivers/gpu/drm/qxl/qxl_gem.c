@@ -28,12 +28,6 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
-int qxl_gem_object_init(struct drm_gem_object *obj)
-{
-	/* we do nothings here */
-	return 0;
-}
-
 void qxl_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct qxl_bo *qobj = gem_to_qxl_bo(gobj);
@@ -99,32 +93,6 @@ int qxl_gem_object_create_with_handle(struct qxl_device *qdev,
 	*qobj = gem_to_qxl_bo(gobj);
 	drm_gem_object_unreference_unlocked(gobj);
 	return 0;
-}
-
-int qxl_gem_object_pin(struct drm_gem_object *obj, uint32_t pin_domain,
-			  uint64_t *gpu_addr)
-{
-	struct qxl_bo *qobj = obj->driver_private;
-	int r;
-
-	r = qxl_bo_reserve(qobj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = qxl_bo_pin(qobj, pin_domain, gpu_addr);
-	qxl_bo_unreserve(qobj);
-	return r;
-}
-
-void qxl_gem_object_unpin(struct drm_gem_object *obj)
-{
-	struct qxl_bo *qobj = obj->driver_private;
-	int r;
-
-	r = qxl_bo_reserve(qobj, false);
-	if (likely(r == 0)) {
-		qxl_bo_unpin(qobj);
-		qxl_bo_unreserve(qobj);
-	}
 }
 
 int qxl_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv)

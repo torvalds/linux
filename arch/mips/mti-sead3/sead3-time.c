@@ -6,26 +6,13 @@
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
  */
 #include <linux/init.h>
+#include <linux/irqchip/mips-gic.h>
 
+#include <asm/cpu.h>
 #include <asm/setup.h>
 #include <asm/time.h>
 #include <asm/irq.h>
 #include <asm/mips-boards/generic.h>
-
-unsigned long cpu_khz;
-
-static int mips_cpu_timer_irq;
-static int mips_cpu_perf_irq;
-
-static void mips_timer_dispatch(void)
-{
-	do_IRQ(mips_cpu_timer_irq);
-}
-
-static void mips_perf_dispatch(void)
-{
-	do_IRQ(mips_cpu_perf_irq);
-}
 
 static void __iomem *status_reg = (void __iomem *)0xbf000410;
 
@@ -34,7 +21,7 @@ static void __iomem *status_reg = (void __iomem *)0xbf000410;
  */
 static unsigned int __init estimate_cpu_frequency(void)
 {
-	unsigned int prid = read_c0_prid() & 0xffff00;
+	unsigned int prid = read_c0_prid() & (PRID_COMP_MASK | PRID_IMP_MASK);
 	unsigned int tick = 0;
 	unsigned int freq;
 	unsigned int orig;
@@ -82,21 +69,20 @@ void read_persistent_clock(struct timespec *ts)
 	ts->tv_nsec = 0;
 }
 
-static void __init plat_perf_setup(void)
+int get_c0_perfcount_int(void)
 {
-	if (cp0_perfcount_irq >= 0) {
-		if (cpu_has_vint)
-			set_vi_handler(cp0_perfcount_irq, mips_perf_dispatch);
-		mips_cpu_perf_irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
-	}
+	if (gic_present)
+		return gic_get_c0_compare_int();
+	if (cp0_perfcount_irq >= 0)
+		return MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
+	return -1;
 }
 
 unsigned int get_c0_compare_int(void)
 {
-	if (cpu_has_vint)
-		set_vi_handler(cp0_compare_irq, mips_timer_dispatch);
-	mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
-	return mips_cpu_timer_irq;
+	if (gic_present)
+		return gic_get_c0_compare_int();
+	return MIPS_CPU_IRQ_BASE + cp0_compare_irq;
 }
 
 void __init plat_time_init(void)
@@ -108,9 +94,5 @@ void __init plat_time_init(void)
 	pr_debug("CPU frequency %d.%02d MHz\n", (est_freq / 1000000),
 		(est_freq % 1000000) * 100 / 1000000);
 
-	cpu_khz = est_freq / 1000;
-
 	mips_scroll_message();
-
-	plat_perf_setup();
 }

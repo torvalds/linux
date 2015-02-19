@@ -19,6 +19,7 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
 #include <sound/soc.h>
@@ -347,7 +348,6 @@ static struct platform_driver p1022_rdk_driver = {
 		 * in lowercase letters.
 		 */
 		.name = "snd-soc-p1022rdk",
-		.owner = THIS_MODULE,
 	},
 };
 

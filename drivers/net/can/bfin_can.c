@@ -9,7 +9,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
@@ -353,6 +352,7 @@ static int bfin_can_err(struct net_device *dev, u16 isrc, u16 status)
 		netdev_dbg(dev, "bus-off mode interrupt\n");
 		state = CAN_STATE_BUS_OFF;
 		cf->can_id |= CAN_ERR_BUSOFF;
+		priv->can.can_stats.bus_off++;
 		can_bus_off(dev);
 	}
 
@@ -529,6 +529,7 @@ static const struct net_device_ops bfin_can_netdev_ops = {
 	.ndo_open               = bfin_can_open,
 	.ndo_stop               = bfin_can_close,
 	.ndo_start_xmit         = bfin_can_start_xmit,
+	.ndo_change_mtu         = can_change_mtu,
 };
 
 static int bfin_can_probe(struct platform_device *pdev)
@@ -539,7 +540,7 @@ static int bfin_can_probe(struct platform_device *pdev)
 	struct resource *res_mem, *rx_irq, *tx_irq, *err_irq;
 	unsigned short *pdata;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "No platform data provided!\n");
 		err = -EINVAL;
@@ -680,7 +681,6 @@ static struct platform_driver bfin_can_driver = {
 	.resume = bfin_can_resume,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 

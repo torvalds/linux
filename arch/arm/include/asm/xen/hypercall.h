@@ -34,6 +34,7 @@
 #define _ASM_ARM_XEN_HYPERCALL_H
 
 #include <xen/interface/xen.h>
+#include <xen/interface/sched.h>
 
 long privcmd_call(unsigned call, unsigned long a1,
 		unsigned long a2, unsigned long a3,
@@ -48,6 +49,16 @@ int HYPERVISOR_memory_op(unsigned int cmd, void *arg);
 int HYPERVISOR_physdev_op(int cmd, void *arg);
 int HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args);
 int HYPERVISOR_tmem_op(void *arg);
+int HYPERVISOR_multicall(struct multicall_entry *calls, uint32_t nr);
+
+static inline int
+HYPERVISOR_suspend(unsigned long start_info_mfn)
+{
+	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
+
+	/* start_info_mfn is unused on ARM */
+	return HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+}
 
 static inline void
 MULTI_update_va_mapping(struct multicall_entry *mcl, unsigned long va,
@@ -63,9 +74,4 @@ MULTI_mmu_update(struct multicall_entry *mcl, struct mmu_update *req,
 	BUG();
 }
 
-static inline int
-HYPERVISOR_multicall(void *call_list, int nr_calls)
-{
-	BUG();
-}
 #endif /* _ASM_ARM_XEN_HYPERCALL_H */

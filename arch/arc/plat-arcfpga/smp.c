@@ -13,8 +13,9 @@
 
 #include <linux/smp.h>
 #include <linux/irq.h>
-#include <plat/irq.h>
 #include <plat/smp.h>
+
+#define IDU_INTERRUPT_0 16
 
 static char smp_cpuinfo_buf[128];
 
@@ -40,6 +41,24 @@ static void iss_model_smp_wakeup_cpu(int cpu, unsigned long pc)
 	write_aux_reg(ARC_AUX_XTL_REG_CMD,
 			(ARC_XTL_CMD_CLEAR_HALT | (cpu << 8)));
 
+}
+
+static inline int get_hw_config_num_irq(void)
+{
+	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
+
+	switch (val & 0x03) {
+	case 0:
+		return 16;
+	case 1:
+		return 32;
+	case 2:
+		return 8;
+	default:
+		return 0;
+	}
+
+	return 0;
 }
 
 /*
@@ -88,18 +107,14 @@ void iss_model_init_smp(unsigned int cpu)
 	smp_ipi_irq_setup(cpu, IDU_INTERRUPT_0 + cpu);
 }
 
-static void iss_model_ipi_send(void *arg)
+static void iss_model_ipi_send(int cpu)
 {
-	struct cpumask *callmap = arg;
-	unsigned int cpu;
-
-	for_each_cpu(cpu, callmap)
-		idu_irq_assert(cpu);
+	idu_irq_assert(cpu);
 }
 
-static void iss_model_ipi_clear(int cpu, int irq)
+static void iss_model_ipi_clear(int irq)
 {
-	idu_irq_clear(IDU_INTERRUPT_0 + cpu);
+	idu_irq_clear(IDU_INTERRUPT_0 + smp_processor_id());
 }
 
 void iss_model_init_early_smp(void)

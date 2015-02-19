@@ -147,7 +147,7 @@ The drivers exposes following files:
   --------------------------------------------------------------------
   0x12		| readfreq	| Current tuned frequency
   --------------------------------------------------------------------
-  0x14		| freqoff	| Singed frequency offset in units of
+  0x14		| freqoff	| Signed frequency offset in units of
   		| 		| 2ppm
   --------------------------------------------------------------------
   0x15		| rssi		| Signed value of RSSI in dBuV

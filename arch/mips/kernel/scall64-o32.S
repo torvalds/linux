@@ -53,7 +53,7 @@ NESTED(handle_sys, PT_SIZE, sp)
 	sll	a3, a3, 0
 
 	dsll	t0, v0, 3		# offset into table
-	ld	t2, (sys_call_table - (__NR_O32_Linux * 8))(t0)
+	ld	t2, (sys32_call_table - (__NR_O32_Linux * 8))(t0)
 
 	sd	a3, PT_R26(sp)		# save a3 for syscall restarting
 
@@ -112,7 +112,24 @@ trace_a_syscall:
 
 	move	s0, t2			# Save syscall pointer
 	move	a0, sp
-	jal	syscall_trace_enter
+	/*
+	 * absolute syscall number is in v0 unless we called syscall(__NR_###)
+	 * where the real syscall number is in a0
+	 * note: NR_syscall is the first O32 syscall but the macro is
+	 * only defined when compiling with -mabi=32 (CONFIG_32BIT)
+	 * therefore __NR_O32_Linux is used (4000)
+	 */
+	.set	push
+	.set	reorder
+	subu	t1, v0,  __NR_O32_Linux
+	move	a1, v0
+	bnez	t1, 1f /* __NR_syscall at offset 0 */
+	lw	a1, PT_R4(sp) /* Arg1 for __NR_syscall case */
+	.set	pop
+
+1:	jal	syscall_trace_enter
+
+	bltz	v0, 2f			# seccomp failed? Skip syscall
 
 	move	t0, s0
 	RESTORE_STATIC
@@ -136,7 +153,7 @@ trace_a_syscall:
 	sd	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sd	v0, PT_R2(sp)		# result
 
-	j	syscall_exit
+2:	j	syscall_exit
 
 /* ------------------------------------------------------------------------ */
 
@@ -168,7 +185,8 @@ LEAF(sys32_syscall)
 	beqz	t0, einval		# do not recurse
 	dsll	t1, t0, 3
 	beqz	v0, einval
-	ld	t2, sys_call_table(t1)		# syscall routine
+	ld	t2, sys32_call_table(t1)		# syscall routine
+	sd	a0, PT_R2(sp)		# call routine directly on restart
 
 	move	a0, a1			# shift argument registers
 	move	a1, a2
@@ -190,8 +208,8 @@ einval: li	v0, -ENOSYS
 	END(sys32_syscall)
 
 	.align	3
-	.type	sys_call_table,@object
-sys_call_table:
+	.type	sys32_call_table,@object
+EXPORT(sys32_call_table)
 	PTR	sys32_syscall			/* 4000 */
 	PTR	sys_exit
 	PTR	__sys_fork
@@ -460,9 +478,9 @@ sys_call_table:
 	PTR	compat_sys_clock_nanosleep	/* 4265 */
 	PTR	sys_tgkill
 	PTR	compat_sys_utimes
-	PTR	sys_ni_syscall			/* sys_mbind */
-	PTR	sys_ni_syscall			/* sys_get_mempolicy */
-	PTR	sys_ni_syscall			/* 4270 sys_set_mempolicy */
+	PTR	compat_sys_mbind
+	PTR	compat_sys_get_mempolicy
+	PTR	compat_sys_set_mempolicy	/* 4270 */
 	PTR	compat_sys_mq_open
 	PTR	sys_mq_unlink
 	PTR	compat_sys_mq_timedsend
@@ -479,7 +497,7 @@ sys_call_table:
 	PTR	sys_inotify_init
 	PTR	sys_inotify_add_watch		/* 4285 */
 	PTR	sys_inotify_rm_watch
-	PTR	sys_migrate_pages
+	PTR	compat_sys_migrate_pages
 	PTR	compat_sys_openat
 	PTR	sys_mkdirat
 	PTR	sys_mknodat			/* 4290 */
@@ -541,4 +559,12 @@ sys_call_table:
 	PTR	compat_sys_process_vm_writev
 	PTR	sys_kcmp
 	PTR	sys_finit_module
-	.size	sys_call_table,.-sys_call_table
+	PTR	sys_sched_setattr
+	PTR	sys_sched_getattr		/* 4350 */
+	PTR	sys_renameat2
+	PTR	sys_seccomp
+	PTR	sys_getrandom
+	PTR	sys_memfd_create
+	PTR	sys_bpf				/* 4355 */
+	PTR	compat_sys_execveat
+	.size	sys32_call_table,.-sys32_call_table

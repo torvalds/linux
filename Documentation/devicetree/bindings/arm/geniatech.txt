@@ -1,0 +1,5 @@
+Geniatech platforms device tree bindings
+-------------------------------------------
+
+Geniatech ATV1200
+    - compatible = "geniatech,atv1200"

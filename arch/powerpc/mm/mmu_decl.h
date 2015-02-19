@@ -67,7 +67,7 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
 {
 	__tlbil_va(address, pid);
 }
-#endif /* CONIFG_8xx */
+#endif /* CONFIG_8xx */
 
 #if defined(CONFIG_PPC_BOOK3E) || defined(CONFIG_PPC_47x)
 extern void _tlbivax_bcast(unsigned long address, unsigned int pid,
@@ -148,6 +148,8 @@ extern unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(unsigned long top);
 extern void adjust_total_lowmem(void);
+extern int switch_to_as1(void);
+extern void restore_to_as0(int esel, int offset, void *dt_ptr, int bootcpu);
 #endif
 extern void loadcam_entry(unsigned int index);
 

@@ -31,7 +31,6 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -253,7 +252,6 @@ void r8712_wep_decrypt(struct _adapter  *padapter, u8 *precvframe)
 		/* calculate icv and compare the icv */
 		*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length - 4));
 	}
-	return;
 }
 
 /* 3 =====TKIP related===== */
@@ -273,6 +271,7 @@ static void secmicputuint32(u8 *p, u32 val)
 /* Convert from Us4Byte32 to Byte[] in a portable way */
 {
 	long i;
+
 	for (i = 0; i < 4; i++) {
 		*p++ = (u8) (val & 0xff);
 		val >>= 8;
@@ -579,7 +578,7 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 	u8 ttkey[16];
 	u8 crc[4];
 	struct arc4context mycontext;
-	u32 curfragnum, length, prwskeylen;
+	u32 curfragnum, length;
 
 	u8 *pframe, *payload, *iv, *prwskey;
 	union pn48 txpn;
@@ -601,7 +600,6 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 				  &pattrib->ra[0]);
 		if (stainfo != NULL) {
 			prwskey = &stainfo->x_UncstKey.skey[0];
-			prwskeylen = 16;
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
 				iv = pframe + pattrib->hdrlen;
@@ -656,7 +654,7 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 	u8 ttkey[16];
 	u8 crc[4];
 	struct arc4context mycontext;
-	u32 length, prwskeylen;
+	u32 length;
 	u8 *pframe, *payload, *iv, *prwskey, idx = 0;
 	union pn48 txpn;
 	struct	sta_info *stainfo;
@@ -684,7 +682,6 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 					return _FAIL;
 			} else
 				prwskey = &stainfo->x_UncstKey.skey[0];
-			prwskeylen = 16;
 			GET_TKIP_PN(iv, txpn);
 			pnl = (u16)(txpn.val);
 			pnh = (u32)(txpn.val >> 16);
@@ -766,6 +763,7 @@ static void xor_128(u8 *a, u8 *b, u8 *out)
 static void xor_32(u8 *a, u8 *b, u8 *out)
 {
 	sint i;
+
 	for (i = 0; i < 4; i++)
 		out[i] = a[i] ^ b[i];
 }
@@ -799,6 +797,7 @@ static void next_key(u8 *key, sint round)
 static void byte_sub(u8 *in, u8 *out)
 {
 	sint i;
+
 	for (i = 0; i < 16; i++)
 		out[i] = sbox(in[i]);
 }
@@ -835,7 +834,7 @@ static void mix_column(u8 *in, u8 *out)
 	u8 temp[4];
 	u8 tempb[4];
 
-	for (i = 0 ; i < 4; i++) {
+	for (i = 0; i < 4; i++) {
 		if ((in[i] & 0x80) == 0x80)
 			add1b[i] = 0x1b;
 		else
@@ -1153,7 +1152,6 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 {	/* exclude ICV */
 	/* Intermediate Buffers */
 	sint	curfragnum, length;
-	u32	prwskeylen;
 	u8	*pframe, *prwskey;
 	struct	sta_info *stainfo;
 	struct	pkt_attrib  *pattrib = &((struct xmit_frame *)
@@ -1165,7 +1163,7 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 		return _FAIL;
 	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + TXDESC_OFFSET;
 	/* 4 start to encrypt each fragment */
-	if ((pattrib->encrypt == _AES_)) {
+	if (pattrib->encrypt == _AES_) {
 		if (pattrib->psta)
 			stainfo = pattrib->psta;
 		else
@@ -1173,10 +1171,9 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 				  &pattrib->ra[0]);
 		if (stainfo != NULL) {
 			prwskey = &stainfo->x_UncstKey.skey[0];
-			prwskeylen = 16;
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
-				if ((curfragnum + 1) == pattrib->nr_frags) {\
+				if ((curfragnum + 1) == pattrib->nr_frags) {
 					length = pattrib->last_txcmdsz -
 						 pattrib->hdrlen -
 						 pattrib->iv_len -
@@ -1187,7 +1184,7 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 					length = pxmitpriv->frag_len -
 						 pattrib->hdrlen -
 						 pattrib->iv_len -
-						 pattrib->icv_len ;
+						 pattrib->icv_len;
 					aes_cipher(prwskey, pattrib->
 						   hdrlen, pframe, length);
 					pframe += pxmitpriv->frag_len;
@@ -1245,17 +1242,18 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	    (frtype == WIFI_DATA_CFPOLL) ||
 	    (frtype == WIFI_DATA_CFACKPOLL)) {
 		qc_exists = 1;
-		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
+		if (hdrlen != WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
-		}  else if ((frsubtype == 0x08) ||
+	} else if ((frsubtype == 0x08) ||
 		   (frsubtype == 0x09) ||
 		   (frsubtype == 0x0a) ||
 		   (frsubtype == 0x0b)) {
-			if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
-				hdrlen += 2;
-			qc_exists = 1;
-	} else
+		if (hdrlen != WLAN_HDR_A3_QOS_LEN)
+			hdrlen += 2;
+		qc_exists = 1;
+	} else {
 		qc_exists = 0;
+	}
 	/* now, decrypt pframe with hdrlen offset and plen long */
 	payload_index = hdrlen + 8; /* 8 is for extiv */
 	for (i = 0; i < num_blocks; i++) {
@@ -1315,7 +1313,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 		bitwise_xor(aes_out, padded_buffer, chain_buffer);
 		aes128k128d(key, chain_buffer, aes_out);
 	}
-	for (j = 0 ; j < 8; j++)
+	for (j = 0; j < 8; j++)
 		mic[j] = aes_out[j];
 	/* Insert MIC into payload */
 	for (j = 0; j < 8; j++)
@@ -1361,7 +1359,6 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 {	/* exclude ICV */
 	/* Intermediate Buffers */
 	sint		length;
-	u32	prwskeylen;
 	u8	*pframe, *prwskey, *iv, idx;
 	struct	sta_info *stainfo;
 	struct	rx_pkt_attrib *prxattrib = &((union recv_frame *)
@@ -1371,7 +1368,7 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 	pframe = (unsigned char *)((union recv_frame *)precvframe)->
 		 u.hdr.rx_data;
 	/* 4 start to encrypt each fragment */
-	if ((prxattrib->encrypt == _AES_)) {
+	if (prxattrib->encrypt == _AES_) {
 		stainfo = r8712_get_stainfo(&padapter->stapriv,
 					    &prxattrib->ta[0]);
 		if (stainfo != NULL) {
@@ -1385,7 +1382,6 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 
 			} else
 				prwskey = &stainfo->x_UncstKey.skey[0];
-			prwskeylen = 16;
 			length = ((union recv_frame *)precvframe)->
 				 u.hdr.len-prxattrib->hdrlen-prxattrib->iv_len;
 			aes_decipher(prwskey, prxattrib->hdrlen, pframe,

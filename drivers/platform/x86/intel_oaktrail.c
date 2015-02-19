@@ -50,9 +50,6 @@
 #include <linux/platform_device.h>
 #include <linux/dmi.h>
 #include <linux/rfkill.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-
 
 #define DRIVER_NAME	"intel_oaktrail"
 #define DRIVER_VERSION	"0.4ac1"
@@ -274,8 +271,7 @@ static int oaktrail_backlight_init(void)
 
 static void oaktrail_backlight_exit(void)
 {
-	if (oaktrail_bl_device)
-		backlight_device_unregister(oaktrail_bl_device);
+	backlight_device_unregister(oaktrail_bl_device);
 }
 
 static int oaktrail_probe(struct platform_device *pdev)
@@ -291,7 +287,6 @@ static int oaktrail_remove(struct platform_device *pdev)
 static struct platform_driver oaktrail_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe	= oaktrail_probe,
 	.remove	= oaktrail_remove,

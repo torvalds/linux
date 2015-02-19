@@ -843,7 +843,7 @@ static int qec_ether_init(struct platform_device *op)
 	if (!dev)
 		return -ENOMEM;
 
-	memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
+	memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
 
 	qe = netdev_priv(dev);
 
@@ -963,7 +963,6 @@ MODULE_DEVICE_TABLE(of, qec_sbus_match);
 static struct platform_driver qec_sbus_driver = {
 	.driver = {
 		.name = "qec",
-		.owner = THIS_MODULE,
 		.of_match_table = qec_sbus_match,
 	},
 	.probe		= qec_sbus_probe,

@@ -34,6 +34,7 @@
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
 #include <crypto/serpent.h>
 #include <crypto/cryptd.h>
@@ -42,7 +43,6 @@
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
 #include <asm/crypto/serpent-sse2.h>
-#include <asm/crypto/ablk_helper.h>
 #include <asm/crypto/glue_helper.h>
 
 static void serpent_decrypt_cbc_xway(void *ctx, u128 *dst, const u128 *src)
@@ -618,4 +618,4 @@ module_exit(serpent_sse2_exit);
 
 MODULE_DESCRIPTION("Serpent Cipher Algorithm, SSE2 optimized");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("serpent");
+MODULE_ALIAS_CRYPTO("serpent");

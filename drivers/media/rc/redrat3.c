@@ -47,6 +47,7 @@
 
 #include <asm/unaligned.h>
 #include <linux/device.h>
+#include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
@@ -58,28 +59,6 @@
 #define DRIVER_AUTHOR2 "The Dweller, Stephen Cox"
 #define DRIVER_DESC "RedRat3 USB IR Transceiver Driver"
 #define DRIVER_NAME "redrat3"
-
-/* module parameters */
-#ifdef CONFIG_USB_DEBUG
-static int debug = 1;
-#else
-static int debug;
-#endif
-
-#define RR3_DEBUG_STANDARD		0x1
-#define RR3_DEBUG_FUNCTION_TRACE	0x2
-
-#define rr3_dbg(dev, fmt, ...)					\
-	do {							\
-		if (debug & RR3_DEBUG_STANDARD)			\
-			dev_info(dev, fmt, ## __VA_ARGS__);	\
-	} while (0)
-
-#define rr3_ftr(dev, fmt, ...)					\
-	do {							\
-		if (debug & RR3_DEBUG_FUNCTION_TRACE)		\
-			dev_info(dev, fmt, ## __VA_ARGS__);	\
-	} while (0)
 
 /* bulk data transfer types */
 #define RR3_ERROR		0x01
@@ -117,7 +96,7 @@ static int debug;
 #define RR3_IR_IO_LENGTH_FUZZ	0x04
 /* Timeout for end of signal detection */
 #define RR3_IR_IO_SIG_TIMEOUT	0x05
-/* Minumum value for pause recognition. */
+/* Minimum value for pause recognition. */
 #define RR3_IR_IO_MIN_PAUSE	0x06
 
 /* Clock freq. of EZ-USB chip */
@@ -186,6 +165,13 @@ struct redrat3_dev {
 	struct rc_dev *rc;
 	struct device *dev;
 
+	/* led control */
+	struct led_classdev led;
+	atomic_t flash;
+	struct usb_ctrlrequest flash_control;
+	struct urb *flash_urb;
+	u8 flash_in_buf;
+
 	/* save off the usb device pointer */
 	struct usb_device *udev;
 
@@ -206,8 +192,6 @@ struct redrat3_dev {
 	struct timer_list rx_timeout;
 	u32 hw_timeout;
 
-	/* is the detector enabled*/
-	bool det_enabled;
 	/* Is the device currently transmitting?*/
 	bool transmitting;
 
@@ -231,13 +215,11 @@ static void redrat3_issue_async(struct redrat3_dev *rr3)
 {
 	int res;
 
-	rr3_ftr(rr3->dev, "Entering %s\n", __func__);
-
 	res = usb_submit_urb(rr3->read_urb, GFP_ATOMIC);
 	if (res)
-		rr3_dbg(rr3->dev, "%s: receive request FAILED! "
-			"(res %d, len %d)\n", __func__, res,
-			rr3->read_urb->transfer_buffer_length);
+		dev_dbg(rr3->dev,
+			"%s: receive request FAILED! (res %d, len %d)\n",
+			__func__, res, rr3->read_urb->transfer_buffer_length);
 }
 
 static void redrat3_dump_fw_error(struct redrat3_dev *rr3, int code)
@@ -353,7 +335,7 @@ static void redrat3_rx_timeout(unsigned long data)
 {
 	struct redrat3_dev *rr3 = (struct redrat3_dev *)data;
 
-	rr3_dbg(rr3->dev, "calling ir_raw_event_reset\n");
+	dev_dbg(rr3->dev, "calling ir_raw_event_reset\n");
 	ir_raw_event_reset(rr3->rc);
 }
 
@@ -371,8 +353,6 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 		return;
 	}
 
-	rr3_ftr(rr3->dev, "Entered %s\n", __func__);
-
 	dev = rr3->dev;
 
 	/* Make sure we reset the IR kfifo after a bit of inactivity */
@@ -380,7 +360,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	mod_timer(&rr3->rx_timeout, jiffies + delay);
 
 	mod_freq = redrat3_val_to_mod_freq(&rr3->irdata);
-	rr3_dbg(dev, "Got mod_freq of %u\n", mod_freq);
+	dev_dbg(dev, "Got mod_freq of %u\n", mod_freq);
 
 	/* process each rr3 encoded byte into an int */
 	sig_size = be16_to_cpu(rr3->irdata.sig_size);
@@ -402,7 +382,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 		/* cap the value to IR_MAX_DURATION */
 		rawir.duration &= IR_MAX_DURATION;
 
-		rr3_dbg(dev, "storing %s with duration %d (i: %d)\n",
+		dev_dbg(dev, "storing %s with duration %d (i: %d)\n",
 			rawir.pulse ? "pulse" : "space", rawir.duration, i);
 		ir_raw_event_store_with_filter(rr3->rc, &rawir);
 	}
@@ -415,12 +395,12 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 			rawir.duration = US_TO_NS(2800);
 		else
 			rawir.duration = trailer;
-		rr3_dbg(dev, "storing trailing space with duration %d\n",
+		dev_dbg(dev, "storing trailing space with duration %d\n",
 			rawir.duration);
 		ir_raw_event_store_with_filter(rr3->rc, &rawir);
 	}
 
-	rr3_dbg(dev, "calling ir_raw_event_handle\n");
+	dev_dbg(dev, "calling ir_raw_event_handle\n");
 	ir_raw_event_handle(rr3->rc);
 }
 
@@ -458,8 +438,6 @@ static int redrat3_enable_detector(struct redrat3_dev *rr3)
 	struct device *dev = rr3->dev;
 	u8 ret;
 
-	rr3_ftr(dev, "Entering %s\n", __func__);
-
 	ret = redrat3_send_cmd(RR3_RC_DET_ENABLE, rr3);
 	if (ret != 0)
 		dev_dbg(dev, "%s: unexpected ret of %d\n",
@@ -472,40 +450,18 @@ static int redrat3_enable_detector(struct redrat3_dev *rr3)
 		return -EIO;
 	}
 
-	rr3->det_enabled = true;
 	redrat3_issue_async(rr3);
 
 	return 0;
 }
 
-/* Disables the rr3 long range detector */
-static void redrat3_disable_detector(struct redrat3_dev *rr3)
-{
-	struct device *dev = rr3->dev;
-	u8 ret;
-
-	rr3_ftr(dev, "Entering %s\n", __func__);
-
-	ret = redrat3_send_cmd(RR3_RC_DET_DISABLE, rr3);
-	if (ret != 0)
-		dev_err(dev, "%s: failure!\n", __func__);
-
-	ret = redrat3_send_cmd(RR3_RC_DET_STATUS, rr3);
-	if (ret != 0)
-		dev_warn(dev, "%s: detector status: %d, should be 0\n",
-			 __func__, ret);
-
-	rr3->det_enabled = false;
-}
-
 static inline void redrat3_delete(struct redrat3_dev *rr3,
 				  struct usb_device *udev)
 {
-	rr3_ftr(rr3->dev, "%s cleaning up\n", __func__);
 	usb_kill_urb(rr3->read_urb);
-
+	usb_kill_urb(rr3->flash_urb);
 	usb_free_urb(rr3->read_urb);
-
+	usb_free_urb(rr3->flash_urb);
 	usb_free_coherent(udev, le16_to_cpu(rr3->ep_in->wMaxPacketSize),
 			  rr3->bulk_in_buf, rr3->dma_in);
 
@@ -534,7 +490,7 @@ static u32 redrat3_get_timeout(struct redrat3_dev *rr3)
 	else {
 		timeout = redrat3_len_to_us(be32_to_cpup(tmp));
 
-		rr3_dbg(rr3->dev, "Got timeout of %d ms\n", timeout / 1000);
+		dev_dbg(rr3->dev, "Got timeout of %d ms\n", timeout / 1000);
 	}
 
 	kfree(tmp);
@@ -550,8 +506,6 @@ static void redrat3_reset(struct redrat3_dev *rr3)
 	u8 *val;
 	int len = sizeof(u8);
 
-	rr3_ftr(dev, "Entering %s\n", __func__);
-
 	rxpipe = usb_rcvctrlpipe(udev, 0);
 	txpipe = usb_sndctrlpipe(udev, 0);
 
@@ -565,19 +519,19 @@ static void redrat3_reset(struct redrat3_dev *rr3)
 	rc = usb_control_msg(udev, rxpipe, RR3_RESET,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			     RR3_CPUCS_REG_ADDR, 0, val, len, HZ * 25);
-	rr3_dbg(dev, "reset returned 0x%02x\n", rc);
+	dev_dbg(dev, "reset returned 0x%02x\n", rc);
 
 	*val = 5;
 	rc = usb_control_msg(udev, txpipe, RR3_SET_IR_PARAM,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 			     RR3_IR_IO_LENGTH_FUZZ, 0, val, len, HZ * 25);
-	rr3_dbg(dev, "set ir parm len fuzz %d rc 0x%02x\n", *val, rc);
+	dev_dbg(dev, "set ir parm len fuzz %d rc 0x%02x\n", *val, rc);
 
 	*val = RR3_DRIVER_MAXLENS;
 	rc = usb_control_msg(udev, txpipe, RR3_SET_IR_PARAM,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 			     RR3_IR_IO_MAX_LENGTHS, 0, val, len, HZ * 25);
-	rr3_dbg(dev, "set ir parm max lens %d rc 0x%02x\n", *val, rc);
+	dev_dbg(dev, "set ir parm max lens %d rc 0x%02x\n", *val, rc);
 
 	kfree(val);
 }
@@ -586,8 +540,6 @@ static void redrat3_get_firmware_rev(struct redrat3_dev *rr3)
 {
 	int rc = 0;
 	char *buffer;
-
-	rr3_ftr(rr3->dev, "Entering %s\n", __func__);
 
 	buffer = kzalloc(sizeof(char) * (RR3_FW_VERSION_LEN + 1), GFP_KERNEL);
 	if (!buffer) {
@@ -606,15 +558,12 @@ static void redrat3_get_firmware_rev(struct redrat3_dev *rr3)
 		dev_err(rr3->dev, "Problem fetching firmware ID\n");
 
 	kfree(buffer);
-	rr3_ftr(rr3->dev, "Exiting %s\n", __func__);
 }
 
 static void redrat3_read_packet_start(struct redrat3_dev *rr3, unsigned len)
 {
 	struct redrat3_header *header = rr3->bulk_in_buf;
 	unsigned pktlen, pkttype;
-
-	rr3_ftr(rr3->dev, "Entering %s\n", __func__);
 
 	/* grab the Length and type of transfer */
 	pktlen = be16_to_cpu(header->length);
@@ -637,12 +586,12 @@ static void redrat3_read_packet_start(struct redrat3_dev *rr3, unsigned len)
 	case RR3_MOD_SIGNAL_IN:
 		memcpy(&rr3->irdata, rr3->bulk_in_buf, len);
 		rr3->bytes_read = len;
-		rr3_dbg(rr3->dev, "bytes_read %d, pktlen %d\n",
+		dev_dbg(rr3->dev, "bytes_read %d, pktlen %d\n",
 			rr3->bytes_read, pktlen);
 		break;
 
 	default:
-		rr3_dbg(rr3->dev, "ignoring packet with type 0x%02x, len of %d, 0x%02x\n",
+		dev_dbg(rr3->dev, "ignoring packet with type 0x%02x, len of %d, 0x%02x\n",
 						pkttype, len, pktlen);
 		break;
 	}
@@ -651,8 +600,6 @@ static void redrat3_read_packet_start(struct redrat3_dev *rr3, unsigned len)
 static void redrat3_read_packet_continue(struct redrat3_dev *rr3, unsigned len)
 {
 	void *irdata = &rr3->irdata;
-
-	rr3_ftr(rr3->dev, "Entering %s\n", __func__);
 
 	if (len + rr3->bytes_read > sizeof(rr3->irdata)) {
 		dev_warn(rr3->dev, "too much data for packet\n");
@@ -663,7 +610,7 @@ static void redrat3_read_packet_continue(struct redrat3_dev *rr3, unsigned len)
 	memcpy(irdata + rr3->bytes_read, rr3->bulk_in_buf, len);
 
 	rr3->bytes_read += len;
-	rr3_dbg(rr3->dev, "bytes_read %d, pktlen %d\n", rr3->bytes_read,
+	dev_dbg(rr3->dev, "bytes_read %d, pktlen %d\n", rr3->bytes_read,
 				 be16_to_cpu(rr3->irdata.header.length));
 }
 
@@ -673,8 +620,6 @@ static int redrat3_get_ir_data(struct redrat3_dev *rr3, unsigned len)
 	struct device *dev = rr3->dev;
 	unsigned pkttype;
 	int ret = 0;
-
-	rr3_ftr(dev, "Entering %s\n", __func__);
 
 	if (rr3->bytes_read == 0 && len >= sizeof(struct redrat3_header)) {
 		redrat3_read_packet_start(rr3, len);
@@ -686,7 +631,8 @@ static int redrat3_get_ir_data(struct redrat3_dev *rr3, unsigned len)
 		goto out;
 	}
 
-	if (rr3->bytes_read < be16_to_cpu(rr3->irdata.header.length))
+	if (rr3->bytes_read < be16_to_cpu(rr3->irdata.header.length) +
+						sizeof(struct redrat3_header))
 		/* we're still accumulating data */
 		return 0;
 
@@ -695,7 +641,7 @@ static int redrat3_get_ir_data(struct redrat3_dev *rr3, unsigned len)
 	if (pkttype == RR3_MOD_SIGNAL_IN)
 		redrat3_process_ir_data(rr3);
 	else
-		rr3_dbg(dev, "discarding non-signal data packet (type 0x%02x)\n",
+		dev_dbg(dev, "discarding non-signal data packet (type 0x%02x)\n",
 								pkttype);
 
 out:
@@ -718,8 +664,6 @@ static void redrat3_handle_async(struct urb *urb)
 		usb_unlink_urb(urb);
 		return;
 	}
-
-	rr3_ftr(rr3->dev, "Entering %s\n", __func__);
 
 	switch (urb->status) {
 	case 0:
@@ -757,7 +701,7 @@ static int redrat3_set_tx_carrier(struct rc_dev *rcdev, u32 carrier)
 	struct redrat3_dev *rr3 = rcdev->priv;
 	struct device *dev = rr3->dev;
 
-	rr3_dbg(dev, "Setting modulation frequency to %u", carrier);
+	dev_dbg(dev, "Setting modulation frequency to %u", carrier);
 	if (carrier == 0)
 		return -EINVAL;
 
@@ -778,17 +722,15 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 	u8 curlencheck = 0;
 	unsigned i, sendbuf_len;
 
-	rr3_ftr(dev, "Entering %s\n", __func__);
-
 	if (rr3->transmitting) {
 		dev_warn(dev, "%s: transmitter already in use\n", __func__);
 		return -EAGAIN;
 	}
 
-	count = min_t(unsigned, count, RR3_MAX_SIG_SIZE - RR3_TX_TRAILER_LEN);
+	if (count > RR3_MAX_SIG_SIZE - RR3_TX_TRAILER_LEN)
+		return -EINVAL;
 
 	/* rr3 will disable rc detector on transmit */
-	rr3->det_enabled = false;
 	rr3->transmitting = true;
 
 	sample_lens = kzalloc(sizeof(int) * RR3_DRIVER_MAXLENS, GFP_KERNEL);
@@ -815,7 +757,7 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 				break;
 		}
 		if (lencheck == curlencheck) {
-			rr3_dbg(dev, "txbuf[%d]=%u, pos %d, enc %u\n",
+			dev_dbg(dev, "txbuf[%d]=%u, pos %d, enc %u\n",
 				i, txbuf[i], curlencheck, cur_sample_len);
 			if (curlencheck < RR3_DRIVER_MAXLENS) {
 				/* now convert the value to a proper
@@ -825,8 +767,8 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 						&irdata->lens[curlencheck]);
 				curlencheck++;
 			} else {
-				count = i - 1;
-				break;
+				ret = -EINVAL;
+				goto out;
 			}
 		}
 		irdata->sigdata[i] = lencheck;
@@ -849,7 +791,7 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 	pipe = usb_sndbulkpipe(rr3->udev, rr3->ep_out->bEndpointAddress);
 	ret = usb_bulk_msg(rr3->udev, pipe, irdata,
 			    sendbuf_len, &ret_len, 10 * HZ);
-	rr3_dbg(dev, "sent %d bytes, (ret %d)\n", ret_len, ret);
+	dev_dbg(dev, "sent %d bytes, (ret %d)\n", ret_len, ret);
 
 	/* now tell the hardware to transmit what we sent it */
 	pipe = usb_rcvctrlpipe(rr3->udev, 0);
@@ -868,9 +810,46 @@ out:
 
 	rr3->transmitting = false;
 	/* rr3 re-enables rc detector because it was enabled before */
-	rr3->det_enabled = true;
 
 	return ret;
+}
+
+static void redrat3_brightness_set(struct led_classdev *led_dev, enum
+						led_brightness brightness)
+{
+	struct redrat3_dev *rr3 = container_of(led_dev, struct redrat3_dev,
+									led);
+
+	if (brightness != LED_OFF && atomic_cmpxchg(&rr3->flash, 0, 1) == 0) {
+		int ret = usb_submit_urb(rr3->flash_urb, GFP_ATOMIC);
+		if (ret != 0) {
+			dev_dbg(rr3->dev, "%s: unexpected ret of %d\n",
+				__func__, ret);
+			atomic_set(&rr3->flash, 0);
+		}
+	}
+}
+
+static void redrat3_led_complete(struct urb *urb)
+{
+	struct redrat3_dev *rr3 = urb->context;
+
+	switch (urb->status) {
+	case 0:
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		usb_unlink_urb(urb);
+		return;
+	case -EPIPE:
+	default:
+		dev_dbg(rr3->dev, "Error: urb status = %d\n", urb->status);
+		break;
+	}
+
+	rr3->led.brightness = LED_OFF;
+	atomic_dec(&rr3->flash);
 }
 
 static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
@@ -899,7 +878,7 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 	rc->dev.parent = dev;
 	rc->priv = rr3;
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protos = RC_BIT_ALL;
+	rc->allowed_protocols = RC_BIT_ALL;
 	rc->timeout = US_TO_NS(2750);
 	rc->tx_ir = redrat3_transmit_ir;
 	rc->s_tx_carrier = redrat3_set_tx_carrier;
@@ -934,8 +913,6 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	int pipe, i;
 	int retval = -ENOMEM;
 
-	rr3_ftr(dev, "%s called\n", __func__);
-
 	uhi = intf->cur_altsetting;
 
 	/* find our bulk-in and bulk-out endpoints */
@@ -948,7 +925,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 		    ((addr & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) &&
 		    ((attrs & USB_ENDPOINT_XFERTYPE_MASK) ==
 		     USB_ENDPOINT_XFER_BULK)) {
-			rr3_dbg(dev, "found bulk-in endpoint at 0x%02x\n",
+			dev_dbg(dev, "found bulk-in endpoint at 0x%02x\n",
 				ep->bEndpointAddress);
 			/* data comes in on 0x82, 0x81 is for other data... */
 			if (ep->bEndpointAddress == RR3_BULK_IN_EP_ADDR)
@@ -959,7 +936,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 		    ((addr & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) &&
 		    ((attrs & USB_ENDPOINT_XFERTYPE_MASK) ==
 		     USB_ENDPOINT_XFER_BULK)) {
-			rr3_dbg(dev, "found bulk-out endpoint at 0x%02x\n",
+			dev_dbg(dev, "found bulk-out endpoint at 0x%02x\n",
 				ep->bEndpointAddress);
 			ep_out = ep;
 		}
@@ -989,7 +966,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 
 	rr3->ep_in = ep_in;
 	rr3->bulk_in_buf = usb_alloc_coherent(udev,
-		le16_to_cpu(ep_in->wMaxPacketSize), GFP_ATOMIC, &rr3->dma_in);
+		le16_to_cpu(ep_in->wMaxPacketSize), GFP_KERNEL, &rr3->dma_in);
 	if (!rr3->bulk_in_buf) {
 		dev_err(dev, "Read buffer allocation failure\n");
 		goto error;
@@ -998,6 +975,8 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	pipe = usb_rcvbulkpipe(udev, ep_in->bEndpointAddress);
 	usb_fill_bulk_urb(rr3->read_urb, udev, pipe, rr3->bulk_in_buf,
 		le16_to_cpu(ep_in->wMaxPacketSize), redrat3_handle_async, rr3);
+	rr3->read_urb->transfer_dma = rr3->dma_in;
+	rr3->read_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	rr3->ep_out = ep_out;
 	rr3->udev = udev;
@@ -1016,19 +995,45 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	/* default.. will get overridden by any sends with a freq defined */
 	rr3->carrier = 38000;
 
+	/* led control */
+	rr3->led.name = "redrat3:red:feedback";
+	rr3->led.default_trigger = "rc-feedback";
+	rr3->led.brightness_set = redrat3_brightness_set;
+	retval = led_classdev_register(&intf->dev, &rr3->led);
+	if (retval)
+		goto error;
+
+	atomic_set(&rr3->flash, 0);
+	rr3->flash_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!rr3->flash_urb) {
+		retval = -ENOMEM;
+		goto led_free_error;
+	}
+
+	/* setup packet is 'c0 b9 0000 0000 0001' */
+	rr3->flash_control.bRequestType = 0xc0;
+	rr3->flash_control.bRequest = RR3_BLINK_LED;
+	rr3->flash_control.wLength = cpu_to_le16(1);
+
+	usb_fill_control_urb(rr3->flash_urb, udev, usb_rcvctrlpipe(udev, 0),
+			(unsigned char *)&rr3->flash_control,
+			&rr3->flash_in_buf, sizeof(rr3->flash_in_buf),
+			redrat3_led_complete, rr3);
+
 	rr3->rc = redrat3_init_rc_dev(rr3);
 	if (!rr3->rc) {
 		retval = -ENOMEM;
-		goto error;
+		goto led_free_error;
 	}
 	setup_timer(&rr3->rx_timeout, redrat3_rx_timeout, (unsigned long)rr3);
 
 	/* we can register the device now, as it is ready */
 	usb_set_intfdata(intf, rr3);
 
-	rr3_ftr(dev, "Exiting %s\n", __func__);
 	return 0;
 
+led_free_error:
+	led_classdev_unregister(&rr3->led);
 error:
 	redrat3_delete(rr3, rr3->udev);
 
@@ -1043,35 +1048,33 @@ static void redrat3_dev_disconnect(struct usb_interface *intf)
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct redrat3_dev *rr3 = usb_get_intfdata(intf);
 
-	rr3_ftr(&intf->dev, "Entering %s\n", __func__);
-
 	if (!rr3)
 		return;
 
-	redrat3_disable_detector(rr3);
-
 	usb_set_intfdata(intf, NULL);
 	rc_unregister_device(rr3->rc);
+	led_classdev_unregister(&rr3->led);
 	del_timer_sync(&rr3->rx_timeout);
 	redrat3_delete(rr3, udev);
-
-	rr3_ftr(&intf->dev, "RedRat3 IR Transceiver now disconnected\n");
 }
 
 static int redrat3_dev_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct redrat3_dev *rr3 = usb_get_intfdata(intf);
-	rr3_ftr(rr3->dev, "suspend\n");
+
+	led_classdev_suspend(&rr3->led);
 	usb_kill_urb(rr3->read_urb);
+	usb_kill_urb(rr3->flash_urb);
 	return 0;
 }
 
 static int redrat3_dev_resume(struct usb_interface *intf)
 {
 	struct redrat3_dev *rr3 = usb_get_intfdata(intf);
-	rr3_ftr(rr3->dev, "resume\n");
+
 	if (usb_submit_urb(rr3->read_urb, GFP_ATOMIC))
 		return -EIO;
+	led_classdev_resume(&rr3->led);
 	return 0;
 }
 
@@ -1092,8 +1095,3 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_AUTHOR(DRIVER_AUTHOR2);
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(usb, redrat3_dev_table);
-
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable module debug spew. 0 = no debugging (default) "
-		 "0x1 = standard debug messages, 0x2 = function tracing debug. "
-		 "Flag bits are addative (i.e., 0x3 for both debug types).");

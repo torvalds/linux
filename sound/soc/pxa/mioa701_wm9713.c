@@ -56,8 +56,6 @@
 #include "pxa2xx-ac97.h"
 #include "../codecs/wm9713.h"
 
-#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
-
 #define AC97_GPIO_PULL		0x58
 
 /* Use GPIO8 for rear speaker amplifier */
@@ -83,7 +81,7 @@ static int rear_amp_power(struct snd_soc_codec *codec, int power)
 static int rear_amp_event(struct snd_soc_dapm_widget *widget,
 			  struct snd_kcontrol *kctl, int event)
 {
-	struct snd_soc_codec *codec = widget->codec;
+	struct snd_soc_codec *codec = widget->dapm->card->rtd[0].codec;
 
 	return rear_amp_power(codec, SND_SOC_DAPM_EVENT_ON(event));
 }
@@ -129,28 +127,12 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int mioa701_wm9713_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	unsigned short reg;
-
-	/* Add mioa701 specific widgets */
-	snd_soc_dapm_new_controls(dapm, ARRAY_AND_SIZE(mioa701_dapm_widgets));
-
-	/* Set up mioa701 specific audio path audio_mapnects */
-	snd_soc_dapm_add_routes(dapm, ARRAY_AND_SIZE(audio_map));
 
 	/* Prepare GPIO8 for rear speaker amplifier */
-	reg = codec->driver->read(codec, AC97_GPIO_CFG);
-	codec->driver->write(codec, AC97_GPIO_CFG, reg | 0x0100);
+	snd_soc_update_bits(codec, AC97_GPIO_CFG, 0x100, 0x100);
 
 	/* Prepare MIC input */
-	reg = codec->driver->read(codec, AC97_3D_CONTROL);
-	codec->driver->write(codec, AC97_3D_CONTROL, reg | 0xc000);
-
-	snd_soc_dapm_enable_pin(dapm, "Front Speaker");
-	snd_soc_dapm_enable_pin(dapm, "Rear Speaker");
-	snd_soc_dapm_enable_pin(dapm, "Front Mic");
-	snd_soc_dapm_enable_pin(dapm, "GSM Line In");
-	snd_soc_dapm_enable_pin(dapm, "GSM Line Out");
+	snd_soc_update_bits(codec, AC97_3D_CONTROL, 0xc000, 0xc000);
 
 	return 0;
 }
@@ -184,6 +166,11 @@ static struct snd_soc_card mioa701 = {
 	.owner = THIS_MODULE,
 	.dai_link = mioa701_dai,
 	.num_links = ARRAY_SIZE(mioa701_dai),
+
+	.dapm_widgets = mioa701_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(mioa701_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static int mioa701_wm9713_probe(struct platform_device *pdev)
@@ -215,7 +202,7 @@ static struct platform_driver mioa701_wm9713_driver = {
 	.remove		= mioa701_wm9713_remove,
 	.driver		= {
 		.name		= "mioa701-wm9713",
-		.owner		= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 };
 

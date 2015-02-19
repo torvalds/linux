@@ -23,26 +23,22 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/stddef.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/of_i2c.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/cpm.h>
 
@@ -448,7 +444,7 @@ static int cpm_i2c_setup(struct cpm_i2c *cpm)
 
 	init_waitqueue_head(&cpm->i2c_wait);
 
-	cpm->irq = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
+	cpm->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
 	if (!cpm->irq)
 		return -EINVAL;
 
@@ -681,11 +677,6 @@ static int cpm_i2c_probe(struct platform_device *ofdev)
 	dev_dbg(&ofdev->dev, "hw routines for %s registered.\n",
 		cpm->adap.name);
 
-	/*
-	 * register OF I2C devices
-	 */
-	of_i2c_register_devices(&cpm->adap);
-
 	return 0;
 out_shut:
 	cpm_i2c_shutdown(cpm);
@@ -725,7 +716,6 @@ static struct platform_driver cpm_i2c_driver = {
 	.remove		= cpm_i2c_remove,
 	.driver = {
 		.name = "fsl-i2c-cpm",
-		.owner = THIS_MODULE,
 		.of_match_table = cpm_i2c_match,
 	},
 };

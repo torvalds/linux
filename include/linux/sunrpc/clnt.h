@@ -21,6 +21,7 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/timer.h>
+#include <linux/sunrpc/rpc_pipe_fs.h>
 #include <asm/signal.h>
 #include <linux/path.h>
 #include <net/ipv6.h>
@@ -32,6 +33,7 @@ struct rpc_inode;
  */
 struct rpc_clnt {
 	atomic_t		cl_count;	/* Number of references */
+	unsigned int		cl_clid;	/* client id */
 	struct list_head	cl_clients;	/* Global list of clients */
 	struct list_head	cl_tasks;	/* List of tasks */
 	spinlock_t		cl_lock;	/* spinlock */
@@ -41,13 +43,13 @@ struct rpc_clnt {
 				cl_vers,	/* RPC version number */
 				cl_maxproc;	/* max procedure number */
 
-	const char *		cl_protname;	/* protocol name */
 	struct rpc_auth *	cl_auth;	/* authenticator */
 	struct rpc_stat *	cl_stats;	/* per-program statistics */
 	struct rpc_iostats *	cl_metrics;	/* per-client statistics */
 
 	unsigned int		cl_softrtry : 1,/* soft timeouts */
 				cl_discrtry : 1,/* disconnect before retry */
+				cl_noretranstimeo: 1,/* No retransmit timeouts */
 				cl_autobind : 1,/* use getport() */
 				cl_chatty   : 1;/* be verbose */
 
@@ -55,13 +57,15 @@ struct rpc_clnt {
 	const struct rpc_timeout *cl_timeout;	/* Timeout strategy */
 
 	int			cl_nodelen;	/* nodename length */
-	char 			cl_nodename[UNX_MAXNODENAME];
-	struct dentry *		cl_dentry;
+	char 			cl_nodename[UNX_MAXNODENAME+1];
+	struct rpc_pipe_dir_head cl_pipedir_objects;
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
 	struct rpc_timeout	cl_timeout_default;
 	const struct rpc_program *cl_program;
-	char			*cl_principal;	/* target to authenticate to */
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+	struct dentry		*cl_debugfs;	/* debugfs directory */
+#endif
 };
 
 /*
@@ -108,6 +112,7 @@ struct rpc_create_args {
 	struct sockaddr		*saddress;
 	const struct rpc_timeout *timeout;
 	const char		*servername;
+	const char		*nodename;
 	const struct rpc_program *program;
 	u32			prognumber;	/* overrides program->number */
 	u32			version;
@@ -126,14 +131,21 @@ struct rpc_create_args {
 #define RPC_CLNT_CREATE_QUIET		(1UL << 6)
 #define RPC_CLNT_CREATE_INFINITE_SLOTS	(1UL << 7)
 #define RPC_CLNT_CREATE_NO_IDLE_TIMEOUT	(1UL << 8)
+#define RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT	(1UL << 9)
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
+struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
+					struct rpc_xprt *xprt);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
 				const struct rpc_program *, u32);
 void rpc_task_reset_client(struct rpc_task *task, struct rpc_clnt *clnt);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 struct rpc_clnt *rpc_clone_client_set_auth(struct rpc_clnt *,
 				rpc_authflavor_t);
+int		rpc_switch_client_transport(struct rpc_clnt *,
+				struct xprt_create *,
+				const struct rpc_timeout *);
+
 void		rpc_shutdown_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
 void		rpc_task_release_client(struct rpc_task *);
@@ -168,5 +180,6 @@ size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
 const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
 int		rpc_localaddr(struct rpc_clnt *, struct sockaddr *, size_t);
 
+const char *rpc_proc_name(const struct rpc_task *task);
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */

@@ -26,6 +26,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/console.h>
 #include <linux/export.h>
+#include <linux/static_key.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -41,8 +42,10 @@
 #include <asm/smp.h>
 #include <asm/trace.h>
 #include <asm/firmware.h>
+#include <asm/plpar_wrappers.h>
+#include <asm/kexec.h>
+#include <asm/fadump.h>
 
-#include "plpar_wrappers.h"
 #include "pseries.h"
 
 /* Flag bits for H_BULK_REMOVE */
@@ -58,8 +61,6 @@ EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall9);
 EXPORT_SYMBOL(plpar_hcall_norets);
 
-extern void pSeries_find_serial_port(void);
-
 void vpa_init(int cpu)
 {
 	int hwcpu = get_hard_smp_processor_id(cpu);
@@ -67,6 +68,12 @@ void vpa_init(int cpu)
 	long ret;
 	struct paca_struct *pp;
 	struct dtl_entry *dtl;
+
+	/*
+	 * The spec says it "may be problematic" if CPU x registers the VPA of
+	 * CPU y. We should never do that, but wail if we ever do.
+	 */
+	WARN_ON(cpu != smp_processor_id());
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		lppaca_of(cpu).vmxregs_in_use = 1;
@@ -86,7 +93,7 @@ void vpa_init(int cpu)
 	 * PAPR says this feature is SLB-Buffer but firmware never
 	 * reports that.  All SPLPAR support SLB shadow buffer.
 	 */
-	addr = __pa(&slb_shadow[cpu]);
+	addr = __pa(paca[cpu].slb_shadow_ptr);
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		ret = register_slb_shadow(hwcpu, addr);
 		if (ret)
@@ -106,7 +113,7 @@ void vpa_init(int cpu)
 		lppaca_of(cpu).dtl_idx = 0;
 
 		/* hypervisor reads buffer length from this field */
-		dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
+		dtl->enqueue_to_dispatch_time = cpu_to_be32(DISPATCH_LOG_BYTES);
 		ret = register_dtl(hwcpu, __pa(dtl));
 		if (ret)
 			pr_err("WARNING: DTL registration of cpu %d (hw %d) "
@@ -147,7 +154,8 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 
 	/* Make pHyp happy */
 	if ((rflags & _PAGE_NO_CACHE) && !(rflags & _PAGE_WRITETHRU))
-		hpte_r &= ~_PAGE_COHERENT;
+		hpte_r &= ~HPTE_R_M;
+
 	if (firmware_has_feature(FW_FEATURE_XCMO) && !(hpte_r & HPTE_R_N))
 		flags |= H_COALESCE_CAND;
 
@@ -239,6 +247,37 @@ static void pSeries_lpar_hptab_clear(void)
 					&(ptes[j].pteh), &(ptes[j].ptel));
 		}
 	}
+
+#ifdef __LITTLE_ENDIAN__
+	/*
+	 * Reset exceptions to big endian.
+	 *
+	 * FIXME this is a hack for kexec, we need to reset the exception
+	 * endian before starting the new kernel and this is a convenient place
+	 * to do it.
+	 *
+	 * This is also called on boot when a fadump happens. In that case we
+	 * must not change the exception endian mode.
+	 */
+	if (firmware_has_feature(FW_FEATURE_SET_MODE) && !is_fadump_active()) {
+		long rc;
+
+		rc = pseries_big_endian_exceptions();
+		/*
+		 * At this point it is unlikely panic() will get anything
+		 * out to the user, but at least this will stop us from
+		 * continuing on further and creating an even more
+		 * difficult to debug situation.
+		 *
+		 * There is a known problem when kdump'ing, if cpus are offline
+		 * the above call will fail. Rather than panicking again, keep
+		 * going and hope the kdump kernel is also little endian, which
+		 * it usually is.
+		 */
+		if (rc && !kdump_in_progress())
+			panic("Could not enable big endian exceptions");
+	}
+#endif
 }
 
 /*
@@ -251,7 +290,7 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       unsigned long newpp,
 				       unsigned long vpn,
 				       int psize, int apsize,
-				       int ssize, int local)
+				       int ssize, unsigned long inv_flags)
 {
 	unsigned long lpar_rc;
 	unsigned long flags = (newpp & 7) | H_AVPN;
@@ -406,16 +445,17 @@ static void __pSeries_lpar_hugepage_invalidate(unsigned long *slot,
 		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);
 }
 
-static void pSeries_lpar_hugepage_invalidate(struct mm_struct *mm,
-				       unsigned char *hpte_slot_array,
-				       unsigned long addr, int psize)
+static void pSeries_lpar_hugepage_invalidate(unsigned long vsid,
+					     unsigned long addr,
+					     unsigned char *hpte_slot_array,
+					     int psize, int ssize, int local)
 {
-	int ssize = 0, i, index = 0;
+	int i, index = 0;
 	unsigned long s_addr = addr;
 	unsigned int max_hpte_count, valid;
 	unsigned long vpn_array[PPC64_HUGE_HPTE_BATCH];
 	unsigned long slot_array[PPC64_HUGE_HPTE_BATCH];
-	unsigned long shift, hidx, vpn = 0, vsid, hash, slot;
+	unsigned long shift, hidx, vpn = 0, hash, slot;
 
 	shift = mmu_psize_defs[psize].shift;
 	max_hpte_count = 1U << (PMD_SHIFT - shift);
@@ -428,15 +468,6 @@ static void pSeries_lpar_hugepage_invalidate(struct mm_struct *mm,
 
 		/* get the vpn */
 		addr = s_addr + (i * (1ul << shift));
-		if (!is_kernel_addr(addr)) {
-			ssize = user_segment_size(addr);
-			vsid = get_vsid(mm->context.id, addr, ssize);
-			WARN_ON(vsid == 0);
-		} else {
-			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
-			ssize = mmu_kernel_ssize;
-		}
-
 		vpn = hpt_vpn(addr, vsid, ssize);
 		hash = hpt_hash(vpn, shift, ssize);
 		if (hidx & _PTEIDX_SECONDARY)
@@ -490,7 +521,7 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 	unsigned long vpn;
 	unsigned long i, pix, rc;
 	unsigned long flags = 0;
-	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
+	struct ppc64_tlb_batch *batch = this_cpu_ptr(&ppc64_tlb_batch);
 	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long param[9];
 	unsigned long hash, index, shift, hidx, slot;
@@ -625,6 +656,19 @@ EXPORT_SYMBOL(arch_free_page);
 #endif
 
 #ifdef CONFIG_TRACEPOINTS
+#ifdef HAVE_JUMP_LABEL
+struct static_key hcall_tracepoint_key = STATIC_KEY_INIT;
+
+void hcall_tracepoint_regfunc(void)
+{
+	static_key_slow_inc(&hcall_tracepoint_key);
+}
+
+void hcall_tracepoint_unregfunc(void)
+{
+	static_key_slow_dec(&hcall_tracepoint_key);
+}
+#else
 /*
  * We optimise our hcall path by placing hcall_tracepoint_refcount
  * directly in the TOC so we can check if the hcall tracepoints are
@@ -633,13 +677,6 @@ EXPORT_SYMBOL(arch_free_page);
 
 /* NB: reg/unreg are called while guarded with the tracepoints_mutex */
 extern long hcall_tracepoint_refcount;
-
-/* 
- * Since the tracing code might execute hcalls we need to guard against
- * recursion. One example of this are spinlocks calling H_YIELD on
- * shared processor partitions.
- */
-static DEFINE_PER_CPU(unsigned int, hcall_trace_depth);
 
 void hcall_tracepoint_regfunc(void)
 {
@@ -650,6 +687,15 @@ void hcall_tracepoint_unregfunc(void)
 {
 	hcall_tracepoint_refcount--;
 }
+#endif
+
+/*
+ * Since the tracing code might execute hcalls we need to guard against
+ * recursion. One example of this are spinlocks calling H_YIELD on
+ * shared processor partitions.
+ */
+static DEFINE_PER_CPU(unsigned int, hcall_trace_depth);
+
 
 void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 {
@@ -665,7 +711,7 @@ void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 
 	local_irq_save(flags);
 
-	depth = &__get_cpu_var(hcall_trace_depth);
+	depth = this_cpu_ptr(&hcall_trace_depth);
 
 	if (*depth)
 		goto out;
@@ -690,7 +736,7 @@ void __trace_hcall_exit(long opcode, unsigned long retval,
 
 	local_irq_save(flags);
 
-	depth = &__get_cpu_var(hcall_trace_depth);
+	depth = this_cpu_ptr(&hcall_trace_depth);
 
 	if (*depth)
 		goto out;
@@ -724,7 +770,7 @@ int h_get_mpp(struct hvcall_mpp_data *mpp_data)
 
 	mpp_data->mem_weight = (retbuf[3] >> 7 * 8) & 0xff;
 	mpp_data->unallocated_mem_weight = (retbuf[3] >> 6 * 8) & 0xff;
-	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffff;
+	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffffUL;
 
 	mpp_data->pool_size = retbuf[4];
 	mpp_data->loan_request = retbuf[5];

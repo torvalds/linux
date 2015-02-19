@@ -41,7 +41,7 @@ int pinmux_check_ops(struct pinctrl_dev *pctldev)
 	    !ops->get_functions_count ||
 	    !ops->get_function_name ||
 	    !ops->get_function_groups ||
-	    !ops->enable) {
+	    !ops->set_mux) {
 		dev_err(pctldev->dev, "pinmux ops lacks necessary functions\n");
 		return -EINVAL;
 	}
@@ -391,19 +391,25 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
-	int ret;
-	const unsigned *pins;
-	unsigned num_pins;
+	int ret = 0;
+	const unsigned *pins = NULL;
+	unsigned num_pins = 0;
 	int i;
 	struct pin_desc *desc;
 
-	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
-				      &pins, &num_pins);
+	if (pctlops->get_group_pins)
+		ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
+					      &pins, &num_pins);
+
 	if (ret) {
+		const char *gname;
+
 		/* errors only affect debug data, so just warn */
+		gname = pctlops->get_group_name(pctldev,
+						setting->data.mux.group);
 		dev_warn(pctldev->dev,
-			 "could not get pins for group selector %d\n",
-			 setting->data.mux.group);
+			 "could not get pins for group %s\n",
+			 gname);
 		num_pins = 0;
 	}
 
@@ -411,9 +417,18 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 	for (i = 0; i < num_pins; i++) {
 		ret = pin_request(pctldev, pins[i], setting->dev_name, NULL);
 		if (ret) {
+			const char *gname;
+			const char *pname;
+
+			desc = pin_desc_get(pctldev, pins[i]);
+			pname = desc ? desc->name : "non-existing";
+			gname = pctlops->get_group_name(pctldev,
+						setting->data.mux.group);
 			dev_err(pctldev->dev,
-				"could not request pin %d on device %s\n",
-				pins[i], pinctrl_dev_get_name(pctldev));
+				"could not request pin %d (%s) from group %s "
+				" on device %s\n",
+				pins[i], pname, gname,
+				pinctrl_dev_get_name(pctldev));
 			goto err_pin_request;
 		}
 	}
@@ -430,15 +445,15 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 		desc->mux_setting = &(setting->data.mux);
 	}
 
-	ret = ops->enable(pctldev, setting->data.mux.func,
-			  setting->data.mux.group);
+	ret = ops->set_mux(pctldev, setting->data.mux.func,
+			   setting->data.mux.group);
 
 	if (ret)
-		goto err_enable;
+		goto err_set_mux;
 
 	return 0;
 
-err_enable:
+err_set_mux:
 	for (i = 0; i < num_pins; i++) {
 		desc = pin_desc_get(pctldev, pins[i]);
 		if (desc)
@@ -456,20 +471,24 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
-	const struct pinmux_ops *ops = pctldev->desc->pmxops;
-	int ret;
-	const unsigned *pins;
-	unsigned num_pins;
+	int ret = 0;
+	const unsigned *pins = NULL;
+	unsigned num_pins = 0;
 	int i;
 	struct pin_desc *desc;
 
-	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
-				      &pins, &num_pins);
+	if (pctlops->get_group_pins)
+		ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
+					      &pins, &num_pins);
 	if (ret) {
+		const char *gname;
+
 		/* errors only affect debug data, so just warn */
+		gname = pctlops->get_group_name(pctldev,
+						setting->data.mux.group);
 		dev_warn(pctldev->dev,
-			 "could not get pins for group selector %d\n",
-			 setting->data.mux.group);
+			 "could not get pins for group %s\n",
+			 gname);
 		num_pins = 0;
 	}
 
@@ -482,15 +501,22 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 				 pins[i]);
 			continue;
 		}
-		desc->mux_setting = NULL;
+		if (desc->mux_setting == &(setting->data.mux)) {
+			desc->mux_setting = NULL;
+			/* And release the pin */
+			pin_free(pctldev, pins[i], NULL);
+		} else {
+			const char *gname;
+
+			gname = pctlops->get_group_name(pctldev,
+						setting->data.mux.group);
+			dev_warn(pctldev->dev,
+				 "not freeing pin %d (%s) as part of "
+				 "deactivating group %s - it is already "
+				 "used for some other setting",
+				 pins[i], desc->name, gname);
+		}
 	}
-
-	/* And release the pins */
-	for (i = 0; i < num_pins; i++)
-		pin_free(pctldev, pins[i], NULL);
-
-	if (ops->disable)
-		ops->disable(pctldev, setting->data.mux.func, setting->data.mux.group);
 }
 
 #ifdef CONFIG_DEBUG_FS

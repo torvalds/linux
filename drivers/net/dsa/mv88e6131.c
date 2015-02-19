@@ -21,19 +21,27 @@
 #define ID_6085		0x04a0
 #define ID_6095		0x0950
 #define ID_6131		0x1060
+#define ID_6131_B2	0x1066
 
-static char *mv88e6131_probe(struct mii_bus *bus, int sw_addr)
+static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 {
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
 	int ret;
+
+	if (bus == NULL)
+		return NULL;
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
-		ret &= 0xfff0;
-		if (ret == ID_6085)
+		int ret_masked = ret & 0xfff0;
+
+		if (ret_masked == ID_6085)
 			return "Marvell 88E6085";
-		if (ret == ID_6095)
+		if (ret_masked == ID_6095)
 			return "Marvell 88E6095/88E6095F";
-		if (ret == ID_6131)
+		if (ret == ID_6131_B2)
+			return "Marvell 88E6131 (B2)";
+		if (ret_masked == ID_6131)
 			return "Marvell 88E6131";
 	}
 
@@ -131,7 +139,8 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 		int nexthop;
 
 		nexthop = 0x1f;
-		if (i != ds->index && i < ds->dst->pd->nr_chips)
+		if (ds->pd->rtable &&
+		    i != ds->index && i < ds->dst->pd->nr_chips)
 			nexthop = ds->pd->rtable[i] & 0x1f;
 
 		REG_WRITE(REG_GLOBAL2, 0x06, 0x8000 | (i << 8) | nexthop);
@@ -155,7 +164,7 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 
 static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 {
-	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int addr = REG_PORT(p);
 	u16 val;
 
@@ -274,7 +283,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 
 static int mv88e6131_setup(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int i;
 	int ret;
 
@@ -379,7 +388,7 @@ static int mv88e6131_get_sset_count(struct dsa_switch *ds)
 }
 
 struct dsa_switch_driver mv88e6131_switch_driver = {
-	.tag_protocol		= cpu_to_be16(ETH_P_DSA),
+	.tag_protocol		= DSA_TAG_PROTO_DSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
 	.probe			= mv88e6131_probe,
 	.setup			= mv88e6131_setup,

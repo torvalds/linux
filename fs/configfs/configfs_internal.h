@@ -24,6 +24,12 @@
  * configfs Copyright (C) 2005 Oracle.  All rights reserved.
  */
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -64,8 +70,6 @@ extern int configfs_is_root(struct config_item *item);
 
 extern struct inode * configfs_new_inode(umode_t mode, struct configfs_dirent *, struct super_block *);
 extern int configfs_create(struct dentry *, umode_t mode, int (*init)(struct inode *));
-extern int configfs_inode_init(void);
-extern void configfs_inode_exit(void);
 
 extern int configfs_create_file(struct config_item *, const struct configfs_attribute *);
 extern int configfs_make_dirent(struct configfs_dirent *,

@@ -91,32 +91,6 @@ int btrfs_find_name_in_ext_backref(struct btrfs_path *path, u64 ref_objectid,
 	return 0;
 }
 
-static struct btrfs_inode_ref *
-btrfs_lookup_inode_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *root,
-		       struct btrfs_path *path,
-		       const char *name, int name_len,
-		       u64 inode_objectid, u64 ref_objectid, int ins_len,
-		       int cow)
-{
-	int ret;
-	struct btrfs_key key;
-	struct btrfs_inode_ref *ref;
-
-	key.objectid = inode_objectid;
-	key.type = BTRFS_INODE_REF_KEY;
-	key.offset = ref_objectid;
-
-	ret = btrfs_search_slot(trans, root, &key, path, ins_len, cow);
-	if (ret < 0)
-		return ERR_PTR(ret);
-	if (ret > 0)
-		return NULL;
-	if (!find_name_in_backref(path, name, name_len, &ref))
-		return NULL;
-	return ref;
-}
-
 /* Returns NULL if no extref found */
 struct btrfs_inode_extref *
 btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
@@ -144,45 +118,6 @@ btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
 	return extref;
 }
 
-int btrfs_get_inode_ref_index(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root,
-			      struct btrfs_path *path,
-			      const char *name, int name_len,
-			      u64 inode_objectid, u64 ref_objectid, int mod,
-			      u64 *ret_index)
-{
-	struct btrfs_inode_ref *ref;
-	struct btrfs_inode_extref *extref;
-	int ins_len = mod < 0 ? -1 : 0;
-	int cow = mod != 0;
-
-	ref = btrfs_lookup_inode_ref(trans, root, path, name, name_len,
-				     inode_objectid, ref_objectid, ins_len,
-				     cow);
-	if (IS_ERR(ref))
-		return PTR_ERR(ref);
-
-	if (ref != NULL) {
-		*ret_index = btrfs_inode_ref_index(path->nodes[0], ref);
-		return 0;
-	}
-
-	btrfs_release_path(path);
-
-	extref = btrfs_lookup_inode_extref(trans, root, path, name,
-					   name_len, inode_objectid,
-					   ref_objectid, ins_len, cow);
-	if (IS_ERR(extref))
-		return PTR_ERR(extref);
-
-	if (extref) {
-		*ret_index = btrfs_inode_extref_index(path->nodes[0], extref);
-		return 0;
-	}
-
-	return -ENOENT;
-}
-
 static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
 				  const char *name, int name_len,
@@ -200,7 +135,7 @@ static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	u32 item_size;
 
 	key.objectid = inode_objectid;
-	btrfs_set_key_type(&key, BTRFS_INODE_EXTREF_KEY);
+	key.type = BTRFS_INODE_EXTREF_KEY;
 	key.offset = btrfs_extref_hash(ref_objectid, name, name_len);
 
 	path = btrfs_alloc_path();
@@ -274,7 +209,7 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 
 	key.objectid = inode_objectid;
 	key.offset = ref_objectid;
-	btrfs_set_key_type(&key, BTRFS_INODE_REF_KEY);
+	key.type = BTRFS_INODE_REF_KEY;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -369,7 +304,7 @@ static int btrfs_insert_inode_extref(struct btrfs_trans_handle *trans,
 		goto out;
 
 	leaf = path->nodes[0];
-	item = btrfs_item_nr(leaf, path->slots[0]);
+	item = btrfs_item_nr(path->slots[0]);
 	ptr = (unsigned long)btrfs_item_ptr(leaf, path->slots[0], char);
 	ptr += btrfs_item_size(leaf, item) - ins_len;
 	extref = (struct btrfs_inode_extref *)ptr;
@@ -402,7 +337,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 
 	key.objectid = inode_objectid;
 	key.offset = ref_objectid;
-	btrfs_set_key_type(&key, BTRFS_INODE_REF_KEY);
+	key.type = BTRFS_INODE_REF_KEY;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -465,7 +400,7 @@ int btrfs_insert_empty_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	int ret;
 	key.objectid = objectid;
-	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
+	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
@@ -485,13 +420,13 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_key found_key;
 
 	ret = btrfs_search_slot(trans, root, location, path, ins_len, cow);
-	if (ret > 0 && btrfs_key_type(location) == BTRFS_ROOT_ITEM_KEY &&
+	if (ret > 0 && location->type == BTRFS_ROOT_ITEM_KEY &&
 	    location->offset == (u64)-1 && path->slots[0] != 0) {
 		slot = path->slots[0] - 1;
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 		if (found_key.objectid == location->objectid &&
-		    btrfs_key_type(&found_key) == btrfs_key_type(location)) {
+		    found_key.type == location->type) {
 			path->slots[0]--;
 			return 0;
 		}

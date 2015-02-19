@@ -17,6 +17,7 @@
  */
 
 #include <linux/cpu.h>
+#include <linux/cpu_pm.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
@@ -65,7 +66,7 @@ static bool vgic_present;
 static void kvm_arm_set_running_vcpu(struct kvm_vcpu *vcpu)
 {
 	BUG_ON(preemptible());
-	__get_cpu_var(kvm_arm_running_vcpu) = vcpu;
+	__this_cpu_write(kvm_arm_running_vcpu, vcpu);
 }
 
 /**
@@ -75,18 +76,18 @@ static void kvm_arm_set_running_vcpu(struct kvm_vcpu *vcpu)
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void)
 {
 	BUG_ON(preemptible());
-	return __get_cpu_var(kvm_arm_running_vcpu);
+	return __this_cpu_read(kvm_arm_running_vcpu);
 }
 
 /**
  * kvm_arm_get_running_vcpus - get the per-CPU array of currently running vcpus.
  */
-struct kvm_vcpu __percpu **kvm_get_running_vcpus(void)
+struct kvm_vcpu * __percpu *kvm_get_running_vcpus(void)
 {
 	return &kvm_arm_running_vcpu;
 }
 
-int kvm_arch_hardware_enable(void *garbage)
+int kvm_arch_hardware_enable(void)
 {
 	return 0;
 }
@@ -96,17 +97,9 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_exiting_guest_mode(vcpu) == IN_GUEST_MODE;
 }
 
-void kvm_arch_hardware_disable(void *garbage)
-{
-}
-
 int kvm_arch_hardware_setup(void)
 {
 	return 0;
-}
-
-void kvm_arch_hardware_unsetup(void)
-{
 }
 
 void kvm_arch_check_processor_compat(void *rtn)
@@ -114,9 +107,6 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 }
 
-void kvm_arch_sync_events(struct kvm *kvm)
-{
-}
 
 /**
  * kvm_arch_init_vm - initializes a VM data structure
@@ -137,8 +127,13 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (ret)
 		goto out_free_stage2_pgd;
 
+	kvm_timer_init(kvm);
+
 	/* Mark the initial VMID generation invalid */
 	kvm->arch.vmid_gen = 0;
+
+	/* The maximum number of VCPUs is limited by the host's GIC model */
+	kvm->arch.max_vcpus = kvm_vgic_get_max_vcpus();
 
 	return ret;
 out_free_stage2_pgd:
@@ -152,15 +147,6 @@ int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
-void kvm_arch_free_memslot(struct kvm_memory_slot *free,
-			   struct kvm_memory_slot *dont)
-{
-}
-
-int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
-{
-	return 0;
-}
 
 /**
  * kvm_arch_destroy_vm - destroy the VM data structure
@@ -178,20 +164,25 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 			kvm->vcpus[i] = NULL;
 		}
 	}
+
+	kvm_vgic_destroy(kvm);
 }
 
-int kvm_dev_ioctl_check_extension(long ext)
+int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	int r;
 	switch (ext) {
 	case KVM_CAP_IRQCHIP:
 		r = vgic_present;
 		break;
+	case KVM_CAP_DEVICE_CTRL:
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_ARM_PSCI:
+	case KVM_CAP_ARM_PSCI_0_2:
+	case KVM_CAP_READONLY_MEM:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -219,34 +210,21 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -EINVAL;
 }
 
-int kvm_arch_prepare_memory_region(struct kvm *kvm,
-				   struct kvm_memory_slot *memslot,
-				   struct kvm_userspace_memory_region *mem,
-				   enum kvm_mr_change change)
-{
-	return 0;
-}
-
-void kvm_arch_commit_memory_region(struct kvm *kvm,
-				   struct kvm_userspace_memory_region *mem,
-				   const struct kvm_memory_slot *old,
-				   enum kvm_mr_change change)
-{
-}
-
-void kvm_arch_flush_shadow_all(struct kvm *kvm)
-{
-}
-
-void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
-				   struct kvm_memory_slot *slot)
-{
-}
 
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
 	int err;
 	struct kvm_vcpu *vcpu;
+
+	if (irqchip_in_kernel(kvm) && vgic_initialized(kvm)) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	if (id >= kvm->arch.max_vcpus) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
 	if (!vcpu) {
@@ -271,15 +249,15 @@ out:
 	return ERR_PTR(err);
 }
 
-int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
+void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
-	return 0;
 }
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	kvm_mmu_free_memory_caches(vcpu);
 	kvm_timer_vcpu_terminate(vcpu);
+	kvm_vgic_vcpu_destroy(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, vcpu);
 }
 
@@ -295,15 +273,9 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	int ret;
-
 	/* Force users to call KVM_ARM_VCPU_INIT */
 	vcpu->arch.target = -1;
-
-	/* Set up VGIC */
-	ret = kvm_vgic_vcpu_init(vcpu);
-	if (ret)
-		return ret;
+	bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
 
 	/* Set up the timer */
 	kvm_timer_vcpu_init(vcpu);
@@ -311,29 +283,23 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
-{
-}
-
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	vcpu->cpu = cpu;
 	vcpu->arch.host_cpu_context = this_cpu_ptr(kvm_host_cpu_state);
-
-	/*
-	 * Check whether this vcpu requires the cache to be flushed on
-	 * this physical CPU. This is a consequence of doing dcache
-	 * operations by set/way on this vcpu. We do it here to be in
-	 * a non-preemptible section.
-	 */
-	if (cpumask_test_and_clear_cpu(cpu, &vcpu->arch.require_dcache_flush))
-		flush_cache_all(); /* We'd really want v7_flush_dcache_all() */
 
 	kvm_arm_set_running_vcpu(vcpu);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
+	/*
+	 * The arch-generic KVM code expects the cpu field of a vcpu to be -1
+	 * if the vcpu is no longer assigned to a cpu.  This is used for the
+	 * optimized make_all_cpus_request path.
+	 */
+	vcpu->cpu = -1;
+
 	kvm_arm_set_running_vcpu(NULL);
 }
 
@@ -447,40 +413,41 @@ static void update_vttbr(struct kvm *kvm)
 	kvm_next_vmid++;
 
 	/* update vttbr to be used with the new vmid */
-	pgd_phys = virt_to_phys(kvm->arch.pgd);
+	pgd_phys = virt_to_phys(kvm_get_hwpgd(kvm));
+	BUG_ON(pgd_phys & ~VTTBR_BADDR_MASK);
 	vmid = ((u64)(kvm->arch.vmid) << VTTBR_VMID_SHIFT) & VTTBR_VMID_MASK;
-	kvm->arch.vttbr = pgd_phys & VTTBR_BADDR_MASK;
-	kvm->arch.vttbr |= vmid;
+	kvm->arch.vttbr = pgd_phys | vmid;
 
 	spin_unlock(&kvm_vmid_lock);
 }
 
 static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 {
+	struct kvm *kvm = vcpu->kvm;
+	int ret;
+
 	if (likely(vcpu->arch.has_run_once))
 		return 0;
 
 	vcpu->arch.has_run_once = true;
 
 	/*
-	 * Initialize the VGIC before running a vcpu the first time on
-	 * this VM.
+	 * Map the VGIC hardware resources before running a vcpu the first
+	 * time on this VM.
 	 */
-	if (irqchip_in_kernel(vcpu->kvm) &&
-	    unlikely(!vgic_initialized(vcpu->kvm))) {
-		int ret = kvm_vgic_init(vcpu->kvm);
+	if (unlikely(!vgic_ready(kvm))) {
+		ret = kvm_vgic_map_resources(kvm);
 		if (ret)
 			return ret;
 	}
 
 	/*
-	 * Handle the "start in power-off" case by calling into the
-	 * PSCI code.
+	 * Enable the arch timers only if we have an in-kernel VGIC
+	 * and it has been properly initialized, since we cannot handle
+	 * interrupts from the virtual timer with a userspace gic.
 	 */
-	if (test_and_clear_bit(KVM_ARM_VCPU_POWER_OFF, vcpu->arch.features)) {
-		*vcpu_reg(vcpu, 0) = KVM_PSCI_FN_CPU_OFF;
-		kvm_psci_call(vcpu);
-	}
+	if (irqchip_in_kernel(kvm) && vgic_initialized(kvm))
+		kvm_timer_enable(kvm);
 
 	return 0;
 }
@@ -572,7 +539,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		ret = kvm_call_hyp(__kvm_vcpu_run, vcpu);
 
 		vcpu->mode = OUTSIDE_GUEST_MODE;
-		vcpu->arch.last_pcpu = smp_processor_id();
 		kvm_guest_exit();
 		trace_kvm_exit(*vcpu_pc(vcpu));
 		/*
@@ -695,6 +661,77 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
 	return -EINVAL;
 }
 
+static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
+			       const struct kvm_vcpu_init *init)
+{
+	unsigned int i;
+	int phys_target = kvm_target_cpu();
+
+	if (init->target != phys_target)
+		return -EINVAL;
+
+	/*
+	 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
+	 * use the same target.
+	 */
+	if (vcpu->arch.target != -1 && vcpu->arch.target != init->target)
+		return -EINVAL;
+
+	/* -ENOENT for unknown features, -EINVAL for invalid combinations. */
+	for (i = 0; i < sizeof(init->features) * 8; i++) {
+		bool set = (init->features[i / 32] & (1 << (i % 32)));
+
+		if (set && i >= KVM_VCPU_MAX_FEATURES)
+			return -ENOENT;
+
+		/*
+		 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
+		 * use the same feature set.
+		 */
+		if (vcpu->arch.target != -1 && i < KVM_VCPU_MAX_FEATURES &&
+		    test_bit(i, vcpu->arch.features) != set)
+			return -EINVAL;
+
+		if (set)
+			set_bit(i, vcpu->arch.features);
+	}
+
+	vcpu->arch.target = phys_target;
+
+	/* Now we know what it is, we can reset it. */
+	return kvm_reset_vcpu(vcpu);
+}
+
+
+static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
+					 struct kvm_vcpu_init *init)
+{
+	int ret;
+
+	ret = kvm_vcpu_set_target(vcpu, init);
+	if (ret)
+		return ret;
+
+	/*
+	 * Ensure a rebooted VM will fault in RAM pages and detect if the
+	 * guest MMU is turned off and flush the caches as needed.
+	 */
+	if (vcpu->arch.has_run_once)
+		stage2_unmap_vm(vcpu->kvm);
+
+	vcpu_reset_hcr(vcpu);
+
+	/*
+	 * Handle the "start in power-off" case by marking the VCPU as paused.
+	 */
+	if (test_bit(KVM_ARM_VCPU_POWER_OFF, vcpu->arch.features))
+		vcpu->arch.pause = true;
+	else
+		vcpu->arch.pause = false;
+
+	return 0;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -708,8 +745,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&init, argp, sizeof(init)))
 			return -EFAULT;
 
-		return kvm_vcpu_set_target(vcpu, &init);
-
+		return kvm_arch_vcpu_ioctl_vcpu_init(vcpu, &init);
 	}
 	case KVM_SET_ONE_REG:
 	case KVM_GET_ONE_REG: {
@@ -748,9 +784,39 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 }
 
+/**
+ * kvm_vm_ioctl_get_dirty_log - get and clear the log of dirty pages in a slot
+ * @kvm: kvm instance
+ * @log: slot id and address to which we copy the log
+ *
+ * Steps 1-4 below provide general overview of dirty page logging. See
+ * kvm_get_dirty_log_protect() function description for additional details.
+ *
+ * We call kvm_get_dirty_log_protect() to handle steps 1-3, upon return we
+ * always flush the TLB (step 4) even if previous step failed  and the dirty
+ * bitmap may be corrupt. Regardless of previous outcome the KVM logging API
+ * does not preclude user space subsequent dirty log read. Flushing TLB ensures
+ * writes will be marked dirty for next log read.
+ *
+ *   1. Take a snapshot of the bit and clear it if needed.
+ *   2. Write protect the corresponding page.
+ *   3. Copy the snapshot to the userspace.
+ *   4. Flush TLB's if needed.
+ */
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 {
-	return -EINVAL;
+	bool is_dirty = false;
+	int r;
+
+	mutex_lock(&kvm->slots_lock);
+
+	r = kvm_get_dirty_log_protect(kvm, log, &is_dirty);
+
+	if (is_dirty)
+		kvm_flush_remote_tlbs(kvm);
+
+	mutex_unlock(&kvm->slots_lock);
+	return r;
 }
 
 static int kvm_vm_ioctl_set_device_addr(struct kvm *kvm,
@@ -767,7 +833,7 @@ static int kvm_vm_ioctl_set_device_addr(struct kvm *kvm,
 	case KVM_ARM_DEVICE_VGIC_V2:
 		if (!vgic_present)
 			return -ENXIO;
-		return kvm_vgic_set_addr(kvm, type, dev_addr->addr);
+		return kvm_vgic_addr(kvm, type, &dev_addr->addr, true);
 	default:
 		return -ENODEV;
 	}
@@ -782,7 +848,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	switch (ioctl) {
 	case KVM_CREATE_IRQCHIP: {
 		if (vgic_present)
-			return kvm_vgic_create(kvm);
+			return kvm_vgic_create(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
 		else
 			return -ENXIO;
 	}
@@ -792,6 +858,19 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (copy_from_user(&dev_addr, argp, sizeof(dev_addr)))
 			return -EFAULT;
 		return kvm_vm_ioctl_set_device_addr(kvm, &dev_addr);
+	}
+	case KVM_ARM_PREFERRED_TARGET: {
+		int err;
+		struct kvm_vcpu_init init;
+
+		err = kvm_vcpu_preferred_target(&init);
+		if (err)
+			return err;
+
+		if (copy_to_user(argp, &init, sizeof(init)))
+			return -EFAULT;
+
+		return 0;
 	}
 	default:
 		return -EINVAL;
@@ -811,7 +890,7 @@ static void cpu_init_hyp_mode(void *dummy)
 
 	boot_pgd_ptr = kvm_mmu_get_boot_httbr();
 	pgd_ptr = kvm_mmu_get_httbr();
-	stack_page = __get_cpu_var(kvm_arm_hyp_stack_page);
+	stack_page = __this_cpu_read(kvm_arm_hyp_stack_page);
 	hyp_stack_ptr = stack_page + PAGE_SIZE;
 	vector_ptr = (unsigned long)__kvm_hyp_vector;
 
@@ -824,7 +903,8 @@ static int hyp_init_cpu_notify(struct notifier_block *self,
 	switch (action) {
 	case CPU_STARTING:
 	case CPU_STARTING_FROZEN:
-		cpu_init_hyp_mode(NULL);
+		if (__hyp_get_vectors() == hyp_default_vectors)
+			cpu_init_hyp_mode(NULL);
 		break;
 	}
 
@@ -834,6 +914,34 @@ static int hyp_init_cpu_notify(struct notifier_block *self,
 static struct notifier_block hyp_init_cpu_nb = {
 	.notifier_call = hyp_init_cpu_notify,
 };
+
+#ifdef CONFIG_CPU_PM
+static int hyp_init_cpu_pm_notifier(struct notifier_block *self,
+				    unsigned long cmd,
+				    void *v)
+{
+	if (cmd == CPU_PM_EXIT &&
+	    __hyp_get_vectors() == hyp_default_vectors) {
+		cpu_init_hyp_mode(NULL);
+		return NOTIFY_OK;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block hyp_init_cpu_pm_nb = {
+	.notifier_call = hyp_init_cpu_pm_notifier,
+};
+
+static void __init hyp_cpu_pm_init(void)
+{
+	cpu_pm_register_notifier(&hyp_init_cpu_pm_nb);
+}
+#else
+static inline void hyp_cpu_pm_init(void)
+{
+}
+#endif
 
 /**
  * Inits Hyp-mode on all online CPUs
@@ -964,6 +1072,19 @@ static void check_kvm_target_cpu(void *ret)
 	*(int *)ret = kvm_target_cpu();
 }
 
+struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr)
+{
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	mpidr &= MPIDR_HWID_BITMASK;
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (mpidr == kvm_vcpu_get_mpidr_aff(vcpu))
+			return vcpu;
+	}
+	return NULL;
+}
+
 /**
  * Initialize Hyp-mode and memory mappings on all CPUs.
  */
@@ -985,19 +1106,26 @@ int kvm_arch_init(void *opaque)
 		}
 	}
 
+	cpu_notifier_register_begin();
+
 	err = init_hyp_mode();
 	if (err)
 		goto out_err;
 
-	err = register_cpu_notifier(&hyp_init_cpu_nb);
+	err = __register_cpu_notifier(&hyp_init_cpu_nb);
 	if (err) {
 		kvm_err("Cannot register HYP init CPU notifier (%d)\n", err);
 		goto out_err;
 	}
 
+	cpu_notifier_register_done();
+
+	hyp_cpu_pm_init();
+
 	kvm_coproc_table_init();
 	return 0;
 out_err:
+	cpu_notifier_register_done();
 	return err;
 }
 

@@ -5,7 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +31,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,28 +67,7 @@
 #include <linux/types.h>
 #include <net/mac80211.h>
 
-/**
- * enum iwl_ucode_tlv_flag - ucode API flags
- * @IWL_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
- *	was a separate TLV but moved here to save space.
- * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
- *	treats good CRC threshold as a boolean
- * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
- * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
- * @IWL_UCODE_TLV_FLAGS_DW_BC_TABLE: The SCD byte count table is in DWORDS
- */
-enum iwl_ucode_tlv_flag {
-	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
-	IWL_UCODE_TLV_FLAGS_NEWSCAN	= BIT(1),
-	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
-	IWL_UCODE_TLV_FLAGS_P2P		= BIT(3),
-	IWL_UCODE_TLV_FLAGS_DW_BC_TABLE	= BIT(4),
-};
-
-/* The default calibrate table size if not specified by firmware file */
-#define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
-#define IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE		19
-#define IWL_MAX_PHY_CALIBRATE_TBL_SIZE			253
+#include "iwl-fw-file.h"
 
 /**
  * enum iwl_ucode_type
@@ -96,11 +77,13 @@ enum iwl_ucode_tlv_flag {
  * @IWL_UCODE_REGULAR: Normal runtime ucode
  * @IWL_UCODE_INIT: Initial ucode
  * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
+ * @IWL_UCODE_REGULAR_USNIFFER: Normal runtime ucode when using usniffer image
  */
 enum iwl_ucode_type {
 	IWL_UCODE_REGULAR,
 	IWL_UCODE_INIT,
 	IWL_UCODE_WOWLAN,
+	IWL_UCODE_REGULAR_USNIFFER,
 	IWL_UCODE_TYPE_MAX,
 };
 
@@ -115,16 +98,14 @@ enum iwl_ucode_sec {
 	IWL_UCODE_SECTION_DATA,
 	IWL_UCODE_SECTION_INST,
 };
-/*
- * For 16.0 uCode and above, there is no differentiation between sections,
- * just an offset to the HW address.
- */
-#define IWL_UCODE_SECTION_MAX 4
 
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
+	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
+	u32 api[IWL_API_ARRAY_SIZE];
+	u32 capa[IWL_CAPABILITIES_ARRAY_SIZE];
 };
 
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
@@ -136,39 +117,23 @@ struct fw_desc {
 
 struct fw_img {
 	struct fw_desc sec[IWL_UCODE_SECTION_MAX];
+	bool is_dual_cpus;
 };
 
-/* uCode version contains 4 values: Major/Minor/API/Serial */
-#define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
-#define IWL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)
-#define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
-#define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
+struct iwl_sf_region {
+	u32 addr;
+	u32 size;
+};
 
-/*
- * Calibration control struct.
- * Sent as part of the phy configuration command.
- * @flow_trigger: bitmap for which calibrations to perform according to
- *		flow triggers.
- * @event_trigger: bitmap for which calibrations to perform according to
- *		event triggers.
+/**
+ * struct iwl_fw_cscheme_list - a cipher scheme list
+ * @size: a number of entries
+ * @cs: cipher scheme entries
  */
-struct iwl_tlv_calib_ctrl {
-	__le32 flow_trigger;
-	__le32 event_trigger;
+struct iwl_fw_cscheme_list {
+	u8 size;
+	struct iwl_fw_cipher_scheme cs[];
 } __packed;
-
-enum iwl_fw_phy_cfg {
-	FW_PHY_CFG_RADIO_TYPE_POS = 0,
-	FW_PHY_CFG_RADIO_TYPE = 0x3 << FW_PHY_CFG_RADIO_TYPE_POS,
-	FW_PHY_CFG_RADIO_STEP_POS = 2,
-	FW_PHY_CFG_RADIO_STEP = 0x3 << FW_PHY_CFG_RADIO_STEP_POS,
-	FW_PHY_CFG_RADIO_DASH_POS = 4,
-	FW_PHY_CFG_RADIO_DASH = 0x3 << FW_PHY_CFG_RADIO_DASH_POS,
-	FW_PHY_CFG_TX_CHAIN_POS = 16,
-	FW_PHY_CFG_TX_CHAIN = 0xf << FW_PHY_CFG_TX_CHAIN_POS,
-	FW_PHY_CFG_RX_CHAIN_POS = 20,
-	FW_PHY_CFG_RX_CHAIN = 0xf << FW_PHY_CFG_RX_CHAIN_POS,
-};
 
 /**
  * struct iwl_fw - variables associated with the firmware
@@ -185,6 +150,14 @@ enum iwl_fw_phy_cfg {
  * @inst_evtlog_size: event log size for runtime ucode.
  * @inst_errlog_ptr: error log offfset for runtime ucode.
  * @mvm_fw: indicates this is MVM firmware
+ * @cipher_scheme: optional external cipher scheme.
+ * @human_readable: human readable version
+ * @sdio_adma_addr: the default address to set for the ADMA in SDIO mode until
+ *	we get the ALIVE from the uCode
+ * @dbg_dest_tlv: points to the destination TLV for debug
+ * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
+ * @dbg_conf_tlv_len: lengths of the @dbg_conf_tlv entries
+ * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
  */
 struct iwl_fw {
 	u32 ucode_ver;
@@ -202,20 +175,77 @@ struct iwl_fw {
 
 	struct iwl_tlv_calib_ctrl default_calib[IWL_UCODE_TYPE_MAX];
 	u32 phy_config;
+	u8 valid_tx_ant;
+	u8 valid_rx_ant;
 
 	bool mvm_fw;
+
+	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
+	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
+
+	u32 sdio_adma_addr;
+
+	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
+	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
+	size_t dbg_conf_tlv_len[FW_DBG_MAX];
+
+	u8 dbg_dest_reg_num;
 };
 
-static inline u8 iwl_fw_valid_tx_ant(const struct iwl_fw *fw)
+static inline const char *get_fw_dbg_mode_string(int mode)
 {
-	return (fw->phy_config & FW_PHY_CFG_TX_CHAIN) >>
-		FW_PHY_CFG_TX_CHAIN_POS;
+	switch (mode) {
+	case SMEM_MODE:
+		return "SMEM";
+	case EXTERNAL_MODE:
+		return "EXTERNAL_DRAM";
+	case MARBH_MODE:
+		return "MARBH";
+	default:
+		return "UNKNOWN";
+	}
 }
 
-static inline u8 iwl_fw_valid_rx_ant(const struct iwl_fw *fw)
+static inline const struct iwl_fw_dbg_trigger *
+iwl_fw_dbg_conf_get_trigger(const struct iwl_fw *fw, u8 id)
 {
-	return (fw->phy_config & FW_PHY_CFG_RX_CHAIN) >>
-		FW_PHY_CFG_RX_CHAIN_POS;
+	const struct iwl_fw_dbg_conf_tlv *conf_tlv = fw->dbg_conf_tlv[id];
+	u8 *ptr;
+	int i;
+
+	if (!conf_tlv)
+		return NULL;
+
+	ptr = (void *)&conf_tlv->hcmd;
+	for (i = 0; i < conf_tlv->num_of_hcmds; i++) {
+		ptr += sizeof(conf_tlv->hcmd);
+		ptr += le16_to_cpu(conf_tlv->hcmd.len);
+	}
+
+	return (const struct iwl_fw_dbg_trigger *)ptr;
+}
+
+static inline bool
+iwl_fw_dbg_conf_enabled(const struct iwl_fw *fw, u8 id)
+{
+	const struct iwl_fw_dbg_trigger *trigger =
+		iwl_fw_dbg_conf_get_trigger(fw, id);
+
+	if (!trigger)
+		return false;
+
+	return trigger->enabled;
+}
+
+static inline bool
+iwl_fw_dbg_conf_usniffer(const struct iwl_fw *fw, u8 id)
+{
+	const struct iwl_fw_dbg_conf_tlv *conf_tlv = fw->dbg_conf_tlv[id];
+
+	if (!conf_tlv)
+		return false;
+
+	return conf_tlv->usniffer;
 }
 
 #endif  /* __iwl_fw_h__ */

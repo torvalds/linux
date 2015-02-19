@@ -1,7 +1,7 @@
 /*
  * mt9v011 -Micron 1/4-Inch VGA Digital Image Sensor
  *
- * Copyright (c) 2009 Mauro Carvalho Chehab (mchehab@redhat.com)
+ * Copyright (c) 2009 Mauro Carvalho Chehab
  * This code is placed under the terms of the GNU General Public License v2
  */
 
@@ -16,7 +16,7 @@
 #include <media/mt9v011.h>
 
 MODULE_DESCRIPTION("Micron mt9v011 sensor driver");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
 
 static int debug;
@@ -325,18 +325,18 @@ static int mt9v011_reset(struct v4l2_subdev *sd, u32 val)
 }
 
 static int mt9v011_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					enum v4l2_mbus_pixelcode *code)
+					u32 *code)
 {
 	if (index > 0)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_SGRBG8_1X8;
+	*code = MEDIA_BUS_FMT_SGRBG8_1X8;
 	return 0;
 }
 
 static int mt9v011_try_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
 {
-	if (fmt->code != V4L2_MBUS_FMT_SGRBG8_1X8)
+	if (fmt->code != MEDIA_BUS_FMT_SGRBG8_1X8)
 		return -EINVAL;
 
 	v4l_bound_align_image(&fmt->width, 48, 639, 1,

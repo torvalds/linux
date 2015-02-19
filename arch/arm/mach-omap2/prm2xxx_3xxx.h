@@ -55,12 +55,12 @@
 /* Power/reset management domain register get/set */
 static inline u32 omap2_prm_read_mod_reg(s16 module, u16 idx)
 {
-	return __raw_readl(prm_base + module + idx);
+	return readl_relaxed(prm_base + module + idx);
 }
 
 static inline void omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
-	__raw_writel(val, prm_base + module + idx);
+	writel_relaxed(val, prm_base + module + idx);
 }
 
 /* Read-modify-write a register in a PRM module. Caller must lock */
@@ -100,9 +100,12 @@ static inline u32 omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 }
 
 /* These omap2_ PRM functions apply to both OMAP2 and 3 */
-extern int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift);
-extern int omap2_prm_assert_hardreset(s16 prm_mod, u8 shift);
-extern int omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift, u8 st_shift);
+int omap2_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset);
+int omap2_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod,
+			       u16 offset);
+int omap2_prm_deassert_hardreset(u8 rst_shift, u8 st_shift, u8 part,
+				 s16 prm_mod, u16 reset_offset,
+				 u16 st_offset);
 
 extern int omap2_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst);
 extern int omap2_pwrdm_read_next_pwrst(struct powerdomain *pwrdm);

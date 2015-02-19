@@ -102,11 +102,11 @@ struct msm_gpio_dev {
 	DECLARE_BITMAP(wake_irqs, MAX_NR_GPIO);
 	DECLARE_BITMAP(dual_edge_irqs, MAX_NR_GPIO);
 	struct irq_domain *domain;
-	unsigned int summary_irq;
+	int summary_irq;
 	void __iomem *msm_tlmm_base;
 };
 
-struct msm_gpio_dev msm_gpio;
+static struct msm_gpio_dev msm_gpio;
 
 #define GPIO_INTR_CFG_SU(gpio)    (msm_gpio.msm_tlmm_base + 0x0400 + \
 								(0x04 * (gpio)))
@@ -252,7 +252,7 @@ static void msm_gpio_irq_mask(struct irq_data *d)
 
 	spin_lock_irqsave(&tlmm_lock, irq_flags);
 	writel(TARGET_PROC_NONE, GPIO_INTR_CFG_SU(gpio));
-	clear_gpio_bits(INTR_RAW_STATUS_EN | INTR_ENABLE, GPIO_INTR_CFG(gpio));
+	clear_gpio_bits(BIT(INTR_RAW_STATUS_EN) | BIT(INTR_ENABLE), GPIO_INTR_CFG(gpio));
 	__clear_bit(gpio, msm_gpio.enabled_irqs);
 	spin_unlock_irqrestore(&tlmm_lock, irq_flags);
 }
@@ -264,7 +264,7 @@ static void msm_gpio_irq_unmask(struct irq_data *d)
 
 	spin_lock_irqsave(&tlmm_lock, irq_flags);
 	__set_bit(gpio, msm_gpio.enabled_irqs);
-	set_gpio_bits(INTR_RAW_STATUS_EN | INTR_ENABLE, GPIO_INTR_CFG(gpio));
+	set_gpio_bits(BIT(INTR_RAW_STATUS_EN) | BIT(INTR_ENABLE), GPIO_INTR_CFG(gpio));
 	writel(TARGET_PROC_SCORPION, GPIO_INTR_CFG_SU(gpio));
 	spin_unlock_irqrestore(&tlmm_lock, irq_flags);
 }
@@ -430,17 +430,15 @@ static int msm_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id msm_gpio_of_match[] = {
+static const struct of_device_id msm_gpio_of_match[] = {
 	{ .compatible = "qcom,msm-gpio", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, msm_gpio_of_match);
 
 static int msm_gpio_remove(struct platform_device *dev)
 {
-	int ret = gpiochip_remove(&msm_gpio.gpio_chip);
-
-	if (ret < 0)
-		return ret;
+	gpiochip_remove(&msm_gpio.gpio_chip);
 
 	irq_set_handler(msm_gpio.summary_irq, NULL);
 
@@ -452,7 +450,6 @@ static struct platform_driver msm_gpio_driver = {
 	.remove = msm_gpio_remove,
 	.driver = {
 		.name = "msmgpio",
-		.owner = THIS_MODULE,
 		.of_match_table = msm_gpio_of_match,
 	},
 };

@@ -92,8 +92,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	int code = SEGV_MAPERR;
 	int is_write = error_code & ESR_S;
 	int fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
-					 (is_write ? FAULT_FLAG_WRITE : 0);
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	regs->ear = address;
 	regs->esr = error_code;
@@ -120,6 +119,9 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 		       regs->r15, regs->msr);
 		die("Weird page fault", regs, SIGSEGV);
 	}
+
+	if (user_mode(regs))
+		flags |= FAULT_FLAG_USER;
 
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
@@ -199,6 +201,7 @@ good_area:
 	if (unlikely(is_write)) {
 		if (unlikely(!(vma->vm_flags & VM_WRITE)))
 			goto bad_area;
+		flags |= FAULT_FLAG_WRITE;
 	/* a read */
 	} else {
 		/* protection fault */
@@ -221,6 +224,8 @@ good_area:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGSEGV)
+			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();

@@ -85,6 +85,8 @@ snd_emu10k1_ops_setup(struct snd_emux *emux)
  * get more voice for pcm
  *
  * terminate most inactive voice and give it as a pcm voice.
+ *
+ * voice_lock is already held.
  */
 int
 snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
@@ -92,12 +94,10 @@ snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
 	struct snd_emux *emu;
 	struct snd_emux_voice *vp;
 	struct best_voice best[V_END];
-	unsigned long flags;
 	int i;
 
 	emu = hw->synth;
 
-	spin_lock_irqsave(&emu->voice_lock, flags);
 	lookup_voices(emu, hw, best, 1); /* no OFF voices */
 	for (i = 0; i < V_END; i++) {
 		if (best[i].voice >= 0) {
@@ -105,7 +105,7 @@ snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
 			vp = &emu->voices[best[i].voice];
 			if ((ch = vp->ch) < 0) {
 				/*
-				printk(KERN_WARNING
+				dev_warn(emu->card->dev,
 				       "synth_get_voice: ch < 0 (%d) ??", i);
 				*/
 				continue;
@@ -113,11 +113,9 @@ snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
 			vp->emu->num_voices--;
 			vp->ch = -1;
 			vp->state = SNDRV_EMUX_ST_OFF;
-			spin_unlock_irqrestore(&emu->voice_lock, flags);
 			return ch;
 		}
 	}
-	spin_unlock_irqrestore(&emu->voice_lock, flags);
 
 	/* not found */
 	return -ENOMEM;
@@ -339,7 +337,7 @@ start_voice(struct snd_emux_voice *vp)
 		return -EINVAL;
 	emem->map_locked++;
 	if (snd_emu10k1_memblk_map(hw, emem) < 0) {
-		/* printk(KERN_ERR "emu: cannot map!\n"); */
+		/* dev_err(hw->card->devK, "emu: cannot map!\n"); */
 		return -ENOMEM;
 	}
 	mapped_offset = snd_emu10k1_memblk_offset(emem) >> 1;

@@ -19,9 +19,7 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -233,7 +231,6 @@ static struct platform_driver max63xx_wdt_driver = {
 	.id_table	= max63xx_id_table,
 	.driver		= {
 		.name	= "max63xx_wdt",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -258,4 +255,3 @@ MODULE_PARM_DESC(nodelay,
 		 "(max6373/74 only, default=0)");
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

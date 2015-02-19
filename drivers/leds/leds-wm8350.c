@@ -10,7 +10,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/err.h>
@@ -203,7 +202,7 @@ static int wm8350_led_probe(struct platform_device *pdev)
 {
 	struct regulator *isink, *dcdc;
 	struct wm8350_led *led;
-	struct wm8350_led_platform_data *pdata = pdev->dev.platform_data;
+	struct wm8350_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int i;
 
 	if (pdata == NULL) {
@@ -273,7 +272,6 @@ static int wm8350_led_remove(struct platform_device *pdev)
 static struct platform_driver wm8350_led_driver = {
 	.driver = {
 		   .name = "wm8350-led",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8350_led_probe,
 	.remove = wm8350_led_remove,

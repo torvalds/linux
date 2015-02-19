@@ -19,23 +19,15 @@
     GNU General Public License for more details.
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 
 #include "../comedidev.h"
 
 #include "amplc_dio200.h"
 #include "comedi_fc.h"
 #include "8253.h"
-
-/* 8255 control register bits */
-#define CR_C_LO_IO	0x01
-#define CR_B_IO		0x02
-#define CR_B_MODE	0x04
-#define CR_C_HI_IO	0x08
-#define CR_A_IO		0x10
-#define CR_A_MODE(a)	((a)<<5)
-#define CR_CW		0x80
+#include "8255.h"		/* only for register defines */
 
 /* 200 series registers */
 #define DIO200_IO_SIZE		0x20
@@ -128,99 +120,72 @@ struct dio200_subdev_intr {
 	unsigned int ofs;
 	unsigned int valid_isns;
 	unsigned int enabled_isns;
-	unsigned int stopcount;
 	bool active:1;
-	bool continuous:1;
 };
 
-static inline const struct dio200_layout *
-dio200_board_layout(const struct dio200_board *board)
-{
-	return &board->layout;
-}
-
-static inline const struct dio200_layout *
-dio200_dev_layout(struct comedi_device *dev)
-{
-	return dio200_board_layout(comedi_board(dev));
-}
-
-/*
- * Read 8-bit register.
- */
 static unsigned char dio200_read8(struct comedi_device *dev,
 				  unsigned int offset)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
+	const struct dio200_board *board = dev->board_ptr;
 
-	offset <<= thisboard->mainshift;
-	if (devpriv->io.regtype == io_regtype)
-		return inb(devpriv->io.u.iobase + offset);
-	else
-		return readb(devpriv->io.u.membase + offset);
+	if (board->is_pcie)
+		offset <<= 3;
+
+	if (dev->mmio)
+		return readb(dev->mmio + offset);
+	return inb(dev->iobase + offset);
 }
 
-/*
- * Write 8-bit register.
- */
-static void dio200_write8(struct comedi_device *dev, unsigned int offset,
-			  unsigned char val)
+static void dio200_write8(struct comedi_device *dev,
+			  unsigned int offset, unsigned char val)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
+	const struct dio200_board *board = dev->board_ptr;
 
-	offset <<= thisboard->mainshift;
-	if (devpriv->io.regtype == io_regtype)
-		outb(val, devpriv->io.u.iobase + offset);
+	if (board->is_pcie)
+		offset <<= 3;
+
+	if (dev->mmio)
+		writeb(val, dev->mmio + offset);
 	else
-		writeb(val, devpriv->io.u.membase + offset);
+		outb(val, dev->iobase + offset);
 }
 
-/*
- * Read 32-bit register.
- */
 static unsigned int dio200_read32(struct comedi_device *dev,
 				  unsigned int offset)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
+	const struct dio200_board *board = dev->board_ptr;
 
-	offset <<= thisboard->mainshift;
-	if (devpriv->io.regtype == io_regtype)
-		return inl(devpriv->io.u.iobase + offset);
-	else
-		return readl(devpriv->io.u.membase + offset);
+	if (board->is_pcie)
+		offset <<= 3;
+
+	if (dev->mmio)
+		return readl(dev->mmio + offset);
+	return inl(dev->iobase + offset);
 }
 
-/*
- * Write 32-bit register.
- */
-static void dio200_write32(struct comedi_device *dev, unsigned int offset,
-			   unsigned int val)
+static void dio200_write32(struct comedi_device *dev,
+			   unsigned int offset, unsigned int val)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
+	const struct dio200_board *board = dev->board_ptr;
 
-	offset <<= thisboard->mainshift;
-	if (devpriv->io.regtype == io_regtype)
-		outl(val, devpriv->io.u.iobase + offset);
+	if (board->is_pcie)
+		offset <<= 3;
+
+	if (dev->mmio)
+		writel(val, dev->mmio + offset);
 	else
-		writel(val, devpriv->io.u.membase + offset);
+		outl(val, dev->iobase + offset);
 }
 
-/*
- * 'insn_bits' function for an 'INTERRUPT' subdevice.
- */
-static int
-dio200_subdev_intr_insn_bits(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int dio200_subdev_intr_insn_bits(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv = s->private;
 
-	if (layout->has_int_sce) {
+	if (board->has_int_sce) {
 		/* Just read the interrupt status register.  */
 		data[1] = dio200_read8(dev, subpriv->ofs) & subpriv->valid_isns;
 	} else {
@@ -231,81 +196,57 @@ dio200_subdev_intr_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * Called to stop acquisition for an 'INTERRUPT' subdevice.
- */
 static void dio200_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv = s->private;
 
 	subpriv->active = false;
 	subpriv->enabled_isns = 0;
-	if (layout->has_int_sce)
+	if (board->has_int_sce)
 		dio200_write8(dev, subpriv->ofs, 0);
 }
 
-/*
- * Called to start acquisition for an 'INTERRUPT' subdevice.
- */
-static int dio200_start_intr(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
+static void dio200_start_intr(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
-	unsigned int n;
-	unsigned isn_bits;
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int retval = 0;
+	unsigned int n;
+	unsigned isn_bits;
 
-	if (!subpriv->continuous && subpriv->stopcount == 0) {
-		/* An empty acquisition! */
-		s->async->events |= COMEDI_CB_EOA;
-		subpriv->active = false;
-		retval = 1;
-	} else {
-		/* Determine interrupt sources to enable. */
-		isn_bits = 0;
-		if (cmd->chanlist) {
-			for (n = 0; n < cmd->chanlist_len; n++)
-				isn_bits |= (1U << CR_CHAN(cmd->chanlist[n]));
-		}
-		isn_bits &= subpriv->valid_isns;
-		/* Enable interrupt sources. */
-		subpriv->enabled_isns = isn_bits;
-		if (layout->has_int_sce)
-			dio200_write8(dev, subpriv->ofs, isn_bits);
+	/* Determine interrupt sources to enable. */
+	isn_bits = 0;
+	if (cmd->chanlist) {
+		for (n = 0; n < cmd->chanlist_len; n++)
+			isn_bits |= (1U << CR_CHAN(cmd->chanlist[n]));
 	}
-
-	return retval;
+	isn_bits &= subpriv->valid_isns;
+	/* Enable interrupt sources. */
+	subpriv->enabled_isns = isn_bits;
+	if (board->has_int_sce)
+		dio200_write8(dev, subpriv->ofs, isn_bits);
 }
 
-/*
- * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
- */
-static int
-dio200_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
-			  unsigned int trignum)
+static int dio200_inttrig_start_intr(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     unsigned int trig_num)
 {
-	struct dio200_subdev_intr *subpriv;
+	struct dio200_subdev_intr *subpriv = s->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
-	int event = 0;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
-
-	subpriv = s->private;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 	s->async->inttrig = NULL;
 	if (subpriv->active)
-		event = dio200_start_intr(dev, s);
+		dio200_start_intr(dev, s);
 
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
-
-	if (event)
-		comedi_event(dev, s);
 
 	return 1;
 }
@@ -314,60 +255,38 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned int triggered)
 {
-	struct dio200_subdev_intr *subpriv = s->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short val;
-	unsigned int n, ch, len;
+	unsigned int n, ch;
 
 	val = 0;
-	len = s->async->cmd.chanlist_len;
-	for (n = 0; n < len; n++) {
-		ch = CR_CHAN(s->async->cmd.chanlist[n]);
+	for (n = 0; n < cmd->chanlist_len; n++) {
+		ch = CR_CHAN(cmd->chanlist[n]);
 		if (triggered & (1U << ch))
 			val |= (1U << n);
 	}
-	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s->async, val)) {
-		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
-	} else {
-		/* Error!  Stop acquisition.  */
-		dio200_stop_intr(dev, s);
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-		comedi_error(dev, "buffer overflow");
-	}
 
-	/* Check for end of acquisition. */
-	if (!subpriv->continuous) {
-		/* stop_src == TRIG_COUNT */
-		if (subpriv->stopcount > 0) {
-			subpriv->stopcount--;
-			if (subpriv->stopcount == 0) {
-				s->async->events |= COMEDI_CB_EOA;
-				dio200_stop_intr(dev, s);
-			}
-		}
-	}
+	comedi_buf_write_samples(s, &val, 1);
+
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg)
+		s->async->events |= COMEDI_CB_EOA;
 }
 
-/*
- * This is called from the interrupt service routine to handle a read
- * scan on an 'INTERRUPT' subdevice.
- */
 static int dio200_handle_read_intr(struct comedi_device *dev,
 				   struct comedi_subdevice *s)
 {
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned triggered;
 	unsigned intstat;
 	unsigned cur_enabled;
-	unsigned int oldevents;
 	unsigned long flags;
 
 	triggered = 0;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	oldevents = s->async->events;
-	if (layout->has_int_sce) {
+	if (board->has_int_sce) {
 		/*
 		 * Collect interrupt sources that have triggered and disable
 		 * them temporarily.  Loop around until no extra interrupt
@@ -401,7 +320,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 		 * Reenable them NOW to minimize the time they are disabled.
 		 */
 		cur_enabled = subpriv->enabled_isns;
-		if (layout->has_int_sce)
+		if (board->has_int_sce)
 			dio200_write8(dev, subpriv->ofs, cur_enabled);
 
 		if (subpriv->active) {
@@ -419,15 +338,11 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 	}
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (oldevents != s->async->events)
-		comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 
 	return (triggered != 0);
 }
 
-/*
- * 'cancel' function for an 'INTERRUPT' subdevice.
- */
 static int dio200_subdev_intr_cancel(struct comedi_device *dev,
 				     struct comedi_subdevice *s)
 {
@@ -443,12 +358,9 @@ static int dio200_subdev_intr_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * 'do_cmdtest' function for an 'INTERRUPT' subdevice.
- */
-static int
-dio200_subdev_intr_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
+static int dio200_subdev_intr_cmdtest(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_cmd *cmd)
 {
 	int err = 0;
 
@@ -480,16 +392,10 @@ dio200_subdev_intr_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		/* any count allowed */
-		break;
-	case TRIG_NONE:
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-		break;
-	default:
-		break;
-	}
 
 	if (err)
 		return 3;
@@ -501,59 +407,33 @@ dio200_subdev_intr_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * 'do_cmd' function for an 'INTERRUPT' subdevice.
- */
 static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
-	int event = 0;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	subpriv->active = 1;
 
-	/* Set up end of acquisition. */
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		subpriv->continuous = false;
-		subpriv->stopcount = cmd->stop_arg;
-		break;
-	default:
-		/* TRIG_NONE */
-		subpriv->continuous = true;
-		subpriv->stopcount = 0;
-		break;
-	}
+	subpriv->active = true;
 
-	/* Set up start of acquisition. */
-	switch (cmd->start_src) {
-	case TRIG_INT:
+	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = dio200_inttrig_start_intr;
-		break;
-	default:
-		/* TRIG_NOW */
-		event = dio200_start_intr(dev, s);
-		break;
-	}
-	spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	else	/* TRIG_NOW */
+		dio200_start_intr(dev, s);
 
-	if (event)
-		comedi_event(dev, s);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 0;
 }
 
-/*
- * This function initializes an 'INTERRUPT' subdevice.
- */
-static int
-dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			unsigned int offset, unsigned valid_isns)
+static int dio200_subdev_intr_init(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   unsigned int offset,
+				   unsigned valid_isns)
 {
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_intr *subpriv;
 
 	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
@@ -564,13 +444,13 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	subpriv->valid_isns = valid_isns;
 	spin_lock_init(&subpriv->spinlock);
 
-	if (layout->has_int_sce)
+	if (board->has_int_sce)
 		/* Disable interrupt sources. */
 		dio200_write8(dev, subpriv->ofs, 0);
 
 	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
-	if (layout->has_int_sce) {
+	s->subdev_flags = SDF_READABLE | SDF_CMD_READ | SDF_PACKED;
+	if (board->has_int_sce) {
 		s->n_chan = DIO200_MAX_ISNS;
 		s->len_chanlist = DIO200_MAX_ISNS;
 	} else {
@@ -588,35 +468,23 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-/*
- * Interrupt service routine.
- */
 static irqreturn_t dio200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct dio200_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
+	struct comedi_subdevice *s = dev->read_subdev;
 	int handled;
 
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	if (devpriv->intr_sd >= 0) {
-		s = &dev->subdevices[devpriv->intr_sd];
-		handled = dio200_handle_read_intr(dev, s);
-	} else {
-		handled = 0;
-	}
+	handled = dio200_handle_read_intr(dev, s);
 
 	return IRQ_RETVAL(handled);
 }
 
-/*
- * Read an '8254' counter subdevice channel.
- */
-static unsigned int
-dio200_subdev_8254_read_chan(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int chan)
+static unsigned int dio200_subdev_8254_read_chan(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 unsigned int chan)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned int val;
@@ -630,13 +498,10 @@ dio200_subdev_8254_read_chan(struct comedi_device *dev,
 	return val;
 }
 
-/*
- * Write an '8254' subdevice channel.
- */
-static void
-dio200_subdev_8254_write_chan(struct comedi_device *dev,
-			      struct comedi_subdevice *s, unsigned int chan,
-			      unsigned int count)
+static void dio200_subdev_8254_write_chan(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  unsigned int chan,
+					  unsigned int count)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 
@@ -645,13 +510,10 @@ dio200_subdev_8254_write_chan(struct comedi_device *dev,
 	dio200_write8(dev, subpriv->ofs + chan, (count >> 8) & 0xff);
 }
 
-/*
- * Set mode of an '8254' subdevice channel.
- */
-static void
-dio200_subdev_8254_set_mode(struct comedi_device *dev,
-			    struct comedi_subdevice *s, unsigned int chan,
-			    unsigned int mode)
+static void dio200_subdev_8254_set_mode(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					unsigned int chan,
+					unsigned int mode)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned int byte;
@@ -662,12 +524,9 @@ dio200_subdev_8254_set_mode(struct comedi_device *dev,
 	dio200_write8(dev, subpriv->ofs + i8254_control_reg, byte);
 }
 
-/*
- * Read status byte of an '8254' counter subdevice channel.
- */
-static unsigned int
-dio200_subdev_8254_status(struct comedi_device *dev,
-			  struct comedi_subdevice *s, unsigned int chan)
+static unsigned int dio200_subdev_8254_status(struct comedi_device *dev,
+					      struct comedi_subdevice *s,
+					      unsigned int chan)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 
@@ -678,12 +537,10 @@ dio200_subdev_8254_status(struct comedi_device *dev,
 	return dio200_read8(dev, subpriv->ofs + chan);
 }
 
-/*
- * Handle 'insn_read' for an '8254' counter subdevice.
- */
-static int
-dio200_subdev_8254_read(struct comedi_device *dev, struct comedi_subdevice *s,
-			struct comedi_insn *insn, unsigned int *data)
+static int dio200_subdev_8254_read(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -698,12 +555,10 @@ dio200_subdev_8254_read(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-/*
- * Handle 'insn_write' for an '8254' counter subdevice.
- */
-static int
-dio200_subdev_8254_write(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
+static int dio200_subdev_8254_write(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -718,24 +573,20 @@ dio200_subdev_8254_write(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-/*
- * Set gate source for an '8254' counter subdevice channel.
- */
-static int
-dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				unsigned int counter_number,
-				unsigned int gate_src)
+static int dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
+					   struct comedi_subdevice *s,
+					   unsigned int counter_number,
+					   unsigned int gate_src)
 {
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned char byte;
 
-	if (!layout->has_clk_gat_sce)
+	if (!board->has_clk_gat_sce)
 		return -1;
 	if (counter_number > 2)
 		return -1;
-	if (gate_src > (layout->has_enhancements ? 31 : 7))
+	if (gate_src > (board->is_pcie ? 31 : 7))
 		return -1;
 
 	subpriv->gate_src[counter_number] = gate_src;
@@ -745,18 +596,14 @@ dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * Get gate source for an '8254' counter subdevice channel.
- */
-static int
-dio200_subdev_8254_get_gate_src(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				unsigned int counter_number)
+static int dio200_subdev_8254_get_gate_src(struct comedi_device *dev,
+					   struct comedi_subdevice *s,
+					   unsigned int counter_number)
 {
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv = s->private;
 
-	if (!layout->has_clk_gat_sce)
+	if (!board->has_clk_gat_sce)
 		return -1;
 	if (counter_number > 2)
 		return -1;
@@ -764,24 +611,20 @@ dio200_subdev_8254_get_gate_src(struct comedi_device *dev,
 	return subpriv->gate_src[counter_number];
 }
 
-/*
- * Set clock source for an '8254' counter subdevice channel.
- */
-static int
-dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 unsigned int counter_number,
-				 unsigned int clock_src)
+static int dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
+					    struct comedi_subdevice *s,
+					    unsigned int counter_number,
+					    unsigned int clock_src)
 {
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned char byte;
 
-	if (!layout->has_clk_gat_sce)
+	if (!board->has_clk_gat_sce)
 		return -1;
 	if (counter_number > 2)
 		return -1;
-	if (clock_src > (layout->has_enhancements ? 31 : 7))
+	if (clock_src > (board->is_pcie ? 31 : 7))
 		return -1;
 
 	subpriv->clock_src[counter_number] = clock_src;
@@ -791,20 +634,16 @@ dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * Get clock source for an '8254' counter subdevice channel.
- */
-static int
-dio200_subdev_8254_get_clock_src(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 unsigned int counter_number,
-				 unsigned int *period_ns)
+static int dio200_subdev_8254_get_clock_src(struct comedi_device *dev,
+					    struct comedi_subdevice *s,
+					    unsigned int counter_number,
+					    unsigned int *period_ns)
 {
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned clock_src;
 
-	if (!layout->has_clk_gat_sce)
+	if (!board->has_clk_gat_sce)
 		return -1;
 	if (counter_number > 2)
 		return -1;
@@ -814,12 +653,10 @@ dio200_subdev_8254_get_clock_src(struct comedi_device *dev,
 	return clock_src;
 }
 
-/*
- * Handle 'insn_config' for an '8254' counter subdevice.
- */
-static int
-dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int dio200_subdev_8254_config(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int ret = 0;
@@ -829,7 +666,7 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		if (data[1] > (I8254_MODE5 | I8254_BINARY))
+		if (data[1] > (I8254_MODE5 | I8254_BCD))
 			ret = -EINVAL;
 		else
 			dio200_subdev_8254_set_mode(dev, s, chan, data[1]);
@@ -871,14 +708,11 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	return ret < 0 ? ret : insn->n;
 }
 
-/*
- * This function initializes an '8254' counter subdevice.
- */
-static int
-dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			unsigned int offset)
+static int dio200_subdev_8254_init(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   unsigned int offset)
 {
-	const struct dio200_layout *layout = dio200_dev_layout(dev);
+	const struct dio200_board *board = dev->board_ptr;
 	struct dio200_subdev_8254 *subpriv;
 	unsigned int chan;
 
@@ -896,7 +730,7 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	spin_lock_init(&subpriv->spinlock);
 	subpriv->ofs = offset;
-	if (layout->has_clk_gat_sce) {
+	if (board->has_clk_gat_sce) {
 		/* Derive CLK_SCE and GAT_SCE register offsets from
 		 * 8254 offset. */
 		subpriv->clk_sce_ofs = DIO200_XCLK_SCE + (offset >> 3);
@@ -908,7 +742,7 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	for (chan = 0; chan < 3; chan++) {
 		dio200_subdev_8254_set_mode(dev, s, chan,
 					    I8254_MODE0 | I8254_BINARY);
-		if (layout->has_clk_gat_sce) {
+		if (board->has_clk_gat_sce) {
 			/* Gate source 0 is VCC (logic 1). */
 			dio200_subdev_8254_set_gate_src(dev, s, chan, 0);
 			/* Clock source 0 is the dedicated clock input. */
@@ -919,98 +753,83 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-/*
- * This function sets I/O directions for an '8255' DIO subdevice.
- */
 static void dio200_subdev_8255_set_dir(struct comedi_device *dev,
 				       struct comedi_subdevice *s)
 {
 	struct dio200_subdev_8255 *subpriv = s->private;
 	int config;
 
-	config = CR_CW;
+	config = I8255_CTRL_CW;
 	/* 1 in io_bits indicates output, 1 in config indicates input */
 	if (!(s->io_bits & 0x0000ff))
-		config |= CR_A_IO;
+		config |= I8255_CTRL_A_IO;
 	if (!(s->io_bits & 0x00ff00))
-		config |= CR_B_IO;
+		config |= I8255_CTRL_B_IO;
 	if (!(s->io_bits & 0x0f0000))
-		config |= CR_C_LO_IO;
+		config |= I8255_CTRL_C_LO_IO;
 	if (!(s->io_bits & 0xf00000))
-		config |= CR_C_HI_IO;
-	dio200_write8(dev, subpriv->ofs + 3, config);
+		config |= I8255_CTRL_C_HI_IO;
+	dio200_write8(dev, subpriv->ofs + I8255_CTRL_REG, config);
 }
 
-/*
- * Handle 'insn_bits' for an '8255' DIO subdevice.
- */
 static int dio200_subdev_8255_bits(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct dio200_subdev_8255 *subpriv = s->private;
+	unsigned int mask;
+	unsigned int val;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-		if (data[0] & 0xff)
-			dio200_write8(dev, subpriv->ofs, s->state & 0xff);
-		if (data[0] & 0xff00)
-			dio200_write8(dev, subpriv->ofs + 1,
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0xff)
+			dio200_write8(dev, subpriv->ofs + I8255_DATA_A_REG,
+				      s->state & 0xff);
+		if (mask & 0xff00)
+			dio200_write8(dev, subpriv->ofs + I8255_DATA_B_REG,
 				      (s->state >> 8) & 0xff);
-		if (data[0] & 0xff0000)
-			dio200_write8(dev, subpriv->ofs + 2,
+		if (mask & 0xff0000)
+			dio200_write8(dev, subpriv->ofs + I8255_DATA_C_REG,
 				      (s->state >> 16) & 0xff);
 	}
-	data[1] = dio200_read8(dev, subpriv->ofs);
-	data[1] |= dio200_read8(dev, subpriv->ofs + 1) << 8;
-	data[1] |= dio200_read8(dev, subpriv->ofs + 2) << 16;
-	return 2;
+
+	val = dio200_read8(dev, subpriv->ofs + I8255_DATA_A_REG);
+	val |= dio200_read8(dev, subpriv->ofs + I8255_DATA_B_REG) << 8;
+	val |= dio200_read8(dev, subpriv->ofs + I8255_DATA_C_REG) << 16;
+
+	data[1] = val;
+
+	return insn->n;
 }
 
-/*
- * Handle 'insn_config' for an '8255' DIO subdevice.
- */
 static int dio200_subdev_8255_config(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int mask;
-	unsigned int bits;
+	int ret;
 
-	mask = 1 << CR_CHAN(insn->chanspec);
-	if (mask & 0x0000ff)
-		bits = 0x0000ff;
-	else if (mask & 0x00ff00)
-		bits = 0x00ff00;
-	else if (mask & 0x0f0000)
-		bits = 0x0f0000;
+	if (chan < 8)
+		mask = 0x0000ff;
+	else if (chan < 16)
+		mask = 0x00ff00;
+	else if (chan < 20)
+		mask = 0x0f0000;
 	else
-		bits = 0xf00000;
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~bits;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+		mask = 0xf00000;
+
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
+
 	dio200_subdev_8255_set_dir(dev, s);
-	return 1;
+
+	return insn->n;
 }
 
-/*
- * This function initializes an '8255' DIO subdevice.
- *
- * offset is the offset to the 8255 chip.
- */
 static int dio200_subdev_8255_init(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   unsigned int offset)
@@ -1030,15 +849,10 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->insn_bits = dio200_subdev_8255_bits;
 	s->insn_config = dio200_subdev_8255_config;
-	s->state = 0;
-	s->io_bits = 0;
 	dio200_subdev_8255_set_dir(dev, s);
 	return 0;
 }
 
-/*
- * Handle 'insn_read' for a timer subdevice.
- */
 static int dio200_subdev_timer_read(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
@@ -1051,9 +865,6 @@ static int dio200_subdev_timer_read(struct comedi_device *dev,
 	return n;
 }
 
-/*
- * Reset timer subdevice.
- */
 static void dio200_subdev_timer_reset(struct comedi_device *dev,
 				      struct comedi_subdevice *s)
 {
@@ -1064,9 +875,6 @@ static void dio200_subdev_timer_reset(struct comedi_device *dev,
 	dio200_write32(dev, DIO200_TS_CONFIG, clock);
 }
 
-/*
- * Get timer subdevice clock source and period.
- */
 static void dio200_subdev_timer_get_clock_src(struct comedi_device *dev,
 					      struct comedi_subdevice *s,
 					      unsigned int *src,
@@ -1080,9 +888,6 @@ static void dio200_subdev_timer_get_clock_src(struct comedi_device *dev,
 		  ts_clock_period[clk] : 0;
 }
 
-/*
- * Set timer subdevice clock source.
- */
 static int dio200_subdev_timer_set_clock_src(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
 					     unsigned int src)
@@ -1093,9 +898,6 @@ static int dio200_subdev_timer_set_clock_src(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * Handle 'insn_config' for a timer subdevice.
- */
 static int dio200_subdev_timer_config(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_insn *insn,
@@ -1122,23 +924,6 @@ static int dio200_subdev_timer_config(struct comedi_device *dev,
 	return ret < 0 ? ret : insn->n;
 }
 
-/*
- * This function initializes a timer subdevice.
- *
- * Uses the timestamp timer registers.  There is only one timestamp timer.
- */
-static int dio200_subdev_timer_init(struct comedi_device *dev,
-				    struct comedi_subdevice *s)
-{
-	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
-	s->n_chan = 1;
-	s->maxdata = 0xFFFFFFFF;
-	s->insn_read = dio200_subdev_timer_read;
-	s->insn_config = dio200_subdev_timer_config;
-	return 0;
-}
-
 void amplc_dio200_set_enhance(struct comedi_device *dev, unsigned char val)
 {
 	dio200_write8(dev, DIO200_ENHANCE, val);
@@ -1148,65 +933,60 @@ EXPORT_SYMBOL_GPL(amplc_dio200_set_enhance);
 int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			       unsigned long req_irq_flags)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
-	const struct dio200_layout *layout = dio200_board_layout(thisboard);
+	const struct dio200_board *board = dev->board_ptr;
 	struct comedi_subdevice *s;
-	int sdx;
 	unsigned int n;
 	int ret;
 
-	devpriv->intr_sd = -1;
-
-	ret = comedi_alloc_subdevices(dev, layout->n_subdevs);
+	ret = comedi_alloc_subdevices(dev, board->n_subdevs);
 	if (ret)
 		return ret;
 
 	for (n = 0; n < dev->n_subdevices; n++) {
 		s = &dev->subdevices[n];
-		switch (layout->sdtype[n]) {
+		switch (board->sdtype[n]) {
 		case sd_8254:
 			/* counter subdevice (8254) */
 			ret = dio200_subdev_8254_init(dev, s,
-						      layout->sdinfo[n]);
+						      board->sdinfo[n]);
 			if (ret < 0)
 				return ret;
 			break;
 		case sd_8255:
 			/* digital i/o subdevice (8255) */
 			ret = dio200_subdev_8255_init(dev, s,
-						      layout->sdinfo[n]);
+						      board->sdinfo[n]);
 			if (ret < 0)
 				return ret;
 			break;
 		case sd_intr:
 			/* 'INTERRUPT' subdevice */
-			if (irq) {
+			if (irq && !dev->read_subdev) {
 				ret = dio200_subdev_intr_init(dev, s,
 							      DIO200_INT_SCE,
-							      layout->sdinfo[n]
-							     );
+							      board->sdinfo[n]);
 				if (ret < 0)
 					return ret;
-				devpriv->intr_sd = n;
+				dev->read_subdev = s;
 			} else {
 				s->type = COMEDI_SUBD_UNUSED;
 			}
 			break;
 		case sd_timer:
-			ret = dio200_subdev_timer_init(dev, s);
-			if (ret < 0)
-				return ret;
+			s->type		= COMEDI_SUBD_TIMER;
+			s->subdev_flags	= SDF_READABLE | SDF_LSAMPL;
+			s->n_chan	= 1;
+			s->maxdata	= 0xffffffff;
+			s->insn_read	= dio200_subdev_timer_read;
+			s->insn_config	= dio200_subdev_timer_config;
 			break;
 		default:
 			s->type = COMEDI_SUBD_UNUSED;
 			break;
 		}
 	}
-	sdx = devpriv->intr_sd;
-	if (sdx >= 0 && sdx < dev->n_subdevices)
-		dev->read_subdev = &dev->subdevices[sdx];
-	if (irq) {
+
+	if (irq && dev->read_subdev) {
 		if (request_irq(irq, dio200_interrupt, req_irq_flags,
 				dev->board_name, dev) >= 0) {
 			dev->irq = irq;
@@ -1215,22 +995,10 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 				 "warning! irq %u unavailable!\n", irq);
 		}
 	}
-	dev_info(dev->class_dev, "attached\n");
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(amplc_dio200_common_attach);
-
-void amplc_dio200_common_detach(struct comedi_device *dev)
-{
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
-
-	if (!thisboard || !devpriv)
-		return;
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-}
-EXPORT_SYMBOL_GPL(amplc_dio200_common_detach);
 
 static int __init amplc_dio200_common_init(void)
 {

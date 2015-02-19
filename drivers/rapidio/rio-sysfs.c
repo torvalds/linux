@@ -27,6 +27,7 @@ field##_show(struct device *dev, struct device_attribute *attr, char *buf)			\
 									\
 	return sprintf(buf, format_string, rdev->field);		\
 }									\
+static DEVICE_ATTR_RO(field);
 
 rio_config_attr(did, "0x%04x\n");
 rio_config_attr(vid, "0x%04x\n");
@@ -54,6 +55,7 @@ static ssize_t routes_show(struct device *dev, struct device_attribute *attr, ch
 
 	return (str - buf);
 }
+static DEVICE_ATTR_RO(routes);
 
 static ssize_t lprev_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
@@ -63,6 +65,7 @@ static ssize_t lprev_show(struct device *dev,
 	return sprintf(buf, "%s\n",
 			(rdev->prev) ? rio_name(rdev->prev) : "root");
 }
+static DEVICE_ATTR_RO(lprev);
 
 static ssize_t lnext_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
@@ -83,6 +86,7 @@ static ssize_t lnext_show(struct device *dev,
 
 	return str - buf;
 }
+static DEVICE_ATTR_RO(lnext);
 
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
@@ -92,23 +96,29 @@ static ssize_t modalias_show(struct device *dev,
 	return sprintf(buf, "rapidio:v%04Xd%04Xav%04Xad%04X\n",
 		       rdev->vid, rdev->did, rdev->asm_vid, rdev->asm_did);
 }
+static DEVICE_ATTR_RO(modalias);
 
-struct device_attribute rio_dev_attrs[] = {
-	__ATTR_RO(did),
-	__ATTR_RO(vid),
-	__ATTR_RO(device_rev),
-	__ATTR_RO(asm_did),
-	__ATTR_RO(asm_vid),
-	__ATTR_RO(asm_rev),
-	__ATTR_RO(lprev),
-	__ATTR_RO(destid),
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *rio_dev_attrs[] = {
+	&dev_attr_did.attr,
+	&dev_attr_vid.attr,
+	&dev_attr_device_rev.attr,
+	&dev_attr_asm_did.attr,
+	&dev_attr_asm_vid.attr,
+	&dev_attr_asm_rev.attr,
+	&dev_attr_lprev.attr,
+	&dev_attr_destid.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
 
-static DEVICE_ATTR(routes, S_IRUGO, routes_show, NULL);
-static DEVICE_ATTR(lnext, S_IRUGO, lnext_show, NULL);
-static DEVICE_ATTR(hopcount, S_IRUGO, hopcount_show, NULL);
+static const struct attribute_group rio_dev_group = {
+	.attrs = rio_dev_attrs,
+};
+
+const struct attribute_group *rio_dev_groups[] = {
+	&rio_dev_group,
+	NULL,
+};
 
 static ssize_t
 rio_read_config(struct file *filp, struct kobject *kobj,
@@ -316,8 +326,58 @@ exit:
 
 	return rc;
 }
+static BUS_ATTR(scan, (S_IWUSR|S_IWGRP), NULL, bus_scan_store);
 
-struct bus_attribute rio_bus_attrs[] = {
-	__ATTR(scan, (S_IWUSR|S_IWGRP), NULL, bus_scan_store),
-	__ATTR_NULL
+static struct attribute *rio_bus_attrs[] = {
+	&bus_attr_scan.attr,
+	NULL,
+};
+
+static const struct attribute_group rio_bus_group = {
+	.attrs = rio_bus_attrs,
+};
+
+const struct attribute_group *rio_bus_groups[] = {
+	&rio_bus_group,
+	NULL,
+};
+
+static ssize_t
+port_destid_show(struct device *dev, struct device_attribute *attr,
+		 char *buf)
+{
+	struct rio_mport *mport = to_rio_mport(dev);
+
+	if (mport)
+		return sprintf(buf, "0x%04x\n", mport->host_deviceid);
+	else
+		return -ENODEV;
+}
+static DEVICE_ATTR_RO(port_destid);
+
+static ssize_t sys_size_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct rio_mport *mport = to_rio_mport(dev);
+
+	if (mport)
+		return sprintf(buf, "%u\n", mport->sys_size);
+	else
+		return -ENODEV;
+}
+static DEVICE_ATTR_RO(sys_size);
+
+static struct attribute *rio_mport_attrs[] = {
+	&dev_attr_port_destid.attr,
+	&dev_attr_sys_size.attr,
+	NULL,
+};
+
+static const struct attribute_group rio_mport_group = {
+	.attrs = rio_mport_attrs,
+};
+
+const struct attribute_group *rio_mport_groups[] = {
+	&rio_mport_group,
+	NULL,
 };

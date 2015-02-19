@@ -317,8 +317,6 @@ Each of the parameters is a number, containing the described information:
     4	 0x10	   16	  Immediate return on BIOS seek command. (Not used)
  (*)5	 0x20	   32	  Check for LUNs >= 1.
   
-  The default for LUN Check depends on CONFIG_SCSI_MULTI_LUN.
-
 * TaggedCmnds is a number indicating the maximum number of Tagged Commands.
   It is the binary logarithm - 1 of the actual number. Max is 4 (32).
    Value  Number of Tagged Commands

@@ -28,12 +28,7 @@
  * @pll_control: PLL and oversampling control. This control allows internal
  *		 PLL 1 circuit to be powered down and the oversampling to be
  *		 switched off.
- * @dac_1: power on/off DAC 1.
- * @dac_2: power on/off DAC 2.
- * @dac_3: power on/off DAC 3.
- * @dac_4: power on/off DAC 4.
- * @dac_5: power on/off DAC 5.
- * @dac_6: power on/off DAC 6.
+ * @dac: array to configure power on/off DAC's 1..6
  *
  * Power mode register (Register 0x0), for more info refer REGISTER MAP ACCESS
  * section of datasheet[1], table 17 page no 30.
@@ -43,23 +38,16 @@
 struct adv7343_power_mode {
 	bool sleep_mode;
 	bool pll_control;
-	bool dac_1;
-	bool dac_2;
-	bool dac_3;
-	bool dac_4;
-	bool dac_5;
-	bool dac_6;
+	u32 dac[6];
 };
 
 /**
  * struct adv7343_sd_config - SD Only Output Configuration.
- * @sd_dac_out1: Configure SD DAC Output 1.
- * @sd_dac_out2: Configure SD DAC Output 2.
+ * @sd_dac_out: array configuring SD DAC Outputs 1 and 2
  */
 struct adv7343_sd_config {
 	/* SD only Output Configuration */
-	bool sd_dac_out1;
-	bool sd_dac_out2;
+	u32 sd_dac_out[2];
 };
 
 /**

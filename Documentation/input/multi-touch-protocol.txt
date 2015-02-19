@@ -372,7 +372,7 @@ simple scheme, which is compatible with earlier usage, is:
 
 Rationale: We have no information about the orientation of the touching
 ellipse, so approximate it with an inscribed circle instead. The tool
-ellipse should align with the the vector (T - C), so the diameter must
+ellipse should align with the vector (T - C), so the diameter must
 increase with distance(T, C). Finally, assume that the touch diameter is
 equal to the tool thickness, and we arrive at the formulas above.
 

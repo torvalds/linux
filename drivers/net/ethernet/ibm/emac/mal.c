@@ -27,6 +27,7 @@
 
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 
 #include "core.h"
 #include <asm/dcr-regs.h>
@@ -263,7 +264,9 @@ static inline void mal_schedule_poll(struct mal_instance *mal)
 {
 	if (likely(napi_schedule_prep(&mal->napi))) {
 		MAL_DBG2(mal, "schedule_poll" NL);
+		spin_lock(&mal->lock);
 		mal_disable_eob_irq(mal);
+		spin_unlock(&mal->lock);
 		__napi_schedule(&mal->napi);
 	} else
 		MAL_DBG2(mal, "already in poll" NL);
@@ -442,15 +445,13 @@ static int mal_poll(struct napi_struct *napi, int budget)
 		if (unlikely(mc->ops->peek_rx(mc->dev) ||
 			     test_bit(MAL_COMMAC_RX_STOPPED, &mc->flags))) {
 			MAL_DBG2(mal, "rotting packet" NL);
-			if (napi_reschedule(napi))
-				mal_disable_eob_irq(mal);
-			else
-				MAL_DBG2(mal, "already in poll list" NL);
-
-			if (budget > 0)
-				goto again;
-			else
+			if (!napi_reschedule(napi))
 				goto more_work;
+
+			spin_lock_irqsave(&mal->lock, flags);
+			mal_disable_eob_irq(mal);
+			spin_unlock_irqrestore(&mal->lock, flags);
+			goto again;
 		}
 		mc->ops->poll_tx(mc->dev);
 	}
@@ -637,8 +638,8 @@ static int mal_probe(struct platform_device *ofdev)
 	bd_size = sizeof(struct mal_descriptor) *
 		(NUM_TX_BUFF * mal->num_tx_chans +
 		 NUM_RX_BUFF * mal->num_rx_chans);
-	mal->bd_virt = dma_alloc_coherent(&ofdev->dev, bd_size, &mal->bd_dma,
-					  GFP_KERNEL | __GFP_ZERO);
+	mal->bd_virt = dma_zalloc_coherent(&ofdev->dev, bd_size, &mal->bd_dma,
+					   GFP_KERNEL);
 	if (mal->bd_virt == NULL) {
 		err = -ENOMEM;
 		goto fail_unmap;
@@ -681,10 +682,7 @@ static int mal_probe(struct platform_device *ofdev)
 		goto fail6;
 
 	/* Enable all MAL SERR interrupt sources */
-	if (mal->version == 2)
-		set_mal_dcrn(mal, MAL_IER, MAL2_IER_EVENTS);
-	else
-		set_mal_dcrn(mal, MAL_IER, MAL1_IER_EVENTS);
+	set_mal_dcrn(mal, MAL_IER, MAL_IER_EVENTS);
 
 	/* Enable EOB interrupt */
 	mal_enable_eob_irq(mal);
@@ -778,7 +776,6 @@ static struct of_device_id mal_platform_match[] =
 static struct platform_driver mal_of_driver = {
 	.driver = {
 		.name = "mcmal",
-		.owner = THIS_MODULE,
 		.of_match_table = mal_platform_match,
 	},
 	.probe = mal_probe,

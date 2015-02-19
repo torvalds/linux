@@ -3,7 +3,7 @@
  *
  * This file contains SPC-3 task management infrastructure
  *
- * (c) Copyright 2009-2012 RisingTide Systems LLC.
+ * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -64,20 +64,16 @@ int core_tmr_alloc_req(
 }
 EXPORT_SYMBOL(core_tmr_alloc_req);
 
-void core_tmr_release_req(
-	struct se_tmr_req *tmr)
+void core_tmr_release_req(struct se_tmr_req *tmr)
 {
 	struct se_device *dev = tmr->tmr_dev;
 	unsigned long flags;
 
-	if (!dev) {
-		kfree(tmr);
-		return;
+	if (dev) {
+		spin_lock_irqsave(&dev->se_tmr_lock, flags);
+		list_del(&tmr->tmr_list);
+		spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 	}
-
-	spin_lock_irqsave(&dev->se_tmr_lock, flags);
-	list_del(&tmr->tmr_list);
-	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 
 	kfree(tmr);
 }
@@ -87,14 +83,16 @@ static void core_tmr_handle_tas_abort(
 	struct se_cmd *cmd,
 	int tas)
 {
+	bool remove = true;
 	/*
 	 * TASK ABORTED status (TAS) bit support
-	*/
-	if ((tmr_nacl &&
-	     (tmr_nacl == cmd->se_sess->se_node_acl)) || tas)
+	 */
+	if ((tmr_nacl && (tmr_nacl != cmd->se_sess->se_node_acl)) && tas) {
+		remove = false;
 		transport_send_task_abort(cmd);
+	}
 
-	transport_cmd_finish_abort(cmd, 0);
+	transport_cmd_finish_abort(cmd, remove);
 }
 
 static int target_check_cdb_and_preempt(struct list_head *list,
@@ -117,16 +115,20 @@ void core_tmr_abort_task(
 	struct se_tmr_req *tmr,
 	struct se_session *se_sess)
 {
-	struct se_cmd *se_cmd, *tmp_cmd;
+	struct se_cmd *se_cmd;
 	unsigned long flags;
 	int ref_tag;
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	list_for_each_entry_safe(se_cmd, tmp_cmd,
-			&se_sess->sess_cmd_list, se_cmd_list) {
+	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list) {
 
 		if (dev != se_cmd->se_dev)
 			continue;
+
+		/* skip se_cmd associated with tmr */
+		if (tmr->task_cmd == se_cmd)
+			continue;
+
 		ref_tag = se_cmd->se_tfo->get_task_tag(se_cmd);
 		if (tmr->ref_task_tag != ref_tag)
 			continue;
@@ -150,18 +152,9 @@ void core_tmr_abort_task(
 
 		cancel_work_sync(&se_cmd->work);
 		transport_wait_for_tasks(se_cmd);
-		/*
-		 * Now send SAM_STAT_TASK_ABORTED status for the referenced
-		 * se_cmd descriptor..
-		 */
-		transport_send_task_abort(se_cmd);
-		/*
-		 * Also deal with possible extra acknowledge reference..
-		 */
-		if (se_cmd->se_cmd_flags & SCF_ACK_KREF)
-			target_put_sess_cmd(se_sess, se_cmd);
 
 		target_put_sess_cmd(se_sess, se_cmd);
+		transport_cmd_finish_abort(se_cmd, true);
 
 		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"
 				" ref_tag: %d\n", ref_tag);
@@ -386,9 +379,7 @@ int core_tmr_lun_reset(
 		pr_debug("LUN_RESET: SCSI-2 Released reservation\n");
 	}
 
-	spin_lock_irq(&dev->stats_lock);
-	dev->num_resets++;
-	spin_unlock_irq(&dev->stats_lock);
+	atomic_long_inc(&dev->num_resets);
 
 	pr_debug("LUN_RESET: %s for [%s] Complete\n",
 			(preempt_and_abort_list) ? "Preempt" : "TMR",

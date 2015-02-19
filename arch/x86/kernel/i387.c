@@ -13,11 +13,25 @@
 #include <asm/sigcontext.h>
 #include <asm/processor.h>
 #include <asm/math_emu.h>
+#include <asm/tlbflush.h>
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/i387.h>
 #include <asm/fpu-internal.h>
 #include <asm/user.h>
+
+static DEFINE_PER_CPU(bool, in_kernel_fpu);
+
+void kernel_fpu_disable(void)
+{
+	WARN_ON(this_cpu_read(in_kernel_fpu));
+	this_cpu_write(in_kernel_fpu, true);
+}
+
+void kernel_fpu_enable(void)
+{
+	this_cpu_write(in_kernel_fpu, false);
+}
 
 /*
  * Were we in an interrupt that interrupted kernel mode?
@@ -33,6 +47,9 @@
  */
 static inline bool interrupted_kernel_fpu_idle(void)
 {
+	if (this_cpu_read(in_kernel_fpu))
+		return false;
+
 	if (use_eager_fpu())
 		return __thread_has_fpu(current);
 
@@ -73,10 +90,10 @@ void __kernel_fpu_begin(void)
 {
 	struct task_struct *me = current;
 
+	this_cpu_write(in_kernel_fpu, true);
+
 	if (__thread_has_fpu(me)) {
-		__thread_clear_has_fpu(me);
 		__save_init_fpu(me);
-		/* We do 'stts()' in __kernel_fpu_end() */
 	} else if (!use_eager_fpu()) {
 		this_cpu_write(fpu_owner_task, NULL);
 		clts();
@@ -86,10 +103,16 @@ EXPORT_SYMBOL(__kernel_fpu_begin);
 
 void __kernel_fpu_end(void)
 {
-	if (use_eager_fpu())
-		math_state_restore();
-	else
+	struct task_struct *me = current;
+
+	if (__thread_has_fpu(me)) {
+		if (WARN_ON(restore_fpu_checking(me)))
+			drop_init_fpu(me);
+	} else if (!use_eager_fpu()) {
 		stts();
+	}
+
+	this_cpu_write(in_kernel_fpu, false);
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
@@ -100,7 +123,7 @@ void unlazy_fpu(struct task_struct *tsk)
 		__save_init_fpu(tsk);
 		__thread_fpu_end(tsk);
 	} else
-		tsk->fpu_counter = 0;
+		tsk->thread.fpu_counter = 0;
 	preempt_enable();
 }
 EXPORT_SYMBOL(unlazy_fpu);
@@ -171,7 +194,7 @@ void fpu_init(void)
 	if (cpu_has_xmm)
 		cr4_mask |= X86_CR4_OSXMMEXCPT;
 	if (cr4_mask)
-		set_in_cr4(cr4_mask);
+		cr4_set_bits(cr4_mask);
 
 	cr0 = read_cr0();
 	cr0 &= ~(X86_CR0_TS|X86_CR0_EM); /* clear TS and EM */
@@ -366,7 +389,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	/*
 	 * These bits must be zero.
 	 */
-	xsave_hdr->reserved1[0] = xsave_hdr->reserved1[1] = 0;
+	memset(xsave_hdr->reserved, 0, 48);
 
 	return ret;
 }

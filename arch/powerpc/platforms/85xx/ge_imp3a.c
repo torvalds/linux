@@ -215,6 +215,7 @@ define_machine(ge_imp3a) {
 	.show_cpuinfo		= ge_imp3a_show_cpuinfo,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,

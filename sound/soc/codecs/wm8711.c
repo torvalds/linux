@@ -169,13 +169,13 @@ static int wm8711_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_write(codec, WM8711_SRATE, srate);
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= 0x0004;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= 0x0008;
 		break;
 	}
@@ -201,7 +201,7 @@ static void wm8711_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 
 	/* deactivate */
-	if (!codec->active) {
+	if (!snd_soc_codec_is_active(codec)) {
 		udelay(50);
 		snd_soc_write(codec, WM8711_ACTIVE, 0x0);
 	}
@@ -350,36 +350,15 @@ static struct snd_soc_dai_driver wm8711_dai = {
 	.ops = &wm8711_ops,
 };
 
-static int wm8711_suspend(struct snd_soc_codec *codec)
-{
-	snd_soc_write(codec, WM8711_ACTIVE, 0x0);
-	wm8711_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8711_resume(struct snd_soc_codec *codec)
-{
-	wm8711_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8711_probe(struct snd_soc_codec *codec)
 {
 	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	ret = wm8711_reset(codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset\n");
 		return ret;
 	}
-
-	wm8711_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch the update bits */
 	snd_soc_update_bits(codec, WM8711_LOUT1V, 0x0100, 0x0100);
@@ -389,19 +368,11 @@ static int wm8711_probe(struct snd_soc_codec *codec)
 
 }
 
-/* power down chip */
-static int wm8711_remove(struct snd_soc_codec *codec)
-{
-	wm8711_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8711 = {
 	.probe =	wm8711_probe,
-	.remove =	wm8711_remove,
-	.suspend =	wm8711_suspend,
-	.resume =	wm8711_resume,
 	.set_bias_level = wm8711_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls = wm8711_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8711_snd_controls),
 	.dapm_widgets = wm8711_dapm_widgets,
@@ -469,7 +440,7 @@ static struct spi_driver wm8711_spi_driver = {
 };
 #endif /* CONFIG_SPI_MASTER */
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8711_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
@@ -520,7 +491,7 @@ static struct i2c_driver wm8711_i2c_driver = {
 static int __init wm8711_modinit(void)
 {
 	int ret;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8711_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register WM8711 I2C driver: %d\n",
@@ -540,7 +511,7 @@ module_init(wm8711_modinit);
 
 static void __exit wm8711_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8711_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)

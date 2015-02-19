@@ -71,6 +71,10 @@ struct atmel_nand_data {
 	u8		on_flash_bbt;		/* bbt on flash */
 	struct mtd_partition *parts;
 	unsigned int	num_parts;
+	bool		has_dma;		/* support dma transfer */
+
+	/* default is false, only for at32ap7000 chip is true */
+	bool		need_reset_workaround;
 };
 
  /* Serial */
@@ -80,13 +84,6 @@ struct atmel_uart_data {
 	short			use_dma_rx;	/* use receive DMA? */
 	void __iomem		*regs;		/* virt. base address, if any */
 	struct serial_rs485	rs485;		/* rs485 settings */
-};
-
- /* Touchscreen Controller */
-struct at91_tsadcc_data {
-	unsigned int    adc_clock;
-	u8		pendet_debounce;
-	u8		ts_sample_hold_time;
 };
 
 /* CAN */

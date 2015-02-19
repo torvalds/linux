@@ -361,6 +361,14 @@ static int uvc_commit_video(struct uvc_streaming *stream,
  * Clocks and timestamps
  */
 
+static inline void uvc_video_get_ts(struct timespec *ts)
+{
+	if (uvc_clock_param == CLOCK_MONOTONIC)
+		ktime_get_ts(ts);
+	else
+		ktime_get_real_ts(ts);
+}
+
 static void
 uvc_video_clock_decode(struct uvc_streaming *stream, struct uvc_buffer *buf,
 		       const __u8 *data, int len)
@@ -420,7 +428,7 @@ uvc_video_clock_decode(struct uvc_streaming *stream, struct uvc_buffer *buf,
 	stream->clock.last_sof = dev_sof;
 
 	host_sof = usb_get_current_frame_number(stream->dev->udev);
-	ktime_get_ts(&ts);
+	uvc_video_get_ts(&ts);
 
 	/* The UVC specification allows device implementations that can't obtain
 	 * the USB frame number to keep their own frame counters as long as they
@@ -556,7 +564,7 @@ static u16 uvc_video_clock_host_sof(const struct uvc_clock_sample *sample)
  *
  * SOF = ((SOF2 - SOF1) * PTS + SOF1 * STC2 - SOF2 * STC1) / (STC2 - STC1)   (1)
  *
- * to avoid loosing precision in the division. Similarly, the host timestamp is
+ * to avoid losing precision in the division. Similarly, the host timestamp is
  * computed with
  *
  * TS = ((TS2 - TS1) * PTS + TS1 * SOF2 - TS2 * SOF1) / (SOF2 - SOF1)	     (2)
@@ -680,7 +688,8 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 		  stream->dev->name,
 		  sof >> 16, div_u64(((u64)sof & 0xffff) * 1000000LLU, 65536),
 		  y, ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC,
-		  v4l2_buf->timestamp.tv_sec, v4l2_buf->timestamp.tv_usec,
+		  v4l2_buf->timestamp.tv_sec,
+		  (unsigned long)v4l2_buf->timestamp.tv_usec,
 		  x1, first->host_sof, first->dev_sof,
 		  x2, last->host_sof, last->dev_sof, y1, y2);
 
@@ -1010,11 +1019,9 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 			return -ENODATA;
 		}
 
-		if (uvc_clock_param == CLOCK_MONOTONIC)
-			ktime_get_ts(&ts);
-		else
-			ktime_get_real_ts(&ts);
+		uvc_video_get_ts(&ts);
 
+		buf->buf.v4l2_buf.field = V4L2_FIELD_NONE;
 		buf->buf.v4l2_buf.sequence = stream->sequence;
 		buf->buf.v4l2_buf.timestamp.tv_sec = ts.tv_sec;
 		buf->buf.v4l2_buf.timestamp.tv_usec =
@@ -1132,6 +1139,17 @@ static int uvc_video_encode_data(struct uvc_streaming *stream,
  */
 
 /*
+ * Set error flag for incomplete buffer.
+ */
+static void uvc_video_validate_buffer(const struct uvc_streaming *stream,
+				      struct uvc_buffer *buf)
+{
+	if (stream->ctrl.dwMaxVideoFrameSize != buf->bytesused &&
+	    !(stream->cur_format->flags & UVC_FMT_FLAG_COMPRESSED))
+		buf->error = 1;
+}
+
+/*
  * Completion handler for video URBs.
  */
 static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
@@ -1155,9 +1173,11 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 		do {
 			ret = uvc_video_decode_start(stream, buf, mem,
 				urb->iso_frame_desc[i].actual_length);
-			if (ret == -EAGAIN)
+			if (ret == -EAGAIN) {
+				uvc_video_validate_buffer(stream, buf);
 				buf = uvc_queue_next_buffer(&stream->queue,
 							    buf);
+			}
 		} while (ret == -EAGAIN);
 
 		if (ret < 0)
@@ -1172,11 +1192,7 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 			urb->iso_frame_desc[i].actual_length);
 
 		if (buf->state == UVC_BUF_STATE_READY) {
-			if (buf->length != buf->bytesused &&
-			    !(stream->cur_format->flags &
-			      UVC_FMT_FLAG_COMPRESSED))
-				buf->error = 1;
-
+			uvc_video_validate_buffer(stream, buf);
 			buf = uvc_queue_next_buffer(&stream->queue, buf);
 		}
 	}
@@ -1448,10 +1464,13 @@ static unsigned int uvc_endpoint_max_bpi(struct usb_device *dev,
 
 	switch (dev->speed) {
 	case USB_SPEED_SUPER:
-		return ep->ss_ep_comp.wBytesPerInterval;
+		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
 	case USB_SPEED_HIGH:
 		psize = usb_endpoint_maxp(&ep->desc);
 		return (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
+	case USB_SPEED_WIRELESS:
+		psize = usb_endpoint_maxp(&ep->desc);
+		return psize;
 	default:
 		psize = usb_endpoint_maxp(&ep->desc);
 		return psize & 0x07ff;
@@ -1660,6 +1679,12 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 		}
 	}
 
+	/* The Logitech C920 temporarily forgets that it should not be adjusting
+	 * Exposure Absolute during init so restore controls to stored values.
+	 */
+	if (stream->dev->quirks & UVC_QUIRK_RESTORE_CTRLS_ON_INIT)
+		uvc_ctrl_restore_values(stream->dev);
+
 	return 0;
 }
 
@@ -1709,20 +1734,14 @@ int uvc_video_resume(struct uvc_streaming *stream, int reset)
 
 	uvc_video_clock_reset(stream);
 
-	ret = uvc_commit_video(stream, &stream->ctrl);
-	if (ret < 0) {
-		uvc_queue_enable(&stream->queue, 0);
-		return ret;
-	}
-
 	if (!uvc_queue_streaming(&stream->queue))
 		return 0;
 
-	ret = uvc_init_video(stream, GFP_NOIO);
+	ret = uvc_commit_video(stream, &stream->ctrl);
 	if (ret < 0)
-		uvc_queue_enable(&stream->queue, 0);
+		return ret;
 
-	return ret;
+	return uvc_init_video(stream, GFP_NOIO);
 }
 
 /* ------------------------------------------------------------------------
@@ -1753,11 +1772,6 @@ int uvc_video_init(struct uvc_streaming *stream)
 	}
 
 	atomic_set(&stream->active, 0);
-
-	/* Initialize the video buffers queue. */
-	ret = uvc_queue_init(&stream->queue, stream->type, !uvc_no_drop_param);
-	if (ret)
-		return ret;
 
 	/* Alternate setting 0 should be the default, yet the XBox Live Vision
 	 * Cam (and possibly other devices) crash or otherwise misbehave if
@@ -1846,8 +1860,25 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 
 	if (!enable) {
 		uvc_uninit_video(stream, 1);
-		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
-		uvc_queue_enable(&stream->queue, 0);
+		if (stream->intf->num_altsetting > 1) {
+			usb_set_interface(stream->dev->udev,
+					  stream->intfnum, 0);
+		} else {
+			/* UVC doesn't specify how to inform a bulk-based device
+			 * when the video stream is stopped. Windows sends a
+			 * CLEAR_FEATURE(HALT) request to the video streaming
+			 * bulk endpoint, mimic the same behaviour.
+			 */
+			unsigned int epnum = stream->header.bEndpointAddress
+					   & USB_ENDPOINT_NUMBER_MASK;
+			unsigned int dir = stream->header.bEndpointAddress
+					 & USB_ENDPOINT_DIR_MASK;
+			unsigned int pipe;
+
+			pipe = usb_sndbulkpipe(stream->dev->udev, epnum) | dir;
+			usb_clear_halt(stream->dev->udev, pipe);
+		}
+
 		uvc_video_clock_cleanup(stream);
 		return 0;
 	}
@@ -1855,10 +1886,6 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 	ret = uvc_video_clock_init(stream);
 	if (ret < 0)
 		return ret;
-
-	ret = uvc_queue_enable(&stream->queue, 1);
-	if (ret < 0)
-		goto error_queue;
 
 	/* Commit the streaming parameters. */
 	ret = uvc_commit_video(stream, &stream->ctrl);
@@ -1874,8 +1901,6 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 error_video:
 	usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 error_commit:
-	uvc_queue_enable(&stream->queue, 0);
-error_queue:
 	uvc_video_clock_cleanup(stream);
 
 	return ret;

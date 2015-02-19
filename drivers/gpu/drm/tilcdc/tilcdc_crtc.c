@@ -15,7 +15,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/kfifo.h>
+#include "drm_flip_work.h"
+#include <drm/drm_plane_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -35,21 +36,18 @@ struct tilcdc_crtc {
 	struct drm_framebuffer *scanout[2];
 
 	/* for deferred fb unref's: */
-	DECLARE_KFIFO_PTR(unref_fifo, struct drm_framebuffer *);
-	struct work_struct work;
+	struct drm_flip_work unref_work;
 };
 #define to_tilcdc_crtc(x) container_of(x, struct tilcdc_crtc, base)
 
-static void unref_worker(struct work_struct *work)
+static void unref_worker(struct drm_flip_work *work, void *val)
 {
 	struct tilcdc_crtc *tilcdc_crtc =
-		container_of(work, struct tilcdc_crtc, work);
+		container_of(work, struct tilcdc_crtc, unref_work);
 	struct drm_device *dev = tilcdc_crtc->base.dev;
-	struct drm_framebuffer *fb;
 
 	mutex_lock(&dev->mode_config.mutex);
-	while (kfifo_get(&tilcdc_crtc->unref_fifo, &fb))
-		drm_framebuffer_unreference(fb);
+	drm_framebuffer_unreference(val);
 	mutex_unlock(&dev->mode_config.mutex);
 }
 
@@ -68,21 +66,16 @@ static void set_scanout(struct drm_crtc *crtc, int n)
 	};
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
+	struct tilcdc_drm_private *priv = dev->dev_private;
 
 	pm_runtime_get_sync(dev->dev);
 	tilcdc_write(dev, base_reg[n], tilcdc_crtc->start);
 	tilcdc_write(dev, ceil_reg[n], tilcdc_crtc->end);
 	if (tilcdc_crtc->scanout[n]) {
-		if (kfifo_put(&tilcdc_crtc->unref_fifo,
-				(const struct drm_framebuffer **)&tilcdc_crtc->scanout[n])) {
-			struct tilcdc_drm_private *priv = dev->dev_private;
-			queue_work(priv->wq, &tilcdc_crtc->work);
-		} else {
-			dev_err(dev->dev, "unref fifo full!\n");
-			drm_framebuffer_unreference(tilcdc_crtc->scanout[n]);
-		}
+		drm_flip_work_queue(&tilcdc_crtc->unref_work, tilcdc_crtc->scanout[n]);
+		drm_flip_work_commit(&tilcdc_crtc->unref_work, priv->wq);
 	}
-	tilcdc_crtc->scanout[n] = crtc->fb;
+	tilcdc_crtc->scanout[n] = crtc->primary->fb;
 	drm_framebuffer_reference(tilcdc_crtc->scanout[n]);
 	tilcdc_crtc->dirty &= ~stat[n];
 	pm_runtime_put_sync(dev->dev);
@@ -92,7 +85,7 @@ static void update_scanout(struct drm_crtc *crtc)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct drm_gem_cma_object *gem;
 	unsigned int depth, bpp;
 
@@ -149,14 +142,15 @@ static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 	WARN_ON(tilcdc_crtc->dpms == DRM_MODE_DPMS_ON);
 
 	drm_crtc_cleanup(crtc);
-	WARN_ON(!kfifo_is_empty(&tilcdc_crtc->unref_fifo));
-	kfifo_free(&tilcdc_crtc->unref_fifo);
+	drm_flip_work_cleanup(&tilcdc_crtc->unref_work);
+
 	kfree(tilcdc_crtc);
 }
 
 static int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 		struct drm_framebuffer *fb,
-		struct drm_pending_vblank_event *event)
+		struct drm_pending_vblank_event *event,
+		uint32_t page_flip_flags)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -166,7 +160,7 @@ static int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 		return -EBUSY;
 	}
 
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 	tilcdc_crtc->event = event;
 	update_scanout(crtc);
 
@@ -346,7 +340,7 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 	if (priv->rev == 2) {
 		unsigned int depth, bpp;
 
-		drm_fb_get_bpp_depth(crtc->fb->pixel_format, &depth, &bpp);
+		drm_fb_get_bpp_depth(crtc->primary->fb->pixel_format, &depth, &bpp);
 		switch (bpp) {
 		case 16:
 			break;
@@ -379,7 +373,12 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 	else
 		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_EDGE);
 
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+	/*
+	 * use value from adjusted_mode here as this might have been
+	 * changed as part of the fixup for slave encoders to solve the
+	 * issue where tilcdc timings are not VESA compliant
+	 */
+	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
 		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_HSYNC);
 	else
 		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_HSYNC);
@@ -666,13 +665,8 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 	tilcdc_crtc->dpms = DRM_MODE_DPMS_OFF;
 	init_waitqueue_head(&tilcdc_crtc->frame_done_wq);
 
-	ret = kfifo_alloc(&tilcdc_crtc->unref_fifo, 16, GFP_KERNEL);
-	if (ret) {
-		dev_err(dev->dev, "could not allocate unref FIFO\n");
-		goto fail;
-	}
-
-	INIT_WORK(&tilcdc_crtc->work, unref_worker);
+	drm_flip_work_init(&tilcdc_crtc->unref_work,
+			"unref", unref_worker);
 
 	ret = drm_crtc_init(dev, crtc, &tilcdc_crtc_funcs);
 	if (ret < 0)

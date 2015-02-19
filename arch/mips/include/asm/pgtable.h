@@ -32,6 +32,8 @@ struct vm_area_struct;
 				 _page_cachable_default)
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _page_cachable_default)
+#define PAGE_KERNEL_NC	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
+				 _PAGE_GLOBAL | _CACHE_CACHABLE_NONCOHERENT)
 #define PAGE_USERIO	__pgprot(_PAGE_PRESENT | (cpu_has_rixi ? 0 : _PAGE_READ) | _PAGE_WRITE | \
 				 _page_cachable_default)
 #define PAGE_KERNEL_UNCACHED __pgprot(_PAGE_PRESENT | __READABLE | \
@@ -95,7 +97,35 @@ extern void paging_init(void);
 
 #define pmd_page_vaddr(pmd)	pmd_val(pmd)
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#define htw_stop()							\
+do {									\
+	if (cpu_has_htw)						\
+		write_c0_pwctl(read_c0_pwctl() &			\
+			       ~(1 << MIPS_PWCTL_PWEN_SHIFT));		\
+} while(0)
+
+#define htw_start()							\
+do {									\
+	if (cpu_has_htw)						\
+		write_c0_pwctl(read_c0_pwctl() |			\
+			       (1 << MIPS_PWCTL_PWEN_SHIFT));		\
+} while(0)
+
+
+#define htw_reset()							\
+do {									\
+	if (cpu_has_htw) {						\
+		htw_stop();						\
+		back_to_back_c0_hazard();				\
+		htw_start();						\
+		back_to_back_c0_hazard();				\
+	}								\
+} while(0)
+
+extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
+	pte_t pteval);
+
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 
 #define pte_none(pte)		(!(((pte).pte_low | (pte).pte_high) & ~_PAGE_GLOBAL))
 #define pte_present(pte)	((pte).pte_low & _PAGE_PRESENT)
@@ -118,7 +148,6 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 		}
 	}
 }
-#define set_pte_at(mm, addr, ptep, pteval) set_pte(ptep, pteval)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
@@ -129,6 +158,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 		null.pte_low = null.pte_high = _PAGE_GLOBAL;
 
 	set_pte_at(mm, addr, ptep, null);
+	htw_reset();
 }
 #else
 
@@ -155,7 +185,6 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 	}
 #endif
 }
-#define set_pte_at(mm, addr, ptep, pteval) set_pte(ptep, pteval)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
@@ -166,6 +195,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 	else
 #endif
 		set_pte_at(mm, addr, ptep, __pte(0));
+	htw_reset();
 }
 #endif
 
@@ -197,11 +227,10 @@ extern pgd_t swapper_pg_dir[];
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte.pte_low & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte)	{ return pte.pte_low & _PAGE_FILE; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -257,7 +286,6 @@ static inline pte_t pte_mkyoung(pte_t pte)
 static inline int pte_write(pte_t pte)	{ return pte_val(pte) & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte_val(pte) & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte)	{ return pte_val(pte) & _PAGE_FILE; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -267,13 +295,13 @@ static inline pte_t pte_wrprotect(pte_t pte)
 
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	pte_val(pte) &= ~(_PAGE_MODIFIED|_PAGE_SILENT_WRITE);
+	pte_val(pte) &= ~(_PAGE_MODIFIED | _PAGE_SILENT_WRITE);
 	return pte;
 }
 
 static inline pte_t pte_mkold(pte_t pte)
 {
-	pte_val(pte) &= ~(_PAGE_ACCESSED|_PAGE_SILENT_READ);
+	pte_val(pte) &= ~(_PAGE_ACCESSED | _PAGE_SILENT_READ);
 	return pte;
 }
 
@@ -336,19 +364,29 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 	return __pgprot(prot);
 }
 
+static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
+{
+	unsigned long prot = pgprot_val(_prot);
+
+	/* cpu_data[0].writecombine is already shifted by _CACHE_SHIFT */
+	prot = (prot & ~_CACHE_MASK) | cpu_data[0].writecombine;
+
+	return __pgprot(prot);
+}
+
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
  */
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	pte.pte_low  &= _PAGE_CHG_MASK;
-	pte.pte_high &= ~0x3f;
+	pte.pte_high &= (_PFN_MASK | _CACHE_MASK);
 	pte.pte_low  |= pgprot_val(newprot);
-	pte.pte_high |= pgprot_val(newprot) & 0x3f;
+	pte.pte_high |= pgprot_val(newprot) & ~(_PFN_MASK | _CACHE_MASK);
 	return pte;
 }
 #else
@@ -361,15 +399,12 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 extern void __update_tlb(struct vm_area_struct *vma, unsigned long address,
 	pte_t pte);
-extern void __update_cache(struct vm_area_struct *vma, unsigned long address,
-	pte_t pte);
 
 static inline void update_mmu_cache(struct vm_area_struct *vma,
 	unsigned long address, pte_t *ptep)
 {
 	pte_t pte = *ptep;
 	__update_tlb(vma, address, pte);
-	__update_cache(vma, address, pte);
 }
 
 static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
@@ -382,7 +417,7 @@ static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 
 #define kern_addr_valid(addr)	(1)
 
-#ifdef CONFIG_64BIT_PHYS_ADDR
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
 extern int remap_pfn_range(struct vm_area_struct *vma, unsigned long from, unsigned long pfn, unsigned long size, pgprot_t prot);
 
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,
@@ -391,7 +426,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 		unsigned long size,
 		pgprot_t prot)
 {
-	phys_t phys_addr_high = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
+	phys_addr_t phys_addr_high = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
 	return remap_pfn_range(vma, vaddr, phys_addr_high >> PAGE_SHIFT, size, prot);
 }
 #define io_remap_pfn_range io_remap_pfn_range

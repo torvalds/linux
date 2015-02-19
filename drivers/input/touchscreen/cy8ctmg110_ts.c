@@ -178,7 +178,7 @@ static irqreturn_t cy8ctmg110_irq_thread(int irq, void *dev_id)
 static int cy8ctmg110_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	const struct cy8ctmg110_pdata *pdata = client->dev.platform_data;
+	const struct cy8ctmg110_pdata *pdata = dev_get_platdata(&client->dev);
 	struct cy8ctmg110 *ts;
 	struct input_dev *input_dev;
 	int err;
@@ -291,8 +291,7 @@ err_free_mem:
 	return err;
 }
 
-#ifdef CONFIG_PM
-static int cy8ctmg110_suspend(struct device *dev)
+static int __maybe_unused cy8ctmg110_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct cy8ctmg110 *ts = i2c_get_clientdata(client);
@@ -306,7 +305,7 @@ static int cy8ctmg110_suspend(struct device *dev)
 	return 0;
 }
 
-static int cy8ctmg110_resume(struct device *dev)
+static int __maybe_unused cy8ctmg110_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct cy8ctmg110 *ts = i2c_get_clientdata(client);
@@ -321,7 +320,6 @@ static int cy8ctmg110_resume(struct device *dev)
 }
 
 static SIMPLE_DEV_PM_OPS(cy8ctmg110_pm, cy8ctmg110_suspend, cy8ctmg110_resume);
-#endif
 
 static int cy8ctmg110_remove(struct i2c_client *client)
 {
@@ -351,9 +349,7 @@ static struct i2c_driver cy8ctmg110_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= CY8CTMG110_DRIVER_NAME,
-#ifdef CONFIG_PM
 		.pm	= &cy8ctmg110_pm,
-#endif
 	},
 	.id_table	= cy8ctmg110_idtable,
 	.probe		= cy8ctmg110_probe,

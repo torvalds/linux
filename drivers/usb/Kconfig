@@ -2,14 +2,21 @@
 # USB device configuration
 #
 
-# These are unused now, remove them once they are no longer selected
-config USB_ARCH_HAS_OHCI
+config USB_OHCI_BIG_ENDIAN_DESC
 	bool
 
-config USB_ARCH_HAS_EHCI
+config USB_OHCI_BIG_ENDIAN_MMIO
 	bool
 
-config USB_ARCH_HAS_XHCI
+config USB_OHCI_LITTLE_ENDIAN
+	bool
+	default n if STB03xxx || PPC_MPC52xx
+	default y
+
+config USB_EHCI_BIG_ENDIAN_MMIO
+	bool
+
+config USB_EHCI_BIG_ENDIAN_DESC
 	bool
 
 menuconfig USB_SUPPORT
@@ -77,8 +84,6 @@ source "drivers/usb/wusbcore/Kconfig"
 
 source "drivers/usb/host/Kconfig"
 
-source "drivers/usb/musb/Kconfig"
-
 source "drivers/usb/renesas_usbhs/Kconfig"
 
 source "drivers/usb/class/Kconfig"
@@ -87,11 +92,19 @@ source "drivers/usb/storage/Kconfig"
 
 source "drivers/usb/image/Kconfig"
 
+source "drivers/usb/usbip/Kconfig"
+
 endif
+
+source "drivers/usb/musb/Kconfig"
 
 source "drivers/usb/dwc3/Kconfig"
 
+source "drivers/usb/dwc2/Kconfig"
+
 source "drivers/usb/chipidea/Kconfig"
+
+source "drivers/usb/isp1760/Kconfig"
 
 comment "USB port drivers"
 
@@ -137,5 +150,15 @@ endif # USB
 source "drivers/usb/phy/Kconfig"
 
 source "drivers/usb/gadget/Kconfig"
+
+config USB_LED_TRIG
+	bool "USB LED Triggers"
+	depends on LEDS_CLASS && USB_COMMON && LEDS_TRIGGERS
+	help
+	  This option adds LED triggers for USB host and/or gadget activity.
+
+	  Say Y here if you are working on a system with led-class supported
+	  LEDs and you want to use them as activity indicators for USB host or
+	  gadget.
 
 endif # USB_SUPPORT

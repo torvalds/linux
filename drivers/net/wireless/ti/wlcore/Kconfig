@@ -1,6 +1,6 @@
 config WLCORE
 	tristate "TI wlcore support"
-	depends on WL_TI && GENERIC_HARDIRQS && MAC80211
+	depends on WL_TI && MAC80211
 	select FW_LOADER
 	---help---
 	  This module contains the main code for TI WLAN chips.  It abstracts

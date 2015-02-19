@@ -197,7 +197,7 @@ static int tce_build_cell(struct iommu_table *tbl, long index, long npages,
 
 	io_pte = (unsigned long *)tbl->it_base + (index - tbl->it_offset);
 
-	for (i = 0; i < npages; i++, uaddr += IOMMU_PAGE_SIZE)
+	for (i = 0; i < npages; i++, uaddr += tbl->it_page_shift)
 		io_pte[i] = base_pte | (__pa(uaddr) & CBE_IOPTE_RPN_Mask);
 
 	mb();
@@ -430,7 +430,7 @@ static void cell_iommu_setup_hardware(struct cbe_iommu *iommu,
 {
 	cell_iommu_setup_stab(iommu, base, size, 0, 0);
 	iommu->ptab = cell_iommu_alloc_ptab(iommu, base, size, 0, 0,
-					    IOMMU_PAGE_SHIFT);
+					    IOMMU_PAGE_SHIFT_4K);
 	cell_iommu_enable_hardware(iommu);
 }
 
@@ -487,8 +487,10 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	window->table.it_blocksize = 16;
 	window->table.it_base = (unsigned long)iommu->ptab;
 	window->table.it_index = iommu->nid;
-	window->table.it_offset = (offset >> IOMMU_PAGE_SHIFT) + pte_offset;
-	window->table.it_size = size >> IOMMU_PAGE_SHIFT;
+	window->table.it_page_shift = IOMMU_PAGE_SHIFT_4K;
+	window->table.it_offset =
+		(offset >> window->table.it_page_shift) + pte_offset;
+	window->table.it_size = size >> window->table.it_page_shift;
 
 	iommu_init_table(&window->table, iommu->nid);
 
@@ -619,8 +621,9 @@ static int dma_fixed_map_sg(struct device *dev, struct scatterlist *sg,
 	if (iommu_fixed_is_weak == dma_get_attr(DMA_ATTR_WEAK_ORDERING, attrs))
 		return dma_direct_ops.map_sg(dev, sg, nents, direction, attrs);
 	else
-		return iommu_map_sg(dev, cell_get_iommu_table(dev), sg, nents,
-				    device_to_mask(dev), direction, attrs);
+		return ppc_iommu_map_sg(dev, cell_get_iommu_table(dev), sg,
+					nents, device_to_mask(dev),
+					direction, attrs);
 }
 
 static void dma_fixed_unmap_sg(struct device *dev, struct scatterlist *sg,
@@ -630,8 +633,8 @@ static void dma_fixed_unmap_sg(struct device *dev, struct scatterlist *sg,
 	if (iommu_fixed_is_weak == dma_get_attr(DMA_ATTR_WEAK_ORDERING, attrs))
 		dma_direct_ops.unmap_sg(dev, sg, nents, direction, attrs);
 	else
-		iommu_unmap_sg(cell_get_iommu_table(dev), sg, nents, direction,
-			       attrs);
+		ppc_iommu_unmap_sg(cell_get_iommu_table(dev), sg, nents,
+				   direction, attrs);
 }
 
 static int dma_fixed_dma_supported(struct device *dev, u64 mask)
@@ -697,7 +700,7 @@ static int __init cell_iommu_get_window(struct device_node *np,
 					 unsigned long *base,
 					 unsigned long *size)
 {
-	const void *dma_window;
+	const __be32 *dma_window;
 	unsigned long index;
 
 	/* Use ibm,dma-window if available, else, hard code ! */
@@ -773,7 +776,7 @@ static void __init cell_iommu_init_one(struct device_node *np,
 
 	/* Setup the iommu_table */
 	cell_iommu_setup_window(iommu, np, base, size,
-				offset >> IOMMU_PAGE_SHIFT);
+				offset >> IOMMU_PAGE_SHIFT_4K);
 }
 
 static void __init cell_disable_iommus(void)
@@ -1122,7 +1125,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 
 		cell_iommu_setup_stab(iommu, dbase, dsize, fbase, fsize);
 		iommu->ptab = cell_iommu_alloc_ptab(iommu, dbase, dsize, 0, 0,
-						    IOMMU_PAGE_SHIFT);
+						    IOMMU_PAGE_SHIFT_4K);
 		cell_iommu_setup_fixed_ptab(iommu, np, dbase, dsize,
 					     fbase, fsize);
 		cell_iommu_enable_hardware(iommu);

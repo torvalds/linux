@@ -214,8 +214,7 @@ static irqreturn_t stk17ta8_rtc_interrupt(int irq, void *dev_id)
 			events |= RTC_UF;
 		else
 			events |= RTC_AF;
-		if (likely(pdata->rtc))
-			rtc_update_irq(pdata->rtc, 1, events);
+		rtc_update_irq(pdata->rtc, 1, events);
 	}
 	spin_unlock(&pdata->lock);
 	return events ? IRQ_HANDLED : IRQ_NONE;
@@ -294,19 +293,14 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 	void __iomem *ioaddr;
 	int ret = 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	if (!devm_request_mem_region(&pdev->dev, res->start, RTC_REG_SIZE,
-			pdev->name))
-		return -EBUSY;
-	ioaddr = devm_ioremap(&pdev->dev, res->start, RTC_REG_SIZE);
-	if (!ioaddr)
-		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ioaddr))
+		return PTR_ERR(ioaddr);
 	pdata->ioaddr = ioaddr;
 	pdata->irq = platform_get_irq(pdev, 0);
 
@@ -364,7 +358,6 @@ static struct platform_driver stk17ta8_rtc_driver = {
 	.remove		= stk17ta8_rtc_remove,
 	.driver		= {
 		.name	= "stk17ta8",
-		.owner	= THIS_MODULE,
 	},
 };
 

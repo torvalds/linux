@@ -82,16 +82,7 @@ struct ccc_io {
 	/**
 	 * I/O vector information to or from which read/write is going.
 	 */
-	struct iovec *cui_iov;
-	unsigned long cui_nrsegs;
-	/**
-	 * Total iov count for left IO.
-	 */
-	unsigned long cui_tot_nrsegs;
-	/**
-	 * Old length for iov that was truncated partially.
-	 */
-	size_t cui_iov_olen;
+	struct iov_iter *cui_iter;
 	/**
 	 * Total size for the left IO.
 	 */
@@ -118,8 +109,8 @@ struct ccc_io {
 };
 
 /**
- * True, if \a io is a normal io, False for other (sendfile, splice*).
- * must be impementated in arch specific code.
+ * True, if \a io is a normal io, False for splice_{read,write}.
+ * must be implemented in arch specific code.
  */
 int cl_is_normalio(const struct lu_env *env, const struct cl_io *io);
 
@@ -144,6 +135,7 @@ static inline struct ccc_thread_info *ccc_env_info(const struct lu_env *env)
 static inline struct cl_attr *ccc_env_thread_attr(const struct lu_env *env)
 {
 	struct cl_attr *attr = &ccc_env_info(env)->cti_attr;
+
 	memset(attr, 0, sizeof(*attr));
 	return attr;
 }
@@ -151,6 +143,7 @@ static inline struct cl_attr *ccc_env_thread_attr(const struct lu_env *env)
 static inline struct cl_io *ccc_env_thread_io(const struct lu_env *env)
 {
 	struct cl_io *io = &ccc_env_info(env)->cti_io;
+
 	memset(io, 0, sizeof(*io));
 	return io;
 }
@@ -288,7 +281,7 @@ int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 void ccc_umount(const struct lu_env *env, struct cl_device *dev);
 int ccc_global_init(struct lu_device_type *device_type);
 void ccc_global_fini(struct lu_device_type *device_type);
-int ccc_object_init0(const struct lu_env *env,struct ccc_object *vob,
+int ccc_object_init0(const struct lu_env *env, struct ccc_object *vob,
 		     const struct cl_object_conf *conf);
 int ccc_object_init(const struct lu_env *env, struct lu_object *obj,
 		    const struct lu_object_conf *conf);
@@ -328,11 +321,13 @@ int ccc_transient_page_prep(const struct lu_env *env,
 			    struct cl_io *io);
 void ccc_lock_delete(const struct lu_env *env,
 		     const struct cl_lock_slice *slice);
-void ccc_lock_fini(const struct lu_env *env,struct cl_lock_slice *slice);
-int ccc_lock_enqueue(const struct lu_env *env,const struct cl_lock_slice *slice,
+void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice);
+int ccc_lock_enqueue(const struct lu_env *env,
+		     const struct cl_lock_slice *slice,
 		     struct cl_io *io, __u32 enqflags);
-int ccc_lock_unuse(const struct lu_env *env,const struct cl_lock_slice *slice);
-int ccc_lock_wait(const struct lu_env *env,const struct cl_lock_slice *slice);
+int ccc_lock_use(const struct lu_env *env, const struct cl_lock_slice *slice);
+int ccc_lock_unuse(const struct lu_env *env, const struct cl_lock_slice *slice);
+int ccc_lock_wait(const struct lu_env *env, const struct cl_lock_slice *slice);
 int ccc_lock_fits_into(const struct lu_env *env,
 		       const struct cl_lock_slice *slice,
 		       const struct cl_lock_descr *need,
@@ -357,9 +352,10 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_io *io, loff_t start, size_t count, int *exceed);
 void ccc_req_completion(const struct lu_env *env,
 			const struct cl_req_slice *slice, int ioret);
-void ccc_req_attr_set(const struct lu_env *env,const struct cl_req_slice *slice,
+void ccc_req_attr_set(const struct lu_env *env,
+		      const struct cl_req_slice *slice,
 		      const struct cl_object *obj,
-		      struct cl_req_attr *oa, obd_valid flags);
+		      struct cl_req_attr *oa, u64 flags);
 
 struct lu_device   *ccc2lu_dev      (struct ccc_device *vdv);
 struct lu_object   *ccc2lu	  (struct ccc_object *vob);
@@ -388,8 +384,8 @@ __u16 ll_dirent_type_get(struct lu_dirent *ent);
 __u64 cl_fid_build_ino(const struct lu_fid *fid, int api32);
 __u32 cl_fid_build_gen(const struct lu_fid *fid);
 
-# define CLOBINVRNT(env, clob, expr)				    \
-	((void)sizeof(env), (void)sizeof(clob), (void)sizeof !!(expr))
+# define CLOBINVRNT(env, clob, expr)					\
+	((void)sizeof(env), (void)sizeof(clob), (void)sizeof(!!(expr)))
 
 int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp);
 int cl_ocd_update(struct obd_device *host,

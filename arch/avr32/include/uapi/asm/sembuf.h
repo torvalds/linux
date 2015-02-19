@@ -1,5 +1,5 @@
-#ifndef __ASM_AVR32_SEMBUF_H
-#define __ASM_AVR32_SEMBUF_H
+#ifndef _UAPI__ASM_AVR32_SEMBUF_H
+#define _UAPI__ASM_AVR32_SEMBUF_H
 
 /*
 * The semid64_ds structure for AVR32 architecture.
@@ -22,4 +22,4 @@ struct semid64_ds {
         unsigned long   __unused4;
 };
 
-#endif /* __ASM_AVR32_SEMBUF_H */
+#endif /* _UAPI__ASM_AVR32_SEMBUF_H */

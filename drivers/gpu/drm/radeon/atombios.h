@@ -1711,7 +1711,9 @@ typedef struct _PIXEL_CLOCK_PARAMETERS_V6
 #define PIXEL_CLOCK_V6_MISC_HDMI_BPP_MASK           0x0c
 #define PIXEL_CLOCK_V6_MISC_HDMI_24BPP              0x00
 #define PIXEL_CLOCK_V6_MISC_HDMI_36BPP              0x04
+#define PIXEL_CLOCK_V6_MISC_HDMI_36BPP_V6           0x08    //for V6, the correct defintion for 36bpp should be 2 for 36bpp(2:1)
 #define PIXEL_CLOCK_V6_MISC_HDMI_30BPP              0x08
+#define PIXEL_CLOCK_V6_MISC_HDMI_30BPP_V6           0x04    //for V6, the correct defintion for 30bpp should be 1 for 36bpp(5:4)
 #define PIXEL_CLOCK_V6_MISC_HDMI_48BPP              0x0c
 #define PIXEL_CLOCK_V6_MISC_REF_DIV_SRC             0x10
 #define PIXEL_CLOCK_V6_MISC_GEN_DPREFCLK            0x40
@@ -2223,7 +2225,7 @@ typedef struct	_SET_VOLTAGE_PARAMETERS_V2
   USHORT   usVoltageLevel;              // real voltage level
 }SET_VOLTAGE_PARAMETERS_V2;
 
-
+// used by both SetVoltageTable v1.3 and v1.4
 typedef struct	_SET_VOLTAGE_PARAMETERS_V1_3
 {
   UCHAR    ucVoltageType;               // To tell which voltage to set up, VDDC/MVDDC/MVDDQ/VDDCI
@@ -2290,14 +2292,35 @@ typedef struct  _GET_LEAKAGE_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_1
 #define	ATOM_GET_VOLTAGE_VID                0x00
 #define ATOM_GET_VOTLAGE_INIT_SEQ           0x03
 #define ATOM_GET_VOLTTAGE_PHASE_PHASE_VID   0x04
-// for SI, this state map to 0xff02 voltage state in Power Play table, which is power boost state
-#define	ATOM_GET_VOLTAGE_STATE0_LEAKAGE_VID 0x10
+#define ATOM_GET_VOLTAGE_SVID2              0x07        //Get SVI2 Regulator Info
 
+// for SI, this state map to 0xff02 voltage state in Power Play table, which is power boost state
+#define ATOM_GET_VOLTAGE_STATE0_LEAKAGE_VID 0x10
 // for SI, this state map to 0xff01 voltage state in Power Play table, which is performance state
 #define	ATOM_GET_VOLTAGE_STATE1_LEAKAGE_VID 0x11
-// undefined power state
+
 #define	ATOM_GET_VOLTAGE_STATE2_LEAKAGE_VID 0x12
 #define	ATOM_GET_VOLTAGE_STATE3_LEAKAGE_VID 0x13
+
+// New Added from CI Hawaii for GetVoltageInfoTable, input parameter structure
+typedef struct  _GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2
+{
+  UCHAR    ucVoltageType;               // Input: To tell which voltage to set up, VDDC/MVDDC/MVDDQ/VDDCI
+  UCHAR    ucVoltageMode;               // Input: Indicate action: Get voltage info
+  USHORT   usVoltageLevel;              // Input: real voltage level in unit of mv or Voltage Phase (0, 1, 2, .. ) or Leakage Id 
+  ULONG    ulSCLKFreq;                  // Input: when ucVoltageMode= ATOM_GET_VOLTAGE_EVV_VOLTAGE, DPM state SCLK frequency, Define in PPTable SCLK/Voltage dependence table
+}GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2;
+
+// New in GetVoltageInfo v1.2 ucVoltageMode
+#define ATOM_GET_VOLTAGE_EVV_VOLTAGE        0x09        
+
+// New Added from CI Hawaii for EVV feature 
+typedef struct  _GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2
+{
+  USHORT   usVoltageLevel;                               // real voltage level in unit of mv
+  USHORT   usVoltageId;                                  // Voltage Id programmed in Voltage Regulator
+  ULONG    ulReseved;
+}GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2;
 
 /****************************************************************************/	
 // Structures used by TVEncoderControlTable
@@ -3864,6 +3887,8 @@ typedef struct _ATOM_GPIO_PIN_ASSIGNMENT
 #define PP_AC_DC_SWITCH_GPIO_PINID          60
 //from SMU7.x, if ucGPIO_ID=VDDC_REGULATOR_VRHOT_GPIO_PINID in GPIO_LUTable, VRHot feature is enable
 #define VDDC_VRHOT_GPIO_PINID               61
+//if ucGPIO_ID=VDDC_PCC_GPIO_PINID in GPIO_LUTable, Peak Current Control feature is enabled
+#define VDDC_PCC_GPIO_PINID                 62
 
 typedef struct _ATOM_GPIO_PIN_LUT
 {
@@ -4169,10 +4194,10 @@ typedef struct _ATOM_COMMON_RECORD_HEADER
 #define ATOM_OBJECT_LINK_RECORD_TYPE                   18 //Once this record is present under one object, it indicats the oobject is linked to another obj described by the record
 #define ATOM_CONNECTOR_REMOTE_CAP_RECORD_TYPE          19
 #define ATOM_ENCODER_CAP_RECORD_TYPE                   20
-
+#define ATOM_BRACKET_LAYOUT_RECORD_TYPE                21
 
 //Must be updated when new record type is added,equal to that record definition!
-#define ATOM_MAX_OBJECT_RECORD_NUMBER             ATOM_ENCODER_CAP_RECORD_TYPE
+#define ATOM_MAX_OBJECT_RECORD_NUMBER             ATOM_BRACKET_LAYOUT_RECORD_TYPE
 
 typedef struct  _ATOM_I2C_RECORD
 {
@@ -4397,6 +4422,31 @@ typedef struct _ATOM_CONNECTOR_REMOTE_CAP_RECORD
   USHORT                      usReserved;
 }ATOM_CONNECTOR_REMOTE_CAP_RECORD;
 
+typedef struct  _ATOM_CONNECTOR_LAYOUT_INFO
+{
+   USHORT usConnectorObjectId;
+   UCHAR  ucConnectorType;
+   UCHAR  ucPosition;
+}ATOM_CONNECTOR_LAYOUT_INFO;
+
+// define ATOM_CONNECTOR_LAYOUT_INFO.ucConnectorType to describe the display connector size
+#define CONNECTOR_TYPE_DVI_D                 1
+#define CONNECTOR_TYPE_DVI_I                 2
+#define CONNECTOR_TYPE_VGA                   3
+#define CONNECTOR_TYPE_HDMI                  4
+#define CONNECTOR_TYPE_DISPLAY_PORT          5
+#define CONNECTOR_TYPE_MINI_DISPLAY_PORT     6
+
+typedef struct  _ATOM_BRACKET_LAYOUT_RECORD
+{
+  ATOM_COMMON_RECORD_HEADER   sheader;
+  UCHAR                       ucLength;
+  UCHAR                       ucWidth;
+  UCHAR                       ucConnNum;
+  UCHAR                       ucReserved;
+  ATOM_CONNECTOR_LAYOUT_INFO  asConnInfo[1];
+}ATOM_BRACKET_LAYOUT_RECORD;
+
 /****************************************************************************/	
 // ASIC voltage data table
 /****************************************************************************/	
@@ -4524,8 +4574,9 @@ typedef struct _ATOM_VOLTAGE_OBJECT_HEADER_V3{
 #define VOLTAGE_OBJ_VR_I2C_INIT_SEQ          3        //VOLTAGE REGULATOR INIT sequece through I2C -> ATOM_I2C_VOLTAGE_OBJECT_V3
 #define VOLTAGE_OBJ_PHASE_LUT                4        //Set Vregulator Phase lookup table ->ATOM_GPIO_VOLTAGE_OBJECT_V3
 #define VOLTAGE_OBJ_SVID2                    7        //Indicate voltage control by SVID2 ->ATOM_SVID2_VOLTAGE_OBJECT_V3
-#define	VOLTAGE_OBJ_PWRBOOST_LEAKAGE_LUT     0x10     //Powerboost Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
-#define	VOLTAGE_OBJ_HIGH_STATE_LEAKAGE_LUT   0x11     //High voltage state Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
+#define VOLTAGE_OBJ_EVV                      8 
+#define VOLTAGE_OBJ_PWRBOOST_LEAKAGE_LUT     0x10     //Powerboost Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
+#define VOLTAGE_OBJ_HIGH_STATE_LEAKAGE_LUT   0x11     //High voltage state Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
 #define VOLTAGE_OBJ_HIGH1_STATE_LEAKAGE_LUT  0x12     //High1 voltage state Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
 
 typedef struct  _VOLTAGE_LUT_ENTRY_V2
@@ -4551,6 +4602,10 @@ typedef struct  _ATOM_I2C_VOLTAGE_OBJECT_V3
    ULONG    ulReserved;
    VOLTAGE_LUT_ENTRY asVolI2cLut[1];        // end with 0xff
 }ATOM_I2C_VOLTAGE_OBJECT_V3;
+
+// ATOM_I2C_VOLTAGE_OBJECT_V3.ucVoltageControlFlag
+#define VOLTAGE_DATA_ONE_BYTE                0
+#define VOLTAGE_DATA_TWO_BYTE                1
 
 typedef struct  _ATOM_GPIO_VOLTAGE_OBJECT_V3
 {
@@ -4584,7 +4639,8 @@ typedef struct  _ATOM_SVID2_VOLTAGE_OBJECT_V3
 // 1:0  offset trim, 
    USHORT   usLoadLine_PSI;    
 // GPU GPIO pin Id to SVID2 regulator VRHot pin. possible value 0~31. 0 means GPIO0, 31 means GPIO31
-   UCHAR    ucReserved[2];
+   UCHAR    ucSVDGpioId;     //0~31 indicate GPIO0~31
+   UCHAR    ucSVCGpioId;     //0~31 indicate GPIO0~31
    ULONG    ulReserved;
 }ATOM_SVID2_VOLTAGE_OBJECT_V3;
 
@@ -4636,6 +4692,49 @@ typedef struct  _ATOM_ASIC_PROFILING_INFO_V2_1
   USHORT usElbVDDCI_IdArrayOffset;       // offset of USHORT virtual VDDCI voltage id ( 0xff01~0xff08 )
   USHORT usElbVDDCI_LevelArrayOffset;    // offset of 2 dimension voltage level USHORT array
 }ATOM_ASIC_PROFILING_INFO_V2_1;
+
+typedef struct  _ATOM_ASIC_PROFILING_INFO_V3_1
+{
+  ATOM_COMMON_TABLE_HEADER         asHeader; 
+  ULONG  ulEvvDerateTdp;
+  ULONG  ulEvvDerateTdc;
+  ULONG  ulBoardCoreTemp;
+  ULONG  ulMaxVddc;
+  ULONG  ulMinVddc;
+  ULONG  ulLoadLineSlop;
+  ULONG  ulLeakageTemp;
+  ULONG  ulLeakageVoltage;
+  ULONG  ulCACmEncodeRange;
+  ULONG  ulCACmEncodeAverage;
+  ULONG  ulCACbEncodeRange;
+  ULONG  ulCACbEncodeAverage;
+  ULONG  ulKt_bEncodeRange;
+  ULONG  ulKt_bEncodeAverage;
+  ULONG  ulKv_mEncodeRange;
+  ULONG  ulKv_mEncodeAverage;
+  ULONG  ulKv_bEncodeRange;
+  ULONG  ulKv_bEncodeAverage;
+  ULONG  ulLkgEncodeLn_MaxDivMin;
+  ULONG  ulLkgEncodeMin;
+  ULONG  ulEfuseLogisticAlpha;
+  USHORT usPowerDpm0;
+  USHORT usCurrentDpm0;
+  USHORT usPowerDpm1;
+  USHORT usCurrentDpm1;
+  USHORT usPowerDpm2;
+  USHORT usCurrentDpm2;
+  USHORT usPowerDpm3;
+  USHORT usCurrentDpm3;
+  USHORT usPowerDpm4;
+  USHORT usCurrentDpm4;
+  USHORT usPowerDpm5;
+  USHORT usCurrentDpm5;
+  USHORT usPowerDpm6;
+  USHORT usCurrentDpm6;
+  USHORT usPowerDpm7;
+  USHORT usCurrentDpm7;
+}ATOM_ASIC_PROFILING_INFO_V3_1;
+
 
 typedef struct _ATOM_POWER_SOURCE_OBJECT
 {
@@ -5808,6 +5907,8 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S7_DOS_MODE_PIXEL_DEPTHb0      0x0C
 #define ATOM_S7_DOS_MODE_PIXEL_FORMATb0     0xF0
 #define ATOM_S7_DOS_8BIT_DAC_ENb1           0x01
+#define ATOM_S7_ASIC_INIT_COMPLETEb1        0x02
+#define ATOM_S7_ASIC_INIT_COMPLETE_MASK     0x00000200
 #define ATOM_S7_DOS_MODE_NUMBERw1           0x0FFFF
 
 #define ATOM_S7_DOS_8BIT_DAC_EN_SHIFT       8
@@ -6242,6 +6343,7 @@ typedef struct _ATOM_MC_INIT_PARAM_TABLE
 #define _128Mx32            0x53
 #define _256Mx8             0x61
 #define _256Mx16            0x62
+#define _512Mx8             0x71
 
 #define SAMSUNG             0x1
 #define INFINEON            0x2
@@ -6987,9 +7089,10 @@ typedef struct _ATOM_DISP_OUT_INFO_V3
   UCHAR  ucMaxDispEngineNum;
   UCHAR  ucMaxActiveDispEngineNum;
   UCHAR  ucMaxPPLLNum;
-  UCHAR  ucCoreRefClkSource;                          // value of CORE_REF_CLK_SOURCE
-  UCHAR  ucReserved[3];
-	ASIC_TRANSMITTER_INFO_V2  asTransmitterInfo[1];     // for alligment only
+  UCHAR  ucCoreRefClkSource;                    // value of CORE_REF_CLK_SOURCE
+  UCHAR  ucDispCaps;
+  UCHAR  ucReserved[2];
+  ASIC_TRANSMITTER_INFO_V2  asTransmitterInfo[1];     // for alligment only
 }ATOM_DISP_OUT_INFO_V3;
 
 //ucDispCaps
@@ -7661,618 +7764,6 @@ typedef struct  _ATOM_POWERPLAY_INFO_V3
   ATOM_POWERMODE_INFO_V3 asPowerPlayInfo[ATOM_MAX_NUMBEROF_POWER_BLOCK];
 }ATOM_POWERPLAY_INFO_V3;
 
-/* New PPlib */
-/**************************************************************************/
-typedef struct _ATOM_PPLIB_THERMALCONTROLLER
-
-{
-    UCHAR ucType;           // one of ATOM_PP_THERMALCONTROLLER_*
-    UCHAR ucI2cLine;        // as interpreted by DAL I2C
-    UCHAR ucI2cAddress;
-    UCHAR ucFanParameters;  // Fan Control Parameters.
-    UCHAR ucFanMinRPM;      // Fan Minimum RPM (hundreds) -- for display purposes only.
-    UCHAR ucFanMaxRPM;      // Fan Maximum RPM (hundreds) -- for display purposes only.
-    UCHAR ucReserved;       // ----
-    UCHAR ucFlags;          // to be defined
-} ATOM_PPLIB_THERMALCONTROLLER;
-
-#define ATOM_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK 0x0f
-#define ATOM_PP_FANPARAMETERS_NOFAN                                 0x80    // No fan is connected to this controller.
-
-#define ATOM_PP_THERMALCONTROLLER_NONE      0
-#define ATOM_PP_THERMALCONTROLLER_LM63      1  // Not used by PPLib
-#define ATOM_PP_THERMALCONTROLLER_ADM1032   2  // Not used by PPLib
-#define ATOM_PP_THERMALCONTROLLER_ADM1030   3  // Not used by PPLib
-#define ATOM_PP_THERMALCONTROLLER_MUA6649   4  // Not used by PPLib
-#define ATOM_PP_THERMALCONTROLLER_LM64      5
-#define ATOM_PP_THERMALCONTROLLER_F75375    6  // Not used by PPLib
-#define ATOM_PP_THERMALCONTROLLER_RV6xx     7
-#define ATOM_PP_THERMALCONTROLLER_RV770     8
-#define ATOM_PP_THERMALCONTROLLER_ADT7473   9
-#define ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO     11
-#define ATOM_PP_THERMALCONTROLLER_EVERGREEN 12
-#define ATOM_PP_THERMALCONTROLLER_EMC2103   13  /* 0x0D */ // Only fan control will be implemented, do NOT show this in PPGen.
-#define ATOM_PP_THERMALCONTROLLER_SUMO      14  /* 0x0E */ // Sumo type, used internally
-#define ATOM_PP_THERMALCONTROLLER_NISLANDS  15
-#define ATOM_PP_THERMALCONTROLLER_SISLANDS  16
-#define ATOM_PP_THERMALCONTROLLER_LM96163   17
-#define ATOM_PP_THERMALCONTROLLER_CISLANDS  18
-
-// Thermal controller 'combo type' to use an external controller for Fan control and an internal controller for thermal.
-// We probably should reserve the bit 0x80 for this use.
-// To keep the number of these types low we should also use the same code for all ASICs (i.e. do not distinguish RV6xx and RV7xx Internal here).
-// The driver can pick the correct internal controller based on the ASIC.
-
-#define ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL   0x89    // ADT7473 Fan Control + Internal Thermal Controller
-#define ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL   0x8D    // EMC2103 Fan Control + Internal Thermal Controller
-
-typedef struct _ATOM_PPLIB_STATE
-{
-    UCHAR ucNonClockStateIndex;
-    UCHAR ucClockStateIndices[1]; // variable-sized
-} ATOM_PPLIB_STATE;
-
-
-typedef struct _ATOM_PPLIB_FANTABLE
-{
-    UCHAR   ucFanTableFormat;                // Change this if the table format changes or version changes so that the other fields are not the same.
-    UCHAR   ucTHyst;                         // Temperature hysteresis. Integer.
-    USHORT  usTMin;                          // The temperature, in 0.01 centigrades, below which we just run at a minimal PWM.
-    USHORT  usTMed;                          // The middle temperature where we change slopes.
-    USHORT  usTHigh;                         // The high point above TMed for adjusting the second slope.
-    USHORT  usPWMMin;                        // The minimum PWM value in percent (0.01% increments).
-    USHORT  usPWMMed;                        // The PWM value (in percent) at TMed.
-    USHORT  usPWMHigh;                       // The PWM value at THigh.
-} ATOM_PPLIB_FANTABLE;
-
-typedef struct _ATOM_PPLIB_FANTABLE2
-{
-    ATOM_PPLIB_FANTABLE basicTable;
-    USHORT  usTMax;                          // The max temperature
-} ATOM_PPLIB_FANTABLE2;
-
-typedef struct _ATOM_PPLIB_EXTENDEDHEADER
-{
-    USHORT  usSize;
-    ULONG   ulMaxEngineClock;   // For Overdrive.
-    ULONG   ulMaxMemoryClock;   // For Overdrive.
-    // Add extra system parameters here, always adjust size to include all fields.
-    USHORT  usVCETableOffset; //points to ATOM_PPLIB_VCE_Table
-    USHORT  usUVDTableOffset;   //points to ATOM_PPLIB_UVD_Table
-    USHORT  usSAMUTableOffset;  //points to ATOM_PPLIB_SAMU_Table
-    USHORT  usPPMTableOffset;   //points to ATOM_PPLIB_PPM_Table
-} ATOM_PPLIB_EXTENDEDHEADER;
-
-//// ATOM_PPLIB_POWERPLAYTABLE::ulPlatformCaps
-#define ATOM_PP_PLATFORM_CAP_BACKBIAS 1
-#define ATOM_PP_PLATFORM_CAP_POWERPLAY 2
-#define ATOM_PP_PLATFORM_CAP_SBIOSPOWERSOURCE 4
-#define ATOM_PP_PLATFORM_CAP_ASPM_L0s 8
-#define ATOM_PP_PLATFORM_CAP_ASPM_L1 16
-#define ATOM_PP_PLATFORM_CAP_HARDWAREDC 32
-#define ATOM_PP_PLATFORM_CAP_GEMINIPRIMARY 64
-#define ATOM_PP_PLATFORM_CAP_STEPVDDC 128
-#define ATOM_PP_PLATFORM_CAP_VOLTAGECONTROL 256
-#define ATOM_PP_PLATFORM_CAP_SIDEPORTCONTROL 512
-#define ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1 1024
-#define ATOM_PP_PLATFORM_CAP_HTLINKCONTROL 2048
-#define ATOM_PP_PLATFORM_CAP_MVDDCONTROL 4096
-#define ATOM_PP_PLATFORM_CAP_GOTO_BOOT_ON_ALERT 0x2000              // Go to boot state on alerts, e.g. on an AC->DC transition.
-#define ATOM_PP_PLATFORM_CAP_DONT_WAIT_FOR_VBLANK_ON_ALERT 0x4000   // Do NOT wait for VBLANK during an alert (e.g. AC->DC transition).
-#define ATOM_PP_PLATFORM_CAP_VDDCI_CONTROL 0x8000                   // Does the driver control VDDCI independently from VDDC.
-#define ATOM_PP_PLATFORM_CAP_REGULATOR_HOT 0x00010000               // Enable the 'regulator hot' feature.
-#define ATOM_PP_PLATFORM_CAP_BACO          0x00020000               // Does the driver supports BACO state.
-#define ATOM_PP_PLATFORM_CAP_NEW_CAC_VOLTAGE   0x00040000           // Does the driver supports new CAC voltage table.
-#define ATOM_PP_PLATFORM_CAP_REVERT_GPIO5_POLARITY   0x00080000     // Does the driver supports revert GPIO5 polarity.
-#define ATOM_PP_PLATFORM_CAP_OUTPUT_THERMAL2GPIO17   0x00100000     // Does the driver supports thermal2GPIO17.
-#define ATOM_PP_PLATFORM_CAP_VRHOT_GPIO_CONFIGURABLE   0x00200000   // Does the driver supports VR HOT GPIO Configurable.
-
-typedef struct _ATOM_PPLIB_POWERPLAYTABLE
-{
-      ATOM_COMMON_TABLE_HEADER sHeader;
-
-      UCHAR ucDataRevision;
-
-      UCHAR ucNumStates;
-      UCHAR ucStateEntrySize;
-      UCHAR ucClockInfoSize;
-      UCHAR ucNonClockSize;
-
-      // offset from start of this table to array of ucNumStates ATOM_PPLIB_STATE structures
-      USHORT usStateArrayOffset;
-
-      // offset from start of this table to array of ASIC-specific structures,
-      // currently ATOM_PPLIB_CLOCK_INFO.
-      USHORT usClockInfoArrayOffset;
-
-      // offset from start of this table to array of ATOM_PPLIB_NONCLOCK_INFO
-      USHORT usNonClockInfoArrayOffset;
-
-      USHORT usBackbiasTime;    // in microseconds
-      USHORT usVoltageTime;     // in microseconds
-      USHORT usTableSize;       //the size of this structure, or the extended structure
-
-      ULONG ulPlatformCaps;            // See ATOM_PPLIB_CAPS_*
-
-      ATOM_PPLIB_THERMALCONTROLLER    sThermalController;
-
-      USHORT usBootClockInfoOffset;
-      USHORT usBootNonClockInfoOffset;
-
-} ATOM_PPLIB_POWERPLAYTABLE;
-
-typedef struct _ATOM_PPLIB_POWERPLAYTABLE2
-{
-    ATOM_PPLIB_POWERPLAYTABLE basicTable;
-    UCHAR   ucNumCustomThermalPolicy;
-    USHORT  usCustomThermalPolicyArrayOffset;
-}ATOM_PPLIB_POWERPLAYTABLE2, *LPATOM_PPLIB_POWERPLAYTABLE2;
-
-typedef struct _ATOM_PPLIB_POWERPLAYTABLE3
-{
-    ATOM_PPLIB_POWERPLAYTABLE2 basicTable2;
-    USHORT                     usFormatID;                      // To be used ONLY by PPGen.
-    USHORT                     usFanTableOffset;
-    USHORT                     usExtendendedHeaderOffset;
-} ATOM_PPLIB_POWERPLAYTABLE3, *LPATOM_PPLIB_POWERPLAYTABLE3;
-
-typedef struct _ATOM_PPLIB_POWERPLAYTABLE4
-{
-    ATOM_PPLIB_POWERPLAYTABLE3 basicTable3;
-    ULONG                      ulGoldenPPID;                    // PPGen use only     
-    ULONG                      ulGoldenRevision;                // PPGen use only
-    USHORT                     usVddcDependencyOnSCLKOffset;
-    USHORT                     usVddciDependencyOnMCLKOffset;
-    USHORT                     usVddcDependencyOnMCLKOffset;
-    USHORT                     usMaxClockVoltageOnDCOffset;
-    USHORT                     usVddcPhaseShedLimitsTableOffset;    // Points to ATOM_PPLIB_PhaseSheddingLimits_Table
-    USHORT                     usMvddDependencyOnMCLKOffset;  
-} ATOM_PPLIB_POWERPLAYTABLE4, *LPATOM_PPLIB_POWERPLAYTABLE4;
-
-typedef struct _ATOM_PPLIB_POWERPLAYTABLE5
-{
-    ATOM_PPLIB_POWERPLAYTABLE4 basicTable4;
-    ULONG                      ulTDPLimit;
-    ULONG                      ulNearTDPLimit;
-    ULONG                      ulSQRampingThreshold;
-    USHORT                     usCACLeakageTableOffset;         // Points to ATOM_PPLIB_CAC_Leakage_Table
-    ULONG                      ulCACLeakage;                    // The iLeakage for driver calculated CAC leakage table
-    USHORT                     usTDPODLimit;
-    USHORT                     usLoadLineSlope;                 // in milliOhms * 100
-} ATOM_PPLIB_POWERPLAYTABLE5, *LPATOM_PPLIB_POWERPLAYTABLE5;
-
-//// ATOM_PPLIB_NONCLOCK_INFO::usClassification
-#define ATOM_PPLIB_CLASSIFICATION_UI_MASK          0x0007
-#define ATOM_PPLIB_CLASSIFICATION_UI_SHIFT         0
-#define ATOM_PPLIB_CLASSIFICATION_UI_NONE          0
-#define ATOM_PPLIB_CLASSIFICATION_UI_BATTERY       1
-#define ATOM_PPLIB_CLASSIFICATION_UI_BALANCED      3
-#define ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE   5
-// 2, 4, 6, 7 are reserved
-
-#define ATOM_PPLIB_CLASSIFICATION_BOOT                   0x0008
-#define ATOM_PPLIB_CLASSIFICATION_THERMAL                0x0010
-#define ATOM_PPLIB_CLASSIFICATION_LIMITEDPOWERSOURCE     0x0020
-#define ATOM_PPLIB_CLASSIFICATION_REST                   0x0040
-#define ATOM_PPLIB_CLASSIFICATION_FORCED                 0x0080
-#define ATOM_PPLIB_CLASSIFICATION_3DPERFORMANCE          0x0100
-#define ATOM_PPLIB_CLASSIFICATION_OVERDRIVETEMPLATE      0x0200
-#define ATOM_PPLIB_CLASSIFICATION_UVDSTATE               0x0400
-#define ATOM_PPLIB_CLASSIFICATION_3DLOW                  0x0800
-#define ATOM_PPLIB_CLASSIFICATION_ACPI                   0x1000
-#define ATOM_PPLIB_CLASSIFICATION_HD2STATE               0x2000
-#define ATOM_PPLIB_CLASSIFICATION_HDSTATE                0x4000
-#define ATOM_PPLIB_CLASSIFICATION_SDSTATE                0x8000
-
-//// ATOM_PPLIB_NONCLOCK_INFO::usClassification2
-#define ATOM_PPLIB_CLASSIFICATION2_LIMITEDPOWERSOURCE_2     0x0001
-#define ATOM_PPLIB_CLASSIFICATION2_ULV                      0x0002
-#define ATOM_PPLIB_CLASSIFICATION2_MVC                      0x0004   //Multi-View Codec (BD-3D)
-
-//// ATOM_PPLIB_NONCLOCK_INFO::ulCapsAndSettings
-#define ATOM_PPLIB_SINGLE_DISPLAY_ONLY           0x00000001
-#define ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK         0x00000002
-
-// 0 is 2.5Gb/s, 1 is 5Gb/s
-#define ATOM_PPLIB_PCIE_LINK_SPEED_MASK            0x00000004
-#define ATOM_PPLIB_PCIE_LINK_SPEED_SHIFT           2
-
-// lanes - 1: 1, 2, 4, 8, 12, 16 permitted by PCIE spec
-#define ATOM_PPLIB_PCIE_LINK_WIDTH_MASK            0x000000F8
-#define ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT           3
-
-// lookup into reduced refresh-rate table
-#define ATOM_PPLIB_LIMITED_REFRESHRATE_VALUE_MASK  0x00000F00
-#define ATOM_PPLIB_LIMITED_REFRESHRATE_VALUE_SHIFT 8
-
-#define ATOM_PPLIB_LIMITED_REFRESHRATE_UNLIMITED    0
-#define ATOM_PPLIB_LIMITED_REFRESHRATE_50HZ         1
-// 2-15 TBD as needed.
-
-#define ATOM_PPLIB_SOFTWARE_DISABLE_LOADBALANCING        0x00001000
-#define ATOM_PPLIB_SOFTWARE_ENABLE_SLEEP_FOR_TIMESTAMPS  0x00002000
-
-#define ATOM_PPLIB_DISALLOW_ON_DC                       0x00004000
-
-#define ATOM_PPLIB_ENABLE_VARIBRIGHT                     0x00008000
-
-//memory related flags
-#define ATOM_PPLIB_SWSTATE_MEMORY_DLL_OFF               0x000010000
-
-//M3 Arb    //2bits, current 3 sets of parameters in total
-#define ATOM_PPLIB_M3ARB_MASK                       0x00060000
-#define ATOM_PPLIB_M3ARB_SHIFT                      17
-
-#define ATOM_PPLIB_ENABLE_DRR                       0x00080000
-
-// remaining 16 bits are reserved
-typedef struct _ATOM_PPLIB_THERMAL_STATE
-{
-    UCHAR   ucMinTemperature;
-    UCHAR   ucMaxTemperature;
-    UCHAR   ucThermalAction;
-}ATOM_PPLIB_THERMAL_STATE, *LPATOM_PPLIB_THERMAL_STATE;
-
-// Contained in an array starting at the offset
-// in ATOM_PPLIB_POWERPLAYTABLE::usNonClockInfoArrayOffset.
-// referenced from ATOM_PPLIB_STATE_INFO::ucNonClockStateIndex
-#define ATOM_PPLIB_NONCLOCKINFO_VER1      12
-#define ATOM_PPLIB_NONCLOCKINFO_VER2      24
-typedef struct _ATOM_PPLIB_NONCLOCK_INFO
-{
-      USHORT usClassification;
-      UCHAR  ucMinTemperature;
-      UCHAR  ucMaxTemperature;
-      ULONG  ulCapsAndSettings;
-      UCHAR  ucRequiredPower;
-      USHORT usClassification2;
-      ULONG  ulVCLK;
-      ULONG  ulDCLK;
-      UCHAR  ucUnused[5];
-} ATOM_PPLIB_NONCLOCK_INFO;
-
-// Contained in an array starting at the offset
-// in ATOM_PPLIB_POWERPLAYTABLE::usClockInfoArrayOffset.
-// referenced from ATOM_PPLIB_STATE::ucClockStateIndices
-typedef struct _ATOM_PPLIB_R600_CLOCK_INFO
-{
-      USHORT usEngineClockLow;
-      UCHAR ucEngineClockHigh;
-
-      USHORT usMemoryClockLow;
-      UCHAR ucMemoryClockHigh;
-
-      USHORT usVDDC;
-      USHORT usUnused1;
-      USHORT usUnused2;
-
-      ULONG ulFlags; // ATOM_PPLIB_R600_FLAGS_*
-
-} ATOM_PPLIB_R600_CLOCK_INFO;
-
-// ulFlags in ATOM_PPLIB_R600_CLOCK_INFO
-#define ATOM_PPLIB_R600_FLAGS_PCIEGEN2          1
-#define ATOM_PPLIB_R600_FLAGS_UVDSAFE           2
-#define ATOM_PPLIB_R600_FLAGS_BACKBIASENABLE    4
-#define ATOM_PPLIB_R600_FLAGS_MEMORY_ODT_OFF    8
-#define ATOM_PPLIB_R600_FLAGS_MEMORY_DLL_OFF   16
-#define ATOM_PPLIB_R600_FLAGS_LOWPOWER         32   // On the RV770 use 'low power' setting (sequencer S0).
-
-typedef struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO
-{
-      USHORT usEngineClockLow;
-      UCHAR  ucEngineClockHigh;
-
-      USHORT usMemoryClockLow;
-      UCHAR  ucMemoryClockHigh;
-
-      USHORT usVDDC;
-      USHORT usVDDCI;
-      USHORT usUnused;
-
-      ULONG ulFlags; // ATOM_PPLIB_R600_FLAGS_*
-
-} ATOM_PPLIB_EVERGREEN_CLOCK_INFO;
-
-typedef struct _ATOM_PPLIB_SI_CLOCK_INFO
-{
-      USHORT usEngineClockLow;
-      UCHAR  ucEngineClockHigh;
-
-      USHORT usMemoryClockLow;
-      UCHAR  ucMemoryClockHigh;
-
-      USHORT usVDDC;
-      USHORT usVDDCI;
-      UCHAR  ucPCIEGen;
-      UCHAR  ucUnused1;
-
-      ULONG ulFlags; // ATOM_PPLIB_SI_FLAGS_*, no flag is necessary for now
-
-} ATOM_PPLIB_SI_CLOCK_INFO;
-
-typedef struct _ATOM_PPLIB_CI_CLOCK_INFO
-{
-      USHORT usEngineClockLow;
-      UCHAR  ucEngineClockHigh;
-
-      USHORT usMemoryClockLow;
-      UCHAR  ucMemoryClockHigh;
-      
-      UCHAR  ucPCIEGen;
-      USHORT usPCIELane;
-} ATOM_PPLIB_CI_CLOCK_INFO;
-
-typedef struct _ATOM_PPLIB_RS780_CLOCK_INFO
-
-{
-      USHORT usLowEngineClockLow;         // Low Engine clock in MHz (the same way as on the R600).
-      UCHAR  ucLowEngineClockHigh;
-      USHORT usHighEngineClockLow;        // High Engine clock in MHz.
-      UCHAR  ucHighEngineClockHigh;
-      USHORT usMemoryClockLow;            // For now one of the ATOM_PPLIB_RS780_SPMCLK_XXXX constants.
-      UCHAR  ucMemoryClockHigh;           // Currentyl unused.
-      UCHAR  ucPadding;                   // For proper alignment and size.
-      USHORT usVDDC;                      // For the 780, use: None, Low, High, Variable
-      UCHAR  ucMaxHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}
-      UCHAR  ucMinHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}. Effective only if CDLW enabled. Minimum down stream width could be bigger as display BW requriement.
-      USHORT usHTLinkFreq;                // See definition ATOM_PPLIB_RS780_HTLINKFREQ_xxx or in MHz(>=200).
-      ULONG  ulFlags; 
-} ATOM_PPLIB_RS780_CLOCK_INFO;
-
-#define ATOM_PPLIB_RS780_VOLTAGE_NONE       0 
-#define ATOM_PPLIB_RS780_VOLTAGE_LOW        1 
-#define ATOM_PPLIB_RS780_VOLTAGE_HIGH       2 
-#define ATOM_PPLIB_RS780_VOLTAGE_VARIABLE   3 
-
-#define ATOM_PPLIB_RS780_SPMCLK_NONE        0   // We cannot change the side port memory clock, leave it as it is.
-#define ATOM_PPLIB_RS780_SPMCLK_LOW         1
-#define ATOM_PPLIB_RS780_SPMCLK_HIGH        2
-
-#define ATOM_PPLIB_RS780_HTLINKFREQ_NONE       0 
-#define ATOM_PPLIB_RS780_HTLINKFREQ_LOW        1 
-#define ATOM_PPLIB_RS780_HTLINKFREQ_HIGH       2 
-
-typedef struct _ATOM_PPLIB_SUMO_CLOCK_INFO{
-      USHORT usEngineClockLow;  //clockfrequency & 0xFFFF. The unit is in 10khz
-      UCHAR  ucEngineClockHigh; //clockfrequency >> 16. 
-      UCHAR  vddcIndex;         //2-bit vddc index;
-      USHORT tdpLimit;
-      //please initalize to 0
-      USHORT rsv1;
-      //please initialize to 0s
-      ULONG rsv2[2];
-}ATOM_PPLIB_SUMO_CLOCK_INFO;
-
-
-
-typedef struct _ATOM_PPLIB_STATE_V2
-{
-      //number of valid dpm levels in this state; Driver uses it to calculate the whole 
-      //size of the state: sizeof(ATOM_PPLIB_STATE_V2) + (ucNumDPMLevels - 1) * sizeof(UCHAR)
-      UCHAR ucNumDPMLevels;
-      
-      //a index to the array of nonClockInfos
-      UCHAR nonClockInfoIndex;
-      /**
-      * Driver will read the first ucNumDPMLevels in this array
-      */
-      UCHAR clockInfoIndex[1];
-} ATOM_PPLIB_STATE_V2;
-
-typedef struct _StateArray{
-    //how many states we have 
-    UCHAR ucNumEntries;
-    
-    ATOM_PPLIB_STATE_V2 states[1];
-}StateArray;
-
-
-typedef struct _ClockInfoArray{
-    //how many clock levels we have
-    UCHAR ucNumEntries;
-    
-    //sizeof(ATOM_PPLIB_CLOCK_INFO)
-    UCHAR ucEntrySize;
-    
-    UCHAR clockInfo[1];
-}ClockInfoArray;
-
-typedef struct _NonClockInfoArray{
-
-    //how many non-clock levels we have. normally should be same as number of states
-    UCHAR ucNumEntries;
-    //sizeof(ATOM_PPLIB_NONCLOCK_INFO)
-    UCHAR ucEntrySize;
-    
-    ATOM_PPLIB_NONCLOCK_INFO nonClockInfo[1];
-}NonClockInfoArray;
-
-typedef struct _ATOM_PPLIB_Clock_Voltage_Dependency_Record
-{
-    USHORT usClockLow;
-    UCHAR  ucClockHigh;
-    USHORT usVoltage;
-}ATOM_PPLIB_Clock_Voltage_Dependency_Record;
-
-typedef struct _ATOM_PPLIB_Clock_Voltage_Dependency_Table
-{
-    UCHAR ucNumEntries;                                                // Number of entries.
-    ATOM_PPLIB_Clock_Voltage_Dependency_Record entries[1];             // Dynamically allocate entries.
-}ATOM_PPLIB_Clock_Voltage_Dependency_Table;
-
-typedef struct _ATOM_PPLIB_Clock_Voltage_Limit_Record
-{
-    USHORT usSclkLow;
-    UCHAR  ucSclkHigh;
-    USHORT usMclkLow;
-    UCHAR  ucMclkHigh;
-    USHORT usVddc;
-    USHORT usVddci;
-}ATOM_PPLIB_Clock_Voltage_Limit_Record;
-
-typedef struct _ATOM_PPLIB_Clock_Voltage_Limit_Table
-{
-    UCHAR ucNumEntries;                                                // Number of entries.
-    ATOM_PPLIB_Clock_Voltage_Limit_Record entries[1];                  // Dynamically allocate entries.
-}ATOM_PPLIB_Clock_Voltage_Limit_Table;
-
-typedef struct _ATOM_PPLIB_CAC_Leakage_Record
-{
-    USHORT usVddc;  // We use this field for the "fake" standardized VDDC for power calculations; For CI and newer, we use this as the real VDDC value.
-    ULONG  ulLeakageValue;  // For CI and newer we use this as the "fake" standar VDDC value.
-}ATOM_PPLIB_CAC_Leakage_Record;
-
-typedef struct _ATOM_PPLIB_CAC_Leakage_Table
-{
-    UCHAR ucNumEntries;                                                 // Number of entries.
-    ATOM_PPLIB_CAC_Leakage_Record entries[1];                           // Dynamically allocate entries.
-}ATOM_PPLIB_CAC_Leakage_Table;
-
-typedef struct _ATOM_PPLIB_PhaseSheddingLimits_Record
-{
-    USHORT usVoltage;
-    USHORT usSclkLow;
-    UCHAR  ucSclkHigh;
-    USHORT usMclkLow;
-    UCHAR  ucMclkHigh;
-}ATOM_PPLIB_PhaseSheddingLimits_Record;
-
-typedef struct _ATOM_PPLIB_PhaseSheddingLimits_Table
-{
-    UCHAR ucNumEntries;                                                 // Number of entries.
-    ATOM_PPLIB_PhaseSheddingLimits_Record entries[1];                   // Dynamically allocate entries.
-}ATOM_PPLIB_PhaseSheddingLimits_Table;
-
-typedef struct _VCEClockInfo{
-    USHORT usEVClkLow;
-    UCHAR  ucEVClkHigh;
-    USHORT usECClkLow;
-    UCHAR  ucECClkHigh;
-}VCEClockInfo;
-
-typedef struct _VCEClockInfoArray{
-    UCHAR ucNumEntries;
-    VCEClockInfo entries[1];
-}VCEClockInfoArray;
-
-typedef struct _ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record
-{
-    USHORT usVoltage;
-    UCHAR  ucVCEClockInfoIndex;
-}ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record;
-
-typedef struct _ATOM_PPLIB_VCE_Clock_Voltage_Limit_Table
-{
-    UCHAR numEntries;
-    ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record entries[1];
-}ATOM_PPLIB_VCE_Clock_Voltage_Limit_Table;
-
-typedef struct _ATOM_PPLIB_VCE_State_Record
-{
-    UCHAR  ucVCEClockInfoIndex;
-    UCHAR  ucClockInfoIndex; //highest 2 bits indicates memory p-states, lower 6bits indicates index to ClockInfoArrary
-}ATOM_PPLIB_VCE_State_Record;
-
-typedef struct _ATOM_PPLIB_VCE_State_Table
-{
-    UCHAR numEntries;
-    ATOM_PPLIB_VCE_State_Record entries[1];
-}ATOM_PPLIB_VCE_State_Table;
-
-
-typedef struct _ATOM_PPLIB_VCE_Table
-{
-      UCHAR revid;
-//    VCEClockInfoArray array;
-//    ATOM_PPLIB_VCE_Clock_Voltage_Limit_Table limits;
-//    ATOM_PPLIB_VCE_State_Table states;
-}ATOM_PPLIB_VCE_Table;
-
-
-typedef struct _UVDClockInfo{
-    USHORT usVClkLow;
-    UCHAR  ucVClkHigh;
-    USHORT usDClkLow;
-    UCHAR  ucDClkHigh;
-}UVDClockInfo;
-
-typedef struct _UVDClockInfoArray{
-    UCHAR ucNumEntries;
-    UVDClockInfo entries[1];
-}UVDClockInfoArray;
-
-typedef struct _ATOM_PPLIB_UVD_Clock_Voltage_Limit_Record
-{
-    USHORT usVoltage;
-    UCHAR  ucUVDClockInfoIndex;
-}ATOM_PPLIB_UVD_Clock_Voltage_Limit_Record;
-
-typedef struct _ATOM_PPLIB_UVD_Clock_Voltage_Limit_Table
-{
-    UCHAR numEntries;
-    ATOM_PPLIB_UVD_Clock_Voltage_Limit_Record entries[1];
-}ATOM_PPLIB_UVD_Clock_Voltage_Limit_Table;
-
-typedef struct _ATOM_PPLIB_UVD_State_Record
-{
-    UCHAR  ucUVDClockInfoIndex;
-    UCHAR  ucClockInfoIndex; //highest 2 bits indicates memory p-states, lower 6bits indicates index to ClockInfoArrary
-}ATOM_PPLIB_UVD_State_Record;
-
-typedef struct _ATOM_PPLIB_UVD_State_Table
-{
-    UCHAR numEntries;
-    ATOM_PPLIB_UVD_State_Record entries[1];
-}ATOM_PPLIB_UVD_State_Table;
-
-
-typedef struct _ATOM_PPLIB_UVD_Table
-{
-      UCHAR revid;
-//    UVDClockInfoArray array;
-//    ATOM_PPLIB_UVD_Clock_Voltage_Limit_Table limits;
-//    ATOM_PPLIB_UVD_State_Table states;
-}ATOM_PPLIB_UVD_Table;
-
-
-typedef struct _ATOM_PPLIB_SAMClk_Voltage_Limit_Record
-{
-      USHORT usVoltage;
-      USHORT usSAMClockLow;
-      UCHAR  ucSAMClockHigh;
-}ATOM_PPLIB_SAMClk_Voltage_Limit_Record;
-
-typedef struct _ATOM_PPLIB_SAMClk_Voltage_Limit_Table{
-    UCHAR numEntries;
-    ATOM_PPLIB_SAMClk_Voltage_Limit_Record entries[1];
-}ATOM_PPLIB_SAMClk_Voltage_Limit_Table;
-
-typedef struct _ATOM_PPLIB_SAMU_Table
-{
-      UCHAR revid;
-      ATOM_PPLIB_SAMClk_Voltage_Limit_Table limits;
-}ATOM_PPLIB_SAMU_Table;
-
-#define ATOM_PPM_A_A    1
-#define ATOM_PPM_A_I    2
-typedef struct _ATOM_PPLIB_PPM_Table
-{
-      UCHAR  ucRevId;
-      UCHAR  ucPpmDesign;          //A+I or A+A
-      USHORT usCpuCoreNumber;
-      ULONG  ulPlatformTDP;
-      ULONG  ulSmallACPlatformTDP;
-      ULONG  ulPlatformTDC;
-      ULONG  ulSmallACPlatformTDC;
-      ULONG  ulApuTDP;
-      ULONG  ulDGpuTDP;  
-      ULONG  ulDGpuUlvPower;
-      ULONG  ulTjmax;
-} ATOM_PPLIB_PPM_Table;
-
-/**************************************************************************/
-
 
 // Following definitions are for compatibility issue in different SW components. 
 #define ATOM_MASTER_DATA_TABLE_REVISION   0x01
@@ -8485,3 +7976,6 @@ typedef struct {
 
 
 #endif /* _ATOMBIOS_H */
+
+#include "pptable.h"
+

@@ -290,21 +290,9 @@ static int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
 			SND_SOC_DAIFMT_GATED;
 	}
 
-	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0) {
-		dev_err(dev,
-			"%s: ERROR: snd_soc_dai_set_fmt failed for codec_dai (ret = %d)!\n",
-			__func__, ret);
+	ret = snd_soc_runtime_set_dai_fmt(rtd, fmt);
+	if (ret)
 		return ret;
-	}
-
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret < 0) {
-		dev_err(dev,
-			"%s: ERROR: snd_soc_dai_set_fmt failed for cpu_dai (ret = %d)!\n",
-			__func__, ret);
-		return ret;
-	}
 
 	/* Setup TDM-slots */
 
@@ -411,7 +399,7 @@ int mop500_ab8500_machine_init(struct snd_soc_pcm_runtime *rtd)
 	drvdata->mclk_sel = MCLK_ULPCLK;
 
 	/* Add controls */
-	ret = snd_soc_add_card_controls(codec->card, mop500_ab8500_ctrls,
+	ret = snd_soc_add_card_controls(rtd->card, mop500_ab8500_ctrls,
 			ARRAY_SIZE(mop500_ab8500_ctrls));
 	if (ret < 0) {
 		pr_err("%s: Failed to add machine-controls (%d)!\n",

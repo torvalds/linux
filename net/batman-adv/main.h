@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,21 +12,19 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_MAIN_H_
 #define _NET_BATMAN_ADV_MAIN_H_
 
-#define BATADV_DRIVER_AUTHOR "Marek Lindner <lindner_marek@yahoo.de>, " \
-			     "Simon Wunderlich <siwu@hrz.tu-chemnitz.de>"
+#define BATADV_DRIVER_AUTHOR "Marek Lindner <mareklindner@neomailbox.ch>, " \
+			     "Simon Wunderlich <sw@simonwunderlich.de>"
 #define BATADV_DRIVER_DESC   "B.A.T.M.A.N. advanced"
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2013.3.0"
+#define BATADV_SOURCE_VERSION "2015.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -72,6 +70,14 @@
 
 #define BATADV_NULL_IFINDEX 0 /* dummy ifindex used to avoid iface checks */
 
+#define BATADV_NO_MARK 0
+
+/* default interface for multi interface operation. The default interface is
+ * used for communication which originated locally (i.e. is not forwarded)
+ * or where special forwarding is not desired/necessary.
+ */
+#define BATADV_IF_DEFAULT	((struct batadv_hard_iface *)NULL)
+
 #define BATADV_NUM_WORDS BITS_TO_LONGS(BATADV_TQ_LOCAL_WINDOW_SIZE)
 
 #define BATADV_LOG_BUF_LEN 8192	  /* has to be a power of 2 */
@@ -86,7 +92,10 @@
 /* numbers of originator to contact for any PUT/GET DHT operation */
 #define BATADV_DAT_CANDIDATES_NUM 3
 
-#define BATADV_VIS_INTERVAL 5000	/* 5 seconds */
+/* BATADV_TQ_SIMILARITY_THRESHOLD - TQ points that a secondary metric can differ
+ * at most from the primary one in order to be still considered acceptable
+ */
+#define BATADV_TQ_SIMILARITY_THRESHOLD 50
 
 /* how much worse secondary interfaces may be to be considered as bonding
  * candidates
@@ -133,6 +142,15 @@ enum batadv_uev_type {
 
 #define BATADV_GW_THRESHOLD	50
 
+/* Number of fragment chains for each orig_node */
+#define BATADV_FRAG_BUFFER_COUNT 8
+/* Maximum number of fragments for one packet */
+#define BATADV_FRAG_MAX_FRAGMENTS 16
+/* Maxumim size of each fragment */
+#define BATADV_FRAG_MAX_FRAG_SIZE 1400
+/* Time to keep fragments while waiting for rest of the fragments */
+#define BATADV_FRAG_TIMEOUT 10000
+
 #define BATADV_DAT_CANDIDATE_NOT_FOUND	0
 #define BATADV_DAT_CANDIDATE_ORIG	1
 
@@ -157,18 +175,14 @@ enum batadv_uev_type {
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <net/sock.h>		/* struct sock */
+#include <net/addrconf.h>	/* ipv6 address stuff */
+#include <linux/ip.h>
 #include <net/rtnetlink.h>
 #include <linux/jiffies.h>
 #include <linux/seq_file.h>
-#include "types.h"
+#include <linux/if_vlan.h>
 
-/**
- * batadv_vlan_flags - flags for the four MSB of any vlan ID field
- * @BATADV_VLAN_HAS_TAG: whether the field contains a valid vlan tag or not
- */
-enum batadv_vlan_flags {
-	BATADV_VLAN_HAS_TAG	= BIT(15),
-};
+#include "types.h"
 
 #define BATADV_PRINT_VID(vid) (vid & BATADV_VLAN_HAS_TAG ? \
 			       (int)(vid & VLAN_VID_MASK) : -1)
@@ -184,6 +198,8 @@ void batadv_mesh_free(struct net_device *soft_iface);
 int batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr);
 struct batadv_hard_iface *
 batadv_seq_print_text_primary_if_get(struct seq_file *seq);
+int batadv_max_header_len(void);
+void batadv_skb_set_priority(struct sk_buff *skb, int offset);
 int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *ptype,
 			   struct net_device *orig_dev);
@@ -221,20 +237,28 @@ enum batadv_dbg_level {
 int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 __printf(2, 3);
 
-#define batadv_dbg(type, bat_priv, fmt, arg...)			\
+/* possibly ratelimited debug output */
+#define _batadv_dbg(type, bat_priv, ratelimited, fmt, arg...)	\
 	do {							\
-		if (atomic_read(&bat_priv->log_level) & type)	\
+		if (atomic_read(&bat_priv->log_level) & type && \
+		    (!ratelimited || net_ratelimit()))		\
 			batadv_debug_log(bat_priv, fmt, ## arg);\
 	}							\
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
-__printf(3, 4)
-static inline void batadv_dbg(int type __always_unused,
-			      struct batadv_priv *bat_priv __always_unused,
-			      const char *fmt __always_unused, ...)
+__printf(4, 5)
+static inline void _batadv_dbg(int type __always_unused,
+			       struct batadv_priv *bat_priv __always_unused,
+			       int ratelimited __always_unused,
+			       const char *fmt __always_unused, ...)
 {
 }
 #endif
+
+#define batadv_dbg(type, bat_priv, arg...) \
+	_batadv_dbg(type, bat_priv, 0, ## arg)
+#define batadv_dbg_ratelimited(type, bat_priv, arg...) \
+	_batadv_dbg(type, bat_priv, 1, ## arg)
 
 #define batadv_info(net_dev, fmt, arg...)				\
 	do {								\
@@ -253,11 +277,11 @@ static inline void batadv_dbg(int type __always_unused,
 
 /* returns 1 if they are the same ethernet addr
  *
- * note: can't use compare_ether_addr() as it requires aligned memory
+ * note: can't use ether_addr_equal() as it requires aligned memory
  */
 static inline int batadv_compare_eth(const void *data1, const void *data2)
 {
-	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+	return ether_addr_equal_unaligned(data1, data2);
 }
 
 /**
@@ -288,10 +312,10 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  *  - when adding 128 - it is neither a predecessor nor a successor,
  *  - after adding more than 127 to the starting value - it is a successor
  */
-#define batadv_seq_before(x, y) ({typeof(x) _d1 = (x); \
-				 typeof(y) _d2 = (y); \
-				 typeof(x) _dummy = (_d1 - _d2); \
-				 (void) (&_d1 == &_d2); \
+#define batadv_seq_before(x, y) ({typeof(x)_d1 = (x); \
+				 typeof(y)_d2 = (y); \
+				 typeof(x)_dummy = (_d1 - _d2); \
+				 (void)(&_d1 == &_d2); \
 				 _dummy > batadv_smallest_signed_int(_dummy); })
 #define batadv_seq_after(x, y) batadv_seq_before(y, x)
 
@@ -324,5 +348,42 @@ static inline uint64_t batadv_sum_counter(struct batadv_priv *bat_priv,
  * The macro is inspired by the similar macro TCP_SKB_CB() in tcp.h.
  */
 #define BATADV_SKB_CB(__skb)       ((struct batadv_skb_cb *)&((__skb)->cb[0]))
+
+void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
+				    uint8_t type, uint8_t version,
+				    void *tvlv_value, uint16_t tvlv_value_len);
+uint16_t batadv_tvlv_container_ogm_append(struct batadv_priv *bat_priv,
+					  unsigned char **packet_buff,
+					  int *packet_buff_len,
+					  int packet_min_len);
+void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
+			     struct batadv_ogm_packet *batadv_ogm_packet,
+			     struct batadv_orig_node *orig_node);
+void batadv_tvlv_container_unregister(struct batadv_priv *bat_priv,
+				      uint8_t type, uint8_t version);
+
+void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
+				  void (*optr)(struct batadv_priv *bat_priv,
+					       struct batadv_orig_node *orig,
+					       uint8_t flags,
+					       void *tvlv_value,
+					       uint16_t tvlv_value_len),
+				  int (*uptr)(struct batadv_priv *bat_priv,
+					      uint8_t *src, uint8_t *dst,
+					      void *tvlv_value,
+					      uint16_t tvlv_value_len),
+				  uint8_t type, uint8_t version, uint8_t flags);
+void batadv_tvlv_handler_unregister(struct batadv_priv *bat_priv,
+				    uint8_t type, uint8_t version);
+int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
+				   bool ogm_source,
+				   struct batadv_orig_node *orig_node,
+				   uint8_t *src, uint8_t *dst,
+				   void *tvlv_buff, uint16_t tvlv_buff_len);
+void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
+			      uint8_t *dst, uint8_t type, uint8_t version,
+			      void *tvlv_value, uint16_t tvlv_value_len);
+unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len);
+bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid);
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

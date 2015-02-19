@@ -15,13 +15,12 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65912.h>
 
-static struct mfd_cell tps65912s[] = {
+static const struct mfd_cell tps65912s[] = {
 	{
 		.name = "tps65912-pmic",
 	},
@@ -123,7 +122,7 @@ EXPORT_SYMBOL_GPL(tps65912_reg_write);
 
 int tps65912_device_init(struct tps65912 *tps65912)
 {
-	struct tps65912_board *pmic_plat_data = tps65912->dev->platform_data;
+	struct tps65912_board *pmic_plat_data = dev_get_platdata(tps65912->dev);
 	struct tps65912_platform_data *init_data;
 	int ret, dcdc_avs, value;
 

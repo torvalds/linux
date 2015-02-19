@@ -199,6 +199,7 @@ typedef union
 typedef struct
 {
 	__u32   fpc;
+	__u32	pad;
 	freg_t  fprs[NUM_FPRS];              
 } s390_fp_regs;
 
@@ -206,7 +207,6 @@ typedef struct
 #define FPC_FLAGS_MASK          0x00F80000
 #define FPC_DXC_MASK            0x0000FF00
 #define FPC_RM_MASK             0x00000003
-#define FPC_VALID_MASK          0xF8F8FF03
 
 /* this typedef defines how a Program Status Word looks like */
 typedef struct 
@@ -263,7 +263,7 @@ typedef struct
 #define PSW_MASK_EA		0x0000000100000000UL
 #define PSW_MASK_BA		0x0000000080000000UL
 
-#define PSW_MASK_USER		0x0000FF8180000000UL
+#define PSW_MASK_USER		0x0000FF0180000000UL
 
 #define PSW_ADDR_AMODE		0x0000000000000000UL
 #define PSW_ADDR_INSN		0xFFFFFFFFFFFFFFFFUL
@@ -401,6 +401,12 @@ typedef struct
 #define PTRACE_ENABLE_TE	      0x5009
 #define PTRACE_DISABLE_TE	      0x5010
 #define PTRACE_TE_ABORT_RAND	      0x5011
+
+/*
+ * The numbers chosen here are somewhat arbitrary but absolutely MUST
+ * not overlap with any of the number assigned in <linux/ptrace.h>.
+ */
+#define PTRACE_SINGLEBLOCK	12	/* resume execution until next branch */
 
 /*
  * PT_PROT definition is loosely based on hppa bsd definition in
