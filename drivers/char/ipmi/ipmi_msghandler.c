@@ -3959,6 +3959,10 @@ free_msg:
 
 	if (!run_to_completion)
 		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
+	/*
+	 * We can get an asynchronous event or receive message in addition
+	 * to commands we send.
+	 */
 	if (msg == intf->curr_msg)
 		intf->curr_msg = NULL;
 	if (!run_to_completion)
