@@ -199,10 +199,14 @@ int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 EXPORT_SYMBOL_GPL(sensor_hub_remove_callback);
 
 int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
-				u32 field_index, s32 value)
+			   u32 field_index, int buffer_size, void *buffer)
 {
 	struct hid_report *report;
 	struct sensor_hub_data *data = hid_get_drvdata(hsdev->hdev);
+	__s32 *buf32 = buffer;
+	int i = 0;
+	int remaining_bytes;
+	__s32 value;
 	int ret = 0;
 
 	mutex_lock(&data->mutex);
@@ -211,7 +215,21 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 		ret = -EINVAL;
 		goto done_proc;
 	}
-	hid_set_field(report->field[field_index], 0, value);
+
+	remaining_bytes = do_div(buffer_size, sizeof(__s32));
+	if (buffer_size) {
+		for (i = 0; i < buffer_size; ++i) {
+			hid_set_field(report->field[field_index], i,
+				      cpu_to_le32(*buf32));
+			++buf32;
+		}
+	}
+	if (remaining_bytes) {
+		value = 0;
+		memcpy(&value, (u8 *)buf32, remaining_bytes);
+		hid_set_field(report->field[field_index], i,
+			      cpu_to_le32(value));
+	}
 	hid_hw_request(hsdev->hdev, report, HID_REQ_SET_REPORT);
 	hid_hw_wait(hsdev->hdev);
 
