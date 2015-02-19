@@ -146,10 +146,8 @@ MYPROCTYPE *visor_proc_CreateType(struct proc_dir_entry *procDirRoot,
 		goto Away;
 	}
 	type = kzalloc(sizeof(MYPROCTYPE), GFP_KERNEL | __GFP_NORETRY);
-	if (type == NULL) {
-		ERRDRV("out of memory\n");
+	if (type == NULL)
 		goto Away;
-	}
 	type->name = name;
 	type->propertyNames = propertyNames;
 	type->nProperties = 0;
@@ -164,10 +162,8 @@ MYPROCTYPE *visor_proc_CreateType(struct proc_dir_entry *procDirRoot,
 	type->procDirs = kzalloc((type->nNames + 1) *
 				 sizeof(struct proc_dir_entry *),
 				 GFP_KERNEL | __GFP_NORETRY);
-	if (type->procDirs == NULL) {
-		ERRDRV("out of memory\n");
+	if (type->procDirs == NULL)
 		goto Away;
-	}
 	parent = procDirRoot;
 	for (i = 0; i < type->nNames; i++) {
 		type->procDirs[i] = createProcDir(type->name[i], parent);
@@ -231,10 +227,8 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 		goto Away;
 	}
 	obj = kzalloc(sizeof(MYPROCOBJECT), GFP_KERNEL | __GFP_NORETRY);
-	if (obj == NULL) {
-		ERRDRV("out of memory\n");
+	if (obj == NULL)
 		goto Away;
-	}
 	obj->type = type;
 	obj->context = context;
 	if (name == NULL) {
@@ -245,7 +239,6 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 		obj->name = kmalloc(obj->namesize, GFP_KERNEL | __GFP_NORETRY);
 		if (obj->name == NULL) {
 			obj->namesize = 0;
-			ERRDRV("out of memory\n");
 			goto Away;
 		}
 		strcpy(obj->name, name);
@@ -257,17 +250,13 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 		kzalloc((type->nProperties + 1) *
 			sizeof(struct proc_dir_entry_context),
 			GFP_KERNEL | __GFP_NORETRY);
-	if (obj->procDirPropertyContexts == NULL) {
-		ERRDRV("out of memory\n");
+	if (obj->procDirPropertyContexts == NULL)
 		goto Away;
-	}
 	obj->procDirProperties = kzalloc((type->nProperties + 1) *
 					 sizeof(struct proc_dir_entry *),
 					 GFP_KERNEL | __GFP_NORETRY);
-	if (obj->procDirProperties == NULL) {
-		ERRDRV("out of memory\n");
+	if (obj->procDirProperties == NULL)
 		goto Away;
-	}
 	for (i = 0; i < type->nProperties; i++) {
 		obj->procDirPropertyContexts[i].procObject = obj;
 		obj->procDirPropertyContexts[i].propertyIndex = i;

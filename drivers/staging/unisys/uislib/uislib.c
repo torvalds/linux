@@ -172,7 +172,6 @@ create_bus(struct controlvm_message *msg, char *buf)
 	    (dev_count * sizeof(struct device_info *));
 	bus = kzalloc(size, GFP_ATOMIC);
 	if (!bus) {
-		LOGERR("CONTROLVM_BUS_CREATE Failed: kmalloc for bus failed.\n");
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		return CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
@@ -357,7 +356,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 
 	dev = kzalloc(sizeof(*dev), GFP_ATOMIC);
 	if (!dev) {
-		LOGERR("CONTROLVM_DEVICE_CREATE Failed: kmalloc for dev failed.\n");
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		return CONTROLVM_RESP_ERROR_KMALLOC_FAILED;

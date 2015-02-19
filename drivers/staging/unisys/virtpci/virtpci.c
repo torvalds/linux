@@ -931,7 +931,6 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	/* add a Virtual Device */
 	virtpcidev = kzalloc(sizeof(*virtpcidev), GFP_ATOMIC);
 	if (virtpcidev == NULL) {
-		LOGERR("can't add device - malloc FALLED\n");
 		POSTCODE_LINUX_2(MALLOC_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 		return 0;
 	}

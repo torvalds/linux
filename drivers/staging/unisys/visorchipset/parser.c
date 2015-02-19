@@ -69,8 +69,6 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 	}
 	ctx = kzalloc(allocbytes, GFP_KERNEL|__GFP_NORETRY);
 	if (ctx == NULL) {
-		ERRDRV("%s (%s:%d) - failed to allocate %d bytes",
-		       __func__, __FILE__, __LINE__, allocbytes);
 		if (tryAgain)
 			*tryAgain = TRUE;
 		rc = NULL;

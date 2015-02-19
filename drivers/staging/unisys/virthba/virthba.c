@@ -695,10 +695,8 @@ forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 	}
 
 	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-	if (cmdrsp == NULL) {
-		LOGERR("kmalloc of cmdrsp failed.\n");
-		return FAILED;	/* reject */
-	}
+	if (cmdrsp == NULL)
+		return FAILED;  /* reject */
 
 	init_waitqueue_head(&notifyevent);
 
@@ -758,10 +756,8 @@ forward_taskmgmt_command(enum task_mgmt_types tasktype,
 	}
 
 	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-	if (cmdrsp == NULL) {
-		LOGERR("kmalloc of cmdrsp failed.\n");
-		return FAILED;	/* reject */
-	}
+	if (cmdrsp == NULL)
+		return FAILED;  /* reject */
 
 	init_waitqueue_head(&notifyevent);
 
@@ -929,10 +925,8 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	}
 
 	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-	if (cmdrsp == NULL) {
-		LOGERR("kmalloc of cmdrsp failed.\n");
+	if (cmdrsp == NULL)
 		return 1;	/* reject the command */
-	}
 
 	/* now saving everything we need from scsi_cmd into cmdrsp
 	 * before we queue cmdrsp set type to command - as opposed to
@@ -1064,10 +1058,8 @@ virthba_slave_alloc(struct scsi_device *scsidev)
 			return 0;
 	}
 	tmpvdisk = kzalloc(sizeof(*tmpvdisk), GFP_ATOMIC);
-	if (!tmpvdisk) {	/* error allocating */
-		LOGERR("Could not allocate memory for disk\n");
+	if (!tmpvdisk)
 		return 0;
-	}
 
 	tmpvdisk->channel = scsidev->channel;
 	tmpvdisk->id = scsidev->id;
@@ -1342,7 +1334,6 @@ process_incoming_rsps(void *v)
 	/* alloc once and reuse */
 	cmdrsp = kmalloc(SZ, GFP_ATOMIC);
 	if (cmdrsp == NULL) {
-		LOGERR("process_incoming_rsps ****FAILED to malloc - thread exiting\n");
 		complete_and_exit(&dc->threadinfo.has_stopped, 0);
 		return 0;
 	}

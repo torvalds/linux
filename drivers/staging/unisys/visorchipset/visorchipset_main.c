@@ -1113,8 +1113,6 @@ bus_create(struct controlvm_message *inmsg)
 	}
 	pBusInfo = kzalloc(sizeof(struct visorchipset_bus_info), GFP_KERNEL);
 	if (pBusInfo == NULL) {
-		LOGERR("CONTROLVM_BUS_CREATE Failed: bus %lu kzalloc failed",
-		       busNo);
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
@@ -1263,8 +1261,6 @@ my_device_create(struct controlvm_message *inmsg)
 	}
 	pDevInfo = kzalloc(sizeof(struct visorchipset_device_info), GFP_KERNEL);
 	if (pDevInfo == NULL) {
-		LOGERR("CONTROLVM_DEVICE_CREATE Failed: busNo=%lu, devNo=%lu kmaloc failed",
-		     busNo, devNo);
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;

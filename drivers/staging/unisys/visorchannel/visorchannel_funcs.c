@@ -59,7 +59,6 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 
 	p = kmalloc(sizeof(*p), GFP_KERNEL|__GFP_NORETRY);
 	if (p == NULL) {
-		ERRDRV("allocation failed: (status=0)\n");
 		rc = NULL;
 		goto cleanup;
 	}
