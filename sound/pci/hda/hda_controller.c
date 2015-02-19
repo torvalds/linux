@@ -1829,13 +1829,11 @@ static struct hda_bus_ops bus_ops = {
 #endif
 };
 
-/* Codec initialization */
-int azx_codec_create(struct azx *chip, const char *model,
-		     unsigned int max_slots,
-		     int *power_save_to)
+/* HD-audio bus initialization */
+int azx_bus_create(struct azx *chip, const char *model, int *power_save_to)
 {
 	struct hda_bus *bus;
-	int c, codecs, err;
+	int err;
 
 	err = snd_hda_bus_new(chip->card, &bus);
 	if (err < 0)
@@ -1854,6 +1852,26 @@ int azx_codec_create(struct azx *chip, const char *model,
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
 		bus->needs_damn_long_delay = 1;
 	}
+
+	/* AMD chipsets often cause the communication stalls upon certain
+	 * sequence like the pin-detection.  It seems that forcing the synced
+	 * access works around the stall.  Grrr...
+	 */
+	if (chip->driver_caps & AZX_DCAPS_SYNC_WRITE) {
+		dev_dbg(chip->card->dev, "Enable sync_write for stable communication\n");
+		bus->sync_write = 1;
+		bus->allow_bus_reset = 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(azx_bus_create);
+
+/* Probe codecs */
+int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
+{
+	struct hda_bus *bus = chip->bus;
+	int c, codecs, err;
 
 	codecs = 0;
 	if (!max_slots)
@@ -1882,16 +1900,6 @@ int azx_codec_create(struct azx *chip, const char *model,
 		}
 	}
 
-	/* AMD chipsets often cause the communication stalls upon certain
-	 * sequence like the pin-detection.  It seems that forcing the synced
-	 * access works around the stall.  Grrr...
-	 */
-	if (chip->driver_caps & AZX_DCAPS_SYNC_WRITE) {
-		dev_dbg(chip->card->dev, "Enable sync_write for stable communication\n");
-		bus->sync_write = 1;
-		bus->allow_bus_reset = 1;
-	}
-
 	/* Then create codec instances */
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
@@ -1910,7 +1918,7 @@ int azx_codec_create(struct azx *chip, const char *model,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(azx_codec_create);
+EXPORT_SYMBOL_GPL(azx_probe_codecs);
 
 /* configure each codec instance */
 int azx_codec_configure(struct azx *chip)

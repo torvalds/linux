@@ -1893,12 +1893,14 @@ static int azx_probe_continue(struct azx *chip)
 #endif
 
 	/* create codec instances */
-	err = azx_codec_create(chip, model[dev],
-			       azx_max_codecs[chip->driver_type],
-			       power_save_addr);
-
+	err = azx_bus_create(chip, model[dev], power_save_addr);
 	if (err < 0)
 		goto out_free;
+
+	err = azx_probe_codecs(chip, azx_max_codecs[chip->driver_type]);
+	if (err < 0)
+		goto out_free;
+
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	if (chip->fw) {
 		err = snd_hda_load_patch(chip->bus, chip->fw->size,

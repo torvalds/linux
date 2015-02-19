@@ -502,7 +502,11 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	/* create codec instances */
-	err = azx_codec_create(chip, NULL, 0, &power_save);
+	err = azx_bus_create(chip, NULL, &power_save);
+	if (err < 0)
+		goto out_free;
+
+	err = azx_probe_codecs(chip, 0);
 	if (err < 0)
 		goto out_free;
 
