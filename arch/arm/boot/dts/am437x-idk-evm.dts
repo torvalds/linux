@@ -240,7 +240,7 @@
 	status = "okay";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c0_pins_default>;
-	pinctrl-1 = <&i2c0_pins_default>;
+	pinctrl-1 = <&i2c0_pins_sleep>;
 	clock-frequency = <400000>;
 
 	at24@50 {
