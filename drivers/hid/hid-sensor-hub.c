@@ -250,48 +250,53 @@ EXPORT_SYMBOL_GPL(sensor_hub_get_feature);
 
 int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
-					u32 attr_usage_id, u32 report_id)
+					u32 attr_usage_id, u32 report_id,
+					enum sensor_hub_read_flags flag)
 {
 	struct sensor_hub_data *data = hid_get_drvdata(hsdev->hdev);
 	unsigned long flags;
 	struct hid_report *report;
 	int ret_val = 0;
 
-	mutex_lock(&hsdev->mutex);
-	memset(&hsdev->pending, 0, sizeof(hsdev->pending));
-	init_completion(&hsdev->pending.ready);
-	hsdev->pending.usage_id = usage_id;
-	hsdev->pending.attr_usage_id = attr_usage_id;
-	hsdev->pending.raw_size = 0;
-
-	spin_lock_irqsave(&data->lock, flags);
-	hsdev->pending.status = true;
-	spin_unlock_irqrestore(&data->lock, flags);
-	report = sensor_hub_report(report_id, hsdev->hdev, HID_INPUT_REPORT);
+	report = sensor_hub_report(report_id, hsdev->hdev,
+				   HID_INPUT_REPORT);
 	if (!report)
-		goto err_free;
+		return -EINVAL;
 
+	mutex_lock(&hsdev->mutex);
+	if (flag == SENSOR_HUB_SYNC) {
+		memset(&hsdev->pending, 0, sizeof(hsdev->pending));
+		init_completion(&hsdev->pending.ready);
+		hsdev->pending.usage_id = usage_id;
+		hsdev->pending.attr_usage_id = attr_usage_id;
+		hsdev->pending.raw_size = 0;
+
+		spin_lock_irqsave(&data->lock, flags);
+		hsdev->pending.status = true;
+		spin_unlock_irqrestore(&data->lock, flags);
+	}
 	mutex_lock(&data->mutex);
 	hid_hw_request(hsdev->hdev, report, HID_REQ_GET_REPORT);
 	mutex_unlock(&data->mutex);
-	wait_for_completion_interruptible_timeout(&hsdev->pending.ready, HZ*5);
-	switch (hsdev->pending.raw_size) {
-	case 1:
-		ret_val = *(u8 *)hsdev->pending.raw_data;
-		break;
-	case 2:
-		ret_val = *(u16 *)hsdev->pending.raw_data;
-		break;
-	case 4:
-		ret_val = *(u32 *)hsdev->pending.raw_data;
-		break;
-	default:
-		ret_val = 0;
+	if (flag == SENSOR_HUB_SYNC) {
+		wait_for_completion_interruptible_timeout(
+						&hsdev->pending.ready, HZ*5);
+		switch (hsdev->pending.raw_size) {
+		case 1:
+			ret_val = *(u8 *)hsdev->pending.raw_data;
+			break;
+		case 2:
+			ret_val = *(u16 *)hsdev->pending.raw_data;
+			break;
+		case 4:
+			ret_val = *(u32 *)hsdev->pending.raw_data;
+			break;
+		default:
+			ret_val = 0;
+		}
+		kfree(hsdev->pending.raw_data);
+		hsdev->pending.status = false;
 	}
-	kfree(hsdev->pending.raw_data);
-
-err_free:
-	hsdev->pending.status = false;
 	mutex_unlock(&hsdev->mutex);
 
 	return ret_val;
