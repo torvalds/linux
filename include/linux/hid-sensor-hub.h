@@ -47,19 +47,43 @@ struct hid_sensor_hub_attribute_info {
 };
 
 /**
+ * struct sensor_hub_pending - Synchronous read pending information
+ * @status:		Pending status true/false.
+ * @ready:		Completion synchronization data.
+ * @usage_id:		Usage id for physical device, E.g. Gyro usage id.
+ * @attr_usage_id:	Usage Id of a field, E.g. X-AXIS for a gyro.
+ * @raw_size:		Response size for a read request.
+ * @raw_data:		Place holder for received response.
+ */
+struct sensor_hub_pending {
+	bool status;
+	struct completion ready;
+	u32 usage_id;
+	u32 attr_usage_id;
+	int raw_size;
+	u8  *raw_data;
+};
+
+/**
  * struct hid_sensor_hub_device - Stores the hub instance data
  * @hdev:		Stores the hid instance.
  * @vendor_id:		Vendor id of hub device.
  * @product_id:		Product id of hub device.
+ * @usage:		Usage id for this hub device instance.
  * @start_collection_index: Starting index for a phy type collection
  * @end_collection_index: Last index for a phy type collection
+ * @mutex:		synchronizing mutex.
+ * @pending:		Holds information of pending sync read request.
  */
 struct hid_sensor_hub_device {
 	struct hid_device *hdev;
 	u32 vendor_id;
 	u32 product_id;
+	u32 usage;
 	int start_collection_index;
 	int end_collection_index;
+	struct mutex mutex;
+	struct sensor_hub_pending pending;
 };
 
 /**
