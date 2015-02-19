@@ -2010,10 +2010,8 @@ static void init_scan_timer(void)
 	if (scan_timer.function != NULL)
 		return;		/* already started */
 
-	init_timer(&scan_timer);
+	setup_timer(&scan_timer, (void *)&panel_scan_timer, 0);
 	scan_timer.expires = jiffies + INPUT_POLL_TIME;
-	scan_timer.data = 0;
-	scan_timer.function = (void *)&panel_scan_timer;
 	add_timer(&scan_timer);
 }
 
