@@ -875,7 +875,7 @@ rcu_torture_writer(void *arg)
 		 torture_type);
 
 	/* Initialize synctype[] array.  If none set, take default. */
-	if (!gp_cond1 && !gp_exp1 && !gp_normal1 && !gp_sync)
+	if (!gp_cond1 && !gp_exp1 && !gp_normal1 && !gp_sync1)
 		gp_cond1 = gp_exp1 = gp_normal1 = gp_sync1 = true;
 	if (gp_cond1 && cur_ops->get_state && cur_ops->cond_sync)
 		synctype[nsynctypes++] = RTWS_COND_GET;
