@@ -49,7 +49,6 @@
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 #define ADMIN_TIMEOUT		(admin_timeout * HZ)
 #define SHUTDOWN_TIMEOUT	(shutdown_timeout * HZ)
-#define IOD_TIMEOUT		(retry_time * HZ)
 
 static unsigned char admin_timeout = 60;
 module_param(admin_timeout, byte, 0644);
@@ -58,10 +57,6 @@ MODULE_PARM_DESC(admin_timeout, "timeout in seconds for admin commands");
 unsigned char nvme_io_timeout = 30;
 module_param_named(io_timeout, nvme_io_timeout, byte, 0644);
 MODULE_PARM_DESC(io_timeout, "timeout in seconds for I/O");
-
-static unsigned char retry_time = 30;
-module_param(retry_time, byte, 0644);
-MODULE_PARM_DESC(retry_time, "time in seconds to retry failed I/O");
 
 static unsigned char shutdown_timeout = 5;
 module_param(shutdown_timeout, byte, 0644);
@@ -81,7 +76,6 @@ static LIST_HEAD(dev_list);
 static struct task_struct *nvme_thread;
 static struct workqueue_struct *nvme_workq;
 static wait_queue_head_t nvme_kthread_wait;
-static struct notifier_block nvme_nb;
 
 static struct class *nvme_class;
 
@@ -102,7 +96,6 @@ struct async_cmd_info {
  * commands and one for I/O commands).
  */
 struct nvme_queue {
-	struct llist_node node;
 	struct device *q_dmadev;
 	struct nvme_dev *dev;
 	char irqname[24];	/* nvme4294967295-65535\0 */
@@ -3203,7 +3196,6 @@ static int __init nvme_init(void)
 static void __exit nvme_exit(void)
 {
 	pci_unregister_driver(&nvme_driver);
-	unregister_hotcpu_notifier(&nvme_nb);
 	unregister_blkdev(nvme_major, "nvme");
 	destroy_workqueue(nvme_workq);
 	class_destroy(nvme_class);
