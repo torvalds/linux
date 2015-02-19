@@ -63,7 +63,7 @@ static inline void set_fs(mm_segment_t fs)
 	current_thread_info()->addr_limit = fs;
 }
 
-#define segment_eq(a,b)	((a) == (b))
+#define segment_eq(a, b)	((a) == (b))
 
 /*
  * Return 1 if addr < current->addr_limit, 0 otherwise.
@@ -147,7 +147,7 @@ do {									\
 	default:							\
 		BUILD_BUG();						\
 	}								\
-	(x) = (__typeof__(*(ptr)))__gu_val;				\
+	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 } while (0)
 
 #define __get_user(x, ptr)						\
