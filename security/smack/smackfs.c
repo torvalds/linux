@@ -2395,7 +2395,7 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 		return rc;
 	}
 
-	root_inode = sb->s_root->d_inode;
+	root_inode = d_inode(sb->s_root);
 
 	return 0;
 }
