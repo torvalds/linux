@@ -524,15 +524,16 @@ more details, with real examples.
 	Example:
 		#arch/x86/Makefile
 		cflags-y += $(shell \
-		if [ $(call cc-version) -ge 0300 ] ; then \
+		if [ $(cc-version) -ge 0300 ] ; then \
 			echo "-mregparm=3"; fi ;)
 
 	In the above example, -mregparm=3 is only used for gcc version greater
 	than or equal to gcc 3.0.
 
     cc-ifversion
-	cc-ifversion tests the version of $(CC) and equals last argument if
-	version expression is true.
+	cc-ifversion tests the version of $(CC) and equals the fourth parameter
+	if version expression is true, or the fifth (if given) if the version
+	expression is false.
 
 	Example:
 		#fs/reiserfs/Makefile
@@ -552,7 +553,7 @@ more details, with real examples.
 
 	Example:
 		#arch/powerpc/Makefile
-		$(Q)if test "$(call cc-fullversion)" = "040200" ; then \
+		$(Q)if test "$(cc-fullversion)" = "040200" ; then \
 			echo -n '*** GCC-4.2.0 cannot compile the 64-bit powerpc ' ; \
 			false ; \
 		fi
