@@ -29,24 +29,24 @@ static int init_display(struct fbtft_par *par)
 
 	write_reg(par, 0xae); /* Display Off */
 	write_reg(par, 0xa0, 0x70 | (par->bgr << 2)); /* Set Colour Depth */
-	write_reg(par, 0x72); // RGB colour
+	write_reg(par, 0x72); /* RGB colour */
 	write_reg(par, 0xa1, 0x00); /* Set Display Start Line */
 	write_reg(par, 0xa2, 0x00); /* Set Display Offset */
 	write_reg(par, 0xa4); /* NORMALDISPLAY */
-	write_reg(par, 0xa8, 0x3f); // Set multiplex
-	write_reg(par, 0xad, 0x8e); // Set master
-	// write_reg(par, 0xb0, 0x0b); // Set power mode
-	write_reg(par, 0xb1, 0x31); // Precharge
-	write_reg(par, 0xb3, 0xf0); // Clock div
-	write_reg(par, 0x8a, 0x64); // Precharge A
-	write_reg(par, 0x8b, 0x78); // Precharge B
-	write_reg(par, 0x8c, 0x64); // Precharge C
-	write_reg(par, 0xbb, 0x3a); // Precharge level
-	write_reg(par, 0xbe, 0x3e); // vcomh
-	write_reg(par, 0x87, 0x06); // Master current
-	write_reg(par, 0x81, 0x91); // Contrast A
-	write_reg(par, 0x82, 0x50); // Contrast B
-	write_reg(par, 0x83, 0x7d); // Contrast C
+	write_reg(par, 0xa8, 0x3f); /* Set multiplex */
+	write_reg(par, 0xad, 0x8e); /* Set master */
+	/* write_reg(par, 0xb0, 0x0b);  Set power mode */
+	write_reg(par, 0xb1, 0x31); /* Precharge */
+	write_reg(par, 0xb3, 0xf0); /* Clock div */
+	write_reg(par, 0x8a, 0x64); /* Precharge A */
+	write_reg(par, 0x8b, 0x78); /* Precharge B */
+	write_reg(par, 0x8c, 0x64); /* Precharge C */
+	write_reg(par, 0xbb, 0x3a); /* Precharge level */
+	write_reg(par, 0xbe, 0x3e); /* vcomh */
+	write_reg(par, 0x87, 0x06); /* Master current */
+	write_reg(par, 0x81, 0x91); /* Contrast A */
+	write_reg(par, 0x82, 0x50); /* Contrast B */
+	write_reg(par, 0x83, 0x7d); /* Contrast C */
 	write_reg(par, 0xaf); /* Set Sleep Mode Display On */
 
 	return 0;
