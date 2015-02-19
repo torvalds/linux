@@ -285,9 +285,7 @@ static int dgnc_start(void)
 
 	/* Start the poller */
 	spin_lock_irqsave(&dgnc_poll_lock, flags);
-	init_timer(&dgnc_poll_timer);
-	dgnc_poll_timer.function = dgnc_poll_handler;
-	dgnc_poll_timer.data = 0;
+	setup_timer(&dgnc_poll_timer, dgnc_poll_handler, 0);
 	dgnc_poll_time = jiffies + dgnc_jiffies_from_ms(dgnc_poll_tick);
 	dgnc_poll_timer.expires = dgnc_poll_time;
 	spin_unlock_irqrestore(&dgnc_poll_lock, flags);
@@ -733,9 +731,7 @@ static void dgnc_poll_handler(ulong dummy)
 	if ((ulong) new_time >= 2 * dgnc_poll_tick)
 		dgnc_poll_time = jiffies +  dgnc_jiffies_from_ms(dgnc_poll_tick);
 
-	init_timer(&dgnc_poll_timer);
-	dgnc_poll_timer.function = dgnc_poll_handler;
-	dgnc_poll_timer.data = 0;
+	setup_timer(&dgnc_poll_timer, dgnc_poll_handler, 0);
 	dgnc_poll_timer.expires = dgnc_poll_time;
 	spin_unlock_irqrestore(&dgnc_poll_lock, flags);
 
