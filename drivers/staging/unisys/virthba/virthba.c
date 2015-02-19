@@ -1339,6 +1339,8 @@ process_incoming_rsps(void *v)
 	}
 	mask = ULTRA_CHANNEL_ENABLE_INTS;
 	while (1) {
+		if (kthread_should_stop())
+			break;
 		wait_event_interruptible_timeout(virthbainfo->rsp_queue,
 			 (atomic_read(&virthbainfo->interrupt_rcvd) == 1),
 				      usecs_to_jiffies(rsltq_wait_usecs));
@@ -1346,8 +1348,6 @@ process_incoming_rsps(void *v)
 		/* drain queue */
 		drain_queue(virthbainfo, dc, cmdrsp);
 		rc1 = uisqueue_interlocked_or(virthbainfo->flags_addr, mask);
-		if (dc->threadinfo.should_stop)
-			break;
 	}
 
 	kfree(cmdrsp);
