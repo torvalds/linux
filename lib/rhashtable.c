@@ -537,16 +537,25 @@ unlock:
 	mutex_unlock(&ht->mutex);
 }
 
-static void rhashtable_wakeup_worker(struct rhashtable *ht)
+static void rhashtable_probe_expand(struct rhashtable *ht)
 {
-	struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
-	struct bucket_table *new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
-	size_t size = tbl->size;
+	const struct bucket_table *new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
+	const struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
 
 	/* Only adjust the table if no resizing is currently in progress. */
-	if (tbl == new_tbl &&
-	    ((ht->p.grow_decision && ht->p.grow_decision(ht, size)) ||
-	     (ht->p.shrink_decision && ht->p.shrink_decision(ht, size))))
+	if (tbl == new_tbl && ht->p.grow_decision &&
+	    ht->p.grow_decision(ht, tbl->size))
+		schedule_work(&ht->run_work);
+}
+
+static void rhashtable_probe_shrink(struct rhashtable *ht)
+{
+	const struct bucket_table *new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
+	const struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
+
+	/* Only adjust the table if no resizing is currently in progress. */
+	if (tbl == new_tbl && ht->p.shrink_decision &&
+	    ht->p.shrink_decision(ht, tbl->size))
 		schedule_work(&ht->run_work);
 }
 
@@ -569,7 +578,7 @@ static void __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 
 	atomic_inc(&ht->nelems);
 
-	rhashtable_wakeup_worker(ht);
+	rhashtable_probe_expand(ht);
 }
 
 /**
@@ -682,7 +691,7 @@ found:
 
 	if (ret) {
 		atomic_dec(&ht->nelems);
-		rhashtable_wakeup_worker(ht);
+		rhashtable_probe_shrink(ht);
 	}
 
 	rcu_read_unlock();
