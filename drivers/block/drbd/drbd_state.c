@@ -1859,6 +1859,10 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 
 			was_io_error = test_and_clear_bit(WAS_IO_ERROR, &device->flags);
 
+			/* Intentionally call this handler first, before drbd_send_state().
+			 * See: 2932204 drbd: call local-io-error handler early
+			 * People may chose to hard-reset the box from this handler.
+			 * It is useful if this looks like a "regular node crash". */
 			if (was_io_error && eh == EP_CALL_HELPER)
 				drbd_khelper(device, "local-io-error");
 
