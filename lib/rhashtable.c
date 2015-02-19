@@ -217,15 +217,15 @@ static void bucket_table_free(const struct bucket_table *tbl)
 static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 					       size_t nbuckets)
 {
-	struct bucket_table *tbl;
+	struct bucket_table *tbl = NULL;
 	size_t size;
 	int i;
 
 	size = sizeof(*tbl) + nbuckets * sizeof(tbl->buckets[0]);
-	tbl = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+		tbl = kzalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (tbl == NULL)
 		tbl = vzalloc(size);
-
 	if (tbl == NULL)
 		return NULL;
 
