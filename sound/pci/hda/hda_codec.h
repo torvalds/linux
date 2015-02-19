@@ -372,17 +372,12 @@ struct hda_codec {
 	unsigned int dp_mst:1; /* support DP1.2 Multi-stream transport */
 	unsigned int dump_coef:1; /* dump processing coefs in codec proc file */
 #ifdef CONFIG_PM
-	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
 	unsigned int pm_up_notified:1;	/* PM notified to controller */
-	unsigned int in_pm:1;		/* suspend/resume being performed */
-	int power_transition;	/* power-state in transition */
-	int power_count;	/* current (global) power refcount */
-	struct delayed_work power_work; /* delayed task for powerdown */
+	atomic_t in_pm;		/* suspend/resume being performed */
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
-	spinlock_t power_lock;
 #endif
 
 	/* filter the requested power state per nid */
@@ -595,63 +590,15 @@ const char *snd_hda_get_jack_location(u32 cfg);
  * power saving
  */
 #ifdef CONFIG_PM
-void snd_hda_power_save(struct hda_codec *codec, int delta, bool d3wait);
+void snd_hda_power_up(struct hda_codec *codec);
+void snd_hda_power_down(struct hda_codec *codec);
+void snd_hda_power_sync(struct hda_codec *codec);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
-static inline void snd_hda_power_save(struct hda_codec *codec, int delta,
-				      bool d3wait) {}
+static inline void snd_hda_power_up(struct hda_codec *codec) {}
+static inline void snd_hda_power_down(struct hda_codec *codec) {}
+static inline void snd_hda_power_sync(struct hda_codec *codec) {}
 #endif
-
-/**
- * snd_hda_power_up - Power-up the codec
- * @codec: HD-audio codec
- *
- * Increment the power-up counter and power up the hardware really when
- * not turned on yet.
- */
-static inline void snd_hda_power_up(struct hda_codec *codec)
-{
-	snd_hda_power_save(codec, 1, false);
-}
-
-/**
- * snd_hda_power_up_d3wait - Power-up the codec after waiting for any pending
- *   D3 transition to complete.  This differs from snd_hda_power_up() when
- *   power_transition == -1.  snd_hda_power_up sees this case as a nop,
- *   snd_hda_power_up_d3wait waits for the D3 transition to complete then powers
- *   back up.
- * @codec: HD-audio codec
- *
- * Cancel any power down operation hapenning on the work queue, then power up.
- */
-static inline void snd_hda_power_up_d3wait(struct hda_codec *codec)
-{
-	snd_hda_power_save(codec, 1, true);
-}
-
-/**
- * snd_hda_power_down - Power-down the codec
- * @codec: HD-audio codec
- *
- * Decrement the power-up counter and schedules the power-off work if
- * the counter rearches to zero.
- */
-static inline void snd_hda_power_down(struct hda_codec *codec)
-{
-	snd_hda_power_save(codec, -1, false);
-}
-
-/**
- * snd_hda_power_sync - Synchronize the power-save status
- * @codec: HD-audio codec
- *
- * Synchronize the actual power state with the power account;
- * called when power_save parameter is changed
- */
-static inline void snd_hda_power_sync(struct hda_codec *codec)
-{
-	snd_hda_power_save(codec, 0, false);
-}
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 /*

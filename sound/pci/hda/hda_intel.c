@@ -1087,6 +1087,7 @@ static int azx_free(struct azx *chip)
 		azx_stop_chip(chip);
 	}
 
+	pci->dev.power.ignore_children = 0; /* FIXME */
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void*)chip);
 	if (chip->msi)
@@ -1796,6 +1797,7 @@ static int azx_probe(struct pci_dev *pci,
 		return err;
 	}
 
+	pci->dev.power.ignore_children = 1; /* FIXME */
 	err = azx_create(card, pci, dev, pci_id->driver_data,
 			 &pci_hda_ops, &chip);
 	if (err < 0)

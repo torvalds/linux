@@ -87,30 +87,6 @@ DEFINE_EVENT(hda_power, hda_power_up,
 	TP_PROTO(struct hda_codec *codec),
 	TP_ARGS(codec)
 );
-
-TRACE_EVENT(hda_power_count,
-	TP_PROTO(struct hda_codec *codec),
-	TP_ARGS(codec),
-	TP_STRUCT__entry(
-		__field( unsigned int, card )
-		__field( unsigned int, addr )
-		__field( int, power_count )
-		__field( int, power_on )
-		__field( int, power_transition )
-	),
-
-	TP_fast_assign(
-		__entry->card = (codec)->bus->card->number;
-		__entry->addr = (codec)->addr;
-		__entry->power_count = (codec)->power_count;
-		__entry->power_on = (codec)->power_on;
-		__entry->power_transition = (codec)->power_transition;
-	),
-
-	TP_printk("[%d:%d] power_count=%d, power_on=%d, power_transition=%d",
-		  __entry->card, __entry->addr, __entry->power_count,
-		  __entry->power_on, __entry->power_transition)
-);
 #endif /* CONFIG_PM */
 
 TRACE_EVENT(hda_unsol_event,

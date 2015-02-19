@@ -26,6 +26,8 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/async.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include <sound/asoundef.h>
@@ -41,10 +43,9 @@
 #include "hda_trace.h"
 
 #ifdef CONFIG_PM
-#define codec_in_pm(codec)	((codec)->in_pm)
-static void hda_power_work(struct work_struct *work);
-static void hda_keep_power_on(struct hda_codec *codec);
-#define hda_codec_is_power_on(codec)	((codec)->power_on)
+#define codec_in_pm(codec)	atomic_read(&(codec)->in_pm)
+#define hda_codec_is_power_on(codec) \
+	(!pm_runtime_suspended(hda_codec_dev(codec)))
 
 static void hda_call_pm_notify(struct hda_codec *codec, bool power_up)
 {
@@ -60,7 +61,6 @@ static void hda_call_pm_notify(struct hda_codec *codec, bool power_up)
 
 #else
 #define codec_in_pm(codec)	0
-static inline void hda_keep_power_on(struct hda_codec *codec) {}
 #define hda_codec_is_power_on(codec)	1
 #define hda_call_pm_notify(codec, state) {}
 #endif
@@ -1144,10 +1144,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 		device_del(hda_codec_dev(codec));
 	snd_hda_jack_tbl_clear(codec);
 	free_init_pincfgs(codec);
-#ifdef CONFIG_PM
-	cancel_delayed_work(&codec->power_work);
 	flush_workqueue(codec->bus->workq);
-#endif
 	list_del(&codec->list);
 	snd_array_free(&codec->mixers);
 	snd_array_free(&codec->nids);
@@ -1178,6 +1175,10 @@ static int snd_hda_codec_dev_register(struct snd_device *device)
 	struct hda_codec *codec = device->device_data;
 
 	snd_hda_register_beep_device(codec);
+	if (device_is_registered(hda_codec_dev(codec))) {
+		snd_hda_power_sync(codec);
+		pm_runtime_enable(hda_codec_dev(codec));
+	}
 	return 0;
 }
 
@@ -1274,13 +1275,14 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	codec->fixup_id = HDA_FIXUP_ID_NOT_SET;
 
 #ifdef CONFIG_PM
-	spin_lock_init(&codec->power_lock);
-	INIT_DELAYED_WORK(&codec->power_work, hda_power_work);
 	/* snd_hda_codec_new() marks the codec as power-up, and leave it as is.
 	 * the caller has to power down appropriatley after initialization
 	 * phase.
 	 */
-	hda_keep_power_on(codec);
+	pm_runtime_set_active(hda_codec_dev(codec));
+	pm_runtime_get_noresume(hda_codec_dev(codec));
+	codec->power_jiffies = jiffies;
+	hda_call_pm_notify(codec, true);
 #endif
 
 	snd_hda_sysfs_init(codec);
@@ -2453,10 +2455,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 
 	/* OK, let it free */
 	cancel_delayed_work_sync(&codec->jackpoll_work);
-#ifdef CONFIG_PM
-	cancel_delayed_work_sync(&codec->power_work);
 	flush_workqueue(bus->workq);
-#endif
 	snd_hda_ctls_clear(codec);
 	/* release PCMs */
 	for (i = 0; i < codec->num_pcms; i++) {
@@ -3893,31 +3892,40 @@ static inline void hda_exec_init_verbs(struct hda_codec *codec) {}
 #endif
 
 #ifdef CONFIG_PM
+/* update the power on/off account with the current jiffies */
+static void update_power_acct(struct hda_codec *codec, bool on)
+{
+	unsigned long delta = jiffies - codec->power_jiffies;
+
+	if (on)
+		codec->power_on_acct += delta;
+	else
+		codec->power_off_acct += delta;
+	codec->power_jiffies += delta;
+}
+
+void snd_hda_update_power_acct(struct hda_codec *codec)
+{
+	update_power_acct(codec, hda_codec_is_power_on(codec));
+}
+
 /*
  * call suspend and power-down; used both from PM and power-save
  * this function returns the power state in the end
  */
-static unsigned int hda_call_codec_suspend(struct hda_codec *codec, bool in_wq)
+static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
 {
 	unsigned int state;
 
-	codec->in_pm = 1;
+	atomic_inc(&codec->in_pm);
 
 	if (codec->patch_ops.suspend)
 		codec->patch_ops.suspend(codec);
 	hda_cleanup_all_streams(codec);
 	state = hda_set_power_state(codec, AC_PWRST_D3);
-	/* Cancel delayed work if we aren't currently running from it. */
-	if (!in_wq)
-		cancel_delayed_work_sync(&codec->power_work);
-	spin_lock(&codec->power_lock);
-	snd_hda_update_power_acct(codec);
 	trace_hda_power_down(codec);
-	codec->power_on = 0;
-	codec->power_transition = 0;
-	codec->power_jiffies = jiffies;
-	spin_unlock(&codec->power_lock);
-	codec->in_pm = 0;
+	update_power_acct(codec, true);
+	atomic_dec(&codec->in_pm);
 	return state;
 }
 
@@ -3942,14 +3950,14 @@ static void hda_mark_cmd_cache_dirty(struct hda_codec *codec)
  */
 static void hda_call_codec_resume(struct hda_codec *codec)
 {
-	codec->in_pm = 1;
+	atomic_inc(&codec->in_pm);
 
+	trace_hda_power_up(codec);
 	hda_mark_cmd_cache_dirty(codec);
 
-	/* set as if powered on for avoiding re-entering the resume
-	 * in the resume / power-save sequence
-	 */
-	hda_keep_power_on(codec);
+	codec->power_jiffies = jiffies;
+	hda_call_pm_notify(codec, true);
+
 	hda_set_power_state(codec, AC_PWRST_D0);
 	restore_shutup_pins(codec);
 	hda_exec_init_verbs(codec);
@@ -3967,34 +3975,38 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 		hda_jackpoll_work(&codec->jackpoll_work.work);
 	else
 		snd_hda_jack_report_sync(codec);
-
-	codec->in_pm = 0;
-	snd_hda_power_down(codec); /* flag down before returning */
+	atomic_dec(&codec->in_pm);
 }
 
-static int hda_codec_driver_suspend(struct device *dev)
+static int hda_codec_runtime_suspend(struct device *dev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(dev);
+	unsigned int state;
 	int i;
 
 	cancel_delayed_work_sync(&codec->jackpoll_work);
 	for (i = 0; i < codec->num_pcms; i++)
 		snd_pcm_suspend_all(codec->pcm_info[i].pcm);
-	hda_call_codec_suspend(codec, false);
+	state = hda_call_codec_suspend(codec);
+	if (!codec->bus->power_keep_link_on && (state & AC_PWRST_CLK_STOP_OK))
+		hda_call_pm_notify(codec, false);
 	return 0;
 }
 
-static int hda_codec_driver_resume(struct device *dev)
+static int hda_codec_runtime_resume(struct device *dev)
 {
 	hda_call_codec_resume(dev_to_hda_codec(dev));
+	pm_runtime_mark_last_busy(dev);
 	return 0;
 }
 #endif /* CONFIG_PM */
 
 /* referred in hda_bind.c */
 const struct dev_pm_ops hda_codec_driver_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(hda_codec_driver_suspend,
-				hda_codec_driver_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(hda_codec_runtime_suspend, hda_codec_runtime_resume,
+			   NULL)
 };
 
 /**
@@ -4733,127 +4745,66 @@ int snd_hda_add_new_ctls(struct hda_codec *codec,
 EXPORT_SYMBOL_GPL(snd_hda_add_new_ctls);
 
 #ifdef CONFIG_PM
-static void hda_power_work(struct work_struct *work)
+/**
+ * snd_hda_power_up - Power-up the codec
+ * @codec: HD-audio codec
+ *
+ * Increment the usage counter and resume the device if not done yet.
+ */
+void snd_hda_power_up(struct hda_codec *codec)
 {
-	struct hda_codec *codec =
-		container_of(work, struct hda_codec, power_work.work);
-	struct hda_bus *bus = codec->bus;
-	unsigned int state;
+	struct device *dev = hda_codec_dev(codec);
 
-	spin_lock(&codec->power_lock);
-	if (codec->power_transition > 0) { /* during power-up sequence? */
-		spin_unlock(&codec->power_lock);
+	if (codec_in_pm(codec))
 		return;
-	}
-	if (!codec->power_on || codec->power_count) {
-		codec->power_transition = 0;
-		spin_unlock(&codec->power_lock);
-		return;
-	}
-	spin_unlock(&codec->power_lock);
-
-	state = hda_call_codec_suspend(codec, true);
-	if (!bus->power_keep_link_on && (state & AC_PWRST_CLK_STOP_OK))
-		hda_call_pm_notify(codec, false);
+	pm_runtime_get_sync(dev);
 }
-
-static void hda_keep_power_on(struct hda_codec *codec)
-{
-	spin_lock(&codec->power_lock);
-	codec->power_count++;
-	codec->power_on = 1;
-	codec->power_jiffies = jiffies;
-	spin_unlock(&codec->power_lock);
-	hda_call_pm_notify(codec, true);
-}
-
-/* update the power on/off account with the current jiffies */
-void snd_hda_update_power_acct(struct hda_codec *codec)
-{
-	unsigned long delta = jiffies - codec->power_jiffies;
-	if (codec->power_on)
-		codec->power_on_acct += delta;
-	else
-		codec->power_off_acct += delta;
-	codec->power_jiffies += delta;
-}
-
-/* Transition to powered up, if wait_power_down then wait for a pending
- * transition to D3 to complete. A pending D3 transition is indicated
- * with power_transition == -1. */
-/* call this with codec->power_lock held! */
-static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
-{
-	/* Return if power_on or transitioning to power_on, unless currently
-	 * powering down. */
-	if ((codec->power_on || codec->power_transition > 0) &&
-	    !(wait_power_down && codec->power_transition < 0))
-		return;
-	spin_unlock(&codec->power_lock);
-
-	cancel_delayed_work_sync(&codec->power_work);
-
-	spin_lock(&codec->power_lock);
-	/* If the power down delayed work was cancelled above before starting,
-	 * then there is no need to go through power up here.
-	 */
-	if (codec->power_on) {
-		if (codec->power_transition < 0)
-			codec->power_transition = 0;
-		return;
-	}
-
-	trace_hda_power_up(codec);
-	snd_hda_update_power_acct(codec);
-	codec->power_on = 1;
-	codec->power_jiffies = jiffies;
-	codec->power_transition = 1; /* avoid reentrance */
-	spin_unlock(&codec->power_lock);
-
-	hda_call_codec_resume(codec);
-
-	spin_lock(&codec->power_lock);
-	codec->power_transition = 0;
-}
-
-#define power_save(codec)	\
-	((codec)->bus->power_save ? *(codec)->bus->power_save : 0)
-
-/* Transition to powered down */
-static void __snd_hda_power_down(struct hda_codec *codec)
-{
-	if (!codec->power_on || codec->power_count || codec->power_transition)
-		return;
-
-	if (power_save(codec)) {
-		codec->power_transition = -1; /* avoid reentrance */
-		queue_delayed_work(codec->bus->workq, &codec->power_work,
-				msecs_to_jiffies(power_save(codec) * 1000));
-	}
-}
+EXPORT_SYMBOL_GPL(snd_hda_power_up);
 
 /**
- * snd_hda_power_save - Power-up/down/sync the codec
+ * snd_hda_power_down - Power-down the codec
  * @codec: HD-audio codec
- * @delta: the counter delta to change
- * @d3wait: sync for D3 transition complete
  *
- * Change the power-up counter via @delta, and power up or down the hardware
- * appropriately.  For the power-down, queue to the delayed action.
- * Passing zero to @delta means to synchronize the power state.
+ * Decrement the usage counter and schedules the autosuspend if none used.
  */
-void snd_hda_power_save(struct hda_codec *codec, int delta, bool d3wait)
+void snd_hda_power_down(struct hda_codec *codec)
 {
-	spin_lock(&codec->power_lock);
-	codec->power_count += delta;
-	trace_hda_power_count(codec);
-	if (delta > 0)
-		__snd_hda_power_up(codec, d3wait);
-	else
-		__snd_hda_power_down(codec);
-	spin_unlock(&codec->power_lock);
+	struct device *dev = hda_codec_dev(codec);
+
+	if (codec_in_pm(codec))
+		return;
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 }
-EXPORT_SYMBOL_GPL(snd_hda_power_save);
+EXPORT_SYMBOL_GPL(snd_hda_power_down);
+
+/**
+ * snd_hda_power_sync - Synchronize the power_save option
+ * @codec: HD-audio codec
+ *
+ * Synchronize the runtime PM autosuspend state from the power_save option.
+ */
+void snd_hda_power_sync(struct hda_codec *codec)
+{
+	struct device *dev = hda_codec_dev(codec);
+	int delay;
+
+	if (!codec->bus->power_save)
+		return;
+
+	delay = *codec->bus->power_save * 1000;
+	if (delay > 0) {
+		pm_runtime_set_autosuspend_delay(dev, delay);
+		pm_runtime_use_autosuspend(dev);
+		pm_runtime_allow(dev);
+		if (!pm_runtime_suspended(dev))
+			pm_runtime_mark_last_busy(dev);
+	} else {
+		pm_runtime_dont_use_autosuspend(dev);
+		pm_runtime_forbid(dev);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_hda_power_sync);
 
 /**
  * snd_hda_check_amp_list_power - Check the amp list and update the power
@@ -5542,7 +5493,7 @@ void snd_hda_bus_reset(struct hda_bus *bus)
 		cancel_delayed_work_sync(&codec->jackpoll_work);
 #ifdef CONFIG_PM
 		if (hda_codec_is_power_on(codec)) {
-			hda_call_codec_suspend(codec, false);
+			hda_call_codec_suspend(codec);
 			hda_call_codec_resume(codec);
 		}
 #endif
