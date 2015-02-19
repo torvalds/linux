@@ -69,9 +69,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 
 	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {
 		va_start(args, len);
-		for (i = 0; i < len; i++) {
+		for (i = 0; i < len; i++)
 			buf[i] = (u8)va_arg(args, unsigned int);
-		}
 		va_end(args);
 		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device, u8, buf, len, "%s: ", __func__);
 	}
@@ -91,9 +90,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 
 	if (len) {
 		i = len;
-		while (i--) {
+		while (i--)
 			*buf++ = (u8)va_arg(args, unsigned int);
-		}
 		ret = par->fbtftops.write(par, par->buf, len * (sizeof(u8)));
 		if (ret < 0) {
 			va_end(args);
