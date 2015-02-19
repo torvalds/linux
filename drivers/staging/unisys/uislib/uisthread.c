@@ -41,7 +41,6 @@ int
 uisthread_start(struct uisthread_info *thrinfo,
 		int (*threadfn)(void *), void *thrcontext, char *name)
 {
-	thrinfo->should_stop = 0;
 	/* used to stop the thread */
 	init_completion(&thrinfo->has_stopped);
 	thrinfo->task = kthread_run(threadfn, thrcontext, name);
@@ -58,24 +57,19 @@ EXPORT_SYMBOL_GPL(uisthread_start);
 void
 uisthread_stop(struct uisthread_info *thrinfo)
 {
-	int ret;
 	int stopped = 0;
 
 	if (thrinfo->id == 0)
 		return;		/* thread not running */
 
 	LOGINF("uisthread_stop stopping id:%d\n", thrinfo->id);
-	thrinfo->should_stop = 1;
-	ret = KILL(thrinfo->id, SIGHUP, 1);
-	if (ret) {
-		LOGERR("unable to signal thread %d\n", ret);
-	} else {
-		/* give up if the thread has NOT died in 1 minute */
-		if (wait_for_completion_timeout(&thrinfo->has_stopped, 60 * HZ))
-			stopped = 1;
-		else
-			LOGERR("timed out trying to signal thread\n");
-	}
+	kthread_stop(thrinfo->task);
+	/* give up if the thread has NOT died in 1 minute */
+	if (wait_for_completion_timeout(&thrinfo->has_stopped, 60 * HZ))
+		stopped = 1;
+	else
+		LOGERR("timed out trying to signal thread\n");
+
 	if (stopped) {
 		LOGINF("uisthread_stop stopped id:%d\n", thrinfo->id);
 		thrinfo->id = 0;
