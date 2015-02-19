@@ -44,13 +44,12 @@ uisthread_start(struct uisthread_info *thrinfo,
 	thrinfo->should_stop = 0;
 	/* used to stop the thread */
 	init_completion(&thrinfo->has_stopped);
-	thrinfo->task = kthread_create(threadfn, thrcontext, name, NULL);
+	thrinfo->task = kthread_run(threadfn, thrcontext, name);
 	if (IS_ERR(thrinfo->task)) {
 		thrinfo->id = 0;
 		return 0;	/* failure */
 	}
 	thrinfo->id = thrinfo->task->pid;
-	wake_up_process(thrinfo->task);
 	LOGINF("started thread pid:%d\n", thrinfo->id);
 	return 1;
 }
