@@ -2480,7 +2480,7 @@ static int init_resync(struct r1conf *conf)
  * that can be installed to exclude normal IO requests.
  */
 
-static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipped, int go_faster)
+static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipped)
 {
 	struct r1conf *conf = mddev->private;
 	struct r1bio *r1_bio;
@@ -2533,13 +2533,6 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipp
 		*skipped = 1;
 		return sync_blocks;
 	}
-	/*
-	 * If there is non-resync activity waiting for a turn,
-	 * and resync is going fast enough,
-	 * then let it though before starting on this new sync request.
-	 */
-	if (!go_faster && conf->nr_waiting)
-		msleep_interruptible(1000);
 
 	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
 	r1_bio = mempool_alloc(conf->r1buf_pool, GFP_NOIO);

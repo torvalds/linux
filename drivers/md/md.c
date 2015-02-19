@@ -7820,8 +7820,7 @@ void md_do_sync(struct md_thread *thread)
 		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery))
 			break;
 
-		sectors = mddev->pers->sync_request(mddev, j, &skipped,
-						  currspeed < speed_min(mddev));
+		sectors = mddev->pers->sync_request(mddev, j, &skipped);
 		if (sectors == 0) {
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			break;
@@ -7898,7 +7897,7 @@ void md_do_sync(struct md_thread *thread)
 	wait_event(mddev->recovery_wait, !atomic_read(&mddev->recovery_active));
 
 	/* tell personality that we are finished */
-	mddev->pers->sync_request(mddev, max_sectors, &skipped, 1);
+	mddev->pers->sync_request(mddev, max_sectors, &skipped);
 
 	if (mddev_is_clustered(mddev))
 		md_cluster_ops->resync_finish(mddev);

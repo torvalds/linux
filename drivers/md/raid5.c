@@ -5050,8 +5050,7 @@ ret:
 	return reshape_sectors;
 }
 
-/* FIXME go_faster isn't used */
-static inline sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipped, int go_faster)
+static inline sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipped)
 {
 	struct r5conf *conf = mddev->private;
 	struct stripe_head *sh;
