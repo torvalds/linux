@@ -550,7 +550,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 	if (cpu_has_rixi) {
 		/* Enable the RIXI exceptions */
-		write_c0_pagegrain(read_c0_pagegrain() | PG_IEC);
+		set_c0_pagegrain(PG_IEC);
 		back_to_back_c0_hazard();
 		/* Verify the IEC bit is set */
 		if (read_c0_pagegrain() & PG_IEC)
