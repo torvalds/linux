@@ -7880,10 +7880,17 @@ void md_do_sync(struct md_thread *thread)
 			/((jiffies-mddev->resync_mark)/HZ +1) +1;
 
 		if (currspeed > speed_min(mddev)) {
-			if ((currspeed > speed_max(mddev)) ||
-					!is_mddev_idle(mddev, 0)) {
+			if (currspeed > speed_max(mddev)) {
 				msleep(500);
 				goto repeat;
+			}
+			if (!is_mddev_idle(mddev, 0)) {
+				/*
+				 * Give other IO more of a chance.
+				 * The faster the devices, the less we wait.
+				 */
+				wait_event(mddev->recovery_wait,
+					   !atomic_read(&mddev->recovery_active));
 			}
 		}
 	}
