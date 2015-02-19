@@ -5205,8 +5205,7 @@ static int cx25840_probe(struct i2c_client *client,
 				state->pads, 0);
 	if (ret < 0) {
 		v4l_info(client, "failed to initialize media entity!\n");
-		kfree(state);
-		return -ENODEV;
+		return ret;
 	}
 #endif
 
