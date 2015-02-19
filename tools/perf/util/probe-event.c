@@ -1903,6 +1903,95 @@ static struct strlist *get_probe_trace_command_rawlist(int fd)
 	return sl;
 }
 
+struct kprobe_blacklist_node {
+	struct list_head list;
+	unsigned long start;
+	unsigned long end;
+	char *symbol;
+};
+
+static void kprobe_blacklist__delete(struct list_head *blacklist)
+{
+	struct kprobe_blacklist_node *node;
+
+	while (!list_empty(blacklist)) {
+		node = list_first_entry(blacklist,
+					struct kprobe_blacklist_node, list);
+		list_del(&node->list);
+		free(node->symbol);
+		free(node);
+	}
+}
+
+static int kprobe_blacklist__load(struct list_head *blacklist)
+{
+	struct kprobe_blacklist_node *node;
+	const char *__debugfs = debugfs_find_mountpoint();
+	char buf[PATH_MAX], *p;
+	FILE *fp;
+	int ret;
+
+	if (__debugfs == NULL)
+		return -ENOTSUP;
+
+	ret = e_snprintf(buf, PATH_MAX, "%s/kprobes/blacklist", __debugfs);
+	if (ret < 0)
+		return ret;
+
+	fp = fopen(buf, "r");
+	if (!fp)
+		return -errno;
+
+	ret = 0;
+	while (fgets(buf, PATH_MAX, fp)) {
+		node = zalloc(sizeof(*node));
+		if (!node) {
+			ret = -ENOMEM;
+			break;
+		}
+		INIT_LIST_HEAD(&node->list);
+		list_add_tail(&node->list, blacklist);
+		if (sscanf(buf, "0x%lx-0x%lx", &node->start, &node->end) != 2) {
+			ret = -EINVAL;
+			break;
+		}
+		p = strchr(buf, '\t');
+		if (p) {
+			p++;
+			if (p[strlen(p) - 1] == '\n')
+				p[strlen(p) - 1] = '\0';
+		} else
+			p = (char *)"unknown";
+		node->symbol = strdup(p);
+		if (!node->symbol) {
+			ret = -ENOMEM;
+			break;
+		}
+		pr_debug2("Blacklist: 0x%lx-0x%lx, %s\n",
+			  node->start, node->end, node->symbol);
+		ret++;
+	}
+	if (ret < 0)
+		kprobe_blacklist__delete(blacklist);
+	fclose(fp);
+
+	return ret;
+}
+
+static struct kprobe_blacklist_node *
+kprobe_blacklist__find_by_address(struct list_head *blacklist,
+				  unsigned long address)
+{
+	struct kprobe_blacklist_node *node;
+
+	list_for_each_entry(node, blacklist, list) {
+		if (node->start <= address && address <= node->end)
+			return node;
+	}
+
+	return NULL;
+}
+
 /* Show an event */
 static int show_perf_probe_event(struct perf_probe_event *pev,
 				 const char *module)
@@ -2117,6 +2206,8 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	char buf[64];
 	const char *event, *group;
 	struct strlist *namelist;
+	LIST_HEAD(blacklist);
+	struct kprobe_blacklist_node *node;
 
 	if (pev->uprobes)
 		fd = open_uprobe_events(true);
@@ -2134,11 +2225,25 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		pr_debug("Failed to get current event list.\n");
 		return -EIO;
 	}
+	/* Get kprobe blacklist if exists */
+	if (!pev->uprobes) {
+		ret = kprobe_blacklist__load(&blacklist);
+		if (ret < 0)
+			pr_debug("No kprobe blacklist support, ignored\n");
+	}
 
 	ret = 0;
 	pr_info("Added new event%s\n", (ntevs > 1) ? "s:" : ":");
 	for (i = 0; i < ntevs; i++) {
 		tev = &tevs[i];
+		/* Ensure that the address is NOT blacklisted */
+		node = kprobe_blacklist__find_by_address(&blacklist,
+							 tev->point.address);
+		if (node) {
+			pr_warning("Warning: Skipped probing on blacklisted function: %s\n", node->symbol);
+			continue;
+		}
+
 		if (pev->event)
 			event = pev->event;
 		else
@@ -2189,13 +2294,15 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		allow_suffix = true;
 	}
 
-	if (ret >= 0) {
+	/* Note that it is possible to skip all events because of blacklist */
+	if (ret >= 0 && tev->event) {
 		/* Show how to use the event. */
 		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
 		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", tev->group,
 			 tev->event);
 	}
 
+	kprobe_blacklist__delete(&blacklist);
 	strlist__delete(namelist);
 	close(fd);
 	return ret;
