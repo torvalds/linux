@@ -23,7 +23,6 @@ ifndef CONFIG_COMMON_CLK
 obj-y				+= clock.o
 obj-$(CONFIG_ARCH_SH7372)	+= clock-sh7372.o
 obj-$(CONFIG_ARCH_SH73A0)	+= clock-sh73a0.o
-obj-$(CONFIG_ARCH_R8A73A4)	+= clock-r8a73a4.o
 obj-$(CONFIG_ARCH_R8A7740)	+= clock-r8a7740.o
 obj-$(CONFIG_ARCH_R8A7778)	+= clock-r8a7778.o
 obj-$(CONFIG_ARCH_R8A7779)	+= clock-r8a7779.o
