@@ -62,8 +62,6 @@ enum {
 	NVME_CSTS_SHST_MASK	= 3 << 2,
 };
 
-#define NVME_VS(major, minor)	(major << 16 | minor)
-
 extern unsigned char nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
