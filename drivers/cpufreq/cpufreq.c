@@ -229,7 +229,7 @@ struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 	struct cpufreq_policy *policy = NULL;
 	unsigned long flags;
 
-	if (cpu >= nr_cpu_ids)
+	if (WARN_ON(cpu >= nr_cpu_ids))
 		return NULL;
 
 	if (!down_read_trylock(&cpufreq_rwsem))
