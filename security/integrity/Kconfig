@@ -16,7 +16,7 @@ config INTEGRITY
 if INTEGRITY
 
 config INTEGRITY_SIGNATURE
-	boolean "Digital signature verification using multiple keyrings"
+	bool "Digital signature verification using multiple keyrings"
 	depends on KEYS
 	default n
 	select SIGNATURE
@@ -30,7 +30,7 @@ config INTEGRITY_SIGNATURE
 	  usually only added from initramfs.
 
 config INTEGRITY_ASYMMETRIC_KEYS
-	boolean "Enable asymmetric keys support"
+	bool "Enable asymmetric keys support"
 	depends on INTEGRITY_SIGNATURE
 	default n
         select ASYMMETRIC_KEY_TYPE
