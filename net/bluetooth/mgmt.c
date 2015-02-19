@@ -2175,6 +2175,12 @@ static int set_hs(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
+	if (mgmt_pending_find(MGMT_OP_SET_SSP, hdev)) {
+		err = cmd_status(sk, hdev->id, MGMT_OP_SET_HS,
+				 MGMT_STATUS_BUSY);
+		goto unlock;
+	}
+
 	if (cp->val) {
 		changed = !test_and_set_bit(HCI_HS_ENABLED, &hdev->dev_flags);
 	} else {
