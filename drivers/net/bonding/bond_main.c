@@ -2900,6 +2900,8 @@ static int bond_slave_netdev_event(unsigned long event,
 			if (old_duplex != slave->duplex)
 				bond_3ad_adapter_duplex_changed(slave);
 		}
+		/* Fallthrough */
+	case NETDEV_DOWN:
 		/* Refresh slave-array if applicable!
 		 * If the setup does not use miimon or arpmon (mode-specific!),
 		 * then these events will not cause the slave-array to be
@@ -2908,10 +2910,6 @@ static int bond_slave_netdev_event(unsigned long event,
 		 * events. If these (miimon/arpmon) parameters are configured
 		 * then array gets refreshed twice and that should be fine!
 		 */
-		if (bond_mode_uses_xmit_hash(bond))
-			bond_update_slave_arr(bond, NULL);
-		break;
-	case NETDEV_DOWN:
 		if (bond_mode_uses_xmit_hash(bond))
 			bond_update_slave_arr(bond, NULL);
 		break;
