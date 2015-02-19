@@ -581,6 +581,10 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	if ((value & PR_FP_MODE_FRE) && cpu_has_fpu && !cpu_has_fre)
 		return -EOPNOTSUPP;
 
+	/* FR = 0 not supported in MIPS R6 */
+	if (!(value & PR_FP_MODE_FR) && cpu_has_fpu && cpu_has_mips_r6)
+		return -EOPNOTSUPP;
+
 	/* Save FP & vector context, then disable FPU & MSA */
 	if (task->signal == current->signal)
 		lose_fpu(1);

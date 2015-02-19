@@ -12,6 +12,10 @@
 #ifndef _ASM_CHECKSUM_H
 #define _ASM_CHECKSUM_H
 
+#ifdef CONFIG_GENERIC_CSUM
+#include <asm-generic/checksum.h>
+#else
+
 #include <linux/in6.h>
 
 #include <asm/uaccess.h>
@@ -274,5 +278,6 @@ static __inline__ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 }
 
 #include <asm-generic/checksum.h>
+#endif /* CONFIG_GENERIC_CSUM */
 
 #endif /* _ASM_CHECKSUM_H */

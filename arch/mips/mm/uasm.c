@@ -24,7 +24,8 @@ enum fields {
 	JIMM = 0x080,
 	FUNC = 0x100,
 	SET = 0x200,
-	SCIMM = 0x400
+	SCIMM = 0x400,
+	SIMM9 = 0x800,
 };
 
 #define OP_MASK		0x3f
@@ -41,6 +42,8 @@ enum fields {
 #define FUNC_SH		0
 #define SET_MASK	0x7
 #define SET_SH		0
+#define SIMM9_SH	7
+#define SIMM9_MASK	0x1ff
 
 enum opcode {
 	insn_invalid,
@@ -114,6 +117,14 @@ static inline u32 build_scimm(u32 arg)
 	     KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & SCIMM_MASK) << SCIMM_SH;
+}
+
+static inline u32 build_scimm9(s32 arg)
+{
+	WARN((arg > 0xff || arg < -0x100),
+	       KERN_WARNING "Micro-assembler field overflow\n");
+
+	return (arg & SIMM9_MASK) << SIMM9_SH;
 }
 
 static inline u32 build_func(u32 arg)

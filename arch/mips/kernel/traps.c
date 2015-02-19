@@ -46,6 +46,7 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/idle.h>
+#include <asm/mips-r2-to-r6-emul.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
@@ -837,7 +838,7 @@ out:
 	exception_exit(prev_state);
 }
 
-static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
+void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 	const char *str)
 {
 	siginfo_t info;
@@ -1027,7 +1028,34 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	unsigned int opcode = 0;
 	int status = -1;
 
+	/*
+	 * Avoid any kernel code. Just emulate the R2 instruction
+	 * as quickly as possible.
+	 */
+	if (mipsr2_emulation && cpu_has_mips_r6 &&
+	    likely(user_mode(regs))) {
+		if (likely(get_user(opcode, epc) >= 0)) {
+			status = mipsr2_decoder(regs, opcode);
+			switch (status) {
+			case 0:
+			case SIGEMT:
+				task_thread_info(current)->r2_emul_return = 1;
+				return;
+			case SIGILL:
+				goto no_r2_instr;
+			default:
+				process_fpemu_return(status,
+						     &current->thread.cp0_baduaddr);
+				task_thread_info(current)->r2_emul_return = 1;
+				return;
+			}
+		}
+	}
+
+no_r2_instr:
+
 	prev_state = exception_enter();
+
 	if (notify_die(DIE_RI, "RI Fault", regs, 0, regs_to_trapnr(regs),
 		       SIGILL) == NOTIFY_STOP)
 		goto out;
@@ -1559,6 +1587,7 @@ static inline void parity_protection_init(void)
 	case CPU_INTERAPTIV:
 	case CPU_PROAPTIV:
 	case CPU_P5600:
+	case CPU_QEMU_GENERIC:
 		{
 #define ERRCTL_PE	0x80000000
 #define ERRCTL_L2P	0x00800000
@@ -1648,7 +1677,7 @@ asmlinkage void cache_parity_error(void)
 	printk("Decoded c0_cacheerr: %s cache fault in %s reference.\n",
 	       reg_val & (1<<30) ? "secondary" : "primary",
 	       reg_val & (1<<31) ? "data" : "insn");
-	if (cpu_has_mips_r2 &&
+	if ((cpu_has_mips_r2_r6) &&
 	    ((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_MIPS)) {
 		pr_err("Error bits: %s%s%s%s%s%s%s%s\n",
 			reg_val & (1<<29) ? "ED " : "",
@@ -1688,7 +1717,7 @@ asmlinkage void do_ftlb(void)
 	unsigned int reg_val;
 
 	/* For the moment, report the problem and hang. */
-	if (cpu_has_mips_r2 &&
+	if ((cpu_has_mips_r2_r6) &&
 	    ((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_MIPS)) {
 		pr_err("FTLB error exception, cp0_ecc=0x%08x:\n",
 		       read_c0_ecc());
@@ -1977,7 +2006,7 @@ static void configure_hwrena(void)
 {
 	unsigned int hwrena = cpu_hwrena_impl_bits;
 
-	if (cpu_has_mips_r2)
+	if (cpu_has_mips_r2_r6)
 		hwrena |= 0x0000000f;
 
 	if (!noulri && cpu_has_userlocal)
@@ -2021,7 +2050,7 @@ void per_cpu_trap_init(bool is_boot_cpu)
 	 *  o read IntCtl.IPTI to determine the timer interrupt
 	 *  o read IntCtl.IPPCI to determine the performance counter interrupt
 	 */
-	if (cpu_has_mips_r2) {
+	if (cpu_has_mips_r2_r6) {
 		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
 		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
 		cp0_perfcount_irq = (read_c0_intctl() >> INTCTLB_IPPCI) & 7;
@@ -2112,7 +2141,7 @@ void __init trap_init(void)
 #else
         ebase = CKSEG0;
 #endif
-		if (cpu_has_mips_r2)
+		if (cpu_has_mips_r2_r6)
 			ebase += (read_c0_ebase() & 0x3ffff000);
 	}
 
