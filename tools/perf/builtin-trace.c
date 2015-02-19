@@ -52,7 +52,9 @@ struct tp_field {
 #define TP_UINT_FIELD(bits) \
 static u64 tp_field__u##bits(struct tp_field *field, struct perf_sample *sample) \
 { \
-	return *(u##bits *)(sample->raw_data + field->offset); \
+	u##bits value; \
+	memcpy(&value, sample->raw_data + field->offset, sizeof(value)); \
+	return value;  \
 }
 
 TP_UINT_FIELD(8);
@@ -63,7 +65,8 @@ TP_UINT_FIELD(64);
 #define TP_UINT_FIELD__SWAPPED(bits) \
 static u64 tp_field__swapped_u##bits(struct tp_field *field, struct perf_sample *sample) \
 { \
-	u##bits value = *(u##bits *)(sample->raw_data + field->offset); \
+	u##bits value; \
+	memcpy(&value, sample->raw_data + field->offset, sizeof(value)); \
 	return bswap_##bits(value);\
 }
 
@@ -1517,11 +1520,22 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	return syscall__set_arg_fmts(sc);
 }
 
+/*
+ * args is to be interpreted as a series of longs but we need to handle
+ * 8-byte unaligned accesses. args points to raw_data within the event
+ * and raw_data is guaranteed to be 8-byte unaligned because it is
+ * preceded by raw_size which is a u32. So we need to copy args to a temp
+ * variable to read it. Most notably this avoids extended load instructions
+ * on unaligned addresses
+ */
+
 static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
-				      unsigned long *args, struct trace *trace,
+				      unsigned char *args, struct trace *trace,
 				      struct thread *thread)
 {
 	size_t printed = 0;
+	unsigned char *p;
+	unsigned long val;
 
 	if (sc->tp_format != NULL) {
 		struct format_field *field;
@@ -1537,12 +1551,17 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 		     field = field->next, ++arg.idx, bit <<= 1) {
 			if (arg.mask & bit)
 				continue;
+
+			/* special care for unaligned accesses */
+			p = args + sizeof(unsigned long) * arg.idx;
+			memcpy(&val, p, sizeof(val));
+
 			/*
  			 * Suppress this argument if its value is zero and
  			 * and we don't have a string associated in an
  			 * strarray for it.
  			 */
-			if (args[arg.idx] == 0 &&
+			if (val == 0 &&
 			    !(sc->arg_scnprintf &&
 			      sc->arg_scnprintf[arg.idx] == SCA_STRARRAY &&
 			      sc->arg_parm[arg.idx]))
@@ -1551,23 +1570,26 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			printed += scnprintf(bf + printed, size - printed,
 					     "%s%s: ", printed ? ", " : "", field->name);
 			if (sc->arg_scnprintf && sc->arg_scnprintf[arg.idx]) {
-				arg.val = args[arg.idx];
+				arg.val = val;
 				if (sc->arg_parm)
 					arg.parm = sc->arg_parm[arg.idx];
 				printed += sc->arg_scnprintf[arg.idx](bf + printed,
 								      size - printed, &arg);
 			} else {
 				printed += scnprintf(bf + printed, size - printed,
-						     "%ld", args[arg.idx]);
+						     "%ld", val);
 			}
 		}
 	} else {
 		int i = 0;
 
 		while (i < 6) {
+			/* special care for unaligned accesses */
+			p = args + sizeof(unsigned long) * i;
+			memcpy(&val, p, sizeof(val));
 			printed += scnprintf(bf + printed, size - printed,
 					     "%sarg%d: %ld",
-					     printed ? ", " : "", i, args[i]);
+					     printed ? ", " : "", i, val);
 			++i;
 		}
 	}
