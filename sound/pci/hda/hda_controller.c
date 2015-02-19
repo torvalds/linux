@@ -30,7 +30,6 @@
 #include <linux/reboot.h>
 #include <sound/core.h>
 #include <sound/initval.h>
-#include "hda_priv.h"
 #include "hda_controller.h"
 
 #define CREATE_TRACE_POINTS

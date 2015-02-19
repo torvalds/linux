@@ -37,7 +37,6 @@
 
 #include "hda_codec.h"
 #include "hda_controller.h"
-#include "hda_priv.h"
 
 /* Defines for Nvidia Tegra HDA support */
 #define HDA_BAR0           0x8000
