@@ -661,6 +661,24 @@ Description:
 		value is in raw device units or in processed units (as _raw
 		and _input do on sysfs direct channel read attributes).
 
+What:		/sys/.../events/in_accel_scale
+What:		/sys/.../events/in_accel_peak_scale
+What:		/sys/.../events/in_anglvel_scale
+What:		/sys/.../events/in_magn_scale
+What:		/sys/.../events/in_rot_from_north_magnetic_scale
+What:		/sys/.../events/in_rot_from_north_true_scale
+What:		/sys/.../events/in_voltage_scale
+What:		/sys/.../events/in_voltage_supply_scale
+What:		/sys/.../events/in_temp_scale
+What:		/sys/.../events/in_illuminance_scale
+What:		/sys/.../events/in_proximity_scale
+KernelVersion:	3.21
+Contact:	linux-iio@vger.kernel.org
+Description:
+                Specifies the conversion factor from the standard units
+                to device specific units used to set the event trigger
+                threshold.
+
 What:		/sys/.../events/in_accel_x_thresh_rising_hysteresis
 What:		/sys/.../events/in_accel_x_thresh_falling_hysteresis
 What:		/sys/.../events/in_accel_x_thresh_either_hysteresis
