@@ -103,7 +103,6 @@ struct nvme_dev {
 	u16 abort_limit;
 	u8 event_limit;
 	u8 vwc;
-	u8 initialized;
 };
 
 /*
