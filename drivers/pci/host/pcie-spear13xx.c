@@ -269,7 +269,7 @@ static struct pcie_host_ops spear13xx_pcie_host_ops = {
 	.host_init = spear13xx_pcie_host_init,
 };
 
-static int __init spear13xx_add_pcie_port(struct pcie_port *pp,
+static int spear13xx_add_pcie_port(struct pcie_port *pp,
 					 struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -299,7 +299,7 @@ static int __init spear13xx_add_pcie_port(struct pcie_port *pp,
 	return 0;
 }
 
-static int __init spear13xx_pcie_probe(struct platform_device *pdev)
+static int spear13xx_pcie_probe(struct platform_device *pdev)
 {
 	struct spear13xx_pcie *spear13xx_pcie;
 	struct pcie_port *pp;
@@ -370,7 +370,7 @@ static const struct of_device_id spear13xx_pcie_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, spear13xx_pcie_of_match);
 
-static struct platform_driver spear13xx_pcie_driver __initdata = {
+static struct platform_driver spear13xx_pcie_driver = {
 	.probe		= spear13xx_pcie_probe,
 	.driver = {
 		.name	= "spear-pcie",
