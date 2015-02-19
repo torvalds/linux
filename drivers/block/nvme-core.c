@@ -926,14 +926,6 @@ static irqreturn_t nvme_irq_check(int irq, void *data)
 	return IRQ_WAKE_THREAD;
 }
 
-static void nvme_abort_cmd_info(struct nvme_queue *nvmeq, struct nvme_cmd_info *
-								cmd_info)
-{
-	spin_lock_irq(&nvmeq->q_lock);
-	cancel_cmd_info(cmd_info, NULL);
-	spin_unlock_irq(&nvmeq->q_lock);
-}
-
 struct sync_cmd_info {
 	struct task_struct *task;
 	u32 result;
@@ -956,7 +948,6 @@ static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
 static int nvme_submit_sync_cmd(struct request *req, struct nvme_command *cmd,
 						u32 *result, unsigned timeout)
 {
-	int ret;
 	struct sync_cmd_info cmdinfo;
 	struct nvme_cmd_info *cmd_rq = blk_mq_rq_to_pdu(req);
 	struct nvme_queue *nvmeq = cmd_rq->nvmeq;
@@ -968,29 +959,12 @@ static int nvme_submit_sync_cmd(struct request *req, struct nvme_command *cmd,
 
 	nvme_set_info(cmd_rq, &cmdinfo, sync_completion);
 
-	set_current_state(TASK_KILLABLE);
-	ret = nvme_submit_cmd(nvmeq, cmd);
-	if (ret) {
-		nvme_finish_cmd(nvmeq, req->tag, NULL);
-		set_current_state(TASK_RUNNING);
-	}
-	ret = schedule_timeout(timeout);
-
-	/*
-	 * Ensure that sync_completion has either run, or that it will
-	 * never run.
-	 */
-	nvme_abort_cmd_info(nvmeq, blk_mq_rq_to_pdu(req));
-
-	/*
-	 * We never got the completion
-	 */
-	if (cmdinfo.status == -EINTR)
-		return -EINTR;
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	nvme_submit_cmd(nvmeq, cmd);
+	schedule();
 
 	if (result)
 		*result = cmdinfo.result;
-
 	return cmdinfo.status;
 }
 
