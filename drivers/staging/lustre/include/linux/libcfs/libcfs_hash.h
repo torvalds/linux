@@ -469,7 +469,7 @@ cfs_hash_key(struct cfs_hash *hs, struct hlist_node *hnode)
 static inline void
 cfs_hash_keycpy(struct cfs_hash *hs, struct hlist_node *hnode, void *key)
 {
-        if (hs->hs_ops->hs_keycpy)
+	if (hs->hs_ops->hs_keycpy)
 		hs->hs_ops->hs_keycpy(hnode, key);
 }
 
