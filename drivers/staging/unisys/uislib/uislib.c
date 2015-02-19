@@ -1292,7 +1292,7 @@ static int process_incoming(void *v)
 					}
 				}
 			}
-			if (incoming_ti.should_stop)
+			if (kthread_should_stop())
 				break;
 		}
 		if (new_tail != NULL) {
@@ -1309,7 +1309,7 @@ static int process_incoming(void *v)
 		* - there is no input waiting on any of the channels
 		* - we have received a signal to stop this thread
 		*/
-		if (incoming_ti.should_stop)
+		if (kthread_should_stop())
 			break;
 		if (en_smart_wakeup == 0xFF) {
 			LOGINF("en_smart_wakeup set to 0xff, to force exiting process_incoming");
