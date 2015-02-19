@@ -773,6 +773,8 @@ struct drbd_connection {
 	struct drbd_thread_timing_details r_timing_details[DRBD_THREAD_DETAILS_HIST];
 
 	struct {
+		unsigned long last_sent_barrier_jif;
+
 		/* whether this sender thread
 		 * has processed a single write yet. */
 		bool seen_any_write_yet;

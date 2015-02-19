@@ -1290,6 +1290,7 @@ static int drbd_send_barrier(struct drbd_connection *connection)
 	p->barrier = connection->send.current_epoch_nr;
 	p->pad = 0;
 	connection->send.current_epoch_writes = 0;
+	connection->send.last_sent_barrier_jif = jiffies;
 
 	return conn_send_command(connection, sock, P_BARRIER, sizeof(*p), NULL, 0);
 }
@@ -1314,6 +1315,7 @@ static void re_init_if_first_write(struct drbd_connection *connection, unsigned 
 		connection->send.seen_any_write_yet = true;
 		connection->send.current_epoch_nr = epoch;
 		connection->send.current_epoch_writes = 0;
+		connection->send.last_sent_barrier_jif = jiffies;
 	}
 }
 
