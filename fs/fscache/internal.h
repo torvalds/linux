@@ -271,6 +271,11 @@ extern atomic_t fscache_n_cop_write_page;
 extern atomic_t fscache_n_cop_uncache_page;
 extern atomic_t fscache_n_cop_dissociate_pages;
 
+extern atomic_t fscache_n_cache_no_space_reject;
+extern atomic_t fscache_n_cache_stale_objects;
+extern atomic_t fscache_n_cache_retired_objects;
+extern atomic_t fscache_n_cache_culled_objects;
+
 static inline void fscache_stat(atomic_t *stat)
 {
 	atomic_inc(stat);

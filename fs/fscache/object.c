@@ -1016,3 +1016,50 @@ static const struct fscache_state *fscache_update_object(struct fscache_object *
 	_leave("");
 	return transit_to(WAIT_FOR_CMD);
 }
+
+/**
+ * fscache_object_retrying_stale - Note retrying stale object
+ * @object: The object that will be retried
+ *
+ * Note that an object lookup found an on-disk object that was adjudged to be
+ * stale and has been deleted.  The lookup will be retried.
+ */
+void fscache_object_retrying_stale(struct fscache_object *object)
+{
+	fscache_stat(&fscache_n_cache_no_space_reject);
+}
+EXPORT_SYMBOL(fscache_object_retrying_stale);
+
+/**
+ * fscache_object_mark_killed - Note that an object was killed
+ * @object: The object that was culled
+ * @why: The reason the object was killed.
+ *
+ * Note that an object was killed.  Returns true if the object was
+ * already marked killed, false if it wasn't.
+ */
+void fscache_object_mark_killed(struct fscache_object *object,
+				enum fscache_why_object_killed why)
+{
+	if (test_and_set_bit(FSCACHE_OBJECT_KILLED_BY_CACHE, &object->flags)) {
+		pr_err("Error: Object already killed by cache [%s]\n",
+		       object->cache->identifier);
+		return;
+	}
+
+	switch (why) {
+	case FSCACHE_OBJECT_NO_SPACE:
+		fscache_stat(&fscache_n_cache_no_space_reject);
+		break;
+	case FSCACHE_OBJECT_IS_STALE:
+		fscache_stat(&fscache_n_cache_stale_objects);
+		break;
+	case FSCACHE_OBJECT_WAS_RETIRED:
+		fscache_stat(&fscache_n_cache_retired_objects);
+		break;
+	case FSCACHE_OBJECT_WAS_CULLED:
+		fscache_stat(&fscache_n_cache_culled_objects);
+		break;
+	}
+}
+EXPORT_SYMBOL(fscache_object_mark_killed);

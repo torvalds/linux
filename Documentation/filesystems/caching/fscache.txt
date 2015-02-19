@@ -303,6 +303,10 @@ proc files.
 		wrp=N	Number of in-progress write_page() cache ops
 		ucp=N	Number of in-progress uncache_page() cache ops
 		dsp=N	Number of in-progress dissociate_pages() cache ops
+	CacheEv	nsp=N	Number of object lookups/creations rejected due to lack of space
+		stl=N	Number of stale objects deleted
+		rtr=N	Number of objects retired when relinquished
+		cul=N	Number of objects culled
 
 
  (*) /proc/fs/fscache/histogram
