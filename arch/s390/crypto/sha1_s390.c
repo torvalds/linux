@@ -26,6 +26,7 @@
 #include <crypto/internal/hash.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/cpufeature.h>
 #include <crypto/sha.h>
 
 #include "crypt_s390.h"
@@ -100,7 +101,7 @@ static void __exit sha1_s390_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(sha1_s390_init);
+module_cpu_feature_match(MSA, sha1_s390_init);
 module_exit(sha1_s390_fini);
 
 MODULE_ALIAS_CRYPTO("sha1");

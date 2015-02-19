@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
+#include <linux/cpufeature.h>
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <asm/debug.h>
@@ -914,6 +915,5 @@ static void __exit prng_exit(void)
 	}
 }
 
-
-module_init(prng_init);
+module_cpu_feature_match(MSA, prng_init);
 module_exit(prng_exit);
