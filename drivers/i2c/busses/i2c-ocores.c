@@ -354,20 +354,24 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 		i2c->ip_clock_khz = clk_get_rate(i2c->clk) / 1000;
 		if (clock_frequency_present)
 			i2c->bus_clock_khz = clock_frequency / 1000;
-	} else if (of_property_read_u32(np, "opencores,ip-clock-frequency",
-					&val)) {
-		if (!clock_frequency_present) {
-			dev_err(&pdev->dev,
-				"Missing required parameter 'opencores,ip-clock-frequency'\n");
-			return -ENODEV;
+	}
+
+	if (i2c->ip_clock_khz == 0) {
+		if (of_property_read_u32(np, "opencores,ip-clock-frequency",
+						&val)) {
+			if (!clock_frequency_present) {
+				dev_err(&pdev->dev,
+					"Missing required parameter 'opencores,ip-clock-frequency'\n");
+				return -ENODEV;
+			}
+			i2c->ip_clock_khz = clock_frequency / 1000;
+			dev_warn(&pdev->dev,
+				 "Deprecated usage of the 'clock-frequency' property, please update to 'opencores,ip-clock-frequency'\n");
+		} else {
+			i2c->ip_clock_khz = val / 1000;
+			if (clock_frequency_present)
+				i2c->bus_clock_khz = clock_frequency / 1000;
 		}
-		i2c->ip_clock_khz = clock_frequency / 1000;
-		dev_warn(&pdev->dev,
-			 "Deprecated usage of the 'clock-frequency' property, please update to 'opencores,ip-clock-frequency'\n");
-	} else {
-		i2c->ip_clock_khz = val / 1000;
-		if (clock_frequency_present)
-			i2c->bus_clock_khz = clock_frequency / 1000;
 	}
 
 	of_property_read_u32(pdev->dev.of_node, "reg-io-width",
@@ -518,6 +522,7 @@ static int ocores_i2c_resume(struct device *dev)
 	struct ocores_i2c *i2c = dev_get_drvdata(dev);
 
 	if (!IS_ERR(i2c->clk)) {
+		unsigned long rate;
 		int ret = clk_prepare_enable(i2c->clk);
 
 		if (ret) {
@@ -525,7 +530,9 @@ static int ocores_i2c_resume(struct device *dev)
 				"clk_prepare_enable failed: %d\n", ret);
 			return ret;
 		}
-		i2c->ip_clock_khz = clk_get_rate(i2c->clk) / 1000;
+		rate = clk_get_rate(i2c->clk) / 1000;
+		if (rate)
+			i2c->ip_clock_khz = rate;
 	}
 	return ocores_init(dev, i2c);
 }
