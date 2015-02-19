@@ -51,8 +51,11 @@ static int mv88e6171_switch_reset(struct dsa_switch *ds)
 	/* Wait for transmit queues to drain. */
 	usleep_range(2000, 4000);
 
-	/* Reset the switch. */
-	REG_WRITE(REG_GLOBAL, 0x04, 0xc400);
+	/* Reset the switch. Keep PPU active.  The PPU needs to be
+	 * active to support indirect phy register accesses through
+	 * global registers 0x18 and 0x19.
+	 */
+	REG_WRITE(REG_GLOBAL, 0x04, 0xc000);
 
 	/* Wait up to one second for reset to complete. */
 	timeout = jiffies + 1 * HZ;
@@ -83,11 +86,10 @@ static int mv88e6171_setup_global(struct dsa_switch *ds)
 	int ret;
 	int i;
 
-	/* Disable the PHY polling unit (since there won't be any
-	 * external PHYs to poll), don't discard packets with
-	 * excessive collisions, and mask all interrupt sources.
+	/* Discard packets with excessive collisions, mask all
+	 * interrupt sources, enable PPU.
 	 */
-	REG_WRITE(REG_GLOBAL, 0x04, 0x0000);
+	REG_WRITE(REG_GLOBAL, 0x04, 0x6000);
 
 	/* Set the default address aging time to 5 minutes, and
 	 * enable address learn messages to be sent to all message
@@ -336,7 +338,7 @@ mv88e6171_phy_read(struct dsa_switch *ds, int port, int regnum)
 	int ret;
 
 	mutex_lock(&ps->phy_mutex);
-	ret = mv88e6xxx_phy_read(ds, addr, regnum);
+	ret = mv88e6xxx_phy_read_indirect(ds, addr, regnum);
 	mutex_unlock(&ps->phy_mutex);
 	return ret;
 }
@@ -350,7 +352,7 @@ mv88e6171_phy_write(struct dsa_switch *ds,
 	int ret;
 
 	mutex_lock(&ps->phy_mutex);
-	ret = mv88e6xxx_phy_write(ds, addr, regnum, val);
+	ret = mv88e6xxx_phy_write_indirect(ds, addr, regnum, val);
 	mutex_unlock(&ps->phy_mutex);
 	return ret;
 }
