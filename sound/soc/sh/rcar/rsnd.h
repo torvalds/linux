@@ -184,6 +184,8 @@ struct rsnd_dma {
 	struct rsnd_dma_ops	*ops;
 	enum dma_transfer_direction dir;
 	dma_addr_t		addr;
+	int			dmapp_id;
+	u32			chcr;
 	dma_addr_t		src_addr;
 	dma_addr_t		dst_addr;
 };
@@ -192,7 +194,9 @@ void rsnd_dma_start(struct rsnd_dma *dma);
 void rsnd_dma_stop(struct rsnd_dma *dma);
 int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id);
 void  rsnd_dma_quit(struct rsnd_dma *dma);
-
+int rsnd_dma_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
+		   struct rsnd_priv *priv);
 
 #define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 
@@ -394,6 +398,11 @@ struct rsnd_priv {
 	 * below value will be filled on rsnd_adg_probe()
 	 */
 	void *adg;
+
+	/*
+	 * below value will be filled on rsnd_dma_probe()
+	 */
+	void *dma;
 
 	/*
 	 * below value will be filled on rsnd_ssi_probe()

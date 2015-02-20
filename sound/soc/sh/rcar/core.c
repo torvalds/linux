@@ -974,6 +974,7 @@ static int rsnd_probe(struct platform_device *pdev)
 			    const struct rsnd_of_data *of_data,
 			    struct rsnd_priv *priv) = {
 		rsnd_gen_probe,
+		rsnd_dma_probe,
 		rsnd_ssi_probe,
 		rsnd_src_probe,
 		rsnd_dvc_probe,
