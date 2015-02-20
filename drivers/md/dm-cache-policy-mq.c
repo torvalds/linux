@@ -160,18 +160,6 @@ static void queue_remove(struct queue *q, struct list_head *elt)
 }
 
 /*
- * Shifts all regions down one level.  This has no effect on the order of
- * the queue.
- */
-static void queue_shift_down(struct queue *q)
-{
-	unsigned level;
-
-	for (level = 1; level < NR_QUEUE_LEVELS; level++)
-		list_splice_init(q->qs + level, q->qs + level - 1);
-}
-
-/*
  * Gives us the oldest entry of the lowest popoulated level.  If the first
  * level is emptied then we shift down one level.
  */
@@ -193,10 +181,6 @@ static struct list_head *queue_pop(struct queue *q)
 	if (r) {
 		q->nr_elts--;
 		list_del(r);
-
-		/* have we just emptied the bottom level? */
-		if (list_empty(q->qs))
-			queue_shift_down(q);
 	}
 
 	return r;
