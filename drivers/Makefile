@@ -156,3 +156,4 @@ obj-$(CONFIG_NTB)		+= ntb/
 
 obj-$(CONFIG_GATOR)		+= gator/
 obj-$(CONFIG_CORESIGHT)		+= coresight/
+obj-$(CONFIG_ANDROID)		+= android/
