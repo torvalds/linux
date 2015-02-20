@@ -33,11 +33,11 @@ your kernel.
 ### Installing the kernel source:
 + If you install the full sources, put the kernel tarball in a directory where you have permissions (eg. your home directory) and unpack it: 
 
-```bash gzip -cd linux-3.x.tar.gz | tar xvf - ```
+```gzip -cd linux-3.x.tar.gz | tar xvf - ```
 
 or
 
-```bash bzip2 -dc linux-3.x.tar.bz2 | tar xvf - ```
+```bzip2 -dc linux-3.x.tar.bz2 | tar xvf - ```
 
 Replace "x" with the version number of the latest kernel.
 
@@ -45,11 +45,11 @@ Replace "x" with the version number of the latest kernel.
 
 + You can also upgrade between 3.x releases by patching. Patches are distributed in the traditional gzip and the newer bzip2 format. To install by patching, get all the newer patch files, enter the top level directory of the kernel source (linux-3.x) and execute:
 
-```bash gzip -cd ../patch-3.x.gz | patch -p1 ```
+```gzip -cd ../patch-3.x.gz | patch -p1 ```
 
 or
 
-```bash bzip2 -dc ../patch-3.x.bz2 | patch -p1 ```
+```bzip2 -dc ../patch-3.x.bz2 | patch -p1 ```
 
 Replace "x" for all versions bigger than the version "X" of your current source tree, _in_order_, and you should be ok.  You may want to remove the backup files (some-file-name~ or some-file-name.orig), and make sure that there are no failed patches (some-file-name# or some-file-name.rej). If there are, either you or I have made a mistake.
 
@@ -57,7 +57,7 @@ Unlike patches for the 3.x kernels, patches for the 3.x.y kernels (also known as
 
 Alternatively, the script patch-kernel can be used to automate this process.  It determines the current kernel version and applies any patches found.
 
-```bash linux/scripts/patch-kernel linux ```
+```linux/scripts/patch-kernel linux ```
 
 The first argument in the command above is the location of the kernel source.  Patches are applied from the current directory, but an alternative directory can be specified as the second argument.
 
