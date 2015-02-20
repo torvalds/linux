@@ -198,7 +198,7 @@ static __always_inline void data_access_exceeds_word_size(void)
 {
 }
 
-static __always_inline void __read_once_size(volatile void *p, void *res, int size)
+static __always_inline void __read_once_size(const volatile void *p, void *res, int size)
 {
 	switch (size) {
 	case 1: *(__u8 *)res = *(volatile __u8 *)p; break;
@@ -255,10 +255,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  */
 
 #define READ_ONCE(x) \
-	({ typeof(x) __val; __read_once_size(&x, &__val, sizeof(__val)); __val; })
+	({ union { typeof(x) __val; char __c[1]; } __u; __read_once_size(&(x), __u.__c, sizeof(x)); __u.__val; })
 
 #define WRITE_ONCE(x, val) \
-	({ typeof(x) __val; __val = val; __write_once_size(&x, &__val, sizeof(__val)); __val; })
+	({ typeof(x) __val = (val); __write_once_size(&(x), &__val, sizeof(__val)); __val; })
 
 #endif /* __KERNEL__ */
 
