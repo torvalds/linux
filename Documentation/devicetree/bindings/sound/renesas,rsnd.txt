@@ -53,7 +53,9 @@ rcar_sound: rcar_sound@ec500000 {
 	reg =	<0 0xec500000 0 0x1000>, /* SCU */
 		<0 0xec5a0000 0 0x100>,  /* ADG */
 		<0 0xec540000 0 0x1000>, /* SSIU */
-		<0 0xec541000 0 0x1280>; /* SSI */
+		<0 0xec541000 0 0x1280>, /* SSI */
+		<0 0xec740000 0 0x200>;  /* Audio DMAC peri peri*/
+	reg-names = "scu", "adg", "ssiu", "ssi", "audmapp";
 
 	clocks = <&mstp10_clks R8A7790_CLK_SSI_ALL>,
 		<&mstp10_clks R8A7790_CLK_SSI9>, <&mstp10_clks R8A7790_CLK_SSI8>,
