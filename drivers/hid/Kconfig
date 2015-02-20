@@ -92,7 +92,7 @@ menu "Special HID drivers"
 	depends on HID
 
 config HID_A4TECH
-	tristate "A4 tech mice" if EXPERT
+	tristate "A4 tech mice"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -113,7 +113,7 @@ config HID_ACRUX_FF
 	game controllers.
 
 config HID_APPLE
-	tristate "Apple {i,Power,Mac}Books" if EXPERT
+	tristate "Apple {i,Power,Mac}Books"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -141,7 +141,7 @@ config HID_AUREAL
 	Support for Aureal Cy se W-01RN Remote Controller and other Aureal derived remotes.
 
 config HID_BELKIN
-	tristate "Belkin Flip KVM and Wireless keyboard" if EXPERT
+	tristate "Belkin Flip KVM and Wireless keyboard"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -158,14 +158,14 @@ config HID_BETOP_FF
 	 - BETOP 2185 PC & BFM MODE
 
 config HID_CHERRY
-	tristate "Cherry Cymotion keyboard" if EXPERT
+	tristate "Cherry Cymotion keyboard"
 	depends on HID
 	default !EXPERT
 	---help---
 	Support for Cherry Cymotion keyboard.
 
 config HID_CHICONY
-	tristate "Chicony Tactical pad" if EXPERT
+	tristate "Chicony Tactical pad"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -196,7 +196,7 @@ config HID_CP2112
 	customizable USB descriptor fields are exposed as sysfs attributes.
 
 config HID_CYPRESS
-	tristate "Cypress mouse and barcode readers" if EXPERT
+	tristate "Cypress mouse and barcode readers"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -245,7 +245,7 @@ config HID_ELO
 	different devices than those handled by CONFIG_TOUCHSCREEN_USB_ELO.
 
 config HID_EZKEY
-	tristate "Ezkey BTC 8193 keyboard" if EXPERT
+	tristate "Ezkey BTC 8193 keyboard"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -344,7 +344,7 @@ config HID_TWINHAN
 	Support for Twinhan IR remote control.
 
 config HID_KENSINGTON
-	tristate "Kensington Slimblade Trackball" if EXPERT
+	tristate "Kensington Slimblade Trackball"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -372,7 +372,7 @@ config HID_LENOVO
 	- ThinkPad Compact USB Keyboard with TrackPoint (supports Fn keys)
 
 config HID_LOGITECH
-	tristate "Logitech devices" if EXPERT
+	tristate "Logitech devices"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -461,14 +461,14 @@ config HID_MAGICMOUSE
 	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
 
 config HID_MICROSOFT
-	tristate "Microsoft non-fully HID-compliant devices" if EXPERT
+	tristate "Microsoft non-fully HID-compliant devices"
 	depends on HID
 	default !EXPERT
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
 config HID_MONTEREY
-	tristate "Monterey Genius KB29E keyboard" if EXPERT
+	tristate "Monterey Genius KB29E keyboard"
 	depends on HID
 	default !EXPERT
 	---help---
