@@ -44,13 +44,15 @@ static void rcar_du_hdmienc_dpms(struct drm_encoder *encoder, int mode)
 		return;
 
 	if (mode == DRM_MODE_DPMS_ON && hdmienc->renc->lvds)
-		rcar_du_lvdsenc_dpms(hdmienc->renc->lvds, encoder->crtc, mode);
+		rcar_du_lvdsenc_enable(hdmienc->renc->lvds, encoder->crtc,
+				       true);
 
 	if (sfuncs->dpms)
 		sfuncs->dpms(encoder, mode);
 
 	if (mode != DRM_MODE_DPMS_ON && hdmienc->renc->lvds)
-		rcar_du_lvdsenc_dpms(hdmienc->renc->lvds, encoder->crtc, mode);
+		rcar_du_lvdsenc_enable(hdmienc->renc->lvds, encoder->crtc,
+				       false);
 
 	hdmienc->dpms = mode;
 }
