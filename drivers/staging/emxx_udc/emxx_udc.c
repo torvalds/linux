@@ -2794,7 +2794,7 @@ static int nbu2ss_ep_queue(
 		if (ep->virt_buf == NULL)
 			ep->virt_buf = (u8 *)dma_alloc_coherent(
 				NULL, PAGE_SIZE,
-				&ep->phys_buf, GFP_KERNEL | GFP_DMA);
+				&ep->phys_buf, GFP_ATOMIC | GFP_DMA);
 		if (ep->epnum > 0)  {
 			if (ep->direct == USB_DIR_IN)
 				memcpy(ep->virt_buf, req->req.buf,
