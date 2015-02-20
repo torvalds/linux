@@ -37,7 +37,6 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	bool		    rt_status = true;
 	u16		    frag_threshold;
 	u16		    frag_length, frag_offset = 0;
-	//u16		    total_size;
 	int		    i;
 
 	rt_firmware	    *pfirmware = priv->pFirmware;
