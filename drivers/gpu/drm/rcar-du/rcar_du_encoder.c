@@ -118,16 +118,6 @@ static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-static void rcar_du_encoder_mode_prepare(struct drm_encoder *encoder)
-{
-	rcar_du_encoder_disable(encoder);
-}
-
-static void rcar_du_encoder_mode_commit(struct drm_encoder *encoder)
-{
-	rcar_du_encoder_enable(encoder);
-}
-
 static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
 				     struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
@@ -140,8 +130,6 @@ static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
 	.dpms = rcar_du_encoder_dpms,
 	.mode_fixup = rcar_du_encoder_mode_fixup,
-	.prepare = rcar_du_encoder_mode_prepare,
-	.commit = rcar_du_encoder_mode_commit,
 	.mode_set = rcar_du_encoder_mode_set,
 	.disable = rcar_du_encoder_disable,
 	.enable = rcar_du_encoder_enable,
