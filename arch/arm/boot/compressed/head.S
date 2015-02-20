@@ -133,7 +133,61 @@ start:
 		.word	start			@ absolute load/run zImage address
 		.word	_edata			@ zImage end address
  THUMB(		.thumb			)
-1:		mov	r7, r1			@ save architecture ID
+1:
+
+/******************************************************************************/
+/*
+ * This is a hack to implement the compatibility check between the mainline
+ * U-Boot and the legacy sunxi-3.4 kernel. We interpret the top 4 bits of the
+ * machine id as a some sort of a machine id compatibility revision number.
+ *
+ * The expected workflow:
+ *
+ * 1. U-Boot introduces some changes, which may expose some serious bug in
+ *    the sunxi-3.4 kernel. For example, changes the PLL5P clock speed.
+ *    So that the kernel needs bugfixes like:
+ *        https://github.com/linux-sunxi/linux-sunxi/commit/9a1cd034181af628d41
+ *        https://github.com/linux-sunxi/linux-sunxi/commit/ade08aa6e5249a9e75a
+ *
+ *    And U-Boot bumps the compatibility revision number in the machine id at
+ *    the same time. For example, changes the 'include/configs/sun4i.h' from
+ *
+ *        #define CONFIG_MACH_TYPE 4104
+ *
+ *    into
+ *
+ *        #define CONFIG_MACH_TYPE_COMPAT_REV 1
+ *        #define CONFIG_MACH_TYPE (4104 | (CONFIG_MACH_TYPE_COMPAT_REV << 28))
+ *
+ * 2. The sunxi-3.4 kernel applies the necessary bugfixes to the code and also
+ *    bumps the CONFIG_MACH_TYPE_COMPAT_REV number in this file in the kernel.
+ *
+ * The effect of this is the following. If somebody tries to boot some old
+ * kernel with the new incompatible U-Boot, then the top bits of the machine
+ * id will be non-zero and the kernel will refuse to load because of the
+ * machine id mismatch. The appropriate error message will show on the serial
+ * console, and this error message is very much googlable. The linux-sunxi wiki
+ * can contain the necessary explanations about how to resolve this situation.
+ *
+ * If somebody tries to boot an appropriately fixed revison of the sunxi-3.4
+ * kernel with the new U-Boot, then the top 4 bits of the machine id will be
+ * cleared by the code in this assembly file after passing the revision check.
+ *
+ * If somebody tries to boot an appropriately fixed revison of the sunxi-3.4
+ * kernel with a very old U-Boot (for example, the legacy u-boot-sunxi), then
+ * everything will be fine too.
+ */
+		#define CONFIG_MACH_TYPE_COMPAT_REV 1
+
+		/* Extract the machine id compatibility revision number */
+		mov	r7, r1, lsr #28
+		cmp	r7, #CONFIG_MACH_TYPE_COMPAT_REV
+		/* Clear the top 4 bits if the compatibility check succeeded */
+		bicle	r1, r1, #(0xF << 28)
+
+/******************************************************************************/
+
+		mov	r7, r1			@ save architecture ID
 		mov	r8, r2			@ save atags pointer
 
 #ifndef __ARM_ARCH_2__
