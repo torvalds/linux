@@ -326,7 +326,8 @@ struct perf_event_attr {
 				exclude_callchain_user   : 1, /* exclude user callchains */
 				mmap2          :  1, /* include mmap with inode data     */
 				comm_exec      :  1, /* flag comm events that are due to an exec */
-				__reserved_1   : 39;
+				use_clockid    :  1, /* use @clockid for time fields */
+				__reserved_1   : 38;
 
 	union {
 		__u32		wakeup_events;	  /* wakeup every n events */
@@ -355,8 +356,7 @@ struct perf_event_attr {
 	 */
 	__u32	sample_stack_user;
 
-	/* Align to u64. */
-	__u32	__reserved_2;
+	__s32	clockid;
 	/*
 	 * Defines set of regs to dump for each sample
 	 * state captured on:

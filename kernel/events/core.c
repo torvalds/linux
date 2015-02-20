@@ -327,6 +327,11 @@ static inline u64 perf_clock(void)
 	return local_clock();
 }
 
+static inline u64 perf_event_clock(struct perf_event *event)
+{
+	return event->clock();
+}
+
 static inline struct perf_cpu_context *
 __get_cpu_context(struct perf_event_context *ctx)
 {
@@ -4762,7 +4767,7 @@ static void __perf_event_header__init_id(struct perf_event_header *header,
 	}
 
 	if (sample_type & PERF_SAMPLE_TIME)
-		data->time = perf_clock();
+		data->time = perf_event_clock(event);
 
 	if (sample_type & (PERF_SAMPLE_ID | PERF_SAMPLE_IDENTIFIER))
 		data->id = primary_event_id(event);
@@ -5340,6 +5345,8 @@ static void perf_event_task_output(struct perf_event *event,
 	task_event->event_id.tid = perf_event_tid(event, task);
 	task_event->event_id.ptid = perf_event_tid(event, current);
 
+	task_event->event_id.time = perf_event_clock(event);
+
 	perf_output_put(&handle, task_event->event_id);
 
 	perf_event__output_id_sample(event, &handle, &sample);
@@ -5373,7 +5380,7 @@ static void perf_event_task(struct task_struct *task,
 			/* .ppid */
 			/* .tid  */
 			/* .ptid */
-			.time = perf_clock(),
+			/* .time */
 		},
 	};
 
@@ -5749,7 +5756,7 @@ static void perf_log_throttle(struct perf_event *event, int enable)
 			.misc = 0,
 			.size = sizeof(throttle_event),
 		},
-		.time		= perf_clock(),
+		.time		= perf_event_clock(event),
 		.id		= primary_event_id(event),
 		.stream_id	= event->id,
 	};
@@ -6293,6 +6300,8 @@ static int perf_swevent_init(struct perf_event *event)
 static struct pmu perf_swevent = {
 	.task_ctx_nr	= perf_sw_context,
 
+	.capabilities	= PERF_PMU_CAP_NO_NMI,
+
 	.event_init	= perf_swevent_init,
 	.add		= perf_swevent_add,
 	.del		= perf_swevent_del,
@@ -6636,6 +6645,8 @@ static int cpu_clock_event_init(struct perf_event *event)
 static struct pmu perf_cpu_clock = {
 	.task_ctx_nr	= perf_sw_context,
 
+	.capabilities	= PERF_PMU_CAP_NO_NMI,
+
 	.event_init	= cpu_clock_event_init,
 	.add		= cpu_clock_event_add,
 	.del		= cpu_clock_event_del,
@@ -6714,6 +6725,8 @@ static int task_clock_event_init(struct perf_event *event)
 
 static struct pmu perf_task_clock = {
 	.task_ctx_nr	= perf_sw_context,
+
+	.capabilities	= PERF_PMU_CAP_NO_NMI,
 
 	.event_init	= task_clock_event_init,
 	.add		= task_clock_event_add,
@@ -7200,6 +7213,10 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 		event->hw.target = task;
 	}
 
+	event->clock = &local_clock;
+	if (parent_event)
+		event->clock = parent_event->clock;
+
 	if (!overflow_handler && parent_event) {
 		overflow_handler = parent_event->overflow_handler;
 		context = parent_event->overflow_handler_context;
@@ -7422,6 +7439,12 @@ perf_event_set_output(struct perf_event *event, struct perf_event *output_event)
 	if (output_event->cpu == -1 && output_event->ctx != event->ctx)
 		goto out;
 
+	/*
+	 * Mixing clocks in the same buffer is trouble you don't need.
+	 */
+	if (output_event->clock != event->clock)
+		goto out;
+
 set:
 	mutex_lock(&event->mmap_mutex);
 	/* Can't redirect output if we've got an active mmap() */
@@ -7452,6 +7475,43 @@ static void mutex_lock_double(struct mutex *a, struct mutex *b)
 
 	mutex_lock(a);
 	mutex_lock_nested(b, SINGLE_DEPTH_NESTING);
+}
+
+static int perf_event_set_clock(struct perf_event *event, clockid_t clk_id)
+{
+	bool nmi_safe = false;
+
+	switch (clk_id) {
+	case CLOCK_MONOTONIC:
+		event->clock = &ktime_get_mono_fast_ns;
+		nmi_safe = true;
+		break;
+
+	case CLOCK_MONOTONIC_RAW:
+		event->clock = &ktime_get_raw_fast_ns;
+		nmi_safe = true;
+		break;
+
+	case CLOCK_REALTIME:
+		event->clock = &ktime_get_real_ns;
+		break;
+
+	case CLOCK_BOOTTIME:
+		event->clock = &ktime_get_boot_ns;
+		break;
+
+	case CLOCK_TAI:
+		event->clock = &ktime_get_tai_ns;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if (!nmi_safe && !(event->pmu->capabilities & PERF_PMU_CAP_NO_NMI))
+		return -EINVAL;
+
+	return 0;
 }
 
 /**
@@ -7569,6 +7629,12 @@ SYSCALL_DEFINE5(perf_event_open,
 	 */
 	pmu = event->pmu;
 
+	if (attr.use_clockid) {
+		err = perf_event_set_clock(event, attr.clockid);
+		if (err)
+			goto err_alloc;
+	}
+
 	if (group_leader &&
 	    (is_software_event(event) != is_software_event(group_leader))) {
 		if (is_software_event(event)) {
@@ -7618,6 +7684,11 @@ SYSCALL_DEFINE5(perf_event_open,
 		 */
 		if (group_leader->group_leader != group_leader)
 			goto err_context;
+
+		/* All events in a group should have the same clock */
+		if (group_leader->clock != event->clock)
+			goto err_context;
+
 		/*
 		 * Do not allow to attach to a group in a different
 		 * task or CPU context:
