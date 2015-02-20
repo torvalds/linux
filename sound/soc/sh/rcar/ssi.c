@@ -84,7 +84,7 @@ struct rsnd_ssi {
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
 
-static int rsnd_ssi_use_busif(struct rsnd_mod *mod)
+int rsnd_ssi_use_busif(struct rsnd_mod *mod)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
