@@ -3,6 +3,7 @@
 #include "perf.h"
 #include "debug.h"
 #include "parse-options.h"
+#include "data-convert-bt.h"
 
 typedef int (*data_cmd_fn_t)(int argc, const char **argv, const char *prefix);
 
@@ -41,7 +42,50 @@ static void print_usage(void)
 	printf("\n");
 }
 
+static const char * const data_convert_usage[] = {
+	"perf data convert [<options>]",
+	NULL
+};
+
+static int cmd_data_convert(int argc, const char **argv,
+			    const char *prefix __maybe_unused)
+{
+	const char *to_ctf     = NULL;
+	const struct option options[] = {
+		OPT_INCR('v', "verbose", &verbose, "be more verbose"),
+		OPT_STRING('i', "input", &input_name, "file", "input file name"),
+#ifdef HAVE_LIBBABELTRACE_SUPPORT
+		OPT_STRING(0, "to-ctf", &to_ctf, NULL, "Convert to CTF format"),
+#endif
+		OPT_END()
+	};
+
+#ifndef HAVE_LIBBABELTRACE_SUPPORT
+	pr_err("No conversion support compiled in.\n");
+	return -1;
+#endif
+
+	argc = parse_options(argc, argv, options,
+			     data_convert_usage, 0);
+	if (argc) {
+		usage_with_options(data_convert_usage, options);
+		return -1;
+	}
+
+	if (to_ctf) {
+#ifdef HAVE_LIBBABELTRACE_SUPPORT
+		return bt_convert__perf2ctf(input_name, to_ctf);
+#else
+		pr_err("The libbabeltrace support is not compiled in.\n");
+		return -1;
+#endif
+	}
+
+	return 0;
+}
+
 static struct data_cmd data_cmds[] = {
+	{ "convert", "converts data file between formats", cmd_data_convert },
 	{ NULL },
 };
 
