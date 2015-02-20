@@ -1124,9 +1124,6 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	int cidx;
 
 	mutex_lock(&register_mutex);
-	if (list_empty(&pcm->list))
-		goto unlock;
-
 	mutex_lock(&pcm->open_mutex);
 	wake_up(&pcm->open_wait);
 	list_del_init(&pcm->list);
@@ -1146,14 +1143,14 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 			notify->n_disconnect(pcm);
 	}
 	for (cidx = 0; cidx < 2; cidx++) {
-		snd_unregister_device(&pcm->streams[cidx].dev);
+		if (!pcm->internal)
+			snd_unregister_device(&pcm->streams[cidx].dev);
 		if (pcm->streams[cidx].chmap_kctl) {
 			snd_ctl_remove(pcm->card, pcm->streams[cidx].chmap_kctl);
 			pcm->streams[cidx].chmap_kctl = NULL;
 		}
 	}
 	mutex_unlock(&pcm->open_mutex);
- unlock:
 	mutex_unlock(&register_mutex);
 	return 0;
 }
