@@ -343,7 +343,7 @@ static void jz4740_dma_chan_irq(struct jz4740_dmaengine_chan *chan)
 {
 	spin_lock(&chan->vchan.lock);
 	if (chan->desc) {
-		if (chan->desc && chan->desc->cyclic) {
+		if (chan->desc->cyclic) {
 			vchan_cyclic_callback(&chan->desc->vdesc);
 		} else {
 			if (chan->next_sg == chan->desc->num_sgs) {
