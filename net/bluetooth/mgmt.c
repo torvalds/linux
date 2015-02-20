@@ -29,6 +29,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/hci_sock.h>
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/mgmt.h>
 
@@ -242,7 +243,7 @@ static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 data_len,
 	/* Time stamp */
 	__net_timestamp(skb);
 
-	hci_send_to_control(skb, skip_sk);
+	hci_send_to_channel(HCI_CHANNEL_CONTROL, skb, skip_sk);
 	kfree_skb(skb);
 
 	return 0;
