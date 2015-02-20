@@ -54,10 +54,11 @@ struct rhash_head {
  * @buckets: size * hash buckets
  */
 struct bucket_table {
-	size_t				size;
-	unsigned int			locks_mask;
-	spinlock_t			*locks;
-	struct rhash_head __rcu		*buckets[];
+	size_t			size;
+	unsigned int		locks_mask;
+	spinlock_t		*locks;
+
+	struct rhash_head __rcu	*buckets[] ____cacheline_aligned_in_smp;
 };
 
 typedef u32 (*rht_hashfn_t)(const void *data, u32 len, u32 seed);
