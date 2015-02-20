@@ -28,6 +28,9 @@ struct rsnd_src {
 #define RSND_SRC_NAME_SIZE 16
 
 #define rsnd_src_convert_rate(p) ((p)->info->convert_rate)
+#define rsnd_src_of_node(priv) \
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,src")
+
 #define rsnd_mod_to_src(_mod)				\
 	container_of((_mod), struct rsnd_src, mod)
 
@@ -807,7 +810,7 @@ static void rsnd_of_parse_src(struct platform_device *pdev,
 	if (!of_data)
 		return;
 
-	src_node = of_get_child_by_name(dev->of_node, "rcar_sound,src");
+	src_node = rsnd_src_of_node(priv);
 	if (!src_node)
 		return;
 
