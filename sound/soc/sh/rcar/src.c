@@ -730,7 +730,7 @@ rsnd_src_probe_gen2_fail:
 static int rsnd_src_remove_gen2(struct rsnd_mod *mod,
 				struct rsnd_priv *priv)
 {
-	rsnd_dma_quit(priv, rsnd_mod_to_dma(mod));
+	rsnd_dma_quit(rsnd_mod_to_dma(mod));
 
 	return 0;
 }

@@ -358,7 +358,7 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id)
 	return 0;
 
 rsnd_dma_init_err:
-	rsnd_dma_quit(priv, dma);
+	rsnd_dma_quit(dma);
 rsnd_dma_channel_err:
 
 	/*
@@ -370,8 +370,7 @@ rsnd_dma_channel_err:
 	return -EAGAIN;
 }
 
-void  rsnd_dma_quit(struct rsnd_priv *priv,
-		    struct rsnd_dma *dma)
+void  rsnd_dma_quit(struct rsnd_dma *dma)
 {
 	if (dma->chan)
 		dma_release_channel(dma->chan);
