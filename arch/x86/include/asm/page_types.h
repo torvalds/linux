@@ -3,7 +3,6 @@
 
 #include <linux/const.h>
 #include <linux/types.h>
-#include <asm/bootparam.h>
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	12

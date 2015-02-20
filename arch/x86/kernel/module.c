@@ -32,7 +32,6 @@
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/page_types.h>
 
 #if 0
 #define DEBUGP(fmt, ...)				\
