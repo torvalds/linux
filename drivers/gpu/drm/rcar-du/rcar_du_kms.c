@@ -439,6 +439,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		encoder->possible_clones = (1 << num_encoders) - 1;
 	}
 
+	drm_mode_config_reset(dev);
+
 	drm_kms_helper_poll_init(dev);
 
 	if (dev->mode_config.num_connector) {

@@ -15,6 +15,8 @@
 #include <linux/mutex.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -572,6 +574,8 @@ static int rcar_du_crtc_page_flip(struct drm_crtc *crtc,
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
+	drm_atomic_set_fb_for_plane(crtc->primary->state, fb);
+
 	crtc->primary->fb = fb;
 	rcar_du_crtc_update_base(rcrtc);
 
@@ -587,9 +591,12 @@ static int rcar_du_crtc_page_flip(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_funcs crtc_funcs = {
+	.reset = drm_atomic_helper_crtc_reset,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_crtc_helper_set_config,
 	.page_flip = rcar_du_crtc_page_flip,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 /* -----------------------------------------------------------------------------

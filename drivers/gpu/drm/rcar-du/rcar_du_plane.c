@@ -12,6 +12,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -486,8 +487,11 @@ static int rcar_du_plane_set_property(struct drm_plane *plane,
 static const struct drm_plane_funcs rcar_du_plane_funcs = {
 	.update_plane = drm_plane_helper_update,
 	.disable_plane = drm_plane_helper_disable,
+	.reset = drm_atomic_helper_plane_reset,
 	.set_property = rcar_du_plane_set_property,
 	.destroy = drm_plane_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
 static const uint32_t formats[] = {
