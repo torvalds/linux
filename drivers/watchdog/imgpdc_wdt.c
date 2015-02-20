@@ -191,6 +191,7 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 	pdc_wdt->wdt_dev.ops = &pdc_wdt_ops;
 	pdc_wdt->wdt_dev.max_timeout = 1 << PDC_WDT_CONFIG_DELAY_MASK;
 	pdc_wdt->wdt_dev.parent = &pdev->dev;
+	watchdog_set_drvdata(&pdc_wdt->wdt_dev, pdc_wdt);
 
 	ret = watchdog_init_timeout(&pdc_wdt->wdt_dev, heartbeat, &pdev->dev);
 	if (ret < 0) {
@@ -232,7 +233,6 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(&pdc_wdt->wdt_dev, nowayout);
 
 	platform_set_drvdata(pdev, pdc_wdt);
-	watchdog_set_drvdata(&pdc_wdt->wdt_dev, pdc_wdt);
 
 	ret = watchdog_register_device(&pdc_wdt->wdt_dev);
 	if (ret)
