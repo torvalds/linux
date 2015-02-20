@@ -179,14 +179,26 @@ struct rsnd_dma_ops {
 	void  (*quit)(struct rsnd_dma *dma);
 };
 
-struct rsnd_dma {
+struct rsnd_dmaen {
 	struct dma_chan		*chan;
-	struct rsnd_dma_ops	*ops;
+};
+
+struct rsnd_dmapp {
 	int			dmapp_id;
 	u32			chcr;
+};
+
+struct rsnd_dma {
+	struct rsnd_dma_ops	*ops;
 	dma_addr_t		src_addr;
 	dma_addr_t		dst_addr;
+	union {
+		struct rsnd_dmaen en;
+		struct rsnd_dmapp pp;
+	} dma;
 };
+#define rsnd_dma_to_dmaen(dma)	(&(dma)->dma.en)
+#define rsnd_dma_to_dmapp(dma)	(&(dma)->dma.pp)
 
 void rsnd_dma_start(struct rsnd_dma *dma);
 void rsnd_dma_stop(struct rsnd_dma *dma);

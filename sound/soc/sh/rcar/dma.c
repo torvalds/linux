@@ -76,11 +76,14 @@ static void rsnd_dmaen_of_name(struct rsnd_mod *mod_from,
 
 static void rsnd_dmaen_stop(struct rsnd_dma *dma)
 {
-	dmaengine_terminate_all(dma->chan);
+	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
+
+	dmaengine_terminate_all(dmaen->chan);
 }
 
 static void rsnd_dmaen_start(struct rsnd_dma *dma)
 {
+	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 	struct rsnd_mod *mod = rsnd_dma_to_mod(dma);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
@@ -89,7 +92,7 @@ static void rsnd_dmaen_start(struct rsnd_dma *dma)
 	struct dma_async_tx_descriptor *desc;
 	int is_play = rsnd_io_is_play(io);
 
-	desc = dmaengine_prep_dma_cyclic(dma->chan,
+	desc = dmaengine_prep_dma_cyclic(dmaen->chan,
 					 substream->runtime->dma_addr,
 					 snd_pcm_lib_buffer_bytes(substream),
 					 snd_pcm_lib_period_bytes(substream),
@@ -109,12 +112,13 @@ static void rsnd_dmaen_start(struct rsnd_dma *dma)
 		return;
 	}
 
-	dma_async_issue_pending(dma->chan);
+	dma_async_issue_pending(dmaen->chan);
 }
 
 static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 			   struct rsnd_mod *mod_from, struct rsnd_mod *mod_to)
 {
+	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_slave_config cfg = {};
 	struct rsnd_mod *mod = rsnd_dma_to_mod(dma);
@@ -124,7 +128,7 @@ static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 	dma_cap_mask_t mask;
 	int ret;
 
-	if (dma->chan) {
+	if (dmaen->chan) {
 		dev_err(dev, "it already has dma channel\n");
 		return -EIO;
 	}
@@ -145,15 +149,15 @@ static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 	dev_dbg(dev, "dma : %s %pad -> %pad\n",
 		dma_name, &cfg.src_addr, &cfg.dst_addr);
 
-	dma->chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+	dmaen->chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
 						     (void *)id, dev,
 						     dma_name);
-	if (!dma->chan) {
+	if (!dmaen->chan) {
 		dev_err(dev, "can't get dma channel\n");
 		goto rsnd_dma_channel_err;
 	}
 
-	ret = dmaengine_slave_config(dma->chan, &cfg);
+	ret = dmaengine_slave_config(dmaen->chan, &cfg);
 	if (ret < 0)
 		goto rsnd_dma_init_err;
 
@@ -174,10 +178,12 @@ rsnd_dma_channel_err:
 
 static void rsnd_dmaen_quit(struct rsnd_dma *dma)
 {
-	if (dma->chan)
-		dma_release_channel(dma->chan);
+	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 
-	dma->chan = NULL;
+	if (dmaen->chan)
+		dma_release_channel(dmaen->chan);
+
+	dmaen->chan = NULL;
 }
 
 static struct rsnd_dma_ops rsnd_dmaen_ops = {
@@ -257,7 +263,8 @@ static u32 rsnd_dmapp_get_chcr(struct rsnd_mod *mod_from,
 }
 
 #define rsnd_dmapp_addr(dmac, dma, reg) \
-	(dmac->base + 0x20 + (0x10 * dma->dmapp_id) + reg)
+	(dmac->base + 0x20 + reg + \
+	 (0x10 * rsnd_dma_to_dmapp(dma)->dmapp_id))
 static void rsnd_dmapp_write(struct rsnd_dma *dma, u32 data, u32 reg)
 {
 	struct rsnd_mod *mod = rsnd_dma_to_mod(dma);
@@ -294,28 +301,31 @@ static void rsnd_dmapp_stop(struct rsnd_dma *dma)
 
 static void rsnd_dmapp_start(struct rsnd_dma *dma)
 {
+	struct rsnd_dmapp *dmapp = rsnd_dma_to_dmapp(dma);
+
 	rsnd_dmapp_write(dma, dma->src_addr,	PDMASAR);
 	rsnd_dmapp_write(dma, dma->dst_addr,	PDMADAR);
-	rsnd_dmapp_write(dma, dma->chcr,	PDMACHCR);
+	rsnd_dmapp_write(dma, dmapp->chcr,	PDMACHCR);
 }
 
 static int rsnd_dmapp_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 			   struct rsnd_mod *mod_from, struct rsnd_mod *mod_to)
 {
+	struct rsnd_dmapp *dmapp = rsnd_dma_to_dmapp(dma);
 	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
 	dev_dbg(dev, "Audio DMAC peri peri init\n");
 
-	dma->dmapp_id = dmac->dmapp_num;
-	dma->chcr = rsnd_dmapp_get_chcr(mod_from, mod_to) | PDMACHCR_DE;
+	dmapp->dmapp_id = dmac->dmapp_num;
+	dmapp->chcr = rsnd_dmapp_get_chcr(mod_from, mod_to) | PDMACHCR_DE;
 
 	dmac->dmapp_num++;
 
 	rsnd_dmapp_stop(dma);
 
 	dev_dbg(dev, "id/src/dst/chcr = %d/%x/%x/%08x\n",
-		dma->dmapp_id, dma->src_addr, dma->dst_addr, dma->chcr);
+		dmapp->dmapp_id, dma->src_addr, dma->dst_addr, dmapp->chcr);
 
 	return 0;
 }
