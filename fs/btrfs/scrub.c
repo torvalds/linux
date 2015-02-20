@@ -2329,7 +2329,7 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 	}
 
 	start -= sparity->logic_start;
-	offset = (int)do_div(start, sparity->stripe_len);
+	start = div_u64_rem(start, sparity->stripe_len, &offset);
 	offset /= sectorsize;
 	nsectors = (int)len / sectorsize;
 
@@ -2628,7 +2628,7 @@ static int get_raid56_logic_offset(u64 physical, int num,
 		stripe_nr = div_u64(stripe_nr, nr_data_stripes(map));
 
 		/* Work out the disk rotation on this stripe-set */
-		rot = do_div(stripe_nr, map->num_stripes);
+		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes, &rot);
 		/* calculate which stripe this data locates */
 		rot += i;
 		stripe_index = rot % map->num_stripes;
