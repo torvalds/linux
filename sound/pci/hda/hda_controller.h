@@ -283,7 +283,7 @@ struct azx_pcm {
 	struct azx *chip;
 	struct snd_pcm *pcm;
 	struct hda_codec *codec;
-	struct hda_pcm_stream *hinfo[2];
+	struct hda_pcm *info;
 	struct list_head list;
 };
 

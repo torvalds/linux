@@ -258,11 +258,18 @@ static void azx_timecounter_init(struct snd_pcm_substream *substream,
 		tc->cycle_last = last;
 }
 
+static inline struct hda_pcm_stream *
+to_hda_pcm_stream(struct snd_pcm_substream *substream)
+{
+	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
+	return &apcm->info->stream[substream->stream];
+}
+
 static u64 azx_adjust_codec_delay(struct snd_pcm_substream *substream,
 				u64 nsec)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	u64 codec_frames, codec_nsecs;
 
 	if (!hinfo->ops.get_delay)
@@ -398,7 +405,7 @@ static int azx_setup_periods(struct azx *chip,
 static int azx_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	unsigned long flags;
@@ -440,7 +447,7 @@ static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct azx *chip = apcm->chip;
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	int err;
 
 	/* reset BDL address */
@@ -467,7 +474,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int bufsize, period_bytes, format_val, stream_tag;
 	int err;
@@ -707,7 +714,7 @@ unsigned int azx_get_position(struct azx *chip,
 
 	if (substream->runtime) {
 		struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-		struct hda_pcm_stream *hinfo = apcm->hinfo[stream];
+		struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 
 		if (chip->get_delay[stream])
 			delay += chip->get_delay[stream](chip, azx_dev, pos);
@@ -790,7 +797,7 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 static int azx_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -904,6 +911,7 @@ static void azx_pcm_free(struct snd_pcm *pcm)
 	struct azx_pcm *apcm = pcm->private_data;
 	if (apcm) {
 		list_del(&apcm->list);
+		apcm->info->pcm = NULL;
 		kfree(apcm);
 	}
 }
@@ -940,6 +948,7 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	apcm->chip = chip;
 	apcm->pcm = pcm;
 	apcm->codec = codec;
+	apcm->info = cpcm;
 	pcm->private_data = apcm;
 	pcm->private_free = azx_pcm_free;
 	if (cpcm->pcm_type == HDA_PCM_TYPE_MODEM)
@@ -947,7 +956,6 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	list_add_tail(&apcm->list, &chip->pcm_list);
 	cpcm->pcm = pcm;
 	for (s = 0; s < 2; s++) {
-		apcm->hinfo[s] = &cpcm->stream[s];
 		if (cpcm->stream[s].substreams)
 			snd_pcm_set_ops(pcm, s, &azx_pcm_ops);
 	}
