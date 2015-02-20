@@ -147,60 +147,62 @@ static int add_generic_values(struct ctf_writer *cw,
 	 */
 
 	if (type & PERF_SAMPLE_IP) {
-		ret = value_set_u64_hex(cw, event, "ip", sample->ip);
+		ret = value_set_u64_hex(cw, event, "perf_ip", sample->ip);
 		if (ret)
 			return -1;
 	}
 
 	if (type & PERF_SAMPLE_TID) {
-		ret = value_set_s32(cw, event, "tid", sample->tid);
+		ret = value_set_s32(cw, event, "perf_tid", sample->tid);
 		if (ret)
 			return -1;
 
-		ret = value_set_s32(cw, event, "pid", sample->pid);
+		ret = value_set_s32(cw, event, "perf_pid", sample->pid);
 		if (ret)
 			return -1;
 	}
 
 	if ((type & PERF_SAMPLE_ID) ||
 	    (type & PERF_SAMPLE_IDENTIFIER)) {
-		ret = value_set_u64(cw, event, "id", sample->id);
+		ret = value_set_u64(cw, event, "perf_id", sample->id);
 		if (ret)
 			return -1;
 	}
 
 	if (type & PERF_SAMPLE_STREAM_ID) {
-		ret = value_set_u64(cw, event, "stream_id", sample->stream_id);
+		ret = value_set_u64(cw, event, "perf_stream_id", sample->stream_id);
 		if (ret)
 			return -1;
 	}
 
 	if (type & PERF_SAMPLE_CPU) {
-		ret = value_set_u32(cw, event, "cpu", sample->cpu);
+		ret = value_set_u32(cw, event, "perf_cpu", sample->cpu);
 		if (ret)
 			return -1;
 	}
 
 	if (type & PERF_SAMPLE_PERIOD) {
-		ret = value_set_u64(cw, event, "period", sample->period);
+		ret = value_set_u64(cw, event, "perf_period", sample->period);
 		if (ret)
 			return -1;
 	}
 
 	if (type & PERF_SAMPLE_WEIGHT) {
-		ret = value_set_u64(cw, event, "weight", sample->weight);
+		ret = value_set_u64(cw, event, "perf_weight", sample->weight);
 		if (ret)
 			return -1;
 	}
 
 	if (type & PERF_SAMPLE_DATA_SRC) {
-		ret = value_set_u64(cw, event, "data_src", sample->data_src);
+		ret = value_set_u64(cw, event, "perf_data_src",
+				sample->data_src);
 		if (ret)
 			return -1;
 	}
 
 	if (type & PERF_SAMPLE_TRANSACTION) {
-		ret = value_set_u64(cw, event, "transaction", sample->transaction);
+		ret = value_set_u64(cw, event, "perf_transaction",
+				sample->transaction);
 		if (ret)
 			return -1;
 	}
@@ -276,34 +278,34 @@ static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 	} while (0)
 
 	if (type & PERF_SAMPLE_IP)
-		ADD_FIELD(event_class, cw->data.u64_hex, "ip");
+		ADD_FIELD(event_class, cw->data.u64_hex, "perf_ip");
 
 	if (type & PERF_SAMPLE_TID) {
-		ADD_FIELD(event_class, cw->data.s32, "tid");
-		ADD_FIELD(event_class, cw->data.s32, "pid");
+		ADD_FIELD(event_class, cw->data.s32, "perf_tid");
+		ADD_FIELD(event_class, cw->data.s32, "perf_pid");
 	}
 
 	if ((type & PERF_SAMPLE_ID) ||
 	    (type & PERF_SAMPLE_IDENTIFIER))
-		ADD_FIELD(event_class, cw->data.u64, "id");
+		ADD_FIELD(event_class, cw->data.u64, "perf_id");
 
 	if (type & PERF_SAMPLE_STREAM_ID)
-		ADD_FIELD(event_class, cw->data.u64, "stream_id");
+		ADD_FIELD(event_class, cw->data.u64, "perf_stream_id");
 
 	if (type & PERF_SAMPLE_CPU)
-		ADD_FIELD(event_class, cw->data.u32, "cpu");
+		ADD_FIELD(event_class, cw->data.u32, "perf_cpu");
 
 	if (type & PERF_SAMPLE_PERIOD)
-		ADD_FIELD(event_class, cw->data.u64, "period");
+		ADD_FIELD(event_class, cw->data.u64, "perf_period");
 
 	if (type & PERF_SAMPLE_WEIGHT)
-		ADD_FIELD(event_class, cw->data.u64, "weight");
+		ADD_FIELD(event_class, cw->data.u64, "perf_weight");
 
 	if (type & PERF_SAMPLE_DATA_SRC)
-		ADD_FIELD(event_class, cw->data.u64, "data_src");
+		ADD_FIELD(event_class, cw->data.u64, "perf_data_src");
 
 	if (type & PERF_SAMPLE_TRANSACTION)
-		ADD_FIELD(event_class, cw->data.u64, "transaction");
+		ADD_FIELD(event_class, cw->data.u64, "perf_transaction");
 
 #undef ADD_FIELD
 	return 0;
