@@ -170,10 +170,22 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod);
 /*
  *	R-Car DMA
  */
+struct rsnd_dma;
+struct rsnd_dma_ops {
+	void (*start)(struct rsnd_dma *dma);
+	void (*stop)(struct rsnd_dma *dma);
+	int (*init)(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
+		    struct rsnd_mod *mod_from, struct rsnd_mod *mod_to);
+	void  (*quit)(struct rsnd_dma *dma);
+};
+
 struct rsnd_dma {
 	struct dma_chan		*chan;
+	struct rsnd_dma_ops	*ops;
 	enum dma_transfer_direction dir;
 	dma_addr_t		addr;
+	dma_addr_t		src_addr;
+	dma_addr_t		dst_addr;
 };
 
 void rsnd_dma_start(struct rsnd_dma *dma);
