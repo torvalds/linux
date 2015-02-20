@@ -182,6 +182,8 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id);
 void  rsnd_dma_quit(struct rsnd_dma *dma);
 
 
+#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
+
 /*
  *	R-Car sound mod
  */
@@ -253,7 +255,6 @@ struct rsnd_mod {
 
 #define rsnd_mod_to_priv(mod) (rsnd_io_to_priv(rsnd_mod_to_io(mod)))
 #define rsnd_mod_to_dma(mod) (&(mod)->dma)
-#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 #define rsnd_mod_to_io(mod) ((mod)->io)
 #define rsnd_mod_id(mod) ((mod)->id)
 #define rsnd_mod_hw_start(mod)	clk_prepare_enable((mod)->clk)
