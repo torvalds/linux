@@ -126,6 +126,7 @@ static void iot_examine_bio(struct io_tracker *t, struct bio *bio)
 #define NR_QUEUE_LEVELS 16u
 
 struct queue {
+	unsigned nr_elts;
 	struct list_head qs[NR_QUEUE_LEVELS];
 };
 
@@ -133,23 +134,14 @@ static void queue_init(struct queue *q)
 {
 	unsigned i;
 
+	q->nr_elts = 0;
 	for (i = 0; i < NR_QUEUE_LEVELS; i++)
 		INIT_LIST_HEAD(q->qs + i);
 }
 
-/*
- * Checks to see if the queue is empty.
- * FIXME: reduce cpu usage.
- */
 static bool queue_empty(struct queue *q)
 {
-	unsigned i;
-
-	for (i = 0; i < NR_QUEUE_LEVELS; i++)
-		if (!list_empty(q->qs + i))
-			return false;
-
-	return true;
+	return q->nr_elts == 0;
 }
 
 /*
@@ -157,11 +149,13 @@ static bool queue_empty(struct queue *q)
  */
 static void queue_push(struct queue *q, unsigned level, struct list_head *elt)
 {
+	q->nr_elts++;
 	list_add_tail(elt, q->qs + level);
 }
 
-static void queue_remove(struct list_head *elt)
+static void queue_remove(struct queue *q, struct list_head *elt)
 {
+	q->nr_elts--;
 	list_del(elt);
 }
 
@@ -197,6 +191,7 @@ static struct list_head *queue_pop(struct queue *q)
 	struct list_head *r = queue_peek(q);
 
 	if (r) {
+		q->nr_elts--;
 		list_del(r);
 
 		/* have we just emptied the bottom level? */
@@ -496,7 +491,11 @@ static void push(struct mq_policy *mq, struct entry *e)
  */
 static void del(struct mq_policy *mq, struct entry *e)
 {
-	queue_remove(&e->list);
+	if (in_cache(mq, e))
+		queue_remove(e->dirty ? &mq->cache_dirty : &mq->cache_clean, &e->list);
+	else
+		queue_remove(&mq->pre_cache, &e->list);
+
 	hash_remove(e);
 }
 
