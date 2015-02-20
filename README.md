@@ -80,6 +80,7 @@ When compiling the kernel, all output files will per default be stored together 
 *Example:*
 
 kernel source code: ```/usr/src/linux-3.x```
+
 build directory:    ```/home/name/build/kernel```
 
 To configure and build the kernel, use:
@@ -91,7 +92,7 @@ make O=/home/name/build/kernel
 sudo make O=/home/name/build/kernel modules_install install
 ```
 
-*Please note:* If the ```'O=output/dir'``` option is used, then it must be used for all invocations of ```bash make```.
+*Please note:* If the ```'O=output/dir'``` option is used, then it must be used for all invocations of ```make```.
 
 ### Configuring the kernel
 
@@ -99,36 +100,36 @@ Do not skip this step even if you are only upgrading one minor version. New conf
 
 Alternative configuration commands are:
 
-```bash make config``` Plain text interface.
+```make config``` Plain text interface.
 
-```bash make menuconfig``` Text based color menus, radiolists & dialogs.
+```make menuconfig``` Text based color menus, radiolists & dialogs.
 
-```bash make nconfig``` Enhanced text based color menus.
+```make nconfig``` Enhanced text based color menus.
 
-```bash make xconfig``` X windows (Qt) based configuration tool.
+```make xconfig``` X windows (Qt) based configuration tool.
 
-```bash make gconfig``` X windows (Gtk) based configuration tool.
+```make gconfig``` X windows (Gtk) based configuration tool.
 
-```bash make oldconfig``` Default all questions based on the contents of your existing ./.config file and asking about new config symbols.
+```make oldconfig``` Default all questions based on the contents of your existing ./.config file and asking about new config symbols.
 
-```bash make silentoldconfig``` Like above, but avoids cluttering the screen with questions already answered. Additionally updates the dependencies.
+```make silentoldconfig``` Like above, but avoids cluttering the screen with questions already answered. Additionally updates the dependencies.
 
-```bash make olddefconfig``` Like above, but sets new symbols to their default values without prompting.
+```make olddefconfig``` Like above, but sets new symbols to their default values without prompting.
 
-```bash make defconfig``` Create a ./.config file by using the default symbol values from either arch/$ARCH/defconfig or arch/$ARCH/configs/${PLATFORM}_defconfig, depending on the architecture.
+```make defconfig``` Create a ./.config file by using the default symbol values from either arch/$ARCH/defconfig or arch/$ARCH/configs/${PLATFORM}_defconfig, depending on the architecture.
 
-```bash make ${PLATFORM}_defconfig``` Create a ./.config file by using the default symbol values from
+```make ${PLATFORM}_defconfig``` Create a ./.config file by using the default symbol values from
 arch/$ARCH/configs/${PLATFORM}_defconfig. Use "make help" to get a list of all available platforms of your architecture.
 
-```bash make allyesconfig``` Create a ./.config file by setting symbol values to 'y' as much as possible.
+```make allyesconfig``` Create a ./.config file by setting symbol values to 'y' as much as possible.
 
-```bash make allmodconfig``` Create a ./.config file by setting symbol values to 'm' as much as possible.
+```make allmodconfig``` Create a ./.config file by setting symbol values to 'm' as much as possible.
 
-```bash make allnoconfig``` Create a ./.config file by setting symbol values to 'n' as much as possible.
+```make allnoconfig``` Create a ./.config file by setting symbol values to 'n' as much as possible.
 
-```bash make randconfig```  Create a ./.config file by setting symbol values to random values.
+```make randconfig```  Create a ./.config file by setting symbol values to random values.
 
-```bash make localmodconfig``` Create a config based on current config and loaded modules (lsmod). Disables any module option that is not needed for the loaded modules.
+```make localmodconfig``` Create a config based on current config and loaded modules (lsmod). Disables any module option that is not needed for the loaded modules.
 
 To create a localmodconfig for another machine,
 store the lsmod of that machine into a file
@@ -146,11 +147,11 @@ make LSMOD=/tmp/mylsmod localmodconfig
 ```
 *Note:* The above also works when cross compiling.
 
-``bash make localyesconfig``` Similar to localmodconfig, except it will convert all module options to built in (=y) options.
+```make localyesconfig``` Similar to localmodconfig, except it will convert all module options to built in (=y) options.
 
 You can find more information on using the Linux kernel config tools in ```Documentation/kbuild/kconfig.txt```.
 
-### Notes on ```bash make config```
+### Notes on ```make config```
 
 + Having unnecessary drivers will make the kernel bigger, and can under some circumstances lead to problems: probing for a nonexistent controller card may confuse your other controllers.
 
@@ -166,7 +167,7 @@ You can find more information on using the Linux kernel config tools in ```Docum
 
 Please note that you can still run a.out user programs with this kernel.
 
-+ Do a "make" to create a compressed kernel image. It is also possible to do "make install" if you have lilo installed to suit the kernel makefiles, but you may want to check your particular lilo setup first.
++ Do a ```make``` to create a compressed kernel image. It is also possible to do "make install" if you have lilo installed to suit the kernel makefiles, but you may want to check your particular lilo setup first.
 
 To do the actual install, you have to be root, but none of the normal build should require that. *Don't* take the name of root in vain.
 
@@ -177,7 +178,7 @@ To do the actual install, you have to be root, but none of the normal build shou
 Normally, the kernel build system runs in a fairly quiet mode (but not totally silent).  However, sometimes you or other kernel developers need
 to see compile, link, or other commands exactly as they are executed. For this, use "verbose" build mode.  This is done by inserting ```V=1``` in the ```bash make``` command. E.g.:
 
-```bash make V=1 all```
+```make V=1 all```
 
 To have the build system also tell the reason for the rebuild of each target, use ```V=2```.  The default is ```V=0```.
 
@@ -239,7 +240,7 @@ see which kernel function contains the offending address.
 To find out the kernel function name, you'll need to find the system binary associated with the kernel that exhibited the symptom.  This is
 the file ```linux/vmlinux```.  To extract the namelist and match it against the EIP from the kernel crash, do:
 
-```bash nm vmlinux | sort | less```
+```nm vmlinux | sort | less```
 
 This will give you a list of kernel addresses sorted in ascending order, from which it is simple to find the function that contains the offending address. Note that the address given by the kernel
 debugging messages will not necessarily match exactly with the function addresses (in fact, that is very unlikely), so you can't just 'grep' the list: the list will, however, give you the starting point of each kernel function, so by looking for the function that has a starting address lower than the one you are searching for but is followed by a function with a higher address you will find the one you want.  In fact, it may be a good idea to include a bit of "context" in your problem report, giving a few lines around the interesting one. 
@@ -250,6 +251,6 @@ If you for some reason cannot do the above (you have a pre-compiled kernel image
 kernel with ```-g```; edit ```arch/i386/Makefile``` appropriately, then do a ```bash make
 clean```. You'll also need to enable ```CONFIG_PROC_FS``` (via ```bash make config```).
 
-After you've rebooted with the new kernel, do ```bash gdb vmlinux /proc/kcore```. You can now use all the usual gdb commands. The command to look up the point where your system crashed is ```l *0xXXXXXXXX```. (Replace the XXXes with the EIP value.)
+After you've rebooted with the new kernel, do ```gdb vmlinux /proc/kcore```. You can now use all the usual gdb commands. The command to look up the point where your system crashed is ```l *0xXXXXXXXX```. (Replace the XXXes with the EIP value.)
 
 Gdb'ing a non-running kernel currently fails because gdb (wrongly) disregards the starting offset for which the kernel is compiled.
