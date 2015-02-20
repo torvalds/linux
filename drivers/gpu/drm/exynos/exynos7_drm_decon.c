@@ -888,8 +888,8 @@ static int decon_probe(struct platform_device *pdev)
 	of_node_put(i80_if_timings);
 
 	ctx->regs = of_iomap(dev->of_node, 0);
-	if (IS_ERR(ctx->regs)) {
-		ret = PTR_ERR(ctx->regs);
+	if (!ctx->regs) {
+		ret = -ENOMEM;
 		goto err_del_component;
 	}
 
