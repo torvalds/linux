@@ -554,6 +554,9 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
 		wacom->shared->stylus_in_proximity = true;
 
+	if (wacom->shared->touch_down)
+		return 1;
+
 	/* in Range while exiting */
 	if (((data[1] & 0xfe) == 0x20) && wacom->reporting_data) {
 		input_report_key(input, BTN_TOUCH, 0);
@@ -1758,6 +1761,9 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 		}
 		return 0;
 	}
+
+	if (wacom->shared->touch_down)
+		return 0;
 
 	prox = (data[1] & 0x20) == 0x20;
 
