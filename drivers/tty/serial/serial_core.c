@@ -1118,8 +1118,7 @@ uart_wait_modem_status(struct uart_state *state, unsigned long arg)
 
 		cprev = cnow;
 	}
-
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->delta_msr_wait, &wait);
 
 	return ret;
