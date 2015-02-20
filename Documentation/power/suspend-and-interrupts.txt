@@ -40,8 +40,10 @@ but also to IPIs and to some other special-purpose interrupts.
 
 The IRQF_NO_SUSPEND flag is used to indicate that to the IRQ subsystem when
 requesting a special-purpose interrupt.  It causes suspend_device_irqs() to
-leave the corresponding IRQ enabled so as to allow the interrupt to work all
-the time as expected.
+leave the corresponding IRQ enabled so as to allow the interrupt to work as
+expected during the suspend-resume cycle, but does not guarantee that the
+interrupt will wake the system from a suspended state -- for such cases it is
+necessary to use enable_irq_wake().
 
 Note that the IRQF_NO_SUSPEND flag affects the entire IRQ and not just one
 user of it.  Thus, if the IRQ is shared, all of the interrupt handlers installed
