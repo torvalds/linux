@@ -453,10 +453,6 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	if (IS_ERR(fbdev))
 		return PTR_ERR(fbdev);
 
-#ifndef CONFIG_FRAMEBUFFER_CONSOLE
-	drm_fbdev_cma_restore_mode(fbdev);
-#endif
-
 	rcdu->fbdev = fbdev;
 
 	return 0;
