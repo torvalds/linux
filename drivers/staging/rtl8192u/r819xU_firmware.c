@@ -329,8 +329,6 @@ bool init_firmware(struct net_device *dev)
 	}
 
 	RT_TRACE(COMP_FIRMWARE, "Firmware Download Success\n");
-	//assert(pfirmware->firmware_status == FW_STATUS_5_READY, ("Firmware Download Fail\n"));
-
 	return rt_status;
 
 download_firmware_fail:
