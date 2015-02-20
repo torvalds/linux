@@ -1840,7 +1840,11 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 {
 	trace__printf_interrupted_entry(trace, sample);
 	trace__fprintf_tstamp(trace, sample->time, trace->output);
-	fprintf(trace->output, "(%9.9s): %s:", " ", evsel->name);
+
+	if (trace->trace_syscalls)
+		fprintf(trace->output, "(         ): ");
+
+	fprintf(trace->output, "%s:", evsel->name);
 
 	if (evsel->tp_format) {
 		event_format__fprintf(evsel->tp_format, sample->cpu,
