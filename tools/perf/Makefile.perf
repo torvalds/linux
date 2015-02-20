@@ -68,7 +68,9 @@ include config/utilities.mak
 # for reading the x32 mode 32-bit compatibility VDSO in 64-bit mode
 #
 # Define NO_ZLIB if you do not want to support compressed kernel modules
-
+#
+# Define NO_LIBBABELTRACE if you do not want libbabeltrace support
+# for CTF data format.
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(shell pwd)))
