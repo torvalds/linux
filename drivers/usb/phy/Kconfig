@@ -119,7 +119,7 @@ config TAHVO_USB
 
 config TAHVO_USB_HOST_BY_DEFAULT
 	depends on TAHVO_USB
-	boolean "Device in USB host mode by default"
+	bool "Device in USB host mode by default"
 	help
 	  Say Y here, if you want the device to enter USB host mode
 	  by default on bootup.

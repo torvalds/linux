@@ -476,12 +476,14 @@ static inline int pmd_present(pmd_t pmd)
  */
 static inline int pte_protnone(pte_t pte)
 {
-	return pte_flags(pte) & _PAGE_PROTNONE;
+	return (pte_flags(pte) & (_PAGE_PROTNONE | _PAGE_PRESENT))
+		== _PAGE_PROTNONE;
 }
 
 static inline int pmd_protnone(pmd_t pmd)
 {
-	return pmd_flags(pmd) & _PAGE_PROTNONE;
+	return (pmd_flags(pmd) & (_PAGE_PROTNONE | _PAGE_PRESENT))
+		== _PAGE_PROTNONE;
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
