@@ -8,6 +8,7 @@
 #include "dm.h"
 
 #include <linux/hash.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -126,8 +127,12 @@ static void iot_examine_bio(struct io_tracker *t, struct bio *bio)
 #define NR_QUEUE_LEVELS 16u
 #define NR_SENTINELS NR_QUEUE_LEVELS * 3
 
+#define WRITEBACK_PERIOD HZ
+
 struct queue {
 	unsigned nr_elts;
+	bool current_writeback_sentinels;
+	unsigned long next_writeback;
 	struct list_head qs[NR_QUEUE_LEVELS];
 	struct list_head sentinels[NR_SENTINELS];
 };
@@ -137,10 +142,19 @@ static void queue_init(struct queue *q)
 	unsigned i;
 
 	q->nr_elts = 0;
+	q->current_writeback_sentinels = false;
+	q->next_writeback = 0;
 	for (i = 0; i < NR_QUEUE_LEVELS; i++) {
 		INIT_LIST_HEAD(q->qs + i);
 		INIT_LIST_HEAD(q->sentinels + i);
+		INIT_LIST_HEAD(q->sentinels + NR_QUEUE_LEVELS + i);
+		INIT_LIST_HEAD(q->sentinels + (2 * NR_QUEUE_LEVELS) + i);
 	}
+}
+
+static unsigned queue_size(struct queue *q)
+{
+	return q->nr_elts;
 }
 
 static bool queue_empty(struct queue *q)
@@ -197,6 +211,27 @@ static struct list_head *queue_pop(struct queue *q)
 	return r;
 }
 
+/*
+ * Pops an entry from a level that is not past a sentinel.
+ */
+static struct list_head *queue_pop_old(struct queue *q)
+{
+	unsigned level;
+	struct list_head *h;
+
+	for (level = 0; level < NR_QUEUE_LEVELS; level++)
+		list_for_each(h, q->qs + level) {
+			if (is_sentinel(q, h))
+				break;
+
+			q->nr_elts--;
+			list_del(h);
+			return h;
+		}
+
+	return NULL;
+}
+
 static struct list_head *list_pop(struct list_head *lh)
 {
 	struct list_head *r = lh->next;
@@ -205,6 +240,31 @@ static struct list_head *list_pop(struct list_head *lh)
 	list_del_init(r);
 
 	return r;
+}
+
+static struct list_head *writeback_sentinel(struct queue *q, unsigned level)
+{
+	if (q->current_writeback_sentinels)
+		return q->sentinels + NR_QUEUE_LEVELS + level;
+	else
+		return q->sentinels + 2 * NR_QUEUE_LEVELS + level;
+}
+
+static void queue_update_writeback_sentinels(struct queue *q)
+{
+	unsigned i;
+	struct list_head *h;
+
+	if (time_after(jiffies, q->next_writeback)) {
+		for (i = 0; i < NR_QUEUE_LEVELS; i++) {
+			h = writeback_sentinel(q, i);
+			list_del(h);
+			list_add_tail(h, q->qs + i);
+		}
+
+		q->next_writeback = jiffies + WRITEBACK_PERIOD;
+		q->current_writeback_sentinels = !q->current_writeback_sentinels;
+	}
 }
 
 /*
@@ -530,6 +590,20 @@ static struct entry *pop(struct mq_policy *mq, struct queue *q)
 {
 	struct entry *e;
 	struct list_head *h = queue_pop(q);
+
+	if (!h)
+		return NULL;
+
+	e = container_of(h, struct entry, list);
+	hash_remove(e);
+
+	return e;
+}
+
+static struct entry *pop_old(struct mq_policy *mq, struct queue *q)
+{
+	struct entry *e;
+	struct list_head *h = queue_pop_old(q);
 
 	if (!h)
 		return NULL;
@@ -932,6 +1006,7 @@ static void copy_tick(struct mq_policy *mq)
 	queue_tick(&mq->pre_cache);
 	queue_tick(&mq->cache_dirty);
 	queue_tick(&mq->cache_clean);
+	queue_update_writeback_sentinels(&mq->cache_dirty);
 	spin_unlock_irqrestore(&mq->tick_lock, flags);
 }
 
@@ -1112,10 +1187,27 @@ static int mq_remove_cblock(struct dm_cache_policy *p, dm_cblock_t cblock)
 	return r;
 }
 
+#define CLEAN_TARGET_PERCENTAGE 25
+
+static bool clean_target_met(struct mq_policy *mq)
+{
+	/*
+	 * Cache entries may not be populated.  So we're cannot rely on the
+	 * size of the clean queue.
+	 */
+	unsigned nr_clean = from_cblock(mq->cache_size) - queue_size(&mq->cache_dirty);
+	unsigned target = from_cblock(mq->cache_size) * CLEAN_TARGET_PERCENTAGE / 100;
+
+	return nr_clean >= target;
+}
+
 static int __mq_writeback_work(struct mq_policy *mq, dm_oblock_t *oblock,
 			      dm_cblock_t *cblock)
 {
-	struct entry *e = pop(mq, &mq->cache_dirty);
+	struct entry *e = pop_old(mq, &mq->cache_dirty);
+
+	if (!e && !clean_target_met(mq))
+		e = pop(mq, &mq->cache_dirty);
 
 	if (!e)
 		return -ENODATA;
