@@ -118,11 +118,12 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 				  mask, data);
 }
 
-#define rsnd_gen_regmap_init(priv, id_size, reg_id, conf)		\
-	_rsnd_gen_regmap_init(priv, id_size, reg_id, conf, ARRAY_SIZE(conf))
+#define rsnd_gen_regmap_init(priv, id_size, reg_id, name, conf)		\
+	_rsnd_gen_regmap_init(priv, id_size, reg_id, name, conf, ARRAY_SIZE(conf))
 static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 				 int id_size,
 				 int reg_id,
+				 const char *name,
 				 struct rsnd_regmap_field_conf *conf,
 				 int conf_size)
 {
@@ -142,7 +143,9 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 	regc.val_bits = 32;
 	regc.reg_stride = 4;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, reg_id);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+	if (!res)
+		res = platform_get_resource(pdev, IORESOURCE_MEM, reg_id);
 	if (!res)
 		return -ENODEV;
 
@@ -368,10 +371,10 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 	int ret_adg;
 	int ret_ssi;
 
-	ret_ssiu = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSIU, conf_ssiu);
-	ret_scu  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SCU,  conf_scu);
-	ret_adg  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_ADG,  conf_adg);
-	ret_ssi  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSI,  conf_ssi);
+	ret_ssiu = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSIU, "ssiu", conf_ssiu);
+	ret_scu  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SCU,  "scu",  conf_scu);
+	ret_adg  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_ADG,  "adg",  conf_adg);
+	ret_ssi  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSI,  "ssi",  conf_ssi);
 	if (ret_ssiu < 0 ||
 	    ret_scu  < 0 ||
 	    ret_adg  < 0 ||
@@ -440,9 +443,9 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 	int ret_adg;
 	int ret_ssi;
 
-	ret_sru  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_SRU,  conf_sru);
-	ret_adg  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_ADG,  conf_adg);
-	ret_ssi  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_SSI,  conf_ssi);
+	ret_sru  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_SRU, "sru", conf_sru);
+	ret_adg  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_ADG, "adg", conf_adg);
+	ret_ssi  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_SSI, "ssi", conf_ssi);
 	if (ret_sru  < 0 ||
 	    ret_adg  < 0 ||
 	    ret_ssi  < 0)
