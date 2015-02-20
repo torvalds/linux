@@ -228,6 +228,13 @@ __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
 	kp = get_kprobe((void *)addr);
 	faddr = ftrace_location(addr);
 	/*
+	 * Addresses inside the ftrace location are refused by
+	 * arch_check_ftrace_location(). Something went terribly wrong
+	 * if such an address is checked here.
+	 */
+	if (WARN_ON(faddr && faddr != addr))
+		return 0UL;
+	/*
 	 * Use the current code if it is not modified by Kprobe
 	 * and it cannot be modified by ftrace.
 	 */
@@ -265,6 +272,7 @@ __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
  * Recover the probed instruction at addr for further analysis.
  * Caller must lock kprobes by kprobe_mutex, or disable preemption
  * for preventing to release referencing kprobes.
+ * Returns zero if the instruction can not get recovered.
  */
 unsigned long recover_probed_instruction(kprobe_opcode_t *buf, unsigned long addr)
 {
@@ -299,6 +307,8 @@ static int can_probe(unsigned long paddr)
 		 * normally used, we just go through if there is no kprobe.
 		 */
 		__addr = recover_probed_instruction(buf, addr);
+		if (!__addr)
+			return 0;
 		kernel_insn_init(&insn, (void *)__addr, MAX_INSN_SIZE);
 		insn_get_length(&insn);
 
@@ -347,6 +357,8 @@ int __copy_instruction(u8 *dest, u8 *src)
 	unsigned long recovered_insn =
 		recover_probed_instruction(buf, (unsigned long)src);
 
+	if (!recovered_insn)
+		return 0;
 	kernel_insn_init(&insn, (void *)recovered_insn, MAX_INSN_SIZE);
 	insn_get_length(&insn);
 	/* Another subsystem puts a breakpoint, failed to recover */
