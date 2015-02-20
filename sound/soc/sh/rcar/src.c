@@ -114,6 +114,17 @@ struct rsnd_src {
 /*
  *		Gen1/Gen2 common functions
  */
+static struct dma_chan *rsnd_src_dma_req(struct rsnd_mod *mod)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	int is_play = rsnd_io_is_play(io);
+
+	return rsnd_dma_request_channel(rsnd_src_of_node(priv),
+					mod,
+					is_play ? "rx" : "tx");
+}
+
 int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 			int use_busif)
 {
@@ -506,6 +517,7 @@ static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
 
 static struct rsnd_mod_ops rsnd_src_gen1_ops = {
 	.name	= SRC_NAME,
+	.dma_req = rsnd_src_dma_req,
 	.probe	= rsnd_src_probe_gen1,
 	.init	= rsnd_src_init_gen1,
 	.quit	= rsnd_src_quit,
@@ -780,6 +792,7 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 
 static struct rsnd_mod_ops rsnd_src_gen2_ops = {
 	.name	= SRC_NAME,
+	.dma_req = rsnd_src_dma_req,
 	.probe	= rsnd_src_probe_gen2,
 	.remove	= rsnd_src_remove_gen2,
 	.init	= rsnd_src_init_gen2,

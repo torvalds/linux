@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/delay.h>
+#include <linux/of_dma.h>
 #include "rsnd.h"
 
 /*
@@ -52,28 +53,6 @@ static void rsnd_dmaen_complete(void *data)
 	rsnd_dai_pointer_update(io, io->byte_per_period);
 }
 
-#define DMA_NAME_SIZE 16
-static int _rsnd_dmaen_of_name(char *dma_name, struct rsnd_mod *mod)
-{
-	if (mod)
-		return snprintf(dma_name, DMA_NAME_SIZE / 2, "%s%d",
-				rsnd_mod_dma_name(mod), rsnd_mod_id(mod));
-	else
-		return snprintf(dma_name, DMA_NAME_SIZE / 2, "mem");
-
-}
-
-static void rsnd_dmaen_of_name(struct rsnd_mod *mod_from,
-			     struct rsnd_mod *mod_to,
-			     char *dma_name)
-{
-	int index = 0;
-
-	index = _rsnd_dmaen_of_name(dma_name + index, mod_from);
-	*(dma_name + index++) = '_';
-	index = _rsnd_dmaen_of_name(dma_name + index, mod_to);
-}
-
 static void rsnd_dmaen_stop(struct rsnd_dma *dma)
 {
 	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
@@ -115,6 +94,40 @@ static void rsnd_dmaen_start(struct rsnd_dma *dma)
 	dma_async_issue_pending(dmaen->chan);
 }
 
+struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
+					  struct rsnd_mod *mod, char *name)
+{
+	struct dma_chan *chan;
+	struct device_node *np;
+	int i = 0;
+
+	for_each_child_of_node(of_node, np) {
+		if (i == rsnd_mod_id(mod))
+			break;
+		i++;
+	}
+
+	chan = of_dma_request_slave_channel(np, name);
+
+	of_node_put(np);
+	of_node_put(of_node);
+
+	return chan;
+}
+
+static struct dma_chan *rsnd_dmaen_request_channel(struct rsnd_mod *mod_from,
+						   struct rsnd_mod *mod_to)
+{
+	if ((!mod_from && !mod_to) ||
+	    (mod_from && mod_to))
+		return NULL;
+
+	if (mod_from)
+		return rsnd_mod_dma_req(mod_from);
+	else
+		return rsnd_mod_dma_req(mod_to);
+}
+
 static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 			   struct rsnd_mod *mod_from, struct rsnd_mod *mod_to)
 {
@@ -124,8 +137,6 @@ static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 	struct rsnd_mod *mod = rsnd_dma_to_mod(dma);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int is_play = rsnd_io_is_play(io);
-	char dma_name[DMA_NAME_SIZE];
-	dma_cap_mask_t mask;
 	int ret;
 
 	if (dmaen->chan) {
@@ -135,10 +146,21 @@ static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 
 	dev_dbg(dev, "Audio DMAC init\n");
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
+	if (dev->of_node) {
+		dmaen->chan = rsnd_dmaen_request_channel(mod_from, mod_to);
+	} else {
+		dma_cap_mask_t mask;
 
-	rsnd_dmaen_of_name(mod_from, mod_to, dma_name);
+		dma_cap_zero(mask);
+		dma_cap_set(DMA_SLAVE, mask);
+
+		dmaen->chan = dma_request_channel(mask, shdma_chan_filter,
+						  (void *)id);
+	}
+	if (IS_ERR_OR_NULL(dmaen->chan)) {
+		dev_err(dev, "can't get dma channel\n");
+		goto rsnd_dma_channel_err;
+	}
 
 	cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
 	cfg.src_addr	= dma->src_addr;
@@ -146,16 +168,8 @@ static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
-	dev_dbg(dev, "dma : %s %pad -> %pad\n",
-		dma_name, &cfg.src_addr, &cfg.dst_addr);
-
-	dmaen->chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
-						     (void *)id, dev,
-						     dma_name);
-	if (!dmaen->chan) {
-		dev_err(dev, "can't get dma channel\n");
-		goto rsnd_dma_channel_err;
-	}
+	dev_dbg(dev, "dma : %pad -> %pad\n",
+		&cfg.src_addr, &cfg.dst_addr);
 
 	ret = dmaengine_slave_config(dmaen->chan, &cfg);
 	if (ret < 0)

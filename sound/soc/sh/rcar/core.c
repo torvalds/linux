@@ -137,15 +137,12 @@ char *rsnd_mod_name(struct rsnd_mod *mod)
 	return mod->ops->name;
 }
 
-char *rsnd_mod_dma_name(struct rsnd_mod *mod)
+struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod)
 {
-	if (!mod || !mod->ops)
-		return "unknown";
+	if (!mod || !mod->ops || !mod->ops->dma_req)
+		return NULL;
 
-	if (!mod->ops->dma_name)
-		return mod->ops->name;
-
-	return mod->ops->dma_name(mod);
+	return mod->ops->dma_req(mod);
 }
 
 void rsnd_mod_init(struct rsnd_mod *mod,

@@ -207,6 +207,8 @@ void  rsnd_dma_quit(struct rsnd_dma *dma);
 int rsnd_dma_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
+struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
+					  struct rsnd_mod *mod, char *name);
 
 #define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 
@@ -222,7 +224,7 @@ enum rsnd_mod_type {
 
 struct rsnd_mod_ops {
 	char *name;
-	char* (*dma_name)(struct rsnd_mod *mod);
+	struct dma_chan* (*dma_req)(struct rsnd_mod *mod);
 	int (*probe)(struct rsnd_mod *mod,
 		     struct rsnd_priv *priv);
 	int (*remove)(struct rsnd_mod *mod,
@@ -292,7 +294,7 @@ void rsnd_mod_init(struct rsnd_mod *mod,
 		   enum rsnd_mod_type type,
 		   int id);
 char *rsnd_mod_name(struct rsnd_mod *mod);
-char *rsnd_mod_dma_name(struct rsnd_mod *mod);
+struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod);
 
 /*
  *	R-Car sound DAI
