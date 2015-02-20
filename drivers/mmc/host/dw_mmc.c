@@ -102,6 +102,7 @@ struct idmac_desc {
 
 static bool dw_mci_reset(struct dw_mci *host);
 static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset);
+static int dw_mci_card_busy(struct mmc_host *mmc);
 
 #if defined(CONFIG_DEBUG_FS)
 static int dw_mci_req_show(struct seq_file *s, void *v)
@@ -335,6 +336,31 @@ static u32 dw_mci_prep_stop_abort(struct dw_mci *host, struct mmc_command *cmd)
 	return cmdr;
 }
 
+static void dw_mci_wait_while_busy(struct dw_mci *host, u32 cmd_flags)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(500);
+
+	/*
+	 * Databook says that before issuing a new data transfer command
+	 * we need to check to see if the card is busy.  Data transfer commands
+	 * all have SDMMC_CMD_PRV_DAT_WAIT set, so we'll key off that.
+	 *
+	 * ...also allow sending for SDMMC_CMD_VOLT_SWITCH where busy is
+	 * expected.
+	 */
+	if ((cmd_flags & SDMMC_CMD_PRV_DAT_WAIT) &&
+	    !(cmd_flags & SDMMC_CMD_VOLT_SWITCH)) {
+		while (mci_readl(host, STATUS) & SDMMC_STATUS_BUSY) {
+			if (time_after(jiffies, timeout)) {
+				/* Command will fail; we'll pass error then */
+				dev_err(host->dev, "Busy; trying anyway\n");
+				break;
+			}
+			udelay(10);
+		}
+	}
+}
+
 static void dw_mci_start_command(struct dw_mci *host,
 				 struct mmc_command *cmd, u32 cmd_flags)
 {
@@ -345,6 +371,7 @@ static void dw_mci_start_command(struct dw_mci *host,
 
 	mci_writel(host, CMDARG, cmd->arg);
 	wmb();
+	dw_mci_wait_while_busy(host, cmd_flags);
 
 	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
 }
@@ -876,6 +903,7 @@ static void mci_send_cmd(struct dw_mci_slot *slot, u32 cmd, u32 arg)
 
 	mci_writel(host, CMDARG, arg);
 	wmb();
+	dw_mci_wait_while_busy(host, cmd);
 	mci_writel(host, CMD, SDMMC_CMD_START | cmd);
 
 	while (time_before(jiffies, timeout)) {
