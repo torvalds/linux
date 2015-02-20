@@ -1518,6 +1518,7 @@ out_rmdir:
 			lump = (struct lov_user_md *)arg;
 		} else {
 			struct lov_user_mds_data *lmdp;
+
 			lmdp = (struct lov_user_mds_data *)arg;
 			lump = &lmdp->lmd_lmm;
 		}
