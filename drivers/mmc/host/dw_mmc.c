@@ -1102,12 +1102,6 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (drv_data && drv_data->set_ios)
 		drv_data->set_ios(slot->host, ios);
 
-	/* Slot specific timing and width adjustment */
-	dw_mci_setup_bus(slot, false);
-
-	if (slot->host->state == STATE_WAITING_CMD11_DONE && ios->clock != 0)
-		slot->host->state = STATE_IDLE;
-
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
 		if (!IS_ERR(mmc->supply.vmmc)) {
@@ -1134,8 +1128,15 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			else
 				slot->host->vqmmc_enabled = true;
 		}
+
+		/* Adjust clock / bus width after power is up */
+		dw_mci_setup_bus(slot, false);
+
 		break;
 	case MMC_POWER_OFF:
+		/* Turn clock off before power goes down */
+		dw_mci_setup_bus(slot, false);
+
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
 
@@ -1151,6 +1152,9 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	default:
 		break;
 	}
+
+	if (slot->host->state == STATE_WAITING_CMD11_DONE && ios->clock != 0)
+		slot->host->state = STATE_IDLE;
 }
 
 static int dw_mci_card_busy(struct mmc_host *mmc)
