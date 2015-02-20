@@ -2001,7 +2001,8 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 {
 	const struct pcidas64_board *thisboard = dev->board_ptr;
-	unsigned int convert_divisor = 0, scan_divisor;
+	unsigned long long convert_divisor = 0;
+	unsigned int scan_divisor;
 	static const int min_convert_divisor = 3;
 	static const int max_convert_divisor =
 		max_counter_value + min_convert_divisor;
@@ -2027,7 +2028,6 @@ static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		scan_divisor = get_divisor(cmd->scan_begin_arg, cmd->flags);
 		if (cmd->convert_src == TRIG_TIMER) {
-			/*  XXX check for integer overflows */
 			min_scan_divisor = convert_divisor * cmd->chanlist_len;
 			max_scan_divisor =
 				(convert_divisor * cmd->chanlist_len - 1) +
