@@ -482,9 +482,6 @@ static int labpc_ai_check_chanlist(struct comedi_device *dev,
 	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
 	int i;
 
-	if (mode == MODE_SINGLE_CHAN)
-		return 0;
-
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 		unsigned int range = CR_RANGE(cmd->chanlist[i]);
