@@ -1120,13 +1120,23 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		mci_writel(slot->host, PWREN, regs);
 		break;
 	case MMC_POWER_ON:
-		if (!IS_ERR(mmc->supply.vqmmc) && !slot->host->vqmmc_enabled) {
-			ret = regulator_enable(mmc->supply.vqmmc);
-			if (ret < 0)
-				dev_err(slot->host->dev,
-					"failed to enable vqmmc regulator\n");
-			else
+		if (!slot->host->vqmmc_enabled) {
+			if (!IS_ERR(mmc->supply.vqmmc)) {
+				ret = regulator_enable(mmc->supply.vqmmc);
+				if (ret < 0)
+					dev_err(slot->host->dev,
+						"failed to enable vqmmc\n");
+				else
+					slot->host->vqmmc_enabled = true;
+
+			} else {
+				/* Keep track so we don't reset again */
 				slot->host->vqmmc_enabled = true;
+			}
+
+			/* Reset our state machine after powering on */
+			dw_mci_ctrl_reset(slot->host,
+					  SDMMC_CTRL_ALL_RESET_FLAGS);
 		}
 
 		/* Adjust clock / bus width after power is up */
@@ -1140,10 +1150,9 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
 
-		if (!IS_ERR(mmc->supply.vqmmc) && slot->host->vqmmc_enabled) {
+		if (!IS_ERR(mmc->supply.vqmmc) && slot->host->vqmmc_enabled)
 			regulator_disable(mmc->supply.vqmmc);
-			slot->host->vqmmc_enabled = false;
-		}
+		slot->host->vqmmc_enabled = false;
 
 		regs = mci_readl(slot->host, PWREN);
 		regs &= ~(1 << slot->id);
