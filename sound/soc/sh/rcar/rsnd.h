@@ -328,9 +328,6 @@ int rsnd_gen_probe(struct platform_device *pdev,
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
 			       enum rsnd_reg reg);
-dma_addr_t rsnd_gen_dma_addr(struct rsnd_priv *priv,
-		       struct rsnd_mod *mod,
-		       int is_play,  int is_from);
 phys_addr_t rsnd_gen_get_phy_addr(struct rsnd_priv *priv, int reg_id);
 
 #define rsnd_is_gen1(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN1)
