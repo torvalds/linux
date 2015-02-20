@@ -26,35 +26,54 @@
 struct rcar_du_hdmienc {
 	struct rcar_du_encoder *renc;
 	struct device *dev;
-	int dpms;
+	bool enabled;
 };
 
 #define to_rcar_hdmienc(e)	(to_rcar_encoder(e)->hdmi)
 #define to_slave_funcs(e)	(to_rcar_encoder(e)->slave.slave_funcs)
 
-static void rcar_du_hdmienc_dpms(struct drm_encoder *encoder, int mode)
+static void rcar_du_hdmienc_disable(struct drm_encoder *encoder)
 {
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
 	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
 
-	if (mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
+	if (sfuncs->dpms)
+		sfuncs->dpms(encoder, DRM_MODE_DPMS_OFF);
 
-	if (hdmienc->dpms == mode)
-		return;
+	if (hdmienc->renc->lvds)
+		rcar_du_lvdsenc_enable(hdmienc->renc->lvds, encoder->crtc,
+				       false);
 
-	if (mode == DRM_MODE_DPMS_ON && hdmienc->renc->lvds)
+	hdmienc->enabled = false;
+}
+
+static void rcar_du_hdmienc_enable(struct drm_encoder *encoder)
+{
+	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
+	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+
+	if (hdmienc->renc->lvds)
 		rcar_du_lvdsenc_enable(hdmienc->renc->lvds, encoder->crtc,
 				       true);
 
 	if (sfuncs->dpms)
-		sfuncs->dpms(encoder, mode);
+		sfuncs->dpms(encoder, DRM_MODE_DPMS_ON);
 
-	if (mode != DRM_MODE_DPMS_ON && hdmienc->renc->lvds)
-		rcar_du_lvdsenc_enable(hdmienc->renc->lvds, encoder->crtc,
-				       false);
+	hdmienc->enabled = true;
+}
 
-	hdmienc->dpms = mode;
+static void rcar_du_hdmienc_dpms(struct drm_encoder *encoder, int mode)
+{
+	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
+	bool enable = mode == DRM_MODE_DPMS_ON;
+
+	if (hdmienc->enabled == enable)
+		return;
+
+	if (enable)
+		rcar_du_hdmienc_enable(encoder);
+	else
+		rcar_du_hdmienc_disable(encoder);
 }
 
 static bool rcar_du_hdmienc_mode_fixup(struct drm_encoder *encoder,
@@ -106,13 +125,16 @@ static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
 	.prepare = rcar_du_hdmienc_mode_prepare,
 	.commit = rcar_du_hdmienc_mode_commit,
 	.mode_set = rcar_du_hdmienc_mode_set,
+	.disable = rcar_du_hdmienc_disable,
+	.enable = rcar_du_hdmienc_enable,
 };
 
 static void rcar_du_hdmienc_cleanup(struct drm_encoder *encoder)
 {
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
 
-	rcar_du_hdmienc_dpms(encoder, DRM_MODE_DPMS_OFF);
+	if (hdmienc->enabled)
+		rcar_du_hdmienc_disable(encoder);
 
 	drm_encoder_cleanup(encoder);
 	put_device(hdmienc->dev);
