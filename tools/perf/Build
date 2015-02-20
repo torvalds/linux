@@ -18,6 +18,7 @@ perf-y += builtin-lock.o
 perf-y += builtin-kvm.o
 perf-y += builtin-inject.o
 perf-y += builtin-mem.o
+perf-y += builtin-data.o
 
 perf-$(CONFIG_AUDIT) += builtin-trace.o
 perf-$(CONFIG_LIBELF) += builtin-probe.o
