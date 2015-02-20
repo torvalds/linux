@@ -1299,12 +1299,8 @@ static void rtd_detach(struct comedi_device *dev)
 		/* Shut down any board ops by resetting it */
 		if (dev->mmio && devpriv->lcfg)
 			rtd_reset(dev);
-		if (dev->irq) {
-			writel(readl(devpriv->lcfg + PLX_INTRCS_REG) &
-				~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E),
-				devpriv->lcfg + PLX_INTRCS_REG);
+		if (dev->irq)
 			free_irq(dev->irq, dev);
-		}
 		if (dev->mmio)
 			iounmap(dev->mmio);
 		if (devpriv->las1)
