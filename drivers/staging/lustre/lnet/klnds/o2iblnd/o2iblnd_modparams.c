@@ -177,7 +177,7 @@ kib_tunables_t kiblnd_tunables = {
 };
 
 int
-kiblnd_tunables_init (void)
+kiblnd_tunables_init(void)
 {
 	if (kiblnd_translate_mtu(*kiblnd_tunables.kib_ib_mtu) < 0) {
 		CERROR("Invalid ib_mtu %d, expected 256/512/1024/2048/4096\n",
