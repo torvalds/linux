@@ -170,11 +170,11 @@ again:
 		start = desc->phys_addr;
 		end = start + desc->num_pages * (1UL << EFI_PAGE_SHIFT);
 
-		if ((start + size) > end || (start + size) > max)
-			continue;
-
-		if (end - size > max)
+		if (end > max)
 			end = max;
+
+		if ((start + size) > end)
+			continue;
 
 		if (round_down(end - size, align) < start)
 			continue;
