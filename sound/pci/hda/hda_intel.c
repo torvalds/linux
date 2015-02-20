@@ -1604,19 +1604,6 @@ static int azx_first_init(struct azx *chip)
 	return 0;
 }
 
-static void power_down_all_codecs(struct azx *chip)
-{
-#ifdef CONFIG_PM
-	/* The codecs were powered up in snd_hda_codec_new().
-	 * Now all initialization done, so turn them down if possible
-	 */
-	struct hda_codec *codec;
-	list_for_each_entry(codec, &chip->bus->codec_list, list) {
-		snd_hda_power_down(codec);
-	}
-#endif
-}
-
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 /* callback from request_firmware_nowait() */
 static void azx_firmware_cb(const struct firmware *fw, void *context)
@@ -1926,7 +1913,6 @@ static int azx_probe_continue(struct azx *chip)
 		goto out_free;
 
 	chip->running = 1;
-	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
 	azx_add_card_list(chip);
 	snd_hda_set_power_save(chip->bus, power_save * 1000);

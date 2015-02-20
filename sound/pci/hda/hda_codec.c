@@ -1163,6 +1163,8 @@ static int snd_hda_codec_dev_register(struct snd_device *device)
 	snd_hda_register_beep_device(codec);
 	if (device_is_registered(hda_codec_dev(codec)))
 		pm_runtime_enable(hda_codec_dev(codec));
+	/* it was powered up in snd_hda_codec_new(), now all done */
+	snd_hda_power_down(codec);
 	return 0;
 }
 
@@ -1260,8 +1262,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 
 #ifdef CONFIG_PM
 	/* snd_hda_codec_new() marks the codec as power-up, and leave it as is.
-	 * the caller has to power down appropriatley after initialization
-	 * phase.
+	 * it's powered down later in snd_hda_codec_dev_register().
 	 */
 	set_bit(codec->addr, &bus->codec_powered);
 	pm_runtime_set_active(hda_codec_dev(codec));
