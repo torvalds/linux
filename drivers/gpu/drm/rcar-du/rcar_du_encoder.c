@@ -42,13 +42,28 @@ rcar_du_connector_best_encoder(struct drm_connector *connector)
  * Encoder
  */
 
-static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
+static void rcar_du_encoder_disable(struct drm_encoder *encoder)
 {
 	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
 
 	if (renc->lvds)
-		rcar_du_lvdsenc_enable(renc->lvds, encoder->crtc,
-				       mode == DRM_MODE_DPMS_ON);
+		rcar_du_lvdsenc_enable(renc->lvds, encoder->crtc, false);
+}
+
+static void rcar_du_encoder_enable(struct drm_encoder *encoder)
+{
+	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+
+	if (renc->lvds)
+		rcar_du_lvdsenc_enable(renc->lvds, encoder->crtc, true);
+}
+
+static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
+{
+	if (mode == DRM_MODE_DPMS_ON)
+		rcar_du_encoder_enable(encoder);
+	else
+		rcar_du_encoder_disable(encoder);
 }
 
 static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -105,18 +120,12 @@ static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
 
 static void rcar_du_encoder_mode_prepare(struct drm_encoder *encoder)
 {
-	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
-
-	if (renc->lvds)
-		rcar_du_lvdsenc_enable(renc->lvds, encoder->crtc, false);
+	rcar_du_encoder_disable(encoder);
 }
 
 static void rcar_du_encoder_mode_commit(struct drm_encoder *encoder)
 {
-	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
-
-	if (renc->lvds)
-		rcar_du_lvdsenc_enable(renc->lvds, encoder->crtc, true);
+	rcar_du_encoder_enable(encoder);
 }
 
 static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
@@ -134,6 +143,8 @@ static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
 	.prepare = rcar_du_encoder_mode_prepare,
 	.commit = rcar_du_encoder_mode_commit,
 	.mode_set = rcar_du_encoder_mode_set,
+	.disable = rcar_du_encoder_disable,
+	.enable = rcar_du_encoder_enable,
 };
 
 static const struct drm_encoder_funcs encoder_funcs = {
