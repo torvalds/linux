@@ -49,8 +49,6 @@ static struct snd_pcm *snd_pcm_get(struct snd_card *card, int device)
 	struct snd_pcm *pcm;
 
 	list_for_each_entry(pcm, &snd_pcm_devices, list) {
-		if (pcm->internal)
-			continue;
 		if (pcm->card == card && pcm->device == device)
 			return pcm;
 	}
@@ -62,8 +60,6 @@ static int snd_pcm_next(struct snd_card *card, int device)
 	struct snd_pcm *pcm;
 
 	list_for_each_entry(pcm, &snd_pcm_devices, list) {
-		if (pcm->internal)
-			continue;
 		if (pcm->card == card && pcm->device > device)
 			return pcm->device;
 		else if (pcm->card->number > card->number)
@@ -75,6 +71,9 @@ static int snd_pcm_next(struct snd_card *card, int device)
 static int snd_pcm_add(struct snd_pcm *newpcm)
 {
 	struct snd_pcm *pcm;
+
+	if (newpcm->internal)
+		return 0;
 
 	list_for_each_entry(pcm, &snd_pcm_devices, list) {
 		if (pcm->card == newpcm->card && pcm->device == newpcm->device)
@@ -782,6 +781,9 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 	pcm->card = card;
 	pcm->device = device;
 	pcm->internal = internal;
+	mutex_init(&pcm->open_mutex);
+	init_waitqueue_head(&pcm->open_wait);
+	INIT_LIST_HEAD(&pcm->list);
 	if (id)
 		strlcpy(pcm->id, id, sizeof(pcm->id));
 	if ((err = snd_pcm_new_stream(pcm, SNDRV_PCM_STREAM_PLAYBACK, playback_count)) < 0) {
@@ -792,8 +794,6 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 		snd_pcm_free(pcm);
 		return err;
 	}
-	mutex_init(&pcm->open_mutex);
-	init_waitqueue_head(&pcm->open_wait);
 	if ((err = snd_device_new(card, SNDRV_DEV_PCM, pcm, &ops)) < 0) {
 		snd_pcm_free(pcm);
 		return err;
@@ -1075,15 +1075,16 @@ static int snd_pcm_dev_register(struct snd_device *device)
 	if (snd_BUG_ON(!device || !device->device_data))
 		return -ENXIO;
 	pcm = device->device_data;
+	if (pcm->internal)
+		return 0;
+
 	mutex_lock(&register_mutex);
 	err = snd_pcm_add(pcm);
-	if (err) {
-		mutex_unlock(&register_mutex);
-		return err;
-	}
+	if (err)
+		goto unlock;
 	for (cidx = 0; cidx < 2; cidx++) {
 		int devtype = -1;
-		if (pcm->streams[cidx].substream == NULL || pcm->internal)
+		if (pcm->streams[cidx].substream == NULL)
 			continue;
 		switch (cidx) {
 		case SNDRV_PCM_STREAM_PLAYBACK:
@@ -1098,9 +1099,8 @@ static int snd_pcm_dev_register(struct snd_device *device)
 					  &snd_pcm_f_ops[cidx], pcm,
 					  &pcm->streams[cidx].dev);
 		if (err < 0) {
-			list_del(&pcm->list);
-			mutex_unlock(&register_mutex);
-			return err;
+			list_del_init(&pcm->list);
+			goto unlock;
 		}
 
 		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next)
@@ -1110,8 +1110,9 @@ static int snd_pcm_dev_register(struct snd_device *device)
 	list_for_each_entry(notify, &snd_pcm_notify_list, list)
 		notify->n_register(pcm);
 
+ unlock:
 	mutex_unlock(&register_mutex);
-	return 0;
+	return err;
 }
 
 static int snd_pcm_dev_disconnect(struct snd_device *device)
