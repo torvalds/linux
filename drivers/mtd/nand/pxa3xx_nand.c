@@ -605,11 +605,24 @@ static void start_data_dma(struct pxa3xx_nand_info *info)
 {}
 #endif
 
+static irqreturn_t pxa3xx_nand_irq_thread(int irq, void *data)
+{
+	struct pxa3xx_nand_info *info = data;
+
+	handle_data_pio(info);
+
+	info->state = STATE_CMD_DONE;
+	nand_writel(info, NDSR, NDSR_WRDREQ | NDSR_RDDREQ);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 {
 	struct pxa3xx_nand_info *info = devid;
 	unsigned int status, is_completed = 0, is_ready = 0;
 	unsigned int ready, cmd_done;
+	irqreturn_t ret = IRQ_HANDLED;
 
 	if (info->cs == 0) {
 		ready           = NDSR_FLASH_RDY;
@@ -651,7 +664,8 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 		} else {
 			info->state = (status & NDSR_RDDREQ) ?
 				      STATE_PIO_READING : STATE_PIO_WRITING;
-			handle_data_pio(info);
+			ret = IRQ_WAKE_THREAD;
+			goto NORMAL_IRQ_EXIT;
 		}
 	}
 	if (status & cmd_done) {
@@ -692,7 +706,7 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 	if (is_ready)
 		complete(&info->dev_ready);
 NORMAL_IRQ_EXIT:
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static inline int is_buf_blank(uint8_t *buf, size_t len)
@@ -1708,7 +1722,9 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	/* initialize all interrupts to be disabled */
 	disable_int(info, NDSR_MASK);
 
-	ret = request_irq(irq, pxa3xx_nand_irq, 0, pdev->name, info);
+	ret = request_threaded_irq(irq, pxa3xx_nand_irq,
+				   pxa3xx_nand_irq_thread, IRQF_ONESHOT,
+				   pdev->name, info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		goto fail_free_buf;
