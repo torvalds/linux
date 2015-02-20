@@ -20,6 +20,9 @@
 	compatible = "olimex,a20-olinuxino-micro", "allwinner,sun7i-a20";
 
 	aliases {
+		serial0 = &uart0;
+		serial1 = &uart6;
+		serial2 = &uart7;
 		spi0 = &spi1;
 		spi1 = &spi2;
 	};

@@ -2124,6 +2124,7 @@ MODULE_DEVICE_TABLE(of, rt5640_of_match);
 static struct acpi_device_id rt5640_acpi_match[] = {
 	{ "INT33CA", 0 },
 	{ "10EC5640", 0 },
+	{ "10EC5642", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, rt5640_acpi_match);

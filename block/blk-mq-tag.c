@@ -68,9 +68,9 @@ bool __blk_mq_tag_busy(struct blk_mq_hw_ctx *hctx)
 }
 
 /*
- * Wakeup all potentially sleeping on normal (non-reserved) tags
+ * Wakeup all potentially sleeping on tags
  */
-static void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags)
+void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool include_reserve)
 {
 	struct blk_mq_bitmap_tags *bt;
 	int i, wake_index;
@@ -84,6 +84,12 @@ static void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags)
 			wake_up(&bs->wait);
 
 		wake_index = bt_index_inc(wake_index);
+	}
+
+	if (include_reserve) {
+		bt = &tags->breserved_tags;
+		if (waitqueue_active(&bt->bs[0].wait))
+			wake_up(&bt->bs[0].wait);
 	}
 }
 
@@ -100,7 +106,7 @@ void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
 
 	atomic_dec(&tags->active_queues);
 
-	blk_mq_tag_wakeup_all(tags);
+	blk_mq_tag_wakeup_all(tags, false);
 }
 
 /*
@@ -584,7 +590,7 @@ int blk_mq_tag_update_depth(struct blk_mq_tags *tags, unsigned int tdepth)
 	 * static and should never need resizing.
 	 */
 	bt_update_count(&tags->bitmap_tags, tdepth);
-	blk_mq_tag_wakeup_all(tags);
+	blk_mq_tag_wakeup_all(tags, false);
 	return 0;
 }
 

@@ -258,6 +258,5 @@ IB_UVERBS_DECLARE_CMD(close_xrcd);
 
 IB_UVERBS_DECLARE_EX_CMD(create_flow);
 IB_UVERBS_DECLARE_EX_CMD(destroy_flow);
-IB_UVERBS_DECLARE_EX_CMD(query_device);
 
 #endif /* UVERBS_H */

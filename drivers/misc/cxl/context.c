@@ -100,6 +100,46 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
 	return 0;
 }
 
+static int cxl_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct cxl_context *ctx = vma->vm_file->private_data;
+	unsigned long address = (unsigned long)vmf->virtual_address;
+	u64 area, offset;
+
+	offset = vmf->pgoff << PAGE_SHIFT;
+
+	pr_devel("%s: pe: %i address: 0x%lx offset: 0x%llx\n",
+			__func__, ctx->pe, address, offset);
+
+	if (ctx->afu->current_mode == CXL_MODE_DEDICATED) {
+		area = ctx->afu->psn_phys;
+		if (offset > ctx->afu->adapter->ps_size)
+			return VM_FAULT_SIGBUS;
+	} else {
+		area = ctx->psn_phys;
+		if (offset > ctx->psn_size)
+			return VM_FAULT_SIGBUS;
+	}
+
+	mutex_lock(&ctx->status_mutex);
+
+	if (ctx->status != STARTED) {
+		mutex_unlock(&ctx->status_mutex);
+		pr_devel("%s: Context not started, failing problem state access\n", __func__);
+		return VM_FAULT_SIGBUS;
+	}
+
+	vm_insert_pfn(vma, address, (area + offset) >> PAGE_SHIFT);
+
+	mutex_unlock(&ctx->status_mutex);
+
+	return VM_FAULT_NOPAGE;
+}
+
+static const struct vm_operations_struct cxl_mmap_vmops = {
+	.fault = cxl_mmap_fault,
+};
+
 /*
  * Map a per-context mmio space into the given vma.
  */
@@ -108,26 +148,25 @@ int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
 	u64 len = vma->vm_end - vma->vm_start;
 	len = min(len, ctx->psn_size);
 
-	if (ctx->afu->current_mode == CXL_MODE_DEDICATED) {
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		return vm_iomap_memory(vma, ctx->afu->psn_phys, ctx->afu->adapter->ps_size);
-	}
+	if (ctx->afu->current_mode != CXL_MODE_DEDICATED) {
+		/* make sure there is a valid per process space for this AFU */
+		if ((ctx->master && !ctx->afu->psa) || (!ctx->afu->pp_psa)) {
+			pr_devel("AFU doesn't support mmio space\n");
+			return -EINVAL;
+		}
 
-	/* make sure there is a valid per process space for this AFU */
-	if ((ctx->master && !ctx->afu->psa) || (!ctx->afu->pp_psa)) {
-		pr_devel("AFU doesn't support mmio space\n");
-		return -EINVAL;
+		/* Can't mmap until the AFU is enabled */
+		if (!ctx->afu->enabled)
+			return -EBUSY;
 	}
-
-	/* Can't mmap until the AFU is enabled */
-	if (!ctx->afu->enabled)
-		return -EBUSY;
 
 	pr_devel("%s: mmio physical: %llx pe: %i master:%i\n", __func__,
 		 ctx->psn_phys, ctx->pe , ctx->master);
 
+	vma->vm_flags |= VM_IO | VM_PFNMAP;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	return vm_iomap_memory(vma, ctx->psn_phys, len);
+	vma->vm_ops = &cxl_mmap_vmops;
+	return 0;
 }
 
 /*
@@ -150,12 +189,6 @@ static void __detach_context(struct cxl_context *ctx)
 	afu_release_irqs(ctx);
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
 	wake_up_all(&ctx->wq);
-
-	/* Release Problem State Area mapping */
-	mutex_lock(&ctx->mapping_lock);
-	if (ctx->mapping)
-		unmap_mapping_range(ctx->mapping, 0, 0, 1);
-	mutex_unlock(&ctx->mapping_lock);
 }
 
 /*
@@ -184,6 +217,17 @@ void cxl_context_detach_all(struct cxl_afu *afu)
 		 * created and torn down after the IDR removed
 		 */
 		__detach_context(ctx);
+
+		/*
+		 * We are force detaching - remove any active PSA mappings so
+		 * userspace cannot interfere with the card if it comes back.
+		 * Easiest way to exercise this is to unbind and rebind the
+		 * driver via sysfs while it is in use.
+		 */
+		mutex_lock(&ctx->mapping_lock);
+		if (ctx->mapping)
+			unmap_mapping_range(ctx->mapping, 0, 0, 1);
+		mutex_unlock(&ctx->mapping_lock);
 	}
 	mutex_unlock(&afu->contexts_lock);
 }

@@ -2351,23 +2351,29 @@ static int qlge_update_hw_vlan_features(struct net_device *ndev,
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	int status = 0;
+	bool need_restart = netif_running(ndev);
 
-	status = ql_adapter_down(qdev);
-	if (status) {
-		netif_err(qdev, link, qdev->ndev,
-			  "Failed to bring down the adapter\n");
-		return status;
+	if (need_restart) {
+		status = ql_adapter_down(qdev);
+		if (status) {
+			netif_err(qdev, link, qdev->ndev,
+				  "Failed to bring down the adapter\n");
+			return status;
+		}
 	}
 
 	/* update the features with resent change */
 	ndev->features = features;
 
-	status = ql_adapter_up(qdev);
-	if (status) {
-		netif_err(qdev, link, qdev->ndev,
-			  "Failed to bring up the adapter\n");
-		return status;
+	if (need_restart) {
+		status = ql_adapter_up(qdev);
+		if (status) {
+			netif_err(qdev, link, qdev->ndev,
+				  "Failed to bring up the adapter\n");
+			return status;
+		}
 	}
+
 	return status;
 }
 

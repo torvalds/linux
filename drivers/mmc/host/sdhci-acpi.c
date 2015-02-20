@@ -247,6 +247,7 @@ static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
 	{ "INT33BB"  , "3" , &sdhci_acpi_slot_int_sd },
 	{ "INT33C6"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "INT3436"  , NULL, &sdhci_acpi_slot_int_sdio },
+	{ "INT344D"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "PNP0D40"  },
 	{ },
 };
@@ -257,6 +258,7 @@ static const struct acpi_device_id sdhci_acpi_ids[] = {
 	{ "INT33BB"  },
 	{ "INT33C6"  },
 	{ "INT3436"  },
+	{ "INT344D"  },
 	{ "PNP0D40"  },
 	{ },
 };

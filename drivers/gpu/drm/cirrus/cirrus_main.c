@@ -320,6 +320,8 @@ bool cirrus_check_framebuffer(struct cirrus_device *cdev, int width, int height,
 	const int max_pitch = 0x1FF << 3; /* (4096 - 1) & ~111b bytes */
 	const int max_size = cdev->mc.vram_size;
 
+	if (bpp > cirrus_bpp)
+		return false;
 	if (bpp > 32)
 		return false;
 

@@ -4383,8 +4383,9 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
  * distinguish various types of transports (VxLAN, GRE, NVGRE ..). So, offload
  * is expected to work across all types of IP tunnels once exported. Skyhawk
  * supports offloads for either VxLAN or NVGRE, exclusively. So we export VxLAN
- * offloads in hw_enc_features only when a VxLAN port is added. Note this only
- * ensures that other tunnels work fine while VxLAN offloads are not enabled.
+ * offloads in hw_enc_features only when a VxLAN port is added. If other (non
+ * VxLAN) tunnels are configured while VxLAN offloads are enabled, offloads for
+ * those other tunnels are unexported on the fly through ndo_features_check().
  *
  * Skyhawk supports VxLAN offloads only for one UDP dport. So, if the stack
  * adds more than one port, disable offloads and don't re-enable them again
@@ -4463,7 +4464,41 @@ static netdev_features_t be_features_check(struct sk_buff *skb,
 					   struct net_device *dev,
 					   netdev_features_t features)
 {
-	return vxlan_features_check(skb, features);
+	struct be_adapter *adapter = netdev_priv(dev);
+	u8 l4_hdr = 0;
+
+	/* The code below restricts offload features for some tunneled packets.
+	 * Offload features for normal (non tunnel) packets are unchanged.
+	 */
+	if (!skb->encapsulation ||
+	    !(adapter->flags & BE_FLAGS_VXLAN_OFFLOADS))
+		return features;
+
+	/* It's an encapsulated packet and VxLAN offloads are enabled. We
+	 * should disable tunnel offload features if it's not a VxLAN packet,
+	 * as tunnel offloads have been enabled only for VxLAN. This is done to
+	 * allow other tunneled traffic like GRE work fine while VxLAN
+	 * offloads are configured in Skyhawk-R.
+	 */
+	switch (vlan_get_protocol(skb)) {
+	case htons(ETH_P_IP):
+		l4_hdr = ip_hdr(skb)->protocol;
+		break;
+	case htons(ETH_P_IPV6):
+		l4_hdr = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		return features;
+	}
+
+	if (l4_hdr != IPPROTO_UDP ||
+	    skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
+	    skb->inner_protocol != htons(ETH_P_TEB) ||
+	    skb_inner_mac_header(skb) - skb_transport_header(skb) !=
+	    sizeof(struct udphdr) + sizeof(struct vxlanhdr))
+		return features & ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
+
+	return features;
 }
 #endif
 

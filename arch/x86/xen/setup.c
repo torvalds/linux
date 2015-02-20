@@ -140,7 +140,7 @@ static void __init xen_del_extra_mem(u64 start, u64 size)
 unsigned long __ref xen_chk_extra_mem(unsigned long pfn)
 {
 	int i;
-	unsigned long addr = PFN_PHYS(pfn);
+	phys_addr_t addr = PFN_PHYS(pfn);
 
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
 		if (addr >= xen_extra_mem[i].start &&
@@ -160,6 +160,8 @@ void __init xen_inv_extra_mem(void)
 	int i;
 
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
+		if (!xen_extra_mem[i].size)
+			continue;
 		pfn_s = PFN_DOWN(xen_extra_mem[i].start);
 		pfn_e = PFN_UP(xen_extra_mem[i].start + xen_extra_mem[i].size);
 		for (pfn = pfn_s; pfn < pfn_e; pfn++)
@@ -229,15 +231,14 @@ static int __init xen_free_mfn(unsigned long mfn)
  * as a fallback if the remapping fails.
  */
 static void __init xen_set_identity_and_release_chunk(unsigned long start_pfn,
-	unsigned long end_pfn, unsigned long nr_pages, unsigned long *identity,
-	unsigned long *released)
+	unsigned long end_pfn, unsigned long nr_pages, unsigned long *released)
 {
-	unsigned long len = 0;
 	unsigned long pfn, end;
 	int ret;
 
 	WARN_ON(start_pfn > end_pfn);
 
+	/* Release pages first. */
 	end = min(end_pfn, nr_pages);
 	for (pfn = start_pfn; pfn < end; pfn++) {
 		unsigned long mfn = pfn_to_mfn(pfn);
@@ -250,16 +251,14 @@ static void __init xen_set_identity_and_release_chunk(unsigned long start_pfn,
 		WARN(ret != 1, "Failed to release pfn %lx err=%d\n", pfn, ret);
 
 		if (ret == 1) {
+			(*released)++;
 			if (!__set_phys_to_machine(pfn, INVALID_P2M_ENTRY))
 				break;
-			len++;
 		} else
 			break;
 	}
 
-	/* Need to release pages first */
-	*released += len;
-	*identity += set_phys_range_identity(start_pfn, end_pfn);
+	set_phys_range_identity(start_pfn, end_pfn);
 }
 
 /*
@@ -287,7 +286,7 @@ static void __init xen_update_mem_tables(unsigned long pfn, unsigned long mfn)
 	}
 
 	/* Update kernel mapping, but not for highmem. */
-	if ((pfn << PAGE_SHIFT) >= __pa(high_memory))
+	if (pfn >= PFN_UP(__pa(high_memory - 1)))
 		return;
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)__va(pfn << PAGE_SHIFT),
@@ -318,7 +317,6 @@ static void __init xen_do_set_identity_and_remap_chunk(
 	unsigned long ident_pfn_iter, remap_pfn_iter;
 	unsigned long ident_end_pfn = start_pfn + size;
 	unsigned long left = size;
-	unsigned long ident_cnt = 0;
 	unsigned int i, chunk;
 
 	WARN_ON(size == 0);
@@ -347,8 +345,7 @@ static void __init xen_do_set_identity_and_remap_chunk(
 		xen_remap_mfn = mfn;
 
 		/* Set identity map */
-		ident_cnt += set_phys_range_identity(ident_pfn_iter,
-			ident_pfn_iter + chunk);
+		set_phys_range_identity(ident_pfn_iter, ident_pfn_iter + chunk);
 
 		left -= chunk;
 	}
@@ -371,7 +368,7 @@ static void __init xen_do_set_identity_and_remap_chunk(
 static unsigned long __init xen_set_identity_and_remap_chunk(
         const struct e820entry *list, size_t map_size, unsigned long start_pfn,
 	unsigned long end_pfn, unsigned long nr_pages, unsigned long remap_pfn,
-	unsigned long *identity, unsigned long *released)
+	unsigned long *released, unsigned long *remapped)
 {
 	unsigned long pfn;
 	unsigned long i = 0;
@@ -386,8 +383,7 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
 		/* Do not remap pages beyond the current allocation */
 		if (cur_pfn >= nr_pages) {
 			/* Identity map remaining pages */
-			*identity += set_phys_range_identity(cur_pfn,
-				cur_pfn + size);
+			set_phys_range_identity(cur_pfn, cur_pfn + size);
 			break;
 		}
 		if (cur_pfn + size > nr_pages)
@@ -398,7 +394,7 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
 		if (!remap_range_size) {
 			pr_warning("Unable to find available pfn range, not remapping identity pages\n");
 			xen_set_identity_and_release_chunk(cur_pfn,
-				cur_pfn + left, nr_pages, identity, released);
+				cur_pfn + left, nr_pages, released);
 			break;
 		}
 		/* Adjust size to fit in current e820 RAM region */
@@ -410,7 +406,7 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
 		/* Update variables to reflect new mappings. */
 		i += size;
 		remap_pfn += size;
-		*identity += size;
+		*remapped += size;
 	}
 
 	/*
@@ -427,13 +423,13 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
 
 static void __init xen_set_identity_and_remap(
 	const struct e820entry *list, size_t map_size, unsigned long nr_pages,
-	unsigned long *released)
+	unsigned long *released, unsigned long *remapped)
 {
 	phys_addr_t start = 0;
-	unsigned long identity = 0;
 	unsigned long last_pfn = nr_pages;
 	const struct e820entry *entry;
 	unsigned long num_released = 0;
+	unsigned long num_remapped = 0;
 	int i;
 
 	/*
@@ -460,14 +456,14 @@ static void __init xen_set_identity_and_remap(
 				last_pfn = xen_set_identity_and_remap_chunk(
 						list, map_size, start_pfn,
 						end_pfn, nr_pages, last_pfn,
-						&identity, &num_released);
+						&num_released, &num_remapped);
 			start = end;
 		}
 	}
 
 	*released = num_released;
+	*remapped = num_remapped;
 
-	pr_info("Set %ld page(s) to 1-1 mapping\n", identity);
 	pr_info("Released %ld page(s)\n", num_released);
 }
 
@@ -586,6 +582,7 @@ char * __init xen_memory_setup(void)
 	struct xen_memory_map memmap;
 	unsigned long max_pages;
 	unsigned long extra_pages = 0;
+	unsigned long remapped_pages;
 	int i;
 	int op;
 
@@ -635,9 +632,10 @@ char * __init xen_memory_setup(void)
 	 * underlying RAM.
 	 */
 	xen_set_identity_and_remap(map, memmap.nr_entries, max_pfn,
-				   &xen_released_pages);
+				   &xen_released_pages, &remapped_pages);
 
 	extra_pages += xen_released_pages;
+	extra_pages += remapped_pages;
 
 	/*
 	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO

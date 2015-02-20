@@ -59,20 +59,12 @@ static const struct musb_register_map musb_regmap[] = {
 	{ "RxMaxPp",	MUSB_RXMAXP,	16 },
 	{ "RxCSR",	MUSB_RXCSR,	16 },
 	{ "RxCount",	MUSB_RXCOUNT,	16 },
-	{ "ConfigData",	MUSB_CONFIGDATA,8 },
 	{ "IntrRxE",	MUSB_INTRRXE,	16 },
 	{ "IntrTxE",	MUSB_INTRTXE,	16 },
 	{ "IntrUsbE",	MUSB_INTRUSBE,	8 },
 	{ "DevCtl",	MUSB_DEVCTL,	8 },
-	{ "BabbleCtl",	MUSB_BABBLE_CTL,8 },
-	{ "TxFIFOsz",	MUSB_TXFIFOSZ,	8 },
-	{ "RxFIFOsz",	MUSB_RXFIFOSZ,	8 },
-	{ "TxFIFOadd",	MUSB_TXFIFOADD,	16 },
-	{ "RxFIFOadd",	MUSB_RXFIFOADD,	16 },
 	{ "VControl",	0x68,		32 },
 	{ "HWVers",	0x69,		16 },
-	{ "EPInfo",	MUSB_EPINFO,	8 },
-	{ "RAMInfo",	MUSB_RAMINFO,	8 },
 	{ "LinkInfo",	MUSB_LINKINFO,	8 },
 	{ "VPLen",	MUSB_VPLEN,	8 },
 	{ "HS_EOF1",	MUSB_HS_EOF1,	8 },
@@ -103,6 +95,16 @@ static const struct musb_register_map musb_regmap[] = {
 	{ "DMA_CNTLch7",	0x274,	16 },
 	{ "DMA_ADDRch7",	0x278,	32 },
 	{ "DMA_COUNTch7",	0x27C,	32 },
+#ifndef CONFIG_BLACKFIN
+	{ "ConfigData",	MUSB_CONFIGDATA,8 },
+	{ "BabbleCtl",	MUSB_BABBLE_CTL,8 },
+	{ "TxFIFOsz",	MUSB_TXFIFOSZ,	8 },
+	{ "RxFIFOsz",	MUSB_RXFIFOSZ,	8 },
+	{ "TxFIFOadd",	MUSB_TXFIFOADD,	16 },
+	{ "RxFIFOadd",	MUSB_RXFIFOADD,	16 },
+	{ "EPInfo",	MUSB_EPINFO,	8 },
+	{ "RAMInfo",	MUSB_RAMINFO,	8 },
+#endif
 	{  }	/* Terminating Entry */
 };
 
@@ -197,30 +199,30 @@ static ssize_t musb_test_mode_write(struct file *file,
 	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
-	if (!strncmp(buf, "force host", 9))
+	if (strstarts(buf, "force host"))
 		test = MUSB_TEST_FORCE_HOST;
 
-	if (!strncmp(buf, "fifo access", 11))
+	if (strstarts(buf, "fifo access"))
 		test = MUSB_TEST_FIFO_ACCESS;
 
-	if (!strncmp(buf, "force full-speed", 15))
+	if (strstarts(buf, "force full-speed"))
 		test = MUSB_TEST_FORCE_FS;
 
-	if (!strncmp(buf, "force high-speed", 15))
+	if (strstarts(buf, "force high-speed"))
 		test = MUSB_TEST_FORCE_HS;
 
-	if (!strncmp(buf, "test packet", 10)) {
+	if (strstarts(buf, "test packet")) {
 		test = MUSB_TEST_PACKET;
 		musb_load_testpacket(musb);
 	}
 
-	if (!strncmp(buf, "test K", 6))
+	if (strstarts(buf, "test K"))
 		test = MUSB_TEST_K;
 
-	if (!strncmp(buf, "test J", 6))
+	if (strstarts(buf, "test J"))
 		test = MUSB_TEST_J;
 
-	if (!strncmp(buf, "test SE0 NAK", 12))
+	if (strstarts(buf, "test SE0 NAK"))
 		test = MUSB_TEST_SE0_NAK;
 
 	musb_writeb(musb->mregs, MUSB_TESTMODE, test);

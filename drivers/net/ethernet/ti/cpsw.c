@@ -610,7 +610,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 
 			/* Clear all mcast from ALE */
 			cpsw_ale_flush_multicast(ale, ALE_ALL_PORTS <<
-						 priv->host_port);
+						 priv->host_port, -1);
 
 			/* Flood All Unicast Packets to Host port */
 			cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 1);
@@ -634,6 +634,12 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	int vid;
+
+	if (priv->data.dual_emac)
+		vid = priv->slaves[priv->emac_port].port_vlan;
+	else
+		vid = priv->data.default_vlan;
 
 	if (ndev->flags & IFF_PROMISC) {
 		/* Enable promiscuous mode */
@@ -649,7 +655,8 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 	cpsw_ale_set_allmulti(priv->ale, priv->ndev->flags & IFF_ALLMULTI);
 
 	/* Clear all mcast from ALE */
-	cpsw_ale_flush_multicast(priv->ale, ALE_ALL_PORTS << priv->host_port);
+	cpsw_ale_flush_multicast(priv->ale, ALE_ALL_PORTS << priv->host_port,
+				 vid);
 
 	if (!netdev_mc_empty(ndev)) {
 		struct netdev_hw_addr *ha;
@@ -1627,16 +1634,24 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 				unsigned short vid)
 {
 	int ret;
-	int unreg_mcast_mask;
+	int unreg_mcast_mask = 0;
+	u32 port_mask;
 
-	if (priv->ndev->flags & IFF_ALLMULTI)
-		unreg_mcast_mask = ALE_ALL_PORTS;
-	else
-		unreg_mcast_mask = ALE_PORT_1 | ALE_PORT_2;
+	if (priv->data.dual_emac) {
+		port_mask = (1 << (priv->emac_port + 1)) | ALE_PORT_HOST;
 
-	ret = cpsw_ale_add_vlan(priv->ale, vid,
-				ALE_ALL_PORTS << priv->host_port,
-				0, ALE_ALL_PORTS << priv->host_port,
+		if (priv->ndev->flags & IFF_ALLMULTI)
+			unreg_mcast_mask = port_mask;
+	} else {
+		port_mask = ALE_ALL_PORTS;
+
+		if (priv->ndev->flags & IFF_ALLMULTI)
+			unreg_mcast_mask = ALE_ALL_PORTS;
+		else
+			unreg_mcast_mask = ALE_PORT_1 | ALE_PORT_2;
+	}
+
+	ret = cpsw_ale_add_vlan(priv->ale, vid, port_mask, 0, port_mask,
 				unreg_mcast_mask << priv->host_port);
 	if (ret != 0)
 		return ret;
@@ -1647,8 +1662,7 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 		goto clean_vid;
 
 	ret = cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
-				 ALE_ALL_PORTS << priv->host_port,
-				 ALE_VLAN, vid, 0);
+				 port_mask, ALE_VLAN, vid, 0);
 	if (ret != 0)
 		goto clean_vlan_ucast;
 	return 0;
@@ -1669,6 +1683,19 @@ static int cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 	if (vid == priv->data.default_vlan)
 		return 0;
 
+	if (priv->data.dual_emac) {
+		/* In dual EMAC, reserved VLAN id should not be used for
+		 * creating VLAN interfaces as this can break the dual
+		 * EMAC port separation
+		 */
+		int i;
+
+		for (i = 0; i < priv->data.slaves; i++) {
+			if (vid == priv->slaves[i].port_vlan)
+				return -EINVAL;
+		}
+	}
+
 	dev_info(priv->dev, "Adding vlanid %d to vlan filter\n", vid);
 	return cpsw_add_vlan_ale_entry(priv, vid);
 }
@@ -1681,6 +1708,15 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 
 	if (vid == priv->data.default_vlan)
 		return 0;
+
+	if (priv->data.dual_emac) {
+		int i;
+
+		for (i = 0; i < priv->data.slaves; i++) {
+			if (vid == priv->slaves[i].port_vlan)
+				return -EINVAL;
+		}
+	}
 
 	dev_info(priv->dev, "removing vlanid %d from vlan filter\n", vid);
 	ret = cpsw_ale_del_vlan(priv->ale, vid, 0);

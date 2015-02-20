@@ -308,6 +308,12 @@ unsigned int __attribute_const__ ieee80211_hdrlen(__le16 fc)
 		goto out;
 	}
 
+	if (ieee80211_is_mgmt(fc)) {
+		if (ieee80211_has_order(fc))
+			hdrlen += IEEE80211_HT_CTL_LEN;
+		goto out;
+	}
+
 	if (ieee80211_is_ctl(fc)) {
 		/*
 		 * ACK and CTS are 10 bytes, all others 16. To see how

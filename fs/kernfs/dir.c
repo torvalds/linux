@@ -201,10 +201,14 @@ static unsigned int kernfs_name_hash(const char *name, const void *ns)
 static int kernfs_name_compare(unsigned int hash, const char *name,
 			       const void *ns, const struct kernfs_node *kn)
 {
-	if (hash != kn->hash)
-		return hash - kn->hash;
-	if (ns != kn->ns)
-		return ns - kn->ns;
+	if (hash < kn->hash)
+		return -1;
+	if (hash > kn->hash)
+		return 1;
+	if (ns < kn->ns)
+		return -1;
+	if (ns > kn->ns)
+		return 1;
 	return strcmp(name, kn->name);
 }
 

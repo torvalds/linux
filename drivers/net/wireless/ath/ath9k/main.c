@@ -285,6 +285,7 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 
 	__ath_cancel_work(sc);
 
+	disable_irq(sc->irq);
 	tasklet_disable(&sc->intr_tq);
 	tasklet_disable(&sc->bcon_tasklet);
 	spin_lock_bh(&sc->sc_pcu_lock);
@@ -331,6 +332,7 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 		r = -EIO;
 
 out:
+	enable_irq(sc->irq);
 	spin_unlock_bh(&sc->sc_pcu_lock);
 	tasklet_enable(&sc->bcon_tasklet);
 	tasklet_enable(&sc->intr_tq);
@@ -512,9 +514,6 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (!ah || test_bit(ATH_OP_INVALID, &common->op_flags))
 		return IRQ_NONE;
 
-	if (!AR_SREV_9100(ah) && test_bit(ATH_OP_HW_RESET, &common->op_flags))
-		return IRQ_NONE;
-
 	/* shared irq, not for us */
 	if (!ath9k_hw_intrpend(ah))
 		return IRQ_NONE;
@@ -529,7 +528,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	ath9k_debug_sync_cause(sc, sync_cause);
 	status &= ah->imask;	/* discard unasked-for bits */
 
-	if (AR_SREV_9100(ah) && test_bit(ATH_OP_HW_RESET, &common->op_flags))
+	if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 		return IRQ_HANDLED;
 
 	/*

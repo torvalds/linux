@@ -291,26 +291,32 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
  * ABC caps N to 2. Slow start exits when cwnd grows over ssthresh and
  * returns the leftover acks to adjust cwnd in congestion avoidance mode.
  */
-void tcp_slow_start(struct tcp_sock *tp, u32 acked)
+u32 tcp_slow_start(struct tcp_sock *tp, u32 acked)
 {
 	u32 cwnd = tp->snd_cwnd + acked;
 
 	if (cwnd > tp->snd_ssthresh)
 		cwnd = tp->snd_ssthresh + 1;
+	acked -= cwnd - tp->snd_cwnd;
 	tp->snd_cwnd = min(cwnd, tp->snd_cwnd_clamp);
+
+	return acked;
 }
 EXPORT_SYMBOL_GPL(tcp_slow_start);
 
-/* In theory this is tp->snd_cwnd += 1 / tp->snd_cwnd (or alternative w) */
-void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w)
+/* In theory this is tp->snd_cwnd += 1 / tp->snd_cwnd (or alternative w),
+ * for every packet that was ACKed.
+ */
+void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked)
 {
+	tp->snd_cwnd_cnt += acked;
 	if (tp->snd_cwnd_cnt >= w) {
-		if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-			tp->snd_cwnd++;
-		tp->snd_cwnd_cnt = 0;
-	} else {
-		tp->snd_cwnd_cnt++;
+		u32 delta = tp->snd_cwnd_cnt / w;
+
+		tp->snd_cwnd_cnt -= delta * w;
+		tp->snd_cwnd += delta;
 	}
+	tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_cwnd_clamp);
 }
 EXPORT_SYMBOL_GPL(tcp_cong_avoid_ai);
 
@@ -329,11 +335,13 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	/* In "safe" area, increase. */
-	if (tp->snd_cwnd <= tp->snd_ssthresh)
-		tcp_slow_start(tp, acked);
+	if (tp->snd_cwnd <= tp->snd_ssthresh) {
+		acked = tcp_slow_start(tp, acked);
+		if (!acked)
+			return;
+	}
 	/* In dangerous area, increase slowly. */
-	else
-		tcp_cong_avoid_ai(tp, tp->snd_cwnd);
+	tcp_cong_avoid_ai(tp, tp->snd_cwnd, acked);
 }
 EXPORT_SYMBOL_GPL(tcp_reno_cong_avoid);
 

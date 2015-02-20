@@ -523,6 +523,7 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	hw_feat->sph           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, SPHEN);
 	hw_feat->tso           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, TSOEN);
 	hw_feat->dma_debug     = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, DBGMEMA);
+	hw_feat->rss           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, RSSEN);
 	hw_feat->tc_cnt	       = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, NUMTC);
 	hw_feat->hash_table_size = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R,
 						  HASHTBLSZ);
@@ -552,13 +553,14 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 		break;
 	}
 
-	/* The Queue and Channel counts are zero based so increment them
+	/* The Queue, Channel and TC counts are zero based so increment them
 	 * to get the actual number
 	 */
 	hw_feat->rx_q_cnt++;
 	hw_feat->tx_q_cnt++;
 	hw_feat->rx_ch_cnt++;
 	hw_feat->tx_ch_cnt++;
+	hw_feat->tc_cnt++;
 
 	DBGPR("<--xgbe_get_all_hw_features\n");
 }

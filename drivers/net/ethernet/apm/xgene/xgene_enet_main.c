@@ -369,6 +369,8 @@ static int xgene_enet_process_ring(struct xgene_enet_desc_ring *ring,
 		if (unlikely(xgene_enet_is_desc_slot_empty(raw_desc)))
 			break;
 
+		/* read fpqnum field after dataaddr field */
+		dma_rmb();
 		if (is_rx_desc(raw_desc))
 			ret = xgene_enet_rx_frame(ring, raw_desc);
 		else

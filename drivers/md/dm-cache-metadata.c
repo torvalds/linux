@@ -94,6 +94,9 @@ struct cache_disk_superblock {
 } __packed;
 
 struct dm_cache_metadata {
+	atomic_t ref_count;
+	struct list_head list;
+
 	struct block_device *bdev;
 	struct dm_block_manager *bm;
 	struct dm_space_map *metadata_sm;
@@ -669,10 +672,10 @@ static void unpack_value(__le64 value_le, dm_oblock_t *block, unsigned *flags)
 
 /*----------------------------------------------------------------*/
 
-struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
-						 sector_t data_block_size,
-						 bool may_format_device,
-						 size_t policy_hint_size)
+static struct dm_cache_metadata *metadata_open(struct block_device *bdev,
+					       sector_t data_block_size,
+					       bool may_format_device,
+					       size_t policy_hint_size)
 {
 	int r;
 	struct dm_cache_metadata *cmd;
@@ -680,9 +683,10 @@ struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
 		DMERR("could not allocate metadata struct");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
+	atomic_set(&cmd->ref_count, 1);
 	init_rwsem(&cmd->root_lock);
 	cmd->bdev = bdev;
 	cmd->data_block_size = data_block_size;
@@ -705,10 +709,96 @@ struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
 	return cmd;
 }
 
+/*
+ * We keep a little list of ref counted metadata objects to prevent two
+ * different target instances creating separate bufio instances.  This is
+ * an issue if a table is reloaded before the suspend.
+ */
+static DEFINE_MUTEX(table_lock);
+static LIST_HEAD(table);
+
+static struct dm_cache_metadata *lookup(struct block_device *bdev)
+{
+	struct dm_cache_metadata *cmd;
+
+	list_for_each_entry(cmd, &table, list)
+		if (cmd->bdev == bdev) {
+			atomic_inc(&cmd->ref_count);
+			return cmd;
+		}
+
+	return NULL;
+}
+
+static struct dm_cache_metadata *lookup_or_open(struct block_device *bdev,
+						sector_t data_block_size,
+						bool may_format_device,
+						size_t policy_hint_size)
+{
+	struct dm_cache_metadata *cmd, *cmd2;
+
+	mutex_lock(&table_lock);
+	cmd = lookup(bdev);
+	mutex_unlock(&table_lock);
+
+	if (cmd)
+		return cmd;
+
+	cmd = metadata_open(bdev, data_block_size, may_format_device, policy_hint_size);
+	if (!IS_ERR(cmd)) {
+		mutex_lock(&table_lock);
+		cmd2 = lookup(bdev);
+		if (cmd2) {
+			mutex_unlock(&table_lock);
+			__destroy_persistent_data_objects(cmd);
+			kfree(cmd);
+			return cmd2;
+		}
+		list_add(&cmd->list, &table);
+		mutex_unlock(&table_lock);
+	}
+
+	return cmd;
+}
+
+static bool same_params(struct dm_cache_metadata *cmd, sector_t data_block_size)
+{
+	if (cmd->data_block_size != data_block_size) {
+		DMERR("data_block_size (%llu) different from that in metadata (%llu)\n",
+		      (unsigned long long) data_block_size,
+		      (unsigned long long) cmd->data_block_size);
+		return false;
+	}
+
+	return true;
+}
+
+struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
+						 sector_t data_block_size,
+						 bool may_format_device,
+						 size_t policy_hint_size)
+{
+	struct dm_cache_metadata *cmd = lookup_or_open(bdev, data_block_size,
+						       may_format_device, policy_hint_size);
+
+	if (!IS_ERR(cmd) && !same_params(cmd, data_block_size)) {
+		dm_cache_metadata_close(cmd);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return cmd;
+}
+
 void dm_cache_metadata_close(struct dm_cache_metadata *cmd)
 {
-	__destroy_persistent_data_objects(cmd);
-	kfree(cmd);
+	if (atomic_dec_and_test(&cmd->ref_count)) {
+		mutex_lock(&table_lock);
+		list_del(&cmd->list);
+		mutex_unlock(&table_lock);
+
+		__destroy_persistent_data_objects(cmd);
+		kfree(cmd);
+	}
 }
 
 /*

@@ -66,8 +66,7 @@ static void reg_dump(struct ak4114 *ak4114)
 
 static void snd_ak4114_free(struct ak4114 *chip)
 {
-	chip->init = 1;	/* don't schedule new work */
-	mb();
+	atomic_inc(&chip->wq_processing);	/* don't schedule new work */
 	cancel_delayed_work_sync(&chip->work);
 	kfree(chip);
 }
@@ -100,6 +99,7 @@ int snd_ak4114_create(struct snd_card *card,
 	chip->write = write;
 	chip->private_data = private_data;
 	INIT_DELAYED_WORK(&chip->work, ak4114_stats);
+	atomic_set(&chip->wq_processing, 0);
 
 	for (reg = 0; reg < 6; reg++)
 		chip->regmap[reg] = pgm[reg];
@@ -152,13 +152,11 @@ static void ak4114_init_regs(struct ak4114 *chip)
 
 void snd_ak4114_reinit(struct ak4114 *chip)
 {
-	chip->init = 1;
-	mb();
-	flush_delayed_work(&chip->work);
+	if (atomic_inc_return(&chip->wq_processing) == 1)
+		cancel_delayed_work_sync(&chip->work);
 	ak4114_init_regs(chip);
 	/* bring up statistics / event queing */
-	chip->init = 0;
-	if (chip->kctls[0])
+	if (atomic_dec_and_test(&chip->wq_processing))
 		schedule_delayed_work(&chip->work, HZ / 10);
 }
 
@@ -612,10 +610,10 @@ static void ak4114_stats(struct work_struct *work)
 {
 	struct ak4114 *chip = container_of(work, struct ak4114, work.work);
 
-	if (!chip->init)
+	if (atomic_inc_return(&chip->wq_processing) == 1)
 		snd_ak4114_check_rate_and_errors(chip, chip->check_flags);
-
-	schedule_delayed_work(&chip->work, HZ / 10);
+	if (atomic_dec_and_test(&chip->wq_processing))
+		schedule_delayed_work(&chip->work, HZ / 10);
 }
 
 EXPORT_SYMBOL(snd_ak4114_create);

@@ -61,6 +61,7 @@
 #include <linux/rhashtable.h>
 #include <asm/cacheflush.h>
 #include <linux/hash.h>
+#include <linux/genetlink.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -1095,6 +1096,8 @@ static void netlink_remove(struct sock *sk)
 		__sk_del_bind_node(sk);
 		netlink_update_listeners(sk);
 	}
+	if (sk->sk_protocol == NETLINK_GENERIC)
+		atomic_inc(&genl_sk_destructing_cnt);
 	netlink_table_ungrab();
 }
 
@@ -1211,6 +1214,20 @@ static int netlink_release(struct socket *sock)
 	 * will be purged.
 	 */
 
+	/* must not acquire netlink_table_lock in any way again before unbind
+	 * and notifying genetlink is done as otherwise it might deadlock
+	 */
+	if (nlk->netlink_unbind) {
+		int i;
+
+		for (i = 0; i < nlk->ngroups; i++)
+			if (test_bit(i, nlk->groups))
+				nlk->netlink_unbind(sock_net(sk), i + 1);
+	}
+	if (sk->sk_protocol == NETLINK_GENERIC &&
+	    atomic_dec_return(&genl_sk_destructing_cnt) == 0)
+		wake_up(&genl_sk_destructing_waitq);
+
 	sock->sk = NULL;
 	wake_up_interruptible_all(&nlk->wait);
 
@@ -1246,13 +1263,6 @@ static int netlink_release(struct socket *sock)
 		netlink_table_ungrab();
 	}
 
-	if (nlk->netlink_unbind) {
-		int i;
-
-		for (i = 0; i < nlk->ngroups; i++)
-			if (test_bit(i, nlk->groups))
-				nlk->netlink_unbind(sock_net(sk), i + 1);
-	}
 	kfree(nlk->groups);
 	nlk->groups = NULL;
 
@@ -1428,7 +1438,7 @@ static void netlink_undo_bind(int group, long unsigned int groups,
 
 	for (undo = 0; undo < group; undo++)
 		if (test_bit(undo, &groups))
-			nlk->netlink_unbind(sock_net(sk), undo);
+			nlk->netlink_unbind(sock_net(sk), undo + 1);
 }
 
 static int netlink_bind(struct socket *sock, struct sockaddr *addr,
@@ -1466,7 +1476,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 		for (group = 0; group < nlk->ngroups; group++) {
 			if (!test_bit(group, &groups))
 				continue;
-			err = nlk->netlink_bind(net, group);
+			err = nlk->netlink_bind(net, group + 1);
 			if (!err)
 				continue;
 			netlink_undo_bind(group, groups, sk);

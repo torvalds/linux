@@ -1119,6 +1119,7 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 			skb_shinfo(nskb)->gso_size = skb_shinfo(skb)->gso_size;
 			skb_shinfo(nskb)->gso_type = skb_shinfo(skb)->gso_type;
 		}
+		nskb->queue_mapping = skb->queue_mapping;
 		dev_kfree_skb(skb);
 		skb = nskb;
 	}

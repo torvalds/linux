@@ -144,21 +144,17 @@ static void flush_context(unsigned int cpu)
 	/* Update the list of reserved ASIDs and the ASID bitmap. */
 	bitmap_clear(asid_map, 0, NUM_USER_ASIDS);
 	for_each_possible_cpu(i) {
-		if (i == cpu) {
-			asid = 0;
-		} else {
-			asid = atomic64_xchg(&per_cpu(active_asids, i), 0);
-			/*
-			 * If this CPU has already been through a
-			 * rollover, but hasn't run another task in
-			 * the meantime, we must preserve its reserved
-			 * ASID, as this is the only trace we have of
-			 * the process it is still running.
-			 */
-			if (asid == 0)
-				asid = per_cpu(reserved_asids, i);
-			__set_bit(asid & ~ASID_MASK, asid_map);
-		}
+		asid = atomic64_xchg(&per_cpu(active_asids, i), 0);
+		/*
+		 * If this CPU has already been through a
+		 * rollover, but hasn't run another task in
+		 * the meantime, we must preserve its reserved
+		 * ASID, as this is the only trace we have of
+		 * the process it is still running.
+		 */
+		if (asid == 0)
+			asid = per_cpu(reserved_asids, i);
+		__set_bit(asid & ~ASID_MASK, asid_map);
 		per_cpu(reserved_asids, i) = asid;
 	}
 

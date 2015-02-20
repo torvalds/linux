@@ -1702,7 +1702,7 @@ static int generic_delete_lease(struct file *filp)
 			break;
 	}
 	trace_generic_delete_lease(inode, fl);
-	if (fl)
+	if (fl && IS_LEASE(fl))
 		error = fl->fl_lmops->lm_change(before, F_UNLCK, &dispose);
 	spin_unlock(&inode->i_lock);
 	locks_dispose_list(&dispose);
