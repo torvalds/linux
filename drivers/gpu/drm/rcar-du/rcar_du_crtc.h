@@ -36,7 +36,7 @@ struct rcar_du_crtc {
 	wait_queue_head_t flip_wait;
 
 	unsigned int outputs;
-	int dpms;
+	bool enabled;
 
 	struct rcar_du_group *group;
 	struct rcar_du_plane *plane;

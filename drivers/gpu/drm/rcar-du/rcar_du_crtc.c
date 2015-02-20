@@ -431,7 +431,7 @@ void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc)
 
 void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 {
-	if (rcrtc->dpms != DRM_MODE_DPMS_ON)
+	if (!rcrtc->enabled)
 		return;
 
 	rcar_du_crtc_get(rcrtc);
@@ -450,25 +450,38 @@ static void rcar_du_crtc_update_base(struct rcar_du_crtc *rcrtc)
  * CRTC Functions
  */
 
-static void rcar_du_crtc_dpms(struct drm_crtc *crtc, int mode)
+static void rcar_du_crtc_enable(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
-	if (mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
-
-	if (rcrtc->dpms == mode)
+	if (rcrtc->enabled)
 		return;
 
-	if (mode == DRM_MODE_DPMS_ON) {
-		rcar_du_crtc_get(rcrtc);
-		rcar_du_crtc_start(rcrtc);
-	} else {
-		rcar_du_crtc_stop(rcrtc);
-		rcar_du_crtc_put(rcrtc);
-	}
+	rcar_du_crtc_get(rcrtc);
+	rcar_du_crtc_start(rcrtc);
 
-	rcrtc->dpms = mode;
+	rcrtc->enabled = true;
+}
+
+static void rcar_du_crtc_disable(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	if (!rcrtc->enabled)
+		return;
+
+	rcar_du_crtc_stop(rcrtc);
+	rcar_du_crtc_put(rcrtc);
+
+	rcrtc->enabled = false;
+}
+
+static void rcar_du_crtc_dpms(struct drm_crtc *crtc, int mode)
+{
+	if (mode == DRM_MODE_DPMS_ON)
+		rcar_du_crtc_enable(crtc);
+	else
+		rcar_du_crtc_disable(crtc);
 }
 
 static bool rcar_du_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -488,10 +501,10 @@ static void rcar_du_crtc_mode_prepare(struct drm_crtc *crtc)
 	 */
 	rcar_du_crtc_get(rcrtc);
 
-	/* Stop the CRTC, force the DPMS mode to off as a result. */
+	/* Stop the CRTC, force enabled to false as a result. */
 	rcar_du_crtc_stop(rcrtc);
 
-	rcrtc->dpms = DRM_MODE_DPMS_OFF;
+	rcrtc->enabled = false;
 	rcrtc->outputs = 0;
 }
 
@@ -508,17 +521,12 @@ static void rcar_du_crtc_mode_commit(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
-	/* We're done, restart the CRTC and set the DPMS mode to on. The
-	 * reference to the DU acquired at prepare() time will thus be released
-	 * by the DPMS handler (possibly called by the disable() handler).
+	/* We're done, restart the CRTC and set enabled to true. The reference
+	 * to the DU acquired at prepare() time will thus be released by the
+	 * disable() handler.
 	 */
 	rcar_du_crtc_start(rcrtc);
-	rcrtc->dpms = DRM_MODE_DPMS_ON;
-}
-
-static void rcar_du_crtc_disable(struct drm_crtc *crtc)
-{
-	rcar_du_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	rcrtc->enabled = true;
 }
 
 static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc)
@@ -554,6 +562,7 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.mode_set_nofb = rcar_du_crtc_mode_set_nofb,
 	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.disable = rcar_du_crtc_disable,
+	.enable = rcar_du_crtc_enable,
 	.atomic_begin = rcar_du_crtc_atomic_begin,
 	.atomic_flush = rcar_du_crtc_atomic_flush,
 };
@@ -670,7 +679,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->group = rgrp;
 	rcrtc->mmio_offset = mmio_offsets[index];
 	rcrtc->index = index;
-	rcrtc->dpms = DRM_MODE_DPMS_OFF;
+	rcrtc->enabled = false;
 	rcrtc->plane = &rgrp->planes.planes[index % 2];
 
 	rcrtc->plane->crtc = crtc;
