@@ -24,6 +24,10 @@
 #include <core/mm.h>
 #include <core/device.h>
 
+#ifdef __KERNEL__
+#include <linux/dma-attrs.h>
+#endif
+
 #include "priv.h"
 
 struct gk20a_instobj_priv {
@@ -41,6 +45,7 @@ struct gk20a_instmem_priv {
 	struct nvkm_instmem base;
 	spinlock_t lock;
 	u64 addr;
+	struct dma_attrs attrs;
 };
 
 static u32
@@ -91,8 +96,8 @@ gk20a_instobj_dtor(struct nvkm_object *object)
 	if (unlikely(!node->handle))
 		return;
 
-	dma_free_coherent(dev, node->mem->size << PAGE_SHIFT, node->cpuaddr,
-			  node->handle);
+	dma_free_attrs(dev, node->mem->size << PAGE_SHIFT, node->cpuaddr,
+		       node->handle, &priv->attrs);
 
 	nvkm_instobj_destroy(&node->base);
 }
@@ -126,8 +131,9 @@ gk20a_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	node->mem = &node->_mem;
 
-	node->cpuaddr = dma_alloc_coherent(dev, npages << PAGE_SHIFT,
-					   &node->handle, GFP_KERNEL);
+	node->cpuaddr = dma_alloc_attrs(dev, npages << PAGE_SHIFT,
+					&node->handle, GFP_KERNEL,
+					&priv->attrs);
 	if (!node->cpuaddr) {
 		nv_error(priv, "cannot allocate DMA memory\n");
 		return -ENOMEM;
@@ -194,6 +200,16 @@ gk20a_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	spin_lock_init(&priv->lock);
+
+	init_dma_attrs(&priv->attrs);
+	/*
+	 * We will access instmem through PRAMIN and thus do not need a
+	 * consistent CPU pointer or kernel mapping
+	 */
+	dma_set_attr(DMA_ATTR_NON_CONSISTENT, &priv->attrs);
+	dma_set_attr(DMA_ATTR_WEAK_ORDERING, &priv->attrs);
+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &priv->attrs);
+	dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &priv->attrs);
 
 	return 0;
 }
