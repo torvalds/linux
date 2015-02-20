@@ -1017,7 +1017,7 @@ void qib_rc_send_complete(struct qib_qp *qp, struct qib_ib_header *hdr)
 		/* Post a send completion queue entry if requested. */
 		if (!(qp->s_flags & QIB_S_SIGNAL_REQ_WR) ||
 		    (wqe->wr.send_flags & IB_SEND_SIGNALED)) {
-			memset(&wc, 0, sizeof wc);
+			memset(&wc, 0, sizeof(wc));
 			wc.wr_id = wqe->wr.wr_id;
 			wc.status = IB_WC_SUCCESS;
 			wc.opcode = ib_qib_wc_opcode[wqe->wr.opcode];
@@ -1073,7 +1073,7 @@ static struct qib_swqe *do_rc_completion(struct qib_qp *qp,
 		/* Post a send completion queue entry if requested. */
 		if (!(qp->s_flags & QIB_S_SIGNAL_REQ_WR) ||
 		    (wqe->wr.send_flags & IB_SEND_SIGNALED)) {
-			memset(&wc, 0, sizeof wc);
+			memset(&wc, 0, sizeof(wc));
 			wc.wr_id = wqe->wr.wr_id;
 			wc.status = IB_WC_SUCCESS;
 			wc.opcode = ib_qib_wc_opcode[wqe->wr.opcode];
