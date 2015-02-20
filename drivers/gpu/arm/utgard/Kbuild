@@ -106,9 +106,8 @@ mali-y += \
 	linux/mali_pmu_power_up_down.o \
 	__malidrv_build_info.o
 
-ifneq ($(MALI_PLATFORM_FILES),)
-	mali-y += $(MALI_PLATFORM_FILES:.c=.o)
-endif
+EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
+mali-y += platform/hikey/mali_hikey.o
 
 mali-$(CONFIG_MALI400_PROFILING) += linux/mali_ukk_profiling.o
 mali-$(CONFIG_MALI400_PROFILING) += linux/mali_osk_profiling.o
