@@ -2319,7 +2319,7 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 				       unsigned long *bitmap,
 				       u64 start, u64 len)
 {
-	int offset;
+	u32 offset;
 	int nsectors;
 	int sectorsize = sparity->sctx->dev_root->sectorsize;
 
@@ -2612,8 +2612,8 @@ static int get_raid56_logic_offset(u64 physical, int num,
 	int j = 0;
 	u64 stripe_nr;
 	u64 last_offset;
-	int stripe_index;
-	int rot;
+	u32 stripe_index;
+	u32 rot;
 
 	last_offset = (physical - map->stripes[num].physical) *
 		      nr_data_stripes(map);
