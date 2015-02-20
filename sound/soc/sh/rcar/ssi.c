@@ -478,7 +478,6 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 
 	ret = rsnd_dma_init(
 		priv, rsnd_mod_to_dma(mod),
-		rsnd_info_is_playback(priv, ssi),
 		dma_id);
 	if (ret)
 		goto rsnd_ssi_dma_probe_fail;

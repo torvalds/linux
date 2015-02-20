@@ -311,13 +311,15 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 	}
 }
 
-int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
-		  int is_play, int id)
+int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_slave_config cfg;
+	struct rsnd_mod *mod = rsnd_dma_to_mod(dma);
 	struct rsnd_mod *mod_from;
 	struct rsnd_mod *mod_to;
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	int is_play = rsnd_io_is_play(io);
 	char dma_name[DMA_NAME_SIZE];
 	dma_cap_mask_t mask;
 	int ret;

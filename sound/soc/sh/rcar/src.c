@@ -713,7 +713,6 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 
 	ret = rsnd_dma_init(priv,
 			    rsnd_mod_to_dma(mod),
-			    rsnd_info_is_playback(priv, src),
 			    src->info->dma_id);
 	if (ret)
 		goto rsnd_src_probe_gen2_fail;

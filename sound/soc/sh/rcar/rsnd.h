@@ -179,8 +179,7 @@ struct rsnd_dma {
 void rsnd_dma_start(struct rsnd_dma *dma);
 void rsnd_dma_stop(struct rsnd_dma *dma);
 int rsnd_dma_available(struct rsnd_dma *dma);
-int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
-	int is_play, int id);
+int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id);
 void  rsnd_dma_quit(struct rsnd_priv *priv,
 		    struct rsnd_dma *dma);
 
@@ -412,19 +411,6 @@ struct rsnd_priv {
 #define rsnd_priv_to_info(priv)	((priv)->info)
 #define rsnd_lock(priv, flags) spin_lock_irqsave(&priv->lock, flags)
 #define rsnd_unlock(priv, flags) spin_unlock_irqrestore(&priv->lock, flags)
-
-#define rsnd_info_is_playback(priv, type)				\
-({									\
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);		\
-	int i, is_play = 0;						\
-	for (i = 0; i < info->dai_info_nr; i++) {			\
-		if (info->dai_info[i].playback.type == (type)->info) {	\
-			is_play = 1;					\
-			break;						\
-		}							\
-	}								\
-	is_play;							\
-})
 
 /*
  *	rsnd_kctrl
