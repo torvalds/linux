@@ -47,14 +47,6 @@ struct rcar_du_plane {
 
 	unsigned long dma[2];
 	unsigned int pitch;
-
-	unsigned int width;
-	unsigned int height;
-
-	unsigned int src_x;
-	unsigned int src_y;
-	unsigned int dst_x;
-	unsigned int dst_y;
 };
 
 struct rcar_du_planes {

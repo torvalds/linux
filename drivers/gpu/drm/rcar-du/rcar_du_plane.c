@@ -132,6 +132,8 @@ static void rcar_du_plane_release(struct rcar_du_plane *plane)
 void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 {
 	struct rcar_du_group *rgrp = plane->group;
+	unsigned int src_x = plane->plane.state->src_x >> 16;
+	unsigned int src_y = plane->plane.state->src_y >> 16;
 	unsigned int index = plane->hwindex;
 	bool interlaced;
 	u32 mwr;
@@ -163,8 +165,8 @@ void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 	 * require a halved Y position value, in both progressive and interlaced
 	 * modes.
 	 */
-	rcar_du_plane_write(rgrp, index, PnSPXR, plane->src_x);
-	rcar_du_plane_write(rgrp, index, PnSPYR, plane->src_y *
+	rcar_du_plane_write(rgrp, index, PnSPXR, src_x);
+	rcar_du_plane_write(rgrp, index, PnSPYR, src_y *
 			    (!interlaced && plane->format->bpp == 32 ? 2 : 1));
 	rcar_du_plane_write(rgrp, index, PnDSA0R, plane->dma[0]);
 
@@ -173,8 +175,8 @@ void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 
 		rcar_du_plane_write(rgrp, index, PnMWR, plane->pitch);
 
-		rcar_du_plane_write(rgrp, index, PnSPXR, plane->src_x);
-		rcar_du_plane_write(rgrp, index, PnSPYR, plane->src_y *
+		rcar_du_plane_write(rgrp, index, PnSPXR, src_x);
+		rcar_du_plane_write(rgrp, index, PnSPYR, src_y *
 				    (plane->format->bpp == 16 ? 2 : 1) / 2);
 		rcar_du_plane_write(rgrp, index, PnDSA0R, plane->dma[1]);
 	}
@@ -294,10 +296,10 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 	rcar_du_plane_write(rgrp, index, PnDDCR4, ddcr4);
 
 	/* Destination position and size */
-	rcar_du_plane_write(rgrp, index, PnDSXR, plane->width);
-	rcar_du_plane_write(rgrp, index, PnDSYR, plane->height);
-	rcar_du_plane_write(rgrp, index, PnDPXR, plane->dst_x);
-	rcar_du_plane_write(rgrp, index, PnDPYR, plane->dst_y);
+	rcar_du_plane_write(rgrp, index, PnDSXR, plane->plane.state->crtc_w);
+	rcar_du_plane_write(rgrp, index, PnDSYR, plane->plane.state->crtc_h);
+	rcar_du_plane_write(rgrp, index, PnDPXR, plane->plane.state->crtc_x);
+	rcar_du_plane_write(rgrp, index, PnDPYR, plane->plane.state->crtc_y);
 
 	/* Wrap-around and blinking, disabled */
 	rcar_du_plane_write(rgrp, index, PnWASPR, 0);
@@ -398,13 +400,6 @@ static void rcar_du_plane_atomic_update(struct drm_plane *plane,
 
 	rplane->crtc = state->crtc;
 	rplane->format = format;
-
-	rplane->src_x = state->src_x >> 16;
-	rplane->src_y = state->src_y >> 16;
-	rplane->dst_x = state->crtc_x;
-	rplane->dst_y = state->crtc_y;
-	rplane->width = state->crtc_w;
-	rplane->height = state->crtc_h;
 
 	rcar_du_plane_compute_base(rplane, state->fb);
 	rcar_du_plane_setup(rplane);
