@@ -103,8 +103,8 @@ static void crtc_flush_all(struct drm_crtc *crtc)
 	struct drm_plane *plane;
 	uint32_t flush_mask = 0;
 
-	/* we could have already released CTL in the disable path: */
-	if (!mdp5_crtc->ctl)
+	/* this should not happen: */
+	if (WARN_ON(!mdp5_crtc->ctl))
 		return;
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
@@ -142,6 +142,11 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		mdp5_plane_complete_flip(plane);
+	}
+
+	if (mdp5_crtc->ctl && !crtc->state->enable) {
+		mdp5_ctl_release(mdp5_crtc->ctl);
+		mdp5_crtc->ctl = NULL;
 	}
 }
 
@@ -386,14 +391,17 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc)
 	mdp5_crtc->event = crtc->state->event;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
+	/*
+	 * If no CTL has been allocated in mdp5_crtc_atomic_check(),
+	 * it means we are trying to flush a CRTC whose state is disabled:
+	 * nothing else needs to be done.
+	 */
+	if (unlikely(!mdp5_crtc->ctl))
+		return;
+
 	blend_setup(crtc);
 	crtc_flush_all(crtc);
 	request_pending(crtc, PENDING_FLIP);
-
-	if (mdp5_crtc->ctl && !crtc->state->enable) {
-		mdp5_ctl_release(mdp5_crtc->ctl);
-		mdp5_crtc->ctl = NULL;
-	}
 }
 
 static int mdp5_crtc_set_property(struct drm_crtc *crtc,
@@ -494,6 +502,10 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	uint32_t roi_w;
 	uint32_t roi_h;
 	unsigned long flags;
+
+	/* In case the CRTC is disabled, just drop the cursor update */
+	if (unlikely(!crtc->state->enable))
+		return 0;
 
 	x = (x > 0) ? x : 0;
 	y = (y > 0) ? y : 0;
