@@ -251,6 +251,7 @@ static int micro_batt_remove(struct platform_device *pdev)
 	power_supply_unregister(&micro_ac_power);
 	power_supply_unregister(&micro_batt_power);
 	cancel_delayed_work_sync(&mb->update);
+	destroy_workqueue(mb->wq);
 
 	return 0;
 }
