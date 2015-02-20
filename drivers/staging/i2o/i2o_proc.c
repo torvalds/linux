@@ -48,9 +48,9 @@
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/uaccess.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
 /* Structure used to define /proc entries */
