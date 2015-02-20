@@ -10,7 +10,7 @@
 /include/ "skeleton.dtsi"
 
 / {
-	compatible = "snps,arc-angel4";
+	compatible = "snps,nsim";
 	clock-frequency = <80000000>;	/* 80 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;

@@ -6,11 +6,9 @@
 # published by the Free Software Foundation.
 #
 
-menuconfig ARC_PLAT_FPGA_LEGACY
-	bool "\"Legacy\" ARC FPGA dev Boards"
+menuconfig ARC_PLAT_SIM
+	bool "ARC nSIM based simulation virtual platforms"
 	select ARC_HAS_COH_CACHES if SMP
 	help
-	  Support for ARC development boards, provided by Synopsys.
-	  These are based on FPGA or ISS. e.g.
-	  - ARCAngel4
-	  - ML509
+	  Support for nSIM based ARC simulation platforms
+	  This includes the standalone nSIM (uart only) vs. System C OSCI VP

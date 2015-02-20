@@ -1,5 +1,5 @@
 /*
- * ARC FPGA Platform support code
+ * ARC simulation Platform support code
  *
  * Copyright (C) 2012 Synopsys, Inc. (www.synopsys.com)
  *
@@ -18,16 +18,6 @@
  * however as part of early device tree scan, we also select the right
  * callback set, by matching the DT compatible name.
  */
-
-static const char *legacy_fpga_compat[] __initconst = {
-	"snps,arc-angel4",
-	"snps,arc-ml509",
-	NULL,
-};
-
-MACHINE_START(LEGACY_FPGA, "legacy_fpga")
-	.dt_compat	= legacy_fpga_compat,
-MACHINE_END
 
 static const char *simulation_compat[] __initconst = {
 	"snps,nsim",
