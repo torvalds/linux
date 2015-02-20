@@ -183,7 +183,6 @@ struct rsnd_dma {
 	struct dma_chan		*chan;
 	struct rsnd_dma_ops	*ops;
 	enum dma_transfer_direction dir;
-	dma_addr_t		addr;
 	int			dmapp_id;
 	u32			chcr;
 	dma_addr_t		src_addr;
