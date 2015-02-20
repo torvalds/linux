@@ -12,6 +12,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -188,6 +189,8 @@ static void rcar_du_output_poll_changed(struct drm_device *dev)
 static const struct drm_mode_config_funcs rcar_du_mode_config_funcs = {
 	.fb_create = rcar_du_fb_create,
 	.output_poll_changed = rcar_du_output_poll_changed,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,

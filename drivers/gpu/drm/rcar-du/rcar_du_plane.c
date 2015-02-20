@@ -480,8 +480,8 @@ static int rcar_du_plane_set_property(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs rcar_du_plane_funcs = {
-	.update_plane = drm_plane_helper_update,
-	.disable_plane = drm_plane_helper_disable,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
 	.reset = drm_atomic_helper_plane_reset,
 	.set_property = rcar_du_plane_set_property,
 	.destroy = drm_plane_cleanup,
