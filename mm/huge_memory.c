@@ -1880,7 +1880,7 @@ static int __split_huge_page_map(struct page *page,
 		 * here). But it is generally safer to never allow
 		 * small and huge TLB entries for the same virtual
 		 * address to be loaded simultaneously. So instead of
-		 * doing "pmd_populate(); flush_tlb_range();" we first
+		 * doing "pmd_populate(); flush_pmd_tlb_range();" we first
 		 * mark the current pmd notpresent (atomically because
 		 * here the pmd_trans_huge and pmd_trans_splitting
 		 * must remain set at all times on the pmd until the
