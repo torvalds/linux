@@ -1673,7 +1673,7 @@ find_free_space(struct btrfs_free_space_ctl *ctl, u64 *offset, u64 *bytes,
 		 */
 		if (*bytes >= align) {
 			tmp = entry->offset - ctl->start + align - 1;
-			do_div(tmp, align);
+			tmp = div64_u64(tmp, align);
 			tmp = tmp * align + ctl->start;
 			align_off = tmp - entry->offset;
 		} else {
