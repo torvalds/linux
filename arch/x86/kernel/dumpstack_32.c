@@ -108,9 +108,12 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	for (i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(stack))
 			break;
-		if (i && ((i % STACKSLOTS_PER_LINE) == 0))
-			pr_cont("\n");
-		pr_cont(" %08lx", *stack++);
+		if ((i % STACKSLOTS_PER_LINE) == 0) {
+			if (i != 0)
+				pr_cont("\n");
+			printk("%s %08lx", log_lvl, *stack++);
+		} else
+			pr_cont(" %08lx", *stack++);
 		touch_nmi_watchdog();
 	}
 	pr_cont("\n");
