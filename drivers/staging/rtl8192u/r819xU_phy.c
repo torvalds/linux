@@ -352,16 +352,14 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 		return 0;
 	if (priv->Rf_Mode == RF_OP_By_FW) {
 		reg = phy_FwRFSerialRead(dev, eRFPath, reg_addr);
-		bitshift =  rtl8192_CalculateBitShift(bitmask);
-		reg = (reg & bitmask) >> bitshift;
 		udelay(200);
-		return reg;
 	} else {
 		reg = rtl8192_phy_RFSerialRead(dev, eRFPath, reg_addr);
-		bitshift =  rtl8192_CalculateBitShift(bitmask);
-		reg = (reg & bitmask) >> bitshift;
-		return reg;
 	}
+	bitshift =  rtl8192_CalculateBitShift(bitmask);
+	reg = (reg & bitmask) >> bitshift;
+	return reg;
+
 }
 
 /******************************************************************************
