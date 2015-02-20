@@ -888,8 +888,9 @@ static int snd_pcm_free(struct snd_pcm *pcm)
 
 	if (!pcm)
 		return 0;
-	list_for_each_entry(notify, &snd_pcm_notify_list, list) {
-		notify->n_unregister(pcm);
+	if (!pcm->internal) {
+		list_for_each_entry(notify, &snd_pcm_notify_list, list)
+			notify->n_unregister(pcm);
 	}
 	if (pcm->private_free)
 		pcm->private_free(pcm);
@@ -1129,7 +1130,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	mutex_lock(&pcm->open_mutex);
 	wake_up(&pcm->open_wait);
 	list_del_init(&pcm->list);
-	for (cidx = 0; cidx < 2; cidx++)
+	for (cidx = 0; cidx < 2; cidx++) {
 		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next) {
 			snd_pcm_stream_lock_irq(substream);
 			if (substream->runtime) {
@@ -1139,8 +1140,10 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 			}
 			snd_pcm_stream_unlock_irq(substream);
 		}
-	list_for_each_entry(notify, &snd_pcm_notify_list, list) {
-		notify->n_disconnect(pcm);
+	}
+	if (!pcm->internal) {
+		list_for_each_entry(notify, &snd_pcm_notify_list, list)
+			notify->n_disconnect(pcm);
 	}
 	for (cidx = 0; cidx < 2; cidx++) {
 		snd_unregister_device(&pcm->streams[cidx].dev);
