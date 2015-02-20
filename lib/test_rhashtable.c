@@ -191,9 +191,10 @@ error:
 	return err;
 }
 
+static struct rhashtable ht;
+
 static int __init test_rht_init(void)
 {
-	struct rhashtable ht;
 	struct rhashtable_params params = {
 		.nelem_hint = TEST_HT_SIZE,
 		.head_offset = offsetof(struct test_obj, node),
