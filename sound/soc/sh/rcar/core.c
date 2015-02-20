@@ -94,7 +94,6 @@
  *
  */
 #include <linux/pm_runtime.h>
-#include <linux/shdma-base.h>
 #include "rsnd.h"
 
 #define RSND_RATES SNDRV_PCM_RATE_8000_96000

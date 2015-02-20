@@ -171,7 +171,6 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod);
  *	R-Car DMA
  */
 struct rsnd_dma {
-	struct sh_dmae_slave	slave;
 	struct dma_chan		*chan;
 	enum dma_transfer_direction dir;
 	dma_addr_t		addr;
