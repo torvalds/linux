@@ -2112,7 +2112,7 @@ pmu_read(struct file *file, char __user *buf,
 
 	spin_lock_irqsave(&pp->lock, flags);
 	add_wait_queue(&pp->wait, &wait);
-	current->state = TASK_INTERRUPTIBLE;
+	set_current_state(TASK_INTERRUPTIBLE);
 
 	for (;;) {
 		ret = -EAGAIN;
@@ -2141,7 +2141,7 @@ pmu_read(struct file *file, char __user *buf,
 		schedule();
 		spin_lock_irqsave(&pp->lock, flags);
 	}
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&pp->wait, &wait);
 	spin_unlock_irqrestore(&pp->lock, flags);
 	
