@@ -42,10 +42,10 @@
 #define PDC_WDT_MIN_TIMEOUT		1
 #define PDC_WDT_DEF_TIMEOUT		64
 
-static int heartbeat;
+static int heartbeat = PDC_WDT_DEF_TIMEOUT;
 module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds. "
-	"(default = " __MODULE_STRING(PDC_WDT_DEF_TIMEOUT) ")");
+MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds "
+	"(default=" __MODULE_STRING(PDC_WDT_DEF_TIMEOUT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
