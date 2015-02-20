@@ -1175,10 +1175,8 @@ static int snd_hda_codec_dev_register(struct snd_device *device)
 	struct hda_codec *codec = device->device_data;
 
 	snd_hda_register_beep_device(codec);
-	if (device_is_registered(hda_codec_dev(codec))) {
-		snd_hda_power_sync(codec);
+	if (device_is_registered(hda_codec_dev(codec)))
 		pm_runtime_enable(hda_codec_dev(codec));
-	}
 	return 0;
 }
 
@@ -4778,21 +4776,10 @@ void snd_hda_power_down(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hda_power_down);
 
-/**
- * snd_hda_power_sync - Synchronize the power_save option
- * @codec: HD-audio codec
- *
- * Synchronize the runtime PM autosuspend state from the power_save option.
- */
-void snd_hda_power_sync(struct hda_codec *codec)
+static void codec_set_power_save(struct hda_codec *codec, int delay)
 {
 	struct device *dev = hda_codec_dev(codec);
-	int delay;
 
-	if (!codec->bus->power_save)
-		return;
-
-	delay = *codec->bus->power_save * 1000;
 	if (delay > 0) {
 		pm_runtime_set_autosuspend_delay(dev, delay);
 		pm_runtime_use_autosuspend(dev);
@@ -4804,7 +4791,22 @@ void snd_hda_power_sync(struct hda_codec *codec)
 		pm_runtime_forbid(dev);
 	}
 }
-EXPORT_SYMBOL_GPL(snd_hda_power_sync);
+
+/**
+ * snd_hda_set_power_save - reprogram autosuspend for the given delay
+ * @bus: HD-audio bus
+ * @delay: autosuspend delay in msec, 0 = off
+ *
+ * Synchronize the runtime PM autosuspend state from the power_save option.
+ */
+void snd_hda_set_power_save(struct hda_bus *bus, int delay)
+{
+	struct hda_codec *c;
+
+	list_for_each_entry(c, &bus->codec_list, list)
+		codec_set_power_save(c, delay);
+}
+EXPORT_SYMBOL_GPL(snd_hda_set_power_save);
 
 /**
  * snd_hda_check_amp_list_power - Check the amp list and update the power

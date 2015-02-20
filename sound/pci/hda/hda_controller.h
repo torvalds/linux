@@ -432,7 +432,7 @@ void azx_enter_link_reset(struct azx *chip);
 irqreturn_t azx_interrupt(int irq, void *dev_id);
 
 /* Codec interface */
-int azx_bus_create(struct azx *chip, const char *model, int *power_save_to);
+int azx_bus_create(struct azx *chip, const char *model);
 int azx_probe_codecs(struct azx *chip, unsigned int max_slots);
 int azx_codec_configure(struct azx *chip);
 int azx_init_stream(struct azx *chip);

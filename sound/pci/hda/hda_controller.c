@@ -1838,7 +1838,7 @@ static struct hda_bus_ops bus_ops = {
 };
 
 /* HD-audio bus initialization */
-int azx_bus_create(struct azx *chip, const char *model, int *power_save_to)
+int azx_bus_create(struct azx *chip, const char *model)
 {
 	struct hda_bus *bus;
 	int err;
@@ -1852,9 +1852,6 @@ int azx_bus_create(struct azx *chip, const char *model, int *power_save_to)
 	bus->pci = chip->pci;
 	bus->modelname = model;
 	bus->ops = bus_ops;
-#ifdef CONFIG_PM
-	bus->power_save = power_save_to;
-#endif
 
 	if (chip->driver_caps & AZX_DCAPS_RIRB_DELAY) {
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");

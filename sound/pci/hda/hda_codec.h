@@ -122,7 +122,6 @@ struct hda_bus {
 	void *private_data;
 	struct pci_dev *pci;
 	const char *modelname;
-	int *power_save;
 	struct hda_bus_ops ops;
 
 	/* codec linked list */
@@ -592,12 +591,12 @@ const char *snd_hda_get_jack_location(u32 cfg);
 #ifdef CONFIG_PM
 void snd_hda_power_up(struct hda_codec *codec);
 void snd_hda_power_down(struct hda_codec *codec);
-void snd_hda_power_sync(struct hda_codec *codec);
+void snd_hda_set_power_save(struct hda_bus *bus, int delay);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
 static inline void snd_hda_power_up(struct hda_codec *codec) {}
 static inline void snd_hda_power_down(struct hda_codec *codec) {}
-static inline void snd_hda_power_sync(struct hda_codec *codec) {}
+static inline void snd_hda_set_power_save(struct hda_bus *bus, int delay) {}
 #endif
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER

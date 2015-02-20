@@ -81,7 +81,7 @@ module_param(power_save, bint, 0644);
 MODULE_PARM_DESC(power_save,
 		 "Automatic power-saving timeout (in seconds, 0 = disable).");
 #else
-static int power_save = 0;
+#define power_save	0
 #endif
 
 /*
@@ -496,7 +496,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	/* create codec instances */
-	err = azx_bus_create(chip, NULL, &power_save);
+	err = azx_bus_create(chip, NULL);
 	if (err < 0)
 		goto out_free;
 
@@ -525,6 +525,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 	chip->running = 1;
 	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
+	snd_hda_set_power_save(chip->bus, power_save * 1000);
 
 	return 0;
 
