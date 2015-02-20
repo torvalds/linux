@@ -87,12 +87,13 @@ static void rsnd_dmaen_start(struct rsnd_dma *dma)
 	struct snd_pcm_substream *substream = io->substream;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_async_tx_descriptor *desc;
+	int is_play = rsnd_io_is_play(io);
 
 	desc = dmaengine_prep_dma_cyclic(dma->chan,
 					 substream->runtime->dma_addr,
 					 snd_pcm_lib_buffer_bytes(substream),
 					 snd_pcm_lib_period_bytes(substream),
-					 dma->dir,
+					 is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM,
 					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
 	if (!desc) {
@@ -155,8 +156,6 @@ static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 	ret = dmaengine_slave_config(dma->chan, &cfg);
 	if (ret < 0)
 		goto rsnd_dma_init_err;
-
-	dma->dir = is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
 
 	return 0;
 
