@@ -222,11 +222,6 @@ void rsnd_dma_start(struct rsnd_dma *dma)
 	dma_async_issue_pending(dma->chan);
 }
 
-int rsnd_dma_available(struct rsnd_dma *dma)
-{
-	return !!dma->chan;
-}
-
 #define DMA_NAME_SIZE 16
 #define MOD_MAX 4 /* MEM/SSI/SRC/DVC */
 static int _rsnd_dma_of_name(char *dma_name, struct rsnd_mod *mod)

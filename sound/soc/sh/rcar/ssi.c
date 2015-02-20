@@ -80,8 +80,6 @@ struct rsnd_ssi {
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
 #define rsnd_dma_to_ssi(dma)  rsnd_mod_to_ssi(rsnd_dma_to_mod(dma))
 #define rsnd_ssi_pio_available(ssi) ((ssi)->info->irq > 0)
-#define rsnd_ssi_dma_available(ssi) \
-	rsnd_dma_available(rsnd_mod_to_dma(&(ssi)->mod))
 #define rsnd_ssi_clk_from_parent(ssi) ((ssi)->parent)
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)

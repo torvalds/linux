@@ -30,8 +30,6 @@ struct rsnd_src {
 #define rsnd_src_convert_rate(p) ((p)->info->convert_rate)
 #define rsnd_mod_to_src(_mod)				\
 	container_of((_mod), struct rsnd_src, mod)
-#define rsnd_src_dma_available(src) \
-	rsnd_dma_available(rsnd_mod_to_dma(&(src)->mod))
 
 #define for_each_rsnd_src(pos, priv, i)				\
 	for ((i) = 0;						\

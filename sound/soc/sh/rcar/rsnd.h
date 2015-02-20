@@ -178,7 +178,6 @@ struct rsnd_dma {
 
 void rsnd_dma_start(struct rsnd_dma *dma);
 void rsnd_dma_stop(struct rsnd_dma *dma);
-int rsnd_dma_available(struct rsnd_dma *dma);
 int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id);
 void  rsnd_dma_quit(struct rsnd_priv *priv,
 		    struct rsnd_dma *dma);
