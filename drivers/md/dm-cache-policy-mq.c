@@ -253,7 +253,6 @@ struct entry {
 	 */
 	bool dirty:1;
 	unsigned hit_count;
-	unsigned generation;
 };
 
 /*
@@ -744,7 +743,6 @@ static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
 	new_e->oblock = e->oblock;
 	new_e->dirty = false;
 	new_e->hit_count = e->hit_count;
-	new_e->generation = e->generation;
 
 	del(mq, e);
 	free_entry(&mq->pre_cache_pool, e);
@@ -796,7 +794,6 @@ static void insert_in_pre_cache(struct mq_policy *mq,
 	e->dirty = false;
 	e->oblock = oblock;
 	e->hit_count = 1;
-	e->generation = mq->generation;
 	push(mq, e);
 }
 
@@ -829,7 +826,6 @@ static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 	e->oblock = oblock;
 	e->dirty = false;
 	e->hit_count = 1;
-	e->generation = mq->generation;
 	push(mq, e);
 
 	result->cblock = infer_cblock(&mq->cache_pool, e);
@@ -1026,7 +1022,6 @@ static int mq_load_mapping(struct dm_cache_policy *p,
 	e->oblock = oblock;
 	e->dirty = false;	/* this gets corrected in a minute */
 	e->hit_count = hint_valid ? hint : 1;
-	e->generation = mq->generation;
 	push(mq, e);
 
 	return 0;
