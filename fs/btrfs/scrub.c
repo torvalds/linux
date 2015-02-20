@@ -964,9 +964,8 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 * the statistics.
 	 */
 
-	sblocks_for_recheck = kzalloc(BTRFS_MAX_MIRRORS *
-				     sizeof(*sblocks_for_recheck),
-				     GFP_NOFS);
+	sblocks_for_recheck = kcalloc(BTRFS_MAX_MIRRORS,
+				      sizeof(*sblocks_for_recheck), GFP_NOFS);
 	if (!sblocks_for_recheck) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;

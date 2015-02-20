@@ -622,7 +622,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	cb->orig_bio = bio;
 
 	nr_pages = DIV_ROUND_UP(compressed_len, PAGE_CACHE_SIZE);
-	cb->compressed_pages = kzalloc(sizeof(struct page *) * nr_pages,
+	cb->compressed_pages = kcalloc(nr_pages, sizeof(struct page *),
 				       GFP_NOFS);
 	if (!cb->compressed_pages)
 		goto fail1;

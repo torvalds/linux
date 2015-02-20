@@ -4288,7 +4288,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	max_chunk_size = min(div_factor(fs_devices->total_rw_bytes, 1),
 			     max_chunk_size);
 
-	devices_info = kzalloc(sizeof(*devices_info) * fs_devices->rw_devices,
+	devices_info = kcalloc(fs_devices->rw_devices, sizeof(*devices_info),
 			       GFP_NOFS);
 	if (!devices_info)
 		return -ENOMEM;
@@ -5542,7 +5542,7 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 		rmap_len = map->stripe_len * nr_data_stripes(map);
 	}
 
-	buf = kzalloc(sizeof(u64) * map->num_stripes, GFP_NOFS);
+	buf = kcalloc(map->num_stripes, sizeof(u64), GFP_NOFS);
 	BUG_ON(!buf); /* -ENOMEM */
 
 	for (i = 0; i < map->num_stripes; i++) {
