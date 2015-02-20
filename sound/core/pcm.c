@@ -919,6 +919,9 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 
 	if (snd_BUG_ON(!pcm || !rsubstream))
 		return -ENXIO;
+	if (snd_BUG_ON(stream != SNDRV_PCM_STREAM_PLAYBACK &&
+		       stream != SNDRV_PCM_STREAM_CAPTURE))
+		return -EINVAL;
 	*rsubstream = NULL;
 	pstr = &pcm->streams[stream];
 	if (pstr->substream == NULL || pstr->substream_count == 0)
@@ -927,25 +930,14 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	card = pcm->card;
 	prefer_subdevice = snd_ctl_get_preferred_subdevice(card, SND_CTL_SUBDEV_PCM);
 
-	switch (stream) {
-	case SNDRV_PCM_STREAM_PLAYBACK:
-		if (pcm->info_flags & SNDRV_PCM_INFO_HALF_DUPLEX) {
-			for (substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream; substream; substream = substream->next) {
-				if (SUBSTREAM_BUSY(substream))
-					return -EAGAIN;
-			}
+	if (pcm->info_flags & SNDRV_PCM_INFO_HALF_DUPLEX) {
+		int opposite = !stream;
+
+		for (substream = pcm->streams[opposite].substream; substream;
+		     substream = substream->next) {
+			if (SUBSTREAM_BUSY(substream))
+				return -EAGAIN;
 		}
-		break;
-	case SNDRV_PCM_STREAM_CAPTURE:
-		if (pcm->info_flags & SNDRV_PCM_INFO_HALF_DUPLEX) {
-			for (substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; substream; substream = substream->next) {
-				if (SUBSTREAM_BUSY(substream))
-					return -EAGAIN;
-			}
-		}
-		break;
-	default:
-		return -EINVAL;
 	}
 
 	if (file->f_flags & O_APPEND) {
@@ -968,15 +960,12 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 		return 0;
 	}
 
-	if (prefer_subdevice >= 0) {
-		for (substream = pstr->substream; substream; substream = substream->next)
-			if (!SUBSTREAM_BUSY(substream) && substream->number == prefer_subdevice)
-				goto __ok;
-	}
-	for (substream = pstr->substream; substream; substream = substream->next)
-		if (!SUBSTREAM_BUSY(substream))
+	for (substream = pstr->substream; substream; substream = substream->next) {
+		if (!SUBSTREAM_BUSY(substream) &&
+		    (prefer_subdevice == -1 ||
+		     substream->number == prefer_subdevice))
 			break;
-      __ok:
+	}
 	if (substream == NULL)
 		return -EAGAIN;
 
