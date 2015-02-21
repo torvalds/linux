@@ -78,7 +78,7 @@ static void pcm_period_tasklet(unsigned long data);
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 		      enum amdtp_stream_direction dir, enum cip_flags flags)
 {
-	s->unit = fw_unit_get(unit);
+	s->unit = unit;
 	s->direction = dir;
 	s->flags = flags;
 	s->context = ERR_PTR(-1);
@@ -102,7 +102,6 @@ void amdtp_stream_destroy(struct amdtp_stream *s)
 {
 	WARN_ON(amdtp_stream_running(s));
 	mutex_destroy(&s->mutex);
-	fw_unit_put(s->unit);
 }
 EXPORT_SYMBOL(amdtp_stream_destroy);
 
