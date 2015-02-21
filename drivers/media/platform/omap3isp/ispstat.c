@@ -21,7 +21,7 @@
 
 #include "isp.h"
 
-#define ISP_STAT_USES_DMAENGINE(stat)	((stat)->dma_ch >= 0)
+#define ISP_STAT_USES_DMAENGINE(stat)	((stat)->dma_ch != NULL)
 
 /*
  * MAGIC_SIZE must always be the greatest common divisor of
