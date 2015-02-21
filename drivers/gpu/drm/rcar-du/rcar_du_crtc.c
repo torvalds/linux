@@ -360,7 +360,7 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	rcar_du_group_set_routing(rcrtc->group);
 
 	/* FIXME: Commit the planes state. This is required here as the CRTC can
-	 * be started from the DPMS and system resume handler, which don't go
+	 * be started from the system resume handler, which don't go
 	 * through .atomic_plane_update() and .atomic_flush() to commit plane
 	 * state. Additionally, given that the plane state atomic commit occurs
 	 * between CRTC disable and enable, the hardware state could also be
@@ -475,14 +475,6 @@ static void rcar_du_crtc_disable(struct drm_crtc *crtc)
 	rcrtc->outputs = 0;
 }
 
-static void rcar_du_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	if (mode == DRM_MODE_DPMS_ON)
-		rcar_du_crtc_enable(crtc);
-	else
-		rcar_du_crtc_disable(crtc);
-}
-
 static bool rcar_du_crtc_mode_fixup(struct drm_crtc *crtc,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode)
@@ -516,7 +508,6 @@ static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
-	.dpms = rcar_du_crtc_dpms,
 	.mode_fixup = rcar_du_crtc_mode_fixup,
 	.disable = rcar_du_crtc_disable,
 	.enable = rcar_du_crtc_enable,

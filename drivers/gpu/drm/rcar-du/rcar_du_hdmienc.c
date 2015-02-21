@@ -62,20 +62,6 @@ static void rcar_du_hdmienc_enable(struct drm_encoder *encoder)
 	hdmienc->enabled = true;
 }
 
-static void rcar_du_hdmienc_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
-	bool enable = mode == DRM_MODE_DPMS_ON;
-
-	if (hdmienc->enabled == enable)
-		return;
-
-	if (enable)
-		rcar_du_hdmienc_enable(encoder);
-	else
-		rcar_du_hdmienc_disable(encoder);
-}
-
 static bool rcar_du_hdmienc_mode_fixup(struct drm_encoder *encoder,
 				       const struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
@@ -110,7 +96,6 @@ static void rcar_du_hdmienc_mode_set(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.dpms = rcar_du_hdmienc_dpms,
 	.mode_fixup = rcar_du_hdmienc_mode_fixup,
 	.mode_set = rcar_du_hdmienc_mode_set,
 	.disable = rcar_du_hdmienc_disable,

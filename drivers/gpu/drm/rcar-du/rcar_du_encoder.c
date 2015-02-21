@@ -58,14 +58,6 @@ static void rcar_du_encoder_enable(struct drm_encoder *encoder)
 		rcar_du_lvdsenc_enable(renc->lvds, encoder->crtc, true);
 }
 
-static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	if (mode == DRM_MODE_DPMS_ON)
-		rcar_du_encoder_enable(encoder);
-	else
-		rcar_du_encoder_disable(encoder);
-}
-
 static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
 				       const struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
@@ -128,7 +120,6 @@ static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.dpms = rcar_du_encoder_dpms,
 	.mode_fixup = rcar_du_encoder_mode_fixup,
 	.mode_set = rcar_du_encoder_mode_set,
 	.disable = rcar_du_encoder_disable,
