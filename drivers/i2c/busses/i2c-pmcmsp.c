@@ -148,13 +148,6 @@ static inline u32 pmcmsptwi_clock_to_reg(
 	return ((clock->filter & 0xf) << 12) | (clock->clock & 0x03ff);
 }
 
-static inline void pmcmsptwi_reg_to_clock(
-			u32 reg, struct pmcmsptwi_clock *clock)
-{
-	clock->filter = (reg >> 12) & 0xf;
-	clock->clock = reg & 0x03ff;
-}
-
 static inline u32 pmcmsptwi_cfg_to_reg(const struct pmcmsptwi_cfg *cfg)
 {
 	return ((cfg->arbf & 0xf) << 12) |
