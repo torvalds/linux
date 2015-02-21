@@ -55,6 +55,9 @@ OPTIONS
 --uid=::
         Record events in threads owned by uid. Name or number.
 
+--filter-pids=::
+	Filter out events for these pids and for 'trace' itself (comma separated list).
+
 -v::
 --verbose=::
         Verbosity level.

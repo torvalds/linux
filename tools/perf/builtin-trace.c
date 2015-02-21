@@ -1229,6 +1229,10 @@ struct trace {
 	const char 		*last_vfs_getname;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
+	struct {
+		size_t		nr;
+		pid_t		*entries;
+	}			filter_pids;
 	double			duration_filter;
 	double			runtime_ms;
 	struct {
@@ -2157,8 +2161,15 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	 * workload was, and in that case we will fill in the thread_map when
 	 * we fork the workload in perf_evlist__prepare_workload.
 	 */
-	if (evlist->threads->map[0] == -1)
-		perf_evlist__set_filter_pid(evlist, getpid());
+	if (trace->filter_pids.nr > 0)
+		err = perf_evlist__set_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
+	else if (evlist->threads->map[0] == -1)
+		err = perf_evlist__set_filter_pid(evlist, getpid());
+
+	if (err < 0) {
+		printf("err=%d,%s\n", -err, strerror(-err));
+		exit(1);
+	}
 
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0)
@@ -2491,6 +2502,38 @@ static int trace__set_duration(const struct option *opt, const char *str,
 	return 0;
 }
 
+static int trace__set_filter_pids(const struct option *opt, const char *str,
+				  int unset __maybe_unused)
+{
+	int ret = -1;
+	size_t i;
+	struct trace *trace = opt->value;
+	/*
+	 * FIXME: introduce a intarray class, plain parse csv and create a
+	 * { int nr, int entries[] } struct...
+	 */
+	struct intlist *list = intlist__new(str);
+
+	if (list == NULL)
+		return -1;
+
+	i = trace->filter_pids.nr = intlist__nr_entries(list) + 1;
+	trace->filter_pids.entries = calloc(i, sizeof(pid_t));
+
+	if (trace->filter_pids.entries == NULL)
+		goto out;
+
+	trace->filter_pids.entries[0] = getpid();
+
+	for (i = 1; i < trace->filter_pids.nr; ++i)
+		trace->filter_pids.entries[i] = intlist__entry(list, i - 1)->i;
+
+	intlist__delete(list);
+	ret = 0;
+out:
+	return ret;
+}
+
 static int trace__open_output(struct trace *trace, const char *filename)
 {
 	struct stat st;
@@ -2581,6 +2624,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "trace events on existing process id"),
 	OPT_STRING('t', "tid", &trace.opts.target.tid, "tid",
 		    "trace events on existing thread id"),
+	OPT_CALLBACK(0, "filter-pids", &trace, "float",
+		     "show only events with duration > N.M ms", trace__set_filter_pids),
 	OPT_BOOLEAN('a', "all-cpus", &trace.opts.target.system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &trace.opts.target.cpu_list, "cpu",
