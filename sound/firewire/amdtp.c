@@ -33,7 +33,7 @@
  */
 #define MAX_MIDI_RX_BLOCKS	8
 
-#define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 Âµs */
+#define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
 
 /* isochronous header parameters */
 #define ISO_DATA_LENGTH_SHIFT	16
