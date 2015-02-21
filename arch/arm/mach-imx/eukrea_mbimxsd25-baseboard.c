@@ -35,7 +35,7 @@
 #include "iomux-mx25.h"
 #include "mx25.h"
 
-static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
+static const iomux_v3_cfg_t eukrea_mbimxsd_pads[] __initconst = {
 	/* LCD */
 	MX25_PAD_LD0__LD0,
 	MX25_PAD_LD1__LD1,
