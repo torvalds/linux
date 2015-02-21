@@ -184,7 +184,11 @@ efw_card_free(struct snd_card *card)
 {
 	struct snd_efw *efw = card->private_data;
 
+	snd_efw_stream_destroy_duplex(efw);
+	snd_efw_transaction_remove_instance(efw);
 	fw_unit_put(efw->unit);
+
+	kfree(efw->resp_buf);
 
 	if (efw->card_index >= 0) {
 		mutex_lock(&devices_mutex);
@@ -193,7 +197,6 @@ efw_card_free(struct snd_card *card)
 	}
 
 	mutex_destroy(&efw->mutex);
-	kfree(efw->resp_buf);
 }
 
 static int
@@ -296,11 +299,6 @@ static void efw_update(struct fw_unit *unit)
 static void efw_remove(struct fw_unit *unit)
 {
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
-
-	snd_efw_stream_destroy_duplex(efw);
-	snd_efw_transaction_remove_instance(efw);
-
-	snd_card_disconnect(efw->card);
 
 	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(efw->card);
