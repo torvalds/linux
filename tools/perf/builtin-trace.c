@@ -2151,6 +2151,15 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_open;
 
+	/*
+	 * Better not use !target__has_task() here because we need to cover the
+	 * case where no threads were specified in the command line, but a
+	 * workload was, and in that case we will fill in the thread_map when
+	 * we fork the workload in perf_evlist__prepare_workload.
+	 */
+	if (evlist->threads->map[0] == -1)
+		perf_evlist__set_filter_pid(evlist, getpid());
+
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0)
 		goto out_error_mmap;
