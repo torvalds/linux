@@ -5266,8 +5266,14 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 
 	/* Wait for the PF's Tx queues to be disabled */
 	ret = i40e_pf_wait_txq_disabled(pf);
-	if (!ret)
+	if (ret) {
+		/* Schedule PF reset to recover */
+		set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
+		i40e_service_event_schedule(pf);
+	} else {
 		i40e_pf_unquiesce_all_vsi(pf);
+	}
+
 exit:
 	return ret;
 }
