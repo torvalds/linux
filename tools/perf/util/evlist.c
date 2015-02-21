@@ -1085,6 +1085,19 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 	return err;
 }
 
+int perf_evlist__set_filter_pid(struct perf_evlist *evlist, pid_t pid)
+{
+	char *filter;
+	int ret;
+
+	if (asprintf(&filter, "common_pid != %d", pid) < 0)
+		return -1;
+
+	ret = perf_evlist__set_filter(evlist, filter);
+	free(filter);
+	return ret;
+}
+
 bool perf_evlist__valid_sample_type(struct perf_evlist *evlist)
 {
 	struct perf_evsel *pos;
