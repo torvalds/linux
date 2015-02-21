@@ -224,12 +224,12 @@ static int igbvf_set_ringparam(struct net_device *netdev,
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
 
-	new_rx_count = max(ring->rx_pending, (u32)IGBVF_MIN_RXD);
-	new_rx_count = min(new_rx_count, (u32)IGBVF_MAX_RXD);
+	new_rx_count = max_t(u32, ring->rx_pending, IGBVF_MIN_RXD);
+	new_rx_count = min_t(u32, new_rx_count, IGBVF_MAX_RXD);
 	new_rx_count = ALIGN(new_rx_count, REQ_RX_DESCRIPTOR_MULTIPLE);
 
-	new_tx_count = max(ring->tx_pending, (u32)IGBVF_MIN_TXD);
-	new_tx_count = min(new_tx_count, (u32)IGBVF_MAX_TXD);
+	new_tx_count = max_t(u32, ring->tx_pending, IGBVF_MIN_TXD);
+	new_tx_count = min_t(u32, new_tx_count, IGBVF_MAX_TXD);
 	new_tx_count = ALIGN(new_tx_count, REQ_TX_DESCRIPTOR_MULTIPLE);
 
 	if ((new_tx_count == adapter->tx_ring->count) &&
@@ -239,7 +239,7 @@ static int igbvf_set_ringparam(struct net_device *netdev,
 	}
 
 	while (test_and_set_bit(__IGBVF_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (!netif_running(adapter->netdev)) {
 		adapter->tx_ring->count = new_tx_count;

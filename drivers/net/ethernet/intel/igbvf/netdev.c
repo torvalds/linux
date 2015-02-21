@@ -1552,7 +1552,7 @@ void igbvf_reinit_locked(struct igbvf_adapter *adapter)
 {
 	might_sleep();
 	while (test_and_set_bit(__IGBVF_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 	igbvf_down(adapter);
 	igbvf_up(adapter);
 	clear_bit(__IGBVF_RESETTING, &adapter->state);
