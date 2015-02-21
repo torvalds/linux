@@ -169,18 +169,15 @@ int clk_init(void)
     tmpSclk->set_clk(tmpSclk->clk);
 
     tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
-    tmpSclk->clk->rate  = 600000000;
-    tmpSclk->set_clk(tmpSclk->clk);
+    tmpSclk->clk = aw_ccu_get_sys_clk(tmpSclk->clk->id);
     tmpSclk->clk->onoff = AW_CCU_CLK_ON;
     tmpSclk->set_clk(tmpSclk->clk);
     tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6M];
-    tmpSclk->clk->rate  = 100000000;
-    tmpSclk->set_clk(tmpSclk->clk);
+    tmpSclk->clk = aw_ccu_get_sys_clk(tmpSclk->clk->id);
     tmpSclk->clk->onoff = AW_CCU_CLK_ON;
     tmpSclk->set_clk(tmpSclk->clk);
     tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL62];
-    tmpSclk->clk->rate  = 300000000;
-    tmpSclk->set_clk(tmpSclk->clk);
+    tmpSclk->clk = aw_ccu_get_sys_clk(tmpSclk->clk->id);
     tmpSclk->clk->onoff = AW_CCU_CLK_ON;
     tmpSclk->set_clk(tmpSclk->clk);
 
