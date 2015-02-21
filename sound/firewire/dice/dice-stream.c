@@ -311,14 +311,21 @@ end:
 	return err;
 }
 
+/*
+ * This function should be called before starting streams or after stopping
+ * streams.
+ */
 static void destroy_stream(struct snd_dice *dice, struct amdtp_stream *stream)
 {
-	amdtp_stream_destroy(stream);
+	struct fw_iso_resources *resources;
 
 	if (stream == &dice->tx_stream)
-		fw_iso_resources_destroy(&dice->tx_resources);
+		resources = &dice->tx_resources;
 	else
-		fw_iso_resources_destroy(&dice->rx_resources);
+		resources = &dice->rx_resources;
+
+	amdtp_stream_destroy(stream);
+	fw_iso_resources_destroy(resources);
 }
 
 int snd_dice_stream_init_duplex(struct snd_dice *dice)
@@ -332,6 +339,8 @@ int snd_dice_stream_init_duplex(struct snd_dice *dice)
 		goto end;
 
 	err = init_stream(dice, &dice->rx_stream);
+	if (err < 0)
+		destroy_stream(dice, &dice->tx_stream);
 end:
 	return err;
 }
@@ -340,10 +349,7 @@ void snd_dice_stream_destroy_duplex(struct snd_dice *dice)
 {
 	snd_dice_transaction_clear_enable(dice);
 
-	stop_stream(dice, &dice->tx_stream);
 	destroy_stream(dice, &dice->tx_stream);
-
-	stop_stream(dice, &dice->rx_stream);
 	destroy_stream(dice, &dice->rx_stream);
 
 	dice->substreams_counter = 0;

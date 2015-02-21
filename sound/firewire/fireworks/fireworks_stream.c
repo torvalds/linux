@@ -100,17 +100,22 @@ end:
 	return err;
 }
 
+/*
+ * This function should be called before starting the stream or after stopping
+ * the streams.
+ */
 static void
 destroy_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 {
-	stop_stream(efw, stream);
-
-	amdtp_stream_destroy(stream);
+	struct cmp_connection *conn;
 
 	if (stream == &efw->tx_stream)
-		cmp_connection_destroy(&efw->out_conn);
+		conn = &efw->out_conn;
 	else
-		cmp_connection_destroy(&efw->in_conn);
+		conn = &efw->in_conn;
+
+	amdtp_stream_destroy(stream);
+	cmp_connection_destroy(&efw->out_conn);
 }
 
 static int
