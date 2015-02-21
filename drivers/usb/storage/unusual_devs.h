@@ -1995,6 +1995,13 @@ UNUSUAL_DEV(  0x152d, 0x2329, 0x0100, 0x0100,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_SANE_SENSE ),
 
+/* Reported by Dmitry Nezhevenko <dion@dion.org.ua> */
+UNUSUAL_DEV(  0x152d, 0x2566, 0x0114, 0x0114,
+		"JMicron",
+		"USB to ATA/ATAPI Bridge",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_BROKEN_FUA ),
+
 /* Entrega Technologies U1-SC25 (later Xircom PortGear PGSCSI)
  * and Mac USB Dock USB-SCSI */
 UNUSUAL_DEV(  0x1645, 0x0007, 0x0100, 0x0133,
