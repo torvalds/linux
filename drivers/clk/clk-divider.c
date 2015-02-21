@@ -219,17 +219,18 @@ static int _div_round_closest(const struct clk_div_table *table,
 			      unsigned long parent_rate, unsigned long rate,
 			      unsigned long flags)
 {
-	int up, down, div;
+	int up, down;
 	unsigned long up_rate, down_rate;
 
-	up = down = div = DIV_ROUND_CLOSEST(parent_rate, rate);
+	up = DIV_ROUND_UP(parent_rate, rate);
+	down = parent_rate / rate;
 
 	if (flags & CLK_DIVIDER_POWER_OF_TWO) {
-		up = __roundup_pow_of_two(div);
-		down = __rounddown_pow_of_two(div);
+		up = __roundup_pow_of_two(up);
+		down = __rounddown_pow_of_two(down);
 	} else if (table) {
-		up = _round_up_table(table, div);
-		down = _round_down_table(table, div);
+		up = _round_up_table(table, up);
+		down = _round_down_table(table, down);
 	}
 
 	up_rate = DIV_ROUND_UP(parent_rate, up);
