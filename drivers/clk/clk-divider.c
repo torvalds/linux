@@ -144,12 +144,6 @@ static unsigned long clk_divider_recalc_rate(struct clk_hw *hw,
 				   divider->flags);
 }
 
-/*
- * The reverse of DIV_ROUND_UP: The maximum number which
- * divided by m is r
- */
-#define MULT_ROUND_UP(r, m) ((r) * (m) + (m) - 1)
-
 static bool _is_valid_table_div(const struct clk_div_table *table,
 							 unsigned int div)
 {
@@ -313,7 +307,7 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 			return i;
 		}
 		parent_rate = __clk_round_rate(__clk_get_parent(hw->clk),
-				MULT_ROUND_UP(rate, i));
+					       rate * i);
 		now = DIV_ROUND_UP(parent_rate, i);
 		if (_is_best_div(rate, now, best, flags)) {
 			bestdiv = i;
