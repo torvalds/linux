@@ -294,7 +294,8 @@ int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem)
 	if (likely(ib_umem_start(umem) != ib_umem_end(umem)))
 		rbt_ib_umem_insert(&umem->odp_data->interval_tree,
 				   &context->umem_tree);
-	if (likely(!atomic_read(&context->notifier_count)))
+	if (likely(!atomic_read(&context->notifier_count)) ||
+	    context->odp_mrs_count == 1)
 		umem->odp_data->mn_counters_active = true;
 	else
 		list_add(&umem->odp_data->no_private_counters,
