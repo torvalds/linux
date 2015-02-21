@@ -554,14 +554,17 @@ static struct regulator_init_data regl_init_data[AXP152_REGULATOR_COUNT] = {
 			 */
 		}
 	},
-	[axp152_dcdc4] = { /* Vcpu, power on 1.25V, Android from fex */
+	[axp152_dcdc4] = { /* VDD-INT/VDD-DLL, power on 1.25V, use u-boot value */
 		.num_consumer_supplies = 1,
 		.consumer_supplies = &axp152_dcdc4_supply,
 		.constraints = {
-			.min_uV =  1250 * 1000,
-			.max_uV =  1250 * 1000,
+			.min_uV =  1000 * 1000,
+			.max_uV =  1600 * 1000,
 			.always_on = 1,
-			.apply_uV = 1,
+			/*
+			 * We do not allow changing the DLL voltage, because
+			 * of stability, so no REGULATOR_CHANGE_VOLTAGE.
+			 */
 		}
 	},
 	[axp152_dldo2] = { /* Power on 1.8V, Android hardcoded 3.0V */
@@ -625,16 +628,10 @@ static int __init axp_board_init(void)
 	/* Note we ignore the dcdc2_vol key as dcdc2 is set by the dvfs code */
 
 	/*
-	 * Note we ignore the dcdc3_vol key as that sometimes contains wrong
-	 * values make the dram unstable, instead we stick with the bootloader
-	 * set voltage.
+	 * Note we ignore the dcdc3_vol and dcdc4_vol keys as those sometimes
+	 * contain wrong values making the dram unstable, instead we stick with
+	 * the voltage set by the bootloader.
 	 */
-
-	ret = script_parser_fetch("target", "dcdc4_vol", &val, sizeof(int));
-	if (ret == 0) {
-		regl_init_data[axp152_dcdc4].constraints.min_uV = val * 1000;
-		regl_init_data[axp152_dcdc4].constraints.max_uV = val * 1000;
-	}
 
 	return i2c_register_board_info(i2c_bus, &axp_mfd_i2c_board_info, 1);
 }
