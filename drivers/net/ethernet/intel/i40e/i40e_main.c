@@ -5587,7 +5587,8 @@ static void i40e_check_hang_subtask(struct i40e_pf *pf)
 	int i, v;
 
 	/* If we're down or resetting, just bail */
-	if (test_bit(__I40E_CONFIG_BUSY, &pf->state))
+	if (test_bit(__I40E_DOWN, &pf->state) ||
+	    test_bit(__I40E_CONFIG_BUSY, &pf->state))
 		return;
 
 	/* for each VSI/netdev
