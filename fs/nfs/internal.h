@@ -598,6 +598,19 @@ void nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
 }
 
 /*
+ * Record the page as unstable and mark its inode as dirty.
+ */
+static inline
+void nfs_mark_page_unstable(struct page *page)
+{
+	struct inode *inode = page_file_mapping(page)->host;
+
+	inc_zone_page_state(page, NR_UNSTABLE_NFS);
+	inc_bdi_stat(inode_to_bdi(inode), BDI_RECLAIMABLE);
+	 __mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+}
+
+/*
  * Determine the number of bytes of data the page contains
  */
 static inline

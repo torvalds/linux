@@ -1332,47 +1332,6 @@ ff_layout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 	return PNFS_ATTEMPTED;
 }
 
-static void
-ff_layout_mark_request_commit(struct nfs_page *req,
-			      struct pnfs_layout_segment *lseg,
-			      struct nfs_commit_info *cinfo,
-			      u32 ds_commit_idx)
-{
-	struct list_head *list;
-	struct pnfs_commit_bucket *buckets;
-
-	spin_lock(cinfo->lock);
-	buckets = cinfo->ds->buckets;
-	list = &buckets[ds_commit_idx].written;
-	if (list_empty(list)) {
-		/* Non-empty buckets hold a reference on the lseg.  That ref
-		 * is normally transferred to the COMMIT call and released
-		 * there.  It could also be released if the last req is pulled
-		 * off due to a rewrite, in which case it will be done in
-		 * pnfs_common_clear_request_commit
-		 */
-		WARN_ON_ONCE(buckets[ds_commit_idx].wlseg != NULL);
-		buckets[ds_commit_idx].wlseg = pnfs_get_lseg(lseg);
-	}
-	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
-	cinfo->ds->nwritten++;
-
-	/* nfs_request_add_commit_list(). We need to add req to list without
-	 * dropping cinfo lock.
-	 */
-	set_bit(PG_CLEAN, &(req)->wb_flags);
-	nfs_list_add_request(req, list);
-	cinfo->mds->ncommit++;
-	spin_unlock(cinfo->lock);
-	if (!cinfo->dreq) {
-		inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-		inc_bdi_stat(inode_to_bdi(page_file_mapping(req->wb_page)->host),
-			     BDI_RECLAIMABLE);
-		__mark_inode_dirty(req->wb_context->dentry->d_inode,
-				   I_DIRTY_DATASYNC);
-	}
-}
-
 static u32 calc_ds_index_from_commit(struct pnfs_layout_segment *lseg, u32 i)
 {
 	return i;
@@ -1540,7 +1499,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.pg_write_ops		= &ff_layout_pg_write_ops,
 	.get_ds_info		= ff_layout_get_ds_info,
 	.free_deviceid_node	= ff_layout_free_deveiceid_node,
-	.mark_request_commit	= ff_layout_mark_request_commit,
+	.mark_request_commit	= pnfs_layout_mark_request_commit,
 	.clear_request_commit	= pnfs_generic_clear_request_commit,
 	.scan_commit_lists	= pnfs_generic_scan_commit_lists,
 	.recover_commit_reqs	= pnfs_generic_recover_commit_reqs,
