@@ -1269,8 +1269,7 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_dev	*dev = mdev->dev;
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
 	struct mlx4_ib_steering *ib_steering = NULL;
-	enum mlx4_protocol prot = (gid->raw[1] == 0x0e) ?
-		MLX4_PROT_IB_IPV4 : MLX4_PROT_IB_IPV6;
+	enum mlx4_protocol prot = MLX4_PROT_IB_IPV6;
 	struct mlx4_flow_reg_id	reg_id;
 
 	if (mdev->dev->caps.steering_mode ==
@@ -1284,8 +1283,10 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 				    !!(mqp->flags &
 				       MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
 				    prot, &reg_id.id);
-	if (err)
+	if (err) {
+		pr_err("multicast attach op failed, err %d\n", err);
 		goto err_malloc;
+	}
 
 	reg_id.mirror = 0;
 	if (mlx4_is_bonded(dev)) {
@@ -1348,9 +1349,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct net_device *ndev;
 	struct mlx4_ib_gid_entry *ge;
 	struct mlx4_flow_reg_id reg_id = {0, 0};
-
-	enum mlx4_protocol prot = (gid->raw[1] == 0x0e) ?
-		MLX4_PROT_IB_IPV4 : MLX4_PROT_IB_IPV6;
+	enum mlx4_protocol prot =  MLX4_PROT_IB_IPV6;
 
 	if (mdev->dev->caps.steering_mode ==
 	    MLX4_STEERING_MODE_DEVICE_MANAGED) {

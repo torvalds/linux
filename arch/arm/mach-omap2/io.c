@@ -461,7 +461,17 @@ void __init omap3_init_early(void)
 	omap3xxx_clockdomains_init();
 	omap3xxx_hwmod_init();
 	omap_hwmod_init_postsetup();
-	omap_clk_soc_init = omap3xxx_clk_init;
+	if (!of_have_populated_dt()) {
+		omap3_prcm_legacy_iomaps_init();
+		if (soc_is_am35xx())
+			omap_clk_soc_init = am35xx_clk_legacy_init;
+		else if (cpu_is_omap3630())
+			omap_clk_soc_init = omap36xx_clk_legacy_init;
+		else if (omap_rev() == OMAP3430_REV_ES1_0)
+			omap_clk_soc_init = omap3430es1_clk_legacy_init;
+		else
+			omap_clk_soc_init = omap3430_clk_legacy_init;
+	}
 }
 
 void __init omap3430_init_early(void)
@@ -753,15 +763,17 @@ int __init omap_clk_init(void)
 
 	ti_clk_init_features();
 
-	ret = of_prcm_init();
-	if (ret)
-		return ret;
+	if (of_have_populated_dt()) {
+		ret = of_prcm_init();
+		if (ret)
+			return ret;
 
-	of_clk_init(NULL);
+		of_clk_init(NULL);
 
-	ti_dt_clk_init_retry_clks();
+		ti_dt_clk_init_retry_clks();
 
-	ti_dt_clockdomains_setup();
+		ti_dt_clockdomains_setup();
+	}
 
 	ret = omap_clk_soc_init();
 

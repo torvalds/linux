@@ -50,8 +50,7 @@
 static int kdb_cmd_enabled = CONFIG_KDB_DEFAULT_ENABLE;
 module_param_named(cmd_enable, kdb_cmd_enabled, int, 0600);
 
-#define GREP_LEN 256
-char kdb_grep_string[GREP_LEN];
+char kdb_grep_string[KDB_GREP_STRLEN];
 int kdb_grepping_flag;
 EXPORT_SYMBOL(kdb_grepping_flag);
 int kdb_grep_leading;
@@ -870,7 +869,7 @@ static void parse_grep(const char *str)
 	len = strlen(cp);
 	if (!len)
 		return;
-	if (len >= GREP_LEN) {
+	if (len >= KDB_GREP_STRLEN) {
 		kdb_printf("search string too long\n");
 		return;
 	}
@@ -915,13 +914,12 @@ int kdb_parse(const char *cmdstr)
 	char *cp;
 	char *cpp, quoted;
 	kdbtab_t *tp;
-	int i, escaped, ignore_errors = 0, check_grep;
+	int i, escaped, ignore_errors = 0, check_grep = 0;
 
 	/*
 	 * First tokenize the command string.
 	 */
 	cp = (char *)cmdstr;
-	kdb_grepping_flag = check_grep = 0;
 
 	if (KDB_FLAG(CMD_INTERRUPT)) {
 		/* Previous command was interrupted, newline must not
@@ -1247,7 +1245,6 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		kdb_printf("due to NonMaskable Interrupt @ "
 			   kdb_machreg_fmt "\n",
 			   instruction_pointer(regs));
-		kdb_dumpregs(regs);
 		break;
 	case KDB_REASON_SSTEP:
 	case KDB_REASON_BREAK:
@@ -1281,6 +1278,9 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		 */
 		kdb_nextline = 1;
 		KDB_STATE_CLEAR(SUPPRESS);
+		kdb_grepping_flag = 0;
+		/* ensure the old search does not leak into '/' commands */
+		kdb_grep_string[0] = '\0';
 
 		cmdbuf = cmd_cur;
 		*cmdbuf = '\0';
@@ -2256,7 +2256,7 @@ static int kdb_cpu(int argc, const char **argv)
 	/*
 	 * Validate cpunum
 	 */
-	if ((cpunum > NR_CPUS) || !kgdb_info[cpunum].enter_kgdb)
+	if ((cpunum >= CONFIG_NR_CPUS) || !kgdb_info[cpunum].enter_kgdb)
 		return KDB_BADCPUNUM;
 
 	dbg_switch_cpu = cpunum;
@@ -2583,7 +2583,7 @@ static int kdb_summary(int argc, const char **argv)
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 	kdb_printf("\nMemTotal:       %8lu kB\nMemFree:        %8lu kB\n"
 		   "Buffers:        %8lu kB\n",
-		   val.totalram, val.freeram, val.bufferram);
+		   K(val.totalram), K(val.freeram), K(val.bufferram));
 	return 0;
 }
 

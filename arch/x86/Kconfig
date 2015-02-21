@@ -488,6 +488,22 @@ config X86_INTEL_MID
 	  Intel MID platforms are based on an Intel processor and chipset which
 	  consume less power than most of the x86 derivatives.
 
+config X86_INTEL_QUARK
+	bool "Intel Quark platform support"
+	depends on X86_32
+	depends on X86_EXTENDED_PLATFORM
+	depends on X86_PLATFORM_DEVICES
+	depends on X86_TSC
+	depends on PCI
+	depends on PCI_GOANY
+	depends on X86_IO_APIC
+	select IOSF_MBI
+	select INTEL_IMR
+	---help---
+	  Select to include support for Quark X1000 SoC.
+	  Say Y here if you have a Quark based system such as the Arduino
+	  compatible Intel Galileo.
+
 config X86_INTEL_LPSS
 	bool "Intel Low Power Subsystem Support"
 	depends on ACPI
