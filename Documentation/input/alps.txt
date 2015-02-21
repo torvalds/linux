@@ -3,8 +3,8 @@ ALPS Touchpad Protocol
 
 Introduction
 ------------
-Currently the ALPS touchpad driver supports five protocol versions in use by
-ALPS touchpads, called versions 1, 2, 3, 4 and 5.
+Currently the ALPS touchpad driver supports seven protocol versions in use by
+ALPS touchpads, called versions 1, 2, 3, 4, 5, 6 and 7.
 
 Since roughly mid-2010 several new ALPS touchpads have been released and
 integrated into a variety of laptops and netbooks.  These new touchpads
@@ -240,3 +240,67 @@ For mt, the format is:
  byte 3:    0  x23  x22   x21 x20  x19  x18   x17
  byte 4:    0   x9   x8    x7  x6   x5   x4    x3
  byte 5:    0  x16  x15   x14 x13  x12  x11   x10
+
+ALPS Absolute Mode - Protocol Version 6
+---------------------------------------
+
+For trackstick packet, the format is:
+
+ byte 0:    1    1    1    1    1    1    1    1
+ byte 1:    0   X6   X5   X4   X3   X2   X1   X0
+ byte 2:    0   Y6   Y5   Y4   Y3   Y2   Y1   Y0
+ byte 3:    ?   Y7   X7    ?    ?    M    R    L
+ byte 4:   Z7   Z6   Z5   Z4   Z3   Z2   Z1   Z0
+ byte 5:    0    1    1    1    1    1    1    1
+
+For touchpad packet, the format is:
+
+ byte 0:    1    1    1    1    1    1    1    1
+ byte 1:    0    0    0    0   x3   x2   x1   x0
+ byte 2:    0    0    0    0   y3   y2   y1   y0
+ byte 3:    ?   x7   x6   x5   x4    ?    r    l
+ byte 4:    ?   y7   y6   y5   y4    ?    ?    ?
+ byte 5:   z7   z6   z5   z4   z3   z2   z1   z0
+
+(v6 touchpad does not have middle button)
+
+ALPS Absolute Mode - Protocol Version 7
+---------------------------------------
+
+For trackstick packet, the format is:
+
+ byte 0:    0    1    0    0    1    0    0    0
+ byte 1:    1    1    *    *    1    M    R    L
+ byte 2:   X7    1   X5   X4   X3   X2   X1   X0
+ byte 3:   Z6    1   Y6   X6    1   Y2   Y1   Y0
+ byte 4:   Y7    0   Y5   Y4   Y3    1    1    0
+ byte 5:  T&P    0   Z5   Z4   Z3   Z2   Z1   Z0
+
+For touchpad packet, the format is:
+
+         packet-fmt     b7     b6     b5     b4     b3     b2     b1     b0
+ byte 0: TWO & MULTI     L      1      R      M      1   Y0-2   Y0-1   Y0-0
+ byte 0: NEW             L      1   X1-5      1      1   Y0-2   Y0-1   Y0-0
+ byte 1:             Y0-10   Y0-9   Y0-8   Y0-7   Y0-6   Y0-5   Y0-4   Y0-3
+ byte 2:             X0-11      1  X0-10   X0-9   X0-8   X0-7   X0-6   X0-5
+ byte 3:             X1-11      1   X0-4   X0-3      1   X0-2   X0-1   X0-0
+ byte 4: TWO         X1-10    TWO   X1-9   X1-8   X1-7   X1-6   X1-5   X1-4
+ byte 4: MULTI       X1-10    TWO   X1-9   X1-8   X1-7   X1-6   Y1-5      1
+ byte 4: NEW         X1-10    TWO   X1-9   X1-8   X1-7   X1-6      0      0
+ byte 5: TWO & NEW   Y1-10      0   Y1-9   Y1-8   Y1-7   Y1-6   Y1-5   Y1-4
+ byte 5: MULTI       Y1-10      0   Y1-9   Y1-8   Y1-7   Y1-6    F-1    F-0
+
+ L:         Left button
+ R / M:     Non-clickpads: Right / Middle button
+            Clickpads: When > 2 fingers are down, and some fingers
+            are in the button area, then the 2 coordinates reported
+            are for fingers outside the button area and these report
+            extra fingers being present in the right / left button
+            area. Note these fingers are not added to the F field!
+            so if a TWO packet is received and R = 1 then there are
+            3 fingers down, etc.
+ TWO:       1: Two touches present, byte 0/4/5 are in TWO fmt
+            0: If byte 4 bit 0 is 1, then byte 0/4/5 are in MULTI fmt
+               otherwise byte 0 bit 4 must be set and byte 0/4/5 are
+               in NEW fmt
+ F:         Number of fingers - 3, 0 means 3 fingers, 1 means 4 ...
