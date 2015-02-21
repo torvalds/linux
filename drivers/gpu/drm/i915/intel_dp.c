@@ -1080,7 +1080,7 @@ intel_dp_connector_unregister(struct intel_connector *intel_connector)
 }
 
 static void
-skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_bw)
+skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_clock)
 {
 	u32 ctrl1;
 
@@ -1089,19 +1089,35 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_bw)
 	pipe_config->dpll_hw_state.cfgcr2 = 0;
 
 	ctrl1 = DPLL_CTRL1_OVERRIDE(SKL_DPLL0);
-	switch (link_bw) {
-	case DP_LINK_BW_1_62:
+	switch (link_clock / 2) {
+	case 81000:
 		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_810,
 					      SKL_DPLL0);
 		break;
-	case DP_LINK_BW_2_7:
+	case 135000:
 		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_1350,
 					      SKL_DPLL0);
 		break;
-	case DP_LINK_BW_5_4:
+	case 270000:
 		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_2700,
 					      SKL_DPLL0);
 		break;
+	case 162000:
+		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_1620,
+					      SKL_DPLL0);
+		break;
+	/* TBD: For DP link rates 2.16 GHz and 4.32 GHz, VCO is 8640 which
+	results in CDCLK change. Need to handle the change of CDCLK by
+	disabling pipes and re-enabling them */
+	case 108000:
+		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_1080,
+					      SKL_DPLL0);
+		break;
+	case 216000:
+		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_2160,
+					      SKL_DPLL0);
+		break;
+
 	}
 	pipe_config->dpll_hw_state.ctrl1 = ctrl1;
 }
@@ -1396,7 +1412,7 @@ found:
 	}
 
 	if (IS_SKYLAKE(dev) && is_edp(intel_dp))
-		skl_edp_set_pll_config(pipe_config, intel_dp->link_bw);
+		skl_edp_set_pll_config(pipe_config, supported_rates[clock]);
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_dp_set_ddi_pll_sel(pipe_config, intel_dp->link_bw);
 	else
