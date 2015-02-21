@@ -81,9 +81,8 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 
 	count = cfs_power2_roundup(count);
 
-	if (callback != LNET_EQ_HANDLER_NONE && count != 0) {
+	if (callback != LNET_EQ_HANDLER_NONE && count != 0)
 		CWARN("EQ callback is guaranteed to get every event, do you still want to set eqcount %d for polling event which will have locking overhead? Please contact with developer to confirm\n", count);
-	}
 
 	/* count can be 0 if only need callback, we can eliminate
 	 * overhead of enqueue event */
