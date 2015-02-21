@@ -40,7 +40,7 @@ static void i40e_get_pfc_delay(struct i40e_hw *hw, u16 *delay)
 	u32 val;
 
 	val = rd32(hw, I40E_PRTDCB_GENC);
-	*delay = (u16)(val & I40E_PRTDCB_GENC_PFCLDA_MASK >>
+	*delay = (u16)((val & I40E_PRTDCB_GENC_PFCLDA_MASK) >>
 		       I40E_PRTDCB_GENC_PFCLDA_SHIFT);
 }
 
