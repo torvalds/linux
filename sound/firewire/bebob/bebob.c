@@ -127,7 +127,10 @@ bebob_card_free(struct snd_card *card)
 {
 	struct snd_bebob *bebob = card->private_data;
 
+	snd_bebob_stream_destroy_duplex(bebob);
 	fw_unit_put(bebob->unit);
+
+	kfree(bebob->maudio_special_quirk);
 
 	if (bebob->card_index >= 0) {
 		mutex_lock(&devices_mutex);
@@ -314,10 +317,9 @@ static void bebob_remove(struct fw_unit *unit)
 	if (bebob == NULL)
 		return;
 
-	kfree(bebob->maudio_special_quirk);
-
-	snd_bebob_stream_destroy_duplex(bebob);
-	snd_card_disconnect(bebob->card);
+	/* Awake bus-reset waiters. */
+	if (!completion_done(&bebob->bus_reset))
+		complete_all(&bebob->bus_reset);
 
 	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(bebob->card);

@@ -716,14 +716,10 @@ void snd_bebob_stream_update_duplex(struct snd_bebob *bebob)
  */
 void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob)
 {
-	mutex_lock(&bebob->mutex);
-
 	amdtp_stream_destroy(&bebob->rx_stream);
 	amdtp_stream_destroy(&bebob->tx_stream);
 
 	destroy_both_connections(bebob);
-
-	mutex_unlock(&bebob->mutex);
 }
 
 /*

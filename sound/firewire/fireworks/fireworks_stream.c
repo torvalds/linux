@@ -324,12 +324,8 @@ void snd_efw_stream_update_duplex(struct snd_efw *efw)
 
 void snd_efw_stream_destroy_duplex(struct snd_efw *efw)
 {
-	mutex_lock(&efw->mutex);
-
 	destroy_stream(efw, &efw->rx_stream);
 	destroy_stream(efw, &efw->tx_stream);
-
-	mutex_unlock(&efw->mutex);
 }
 
 void snd_efw_stream_lock_changed(struct snd_efw *efw)

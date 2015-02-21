@@ -236,6 +236,7 @@ static void dice_card_free(struct snd_card *card)
 {
 	struct snd_dice *dice = card->private_data;
 
+	snd_dice_stream_destroy_duplex(dice);
 	snd_dice_transaction_destroy(dice);
 	fw_unit_put(dice->unit);
 
@@ -312,10 +313,6 @@ error:
 static void dice_remove(struct fw_unit *unit)
 {
 	struct snd_dice *dice = dev_get_drvdata(&unit->device);
-
-	snd_card_disconnect(dice->card);
-
-	snd_dice_stream_destroy_duplex(dice);
 
 	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(dice->card);

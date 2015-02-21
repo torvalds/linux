@@ -115,6 +115,10 @@ static void oxfw_card_free(struct snd_card *card)
 	struct snd_oxfw *oxfw = card->private_data;
 	unsigned int i;
 
+	snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->rx_stream);
+	if (oxfw->has_output)
+		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
+
 	fw_unit_put(oxfw->unit);
 
 	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
@@ -219,12 +223,6 @@ static void oxfw_bus_reset(struct fw_unit *unit)
 static void oxfw_remove(struct fw_unit *unit)
 {
 	struct snd_oxfw *oxfw = dev_get_drvdata(&unit->device);
-
-	snd_card_disconnect(oxfw->card);
-
-	snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->rx_stream);
-	if (oxfw->has_output)
-		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
 
 	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(oxfw->card);
