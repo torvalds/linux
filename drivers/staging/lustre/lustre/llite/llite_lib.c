@@ -2151,7 +2151,8 @@ int ll_process_config(struct lustre_cfg *lcfg)
 	ptr = strrchr(lustre_cfg_string(lcfg, 0), '-');
 	if (!ptr || !*(++ptr))
 		return -EINVAL;
-	if (sscanf(ptr, "%lx", &x) != 1)
+	rc = kstrtoul(ptr, 16, &x);
+	if (rc != 0)
 		return -EINVAL;
 	sb = (void *)x;
 	/* This better be a real Lustre superblock! */
