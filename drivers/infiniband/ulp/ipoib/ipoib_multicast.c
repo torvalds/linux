@@ -613,7 +613,7 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	return 0;
 }
 
-int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
+int ipoib_mcast_stop_thread(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -624,8 +624,7 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 	cancel_delayed_work(&priv->mcast_task);
 	mutex_unlock(&mcast_mutex);
 
-	if (flush)
-		flush_workqueue(priv->wq);
+	flush_workqueue(priv->wq);
 
 	return 0;
 }
@@ -797,7 +796,18 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 
 	ipoib_dbg_mcast(priv, "restarting multicast task\n");
 
-	ipoib_mcast_stop_thread(dev, 0);
+	/*
+	 * We're running on the priv->wq right now, so we can't call
+	 * mcast_stop_thread as it wants to flush the wq and that
+	 * will deadlock.  We don't actually *need* to stop the
+	 * thread here anyway, so just clear the run flag, cancel
+	 * any delayed work, do our work, remove the old entries,
+	 * then restart the thread.
+	 */
+	mutex_lock(&mcast_mutex);
+	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
+	cancel_delayed_work(&priv->mcast_task);
+	mutex_unlock(&mcast_mutex);
 
 	local_irq_save(flags);
 	netif_addr_lock(dev);

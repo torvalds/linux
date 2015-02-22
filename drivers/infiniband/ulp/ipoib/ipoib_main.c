@@ -108,7 +108,7 @@ int ipoib_open(struct net_device *dev)
 
 	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
-	if (ipoib_ib_dev_open(dev, 1)) {
+	if (ipoib_ib_dev_open(dev)) {
 		if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags))
 			return 0;
 		goto err_disable;
@@ -139,7 +139,7 @@ int ipoib_open(struct net_device *dev)
 	return 0;
 
 err_stop:
-	ipoib_ib_dev_stop(dev, 1);
+	ipoib_ib_dev_stop(dev);
 
 err_disable:
 	clear_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
@@ -157,8 +157,8 @@ static int ipoib_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	ipoib_ib_dev_down(dev, 1);
-	ipoib_ib_dev_stop(dev, 0);
+	ipoib_ib_dev_down(dev);
+	ipoib_ib_dev_stop(dev);
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;

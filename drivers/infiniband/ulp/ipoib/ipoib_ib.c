@@ -659,22 +659,21 @@ void ipoib_reap_ah(struct work_struct *work)
 				   round_jiffies_relative(HZ));
 }
 
-static void ipoib_flush_ah(struct net_device *dev, int flush)
+static void ipoib_flush_ah(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	cancel_delayed_work(&priv->ah_reap_task);
-	if (flush)
-		flush_workqueue(priv->wq);
+	flush_workqueue(priv->wq);
 	ipoib_reap_ah(&priv->ah_reap_task.work);
 }
 
-static void ipoib_stop_ah(struct net_device *dev, int flush)
+static void ipoib_stop_ah(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	set_bit(IPOIB_STOP_REAPER, &priv->flags);
-	ipoib_flush_ah(dev, flush);
+	ipoib_flush_ah(dev);
 }
 
 static void ipoib_ib_tx_timer_func(unsigned long ctx)
@@ -682,7 +681,7 @@ static void ipoib_ib_tx_timer_func(unsigned long ctx)
 	drain_tx_cq((struct net_device *)ctx);
 }
 
-int ipoib_ib_dev_open(struct net_device *dev, int flush)
+int ipoib_ib_dev_open(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
@@ -724,7 +723,7 @@ int ipoib_ib_dev_open(struct net_device *dev, int flush)
 dev_stop:
 	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 		napi_enable(&priv->napi);
-	ipoib_ib_dev_stop(dev, flush);
+	ipoib_ib_dev_stop(dev);
 	return -1;
 }
 
@@ -756,7 +755,7 @@ int ipoib_ib_dev_up(struct net_device *dev)
 	return ipoib_mcast_start_thread(dev);
 }
 
-int ipoib_ib_dev_down(struct net_device *dev, int flush)
+int ipoib_ib_dev_down(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -765,7 +764,7 @@ int ipoib_ib_dev_down(struct net_device *dev, int flush)
 	clear_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
 	netif_carrier_off(dev);
 
-	ipoib_mcast_stop_thread(dev, flush);
+	ipoib_mcast_stop_thread(dev);
 	ipoib_mcast_dev_flush(dev);
 
 	ipoib_flush_paths(dev);
@@ -825,7 +824,7 @@ void ipoib_drain_cq(struct net_device *dev)
 	local_bh_enable();
 }
 
-int ipoib_ib_dev_stop(struct net_device *dev, int flush)
+int ipoib_ib_dev_stop(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_attr qp_attr;
@@ -895,7 +894,7 @@ timeout:
 	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
 		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
 
-	ipoib_flush_ah(dev, flush);
+	ipoib_flush_ah(dev);
 
 	ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
 
@@ -919,7 +918,7 @@ int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		    (unsigned long) dev);
 
 	if (dev->flags & IFF_UP) {
-		if (ipoib_ib_dev_open(dev, 1)) {
+		if (ipoib_ib_dev_open(dev)) {
 			ipoib_transport_dev_cleanup(dev);
 			return -ENODEV;
 		}
@@ -1038,16 +1037,16 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 	if (level == IPOIB_FLUSH_LIGHT) {
 		ipoib_mark_paths_invalid(dev);
 		ipoib_mcast_dev_flush(dev);
-		ipoib_flush_ah(dev, 0);
+		ipoib_flush_ah(dev);
 	}
 
 	if (level >= IPOIB_FLUSH_NORMAL)
-		ipoib_ib_dev_down(dev, 0);
+		ipoib_ib_dev_down(dev);
 
 	if (level == IPOIB_FLUSH_HEAVY) {
 		if (test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
-			ipoib_ib_dev_stop(dev, 0);
-		if (ipoib_ib_dev_open(dev, 0) != 0)
+			ipoib_ib_dev_stop(dev);
+		if (ipoib_ib_dev_open(dev) != 0)
 			return;
 		if (netif_queue_stopped(dev))
 			netif_start_queue(dev);
@@ -1099,7 +1098,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	 */
 	ipoib_flush_paths(dev);
 
-	ipoib_mcast_stop_thread(dev, 1);
+	ipoib_mcast_stop_thread(dev);
 	ipoib_mcast_dev_flush(dev);
 
 	/*
@@ -1108,7 +1107,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	 * the neighbor garbage collection is stopped and reaped.
 	 * That should all be done now, so make a final ah flush.
 	 */
-	ipoib_stop_ah(dev, 1);
+	ipoib_stop_ah(dev);
 
 	ipoib_transport_dev_cleanup(dev);
 }
