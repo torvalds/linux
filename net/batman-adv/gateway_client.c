@@ -601,7 +601,7 @@ static int batadv_write_buffer_text(struct batadv_priv *bat_priv,
 		   gw_node->bandwidth_down % 10,
 		   gw_node->bandwidth_up / 10,
 		   gw_node->bandwidth_up % 10);
-	ret = seq_has_overflowed(seq);
+	ret = seq_has_overflowed(seq) ? -1 : 0;
 
 	if (curr_gw)
 		batadv_gw_node_free_ref(curr_gw);
