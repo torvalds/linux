@@ -511,42 +511,43 @@ static u32 array_phy_reg_pg_8188e[] = {
 static void store_pwrindex_offset(struct adapter *Adapter, u32 regaddr, u32 bitmask, u32 data)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	 u8 pwrGrpCnt = hal_data->pwrGroupCnt;
 
 	if (regaddr == rTxAGC_A_Rate18_06)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][0] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][0] = data;
 	if (regaddr == rTxAGC_A_Rate54_24)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][1] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][1] = data;
 	if (regaddr == rTxAGC_A_CCK1_Mcs32)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][6] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][6] = data;
 	if (regaddr == rTxAGC_B_CCK11_A_CCK2_11 && bitmask == 0xffffff00)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][7] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][7] = data;
 	if (regaddr == rTxAGC_A_Mcs03_Mcs00)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][2] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][2] = data;
 	if (regaddr == rTxAGC_A_Mcs07_Mcs04)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][3] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][3] = data;
 	if (regaddr == rTxAGC_A_Mcs11_Mcs08)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][4] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][4] = data;
 	if (regaddr == rTxAGC_A_Mcs15_Mcs12) {
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][5] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][5] = data;
 		if (hal_data->rf_type == RF_1T1R)
 			hal_data->pwrGroupCnt++;
 	}
 	if (regaddr == rTxAGC_B_Rate18_06)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][8] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][8] = data;
 	if (regaddr == rTxAGC_B_Rate54_24)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][9] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][9] = data;
 	if (regaddr == rTxAGC_B_CCK1_55_Mcs32)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][14] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][14] = data;
 	if (regaddr == rTxAGC_B_CCK11_A_CCK2_11 && bitmask == 0x000000ff)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][15] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][15] = data;
 	if (regaddr == rTxAGC_B_Mcs03_Mcs00)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][10] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][10] = data;
 	if (regaddr == rTxAGC_B_Mcs07_Mcs04)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][11] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][11] = data;
 	if (regaddr == rTxAGC_B_Mcs11_Mcs08)
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][12] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][12] = data;
 	if (regaddr == rTxAGC_B_Mcs15_Mcs12) {
-		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt][13] = data;
+		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt][13] = data;
 		if (hal_data->rf_type != RF_1T1R)
 			hal_data->pwrGroupCnt++;
 	}
