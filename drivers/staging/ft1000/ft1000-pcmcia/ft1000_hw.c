@@ -2004,6 +2004,7 @@ static void ft1000_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
 	struct ft1000_info *ft_info;
+
 	ft_info = netdev_priv(dev);
 
 	strlcpy(info->driver, "ft1000", sizeof(info->driver));
