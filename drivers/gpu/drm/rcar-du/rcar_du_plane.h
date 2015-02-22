@@ -62,8 +62,5 @@ struct rcar_du_planes {
 int rcar_du_planes_init(struct rcar_du_group *rgrp);
 
 void rcar_du_plane_setup(struct rcar_du_plane *plane);
-void rcar_du_plane_update_base(struct rcar_du_plane *plane);
-void rcar_du_plane_compute_base(struct rcar_du_plane *plane,
-				struct drm_framebuffer *fb);
 
 #endif /* __RCAR_DU_PLANE_H__ */

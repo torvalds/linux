@@ -129,7 +129,7 @@ static void rcar_du_plane_release(struct rcar_du_plane *plane)
 	plane->hwindex = -1;
 }
 
-void rcar_du_plane_update_base(struct rcar_du_plane *plane)
+static void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 {
 	struct rcar_du_group *rgrp = plane->group;
 	unsigned int src_x = plane->plane.state->src_x >> 16;
@@ -182,8 +182,8 @@ void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 	}
 }
 
-void rcar_du_plane_compute_base(struct rcar_du_plane *plane,
-				struct drm_framebuffer *fb)
+static void rcar_du_plane_compute_base(struct rcar_du_plane *plane,
+				       struct drm_framebuffer *fb)
 {
 	struct drm_gem_cma_object *gem;
 

@@ -436,14 +436,6 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_start(rcrtc);
 }
 
-static void rcar_du_crtc_update_base(struct rcar_du_crtc *rcrtc)
-{
-	struct drm_crtc *crtc = &rcrtc->crtc;
-
-	rcar_du_plane_compute_base(rcrtc->plane, crtc->primary->fb);
-	rcar_du_plane_update_base(rcrtc->plane);
-}
-
 /* -----------------------------------------------------------------------------
  * CRTC Functions
  */
@@ -485,12 +477,25 @@ static bool rcar_du_crtc_mode_fixup(struct drm_crtc *crtc,
 
 static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc)
 {
+	struct drm_pending_vblank_event *event = crtc->state->event;
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct drm_device *dev = rcrtc->crtc.dev;
+	unsigned long flags;
 
 	/* We need to access the hardware during atomic update, acquire a
 	 * reference to the CRTC.
 	 */
 	rcar_du_crtc_get(rcrtc);
+
+	if (event) {
+		event->pipe = rcrtc->index;
+
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		rcrtc->event = event;
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
 }
 
 static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc)
@@ -515,43 +520,11 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.atomic_flush = rcar_du_crtc_atomic_flush,
 };
 
-static int rcar_du_crtc_page_flip(struct drm_crtc *crtc,
-				  struct drm_framebuffer *fb,
-				  struct drm_pending_vblank_event *event,
-				  uint32_t page_flip_flags)
-{
-	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-	struct drm_device *dev = rcrtc->crtc.dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	if (rcrtc->event != NULL) {
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		return -EBUSY;
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	drm_atomic_set_fb_for_plane(crtc->primary->state, fb);
-
-	crtc->primary->fb = fb;
-	rcar_du_crtc_update_base(rcrtc);
-
-	if (event) {
-		event->pipe = rcrtc->index;
-		drm_crtc_vblank_get(crtc);
-		spin_lock_irqsave(&dev->event_lock, flags);
-		rcrtc->event = event;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-	}
-
-	return 0;
-}
-
 static const struct drm_crtc_funcs crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
-	.page_flip = rcar_du_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
