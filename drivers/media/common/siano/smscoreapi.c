@@ -39,10 +39,6 @@
 #include "sms-cards.h"
 #include "smsir.h"
 
-static int sms_dbg;
-module_param_named(debug, sms_dbg, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
-
 struct smscore_device_notifyee_t {
 	struct list_head entry;
 	hotplug_t hotplug;

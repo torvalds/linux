@@ -40,11 +40,6 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static struct list_head g_smsdvb_clients;
 static struct mutex g_smsdvb_clientslock;
 
-static int sms_dbg;
-module_param_named(debug, sms_dbg, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
-
-
 static u32 sms_to_guard_interval_table[] = {
 	[0] = GUARD_INTERVAL_1_32,
 	[1] = GUARD_INTERVAL_1_16,
