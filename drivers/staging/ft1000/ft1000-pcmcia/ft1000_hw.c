@@ -1945,11 +1945,10 @@ static irqreturn_t ft1000_interrupt(int irq, void *dev_id)
 						ft1000_read_reg(dev,
 								FT1000_REG_MAG_DFSR);
 				}
-				if (tempword & 0x1f) {
+				if (tempword & 0x1f)
 					ft1000_copy_up_pkt(dev);
-				} else {
+				else
 					break;
-				}
 				cnt++;
 			} while (cnt < MAX_RCV_LOOP);
 
