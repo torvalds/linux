@@ -21,6 +21,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "smscoreapi.h"
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -34,7 +36,6 @@
 #include <linux/wait.h>
 #include <asm/byteorder.h>
 
-#include "smscoreapi.h"
 #include "sms-cards.h"
 #include "smsir.h"
 

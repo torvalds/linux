@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef __SMS_CORE_API_H__
 #define __SMS_CORE_API_H__
 
+#define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
+
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/mm.h>
@@ -1177,22 +1179,17 @@ int smscore_led_state(struct smscore_device_t *core, int led);
 #define DBG_INFO 1
 #define DBG_ADV  2
 
-#define sms_printk(kern, fmt, arg...) \
-	printk(kern "%s: " fmt "\n", __func__, ##arg)
-
-#define dprintk(kern, lvl, fmt, arg...) do {\
-	if (sms_dbg & lvl) \
-		sms_printk(kern, fmt, ##arg); \
+#define sms_log(fmt, arg...) pr_info(fmt "\n", ##arg)
+#define sms_err(fmt, arg...) pr_err(fmt " on line: %d\n", ##arg, __LINE__)
+#define sms_warn(fmt, arg...) pr_warn(fmt "\n", ##arg)
+#define sms_info(fmt, arg...) do {\
+	if (sms_dbg & DBG_INFO) \
+		pr_info(fmt "\n", ##arg); \
 } while (0)
 
-#define sms_log(fmt, arg...) sms_printk(KERN_INFO, fmt, ##arg)
-#define sms_err(fmt, arg...) \
-	sms_printk(KERN_ERR, "line: %d: " fmt, __LINE__, ##arg)
-#define sms_warn(fmt, arg...)  sms_printk(KERN_WARNING, fmt, ##arg)
-#define sms_info(fmt, arg...) \
-	dprintk(KERN_INFO, DBG_INFO, fmt, ##arg)
-#define sms_debug(fmt, arg...) \
-	dprintk(KERN_DEBUG, DBG_ADV, fmt, ##arg)
-
+#define sms_debug(fmt, arg...) do {\
+        if (sms_dbg & DBG_ADV) \
+                printk(KERN_DEBUG pr_fmt(fmt "\n"), ##arg); \
+} while (0)
 
 #endif /* __SMS_CORE_API_H__ */

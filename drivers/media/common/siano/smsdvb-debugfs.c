@@ -17,7 +17,7 @@
  *
  ***********************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#include "smscoreapi.h"
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -30,8 +30,6 @@
 #include "dvbdev.h"
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
-
-#include "smscoreapi.h"
 
 #include "smsdvb.h"
 

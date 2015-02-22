@@ -32,6 +32,8 @@
  * Fix stop command
  */
 
+#include "smscoreapi.h"
+
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
@@ -41,7 +43,6 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/module.h>
 
-#include "smscoreapi.h"
 #include "sms-cards.h"
 #include "smsendian.h"
 

@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ****************************************************************/
 
+#include "smscoreapi.h"
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/usb.h>
@@ -26,7 +28,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/slab.h>
 #include <linux/module.h>
 
-#include "smscoreapi.h"
 #include "sms-cards.h"
 #include "smsendian.h"
 

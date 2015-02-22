@@ -25,10 +25,11 @@
  ****************************************************************/
 
 
+#include "smscoreapi.h"
+
 #include <linux/types.h>
 #include <linux/input.h>
 
-#include "smscoreapi.h"
 #include "smsir.h"
 #include "sms-cards.h"
 

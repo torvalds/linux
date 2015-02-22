@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ****************************************************************/
 
+#include "smscoreapi.h"
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -29,7 +31,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
 
-#include "smscoreapi.h"
 #include "sms-cards.h"
 
 #include "smsdvb.h"
