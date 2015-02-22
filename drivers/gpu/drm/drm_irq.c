@@ -269,7 +269,6 @@ static void vblank_disable_fn(unsigned long arg)
 void drm_vblank_cleanup(struct drm_device *dev)
 {
 	int crtc;
-	unsigned long irqflags;
 
 	/* Bail if the driver didn't call drm_vblank_init() */
 	if (dev->num_crtcs == 0)
@@ -278,11 +277,10 @@ void drm_vblank_cleanup(struct drm_device *dev)
 	for (crtc = 0; crtc < dev->num_crtcs; crtc++) {
 		struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
 
-		del_timer_sync(&vblank->disable_timer);
+		WARN_ON(vblank->enabled &&
+			drm_core_check_feature(dev, DRIVER_MODESET));
 
-		spin_lock_irqsave(&dev->vbl_lock, irqflags);
-		vblank_disable_and_save(dev, crtc);
-		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+		del_timer_sync(&vblank->disable_timer);
 	}
 
 	kfree(dev->vblank);
@@ -468,17 +466,23 @@ int drm_irq_uninstall(struct drm_device *dev)
 	dev->irq_enabled = false;
 
 	/*
-	 * Wake up any waiters so they don't hang.
+	 * Wake up any waiters so they don't hang. This is just to paper over
+	 * isssues for UMS drivers which aren't in full control of their
+	 * vblank/irq handling. KMS drivers must ensure that vblanks are all
+	 * disabled when uninstalling the irq handler.
 	 */
 	if (dev->num_crtcs) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		for (i = 0; i < dev->num_crtcs; i++) {
 			struct drm_vblank_crtc *vblank = &dev->vblank[i];
 
+			if (!vblank->enabled)
+				continue;
+
+			WARN_ON(drm_core_check_feature(dev, DRIVER_MODESET));
+
+			vblank_disable_and_save(dev, i);
 			wake_up(&vblank->queue);
-			vblank->enabled = false;
-			vblank->last =
-				dev->driver->get_vblank_counter(dev, i);
 		}
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 	}
