@@ -770,18 +770,18 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 /**
  * drm_atomic_helper_commit_pre_planes - modeset commit before plane updates
  * @dev: DRM device
- * @state: atomic state
+ * @old_state: atomic state object with old state structures
  *
  * This function commits the modeset changes that need to be committed before
  * updating planes. It shuts down all the outputs that need to be shut down and
  * prepares them (if required) with the new mode.
  */
 void drm_atomic_helper_commit_pre_planes(struct drm_device *dev,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_state *old_state)
 {
-	disable_outputs(dev, state);
-	set_routing_links(dev, state);
-	crtc_set_mode(dev, state);
+	disable_outputs(dev, old_state);
+	set_routing_links(dev, old_state);
+	crtc_set_mode(dev, old_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_pre_planes);
 
