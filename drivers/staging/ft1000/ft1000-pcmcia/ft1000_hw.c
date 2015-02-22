@@ -910,7 +910,7 @@ static bool ft1000_receive_cmd(struct net_device *dev, u16 *pbuffer,
 	tempword = *ppseudohdr++;
 	for (i = 1; i < 7; i++)
 		tempword ^= *ppseudohdr++;
-	if ((tempword != *ppseudohdr)) {
+	if (tempword != *ppseudohdr) {
 		pr_debug("Pseudo header checksum mismatch\n");
 		/* Drop this message */
 		return false;
