@@ -83,42 +83,42 @@ static void sms_board_dvb3_event(struct smsdvb_client_t *client,
 	struct smscore_device_t *coredev = client->coredev;
 	switch (event) {
 	case DVB3_EVENT_INIT:
-		sms_debug("DVB3_EVENT_INIT");
+		pr_debug("DVB3_EVENT_INIT\n");
 		sms_board_event(coredev, BOARD_EVENT_BIND);
 		break;
 	case DVB3_EVENT_SLEEP:
-		sms_debug("DVB3_EVENT_SLEEP");
+		pr_debug("DVB3_EVENT_SLEEP\n");
 		sms_board_event(coredev, BOARD_EVENT_POWER_SUSPEND);
 		break;
 	case DVB3_EVENT_HOTPLUG:
-		sms_debug("DVB3_EVENT_HOTPLUG");
+		pr_debug("DVB3_EVENT_HOTPLUG\n");
 		sms_board_event(coredev, BOARD_EVENT_POWER_INIT);
 		break;
 	case DVB3_EVENT_FE_LOCK:
 		if (client->event_fe_state != DVB3_EVENT_FE_LOCK) {
 			client->event_fe_state = DVB3_EVENT_FE_LOCK;
-			sms_debug("DVB3_EVENT_FE_LOCK");
+			pr_debug("DVB3_EVENT_FE_LOCK\n");
 			sms_board_event(coredev, BOARD_EVENT_FE_LOCK);
 		}
 		break;
 	case DVB3_EVENT_FE_UNLOCK:
 		if (client->event_fe_state != DVB3_EVENT_FE_UNLOCK) {
 			client->event_fe_state = DVB3_EVENT_FE_UNLOCK;
-			sms_debug("DVB3_EVENT_FE_UNLOCK");
+			pr_debug("DVB3_EVENT_FE_UNLOCK\n");
 			sms_board_event(coredev, BOARD_EVENT_FE_UNLOCK);
 		}
 		break;
 	case DVB3_EVENT_UNC_OK:
 		if (client->event_unc_state != DVB3_EVENT_UNC_OK) {
 			client->event_unc_state = DVB3_EVENT_UNC_OK;
-			sms_debug("DVB3_EVENT_UNC_OK");
+			pr_debug("DVB3_EVENT_UNC_OK\n");
 			sms_board_event(coredev, BOARD_EVENT_MULTIPLEX_OK);
 		}
 		break;
 	case DVB3_EVENT_UNC_ERR:
 		if (client->event_unc_state != DVB3_EVENT_UNC_ERR) {
 			client->event_unc_state = DVB3_EVENT_UNC_ERR;
-			sms_debug("DVB3_EVENT_UNC_ERR");
+			pr_debug("DVB3_EVENT_UNC_ERR\n");
 			sms_board_event(coredev, BOARD_EVENT_MULTIPLEX_ERRORS);
 		}
 		break;
@@ -658,7 +658,7 @@ static int smsdvb_start_feed(struct dvb_demux_feed *feed)
 		container_of(feed->demux, struct smsdvb_client_t, demux);
 	struct sms_msg_data pid_msg;
 
-	sms_debug("add pid %d(%x)",
+	pr_debug("add pid %d(%x)\n",
 		  feed->pid, feed->pid);
 
 	client->feed_users++;
@@ -680,7 +680,7 @@ static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 		container_of(feed->demux, struct smsdvb_client_t, demux);
 	struct sms_msg_data pid_msg;
 
-	sms_debug("remove pid %d(%x)",
+	pr_debug("remove pid %d(%x)\n",
 		  feed->pid, feed->pid);
 
 	client->feed_users--;
@@ -850,7 +850,7 @@ static int smsdvb_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int smsdvb_get_tune_settings(struct dvb_frontend *fe,
 				    struct dvb_frontend_tune_settings *tune)
 {
-	sms_debug("");
+	pr_debug("\n");
 
 	tune->min_delay_ms = 400;
 	tune->step_size = 250000;
@@ -1224,7 +1224,7 @@ static int __init smsdvb_module_init(void)
 
 	rc = smscore_register_hotplug(smsdvb_hotplug);
 
-	sms_debug("");
+	pr_debug("\n");
 
 	return rc;
 }

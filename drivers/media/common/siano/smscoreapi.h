@@ -1184,9 +1184,4 @@ int smscore_led_state(struct smscore_device_t *core, int led);
 		pr_info(fmt "\n", ##arg); \
 } while (0)
 
-#define sms_debug(fmt, arg...) do {\
-        if (sms_dbg & DBG_ADV) \
-                printk(KERN_DEBUG pr_fmt(fmt "\n"), ##arg); \
-} while (0)
-
 #endif /* __SMS_CORE_API_H__ */

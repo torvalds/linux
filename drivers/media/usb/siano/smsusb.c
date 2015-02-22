@@ -124,7 +124,7 @@ static void smsusb_onresponse(struct urb *urb)
 			} else
 				surb->cb->offset = 0;
 
-			sms_debug("received %s(%d) size: %d",
+			pr_debug("received %s(%d) size: %d\n",
 				  smscore_translate_msg(phdr->msg_type),
 				  phdr->msg_type, phdr->msg_length);
 
@@ -208,11 +208,11 @@ static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 	int dummy;
 
 	if (dev->state != SMSUSB_ACTIVE) {
-		sms_debug("Device not active yet");
+		pr_debug("Device not active yet\n");
 		return -ENOENT;
 	}
 
-	sms_debug("sending %s(%d) size: %d",
+	pr_debug("sending %s(%d) size: %d\n",
 		  smscore_translate_msg(phdr->msg_type), phdr->msg_type,
 		  phdr->msg_length);
 
@@ -489,7 +489,7 @@ static int smsusb_probe(struct usb_interface *intf,
 
 	if (sms_get_board(id->driver_info)->intf_num !=
 	    intf->cur_altsetting->desc.bInterfaceNumber) {
-		sms_debug("interface %d won't be used. Expecting interface %d to popup",
+		pr_debug("interface %d won't be used. Expecting interface %d to popup\n",
 			intf->cur_altsetting->desc.bInterfaceNumber,
 			sms_get_board(id->driver_info)->intf_num);
 		return -ENODEV;
@@ -522,7 +522,7 @@ static int smsusb_probe(struct usb_interface *intf,
 	}
 	if ((udev->actconfig->desc.bNumInterfaces == 2) &&
 	    (intf->cur_altsetting->desc.bInterfaceNumber == 0)) {
-		sms_debug("rom interface 0 is not used");
+		pr_debug("rom interface 0 is not used\n");
 		return -ENODEV;
 	}
 

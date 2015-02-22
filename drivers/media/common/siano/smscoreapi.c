@@ -841,7 +841,7 @@ static int smscore_configure_board(struct smscore_device_t *coredev)
 
 	if (board->mtu) {
 		struct sms_msg_data mtu_msg;
-		sms_debug("set max transmit unit %d", board->mtu);
+		pr_debug("set max transmit unit %d\n", board->mtu);
 
 		mtu_msg.x_msg_header.msg_src_id = 0;
 		mtu_msg.x_msg_header.msg_dst_id = HIF_TASK;
@@ -856,7 +856,7 @@ static int smscore_configure_board(struct smscore_device_t *coredev)
 
 	if (board->crystal) {
 		struct sms_msg_data crys_msg;
-		sms_debug("set crystal value %d", board->crystal);
+		pr_debug("set crystal value %d\n", board->crystal);
 
 		SMS_INIT_MSG(&crys_msg.x_msg_header,
 				MSG_SMS_NEW_CRYSTAL_REQ,
@@ -941,7 +941,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		return -ENOMEM;
 
 	if (coredev->mode != DEVICE_MODE_NONE) {
-		sms_debug("sending reload command.");
+		pr_debug("sending reload command.\n");
 		SMS_INIT_MSG(&msg->x_msg_header, MSG_SW_RELOAD_START_REQ,
 			     sizeof(struct sms_msg_hdr));
 		rc = smscore_sendrequest_and_wait(coredev, msg,
@@ -982,7 +982,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	if (rc < 0)
 		goto exit_fw_download;
 
-	sms_debug("sending MSG_SMS_DATA_VALIDITY_REQ expecting 0x%x",
+	pr_debug("sending MSG_SMS_DATA_VALIDITY_REQ expecting 0x%x\n",
 		calc_checksum);
 	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_DATA_VALIDITY_REQ,
 			sizeof(msg->x_msg_header) +
@@ -1001,7 +1001,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		struct sms_msg_data *trigger_msg =
 			(struct sms_msg_data *) msg;
 
-		sms_debug("sending MSG_SMS_SWDOWNLOAD_TRIGGER_REQ");
+		pr_debug("sending MSG_SMS_SWDOWNLOAD_TRIGGER_REQ\n");
 		SMS_INIT_MSG(&msg->x_msg_header,
 				MSG_SMS_SWDOWNLOAD_TRIGGER_REQ,
 				sizeof(struct sms_msg_hdr) +
@@ -1037,12 +1037,13 @@ exit_fw_download:
 	kfree(msg);
 
 	if (coredev->postload_handler) {
-		sms_debug("rc=%d, postload=0x%p", rc, coredev->postload_handler);
+		pr_debug("rc=%d, postload=0x%p\n",
+			 rc, coredev->postload_handler);
 		if (rc >= 0)
 			return coredev->postload_handler(coredev->context);
 	}
 
-	sms_debug("rc=%d", rc);
+	pr_debug("rc=%d\n", rc);
 	return rc;
 }
 
@@ -1121,11 +1122,11 @@ static char *smscore_get_fw_filename(struct smscore_device_t *coredev,
 	if (mode <= DEVICE_MODE_NONE || mode >= DEVICE_MODE_MAX)
 		return NULL;
 
-	sms_debug("trying to get fw name from sms_boards board_id %d mode %d",
+	pr_debug("trying to get fw name from sms_boards board_id %d mode %d\n",
 		  board_id, mode);
 	fw = sms_get_board(board_id)->fw;
 	if (!fw || !fw[mode]) {
-		sms_debug("cannot find fw name in sms_boards, getting from lookup table mode %d type %d",
+		pr_debug("cannot find fw name in sms_boards, getting from lookup table mode %d type %d\n",
 			  mode, type);
 		return smscore_fw_lkup[type][mode];
 	}
@@ -1157,7 +1158,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 		pr_err("mode %d not supported on this device\n", mode);
 		return -ENOENT;
 	}
-	sms_debug("Firmware name: %s", fw_filename);
+	pr_debug("Firmware name: %s\n", fw_filename);
 
 	if (loadfirmware_handler == NULL && !(coredev->device_flags
 			& SMS_DEVICE_FAMILY2))
@@ -1339,7 +1340,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 {
 	int rc = 0;
 
-	sms_debug("set device mode to %d", mode);
+	pr_debug("set device mode to %d\n", mode);
 	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
 		if (mode <= DEVICE_MODE_NONE || mode >= DEVICE_MODE_MAX) {
 			pr_err("invalid mode specified %d\n", mode);
@@ -1416,7 +1417,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 	if (rc < 0)
 		pr_err("return error code %d.\n", rc);
 	else
-		sms_debug("Success setting device mode.");
+		pr_debug("Success setting device mode.\n");
 
 	return rc;
 }
@@ -1495,7 +1496,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		last_sample_time = time_now;
 
 	if (time_now - last_sample_time > 10000) {
-		sms_debug("data rate %d bytes/secs",
+		pr_debug("data rate %d bytes/secs\n",
 			  (int)((data_total * 1000) /
 				(time_now - last_sample_time)));
 
@@ -1539,7 +1540,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		{
 			struct sms_version_res *ver =
 				(struct sms_version_res *) phdr;
-			sms_debug("Firmware id %d prots 0x%x ver %d.%d",
+			pr_debug("Firmware id %d prots 0x%x ver %d.%d\n",
 				  ver->firmware_id, ver->supported_protocols,
 				  ver->rom_ver_major, ver->rom_ver_minor);
 
@@ -1562,7 +1563,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		{
 			struct sms_msg_data *validity = (struct sms_msg_data *) phdr;
 
-			sms_debug("MSG_SMS_DATA_VALIDITY_RES, checksum = 0x%x",
+			pr_debug("MSG_SMS_DATA_VALIDITY_RES, checksum = 0x%x\n",
 				validity->msg_data[0]);
 			complete(&coredev->data_validity_done);
 			break;
@@ -1588,7 +1589,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		{
 			u32 *msgdata = (u32 *) phdr;
 			coredev->gpio_get_res = msgdata[1];
-			sms_debug("gpio level %d",
+			pr_debug("gpio level %d\n",
 					coredev->gpio_get_res);
 			complete(&coredev->gpio_get_level_done);
 			break;
@@ -1615,7 +1616,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 			break;
 
 		default:
-			sms_debug("message %s(%d) not handled.",
+			pr_debug("message %s(%d) not handled.\n",
 				  smscore_translate_msg(phdr->msg_type),
 				  phdr->msg_type);
 			break;
@@ -1746,7 +1747,7 @@ int smscore_register_client(struct smscore_device_t *coredev,
 	smscore_validate_client(coredev, newclient, params->data_type,
 				params->initial_id);
 	*client = newclient;
-	sms_debug("%p %d %d", params->context, params->data_type,
+	pr_debug("%p %d %d\n", params->context, params->data_type,
 		  params->initial_id);
 
 	return 0;
@@ -2163,7 +2164,7 @@ static void __exit smscore_module_exit(void)
 	}
 	kmutex_unlock(&g_smscore_registrylock);
 
-	sms_debug("");
+	pr_debug("\n");
 }
 
 module_init(smscore_module_init);
