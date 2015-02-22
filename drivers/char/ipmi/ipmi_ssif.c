@@ -1200,7 +1200,7 @@ static int smi_type_proc_show(struct seq_file *m, void *v)
 {
 	seq_puts(m, "ssif\n");
 
-	return seq_has_overflowed(m);
+	return 0;
 }
 
 static int smi_type_proc_open(struct inode *inode, struct file *file)
