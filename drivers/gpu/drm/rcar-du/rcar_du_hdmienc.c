@@ -62,12 +62,14 @@ static void rcar_du_hdmienc_enable(struct drm_encoder *encoder)
 	hdmienc->enabled = true;
 }
 
-static bool rcar_du_hdmienc_mode_fixup(struct drm_encoder *encoder,
-				       const struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
+static int rcar_du_hdmienc_atomic_check(struct drm_encoder *encoder,
+					struct drm_crtc_state *crtc_state,
+					struct drm_connector_state *conn_state)
 {
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
 	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	const struct drm_display_mode *mode = &crtc_state->mode;
 
 	/* The internal LVDS encoder has a clock frequency operating range of
 	 * 30MHz to 150MHz. Clamp the clock accordingly.
@@ -77,9 +79,9 @@ static bool rcar_du_hdmienc_mode_fixup(struct drm_encoder *encoder,
 					     30000, 150000);
 
 	if (sfuncs->mode_fixup == NULL)
-		return true;
+		return 0;
 
-	return sfuncs->mode_fixup(encoder, mode, adjusted_mode);
+	return sfuncs->mode_fixup(encoder, mode, adjusted_mode) ? 0 : -EINVAL;
 }
 
 static void rcar_du_hdmienc_mode_set(struct drm_encoder *encoder,
@@ -96,10 +98,10 @@ static void rcar_du_hdmienc_mode_set(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.mode_fixup = rcar_du_hdmienc_mode_fixup,
 	.mode_set = rcar_du_hdmienc_mode_set,
 	.disable = rcar_du_hdmienc_disable,
 	.enable = rcar_du_hdmienc_enable,
+	.atomic_check = rcar_du_hdmienc_atomic_check,
 };
 
 static void rcar_du_hdmienc_cleanup(struct drm_encoder *encoder)
