@@ -48,7 +48,8 @@ static int lov_stripesize_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	desc = &dev->u.lov.desc;
-	return seq_printf(m, "%llu\n", desc->ld_default_stripe_size);
+	seq_printf(m, "%llu\n", desc->ld_default_stripe_size);
+	return 0;
 }
 
 static ssize_t lov_stripesize_seq_write(struct file *file,
@@ -79,7 +80,8 @@ static int lov_stripeoffset_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	desc = &dev->u.lov.desc;
-	return seq_printf(m, "%llu\n", desc->ld_default_stripe_offset);
+	seq_printf(m, "%llu\n", desc->ld_default_stripe_offset);
+	return 0;
 }
 
 static ssize_t lov_stripeoffset_seq_write(struct file *file,
@@ -109,7 +111,8 @@ static int lov_stripetype_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	desc = &dev->u.lov.desc;
-	return seq_printf(m, "%u\n", desc->ld_pattern);
+	seq_printf(m, "%u\n", desc->ld_pattern);
+	return 0;
 }
 
 static ssize_t lov_stripetype_seq_write(struct file *file,
@@ -139,8 +142,8 @@ static int lov_stripecount_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	desc = &dev->u.lov.desc;
-	return seq_printf(m, "%d\n",
-			(__s16)(desc->ld_default_stripe_count + 1) - 1);
+	seq_printf(m, "%d\n", (__s16)(desc->ld_default_stripe_count + 1) - 1);
+	return 0;
 }
 
 static ssize_t lov_stripecount_seq_write(struct file *file,
@@ -170,7 +173,8 @@ static int lov_numobd_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	desc = &dev->u.lov.desc;
-	return seq_printf(m, "%u\n", desc->ld_tgt_count);
+	seq_printf(m, "%u\n", desc->ld_tgt_count);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(lov_numobd);
 
@@ -181,7 +185,8 @@ static int lov_activeobd_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	desc = &dev->u.lov.desc;
-	return seq_printf(m, "%u\n", desc->ld_active_tgt_count);
+	seq_printf(m, "%u\n", desc->ld_active_tgt_count);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(lov_activeobd);
 
@@ -192,7 +197,8 @@ static int lov_desc_uuid_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	lov = &dev->u.lov;
-	return seq_printf(m, "%s\n", lov->desc.ld_uuid.uuid);
+	seq_printf(m, "%s\n", lov->desc.ld_uuid.uuid);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(lov_desc_uuid);
 
@@ -228,9 +234,11 @@ static void *lov_tgt_seq_next(struct seq_file *p, void *v, loff_t *pos)
 static int lov_tgt_seq_show(struct seq_file *p, void *v)
 {
 	struct lov_tgt_desc *tgt = v;
-	return seq_printf(p, "%d: %s %sACTIVE\n", tgt->ltd_index,
-			  obd_uuid2str(&tgt->ltd_uuid),
-			  tgt->ltd_active ? "" : "IN");
+
+	seq_printf(p, "%d: %s %sACTIVE\n",
+		   tgt->ltd_index, obd_uuid2str(&tgt->ltd_uuid),
+		   tgt->ltd_active ? "" : "IN");
+	return 0;
 }
 
 struct seq_operations lov_tgt_sops = {

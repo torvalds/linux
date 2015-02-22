@@ -48,7 +48,8 @@ static int lmv_numobd_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	desc = &dev->u.lmv.desc;
-	return seq_printf(m, "%u\n", desc->ld_tgt_count);
+	seq_printf(m, "%u\n", desc->ld_tgt_count);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(lmv_numobd);
 
@@ -82,7 +83,8 @@ static int lmv_placement_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	lmv = &dev->u.lmv;
-	return seq_printf(m, "%s\n", placement_policy2name(lmv->lmv_placement));
+	seq_printf(m, "%s\n", placement_policy2name(lmv->lmv_placement));
+	return 0;
 }
 
 #define MAX_POLICY_STRING_SIZE 64
@@ -130,7 +132,8 @@ static int lmv_activeobd_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	desc = &dev->u.lmv.desc;
-	return seq_printf(m, "%u\n", desc->ld_active_tgt_count);
+	seq_printf(m, "%u\n", desc->ld_active_tgt_count);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(lmv_activeobd);
 
@@ -141,7 +144,8 @@ static int lmv_desc_uuid_seq_show(struct seq_file *m, void *v)
 
 	LASSERT(dev != NULL);
 	lmv = &dev->u.lmv;
-	return seq_printf(m, "%s\n", lmv->desc.ld_uuid.uuid);
+	seq_printf(m, "%s\n", lmv->desc.ld_uuid.uuid);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(lmv_desc_uuid);
 
@@ -171,8 +175,10 @@ static int lmv_tgt_seq_show(struct seq_file *p, void *v)
 
 	if (tgt == NULL)
 		return 0;
-	return seq_printf(p, "%d: %s %sACTIVE\n", tgt->ltd_idx,
-			  tgt->ltd_uuid.uuid, tgt->ltd_active ? "" : "IN");
+	seq_printf(p, "%d: %s %sACTIVE\n",
+		   tgt->ltd_idx, tgt->ltd_uuid.uuid,
+		   tgt->ltd_active ? "" : "IN");
+	return 0;
 }
 
 static struct seq_operations lmv_tgt_sops = {

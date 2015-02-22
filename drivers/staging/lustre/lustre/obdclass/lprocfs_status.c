@@ -377,7 +377,8 @@ EXPORT_SYMBOL(lprocfs_register);
 /* Generic callbacks */
 int lprocfs_rd_uint(struct seq_file *m, void *data)
 {
-	return seq_printf(m, "%u\n", *(unsigned int *)data);
+	seq_printf(m, "%u\n", *(unsigned int *)data);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_uint);
 
@@ -403,7 +404,8 @@ EXPORT_SYMBOL(lprocfs_wr_uint);
 
 int lprocfs_rd_u64(struct seq_file *m, void *data)
 {
-	return seq_printf(m, "%llu\n", *(__u64 *)data);
+	seq_printf(m, "%llu\n", *(__u64 *)data);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_u64);
 
@@ -411,7 +413,8 @@ int lprocfs_rd_atomic(struct seq_file *m, void *data)
 {
 	atomic_t *atom = data;
 	LASSERT(atom != NULL);
-	return seq_printf(m, "%d\n", atomic_read(atom));
+	seq_printf(m, "%d\n", atomic_read(atom));
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_atomic);
 
@@ -439,7 +442,8 @@ int lprocfs_rd_uuid(struct seq_file *m, void *data)
 	struct obd_device *obd = data;
 
 	LASSERT(obd != NULL);
-	return seq_printf(m, "%s\n", obd->obd_uuid.uuid);
+	seq_printf(m, "%s\n", obd->obd_uuid.uuid);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_uuid);
 
@@ -448,7 +452,8 @@ int lprocfs_rd_name(struct seq_file *m, void *data)
 	struct obd_device *dev = data;
 
 	LASSERT(dev != NULL);
-	return seq_printf(m, "%s\n", dev->obd_name);
+	seq_printf(m, "%s\n", dev->obd_name);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_name);
 
@@ -924,7 +929,8 @@ int lprocfs_rd_num_exports(struct seq_file *m, void *data)
 	struct obd_device *obd = data;
 
 	LASSERT(obd != NULL);
-	return seq_printf(m, "%u\n", obd->obd_num_exports);
+	seq_printf(m, "%u\n", obd->obd_num_exports);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_num_exports);
 
@@ -933,7 +939,8 @@ int lprocfs_rd_numrefs(struct seq_file *m, void *data)
 	struct obd_type *class = (struct obd_type *) data;
 
 	LASSERT(class != NULL);
-	return seq_printf(m, "%d\n", class->typ_refcnt);
+	seq_printf(m, "%d\n", class->typ_refcnt);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_numrefs);
 
@@ -1606,8 +1613,9 @@ LPROC_SEQ_FOPS_RO(lproc_exp_hash);
 
 int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data)
 {
-	return seq_printf(m, "%s\n",
-			  "Write into this file to clear all nid stats and stale nid entries");
+	seq_printf(m, "%s\n",
+		   "Write into this file to clear all nid stats and stale nid entries");
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_nid_stats_clear_read);
 

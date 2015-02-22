@@ -286,8 +286,8 @@ static int osc_grant_shrink_interval_seq_show(struct seq_file *m, void *v)
 
 	if (obd == NULL)
 		return 0;
-	return seq_printf(m, "%d\n",
-			obd->u.cli.cl_grant_shrink_interval);
+	seq_printf(m, "%d\n", obd->u.cli.cl_grant_shrink_interval);
+	return 0;
 }
 
 static ssize_t osc_grant_shrink_interval_seq_write(struct file *file,
@@ -320,8 +320,8 @@ static int osc_checksum_seq_show(struct seq_file *m, void *v)
 	if (obd == NULL)
 		return 0;
 
-	return seq_printf(m, "%d\n",
-			obd->u.cli.cl_checksum ? 1 : 0);
+	seq_printf(m, "%d\n", obd->u.cli.cl_checksum ? 1 : 0);
+	return 0;
 }
 
 static ssize_t osc_checksum_seq_write(struct file *file,
@@ -402,7 +402,8 @@ static int osc_resend_count_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *obd = m->private;
 
-	return seq_printf(m, "%u\n", atomic_read(&obd->u.cli.cl_resends));
+	seq_printf(m, "%u\n", atomic_read(&obd->u.cli.cl_resends));
+	return 0;
 }
 
 static ssize_t osc_resend_count_seq_write(struct file *file,
@@ -430,7 +431,8 @@ static int osc_contention_seconds_seq_show(struct seq_file *m, void *v)
 	struct obd_device *obd = m->private;
 	struct osc_device *od  = obd2osc_dev(obd);
 
-	return seq_printf(m, "%u\n", od->od_contention_time);
+	seq_printf(m, "%u\n", od->od_contention_time);
+	return 0;
 }
 
 static ssize_t osc_contention_seconds_seq_write(struct file *file,
@@ -450,7 +452,8 @@ static int osc_lockless_truncate_seq_show(struct seq_file *m, void *v)
 	struct obd_device *obd = m->private;
 	struct osc_device *od  = obd2osc_dev(obd);
 
-	return seq_printf(m, "%u\n", od->od_lockless_truncate);
+	seq_printf(m, "%u\n", od->od_lockless_truncate);
+	return 0;
 }
 
 static ssize_t osc_lockless_truncate_seq_write(struct file *file,
@@ -468,8 +471,9 @@ LPROC_SEQ_FOPS(osc_lockless_truncate);
 static int osc_destroys_in_flight_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *obd = m->private;
-	return seq_printf(m, "%u\n",
-			atomic_read(&obd->u.cli.cl_destroy_in_flight));
+
+	seq_printf(m, "%u\n", atomic_read(&obd->u.cli.cl_destroy_in_flight));
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(osc_destroys_in_flight);
 

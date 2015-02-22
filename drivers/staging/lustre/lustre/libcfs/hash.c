@@ -2010,11 +2010,12 @@ EXPORT_SYMBOL(cfs_hash_rehash_key);
 
 int cfs_hash_debug_header(struct seq_file *m)
 {
-	return seq_printf(m, "%-*s%6s%6s%6s%6s%6s%6s%6s%7s%8s%8s%8s%s\n",
-		 CFS_HASH_BIGNAME_LEN,
-		 "name", "cur", "min", "max", "theta", "t-min", "t-max",
-		 "flags", "rehash", "count", "maxdep", "maxdepb",
-		 " distribution");
+	seq_printf(m, "%-*s%6s%6s%6s%6s%6s%6s%6s%7s%8s%8s%8s%s\n",
+		   CFS_HASH_BIGNAME_LEN,
+		   "name", "cur", "min", "max", "theta", "t-min", "t-max",
+		   "flags", "rehash", "count", "maxdep", "maxdepb",
+		   " distribution");
+	return 0;
 }
 EXPORT_SYMBOL(cfs_hash_debug_header);
 
