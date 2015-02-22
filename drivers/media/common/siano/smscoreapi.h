@@ -1179,7 +1179,6 @@ int smscore_led_state(struct smscore_device_t *core, int led);
 #define DBG_INFO 1
 #define DBG_ADV  2
 
-#define sms_log(fmt, arg...) pr_info(fmt "\n", ##arg)
 #define sms_info(fmt, arg...) do {\
 	if (sms_dbg & DBG_INFO) \
 		pr_info(fmt "\n", ##arg); \
