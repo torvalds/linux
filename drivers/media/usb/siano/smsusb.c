@@ -258,13 +258,13 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id, int board_id)
 
 	rc = request_firmware(&fw, fw_filename, &udev->dev);
 	if (rc < 0) {
-		sms_warn("failed to open \"%s\" mode %d, "
-			 "trying again with default firmware", fw_filename, id);
+		pr_warn("failed to open '%s' mode %d, trying again with default firmware\n",
+			fw_filename, id);
 
 		fw_filename = smsusb1_fw_lkup[id];
 		rc = request_firmware(&fw, fw_filename, &udev->dev);
 		if (rc < 0) {
-			sms_warn("failed to open \"%s\" mode %d",
+			pr_warn("failed to open '%s' mode %d\n",
 				 fw_filename, id);
 
 			return rc;
