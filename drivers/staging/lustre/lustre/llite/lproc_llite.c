@@ -59,7 +59,7 @@ static int ll_blksize_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-	      rc = seq_printf(m, "%u\n", osfs.os_bsize);
+		seq_printf(m, "%u\n", osfs.os_bsize);
 
 	return rc;
 }
@@ -82,8 +82,9 @@ static int ll_kbytestotal_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, "%llu\n", result);
+		seq_printf(m, "%llu\n", result);
 	}
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_kbytestotal);
@@ -105,8 +106,9 @@ static int ll_kbytesfree_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, "%llu\n", result);
+		seq_printf(m, "%llu\n", result);
 	}
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_kbytesfree);
@@ -128,8 +130,9 @@ static int ll_kbytesavail_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, "%llu\n", result);
+		seq_printf(m, "%llu\n", result);
 	}
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_kbytesavail);
@@ -145,7 +148,8 @@ static int ll_filestotal_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, "%llu\n", osfs.os_files);
+		seq_printf(m, "%llu\n", osfs.os_files);
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filestotal);
@@ -161,7 +165,8 @@ static int ll_filesfree_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, "%llu\n", osfs.os_ffree);
+		seq_printf(m, "%llu\n", osfs.os_ffree);
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filesfree);
@@ -169,16 +174,15 @@ LPROC_SEQ_FOPS_RO(ll_filesfree);
 static int ll_client_type_seq_show(struct seq_file *m, void *v)
 {
 	struct ll_sb_info *sbi = ll_s2sbi((struct super_block *)m->private);
-	int rc;
 
 	LASSERT(sbi != NULL);
 
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
-		rc = seq_printf(m, "remote client\n");
+		seq_puts(m, "remote client\n");
 	else
-		rc = seq_printf(m, "local client\n");
+		seq_puts(m, "local client\n");
 
-	return rc;
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(ll_client_type);
 
