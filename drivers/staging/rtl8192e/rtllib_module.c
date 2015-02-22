@@ -207,7 +207,9 @@ static struct proc_dir_entry *rtllib_proc;
 
 static int show_debug_level(struct seq_file *m, void *v)
 {
-	return seq_printf(m, "0x%08X\n", rtllib_debug_level);
+	seq_printf(m, "0x%08X\n", rtllib_debug_level);
+
+	return 0;
 }
 
 static ssize_t write_debug_level(struct file *file, const char __user *buffer,
