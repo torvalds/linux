@@ -1682,7 +1682,7 @@ bool drm_handle_vblank(struct drm_device *dev, int crtc)
 	struct timeval tvblank;
 	unsigned long irqflags;
 
-	if (!dev->num_crtcs)
+	if (WARN_ON_ONCE(!dev->num_crtcs))
 		return false;
 
 	if (WARN_ON(crtc >= dev->num_crtcs))
