@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
@@ -157,6 +158,7 @@ static void atmel_hlcdc_crtc_disable(struct drm_crtc *c)
 		cpu_relax();
 
 	clk_disable_unprepare(crtc->dc->hlcdc->sys_clk);
+	pinctrl_pm_select_sleep_state(dev->dev);
 
 	pm_runtime_allow(dev->dev);
 
@@ -179,6 +181,7 @@ static void atmel_hlcdc_crtc_enable(struct drm_crtc *c)
 
 	pm_runtime_forbid(dev->dev);
 
+	pinctrl_pm_select_default_state(dev->dev);
 	clk_prepare_enable(crtc->dc->hlcdc->sys_clk);
 
 	regmap_write(regmap, ATMEL_HLCDC_EN, ATMEL_HLCDC_PIXEL_CLK);
