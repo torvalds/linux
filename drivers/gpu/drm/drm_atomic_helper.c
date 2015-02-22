@@ -723,7 +723,7 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		funcs = crtc->helper_private;
 
-		if (crtc->state->enable) {
+		if (crtc->state->enable && funcs->mode_set_nofb) {
 			DRM_DEBUG_ATOMIC("modeset on [CRTC:%d]\n",
 					 crtc->base.id);
 
@@ -759,7 +759,8 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call call mode_set hooks twice.
 		 */
-		funcs->mode_set(encoder, mode, adjusted_mode);
+		if (funcs->mode_set)
+			funcs->mode_set(encoder, mode, adjusted_mode);
 
 		if (encoder->bridge && encoder->bridge->funcs->mode_set)
 			encoder->bridge->funcs->mode_set(encoder->bridge,
