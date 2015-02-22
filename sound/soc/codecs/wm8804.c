@@ -15,10 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/i2c.h>
 #include <linux/of_device.h>
-#include <linux/spi/spi.h>
-#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -518,7 +515,7 @@ static int wm8804_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm8804_remove(struct snd_soc_codec *codec)
+static int wm8804_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm8804_priv *wm8804;
 	int i;
@@ -531,7 +528,7 @@ static int wm8804_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int wm8804_probe(struct snd_soc_codec *codec)
+static int wm8804_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wm8804_priv *wm8804;
 	int i, id1, id2, ret;
@@ -649,8 +646,8 @@ static struct snd_soc_dai_driver wm8804_dai = {
 };
 
 static const struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
-	.probe = wm8804_probe,
-	.remove = wm8804_remove,
+	.probe = wm8804_codec_probe,
+	.remove = wm8804_codec_remove,
 	.set_bias_level = wm8804_set_bias_level,
 	.idle_bias_off = true,
 
@@ -658,13 +655,7 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
 	.num_controls = ARRAY_SIZE(wm8804_snd_controls),
 };
 
-static const struct of_device_id wm8804_of_match[] = {
-	{ .compatible = "wlf,wm8804", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, wm8804_of_match);
-
-static const struct regmap_config wm8804_regmap_config = {
+const struct regmap_config wm8804_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -675,128 +666,30 @@ static const struct regmap_config wm8804_regmap_config = {
 	.reg_defaults = wm8804_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8804_reg_defaults),
 };
+EXPORT_SYMBOL_GPL(wm8804_regmap_config);
 
-#if defined(CONFIG_SPI_MASTER)
-static int wm8804_spi_probe(struct spi_device *spi)
+int wm8804_probe(struct device *dev, struct regmap *regmap)
 {
 	struct wm8804_priv *wm8804;
-	int ret;
 
-	wm8804 = devm_kzalloc(&spi->dev, sizeof *wm8804, GFP_KERNEL);
+	wm8804 = devm_kzalloc(dev, sizeof(*wm8804), GFP_KERNEL);
 	if (!wm8804)
 		return -ENOMEM;
 
-	wm8804->regmap = devm_regmap_init_spi(spi, &wm8804_regmap_config);
-	if (IS_ERR(wm8804->regmap)) {
-		ret = PTR_ERR(wm8804->regmap);
-		return ret;
-	}
+	dev_set_drvdata(dev, wm8804);
 
-	spi_set_drvdata(spi, wm8804);
+	wm8804->regmap = regmap;
 
-	ret = snd_soc_register_codec(&spi->dev,
-				     &soc_codec_dev_wm8804, &wm8804_dai, 1);
-
-	return ret;
+	return snd_soc_register_codec(dev, &soc_codec_dev_wm8804,
+				      &wm8804_dai, 1);
 }
+EXPORT_SYMBOL_GPL(wm8804_probe);
 
-static int wm8804_spi_remove(struct spi_device *spi)
+void wm8804_remove(struct device *dev)
 {
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
+	snd_soc_unregister_codec(dev);
 }
-
-static struct spi_driver wm8804_spi_driver = {
-	.driver = {
-		.name = "wm8804",
-		.owner = THIS_MODULE,
-		.of_match_table = wm8804_of_match,
-	},
-	.probe = wm8804_spi_probe,
-	.remove = wm8804_spi_remove
-};
-#endif
-
-#if IS_ENABLED(CONFIG_I2C)
-static int wm8804_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
-{
-	struct wm8804_priv *wm8804;
-	int ret;
-
-	wm8804 = devm_kzalloc(&i2c->dev, sizeof *wm8804, GFP_KERNEL);
-	if (!wm8804)
-		return -ENOMEM;
-
-	wm8804->regmap = devm_regmap_init_i2c(i2c, &wm8804_regmap_config);
-	if (IS_ERR(wm8804->regmap)) {
-		ret = PTR_ERR(wm8804->regmap);
-		return ret;
-	}
-
-	i2c_set_clientdata(i2c, wm8804);
-
-	ret = snd_soc_register_codec(&i2c->dev,
-				     &soc_codec_dev_wm8804, &wm8804_dai, 1);
-	return ret;
-}
-
-static int wm8804_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_codec(&i2c->dev);
-	return 0;
-}
-
-static const struct i2c_device_id wm8804_i2c_id[] = {
-	{ "wm8804", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wm8804_i2c_id);
-
-static struct i2c_driver wm8804_i2c_driver = {
-	.driver = {
-		.name = "wm8804",
-		.owner = THIS_MODULE,
-		.of_match_table = wm8804_of_match,
-	},
-	.probe = wm8804_i2c_probe,
-	.remove = wm8804_i2c_remove,
-	.id_table = wm8804_i2c_id
-};
-#endif
-
-static int __init wm8804_modinit(void)
-{
-	int ret = 0;
-
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&wm8804_i2c_driver);
-	if (ret) {
-		printk(KERN_ERR "Failed to register wm8804 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&wm8804_spi_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8804 SPI driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(wm8804_modinit);
-
-static void __exit wm8804_exit(void)
-{
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&wm8804_i2c_driver);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&wm8804_spi_driver);
-#endif
-}
-module_exit(wm8804_exit);
+EXPORT_SYMBOL_GPL(wm8804_remove);
 
 MODULE_DESCRIPTION("ASoC WM8804 driver");
 MODULE_AUTHOR("Dimitris Papastamos <dp@opensource.wolfsonmicro.com>");
