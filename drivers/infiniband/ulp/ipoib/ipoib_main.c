@@ -839,7 +839,7 @@ static void ipoib_set_mcast_list(struct net_device *dev)
 		return;
 	}
 
-	queue_work(ipoib_workqueue, &priv->restart_task);
+	queue_work(priv->wq, &priv->restart_task);
 }
 
 static int ipoib_get_iflink(const struct net_device *dev)
@@ -961,7 +961,7 @@ static void ipoib_reap_neigh(struct work_struct *work)
 	__ipoib_reap_neigh(priv);
 
 	if (!test_bit(IPOIB_STOP_NEIGH_GC, &priv->flags))
-		queue_delayed_work(ipoib_workqueue, &priv->neigh_reap_task,
+		queue_delayed_work(priv->wq, &priv->neigh_reap_task,
 				   arp_tbl.gc_interval);
 }
 
@@ -1140,7 +1140,7 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 
 	/* start garbage collection */
 	clear_bit(IPOIB_STOP_NEIGH_GC, &priv->flags);
-	queue_delayed_work(ipoib_workqueue, &priv->neigh_reap_task,
+	queue_delayed_work(priv->wq, &priv->neigh_reap_task,
 			   arp_tbl.gc_interval);
 
 	return 0;
@@ -1651,10 +1651,11 @@ sysfs_failed:
 
 register_failed:
 	ib_unregister_event_handler(&priv->event_handler);
+	flush_workqueue(ipoib_workqueue);
 	/* Stop GC if started before flush */
 	set_bit(IPOIB_STOP_NEIGH_GC, &priv->flags);
 	cancel_delayed_work(&priv->neigh_reap_task);
-	flush_workqueue(ipoib_workqueue);
+	flush_workqueue(priv->wq);
 
 event_failed:
 	ipoib_dev_cleanup(priv->dev);
@@ -1717,6 +1718,7 @@ static void ipoib_remove_one(struct ib_device *device)
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		ib_unregister_event_handler(&priv->event_handler);
+		flush_workqueue(ipoib_workqueue);
 
 		rtnl_lock();
 		dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP);
@@ -1725,7 +1727,7 @@ static void ipoib_remove_one(struct ib_device *device)
 		/* Stop GC */
 		set_bit(IPOIB_STOP_NEIGH_GC, &priv->flags);
 		cancel_delayed_work(&priv->neigh_reap_task);
-		flush_workqueue(ipoib_workqueue);
+		flush_workqueue(priv->wq);
 
 		unregister_netdev(priv->dev);
 		free_netdev(priv->dev);
@@ -1760,14 +1762,16 @@ static int __init ipoib_init_module(void)
 		return ret;
 
 	/*
-	 * We create our own workqueue mainly because we want to be
-	 * able to flush it when devices are being removed.  We can't
-	 * use schedule_work()/flush_scheduled_work() because both
-	 * unregister_netdev() and linkwatch_event take the rtnl lock,
-	 * so flush_scheduled_work() can deadlock during device
-	 * removal.
+	 * We create a global workqueue here that is used for all flush
+	 * operations.  However, if you attempt to flush a workqueue
+	 * from a task on that same workqueue, it deadlocks the system.
+	 * We want to be able to flush the tasks associated with a
+	 * specific net device, so we also create a workqueue for each
+	 * netdevice.  We queue up the tasks for that device only on
+	 * its private workqueue, and we only queue up flush events
+	 * on our global flush workqueue.  This avoids the deadlocks.
 	 */
-	ipoib_workqueue = create_singlethread_workqueue("ipoib");
+	ipoib_workqueue = create_singlethread_workqueue("ipoib_flush");
 	if (!ipoib_workqueue) {
 		ret = -ENOMEM;
 		goto err_fs;
