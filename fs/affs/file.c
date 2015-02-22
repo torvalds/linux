@@ -12,7 +12,7 @@
  *  affs regular file handling primitives
  */
 
-#include <linux/aio.h>
+#include <linux/uio.h>
 #include "affs.h"
 
 static struct buffer_head *affs_get_extblock_slow(struct inode *inode, u32 ext);

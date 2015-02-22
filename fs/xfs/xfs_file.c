@@ -37,7 +37,6 @@
 #include "xfs_log.h"
 #include "xfs_icache.h"
 
-#include <linux/aio.h>
 #include <linux/dcache.h>
 #include <linux/falloc.h>
 #include <linux/pagevec.h>
