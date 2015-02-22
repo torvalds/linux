@@ -140,7 +140,8 @@ static void rcar_du_plane_setup_fb(struct rcar_du_plane *plane)
 	bool interlaced;
 	u32 mwr;
 
-	interlaced = plane->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE;
+	interlaced = plane->plane.state->crtc->state->adjusted_mode.flags
+		   & DRM_MODE_FLAG_INTERLACE;
 
 	/* Memory pitch (expressed in pixels). Must be doubled for interlaced
 	 * operation with 32bpp formats.
@@ -354,16 +355,11 @@ static int rcar_du_plane_atomic_check(struct drm_plane *plane,
 
 static void rcar_du_plane_disable(struct rcar_du_plane *rplane)
 {
-	if (!rplane->enabled)
+	if (!rplane->plane.state->crtc)
 		return;
-
-	mutex_lock(&rplane->group->planes.lock);
-	rplane->enabled = false;
-	mutex_unlock(&rplane->group->planes.lock);
 
 	rcar_du_plane_release(rplane);
 
-	rplane->crtc = NULL;
 	rplane->format = NULL;
 }
 
@@ -391,14 +387,9 @@ static void rcar_du_plane_atomic_update(struct drm_plane *plane,
 		rcar_du_plane_reserve(rplane, format);
 	}
 
-	rplane->crtc = state->crtc;
 	rplane->format = format;
 
 	rcar_du_plane_setup(rplane);
-
-	mutex_lock(&rplane->group->planes.lock);
-	rplane->enabled = true;
-	mutex_unlock(&rplane->group->planes.lock);
 }
 
 static const struct drm_plane_helper_funcs rcar_du_plane_helper_funcs = {

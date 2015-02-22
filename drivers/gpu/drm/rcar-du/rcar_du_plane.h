@@ -34,9 +34,6 @@ struct rcar_du_plane {
 	struct drm_plane plane;
 
 	struct rcar_du_group *group;
-	struct drm_crtc *crtc;
-
-	bool enabled;
 
 	int hwindex;		/* 0-based, -1 means unused */
 

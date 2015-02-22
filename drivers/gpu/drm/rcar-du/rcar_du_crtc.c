@@ -212,7 +212,7 @@ static void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 		struct rcar_du_plane *plane = &rcrtc->group->planes.planes[i];
 		unsigned int j;
 
-		if (plane->crtc != &rcrtc->crtc || !plane->enabled)
+		if (plane->plane.state->crtc != &rcrtc->crtc)
 			continue;
 
 		/* Insert the plane in the sorted planes array. */
@@ -379,7 +379,7 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes.planes); ++i) {
 		struct rcar_du_plane *plane = &rcrtc->group->planes.planes[i];
 
-		if (plane->crtc != crtc || !plane->enabled)
+		if (plane->plane.state->crtc != crtc)
 			continue;
 
 		rcar_du_plane_setup(plane);
@@ -607,8 +607,6 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->index = index;
 	rcrtc->enabled = false;
 	rcrtc->plane = &rgrp->planes.planes[index % 2];
-
-	rcrtc->plane->crtc = crtc;
 
 	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc, &rcrtc->plane->plane,
 					NULL, &crtc_funcs);
