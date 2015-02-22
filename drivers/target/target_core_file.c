@@ -331,36 +331,33 @@ static int fd_do_rw(struct se_cmd *cmd, struct scatterlist *sgl,
 	struct fd_dev *dev = FD_DEV(se_dev);
 	struct file *fd = dev->fd_file;
 	struct scatterlist *sg;
-	struct iovec *iov;
-	mm_segment_t old_fs;
+	struct iov_iter iter;
+	struct bio_vec *bvec;
+	ssize_t len = 0;
 	loff_t pos = (cmd->t_task_lba * se_dev->dev_attrib.block_size);
 	int ret = 0, i;
 
-	iov = kzalloc(sizeof(struct iovec) * sgl_nents, GFP_KERNEL);
-	if (!iov) {
+	bvec = kcalloc(sgl_nents, sizeof(struct bio_vec), GFP_KERNEL);
+	if (!bvec) {
 		pr_err("Unable to allocate fd_do_readv iov[]\n");
 		return -ENOMEM;
 	}
 
 	for_each_sg(sgl, sg, sgl_nents, i) {
-		iov[i].iov_len = sg->length;
-		iov[i].iov_base = kmap(sg_page(sg)) + sg->offset;
+		bvec[i].bv_page = sg_page(sg);
+		bvec[i].bv_len = sg->length;
+		bvec[i].bv_offset = sg->offset;
+
+		len += sg->length;
 	}
 
-	old_fs = get_fs();
-	set_fs(get_ds());
-
+	iov_iter_bvec(&iter, ITER_BVEC, bvec, sgl_nents, len);
 	if (is_write)
-		ret = vfs_writev(fd, &iov[0], sgl_nents, &pos);
+		ret = vfs_iter_write(fd, &iter, &pos);
 	else
-		ret = vfs_readv(fd, &iov[0], sgl_nents, &pos);
+		ret = vfs_iter_read(fd, &iter, &pos);
 
-	set_fs(old_fs);
-
-	for_each_sg(sgl, sg, sgl_nents, i)
-		kunmap(sg_page(sg));
-
-	kfree(iov);
+	kfree(bvec);
 
 	if (is_write) {
 		if (ret < 0 || ret != cmd->data_length) {
