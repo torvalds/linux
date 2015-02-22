@@ -63,7 +63,7 @@ static void __init s5pv210_dt_init_late(void)
 	s5pv210_pm_init();
 }
 
-static char const *s5pv210_dt_compat[] __initconst = {
+static char const *const s5pv210_dt_compat[] __initconst = {
 	"samsung,s5pc110",
 	"samsung,s5pv210",
 	NULL
