@@ -15,6 +15,7 @@
 #define __RCAR_DU_DRV_H__
 
 #include <linux/kernel.h>
+#include <linux/wait.h>
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_group.h"
@@ -84,6 +85,11 @@ struct rcar_du_device {
 
 	unsigned int dpad0_source;
 	struct rcar_du_lvdsenc *lvds[RCAR_DU_MAX_LVDS];
+
+	struct {
+		wait_queue_head_t wait;
+		u32 pending;
+	} commit;
 };
 
 static inline bool rcar_du_has(struct rcar_du_device *rcdu,

@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
+#include <linux/wait.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -162,6 +163,8 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 		dev_err(dev->dev, "failed to allocate private data\n");
 		return -ENOMEM;
 	}
+
+	init_waitqueue_head(&rcdu->commit.wait);
 
 	rcdu->dev = &pdev->dev;
 	rcdu->info = np ? of_match_device(rcar_du_of_table, rcdu->dev)->data
