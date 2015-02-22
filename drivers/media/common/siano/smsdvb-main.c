@@ -1180,7 +1180,6 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	client->event_unc_state = -1;
 	sms_board_dvb3_event(client, DVB3_EVENT_HOTPLUG);
 
-	pr_debug("success\n");
 	sms_board_setup(coredev);
 
 	if (smsdvb_debugfs_create(client) < 0)
@@ -1188,6 +1187,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	dvb_create_media_graph(coredev->media_dev);
 
+	pr_info("DVB interface registered.\n");
 	return 0;
 
 client_error:
