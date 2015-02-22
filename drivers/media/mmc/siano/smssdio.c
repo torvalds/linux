@@ -142,14 +142,14 @@ static void smssdio_interrupt(struct sdio_func *func)
 	 */
 	(void)sdio_readb(func, SMSSDIO_INT, &ret);
 	if (ret) {
-		sms_err("Unable to read interrupt register!\n");
+		pr_err("Unable to read interrupt register!\n");
 		return;
 	}
 
 	if (smsdev->split_cb == NULL) {
 		cb = smscore_getbuffer(smsdev->coredev);
 		if (!cb) {
-			sms_err("Unable to allocate data buffer!\n");
+			pr_err("Unable to allocate data buffer!\n");
 			return;
 		}
 
@@ -158,7 +158,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 					 SMSSDIO_DATA,
 					 SMSSDIO_BLOCK_SIZE);
 		if (ret) {
-			sms_err("Error %d reading initial block!\n", ret);
+			pr_err("Error %d reading initial block!\n", ret);
 			return;
 		}
 
@@ -199,7 +199,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 					 size);
 		if (ret && ret != -EINVAL) {
 			smscore_putbuffer(smsdev->coredev, cb);
-			sms_err("Error %d reading data from card!\n", ret);
+			pr_err("Error %d reading data from card!\n", ret);
 			return;
 		}
 
@@ -217,8 +217,8 @@ static void smssdio_interrupt(struct sdio_func *func)
 						  smsdev->func->cur_blksize);
 				if (ret) {
 					smscore_putbuffer(smsdev->coredev, cb);
-					sms_err("Error %d reading "
-						"data from card!\n", ret);
+					pr_err("Error %d reading data from card!\n",
+					       ret);
 					return;
 				}
 

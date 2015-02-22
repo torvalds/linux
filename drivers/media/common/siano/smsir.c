@@ -59,10 +59,8 @@ int sms_ir_init(struct smscore_device_t *coredev)
 
 	sms_log("Allocating rc device");
 	dev = rc_allocate_device();
-	if (!dev) {
-		sms_err("Not enough memory");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	coredev->ir.controller = 0;	/* Todo: vega/nova SPI number */
 	coredev->ir.timeout = IR_DEFAULT_TIMEOUT;
@@ -97,7 +95,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 
 	err = rc_register_device(dev);
 	if (err < 0) {
-		sms_err("Failed to register device");
+		pr_err("Failed to register device\n");
 		rc_free_device(dev);
 		return err;
 	}

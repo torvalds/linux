@@ -124,7 +124,7 @@ static void sms_board_dvb3_event(struct smsdvb_client_t *client,
 		break;
 
 	default:
-		sms_err("Unknown dvb3 api event");
+		pr_err("Unknown dvb3 api event\n");
 		break;
 	}
 }
@@ -1097,10 +1097,8 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	if (!arrival)
 		return 0;
 	client = kzalloc(sizeof(struct smsdvb_client_t), GFP_KERNEL);
-	if (!client) {
-		sms_err("kmalloc() failed");
+	if (!client)
 		return -ENOMEM;
-	}
 
 	/* register dvb adapter */
 	rc = dvb_register_adapter(&client->adapter,
@@ -1108,7 +1106,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 					smscore_get_board_id(coredev))->name,
 				  THIS_MODULE, device, adapter_nr);
 	if (rc < 0) {
-		sms_err("dvb_register_adapter() failed %d", rc);
+		pr_err("dvb_register_adapter() failed %d\n", rc);
 		goto adapter_error;
 	}
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
@@ -1124,7 +1122,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = dvb_dmx_init(&client->demux);
 	if (rc < 0) {
-		sms_err("dvb_dmx_init failed %d", rc);
+		pr_err("dvb_dmx_init failed %d\n", rc);
 		goto dvbdmx_error;
 	}
 
@@ -1135,7 +1133,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = dvb_dmxdev_init(&client->dmxdev, &client->adapter);
 	if (rc < 0) {
-		sms_err("dvb_dmxdev_init failed %d", rc);
+		pr_err("dvb_dmxdev_init failed %d\n", rc);
 		goto dmxdev_error;
 	}
 
@@ -1156,7 +1154,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = dvb_register_frontend(&client->adapter, &client->frontend);
 	if (rc < 0) {
-		sms_err("frontend registration failed %d", rc);
+		pr_err("frontend registration failed %d\n", rc);
 		goto frontend_error;
 	}
 
@@ -1168,7 +1166,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = smscore_register_client(coredev, &params, &client->smsclient);
 	if (rc < 0) {
-		sms_err("smscore_register_client() failed %d", rc);
+		pr_err("smscore_register_client() failed %d\n", rc);
 		goto client_error;
 	}
 

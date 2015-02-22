@@ -461,7 +461,7 @@ static struct smscore_registry_entry_t *smscore_find_registry(char *devpath)
 		strcpy(entry->devpath, devpath);
 		list_add(&entry->entry, &g_smscore_registry);
 	} else
-		sms_err("failed to create smscore_registry.");
+		pr_err("failed to create smscore_registry.\n");
 	kmutex_unlock(&g_smscore_registrylock);
 	return entry;
 }
@@ -474,7 +474,7 @@ int smscore_registry_getmode(char *devpath)
 	if (entry)
 		return entry->mode;
 	else
-		sms_err("No registry found.");
+		pr_err("No registry found.\n");
 
 	return default_mode;
 }
@@ -488,7 +488,7 @@ static enum sms_device_type_st smscore_registry_gettype(char *devpath)
 	if (entry)
 		return entry->type;
 	else
-		sms_err("No registry found.");
+		pr_err("No registry found.\n");
 
 	return -EINVAL;
 }
@@ -501,7 +501,7 @@ static void smscore_registry_setmode(char *devpath, int mode)
 	if (entry)
 		entry->mode = mode;
 	else
-		sms_err("No registry found.");
+		pr_err("No registry found.\n");
 }
 
 static void smscore_registry_settype(char *devpath,
@@ -513,7 +513,7 @@ static void smscore_registry_settype(char *devpath,
 	if (entry)
 		entry->type = type;
 	else
-		sms_err("No registry found.");
+		pr_err("No registry found.\n");
 }
 
 
@@ -791,7 +791,7 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 		rc = sms_ir_init(coredev);
 
 		if	(rc != 0)
-			sms_err("Error initialization DTV IR sub-module");
+			pr_err("Error initialization DTV IR sub-module\n");
 		else {
 			buffer = kmalloc(sizeof(struct sms_msg_data2) +
 						SMS_DMA_ALIGNMENT,
@@ -813,8 +813,7 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 
 				kfree(buffer);
 			} else
-				sms_err
-				("Sending IR initialization message failed");
+				pr_err("Sending IR initialization message failed\n");
 		}
 	} else
 		sms_info("IR port has not been detected");
@@ -836,7 +835,7 @@ static int smscore_configure_board(struct smscore_device_t *coredev)
 
 	board = sms_get_board(coredev->board_id);
 	if (!board) {
-		sms_err("no board configuration exist.");
+		pr_err("no board configuration exist.\n");
 		return -EINVAL;
 	}
 
@@ -949,7 +948,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 						  msg->x_msg_header.msg_length,
 						  &coredev->reload_start_done);
 		if (rc < 0) {
-			sms_err("device reload failed, rc %d", rc);
+			pr_err("device reload failed, rc %d\n", rc);
 			goto exit_fw_download;
 		}
 		mem_address = *(u32 *) &payload[20];
@@ -1155,7 +1154,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 
 	char *fw_filename = smscore_get_fw_filename(coredev, mode);
 	if (!fw_filename) {
-		sms_err("mode %d not supported on this device", mode);
+		pr_err("mode %d not supported on this device\n", mode);
 		return -ENOENT;
 	}
 	sms_debug("Firmware name: %s", fw_filename);
@@ -1166,14 +1165,14 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 
 	rc = request_firmware(&fw, fw_filename, coredev->device);
 	if (rc < 0) {
-		sms_err("failed to open firmware file \"%s\"", fw_filename);
+		pr_err("failed to open firmware file '%s'\n", fw_filename);
 		return rc;
 	}
 	sms_info("read fw %s, buffer size=0x%zx", fw_filename, fw->size);
 	fw_buf = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
 			 GFP_KERNEL | GFP_DMA);
 	if (!fw_buf) {
-		sms_err("failed to allocate firmware buffer");
+		pr_err("failed to allocate firmware buffer\n");
 		rc = -ENOMEM;
 	} else {
 		memcpy(fw_buf, fw->data, fw->size);
@@ -1272,7 +1271,7 @@ static int smscore_detect_mode(struct smscore_device_t *coredev)
 	rc = smscore_sendrequest_and_wait(coredev, msg, msg->msg_length,
 					  &coredev->version_ex_done);
 	if (rc == -ETIME) {
-		sms_err("MSG_SMS_GET_VERSION_EX_REQ failed first try");
+		pr_err("MSG_SMS_GET_VERSION_EX_REQ failed first try\n");
 
 		if (wait_for_completion_timeout(&coredev->resume_done,
 						msecs_to_jiffies(5000))) {
@@ -1280,7 +1279,7 @@ static int smscore_detect_mode(struct smscore_device_t *coredev)
 				coredev, msg, msg->msg_length,
 				&coredev->version_ex_done);
 			if (rc < 0)
-				sms_err("MSG_SMS_GET_VERSION_EX_REQ failed second try, rc %d",
+				pr_err("MSG_SMS_GET_VERSION_EX_REQ failed second try, rc %d\n",
 					rc);
 		} else
 			rc = -ETIME;
@@ -1309,7 +1308,7 @@ static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 	buffer = kmalloc(sizeof(struct sms_msg_data) +
 			SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
 	if (!buffer) {
-		sms_err("Could not allocate buffer for init device message.");
+		pr_err("Could not allocate buffer for init device message.\n");
 		return -ENOMEM;
 	}
 
@@ -1343,7 +1342,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 	sms_debug("set device mode to %d", mode);
 	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
 		if (mode <= DEVICE_MODE_NONE || mode >= DEVICE_MODE_MAX) {
-			sms_err("invalid mode specified %d", mode);
+			pr_err("invalid mode specified %d\n", mode);
 			return -EINVAL;
 		}
 
@@ -1352,7 +1351,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		if (!(coredev->device_flags & SMS_DEVICE_NOT_READY)) {
 			rc = smscore_detect_mode(coredev);
 			if (rc < 0) {
-				sms_err("mode detect failed %d", rc);
+				pr_err("mode detect failed %d\n", rc);
 				return rc;
 			}
 		}
@@ -1374,11 +1373,11 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		if (coredev->fw_version >= 0x800) {
 			rc = smscore_init_device(coredev, mode);
 			if (rc < 0)
-				sms_err("device init failed, rc %d.", rc);
+				pr_err("device init failed, rc %d.\n", rc);
 		}
 	} else {
 		if (mode <= DEVICE_MODE_NONE || mode >= DEVICE_MODE_MAX) {
-			sms_err("invalid mode specified %d", mode);
+			pr_err("invalid mode specified %d\n", mode);
 			return -EINVAL;
 		}
 
@@ -1415,7 +1414,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 	}
 
 	if (rc < 0)
-		sms_err("return error code %d.", rc);
+		pr_err("return error code %d.\n", rc);
 	else
 		sms_debug("Success setting device mode.");
 
@@ -1682,7 +1681,7 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
 	struct smscore_client_t *registered_client;
 
 	if (!client) {
-		sms_err("bad parameter.");
+		pr_err("bad parameter.\n");
 		return -EINVAL;
 	}
 	registered_client = smscore_find_client(coredev, data_type, id);
@@ -1690,12 +1689,12 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
 		return 0;
 
 	if (registered_client) {
-		sms_err("The msg ID already registered to another client.");
+		pr_err("The msg ID already registered to another client.\n");
 		return -EEXIST;
 	}
 	listentry = kzalloc(sizeof(struct smscore_idlist_t), GFP_KERNEL);
 	if (!listentry) {
-		sms_err("Can't allocate memory for client id.");
+		pr_err("Can't allocate memory for client id.\n");
 		return -ENOMEM;
 	}
 	listentry->id = id;
@@ -1727,13 +1726,13 @@ int smscore_register_client(struct smscore_device_t *coredev,
 	/* check that no other channel with same parameters exists */
 	if (smscore_find_client(coredev, params->data_type,
 				params->initial_id)) {
-		sms_err("Client already exist.");
+		pr_err("Client already exist.\n");
 		return -EEXIST;
 	}
 
 	newclient = kzalloc(sizeof(struct smscore_client_t), GFP_KERNEL);
 	if (!newclient) {
-		sms_err("Failed to allocate memory for client.");
+		pr_err("Failed to allocate memory for client.\n");
 		return -ENOMEM;
 	}
 
@@ -1804,7 +1803,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	int rc;
 
 	if (client == NULL) {
-		sms_err("Got NULL client");
+		pr_err("Got NULL client\n");
 		return -EINVAL;
 	}
 
@@ -1812,7 +1811,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 
 	/* check that no other channel with same id exists */
 	if (coredev == NULL) {
-		sms_err("Got NULL coredev");
+		pr_err("Got NULL coredev\n");
 		return -EINVAL;
 	}
 
@@ -2017,9 +2016,9 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 pin_num,
 
 	if (rc != 0) {
 		if (rc == -ETIME)
-			sms_err("smscore_gpio_configure timeout");
+			pr_err("smscore_gpio_configure timeout\n");
 		else
-			sms_err("smscore_gpio_configure error");
+			pr_err("smscore_gpio_configure error\n");
 	}
 free:
 	kfree(buffer);
@@ -2066,9 +2065,9 @@ int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 pin_num,
 
 	if (rc != 0) {
 		if (rc == -ETIME)
-			sms_err("smscore_gpio_set_level timeout");
+			pr_err("smscore_gpio_set_level timeout\n");
 		else
-			sms_err("smscore_gpio_set_level error");
+			pr_err("smscore_gpio_set_level error\n");
 	}
 	kfree(buffer);
 
@@ -2114,9 +2113,9 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 pin_num,
 
 	if (rc != 0) {
 		if (rc == -ETIME)
-			sms_err("smscore_gpio_get_level timeout");
+			pr_err("smscore_gpio_get_level timeout\n");
 		else
-			sms_err("smscore_gpio_get_level error");
+			pr_err("smscore_gpio_get_level error\n");
 	}
 	kfree(buffer);
 

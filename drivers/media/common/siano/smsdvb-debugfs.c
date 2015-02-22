@@ -534,7 +534,7 @@ int smsdvb_debugfs_register(void)
 	 */
 	d = debugfs_create_dir("smsdvb", usb_debug_root);
 	if (IS_ERR_OR_NULL(d)) {
-		sms_err("Couldn't create sysfs node for smsdvb");
+		pr_err("Couldn't create sysfs node for smsdvb\n");
 		return PTR_ERR(d);
 	} else {
 		smsdvb_debugfs_usb_root = d;

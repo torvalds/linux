@@ -232,7 +232,7 @@ int sms_board_event(struct smscore_device_t *coredev,
 		break; /* BOARD_EVENT_MULTIPLEX_ERRORS */
 
 	default:
-		sms_err("Unknown SMS board event");
+		pr_err("Unknown SMS board event\n");
 		break;
 	}
 	return 0;
