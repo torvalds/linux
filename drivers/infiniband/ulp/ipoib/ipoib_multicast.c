@@ -55,8 +55,6 @@ MODULE_PARM_DESC(mcast_debug_level,
 		 "Enable multicast debug tracing if > 0");
 #endif
 
-static DEFINE_MUTEX(mcast_mutex);
-
 struct ipoib_mcast_iter {
 	struct net_device *dev;
 	union ib_gid       mgid;
@@ -67,7 +65,7 @@ struct ipoib_mcast_iter {
 };
 
 /*
- * This should be called with the mcast_mutex held
+ * This should be called with the priv->lock held
  */
 static void __ipoib_mcast_schedule_join_thread(struct ipoib_dev_priv *priv,
 					       struct ipoib_mcast *mcast,
@@ -352,16 +350,6 @@ static int ipoib_mcast_join_complete(int status,
 			"sendonly " : "",
 			mcast->mcmember.mgid.raw, status);
 
-	/*
-	 * We have to take the mutex to force mcast_join to
-	 * return from ib_sa_multicast_join and set mcast->mc to a
-	 * valid value.  Otherwise we were racing with ourselves in
-	 * that we might fail here, but get a valid return from
-	 * ib_sa_multicast_join after we had cleared mcast->mc here,
-	 * resulting in mis-matched joins and leaves and a deadlock
-	 */
-	mutex_lock(&mcast_mutex);
-
 	/* We trap for port events ourselves. */
 	if (status == -ENETRESET) {
 		status = 0;
@@ -383,8 +371,10 @@ static int ipoib_mcast_join_complete(int status,
 		 * send out all of the non-broadcast joins
 		 */
 		if (mcast == priv->broadcast) {
+			spin_lock_irq(&priv->lock);
 			queue_work(priv->wq, &priv->carrier_on_task);
 			__ipoib_mcast_schedule_join_thread(priv, NULL, 0);
+			goto out_locked;
 		}
 	} else {
 		if (mcast->logcount++ < 20) {
@@ -417,16 +407,28 @@ static int ipoib_mcast_join_complete(int status,
 				dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 			}
 			netif_tx_unlock_bh(dev);
-		} else
+		} else {
+			spin_lock_irq(&priv->lock);
 			/* Requeue this join task with a backoff delay */
 			__ipoib_mcast_schedule_join_thread(priv, mcast, 1);
+			goto out_locked;
+		}
 	}
 out:
-	clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
+	spin_lock_irq(&priv->lock);
+out_locked:
+	/*
+	 * Make sure to set mcast->mc before we clear the busy flag to avoid
+	 * racing with code that checks for BUSY before checking mcast->mc
+	 */
 	if (status)
 		mcast->mc = NULL;
+	else
+		mcast->mc = multicast;
+	clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
+	spin_unlock_irq(&priv->lock);
 	complete(&mcast->done);
-	mutex_unlock(&mcast_mutex);
+
 	return status;
 }
 
@@ -434,6 +436,7 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 			     int create)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ib_sa_multicast *multicast;
 	struct ib_sa_mcmember_rec rec = {
 		.join_state = 1
 	};
@@ -475,18 +478,19 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		rec.hop_limit	  = priv->broadcast->mcmember.hop_limit;
 	}
 
-	mutex_lock(&mcast_mutex);
-	mcast->mc = ib_sa_join_multicast(&ipoib_sa_client, priv->ca, priv->port,
+	multicast = ib_sa_join_multicast(&ipoib_sa_client, priv->ca, priv->port,
 					 &rec, comp_mask, GFP_KERNEL,
 					 ipoib_mcast_join_complete, mcast);
-	if (IS_ERR(mcast->mc)) {
-		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
-		ret = PTR_ERR(mcast->mc);
+	if (IS_ERR(multicast)) {
+		ret = PTR_ERR(multicast);
 		ipoib_warn(priv, "ib_sa_join_multicast failed, status %d\n", ret);
+		spin_lock_irq(&priv->lock);
+		/* Requeue this join task with a backoff delay */
 		__ipoib_mcast_schedule_join_thread(priv, mcast, 1);
+		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
+		spin_unlock_irq(&priv->lock);
 		complete(&mcast->done);
 	}
-	mutex_unlock(&mcast_mutex);
 }
 
 void ipoib_mcast_join_task(struct work_struct *work)
@@ -515,15 +519,6 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	else
 		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
 
-	/*
-	 * We have to hold the mutex to keep from racing with the join
-	 * completion threads on setting flags on mcasts, and we have
-	 * to hold the priv->lock because dev_flush will remove entries
-	 * out from underneath us, so at a minimum we need the lock
-	 * through the time that we do the for_each loop of the mcast
-	 * list or else dev_flush can make us oops.
-	 */
-	mutex_lock(&mcast_mutex);
 	spin_lock_irq(&priv->lock);
 	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
 		goto out;
@@ -584,9 +579,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 				else
 					create = 1;
 				spin_unlock_irq(&priv->lock);
-				mutex_unlock(&mcast_mutex);
 				ipoib_mcast_join(dev, mcast, create);
-				mutex_lock(&mcast_mutex);
 				spin_lock_irq(&priv->lock);
 			} else if (!delay_until ||
 				 time_before(mcast->delay_until, delay_until))
@@ -608,7 +601,6 @@ out:
 		set_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
 	}
 	spin_unlock_irq(&priv->lock);
-	mutex_unlock(&mcast_mutex);
 	if (mcast)
 		ipoib_mcast_join(dev, mcast, create);
 }
@@ -616,13 +608,14 @@ out:
 int ipoib_mcast_start_thread(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	unsigned long flags;
 
 	ipoib_dbg_mcast(priv, "starting multicast thread\n");
 
-	mutex_lock(&mcast_mutex);
+	spin_lock_irqsave(&priv->lock, flags);
 	set_bit(IPOIB_MCAST_RUN, &priv->flags);
 	__ipoib_mcast_schedule_join_thread(priv, NULL, 0);
-	mutex_unlock(&mcast_mutex);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -630,13 +623,14 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 int ipoib_mcast_stop_thread(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	unsigned long flags;
 
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
 
-	mutex_lock(&mcast_mutex);
+	spin_lock_irqsave(&priv->lock, flags);
 	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
 	cancel_delayed_work(&priv->mcast_task);
-	mutex_unlock(&mcast_mutex);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	flush_workqueue(priv->wq);
 
