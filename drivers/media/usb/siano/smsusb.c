@@ -340,18 +340,18 @@ static void smsusb_term_device(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 }
 
-static void siano_media_device_register(struct smsusb_device_t *dev)
+static void *siano_media_device_register(struct smsusb_device_t *dev,
+					int board_id)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	struct media_device *mdev;
 	struct usb_device *udev = dev->udev;
-	int board_id = smscore_get_board_id(dev->coredev);
 	struct sms_board *board = sms_get_board(board_id);
 	int ret;
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return;
+		return NULL;
 
 	mdev->dev = &udev->dev;
 	strlcpy(mdev->model, board->name, sizeof(mdev->model));
@@ -366,13 +366,14 @@ static void siano_media_device_register(struct smsusb_device_t *dev)
 		pr_err("Couldn't create a media device. Error: %d\n",
 			ret);
 		kfree(mdev);
-		return;
+		return NULL;
 	}
-
-	dev->coredev->media_dev = mdev;
 
 	pr_info("media controller created\n");
 
+	return mdev;
+#else
+	return NULL;
 #endif
 }
 
@@ -380,6 +381,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 {
 	struct smsdevice_params_t params;
 	struct smsusb_device_t *dev;
+	void *mdev;
 	int i, rc;
 
 	/* create device object */
@@ -431,11 +433,15 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	params.context = dev;
 	usb_make_path(dev->udev, params.devpath, sizeof(params.devpath));
 
+	mdev = siano_media_device_register(dev, board_id);
+
 	/* register in smscore */
-	rc = smscore_register_device(&params, &dev->coredev);
+	rc = smscore_register_device(&params, &dev->coredev, mdev);
 	if (rc < 0) {
 		pr_err("smscore_register_device(...) failed, rc %d\n", rc);
 		smsusb_term_device(intf);
+		media_device_unregister(mdev);
+		kfree(mdev);
 		return rc;
 	}
 
@@ -467,7 +473,6 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	}
 
 	pr_debug("device 0x%p created\n", dev);
-	siano_media_device_register(dev);
 
 	return rc;
 }

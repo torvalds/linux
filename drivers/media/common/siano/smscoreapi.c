@@ -653,7 +653,8 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
  * @return 0 on success, <0 on error.
  */
 int smscore_register_device(struct smsdevice_params_t *params,
-			    struct smscore_device_t **coredev)
+			    struct smscore_device_t **coredev,
+			    void *mdev)
 {
 	struct smscore_device_t *dev;
 	u8 *buffer;
@@ -661,6 +662,10 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	dev = kzalloc(sizeof(struct smscore_device_t), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	dev->media_dev = mdev;
+#endif
 
 	/* init list entry so it could be safe in smscore_unregister_device */
 	INIT_LIST_HEAD(&dev->entry);
