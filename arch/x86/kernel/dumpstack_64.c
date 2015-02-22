@@ -280,7 +280,7 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 				pr_cont(" <EOI> ");
 			}
 		} else {
-		if (((long) stack & (THREAD_SIZE-1)) == 0)
+		if (kstack_end(stack))
 			break;
 		}
 		if ((i % STACKSLOTS_PER_LINE) == 0) {
