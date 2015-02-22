@@ -636,10 +636,8 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 	struct smscore_buffer_t *cb;
 
 	cb = kzalloc(sizeof(struct smscore_buffer_t), GFP_KERNEL);
-	if (!cb) {
-		sms_info("kzalloc(...) failed");
+	if (!cb)
 		return NULL;
-	}
 
 	cb->p = buffer;
 	cb->offset_in_common = buffer - (u8 *) common_buffer;
@@ -665,10 +663,8 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	u8 *buffer;
 
 	dev = kzalloc(sizeof(struct smscore_device_t), GFP_KERNEL);
-	if (!dev) {
-		sms_info("kzalloc(...) failed");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	/* init list entry so it could be safe in smscore_unregister_device */
 	INIT_LIST_HEAD(&dev->entry);
@@ -723,7 +719,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 		smscore_putbuffer(dev, cb);
 	}
 
-	sms_info("allocated %d buffers", dev->num_buffers);
+	pr_debug("allocated %d buffers\n", dev->num_buffers);
 
 	dev->mode = DEVICE_MODE_NONE;
 	dev->board_id = SMS_BOARD_UNKNOWN;
@@ -747,7 +743,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 
 	*coredev = dev;
 
-	sms_info("device %p created", dev);
+	pr_debug("device %p created\n", dev);
 
 	return 0;
 }
@@ -764,7 +760,7 @@ static int smscore_sendrequest_and_wait(struct smscore_device_t *coredev,
 
 	rc = coredev->sendrequest_handler(coredev->context, buffer, size);
 	if (rc < 0) {
-		sms_info("sendrequest returned error %d", rc);
+		pr_info("sendrequest returned error %d\n", rc);
 		return rc;
 	}
 
@@ -787,7 +783,7 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 	coredev->ir.dev = NULL;
 	ir_io = sms_get_board(smscore_get_board_id(coredev))->board_cfg.ir;
 	if (ir_io) {/* only if IR port exist we use IR sub-module */
-		sms_info("IR loading");
+		pr_debug("IR loading\n");
 		rc = sms_ir_init(coredev);
 
 		if	(rc != 0)
@@ -816,7 +812,7 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 				pr_err("Sending IR initialization message failed\n");
 		}
 	} else
-		sms_info("IR port has not been detected");
+		pr_info("IR port has not been detected\n");
 
 	return 0;
 }
@@ -890,12 +886,12 @@ int smscore_start_device(struct smscore_device_t *coredev)
 
 	rc = smscore_set_device_mode(coredev, mode);
 	if (rc < 0) {
-		sms_info("set device mode faile , rc %d", rc);
+		pr_info("set device mode failed , rc %d\n", rc);
 		return rc;
 	}
 	rc = smscore_configure_board(coredev);
 	if (rc < 0) {
-		sms_info("configure board failed , rc %d", rc);
+		pr_info("configure board failed , rc %d\n", rc);
 		return rc;
 	}
 
@@ -904,7 +900,7 @@ int smscore_start_device(struct smscore_device_t *coredev)
 	rc = smscore_notify_callbacks(coredev, coredev->device, 1);
 	smscore_init_ir(coredev);
 
-	sms_info("device %p started, rc %d", coredev, rc);
+	pr_debug("device %p started, rc %d\n", coredev, rc);
 
 	kmutex_unlock(&g_smscore_deviceslock);
 
@@ -927,7 +923,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 
 	mem_address = firmware->start_address;
 
-	sms_info("loading FW to addr 0x%x size %d",
+	pr_debug("loading FW to addr 0x%x size %d\n",
 		 mem_address, firmware->length);
 	if (coredev->preload_handler) {
 		rc = coredev->preload_handler(coredev->context);
@@ -1169,7 +1165,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 		pr_err("failed to open firmware file '%s'\n", fw_filename);
 		return rc;
 	}
-	sms_info("read fw %s, buffer size=0x%zx", fw_filename, fw->size);
+	pr_debug("read fw %s, buffer size=0x%zx\n", fw_filename, fw->size);
 	fw_buf = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
 			 GFP_KERNEL | GFP_DMA);
 	if (!fw_buf) {
@@ -1227,18 +1223,18 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 		if (num_buffers == coredev->num_buffers)
 			break;
 		if (++retry > 10) {
-			sms_info("exiting although not all buffers released.");
+			pr_info("exiting although not all buffers released.\n");
 			break;
 		}
 
-		sms_info("waiting for %d buffer(s)",
+		pr_debug("waiting for %d buffer(s)\n",
 			 coredev->num_buffers - num_buffers);
 		kmutex_unlock(&g_smscore_deviceslock);
 		msleep(100);
 		kmutex_lock(&g_smscore_deviceslock);
 	}
 
-	sms_info("freed %d buffers", num_buffers);
+	pr_debug("freed %d buffers\n", num_buffers);
 
 	if (coredev->common_buffer)
 		dma_free_coherent(NULL, coredev->common_buffer_size,
@@ -1251,7 +1247,7 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 
 	kmutex_unlock(&g_smscore_deviceslock);
 
-	sms_info("device %p destroyed", coredev);
+	pr_debug("device %p destroyed\n", coredev);
 }
 EXPORT_SYMBOL_GPL(smscore_unregister_device);
 
@@ -1358,7 +1354,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		}
 
 		if (coredev->mode == mode) {
-			sms_info("device mode %d already set", mode);
+			pr_debug("device mode %d already set\n", mode);
 			return 0;
 		}
 
@@ -1366,9 +1362,9 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 			rc = smscore_load_firmware_from_file(coredev,
 							     mode, NULL);
 			if (rc >= 0)
-				sms_info("firmware download success");
+				pr_debug("firmware download success\n");
 		} else {
-			sms_info("mode %d is already supported by running firmware",
+			pr_debug("mode %d is already supported by running firmware\n",
 				 mode);
 		}
 		if (coredev->fw_version >= 0x800) {
@@ -1776,7 +1772,7 @@ void smscore_unregister_client(struct smscore_client_t *client)
 		kfree(identry);
 	}
 
-	sms_info("%p", client->context);
+	pr_debug("%p\n", client->context);
 
 	list_del(&client->entry);
 	kfree(client);

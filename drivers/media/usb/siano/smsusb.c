@@ -275,14 +275,14 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id, int board_id)
 		rc = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 2),
 				  fw_buffer, fw->size, &dummy, 1000);
 
-		sms_info("sent %zu(%d) bytes, rc %d", fw->size, dummy, rc);
+		pr_debug("sent %zu(%d) bytes, rc %d\n", fw->size, dummy, rc);
 
 		kfree(fw_buffer);
 	} else {
 		pr_err("failed to allocate firmware buffer\n");
 		rc = -ENOMEM;
 	}
-	sms_info("read FW %s, size=%zu", fw_filename, fw->size);
+	pr_debug("read FW %s, size=%zu\n", fw_filename, fw->size);
 
 	release_firmware(fw);
 
@@ -308,7 +308,7 @@ static void smsusb1_detectmode(void *context, int *mode)
 	else if (strstr(product_string, "TDMB"))
 		*mode = 2;
 
-	sms_info("%d \"%s\"", *mode, product_string);
+	pr_debug("%d \"%s\"\n", *mode, product_string);
 }
 
 static int smsusb1_setmode(void *context, int mode)
@@ -337,7 +337,7 @@ static void smsusb_term_device(struct usb_interface *intf)
 		if (dev->coredev)
 			smscore_unregister_device(dev->coredev);
 
-		sms_info("device 0x%p destroyed", dev);
+		pr_debug("device 0x%p destroyed\n", dev);
 		kfree(dev);
 	}
 
@@ -375,7 +375,7 @@ static void siano_media_device_register(struct smsusb_device_t *dev)
 
 	dev->coredev->media_dev = mdev;
 
-	sms_info("media controller created");
+	pr_info("media controller created\n");
 
 #endif
 }
@@ -425,7 +425,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 			dev->out_ep = intf->cur_altsetting->endpoint[i].desc.bEndpointAddress;
 	}
 
-	sms_info("in_ep = %02x, out_ep = %02x",
+	pr_debug("in_ep = %02x, out_ep = %02x\n",
 		dev->in_ep, dev->out_ep);
 
 	params.device = &dev->udev->dev;
@@ -453,7 +453,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 		usb_init_urb(&dev->surbs[i].urb);
 	}
 
-	sms_info("smsusb_start_streaming(...).");
+	pr_debug("smsusb_start_streaming(...).\n");
 	rc = smsusb_start_streaming(dev);
 	if (rc < 0) {
 		pr_err("smsusb_start_streaming(...) failed\n");
@@ -470,7 +470,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 		return rc;
 	}
 
-	sms_info("device 0x%p created", dev);
+	pr_debug("device 0x%p created\n", dev);
 	siano_media_device_register(dev);
 
 	return rc;
@@ -483,7 +483,7 @@ static int smsusb_probe(struct usb_interface *intf,
 	char devpath[32];
 	int i, rc;
 
-	sms_info("board id=%lu, interface number %d",
+	pr_info("board id=%lu, interface number %d\n",
 		 id->driver_info,
 		 intf->cur_altsetting->desc.bInterfaceNumber);
 
@@ -505,10 +505,10 @@ static int smsusb_probe(struct usb_interface *intf,
 		}
 	}
 
-	sms_info("smsusb_probe %d",
+	pr_debug("smsusb_probe %d\n",
 	       intf->cur_altsetting->desc.bInterfaceNumber);
 	for (i = 0; i < intf->cur_altsetting->desc.bNumEndpoints; i++) {
-		sms_info("endpoint %d %02x %02x %d", i,
+		pr_debug("endpoint %d %02x %02x %d\n", i,
 		       intf->cur_altsetting->endpoint[i].desc.bEndpointAddress,
 		       intf->cur_altsetting->endpoint[i].desc.bmAttributes,
 		       intf->cur_altsetting->endpoint[i].desc.wMaxPacketSize);
@@ -531,14 +531,15 @@ static int smsusb_probe(struct usb_interface *intf,
 
 		snprintf(devpath, sizeof(devpath), "usb\\%d-%s",
 			 udev->bus->busnum, udev->devpath);
-		sms_info("stellar device in cold state was found at %s.", devpath);
+		pr_info("stellar device in cold state was found at %s.\n",
+			devpath);
 		rc = smsusb1_load_firmware(
 				udev, smscore_registry_getmode(devpath),
 				id->driver_info);
 
 		/* This device will reset and gain another USB ID */
 		if (!rc)
-			sms_info("stellar device now in warm state");
+			pr_info("stellar device now in warm state\n");
 		else
 			pr_err("Failed to put stellar in warm state. Error: %d\n",
 			       rc);
@@ -548,7 +549,7 @@ static int smsusb_probe(struct usb_interface *intf,
 		rc = smsusb_init_device(intf, id->driver_info);
 	}
 
-	sms_info("Device initialized with return code %d", rc);
+	pr_info("Device initialized with return code %d\n", rc);
 	sms_board_load_modules(id->driver_info);
 	return rc;
 }

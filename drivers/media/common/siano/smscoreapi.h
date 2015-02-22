@@ -1176,12 +1176,4 @@ int smscore_led_state(struct smscore_device_t *core, int led);
 
 /* ------------------------------------------------------------------------ */
 
-#define DBG_INFO 1
-#define DBG_ADV  2
-
-#define sms_info(fmt, arg...) do {\
-	if (sms_dbg & DBG_INFO) \
-		pr_info(fmt "\n", ##arg); \
-} while (0)
-
 #endif /* __SMS_CORE_API_H__ */

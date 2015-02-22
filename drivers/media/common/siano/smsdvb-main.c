@@ -591,7 +591,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		is_status_update = true;
 		break;
 	default:
-		sms_info("message not handled");
+		pr_debug("message not handled\n");
 	}
 	smscore_putbuffer(client->coredev, cb);
 
@@ -884,7 +884,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 	msg.Data[0] = c->frequency;
 	msg.Data[2] = 12000000;
 
-	sms_info("%s: freq %d band %d", __func__, c->frequency,
+	pr_debug("%s: freq %d band %d\n", __func__, c->frequency,
 		 c->bandwidth_hz);
 
 	switch (c->bandwidth_hz / 1000000) {
@@ -969,7 +969,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 
 	c->bandwidth_hz = 6000000;
 
-	sms_info("%s: freq %d segwidth %d segindex %d", __func__,
+	pr_debug("freq %d segwidth %d segindex %d\n",
 		 c->frequency, c->isdbt_sb_segment_count,
 		 c->isdbt_sb_segment_idx);
 
@@ -1185,11 +1185,11 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	client->event_unc_state = -1;
 	sms_board_dvb3_event(client, DVB3_EVENT_HOTPLUG);
 
-	sms_info("success");
+	pr_debug("success\n");
 	sms_board_setup(coredev);
 
 	if (smsdvb_debugfs_create(client) < 0)
-		sms_info("failed to create debugfs node");
+		pr_info("failed to create debugfs node\n");
 
 	dvb_create_media_graph(coredev->media_dev);
 
