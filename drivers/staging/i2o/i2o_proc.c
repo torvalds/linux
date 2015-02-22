@@ -264,16 +264,22 @@ static int i2o_report_query_status(struct seq_file *seq, int block_status,
 {
 	switch (block_status) {
 	case -ETIMEDOUT:
-		return seq_printf(seq, "Timeout reading group %s.\n", group);
+		seq_printf(seq, "Timeout reading group %s.\n", group);
+		break;
 	case -ENOMEM:
-		return seq_printf(seq, "No free memory to read the table.\n");
+		seq_puts(seq, "No free memory to read the table.\n");
+		break;
 	case -I2O_PARAMS_STATUS_INVALID_GROUP_ID:
-		return seq_printf(seq, "Group %s not supported.\n", group);
+		seq_printf(seq, "Group %s not supported.\n", group);
+		break;
 	default:
-		return seq_printf(seq,
-				  "Error reading group %s. BlockStatus 0x%02X\n",
-				  group, -block_status);
+		seq_printf(seq,
+			   "Error reading group %s. BlockStatus 0x%02X\n",
+			   group, -block_status);
+		break;
 	}
+
+	return 0;
 }
 
 static char *bus_strings[] = {
