@@ -353,18 +353,27 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work)
 						   carrier_on_task);
 	struct ib_port_attr attr;
 
-	/*
-	 * Take rtnl_lock to avoid racing with ipoib_stop() and
-	 * turning the carrier back on while a device is being
-	 * removed.
-	 */
 	if (ib_query_port(priv->ca, priv->port, &attr) ||
 	    attr.state != IB_PORT_ACTIVE) {
 		ipoib_dbg(priv, "Keeping carrier off until IB port is active\n");
 		return;
 	}
 
-	rtnl_lock();
+	/*
+	 * Take rtnl_lock to avoid racing with ipoib_stop() and
+	 * turning the carrier back on while a device is being
+	 * removed.  However, ipoib_stop() will attempt to flush
+	 * the workqueue while holding the rtnl lock, so loop
+	 * on trylock until either we get the lock or we see
+	 * FLAG_OPER_UP go away as that signals that we are bailing
+	 * and can safely ignore the carrier on work.
+	 */
+	while (!rtnl_trylock()) {
+		if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
+			return;
+		else
+			msleep(20);
+	}
 	if (!ipoib_cm_admin_enabled(priv->dev))
 		dev_set_mtu(priv->dev, min(priv->mcast_mtu, priv->admin_mtu));
 	netif_carrier_on(priv->dev);
@@ -535,7 +544,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	if (!priv->broadcast) {
 		struct ipoib_mcast *broadcast;
 
-		if (!test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+		if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
 			return;
 
 		broadcast = ipoib_mcast_alloc(dev, 1);
@@ -882,7 +891,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		ipoib_mcast_free(mcast);
 	}
 
-	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+	if (test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
 		ipoib_mcast_start_thread(dev);
 }
 
