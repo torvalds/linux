@@ -166,7 +166,7 @@ static int __ordered_events__flush(struct perf_session *s,
 	struct ui_progress prog;
 	int ret;
 
-	if (!tool->ordered_events || !limit)
+	if (!limit)
 		return 0;
 
 	if (show_progress)
@@ -215,6 +215,9 @@ int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 		"HALF ",
 	};
 	int err;
+
+	if (oe->nr_events == 0)
+		return 0;
 
 	switch (how) {
 	case OE_FLUSH__FINAL:
