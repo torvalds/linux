@@ -459,9 +459,8 @@ static int ft1000_reset_card(struct net_device *dev)
 	if (card_download(dev, fw_entry->data, fw_entry->size)) {
 		pr_debug("card download unsuccessful\n");
 		return false;
-	} else {
-		pr_debug("card download successful\n");
 	}
+	pr_debug("card download successful\n");
 
 	mdelay(10);
 
@@ -860,64 +859,63 @@ static bool ft1000_receive_cmd(struct net_device *dev, u16 *pbuffer,
 	if (size > maxsz) {
 		pr_debug("Invalid command length = %d\n", size);
 		return false;
-	} else {
-		ppseudohdr = (u16 *)pbuffer;
-		spin_lock_irqsave(&info->dpram_lock, flags);
-		if (info->AsicID == ELECTRABUZZ_ID) {
-			ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
-					 FT1000_DPRAM_RX_BASE + 2);
-			for (i = 0; i <= (size >> 1); i++) {
-				tempword =
-					ft1000_read_reg(dev, FT1000_REG_DPRAM_DATA);
-				*pbuffer++ = ntohs(tempword);
-			}
-		} else {
-			ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
-					 FT1000_DPRAM_MAG_RX_BASE);
-			*pbuffer = inw(dev->base_addr + FT1000_REG_MAG_DPDATAH);
-			pr_debug("received data = 0x%x\n", *pbuffer);
-			pbuffer++;
-			ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
-					 FT1000_DPRAM_MAG_RX_BASE + 1);
-			for (i = 0; i <= (size >> 2); i++) {
-				*pbuffer =
-					inw(dev->base_addr +
-					    FT1000_REG_MAG_DPDATAL);
-				pbuffer++;
-				*pbuffer =
-					inw(dev->base_addr +
-					    FT1000_REG_MAG_DPDATAH);
-				pbuffer++;
-			}
-			/* copy odd aligned word */
-			*pbuffer = inw(dev->base_addr + FT1000_REG_MAG_DPDATAL);
-			pr_debug("received data = 0x%x\n", *pbuffer);
-			pbuffer++;
-			*pbuffer = inw(dev->base_addr + FT1000_REG_MAG_DPDATAH);
-			pr_debug("received data = 0x%x\n", *pbuffer);
-			pbuffer++;
-		}
-		if (size & 0x0001) {
-			/* copy odd byte from fifo */
-			tempword = ft1000_read_reg(dev, FT1000_REG_DPRAM_DATA);
-			*pbuffer = ntohs(tempword);
-		}
-		spin_unlock_irqrestore(&info->dpram_lock, flags);
-
-		/*
-		 * Check if pseudo header checksum is good
-		 * Calculate pseudo header checksum
-		 */
-		tempword = *ppseudohdr++;
-		for (i = 1; i < 7; i++)
-			tempword ^= *ppseudohdr++;
-		if ((tempword != *ppseudohdr)) {
-			pr_debug("Pseudo header checksum mismatch\n");
-			/* Drop this message */
-			return false;
-		}
-		return true;
 	}
+	ppseudohdr = (u16 *)pbuffer;
+	spin_lock_irqsave(&info->dpram_lock, flags);
+	if (info->AsicID == ELECTRABUZZ_ID) {
+		ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
+				 FT1000_DPRAM_RX_BASE + 2);
+		for (i = 0; i <= (size >> 1); i++) {
+			tempword =
+				ft1000_read_reg(dev, FT1000_REG_DPRAM_DATA);
+			*pbuffer++ = ntohs(tempword);
+		}
+	} else {
+		ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
+				 FT1000_DPRAM_MAG_RX_BASE);
+		*pbuffer = inw(dev->base_addr + FT1000_REG_MAG_DPDATAH);
+		pr_debug("received data = 0x%x\n", *pbuffer);
+		pbuffer++;
+		ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
+				 FT1000_DPRAM_MAG_RX_BASE + 1);
+		for (i = 0; i <= (size >> 2); i++) {
+			*pbuffer =
+				inw(dev->base_addr +
+				    FT1000_REG_MAG_DPDATAL);
+			pbuffer++;
+			*pbuffer =
+				inw(dev->base_addr +
+				    FT1000_REG_MAG_DPDATAH);
+			pbuffer++;
+		}
+		/* copy odd aligned word */
+		*pbuffer = inw(dev->base_addr + FT1000_REG_MAG_DPDATAL);
+		pr_debug("received data = 0x%x\n", *pbuffer);
+		pbuffer++;
+		*pbuffer = inw(dev->base_addr + FT1000_REG_MAG_DPDATAH);
+		pr_debug("received data = 0x%x\n", *pbuffer);
+		pbuffer++;
+	}
+	if (size & 0x0001) {
+		/* copy odd byte from fifo */
+		tempword = ft1000_read_reg(dev, FT1000_REG_DPRAM_DATA);
+		*pbuffer = ntohs(tempword);
+	}
+	spin_unlock_irqrestore(&info->dpram_lock, flags);
+
+	/*
+	 * Check if pseudo header checksum is good
+	 * Calculate pseudo header checksum
+	 */
+	tempword = *ppseudohdr++;
+	for (i = 1; i < 7; i++)
+		tempword ^= *ppseudohdr++;
+	if ((tempword != *ppseudohdr)) {
+		pr_debug("Pseudo header checksum mismatch\n");
+		/* Drop this message */
+		return false;
+	}
+	return true;
 }
 
 /*---------------------------------------------------------------------------
@@ -1400,105 +1398,104 @@ static void ft1000_flush_fifo(struct net_device *dev, u16 DrvErrNum)
 		info->DrvErrNum = DrvErrNum;
 		ft1000_reset_card(dev);
 		return;
-	} else {
-		/* Flush corrupted pkt from FIFO */
-		i = 0;
-		do {
-			if (info->AsicID == ELECTRABUZZ_ID) {
-				tempword =
-					ft1000_read_reg(dev, FT1000_REG_DFIFO);
-				tempword =
-					ft1000_read_reg(dev, FT1000_REG_DFIFO_STAT);
-			} else {
-				templong =
-					inl(dev->base_addr + FT1000_REG_MAG_DFR);
-				tempword =
-					inw(dev->base_addr + FT1000_REG_MAG_DFSR);
-			}
-			i++;
-			/*
-			 * This should never happen unless the ASIC is broken.
-			 * We must reset to recover.
-			 */
-			if ((i > 2048) || (tempword == 0)) {
-				if (info->AsicID == ELECTRABUZZ_ID) {
-					info->DSP_TIME[0] =
-						ft1000_read_dpram(dev,
-								  FT1000_DSP_TIMER0);
-					info->DSP_TIME[1] =
-						ft1000_read_dpram(dev,
-								  FT1000_DSP_TIMER1);
-					info->DSP_TIME[2] =
-						ft1000_read_dpram(dev,
-								  FT1000_DSP_TIMER2);
-					info->DSP_TIME[3] =
-						ft1000_read_dpram(dev,
-								  FT1000_DSP_TIMER3);
-				} else {
-					info->DSP_TIME[0] =
-						ft1000_read_dpram_mag_16(dev,
-									 FT1000_MAG_DSP_TIMER0,
-									 FT1000_MAG_DSP_TIMER0_INDX);
-					info->DSP_TIME[1] =
-						ft1000_read_dpram_mag_16(dev,
-									 FT1000_MAG_DSP_TIMER1,
-									 FT1000_MAG_DSP_TIMER1_INDX);
-					info->DSP_TIME[2] =
-						ft1000_read_dpram_mag_16(dev,
-									 FT1000_MAG_DSP_TIMER2,
-									 FT1000_MAG_DSP_TIMER2_INDX);
-					info->DSP_TIME[3] =
-						ft1000_read_dpram_mag_16(dev,
-									 FT1000_MAG_DSP_TIMER3,
-									 FT1000_MAG_DSP_TIMER3_INDX);
-				}
-				if (tempword == 0) {
-					/*
-					 * Let's check if ASIC reads are still ok by reading the Mask register
-					 * which is never zero at this point of the code.
-					 */
-					tempword =
-						inw(dev->base_addr +
-						    FT1000_REG_SUP_IMASK);
-					if (tempword == 0) {
-						/* This indicates that we can not communicate with the ASIC */
-						info->DrvErrNum =
-							FIFO_FLUSH_BADCNT;
-					} else {
-						/* Let's assume that we really flush the FIFO */
-						pcmcia->PktIntfErr++;
-						return;
-					}
-				} else {
-					info->DrvErrNum = FIFO_FLUSH_MAXLIMIT;
-				}
-				return;
-			}
-			tempword = inw(dev->base_addr + FT1000_REG_SUP_STAT);
-		} while ((tempword & 0x03) != 0x03);
-		if (info->AsicID == ELECTRABUZZ_ID) {
-			i++;
-			pr_debug("Flushing FIFO complete = %x\n", tempword);
-			/* Flush last word in FIFO. */
-			tempword = ft1000_read_reg(dev, FT1000_REG_DFIFO);
-			/* Update FIFO counter for DSP */
-			i = i * 2;
-			pr_debug("Flush Data byte count to dsp = %d\n", i);
-			info->fifo_cnt += i;
-			ft1000_write_dpram(dev, FT1000_FIFO_LEN,
-					   info->fifo_cnt);
-		} else {
-			pr_debug("Flushing FIFO complete = %x\n", tempword);
-			/* Flush last word in FIFO */
-			templong = inl(dev->base_addr + FT1000_REG_MAG_DFR);
-			tempword = inw(dev->base_addr + FT1000_REG_SUP_STAT);
-			pr_debug("FT1000_REG_SUP_STAT = 0x%x\n", tempword);
-			tempword = inw(dev->base_addr + FT1000_REG_MAG_DFSR);
-			pr_debug("FT1000_REG_MAG_DFSR = 0x%x\n", tempword);
-		}
-		if (DrvErrNum)
-			pcmcia->PktIntfErr++;
 	}
+	/* Flush corrupted pkt from FIFO */
+	i = 0;
+	do {
+		if (info->AsicID == ELECTRABUZZ_ID) {
+			tempword =
+				ft1000_read_reg(dev, FT1000_REG_DFIFO);
+			tempword =
+				ft1000_read_reg(dev, FT1000_REG_DFIFO_STAT);
+		} else {
+			templong =
+				inl(dev->base_addr + FT1000_REG_MAG_DFR);
+			tempword =
+				inw(dev->base_addr + FT1000_REG_MAG_DFSR);
+		}
+		i++;
+		/*
+		 * This should never happen unless the ASIC is broken.
+		 * We must reset to recover.
+		 */
+		if ((i > 2048) || (tempword == 0)) {
+			if (info->AsicID == ELECTRABUZZ_ID) {
+				info->DSP_TIME[0] =
+					ft1000_read_dpram(dev,
+							  FT1000_DSP_TIMER0);
+				info->DSP_TIME[1] =
+					ft1000_read_dpram(dev,
+							  FT1000_DSP_TIMER1);
+				info->DSP_TIME[2] =
+					ft1000_read_dpram(dev,
+							  FT1000_DSP_TIMER2);
+				info->DSP_TIME[3] =
+					ft1000_read_dpram(dev,
+							  FT1000_DSP_TIMER3);
+			} else {
+				info->DSP_TIME[0] =
+					ft1000_read_dpram_mag_16(dev,
+								 FT1000_MAG_DSP_TIMER0,
+								 FT1000_MAG_DSP_TIMER0_INDX);
+				info->DSP_TIME[1] =
+					ft1000_read_dpram_mag_16(dev,
+								 FT1000_MAG_DSP_TIMER1,
+								 FT1000_MAG_DSP_TIMER1_INDX);
+				info->DSP_TIME[2] =
+					ft1000_read_dpram_mag_16(dev,
+								 FT1000_MAG_DSP_TIMER2,
+								 FT1000_MAG_DSP_TIMER2_INDX);
+				info->DSP_TIME[3] =
+					ft1000_read_dpram_mag_16(dev,
+								 FT1000_MAG_DSP_TIMER3,
+								 FT1000_MAG_DSP_TIMER3_INDX);
+			}
+			if (tempword == 0) {
+				/*
+				 * Let's check if ASIC reads are still ok by reading the Mask register
+				 * which is never zero at this point of the code.
+				 */
+				tempword =
+					inw(dev->base_addr +
+					    FT1000_REG_SUP_IMASK);
+				if (tempword == 0) {
+					/* This indicates that we can not communicate with the ASIC */
+					info->DrvErrNum =
+						FIFO_FLUSH_BADCNT;
+				} else {
+					/* Let's assume that we really flush the FIFO */
+					pcmcia->PktIntfErr++;
+					return;
+				}
+			} else {
+				info->DrvErrNum = FIFO_FLUSH_MAXLIMIT;
+			}
+			return;
+		}
+		tempword = inw(dev->base_addr + FT1000_REG_SUP_STAT);
+	} while ((tempword & 0x03) != 0x03);
+	if (info->AsicID == ELECTRABUZZ_ID) {
+		i++;
+		pr_debug("Flushing FIFO complete = %x\n", tempword);
+		/* Flush last word in FIFO. */
+		tempword = ft1000_read_reg(dev, FT1000_REG_DFIFO);
+		/* Update FIFO counter for DSP */
+		i = i * 2;
+		pr_debug("Flush Data byte count to dsp = %d\n", i);
+		info->fifo_cnt += i;
+		ft1000_write_dpram(dev, FT1000_FIFO_LEN,
+				   info->fifo_cnt);
+	} else {
+		pr_debug("Flushing FIFO complete = %x\n", tempword);
+		/* Flush last word in FIFO */
+		templong = inl(dev->base_addr + FT1000_REG_MAG_DFR);
+		tempword = inw(dev->base_addr + FT1000_REG_SUP_STAT);
+		pr_debug("FT1000_REG_SUP_STAT = 0x%x\n", tempword);
+		tempword = inw(dev->base_addr + FT1000_REG_MAG_DFSR);
+		pr_debug("FT1000_REG_MAG_DFSR = 0x%x\n", tempword);
+	}
+	if (DrvErrNum)
+		pcmcia->PktIntfErr++;
 }
 
 /*---------------------------------------------------------------------------
