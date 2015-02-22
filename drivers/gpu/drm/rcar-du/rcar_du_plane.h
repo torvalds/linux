@@ -41,9 +41,6 @@ struct rcar_du_plane {
 	int hwindex;		/* 0-based, -1 means unused */
 
 	const struct rcar_du_format_info *format;
-
-	unsigned long dma[2];
-	unsigned int pitch;
 };
 
 struct rcar_du_planes {
