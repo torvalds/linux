@@ -242,15 +242,8 @@ void shake_page(struct page *p, int access)
 	 * Only call shrink_node_slabs here (which would also shrink
 	 * other caches) if access is not potentially fatal.
 	 */
-	if (access) {
-		int nr;
-		int nid = page_to_nid(p);
-		do {
-			nr = shrink_node_slabs(GFP_KERNEL, nid, 1000, 1000);
-			if (page_count(p) == 1)
-				break;
-		} while (nr > 10);
-	}
+	if (access)
+		drop_slab_node(page_to_nid(p));
 }
 EXPORT_SYMBOL_GPL(shake_page);
 
@@ -1653,8 +1646,6 @@ static int __soft_offline_page(struct page *page, int flags)
 			 * source page should be freed back to buddy before
 			 * setting PG_hwpoison.
 			 */
-			if (!is_free_buddy_page(page))
-				lru_add_drain_all();
 			if (!is_free_buddy_page(page))
 				drain_all_pages(page_zone(page));
 			SetPageHWPoison(page);

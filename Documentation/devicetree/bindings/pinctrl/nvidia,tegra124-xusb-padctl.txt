@@ -13,7 +13,9 @@ how to describe and reference PHYs in device trees.
 
 Required properties:
 --------------------
-- compatible: should be "nvidia,tegra124-xusb-padctl"
+- compatible: For Tegra124, must contain "nvidia,tegra124-xusb-padctl".
+  Otherwise, must contain '"nvidia,<chip>-xusb-padctl",
+  "nvidia-tegra124-xusb-padctl"', where <chip> is tegra132 or tegra210.
 - reg: Physical base address and length of the controller's registers.
 - resets: Must contain an entry for each entry in reset-names.
   See ../reset/reset.txt for details.

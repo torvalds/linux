@@ -2,7 +2,7 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-ccflags-y := -Iinclude/drm
+ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/amd/include
 
 hostprogs-y := mkregtable
 clean-files := rn50_reg_safe.h r100_reg_safe.h r200_reg_safe.h rv515_reg_safe.h r300_reg_safe.h r420_reg_safe.h rs600_reg_safe.h r600_reg_safe.h evergreen_reg_safe.h cayman_reg_safe.h
@@ -80,8 +80,10 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	r600_dpm.o rs780_dpm.o rv6xx_dpm.o rv770_dpm.o rv730_dpm.o rv740_dpm.o \
 	rv770_smc.o cypress_dpm.o btc_dpm.o sumo_dpm.o sumo_smc.o trinity_dpm.o \
 	trinity_smc.o ni_dpm.o si_smc.o si_dpm.o kv_smc.o kv_dpm.o ci_smc.o \
-	ci_dpm.o dce6_afmt.o radeon_vm.o radeon_ucode.o radeon_ib.o radeon_mn.o \
-	radeon_sync.o
+	ci_dpm.o dce6_afmt.o radeon_vm.o radeon_ucode.o radeon_ib.o \
+	radeon_sync.o radeon_audio.o
+
+radeon-$(CONFIG_MMU_NOTIFIER) += radeon_mn.o
 
 # add async DMA block
 radeon-y += \

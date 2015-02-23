@@ -3,14 +3,14 @@
 
 #include <linux/types.h>
 
+enum hv_perf_domains {
+#define DOMAIN(n, v, x, c) HV_PERF_DOMAIN_##n = v,
+#include "hv-24x7-domains.h"
+#undef DOMAIN
+};
+
 struct hv_24x7_request {
 	/* PHYSICAL domains require enabling via phyp/hmc. */
-#define HV_24X7_PERF_DOMAIN_PHYSICAL_CHIP 0x01
-#define HV_24X7_PERF_DOMAIN_PHYSICAL_CORE 0x02
-#define HV_24X7_PERF_DOMAIN_VIRTUAL_PROCESSOR_HOME_CORE   0x03
-#define HV_24X7_PERF_DOMAIN_VIRTUAL_PROCESSOR_HOME_CHIP   0x04
-#define HV_24X7_PERF_DOMAIN_VIRTUAL_PROCESSOR_HOME_NODE   0x05
-#define HV_24X7_PERF_DOMAIN_VIRTUAL_PROCESSOR_REMOTE_NODE 0x06
 	__u8 performance_domain;
 	__u8 reserved[0x1];
 

@@ -102,4 +102,8 @@ config PCI_LAYERSCAPE
 	help
 	  Say Y here if you want PCIe controller support on Layerscape SoCs.
 
+config PCI_VERSATILE
+	bool "ARM Versatile PB PCI controller"
+	depends on ARCH_VERSATILE
+
 endmenu

@@ -78,9 +78,6 @@ The expensive (paranoid) way is to read back the MSR_GS_BASE value
 	xorl %ebx,%ebx
 1:	ret
 
-and the whole paranoid non-paranoid macro complexity is about whether
-to suffer that RDMSR cost.
-
 If we are at an interrupt or user-trap/gate-alike boundary then we can
 use the faster check: the stack will be a reliable indicator of
 whether SWAPGS was already done: if we see that we are a secondary
@@ -93,6 +90,15 @@ which might have triggered right after a normal entry wrote CS to the
 stack but before we executed SWAPGS, then the only safe way to check
 for GS is the slower method: the RDMSR.
 
-So we try only to mark those entry methods 'paranoid' that absolutely
-need the more expensive check for the GS base - and we generate all
-'normal' entry points with the regular (faster) entry macros.
+Therefore, super-atomic entries (except NMI, which is handled separately)
+must use idtentry with paranoid=1 to handle gsbase correctly.  This
+triggers three main behavior changes:
+
+ - Interrupt entry will use the slower gsbase check.
+ - Interrupt entry from user mode will switch off the IST stack.
+ - Interrupt exit to kernel mode will not attempt to reschedule.
+
+We try to only use IST entries and the paranoid entry code for vectors
+that absolutely need the more expensive check for the GS base - and we
+generate all 'normal' entry points with the regular (faster) paranoid=0
+variant.

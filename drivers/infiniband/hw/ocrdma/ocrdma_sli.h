@@ -75,6 +75,8 @@ enum {
 	OCRDMA_CMD_DESTROY_RBQ = 26,
 
 	OCRDMA_CMD_GET_RDMA_STATS = 27,
+	OCRDMA_CMD_ALLOC_PD_RANGE = 28,
+	OCRDMA_CMD_DEALLOC_PD_RANGE = 29,
 
 	OCRDMA_CMD_MAX
 };
@@ -87,6 +89,7 @@ enum {
 	OCRDMA_CMD_CREATE_MQ		= 21,
 	OCRDMA_CMD_GET_CTRL_ATTRIBUTES  = 32,
 	OCRDMA_CMD_GET_FW_VER		= 35,
+	OCRDMA_CMD_MODIFY_EQ_DELAY      = 41,
 	OCRDMA_CMD_DELETE_MQ		= 53,
 	OCRDMA_CMD_DELETE_CQ		= 54,
 	OCRDMA_CMD_DELETE_EQ		= 55,
@@ -101,7 +104,7 @@ enum {
 	QTYPE_MCCQ	= 3
 };
 
-#define OCRDMA_MAX_SGID		8
+#define OCRDMA_MAX_SGID		16
 
 #define OCRDMA_MAX_QP    2048
 #define OCRDMA_MAX_CQ    2048
@@ -314,6 +317,29 @@ struct ocrdma_create_eq_rsp {
 
 #define OCRDMA_EQ_MINOR_OTHER	0x1
 
+struct ocrmda_set_eqd {
+	u32 eq_id;
+	u32 phase;
+	u32 delay_multiplier;
+};
+
+struct ocrdma_modify_eqd_cmd {
+	struct ocrdma_mbx_hdr req;
+	u32 num_eq;
+	struct ocrmda_set_eqd set_eqd[8];
+} __packed;
+
+struct ocrdma_modify_eqd_req {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_modify_eqd_cmd cmd;
+};
+
+
+struct ocrdma_modify_eq_delay_rsp {
+	struct ocrdma_mbx_rsp hdr;
+	u32 rsvd0;
+} __packed;
+
 enum {
 	OCRDMA_MCQE_STATUS_SHIFT	= 0,
 	OCRDMA_MCQE_STATUS_MASK		= 0xFFFF,
@@ -441,7 +467,9 @@ enum OCRDMA_ASYNC_EVENT_TYPE {
 	OCRDMA_DEVICE_FATAL_EVENT	= 0x08,
 	OCRDMA_SRQCAT_ERROR		= 0x0E,
 	OCRDMA_SRQ_LIMIT_EVENT		= 0x0F,
-	OCRDMA_QP_LAST_WQE_EVENT	= 0x10
+	OCRDMA_QP_LAST_WQE_EVENT	= 0x10,
+
+	OCRDMA_MAX_ASYNC_ERRORS
 };
 
 /* mailbox command request and responses */
@@ -1297,6 +1325,37 @@ struct ocrdma_dealloc_pd_rsp {
 	struct ocrdma_mbx_rsp rsp;
 };
 
+struct ocrdma_alloc_pd_range {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_hdr req;
+	u32 enable_dpp_rsvd;
+	u32 pd_count;
+};
+
+struct ocrdma_alloc_pd_range_rsp {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_rsp rsp;
+	u32 dpp_page_pdid;
+	u32 pd_count;
+};
+
+enum {
+	OCRDMA_ALLOC_PD_RNG_RSP_START_PDID_MASK = 0xFFFF,
+};
+
+struct ocrdma_dealloc_pd_range {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_hdr req;
+	u32 start_pd_id;
+	u32 pd_count;
+};
+
+struct ocrdma_dealloc_pd_range_rsp {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_hdr req;
+	u32 rsvd;
+};
+
 enum {
 	OCRDMA_ADDR_CHECK_ENABLE	= 1,
 	OCRDMA_ADDR_CHECK_DISABLE	= 0
@@ -1597,7 +1656,9 @@ enum OCRDMA_CQE_STATUS {
 	OCRDMA_CQE_INV_EEC_STATE_ERR,
 	OCRDMA_CQE_FATAL_ERR,
 	OCRDMA_CQE_RESP_TIMEOUT_ERR,
-	OCRDMA_CQE_GENERAL_ERR
+	OCRDMA_CQE_GENERAL_ERR,
+
+	OCRDMA_MAX_CQE_ERR
 };
 
 enum {
@@ -1673,6 +1734,7 @@ enum {
 	OCRDMA_FLAG_FENCE_R	= 0x8,
 	OCRDMA_FLAG_SOLICIT	= 0x10,
 	OCRDMA_FLAG_IMM		= 0x20,
+	OCRDMA_FLAG_AH_VLAN_PR  = 0x40,
 
 	/* Stag flags */
 	OCRDMA_LKEY_FLAG_LOCAL_WR	= 0x1,

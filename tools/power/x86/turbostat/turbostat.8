@@ -9,40 +9,50 @@ turbostat \- Report processor frequency and idle statistics
 .br
 .B turbostat
 .RB [ Options ]
-.RB [ "\-i interval_sec" ]
+.RB [ "\--interval seconds" ]
 .SH DESCRIPTION
 \fBturbostat \fP reports processor topology, frequency,
-idle power-state statistics, temperature and power on modern X86 processors.
-Either \fBcommand\fP is forked and statistics are printed
-upon its completion, or statistics are printed periodically.
+idle power-state statistics, temperature and power on X86 processors.
+There are two ways to invoke turbostat.
+The first method is to supply a
+\fBcommand\fP, which is forked and statistics are printed
+upon its completion.
+The second method is to omit the command,
+and turbostat displays statistics every 5 seconds.
+The 5-second interval can be changed using the --interval option.
 
-\fBturbostat \fP
-must be run on root, and
-minimally requires that the processor
-supports an "invariant" TSC, plus the APERF and MPERF MSRs.
-Additional information is reported depending on hardware counter support.
-
+Some information is not available on older processors.
 .SS Options
-The \fB-p\fP option limits output to the 1st thread in 1st core of each package.
+\fB--Counter MSR#\fP shows the delta of the specified 64-bit MSR counter.
 .PP
-The \fB-P\fP option limits output to the 1st thread in each Package.
+\fB--counter MSR#\fP shows the delta of the specified 32-bit MSR counter.
 .PP
-The \fB-S\fP option limits output to a 1-line System Summary for each interval.
+\fB--Dump\fP displays the raw counter values.
 .PP
-The \fB-v\fP option increases verbosity.
+\fB--debug\fP displays additional system configuration information.  Invoking this parameter
+more than once may also enable internal turbostat debug information.
 .PP
-The \fB-c MSR#\fP option includes the delta of the specified 32-bit MSR counter.
+\fB--interval seconds\fP overrides the default 5-second measurement interval.
 .PP
-The \fB-C MSR#\fP option includes the delta of the specified 64-bit MSR counter.
+\fB--help\fP displays usage for the most common parameters.
 .PP
-The \fB-m MSR#\fP option includes the the specified 32-bit MSR value.
+\fB--Joules\fP displays energy in Joules, rather than dividing Joules by time to print power in Watts.
 .PP
-The \fB-M MSR#\fP option includes the the specified 64-bit MSR value.
+\fB--MSR MSR#\fP shows the specified 64-bit MSR value.
 .PP
-The \fB-i interval_sec\fP option prints statistics every \fiinterval_sec\fP seconds.
-The default is 5 seconds.
+\fB--msr MSR#\fP shows the specified 32-bit MSR value.
 .PP
-The \fBcommand\fP parameter forks \fBcommand\fP and upon its exit,
+\fB--Package\fP limits output to the system summary plus the 1st thread in each Package.
+.PP
+\fB--processor\fP limits output to the system summary plus the 1st thread in each processor of each package.  Ie. it skips hyper-threaded siblings.
+.PP
+\fB--Summary\fP limits output to a 1-line System Summary for each interval.
+.PP
+\fB--TCC temperature\fP sets the Thermal Control Circuit temperature for systems which do not export that value.  This is used for making sense of the Digital Thermal Sensor outputs, as they return degrees Celsius below the TCC activation temperature.
+.PP
+\fB--version\fP displays the version.
+.PP
+The \fBcommand\fP parameter forks \fBcommand\fP, and upon its exit,
 displays the statistics gathered since it was forked.
 .PP
 .SH FIELD DESCRIPTIONS
@@ -52,7 +62,7 @@ displays the statistics gathered since it was forked.
 \fBCPU\fP Linux CPU (logical processor) number.
 Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading Technology.
 \fBAVG_MHz\fP number of cycles executed divided by time elapsed.
-\fB%Buzy\fP percent of the interval that the CPU retired instructions, aka. % of time in "C0" state.
+\fB%Busy\fP percent of the interval that the CPU retired instructions, aka. % of time in "C0" state.
 \fBBzy_MHz\fP average clock rate while the CPU was busy (in "c0" state).
 \fBTSC_MHz\fP average MHz that the TSC ran during the entire interval.
 \fBCPU%c1, CPU%c3, CPU%c6, CPU%c7\fP show the percentage residency in hardware core idle states.
@@ -68,7 +78,7 @@ Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading T
 .fi
 .PP
 .SH EXAMPLE
-Without any parameters, turbostat prints out counters ever 5 seconds.
+Without any parameters, turbostat displays statistics ever 5 seconds.
 (override interval with "-i sec" option, or specify a command
 for turbostat to fork).
 
@@ -91,19 +101,19 @@ Subsequent rows show per-CPU statistics.
        3       3       3    0.20    1596    3492       0    0.44    0.00   99.37    0.00      23
        3       7       5    0.31    1596    3492       0    0.33
 .fi
-.SH VERBOSE EXAMPLE
-The "-v" option adds verbosity to the output:
+.SH DEBUG EXAMPLE
+The "--debug" option prints additional system information before measurements:
 
 .nf
-[root@ivy]# turbostat -v
-turbostat v3.0 November 23, 2012 - Len Brown <lenb@kernel.org>
+turbostat version 4.0 10-Feb, 2015 - Len Brown <lenb@kernel.org>
 CPUID(0): GenuineIntel 13 CPUID levels; family:model:stepping 0x6:3a:9 (6:58:9)
 CPUID(6): APERF, DTS, PTM, EPB
-RAPL: 851 sec. Joule Counter Range
+RAPL: 851 sec. Joule Counter Range, at 77 Watts
 cpu0: MSR_NHM_PLATFORM_INFO: 0x81010f0012300
 16 * 100 = 1600 MHz max efficiency
 35 * 100 = 3500 MHz TSC frequency
-cpu0: MSR_NHM_SNB_PKG_CST_CFG_CTL: 0x1e008402 (UNdemote-C3, UNdemote-C1, demote-C3, demote-C1, locked: pkg-cstate-limit=2: pc6-noret)
+cpu0: MSR_IA32_POWER_CTL: 0x0014005d (C1E auto-promotion: DISabled)
+cpu0: MSR_NHM_SNB_PKG_CST_CFG_CTL: 0x1e008402 (UNdemote-C3, UNdemote-C1, demote-C3, demote-C1, locked: pkg-cstate-limit=2: pc6n)
 cpu0: MSR_NHM_TURBO_RATIO_LIMIT: 0x25262727
 37 * 100 = 3700 MHz max turbo 4 active cores
 38 * 100 = 3800 MHz max turbo 3 active cores
@@ -112,9 +122,9 @@ cpu0: MSR_NHM_TURBO_RATIO_LIMIT: 0x25262727
 cpu0: MSR_IA32_ENERGY_PERF_BIAS: 0x00000006 (balanced)
 cpu0: MSR_RAPL_POWER_UNIT: 0x000a1003 (0.125000 Watts, 0.000015 Joules, 0.000977 sec.)
 cpu0: MSR_PKG_POWER_INFO: 0x01e00268 (77 W TDP, RAPL 60 - 0 W, 0.000000 sec.)
-cpu0: MSR_PKG_POWER_LIMIT: 0x830000148268 (UNlocked)
+cpu0: MSR_PKG_POWER_LIMIT: 0x30000148268 (UNlocked)
 cpu0: PKG Limit #1: ENabled (77.000000 Watts, 1.000000 sec, clamp DISabled)
-cpu0: PKG Limit #2: ENabled (96.000000 Watts, 0.000977* sec, clamp DISabled)
+cpu0: PKG Limit #2: DISabled (96.000000 Watts, 0.000977* sec, clamp DISabled)
 cpu0: MSR_PP0_POLICY: 0
 cpu0: MSR_PP0_POWER_LIMIT: 0x00000000 (UNlocked)
 cpu0: Cores Limit: DISabled (0.000000 Watts, 0.000977 sec, clamp DISabled)
@@ -123,19 +133,20 @@ cpu0: MSR_PP1_POWER_LIMIT: 0x00000000 (UNlocked)
 cpu0: GFX Limit: DISabled (0.000000 Watts, 0.000977 sec, clamp DISabled)
 cpu0: MSR_IA32_TEMPERATURE_TARGET: 0x00691400 (105 C)
 cpu0: MSR_IA32_PACKAGE_THERM_STATUS: 0x884e0000 (27 C)
-cpu0: MSR_IA32_THERM_STATUS: 0x88560000 (19 C +/- 1)
-cpu1: MSR_IA32_THERM_STATUS: 0x88560000 (19 C +/- 1)
-cpu2: MSR_IA32_THERM_STATUS: 0x88540000 (21 C +/- 1)
+cpu0: MSR_IA32_THERM_STATUS: 0x88580000 (17 C +/- 1)
+cpu1: MSR_IA32_THERM_STATUS: 0x885a0000 (15 C +/- 1)
+cpu2: MSR_IA32_THERM_STATUS: 0x88570000 (18 C +/- 1)
 cpu3: MSR_IA32_THERM_STATUS: 0x884e0000 (27 C +/- 1)
  ...
 .fi
 The \fBmax efficiency\fP frequency, a.k.a. Low Frequency Mode, is the frequency
-available at the minimum package voltage.  The \fBTSC frequency\fP is the nominal
-maximum frequency of the processor if turbo-mode were not available.  This frequency
+available at the minimum package voltage.  The \fBTSC frequency\fP is the base
+frequency of the processor -- this should match the brand string
+in /proc/cpuinfo.  This base frequency
 should be sustainable on all CPUs indefinitely, given nominal power and cooling.
 The remaining rows show what maximum turbo frequency is possible
-depending on the number of idle cores.  Note that this information is
-not available on all processors.
+depending on the number of idle cores.  Note that not all information is
+available on all processors.
 .SH FORK EXAMPLE
 If turbostat is invoked with a command, it will fork that command
 and output the statistics gathered when the command exits.
@@ -176,6 +187,11 @@ not including any non-busy idle time.
 
 .B "turbostat "
 must be run as root.
+Alternatively, non-root users can be enabled to run turbostat this way:
+
+# setcap cap_sys_rawio=ep ./turbostat
+
+# chmod +r /dev/cpu/*/msr
 
 .B "turbostat "
 reads hardware counters, but doesn't write them.
@@ -184,15 +200,33 @@ multiple invocations of itself.
 
 \fBturbostat \fP
 may work poorly on Linux-2.6.20 through 2.6.29,
-as \fBacpi-cpufreq \fPperiodically cleared the APERF and MPERF
+as \fBacpi-cpufreq \fPperiodically cleared the APERF and MPERF MSRs
 in those kernels.
 
-If the TSC column does not make sense, then
-the other numbers will also make no sense.
-Turbostat is lightweight, and its data collection is not atomic.
-These issues are usually caused by an extremely short measurement
-interval (much less than 1 second), or system activity that prevents
-turbostat from being able to run on all CPUS to quickly collect data.
+AVG_MHz = APERF_delta/measurement_interval.  This is the actual
+number of elapsed cycles divided by the entire sample interval --
+including idle time.  Note that this calculation is resilient
+to systems lacking a non-stop TSC.
+
+TSC_MHz = TSC_delta/measurement_interval.
+On a system with an invariant TSC, this value will be constant
+and will closely match the base frequency value shown
+in the brand string in /proc/cpuinfo.  On a system where
+the TSC stops in idle, TSC_MHz will drop
+below the processor's base frequency.
+
+%Busy = MPERF_delta/TSC_delta
+
+Bzy_MHz = TSC_delta/APERF_delta/MPERF_delta/measurement_interval
+
+Note that these calculations depend on TSC_delta, so they
+are not reliable during intervals when TSC_MHz is not running at the base frequency.
+
+Turbostat data collection is not atomic.
+Extremely short measurement intervals (much less than 1 second),
+or system activity that prevents turbostat from being able
+to run on all CPUS to quickly collect data, will result in
+inconsistent results.
 
 The APERF, MPERF MSRs are defined to count non-halted cycles.
 Although it is not guaranteed by the architecture, turbostat assumes

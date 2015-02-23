@@ -42,6 +42,11 @@ void rxrpc_UDP_error_report(struct sock *sk)
 		_leave("UDP socket errqueue empty");
 		return;
 	}
+	if (!skb->len) {
+		_leave("UDP empty message");
+		kfree_skb(skb);
+		return;
+	}
 
 	rxrpc_new_skb(skb);
 

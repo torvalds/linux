@@ -168,7 +168,7 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp;
 
-	if (!link_update || !phydev || !phydev->bus)
+	if (!phydev || !phydev->bus)
 		return -EINVAL;
 
 	list_for_each_entry(fp, &fmb->phys, node) {

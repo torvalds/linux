@@ -9,8 +9,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/version.h>
-
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/net.h>
@@ -90,7 +88,7 @@ static void geneve_rcv(struct geneve_sock *gs, struct sk_buff *skb)
 
 	opts_len = geneveh->opt_len * 4;
 
-	flags = TUNNEL_KEY | TUNNEL_OPTIONS_PRESENT |
+	flags = TUNNEL_KEY | TUNNEL_GENEVE_OPT |
 		(udp_hdr(skb)->check != 0 ? TUNNEL_CSUM : 0) |
 		(geneveh->oam ? TUNNEL_OAM : 0) |
 		(geneveh->critical ? TUNNEL_CRIT_OPT : 0);
@@ -172,7 +170,7 @@ error:
 
 static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 {
-	struct ovs_key_ipv4_tunnel *tun_key;
+	const struct ovs_key_ipv4_tunnel *tun_key;
 	struct ovs_tunnel_info *tun_info;
 	struct net *net = ovs_dp_get_net(vport->dp);
 	struct geneve_port *geneve_port = geneve_vport(vport);
@@ -180,7 +178,7 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	__be16 sport;
 	struct rtable *rt;
 	struct flowi4 fl;
-	u8 vni[3];
+	u8 vni[3], opts_len, *opts;
 	__be16 df;
 	int err;
 
@@ -191,16 +189,7 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	}
 
 	tun_key = &tun_info->tunnel;
-
-	/* Route lookup */
-	memset(&fl, 0, sizeof(fl));
-	fl.daddr = tun_key->ipv4_dst;
-	fl.saddr = tun_key->ipv4_src;
-	fl.flowi4_tos = RT_TOS(tun_key->ipv4_tos);
-	fl.flowi4_mark = skb->mark;
-	fl.flowi4_proto = IPPROTO_UDP;
-
-	rt = ip_route_output_key(net, &fl);
+	rt = ovs_tunnel_route_lookup(net, tun_key, skb->mark, &fl, IPPROTO_UDP);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		goto error;
@@ -211,12 +200,19 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	tunnel_id_to_vni(tun_key->tun_id, vni);
 	skb->ignore_df = 1;
 
+	if (tun_key->tun_flags & TUNNEL_GENEVE_OPT) {
+		opts = (u8 *)tun_info->options;
+		opts_len = tun_info->options_len;
+	} else {
+		opts = NULL;
+		opts_len = 0;
+	}
+
 	err = geneve_xmit_skb(geneve_port->gs, rt, skb, fl.saddr,
 			      tun_key->ipv4_dst, tun_key->ipv4_tos,
 			      tun_key->ipv4_ttl, df, sport, dport,
-			      tun_key->tun_flags, vni,
-			      tun_info->options_len, (u8 *)tun_info->options,
-			      false);
+			      tun_key->tun_flags, vni, opts_len, opts,
+			      !!(tun_key->tun_flags & TUNNEL_CSUM), false);
 	if (err < 0)
 		ip_rt_put(rt);
 	return err;

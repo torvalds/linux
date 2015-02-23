@@ -48,6 +48,17 @@ config CM32181
 	 To compile this driver as a module, choose M here:
 	 the module will be called cm32181.
 
+config CM3232
+	depends on I2C
+	tristate "CM3232 ambient light sensor"
+	help
+	 Say Y here if you use cm3232.
+	 This option enables ambient light sensor using
+	 Capella Microsystems cm3232 device driver.
+
+	 To compile this driver as a module, choose M here:
+	 the module will be called cm3232.
+
 config CM36651
 	depends on I2C
 	tristate "CM36651 driver"
@@ -95,6 +106,9 @@ config HID_SENSOR_ALS
 	  Say yes here to build support for the HID SENSOR
 	  Ambient light sensor.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-sensor-als.
+
 config HID_SENSOR_PROX
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
@@ -108,6 +122,16 @@ config HID_SENSOR_PROX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hid-sensor-prox.
+
+config JSA1212
+	tristate "JSA1212 ALS and proximity sensor driver"
+	depends on I2C
+	help
+	 Say Y here if you want to build a IIO driver for JSA1212
+	 proximity & ALS sensor device.
+
+	 To compile this driver as a module, choose M here:
+	 the module will be called jsa1212.
 
 config SENSORS_LM3533
 	tristate "LM3533 ambient light sensor"

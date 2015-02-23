@@ -22,6 +22,8 @@ Optional properties:
 - fsl,num-rx-queues : The property is valid for enet-avb IP, which supports
   hw multi queues. Should specify the rx queue number, otherwise set rx queue
   number to 1.
+- fsl,magic-packet : If present, indicates that the hardware supports waking
+  up via magic packet.
 
 Optional subnodes:
 - mdio : specifies the mdio bus in the FEC, used as a container for phy nodes

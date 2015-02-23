@@ -239,6 +239,13 @@ config PHY_QCOM_IPQ806X_SATA
 	depends on OF
 	select GENERIC_PHY
 
+config PHY_ROCKCHIP_USB
+	tristate "Rockchip USB2 PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip USB 2.0 PHY.
+
 config PHY_ST_SPEAR1310_MIPHY
 	tristate "ST SPEAR1310-MIPHY driver"
 	select GENERIC_PHY
@@ -276,5 +283,12 @@ config PHY_STIH41X_USB
 	help
 	  Enable this to support the USB transceiver that is part of
 	  STMicroelectronics STiH41x SoC series.
+
+config PHY_QCOM_UFS
+	tristate "Qualcomm UFS PHY driver"
+	depends on OF && ARCH_MSM
+	select GENERIC_PHY
+	help
+	  Support for UFS PHY on QCOM chipsets.
 
 endmenu

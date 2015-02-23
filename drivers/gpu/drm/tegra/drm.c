@@ -10,6 +10,9 @@
 #include <linux/host1x.h>
 #include <linux/iommu.h>
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+
 #include "drm.h"
 #include "gem.h"
 
@@ -24,6 +27,92 @@ struct tegra_drm_file {
 	struct list_head contexts;
 };
 
+static void tegra_atomic_schedule(struct tegra_drm *tegra,
+				  struct drm_atomic_state *state)
+{
+	tegra->commit.state = state;
+	schedule_work(&tegra->commit.work);
+}
+
+static void tegra_atomic_complete(struct tegra_drm *tegra,
+				  struct drm_atomic_state *state)
+{
+	struct drm_device *drm = tegra->drm;
+
+	/*
+	 * Everything below can be run asynchronously without the need to grab
+	 * any modeset locks at all under one condition: It must be guaranteed
+	 * that the asynchronous work has either been cancelled (if the driver
+	 * supports it, which at least requires that the framebuffers get
+	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
+	 * before the new state gets committed on the software side with
+	 * drm_atomic_helper_swap_state().
+	 *
+	 * This scheme allows new atomic state updates to be prepared and
+	 * checked in parallel to the asynchronous completion of the previous
+	 * update. Which is important since compositors need to figure out the
+	 * composition of the next frame right after having submitted the
+	 * current layout.
+	 */
+
+	drm_atomic_helper_commit_pre_planes(drm, state);
+	drm_atomic_helper_commit_planes(drm, state);
+	drm_atomic_helper_commit_post_planes(drm, state);
+
+	drm_atomic_helper_wait_for_vblanks(drm, state);
+
+	drm_atomic_helper_cleanup_planes(drm, state);
+	drm_atomic_state_free(state);
+}
+
+static void tegra_atomic_work(struct work_struct *work)
+{
+	struct tegra_drm *tegra = container_of(work, struct tegra_drm,
+					       commit.work);
+
+	tegra_atomic_complete(tegra, tegra->commit.state);
+}
+
+static int tegra_atomic_commit(struct drm_device *drm,
+			       struct drm_atomic_state *state, bool async)
+{
+	struct tegra_drm *tegra = drm->dev_private;
+	int err;
+
+	err = drm_atomic_helper_prepare_planes(drm, state);
+	if (err)
+		return err;
+
+	/* serialize outstanding asynchronous commits */
+	mutex_lock(&tegra->commit.lock);
+	flush_work(&tegra->commit.work);
+
+	/*
+	 * This is the point of no return - everything below never fails except
+	 * when the hw goes bonghits. Which means we can commit the new state on
+	 * the software side now.
+	 */
+
+	drm_atomic_helper_swap_state(drm, state);
+
+	if (async)
+		tegra_atomic_schedule(tegra, state);
+	else
+		tegra_atomic_complete(tegra, state);
+
+	mutex_unlock(&tegra->commit.lock);
+	return 0;
+}
+
+static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
+	.fb_create = tegra_fb_create,
+#ifdef CONFIG_DRM_TEGRA_FBDEV
+	.output_poll_changed = tegra_fb_output_poll_changed,
+#endif
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = tegra_atomic_commit,
+};
+
 static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 {
 	struct host1x_device *device = to_host1x_device(drm->dev);
@@ -36,8 +125,8 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	if (iommu_present(&platform_bus_type)) {
 		tegra->domain = iommu_domain_alloc(&platform_bus_type);
-		if (IS_ERR(tegra->domain)) {
-			err = PTR_ERR(tegra->domain);
+		if (!tegra->domain) {
+			err = -ENOMEM;
 			goto free;
 		}
 
@@ -47,10 +136,22 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	mutex_init(&tegra->clients_lock);
 	INIT_LIST_HEAD(&tegra->clients);
+
+	mutex_init(&tegra->commit.lock);
+	INIT_WORK(&tegra->commit.work, tegra_atomic_work);
+
 	drm->dev_private = tegra;
 	tegra->drm = drm;
 
 	drm_mode_config_init(drm);
+
+	drm->mode_config.min_width = 0;
+	drm->mode_config.min_height = 0;
+
+	drm->mode_config.max_width = 4096;
+	drm->mode_config.max_height = 4096;
+
+	drm->mode_config.funcs = &tegra_drm_mode_funcs;
 
 	err = tegra_drm_fb_prepare(drm);
 	if (err < 0)
@@ -61,6 +162,8 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	err = host1x_device_init(device);
 	if (err < 0)
 		goto fbdev;
+
+	drm_mode_config_reset(drm);
 
 	/*
 	 * We don't use the drm_irq_install() helpers provided by the DRM
@@ -106,8 +209,8 @@ static int tegra_drm_unload(struct drm_device *drm)
 
 	drm_kms_helper_poll_fini(drm);
 	tegra_drm_fb_exit(drm);
-	drm_vblank_cleanup(drm);
 	drm_mode_config_cleanup(drm);
+	drm_vblank_cleanup(drm);
 
 	err = host1x_device_exit(device);
 	if (err < 0)
@@ -190,7 +293,7 @@ static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
 	if (err < 0)
 		return err;
 
-	err = get_user(dest->target.offset, &src->cmdbuf.offset);
+	err = get_user(dest->target.offset, &src->target.offset);
 	if (err < 0)
 		return err;
 
@@ -893,6 +996,30 @@ static int host1x_drm_remove(struct host1x_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int host1x_drm_suspend(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	drm_kms_helper_poll_disable(drm);
+
+	return 0;
+}
+
+static int host1x_drm_resume(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	drm_kms_helper_poll_enable(drm);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops host1x_drm_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(host1x_drm_suspend, host1x_drm_resume)
+};
+
 static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra20-dc", },
 	{ .compatible = "nvidia,tegra20-hdmi", },
@@ -912,7 +1039,10 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 };
 
 static struct host1x_driver host1x_drm_driver = {
-	.name = "drm",
+	.driver = {
+		.name = "drm",
+		.pm = &host1x_drm_pm_ops,
+	},
 	.probe = host1x_drm_probe,
 	.remove = host1x_drm_remove,
 	.subdevs = host1x_drm_subdevs,

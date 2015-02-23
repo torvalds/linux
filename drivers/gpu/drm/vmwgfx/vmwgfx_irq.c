@@ -62,13 +62,8 @@ irqreturn_t vmw_irq_handler(int irq, void *arg)
 
 static bool vmw_fifo_idle(struct vmw_private *dev_priv, uint32_t seqno)
 {
-	uint32_t busy;
 
-	mutex_lock(&dev_priv->hw_mutex);
-	busy = vmw_read(dev_priv, SVGA_REG_BUSY);
-	mutex_unlock(&dev_priv->hw_mutex);
-
-	return (busy == 0);
+	return (vmw_read(dev_priv, SVGA_REG_BUSY) == 0);
 }
 
 void vmw_update_seqno(struct vmw_private *dev_priv,
@@ -184,7 +179,7 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 
 void vmw_seqno_waiter_add(struct vmw_private *dev_priv)
 {
-	mutex_lock(&dev_priv->hw_mutex);
+	spin_lock(&dev_priv->waiter_lock);
 	if (dev_priv->fence_queue_waiters++ == 0) {
 		unsigned long irq_flags;
 
@@ -195,12 +190,12 @@ void vmw_seqno_waiter_add(struct vmw_private *dev_priv)
 		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
 	}
-	mutex_unlock(&dev_priv->hw_mutex);
+	spin_unlock(&dev_priv->waiter_lock);
 }
 
 void vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
 {
-	mutex_lock(&dev_priv->hw_mutex);
+	spin_lock(&dev_priv->waiter_lock);
 	if (--dev_priv->fence_queue_waiters == 0) {
 		unsigned long irq_flags;
 
@@ -209,13 +204,13 @@ void vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
 		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
 	}
-	mutex_unlock(&dev_priv->hw_mutex);
+	spin_unlock(&dev_priv->waiter_lock);
 }
 
 
 void vmw_goal_waiter_add(struct vmw_private *dev_priv)
 {
-	mutex_lock(&dev_priv->hw_mutex);
+	spin_lock(&dev_priv->waiter_lock);
 	if (dev_priv->goal_queue_waiters++ == 0) {
 		unsigned long irq_flags;
 
@@ -226,12 +221,12 @@ void vmw_goal_waiter_add(struct vmw_private *dev_priv)
 		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
 	}
-	mutex_unlock(&dev_priv->hw_mutex);
+	spin_unlock(&dev_priv->waiter_lock);
 }
 
 void vmw_goal_waiter_remove(struct vmw_private *dev_priv)
 {
-	mutex_lock(&dev_priv->hw_mutex);
+	spin_lock(&dev_priv->waiter_lock);
 	if (--dev_priv->goal_queue_waiters == 0) {
 		unsigned long irq_flags;
 
@@ -240,7 +235,7 @@ void vmw_goal_waiter_remove(struct vmw_private *dev_priv)
 		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
 	}
-	mutex_unlock(&dev_priv->hw_mutex);
+	spin_unlock(&dev_priv->waiter_lock);
 }
 
 int vmw_wait_seqno(struct vmw_private *dev_priv,
@@ -315,9 +310,7 @@ void vmw_irq_uninstall(struct drm_device *dev)
 	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK))
 		return;
 
-	mutex_lock(&dev_priv->hw_mutex);
 	vmw_write(dev_priv, SVGA_REG_IRQMASK, 0);
-	mutex_unlock(&dev_priv->hw_mutex);
 
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);

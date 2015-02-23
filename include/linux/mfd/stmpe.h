@@ -118,20 +118,6 @@ extern int stmpe_disable(struct stmpe *stmpe, unsigned int blocks);
 #define STMPE_GPIO_NOREQ_811_TOUCH	(0xf0)
 
 /**
- * struct stmpe_gpio_platform_data - STMPE GPIO platform data
- * @norequest_mask: bitmask specifying which GPIOs should _not_ be
- *		    requestable due to different usage (e.g. touch, keypad)
- *		    STMPE_GPIO_NOREQ_* macros can be used here.
- * @setup: board specific setup callback.
- * @remove: board specific remove callback
- */
-struct stmpe_gpio_platform_data {
-	unsigned norequest_mask;
-	void (*setup)(struct stmpe *stmpe, unsigned gpio_base);
-	void (*remove)(struct stmpe *stmpe, unsigned gpio_base);
-};
-
-/**
  * struct stmpe_ts_platform_data - stmpe811 touch screen controller platform
  * data
  * @sample_time: ADC converstion time in number of clock.
@@ -182,7 +168,6 @@ struct stmpe_ts_platform_data {
  * @irq_over_gpio: true if gpio is used to get irq
  * @irq_gpio: gpio number over which irq will be requested (significant only if
  *	      irq_over_gpio is true)
- * @gpio: GPIO-specific platform data
  * @ts: touchscreen-specific platform data
  */
 struct stmpe_platform_data {
@@ -194,7 +179,6 @@ struct stmpe_platform_data {
 	int irq_gpio;
 	int autosleep_timeout;
 
-	struct stmpe_gpio_platform_data *gpio;
 	struct stmpe_ts_platform_data *ts;
 };
 

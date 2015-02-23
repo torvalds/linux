@@ -9,7 +9,7 @@
 
 #include "ipvlan.h"
 
-static u32 ipvlan_jhash_secret;
+static u32 ipvlan_jhash_secret __read_mostly;
 
 void ipvlan_init_secret(void)
 {
@@ -377,9 +377,11 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 	};
 
 	dst = ip6_route_output(dev_net(dev), NULL, &fl6);
-	if (IS_ERR(dst))
+	if (dst->error) {
+		ret = dst->error;
+		dst_release(dst);
 		goto err;
-
+	}
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
 	err = ip6_local_out(skb);

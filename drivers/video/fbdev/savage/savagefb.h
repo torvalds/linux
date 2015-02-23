@@ -351,32 +351,26 @@ static inline void VGAwSEQ(u8 index, u8 val, struct savagefb_par *par)
 
 static inline void VGAenablePalette(struct savagefb_par *par)
 {
-	u8 tmp;
-
-	tmp = vga_in8(0x3da, par);
+	vga_in8(0x3da, par);
 	vga_out8(0x3c0, 0x00, par);
 	par->paletteEnabled = 1;
 }
 
 static inline void VGAdisablePalette(struct savagefb_par *par)
 {
-	u8 tmp;
-
-	tmp = vga_in8(0x3da, par);
+	vga_in8(0x3da, par);
 	vga_out8(0x3c0, 0x20, par);
 	par->paletteEnabled = 0;
 }
 
 static inline void VGAwATTR(u8 index, u8 value, struct savagefb_par *par)
 {
-	u8 tmp;
-
 	if (par->paletteEnabled)
 		index &= ~0x20;
 	else
 		index |= 0x20;
 
-	tmp = vga_in8(0x3da, par);
+	vga_in8(0x3da, par);
 	vga_out8(0x3c0, index, par);
 	vga_out8 (0x3c0, value, par);
 }

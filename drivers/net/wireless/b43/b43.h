@@ -500,6 +500,8 @@ enum {
 #define  B43_BCMA_IOCTL_PHY_BW_10MHZ	0x00000000	/* 10 MHz bandwidth, 40 MHz PHY */
 #define  B43_BCMA_IOCTL_PHY_BW_20MHZ	0x00000040	/* 20 MHz bandwidth, 80 MHz PHY */
 #define  B43_BCMA_IOCTL_PHY_BW_40MHZ	0x00000080	/* 40 MHz bandwidth, 160 MHz PHY */
+#define  B43_BCMA_IOCTL_PHY_BW_80MHZ	0x000000C0	/* 80 MHz bandwidth */
+#define B43_BCMA_IOCTL_DAC		0x00000300	/* Highspeed DAC mode control field */
 #define B43_BCMA_IOCTL_GMODE		0x00002000	/* G Mode Enable */
 
 /* BCMA 802.11 core specific IO status (BCMA_IOST) flags */
@@ -941,6 +943,7 @@ struct b43_wl {
 	bool beacon1_uploaded;
 	bool beacon_templates_virgin; /* Never wrote the templates? */
 	struct work_struct beacon_update_trigger;
+	spinlock_t beacon_lock;
 
 	/* The current QOS parameters for the 4 queues. */
 	struct b43_qos_params qos_params[B43_QOS_QUEUE_NUM];

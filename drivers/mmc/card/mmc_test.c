@@ -2342,20 +2342,16 @@ static int mmc_test_hw_reset(struct mmc_test_card *test)
 	struct mmc_host *host = card->host;
 	int err;
 
-	err = mmc_hw_reset_check(host);
-	if (!err)
-		return RESULT_OK;
-
-	if (err == -ENOSYS)
-		return RESULT_FAIL;
-
-	if (err != -EOPNOTSUPP)
-		return err;
-
-	if (!mmc_can_reset(card))
+	if (!mmc_card_mmc(card) || !mmc_can_reset(card))
 		return RESULT_UNSUP_CARD;
 
-	return RESULT_UNSUP_HOST;
+	err = mmc_hw_reset(host);
+	if (!err)
+		return RESULT_OK;
+	else if (err == -EOPNOTSUPP)
+		return RESULT_UNSUP_HOST;
+
+	return RESULT_FAIL;
 }
 
 static const struct mmc_test_case mmc_test_cases[] = {

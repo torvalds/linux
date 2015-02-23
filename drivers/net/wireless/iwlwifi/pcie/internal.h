@@ -216,6 +216,7 @@ struct iwl_pcie_txq_scratch_buf {
  * @need_update: indicates need to update read/write index
  * @active: stores if queue is active
  * @ampdu: true if this queue is an ampdu queue for an specific RA/TID
+ * @wd_timeout: queue watchdog timeout (jiffies) - per queue
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
@@ -232,6 +233,7 @@ struct iwl_txq {
 	bool need_update;
 	u8 active;
 	bool ampdu;
+	unsigned long wd_timeout;
 };
 
 static inline dma_addr_t
@@ -259,7 +261,6 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @rx_page_order: page order for receive buffer size
- * @wd_timeout: queue watchdog timeout (jiffies)
  * @reg_lock: protect hw register access
  * @cmd_in_flight: true when we have a host command in flight
  * @fw_mon_phys: physical address of the buffer for the firmware monitor
@@ -302,6 +303,7 @@ struct iwl_trans_pcie {
 
 	u8 cmd_queue;
 	u8 cmd_fifo;
+	unsigned int cmd_q_wdg_timeout;
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 
@@ -312,12 +314,14 @@ struct iwl_trans_pcie {
 
 	const char *const *command_names;
 
-	/* queue watchdog */
-	unsigned long wd_timeout;
-
 	/*protect hw register */
 	spinlock_t reg_lock;
 	bool cmd_in_flight;
+	bool ref_cmd_in_flight;
+
+	/* protect ref counter */
+	spinlock_t ref_lock;
+	u32 ref_count;
 
 	dma_addr_t fw_mon_phys;
 	struct page *fw_mon_page;
@@ -368,7 +372,8 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr);
 int iwl_pcie_tx_stop(struct iwl_trans *trans);
 void iwl_pcie_tx_free(struct iwl_trans *trans);
 void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int queue, u16 ssn,
-			       const struct iwl_trans_txq_scd_cfg *cfg);
+			       const struct iwl_trans_txq_scd_cfg *cfg,
+			       unsigned int wdg_timeout);
 void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue,
 				bool configure_scd);
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
@@ -380,6 +385,9 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
+
+void iwl_trans_pcie_ref(struct iwl_trans *trans);
+void iwl_trans_pcie_unref(struct iwl_trans *trans);
 
 static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
 {

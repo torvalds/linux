@@ -153,8 +153,8 @@
 			compatible	= "st,stih415-dwmac", "snps,dwmac", "snps,dwmac-3.610";
 			status 		= "disabled";
 
-			reg 		= <0xfe810000 0x8000>, <0x148 0x4>;
-			reg-names	= "stmmaceth", "sti-ethconf";
+			reg		= <0xfe810000 0x8000>;
+			reg-names	= "stmmaceth";
 
 			interrupts 	= <0 147 0>, <0 148 0>, <0 149 0>;
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
@@ -165,7 +165,7 @@
 			snps,mixed-burst;
 			snps,force_sf_dma_mode;
 
-			st,syscon	= <&syscfg_rear>;
+			st,syscon	= <&syscfg_rear 0x148>;
 
 			pinctrl-names 	= "default";
 			pinctrl-0	= <&pinctrl_mii0>;
@@ -177,8 +177,8 @@
 			device_type = "network";
 			compatible	= "st,stih415-dwmac", "snps,dwmac", "snps,dwmac-3.610";
 			status 		= "disabled";
-			reg		= <0xfef08000 0x8000>, <0x74 0x4>;
-			reg-names	= "stmmaceth", "sti-ethconf";
+			reg		= <0xfef08000 0x8000>;
+			reg-names	= "stmmaceth";
 			interrupts 	= <0 150 0>, <0 151 0>, <0 152 0>;
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 
@@ -186,7 +186,7 @@
 			snps,mixed-burst;
 			snps,force_sf_dma_mode;
 
-			st,syscon		= <&syscfg_sbc>;
+			st,syscon		= <&syscfg_sbc 0x74>;
 
 			resets			= <&softreset STIH415_ETH1_SOFTRESET>;
 			reset-names		= "stmmaceth";

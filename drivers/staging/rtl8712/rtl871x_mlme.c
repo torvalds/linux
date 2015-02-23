@@ -93,7 +93,7 @@ struct wlan_network *_r8712_alloc_network(struct mlme_priv *pmlmepriv)
 		return NULL;
 	spin_lock_irqsave(&free_queue->lock, irqL);
 	plist = free_queue->queue.next;
-	pnetwork = LIST_CONTAINOR(plist , struct wlan_network, list);
+	pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
 	list_del_init(&pnetwork->list);
 	pnetwork->last_scanned = jiffies;
 	pmlmepriv->num_of_scanned++;
@@ -499,7 +499,7 @@ static int is_desired_network(struct _adapter *adapter,
 }
 
 /* TODO: Perry : For Power Management */
-void r8712_atimdone_event_callback(struct _adapter *adapter , u8 *pbuf)
+void r8712_atimdone_event_callback(struct _adapter *adapter, u8 *pbuf)
 {
 }
 

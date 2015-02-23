@@ -1168,8 +1168,6 @@ struct ieee80211_local {
 	/* wowlan is enabled -- don't reconfig on resume */
 	bool wowlan;
 
-	/* DFS/radar detection is enabled */
-	bool radar_detect_enabled;
 	struct work_struct radar_detected_work;
 
 	/* number of RX chains the hardware has */
@@ -1623,7 +1621,8 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local);
 void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
 
 bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
-void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
+void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
+			      bool update_bss);
 
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {
@@ -1704,6 +1703,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
 				    const struct ieee80211_vht_cap *vht_cap_ie,
 				    struct sta_info *sta);
+enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta);
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta);
 void ieee80211_sta_set_rx_nss(struct sta_info *sta);
 u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
@@ -1752,7 +1752,8 @@ static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
+	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning) &&
+	     !test_bit(SCAN_COMPLETED, &local->scanning),
 		"%s: resume with hardware scan still in progress\n",
 		wiphy_name(hw->wiphy));
 
@@ -1881,10 +1882,40 @@ void ieee80211_add_pending_skb(struct ieee80211_local *local,
 void ieee80211_add_pending_skbs(struct ieee80211_local *local,
 				struct sk_buff_head *skbs);
 void ieee80211_flush_queues(struct ieee80211_local *local,
-			    struct ieee80211_sub_if_data *sdata);
+			    struct ieee80211_sub_if_data *sdata, bool drop);
 void __ieee80211_flush_queues(struct ieee80211_local *local,
 			      struct ieee80211_sub_if_data *sdata,
-			      unsigned int queues);
+			      unsigned int queues, bool drop);
+
+static inline bool ieee80211_can_run_worker(struct ieee80211_local *local)
+{
+	/*
+	 * If quiescing is set, we are racing with __ieee80211_suspend.
+	 * __ieee80211_suspend flushes the workers after setting quiescing,
+	 * and we check quiescing / suspended before enqueing new workers.
+	 * We should abort the worker to avoid the races below.
+	 */
+	if (local->quiescing)
+		return false;
+
+	/*
+	 * We might already be suspended if the following scenario occurs:
+	 * __ieee80211_suspend		Control path
+	 *
+	 *				if (local->quiescing)
+	 *					return;
+	 * local->quiescing = true;
+	 * flush_workqueue();
+	 *				queue_work(...);
+	 * local->suspended = true;
+	 * local->quiescing = false;
+	 *				worker starts running...
+	 */
+	if (local->suspended)
+		return false;
+
+	return true;
+}
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
@@ -1981,6 +2012,7 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 				   struct ieee80211_chanctx *chanctx);
 void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 				      struct ieee80211_chanctx *ctx);
+bool ieee80211_is_radar_required(struct ieee80211_local *local);
 
 void ieee80211_dfs_cac_timer(unsigned long data);
 void ieee80211_dfs_cac_timer_work(struct work_struct *work);

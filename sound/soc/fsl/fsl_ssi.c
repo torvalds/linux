@@ -160,7 +160,7 @@ struct fsl_ssi_soc_data {
  */
 struct fsl_ssi_private {
 	struct regmap *regs;
-	unsigned int irq;
+	int irq;
 	struct snd_soc_dai_driver cpu_dai_drv;
 
 	unsigned int dai_fmt;
@@ -992,8 +992,8 @@ static int fsl_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai, u32 tx_mask,
 	regmap_update_bits(regs, CCSR_SSI_SCR, CCSR_SSI_SCR_SSIEN,
 			CCSR_SSI_SCR_SSIEN);
 
-	regmap_write(regs, CCSR_SSI_STMSK, tx_mask);
-	regmap_write(regs, CCSR_SSI_SRMSK, rx_mask);
+	regmap_write(regs, CCSR_SSI_STMSK, ~tx_mask);
+	regmap_write(regs, CCSR_SSI_SRMSK, ~rx_mask);
 
 	regmap_update_bits(regs, CCSR_SSI_SCR, CCSR_SSI_SCR_SSIEN, val);
 
@@ -1363,8 +1363,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 
 	ssi_private->irq = platform_get_irq(pdev, 0);
 	if (!ssi_private->irq) {
-		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
-		return -ENXIO;
+		dev_err(&pdev->dev, "no irq for node %s\n", pdev->name);
+		return ssi_private->irq;
 	}
 
 	/* Are the RX and the TX clocks locked? */

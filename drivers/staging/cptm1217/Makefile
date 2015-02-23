@@ -1,2 +1,0 @@
-obj-$(CONFIG_TOUCHSCREEN_CLEARPAD_TM1217)	+= clearpad_tm1217.o
-

@@ -104,7 +104,7 @@ static void __iomem *pmsu_mp_base;
 
 static void *mvebu_cpu_resume;
 
-static struct of_device_id of_pmsu_table[] = {
+static const struct of_device_id of_pmsu_table[] = {
 	{ .compatible = "marvell,armada-370-pmsu", },
 	{ .compatible = "marvell,armada-370-xp-pmsu", },
 	{ .compatible = "marvell,armada-380-pmsu", },

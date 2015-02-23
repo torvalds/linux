@@ -1,7 +1,10 @@
 NVIDIA Tegra30 I2S controller
 
 Required properties:
-- compatible : "nvidia,tegra30-i2s"
+- compatible : For Tegra30, must contain "nvidia,tegra30-i2s".  For Tegra124,
+  must contain "nvidia,tegra124-i2s".  Otherwise, must contain
+  "nvidia,<chip>-i2s" plus at least one of the above, where <chip> is
+  tegra114 or tegra132.
 - reg : Should contain I2S registers location and length
 - clocks : Must contain one entry, for the module clock.
   See ../clocks/clock-bindings.txt for details.

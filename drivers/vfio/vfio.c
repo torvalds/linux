@@ -63,6 +63,11 @@ struct vfio_container {
 	void				*iommu_data;
 };
 
+struct vfio_unbound_dev {
+	struct device			*dev;
+	struct list_head		unbound_next;
+};
+
 struct vfio_group {
 	struct kref			kref;
 	int				minor;
@@ -75,6 +80,8 @@ struct vfio_group {
 	struct notifier_block		nb;
 	struct list_head		vfio_next;
 	struct list_head		container_next;
+	struct list_head		unbound_list;
+	struct mutex			unbound_lock;
 	atomic_t			opened;
 };
 
@@ -204,6 +211,8 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 	kref_init(&group->kref);
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
+	INIT_LIST_HEAD(&group->unbound_list);
+	mutex_init(&group->unbound_lock);
 	atomic_set(&group->container_users, 0);
 	atomic_set(&group->opened, 0);
 	group->iommu_group = iommu_group;
@@ -264,13 +273,22 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 static void vfio_group_release(struct kref *kref)
 {
 	struct vfio_group *group = container_of(kref, struct vfio_group, kref);
+	struct vfio_unbound_dev *unbound, *tmp;
+	struct iommu_group *iommu_group = group->iommu_group;
 
 	WARN_ON(!list_empty(&group->device_list));
+
+	list_for_each_entry_safe(unbound, tmp,
+				 &group->unbound_list, unbound_next) {
+		list_del(&unbound->unbound_next);
+		kfree(unbound);
+	}
 
 	device_destroy(vfio.class, MKDEV(MAJOR(vfio.group_devt), group->minor));
 	list_del(&group->vfio_next);
 	vfio_free_group_minor(group->minor);
 	vfio_group_unlock_and_free(group);
+	iommu_group_put(iommu_group);
 }
 
 static void vfio_group_put(struct vfio_group *group)
@@ -440,17 +458,36 @@ static bool vfio_whitelisted_driver(struct device_driver *drv)
 }
 
 /*
- * A vfio group is viable for use by userspace if all devices are either
- * driver-less or bound to a vfio or whitelisted driver.  We test the
- * latter by the existence of a struct vfio_device matching the dev.
+ * A vfio group is viable for use by userspace if all devices are in
+ * one of the following states:
+ *  - driver-less
+ *  - bound to a vfio driver
+ *  - bound to a whitelisted driver
+ *
+ * We use two methods to determine whether a device is bound to a vfio
+ * driver.  The first is to test whether the device exists in the vfio
+ * group.  The second is to test if the device exists on the group
+ * unbound_list, indicating it's in the middle of transitioning from
+ * a vfio driver to driver-less.
  */
 static int vfio_dev_viable(struct device *dev, void *data)
 {
 	struct vfio_group *group = data;
 	struct vfio_device *device;
 	struct device_driver *drv = ACCESS_ONCE(dev->driver);
+	struct vfio_unbound_dev *unbound;
+	int ret = -EINVAL;
 
-	if (!drv || vfio_whitelisted_driver(drv))
+	mutex_lock(&group->unbound_lock);
+	list_for_each_entry(unbound, &group->unbound_list, unbound_next) {
+		if (dev == unbound->dev) {
+			ret = 0;
+			break;
+		}
+	}
+	mutex_unlock(&group->unbound_lock);
+
+	if (!ret || !drv || vfio_whitelisted_driver(drv))
 		return 0;
 
 	device = vfio_group_get_device(group, dev);
@@ -459,7 +496,7 @@ static int vfio_dev_viable(struct device *dev, void *data)
 		return 0;
 	}
 
-	return -EINVAL;
+	return ret;
 }
 
 /**
@@ -501,6 +538,7 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 {
 	struct vfio_group *group = container_of(nb, struct vfio_group, nb);
 	struct device *dev = data;
+	struct vfio_unbound_dev *unbound;
 
 	/*
 	 * Need to go through a group_lock lookup to get a reference or we
@@ -550,6 +588,17 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 		 * stop the system to maintain isolation.  At a minimum, we'd
 		 * want a toggle to disable driver auto probe for this device.
 		 */
+
+		mutex_lock(&group->unbound_lock);
+		list_for_each_entry(unbound,
+				    &group->unbound_list, unbound_next) {
+			if (dev == unbound->dev) {
+				list_del(&unbound->unbound_next);
+				kfree(unbound);
+				break;
+			}
+		}
+		mutex_unlock(&group->unbound_lock);
 		break;
 	}
 
@@ -578,6 +627,12 @@ int vfio_add_group_dev(struct device *dev,
 			iommu_group_put(iommu_group);
 			return PTR_ERR(group);
 		}
+	} else {
+		/*
+		 * A found vfio_group already holds a reference to the
+		 * iommu_group.  A created vfio_group keeps the reference.
+		 */
+		iommu_group_put(iommu_group);
 	}
 
 	device = vfio_group_get_device(group, dev);
@@ -586,21 +641,19 @@ int vfio_add_group_dev(struct device *dev,
 		     dev_name(dev), iommu_group_id(iommu_group));
 		vfio_device_put(device);
 		vfio_group_put(group);
-		iommu_group_put(iommu_group);
 		return -EBUSY;
 	}
 
 	device = vfio_group_create_device(group, dev, ops, device_data);
 	if (IS_ERR(device)) {
 		vfio_group_put(group);
-		iommu_group_put(iommu_group);
 		return PTR_ERR(device);
 	}
 
 	/*
-	 * Added device holds reference to iommu_group and vfio_device
-	 * (which in turn holds reference to vfio_group).  Drop extra
-	 * group reference used while acquiring device.
+	 * Drop all but the vfio_device reference.  The vfio_device holds
+	 * a reference to the vfio_group, which holds a reference to the
+	 * iommu_group.
 	 */
 	vfio_group_put(group);
 
@@ -655,8 +708,9 @@ void *vfio_del_group_dev(struct device *dev)
 {
 	struct vfio_device *device = dev_get_drvdata(dev);
 	struct vfio_group *group = device->group;
-	struct iommu_group *iommu_group = group->iommu_group;
 	void *device_data = device->device_data;
+	struct vfio_unbound_dev *unbound;
+	unsigned int i = 0;
 
 	/*
 	 * The group exists so long as we have a device reference.  Get
@@ -664,14 +718,49 @@ void *vfio_del_group_dev(struct device *dev)
 	 */
 	vfio_group_get(group);
 
+	/*
+	 * When the device is removed from the group, the group suddenly
+	 * becomes non-viable; the device has a driver (until the unbind
+	 * completes), but it's not present in the group.  This is bad news
+	 * for any external users that need to re-acquire a group reference
+	 * in order to match and release their existing reference.  To
+	 * solve this, we track such devices on the unbound_list to bridge
+	 * the gap until they're fully unbound.
+	 */
+	unbound = kzalloc(sizeof(*unbound), GFP_KERNEL);
+	if (unbound) {
+		unbound->dev = dev;
+		mutex_lock(&group->unbound_lock);
+		list_add(&unbound->unbound_next, &group->unbound_list);
+		mutex_unlock(&group->unbound_lock);
+	}
+	WARN_ON(!unbound);
+
 	vfio_device_put(device);
 
-	/* TODO send a signal to encourage this to be released */
-	wait_event(vfio.release_q, !vfio_dev_present(group, dev));
+	/*
+	 * If the device is still present in the group after the above
+	 * 'put', then it is in use and we need to request it from the
+	 * bus driver.  The driver may in turn need to request the
+	 * device from the user.  We send the request on an arbitrary
+	 * interval with counter to allow the driver to take escalating
+	 * measures to release the device if it has the ability to do so.
+	 */
+	do {
+		device = vfio_group_get_device(group, dev);
+		if (!device)
+			break;
+
+		if (device->ops->request)
+			device->ops->request(device_data, i++);
+
+		vfio_device_put(device);
+
+	} while (wait_event_interruptible_timeout(vfio.release_q,
+						  !vfio_dev_present(group, dev),
+						  HZ * 10) <= 0);
 
 	vfio_group_put(group);
-
-	iommu_group_put(iommu_group);
 
 	return device_data;
 }

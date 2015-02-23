@@ -26,6 +26,7 @@
 #include "../wifi.h"
 #include "../base.h"
 #include "../pci.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -211,35 +212,6 @@ void rtl8723be_dm_txpower_track_adjust(struct ieee80211_hw *hw, u8 type,
 		(pwr_val << 16) | (pwr_val << 24);
 }
 
-static void rtl8723be_dm_diginit(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
-
-	dm_digtable->dig_enable_flag = true;
-	dm_digtable->cur_igvalue = rtl_get_bbreg(hw, ROFDM0_XAAGCCORE1, 0x7f);
-	dm_digtable->rssi_lowthresh = DM_DIG_THRESH_LOW;
-	dm_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
-	dm_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
-	dm_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
-	dm_digtable->rx_gain_max = DM_DIG_MAX;
-	dm_digtable->rx_gain_min = DM_DIG_MIN;
-	dm_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
-	dm_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
-	dm_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
-	dm_digtable->pre_cck_cca_thres = 0xff;
-	dm_digtable->cur_cck_cca_thres = 0x83;
-	dm_digtable->forbidden_igi = DM_DIG_MIN;
-	dm_digtable->large_fa_hit = 0;
-	dm_digtable->recover_cnt = 0;
-	dm_digtable->dig_dynamic_min = DM_DIG_MIN;
-	dm_digtable->dig_dynamic_min_1 = DM_DIG_MIN;
-	dm_digtable->media_connect_0 = false;
-	dm_digtable->media_connect_1 = false;
-	rtlpriv->dm.dm_initialgain_enable = true;
-	dm_digtable->bt30_cur_igi = 0x32;
-}
-
 void rtl8723be_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -293,9 +265,10 @@ static void rtl8723be_dm_init_dynamic_atc_switch(struct ieee80211_hw *hw)
 void rtl8723be_dm_init(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u32 cur_igvalue = rtl_get_bbreg(hw, ROFDM0_XAAGCCORE1, 0x7f);
 
 	rtlpriv->dm.dm_type = DM_TYPE_BYDRIVER;
-	rtl8723be_dm_diginit(hw);
+	rtl_dm_diginit(hw, cur_igvalue);
 	rtl8723be_dm_init_rate_adaptive_mask(hw);
 	rtl8723_dm_init_edca_turbo(hw);
 	rtl8723_dm_init_dynamic_bb_powersaving(hw);
@@ -424,7 +397,7 @@ static void rtl8723be_dm_dig(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	u8 dig_dynamic_min, dig_maxofmin;
+	u8 dig_min_0, dig_maxofmin;
 	bool bfirstconnect, bfirstdisconnect;
 	u8 dm_dig_max, dm_dig_min;
 	u8 current_igi = dm_digtable->cur_igvalue;
@@ -434,7 +407,7 @@ static void rtl8723be_dm_dig(struct ieee80211_hw *hw)
 	if (mac->act_scanning)
 		return;
 
-	dig_dynamic_min = dm_digtable->dig_dynamic_min;
+	dig_min_0 = dm_digtable->dig_min_0;
 	bfirstconnect = (mac->link_state >= MAC80211_LINKED) &&
 			!dm_digtable->media_connect_0;
 	bfirstdisconnect = (mac->link_state < MAC80211_LINKED) &&
@@ -456,20 +429,20 @@ static void rtl8723be_dm_dig(struct ieee80211_hw *hw)
 		if (rtlpriv->dm.one_entry_only) {
 			offset = 12;
 			if (dm_digtable->rssi_val_min - offset < dm_dig_min)
-				dig_dynamic_min = dm_dig_min;
+				dig_min_0 = dm_dig_min;
 			else if (dm_digtable->rssi_val_min - offset >
 							dig_maxofmin)
-				dig_dynamic_min = dig_maxofmin;
+				dig_min_0 = dig_maxofmin;
 			else
-				dig_dynamic_min =
+				dig_min_0 =
 					dm_digtable->rssi_val_min - offset;
 		} else {
-			dig_dynamic_min = dm_dig_min;
+			dig_min_0 = dm_dig_min;
 		}
 
 	} else {
 		dm_digtable->rx_gain_max = dm_dig_max;
-		dig_dynamic_min = dm_dig_min;
+		dig_min_0 = dm_dig_min;
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "no link\n");
 	}
 
@@ -497,11 +470,11 @@ static void rtl8723be_dm_dig(struct ieee80211_hw *hw)
 		} else {
 			if (dm_digtable->large_fa_hit < 3) {
 				if ((dm_digtable->forbidden_igi - 1) <
-				     dig_dynamic_min) {
+				     dig_min_0) {
 					dm_digtable->forbidden_igi =
-							dig_dynamic_min;
+							dig_min_0;
 					dm_digtable->rx_gain_min =
-							dig_dynamic_min;
+							dig_min_0;
 				} else {
 					dm_digtable->forbidden_igi--;
 					dm_digtable->rx_gain_min =
@@ -552,7 +525,7 @@ static void rtl8723be_dm_dig(struct ieee80211_hw *hw)
 	rtl8723be_dm_write_dig(hw, current_igi);
 	dm_digtable->media_connect_0 =
 		((mac->link_state >= MAC80211_LINKED) ? true : false);
-	dm_digtable->dig_dynamic_min = dig_dynamic_min;
+	dm_digtable->dig_min_0 = dig_min_0;
 }
 
 static void rtl8723be_dm_false_alarm_counter_statistics(

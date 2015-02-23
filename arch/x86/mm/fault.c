@@ -600,7 +600,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 			printk(nx_warning, from_kuid(&init_user_ns, current_uid()));
 		if (pte && pte_present(*pte) && pte_exec(*pte) &&
 				(pgd_flags(*pgd) & _PAGE_USER) &&
-				(read_cr4() & X86_CR4_SMEP))
+				(__read_cr4() & X86_CR4_SMEP))
 			printk(smep_warning, from_kuid(&init_user_ns, current_uid()));
 	}
 
@@ -898,6 +898,8 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
 			     VM_FAULT_HWPOISON_LARGE))
 			do_sigbus(regs, error_code, address, fault);
+		else if (fault & VM_FAULT_SIGSEGV)
+			bad_area_nosemaphore(regs, error_code, address);
 		else
 			BUG();
 	}

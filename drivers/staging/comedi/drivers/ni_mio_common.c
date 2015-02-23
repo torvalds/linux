@@ -1478,7 +1478,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 		dev_err(dev->class_dev,
 			"unknown mite interrupt (ai_mite_status=%08x)\n",
 			ai_mite_status);
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_ERROR;
 		/* disable_irq(dev->irq); */
 	}
 #endif
@@ -1491,8 +1491,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			/* we probably aren't even running a command now,
 			 * so it's a good idea to be careful. */
 			if (comedi_is_subdevice_running(s)) {
-				s->async->events |=
-				    COMEDI_CB_ERROR | COMEDI_CB_EOA;
+				s->async->events |= COMEDI_CB_ERROR;
 				comedi_handle_events(dev, s);
 			}
 			return;
@@ -1579,7 +1578,7 @@ static void handle_b_interrupt(struct comedi_device *dev,
 		dev_err(dev->class_dev,
 			"unknown mite interrupt (ao_mite_status=%08x)\n",
 			ao_mite_status);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		s->async->events |= COMEDI_CB_ERROR;
 	}
 #endif
 

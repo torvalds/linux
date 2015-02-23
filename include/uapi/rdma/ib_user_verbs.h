@@ -202,10 +202,6 @@ struct ib_uverbs_query_device_resp {
 	__u8  reserved[4];
 };
 
-enum {
-	IB_USER_VERBS_EX_QUERY_DEVICE_ODP =		1ULL << 0,
-};
-
 struct ib_uverbs_ex_query_device {
 	__u32 comp_mask;
 	__u32 reserved;
@@ -224,7 +220,7 @@ struct ib_uverbs_odp_caps {
 struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_query_device_resp base;
 	__u32 comp_mask;
-	__u32 reserved;
+	__u32 response_length;
 	struct ib_uverbs_odp_caps odp_caps;
 };
 

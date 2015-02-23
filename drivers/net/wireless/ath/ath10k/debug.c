@@ -23,6 +23,7 @@
 #include "core.h"
 #include "debug.h"
 #include "hif.h"
+#include "wmi-ops.h"
 
 /* ms */
 #define ATH10K_DEBUG_HTT_STATS_INTERVAL 1000
@@ -123,7 +124,7 @@ EXPORT_SYMBOL(ath10k_info);
 
 void ath10k_print_driver_info(struct ath10k *ar)
 {
-	ath10k_info(ar, "%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d wmi %d.%d.%d.%d cal %s max_sta %d\n",
+	ath10k_info(ar, "%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d wmi %d cal %s max_sta %d\n",
 		    ar->hw_params.name,
 		    ar->target_version,
 		    ar->chip_id,
@@ -131,10 +132,7 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		    ar->fw_api,
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor,
-		    ar->fw_version_major,
-		    ar->fw_version_minor,
-		    ar->fw_version_release,
-		    ar->fw_version_build,
+		    ar->wmi.op_version,
 		    ath10k_cal_mode_str(ar->cal_mode),
 		    ar->max_num_stations);
 	ath10k_info(ar, "debug %d debugfs %d tracing %d dfs %d testmode %d\n",
@@ -373,7 +371,7 @@ static int ath10k_debug_fw_stats_request(struct ath10k *ar)
 
 		ret = wait_for_completion_timeout(&ar->debug.fw_stats_complete,
 						  1*HZ);
-		if (ret <= 0)
+		if (ret == 0)
 			return -ETIMEDOUT;
 
 		spin_lock_bh(&ar->data_lock);
@@ -1320,10 +1318,10 @@ static ssize_t ath10k_read_fw_dbglog(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	unsigned int len;
-	char buf[32];
+	char buf[64];
 
-	len = scnprintf(buf, sizeof(buf), "0x%08x\n",
-			ar->debug.fw_dbglog_mask);
+	len = scnprintf(buf, sizeof(buf), "0x%08x %u\n",
+			ar->debug.fw_dbglog_mask, ar->debug.fw_dbglog_level);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -1333,19 +1331,32 @@ static ssize_t ath10k_write_fw_dbglog(struct file *file,
 				      size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
-	unsigned long mask;
 	int ret;
+	char buf[64];
+	unsigned int log_level, mask;
 
-	ret = kstrtoul_from_user(user_buf, count, 0, &mask);
-	if (ret)
-		return ret;
+	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+
+	/* make sure that buf is null terminated */
+	buf[sizeof(buf) - 1] = 0;
+
+	ret = sscanf(buf, "%x %u", &mask, &log_level);
+
+	if (!ret)
+		return -EINVAL;
+
+	if (ret == 1)
+		/* default if user did not specify */
+		log_level = ATH10K_DBGLOG_LEVEL_WARN;
 
 	mutex_lock(&ar->conf_mutex);
 
 	ar->debug.fw_dbglog_mask = mask;
+	ar->debug.fw_dbglog_level = log_level;
 
 	if (ar->state == ATH10K_STATE_ON) {
-		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask);
+		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask,
+					    ar->debug.fw_dbglog_level);
 		if (ret) {
 			ath10k_warn(ar, "dbglog cfg failed from debugfs: %d\n",
 				    ret);
@@ -1607,6 +1618,73 @@ static const struct file_operations fops_cal_data = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_read_nf_cal_period(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	unsigned int len;
+	char buf[32];
+
+	len = scnprintf(buf, sizeof(buf), "%d\n",
+			ar->debug.nf_cal_period);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath10k_write_nf_cal_period(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	unsigned long period;
+	int ret;
+
+	ret = kstrtoul_from_user(user_buf, count, 0, &period);
+	if (ret)
+		return ret;
+
+	if (period > WMI_PDEV_PARAM_CAL_PERIOD_MAX)
+		return -EINVAL;
+
+	/* there's no way to switch back to the firmware default */
+	if (period == 0)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	ar->debug.nf_cal_period = period;
+
+	if (ar->state != ATH10K_STATE_ON) {
+		/* firmware is not running, nothing else to do */
+		ret = count;
+		goto exit;
+	}
+
+	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->cal_period,
+					ar->debug.nf_cal_period);
+	if (ret) {
+		ath10k_warn(ar, "cal period cfg failed from debugfs: %d\n",
+			    ret);
+		goto exit;
+	}
+
+	ret = count;
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static const struct file_operations fops_nf_cal_period = {
+	.read = ath10k_read_nf_cal_period,
+	.write = ath10k_write_nf_cal_period,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_start(struct ath10k *ar)
 {
 	int ret;
@@ -1620,7 +1698,8 @@ int ath10k_debug_start(struct ath10k *ar)
 			    ret);
 
 	if (ar->debug.fw_dbglog_mask) {
-		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask);
+		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask,
+					    ATH10K_DBGLOG_LEVEL_WARN);
 		if (ret)
 			/* not serious */
 			ath10k_warn(ar, "failed to enable dbglog during start: %d",
@@ -1640,6 +1719,16 @@ int ath10k_debug_start(struct ath10k *ar)
 		if (ret)
 			/* not serious */
 			ath10k_warn(ar, "failed to disable pktlog: %d\n", ret);
+	}
+
+	if (ar->debug.nf_cal_period) {
+		ret = ath10k_wmi_pdev_set_param(ar,
+						ar->wmi.pdev_param->cal_period,
+						ar->debug.nf_cal_period);
+		if (ret)
+			/* not serious */
+			ath10k_warn(ar, "cal period cfg failed from debug start: %d\n",
+				    ret);
 	}
 
 	return ret;
@@ -1879,6 +1968,9 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("cal_data", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_cal_data);
+
+	debugfs_create_file("nf_cal_period", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_nf_cal_period);
 
 	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED)) {
 		debugfs_create_file("dfs_simulate_radar", S_IWUSR,

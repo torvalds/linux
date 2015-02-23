@@ -625,10 +625,10 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	}
 
 	/* reducing 80M spur */
-	PHY_SetBBReg(Adapter, RF_T_METER, bMaskDWord, 0x0381808d);
-	PHY_SetBBReg(Adapter, RF_SYN_G4, bMaskDWord, 0xf2ffff83);
-	PHY_SetBBReg(Adapter, RF_SYN_G4, bMaskDWord, 0xf2ffff82);
-	PHY_SetBBReg(Adapter, RF_SYN_G4, bMaskDWord, 0xf2ffff83);
+	PHY_SetBBReg(Adapter, REG_AFE_XTAL_CTRL, bMaskDWord, 0x0381808d);
+	PHY_SetBBReg(Adapter, REG_AFE_PLL_CTRL, bMaskDWord, 0xf0ffff83);
+	PHY_SetBBReg(Adapter, REG_AFE_PLL_CTRL, bMaskDWord, 0xf0ffff82);
+	PHY_SetBBReg(Adapter, REG_AFE_PLL_CTRL, bMaskDWord, 0xf0ffff83);
 
 	/* RFSW Control */
 	PHY_SetBBReg(Adapter, rFPGA0_TxInfo, bMaskDWord, 0x00000003);	/* 0x804[14]= 0 */
@@ -640,8 +640,10 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	/*  */
 	/*  Joseph Note: Keep RfRegChnlVal for later use. */
 	/*  */
-	pHalData->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)0, RF_CHNLBW, bRFRegOffsetMask);
-	pHalData->RfRegChnlVal[1] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)1, RF_CHNLBW, bRFRegOffsetMask);
+	pHalData->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, RF_PATH_A,
+						   RF_CHNLBW, bRFRegOffsetMask);
+	pHalData->RfRegChnlVal[1] = PHY_QueryRFReg(Adapter, RF_PATH_B,
+						   RF_CHNLBW, bRFRegOffsetMask);
 
 	if (!mac_on) {
 		_InitQueueReservedPage(Adapter);

@@ -10,23 +10,24 @@
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
  * Device driver for TCG/TCPA TPM (trusted platform module).
- * Specifications at www.trustedcomputinggroup.org	 
+ * Specifications at www.trustedcomputinggroup.org
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, version 2 of the
  * License.
- * 
+ *
  */
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
-#include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/tpm.h>
+#include <linux/acpi.h>
+#include <linux/cdev.h>
 
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
@@ -61,6 +62,59 @@ enum tpm_duration {
 #define TPM_ERR_INVALID_POSTINIT 38
 
 #define TPM_HEADER_SIZE		10
+
+enum tpm2_const {
+	TPM2_PLATFORM_PCR	= 24,
+	TPM2_PCR_SELECT_MIN	= ((TPM2_PLATFORM_PCR + 7) / 8),
+	TPM2_TIMEOUT_A		= 750,
+	TPM2_TIMEOUT_B		= 2000,
+	TPM2_TIMEOUT_C		= 200,
+	TPM2_TIMEOUT_D		= 30,
+	TPM2_DURATION_SHORT	= 20,
+	TPM2_DURATION_MEDIUM	= 750,
+	TPM2_DURATION_LONG	= 2000,
+};
+
+enum tpm2_structures {
+	TPM2_ST_NO_SESSIONS	= 0x8001,
+	TPM2_ST_SESSIONS	= 0x8002,
+};
+
+enum tpm2_return_codes {
+	TPM2_RC_INITIALIZE	= 0x0100,
+	TPM2_RC_TESTING		= 0x090A,
+	TPM2_RC_DISABLED	= 0x0120,
+};
+
+enum tpm2_algorithms {
+	TPM2_ALG_SHA1		= 0x0004,
+};
+
+enum tpm2_command_codes {
+	TPM2_CC_FIRST		= 0x011F,
+	TPM2_CC_SELF_TEST	= 0x0143,
+	TPM2_CC_STARTUP		= 0x0144,
+	TPM2_CC_SHUTDOWN	= 0x0145,
+	TPM2_CC_GET_CAPABILITY	= 0x017A,
+	TPM2_CC_GET_RANDOM	= 0x017B,
+	TPM2_CC_PCR_READ	= 0x017E,
+	TPM2_CC_PCR_EXTEND	= 0x0182,
+	TPM2_CC_LAST		= 0x018F,
+};
+
+enum tpm2_permanent_handles {
+	TPM2_RS_PW		= 0x40000009,
+};
+
+enum tpm2_capabilities {
+	TPM2_CAP_TPM_PROPERTIES = 6,
+};
+
+enum tpm2_startup_types {
+	TPM2_SU_CLEAR	= 0x0000,
+	TPM2_SU_STATE	= 0x0001,
+};
+
 struct tpm_chip;
 
 struct tpm_vendor_specific {
@@ -73,7 +127,6 @@ struct tpm_vendor_specific {
 	int region_size;
 	int have_region;
 
-	struct miscdevice miscdev;
 	struct list_head list;
 	int locality;
 	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
@@ -88,15 +141,27 @@ struct tpm_vendor_specific {
 	u16 manufacturer_id;
 };
 
-#define TPM_VPRIV(c)	(c)->vendor.priv
+#define TPM_VPRIV(c)     ((c)->vendor.priv)
 
 #define TPM_VID_INTEL    0x8086
 #define TPM_VID_WINBOND  0x1050
 #define TPM_VID_STM      0x104A
 
+#define TPM_PPI_VERSION_LEN		3
+
+enum tpm_chip_flags {
+	TPM_CHIP_FLAG_REGISTERED	= BIT(0),
+	TPM_CHIP_FLAG_PPI		= BIT(1),
+	TPM_CHIP_FLAG_TPM2		= BIT(2),
+};
+
 struct tpm_chip {
-	struct device *dev;	/* Device stuff */
+	struct device *pdev;	/* Device stuff */
+	struct device dev;
+	struct cdev cdev;
+
 	const struct tpm_class_ops *ops;
+	unsigned int flags;
 
 	int dev_num;		/* /dev/tpm# */
 	char devname[7];
@@ -109,15 +174,19 @@ struct tpm_chip {
 
 	struct dentry **bios_dir;
 
+#ifdef CONFIG_ACPI
+	acpi_handle acpi_dev_handle;
+	char ppi_version[TPM_PPI_VERSION_LEN + 1];
+#endif /* CONFIG_ACPI */
+
 	struct list_head list;
-	void (*release) (struct device *);
 };
 
 #define to_tpm_chip(n) container_of(n, struct tpm_chip, vendor)
 
 static inline void tpm_chip_put(struct tpm_chip *chip)
 {
-	module_put(chip->dev->driver->owner);
+	module_put(chip->pdev->driver->owner);
 }
 
 static inline int tpm_read_index(int base, int index)
@@ -313,40 +382,58 @@ struct tpm_cmd_t {
 	tpm_cmd_params	params;
 } __packed;
 
-ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
+extern struct class *tpm_class;
+extern dev_t tpm_devt;
+extern const struct file_operations tpm_fops;
 
+ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
 ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		     size_t bufsiz);
+ssize_t tpm_transmit_cmd(struct tpm_chip *chip, void *cmd, int len,
+			 const char *desc);
 extern int tpm_get_timeouts(struct tpm_chip *);
 extern void tpm_gen_interrupt(struct tpm_chip *);
 extern int tpm_do_selftest(struct tpm_chip *);
 extern unsigned long tpm_calc_ordinal_duration(struct tpm_chip *, u32);
-extern struct tpm_chip* tpm_register_hardware(struct device *,
-					      const struct tpm_class_ops *ops);
-extern void tpm_dev_vendor_release(struct tpm_chip *);
-extern void tpm_remove_hardware(struct device *);
 extern int tpm_pm_suspend(struct device *);
 extern int tpm_pm_resume(struct device *);
 extern int wait_for_tpm_stat(struct tpm_chip *, u8, unsigned long,
 			     wait_queue_head_t *, bool);
 
-int tpm_dev_add_device(struct tpm_chip *chip);
-void tpm_dev_del_device(struct tpm_chip *chip);
+struct tpm_chip *tpm_chip_find_get(int chip_num);
+extern struct tpm_chip *tpmm_chip_alloc(struct device *dev,
+				       const struct tpm_class_ops *ops);
+extern int tpm_chip_register(struct tpm_chip *chip);
+extern void tpm_chip_unregister(struct tpm_chip *chip);
+
 int tpm_sysfs_add_device(struct tpm_chip *chip);
 void tpm_sysfs_del_device(struct tpm_chip *chip);
 
 int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 
 #ifdef CONFIG_ACPI
-extern int tpm_add_ppi(struct kobject *);
-extern void tpm_remove_ppi(struct kobject *);
+extern int tpm_add_ppi(struct tpm_chip *chip);
+extern void tpm_remove_ppi(struct tpm_chip *chip);
 #else
-static inline int tpm_add_ppi(struct kobject *parent)
+static inline int tpm_add_ppi(struct tpm_chip *chip)
 {
 	return 0;
 }
 
-static inline void tpm_remove_ppi(struct kobject *parent)
+static inline void tpm_remove_ppi(struct tpm_chip *chip)
 {
 }
 #endif
+
+int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
+int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash);
+int tpm2_get_random(struct tpm_chip *chip, u8 *out, size_t max);
+ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,
+			u32 *value, const char *desc);
+
+extern int tpm2_startup(struct tpm_chip *chip, u16 startup_type);
+extern void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type);
+extern unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *, u32);
+extern int tpm2_do_selftest(struct tpm_chip *chip);
+extern int tpm2_gen_interrupt(struct tpm_chip *chip);
+extern int tpm2_probe(struct tpm_chip *chip);

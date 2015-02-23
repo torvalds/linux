@@ -196,17 +196,22 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 	u64 len = PAGE_CACHE_SIZE;
 
 	if (off >= i_size_read(inode)) {
-		zero_user_segment(page, err, PAGE_CACHE_SIZE);
+		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
 		SetPageUptodate(page);
 		return 0;
 	}
 
-	/*
-	 * Uptodate inline data should have been added into page cache
-	 * while getting Fcr caps.
-	 */
-	if (ci->i_inline_version != CEPH_INLINE_NONE)
-		return -EINVAL;
+	if (ci->i_inline_version != CEPH_INLINE_NONE) {
+		/*
+		 * Uptodate inline data should have been added
+		 * into page cache while getting Fcr caps.
+		 */
+		if (off == 0)
+			return -EINVAL;
+		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
+		SetPageUptodate(page);
+		return 0;
+	}
 
 	err = ceph_readpage_from_fscache(inode, page);
 	if (err == 0)
@@ -1569,7 +1574,6 @@ out:
 static struct vm_operations_struct ceph_vmops = {
 	.fault		= ceph_filemap_fault,
 	.page_mkwrite	= ceph_page_mkwrite,
-	.remap_pages	= generic_file_remap_pages,
 };
 
 int ceph_mmap(struct file *file, struct vm_area_struct *vma)

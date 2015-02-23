@@ -2097,19 +2097,20 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 	if (qp->real_qp == qp) {
 		ret = ib_resolve_eth_l2_attrs(qp, attr, &cmd.attr_mask);
 		if (ret)
-			goto out;
+			goto release_qp;
 		ret = qp->device->modify_qp(qp, attr,
 			modify_qp_mask(qp->qp_type, cmd.attr_mask), &udata);
 	} else {
 		ret = ib_modify_qp(qp, attr, modify_qp_mask(qp->qp_type, cmd.attr_mask));
 	}
 
-	put_qp_read(qp);
-
 	if (ret)
-		goto out;
+		goto release_qp;
 
 	ret = in_len;
+
+release_qp:
+	put_qp_read(qp);
 
 out:
 	kfree(attr);
@@ -3312,31 +3313,43 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	if (err)
 		return err;
 
+	if (cmd.comp_mask)
+		return -EINVAL;
+
 	if (cmd.reserved)
 		return -EINVAL;
+
+	resp.response_length = offsetof(typeof(resp), odp_caps);
+
+	if (ucore->outlen < resp.response_length)
+		return -ENOSPC;
 
 	err = device->query_device(device, &attr);
 	if (err)
 		return err;
 
-	memset(&resp, 0, sizeof(resp));
 	copy_query_dev_fields(file, &resp.base, &attr);
 	resp.comp_mask = 0;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	if (cmd.comp_mask & IB_USER_VERBS_EX_QUERY_DEVICE_ODP) {
-		resp.odp_caps.general_caps = attr.odp_caps.general_caps;
-		resp.odp_caps.per_transport_caps.rc_odp_caps =
-			attr.odp_caps.per_transport_caps.rc_odp_caps;
-		resp.odp_caps.per_transport_caps.uc_odp_caps =
-			attr.odp_caps.per_transport_caps.uc_odp_caps;
-		resp.odp_caps.per_transport_caps.ud_odp_caps =
-			attr.odp_caps.per_transport_caps.ud_odp_caps;
-		resp.comp_mask |= IB_USER_VERBS_EX_QUERY_DEVICE_ODP;
-	}
-#endif
+	if (ucore->outlen < resp.response_length + sizeof(resp.odp_caps))
+		goto end;
 
-	err = ib_copy_to_udata(ucore, &resp, sizeof(resp));
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	resp.odp_caps.general_caps = attr.odp_caps.general_caps;
+	resp.odp_caps.per_transport_caps.rc_odp_caps =
+		attr.odp_caps.per_transport_caps.rc_odp_caps;
+	resp.odp_caps.per_transport_caps.uc_odp_caps =
+		attr.odp_caps.per_transport_caps.uc_odp_caps;
+	resp.odp_caps.per_transport_caps.ud_odp_caps =
+		attr.odp_caps.per_transport_caps.ud_odp_caps;
+	resp.odp_caps.reserved = 0;
+#else
+	memset(&resp.odp_caps, 0, sizeof(resp.odp_caps));
+#endif
+	resp.response_length += sizeof(resp.odp_caps);
+
+end:
+	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	if (err)
 		return err;
 

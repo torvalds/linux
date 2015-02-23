@@ -37,7 +37,7 @@ struct cls_bpf_prog {
 	struct tcf_result res;
 	struct list_head link;
 	u32 handle;
-	u16 bpf_len;
+	u16 bpf_num_ops;
 	struct tcf_proto *tp;
 	struct rcu_head rcu;
 };
@@ -160,7 +160,7 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 	struct tcf_exts exts;
 	struct sock_fprog_kern tmp;
 	struct bpf_prog *fp;
-	u16 bpf_size, bpf_len;
+	u16 bpf_size, bpf_num_ops;
 	u32 classid;
 	int ret;
 
@@ -173,13 +173,18 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 		return ret;
 
 	classid = nla_get_u32(tb[TCA_BPF_CLASSID]);
-	bpf_len = nla_get_u16(tb[TCA_BPF_OPS_LEN]);
-	if (bpf_len > BPF_MAXINSNS || bpf_len == 0) {
+	bpf_num_ops = nla_get_u16(tb[TCA_BPF_OPS_LEN]);
+	if (bpf_num_ops > BPF_MAXINSNS || bpf_num_ops == 0) {
 		ret = -EINVAL;
 		goto errout;
 	}
 
-	bpf_size = bpf_len * sizeof(*bpf_ops);
+	bpf_size = bpf_num_ops * sizeof(*bpf_ops);
+	if (bpf_size != nla_len(tb[TCA_BPF_OPS])) {
+		ret = -EINVAL;
+		goto errout;
+	}
+
 	bpf_ops = kzalloc(bpf_size, GFP_KERNEL);
 	if (bpf_ops == NULL) {
 		ret = -ENOMEM;
@@ -188,14 +193,14 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 
 	memcpy(bpf_ops, nla_data(tb[TCA_BPF_OPS]), bpf_size);
 
-	tmp.len = bpf_len;
+	tmp.len = bpf_num_ops;
 	tmp.filter = bpf_ops;
 
 	ret = bpf_prog_create(&fp, &tmp);
 	if (ret)
 		goto errout_free;
 
-	prog->bpf_len = bpf_len;
+	prog->bpf_num_ops = bpf_num_ops;
 	prog->bpf_ops = bpf_ops;
 	prog->filter = fp;
 	prog->res.classid = classid;
@@ -215,15 +220,21 @@ static u32 cls_bpf_grab_new_handle(struct tcf_proto *tp,
 				   struct cls_bpf_head *head)
 {
 	unsigned int i = 0x80000000;
+	u32 handle;
 
 	do {
 		if (++head->hgen == 0x7FFFFFFF)
 			head->hgen = 1;
 	} while (--i > 0 && cls_bpf_get(tp, head->hgen));
-	if (i == 0)
-		pr_err("Insufficient number of handles\n");
 
-	return i;
+	if (unlikely(i == 0)) {
+		pr_err("Insufficient number of handles\n");
+		handle = 0;
+	} else {
+		handle = head->hgen;
+	}
+
+	return handle;
 }
 
 static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
@@ -303,10 +314,10 @@ static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 
 	if (nla_put_u32(skb, TCA_BPF_CLASSID, prog->res.classid))
 		goto nla_put_failure;
-	if (nla_put_u16(skb, TCA_BPF_OPS_LEN, prog->bpf_len))
+	if (nla_put_u16(skb, TCA_BPF_OPS_LEN, prog->bpf_num_ops))
 		goto nla_put_failure;
 
-	nla = nla_reserve(skb, TCA_BPF_OPS, prog->bpf_len *
+	nla = nla_reserve(skb, TCA_BPF_OPS, prog->bpf_num_ops *
 			  sizeof(struct sock_filter));
 	if (nla == NULL)
 		goto nla_put_failure;

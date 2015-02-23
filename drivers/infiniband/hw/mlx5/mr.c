@@ -1012,6 +1012,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 		goto err_2;
 	}
 	mr->umem = umem;
+	mr->dev = dev;
 	mr->live = 1;
 	kvfree(in);
 

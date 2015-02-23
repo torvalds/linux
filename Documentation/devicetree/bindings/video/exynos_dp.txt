@@ -66,6 +66,10 @@ Optional properties for dp-controller:
 		Hotplug detect GPIO.
 			Indicates which GPIO should be used for hotplug
 			detection
+	-video interfaces: Device node can contain video interface port
+			    nodes according to [1].
+
+[1]: Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example:
 
@@ -103,6 +107,14 @@ Board Specific portion:
 				vback-porch = <10>;
 				vfront-porch = <12>;
 				vsync-len = <6>;
+			};
+		};
+
+		ports {
+			port@0 {
+				dp_out: endpoint {
+					remote-endpoint = <&bridge_in>;
+				};
 			};
 		};
 	};

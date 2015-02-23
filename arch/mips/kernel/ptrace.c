@@ -770,6 +770,8 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 	long ret = 0;
 	user_exit();
 
+	current_thread_info()->syscall = syscall;
+
 	if (secure_computing() == -1)
 		return -1;
 

@@ -71,6 +71,7 @@ enum {
 
 	/*master notify fw on finish for slave's flr*/
 	MLX4_CMD_INFORM_FLR_DONE = 0x5b,
+	MLX4_CMD_VIRT_PORT_MAP   = 0x5c,
 	MLX4_CMD_GET_OP_REQ      = 0x59,
 
 	/* TPT commands */
@@ -165,9 +166,15 @@ enum {
 };
 
 enum {
-	MLX4_CMD_TIME_CLASS_A	= 10000,
-	MLX4_CMD_TIME_CLASS_B	= 10000,
-	MLX4_CMD_TIME_CLASS_C	= 10000,
+	MLX4_CMD_TIME_CLASS_A	= 60000,
+	MLX4_CMD_TIME_CLASS_B	= 60000,
+	MLX4_CMD_TIME_CLASS_C	= 60000,
+};
+
+enum {
+	/* virtual to physical port mapping opcode modifiers */
+	MLX4_GET_PORT_VIRT2PHY = 0x0,
+	MLX4_SET_PORT_VIRT2PHY = 0x1,
 };
 
 enum {
@@ -279,6 +286,8 @@ int mlx4_get_vf_config(struct mlx4_dev *dev, int port, int vf, struct ifla_vf_in
 int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_state);
 int mlx4_config_dev_retrieval(struct mlx4_dev *dev,
 			      struct mlx4_config_dev_params *params);
+void mlx4_cmd_wake_completions(struct mlx4_dev *dev);
+void mlx4_report_internal_err_comm_event(struct mlx4_dev *dev);
 /*
  * mlx4_get_slave_default_vlan -
  * return true if VST ( default vlan)
@@ -288,5 +297,6 @@ bool mlx4_get_slave_default_vlan(struct mlx4_dev *dev, int port, int slave,
 				 u16 *vlan, u8 *qos);
 
 #define MLX4_COMM_GET_IF_REV(cmd_chan_ver) (u8)((cmd_chan_ver) >> 8)
+#define COMM_CHAN_EVENT_INTERNAL_ERR (1 << 17)
 
 #endif /* MLX4_CMD_H */

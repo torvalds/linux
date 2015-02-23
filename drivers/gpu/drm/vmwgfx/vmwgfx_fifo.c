@@ -44,10 +44,10 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 		if (!dev_priv->has_mob)
 			return false;
 
-		mutex_lock(&dev_priv->hw_mutex);
+		spin_lock(&dev_priv->cap_lock);
 		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_3D);
 		result = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
-		mutex_unlock(&dev_priv->hw_mutex);
+		spin_unlock(&dev_priv->cap_lock);
 
 		return (result != 0);
 	}
@@ -120,7 +120,6 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	DRM_INFO("height %d\n", vmw_read(dev_priv, SVGA_REG_HEIGHT));
 	DRM_INFO("bpp %d\n", vmw_read(dev_priv, SVGA_REG_BITS_PER_PIXEL));
 
-	mutex_lock(&dev_priv->hw_mutex);
 	dev_priv->enable_state = vmw_read(dev_priv, SVGA_REG_ENABLE);
 	dev_priv->config_done_state = vmw_read(dev_priv, SVGA_REG_CONFIG_DONE);
 	dev_priv->traces_state = vmw_read(dev_priv, SVGA_REG_TRACES);
@@ -143,7 +142,6 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	mb();
 
 	vmw_write(dev_priv, SVGA_REG_CONFIG_DONE, 1);
-	mutex_unlock(&dev_priv->hw_mutex);
 
 	max = ioread32(fifo_mem + SVGA_FIFO_MAX);
 	min = ioread32(fifo_mem  + SVGA_FIFO_MIN);
@@ -160,30 +158,27 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	return vmw_fifo_send_fence(dev_priv, &dummy);
 }
 
-void vmw_fifo_ping_host_locked(struct vmw_private *dev_priv, uint32_t reason)
+void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason)
 {
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+	static DEFINE_SPINLOCK(ping_lock);
+	unsigned long irq_flags;
 
+	/*
+	 * The ping_lock is needed because we don't have an atomic
+	 * test-and-set of the SVGA_FIFO_BUSY register.
+	 */
+	spin_lock_irqsave(&ping_lock, irq_flags);
 	if (unlikely(ioread32(fifo_mem + SVGA_FIFO_BUSY) == 0)) {
 		iowrite32(1, fifo_mem + SVGA_FIFO_BUSY);
 		vmw_write(dev_priv, SVGA_REG_SYNC, reason);
 	}
-}
-
-void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason)
-{
-	mutex_lock(&dev_priv->hw_mutex);
-
-	vmw_fifo_ping_host_locked(dev_priv, reason);
-
-	mutex_unlock(&dev_priv->hw_mutex);
+	spin_unlock_irqrestore(&ping_lock, irq_flags);
 }
 
 void vmw_fifo_release(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 {
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
-
-	mutex_lock(&dev_priv->hw_mutex);
 
 	vmw_write(dev_priv, SVGA_REG_SYNC, SVGA_SYNC_GENERIC);
 	while (vmw_read(dev_priv, SVGA_REG_BUSY) != 0)
@@ -198,7 +193,6 @@ void vmw_fifo_release(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	vmw_write(dev_priv, SVGA_REG_TRACES,
 		  dev_priv->traces_state);
 
-	mutex_unlock(&dev_priv->hw_mutex);
 	vmw_marker_queue_takedown(&fifo->marker_queue);
 
 	if (likely(fifo->static_buffer != NULL)) {
@@ -271,7 +265,7 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 		return vmw_fifo_wait_noirq(dev_priv, bytes,
 					   interruptible, timeout);
 
-	mutex_lock(&dev_priv->hw_mutex);
+	spin_lock(&dev_priv->waiter_lock);
 	if (atomic_add_return(1, &dev_priv->fifo_queue_waiters) > 0) {
 		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
 		outl(SVGA_IRQFLAG_FIFO_PROGRESS,
@@ -280,7 +274,7 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
 	}
-	mutex_unlock(&dev_priv->hw_mutex);
+	spin_unlock(&dev_priv->waiter_lock);
 
 	if (interruptible)
 		ret = wait_event_interruptible_timeout
@@ -296,14 +290,14 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 	else if (likely(ret > 0))
 		ret = 0;
 
-	mutex_lock(&dev_priv->hw_mutex);
+	spin_lock(&dev_priv->waiter_lock);
 	if (atomic_dec_and_test(&dev_priv->fifo_queue_waiters)) {
 		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
 		dev_priv->irq_mask &= ~SVGA_IRQFLAG_FIFO_PROGRESS;
 		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
 	}
-	mutex_unlock(&dev_priv->hw_mutex);
+	spin_unlock(&dev_priv->waiter_lock);
 
 	return ret;
 }

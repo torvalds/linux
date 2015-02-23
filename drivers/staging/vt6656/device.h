@@ -160,7 +160,7 @@
 #define MESSAGE_TYPE_CLRKEYENTRY	0x9
 #define MESSAGE_TYPE_WRITE_MISCFF	0xa
 #define MESSAGE_TYPE_SET_ANTMD		0xb
-#define MESSAGE_TYPE_SELECT_CHANNLE	0xc
+#define MESSAGE_TYPE_SELECT_CHANNEL	0xc
 #define MESSAGE_TYPE_SET_TSFTBTT	0xd
 #define MESSAGE_TYPE_SET_SSTIFS		0xe
 #define MESSAGE_TYPE_CHANGE_BBTYPE	0xf
@@ -307,8 +307,8 @@ struct vnt_private {
 
 	struct vnt_cmd_card_init init_command;
 	struct vnt_rsp_card_init init_response;
-	u8 current_net_addr[ETH_ALEN];
-	u8 permanent_net_addr[ETH_ALEN];
+	u8 current_net_addr[ETH_ALEN] __aligned(2);
+	u8 permanent_net_addr[ETH_ALEN] __aligned(2);
 
 	u8 exist_sw_net_addr;
 

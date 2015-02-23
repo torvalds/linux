@@ -48,11 +48,23 @@ enum {
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
 	L2T_SIZE       = 4096,  /* # of L2T entries */
+	PM_NSTATS      = 5,     /* # of PM stats */
 	MBOX_LEN       = 64,    /* mailbox size in bytes */
 	TRACE_LEN      = 112,   /* length of trace data and mask */
 	FILTER_OPT_LEN = 36,    /* filter tuple width for optional components */
 	NWOL_PAT       = 8,     /* # of WoL patterns */
 	WOL_PAT_LEN    = 128,   /* length of WoL patterns */
+};
+
+enum {
+	CIM_NUM_IBQ    = 6,     /* # of CIM IBQs */
+	CIM_NUM_OBQ    = 6,     /* # of CIM OBQs */
+	CIM_NUM_OBQ_T5 = 8,     /* # of CIM OBQs for T5 adapter */
+	CIMLA_SIZE     = 2048,  /* # of 32-bit words in CIM LA */
+	CIM_IBQ_SIZE   = 128,   /* # of 128-bit words in a CIM IBQ */
+	CIM_OBQ_SIZE   = 128,   /* # of 128-bit words in a CIM OBQ */
+	TPLA_SIZE      = 128,   /* # of 64-bit words in TP LA */
+	ULPRX_LA_SIZE  = 512,   /* # of 256-bit words in ULP_RX LA */
 };
 
 enum {
@@ -108,6 +120,18 @@ enum {
 	SGE_CIDXFLUSHTHRESH_128 = 7,
 
 	SGE_INGPADBOUNDARY_SHIFT = 5,/* ingress queue pad boundary */
+};
+
+/* PCI-e memory window access */
+enum pcie_memwin {
+	MEMWIN_NIC      = 0,
+	MEMWIN_RSVD1    = 1,
+	MEMWIN_RSVD2    = 2,
+	MEMWIN_RDMA     = 3,
+	MEMWIN_RSVD4    = 4,
+	MEMWIN_FOISCSI  = 5,
+	MEMWIN_CSIOSTOR = 6,
+	MEMWIN_RSVD7    = 7,
 };
 
 struct sge_qstat {                /* data written to SGE queue status entries */

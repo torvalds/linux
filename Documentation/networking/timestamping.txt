@@ -162,6 +162,27 @@ SOF_TIMESTAMPING_OPT_CMSG:
   option IP_PKTINFO simultaneously.
 
 
+SOF_TIMESTAMPING_OPT_TSONLY:
+
+  Applies to transmit timestamps only. Makes the kernel return the
+  timestamp as a cmsg alongside an empty packet, as opposed to
+  alongside the original packet. This reduces the amount of memory
+  charged to the socket's receive budget (SO_RCVBUF) and delivers
+  the timestamp even if sysctl net.core.tstamp_allow_data is 0.
+  This option disables SOF_TIMESTAMPING_OPT_CMSG.
+
+
+New applications are encouraged to pass SOF_TIMESTAMPING_OPT_ID to
+disambiguate timestamps and SOF_TIMESTAMPING_OPT_TSONLY to operate
+regardless of the setting of sysctl net.core.tstamp_allow_data.
+
+An exception is when a process needs additional cmsg data, for
+instance SOL_IP/IP_PKTINFO to detect the egress network interface.
+Then pass option SOF_TIMESTAMPING_OPT_CMSG. This option depends on
+having access to the contents of the original packet, so cannot be
+combined with SOF_TIMESTAMPING_OPT_TSONLY.
+
+
 1.4 Bytestream Timestamps
 
 The SO_TIMESTAMPING interface supports timestamping of bytes in a

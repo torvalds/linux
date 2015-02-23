@@ -162,8 +162,7 @@ typedef struct xfs_mount {
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
 	struct delayed_work	m_eofblocks_work; /* background eof blocks
 						     trimming */
-	__int64_t		m_update_flags;	/* sb flags we need to update
-						   on the next remount,rw */
+	bool			m_update_sb;	/* sb needs update in mount */
 	int64_t			m_low_space[XFS_LOWSP_MAX];
 						/* low free space thresholds */
 	struct xfs_kobj		m_kobj;
@@ -175,6 +174,17 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_reclaim_workqueue;
 	struct workqueue_struct	*m_log_workqueue;
 	struct workqueue_struct *m_eofblocks_workqueue;
+
+	/*
+	 * Generation of the filesysyem layout.  This is incremented by each
+	 * growfs, and used by the pNFS server to ensure the client updates
+	 * its view of the block device once it gets a layout that might
+	 * reference the newly added blocks.  Does not need to be persistent
+	 * as long as we only allow file system size increments, but if we
+	 * ever support shrinks it would have to be persisted in addition
+	 * to various other kinds of pain inflicted on the pNFS server.
+	 */
+	__uint32_t		m_generation;
 } xfs_mount_t;
 
 /*
@@ -378,7 +388,7 @@ extern void	xfs_unmountfs(xfs_mount_t *);
 extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int64_t, int);
 extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
 			uint, int);
-extern int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
+extern int	xfs_mount_log_sb(xfs_mount_t *);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);

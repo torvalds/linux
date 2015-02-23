@@ -178,12 +178,6 @@ static void pci_esp_dma_drain(struct esp *esp)
 			break;
 		cpu_relax();
 	}
-	if (resid > 1) {
-		/* FIFO not cleared */
-		shost_printk(KERN_INFO, esp->host,
-			     "FIFO not cleared, %d bytes left\n",
-			     resid);
-	}
 
 	/*
 	 * When there is a residual BCMPLT will never be set

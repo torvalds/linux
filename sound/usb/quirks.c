@@ -1111,6 +1111,11 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	}
 }
 
+bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
+{
+	/* MS Lifecam HD-5000 doesn't support reading the sample rate. */
+	return chip->usb_id == USB_ID(0x045E, 0x076D);
+}
 
 /* Marantz/Denon USB DACs need a vendor cmd to switch
  * between PCM and native DSD mode
@@ -1122,6 +1127,7 @@ int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 	int err;
 
 	switch (subs->stream->chip->usb_id) {
+	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
 	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
 	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
 
@@ -1201,6 +1207,7 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS) {
 
 		switch (le16_to_cpu(dev->descriptor.idProduct)) {
+		case 0x1003: /* Denon DA300-USB */
 		case 0x3005: /* Marantz HD-DAC1 */
 		case 0x3006: /* Marantz SA-14S1 */
 			mdelay(20);
@@ -1262,6 +1269,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 
 	/* Denon/Marantz devices with USB DAC functionality */
 	switch (chip->usb_id) {
+	case USB_ID(0x154e, 0x1003): /* Denon DA300-USB */
 	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
 	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
 		if (fp->altsetting == 2)

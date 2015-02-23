@@ -71,6 +71,8 @@ struct event_constraint {
 #define PERF_X86_EVENT_COMMITTED	0x8 /* event passed commit_txn */
 #define PERF_X86_EVENT_PEBS_LD_HSW	0x10 /* haswell style datala, load */
 #define PERF_X86_EVENT_PEBS_NA_HSW	0x20 /* haswell style datala, unknown */
+#define PERF_X86_EVENT_RDPMC_ALLOWED	0x40 /* grant rdpmc permission */
+
 
 struct amd_nb {
 	int nb_id;  /* NorthBridge id */

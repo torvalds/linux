@@ -95,6 +95,8 @@ int rcar_du_hdmi_connector_init(struct rcar_du_device *rcdu,
 	connector = &rcon->connector;
 	connector->display_info.width_mm = 0;
 	connector->display_info.height_mm = 0;
+	connector->interlace_allowed = true;
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	ret = drm_connector_init(rcdu->ddev, connector, &connector_funcs,
 				 DRM_MODE_CONNECTOR_HDMIA);

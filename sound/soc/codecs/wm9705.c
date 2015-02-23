@@ -344,23 +344,27 @@ static int wm9705_soc_probe(struct snd_soc_codec *codec)
 	struct snd_ac97 *ac97;
 	int ret = 0;
 
-	ac97 = snd_soc_new_ac97_codec(codec);
+	ac97 = snd_soc_alloc_ac97_codec(codec);
 	if (IS_ERR(ac97)) {
 		ret = PTR_ERR(ac97);
 		dev_err(codec->dev, "Failed to register AC97 codec\n");
 		return ret;
 	}
 
-	snd_soc_codec_set_drvdata(codec, ac97);
-
 	ret = wm9705_reset(codec);
 	if (ret)
-		goto reset_err;
+		goto err_put_device;
+
+	ret = device_add(&ac97->dev);
+	if (ret)
+		goto err_put_device;
+
+	snd_soc_codec_set_drvdata(codec, ac97);
 
 	return 0;
 
-reset_err:
-	snd_soc_free_ac97_codec(ac97);
+err_put_device:
+	put_device(&ac97->dev);
 	return ret;
 }
 

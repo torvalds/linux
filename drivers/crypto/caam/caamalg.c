@@ -2532,7 +2532,7 @@ static void init_ablkcipher_job(u32 *sh_desc, dma_addr_t ptr,
 		in_options = 0;
 	} else {
 		src_dma = edesc->sec4_sg_dma;
-		sec4_sg_index += (iv_contig ? 0 : 1) + edesc->src_nents;
+		sec4_sg_index += edesc->src_nents + 1;
 		in_options = LDST_SGF;
 	}
 	append_seq_in_ptr(desc, src_dma, req->nbytes + ivsize, in_options);
@@ -2714,10 +2714,10 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	if (!all_contig) {
 		if (!is_gcm) {
 			sg_to_sec4_sg(req->assoc,
-				      (assoc_nents ? : 1),
+				      assoc_nents,
 				      edesc->sec4_sg +
 				      sec4_sg_index, 0);
-			sec4_sg_index += assoc_nents ? : 1;
+			sec4_sg_index += assoc_nents;
 		}
 
 		dma_to_sec4_sg_one(edesc->sec4_sg + sec4_sg_index,
@@ -2726,17 +2726,17 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 
 		if (is_gcm) {
 			sg_to_sec4_sg(req->assoc,
-				      (assoc_nents ? : 1),
+				      assoc_nents,
 				      edesc->sec4_sg +
 				      sec4_sg_index, 0);
-			sec4_sg_index += assoc_nents ? : 1;
+			sec4_sg_index += assoc_nents;
 		}
 
 		sg_to_sec4_sg_last(req->src,
-				   (src_nents ? : 1),
+				   src_nents,
 				   edesc->sec4_sg +
 				   sec4_sg_index, 0);
-		sec4_sg_index += src_nents ? : 1;
+		sec4_sg_index += src_nents;
 	}
 	if (dst_nents) {
 		sg_to_sec4_sg_last(req->dst, dst_nents,

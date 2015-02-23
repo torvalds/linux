@@ -556,6 +556,9 @@ static struct platform_driver *const exynos_drm_kms_drivers[] = {
 #ifdef CONFIG_DRM_EXYNOS_FIMD
 	&fimd_driver,
 #endif
+#ifdef CONFIG_DRM_EXYNOS7_DECON
+	&decon_driver,
+#endif
 #ifdef CONFIG_DRM_EXYNOS_DP
 	&dp_driver,
 #endif
@@ -612,6 +615,7 @@ static const char * const strings[] = {
 	"samsung,exynos3",
 	"samsung,exynos4",
 	"samsung,exynos5",
+	"samsung,exynos7",
 };
 
 static struct platform_driver exynos_drm_platform_driver = {

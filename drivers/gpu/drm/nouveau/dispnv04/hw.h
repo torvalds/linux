@@ -42,8 +42,8 @@ uint8_t NVReadVgaGr(struct drm_device *, int head, uint8_t index);
 void NVSetOwner(struct drm_device *, int owner);
 void NVBlankScreen(struct drm_device *, int head, bool blank);
 int nouveau_hw_get_pllvals(struct drm_device *, enum nvbios_pll_type plltype,
-			   struct nouveau_pll_vals *pllvals);
-int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pllvals);
+			   struct nvkm_pll_vals *pllvals);
+int nouveau_hw_pllvals_to_clk(struct nvkm_pll_vals *pllvals);
 int nouveau_hw_get_clock(struct drm_device *, enum nvbios_pll_type plltype);
 void nouveau_hw_save_vga_fonts(struct drm_device *, bool save);
 void nouveau_hw_save_state(struct drm_device *, int head,

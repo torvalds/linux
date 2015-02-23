@@ -185,6 +185,9 @@ struct btrfs_inode {
 
 	struct btrfs_delayed_node *delayed_node;
 
+	/* File creation time. */
+	struct timespec i_otime;
+
 	struct inode vfs_inode;
 };
 

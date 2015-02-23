@@ -38,7 +38,7 @@ OPTIONS
 --remove=::
         Remove specified file from the cache.
 -M::
---missing=:: 
+--missing=::
 	List missing build ids in the cache for the specified file.
 -u::
 --update::

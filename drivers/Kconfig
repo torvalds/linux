@@ -36,8 +36,6 @@ source "drivers/message/fusion/Kconfig"
 
 source "drivers/firewire/Kconfig"
 
-source "drivers/message/i2o/Kconfig"
-
 source "drivers/macintosh/Kconfig"
 
 source "drivers/net/Kconfig"
@@ -133,8 +131,6 @@ source "drivers/xen/Kconfig"
 source "drivers/staging/Kconfig"
 
 source "drivers/platform/Kconfig"
-
-source "drivers/soc/Kconfig"
 
 source "drivers/clk/Kconfig"
 

@@ -246,6 +246,8 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 	case AR9300_DEVID_AR953X:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9531;
 		return;
+	case AR9300_DEVID_QCA956X:
+		ah->hw_version.macVersion = AR_SREV_VERSION_9561;
 	}
 
 	val = REG_READ(ah, AR_SREV) & AR_SREV_ID;
@@ -422,6 +424,8 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 	ah->htc_reset_init = true;
 
+	ah->tpc_enabled = true;
+
 	ah->ani_function = ATH9K_ANI_ALL;
 	if (!AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
@@ -536,6 +540,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	case AR_SREV_VERSION_9550:
 	case AR_SREV_VERSION_9565:
 	case AR_SREV_VERSION_9531:
+	case AR_SREV_VERSION_9561:
 		break;
 	default:
 		ath_err(common,
@@ -636,6 +641,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9485_DEVID_AR1111:
 	case AR9300_DEVID_AR9565:
 	case AR9300_DEVID_AR953X:
+	case AR9300_DEVID_QCA956X:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -776,7 +782,8 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		/* program BB PLL phase_shift */
 		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL3,
 			      AR_CH0_BB_DPLL3_PHASE_SHIFT, 0x1);
-	} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
+	} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah) ||
+		   AR_SREV_9561(ah)) {
 		u32 regval, pll2_divint, pll2_divfrac, refdiv;
 
 		REG_WRITE(ah, AR_RTC_PLL_CONTROL,
@@ -787,7 +794,7 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		udelay(100);
 
 		if (ah->is_clk_25mhz) {
-			if (AR_SREV_9531(ah)) {
+			if (AR_SREV_9531(ah) || AR_SREV_9561(ah)) {
 				pll2_divint = 0x1c;
 				pll2_divfrac = 0xa3d2;
 				refdiv = 1;
@@ -803,14 +810,15 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 				refdiv = 5;
 			} else {
 				pll2_divint = 0x11;
-				pll2_divfrac =
-					AR_SREV_9531(ah) ? 0x26665 : 0x26666;
+				pll2_divfrac = (AR_SREV_9531(ah) ||
+						AR_SREV_9561(ah)) ?
+						0x26665 : 0x26666;
 				refdiv = 1;
 			}
 		}
 
 		regval = REG_READ(ah, AR_PHY_PLL_MODE);
-		if (AR_SREV_9531(ah))
+		if (AR_SREV_9531(ah) || AR_SREV_9561(ah))
 			regval |= (0x1 << 22);
 		else
 			regval |= (0x1 << 16);
@@ -828,14 +836,16 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 				(0x1 << 13) |
 				(0x4 << 26) |
 				(0x18 << 19);
-		else if (AR_SREV_9531(ah))
+		else if (AR_SREV_9531(ah) || AR_SREV_9561(ah)) {
 			regval = (regval & 0x01c00fff) |
 				(0x1 << 31) |
 				(0x2 << 29) |
 				(0xa << 25) |
-				(0x1 << 19) |
-				(0x6 << 12);
-		else
+				(0x1 << 19);
+
+			if (AR_SREV_9531(ah))
+				regval |= (0x6 << 12);
+		} else
 			regval = (regval & 0x80071fff) |
 				(0x3 << 30) |
 				(0x1 << 13) |
@@ -843,7 +853,7 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 				(0x60 << 19);
 		REG_WRITE(ah, AR_PHY_PLL_MODE, regval);
 
-		if (AR_SREV_9531(ah))
+		if (AR_SREV_9531(ah) || AR_SREV_9561(ah))
 			REG_WRITE(ah, AR_PHY_PLL_MODE,
 				  REG_READ(ah, AR_PHY_PLL_MODE) & 0xffbfffff);
 		else
@@ -882,7 +892,8 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 		AR_IMR_RXORN |
 		AR_IMR_BCNMISC;
 
-	if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah))
+	if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah) ||
+	    AR_SREV_9561(ah))
 		sync_default &= ~AR_INTR_SYNC_HOST1_FATAL;
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
@@ -1671,7 +1682,8 @@ static void ath9k_hw_init_desc(struct ath_hw *ah)
 		}
 #ifdef __BIG_ENDIAN
 		else if (AR_SREV_9330(ah) || AR_SREV_9340(ah) ||
-			 AR_SREV_9550(ah) || AR_SREV_9531(ah))
+			 AR_SREV_9550(ah) || AR_SREV_9531(ah) ||
+			 AR_SREV_9561(ah))
 			REG_RMW(ah, AR_CFG, AR_CFG_SWRB | AR_CFG_SWTB, 0);
 		else
 			REG_WRITE(ah, AR_CFG, AR_CFG_SWTD | AR_CFG_SWRD);
@@ -2459,7 +2471,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		pCap->hw_caps |= ATH9K_HW_CAP_EDMA | ATH9K_HW_CAP_FASTCLOCK;
-		if (!AR_SREV_9330(ah) && !AR_SREV_9485(ah) && !AR_SREV_9565(ah))
+		if (!AR_SREV_9330(ah) && !AR_SREV_9485(ah) &&
+		    !AR_SREV_9561(ah) && !AR_SREV_9565(ah))
 			pCap->hw_caps |= ATH9K_HW_CAP_LDPC;
 
 		pCap->rx_hp_qdepth = ATH9K_HW_RX_HP_QDEPTH;
@@ -2476,7 +2489,9 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_RAC_SUPPORTED;
 
-	if (AR_SREV_9300_20_OR_LATER(ah))
+	if (AR_SREV_9561(ah))
+		ah->ent_mode = 0x3BDA000;
+	else if (AR_SREV_9300_20_OR_LATER(ah))
 		ah->ent_mode = REG_READ(ah, AR_ENT_OTP);
 
 	if (AR_SREV_9287_11_OR_LATER(ah) || AR_SREV_9271(ah))
@@ -2529,12 +2544,16 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			pCap->hw_caps |= ATH9K_HW_CAP_RTT;
 	}
 
-	if (AR_SREV_9462(ah))
-		pCap->hw_caps |= ATH9K_HW_WOW_DEVICE_CAPABLE;
-
 	if (AR_SREV_9300_20_OR_LATER(ah) &&
 	    ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
 			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
+
+#ifdef CONFIG_ATH9K_WOW
+	if (AR_SREV_9462_20_OR_LATER(ah) || AR_SREV_9565_11_OR_LATER(ah))
+		ah->wow.max_patterns = MAX_NUM_PATTERN;
+	else
+		ah->wow.max_patterns = MAX_NUM_PATTERN_LEGACY;
+#endif
 
 	return 0;
 }

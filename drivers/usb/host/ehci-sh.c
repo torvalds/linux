@@ -189,7 +189,6 @@ static struct platform_driver ehci_hcd_sh_driver = {
 	.shutdown	= ehci_hcd_sh_shutdown,
 	.driver		= {
 		.name	= "sh_ehci",
-		.owner	= THIS_MODULE,
 	},
 };
 

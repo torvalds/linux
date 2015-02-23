@@ -46,25 +46,3 @@ int pcibios_add_device(struct pci_dev *dev)
 
 	return 0;
 }
-
-
-#ifdef CONFIG_PCI_DOMAINS_GENERIC
-static bool dt_domain_found = false;
-
-void pci_bus_assign_domain_nr(struct pci_bus *bus, struct device *parent)
-{
-	int domain = of_get_pci_domain_nr(parent->of_node);
-
-	if (domain >= 0) {
-		dt_domain_found = true;
-	} else if (dt_domain_found == true) {
-		dev_err(parent, "Node %s is missing \"linux,pci-domain\" property in DT\n",
-			parent->of_node->full_name);
-		return;
-	} else {
-		domain = pci_get_new_domain_nr();
-	}
-
-	bus->domain_nr = domain;
-}
-#endif
