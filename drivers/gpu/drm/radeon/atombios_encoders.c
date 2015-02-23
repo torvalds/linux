@@ -823,7 +823,7 @@ union dig_encoder_control {
 };
 
 void
-atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mode)
+atombios_dig_encoder_setup2(struct drm_encoder *encoder, int action, int panel_mode, int enc_override)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -920,7 +920,10 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 
 			if (ENCODER_MODE_IS_DP(args.v3.ucEncoderMode) && (dp_clock == 270000))
 				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
-			args.v3.acConfig.ucDigSel = dig->dig_encoder;
+			if (enc_override != -1)
+				args.v3.acConfig.ucDigSel = enc_override;
+			else
+				args.v3.acConfig.ucDigSel = dig->dig_encoder;
 			args.v3.ucBitPerColor = radeon_atom_get_bpc(encoder);
 			break;
 		case 4:
@@ -948,7 +951,11 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 				else
 					args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_1_62GHZ;
 			}
-			args.v4.acConfig.ucDigSel = dig->dig_encoder;
+
+			if (enc_override != -1)
+				args.v4.acConfig.ucDigSel = enc_override;
+			else
+				args.v4.acConfig.ucDigSel = dig->dig_encoder;
 			args.v4.ucBitPerColor = radeon_atom_get_bpc(encoder);
 			if (hpd_id == RADEON_HPD_NONE)
 				args.v4.ucHPD_ID = 0;
@@ -969,6 +976,12 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 
 }
 
+void
+atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mode)
+{
+	atombios_dig_encoder_setup2(encoder, action, panel_mode, -1);
+}
+
 union dig_transmitter_control {
 	DIG_TRANSMITTER_CONTROL_PS_ALLOCATION v1;
 	DIG_TRANSMITTER_CONTROL_PARAMETERS_V2 v2;
@@ -978,7 +991,7 @@ union dig_transmitter_control {
 };
 
 void
-atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t lane_num, uint8_t lane_set)
+atombios_dig_transmitter_setup2(struct drm_encoder *encoder, int action, uint8_t lane_num, uint8_t lane_set, int fe)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -1328,7 +1341,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 				args.v5.asConfig.ucHPDSel = 0;
 			else
 				args.v5.asConfig.ucHPDSel = hpd_id + 1;
-			args.v5.ucDigEncoderSel = 1 << dig_encoder;
+			args.v5.ucDigEncoderSel = (fe != -1) ? (1 << fe) : (1 << dig_encoder);
 			args.v5.ucDPLaneSet = lane_set;
 			break;
 		default:
@@ -1342,6 +1355,12 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+}
+
+void
+atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t lane_num, uint8_t lane_set)
+{
+	atombios_dig_transmitter_setup2(encoder, action, lane_num, lane_set, -1);
 }
 
 bool
