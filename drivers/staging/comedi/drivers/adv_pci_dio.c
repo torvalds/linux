@@ -36,7 +36,7 @@ Configuration options:
 #include "../comedidev.h"
 
 #include "8255.h"
-#include "8253.h"
+#include "comedi_8254.h"
 
 /* hardware types of the cards */
 enum hw_cards_id {
@@ -481,71 +481,6 @@ static int pci_dio_insn_bits_do_w(struct comedi_device *dev,
 /*
 ==============================================================================
 */
-static int pci_8254_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned long timer_regbase = (unsigned long)s->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->spin_lock, flags);
-	data[0] = i8254_read(dev->iobase + timer_regbase, 0, chan);
-	spin_unlock_irqrestore(&s->spin_lock, flags);
-	return 1;
-}
-
-/*
-==============================================================================
-*/
-static int pci_8254_insn_write(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned long timer_regbase = (unsigned long)s->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->spin_lock, flags);
-	i8254_write(dev->iobase + timer_regbase, 0, chan, data[0]);
-	spin_unlock_irqrestore(&s->spin_lock, flags);
-	return 1;
-}
-
-/*
-==============================================================================
-*/
-static int pci_8254_insn_config(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned long timer_regbase = (unsigned long)s->private;
-	unsigned long iobase = dev->iobase + timer_regbase;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int ret = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->spin_lock, flags);
-	switch (data[0]) {
-	case INSN_CONFIG_SET_COUNTER_MODE:
-		ret = i8254_set_mode(iobase, 0, chan, data[1]);
-		if (ret < 0)
-			ret = -EINVAL;
-		break;
-	case INSN_CONFIG_8254_READ_STATUS:
-		data[1] = i8254_status(iobase, 0, chan);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	spin_unlock_irqrestore(&s->spin_lock, flags);
-	return ret < 0 ? ret : insn->n;
-}
-
-/*
-==============================================================================
-*/
 static int pci1760_unchecked_mbxrequest(struct comedi_device *dev,
 					unsigned char *omb, unsigned char *imb,
 					int repeats)
@@ -827,9 +762,6 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outb(0, dev->iobase + PCI1735_DO + 1);
 		outb(0, dev->iobase + PCI1735_DO + 2);
 		outb(0, dev->iobase + PCI1735_DO + 3);
-		i8254_set_mode(dev->iobase + PCI1735_C8254, 0, 0, I8254_MODE0);
-		i8254_set_mode(dev->iobase + PCI1735_C8254, 0, 1, I8254_MODE0);
-		i8254_set_mode(dev->iobase + PCI1735_C8254, 0, 2, I8254_MODE0);
 		break;
 
 	case TYPE_PCI1736:
@@ -1108,14 +1040,15 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 
 	if (this_board->timer_regbase) {
 		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-		s->n_chan = 3;
-		s->maxdata = 65535;
-		s->insn_read = pci_8254_insn_read;
-		s->insn_write = pci_8254_insn_write;
-		s->insn_config = pci_8254_insn_config;
-		s->private = (void *)this_board->timer_regbase;
+
+		dev->pacer = comedi_8254_init(dev->iobase +
+					      this_board->timer_regbase,
+					      0, I8254_IO8, 0);
+		if (!dev->pacer)
+			return -ENOMEM;
+
+		comedi_8254_subdevice_init(s, dev->pacer);
+
 		subdev++;
 	}
 

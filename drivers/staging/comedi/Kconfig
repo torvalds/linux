@@ -771,6 +771,7 @@ config COMEDI_ADV_PCI1724
 
 config COMEDI_ADV_PCI_DIO
 	tristate "Advantech PCI DIO card support"
+	select COMEDI_8254
 	select COMEDI_8255
 	---help---
 	  Enable support for Advantech PCI DIO cards
