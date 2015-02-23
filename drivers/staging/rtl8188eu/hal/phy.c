@@ -72,12 +72,10 @@ static u32 rf_serial_read(struct adapter *adapt,
 	u32 ret = 0;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 	struct bb_reg_def *phyreg = &hal_data->PHYRegDef[rfpath];
-	u32 newoffset;
 	u32 tmplong, tmplong2;
 	u8 rfpi_enable = 0;
 
 	offset &= 0xff;
-	newoffset = offset;
 
 	tmplong = phy_query_bb_reg(adapt, rFPGA0_XA_HSSIParameter2, bMaskDWord);
 	if (rfpath == RF_PATH_A)
@@ -87,7 +85,7 @@ static u32 rf_serial_read(struct adapter *adapt,
 					    bMaskDWord);
 
 	tmplong2 = (tmplong2 & (~bLSSIReadAddress)) |
-		   (newoffset<<23) | bLSSIReadEdge;
+		   (offset<<23) | bLSSIReadEdge;
 
 	phy_set_bb_reg(adapt, rFPGA0_XA_HSSIParameter2, bMaskDWord,
 		       tmplong&(~bLSSIReadEdge));
