@@ -15,6 +15,7 @@ typedef   signed long long s64;
 
 /* Just for familiarity */
 typedef uint32_t u32;
+typedef uint16_t u16;
 typedef uint8_t u8;
 
 
