@@ -1848,7 +1848,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	return err;
 }
 
-static int path_init(int dfd, const char *name, unsigned int flags,
+static int path_init(int dfd, const struct filename *name, unsigned int flags,
 		     struct nameidata *nd)
 {
 	int retval = 0;
@@ -1860,7 +1860,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	if (flags & LOOKUP_ROOT) {
 		struct dentry *root = nd->root.dentry;
 		struct inode *inode = root->d_inode;
-		if (*name) {
+		if (name->name[0]) {
 			if (!d_can_lookup(root))
 				return -ENOTDIR;
 			retval = inode_permission(inode, MAY_EXEC);
@@ -1882,7 +1882,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	nd->root.mnt = NULL;
 
 	nd->m_seq = read_seqbegin(&mount_lock);
-	if (*name=='/') {
+	if (name->name[0] == '/') {
 		if (flags & LOOKUP_RCU) {
 			rcu_read_lock();
 			nd->seq = set_root_rcu(nd);
@@ -1916,7 +1916,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 
 		dentry = f.file->f_path.dentry;
 
-		if (*name) {
+		if (name->name[0]) {
 			if (!d_can_lookup(dentry)) {
 				fdput(f);
 				return -ENOTDIR;
@@ -1946,7 +1946,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	return -ECHILD;
 done:
 	current->total_link_count = 0;
-	return link_path_walk(name, nd);
+	return link_path_walk(name->name, nd);
 }
 
 static void path_cleanup(struct nameidata *nd)
@@ -1989,7 +1989,7 @@ static int path_lookupat(int dfd, const struct filename *name,
 	 * be handled by restarting a traditional ref-walk (which will always
 	 * be able to complete).
 	 */
-	err = path_init(dfd, name->name, flags, nd);
+	err = path_init(dfd, name, flags, nd);
 	if (!err && !(flags & LOOKUP_PARENT)) {
 		err = lookup_last(nd, &path);
 		while (err > 0) {
@@ -2343,7 +2343,7 @@ path_mountpoint(int dfd, const struct filename *name, struct path *path,
 	struct nameidata nd;
 	int err;
 
-	err = path_init(dfd, name->name, flags, &nd);
+	err = path_init(dfd, name, flags, &nd);
 	if (unlikely(err))
 		goto out;
 
@@ -3226,7 +3226,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		goto out;
 	}
 
-	error = path_init(dfd, pathname->name, flags, nd);
+	error = path_init(dfd, pathname, flags, nd);
 	if (unlikely(error))
 		goto out;
 
