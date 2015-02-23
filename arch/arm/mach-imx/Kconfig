@@ -50,6 +50,7 @@ config HAVE_IMX_ANATOP
 
 config HAVE_IMX_GPC
 	bool
+	select PM_GENERIC_DOMAINS if PM
 
 config HAVE_IMX_MMDC
 	bool
