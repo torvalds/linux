@@ -471,8 +471,7 @@ dtb-$(CONFIG_ARCH_SHMOBILE_LEGACY) += \
 	r8a7778-bockw-reference.dtb \
 	r8a7779-marzen.dtb \
 	sh7372-mackerel.dtb \
-	sh73a0-kzm9g.dtb \
-	sh73a0-kzm9g-reference.dtb
+	sh73a0-kzm9g.dtb
 dtb-$(CONFIG_ARCH_SHMOBILE_MULTI) += \
 	emev2-kzm9d.dtb \
 	r7s72100-genmai.dtb \
