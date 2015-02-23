@@ -260,6 +260,7 @@ xfs_alloc_fix_len(
 		rlen = rlen - (k - args->mod);
 	else
 		rlen = rlen - args->prod + (args->mod - k);
+	/* casts to (int) catch length underflows */
 	if ((int)rlen < (int)args->minlen)
 		return;
 	ASSERT(rlen >= args->minlen && rlen <= args->maxlen);
@@ -286,7 +287,8 @@ xfs_alloc_fix_minleft(
 	if (diff >= 0)
 		return 1;
 	args->len += diff;		/* shrink the allocated space */
-	if (args->len >= args->minlen)
+	/* casts to (int) catch length underflows */
+	if ((int)args->len >= (int)args->minlen)
 		return 1;
 	args->agbno = NULLAGBLOCK;
 	return 0;
