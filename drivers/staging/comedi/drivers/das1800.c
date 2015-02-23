@@ -103,7 +103,7 @@ TODO:
 
 #include "comedi_isadma.h"
 #include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 
 /* misc. defines */
 #define DAS1800_SIZE           16	/* uses 16 io addresses */
@@ -422,8 +422,6 @@ static const struct das1800_board das1800_boards[] = {
 
 struct das1800_private {
 	struct comedi_isadma *dma;
-	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
-	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
 	int irq_dma_bits;	/* bits for control register b */
 	/* dma bits for control register b, stored so that dma can be
 	 * turned on and off */
@@ -731,7 +729,6 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 				 struct comedi_cmd *cmd)
 {
 	const struct das1800_board *thisboard = dev->board_ptr;
-	struct das1800_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
 
@@ -795,35 +792,23 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 	    cmd->convert_src == TRIG_TIMER) {
 		/* we are not in burst mode */
 		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &cmd->convert_arg, cmd->flags);
-		if (arg != cmd->convert_arg)
-			err++;
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	} else if (cmd->convert_src == TRIG_TIMER) {
 		/* we are in burst mode */
-		arg = cmd->convert_arg;
-		cmd->convert_arg = burst_convert_arg(cmd->convert_arg,
-						     cmd->flags);
-		if (arg != cmd->convert_arg)
-			err++;
+		arg = burst_convert_arg(cmd->convert_arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			arg = cmd->convert_arg * cmd->chanlist_len;
-			if (arg > cmd->scan_begin_arg) {
-				cmd->scan_begin_arg = arg;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+							 arg);
 
 			arg = cmd->scan_begin_arg;
-			i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
-						  &devpriv->divisor1,
-						  &devpriv->divisor2,
-						  &cmd->scan_begin_arg,
-						  cmd->flags);
-			if (arg != cmd->scan_begin_arg)
-				err++;
+			comedi_8254_cascade_ns_to_timer(dev->pacer, &arg,
+							cmd->flags);
+			err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg,
+							arg);
 		}
 	}
 
@@ -908,31 +893,6 @@ static int control_c_bits(const struct comedi_cmd *cmd)
 	}
 
 	return control_c;
-}
-
-static void das1800_setup_counters(struct comedi_device *dev,
-				   const struct comedi_cmd *cmd)
-{
-	struct das1800_private *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + DAS1800_COUNTER;
-
-	/* setup cascaded counters for conversion/scan frequency */
-	if ((cmd->scan_begin_src == TRIG_FOLLOW ||
-	     cmd->scan_begin_src == TRIG_TIMER) &&
-	    cmd->convert_src == TRIG_TIMER) {
-		i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
-		i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
-
-		i8254_write(timer_base, 0, 1, devpriv->divisor1);
-		i8254_write(timer_base, 0, 2, devpriv->divisor2);
-	}
-
-	/* setup counter 0 for 'about triggering' */
-	if (cmd->stop_src == TRIG_EXT) {
-		i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
-
-		i8254_write(timer_base, 0, 0, 1);
-	}
 }
 
 static unsigned int das1800_ai_transfer_size(struct comedi_device *dev,
@@ -1053,7 +1013,19 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 
 	/* setup card and start */
 	program_chanlist(dev, cmd);
-	das1800_setup_counters(dev, cmd);
+
+	/* setup cascaded counters for conversion/scan frequency */
+	if ((cmd->scan_begin_src == TRIG_FOLLOW ||
+	     cmd->scan_begin_src == TRIG_TIMER) &&
+	    cmd->convert_src == TRIG_TIMER) {
+		comedi_8254_update_divisors(dev->pacer);
+		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
+	}
+
+	/* setup counter 0 for 'about triggering' */
+	if (cmd->stop_src == TRIG_EXT)
+		comedi_8254_load(dev->pacer, 0, 1, I8254_MODE0 | I8254_BINARY);
+
 	das1800_ai_setup_dma(dev, s);
 	outb(control_c, dev->iobase + DAS1800_CONTROL_C);
 	/*  set conversion rate and length for burst mode */
@@ -1376,6 +1348,11 @@ static int das1800_attach(struct comedi_device *dev,
 
 	devpriv->fifo_buf = kmalloc_array(FIFO_SIZE, sizeof(uint16_t), GFP_KERNEL);
 	if (!devpriv->fifo_buf)
+		return -ENOMEM;
+
+	dev->pacer = comedi_8254_init(dev->iobase + DAS1800_COUNTER,
+				      I8254_OSC_BASE_5MHZ, I8254_IO8, 0);
+	if (!dev->pacer)
 		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
