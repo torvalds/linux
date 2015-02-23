@@ -108,6 +108,7 @@ if COMEDI_ISA_DRIVERS
 
 config COMEDI_PCL711
 	tristate "Advantech PCL-711/711b and ADlink ACL-8112 ISA card support"
+	select COMEDI_8254
 	---help---
 	  Enable support for Advantech PCL-711 and 711b, ADlink ACL-8112
 
