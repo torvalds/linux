@@ -60,12 +60,6 @@ enum hw_io_access {
 #define MAX_DO_SUBDEVS	2	/* max number of DO subdevices per card */
 #define MAX_DIO_SUBDEVG	2	/* max number of DIO subdevices group per
 				 * card */
-#define MAX_8254_SUBDEVS   1	/* max number of 8254 counter subdevs per
-				 * card */
-				/* (could be more than one 8254 per
-				 * subdevice) */
-
-#define SIZE_8254	   4	/* 8254 IO space length */
 
 #define PCIDIO_MAINREG	   2	/* main I/O region for all Advantech cards? */
 
@@ -243,7 +237,7 @@ struct dio_boardtype {
 	struct diosubd_data sdo[MAX_DO_SUBDEVS];	/*  DO chans */
 	struct diosubd_data sdio[MAX_DIO_SUBDEVG];	/*  DIO 8255 chans */
 	struct diosubd_data boardid;	/*  card supports board ID switch */
-	struct diosubd_data s8254[MAX_8254_SUBDEVS];	/* 8254 subdevices */
+	struct diosubd_data s8254[1];	/* 8254 subdevices */
 	enum hw_io_access io_access;
 };
 
@@ -492,15 +486,11 @@ static int pci_8254_insn_read(struct comedi_device *dev,
 			      struct comedi_insn *insn, unsigned int *data)
 {
 	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
-	unsigned int chan, chip, chipchan;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned long flags;
 
-	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
-	chip = chan / 3;		/* chip on subdevice */
-	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
 	spin_lock_irqsave(&s->spin_lock, flags);
-	data[0] = i8254_read(dev->iobase + d->addr + (SIZE_8254 * chip),
-			0, chipchan);
+	data[0] = i8254_read(dev->iobase + d->addr, 0, chan);
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 	return 1;
 }
@@ -513,15 +503,11 @@ static int pci_8254_insn_write(struct comedi_device *dev,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
-	unsigned int chan, chip, chipchan;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned long flags;
 
-	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
-	chip = chan / 3;		/* chip on subdevice */
-	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
 	spin_lock_irqsave(&s->spin_lock, flags);
-	i8254_write(dev->iobase + d->addr + (SIZE_8254 * chip),
-			0, chipchan, data[0]);
+	i8254_write(dev->iobase + d->addr, 0, chan, data[0]);
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 	return 1;
 }
@@ -534,24 +520,20 @@ static int pci_8254_insn_config(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
-	unsigned int chan, chip, chipchan;
-	unsigned long iobase;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned long iobase = dev->iobase + d->addr;
 	int ret = 0;
 	unsigned long flags;
 
-	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
-	chip = chan / 3;		/* chip on subdevice */
-	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
-	iobase = dev->iobase + d->addr + (SIZE_8254 * chip);
 	spin_lock_irqsave(&s->spin_lock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		ret = i8254_set_mode(iobase, 0, chipchan, data[1]);
+		ret = i8254_set_mode(iobase, 0, chan, data[1]);
 		if (ret < 0)
 			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
-		data[1] = i8254_status(iobase, 0, chipchan);
+		data[1] = i8254_status(iobase, 0, chan);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1144,12 +1126,11 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	for (i = 0; i < MAX_8254_SUBDEVS; i++)
-		if (this_board->s8254[i].chans) {
-			s = &dev->subdevices[subdev];
-			pci_dio_add_8254(dev, s, &this_board->s8254[i]);
-			subdev++;
-		}
+	if (this_board->s8254[0].chans) {
+		s = &dev->subdevices[subdev];
+		pci_dio_add_8254(dev, s, &this_board->s8254[0]);
+		subdev++;
+	}
 
 	if (this_board->cardtype == TYPE_PCI1760)
 		pci1760_attach(dev);
