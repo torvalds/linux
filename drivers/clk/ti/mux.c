@@ -210,7 +210,7 @@ static void of_mux_clk_setup(struct device_node *node)
 
 	reg = ti_clk_get_reg_addr(node, 0);
 
-	if (!reg)
+	if (IS_ERR(reg))
 		goto cleanup;
 
 	of_property_read_u32(node, "ti,bit-shift", &shift);
@@ -283,7 +283,7 @@ static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 
 	mux->reg = ti_clk_get_reg_addr(node, 0);
 
-	if (!mux->reg)
+	if (IS_ERR(mux->reg))
 		goto cleanup;
 
 	if (!of_property_read_u32(node, "ti,bit-shift", &val))
