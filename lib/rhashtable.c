@@ -903,6 +903,9 @@ int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter)
 	if (!iter->walker)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&iter->walker->list);
+	iter->walker->resize = false;
+
 	mutex_lock(&ht->mutex);
 	list_add(&iter->walker->list, &ht->walkers);
 	mutex_unlock(&ht->mutex);
