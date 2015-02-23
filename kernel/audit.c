@@ -43,6 +43,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/file.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
@@ -1851,15 +1852,20 @@ EXPORT_SYMBOL(audit_log_task_context);
 void audit_log_d_path_exe(struct audit_buffer *ab,
 			  struct mm_struct *mm)
 {
-	if (!mm) {
-		audit_log_format(ab, " exe=(null)");
-		return;
-	}
+	struct file *exe_file;
 
-	down_read(&mm->mmap_sem);
-	if (mm->exe_file)
-		audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
-	up_read(&mm->mmap_sem);
+	if (!mm)
+		goto out_null;
+
+	exe_file = get_mm_exe_file(mm);
+	if (!exe_file)
+		goto out_null;
+
+	audit_log_d_path(ab, " exe=", &exe_file->f_path);
+	fput(exe_file);
+	return;
+out_null:
+	audit_log_format(ab, " exe=(null)");
 }
 
 void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
