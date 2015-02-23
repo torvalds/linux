@@ -99,7 +99,6 @@ static const unsigned int ts_clock_period[TS_CONFIG_MAX_CLK_SRC + 1] = {
 
 struct dio200_subdev_8254 {
 	unsigned int ofs;		/* Counter base offset */
-	int which;			/* Bit 5 of CLK_SCE or GAT_SCE */
 	unsigned int clock_src[3];	/* Current clock sources */
 	unsigned int gate_src[3];	/* Current gate sources */
 	spinlock_t spinlock;
@@ -584,7 +583,7 @@ static int dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 		return -1;
 
 	subpriv->gate_src[counter_number] = gate_src;
-	byte = gat_sce(subpriv->which, counter_number, gate_src);
+	byte = gat_sce((subpriv->ofs >> 2) & 1, counter_number, gate_src);
 	dio200_write8(dev, DIO200_GAT_SCE(subpriv->ofs >> 3), byte);
 
 	return 0;
@@ -622,7 +621,7 @@ static int dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 		return -1;
 
 	subpriv->clock_src[counter_number] = clock_src;
-	byte = clk_sce(subpriv->which, counter_number, clock_src);
+	byte = clk_sce((subpriv->ofs >> 2) & 1, counter_number, clock_src);
 	dio200_write8(dev, DIO200_CLK_SCE(subpriv->ofs >> 3), byte);
 
 	return 0;
@@ -724,8 +723,6 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 
 	spin_lock_init(&subpriv->spinlock);
 	subpriv->ofs = offset;
-	if (board->has_clk_gat_sce)
-		subpriv->which = (offset >> 2) & 1;
 
 	/* Initialize channels. */
 	for (chan = 0; chan < 3; chan++) {
