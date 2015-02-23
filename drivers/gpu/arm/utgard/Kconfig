@@ -96,6 +96,18 @@ config MALI_DT
 	  device tree is enabled in kernel and corresponding hardware description is implemented
 	  properly in device DTS file.
 
+config MALI_PLAT_SPECIFIC_DT
+	bool "Platform specific Device Tree is being used"
+	depends on MALI_DT
+	default n
+	---help---
+          This is a pragmatic approach for some platforms which make
+          use of a device tree entry that does not strictly comply to
+          what the standard Utgard driver expects to find, but have
+          their platform data implemented the old way.  Such platforms
+          should be converted to using the Device Tree so this
+          configuration option can be removed.
+
 config MALI_QUIET
 	bool "Make Mali driver very quiet"
 	depends on MALI400 && !MALI400_DEBUG

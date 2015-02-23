@@ -25,7 +25,7 @@
 #include "mali_kernel_linux.h"
 
 
-#ifdef CONFIG_MALI_DT
+#if defined(CONFIG_MALI_DT) && !defined(CONFIG_MALI_PLAT_SPECIFIC_DT)
 
 #define MALI_OSK_INVALID_RESOURCE_ADDRESS 0xFFFFFFFF
 
@@ -248,7 +248,7 @@ u32 _mali_osk_get_pmu_switch_delay(void)
 	return 0;
 }
 
-#else /* CONFIG_MALI_DT */
+#else /* CONFIG_MALI_DT && !CONFIG_MALI_PLAT_SPECIFIC_DT */
 
 _mali_osk_errcode_t _mali_osk_resource_find(u32 addr, _mali_osk_resource_t *res)
 {

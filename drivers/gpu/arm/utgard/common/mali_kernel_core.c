@@ -738,7 +738,7 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 {
 	_mali_osk_errcode_t err;
 
-#ifdef CONFIG_MALI_DT
+#if defined(CONFIG_MALI_DT) && !defined(CONFIG_MALI_PLAT_SPECIFIC_DT)
 	err = _mali_osk_resource_initialize();
 	if (_MALI_OSK_ERR_OK != err) {
 		mali_terminate_subsystems();

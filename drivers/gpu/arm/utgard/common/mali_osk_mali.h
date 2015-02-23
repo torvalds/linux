@@ -30,7 +30,7 @@ extern "C" {
  */
 typedef struct mali_gpu_device_data _mali_osk_device_data;
 
-#ifdef CONFIG_MALI_DT
+#if defined(CONFIG_MALI_DT) && !defined(CONFIG_MALI_PLAT_SPECIFIC_DT)
 /** @brief Initialize those device resources when we use device tree
  *
  * @return _MALI_OSK_ERR_OK on success, otherwise failure.
