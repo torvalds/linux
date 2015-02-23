@@ -24,6 +24,7 @@
 #include <asm/cpuidle.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
+#include <asm/psci.h>
 
 #include "pm.h"
 #include "sleep.h"
@@ -84,5 +85,8 @@ static struct cpuidle_driver tegra_idle_driver = {
 
 int __init tegra114_cpuidle_init(void)
 {
-	return cpuidle_register(&tegra_idle_driver, NULL);
+	if (!psci_smp_available())
+		return cpuidle_register(&tegra_idle_driver, NULL);
+
+	return 0;
 }
