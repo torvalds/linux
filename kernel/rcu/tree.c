@@ -2127,6 +2127,45 @@ rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
 }
 
 /*
+ * Record a quiescent state for all tasks that were previously queued
+ * on the specified rcu_node structure and that were blocking the current
+ * RCU grace period.  The caller must hold the specified rnp->lock with
+ * irqs disabled, and this lock is released upon return, but irqs remain
+ * disabled.
+ */
+static void __maybe_unused rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
+				      struct rcu_node *rnp, unsigned long flags)
+	__releases(rnp->lock)
+{
+	unsigned long mask;
+	struct rcu_node *rnp_p;
+
+	WARN_ON_ONCE(rsp == &rcu_bh_state || rsp == &rcu_sched_state);
+	if (rnp->qsmask != 0 || rcu_preempt_blocked_readers_cgp(rnp)) {
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		return;  /* Still need more quiescent states! */
+	}
+
+	rnp_p = rnp->parent;
+	if (rnp_p == NULL) {
+		/*
+		 * Either there is only one rcu_node in the tree,
+		 * or tasks were kicked up to root rcu_node due to
+		 * CPUs going offline.
+		 */
+		rcu_report_qs_rsp(rsp, flags);
+		return;
+	}
+
+	/* Report up the rest of the hierarchy. */
+	mask = rnp->grpmask;
+	raw_spin_unlock(&rnp->lock);	/* irqs remain disabled. */
+	raw_spin_lock(&rnp_p->lock);	/* irqs already disabled. */
+	smp_mb__after_unlock_lock();
+	rcu_report_qs_rnp(mask, rsp, rnp_p, flags);
+}
+
+/*
  * Record a quiescent state for the specified CPU to that CPU's rcu_data
  * structure.  This must be either called from the specified CPU, or
  * called when the specified CPU is known to be offline (and when it is

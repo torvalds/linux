@@ -233,43 +233,6 @@ static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp)
 }
 
 /*
- * Record a quiescent state for all tasks that were previously queued
- * on the specified rcu_node structure and that were blocking the current
- * RCU grace period.  The caller must hold the specified rnp->lock with
- * irqs disabled, and this lock is released upon return, but irqs remain
- * disabled.
- */
-static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
-	__releases(rnp->lock)
-{
-	unsigned long mask;
-	struct rcu_node *rnp_p;
-
-	if (rnp->qsmask != 0 || rcu_preempt_blocked_readers_cgp(rnp)) {
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-		return;  /* Still need more quiescent states! */
-	}
-
-	rnp_p = rnp->parent;
-	if (rnp_p == NULL) {
-		/*
-		 * Either there is only one rcu_node in the tree,
-		 * or tasks were kicked up to root rcu_node due to
-		 * CPUs going offline.
-		 */
-		rcu_report_qs_rsp(&rcu_preempt_state, flags);
-		return;
-	}
-
-	/* Report up the rest of the hierarchy. */
-	mask = rnp->grpmask;
-	raw_spin_unlock(&rnp->lock);	/* irqs remain disabled. */
-	raw_spin_lock(&rnp_p->lock);	/* irqs already disabled. */
-	smp_mb__after_unlock_lock();
-	rcu_report_qs_rnp(mask, &rcu_preempt_state, rnp_p, flags);
-}
-
-/*
  * Advance a ->blkd_tasks-list pointer to the next entry, instead
  * returning NULL if at the end of the list.
  */
@@ -399,7 +362,8 @@ void rcu_read_unlock_special(struct task_struct *t)
 							 rnp->grplo,
 							 rnp->grphi,
 							 !!rnp->gp_tasks);
-			rcu_report_unblock_qs_rnp(rnp, flags);
+			rcu_report_unblock_qs_rnp(&rcu_preempt_state,
+						  rnp, flags);
 		} else {
 			raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		}
