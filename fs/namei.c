@@ -124,10 +124,9 @@
 struct filename *
 getname_flags(const char __user *filename, int flags, int *empty)
 {
-	struct filename *result, *err;
-	int len;
-	long max;
+	struct filename *result;
 	char *kname;
+	int len;
 
 	result = audit_reusename(filename);
 	if (result)
@@ -136,7 +135,6 @@ getname_flags(const char __user *filename, int flags, int *empty)
 	result = __getname();
 	if (unlikely(!result))
 		return ERR_PTR(-ENOMEM);
-	result->refcnt = 1;
 
 	/*
 	 * First, try to embed the struct filename inside the names_cache
@@ -145,13 +143,11 @@ getname_flags(const char __user *filename, int flags, int *empty)
 	kname = (char *)result + sizeof(*result);
 	result->name = kname;
 	result->separate = false;
-	max = EMBEDDED_NAME_MAX;
 
-recopy:
-	len = strncpy_from_user(kname, filename, max);
+	len = strncpy_from_user(kname, filename, EMBEDDED_NAME_MAX);
 	if (unlikely(len < 0)) {
-		err = ERR_PTR(len);
-		goto error;
+		__putname(result);
+		return ERR_PTR(len);
 	}
 
 	/*
@@ -160,43 +156,44 @@ recopy:
 	 * names_cache allocation for the pathname, and re-do the copy from
 	 * userland.
 	 */
-	if (len == EMBEDDED_NAME_MAX && max == EMBEDDED_NAME_MAX) {
+	if (unlikely(len == EMBEDDED_NAME_MAX)) {
 		kname = (char *)result;
 
 		result = kzalloc(sizeof(*result), GFP_KERNEL);
-		if (!result) {
-			err = ERR_PTR(-ENOMEM);
-			result = (struct filename *)kname;
-			goto error;
+		if (unlikely(!result)) {
+			__putname(kname);
+			return ERR_PTR(-ENOMEM);
 		}
 		result->name = kname;
 		result->separate = true;
-		result->refcnt = 1;
-		max = PATH_MAX;
-		goto recopy;
+		len = strncpy_from_user(kname, filename, PATH_MAX);
+		if (unlikely(len < 0)) {
+			__putname(kname);
+			kfree(result);
+			return ERR_PTR(len);
+		}
+		if (unlikely(len == PATH_MAX)) {
+			__putname(kname);
+			kfree(result);
+			return ERR_PTR(-ENAMETOOLONG);
+		}
 	}
 
+	result->refcnt = 1;
 	/* The empty path is special. */
 	if (unlikely(!len)) {
 		if (empty)
 			*empty = 1;
-		err = ERR_PTR(-ENOENT);
-		if (!(flags & LOOKUP_EMPTY))
-			goto error;
+		if (!(flags & LOOKUP_EMPTY)) {
+			putname(result);
+			return ERR_PTR(-ENOENT);
+		}
 	}
-
-	err = ERR_PTR(-ENAMETOOLONG);
-	if (unlikely(len >= PATH_MAX))
-		goto error;
 
 	result->uptr = filename;
 	result->aname = NULL;
 	audit_getname(result);
 	return result;
-
-error:
-	putname(result);
-	return err;
 }
 
 struct filename *
