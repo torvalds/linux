@@ -765,6 +765,7 @@ xfs_setattr_size(
 		return error;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
 	ASSERT(S_ISREG(ip->i_d.di_mode));
 	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
 		ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
@@ -984,8 +985,12 @@ xfs_vn_setattr(
 
 		xfs_ilock(ip, iolock);
 		error = xfs_break_layouts(dentry->d_inode, &iolock);
-		if (!error)
+		if (!error) {
+			xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+			iolock |= XFS_MMAPLOCK_EXCL;
+
 			error = xfs_setattr_size(ip, iattr);
+		}
 		xfs_iunlock(ip, iolock);
 	} else {
 		error = xfs_setattr_nonsize(ip, iattr, 0);
