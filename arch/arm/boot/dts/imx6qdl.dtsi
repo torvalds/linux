@@ -700,6 +700,14 @@
 				interrupts = <0 89 IRQ_TYPE_LEVEL_HIGH>,
 					     <0 90 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&intc>;
+				pu-supply = <&reg_pu>;
+				clocks = <&clks IMX6QDL_CLK_GPU3D_CORE>,
+					 <&clks IMX6QDL_CLK_GPU3D_SHADER>,
+					 <&clks IMX6QDL_CLK_GPU2D_CORE>,
+					 <&clks IMX6QDL_CLK_GPU2D_AXI>,
+					 <&clks IMX6QDL_CLK_OPENVG_AXI>,
+					 <&clks IMX6QDL_CLK_VPU_AXI>;
+				#power-domain-cells = <1>;
 			};
 
 			gpr: iomuxc-gpr@020e0000 {
