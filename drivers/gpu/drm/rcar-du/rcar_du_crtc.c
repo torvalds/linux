@@ -252,8 +252,6 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 	 * with superposition controller 2.
 	 */
 	if (rcrtc->index % 2) {
-		u32 value = rcar_du_group_read(rcrtc->group, DPTSR);
-
 		/* The DPTSR register is updated when the display controller is
 		 * stopped. We thus need to restart the DU. Once again, sorry
 		 * for the flicker. One way to mitigate the issue would be to
@@ -261,11 +259,13 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 		 * split, or through a module parameter). Flicker would then
 		 * occur only if we need to break the pre-association.
 		 */
-		if (value != dptsr) {
+		mutex_lock(&rcrtc->group->planes.lock);
+		if (rcar_du_group_read(rcrtc->group, DPTSR) != dptsr) {
 			rcar_du_group_write(rcrtc->group, DPTSR, dptsr);
 			if (rcrtc->group->used_crtcs)
 				rcar_du_group_restart(rcrtc->group);
 		}
+		mutex_unlock(&rcrtc->group->planes.lock);
 	}
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR,
@@ -435,9 +435,7 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 		rcar_du_plane_setup(plane);
 	}
 
-	mutex_lock(&rcrtc->group->planes.lock);
 	rcar_du_crtc_update_planes(rcrtc);
-	mutex_unlock(&rcrtc->group->planes.lock);
 }
 
 /* -----------------------------------------------------------------------------
@@ -501,9 +499,7 @@ static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
-	mutex_lock(&rcrtc->group->planes.lock);
 	rcar_du_crtc_update_planes(rcrtc);
-	mutex_unlock(&rcrtc->group->planes.lock);
 }
 
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
