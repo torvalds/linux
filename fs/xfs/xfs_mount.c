@@ -1198,6 +1198,24 @@ fdblocks_enospc:
 	return -ENOSPC;
 }
 
+int
+xfs_mod_frextents(
+	struct xfs_mount	*mp,
+	int64_t			delta)
+{
+	int64_t			lcounter;
+	int			ret = 0;
+
+	spin_lock(&mp->m_sb_lock);
+	lcounter = mp->m_sb.sb_frextents + delta;
+	if (lcounter < 0)
+		ret = -ENOSPC;
+	else
+		mp->m_sb.sb_frextents = lcounter;
+	spin_unlock(&mp->m_sb_lock);
+	return ret;
+}
+
 /*
  * xfs_mod_incore_sb_unlocked() is a utility routine commonly used to apply
  * a delta to a specified field in the in-core superblock.  Simply
@@ -1227,16 +1245,9 @@ xfs_mod_incore_sb_unlocked(
 	case XFS_SBS_ICOUNT:
 	case XFS_SBS_IFREE:
 	case XFS_SBS_FDBLOCKS:
+	case XFS_SBS_FREXTENTS:
 		ASSERT(0);
 		return -EINVAL;
-	case XFS_SBS_FREXTENTS:
-		lcounter = (long long)mp->m_sb.sb_frextents;
-		lcounter += delta;
-		if (lcounter < 0) {
-			return -ENOSPC;
-		}
-		mp->m_sb.sb_frextents = lcounter;
-		return 0;
 	case XFS_SBS_DBLOCKS:
 		lcounter = (long long)mp->m_sb.sb_dblocks;
 		lcounter += delta;

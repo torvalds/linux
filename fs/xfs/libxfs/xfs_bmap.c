@@ -4158,8 +4158,7 @@ xfs_bmapi_reserve_delalloc(
 	ASSERT(indlen > 0);
 
 	if (rt) {
-		error = xfs_mod_incore_sb(mp, XFS_SBS_FREXTENTS,
-					  -((int64_t)extsz), 0);
+		error = xfs_mod_frextents(mp, -((int64_t)extsz));
 	} else {
 		error = xfs_mod_fdblocks(mp, -((int64_t)alen), false);
 	}
@@ -4194,7 +4193,7 @@ xfs_bmapi_reserve_delalloc(
 
 out_unreserve_blocks:
 	if (rt)
-		xfs_mod_incore_sb(mp, XFS_SBS_FREXTENTS, extsz, 0);
+		xfs_mod_frextents(mp, extsz);
 	else
 		xfs_mod_fdblocks(mp, alen, false);
 out_unreserve_quota:
@@ -5278,8 +5277,7 @@ xfs_bunmapi(
 
 				rtexts = XFS_FSB_TO_B(mp, del.br_blockcount);
 				do_div(rtexts, mp->m_sb.sb_rextsize);
-				xfs_mod_incore_sb(mp, XFS_SBS_FREXTENTS,
-						(int64_t)rtexts, 0);
+				xfs_mod_frextents(mp, (int64_t)rtexts);
 				(void)xfs_trans_reserve_quota_nblks(NULL,
 					ip, -((long)del.br_blockcount), 0,
 					XFS_QMOPT_RES_RTBLKS);

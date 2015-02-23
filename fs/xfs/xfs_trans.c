@@ -235,8 +235,7 @@ xfs_trans_reserve(
 	 * fail if the count would go below zero.
 	 */
 	if (rtextents > 0) {
-		error = xfs_mod_incore_sb(tp->t_mountp, XFS_SBS_FREXTENTS,
-					  -((int64_t)rtextents), rsvd);
+		error = xfs_mod_frextents(tp->t_mountp, -((int64_t)rtextents));
 		if (error) {
 			error = -ENOSPC;
 			goto undo_log;
@@ -562,10 +561,10 @@ xfs_trans_unreserve_and_mod_sb(
 	}
 
 	/* apply remaining deltas */
-	if (rtxdelta != 0) {
-		msbp->msb_field = XFS_SBS_FREXTENTS;
-		msbp->msb_delta = rtxdelta;
-		msbp++;
+	if (rtxdelta) {
+		error = xfs_mod_frextents(mp, rtxdelta);
+		if (error)
+			goto out_undo_ifree;
 	}
 
 	if (tp->t_flags & XFS_TRANS_SB_DIRTY) {
@@ -618,12 +617,15 @@ xfs_trans_unreserve_and_mod_sb(
 		error = xfs_mod_incore_sb_batch(tp->t_mountp, msb,
 			(uint)(msbp - msb), rsvd);
 		if (error)
-			goto out_undo_ifreecount;
+			goto out_undo_frextents;
 	}
 
 	return;
 
-out_undo_ifreecount:
+out_undo_frextents:
+	if (rtxdelta)
+		xfs_mod_frextents(mp, -rtxdelta);
+out_undo_ifree:
 	if (ifreedelta)
 		xfs_mod_ifree(mp, -ifreedelta);
 out_undo_icount:
