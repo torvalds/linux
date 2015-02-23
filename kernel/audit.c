@@ -1395,7 +1395,8 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 		return NULL;
 	}
 
-	audit_backlog_wait_time = audit_backlog_wait_time_master;
+	if (!reserve)
+		audit_backlog_wait_time = audit_backlog_wait_time_master;
 
 	ab = audit_buffer_alloc(ctx, gfp_mask, type);
 	if (!ab) {
