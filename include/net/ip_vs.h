@@ -941,6 +941,7 @@ struct netns_ipvs {
 	int			sysctl_nat_icmp_send;
 	int			sysctl_pmtu_disc;
 	int			sysctl_backup_only;
+	int			sysctl_conn_reuse_mode;
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -1059,6 +1060,11 @@ static inline int sysctl_backup_only(struct netns_ipvs *ipvs)
 	       ipvs->sysctl_backup_only;
 }
 
+static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_conn_reuse_mode;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -1124,6 +1130,11 @@ static inline int sysctl_pmtu_disc(struct netns_ipvs *ipvs)
 static inline int sysctl_backup_only(struct netns_ipvs *ipvs)
 {
 	return 0;
+}
+
+static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
+{
+	return 1;
 }
 
 #endif
