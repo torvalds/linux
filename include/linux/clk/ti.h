@@ -221,6 +221,7 @@ struct ti_dt_clk {
 /* Static memmap indices */
 enum {
 	TI_CLKM_CM = 0,
+	TI_CLKM_CM2,
 	TI_CLKM_PRM,
 	TI_CLKM_SCRM,
 };

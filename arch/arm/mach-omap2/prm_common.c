@@ -633,31 +633,47 @@ int prm_unregister(struct prm_ll_data *pld)
 	return 0;
 }
 
+static struct omap_prcm_init_data prm_data = {
+	.index = TI_CLKM_PRM,
+};
+
+static struct omap_prcm_init_data cm_data = {
+	.index = TI_CLKM_CM,
+};
+
+static struct omap_prcm_init_data cm2_data = {
+	.index = TI_CLKM_CM2,
+};
+
+static struct omap_prcm_init_data scrm_data = {
+	.index = TI_CLKM_SCRM,
+};
+
 static const struct of_device_id omap_prcm_dt_match_table[] = {
-	{ .compatible = "ti,am3-prcm" },
-	{ .compatible = "ti,am3-scrm" },
-	{ .compatible = "ti,am4-prcm" },
-	{ .compatible = "ti,am4-scrm" },
-	{ .compatible = "ti,dm814-prcm" },
-	{ .compatible = "ti,dm814-scrm" },
-	{ .compatible = "ti,dm816-prcm" },
-	{ .compatible = "ti,dm816-scrm" },
-	{ .compatible = "ti,omap2-prcm" },
-	{ .compatible = "ti,omap2-scrm" },
-	{ .compatible = "ti,omap3-prm" },
-	{ .compatible = "ti,omap3-cm" },
-	{ .compatible = "ti,omap3-scrm" },
-	{ .compatible = "ti,omap4-cm1" },
-	{ .compatible = "ti,omap4-prm" },
-	{ .compatible = "ti,omap4-cm2" },
-	{ .compatible = "ti,omap4-scrm" },
-	{ .compatible = "ti,omap5-prm" },
-	{ .compatible = "ti,omap5-cm-core-aon" },
-	{ .compatible = "ti,omap5-scrm" },
-	{ .compatible = "ti,omap5-cm-core" },
-	{ .compatible = "ti,dra7-prm" },
-	{ .compatible = "ti,dra7-cm-core-aon" },
-	{ .compatible = "ti,dra7-cm-core" },
+	{ .compatible = "ti,am3-prcm", .data = &prm_data },
+	{ .compatible = "ti,am3-scrm", .data = &scrm_data },
+	{ .compatible = "ti,am4-prcm", .data = &prm_data },
+	{ .compatible = "ti,am4-scrm", .data = &scrm_data },
+	{ .compatible = "ti,dm814-prcm", .data = &prm_data },
+	{ .compatible = "ti,dm814-scrm", .data = &scrm_data },
+	{ .compatible = "ti,dm816-prcm", .data = &prm_data },
+	{ .compatible = "ti,dm816-scrm", .data = &scrm_data },
+	{ .compatible = "ti,omap2-prcm", .data = &prm_data },
+	{ .compatible = "ti,omap2-scrm", .data = &scrm_data },
+	{ .compatible = "ti,omap3-prm", .data = &prm_data },
+	{ .compatible = "ti,omap3-cm", .data = &cm_data },
+	{ .compatible = "ti,omap3-scrm", .data = &scrm_data },
+	{ .compatible = "ti,omap4-cm1", .data = &cm_data },
+	{ .compatible = "ti,omap4-prm", .data = &prm_data },
+	{ .compatible = "ti,omap4-cm2", .data = &cm2_data },
+	{ .compatible = "ti,omap4-scrm", .data = &scrm_data },
+	{ .compatible = "ti,omap5-prm", .data = &prm_data },
+	{ .compatible = "ti,omap5-cm-core-aon", .data = &cm_data },
+	{ .compatible = "ti,omap5-scrm", .data = &scrm_data },
+	{ .compatible = "ti,omap5-cm-core", .data = &cm2_data },
+	{ .compatible = "ti,dra7-prm", .data = &prm_data },
+	{ .compatible = "ti,dra7-cm-core-aon", .data = &cm_data },
+	{ .compatible = "ti,dra7-cm-core", .data = &cm2_data },
 	{ }
 };
 
@@ -690,15 +706,20 @@ int __init omap_prcm_init(void)
 {
 	struct device_node *np;
 	void __iomem *mem;
-	int memmap_index = 0;
+	const struct of_device_id *match;
+	const struct omap_prcm_init_data *data;
 
 	ti_clk_ll_ops = &omap_clk_ll_ops;
 
-	for_each_matching_node(np, omap_prcm_dt_match_table) {
+	for_each_matching_node_and_match(np, omap_prcm_dt_match_table, &match) {
+		data = match->data;
+
 		mem = of_iomap(np, 0);
-		clk_memmaps[memmap_index] = mem;
-		ti_dt_clk_init_provider(np, memmap_index);
-		memmap_index++;
+		if (!mem)
+			return -ENOMEM;
+
+		clk_memmaps[data->index] = mem;
+		ti_dt_clk_init_provider(np, data->index);
 	}
 
 	return 0;

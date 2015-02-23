@@ -518,6 +518,14 @@ struct omap_prcm_irq_setup {
 	.priority = _priority				\
 	}
 
+/**
+ * struct omap_prcm_init_data - PRCM driver init data
+ * @index: clock memory mapping index to be used
+ */
+struct omap_prcm_init_data {
+	int index;
+};
+
 extern void omap_prcm_irq_cleanup(void);
 extern int omap_prcm_register_chain_handler(
 	struct omap_prcm_irq_setup *irq_setup);
