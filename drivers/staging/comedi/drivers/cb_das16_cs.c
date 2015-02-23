@@ -41,16 +41,13 @@ Status: experimental
 #include "../comedi_pcmcia.h"
 
 #include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 
 #define DAS16CS_ADC_DATA		0
 #define DAS16CS_DIO_MUX			2
 #define DAS16CS_MISC1			4
 #define DAS16CS_MISC2			6
-#define DAS16CS_CTR0			8
-#define DAS16CS_CTR1			10
-#define DAS16CS_CTR2			12
-#define DAS16CS_CTR_CONTROL		14
+#define DAS16CS_TIMER_BASE		8
 #define DAS16CS_DIO			16
 
 struct das16cs_board {
@@ -277,6 +274,11 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
+		return -ENOMEM;
+
+	dev->pacer = comedi_8254_init(dev->iobase + DAS16CS_TIMER_BASE,
+				      I8254_OSC_BASE_10MHZ, I8254_IO16, 0);
+	if (!dev->pacer)
 		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 3);
