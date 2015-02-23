@@ -93,6 +93,8 @@
 #       define NI_DP_MSE_ZERO_ENCODER                  (((x) & 0x1) << 8)
 
 #define NI_DP_MSE_RATE_CNTL                            0x7384
+#       define NI_DP_MSE_RATE_Y(x)                   (((x) & 0x3ffffff) << 0)
+#       define NI_DP_MSE_RATE_X(x)                   (((x) & 0x3f) << 26)
 
 #define NI_DP_MSE_RATE_UPDATE                          0x738c
 
@@ -111,6 +113,11 @@
 #define NI_DIG_BE_CNTL                                 0x7140
 #       define NI_DIG_FE_SOURCE_SELECT(x)              (((x) & 0x7f) << 8)
 #       define NI_DIG_FE_DIG_MODE(x)                   (((x) & 0x7) << 16)
+#       define NI_DIG_MODE_DP_SST                      0
+#       define NI_DIG_MODE_LVDS                        1
+#       define NI_DIG_MODE_TMDS_DVI                    2
+#       define NI_DIG_MODE_TMDS_HDMI                   3
+#       define NI_DIG_MODE_DP_MST                      5
 #       define NI_DIG_HPD_SELECT(x)                    (((x) & 0x7) << 28)
 
 #define NI_DIG_FE_CNTL                                 0x7000

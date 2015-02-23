@@ -112,6 +112,7 @@ extern int radeon_use_pflipirq;
 extern int radeon_bapm;
 extern int radeon_backlight;
 extern int radeon_auxch;
+extern int radeon_mst;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
