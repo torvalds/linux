@@ -4941,27 +4941,38 @@ static int be_func_init(struct be_adapter *adapter)
 	return 0;
 }
 
-static int be_err_recover(struct be_adapter *adapter)
+static int be_resume(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct device *dev = &adapter->pdev->dev;
 	int status;
 
 	status = be_func_init(adapter);
 	if (status)
-		goto err;
+		return status;
 
 	status = be_setup(adapter);
 	if (status)
-		goto err;
+		return status;
 
 	if (netif_running(netdev)) {
 		status = be_open(netdev);
 		if (status)
-			goto err;
+			return status;
 	}
 
 	netif_device_attach(netdev);
+
+	return 0;
+}
+
+static int be_err_recover(struct be_adapter *adapter)
+{
+	struct device *dev = &adapter->pdev->dev;
+	int status;
+
+	status = be_resume(adapter);
+	if (status)
+		goto err;
 
 	dev_info(dev, "Adapter recovery successful\n");
 	return 0;
@@ -5412,13 +5423,10 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int be_resume(struct pci_dev *pdev)
+static int be_pci_resume(struct pci_dev *pdev)
 {
-	int status = 0;
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev =  adapter->netdev;
-
-	netif_device_detach(netdev);
+	int status = 0;
 
 	status = pci_enable_device(pdev);
 	if (status)
@@ -5427,18 +5435,9 @@ static int be_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
-	status = be_func_init(adapter);
+	status = be_resume(adapter);
 	if (status)
 		return status;
-
-	be_setup(adapter);
-	if (netif_running(netdev)) {
-		rtnl_lock();
-		be_open(netdev);
-		rtnl_unlock();
-	}
-
-	netif_device_attach(netdev);
 
 	be_schedule_err_detection(adapter);
 
@@ -5539,27 +5538,14 @@ static void be_eeh_resume(struct pci_dev *pdev)
 {
 	int status = 0;
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev =  adapter->netdev;
 
 	dev_info(&adapter->pdev->dev, "EEH resume\n");
 
 	pci_save_state(pdev);
 
-	status = be_func_init(adapter);
+	status = be_resume(adapter);
 	if (status)
 		goto err;
-
-	status = be_setup(adapter);
-	if (status)
-		goto err;
-
-	if (netif_running(netdev)) {
-		status = be_open(netdev);
-		if (status)
-			goto err;
-	}
-
-	netif_device_attach(netdev);
 
 	be_schedule_err_detection(adapter);
 	return;
@@ -5579,7 +5565,7 @@ static struct pci_driver be_driver = {
 	.probe = be_probe,
 	.remove = be_remove,
 	.suspend = be_suspend,
-	.resume = be_resume,
+	.resume = be_pci_resume,
 	.shutdown = be_shutdown,
 	.err_handler = &be_eeh_handlers
 };
