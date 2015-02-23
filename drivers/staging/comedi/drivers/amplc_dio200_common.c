@@ -577,8 +577,6 @@ static int dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 
 	if (!board->has_clk_gat_sce)
 		return -1;
-	if (counter_number > 2)
-		return -1;
 	if (gate_src > (board->is_pcie ? 31 : 7))
 		return -1;
 
@@ -598,8 +596,6 @@ static int dio200_subdev_8254_get_gate_src(struct comedi_device *dev,
 
 	if (!board->has_clk_gat_sce)
 		return -1;
-	if (counter_number > 2)
-		return -1;
 
 	return subpriv->gate_src[counter_number];
 }
@@ -614,8 +610,6 @@ static int dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 	unsigned char byte;
 
 	if (!board->has_clk_gat_sce)
-		return -1;
-	if (counter_number > 2)
 		return -1;
 	if (clock_src > (board->is_pcie ? 31 : 7))
 		return -1;
@@ -637,8 +631,6 @@ static int dio200_subdev_8254_get_clock_src(struct comedi_device *dev,
 	unsigned clock_src;
 
 	if (!board->has_clk_gat_sce)
-		return -1;
-	if (counter_number > 2)
 		return -1;
 
 	clock_src = subpriv->clock_src[counter_number];
