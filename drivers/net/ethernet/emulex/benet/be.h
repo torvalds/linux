@@ -376,6 +376,7 @@ enum vf_state {
 #define BE_FLAGS_VXLAN_OFFLOADS			BIT(8)
 #define BE_FLAGS_SETUP_DONE			BIT(9)
 #define BE_FLAGS_EVT_INCOMPATIBLE_SFP		BIT(10)
+#define BE_FLAGS_ERR_DETECTION_SCHEDULED	BIT(11)
 
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2
@@ -501,7 +502,7 @@ struct be_adapter {
 	struct delayed_work work;
 	u16 work_counter;
 
-	struct delayed_work func_recovery_work;
+	struct delayed_work be_err_detection_work;
 	u32 flags;
 	u32 cmd_privileges;
 	/* Ethtool knobs and info */
