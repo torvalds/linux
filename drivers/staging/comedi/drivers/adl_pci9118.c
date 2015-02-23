@@ -82,7 +82,7 @@
 #include "../comedidev.h"
 
 #include "amcc_s5933.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "comedi_fc.h"
 
 #define IORANGE_9118	64	/* I hope */
@@ -94,8 +94,7 @@
 /*
  * PCI BAR2 Register map (dev->iobase)
  */
-#define PCI9118_TIMER_REG(x)		(0x00 + ((x) * 4))
-#define PCI9118_TIMER_CTRL_REG		0x0c
+#define PCI9118_TIMER_BASE		0x00
 #define PCI9118_AI_FIFO_REG		0x10
 #define PCI9118_AO_REG(x)		(0x10 + ((x) * 4))
 #define PCI9118_AI_STATUS_REG		0x18
@@ -239,10 +238,6 @@ struct pci9118_private {
 					 * measure can start/stop
 					 * on external trigger
 					 */
-	unsigned int ai_divisor1, ai_divisor2;	/*
-						 * divisors for start of measure
-						 * on external start
-						 */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	struct pci9118_dmabuf dmabuf[2];
 	int softsshdelay;		/*
@@ -295,24 +290,6 @@ static void pci9118_amcc_int_ena(struct comedi_device *dev, bool enable)
 	else
 		intcsr &= ~0x1f00;
 	outl(intcsr, devpriv->iobase_a + AMCC_OP_REG_INTCSR);
-}
-
-static void pci9118_timer_write(struct comedi_device *dev,
-				unsigned int timer, unsigned int val)
-{
-	outl(val & 0xff, dev->iobase + PCI9118_TIMER_REG(timer));
-	outl((val >> 8) & 0xff, dev->iobase + PCI9118_TIMER_REG(timer));
-}
-
-static void pci9118_timer_set_mode(struct comedi_device *dev,
-				   unsigned int timer, unsigned int mode)
-{
-	unsigned int val;
-
-	val = timer << 6;	/* select timer */
-	val |= 0x30;		/* load low then high byte */
-	val |= mode;		/* set timer mode and BCD|binary */
-	outl(val, dev->iobase + PCI9118_TIMER_CTRL_REG);
 }
 
 static void pci9118_ai_reset_fifo(struct comedi_device *dev)
@@ -440,8 +417,8 @@ static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev,
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG |
 			  PCI9118_AI_CFG_AM;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-	pci9118_timer_set_mode(dev, 0, I8254_MODE0);
-	pci9118_timer_write(dev, 0, dmabuf->hw >> 1);
+	comedi_8254_load(dev->pacer, 0, dmabuf->hw >> 1,
+			 I8254_MODE0 | I8254_BINARY);
 	devpriv->ai_cfg |= PCI9118_AI_CFG_START;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 }
@@ -577,15 +554,16 @@ static void pci9118_calc_divisors(struct comedi_device *dev,
 				  unsigned int *div1, unsigned int *div2,
 				  unsigned int chnsshfront)
 {
+	struct comedi_8254 *pacer = dev->pacer;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	*div1 = *tim2 / I8254_OSC_BASE_4MHZ;	/* convert timer (burst) */
-	*div2 = *tim1 / I8254_OSC_BASE_4MHZ;	/* scan timer */
+	*div1 = *tim2 / pacer->osc_base;	/* convert timer (burst) */
+	*div2 = *tim1 / pacer->osc_base;	/* scan timer */
 	*div2 = *div2 / *div1;			/* major timer is c1*c2 */
 	if (*div2 < chans)
 		*div2 = chans;
 
-	*tim2 = *div1 * I8254_OSC_BASE_4MHZ;	/* real convert timer */
+	*tim2 = *div1 * pacer->osc_base;	/* real convert timer */
 
 	if (cmd->convert_src == TRIG_NOW && !chnsshfront) {
 		/* use BSSH signal */
@@ -593,21 +571,13 @@ static void pci9118_calc_divisors(struct comedi_device *dev,
 			*div2 = chans + 2;
 	}
 
-	*tim1 = *div1 * *div2 * I8254_OSC_BASE_4MHZ;
+	*tim1 = *div1 * *div2 * pacer->osc_base;
 }
 
 static void pci9118_start_pacer(struct comedi_device *dev, int mode)
 {
-	struct pci9118_private *devpriv = dev->private;
-
-	pci9118_timer_set_mode(dev, 1, I8254_MODE2);
-	pci9118_timer_set_mode(dev, 2, I8254_MODE2);
-	udelay(1);
-
-	if ((mode == 1) || (mode == 2) || (mode == 4)) {
-		pci9118_timer_write(dev, 2, devpriv->ai_divisor2);
-		pci9118_timer_write(dev, 1, devpriv->ai_divisor1);
-	}
+	if (mode == 1 || mode == 2 || mode == 4)
+		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 }
 
 static int pci9118_ai_cancel(struct comedi_device *dev,
@@ -618,7 +588,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 	if (devpriv->usedma)
 		pci9118_amcc_dma_ena(dev, false);
 	pci9118_exttrg_enable(dev, false);
-	pci9118_start_pacer(dev, 0);	/* stop 8254 counters */
+	comedi_8254_pacer_enable(dev->pacer, 1, 2, false);
 	/* set default config (disable burst and triggers) */
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
@@ -975,6 +945,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct comedi_8254 *pacer = dev->pacer;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int addchans = 0;
 
@@ -1093,12 +1064,10 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		else
 			devpriv->ai_do = 1;
 
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
-					  &devpriv->ai_divisor1,
-					  &devpriv->ai_divisor2,
-					  &cmd->convert_arg,
-					  devpriv->ai_flags &
-					  CMDF_ROUND_NEAREST);
+		comedi_8254_cascade_ns_to_timer(pacer, &cmd->convert_arg,
+						devpriv->ai_flags &
+						CMDF_ROUND_NEAREST);
+		comedi_8254_update_divisors(pacer);
 
 		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR;
 
@@ -1112,8 +1081,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 			devpriv->ai_cfg |= PCI9118_AI_CFG_AM;
 			outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-			pci9118_timer_set_mode(dev, 0, I8254_MODE0);
-			pci9118_timer_write(dev, 0, dmabuf->hw >> 1);
+			comedi_8254_load(pacer, 0, dmabuf->hw >> 1,
+					 I8254_MODE0 | I8254_BINARY);
 			devpriv->ai_cfg |= PCI9118_AI_CFG_START;
 		}
 	}
@@ -1133,8 +1102,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				      &cmd->scan_begin_arg, &cmd->convert_arg,
 				      devpriv->ai_flags,
 				      devpriv->ai_n_realscanlen,
-				      &devpriv->ai_divisor1,
-				      &devpriv->ai_divisor2,
+				      &pacer->divisor1,
+				      &pacer->divisor2,
 				      devpriv->ai_add_front);
 
 		devpriv->ai_ctrl |= PCI9118_AI_CTRL_TMRTR;
@@ -1161,8 +1130,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->usedma)
 		devpriv->ai_ctrl |= PCI9118_AI_CTRL_DMA;
-
-	pci9118_start_pacer(dev, -1);	/* stop pacer */
 
 	/* set default config (disable burst and triggers) */
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
@@ -1206,7 +1173,6 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	unsigned int flags;
 	unsigned int arg;
-	unsigned int divisor1 = 0, divisor2 = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -1323,17 +1289,13 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
-					  &divisor1, &divisor2,
-					  &arg, cmd->flags);
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW)) {
 		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
-					  &divisor1, &divisor2,
-					  &arg, cmd->flags);
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER &&
@@ -1482,10 +1444,6 @@ static void pci9118_reset(struct comedi_device *dev)
 	inl(dev->iobase + PCI9118_INT_CTRL_REG);
 	inl(dev->iobase + PCI9118_AI_STATUS_REG);
 
-	/* reset and stop counters */
-	pci9118_timer_set_mode(dev, 0, I8254_MODE0);
-	pci9118_start_pacer(dev, 0);
-
 	/* reset DMA and scan queue */
 	outl(0, dev->iobase + PCI9118_AI_BURST_NUM_REG);
 	outl(1, dev->iobase + PCI9118_AI_AUTOSCAN_MODE_REG);
@@ -1589,6 +1547,11 @@ static int pci9118_common_attach(struct comedi_device *dev,
 
 	devpriv->iobase_a = pci_resource_start(pcidev, 0);
 	dev->iobase = pci_resource_start(pcidev, 2);
+
+	dev->pacer = comedi_8254_init(dev->iobase + PCI9118_TIMER_BASE,
+				      I8254_OSC_BASE_4MHZ, I8254_IO32, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	pci9118_reset(dev);
 
