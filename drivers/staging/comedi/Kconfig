@@ -739,6 +739,7 @@ config COMEDI_ADL_PCI9118
 
 config COMEDI_ADV_PCI1710
 	tristate "Advantech PCI-171x, PCI-1720 and PCI-1731 support"
+	select COMEDI_8254
 	---help---
 	  Enable support for Advantech PCI-1710, PCI-1710HG, PCI-1711,
 	  PCI-1713, PCI-1720 and PCI-1731

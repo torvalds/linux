@@ -48,7 +48,7 @@ Configuration options:
 #include "../comedidev.h"
 
 #include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "amcc_s5933.h"
 
 #define PCI171x_AD_DATA	 0	/* R:   A/D data */
@@ -67,11 +67,6 @@ Configuration options:
 
 #define PCI171X_TIMER_BASE	0x18
 
-#define PCI171x_CNT0	24	/* R/W: 8254 counter 0 */
-#define PCI171x_CNT1	26	/* R/W: 8254 counter 1 */
-#define PCI171x_CNT2	28	/* R/W: 8254 counter 2 */
-#define PCI171x_CNTCTRL	30	/* W:   8254 counter control */
-
 /* upper bits from status register (PCI171x_STATUS) (lower is same with control
  * reg) */
 #define	Status_FE	0x0100	/* 1=FIFO is empty */
@@ -87,16 +82,6 @@ Configuration options:
 #define Control_EXT	0x0004	/* 1=external trigger source */
 #define Control_PACER	0x0002	/* 1=enable internal 8254 trigger source */
 #define Control_SW	0x0001	/* 1=enable software trigger source */
-/* bits from counter control register (PCI171x_CNTCTRL) */
-#define Counter_BCD     0x0001	/* 0 = binary counter, 1 = BCD counter */
-#define Counter_M0      0x0002	/* M0-M2 select modes 0-5 */
-#define Counter_M1      0x0004	/* 000 = mode 0, 010 = mode 2 ... */
-#define Counter_M2      0x0008
-#define Counter_RW0     0x0010	/* RW0/RW1 select read/write mode */
-#define Counter_RW1     0x0020
-#define Counter_SC0     0x0040	/* Select Counter. Only 00 or 11 may */
-#define Counter_SC1     0x0080	/* be used, 00 for CNT0,
-				 * 11 for read-back command */
 
 #define PCI1720_DA0	 0	/* W:   D/A register 0 */
 #define PCI1720_DA1	 2	/* W:   D/A register 1 */
@@ -265,15 +250,9 @@ struct pci1710_private {
 	unsigned char ai_et;
 	unsigned int ai_et_CntrlReg;
 	unsigned int ai_et_MuxVal;
-	unsigned int next_divisor1;
-	unsigned int next_divisor2;
-	unsigned int divisor1;
-	unsigned int divisor2;
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
-	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
-					 * internal state */
 };
 
 static int pci171x_ai_check_chanlist(struct comedi_device *dev,
@@ -509,105 +488,6 @@ static int pci171x_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void pci171x_start_pacer(struct comedi_device *dev,
-				bool load_counters)
-{
-	struct pci1710_private *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + PCI171X_TIMER_BASE;
-
-	i8254_set_mode(timer_base, 1, 2, I8254_MODE2 | I8254_BINARY);
-	i8254_set_mode(timer_base, 1, 1, I8254_MODE2 | I8254_BINARY);
-
-	if (load_counters) {
-		i8254_write(timer_base, 1, 2, devpriv->divisor2);
-		i8254_write(timer_base, 1, 1, devpriv->divisor1);
-	}
-}
-
-static int pci171x_counter_insn_read(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
-{
-	unsigned int msb, lsb, ccntrl;
-	int i;
-
-	ccntrl = 0xD2;		/* count only */
-	for (i = 0; i < insn->n; i++) {
-		outw(ccntrl, dev->iobase + PCI171x_CNTCTRL);
-
-		lsb = inw(dev->iobase + PCI171x_CNT0) & 0xFF;
-		msb = inw(dev->iobase + PCI171x_CNT0) & 0xFF;
-
-		data[0] = lsb | (msb << 8);
-	}
-
-	return insn->n;
-}
-
-static int pci171x_counter_insn_write(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
-{
-	struct pci1710_private *devpriv = dev->private;
-	uint msb, lsb, ccntrl, status;
-
-	lsb = data[0] & 0x00FF;
-	msb = (data[0] & 0xFF00) >> 8;
-
-	/* write lsb, then msb */
-	outw(lsb, dev->iobase + PCI171x_CNT0);
-	outw(msb, dev->iobase + PCI171x_CNT0);
-
-	if (devpriv->cnt0_write_wait) {
-		/* wait for the new count to be loaded */
-		ccntrl = 0xE2;
-		do {
-			outw(ccntrl, dev->iobase + PCI171x_CNTCTRL);
-			status = inw(dev->iobase + PCI171x_CNT0) & 0xFF;
-		} while (status & 0x40);
-	}
-
-	return insn->n;
-}
-
-static int pci171x_counter_insn_config(struct comedi_device *dev,
-				       struct comedi_subdevice *s,
-				       struct comedi_insn *insn,
-				       unsigned int *data)
-{
-#ifdef unused
-	/* This doesn't work like a normal Comedi counter config */
-	struct pci1710_private *devpriv = dev->private;
-	uint ccntrl = 0;
-
-	devpriv->cnt0_write_wait = data[0] & 0x20;
-
-	/* internal or external clock? */
-	if (!(data[0] & 0x10)) {	/* internal */
-		devpriv->CntrlReg &= ~Control_CNT0;
-	} else {
-		devpriv->CntrlReg |= Control_CNT0;
-	}
-	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
-
-	if (data[0] & 0x01)
-		ccntrl |= Counter_M0;
-	if (data[0] & 0x02)
-		ccntrl |= Counter_M1;
-	if (data[0] & 0x04)
-		ccntrl |= Counter_M2;
-	if (data[0] & 0x08)
-		ccntrl |= Counter_BCD;
-	ccntrl |= Counter_RW0;	/* set read/write mode */
-	ccntrl |= Counter_RW1;
-	outw(ccntrl, dev->iobase + PCI171x_CNTCTRL);
-#endif
-
-	return 1;
-}
-
 static int pci1720_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -647,7 +527,7 @@ static int pci171x_ai_cancel(struct comedi_device *dev,
 	devpriv->CntrlReg |= Control_SW;
 	/* reset any operations */
 	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
-	pci171x_start_pacer(dev, false);
+	comedi_8254_pacer_enable(dev->pacer, 1, 2, false);
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
 
@@ -768,7 +648,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 		outb(0, dev->iobase + PCI171x_CLRINT);
 		outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171x_MUX);
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
-		pci171x_start_pacer(dev, true);
+		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 		return IRQ_HANDLED;
 	}
 
@@ -787,8 +667,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	pci171x_start_pacer(dev, false);
-
 	pci171x_ai_setup_chanlist(dev, s, cmd->chanlist, cmd->chanlist_len,
 				  devpriv->saved_seglen);
 
@@ -799,10 +677,9 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if ((cmd->flags & CMDF_WAKE_EOS) == 0)
 		devpriv->CntrlReg |= Control_ONEFH;
 
-	devpriv->divisor1 = devpriv->next_divisor1;
-	devpriv->divisor2 = devpriv->next_divisor2;
-
 	if (cmd->convert_src == TRIG_TIMER) {
+		comedi_8254_update_divisors(dev->pacer);
+
 		devpriv->CntrlReg |= Control_PACER | Control_IRQEN;
 		if (cmd->start_src == TRIG_EXT) {
 			devpriv->ai_et_CntrlReg = devpriv->CntrlReg;
@@ -816,7 +693,7 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 
 		if (cmd->start_src == TRIG_NOW)
-			pci171x_start_pacer(dev, true);
+			comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 	} else {	/* TRIG_EXT */
 		devpriv->CntrlReg |= Control_EXT | Control_IRQEN;
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
@@ -829,9 +706,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
 {
-	struct pci1710_private *devpriv = dev->private;
 	int err = 0;
-	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -878,11 +753,9 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &devpriv->next_divisor1,
-					  &devpriv->next_divisor2,
-					  &arg, cmd->flags);
+		unsigned int arg = cmd->convert_arg;
+
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
@@ -899,19 +772,54 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static int pci171x_insn_counter_config(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_insn *insn,
+				       unsigned int *data)
+{
+	struct pci1710_private *devpriv = dev->private;
+
+	switch (data[0]) {
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		switch (data[1]) {
+		case 0:	/* internal */
+			devpriv->ai_et_CntrlReg &= ~Control_CNT0;
+			break;
+		case 1:	/* external */
+			devpriv->ai_et_CntrlReg |= Control_CNT0;
+			break;
+		default:
+			return -EINVAL;
+		}
+		outw(devpriv->ai_et_CntrlReg, dev->iobase + PCI171x_CONTROL);
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		if (devpriv->ai_et_CntrlReg & Control_CNT0) {
+			data[1] = 1;
+			data[2] = 0;
+		} else {
+			data[1] = 0;
+			data[2] = I8254_OSC_BASE_10MHZ;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return insn->n;
+}
+
 static int pci171x_reset(struct comedi_device *dev)
 {
 	const struct boardtype *board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 
-	outw(0x30, dev->iobase + PCI171x_CNTCTRL);
 	/* Software trigger, CNT0=external */
 	devpriv->CntrlReg = Control_SW | Control_CNT0;
 	/* reset any operations */
 	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 	outb(0, dev->iobase + PCI171x_CLRFIFO);	/*  clear FIFO */
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear INT request */
-	pci171x_start_pacer(dev, false);
 	devpriv->da_ranges = 0;
 	if (board->has_ao) {
 		/* set DACs to 0..5V */
@@ -977,6 +885,11 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 2);
+
+	dev->pacer = comedi_8254_init(dev->iobase + PCI171X_TIMER_BASE,
+				      I8254_OSC_BASE_10MHZ, I8254_IO16, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	n_subdevices = 0;
 	if (board->n_aichan)
@@ -1074,16 +987,17 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
+	/* Counter subdevice (8254) */
 	if (board->has_counter) {
 		s = &dev->subdevices[subdev];
-		s->type		= COMEDI_SUBD_COUNTER;
-		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-		s->n_chan	= 1;
-		s->maxdata	= 0xffff;
-		s->range_table	= &range_unknown;
-		s->insn_read	= pci171x_counter_insn_read;
-		s->insn_write	= pci171x_counter_insn_write;
-		s->insn_config	= pci171x_counter_insn_config;
+		comedi_8254_subdevice_init(s, dev->pacer);
+
+		dev->pacer->insn_config = pci171x_insn_counter_config;
+
+		/* counters 1 and 2 are used internally for the pacer */
+		comedi_8254_set_busy(dev->pacer, 1, true);
+		comedi_8254_set_busy(dev->pacer, 2, true);
+
 		subdev++;
 	}
 
