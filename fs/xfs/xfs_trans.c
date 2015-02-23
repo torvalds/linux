@@ -560,8 +560,7 @@ xfs_trans_unreserve_and_mod_sb(
 	}
 
 	if (ifreedelta) {
-		error = xfs_icsb_modify_counters(mp, XFS_SBS_IFREE,
-						 ifreedelta, rsvd);
+		error = xfs_mod_ifree(mp, ifreedelta);
 		if (error)
 			goto out_undo_icount;
 	}
@@ -630,7 +629,7 @@ xfs_trans_unreserve_and_mod_sb(
 
 out_undo_ifreecount:
 	if (ifreedelta)
-		xfs_icsb_modify_counters(mp, XFS_SBS_IFREE, -ifreedelta, rsvd);
+		xfs_mod_ifree(mp, -ifreedelta);
 out_undo_icount:
 	if (idelta)
 		xfs_mod_icount(mp, -idelta);

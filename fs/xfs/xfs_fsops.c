@@ -639,11 +639,11 @@ xfs_fs_counts(
 {
 	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
 	cnt->allocino = percpu_counter_read_positive(&mp->m_icount);
+	cnt->freeino = percpu_counter_read_positive(&mp->m_ifree);
 
 	spin_lock(&mp->m_sb_lock);
 	cnt->freedata = mp->m_sb.sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 	cnt->freertx = mp->m_sb.sb_frextents;
-	cnt->freeino = mp->m_sb.sb_ifree;
 	spin_unlock(&mp->m_sb_lock);
 	return 0;
 }

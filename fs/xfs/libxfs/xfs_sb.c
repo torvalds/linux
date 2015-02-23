@@ -772,6 +772,7 @@ xfs_log_sb(
 	struct xfs_buf		*bp = xfs_trans_getsb(tp, mp, 0);
 
 	mp->m_sb.sb_icount = percpu_counter_sum(&mp->m_icount);
+	mp->m_sb.sb_ifree = percpu_counter_sum(&mp->m_ifree);
 
 	xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);
