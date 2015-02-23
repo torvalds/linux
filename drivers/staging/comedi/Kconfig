@@ -918,6 +918,7 @@ config COMEDI_CB_PCIDAS64
 
 config COMEDI_CB_PCIDAS
 	tristate "MeasurementComputing PCI-DAS support"
+	select COMEDI_8254
 	select COMEDI_8255
 	---help---
 	  Enable support for ComputerBoards/MeasurementComputing PCI-DAS with

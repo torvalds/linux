@@ -68,7 +68,7 @@ analog triggering on 1602 series
 
 #include "../comedidev.h"
 
-#include "8253.h"
+#include "comedi_8254.h"
 #include "8255.h"
 #include "amcc_s5933.h"
 #include "comedi_fc.h"
@@ -338,14 +338,12 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 };
 
 struct cb_pcidas_private {
+	struct comedi_8254 *ao_pacer;
 	/* base addresses */
 	unsigned long s5933_config;
 	unsigned long control_status;
 	unsigned long adc_fifo;
 	unsigned long ao_registers;
-	/* divisors of master clock for analog input pacing */
-	unsigned int divisor1;
-	unsigned int divisor2;
 	/* bits to write to registers */
 	unsigned int adc_fifo_bits;
 	unsigned int s5933_intcsr_bits;
@@ -353,9 +351,6 @@ struct cb_pcidas_private {
 	/* fifo buffers */
 	unsigned short ai_buffer[AI_BUFFER_SIZE];
 	unsigned short ao_buffer[AO_BUFFER_SIZE];
-	/* divisors of master clock for analog output pacing */
-	unsigned int ao_divisor1;
-	unsigned int ao_divisor2;
 	unsigned int calibration_source;
 };
 
@@ -778,7 +773,6 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 				struct comedi_cmd *cmd)
 {
 	const struct cb_pcidas_board *thisboard = dev->board_ptr;
-	struct cb_pcidas_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
 
@@ -858,18 +852,12 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &arg, cmd->flags);
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &arg, cmd->flags);
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
@@ -884,18 +872,6 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 		return 5;
 
 	return 0;
-}
-
-static void cb_pcidas_ai_load_counters(struct comedi_device *dev)
-{
-	struct cb_pcidas_private *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + ADC8254;
-
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
-
-	i8254_write(timer_base, 0, 1, devpriv->divisor1);
-	i8254_write(timer_base, 0, 2, devpriv->divisor2);
 }
 
 static int cb_pcidas_ai_cmd(struct comedi_device *dev,
@@ -933,8 +909,11 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	outw(bits, devpriv->control_status + ADCMUX_CONT);
 
 	/*  load counters */
-	if (cmd->scan_begin_src == TRIG_TIMER || cmd->convert_src == TRIG_TIMER)
-		cb_pcidas_ai_load_counters(dev);
+	if (cmd->scan_begin_src == TRIG_TIMER ||
+	    cmd->convert_src == TRIG_TIMER) {
+		comedi_8254_update_divisors(dev->pacer);
+		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
+	}
 
 	/*  enable interrupts */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -1004,7 +983,6 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	const struct cb_pcidas_board *thisboard = dev->board_ptr;
 	struct cb_pcidas_private *devpriv = dev->private;
 	int err = 0;
-	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -1049,11 +1027,10 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		arg = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &devpriv->ao_divisor1,
-					  &devpriv->ao_divisor2,
-					  &arg, cmd->flags);
+		unsigned int arg = cmd->scan_begin_arg;
+
+		comedi_8254_cascade_ns_to_timer(devpriv->ao_pacer,
+						&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
@@ -1139,18 +1116,6 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	return 0;
 }
 
-static void cb_pcidas_ao_load_counters(struct comedi_device *dev)
-{
-	struct cb_pcidas_private *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + DAC8254;
-
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
-
-	i8254_write(timer_base, 0, 1, devpriv->ao_divisor1);
-	i8254_write(timer_base, 0, 2, devpriv->ao_divisor2);
-}
-
 static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -1180,8 +1145,10 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	outw(0, devpriv->ao_registers + DACFIFOCLR);
 
 	/*  load counters */
-	if (cmd->scan_begin_src == TRIG_TIMER)
-		cb_pcidas_ao_load_counters(dev);
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		comedi_8254_update_divisors(devpriv->ao_pacer);
+		comedi_8254_pacer_enable(devpriv->ao_pacer, 1, 2, true);
+	}
 
 	/*  set pacer source */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -1408,6 +1375,17 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	}
 	dev->irq = pcidev->irq;
 
+	dev->pacer = comedi_8254_init(dev->iobase + ADC8254,
+				      I8254_OSC_BASE_10MHZ, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
+
+	devpriv->ao_pacer = comedi_8254_init(dev->iobase + DAC8254,
+					     I8254_OSC_BASE_10MHZ,
+					     I8254_IO8, 0);
+	if (!devpriv->ao_pacer)
+		return -ENOMEM;
+
 	ret = comedi_alloc_subdevices(dev, 7);
 	if (ret)
 		return ret;
@@ -1550,9 +1528,11 @@ static void cb_pcidas_detach(struct comedi_device *dev)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 
-	if (devpriv && devpriv->s5933_config) {
-		outl(INTCSR_INBOX_INTR_STATUS,
-		     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+	if (devpriv) {
+		if (devpriv->s5933_config)
+			outl(INTCSR_INBOX_INTR_STATUS,
+			     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+		kfree(devpriv->ao_pacer);
 	}
 	comedi_pci_detach(dev);
 }
