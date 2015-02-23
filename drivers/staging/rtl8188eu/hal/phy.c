@@ -371,19 +371,18 @@ void phy_sw_chnl(struct adapter *adapt, u8 channel)
 
 static u8 get_right_chnl_for_iqk(u8 chnl)
 {
+	u8 place;
 	u8 channel_all[ODM_TARGET_CHNL_NUM_2G_5G] = {
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
 		36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64,
 		100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122,
 		124, 126, 128, 130, 132, 134, 136, 138, 140, 149, 151, 153,
 		155, 157, 159, 161, 163, 165
 	};
-	u8 place = chnl;
 
 	if (chnl > 14) {
-		for (place = 14; place < sizeof(channel_all); place++) {
+		for (place = 0; place < sizeof(channel_all); place++) {
 			if (channel_all[place] == chnl)
-				return place-13;
+				return ++place;
 		}
 	}
 	return 0;
