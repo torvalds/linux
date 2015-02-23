@@ -56,6 +56,7 @@ typedef struct xfs_inode {
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
 	mrlock_t		i_lock;		/* inode lock */
 	mrlock_t		i_iolock;	/* inode IO lock */
+	mrlock_t		i_mmaplock;	/* inode mmap IO lock */
 	atomic_t		i_pincount;	/* inode pin count */
 	spinlock_t		i_flags_lock;	/* inode i_flags lock */
 	/* Miscellaneous state. */
@@ -263,15 +264,20 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
 #define	XFS_IOLOCK_SHARED	(1<<1)
 #define	XFS_ILOCK_EXCL		(1<<2)
 #define	XFS_ILOCK_SHARED	(1<<3)
+#define	XFS_MMAPLOCK_EXCL	(1<<4)
+#define	XFS_MMAPLOCK_SHARED	(1<<5)
 
 #define XFS_LOCK_MASK		(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED \
-				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED)
+				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED \
+				| XFS_MMAPLOCK_EXCL | XFS_MMAPLOCK_SHARED)
 
 #define XFS_LOCK_FLAGS \
 	{ XFS_IOLOCK_EXCL,	"IOLOCK_EXCL" }, \
 	{ XFS_IOLOCK_SHARED,	"IOLOCK_SHARED" }, \
 	{ XFS_ILOCK_EXCL,	"ILOCK_EXCL" }, \
-	{ XFS_ILOCK_SHARED,	"ILOCK_SHARED" }
+	{ XFS_ILOCK_SHARED,	"ILOCK_SHARED" }, \
+	{ XFS_MMAPLOCK_EXCL,	"MMAPLOCK_EXCL" }, \
+	{ XFS_MMAPLOCK_SHARED,	"MMAPLOCK_SHARED" }
 
 
 /*
@@ -302,17 +308,26 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
 #define XFS_IOLOCK_SHIFT	16
 #define	XFS_IOLOCK_PARENT	(XFS_LOCK_PARENT << XFS_IOLOCK_SHIFT)
 
+#define XFS_MMAPLOCK_SHIFT	20
+
 #define XFS_ILOCK_SHIFT		24
 #define	XFS_ILOCK_PARENT	(XFS_LOCK_PARENT << XFS_ILOCK_SHIFT)
 #define	XFS_ILOCK_RTBITMAP	(XFS_LOCK_RTBITMAP << XFS_ILOCK_SHIFT)
 #define	XFS_ILOCK_RTSUM		(XFS_LOCK_RTSUM << XFS_ILOCK_SHIFT)
 
-#define XFS_IOLOCK_DEP_MASK	0x00ff0000
+#define XFS_IOLOCK_DEP_MASK	0x000f0000
+#define XFS_MMAPLOCK_DEP_MASK	0x00f00000
 #define XFS_ILOCK_DEP_MASK	0xff000000
-#define XFS_LOCK_DEP_MASK	(XFS_IOLOCK_DEP_MASK | XFS_ILOCK_DEP_MASK)
+#define XFS_LOCK_DEP_MASK	(XFS_IOLOCK_DEP_MASK | \
+				 XFS_MMAPLOCK_DEP_MASK | \
+				 XFS_ILOCK_DEP_MASK)
 
-#define XFS_IOLOCK_DEP(flags)	(((flags) & XFS_IOLOCK_DEP_MASK) >> XFS_IOLOCK_SHIFT)
-#define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) >> XFS_ILOCK_SHIFT)
+#define XFS_IOLOCK_DEP(flags)	(((flags) & XFS_IOLOCK_DEP_MASK) \
+					>> XFS_IOLOCK_SHIFT)
+#define XFS_MMAPLOCK_DEP(flags)	(((flags) & XFS_MMAPLOCK_DEP_MASK) \
+					>> XFS_MMAPLOCK_SHIFT)
+#define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) \
+					>> XFS_ILOCK_SHIFT)
 
 /*
  * For multiple groups support: if S_ISGID bit is set in the parent
