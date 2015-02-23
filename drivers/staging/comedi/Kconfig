@@ -477,6 +477,7 @@ config COMEDI_NI_AT_A2150
 
 config COMEDI_NI_AT_AO
 	tristate "NI AT-AO-6/10 EISA card support"
+	select COMEDI_8254
 	---help---
 	  Enable support for National Instruments AT-AO-6/10 cards
 
