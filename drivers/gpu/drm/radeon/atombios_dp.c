@@ -310,8 +310,8 @@ static int dp_get_max_dp_pix_clock(int link_rate,
 
 /***** radeon specific DP functions *****/
 
-static int radeon_dp_get_max_link_rate(struct drm_connector *connector,
-				       u8 dpcd[DP_DPCD_SIZE])
+int radeon_dp_get_max_link_rate(struct drm_connector *connector,
+				u8 dpcd[DP_DPCD_SIZE])
 {
 	int max_link_rate;
 
