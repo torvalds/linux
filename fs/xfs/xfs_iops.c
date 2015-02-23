@@ -187,6 +187,8 @@ xfs_generic_create(
 	else
 		d_instantiate(dentry, inode);
 
+	xfs_finish_inode_setup(ip);
+
  out_free_acl:
 	if (default_acl)
 		posix_acl_release(default_acl);
@@ -195,6 +197,7 @@ xfs_generic_create(
 	return error;
 
  out_cleanup_inode:
+	xfs_finish_inode_setup(ip);
 	if (!tmpfile)
 		xfs_cleanup_inode(dir, inode, dentry);
 	iput(inode);
@@ -367,9 +370,11 @@ xfs_vn_symlink(
 		goto out_cleanup_inode;
 
 	d_instantiate(dentry, inode);
+	xfs_finish_inode_setup(cip);
 	return 0;
 
  out_cleanup_inode:
+	xfs_finish_inode_setup(cip);
 	xfs_cleanup_inode(dir, inode, dentry);
 	iput(inode);
  out:
@@ -1236,16 +1241,12 @@ xfs_diflags_to_iflags(
 }
 
 /*
- * Initialize the Linux inode, set up the operation vectors and
- * unlock the inode.
+ * Initialize the Linux inode and set up the operation vectors.
  *
- * When reading existing inodes from disk this is called directly
- * from xfs_iget, when creating a new inode it is called from
- * xfs_ialloc after setting up the inode.
- *
- * We are always called with an uninitialised linux inode here.
- * We need to initialise the necessary fields and take a reference
- * on it.
+ * When reading existing inodes from disk this is called directly from xfs_iget,
+ * when creating a new inode it is called from xfs_ialloc after setting up the
+ * inode. These callers have different criteria for clearing XFS_INEW, so leave
+ * it up to the caller to deal with unlocking the inode appropriately.
  */
 void
 xfs_setup_inode(
@@ -1332,9 +1333,4 @@ xfs_setup_inode(
 		inode_has_no_xattr(inode);
 		cache_no_acl(inode);
 	}
-
-	xfs_iflags_clear(ip, XFS_INEW);
-	barrier();
-
-	unlock_new_inode(inode);
 }
