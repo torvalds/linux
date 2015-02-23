@@ -263,6 +263,7 @@ config COMEDI_DAC02
 
 config COMEDI_DAS16M1
 	tristate "MeasurementComputing CIO-DAS16/M1DAS-16 ISA card support"
+	select COMEDI_8254
 	select COMEDI_8255
 	---help---
 	  Enable support for Measurement Computing CIO-DAS16/M1 ISA cards.
