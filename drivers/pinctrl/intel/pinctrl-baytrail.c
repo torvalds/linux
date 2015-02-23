@@ -158,40 +158,49 @@ static void __iomem *byt_gpio_reg(struct gpio_chip *chip, unsigned offset,
 	return vg->reg_base + reg_offset + reg;
 }
 
-static bool is_special_pin(struct byt_gpio *vg, unsigned offset)
+static u32 byt_get_gpio_mux(struct byt_gpio *vg, unsigned offset)
 {
 	/* SCORE pin 92-93 */
 	if (!strcmp(vg->range->name, BYT_SCORE_ACPI_UID) &&
 		offset >= 92 && offset <= 93)
-		return true;
+		return 1;
 
 	/* SUS pin 11-21 */
 	if (!strcmp(vg->range->name, BYT_SUS_ACPI_UID) &&
 		offset >= 11 && offset <= 21)
-		return true;
+		return 1;
 
-	return false;
+	return 0;
 }
 
 static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(chip, offset, BYT_CONF0_REG);
-	u32 value;
-	bool special;
+	u32 value, gpio_mux;
 
 	/*
 	 * In most cases, func pin mux 000 means GPIO function.
 	 * But, some pins may have func pin mux 001 represents
-	 * GPIO function. Only allow user to export pin with
-	 * func pin mux preset as GPIO function by BIOS/FW.
+	 * GPIO function.
+	 *
+	 * Because there are devices out there where some pins were not
+	 * configured correctly we allow changing the mux value from
+	 * request (but print out warning about that).
 	 */
 	value = readl(reg) & BYT_PIN_MUX;
-	special = is_special_pin(vg, offset);
-	if ((special && value != 1) || (!special && value)) {
-		dev_err(&vg->pdev->dev,
-			"pin %u cannot be used as GPIO.\n", offset);
-		return -EINVAL;
+	gpio_mux = byt_get_gpio_mux(vg, offset);
+	if (WARN_ON(gpio_mux != value)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&vg->lock, flags);
+		value = readl(reg) & ~BYT_PIN_MUX;
+		value |= gpio_mux;
+		writel(value, reg);
+		spin_unlock_irqrestore(&vg->lock, flags);
+
+		dev_warn(&vg->pdev->dev,
+			 "pin %u forcibly re-configured as GPIO\n", offset);
 	}
 
 	pm_runtime_get(&vg->pdev->dev);
