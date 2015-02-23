@@ -767,6 +767,16 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
+	if (flag &&
+	    dev->transport->get_write_cache) {
+		pr_err("emulate_fua_write not supported for this device\n");
+		return -EINVAL;
+	}
+	if (dev->export_count) {
+		pr_err("emulate_fua_write cannot be changed with active"
+		       " exports: %d\n", dev->export_count);
+		return -EINVAL;
+	}
 	dev->dev_attrib.emulate_fua_write = flag;
 	pr_debug("dev[%p]: SE Device Forced Unit Access WRITEs: %d\n",
 			dev, dev->dev_attrib.emulate_fua_write);
@@ -801,7 +811,11 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 		pr_err("emulate_write_cache not supported for this device\n");
 		return -EINVAL;
 	}
-
+	if (dev->export_count) {
+		pr_err("emulate_write_cache cannot be changed with active"
+		       " exports: %d\n", dev->export_count);
+		return -EINVAL;
+	}
 	dev->dev_attrib.emulate_write_cache = flag;
 	pr_debug("dev[%p]: SE Device WRITE_CACHE_EMULATION flag: %d\n",
 			dev, dev->dev_attrib.emulate_write_cache);
