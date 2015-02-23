@@ -35,7 +35,7 @@ static void __init versatile_dt_init(void)
 			     versatile_auxdata_lookup, NULL);
 }
 
-static const char *versatile_dt_match[] __initconst = {
+static const char *const versatile_dt_match[] __initconst = {
 	"arm,versatile-ab",
 	"arm,versatile-pb",
 	NULL,

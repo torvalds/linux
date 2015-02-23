@@ -180,7 +180,6 @@ struct nfs_inode {
         /* NFSv4 state */
 	struct list_head	open_states;
 	struct nfs_delegation __rcu *delegation;
-	fmode_t			 delegation_state;
 	struct rw_semaphore	rwsem;
 
 	/* pNFS layout information */

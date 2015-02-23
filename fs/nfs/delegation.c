@@ -180,7 +180,6 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred,
 			delegation->cred = get_rpccred(cred);
 			clear_bit(NFS_DELEGATION_NEED_RECLAIM,
 				  &delegation->flags);
-			NFS_I(inode)->delegation_state = delegation->type;
 			spin_unlock(&delegation->lock);
 			put_rpccred(oldcred);
 			rcu_read_unlock();
@@ -275,7 +274,6 @@ nfs_detach_delegation_locked(struct nfs_inode *nfsi,
 	set_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
 	list_del_rcu(&delegation->super_list);
 	delegation->inode = NULL;
-	nfsi->delegation_state = 0;
 	rcu_assign_pointer(nfsi->delegation, NULL);
 	spin_unlock(&delegation->lock);
 	return delegation;
@@ -355,7 +353,6 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 					&delegation->stateid)) {
 			nfs_update_inplace_delegation(old_delegation,
 					delegation);
-			nfsi->delegation_state = old_delegation->type;
 			goto out;
 		}
 		/*
@@ -379,7 +376,6 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 			goto out;
 	}
 	list_add_rcu(&delegation->super_list, &server->delegations);
-	nfsi->delegation_state = delegation->type;
 	rcu_assign_pointer(nfsi->delegation, delegation);
 	delegation = NULL;
 

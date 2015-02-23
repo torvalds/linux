@@ -602,6 +602,12 @@ xfs_growfs_data(
 	if (!mutex_trylock(&mp->m_growlock))
 		return -EWOULDBLOCK;
 	error = xfs_growfs_data_private(mp, in);
+	/*
+	 * Increment the generation unconditionally, the error could be from
+	 * updating the secondary superblocks, in which case the new size
+	 * is live already.
+	 */
+	mp->m_generation++;
 	mutex_unlock(&mp->m_growlock);
 	return error;
 }
