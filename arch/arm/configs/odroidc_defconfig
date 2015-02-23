@@ -1339,7 +1339,7 @@ CONFIG_AM_WIFI_USB=y
 # Bluetooth Device Support
 #
 CONFIG_BT_DEVICE=y
-# CONFIG_BT_WAKE_CTRL is not set
+CONFIG_BT_WAKE_CTRL=y
 # CONFIG_BT_RTKBTUSB is not set
 # CONFIG_MESON_NFC is not set
 
