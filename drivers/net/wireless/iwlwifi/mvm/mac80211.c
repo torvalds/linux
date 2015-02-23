@@ -1239,9 +1239,11 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	/* just in case one was running */
 	ieee80211_remain_on_channel_expired(mvm->hw);
 
-	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
-		iwl_mvm_cleanup_iterator, mvm);
+	/*
+	 * cleanup all interfaces, even inactive ones, as some might have
+	 * gone down during the HW restart
+	 */
+	ieee80211_iterate_interfaces(mvm->hw, 0, iwl_mvm_cleanup_iterator, mvm);
 
 	mvm->p2p_device_vif = NULL;
 	mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
