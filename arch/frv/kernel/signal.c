@@ -176,8 +176,6 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set)
 	struct sigframe __user *frame;
 	int rsig, sig = ksig->sig;
 
-	set_fs(USER_DS);
-
 	frame = get_sigframe(ksig, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
@@ -256,8 +254,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set)
 {
 	struct rt_sigframe __user *frame;
 	int rsig, sig = ksig->sig;
-
-	set_fs(USER_DS);
 
 	frame = get_sigframe(ksig, sizeof(*frame));
 

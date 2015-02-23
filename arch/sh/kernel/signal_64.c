@@ -457,8 +457,6 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs
 
 	regs->pc = neff_sign_extend((unsigned long)ksig->ka.sa.sa_handler);
 
-	set_fs(USER_DS);
-
 	/* Broken %016Lx */
 	pr_debug("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
 		 signal, current->comm, current->pid, frame,
@@ -546,8 +544,6 @@ static int setup_rt_frame(struct ksignal *kig, sigset_t *set,
 	regs->regs[REG_ARG2] = (unsigned long long)(unsigned long)(signed long)&frame->info;
 	regs->regs[REG_ARG3] = (unsigned long long)(unsigned long)(signed long)&frame->uc.uc_mcontext;
 	regs->pc = neff_sign_extend((unsigned long)ksig->ka.sa.sa_handler);
-
-	set_fs(USER_DS);
 
 	pr_debug("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
 		 signal, current->comm, current->pid, frame,

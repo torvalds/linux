@@ -329,8 +329,6 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	if (err)
 		return -EFAULT;
 
-	set_fs(USER_DS);
-
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
 
@@ -407,8 +405,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 
 	if (err)
 		return -EFAULT;
-
-	set_fs(USER_DS);
 
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
