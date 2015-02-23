@@ -168,7 +168,7 @@ xfs_btree_check_lptr(
 	xfs_fsblock_t		bno,	/* btree block disk address */
 	int			level)	/* btree block level */
 {
-	XFS_WANT_CORRUPTED_RETURN(
+	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp,
 		level > 0 &&
 		bno != NULLFSBLOCK &&
 		XFS_FSB_SANITY_CHECK(cur->bc_mp, bno));
@@ -187,7 +187,7 @@ xfs_btree_check_sptr(
 {
 	xfs_agblock_t		agblocks = cur->bc_mp->m_sb.sb_agblocks;
 
-	XFS_WANT_CORRUPTED_RETURN(
+	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp,
 		level > 0 &&
 		bno != NULLAGBLOCK &&
 		bno != 0 &&
@@ -1825,7 +1825,7 @@ xfs_btree_lookup(
 			error = xfs_btree_increment(cur, 0, &i);
 			if (error)
 				goto error0;
-			XFS_WANT_CORRUPTED_RETURN(i == 1);
+			XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
 			XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 			*stat = 1;
 			return 0;

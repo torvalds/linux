@@ -52,13 +52,13 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 		} \
 	}
 
-#define	XFS_WANT_CORRUPTED_RETURN(x)	\
+#define	XFS_WANT_CORRUPTED_RETURN(mp, x)	\
 	{ \
 		int fs_is_ok = (x); \
 		ASSERT(fs_is_ok); \
 		if (unlikely(!fs_is_ok)) { \
 			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_RETURN", \
-					 XFS_ERRLEVEL_LOW, NULL); \
+					 XFS_ERRLEVEL_LOW, mp); \
 			return -EFSCORRUPTED; \
 		} \
 	}
