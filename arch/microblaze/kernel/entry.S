@@ -348,6 +348,7 @@ C_ENTRY(_user_exception):
  * The LP register should point to the location where the called function
  * should return.  [note that MAKE_SYS_CALL uses label 1] */
 	/* See if the system call number is valid */
+	blti	r12, 5f
 	addi	r11, r12, -__NR_syscalls;
 	bgei	r11, 5f;
 	/* Figure out which function to use for this system call.  */
@@ -375,7 +376,7 @@ C_ENTRY(_user_exception):
 
 	/* The syscall number is invalid, return an error.  */
 5:
-	rtsd	r15, 8;		/* looks like a normal subroutine return */
+	braid	ret_from_trap
 	addi	r3, r0, -ENOSYS;
 
 /* Entry point used to return from a syscall/trap */
