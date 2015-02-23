@@ -99,7 +99,6 @@ static const unsigned int ts_clock_period[TS_CONFIG_MAX_CLK_SRC + 1] = {
 
 struct dio200_subdev_8254 {
 	unsigned int ofs;		/* Counter base offset */
-	unsigned int clk_sce_ofs;	/* CLK_SCE base address */
 	unsigned int gat_sce_ofs;	/* GAT_SCE base address */
 	int which;			/* Bit 5 of CLK_SCE or GAT_SCE */
 	unsigned int clock_src[3];	/* Current clock sources */
@@ -625,7 +624,7 @@ static int dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 
 	subpriv->clock_src[counter_number] = clock_src;
 	byte = clk_sce(subpriv->which, counter_number, clock_src);
-	dio200_write8(dev, subpriv->clk_sce_ofs, byte);
+	dio200_write8(dev, DIO200_CLK_SCE(subpriv->ofs >> 3), byte);
 
 	return 0;
 }
@@ -729,7 +728,6 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 	if (board->has_clk_gat_sce) {
 		/* Derive CLK_SCE and GAT_SCE register offsets from
 		 * 8254 offset. */
-		subpriv->clk_sce_ofs = DIO200_CLK_SCE(offset >> 3);
 		subpriv->gat_sce_ofs = DIO200_GAT_SCE(offset >> 3);
 		subpriv->which = (offset >> 2) & 1;
 	}
