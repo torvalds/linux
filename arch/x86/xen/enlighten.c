@@ -1758,6 +1758,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 #ifdef CONFIG_X86_32
 	i386_start_kernel();
 #else
+	cr4_init_shadow(); /* 32b kernel does this in i386_start_kernel() */
 	x86_64_start_reservations((char *)__pa_symbol(&boot_params));
 #endif
 }
