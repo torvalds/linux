@@ -21,7 +21,6 @@
 #include <drm/drm_crtc.h>
 
 struct rcar_du_group;
-struct rcar_du_plane;
 
 struct rcar_du_crtc {
 	struct drm_crtc crtc;
@@ -39,7 +38,6 @@ struct rcar_du_crtc {
 	bool enabled;
 
 	struct rcar_du_group *group;
-	struct rcar_du_plane *plane;
 };
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)

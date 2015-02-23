@@ -353,9 +353,6 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	if (rcrtc->started)
 		return;
 
-	if (WARN_ON(rcrtc->plane->format == NULL))
-		return;
-
 	/* Set display off and background to black */
 	rcar_du_crtc_write(rcrtc, DOOR, DOOR_RGB(0, 0, 0));
 	rcar_du_crtc_write(rcrtc, BPOR, BPOR_RGB(0, 0, 0));
@@ -606,9 +603,9 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->mmio_offset = mmio_offsets[index];
 	rcrtc->index = index;
 	rcrtc->enabled = false;
-	rcrtc->plane = &rgrp->planes.planes[index % 2];
 
-	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc, &rcrtc->plane->plane,
+	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc,
+					&rgrp->planes.planes[index % 2].plane,
 					NULL, &crtc_funcs);
 	if (ret < 0)
 		return ret;
