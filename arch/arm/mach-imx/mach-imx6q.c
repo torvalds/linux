@@ -390,7 +390,6 @@ static void __init imx6q_init_irq(void)
 	imx_init_revision_from_anatop();
 	imx_init_l2cache();
 	imx_src_init();
-	imx_gpc_init();
 	irqchip_init();
 }
 
