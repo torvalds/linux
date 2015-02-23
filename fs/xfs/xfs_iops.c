@@ -751,6 +751,7 @@ xfs_setattr_size(
 	int			error;
 	uint			lock_flags = 0;
 	uint			commit_flags = 0;
+	bool			did_zeroing = false;
 
 	trace_xfs_setattr(ip);
 
@@ -794,20 +795,16 @@ xfs_setattr_size(
 		return error;
 
 	/*
-	 * Now we can make the changes.  Before we join the inode to the
-	 * transaction, take care of the part of the truncation that must be
-	 * done without the inode lock.  This needs to be done before joining
-	 * the inode to the transaction, because the inode cannot be unlocked
-	 * once it is a part of the transaction.
+	 * File data changes must be complete before we start the transaction to
+	 * modify the inode.  This needs to be done before joining the inode to
+	 * the transaction because the inode cannot be unlocked once it is a
+	 * part of the transaction.
+	 *
+	 * Start with zeroing any data block beyond EOF that we may expose on
+	 * file extension.
 	 */
 	if (newsize > oldsize) {
-		/*
-		 * Do the first part of growing a file: zero any data in the
-		 * last block that is beyond the old EOF.  We need to do this
-		 * before the inode is joined to the transaction to modify
-		 * i_size.
-		 */
-		error = xfs_zero_eof(ip, newsize, oldsize);
+		error = xfs_zero_eof(ip, newsize, oldsize, &did_zeroing);
 		if (error)
 			return error;
 	}
@@ -817,23 +814,18 @@ xfs_setattr_size(
 	 * any previous writes that are beyond the on disk EOF and the new
 	 * EOF that have not been written out need to be written here.  If we
 	 * do not write the data out, we expose ourselves to the null files
-	 * problem.
-	 *
-	 * Only flush from the on disk size to the smaller of the in memory
-	 * file size or the new size as that's the range we really care about
-	 * here and prevents waiting for other data not within the range we
-	 * care about here.
+	 * problem. Note that this includes any block zeroing we did above;
+	 * otherwise those blocks may not be zeroed after a crash.
 	 */
-	if (oldsize != ip->i_d.di_size && newsize > ip->i_d.di_size) {
+	if (newsize > ip->i_d.di_size &&
+	    (oldsize != ip->i_d.di_size || did_zeroing)) {
 		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
 						      ip->i_d.di_size, newsize);
 		if (error)
 			return error;
 	}
 
-	/*
-	 * Wait for all direct I/O to complete.
-	 */
+	/* Now wait for all direct I/O to complete. */
 	inode_dio_wait(inode);
 
 	/*
