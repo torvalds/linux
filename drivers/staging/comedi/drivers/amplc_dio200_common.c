@@ -33,9 +33,7 @@
 #define DIO200_IO_SIZE		0x20
 #define DIO200_PCIE_IO_SIZE	0x4000
 #define DIO200_CLK_SCE(x)	(0x18 + (x))	/* Group X/Y/Z clock sel reg */
-#define DIO200_XGAT_SCE		0x1b	/* Group X gate selection register */
-#define DIO200_YGAT_SCE		0x1c	/* Group Y gate selection register */
-#define DIO200_ZGAT_SCE		0x1d	/* Group Z gate selection register */
+#define DIO200_GAT_SCE(x)	(0x1b + (x))	/* Group X/Y/Z gate sel reg */
 #define DIO200_INT_SCE		0x1e	/* Interrupt enable/status register */
 /* Extra registers for new PCIe boards */
 #define DIO200_ENHANCE		0x20	/* 1 to enable enhanced features */
@@ -732,7 +730,7 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 		/* Derive CLK_SCE and GAT_SCE register offsets from
 		 * 8254 offset. */
 		subpriv->clk_sce_ofs = DIO200_CLK_SCE(offset >> 3);
-		subpriv->gat_sce_ofs = DIO200_XGAT_SCE + (offset >> 3);
+		subpriv->gat_sce_ofs = DIO200_GAT_SCE(offset >> 3);
 		subpriv->which = (offset >> 2) & 1;
 	}
 
