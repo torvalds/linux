@@ -2022,7 +2022,14 @@ atombios_apply_encoder_quirks(struct drm_encoder *encoder,
 	}
 }
 
-static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
+void radeon_atom_release_dig_encoder(struct radeon_device *rdev, int enc_idx)
+{
+	if (enc_idx < 0)
+		return;
+	rdev->mode_info.active_encoders &= ~(1 << enc_idx);
+}
+
+int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder, int fe_idx)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -2031,71 +2038,79 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 	struct drm_encoder *test_encoder;
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	uint32_t dig_enc_in_use = 0;
+	int enc_idx = -1;
 
+	if (fe_idx >= 0) {
+		enc_idx = fe_idx;
+		goto assigned;
+	}
 	if (ASIC_IS_DCE6(rdev)) {
 		/* DCE6 */
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 			if (dig->linkb)
-				return 1;
+				enc_idx = 1;
 			else
-				return 0;
+				enc_idx = 0;
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 			if (dig->linkb)
-				return 3;
+				enc_idx = 3;
 			else
-				return 2;
+				enc_idx = 2;
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
 			if (dig->linkb)
-				return 5;
+				enc_idx = 5;
 			else
-				return 4;
+				enc_idx = 4;
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
-			return 6;
+			enc_idx = 6;
 			break;
 		}
+		goto assigned;
 	} else if (ASIC_IS_DCE4(rdev)) {
 		/* DCE4/5 */
 		if (ASIC_IS_DCE41(rdev) && !ASIC_IS_DCE61(rdev)) {
 			/* ontario follows DCE4 */
 			if (rdev->family == CHIP_PALM) {
 				if (dig->linkb)
-					return 1;
+					enc_idx = 1;
 				else
-					return 0;
+					enc_idx = 0;
 			} else
 				/* llano follows DCE3.2 */
-				return radeon_crtc->crtc_id;
+				enc_idx = radeon_crtc->crtc_id;
 		} else {
 			switch (radeon_encoder->encoder_id) {
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 				if (dig->linkb)
-					return 1;
+					enc_idx = 1;
 				else
-					return 0;
+					enc_idx = 0;
 				break;
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 				if (dig->linkb)
-					return 3;
+					enc_idx = 3;
 				else
-					return 2;
+					enc_idx = 2;
 				break;
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
 				if (dig->linkb)
-					return 5;
+					enc_idx = 5;
 				else
-					return 4;
+					enc_idx = 4;
 				break;
 			}
 		}
+		goto assigned;
 	}
 
 	/* on DCE32 and encoder can driver any block so just crtc id */
 	if (ASIC_IS_DCE32(rdev)) {
-		return radeon_crtc->crtc_id;
+		enc_idx = radeon_crtc->crtc_id;
+		goto assigned;
 	}
 
 	/* on DCE3 - LVTMA can only be driven by DIGB */
@@ -2123,6 +2138,17 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 	if (!(dig_enc_in_use & 1))
 		return 0;
 	return 1;
+
+assigned:
+	if (enc_idx == -1) {
+		DRM_ERROR("Got encoder index incorrect - returning 0\n");
+		return 0;
+	}
+	if (rdev->mode_info.active_encoders & (1 << enc_idx)) {
+		DRM_ERROR("chosen encoder in use %d\n", enc_idx);
+	}
+	rdev->mode_info.active_encoders |= (1 << enc_idx);
+	return enc_idx;
 }
 
 /* This only needs to be called once at startup */
@@ -2381,7 +2407,9 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 	     ENCODER_OBJECT_ID_NONE)) {
 		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 		if (dig) {
-			dig->dig_encoder = radeon_atom_pick_dig_encoder(encoder);
+			if (dig->dig_encoder >= 0)
+				radeon_atom_release_dig_encoder(rdev, dig->dig_encoder);
+			dig->dig_encoder = radeon_atom_pick_dig_encoder(encoder, -1);
 			if (radeon_encoder->active_device & ATOM_DEVICE_DFP_SUPPORT) {
 				if (rdev->family >= CHIP_R600)
 					dig->afmt = rdev->mode_info.afmt[dig->dig_encoder];
@@ -2483,10 +2511,18 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 
 disable_done:
 	if (radeon_encoder_is_digital(encoder)) {
-		dig = radeon_encoder->enc_priv;
-		dig->dig_encoder = -1;
-	}
-	radeon_encoder->active_device = 0;
+		if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
+			if (rdev->asic->display.hdmi_enable)
+				radeon_hdmi_enable(rdev, encoder, false);
+		}
+		if (atombios_get_encoder_mode(encoder) != ATOM_ENCODER_MODE_DP_MST) {
+			dig = radeon_encoder->enc_priv;
+			radeon_atom_release_dig_encoder(rdev, dig->dig_encoder);
+			dig->dig_encoder = -1;
+			radeon_encoder->active_device = 0;
+		}
+	} else
+		radeon_encoder->active_device = 0;
 }
 
 /* these are handled by the primary encoders */

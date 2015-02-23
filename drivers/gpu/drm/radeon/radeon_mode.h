@@ -274,6 +274,9 @@ struct radeon_mode_info {
 	u16 firmware_flags;
 	/* pointer to backlight encoder */
 	struct radeon_encoder *bl_encoder;
+
+	/* bitmask for active encoder frontends */
+	uint32_t active_encoders;
 };
 
 #define RADEON_MAX_BL_LEVEL 0xFF
@@ -956,4 +959,7 @@ void radeon_fb_remove_connector(struct radeon_device *rdev, struct drm_connector
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
 
 int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);
+
+int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder, int fe_idx);
+void radeon_atom_release_dig_encoder(struct radeon_device *rdev, int enc_idx);
 #endif
