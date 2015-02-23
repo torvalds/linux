@@ -920,7 +920,7 @@ static struct enet_cb *bcmgenet_get_txcb(struct bcmgenet_priv *priv,
 
 	tx_cb_ptr = ring->cbs;
 	tx_cb_ptr += ring->write_ptr - ring->cb_ptr;
-	tx_cb_ptr->bd_addr = priv->tx_bds + ring->write_ptr * DMA_DESC_SIZE;
+
 	/* Advancing local write pointer */
 	if (ring->write_ptr == ring->end_ptr)
 		ring->write_ptr = ring->cb_ptr;
@@ -1919,6 +1919,8 @@ static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 static int bcmgenet_init_dma(struct bcmgenet_priv *priv)
 {
 	int ret;
+	unsigned int i;
+	struct enet_cb *cb;
 
 	netif_dbg(priv, hw, priv->dev, "bcmgenet: init_edma\n");
 
@@ -1943,6 +1945,11 @@ static int bcmgenet_init_dma(struct bcmgenet_priv *priv)
 	if (!priv->tx_cbs) {
 		bcmgenet_fini_dma(priv);
 		return -ENOMEM;
+	}
+
+	for (i = 0; i < priv->num_tx_bds; i++) {
+		cb = priv->tx_cbs + i;
+		cb->bd_addr = priv->tx_bds + i * DMA_DESC_SIZE;
 	}
 
 	/* Initialize Tx queues */
