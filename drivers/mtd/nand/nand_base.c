@@ -566,6 +566,25 @@ void nand_wait_ready(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(nand_wait_ready);
 
 /**
+ * nand_wait_status_ready - [GENERIC] Wait for the ready status after commands.
+ * @mtd: MTD device structure
+ * @timeo: Timeout in ms
+ *
+ * Wait for status ready (i.e. command done) or timeout.
+ */
+static void nand_wait_status_ready(struct mtd_info *mtd, unsigned long timeo)
+{
+	register struct nand_chip *chip = mtd->priv;
+
+	timeo = jiffies + msecs_to_jiffies(timeo);
+	do {
+		if ((chip->read_byte(mtd) & NAND_STATUS_READY))
+			break;
+		touch_softlockup_watchdog();
+	} while (time_before(jiffies, timeo));
+};
+
+/**
  * nand_command - [DEFAULT] Send command to NAND device
  * @mtd: MTD device structure
  * @command: the command to be sent
@@ -643,8 +662,8 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 			       NAND_CTRL_CLE | NAND_CTRL_CHANGE);
 		chip->cmd_ctrl(mtd,
 			       NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
-		while (!(chip->read_byte(mtd) & NAND_STATUS_READY))
-				;
+		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
+		nand_wait_status_ready(mtd, 250);
 		return;
 
 		/* This applies to read commands */
@@ -740,8 +759,8 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 			       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
 		chip->cmd_ctrl(mtd, NAND_CMD_NONE,
 			       NAND_NCE | NAND_CTRL_CHANGE);
-		while (!(chip->read_byte(mtd) & NAND_STATUS_READY))
-				;
+		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
+		nand_wait_status_ready(mtd, 250);
 		return;
 
 	case NAND_CMD_RNDOUT:
