@@ -577,9 +577,8 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 		}
 
 		if (delta > 0 && dm_odm->RFCalibrateInfo.TxPowerTrackControl) {
-			delta = thermal_val > hal_data->EEPROMThermalMeter ?
-				(thermal_val - hal_data->EEPROMThermalMeter) :
-				(hal_data->EEPROMThermalMeter - thermal_val);
+			delta = abs(hal_data->EEPROMThermalMeter - thermal_val);
+
 			/* calculate new OFDM / CCK offset */
 			if (thermal_val > hal_data->EEPROMThermalMeter)
 				j = 1;
