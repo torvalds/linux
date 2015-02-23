@@ -134,17 +134,6 @@ enum vb2_io_modes {
 };
 
 /**
- * enum vb2_fileio_flags - flags for selecting a mode of the file io emulator,
- * by default the 'streaming' style is used by the file io emulator
- * @VB2_FILEIO_READ_ONCE:	report EOF after reading the first buffer
- * @VB2_FILEIO_WRITE_IMMEDIATELY:	queue buffer after each write() call
- */
-enum vb2_fileio_flags {
-	VB2_FILEIO_READ_ONCE		= (1 << 0),
-	VB2_FILEIO_WRITE_IMMEDIATELY	= (1 << 1),
-};
-
-/**
  * enum vb2_buffer_state - current video buffer state
  * @VB2_BUF_STATE_DEQUEUED:	buffer under userspace control
  * @VB2_BUF_STATE_PREPARING:	buffer is being prepared in videobuf
@@ -346,7 +335,8 @@ struct v4l2_fh;
  *
  * @type:	queue type (see V4L2_BUF_TYPE_* in linux/videodev2.h
  * @io_modes:	supported io methods (see vb2_io_modes enum)
- * @io_flags:	additional io flags (see vb2_fileio_flags enum)
+ * @fileio_read_once:		report EOF after reading the first buffer
+ * @fileio_write_immediately:	queue buffer after each write() call
  * @lock:	pointer to a mutex that protects the vb2_queue struct. The
  *		driver can set this to a mutex to let the v4l2 core serialize
  *		the queuing ioctls. If the driver wants to handle locking
@@ -396,7 +386,9 @@ struct v4l2_fh;
 struct vb2_queue {
 	enum v4l2_buf_type		type;
 	unsigned int			io_modes;
-	unsigned int			io_flags;
+	unsigned			fileio_read_once:1;
+	unsigned			fileio_write_immediately:1;
+
 	struct mutex			*lock;
 	struct v4l2_fh			*owner;
 

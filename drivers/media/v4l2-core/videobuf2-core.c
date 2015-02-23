@@ -2760,7 +2760,8 @@ struct vb2_fileio_data {
 	unsigned int initial_index;
 	unsigned int q_count;
 	unsigned int dq_count;
-	unsigned int flags;
+	unsigned read_once:1;
+	unsigned write_immediately:1;
 };
 
 /**
@@ -2798,14 +2799,16 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	 */
 	count = 1;
 
-	dprintk(3, "setting up file io: mode %s, count %d, flags %08x\n",
-		(read) ? "read" : "write", count, q->io_flags);
+	dprintk(3, "setting up file io: mode %s, count %d, read_once %d, write_immediately %d\n",
+		(read) ? "read" : "write", count, q->fileio_read_once,
+		q->fileio_write_immediately);
 
 	fileio = kzalloc(sizeof(struct vb2_fileio_data), GFP_KERNEL);
 	if (fileio == NULL)
 		return -ENOMEM;
 
-	fileio->flags = q->io_flags;
+	fileio->read_once = q->fileio_read_once;
+	fileio->write_immediately = q->fileio_write_immediately;
 
 	/*
 	 * Request buffers and use MMAP type to force driver
@@ -3028,13 +3031,11 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	/*
 	 * Queue next buffer if required.
 	 */
-	if (buf->pos == buf->size ||
-	   (!read && (fileio->flags & VB2_FILEIO_WRITE_IMMEDIATELY))) {
+	if (buf->pos == buf->size || (!read && fileio->write_immediately)) {
 		/*
 		 * Check if this is the last buffer to read.
 		 */
-		if (read && (fileio->flags & VB2_FILEIO_READ_ONCE) &&
-		    fileio->dq_count == 1) {
+		if (read && fileio->read_once && fileio->dq_count == 1) {
 			dprintk(3, "read limit reached\n");
 			return __vb2_cleanup_fileio(q);
 		}
