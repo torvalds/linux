@@ -193,7 +193,12 @@ void rcar_du_crtc_route_output(struct drm_crtc *crtc,
 		rcdu->dpad0_source = rcrtc->index;
 }
 
-void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
+static unsigned int plane_zpos(struct rcar_du_plane *plane)
+{
+	return to_rcar_du_plane_state(plane->plane.state)->zpos;
+}
+
+static void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct rcar_du_plane *planes[RCAR_DU_NUM_HW_PLANES];
@@ -212,7 +217,7 @@ void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 
 		/* Insert the plane in the sorted planes array. */
 		for (j = num_planes++; j > 0; --j) {
-			if (planes[j-1]->zpos <= plane->zpos)
+			if (plane_zpos(planes[j-1]) <= plane_zpos(plane))
 				break;
 			planes[j] = planes[j-1];
 		}

@@ -39,9 +39,6 @@ struct rcar_du_plane {
 	bool enabled;
 
 	int hwindex;		/* 0-based, -1 means unused */
-	unsigned int alpha;
-	unsigned int colorkey;
-	unsigned int zpos;
 
 	const struct rcar_du_format_info *format;
 
@@ -58,6 +55,20 @@ struct rcar_du_planes {
 	struct drm_property *colorkey;
 	struct drm_property *zpos;
 };
+
+struct rcar_du_plane_state {
+	struct drm_plane_state state;
+
+	unsigned int alpha;
+	unsigned int colorkey;
+	unsigned int zpos;
+};
+
+static inline struct rcar_du_plane_state *
+to_rcar_du_plane_state(struct drm_plane_state *state)
+{
+	return container_of(state, struct rcar_du_plane_state, state);
+}
 
 int rcar_du_planes_init(struct rcar_du_group *rgrp);
 

@@ -201,6 +201,8 @@ static void rcar_du_plane_compute_base(struct rcar_du_plane *plane,
 static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 				     unsigned int index)
 {
+	struct rcar_du_plane_state *state =
+		to_rcar_du_plane_state(plane->plane.state);
 	struct rcar_du_group *rgrp = plane->group;
 	u32 colorkey;
 	u32 pnmr;
@@ -218,7 +220,7 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 		rcar_du_plane_write(rgrp, index, PnALPHAR, PnALPHAR_ABIT_0);
 	else
 		rcar_du_plane_write(rgrp, index, PnALPHAR,
-				    PnALPHAR_ABIT_X | plane->alpha);
+				    PnALPHAR_ABIT_X | state->alpha);
 
 	pnmr = PnMR_BM_MD | plane->format->pnmr;
 
@@ -226,7 +228,7 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 	 * PnMR_SPIM_TP_OFF bit set in their pnmr field, disabling color keying
 	 * automatically.
 	 */
-	if ((plane->colorkey & RCAR_DU_COLORKEY_MASK) == RCAR_DU_COLORKEY_NONE)
+	if ((state->colorkey & RCAR_DU_COLORKEY_MASK) == RCAR_DU_COLORKEY_NONE)
 		pnmr |= PnMR_SPIM_TP_OFF;
 
 	/* For packed YUV formats we need to select the U/V order. */
@@ -237,24 +239,24 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 
 	switch (plane->format->fourcc) {
 	case DRM_FORMAT_RGB565:
-		colorkey = ((plane->colorkey & 0xf80000) >> 8)
-			 | ((plane->colorkey & 0x00fc00) >> 5)
-			 | ((plane->colorkey & 0x0000f8) >> 3);
+		colorkey = ((state->colorkey & 0xf80000) >> 8)
+			 | ((state->colorkey & 0x00fc00) >> 5)
+			 | ((state->colorkey & 0x0000f8) >> 3);
 		rcar_du_plane_write(rgrp, index, PnTC2R, colorkey);
 		break;
 
 	case DRM_FORMAT_ARGB1555:
 	case DRM_FORMAT_XRGB1555:
-		colorkey = ((plane->colorkey & 0xf80000) >> 9)
-			 | ((plane->colorkey & 0x00f800) >> 6)
-			 | ((plane->colorkey & 0x0000f8) >> 3);
+		colorkey = ((state->colorkey & 0xf80000) >> 9)
+			 | ((state->colorkey & 0x00f800) >> 6)
+			 | ((state->colorkey & 0x0000f8) >> 3);
 		rcar_du_plane_write(rgrp, index, PnTC2R, colorkey);
 		break;
 
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
 		rcar_du_plane_write(rgrp, index, PnTC3R,
-				    PnTC3R_CODE | (plane->colorkey & 0xffffff));
+				    PnTC3R_CODE | (state->colorkey & 0xffffff));
 		break;
 	}
 }
@@ -414,65 +416,87 @@ static const struct drm_plane_helper_funcs rcar_du_plane_helper_funcs = {
 	.atomic_update = rcar_du_plane_atomic_update,
 };
 
-/* Both the .set_property and the .update_plane operations are called with the
- * mode_config lock held. There is this no need to explicitly protect access to
- * the alpha and colorkey fields and the mode register.
- */
-static void rcar_du_plane_set_alpha(struct rcar_du_plane *plane, u32 alpha)
+static void rcar_du_plane_reset(struct drm_plane *plane)
 {
-	if (plane->alpha == alpha)
+	struct rcar_du_plane_state *state;
+
+	if (plane->state && plane->state->fb)
+		drm_framebuffer_unreference(plane->state->fb);
+
+	kfree(plane->state);
+	plane->state = NULL;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state == NULL)
 		return;
 
-	plane->alpha = alpha;
-	if (!plane->enabled || plane->format->fourcc != DRM_FORMAT_XRGB1555)
-		return;
+	state->alpha = 255;
+	state->colorkey = RCAR_DU_COLORKEY_NONE;
+	state->zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
 
-	rcar_du_plane_setup_mode(plane, plane->hwindex);
+	plane->state = &state->state;
+	plane->state->plane = plane;
 }
 
-static void rcar_du_plane_set_colorkey(struct rcar_du_plane *plane,
-				       u32 colorkey)
+static struct drm_plane_state *
+rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 {
-	if (plane->colorkey == colorkey)
-		return;
+	struct rcar_du_plane_state *state;
+	struct rcar_du_plane_state *copy;
 
-	plane->colorkey = colorkey;
-	if (!plane->enabled)
-		return;
+	state = to_rcar_du_plane_state(plane->state);
+	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	if (copy == NULL)
+		return NULL;
 
-	rcar_du_plane_setup_mode(plane, plane->hwindex);
+	if (copy->state.fb)
+		drm_framebuffer_reference(copy->state.fb);
+
+	return &copy->state;
 }
 
-static void rcar_du_plane_set_zpos(struct rcar_du_plane *plane,
-				   unsigned int zpos)
+static void rcar_du_plane_atomic_destroy_state(struct drm_plane *plane,
+					       struct drm_plane_state *state)
 {
-	mutex_lock(&plane->group->planes.lock);
-	if (plane->zpos == zpos)
-		goto done;
-
-	plane->zpos = zpos;
-	if (!plane->enabled)
-		goto done;
-
-	rcar_du_crtc_update_planes(plane->crtc);
-
-done:
-	mutex_unlock(&plane->group->planes.lock);
+	kfree(to_rcar_du_plane_state(state));
 }
 
-static int rcar_du_plane_set_property(struct drm_plane *plane,
-				      struct drm_property *property,
-				      uint64_t value)
+static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
+					     struct drm_plane_state *state,
+					     struct drm_property *property,
+					     uint64_t val)
 {
+	struct rcar_du_plane_state *rstate = to_rcar_du_plane_state(state);
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
 	struct rcar_du_group *rgrp = rplane->group;
 
 	if (property == rgrp->planes.alpha)
-		rcar_du_plane_set_alpha(rplane, value);
+		rstate->alpha = val;
 	else if (property == rgrp->planes.colorkey)
-		rcar_du_plane_set_colorkey(rplane, value);
+		rstate->colorkey = val;
 	else if (property == rgrp->planes.zpos)
-		rcar_du_plane_set_zpos(rplane, value);
+		rstate->zpos = val;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int rcar_du_plane_atomic_get_property(struct drm_plane *plane,
+	const struct drm_plane_state *state, struct drm_property *property,
+	uint64_t *val)
+{
+	const struct rcar_du_plane_state *rstate =
+		container_of(state, const struct rcar_du_plane_state, state);
+	struct rcar_du_plane *rplane = to_rcar_plane(plane);
+	struct rcar_du_group *rgrp = rplane->group;
+
+	if (property == rgrp->planes.alpha)
+		*val = rstate->alpha;
+	else if (property == rgrp->planes.colorkey)
+		*val = rstate->colorkey;
+	else if (property == rgrp->planes.zpos)
+		*val = rstate->zpos;
 	else
 		return -EINVAL;
 
@@ -482,11 +506,13 @@ static int rcar_du_plane_set_property(struct drm_plane *plane,
 static const struct drm_plane_funcs rcar_du_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.reset = drm_atomic_helper_plane_reset,
-	.set_property = rcar_du_plane_set_property,
+	.reset = rcar_du_plane_reset,
+	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = drm_plane_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.atomic_duplicate_state = rcar_du_plane_atomic_duplicate_state,
+	.atomic_destroy_state = rcar_du_plane_atomic_destroy_state,
+	.atomic_set_property = rcar_du_plane_atomic_set_property,
+	.atomic_get_property = rcar_du_plane_atomic_get_property,
 };
 
 static const uint32_t formats[] = {
@@ -551,9 +577,6 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 
 		plane->group = rgrp;
 		plane->hwindex = -1;
-		plane->alpha = 255;
-		plane->colorkey = RCAR_DU_COLORKEY_NONE;
-		plane->zpos = type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
 
 		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
 					       &rcar_du_plane_funcs, formats,
