@@ -188,7 +188,7 @@
 #include "../comedidev.h"
 
 #include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "8255.h"
 
 /*
@@ -206,10 +206,6 @@
 #define PCI230_PPI_X_C		0x02	/* User PPI (82C55) port C */
 #define PCI230_PPI_X_CMD	0x03	/* User PPI (82C55) control word */
 #define PCI230_Z2_CT_BASE	0x14	/* 82C54 counter/timer base */
-#define PCI230_Z2_CT0		0x14	/* 82C54 counter/timer 0 */
-#define PCI230_Z2_CT1		0x15	/* 82C54 counter/timer 1 */
-#define PCI230_Z2_CT2		0x16	/* 82C54 counter/timer 2 */
-#define PCI230_Z2_CTC		0x17	/* 82C54 counter/timer control word */
 #define PCI230_ZCLK_SCE		0x1A	/* Group Z Clock Configuration */
 #define PCI230_ZGAT_SCE		0x1D	/* Group Z Gate Configuration */
 #define PCI230_INT_SCE		0x1E	/* Interrupt source mask (w) */
@@ -377,12 +373,6 @@
 #define CLK_EXT		7	/* external clock */
 /* Macro to construct clock input configuration register value. */
 #define CLK_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
-/* Timebases in ns. */
-#define TIMEBASE_10MHZ		100
-#define TIMEBASE_1MHZ		1000
-#define TIMEBASE_100KHZ		10000
-#define TIMEBASE_10KHZ		100000
-#define TIMEBASE_1KHZ		1000000
 
 /*
  * Counter/timer gate input configuration sources.
@@ -507,11 +497,11 @@ struct pci230_private {
 
 /* PCI230 clock source periods in ns */
 static const unsigned int pci230_timebase[8] = {
-	[CLK_10MHZ] = TIMEBASE_10MHZ,
-	[CLK_1MHZ] = TIMEBASE_1MHZ,
-	[CLK_100KHZ] = TIMEBASE_100KHZ,
-	[CLK_10KHZ] = TIMEBASE_10KHZ,
-	[CLK_1KHZ] = TIMEBASE_1KHZ,
+	[CLK_10MHZ]	= I8254_OSC_BASE_10MHZ,
+	[CLK_1MHZ]	= I8254_OSC_BASE_1MHZ,
+	[CLK_100KHZ]	= I8254_OSC_BASE_100KHZ,
+	[CLK_10KHZ]	= I8254_OSC_BASE_10KHZ,
+	[CLK_1KHZ]	= I8254_OSC_BASE_1KHZ,
 };
 
 /* PCI230 analogue input range table */
@@ -695,7 +685,7 @@ static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 	unsigned int count;
 
 	/* Set mode. */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, ct, mode);
+	comedi_8254_set_mode(dev->pacer, ct, mode);
 	/* Determine clock source and count. */
 	clk_src = pci230_choose_clk_count(ns, &count, flags);
 	/* Program clock source. */
@@ -704,13 +694,13 @@ static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 	if (count >= 65536)
 		count = 0;
 
-	i8254_write(dev->iobase + PCI230_Z2_CT_BASE, 0, ct, count);
+	comedi_8254_write(dev->pacer, ct, count);
 }
 
 static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct)
 {
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, ct, I8254_MODE1);
 	/* Counter ct, 8254 mode 1, initial count not written. */
+	comedi_8254_set_mode(dev->pacer, ct, I8254_MODE1);
 }
 
 static int pci230_ai_eoc(struct comedi_device *dev,
@@ -760,7 +750,7 @@ static int pci230_ai_insn_read(struct comedi_device *dev,
 	 */
 	adccon = PCI230_ADC_TRIG_Z2CT2 | PCI230_ADC_FIFO_EN;
 	/* Set Z2-CT2 output low to avoid any false triggers. */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE0);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE0);
 	devpriv->ai_bipolar = comedi_range_is_bipolar(s, range);
 	if (aref == AREF_DIFF) {
 		/* Differential. */
@@ -811,10 +801,8 @@ static int pci230_ai_insn_read(struct comedi_device *dev,
 		 * Trigger conversion by toggling Z2-CT2 output
 		 * (finish with output high).
 		 */
-		i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0,
-			       2, I8254_MODE0);
-		i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0,
-			       2, I8254_MODE1);
+		comedi_8254_set_mode(dev->pacer, 2, I8254_MODE0);
+		comedi_8254_set_mode(dev->pacer, 2, I8254_MODE1);
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, pci230_ai_eoc, 0);
@@ -1767,8 +1755,8 @@ static int pci230_ai_inttrig_convert(struct comedi_device *dev,
 	 * Trigger conversion by toggling Z2-CT2 output.
 	 * Finish with output high.
 	 */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE0);
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE1);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE0);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE1);
 	/*
 	 * Delay.  Should driver be responsible for this?  An
 	 * alternative would be to wait until conversion is complete,
@@ -2189,7 +2177,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * Set counter/timer 2 output high for use as the initial start
 	 * conversion source.
 	 */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE1);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE1);
 
 	/*
 	 * Temporarily use CT2 output as conversion trigger source and
@@ -2480,6 +2468,11 @@ static int pci230_auto_attach(struct comedi_device *dev,
 		if (rc == 0)
 			dev->irq = pci_dev->irq;
 	}
+
+	dev->pacer = comedi_8254_init(dev->iobase + PCI230_Z2_CT_BASE,
+				      0, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	rc = comedi_alloc_subdevices(dev, 3);
 	if (rc)

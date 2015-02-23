@@ -816,6 +816,7 @@ config COMEDI_AMPLC_PCI224
 
 config COMEDI_AMPLC_PCI230
 	tristate "Amplicon PCI230 and PCI260 support"
+	select COMEDI_8254
 	select COMEDI_8255
 	---help---
 	  Enable support for Amplicon PCI230 and PCI260 Multifunction I/O
