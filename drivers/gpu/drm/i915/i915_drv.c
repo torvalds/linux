@@ -882,12 +882,6 @@ int i915_reset(struct drm_device *dev)
 	}
 
 	/*
-	 * FIXME: This races pretty badly against concurrent holders of
-	 * ring interrupts. This is possible since we've started to drop
-	 * dev->struct_mutex in select places when waiting for the gpu.
-	 */
-
-	/*
 	 * rps/rc6 re-init is necessary to restore state lost after the
 	 * reset and the re-install of gt irqs. Skip for ironlake per
 	 * previous concerns that it doesn't respond well to some forms
