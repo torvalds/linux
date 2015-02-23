@@ -720,6 +720,10 @@ int be_fw_wait_ready(struct be_adapter *adapter)
 	}
 
 	do {
+		/* There's no means to poll POST state on BE2/3 VFs */
+		if (BEx_chip(adapter) && be_virtfn(adapter))
+			return 0;
+
 		stage = be_POST_stage_get(adapter);
 		if (stage == POST_STAGE_ARMFW_RDY)
 			return 0;
