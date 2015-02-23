@@ -256,6 +256,7 @@ struct comedi_driver {
 struct comedi_device {
 	int use_count;
 	struct comedi_driver *driver;
+	struct comedi_8254 *pacer;
 	void *private;
 
 	struct device *class_dev;

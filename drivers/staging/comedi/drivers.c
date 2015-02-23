@@ -139,7 +139,9 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 		dev->n_subdevices = 0;
 	}
 	kfree(dev->private);
+	kfree(dev->pacer);
 	dev->private = NULL;
+	dev->pacer = NULL;
 	dev->driver = NULL;
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
