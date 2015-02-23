@@ -292,7 +292,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	}
 	if (err)
 		goto out_req;
-	if (dn || dentry->d_inode == NULL || S_ISLNK(dentry->d_inode->i_mode)) {
+	if (dn || dentry->d_inode == NULL || d_is_symlink(dentry)) {
 		/* make vfs retry on splice, ENOENT, or symlink */
 		dout("atomic_open finish_no_open on dn %p\n", dn);
 		err = finish_no_open(file, dn);

@@ -277,7 +277,7 @@ static int remove_file(struct dentry *parent, char *name)
 	}
 
 	spin_lock(&tmp->d_lock);
-	if (!(d_unhashed(tmp) && tmp->d_inode)) {
+	if (!d_unhashed(tmp) && tmp->d_inode) {
 		dget_dlock(tmp);
 		__d_drop(tmp);
 		spin_unlock(&tmp->d_lock);

@@ -2319,8 +2319,8 @@ static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
 
 static int shmem_exchange(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry)
 {
-	bool old_is_dir = S_ISDIR(old_dentry->d_inode->i_mode);
-	bool new_is_dir = S_ISDIR(new_dentry->d_inode->i_mode);
+	bool old_is_dir = d_is_dir(old_dentry);
+	bool new_is_dir = d_is_dir(new_dentry);
 
 	if (old_dir != new_dir && old_is_dir != new_is_dir) {
 		if (old_is_dir) {
