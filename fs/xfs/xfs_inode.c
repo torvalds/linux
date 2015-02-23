@@ -117,24 +117,34 @@ xfs_ilock_attr_map_shared(
 }
 
 /*
- * The xfs inode contains 2 locks: a multi-reader lock called the
- * i_iolock and a multi-reader lock called the i_lock.  This routine
- * allows either or both of the locks to be obtained.
+ * The xfs inode contains 3 multi-reader locks: the i_iolock the i_mmap_lock and
+ * the i_lock.  This routine allows various combinations of the locks to be
+ * obtained.
  *
- * The 2 locks should always be ordered so that the IO lock is
- * obtained first in order to prevent deadlock.
+ * The 3 locks should always be ordered so that the IO lock is obtained first,
+ * the mmap lock second and the ilock last in order to prevent deadlock.
  *
- * ip -- the inode being locked
- * lock_flags -- this parameter indicates the inode's locks
- *       to be locked.  It can be:
- *		XFS_IOLOCK_SHARED,
- *		XFS_IOLOCK_EXCL,
- *		XFS_ILOCK_SHARED,
- *		XFS_ILOCK_EXCL,
- *		XFS_IOLOCK_SHARED | XFS_ILOCK_SHARED,
- *		XFS_IOLOCK_SHARED | XFS_ILOCK_EXCL,
- *		XFS_IOLOCK_EXCL | XFS_ILOCK_SHARED,
- *		XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL
+ * Basic locking order:
+ *
+ * i_iolock -> i_mmap_lock -> page_lock -> i_ilock
+ *
+ * mmap_sem locking order:
+ *
+ * i_iolock -> page lock -> mmap_sem
+ * mmap_sem -> i_mmap_lock -> page_lock
+ *
+ * The difference in mmap_sem locking order mean that we cannot hold the
+ * i_mmap_lock over syscall based read(2)/write(2) based IO. These IO paths can
+ * fault in pages during copy in/out (for buffered IO) or require the mmap_sem
+ * in get_user_pages() to map the user pages into the kernel address space for
+ * direct IO. Similarly the i_iolock cannot be taken inside a page fault because
+ * page faults already hold the mmap_sem.
+ *
+ * Hence to serialise fully against both syscall and mmap based IO, we need to
+ * take both the i_iolock and the i_mmap_lock. These locks should *only* be both
+ * taken in places where we need to invalidate the page cache in a race
+ * free manner (e.g. truncate, hole punch and other extent manipulation
+ * functions).
  */
 void
 xfs_ilock(
@@ -150,6 +160,8 @@ xfs_ilock(
 	 */
 	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
 	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
+	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
+	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
 	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
@@ -158,6 +170,11 @@ xfs_ilock(
 		mrupdate_nested(&ip->i_iolock, XFS_IOLOCK_DEP(lock_flags));
 	else if (lock_flags & XFS_IOLOCK_SHARED)
 		mraccess_nested(&ip->i_iolock, XFS_IOLOCK_DEP(lock_flags));
+
+	if (lock_flags & XFS_MMAPLOCK_EXCL)
+		mrupdate_nested(&ip->i_mmaplock, XFS_MMAPLOCK_DEP(lock_flags));
+	else if (lock_flags & XFS_MMAPLOCK_SHARED)
+		mraccess_nested(&ip->i_mmaplock, XFS_MMAPLOCK_DEP(lock_flags));
 
 	if (lock_flags & XFS_ILOCK_EXCL)
 		mrupdate_nested(&ip->i_lock, XFS_ILOCK_DEP(lock_flags));
@@ -191,6 +208,8 @@ xfs_ilock_nowait(
 	 */
 	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
 	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
+	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
+	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
 	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
@@ -202,21 +221,35 @@ xfs_ilock_nowait(
 		if (!mrtryaccess(&ip->i_iolock))
 			goto out;
 	}
+
+	if (lock_flags & XFS_MMAPLOCK_EXCL) {
+		if (!mrtryupdate(&ip->i_mmaplock))
+			goto out_undo_iolock;
+	} else if (lock_flags & XFS_MMAPLOCK_SHARED) {
+		if (!mrtryaccess(&ip->i_mmaplock))
+			goto out_undo_iolock;
+	}
+
 	if (lock_flags & XFS_ILOCK_EXCL) {
 		if (!mrtryupdate(&ip->i_lock))
-			goto out_undo_iolock;
+			goto out_undo_mmaplock;
 	} else if (lock_flags & XFS_ILOCK_SHARED) {
 		if (!mrtryaccess(&ip->i_lock))
-			goto out_undo_iolock;
+			goto out_undo_mmaplock;
 	}
 	return 1;
 
- out_undo_iolock:
+out_undo_mmaplock:
+	if (lock_flags & XFS_MMAPLOCK_EXCL)
+		mrunlock_excl(&ip->i_mmaplock);
+	else if (lock_flags & XFS_MMAPLOCK_SHARED)
+		mrunlock_shared(&ip->i_mmaplock);
+out_undo_iolock:
 	if (lock_flags & XFS_IOLOCK_EXCL)
 		mrunlock_excl(&ip->i_iolock);
 	else if (lock_flags & XFS_IOLOCK_SHARED)
 		mrunlock_shared(&ip->i_iolock);
- out:
+out:
 	return 0;
 }
 
@@ -244,6 +277,8 @@ xfs_iunlock(
 	 */
 	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
 	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
+	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
+	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
 	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
@@ -253,6 +288,11 @@ xfs_iunlock(
 		mrunlock_excl(&ip->i_iolock);
 	else if (lock_flags & XFS_IOLOCK_SHARED)
 		mrunlock_shared(&ip->i_iolock);
+
+	if (lock_flags & XFS_MMAPLOCK_EXCL)
+		mrunlock_excl(&ip->i_mmaplock);
+	else if (lock_flags & XFS_MMAPLOCK_SHARED)
+		mrunlock_shared(&ip->i_mmaplock);
 
 	if (lock_flags & XFS_ILOCK_EXCL)
 		mrunlock_excl(&ip->i_lock);
@@ -271,11 +311,14 @@ xfs_ilock_demote(
 	xfs_inode_t		*ip,
 	uint			lock_flags)
 {
-	ASSERT(lock_flags & (XFS_IOLOCK_EXCL|XFS_ILOCK_EXCL));
-	ASSERT((lock_flags & ~(XFS_IOLOCK_EXCL|XFS_ILOCK_EXCL)) == 0);
+	ASSERT(lock_flags & (XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL|XFS_ILOCK_EXCL));
+	ASSERT((lock_flags &
+		~(XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL|XFS_ILOCK_EXCL)) == 0);
 
 	if (lock_flags & XFS_ILOCK_EXCL)
 		mrdemote(&ip->i_lock);
+	if (lock_flags & XFS_MMAPLOCK_EXCL)
+		mrdemote(&ip->i_mmaplock);
 	if (lock_flags & XFS_IOLOCK_EXCL)
 		mrdemote(&ip->i_iolock);
 
@@ -292,6 +335,12 @@ xfs_isilocked(
 		if (!(lock_flags & XFS_ILOCK_SHARED))
 			return !!ip->i_lock.mr_writer;
 		return rwsem_is_locked(&ip->i_lock.mr_lock);
+	}
+
+	if (lock_flags & (XFS_MMAPLOCK_EXCL|XFS_MMAPLOCK_SHARED)) {
+		if (!(lock_flags & XFS_MMAPLOCK_SHARED))
+			return !!ip->i_mmaplock.mr_writer;
+		return rwsem_is_locked(&ip->i_mmaplock.mr_lock);
 	}
 
 	if (lock_flags & (XFS_IOLOCK_EXCL|XFS_IOLOCK_SHARED)) {
@@ -314,14 +363,27 @@ int xfs_lock_delays;
 #endif
 
 /*
- * Bump the subclass so xfs_lock_inodes() acquires each lock with
- * a different value
+ * Bump the subclass so xfs_lock_inodes() acquires each lock with a different
+ * value. This shouldn't be called for page fault locking, but we also need to
+ * ensure we don't overrun the number of lockdep subclasses for the iolock or
+ * mmaplock as that is limited to 12 by the mmap lock lockdep annotations.
  */
 static inline int
 xfs_lock_inumorder(int lock_mode, int subclass)
 {
-	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL))
+	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)) {
+		ASSERT(subclass + XFS_LOCK_INUMORDER <
+			(1 << (XFS_MMAPLOCK_SHIFT - XFS_IOLOCK_SHIFT)));
 		lock_mode |= (subclass + XFS_LOCK_INUMORDER) << XFS_IOLOCK_SHIFT;
+	}
+
+	if (lock_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)) {
+		ASSERT(subclass + XFS_LOCK_INUMORDER <
+			(1 << (XFS_ILOCK_SHIFT - XFS_MMAPLOCK_SHIFT)));
+		lock_mode |= (subclass + XFS_LOCK_INUMORDER) <<
+							XFS_MMAPLOCK_SHIFT;
+	}
+
 	if (lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL))
 		lock_mode |= (subclass + XFS_LOCK_INUMORDER) << XFS_ILOCK_SHIFT;
 
@@ -440,10 +502,10 @@ again:
 }
 
 /*
- * xfs_lock_two_inodes() can only be used to lock one type of lock
- * at a time - the iolock or the ilock, but not both at once. If
- * we lock both at once, lockdep will report false positives saying
- * we have violated locking orders.
+ * xfs_lock_two_inodes() can only be used to lock one type of lock at a time -
+ * the iolock, the mmaplock or the ilock, but not more than one at a time. If we
+ * lock more than one at a time, lockdep will report false positives saying we
+ * have violated locking orders.
  */
 void
 xfs_lock_two_inodes(
@@ -455,8 +517,12 @@ xfs_lock_two_inodes(
 	int			attempts = 0;
 	xfs_log_item_t		*lp;
 
-	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL))
-		ASSERT((lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)) == 0);
+	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)) {
+		ASSERT(!(lock_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)));
+		ASSERT(!(lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)));
+	} else if (lock_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL))
+		ASSERT(!(lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)));
+
 	ASSERT(ip0->i_ino != ip1->i_ino);
 
 	if (ip0->i_ino > ip1->i_ino) {
