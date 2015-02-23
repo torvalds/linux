@@ -1693,7 +1693,7 @@ out:
  * The request function that just remaps the bio built up by
  * dm_merge_bvec.
  */
-static void _dm_request(struct request_queue *q, struct bio *bio)
+static void dm_make_request(struct request_queue *q, struct bio *bio)
 {
 	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
@@ -1723,16 +1723,6 @@ static void _dm_request(struct request_queue *q, struct bio *bio)
 int dm_request_based(struct mapped_device *md)
 {
 	return blk_queue_stackable(md->queue);
-}
-
-static void dm_request(struct request_queue *q, struct bio *bio)
-{
-	struct mapped_device *md = q->queuedata;
-
-	if (dm_request_based(md))
-		blk_queue_bio(q, bio);
-	else
-		_dm_request(q, bio);
 }
 
 static void dm_dispatch_clone_request(struct request *clone, struct request *rq)
@@ -2100,9 +2090,8 @@ static void dm_init_md_queue(struct mapped_device *md)
 	md->queue->queuedata = md;
 	md->queue->backing_dev_info.congested_fn = dm_any_congested;
 	md->queue->backing_dev_info.congested_data = md;
-	blk_queue_make_request(md->queue, dm_request);
+
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
-	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
 }
 
 /*
@@ -2335,7 +2324,7 @@ int dm_queue_merge_is_compulsory(struct request_queue *q)
 	if (!q->merge_bvec_fn)
 		return 0;
 
-	if (q->make_request_fn == dm_request) {
+	if (q->make_request_fn == dm_make_request) {
 		dev_md = q->queuedata;
 		if (test_bit(DMF_MERGE_IS_OPTIONAL, &dev_md->flags))
 			return 0;
@@ -2545,9 +2534,15 @@ static int dm_init_request_based_queue(struct mapped_device *md)
  */
 int dm_setup_md_queue(struct mapped_device *md)
 {
-	if (dm_md_type_request_based(md) && !dm_init_request_based_queue(md)) {
-		DMWARN("Cannot initialize queue for request-based mapped device");
-		return -EINVAL;
+	if (dm_md_type_request_based(md)) {
+		if (!dm_init_request_based_queue(md)) {
+			DMWARN("Cannot initialize queue for request-based mapped device");
+			return -EINVAL;
+		}
+	} else {
+		/* bio-based specific initialization */
+		blk_queue_make_request(md->queue, dm_make_request);
+		blk_queue_merge_bvec(md->queue, dm_merge_bvec);
 	}
 
 	return 0;
