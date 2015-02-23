@@ -811,7 +811,7 @@ static void ircomm_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 			break;
 	}
 	spin_unlock_irqrestore(&self->spinlock, flags);
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 }
 
 /*
