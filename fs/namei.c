@@ -2337,12 +2337,13 @@ out:
  * Returns 0 and "path" will be valid on success; Returns error otherwise.
  */
 static int
-path_mountpoint(int dfd, const char *name, struct path *path, unsigned int flags)
+path_mountpoint(int dfd, const struct filename *name, struct path *path,
+		unsigned int flags)
 {
 	struct nameidata nd;
 	int err;
 
-	err = path_init(dfd, name, flags, &nd);
+	err = path_init(dfd, name->name, flags, &nd);
 	if (unlikely(err))
 		goto out;
 
@@ -2366,20 +2367,20 @@ out:
 }
 
 static int
-filename_mountpoint(int dfd, struct filename *s, struct path *path,
+filename_mountpoint(int dfd, struct filename *name, struct path *path,
 			unsigned int flags)
 {
 	int error;
-	if (IS_ERR(s))
-		return PTR_ERR(s);
-	error = path_mountpoint(dfd, s->name, path, flags | LOOKUP_RCU);
+	if (IS_ERR(name))
+		return PTR_ERR(name);
+	error = path_mountpoint(dfd, name, path, flags | LOOKUP_RCU);
 	if (unlikely(error == -ECHILD))
-		error = path_mountpoint(dfd, s->name, path, flags);
+		error = path_mountpoint(dfd, name, path, flags);
 	if (unlikely(error == -ESTALE))
-		error = path_mountpoint(dfd, s->name, path, flags | LOOKUP_REVAL);
+		error = path_mountpoint(dfd, name, path, flags | LOOKUP_REVAL);
 	if (likely(!error))
-		audit_inode(s, path->dentry, 0);
-	putname(s);
+		audit_inode(name, path->dentry, 0);
+	putname(name);
 	return error;
 }
 
