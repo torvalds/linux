@@ -1013,24 +1013,6 @@ xfs_free_fsname(
 	kfree(mp->m_logname);
 }
 
-STATIC void
-xfs_fs_put_super(
-	struct super_block	*sb)
-{
-	struct xfs_mount	*mp = XFS_M(sb);
-
-	xfs_notice(mp, "Unmounting Filesystem");
-	xfs_filestream_unmount(mp);
-	xfs_unmountfs(mp);
-
-	xfs_freesb(mp);
-	xfs_icsb_destroy_counters(mp);
-	xfs_destroy_mount_workqueues(mp);
-	xfs_close_devices(mp);
-	xfs_free_fsname(mp);
-	kfree(mp);
-}
-
 STATIC int
 xfs_fs_sync_fs(
 	struct super_block	*sb,
@@ -1066,6 +1048,9 @@ xfs_fs_statfs(
 	xfs_sb_t		*sbp = &mp->m_sb;
 	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
 	__uint64_t		fakeinos, id;
+	__uint64_t		icount;
+	__uint64_t		ifree;
+	__uint64_t		fdblocks;
 	xfs_extlen_t		lsize;
 	__int64_t		ffree;
 
@@ -1076,17 +1061,21 @@ xfs_fs_statfs(
 	statp->f_fsid.val[0] = (u32)id;
 	statp->f_fsid.val[1] = (u32)(id >> 32);
 
-	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
+	icount = percpu_counter_sum(&mp->m_icount);
+	ifree = percpu_counter_sum(&mp->m_ifree);
+	fdblocks = percpu_counter_sum(&mp->m_fdblocks);
 
 	spin_lock(&mp->m_sb_lock);
 	statp->f_bsize = sbp->sb_blocksize;
 	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;
 	statp->f_blocks = sbp->sb_dblocks - lsize;
-	statp->f_bfree = statp->f_bavail =
-				sbp->sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
+	spin_unlock(&mp->m_sb_lock);
+
+	statp->f_bfree = fdblocks - XFS_ALLOC_SET_ASIDE(mp);
+	statp->f_bavail = statp->f_bfree;
+
 	fakeinos = statp->f_bfree << sbp->sb_inopblog;
-	statp->f_files =
-	    MIN(sbp->sb_icount + fakeinos, (__uint64_t)XFS_MAXINUMBER);
+	statp->f_files = MIN(icount + fakeinos, (__uint64_t)XFS_MAXINUMBER);
 	if (mp->m_maxicount)
 		statp->f_files = min_t(typeof(statp->f_files),
 					statp->f_files,
@@ -1098,10 +1087,9 @@ xfs_fs_statfs(
 					sbp->sb_icount);
 
 	/* make sure statp->f_ffree does not underflow */
-	ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
+	ffree = statp->f_files - (icount - ifree);
 	statp->f_ffree = max_t(__int64_t, ffree, 0);
 
-	spin_unlock(&mp->m_sb_lock);
 
 	if ((ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
 	    ((mp->m_qflags & (XFS_PQUOTA_ACCT|XFS_PQUOTA_ENFD))) ==
@@ -1382,6 +1370,51 @@ xfs_finish_flags(
 	return 0;
 }
 
+static int
+xfs_init_percpu_counters(
+	struct xfs_mount	*mp)
+{
+	int		error;
+
+	error = percpu_counter_init(&mp->m_icount, 0, GFP_KERNEL);
+	if (error)
+		return ENOMEM;
+
+	error = percpu_counter_init(&mp->m_ifree, 0, GFP_KERNEL);
+	if (error)
+		goto free_icount;
+
+	error = percpu_counter_init(&mp->m_fdblocks, 0, GFP_KERNEL);
+	if (error)
+		goto free_ifree;
+
+	return 0;
+
+free_ifree:
+	percpu_counter_destroy(&mp->m_ifree);
+free_icount:
+	percpu_counter_destroy(&mp->m_icount);
+	return -ENOMEM;
+}
+
+void
+xfs_reinit_percpu_counters(
+	struct xfs_mount	*mp)
+{
+	percpu_counter_set(&mp->m_icount, mp->m_sb.sb_icount);
+	percpu_counter_set(&mp->m_ifree, mp->m_sb.sb_ifree);
+	percpu_counter_set(&mp->m_fdblocks, mp->m_sb.sb_fdblocks);
+}
+
+static void
+xfs_destroy_percpu_counters(
+	struct xfs_mount	*mp)
+{
+	percpu_counter_destroy(&mp->m_icount);
+	percpu_counter_destroy(&mp->m_ifree);
+	percpu_counter_destroy(&mp->m_fdblocks);
+}
+
 STATIC int
 xfs_fs_fill_super(
 	struct super_block	*sb,
@@ -1430,7 +1463,7 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_close_devices;
 
-	error = xfs_icsb_init_counters(mp);
+	error = xfs_init_percpu_counters(mp);
 	if (error)
 		goto out_destroy_workqueues;
 
@@ -1488,7 +1521,7 @@ xfs_fs_fill_super(
  out_free_sb:
 	xfs_freesb(mp);
  out_destroy_counters:
-	xfs_icsb_destroy_counters(mp);
+	xfs_destroy_percpu_counters(mp);
 out_destroy_workqueues:
 	xfs_destroy_mount_workqueues(mp);
  out_close_devices:
@@ -1503,6 +1536,24 @@ out_destroy_workqueues:
 	xfs_filestream_unmount(mp);
 	xfs_unmountfs(mp);
 	goto out_free_sb;
+}
+
+STATIC void
+xfs_fs_put_super(
+	struct super_block	*sb)
+{
+	struct xfs_mount	*mp = XFS_M(sb);
+
+	xfs_notice(mp, "Unmounting Filesystem");
+	xfs_filestream_unmount(mp);
+	xfs_unmountfs(mp);
+
+	xfs_freesb(mp);
+	xfs_destroy_percpu_counters(mp);
+	xfs_destroy_mount_workqueues(mp);
+	xfs_close_devices(mp);
+	xfs_free_fsname(mp);
+	kfree(mp);
 }
 
 STATIC struct dentry *

@@ -376,7 +376,8 @@ xfs_ialloc_ag_alloc(
 	 */
 	newlen = args.mp->m_ialloc_inos;
 	if (args.mp->m_maxicount &&
-	    args.mp->m_sb.sb_icount + newlen > args.mp->m_maxicount)
+	    percpu_counter_read(&args.mp->m_icount) + newlen >
+							args.mp->m_maxicount)
 		return -ENOSPC;
 	args.minlen = args.maxlen = args.mp->m_ialloc_blks;
 	/*
@@ -1340,7 +1341,8 @@ xfs_dialloc(
 	 * inode.
 	 */
 	if (mp->m_maxicount &&
-	    mp->m_sb.sb_icount + mp->m_ialloc_inos > mp->m_maxicount) {
+	    percpu_counter_read(&mp->m_icount) + mp->m_ialloc_inos >
+							mp->m_maxicount) {
 		noroom = 1;
 		okalloc = 0;
 	}
