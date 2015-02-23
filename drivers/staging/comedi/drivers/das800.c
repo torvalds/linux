@@ -58,12 +58,12 @@ cmd triggers supported:
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include "../comedidev.h"
-
 #include <linux/delay.h>
 
-#include "8253.h"
+#include "../comedidev.h"
+
 #include "comedi_fc.h"
+#include "comedi_8254.h"
 
 #define N_CHAN_AI             8	/*  number of analog input channels */
 
@@ -219,8 +219,6 @@ static const struct das800_board das800_boards[] = {
 };
 
 struct das800_private {
-	unsigned int divisor1;	/* counter 1 value for timed conversions */
-	unsigned int divisor2;	/* counter 2 value for timed conversions */
 	unsigned int do_bits;	/* digital output bits */
 };
 
@@ -272,17 +270,6 @@ static void das800_disable(struct comedi_device *dev)
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 }
 
-static void das800_set_frequency(struct comedi_device *dev)
-{
-	struct das800_private *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + DAS800_8254;
-
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
-	i8254_write(timer_base, 0, 1, devpriv->divisor1);
-	i8254_write(timer_base, 0, 2, devpriv->divisor2);
-}
-
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	das800_disable(dev);
@@ -322,9 +309,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 				struct comedi_cmd *cmd)
 {
 	const struct das800_board *thisboard = dev->board_ptr;
-	struct das800_private *devpriv = dev->private;
 	int err = 0;
-	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -370,11 +355,9 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_1MHZ,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &arg, cmd->flags);
+		unsigned int arg = cmd->convert_arg;
+
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
@@ -426,8 +409,8 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 		conv_bits |= DTEN;
 	if (cmd->convert_src == TRIG_TIMER) {
 		conv_bits |= CASC | ITE;
-		/* set conversion frequency */
-		das800_set_frequency(dev);
+		comedi_8254_update_divisors(dev->pacer);
+		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 	}
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
@@ -696,6 +679,11 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (ret == 0)
 			dev->irq = irq;
 	}
+
+	dev->pacer = comedi_8254_init(dev->iobase + DAS800_8254,
+				      I8254_OSC_BASE_1MHZ, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
