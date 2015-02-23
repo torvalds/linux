@@ -110,15 +110,12 @@
 #include "../comedidev.h"
 
 #include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 
 /*
  * PCI224/234 i/o space 1 (PCIBAR2) registers.
  */
-#define PCI224_Z2_CT0	0x14	/* 82C54 counter/timer 0 */
-#define PCI224_Z2_CT1	0x15	/* 82C54 counter/timer 1 */
-#define PCI224_Z2_CT2	0x16	/* 82C54 counter/timer 2 */
-#define PCI224_Z2_CTC	0x17	/* 82C54 counter/timer control word */
+#define PCI224_Z2_BASE	0x14	/* 82C54 counter/timer */
 #define PCI224_ZCLK_SCE	0x1A	/* Group Z Clock Configuration Register */
 #define PCI224_ZGAT_SCE	0x1D	/* Group Z Gate Configuration Register */
 #define PCI224_INT_SCE	0x1E	/* ISR Interrupt source mask register */
@@ -379,8 +376,6 @@ struct pci224_private {
 	int intr_cpuid;
 	short intr_running;
 	unsigned short daccon;
-	unsigned int cached_div1;
-	unsigned int cached_div2;
 	unsigned short ao_enab;	/* max 16 channels so 'short' will do */
 	unsigned char intsce;
 };
@@ -668,7 +663,6 @@ static int
 pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		  struct comedi_cmd *cmd)
 {
-	struct pci224_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
 
@@ -793,10 +787,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
 		/* Use two timers. */
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &devpriv->cached_div1,
-					  &devpriv->cached_div2,
-					  &arg, cmd->flags);
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
@@ -817,7 +808,6 @@ static void pci224_ao_start_pacer(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
 	struct pci224_private *devpriv = dev->private;
-	unsigned long timer_base = devpriv->iobase1 + PCI224_Z2_CT0;
 
 	/*
 	 * The output of timer Z2-0 will be used as the scan trigger
@@ -830,14 +820,10 @@ static void pci224_ao_start_pacer(struct comedi_device *dev,
 	outb(GAT_CONFIG(2, GAT_VCC), devpriv->iobase1 + PCI224_ZGAT_SCE);
 	/* Z2-2 needs 10 MHz clock. */
 	outb(CLK_CONFIG(2, CLK_10MHZ), devpriv->iobase1 + PCI224_ZCLK_SCE);
-	/* Load Z2-2 mode (2) and counter (div1). */
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
-	i8254_write(timer_base, 0, 2, devpriv->cached_div1);
 	/* Z2-0 is clocked from Z2-2's output. */
 	outb(CLK_CONFIG(0, CLK_OUTNM1), devpriv->iobase1 + PCI224_ZCLK_SCE);
-	/* Load Z2-0 mode (2) and counter (div2). */
-	i8254_set_mode(timer_base, 0, 0, I8254_MODE2 | I8254_BINARY);
-	i8254_write(timer_base, 0, 0, devpriv->cached_div2);
+
+	comedi_8254_pacer_enable(dev->pacer, 2, 0, false);
 }
 
 static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -854,7 +840,6 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Cannot handle null/empty chanlist. */
 	if (cmd->chanlist == NULL || cmd->chanlist_len == 0)
 		return -EINVAL;
-
 
 	/* Determine which channels are enabled and their load order.  */
 	devpriv->ao_enab = 0;
@@ -893,8 +878,10 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 	     dev->iobase + PCI224_DACCON);
 
-	if (cmd->scan_begin_src == TRIG_TIMER)
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		comedi_8254_update_divisors(dev->pacer);
 		pci224_ao_start_pacer(dev, s);
+	}
 
 	spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 	if (cmd->start_src == TRIG_INT) {
@@ -1062,6 +1049,11 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 			  PCI224_DACCON_FIFOENAB | PCI224_DACCON_FIFOINTR_EMPTY;
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 	     dev->iobase + PCI224_DACCON);
+
+	dev->pacer = comedi_8254_init(devpriv->iobase1 + PCI224_Z2_BASE,
+				      I8254_OSC_BASE_10MHZ, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)

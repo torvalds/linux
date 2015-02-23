@@ -804,6 +804,7 @@ config COMEDI_AMPLC_PC263_PCI
 
 config COMEDI_AMPLC_PCI224
 	tristate "Amplicon PCI224 and PCI234 support"
+	select COMEDI_8254
 	---help---
 	  Enable support for Amplicon PCI224 and PCI234 AO boards
 
