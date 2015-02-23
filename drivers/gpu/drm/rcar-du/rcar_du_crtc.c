@@ -198,6 +198,12 @@ static unsigned int plane_zpos(struct rcar_du_plane *plane)
 	return to_rcar_du_plane_state(plane->plane.state)->zpos;
 }
 
+static const struct rcar_du_format_info *
+plane_format(struct rcar_du_plane *plane)
+{
+	return to_rcar_du_plane_state(plane->plane.state)->format;
+}
+
 static void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
@@ -223,7 +229,7 @@ static void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 		}
 
 		planes[j] = plane;
-		prio += plane->format->planes * 4;
+		prio += plane_format(plane)->planes * 4;
 	}
 
 	for (i = 0; i < num_planes; ++i) {
@@ -234,7 +240,7 @@ static void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 		dspr |= (index + 1) << prio;
 		dptsr |= DPTSR_PnDK(index) |  DPTSR_PnTS(index);
 
-		if (plane->format->planes == 2) {
+		if (plane_format(plane)->planes == 2) {
 			index = (index + 1) % 8;
 
 			prio -= 4;

@@ -32,12 +32,8 @@ struct rcar_du_group;
 
 struct rcar_du_plane {
 	struct drm_plane plane;
-
 	struct rcar_du_group *group;
-
 	int hwindex;		/* 0-based, -1 means unused */
-
-	const struct rcar_du_format_info *format;
 };
 
 struct rcar_du_planes {
@@ -52,6 +48,8 @@ struct rcar_du_planes {
 
 struct rcar_du_plane_state {
 	struct drm_plane_state state;
+
+	const struct rcar_du_format_info *format;
 
 	unsigned int alpha;
 	unsigned int colorkey;
