@@ -2006,12 +2006,6 @@ out:
 	dm_put_live_table(md, srcu_idx);
 }
 
-int dm_underlying_device_busy(struct request_queue *q)
-{
-	return blk_lld_busy(q);
-}
-EXPORT_SYMBOL_GPL(dm_underlying_device_busy);
-
 static int dm_lld_busy(struct request_queue *q)
 {
 	int r;
