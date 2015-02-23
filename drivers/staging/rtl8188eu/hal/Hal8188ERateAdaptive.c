@@ -538,6 +538,7 @@ int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 macid)
 	struct odm_ra_info *pRaInfo = &dm_odm->RAInfo[macid];
 	u8 WirelessMode = 0xFF; /* invalid value */
 	u8 max_rate_idx = 0x13; /* MCS7 */
+
 	if (dm_odm->pWirelessMode != NULL)
 		WirelessMode = *(dm_odm->pWirelessMode);
 
