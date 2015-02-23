@@ -2137,9 +2137,7 @@ static struct dentry *lookup_hash(struct nameidata *nd)
  * @len:	maximum length @len should be interpreted to
  *
  * Note that this routine is purely a helper for filesystem usage and should
- * not be called by generic code.  Also note that by using this function the
- * nameidata argument is passed to the filesystem methods and a filesystem
- * using this helper needs to be prepared for that.
+ * not be called by generic code.
  */
 struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
