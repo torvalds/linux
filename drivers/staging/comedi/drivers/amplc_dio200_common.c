@@ -101,7 +101,6 @@ struct dio200_subdev_8254 {
 	unsigned int ofs;		/* Counter base offset */
 	unsigned int clock_src[3];	/* Current clock sources */
 	unsigned int gate_src[3];	/* Current gate sources */
-	spinlock_t spinlock;
 };
 
 struct dio200_subdev_8255 {
@@ -535,16 +534,12 @@ static int dio200_subdev_8254_read(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned int n;
-	unsigned long flags;
 
-	for (n = 0; n < insn->n; n++) {
-		spin_lock_irqsave(&subpriv->spinlock, flags);
+	for (n = 0; n < insn->n; n++)
 		data[n] = dio200_subdev_8254_read_chan(dev, s, chan);
-		spin_unlock_irqrestore(&subpriv->spinlock, flags);
-	}
+
 	return insn->n;
 }
 
@@ -553,16 +548,12 @@ static int dio200_subdev_8254_write(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
-	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned int n;
-	unsigned long flags;
 
-	for (n = 0; n < insn->n; n++) {
-		spin_lock_irqsave(&subpriv->spinlock, flags);
+	for (n = 0; n < insn->n; n++)
 		dio200_subdev_8254_write_chan(dev, s, chan, data[n]);
-		spin_unlock_irqrestore(&subpriv->spinlock, flags);
-	}
+
 	return insn->n;
 }
 
@@ -643,12 +634,9 @@ static int dio200_subdev_8254_config(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	struct dio200_subdev_8254 *subpriv = s->private;
 	int ret = 0;
 	int chan = CR_CHAN(insn->chanspec);
-	unsigned long flags;
 
-	spin_lock_irqsave(&subpriv->spinlock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
 		if (data[1] > (I8254_MODE5 | I8254_BCD))
@@ -689,7 +677,7 @@ static int dio200_subdev_8254_config(struct comedi_device *dev,
 		ret = -EINVAL;
 		break;
 	}
-	spin_unlock_irqrestore(&subpriv->spinlock, flags);
+
 	return ret < 0 ? ret : insn->n;
 }
 
@@ -713,7 +701,6 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 	s->insn_write = dio200_subdev_8254_write;
 	s->insn_config = dio200_subdev_8254_config;
 
-	spin_lock_init(&subpriv->spinlock);
 	subpriv->ofs = offset;
 
 	/* Initialize channels. */
