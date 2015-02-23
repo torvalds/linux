@@ -87,7 +87,6 @@ TODO:
 
 #include "../comedidev.h"
 
-#include "8253.h"
 #include "8255.h"
 #include "plx9080.h"
 #include "comedi_fc.h"
