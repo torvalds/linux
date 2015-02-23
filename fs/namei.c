@@ -2038,19 +2038,6 @@ static int filename_lookup(int dfd, struct filename *name,
 	return retval;
 }
 
-static int do_path_lookup(int dfd, const char *name,
-				unsigned int flags, struct nameidata *nd)
-{
-	struct filename *filename = getname_kernel(name);
-	int retval = PTR_ERR(filename);
-
-	if (!IS_ERR(filename)) {
-		retval = filename_lookup(dfd, filename, flags, nd);
-		putname(filename);
-	}
-	return retval;
-}
-
 /* does lookup, returns the object with parent locked */
 struct dentry *kern_path_locked(const char *name, struct path *path)
 {
@@ -2088,9 +2075,15 @@ out:
 int kern_path(const char *name, unsigned int flags, struct path *path)
 {
 	struct nameidata nd;
-	int res = do_path_lookup(AT_FDCWD, name, flags, &nd);
-	if (!res)
-		*path = nd.path;
+	struct filename *filename = getname_kernel(name);
+	int res = PTR_ERR(filename);
+
+	if (!IS_ERR(filename)) {
+		res = filename_lookup(AT_FDCWD, filename, flags, &nd);
+		putname(filename);
+		if (!res)
+			*path = nd.path;
+	}
 	return res;
 }
 EXPORT_SYMBOL(kern_path);
@@ -2107,15 +2100,22 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		    const char *name, unsigned int flags,
 		    struct path *path)
 {
-	struct nameidata nd;
-	int err;
-	nd.root.dentry = dentry;
-	nd.root.mnt = mnt;
+	struct filename *filename = getname_kernel(name);
+	int err = PTR_ERR(filename);
+
 	BUG_ON(flags & LOOKUP_PARENT);
-	/* the first argument of do_path_lookup() is ignored with LOOKUP_ROOT */
-	err = do_path_lookup(AT_FDCWD, name, flags | LOOKUP_ROOT, &nd);
-	if (!err)
-		*path = nd.path;
+
+	/* the first argument of filename_lookup() is ignored with LOOKUP_ROOT */
+	if (!IS_ERR(filename)) {
+		struct nameidata nd;
+		nd.root.dentry = dentry;
+		nd.root.mnt = mnt;
+		err = filename_lookup(AT_FDCWD, filename,
+				      flags | LOOKUP_ROOT, &nd);
+		if (!err)
+			*path = nd.path;
+		putname(filename);
+	}
 	return err;
 }
 EXPORT_SYMBOL(vfs_path_lookup);
