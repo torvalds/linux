@@ -3944,10 +3944,52 @@ static inline int fw_major_num(const char *fw_ver)
 	return fw_major;
 }
 
+/* If any VFs are already enabled don't FLR the PF */
+static bool be_reset_required(struct be_adapter *adapter)
+{
+	return pci_num_vf(adapter->pdev) ? false : true;
+}
+
+/* Wait for the FW to be ready and perform the required initialization */
+static int be_func_init(struct be_adapter *adapter)
+{
+	int status;
+
+	status = be_fw_wait_ready(adapter);
+	if (status)
+		return status;
+
+	if (be_reset_required(adapter)) {
+		status = be_cmd_reset_function(adapter);
+		if (status)
+			return status;
+
+		/* Wait for interrupts to quiesce after an FLR */
+		msleep(100);
+
+		/* We can clear all errors when function reset succeeds */
+		be_clear_all_error(adapter);
+	}
+
+	/* Tell FW we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		return status;
+
+	/* Allow interrupts for other ULPs running on NIC function */
+	be_intr_set(adapter, true);
+
+	return 0;
+}
+
 static int be_setup(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 	int status;
+
+	status = be_func_init(adapter);
+	if (status)
+		return status;
 
 	be_setup_init(adapter);
 
@@ -4903,44 +4945,6 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->ethtool_ops = &be_ethtool_ops;
 }
 
-/* If any VFs are already enabled don't FLR the PF */
-static bool be_reset_required(struct be_adapter *adapter)
-{
-	return pci_num_vf(adapter->pdev) ? false : true;
-}
-
-/* Wait for the FW to be ready and perform the required initialization */
-static int be_func_init(struct be_adapter *adapter)
-{
-	int status;
-
-	status = be_fw_wait_ready(adapter);
-	if (status)
-		return status;
-
-	if (be_reset_required(adapter)) {
-		status = be_cmd_reset_function(adapter);
-		if (status)
-			return status;
-
-		/* Wait for interrupts to quiesce after an FLR */
-		msleep(100);
-
-		/* We can clear all errors when function reset succeeds */
-		be_clear_all_error(adapter);
-	}
-
-	/* Tell FW we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
-	if (status)
-		return status;
-
-	/* Allow interrupts for other ULPs running on NIC function */
-	be_intr_set(adapter, true);
-
-	return 0;
-}
-
 static void be_cleanup(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -4958,10 +4962,6 @@ static int be_resume(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	int status;
-
-	status = be_func_init(adapter);
-	if (status)
-		return status;
 
 	status = be_setup(adapter);
 	if (status)
@@ -5364,10 +5364,6 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	status = be_drv_init(adapter);
 	if (status)
 		goto unmap_bars;
-
-	status = be_func_init(adapter);
-	if (status)
-		goto drv_cleanup;
 
 	status = be_setup(adapter);
 	if (status)
