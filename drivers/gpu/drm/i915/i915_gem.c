@@ -4594,10 +4594,6 @@ i915_gem_suspend(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev);
 
-	/* Under UMS, be paranoid and evict. */
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		i915_gem_evict_everything(dev);
-
 	i915_gem_stop_ringbuffers(dev);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -4961,17 +4957,7 @@ i915_gem_load(struct drm_device *dev)
 			  i915_gem_idle_work_handler);
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 
-	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
-	if (!drm_core_check_feature(dev, DRIVER_MODESET) && IS_GEN3(dev)) {
-		I915_WRITE(MI_ARB_STATE,
-			   _MASKED_BIT_ENABLE(MI_ARB_C3_LP_WRITE_ENABLE));
-	}
-
 	dev_priv->relative_constants_mode = I915_EXEC_CONSTANTS_REL_GENERAL;
-
-	/* Old X drivers will take 0-2 for front, back, depth buffers */
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		dev_priv->fence_reg_start = 3;
 
 	if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev))
 		dev_priv->num_fence_regs = 32;
