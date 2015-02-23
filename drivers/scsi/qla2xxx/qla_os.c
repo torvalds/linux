@@ -447,11 +447,11 @@ static int qla25xx_setup_mode(struct scsi_qla_host *vha)
 		}
 		ha->flags.cpu_affinity_enabled = 1;
 		ql_dbg(ql_dbg_multiq, vha, 0xc007,
-		    "CPU affinity mode enalbed, "
+		    "CPU affinity mode enabled, "
 		    "no. of response queues:%d no. of request queues:%d.\n",
 		    ha->max_rsp_queues, ha->max_req_queues);
 		ql_dbg(ql_dbg_init, vha, 0x00e9,
-		    "CPU affinity mode enalbed, "
+		    "CPU affinity mode enabled, "
 		    "no. of response queues:%d no. of request queues:%d.\n",
 		    ha->max_rsp_queues, ha->max_req_queues);
 	}
