@@ -1275,6 +1275,7 @@ config COMEDI_AMPLC_PC236
 
 config COMEDI_DAS08
 	tristate
+	select COMEDI_8254
 	select COMEDI_8255
 
 config COMEDI_ISADMA
