@@ -3771,12 +3771,24 @@ static void be_sriov_config(struct be_adapter *adapter)
 
 static int be_get_config(struct be_adapter *adapter)
 {
+	int status, level;
 	u16 profile_id;
-	int status;
+
+	status = be_cmd_get_cntl_attributes(adapter);
+	if (status)
+		return status;
 
 	status = be_cmd_query_fw_cfg(adapter);
 	if (status)
 		return status;
+
+	if (BEx_chip(adapter)) {
+		level = be_cmd_get_fw_log_level(adapter);
+		adapter->msg_enable =
+			level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
+	}
+
+	be_cmd_get_acpi_wol_cap(adapter);
 
 	be_cmd_query_port_name(adapter);
 
@@ -3966,8 +3978,6 @@ static int be_setup(struct be_adapter *adapter)
 		be_vid_config(adapter);
 
 	be_set_rx_mode(adapter->netdev);
-
-	be_cmd_get_acpi_wol_cap(adapter);
 
 	status = be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					 adapter->rx_fc);
@@ -5179,24 +5189,6 @@ static void be_remove(struct pci_dev *pdev)
 	free_netdev(adapter->netdev);
 }
 
-static int be_get_initial_config(struct be_adapter *adapter)
-{
-	int status, level;
-
-	status = be_cmd_get_cntl_attributes(adapter);
-	if (status)
-		return status;
-
-	if (BEx_chip(adapter)) {
-		level = be_cmd_get_fw_log_level(adapter);
-		adapter->msg_enable =
-			level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
-	}
-
-	return 0;
-}
-
-
 /* If any VFs are already enabled don't FLR the PF */
 static bool be_reset_required(struct be_adapter *adapter)
 {
@@ -5330,10 +5322,6 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 
 	/* tell fw we're ready to fire cmds */
 	status = be_cmd_fw_init(adapter);
-	if (status)
-		goto drv_cleanup;
-
-	status = be_get_initial_config(adapter);
 	if (status)
 		goto drv_cleanup;
 
