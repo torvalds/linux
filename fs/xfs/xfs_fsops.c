@@ -693,10 +693,6 @@ xfs_reserve_blocks(
 	 * what to do. This means that the amount of free space can
 	 * change while we do this, so we need to retry if we end up
 	 * trying to reserve more space than is available.
-	 *
-	 * We also use the xfs_mod_incore_sb() interface so that we
-	 * don't have to care about whether per cpu counter are
-	 * enabled, disabled or even compiled in....
 	 */
 retry:
 	spin_lock(&mp->m_sb_lock);
