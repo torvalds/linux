@@ -863,37 +863,34 @@ int i915_reset(struct drm_device *dev)
 	 * was running at the time of the reset (i.e. we weren't VT
 	 * switched away).
 	 */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		/* Used to prevent gem_check_wedged returning -EAGAIN during gpu reset */
-		dev_priv->gpu_error.reload_in_reset = true;
 
-		ret = i915_gem_init_hw(dev);
+	/* Used to prevent gem_check_wedged returning -EAGAIN during gpu reset */
+	dev_priv->gpu_error.reload_in_reset = true;
 
-		dev_priv->gpu_error.reload_in_reset = false;
+	ret = i915_gem_init_hw(dev);
 
-		mutex_unlock(&dev->struct_mutex);
-		if (ret) {
-			DRM_ERROR("Failed hw init on reset %d\n", ret);
-			return ret;
-		}
+	dev_priv->gpu_error.reload_in_reset = false;
 
-		/*
-		 * FIXME: This races pretty badly against concurrent holders of
-		 * ring interrupts. This is possible since we've started to drop
-		 * dev->struct_mutex in select places when waiting for the gpu.
-		 */
-
-		/*
-		 * rps/rc6 re-init is necessary to restore state lost after the
-		 * reset and the re-install of gt irqs. Skip for ironlake per
-		 * previous concerns that it doesn't respond well to some forms
-		 * of re-init after reset.
-		 */
-		if (INTEL_INFO(dev)->gen > 5)
-			intel_enable_gt_powersave(dev);
-	} else {
-		mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->struct_mutex);
+	if (ret) {
+		DRM_ERROR("Failed hw init on reset %d\n", ret);
+		return ret;
 	}
+
+	/*
+	 * FIXME: This races pretty badly against concurrent holders of
+	 * ring interrupts. This is possible since we've started to drop
+	 * dev->struct_mutex in select places when waiting for the gpu.
+	 */
+
+	/*
+	 * rps/rc6 re-init is necessary to restore state lost after the
+	 * reset and the re-install of gt irqs. Skip for ironlake per
+	 * previous concerns that it doesn't respond well to some forms
+	 * of re-init after reset.
+	 */
+	if (INTEL_INFO(dev)->gen > 5)
+		intel_enable_gt_powersave(dev);
 
 	return 0;
 }
