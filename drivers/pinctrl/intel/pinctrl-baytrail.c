@@ -66,6 +66,10 @@
 #define BYT_DIR_MASK		(BIT(1) | BIT(2))
 #define BYT_TRIG_MASK		(BIT(26) | BIT(25) | BIT(24))
 
+#define BYT_CONF0_RESTORE_MASK	(BYT_DIRECT_IRQ_EN | BYT_TRIG_MASK | \
+				 BYT_PIN_MUX)
+#define BYT_VAL_RESTORE_MASK	(BYT_DIR_MASK | BYT_LEVEL)
+
 #define BYT_NGPIO_SCORE		102
 #define BYT_NGPIO_NCORE		28
 #define BYT_NGPIO_SUS		44
@@ -134,12 +138,18 @@ static struct pinctrl_gpio_range byt_ranges[] = {
 	},
 };
 
+struct byt_gpio_pin_context {
+	u32 conf0;
+	u32 val;
+};
+
 struct byt_gpio {
 	struct gpio_chip		chip;
 	struct platform_device		*pdev;
 	spinlock_t			lock;
 	void __iomem			*reg_base;
 	struct pinctrl_gpio_range	*range;
+	struct byt_gpio_pin_context	*saved_context;
 };
 
 #define to_byt_gpio(c)	container_of(c, struct byt_gpio, chip)
@@ -584,6 +594,11 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	gc->can_sleep = false;
 	gc->dev = dev;
 
+#ifdef CONFIG_PM_SLEEP
+	vg->saved_context = devm_kcalloc(&pdev->dev, gc->ngpio,
+				       sizeof(*vg->saved_context), GFP_KERNEL);
+#endif
+
 	ret = gpiochip_add(gc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed adding byt-gpio chip\n");
@@ -612,6 +627,69 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int byt_gpio_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct byt_gpio *vg = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < vg->chip.ngpio; i++) {
+		void __iomem *reg;
+		u32 value;
+
+		reg = byt_gpio_reg(&vg->chip, i, BYT_CONF0_REG);
+		value = readl(reg) & BYT_CONF0_RESTORE_MASK;
+		vg->saved_context[i].conf0 = value;
+
+		reg = byt_gpio_reg(&vg->chip, i, BYT_VAL_REG);
+		value = readl(reg) & BYT_VAL_RESTORE_MASK;
+		vg->saved_context[i].val = value;
+	}
+
+	return 0;
+}
+
+static int byt_gpio_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct byt_gpio *vg = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < vg->chip.ngpio; i++) {
+		void __iomem *reg;
+		u32 value;
+
+		reg = byt_gpio_reg(&vg->chip, i, BYT_CONF0_REG);
+		value = readl(reg);
+		if ((value & BYT_CONF0_RESTORE_MASK) !=
+		     vg->saved_context[i].conf0) {
+			value &= ~BYT_CONF0_RESTORE_MASK;
+			value |= vg->saved_context[i].conf0;
+			writel(value, reg);
+			dev_info(dev, "restored pin %d conf0 %#08x", i, value);
+		}
+
+		reg = byt_gpio_reg(&vg->chip, i, BYT_VAL_REG);
+		value = readl(reg);
+		if ((value & BYT_VAL_RESTORE_MASK) !=
+		     vg->saved_context[i].val) {
+			u32 v;
+
+			v = value & ~BYT_VAL_RESTORE_MASK;
+			v |= vg->saved_context[i].val;
+			if (v != value) {
+				writel(v, reg);
+				dev_dbg(dev, "restored pin %d val %#08x\n",
+					i, v);
+			}
+		}
+	}
+
+	return 0;
+}
+#endif
+
 static int byt_gpio_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -623,8 +701,9 @@ static int byt_gpio_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops byt_gpio_pm_ops = {
-	.runtime_suspend = byt_gpio_runtime_suspend,
-	.runtime_resume = byt_gpio_runtime_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(byt_gpio_suspend, byt_gpio_resume)
+	SET_RUNTIME_PM_OPS(byt_gpio_runtime_suspend, byt_gpio_runtime_resume,
+			   NULL)
 };
 
 static const struct acpi_device_id byt_gpio_acpi_match[] = {
