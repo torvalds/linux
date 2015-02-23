@@ -119,7 +119,7 @@
  * PATH_MAX includes the nul terminator --RR.
  */
 
-#define EMBEDDED_NAME_MAX	(PATH_MAX - sizeof(struct filename))
+#define EMBEDDED_NAME_MAX	(PATH_MAX - offsetof(struct filename, iname))
 
 struct filename *
 getname_flags(const char __user *filename, int flags, int *empty)
@@ -140,9 +140,8 @@ getname_flags(const char __user *filename, int flags, int *empty)
 	 * First, try to embed the struct filename inside the names_cache
 	 * allocation
 	 */
-	kname = (char *)result + sizeof(*result);
+	kname = (char *)result->iname;
 	result->name = kname;
-	result->separate = false;
 
 	len = strncpy_from_user(kname, filename, EMBEDDED_NAME_MAX);
 	if (unlikely(len < 0)) {
@@ -157,15 +156,20 @@ getname_flags(const char __user *filename, int flags, int *empty)
 	 * userland.
 	 */
 	if (unlikely(len == EMBEDDED_NAME_MAX)) {
+		const size_t size = offsetof(struct filename, iname[1]);
 		kname = (char *)result;
 
-		result = kzalloc(sizeof(*result), GFP_KERNEL);
+		/*
+		 * size is chosen that way we to guarantee that
+		 * result->iname[0] is within the same object and that
+		 * kname can't be equal to result->iname, no matter what.
+		 */
+		result = kzalloc(size, GFP_KERNEL);
 		if (unlikely(!result)) {
 			__putname(kname);
 			return ERR_PTR(-ENOMEM);
 		}
 		result->name = kname;
-		result->separate = true;
 		len = strncpy_from_user(kname, filename, PATH_MAX);
 		if (unlikely(len < 0)) {
 			__putname(kname);
@@ -213,8 +217,7 @@ getname_kernel(const char * filename)
 		return ERR_PTR(-ENOMEM);
 
 	if (len <= EMBEDDED_NAME_MAX) {
-		result->name = (char *)(result) + sizeof(*result);
-		result->separate = false;
+		result->name = (char *)result->iname;
 	} else if (len <= PATH_MAX) {
 		struct filename *tmp;
 
@@ -224,7 +227,6 @@ getname_kernel(const char * filename)
 			return ERR_PTR(-ENOMEM);
 		}
 		tmp->name = (char *)result;
-		tmp->separate = true;
 		result = tmp;
 	} else {
 		__putname(result);
@@ -246,7 +248,7 @@ void putname(struct filename *name)
 	if (--name->refcnt > 0)
 		return;
 
-	if (name->separate) {
+	if (name->name != name->iname) {
 		__putname(name->name);
 		kfree(name);
 	} else
@@ -1852,6 +1854,7 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 		     struct nameidata *nd)
 {
 	int retval = 0;
+	const char *s = name->name;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags | LOOKUP_JUMPED | LOOKUP_PARENT;
@@ -1860,7 +1863,7 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 	if (flags & LOOKUP_ROOT) {
 		struct dentry *root = nd->root.dentry;
 		struct inode *inode = root->d_inode;
-		if (name->name[0]) {
+		if (*s) {
 			if (!d_can_lookup(root))
 				return -ENOTDIR;
 			retval = inode_permission(inode, MAY_EXEC);
@@ -1882,7 +1885,7 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 	nd->root.mnt = NULL;
 
 	nd->m_seq = read_seqbegin(&mount_lock);
-	if (name->name[0] == '/') {
+	if (*s == '/') {
 		if (flags & LOOKUP_RCU) {
 			rcu_read_lock();
 			nd->seq = set_root_rcu(nd);
@@ -1916,7 +1919,7 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 
 		dentry = f.file->f_path.dentry;
 
-		if (name->name[0]) {
+		if (*s) {
 			if (!d_can_lookup(dentry)) {
 				fdput(f);
 				return -ENOTDIR;
@@ -1946,7 +1949,7 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 	return -ECHILD;
 done:
 	current->total_link_count = 0;
-	return link_path_walk(name->name, nd);
+	return link_path_walk(s, nd);
 }
 
 static void path_cleanup(struct nameidata *nd)
