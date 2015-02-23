@@ -483,16 +483,6 @@ config SERIAL_SA1100_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_MFD_HSU
-	tristate "Medfield High Speed UART support"
-	depends on PCI
-	select SERIAL_CORE
-
-config SERIAL_MFD_HSU_CONSOLE
-	bool "Medfield HSU serial console support"
-	depends on SERIAL_MFD_HSU=y
-	select SERIAL_CORE_CONSOLE
-
 config SERIAL_BFIN
 	tristate "Blackfin serial port support"
 	depends on BLACKFIN
