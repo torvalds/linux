@@ -2069,6 +2069,12 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 		radeon_crtc->connector = NULL;
 		return false;
 	}
+	if (radeon_crtc->encoder) {
+		struct radeon_encoder *radeon_encoder =
+			to_radeon_encoder(radeon_crtc->encoder);
+
+		radeon_crtc->output_csc = radeon_encoder->output_csc;
+	}
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
 		return false;
 	if (!atombios_crtc_prepare_pll(crtc, adjusted_mode))
