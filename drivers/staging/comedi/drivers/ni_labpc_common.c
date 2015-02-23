@@ -20,10 +20,11 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "../comedidev.h"
 
-#include "8253.h"
+#include "comedi_8254.h"
 #include "8255.h"
 #include "comedi_fc.h"
 #include "ni_labpc.h"
@@ -106,32 +107,6 @@ static void labpc_writeb(struct comedi_device *dev,
 			 unsigned int byte, unsigned long reg)
 {
 	writeb(byte, dev->mmio + reg);
-}
-
-static void labpc_counter_load(struct comedi_device *dev,
-			       unsigned long reg,
-			       unsigned int counter_number,
-			       unsigned int count,
-			       unsigned int mode)
-{
-	if (dev->mmio) {
-		i8254_mm_set_mode(dev->mmio + reg, 0, counter_number, mode);
-		i8254_mm_write(dev->mmio + reg, 0, counter_number, count);
-	} else {
-		i8254_set_mode(dev->iobase + reg, 0, counter_number, mode);
-		i8254_write(dev->iobase + reg, 0, counter_number, count);
-	}
-}
-
-static void labpc_counter_set_mode(struct comedi_device *dev,
-				   unsigned long reg,
-				   unsigned int counter_number,
-				   unsigned int mode)
-{
-	if (dev->mmio)
-		i8254_mm_set_mode(dev->mmio + reg, 0, counter_number, mode);
-	else
-		i8254_set_mode(dev->iobase + reg, 0, counter_number, mode);
 }
 
 static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -284,7 +259,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	devpriv->write_byte(dev, devpriv->cmd4, CMD4_REG);
 
 	/* initialize pacer counter to prevent any problems */
-	labpc_counter_set_mode(dev, COUNTER_A_BASE_REG, 0, I8254_MODE2);
+	comedi_8254_set_mode(devpriv->counter, 0, I8254_MODE2 | I8254_BINARY);
 
 	labpc_clear_adc_fifo(dev);
 
@@ -367,83 +342,79 @@ static void labpc_set_ai_scan_period(struct comedi_cmd *cmd,
 static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 			     enum scan_mode mode)
 {
-	struct labpc_private *devpriv = dev->private;
+	struct comedi_8254 *pacer = dev->pacer;
+	unsigned int convert_period = labpc_ai_convert_period(cmd, mode);
+	unsigned int scan_period = labpc_ai_scan_period(cmd, mode);
 	unsigned int base_period;
-	unsigned int scan_period;
-	unsigned int convert_period;
 
 	/*
-	 * if both convert and scan triggers are TRIG_TIMER, then they
-	 * both rely on counter b0
+	 * If both convert and scan triggers are TRIG_TIMER, then they
+	 * both rely on counter b0. If only one TRIG_TIMER is used, we
+	 * can use the generic cascaded timing functions.
 	 */
-	convert_period = labpc_ai_convert_period(cmd, mode);
-	scan_period = labpc_ai_scan_period(cmd, mode);
 	if (convert_period && scan_period) {
 		/*
-		 * pick the lowest b0 divisor value we can (for maximum input
+		 * pick the lowest divisor value we can (for maximum input
 		 * clock speed on convert and scan counters)
 		 */
-		devpriv->divisor_b0 = (scan_period - 1) /
-		    (I8254_OSC_BASE_2MHZ * 0x10000) + 1;
+		pacer->next_div1 = (scan_period - 1) /
+				   (pacer->osc_base * I8254_MAX_COUNT) + 1;
 
-		cfc_check_trigger_arg_min(&devpriv->divisor_b0, 2);
-		cfc_check_trigger_arg_max(&devpriv->divisor_b0, 0x10000);
+		cfc_check_trigger_arg_min(&pacer->next_div1, 2);
+		cfc_check_trigger_arg_max(&pacer->next_div1, I8254_MAX_COUNT);
 
-		base_period = I8254_OSC_BASE_2MHZ * devpriv->divisor_b0;
+		base_period = pacer->osc_base * pacer->next_div1;
 
 		/*  set a0 for conversion frequency and b1 for scan frequency */
 		switch (cmd->flags & CMDF_ROUND_MASK) {
 		default:
 		case CMDF_ROUND_NEAREST:
-			devpriv->divisor_a0 = DIV_ROUND_CLOSEST(convert_period,
-								base_period);
-			devpriv->divisor_b1 = DIV_ROUND_CLOSEST(scan_period,
-								base_period);
+			pacer->next_div = DIV_ROUND_CLOSEST(convert_period,
+							    base_period);
+			pacer->next_div2 = DIV_ROUND_CLOSEST(scan_period,
+							     base_period);
 			break;
 		case CMDF_ROUND_UP:
-			devpriv->divisor_a0 = DIV_ROUND_UP(convert_period,
-							   base_period);
-			devpriv->divisor_b1 = DIV_ROUND_UP(scan_period,
-							   base_period);
+			pacer->next_div = DIV_ROUND_UP(convert_period,
+						       base_period);
+			pacer->next_div2 = DIV_ROUND_UP(scan_period,
+							base_period);
 			break;
 		case CMDF_ROUND_DOWN:
-			devpriv->divisor_a0 = convert_period / base_period;
-			devpriv->divisor_b1 = scan_period / base_period;
+			pacer->next_div = convert_period / base_period;
+			pacer->next_div2 = scan_period / base_period;
 			break;
 		}
 		/*  make sure a0 and b1 values are acceptable */
-		cfc_check_trigger_arg_min(&devpriv->divisor_a0, 2);
-		cfc_check_trigger_arg_max(&devpriv->divisor_a0, 0x10000);
-		cfc_check_trigger_arg_min(&devpriv->divisor_b1, 2);
-		cfc_check_trigger_arg_max(&devpriv->divisor_b1, 0x10000);
+		cfc_check_trigger_arg_min(&pacer->next_div, 2);
+		cfc_check_trigger_arg_max(&pacer->next_div, I8254_MAX_COUNT);
+		cfc_check_trigger_arg_min(&pacer->next_div2, 2);
+		cfc_check_trigger_arg_max(&pacer->next_div2, I8254_MAX_COUNT);
+
 		/*  write corrected timings to command */
 		labpc_set_ai_convert_period(cmd, mode,
-					    base_period * devpriv->divisor_a0);
+					    base_period * pacer->next_div);
 		labpc_set_ai_scan_period(cmd, mode,
-					 base_period * devpriv->divisor_b1);
-		/*
-		 * if only one TRIG_TIMER is used, we can employ the generic
-		 * cascaded timing functions
-		 */
+					 base_period * pacer->next_div2);
 	} else if (scan_period) {
 		/*
 		 * calculate cascaded counter values
 		 * that give desired scan timing
+		 * (pacer->next_div2 / pacer->next_div1)
 		 */
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
-					  &devpriv->divisor_b1,
-					  &devpriv->divisor_b0,
-					  &scan_period, cmd->flags);
+		comedi_8254_cascade_ns_to_timer(pacer, &scan_period,
+						cmd->flags);
 		labpc_set_ai_scan_period(cmd, mode, scan_period);
 	} else if (convert_period) {
 		/*
 		 * calculate cascaded counter values
 		 * that give desired conversion timing
+		 * (pacer->next_div / pacer->next_div1)
 		 */
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
-					  &devpriv->divisor_a0,
-					  &devpriv->divisor_b0,
-					  &convert_period, cmd->flags);
+		comedi_8254_cascade_ns_to_timer(pacer, &convert_period,
+						cmd->flags);
+		/* transfer div2 value so correct timer gets updated */
+		pacer->next_div = pacer->next_div2;
 		labpc_set_ai_convert_period(cmd, mode, convert_period);
 	}
 }
@@ -667,11 +638,12 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * load counter a1 with count of 3
 		 * (pc+ manual says this is minimum allowed) using mode 0
 		 */
-		labpc_counter_load(dev, COUNTER_A_BASE_REG,
-				   1, 3, I8254_MODE0);
+		comedi_8254_load(devpriv->counter, 1,
+				 3, I8254_MODE0 | I8254_BINARY);
 	} else	{
 		/* just put counter a1 in mode 0 to set its output low */
-		labpc_counter_set_mode(dev, COUNTER_A_BASE_REG, 1, I8254_MODE0);
+		comedi_8254_set_mode(devpriv->counter, 1,
+				     I8254_MODE0 | I8254_BINARY);
 	}
 
 	/* figure out what method we will use to transfer data */
@@ -712,27 +684,24 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->convert_src == TRIG_TIMER ||
 	    cmd->scan_begin_src == TRIG_TIMER) {
-		/*  set up pacing */
-		labpc_adc_timing(dev, cmd, mode);
-		/*  load counter b0 in mode 3 */
-		labpc_counter_load(dev, COUNTER_B_BASE_REG,
-				   0, devpriv->divisor_b0, I8254_MODE3);
-	}
-	/*  set up conversion pacing */
-	if (labpc_ai_convert_period(cmd, mode)) {
-		/*  load counter a0 in mode 2 */
-		labpc_counter_load(dev, COUNTER_A_BASE_REG,
-				   0, devpriv->divisor_a0, I8254_MODE2);
-	} else {
-		/* initialize pacer counter to prevent any problems */
-		labpc_counter_set_mode(dev, COUNTER_A_BASE_REG, 0, I8254_MODE2);
-	}
+		struct comedi_8254 *pacer = dev->pacer;
+		struct comedi_8254 *counter = devpriv->counter;
 
-	/*  set up scan pacing */
-	if (labpc_ai_scan_period(cmd, mode)) {
-		/*  load counter b1 in mode 2 */
-		labpc_counter_load(dev, COUNTER_B_BASE_REG,
-				   1, devpriv->divisor_b1, I8254_MODE2);
+		comedi_8254_update_divisors(pacer);
+
+		/* set up pacing */
+		comedi_8254_load(pacer, 0, pacer->divisor1,
+				 I8254_MODE3 | I8254_BINARY);
+
+		/* set up conversion pacing */
+		comedi_8254_set_mode(counter, 0, I8254_MODE2 | I8254_BINARY);
+		if (labpc_ai_convert_period(cmd, mode))
+			comedi_8254_write(counter, 0, pacer->divisor);
+
+		/* set up scan pacing */
+		if (labpc_ai_scan_period(cmd, mode))
+			comedi_8254_load(pacer, 1, pacer->divisor2,
+					 I8254_MODE2 | I8254_BINARY);
 	}
 
 	labpc_clear_adc_fifo(dev);
@@ -1237,6 +1206,26 @@ int labpc_common_attach(struct comedi_device *dev,
 			dev->irq = irq;
 	}
 
+	if (dev->mmio) {
+		dev->pacer = comedi_8254_mm_init(dev->mmio + COUNTER_B_BASE_REG,
+						 I8254_OSC_BASE_2MHZ,
+						 I8254_IO8, 0);
+		devpriv->counter = comedi_8254_mm_init(dev->mmio +
+						       COUNTER_A_BASE_REG,
+						       I8254_OSC_BASE_2MHZ,
+						       I8254_IO8, 0);
+	} else {
+		dev->pacer = comedi_8254_init(dev->iobase + COUNTER_B_BASE_REG,
+					      I8254_OSC_BASE_2MHZ,
+					      I8254_IO8, 0);
+		devpriv->counter = comedi_8254_init(dev->iobase +
+						    COUNTER_A_BASE_REG,
+						    I8254_OSC_BASE_2MHZ,
+						    I8254_IO8, 0);
+	}
+	if (!dev->pacer || !devpriv->counter)
+		return -ENOMEM;
+
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
 		return ret;
@@ -1332,6 +1321,15 @@ int labpc_common_attach(struct comedi_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(labpc_common_attach);
+
+void labpc_common_detach(struct comedi_device *dev)
+{
+	struct labpc_private *devpriv = dev->private;
+
+	if (devpriv)
+		kfree(devpriv->counter);
+}
+EXPORT_SYMBOL_GPL(labpc_common_detach);
 
 static int __init labpc_common_init(void)
 {

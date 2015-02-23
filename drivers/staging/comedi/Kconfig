@@ -1292,6 +1292,7 @@ config COMEDI_ISADMA
 
 config COMEDI_NI_LABPC
 	tristate
+	select COMEDI_8254
 	select COMEDI_8255
 
 config COMEDI_NI_LABPC_ISADMA

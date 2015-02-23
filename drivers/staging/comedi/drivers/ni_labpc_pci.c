@@ -103,11 +103,17 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 	return labpc_common_attach(dev, pcidev->irq, IRQF_SHARED);
 }
 
+static void labpc_pci_detach(struct comedi_device *dev)
+{
+	labpc_common_detach(dev);
+	comedi_pci_detach(dev);
+}
+
 static struct comedi_driver labpc_pci_comedi_driver = {
 	.driver_name	= "labpc_pci",
 	.module		= THIS_MODULE,
 	.auto_attach	= labpc_pci_auto_attach,
-	.detach		= comedi_pci_detach,
+	.detach		= labpc_pci_detach,
 };
 
 static const struct pci_device_id labpc_pci_table[] = {

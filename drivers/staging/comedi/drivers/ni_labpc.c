@@ -105,6 +105,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void labpc_detach(struct comedi_device *dev)
 {
 	labpc_free_dma_chan(dev);
+	labpc_common_detach(dev);
 	comedi_legacy_detach(dev);
 }
 
