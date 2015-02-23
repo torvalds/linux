@@ -42,9 +42,7 @@
 
 static struct team_port *team_port_get_rcu(const struct net_device *dev)
 {
-	struct team_port *port = rcu_dereference(dev->rx_handler_data);
-
-	return team_port_exists(dev) ? port : NULL;
+	return rcu_dereference(dev->rx_handler_data);
 }
 
 static struct team_port *team_port_get_rtnl(const struct net_device *dev)
