@@ -719,6 +719,7 @@ config COMEDI_ADL_PCI8164
 
 config COMEDI_ADL_PCI9111
 	tristate "ADLink PCI-9111HR support"
+	select COMEDI_8254
 	---help---
 	  Enable support for ADlink PCI9111 cards
 
