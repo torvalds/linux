@@ -1222,6 +1222,9 @@ config COMEDI_VMK80XX
 
 endif # COMEDI_USB_DRIVERS
 
+config COMEDI_8254
+	tristate
+
 config COMEDI_8255
 	tristate "Generic 8255 support"
 	---help---

@@ -3,6 +3,7 @@
 ccflags-$(CONFIG_COMEDI_DEBUG)		:= -DDEBUG
 
 # Comedi "helper" modules
+obj-$(CONFIG_COMEDI_8254)		+= comedi_8254.o
 obj-$(CONFIG_COMEDI_ISADMA)		+= comedi_isadma.o
 
 # Comedi misc drivers
