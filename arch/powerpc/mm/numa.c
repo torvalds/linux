@@ -1263,12 +1263,17 @@ static int update_cpu_associativity_changes_mask(void)
  */
 static int vphn_unpack_associativity(const long *packed, __be32 *unpacked)
 {
+	__be64 be_packed[VPHN_REGISTER_COUNT];
 	int i, nr_assoc_doms = 0;
-	const __be16 *field = (const __be16 *) packed;
+	const __be16 *field = (const __be16 *) be_packed;
 
 #define VPHN_FIELD_UNUSED	(0xffff)
 #define VPHN_FIELD_MSB		(0x8000)
 #define VPHN_FIELD_MASK		(~VPHN_FIELD_MSB)
+
+	/* Let's recreate the original stream. */
+	for (i = 0; i < VPHN_REGISTER_COUNT; i++)
+		be_packed[i] = cpu_to_be64(packed[i]);
 
 	for (i = 1; i < VPHN_ASSOC_BUFSIZE; i++) {
 		if (be16_to_cpup(field) == VPHN_FIELD_UNUSED) {
@@ -1310,11 +1315,8 @@ static long hcall_vphn(unsigned long cpu, __be32 *associativity)
 	long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
 	u64 flags = 1;
 	int hwcpu = get_hard_smp_processor_id(cpu);
-	int i;
 
 	rc = plpar_hcall9(H_HOME_NODE_ASSOCIATIVITY, retbuf, flags, hwcpu);
-	for (i = 0; i < VPHN_REGISTER_COUNT; i++)
-		retbuf[i] = cpu_to_be64(retbuf[i]);
 	vphn_unpack_associativity(retbuf, associativity);
 
 	return rc;
