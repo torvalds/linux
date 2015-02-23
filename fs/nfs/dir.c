@@ -408,14 +408,22 @@ static int xdr_decode(nfs_readdir_descriptor_t *desc,
 	return 0;
 }
 
+/* Match file and dirent using either filehandle or fileid
+ * Note: caller is responsible for checking the fsid
+ */
 static
 int nfs_same_file(struct dentry *dentry, struct nfs_entry *entry)
 {
+	struct nfs_inode *nfsi;
+
 	if (dentry->d_inode == NULL)
 		goto different;
-	if (nfs_compare_fh(entry->fh, NFS_FH(dentry->d_inode)) != 0)
-		goto different;
-	return 1;
+
+	nfsi = NFS_I(dentry->d_inode);
+	if (entry->fattr->fileid == nfsi->fileid)
+		return 1;
+	if (nfs_compare_fh(entry->fh, &nfsi->fh) == 0)
+		return 1;
 different:
 	return 0;
 }
@@ -469,6 +477,8 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 	struct inode *inode;
 	int status;
 
+	if (!(entry->fattr->valid & NFS_ATTR_FATTR_FILEID))
+		return;
 	if (!(entry->fattr->valid & NFS_ATTR_FATTR_FSID))
 		return;
 	if (filename.name[0] == '.') {
