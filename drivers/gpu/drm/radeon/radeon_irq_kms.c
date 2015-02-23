@@ -87,6 +87,9 @@ static void radeon_hotplug_work_func(struct work_struct *work)
 	drm_helper_hpd_irq_event(dev);
 }
 
+static void radeon_dp_work_func(struct work_struct *work)
+{
+}
 /**
  * radeon_driver_irq_preinstall_kms - drm irq preinstall callback
  *
@@ -276,6 +279,7 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 	}
 
 	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
+	INIT_WORK(&rdev->dp_work, radeon_dp_work_func);
 	INIT_WORK(&rdev->audio_work, r600_audio_update_hdmi);
 
 	rdev->irq.installed = true;

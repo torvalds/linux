@@ -2412,6 +2412,7 @@ struct radeon_device {
 	struct radeon_rlc rlc;
 	struct radeon_mec mec;
 	struct work_struct hotplug_work;
+	struct work_struct dp_work;
 	struct work_struct audio_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
