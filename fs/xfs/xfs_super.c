@@ -1085,6 +1085,7 @@ xfs_fs_statfs(
 	xfs_sb_t		*sbp = &mp->m_sb;
 	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
 	__uint64_t		fakeinos, id;
+	__uint64_t		icount;
 	xfs_extlen_t		lsize;
 	__int64_t		ffree;
 
@@ -1096,6 +1097,7 @@ xfs_fs_statfs(
 	statp->f_fsid.val[1] = (u32)(id >> 32);
 
 	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
+	icount = percpu_counter_sum(&mp->m_icount);
 
 	spin_lock(&mp->m_sb_lock);
 	statp->f_bsize = sbp->sb_blocksize;
@@ -1104,8 +1106,7 @@ xfs_fs_statfs(
 	statp->f_bfree = statp->f_bavail =
 				sbp->sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 	fakeinos = statp->f_bfree << sbp->sb_inopblog;
-	statp->f_files =
-	    MIN(sbp->sb_icount + fakeinos, (__uint64_t)XFS_MAXINUMBER);
+	statp->f_files = MIN(icount + fakeinos, (__uint64_t)XFS_MAXINUMBER);
 	if (mp->m_maxicount)
 		statp->f_files = min_t(typeof(statp->f_files),
 					statp->f_files,
@@ -1117,7 +1118,7 @@ xfs_fs_statfs(
 					sbp->sb_icount);
 
 	/* make sure statp->f_ffree does not underflow */
-	ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
+	ffree = statp->f_files - (icount - sbp->sb_ifree);
 	statp->f_ffree = max_t(__int64_t, ffree, 0);
 
 	spin_unlock(&mp->m_sb_lock);

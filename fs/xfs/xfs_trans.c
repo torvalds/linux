@@ -554,8 +554,7 @@ xfs_trans_unreserve_and_mod_sb(
 	}
 
 	if (idelta) {
-		error = xfs_icsb_modify_counters(mp, XFS_SBS_ICOUNT,
-						 idelta, rsvd);
+		error = xfs_mod_icount(mp, idelta);
 		if (error)
 			goto out_undo_fdblocks;
 	}
@@ -634,7 +633,7 @@ out_undo_ifreecount:
 		xfs_icsb_modify_counters(mp, XFS_SBS_IFREE, -ifreedelta, rsvd);
 out_undo_icount:
 	if (idelta)
-		xfs_icsb_modify_counters(mp, XFS_SBS_ICOUNT, -idelta, rsvd);
+		xfs_mod_icount(mp, -idelta);
 out_undo_fdblocks:
 	if (blkdelta)
 		xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS, -blkdelta, rsvd);
