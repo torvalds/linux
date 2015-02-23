@@ -2844,12 +2844,12 @@ void be_detect_error(struct be_adapter *adapter)
 			sliport_err2 = ioread32(adapter->db +
 						SLIPORT_ERROR2_OFFSET);
 			adapter->hw_error = true;
+			error_detected = true;
 			/* Do not log error messages if its a FW reset */
 			if (sliport_err1 == SLIPORT_ERROR_FW_RESET1 &&
 			    sliport_err2 == SLIPORT_ERROR_FW_RESET2) {
 				dev_info(dev, "Firmware update in progress\n");
 			} else {
-				error_detected = true;
 				dev_err(dev, "Error detected in the card\n");
 				dev_err(dev, "ERR: sliport status 0x%x\n",
 					sliport_status);
@@ -3363,6 +3363,14 @@ static void be_cancel_worker(struct be_adapter *adapter)
 	}
 }
 
+static void be_cancel_err_detection(struct be_adapter *adapter)
+{
+	if (adapter->flags & BE_FLAGS_ERR_DETECTION_SCHEDULED) {
+		cancel_delayed_work_sync(&adapter->be_err_detection_work);
+		adapter->flags &= ~BE_FLAGS_ERR_DETECTION_SCHEDULED;
+	}
+}
+
 static void be_mac_clear(struct be_adapter *adapter)
 {
 	if (adapter->pmac_id) {
@@ -3771,12 +3779,24 @@ static void be_sriov_config(struct be_adapter *adapter)
 
 static int be_get_config(struct be_adapter *adapter)
 {
+	int status, level;
 	u16 profile_id;
-	int status;
+
+	status = be_cmd_get_cntl_attributes(adapter);
+	if (status)
+		return status;
 
 	status = be_cmd_query_fw_cfg(adapter);
 	if (status)
 		return status;
+
+	if (BEx_chip(adapter)) {
+		level = be_cmd_get_fw_log_level(adapter);
+		adapter->msg_enable =
+			level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
+	}
+
+	be_cmd_get_acpi_wol_cap(adapter);
 
 	be_cmd_query_port_name(adapter);
 
@@ -3833,6 +3853,13 @@ static void be_schedule_worker(struct be_adapter *adapter)
 {
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 	adapter->flags |= BE_FLAGS_WORKER_SCHEDULED;
+}
+
+static void be_schedule_err_detection(struct be_adapter *adapter)
+{
+	schedule_delayed_work(&adapter->be_err_detection_work,
+			      msecs_to_jiffies(1000));
+	adapter->flags |= BE_FLAGS_ERR_DETECTION_SCHEDULED;
 }
 
 static int be_setup_queues(struct be_adapter *adapter)
@@ -3917,10 +3944,52 @@ static inline int fw_major_num(const char *fw_ver)
 	return fw_major;
 }
 
+/* If any VFs are already enabled don't FLR the PF */
+static bool be_reset_required(struct be_adapter *adapter)
+{
+	return pci_num_vf(adapter->pdev) ? false : true;
+}
+
+/* Wait for the FW to be ready and perform the required initialization */
+static int be_func_init(struct be_adapter *adapter)
+{
+	int status;
+
+	status = be_fw_wait_ready(adapter);
+	if (status)
+		return status;
+
+	if (be_reset_required(adapter)) {
+		status = be_cmd_reset_function(adapter);
+		if (status)
+			return status;
+
+		/* Wait for interrupts to quiesce after an FLR */
+		msleep(100);
+
+		/* We can clear all errors when function reset succeeds */
+		be_clear_all_error(adapter);
+	}
+
+	/* Tell FW we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		return status;
+
+	/* Allow interrupts for other ULPs running on NIC function */
+	be_intr_set(adapter, true);
+
+	return 0;
+}
+
 static int be_setup(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 	int status;
+
+	status = be_func_init(adapter);
+	if (status)
+		return status;
 
 	be_setup_init(adapter);
 
@@ -3966,8 +4035,6 @@ static int be_setup(struct be_adapter *adapter)
 		be_vid_config(adapter);
 
 	be_set_rx_mode(adapter->netdev);
-
-	be_cmd_get_acpi_wol_cap(adapter);
 
 	status = be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					 adapter->rx_fc);
@@ -4878,276 +4945,79 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->ethtool_ops = &be_ethtool_ops;
 }
 
-static void be_unmap_pci_bars(struct be_adapter *adapter)
+static void be_cleanup(struct be_adapter *adapter)
 {
-	if (adapter->csr)
-		pci_iounmap(adapter->pdev, adapter->csr);
-	if (adapter->db)
-		pci_iounmap(adapter->pdev, adapter->db);
-}
+	struct net_device *netdev = adapter->netdev;
 
-static int db_bar(struct be_adapter *adapter)
-{
-	if (lancer_chip(adapter) || !be_physfn(adapter))
-		return 0;
-	else
-		return 4;
-}
-
-static int be_roce_map_pci_bars(struct be_adapter *adapter)
-{
-	if (skyhawk_chip(adapter)) {
-		adapter->roce_db.size = 4096;
-		adapter->roce_db.io_addr = pci_resource_start(adapter->pdev,
-							      db_bar(adapter));
-		adapter->roce_db.total_size = pci_resource_len(adapter->pdev,
-							       db_bar(adapter));
-	}
-	return 0;
-}
-
-static int be_map_pci_bars(struct be_adapter *adapter)
-{
-	u8 __iomem *addr;
-
-	if (BEx_chip(adapter) && be_physfn(adapter)) {
-		adapter->csr = pci_iomap(adapter->pdev, 2, 0);
-		if (!adapter->csr)
-			return -ENOMEM;
-	}
-
-	addr = pci_iomap(adapter->pdev, db_bar(adapter), 0);
-	if (!addr)
-		goto pci_map_err;
-	adapter->db = addr;
-
-	be_roce_map_pci_bars(adapter);
-	return 0;
-
-pci_map_err:
-	dev_err(&adapter->pdev->dev, "Error in mapping PCI BARs\n");
-	be_unmap_pci_bars(adapter);
-	return -ENOMEM;
-}
-
-static void be_ctrl_cleanup(struct be_adapter *adapter)
-{
-	struct be_dma_mem *mem = &adapter->mbox_mem_alloced;
-
-	be_unmap_pci_bars(adapter);
-
-	if (mem->va)
-		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
-				  mem->dma);
-
-	mem = &adapter->rx_filter;
-	if (mem->va)
-		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
-				  mem->dma);
-}
-
-static int be_ctrl_init(struct be_adapter *adapter)
-{
-	struct be_dma_mem *mbox_mem_alloc = &adapter->mbox_mem_alloced;
-	struct be_dma_mem *mbox_mem_align = &adapter->mbox_mem;
-	struct be_dma_mem *rx_filter = &adapter->rx_filter;
-	u32 sli_intf;
-	int status;
-
-	pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET, &sli_intf);
-	adapter->sli_family = (sli_intf & SLI_INTF_FAMILY_MASK) >>
-				 SLI_INTF_FAMILY_SHIFT;
-	adapter->virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
-
-	status = be_map_pci_bars(adapter);
-	if (status)
-		goto done;
-
-	mbox_mem_alloc->size = sizeof(struct be_mcc_mailbox) + 16;
-	mbox_mem_alloc->va = dma_alloc_coherent(&adapter->pdev->dev,
-						mbox_mem_alloc->size,
-						&mbox_mem_alloc->dma,
-						GFP_KERNEL);
-	if (!mbox_mem_alloc->va) {
-		status = -ENOMEM;
-		goto unmap_pci_bars;
-	}
-	mbox_mem_align->size = sizeof(struct be_mcc_mailbox);
-	mbox_mem_align->va = PTR_ALIGN(mbox_mem_alloc->va, 16);
-	mbox_mem_align->dma = PTR_ALIGN(mbox_mem_alloc->dma, 16);
-	memset(mbox_mem_align->va, 0, sizeof(struct be_mcc_mailbox));
-
-	rx_filter->size = sizeof(struct be_cmd_req_rx_filter);
-	rx_filter->va = dma_zalloc_coherent(&adapter->pdev->dev,
-					    rx_filter->size, &rx_filter->dma,
-					    GFP_KERNEL);
-	if (!rx_filter->va) {
-		status = -ENOMEM;
-		goto free_mbox;
-	}
-
-	mutex_init(&adapter->mbox_lock);
-	spin_lock_init(&adapter->mcc_lock);
-	spin_lock_init(&adapter->mcc_cq_lock);
-
-	init_completion(&adapter->et_cmd_compl);
-	pci_save_state(adapter->pdev);
-	return 0;
-
-free_mbox:
-	dma_free_coherent(&adapter->pdev->dev, mbox_mem_alloc->size,
-			  mbox_mem_alloc->va, mbox_mem_alloc->dma);
-
-unmap_pci_bars:
-	be_unmap_pci_bars(adapter);
-
-done:
-	return status;
-}
-
-static void be_stats_cleanup(struct be_adapter *adapter)
-{
-	struct be_dma_mem *cmd = &adapter->stats_cmd;
-
-	if (cmd->va)
-		dma_free_coherent(&adapter->pdev->dev, cmd->size,
-				  cmd->va, cmd->dma);
-}
-
-static int be_stats_init(struct be_adapter *adapter)
-{
-	struct be_dma_mem *cmd = &adapter->stats_cmd;
-
-	if (lancer_chip(adapter))
-		cmd->size = sizeof(struct lancer_cmd_req_pport_stats);
-	else if (BE2_chip(adapter))
-		cmd->size = sizeof(struct be_cmd_req_get_stats_v0);
-	else if (BE3_chip(adapter))
-		cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
-	else
-		/* ALL non-BE ASICs */
-		cmd->size = sizeof(struct be_cmd_req_get_stats_v2);
-
-	cmd->va = dma_zalloc_coherent(&adapter->pdev->dev, cmd->size, &cmd->dma,
-				      GFP_KERNEL);
-	if (!cmd->va)
-		return -ENOMEM;
-	return 0;
-}
-
-static void be_remove(struct pci_dev *pdev)
-{
-	struct be_adapter *adapter = pci_get_drvdata(pdev);
-
-	if (!adapter)
-		return;
-
-	be_roce_dev_remove(adapter);
-	be_intr_set(adapter, false);
-
-	cancel_delayed_work_sync(&adapter->func_recovery_work);
-
-	unregister_netdev(adapter->netdev);
+	rtnl_lock();
+	netif_device_detach(netdev);
+	if (netif_running(netdev))
+		be_close(netdev);
+	rtnl_unlock();
 
 	be_clear(adapter);
-
-	/* tell fw we're done with firing cmds */
-	be_cmd_fw_clean(adapter);
-
-	be_stats_cleanup(adapter);
-
-	be_ctrl_cleanup(adapter);
-
-	pci_disable_pcie_error_reporting(pdev);
-
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-
-	free_netdev(adapter->netdev);
 }
 
-static int be_get_initial_config(struct be_adapter *adapter)
+static int be_resume(struct be_adapter *adapter)
 {
-	int status, level;
+	struct net_device *netdev = adapter->netdev;
+	int status;
 
-	status = be_cmd_get_cntl_attributes(adapter);
+	status = be_setup(adapter);
 	if (status)
 		return status;
 
-	/* Must be a power of 2 or else MODULO will BUG_ON */
-	adapter->be_get_temp_freq = 64;
-
-	if (BEx_chip(adapter)) {
-		level = be_cmd_get_fw_log_level(adapter);
-		adapter->msg_enable =
-			level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
+	if (netif_running(netdev)) {
+		status = be_open(netdev);
+		if (status)
+			return status;
 	}
 
-	adapter->cfg_num_qs = netif_get_num_default_rss_queues();
+	netif_device_attach(netdev);
+
 	return 0;
 }
 
-static int lancer_recover_func(struct be_adapter *adapter)
+static int be_err_recover(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 	int status;
 
-	status = lancer_test_and_set_rdy_state(adapter);
+	status = be_resume(adapter);
 	if (status)
 		goto err;
 
-	if (netif_running(adapter->netdev))
-		be_close(adapter->netdev);
-
-	be_clear(adapter);
-
-	be_clear_all_error(adapter);
-
-	status = be_setup(adapter);
-	if (status)
-		goto err;
-
-	if (netif_running(adapter->netdev)) {
-		status = be_open(adapter->netdev);
-		if (status)
-			goto err;
-	}
-
-	dev_err(dev, "Adapter recovery successful\n");
+	dev_info(dev, "Adapter recovery successful\n");
 	return 0;
 err:
-	if (status == -EAGAIN)
-		dev_err(dev, "Waiting for resource provisioning\n");
-	else
+	if (be_physfn(adapter))
 		dev_err(dev, "Adapter recovery failed\n");
+	else
+		dev_err(dev, "Re-trying adapter recovery\n");
 
 	return status;
 }
 
-static void be_func_recovery_task(struct work_struct *work)
+static void be_err_detection_task(struct work_struct *work)
 {
 	struct be_adapter *adapter =
-		container_of(work, struct be_adapter,  func_recovery_work.work);
+				container_of(work, struct be_adapter,
+					     be_err_detection_work.work);
 	int status = 0;
 
 	be_detect_error(adapter);
 
-	if (adapter->hw_error && lancer_chip(adapter)) {
-		rtnl_lock();
-		netif_device_detach(adapter->netdev);
-		rtnl_unlock();
+	if (adapter->hw_error) {
+		be_cleanup(adapter);
 
-		status = lancer_recover_func(adapter);
-		if (!status)
-			netif_device_attach(adapter->netdev);
+		/* As of now error recovery support is in Lancer only */
+		if (lancer_chip(adapter))
+			status = be_err_recover(adapter);
 	}
 
-	/* In Lancer, for all errors other than provisioning error (-EAGAIN),
-	 * no need to attempt further recovery.
-	 */
-	if (!status || status == -EAGAIN)
-		schedule_delayed_work(&adapter->func_recovery_work,
-				      msecs_to_jiffies(1000));
+	/* Always attempt recovery on VFs */
+	if (!status || be_virtfn(adapter))
+		be_schedule_err_detection(adapter);
 }
 
 static void be_log_sfp_info(struct be_adapter *adapter)
@@ -5172,7 +5042,8 @@ static void be_worker(struct work_struct *work)
 	int i;
 
 	/* when interrupts are not yet enabled, just reap any pending
-	* mcc completions */
+	 * mcc completions
+	 */
 	if (!netif_running(adapter->netdev)) {
 		local_bh_disable();
 		be_process_mcc(adapter);
@@ -5210,10 +5081,182 @@ reschedule:
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }
 
-/* If any VFs are already enabled don't FLR the PF */
-static bool be_reset_required(struct be_adapter *adapter)
+static void be_unmap_pci_bars(struct be_adapter *adapter)
 {
-	return pci_num_vf(adapter->pdev) ? false : true;
+	if (adapter->csr)
+		pci_iounmap(adapter->pdev, adapter->csr);
+	if (adapter->db)
+		pci_iounmap(adapter->pdev, adapter->db);
+}
+
+static int db_bar(struct be_adapter *adapter)
+{
+	if (lancer_chip(adapter) || !be_physfn(adapter))
+		return 0;
+	else
+		return 4;
+}
+
+static int be_roce_map_pci_bars(struct be_adapter *adapter)
+{
+	if (skyhawk_chip(adapter)) {
+		adapter->roce_db.size = 4096;
+		adapter->roce_db.io_addr = pci_resource_start(adapter->pdev,
+							      db_bar(adapter));
+		adapter->roce_db.total_size = pci_resource_len(adapter->pdev,
+							       db_bar(adapter));
+	}
+	return 0;
+}
+
+static int be_map_pci_bars(struct be_adapter *adapter)
+{
+	u8 __iomem *addr;
+	u32 sli_intf;
+
+	pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET, &sli_intf);
+	adapter->sli_family = (sli_intf & SLI_INTF_FAMILY_MASK) >>
+				SLI_INTF_FAMILY_SHIFT;
+	adapter->virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
+
+	if (BEx_chip(adapter) && be_physfn(adapter)) {
+		adapter->csr = pci_iomap(adapter->pdev, 2, 0);
+		if (!adapter->csr)
+			return -ENOMEM;
+	}
+
+	addr = pci_iomap(adapter->pdev, db_bar(adapter), 0);
+	if (!addr)
+		goto pci_map_err;
+	adapter->db = addr;
+
+	be_roce_map_pci_bars(adapter);
+	return 0;
+
+pci_map_err:
+	dev_err(&adapter->pdev->dev, "Error in mapping PCI BARs\n");
+	be_unmap_pci_bars(adapter);
+	return -ENOMEM;
+}
+
+static void be_drv_cleanup(struct be_adapter *adapter)
+{
+	struct be_dma_mem *mem = &adapter->mbox_mem_alloced;
+	struct device *dev = &adapter->pdev->dev;
+
+	if (mem->va)
+		dma_free_coherent(dev, mem->size, mem->va, mem->dma);
+
+	mem = &adapter->rx_filter;
+	if (mem->va)
+		dma_free_coherent(dev, mem->size, mem->va, mem->dma);
+
+	mem = &adapter->stats_cmd;
+	if (mem->va)
+		dma_free_coherent(dev, mem->size, mem->va, mem->dma);
+}
+
+/* Allocate and initialize various fields in be_adapter struct */
+static int be_drv_init(struct be_adapter *adapter)
+{
+	struct be_dma_mem *mbox_mem_alloc = &adapter->mbox_mem_alloced;
+	struct be_dma_mem *mbox_mem_align = &adapter->mbox_mem;
+	struct be_dma_mem *rx_filter = &adapter->rx_filter;
+	struct be_dma_mem *stats_cmd = &adapter->stats_cmd;
+	struct device *dev = &adapter->pdev->dev;
+	int status = 0;
+
+	mbox_mem_alloc->size = sizeof(struct be_mcc_mailbox) + 16;
+	mbox_mem_alloc->va = dma_alloc_coherent(dev, mbox_mem_alloc->size,
+						&mbox_mem_alloc->dma,
+						GFP_KERNEL);
+	if (!mbox_mem_alloc->va)
+		return -ENOMEM;
+
+	mbox_mem_align->size = sizeof(struct be_mcc_mailbox);
+	mbox_mem_align->va = PTR_ALIGN(mbox_mem_alloc->va, 16);
+	mbox_mem_align->dma = PTR_ALIGN(mbox_mem_alloc->dma, 16);
+	memset(mbox_mem_align->va, 0, sizeof(struct be_mcc_mailbox));
+
+	rx_filter->size = sizeof(struct be_cmd_req_rx_filter);
+	rx_filter->va = dma_zalloc_coherent(dev, rx_filter->size,
+					    &rx_filter->dma, GFP_KERNEL);
+	if (!rx_filter->va) {
+		status = -ENOMEM;
+		goto free_mbox;
+	}
+
+	if (lancer_chip(adapter))
+		stats_cmd->size = sizeof(struct lancer_cmd_req_pport_stats);
+	else if (BE2_chip(adapter))
+		stats_cmd->size = sizeof(struct be_cmd_req_get_stats_v0);
+	else if (BE3_chip(adapter))
+		stats_cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
+	else
+		stats_cmd->size = sizeof(struct be_cmd_req_get_stats_v2);
+	stats_cmd->va = dma_zalloc_coherent(dev, stats_cmd->size,
+					    &stats_cmd->dma, GFP_KERNEL);
+	if (!stats_cmd->va) {
+		status = -ENOMEM;
+		goto free_rx_filter;
+	}
+
+	mutex_init(&adapter->mbox_lock);
+	spin_lock_init(&adapter->mcc_lock);
+	spin_lock_init(&adapter->mcc_cq_lock);
+	init_completion(&adapter->et_cmd_compl);
+
+	pci_save_state(adapter->pdev);
+
+	INIT_DELAYED_WORK(&adapter->work, be_worker);
+	INIT_DELAYED_WORK(&adapter->be_err_detection_work,
+			  be_err_detection_task);
+
+	adapter->rx_fc = true;
+	adapter->tx_fc = true;
+
+	/* Must be a power of 2 or else MODULO will BUG_ON */
+	adapter->be_get_temp_freq = 64;
+	adapter->cfg_num_qs = netif_get_num_default_rss_queues();
+
+	return 0;
+
+free_rx_filter:
+	dma_free_coherent(dev, rx_filter->size, rx_filter->va, rx_filter->dma);
+free_mbox:
+	dma_free_coherent(dev, mbox_mem_alloc->size, mbox_mem_alloc->va,
+			  mbox_mem_alloc->dma);
+	return status;
+}
+
+static void be_remove(struct pci_dev *pdev)
+{
+	struct be_adapter *adapter = pci_get_drvdata(pdev);
+
+	if (!adapter)
+		return;
+
+	be_roce_dev_remove(adapter);
+	be_intr_set(adapter, false);
+
+	be_cancel_err_detection(adapter);
+
+	unregister_netdev(adapter->netdev);
+
+	be_clear(adapter);
+
+	/* tell fw we're done with firing cmds */
+	be_cmd_fw_clean(adapter);
+
+	be_unmap_pci_bars(adapter);
+	be_drv_cleanup(adapter);
+
+	pci_disable_pcie_error_reporting(pdev);
+
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+
+	free_netdev(adapter->netdev);
 }
 
 static char *mc_name(struct be_adapter *adapter)
@@ -5314,50 +5357,17 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	if (!status)
 		dev_info(&pdev->dev, "PCIe error reporting enabled\n");
 
-	status = be_ctrl_init(adapter);
+	status = be_map_pci_bars(adapter);
 	if (status)
 		goto free_netdev;
 
-	/* sync up with fw's ready state */
-	if (be_physfn(adapter)) {
-		status = be_fw_wait_ready(adapter);
-		if (status)
-			goto ctrl_clean;
-	}
-
-	if (be_reset_required(adapter)) {
-		status = be_cmd_reset_function(adapter);
-		if (status)
-			goto ctrl_clean;
-
-		/* Wait for interrupts to quiesce after an FLR */
-		msleep(100);
-	}
-
-	/* Allow interrupts for other ULPs running on NIC function */
-	be_intr_set(adapter, true);
-
-	/* tell fw we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
+	status = be_drv_init(adapter);
 	if (status)
-		goto ctrl_clean;
-
-	status = be_stats_init(adapter);
-	if (status)
-		goto ctrl_clean;
-
-	status = be_get_initial_config(adapter);
-	if (status)
-		goto stats_clean;
-
-	INIT_DELAYED_WORK(&adapter->work, be_worker);
-	INIT_DELAYED_WORK(&adapter->func_recovery_work, be_func_recovery_task);
-	adapter->rx_fc = true;
-	adapter->tx_fc = true;
+		goto unmap_bars;
 
 	status = be_setup(adapter);
 	if (status)
-		goto stats_clean;
+		goto drv_cleanup;
 
 	be_netdev_init(netdev);
 	status = register_netdev(netdev);
@@ -5366,8 +5376,7 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 
 	be_roce_dev_add(adapter);
 
-	schedule_delayed_work(&adapter->func_recovery_work,
-			      msecs_to_jiffies(1000));
+	be_schedule_err_detection(adapter);
 
 	dev_info(&pdev->dev, "%s: %s %s port %c\n", nic_name(pdev),
 		 func_name(adapter), mc_name(adapter), adapter->port_name);
@@ -5376,10 +5385,10 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 
 unsetup:
 	be_clear(adapter);
-stats_clean:
-	be_stats_cleanup(adapter);
-ctrl_clean:
-	be_ctrl_cleanup(adapter);
+drv_cleanup:
+	be_drv_cleanup(adapter);
+unmap_bars:
+	be_unmap_pci_bars(adapter);
 free_netdev:
 	free_netdev(netdev);
 rel_reg:
@@ -5394,21 +5403,14 @@ do_none:
 static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev =  adapter->netdev;
 
 	if (adapter->wol_en)
 		be_setup_wol(adapter, true);
 
 	be_intr_set(adapter, false);
-	cancel_delayed_work_sync(&adapter->func_recovery_work);
+	be_cancel_err_detection(adapter);
 
-	netif_device_detach(netdev);
-	if (netif_running(netdev)) {
-		rtnl_lock();
-		be_close(netdev);
-		rtnl_unlock();
-	}
-	be_clear(adapter);
+	be_cleanup(adapter);
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
@@ -5416,13 +5418,10 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int be_resume(struct pci_dev *pdev)
+static int be_pci_resume(struct pci_dev *pdev)
 {
-	int status = 0;
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev =  adapter->netdev;
-
-	netif_device_detach(netdev);
+	int status = 0;
 
 	status = pci_enable_device(pdev);
 	if (status)
@@ -5431,30 +5430,11 @@ static int be_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
-	status = be_fw_wait_ready(adapter);
+	status = be_resume(adapter);
 	if (status)
 		return status;
 
-	status = be_cmd_reset_function(adapter);
-	if (status)
-		return status;
-
-	be_intr_set(adapter, true);
-	/* tell fw we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
-	if (status)
-		return status;
-
-	be_setup(adapter);
-	if (netif_running(netdev)) {
-		rtnl_lock();
-		be_open(netdev);
-		rtnl_unlock();
-	}
-
-	schedule_delayed_work(&adapter->func_recovery_work,
-			      msecs_to_jiffies(1000));
-	netif_device_attach(netdev);
+	be_schedule_err_detection(adapter);
 
 	if (adapter->wol_en)
 		be_setup_wol(adapter, false);
@@ -5474,7 +5454,7 @@ static void be_shutdown(struct pci_dev *pdev)
 
 	be_roce_dev_shutdown(adapter);
 	cancel_delayed_work_sync(&adapter->work);
-	cancel_delayed_work_sync(&adapter->func_recovery_work);
+	be_cancel_err_detection(adapter);
 
 	netif_device_detach(adapter->netdev);
 
@@ -5487,22 +5467,15 @@ static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 					    pci_channel_state_t state)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev =  adapter->netdev;
 
 	dev_err(&adapter->pdev->dev, "EEH error detected\n");
 
 	if (!adapter->eeh_error) {
 		adapter->eeh_error = true;
 
-		cancel_delayed_work_sync(&adapter->func_recovery_work);
+		be_cancel_err_detection(adapter);
 
-		rtnl_lock();
-		netif_device_detach(netdev);
-		if (netif_running(netdev))
-			be_close(netdev);
-		rtnl_unlock();
-
-		be_clear(adapter);
+		be_cleanup(adapter);
 	}
 
 	if (state == pci_channel_io_perm_failure)
@@ -5553,40 +5526,16 @@ static void be_eeh_resume(struct pci_dev *pdev)
 {
 	int status = 0;
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev =  adapter->netdev;
 
 	dev_info(&adapter->pdev->dev, "EEH resume\n");
 
 	pci_save_state(pdev);
 
-	status = be_cmd_reset_function(adapter);
+	status = be_resume(adapter);
 	if (status)
 		goto err;
 
-	/* On some BE3 FW versions, after a HW reset,
-	 * interrupts will remain disabled for each function.
-	 * So, explicitly enable interrupts
-	 */
-	be_intr_set(adapter, true);
-
-	/* tell fw we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
-	if (status)
-		goto err;
-
-	status = be_setup(adapter);
-	if (status)
-		goto err;
-
-	if (netif_running(netdev)) {
-		status = be_open(netdev);
-		if (status)
-			goto err;
-	}
-
-	schedule_delayed_work(&adapter->func_recovery_work,
-			      msecs_to_jiffies(1000));
-	netif_device_attach(netdev);
+	be_schedule_err_detection(adapter);
 	return;
 err:
 	dev_err(&adapter->pdev->dev, "EEH resume failed\n");
@@ -5604,7 +5553,7 @@ static struct pci_driver be_driver = {
 	.probe = be_probe,
 	.remove = be_remove,
 	.suspend = be_suspend,
-	.resume = be_resume,
+	.resume = be_pci_resume,
 	.shutdown = be_shutdown,
 	.err_handler = &be_eeh_handlers
 };
