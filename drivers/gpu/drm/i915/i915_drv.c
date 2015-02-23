@@ -574,6 +574,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	pci_power_t opregion_target_state;
+	int error;
 
 	/* ignore lid events during suspend */
 	mutex_lock(&dev_priv->modeset_restore_lock);
@@ -588,37 +589,32 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	pci_save_state(dev->pdev);
 
-	/* If KMS is active, we do the leavevt stuff here */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		int error;
-
-		error = i915_gem_suspend(dev);
-		if (error) {
-			dev_err(&dev->pdev->dev,
-				"GEM idle failed, resume might fail\n");
-			return error;
-		}
-
-		intel_suspend_gt_powersave(dev);
-
-		/*
-		 * Disable CRTCs directly since we want to preserve sw state
-		 * for _thaw. Also, power gate the CRTC power wells.
-		 */
-		drm_modeset_lock_all(dev);
-		for_each_crtc(dev, crtc)
-			intel_crtc_control(crtc, false);
-		drm_modeset_unlock_all(dev);
-
-		intel_dp_mst_suspend(dev);
-
-		intel_runtime_pm_disable_interrupts(dev_priv);
-		intel_hpd_cancel_work(dev_priv);
-
-		intel_suspend_encoders(dev_priv);
-
-		intel_suspend_hw(dev);
+	error = i915_gem_suspend(dev);
+	if (error) {
+		dev_err(&dev->pdev->dev,
+			"GEM idle failed, resume might fail\n");
+		return error;
 	}
+
+	intel_suspend_gt_powersave(dev);
+
+	/*
+	 * Disable CRTCs directly since we want to preserve sw state
+	 * for _thaw. Also, power gate the CRTC power wells.
+	 */
+	drm_modeset_lock_all(dev);
+	for_each_crtc(dev, crtc)
+		intel_crtc_control(crtc, false);
+	drm_modeset_unlock_all(dev);
+
+	intel_dp_mst_suspend(dev);
+
+	intel_runtime_pm_disable_interrupts(dev_priv);
+	intel_hpd_cancel_work(dev_priv);
+
+	intel_suspend_encoders(dev_priv);
+
+	intel_suspend_hw(dev);
 
 	i915_gem_suspend_gtt_mappings(dev);
 
@@ -690,53 +686,48 @@ static int i915_drm_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_restore_gtt_mappings(dev);
-		mutex_unlock(&dev->struct_mutex);
-	}
+	mutex_lock(&dev->struct_mutex);
+	i915_gem_restore_gtt_mappings(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
 
-	/* KMS EnterVT equivalent */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		intel_init_pch_refclk(dev);
-		drm_mode_config_reset(dev);
+	intel_init_pch_refclk(dev);
+	drm_mode_config_reset(dev);
 
-		mutex_lock(&dev->struct_mutex);
-		if (i915_gem_init_hw(dev)) {
-			DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
-			atomic_set_mask(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
-		}
-		mutex_unlock(&dev->struct_mutex);
-
-		/* We need working interrupts for modeset enabling ... */
-		intel_runtime_pm_enable_interrupts(dev_priv);
-
-		intel_modeset_init_hw(dev);
-
-		spin_lock_irq(&dev_priv->irq_lock);
-		if (dev_priv->display.hpd_irq_setup)
-			dev_priv->display.hpd_irq_setup(dev);
-		spin_unlock_irq(&dev_priv->irq_lock);
-
-		drm_modeset_lock_all(dev);
-		intel_modeset_setup_hw_state(dev, true);
-		drm_modeset_unlock_all(dev);
-
-		intel_dp_mst_resume(dev);
-
-		/*
-		 * ... but also need to make sure that hotplug processing
-		 * doesn't cause havoc. Like in the driver load code we don't
-		 * bother with the tiny race here where we might loose hotplug
-		 * notifications.
-		 * */
-		intel_hpd_init(dev_priv);
-		/* Config may have changed between suspend and resume */
-		drm_helper_hpd_irq_event(dev);
+	mutex_lock(&dev->struct_mutex);
+	if (i915_gem_init_hw(dev)) {
+		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
+		atomic_set_mask(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
 	}
+	mutex_unlock(&dev->struct_mutex);
+
+	/* We need working interrupts for modeset enabling ... */
+	intel_runtime_pm_enable_interrupts(dev_priv);
+
+	intel_modeset_init_hw(dev);
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (dev_priv->display.hpd_irq_setup)
+		dev_priv->display.hpd_irq_setup(dev);
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	drm_modeset_lock_all(dev);
+	intel_modeset_setup_hw_state(dev, true);
+	drm_modeset_unlock_all(dev);
+
+	intel_dp_mst_resume(dev);
+
+	/*
+	 * ... but also need to make sure that hotplug processing
+	 * doesn't cause havoc. Like in the driver load code we don't
+	 * bother with the tiny race here where we might loose hotplug
+	 * notifications.
+	 * */
+	intel_hpd_init(dev_priv);
+	/* Config may have changed between suspend and resume */
+	drm_helper_hpd_irq_event(dev);
 
 	intel_opregion_init(dev);
 
