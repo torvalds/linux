@@ -21,9 +21,11 @@
 
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
+#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
+#endif
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
@@ -419,9 +421,11 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 
 static void msm_lastclose(struct drm_device *dev)
 {
+#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
+#endif
 }
 
 static irqreturn_t msm_irq(int irq, void *arg)
