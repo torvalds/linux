@@ -302,21 +302,8 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 	}
 
 	/* Set RF related register */
-	switch (hal_data->rf_chip) {
-	case RF_8225:
-		break;
-	case RF_8256:
-		break;
-	case RF_8258:
-		break;
-	case RF_PSEUDO_11N:
-		break;
-	case RF_6052:
+	if (hal_data->rf_chip == RF_6052)
 		rtl88eu_phy_rf6052_set_bandwidth(adapt, hal_data->CurrentChannelBW);
-		break;
-	default:
-		break;
-	}
 }
 
 void phy_set_bw_mode(struct adapter *adapt, enum ht_channel_width bandwidth,
