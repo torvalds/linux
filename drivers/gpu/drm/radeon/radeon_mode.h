@@ -85,6 +85,13 @@ enum radeon_hpd_id {
 	RADEON_HPD_NONE = 0xff,
 };
 
+enum radeon_output_csc {
+	RADEON_OUTPUT_CSC_BYPASS = 0,
+	RADEON_OUTPUT_CSC_TVRGB = 1,
+	RADEON_OUTPUT_CSC_YCBCR601 = 2,
+	RADEON_OUTPUT_CSC_YCBCR709 = 3,
+};
+
 #define RADEON_MAX_I2C_BUS 16
 
 /* radeon gpio-based i2c
@@ -255,6 +262,8 @@ struct radeon_mode_info {
 	struct drm_property *audio_property;
 	/* FMT dithering */
 	struct drm_property *dither_property;
+	/* Output CSC */
+	struct drm_property *output_csc_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
 	int bios_hardcoded_edid_size;

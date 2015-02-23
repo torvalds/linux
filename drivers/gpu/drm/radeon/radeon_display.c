@@ -1382,6 +1382,13 @@ static struct drm_prop_enum_list radeon_dither_enum_list[] =
 	{ RADEON_FMT_DITHER_ENABLE, "on" },
 };
 
+static struct drm_prop_enum_list radeon_output_csc_enum_list[] =
+{	{ RADEON_OUTPUT_CSC_BYPASS, "bypass" },
+	{ RADEON_OUTPUT_CSC_TVRGB, "tvrgb" },
+	{ RADEON_OUTPUT_CSC_YCBCR601, "ycbcr601" },
+	{ RADEON_OUTPUT_CSC_YCBCR709, "ycbcr709" },
+};
+
 static int radeon_modeset_create_props(struct radeon_device *rdev)
 {
 	int sz;
@@ -1443,6 +1450,12 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 		drm_property_create_enum(rdev->ddev, 0,
 					 "dither",
 					 radeon_dither_enum_list, sz);
+
+	sz = ARRAY_SIZE(radeon_output_csc_enum_list);
+	rdev->mode_info.output_csc_property =
+		drm_property_create_enum(rdev->ddev, 0,
+					 "output_csc",
+					 radeon_output_csc_enum_list, sz);
 
 	return 0;
 }
