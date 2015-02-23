@@ -548,27 +548,19 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 		if (thermal_avg_count)
 			thermal_val = (u8)(thermal_avg / thermal_avg_count);
 
-		if (dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
-			delta = thermal_val > hal_data->EEPROMThermalMeter ?
-				(thermal_val - hal_data->EEPROMThermalMeter) :
-				(hal_data->EEPROMThermalMeter - thermal_val);
-			dm_odm->RFCalibrateInfo.bReloadtxpowerindex = false;
-			dm_odm->RFCalibrateInfo.bDoneTxpower = false;
-		} else if (dm_odm->RFCalibrateInfo.bDoneTxpower) {
-			delta = (thermal_val > dm_odm->RFCalibrateInfo.ThermalValue) ?
-				(thermal_val - dm_odm->RFCalibrateInfo.ThermalValue) :
-				(dm_odm->RFCalibrateInfo.ThermalValue - thermal_val);
-		} else {
-			delta = thermal_val > hal_data->EEPROMThermalMeter ?
-				(thermal_val - hal_data->EEPROMThermalMeter) :
-				(hal_data->EEPROMThermalMeter - thermal_val);
+		if (dm_odm->RFCalibrateInfo.bDoneTxpower &&
+			!dm_odm->RFCalibrateInfo.bReloadtxpowerindex)
+			delta = abs(thermal_val - dm_odm->RFCalibrateInfo.ThermalValue);
+		else {
+			delta = abs(thermal_val - hal_data->EEPROMThermalMeter);
+			if (dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
+				dm_odm->RFCalibrateInfo.bReloadtxpowerindex = false;
+				dm_odm->RFCalibrateInfo.bDoneTxpower = false;
+			}
 		}
-		delta_lck = (thermal_val > dm_odm->RFCalibrateInfo.ThermalValue_LCK) ?
-			    (thermal_val - dm_odm->RFCalibrateInfo.ThermalValue_LCK) :
-			    (dm_odm->RFCalibrateInfo.ThermalValue_LCK - thermal_val);
-		delta_iqk = (thermal_val > dm_odm->RFCalibrateInfo.ThermalValue_IQK) ?
-			    (thermal_val - dm_odm->RFCalibrateInfo.ThermalValue_IQK) :
-			    (dm_odm->RFCalibrateInfo.ThermalValue_IQK - thermal_val);
+
+		delta_lck = abs(dm_odm->RFCalibrateInfo.ThermalValue_LCK - thermal_val);
+		delta_iqk = abs(dm_odm->RFCalibrateInfo.ThermalValue_IQK - thermal_val);
 
 		/* Delta temperature is equal to or larger than 20 centigrade.*/
 		if ((delta_lck >= 8)) {
