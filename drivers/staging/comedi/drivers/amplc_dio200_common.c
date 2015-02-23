@@ -32,9 +32,7 @@
 /* 200 series registers */
 #define DIO200_IO_SIZE		0x20
 #define DIO200_PCIE_IO_SIZE	0x4000
-#define DIO200_XCLK_SCE		0x18	/* Group X clock selection register */
-#define DIO200_YCLK_SCE		0x19	/* Group Y clock selection register */
-#define DIO200_ZCLK_SCE		0x1a	/* Group Z clock selection register */
+#define DIO200_CLK_SCE(x)	(0x18 + (x))	/* Group X/Y/Z clock sel reg */
 #define DIO200_XGAT_SCE		0x1b	/* Group X gate selection register */
 #define DIO200_YGAT_SCE		0x1c	/* Group Y gate selection register */
 #define DIO200_ZGAT_SCE		0x1d	/* Group Z gate selection register */
@@ -733,7 +731,7 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 	if (board->has_clk_gat_sce) {
 		/* Derive CLK_SCE and GAT_SCE register offsets from
 		 * 8254 offset. */
-		subpriv->clk_sce_ofs = DIO200_XCLK_SCE + (offset >> 3);
+		subpriv->clk_sce_ofs = DIO200_CLK_SCE(offset >> 3);
 		subpriv->gat_sce_ofs = DIO200_XGAT_SCE + (offset >> 3);
 		subpriv->which = (offset >> 2) & 1;
 	}
