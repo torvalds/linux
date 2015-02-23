@@ -466,23 +466,6 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			    const struct snd_hda_pin_quirk *pin_quirk,
 			    const struct hda_fixup *fixlist);
 
-
-/*
- * unsolicited event handler
- */
-
-#define HDA_UNSOL_QUEUE_SIZE	64
-
-struct hda_bus_unsolicited {
-	/* ring buffer */
-	u32 queue[HDA_UNSOL_QUEUE_SIZE * 2];
-	unsigned int rp, wp;
-
-	/* workqueue */
-	struct work_struct work;
-	struct hda_bus *bus;
-};
-
 /* helper macros to retrieve pin default-config values */
 #define get_defcfg_connect(cfg) \
 	((cfg & AC_DEFCFG_PORT_CONN) >> AC_DEFCFG_PORT_CONN_SHIFT)

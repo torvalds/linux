@@ -762,10 +762,7 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 		return 0;
 
 	trace_hda_unsol_event(bus, res, res_ex);
-	unsol = bus->unsol;
-	if (!unsol)
-		return 0;
-
+	unsol = &bus->unsol;
 	wp = (unsol->wp + 1) % HDA_UNSOL_QUEUE_SIZE;
 	unsol->wp = wp;
 
@@ -784,9 +781,8 @@ EXPORT_SYMBOL_GPL(snd_hda_queue_unsol_event);
  */
 static void process_unsol_events(struct work_struct *work)
 {
-	struct hda_bus_unsolicited *unsol =
-		container_of(work, struct hda_bus_unsolicited, work);
-	struct hda_bus *bus = unsol->bus;
+	struct hda_bus *bus = container_of(work, struct hda_bus, unsol.work);
+	struct hda_bus_unsolicited *unsol = &bus->unsol;
 	struct hda_codec *codec;
 	unsigned int rp, caddr, res;
 
@@ -805,27 +801,6 @@ static void process_unsol_events(struct work_struct *work)
 }
 
 /*
- * initialize unsolicited queue
- */
-static int init_unsol_queue(struct hda_bus *bus)
-{
-	struct hda_bus_unsolicited *unsol;
-
-	if (bus->unsol) /* already initialized */
-		return 0;
-
-	unsol = kzalloc(sizeof(*unsol), GFP_KERNEL);
-	if (!unsol) {
-		dev_err(bus->card->dev, "can't allocate unsolicited queue\n");
-		return -ENOMEM;
-	}
-	INIT_WORK(&unsol->work, process_unsol_events);
-	unsol->bus = bus;
-	bus->unsol = unsol;
-	return 0;
-}
-
-/*
  * destructor
  */
 static void snd_hda_bus_free(struct hda_bus *bus)
@@ -836,7 +811,6 @@ static void snd_hda_bus_free(struct hda_bus *bus)
 	WARN_ON(!list_empty(&bus->codec_list));
 	if (bus->workq)
 		flush_workqueue(bus->workq);
-	kfree(bus->unsol);
 	if (bus->ops.private_free)
 		bus->ops.private_free(bus);
 	if (bus->workq)
@@ -861,14 +835,12 @@ static int snd_hda_bus_dev_disconnect(struct snd_device *device)
 /**
  * snd_hda_bus_new - create a HDA bus
  * @card: the card entry
- * @temp: the template for hda_bus information
  * @busp: the pointer to store the created bus instance
  *
  * Returns 0 if successful, or a negative error code.
  */
 int snd_hda_bus_new(struct snd_card *card,
-			      const struct hda_bus_template *temp,
-			      struct hda_bus **busp)
+		    struct hda_bus **busp)
 {
 	struct hda_bus *bus;
 	int err;
@@ -876,11 +848,6 @@ int snd_hda_bus_new(struct snd_card *card,
 		.dev_disconnect = snd_hda_bus_dev_disconnect,
 		.dev_free = snd_hda_bus_dev_free,
 	};
-
-	if (snd_BUG_ON(!temp))
-		return -EINVAL;
-	if (snd_BUG_ON(!temp->ops.command || !temp->ops.get_response))
-		return -EINVAL;
 
 	if (busp)
 		*busp = NULL;
@@ -892,15 +859,10 @@ int snd_hda_bus_new(struct snd_card *card,
 	}
 
 	bus->card = card;
-	bus->private_data = temp->private_data;
-	bus->pci = temp->pci;
-	bus->modelname = temp->modelname;
-	bus->power_save = temp->power_save;
-	bus->ops = temp->ops;
-
 	mutex_init(&bus->cmd_mutex);
 	mutex_init(&bus->prepare_mutex);
 	INIT_LIST_HEAD(&bus->codec_list);
+	INIT_WORK(&bus->unsol.work, process_unsol_events);
 
 	snprintf(bus->workq_name, sizeof(bus->workq_name),
 		 "hd-audio%d", card->number);
@@ -1702,12 +1664,6 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 		return err;
 	}
 
-	if (codec->patch_ops.unsol_event) {
-		err = init_unsol_queue(codec->bus);
-		if (err < 0)
-			return err;
-	}
-
 	/* audio codec should override the mixer name */
 	if (codec->afg || !*codec->bus->card->mixername)
 		snprintf(codec->bus->card->mixername,
@@ -2192,11 +2148,10 @@ EXPORT_SYMBOL_GPL(snd_hda_codec_amp_read);
 
 static int codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 			    int direction, int idx, int mask, int val,
-			    bool init_only)
+			    bool init_only, bool cache_only)
 {
 	struct hda_amp_info *info;
 	unsigned int caps;
-	unsigned int cache_only;
 
 	if (snd_BUG_ON(mask & ~0xff))
 		mask &= 0xff;
@@ -2214,7 +2169,7 @@ static int codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 		return 0;
 	}
 	info->vol[ch] = val;
-	cache_only = info->head.dirty = codec->cached_write;
+	info->head.dirty |= cache_only;
 	caps = info->amp_caps;
 	mutex_unlock(&codec->hash_mutex);
 	if (!cache_only)
@@ -2238,7 +2193,8 @@ static int codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 			     int direction, int idx, int mask, int val)
 {
-	return codec_amp_update(codec, nid, ch, direction, idx, mask, val, false);
+	return codec_amp_update(codec, nid, ch, direction, idx, mask, val,
+				false, codec->cached_write);
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_amp_update);
 
@@ -2285,7 +2241,8 @@ EXPORT_SYMBOL_GPL(snd_hda_codec_amp_stereo);
 int snd_hda_codec_amp_init(struct hda_codec *codec, hda_nid_t nid, int ch,
 			   int dir, int idx, int mask, int val)
 {
-	return codec_amp_update(codec, nid, ch, dir, idx, mask, val, true);
+	return codec_amp_update(codec, nid, ch, dir, idx, mask, val, true,
+				codec->cached_write);
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_amp_init);
 
@@ -2427,8 +2384,8 @@ update_amp_value(struct hda_codec *codec, hda_nid_t nid,
 	maxval = get_amp_max_value(codec, nid, dir, 0);
 	if (val > maxval)
 		val = maxval;
-	return snd_hda_codec_amp_update(codec, nid, ch, dir, idx,
-					HDA_AMP_VOLMASK, val);
+	return codec_amp_update(codec, nid, ch, dir, idx, HDA_AMP_VOLMASK, val,
+				false, !hda_codec_is_power_on(codec));
 }
 
 /**
@@ -2478,14 +2435,12 @@ int snd_hda_mixer_amp_volume_put(struct snd_kcontrol *kcontrol,
 	long *valp = ucontrol->value.integer.value;
 	int change = 0;
 
-	snd_hda_power_up(codec);
 	if (chs & 1) {
 		change = update_amp_value(codec, nid, 0, dir, idx, ofs, *valp);
 		valp++;
 	}
 	if (chs & 2)
 		change |= update_amp_value(codec, nid, 1, dir, idx, ofs, *valp);
-	snd_hda_power_down(codec);
 	return change;
 }
 EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_volume_put);
@@ -3153,19 +3108,19 @@ int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol,
 	long *valp = ucontrol->value.integer.value;
 	int change = 0;
 
-	snd_hda_power_up(codec);
 	if (chs & 1) {
-		change = snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
-						  HDA_AMP_MUTE,
-						  *valp ? 0 : HDA_AMP_MUTE);
+		change = codec_amp_update(codec, nid, 0, dir, idx,
+					  HDA_AMP_MUTE,
+					  *valp ? 0 : HDA_AMP_MUTE, false,
+					  !hda_codec_is_power_on(codec));
 		valp++;
 	}
 	if (chs & 2)
-		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
-						   HDA_AMP_MUTE,
-						   *valp ? 0 : HDA_AMP_MUTE);
+		change |= codec_amp_update(codec, nid, 1, dir, idx,
+					   HDA_AMP_MUTE,
+					   *valp ? 0 : HDA_AMP_MUTE, false,
+					   !hda_codec_is_power_on(codec));
 	hda_call_check_power_status(codec, nid);
-	snd_hda_power_down(codec);
 	return change;
 }
 EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_switch_put);

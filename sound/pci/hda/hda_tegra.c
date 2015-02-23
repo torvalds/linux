@@ -37,7 +37,6 @@
 
 #include "hda_codec.h"
 #include "hda_controller.h"
-#include "hda_priv.h"
 
 /* Defines for Nvidia Tegra HDA support */
 #define HDA_BAR0           0x8000
@@ -503,7 +502,11 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	/* create codec instances */
-	err = azx_codec_create(chip, NULL, 0, &power_save);
+	err = azx_bus_create(chip, NULL, &power_save);
+	if (err < 0)
+		goto out_free;
+
+	err = azx_probe_codecs(chip, 0);
 	if (err < 0)
 		goto out_free;
 
@@ -517,7 +520,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	/* create mixer controls */
-	err = azx_mixer_create(chip);
+	err = snd_hda_build_controls(chip->bus);
 	if (err < 0)
 		goto out_free;
 

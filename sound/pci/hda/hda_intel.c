@@ -62,7 +62,6 @@
 #include <linux/firmware.h>
 #include "hda_codec.h"
 #include "hda_controller.h"
-#include "hda_priv.h"
 #include "hda_intel.h"
 
 /* position fix mode */
@@ -852,7 +851,7 @@ static int azx_runtime_suspend(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
-	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+	if (!azx_has_pm_runtime(chip))
 		return 0;
 
 	/* enable controller wake up event */
@@ -885,7 +884,7 @@ static int azx_runtime_resume(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
-	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+	if (!azx_has_pm_runtime(chip))
 		return 0;
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
@@ -928,8 +927,7 @@ static int azx_runtime_idle(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
-	if (!power_save_controller ||
-	    !(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+	if (!power_save_controller || !azx_has_pm_runtime(chip))
 		return -EBUSY;
 
 	return 0;
@@ -1071,8 +1069,7 @@ static int azx_free(struct azx *chip)
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int i;
 
-	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
-			&& chip->running)
+	if (azx_has_pm_runtime(chip) && chip->running)
 		pm_runtime_get_noresume(&pci->dev);
 
 	azx_del_card_list(chip);
@@ -1896,12 +1893,14 @@ static int azx_probe_continue(struct azx *chip)
 #endif
 
 	/* create codec instances */
-	err = azx_codec_create(chip, model[dev],
-			       azx_max_codecs[chip->driver_type],
-			       power_save_addr);
-
+	err = azx_bus_create(chip, model[dev], power_save_addr);
 	if (err < 0)
 		goto out_free;
+
+	err = azx_probe_codecs(chip, azx_max_codecs[chip->driver_type]);
+	if (err < 0)
+		goto out_free;
+
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	if (chip->fw) {
 		err = snd_hda_load_patch(chip->bus, chip->fw->size,
@@ -1926,7 +1925,7 @@ static int azx_probe_continue(struct azx *chip)
 		goto out_free;
 
 	/* create mixer controls */
-	err = azx_mixer_create(chip);
+	err = snd_hda_build_controls(chip->bus);
 	if (err < 0)
 		goto out_free;
 
@@ -1938,7 +1937,7 @@ static int azx_probe_continue(struct azx *chip)
 	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
 	azx_add_card_list(chip);
-	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME) || hda->use_vga_switcheroo)
+	if (azx_has_pm_runtime(chip) || hda->use_vga_switcheroo)
 		pm_runtime_put_noidle(&pci->dev);
 
 out_free:

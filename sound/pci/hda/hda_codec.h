@@ -66,7 +66,6 @@ struct hda_beep;
 struct hda_codec;
 struct hda_pcm;
 struct hda_pcm_stream;
-struct hda_bus_unsolicited;
 
 /* NID type */
 typedef u16 hda_nid_t;
@@ -101,13 +100,14 @@ struct hda_bus_ops {
 #endif
 };
 
-/* template to pass to the bus constructor */
-struct hda_bus_template {
-	void *private_data;
-	struct pci_dev *pci;
-	const char *modelname;
-	int *power_save;
-	struct hda_bus_ops ops;
+/* unsolicited event handler */
+#define HDA_UNSOL_QUEUE_SIZE	64
+struct hda_bus_unsolicited {
+	/* ring buffer */
+	u32 queue[HDA_UNSOL_QUEUE_SIZE * 2];
+	unsigned int rp, wp;
+	/* workqueue */
+	struct work_struct work;
 };
 
 /*
@@ -119,7 +119,6 @@ struct hda_bus_template {
 struct hda_bus {
 	struct snd_card *card;
 
-	/* copied from template */
 	void *private_data;
 	struct pci_dev *pci;
 	const char *modelname;
@@ -136,7 +135,7 @@ struct hda_bus {
 	struct mutex prepare_mutex;
 
 	/* unsolicited event queue */
-	struct hda_bus_unsolicited *unsol;
+	struct hda_bus_unsolicited unsol;
 	char workq_name[16];
 	struct workqueue_struct *workq;	/* common workqueue for codecs */
 
@@ -420,8 +419,7 @@ enum {
 /*
  * constructors
  */
-int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
-		    struct hda_bus **busp);
+int snd_hda_bus_new(struct snd_card *card, struct hda_bus **busp);
 int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 		      struct hda_codec **codecp);
 int snd_hda_codec_configure(struct hda_codec *codec);
