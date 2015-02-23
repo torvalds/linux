@@ -722,17 +722,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	info = (struct intel_device_info *) flags;
 
-	/* Refuse to load on gen6+ without kms enabled. */
-	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET)) {
-		DRM_INFO("Your hardware requires kernel modesetting (KMS)\n");
-		DRM_INFO("See CONFIG_DRM_I915_KMS, nomodeset, and i915.modeset parameters\n");
-		return -ENODEV;
-	}
-
-	/* UMS needs agp support. */
-	if (!drm_core_check_feature(dev, DRIVER_MODESET) && !dev->agp)
-		return -EINVAL;
-
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
@@ -802,20 +791,18 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_regs;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		/* WARNING: Apparently we must kick fbdev drivers before vgacon,
-		 * otherwise the vga fbdev driver falls over. */
-		ret = i915_kick_out_firmware_fb(dev_priv);
-		if (ret) {
-			DRM_ERROR("failed to remove conflicting framebuffer drivers\n");
-			goto out_gtt;
-		}
+	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
+	 * otherwise the vga fbdev driver falls over. */
+	ret = i915_kick_out_firmware_fb(dev_priv);
+	if (ret) {
+		DRM_ERROR("failed to remove conflicting framebuffer drivers\n");
+		goto out_gtt;
+	}
 
-		ret = i915_kick_out_vgacon(dev_priv);
-		if (ret) {
-			DRM_ERROR("failed to remove conflicting VGA console\n");
-			goto out_gtt;
-		}
+	ret = i915_kick_out_vgacon(dev_priv);
+	if (ret) {
+		DRM_ERROR("failed to remove conflicting VGA console\n");
+		goto out_gtt;
 	}
 
 	pci_set_master(dev->pdev);
@@ -919,12 +906,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_power_domains_init(dev_priv);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = i915_load_modeset_init(dev);
-		if (ret < 0) {
-			DRM_ERROR("failed to init modeset\n");
-			goto out_power_well;
-		}
+	ret = i915_load_modeset_init(dev);
+	if (ret < 0) {
+		DRM_ERROR("failed to init modeset\n");
+		goto out_power_well;
 	}
 
 	/*
@@ -1013,27 +998,24 @@ int i915_driver_unload(struct drm_device *dev)
 
 	acpi_video_unregister();
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		intel_fbdev_fini(dev);
+	intel_fbdev_fini(dev);
 
 	drm_vblank_cleanup(dev);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		intel_modeset_cleanup(dev);
+	intel_modeset_cleanup(dev);
 
-		/*
-		 * free the memory space allocated for the child device
-		 * config parsed from VBT
-		 */
-		if (dev_priv->vbt.child_dev && dev_priv->vbt.child_dev_num) {
-			kfree(dev_priv->vbt.child_dev);
-			dev_priv->vbt.child_dev = NULL;
-			dev_priv->vbt.child_dev_num = 0;
-		}
-
-		vga_switcheroo_unregister_client(dev->pdev);
-		vga_client_register(dev->pdev, NULL, NULL, NULL);
+	/*
+	 * free the memory space allocated for the child device
+	 * config parsed from VBT
+	 */
+	if (dev_priv->vbt.child_dev && dev_priv->vbt.child_dev_num) {
+		kfree(dev_priv->vbt.child_dev);
+		dev_priv->vbt.child_dev = NULL;
+		dev_priv->vbt.child_dev_num = 0;
 	}
+
+	vga_switcheroo_unregister_client(dev->pdev);
+	vga_client_register(dev->pdev, NULL, NULL, NULL);
 
 	/* Free error state after interrupts are fully disabled. */
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
@@ -1044,17 +1026,15 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_opregion_fini(dev);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		/* Flush any outstanding unpin_work. */
-		flush_workqueue(dev_priv->wq);
+	/* Flush any outstanding unpin_work. */
+	flush_workqueue(dev_priv->wq);
 
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_cleanup_ringbuffer(dev);
-		i915_gem_batch_pool_fini(&dev_priv->mm.batch_pool);
-		i915_gem_context_fini(dev);
-		mutex_unlock(&dev->struct_mutex);
-		i915_gem_cleanup_stolen(dev);
-	}
+	mutex_lock(&dev->struct_mutex);
+	i915_gem_cleanup_ringbuffer(dev);
+	i915_gem_batch_pool_fini(&dev_priv->mm.batch_pool);
+	i915_gem_context_fini(dev);
+	mutex_unlock(&dev->struct_mutex);
+	i915_gem_cleanup_stolen(dev);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
@@ -1115,8 +1095,7 @@ void i915_driver_preclose(struct drm_device *dev, struct drm_file *file)
 	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		intel_modeset_preclose(dev, file);
+	intel_modeset_preclose(dev, file);
 }
 
 void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
