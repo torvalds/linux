@@ -344,7 +344,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 
 	ret = regmap_read(chip->regmap, DA9211_REG_CONFIG_E, &data);
 	if (ret < 0) {
-		dev_err(chip->dev, "Failed to read CONTROL_E reg: %d\n", ret);
+		dev_err(chip->dev, "Failed to read CONFIG_E reg: %d\n", ret);
 		return ret;
 	}
 
