@@ -438,6 +438,7 @@ static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 	{ .role = "video2_clk", .clk = "dss_video2_clk" },
 	{ .role = "video1_clk", .clk = "dss_video1_clk" },
 	{ .role = "hdmi_clk", .clk = "dss_hdmi_clk" },
+	{ .role = "hdcp_clk", .clk = "dss_deshdcp_clk" },
 };
 
 static struct omap_hwmod dra7xx_dss_hwmod = {
