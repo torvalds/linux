@@ -292,8 +292,7 @@ void print_header(void)
 	if (has_aperf)
 		outp += sprintf(outp, " Bzy_MHz");
 	outp += sprintf(outp, " TSC_MHz");
-	if (do_smi)
-		outp += sprintf(outp, "     SMI");
+
 	if (extra_delta_offset32)
 		outp += sprintf(outp, "  count 0x%03X", extra_delta_offset32);
 	if (extra_delta_offset64)
@@ -302,6 +301,13 @@ void print_header(void)
 		outp += sprintf(outp, "   MSR 0x%03X", extra_msr_offset32);
 	if (extra_msr_offset64)
 		outp += sprintf(outp, "           MSR 0x%03X", extra_msr_offset64);
+
+	if (!debug)
+		goto done;
+
+	if (do_smi)
+		outp += sprintf(outp, "     SMI");
+
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "  CPU%%c1");
 	if (do_nhm_cstates && !do_slm_cstates)
@@ -359,6 +365,7 @@ void print_header(void)
 		outp += sprintf(outp, "   time");
 
 	}
+    done:
 	outp += sprintf(outp, "\n");
 }
 
@@ -487,10 +494,6 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* TSC_MHz */
 	outp += sprintf(outp, "%8.0f", 1.0 * t->tsc/units/interval_float);
 
-	/* SMI */
-	if (do_smi)
-		outp += sprintf(outp, "%8d", t->smi_count);
-
 	/* delta */
 	if (extra_delta_offset32)
 		outp += sprintf(outp, "  %11llu", t->extra_delta32);
@@ -505,6 +508,13 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* MSR */
 	if (extra_msr_offset64)
 		outp += sprintf(outp, "  0x%016llx", t->extra_msr64);
+
+	if (!debug)
+		goto done;
+
+	/* SMI */
+	if (do_smi)
+		outp += sprintf(outp, "%8d", t->smi_count);
 
 	if (do_nhm_cstates) {
 		if (!skip_c1)
@@ -1068,7 +1078,7 @@ int slv_pkg_cstate_limits[8] = {PCL__0, PCL__1, PCLRSV, PCLRSV, PCL__4, PCLRSV, 
 int amt_pkg_cstate_limits[8] = {PCL__0, PCL__1, PCL__2, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7};
 int phi_pkg_cstate_limits[8] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL};
 
-void print_verbose_header(void)
+void dump_system_config_info(void)
 {
 	unsigned long long msr;
 	unsigned int ratio;
@@ -2428,14 +2438,14 @@ void topology_probe()
 	if (debug > 1)
 		fprintf(stderr, "max_core_id %d, sizing for %d cores per package\n",
 			max_core_id, topo.num_cores_per_pkg);
-	if (!summary_only && topo.num_cores_per_pkg > 1)
+	if (debug && !summary_only && topo.num_cores_per_pkg > 1)
 		show_core = 1;
 
 	topo.num_packages = max_package_id + 1;
 	if (debug > 1)
 		fprintf(stderr, "max_package_id %d, sizing for %d packages\n",
 			max_package_id, topo.num_packages);
-	if (!summary_only && topo.num_packages > 1)
+	if (debug && !summary_only && topo.num_packages > 1)
 		show_pkg = 1;
 
 	topo.num_threads_per_core = max_siblings;
@@ -2555,7 +2565,7 @@ void turbostat_init()
 	setup_all_buffers();
 
 	if (debug)
-		print_verbose_header();
+		dump_system_config_info();
 
 	if (debug)
 		for_all_cpus(print_epb, ODD_COUNTERS);
