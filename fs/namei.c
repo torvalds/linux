@@ -1969,7 +1969,7 @@ static inline int lookup_last(struct nameidata *nd, struct path *path)
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
-static int path_lookupat(int dfd, const char *name,
+static int path_lookupat(int dfd, const struct filename *name,
 				unsigned int flags, struct nameidata *nd)
 {
 	struct path path;
@@ -1989,7 +1989,7 @@ static int path_lookupat(int dfd, const char *name,
 	 * be handled by restarting a traditional ref-walk (which will always
 	 * be able to complete).
 	 */
-	err = path_init(dfd, name, flags, nd);
+	err = path_init(dfd, name->name, flags, nd);
 	if (!err && !(flags & LOOKUP_PARENT)) {
 		err = lookup_last(nd, &path);
 		while (err > 0) {
@@ -2024,12 +2024,11 @@ static int path_lookupat(int dfd, const char *name,
 static int filename_lookup(int dfd, struct filename *name,
 				unsigned int flags, struct nameidata *nd)
 {
-	int retval = path_lookupat(dfd, name->name, flags | LOOKUP_RCU, nd);
+	int retval = path_lookupat(dfd, name, flags | LOOKUP_RCU, nd);
 	if (unlikely(retval == -ECHILD))
-		retval = path_lookupat(dfd, name->name, flags, nd);
+		retval = path_lookupat(dfd, name, flags, nd);
 	if (unlikely(retval == -ESTALE))
-		retval = path_lookupat(dfd, name->name,
-						flags | LOOKUP_REVAL, nd);
+		retval = path_lookupat(dfd, name, flags | LOOKUP_REVAL, nd);
 
 	if (likely(!retval))
 		audit_inode(name, nd->path.dentry, flags & LOOKUP_PARENT);
@@ -3153,7 +3152,7 @@ static int do_tmpfile(int dfd, struct filename *pathname,
 	static const struct qstr name = QSTR_INIT("/", 1);
 	struct dentry *dentry, *child;
 	struct inode *dir;
-	int error = path_lookupat(dfd, pathname->name,
+	int error = path_lookupat(dfd, pathname,
 				  flags | LOOKUP_DIRECTORY, nd);
 	if (unlikely(error))
 		return error;
