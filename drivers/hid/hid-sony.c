@@ -804,7 +804,7 @@ union sixaxis_output_report_01 {
 #define DS4_REPORT_0x81_SIZE 7
 #define SIXAXIS_REPORT_0xF2_SIZE 18
 
-static spinlock_t sony_dev_list_lock;
+static DEFINE_SPINLOCK(sony_dev_list_lock);
 static LIST_HEAD(sony_device_list);
 static DEFINE_IDA(sony_device_id_allocator);
 
