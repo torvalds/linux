@@ -99,13 +99,9 @@ int snd_seq_event_port_attach(int client, struct snd_seq_port_callback *pcbp,
 int snd_seq_event_port_detach(int client, int port);
 
 #ifdef CONFIG_MODULES
-void snd_seq_autoload_lock(void);
-void snd_seq_autoload_unlock(void);
 void snd_seq_autoload_init(void);
-#define snd_seq_autoload_exit()	snd_seq_autoload_lock()
+void snd_seq_autoload_exit(void);
 #else
-#define snd_seq_autoload_lock()
-#define snd_seq_autoload_unlock()
 #define snd_seq_autoload_init()
 #define snd_seq_autoload_exit()
 #endif
