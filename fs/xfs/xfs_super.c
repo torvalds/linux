@@ -1033,23 +1033,6 @@ xfs_free_fsname(
 	kfree(mp->m_logname);
 }
 
-STATIC void
-xfs_fs_put_super(
-	struct super_block	*sb)
-{
-	struct xfs_mount	*mp = XFS_M(sb);
-
-	xfs_filestream_unmount(mp);
-	xfs_unmountfs(mp);
-
-	xfs_freesb(mp);
-	xfs_icsb_destroy_counters(mp);
-	xfs_destroy_mount_workqueues(mp);
-	xfs_close_devices(mp);
-	xfs_free_fsname(mp);
-	kfree(mp);
-}
-
 STATIC int
 xfs_fs_sync_fs(
 	struct super_block	*sb,
@@ -1098,7 +1081,6 @@ xfs_fs_statfs(
 	statp->f_fsid.val[0] = (u32)id;
 	statp->f_fsid.val[1] = (u32)(id >> 32);
 
-	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
 	icount = percpu_counter_sum(&mp->m_icount);
 	ifree = percpu_counter_sum(&mp->m_ifree);
 	fdblocks = percpu_counter_sum(&mp->m_fdblocks);
@@ -1408,6 +1390,51 @@ xfs_finish_flags(
 	return 0;
 }
 
+static int
+xfs_init_percpu_counters(
+	struct xfs_mount	*mp)
+{
+	int		error;
+
+	error = percpu_counter_init(&mp->m_icount, 0, GFP_KERNEL);
+	if (error)
+		return ENOMEM;
+
+	error = percpu_counter_init(&mp->m_ifree, 0, GFP_KERNEL);
+	if (error)
+		goto free_icount;
+
+	error = percpu_counter_init(&mp->m_fdblocks, 0, GFP_KERNEL);
+	if (error)
+		goto free_ifree;
+
+	return 0;
+
+free_ifree:
+	percpu_counter_destroy(&mp->m_ifree);
+free_icount:
+	percpu_counter_destroy(&mp->m_icount);
+	return -ENOMEM;
+}
+
+void
+xfs_reinit_percpu_counters(
+	struct xfs_mount	*mp)
+{
+	percpu_counter_set(&mp->m_icount, mp->m_sb.sb_icount);
+	percpu_counter_set(&mp->m_ifree, mp->m_sb.sb_ifree);
+	percpu_counter_set(&mp->m_fdblocks, mp->m_sb.sb_fdblocks);
+}
+
+static void
+xfs_destroy_percpu_counters(
+	struct xfs_mount	*mp)
+{
+	percpu_counter_destroy(&mp->m_icount);
+	percpu_counter_destroy(&mp->m_ifree);
+	percpu_counter_destroy(&mp->m_fdblocks);
+}
+
 STATIC int
 xfs_fs_fill_super(
 	struct super_block	*sb,
@@ -1456,7 +1483,7 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_close_devices;
 
-	error = xfs_icsb_init_counters(mp);
+	error = xfs_init_percpu_counters(mp);
 	if (error)
 		goto out_destroy_workqueues;
 
@@ -1514,7 +1541,7 @@ xfs_fs_fill_super(
  out_free_sb:
 	xfs_freesb(mp);
  out_destroy_counters:
-	xfs_icsb_destroy_counters(mp);
+	xfs_destroy_percpu_counters(mp);
 out_destroy_workqueues:
 	xfs_destroy_mount_workqueues(mp);
  out_close_devices:
@@ -1529,6 +1556,23 @@ out_destroy_workqueues:
 	xfs_filestream_unmount(mp);
 	xfs_unmountfs(mp);
 	goto out_free_sb;
+}
+
+STATIC void
+xfs_fs_put_super(
+	struct super_block	*sb)
+{
+	struct xfs_mount	*mp = XFS_M(sb);
+
+	xfs_filestream_unmount(mp);
+	xfs_unmountfs(mp);
+
+	xfs_freesb(mp);
+	xfs_destroy_percpu_counters(mp);
+	xfs_destroy_mount_workqueues(mp);
+	xfs_close_devices(mp);
+	xfs_free_fsname(mp);
+	kfree(mp);
 }
 
 STATIC struct dentry *

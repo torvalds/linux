@@ -743,17 +743,15 @@ xfs_initialize_perag_data(
 		btree += pag->pagf_btreeblks;
 		xfs_perag_put(pag);
 	}
-	/*
-	 * Overwrite incore superblock counters with just-read data
-	 */
+
+	/* Overwrite incore superblock counters with just-read data */
 	spin_lock(&mp->m_sb_lock);
 	sbp->sb_ifree = ifree;
 	sbp->sb_icount = ialloc;
 	sbp->sb_fdblocks = bfree + bfreelst + btree;
 	spin_unlock(&mp->m_sb_lock);
 
-	/* Fixup the per-cpu counters as well. */
-	xfs_icsb_reinit_counters(mp);
+	xfs_reinit_percpu_counters(mp);
 
 	return 0;
 }
