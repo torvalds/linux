@@ -158,6 +158,19 @@ static void __iomem *byt_gpio_reg(struct gpio_chip *chip, unsigned offset,
 	return vg->reg_base + reg_offset + reg;
 }
 
+static void byt_gpio_clear_triggering(struct byt_gpio *vg, unsigned offset)
+{
+	void __iomem *reg = byt_gpio_reg(&vg->chip, offset, BYT_CONF0_REG);
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&vg->lock, flags);
+	value = readl(reg);
+	value &= ~(BYT_TRIG_POS | BYT_TRIG_NEG | BYT_TRIG_LVL);
+	writel(value, reg);
+	spin_unlock_irqrestore(&vg->lock, flags);
+}
+
 static u32 byt_get_gpio_mux(struct byt_gpio *vg, unsigned offset)
 {
 	/* SCORE pin 92-93 */
@@ -211,14 +224,8 @@ static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 static void byt_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	struct byt_gpio *vg = to_byt_gpio(chip);
-	void __iomem *reg = byt_gpio_reg(&vg->chip, offset, BYT_CONF0_REG);
-	u32 value;
 
-	/* clear interrupt triggering */
-	value = readl(reg);
-	value &= ~(BYT_TRIG_POS | BYT_TRIG_NEG | BYT_TRIG_LVL);
-	writel(value, reg);
-
+	byt_gpio_clear_triggering(vg, offset);
 	pm_runtime_put(&vg->pdev->dev);
 }
 
@@ -481,6 +488,21 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 {
 	void __iomem *reg;
 	u32 base, value;
+	int i;
+
+	/*
+	 * Clear interrupt triggers for all pins that are GPIOs and
+	 * do not use direct IRQ mode. This will prevent spurious
+	 * interrupts from misconfigured pins.
+	 */
+	for (i = 0; i < vg->chip.ngpio; i++) {
+		value = readl(byt_gpio_reg(&vg->chip, i, BYT_CONF0_REG));
+		if ((value & BYT_PIN_MUX) == byt_get_gpio_mux(vg, i) &&
+		    !(value & BYT_DIRECT_IRQ_EN)) {
+			byt_gpio_clear_triggering(vg, i);
+			dev_dbg(&vg->pdev->dev, "disabling GPIO %d\n", i);
+		}
+	}
 
 	/* clear interrupt status trigger registers */
 	for (base = 0; base < vg->chip.ngpio; base += 32) {
