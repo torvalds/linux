@@ -84,7 +84,6 @@ int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
 	if (ret < 0)
 		return ret;
 
-	connector->encoder = encoder;
 	rcon->encoder = renc;
 
 	return 0;
