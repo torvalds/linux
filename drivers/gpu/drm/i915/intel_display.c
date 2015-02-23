@@ -12394,9 +12394,6 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 	struct drm_crtc *drmmode_crtc;
 	struct intel_crtc *crtc;
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
-
 	drmmode_crtc = drm_crtc_find(dev, pipe_from_crtc_id->crtc_id);
 
 	if (!drmmode_crtc) {
