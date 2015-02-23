@@ -260,15 +260,6 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 }
 
 /*
- * This structure is for use by the xfs_mod_incore_sb_batch() routine.
- * xfs_growfs can specify a few fields which are more than int limit
- */
-typedef struct xfs_mod_sb {
-	xfs_sb_field_t	msb_field;	/* Field to modify, see below */
-	int64_t		msb_delta;	/* Change to make to specified field */
-} xfs_mod_sb_t;
-
-/*
  * Per-ag incore structure, copies of information in agf and agi, to improve the
  * performance of allocation group selection.
  */
@@ -325,8 +316,6 @@ extern int	xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount,
 
 extern void	xfs_unmountfs(xfs_mount_t *);
 extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int64_t, int);
-extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
-			uint, int);
 extern int	xfs_mod_icount(struct xfs_mount *mp, int64_t delta);
 extern int	xfs_mod_ifree(struct xfs_mount *mp, int64_t delta);
 extern int	xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta,

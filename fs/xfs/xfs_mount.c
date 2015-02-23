@@ -1353,57 +1353,6 @@ xfs_mod_incore_sb(
 }
 
 /*
- * Change more than one field in the in-core superblock structure at a time.
- *
- * The fields and changes to those fields are specified in the array of
- * xfs_mod_sb structures passed in.  Either all of the specified deltas
- * will be applied or none of them will.  If any modified field dips below 0,
- * then all modifications will be backed out and EINVAL will be returned.
- *
- * Note that this function may not be used for the superblock values that
- * are tracked with the in-memory per-cpu counters - a direct call to
- * xfs_mod_incore_sb is required for these.
- */
-int
-xfs_mod_incore_sb_batch(
-	struct xfs_mount	*mp,
-	xfs_mod_sb_t		*msb,
-	uint			nmsb,
-	int			rsvd)
-{
-	xfs_mod_sb_t		*msbp;
-	int			error = 0;
-
-	/*
-	 * Loop through the array of mod structures and apply each individually.
-	 * If any fail, then back out all those which have already been applied.
-	 * Do all of this within the scope of the m_sb_lock so that all of the
-	 * changes will be atomic.
-	 */
-	spin_lock(&mp->m_sb_lock);
-	for (msbp = msb; msbp < (msb + nmsb); msbp++) {
-		ASSERT(msbp->msb_field < XFS_SBS_ICOUNT ||
-		       msbp->msb_field > XFS_SBS_FDBLOCKS);
-
-		error = xfs_mod_incore_sb_unlocked(mp, msbp->msb_field,
-						   msbp->msb_delta, rsvd);
-		if (error)
-			goto unwind;
-	}
-	spin_unlock(&mp->m_sb_lock);
-	return 0;
-
-unwind:
-	while (--msbp >= msb) {
-		error = xfs_mod_incore_sb_unlocked(mp, msbp->msb_field,
-						   -msbp->msb_delta, rsvd);
-		ASSERT(error == 0);
-	}
-	spin_unlock(&mp->m_sb_lock);
-	return error;
-}
-
-/*
  * xfs_getsb() is called to obtain the buffer for the superblock.
  * The buffer is returned locked and read in from disk.
  * The buffer should be released with a call to xfs_brelse().
