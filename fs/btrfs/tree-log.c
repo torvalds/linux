@@ -1951,6 +1951,104 @@ out:
 	return ret;
 }
 
+static int replay_xattr_deletes(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root,
+			      struct btrfs_root *log,
+			      struct btrfs_path *path,
+			      const u64 ino)
+{
+	struct btrfs_key search_key;
+	struct btrfs_path *log_path;
+	int i;
+	int nritems;
+	int ret;
+
+	log_path = btrfs_alloc_path();
+	if (!log_path)
+		return -ENOMEM;
+
+	search_key.objectid = ino;
+	search_key.type = BTRFS_XATTR_ITEM_KEY;
+	search_key.offset = 0;
+again:
+	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+process_leaf:
+	nritems = btrfs_header_nritems(path->nodes[0]);
+	for (i = path->slots[0]; i < nritems; i++) {
+		struct btrfs_key key;
+		struct btrfs_dir_item *di;
+		struct btrfs_dir_item *log_di;
+		u32 total_size;
+		u32 cur;
+
+		btrfs_item_key_to_cpu(path->nodes[0], &key, i);
+		if (key.objectid != ino || key.type != BTRFS_XATTR_ITEM_KEY) {
+			ret = 0;
+			goto out;
+		}
+
+		di = btrfs_item_ptr(path->nodes[0], i, struct btrfs_dir_item);
+		total_size = btrfs_item_size_nr(path->nodes[0], i);
+		cur = 0;
+		while (cur < total_size) {
+			u16 name_len = btrfs_dir_name_len(path->nodes[0], di);
+			u16 data_len = btrfs_dir_data_len(path->nodes[0], di);
+			u32 this_len = sizeof(*di) + name_len + data_len;
+			char *name;
+
+			name = kmalloc(name_len, GFP_NOFS);
+			if (!name) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			read_extent_buffer(path->nodes[0], name,
+					   (unsigned long)(di + 1), name_len);
+
+			log_di = btrfs_lookup_xattr(NULL, log, log_path, ino,
+						    name, name_len, 0);
+			btrfs_release_path(log_path);
+			if (!log_di) {
+				/* Doesn't exist in log tree, so delete it. */
+				btrfs_release_path(path);
+				di = btrfs_lookup_xattr(trans, root, path, ino,
+							name, name_len, -1);
+				kfree(name);
+				if (IS_ERR(di)) {
+					ret = PTR_ERR(di);
+					goto out;
+				}
+				ASSERT(di);
+				ret = btrfs_delete_one_dir_name(trans, root,
+								path, di);
+				if (ret)
+					goto out;
+				btrfs_release_path(path);
+				search_key = key;
+				goto again;
+			}
+			kfree(name);
+			if (IS_ERR(log_di)) {
+				ret = PTR_ERR(log_di);
+				goto out;
+			}
+			cur += this_len;
+			di = (struct btrfs_dir_item *)((char *)di + this_len);
+		}
+	}
+	ret = btrfs_next_leaf(root, path);
+	if (ret > 0)
+		ret = 0;
+	else if (ret == 0)
+		goto process_leaf;
+out:
+	btrfs_free_path(log_path);
+	btrfs_release_path(path);
+	return ret;
+}
+
+
 /*
  * deletion replay happens before we copy any new directory items
  * out of the log or out of backreferences from inodes.  It
@@ -2104,6 +2202,10 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 
 			inode_item = btrfs_item_ptr(eb, i,
 					    struct btrfs_inode_item);
+			ret = replay_xattr_deletes(wc->trans, root, log,
+						   path, key.objectid);
+			if (ret)
+				break;
 			mode = btrfs_inode_mode(eb, inode_item);
 			if (S_ISDIR(mode)) {
 				ret = replay_dir_deletes(wc->trans,
@@ -4072,10 +4174,8 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	if (S_ISDIR(inode->i_mode)) {
 		int max_key_type = BTRFS_DIR_LOG_INDEX_KEY;
 
-		if (inode_only == LOG_INODE_EXISTS) {
-			max_key_type = BTRFS_INODE_EXTREF_KEY;
-			max_key.type = max_key_type;
-		}
+		if (inode_only == LOG_INODE_EXISTS)
+			max_key_type = BTRFS_XATTR_ITEM_KEY;
 		ret = drop_objectid_items(trans, log, path, ino, max_key_type);
 	} else {
 		if (inode_only == LOG_INODE_EXISTS) {
@@ -4100,7 +4200,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		if (test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
 			     &BTRFS_I(inode)->runtime_flags)) {
 			if (inode_only == LOG_INODE_EXISTS) {
-				max_key.type = BTRFS_INODE_EXTREF_KEY;
+				max_key.type = BTRFS_XATTR_ITEM_KEY;
 				ret = drop_objectid_items(trans, log, path, ino,
 							  max_key.type);
 			} else {
@@ -4111,17 +4211,12 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 				ret = btrfs_truncate_inode_items(trans, log,
 								 inode, 0, 0);
 			}
-		} else if (test_bit(BTRFS_INODE_COPY_EVERYTHING,
-				    &BTRFS_I(inode)->runtime_flags) ||
+		} else if (test_and_clear_bit(BTRFS_INODE_COPY_EVERYTHING,
+					      &BTRFS_I(inode)->runtime_flags) ||
 			   inode_only == LOG_INODE_EXISTS) {
-			if (inode_only == LOG_INODE_ALL) {
-				clear_bit(BTRFS_INODE_COPY_EVERYTHING,
-					  &BTRFS_I(inode)->runtime_flags);
+			if (inode_only == LOG_INODE_ALL)
 				fast_search = true;
-				max_key.type = BTRFS_XATTR_ITEM_KEY;
-			} else {
-				max_key.type = BTRFS_INODE_EXTREF_KEY;
-			}
+			max_key.type = BTRFS_XATTR_ITEM_KEY;
 			ret = drop_objectid_items(trans, log, path, ino,
 						  max_key.type);
 		} else {
