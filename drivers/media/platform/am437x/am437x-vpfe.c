@@ -2427,7 +2427,7 @@ static int vpfe_async_complete(struct v4l2_async_notifier *notifier)
 static struct vpfe_config *
 vpfe_get_pdata(struct platform_device *pdev)
 {
-	struct device_node *endpoint = NULL, *rem = NULL;
+	struct device_node *endpoint = NULL;
 	struct v4l2_of_endpoint bus_cfg;
 	struct vpfe_subdev_info *sdinfo;
 	struct vpfe_config *pdata;
@@ -2445,6 +2445,8 @@ vpfe_get_pdata(struct platform_device *pdev)
 		return NULL;
 
 	for (i = 0; ; i++) {
+		struct device_node *rem;
+
 		endpoint = of_graph_get_next_endpoint(pdev->dev.of_node,
 						      endpoint);
 		if (!endpoint)
@@ -2515,7 +2517,6 @@ vpfe_get_pdata(struct platform_device *pdev)
 
 done:
 	of_node_put(endpoint);
-	of_node_put(rem);
 	return NULL;
 }
 
