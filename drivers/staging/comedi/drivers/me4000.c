@@ -48,7 +48,7 @@ broken.
 #include "../comedidev.h"
 
 #include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "plx9052.h"
 
 #define ME4000_FIRMWARE		"me4000_firmware.bin"
@@ -170,7 +170,6 @@ broken.
 
 struct me4000_info {
 	unsigned long plx_regbase;
-	unsigned long timer_regbase;
 };
 
 enum me4000_boardid {
@@ -1259,85 +1258,6 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*=============================================================================
-  Counter section
-  ===========================================================================*/
-
-static int me4000_cnt_insn_config(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn,
-				  unsigned int *data)
-{
-	struct me4000_info *info = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int err;
-
-	switch (data[0]) {
-	case GPCT_RESET:
-		if (insn->n != 1)
-			return -EINVAL;
-
-		err = i8254_set_mode(info->timer_regbase, 0, chan,
-				     I8254_MODE0 | I8254_BINARY);
-		if (err)
-			return err;
-		i8254_write(info->timer_regbase, 0, chan, 0);
-		break;
-	case GPCT_SET_OPERATION:
-		if (insn->n != 2)
-			return -EINVAL;
-
-		err = i8254_set_mode(info->timer_regbase, 0, chan,
-				(data[1] << 1) | I8254_BINARY);
-		if (err)
-			return err;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return insn->n;
-}
-
-static int me4000_cnt_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct me4000_info *info = dev->private;
-
-	if (insn->n == 0)
-		return 0;
-
-	if (insn->n > 1) {
-		dev_err(dev->class_dev, "Invalid instruction length %d\n",
-			insn->n);
-		return -EINVAL;
-	}
-
-	data[0] = i8254_read(info->timer_regbase, 0, insn->chanspec);
-
-	return 1;
-}
-
-static int me4000_cnt_insn_write(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
-{
-	struct me4000_info *info = dev->private;
-
-	if (insn->n == 0) {
-		return 0;
-	} else if (insn->n > 1) {
-		dev_err(dev->class_dev, "Invalid instruction length %d\n",
-			insn->n);
-		return -EINVAL;
-	}
-
-	i8254_write(info->timer_regbase, 0, insn->chanspec, data[0]);
-
-	return 1;
-}
-
 static int me4000_auto_attach(struct comedi_device *dev,
 			      unsigned long context)
 {
@@ -1364,8 +1284,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	info->plx_regbase = pci_resource_start(pcidev, 1);
 	dev->iobase = pci_resource_start(pcidev, 2);
-	info->timer_regbase = pci_resource_start(pcidev, 3);
-	if (!info->plx_regbase || !dev->iobase || !info->timer_regbase)
+	if (!info->plx_regbase || !dev->iobase)
 		return -ENODEV;
 
 	result = comedi_load_firmware(dev, &pcidev->dev, ME4000_FIRMWARE,
@@ -1462,20 +1381,19 @@ static int me4000_auto_attach(struct comedi_device *dev,
 			dev->iobase + ME4000_DIO_DIR_REG);
 	}
 
-    /*=========================================================================
-      Counter subdevice
-      ========================================================================*/
-
+	/* Counter subdevice (8254) */
 	s = &dev->subdevices[3];
-
 	if (thisboard->has_counter) {
-		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = 3;
-		s->maxdata = 0xFFFF;	/*  16 bit counters */
-		s->insn_read = me4000_cnt_insn_read;
-		s->insn_write = me4000_cnt_insn_write;
-		s->insn_config = me4000_cnt_insn_config;
+		unsigned long timer_base = pci_resource_start(pcidev, 3);
+
+		if (!timer_base)
+			return -ENODEV;
+
+		dev->pacer = comedi_8254_init(timer_base, 0, I8254_IO8, 0);
+		if (!dev->pacer)
+			return -ENOMEM;
+
+		comedi_8254_subdevice_init(s, dev->pacer);
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
