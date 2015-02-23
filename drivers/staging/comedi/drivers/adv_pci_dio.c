@@ -224,7 +224,7 @@ struct diosubd_data {
 	int chans;		/*  num of chans */
 	int addr;		/*  PCI address ofset */
 	int regs;		/*  number of registers to read or 8255
-				    subdevices or 8254 chips */
+				    subdevices */
 	unsigned int specflags;	/*  addon subdevice flags */
 };
 
@@ -237,7 +237,7 @@ struct dio_boardtype {
 	struct diosubd_data sdo[MAX_DO_SUBDEVS];	/*  DO chans */
 	struct diosubd_data sdio[MAX_DIO_SUBDEVG];	/*  DIO 8255 chans */
 	struct diosubd_data boardid;	/*  card supports board ID switch */
-	struct diosubd_data s8254[1];	/* 8254 subdevices */
+	unsigned long timer_regbase;
 	enum hw_io_access io_access;
 };
 
@@ -280,7 +280,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdi[0]		= { 32, PCI1735_DI, 4, 0, },
 		.sdo[0]		= { 32, PCI1735_DO, 4, 0, },
 		.boardid	= { 4, PCI1735_BOARDID, 1, SDF_INTERNAL, },
-		.s8254[0]	= { 3, PCI1735_C8254, 1, 0, },
+		.timer_regbase	= PCI1735_C8254,
 		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1736] = {
@@ -316,7 +316,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.cardtype	= TYPE_PCI1751,
 		.nsubdevs	= 3,
 		.sdio[0]	= { 48, PCI1751_DIO, 2, 0, },
-		.s8254[0]	= { 3, PCI1751_CNT, 1, 0, },
+		.timer_regbase	= PCI1751_CNT,
 		.io_access	= IO_8b,
 	},
 	[TYPE_PCI1752] = {
@@ -485,12 +485,12 @@ static int pci_8254_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
+	unsigned long timer_regbase = (unsigned long)s->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned long flags;
 
 	spin_lock_irqsave(&s->spin_lock, flags);
-	data[0] = i8254_read(dev->iobase + d->addr, 0, chan);
+	data[0] = i8254_read(dev->iobase + timer_regbase, 0, chan);
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 	return 1;
 }
@@ -502,12 +502,12 @@ static int pci_8254_insn_write(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
+	unsigned long timer_regbase = (unsigned long)s->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned long flags;
 
 	spin_lock_irqsave(&s->spin_lock, flags);
-	i8254_write(dev->iobase + d->addr, 0, chan, data[0]);
+	i8254_write(dev->iobase + timer_regbase, 0, chan, data[0]);
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 	return 1;
 }
@@ -519,9 +519,9 @@ static int pci_8254_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
+	unsigned long timer_regbase = (unsigned long)s->private;
+	unsigned long iobase = dev->iobase + timer_regbase;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned long iobase = dev->iobase + d->addr;
 	int ret = 0;
 	unsigned long flags;
 
@@ -1011,26 +1011,6 @@ static int pci_dio_add_do(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
-static int pci_dio_add_8254(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    const struct diosubd_data *d)
-{
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = d->chans;
-	s->maxdata = 65535;
-	s->len_chanlist = d->chans;
-	s->insn_read = pci_8254_insn_read;
-	s->insn_write = pci_8254_insn_write;
-	s->insn_config = pci_8254_insn_config;
-	s->private = (void *)d;
-
-	return 0;
-}
-
 static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
 					       unsigned long cardtype)
 {
@@ -1126,9 +1106,16 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (this_board->s8254[0].chans) {
+	if (this_board->timer_regbase) {
 		s = &dev->subdevices[subdev];
-		pci_dio_add_8254(dev, s, &this_board->s8254[0]);
+		s->type = COMEDI_SUBD_COUNTER;
+		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+		s->n_chan = 3;
+		s->maxdata = 65535;
+		s->insn_read = pci_8254_insn_read;
+		s->insn_write = pci_8254_insn_write;
+		s->insn_config = pci_8254_insn_config;
+		s->private = (void *)this_board->timer_regbase;
 		subdev++;
 	}
 
