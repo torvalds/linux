@@ -117,10 +117,9 @@ static void rf_serial_write(struct adapter *adapt,
 	u32 data_and_addr = 0;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 	struct bb_reg_def *phyreg = &hal_data->PHYRegDef[rfpath];
-	u32 newoffset;
 
-	newoffset = offset & 0xff;
-	data_and_addr = ((newoffset<<20) | (data&0x000fffff)) & 0x0fffffff;
+	offset &= 0xff;
+	data_and_addr = ((offset<<20) | (data&0x000fffff)) & 0x0fffffff;
 	phy_set_bb_reg(adapt, phyreg->rf3wireOffset, bMaskDWord, data_and_addr);
 }
 
