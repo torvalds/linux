@@ -4903,17 +4903,53 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->ethtool_ops = &be_ethtool_ops;
 }
 
+/* If any VFs are already enabled don't FLR the PF */
+static bool be_reset_required(struct be_adapter *adapter)
+{
+	return pci_num_vf(adapter->pdev) ? false : true;
+}
+
+/* Wait for the FW to be ready and perform the required initialization */
+static int be_func_init(struct be_adapter *adapter)
+{
+	int status;
+
+	status = be_fw_wait_ready(adapter);
+	if (status)
+		return status;
+
+	if (be_reset_required(adapter)) {
+		status = be_cmd_reset_function(adapter);
+		if (status)
+			return status;
+
+		/* Wait for interrupts to quiesce after an FLR */
+		msleep(100);
+
+		/* We can clear all errors when function reset succeeds */
+		be_clear_all_error(adapter);
+	}
+
+	/* Tell FW we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		return status;
+
+	/* Allow interrupts for other ULPs running on NIC function */
+	be_intr_set(adapter, true);
+
+	return 0;
+}
+
 static int be_err_recover(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct device *dev = &adapter->pdev->dev;
 	int status;
 
-	status = lancer_test_and_set_rdy_state(adapter);
+	status = be_func_init(adapter);
 	if (status)
 		goto err;
-
-	be_clear_all_error(adapter);
 
 	status = be_setup(adapter);
 	if (status)
@@ -4927,13 +4963,13 @@ static int be_err_recover(struct be_adapter *adapter)
 
 	netif_device_attach(netdev);
 
-	dev_err(dev, "Adapter recovery successful\n");
+	dev_info(dev, "Adapter recovery successful\n");
 	return 0;
 err:
-	if (status == -EAGAIN)
-		dev_err(dev, "Waiting for resource provisioning\n");
-	else
+	if (be_physfn(adapter))
 		dev_err(dev, "Adapter recovery failed\n");
+	else
+		dev_err(dev, "Re-trying adapter recovery\n");
 
 	return status;
 }
@@ -4962,10 +4998,8 @@ static void be_err_detection_task(struct work_struct *work)
 			status = be_err_recover(adapter);
 	}
 
-	/* In Lancer, for all errors other than provisioning error (-EAGAIN),
-	 * no need to attempt further recovery.
-	 */
-	if (!status || status == -EAGAIN)
+	/* Always attempt recovery on VFs */
+	if (!status || be_virtfn(adapter))
 		be_schedule_err_detection(adapter);
 }
 
@@ -5208,12 +5242,6 @@ static void be_remove(struct pci_dev *pdev)
 	free_netdev(adapter->netdev);
 }
 
-/* If any VFs are already enabled don't FLR the PF */
-static bool be_reset_required(struct be_adapter *adapter)
-{
-	return pci_num_vf(adapter->pdev) ? false : true;
-}
-
 static char *mc_name(struct be_adapter *adapter)
 {
 	char *str = "";	/* default */
@@ -5267,35 +5295,6 @@ static inline char *nic_name(struct pci_dev *pdev)
 	default:
 		return BE_NAME;
 	}
-}
-
-/* Wait for the FW to be ready and perform the required initialization */
-static int be_func_init(struct be_adapter *adapter)
-{
-	int status;
-
-	status = be_fw_wait_ready(adapter);
-	if (status)
-		return status;
-
-	if (be_reset_required(adapter)) {
-		status = be_cmd_reset_function(adapter);
-		if (status)
-			return status;
-
-		/* Wait for interrupts to quiesce after an FLR */
-		msleep(100);
-	}
-
-	/* Tell FW we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
-	if (status)
-		return status;
-
-	/* Allow interrupts for other ULPs running on NIC function */
-	be_intr_set(adapter, true);
-
-	return 0;
 }
 
 static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)

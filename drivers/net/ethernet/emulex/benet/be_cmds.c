@@ -635,73 +635,16 @@ static int lancer_wait_ready(struct be_adapter *adapter)
 	for (i = 0; i < SLIPORT_READY_TIMEOUT; i++) {
 		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
 		if (sliport_status & SLIPORT_STATUS_RDY_MASK)
-			break;
+			return 0;
+
+		if (sliport_status & SLIPORT_STATUS_ERR_MASK &&
+		    !(sliport_status & SLIPORT_STATUS_RN_MASK))
+			return -EIO;
 
 		msleep(1000);
 	}
 
-	if (i == SLIPORT_READY_TIMEOUT)
-		return sliport_status ? : -1;
-
-	return 0;
-}
-
-static bool lancer_provisioning_error(struct be_adapter *adapter)
-{
-	u32 sliport_status = 0, sliport_err1 = 0, sliport_err2 = 0;
-
-	sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
-	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
-		sliport_err1 = ioread32(adapter->db + SLIPORT_ERROR1_OFFSET);
-		sliport_err2 = ioread32(adapter->db + SLIPORT_ERROR2_OFFSET);
-
-		if (sliport_err1 == SLIPORT_ERROR_NO_RESOURCE1 &&
-		    sliport_err2 == SLIPORT_ERROR_NO_RESOURCE2)
-			return true;
-	}
-	return false;
-}
-
-int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
-{
-	int status;
-	u32 sliport_status, err, reset_needed;
-	bool resource_error;
-
-	resource_error = lancer_provisioning_error(adapter);
-	if (resource_error)
-		return -EAGAIN;
-
-	status = lancer_wait_ready(adapter);
-	if (!status) {
-		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
-		err = sliport_status & SLIPORT_STATUS_ERR_MASK;
-		reset_needed = sliport_status & SLIPORT_STATUS_RN_MASK;
-		if (err && reset_needed) {
-			iowrite32(SLI_PORT_CONTROL_IP_MASK,
-				  adapter->db + SLIPORT_CONTROL_OFFSET);
-
-			/* check if adapter has corrected the error */
-			status = lancer_wait_ready(adapter);
-			sliport_status = ioread32(adapter->db +
-						  SLIPORT_STATUS_OFFSET);
-			sliport_status &= (SLIPORT_STATUS_ERR_MASK |
-						SLIPORT_STATUS_RN_MASK);
-			if (status || sliport_status)
-				status = -1;
-		} else if (err || reset_needed) {
-			status = -1;
-		}
-	}
-	/* Stop error recovery if error is not recoverable.
-	 * No resource error is temporary errors and will go away
-	 * when PF provisions resources.
-	 */
-	resource_error = lancer_provisioning_error(adapter);
-	if (resource_error)
-		status = -EAGAIN;
-
-	return status;
+	return sliport_status ? : -1;
 }
 
 int be_fw_wait_ready(struct be_adapter *adapter)
@@ -738,7 +681,7 @@ int be_fw_wait_ready(struct be_adapter *adapter)
 
 err:
 	dev_err(dev, "POST timeout; stage=%#x\n", stage);
-	return -1;
+	return -ETIMEDOUT;
 }
 
 static inline struct be_sge *nonembedded_sgl(struct be_mcc_wrb *wrb)
@@ -2130,16 +2073,12 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 	int status;
 
 	if (lancer_chip(adapter)) {
+		iowrite32(SLI_PORT_CONTROL_IP_MASK,
+			  adapter->db + SLIPORT_CONTROL_OFFSET);
 		status = lancer_wait_ready(adapter);
-		if (!status) {
-			iowrite32(SLI_PORT_CONTROL_IP_MASK,
-				  adapter->db + SLIPORT_CONTROL_OFFSET);
-			status = lancer_test_and_set_rdy_state(adapter);
-		}
-		if (status) {
+		if (status)
 			dev_err(&adapter->pdev->dev,
 				"Adapter in non recoverable error\n");
-		}
 		return status;
 	}
 
