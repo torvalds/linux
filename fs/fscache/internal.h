@@ -125,7 +125,8 @@ extern int fscache_submit_exclusive_op(struct fscache_object *,
 extern int fscache_submit_op(struct fscache_object *,
 			     struct fscache_operation *);
 extern int fscache_cancel_op(struct fscache_operation *,
-			     void (*)(struct fscache_operation *));
+			     void (*)(struct fscache_operation *),
+			     bool);
 extern void fscache_cancel_all_ops(struct fscache_object *);
 extern void fscache_abort_object(struct fscache_object *);
 extern void fscache_start_operations(struct fscache_object *);

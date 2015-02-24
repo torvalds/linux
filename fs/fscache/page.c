@@ -359,7 +359,7 @@ int fscache_wait_for_operation_activation(struct fscache_object *object,
 		fscache_stat(stat_op_waits);
 	if (wait_on_bit(&op->flags, FSCACHE_OP_WAITING,
 			TASK_INTERRUPTIBLE) != 0) {
-		ret = fscache_cancel_op(op, do_cancel);
+		ret = fscache_cancel_op(op, do_cancel, false);
 		if (ret == 0)
 			return -ERESTARTSYS;
 
@@ -380,7 +380,7 @@ check_if_dead:
 	if (unlikely(fscache_object_is_dying(object) ||
 		     fscache_cache_is_broken(object))) {
 		enum fscache_operation_state state = op->state;
-		fscache_cancel_op(op, do_cancel);
+		fscache_cancel_op(op, do_cancel, true);
 		if (stat_object_dead)
 			fscache_stat(stat_object_dead);
 		_leave(" = -ENOBUFS [obj dead %d]", state);
