@@ -617,6 +617,51 @@ int power_supply_register_no_ws(struct device *parent, struct power_supply *psy)
 }
 EXPORT_SYMBOL_GPL(power_supply_register_no_ws);
 
+static void devm_power_supply_release(struct device *dev, void *res)
+{
+	struct power_supply **psy = res;
+
+	power_supply_unregister(*psy);
+}
+
+int devm_power_supply_register(struct device *parent, struct power_supply *psy)
+{
+	struct power_supply **ptr = devres_alloc(devm_power_supply_release,
+						 sizeof(*ptr), GFP_KERNEL);
+	int ret;
+
+	if (!ptr)
+		return -ENOMEM;
+	ret = __power_supply_register(parent, psy, true);
+	if (ret < 0)
+		devres_free(ptr);
+	else {
+		*ptr = psy;
+		devres_add(parent, ptr);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_power_supply_register);
+
+int devm_power_supply_register_no_ws(struct device *parent, struct power_supply *psy)
+{
+	struct power_supply **ptr = devres_alloc(devm_power_supply_release,
+						 sizeof(*ptr), GFP_KERNEL);
+	int ret;
+
+	if (!ptr)
+		return -ENOMEM;
+	ret = __power_supply_register(parent, psy, false);
+	if (ret < 0)
+		devres_free(ptr);
+	else {
+		*ptr = psy;
+		devres_add(parent, ptr);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_power_supply_register_no_ws);
+
 void power_supply_unregister(struct power_supply *psy)
 {
 	cancel_work_sync(&psy->changed_work);

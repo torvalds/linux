@@ -278,6 +278,10 @@ extern int power_supply_register(struct device *parent,
 				 struct power_supply *psy);
 extern int power_supply_register_no_ws(struct device *parent,
 				 struct power_supply *psy);
+extern int devm_power_supply_register(struct device *parent,
+				 struct power_supply *psy);
+extern int devm_power_supply_register_no_ws(struct device *parent,
+				 struct power_supply *psy);
 extern void power_supply_unregister(struct power_supply *psy);
 extern int power_supply_powers(struct power_supply *psy, struct device *dev);
 
