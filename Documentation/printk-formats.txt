@@ -204,7 +204,7 @@ UUID/GUID addresses:
 	lower ('l') or upper case ('L') hex characters - and big endian order
 	in lower ('b') or upper case ('B') hex characters.
 
-	Where no additional specifiers are used the default little endian
+	Where no additional specifiers are used the default big endian
 	order with lower case hex characters will be printed.
 
 dentry names:
