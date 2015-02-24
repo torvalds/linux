@@ -71,6 +71,8 @@
  * #next_div:		next divisor for single counter
  * @next_div1:		next divisor to use for first cascaded counter
  * @next_div2:		next divisor to use for second cascaded counter
+ * @clock_src;		current clock source for each counter (driver specific)
+ * @gate_src;		current gate source  for each counter (driver specific)
  * @busy:		flags used to indicate that a counter is "busy"
  * @insn_config:	driver specific (*insn_config) callback
  */
@@ -86,6 +88,8 @@ struct comedi_8254 {
 	unsigned int next_div;
 	unsigned int next_div1;
 	unsigned int next_div2;
+	unsigned int clock_src[3];
+	unsigned int gate_src[3];
 	bool busy[3];
 
 	int (*insn_config)(struct comedi_device *, struct comedi_subdevice *s,

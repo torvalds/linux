@@ -1275,6 +1275,7 @@ config COMEDI_KCOMEDILIB
 	  called kcomedilib.
 
 config COMEDI_AMPLC_DIO200
+	select COMEDI_8254
 	tristate
 
 config COMEDI_AMPLC_PC236
