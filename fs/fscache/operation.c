@@ -120,6 +120,8 @@ static void fscache_report_unexpected_submission(struct fscache_object *object,
 int fscache_submit_exclusive_op(struct fscache_object *object,
 				struct fscache_operation *op)
 {
+	const struct fscache_state *ostate;
+	unsigned long flags;
 	int ret;
 
 	_enter("{OBJ%x OP%x},", object->debug_id, op->debug_id);
@@ -132,8 +134,19 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 	ASSERTCMP(object->n_ops, >=, object->n_exclusive);
 	ASSERT(list_empty(&op->pend_link));
 
+	ostate = object->state;
+	smp_rmb();
+
 	op->state = FSCACHE_OP_ST_PENDING;
-	if (fscache_object_is_active(object)) {
+	flags = READ_ONCE(object->flags);
+	if (unlikely(!(flags & BIT(FSCACHE_OBJECT_IS_LIVE)))) {
+		fscache_stat(&fscache_n_op_rejected);
+		op->state = FSCACHE_OP_ST_CANCELLED;
+		ret = -ENOBUFS;
+	} else if (unlikely(fscache_cache_is_broken(object))) {
+		op->state = FSCACHE_OP_ST_CANCELLED;
+		ret = -EIO;
+	} else if (flags & BIT(FSCACHE_OBJECT_IS_AVAILABLE)) {
 		op->object = object;
 		object->n_ops++;
 		object->n_exclusive++;	/* reads and writes must wait */
@@ -155,7 +168,7 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 		/* need to issue a new write op after this */
 		clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
 		ret = 0;
-	} else if (test_bit(FSCACHE_OBJECT_IS_LOOKED_UP, &object->flags)) {
+	} else if (flags & BIT(FSCACHE_OBJECT_IS_LOOKED_UP)) {
 		op->object = object;
 		object->n_ops++;
 		object->n_exclusive++;	/* reads and writes must wait */
@@ -164,11 +177,9 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
 	} else {
-		/* If we're in any other state, there must have been an I/O
-		 * error of some nature.
-		 */
-		ASSERT(test_bit(FSCACHE_IOERROR, &object->cache->flags));
-		ret = -EIO;
+		fscache_report_unexpected_submission(object, op, ostate);
+		op->state = FSCACHE_OP_ST_CANCELLED;
+		ret = -ENOBUFS;
 	}
 
 	spin_unlock(&object->lock);
@@ -187,6 +198,7 @@ int fscache_submit_op(struct fscache_object *object,
 		      struct fscache_operation *op)
 {
 	const struct fscache_state *ostate;
+	unsigned long flags;
 	int ret;
 
 	_enter("{OBJ%x OP%x},{%u}",
@@ -204,7 +216,15 @@ int fscache_submit_op(struct fscache_object *object,
 	smp_rmb();
 
 	op->state = FSCACHE_OP_ST_PENDING;
-	if (fscache_object_is_active(object)) {
+	flags = READ_ONCE(object->flags);
+	if (unlikely(!(flags & BIT(FSCACHE_OBJECT_IS_LIVE)))) {
+		fscache_stat(&fscache_n_op_rejected);
+		op->state = FSCACHE_OP_ST_CANCELLED;
+		ret = -ENOBUFS;
+	} else if (unlikely(fscache_cache_is_broken(object))) {
+		op->state = FSCACHE_OP_ST_CANCELLED;
+		ret = -EIO;
+	} else if (flags & BIT(FSCACHE_OBJECT_IS_AVAILABLE)) {
 		op->object = object;
 		object->n_ops++;
 
@@ -222,23 +242,16 @@ int fscache_submit_op(struct fscache_object *object,
 			fscache_run_op(object, op);
 		}
 		ret = 0;
-	} else if (test_bit(FSCACHE_OBJECT_IS_LOOKED_UP, &object->flags)) {
+	} else if (flags & BIT(FSCACHE_OBJECT_IS_LOOKED_UP)) {
 		op->object = object;
 		object->n_ops++;
 		atomic_inc(&op->usage);
 		list_add_tail(&op->pend_link, &object->pending_ops);
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
-	} else if (fscache_object_is_dying(object)) {
-		fscache_stat(&fscache_n_op_rejected);
-		op->state = FSCACHE_OP_ST_CANCELLED;
-		ret = -ENOBUFS;
-	} else if (!test_bit(FSCACHE_IOERROR, &object->cache->flags)) {
+	} else {
 		fscache_report_unexpected_submission(object, op, ostate);
 		ASSERT(!fscache_object_is_active(object));
-		op->state = FSCACHE_OP_ST_CANCELLED;
-		ret = -ENOBUFS;
-	} else {
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		ret = -ENOBUFS;
 	}
