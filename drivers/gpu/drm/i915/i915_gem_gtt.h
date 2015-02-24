@@ -187,6 +187,20 @@ struct i915_vma {
 			 u32 flags);
 };
 
+struct i915_page_table_entry {
+	struct page *page;
+};
+
+struct i915_page_directory_entry {
+	struct page *page; /* NULL for GEN6-GEN7 */
+	struct i915_page_table_entry *page_table;
+};
+
+struct i915_page_directory_pointer_entry {
+	/* struct page *page; */
+	struct i915_page_directory_entry page_directory[GEN8_LEGACY_PDPES];
+};
+
 struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_device *dev;
@@ -272,17 +286,16 @@ struct i915_hw_ppgtt {
 	unsigned num_pd_entries;
 	unsigned num_pd_pages; /* gen8+ */
 	union {
-		struct page **pt_pages;
-		struct page **gen8_pt_pages[GEN8_LEGACY_PDPES];
-	};
-	struct page *pd_pages;
-	union {
 		uint32_t pd_offset;
 		dma_addr_t pd_dma_addr[GEN8_LEGACY_PDPES];
 	};
 	union {
 		dma_addr_t *pt_dma_addr;
 		dma_addr_t *gen8_pt_dma_addr[GEN8_LEGACY_PDPES];
+	};
+	union {
+		struct i915_page_directory_pointer_entry pdp;
+		struct i915_page_directory_entry pd;
 	};
 
 	struct drm_i915_file_private *file_priv;
