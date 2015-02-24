@@ -14,11 +14,6 @@ function pgset() {
     fi
 }
 
-function pg() {
-    echo inject > $PGDEV
-    cat $PGDEV
-}
-
 # Config Start Here -----------------------------------------------------------
 
 
