@@ -499,7 +499,6 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_BASE_ADDR(lm), cursor_addr);
 
 	blendcfg = MDP5_LM_CURSOR_BLEND_CONFIG_BLEND_EN;
-	blendcfg |= MDP5_LM_CURSOR_BLEND_CONFIG_BLEND_TRANSP_EN;
 	blendcfg |= MDP5_LM_CURSOR_BLEND_CONFIG_BLEND_ALPHA_SEL(cur_alpha);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_BLEND_CONFIG(lm), blendcfg);
 
