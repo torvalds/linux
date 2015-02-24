@@ -45,6 +45,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	dev->parent = bus->dev;
 	dev->bus = &snd_hda_bus_type;
 	dev->release = default_release;
+	dev->groups = hdac_dev_attr_groups;
 	dev_set_name(dev, "%s", name);
 	device_enable_async_suspend(dev);
 
@@ -126,6 +127,40 @@ void snd_hdac_device_exit(struct hdac_device *codec)
 	kfree(codec->chip_name);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_device_exit);
+
+/**
+ * snd_hdac_device_register - register the hd-audio codec base device
+ * codec: the device to register
+ */
+int snd_hdac_device_register(struct hdac_device *codec)
+{
+	int err;
+
+	err = device_add(&codec->dev);
+	if (err < 0)
+		return err;
+	err = hda_widget_sysfs_init(codec);
+	if (err < 0) {
+		device_del(&codec->dev);
+		return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_device_register);
+
+/**
+ * snd_hdac_device_unregister - unregister the hd-audio codec base device
+ * codec: the device to unregister
+ */
+void snd_hdac_device_unregister(struct hdac_device *codec)
+{
+	if (device_is_registered(&codec->dev)) {
+		hda_widget_sysfs_exit(codec);
+		device_del(&codec->dev);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_hdac_device_unregister);
 
 /**
  * snd_hdac_make_cmd - compose a 32bit command word to be sent to the

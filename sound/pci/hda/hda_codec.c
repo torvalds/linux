@@ -967,8 +967,7 @@ static int snd_hda_codec_dev_free(struct snd_device *device)
 	struct hda_codec *codec = device->device_data;
 
 	codec->in_freeing = 1;
-	if (device_is_registered(hda_codec_dev(codec)))
-		device_del(hda_codec_dev(codec));
+	snd_hdac_device_unregister(&codec->core);
 	put_device(hda_codec_dev(codec));
 	return 0;
 }
@@ -2182,8 +2181,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 		return -EBUSY;
 
 	/* OK, let it free */
-	if (device_is_registered(hda_codec_dev(codec)))
-		device_del(hda_codec_dev(codec));
+	snd_hdac_device_unregister(&codec->core);
 
 	/* allow device access again */
 	snd_hda_unlock_devices(bus);

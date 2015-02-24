@@ -14,6 +14,7 @@ typedef u16 hda_nid_t;
 struct hdac_bus;
 struct hdac_device;
 struct hdac_driver;
+struct hdac_widget_tree;
 
 /*
  * exported bus type
@@ -53,6 +54,9 @@ struct hdac_device {
 
 	/* misc flags */
 	atomic_t in_pm;		/* suspend/resume being performed */
+
+	/* sysfs */
+	struct hdac_widget_tree *widgets;
 };
 
 /* device/driver type used for matching */
@@ -71,6 +75,8 @@ enum {
 int snd_hdac_device_init(struct hdac_device *dev, struct hdac_bus *bus,
 			 const char *name, unsigned int addr);
 void snd_hdac_device_exit(struct hdac_device *dev);
+int snd_hdac_device_register(struct hdac_device *codec);
+void snd_hdac_device_unregister(struct hdac_device *codec);
 
 int snd_hdac_refresh_widgets(struct hdac_device *codec);
 

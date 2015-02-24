@@ -240,7 +240,7 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 	else
 		codec->probe_id = 0;
 
-	err = device_add(hda_codec_dev(codec));
+	err = snd_hdac_device_register(&codec->core);
 	if (err < 0)
 		return err;
 
@@ -262,7 +262,7 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 	return 0;
 
  error:
-	device_del(hda_codec_dev(codec));
+	snd_hdac_device_unregister(&codec->core);
 	return err;
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_configure);

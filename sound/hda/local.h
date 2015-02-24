@@ -16,4 +16,8 @@ static inline int get_wcaps_type(unsigned int wcaps)
 	return (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 }
 
+extern const struct attribute_group *hdac_dev_attr_groups[];
+int hda_widget_sysfs_init(struct hdac_device *codec);
+void hda_widget_sysfs_exit(struct hdac_device *codec);
+
 #endif /* __HDAC_LOCAL_H */
