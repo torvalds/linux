@@ -1413,6 +1413,8 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 			data += ETH_GSTRING_LEN;
 		}
 		break;
+	default:
+		break;
 	}
 }
 
@@ -1653,6 +1655,8 @@ static int i40e_set_phys_id(struct net_device *netdev,
 		break;
 	case ETHTOOL_ID_INACTIVE:
 		i40e_led_set(hw, pf->led_status, false);
+		break;
+	default:
 		break;
 	}
 
