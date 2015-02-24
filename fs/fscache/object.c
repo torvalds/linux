@@ -328,6 +328,17 @@ void fscache_object_init(struct fscache_object *object,
 EXPORT_SYMBOL(fscache_object_init);
 
 /*
+ * Mark the object as no longer being live, making sure that we synchronise
+ * against op submission.
+ */
+static inline void fscache_mark_object_dead(struct fscache_object *object)
+{
+	spin_lock(&object->lock);
+	clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
+	spin_unlock(&object->lock);
+}
+
+/*
  * Abort object initialisation before we start it.
  */
 static const struct fscache_state *fscache_abort_initialisation(struct fscache_object *object,
@@ -631,7 +642,7 @@ static const struct fscache_state *fscache_kill_object(struct fscache_object *ob
 	_enter("{OBJ%x,%d,%d},%d",
 	       object->debug_id, object->n_ops, object->n_children, event);
 
-	clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
+	fscache_mark_object_dead(object);
 	object->oob_event_mask = 0;
 
 	if (list_empty(&object->dependents) &&
@@ -976,13 +987,13 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 	return transit_to(UPDATE_OBJECT);
 
 nomem:
-	clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
+	fscache_mark_object_dead(object);
 	fscache_unuse_cookie(object);
 	_leave(" [ENOMEM]");
 	return transit_to(KILL_OBJECT);
 
 submit_op_failed:
-	clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
+	fscache_mark_object_dead(object);
 	spin_unlock(&cookie->lock);
 	fscache_unuse_cookie(object);
 	kfree(op);
