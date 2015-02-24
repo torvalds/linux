@@ -2525,6 +2525,16 @@ void __init udp_table_init(struct udp_table *table, const char *name)
 	}
 }
 
+u32 udp_flow_hashrnd(void)
+{
+	static u32 hashrnd __read_mostly;
+
+	net_get_random_once(&hashrnd, sizeof(hashrnd));
+
+	return hashrnd;
+}
+EXPORT_SYMBOL(udp_flow_hashrnd);
+
 void __init udp_init(void)
 {
 	unsigned long limit;
