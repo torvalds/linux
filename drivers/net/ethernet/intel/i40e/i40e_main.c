@@ -7207,6 +7207,7 @@ static int i40e_setup_misc_vector(struct i40e_pf *pf)
 static int i40e_config_rss(struct i40e_pf *pf)
 {
 	u32 rss_key[I40E_PFQF_HKEY_MAX_INDEX + 1];
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	struct i40e_hw *hw = &pf->hw;
 	u32 lut = 0;
 	int i, j;
@@ -7223,6 +7224,8 @@ static int i40e_config_rss(struct i40e_pf *pf)
 	hena |= I40E_DEFAULT_RSS_HENA;
 	wr32(hw, I40E_PFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
+
+	vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
 
 	/* Check capability and Set table size and register per hw expectation*/
 	reg_val = rd32(hw, I40E_PFQF_CTL_0);
@@ -7245,7 +7248,7 @@ static int i40e_config_rss(struct i40e_pf *pf)
 		 * If LAN VSI is the only consumer for RSS then this requirement
 		 * is not necessary.
 		 */
-		if (j == pf->rss_size)
+		if (j == vsi->rss_size)
 			j = 0;
 		/* lut = 4-byte sliding window of 4 lut entries */
 		lut = (lut << 8) | (j &

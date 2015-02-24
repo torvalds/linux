@@ -472,6 +472,7 @@ struct i40e_vsi {
 	u16 tx_itr_setting;
 
 	u16 rss_table_size;
+	u16 rss_size;
 
 	u16 max_frame;
 	u16 rx_hdr_len;
