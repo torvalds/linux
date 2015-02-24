@@ -2797,6 +2797,7 @@ static void serial8250_release_std_resource(struct uart_8250_port *up)
 	}
 }
 
+#ifdef CONFIG_SERIAL_8250_RSA
 static int serial8250_request_rsa_resource(struct uart_8250_port *up)
 {
 	unsigned long start = UART_RSA_BASE << up->port.regshift;
@@ -2831,14 +2832,17 @@ static void serial8250_release_rsa_resource(struct uart_8250_port *up)
 		break;
 	}
 }
+#endif
 
 static void serial8250_release_port(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 
 	serial8250_release_std_resource(up);
+#ifdef CONFIG_SERIAL_8250_RSA
 	if (port->type == PORT_RSA)
 		serial8250_release_rsa_resource(up);
+#endif
 }
 
 static int serial8250_request_port(struct uart_port *port)
@@ -2850,11 +2854,13 @@ static int serial8250_request_port(struct uart_port *port)
 		return -ENODEV;
 
 	ret = serial8250_request_std_resource(up);
+#ifdef CONFIG_SERIAL_8250_RSA
 	if (ret == 0 && port->type == PORT_RSA) {
 		ret = serial8250_request_rsa_resource(up);
 		if (ret < 0)
 			serial8250_release_std_resource(up);
 	}
+#endif
 
 	return ret;
 }
@@ -3016,9 +3022,11 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 	if (ret < 0)
 		return;
 
+#ifdef CONFIG_SERIAL_8250_RSA
 	ret = serial8250_request_rsa_resource(up);
 	if (ret < 0)
 		probeflags &= ~PROBE_RSA;
+#endif
 
 	if (port->iotype != up->cur_iotype)
 		set_io_from_upio(port);
@@ -3037,8 +3045,10 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 	if (port->type != PORT_UNKNOWN && flags & UART_CONFIG_IRQ)
 		autoconfig_irq(up);
 
+#ifdef CONFIG_SERIAL_8250_RSA
 	if (port->type != PORT_RSA && probeflags & PROBE_RSA)
 		serial8250_release_rsa_resource(up);
+#endif
 	if (port->type == PORT_UNKNOWN)
 		serial8250_release_std_resource(up);
 
