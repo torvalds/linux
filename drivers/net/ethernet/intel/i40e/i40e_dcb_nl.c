@@ -305,9 +305,7 @@ void i40e_dcbnl_setup(struct i40e_vsi *vsi)
 	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
 		return;
 
-	/* Do not setup DCB NL ops for MFP mode */
-	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
-		dev->dcbnl_ops = &dcbnl_ops;
+	dev->dcbnl_ops = &dcbnl_ops;
 
 	/* Set initial IEEE DCB settings */
 	i40e_dcbnl_set_all(vsi);
