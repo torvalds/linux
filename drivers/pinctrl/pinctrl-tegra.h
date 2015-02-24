@@ -182,6 +182,9 @@ struct tegra_pinctrl_soc_data {
 	unsigned nfunctions;
 	const struct tegra_pingroup *groups;
 	unsigned ngroups;
+	bool hsm_in_mux;
+	bool schmitt_in_mux;
+	bool drvtype_in_mux;
 };
 
 int tegra_pinctrl_probe(struct platform_device *pdev,

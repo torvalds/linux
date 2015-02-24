@@ -348,14 +348,24 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 		*width = 1;
 		break;
 	case TEGRA_PINCONF_PARAM_HIGH_SPEED_MODE:
-		*bank = g->drv_bank;
-		*reg = g->drv_reg;
+		if (pmx->soc->hsm_in_mux) {
+			*bank = g->mux_bank;
+			*reg = g->mux_reg;
+		} else {
+			*bank = g->drv_bank;
+			*reg = g->drv_reg;
+		}
 		*bit = g->hsm_bit;
 		*width = 1;
 		break;
 	case TEGRA_PINCONF_PARAM_SCHMITT:
-		*bank = g->drv_bank;
-		*reg = g->drv_reg;
+		if (pmx->soc->schmitt_in_mux) {
+			*bank = g->mux_bank;
+			*reg = g->mux_reg;
+		} else {
+			*bank = g->drv_bank;
+			*reg = g->drv_reg;
+		}
 		*bit = g->schmitt_bit;
 		*width = 1;
 		break;
@@ -390,8 +400,13 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 		*width = g->slwr_width;
 		break;
 	case TEGRA_PINCONF_PARAM_DRIVE_TYPE:
-		*bank = g->drv_bank;
-		*reg = g->drv_reg;
+		if (pmx->soc->drvtype_in_mux) {
+			*bank = g->mux_bank;
+			*reg = g->mux_reg;
+		} else {
+			*bank = g->drv_bank;
+			*reg = g->drv_reg;
+		}
 		*bit = g->drvtype_bit;
 		*width = 2;
 		break;

@@ -2476,6 +2476,9 @@ static const struct tegra_pinctrl_soc_data tegra30_pinctrl = {
 	.nfunctions = ARRAY_SIZE(tegra30_functions),
 	.groups = tegra30_groups,
 	.ngroups = ARRAY_SIZE(tegra30_groups),
+	.hsm_in_mux = false,
+	.schmitt_in_mux = false,
+	.drvtype_in_mux = false,
 };
 
 static int tegra30_pinctrl_probe(struct platform_device *pdev)
