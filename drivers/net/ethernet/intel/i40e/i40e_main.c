@@ -5166,7 +5166,6 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	struct i40e_aqc_lldp_get_mib *mib =
 		(struct i40e_aqc_lldp_get_mib *)&e->desc.params.raw;
 	struct i40e_hw *hw = &pf->hw;
-	struct i40e_dcbx_config *dcbx_cfg = &hw->local_dcbx_config;
 	struct i40e_dcbx_config tmp_dcbx_cfg;
 	bool need_reconfig = false;
 	int ret = 0;
@@ -5199,8 +5198,10 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 
 	memset(&tmp_dcbx_cfg, 0, sizeof(tmp_dcbx_cfg));
 	/* Store the old configuration */
-	tmp_dcbx_cfg = *dcbx_cfg;
+	memcpy(&tmp_dcbx_cfg, &hw->local_dcbx_config, sizeof(tmp_dcbx_cfg));
 
+	/* Reset the old DCBx configuration data */
+	memset(&hw->local_dcbx_config, 0, sizeof(hw->local_dcbx_config));
 	/* Get updated DCBX data from firmware */
 	ret = i40e_get_dcb_config(&pf->hw);
 	if (ret) {
@@ -5209,20 +5210,22 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	}
 
 	/* No change detected in DCBX configs */
-	if (!memcmp(&tmp_dcbx_cfg, dcbx_cfg, sizeof(tmp_dcbx_cfg))) {
+	if (!memcmp(&tmp_dcbx_cfg, &hw->local_dcbx_config,
+		    sizeof(tmp_dcbx_cfg))) {
 		dev_dbg(&pf->pdev->dev, "No change detected in DCBX configuration.\n");
 		goto exit;
 	}
 
-	need_reconfig = i40e_dcb_need_reconfig(pf, &tmp_dcbx_cfg, dcbx_cfg);
+	need_reconfig = i40e_dcb_need_reconfig(pf, &tmp_dcbx_cfg,
+					       &hw->local_dcbx_config);
 
-	i40e_dcbnl_flush_apps(pf, dcbx_cfg);
+	i40e_dcbnl_flush_apps(pf, &tmp_dcbx_cfg, &hw->local_dcbx_config);
 
 	if (!need_reconfig)
 		goto exit;
 
 	/* Enable DCB tagging only when more than one TC */
-	if (i40e_dcb_get_num_tc(dcbx_cfg) > 1)
+	if (i40e_dcb_get_num_tc(&hw->local_dcbx_config) > 1)
 		pf->flags |= I40E_FLAG_DCB_ENABLED;
 	else
 		pf->flags &= ~I40E_FLAG_DCB_ENABLED;
