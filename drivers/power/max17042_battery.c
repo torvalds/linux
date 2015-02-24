@@ -529,7 +529,6 @@ static int max17042_init_chip(struct max17042_chip *chip)
 {
 	struct regmap *map = chip->regmap;
 	int ret;
-	int val;
 
 	max17042_override_por_values(chip);
 	/* After Power up, the MAX17042 requires 500mS in order
@@ -572,8 +571,7 @@ static int max17042_init_chip(struct max17042_chip *chip)
 	max17042_load_new_capacity_params(chip);
 
 	/* Init complete, Clear the POR bit */
-	regmap_read(map, MAX17042_STATUS, &val);
-	regmap_write(map, MAX17042_STATUS, val & (~STATUS_POR_BIT));
+	regmap_update_bits(map, MAX17042_STATUS, STATUS_POR_BIT, 0x0);
 	return 0;
 }
 
@@ -745,9 +743,9 @@ static int max17042_probe(struct i2c_client *client,
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					chip->battery.name, chip);
 		if (!ret) {
-			regmap_read(chip->regmap, MAX17042_CONFIG, &val);
-			val |= CONFIG_ALRT_BIT_ENBL;
-			regmap_write(chip->regmap, MAX17042_CONFIG, val);
+			regmap_update_bits(chip->regmap, MAX17042_CONFIG,
+					CONFIG_ALRT_BIT_ENBL,
+					CONFIG_ALRT_BIT_ENBL);
 			max17042_set_soc_threshold(chip, 1);
 		} else {
 			client->irq = 0;
