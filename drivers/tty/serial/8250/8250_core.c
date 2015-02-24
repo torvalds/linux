@@ -3134,6 +3134,16 @@ void serial8250_set_isa_configurator(
 }
 EXPORT_SYMBOL(serial8250_set_isa_configurator);
 
+static void serial8250_init_port(struct uart_8250_port *up)
+{
+	struct uart_port *port = &up->port;
+
+	spin_lock_init(&port->lock);
+	port->ops = &serial8250_pops;
+
+	up->cur_iotype = 0xFF;
+}
+
 static void __init serial8250_isa_init_ports(void)
 {
 	struct uart_8250_port *up;
@@ -3152,11 +3162,10 @@ static void __init serial8250_isa_init_ports(void)
 		struct uart_port *port = &up->port;
 
 		port->line = i;
-		spin_lock_init(&port->lock);
+		serial8250_init_port(up);
 
 		init_timer(&up->timer);
 		up->timer.function = serial8250_timeout;
-		up->cur_iotype = 0xFF;
 
 		up->ops = &univ8250_driver_ops;
 
@@ -3165,8 +3174,6 @@ static void __init serial8250_isa_init_ports(void)
 		 */
 		up->mcr_mask = ~ALPHA_KLUDGE_MCR;
 		up->mcr_force = ALPHA_KLUDGE_MCR;
-
-		port->ops = &serial8250_pops;
 	}
 
 	if (share_irqs)
