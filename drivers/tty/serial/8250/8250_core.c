@@ -3148,6 +3148,17 @@ static void serial8250_set_defaults(struct uart_8250_port *up)
 {
 	struct uart_port *port = &up->port;
 
+	if (up->port.flags & UPF_FIXED_TYPE) {
+		unsigned int type = up->port.type;
+
+		if (!up->port.fifosize)
+			up->port.fifosize = uart_config[type].fifo_size;
+		if (!up->tx_loadsz)
+			up->tx_loadsz = uart_config[type].tx_loadsz;
+		if (!up->capabilities)
+			up->capabilities = uart_config[type].flags;
+	}
+
 	set_io_from_upio(port);
 }
 
@@ -3208,18 +3219,6 @@ static void __init serial8250_isa_init_ports(void)
 	}
 }
 
-static void
-serial8250_init_fixed_type_port(struct uart_8250_port *up, unsigned int type)
-{
-	up->port.type = type;
-	if (!up->port.fifosize)
-		up->port.fifosize = uart_config[type].fifo_size;
-	if (!up->tx_loadsz)
-		up->tx_loadsz = uart_config[type].tx_loadsz;
-	if (!up->capabilities)
-		up->capabilities = uart_config[type].flags;
-}
-
 static void __init
 serial8250_register_ports(struct uart_driver *drv, struct device *dev)
 {
@@ -3235,9 +3234,6 @@ serial8250_register_ports(struct uart_driver *drv, struct device *dev)
 
 		if (skip_txen_test)
 			up->port.flags |= UPF_NO_TXEN_TEST;
-
-		if (up->port.flags & UPF_FIXED_TYPE)
-			serial8250_init_fixed_type_port(up, up->port.type);
 
 		uart_add_one_port(drv, &up->port);
 	}
@@ -3757,7 +3753,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 			uart->port.flags |= UPF_NO_TXEN_TEST;
 
 		if (up->port.flags & UPF_FIXED_TYPE)
-			serial8250_init_fixed_type_port(uart, up->port.type);
+			uart->port.type = up->port.type;
 
 		serial8250_set_defaults(uart);
 
