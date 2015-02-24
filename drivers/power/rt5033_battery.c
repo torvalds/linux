@@ -102,7 +102,7 @@ static enum power_supply_property rt5033_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
-static struct regmap_config rt5033_battery_regmap_config = {
+static const struct regmap_config rt5033_battery_regmap_config = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
 	.max_register	= RT5033_FUEL_REG_END,
