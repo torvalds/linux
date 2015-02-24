@@ -494,9 +494,10 @@ static void pump_transfers(unsigned long data)
 			dw_writew(dws, DW_SPI_TXFLTR, txint_level);
 
 		spi_enable_chip(dws, 1);
-		if (cs_change)
-			dws->prev_chip = chip;
 	}
+
+	if (cs_change)
+		dws->prev_chip = chip;
 
 	if (dws->dma_mapped)
 		dws->dma_ops->dma_transfer(dws, cs_change);
