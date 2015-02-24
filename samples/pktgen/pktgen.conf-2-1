@@ -26,8 +26,6 @@ PGDEV=/proc/net/pktgen/kpktgend_0
  pgset "rem_device_all"
   echo "Adding eth1"
  pgset "add_device eth1"
-  echo "Setting max_before_softirq 10000"
- pgset "max_before_softirq 10000"
 
 # We need to remove old config since we dont use this thread. We can only
 # one NIC on one CPU due to affinity reasons.

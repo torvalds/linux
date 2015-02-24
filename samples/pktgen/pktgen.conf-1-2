@@ -27,8 +27,6 @@ PGDEV=/proc/net/pktgen/kpktgend_0
  pgset "add_device eth1"
   echo "Adding eth2"
  pgset "add_device eth2"
-  echo "Setting max_before_softirq 10000"
- pgset "max_before_softirq 10000"
 
 
 # device config
