@@ -109,6 +109,19 @@ static unsigned char use_tvenc_conf_flag=1;
 
 static unsigned char cur_vout_index = 1; //CONFIG_AM_TV_OUTPUT2
 
+static bool disableHPD = false;
+
+static  int __init disableHPD_setup(char *s)
+{
+	if(!(strcmp(s, "true")))
+		disableHPD = true;
+	else
+		disableHPD = false;
+
+	return 0;
+}
+__setup("disablehpd=", disableHPD_setup);
+
 static void hdmi_tx_mode_ctrl(HDMI_Video_Codes_t vic)
 {
     switch(vic) {
@@ -226,23 +239,34 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
     }
 
     WRITE_MPEG_REG(HHI_GCLK_MPEG2, READ_MPEG_REG(HHI_GCLK_MPEG2) | (1<<4));     //Enable HDMI PCLK
-    
-    if (data32 & (1 << 1)) { //HPD falling
-        hdmitx_device->vic_count = 0;
-        hdmi_wr_only_reg(OTHER_BASE_ADDR + HDMI_OTHER_INTR_STAT_CLR,  1 << 1); //clear HPD falling interrupt in hdmi module 
-        hdmitx_device->hpd_event = 2;
+
+    if(disableHPD)  {
+        //HPD falling
+        if (data32 & (1 << 1))
+            hdmi_wr_only_reg(OTHER_BASE_ADDR + HDMI_OTHER_INTR_STAT_CLR,  1 << 1); //clear HPD falling interrupt in hdmi module 
+
+        //HPD rising
+        if (data32 & (1 << 0))
+            hdmi_wr_only_reg(OTHER_BASE_ADDR + HDMI_OTHER_INTR_STAT_CLR,  1 << 0); //clear HPD rising interrupt in hdmi module
     }
-    if (data32 & (1 << 0)) {  //HPD rising
-        hdmi_wr_only_reg(OTHER_BASE_ADDR + HDMI_OTHER_INTR_STAT_CLR,  1 << 0); //clear HPD rising interrupt in hdmi module
-        // If HPD asserts, then start DDC transaction
-        if (hdmi_rd_reg(TX_HDCP_ST_EDID_STATUS) & (1<<1)) {
-            // Start DDC transaction
-            hdmitx_device->cur_edid_block=0;
-            hdmitx_device->cur_phy_block_ptr=0;
-            hdmitx_device->hpd_event = 1;
-        // Error if HPD deasserts
-        } else {
-            hdmi_print(ERR, HPD "HPD deasserts!\n");
+    else    {
+        if (data32 & (1 << 1)) { //HPD falling
+            hdmitx_device->vic_count = 0;
+            hdmi_wr_only_reg(OTHER_BASE_ADDR + HDMI_OTHER_INTR_STAT_CLR,  1 << 1); //clear HPD falling interrupt in hdmi module 
+            hdmitx_device->hpd_event = 2;
+        }
+        if (data32 & (1 << 0)) {  //HPD rising
+            hdmi_wr_only_reg(OTHER_BASE_ADDR + HDMI_OTHER_INTR_STAT_CLR,  1 << 0); //clear HPD rising interrupt in hdmi module
+            // If HPD asserts, then start DDC transaction
+            if (hdmi_rd_reg(TX_HDCP_ST_EDID_STATUS) & (1<<1)) {
+                // Start DDC transaction
+                hdmitx_device->cur_edid_block=0;
+                hdmitx_device->cur_phy_block_ptr=0;
+                hdmitx_device->hpd_event = 1;
+            // Error if HPD deasserts
+            } else {
+                hdmi_print(ERR, HPD "HPD deasserts!\n");
+            }
         }
     }
     if (data32 & (1 << 2)) { //TX EDID interrupt
@@ -1134,7 +1158,9 @@ hdmi on/off
 static int is_hpd_muxed(void)
 {
     int ret;
+
     ret = !!(aml_read_reg32(P_PERIPHS_PIN_MUX_1)&(1<<26));
+
     return ret; 
 }    
 
@@ -1154,7 +1180,11 @@ int read_hpd_gpio(void)
 {
     int level;
 
-    level = !!(aml_read_reg32(P_PREG_PAD_GPIO3_I)&(1<<19)); //read GPIOH_0
+    if(disableHPD)
+        level = 1;  // always plug-in
+    else
+        level = !!(aml_read_reg32(P_PREG_PAD_GPIO3_I)&(1<<19)); //read GPIOH_0
+
     return level;
 }
 EXPORT_SYMBOL(read_hpd_gpio);
