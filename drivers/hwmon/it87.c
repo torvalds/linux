@@ -2463,9 +2463,12 @@ static void it87_init_device(struct platform_device *pdev)
 	}
 	data->has_fan = (data->fan_main_ctrl >> 4) & 0x07;
 
-	/* Set tachometers to 16-bit mode if needed, IT8603E (and IT8728F?)
-	 * has it by default */
-	if (has_16bit_fans(data) && data->type != it8603) {
+	/*
+	 * Set tachometers to 16-bit mode if needed. IT8603E, IT8728F,
+	 * IT8771E (guesswork), and IT8772E have it by default.
+	 */
+	if (has_16bit_fans(data) && data->type != it8603 && data->type != it8728
+	    && data->type != it8771 && data->type != it8772) {
 		tmp = it87_read_value(data, IT87_REG_FAN_16BIT);
 		if (~tmp & 0x07 & data->has_fan) {
 			dev_dbg(&pdev->dev,
