@@ -423,12 +423,6 @@ static inline bool fscache_object_is_active(struct fscache_object *object)
 		!fscache_cache_is_broken(object);
 }
 
-static inline bool fscache_object_is_dead(struct fscache_object *object)
-{
-	return fscache_object_is_dying(object) &&
-		fscache_cache_is_broken(object);
-}
-
 /**
  * fscache_object_destroyed - Note destruction of an object in a cache
  * @cache: The cache from which the object came

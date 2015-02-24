@@ -327,7 +327,8 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 
 object_already_extant:
 	ret = -ENOBUFS;
-	if (fscache_object_is_dead(object)) {
+	if (fscache_object_is_dying(object) ||
+	    fscache_cache_is_broken(object)) {
 		spin_unlock(&cookie->lock);
 		goto error;
 	}

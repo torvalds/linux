@@ -377,11 +377,13 @@ check_if_dead:
 		_leave(" = -ENOBUFS [cancelled]");
 		return -ENOBUFS;
 	}
-	if (unlikely(fscache_object_is_dead(object))) {
-		pr_err("%s() = -ENOBUFS [obj dead %d]\n", __func__, op->state);
+	if (unlikely(fscache_object_is_dying(object) ||
+		     fscache_cache_is_broken(object))) {
+		enum fscache_operation_state state = op->state;
 		fscache_cancel_op(op, do_cancel);
 		if (stat_object_dead)
 			fscache_stat(stat_object_dead);
+		_leave(" = -ENOBUFS [obj dead %d]", state);
 		return -ENOBUFS;
 	}
 	return 0;
