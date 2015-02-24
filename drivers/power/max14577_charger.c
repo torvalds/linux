@@ -26,9 +26,6 @@ struct max14577_charger {
 	struct max14577	*max14577;
 	struct power_supply	charger;
 
-	unsigned int		charging_state;
-	unsigned int		battery_state;
-
 	struct max14577_charger_platform_data	*pdata;
 };
 
@@ -89,7 +86,6 @@ static int max14577_get_charger_state(struct max14577_charger *chg)
 	}
 
 state_set:
-	chg->charging_state = state;
 	return state;
 }
 
@@ -167,7 +163,6 @@ static int max14577_get_battery_health(struct max14577_charger *chg)
 	}
 
 state_set:
-	chg->battery_state = state;
 	return state;
 }
 
