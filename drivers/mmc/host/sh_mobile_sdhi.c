@@ -202,7 +202,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	struct sh_mobile_sdhi *priv;
 	struct tmio_mmc_data *mmc_data;
 	struct tmio_mmc_data *mmd = pdev->dev.platform_data;
-	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 	struct tmio_mmc_host *host;
 	struct resource *res;
 	int irq, ret, i = 0;
@@ -246,32 +245,9 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	else
 		host->bus_shift = 0;
 
-	if (mmd) {
-		/*
-		 * FIXME
-		 *
-		 * sh_mobile_sdhi_info will be replaced to tmio_mmc_data soon.
-		 * But, sh_mobile_sdhi_info is used under
-		 * ${LINUX}/arch/arm/mach-shmobile/
-		 * ${LINUX}/arch/sh/
-		 * To separate large patch into "tmio_mmc_data has .chan_priv_?x"
-		 * and "replace sh_mobile_sdhi_info in tmio_mmc_data",
-		 * here has dummy method.
-		 * These should be removed.
-		 */
-		struct tmio_mmc_data m;
-
-		mmd = &m;
-		m.flags		= p->tmio_flags;
-		m.ocr_mask	= p->tmio_ocr_mask;
-		m.capabilities	= p->tmio_caps;
-		m.capabilities2	= p->tmio_caps2;
-		m.cd_gpio	= p->cd_gpio;
-		m.chan_priv_tx	= (void *)p->dma_slave_tx;
-		m.chan_priv_rx	= (void *)p->dma_slave_rx;
-
+	if (mmd)
 		*mmc_data = *mmd;
-	}
+
 	dma_priv->filter = shdma_chan_filter;
 	dma_priv->enable = sh_mobile_sdhi_enable_dma;
 
