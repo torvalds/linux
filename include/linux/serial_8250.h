@@ -102,6 +102,8 @@ struct uart_8250_port {
 	unsigned char		canary;		/* non-zero during system sleep
 						 *   if no_console_suspend
 						 */
+	unsigned char		probe;
+#define UART_PROBE_RSA	(1 << 0)
 
 	/*
 	 * Some bits in registers are cleared on a read, so they must

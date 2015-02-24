@@ -84,9 +84,6 @@ struct serial8250_config {
 #define UART_BUG_THRE	(1 << 3)	/* UART has buggy THRE reassertion */
 #define UART_BUG_PARITY	(1 << 4)	/* UART mishandles parity if FIFO enabled */
 
-#define PROBE_RSA	(1 << 0)
-#define PROBE_ANY	(~0)
-
 #define HIGH_BITS_OFFSET ((sizeof(long)-sizeof(int))*8)
 
 #ifdef CONFIG_SERIAL_8250_SHARE_IRQ

@@ -1105,7 +1105,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
  * whether or not this UART is a 16550A or not, since this will
  * determine whether or not we can use its FIFO features or not.
  */
-static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
+static void autoconfig(struct uart_8250_port *up)
 {
 	unsigned char status1, scratch, scratch2, scratch3;
 	unsigned char save_lcr, save_mcr;
@@ -1228,7 +1228,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	/*
 	 * Only probe for RSA ports if we got the region.
 	 */
-	if (port->type == PORT_16550A && probeflags & PROBE_RSA &&
+	if (port->type == PORT_16550A && up->probe & UART_PROBE_RSA &&
 	    __enable_rsa(up))
 		port->type = PORT_RSA;
 #endif
@@ -2832,10 +2832,6 @@ static void serial8250_release_port(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 
 	serial8250_release_std_resource(up);
-#ifdef CONFIG_SERIAL_8250_RSA
-	if (port->type == PORT_RSA)
-		serial8250_release_rsa_resource(up);
-#endif
 }
 
 static int serial8250_request_port(struct uart_port *port)
@@ -2847,13 +2843,6 @@ static int serial8250_request_port(struct uart_port *port)
 		return -ENODEV;
 
 	ret = serial8250_request_std_resource(up);
-#ifdef CONFIG_SERIAL_8250_RSA
-	if (ret == 0 && port->type == PORT_RSA) {
-		ret = serial8250_request_rsa_resource(up);
-		if (ret < 0)
-			serial8250_release_std_resource(up);
-	}
-#endif
 
 	return ret;
 }
@@ -3001,7 +2990,6 @@ static void register_dev_spec_attr_grp(struct uart_8250_port *up)
 static void serial8250_config_port(struct uart_port *port, int flags)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
-	int probeflags = 0;
 	int ret;
 
 	if (port->type == PORT_8250_CIR)
@@ -3015,28 +3003,11 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 	if (ret < 0)
 		return;
 
-#ifdef CONFIG_SERIAL_8250_RSA
-	if (port->type == PORT_RSA) {
-		if (serial8250_request_rsa_resource(up) == 0)
-			probeflags |= PROBE_RSA;
-	} else if (flags & UART_CONFIG_TYPE) {
-		int i;
-
-		for (i = 0 ; i < probe_rsa_count; ++i) {
-			if (probe_rsa[i] == port->iobase) {
-				if (serial8250_request_rsa_resource(up) == 0)
-					probeflags |= PROBE_RSA;
-				break;
-			}
-		}
-	}
-#endif
-
 	if (port->iotype != up->cur_iotype)
 		set_io_from_upio(port);
 
 	if (flags & UART_CONFIG_TYPE)
-		autoconfig(up, probeflags);
+		autoconfig(up);
 
 	/* if access method is AU, it is a 16550 with a quirk */
 	if (port->type == PORT_16550A && port->iotype == UPIO_AU)
@@ -3049,10 +3020,6 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 	if (port->type != PORT_UNKNOWN && flags & UART_CONFIG_IRQ)
 		autoconfig_irq(up);
 
-#ifdef CONFIG_SERIAL_8250_RSA
-	if (port->type != PORT_RSA && probeflags & PROBE_RSA)
-		serial8250_release_rsa_resource(up);
-#endif
 	if (port->type == PORT_UNKNOWN)
 		serial8250_release_std_resource(up);
 
@@ -3112,6 +3079,9 @@ static struct uart_ops serial8250_pops = {
 	.poll_put_char = serial8250_put_poll_char,
 #endif
 };
+
+static const struct uart_ops *base_ops;
+static struct uart_ops univ8250_port_ops;
 
 static const struct uart_8250_ops univ8250_driver_ops = {
 	.setup_irq	= univ8250_setup_irq,
@@ -3184,6 +3154,69 @@ static void serial8250_set_defaults(struct uart_8250_port *up)
 	}
 }
 
+#ifdef CONFIG_SERIAL_8250_RSA
+
+static void univ8250_config_port(struct uart_port *port, int flags)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	up->probe &= ~UART_PROBE_RSA;
+	if (port->type == PORT_RSA) {
+		if (serial8250_request_rsa_resource(up) == 0)
+			up->probe |= UART_PROBE_RSA;
+	} else if (flags & UART_CONFIG_TYPE) {
+		int i;
+
+		for (i = 0; i < probe_rsa_count; i++) {
+			if (probe_rsa[i] == up->port.iobase) {
+				if (serial8250_request_rsa_resource(up) == 0)
+					up->probe |= UART_PROBE_RSA;
+				break;
+			}
+		}
+	}
+
+	base_ops->config_port(port, flags);
+
+	if (port->type != PORT_RSA && up->probe & UART_PROBE_RSA)
+		serial8250_release_rsa_resource(up);
+}
+
+static int univ8250_request_port(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	int ret;
+
+	ret = base_ops->request_port(port);
+	if (ret == 0 && port->type == PORT_RSA) {
+		ret = serial8250_request_rsa_resource(up);
+		if (ret < 0)
+			base_ops->release_port(port);
+	}
+
+	return ret;
+}
+
+static void univ8250_release_port(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	if (port->type == PORT_RSA)
+		serial8250_release_rsa_resource(up);
+	base_ops->release_port(port);
+}
+
+static void univ8250_rsa_support(struct uart_ops *ops)
+{
+	ops->config_port  = univ8250_config_port;
+	ops->request_port = univ8250_request_port;
+	ops->release_port = univ8250_release_port;
+}
+
+#else
+#define univ8250_rsa_support(x)		do { } while (0)
+#endif /* CONFIG_SERIAL_8250_RSA */
+
 static void __init serial8250_isa_init_ports(void)
 {
 	struct uart_8250_port *up;
@@ -3203,6 +3236,9 @@ static void __init serial8250_isa_init_ports(void)
 
 		port->line = i;
 		serial8250_init_port(up);
+		if (!base_ops)
+			base_ops = port->ops;
+		port->ops = &univ8250_port_ops;
 
 		init_timer(&up->timer);
 		up->timer.function = serial8250_timeout;
@@ -3215,6 +3251,10 @@ static void __init serial8250_isa_init_ports(void)
 		up->mcr_mask = ~ALPHA_KLUDGE_MCR;
 		up->mcr_force = ALPHA_KLUDGE_MCR;
 	}
+
+	/* chain base port ops to support Remote Supervisor Adapter */
+	univ8250_port_ops = *base_ops;
+	univ8250_rsa_support(&univ8250_port_ops);
 
 	if (share_irqs)
 		irqflag = IRQF_SHARED;
