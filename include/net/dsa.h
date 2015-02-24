@@ -275,6 +275,16 @@ struct dsa_switch_driver {
 	int	(*get_regs_len)(struct dsa_switch *ds, int port);
 	void	(*get_regs)(struct dsa_switch *ds, int port,
 			    struct ethtool_regs *regs, void *p);
+
+	/*
+	 * Bridge integration
+	 */
+	int	(*port_join_bridge)(struct dsa_switch *ds, int port,
+				    u32 br_port_mask);
+	int	(*port_leave_bridge)(struct dsa_switch *ds, int port,
+				     u32 br_port_mask);
+	int	(*port_stp_update)(struct dsa_switch *ds, int port,
+				   u8 state);
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);
