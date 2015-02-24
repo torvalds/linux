@@ -3222,10 +3222,9 @@ static void serial8250_console_putchar(struct uart_port *port, int ch)
  *
  *	The console_lock must be held when we get here.
  */
-static void
-serial8250_console_write(struct console *co, const char *s, unsigned int count)
+static void serial8250_console_write(struct uart_8250_port *up, const char *s,
+				     unsigned int count)
 {
-	struct uart_8250_port *up = &serial8250_ports[co->index];
 	struct uart_port *port = &up->port;
 	unsigned long flags;
 	unsigned int ier;
@@ -3297,13 +3296,34 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	serial8250_rpm_put(up);
 }
 
-static int serial8250_console_setup(struct console *co, char *options)
+static void univ8250_console_write(struct console *co, const char *s,
+				   unsigned int count)
 {
-	struct uart_port *port;
+	struct uart_8250_port *up = &serial8250_ports[co->index];
+
+	serial8250_console_write(up, s, count);
+}
+
+static int serial8250_console_setup(struct uart_8250_port *up, char *options)
+{
+	struct uart_port *port = &up->port;
 	int baud = 9600;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
+
+	if (!port->iobase && !port->membase)
+		return -ENODEV;
+
+	if (options)
+		uart_parse_options(options, &baud, &parity, &bits, &flow);
+
+	return uart_set_options(port, port->cons, baud, parity, bits, flow);
+}
+
+static int univ8250_console_setup(struct console *co, char *options)
+{
+	struct uart_8250_port *up;
 
 	/*
 	 * Check whether an invalid uart number has been specified, and
@@ -3312,18 +3332,15 @@ static int serial8250_console_setup(struct console *co, char *options)
 	 */
 	if (co->index >= nr_uarts)
 		co->index = 0;
-	port = &serial8250_ports[co->index].port;
-	if (!port->iobase && !port->membase)
-		return -ENODEV;
+	up = &serial8250_ports[co->index];
+	/* link port to console */
+	up->port.cons = co;
 
-	if (options)
-		uart_parse_options(options, &baud, &parity, &bits, &flow);
-
-	return uart_set_options(port, co, baud, parity, bits, flow);
+	return serial8250_console_setup(up, options);
 }
 
 /**
- *	serial8250_console_match - non-standard console matching
+ *	univ8250_console_match - non-standard console matching
  *	@co:	  registering console
  *	@name:	  name from console command line
  *	@idx:	  index from console command line
@@ -3339,8 +3356,8 @@ static int serial8250_console_setup(struct console *co, char *options)
  *
  *	Returns 0 if console matches; otherwise non-zero to use default matching
  */
-static int serial8250_console_match(struct console *co, char *name, int idx,
-				    char *options)
+static int univ8250_console_match(struct console *co, char *name, int idx,
+				  char *options)
 {
 	char match[] = "uart";	/* 8250-specific earlycon name */
 	unsigned char iotype;
@@ -3366,32 +3383,32 @@ static int serial8250_console_match(struct console *co, char *name, int idx,
 			continue;
 
 		co->index = i;
-		return serial8250_console_setup(co, options);
+		return univ8250_console_setup(co, options);
 	}
 
 	return -ENODEV;
 }
 
-static struct console serial8250_console = {
+static struct console univ8250_console = {
 	.name		= "ttyS",
-	.write		= serial8250_console_write,
+	.write		= univ8250_console_write,
 	.device		= uart_console_device,
-	.setup		= serial8250_console_setup,
-	.match		= serial8250_console_match,
+	.setup		= univ8250_console_setup,
+	.match		= univ8250_console_match,
 	.flags		= CON_PRINTBUFFER | CON_ANYTIME,
 	.index		= -1,
 	.data		= &serial8250_reg,
 };
 
-static int __init serial8250_console_init(void)
+static int __init univ8250_console_init(void)
 {
 	serial8250_isa_init_ports();
-	register_console(&serial8250_console);
+	register_console(&univ8250_console);
 	return 0;
 }
-console_initcall(serial8250_console_init);
+console_initcall(univ8250_console_init);
 
-#define SERIAL8250_CONSOLE	&serial8250_console
+#define SERIAL8250_CONSOLE	&univ8250_console
 #else
 #define SERIAL8250_CONSOLE	NULL
 #endif
