@@ -491,6 +491,8 @@ static int sprd_verify_port(struct uart_port *port,
 		return -EINVAL;
 	if (port->irq != ser->irq)
 		return -EINVAL;
+	if (port->iotype != ser->io_type)
+		return -EINVAL;
 	return 0;
 }
 
@@ -705,7 +707,7 @@ static int sprd_probe(struct platform_device *pdev)
 	up->dev = &pdev->dev;
 	up->line = index;
 	up->type = PORT_SPRD;
-	up->iotype = SERIAL_IO_PORT;
+	up->iotype = UPIO_MEM;
 	up->uartclk = SPRD_DEF_RATE;
 	up->fifosize = SPRD_FIFO_SIZE;
 	up->ops = &serial_sprd_ops;
