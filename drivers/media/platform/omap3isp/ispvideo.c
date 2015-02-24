@@ -1326,14 +1326,8 @@ static unsigned int isp_video_poll(struct file *file, poll_table *wait)
 static int isp_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(file->private_data);
-	struct isp_video *video = video_drvdata(file);
-	int ret;
 
-	mutex_lock(&video->queue_lock);
-	ret = vb2_mmap(&vfh->queue, vma);
-	mutex_unlock(&video->queue_lock);
-
-	return ret;
+	return vb2_mmap(&vfh->queue, vma);
 }
 
 static struct v4l2_file_operations isp_video_fops = {
