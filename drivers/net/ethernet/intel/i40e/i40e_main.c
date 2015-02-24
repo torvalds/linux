@@ -4107,7 +4107,7 @@ static u8 i40e_pf_get_num_tc(struct i40e_pf *pf)
 	if (pf->hw.func_caps.iscsi)
 		enabled_tc =  i40e_get_iscsi_tc_map(pf);
 	else
-		enabled_tc = pf->hw.func_caps.enabled_tcmap;
+		return 1; /* Only TC0 */
 
 	/* At least have TC0 */
 	enabled_tc = (enabled_tc ? enabled_tc : 0x1);
@@ -4157,11 +4157,11 @@ static u8 i40e_pf_get_tc_map(struct i40e_pf *pf)
 	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
 		return i40e_dcb_get_enabled_tc(&pf->hw.local_dcbx_config);
 
-	/* MPF enabled and iSCSI PF type */
+	/* MFP enabled and iSCSI PF type */
 	if (pf->hw.func_caps.iscsi)
 		return i40e_get_iscsi_tc_map(pf);
 	else
-		return pf->hw.func_caps.enabled_tcmap;
+		return i40e_pf_get_default_tc(pf);
 }
 
 /**
