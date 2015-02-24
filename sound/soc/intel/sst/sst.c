@@ -492,21 +492,6 @@ iram:
 	return ret;
 }
 
-static int intel_sst_runtime_resume(struct device *dev)
-{
-	int ret = 0;
-	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
-
-	if (ctx->sst_state == SST_RESET) {
-		ret = sst_load_fw(ctx);
-		if (ret) {
-			dev_err(dev, "FW download fail %d\n", ret);
-			sst_set_fw_state_locked(ctx, SST_RESET);
-		}
-	}
-	return ret;
-}
-
 static int intel_sst_resume(struct device *dev)
 {
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
@@ -515,7 +500,7 @@ static int intel_sst_resume(struct device *dev)
 	struct sst_block *block;
 
 	if (!fw_save)
-		return intel_sst_runtime_resume(dev);
+		return 0;
 
 	sst_set_fw_state_locked(ctx, SST_FW_LOADING);
 
@@ -560,6 +545,5 @@ const struct dev_pm_ops intel_sst_pm = {
 	.suspend = intel_sst_suspend,
 	.resume = intel_sst_resume,
 	.runtime_suspend = intel_sst_runtime_suspend,
-	.runtime_resume = intel_sst_runtime_resume,
 };
 EXPORT_SYMBOL_GPL(intel_sst_pm);
