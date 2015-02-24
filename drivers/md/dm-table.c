@@ -1677,20 +1677,6 @@ int dm_table_any_congested(struct dm_table *t, int bdi_bits)
 	return r;
 }
 
-int dm_table_any_busy_target(struct dm_table *t)
-{
-	unsigned i;
-	struct dm_target *ti;
-
-	for (i = 0; i < t->num_targets; i++) {
-		ti = t->targets + i;
-		if (ti->type->busy && ti->type->busy(ti))
-			return 1;
-	}
-
-	return 0;
-}
-
 struct mapped_device *dm_table_get_md(struct dm_table *t)
 {
 	return t->md;
