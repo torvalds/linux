@@ -299,29 +299,23 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
  * Announces that a buffer were filled and request the next
  */
 static inline void buffer_filled(struct au0828_dev *dev,
-				  struct au0828_dmaqueue *dma_q,
-				  struct au0828_buffer *buf)
+				 struct au0828_dmaqueue *dma_q,
+				 struct au0828_buffer *buf)
 {
+	struct vb2_buffer vb = buf->vb;
+	struct vb2_queue *q = vb.vb2_queue;
+
 	/* Advice that buffer was filled */
 	au0828_isocdbg("[%p/%d] wakeup\n", buf, buf->top_field);
 
-	buf->vb.v4l2_buf.sequence = dev->frame_count++;
-	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
-	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
-}
+	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		vb.v4l2_buf.sequence = dev->frame_count++;
+	else
+		vb.v4l2_buf.sequence = dev->vbi_frame_count++;
 
-static inline void vbi_buffer_filled(struct au0828_dev *dev,
-				     struct au0828_dmaqueue *dma_q,
-				     struct au0828_buffer *buf)
-{
-	/* Advice that buffer was filled */
-	au0828_isocdbg("[%p/%d] wakeup\n", buf, buf->top_field);
-
-	buf->vb.v4l2_buf.sequence = dev->vbi_frame_count++;
-	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
-	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+	vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
+	v4l2_get_timestamp(&vb.v4l2_buf.timestamp);
+	vb2_buffer_done(&vb, VB2_BUF_STATE_DONE);
 }
 
 /*
@@ -574,9 +568,7 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 			if (fbyte & 0x40) {
 				/* VBI */
 				if (vbi_buf != NULL)
-					vbi_buffer_filled(dev,
-							  vbi_dma_q,
-							  vbi_buf);
+					buffer_filled(dev, vbi_dma_q, vbi_buf);
 				vbi_get_next_buf(vbi_dma_q, &vbi_buf);
 				if (vbi_buf == NULL)
 					vbioutp = NULL;
@@ -945,7 +937,7 @@ static void au0828_vbi_buffer_timeout(unsigned long data)
 	if (buf != NULL) {
 		vbi_data = vb2_plane_vaddr(&buf->vb, 0);
 		memset(vbi_data, 0x00, buf->length);
-		vbi_buffer_filled(dev, dma_q, buf);
+		buffer_filled(dev, dma_q, buf);
 	}
 	vbi_get_next_buf(dma_q, &buf);
 
