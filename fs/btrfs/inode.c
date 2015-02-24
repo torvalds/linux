@@ -5010,6 +5010,7 @@ void btrfs_evict_inode(struct inode *inode)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_block_rsv *rsv, *global_rsv;
+	int steal_from_global = 0;
 	u64 min_size = btrfs_calc_trunc_metadata_size(root, 1);
 	int ret;
 
@@ -5077,9 +5078,20 @@ void btrfs_evict_inode(struct inode *inode)
 		 * hard as possible to get this to work.
 		 */
 		if (ret)
-			ret = btrfs_block_rsv_migrate(global_rsv, rsv, min_size);
+			steal_from_global++;
+		else
+			steal_from_global = 0;
+		ret = 0;
 
-		if (ret) {
+		/*
+		 * steal_from_global == 0: we reserved stuff, hooray!
+		 * steal_from_global == 1: we didn't reserve stuff, boo!
+		 * steal_from_global == 2: we've committed, still not a lot of
+		 * room but maybe we'll have room in the global reserve this
+		 * time.
+		 * steal_from_global == 3: abandon all hope!
+		 */
+		if (steal_from_global > 2) {
 			btrfs_warn(root->fs_info,
 				"Could not get space for a delete, will truncate on mount %d",
 				ret);
@@ -5093,6 +5105,36 @@ void btrfs_evict_inode(struct inode *inode)
 			btrfs_orphan_del(NULL, inode);
 			btrfs_free_block_rsv(root, rsv);
 			goto no_delete;
+		}
+
+		/*
+		 * We can't just steal from the global reserve, we need tomake
+		 * sure there is room to do it, if not we need to commit and try
+		 * again.
+		 */
+		if (steal_from_global) {
+			if (!btrfs_check_space_for_delayed_refs(trans, root))
+				ret = btrfs_block_rsv_migrate(global_rsv, rsv,
+							      min_size);
+			else
+				ret = -ENOSPC;
+		}
+
+		/*
+		 * Couldn't steal from the global reserve, we have too much
+		 * pending stuff built up, commit the transaction and try it
+		 * again.
+		 */
+		if (ret) {
+			ret = btrfs_commit_transaction(trans, root);
+			if (ret) {
+				btrfs_orphan_del(NULL, inode);
+				btrfs_free_block_rsv(root, rsv);
+				goto no_delete;
+			}
+			continue;
+		} else {
+			steal_from_global = 0;
 		}
 
 		trans->block_rsv = rsv;
