@@ -492,7 +492,6 @@ void fscache_put_operation(struct fscache_operation *op)
 	ASSERTIFCMP(op->state != FSCACHE_OP_ST_INITIALISED &&
 		    op->state != FSCACHE_OP_ST_COMPLETE,
 		    op->state, ==, FSCACHE_OP_ST_CANCELLED);
-	op->state = FSCACHE_OP_ST_DEAD;
 
 	fscache_stat(&fscache_n_op_release);
 
@@ -500,6 +499,7 @@ void fscache_put_operation(struct fscache_operation *op)
 		op->release(op);
 		op->release = NULL;
 	}
+	op->state = FSCACHE_OP_ST_DEAD;
 
 	object = op->object;
 	if (likely(object)) {

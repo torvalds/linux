@@ -269,11 +269,12 @@ static void fscache_release_retrieval_op(struct fscache_operation *_op)
 
 	_enter("{OP%x}", op->op.debug_id);
 
-	ASSERTCMP(atomic_read(&op->n_pages), ==, 0);
+	ASSERTIFCMP(op->op.state != FSCACHE_OP_ST_INITIALISED,
+		    atomic_read(&op->n_pages), ==, 0);
 
 	fscache_hist(fscache_retrieval_histogram, op->start_time);
 	if (op->context)
-		fscache_put_context(op->op.object->cookie, op->context);
+		fscache_put_context(op->cookie, op->context);
 
 	_leave("");
 }
@@ -302,11 +303,18 @@ static struct fscache_retrieval *fscache_alloc_retrieval(
 	op->op.flags	= FSCACHE_OP_MYTHREAD |
 		(1UL << FSCACHE_OP_WAITING) |
 		(1UL << FSCACHE_OP_UNUSE_COOKIE);
+	op->cookie	= cookie;
 	op->mapping	= mapping;
 	op->end_io_func	= end_io_func;
 	op->context	= context;
 	op->start_time	= jiffies;
 	INIT_LIST_HEAD(&op->to_do);
+
+	/* Pin the netfs read context in case we need to do the actual netfs
+	 * read because we've encountered a cache read failure.
+	 */
+	if (context)
+		fscache_get_context(op->cookie, context);
 	return op;
 }
 
@@ -456,10 +464,6 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 
 	fscache_stat(&fscache_n_retrieval_ops);
 
-	/* pin the netfs read context in case we need to do the actual netfs
-	 * read because we've encountered a cache read failure */
-	fscache_get_context(object->cookie, op->context);
-
 	/* we wait for the operation to become active, and then process it
 	 * *here*, in this thread, and not in the thread pool */
 	ret = fscache_wait_for_operation_activation(
@@ -585,10 +589,6 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	spin_unlock(&cookie->lock);
 
 	fscache_stat(&fscache_n_retrieval_ops);
-
-	/* pin the netfs read context in case we need to do the actual netfs
-	 * read because we've encountered a cache read failure */
-	fscache_get_context(object->cookie, op->context);
 
 	/* we wait for the operation to become active, and then process it
 	 * *here*, in this thread, and not in the thread pool */

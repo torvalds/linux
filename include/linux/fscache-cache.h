@@ -133,6 +133,7 @@ extern void fscache_operation_init(struct fscache_operation *,
  */
 struct fscache_retrieval {
 	struct fscache_operation op;
+	struct fscache_cookie	*cookie;	/* The netfs cookie */
 	struct address_space	*mapping;	/* netfs pages */
 	fscache_rw_complete_t	end_io_func;	/* function to call on I/O completion */
 	void			*context;	/* netfs read context (pinned) */
