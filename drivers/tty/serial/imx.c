@@ -1371,15 +1371,6 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	uint64_t tdiv64;
 
 	/*
-	 * If we don't support modem control lines, don't allow
-	 * these to be set.
-	 */
-	if (0) {
-		termios->c_cflag &= ~(HUPCL | CRTSCTS | CMSPAR);
-		termios->c_cflag |= CLOCAL;
-	}
-
-	/*
 	 * We only support CS7 and CS8.
 	 */
 	while ((termios->c_cflag & CSIZE) != CS7 &&
