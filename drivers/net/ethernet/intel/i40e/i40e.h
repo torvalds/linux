@@ -488,6 +488,7 @@ struct i40e_vsi {
 
 	u16 base_queue;      /* vsi's first queue in hw array */
 	u16 alloc_queue_pairs; /* Allocated Tx/Rx queues */
+	u16 req_queue_pairs; /* User requested queue pairs */
 	u16 num_queue_pairs; /* Used tx and rx pairs */
 	u16 num_desc;
 	enum i40e_vsi_type type;  /* VSI type, e.g., LAN, FCoE, etc */

@@ -1566,6 +1566,12 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 
 	/* Set actual Tx/Rx queue pairs */
 	vsi->num_queue_pairs = offset;
+	if ((vsi->type == I40E_VSI_MAIN) && (numtc == 1)) {
+		if (vsi->req_queue_pairs > 0)
+			vsi->num_queue_pairs = vsi->req_queue_pairs;
+		else
+			vsi->num_queue_pairs = pf->num_lan_msix;
+	}
 
 	/* Scheduler section valid can only be set for ADD VSI */
 	if (is_add) {
@@ -6921,7 +6927,8 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	 * If we can't get what we want, we'll simplify to nearly nothing
 	 * and try again.  If that still fails, we punt.
 	 */
-	pf->num_lan_msix = pf->num_lan_qps - (pf->rss_size_max - pf->rss_size);
+	pf->num_lan_msix = min_t(int, num_online_cpus(),
+				 hw->func_caps.num_msix_vectors);
 	pf->num_vmdq_msix = pf->num_vmdq_qps;
 	other_vecs = 1;
 	other_vecs += (pf->num_vmdq_vsis * pf->num_vmdq_msix);
@@ -7251,15 +7258,19 @@ static int i40e_config_rss(struct i40e_pf *pf)
  **/
 int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 {
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	int new_rss_size;
+
 	if (!(pf->flags & I40E_FLAG_RSS_ENABLED))
 		return 0;
 
-	queue_count = min_t(int, queue_count, pf->rss_size_max);
+	new_rss_size = min_t(int, queue_count, pf->rss_size_max);
 
-	if (queue_count != pf->rss_size) {
+	if (queue_count != vsi->num_queue_pairs) {
+		vsi->req_queue_pairs = queue_count;
 		i40e_prep_for_reset(pf);
 
-		pf->rss_size = queue_count;
+		pf->rss_size = new_rss_size;
 
 		i40e_reset_and_rebuild(pf, true);
 		i40e_config_rss(pf);
@@ -9258,7 +9269,11 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 			pf->flags &= ~I40E_FLAG_DCB_CAPABLE;
 			dev_info(&pf->pdev->dev, "not enough queues for DCB. DCB is disabled.\n");
 		}
-		pf->num_lan_qps = pf->rss_size_max;
+		pf->num_lan_qps = max_t(int, pf->rss_size_max,
+					num_online_cpus());
+		pf->num_lan_qps = min_t(int, pf->num_lan_qps,
+					pf->hw.func_caps.num_tx_qp);
+
 		queues_left -= pf->num_lan_qps;
 	}
 

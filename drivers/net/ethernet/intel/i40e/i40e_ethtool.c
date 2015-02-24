@@ -2348,10 +2348,6 @@ static int i40e_set_channels(struct net_device *dev,
 	/* update feature limits from largest to smallest supported values */
 	/* TODO: Flow director limit, DCB etc */
 
-	/* cap RSS limit */
-	if (count > pf->rss_size_max)
-		count = pf->rss_size_max;
-
 	/* use rss_reconfig to rebuild with new queue count and update traffic
 	 * class queue mapping
 	 */
