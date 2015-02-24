@@ -539,20 +539,12 @@ void *kvm_kvzalloc(unsigned long size)
 		return kzalloc(size, GFP_KERNEL);
 }
 
-void kvm_kvfree(const void *addr)
-{
-	if (is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
-}
-
 static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
 	if (!memslot->dirty_bitmap)
 		return;
 
-	kvm_kvfree(memslot->dirty_bitmap);
+	kvfree(memslot->dirty_bitmap);
 	memslot->dirty_bitmap = NULL;
 }
 
