@@ -1228,16 +1228,9 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	/*
 	 * Only probe for RSA ports if we got the region.
 	 */
-	if (port->type == PORT_16550A && probeflags & PROBE_RSA) {
-		int i;
-
-		for (i = 0 ; i < probe_rsa_count; ++i) {
-			if (probe_rsa[i] == port->iobase && __enable_rsa(up)) {
-				port->type = PORT_RSA;
-				break;
-			}
-		}
-	}
+	if (port->type == PORT_16550A && probeflags & PROBE_RSA &&
+	    __enable_rsa(up))
+		port->type = PORT_RSA;
 #endif
 
 	serial_out(up, UART_LCR, save_lcr);
@@ -3008,7 +3001,7 @@ static void register_dev_spec_attr_grp(struct uart_8250_port *up)
 static void serial8250_config_port(struct uart_port *port, int flags)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
-	int probeflags = PROBE_ANY;
+	int probeflags = 0;
 	int ret;
 
 	if (port->type == PORT_8250_CIR)
@@ -3023,9 +3016,20 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 		return;
 
 #ifdef CONFIG_SERIAL_8250_RSA
-	ret = serial8250_request_rsa_resource(up);
-	if (ret < 0)
-		probeflags &= ~PROBE_RSA;
+	if (port->type == PORT_RSA) {
+		if (serial8250_request_rsa_resource(up) == 0)
+			probeflags |= PROBE_RSA;
+	} else if (flags & UART_CONFIG_TYPE) {
+		int i;
+
+		for (i = 0 ; i < probe_rsa_count; ++i) {
+			if (probe_rsa[i] == port->iobase) {
+				if (serial8250_request_rsa_resource(up) == 0)
+					probeflags |= PROBE_RSA;
+				break;
+			}
+		}
+	}
 #endif
 
 	if (port->iotype != up->cur_iotype)
