@@ -2043,6 +2043,9 @@ static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 		tx_flags |= I40E_TX_FLAGS_SW_VLAN;
 	}
 
+	if (!(tx_ring->vsi->back->flags & I40E_FLAG_DCB_ENABLED))
+		goto out;
+
 	/* Insert 802.1p priority into VLAN header */
 	if ((tx_flags & (I40E_TX_FLAGS_HW_VLAN | I40E_TX_FLAGS_SW_VLAN)) ||
 	    (skb->priority != TC_PRIO_CONTROL)) {
@@ -2063,6 +2066,8 @@ static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 			tx_flags |= I40E_TX_FLAGS_HW_VLAN;
 		}
 	}
+
+out:
 	*flags = tx_flags;
 	return 0;
 }
