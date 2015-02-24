@@ -3,8 +3,6 @@
                   HOWTO for the linux packet generator 
                   ------------------------------------
 
-Date: 041221
-
 Enable CONFIG_NET_PKTGEN to compile and build pktgen.o either in kernel
 or as module. Module is preferred. insmod pktgen if needed. Once running
 pktgen creates a thread on each CPU where each thread has affinity to its CPU.
