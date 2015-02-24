@@ -201,6 +201,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		of_match_device(sh_mobile_sdhi_of_match, &pdev->dev);
 	struct sh_mobile_sdhi *priv;
 	struct tmio_mmc_data *mmc_data;
+	struct tmio_mmc_data *mmd = pdev->dev.platform_data;
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 	struct tmio_mmc_host *host;
 	struct resource *res;
@@ -245,28 +246,37 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	else
 		host->bus_shift = 0;
 
-	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
-	if (p) {
-		mmc_data->flags = p->tmio_flags;
-		mmc_data->ocr_mask = p->tmio_ocr_mask;
-		mmc_data->capabilities |= p->tmio_caps;
-		mmc_data->capabilities2 |= p->tmio_caps2;
-		mmc_data->cd_gpio = p->cd_gpio;
+	if (mmd) {
+		/*
+		 * FIXME
+		 *
+		 * sh_mobile_sdhi_info will be replaced to tmio_mmc_data soon.
+		 * But, sh_mobile_sdhi_info is used under
+		 * ${LINUX}/arch/arm/mach-shmobile/
+		 * ${LINUX}/arch/sh/
+		 * To separate large patch into "tmio_mmc_data has .chan_priv_?x"
+		 * and "replace sh_mobile_sdhi_info in tmio_mmc_data",
+		 * here has dummy method.
+		 * These should be removed.
+		 */
+		struct tmio_mmc_data m;
 
-		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
-			/*
-			 * Yes, we have to provide slave IDs twice to TMIO:
-			 * once as a filter parameter and once for channel
-			 * configuration as an explicit slave ID
-			 */
-			dma_priv->chan_priv_tx = (void *)p->dma_slave_tx;
-			dma_priv->chan_priv_rx = (void *)p->dma_slave_rx;
-		}
+		mmd = &m;
+		m.flags		= p->tmio_flags;
+		m.ocr_mask	= p->tmio_ocr_mask;
+		m.capabilities	= p->tmio_caps;
+		m.capabilities2	= p->tmio_caps2;
+		m.cd_gpio	= p->cd_gpio;
+		m.chan_priv_tx	= (void *)p->dma_slave_tx;
+		m.chan_priv_rx	= (void *)p->dma_slave_rx;
+
+		*mmc_data = *mmd;
 	}
 	dma_priv->filter = shdma_chan_filter;
 	dma_priv->enable = sh_mobile_sdhi_enable_dma;
 
 	mmc_data->alignment_shift = 1; /* 2-byte alignment */
+	mmc_data->capabilities |= MMC_CAP_MMC_HIGHSPEED;
 
 	/*
 	 * All SDHI blocks support 2-byte and larger block sizes in 4-bit
