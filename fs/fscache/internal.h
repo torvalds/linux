@@ -124,9 +124,7 @@ extern int fscache_submit_exclusive_op(struct fscache_object *,
 				       struct fscache_operation *);
 extern int fscache_submit_op(struct fscache_object *,
 			     struct fscache_operation *);
-extern int fscache_cancel_op(struct fscache_operation *,
-			     void (*)(struct fscache_operation *),
-			     bool);
+extern int fscache_cancel_op(struct fscache_operation *, bool);
 extern void fscache_cancel_all_ops(struct fscache_object *);
 extern void fscache_abort_object(struct fscache_object *);
 extern void fscache_start_operations(struct fscache_object *);
@@ -139,8 +137,7 @@ extern int fscache_wait_for_deferred_lookup(struct fscache_cookie *);
 extern int fscache_wait_for_operation_activation(struct fscache_object *,
 						 struct fscache_operation *,
 						 atomic_t *,
-						 atomic_t *,
-						 void (*)(struct fscache_operation *));
+						 atomic_t *);
 extern void fscache_invalidate_writes(struct fscache_cookie *);
 
 /*

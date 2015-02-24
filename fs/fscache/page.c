@@ -213,7 +213,7 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 		return -ENOMEM;
 	}
 
-	fscache_operation_init(op, fscache_attr_changed_op, NULL);
+	fscache_operation_init(op, fscache_attr_changed_op, NULL, NULL);
 	op->flags = FSCACHE_OP_ASYNC |
 		(1 << FSCACHE_OP_EXCLUSIVE) |
 		(1 << FSCACHE_OP_UNUSE_COOKIE);
@@ -247,6 +247,17 @@ nobufs:
 	return -ENOBUFS;
 }
 EXPORT_SYMBOL(__fscache_attr_changed);
+
+/*
+ * Handle cancellation of a pending retrieval op
+ */
+static void fscache_do_cancel_retrieval(struct fscache_operation *_op)
+{
+	struct fscache_retrieval *op =
+		container_of(_op, struct fscache_retrieval, op);
+
+	atomic_set(&op->n_pages, 0);
+}
 
 /*
  * release a retrieval op reference
@@ -285,7 +296,9 @@ static struct fscache_retrieval *fscache_alloc_retrieval(
 		return NULL;
 	}
 
-	fscache_operation_init(&op->op, NULL, fscache_release_retrieval_op);
+	fscache_operation_init(&op->op, NULL,
+			       fscache_do_cancel_retrieval,
+			       fscache_release_retrieval_op);
 	op->op.flags	= FSCACHE_OP_MYTHREAD |
 		(1UL << FSCACHE_OP_WAITING) |
 		(1UL << FSCACHE_OP_UNUSE_COOKIE);
@@ -330,24 +343,12 @@ int fscache_wait_for_deferred_lookup(struct fscache_cookie *cookie)
 }
 
 /*
- * Handle cancellation of a pending retrieval op
- */
-static void fscache_do_cancel_retrieval(struct fscache_operation *_op)
-{
-	struct fscache_retrieval *op =
-		container_of(_op, struct fscache_retrieval, op);
-
-	atomic_set(&op->n_pages, 0);
-}
-
-/*
  * wait for an object to become active (or dead)
  */
 int fscache_wait_for_operation_activation(struct fscache_object *object,
 					  struct fscache_operation *op,
 					  atomic_t *stat_op_waits,
-					  atomic_t *stat_object_dead,
-					  void (*do_cancel)(struct fscache_operation *))
+					  atomic_t *stat_object_dead)
 {
 	int ret;
 
@@ -359,7 +360,7 @@ int fscache_wait_for_operation_activation(struct fscache_object *object,
 		fscache_stat(stat_op_waits);
 	if (wait_on_bit(&op->flags, FSCACHE_OP_WAITING,
 			TASK_INTERRUPTIBLE) != 0) {
-		ret = fscache_cancel_op(op, do_cancel, false);
+		ret = fscache_cancel_op(op, false);
 		if (ret == 0)
 			return -ERESTARTSYS;
 
@@ -380,7 +381,7 @@ check_if_dead:
 	if (unlikely(fscache_object_is_dying(object) ||
 		     fscache_cache_is_broken(object))) {
 		enum fscache_operation_state state = op->state;
-		fscache_cancel_op(op, do_cancel, true);
+		fscache_cancel_op(op, true);
 		if (stat_object_dead)
 			fscache_stat(stat_object_dead);
 		_leave(" = -ENOBUFS [obj dead %d]", state);
@@ -464,8 +465,7 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 	ret = fscache_wait_for_operation_activation(
 		object, &op->op,
 		__fscache_stat(&fscache_n_retrieval_op_waits),
-		__fscache_stat(&fscache_n_retrievals_object_dead),
-		fscache_do_cancel_retrieval);
+		__fscache_stat(&fscache_n_retrievals_object_dead));
 	if (ret < 0)
 		goto error;
 
@@ -595,8 +595,7 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	ret = fscache_wait_for_operation_activation(
 		object, &op->op,
 		__fscache_stat(&fscache_n_retrieval_op_waits),
-		__fscache_stat(&fscache_n_retrievals_object_dead),
-		fscache_do_cancel_retrieval);
+		__fscache_stat(&fscache_n_retrievals_object_dead));
 	if (ret < 0)
 		goto error;
 
@@ -702,8 +701,7 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 	ret = fscache_wait_for_operation_activation(
 		object, &op->op,
 		__fscache_stat(&fscache_n_alloc_op_waits),
-		__fscache_stat(&fscache_n_allocs_object_dead),
-		fscache_do_cancel_retrieval);
+		__fscache_stat(&fscache_n_allocs_object_dead));
 	if (ret < 0)
 		goto error;
 
@@ -946,7 +944,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	if (!op)
 		goto nomem;
 
-	fscache_operation_init(&op->op, fscache_write_op,
+	fscache_operation_init(&op->op, fscache_write_op, NULL,
 			       fscache_release_write_op);
 	op->op.flags = FSCACHE_OP_ASYNC |
 		(1 << FSCACHE_OP_WAITING) |

@@ -74,6 +74,7 @@ extern wait_queue_head_t fscache_cache_cleared_wq;
  */
 typedef void (*fscache_operation_release_t)(struct fscache_operation *op);
 typedef void (*fscache_operation_processor_t)(struct fscache_operation *op);
+typedef void (*fscache_operation_cancel_t)(struct fscache_operation *op);
 
 enum fscache_operation_state {
 	FSCACHE_OP_ST_BLANK,		/* Op is not yet submitted */
@@ -109,6 +110,9 @@ struct fscache_operation {
 	 *   the op in a non-pool thread */
 	fscache_operation_processor_t processor;
 
+	/* Operation cancellation cleanup (optional) */
+	fscache_operation_cancel_t cancel;
+
 	/* operation releaser */
 	fscache_operation_release_t release;
 };
@@ -121,6 +125,7 @@ extern void fscache_op_complete(struct fscache_operation *, bool);
 extern void fscache_put_operation(struct fscache_operation *);
 extern void fscache_operation_init(struct fscache_operation *,
 				   fscache_operation_processor_t,
+				   fscache_operation_cancel_t,
 				   fscache_operation_release_t);
 
 /*
