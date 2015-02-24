@@ -53,6 +53,7 @@ PGDEV=/proc/net/pktgen/eth1
 PGDEV=/proc/net/pktgen/pgctrl
 
  echo "Running... ctrl^C to stop"
+ trap true INT
  pgset "start"
  echo "Done"
 
