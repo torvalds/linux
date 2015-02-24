@@ -365,7 +365,7 @@ static void pump_transfers(unsigned long data)
 	u8 bits = 0;
 	u8 imask = 0;
 	u8 cs_change = 0;
-	u16 txint_level = 0;
+	u16 txlevel = 0;
 	u16 clk_div = 0;
 	u32 speed = 0;
 	u32 cr0 = 0;
@@ -461,10 +461,7 @@ static void pump_transfers(unsigned long data)
 	 * we only need set the TXEI IRQ, as TX/RX always happen syncronizely
 	 */
 	if (!dws->dma_mapped && !chip->poll_mode) {
-		int templen = dws->len / dws->n_bytes;
-
-		txint_level = dws->fifo_len / 2;
-		txint_level = (templen > txint_level) ? txint_level : templen;
+		txlevel = min_t(u16, dws->fifo_len / 2, dws->len / dws->n_bytes);
 
 		imask |= SPI_INT_TXEI | SPI_INT_TXOI |
 			 SPI_INT_RXUI | SPI_INT_RXOI;
@@ -490,8 +487,8 @@ static void pump_transfers(unsigned long data)
 		spi_mask_intr(dws, 0xff);
 		if (imask)
 			spi_umask_intr(dws, imask);
-		if (txint_level)
-			dw_writew(dws, DW_SPI_TXFLTR, txint_level);
+		if (txlevel)
+			dw_writew(dws, DW_SPI_TXFLTR, txlevel);
 
 		spi_enable_chip(dws, 1);
 	}
