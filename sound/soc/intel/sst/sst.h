@@ -337,6 +337,13 @@ struct sst_shim_regs64 {
 	u64 csr2;
 };
 
+struct sst_fw_save {
+	void *iram;
+	void *dram;
+	void *sram;
+	void *ddr;
+};
+
 /**
  * struct intel_sst_drv - driver ops
  *
@@ -428,6 +435,8 @@ struct intel_sst_drv {
 	 * persistent till worker thread gets called
 	 */
 	char firmware_name[FW_NAME_SIZE];
+
+	struct sst_fw_save	*fw_save;
 };
 
 /* misc definitions */
