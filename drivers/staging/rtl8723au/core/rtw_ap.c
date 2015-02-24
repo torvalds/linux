@@ -783,6 +783,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	struct wlan_bssid_ex *pbss_network = &pmlmepriv->cur_network.network;
 	u8 *ie = pbss_network->IEs;
 	u8 *pbuf = mgmt->u.beacon.variable;
+
 	len -= offsetof(struct ieee80211_mgmt, u.beacon.variable);
 	/* SSID */
 	/* Supported rates */
