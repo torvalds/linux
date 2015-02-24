@@ -17,7 +17,7 @@ Required properties:
 		"ti,omap2-scm"
 		"ti,omap3-prm"
 		"ti,omap3-cm"
-		"ti,omap3-scrm"
+		"ti,omap3-scm"
 		"ti,omap4-cm1"
 		"ti,omap4-prm"
 		"ti,omap4-cm2"
