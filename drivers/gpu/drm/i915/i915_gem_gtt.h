@@ -189,10 +189,16 @@ struct i915_vma {
 
 struct i915_page_table_entry {
 	struct page *page;
+	dma_addr_t daddr;
 };
 
 struct i915_page_directory_entry {
 	struct page *page; /* NULL for GEN6-GEN7 */
+	union {
+		uint32_t pd_offset;
+		dma_addr_t daddr;
+	};
+
 	struct i915_page_table_entry *page_table;
 };
 
@@ -285,14 +291,6 @@ struct i915_hw_ppgtt {
 	struct drm_mm_node node;
 	unsigned num_pd_entries;
 	unsigned num_pd_pages; /* gen8+ */
-	union {
-		uint32_t pd_offset;
-		dma_addr_t pd_dma_addr[GEN8_LEGACY_PDPES];
-	};
-	union {
-		dma_addr_t *pt_dma_addr;
-		dma_addr_t *gen8_pt_dma_addr[GEN8_LEGACY_PDPES];
-	};
 	union {
 		struct i915_page_directory_pointer_entry pdp;
 		struct i915_page_directory_entry pd;
