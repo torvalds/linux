@@ -27,7 +27,12 @@ Optional properties:
 Required properties for timer sub-node:
 - compatible : Should be "mti,gic-timer".
 - interrupts : Interrupt for the GIC local timer.
+
+Optional properties for timer sub-node:
+- clocks : GIC timer operating clock.
 - clock-frequency : Clock frequency at which the GIC timers operate.
+
+Note that one of clocks or clock-frequency must be specified.
 
 Example:
 

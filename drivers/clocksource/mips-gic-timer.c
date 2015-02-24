@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
  */
+#include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
 #include <linux/init.h>
@@ -149,11 +150,18 @@ void __init gic_clocksource_init(unsigned int frequency)
 
 static void __init gic_clocksource_of_init(struct device_node *node)
 {
+	struct clk *clk;
+
 	if (WARN_ON(!gic_present || !node->parent ||
 		    !of_device_is_compatible(node->parent, "mti,gic")))
 		return;
 
-	if (of_property_read_u32(node, "clock-frequency", &gic_frequency)) {
+	clk = of_clk_get(node, 0);
+	if (!IS_ERR(clk)) {
+		gic_frequency = clk_get_rate(clk);
+		clk_put(clk);
+	} else if (of_property_read_u32(node, "clock-frequency",
+					&gic_frequency)) {
 		pr_err("GIC frequency not specified.\n");
 		return;
 	}
