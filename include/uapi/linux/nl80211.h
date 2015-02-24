@@ -3092,7 +3092,8 @@ enum nl80211_mesh_power_mode {
  *
  * @NL80211_MESHCONF_PLINK_TIMEOUT: If no tx activity is seen from a STA we've
  *	established peering with for longer than this time (in seconds), then
- *	remove it from the STA's list of peers.  Default is 30 minutes.
+ *	remove it from the STA's list of peers. You may set this to 0 to disable
+ *	the removal of the STA. Default is 30 minutes.
  *
  * @__NL80211_MESHCONF_ATTR_AFTER_LAST: internal use
  */

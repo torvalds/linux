@@ -5265,7 +5265,7 @@ do {									    \
 	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshAwakeWindowDuration,
 				  0, 65535, mask,
 				  NL80211_MESHCONF_AWAKE_WINDOW, nla_get_u16);
-	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, plink_timeout, 1, 0xffffffff,
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, plink_timeout, 0, 0xffffffff,
 				  mask, NL80211_MESHCONF_PLINK_TIMEOUT,
 				  nla_get_u32);
 	if (mask_out)
