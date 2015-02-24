@@ -476,8 +476,7 @@ static void pump_transfers(unsigned long data)
 	if (dw_readw(dws, DW_SPI_CTRL0) != cr0 || cs_change || clk_div || imask) {
 		spi_enable_chip(dws, 0);
 
-		if (dw_readw(dws, DW_SPI_CTRL0) != cr0)
-			dw_writew(dws, DW_SPI_CTRL0, cr0);
+		dw_writew(dws, DW_SPI_CTRL0, cr0);
 
 		spi_set_clk(dws, chip->clk_div);
 		spi_chip_sel(dws, spi, 1);
