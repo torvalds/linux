@@ -1,13 +1,13 @@
 /*
- *  Driver for Motorola IMX serial ports
+ * Driver for Motorola/Freescale IMX serial ports
  *
- *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
+ * Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *
- *  Author: Sascha Hauer <sascha@saschahauer.de>
- *  Copyright (C) 2004 Pengutronix
+ * Author: Sascha Hauer <sascha@saschahauer.de>
+ * Copyright (C) 2004 Pengutronix
  *
- *  Copyright (C) 2009 emlix GmbH
- *  Author: Fabian Godehardt (added IrDA support for iMX)
+ * Author: Fabian Godehardt (added IrDA support for iMX)
+ * Copyright (C) 2009 emlix GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * [29-Mar-2005] Mike Lee
- * Added hardware handshake
  */
 
 #if defined(CONFIG_SERIAL_IMX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
