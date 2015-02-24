@@ -18,7 +18,7 @@ function pgset() {
 
 
 # thread config
-# Each CPU has own thread. Two CPU exammple. We add eth1, eth2 respectivly.
+# Each CPU has its own thread. One CPU example. We add eth1.
 # IPv6. Note increase in minimal packet length
 
 PGDEV=/proc/net/pktgen/kpktgend_0

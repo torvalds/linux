@@ -18,7 +18,8 @@ function pgset() {
 
 
 # thread config
-# Each CPU has own thread. Two CPU exammple. We add eth1, eth2 respectivly.
+# Each CPU has its own thread. Two CPU example. We add eth1 to the first
+# and leave the second idle.
 
 PGDEV=/proc/net/pktgen/kpktgend_0
   echo "Removing all devices"

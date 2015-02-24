@@ -18,7 +18,7 @@ function pgset() {
 
 
 # thread config
-# One CPU means one thread. One CPU exammple. We add eth1, eth2 respectivly.
+# One CPU means one thread. One CPU example. We add eth1, eth2 respectivly.
 
 PGDEV=/proc/net/pktgen/kpktgend_0
   echo "Removing all devices"
