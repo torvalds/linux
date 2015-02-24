@@ -3053,7 +3053,7 @@ serial8250_type(struct uart_port *port)
 	return uart_config[type].name;
 }
 
-static struct uart_ops serial8250_pops = {
+static const struct uart_ops serial8250_pops = {
 	.tx_empty	= serial8250_tx_empty,
 	.set_mctrl	= serial8250_set_mctrl,
 	.get_mctrl	= serial8250_get_mctrl,
