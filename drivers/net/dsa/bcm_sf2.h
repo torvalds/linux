@@ -46,6 +46,8 @@ struct bcm_sf2_port_status {
 	unsigned int link;
 
 	struct ethtool_eee eee;
+
+	u32 vlan_ctl_mask;
 };
 
 struct bcm_sf2_priv {
