@@ -410,6 +410,15 @@ void rcu_bh_force_quiescent_state(void)
 EXPORT_SYMBOL_GPL(rcu_bh_force_quiescent_state);
 
 /*
+ * Force a quiescent state for RCU-sched.
+ */
+void rcu_sched_force_quiescent_state(void)
+{
+	force_quiescent_state(&rcu_sched_state);
+}
+EXPORT_SYMBOL_GPL(rcu_sched_force_quiescent_state);
+
+/*
  * Show the state of the grace-period kthreads.
  */
 void show_rcu_gp_kthreads(void)
@@ -481,15 +490,6 @@ void rcutorture_record_progress(unsigned long vernum)
 	rcutorture_vernum++;
 }
 EXPORT_SYMBOL_GPL(rcutorture_record_progress);
-
-/*
- * Force a quiescent state for RCU-sched.
- */
-void rcu_sched_force_quiescent_state(void)
-{
-	force_quiescent_state(&rcu_sched_state);
-}
-EXPORT_SYMBOL_GPL(rcu_sched_force_quiescent_state);
 
 /*
  * Does the CPU have callbacks ready to be invoked?
