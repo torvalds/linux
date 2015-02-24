@@ -2561,7 +2561,7 @@ static int rtl_check_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 	int rc = -EINVAL;
 
 	if (!rtl_fw_format_ok(tp, rtl_fw)) {
-		netif_err(tp, ifup, dev, "invalid firwmare\n");
+		netif_err(tp, ifup, dev, "invalid firmware\n");
 		goto out;
 	}
 
