@@ -36,8 +36,9 @@ struct clk_factors {
 	spinlock_t *lock;
 };
 
-struct clk * __init sunxi_factors_register(struct device_node *node,
-					   const struct factors_data *data,
-					   spinlock_t *lock);
+struct clk *sunxi_factors_register(struct device_node *node,
+				   const struct factors_data *data,
+				   spinlock_t *lock,
+				   void __iomem *reg);
 
 #endif

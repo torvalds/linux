@@ -40,7 +40,7 @@ struct ceph_mon_request {
 };
 
 /*
- * ceph_mon_generic_request is being used for the statfs, poolop and
+ * ceph_mon_generic_request is being used for the statfs and
  * mon_get_version requests which are being done a bit differently
  * because we need to get data back to the caller
  */
@@ -50,7 +50,6 @@ struct ceph_mon_generic_request {
 	struct rb_node node;
 	int result;
 	void *buf;
-	int buf_len;
 	struct completion completion;
 	struct ceph_msg *request;  /* original request */
 	struct ceph_msg *reply;    /* and reply */
@@ -116,11 +115,5 @@ extern int ceph_monc_do_get_version(struct ceph_mon_client *monc,
 extern int ceph_monc_open_session(struct ceph_mon_client *monc);
 
 extern int ceph_monc_validate_auth(struct ceph_mon_client *monc);
-
-extern int ceph_monc_create_snapid(struct ceph_mon_client *monc,
-				   u32 pool, u64 *snapid);
-
-extern int ceph_monc_delete_snapid(struct ceph_mon_client *monc,
-				   u32 pool, u64 snapid);
 
 #endif

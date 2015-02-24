@@ -500,6 +500,7 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
+			     IEEE80211_VIF_SUPPORTS_UAPSD |
 			     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
@@ -1480,9 +1481,7 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	/* unit us */
 	/* FIXME: find a proper value */
 
-	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_SUPPORTS_UAPSD;
+	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_SUPPORTS_PS;
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					 BIT(NL80211_IFTYPE_ADHOC);

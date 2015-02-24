@@ -918,6 +918,9 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(sq);
 
+	/* timestamp packet in software */
+	skb_tx_timestamp(skb);
+
 	/* Try to transmit */
 	err = xmit_skb(sq, skb);
 
@@ -1369,6 +1372,7 @@ static const struct ethtool_ops virtnet_ethtool_ops = {
 	.get_ringparam = virtnet_get_ringparam,
 	.set_channels = virtnet_set_channels,
 	.get_channels = virtnet_get_channels,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 #define MIN_MTU 68
@@ -1706,6 +1710,12 @@ static int virtnet_probe(struct virtio_device *vdev)
 	struct virtnet_info *vi;
 	u16 max_queue_pairs;
 
+	if (!vdev->config->get) {
+		dev_err(&vdev->dev, "%s failure: config access disabled\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	if (!virtnet_validate_features(vdev))
 		return -EINVAL;
 
@@ -1753,6 +1763,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 			dev->hw_features |= NETIF_F_TSO_ECN;
 		if (virtio_has_feature(vdev, VIRTIO_NET_F_HOST_UFO))
 			dev->hw_features |= NETIF_F_UFO;
+
+		dev->features |= NETIF_F_GSO_ROBUST;
 
 		if (gso)
 			dev->features |= dev->hw_features & (NETIF_F_ALL_TSO|NETIF_F_UFO);

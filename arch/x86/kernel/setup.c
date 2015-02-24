@@ -89,6 +89,7 @@
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/bugs.h>
+#include <asm/kasan.h>
 
 #include <asm/vsyscall.h>
 #include <asm/cpu.h>
@@ -120,6 +121,8 @@
  */
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
+
+bool __read_mostly kaslr_enabled = false;
 
 #ifdef CONFIG_DMI
 RESERVE_BRK(dmi_alloc, 65536);
@@ -424,6 +427,11 @@ static void __init reserve_initrd(void)
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
 
+static void __init parse_kaslr_setup(u64 pa_data, u32 data_len)
+{
+	kaslr_enabled = (bool)(pa_data + sizeof(struct setup_data));
+}
+
 static void __init parse_setup_data(void)
 {
 	struct setup_data *data;
@@ -448,6 +456,9 @@ static void __init parse_setup_data(void)
 			break;
 		case SETUP_EFI:
 			parse_efi_setup(pa_data, data_len);
+			break;
+		case SETUP_KASLR:
+			parse_kaslr_setup(pa_data, data_len);
 			break;
 		default:
 			break;
@@ -831,10 +842,14 @@ static void __init trim_low_memory_range(void)
 static int
 dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
 {
-	pr_emerg("Kernel Offset: 0x%lx from 0x%lx "
-		 "(relocation range: 0x%lx-0x%lx)\n",
-		 (unsigned long)&_text - __START_KERNEL, __START_KERNEL,
-		 __START_KERNEL_map, MODULES_VADDR-1);
+	if (kaslr_enabled)
+		pr_emerg("Kernel Offset: 0x%lx from 0x%lx (relocation range: 0x%lx-0x%lx)\n",
+			 (unsigned long)&_text - __START_KERNEL,
+			 __START_KERNEL,
+			 __START_KERNEL_map,
+			 MODULES_VADDR-1);
+	else
+		pr_emerg("Kernel Offset: disabled\n");
 
 	return 0;
 }
@@ -1174,9 +1189,11 @@ void __init setup_arch(char **cmdline_p)
 
 	x86_init.paging.pagetable_init();
 
+	kasan_init();
+
 	if (boot_cpu_data.cpuid_level >= 0) {
 		/* A CPU has %cr4 if and only if it has CPUID */
-		mmu_cr4_features = read_cr4();
+		mmu_cr4_features = __read_cr4();
 		if (trampoline_cr4_features)
 			*trampoline_cr4_features = mmu_cr4_features;
 	}

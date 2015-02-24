@@ -289,7 +289,7 @@ continue_unlock:
 		if (!clear_page_dirty_for_io(page))
 			goto continue_unlock;
 
-		trace_wbc_writepage(wbc, mapping->backing_dev_info);
+		trace_wbc_writepage(wbc, inode_to_bdi(inode));
 
 		ret = __gfs2_jdata_writepage(page, wbc);
 		if (unlikely(ret)) {

@@ -97,6 +97,14 @@ rmem_max
 
 The maximum receive socket buffer size in bytes.
 
+tstamp_allow_data
+-----------------
+Allow processes to receive tx timestamps looped together with the original
+packet contents. If disabled, transmit timestamp requests from unprivileged
+processes are dropped unless socket option SOF_TIMESTAMPING_OPT_TSONLY is set.
+Default: 1 (on)
+
+
 wmem_default
 ------------
 

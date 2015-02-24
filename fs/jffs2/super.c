@@ -138,7 +138,7 @@ static struct dentry *jffs2_get_parent(struct dentry *child)
 	struct jffs2_inode_info *f;
 	uint32_t pino;
 
-	BUG_ON(!S_ISDIR(child->d_inode->i_mode));
+	BUG_ON(!d_is_dir(child));
 
 	f = JFFS2_INODE_INFO(child->d_inode);
 

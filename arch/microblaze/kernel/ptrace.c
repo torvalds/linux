@@ -132,9 +132,9 @@ long arch_ptrace(struct task_struct *child, long request,
 	return rval;
 }
 
-asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
+asmlinkage unsigned long do_syscall_trace_enter(struct pt_regs *regs)
 {
-	long ret = 0;
+	unsigned long ret = 0;
 
 	secure_computing_strict(regs->r12);
 

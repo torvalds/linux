@@ -18,9 +18,7 @@
 #ifndef __INCLUDE_LINUX_IRQCHIP_IRQ_OMAP_INTC_H
 #define __INCLUDE_LINUX_IRQCHIP_IRQ_OMAP_INTC_H
 
-void omap2_init_irq(void);
 void omap3_init_irq(void);
-void ti81xx_init_irq(void);
 
 int omap_irq_pending(void);
 void omap_intc_save_context(void);

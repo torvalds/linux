@@ -901,7 +901,7 @@ static int ipipe_set_gbce_params(struct vpfe_ipipe_device *ipipe, void *param)
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
 	if (!gbce_param) {
-		memset(gbce, 0 , sizeof(struct vpfe_ipipe_gbce));
+		memset(gbce, 0, sizeof(struct vpfe_ipipe_gbce));
 	} else {
 		memcpy(gbce, gbce_param, sizeof(struct vpfe_ipipe_gbce));
 		if (ipipe_validate_gbce_params(gbce) < 0) {
@@ -1086,7 +1086,7 @@ static int ipipe_set_car_params(struct vpfe_ipipe_device *ipipe, void *param)
 	struct vpfe_ipipe_car *car = &ipipe->config.car;
 
 	if (!car_param) {
-		memset(car , 0, sizeof(struct vpfe_ipipe_car));
+		memset(car, 0, sizeof(struct vpfe_ipipe_car));
 	} else {
 		memcpy(car, car_param, sizeof(struct vpfe_ipipe_car));
 		if (ipipe_validate_car_params(car) < 0) {

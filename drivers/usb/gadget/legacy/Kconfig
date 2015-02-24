@@ -40,7 +40,7 @@ config USB_ZERO
 	  dynamically linked module called "g_zero".
 
 config USB_ZERO_HNPTEST
-	boolean "HNP Test Device"
+	bool "HNP Test Device"
 	depends on USB_ZERO && USB_OTG
 	help
 	  You can configure this device to enumerate using the device

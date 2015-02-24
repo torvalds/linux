@@ -105,6 +105,11 @@
  * FOO_BULK_PORTAL    is for incoming bulk on the FOO
  */
 
+/* Lustre service names are following the format
+ * service name + MDT + seq name
+ */
+#define LUSTRE_MDT_MAXNAMELEN	80
+
 #define CONNMGR_REQUEST_PORTAL	  1
 #define CONNMGR_REPLY_PORTAL	    2
 //#define OSC_REQUEST_PORTAL	    3

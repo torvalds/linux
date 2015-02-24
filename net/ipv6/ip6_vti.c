@@ -1016,6 +1016,7 @@ static struct rtnl_link_ops vti6_link_ops __read_mostly = {
 	.changelink	= vti6_changelink,
 	.get_size	= vti6_get_size,
 	.fill_info	= vti6_fill_info,
+	.get_link_net	= ip6_tnl_get_link_net,
 };
 
 static void __net_exit vti6_destroy_tunnels(struct vti6_net *ip6n)

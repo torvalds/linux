@@ -19,9 +19,12 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/of_address.h>
 #include <linux/module.h>
+#include <linux/basic_mmio_gpio.h>
 
 #define GEF_GPIO_DIRECT		0x00
 #define GEF_GPIO_IN		0x04
@@ -32,53 +35,6 @@
 #define GEF_GPIO_INT_STAT	0x18
 #define GEF_GPIO_OVERRUN	0x1C
 #define GEF_GPIO_MODE		0x20
-
-static void gef_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
-{
-	struct of_mm_gpio_chip *mmchip = to_of_mm_gpio_chip(chip);
-	unsigned int data;
-
-	data = ioread32be(mmchip->regs + GEF_GPIO_OUT);
-	if (value)
-		data = data | BIT(offset);
-	else
-		data = data & ~BIT(offset);
-	iowrite32be(data, mmchip->regs + GEF_GPIO_OUT);
-}
-
-static int gef_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned int data;
-	struct of_mm_gpio_chip *mmchip = to_of_mm_gpio_chip(chip);
-
-	data = ioread32be(mmchip->regs + GEF_GPIO_DIRECT);
-	data = data | BIT(offset);
-	iowrite32be(data, mmchip->regs + GEF_GPIO_DIRECT);
-
-	return 0;
-}
-
-static int gef_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int value)
-{
-	unsigned int data;
-	struct of_mm_gpio_chip *mmchip = to_of_mm_gpio_chip(chip);
-
-	/* Set value before switching to output */
-	gef_gpio_set(mmchip->regs + GEF_GPIO_OUT, offset, value);
-
-	data = ioread32be(mmchip->regs + GEF_GPIO_DIRECT);
-	data = data & ~BIT(offset);
-	iowrite32be(data, mmchip->regs + GEF_GPIO_DIRECT);
-
-	return 0;
-}
-
-static int gef_gpio_get(struct gpio_chip *chip, unsigned offset)
-{
-	struct of_mm_gpio_chip *mmchip = to_of_mm_gpio_chip(chip);
-
-	return !!(ioread32be(mmchip->regs + GEF_GPIO_IN) & BIT(offset));
-}
 
 static const struct of_device_id gef_gpio_ids[] = {
 	{
@@ -99,22 +55,50 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 		of_match_device(gef_gpio_ids, &pdev->dev);
-	struct of_mm_gpio_chip *mmchip;
+	struct bgpio_chip *bgc;
+	void __iomem *regs;
+	int ret;
 
-	mmchip = devm_kzalloc(&pdev->dev, sizeof(*mmchip), GFP_KERNEL);
-	if (!mmchip)
+	bgc = devm_kzalloc(&pdev->dev, sizeof(*bgc), GFP_KERNEL);
+	if (!bgc)
 		return -ENOMEM;
 
+	regs = of_iomap(pdev->dev.of_node, 0);
+	if (!regs)
+		return -ENOMEM;
+
+	ret = bgpio_init(bgc, &pdev->dev, 4, regs + GEF_GPIO_IN,
+			 regs + GEF_GPIO_OUT, NULL, NULL,
+			 regs + GEF_GPIO_DIRECT, BGPIOF_BIG_ENDIAN_BYTE_ORDER);
+	if (ret) {
+		dev_err(&pdev->dev, "bgpio_init failed\n");
+		goto err0;
+	}
+
 	/* Setup pointers to chip functions */
-	mmchip->gc.ngpio = (u16)(uintptr_t)of_id->data;
-	mmchip->gc.of_gpio_n_cells = 2;
-	mmchip->gc.direction_input = gef_gpio_dir_in;
-	mmchip->gc.direction_output = gef_gpio_dir_out;
-	mmchip->gc.get = gef_gpio_get;
-	mmchip->gc.set = gef_gpio_set;
+	bgc->gc.label = devm_kstrdup(&pdev->dev, pdev->dev.of_node->full_name,
+				     GFP_KERNEL);
+	if (!bgc->gc.label) {
+		ret = -ENOMEM;
+		goto err0;
+	}
+
+	bgc->gc.base = -1;
+	bgc->gc.ngpio = (u16)(uintptr_t)of_id->data;
+	bgc->gc.of_gpio_n_cells = 2;
+	bgc->gc.of_node = pdev->dev.of_node;
 
 	/* This function adds a memory mapped GPIO chip */
-	return of_mm_gpiochip_add(pdev->dev.of_node, mmchip);
+	ret = gpiochip_add(&bgc->gc);
+	if (ret)
+		goto err0;
+
+	return 0;
+err0:
+	iounmap(regs);
+	pr_err("%s: GPIO chip registration failed\n",
+			pdev->dev.of_node->full_name);
+	return ret;
 };
 
 static struct platform_driver gef_gpio_driver = {

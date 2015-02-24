@@ -769,11 +769,11 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 		first_txd->processFlags |= TYPHOON_TX_PF_IP_CHKSUM;
 	}
 
-	if(vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		first_txd->processFlags |=
 		    TYPHOON_TX_PF_INSERT_VLAN | TYPHOON_TX_PF_VLAN_PRIORITY;
 		first_txd->processFlags |=
-		    cpu_to_le32(htons(vlan_tx_tag_get(skb)) <<
+		    cpu_to_le32(htons(skb_vlan_tag_get(skb)) <<
 				TYPHOON_TX_PF_VLAN_TAG_SHIFT);
 	}
 

@@ -890,8 +890,8 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->name, __func__, __LINE__,
 		fifo_hw, dtr, dtr_priv);
 
-	if (vlan_tx_tag_present(skb)) {
-		u16 vlan_tag = vlan_tx_tag_get(skb);
+	if (skb_vlan_tag_present(skb)) {
+		u16 vlan_tag = skb_vlan_tag_get(skb);
 		vxge_hw_fifo_txdl_vlan_set(dtr, vlan_tag);
 	}
 

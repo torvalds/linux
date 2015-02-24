@@ -161,7 +161,6 @@ typedef struct compat_siginfo {
 	int si_code;
 
 	union {
-		/* The padding is the same size as AArch64. */
 		int _pad[128/sizeof(int) - 3];
 
 		/* kill() */

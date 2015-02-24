@@ -35,7 +35,7 @@
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 
 /*
- * The following bits are directly used by the TLB hardware
+ * The following bits are implemented by the TLB hardware
  */
 #define _PAGE_GLOBAL_SHIFT	0
 #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
@@ -48,8 +48,6 @@
 
 /*
  * The following bits are implemented in software
- *
- * _PAGE_FILE semantics: set:pagecache unset:swap
  */
 #define _PAGE_PRESENT_SHIFT	(_CACHE_SHIFT + 3)
 #define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
@@ -62,48 +60,40 @@
 #define _PAGE_MODIFIED_SHIFT	(_PAGE_ACCESSED_SHIFT + 1)
 #define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
 
-#define _PAGE_SILENT_READ	_PAGE_VALID
-#define _PAGE_SILENT_WRITE	_PAGE_DIRTY
-#define _PAGE_FILE		_PAGE_MODIFIED
-
 #define _PFN_SHIFT		(PAGE_SHIFT - 12 + _CACHE_SHIFT + 3)
 
 #elif defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 
 /*
- * The following are implemented by software
- *
- * _PAGE_FILE semantics: set:pagecache unset:swap
+ * The following bits are implemented in software
  */
-#define _PAGE_PRESENT_SHIFT	0
-#define _PAGE_PRESENT		(1 <<  _PAGE_PRESENT_SHIFT)
-#define _PAGE_READ_SHIFT	1
-#define _PAGE_READ		(1 <<  _PAGE_READ_SHIFT)
-#define _PAGE_WRITE_SHIFT	2
-#define _PAGE_WRITE		(1 <<  _PAGE_WRITE_SHIFT)
-#define _PAGE_ACCESSED_SHIFT	3
-#define _PAGE_ACCESSED		(1 <<  _PAGE_ACCESSED_SHIFT)
-#define _PAGE_MODIFIED_SHIFT	4
-#define _PAGE_MODIFIED		(1 <<  _PAGE_MODIFIED_SHIFT)
-#define _PAGE_FILE_SHIFT	4
-#define _PAGE_FILE		(1 <<  _PAGE_FILE_SHIFT)
+#define _PAGE_PRESENT_SHIFT	(0)
+#define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
+#define _PAGE_READ_SHIFT	(_PAGE_PRESENT_SHIFT + 1)
+#define _PAGE_READ		(1 << _PAGE_READ_SHIFT)
+#define _PAGE_WRITE_SHIFT	(_PAGE_READ_SHIFT + 1)
+#define _PAGE_WRITE		(1 << _PAGE_WRITE_SHIFT)
+#define _PAGE_ACCESSED_SHIFT	(_PAGE_WRITE_SHIFT + 1)
+#define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
+#define _PAGE_MODIFIED_SHIFT	(_PAGE_ACCESSED_SHIFT + 1)
+#define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
 
 /*
- * And these are the hardware TLB bits
+ * The following bits are implemented by the TLB hardware
  */
-#define _PAGE_GLOBAL_SHIFT	8
-#define _PAGE_GLOBAL		(1 <<  _PAGE_GLOBAL_SHIFT)
-#define _PAGE_VALID_SHIFT	9
-#define _PAGE_VALID		(1 <<  _PAGE_VALID_SHIFT)
-#define _PAGE_SILENT_READ	(1 <<  _PAGE_VALID_SHIFT)	/* synonym  */
-#define _PAGE_DIRTY_SHIFT	10
+#define _PAGE_GLOBAL_SHIFT	(_PAGE_MODIFIED_SHIFT + 4)
+#define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
+#define _PAGE_VALID_SHIFT	(_PAGE_GLOBAL_SHIFT + 1)
+#define _PAGE_VALID		(1 << _PAGE_VALID_SHIFT)
+#define _PAGE_DIRTY_SHIFT	(_PAGE_VALID_SHIFT + 1)
 #define _PAGE_DIRTY		(1 << _PAGE_DIRTY_SHIFT)
-#define _PAGE_SILENT_WRITE	(1 << _PAGE_DIRTY_SHIFT)
-#define _CACHE_UNCACHED_SHIFT	11
+#define _CACHE_UNCACHED_SHIFT	(_PAGE_DIRTY_SHIFT + 1)
 #define _CACHE_UNCACHED		(1 << _CACHE_UNCACHED_SHIFT)
-#define _CACHE_MASK		(1 << _CACHE_UNCACHED_SHIFT)
+#define _CACHE_MASK		_CACHE_UNCACHED
 
-#else /* 'Normal' r4K case */
+#define _PFN_SHIFT		PAGE_SHIFT
+
+#else
 /*
  * When using the RI/XI bit support, we have 13 bits of flags below
  * the physical address. The RI/XI bits are placed such that a SRL 5
@@ -114,11 +104,8 @@
 
 /*
  * The following bits are implemented in software
- *
- * _PAGE_READ / _PAGE_READ_SHIFT should be unused if cpu_has_rixi.
- * _PAGE_FILE semantics: set:pagecache unset:swap
  */
-#define _PAGE_PRESENT_SHIFT	(0)
+#define _PAGE_PRESENT_SHIFT	0
 #define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
 #define _PAGE_READ_SHIFT	(cpu_has_rixi ? _PAGE_PRESENT_SHIFT : _PAGE_PRESENT_SHIFT + 1)
 #define _PAGE_READ ({BUG_ON(cpu_has_rixi); 1 << _PAGE_READ_SHIFT; })
@@ -128,22 +115,16 @@
 #define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
 #define _PAGE_MODIFIED_SHIFT	(_PAGE_ACCESSED_SHIFT + 1)
 #define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
-#define _PAGE_FILE		(_PAGE_MODIFIED)
 
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 /* huge tlb page */
 #define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
 #define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
-#else
-#define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT)
-#define _PAGE_HUGE		({BUG(); 1; })	/* Dummy value */
-#endif
-
-#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
-/* huge tlb page */
 #define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
 #define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
 #else
+#define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT)
+#define _PAGE_HUGE		({BUG(); 1; })	/* Dummy value */
 #define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT)
 #define _PAGE_SPLITTING		({BUG(); 1; })	/* Dummy value */
 #endif
@@ -158,17 +139,10 @@
 
 #define _PAGE_GLOBAL_SHIFT	(_PAGE_NO_READ_SHIFT + 1)
 #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
-
 #define _PAGE_VALID_SHIFT	(_PAGE_GLOBAL_SHIFT + 1)
 #define _PAGE_VALID		(1 << _PAGE_VALID_SHIFT)
-/* synonym		   */
-#define _PAGE_SILENT_READ	(_PAGE_VALID)
-
-/* The MIPS dirty bit	   */
 #define _PAGE_DIRTY_SHIFT	(_PAGE_VALID_SHIFT + 1)
 #define _PAGE_DIRTY		(1 << _PAGE_DIRTY_SHIFT)
-#define _PAGE_SILENT_WRITE	(_PAGE_DIRTY)
-
 #define _CACHE_SHIFT		(_PAGE_DIRTY_SHIFT + 1)
 #define _CACHE_MASK		(7 << _CACHE_SHIFT)
 
@@ -176,9 +150,9 @@
 
 #endif /* defined(CONFIG_PHYS_ADDR_T_64BIT && defined(CONFIG_CPU_MIPS32) */
 
-#ifndef _PFN_SHIFT
-#define _PFN_SHIFT		    PAGE_SHIFT
-#endif
+#define _PAGE_SILENT_READ	_PAGE_VALID
+#define _PAGE_SILENT_WRITE	_PAGE_DIRTY
+
 #define _PFN_MASK		(~((1 << (_PFN_SHIFT)) - 1))
 
 #ifndef _PAGE_NO_READ
@@ -187,9 +161,6 @@
 #endif
 #ifndef _PAGE_NO_EXEC
 #define _PAGE_NO_EXEC ({BUG(); 0; })
-#endif
-#ifndef _PAGE_GLOBAL_SHIFT
-#define _PAGE_GLOBAL_SHIFT ilog2(_PAGE_GLOBAL)
 #endif
 
 
@@ -275,8 +246,9 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #endif
 
 #define __READABLE	(_PAGE_SILENT_READ | _PAGE_ACCESSED | (cpu_has_rixi ? 0 : _PAGE_READ))
-#define __WRITEABLE	(_PAGE_WRITE | _PAGE_SILENT_WRITE | _PAGE_MODIFIED)
+#define __WRITEABLE	(_PAGE_SILENT_WRITE | _PAGE_WRITE | _PAGE_MODIFIED)
 
-#define _PAGE_CHG_MASK	(_PFN_MASK | _PAGE_ACCESSED | _PAGE_MODIFIED | _CACHE_MASK)
+#define _PAGE_CHG_MASK	(_PAGE_ACCESSED | _PAGE_MODIFIED |	\
+			 _PFN_MASK | _CACHE_MASK)
 
 #endif /* _ASM_PGTABLE_BITS_H */

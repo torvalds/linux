@@ -210,7 +210,6 @@ out:
 static struct platform_driver ls1x_cpufreq_platdrv = {
 	.driver = {
 		.name	= "ls1x-cpufreq",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ls1x_cpufreq_probe,
 	.remove		= ls1x_cpufreq_remove,

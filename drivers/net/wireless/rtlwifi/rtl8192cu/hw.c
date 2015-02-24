@@ -1000,6 +1000,7 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	local_save_flags(flags);
 	local_irq_enable();
 
+	rtlhal->fw_ready = false;
 	rtlhal->hw_type = HARDWARE_TYPE_RTL8192CU;
 	err = _rtl92cu_init_mac(hw);
 	if (err) {
@@ -1013,6 +1014,8 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 		err = 1;
 		goto exit;
 	}
+
+	rtlhal->fw_ready = true;
 	rtlhal->last_hmeboxnum = 0; /* h2c */
 	_rtl92cu_phy_param_tab_init(hw);
 	rtl92cu_phy_mac_config(hw);
@@ -1509,6 +1512,7 @@ void rtl92cu_set_beacon_related_registers(struct ieee80211_hw *hw)
 	/* TODO: Modify later (Find the right parameters)
 	 * NOTE: Fix test chip's bug (about contention windows's randomness) */
 	if ((mac->opmode == NL80211_IFTYPE_ADHOC) ||
+	    (mac->opmode == NL80211_IFTYPE_MESH_POINT) ||
 	    (mac->opmode == NL80211_IFTYPE_AP)) {
 		rtl_write_byte(rtlpriv, REG_RXTSF_OFFSET_CCK, 0x50);
 		rtl_write_byte(rtlpriv, REG_RXTSF_OFFSET_OFDM, 0x50);

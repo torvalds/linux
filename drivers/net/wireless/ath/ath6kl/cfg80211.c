@@ -1799,20 +1799,20 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (vif->target_stats.rx_byte) {
 		sinfo->rx_bytes = vif->target_stats.rx_byte;
-		sinfo->filled |= STATION_INFO_RX_BYTES64;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
 		sinfo->rx_packets = vif->target_stats.rx_pkt;
-		sinfo->filled |= STATION_INFO_RX_PACKETS;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
 	}
 
 	if (vif->target_stats.tx_byte) {
 		sinfo->tx_bytes = vif->target_stats.tx_byte;
-		sinfo->filled |= STATION_INFO_TX_BYTES64;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES64);
 		sinfo->tx_packets = vif->target_stats.tx_pkt;
-		sinfo->filled |= STATION_INFO_TX_PACKETS;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
 	}
 
 	sinfo->signal = vif->target_stats.cs_rssi;
-	sinfo->filled |= STATION_INFO_SIGNAL;
+	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 
 	rate = vif->target_stats.tx_ucast_rate;
 
@@ -1827,6 +1827,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 		}
 
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
+		sinfo->txrate.bw = RATE_INFO_BW_20;
 	} else if (is_rate_ht40(rate, &mcs, &sgi)) {
 		if (sgi) {
 			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
@@ -1835,7 +1836,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 			sinfo->txrate.mcs = mcs;
 		}
 
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+		sinfo->txrate.bw = RATE_INFO_BW_40;
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
 	} else {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
@@ -1844,12 +1845,12 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 		return 0;
 	}
 
-	sinfo->filled |= STATION_INFO_TX_BITRATE;
+	sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
 
 	if (test_bit(CONNECTED, &vif->flags) &&
 	    test_bit(DTIM_PERIOD_AVAIL, &vif->flags) &&
 	    vif->nw_type == INFRA_NETWORK) {
-		sinfo->filled |= STATION_INFO_BSS_PARAM;
+		sinfo->filled |= BIT(NL80211_STA_INFO_BSS_PARAM);
 		sinfo->bss_param.flags = 0;
 		sinfo->bss_param.dtim_period = vif->assoc_bss_dtim_period;
 		sinfo->bss_param.beacon_interval = vif->assoc_bss_beacon_int;

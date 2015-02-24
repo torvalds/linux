@@ -70,3 +70,16 @@ config SCSI_UFSHCD_PLATFORM
 	If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
+
+config SCSI_UFS_QCOM
+	bool "QCOM specific hooks to UFS controller platform driver"
+	depends on SCSI_UFSHCD_PLATFORM && ARCH_MSM
+	select PHY_QCOM_UFS
+	help
+	  This selects the QCOM specific additions to UFSHCD platform driver.
+	  UFS host on QCOM needs some vendor specific configuration before
+	  accessing the hardware which includes PHY configuration and vendor
+	  specific registers.
+
+	  Select this if you have UFS controller on QCOM chipset.
+	  If unsure, say N.

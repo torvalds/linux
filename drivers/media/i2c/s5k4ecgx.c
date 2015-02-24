@@ -220,7 +220,7 @@ static int s5k4ecgx_i2c_read(struct i2c_client *client, u16 addr, u16 *val)
 	msg[1].buf = rbuf;
 
 	ret = i2c_transfer(client->adapter, msg, 2);
-	*val = be16_to_cpu(*((u16 *)rbuf));
+	*val = be16_to_cpu(*((__be16 *)rbuf));
 
 	v4l2_dbg(4, debug, client, "i2c_read: 0x%04X : 0x%04x\n", addr, *val);
 
@@ -341,7 +341,7 @@ static int s5k4ecgx_load_firmware(struct v4l2_subdev *sd)
 		v4l2_err(sd, "Failed to read firmware %s\n", S5K4ECGX_FIRMWARE);
 		return err;
 	}
-	regs_num = le32_to_cpu(get_unaligned_le32(fw->data));
+	regs_num = get_unaligned_le32(fw->data);
 
 	v4l2_dbg(3, debug, sd, "FW: %s size %zu register sets %d\n",
 		 S5K4ECGX_FIRMWARE, fw->size, regs_num);
@@ -351,8 +351,7 @@ static int s5k4ecgx_load_firmware(struct v4l2_subdev *sd)
 		err = -EINVAL;
 		goto fw_out;
 	}
-	crc_file = le32_to_cpu(get_unaligned_le32(fw->data +
-						  regs_num * FW_RECORD_SIZE));
+	crc_file = get_unaligned_le32(fw->data + regs_num * FW_RECORD_SIZE);
 	crc = crc32_le(~0, fw->data, regs_num * FW_RECORD_SIZE);
 	if (crc != crc_file) {
 		v4l2_err(sd, "FW: invalid crc (%#x:%#x)\n", crc, crc_file);
@@ -361,9 +360,9 @@ static int s5k4ecgx_load_firmware(struct v4l2_subdev *sd)
 	}
 	ptr = fw->data + FW_RECORD_SIZE;
 	for (i = 1; i < regs_num; i++) {
-		addr = le32_to_cpu(get_unaligned_le32(ptr));
+		addr = get_unaligned_le32(ptr);
 		ptr += sizeof(u32);
-		val = le16_to_cpu(get_unaligned_le16(ptr));
+		val = get_unaligned_le16(ptr);
 		ptr += sizeof(u16);
 		if (addr - addr_inc != 2)
 			err = s5k4ecgx_write(client, addr, val);

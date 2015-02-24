@@ -409,10 +409,10 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	/*
 	 * debug prints of the parsed results
 	 */
-	codec_info(codec, "autoconfig: line_outs=%d (0x%x/0x%x/0x%x/0x%x/0x%x) type:%s\n",
-		   cfg->line_outs, cfg->line_out_pins[0], cfg->line_out_pins[1],
-		   cfg->line_out_pins[2], cfg->line_out_pins[3],
-		   cfg->line_out_pins[4],
+	codec_info(codec, "autoconfig for %s: line_outs=%d (0x%x/0x%x/0x%x/0x%x/0x%x) type:%s\n",
+		   codec->chip_name, cfg->line_outs, cfg->line_out_pins[0],
+		   cfg->line_out_pins[1], cfg->line_out_pins[2],
+		   cfg->line_out_pins[3], cfg->line_out_pins[4],
 		   cfg->line_out_type == AUTO_PIN_HP_OUT ? "hp" :
 		   (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT ?
 		    "speaker" : "line"));
@@ -920,6 +920,8 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			codec->fixup_id = pq->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 			codec->fixup_name = pq->name;
+			codec_dbg(codec, "%s: picked fixup %s (pin match)\n",
+				  codec->chip_name, codec->fixup_name);
 #endif
 			codec->fixup_list = fixlist;
 			return;
@@ -960,6 +962,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		codec->fixup_list = NULL;
 		codec->fixup_name = NULL;
 		codec->fixup_id = HDA_FIXUP_ID_NO_FIXUP;
+		codec_dbg(codec, "%s: picked no fixup (nofixup specified)\n",
+			  codec->chip_name);
 		return;
 	}
 
@@ -969,6 +973,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 				codec->fixup_id = models->id;
 				codec->fixup_name = models->name;
 				codec->fixup_list = fixlist;
+				codec_dbg(codec, "%s: picked fixup %s (model specified)\n",
+					  codec->chip_name, codec->fixup_name);
 				return;
 			}
 			models++;
@@ -980,6 +986,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			id = q->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 			name = q->name;
+			codec_dbg(codec, "%s: picked fixup %s (PCI SSID%s)\n",
+				  codec->chip_name, name, q->subdevice_mask ? "" : " - vendor generic");
 #endif
 		}
 	}
@@ -992,6 +1000,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 				id = q->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 				name = q->name;
+				codec_dbg(codec, "%s: picked fixup %s (codec SSID)\n",
+					  codec->chip_name, name);
 #endif
 				break;
 			}

@@ -63,7 +63,6 @@ extern struct megasas_cmd *megasas_get_cmd(struct megasas_instance
 extern void
 megasas_complete_cmd(struct megasas_instance *instance,
 		     struct megasas_cmd *cmd, u8 alt_status);
-int megasas_is_ldio(struct scsi_cmnd *cmd);
 int
 wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	      int seconds);
@@ -103,6 +102,8 @@ megasas_enable_intr_fusion(struct megasas_instance *instance)
 {
 	struct megasas_register_set __iomem *regs;
 	regs = instance->reg_set;
+
+	instance->mask_interrupts = 0;
 	/* For Thunderbolt/Invader also clear intr on enable */
 	writel(~0, &regs->outbound_intr_status);
 	readl(&regs->outbound_intr_status);
@@ -111,7 +112,6 @@ megasas_enable_intr_fusion(struct megasas_instance *instance)
 
 	/* Dummy readl to force pci flush */
 	readl(&regs->outbound_intr_mask);
-	instance->mask_interrupts = 0;
 }
 
 /**
@@ -196,6 +196,7 @@ inline void megasas_return_cmd_fusion(struct megasas_instance *instance,
 
 	cmd->scmd = NULL;
 	cmd->sync_cmd_idx = (u32)ULONG_MAX;
+	memset(cmd->io_request, 0, sizeof(struct MPI2_RAID_SCSI_IO_REQUEST));
 	list_add(&cmd->list, (&fusion->cmd_pool)->next);
 
 	spin_unlock_irqrestore(&fusion->mpt_pool_lock, flags);
@@ -689,6 +690,8 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		= 1;
 	init_frame->driver_operations.mfi_capabilities.support_ndrive_r1_lb
 		= 1;
+	init_frame->driver_operations.mfi_capabilities.security_protocol_cmds_fw
+		= 1;
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
 
@@ -698,12 +701,11 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		cpu_to_le32(lower_32_bits(ioc_init_handle));
 	init_frame->data_xfer_len = cpu_to_le32(sizeof(struct MPI2_IOC_INIT_REQUEST));
 
-	req_desc.Words = 0;
+	req_desc.u.low = cpu_to_le32(lower_32_bits(cmd->frame_phys_addr));
+	req_desc.u.high = cpu_to_le32(upper_32_bits(cmd->frame_phys_addr));
 	req_desc.MFAIo.RequestFlags =
 		(MEGASAS_REQ_DESCRIPT_FLAGS_MFA <<
-		 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-	cpu_to_le32s((u32 *)&req_desc.MFAIo);
-	req_desc.Words |= cpu_to_le64(cmd->frame_phys_addr);
+		MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 
 	/*
 	 * disable the intr before firing the init frame
@@ -1017,8 +1019,12 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 	 * does not exceed max cmds that the FW can support
 	 */
 	instance->max_fw_cmds = instance->max_fw_cmds-1;
-	/* Only internal cmds (DCMD) need to have MFI frames */
-	instance->max_mfi_cmds = MEGASAS_INT_CMDS;
+
+	/*
+	 * Only Driver's internal DCMDs and IOCTL DCMDs needs to have MFI frames
+	 */
+	instance->max_mfi_cmds =
+		MEGASAS_FUSION_INTERNAL_CMDS + MEGASAS_FUSION_IOCTL_CMDS;
 
 	max_cmd = instance->max_fw_cmds;
 
@@ -1285,6 +1291,7 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 
 			sgl_ptr =
 			  (struct MPI25_IEEE_SGE_CHAIN64 *)cmd->sg_frame;
+			memset(sgl_ptr, 0, MEGASAS_MAX_SZ_CHAIN_FRAME);
 		}
 	}
 
@@ -1658,6 +1665,8 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	u32 device_id;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request;
 	u16 pd_index = 0;
+	u16 os_timeout_value;
+	u16 timeout_limit;
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	struct fusion_context *fusion = instance->ctrl_context;
 	u8                          span, physArm;
@@ -1674,52 +1683,66 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 
 	io_request->DataLength = cpu_to_le32(scsi_bufflen(scmd));
 
-
-	/* Check if this is a system PD I/O */
 	if (scmd->device->channel < MEGASAS_MAX_PD_CHANNELS &&
 	    instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) {
-		io_request->Function = 0;
 		if (fusion->fast_path_io)
 			io_request->DevHandle =
 			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
-		io_request->RaidContext.timeoutValue =
-			local_map_ptr->raidMap.fpPdIoTimeoutSec;
-		io_request->RaidContext.regLockFlags = 0;
-		io_request->RaidContext.regLockRowLBA = 0;
-		io_request->RaidContext.regLockLength = 0;
 		io_request->RaidContext.RAIDFlags =
-			MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD <<
-			MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
-		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
-			(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
-			io_request->IoFlags |= cpu_to_le16(
-				MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
-		cmd->request_desc->SCSIIO.RequestFlags =
-			(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
-			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		cmd->request_desc->SCSIIO.DevHandle =
-			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+			MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD
+			<< MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
+		cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
 		cmd->request_desc->SCSIIO.MSIxIndex =
 			instance->msix_vectors ? smp_processor_id() % instance->msix_vectors : 0;
-		/*
-		 * If the command is for the tape device, set the
-		 * FP timeout to the os layer timeout value.
-		 */
-		if (scmd->device->type == TYPE_TAPE) {
-			if ((scmd->request->timeout / HZ) > 0xFFFF)
-				io_request->RaidContext.timeoutValue =
-					0xFFFF;
-			else
-				io_request->RaidContext.timeoutValue =
-					scmd->request->timeout / HZ;
+		os_timeout_value = scmd->request->timeout / HZ;
+
+		if (instance->secure_jbod_support &&
+			(megasas_cmd_type(scmd) == NON_READ_WRITE_SYSPDIO)) {
+			/* system pd firmware path */
+			io_request->Function  =
+				MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
+			cmd->request_desc->SCSIIO.RequestFlags =
+				(MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
+				MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+			io_request->RaidContext.timeoutValue =
+				cpu_to_le16(os_timeout_value);
+		} else {
+			/* system pd Fast Path */
+			io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
+			io_request->RaidContext.regLockFlags = 0;
+			io_request->RaidContext.regLockRowLBA = 0;
+			io_request->RaidContext.regLockLength = 0;
+			timeout_limit = (scmd->device->type == TYPE_DISK) ?
+					255 : 0xFFFF;
+			io_request->RaidContext.timeoutValue =
+				cpu_to_le16((os_timeout_value > timeout_limit) ?
+				timeout_limit : os_timeout_value);
+		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+			(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
+			io_request->IoFlags |=
+			cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
+
+			cmd->request_desc->SCSIIO.RequestFlags =
+				(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
+				MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		}
 	} else {
 		if (scmd->device->channel < MEGASAS_MAX_PD_CHANNELS)
 			goto NonFastPath;
 
+		/*
+		 * For older firmware, Driver should not access ldTgtIdToLd
+		 * beyond index 127 and for Extended VD firmware, ldTgtIdToLd
+		 * should not go beyond 255.
+		 */
+
+		if ((!fusion->fast_path_io) ||
+			(device_id >= instance->fw_supported_vd_count))
+			goto NonFastPath;
+
 		ld = MR_TargetIdToLdGet(device_id, local_map_ptr);
-		if ((ld >= instance->fw_supported_vd_count) ||
-			(!fusion->fast_path_io))
+
+		if (ld >= instance->fw_supported_vd_count)
 			goto NonFastPath;
 
 		raid = MR_LdRaidGet(ld, local_map_ptr);
@@ -1811,7 +1834,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	 */
 	io_request->IoFlags = cpu_to_le16(scp->cmd_len);
 
-	if (megasas_is_ldio(scp))
+	if (megasas_cmd_type(scp) == READ_WRITE_LDIO)
 		megasas_build_ldio_fusion(instance, scp, cmd);
 	else
 		megasas_build_dcdb_fusion(instance, scp, cmd);
@@ -2612,7 +2635,6 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 				instance->host->host_no);
 			megaraid_sas_kill_hba(instance);
 			instance->skip_heartbeat_timer_del = 1;
-			instance->adprecovery = MEGASAS_HW_CRITICAL_ERROR;
 			retval = FAILED;
 			goto out;
 		}
@@ -2808,8 +2830,6 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 				dev_info(&instance->pdev->dev,
 					"Failed from %s %d\n",
 					__func__, __LINE__);
-				instance->adprecovery =
-					MEGASAS_HW_CRITICAL_ERROR;
 				megaraid_sas_kill_hba(instance);
 				retval = FAILED;
 			}
@@ -2858,7 +2878,6 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 		       "adapter scsi%d.\n", instance->host->host_no);
 		megaraid_sas_kill_hba(instance);
 		instance->skip_heartbeat_timer_del = 1;
-		instance->adprecovery = MEGASAS_HW_CRITICAL_ERROR;
 		retval = FAILED;
 	} else {
 		/* For VF: Restart HB timer if we didn't OCR */

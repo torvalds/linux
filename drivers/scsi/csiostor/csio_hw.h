@@ -48,6 +48,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_transport_fc.h>
 
+#include "t4_hw.h"
 #include "csio_hw_chip.h"
 #include "csio_wr.h"
 #include "csio_mb.h"
@@ -117,10 +118,10 @@ extern int csio_msi;
 #define CSIO_ASIC_DEVID_PROTO_MASK		0xFF00
 #define CSIO_ASIC_DEVID_TYPE_MASK		0x00FF
 
-#define CSIO_GLBL_INTR_MASK		(CIM | MPS | PL | PCIE | MC | EDC0 | \
-					 EDC1 | LE | TP | MA | PM_TX | PM_RX | \
-					 ULP_RX | CPL_SWITCH | SGE | \
-					 ULP_TX | SF)
+#define CSIO_GLBL_INTR_MASK	(CIM_F | MPS_F | PL_F | PCIE_F | MC_F | \
+				 EDC0_F | EDC1_F | LE_F | TP_F | MA_F | \
+				 PM_TX_F | PM_RX_F | ULP_RX_F | \
+				 CPL_SWITCH_F | SGE_F | ULP_TX_F | SF_F)
 
 /*
  * Hard parameters used to initialize the card in the absence of a
@@ -174,16 +175,12 @@ struct csio_evt_msg {
 };
 
 enum {
-	EEPROMVSIZE    = 32768, /* Serial EEPROM virtual address space size */
 	SERNUM_LEN     = 16,    /* Serial # length */
 	EC_LEN         = 16,    /* E/C length */
 	ID_LEN         = 16,    /* ID length */
-	TRACE_LEN      = 112,   /* length of trace data and mask */
 };
 
 enum {
-	SF_PAGE_SIZE = 256,           /* serial flash page size */
-	SF_SEC_SIZE = 64 * 1024,      /* serial flash sector size */
 	SF_SIZE = SF_SEC_SIZE * 16,   /* serial flash size */
 };
 
@@ -199,38 +196,7 @@ enum {
 	SF_RD_DATA_FAST = 0xb,        /* read flash */
 	SF_RD_ID	= 0x9f,	      /* read ID */
 	SF_ERASE_SECTOR = 0xd8,       /* erase sector */
-
-	FW_START_SEC = 8,             /* first flash sector for FW */
-	FW_END_SEC = 15,              /* last flash sector for FW */
-	FW_IMG_START = FW_START_SEC * SF_SEC_SIZE,
-	FW_MAX_SIZE = (FW_END_SEC - FW_START_SEC + 1) * SF_SEC_SIZE,
-
-	FLASH_CFG_MAX_SIZE    = 0x10000 , /* max size of the flash config file*/
-	FLASH_CFG_OFFSET      = 0x1f0000,
-	FLASH_CFG_START_SEC   = FLASH_CFG_OFFSET / SF_SEC_SIZE,
 };
-
-/*
- * Flash layout.
- */
-#define FLASH_START(start)	((start) * SF_SEC_SIZE)
-#define FLASH_MAX_SIZE(nsecs)	((nsecs) * SF_SEC_SIZE)
-
-enum {
-	/*
-	 * Location of firmware image in FLASH.
-	 */
-	FLASH_FW_START_SEC = 8,
-	FLASH_FW_NSECS = 8,
-	FLASH_FW_START = FLASH_START(FLASH_FW_START_SEC),
-	FLASH_FW_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FW_NSECS),
-
-	/* Location of Firmware Configuration File in FLASH. */
-	FLASH_CFG_START = FLASH_START(FLASH_CFG_START_SEC),
-};
-
-#undef FLASH_START
-#undef FLASH_MAX_SIZE
 
 /* Management module */
 enum {
@@ -482,11 +448,6 @@ struct csio_hw {
 	uint32_t		tp_vers;
 	char			chip_ver;
 	uint16_t		chip_id;		/* Tells T4/T5 chip */
-	uint32_t		cfg_finiver;
-	uint32_t		cfg_finicsum;
-	uint32_t		cfg_cfcsum;
-	uint8_t			cfg_csum_status;
-	uint8_t			cfg_store;
 	enum csio_dev_state	fw_state;
 	struct csio_vpd		vpd;
 

@@ -333,6 +333,52 @@ out_putf:
 }
 #endif
 
+ssize_t vfs_iter_read(struct file *file, struct iov_iter *iter, loff_t *ppos)
+{
+	struct kiocb kiocb;
+	ssize_t ret;
+
+	if (!file->f_op->read_iter)
+		return -EINVAL;
+
+	init_sync_kiocb(&kiocb, file);
+	kiocb.ki_pos = *ppos;
+	kiocb.ki_nbytes = iov_iter_count(iter);
+
+	iter->type |= READ;
+	ret = file->f_op->read_iter(&kiocb, iter);
+	if (ret == -EIOCBQUEUED)
+		ret = wait_on_sync_kiocb(&kiocb);
+
+	if (ret > 0)
+		*ppos = kiocb.ki_pos;
+	return ret;
+}
+EXPORT_SYMBOL(vfs_iter_read);
+
+ssize_t vfs_iter_write(struct file *file, struct iov_iter *iter, loff_t *ppos)
+{
+	struct kiocb kiocb;
+	ssize_t ret;
+
+	if (!file->f_op->write_iter)
+		return -EINVAL;
+
+	init_sync_kiocb(&kiocb, file);
+	kiocb.ki_pos = *ppos;
+	kiocb.ki_nbytes = iov_iter_count(iter);
+
+	iter->type |= WRITE;
+	ret = file->f_op->write_iter(&kiocb, iter);
+	if (ret == -EIOCBQUEUED)
+		ret = wait_on_sync_kiocb(&kiocb);
+
+	if (ret > 0)
+		*ppos = kiocb.ki_pos;
+	return ret;
+}
+EXPORT_SYMBOL(vfs_iter_write);
+
 /*
  * rw_verify_area doesn't like huge counts. We limit
  * them to something that fits in "int" so that others
@@ -358,7 +404,7 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t
 			return retval;
 	}
 
-	if (unlikely(inode->i_flock && mandatory_lock(inode))) {
+	if (unlikely(inode->i_flctx && mandatory_lock(inode))) {
 		retval = locks_mandatory_area(
 			read_write == READ ? FLOCK_VERIFY_READ : FLOCK_VERIFY_WRITE,
 			inode, file, pos, count);

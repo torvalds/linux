@@ -2073,8 +2073,8 @@ static int rtl8169_set_features(struct net_device *dev,
 
 static inline u32 rtl8169_tx_vlan_tag(struct sk_buff *skb)
 {
-	return (vlan_tx_tag_present(skb)) ?
-		TxVlanTag | swab16(vlan_tx_tag_get(skb)) : 0x00;
+	return (skb_vlan_tag_present(skb)) ?
+		TxVlanTag | swab16(skb_vlan_tag_get(skb)) : 0x00;
 }
 
 static void rtl8169_rx_vlan_tag(struct RxDesc *desc, struct sk_buff *skb)
@@ -4915,7 +4915,7 @@ static void r8168c_hw_jumbo_enable(struct rtl8169_private *tp)
 
 	RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
 	RTL_W8(Config4, RTL_R8(Config4) | Jumbo_En1);
-	rtl_tx_performance_tweak(tp->pci_dev, 0x2 << MAX_READ_REQUEST_SHIFT);
+	rtl_tx_performance_tweak(tp->pci_dev, PCI_EXP_DEVCTL_READRQ_512B);
 }
 
 static void r8168c_hw_jumbo_disable(struct rtl8169_private *tp)
@@ -4948,7 +4948,7 @@ static void r8168e_hw_jumbo_enable(struct rtl8169_private *tp)
 	RTL_W8(MaxTxPacketSize, 0x3f);
 	RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
 	RTL_W8(Config4, RTL_R8(Config4) | 0x01);
-	rtl_tx_performance_tweak(tp->pci_dev, 0x2 << MAX_READ_REQUEST_SHIFT);
+	rtl_tx_performance_tweak(tp->pci_dev, PCI_EXP_DEVCTL_READRQ_512B);
 }
 
 static void r8168e_hw_jumbo_disable(struct rtl8169_private *tp)
@@ -4964,7 +4964,7 @@ static void r8168e_hw_jumbo_disable(struct rtl8169_private *tp)
 static void r8168b_0_hw_jumbo_enable(struct rtl8169_private *tp)
 {
 	rtl_tx_performance_tweak(tp->pci_dev,
-		(0x2 << MAX_READ_REQUEST_SHIFT) | PCI_EXP_DEVCTL_NOSNOOP_EN);
+		PCI_EXP_DEVCTL_READRQ_512B | PCI_EXP_DEVCTL_NOSNOOP_EN);
 }
 
 static void r8168b_0_hw_jumbo_disable(struct rtl8169_private *tp)
@@ -7049,6 +7049,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	u32 status, len;
 	u32 opts[2];
 	int frags;
+	bool stop_queue;
 
 	if (unlikely(!TX_FRAGS_READY_FOR(tp, skb_shinfo(skb)->nr_frags))) {
 		netif_err(tp, drv, dev, "BUG! Tx Ring full when queue awake!\n");
@@ -7105,11 +7106,16 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	tp->cur_tx += frags + 1;
 
-	RTL_W8(TxPoll, NPQ);
+	stop_queue = !TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS);
 
-	mmiowb();
+	if (!skb->xmit_more || stop_queue ||
+	    netif_xmit_stopped(netdev_get_tx_queue(dev, 0))) {
+		RTL_W8(TxPoll, NPQ);
 
-	if (!TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS)) {
+		mmiowb();
+	}
+
+	if (stop_queue) {
 		/* Avoid wrongly optimistic queue wake-up: rtl_tx thread must
 		 * not miss a ring update when it notices a stopped queue.
 		 */

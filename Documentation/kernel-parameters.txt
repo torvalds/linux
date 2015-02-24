@@ -970,6 +970,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 		smh	Use ARM semihosting calls for early console.
 
+		s3c2410,<addr>
+		s3c2412,<addr>
+		s3c2440,<addr>
+		s3c6400,<addr>
+		s5pv210,<addr>
+		exynos4210,<addr>
+			Use early console provided by serial driver available
+			on Samsung SoCs, requires selecting proper type and
+			a correct base address of the selected UART port. The
+			serial port must already be setup and configured.
+			Options are not yet supported.
+
 	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
 			earlyprintk=vga
 			earlyprintk=efi
@@ -1470,6 +1482,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		       no_hwp
 		         Do not enable hardware P state control (HWP)
 			 if available.
+		hwp_only
+			Only load intel_pstate on systems which support
+			hardware P state control (HWP) if available.
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)
@@ -1494,6 +1509,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		forcesac
 		soft
 		pt		[x86, IA-64]
+		nobypass	[PPC/POWERNV]
+			Disable IOMMU bypass, using IOMMU for PCI devices.
 
 
 	io7=		[HW] IO7 for Marvel based alpha systems
@@ -3206,6 +3223,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		no		Disable hibernation and resume.
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
+
+	rfkill.default_state=
+		0	"airplane mode".  All wifi, bluetooth, wimax, gps, fm,
+			etc. communication is blocked by default.
+		1	Unblocked.
+
+	rfkill.master_switch_mode=
+		0	The "airplane mode" button does nothing.
+		1	The "airplane mode" button toggles between everything
+			blocked and the previous configuration.
+		2	The "airplane mode" button toggles between everything
+			blocked and everything unblocked.
 
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache

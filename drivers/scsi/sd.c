@@ -3320,11 +3320,8 @@ module_exit(exit_sd);
 static void sd_print_sense_hdr(struct scsi_disk *sdkp,
 			       struct scsi_sense_hdr *sshdr)
 {
-	scsi_show_sense_hdr(sdkp->device,
-			    sdkp->disk ? sdkp->disk->disk_name : NULL, sshdr);
-	scsi_show_extd_sense(sdkp->device,
-			     sdkp->disk ? sdkp->disk->disk_name : NULL,
-			     sshdr->asc, sshdr->ascq);
+	scsi_print_sense_hdr(sdkp->device,
+			     sdkp->disk ? sdkp->disk->disk_name : NULL, sshdr);
 }
 
 static void sd_print_result(const struct scsi_disk *sdkp, const char *msg,

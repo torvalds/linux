@@ -735,6 +735,31 @@ config INTEL_IPS
 	  functionality.  If in doubt, say Y here; it will only load on
 	  supported platforms.
 
+config INTEL_IMR
+	bool "Intel Isolated Memory Region support"
+	default n
+	depends on X86_INTEL_QUARK && IOSF_MBI
+	---help---
+	  This option provides a means to manipulate Isolated Memory Regions.
+	  IMRs are a set of registers that define read and write access masks
+	  to prohibit certain system agents from accessing memory with 1 KiB
+	  granularity.
+
+	  IMRs make it possible to control read/write access to an address
+	  by hardware agents inside the SoC. Read and write masks can be
+	  defined for:
+		- eSRAM flush
+		- Dirty CPU snoop (write only)
+		- RMU access
+		- PCI Virtual Channel 0/Virtual Channel 1
+		- SMM mode
+		- Non SMM mode
+
+	  Quark contains a set of eight IMR registers and makes use of those
+	  registers during its bootup process.
+
+	  If you are running on a Galileo/Quark say Y here.
+
 config IBM_RTL
 	tristate "Device driver to enable PRTL support"
 	depends on X86 && PCI

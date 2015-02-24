@@ -4,17 +4,7 @@
 #include <linux/semaphore.h>
 #include <linux/sched.h>
 
-/*
- * Nested tty locks are necessary for releasing pty pairs.
- * The stable lock order is master pty first, then slave pty.
- */
-
 /* Legacy tty mutex glue */
-
-enum {
-	TTY_MUTEX_NORMAL,
-	TTY_MUTEX_SLAVE,
-};
 
 /*
  * Getting the big tty mutex.
@@ -46,12 +36,8 @@ EXPORT_SYMBOL(tty_unlock);
 
 void __lockfunc tty_lock_slave(struct tty_struct *tty)
 {
-	if (tty && tty != tty->link) {
-		WARN_ON(!mutex_is_locked(&tty->link->legacy_mutex) ||
-			!tty->driver->type == TTY_DRIVER_TYPE_PTY ||
-			!tty->driver->type == PTY_TYPE_SLAVE);
+	if (tty && tty != tty->link)
 		tty_lock(tty);
-	}
 }
 
 void __lockfunc tty_unlock_slave(struct tty_struct *tty)
@@ -62,5 +48,5 @@ void __lockfunc tty_unlock_slave(struct tty_struct *tty)
 
 void tty_set_lock_subclass(struct tty_struct *tty)
 {
-	lockdep_set_subclass(&tty->legacy_mutex, TTY_MUTEX_SLAVE);
+	lockdep_set_subclass(&tty->legacy_mutex, TTY_LOCK_SLAVE);
 }

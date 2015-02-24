@@ -22,7 +22,7 @@
 #include <linux/err.h>
 #include <linux/scatterlist.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_nego.h"
 #include "iscsi_target_auth.h"
 

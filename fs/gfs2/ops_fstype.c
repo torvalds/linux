@@ -112,7 +112,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	mapping->flags = 0;
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	mapping->private_data = NULL;
-	mapping->backing_dev_info = sb->s_bdi;
 	mapping->writeback_index = 0;
 
 	spin_lock_init(&sdp->sd_log_lock);

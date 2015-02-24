@@ -355,9 +355,6 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	case ROMFH_REG:
 		i->i_fop = &romfs_ro_fops;
 		i->i_data.a_ops = &romfs_aops;
-		if (i->i_sb->s_mtd)
-			i->i_data.backing_dev_info =
-				i->i_sb->s_mtd->backing_dev_info;
 		if (nextfh & ROMFH_EXEC)
 			mode |= S_IXUGO;
 		break;

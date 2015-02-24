@@ -51,8 +51,10 @@ struct nfc_hci_ops {
 	int (*tm_send)(struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_hci_dev *hdev,
 			      struct nfc_target *target);
-	int (*event_received)(struct nfc_hci_dev *hdev, u8 gate, u8 event,
+	int (*event_received)(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			      struct sk_buff *skb);
+	void (*cmd_received)(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
+			    struct sk_buff *skb);
 	int (*fw_download)(struct nfc_hci_dev *hdev, const char *firmware_name);
 	int (*discover_se)(struct nfc_hci_dev *dev);
 	int (*enable_se)(struct nfc_hci_dev *dev, u32 se_idx);
@@ -63,8 +65,10 @@ struct nfc_hci_ops {
 };
 
 /* Pipes */
-#define NFC_HCI_INVALID_PIPE	0x80
 #define NFC_HCI_DO_NOT_CREATE_PIPE	0x81
+#define NFC_HCI_INVALID_PIPE	0x80
+#define NFC_HCI_INVALID_GATE	0xFF
+#define NFC_HCI_INVALID_HOST	0x80
 #define NFC_HCI_LINK_MGMT_PIPE	0x00
 #define NFC_HCI_ADMIN_PIPE	0x01
 
@@ -73,7 +77,13 @@ struct nfc_hci_gate {
 	u8 pipe;
 };
 
+struct nfc_hci_pipe {
+	u8 gate;
+	u8 dest_host;
+};
+
 #define NFC_HCI_MAX_CUSTOM_GATES	50
+#define NFC_HCI_MAX_PIPES		127
 struct nfc_hci_init_data {
 	u8 gate_count;
 	struct nfc_hci_gate gates[NFC_HCI_MAX_CUSTOM_GATES];
@@ -125,6 +135,7 @@ struct nfc_hci_dev {
 	void *clientdata;
 
 	u8 gate2pipe[NFC_HCI_MAX_GATES];
+	struct nfc_hci_pipe pipes[NFC_HCI_MAX_PIPES];
 
 	u8 sw_romlib;
 	u8 sw_patch;
@@ -167,6 +178,8 @@ void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev);
 void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err);
 
 int nfc_hci_result_to_errno(u8 result);
+void nfc_hci_reset_pipes(struct nfc_hci_dev *dev);
+void nfc_hci_reset_pipes_per_host(struct nfc_hci_dev *hdev, u8 host);
 
 /* Host IDs */
 #define NFC_HCI_HOST_CONTROLLER_ID	0x00
@@ -219,6 +232,12 @@ int nfc_hci_result_to_errno(u8 result);
 #define NFC_HCI_EVT_POST_DATA			0x02
 #define NFC_HCI_EVT_HOT_PLUG			0x03
 
+/* Generic commands */
+#define NFC_HCI_ANY_SET_PARAMETER	0x01
+#define NFC_HCI_ANY_GET_PARAMETER	0x02
+#define NFC_HCI_ANY_OPEN_PIPE		0x03
+#define NFC_HCI_ANY_CLOSE_PIPE		0x04
+
 /* Reader RF gates events */
 #define NFC_HCI_EVT_READER_REQUESTED	0x10
 #define NFC_HCI_EVT_END_OPERATION	0x11
@@ -249,8 +268,6 @@ int nfc_hci_send_cmd(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
 int nfc_hci_send_cmd_async(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
 			   const u8 *param, size_t param_len,
 			   data_exchange_cb_t cb, void *cb_context);
-int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
-			  const u8 *param, size_t param_len);
 int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 		       const u8 *param, size_t param_len);
 int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate);

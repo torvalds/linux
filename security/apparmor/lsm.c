@@ -226,7 +226,7 @@ static int common_perm_rm(int op, struct path *dir,
 	struct inode *inode = dentry->d_inode;
 	struct path_cond cond = { };
 
-	if (!inode || !dir->mnt || !mediated_filesystem(inode))
+	if (!inode || !dir->mnt || !mediated_filesystem(dentry))
 		return 0;
 
 	cond.uid = inode->i_uid;
@@ -250,7 +250,7 @@ static int common_perm_create(int op, struct path *dir, struct dentry *dentry,
 {
 	struct path_cond cond = { current_fsuid(), mode };
 
-	if (!dir->mnt || !mediated_filesystem(dir->dentry->d_inode))
+	if (!dir->mnt || !mediated_filesystem(dir->dentry))
 		return 0;
 
 	return common_perm_dir_dentry(op, dir, dentry, mask, &cond);
@@ -285,7 +285,7 @@ static int apparmor_path_truncate(struct path *path)
 				  path->dentry->d_inode->i_mode
 	};
 
-	if (!path->mnt || !mediated_filesystem(path->dentry->d_inode))
+	if (!path->mnt || !mediated_filesystem(path->dentry))
 		return 0;
 
 	return common_perm(OP_TRUNC, path, MAY_WRITE | AA_MAY_META_WRITE,
@@ -305,7 +305,7 @@ static int apparmor_path_link(struct dentry *old_dentry, struct path *new_dir,
 	struct aa_profile *profile;
 	int error = 0;
 
-	if (!mediated_filesystem(old_dentry->d_inode))
+	if (!mediated_filesystem(old_dentry))
 		return 0;
 
 	profile = aa_current_profile();
@@ -320,7 +320,7 @@ static int apparmor_path_rename(struct path *old_dir, struct dentry *old_dentry,
 	struct aa_profile *profile;
 	int error = 0;
 
-	if (!mediated_filesystem(old_dentry->d_inode))
+	if (!mediated_filesystem(old_dentry))
 		return 0;
 
 	profile = aa_current_profile();
@@ -346,7 +346,7 @@ static int apparmor_path_rename(struct path *old_dir, struct dentry *old_dentry,
 
 static int apparmor_path_chmod(struct path *path, umode_t mode)
 {
-	if (!mediated_filesystem(path->dentry->d_inode))
+	if (!mediated_filesystem(path->dentry))
 		return 0;
 
 	return common_perm_mnt_dentry(OP_CHMOD, path->mnt, path->dentry, AA_MAY_CHMOD);
@@ -358,7 +358,7 @@ static int apparmor_path_chown(struct path *path, kuid_t uid, kgid_t gid)
 				   path->dentry->d_inode->i_mode
 	};
 
-	if (!mediated_filesystem(path->dentry->d_inode))
+	if (!mediated_filesystem(path->dentry))
 		return 0;
 
 	return common_perm(OP_CHOWN, path, AA_MAY_CHOWN, &cond);
@@ -366,7 +366,7 @@ static int apparmor_path_chown(struct path *path, kuid_t uid, kgid_t gid)
 
 static int apparmor_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 {
-	if (!mediated_filesystem(dentry->d_inode))
+	if (!mediated_filesystem(dentry))
 		return 0;
 
 	return common_perm_mnt_dentry(OP_GETATTR, mnt, dentry,
@@ -379,7 +379,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 	struct aa_profile *profile;
 	int error = 0;
 
-	if (!mediated_filesystem(file_inode(file)))
+	if (!mediated_filesystem(file->f_path.dentry))
 		return 0;
 
 	/* If in exec, permission is handled by bprm hooks.
@@ -432,7 +432,7 @@ static int common_file_perm(int op, struct file *file, u32 mask)
 	BUG_ON(!fprofile);
 
 	if (!file->f_path.mnt ||
-	    !mediated_filesystem(file_inode(file)))
+	    !mediated_filesystem(file->f_path.dentry))
 		return 0;
 
 	profile = __aa_current_profile();

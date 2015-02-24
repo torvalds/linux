@@ -47,8 +47,11 @@
  */
 
 /dts-v1/;
-/include/ "sun4i-a10.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun4i-a10.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Cubietech Cubieboard";
@@ -75,7 +78,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -111,8 +114,8 @@
 			led_pins_cubieboard: led_pins@0 {
 				allwinner,pins = "PH20", "PH21";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <1>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_20_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -134,18 +137,20 @@
 			status = "okay";
 
 			axp209: pmic@34 {
-				compatible = "x-powers,axp209";
 				reg = <0x34>;
 				interrupts = <0>;
-
-				interrupt-controller;
-				#interrupt-cells = <1>;
 			};
 		};
 
 		i2c1: i2c@01c2b000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c1_pins_a>;
+			status = "okay";
+		};
+
+		spi0: spi@01c05000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi0_pins_a>;
 			status = "okay";
 		};
 	};
@@ -157,12 +162,12 @@
 
 		blue {
 			label = "cubieboard:blue:usr";
-			gpios = <&pio 7 21 0>; /* LED1 */
+			gpios = <&pio 7 21 GPIO_ACTIVE_HIGH>; /* LED1 */
 		};
 
 		green {
 			label = "cubieboard:green:usr";
-			gpios = <&pio 7 20 0>; /* LED2 */
+			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>; /* LED2 */
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -178,4 +183,35 @@
 	reg_usb2_vbus: usb2-vbus {
 		status = "okay";
 	};
+};
+
+#include "axp209.dtsi"
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
+&reg_dcdc2 {
+	regulator-always-on;
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1450000>;
+	regulator-name = "vdd-cpu";
+};
+
+&reg_dcdc3 {
+	regulator-always-on;
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1400000>;
+	regulator-name = "vdd-int-dll";
+};
+
+&reg_ldo1 {
+	regulator-name = "vdd-rtc";
+};
+
+&reg_ldo2 {
+	regulator-always-on;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "avcc";
 };

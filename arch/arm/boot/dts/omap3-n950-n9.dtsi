@@ -60,6 +60,11 @@
 
 &twl {
 	compatible = "ti,twl5031";
+
+	twl_power: power {
+		compatible = "ti,twl4030-power";
+		ti,use_poweroff;
+	};
 };
 
 &twl_gpio {

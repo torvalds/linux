@@ -237,8 +237,7 @@ snd_seq_oss_midi_check_exit_port(int client, int port)
 		spin_unlock_irqrestore(&register_lock, flags);
 		snd_use_lock_free(&mdev->use_lock);
 		snd_use_lock_sync(&mdev->use_lock);
-		if (mdev->coder)
-			snd_midi_event_free(mdev->coder);
+		snd_midi_event_free(mdev->coder);
 		kfree(mdev);
 	}
 	spin_lock_irqsave(&register_lock, flags);
@@ -265,8 +264,7 @@ snd_seq_oss_midi_clear_all(void)
 	spin_lock_irqsave(&register_lock, flags);
 	for (i = 0; i < max_midi_devs; i++) {
 		if ((mdev = midi_devs[i]) != NULL) {
-			if (mdev->coder)
-				snd_midi_event_free(mdev->coder);
+			snd_midi_event_free(mdev->coder);
 			kfree(mdev);
 			midi_devs[i] = NULL;
 		}

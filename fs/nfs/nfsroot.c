@@ -261,11 +261,11 @@ static int __init root_nfs_data(char *cmdline)
 	 */
 	len = snprintf(nfs_export_path, sizeof(nfs_export_path),
 				tmp, utsname()->nodename);
-	if (len > (int)sizeof(nfs_export_path))
+	if (len >= (int)sizeof(nfs_export_path))
 		goto out_devnametoolong;
 	len = snprintf(nfs_root_device, sizeof(nfs_root_device),
 				"%pI4:%s", &servaddr, nfs_export_path);
-	if (len > (int)sizeof(nfs_root_device))
+	if (len >= (int)sizeof(nfs_root_device))
 		goto out_devnametoolong;
 
 	retval = 0;

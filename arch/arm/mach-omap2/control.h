@@ -53,6 +53,7 @@
 #define OMAP343X_CONTROL_GENERAL_WKUP	0xa60
 
 /* TI81XX spefic control submodules */
+#define TI81XX_CONTROL_DEVBOOT		0x040
 #define TI81XX_CONTROL_DEVCONF		0x600
 
 /* Control register offsets - read/write with omap_ctrl_{read,write}{bwl}() */
@@ -245,6 +246,9 @@
 /* 34xx D2D idle-related pins, handled by PM core */
 #define OMAP3_PADCONF_SAD2D_MSTANDBY   0x250
 #define OMAP3_PADCONF_SAD2D_IDLEACK    0x254
+
+/* TI81XX CONTROL_DEVBOOT register offsets */
+#define TI81XX_CONTROL_STATUS		(TI81XX_CONTROL_DEVBOOT + 0x000)
 
 /* TI81XX CONTROL_DEVCONF register offsets */
 #define TI81XX_CONTROL_DEVICE_ID	(TI81XX_CONTROL_DEVCONF + 0x000)

@@ -22,7 +22,7 @@
  * Description: Mechatronic Systems Inc. C6x_DIGIO DSP daughter card
  * Author: Dan Block
  * Status: unknown
- * Devices: (Mechatronic Systems Inc.) C6x_DIGIO DSP daughter card [c6xdigio]
+ * Devices: [Mechatronic Systems Inc.] C6x_DIGIO DSP daughter card (c6xdigio)
  * Updated: Sun Nov 20 20:18:34 EST 2005
  *
  * Configuration Options:

@@ -63,11 +63,11 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 			return -ENOMEM;
 		}
 
-		buf->kvaddr = (void __iomem *)dma_alloc_attrs(dev->dev,
+		buf->cookie = dma_alloc_attrs(dev->dev,
 					buf->size,
 					&buf->dma_addr, GFP_KERNEL,
 					&buf->dma_attrs);
-		if (!buf->kvaddr) {
+		if (!buf->cookie) {
 			DRM_ERROR("failed to allocate buffer.\n");
 			ret = -ENOMEM;
 			goto err_free;
@@ -132,7 +132,7 @@ static void lowlevel_buffer_deallocate(struct drm_device *dev,
 	buf->sgt = NULL;
 
 	if (!is_drm_iommu_supported(dev)) {
-		dma_free_attrs(dev->dev, buf->size, buf->kvaddr,
+		dma_free_attrs(dev->dev, buf->size, buf->cookie,
 				(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
 		drm_free_large(buf->pages);
 	} else

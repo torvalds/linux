@@ -4,7 +4,8 @@
  *
  * This code is based on drivers/scsi/mpt3sas/mpt3sas_base.c
  * Copyright (C) 2012-2014  LSI Corporation
- *  (mailto:DL-MPTFusionLinux@lsi.com)
+ * Copyright (C) 2013-2014 Avago Technologies
+ *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -618,6 +619,9 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
 		break;
 	case MPI2_EVENT_LOG_ENTRY_ADDED:
 		desc = "Log Entry Added";
+		break;
+	case MPI2_EVENT_TEMP_THRESHOLD:
+		desc = "Temperature Threshold";
 		break;
 	}
 
@@ -1580,6 +1584,8 @@ _base_free_irq(struct MPT3SAS_ADAPTER *ioc)
 
 	list_for_each_entry_safe(reply_q, next, &ioc->reply_queue_list, list) {
 		list_del(&reply_q->list);
+		irq_set_affinity_hint(reply_q->vector, NULL);
+		free_cpumask_var(reply_q->affinity_hint);
 		synchronize_irq(reply_q->vector);
 		free_irq(reply_q->vector, reply_q);
 		kfree(reply_q);
@@ -1609,6 +1615,11 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index, u32 vector)
 	reply_q->ioc = ioc;
 	reply_q->msix_index = index;
 	reply_q->vector = vector;
+
+	if (!alloc_cpumask_var(&reply_q->affinity_hint, GFP_KERNEL))
+		return -ENOMEM;
+	cpumask_clear(reply_q->affinity_hint);
+
 	atomic_set(&reply_q->busy, 0);
 	if (ioc->msix_enable)
 		snprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d-msix%d",
@@ -1643,6 +1654,7 @@ static void
 _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 {
 	unsigned int cpu, nr_cpus, nr_msix, index = 0;
+	struct adapter_reply_queue *reply_q;
 
 	if (!_base_is_controller_msix_enabled(ioc))
 		return;
@@ -1657,20 +1669,30 @@ _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 
 	cpu = cpumask_first(cpu_online_mask);
 
-	do {
+	list_for_each_entry(reply_q, &ioc->reply_queue_list, list) {
+
 		unsigned int i, group = nr_cpus / nr_msix;
+
+		if (cpu >= nr_cpus)
+			break;
 
 		if (index < nr_cpus % nr_msix)
 			group++;
 
 		for (i = 0 ; i < group ; i++) {
 			ioc->cpu_msix_table[cpu] = index;
+			cpumask_or(reply_q->affinity_hint,
+				   reply_q->affinity_hint, get_cpu_mask(cpu));
 			cpu = cpumask_next(cpu, cpu_online_mask);
 		}
 
+		if (irq_set_affinity_hint(reply_q->vector,
+					   reply_q->affinity_hint))
+			dinitprintk(ioc, pr_info(MPT3SAS_FMT
+			    "error setting affinity hint for irq vector %d\n",
+			    ioc->name, reply_q->vector));
 		index++;
-
-	} while (cpu < nr_cpus);
+	}
 }
 
 /**
@@ -2500,6 +2522,7 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 	mpt3sas_config_get_ioc_pg8(ioc, &mpi_reply, &ioc->ioc_pg8);
 	mpt3sas_config_get_iounit_pg0(ioc, &mpi_reply, &ioc->iounit_pg0);
 	mpt3sas_config_get_iounit_pg1(ioc, &mpi_reply, &ioc->iounit_pg1);
+	mpt3sas_config_get_iounit_pg8(ioc, &mpi_reply, &ioc->iounit_pg8);
 	_base_display_ioc_capabilities(ioc);
 
 	/*
@@ -2516,6 +2539,9 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 		    MPI2_IOUNITPAGE1_DISABLE_TASK_SET_FULL_HANDLING;
 	ioc->iounit_pg1.Flags = cpu_to_le32(iounit_pg1_flags);
 	mpt3sas_config_set_iounit_pg1(ioc, &mpi_reply, &ioc->iounit_pg1);
+
+	if (ioc->iounit_pg8.NumSensors)
+		ioc->temp_sensors_count = ioc->iounit_pg8.NumSensors;
 }
 
 /**
@@ -2659,8 +2685,14 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 
 	if (sg_tablesize < MPT3SAS_MIN_PHYS_SEGMENTS)
 		sg_tablesize = MPT3SAS_MIN_PHYS_SEGMENTS;
-	else if (sg_tablesize > MPT3SAS_MAX_PHYS_SEGMENTS)
-		sg_tablesize = MPT3SAS_MAX_PHYS_SEGMENTS;
+	else if (sg_tablesize > MPT3SAS_MAX_PHYS_SEGMENTS) {
+		sg_tablesize = min_t(unsigned short, sg_tablesize,
+				      SCSI_MAX_SG_CHAIN_SEGMENTS);
+		pr_warn(MPT3SAS_FMT
+		 "sg_tablesize(%u) is bigger than kernel"
+		 " defined SCSI_MAX_SG_SEGMENTS(%u)\n", ioc->name,
+		 sg_tablesize, MPT3SAS_MAX_PHYS_SEGMENTS);
+	}
 	ioc->shost->sg_tablesize = sg_tablesize;
 
 	ioc->hi_priority_depth = facts->HighPriorityCredit;
@@ -3419,7 +3451,7 @@ mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
 	u16 smid;
 	u32 ioc_state;
 	unsigned long timeleft;
-	u8 issue_reset;
+	bool issue_reset = false;
 	int rc;
 	void *request;
 	u16 wait_state_count;
@@ -3483,7 +3515,7 @@ mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
 		_debug_dump_mf(mpi_request,
 		    sizeof(Mpi2SasIoUnitControlRequest_t)/4);
 		if (!(ioc->base_cmds.status & MPT3_CMD_RESET))
-			issue_reset = 1;
+			issue_reset = true;
 		goto issue_host_reset;
 	}
 	if (ioc->base_cmds.status & MPT3_CMD_REPLY_VALID)
@@ -3523,7 +3555,7 @@ mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
 	u16 smid;
 	u32 ioc_state;
 	unsigned long timeleft;
-	u8 issue_reset;
+	bool issue_reset = false;
 	int rc;
 	void *request;
 	u16 wait_state_count;
@@ -3581,7 +3613,7 @@ mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
 		_debug_dump_mf(mpi_request,
 		    sizeof(Mpi2SepRequest_t)/4);
 		if (!(ioc->base_cmds.status & MPT3_CMD_RESET))
-			issue_reset = 1;
+			issue_reset = false;
 		goto issue_host_reset;
 	}
 	if (ioc->base_cmds.status & MPT3_CMD_REPLY_VALID)
@@ -4720,6 +4752,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	_base_unmask_events(ioc, MPI2_EVENT_IR_PHYSICAL_DISK);
 	_base_unmask_events(ioc, MPI2_EVENT_IR_OPERATION_STATUS);
 	_base_unmask_events(ioc, MPI2_EVENT_LOG_ENTRY_ADDED);
+	_base_unmask_events(ioc, MPI2_EVENT_TEMP_THRESHOLD);
 
 	r = _base_make_ioc_operational(ioc, CAN_SLEEP);
 	if (r)

@@ -422,7 +422,6 @@ static void xgbe_wrapper_rx_descriptor_init(struct xgbe_prv_data *pdata)
 
 		ring->cur = 0;
 		ring->dirty = 0;
-		memset(&ring->rx, 0, sizeof(ring->rx));
 
 		hw_if->rx_desc_init(channel);
 	}
@@ -621,35 +620,6 @@ err_out:
 	return 0;
 }
 
-static void xgbe_realloc_rx_buffer(struct xgbe_channel *channel)
-{
-	struct xgbe_prv_data *pdata = channel->pdata;
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	struct xgbe_ring *ring = channel->rx_ring;
-	struct xgbe_ring_data *rdata;
-	int i;
-
-	DBGPR("-->xgbe_realloc_rx_buffer: rx_ring->rx.realloc_index = %u\n",
-	      ring->rx.realloc_index);
-
-	for (i = 0; i < ring->dirty; i++) {
-		rdata = XGBE_GET_DESC_DATA(ring, ring->rx.realloc_index);
-
-		/* Reset rdata values */
-		xgbe_unmap_rdata(pdata, rdata);
-
-		if (xgbe_map_rx_buffer(pdata, ring, rdata))
-			break;
-
-		hw_if->rx_desc_reset(rdata);
-
-		ring->rx.realloc_index++;
-	}
-	ring->dirty = 0;
-
-	DBGPR("<--xgbe_realloc_rx_buffer\n");
-}
-
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *desc_if)
 {
 	DBGPR("-->xgbe_init_function_ptrs_desc\n");
@@ -657,7 +627,7 @@ void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *desc_if)
 	desc_if->alloc_ring_resources = xgbe_alloc_ring_resources;
 	desc_if->free_ring_resources = xgbe_free_ring_resources;
 	desc_if->map_tx_skb = xgbe_map_tx_skb;
-	desc_if->realloc_rx_buffer = xgbe_realloc_rx_buffer;
+	desc_if->map_rx_buffer = xgbe_map_rx_buffer;
 	desc_if->unmap_rdata = xgbe_unmap_rdata;
 	desc_if->wrapper_tx_desc_init = xgbe_wrapper_tx_descriptor_init;
 	desc_if->wrapper_rx_desc_init = xgbe_wrapper_rx_descriptor_init;

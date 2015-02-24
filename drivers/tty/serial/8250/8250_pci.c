@@ -221,13 +221,13 @@ pci_hp_diva_setup(struct serial_private *priv,
  */
 static int pci_inteli960ni_init(struct pci_dev *dev)
 {
-	unsigned long oldval;
+	u32 oldval;
 
 	if (!(dev->subsystem_device & 0x1000))
 		return -ENODEV;
 
 	/* is firmware started? */
-	pci_read_config_dword(dev, 0x44, (void *)&oldval);
+	pci_read_config_dword(dev, 0x44, &oldval);
 	if (oldval == 0x00001000L) { /* RESET value */
 		dev_dbg(&dev->dev, "Local i960 firmware missing\n");
 		return -ENODEV;

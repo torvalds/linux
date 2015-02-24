@@ -55,6 +55,7 @@
  * single thread (max3421_spi_thread).
  */
 
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/usb.h>
@@ -1291,7 +1292,7 @@ max3421_handle_irqs(struct usb_hcd *hcd)
 		char sbuf[16 * 16], *dp, *end;
 		int i;
 
-		if (jiffies - last_time > 5*HZ) {
+		if (time_after(jiffies, last_time + 5*HZ)) {
 			dp = sbuf;
 			end = sbuf + sizeof(sbuf);
 			*dp = '\0';
@@ -1660,7 +1661,8 @@ hub_descriptor(struct usb_hub_descriptor *desc)
 	 */
 	desc->bDescriptorType = 0x29;	/* hub descriptor */
 	desc->bDescLength = 9;
-	desc->wHubCharacteristics = cpu_to_le16(0x0001);
+	desc->wHubCharacteristics = cpu_to_le16(HUB_CHAR_INDV_PORT_LPSM |
+						HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = 1;
 }
 

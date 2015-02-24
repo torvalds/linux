@@ -510,7 +510,7 @@ static int tw2815_setup(struct solo_dev *solo_dev, u8 dev_addr)
 #define FIRST_ACTIVE_LINE	0x0008
 #define LAST_ACTIVE_LINE	0x0102
 
-static void saa712x_write_regs(struct solo_dev *dev, const uint8_t *vals,
+static void saa712x_write_regs(struct solo_dev *dev, const u8 *vals,
 		int start, int n)
 {
 	for (; start < n; start++, vals++) {
@@ -532,7 +532,7 @@ static void saa712x_write_regs(struct solo_dev *dev, const uint8_t *vals,
 static void saa712x_setup(struct solo_dev *dev)
 {
 	const int reg_start = 0x26;
-	const uint8_t saa7128_regs_ntsc[] = {
+	const u8 saa7128_regs_ntsc[] = {
 	/* :0x26 */
 		0x0d, 0x00,
 	/* :0x28 */

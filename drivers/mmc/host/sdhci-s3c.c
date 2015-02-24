@@ -12,6 +12,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -312,7 +313,14 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	sdhci_s3c_set_clock(host, clock);
 
+	/* Reset SD Clock Enable */
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	clk &= ~SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+	spin_unlock_irq(&host->lock);
 	ret = clk_set_rate(ourhost->clk_bus[ourhost->cur_clk], clock);
+	spin_lock_irq(&host->lock);
 	if (ret != 0) {
 		dev_err(dev, "%s: failed to set clock rate %uHz\n",
 			mmc_hostname(host->mmc), clock);
@@ -607,7 +615,9 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_suspend_ignore_children(&pdev->dev, 1);
 
-	mmc_of_parse(host->mmc);
+	ret = mmc_of_parse(host->mmc);
+	if (ret)
+		goto err_req_regs;
 
 	ret = sdhci_add_host(host);
 	if (ret) {

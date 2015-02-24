@@ -33,10 +33,11 @@
 #define VGIC_V2_MAX_LRS		(1 << 6)
 #define VGIC_V3_MAX_LRS		16
 #define VGIC_MAX_IRQS		1024
+#define VGIC_V2_MAX_CPUS	8
 
 /* Sanity checks... */
-#if (KVM_MAX_VCPUS > 8)
-#error	Invalid number of CPU interfaces
+#if (KVM_MAX_VCPUS > 255)
+#error Too many KVM VCPUs, the VGIC only supports up to 255 VCPUs for now
 #endif
 
 #if (VGIC_NR_IRQS_LEGACY & 31)
@@ -132,6 +133,18 @@ struct vgic_params {
 	unsigned int	maint_irq;
 	/* Virtual control interface base address */
 	void __iomem	*vctrl_base;
+	int		max_gic_vcpus;
+	/* Only needed for the legacy KVM_CREATE_IRQCHIP */
+	bool		can_emulate_gicv2;
+};
+
+struct vgic_vm_ops {
+	bool	(*handle_mmio)(struct kvm_vcpu *, struct kvm_run *,
+			       struct kvm_exit_mmio *);
+	bool	(*queue_sgi)(struct kvm_vcpu *, int irq);
+	void	(*add_sgi_source)(struct kvm_vcpu *, int irq, int source);
+	int	(*init_model)(struct kvm *);
+	int	(*map_resources)(struct kvm *, const struct vgic_params *);
 };
 
 struct vgic_dist {
@@ -139,6 +152,9 @@ struct vgic_dist {
 	spinlock_t		lock;
 	bool			in_kernel;
 	bool			ready;
+
+	/* vGIC model the kernel emulates for the guest (GICv2 or GICv3) */
+	u32			vgic_model;
 
 	int			nr_cpus;
 	int			nr_irqs;
@@ -148,7 +164,11 @@ struct vgic_dist {
 
 	/* Distributor and vcpu interface mapping in the guest */
 	phys_addr_t		vgic_dist_base;
-	phys_addr_t		vgic_cpu_base;
+	/* GICv2 and GICv3 use different mapped register blocks */
+	union {
+		phys_addr_t		vgic_cpu_base;
+		phys_addr_t		vgic_redist_base;
+	};
 
 	/* Distributor enabled */
 	u32			enabled;
@@ -210,8 +230,13 @@ struct vgic_dist {
 	 */
 	struct vgic_bitmap	*irq_spi_target;
 
+	/* Target MPIDR for each IRQ (needed for GICv3 IROUTERn) only */
+	u32			*irq_spi_mpidr;
+
 	/* Bitmap indicating which CPU has something pending */
 	unsigned long		*irq_pending_on_cpu;
+
+	struct vgic_vm_ops	vm_ops;
 #endif
 };
 
@@ -229,6 +254,7 @@ struct vgic_v3_cpu_if {
 #ifdef CONFIG_ARM_GIC_V3
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
+	u32		vgic_sre;	/* Restored only, change ignored */
 	u32		vgic_misr;	/* Saved only */
 	u32		vgic_eisr;	/* Saved only */
 	u32		vgic_elrsr;	/* Saved only */
@@ -275,13 +301,15 @@ struct kvm_exit_mmio;
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 int kvm_vgic_hyp_init(void);
 int kvm_vgic_map_resources(struct kvm *kvm);
-int kvm_vgic_create(struct kvm *kvm);
+int kvm_vgic_get_max_vcpus(void);
+int kvm_vgic_create(struct kvm *kvm, u32 type);
 void kvm_vgic_destroy(struct kvm *kvm);
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu);
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu);
 int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
 			bool level);
+void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg);
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
 bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		      struct kvm_exit_mmio *mmio);
@@ -327,7 +355,7 @@ static inline int kvm_vgic_map_resources(struct kvm *kvm)
 	return 0;
 }
 
-static inline int kvm_vgic_create(struct kvm *kvm)
+static inline int kvm_vgic_create(struct kvm *kvm, u32 type)
 {
 	return 0;
 }
@@ -378,6 +406,11 @@ static inline bool vgic_initialized(struct kvm *kvm)
 static inline bool vgic_ready(struct kvm *kvm)
 {
 	return true;
+}
+
+static inline int kvm_vgic_get_max_vcpus(void)
+{
+	return KVM_MAX_VCPUS;
 }
 #endif
 

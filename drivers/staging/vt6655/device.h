@@ -367,7 +367,7 @@ struct vnt_private {
 	bool bIsBeaconBufReadySet;
 	unsigned int	cbBeaconBufReadySetCnt;
 	bool bFixRate;
-	unsigned char byCurrentCh;
+	u16 byCurrentCh;
 
 	bool bAES;
 
@@ -406,29 +406,6 @@ struct vnt_private {
 	unsigned char byBBCRc9;
 	unsigned char byBBCR88;
 	unsigned char byBBCR09;
-
-	bool bDiversityRegCtlON;
-	bool bDiversityEnable;
-	unsigned long ulDiversityNValue;
-	unsigned long ulDiversityMValue;
-	unsigned char byTMax;
-	unsigned char byTMax2;
-	unsigned char byTMax3;
-	unsigned long ulSQ3TH;
-
-	/* ANT diversity */
-	unsigned long uDiversityCnt;
-	unsigned char byAntennaState;
-	unsigned long ulRatio_State0;
-	unsigned long ulRatio_State1;
-
-	/* SQ3 functions for antenna diversity */
-	struct timer_list           TimerSQ3Tmax1;
-	struct timer_list           TimerSQ3Tmax2;
-	struct timer_list           TimerSQ3Tmax3;
-
-	unsigned long uNumSQ3[MAX_RATE];
-	unsigned short wAntDiversityMaxRate;
 
 	unsigned char abyEEPROM[EEP_MAX_CONTEXT_SIZE]; /* unsigned long alignment */
 

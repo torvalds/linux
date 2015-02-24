@@ -252,7 +252,7 @@ static int jffs2_link (struct dentry *old_dentry, struct inode *dir_i, struct de
 	if (!f->inocache)
 		return -EIO;
 
-	if (S_ISDIR(old_dentry->d_inode->i_mode))
+	if (d_is_dir(old_dentry))
 		return -EPERM;
 
 	/* XXX: This is ugly */
@@ -772,7 +772,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 	 */
 	if (new_dentry->d_inode) {
 		victim_f = JFFS2_INODE_INFO(new_dentry->d_inode);
-		if (S_ISDIR(new_dentry->d_inode->i_mode)) {
+		if (d_is_dir(new_dentry)) {
 			struct jffs2_full_dirent *fd;
 
 			mutex_lock(&victim_f->sem);
@@ -807,7 +807,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 
 	if (victim_f) {
 		/* There was a victim. Kill it off nicely */
-		if (S_ISDIR(new_dentry->d_inode->i_mode))
+		if (d_is_dir(new_dentry))
 			clear_nlink(new_dentry->d_inode);
 		else
 			drop_nlink(new_dentry->d_inode);
@@ -815,7 +815,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		   inode which didn't exist. */
 		if (victim_f->inocache) {
 			mutex_lock(&victim_f->sem);
-			if (S_ISDIR(new_dentry->d_inode->i_mode))
+			if (d_is_dir(new_dentry))
 				victim_f->inocache->pino_nlink = 0;
 			else
 				victim_f->inocache->pino_nlink--;
@@ -825,7 +825,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 
 	/* If it was a directory we moved, and there was no victim,
 	   increase i_nlink on its new parent */
-	if (S_ISDIR(old_dentry->d_inode->i_mode) && !victim_f)
+	if (d_is_dir(old_dentry) && !victim_f)
 		inc_nlink(new_dir_i);
 
 	/* Unlink the original */
@@ -839,7 +839,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		struct jffs2_inode_info *f = JFFS2_INODE_INFO(old_dentry->d_inode);
 		mutex_lock(&f->sem);
 		inc_nlink(old_dentry->d_inode);
-		if (f->inocache && !S_ISDIR(old_dentry->d_inode->i_mode))
+		if (f->inocache && !d_is_dir(old_dentry))
 			f->inocache->pino_nlink++;
 		mutex_unlock(&f->sem);
 
@@ -852,7 +852,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		return ret;
 	}
 
-	if (S_ISDIR(old_dentry->d_inode->i_mode))
+	if (d_is_dir(old_dentry))
 		drop_nlink(old_dir_i);
 
 	new_dir_i->i_mtime = new_dir_i->i_ctime = old_dir_i->i_mtime = old_dir_i->i_ctime = ITIME(now);

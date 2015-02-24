@@ -28,6 +28,7 @@
 #include <asm/fpu-internal.h>
 #include <asm/debugreg.h>
 #include <asm/nmi.h>
+#include <asm/tlbflush.h>
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
@@ -141,7 +142,7 @@ void flush_thread(void)
 
 static void hard_disable_TSC(void)
 {
-	write_cr4(read_cr4() | X86_CR4_TSD);
+	cr4_set_bits(X86_CR4_TSD);
 }
 
 void disable_TSC(void)
@@ -158,7 +159,7 @@ void disable_TSC(void)
 
 static void hard_enable_TSC(void)
 {
-	write_cr4(read_cr4() & ~X86_CR4_TSD);
+	cr4_clear_bits(X86_CR4_TSD);
 }
 
 static void enable_TSC(void)

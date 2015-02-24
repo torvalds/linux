@@ -6,7 +6,6 @@ comment "Intel/Marvell Dev Platforms (sorted by hardware release time)"
 
 config MACH_PXA27X_DT
 	bool "Support PXA27x platforms from device tree"
-	select CPU_PXA27x
 	select POWER_SUPPLY
 	select PXA27x
 	select USE_OF
@@ -84,14 +83,12 @@ config ARCH_VIPER
 	select I2C_GPIO if I2C=y
 	select ISA
 	select PXA25x
-	select PXA_HAVE_ISA_IRQS
 
 config MACH_ARCOM_ZEUS
 	bool "Arcom/Eurotech ZEUS SBC"
 	select ARCOM_PCMCIA
 	select ISA
 	select PXA27x
-	select PXA_HAVE_ISA_IRQS
 
 config MACH_BALLOON3
 	bool "Balloon 3 board"
@@ -690,9 +687,6 @@ config SHARPSL_PM_MAX1111
 	select SENSORS_MAX1111
 	select SPI
 	select SPI_MASTER
-
-config PXA_HAVE_ISA_IRQS
-	bool
 
 config PXA310_ULPI
 	bool

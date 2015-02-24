@@ -31,6 +31,8 @@
 #include <net/bluetooth/bluetooth.h>
 #include <linux/proc_fs.h>
 
+#include "selftest.h"
+
 #define VERSION "2.20"
 
 /* Bluetooth sockets */
@@ -715,6 +717,10 @@ static int __init bt_init(void)
 	BUILD_BUG_ON(sizeof(struct bt_skb_cb) > sizeof(skb->cb));
 
 	BT_INFO("Core ver %s", VERSION);
+
+	err = bt_selftest();
+	if (err < 0)
+		return err;
 
 	bt_debugfs = debugfs_create_dir("bluetooth", NULL);
 

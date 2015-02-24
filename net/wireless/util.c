@@ -227,18 +227,32 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 	if (pairwise && !mac_addr)
 		return -EINVAL;
 
-	/*
-	 * Disallow pairwise keys with non-zero index unless it's WEP
-	 * or a vendor specific cipher (because current deployments use
-	 * pairwise WEP keys with non-zero indices and for vendor specific
-	 * ciphers this should be validated in the driver or hardware level
-	 * - but 802.11i clearly specifies to use zero)
-	 */
-	if (pairwise && key_idx &&
-	    ((params->cipher == WLAN_CIPHER_SUITE_TKIP) ||
-	     (params->cipher == WLAN_CIPHER_SUITE_CCMP) ||
-	     (params->cipher == WLAN_CIPHER_SUITE_AES_CMAC)))
-		return -EINVAL;
+	switch (params->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		/* Disallow pairwise keys with non-zero index unless it's WEP
+		 * or a vendor specific cipher (because current deployments use
+		 * pairwise WEP keys with non-zero indices and for vendor
+		 * specific ciphers this should be validated in the driver or
+		 * hardware level - but 802.11i clearly specifies to use zero)
+		 */
+		if (pairwise && key_idx)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		/* Disallow BIP (group-only) cipher as pairwise cipher */
+		if (pairwise)
+			return -EINVAL;
+		break;
+	default:
+		break;
+	}
 
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -253,12 +267,36 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		if (params->key_len != WLAN_KEY_LEN_CCMP)
 			return -EINVAL;
 		break;
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		if (params->key_len != WLAN_KEY_LEN_CCMP_256)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+		if (params->key_len != WLAN_KEY_LEN_GCMP)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		if (params->key_len != WLAN_KEY_LEN_GCMP_256)
+			return -EINVAL;
+		break;
 	case WLAN_CIPHER_SUITE_WEP104:
 		if (params->key_len != WLAN_KEY_LEN_WEP104)
 			return -EINVAL;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		if (params->key_len != WLAN_KEY_LEN_AES_CMAC)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		if (params->key_len != WLAN_KEY_LEN_BIP_CMAC_256)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		if (params->key_len != WLAN_KEY_LEN_BIP_GMAC_128)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		if (params->key_len != WLAN_KEY_LEN_BIP_GMAC_256)
 			return -EINVAL;
 		break;
 	default:
@@ -280,7 +318,13 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 			return -EINVAL;
 		case WLAN_CIPHER_SUITE_TKIP:
 		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
+		case WLAN_CIPHER_SUITE_GCMP:
+		case WLAN_CIPHER_SUITE_GCMP_256:
 		case WLAN_CIPHER_SUITE_AES_CMAC:
+		case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 			if (params->seq_len != 6)
 				return -EINVAL;
 			break;
@@ -714,8 +758,8 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 	if (skb->priority >= 256 && skb->priority <= 263)
 		return skb->priority - 256;
 
-	if (vlan_tx_tag_present(skb)) {
-		vlan_priority = (vlan_tx_tag_get(skb) & VLAN_PRIO_MASK)
+	if (skb_vlan_tag_present(skb)) {
+		vlan_priority = (skb_vlan_tag_get(skb) & VLAN_PRIO_MASK)
 			>> VLAN_PRIO_SHIFT;
 		if (vlan_priority > 0)
 			return vlan_priority;
@@ -1079,10 +1123,24 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 	if (WARN_ON_ONCE(rate->mcs > 9))
 		return 0;
 
-	idx = rate->flags & (RATE_INFO_FLAGS_160_MHZ_WIDTH |
-			     RATE_INFO_FLAGS_80P80_MHZ_WIDTH) ? 3 :
-		  rate->flags & RATE_INFO_FLAGS_80_MHZ_WIDTH ? 2 :
-		  rate->flags & RATE_INFO_FLAGS_40_MHZ_WIDTH ? 1 : 0;
+	switch (rate->bw) {
+	case RATE_INFO_BW_160:
+		idx = 3;
+		break;
+	case RATE_INFO_BW_80:
+		idx = 2;
+		break;
+	case RATE_INFO_BW_40:
+		idx = 1;
+		break;
+	case RATE_INFO_BW_5:
+	case RATE_INFO_BW_10:
+	default:
+		WARN_ON(1);
+		/* fall through */
+	case RATE_INFO_BW_20:
+		idx = 0;
+	}
 
 	bitrate = base[idx][rate->mcs];
 	bitrate *= rate->nss;
@@ -1113,8 +1171,7 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 	modulation = rate->mcs & 7;
 	streams = (rate->mcs >> 3) + 1;
 
-	bitrate = (rate->flags & RATE_INFO_FLAGS_40_MHZ_WIDTH) ?
-			13500000 : 6500000;
+	bitrate = (rate->bw == RATE_INFO_BW_40) ? 13500000 : 6500000;
 
 	if (modulation < 4)
 		bitrate *= (modulation + 1);

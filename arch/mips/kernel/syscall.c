@@ -136,7 +136,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 		: "memory");
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__ (
-		"	.set	arch=r4000				\n"
+		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
 		"	li	%[err], 0				\n"
 		"1:	ll	%[old], (%[addr])			\n"
 		"	move	%[tmp], %[new]				\n"

@@ -112,6 +112,7 @@
 #define BRCMF_WOWL_MAXPATTERNS		8
 #define BRCMF_WOWL_MAXPATTERNSIZE	128
 
+#define BRCMF_COUNTRY_BUF_SZ		4
 
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
@@ -523,6 +524,60 @@ struct brcmf_mbss_ssid_le {
 	__le32	bsscfgidx;
 	__le32	SSID_len;
 	unsigned char SSID[32];
+};
+
+/**
+ * struct brcmf_fil_country_le - country configuration structure.
+ *
+ * @country_abbrev: null-terminated country code used in the country IE.
+ * @rev: revision specifier for ccode. on set, -1 indicates unspecified.
+ * @ccode: null-terminated built-in country code.
+ */
+struct brcmf_fil_country_le {
+	char country_abbrev[BRCMF_COUNTRY_BUF_SZ];
+	__le32 rev;
+	char ccode[BRCMF_COUNTRY_BUF_SZ];
+};
+
+/**
+ * struct brcmf_rev_info_le - device revision info.
+ *
+ * @vendorid: PCI vendor id.
+ * @deviceid: device id of chip.
+ * @radiorev: radio revision.
+ * @chiprev: chip revision.
+ * @corerev: core revision.
+ * @boardid: board identifier (usu. PCI sub-device id).
+ * @boardvendor: board vendor (usu. PCI sub-vendor id).
+ * @boardrev: board revision.
+ * @driverrev: driver version.
+ * @ucoderev: microcode version.
+ * @bus: bus type.
+ * @chipnum: chip number.
+ * @phytype: phy type.
+ * @phyrev: phy revision.
+ * @anarev: anacore rev.
+ * @chippkg: chip package info.
+ * @nvramrev: nvram revision number.
+ */
+struct brcmf_rev_info_le {
+	__le32 vendorid;
+	__le32 deviceid;
+	__le32 radiorev;
+	__le32 chiprev;
+	__le32 corerev;
+	__le32 boardid;
+	__le32 boardvendor;
+	__le32 boardrev;
+	__le32 driverrev;
+	__le32 ucoderev;
+	__le32 bus;
+	__le32 chipnum;
+	__le32 phytype;
+	__le32 phyrev;
+	__le32 anarev;
+	__le32 chippkg;
+	__le32 nvramrev;
 };
 
 #endif /* FWIL_TYPES_H_ */

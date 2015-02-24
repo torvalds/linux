@@ -222,7 +222,6 @@
 #define __NR_epoll_wait		207
 #define __NR_remap_file_pages	208
 #define __NR_set_tid_address	209
-
 #define __NR_timer_create	210
 #define __NR_timer_settime	211
 #define __NR_timer_gettime	212
@@ -238,7 +237,6 @@
 				/* 222 reserved for tux */
 #define __NR_utimes		223
 #define __NR_fadvise64_64	224
-
 #define __NR_cacheflush		225
 
 #define __NR_vserver		226
@@ -281,7 +279,6 @@
 #define __NR_tee		263
 #define __NR_vmsplice		264
 #define __NR_epoll_pwait	265
-
 #define __NR_msgget		266
 #define __NR_msgsnd		267
 #define __NR_msgrcv		268
@@ -294,11 +291,47 @@
 #define __NR_shmget		275
 #define __NR_shmdt		276
 #define __NR_shmctl		277
-
 #define __NR_utimensat		278
 #define __NR_signalfd		279
 /* 280 was __NR_timerfd */
 #define __NR_eventfd		281
 #define __NR_setns		283
+#define __NR_pread64		284
+#define __NR_pwrite64		285
+#define __NR_timerfd_create	286
+#define __NR_fallocate		287
+#define __NR_timerfd_settime	288
+#define __NR_timerfd_gettime	289
+#define __NR_signalfd4		290
+#define __NR_eventfd2		291
+#define __NR_epoll_create1	292
+#define __NR_dup3		293
+#define __NR_pipe2		294
+#define __NR_inotify_init1	295
+#define __NR_preadv		296
+#define __NR_pwritev		297
+#define __NR_rt_tgsigqueueinfo	298
+#define __NR_perf_event_open	299
+#define __NR_recvmmsg		300
+#define __NR_fanotify_init	301
+#define __NR_fanotify_mark	302
+#define __NR_prlimit64		303
+#define __NR_name_to_handle_at	304
+#define __NR_open_by_handle_at	305
+#define __NR_clock_adjtime	306
+#define __NR_syncfs		307
+#define __NR_sendmmsg		308
+#define __NR_process_vm_readv	309
+#define __NR_process_vm_writev	310
+#define __NR_kcmp		311
+#define __NR_finit_module	312
+#define __NR_sched_setattr	313
+#define __NR_sched_getattr	314
+#define __NR_renameat2		315
+#define __NR_seccomp		316
+#define __NR_getrandom		317
+#define __NR_memfd_create	318
+#define __NR_bpf		319
+#define __NR_execveat		320
 
 #endif /* _UAPI__ASM_AVR32_UNISTD_H */

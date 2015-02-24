@@ -436,7 +436,14 @@ static void mxs_lradc_setup_ts_channel(struct mxs_lradc *lradc, unsigned ch)
 	 */
 	mxs_lradc_reg_clear(lradc, LRADC_CH_VALUE_MASK, LRADC_CH(ch));
 
-	/* prepare the delay/loop unit according to the oversampling count */
+	/*
+	 * prepare the delay/loop unit according to the oversampling count
+	 *
+	 * from the datasheet:
+	 * "The DELAY fields in HW_LRADC_DELAY0, HW_LRADC_DELAY1,
+	 * HW_LRADC_DELAY2, and HW_LRADC_DELAY3 must be non-zero; otherwise,
+	 * the LRADC will not trigger the delay group."
+	 */
 	mxs_lradc_reg_wrt(lradc, LRADC_DELAY_TRIGGER(1 << ch) |
 		LRADC_DELAY_TRIGGER_DELAYS(0) |
 		LRADC_DELAY_LOOP(lradc->over_sample_cnt - 1) |
@@ -1495,20 +1502,38 @@ static int mxs_lradc_probe_touchscreen(struct mxs_lradc *lradc,
 		return -EINVAL;
 	}
 
-	lradc->over_sample_cnt = 4;
-	ret = of_property_read_u32(lradc_node, "fsl,ave-ctrl", &adapt);
-	if (ret == 0)
+	if (of_property_read_u32(lradc_node, "fsl,ave-ctrl", &adapt)) {
+		lradc->over_sample_cnt = 4;
+	} else {
+		if (adapt < 1 || adapt > 32) {
+			dev_err(lradc->dev, "Invalid sample count (%u)\n",
+				adapt);
+			return -EINVAL;
+		}
 		lradc->over_sample_cnt = adapt;
+	}
 
-	lradc->over_sample_delay = 2;
-	ret = of_property_read_u32(lradc_node, "fsl,ave-delay", &adapt);
-	if (ret == 0)
+	if (of_property_read_u32(lradc_node, "fsl,ave-delay", &adapt)) {
+		lradc->over_sample_delay = 2;
+	} else {
+		if (adapt < 2 || adapt > LRADC_DELAY_DELAY_MASK + 1) {
+			dev_err(lradc->dev, "Invalid sample delay (%u)\n",
+				adapt);
+			return -EINVAL;
+		}
 		lradc->over_sample_delay = adapt;
+	}
 
-	lradc->settling_delay = 10;
-	ret = of_property_read_u32(lradc_node, "fsl,settling", &adapt);
-	if (ret == 0)
+	if (of_property_read_u32(lradc_node, "fsl,settling", &adapt)) {
+		lradc->settling_delay = 10;
+	} else {
+		if (adapt < 1 || adapt > LRADC_DELAY_DELAY_MASK) {
+			dev_err(lradc->dev, "Invalid settling delay (%u)\n",
+				adapt);
+			return -EINVAL;
+		}
 		lradc->settling_delay = adapt;
+	}
 
 	return 0;
 }

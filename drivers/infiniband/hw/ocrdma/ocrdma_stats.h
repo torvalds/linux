@@ -43,12 +43,16 @@ enum OCRDMA_STATS_TYPE {
 	OCRDMA_RXQP_ERRSTATS,
 	OCRDMA_TXQP_ERRSTATS,
 	OCRDMA_TX_DBG_STATS,
-	OCRDMA_RX_DBG_STATS
+	OCRDMA_RX_DBG_STATS,
+	OCRDMA_DRV_STATS,
+	OCRDMA_RESET_STATS
 };
 
 void ocrdma_rem_debugfs(void);
 void ocrdma_init_debugfs(void);
 void ocrdma_rem_port_stats(struct ocrdma_dev *dev);
 void ocrdma_add_port_stats(struct ocrdma_dev *dev);
+int ocrdma_pma_counters(struct ocrdma_dev *dev,
+			struct ib_mad *out_mad);
 
 #endif	/* __OCRDMA_STATS_H__ */

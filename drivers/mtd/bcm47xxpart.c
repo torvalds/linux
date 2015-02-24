@@ -15,6 +15,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
+#include <uapi/linux/magic.h>
+
 /*
  * NAND flash on Netgear R6250 was verified to contain 15 partitions.
  * This will result in allocating too big array for some old devices, but the
@@ -39,7 +41,8 @@
 #define ML_MAGIC1			0x39685a42
 #define ML_MAGIC2			0x26594131
 #define TRX_MAGIC			0x30524448
-#define SQSH_MAGIC			0x71736873	/* shsq */
+#define SHSQ_MAGIC			0x71736873	/* shsq (weird ZTE H218N endianness) */
+#define UBI_EC_MAGIC			0x23494255	/* UBI# */
 
 struct trx_header {
 	uint32_t magic;
@@ -50,12 +53,32 @@ struct trx_header {
 	uint32_t offset[3];
 } __packed;
 
-static void bcm47xxpart_add_part(struct mtd_partition *part, char *name,
+static void bcm47xxpart_add_part(struct mtd_partition *part, const char *name,
 				 u64 offset, uint32_t mask_flags)
 {
 	part->name = name;
 	part->offset = offset;
 	part->mask_flags = mask_flags;
+}
+
+static const char *bcm47xxpart_trx_data_part_name(struct mtd_info *master,
+						  size_t offset)
+{
+	uint32_t buf;
+	size_t bytes_read;
+
+	if (mtd_read(master, offset, sizeof(buf), &bytes_read,
+		     (uint8_t *)&buf) < 0) {
+		pr_err("mtd_read error while parsing (offset: 0x%X)!\n",
+			offset);
+		goto out_default;
+	}
+
+	if (buf == UBI_EC_MAGIC)
+		return "ubi";
+
+out_default:
+	return "rootfs";
 }
 
 static int bcm47xxpart_parse(struct mtd_info *master,
@@ -73,8 +96,12 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	int last_trx_part = -1;
 	int possible_nvram_sizes[] = { 0x8000, 0xF000, 0x10000, };
 
-	if (blocksize <= 0x10000)
-		blocksize = 0x10000;
+	/*
+	 * Some really old flashes (like AT45DB*) had smaller erasesize-s, but
+	 * partitions were aligned to at least 0x1000 anyway.
+	 */
+	if (blocksize < 0x1000)
+		blocksize = 0x1000;
 
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
@@ -186,8 +213,11 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			 * we want to have jffs2 (overlay) in the same mtd.
 			 */
 			if (trx->offset[i]) {
+				const char *name;
+
+				name = bcm47xxpart_trx_data_part_name(master, offset + trx->offset[i]);
 				bcm47xxpart_add_part(&parts[curr_part++],
-						     "rootfs",
+						     name,
 						     offset + trx->offset[i],
 						     0);
 				i++;
@@ -205,7 +235,8 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		}
 
 		/* Squashfs on devices not using TRX */
-		if (buf[0x000 / 4] == SQSH_MAGIC) {
+		if (le32_to_cpu(buf[0x000 / 4]) == SQUASHFS_MAGIC ||
+		    buf[0x000 / 4] == SHSQ_MAGIC) {
 			bcm47xxpart_add_part(&parts[curr_part++], "rootfs",
 					     offset, 0);
 			continue;

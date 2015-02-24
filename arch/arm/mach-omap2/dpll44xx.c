@@ -36,26 +36,6 @@
 /* Static rate multiplier for OMAP4 REGM4XEN clocks */
 #define OMAP4430_REGM4XEN_MULT				4
 
-/* Supported only on OMAP4 */
-int omap4_dpllmx_gatectrl_read(struct clk_hw_omap *clk)
-{
-	u32 v;
-	u32 mask;
-
-	if (!clk || !clk->clksel_reg)
-		return -EINVAL;
-
-	mask = clk->flags & CLOCK_CLKOUTX2 ?
-			OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK :
-			OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK;
-
-	v = omap2_clk_readl(clk, clk->clksel_reg);
-	v &= mask;
-	v >>= __ffs(mask);
-
-	return v;
-}
-
 void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk)
 {
 	u32 v;
@@ -222,6 +202,8 @@ out:
  * in failure.
  */
 long omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw, unsigned long rate,
+					unsigned long min_rate,
+					unsigned long max_rate,
 					unsigned long *best_parent_rate,
 					struct clk_hw **best_parent_clk)
 {

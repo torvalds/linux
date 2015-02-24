@@ -56,6 +56,9 @@
 #include <linux/virtio_console.h>
 #include <linux/pm.h>
 #include <linux/export.h>
+#include <linux/pci.h>
+#include <linux/virtio_pci.h>
+#include <asm/acpi.h>
 #include <asm/apic.h>
 #include <asm/lguest.h>
 #include <asm/paravirt.h>
@@ -71,6 +74,8 @@
 #include <asm/stackprotector.h>
 #include <asm/reboot.h>		/* for struct machine_ops */
 #include <asm/kvm_para.h>
+#include <asm/pci_x86.h>
+#include <asm/pci-direct.h>
 
 /*G:010
  * Welcome to the Guest!
@@ -831,6 +836,24 @@ static struct irq_chip lguest_irq_controller = {
 	.irq_unmask	= enable_lguest_irq,
 };
 
+static int lguest_enable_irq(struct pci_dev *dev)
+{
+	u8 line = 0;
+
+	/* We literally use the PCI interrupt line as the irq number. */
+	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &line);
+	irq_set_chip_and_handler_name(line, &lguest_irq_controller,
+				      handle_level_irq, "level");
+	dev->irq = line;
+	return 0;
+}
+
+/* We don't do hotplug PCI, so this shouldn't be called. */
+static void lguest_disable_irq(struct pci_dev *dev)
+{
+	WARN_ON(1);
+}
+
 /*
  * This sets up the Interrupt Descriptor Table (IDT) entry for each hardware
  * interrupt (except 128, which is used for system calls), and then tells the
@@ -1181,25 +1204,136 @@ static __init char *lguest_memory_setup(void)
 	return "LGUEST";
 }
 
+/* Offset within PCI config space of BAR access capability. */
+static int console_cfg_offset = 0;
+static int console_access_cap;
+
+/* Set up so that we access off in bar0 (on bus 0, device 1, function 0) */
+static void set_cfg_window(u32 cfg_offset, u32 off)
+{
+	write_pci_config_byte(0, 1, 0,
+			      cfg_offset + offsetof(struct virtio_pci_cap, bar),
+			      0);
+	write_pci_config(0, 1, 0,
+			 cfg_offset + offsetof(struct virtio_pci_cap, length),
+			 4);
+	write_pci_config(0, 1, 0,
+			 cfg_offset + offsetof(struct virtio_pci_cap, offset),
+			 off);
+}
+
+static void write_bar_via_cfg(u32 cfg_offset, u32 off, u32 val)
+{
+	/*
+	 * We could set this up once, then leave it; nothing else in the *
+	 * kernel should touch these registers.  But if it went wrong, that
+	 * would be a horrible bug to find.
+	 */
+	set_cfg_window(cfg_offset, off);
+	write_pci_config(0, 1, 0,
+			 cfg_offset + sizeof(struct virtio_pci_cap), val);
+}
+
+static void probe_pci_console(void)
+{
+	u8 cap, common_cap = 0, device_cap = 0;
+	/* Offset within BAR0 */
+	u32 device_offset;
+	u32 device_len;
+
+	/* Avoid recursive printk into here. */
+	console_cfg_offset = -1;
+
+	if (!early_pci_allowed()) {
+		printk(KERN_ERR "lguest: early PCI access not allowed!\n");
+		return;
+	}
+
+	/* We expect a console PCI device at BUS0, slot 1. */
+	if (read_pci_config(0, 1, 0, 0) != 0x10431AF4) {
+		printk(KERN_ERR "lguest: PCI device is %#x!\n",
+		       read_pci_config(0, 1, 0, 0));
+		return;
+	}
+
+	/* Find the capabilities we need (must be in bar0) */
+	cap = read_pci_config_byte(0, 1, 0, PCI_CAPABILITY_LIST);
+	while (cap) {
+		u8 vndr = read_pci_config_byte(0, 1, 0, cap);
+		if (vndr == PCI_CAP_ID_VNDR) {
+			u8 type, bar;
+			u32 offset, length;
+
+			type = read_pci_config_byte(0, 1, 0,
+			    cap + offsetof(struct virtio_pci_cap, cfg_type));
+			bar = read_pci_config_byte(0, 1, 0,
+			    cap + offsetof(struct virtio_pci_cap, bar));
+			offset = read_pci_config(0, 1, 0,
+			    cap + offsetof(struct virtio_pci_cap, offset));
+			length = read_pci_config(0, 1, 0,
+			    cap + offsetof(struct virtio_pci_cap, length));
+
+			switch (type) {
+			case VIRTIO_PCI_CAP_DEVICE_CFG:
+				if (bar == 0) {
+					device_cap = cap;
+					device_offset = offset;
+					device_len = length;
+				}
+				break;
+			case VIRTIO_PCI_CAP_PCI_CFG:
+				console_access_cap = cap;
+				break;
+			}
+		}
+		cap = read_pci_config_byte(0, 1, 0, cap + PCI_CAP_LIST_NEXT);
+	}
+	if (!device_cap || !console_access_cap) {
+		printk(KERN_ERR "lguest: No caps (%u/%u/%u) in console!\n",
+		       common_cap, device_cap, console_access_cap);
+		return;
+	}
+
+	/*
+	 * Note that we can't check features, until we've set the DRIVER
+	 * status bit.  We don't want to do that until we have a real driver,
+	 * so we just check that the device-specific config has room for
+	 * emerg_wr.  If it doesn't support VIRTIO_CONSOLE_F_EMERG_WRITE
+	 * it should ignore the access.
+	 */
+	if (device_len < (offsetof(struct virtio_console_config, emerg_wr)
+			  + sizeof(u32))) {
+		printk(KERN_ERR "lguest: console missing emerg_wr field\n");
+		return;
+	}
+
+	console_cfg_offset = device_offset;
+	printk(KERN_INFO "lguest: Console via virtio-pci emerg_wr\n");
+}
+
 /*
  * We will eventually use the virtio console device to produce console output,
- * but before that is set up we use LHCALL_NOTIFY on normal memory to produce
- * console output.
+ * but before that is set up we use the virtio PCI console's backdoor mmio
+ * access and the "emergency" write facility (which is legal even before the
+ * device is configured).
  */
 static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 {
-	char scratch[17];
-	unsigned int len = count;
+	/* If we couldn't find PCI console, forget it. */
+	if (console_cfg_offset < 0)
+		return count;
 
-	/* We use a nul-terminated string, so we make a copy.  Icky, huh? */
-	if (len > sizeof(scratch) - 1)
-		len = sizeof(scratch) - 1;
-	scratch[len] = '\0';
-	memcpy(scratch, buf, len);
-	hcall(LHCALL_NOTIFY, __pa(scratch), 0, 0, 0);
+	if (unlikely(!console_cfg_offset)) {
+		probe_pci_console();
+		if (console_cfg_offset < 0)
+			return count;
+	}
 
-	/* This routine returns the number of bytes actually written. */
-	return len;
+	write_bar_via_cfg(console_access_cap,
+			  console_cfg_offset
+			  + offsetof(struct virtio_console_config, emerg_wr),
+			  buf[0]);
+	return 1;
 }
 
 /*
@@ -1400,14 +1534,6 @@ __init void lguest_init(void)
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
 
 	/*
-	 * The IDE code spends about 3 seconds probing for disks: if we reserve
-	 * all the I/O ports up front it can't get them and so doesn't probe.
-	 * Other device drivers are similar (but less severe).  This cuts the
-	 * kernel boot time on my machine from 4.1 seconds to 0.45 seconds.
-	 */
-	paravirt_disable_iospace();
-
-	/*
 	 * This is messy CPU setup stuff which the native boot code does before
 	 * start_kernel, so we have to do, too:
 	 */
@@ -1435,6 +1561,13 @@ __init void lguest_init(void)
 
 	/* Register our very early console. */
 	virtio_cons_early_init(early_put_chars);
+
+	/* Don't let ACPI try to control our PCI interrupts. */
+	disable_acpi();
+
+	/* We control them ourselves, by overriding these two hooks. */
+	pcibios_enable_irq = lguest_enable_irq;
+	pcibios_disable_irq = lguest_disable_irq;
 
 	/*
 	 * Last of all, we set the power management poweroff hook to point to

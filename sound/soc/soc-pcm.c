@@ -301,34 +301,18 @@ static bool soc_pcm_has_symmetry(struct snd_pcm_substream *substream)
 	return symmetry;
 }
 
-/*
- * List of sample sizes that might go over the bus for parameter
- * application.  There ought to be a wildcard sample size for things
- * like the DAC/ADC resolution to use but there isn't right now.
- */
-static int sample_sizes[] = {
-	24, 32,
-};
-
 static void soc_pcm_set_msb(struct snd_pcm_substream *substream, int bits)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int ret, i;
+	int ret;
 
 	if (!bits)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(sample_sizes); i++) {
-		if (bits >= sample_sizes[i])
-			continue;
-
-		ret = snd_pcm_hw_constraint_msbits(substream->runtime, 0,
-						   sample_sizes[i], bits);
-		if (ret != 0)
-			dev_warn(rtd->dev,
-				 "ASoC: Failed to set MSB %d/%d: %d\n",
-				 bits, sample_sizes[i], ret);
-	}
+	ret = snd_pcm_hw_constraint_msbits(substream->runtime, 0, 0, bits);
+	if (ret != 0)
+		dev_warn(rtd->dev, "ASoC: Failed to set MSB %d: %d\n",
+				 bits, ret);
 }
 
 static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
@@ -746,7 +730,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 							      codec_dai);
 			if (ret < 0) {
 				dev_err(codec_dai->dev,
-					"ASoC: DAI prepare error: %d\n", ret);
+					"ASoC: codec DAI prepare error: %d\n",
+					ret);
 				goto out;
 			}
 		}
@@ -755,8 +740,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	if (cpu_dai->driver->ops && cpu_dai->driver->ops->prepare) {
 		ret = cpu_dai->driver->ops->prepare(substream, cpu_dai);
 		if (ret < 0) {
-			dev_err(cpu_dai->dev, "ASoC: DAI prepare error: %d\n",
-				ret);
+			dev_err(cpu_dai->dev,
+				"ASoC: cpu DAI prepare error: %d\n", ret);
 			goto out;
 		}
 	}

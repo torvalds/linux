@@ -457,11 +457,11 @@ static void ehci_hub_descriptor(struct oxu_hcd *oxu,
 	memset(&desc->u.hs.DeviceRemovable[0], 0, temp);
 	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
-	temp = 0x0008;			/* per-port overcurrent reporting */
+	temp = HUB_CHAR_INDV_PORT_OCPM;	/* per-port overcurrent reporting */
 	if (HCS_PPC(oxu->hcs_params))
-		temp |= 0x0001;		/* per-port power control */
+		temp |= HUB_CHAR_INDV_PORT_LPSM; /* per-port power control */
 	else
-		temp |= 0x0002;		/* no power switching */
+		temp |= HUB_CHAR_NO_LPSM; /* no power switching */
 	desc->wHubCharacteristics = (__force __u16)cpu_to_le16(temp);
 }
 
@@ -2598,9 +2598,7 @@ static int oxu_hcd_init(struct usb_hcd *hcd)
 
 	spin_lock_init(&oxu->lock);
 
-	init_timer(&oxu->watchdog);
-	oxu->watchdog.function = oxu_watchdog;
-	oxu->watchdog.data = (unsigned long) oxu;
+	setup_timer(&oxu->watchdog, oxu_watchdog, (unsigned long)oxu);
 
 	/*
 	 * hw default: 1K periodic list heads, one per frame.

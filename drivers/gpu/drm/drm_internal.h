@@ -55,7 +55,6 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 int drm_name_info(struct seq_file *m, void *data);
 int drm_vm_info(struct seq_file *m, void *data);
 int drm_bufs_info(struct seq_file *m, void *data);
-int drm_vblank_info(struct seq_file *m, void *data);
 int drm_clients_info(struct seq_file *m, void* data);
 int drm_gem_name_info(struct seq_file *m, void *data);
 
