@@ -522,7 +522,7 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 		memcpy(&kvm->arch.model.cpu_id, &proc->cpuid,
 		       sizeof(struct cpuid));
 		kvm->arch.model.ibc = proc->ibc;
-		memcpy(kvm->arch.model.fac->kvm, proc->fac_list,
+		memcpy(kvm->arch.model.fac->list, proc->fac_list,
 		       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	} else
 		ret = -EFAULT;
@@ -556,7 +556,7 @@ static int kvm_s390_get_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 	}
 	memcpy(&proc->cpuid, &kvm->arch.model.cpu_id, sizeof(struct cpuid));
 	proc->ibc = kvm->arch.model.ibc;
-	memcpy(&proc->fac_list, kvm->arch.model.fac->kvm, S390_ARCH_FAC_LIST_SIZE_BYTE);
+	memcpy(&proc->fac_list, kvm->arch.model.fac->list, S390_ARCH_FAC_LIST_SIZE_BYTE);
 	if (copy_to_user((void __user *)attr->addr, proc, sizeof(*proc)))
 		ret = -EFAULT;
 	kfree(proc);
@@ -576,8 +576,8 @@ static int kvm_s390_get_machine(struct kvm *kvm, struct kvm_device_attr *attr)
 	}
 	get_cpu_id((struct cpuid *) &mach->cpuid);
 	mach->ibc = sclp_get_ibc();
-	memcpy(&mach->fac_mask, kvm_s390_fac_list_mask,
-	       kvm_s390_fac_list_mask_size() * sizeof(u64));
+	memcpy(&mach->fac_mask, kvm->arch.model.fac->mask,
+	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	memcpy((unsigned long *)&mach->fac_list, S390_lowcore.stfle_fac_list,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	if (copy_to_user((void __user *)attr->addr, mach, sizeof(*mach)))
@@ -893,16 +893,16 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	/*
 	 * The architectural maximum amount of facilities is 16 kbit. To store
 	 * this amount, 2 kbyte of memory is required. Thus we need a full
-	 * page to hold the active copy (arch.model.fac->sie) and the current
-	 * facilities set (arch.model.fac->kvm). Its address size has to be
+	 * page to hold the guest facility list (arch.model.fac->list) and the
+	 * facility mask (arch.model.fac->mask). Its address size has to be
 	 * 31 bits and word aligned.
 	 */
 	kvm->arch.model.fac =
-		(struct s390_model_fac *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+		(struct kvm_s390_fac *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!kvm->arch.model.fac)
 		goto out_nofac;
 
-	memcpy(kvm->arch.model.fac->kvm, S390_lowcore.stfle_fac_list,
+	memcpy(kvm->arch.model.fac->mask, S390_lowcore.stfle_fac_list,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 
 	/*
@@ -914,7 +914,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	 */
 	if (!MACHINE_IS_LPAR)
 		for (i = 0; i < kvm_s390_fac_list_mask_size(); i++)
-			kvm_s390_fac_list_mask[i] &= kvm->arch.model.fac->kvm[i];
+			kvm_s390_fac_list_mask[i] &= kvm->arch.model.fac->mask[i];
 
 	/*
 	 * Apply the kvm facility mask to limit the kvm supported/tolerated
@@ -922,10 +922,14 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	 */
 	for (i = 0; i < S390_ARCH_FAC_LIST_SIZE_U64; i++) {
 		if (i < kvm_s390_fac_list_mask_size())
-			kvm->arch.model.fac->kvm[i] &= kvm_s390_fac_list_mask[i];
+			kvm->arch.model.fac->mask[i] &= kvm_s390_fac_list_mask[i];
 		else
-			kvm->arch.model.fac->kvm[i] = 0UL;
+			kvm->arch.model.fac->mask[i] = 0UL;
 	}
+
+	/* Populate the facility list initially. */
+	memcpy(kvm->arch.model.fac->list, kvm->arch.model.fac->mask,
+	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 
 	kvm_s390_get_cpu_id(&kvm->arch.model.cpu_id);
 	kvm->arch.model.ibc = sclp_get_ibc() & 0x0fff;
@@ -1172,8 +1176,6 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	mutex_lock(&vcpu->kvm->lock);
 	vcpu->arch.cpu_id = vcpu->kvm->arch.model.cpu_id;
-	memcpy(vcpu->kvm->arch.model.fac->sie, vcpu->kvm->arch.model.fac->kvm,
-	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	vcpu->arch.sie_block->ibc = vcpu->kvm->arch.model.ibc;
 	mutex_unlock(&vcpu->kvm->lock);
 
@@ -1219,7 +1221,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
 		set_bit(63 - id, (unsigned long *) &kvm->arch.sca->mcn);
 	}
-	vcpu->arch.sie_block->fac = (int) (long) kvm->arch.model.fac->sie;
+	vcpu->arch.sie_block->fac = (int) (long) kvm->arch.model.fac->list;
 
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
