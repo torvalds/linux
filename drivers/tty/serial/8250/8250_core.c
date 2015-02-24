@@ -61,7 +61,7 @@ static struct uart_driver serial8250_reg;
 
 static int serial_index(struct uart_port *port)
 {
-	return (serial8250_reg.minor - 64) + port->line;
+	return port->minor - 64;
 }
 
 static unsigned int skip_txen_test; /* force skip of txen test at init time */
