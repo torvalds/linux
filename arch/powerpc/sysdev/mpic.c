@@ -1219,16 +1219,6 @@ static u32 fsl_mpic_get_version(struct mpic *mpic)
  * Exported functions
  */
 
-u32 fsl_mpic_primary_get_version(void)
-{
-	struct mpic *mpic = mpic_primary;
-
-	if (mpic)
-		return fsl_mpic_get_version(mpic);
-
-	return 0;
-}
-
 struct mpic * __init mpic_alloc(struct device_node *node,
 				phys_addr_t phys_addr,
 				unsigned int flags,
@@ -1674,31 +1664,6 @@ void __init mpic_init(struct mpic *mpic)
 	/* FSL mpic error interrupt intialization */
 	if (mpic->flags & MPIC_FSL_HAS_EIMR)
 		mpic_err_int_init(mpic, MPIC_FSL_ERR_INT);
-}
-
-void __init mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio)
-{
-	u32 v;
-
-	v = mpic_read(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1);
-	v &= ~MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO_MASK;
-	v |= MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO(clock_ratio);
-	mpic_write(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1, v);
-}
-
-void __init mpic_set_serial_int(struct mpic *mpic, int enable)
-{
-	unsigned long flags;
-	u32 v;
-
-	raw_spin_lock_irqsave(&mpic_lock, flags);
-	v = mpic_read(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1);
-	if (enable)
-		v |= MPIC_GREG_GLOBAL_CONF_1_SIE;
-	else
-		v &= ~MPIC_GREG_GLOBAL_CONF_1_SIE;
-	mpic_write(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1, v);
-	raw_spin_unlock_irqrestore(&mpic_lock, flags);
 }
 
 void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
