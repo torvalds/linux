@@ -931,6 +931,22 @@ out_uninit:
 	return ret;
 }
 
+static ssize_t gfs2_file_splice_write(struct pipe_inode_info *pipe,
+				      struct file *out, loff_t *ppos,
+				      size_t len, unsigned int flags)
+{
+	int error;
+	struct gfs2_inode *ip = GFS2_I(out->f_mapping->host);
+
+	error = gfs2_rs_alloc(ip);
+	if (error)
+		return (ssize_t)error;
+
+	gfs2_size_hint(out, *ppos, len);
+
+	return iter_file_splice_write(pipe, out, ppos, len, flags);
+}
+
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
 
 /**
@@ -1061,22 +1077,6 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 	} else {
 		return do_flock(file, cmd, fl);
 	}
-}
-
-static ssize_t gfs2_file_splice_write(struct pipe_inode_info *pipe,
-				      struct file *out, loff_t *ppos,
-				      size_t len, unsigned int flags)
-{
-	int error;
-	struct gfs2_inode *ip = GFS2_I(out->f_mapping->host);
-
-	error = gfs2_rs_alloc(ip);
-	if (error)
-		return (ssize_t)error;
-
-	gfs2_size_hint(out, *ppos, len);
-
-	return iter_file_splice_write(pipe, out, ppos, len, flags);
 }
 
 const struct file_operations gfs2_file_fops = {
