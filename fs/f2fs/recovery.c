@@ -407,8 +407,6 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 		dn.ofs_in_node++;
 	}
 
-	/* write node page in place */
-	set_summary(&sum, dn.nid, 0, 0);
 	if (IS_INODE(dn.node_page))
 		sync_inode_page(&dn);
 
