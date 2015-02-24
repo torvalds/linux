@@ -1890,6 +1890,48 @@ static void serial8250_backup_timeout(unsigned long data)
 		jiffies + uart_poll_timeout(&up->port) + HZ / 5);
 }
 
+static int univ8250_setup_irq(struct uart_8250_port *up)
+{
+	struct uart_port *port = &up->port;
+	int retval = 0;
+
+	/*
+	 * The above check will only give an accurate result the first time
+	 * the port is opened so this value needs to be preserved.
+	 */
+	if (up->bugs & UART_BUG_THRE) {
+		pr_debug("ttyS%d - using backup timer\n", serial_index(port));
+
+		up->timer.function = serial8250_backup_timeout;
+		up->timer.data = (unsigned long)up;
+		mod_timer(&up->timer, jiffies +
+			  uart_poll_timeout(port) + HZ / 5);
+	}
+
+	/*
+	 * If the "interrupt" for this port doesn't correspond with any
+	 * hardware interrupt, we use a timer-based system.  The original
+	 * driver used to do this with IRQ0.
+	 */
+	if (!port->irq) {
+		up->timer.data = (unsigned long)up;
+		mod_timer(&up->timer, jiffies + uart_poll_timeout(port));
+	} else
+		retval = serial_link_irq_chain(up);
+
+	return retval;
+}
+
+static void univ8250_release_irq(struct uart_8250_port *up)
+{
+	struct uart_port *port = &up->port;
+
+	del_timer_sync(&up->timer);
+	up->timer.function = serial8250_timeout;
+	if (port->irq)
+		serial_unlink_irq_chain(up);
+}
+
 static unsigned int serial8250_tx_empty(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
@@ -2194,35 +2236,12 @@ int serial8250_do_startup(struct uart_port *port)
 		if ((!(iir1 & UART_IIR_NO_INT) && (iir & UART_IIR_NO_INT)) ||
 		    up->port.flags & UPF_BUG_THRE) {
 			up->bugs |= UART_BUG_THRE;
-			pr_debug("ttyS%d - using backup timer\n",
-				 serial_index(port));
 		}
 	}
 
-	/*
-	 * The above check will only give an accurate result the first time
-	 * the port is opened so this value needs to be preserved.
-	 */
-	if (up->bugs & UART_BUG_THRE) {
-		up->timer.function = serial8250_backup_timeout;
-		up->timer.data = (unsigned long)up;
-		mod_timer(&up->timer, jiffies +
-			uart_poll_timeout(port) + HZ / 5);
-	}
-
-	/*
-	 * If the "interrupt" for this port doesn't correspond with any
-	 * hardware interrupt, we use a timer-based system.  The original
-	 * driver used to do this with IRQ0.
-	 */
-	if (!port->irq) {
-		up->timer.data = (unsigned long)up;
-		mod_timer(&up->timer, jiffies + uart_poll_timeout(port));
-	} else {
-		retval = serial_link_irq_chain(up);
-		if (retval)
-			goto out;
-	}
+	retval = up->ops->setup_irq(up);
+	if (retval)
+		goto out;
 
 	/*
 	 * Now, initialize the UART
@@ -2380,10 +2399,7 @@ void serial8250_do_shutdown(struct uart_port *port)
 	serial_port_in(port, UART_RX);
 	serial8250_rpm_put(up);
 
-	del_timer_sync(&up->timer);
-	up->timer.function = serial8250_timeout;
-	if (port->irq)
-		serial_unlink_irq_chain(up);
+	up->ops->release_irq(up);
 }
 EXPORT_SYMBOL_GPL(serial8250_do_shutdown);
 
@@ -3083,6 +3099,11 @@ static struct uart_ops serial8250_pops = {
 #endif
 };
 
+static const struct uart_8250_ops univ8250_driver_ops = {
+	.setup_irq	= univ8250_setup_irq,
+	.release_irq	= univ8250_release_irq,
+};
+
 static struct uart_8250_port serial8250_ports[UART_NR];
 
 /**
@@ -3136,6 +3157,8 @@ static void __init serial8250_isa_init_ports(void)
 		init_timer(&up->timer);
 		up->timer.function = serial8250_timeout;
 		up->cur_iotype = 0xFF;
+
+		up->ops = &univ8250_driver_ops;
 
 		/*
 		 * ALPHA_KLUDGE_MCR needs to be killed.

@@ -60,6 +60,20 @@ enum {
 };
 
 struct uart_8250_dma;
+struct uart_8250_port;
+
+/**
+ * 8250 core driver operations
+ *
+ * @setup_irq()		Setup irq handling. The universal 8250 driver links this
+ *			port to the irq chain. Other drivers may @request_irq().
+ * @release_irq()	Undo irq handling. The universal 8250 driver unlinks
+ *			the port from the irq chain.
+ */
+struct uart_8250_ops {
+	int		(*setup_irq)(struct uart_8250_port *);
+	void		(*release_irq)(struct uart_8250_port *);
+};
 
 /*
  * This should be used by drivers which want to register
@@ -100,6 +114,7 @@ struct uart_8250_port {
 	unsigned char		msr_saved_flags;
 
 	struct uart_8250_dma	*dma;
+	const struct uart_8250_ops *ops;
 
 	/* 8250 specific callbacks */
 	int			(*dl_read)(struct uart_8250_port *);
