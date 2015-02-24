@@ -64,12 +64,6 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_RTNL_LINK("ip6tnl");
 MODULE_ALIAS_NETDEV("ip6tnl0");
 
-#ifdef IP6_TNL_DEBUG
-#define IP6_TNL_TRACE(x...) pr_debug("%s:" x "\n", __func__)
-#else
-#define IP6_TNL_TRACE(x...) do {;} while(0)
-#endif
-
 #define HASH_SIZE_SHIFT  5
 #define HASH_SIZE (1 << HASH_SIZE_SHIFT)
 
