@@ -1772,14 +1772,14 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	reg_state[CTX_PDP1_LDW] = GEN8_RING_PDP_LDW(ring, 1);
 	reg_state[CTX_PDP0_UDW] = GEN8_RING_PDP_UDW(ring, 0);
 	reg_state[CTX_PDP0_LDW] = GEN8_RING_PDP_LDW(ring, 0);
-	reg_state[CTX_PDP3_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[3].daddr);
-	reg_state[CTX_PDP3_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[3].daddr);
-	reg_state[CTX_PDP2_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[2].daddr);
-	reg_state[CTX_PDP2_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[2].daddr);
-	reg_state[CTX_PDP1_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[1].daddr);
-	reg_state[CTX_PDP1_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[1].daddr);
-	reg_state[CTX_PDP0_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[0].daddr);
-	reg_state[CTX_PDP0_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[0].daddr);
+	reg_state[CTX_PDP3_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[3]->daddr);
+	reg_state[CTX_PDP3_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[3]->daddr);
+	reg_state[CTX_PDP2_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[2]->daddr);
+	reg_state[CTX_PDP2_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[2]->daddr);
+	reg_state[CTX_PDP1_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[1]->daddr);
+	reg_state[CTX_PDP1_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[1]->daddr);
+	reg_state[CTX_PDP0_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[0]->daddr);
+	reg_state[CTX_PDP0_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[0]->daddr);
 	if (ring->id == RCS) {
 		reg_state[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
 		reg_state[CTX_R_PWR_CLK_STATE] = GEN8_R_PWR_CLK_STATE;

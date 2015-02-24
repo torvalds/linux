@@ -199,12 +199,12 @@ struct i915_page_directory_entry {
 		dma_addr_t daddr;
 	};
 
-	struct i915_page_table_entry *page_table;
+	struct i915_page_table_entry *page_table[GEN6_PPGTT_PD_ENTRIES]; /* PDEs */
 };
 
 struct i915_page_directory_pointer_entry {
 	/* struct page *page; */
-	struct i915_page_directory_entry page_directory[GEN8_LEGACY_PDPES];
+	struct i915_page_directory_entry *page_directory[GEN8_LEGACY_PDPES];
 };
 
 struct i915_address_space {
