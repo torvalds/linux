@@ -517,6 +517,7 @@ int snd_hda_codec_build_controls(struct hda_codec *codec);
  * PCM
  */
 int snd_hda_build_pcms(struct hda_bus *bus);
+int snd_hda_codec_parse_pcms(struct hda_codec *codec);
 int snd_hda_codec_build_pcms(struct hda_codec *codec);
 
 int snd_hda_codec_prepare(struct hda_codec *codec,
