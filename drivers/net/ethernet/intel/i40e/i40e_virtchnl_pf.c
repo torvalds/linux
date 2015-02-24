@@ -832,7 +832,6 @@ void i40e_free_vfs(struct i40e_pf *pf)
 			bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;
 			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), (1 << bit_idx));
 		}
-		i40e_disable_pf_switch_lb(pf);
 	} else {
 		dev_warn(&pf->pdev->dev,
 			 "unable to disable SR-IOV because VFs are assigned.\n");
