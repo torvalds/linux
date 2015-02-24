@@ -1737,6 +1737,7 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
  * @hw: pointer to the hw struct
  * @fw_major_version: firmware major version
  * @fw_minor_version: firmware minor version
+ * @fw_build: firmware build number
  * @api_major_version: major queue version
  * @api_minor_version: minor queue version
  * @cmd_details: pointer to command details structure or NULL
@@ -1745,6 +1746,7 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
  **/
 i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
 				u16 *fw_major_version, u16 *fw_minor_version,
+				u32 *fw_build,
 				u16 *api_major_version, u16 *api_minor_version,
 				struct i40e_asq_cmd_details *cmd_details)
 {
@@ -1758,13 +1760,15 @@ i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	if (!status) {
-		if (fw_major_version != NULL)
+		if (fw_major_version)
 			*fw_major_version = le16_to_cpu(resp->fw_major);
-		if (fw_minor_version != NULL)
+		if (fw_minor_version)
 			*fw_minor_version = le16_to_cpu(resp->fw_minor);
-		if (api_major_version != NULL)
+		if (fw_build)
+			*fw_build = le32_to_cpu(resp->fw_build);
+		if (api_major_version)
 			*api_major_version = le16_to_cpu(resp->api_major);
-		if (api_minor_version != NULL)
+		if (api_minor_version)
 			*api_minor_version = le16_to_cpu(resp->api_minor);
 	}
 
