@@ -3,13 +3,11 @@
                   HOWTO for the linux packet generator 
                   ------------------------------------
 
-Date: 041221
-
-Enable CONFIG_NET_PKTGEN to compile and build pktgen.o either in kernel
-or as module. Module is preferred. insmod pktgen if needed. Once running
-pktgen creates a thread on each CPU where each thread has affinity to its CPU.
-Monitoring and controlling is done via /proc. Easiest to select a suitable 
-a sample script and configure.
+Enable CONFIG_NET_PKTGEN to compile and build pktgen either in-kernel
+or as a module.  A module is preferred; modprobe pktgen if needed.  Once
+running, pktgen creates a thread for each CPU with affinity to that CPU.
+Monitoring and controlling is done via /proc.  It is easiest to select a
+suitable sample script and configure that.
 
 On a dual CPU:
 
@@ -27,7 +25,7 @@ For monitoring and control pktgen creates:
 Tuning NIC for max performance
 ==============================
 
-The default NIC setting are (likely) not tuned for pktgen's artificial
+The default NIC settings are (likely) not tuned for pktgen's artificial
 overload type of benchmarking, as this could hurt the normal use-case.
 
 Specifically increasing the TX ring buffer in the NIC:
@@ -35,20 +33,20 @@ Specifically increasing the TX ring buffer in the NIC:
 
 A larger TX ring can improve pktgen's performance, while it can hurt
 in the general case, 1) because the TX ring buffer might get larger
-than the CPUs L1/L2 cache, 2) because it allow more queueing in the
+than the CPU's L1/L2 cache, 2) because it allows more queueing in the
 NIC HW layer (which is bad for bufferbloat).
 
-One should be careful to conclude, that packets/descriptors in the HW
+One should hesitate to conclude that packets/descriptors in the HW
 TX ring cause delay.  Drivers usually delay cleaning up the
-ring-buffers (for various performance reasons), thus packets stalling
-the TX ring, might just be waiting for cleanup.
+ring-buffers for various performance reasons, and packets stalling
+the TX ring might just be waiting for cleanup.
 
-This cleanup issues is specifically the case, for the driver ixgbe
-(Intel 82599 chip).  This driver (ixgbe) combine TX+RX ring cleanups,
+This cleanup issue is specifically the case for the driver ixgbe
+(Intel 82599 chip).  This driver (ixgbe) combines TX+RX ring cleanups,
 and the cleanup interval is affected by the ethtool --coalesce setting
 of parameter "rx-usecs".
 
-For ixgbe use e.g "30" resulting in approx 33K interrupts/sec (1/30*10^6):
+For ixgbe use e.g. "30" resulting in approx 33K interrupts/sec (1/30*10^6):
  # ethtool -C ethX rx-usecs 30
 
 
@@ -60,15 +58,16 @@ Running:
 Stopped: eth1 
 Result: OK: max_before_softirq=10000
 
-Most important the devices assigned to thread. Note! A device can only belong 
-to one thread.
+Most important are the devices assigned to the thread.  Note that a
+device can only belong to one thread.
 
 
 Viewing devices
 ===============
 
-Parm section holds configured info. Current hold running stats. 
-Result is printed after run or after interruption. Example:
+The Params section holds configured information.  The Current section
+holds running statistics.  The Result is printed after a run or after
+interruption.  Example:
 
 /proc/net/pktgen/eth1       
 
@@ -93,7 +92,8 @@ Result: OK: 13101142(c12220741+d880401) usec, 10000000 (60byte,0frags)
 
 Configuring threads and devices
 ================================
-This is done via the /proc interface easiest done via pgset in the scripts
+This is done via the /proc interface, and most easily done via pgset
+as defined in the sample scripts.
 
 Examples:
 
@@ -192,10 +192,11 @@ Examples:
  pgset "rate 300M"        set rate to 300 Mb/s
  pgset "ratep 1000000"    set rate to 1Mpps
 
-Example scripts
-===============
+Sample scripts
+==============
 
-A collection of small tutorial scripts for pktgen is in examples dir.
+A collection of small tutorial scripts for pktgen is in the
+samples/pktgen directory:
 
 pktgen.conf-1-1                  # 1 CPU 1 dev 
 pktgen.conf-1-2                  # 1 CPU 2 dev
@@ -206,25 +207,26 @@ pktgen.conf-1-1-ip6              # 1 CPU 1 dev ipv6
 pktgen.conf-1-1-ip6-rdos         # 1 CPU 1 dev ipv6  w. route DoS
 pktgen.conf-1-1-flows            # 1 CPU 1 dev multiple flows.
 
-Run in shell: ./pktgen.conf-X-Y It does all the setup including sending. 
+Run in shell: ./pktgen.conf-X-Y
+This does all the setup including sending.
 
 
 Interrupt affinity
 ===================
-Note when adding devices to a specific CPU there good idea to also assign 
-/proc/irq/XX/smp_affinity so the TX-interrupts gets bound to the same CPU.
-as this reduces cache bouncing when freeing skb's.
+Note that when adding devices to a specific CPU it is a good idea to
+also assign /proc/irq/XX/smp_affinity so that the TX interrupts are bound
+to the same CPU.  This reduces cache bouncing when freeing skbs.
 
 Enable IPsec
 ============
-Default IPsec transformation with ESP encapsulation plus Transport mode
-could be enabled by simply setting:
+Default IPsec transformation with ESP encapsulation plus transport mode
+can be enabled by simply setting:
 
 pgset "flag IPSEC"
 pgset "flows 1"
 
 To avoid breaking existing testbed scripts for using AH type and tunnel mode,
-user could use "pgset spi SPI_VALUE" to specify which formal of transformation
+you can use "pgset spi SPI_VALUE" to specify which transformation mode
 to employ.
 
 
