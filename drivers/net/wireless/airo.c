@@ -3211,7 +3211,7 @@ static void airo_print_status(const char *devname, u16 status)
 			airo_print_dbg(devname, "link lost (TSF sync lost)");
 			break;
 		default:
-			airo_print_dbg(devname, "unknow status %x\n", status);
+			airo_print_dbg(devname, "unknown status %x\n", status);
 			break;
 		}
 		break;
@@ -3233,7 +3233,7 @@ static void airo_print_status(const char *devname, u16 status)
 	case STAT_REASSOC:
 		break;
 	default:
-		airo_print_dbg(devname, "unknow status %x\n", status);
+		airo_print_dbg(devname, "unknown status %x\n", status);
 		break;
 	}
 }

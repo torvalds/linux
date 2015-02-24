@@ -614,7 +614,7 @@ static void recalibrate(struct dp83640_clock *clock)
 	trigger = CAL_TRIGGER;
 	cal_gpio = 1 + ptp_find_pin(clock->ptp_clock, PTP_PF_PHYSYNC, 0);
 	if (cal_gpio < 1) {
-		pr_err("PHY calibration pin not avaible - PHY is not calibrated.");
+		pr_err("PHY calibration pin not available - PHY is not calibrated.");
 		return;
 	}
 

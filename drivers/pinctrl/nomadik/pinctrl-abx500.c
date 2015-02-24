@@ -466,7 +466,7 @@ static int abx500_set_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 		break;
 
 	default:
-		dev_dbg(pct->dev, "unknow alt_setting %d\n", alt_setting);
+		dev_dbg(pct->dev, "unknown alt_setting %d\n", alt_setting);
 
 		return -EINVAL;
 	}

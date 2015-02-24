@@ -1632,7 +1632,7 @@ int wcn36xx_smd_keep_alive_req(struct wcn36xx *wcn,
 	} else if (packet_type == WCN36XX_HAL_KEEP_ALIVE_UNSOLICIT_ARP_RSP) {
 		/* TODO: it also support ARP response type */
 	} else {
-		wcn36xx_warn("unknow keep alive packet type %d\n", packet_type);
+		wcn36xx_warn("unknown keep alive packet type %d\n", packet_type);
 		ret = -EINVAL;
 		goto out;
 	}
