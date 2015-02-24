@@ -136,6 +136,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 			continue;
 		sclp.has_siif = cpue->siif;
 		sclp.has_sigpif = cpue->sigpif;
+		sclp.has_sief2 = cpue->sief2;
 		break;
 	}
 
