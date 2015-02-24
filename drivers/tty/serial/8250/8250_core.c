@@ -3144,6 +3144,13 @@ static void serial8250_init_port(struct uart_8250_port *up)
 	up->cur_iotype = 0xFF;
 }
 
+static void serial8250_set_defaults(struct uart_8250_port *up)
+{
+	struct uart_port *port = &up->port;
+
+	set_io_from_upio(port);
+}
+
 static void __init serial8250_isa_init_ports(void)
 {
 	struct uart_8250_port *up;
@@ -3193,11 +3200,11 @@ static void __init serial8250_isa_init_ports(void)
 		port->membase  = old_serial_port[i].iomem_base;
 		port->iotype   = old_serial_port[i].io_type;
 		port->regshift = old_serial_port[i].iomem_reg_shift;
-		set_io_from_upio(port);
+		serial8250_set_defaults(up);
+
 		port->irqflags |= irqflag;
 		if (serial8250_isa_config != NULL)
 			serial8250_isa_config(i, &up->port, &up->capabilities);
-
 	}
 }
 
@@ -3481,7 +3488,8 @@ int __init early_serial_setup(struct uart_port *port)
 	p->type		= port->type;
 	p->line		= port->line;
 
-	set_io_from_upio(p);
+	serial8250_set_defaults(up_to_u8250p(p));
+
 	if (port->serial_in)
 		p->serial_in = port->serial_in;
 	if (port->serial_out)
@@ -3751,7 +3759,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		if (up->port.flags & UPF_FIXED_TYPE)
 			serial8250_init_fixed_type_port(uart, up->port.type);
 
-		set_io_from_upio(&uart->port);
+		serial8250_set_defaults(uart);
+
 		/* Possibly override default I/O functions.  */
 		if (up->port.serial_in)
 			uart->port.serial_in = up->port.serial_in;
