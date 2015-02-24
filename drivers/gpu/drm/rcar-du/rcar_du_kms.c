@@ -448,12 +448,17 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	drm_kms_helper_poll_init(dev);
 
-	fbdev = drm_fbdev_cma_init(dev, 32, dev->mode_config.num_crtc,
-				   dev->mode_config.num_connector);
-	if (IS_ERR(fbdev))
-		return PTR_ERR(fbdev);
+	if (dev->mode_config.num_connector) {
+		fbdev = drm_fbdev_cma_init(dev, 32, dev->mode_config.num_crtc,
+					   dev->mode_config.num_connector);
+		if (IS_ERR(fbdev))
+			return PTR_ERR(fbdev);
 
-	rcdu->fbdev = fbdev;
+		rcdu->fbdev = fbdev;
+	} else {
+		dev_info(rcdu->dev,
+			 "no connector found, disabling fbdev emulation\n");
+	}
 
 	return 0;
 }
