@@ -22,7 +22,6 @@ struct menu * menu_get_root_menu(struct menu *menu);
 struct menu * menu_get_parent_menu(struct menu *menu);
 bool menu_has_help(struct menu *menu);
 const char * menu_get_help(struct menu *menu);
-void get_symbol_str(struct gstr *r, struct symbol *sym, struct list_head *head);
 struct gstr get_relations_str(struct symbol **sym_arr, struct list_head *head);
 void menu_get_ext_help(struct menu *menu, struct gstr *help);
 
@@ -45,11 +44,9 @@ bool sym_string_within_range(struct symbol *sym, const char *str);
 bool sym_set_string_value(struct symbol *sym, const char *newval);
 bool sym_is_changable(struct symbol *sym);
 struct property * sym_get_choice_prop(struct symbol *sym);
-struct property * sym_get_default_prop(struct symbol *sym);
 const char * sym_get_string_value(struct symbol *sym);
 
 const char * prop_get_type_name(enum prop_type type);
 
 /* expr.c */
-int expr_compare_type(enum expr_type t1, enum expr_type t2);
 void expr_print(struct expr *e, void (*fn)(void *, struct symbol *, const char *), void *data, int prevtoken);
