@@ -38,6 +38,7 @@
 #define AD_STANDBY                 0x2
 #define AD_MAX_TX_IN_SECOND        3
 #define AD_COLLECTOR_MAX_DELAY     0
+#define AD_MONITOR_CHURNED         0x1000
 
 /* Timer definitions (43.4.4 in the 802.3ad standard) */
 #define AD_FAST_PERIODIC_TIME      1
@@ -1013,16 +1014,19 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 	/* check if state machine should change state */
 
 	/* first, check if port was reinitialized */
-	if (port->sm_vars & AD_PORT_BEGIN)
+	if (port->sm_vars & AD_PORT_BEGIN) {
 		port->sm_rx_state = AD_RX_INITIALIZE;
+		port->sm_vars |= AD_MONITOR_CHURNED;
 	/* check if port is not enabled */
-	else if (!(port->sm_vars & AD_PORT_BEGIN)
+	} else if (!(port->sm_vars & AD_PORT_BEGIN)
 		 && !port->is_enabled && !(port->sm_vars & AD_PORT_MOVED))
 		port->sm_rx_state = AD_RX_PORT_DISABLED;
 	/* check if new lacpdu arrived */
 	else if (lacpdu && ((port->sm_rx_state == AD_RX_EXPIRED) ||
 		 (port->sm_rx_state == AD_RX_DEFAULTED) ||
 		 (port->sm_rx_state == AD_RX_CURRENT))) {
+		if (port->sm_rx_state != AD_RX_CURRENT)
+			port->sm_vars |= AD_MONITOR_CHURNED;
 		port->sm_rx_timer_counter = 0;
 		port->sm_rx_state = AD_RX_CURRENT;
 	} else {
@@ -1100,9 +1104,11 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			 */
 			port->partner_oper.port_state &= ~AD_STATE_SYNCHRONIZATION;
 			port->sm_vars &= ~AD_PORT_MATCHED;
+			port->partner_oper.port_state |= AD_STATE_LACP_TIMEOUT;
 			port->partner_oper.port_state |= AD_STATE_LACP_ACTIVITY;
 			port->sm_rx_timer_counter = __ad_timer_to_ticks(AD_CURRENT_WHILE_TIMER, (u16)(AD_SHORT_TIMEOUT));
 			port->actor_oper_port_state |= AD_STATE_EXPIRED;
+			port->sm_vars |= AD_MONITOR_CHURNED;
 			break;
 		case AD_RX_DEFAULTED:
 			__update_default_selected(port);
@@ -1127,6 +1133,45 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			break;
 		default:
 			break;
+		}
+	}
+}
+
+/**
+ * ad_churn_machine - handle port churn's state machine
+ * @port: the port we're looking at
+ *
+ */
+static void ad_churn_machine(struct port *port)
+{
+	if (port->sm_vars & AD_MONITOR_CHURNED) {
+		port->sm_vars &= ~AD_MONITOR_CHURNED;
+		port->sm_churn_actor_state = AD_CHURN_MONITOR;
+		port->sm_churn_partner_state = AD_CHURN_MONITOR;
+		port->sm_churn_actor_timer_counter =
+			__ad_timer_to_ticks(AD_ACTOR_CHURN_TIMER, 0);
+		 port->sm_churn_partner_timer_counter =
+			 __ad_timer_to_ticks(AD_PARTNER_CHURN_TIMER, 0);
+		return;
+	}
+	if (port->sm_churn_actor_timer_counter &&
+	    !(--port->sm_churn_actor_timer_counter) &&
+	    port->sm_churn_actor_state == AD_CHURN_MONITOR) {
+		if (port->actor_oper_port_state & AD_STATE_SYNCHRONIZATION) {
+			port->sm_churn_actor_state = AD_NO_CHURN;
+		} else {
+			port->churn_actor_count++;
+			port->sm_churn_actor_state = AD_CHURN;
+		}
+	}
+	if (port->sm_churn_partner_timer_counter &&
+	    !(--port->sm_churn_partner_timer_counter) &&
+	    port->sm_churn_partner_state == AD_CHURN_MONITOR) {
+		if (port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION) {
+			port->sm_churn_partner_state = AD_NO_CHURN;
+		} else {
+			port->churn_partner_count++;
+			port->sm_churn_partner_state = AD_CHURN;
 		}
 	}
 }
@@ -1745,6 +1790,13 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 		port->next_port_in_aggregator = NULL;
 		port->transaction_id = 0;
 
+		port->sm_churn_actor_timer_counter = 0;
+		port->sm_churn_actor_state = 0;
+		port->churn_actor_count = 0;
+		port->sm_churn_partner_timer_counter = 0;
+		port->sm_churn_partner_state = 0;
+		port->churn_partner_count = 0;
+
 		memcpy(&port->lacpdu, &lacpdu, sizeof(lacpdu));
 	}
 }
@@ -2164,6 +2216,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 		ad_port_selection_logic(port, &update_slave_arr);
 		ad_mux_machine(port, &update_slave_arr);
 		ad_tx_machine(port);
+		ad_churn_machine(port);
 
 		/* turn off the BEGIN bit, since we already handled it */
 		if (port->sm_vars & AD_PORT_BEGIN)
@@ -2483,6 +2536,9 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 	struct lacpdu *lacpdu, _lacpdu;
 
 	if (skb->protocol != PKT_TYPE_LACPDU)
+		return RX_HANDLER_ANOTHER;
+
+	if (!MAC_ADDRESS_EQUAL(eth_hdr(skb)->h_dest, lacpdu_mcast_addr))
 		return RX_HANDLER_ANOTHER;
 
 	lacpdu = skb_header_pointer(skb, 0, sizeof(_lacpdu), &_lacpdu);
