@@ -918,34 +918,16 @@ static irqreturn_t exynos_tmu_irq(int irq, void *id)
 }
 
 static const struct of_device_id exynos_tmu_match[] = {
-	{
-		.compatible = "samsung,exynos3250-tmu",
-	},
-	{
-		.compatible = "samsung,exynos4210-tmu",
-	},
-	{
-		.compatible = "samsung,exynos4412-tmu",
-	},
-	{
-		.compatible = "samsung,exynos5250-tmu",
-	},
-	{
-		.compatible = "samsung,exynos5260-tmu",
-	},
-	{
-		.compatible = "samsung,exynos5420-tmu",
-	},
-	{
-		.compatible = "samsung,exynos5420-tmu-ext-triminfo",
-	},
-	{
-		.compatible = "samsung,exynos5440-tmu",
-	},
-	{
-		.compatible = "samsung,exynos7-tmu",
-	},
-	{},
+	{ .compatible = "samsung,exynos3250-tmu", },
+	{ .compatible = "samsung,exynos4210-tmu", },
+	{ .compatible = "samsung,exynos4412-tmu", },
+	{ .compatible = "samsung,exynos5250-tmu", },
+	{ .compatible = "samsung,exynos5260-tmu", },
+	{ .compatible = "samsung,exynos5420-tmu", },
+	{ .compatible = "samsung,exynos5420-tmu-ext-triminfo", },
+	{ .compatible = "samsung,exynos5440-tmu", },
+	{ .compatible = "samsung,exynos7-tmu", },
+	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, exynos_tmu_match);
 
