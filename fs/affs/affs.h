@@ -30,6 +30,8 @@
 #define AFFS_AC_SIZE		(AFFS_CACHE_SIZE/sizeof(struct affs_ext_key)/2)
 #define AFFS_AC_MASK		(AFFS_AC_SIZE-1)
 
+#define AFFSNAMEMAX 30U
+
 struct affs_ext_key {
 	u32	ext;				/* idx of the extended block */
 	u32	key;				/* block number */

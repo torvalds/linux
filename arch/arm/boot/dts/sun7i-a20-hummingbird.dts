@@ -12,8 +12,12 @@
  */
 
 /dts-v1/;
-/include/ "sun7i-a20.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun7i-a20.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Merrii A20 Hummingbird";
@@ -33,7 +37,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v0>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -78,29 +82,29 @@
 			ahci_pwr_pin_a20_hummingbird: ahci_pwr_pin@0 {
 				allwinner,pins = "PH15";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			usb1_vbus_pin_a20_hummingbird: usb1_vbus_pin@0 {
 				allwinner,pins = "PH2";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc3_vdd_pin_a20_hummingbird: mmc3_vdd_pin@0 {
 				allwinner,pins = "PH9";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			gmac_vdd_pin_a20_hummingbird: gmac_vdd_pin@0 {
 				allwinner,pins = "PH16";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -155,7 +159,7 @@
 				compatible = "x-powers,axp209";
 				reg = <0x34>;
 				interrupt-parent = <&nmi_intc>;
-				interrupts = <0 8>;
+				interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-controller;
 				#interrupt-cells = <1>;
 			};
@@ -192,7 +196,7 @@
 			phy-mode = "rgmii";
 			phy-supply = <&reg_gmac_vdd>;
 			/* phy reset config */
-			snps,reset-gpio = <&pio 0 17 0>; /* PA17 */
+			snps,reset-gpio = <&pio 0 17 GPIO_ACTIVE_HIGH>; /* PA17 */
 			snps,reset-active-low;
 			/* wait 1s after reset, otherwise fail to read phy id */
 			snps,reset-delays-us = <0 10000 1000000>;
@@ -206,13 +210,13 @@
 
 	reg_ahci_5v: ahci-5v {
 		pinctrl-0 = <&ahci_pwr_pin_a20_hummingbird>;
-		gpio = <&pio 7 15 0>; /* PH15 */
+		gpio = <&pio 7 15 GPIO_ACTIVE_HIGH>; /* PH15 */
 		status = "okay";
 	};
 
 	reg_usb1_vbus: usb1-vbus {
 		pinctrl-0 = <&usb1_vbus_pin_a20_hummingbird>;
-		gpio = <&pio 7 2 0>; /* PH2 */
+		gpio = <&pio 7 2 GPIO_ACTIVE_HIGH>; /* PH2 */
 		status = "okay";
 	};
 
@@ -228,7 +232,7 @@
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
 		enable-active-high;
-		gpio = <&pio 7 9 0>; /* PH9 */
+		gpio = <&pio 7 9 GPIO_ACTIVE_HIGH>; /* PH9 */
 	};
 
 	reg_gmac_vdd: gmac_vdd {
@@ -239,6 +243,6 @@
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
 		enable-active-high;
-		gpio = <&pio 7 16 0>; /* PH16 */
+		gpio = <&pio 7 16 GPIO_ACTIVE_HIGH>; /* PH16 */
 	};
 };

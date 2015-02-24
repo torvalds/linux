@@ -78,6 +78,11 @@
 		};
 	};
 
+	sram: sram@00300000 {
+		compatible = "mmio-sram";
+		reg = <0x00300000 0x20000>;
+	};
+
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -214,7 +219,20 @@
 				compatible = "atmel,at91sam9g45-isi";
 				reg = <0xf0034000 0x4000>;
 				interrupts = <37 IRQ_TYPE_LEVEL_HIGH 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_isi_data_0_7>;
+				clocks = <&isi_clk>;
+				clock-names = "isi_clk";
 				status = "disabled";
+				port {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+			};
+
+			sfr: sfr@f0038000 {
+				compatible = "atmel,sama5d3-sfr", "syscon";
+				reg = <0xf0038000 0x60>;
 			};
 
 			mmc1: mmc@f8000000 {
@@ -545,7 +563,7 @@
 				};
 
 				isi {
-					pinctrl_isi: isi-0 {
+					pinctrl_isi_data_0_7: isi-0-data-0-7 {
 						atmel,pins =
 							<AT91_PIOA 16 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PA16 periph C ISI_D0, conflicts with LCDDAT16 */
 							 AT91_PIOA 17 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PA17 periph C ISI_D1, conflicts with LCDDAT17 */
@@ -557,13 +575,19 @@
 							 AT91_PIOA 23 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PA23 periph C ISI_D7, conflicts with LCDDAT23, PWML1 */
 							 AT91_PIOC 30 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PC30 periph C ISI_PCK, conflicts with UTXD0 */
 							 AT91_PIOA 31 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PA31 periph C ISI_HSYNC, conflicts with TWCK0, UTXD1 */
-							 AT91_PIOA 30 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PA30 periph C ISI_VSYNC, conflicts with TWD0, URXD1 */
-							 AT91_PIOC 29 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PC29 periph C ISI_PD8, conflicts with URXD0, PWMFI2 */
+							 AT91_PIOA 30 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PA30 periph C ISI_VSYNC, conflicts with TWD0, URXD1 */
+					};
+
+					pinctrl_isi_data_8_9: isi-0-data-8-9 {
+						atmel,pins =
+							<AT91_PIOC 29 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PC29 periph C ISI_PD8, conflicts with URXD0, PWMFI2 */
 							 AT91_PIOC 28 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PC28 periph C ISI_PD9, conflicts with SPI1_NPCS3, PWMFI0 */
 					};
-					pinctrl_isi_pck_as_mck: isi_pck_as_mck-0 {
+
+					pinctrl_isi_data_10_11: isi-0-data-10-11 {
 						atmel,pins =
-							<AT91_PIOD 31 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PD31 periph B ISI_MCK */
+							<AT91_PIOC 27 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PC27 periph C ISI_PD10, conflicts with SPI1_NPCS2, TWCK1 */
+							 AT91_PIOC 26 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PC26 periph C ISI_PD11, conflicts with SPI1_NPCS1, TWD1 */
 					};
 				};
 

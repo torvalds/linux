@@ -7,6 +7,7 @@
 #include <linux/tick.h>
 #include <linux/mm.h>
 #include <linux/stackprotector.h>
+#include <linux/suspend.h>
 
 #include <asm/tlb.h>
 
@@ -103,6 +104,21 @@ static void cpuidle_idle_call(void)
 	 * step to the grace period
 	 */
 	rcu_idle_enter();
+
+	/*
+	 * Suspend-to-idle ("freeze") is a system state in which all user space
+	 * has been frozen, all I/O devices have been suspended and the only
+	 * activity happens here and in iterrupts (if any).  In that case bypass
+	 * the cpuidle governor and go stratight for the deepest idle state
+	 * available.  Possibly also suspend the local tick and the entire
+	 * timekeeping to prevent timer interrupts from kicking us out of idle
+	 * until a proper wakeup interrupt happens.
+	 */
+	if (idle_should_freeze()) {
+		cpuidle_enter_freeze();
+		local_irq_enable();
+		goto exit_idle;
+	}
 
 	/*
 	 * Ask the cpuidle framework to choose a convenient idle state.

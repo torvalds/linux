@@ -342,8 +342,6 @@ struct v4l2_subdev_video_ops {
 			struct v4l2_dv_timings *timings);
 	int (*enum_mbus_fmt)(struct v4l2_subdev *sd, unsigned int index,
 			     u32 *code);
-	int (*enum_mbus_fsizes)(struct v4l2_subdev *sd,
-			     struct v4l2_frmsizeenum *fsize);
 	int (*g_mbus_fmt)(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *fmt);
 	int (*try_mbus_fmt)(struct v4l2_subdev *sd,
@@ -503,10 +501,6 @@ struct v4l2_subdev_pad_ops {
 		       struct v4l2_subdev_format *format);
 	int (*set_fmt)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		       struct v4l2_subdev_format *format);
-	int (*set_crop)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-		       struct v4l2_subdev_crop *crop);
-	int (*get_crop)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-		       struct v4l2_subdev_crop *crop);
 	int (*get_selection)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 			     struct v4l2_subdev_selection *sel);
 	int (*set_selection)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,

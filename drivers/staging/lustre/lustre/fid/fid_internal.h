@@ -47,7 +47,7 @@
 int seq_client_alloc_super(struct lu_client_seq *seq,
 			   const struct lu_env *env);
 
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 extern struct lprocfs_vars seq_client_proc_list[];
 #endif
 

@@ -1298,7 +1298,7 @@ rescan_fifos:
 
 	/*
 	 * Wait for any inprogress DMA to complete and clear DMA state
-	 * if this if for an SCB in the qinfifo.
+	 * if this is for an SCB in the qinfifo.
 	 */
 	while (((ccscbctl = ahd_inb(ahd, CCSCBCTL)) & (CCARREN|CCSCBEN)) != 0) {
 

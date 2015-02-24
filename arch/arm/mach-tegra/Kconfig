@@ -27,6 +27,7 @@ config ARCH_TEGRA_2x_SOC
 	select PINCTRL_TEGRA20
 	select PL310_ERRATA_727915 if CACHE_L2X0
 	select PL310_ERRATA_769419 if CACHE_L2X0
+	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
@@ -37,6 +38,7 @@ config ARCH_TEGRA_3x_SOC
 	select ARM_ERRATA_764369 if SMP
 	select PINCTRL_TEGRA30
 	select PL310_ERRATA_769419 if CACHE_L2X0
+	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra T30 processor family, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
@@ -47,6 +49,7 @@ config ARCH_TEGRA_114_SOC
 	select ARM_L1_CACHE_SHIFT_6
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL_TEGRA114
+	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra T114 processor family, based on the
 	  ARM CortexA15MP CPU
@@ -56,6 +59,7 @@ config ARCH_TEGRA_124_SOC
 	select ARM_L1_CACHE_SHIFT_6
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL_TEGRA124
+	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra T124 processor family, based on the
 	  ARM CortexA15MP CPU

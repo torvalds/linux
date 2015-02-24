@@ -24,7 +24,7 @@
  * Description: Standard PC parallel port
  * Author: ds
  * Status: works in immediate mode
- * Devices: (standard) parallel port [comedi_parport]
+ * Devices: [standard] parallel port (comedi_parport)
  * Updated: Tue, 30 Apr 2002 21:11:45 -0700
  *
  * A cheap and easy way to get a few more digital I/O lines. Steal

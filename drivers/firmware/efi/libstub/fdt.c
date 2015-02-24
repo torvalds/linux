@@ -14,6 +14,8 @@
 #include <linux/libfdt.h>
 #include <asm/efi.h>
 
+#include "efistub.h"
+
 efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 			unsigned long orig_fdt_size,
 			void *fdt, int new_fdt_size, char *cmdline_ptr,
@@ -193,9 +195,26 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	unsigned long map_size, desc_size;
 	u32 desc_ver;
 	unsigned long mmap_key;
-	efi_memory_desc_t *memory_map;
+	efi_memory_desc_t *memory_map, *runtime_map;
 	unsigned long new_fdt_size;
 	efi_status_t status;
+	int runtime_entry_count = 0;
+
+	/*
+	 * Get a copy of the current memory map that we will use to prepare
+	 * the input for SetVirtualAddressMap(). We don't have to worry about
+	 * subsequent allocations adding entries, since they could not affect
+	 * the number of EFI_MEMORY_RUNTIME regions.
+	 */
+	status = efi_get_memory_map(sys_table, &runtime_map, &map_size,
+				    &desc_size, &desc_ver, &mmap_key);
+	if (status != EFI_SUCCESS) {
+		pr_efi_err(sys_table, "Unable to retrieve UEFI memory map.\n");
+		return status;
+	}
+
+	pr_efi(sys_table,
+	       "Exiting boot services and installing virtual address map...\n");
 
 	/*
 	 * Estimate size of new FDT, and allocate memory for it. We
@@ -248,12 +267,48 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 		}
 	}
 
+	/*
+	 * Update the memory map with virtual addresses. The function will also
+	 * populate @runtime_map with copies of just the EFI_MEMORY_RUNTIME
+	 * entries so that we can pass it straight into SetVirtualAddressMap()
+	 */
+	efi_get_virtmap(memory_map, map_size, desc_size, runtime_map,
+			&runtime_entry_count);
+
 	/* Now we are ready to exit_boot_services.*/
 	status = sys_table->boottime->exit_boot_services(handle, mmap_key);
 
+	if (status == EFI_SUCCESS) {
+		efi_set_virtual_address_map_t *svam;
 
-	if (status == EFI_SUCCESS)
-		return status;
+		/* Install the new virtual address map */
+		svam = sys_table->runtime->set_virtual_address_map;
+		status = svam(runtime_entry_count * desc_size, desc_size,
+			      desc_ver, runtime_map);
+
+		/*
+		 * We are beyond the point of no return here, so if the call to
+		 * SetVirtualAddressMap() failed, we need to signal that to the
+		 * incoming kernel but proceed normally otherwise.
+		 */
+		if (status != EFI_SUCCESS) {
+			int l;
+
+			/*
+			 * Set the virtual address field of all
+			 * EFI_MEMORY_RUNTIME entries to 0. This will signal
+			 * the incoming kernel that no virtual translation has
+			 * been installed.
+			 */
+			for (l = 0; l < map_size; l += desc_size) {
+				efi_memory_desc_t *p = (void *)memory_map + l;
+
+				if (p->attribute & EFI_MEMORY_RUNTIME)
+					p->virt_addr = 0;
+			}
+		}
+		return EFI_SUCCESS;
+	}
 
 	pr_efi_err(sys_table, "Exit boot services failed.\n");
 
@@ -264,6 +319,7 @@ fail_free_new_fdt:
 	efi_free(sys_table, new_fdt_size, *new_fdt_addr);
 
 fail:
+	sys_table->boottime->free_pool(runtime_map);
 	return EFI_LOAD_ERROR;
 }
 

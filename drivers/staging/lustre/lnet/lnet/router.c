@@ -46,7 +46,7 @@ MODULE_PARM_DESC(small_router_buffers, "# of small (1 page) messages to buffer i
 static int large_router_buffers;
 module_param(large_router_buffers, int, 0444);
 MODULE_PARM_DESC(large_router_buffers, "# of large messages to buffer in the router");
-static int peer_buffer_credits = 0;
+static int peer_buffer_credits;
 module_param(peer_buffer_credits, int, 0444);
 MODULE_PARM_DESC(peer_buffer_credits, "# router buffer credits per peer");
 
@@ -80,11 +80,11 @@ lnet_peer_buffer_credits(lnet_ni_t *ni)
 
 #endif
 
-static int check_routers_before_use = 0;
+static int check_routers_before_use;
 module_param(check_routers_before_use, int, 0444);
 MODULE_PARM_DESC(check_routers_before_use, "Assume routers are down and ping them before use");
 
-static int avoid_asym_router_failure = 1;
+int avoid_asym_router_failure = 1;
 module_param(avoid_asym_router_failure, int, 0644);
 MODULE_PARM_DESC(avoid_asym_router_failure, "Avoid asymmetrical router failures (0 to disable)");
 
@@ -245,7 +245,7 @@ lnet_find_net_locked (__u32 net)
 
 static void lnet_shuffle_seed(void)
 {
-	static int seeded = 0;
+	static int seeded;
 	int lnd_type, seed[2];
 	struct timeval tv;
 	lnet_ni_t *ni;
@@ -783,6 +783,21 @@ lnet_wait_known_routerstate(void)
 	}
 }
 
+void
+lnet_router_ni_update_locked(lnet_peer_t *gw, __u32 net)
+{
+	lnet_route_t *rte;
+
+	if ((gw->lp_ping_feats & LNET_PING_FEAT_NI_STATUS) != 0) {
+		list_for_each_entry(rte, &gw->lp_routes, lr_gwlist) {
+			if (rte->lr_net == net) {
+				rte->lr_downis = 0;
+				break;
+			}
+		}
+	}
+}
+
 static void
 lnet_update_ni_status_locked(void)
 {
@@ -793,7 +808,7 @@ lnet_update_ni_status_locked(void)
 	LASSERT(the_lnet.ln_routing);
 
 	timeout = router_ping_timeout +
-		  MAX(live_router_check_interval, dead_router_check_interval);
+		  max(live_router_check_interval, dead_router_check_interval);
 
 	now = get_seconds();
 	list_for_each_entry(ni, &the_lnet.ln_nis, ni_list) {
@@ -1578,8 +1593,8 @@ lnet_notify (lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 void
 lnet_router_checker (void)
 {
-	static time_t last = 0;
-	static int    running = 0;
+	static time_t last;
+	static int    running;
 
 	time_t	    now = get_seconds();
 	int	       interval = now - last;
@@ -1593,7 +1608,7 @@ lnet_router_checker (void)
 		return;
 
 	if (last != 0 &&
-	    interval > MAX(live_router_check_interval,
+	    interval > max(live_router_check_interval,
 			   dead_router_check_interval))
 		CNETERR("Checker(%d/%d) not called for %d seconds\n",
 			live_router_check_interval, dead_router_check_interval,
@@ -1664,13 +1679,16 @@ lnet_get_tunables (void)
 	char *s;
 
 	s = getenv("LNET_ROUTER_PING_TIMEOUT");
-	if (s != NULL) router_ping_timeout = atoi(s);
+	if (s != NULL)
+		router_ping_timeout = atoi(s);
 
 	s = getenv("LNET_LIVE_ROUTER_CHECK_INTERVAL");
-	if (s != NULL) live_router_check_interval = atoi(s);
+	if (s != NULL)
+		live_router_check_interval = atoi(s);
 
 	s = getenv("LNET_DEAD_ROUTER_CHECK_INTERVAL");
-	if (s != NULL) dead_router_check_interval = atoi(s);
+	if (s != NULL)
+		dead_router_check_interval = atoi(s);
 
 	/* This replaces old lnd_notify mechanism */
 	check_routers_before_use = 1;

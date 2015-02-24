@@ -88,7 +88,6 @@ int kernfs_iop_removexattr(struct dentry *dentry, const char *name);
 ssize_t kernfs_iop_getxattr(struct dentry *dentry, const char *name, void *buf,
 			    size_t size);
 ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size);
-void kernfs_inode_init(void);
 
 /*
  * dir.c

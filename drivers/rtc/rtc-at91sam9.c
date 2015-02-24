@@ -313,7 +313,7 @@ static const struct rtc_class_ops at91_rtc_ops = {
 	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
 };
 
-static struct regmap_config gpbr_regmap_config = {
+static const struct regmap_config gpbr_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,

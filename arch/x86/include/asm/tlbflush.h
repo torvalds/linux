@@ -15,6 +15,75 @@
 #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
 #endif
 
+struct tlb_state {
+#ifdef CONFIG_SMP
+	struct mm_struct *active_mm;
+	int state;
+#endif
+
+	/*
+	 * Access to this CR4 shadow and to H/W CR4 is protected by
+	 * disabling interrupts when modifying either one.
+	 */
+	unsigned long cr4;
+};
+DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
+
+/* Initialize cr4 shadow for this CPU. */
+static inline void cr4_init_shadow(void)
+{
+	this_cpu_write(cpu_tlbstate.cr4, __read_cr4());
+}
+
+/* Set in this cpu's CR4. */
+static inline void cr4_set_bits(unsigned long mask)
+{
+	unsigned long cr4;
+
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+	if ((cr4 | mask) != cr4) {
+		cr4 |= mask;
+		this_cpu_write(cpu_tlbstate.cr4, cr4);
+		__write_cr4(cr4);
+	}
+}
+
+/* Clear in this cpu's CR4. */
+static inline void cr4_clear_bits(unsigned long mask)
+{
+	unsigned long cr4;
+
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+	if ((cr4 & ~mask) != cr4) {
+		cr4 &= ~mask;
+		this_cpu_write(cpu_tlbstate.cr4, cr4);
+		__write_cr4(cr4);
+	}
+}
+
+/* Read the CR4 shadow. */
+static inline unsigned long cr4_read_shadow(void)
+{
+	return this_cpu_read(cpu_tlbstate.cr4);
+}
+
+/*
+ * Save some of cr4 feature set we're using (e.g.  Pentium 4MB
+ * enable and PPro Global page enable), so that any CPU's that boot
+ * up after us can get the correct flags.  This should only be used
+ * during boot on the boot cpu.
+ */
+extern unsigned long mmu_cr4_features;
+extern u32 *trampoline_cr4_features;
+
+static inline void cr4_set_bits_and_update_boot(unsigned long mask)
+{
+	mmu_cr4_features |= mask;
+	if (trampoline_cr4_features)
+		*trampoline_cr4_features = mmu_cr4_features;
+	cr4_set_bits(mask);
+}
+
 static inline void __native_flush_tlb(void)
 {
 	native_write_cr3(native_read_cr3());
@@ -24,7 +93,7 @@ static inline void __native_flush_tlb_global_irq_disabled(void)
 {
 	unsigned long cr4;
 
-	cr4 = native_read_cr4();
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
 	/* clear PGE */
 	native_write_cr4(cr4 & ~X86_CR4_PGE);
 	/* write old PGE again and flush TLBs */
@@ -183,12 +252,6 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 
 #define TLBSTATE_OK	1
 #define TLBSTATE_LAZY	2
-
-struct tlb_state {
-	struct mm_struct *active_mm;
-	int state;
-};
-DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
 
 static inline void reset_lazy_tlbstate(void)
 {

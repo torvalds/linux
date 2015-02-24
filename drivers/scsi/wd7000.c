@@ -1295,9 +1295,6 @@ static void wd7000_revision(Adapter * host)
 }
 
 
-#undef SPRINTF
-#define SPRINTF(args...) { seq_printf(m, ## args); }
-
 static int wd7000_set_info(struct Scsi_Host *host, char *buffer, int length)
 {
 	dprintk("Buffer = <%.*s>, length = %d\n", length, buffer, length);
@@ -1320,43 +1317,43 @@ static int wd7000_show_info(struct seq_file *m, struct Scsi_Host *host)
 #endif
 
 	spin_lock_irqsave(host->host_lock, flags);
-	SPRINTF("Host scsi%d: Western Digital WD-7000 (rev %d.%d)\n", host->host_no, adapter->rev1, adapter->rev2);
-	SPRINTF("  IO base:      0x%x\n", adapter->iobase);
-	SPRINTF("  IRQ:          %d\n", adapter->irq);
-	SPRINTF("  DMA channel:  %d\n", adapter->dma);
-	SPRINTF("  Interrupts:   %d\n", adapter->int_counter);
-	SPRINTF("  BUS_ON time:  %d nanoseconds\n", adapter->bus_on * 125);
-	SPRINTF("  BUS_OFF time: %d nanoseconds\n", adapter->bus_off * 125);
+	seq_printf(m, "Host scsi%d: Western Digital WD-7000 (rev %d.%d)\n", host->host_no, adapter->rev1, adapter->rev2);
+	seq_printf(m, "  IO base:      0x%x\n", adapter->iobase);
+	seq_printf(m, "  IRQ:          %d\n", adapter->irq);
+	seq_printf(m, "  DMA channel:  %d\n", adapter->dma);
+	seq_printf(m, "  Interrupts:   %d\n", adapter->int_counter);
+	seq_printf(m, "  BUS_ON time:  %d nanoseconds\n", adapter->bus_on * 125);
+	seq_printf(m, "  BUS_OFF time: %d nanoseconds\n", adapter->bus_off * 125);
 
 #ifdef WD7000_DEBUG
 	ogmbs = adapter->mb.ogmb;
 	icmbs = adapter->mb.icmb;
 
-	SPRINTF("\nControl port value: 0x%x\n", adapter->control);
-	SPRINTF("Incoming mailbox:\n");
-	SPRINTF("  size: %d\n", ICMB_CNT);
-	SPRINTF("  queued messages: ");
+	seq_printf(m, "\nControl port value: 0x%x\n", adapter->control);
+	seq_puts(m, "Incoming mailbox:\n");
+	seq_printf(m, "  size: %d\n", ICMB_CNT);
+	seq_puts(m, "  queued messages: ");
 
 	for (i = count = 0; i < ICMB_CNT; i++)
 		if (icmbs[i].status) {
 			count++;
-			SPRINTF("0x%x ", i);
+			seq_printf(m, "0x%x ", i);
 		}
 
-	SPRINTF(count ? "\n" : "none\n");
+	seq_puts(m, count ? "\n" : "none\n");
 
-	SPRINTF("Outgoing mailbox:\n");
-	SPRINTF("  size: %d\n", OGMB_CNT);
-	SPRINTF("  next message: 0x%x\n", adapter->next_ogmb);
-	SPRINTF("  queued messages: ");
+	seq_puts(m, "Outgoing mailbox:\n");
+	seq_printf(m, "  size: %d\n", OGMB_CNT);
+	seq_printf(m, "  next message: 0x%x\n", adapter->next_ogmb);
+	seq_puts(m, "  queued messages: ");
 
 	for (i = count = 0; i < OGMB_CNT; i++)
 		if (ogmbs[i].status) {
 			count++;
-			SPRINTF("0x%x ", i);
+			seq_printf(m, "0x%x ", i);
 		}
 
-	SPRINTF(count ? "\n" : "none\n");
+	seq_puts(m, count ? "\n" : "none\n");
 #endif
 
 	spin_unlock_irqrestore(host->host_lock, flags);

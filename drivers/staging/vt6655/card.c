@@ -68,8 +68,8 @@
 
 /*---------------------  Static Variables  --------------------------*/
 
-static const unsigned short cwRXBCNTSFOff[MAX_RATE] =
-{17, 17, 17, 17, 34, 23, 17, 11, 8, 5, 4, 3};
+static const unsigned short cwRXBCNTSFOff[MAX_RATE] = {
+	17, 17, 17, 17, 34, 23, 17, 11, 8, 5, 4, 3};
 
 /*---------------------  Static Functions  --------------------------*/
 
@@ -670,6 +670,9 @@ void CARDvSetRSPINF(struct vnt_private *pDevice, u8 bb_type)
 {
 	union vnt_phy_field_swap phy;
 	unsigned char byTxRate, byRsvTime;      /* For OFDM */
+	unsigned long flags;
+
+	spin_lock_irqsave(&pDevice->lock, flags);
 
 	/* Set to Page1 */
 	MACvSelectPage1(pDevice->PortOffset);
@@ -767,6 +770,8 @@ void CARDvSetRSPINF(struct vnt_private *pDevice, u8 bb_type)
 	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_72, MAKEWORD(byTxRate, byRsvTime));
 	/* Set to Page0 */
 	MACvSelectPage0(pDevice->PortOffset);
+
+	spin_unlock_irqrestore(&pDevice->lock, flags);
 }
 
 void CARDvUpdateBasicTopRate(struct vnt_private *pDevice)

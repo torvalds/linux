@@ -1110,7 +1110,7 @@ int ehci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 EXPORT_SYMBOL_GPL(ehci_suspend);
 
 /* Returns 0 if power was preserved, 1 if power was lost */
-int ehci_resume(struct usb_hcd *hcd, bool hibernated)
+int ehci_resume(struct usb_hcd *hcd, bool force_reset)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 
@@ -1124,12 +1124,12 @@ int ehci_resume(struct usb_hcd *hcd, bool hibernated)
 		return 0;		/* Controller is dead */
 
 	/*
-	 * If CF is still set and we aren't resuming from hibernation
+	 * If CF is still set and reset isn't forced
 	 * then we maintained suspend power.
 	 * Just undo the effect of ehci_suspend().
 	 */
 	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF &&
-			!hibernated) {
+			!force_reset) {
 		int	mask = INTR_MASK;
 
 		ehci_prepare_ports_for_controller_resume(ehci);

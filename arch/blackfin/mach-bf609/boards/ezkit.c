@@ -75,7 +75,7 @@ static struct platform_device bfin_isp1760_device = {
 #endif
 
 #if IS_ENABLED(CONFIG_INPUT_BFIN_ROTARY)
-#include <asm/bfin_rotary.h>
+#include <linux/platform_data/bfin_rotary.h>
 
 static struct bfin_rotary_platform_data bfin_rotary_data = {
 	/*.rotary_up_key     = KEY_UP,*/
@@ -87,6 +87,11 @@ static struct bfin_rotary_platform_data bfin_rotary_data = {
 };
 
 static struct resource bfin_rotary_resources[] = {
+	{
+		.start = CNT_CONFIG,
+		.end   = CNT_CONFIG + 0xff,
+		.flags = IORESOURCE_MEM,
+	},
 	{
 		.start = IRQ_CNT,
 		.end = IRQ_CNT,

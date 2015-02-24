@@ -291,6 +291,7 @@ static void copy_rw_fields(void *to, struct mlx5_caps *from)
 	MLX5_SET(cmd_hca_cap, to, log_max_ra_req_dc, from->gen.log_max_ra_req_dc);
 	MLX5_SET(cmd_hca_cap, to, log_max_ra_res_dc, from->gen.log_max_ra_res_dc);
 	MLX5_SET(cmd_hca_cap, to, pkey_table_size, to_fw_pkey_sz(from->gen.pkey_table_size));
+	MLX5_SET(cmd_hca_cap, to, log_uar_page_sz, PAGE_SHIFT - 12);
 	v64 = from->gen.flags & MLX5_CAP_BITS_RW_MASK;
 	*flags_off = cpu_to_be64(v64);
 }
@@ -903,12 +904,12 @@ static void remove_one(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id mlx5_core_pci_table[] = {
-	{ PCI_VDEVICE(MELLANOX, 4113) }, /* Connect-IB */
-	{ PCI_VDEVICE(MELLANOX, 4114) }, /* Connect-IB VF */
-	{ PCI_VDEVICE(MELLANOX, 4115) }, /* ConnectX-4 */
-	{ PCI_VDEVICE(MELLANOX, 4116) }, /* ConnectX-4 VF */
-	{ PCI_VDEVICE(MELLANOX, 4117) }, /* ConnectX-4LX */
-	{ PCI_VDEVICE(MELLANOX, 4118) }, /* ConnectX-4LX VF */
+	{ PCI_VDEVICE(MELLANOX, 0x1011) }, /* Connect-IB */
+	{ PCI_VDEVICE(MELLANOX, 0x1012) }, /* Connect-IB VF */
+	{ PCI_VDEVICE(MELLANOX, 0x1013) }, /* ConnectX-4 */
+	{ PCI_VDEVICE(MELLANOX, 0x1014) }, /* ConnectX-4 VF */
+	{ PCI_VDEVICE(MELLANOX, 0x1015) }, /* ConnectX-4LX */
+	{ PCI_VDEVICE(MELLANOX, 0x1016) }, /* ConnectX-4LX VF */
 	{ 0, }
 };
 

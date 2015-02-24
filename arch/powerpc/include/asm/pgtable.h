@@ -30,72 +30,36 @@ struct mm_struct;
 #include <asm/tlbflush.h>
 
 /* Generic accessors to PTE bits */
-static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
+static inline int pte_write(pte_t pte)
+{	return (pte_val(pte) & (_PAGE_RW | _PAGE_RO)) != _PAGE_RO; }
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
 static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
 
 #ifdef CONFIG_NUMA_BALANCING
-static inline int pte_present(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_NUMA_MASK;
-}
-
-#define pte_present_nonuma pte_present_nonuma
-static inline int pte_present_nonuma(pte_t pte)
-{
-	return pte_val(pte) & (_PAGE_PRESENT);
-}
-
-#define ptep_set_numa ptep_set_numa
-static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
-				 pte_t *ptep)
-{
-	if ((pte_val(*ptep) & _PAGE_PRESENT) == 0)
-		VM_BUG_ON(1);
-
-	pte_update(mm, addr, ptep, _PAGE_PRESENT, _PAGE_NUMA, 0);
-	return;
-}
-
-#define pmdp_set_numa pmdp_set_numa
-static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
-				 pmd_t *pmdp)
-{
-	if ((pmd_val(*pmdp) & _PAGE_PRESENT) == 0)
-		VM_BUG_ON(1);
-
-	pmd_hugepage_update(mm, addr, pmdp, _PAGE_PRESENT, _PAGE_NUMA);
-	return;
-}
-
 /*
- * Generic NUMA pte helpers expect pteval_t and pmdval_t types to exist
- * which was inherited from x86. For the purposes of powerpc pte_basic_t and
- * pmd_t are equivalent
+ * These work without NUMA balancing but the kernel does not care. See the
+ * comment in include/asm-generic/pgtable.h . On powerpc, this will only
+ * work for user pages and always return true for kernel pages.
  */
-#define pteval_t pte_basic_t
-#define pmdval_t pmd_t
-static inline pteval_t ptenuma_flags(pte_t pte)
+static inline int pte_protnone(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_NUMA_MASK;
+	return (pte_val(pte) &
+		(_PAGE_PRESENT | _PAGE_USER)) == _PAGE_PRESENT;
 }
 
-static inline pmdval_t pmdnuma_flags(pmd_t pmd)
+static inline int pmd_protnone(pmd_t pmd)
 {
-	return pmd_val(pmd) & _PAGE_NUMA_MASK;
+	return pte_protnone(pmd_pte(pmd));
 }
-
-# else
+#endif /* CONFIG_NUMA_BALANCING */
 
 static inline int pte_present(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_PRESENT;
 }
-#endif /* CONFIG_NUMA_BALANCING */
 
 /* Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
@@ -115,12 +79,14 @@ static inline unsigned long pte_pfn(pte_t pte)	{
 
 /* Generic modifiers for PTE bits */
 static inline pte_t pte_wrprotect(pte_t pte) {
-	pte_val(pte) &= ~(_PAGE_RW | _PAGE_HWWRITE); return pte; }
+	pte_val(pte) &= ~(_PAGE_RW | _PAGE_HWWRITE);
+	pte_val(pte) |= _PAGE_RO; return pte; }
 static inline pte_t pte_mkclean(pte_t pte) {
 	pte_val(pte) &= ~(_PAGE_DIRTY | _PAGE_HWWRITE); return pte; }
 static inline pte_t pte_mkold(pte_t pte) {
 	pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte) {
+	pte_val(pte) &= ~_PAGE_RO;
 	pte_val(pte) |= _PAGE_RW; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte) {
 	pte_val(pte) |= _PAGE_DIRTY; return pte; }

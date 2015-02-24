@@ -923,7 +923,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 
 		/* Make sure ubi_num is not busy */
 		if (ubi_devices[ubi_num]) {
-			ubi_err(ubi, "ubi%d already exists", ubi_num);
+			ubi_err(ubi, "already exists");
 			return -EEXIST;
 		}
 	}
@@ -973,7 +973,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	mutex_init(&ubi->fm_mutex);
 	init_rwsem(&ubi->fm_sem);
 
-	ubi_msg(ubi, "attaching mtd%d to ubi%d", mtd->index, ubi_num);
+	ubi_msg(ubi, "attaching mtd%d", mtd->index);
 
 	err = io_init(ubi, max_beb_per1024);
 	if (err)
@@ -1428,7 +1428,7 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	}
 
 	if (len == 0) {
-		pr_err("UBI warning: empty 'mtd=' parameter - ignored\n");
+		pr_warn("UBI warning: empty 'mtd=' parameter - ignored\n");
 		return 0;
 	}
 

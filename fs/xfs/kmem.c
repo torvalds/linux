@@ -91,16 +91,6 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
 	return ptr;
 }
 
-void
-kmem_free(const void *ptr)
-{
-	if (!is_vmalloc_addr(ptr)) {
-		kfree(ptr);
-	} else {
-		vfree(ptr);
-	}
-}
-
 void *
 kmem_realloc(const void *ptr, size_t newsize, size_t oldsize,
 	     xfs_km_flags_t flags)

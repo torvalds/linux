@@ -603,7 +603,7 @@ static int dsa_of_probe(struct platform_device *pdev)
 
 	pdev->dev.platform_data = pd;
 	pd->netdev = &ethernet_dev->dev;
-	pd->nr_chips = of_get_child_count(np);
+	pd->nr_chips = of_get_available_child_count(np);
 	if (pd->nr_chips > DSA_MAX_SWITCHES)
 		pd->nr_chips = DSA_MAX_SWITCHES;
 

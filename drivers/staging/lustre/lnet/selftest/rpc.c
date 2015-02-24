@@ -54,7 +54,7 @@ typedef enum {
 	SRPC_STATE_STOPPING,
 } srpc_state_t;
 
-struct smoketest_rpc {
+static struct smoketest_rpc {
 	spinlock_t	 rpc_glock;	/* global lock */
 	srpc_service_t	*rpc_services[SRPC_SERVICE_MAX_ID + 1];
 	lnet_handle_eq_t rpc_lnet_eq;	/* _the_ LNet event queue */
@@ -468,6 +468,7 @@ srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
 
 static int
 srpc_service_post_buffer(struct srpc_service_cd *scd, struct srpc_buffer *buf)
+	__must_hold(&scd->scd_lock)
 {
 	struct srpc_service	*sv = scd->scd_svc;
 	struct srpc_msg		*msg = &buf->buf_msg;
@@ -559,7 +560,7 @@ srpc_add_buffer(struct swi_workitem *wi)
 		LASSERT(scd->scd_buf_posting > 0);
 		scd->scd_buf_posting--;
 		scd->scd_buf_total++;
-		scd->scd_buf_low = MAX(2, scd->scd_buf_total / 4);
+		scd->scd_buf_low = max(2, scd->scd_buf_total / 4);
 	}
 
 	if (rc != 0) {
@@ -697,6 +698,7 @@ srpc_finish_service(struct srpc_service *sv)
 /* called with sv->sv_lock held */
 static void
 srpc_service_recycle_buffer(struct srpc_service_cd *scd, srpc_buffer_t *buf)
+	__must_hold(&scd->scd_lock)
 {
 	if (!scd->scd_svc->sv_shuttingdown && scd->scd_buf_adjust >= 0) {
 		if (srpc_service_post_buffer(scd, buf) != 0) {
@@ -1486,7 +1488,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 		if (scd->scd_buf_err == 0 && /* adding buffer is enabled */
 		    scd->scd_buf_adjust == 0 &&
 		    scd->scd_buf_nposted < scd->scd_buf_low) {
-			scd->scd_buf_adjust = MAX(scd->scd_buf_total / 2,
+			scd->scd_buf_adjust = max(scd->scd_buf_total / 2,
 						  SFW_TEST_WI_MIN);
 			swi_schedule_workitem(&scd->scd_buf_wi);
 		}

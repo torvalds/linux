@@ -5,6 +5,7 @@
 #include <linux/ksm.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
+#include <linux/huge_mm.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/hugetlb.h>
@@ -121,9 +122,18 @@ u64 stable_page_flags(struct page *page)
 	 * just checks PG_head/PG_tail, so we need to check PageLRU/PageAnon
 	 * to make sure a given page is a thp, not a non-huge compound page.
 	 */
-	else if (PageTransCompound(page) && (PageLRU(compound_head(page)) ||
-					     PageAnon(compound_head(page))))
-		u |= 1 << KPF_THP;
+	else if (PageTransCompound(page)) {
+		struct page *head = compound_head(page);
+
+		if (PageLRU(head) || PageAnon(head))
+			u |= 1 << KPF_THP;
+		else if (is_huge_zero_page(head)) {
+			u |= 1 << KPF_ZERO_PAGE;
+			u |= 1 << KPF_THP;
+		}
+	} else if (is_zero_pfn(page_to_pfn(page)))
+		u |= 1 << KPF_ZERO_PAGE;
+
 
 	/*
 	 * Caveats on high order pages: page->_count will only be set

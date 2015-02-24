@@ -823,9 +823,3 @@ MODULE_AUTHOR("Wilson Michaels");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(lgdt330x_attach);
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

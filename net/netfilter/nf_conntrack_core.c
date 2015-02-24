@@ -1424,12 +1424,6 @@ void nf_ct_free_hashtable(void *hash, unsigned int size)
 }
 EXPORT_SYMBOL_GPL(nf_ct_free_hashtable);
 
-void nf_conntrack_flush_report(struct net *net, u32 portid, int report)
-{
-	nf_ct_iterate_cleanup(net, kill_all, NULL, portid, report);
-}
-EXPORT_SYMBOL_GPL(nf_conntrack_flush_report);
-
 static int untrack_refs(void)
 {
 	int cnt = 0, cpu;
@@ -1622,13 +1616,18 @@ int nf_conntrack_init_start(void)
 	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_conntrack_locks[i]);
 
-	/* Idea from tcp.c: use 1/16384 of memory.  On i386: 32MB
-	 * machine has 512 buckets. >= 1GB machines have 16384 buckets. */
 	if (!nf_conntrack_htable_size) {
+		/* Idea from tcp.c: use 1/16384 of memory.
+		 * On i386: 32MB machine has 512 buckets.
+		 * >= 1GB machines have 16384 buckets.
+		 * >= 4GB machines have 65536 buckets.
+		 */
 		nf_conntrack_htable_size
 			= (((totalram_pages << PAGE_SHIFT) / 16384)
 			   / sizeof(struct hlist_head));
-		if (totalram_pages > (1024 * 1024 * 1024 / PAGE_SIZE))
+		if (totalram_pages > (4 * (1024 * 1024 * 1024 / PAGE_SIZE)))
+			nf_conntrack_htable_size = 65536;
+		else if (totalram_pages > (1024 * 1024 * 1024 / PAGE_SIZE))
 			nf_conntrack_htable_size = 16384;
 		if (nf_conntrack_htable_size < 32)
 			nf_conntrack_htable_size = 32;

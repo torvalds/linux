@@ -119,9 +119,10 @@ static int smp_request_block(struct mdp5_smp *smp,
 
 	spin_lock_irqsave(&smp->state_lock, flags);
 
-	nblks -= reserved;
-	if (reserved)
+	if (reserved) {
+		nblks = max(0, nblks - reserved);
 		DBG("%d MMBs allocated (%d reserved)", nblks, reserved);
+	}
 
 	avail = cnt - bitmap_weight(smp->state, cnt);
 	if (nblks > avail) {

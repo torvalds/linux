@@ -214,8 +214,7 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 
 	kfree(slot->hotplug_slot->info);
 	kfree(slot->hotplug_slot);
-	if (slot->dev)
-		pci_dev_put(slot->dev);
+	pci_dev_put(slot->dev);
 	kfree(slot);
 }
 

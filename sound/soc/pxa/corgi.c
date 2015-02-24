@@ -259,20 +259,6 @@ static const struct snd_kcontrol_new wm8731_corgi_controls[] = {
 		corgi_set_spk),
 };
 
-/*
- * Logic for a wm8731 as connected on a Sharp SL-C7x0 Device
- */
-static int corgi_wm8731_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_nc_pin(dapm, "LLINEIN");
-	snd_soc_dapm_nc_pin(dapm, "RLINEIN");
-
-	return 0;
-}
-
 /* corgi digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link corgi_dai = {
 	.name = "WM8731",
@@ -281,7 +267,6 @@ static struct snd_soc_dai_link corgi_dai = {
 	.codec_dai_name = "wm8731-hifi",
 	.platform_name = "pxa-pcm-audio",
 	.codec_name = "wm8731.0-001b",
-	.init = corgi_wm8731_init,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &corgi_ops,
@@ -300,6 +285,7 @@ static struct snd_soc_card corgi = {
 	.num_dapm_widgets = ARRAY_SIZE(wm8731_dapm_widgets),
 	.dapm_routes = corgi_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(corgi_audio_map),
+	.fully_routed = true,
 };
 
 static int corgi_probe(struct platform_device *pdev)

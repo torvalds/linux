@@ -178,5 +178,6 @@ enum l2tp_seqmode {
  */
 #define L2TP_GENL_NAME		"l2tp"
 #define L2TP_GENL_VERSION	0x1
+#define L2TP_GENL_MCGROUP       "l2tp"
 
 #endif /* _UAPI_LINUX_L2TP_H_ */

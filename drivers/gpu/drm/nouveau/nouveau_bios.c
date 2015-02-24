@@ -2009,7 +2009,7 @@ uint8_t *nouveau_bios_embedded_edid(struct drm_device *dev)
 static bool NVInitVBIOS(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_bios *bios = nvkm_bios(&drm->device);
+	struct nvkm_bios *bios = nvxx_bios(&drm->device);
 	struct nvbios *legacy = &drm->vbios;
 
 	memset(legacy, 0, sizeof(struct nvbios));

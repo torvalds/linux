@@ -83,6 +83,7 @@ struct evergreen_cs_track {
 	u32			htile_offset;
 	u32			htile_surface;
 	struct radeon_bo	*htile_bo;
+	unsigned long		indirect_draw_buffer_size;
 };
 
 static u32 evergreen_cs_get_aray_mode(u32 tiling_flags)
@@ -1896,6 +1897,14 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	}
+	case PACKET3_INDEX_BUFFER_SIZE:
+	{
+		if (pkt->count != 0) {
+			DRM_ERROR("bad INDEX_BUFFER_SIZE\n");
+			return -EINVAL;
+		}
+		break;
+	}
 	case PACKET3_DRAW_INDEX:
 	{
 		uint64_t offset;
@@ -2006,6 +2015,67 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			return r;
 		}
 		break;
+	case PACKET3_SET_BASE:
+	{
+		/*
+		DW 1 HEADER Header of the packet. Shader_Type in bit 1 of the Header will correspond to the shader type of the Load, see Type-3 Packet.
+		   2 BASE_INDEX Bits [3:0] BASE_INDEX - Base Index specifies which base address is specified in the last two DWs.
+		     0001: DX11 Draw_Index_Indirect Patch Table Base: Base address for Draw_Index_Indirect data.
+		   3 ADDRESS_LO Bits [31:3] - Lower bits of QWORD-Aligned Address. Bits [2:0] - Reserved
+		   4 ADDRESS_HI Bits [31:8] - Reserved. Bits [7:0] - Upper bits of Address [47:32]
+		*/
+		if (pkt->count != 2) {
+			DRM_ERROR("bad SET_BASE\n");
+			return -EINVAL;
+		}
+
+		/* currently only supporting setting indirect draw buffer base address */
+		if (idx_value != 1) {
+			DRM_ERROR("bad SET_BASE\n");
+			return -EINVAL;
+		}
+
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
+		if (r) {
+			DRM_ERROR("bad SET_BASE\n");
+			return -EINVAL;
+		}
+
+		track->indirect_draw_buffer_size = radeon_bo_size(reloc->robj);
+
+		ib[idx+1] = reloc->gpu_offset;
+		ib[idx+2] = upper_32_bits(reloc->gpu_offset) & 0xff;
+
+		break;
+	}
+	case PACKET3_DRAW_INDIRECT:
+	case PACKET3_DRAW_INDEX_INDIRECT:
+	{
+		u64 size = pkt->opcode == PACKET3_DRAW_INDIRECT ? 16 : 20;
+
+		/*
+		DW 1 HEADER
+		   2 DATA_OFFSET Bits [31:0] + byte aligned offset where the required data structure starts. Bits 1:0 are zero
+		   3 DRAW_INITIATOR Draw Initiator Register. Written to the VGT_DRAW_INITIATOR register for the assigned context
+		*/
+		if (pkt->count != 1) {
+			DRM_ERROR("bad DRAW_INDIRECT\n");
+			return -EINVAL;
+		}
+
+		if (idx_value + size > track->indirect_draw_buffer_size) {
+			dev_warn(p->dev, "DRAW_INDIRECT buffer too small %u + %llu > %lu\n",
+				idx_value, size, track->indirect_draw_buffer_size);
+			return -EINVAL;
+		}
+
+		r = evergreen_cs_track_check(p);
+		if (r) {
+			dev_warn(p->dev, "%s:%d invalid cmd stream\n", __func__, __LINE__);
+			return r;
+		}
+		break;
+	}
 	case PACKET3_DISPATCH_DIRECT:
 		if (pkt->count != 3) {
 			DRM_ERROR("bad DISPATCH_DIRECT\n");
@@ -3243,7 +3313,13 @@ static int evergreen_vm_packet3_check(struct radeon_device *rdev,
 
 	switch (pkt->opcode) {
 	case PACKET3_NOP:
+		break;
 	case PACKET3_SET_BASE:
+		if (idx_value != 1) {
+			DRM_ERROR("bad SET_BASE");
+			return -EINVAL;
+		}
+		break;
 	case PACKET3_CLEAR_STATE:
 	case PACKET3_INDEX_BUFFER_SIZE:
 	case PACKET3_DISPATCH_DIRECT:

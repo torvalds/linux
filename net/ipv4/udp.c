@@ -1329,7 +1329,7 @@ try_again:
 		*addr_len = sizeof(*sin);
 	}
 	if (inet->cmsg_flags)
-		ip_cmsg_recv(msg, skb);
+		ip_cmsg_recv_offset(msg, skb, sizeof(struct udphdr));
 
 	err = copied;
 	if (flags & MSG_TRUNC)
@@ -1806,7 +1806,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	if (sk != NULL) {
 		int ret;
 
-		if (udp_sk(sk)->convert_csum && uh->check && !IS_UDPLITE(sk))
+		if (inet_get_convert_csum(sk) && uh->check && !IS_UDPLITE(sk))
 			skb_checksum_try_convert(skb, IPPROTO_UDP, uh->check,
 						 inet_compute_pseudo);
 

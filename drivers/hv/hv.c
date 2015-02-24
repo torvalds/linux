@@ -28,7 +28,9 @@
 #include <linux/hyperv.h>
 #include <linux/version.h>
 #include <linux/interrupt.h>
+#include <linux/clockchips.h>
 #include <asm/hyperv.h>
+#include <asm/mshyperv.h>
 #include "hyperv_vmbus.h"
 
 /* The one and only */
@@ -36,6 +38,10 @@ struct hv_context hv_context = {
 	.synic_initialized	= false,
 	.hypercall_page		= NULL,
 };
+
+#define HV_TIMER_FREQUENCY (10 * 1000 * 1000) /* 100ns period */
+#define HV_MAX_MAX_DELTA_TICKS 0xffffffff
+#define HV_MIN_DELTA_TICKS 1
 
 /*
  * query_hypervisor_info - Get version info of the windows hypervisor
@@ -143,6 +149,8 @@ int hv_init(void)
 	memset(hv_context.vp_index, 0,
 	       sizeof(int) * NR_CPUS);
 	memset(hv_context.event_dpc, 0,
+	       sizeof(void *) * NR_CPUS);
+	memset(hv_context.clk_evt, 0,
 	       sizeof(void *) * NR_CPUS);
 
 	max_leaf = query_hypervisor_info();
@@ -258,10 +266,63 @@ u16 hv_signal_event(void *con_id)
 	return status;
 }
 
+static int hv_ce_set_next_event(unsigned long delta,
+				struct clock_event_device *evt)
+{
+	cycle_t current_tick;
+
+	WARN_ON(evt->mode != CLOCK_EVT_MODE_ONESHOT);
+
+	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
+	current_tick += delta;
+	wrmsrl(HV_X64_MSR_STIMER0_COUNT, current_tick);
+	return 0;
+}
+
+static void hv_ce_setmode(enum clock_event_mode mode,
+			  struct clock_event_device *evt)
+{
+	union hv_timer_config timer_cfg;
+
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		/* unsupported */
+		break;
+
+	case CLOCK_EVT_MODE_ONESHOT:
+		timer_cfg.enable = 1;
+		timer_cfg.auto_enable = 1;
+		timer_cfg.sintx = VMBUS_MESSAGE_SINT;
+		wrmsrl(HV_X64_MSR_STIMER0_CONFIG, timer_cfg.as_uint64);
+		break;
+
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		wrmsrl(HV_X64_MSR_STIMER0_COUNT, 0);
+		wrmsrl(HV_X64_MSR_STIMER0_CONFIG, 0);
+		break;
+	case CLOCK_EVT_MODE_RESUME:
+		break;
+	}
+}
+
+static void hv_init_clockevent_device(struct clock_event_device *dev, int cpu)
+{
+	dev->name = "Hyper-V clockevent";
+	dev->features = CLOCK_EVT_FEAT_ONESHOT;
+	dev->cpumask = cpumask_of(cpu);
+	dev->rating = 1000;
+	dev->owner = THIS_MODULE;
+
+	dev->set_mode = hv_ce_setmode;
+	dev->set_next_event = hv_ce_set_next_event;
+}
+
 
 int hv_synic_alloc(void)
 {
 	size_t size = sizeof(struct tasklet_struct);
+	size_t ced_size = sizeof(struct clock_event_device);
 	int cpu;
 
 	for_each_online_cpu(cpu) {
@@ -271,6 +332,13 @@ int hv_synic_alloc(void)
 			goto err;
 		}
 		tasklet_init(hv_context.event_dpc[cpu], vmbus_on_event, cpu);
+
+		hv_context.clk_evt[cpu] = kzalloc(ced_size, GFP_ATOMIC);
+		if (hv_context.clk_evt[cpu] == NULL) {
+			pr_err("Unable to allocate clock event device\n");
+			goto err;
+		}
+		hv_init_clockevent_device(hv_context.clk_evt[cpu], cpu);
 
 		hv_context.synic_message_page[cpu] =
 			(void *)get_zeroed_page(GFP_ATOMIC);
@@ -305,6 +373,7 @@ err:
 static void hv_synic_free_cpu(int cpu)
 {
 	kfree(hv_context.event_dpc[cpu]);
+	kfree(hv_context.clk_evt[cpu]);
 	if (hv_context.synic_event_page[cpu])
 		free_page((unsigned long)hv_context.synic_event_page[cpu]);
 	if (hv_context.synic_message_page[cpu])
@@ -388,6 +457,15 @@ void hv_synic_init(void *arg)
 	hv_context.vp_index[cpu] = (u32)vp_index;
 
 	INIT_LIST_HEAD(&hv_context.percpu_list[cpu]);
+
+	/*
+	 * Register the per-cpu clockevent source.
+	 */
+	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE)
+		clockevents_config_and_register(hv_context.clk_evt[cpu],
+						HV_TIMER_FREQUENCY,
+						HV_MIN_DELTA_TICKS,
+						HV_MAX_MAX_DELTA_TICKS);
 	return;
 }
 

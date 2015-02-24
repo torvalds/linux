@@ -95,22 +95,18 @@
 
 void lock_ufs(struct super_block *sb)
 {
-#if defined(CONFIG_SMP) || defined (CONFIG_PREEMPT)
 	struct ufs_sb_info *sbi = UFS_SB(sb);
 
 	mutex_lock(&sbi->mutex);
 	sbi->mutex_owner = current;
-#endif
 }
 
 void unlock_ufs(struct super_block *sb)
 {
-#if defined(CONFIG_SMP) || defined (CONFIG_PREEMPT)
 	struct ufs_sb_info *sbi = UFS_SB(sb);
 
 	sbi->mutex_owner = NULL;
 	mutex_unlock(&sbi->mutex);
-#endif
 }
 
 static struct inode *ufs_nfs_get_inode(struct super_block *sb, u64 ino, u32 generation)
@@ -1415,9 +1411,11 @@ static struct kmem_cache * ufs_inode_cachep;
 static struct inode *ufs_alloc_inode(struct super_block *sb)
 {
 	struct ufs_inode_info *ei;
-	ei = (struct ufs_inode_info *)kmem_cache_alloc(ufs_inode_cachep, GFP_NOFS);
+
+	ei = kmem_cache_alloc(ufs_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
+
 	ei->vfs_inode.i_version = 1;
 	return &ei->vfs_inode;
 }

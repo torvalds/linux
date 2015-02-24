@@ -88,6 +88,8 @@ static u64 get_async_ev_mask(struct mlx4_dev *dev)
 	u64 async_ev_mask = MLX4_ASYNC_EVENT_MASK;
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV)
 		async_ev_mask |= (1ull << MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT);
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT)
+		async_ev_mask |= (1ull << MLX4_EVENT_TYPE_RECOVERABLE_ERROR_EVENT);
 
 	return async_ev_mask;
 }
@@ -237,7 +239,7 @@ int mlx4_gen_guid_change_eqe(struct mlx4_dev *dev, int slave, u8 port)
 	struct mlx4_eqe eqe;
 
 	/*don't send if we don't have the that slave */
-	if (dev->num_vfs < slave)
+	if (dev->persist->num_vfs < slave)
 		return 0;
 	memset(&eqe, 0, sizeof eqe);
 
@@ -255,7 +257,7 @@ int mlx4_gen_port_state_change_eqe(struct mlx4_dev *dev, int slave, u8 port,
 	struct mlx4_eqe eqe;
 
 	/*don't send if we don't have the that slave */
-	if (dev->num_vfs < slave)
+	if (dev->persist->num_vfs < slave)
 		return 0;
 	memset(&eqe, 0, sizeof eqe);
 
@@ -310,7 +312,7 @@ static void set_all_slave_state(struct mlx4_dev *dev, u8 port, int event)
 	struct mlx4_slaves_pport slaves_pport = mlx4_phys_to_slaves_pport(dev,
 									  port);
 
-	for (i = 0; i < dev->num_vfs + 1; i++)
+	for (i = 0; i < dev->persist->num_vfs + 1; i++)
 		if (test_bit(i, slaves_pport.slaves))
 			set_and_calc_slave_port_state(dev, i, port,
 						      event, &gen_event);
@@ -429,8 +431,14 @@ void mlx4_master_handle_slave_flr(struct work_struct *work)
 		if (MLX4_COMM_CMD_FLR == slave_state[i].last_cmd) {
 			mlx4_dbg(dev, "mlx4_handle_slave_flr: clean slave: %d\n",
 				 i);
-
-			mlx4_delete_all_resources_for_slave(dev, i);
+			/* In case of 'Reset flow' FLR can be generated for
+			 * a slave before mlx4_load_one is done.
+			 * make sure interface is up before trying to delete
+			 * slave resources which weren't allocated yet.
+			 */
+			if (dev->persist->interface_state &
+			    MLX4_INTERFACE_STATE_UP)
+				mlx4_delete_all_resources_for_slave(dev, i);
 			/*return the slave to running mode*/
 			spin_lock_irqsave(&priv->mfunc.master.slave_state_lock, flags);
 			slave_state[i].last_cmd = MLX4_COMM_CMD_RESET;
@@ -560,7 +568,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 				mlx4_priv(dev)->sense.do_sense_port[port] = 1;
 				if (!mlx4_is_master(dev))
 					break;
-				for (i = 0; i < dev->num_vfs + 1; i++) {
+				for (i = 0; i < dev->persist->num_vfs + 1;
+				     i++) {
 					if (!test_bit(i, slaves_port.slaves))
 						continue;
 					if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH) {
@@ -596,7 +605,9 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 				if (!mlx4_is_master(dev))
 					break;
 				if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
-					for (i = 0; i < dev->num_vfs + 1; i++) {
+					for (i = 0;
+					     i < dev->persist->num_vfs + 1;
+					     i++) {
 						if (!test_bit(i, slaves_port.slaves))
 							continue;
 						if (i == mlx4_master_func_num(dev))
@@ -727,6 +738,26 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					    (unsigned long) eqe);
 			break;
 
+		case MLX4_EVENT_TYPE_RECOVERABLE_ERROR_EVENT:
+			switch (eqe->subtype) {
+			case MLX4_RECOVERABLE_ERROR_EVENT_SUBTYPE_BAD_CABLE:
+				mlx4_warn(dev, "Bad cable detected on port %u\n",
+					  eqe->event.bad_cable.port);
+				break;
+			case MLX4_RECOVERABLE_ERROR_EVENT_SUBTYPE_UNSUPPORTED_CABLE:
+				mlx4_warn(dev, "Unsupported cable detected\n");
+				break;
+			default:
+				mlx4_dbg(dev,
+					 "Unhandled recoverable error event detected: %02x(%02x) on EQ %d at index %u. owner=%x, nent=0x%x, ownership=%s\n",
+					 eqe->type, eqe->subtype, eq->eqn,
+					 eq->cons_index, eqe->owner, eq->nent,
+					 !!(eqe->owner & 0x80) ^
+					 !!(eq->cons_index & eq->nent) ? "HW" : "SW");
+				break;
+			}
+			break;
+
 		case MLX4_EVENT_TYPE_EEC_CATAS_ERROR:
 		case MLX4_EVENT_TYPE_ECC_DETECT:
 		default:
@@ -837,12 +868,10 @@ static int mlx4_SW2HW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			MLX4_CMD_WRAPPED);
 }
 
-static int mlx4_HW2SW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
-			 int eq_num)
+static int mlx4_HW2SW_EQ(struct mlx4_dev *dev,  int eq_num)
 {
-	return mlx4_cmd_box(dev, 0, mailbox->dma, eq_num,
-			    0, MLX4_CMD_HW2SW_EQ, MLX4_CMD_TIME_CLASS_A,
-			    MLX4_CMD_WRAPPED);
+	return mlx4_cmd(dev, 0, eq_num, 1, MLX4_CMD_HW2SW_EQ,
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 }
 
 static int mlx4_num_eq_uar(struct mlx4_dev *dev)
@@ -865,7 +894,7 @@ static void __iomem *mlx4_get_eq_uar(struct mlx4_dev *dev, struct mlx4_eq *eq)
 
 	if (!priv->eq_table.uar_map[index]) {
 		priv->eq_table.uar_map[index] =
-			ioremap(pci_resource_start(dev->pdev, 2) +
+			ioremap(pci_resource_start(dev->persist->pdev, 2) +
 				((eq->eqn / 4) << PAGE_SHIFT),
 				PAGE_SIZE);
 		if (!priv->eq_table.uar_map[index]) {
@@ -928,8 +957,10 @@ static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 	eq_context = mailbox->buf;
 
 	for (i = 0; i < npages; ++i) {
-		eq->page_list[i].buf = dma_alloc_coherent(&dev->pdev->dev,
-							  PAGE_SIZE, &t, GFP_KERNEL);
+		eq->page_list[i].buf = dma_alloc_coherent(&dev->persist->
+							  pdev->dev,
+							  PAGE_SIZE, &t,
+							  GFP_KERNEL);
 		if (!eq->page_list[i].buf)
 			goto err_out_free_pages;
 
@@ -995,7 +1026,7 @@ err_out_free_eq:
 err_out_free_pages:
 	for (i = 0; i < npages; ++i)
 		if (eq->page_list[i].buf)
-			dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+			dma_free_coherent(&dev->persist->pdev->dev, PAGE_SIZE,
 					  eq->page_list[i].buf,
 					  eq->page_list[i].map);
 
@@ -1013,7 +1044,6 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 			 struct mlx4_eq *eq)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_cmd_mailbox *mailbox;
 	int err;
 	int i;
 	/* CX3 is capable of extending the CQE/EQE from 32 to 64 bytes, with
@@ -1021,36 +1051,21 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 	 */
 	int npages = PAGE_ALIGN(dev->caps.eqe_size  * eq->nent) / PAGE_SIZE;
 
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return;
-
-	err = mlx4_HW2SW_EQ(dev, mailbox, eq->eqn);
+	err = mlx4_HW2SW_EQ(dev, eq->eqn);
 	if (err)
 		mlx4_warn(dev, "HW2SW_EQ failed (%d)\n", err);
 
-	if (0) {
-		mlx4_dbg(dev, "Dumping EQ context %02x:\n", eq->eqn);
-		for (i = 0; i < sizeof (struct mlx4_eq_context) / 4; ++i) {
-			if (i % 4 == 0)
-				pr_cont("[%02x] ", i * 4);
-			pr_cont(" %08x", be32_to_cpup(mailbox->buf + i * 4));
-			if ((i + 1) % 4 == 0)
-				pr_cont("\n");
-		}
-	}
 	synchronize_irq(eq->irq);
 	tasklet_disable(&eq->tasklet_ctx.task);
 
 	mlx4_mtt_cleanup(dev, &eq->mtt);
 	for (i = 0; i < npages; ++i)
-		dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
-				    eq->page_list[i].buf,
-				    eq->page_list[i].map);
+		dma_free_coherent(&dev->persist->pdev->dev, PAGE_SIZE,
+				  eq->page_list[i].buf,
+				  eq->page_list[i].map);
 
 	kfree(eq->page_list);
 	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn, MLX4_USE_RR);
-	mlx4_free_cmd_mailbox(dev, mailbox);
 }
 
 static void mlx4_free_irqs(struct mlx4_dev *dev)
@@ -1060,7 +1075,7 @@ static void mlx4_free_irqs(struct mlx4_dev *dev)
 	int	i, vec;
 
 	if (eq_table->have_irq)
-		free_irq(dev->pdev->irq, dev);
+		free_irq(dev->persist->pdev->irq, dev);
 
 	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
 		if (eq_table->eq[i].have_irq) {
@@ -1089,7 +1104,8 @@ static int mlx4_map_clr_int(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	priv->clr_base = ioremap(pci_resource_start(dev->pdev, priv->fw.clr_int_bar) +
+	priv->clr_base = ioremap(pci_resource_start(dev->persist->pdev,
+				 priv->fw.clr_int_bar) +
 				 priv->fw.clr_int_base, MLX4_CLR_INT_SIZE);
 	if (!priv->clr_base) {
 		mlx4_err(dev, "Couldn't map interrupt clear register, aborting\n");
@@ -1212,13 +1228,13 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 					 i * MLX4_IRQNAME_SIZE,
 					 MLX4_IRQNAME_SIZE,
 					 "mlx4-comp-%d@pci:%s", i,
-					 pci_name(dev->pdev));
+					 pci_name(dev->persist->pdev));
 			} else {
 				snprintf(priv->eq_table.irq_names +
 					 i * MLX4_IRQNAME_SIZE,
 					 MLX4_IRQNAME_SIZE,
 					 "mlx4-async@pci:%s",
-					 pci_name(dev->pdev));
+					 pci_name(dev->persist->pdev));
 			}
 
 			eq_name = priv->eq_table.irq_names +
@@ -1235,8 +1251,8 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 		snprintf(priv->eq_table.irq_names,
 			 MLX4_IRQNAME_SIZE,
 			 DRV_NAME "@pci:%s",
-			 pci_name(dev->pdev));
-		err = request_irq(dev->pdev->irq, mlx4_interrupt,
+			 pci_name(dev->persist->pdev));
+		err = request_irq(dev->persist->pdev->irq, mlx4_interrupt,
 				  IRQF_SHARED, priv->eq_table.irq_names, dev);
 		if (err)
 			goto err_out_async;

@@ -16,7 +16,6 @@ extern struct iscsi_r2t *iscsit_get_holder_for_r2tsn(struct iscsi_cmd *, u32);
 extern int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 			       unsigned char * ,__be32 cmdsn);
 extern int iscsit_check_unsolicited_dataout(struct iscsi_cmd *, unsigned char *);
-extern struct iscsi_cmd *iscsit_find_cmd_from_itt(struct iscsi_conn *, itt_t);
 extern struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(struct iscsi_conn *,
 			itt_t, u32);
 extern struct iscsi_cmd *iscsit_find_cmd_from_ttt(struct iscsi_conn *, u32);

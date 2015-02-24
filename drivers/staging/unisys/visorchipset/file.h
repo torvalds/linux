@@ -20,7 +20,8 @@
 
 #include "globals.h"
 
-int visorchipset_file_init(dev_t majorDev, VISORCHANNEL **pControlVm_channel);
+int visorchipset_file_init(dev_t majorDev,
+			   struct visorchannel **pControlVm_channel);
 void visorchipset_file_cleanup(void);
 
 #endif

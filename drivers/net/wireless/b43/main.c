@@ -127,7 +127,7 @@ static const struct bcma_device_id b43_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x1E, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x28, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x2A, BCMA_ANY_CLASS),
-	BCMA_CORETABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(bcma, b43_bcma_tbl);
 #endif
@@ -144,7 +144,7 @@ static const struct ssb_device_id b43_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 13),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 15),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 16),
-	SSB_DEVTABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(ssb, b43_ssb_tbl);
 #endif
@@ -1262,6 +1262,23 @@ static void b43_bcma_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 		flags |= B43_BCMA_IOCTL_GMODE;
 	b43_device_enable(dev, flags);
 
+	if (dev->phy.type == B43_PHYTYPE_AC) {
+		u16 tmp;
+
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp &= ~B43_BCMA_IOCTL_DAC;
+		tmp |= 0x100;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp &= ~B43_BCMA_IOCTL_PHY_CLKEN;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp |= B43_BCMA_IOCTL_PHY_CLKEN;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+	}
+
 	bcma_core_set_clockmode(dev->dev->bdev, BCMA_CLKMODE_FAST);
 	b43_bcma_phy_reset(dev);
 	bcma_core_pll_ctl(dev->dev->bdev, req, status, true);
@@ -1601,12 +1618,26 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 	unsigned int rate;
 	u16 ctl;
 	int antenna;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(dev->wl->current_beacon);
+	struct ieee80211_tx_info *info;
+	unsigned long flags;
+	struct sk_buff *beacon_skb;
 
-	bcn = (const struct ieee80211_mgmt *)(dev->wl->current_beacon->data);
-	len = min_t(size_t, dev->wl->current_beacon->len,
-		  0x200 - sizeof(struct b43_plcp_hdr6));
+	spin_lock_irqsave(&dev->wl->beacon_lock, flags);
+	info = IEEE80211_SKB_CB(dev->wl->current_beacon);
 	rate = ieee80211_get_tx_rate(dev->wl->hw, info)->hw_value;
+	/* Clone the beacon, so it cannot go away, while we write it to hw. */
+	beacon_skb = skb_clone(dev->wl->current_beacon, GFP_ATOMIC);
+	spin_unlock_irqrestore(&dev->wl->beacon_lock, flags);
+
+	if (!beacon_skb) {
+		b43dbg(dev->wl, "Could not upload beacon. "
+		       "Failed to clone beacon skb.");
+		return;
+	}
+
+	bcn = (const struct ieee80211_mgmt *)(beacon_skb->data);
+	len = min_t(size_t, beacon_skb->len,
+		    0x200 - sizeof(struct b43_plcp_hdr6));
 
 	b43_write_template_common(dev, (const u8 *)bcn,
 				  len, ram_offset, shm_size_offset, rate);
@@ -1674,6 +1705,8 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 				B43_SHM_SH_DTIMPER, 0);
 	}
 	b43dbg(dev->wl, "Updated beacon template at 0x%x\n", ram_offset);
+
+	dev_kfree_skb_any(beacon_skb);
 }
 
 static void b43_upload_beacon0(struct b43_wldev *dev)
@@ -1790,13 +1823,13 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 	mutex_unlock(&wl->mutex);
 }
 
-/* Asynchronously update the packet templates in template RAM.
- * Locking: Requires wl->mutex to be locked. */
+/* Asynchronously update the packet templates in template RAM. */
 static void b43_update_templates(struct b43_wl *wl)
 {
-	struct sk_buff *beacon;
+	struct sk_buff *beacon, *old_beacon;
+	unsigned long flags;
 
-	/* This is the top half of the ansynchronous beacon update.
+	/* This is the top half of the asynchronous beacon update.
 	 * The bottom half is the beacon IRQ.
 	 * Beacon update must be asynchronous to avoid sending an
 	 * invalid beacon. This can happen for example, if the firmware
@@ -1810,12 +1843,17 @@ static void b43_update_templates(struct b43_wl *wl)
 	if (unlikely(!beacon))
 		return;
 
-	if (wl->current_beacon)
-		dev_kfree_skb_any(wl->current_beacon);
+	spin_lock_irqsave(&wl->beacon_lock, flags);
+	old_beacon = wl->current_beacon;
 	wl->current_beacon = beacon;
 	wl->beacon0_uploaded = false;
 	wl->beacon1_uploaded = false;
+	spin_unlock_irqrestore(&wl->beacon_lock, flags);
+
 	ieee80211_queue_work(wl->hw, &wl->beacon_update_trigger);
+
+	if (old_beacon)
+		dev_kfree_skb_any(old_beacon);
 }
 
 static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
@@ -4318,6 +4356,7 @@ redo:
 	mutex_unlock(&wl->mutex);
 	cancel_delayed_work_sync(&dev->periodic_work);
 	cancel_work_sync(&wl->tx_work);
+	b43_leds_stop(dev);
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	if (!dev || b43_status(dev) < B43_STAT_STARTED) {
@@ -4505,6 +4544,12 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 			unsupported = 1;
 		break;
 #endif
+#ifdef CONFIG_B43_PHY_AC
+	case B43_PHYTYPE_AC:
+		if (phy_rev > 1)
+			unsupported = 1;
+		break;
+#endif
 	default:
 		unsupported = 1;
 	}
@@ -4599,6 +4644,10 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		break;
 	case B43_PHYTYPE_LCN:
 		if (radio_id != 0x2064)
+			unsupported = 1;
+		break;
+	case B43_PHYTYPE_AC:
+		if (radio_id != 0x2069)
 			unsupported = 1;
 		break;
 	default:
@@ -5094,7 +5143,6 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw,
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 
-	/* FIXME: add locking */
 	b43_update_templates(wl);
 
 	return 0;
@@ -5584,6 +5632,7 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 	wl->hw = hw;
 	mutex_init(&wl->mutex);
 	spin_lock_init(&wl->hardirq_lock);
+	spin_lock_init(&wl->beacon_lock);
 	INIT_WORK(&wl->beacon_update_trigger, b43_beacon_update_trigger_work);
 	INIT_WORK(&wl->txpower_adjust_work, b43_phy_txpower_adjust_work);
 	INIT_WORK(&wl->tx_work, b43_tx_work);

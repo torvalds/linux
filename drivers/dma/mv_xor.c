@@ -928,14 +928,6 @@ out:
 	return err;
 }
 
-/* This driver does not implement any of the optional DMA operations. */
-static int
-mv_xor_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	       unsigned long arg)
-{
-	return -ENOSYS;
-}
-
 static int mv_xor_channel_remove(struct mv_xor_chan *mv_chan)
 {
 	struct dma_chan *chan, *_chan;
@@ -1008,7 +1000,6 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	dma_dev->device_free_chan_resources = mv_xor_free_chan_resources;
 	dma_dev->device_tx_status = mv_xor_status;
 	dma_dev->device_issue_pending = mv_xor_issue_pending;
-	dma_dev->device_control = mv_xor_control;
 	dma_dev->dev = &pdev->dev;
 
 	/* set prep routines based on capability */

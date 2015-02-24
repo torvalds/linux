@@ -2692,12 +2692,11 @@ in the S5P family of SoCs by Samsung.
 	      <row><entry></entry></row>
 	      <row>
 		<entry spanname="id"><constant>V4L2_CID_MPEG_MFC51_VIDEO_DECODER_H264_DISPLAY_DELAY_ENABLE</constant>&nbsp;</entry>
-		<entry>integer</entry>
-	      </row><row><entry spanname="descr">If the display delay is enabled then the decoder has to return a
-CAPTURE buffer after processing a certain number of OUTPUT buffers. If this number is low, then it may result in
-buffers not being dequeued in display order. In addition hardware may still use those buffers as reference, thus
-application should not write to those buffers. This feature can be used for example for generating thumbnails of videos.
-Applicable to the H264 decoder.
+		<entry>boolean</entry>
+	      </row><row><entry spanname="descr">If the display delay is enabled then the decoder is forced to return a
+CAPTURE buffer (decoded frame) after processing a certain number of OUTPUT buffers. The delay can be set through
+<constant>V4L2_CID_MPEG_MFC51_VIDEO_DECODER_H264_DISPLAY_DELAY</constant>. This feature can be used for example
+for generating thumbnails of videos. Applicable to the H264 decoder.
 	      </entry>
 	      </row>
 	      <row><entry></entry></row>

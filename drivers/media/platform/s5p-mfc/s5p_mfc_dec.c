@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <media/v4l2-ctrls.h>
@@ -813,7 +812,7 @@ static int vidioc_decoder_cmd(struct file *file, void *priv,
 	unsigned long flags;
 
 	switch (cmd->cmd) {
-	case V4L2_ENC_CMD_STOP:
+	case V4L2_DEC_CMD_STOP:
 		if (cmd->flags != 0)
 			return -EINVAL;
 
@@ -942,22 +941,6 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		return -EINVAL;
 	}
 	return 0;
-}
-
-static void s5p_mfc_unlock(struct vb2_queue *q)
-{
-	struct s5p_mfc_ctx *ctx = fh_to_ctx(q->drv_priv);
-	struct s5p_mfc_dev *dev = ctx->dev;
-
-	mutex_unlock(&dev->mfc_mutex);
-}
-
-static void s5p_mfc_lock(struct vb2_queue *q)
-{
-	struct s5p_mfc_ctx *ctx = fh_to_ctx(q->drv_priv);
-	struct s5p_mfc_dev *dev = ctx->dev;
-
-	mutex_lock(&dev->mfc_mutex);
 }
 
 static int s5p_mfc_buf_init(struct vb2_buffer *vb)
@@ -1107,8 +1090,8 @@ static void s5p_mfc_buf_queue(struct vb2_buffer *vb)
 
 static struct vb2_ops s5p_mfc_dec_qops = {
 	.queue_setup		= s5p_mfc_queue_setup,
-	.wait_prepare		= s5p_mfc_unlock,
-	.wait_finish		= s5p_mfc_lock,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 	.buf_init		= s5p_mfc_buf_init,
 	.start_streaming	= s5p_mfc_start_streaming,
 	.stop_streaming		= s5p_mfc_stop_streaming,

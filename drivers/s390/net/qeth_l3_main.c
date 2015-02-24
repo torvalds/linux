@@ -432,10 +432,8 @@ void qeth_l3_set_ip_addr_list(struct qeth_card *card)
 	QETH_CARD_TEXT(card, 2, "sdiplist");
 	QETH_CARD_HEX(card, 2, &card, sizeof(void *));
 
-	if ((card->state != CARD_STATE_UP &&
-	     card->state != CARD_STATE_SOFTSETUP) || card->options.sniffer) {
+	if (!qeth_card_hw_is_reachable(card) || card->options.sniffer)
 		return;
-	}
 
 	spin_lock_irqsave(&card->ip_lock, flags);
 	tbd_list = card->ip_tbd_list;
@@ -2650,8 +2648,7 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!card)
 		return -ENODEV;
 
-	if ((card->state != CARD_STATE_UP) &&
-		(card->state != CARD_STATE_SOFTSETUP))
+	if (!qeth_card_hw_is_reachable(card))
 		return -ENODEV;
 
 	switch (cmd) {
@@ -2824,12 +2821,12 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	 * before we're going to overwrite this location with next hop ip.
 	 * v6 uses passthrough, v4 sets the tag in the QDIO header.
 	 */
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		if ((ipv == 4) || (card->info.type == QETH_CARD_TYPE_IQD))
 			hdr->hdr.l3.ext_flags = QETH_HDR_EXT_VLAN_FRAME;
 		else
 			hdr->hdr.l3.ext_flags = QETH_HDR_EXT_INCLUDE_VLAN_TAG;
-		hdr->hdr.l3.vlan_id = vlan_tx_tag_get(skb);
+		hdr->hdr.l3.vlan_id = skb_vlan_tag_get(skb);
 	}
 
 	hdr->hdr.l3.length = skb->len - sizeof(struct qeth_hdr);
@@ -3010,7 +3007,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_pull(new_skb, ETH_HLEN);
 		}
 
-		if (ipv != 4 && vlan_tx_tag_present(new_skb)) {
+		if (ipv != 4 && skb_vlan_tag_present(new_skb)) {
 			skb_push(new_skb, VLAN_HLEN);
 			skb_copy_to_linear_data(new_skb, new_skb->data + 4, 4);
 			skb_copy_to_linear_data_offset(new_skb, 4,
@@ -3019,7 +3016,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				new_skb->data + 12, 4);
 			tag = (u16 *)(new_skb->data + 12);
 			*tag = __constant_htons(ETH_P_8021Q);
-			*(tag + 1) = htons(vlan_tx_tag_get(new_skb));
+			*(tag + 1) = htons(skb_vlan_tag_get(new_skb));
 		}
 	}
 

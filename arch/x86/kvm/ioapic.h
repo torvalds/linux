@@ -98,7 +98,7 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 }
 
 void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu);
-int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
+bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 		int short_hand, unsigned int dest, int dest_mode);
 int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2);
 void kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu, int vector,

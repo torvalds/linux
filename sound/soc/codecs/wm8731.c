@@ -217,7 +217,8 @@ SND_SOC_DAPM_INPUT("LLINEIN"),
 static int wm8731_check_osc(struct snd_soc_dapm_widget *source,
 			    struct snd_soc_dapm_widget *sink)
 {
-	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(source->codec);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
+	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(codec);
 
 	return wm8731->sysclk_type == WM8731_SYSCLK_XTAL;
 }

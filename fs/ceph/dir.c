@@ -26,8 +26,6 @@
  * point by name.
  */
 
-const struct inode_operations ceph_dir_iops;
-const struct file_operations ceph_dir_fops;
 const struct dentry_operations ceph_dentry_ops;
 
 /*
@@ -672,13 +670,17 @@ int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry)
 		/*
 		 * We created the item, then did a lookup, and found
 		 * it was already linked to another inode we already
-		 * had in our cache (and thus got spliced).  Link our
-		 * dentry to that inode, but don't hash it, just in
-		 * case the VFS wants to dereference it.
+		 * had in our cache (and thus got spliced). To not
+		 * confuse VFS (especially when inode is a directory),
+		 * we don't link our dentry to that inode, return an
+		 * error instead.
+		 *
+		 * This event should be rare and it happens only when
+		 * we talk to old MDS. Recent MDS does not send traceless
+		 * reply for request that creates new inode.
 		 */
-		BUG_ON(!result->d_inode);
-		d_instantiate(dentry, result->d_inode);
-		return 0;
+		d_drop(result);
+		return -ESTALE;
 	}
 	return PTR_ERR(result);
 }
@@ -902,7 +904,7 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 	} else if (ceph_snap(dir) == CEPH_NOSNAP) {
 		dout("unlink/rmdir dir %p dn %p inode %p\n",
 		     dir, dentry, inode);
-		op = S_ISDIR(dentry->d_inode->i_mode) ?
+		op = d_is_dir(dentry) ?
 			CEPH_MDS_OP_RMDIR : CEPH_MDS_OP_UNLINK;
 	} else
 		goto out;
@@ -1335,6 +1337,13 @@ const struct file_operations ceph_dir_fops = {
 	.fsync = ceph_dir_fsync,
 };
 
+const struct file_operations ceph_snapdir_fops = {
+	.iterate = ceph_readdir,
+	.llseek = ceph_dir_llseek,
+	.open = ceph_open,
+	.release = ceph_release,
+};
+
 const struct inode_operations ceph_dir_iops = {
 	.lookup = ceph_lookup,
 	.permission = ceph_permission,
@@ -1355,6 +1364,14 @@ const struct inode_operations ceph_dir_iops = {
 	.rename = ceph_rename,
 	.create = ceph_create,
 	.atomic_open = ceph_atomic_open,
+};
+
+const struct inode_operations ceph_snapdir_iops = {
+	.lookup = ceph_lookup,
+	.permission = ceph_permission,
+	.getattr = ceph_getattr,
+	.mkdir = ceph_mkdir,
+	.rmdir = ceph_unlink,
 };
 
 const struct dentry_operations ceph_dentry_ops = {

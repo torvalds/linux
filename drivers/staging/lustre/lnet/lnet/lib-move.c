@@ -158,7 +158,7 @@ fail_peer(lnet_nid_t nid, int outgoing)
 }
 
 unsigned int
-lnet_iov_nob(unsigned int niov, struct iovec *iov)
+lnet_iov_nob(unsigned int niov, struct kvec *iov)
 {
 	unsigned int nob = 0;
 
@@ -170,8 +170,8 @@ lnet_iov_nob(unsigned int niov, struct iovec *iov)
 EXPORT_SYMBOL(lnet_iov_nob);
 
 void
-lnet_copy_iov2iov(unsigned int ndiov, struct iovec *diov, unsigned int doffset,
-		   unsigned int nsiov, struct iovec *siov, unsigned int soffset,
+lnet_copy_iov2iov(unsigned int ndiov, struct kvec *diov, unsigned int doffset,
+		   unsigned int nsiov, struct kvec *siov, unsigned int soffset,
 		   unsigned int nob)
 {
 	/* NB diov, siov are READ-ONLY */
@@ -201,9 +201,9 @@ lnet_copy_iov2iov(unsigned int ndiov, struct iovec *diov, unsigned int doffset,
 	do {
 		LASSERT(ndiov > 0);
 		LASSERT(nsiov > 0);
-		this_nob = MIN(diov->iov_len - doffset,
+		this_nob = min(diov->iov_len - doffset,
 			       siov->iov_len - soffset);
-		this_nob = MIN(this_nob, nob);
+		this_nob = min(this_nob, nob);
 
 		memcpy((char *)diov->iov_base + doffset,
 			(char *)siov->iov_base + soffset, this_nob);
@@ -229,8 +229,8 @@ lnet_copy_iov2iov(unsigned int ndiov, struct iovec *diov, unsigned int doffset,
 EXPORT_SYMBOL(lnet_copy_iov2iov);
 
 int
-lnet_extract_iov(int dst_niov, struct iovec *dst,
-		  int src_niov, struct iovec *src,
+lnet_extract_iov(int dst_niov, struct kvec *dst,
+		  int src_niov, struct kvec *src,
 		  unsigned int offset, unsigned int len)
 {
 	/* Initialise 'dst' to the subset of 'src' starting at 'offset',
@@ -322,9 +322,9 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 	do {
 		LASSERT(ndiov > 0);
 		LASSERT(nsiov > 0);
-		this_nob = MIN(diov->kiov_len - doffset,
+		this_nob = min(diov->kiov_len - doffset,
 			       siov->kiov_len - soffset);
-		this_nob = MIN(this_nob, nob);
+		this_nob = min(this_nob, nob);
 
 		if (daddr == NULL)
 			daddr = ((char *)kmap(diov->kiov_page)) +
@@ -371,7 +371,7 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 EXPORT_SYMBOL(lnet_copy_kiov2kiov);
 
 void
-lnet_copy_kiov2iov(unsigned int niov, struct iovec *iov, unsigned int iovoffset,
+lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 		   unsigned int nkiov, lnet_kiov_t *kiov,
 		   unsigned int kiovoffset, unsigned int nob)
 {
@@ -403,9 +403,9 @@ lnet_copy_kiov2iov(unsigned int niov, struct iovec *iov, unsigned int iovoffset,
 	do {
 		LASSERT(niov > 0);
 		LASSERT(nkiov > 0);
-		this_nob = MIN(iov->iov_len - iovoffset,
-			       kiov->kiov_len - kiovoffset);
-		this_nob = MIN(this_nob, nob);
+		this_nob = min(iov->iov_len - iovoffset,
+			       (__kernel_size_t) kiov->kiov_len - kiovoffset);
+		this_nob = min(this_nob, nob);
 
 		if (addr == NULL)
 			addr = ((char *)kmap(kiov->kiov_page)) +
@@ -443,7 +443,7 @@ EXPORT_SYMBOL(lnet_copy_kiov2iov);
 void
 lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 		   unsigned int kiovoffset, unsigned int niov,
-		   struct iovec *iov, unsigned int iovoffset,
+		   struct kvec *iov, unsigned int iovoffset,
 		   unsigned int nob)
 {
 	/* NB kiov, iov are READ-ONLY */
@@ -474,9 +474,9 @@ lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 	do {
 		LASSERT(nkiov > 0);
 		LASSERT(niov > 0);
-		this_nob = MIN(kiov->kiov_len - kiovoffset,
+		this_nob = min((__kernel_size_t) kiov->kiov_len - kiovoffset,
 			       iov->iov_len - iovoffset);
-		this_nob = MIN(this_nob, nob);
+		this_nob = min(this_nob, nob);
 
 		if (addr == NULL)
 			addr = ((char *)kmap(kiov->kiov_page)) +
@@ -566,7 +566,7 @@ lnet_ni_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 	     unsigned int offset, unsigned int mlen, unsigned int rlen)
 {
 	unsigned int  niov = 0;
-	struct iovec *iov = NULL;
+	struct kvec *iov = NULL;
 	lnet_kiov_t  *kiov = NULL;
 	int	   rc;
 
@@ -1530,7 +1530,7 @@ lnet_parse_reply(lnet_ni_t *ni, lnet_msg_t *msg)
 	LASSERT(md->md_offset == 0);
 
 	rlength = hdr->payload_length;
-	mlength = MIN(rlength, (int)md->md_length);
+	mlength = min_t(int, rlength, md->md_length);
 
 	if (mlength < rlength &&
 	    (md->md_options & LNET_MD_TRUNCATE) == 0) {
@@ -1875,6 +1875,19 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 		       lnet_msgtyp2str(type), rc);
 		lnet_msg_free(msg);
 		goto drop;
+	}
+
+	if (lnet_isrouter(msg->msg_rxpeer)) {
+		lnet_peer_set_alive(msg->msg_rxpeer);
+		if (avoid_asym_router_failure &&
+		    LNET_NIDNET(src_nid) != LNET_NIDNET(from_nid)) {
+			/* received a remote message from router, update
+			 * remote NI status on this router.
+			 * NB: multi-hop routed message will be ignored.
+			 */
+			lnet_router_ni_update_locked(msg->msg_rxpeer,
+						     LNET_NIDNET(src_nid));
+		}
 	}
 
 	lnet_msg_commit(msg, cpt);

@@ -75,37 +75,35 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		oldpte = *pte;
 		if (pte_present(oldpte)) {
 			pte_t ptent;
-			bool updated = false;
 
-			if (!prot_numa) {
-				ptent = ptep_modify_prot_start(mm, addr, pte);
-				if (pte_numa(ptent))
-					ptent = pte_mknonnuma(ptent);
-				ptent = pte_modify(ptent, newprot);
-				/*
-				 * Avoid taking write faults for pages we
-				 * know to be dirty.
-				 */
-				if (dirty_accountable && pte_dirty(ptent) &&
-				    (pte_soft_dirty(ptent) ||
-				     !(vma->vm_flags & VM_SOFTDIRTY)))
-					ptent = pte_mkwrite(ptent);
-				ptep_modify_prot_commit(mm, addr, pte, ptent);
-				updated = true;
-			} else {
+			/*
+			 * Avoid trapping faults against the zero or KSM
+			 * pages. See similar comment in change_huge_pmd.
+			 */
+			if (prot_numa) {
 				struct page *page;
 
 				page = vm_normal_page(vma, addr, oldpte);
-				if (page && !PageKsm(page)) {
-					if (!pte_numa(oldpte)) {
-						ptep_set_numa(mm, addr, pte);
-						updated = true;
-					}
-				}
+				if (!page || PageKsm(page))
+					continue;
+
+				/* Avoid TLB flush if possible */
+				if (pte_protnone(oldpte))
+					continue;
 			}
-			if (updated)
-				pages++;
-		} else if (IS_ENABLED(CONFIG_MIGRATION) && !pte_file(oldpte)) {
+
+			ptent = ptep_modify_prot_start(mm, addr, pte);
+			ptent = pte_modify(ptent, newprot);
+
+			/* Avoid taking write faults for known dirty pages */
+			if (dirty_accountable && pte_dirty(ptent) &&
+					(pte_soft_dirty(ptent) ||
+					 !(vma->vm_flags & VM_SOFTDIRTY))) {
+				ptent = pte_mkwrite(ptent);
+			}
+			ptep_modify_prot_commit(mm, addr, pte, ptent);
+			pages++;
+		} else if (IS_ENABLED(CONFIG_MIGRATION)) {
 			swp_entry_t entry = pte_to_swp_entry(oldpte);
 
 			if (is_write_migration_entry(entry)) {

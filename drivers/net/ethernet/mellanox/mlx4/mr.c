@@ -598,14 +598,11 @@ int mlx4_mr_rereg_mem_write(struct mlx4_dev *dev, struct mlx4_mr *mr,
 	if (err)
 		return err;
 
-	mpt_entry->start       = cpu_to_be64(mr->iova);
-	mpt_entry->length      = cpu_to_be64(mr->size);
-	mpt_entry->entity_size = cpu_to_be32(mr->mtt.page_shift);
-
-	mpt_entry->pd_flags &= cpu_to_be32(MLX4_MPT_PD_MASK |
-					   MLX4_MPT_PD_FLAG_EN_INV);
-	mpt_entry->flags    &= cpu_to_be32(MLX4_MPT_FLAG_FREE |
-					   MLX4_MPT_FLAG_SW_OWNS);
+	mpt_entry->start       = cpu_to_be64(iova);
+	mpt_entry->length      = cpu_to_be64(size);
+	mpt_entry->entity_size = cpu_to_be32(page_shift);
+	mpt_entry->flags    &= ~(cpu_to_be32(MLX4_MPT_FLAG_FREE |
+					   MLX4_MPT_FLAG_SW_OWNS));
 	if (mr->mtt.order < 0) {
 		mpt_entry->flags |= cpu_to_be32(MLX4_MPT_FLAG_PHYSICAL);
 		mpt_entry->mtt_addr = 0;
@@ -708,13 +705,13 @@ static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 	if (!mtts)
 		return -ENOMEM;
 
-	dma_sync_single_for_cpu(&dev->pdev->dev, dma_handle,
+	dma_sync_single_for_cpu(&dev->persist->pdev->dev, dma_handle,
 				npages * sizeof (u64), DMA_TO_DEVICE);
 
 	for (i = 0; i < npages; ++i)
 		mtts[i] = cpu_to_be64(page_list[i] | MLX4_MTT_FLAG_PRESENT);
 
-	dma_sync_single_for_device(&dev->pdev->dev, dma_handle,
+	dma_sync_single_for_device(&dev->persist->pdev->dev, dma_handle,
 				   npages * sizeof (u64), DMA_TO_DEVICE);
 
 	return 0;
@@ -1020,13 +1017,13 @@ int mlx4_map_phys_fmr(struct mlx4_dev *dev, struct mlx4_fmr *fmr, u64 *page_list
 	/* Make sure MPT status is visible before writing MTT entries */
 	wmb();
 
-	dma_sync_single_for_cpu(&dev->pdev->dev, fmr->dma_handle,
+	dma_sync_single_for_cpu(&dev->persist->pdev->dev, fmr->dma_handle,
 				npages * sizeof(u64), DMA_TO_DEVICE);
 
 	for (i = 0; i < npages; ++i)
 		fmr->mtts[i] = cpu_to_be64(page_list[i] | MLX4_MTT_FLAG_PRESENT);
 
-	dma_sync_single_for_device(&dev->pdev->dev, fmr->dma_handle,
+	dma_sync_single_for_device(&dev->persist->pdev->dev, fmr->dma_handle,
 				   npages * sizeof(u64), DMA_TO_DEVICE);
 
 	fmr->mpt->key    = cpu_to_be32(key);
@@ -1155,7 +1152,7 @@ EXPORT_SYMBOL_GPL(mlx4_fmr_free);
 
 int mlx4_SYNC_TPT(struct mlx4_dev *dev)
 {
-	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_SYNC_TPT, 1000,
-			MLX4_CMD_NATIVE);
+	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_SYNC_TPT,
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 }
 EXPORT_SYMBOL_GPL(mlx4_SYNC_TPT);

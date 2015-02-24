@@ -13,261 +13,154 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
-
-
-/*
- * Driver implements own I2C-adapter for tuner I2C access. That's since chip
- * have unusual I2C-gate control which closes gate automatically after each
- * I2C transfer. Using own I2C adapter we can workaround that.
  */
 
 #include "rtl2830_priv.h"
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  64
-
-/* write multiple hardware registers */
-static int rtl2830_wr(struct rtl2830_priv *priv, u8 reg, const u8 *val, int len)
+/* Our regmap is bypassing I2C adapter lock, thus we do it! */
+static int rtl2830_bulk_write(struct i2c_client *client, unsigned int reg,
+			      const void *val, size_t val_count)
 {
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
-	u8 buf[MAX_XFER_SIZE];
-	struct i2c_msg msg[1] = {
-		{
-			.addr = priv->cfg.i2c_addr,
-			.flags = 0,
-			.len = 1 + len,
-			.buf = buf,
-		}
-	};
 
-	if (1 + len > sizeof(buf)) {
-		dev_warn(&priv->i2c->dev,
-			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
-			 KBUILD_MODNAME, reg, len);
-		return -EINVAL;
-	}
-
-	buf[0] = reg;
-	memcpy(&buf[1], val, len);
-
-	ret = i2c_transfer(priv->i2c, msg, 1);
-	if (ret == 1) {
-		ret = 0;
-	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c wr failed=%d reg=%02x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
-		ret = -EREMOTEIO;
-	}
+	i2c_lock_adapter(client->adapter);
+	ret = regmap_bulk_write(dev->regmap, reg, val, val_count);
+	i2c_unlock_adapter(client->adapter);
 	return ret;
 }
 
-/* read multiple hardware registers */
-static int rtl2830_rd(struct rtl2830_priv *priv, u8 reg, u8 *val, int len)
+static int rtl2830_update_bits(struct i2c_client *client, unsigned int reg,
+			       unsigned int mask, unsigned int val)
 {
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
-	struct i2c_msg msg[2] = {
-		{
-			.addr = priv->cfg.i2c_addr,
-			.flags = 0,
-			.len = 1,
-			.buf = &reg,
-		}, {
-			.addr = priv->cfg.i2c_addr,
-			.flags = I2C_M_RD,
-			.len = len,
-			.buf = val,
-		}
-	};
 
-	ret = i2c_transfer(priv->i2c, msg, 2);
-	if (ret == 2) {
-		ret = 0;
-	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c rd failed=%d reg=%02x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
-		ret = -EREMOTEIO;
-	}
+	i2c_lock_adapter(client->adapter);
+	ret = regmap_update_bits(dev->regmap, reg, mask, val);
+	i2c_unlock_adapter(client->adapter);
 	return ret;
 }
 
-/* write multiple registers */
-static int rtl2830_wr_regs(struct rtl2830_priv *priv, u16 reg, const u8 *val,
-		int len)
+static int rtl2830_bulk_read(struct i2c_client *client, unsigned int reg,
+			     void *val, size_t val_count)
 {
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
-	u8 reg2 = (reg >> 0) & 0xff;
-	u8 page = (reg >> 8) & 0xff;
 
-	/* switch bank if needed */
-	if (page != priv->page) {
-		ret = rtl2830_wr(priv, 0x00, &page, 1);
-		if (ret)
-			return ret;
-
-		priv->page = page;
-	}
-
-	return rtl2830_wr(priv, reg2, val, len);
-}
-
-/* read multiple registers */
-static int rtl2830_rd_regs(struct rtl2830_priv *priv, u16 reg, u8 *val, int len)
-{
-	int ret;
-	u8 reg2 = (reg >> 0) & 0xff;
-	u8 page = (reg >> 8) & 0xff;
-
-	/* switch bank if needed */
-	if (page != priv->page) {
-		ret = rtl2830_wr(priv, 0x00, &page, 1);
-		if (ret)
-			return ret;
-
-		priv->page = page;
-	}
-
-	return rtl2830_rd(priv, reg2, val, len);
-}
-
-/* read single register */
-static int rtl2830_rd_reg(struct rtl2830_priv *priv, u16 reg, u8 *val)
-{
-	return rtl2830_rd_regs(priv, reg, val, 1);
-}
-
-/* write single register with mask */
-static int rtl2830_wr_reg_mask(struct rtl2830_priv *priv, u16 reg, u8 val, u8 mask)
-{
-	int ret;
-	u8 tmp;
-
-	/* no need for read if whole reg is written */
-	if (mask != 0xff) {
-		ret = rtl2830_rd_regs(priv, reg, &tmp, 1);
-		if (ret)
-			return ret;
-
-		val &= mask;
-		tmp &= ~mask;
-		val |= tmp;
-	}
-
-	return rtl2830_wr_regs(priv, reg, &val, 1);
-}
-
-/* read single register with mask */
-static int rtl2830_rd_reg_mask(struct rtl2830_priv *priv, u16 reg, u8 *val, u8 mask)
-{
-	int ret, i;
-	u8 tmp;
-
-	ret = rtl2830_rd_regs(priv, reg, &tmp, 1);
-	if (ret)
-		return ret;
-
-	tmp &= mask;
-
-	/* find position of the first bit */
-	for (i = 0; i < 8; i++) {
-		if ((mask >> i) & 0x01)
-			break;
-	}
-	*val = tmp >> i;
-
-	return 0;
+	i2c_lock_adapter(client->adapter);
+	ret = regmap_bulk_read(dev->regmap, reg, val, val_count);
+	i2c_unlock_adapter(client->adapter);
+	return ret;
 }
 
 static int rtl2830_init(struct dvb_frontend *fe)
 {
-	struct rtl2830_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = fe->demodulator_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
+	struct dtv_frontend_properties *c = &dev->fe.dtv_property_cache;
 	int ret, i;
 	struct rtl2830_reg_val_mask tab[] = {
-		{ 0x00d, 0x01, 0x03 },
-		{ 0x00d, 0x10, 0x10 },
-		{ 0x104, 0x00, 0x1e },
-		{ 0x105, 0x80, 0x80 },
-		{ 0x110, 0x02, 0x03 },
-		{ 0x110, 0x08, 0x0c },
-		{ 0x17b, 0x00, 0x40 },
-		{ 0x17d, 0x05, 0x0f },
-		{ 0x17d, 0x50, 0xf0 },
-		{ 0x18c, 0x08, 0x0f },
-		{ 0x18d, 0x00, 0xc0 },
-		{ 0x188, 0x05, 0x0f },
-		{ 0x189, 0x00, 0xfc },
-		{ 0x2d5, 0x02, 0x02 },
-		{ 0x2f1, 0x02, 0x06 },
-		{ 0x2f1, 0x20, 0xf8 },
-		{ 0x16d, 0x00, 0x01 },
-		{ 0x1a6, 0x00, 0x80 },
-		{ 0x106, priv->cfg.vtop, 0x3f },
-		{ 0x107, priv->cfg.krf, 0x3f },
-		{ 0x112, 0x28, 0xff },
-		{ 0x103, priv->cfg.agc_targ_val, 0xff },
-		{ 0x00a, 0x02, 0x07 },
-		{ 0x140, 0x0c, 0x3c },
-		{ 0x140, 0x40, 0xc0 },
-		{ 0x15b, 0x05, 0x07 },
-		{ 0x15b, 0x28, 0x38 },
-		{ 0x15c, 0x05, 0x07 },
-		{ 0x15c, 0x28, 0x38 },
-		{ 0x115, priv->cfg.spec_inv, 0x01 },
-		{ 0x16f, 0x01, 0x07 },
-		{ 0x170, 0x18, 0x38 },
-		{ 0x172, 0x0f, 0x0f },
-		{ 0x173, 0x08, 0x38 },
-		{ 0x175, 0x01, 0x07 },
-		{ 0x176, 0x00, 0xc0 },
+		{0x00d, 0x01, 0x03},
+		{0x00d, 0x10, 0x10},
+		{0x104, 0x00, 0x1e},
+		{0x105, 0x80, 0x80},
+		{0x110, 0x02, 0x03},
+		{0x110, 0x08, 0x0c},
+		{0x17b, 0x00, 0x40},
+		{0x17d, 0x05, 0x0f},
+		{0x17d, 0x50, 0xf0},
+		{0x18c, 0x08, 0x0f},
+		{0x18d, 0x00, 0xc0},
+		{0x188, 0x05, 0x0f},
+		{0x189, 0x00, 0xfc},
+		{0x2d5, 0x02, 0x02},
+		{0x2f1, 0x02, 0x06},
+		{0x2f1, 0x20, 0xf8},
+		{0x16d, 0x00, 0x01},
+		{0x1a6, 0x00, 0x80},
+		{0x106, dev->pdata->vtop, 0x3f},
+		{0x107, dev->pdata->krf, 0x3f},
+		{0x112, 0x28, 0xff},
+		{0x103, dev->pdata->agc_targ_val, 0xff},
+		{0x00a, 0x02, 0x07},
+		{0x140, 0x0c, 0x3c},
+		{0x140, 0x40, 0xc0},
+		{0x15b, 0x05, 0x07},
+		{0x15b, 0x28, 0x38},
+		{0x15c, 0x05, 0x07},
+		{0x15c, 0x28, 0x38},
+		{0x115, dev->pdata->spec_inv, 0x01},
+		{0x16f, 0x01, 0x07},
+		{0x170, 0x18, 0x38},
+		{0x172, 0x0f, 0x0f},
+		{0x173, 0x08, 0x38},
+		{0x175, 0x01, 0x07},
+		{0x176, 0x00, 0xc0},
 	};
 
 	for (i = 0; i < ARRAY_SIZE(tab); i++) {
-		ret = rtl2830_wr_reg_mask(priv, tab[i].reg, tab[i].val,
-			tab[i].mask);
+		ret = rtl2830_update_bits(client, tab[i].reg, tab[i].mask,
+					  tab[i].val);
 		if (ret)
 			goto err;
 	}
 
-	ret = rtl2830_wr_regs(priv, 0x18f, "\x28\x00", 2);
+	ret = rtl2830_bulk_write(client, 0x18f, "\x28\x00", 2);
 	if (ret)
 		goto err;
 
-	ret = rtl2830_wr_regs(priv, 0x195,
-		"\x04\x06\x0a\x12\x0a\x12\x1e\x28", 8);
+	ret = rtl2830_bulk_write(client, 0x195,
+				 "\x04\x06\x0a\x12\x0a\x12\x1e\x28", 8);
 	if (ret)
 		goto err;
 
 	/* TODO: spec init */
 
 	/* soft reset */
-	ret = rtl2830_wr_reg_mask(priv, 0x101, 0x04, 0x04);
+	ret = rtl2830_update_bits(client, 0x101, 0x04, 0x04);
 	if (ret)
 		goto err;
 
-	ret = rtl2830_wr_reg_mask(priv, 0x101, 0x00, 0x04);
+	ret = rtl2830_update_bits(client, 0x101, 0x04, 0x00);
 	if (ret)
 		goto err;
 
-	priv->sleeping = false;
+	/* init stats here in order signal app which stats are supported */
+	c->strength.len = 1;
+	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.len = 1;
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.len = 1;
+	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.len = 1;
+	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	/* start statistics polling */
+	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(2000));
+
+	dev->sleeping = false;
 
 	return ret;
 err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
 static int rtl2830_sleep(struct dvb_frontend *fe)
 {
-	struct rtl2830_priv *priv = fe->demodulator_priv;
-	priv->sleeping = true;
+	struct i2c_client *client = fe->demodulator_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
+
+	dev->sleeping = true;
+	/* stop statistics polling */
+	cancel_delayed_work_sync(&dev->stat_work);
+	dev->fe_status = 0;
+
 	return 0;
 }
 
 static int rtl2830_get_tune_settings(struct dvb_frontend *fe,
-	struct dvb_frontend_tune_settings *s)
+				     struct dvb_frontend_tune_settings *s)
 {
 	s->min_delay_ms = 500;
 	s->step_size = fe->ops.info.frequency_stepsize * 2;
@@ -278,11 +171,12 @@ static int rtl2830_get_tune_settings(struct dvb_frontend *fe,
 
 static int rtl2830_set_frontend(struct dvb_frontend *fe)
 {
-	struct rtl2830_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = fe->demodulator_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
 	u64 num;
-	u8 buf[3], tmp;
+	u8 buf[3], u8tmp;
 	u32 if_ctl, if_frequency;
 	static const u8 bw_params1[3][34] = {
 		{
@@ -308,9 +202,8 @@ static int rtl2830_set_frontend(struct dvb_frontend *fe)
 		{0xae, 0xba, 0xf3, 0x26, 0x66, 0x64}, /* 8 MHz */
 	};
 
-	dev_dbg(&priv->i2c->dev,
-			"%s: frequency=%d bandwidth_hz=%d inversion=%d\n",
-			__func__, c->frequency, c->bandwidth_hz, c->inversion);
+	dev_dbg(&client->dev, "frequency=%u bandwidth_hz=%u inversion=%u\n",
+		c->frequency, c->bandwidth_hz, c->inversion);
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
@@ -327,11 +220,12 @@ static int rtl2830_set_frontend(struct dvb_frontend *fe)
 		i = 2;
 		break;
 	default:
-		dev_dbg(&priv->i2c->dev, "%s: invalid bandwidth\n", __func__);
+		dev_err(&client->dev, "invalid bandwidth_hz %u\n",
+			c->bandwidth_hz);
 		return -EINVAL;
 	}
 
-	ret = rtl2830_wr_reg_mask(priv, 0x008, i << 1, 0x06);
+	ret = rtl2830_update_bits(client, 0x008, 0x06, i << 1);
 	if (ret)
 		goto err;
 
@@ -340,70 +234,71 @@ static int rtl2830_set_frontend(struct dvb_frontend *fe)
 		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_frequency);
 	else
 		ret = -EINVAL;
-
-	if (ret < 0)
-		goto err;
-
-	num = if_frequency % priv->cfg.xtal;
-	num *= 0x400000;
-	num = div_u64(num, priv->cfg.xtal);
-	num = -num;
-	if_ctl = num & 0x3fffff;
-	dev_dbg(&priv->i2c->dev, "%s: if_frequency=%d if_ctl=%08x\n",
-			__func__, if_frequency, if_ctl);
-
-	ret = rtl2830_rd_reg_mask(priv, 0x119, &tmp, 0xc0); /* b[7:6] */
 	if (ret)
 		goto err;
 
-	buf[0] = tmp << 6;
-	buf[0] |= (if_ctl >> 16) & 0x3f;
+	num = if_frequency % dev->pdata->clk;
+	num *= 0x400000;
+	num = div_u64(num, dev->pdata->clk);
+	num = -num;
+	if_ctl = num & 0x3fffff;
+	dev_dbg(&client->dev, "if_frequency=%d if_ctl=%08x\n",
+		if_frequency, if_ctl);
+
+	buf[0] = (if_ctl >> 16) & 0x3f;
 	buf[1] = (if_ctl >>  8) & 0xff;
 	buf[2] = (if_ctl >>  0) & 0xff;
 
-	ret = rtl2830_wr_regs(priv, 0x119, buf, 3);
+	ret = rtl2830_bulk_read(client, 0x119, &u8tmp, 1);
+	if (ret)
+		goto err;
+
+	buf[0] |= u8tmp & 0xc0;  /* [7:6] */
+
+	ret = rtl2830_bulk_write(client, 0x119, buf, 3);
 	if (ret)
 		goto err;
 
 	/* 1/2 split I2C write */
-	ret = rtl2830_wr_regs(priv, 0x11c, &bw_params1[i][0], 17);
+	ret = rtl2830_bulk_write(client, 0x11c, &bw_params1[i][0], 17);
 	if (ret)
 		goto err;
 
 	/* 2/2 split I2C write */
-	ret = rtl2830_wr_regs(priv, 0x12d, &bw_params1[i][17], 17);
+	ret = rtl2830_bulk_write(client, 0x12d, &bw_params1[i][17], 17);
 	if (ret)
 		goto err;
 
-	ret = rtl2830_wr_regs(priv, 0x19d, bw_params2[i], 6);
+	ret = rtl2830_bulk_write(client, 0x19d, bw_params2[i], 6);
 	if (ret)
 		goto err;
 
 	return ret;
 err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
 static int rtl2830_get_frontend(struct dvb_frontend *fe)
 {
-	struct rtl2830_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = fe->demodulator_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[3];
 
-	if (priv->sleeping)
+	if (dev->sleeping)
 		return 0;
 
-	ret = rtl2830_rd_regs(priv, 0x33c, buf, 2);
+	ret = rtl2830_bulk_read(client, 0x33c, buf, 2);
 	if (ret)
 		goto err;
 
-	ret = rtl2830_rd_reg(priv, 0x351, &buf[2]);
+	ret = rtl2830_bulk_read(client, 0x351, &buf[2], 1);
 	if (ret)
 		goto err;
 
-	dev_dbg(&priv->i2c->dev, "%s: TPS=%*ph\n", __func__, 3, buf);
+	dev_dbg(&client->dev, "TPS=%*ph\n", 3, buf);
 
 	switch ((buf[0] >> 2) & 3) {
 	case 0:
@@ -493,244 +388,87 @@ static int rtl2830_get_frontend(struct dvb_frontend *fe)
 
 	return 0;
 err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
 static int rtl2830_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
-	struct rtl2830_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = fe->demodulator_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
-	u8 tmp;
+	u8 u8tmp;
+
 	*status = 0;
 
-	if (priv->sleeping)
+	if (dev->sleeping)
 		return 0;
 
-	ret = rtl2830_rd_reg_mask(priv, 0x351, &tmp, 0x78); /* [6:3] */
+	ret = rtl2830_bulk_read(client, 0x351, &u8tmp, 1);
 	if (ret)
 		goto err;
 
-	if (tmp == 11) {
+	u8tmp = (u8tmp >> 3) & 0x0f; /* [6:3] */
+	if (u8tmp == 11) {
 		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
 			FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
-	} else if (tmp == 10) {
+	} else if (u8tmp == 10) {
 		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
 			FE_HAS_VITERBI;
 	}
 
+	dev->fe_status = *status;
+
 	return ret;
 err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
 static int rtl2830_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	struct rtl2830_priv *priv = fe->demodulator_priv;
-	int ret, hierarchy, constellation;
-	u8 buf[2], tmp;
-	u16 tmp16;
-#define CONSTELLATION_NUM 3
-#define HIERARCHY_NUM 4
-	static const u32 snr_constant[CONSTELLATION_NUM][HIERARCHY_NUM] = {
-		{ 70705899, 70705899, 70705899, 70705899 },
-		{ 82433173, 82433173, 87483115, 94445660 },
-		{ 92888734, 92888734, 95487525, 99770748 },
-	};
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	if (priv->sleeping)
-		return 0;
-
-	/* reports SNR in resolution of 0.1 dB */
-
-	ret = rtl2830_rd_reg(priv, 0x33c, &tmp);
-	if (ret)
-		goto err;
-
-	constellation = (tmp >> 2) & 0x03; /* [3:2] */
-	if (constellation > CONSTELLATION_NUM - 1)
-		goto err;
-
-	hierarchy = (tmp >> 4) & 0x07; /* [6:4] */
-	if (hierarchy > HIERARCHY_NUM - 1)
-		goto err;
-
-	ret = rtl2830_rd_regs(priv, 0x40c, buf, 2);
-	if (ret)
-		goto err;
-
-	tmp16 = buf[0] << 8 | buf[1];
-
-	if (tmp16)
-		*snr = (snr_constant[constellation][hierarchy] -
-				intlog10(tmp16)) / ((1 << 24) / 100);
+	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL)
+		*snr = div_s64(c->cnr.stat[0].svalue, 100);
 	else
 		*snr = 0;
 
 	return 0;
-err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
 }
 
 static int rtl2830_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	struct rtl2830_priv *priv = fe->demodulator_priv;
-	int ret;
-	u8 buf[2];
+	struct i2c_client *client = fe->demodulator_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 
-	if (priv->sleeping)
-		return 0;
-
-	ret = rtl2830_rd_regs(priv, 0x34e, buf, 2);
-	if (ret)
-		goto err;
-
-	*ber = buf[0] << 8 | buf[1];
+	*ber = (dev->post_bit_error - dev->post_bit_error_prev);
+	dev->post_bit_error_prev = dev->post_bit_error;
 
 	return 0;
-err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
 }
 
 static int rtl2830_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	*ucblocks = 0;
+
 	return 0;
 }
 
 static int rtl2830_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	struct rtl2830_priv *priv = fe->demodulator_priv;
-	int ret;
-	u8 buf[2];
-	u16 if_agc_raw, if_agc;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	if (priv->sleeping)
-		return 0;
-
-	ret = rtl2830_rd_regs(priv, 0x359, buf, 2);
-	if (ret)
-		goto err;
-
-	if_agc_raw = (buf[0] << 8 | buf[1]) & 0x3fff;
-
-	if (if_agc_raw & (1 << 9))
-		if_agc = -(~(if_agc_raw - 1) & 0x1ff);
+	if (c->strength.stat[0].scale == FE_SCALE_RELATIVE)
+		*strength = c->strength.stat[0].uvalue;
 	else
-		if_agc = if_agc_raw;
-
-	*strength = (u8) (55 - if_agc / 182);
-	*strength |= *strength << 8;
+		*strength = 0;
 
 	return 0;
-err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
 }
-
-static struct dvb_frontend_ops rtl2830_ops;
-
-static u32 rtl2830_tuner_i2c_func(struct i2c_adapter *adapter)
-{
-	return I2C_FUNC_I2C;
-}
-
-static int rtl2830_tuner_i2c_xfer(struct i2c_adapter *i2c_adap,
-	struct i2c_msg msg[], int num)
-{
-	struct rtl2830_priv *priv = i2c_get_adapdata(i2c_adap);
-	int ret;
-
-	/* open i2c-gate */
-	ret = rtl2830_wr_reg_mask(priv, 0x101, 0x08, 0x08);
-	if (ret)
-		goto err;
-
-	ret = i2c_transfer(priv->i2c, msg, num);
-	if (ret < 0)
-		dev_warn(&priv->i2c->dev, "%s: tuner i2c failed=%d\n",
-			KBUILD_MODNAME, ret);
-
-	return ret;
-err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
-}
-
-static struct i2c_algorithm rtl2830_tuner_i2c_algo = {
-	.master_xfer   = rtl2830_tuner_i2c_xfer,
-	.functionality = rtl2830_tuner_i2c_func,
-};
-
-struct i2c_adapter *rtl2830_get_tuner_i2c_adapter(struct dvb_frontend *fe)
-{
-	struct rtl2830_priv *priv = fe->demodulator_priv;
-	return &priv->tuner_i2c_adapter;
-}
-EXPORT_SYMBOL(rtl2830_get_tuner_i2c_adapter);
-
-static void rtl2830_release(struct dvb_frontend *fe)
-{
-	struct rtl2830_priv *priv = fe->demodulator_priv;
-
-	i2c_del_adapter(&priv->tuner_i2c_adapter);
-	kfree(priv);
-}
-
-struct dvb_frontend *rtl2830_attach(const struct rtl2830_config *cfg,
-	struct i2c_adapter *i2c)
-{
-	struct rtl2830_priv *priv = NULL;
-	int ret = 0;
-	u8 tmp;
-
-	/* allocate memory for the internal state */
-	priv = kzalloc(sizeof(struct rtl2830_priv), GFP_KERNEL);
-	if (priv == NULL)
-		goto err;
-
-	/* setup the priv */
-	priv->i2c = i2c;
-	memcpy(&priv->cfg, cfg, sizeof(struct rtl2830_config));
-
-	/* check if the demod is there */
-	ret = rtl2830_rd_reg(priv, 0x000, &tmp);
-	if (ret)
-		goto err;
-
-	/* create dvb_frontend */
-	memcpy(&priv->fe.ops, &rtl2830_ops, sizeof(struct dvb_frontend_ops));
-	priv->fe.demodulator_priv = priv;
-
-	/* create tuner i2c adapter */
-	strlcpy(priv->tuner_i2c_adapter.name, "RTL2830 tuner I2C adapter",
-		sizeof(priv->tuner_i2c_adapter.name));
-	priv->tuner_i2c_adapter.algo = &rtl2830_tuner_i2c_algo;
-	priv->tuner_i2c_adapter.algo_data = NULL;
-	priv->tuner_i2c_adapter.dev.parent = &i2c->dev;
-	i2c_set_adapdata(&priv->tuner_i2c_adapter, priv);
-	if (i2c_add_adapter(&priv->tuner_i2c_adapter) < 0) {
-		dev_err(&i2c->dev,
-				"%s: tuner i2c bus could not be initialized\n",
-				KBUILD_MODNAME);
-		goto err;
-	}
-
-	priv->sleeping = true;
-
-	return &priv->fe;
-err:
-	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
-	kfree(priv);
-	return NULL;
-}
-EXPORT_SYMBOL(rtl2830_attach);
 
 static struct dvb_frontend_ops rtl2830_ops = {
-	.delsys = { SYS_DVBT },
+	.delsys = {SYS_DVBT},
 	.info = {
 		.name = "Realtek RTL2830 (DVB-T)",
 		.caps = FE_CAN_FEC_1_2 |
@@ -750,8 +488,6 @@ static struct dvb_frontend_ops rtl2830_ops = {
 			FE_CAN_MUTE_TS
 	},
 
-	.release = rtl2830_release,
-
 	.init = rtl2830_init,
 	.sleep = rtl2830_sleep,
 
@@ -766,6 +502,428 @@ static struct dvb_frontend_ops rtl2830_ops = {
 	.read_ucblocks = rtl2830_read_ucblocks,
 	.read_signal_strength = rtl2830_read_signal_strength,
 };
+
+static void rtl2830_stat_work(struct work_struct *work)
+{
+	struct rtl2830_dev *dev = container_of(work, struct rtl2830_dev, stat_work.work);
+	struct i2c_client *client = dev->client;
+	struct dtv_frontend_properties *c = &dev->fe.dtv_property_cache;
+	int ret, tmp;
+	u8 u8tmp, buf[2];
+	u16 u16tmp;
+
+	dev_dbg(&client->dev, "\n");
+
+	/* signal strength */
+	if (dev->fe_status & FE_HAS_SIGNAL) {
+		struct {signed int x:14; } s;
+
+		/* read IF AGC */
+		ret = rtl2830_bulk_read(client, 0x359, buf, 2);
+		if (ret)
+			goto err;
+
+		u16tmp = buf[0] << 8 | buf[1] << 0;
+		u16tmp &= 0x3fff; /* [13:0] */
+		tmp = s.x = u16tmp; /* 14-bit bin to 2 complement */
+		u16tmp = clamp_val(-4 * tmp + 32767, 0x0000, 0xffff);
+
+		dev_dbg(&client->dev, "IF AGC=%d\n", tmp);
+
+		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		c->strength.stat[0].uvalue = u16tmp;
+	} else {
+		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* CNR */
+	if (dev->fe_status & FE_HAS_VITERBI) {
+		unsigned hierarchy, constellation;
+		#define CONSTELLATION_NUM 3
+		#define HIERARCHY_NUM 4
+		static const u32 constant[CONSTELLATION_NUM][HIERARCHY_NUM] = {
+			{70705899, 70705899, 70705899, 70705899},
+			{82433173, 82433173, 87483115, 94445660},
+			{92888734, 92888734, 95487525, 99770748},
+		};
+
+		ret = rtl2830_bulk_read(client, 0x33c, &u8tmp, 1);
+		if (ret)
+			goto err;
+
+		constellation = (u8tmp >> 2) & 0x03; /* [3:2] */
+		if (constellation > CONSTELLATION_NUM - 1)
+			goto err_schedule_delayed_work;
+
+		hierarchy = (u8tmp >> 4) & 0x07; /* [6:4] */
+		if (hierarchy > HIERARCHY_NUM - 1)
+			goto err_schedule_delayed_work;
+
+		ret = rtl2830_bulk_read(client, 0x40c, buf, 2);
+		if (ret)
+			goto err;
+
+		u16tmp = buf[0] << 8 | buf[1] << 0;
+		if (u16tmp)
+			tmp = (constant[constellation][hierarchy] -
+			       intlog10(u16tmp)) / ((1 << 24) / 10000);
+		else
+			tmp = 0;
+
+		dev_dbg(&client->dev, "CNR raw=%u\n", u16tmp);
+
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		c->cnr.stat[0].svalue = tmp;
+	} else {
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* BER */
+	if (dev->fe_status & FE_HAS_LOCK) {
+		ret = rtl2830_bulk_read(client, 0x34e, buf, 2);
+		if (ret)
+			goto err;
+
+		u16tmp = buf[0] << 8 | buf[1] << 0;
+		dev->post_bit_error += u16tmp;
+		dev->post_bit_count += 1000000;
+
+		dev_dbg(&client->dev, "BER errors=%u total=1000000\n", u16tmp);
+
+		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_error.stat[0].uvalue = dev->post_bit_error;
+		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_count.stat[0].uvalue = dev->post_bit_count;
+	} else {
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+err_schedule_delayed_work:
+	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(2000));
+	return;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+}
+
+static int rtl2830_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+{
+	struct i2c_client *client = fe->demodulator_priv;
+	int ret;
+	u8 u8tmp;
+
+	dev_dbg(&client->dev, "onoff=%d\n", onoff);
+
+	/* enable / disable PID filter */
+	if (onoff)
+		u8tmp = 0x80;
+	else
+		u8tmp = 0x00;
+
+	ret = rtl2830_update_bits(client, 0x061, 0x80, u8tmp);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int rtl2830_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid, int onoff)
+{
+	struct i2c_client *client = fe->demodulator_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
+	int ret;
+	u8 buf[4];
+
+	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d\n",
+		index, pid, onoff);
+
+	/* skip invalid PIDs (0x2000) */
+	if (pid > 0x1fff || index > 32)
+		return 0;
+
+	if (onoff)
+		set_bit(index, &dev->filters);
+	else
+		clear_bit(index, &dev->filters);
+
+	/* enable / disable PIDs */
+	buf[0] = (dev->filters >>  0) & 0xff;
+	buf[1] = (dev->filters >>  8) & 0xff;
+	buf[2] = (dev->filters >> 16) & 0xff;
+	buf[3] = (dev->filters >> 24) & 0xff;
+	ret = rtl2830_bulk_write(client, 0x062, buf, 4);
+	if (ret)
+		goto err;
+
+	/* add PID */
+	buf[0] = (pid >> 8) & 0xff;
+	buf[1] = (pid >> 0) & 0xff;
+	ret = rtl2830_bulk_write(client, 0x066 + 2 * index, buf, 2);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+/*
+ * I2C gate/mux/repeater logic
+ * We must use unlocked __i2c_transfer() here (through regmap) because of I2C
+ * adapter lock is already taken by tuner driver.
+ * Gate is closed automatically after single I2C transfer.
+ */
+static int rtl2830_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
+{
+	struct i2c_client *client = mux_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
+	int ret;
+
+	dev_dbg(&client->dev, "\n");
+
+	/* open I2C repeater for 1 transfer, closes automatically */
+	/* XXX: regmap_update_bits() does not lock I2C adapter */
+	ret = regmap_update_bits(dev->regmap, 0x101, 0x08, 0x08);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static struct dvb_frontend *rtl2830_get_dvb_frontend(struct i2c_client *client)
+{
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return &dev->fe;
+}
+
+static struct i2c_adapter *rtl2830_get_i2c_adapter(struct i2c_client *client)
+{
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return dev->adapter;
+}
+
+/*
+ * We implement own I2C access routines for regmap in order to get manual access
+ * to I2C adapter lock, which is needed for I2C mux adapter.
+ */
+static int rtl2830_regmap_read(void *context, const void *reg_buf,
+			       size_t reg_size, void *val_buf, size_t val_size)
+{
+	struct i2c_client *client = context;
+	int ret;
+	struct i2c_msg msg[2] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = reg_size,
+			.buf = (u8 *)reg_buf,
+		}, {
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = val_size,
+			.buf = val_buf,
+		}
+	};
+
+	ret = __i2c_transfer(client->adapter, msg, 2);
+	if (ret != 2) {
+		dev_warn(&client->dev, "i2c reg read failed %d\n", ret);
+		if (ret >= 0)
+			ret = -EREMOTEIO;
+		return ret;
+	}
+	return 0;
+}
+
+static int rtl2830_regmap_write(void *context, const void *data, size_t count)
+{
+	struct i2c_client *client = context;
+	int ret;
+	struct i2c_msg msg[1] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = count,
+			.buf = (u8 *)data,
+		}
+	};
+
+	ret = __i2c_transfer(client->adapter, msg, 1);
+	if (ret != 1) {
+		dev_warn(&client->dev, "i2c reg write failed %d\n", ret);
+		if (ret >= 0)
+			ret = -EREMOTEIO;
+		return ret;
+	}
+	return 0;
+}
+
+static int rtl2830_regmap_gather_write(void *context, const void *reg,
+				       size_t reg_len, const void *val,
+				       size_t val_len)
+{
+	struct i2c_client *client = context;
+	int ret;
+	u8 buf[256];
+	struct i2c_msg msg[1] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1 + val_len,
+			.buf = buf,
+		}
+	};
+
+	buf[0] = *(u8 const *)reg;
+	memcpy(&buf[1], val, val_len);
+
+	ret = __i2c_transfer(client->adapter, msg, 1);
+	if (ret != 1) {
+		dev_warn(&client->dev, "i2c reg write failed %d\n", ret);
+		if (ret >= 0)
+			ret = -EREMOTEIO;
+		return ret;
+	}
+	return 0;
+}
+
+static int rtl2830_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct rtl2830_platform_data *pdata = client->dev.platform_data;
+	struct rtl2830_dev *dev;
+	int ret;
+	u8 u8tmp;
+	static const struct regmap_bus regmap_bus = {
+		.read = rtl2830_regmap_read,
+		.write = rtl2830_regmap_write,
+		.gather_write = rtl2830_regmap_gather_write,
+		.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
+	};
+	static const struct regmap_range_cfg regmap_range_cfg[] = {
+		{
+			.selector_reg     = 0x00,
+			.selector_mask    = 0xff,
+			.selector_shift   = 0,
+			.window_start     = 0,
+			.window_len       = 0x100,
+			.range_min        = 0 * 0x100,
+			.range_max        = 5 * 0x100,
+		},
+	};
+	static const struct regmap_config regmap_config = {
+		.reg_bits    =  8,
+		.val_bits    =  8,
+		.max_register = 5 * 0x100,
+		.ranges = regmap_range_cfg,
+		.num_ranges = ARRAY_SIZE(regmap_range_cfg),
+	};
+
+	dev_dbg(&client->dev, "\n");
+
+	if (pdata == NULL) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* allocate memory for the internal state */
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (dev == NULL) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	/* setup the state */
+	i2c_set_clientdata(client, dev);
+	dev->client = client;
+	dev->pdata = client->dev.platform_data;
+	dev->sleeping = true;
+	INIT_DELAYED_WORK(&dev->stat_work, rtl2830_stat_work);
+	dev->regmap = regmap_init(&client->dev, &regmap_bus, client,
+				  &regmap_config);
+	if (IS_ERR(dev->regmap)) {
+		ret = PTR_ERR(dev->regmap);
+		goto err_kfree;
+	}
+
+	/* check if the demod is there */
+	ret = rtl2830_bulk_read(client, 0x000, &u8tmp, 1);
+	if (ret)
+		goto err_regmap_exit;
+
+	/* create muxed i2c adapter for tuner */
+	dev->adapter = i2c_add_mux_adapter(client->adapter, &client->dev,
+			client, 0, 0, 0, rtl2830_select, NULL);
+	if (dev->adapter == NULL) {
+		ret = -ENODEV;
+		goto err_regmap_exit;
+	}
+
+	/* create dvb frontend */
+	memcpy(&dev->fe.ops, &rtl2830_ops, sizeof(dev->fe.ops));
+	dev->fe.demodulator_priv = client;
+
+	/* setup callbacks */
+	pdata->get_dvb_frontend = rtl2830_get_dvb_frontend;
+	pdata->get_i2c_adapter = rtl2830_get_i2c_adapter;
+	pdata->pid_filter = rtl2830_pid_filter;
+	pdata->pid_filter_ctrl = rtl2830_pid_filter_ctrl;
+
+	dev_info(&client->dev, "Realtek RTL2830 successfully attached\n");
+
+	return 0;
+err_regmap_exit:
+	regmap_exit(dev->regmap);
+err_kfree:
+	kfree(dev);
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int rtl2830_remove(struct i2c_client *client)
+{
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	i2c_del_mux_adapter(dev->adapter);
+	regmap_exit(dev->regmap);
+	kfree(dev);
+
+	return 0;
+}
+
+static const struct i2c_device_id rtl2830_id_table[] = {
+	{"rtl2830", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, rtl2830_id_table);
+
+static struct i2c_driver rtl2830_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "rtl2830",
+	},
+	.probe		= rtl2830_probe,
+	.remove		= rtl2830_remove,
+	.id_table	= rtl2830_id_table,
+};
+
+module_i2c_driver(rtl2830_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Realtek RTL2830 DVB-T demodulator driver");

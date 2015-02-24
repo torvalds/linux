@@ -47,12 +47,12 @@
 	compatible = "renesas,lager", "renesas,r8a7790";
 
 	aliases {
-		serial6 = &scifa0;
-		serial7 = &scifa1;
+		serial0 = &scifa0;
+		serial1 = &scifa1;
 	};
 
 	chosen {
-		bootargs = "console=ttySC6,115200 ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
 		stdout-path = &scifa0;
 	};
 
@@ -355,7 +355,7 @@
 
 	phy-handle = <&phy1>;
 	renesas,ether-link-active-low;
-	status = "ok";
+	status = "okay";
 
 	phy1: ethernet-phy@1 {
 		reg = <1>;
@@ -366,7 +366,7 @@
 };
 
 &cmt0 {
-	status = "ok";
+	status = "okay";
 };
 
 &mmcif1 {
@@ -397,6 +397,8 @@
 		spi-max-frequency = <30000000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
+		spi-cpha;
+		spi-cpol;
 		m25p,fast-read;
 
 		partition@0 {
@@ -470,17 +472,17 @@
 };
 
 &iic0	{
-	status = "ok";
+	status = "okay";
 };
 
 &iic1	{
-	status = "ok";
+	status = "okay";
 	pinctrl-0 = <&iic1_pins>;
 	pinctrl-names = "default";
 };
 
 &iic2	{
-	status = "ok";
+	status = "okay";
 	pinctrl-0 = <&iic2_pins>;
 	pinctrl-names = "default";
 
@@ -562,7 +564,7 @@
 	pinctrl-0 = <&vin1_pins>;
 	pinctrl-names = "default";
 
-	status = "ok";
+	status = "okay";
 
 	port {
 		#address-cells = <1>;
@@ -579,6 +581,7 @@
 	pinctrl-0 = <&sound_pins &sound_clk_pins>;
 	pinctrl-names = "default";
 
+	/* Single DAI */
 	#sound-dai-cells = <0>;
 
 	status = "okay";

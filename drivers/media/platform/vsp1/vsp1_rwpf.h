@@ -39,6 +39,7 @@ struct vsp1_rwpf {
 	struct v4l2_rect crop;
 
 	unsigned int offsets[2];
+	dma_addr_t buf_addr[3];
 };
 
 static inline struct vsp1_rwpf *to_rwpf(struct v4l2_subdev *subdev)

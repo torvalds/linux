@@ -24,6 +24,7 @@
 #include <linux/ahci_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
+#include <linux/of_platform.h>
 #include "ahci.h"
 
 static void ahci_host_stop(struct ata_host *host);
@@ -33,10 +34,6 @@ struct ata_port_operations ahci_platform_ops = {
 	.host_stop	= ahci_host_stop,
 };
 EXPORT_SYMBOL_GPL(ahci_platform_ops);
-
-static struct scsi_host_template ahci_platform_sht = {
-	AHCI_SHT("ahci_platform"),
-};
 
 /**
  * ahci_platform_enable_phys - Enable PHYs
@@ -54,9 +51,6 @@ static int ahci_platform_enable_phys(struct ahci_host_priv *hpriv)
 	int rc, i;
 
 	for (i = 0; i < hpriv->nports; i++) {
-		if (!hpriv->phys[i])
-			continue;
-
 		rc = phy_init(hpriv->phys[i]);
 		if (rc)
 			goto disable_phys;
@@ -89,9 +83,6 @@ static void ahci_platform_disable_phys(struct ahci_host_priv *hpriv)
 	int i;
 
 	for (i = 0; i < hpriv->nports; i++) {
-		if (!hpriv->phys[i])
-			continue;
-
 		phy_power_off(hpriv->phys[i]);
 		phy_exit(hpriv->phys[i]);
 	}
@@ -144,6 +135,59 @@ void ahci_platform_disable_clks(struct ahci_host_priv *hpriv)
 EXPORT_SYMBOL_GPL(ahci_platform_disable_clks);
 
 /**
+ * ahci_platform_enable_regulators - Enable regulators
+ * @hpriv: host private area to store config values
+ *
+ * This function enables all the regulators found in
+ * hpriv->target_pwrs, if any.  If a regulator fails to be enabled, it
+ * disables all the regulators already enabled in reverse order and
+ * returns an error.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_enable_regulators(struct ahci_host_priv *hpriv)
+{
+	int rc, i;
+
+	for (i = 0; i < hpriv->nports; i++) {
+		if (!hpriv->target_pwrs[i])
+			continue;
+
+		rc = regulator_enable(hpriv->target_pwrs[i]);
+		if (rc)
+			goto disable_target_pwrs;
+	}
+
+	return 0;
+
+disable_target_pwrs:
+	while (--i >= 0)
+		if (hpriv->target_pwrs[i])
+			regulator_disable(hpriv->target_pwrs[i]);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ahci_platform_enable_regulators);
+
+/**
+ * ahci_platform_disable_regulators - Disable regulators
+ * @hpriv: host private area to store config values
+ *
+ * This function disables all regulators found in hpriv->target_pwrs.
+ */
+void ahci_platform_disable_regulators(struct ahci_host_priv *hpriv)
+{
+	int i;
+
+	for (i = 0; i < hpriv->nports; i++) {
+		if (!hpriv->target_pwrs[i])
+			continue;
+		regulator_disable(hpriv->target_pwrs[i]);
+	}
+}
+EXPORT_SYMBOL_GPL(ahci_platform_disable_regulators);
+/**
  * ahci_platform_enable_resources - Enable platform resources
  * @hpriv: host private area to store config values
  *
@@ -163,11 +207,9 @@ int ahci_platform_enable_resources(struct ahci_host_priv *hpriv)
 {
 	int rc;
 
-	if (hpriv->target_pwr) {
-		rc = regulator_enable(hpriv->target_pwr);
-		if (rc)
-			return rc;
-	}
+	rc = ahci_platform_enable_regulators(hpriv);
+	if (rc)
+		return rc;
 
 	rc = ahci_platform_enable_clks(hpriv);
 	if (rc)
@@ -183,8 +225,8 @@ disable_clks:
 	ahci_platform_disable_clks(hpriv);
 
 disable_regulator:
-	if (hpriv->target_pwr)
-		regulator_disable(hpriv->target_pwr);
+	ahci_platform_disable_regulators(hpriv);
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ahci_platform_enable_resources);
@@ -205,8 +247,7 @@ void ahci_platform_disable_resources(struct ahci_host_priv *hpriv)
 
 	ahci_platform_disable_clks(hpriv);
 
-	if (hpriv->target_pwr)
-		regulator_disable(hpriv->target_pwr);
+	ahci_platform_disable_regulators(hpriv);
 }
 EXPORT_SYMBOL_GPL(ahci_platform_disable_resources);
 
@@ -222,6 +263,69 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
 
 	for (c = 0; c < AHCI_MAX_CLKS && hpriv->clks[c]; c++)
 		clk_put(hpriv->clks[c]);
+	/*
+	 * The regulators are tied to child node device and not to the
+	 * SATA device itself. So we can't use devm for automatically
+	 * releasing them. We have to do it manually here.
+	 */
+	for (c = 0; c < hpriv->nports; c++)
+		if (hpriv->target_pwrs && hpriv->target_pwrs[c])
+			regulator_put(hpriv->target_pwrs[c]);
+
+	kfree(hpriv->target_pwrs);
+}
+
+static int ahci_platform_get_phy(struct ahci_host_priv *hpriv, u32 port,
+				struct device *dev, struct device_node *node)
+{
+	int rc;
+
+	hpriv->phys[port] = devm_of_phy_get(dev, node, NULL);
+
+	if (!IS_ERR(hpriv->phys[port]))
+		return 0;
+
+	rc = PTR_ERR(hpriv->phys[port]);
+	switch (rc) {
+	case -ENOSYS:
+		/* No PHY support. Check if PHY is required. */
+		if (of_find_property(node, "phys", NULL)) {
+			dev_err(dev,
+				"couldn't get PHY in node %s: ENOSYS\n",
+				node->name);
+			break;
+		}
+	case -ENODEV:
+		/* continue normally */
+		hpriv->phys[port] = NULL;
+		rc = 0;
+		break;
+
+	default:
+		dev_err(dev,
+			"couldn't get PHY in node %s: %d\n",
+			node->name, rc);
+
+		break;
+	}
+
+	return rc;
+}
+
+static int ahci_platform_get_regulator(struct ahci_host_priv *hpriv, u32 port,
+				struct device *dev)
+{
+	struct regulator *target_pwr;
+	int rc = 0;
+
+	target_pwr = regulator_get_optional(dev, "target");
+
+	if (!IS_ERR(target_pwr))
+		hpriv->target_pwrs[port] = target_pwr;
+	else
+		rc = PTR_ERR(target_pwr);
+
+	return rc;
 }
 
 /**
@@ -246,7 +350,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 	struct ahci_host_priv *hpriv;
 	struct clk *clk;
 	struct device_node *child;
-	int i, enabled_ports = 0, rc = -ENOMEM;
+	int i, sz, enabled_ports = 0, rc = -ENOMEM, child_nodes;
 	u32 mask_port_map = 0;
 
 	if (!devres_open_group(dev, NULL, GFP_KERNEL))
@@ -265,14 +369,6 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 		dev_err(dev, "no mmio space\n");
 		rc = PTR_ERR(hpriv->mmio);
 		goto err_out;
-	}
-
-	hpriv->target_pwr = devm_regulator_get_optional(dev, "target");
-	if (IS_ERR(hpriv->target_pwr)) {
-		rc = PTR_ERR(hpriv->target_pwr);
-		if (rc == -EPROBE_DEFER)
-			goto err_out;
-		hpriv->target_pwr = NULL;
 	}
 
 	for (i = 0; i < AHCI_MAX_CLKS; i++) {
@@ -296,19 +392,33 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 		hpriv->clks[i] = clk;
 	}
 
-	hpriv->nports = of_get_child_count(dev->of_node);
+	hpriv->nports = child_nodes = of_get_child_count(dev->of_node);
 
-	if (hpriv->nports) {
-		hpriv->phys = devm_kzalloc(dev,
-					   hpriv->nports * sizeof(*hpriv->phys),
-					   GFP_KERNEL);
-		if (!hpriv->phys) {
-			rc = -ENOMEM;
-			goto err_out;
-		}
+	/*
+	 * If no sub-node was found, we still need to set nports to
+	 * one in order to be able to use the
+	 * ahci_platform_[en|dis]able_[phys|regulators] functions.
+	 */
+	if (!child_nodes)
+		hpriv->nports = 1;
 
+	sz = hpriv->nports * sizeof(*hpriv->phys);
+	hpriv->phys = devm_kzalloc(dev, sz, GFP_KERNEL);
+	if (!hpriv->phys) {
+		rc = -ENOMEM;
+		goto err_out;
+	}
+	sz = hpriv->nports * sizeof(*hpriv->target_pwrs);
+	hpriv->target_pwrs = kzalloc(sz, GFP_KERNEL);
+	if (!hpriv->target_pwrs) {
+		rc = -ENOMEM;
+		goto err_out;
+	}
+
+	if (child_nodes) {
 		for_each_child_of_node(dev->of_node, child) {
 			u32 port;
+			struct platform_device *port_dev __maybe_unused;
 
 			if (!of_device_is_available(child))
 				continue;
@@ -322,17 +432,24 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 				dev_warn(dev, "invalid port number %d\n", port);
 				continue;
 			}
-
 			mask_port_map |= BIT(port);
 
-			hpriv->phys[port] = devm_of_phy_get(dev, child, NULL);
-			if (IS_ERR(hpriv->phys[port])) {
-				rc = PTR_ERR(hpriv->phys[port]);
-				dev_err(dev,
-					"couldn't get PHY in node %s: %d\n",
-					child->name, rc);
-				goto err_out;
+#ifdef CONFIG_OF_ADDRESS
+			of_platform_device_create(child, NULL, NULL);
+
+			port_dev = of_find_device_by_node(child);
+
+			if (port_dev) {
+				rc = ahci_platform_get_regulator(hpriv, port,
+								&port_dev->dev);
+				if (rc == -EPROBE_DEFER)
+					goto err_out;
 			}
+#endif
+
+			rc = ahci_platform_get_phy(hpriv, port, dev, child);
+			if (rc)
+				goto err_out;
 
 			enabled_ports++;
 		}
@@ -349,38 +466,14 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 		 * If no sub-node was found, keep this for device tree
 		 * compatibility
 		 */
-		struct phy *phy = devm_phy_get(dev, "sata-phy");
-		if (!IS_ERR(phy)) {
-			hpriv->phys = devm_kzalloc(dev, sizeof(*hpriv->phys),
-						   GFP_KERNEL);
-			if (!hpriv->phys) {
-				rc = -ENOMEM;
-				goto err_out;
-			}
+		rc = ahci_platform_get_phy(hpriv, 0, dev, dev->of_node);
+		if (rc)
+			goto err_out;
 
-			hpriv->phys[0] = phy;
-			hpriv->nports = 1;
-		} else {
-			rc = PTR_ERR(phy);
-			switch (rc) {
-				case -ENOSYS:
-					/* No PHY support. Check if PHY is required. */
-					if (of_find_property(dev->of_node, "phys", NULL)) {
-						dev_err(dev, "couldn't get sata-phy: ENOSYS\n");
-						goto err_out;
-					}
-				case -ENODEV:
-					/* continue normally */
-					hpriv->phys = NULL;
-					break;
-
-				default:
-					goto err_out;
-
-			}
-		}
+		rc = ahci_platform_get_regulator(hpriv, 0, dev);
+		if (rc == -EPROBE_DEFER)
+			goto err_out;
 	}
-
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	hpriv->got_runtime_pm = true;
@@ -399,6 +492,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  * @pdev: platform device pointer for the host
  * @hpriv: ahci-host private data for the host
  * @pi_template: template for the ata_port_info to use
+ * @sht: scsi_host_template to use when registering
  *
  * This function does all the usual steps needed to bring up an
  * ahci-platform host, note any necessary resources (ie clks, phys, etc.)
@@ -409,7 +503,8 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  */
 int ahci_platform_init_host(struct platform_device *pdev,
 			    struct ahci_host_priv *hpriv,
-			    const struct ata_port_info *pi_template)
+			    const struct ata_port_info *pi_template,
+			    struct scsi_host_template *sht)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_port_info pi = *pi_template;
@@ -493,7 +588,7 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	ahci_init_controller(host);
 	ahci_print_info(host, "platform");
 
-	return ahci_host_activate(host, irq, &ahci_platform_sht);
+	return ahci_host_activate(host, irq, sht);
 }
 EXPORT_SYMBOL_GPL(ahci_platform_init_host);
 
