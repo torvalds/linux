@@ -142,7 +142,6 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 		return has_aliasing_ppgtt ? 1 : 0;
 }
 
-
 static void ppgtt_bind_vma(struct i915_vma *vma,
 			   enum i915_cache_level cache_level,
 			   u32 flags);
@@ -279,7 +278,7 @@ static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
 	return pte;
 }
 
-static void unmap_and_free_pt(struct i915_page_table_entry *pt)
+static void unmap_and_free_pt(struct i915_page_table_entry *pt, struct drm_device *dev)
 {
 	if (WARN_ON(!pt->page))
 		return;
@@ -287,7 +286,7 @@ static void unmap_and_free_pt(struct i915_page_table_entry *pt)
 	kfree(pt);
 }
 
-static struct i915_page_table_entry *alloc_pt_single(void)
+static struct i915_page_table_entry *alloc_pt_single(struct drm_device *dev)
 {
 	struct i915_page_table_entry *pt;
 
@@ -317,7 +316,9 @@ static struct i915_page_table_entry *alloc_pt_single(void)
  *
  * Return: 0 if allocation succeeded.
  */
-static int alloc_pt_range(struct i915_page_directory_entry *pd, uint16_t pde, size_t count)
+static int alloc_pt_range(struct i915_page_directory_entry *pd, uint16_t pde, size_t count,
+		  struct drm_device *dev)
+
 {
 	int i, ret;
 
@@ -326,7 +327,7 @@ static int alloc_pt_range(struct i915_page_directory_entry *pd, uint16_t pde, si
 		return -EINVAL;
 
 	for (i = pde; i < pde + count; i++) {
-		struct i915_page_table_entry *pt = alloc_pt_single();
+		struct i915_page_table_entry *pt = alloc_pt_single(dev);
 
 		if (IS_ERR(pt)) {
 			ret = PTR_ERR(pt);
@@ -342,7 +343,7 @@ static int alloc_pt_range(struct i915_page_directory_entry *pd, uint16_t pde, si
 
 err_out:
 	while (i-- > pde)
-		unmap_and_free_pt(pd->page_table[i]);
+		unmap_and_free_pt(pd->page_table[i], dev);
 	return ret;
 }
 
@@ -521,7 +522,7 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 	}
 }
 
-static void gen8_free_page_tables(struct i915_page_directory_entry *pd)
+static void gen8_free_page_tables(struct i915_page_directory_entry *pd, struct drm_device *dev)
 {
 	int i;
 
@@ -532,7 +533,7 @@ static void gen8_free_page_tables(struct i915_page_directory_entry *pd)
 		if (WARN_ON(!pd->page_table[i]))
 			continue;
 
-		unmap_and_free_pt(pd->page_table[i]);
+		unmap_and_free_pt(pd->page_table[i], dev);
 		pd->page_table[i] = NULL;
 	}
 }
@@ -545,7 +546,7 @@ static void gen8_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
 		if (WARN_ON(!ppgtt->pdp.page_directory[i]))
 			continue;
 
-		gen8_free_page_tables(ppgtt->pdp.page_directory[i]);
+		gen8_free_page_tables(ppgtt->pdp.page_directory[i], ppgtt->base.dev);
 		unmap_and_free_pd(ppgtt->pdp.page_directory[i]);
 	}
 }
@@ -597,7 +598,7 @@ static int gen8_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt)
 
 	for (i = 0; i < ppgtt->num_pd_pages; i++) {
 		ret = alloc_pt_range(ppgtt->pdp.page_directory[i],
-				     0, GEN8_PDES_PER_PAGE);
+				     0, GEN8_PDES_PER_PAGE, ppgtt->base.dev);
 		if (ret)
 			goto unwind_out;
 	}
@@ -606,7 +607,7 @@ static int gen8_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt)
 
 unwind_out:
 	while (i--)
-		gen8_free_page_tables(ppgtt->pdp.page_directory[i]);
+		gen8_free_page_tables(ppgtt->pdp.page_directory[i], ppgtt->base.dev);
 
 	return -ENOMEM;
 }
@@ -1087,7 +1088,7 @@ static void gen6_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
 	int i;
 
 	for (i = 0; i < ppgtt->num_pd_entries; i++)
-		unmap_and_free_pt(ppgtt->pd.page_table[i]);
+		unmap_and_free_pt(ppgtt->pd.page_table[i], ppgtt->base.dev);
 
 	unmap_and_free_pd(&ppgtt->pd);
 }
@@ -1152,7 +1153,9 @@ static int gen6_ppgtt_alloc(struct i915_hw_ppgtt *ppgtt)
 	if (ret)
 		return ret;
 
-	ret = alloc_pt_range(&ppgtt->pd, 0, ppgtt->num_pd_entries);
+	ret = alloc_pt_range(&ppgtt->pd, 0, ppgtt->num_pd_entries,
+			ppgtt->base.dev);
+
 	if (ret) {
 		drm_mm_remove_node(&ppgtt->node);
 		return ret;
