@@ -175,7 +175,6 @@ struct i40e_link_status {
 	u8 an_info;
 	u8 ext_info;
 	u8 loopback;
-	bool an_enabled;
 	/* is Link Status Event notification to SW enabled */
 	bool lse_enable;
 	u16 max_frame_size;

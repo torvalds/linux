@@ -381,7 +381,7 @@ int i40e_fcoe_vsi_init(struct i40e_vsi *vsi, struct i40e_vsi_context *ctxt)
 	ctxt->pf_num = hw->pf_id;
 	ctxt->vf_num = 0;
 	ctxt->uplink_seid = vsi->uplink_seid;
-	ctxt->connection_type = 0x1;
+	ctxt->connection_type = I40E_AQ_VSI_CONN_TYPE_NORMAL;
 	ctxt->flags = I40E_AQ_VSI_TYPE_PF;
 
 	/* FCoE VSI would need the following sections */

@@ -2427,7 +2427,8 @@ int i40e_ndo_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool enable)
 	ctxt.pf_num = pf->hw.pf_id;
 	ctxt.info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_SECURITY_VALID);
 	if (enable)
-		ctxt.info.sec_flags |= I40E_AQ_VSI_SEC_FLAG_ENABLE_MAC_CHK;
+		ctxt.info.sec_flags |= (I40E_AQ_VSI_SEC_FLAG_ENABLE_VLAN_CHK |
+					I40E_AQ_VSI_SEC_FLAG_ENABLE_MAC_CHK);
 	ret = i40e_aq_update_vsi_params(hw, &ctxt, NULL);
 	if (ret) {
 		dev_err(&pf->pdev->dev, "Error %d updating VSI parameters\n",

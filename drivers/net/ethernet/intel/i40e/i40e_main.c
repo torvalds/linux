@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 2
-#define DRV_VERSION_BUILD 6
+#define DRV_VERSION_BUILD 8
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -919,11 +919,6 @@ static void i40e_update_pf_stats(struct i40e_pf *pf)
 			   pf->stat_offsets_loaded,
 			   &osd->eth.rx_discards,
 			   &nsd->eth.rx_discards);
-	i40e_stat_update32(hw, I40E_GLPRT_TDPC(hw->port),
-			   pf->stat_offsets_loaded,
-			   &osd->eth.tx_discards,
-			   &nsd->eth.tx_discards);
-
 	i40e_stat_update48(hw, I40E_GLPRT_UPRCH(hw->port),
 			   I40E_GLPRT_UPRCL(hw->port),
 			   pf->stat_offsets_loaded,
@@ -2591,7 +2586,12 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	ring->tail = hw->hw_addr + I40E_QRX_TAIL(pf_q);
 	writel(0, ring->tail);
 
-	i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
+	if (ring_is_ps_enabled(ring)) {
+		i40e_alloc_rx_headers(ring);
+		i40e_alloc_rx_buffers_ps(ring, I40E_DESC_UNUSED(ring));
+	} else {
+		i40e_alloc_rx_buffers_1buf(ring, I40E_DESC_UNUSED(ring));
+	}
 
 	return 0;
 }
@@ -3171,7 +3171,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 			pf->globr_count++;
 		} else if (val == I40E_RESET_EMPR) {
 			pf->empr_count++;
-			set_bit(__I40E_EMP_RESET_REQUESTED, &pf->state);
+			set_bit(__I40E_EMP_RESET_INTR_RECEIVED, &pf->state);
 		}
 	}
 
@@ -5037,24 +5037,6 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
 		i40e_flush(&pf->hw);
 
-	} else if (reset_flags & (1 << __I40E_EMP_RESET_REQUESTED)) {
-
-		/* Request a Firmware Reset
-		 *
-		 * Same as Global reset, plus restarting the
-		 * embedded firmware engine.
-		 */
-		/* enable EMP Reset */
-		val = rd32(&pf->hw, I40E_GLGEN_RSTENA_EMP);
-		val |= I40E_GLGEN_RSTENA_EMP_EMP_RST_ENA_MASK;
-		wr32(&pf->hw, I40E_GLGEN_RSTENA_EMP, val);
-
-		/* force the reset */
-		val = rd32(&pf->hw, I40E_GLGEN_RTRIG);
-		val |= I40E_GLGEN_RTRIG_EMPFWR_MASK;
-		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
-		i40e_flush(&pf->hw);
-
 	} else if (reset_flags & (1 << __I40E_PF_RESET_REQUESTED)) {
 
 		/* Request a PF Reset
@@ -6197,10 +6179,8 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	}
 
 	/* re-verify the eeprom if we just had an EMP reset */
-	if (test_bit(__I40E_EMP_RESET_REQUESTED, &pf->state)) {
-		clear_bit(__I40E_EMP_RESET_REQUESTED, &pf->state);
+	if (test_and_clear_bit(__I40E_EMP_RESET_INTR_RECEIVED, &pf->state))
 		i40e_verify_eeprom(pf);
-	}
 
 	i40e_clear_pxe_mode(hw);
 	ret = i40e_get_capabilities(pf);
@@ -7300,7 +7280,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	pf->flags = I40E_FLAG_RX_CSUM_ENABLED |
 		    I40E_FLAG_MSI_ENABLED     |
 		    I40E_FLAG_MSIX_ENABLED    |
-		    I40E_FLAG_RX_1BUF_ENABLED;
+		    I40E_FLAG_RX_PS_ENABLED;
 
 	/* Set default ITR */
 	pf->rx_itr_default = I40E_ITR_DYNAMIC | I40E_ITR_RX_DEF;
@@ -7858,7 +7838,7 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		ctxt.pf_num = hw->pf_id;
 		ctxt.vf_num = 0;
 		ctxt.uplink_seid = vsi->uplink_seid;
-		ctxt.connection_type = 0x1;     /* regular data port */
+		ctxt.connection_type = I40E_AQ_VSI_CONN_TYPE_NORMAL;
 		ctxt.flags = I40E_AQ_VSI_TYPE_PF;
 		ctxt.info.valid_sections |=
 				cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
@@ -7871,7 +7851,7 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		ctxt.pf_num = hw->pf_id;
 		ctxt.vf_num = 0;
 		ctxt.uplink_seid = vsi->uplink_seid;
-		ctxt.connection_type = 0x1;     /* regular data port */
+		ctxt.connection_type = I40E_AQ_VSI_CONN_TYPE_NORMAL;
 		ctxt.flags = I40E_AQ_VSI_TYPE_VMDQ2;
 
 		ctxt.info.valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
@@ -7890,7 +7870,7 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		ctxt.pf_num = hw->pf_id;
 		ctxt.vf_num = vsi->vf_id + hw->func_caps.vf_base_id;
 		ctxt.uplink_seid = vsi->uplink_seid;
-		ctxt.connection_type = 0x1;     /* regular data port */
+		ctxt.connection_type = I40E_AQ_VSI_CONN_TYPE_NORMAL;
 		ctxt.flags = I40E_AQ_VSI_TYPE_VF;
 
 		ctxt.info.valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
@@ -8905,7 +8885,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		i40e_config_rss(pf);
 
 	/* fill in link information and enable LSE reporting */
-	i40e_update_link_info(&pf->hw, true);
+	i40e_aq_get_link_info(&pf->hw, true, NULL, NULL);
 	i40e_link_event(pf);
 
 	/* Initialize user-specific link properties */
@@ -8913,7 +8893,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 				  I40E_AQ_AN_COMPLETED) ? true : false);
 
 	/* fill in link information and enable LSE reporting */
-	i40e_update_link_info(&pf->hw, true);
+	i40e_aq_get_link_info(&pf->hw, true, NULL, NULL);
 	i40e_link_event(pf);
 
 	/* Initialize user-specific link properties */
