@@ -269,6 +269,13 @@ void dump_stack(void)
 void dump_stack(void) {}
 #endif
 
+void sighandler_dump_stack(int sig)
+{
+	psignal(sig, "perf");
+	dump_stack();
+	exit(sig);
+}
+
 void get_term_dimensions(struct winsize *ws)
 {
 	char *s = getenv("LINES");

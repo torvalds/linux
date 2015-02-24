@@ -277,6 +277,7 @@ char *ltrim(char *s);
 char *rtrim(char *s);
 
 void dump_stack(void);
+void sighandler_dump_stack(int sig);
 
 extern unsigned int page_size;
 extern int cacheline_size;
