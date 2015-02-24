@@ -3160,6 +3160,14 @@ static void serial8250_set_defaults(struct uart_8250_port *up)
 	}
 
 	set_io_from_upio(port);
+
+	/* default dma handlers */
+	if (up->dma) {
+		if (!up->dma->tx_dma)
+			up->dma->tx_dma = serial8250_tx_dma;
+		if (!up->dma->rx_dma)
+			up->dma->rx_dma = serial8250_rx_dma;
+	}
 }
 
 static void __init serial8250_isa_init_ports(void)
@@ -3741,6 +3749,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.unthrottle	= up->port.unthrottle;
 		uart->port.rs485_config	= up->port.rs485_config;
 		uart->port.rs485	= up->port.rs485;
+		uart->dma		= up->dma;
 
 		/* Take tx_loadsz from fifosize if it wasn't set separately */
 		if (uart->port.fifosize && !uart->tx_loadsz)
@@ -3781,13 +3790,6 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 			uart->dl_read = up->dl_read;
 		if (up->dl_write)
 			uart->dl_write = up->dl_write;
-		if (up->dma) {
-			uart->dma = up->dma;
-			if (!uart->dma->tx_dma)
-				uart->dma->tx_dma = serial8250_tx_dma;
-			if (!uart->dma->rx_dma)
-				uart->dma->rx_dma = serial8250_rx_dma;
-		}
 
 		if (serial8250_isa_config != NULL)
 			serial8250_isa_config(0, &uart->port,
