@@ -43,7 +43,4 @@ void planetcore_set_mac_addrs(const char *table);
  */
 void planetcore_set_stdout_path(const char *table);
 
-/* Sets the current-speed property in the serial node. */
-void planetcore_set_serial_speed(const char *table);
-
 #endif
