@@ -76,6 +76,43 @@ static void fscache_run_op(struct fscache_object *object,
 }
 
 /*
+ * report an unexpected submission
+ */
+static void fscache_report_unexpected_submission(struct fscache_object *object,
+						 struct fscache_operation *op,
+						 const struct fscache_state *ostate)
+{
+	static bool once_only;
+	struct fscache_operation *p;
+	unsigned n;
+
+	if (once_only)
+		return;
+	once_only = true;
+
+	kdebug("unexpected submission OP%x [OBJ%x %s]",
+	       op->debug_id, object->debug_id, object->state->name);
+	kdebug("objstate=%s [%s]", object->state->name, ostate->name);
+	kdebug("objflags=%lx", object->flags);
+	kdebug("objevent=%lx [%lx]", object->events, object->event_mask);
+	kdebug("ops=%u inp=%u exc=%u",
+	       object->n_ops, object->n_in_progress, object->n_exclusive);
+
+	if (!list_empty(&object->pending_ops)) {
+		n = 0;
+		list_for_each_entry(p, &object->pending_ops, pend_link) {
+			ASSERTCMP(p->object, ==, object);
+			kdebug("%p %p", op->processor, op->release);
+			n++;
+		}
+
+		kdebug("n=%u", n);
+	}
+
+	dump_stack();
+}
+
+/*
  * submit an exclusive operation for an object
  * - other ops are excluded from running simultaneously with this one
  * - this gets any extra refs it needs on an op
@@ -136,43 +173,6 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 
 	spin_unlock(&object->lock);
 	return ret;
-}
-
-/*
- * report an unexpected submission
- */
-static void fscache_report_unexpected_submission(struct fscache_object *object,
-						 struct fscache_operation *op,
-						 const struct fscache_state *ostate)
-{
-	static bool once_only;
-	struct fscache_operation *p;
-	unsigned n;
-
-	if (once_only)
-		return;
-	once_only = true;
-
-	kdebug("unexpected submission OP%x [OBJ%x %s]",
-	       op->debug_id, object->debug_id, object->state->name);
-	kdebug("objstate=%s [%s]", object->state->name, ostate->name);
-	kdebug("objflags=%lx", object->flags);
-	kdebug("objevent=%lx [%lx]", object->events, object->event_mask);
-	kdebug("ops=%u inp=%u exc=%u",
-	       object->n_ops, object->n_in_progress, object->n_exclusive);
-
-	if (!list_empty(&object->pending_ops)) {
-		n = 0;
-		list_for_each_entry(p, &object->pending_ops, pend_link) {
-			ASSERTCMP(p->object, ==, object);
-			kdebug("%p %p", op->processor, op->release);
-			n++;
-		}
-
-		kdebug("n=%u", n);
-	}
-
-	dump_stack();
 }
 
 /*
