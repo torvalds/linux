@@ -135,7 +135,6 @@ struct gstr {
 	int max_width;
 };
 struct gstr str_new(void);
-struct gstr str_assign(const char *s);
 void str_free(struct gstr *gs);
 void str_append(struct gstr *gs, const char *s);
 void str_printf(struct gstr *gs, const char *fmt, ...);

@@ -169,14 +169,6 @@ void init_main_window(const gchar * glade_file)
 	style = gtk_widget_get_style(main_wnd);
 	widget = glade_xml_get_widget(xml, "toolbar1");
 
-#if 0	/* Use stock Gtk icons instead */
-	replace_button_icon(xml, main_wnd->window, style,
-			    "button1", (gchar **) xpm_back);
-	replace_button_icon(xml, main_wnd->window, style,
-			    "button2", (gchar **) xpm_load);
-	replace_button_icon(xml, main_wnd->window, style,
-			    "button3", (gchar **) xpm_save);
-#endif
 	replace_button_icon(xml, main_wnd->window, style,
 			    "button4", (gchar **) xpm_single_view);
 	replace_button_icon(xml, main_wnd->window, style,
@@ -184,22 +176,6 @@ void init_main_window(const gchar * glade_file)
 	replace_button_icon(xml, main_wnd->window, style,
 			    "button6", (gchar **) xpm_tree_view);
 
-#if 0
-	switch (view_mode) {
-	case SINGLE_VIEW:
-		widget = glade_xml_get_widget(xml, "button4");
-		g_signal_emit_by_name(widget, "clicked");
-		break;
-	case SPLIT_VIEW:
-		widget = glade_xml_get_widget(xml, "button5");
-		g_signal_emit_by_name(widget, "clicked");
-		break;
-	case FULL_VIEW:
-		widget = glade_xml_get_widget(xml, "button6");
-		g_signal_emit_by_name(widget, "clicked");
-		break;
-	}
-#endif
 	txtbuf = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_w));
 	tag1 = gtk_text_buffer_create_tag(txtbuf, "mytag1",
 					  "foreground", "red",
