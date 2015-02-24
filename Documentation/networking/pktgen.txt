@@ -92,8 +92,8 @@ Result: OK: 13101142(c12220741+d880401) usec, 10000000 (60byte,0frags)
 
 Configuring threads and devices
 ================================
-This is done via the /proc interface, and most easily done via pgset in
-the scripts.
+This is done via the /proc interface, and most easily done via pgset
+as defined in the sample scripts.
 
 Examples:
 
@@ -192,11 +192,11 @@ Examples:
  pgset "rate 300M"        set rate to 300 Mb/s
  pgset "ratep 1000000"    set rate to 1Mpps
 
-Example scripts
-===============
+Sample scripts
+==============
 
-A collection of small tutorial scripts for pktgen is in the examples
-directory:
+A collection of small tutorial scripts for pktgen is in the
+samples/pktgen directory:
 
 pktgen.conf-1-1                  # 1 CPU 1 dev 
 pktgen.conf-1-2                  # 1 CPU 2 dev
