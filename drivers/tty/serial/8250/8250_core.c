@@ -3423,8 +3423,6 @@ int __init early_serial_setup(struct uart_port *port)
 		p->serial_out = port->serial_out;
 	if (port->handle_irq)
 		p->handle_irq = port->handle_irq;
-	else
-		p->handle_irq = serial8250_default_handle_irq;
 
 	return 0;
 }
