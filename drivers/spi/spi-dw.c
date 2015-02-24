@@ -416,12 +416,11 @@ static void pump_transfers(unsigned long data)
 	if (transfer->speed_hz) {
 		speed = chip->speed_hz;
 
-		if ((transfer->speed_hz != speed) || (!chip->clk_div)) {
+		if ((transfer->speed_hz != speed) || !chip->clk_div) {
 			speed = transfer->speed_hz;
 
 			/* clk_div doesn't support odd number */
-			clk_div = dws->max_freq / speed;
-			clk_div = (clk_div + 1) & 0xfffe;
+			clk_div = (dws->max_freq / speed + 1) & 0xfffe;
 
 			chip->speed_hz = speed;
 			chip->clk_div = clk_div;
@@ -480,7 +479,7 @@ static void pump_transfers(unsigned long data)
 		if (dw_readw(dws, DW_SPI_CTRL0) != cr0)
 			dw_writew(dws, DW_SPI_CTRL0, cr0);
 
-		spi_set_clk(dws, clk_div ? clk_div : chip->clk_div);
+		spi_set_clk(dws, chip->clk_div);
 		spi_chip_sel(dws, spi, 1);
 
 		/* Set the interrupt mask, for poll mode just disable all int */
