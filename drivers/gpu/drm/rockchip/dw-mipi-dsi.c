@@ -909,7 +909,7 @@ static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->pdata;
-	int mux  = rockchip_drm_encoder_get_mux_id(dsi->dev->of_node, encoder);
+	int mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node, encoder);
 	u32 val;
 
 	if (clk_prepare_enable(dsi->pclk)) {

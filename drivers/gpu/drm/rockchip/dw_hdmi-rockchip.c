@@ -201,7 +201,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	u32 val;
 	int mux;
 
-	mux = rockchip_drm_encoder_get_mux_id(hdmi->dev->of_node, encoder);
+	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
 	if (mux)
 		val = HDMI_SEL_VOP_LIT | (HDMI_SEL_VOP_LIT << 16);
 	else

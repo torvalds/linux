@@ -141,7 +141,7 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder)
 	int ret;
 	u32 val;
 
-	ret = rockchip_drm_encoder_get_mux_id(dp->dev->of_node, encoder);
+	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
 	if (ret < 0)
 		return;
 
@@ -181,7 +181,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	 * to RGA10 here.
 	 */
 
-	ret = rockchip_drm_encoder_get_mux_id(dp->dev->of_node, encoder);
+	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
 	if (ret < 0)
 		return true;
 
