@@ -80,10 +80,10 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
 		start = vma->vm_end;
 		if ((flags & MS_SYNC) && file &&
 				(vma->vm_flags & VM_SHARED)) {
-			get_file(file);
+			vma_get_file(vma);
 			up_read(&mm->mmap_sem);
 			error = vfs_fsync(file, 0);
-			fput(file);
+			vma_fput(vma);
 			if (error || start >= end)
 				goto out;
 			down_read(&mm->mmap_sem);
