@@ -122,17 +122,18 @@ config ARCH_BCM_MOBILE_SMP
 comment "Other Architectures"
 
 config ARCH_BCM2835
-	bool "Broadcom BCM2835 family" if ARCH_MULTI_V6
+	bool "Broadcom BCM2835 family" if ARCH_MULTI_V6 || ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
-	select ARM_ERRATA_411920
+	select ARM_ERRATA_411920 if ARCH_MULTI_V6
 	select ARM_TIMER_SP804
+	select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
 	select CLKSRC_OF
 	select PINCTRL
 	select PINCTRL_BCM2835
 	help
-	  This enables support for the Broadcom BCM2835 SoC. This SoC is
-	  used in the Raspberry Pi and Roku 2 devices.
+	  This enables support for the Broadcom BCM2835 and BCM2836 SoCs.
+	  This SoC is used in the Raspberry Pi and Roku 2 devices.
 
 config ARCH_BCM_63XX
 	bool "Broadcom BCM63xx DSL SoC" if ARCH_MULTI_V7
