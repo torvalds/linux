@@ -66,5 +66,4 @@ PGDEV=/proc/net/pktgen/pgctrl
  trap true INT
  pgset "start"
  echo "Done"
-
-# Result can be vieved in /proc/net/pktgen/eth[1,2]
+ cat /proc/net/pktgen/eth1 /proc/net/pktgen/eth2
