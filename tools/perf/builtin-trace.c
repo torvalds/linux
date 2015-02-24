@@ -2660,6 +2660,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	int err;
 	char bf[BUFSIZ];
 
+	signal(SIGSEGV, sighandler_dump_stack);
+	signal(SIGFPE, sighandler_dump_stack);
+
 	trace.evlist = perf_evlist__new();
 	if (trace.evlist == NULL)
 		return -ENOMEM;
