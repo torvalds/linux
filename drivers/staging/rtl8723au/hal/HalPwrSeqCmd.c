@@ -148,7 +148,6 @@ u8 HalPwrSeqCmdParsing23a(struct rtw_adapter *padapter, u8 CutVersion,
 					 ("HalPwrSeqCmdParsing23a: "
 					  "PWR_CMD_END\n"));
 				return true;
-				break;
 
 			default:
 				RT_TRACE(_module_hal_init_c_, _drv_err_,
