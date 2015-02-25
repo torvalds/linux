@@ -1915,6 +1915,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 static int adm_detach(struct drbd_device *device, int force)
 {
 	enum drbd_state_rv retcode;
+	void *buffer;
 	int ret;
 
 	if (force) {
@@ -1925,9 +1926,12 @@ static int adm_detach(struct drbd_device *device, int force)
 	}
 
 	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
-	drbd_md_get_buffer(device, __func__); /* make sure there is no in-flight meta-data IO */
-	retcode = drbd_request_state(device, NS(disk, D_FAILED));
-	drbd_md_put_buffer(device);
+	buffer = drbd_md_get_buffer(device, __func__); /* make sure there is no in-flight meta-data IO */
+	if (buffer) {
+		retcode = drbd_request_state(device, NS(disk, D_FAILED));
+		drbd_md_put_buffer(device);
+	} else /* already <= D_FAILED */
+		retcode = SS_NOTHING_TO_DO;
 	/* D_FAILED will transition to DISKLESS. */
 	drbd_resume_io(device);
 	ret = wait_event_interruptible(device->misc_wait,
