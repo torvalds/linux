@@ -247,26 +247,24 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
  * @ht:		hash table
  * @new_size:	new table size
  */
-bool rht_grow_above_75(const struct rhashtable *ht, size_t new_size)
+static bool rht_grow_above_75(const struct rhashtable *ht, size_t new_size)
 {
 	/* Expand table when exceeding 75% load */
 	return atomic_read(&ht->nelems) > (new_size / 4 * 3) &&
 	       (!ht->p.max_shift || atomic_read(&ht->shift) < ht->p.max_shift);
 }
-EXPORT_SYMBOL_GPL(rht_grow_above_75);
 
 /**
  * rht_shrink_below_30 - returns true if nelems < 0.3 * table-size
  * @ht:		hash table
  * @new_size:	new table size
  */
-bool rht_shrink_below_30(const struct rhashtable *ht, size_t new_size)
+static bool rht_shrink_below_30(const struct rhashtable *ht, size_t new_size)
 {
 	/* Shrink table beneath 30% load */
 	return atomic_read(&ht->nelems) < (new_size * 3 / 10) &&
 	       (atomic_read(&ht->shift) > ht->p.min_shift);
 }
-EXPORT_SYMBOL_GPL(rht_shrink_below_30);
 
 static void lock_buckets(struct bucket_table *new_tbl,
 			 struct bucket_table *old_tbl, unsigned int hash)
@@ -528,40 +526,19 @@ static void rht_deferred_worker(struct work_struct *work)
 	list_for_each_entry(walker, &ht->walkers, list)
 		walker->resize = true;
 
-	if (ht->p.grow_decision && ht->p.grow_decision(ht, tbl->size))
+	if (rht_grow_above_75(ht, tbl->size))
 		rhashtable_expand(ht);
-	else if (ht->p.shrink_decision && ht->p.shrink_decision(ht, tbl->size))
+	else if (rht_shrink_below_30(ht, tbl->size))
 		rhashtable_shrink(ht);
-
 unlock:
 	mutex_unlock(&ht->mutex);
 }
 
-static void rhashtable_probe_expand(struct rhashtable *ht)
-{
-	const struct bucket_table *new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
-	const struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
-
-	/* Only adjust the table if no resizing is currently in progress. */
-	if (tbl == new_tbl && ht->p.grow_decision &&
-	    ht->p.grow_decision(ht, tbl->size))
-		schedule_work(&ht->run_work);
-}
-
-static void rhashtable_probe_shrink(struct rhashtable *ht)
-{
-	const struct bucket_table *new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
-	const struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
-
-	/* Only adjust the table if no resizing is currently in progress. */
-	if (tbl == new_tbl && ht->p.shrink_decision &&
-	    ht->p.shrink_decision(ht, tbl->size))
-		schedule_work(&ht->run_work);
-}
-
 static void __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
-				struct bucket_table *tbl, u32 hash)
+				struct bucket_table *tbl,
+				const struct bucket_table *old_tbl, u32 hash)
 {
+	bool no_resize_running = tbl == old_tbl;
 	struct rhash_head *head;
 
 	hash = rht_bucket_index(tbl, hash);
@@ -577,8 +554,8 @@ static void __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	rcu_assign_pointer(tbl->buckets[hash], obj);
 
 	atomic_inc(&ht->nelems);
-
-	rhashtable_probe_expand(ht);
+	if (no_resize_running && rht_grow_above_75(ht, tbl->size))
+		schedule_work(&ht->run_work);
 }
 
 /**
@@ -608,7 +585,7 @@ void rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj)
 	hash = obj_raw_hashfn(ht, rht_obj(ht, obj));
 
 	lock_buckets(tbl, old_tbl, hash);
-	__rhashtable_insert(ht, obj, tbl, hash);
+	__rhashtable_insert(ht, obj, tbl, old_tbl, hash);
 	unlock_buckets(tbl, old_tbl, hash);
 
 	rcu_read_unlock();
@@ -690,8 +667,11 @@ found:
 	unlock_buckets(new_tbl, old_tbl, new_hash);
 
 	if (ret) {
+		bool no_resize_running = new_tbl == old_tbl;
+
 		atomic_dec(&ht->nelems);
-		rhashtable_probe_shrink(ht);
+		if (no_resize_running && rht_shrink_below_30(ht, new_tbl->size))
+			schedule_work(&ht->run_work);
 	}
 
 	rcu_read_unlock();
@@ -861,7 +841,7 @@ bool rhashtable_lookup_compare_insert(struct rhashtable *ht,
 		goto exit;
 	}
 
-	__rhashtable_insert(ht, obj, new_tbl, new_hash);
+	__rhashtable_insert(ht, obj, new_tbl, old_tbl, new_hash);
 
 exit:
 	unlock_buckets(new_tbl, old_tbl, new_hash);
@@ -1123,8 +1103,7 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 	if (!ht->p.hash_rnd)
 		get_random_bytes(&ht->p.hash_rnd, sizeof(ht->p.hash_rnd));
 
-	if (ht->p.grow_decision || ht->p.shrink_decision)
-		INIT_WORK(&ht->run_work, rht_deferred_worker);
+	INIT_WORK(&ht->run_work, rht_deferred_worker);
 
 	return 0;
 }
@@ -1142,8 +1121,7 @@ void rhashtable_destroy(struct rhashtable *ht)
 {
 	ht->being_destroyed = true;
 
-	if (ht->p.grow_decision || ht->p.shrink_decision)
-		cancel_work_sync(&ht->run_work);
+	cancel_work_sync(&ht->run_work);
 
 	mutex_lock(&ht->mutex);
 	bucket_table_free(rht_dereference(ht->tbl, ht));
