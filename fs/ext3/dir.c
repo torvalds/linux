@@ -304,7 +304,7 @@ struct fname {
 };
 
 /*
- * This functoin implements a non-recursive way of freeing all of the
+ * This function implements a non-recursive way of freeing all of the
  * nodes in the red-black tree.
  */
 static void free_rb_tree_fname(struct rb_root *root)
