@@ -58,7 +58,7 @@ To exit command mode, PSMOUSE_CMD_SETSTREAM (EA) is sent to the touchpad.
 While in command mode, register addresses can be set by first sending a
 specific command, either EC for v3 devices or F5 for v4 devices. Then the
 address is sent one nibble at a time, where each nibble is encoded as a
-command with optional data. This enoding differs slightly between the v3 and
+command with optional data. This encoding differs slightly between the v3 and
 v4 protocols.
 
 Once an address has been set, the addressed register can be read by sending
@@ -131,7 +131,7 @@ ALPS Absolute Mode - Protocol Version 3
 ---------------------------------------
 
 ALPS protocol version 3 has three different packet formats. The first two are
-associated with touchpad events, and the third is associatd with trackstick
+associated with touchpad events, and the third is associated with trackstick
 events.
 
 The first type is the touchpad position packet.
