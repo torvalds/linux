@@ -1703,7 +1703,7 @@ static s32 vh264_init(void)
     };
 
 	if(!firmwareloaded){
-        printk("start load orignal firmware ...\n");
+        printk("start load original firmware ...\n");
         if (amvdec_loadmc(vh264_mc) < 0) {
             amvdec_disable();
             return -EBUSY;
