@@ -727,6 +727,10 @@
 #define PHY_SSCCR3			0x03
 #define   PHY_SSCCR3_STEP_IN		0x2740
 #define   PHY_SSCCR3_CHECK_DELAY	0x0008
+#define _PHY_ANA03			0x03
+#define   _PHY_ANA03_TIMER_MAX		0x2700
+#define   _PHY_ANA03_OOBS_DEB_EN	0x0040
+#define   _PHY_CMU_DEBUG_EN		0x0008
 
 #define PHY_RTCR			0x04
 #define PHY_RDR				0x05
@@ -785,6 +789,10 @@
 #define   PHY_REV_STOP_CLKRD		0x0020
 #define   PHY_REV_RX_PWST		0x0008
 #define   PHY_REV_STOP_CLKWR		0x0004
+#define _PHY_REV0			0x19
+#define   _PHY_REV0_FILTER_OUT		0x3800
+#define   _PHY_REV0_CDR_BYPASS_PFD	0x0100
+#define   _PHY_REV0_CDR_RX_IDLE_BYPASS	0x0002
 
 #define PHY_FLD0			0x1A
 #define PHY_ANA1A			0x1A
@@ -800,6 +808,13 @@
 #define   PHY_FLD3_RXDELINK		0x0004
 #define PHY_ANA1D			0x1D
 #define   PHY_ANA1D_DEBUG_ADDR		0x0004
+#define _PHY_FLD0			0x1D
+#define   _PHY_FLD0_CLK_REQ_20C		0x8000
+#define   _PHY_FLD0_RX_IDLE_EN		0x1000
+#define   _PHY_FLD0_BIT_ERR_RSTN	0x0800
+#define   _PHY_FLD0_BER_COUNT		0x01E0
+#define   _PHY_FLD0_BER_TIMER		0x001E
+#define   _PHY_FLD0_CHECK_EN		0x0001
 
 #define PHY_FLD4			0x1E
 #define   PHY_FLD4_FLDEN_SEL		0x4000

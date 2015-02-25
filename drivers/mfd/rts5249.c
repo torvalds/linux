@@ -487,3 +487,106 @@ void rts524a_init_params(struct rtsx_pcr *pcr)
 	pcr->ops = &rts524a_pcr_ops;
 }
 
+static int rts525a_card_power_on(struct rtsx_pcr *pcr, int card)
+{
+	rtsx_pci_write_register(pcr, LDO_VCC_CFG1,
+		LDO_VCC_TUNE_MASK, LDO_VCC_3V3);
+	return rtsx_base_card_power_on(pcr, card);
+}
+
+static int rts525a_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+{
+	switch (voltage) {
+	case OUTPUT_3V3:
+		rtsx_pci_write_register(pcr, LDO_CONFIG2,
+			LDO_D3318_MASK, LDO_D3318_33V);
+		rtsx_pci_write_register(pcr, SD_PAD_CTL, SD_IO_USING_1V8, 0);
+		break;
+	case OUTPUT_1V8:
+		rtsx_pci_write_register(pcr, LDO_CONFIG2,
+			LDO_D3318_MASK, LDO_D3318_18V);
+		rtsx_pci_write_register(pcr, SD_PAD_CTL, SD_IO_USING_1V8,
+			SD_IO_USING_1V8);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	rtsx_pci_init_cmd(pcr);
+	rts5249_fill_driving(pcr, voltage);
+	return rtsx_pci_send_cmd(pcr, 100);
+}
+
+static int rts525a_optimize_phy(struct rtsx_pcr *pcr)
+{
+	int err;
+
+	err = rtsx_pci_write_register(pcr, RTS524A_PM_CTRL3,
+		D3_DELINK_MODE_EN, 0x00);
+	if (err < 0)
+		return err;
+
+	rtsx_pci_write_phy_register(pcr, _PHY_FLD0,
+		_PHY_FLD0_CLK_REQ_20C | _PHY_FLD0_RX_IDLE_EN |
+		_PHY_FLD0_BIT_ERR_RSTN | _PHY_FLD0_BER_COUNT |
+		_PHY_FLD0_BER_TIMER | _PHY_FLD0_CHECK_EN);
+
+	rtsx_pci_write_phy_register(pcr, _PHY_ANA03,
+		_PHY_ANA03_TIMER_MAX | _PHY_ANA03_OOBS_DEB_EN |
+		_PHY_CMU_DEBUG_EN);
+
+	if (is_version(pcr, 0x525A, IC_VER_A))
+		rtsx_pci_write_phy_register(pcr, _PHY_REV0,
+			_PHY_REV0_FILTER_OUT | _PHY_REV0_CDR_BYPASS_PFD |
+			_PHY_REV0_CDR_RX_IDLE_BYPASS);
+
+	return 0;
+}
+
+static int rts525a_extra_init_hw(struct rtsx_pcr *pcr)
+{
+	rts5249_extra_init_hw(pcr);
+
+	rtsx_pci_write_register(pcr, PCLK_CTL, PCLK_MODE_SEL, PCLK_MODE_SEL);
+	if (is_version(pcr, 0x525A, IC_VER_A)) {
+		rtsx_pci_write_register(pcr, L1SUB_CONFIG2,
+			L1SUB_AUTO_CFG, L1SUB_AUTO_CFG);
+		rtsx_pci_write_register(pcr, RREF_CFG,
+			RREF_VBGSEL_MASK, RREF_VBGSEL_1V25);
+		rtsx_pci_write_register(pcr, LDO_VIO_CFG,
+			LDO_VIO_TUNE_MASK, LDO_VIO_1V7);
+		rtsx_pci_write_register(pcr, LDO_DV12S_CFG,
+			LDO_D12_TUNE_MASK, LDO_D12_TUNE_DF);
+		rtsx_pci_write_register(pcr, LDO_AV12S_CFG,
+			LDO_AV12S_TUNE_MASK, LDO_AV12S_TUNE_DF);
+		rtsx_pci_write_register(pcr, LDO_VCC_CFG0,
+			LDO_VCC_LMTVTH_MASK, LDO_VCC_LMTVTH_2A);
+		rtsx_pci_write_register(pcr, OOBS_CONFIG,
+			OOBS_AUTOK_DIS | OOBS_VAL_MASK, 0x89);
+	}
+
+	return 0;
+}
+
+static const struct pcr_ops rts525a_pcr_ops = {
+	.fetch_vendor_settings = rtsx_base_fetch_vendor_settings,
+	.extra_init_hw = rts525a_extra_init_hw,
+	.optimize_phy = rts525a_optimize_phy,
+	.turn_on_led = rtsx_base_turn_on_led,
+	.turn_off_led = rtsx_base_turn_off_led,
+	.enable_auto_blink = rtsx_base_enable_auto_blink,
+	.disable_auto_blink = rtsx_base_disable_auto_blink,
+	.card_power_on = rts525a_card_power_on,
+	.card_power_off = rtsx_base_card_power_off,
+	.switch_output_voltage = rts525a_switch_output_voltage,
+	.force_power_down = rtsx_base_force_power_down,
+};
+
+void rts525a_init_params(struct rtsx_pcr *pcr)
+{
+	rts5249_init_params(pcr);
+
+	pcr->reg_pm_ctrl3 = RTS524A_PM_CTRL3;
+	pcr->ops = &rts525a_pcr_ops;
+}
+
