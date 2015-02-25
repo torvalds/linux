@@ -222,10 +222,7 @@ static u32 dsa_slave_br_port_mask(struct dsa_switch *ds,
 	u32 mask = 0;
 
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if (!((1 << port) & ds->phys_port_mask))
-			continue;
-
-		if (!ds->ports[port])
+		if (!dsa_is_port_initialized(ds, port))
 			continue;
 
 		p = netdev_priv(ds->ports[port]);

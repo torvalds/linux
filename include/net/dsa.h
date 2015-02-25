@@ -165,6 +165,11 @@ static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
 	return !!(ds->index == ds->dst->cpu_switch && p == ds->dst->cpu_port);
 }
 
+static inline bool dsa_is_port_initialized(struct dsa_switch *ds, int p)
+{
+	return ds->phys_port_mask & (1 << p) && ds->ports[p];
+}
+
 static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;

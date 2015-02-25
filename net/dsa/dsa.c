@@ -374,7 +374,7 @@ static int dsa_switch_suspend(struct dsa_switch *ds)
 
 	/* Suspend slave network devices */
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		if (!(ds->phys_port_mask & (1 << i)))
+		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
 		ret = dsa_slave_suspend(ds->ports[i]);
@@ -400,7 +400,7 @@ static int dsa_switch_resume(struct dsa_switch *ds)
 
 	/* Resume slave network devices */
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		if (!(ds->phys_port_mask & (1 << i)))
+		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
 		ret = dsa_slave_resume(ds->ports[i]);
