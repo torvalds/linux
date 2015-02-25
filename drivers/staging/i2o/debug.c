@@ -54,6 +54,7 @@ void i2o_dump_message(struct i2o_message *m)
 #ifdef DEBUG
 	u32 *msg = (u32 *) m;
 	int i;
+
 	printk(KERN_INFO "Dumping I2O message size %d @ %p\n",
 	       msg[0] >> 16 & 0xffff, msg);
 	for (i = 0; i < ((msg[0] >> 16) & 0xffff); i++)
