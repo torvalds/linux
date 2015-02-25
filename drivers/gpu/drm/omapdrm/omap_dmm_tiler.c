@@ -965,7 +965,7 @@ error:
 }
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int omap_dmm_resume(struct device *dev)
 {
 	struct tcm_area area;
@@ -989,11 +989,9 @@ static int omap_dmm_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops omap_dmm_pm_ops = {
-	.resume = omap_dmm_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(omap_dmm_pm_ops, NULL, omap_dmm_resume);
 
 #if defined(CONFIG_OF)
 static const struct dmm_platform_data dmm_omap4_platform_data = {
@@ -1024,9 +1022,7 @@ struct platform_driver omap_dmm_driver = {
 		.owner = THIS_MODULE,
 		.name = DMM_DRIVER_NAME,
 		.of_match_table = of_match_ptr(dmm_of_match),
-#ifdef CONFIG_PM
 		.pm = &omap_dmm_pm_ops,
-#endif
 	},
 };
 
