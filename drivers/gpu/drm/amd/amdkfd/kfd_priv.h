@@ -378,8 +378,6 @@ struct qcm_process_device {
 	/* The Device Queue Manager that owns this data */
 	struct device_queue_manager *dqm;
 	struct process_queue_manager *pqm;
-	/* Device Queue Manager lock */
-	struct mutex *lock;
 	/* Queues list */
 	struct list_head queues_list;
 	struct list_head priv_queue_list;
