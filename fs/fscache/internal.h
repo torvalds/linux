@@ -165,6 +165,7 @@ extern atomic_t fscache_n_op_pend;
 extern atomic_t fscache_n_op_run;
 extern atomic_t fscache_n_op_enqueue;
 extern atomic_t fscache_n_op_deferred_release;
+extern atomic_t fscache_n_op_initialised;
 extern atomic_t fscache_n_op_release;
 extern atomic_t fscache_n_op_gc;
 extern atomic_t fscache_n_op_cancelled;

@@ -284,8 +284,9 @@ proc files.
 		enq=N	Number of times async ops queued for processing
 		can=N	Number of async ops cancelled
 		rej=N	Number of async ops rejected due to object lookup/create failure
+		ini=N	Number of async ops initialised
 		dfr=N	Number of async ops queued for deferred release
-		rel=N	Number of async ops released
+		rel=N	Number of async ops released (should equal ini=N when idle)
 		gc=N	Number of deferred-release async ops garbage collected
 	CacheOp	alo=N	Number of in-progress alloc_object() cache ops
 		luo=N	Number of in-progress lookup_object() cache ops
