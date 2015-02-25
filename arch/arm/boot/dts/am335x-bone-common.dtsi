@@ -301,3 +301,11 @@
 	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 	cd-inverted;
 };
+
+&aes {
+	status = "okay";
+};
+
+&sham {
+	status = "okay";
+};
