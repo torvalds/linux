@@ -143,7 +143,7 @@ static int set_var(struct fbtft_par *par)
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long mask[] = {
-		0b111111, 0b111111, 0b111111, 0b111111, 0b111111, 0b111111, 
+		0b111111, 0b111111, 0b111111, 0b111111, 0b111111, 0b111111,
 		0b111111, 0b111111, 0b111111, 0b111111, 0b111111, 0b111111,
 		0b11111, 0b11111,
 		0b111111, 0b111111, 0b111111, 0b111111, 0b111111, 0b111111,
