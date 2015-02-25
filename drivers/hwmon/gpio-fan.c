@@ -404,10 +404,32 @@ static int gpio_fan_get_of_pdata(struct device *dev,
 
 	node = dev->of_node;
 
+	/* Alarm GPIO if one exists */
+	if (of_gpio_named_count(node, "alarm-gpios") > 0) {
+		struct gpio_fan_alarm *alarm;
+		int val;
+		enum of_gpio_flags flags;
+
+		alarm = devm_kzalloc(dev, sizeof(struct gpio_fan_alarm),
+					GFP_KERNEL);
+		if (!alarm)
+			return -ENOMEM;
+
+		val = of_get_named_gpio_flags(node, "alarm-gpios", 0, &flags);
+		if (val < 0)
+			return val;
+		alarm->gpio = val;
+		alarm->active_low = flags & OF_GPIO_ACTIVE_LOW;
+
+		pdata->alarm = alarm;
+	}
+
 	/* Fill GPIO pin array */
 	pdata->num_ctrl = of_gpio_count(node);
 	if (pdata->num_ctrl <= 0) {
-		dev_err(dev, "gpios DT property empty / missing");
+		if (pdata->alarm)
+			return 0;
+		dev_err(dev, "DT properties empty / missing");
 		return -ENODEV;
 	}
 	ctrl = devm_kzalloc(dev, pdata->num_ctrl * sizeof(unsigned),
@@ -459,26 +481,6 @@ static int gpio_fan_get_of_pdata(struct device *dev,
 		speed[i].ctrl_val = u;
 	}
 	pdata->speed = speed;
-
-	/* Alarm GPIO if one exists */
-	if (of_gpio_named_count(node, "alarm-gpios") > 0) {
-		struct gpio_fan_alarm *alarm;
-		int val;
-		enum of_gpio_flags flags;
-
-		alarm = devm_kzalloc(dev, sizeof(struct gpio_fan_alarm),
-					GFP_KERNEL);
-		if (!alarm)
-			return -ENOMEM;
-
-		val = of_get_named_gpio_flags(node, "alarm-gpios", 0, &flags);
-		if (val < 0)
-			return val;
-		alarm->gpio = val;
-		alarm->active_low = flags & OF_GPIO_ACTIVE_LOW;
-
-		pdata->alarm = alarm;
-	}
 
 	return 0;
 }
