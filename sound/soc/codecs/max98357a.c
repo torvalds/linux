@@ -85,9 +85,9 @@ static struct snd_soc_dai_ops max98357a_dai_ops = {
 };
 
 static struct snd_soc_dai_driver max98357a_dai_driver = {
-	.name = "max98357a",
+	.name = "HiFi",
 	.playback = {
-		.stream_name	= "max98357a-playback",
+		.stream_name	= "HiFi Playback",
 		.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
