@@ -11,31 +11,26 @@
 #ifndef _ARIZONA_PDATA_H
 #define _ARIZONA_PDATA_H
 
-#define ARIZONA_GPN_DIR                          0x8000  /* GPN_DIR */
+#include <dt-bindings/mfd/arizona.h>
+
 #define ARIZONA_GPN_DIR_MASK                     0x8000  /* GPN_DIR */
 #define ARIZONA_GPN_DIR_SHIFT                        15  /* GPN_DIR */
 #define ARIZONA_GPN_DIR_WIDTH                         1  /* GPN_DIR */
-#define ARIZONA_GPN_PU                           0x4000  /* GPN_PU */
 #define ARIZONA_GPN_PU_MASK                      0x4000  /* GPN_PU */
 #define ARIZONA_GPN_PU_SHIFT                         14  /* GPN_PU */
 #define ARIZONA_GPN_PU_WIDTH                          1  /* GPN_PU */
-#define ARIZONA_GPN_PD                           0x2000  /* GPN_PD */
 #define ARIZONA_GPN_PD_MASK                      0x2000  /* GPN_PD */
 #define ARIZONA_GPN_PD_SHIFT                         13  /* GPN_PD */
 #define ARIZONA_GPN_PD_WIDTH                          1  /* GPN_PD */
-#define ARIZONA_GPN_LVL                          0x0800  /* GPN_LVL */
 #define ARIZONA_GPN_LVL_MASK                     0x0800  /* GPN_LVL */
 #define ARIZONA_GPN_LVL_SHIFT                        11  /* GPN_LVL */
 #define ARIZONA_GPN_LVL_WIDTH                         1  /* GPN_LVL */
-#define ARIZONA_GPN_POL                          0x0400  /* GPN_POL */
 #define ARIZONA_GPN_POL_MASK                     0x0400  /* GPN_POL */
 #define ARIZONA_GPN_POL_SHIFT                        10  /* GPN_POL */
 #define ARIZONA_GPN_POL_WIDTH                         1  /* GPN_POL */
-#define ARIZONA_GPN_OP_CFG                       0x0200  /* GPN_OP_CFG */
 #define ARIZONA_GPN_OP_CFG_MASK                  0x0200  /* GPN_OP_CFG */
 #define ARIZONA_GPN_OP_CFG_SHIFT                      9  /* GPN_OP_CFG */
 #define ARIZONA_GPN_OP_CFG_WIDTH                      1  /* GPN_OP_CFG */
-#define ARIZONA_GPN_DB                           0x0100  /* GPN_DB */
 #define ARIZONA_GPN_DB_MASK                      0x0100  /* GPN_DB */
 #define ARIZONA_GPN_DB_SHIFT                          8  /* GPN_DB */
 #define ARIZONA_GPN_DB_WIDTH                          1  /* GPN_DB */
@@ -45,22 +40,9 @@
 
 #define ARIZONA_MAX_GPIO 5
 
-#define ARIZONA_32KZ_MCLK1 1
-#define ARIZONA_32KZ_MCLK2 2
-#define ARIZONA_32KZ_NONE  3
-
 #define ARIZONA_MAX_INPUT 4
 
-#define ARIZONA_DMIC_MICVDD   0
-#define ARIZONA_DMIC_MICBIAS1 1
-#define ARIZONA_DMIC_MICBIAS2 2
-#define ARIZONA_DMIC_MICBIAS3 3
-
 #define ARIZONA_MAX_MICBIAS 3
-
-#define ARIZONA_INMODE_DIFF 0
-#define ARIZONA_INMODE_SE   1
-#define ARIZONA_INMODE_DMIC 2
 
 #define ARIZONA_MAX_OUTPUT 6
 

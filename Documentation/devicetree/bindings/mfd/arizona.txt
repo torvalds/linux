@@ -43,11 +43,11 @@ Optional properties:
   - wlf,reset : GPIO specifier for the GPIO controlling /RESET
   - wlf,ldoena : GPIO specifier for the GPIO controlling LDOENA
 
-  - wlf,gpio-defaults : A list of GPIO configuration register values. If
-    absent, no configuration of these registers is performed. If any
-    entry has a value that is out of range for a 16 bit register then
-    the chip default will be used.  If present exactly five values must
-    be specified.
+  - wlf,gpio-defaults : A list of GPIO configuration register values. Defines
+    for the appropriate values can found in <dt-bindings/mfd/arizona.txt>. If
+    absent, no configuration of these registers is performed. If any entry has
+    a value that is out of range for a 16 bit register then the chip default
+    will be used. If present exactly five values must be specified.
 
   - wlf,inmode : A list of INn_MODE register values, where n is the number
     of input signals. Valid values are 0 (Differential), 1 (Single-ended) and
@@ -80,10 +80,10 @@ codec: wm5102@1a {
 	#gpio-cells = <2>;
 
 	wlf,gpio-defaults = <
-		0x00000000 /* AIF1TXLRCLK */
-		0xffffffff
-		0xffffffff
-		0xffffffff
-		0xffffffff
+		ARIZONA_GP_FN_TXLRCLK
+		ARIZONA_GP_DEFAULT
+		ARIZONA_GP_DEFAULT
+		ARIZONA_GP_DEFAULT
+		ARIZONA_GP_DEFAULT
 	>;
 };

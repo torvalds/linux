@@ -1,7 +1,7 @@
 /*
- * GPIO configuration for Arizona devices
+ * Device Tree defines for Arizona devices
  *
- * Copyright 2013 Wolfson Microelectronics. PLC.
+ * Copyright 2015 Cirrus Logic Inc.
  *
  * Author: Charles Keepax <ckeepax@opensource.wolfsonmicro.com>
  *
@@ -10,9 +10,10 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _ARIZONA_GPIO_H
-#define _ARIZONA_GPIO_H
+#ifndef _DT_BINDINGS_MFD_ARIZONA_H
+#define _DT_BINDINGS_MFD_ARIZONA_H
 
+/* GPIO Function Definitions */
 #define ARIZONA_GP_FN_TXLRCLK                    0x00
 #define ARIZONA_GP_FN_GPIO                       0x01
 #define ARIZONA_GP_FN_IRQ1                       0x02
@@ -61,36 +62,32 @@
 #define ARIZONA_GP_FN_SYSCLK_ENA_STATUS          0x4B
 #define ARIZONA_GP_FN_ASYNCCLK_ENA_STATUS        0x4C
 
-#define ARIZONA_GPN_DIR                          0x8000  /* GPN_DIR */
-#define ARIZONA_GPN_DIR_MASK                     0x8000  /* GPN_DIR */
-#define ARIZONA_GPN_DIR_SHIFT                        15  /* GPN_DIR */
-#define ARIZONA_GPN_DIR_WIDTH                         1  /* GPN_DIR */
-#define ARIZONA_GPN_PU                           0x4000  /* GPN_PU */
-#define ARIZONA_GPN_PU_MASK                      0x4000  /* GPN_PU */
-#define ARIZONA_GPN_PU_SHIFT                         14  /* GPN_PU */
-#define ARIZONA_GPN_PU_WIDTH                          1  /* GPN_PU */
-#define ARIZONA_GPN_PD                           0x2000  /* GPN_PD */
-#define ARIZONA_GPN_PD_MASK                      0x2000  /* GPN_PD */
-#define ARIZONA_GPN_PD_SHIFT                         13  /* GPN_PD */
-#define ARIZONA_GPN_PD_WIDTH                          1  /* GPN_PD */
-#define ARIZONA_GPN_LVL                          0x0800  /* GPN_LVL */
-#define ARIZONA_GPN_LVL_MASK                     0x0800  /* GPN_LVL */
-#define ARIZONA_GPN_LVL_SHIFT                        11  /* GPN_LVL */
-#define ARIZONA_GPN_LVL_WIDTH                         1  /* GPN_LVL */
-#define ARIZONA_GPN_POL                          0x0400  /* GPN_POL */
-#define ARIZONA_GPN_POL_MASK                     0x0400  /* GPN_POL */
-#define ARIZONA_GPN_POL_SHIFT                        10  /* GPN_POL */
-#define ARIZONA_GPN_POL_WIDTH                         1  /* GPN_POL */
-#define ARIZONA_GPN_OP_CFG                       0x0200  /* GPN_OP_CFG */
-#define ARIZONA_GPN_OP_CFG_MASK                  0x0200  /* GPN_OP_CFG */
-#define ARIZONA_GPN_OP_CFG_SHIFT                      9  /* GPN_OP_CFG */
-#define ARIZONA_GPN_OP_CFG_WIDTH                      1  /* GPN_OP_CFG */
-#define ARIZONA_GPN_DB                           0x0100  /* GPN_DB */
-#define ARIZONA_GPN_DB_MASK                      0x0100  /* GPN_DB */
-#define ARIZONA_GPN_DB_SHIFT                          8  /* GPN_DB */
-#define ARIZONA_GPN_DB_WIDTH                          1  /* GPN_DB */
-#define ARIZONA_GPN_FN_MASK                      0x007F  /* GPN_DB */
-#define ARIZONA_GPN_FN_SHIFT                          0  /* GPN_DB */
-#define ARIZONA_GPN_FN_WIDTH                          7  /* GPN_DB */
+/* GPIO Configuration Bits */
+#define ARIZONA_GPN_DIR                          0x8000
+#define ARIZONA_GPN_PU                           0x4000
+#define ARIZONA_GPN_PD                           0x2000
+#define ARIZONA_GPN_LVL                          0x0800
+#define ARIZONA_GPN_POL                          0x0400
+#define ARIZONA_GPN_OP_CFG                       0x0200
+#define ARIZONA_GPN_DB                           0x0100
+
+/* Provide some defines for the most common configs */
+#define ARIZONA_GP_DEFAULT             0xffffffff
+#define ARIZONA_GP_OUTPUT              (ARIZONA_GP_FN_GPIO)
+#define ARIZONA_GP_INPUT               (ARIZONA_GP_FN_GPIO | \
+					ARIZONA_GPN_DIR)
+
+#define ARIZONA_32KZ_MCLK1 1
+#define ARIZONA_32KZ_MCLK2 2
+#define ARIZONA_32KZ_NONE  3
+
+#define ARIZONA_DMIC_MICVDD   0
+#define ARIZONA_DMIC_MICBIAS1 1
+#define ARIZONA_DMIC_MICBIAS2 2
+#define ARIZONA_DMIC_MICBIAS3 3
+
+#define ARIZONA_INMODE_DIFF 0
+#define ARIZONA_INMODE_SE   1
+#define ARIZONA_INMODE_DMIC 2
 
 #endif
