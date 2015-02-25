@@ -130,7 +130,7 @@ static int rts5227_optimize_phy(struct rtsx_pcr *pcr)
 {
 	int err;
 
-	err = rtsx_gops_pm_reset(pcr);
+	err = rtsx_pci_write_register(pcr, PM_CTRL3, D3_DELINK_MODE_EN, 0x00);
 	if (err < 0)
 		return err;
 

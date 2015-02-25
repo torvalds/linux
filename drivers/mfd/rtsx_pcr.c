@@ -63,6 +63,18 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, rtsx_pci_ids);
 
+static inline void rtsx_pci_enable_aspm(struct rtsx_pcr *pcr)
+{
+	rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
+		0xFC, pcr->aspm_en);
+}
+
+static inline void rtsx_pci_disable_aspm(struct rtsx_pcr *pcr)
+{
+	rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
+		0xFC, 0);
+}
+
 void rtsx_pci_start_run(struct rtsx_pcr *pcr)
 {
 	/* If pci device removed, don't queue idle work any more */
@@ -75,7 +87,7 @@ void rtsx_pci_start_run(struct rtsx_pcr *pcr)
 			pcr->ops->enable_auto_blink(pcr);
 
 		if (pcr->aspm_en)
-			rtsx_pci_write_config_byte(pcr, LCTLR, 0);
+			rtsx_pci_disable_aspm(pcr);
 	}
 
 	mod_delayed_work(system_wq, &pcr->idle_work, msecs_to_jiffies(200));
@@ -942,7 +954,7 @@ static void rtsx_pci_idle_work(struct work_struct *work)
 		pcr->ops->turn_off_led(pcr);
 
 	if (pcr->aspm_en)
-		rtsx_pci_write_config_byte(pcr, LCTLR, pcr->aspm_en);
+		rtsx_pci_enable_aspm(pcr);
 
 	mutex_unlock(&pcr->pcr_mutex);
 }
@@ -968,6 +980,7 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 {
 	int err;
 
+	pcr->pcie_cap = pci_find_capability(pcr->pci, PCI_CAP_ID_EXP);
 	rtsx_pci_writel(pcr, RTSX_HCBAR, pcr->host_cmds_addr);
 
 	rtsx_pci_enable_bus_int(pcr);
@@ -980,6 +993,7 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	/* Wait SSC power stable */
 	udelay(200);
 
+	rtsx_pci_disable_aspm(pcr);
 	if (pcr->ops->optimize_phy) {
 		err = pcr->ops->optimize_phy(pcr);
 		if (err < 0)
@@ -1028,10 +1042,8 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	if (err < 0)
 		return err;
 
-	rtsx_pci_write_config_byte(pcr, LCTLR, 0);
-
 	/* Enable clk_request_n to enable clock power management */
-	rtsx_pci_write_config_byte(pcr, 0x81, 1);
+	rtsx_pci_write_config_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL + 1, 1);
 	/* Enter L1 when host tx idle */
 	rtsx_pci_write_config_byte(pcr, 0x70F, 0x5B);
 

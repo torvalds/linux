@@ -716,15 +716,6 @@
 
 #define PHY_DUM_REG			0x1F
 
-#define LCTLR				0x80
-#define   LCTLR_EXT_SYNC		0x80
-#define   LCTLR_COMMON_CLOCK_CFG	0x40
-#define   LCTLR_RETRAIN_LINK		0x20
-#define   LCTLR_LINK_DISABLE		0x10
-#define   LCTLR_RCB			0x08
-#define   LCTLR_RESERVED		0x04
-#define   LCTLR_ASPM_CTL_MASK		0x03
-
 #define PCR_SETTING_REG1		0x724
 #define PCR_SETTING_REG2		0x814
 #define PCR_SETTING_REG3		0x747
@@ -759,6 +750,7 @@ enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
 struct rtsx_pcr {
 	struct pci_dev			*pci;
 	unsigned int			id;
+	int				pcie_cap;
 
 	/* pci resources */
 	unsigned long			addr;
