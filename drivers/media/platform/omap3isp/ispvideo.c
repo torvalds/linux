@@ -517,7 +517,7 @@ static const struct vb2_ops isp_video_queue_ops = {
 struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 {
 	struct isp_pipeline *pipe = to_isp_pipeline(&video->video.entity);
-	enum isp_pipeline_state state;
+	enum vb2_buffer_state vb_state;
 	struct isp_buffer *buf;
 	unsigned long flags;
 
@@ -553,17 +553,19 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 
 	/* Report pipeline errors to userspace on the capture device side. */
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->error) {
-		state = VB2_BUF_STATE_ERROR;
+		vb_state = VB2_BUF_STATE_ERROR;
 		pipe->error = false;
 	} else {
-		state = VB2_BUF_STATE_DONE;
+		vb_state = VB2_BUF_STATE_DONE;
 	}
 
-	vb2_buffer_done(&buf->vb.vb2_buf, state);
+	vb2_buffer_done(&buf->vb.vb2_buf, vb_state);
 
 	spin_lock_irqsave(&video->irqlock, flags);
 
 	if (list_empty(&video->dmaqueue)) {
+		enum isp_pipeline_state state;
+
 		spin_unlock_irqrestore(&video->irqlock, flags);
 
 		if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
