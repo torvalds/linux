@@ -105,7 +105,7 @@ config SND_OMAP_SOC_OMAP_ABE_TWL6040
 	select SND_OMAP_SOC_MCPDM
 	select SND_SOC_TWL6040
 	select SND_SOC_DMIC
-	select COMMON_CLK_PALMAS if SOC_OMAP5
+	select COMMON_CLK_PALMAS if MFD_PALMAS
 	help
 	  Say Y if you want to add support for SoC audio on OMAP boards using
 	  ABE and twl6040 codec. This driver currently supports:
