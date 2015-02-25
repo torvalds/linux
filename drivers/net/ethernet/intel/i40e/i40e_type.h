@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -180,6 +180,7 @@ struct i40e_link_status {
 	u16 max_frame_size;
 	bool crc_enable;
 	u8 pacing;
+	u8 requested_speeds;
 };
 
 struct i40e_phy_info {
@@ -1399,6 +1400,19 @@ struct i40e_lldp_variables {
 	u16 timers;
 	u16 crc8;
 };
+
+/* Offsets into Alternate Ram */
+#define I40E_ALT_STRUCT_FIRST_PF_OFFSET		0   /* in dwords */
+#define I40E_ALT_STRUCT_DWORDS_PER_PF		64   /* in dwords */
+#define I40E_ALT_STRUCT_OUTER_VLAN_TAG_OFFSET	0xD  /* in dwords */
+#define I40E_ALT_STRUCT_USER_PRIORITY_OFFSET	0xC  /* in dwords */
+#define I40E_ALT_STRUCT_MIN_BW_OFFSET		0xE  /* in dwords */
+#define I40E_ALT_STRUCT_MAX_BW_OFFSET		0xF  /* in dwords */
+
+/* Alternate Ram Bandwidth Masks */
+#define I40E_ALT_BW_VALUE_MASK		0xFF
+#define I40E_ALT_BW_RELATIVE_MASK	0x40000000
+#define I40E_ALT_BW_VALID_MASK		0x80000000
 
 /* RSS Hash Table Size */
 #define I40E_PFQF_CTL_0_HASHLUTSIZE_512	0x00010000

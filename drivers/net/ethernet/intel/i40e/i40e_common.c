@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -94,16 +94,19 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 
 	i40e_debug(hw, mask,
 		   "AQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
-		   aq_desc->opcode, aq_desc->flags, aq_desc->datalen,
-		   aq_desc->retval);
+		   le16_to_cpu(aq_desc->opcode),
+		   le16_to_cpu(aq_desc->flags),
+		   le16_to_cpu(aq_desc->datalen),
+		   le16_to_cpu(aq_desc->retval));
 	i40e_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
-		   aq_desc->cookie_high, aq_desc->cookie_low);
+		   le32_to_cpu(aq_desc->cookie_high),
+		   le32_to_cpu(aq_desc->cookie_low));
 	i40e_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
-		   aq_desc->params.internal.param0,
-		   aq_desc->params.internal.param1);
+		   le32_to_cpu(aq_desc->params.internal.param0),
+		   le32_to_cpu(aq_desc->params.internal.param1));
 	i40e_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
-		   aq_desc->params.external.addr_high,
-		   aq_desc->params.external.addr_low);
+		   le32_to_cpu(aq_desc->params.external.addr_high),
+		   le32_to_cpu(aq_desc->params.external.addr_low));
 
 	if ((buffer != NULL) && (aq_desc->datalen != 0)) {
 		memset(data, 0, sizeof(data));
@@ -116,15 +119,19 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 			if ((i % 16) == 15) {
 				i40e_debug(hw, mask,
 					   "\t0x%04X  %08X %08X %08X %08X\n",
-					   i - 15, data[0], data[1], data[2],
-					   data[3]);
+					   i - 15, le32_to_cpu(data[0]),
+					   le32_to_cpu(data[1]),
+					   le32_to_cpu(data[2]),
+					   le32_to_cpu(data[3]));
 				memset(data, 0, sizeof(data));
 			}
 		}
 		if ((i % 16) != 0)
 			i40e_debug(hw, mask, "\t0x%04X  %08X %08X %08X %08X\n",
-				   i - (i % 16), data[0], data[1], data[2],
-				   data[3]);
+				   i - (i % 16), le32_to_cpu(data[0]),
+				   le32_to_cpu(data[1]),
+				   le32_to_cpu(data[2]),
+				   le32_to_cpu(data[3]));
 	}
 }
 
@@ -1787,7 +1794,7 @@ i40e_status i40e_aq_send_driver_version(struct i40e_hw *hw,
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_driver_version);
 
-	desc.flags |= cpu_to_le16(I40E_AQ_FLAG_SI);
+	desc.flags |= cpu_to_le16(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD);
 	cmd->driver_major_ver = dv->major_version;
 	cmd->driver_minor_ver = dv->minor_version;
 	cmd->driver_build_ver = dv->build_version;
@@ -3347,6 +3354,47 @@ i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 }
 
 /**
+ * i40e_aq_alternate_read
+ * @hw: pointer to the hardware structure
+ * @reg_addr0: address of first dword to be read
+ * @reg_val0: pointer for data read from 'reg_addr0'
+ * @reg_addr1: address of second dword to be read
+ * @reg_val1: pointer for data read from 'reg_addr1'
+ *
+ * Read one or two dwords from alternate structure. Fields are indicated
+ * by 'reg_addr0' and 'reg_addr1' register numbers. If 'reg_val1' pointer
+ * is not passed then only register at 'reg_addr0' is read.
+ *
+ **/
+i40e_status i40e_aq_alternate_read(struct i40e_hw *hw,
+				   u32 reg_addr0, u32 *reg_val0,
+				   u32 reg_addr1, u32 *reg_val1)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_alternate_write *cmd_resp =
+		(struct i40e_aqc_alternate_write *)&desc.params.raw;
+	i40e_status status;
+
+	if (!reg_val0)
+		return I40E_ERR_PARAM;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_alternate_read);
+	cmd_resp->address0 = cpu_to_le32(reg_addr0);
+	cmd_resp->address1 = cpu_to_le32(reg_addr1);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, NULL);
+
+	if (!status) {
+		*reg_val0 = le32_to_cpu(cmd_resp->data0);
+
+		if (reg_val1)
+			*reg_val1 = le32_to_cpu(cmd_resp->data1);
+	}
+
+	return status;
+}
+
+/**
  * i40e_aq_resume_port_tx
  * @hw: pointer to the hardware structure
  * @cmd_details: pointer to command details structure or NULL
@@ -3409,4 +3457,80 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
 		hw->bus.speed = i40e_bus_speed_unknown;
 		break;
 	}
+}
+
+/**
+ * i40e_read_bw_from_alt_ram
+ * @hw: pointer to the hardware structure
+ * @max_bw: pointer for max_bw read
+ * @min_bw: pointer for min_bw read
+ * @min_valid: pointer for bool that is true if min_bw is a valid value
+ * @max_valid: pointer for bool that is true if max_bw is a valid value
+ *
+ * Read bw from the alternate ram for the given pf
+ **/
+i40e_status i40e_read_bw_from_alt_ram(struct i40e_hw *hw,
+				      u32 *max_bw, u32 *min_bw,
+				      bool *min_valid, bool *max_valid)
+{
+	i40e_status status;
+	u32 max_bw_addr, min_bw_addr;
+
+	/* Calculate the address of the min/max bw registers */
+	max_bw_addr = I40E_ALT_STRUCT_FIRST_PF_OFFSET +
+		      I40E_ALT_STRUCT_MAX_BW_OFFSET +
+		      (I40E_ALT_STRUCT_DWORDS_PER_PF * hw->pf_id);
+	min_bw_addr = I40E_ALT_STRUCT_FIRST_PF_OFFSET +
+		      I40E_ALT_STRUCT_MIN_BW_OFFSET +
+		      (I40E_ALT_STRUCT_DWORDS_PER_PF * hw->pf_id);
+
+	/* Read the bandwidths from alt ram */
+	status = i40e_aq_alternate_read(hw, max_bw_addr, max_bw,
+					min_bw_addr, min_bw);
+
+	if (*min_bw & I40E_ALT_BW_VALID_MASK)
+		*min_valid = true;
+	else
+		*min_valid = false;
+
+	if (*max_bw & I40E_ALT_BW_VALID_MASK)
+		*max_valid = true;
+	else
+		*max_valid = false;
+
+	return status;
+}
+
+/**
+ * i40e_aq_configure_partition_bw
+ * @hw: pointer to the hardware structure
+ * @bw_data: Buffer holding valid pfs and bw limits
+ * @cmd_details: pointer to command details
+ *
+ * Configure partitions guaranteed/max bw
+ **/
+i40e_status i40e_aq_configure_partition_bw(struct i40e_hw *hw,
+			struct i40e_aqc_configure_partition_bw_data *bw_data,
+			struct i40e_asq_cmd_details *cmd_details)
+{
+	i40e_status status;
+	struct i40e_aq_desc desc;
+	u16 bwd_size = sizeof(*bw_data);
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_configure_partition_bw);
+
+	/* Indirect command */
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_RD);
+
+	if (bwd_size > I40E_AQ_LARGE_BUF)
+		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
+
+	desc.datalen = cpu_to_le16(bwd_size);
+
+	status = i40e_asq_send_command(hw, &desc, bw_data, bwd_size,
+				       cmd_details);
+
+	return status;
 }

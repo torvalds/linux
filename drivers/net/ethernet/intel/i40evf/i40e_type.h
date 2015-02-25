@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -180,6 +180,7 @@ struct i40e_link_status {
 	u16 max_frame_size;
 	bool crc_enable;
 	u8 pacing;
+	u8 requested_speeds;
 };
 
 struct i40e_phy_info {
