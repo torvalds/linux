@@ -565,9 +565,8 @@ int i2o_parm_table_get(struct i2o_device *dev, int oper, int group,
 		size += 4 - size % 4;
 
 	opblk = kmalloc(size, GFP_KERNEL);
-	if (opblk == NULL) {
+	if (opblk == NULL)
 		return -ENOMEM;
-	}
 
 	opblk[0] = 1;		/* operation count */
 	opblk[1] = 0;		/* pad */
