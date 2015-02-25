@@ -4201,6 +4201,8 @@ static int rocker_probe_ports(struct rocker *rocker)
 
 	alloc_size = sizeof(struct rocker_port *) * rocker->port_count;
 	rocker->ports = kmalloc(alloc_size, GFP_KERNEL);
+	if (!rocker->ports)
+		return -ENOMEM;
 	for (i = 0; i < rocker->port_count; i++) {
 		err = rocker_probe_port(rocker, i);
 		if (err)
