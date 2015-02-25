@@ -2211,7 +2211,7 @@ static int generic_hdmi_resume(struct hda_codec *codec)
 	int pin_idx;
 
 	codec->patch_ops.init(codec);
-	snd_hda_codec_resume_amp(codec);
+	regcache_sync(codec->core.regmap);
 	snd_hda_codec_resume_cache(codec);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
