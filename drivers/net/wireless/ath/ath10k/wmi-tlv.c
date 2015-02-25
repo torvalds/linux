@@ -2035,7 +2035,7 @@ ath10k_wmi_tlv_op_gen_set_ap_ps(struct ath10k *ar, u32 vdev_id, const u8 *mac,
 	if (!mac)
 		return ERR_PTR(-EINVAL);
 
-	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*tlv) + sizeof(*cmd));
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
 
