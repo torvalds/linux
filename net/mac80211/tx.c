@@ -20,7 +20,6 @@
 #include <linux/bitmap.h>
 #include <linux/rcupdate.h>
 #include <linux/export.h>
-#include <linux/time.h>
 #include <net/net_namespace.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
@@ -1787,23 +1786,6 @@ fail:
 	return NETDEV_TX_OK; /* meaning, we dealt with the skb */
 }
 
-/*
- * Measure Tx frame arrival time for Tx latency statistics calculation
- * A single Tx frame latency should be measured from when it is entering the
- * Kernel until we receive Tx complete confirmation indication and the skb is
- * freed.
- */
-static void ieee80211_tx_latency_start_msrmnt(struct ieee80211_local *local,
-					      struct sk_buff *skb)
-{
-	struct ieee80211_tx_latency_bin_ranges *tx_latency;
-
-	tx_latency = rcu_dereference(local->tx_latency);
-	if (!tx_latency)
-		return;
-	skb->tstamp = ktime_get();
-}
-
 /**
  * ieee80211_build_hdr - build 802.11 header in the given frame
  * @sdata: virtual interface to build the header for
@@ -2259,7 +2241,6 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  u32 info_flags)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = sdata->local;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
 		kfree_skb(skb);
@@ -2267,9 +2248,6 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 	}
 
 	rcu_read_lock();
-
-	/* Measure frame arrival for Tx latency statistics calculation */
-	ieee80211_tx_latency_start_msrmnt(local, skb);
 
 	skb = ieee80211_build_hdr(sdata, skb, info_flags);
 	if (IS_ERR(skb))
