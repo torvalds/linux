@@ -11,6 +11,7 @@ struct fib_alias {
 	u8			fa_tos;
 	u8			fa_type;
 	u8			fa_state;
+	u8			fa_slen;
 	struct rcu_head		rcu;
 };
 

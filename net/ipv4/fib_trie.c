@@ -1219,6 +1219,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			new_fa->fa_type = cfg->fc_type;
 			state = fa->fa_state;
 			new_fa->fa_state = state & ~FA_S_ACCESSED;
+			new_fa->fa_slen = fa->fa_slen;
 
 			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
 			alias_free_mem_rcu(fa);
@@ -1254,10 +1255,9 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	new_fa->fa_tos = tos;
 	new_fa->fa_type = cfg->fc_type;
 	new_fa->fa_state = 0;
-	/*
-	 * Insert new entry to the list.
-	 */
+	new_fa->fa_slen = KEYLENGTH - plen;
 
+	/* Insert new entry to the list. */
 	if (!fa_head) {
 		fa_head = fib_insert_node(t, key, plen);
 		if (unlikely(!fa_head)) {
@@ -1420,14 +1420,14 @@ found:
 	hlist_for_each_entry_rcu(li, &n->list, hlist) {
 		struct fib_alias *fa;
 
-		if (((key ^ n->key) >= (1ul << li->slen)) &&
-		    ((BITS_PER_LONG > KEYLENGTH) || (li->slen != KEYLENGTH)))
-			continue;
-
 		hlist_for_each_entry_rcu(fa, &li->falh, fa_list) {
 			struct fib_info *fi = fa->fa_info;
 			int nhsel, err;
 
+			if (((key ^ n->key) >= (1ul << fa->fa_slen)) &&
+			    ((BITS_PER_LONG > KEYLENGTH) ||
+			     (fa->fa_slen != KEYLENGTH)))
+				continue;
 			if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
 				continue;
 			if (fi->fib_dead)
@@ -1455,7 +1455,7 @@ found:
 				if (!(fib_flags & FIB_LOOKUP_NOREF))
 					atomic_inc(&fi->fib_clntref);
 
-				res->prefixlen = KEYLENGTH - li->slen;
+				res->prefixlen = KEYLENGTH - fa->fa_slen;
 				res->nh_sel = nhsel;
 				res->type = fa->fa_type;
 				res->scope = fi->fib_scope;
@@ -1468,11 +1468,10 @@ found:
 				return err;
 			}
 		}
-
-#ifdef CONFIG_IP_FIB_TRIE_STATS
-		this_cpu_inc(stats->semantic_match_miss);
-#endif
 	}
+#ifdef CONFIG_IP_FIB_TRIE_STATS
+	this_cpu_inc(stats->semantic_match_miss);
+#endif
 	goto backtrace;
 }
 EXPORT_SYMBOL_GPL(fib_table_lookup);
@@ -1735,7 +1734,7 @@ void fib_free_table(struct fib_table *tb)
 	kfree(tb);
 }
 
-static int fn_trie_dump_fa(t_key key, int slen, struct hlist_head *fah,
+static int fn_trie_dump_fa(t_key key, struct hlist_head *fah,
 			   struct fib_table *tb,
 			   struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -1760,7 +1759,7 @@ static int fn_trie_dump_fa(t_key key, int slen, struct hlist_head *fah,
 				  tb->tb_id,
 				  fa->fa_type,
 				  xkey,
-				  KEYLENGTH - slen,
+				  KEYLENGTH - fa->fa_slen,
 				  fa->fa_tos,
 				  fa->fa_info, NLM_F_MULTI) < 0) {
 			cb->args[5] = i;
@@ -1794,7 +1793,7 @@ static int fn_trie_dump_leaf(struct tnode *l, struct fib_table *tb,
 		if (hlist_empty(&li->falh))
 			continue;
 
-		if (fn_trie_dump_fa(l->key, li->slen, &li->falh, tb, skb, cb) < 0) {
+		if (fn_trie_dump_fa(l->key, &li->falh, tb, skb, cb) < 0) {
 			cb->args[4] = i;
 			return -1;
 		}
@@ -2281,7 +2280,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 
 				seq_indent(seq, iter->depth+1);
 				seq_printf(seq, "  /%zu %s %s",
-					   KEYLENGTH - li->slen,
+					   KEYLENGTH - fa->fa_slen,
 					   rtn_scope(buf1, sizeof(buf1),
 						     fa->fa_info->fib_scope),
 					   rtn_type(buf2, sizeof(buf2),
@@ -2419,6 +2418,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 {
 	struct tnode *l = v;
 	struct leaf_info *li;
+	__be32 prefix;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, "%-127s\n", "Iface\tDestination\tGateway "
@@ -2427,15 +2427,14 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 		return 0;
 	}
 
+	prefix = htonl(l->key);
+
 	hlist_for_each_entry_rcu(li, &l->list, hlist) {
 		struct fib_alias *fa;
-		__be32 mask, prefix;
-
-		mask = inet_make_mask(KEYLENGTH - li->slen);
-		prefix = htonl(l->key);
 
 		hlist_for_each_entry_rcu(fa, &li->falh, fa_list) {
 			const struct fib_info *fi = fa->fa_info;
+			__be32 mask = inet_make_mask(KEYLENGTH - fa->fa_slen);
 			unsigned int flags = fib_flag_trans(fa->fa_type, mask, fi);
 
 			if (fa->fa_type == RTN_BROADCAST
