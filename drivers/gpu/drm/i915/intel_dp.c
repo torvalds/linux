@@ -2691,11 +2691,14 @@ static uint8_t
 intel_dp_voltage_max(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (INTEL_INFO(dev)->gen >= 9)
+	if (INTEL_INFO(dev)->gen >= 9) {
+		if (dev_priv->vbt.edp_low_vswing && port == PORT_A)
+			return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
-	else if (IS_VALLEYVIEW(dev))
+	} else if (IS_VALLEYVIEW(dev))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
@@ -2719,6 +2722,8 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 			return DP_TRAIN_PRE_EMPH_LEVEL_2;
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
 			return DP_TRAIN_PRE_EMPH_LEVEL_1;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
+			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		default:
 			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		}
@@ -3201,6 +3206,9 @@ intel_hsw_signal_levels(uint8_t train_set)
 		return DDI_BUF_TRANS_SELECT(7);
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return DDI_BUF_TRANS_SELECT(8);
+
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3 | DP_TRAIN_PRE_EMPH_LEVEL_0:
+		return DDI_BUF_TRANS_SELECT(9);
 	default:
 		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
 			      "0x%x\n", signal_levels);
