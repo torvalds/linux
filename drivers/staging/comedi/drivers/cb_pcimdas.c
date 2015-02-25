@@ -175,9 +175,10 @@ static int cb_pcimdas_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int cb_pcimdas_ai_insn_read(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct cb_pcimdas_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -271,7 +272,7 @@ static bool cb_pcimdas_is_ai_uni(struct comedi_device *dev)
 }
 
 static int cb_pcimdas_auto_attach(struct comedi_device *dev,
-					    unsigned long context_unused)
+				  unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct cb_pcimdas_private *devpriv;
@@ -294,10 +295,9 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* dev->read_subdev=s; */
-	/*  analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
+	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE;
 	if (cb_pcimdas_is_ai_se(dev)) {
 		s->subdev_flags	|= SDF_GROUND;
@@ -306,28 +306,26 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 		s->subdev_flags	|= SDF_DIFF;
 		s->n_chan	= 8;
 	}
-	s->maxdata = 0xffff;
+	s->maxdata	= 0xffff;
 	s->range_table	= cb_pcimdas_is_ai_uni(dev) ? &cb_pcimdas_ai_uni_range
 						    : &cb_pcimdas_ai_bip_range;
-	s->len_chanlist = 1;	/*  This is the maximum chanlist length that */
-	/*  the board can handle */
-	s->insn_read = cb_pcimdas_ai_rinsn;
+	s->insn_read	= cb_pcimdas_ai_insn_read;
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	/*  analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 2;
-	s->maxdata = 0xfff;
-	s->range_table = &cb_pcimdas_ao_range;
-	s->insn_write = cb_pcimdas_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 0xfff;
+	s->range_table	= &cb_pcimdas_ao_range;
+	s->insn_write	= cb_pcimdas_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
 		return ret;
 
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-	/* digital i/o subdevice */
 	ret = subdev_8255_init(dev, s, NULL, PCIMDAS_8255_BASE);
 	if (ret)
 		return ret;
