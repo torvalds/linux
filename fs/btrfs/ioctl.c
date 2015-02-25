@@ -3039,7 +3039,7 @@ out:
 static int check_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		     u64 disko)
 {
-	struct seq_list tree_mod_seq_elem = {};
+	struct seq_list tree_mod_seq_elem = SEQ_LIST_INIT(tree_mod_seq_elem);
 	struct ulist *roots;
 	struct ulist_iterator uiter;
 	struct ulist_node *root_node = NULL;
