@@ -251,7 +251,7 @@ bool rht_grow_above_75(const struct rhashtable *ht, size_t new_size)
 {
 	/* Expand table when exceeding 75% load */
 	return atomic_read(&ht->nelems) > (new_size / 4 * 3) &&
-	       (ht->p.max_shift && atomic_read(&ht->shift) < ht->p.max_shift);
+	       (!ht->p.max_shift || atomic_read(&ht->shift) < ht->p.max_shift);
 }
 EXPORT_SYMBOL_GPL(rht_grow_above_75);
 

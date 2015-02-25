@@ -202,8 +202,6 @@ static int __init test_rht_init(void)
 		.key_len = sizeof(int),
 		.hashfn = jhash,
 		.nulls_base = (3U << RHT_BASE_SHIFT),
-		.grow_decision = rht_grow_above_75,
-		.shrink_decision = rht_shrink_below_30,
 	};
 	int err;
 
