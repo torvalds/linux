@@ -524,6 +524,11 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 
 	wacom_wac->shared = &data->shared;
 
+	if (wacom_wac->features.device_type == BTN_TOOL_FINGER)
+		wacom_wac->shared->touch = hdev;
+	else if (wacom_wac->features.device_type == BTN_TOOL_PEN)
+		wacom_wac->shared->pen = hdev;
+
 out:
 	mutex_unlock(&wacom_udev_list_lock);
 	return retval;
@@ -541,14 +546,22 @@ static void wacom_release_shared_data(struct kref *kref)
 	kfree(data);
 }
 
-static void wacom_remove_shared_data(struct wacom_wac *wacom)
+static void wacom_remove_shared_data(struct wacom *wacom)
 {
 	struct wacom_hdev_data *data;
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 
-	if (wacom->shared) {
-		data = container_of(wacom->shared, struct wacom_hdev_data, shared);
+	if (wacom_wac->shared) {
+		data = container_of(wacom_wac->shared, struct wacom_hdev_data,
+				    shared);
+
+		if (wacom_wac->shared->touch == wacom->hdev)
+			wacom_wac->shared->touch = NULL;
+		else if (wacom_wac->shared->pen == wacom->hdev)
+			wacom_wac->shared->pen = NULL;
+
 		kref_put(&data->kref, wacom_release_shared_data);
-		wacom->shared = NULL;
+		wacom_wac->shared = NULL;
 	}
 }
 
@@ -1527,7 +1540,7 @@ fail_register_inputs:
 	wacom_clean_inputs(wacom);
 	wacom_destroy_battery(wacom);
 fail_battery:
-	wacom_remove_shared_data(wacom_wac);
+	wacom_remove_shared_data(wacom);
 fail_shared_data:
 	wacom_clean_inputs(wacom);
 fail_allocate_inputs:
@@ -1550,7 +1563,7 @@ static void wacom_remove(struct hid_device *hdev)
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
 	wacom_destroy_battery(wacom);
-	wacom_remove_shared_data(&wacom->wacom_wac);
+	wacom_remove_shared_data(wacom);
 
 	hid_set_drvdata(hdev, NULL);
 	kfree(wacom);

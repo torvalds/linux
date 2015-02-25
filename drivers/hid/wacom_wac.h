@@ -169,6 +169,8 @@ struct wacom_shared {
 	unsigned touch_max;
 	int type;
 	struct input_dev *touch_input;
+	struct hid_device *pen;
+	struct hid_device *touch;
 };
 
 struct hid_data {
