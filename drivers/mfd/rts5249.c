@@ -36,16 +36,16 @@ static u8 rts5249_get_ic_version(struct rtsx_pcr *pcr)
 static void rts5249_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 {
 	u8 driving_3v3[4][3] = {
-		{0x11, 0x11, 0x11},
+		{0x11, 0x11, 0x18},
 		{0x55, 0x55, 0x5C},
-		{0x99, 0x99, 0x92},
-		{0x99, 0x99, 0x92},
+		{0xFF, 0xFF, 0xFF},
+		{0x96, 0x96, 0x96},
 	};
 	u8 driving_1v8[4][3] = {
-		{0x3C, 0x3C, 0x3C},
-		{0xB3, 0xB3, 0xB3},
-		{0xFE, 0xFE, 0xFE},
 		{0xC4, 0xC4, 0xC4},
+		{0x3C, 0x3C, 0x3C},
+		{0xFE, 0xFE, 0xFE},
+		{0xB3, 0xB3, 0xB3},
 	};
 	u8 (*driving)[3], drive_sel;
 
@@ -341,7 +341,7 @@ void rts5249_init_params(struct rtsx_pcr *pcr)
 
 	pcr->flags = 0;
 	pcr->card_drive_sel = RTSX_CARD_DRIVE_DEFAULT;
-	pcr->sd30_drive_sel_1v8 = CFG_DRIVER_TYPE_C;
+	pcr->sd30_drive_sel_1v8 = CFG_DRIVER_TYPE_B;
 	pcr->sd30_drive_sel_3v3 = CFG_DRIVER_TYPE_B;
 	pcr->aspm_en = ASPM_L1_EN;
 	pcr->tx_initial_phase = SET_CLOCK_PHASE(1, 29, 16);
