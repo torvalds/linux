@@ -761,10 +761,6 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 
 		musb->ep0_stage = MUSB_EP0_START;
 
-		/* flush endpoints when transitioning from Device Mode */
-		if (is_peripheral_active(musb)) {
-			/* REVISIT HNP; just force disconnect */
-		}
 		musb->intrtxe = musb->epmask;
 		musb_writew(musb->mregs, MUSB_INTRTXE, musb->intrtxe);
 		musb->intrrxe = musb->epmask & 0xfffe;
