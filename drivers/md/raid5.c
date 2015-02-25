@@ -497,7 +497,7 @@ static void shrink_buffers(struct stripe_head *sh)
 	}
 }
 
-static int grow_buffers(struct stripe_head *sh)
+static int grow_buffers(struct stripe_head *sh, gfp_t gfp)
 {
 	int i;
 	int num = sh->raid_conf->pool_size;
@@ -505,7 +505,7 @@ static int grow_buffers(struct stripe_head *sh)
 	for (i = 0; i < num; i++) {
 		struct page *page;
 
-		if (!(page = alloc_page(GFP_KERNEL))) {
+		if (!(page = alloc_page(gfp))) {
 			return 1;
 		}
 		sh->dev[i].page = page;
@@ -1963,10 +1963,10 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 	put_cpu();
 }
 
-static int grow_one_stripe(struct r5conf *conf, int hash)
+static int grow_one_stripe(struct r5conf *conf, int hash, gfp_t gfp)
 {
 	struct stripe_head *sh;
-	sh = kmem_cache_zalloc(conf->slab_cache, GFP_KERNEL);
+	sh = kmem_cache_zalloc(conf->slab_cache, gfp);
 	if (!sh)
 		return 0;
 
@@ -1974,7 +1974,7 @@ static int grow_one_stripe(struct r5conf *conf, int hash)
 
 	spin_lock_init(&sh->stripe_lock);
 
-	if (grow_buffers(sh)) {
+	if (grow_buffers(sh, gfp)) {
 		shrink_buffers(sh);
 		kmem_cache_free(conf->slab_cache, sh);
 		return 0;
@@ -2016,7 +2016,7 @@ static int grow_stripes(struct r5conf *conf, int num)
 	conf->pool_size = devs;
 	hash = conf->max_nr_stripes % NR_STRIPE_HASH_LOCKS;
 	while (num--) {
-		if (!grow_one_stripe(conf, hash))
+		if (!grow_one_stripe(conf, hash, GFP_KERNEL))
 			return 1;
 		conf->max_nr_stripes++;
 		hash = (hash + 1) % NR_STRIPE_HASH_LOCKS;
@@ -5841,7 +5841,7 @@ raid5_set_cache_size(struct mddev *mddev, int size)
 		return err;
 	hash = conf->max_nr_stripes % NR_STRIPE_HASH_LOCKS;
 	while (size > conf->max_nr_stripes) {
-		if (grow_one_stripe(conf, hash))
+		if (grow_one_stripe(conf, hash, GFP_KERNEL))
 			conf->max_nr_stripes++;
 		else break;
 		hash = (hash + 1) % NR_STRIPE_HASH_LOCKS;
