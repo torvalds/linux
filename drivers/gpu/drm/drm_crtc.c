@@ -2285,8 +2285,6 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	crtc = drm_encoder_get_crtc(encoder);
 	if (crtc)
 		enc_resp->crtc_id = crtc->base.id;
-	else if (encoder->crtc)
-		enc_resp->crtc_id = encoder->crtc->base.id;
 	else
 		enc_resp->crtc_id = 0;
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
