@@ -899,6 +899,12 @@ b_host:
 			if (power & MUSB_POWER_HSMODE) {
 				ERR("Stopping host session -- babble\n");
 				musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+
+				if (is_host_active(musb)) {
+					musb_generic_disable(musb);
+					schedule_delayed_work(&musb->recover_work,
+							msecs_to_jiffies(100));
+				}
 			}
 		} else {
 			dev_dbg(musb->controller, "BUS RESET as %s\n",
@@ -936,13 +942,6 @@ b_host:
 					usb_otg_state_string(musb->xceiv->otg->state));
 			}
 		}
-	}
-
-	/* handle babble condition */
-	if (int_usb & MUSB_INTR_BABBLE && is_host_active(musb)) {
-		musb_generic_disable(musb);
-		schedule_delayed_work(&musb->recover_work,
-				      msecs_to_jiffies(100));
 	}
 
 #if 0
