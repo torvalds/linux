@@ -154,6 +154,31 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 
 }
 
+void v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
+					 struct v4l2_fwnode_endpoint *vep,
+					 u32 bus_type)
+{
+	struct v4l2_fwnode_bus_mipi_csi1 *bus = &vep->bus.mipi_csi1;
+	u32 v;
+
+	if (!fwnode_property_read_u32(fwnode, "clock-inv", &v))
+		bus->clock_inv = v;
+
+	if (!fwnode_property_read_u32(fwnode, "strobe", &v))
+		bus->strobe = v;
+
+	if (!fwnode_property_read_u32(fwnode, "data-lanes", &v))
+		bus->data_lane = v;
+
+	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v))
+		bus->clock_lane = v;
+
+	if (bus_type == V4L2_FWNODE_BUS_TYPE_CCP2)
+		vep->bus_type = V4L2_MBUS_CCP2;
+	else
+		vep->bus_type = V4L2_MBUS_CSI1;
+}
+
 /**
  * v4l2_fwnode_endpoint_parse() - parse all fwnode node properties
  * @fwnode: pointer to the endpoint's fwnode handle
@@ -187,17 +212,28 @@ int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 
 	fwnode_property_read_u32(fwnode, "bus-type", &bus_type);
 
-	rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep);
-	if (rval)
-		return rval;
-	/*
-	 * Parse the parallel video bus properties only if none
-	 * of the MIPI CSI-2 specific properties were found.
-	 */
-	if (vep->bus.mipi_csi2.flags == 0)
-		v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep);
+	switch (bus_type) {
+	case V4L2_FWNODE_BUS_TYPE_GUESS:
+		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep);
+		if (rval)
+			return rval;
+		/*
+		 * Parse the parallel video bus properties only if none
+		 * of the MIPI CSI-2 specific properties were found.
+		 */
+		if (vep->bus.mipi_csi2.flags == 0)
+			v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep);
 
-	return 0;
+		return 0;
+	case V4L2_FWNODE_BUS_TYPE_CCP2:
+	case V4L2_FWNODE_BUS_TYPE_CSI1:
+		v4l2_fwnode_endpoint_parse_csi1_bus(fwnode, vep, bus_type);
+
+		return 0;
+	default:
+		pr_warn("unsupported bus type %u\n", bus_type);
+		return -EINVAL;
+	}
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_parse);
 

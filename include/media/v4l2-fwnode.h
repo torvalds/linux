@@ -56,6 +56,24 @@ struct v4l2_fwnode_bus_parallel {
 };
 
 /**
+ * struct v4l2_fwnode_bus_mipi_csi1 - CSI-1/CCP2 data bus structure
+ * @clock_inv: polarity of clock/strobe signal
+ *	       false - not inverted, true - inverted
+ * @strobe: false - data/clock, true - data/strobe
+ * @lane_polarity: the polarities of the clock (index 0) and data lanes
+		   index (1)
+ * @data_lane: the number of the data lane
+ * @clock_lane: the number of the clock lane
+ */
+struct v4l2_fwnode_bus_mipi_csi1 {
+	bool clock_inv;
+	bool strobe;
+	bool lane_polarity[2];
+	unsigned char data_lane;
+	unsigned char clock_lane;
+};
+
+/**
  * struct v4l2_fwnode_endpoint - the endpoint data structure
  * @base: fwnode endpoint of the v4l2_fwnode
  * @bus_type: bus type
@@ -72,6 +90,7 @@ struct v4l2_fwnode_endpoint {
 	enum v4l2_mbus_type bus_type;
 	union {
 		struct v4l2_fwnode_bus_parallel parallel;
+		struct v4l2_fwnode_bus_mipi_csi1 mipi_csi1;
 		struct v4l2_fwnode_bus_mipi_csi2 mipi_csi2;
 	} bus;
 	u64 *link_frequencies;
