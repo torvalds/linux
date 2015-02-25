@@ -751,6 +751,7 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	bool has_gestures;
 	bool has_rel;
 	bool has_data40 = false;
+	bool has_dribble = false;
 	unsigned x_size, y_size;
 	u16 query_offset;
 
@@ -791,6 +792,14 @@ static int rmi_populate_f11(struct hid_device *hdev)
 
 	has_rel = !!(buf[0] & BIT(3));
 	has_gestures = !!(buf[0] & BIT(5));
+
+	ret = rmi_read(hdev, data->f11.query_base_addr + 5, buf);
+	if (ret) {
+		hid_err(hdev, "can not get absolute data sources: %d.\n", ret);
+		return ret;
+	}
+
+	has_dribble = !!(buf[0] & BIT(4));
 
 	/*
 	 * At least 4 queries are guaranteed to be present in F11
@@ -907,6 +916,16 @@ static int rmi_populate_f11(struct hid_device *hdev)
 
 	data->max_x = buf[6] | (buf[7] << 8);
 	data->max_y = buf[8] | (buf[9] << 8);
+
+	if (has_dribble) {
+		buf[0] = buf[0] & ~BIT(6);
+		ret = rmi_write(hdev, data->f11.control_base_addr, buf);
+		if (ret) {
+			hid_err(hdev, "can not write to control reg 0: %d.\n",
+				ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
