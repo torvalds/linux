@@ -471,8 +471,7 @@ void recover_orphan_inodes(struct f2fs_sb_info *sbi)
 
 	set_sbi_flag(sbi, SBI_POR_DOING);
 
-	start_blk = __start_cp_addr(sbi) + 1 +
-		le32_to_cpu(F2FS_RAW_SUPER(sbi)->cp_payload);
+	start_blk = __start_cp_addr(sbi) + 1 + __cp_payload(sbi);
 	orphan_blkaddr = __start_sum_addr(sbi) - 1;
 
 	ra_meta_pages(sbi, start_blk, orphan_blkaddr, META_CP);
@@ -615,7 +614,7 @@ int get_valid_checkpoint(struct f2fs_sb_info *sbi)
 	unsigned long blk_size = sbi->blocksize;
 	unsigned long long cp1_version = 0, cp2_version = 0;
 	unsigned long long cp_start_blk_no;
-	unsigned int cp_blks = 1 + le32_to_cpu(F2FS_RAW_SUPER(sbi)->cp_payload);
+	unsigned int cp_blks = 1 + __cp_payload(sbi);
 	block_t cp_blk_no;
 	int i;
 
@@ -884,7 +883,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	__u32 crc32 = 0;
 	void *kaddr;
 	int i;
-	int cp_payload_blks = le32_to_cpu(F2FS_RAW_SUPER(sbi)->cp_payload);
+	int cp_payload_blks = __cp_payload(sbi);
 
 	/*
 	 * This avoids to conduct wrong roll-forward operations and uses
