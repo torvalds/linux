@@ -52,7 +52,9 @@ static void devm_phy_consume(struct device *dev, void *res)
 
 static int devm_phy_match(struct device *dev, void *res, void *match_data)
 {
-	return res == match_data;
+	struct phy **phy = res;
+
+	return *phy == match_data;
 }
 
 /**
