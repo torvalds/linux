@@ -10225,6 +10225,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	if (!pipe_config)
 		return ERR_PTR(-ENOMEM);
 
+	pipe_config->base.crtc = crtc;
 	drm_mode_copy(&pipe_config->base.adjusted_mode, mode);
 	drm_mode_copy(&pipe_config->base.mode, mode);
 
@@ -12315,6 +12316,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	if (!crtc_state)
 		goto fail;
 	intel_crtc_set_state(intel_crtc, crtc_state);
+	crtc_state->base.crtc = &intel_crtc->base;
 
 	primary = intel_primary_plane_create(dev, pipe);
 	if (!primary)
