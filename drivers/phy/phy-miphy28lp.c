@@ -1139,6 +1139,7 @@ static struct phy *miphy28lp_xlate(struct device *dev,
 
 static struct phy_ops miphy28lp_ops = {
 	.init = miphy28lp_init,
+	.owner = THIS_MODULE,
 };
 
 static int miphy28lp_probe_resets(struct device_node *node,
