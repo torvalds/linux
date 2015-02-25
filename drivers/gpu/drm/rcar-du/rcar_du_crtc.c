@@ -233,7 +233,8 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 
 	for (i = 0; i < num_planes; ++i) {
 		struct rcar_du_plane *plane = planes[i];
-		unsigned int index = plane->hwindex;
+		struct drm_plane_state *state = plane->plane.state;
+		unsigned int index = to_rcar_du_plane_state(state)->hwindex;
 
 		prio -= 4;
 		dspr |= (index + 1) << prio;
@@ -259,13 +260,13 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 		 * split, or through a module parameter). Flicker would then
 		 * occur only if we need to break the pre-association.
 		 */
-		mutex_lock(&rcrtc->group->planes.lock);
+		mutex_lock(&rcrtc->group->lock);
 		if (rcar_du_group_read(rcrtc->group, DPTSR) != dptsr) {
 			rcar_du_group_write(rcrtc->group, DPTSR, dptsr);
 			if (rcrtc->group->used_crtcs)
 				rcar_du_group_restart(rcrtc->group);
 		}
-		mutex_unlock(&rcrtc->group->planes.lock);
+		mutex_unlock(&rcrtc->group->lock);
 	}
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR,

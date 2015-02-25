@@ -189,8 +189,205 @@ static void rcar_du_output_poll_changed(struct drm_device *dev)
 }
 
 /* -----------------------------------------------------------------------------
- * Atomic Updates
+ * Atomic Check and Update
  */
+
+/*
+ * Atomic hardware plane allocator
+ *
+ * The hardware plane allocator is solely based on the atomic plane states
+ * without keeping any external state to avoid races between .atomic_check()
+ * and .atomic_commit().
+ *
+ * The core idea is to avoid using a free planes bitmask that would need to be
+ * shared between check and commit handlers with a collective knowledge based on
+ * the allocated hardware plane(s) for each KMS plane. The allocator then loops
+ * over all plane states to compute the free planes bitmask, allocates hardware
+ * planes based on that bitmask, and stores the result back in the plane states.
+ *
+ * For this to work we need to access the current state of planes not touched by
+ * the atomic update. To ensure that it won't be modified, we need to lock all
+ * planes using drm_atomic_get_plane_state(). This effectively serializes atomic
+ * updates from .atomic_check() up to completion (when swapping the states if
+ * the check step has succeeded) or rollback (when freeing the states if the
+ * check step has failed).
+ *
+ * Allocation is performed in the .atomic_check() handler and applied
+ * automatically when the core swaps the old and new states.
+ */
+
+static bool rcar_du_plane_needs_realloc(struct rcar_du_plane *plane,
+					struct rcar_du_plane_state *state)
+{
+	const struct rcar_du_format_info *cur_format;
+
+	cur_format = to_rcar_du_plane_state(plane->plane.state)->format;
+
+	/* Lowering the number of planes doesn't strictly require reallocation
+	 * as the extra hardware plane will be freed when committing, but doing
+	 * so could lead to more fragmentation.
+	 */
+	return !cur_format || cur_format->planes != state->format->planes;
+}
+
+static unsigned int rcar_du_plane_hwmask(struct rcar_du_plane_state *state)
+{
+	unsigned int mask;
+
+	if (state->hwindex == -1)
+		return 0;
+
+	mask = 1 << state->hwindex;
+	if (state->format->planes == 2)
+		mask |= 1 << ((state->hwindex + 1) % 8);
+
+	return mask;
+}
+
+static int rcar_du_plane_hwalloc(unsigned int num_planes, unsigned int free)
+{
+	unsigned int i;
+
+	for (i = 0; i < RCAR_DU_NUM_HW_PLANES; ++i) {
+		if (!(free & (1 << i)))
+			continue;
+
+		if (num_planes == 1 || free & (1 << ((i + 1) % 8)))
+			break;
+	}
+
+	return i == RCAR_DU_NUM_HW_PLANES ? -EBUSY : i;
+}
+
+static int rcar_du_atomic_check(struct drm_device *dev,
+				struct drm_atomic_state *state)
+{
+	struct rcar_du_device *rcdu = dev->dev_private;
+	unsigned int group_freed_planes[RCAR_DU_MAX_GROUPS] = { 0, };
+	unsigned int group_free_planes[RCAR_DU_MAX_GROUPS] = { 0, };
+	bool needs_realloc = false;
+	unsigned int groups = 0;
+	unsigned int i;
+	int ret;
+
+	ret = drm_atomic_helper_check(dev, state);
+	if (ret < 0)
+		return ret;
+
+	/* Check if hardware planes need to be reallocated. */
+	for (i = 0; i < dev->mode_config.num_total_plane; ++i) {
+		struct rcar_du_plane_state *plane_state;
+		struct rcar_du_plane *plane;
+		unsigned int index;
+
+		if (!state->planes[i])
+			continue;
+
+		plane = to_rcar_plane(state->planes[i]);
+		plane_state = to_rcar_du_plane_state(state->plane_states[i]);
+
+		/* If the plane is being disabled we don't need to go through
+		 * the full reallocation procedure. Just mark the hardware
+		 * plane(s) as freed.
+		 */
+		if (!plane_state->format) {
+			index = plane - plane->group->planes.planes;
+			group_freed_planes[plane->group->index] |= 1 << index;
+			plane_state->hwindex = -1;
+			continue;
+		}
+
+		/* If the plane needs to be reallocated mark it as such, and
+		 * mark the hardware plane(s) as free.
+		 */
+		if (rcar_du_plane_needs_realloc(plane, plane_state)) {
+			groups |= 1 << plane->group->index;
+			needs_realloc = true;
+
+			index = plane - plane->group->planes.planes;
+			group_freed_planes[plane->group->index] |= 1 << index;
+			plane_state->hwindex = -1;
+		}
+	}
+
+	if (!needs_realloc)
+		return 0;
+
+	/* Grab all plane states for the groups that need reallocation to ensure
+	 * locking and avoid racy updates. This serializes the update operation,
+	 * but there's not much we can do about it as that's the hardware
+	 * design.
+	 *
+	 * Compute the used planes mask for each group at the same time to avoid
+	 * looping over the planes separately later.
+	 */
+	while (groups) {
+		unsigned int index = ffs(groups) - 1;
+		struct rcar_du_group *group = &rcdu->groups[index];
+		unsigned int used_planes = 0;
+
+		for (i = 0; i < RCAR_DU_NUM_KMS_PLANES; ++i) {
+			struct rcar_du_plane *plane = &group->planes.planes[i];
+			struct rcar_du_plane_state *plane_state;
+			struct drm_plane_state *s;
+
+			s = drm_atomic_get_plane_state(state, &plane->plane);
+			if (IS_ERR(s))
+				return PTR_ERR(s);
+
+			/* If the plane has been freed in the above loop its
+			 * hardware planes must not be added to the used planes
+			 * bitmask. However, the current state doesn't reflect
+			 * the free state yet, as we've modified the new state
+			 * above. Use the local freed planes list to check for
+			 * that condition instead.
+			 */
+			if (group_freed_planes[index] & (1 << i))
+				continue;
+
+			plane_state = to_rcar_du_plane_state(plane->plane.state);
+			used_planes |= rcar_du_plane_hwmask(plane_state);
+		}
+
+		group_free_planes[index] = 0xff & ~used_planes;
+		groups &= ~(1 << index);
+	}
+
+	/* Reallocate hardware planes for each plane that needs it. */
+	for (i = 0; i < dev->mode_config.num_total_plane; ++i) {
+		struct rcar_du_plane_state *plane_state;
+		struct rcar_du_plane *plane;
+		int idx;
+
+		if (!state->planes[i])
+			continue;
+
+		plane = to_rcar_plane(state->planes[i]);
+		plane_state = to_rcar_du_plane_state(state->plane_states[i]);
+
+		/* Skip planes that are being disabled or don't need to be
+		 * reallocated.
+		 */
+		if (!plane_state->format ||
+		    !rcar_du_plane_needs_realloc(plane, plane_state))
+			continue;
+
+		idx = rcar_du_plane_hwalloc(plane_state->format->planes,
+					group_free_planes[plane->group->index]);
+		if (idx < 0) {
+			dev_dbg(rcdu->dev, "%s: no available hardware plane\n",
+				__func__);
+			return idx;
+		}
+
+		plane_state->hwindex = idx;
+
+		group_free_planes[plane->group->index] &=
+			~rcar_du_plane_hwmask(plane_state);
+	}
+
+	return 0;
+}
 
 struct rcar_du_commit {
 	struct work_struct work;
@@ -292,7 +489,7 @@ static int rcar_du_atomic_commit(struct drm_device *dev,
 static const struct drm_mode_config_funcs rcar_du_mode_config_funcs = {
 	.fb_create = rcar_du_fb_create,
 	.output_poll_changed = rcar_du_output_poll_changed,
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = rcar_du_atomic_check,
 	.atomic_commit = rcar_du_atomic_commit,
 };
 
@@ -497,6 +694,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	for (i = 0; i < num_groups; ++i) {
 		struct rcar_du_group *rgrp = &rcdu->groups[i];
+
+		mutex_init(&rgrp->lock);
 
 		rgrp->dev = rcdu;
 		rgrp->mmio_offset = mmio_offsets[i];

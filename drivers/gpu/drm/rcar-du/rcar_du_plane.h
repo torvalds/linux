@@ -14,8 +14,6 @@
 #ifndef __RCAR_DU_PLANE_H__
 #define __RCAR_DU_PLANE_H__
 
-#include <linux/mutex.h>
-
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
@@ -33,13 +31,15 @@ struct rcar_du_group;
 struct rcar_du_plane {
 	struct drm_plane plane;
 	struct rcar_du_group *group;
-	int hwindex;		/* 0-based, -1 means unused */
 };
+
+static inline struct rcar_du_plane *to_rcar_plane(struct drm_plane *plane)
+{
+	return container_of(plane, struct rcar_du_plane, plane);
+}
 
 struct rcar_du_planes {
 	struct rcar_du_plane planes[RCAR_DU_NUM_KMS_PLANES];
-	unsigned int free;
-	struct mutex lock;
 
 	struct drm_property *alpha;
 	struct drm_property *colorkey;
@@ -50,6 +50,7 @@ struct rcar_du_plane_state {
 	struct drm_plane_state state;
 
 	const struct rcar_du_format_info *format;
+	int hwindex;		/* 0-based, -1 means unused */
 
 	unsigned int alpha;
 	unsigned int colorkey;
