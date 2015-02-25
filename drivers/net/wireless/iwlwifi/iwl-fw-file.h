@@ -290,6 +290,10 @@ enum iwl_ucode_tlv_api {
  * @IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT: supports Hot Spot Command
  * @IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS: support radio and beacon statistics
  * @IWL_UCODE_TLV_CAPA_BT_COEX_PLCR: enabled BT Coex packet level co-running
+ * @IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC: ucode supports LAR updates with different
+ *	sources for the MCC. This TLV bit is a future replacement to
+ *	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE. When either is set, multi-source LAR
+ *	is supported.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
  */
 enum iwl_ucode_tlv_capa {
@@ -307,6 +311,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= BIT(18),
 	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= BIT(22),
 	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= BIT(28),
+	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= BIT(29),
 	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= BIT(30),
 };
 
