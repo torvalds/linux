@@ -212,8 +212,10 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 			if (IS_ERR(entry->inode)) {
 				err = PTR_ERR(entry->inode);
 				kmem_cache_free(fsync_entry_slab, entry);
-				if (err == -ENOENT)
+				if (err == -ENOENT) {
+					err = 0;
 					goto next;
+				}
 				break;
 			}
 			list_add_tail(&entry->list, head);
