@@ -296,7 +296,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	memset(&adapter->arp_filter, 0, sizeof(adapter->arp_filter));
 	adapter->arp_filter_size = 0;
 	adapter->max_mgmt_ie_index = MAX_MGMT_IE_INDEX;
-	adapter->ext_scan = false;
 	adapter->key_api_major_ver = 0;
 	adapter->key_api_minor_ver = 0;
 	memset(adapter->perm_addr, 0xff, ETH_ALEN);
