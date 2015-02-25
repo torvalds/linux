@@ -392,10 +392,6 @@ struct dvb_usb_device {
 	struct delayed_work rc_query_work;
 
 	void *priv;
-
-#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
-	struct media_device *media_dev;
-#endif
 };
 
 extern int dvb_usbv2_probe(struct usb_interface *,
