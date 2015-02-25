@@ -1049,7 +1049,7 @@ int prom_putchar(char c)
 }
 EXPORT_SYMBOL(prom_putchar);
 
-void prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
 	if (CAVIUM_OCTEON_DCACHE_PREFETCH_WAR) {
 		/* Check for presence of Core-14449 fix.  */
