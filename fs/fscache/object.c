@@ -610,6 +610,8 @@ static const struct fscache_state *fscache_lookup_failure(struct fscache_object 
 	object->cache->ops->lookup_complete(object);
 	fscache_stat_d(&fscache_n_cop_lookup_complete);
 
+	set_bit(FSCACHE_OBJECT_KILLED_BY_CACHE, &object->flags);
+
 	cookie = object->cookie;
 	set_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
 	if (test_and_clear_bit(FSCACHE_COOKIE_LOOKING_UP, &cookie->flags))

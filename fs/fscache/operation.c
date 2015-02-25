@@ -176,6 +176,9 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 		list_add_tail(&op->pend_link, &object->pending_ops);
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
+	} else if (flags & BIT(FSCACHE_OBJECT_KILLED_BY_CACHE)) {
+		op->state = FSCACHE_OP_ST_CANCELLED;
+		ret = -ENOBUFS;
 	} else {
 		fscache_report_unexpected_submission(object, op, ostate);
 		op->state = FSCACHE_OP_ST_CANCELLED;
@@ -249,6 +252,9 @@ int fscache_submit_op(struct fscache_object *object,
 		list_add_tail(&op->pend_link, &object->pending_ops);
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
+	} else if (flags & BIT(FSCACHE_OBJECT_KILLED_BY_CACHE)) {
+		op->state = FSCACHE_OP_ST_CANCELLED;
+		ret = -ENOBUFS;
 	} else {
 		fscache_report_unexpected_submission(object, op, ostate);
 		ASSERT(!fscache_object_is_active(object));
