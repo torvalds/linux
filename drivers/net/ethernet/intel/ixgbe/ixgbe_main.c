@@ -1619,14 +1619,10 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 static void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
 			 struct sk_buff *skb)
 {
-	struct ixgbe_adapter *adapter = q_vector->adapter;
-
 	if (ixgbe_qv_busy_polling(q_vector))
 		netif_receive_skb(skb);
-	else if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL))
-		napi_gro_receive(&q_vector->napi, skb);
 	else
-		netif_rx(skb);
+		napi_gro_receive(&q_vector->napi, skb);
 }
 
 /**
@@ -6172,7 +6168,6 @@ static void ixgbe_check_hang_subtask(struct ixgbe_adapter *adapter)
 
 	/* Cause software interrupt to ensure rings are cleaned */
 	ixgbe_irq_rearm_queues(adapter, eics);
-
 }
 
 /**
@@ -7505,14 +7500,9 @@ static void ixgbe_netpoll(struct net_device *netdev)
 	if (test_bit(__IXGBE_DOWN, &adapter->state))
 		return;
 
-	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
-	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-		for (i = 0; i < adapter->num_q_vectors; i++)
-			ixgbe_msix_clean_rings(0, adapter->q_vector[i]);
-	} else {
-		ixgbe_intr(adapter->pdev->irq, netdev);
-	}
-	adapter->flags &= ~IXGBE_FLAG_IN_NETPOLL;
+	/* loop through and schedule all active queues */
+	for (i = 0; i < adapter->num_q_vectors; i++)
+		ixgbe_msix_clean_rings(0, adapter->q_vector[i]);
 }
 
 #endif

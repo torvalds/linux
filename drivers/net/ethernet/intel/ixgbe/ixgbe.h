@@ -613,7 +613,6 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 4)
 #define IXGBE_FLAG_RX_PS_CAPABLE                (u32)(1 << 5)
 #define IXGBE_FLAG_RX_PS_ENABLED                (u32)(1 << 6)
-#define IXGBE_FLAG_IN_NETPOLL                   (u32)(1 << 7)
 #define IXGBE_FLAG_DCA_ENABLED                  (u32)(1 << 8)
 #define IXGBE_FLAG_DCA_CAPABLE                  (u32)(1 << 9)
 #define IXGBE_FLAG_IMIR_ENABLED                 (u32)(1 << 10)
