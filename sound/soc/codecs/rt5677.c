@@ -4513,10 +4513,10 @@ static int rt5677_suspend(struct snd_soc_codec *codec)
 	if (!rt5677->dsp_vad_en) {
 		regcache_cache_only(rt5677->regmap, true);
 		regcache_mark_dirty(rt5677->regmap);
-	}
 
-	if (gpio_is_valid(rt5677->pow_ldo2))
-		gpio_set_value_cansleep(rt5677->pow_ldo2, 0);
+		if (gpio_is_valid(rt5677->pow_ldo2))
+			gpio_set_value_cansleep(rt5677->pow_ldo2, 0);
+	}
 
 	return 0;
 }
@@ -4525,12 +4525,12 @@ static int rt5677_resume(struct snd_soc_codec *codec)
 {
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
 
-	if (gpio_is_valid(rt5677->pow_ldo2)) {
-		gpio_set_value_cansleep(rt5677->pow_ldo2, 1);
-		msleep(10);
-	}
-
 	if (!rt5677->dsp_vad_en) {
+		if (gpio_is_valid(rt5677->pow_ldo2)) {
+			gpio_set_value_cansleep(rt5677->pow_ldo2, 1);
+			msleep(10);
+		}
+
 		regcache_cache_only(rt5677->regmap, false);
 		regcache_sync(rt5677->regmap);
 	}
