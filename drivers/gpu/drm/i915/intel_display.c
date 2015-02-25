@@ -3062,7 +3062,7 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 
 static bool pipe_has_enabled_pch(struct intel_crtc *crtc)
 {
-	return crtc->base.enabled && crtc->active &&
+	return crtc->base.state->enable && crtc->active &&
 		crtc->config->has_pch_encoder;
 }
 
@@ -4200,7 +4200,7 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 	bool reenable_ips = false;
 
 	/* The clocks have to be on to load the palette. */
-	if (!crtc->enabled || !intel_crtc->active)
+	if (!crtc->state->enable || !intel_crtc->active)
 		return;
 
 	if (!HAS_PCH_SPLIT(dev_priv->dev)) {
@@ -4313,7 +4313,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 
-	WARN_ON(!crtc->enabled);
+	WARN_ON(!crtc->state->enable);
 
 	if (intel_crtc->active)
 		return;
@@ -4421,7 +4421,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 
-	WARN_ON(!crtc->enabled);
+	WARN_ON(!crtc->state->enable);
 
 	if (intel_crtc->active)
 		return;
@@ -4768,7 +4768,7 @@ static void modeset_update_crtc_power_domains(struct drm_device *dev)
 	for_each_intel_crtc(dev, crtc) {
 		enum intel_display_power_domain domain;
 
-		if (!crtc->base.enabled)
+		if (!crtc->base.state->enable)
 			continue;
 
 		pipe_domains[crtc->pipe] = get_crtc_power_domains(&crtc->base);
@@ -4989,7 +4989,7 @@ static void valleyview_modeset_global_pipes(struct drm_device *dev,
 
 	/* disable/enable all currently active pipes while we change cdclk */
 	for_each_intel_crtc(dev, intel_crtc)
-		if (intel_crtc->base.enabled)
+		if (intel_crtc->base.state->enable)
 			*prepare_pipes |= (1 << intel_crtc->pipe);
 }
 
@@ -5029,7 +5029,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	bool is_dsi;
 
-	WARN_ON(!crtc->enabled);
+	WARN_ON(!crtc->state->enable);
 
 	if (intel_crtc->active)
 		return;
@@ -5112,7 +5112,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 
-	WARN_ON(!crtc->enabled);
+	WARN_ON(!crtc->state->enable);
 
 	if (intel_crtc->active)
 		return;
@@ -5311,7 +5311,7 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* crtc should still be enabled when we disable it. */
-	WARN_ON(!crtc->enabled);
+	WARN_ON(!crtc->state->enable);
 
 	dev_priv->display.crtc_disable(crtc);
 	dev_priv->display.off(crtc);
@@ -5389,7 +5389,8 @@ static void intel_connector_check_state(struct intel_connector *connector)
 
 			crtc = encoder->base.crtc;
 
-			I915_STATE_WARN(!crtc->enabled, "crtc not enabled\n");
+			I915_STATE_WARN(!crtc->state->enable,
+					"crtc not enabled\n");
 			I915_STATE_WARN(!to_intel_crtc(crtc)->active, "crtc not active\n");
 			I915_STATE_WARN(pipe != to_intel_crtc(crtc)->pipe,
 			     "encoder active on the wrong pipe\n");
@@ -8702,7 +8703,7 @@ retry:
 		i++;
 		if (!(encoder->possible_crtcs & (1 << i)))
 			continue;
-		if (possible_crtc->enabled)
+		if (possible_crtc->state->enable)
 			continue;
 		/* This can occur when applying the pipe A quirk on resume. */
 		if (to_intel_crtc(possible_crtc)->new_enabled)
@@ -8770,7 +8771,7 @@ retry:
 	return true;
 
  fail:
-	intel_crtc->new_enabled = crtc->enabled;
+	intel_crtc->new_enabled = crtc->state->enable;
 	if (intel_crtc->new_enabled)
 		intel_crtc->new_config = intel_crtc->config;
 	else
@@ -9930,7 +9931,7 @@ static void intel_modeset_update_staged_output_state(struct drm_device *dev)
 	}
 
 	for_each_intel_crtc(dev, crtc) {
-		crtc->new_enabled = crtc->base.enabled;
+		crtc->new_enabled = crtc->base.state->enable;
 
 		if (crtc->new_enabled)
 			crtc->new_config = crtc->config;
@@ -9960,6 +9961,7 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 	}
 
 	for_each_intel_crtc(dev, crtc) {
+		crtc->base.state->enable = crtc->new_enabled;
 		crtc->base.enabled = crtc->new_enabled;
 	}
 }
@@ -10371,7 +10373,7 @@ intel_modeset_affected_pipes(struct drm_crtc *crtc, unsigned *modeset_pipes,
 
 	/* Check for pipes that will be enabled/disabled ... */
 	for_each_intel_crtc(dev, intel_crtc) {
-		if (intel_crtc->base.enabled == intel_crtc->new_enabled)
+		if (intel_crtc->base.state->enable == intel_crtc->new_enabled)
 			continue;
 
 		if (!intel_crtc->new_enabled)
@@ -10446,10 +10448,10 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 
 	/* Double check state. */
 	for_each_intel_crtc(dev, intel_crtc) {
-		WARN_ON(intel_crtc->base.enabled != intel_crtc_in_use(&intel_crtc->base));
+		WARN_ON(intel_crtc->base.state->enable != intel_crtc_in_use(&intel_crtc->base));
 		WARN_ON(intel_crtc->new_config &&
 			intel_crtc->new_config != intel_crtc->config);
-		WARN_ON(intel_crtc->base.enabled != !!intel_crtc->new_config);
+		WARN_ON(intel_crtc->base.state->enable != !!intel_crtc->new_config);
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -10836,7 +10838,7 @@ check_crtc_state(struct drm_device *dev)
 		DRM_DEBUG_KMS("[CRTC:%d]\n",
 			      crtc->base.base.id);
 
-		I915_STATE_WARN(crtc->active && !crtc->base.enabled,
+		I915_STATE_WARN(crtc->active && !crtc->base.state->enable,
 		     "active crtc, but not enabled in sw tracking\n");
 
 		for_each_intel_encoder(dev, encoder) {
@@ -10850,9 +10852,10 @@ check_crtc_state(struct drm_device *dev)
 		I915_STATE_WARN(active != crtc->active,
 		     "crtc's computed active state doesn't match tracked active state "
 		     "(expected %i, found %i)\n", active, crtc->active);
-		I915_STATE_WARN(enabled != crtc->base.enabled,
+		I915_STATE_WARN(enabled != crtc->base.state->enable,
 		     "crtc's computed enabled state doesn't match tracked enabled state "
-		     "(expected %i, found %i)\n", enabled, crtc->base.enabled);
+		     "(expected %i, found %i)\n", enabled,
+				crtc->base.state->enable);
 
 		active = dev_priv->display.get_pipe_config(crtc,
 							   &pipe_config);
@@ -10916,7 +10919,7 @@ check_shared_dpll_state(struct drm_device *dev)
 		     pll->on, active);
 
 		for_each_intel_crtc(dev, crtc) {
-			if (crtc->base.enabled && intel_crtc_to_shared_dpll(crtc) == pll)
+			if (crtc->base.state->enable && intel_crtc_to_shared_dpll(crtc) == pll)
 				enabled_crtcs++;
 			if (crtc->active && intel_crtc_to_shared_dpll(crtc) == pll)
 				active_crtcs++;
@@ -11102,7 +11105,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		intel_crtc_disable(&intel_crtc->base);
 
 	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc) {
-		if (intel_crtc->base.enabled)
+		if (intel_crtc->base.state->enable)
 			dev_priv->display.crtc_disable(&intel_crtc->base);
 	}
 
@@ -11158,7 +11161,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 
 	/* FIXME: add subpixel order */
 done:
-	if (ret && crtc->enabled)
+	if (ret && crtc->state->enable)
 		crtc->mode = *saved_mode;
 
 	kfree(saved_mode);
@@ -11254,7 +11257,7 @@ static int intel_set_config_save_state(struct drm_device *dev,
 	 */
 	count = 0;
 	for_each_crtc(dev, crtc) {
-		config->save_crtc_enabled[count++] = crtc->enabled;
+		config->save_crtc_enabled[count++] = crtc->state->enable;
 	}
 
 	count = 0;
@@ -11488,7 +11491,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 			}
 		}
 
-		if (crtc->new_enabled != crtc->base.enabled) {
+		if (crtc->new_enabled != crtc->base.state->enable) {
 			DRM_DEBUG_KMS("crtc %sabled, full mode switch\n",
 				      crtc->new_enabled ? "en" : "dis");
 			config->mode_changed = true;
@@ -13377,6 +13380,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 			}
 
 		WARN_ON(crtc->active);
+		crtc->base.state->enable = false;
 		crtc->base.enabled = false;
 	}
 
@@ -13393,7 +13397,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	 * have active connectors/encoders. */
 	intel_crtc_update_dpms(&crtc->base);
 
-	if (crtc->active != crtc->base.enabled) {
+	if (crtc->active != crtc->base.state->enable) {
 		struct intel_encoder *encoder;
 
 		/* This can happen either due to bugs in the get_hw_state
@@ -13401,9 +13405,10 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 * pipe A quirk. */
 		DRM_DEBUG_KMS("[CRTC:%d] hw state adjusted, was %s, now %s\n",
 			      crtc->base.base.id,
-			      crtc->base.enabled ? "enabled" : "disabled",
+			      crtc->base.state->enable ? "enabled" : "disabled",
 			      crtc->active ? "enabled" : "disabled");
 
+		crtc->base.state->enable = crtc->active;
 		crtc->base.enabled = crtc->active;
 
 		/* Because we only establish the connector -> encoder ->
@@ -13540,6 +13545,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->active = dev_priv->display.get_pipe_config(crtc,
 								 crtc->config);
 
+		crtc->base.state->enable = crtc->active;
 		crtc->base.enabled = crtc->active;
 		crtc->primary_enabled = primary_get_hw_state(crtc);
 
