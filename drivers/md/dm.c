@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/kthread.h>
+#include <linux/elevator.h> /* for rq_end_sector() */
 
 #include <trace/events/block.h>
 
@@ -216,6 +217,10 @@ struct mapped_device {
 
 	struct kthread_worker kworker;
 	struct task_struct *kworker_task;
+
+	/* for request-based merge heuristic in dm_request_fn() */
+	sector_t last_rq_pos;
+	int last_rq_rw;
 };
 
 /*
@@ -1930,6 +1935,9 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
 	blk_start_request(orig);
 	atomic_inc(&md->pending[rq_data_dir(orig)]);
 
+	md->last_rq_pos = rq_end_sector(orig);
+	md->last_rq_rw = rq_data_dir(orig);
+
 	/*
 	 * Hold the md reference here for the in-flight I/O.
 	 * We can't rely on the reference count by device opener,
@@ -1981,6 +1989,10 @@ static void dm_request_fn(struct request_queue *q)
 			dm_kill_unmapped_request(rq, -EIO);
 			continue;
 		}
+
+		if (md_in_flight(md) && rq->bio && rq->bio->bi_vcnt == 1 &&
+		    md->last_rq_pos == pos && md->last_rq_rw == rq_data_dir(rq))
+			goto delay_and_out;
 
 		if (ti->type->busy && ti->type->busy(ti))
 			goto delay_and_out;
