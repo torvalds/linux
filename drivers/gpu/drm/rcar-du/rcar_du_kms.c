@@ -286,11 +286,16 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 		plane = to_rcar_plane(state->planes[i]);
 		plane_state = to_rcar_plane_state(state->plane_states[i]);
 
+		dev_dbg(rcdu->dev, "%s: checking plane (%u,%u)\n", __func__,
+			plane->group->index, plane - plane->group->planes);
+
 		/* If the plane is being disabled we don't need to go through
 		 * the full reallocation procedure. Just mark the hardware
 		 * plane(s) as freed.
 		 */
 		if (!plane_state->format) {
+			dev_dbg(rcdu->dev, "%s: plane is being disabled\n",
+				__func__);
 			index = plane - plane->group->planes;
 			group_freed_planes[plane->group->index] |= 1 << index;
 			plane_state->hwindex = -1;
@@ -301,6 +306,8 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 		 * mark the hardware plane(s) as free.
 		 */
 		if (rcar_du_plane_needs_realloc(plane, plane_state)) {
+			dev_dbg(rcdu->dev, "%s: plane needs reallocation\n",
+				__func__);
 			groups |= 1 << plane->group->index;
 			needs_realloc = true;
 
@@ -326,6 +333,9 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 		struct rcar_du_group *group = &rcdu->groups[index];
 		unsigned int used_planes = 0;
 
+		dev_dbg(rcdu->dev, "%s: finding free planes for group %u\n",
+			__func__, index);
+
 		for (i = 0; i < RCAR_DU_NUM_KMS_PLANES; ++i) {
 			struct rcar_du_plane *plane = &group->planes[i];
 			struct rcar_du_plane_state *plane_state;
@@ -342,15 +352,31 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 			 * above. Use the local freed planes list to check for
 			 * that condition instead.
 			 */
-			if (group_freed_planes[index] & (1 << i))
+			if (group_freed_planes[index] & (1 << i)) {
+				dev_dbg(rcdu->dev,
+					"%s: plane (%u,%u) has been freed, skipping\n",
+					__func__, plane->group->index,
+					plane - plane->group->planes);
 				continue;
+			}
 
 			plane_state = to_rcar_plane_state(plane->plane.state);
 			used_planes |= rcar_du_plane_hwmask(plane_state);
+
+			dev_dbg(rcdu->dev,
+				"%s: plane (%u,%u) uses %u hwplanes (index %d)\n",
+				__func__, plane->group->index,
+				plane - plane->group->planes,
+				plane_state->format ?
+				plane_state->format->planes : 0,
+				plane_state->hwindex);
 		}
 
 		group_free_planes[index] = 0xff & ~used_planes;
 		groups &= ~(1 << index);
+
+		dev_dbg(rcdu->dev, "%s: group %u free planes mask 0x%02x\n",
+			__func__, index, group_free_planes[index]);
 	}
 
 	/* Reallocate hardware planes for each plane that needs it. */
@@ -364,6 +390,9 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 
 		plane = to_rcar_plane(state->planes[i]);
 		plane_state = to_rcar_plane_state(state->plane_states[i]);
+
+		dev_dbg(rcdu->dev, "%s: allocating plane (%u,%u)\n", __func__,
+			plane->group->index, plane - plane->group->planes);
 
 		/* Skip planes that are being disabled or don't need to be
 		 * reallocated.
@@ -380,10 +409,17 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 			return idx;
 		}
 
+		dev_dbg(rcdu->dev, "%s: allocated %u hwplanes (index %u)\n",
+			__func__, plane_state->format->planes, idx);
+
 		plane_state->hwindex = idx;
 
 		group_free_planes[plane->group->index] &=
 			~rcar_du_plane_hwmask(plane_state);
+
+		dev_dbg(rcdu->dev, "%s: group %u free planes mask 0x%02x\n",
+			__func__, plane->group->index,
+			group_free_planes[plane->group->index]);
 	}
 
 	return 0;
