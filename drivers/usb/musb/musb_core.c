@@ -538,26 +538,11 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				usb_otg_state_string(musb->xceiv->otg->state));
 
 		if (devctl & MUSB_DEVCTL_HM) {
-			void __iomem *mbase = musb->mregs;
-			u8 power;
-
 			switch (musb->xceiv->otg->state) {
 			case OTG_STATE_A_SUSPEND:
 				/* remote wakeup?  later, GetPortStatus
 				 * will stop RESUME signaling
 				 */
-
-				power = musb_readb(musb->mregs, MUSB_POWER);
-				if (power & MUSB_POWER_SUSPENDM) {
-					/* spurious */
-					musb->int_usb &= ~MUSB_INTR_SUSPEND;
-					dev_dbg(musb->controller, "Spurious SUSPENDM\n");
-					break;
-				}
-
-				power &= ~MUSB_POWER_SUSPENDM;
-				musb_writeb(mbase, MUSB_POWER,
-						power | MUSB_POWER_RESUME);
 
 				musb->port1_status |=
 						(USB_PORT_STAT_C_SUSPEND << 16)
