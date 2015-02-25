@@ -74,6 +74,24 @@
 #define RESID_COUNT_H 13
 #define RESID_COUNT_L 14
 
+static const struct comedi_lrange cb_pcimdas_ai_bip_range = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25)
+	}
+};
+
+static const struct comedi_lrange cb_pcimdas_ai_uni_range = {
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
+};
+
 /*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
@@ -105,9 +123,10 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 	struct cb_pcimdas_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	int n;
 	unsigned int d;
-	int chan = CR_CHAN(insn->chanspec);
 	unsigned short chanlims;
 	int ret;
 
@@ -123,8 +142,8 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 	/* set bursting off, conversions on */
 	outb(0x01, devpriv->BADR3 + 6);
 
-	/* set range to 10V. UP/BP is controlled by a switch on the board */
-	outb(0x00, devpriv->BADR3 + 7);
+	/* set range */
+	outb(range, devpriv->BADR3 + 7);
 
 	/*
 	 * write channel limits to multiplexer, set Low (bits 0-3) and
@@ -185,6 +204,20 @@ static bool cb_pcimdas_is_ai_se(struct comedi_device *dev)
 	return status & 0x20;
 }
 
+static bool cb_pcimdas_is_ai_uni(struct comedi_device *dev)
+{
+	struct cb_pcimdas_private *devpriv = dev->private;
+	unsigned int status;
+
+	/*
+	 * The Analog Input range polarity is set with the
+	 * Analog Input Polarity Switch on the board. The
+	 * inputs can be set to Unipolar or Bipolar ranges.
+	 */
+	status = inb(devpriv->BADR3 + 2);
+	return status & 0x40;
+}
+
 static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 					    unsigned long context_unused)
 {
@@ -222,7 +255,8 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 		s->n_chan	= 8;
 	}
 	s->maxdata = 0xffff;
-	s->range_table = &range_unknown;
+	s->range_table	= cb_pcimdas_is_ai_uni(dev) ? &cb_pcimdas_ai_uni_range
+						    : &cb_pcimdas_ai_bip_range;
 	s->len_chanlist = 1;	/*  This is the maximum chanlist length that */
 	/*  the board can handle */
 	s->insn_read = cb_pcimdas_ai_rinsn;
