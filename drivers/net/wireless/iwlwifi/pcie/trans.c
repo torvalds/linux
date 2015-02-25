@@ -2423,9 +2423,44 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	 * "dash" value). To keep hw_rev backwards compatible - we'll store it
 	 * in the old format.
 	 */
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+		unsigned long flags;
+		int ret;
+
 		trans->hw_rev = (trans->hw_rev & 0xfff0) |
 				(CSR_HW_REV_STEP(trans->hw_rev << 2) << 2);
+
+		/*
+		 * in-order to recognize C step driver should read chip version
+		 * id located at the AUX bus MISC address space.
+		 */
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+		udelay(2);
+
+		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   25000);
+		if (ret < 0) {
+			IWL_DEBUG_INFO(trans, "Failed to wake up the nic\n");
+			goto out_pci_disable_msi;
+		}
+
+		if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+			u32 hw_step;
+
+			hw_step = __iwl_read_prph(trans, WFPM_CTRL_REG);
+			hw_step |= ENABLE_WFPM;
+			__iwl_write_prph(trans, WFPM_CTRL_REG, hw_step);
+			hw_step = __iwl_read_prph(trans, AUX_MISC_REG);
+			hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
+			if (hw_step == 0x3)
+				trans->hw_rev = (trans->hw_rev & 0xFFFFFFF3) |
+						(SILICON_C_STEP << 2);
+			iwl_trans_release_nic_access(trans, &flags);
+		}
+	}
 
 	trans->hw_id = (pdev->device << 16) + pdev->subsystem_device;
 	snprintf(trans->hw_id_str, sizeof(trans->hw_id_str),

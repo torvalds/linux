@@ -378,6 +378,15 @@ enum secure_load_status_reg {
 #define LMPM_PMG_EN			0xA01CEC
 #define RADIO_REG_SYS_MANUAL_DFT_0	0xAD4078
 #define RFIC_REG_RD			0xAD0470
+#define WFPM_CTRL_REG			0xA03030
+enum {
+	ENABLE_WFPM = BIT(31),
+};
+
+#define AUX_MISC_REG			0xA200B0
+enum {
+	HW_STEP_LOCATION_BITS = 24,
+};
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
