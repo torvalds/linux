@@ -236,8 +236,6 @@ void HalSetBrateCfg23a(struct rtw_adapter *padapter, u8 *mBratesOS)
 	}
 		/*  Ziv - Check */
 	rtl8723au_write8(padapter, REG_INIRTS_RATE_SEL, rate_index);
-
-	return;
 }
 
 static void _OneOutPipeMapping(struct rtw_adapter *pAdapter)
