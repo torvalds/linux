@@ -9922,7 +9922,17 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 
 		/* Reset pinned so btrfs_put_block_group doesn't complain */
+		spin_lock(&space_info->lock);
+		spin_lock(&block_group->lock);
+
+		space_info->bytes_pinned -= block_group->pinned;
+		space_info->bytes_readonly += block_group->pinned;
+		percpu_counter_add(&space_info->total_bytes_pinned,
+				   -block_group->pinned);
 		block_group->pinned = 0;
+
+		spin_unlock(&block_group->lock);
+		spin_unlock(&space_info->lock);
 
 		/*
 		 * Btrfs_remove_chunk will abort the transaction if things go
