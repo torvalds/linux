@@ -129,7 +129,8 @@ static inline void handle_pairwise_key(struct sta_info *psta,
 		memcpy(psta->tkiprxmickey. skey, &(param->u.crypt.
 			key[24]), 8);
 		padapter->securitypriv. busetkipkey = false;
-		_set_timer(&padapter->securitypriv.tkip_timer, 50);
+		mod_timer(&padapter->securitypriv.tkip_timer,
+			  jiffies + msecs_to_jiffies(50));
 	}
 	r8712_setstakey_cmd(padapter, (unsigned char *)psta, true);
 }
@@ -153,8 +154,8 @@ static inline void handle_group_key(struct ieee_param *param,
 		if (padapter->registrypriv.power_mgnt > PS_MODE_ACTIVE) {
 			if (padapter->registrypriv.power_mgnt != padapter->
 			    pwrctrlpriv.pwr_mode)
-				_set_timer(&(padapter->mlmepriv.dhcp_timer),
-					   60000);
+				mod_timer(&padapter->mlmepriv.dhcp_timer,
+					  jiffies + msecs_to_jiffies(60000));
 		}
 	}
 }
