@@ -464,7 +464,7 @@ static void recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 
 void recover_orphan_inodes(struct f2fs_sb_info *sbi)
 {
-	block_t start_blk, orphan_blkaddr, i, j;
+	block_t start_blk, orphan_blocks, i, j;
 
 	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG))
 		return;
@@ -472,11 +472,11 @@ void recover_orphan_inodes(struct f2fs_sb_info *sbi)
 	set_sbi_flag(sbi, SBI_POR_DOING);
 
 	start_blk = __start_cp_addr(sbi) + 1 + __cp_payload(sbi);
-	orphan_blkaddr = __start_sum_addr(sbi) - 1;
+	orphan_blocks = __start_sum_addr(sbi) - 1 - __cp_payload(sbi);
 
-	ra_meta_pages(sbi, start_blk, orphan_blkaddr, META_CP);
+	ra_meta_pages(sbi, start_blk, orphan_blocks, META_CP);
 
-	for (i = 0; i < orphan_blkaddr; i++) {
+	for (i = 0; i < orphan_blocks; i++) {
 		struct page *page = get_meta_page(sbi, start_blk + i);
 		struct f2fs_orphan_block *orphan_blk;
 
