@@ -516,6 +516,7 @@ void e1000_down(struct e1000_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	u32 rctl, tctl;
 
+	netif_carrier_off(netdev);
 
 	/* disable receives in the hardware */
 	rctl = er32(RCTL);
@@ -544,7 +545,6 @@ void e1000_down(struct e1000_adapter *adapter)
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
-	netif_carrier_off(netdev);
 
 	e1000_reset(adapter);
 	e1000_clean_all_tx_rings(adapter);
