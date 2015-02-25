@@ -566,7 +566,6 @@ int i2o_parm_table_get(struct i2o_device *dev, int oper, int group,
 
 	opblk = kmalloc(size, GFP_KERNEL);
 	if (opblk == NULL) {
-		printk(KERN_ERR "i2o: no memory for query buffer.\n");
 		return -ENOMEM;
 	}
 
