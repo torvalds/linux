@@ -879,7 +879,7 @@ b_host:
 	 */
 	if (int_usb & MUSB_INTR_RESET) {
 		handled = IRQ_HANDLED;
-		if ((devctl & MUSB_DEVCTL_HM) != 0) {
+		if (devctl & MUSB_DEVCTL_HM) {
 			/*
 			 * Looks like non-HS BABBLE can be ignored, but
 			 * HS BABBLE is an error condition. For HS the solution
