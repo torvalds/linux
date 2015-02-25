@@ -161,6 +161,7 @@ config USB_NET_AX8817X
 	    * Linksys USB200M
 	    * Netgear FA120
 	    * Sitecom LN-029
+	    * Sitecom LN-028
 	    * Intellinet USB 2.0 Ethernet
 	    * ST Lab USB 2.0 Ethernet
 	    * TrendNet TU2-ET100
