@@ -621,7 +621,8 @@ static void handle_rx(struct vhost_net *net)
 
 		num_buffers = cpu_to_vhost16(vq, headcount);
 		if (likely(mergeable) &&
-		    copy_to_iter(&num_buffers, 2, &fixup) != 2) {
+		    copy_to_iter(&num_buffers, sizeof num_buffers,
+				 &fixup) != sizeof num_buffers) {
 			vq_err(vq, "Failed num_buffers write");
 			vhost_discard_vq_desc(vq, headcount);
 			break;
