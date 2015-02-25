@@ -54,7 +54,7 @@ int rcar_du_plane_reserve(struct rcar_du_plane *plane,
 
 	mutex_lock(&rgrp->planes.lock);
 
-	for (i = 0; i < ARRAY_SIZE(rgrp->planes.planes); ++i) {
+	for (i = 0; i < RCAR_DU_NUM_HW_PLANES; ++i) {
 		if (!(rgrp->planes.free & (1 << i)))
 			continue;
 
@@ -63,7 +63,7 @@ int rcar_du_plane_reserve(struct rcar_du_plane *plane,
 			break;
 	}
 
-	if (i == ARRAY_SIZE(rgrp->planes.planes))
+	if (i == RCAR_DU_NUM_HW_PLANES)
 		goto done;
 
 	rgrp->planes.free &= ~(1 << i);
