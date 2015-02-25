@@ -63,11 +63,8 @@ static void count_objects(struct drbd_resource *resource,
 
 	idr_for_each_entry(&resource->devices, device, vnr)
 		(*n_devices)++;
-	for_each_connection(connection, resource) {
-		if (!has_net_conf(connection))
-			continue;
+	for_each_connection(connection, resource)
 		(*n_connections)++;
-	}
 }
 
 static struct drbd_state_change *alloc_state_change(unsigned int n_devices, unsigned int n_connections, gfp_t gfp)
@@ -108,22 +105,12 @@ struct drbd_state_change *remember_old_state(struct drbd_resource *resource, gfp
 	struct drbd_peer_device_state_change *peer_device_state_change;
 	struct drbd_connection_state_change *connection_state_change;
 
-retry:
-	rcu_read_lock();
+	/* Caller holds req_lock spinlock.
+	 * No state, no device IDR, no connections lists can change. */
 	count_objects(resource, &n_devices, &n_connections);
-	rcu_read_unlock();
 	state_change = alloc_state_change(n_devices, n_connections, gfp);
 	if (!state_change)
 		return NULL;
-
-	rcu_read_lock();
-	count_objects(resource, &n_devices, &n_connections);
-	if (n_devices != state_change->n_devices ||
-	    n_connections != state_change->n_connections) {
-		kfree(state_change);
-		rcu_read_unlock();
-		goto retry;
-	}
 
 	kref_get(&resource->kref);
 	state_change->resource->resource = resource;
@@ -132,6 +119,17 @@ retry:
 	state_change->resource->susp[OLD] = resource->susp;
 	state_change->resource->susp_nod[OLD] = resource->susp_nod;
 	state_change->resource->susp_fen[OLD] = resource->susp_fen;
+
+	connection_state_change = state_change->connections;
+	for_each_connection(connection, resource) {
+		kref_get(&connection->kref);
+		connection_state_change->connection = connection;
+		connection_state_change->cstate[OLD] =
+			connection->cstate;
+		connection_state_change->peer_role[OLD] =
+			conn_highest_peer(connection);
+		connection_state_change++;
+	}
 
 	device_state_change = state_change->devices;
 	peer_device_state_change = state_change->peer_devices;
@@ -145,8 +143,6 @@ retry:
 		for_each_connection(connection, resource) {
 			struct drbd_peer_device *peer_device;
 
-			if (!has_net_conf(connection))
-				continue;
 			peer_device = conn_peer_device(connection, device->vnr);
 			peer_device_state_change->peer_device = peer_device;
 			peer_device_state_change->disk_state[OLD] =
@@ -164,20 +160,6 @@ retry:
 		}
 		device_state_change++;
 	}
-
-	connection_state_change = state_change->connections;
-	for_each_connection(connection, resource) {
-		if (!has_net_conf(connection))
-			continue;
-		kref_get(&connection->kref);
-		connection_state_change->connection = connection;
-		connection_state_change->cstate[OLD] =
-			connection->cstate;
-		connection_state_change->peer_role[OLD] =
-			conn_highest_peer(connection);
-		connection_state_change++;
-	}
-	rcu_read_unlock();
 
 	return state_change;
 }
