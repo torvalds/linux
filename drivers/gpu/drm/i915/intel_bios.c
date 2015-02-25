@@ -662,6 +662,13 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 			      edp_link_params->vswing);
 		break;
 	}
+
+	if (bdb->version >= 173) {
+		uint8_t vswing;
+
+		vswing = (edp->edp_vswing_preemph >> (panel_type * 4)) & 0xF;
+		dev_priv->vbt.edp_low_vswing = vswing == 0;
+	}
 }
 
 static void

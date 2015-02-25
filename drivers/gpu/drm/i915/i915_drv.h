@@ -1466,6 +1466,7 @@ struct intel_vbt_data {
 	bool edp_initialized;
 	bool edp_support;
 	int edp_bpp;
+	bool edp_low_vswing;
 	struct edp_power_seq edp_pps;
 
 	struct {
