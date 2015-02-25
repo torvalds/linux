@@ -572,7 +572,6 @@
 #define MSGTXDATA2			0xFE46
 #define MSGTXDATA3			0xFE47
 #define MSGTXCTL			0xFE48
-#define PETXCFG				0xFE49
 #define LTR_CTL				0xFE4A
 #define OBFF_CFG			0xFE4C
 
@@ -606,6 +605,7 @@
 #define DUMMY_REG_RESET_0		0xFE90
 
 #define AUTOLOAD_CFG_BASE		0xFF00
+#define PETXCFG				0xFF03
 
 #define PM_CTRL1			0xFF44
 #define PM_CTRL2			0xFF45

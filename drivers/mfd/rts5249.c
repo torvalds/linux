@@ -116,11 +116,9 @@ static int rts5249_extra_init_hw(struct rtsx_pcr *pcr)
 	/* Configure driving */
 	rts5249_fill_driving(pcr, OUTPUT_3V3);
 	if (pcr->flags & PCR_REVERSE_SOCKET)
-		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD,
-				AUTOLOAD_CFG_BASE + 3, 0xB0, 0xB0);
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG, 0xB0, 0xB0);
 	else
-		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD,
-				AUTOLOAD_CFG_BASE + 3, 0xB0, 0x80);
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG, 0xB0, 0x80);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PM_CTRL3, 0x10, 0x00);
 
 	return rtsx_pci_send_cmd(pcr, 100);
