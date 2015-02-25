@@ -97,10 +97,31 @@
 
 			/* Device Configuration Registers */
 			scm_conf: syscon@600 {
-				compatible = "syscon";
+				compatible = "syscon", "simple-bus";
 				reg = <0x600 0x110>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+				ranges = <0 0x600 0x110>;
+
+				usb_phy0: usb-phy@20 {
+					compatible = "ti,dm8168-usb-phy";
+					reg = <0x20 0x8>;
+					reg-names = "phy";
+					clocks = <&main_fapll 6>;
+					clock-names = "refclk";
+					#phy-cells = <0>;
+					syscon = <&scm_conf>;
+				};
+
+				usb_phy1: usb-phy@28 {
+					compatible = "ti,dm8168-usb-phy";
+					reg = <0x28 0x8>;
+					reg-names = "phy";
+					clocks = <&main_fapll 6>;
+					clock-names = "refclk";
+					#phy-cells = <0>;
+					syscon = <&scm_conf>;
+				};
 			};
 
 			scrm_clocks: clocks {
@@ -357,7 +378,10 @@
 				reg-names = "mc", "control";
 				interrupts = <18>;
 				interrupt-names = "mc";
-				dr_mode = "otg";
+				dr_mode = "host";
+				interface-type = <0>;
+				phys = <&usb_phy0>;
+				phy-names = "usb2-phy";
 				mentor,multipoint = <1>;
 				mentor,num-eps = <16>;
 				mentor,ram-bits = <12>;
@@ -366,13 +390,15 @@
 
 			usb1: usb@47401800 {
 				compatible = "ti,musb-am33xx";
-				status = "disabled";
 				reg = <0x47401c00 0x400
 				       0x47401800 0x200>;
 				reg-names = "mc", "control";
 				interrupts = <19>;
 				interrupt-names = "mc";
-				dr_mode = "otg";
+				dr_mode = "host";
+				interface-type = <0>;
+				phys = <&usb_phy1>;
+				phy-names = "usb2-phy";
 				mentor,multipoint = <1>;
 				mentor,num-eps = <16>;
 				mentor,ram-bits = <12>;
