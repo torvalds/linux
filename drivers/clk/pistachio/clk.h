@@ -94,6 +94,53 @@ struct pistachio_fixed_factor {
 		.parent		= _pname,			\
 	}
 
+struct pistachio_pll_rate_table {
+	unsigned long fref;
+	unsigned long fout;
+	unsigned int refdiv;
+	unsigned int fbdiv;
+	unsigned int postdiv1;
+	unsigned int postdiv2;
+	unsigned int frac;
+};
+
+enum pistachio_pll_type {
+	PLL_GF40LP_LAINT,
+	PLL_GF40LP_FRAC,
+};
+
+struct pistachio_pll {
+	unsigned int id;
+	unsigned long reg_base;
+	enum pistachio_pll_type type;
+	struct pistachio_pll_rate_table *rates;
+	unsigned int nr_rates;
+	const char *name;
+	const char *parent;
+};
+
+#define PLL(_id, _name, _pname, _type, _reg, _rates)		\
+	{							\
+		.id		= _id,				\
+		.reg_base	= _reg,				\
+		.type		= _type,			\
+		.rates		= _rates,			\
+		.nr_rates	= ARRAY_SIZE(_rates),		\
+		.name		= _name,			\
+		.parent		= _pname,			\
+	}
+
+#define PLL_FIXED(_id, _name, _pname, _type, _reg)		\
+	{							\
+		.id		= _id,				\
+		.reg_base	= _reg,				\
+		.type		= _type,			\
+		.rates		= NULL,				\
+		.nr_rates	= 0,				\
+		.name		= _name,			\
+		.parent		= _pname,			\
+	}
+
 struct pistachio_clk_provider {
 	struct device_node *node;
 	void __iomem *base;
@@ -117,6 +164,9 @@ extern void
 pistachio_clk_register_fixed_factor(struct pistachio_clk_provider *p,
 				    struct pistachio_fixed_factor *ff,
 				    unsigned int num);
+extern void pistachio_clk_register_pll(struct pistachio_clk_provider *p,
+				       struct pistachio_pll *pll,
+				       unsigned int num);
 
 extern void pistachio_clk_force_enable(struct pistachio_clk_provider *p,
 				       unsigned int *clk_ids, unsigned int num);
