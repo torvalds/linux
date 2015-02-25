@@ -330,28 +330,6 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 
 	dev_dbg(musb->controller, "usbintr (%x) epintr(%x)\n",
 			usbintr, epintr);
-	/*
-	 * DRVVBUS IRQs are the only proxy we have (a very poor one!) for
-	 * DSPS IP's missing ID change IRQ.  We need an ID change IRQ to
-	 * switch appropriately between halves of the OTG state machine.
-	 * Managing DEVCTL.SESSION per Mentor docs requires that we know its
-	 * value but DEVCTL.BDEVICE is invalid without DEVCTL.SESSION set.
-	 * Also, DRVVBUS pulses for SRP (but not at 5V) ...
-	 */
-	if (is_host_active(musb) && usbintr & MUSB_INTR_BABBLE) {
-		pr_info("CAUTION: musb: Babble Interrupt Occurred\n");
-
-		/*
-		 * When a babble condition occurs, the musb controller removes
-		 * the session and is no longer in host mode. Hence, all
-		 * devices connected to its root hub get disconnected.
-		 *
-		 * Hand this error down to the musb core isr, so it can
-		 * recover.
-		 */
-		musb->int_usb = MUSB_INTR_BABBLE | MUSB_INTR_DISCONNECT;
-		musb->int_tx = musb->int_rx = 0;
-	}
 
 	if (usbintr & ((1 << wrp->drvvbus) << wrp->usb_shift)) {
 		int drvvbus = dsps_readl(reg_base, wrp->status);

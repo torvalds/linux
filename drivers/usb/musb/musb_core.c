@@ -879,7 +879,7 @@ b_host:
 			 * the session.
 			 */
 			if (power & MUSB_POWER_HSMODE) {
-				ERR("Stopping host session -- babble\n");
+				dev_err(musb->controller, "Babble\n");
 				musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
 				if (is_host_active(musb)) {
