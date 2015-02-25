@@ -409,6 +409,7 @@ struct cx18_stream {
 	/* Videobuf for YUV video */
 	u32 pixelformat;
 	u32 vb_bytes_per_frame;
+	u32 vb_bytes_per_line;
 	struct list_head vb_capture;    /* video capture queue */
 	spinlock_t vb_lock;
 	struct timer_list vb_timeout;

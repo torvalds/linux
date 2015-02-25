@@ -159,7 +159,7 @@ static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
 	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
 		pixfmt->pixelformat = s->pixelformat;
 		pixfmt->sizeimage = s->vb_bytes_per_frame;
-		pixfmt->bytesperline = 720;
+		pixfmt->bytesperline = s->vb_bytes_per_line;
 	} else {
 		pixfmt->pixelformat = V4L2_PIX_FMT_MPEG;
 		pixfmt->sizeimage = 128 * 1024;
@@ -287,10 +287,13 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	s->pixelformat = fmt->fmt.pix.pixelformat;
 	/* HM12 YUV size is (Y=(h*720) + UV=(h*(720/2)))
 	   UYUV YUV size is (Y=(h*720) + UV=(h*(720))) */
-	if (s->pixelformat == V4L2_PIX_FMT_HM12)
+	if (s->pixelformat == V4L2_PIX_FMT_HM12) {
 		s->vb_bytes_per_frame = h * 720 * 3 / 2;
-	else
+		s->vb_bytes_per_line = 720; /* First plane */
+	} else {
 		s->vb_bytes_per_frame = h * 720 * 2;
+		s->vb_bytes_per_line = 1440; /* Packed */
+	}
 
 	mbus_fmt.width = cx->cxhdl.width = w;
 	mbus_fmt.height = cx->cxhdl.height = h;
