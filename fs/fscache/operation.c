@@ -365,6 +365,13 @@ int fscache_cancel_op(struct fscache_operation *op,
 			wake_up_bit(&op->flags, FSCACHE_OP_WAITING);
 		ret = 0;
 	} else if (op->state == FSCACHE_OP_ST_IN_PROGRESS && cancel_in_progress_op) {
+		ASSERTCMP(object->n_in_progress, >, 0);
+		if (test_bit(FSCACHE_OP_EXCLUSIVE, &op->flags))
+			object->n_exclusive--;
+		object->n_in_progress--;
+		if (object->n_in_progress == 0)
+			fscache_start_operations(object);
+
 		fscache_stat(&fscache_n_op_cancelled);
 		if (do_cancel)
 			do_cancel(op);
