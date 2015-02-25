@@ -102,15 +102,7 @@ EXPORT_SYMBOL_GPL(a10sycon_regmap_config);
 
 int a10sycon_device_init(struct a10sycon *a10sc)
 {
-	int ret;
-
 	init_completion(&a10sc->done);
-
-	ret = a10sycon_irq_init(a10sc);
-	if (ret != 0) {
-		dev_err(a10sc->dev, "a10sycon_irq_init failed: %d\n", ret);
-		return ret;
-	}
 
 	return 0;
 }
