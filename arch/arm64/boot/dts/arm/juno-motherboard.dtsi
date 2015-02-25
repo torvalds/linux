@@ -66,6 +66,74 @@
 				#size-cells = <1>;
 				ranges = <0 3 0 0x200000>;
 
+				apbregs@010000 {
+					compatible = "syscon", "simple-mfd";
+					reg = <0x010000 0x1000>;
+
+					led@08.0 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x01>;
+						label = "vexpress:0";
+						linux,default-trigger = "heartbeat";
+						default-state = "on";
+					};
+					led@08.1 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x02>;
+						label = "vexpress:1";
+						linux,default-trigger = "mmc0";
+						default-state = "off";
+					};
+					led@08.2 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x04>;
+						label = "vexpress:2";
+						linux,default-trigger = "cpu0";
+						default-state = "off";
+					};
+					led@08.3 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x08>;
+						label = "vexpress:3";
+						linux,default-trigger = "cpu1";
+						default-state = "off";
+					};
+					led@08.4 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x10>;
+						label = "vexpress:4";
+						linux,default-trigger = "cpu2";
+						default-state = "off";
+					};
+					led@08.5 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x20>;
+						label = "vexpress:5";
+						linux,default-trigger = "cpu3";
+						default-state = "off";
+					};
+					led@08.6 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x40>;
+						label = "vexpress:6";
+						default-state = "off";
+					};
+					led@08.7 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x80>;
+						label = "vexpress:7";
+						default-state = "off";
+					};
+				};
+
 				mmci@050000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x050000 0x1000>;
