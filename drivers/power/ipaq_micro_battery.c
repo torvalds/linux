@@ -226,6 +226,7 @@ static struct power_supply micro_ac_power = {
 static int micro_batt_probe(struct platform_device *pdev)
 {
 	struct micro_battery *mb;
+	int ret;
 
 	mb = devm_kzalloc(&pdev->dev, sizeof(*mb), GFP_KERNEL);
 	if (!mb)
@@ -233,14 +234,30 @@ static int micro_batt_probe(struct platform_device *pdev)
 
 	mb->micro = dev_get_drvdata(pdev->dev.parent);
 	mb->wq = create_singlethread_workqueue("ipaq-battery-wq");
+	if (!mb->wq)
+		return -ENOMEM;
+
 	INIT_DELAYED_WORK(&mb->update, micro_battery_work);
 	platform_set_drvdata(pdev, mb);
 	queue_delayed_work(mb->wq, &mb->update, 1);
-	power_supply_register(&pdev->dev, &micro_batt_power);
-	power_supply_register(&pdev->dev, &micro_ac_power);
+
+	ret = power_supply_register(&pdev->dev, &micro_batt_power);
+	if (ret < 0)
+		goto batt_err;
+
+	ret = power_supply_register(&pdev->dev, &micro_ac_power);
+	if (ret < 0)
+		goto ac_err;
 
 	dev_info(&pdev->dev, "iPAQ micro battery driver\n");
 	return 0;
+
+ac_err:
+	power_supply_unregister(&micro_ac_power);
+batt_err:
+	cancel_delayed_work_sync(&mb->update);
+	destroy_workqueue(mb->wq);
+	return ret;
 }
 
 static int micro_batt_remove(struct platform_device *pdev)
@@ -251,6 +268,7 @@ static int micro_batt_remove(struct platform_device *pdev)
 	power_supply_unregister(&micro_ac_power);
 	power_supply_unregister(&micro_batt_power);
 	cancel_delayed_work_sync(&mb->update);
+	destroy_workqueue(mb->wq);
 
 	return 0;
 }
