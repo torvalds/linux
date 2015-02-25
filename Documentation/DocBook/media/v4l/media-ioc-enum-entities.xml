@@ -145,7 +145,21 @@
 	    <entry>struct</entry>
 	    <entry><structfield>dev</structfield></entry>
 	    <entry></entry>
-	    <entry>Valid for (sub-)devices that create devnodes.</entry>
+	    <entry>Valid for (sub-)devices that create a single device node.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry></entry>
+	    <entry>__u32</entry>
+	    <entry><structfield>major</structfield></entry>
+	    <entry>Device node major number.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry></entry>
+	    <entry>__u32</entry>
+	    <entry><structfield>minor</structfield></entry>
+	    <entry>Device node minor number.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
