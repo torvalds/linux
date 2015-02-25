@@ -945,6 +945,7 @@ void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
 	snd_array_free(&codec->mixers);
 	snd_array_free(&codec->nids);
 	remove_conn_list(codec);
+	snd_hdac_regmap_exit(&codec->core);
 }
 
 static unsigned int hda_set_power_state(struct hda_codec *codec,

@@ -1,2 +1,3 @@
 config SND_HDA_CORE
 	tristate
+	select REGMAP

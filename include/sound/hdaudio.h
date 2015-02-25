@@ -72,6 +72,10 @@ struct hdac_device {
 
 	/* sysfs */
 	struct hdac_widget_tree *widgets;
+
+	/* regmap */
+	struct regmap *regmap;
+	bool lazy_cache:1;	/* don't wake up for writes */
 };
 
 /* device/driver type used for matching */

@@ -28,6 +28,7 @@
 #include <sound/hwdep.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_verbs.h>
+#include <sound/hda_regmap.h>
 
 /*
  * Structures
