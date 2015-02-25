@@ -109,19 +109,9 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 	unsigned int d;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned short chanlims;
-	int maxchans;
 	int ret;
 
 	/*  only support sw initiated reads from a single channel */
-
-	/* check channel number */
-	if ((inb(devpriv->BADR3 + 2) & 0x20) == 0)	/* differential mode */
-		maxchans = s->n_chan / 2;
-	else
-		maxchans = s->n_chan;
-
-	if (chan > (maxchans - 1))
-		return -ETIMEDOUT;	/* *** Wrong error code. Fixme. */
 
 	/* configure for sw initiated read */
 	d = inb(devpriv->BADR3 + 5);
@@ -181,6 +171,20 @@ static int cb_pcimdas_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
+static bool cb_pcimdas_is_ai_se(struct comedi_device *dev)
+{
+	struct cb_pcimdas_private *devpriv = dev->private;
+	unsigned int status;
+
+	/*
+	 * The number of Analog Input channels is set with the
+	 * Analog Input Mode Switch on the board. The board can
+	 * have 16 single-ended or 8 differential channels.
+	 */
+	status = inb(devpriv->BADR3 + 2);
+	return status & 0x20;
+}
+
 static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 					    unsigned long context_unused)
 {
@@ -209,8 +213,14 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	/* dev->read_subdev=s; */
 	/*  analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = 16;
+	s->subdev_flags	= SDF_READABLE;
+	if (cb_pcimdas_is_ai_se(dev)) {
+		s->subdev_flags	|= SDF_GROUND;
+		s->n_chan	= 16;
+	} else {
+		s->subdev_flags	|= SDF_DIFF;
+		s->n_chan	= 8;
+	}
 	s->maxdata = 0xffff;
 	s->range_table = &range_unknown;
 	s->len_chanlist = 1;	/*  This is the maximum chanlist length that */
