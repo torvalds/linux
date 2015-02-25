@@ -197,3 +197,70 @@ static void __init pistachio_clk_init(struct device_node *np)
 				   ARRAY_SIZE(pistachio_critical_clks));
 }
 CLK_OF_DECLARE(pistachio_clk, "img,pistachio-clk", pistachio_clk_init);
+
+static struct pistachio_gate pistachio_periph_gates[] __initdata = {
+	GATE(PERIPH_CLK_SYS, "sys", "periph_sys", 0x100, 0),
+	GATE(PERIPH_CLK_SYS_BUS, "bus_sys", "periph_sys", 0x100, 1),
+	GATE(PERIPH_CLK_DDR, "ddr", "periph_sys", 0x100, 2),
+	GATE(PERIPH_CLK_ROM, "rom", "rom_div", 0x100, 3),
+	GATE(PERIPH_CLK_COUNTER_FAST, "counter_fast", "counter_fast_div",
+	     0x100, 4),
+	GATE(PERIPH_CLK_COUNTER_SLOW, "counter_slow", "counter_slow_div",
+	     0x100, 5),
+	GATE(PERIPH_CLK_IR, "ir", "ir_div", 0x100, 6),
+	GATE(PERIPH_CLK_WD, "wd", "wd_div", 0x100, 7),
+	GATE(PERIPH_CLK_PDM, "pdm", "pdm_div", 0x100, 8),
+	GATE(PERIPH_CLK_PWM, "pwm", "pwm_div", 0x100, 9),
+	GATE(PERIPH_CLK_I2C0, "i2c0", "i2c0_div", 0x100, 10),
+	GATE(PERIPH_CLK_I2C1, "i2c1", "i2c1_div", 0x100, 11),
+	GATE(PERIPH_CLK_I2C2, "i2c2", "i2c2_div", 0x100, 12),
+	GATE(PERIPH_CLK_I2C3, "i2c3", "i2c3_div", 0x100, 13),
+};
+
+static struct pistachio_div pistachio_periph_divs[] __initdata = {
+	DIV(PERIPH_CLK_ROM_DIV, "rom_div", "periph_sys", 0x10c, 7),
+	DIV(PERIPH_CLK_COUNTER_FAST_DIV, "counter_fast_div", "periph_sys",
+	    0x110, 7),
+	DIV(PERIPH_CLK_COUNTER_SLOW_PRE_DIV, "counter_slow_pre_div",
+	    "periph_sys", 0x114, 7),
+	DIV(PERIPH_CLK_COUNTER_SLOW_DIV, "counter_slow_div",
+	    "counter_slow_pre_div", 0x118, 7),
+	DIV_F(PERIPH_CLK_IR_PRE_DIV, "ir_pre_div", "periph_sys", 0x11c, 7,
+	      CLK_DIVIDER_ROUND_CLOSEST),
+	DIV_F(PERIPH_CLK_IR_DIV, "ir_div", "ir_pre_div", 0x120, 7,
+	      CLK_DIVIDER_ROUND_CLOSEST),
+	DIV_F(PERIPH_CLK_WD_PRE_DIV, "wd_pre_div", "periph_sys", 0x124, 7,
+	      CLK_DIVIDER_ROUND_CLOSEST),
+	DIV_F(PERIPH_CLK_WD_DIV, "wd_div", "wd_pre_div", 0x128, 7,
+	      CLK_DIVIDER_ROUND_CLOSEST),
+	DIV(PERIPH_CLK_PDM_PRE_DIV, "pdm_pre_div", "periph_sys", 0x12c, 7),
+	DIV(PERIPH_CLK_PDM_DIV, "pdm_div", "pdm_pre_div", 0x130, 7),
+	DIV(PERIPH_CLK_PWM_PRE_DIV, "pwm_pre_div", "periph_sys", 0x134, 7),
+	DIV(PERIPH_CLK_PWM_DIV, "pwm_div", "pwm_pre_div", 0x138, 7),
+	DIV(PERIPH_CLK_I2C0_PRE_DIV, "i2c0_pre_div", "periph_sys", 0x13c, 7),
+	DIV(PERIPH_CLK_I2C0_DIV, "i2c0_div", "i2c0_pre_div", 0x140, 7),
+	DIV(PERIPH_CLK_I2C1_PRE_DIV, "i2c1_pre_div", "periph_sys", 0x144, 7),
+	DIV(PERIPH_CLK_I2C1_DIV, "i2c1_div", "i2c1_pre_div", 0x148, 7),
+	DIV(PERIPH_CLK_I2C2_PRE_DIV, "i2c2_pre_div", "periph_sys", 0x14c, 7),
+	DIV(PERIPH_CLK_I2C2_DIV, "i2c2_div", "i2c2_pre_div", 0x150, 7),
+	DIV(PERIPH_CLK_I2C3_PRE_DIV, "i2c3_pre_div", "periph_sys", 0x154, 7),
+	DIV(PERIPH_CLK_I2C3_DIV, "i2c3_div", "i2c3_pre_div", 0x158, 7),
+};
+
+static void __init pistachio_clk_periph_init(struct device_node *np)
+{
+	struct pistachio_clk_provider *p;
+
+	p = pistachio_clk_alloc_provider(np, PERIPH_CLK_NR_CLKS);
+	if (!p)
+		return;
+
+	pistachio_clk_register_div(p, pistachio_periph_divs,
+				   ARRAY_SIZE(pistachio_periph_divs));
+	pistachio_clk_register_gate(p, pistachio_periph_gates,
+				    ARRAY_SIZE(pistachio_periph_gates));
+
+	pistachio_clk_register_provider(p);
+}
+CLK_OF_DECLARE(pistachio_clk_periph, "img,pistachio-clk-periph",
+	       pistachio_clk_periph_init);
