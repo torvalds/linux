@@ -887,9 +887,9 @@ b_host:
 			 * caused BABBLE. When HS BABBLE happens we can only
 			 * stop the session.
 			 */
-			if (devctl & (MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV))
+			if (devctl & (MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV)) {
 				dev_dbg(musb->controller, "BABBLE devctl: %02x\n", devctl);
-			else {
+			} else {
 				ERR("Stopping host session -- babble\n");
 				musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 			}
