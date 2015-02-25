@@ -472,7 +472,8 @@ void fscache_put_operation(struct fscache_operation *op)
 		return;
 
 	_debug("PUT OP");
-	ASSERTIFCMP(op->state != FSCACHE_OP_ST_COMPLETE,
+	ASSERTIFCMP(op->state != FSCACHE_OP_ST_INITIALISED &&
+		    op->state != FSCACHE_OP_ST_COMPLETE,
 		    op->state, ==, FSCACHE_OP_ST_CANCELLED);
 	op->state = FSCACHE_OP_ST_DEAD;
 
@@ -484,34 +485,35 @@ void fscache_put_operation(struct fscache_operation *op)
 	}
 
 	object = op->object;
+	if (likely(object)) {
+		if (test_bit(FSCACHE_OP_DEC_READ_CNT, &op->flags))
+			atomic_dec(&object->n_reads);
+		if (test_bit(FSCACHE_OP_UNUSE_COOKIE, &op->flags))
+			fscache_unuse_cookie(object);
 
-	if (test_bit(FSCACHE_OP_DEC_READ_CNT, &op->flags))
-		atomic_dec(&object->n_reads);
-	if (test_bit(FSCACHE_OP_UNUSE_COOKIE, &op->flags))
-		fscache_unuse_cookie(object);
+		/* now... we may get called with the object spinlock held, so we
+		 * complete the cleanup here only if we can immediately acquire the
+		 * lock, and defer it otherwise */
+		if (!spin_trylock(&object->lock)) {
+			_debug("defer put");
+			fscache_stat(&fscache_n_op_deferred_release);
 
-	/* now... we may get called with the object spinlock held, so we
-	 * complete the cleanup here only if we can immediately acquire the
-	 * lock, and defer it otherwise */
-	if (!spin_trylock(&object->lock)) {
-		_debug("defer put");
-		fscache_stat(&fscache_n_op_deferred_release);
+			cache = object->cache;
+			spin_lock(&cache->op_gc_list_lock);
+			list_add_tail(&op->pend_link, &cache->op_gc_list);
+			spin_unlock(&cache->op_gc_list_lock);
+			schedule_work(&cache->op_gc);
+			_leave(" [defer]");
+			return;
+		}
 
-		cache = object->cache;
-		spin_lock(&cache->op_gc_list_lock);
-		list_add_tail(&op->pend_link, &cache->op_gc_list);
-		spin_unlock(&cache->op_gc_list_lock);
-		schedule_work(&cache->op_gc);
-		_leave(" [defer]");
-		return;
+		ASSERTCMP(object->n_ops, >, 0);
+		object->n_ops--;
+		if (object->n_ops == 0)
+			fscache_raise_event(object, FSCACHE_OBJECT_EV_CLEARED);
+
+		spin_unlock(&object->lock);
 	}
-
-	ASSERTCMP(object->n_ops, >, 0);
-	object->n_ops--;
-	if (object->n_ops == 0)
-		fscache_raise_event(object, FSCACHE_OBJECT_EV_CLEARED);
-
-	spin_unlock(&object->lock);
 
 	kfree(op);
 	_leave(" [done]");
