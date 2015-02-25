@@ -325,9 +325,9 @@ fail_cpufreq_unregister:
 #ifdef CONFIG_CPU_FREQ
 	cpufreq_unregister_notifier(&priv->freq_transition,
 			CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 
 fail_put_clk:
+#endif
 	clk_put(priv->clk);
 
 fail_iounmap:
