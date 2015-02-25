@@ -630,16 +630,47 @@
 
 /* Phy register */
 #define PHY_PCR				0x00
+#define   PHY_PCR_FORCE_CODE		0xB000
+#define   PHY_PCR_OOBS_CALI_50		0x0800
+#define   PHY_PCR_OOBS_VCM_08		0x0200
+#define   PHY_PCR_OOBS_SEN_90		0x0040
+#define   PHY_PCR_RSSI_EN		0x0002
+#define   PHY_PCR_RX10K			0x0001
+
 #define PHY_RCR0			0x01
 #define PHY_RCR1			0x02
+#define   PHY_RCR1_ADP_TIME_4		0x0400
+#define   PHY_RCR1_VCO_COARSE		0x001F
+
 #define PHY_RCR2			0x03
+#define   PHY_RCR2_EMPHASE_EN		0x8000
+#define   PHY_RCR2_NADJR		0x4000
+#define   PHY_RCR2_CDR_SR_2		0x0100
+#define   PHY_RCR2_FREQSEL_12		0x0040
+#define   PHY_RCR2_CDR_SC_12P		0x0010
+#define   PHY_RCR2_CALIB_LATE		0x0002
+
 #define PHY_RTCR			0x04
 #define PHY_RDR				0x05
+#define   PHY_RDR_RXDSEL_1_9		0x4000
+#define   PHY_SSC_AUTO_PWD		0x0600
 #define PHY_TCR0			0x06
 #define PHY_TCR1			0x07
 #define PHY_TUNE			0x08
+#define   PHY_TUNE_TUNEREF_1_0		0x4000
+#define   PHY_TUNE_VBGSEL_1252		0x0C00
+#define   PHY_TUNE_SDBUS_33		0x0200
+#define   PHY_TUNE_TUNED18		0x01C0
+#define   PHY_TUNE_TUNED12		0X0020
+#define   PHY_TUNE_TUNEA12		0x0004
+
 #define PHY_IMR				0x09
 #define PHY_BPCR			0x0A
+#define   PHY_BPCR_IBRXSEL		0x0400
+#define   PHY_BPCR_IBTXSEL		0x0100
+#define   PHY_BPCR_IB_FILTER		0x0080
+#define   PHY_BPCR_CMIRROR_EN		0x0040
+
 #define PHY_BIST			0x0B
 #define PHY_RAW_L			0x0C
 #define PHY_RAW_H			0x0D
@@ -654,12 +685,35 @@
 #define PHY_BPNR			0x16
 #define PHY_BRNR2			0x17
 #define PHY_BENR			0x18
-#define PHY_REG_REV			0x19
+#define PHY_REV				0x19
+#define   PHY_REV_RESV			0xE000
+#define   PHY_REV_RXIDLE_LATCHED	0x1000
+#define   PHY_REV_P1_EN			0x0800
+#define   PHY_REV_RXIDLE_EN		0x0400
+#define   PHY_REV_CLKREQ_TX_EN		0x0200
+#define   PHY_REV_CLKREQ_RX_EN		0x0100
+#define   PHY_REV_CLKREQ_DT_1_0		0x0040
+#define   PHY_REV_STOP_CLKRD		0x0020
+#define   PHY_REV_RX_PWST		0x0008
+#define   PHY_REV_STOP_CLKWR		0x0004
+
 #define PHY_FLD0			0x1A
 #define PHY_FLD1			0x1B
 #define PHY_FLD2			0x1C
 #define PHY_FLD3			0x1D
+#define   PHY_FLD3_TIMER_4		0x0800
+#define   PHY_FLD3_TIMER_6		0x0020
+#define   PHY_FLD3_RXDELINK		0x0004
+
 #define PHY_FLD4			0x1E
+#define   PHY_FLD4_FLDEN_SEL		0x4000
+#define   PHY_FLD4_REQ_REF		0x2000
+#define   PHY_FLD4_RXAMP_OFF		0x1000
+#define   PHY_FLD4_REQ_ADDA		0x0800
+#define   PHY_FLD4_BER_COUNT		0x00E0
+#define   PHY_FLD4_BER_TIMER		0x000A
+#define   PHY_FLD4_BER_CHK_EN		0x0001
+
 #define PHY_DUM_REG			0x1F
 
 #define LCTLR				0x80
@@ -674,59 +728,6 @@
 #define PCR_SETTING_REG1		0x724
 #define PCR_SETTING_REG2		0x814
 #define PCR_SETTING_REG3		0x747
-
-/* Phy bits */
-#define PHY_PCR_FORCE_CODE			0xB000
-#define PHY_PCR_OOBS_CALI_50			0x0800
-#define PHY_PCR_OOBS_VCM_08			0x0200
-#define PHY_PCR_OOBS_SEN_90			0x0040
-#define PHY_PCR_RSSI_EN				0x0002
-
-#define PHY_RCR1_ADP_TIME			0x0100
-#define PHY_RCR1_VCO_COARSE			0x001F
-
-#define PHY_RCR2_EMPHASE_EN			0x8000
-#define PHY_RCR2_NADJR				0x4000
-#define PHY_RCR2_CDR_CP_10			0x0400
-#define PHY_RCR2_CDR_SR_2			0x0100
-#define PHY_RCR2_FREQSEL_12			0x0040
-#define PHY_RCR2_CPADJEN			0x0020
-#define PHY_RCR2_CDR_SC_8			0x0008
-#define PHY_RCR2_CALIB_LATE			0x0002
-
-#define PHY_RDR_RXDSEL_1_9			0x4000
-
-#define PHY_TUNE_TUNEREF_1_0			0x4000
-#define PHY_TUNE_VBGSEL_1252			0x0C00
-#define PHY_TUNE_SDBUS_33			0x0200
-#define PHY_TUNE_TUNED18			0x01C0
-#define PHY_TUNE_TUNED12			0X0020
-
-#define PHY_BPCR_IBRXSEL			0x0400
-#define PHY_BPCR_IBTXSEL			0x0100
-#define PHY_BPCR_IB_FILTER			0x0080
-#define PHY_BPCR_CMIRROR_EN			0x0040
-
-#define PHY_REG_REV_RESV			0xE000
-#define PHY_REG_REV_RXIDLE_LATCHED		0x1000
-#define PHY_REG_REV_P1_EN			0x0800
-#define PHY_REG_REV_RXIDLE_EN			0x0400
-#define PHY_REG_REV_CLKREQ_DLY_TIMER_1_0	0x0040
-#define PHY_REG_REV_STOP_CLKRD			0x0020
-#define PHY_REG_REV_RX_PWST			0x0008
-#define PHY_REG_REV_STOP_CLKWR			0x0004
-
-#define PHY_FLD3_TIMER_4			0x7800
-#define PHY_FLD3_TIMER_6			0x00E0
-#define PHY_FLD3_RXDELINK			0x0004
-
-#define PHY_FLD4_FLDEN_SEL			0x4000
-#define PHY_FLD4_REQ_REF			0x2000
-#define PHY_FLD4_RXAMP_OFF			0x1000
-#define PHY_FLD4_REQ_ADDA			0x0800
-#define PHY_FLD4_BER_COUNT			0x00E0
-#define PHY_FLD4_BER_TIMER			0x000A
-#define PHY_FLD4_BER_CHK_EN			0x0001
 
 #define rtsx_pci_init_cmd(pcr)		((pcr)->ci = 0)
 

@@ -132,11 +132,12 @@ static int rts5249_optimize_phy(struct rtsx_pcr *pcr)
 	if (err < 0)
 		return err;
 
-	err = rtsx_pci_write_phy_register(pcr, PHY_REG_REV,
-			PHY_REG_REV_RESV | PHY_REG_REV_RXIDLE_LATCHED |
-			PHY_REG_REV_P1_EN | PHY_REG_REV_RXIDLE_EN |
-			PHY_REG_REV_RX_PWST | PHY_REG_REV_CLKREQ_DLY_TIMER_1_0 |
-			PHY_REG_REV_STOP_CLKRD | PHY_REG_REV_STOP_CLKWR);
+	err = rtsx_pci_write_phy_register(pcr, PHY_REV,
+			PHY_REV_RESV | PHY_REV_RXIDLE_LATCHED |
+			PHY_REV_P1_EN | PHY_REV_RXIDLE_EN |
+			PHY_REV_CLKREQ_TX_EN | PHY_REV_RX_PWST |
+			PHY_REV_CLKREQ_DT_1_0 | PHY_REV_STOP_CLKRD |
+			PHY_REV_STOP_CLKWR);
 	if (err < 0)
 		return err;
 
@@ -147,19 +148,21 @@ static int rts5249_optimize_phy(struct rtsx_pcr *pcr)
 			PHY_BPCR_IB_FILTER | PHY_BPCR_CMIRROR_EN);
 	if (err < 0)
 		return err;
+
 	err = rtsx_pci_write_phy_register(pcr, PHY_PCR,
 			PHY_PCR_FORCE_CODE | PHY_PCR_OOBS_CALI_50 |
 			PHY_PCR_OOBS_VCM_08 | PHY_PCR_OOBS_SEN_90 |
-			PHY_PCR_RSSI_EN);
+			PHY_PCR_RSSI_EN | PHY_PCR_RX10K);
 	if (err < 0)
 		return err;
+
 	err = rtsx_pci_write_phy_register(pcr, PHY_RCR2,
 			PHY_RCR2_EMPHASE_EN | PHY_RCR2_NADJR |
-			PHY_RCR2_CDR_CP_10 | PHY_RCR2_CDR_SR_2 |
-			PHY_RCR2_FREQSEL_12 | PHY_RCR2_CPADJEN |
-			PHY_RCR2_CDR_SC_8 | PHY_RCR2_CALIB_LATE);
+			PHY_RCR2_CDR_SR_2 | PHY_RCR2_FREQSEL_12 |
+			PHY_RCR2_CDR_SC_12P | PHY_RCR2_CALIB_LATE);
 	if (err < 0)
 		return err;
+
 	err = rtsx_pci_write_phy_register(pcr, PHY_FLD4,
 			PHY_FLD4_FLDEN_SEL | PHY_FLD4_REQ_REF |
 			PHY_FLD4_RXAMP_OFF | PHY_FLD4_REQ_ADDA |
@@ -167,11 +170,12 @@ static int rts5249_optimize_phy(struct rtsx_pcr *pcr)
 			PHY_FLD4_BER_CHK_EN);
 	if (err < 0)
 		return err;
-	err = rtsx_pci_write_phy_register(pcr, PHY_RDR, PHY_RDR_RXDSEL_1_9);
+	err = rtsx_pci_write_phy_register(pcr, PHY_RDR,
+			PHY_RDR_RXDSEL_1_9 | PHY_SSC_AUTO_PWD);
 	if (err < 0)
 		return err;
 	err = rtsx_pci_write_phy_register(pcr, PHY_RCR1,
-			PHY_RCR1_ADP_TIME | PHY_RCR1_VCO_COARSE);
+			PHY_RCR1_ADP_TIME_4 | PHY_RCR1_VCO_COARSE);
 	if (err < 0)
 		return err;
 	err = rtsx_pci_write_phy_register(pcr, PHY_FLD3,
@@ -179,10 +183,11 @@ static int rts5249_optimize_phy(struct rtsx_pcr *pcr)
 			PHY_FLD3_RXDELINK);
 	if (err < 0)
 		return err;
+
 	return rtsx_pci_write_phy_register(pcr, PHY_TUNE,
 			PHY_TUNE_TUNEREF_1_0 | PHY_TUNE_VBGSEL_1252 |
 			PHY_TUNE_SDBUS_33 | PHY_TUNE_TUNED18 |
-			PHY_TUNE_TUNED12);
+			PHY_TUNE_TUNED12 | PHY_TUNE_TUNEA12);
 }
 
 static int rts5249_turn_on_led(struct rtsx_pcr *pcr)
