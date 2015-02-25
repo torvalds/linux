@@ -65,15 +65,17 @@ static void rts5249_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 			0xFF, driving[drive_sel][2]);
 }
 
-static void rts5249_fetch_vendor_settings(struct rtsx_pcr *pcr)
+static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 {
 	u32 reg;
 
 	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
 	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
 
-	if (!rtsx_vendor_setting_valid(reg))
+	if (!rtsx_vendor_setting_valid(reg)) {
+		pcr_dbg(pcr, "skip fetch vendor setting\n");
 		return;
+	}
 
 	pcr->aspm_en = rtsx_reg_to_aspm(reg);
 	pcr->sd30_drive_sel_1v8 = rtsx_reg_to_sd30_drive_sel_1v8(reg);
@@ -87,7 +89,7 @@ static void rts5249_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		pcr->flags |= PCR_REVERSE_SOCKET;
 }
 
-static void rts5249_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
+static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 {
 	/* Set relink_time to 0 */
 	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 1, 0xFF, 0);
@@ -95,7 +97,8 @@ static void rts5249_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 3, 0x01, 0);
 
 	if (pm_state == HOST_ENTER_S3)
-		rtsx_pci_write_register(pcr, PM_CTRL3, 0x10, 0x10);
+		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3,
+			D3_DELINK_MODE_EN, D3_DELINK_MODE_EN);
 
 	rtsx_pci_write_register(pcr, FPDCTL, 0x03, 0x03);
 }
@@ -104,6 +107,8 @@ static int rts5249_extra_init_hw(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_init_cmd(pcr);
 
+	/* Rest L1SUB Config */
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, L1SUB_CONFIG3, 0xFF, 0x00);
 	/* Configure GPIO as output */
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, GPIO_CTL, 0x02, 0x02);
 	/* Reset ASPM state to default value */
@@ -189,27 +194,27 @@ static int rts5249_optimize_phy(struct rtsx_pcr *pcr)
 			PHY_TUNE_TUNED12 | PHY_TUNE_TUNEA12);
 }
 
-static int rts5249_turn_on_led(struct rtsx_pcr *pcr)
+static int rtsx_base_turn_on_led(struct rtsx_pcr *pcr)
 {
 	return rtsx_pci_write_register(pcr, GPIO_CTL, 0x02, 0x02);
 }
 
-static int rts5249_turn_off_led(struct rtsx_pcr *pcr)
+static int rtsx_base_turn_off_led(struct rtsx_pcr *pcr)
 {
 	return rtsx_pci_write_register(pcr, GPIO_CTL, 0x02, 0x00);
 }
 
-static int rts5249_enable_auto_blink(struct rtsx_pcr *pcr)
+static int rtsx_base_enable_auto_blink(struct rtsx_pcr *pcr)
 {
 	return rtsx_pci_write_register(pcr, OLT_LED_CTL, 0x08, 0x08);
 }
 
-static int rts5249_disable_auto_blink(struct rtsx_pcr *pcr)
+static int rtsx_base_disable_auto_blink(struct rtsx_pcr *pcr)
 {
 	return rtsx_pci_write_register(pcr, OLT_LED_CTL, 0x08, 0x00);
 }
 
-static int rts5249_card_power_on(struct rtsx_pcr *pcr, int card)
+static int rtsx_base_card_power_on(struct rtsx_pcr *pcr, int card)
 {
 	int err;
 
@@ -236,7 +241,7 @@ static int rts5249_card_power_on(struct rtsx_pcr *pcr, int card)
 	return 0;
 }
 
-static int rts5249_card_power_off(struct rtsx_pcr *pcr, int card)
+static int rtsx_base_card_power_off(struct rtsx_pcr *pcr, int card)
 {
 	rtsx_pci_init_cmd(pcr);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_PWR_CTL,
@@ -246,22 +251,35 @@ static int rts5249_card_power_off(struct rtsx_pcr *pcr, int card)
 	return rtsx_pci_send_cmd(pcr, 100);
 }
 
-static int rts5249_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+static int rtsx_base_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 {
 	int err;
+	u16 append;
 
-	if (voltage == OUTPUT_3V3) {
-		err = rtsx_pci_write_phy_register(pcr, PHY_TUNE, 0x4FC0 | 0x24);
+	switch (voltage) {
+	case OUTPUT_3V3:
+		err = rtsx_pci_update_phy(pcr, PHY_TUNE, PHY_TUNE_VOLTAGE_MASK,
+			PHY_TUNE_VOLTAGE_3V3);
 		if (err < 0)
 			return err;
-	} else if (voltage == OUTPUT_1V8) {
-		err = rtsx_pci_write_phy_register(pcr, PHY_BACR, 0x3C02);
+		break;
+	case OUTPUT_1V8:
+		append = PHY_TUNE_D18_1V8;
+		if (CHK_PCI_PID(pcr, 0x5249)) {
+			err = rtsx_pci_update_phy(pcr, PHY_BACR,
+				PHY_BACR_BASIC_MASK, 0);
+			if (err < 0)
+				return err;
+			append = PHY_TUNE_D18_1V7;
+		}
+
+		err = rtsx_pci_update_phy(pcr, PHY_TUNE, PHY_TUNE_VOLTAGE_MASK,
+			append);
 		if (err < 0)
 			return err;
-		err = rtsx_pci_write_phy_register(pcr, PHY_TUNE, 0x4C40 | 0x24);
-		if (err < 0)
-			return err;
-	} else {
+		break;
+	default:
+		pcr_dbg(pcr, "unknown output voltage %d\n", voltage);
 		return -EINVAL;
 	}
 
@@ -272,17 +290,17 @@ static int rts5249_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 }
 
 static const struct pcr_ops rts5249_pcr_ops = {
-	.fetch_vendor_settings = rts5249_fetch_vendor_settings,
+	.fetch_vendor_settings = rtsx_base_fetch_vendor_settings,
 	.extra_init_hw = rts5249_extra_init_hw,
 	.optimize_phy = rts5249_optimize_phy,
-	.turn_on_led = rts5249_turn_on_led,
-	.turn_off_led = rts5249_turn_off_led,
-	.enable_auto_blink = rts5249_enable_auto_blink,
-	.disable_auto_blink = rts5249_disable_auto_blink,
-	.card_power_on = rts5249_card_power_on,
-	.card_power_off = rts5249_card_power_off,
-	.switch_output_voltage = rts5249_switch_output_voltage,
-	.force_power_down = rts5249_force_power_down,
+	.turn_on_led = rtsx_base_turn_on_led,
+	.turn_off_led = rtsx_base_turn_off_led,
+	.enable_auto_blink = rtsx_base_enable_auto_blink,
+	.disable_auto_blink = rtsx_base_disable_auto_blink,
+	.card_power_on = rtsx_base_card_power_on,
+	.card_power_off = rtsx_base_card_power_off,
+	.switch_output_voltage = rtsx_base_switch_output_voltage,
+	.force_power_down = rtsx_base_force_power_down,
 };
 
 /* SD Pull Control Enable:
@@ -356,4 +374,116 @@ void rts5249_init_params(struct rtsx_pcr *pcr)
 	pcr->sd_pull_ctl_disable_tbl = rts5249_sd_pull_ctl_disable_tbl;
 	pcr->ms_pull_ctl_enable_tbl = rts5249_ms_pull_ctl_enable_tbl;
 	pcr->ms_pull_ctl_disable_tbl = rts5249_ms_pull_ctl_disable_tbl;
+
+	pcr->reg_pm_ctrl3 = PM_CTRL3;
 }
+
+static int rts524a_write_phy(struct rtsx_pcr *pcr, u8 addr, u16 val)
+{
+	addr = addr & 0x80 ? (addr & 0x7F) | 0x40 : addr;
+
+	return __rtsx_pci_write_phy_register(pcr, addr, val);
+}
+
+static int rts524a_read_phy(struct rtsx_pcr *pcr, u8 addr, u16 *val)
+{
+	addr = addr & 0x80 ? (addr & 0x7F) | 0x40 : addr;
+
+	return __rtsx_pci_read_phy_register(pcr, addr, val);
+}
+
+static int rts524a_optimize_phy(struct rtsx_pcr *pcr)
+{
+	int err;
+
+	err = rtsx_pci_write_register(pcr, RTS524A_PM_CTRL3,
+		D3_DELINK_MODE_EN, 0x00);
+	if (err < 0)
+		return err;
+
+	rtsx_pci_write_phy_register(pcr, PHY_PCR,
+		PHY_PCR_FORCE_CODE | PHY_PCR_OOBS_CALI_50 |
+		PHY_PCR_OOBS_VCM_08 | PHY_PCR_OOBS_SEN_90 | PHY_PCR_RSSI_EN);
+	rtsx_pci_write_phy_register(pcr, PHY_SSCCR3,
+		PHY_SSCCR3_STEP_IN | PHY_SSCCR3_CHECK_DELAY);
+
+	if (is_version(pcr, 0x524A, IC_VER_A)) {
+		rtsx_pci_write_phy_register(pcr, PHY_SSCCR3,
+			PHY_SSCCR3_STEP_IN | PHY_SSCCR3_CHECK_DELAY);
+		rtsx_pci_write_phy_register(pcr, PHY_SSCCR2,
+			PHY_SSCCR2_PLL_NCODE | PHY_SSCCR2_TIME0 |
+			PHY_SSCCR2_TIME2_WIDTH);
+		rtsx_pci_write_phy_register(pcr, PHY_ANA1A,
+			PHY_ANA1A_TXR_LOOPBACK | PHY_ANA1A_RXT_BIST |
+			PHY_ANA1A_TXR_BIST | PHY_ANA1A_REV);
+		rtsx_pci_write_phy_register(pcr, PHY_ANA1D,
+			PHY_ANA1D_DEBUG_ADDR);
+		rtsx_pci_write_phy_register(pcr, PHY_DIG1E,
+			PHY_DIG1E_REV | PHY_DIG1E_D0_X_D1 |
+			PHY_DIG1E_RX_ON_HOST | PHY_DIG1E_RCLK_REF_HOST |
+			PHY_DIG1E_RCLK_TX_EN_KEEP |
+			PHY_DIG1E_RCLK_TX_TERM_KEEP |
+			PHY_DIG1E_RCLK_RX_EIDLE_ON | PHY_DIG1E_TX_TERM_KEEP |
+			PHY_DIG1E_RX_TERM_KEEP | PHY_DIG1E_TX_EN_KEEP |
+			PHY_DIG1E_RX_EN_KEEP);
+	}
+
+	rtsx_pci_write_phy_register(pcr, PHY_ANA08,
+		PHY_ANA08_RX_EQ_DCGAIN | PHY_ANA08_SEL_RX_EN |
+		PHY_ANA08_RX_EQ_VAL | PHY_ANA08_SCP | PHY_ANA08_SEL_IPI);
+
+	return 0;
+}
+
+static int rts524a_extra_init_hw(struct rtsx_pcr *pcr)
+{
+	rts5249_extra_init_hw(pcr);
+
+	rtsx_pci_write_register(pcr, FUNC_FORCE_CTL,
+		FORCE_ASPM_L1_EN, FORCE_ASPM_L1_EN);
+	rtsx_pci_write_register(pcr, PM_EVENT_DEBUG, PME_DEBUG_0, PME_DEBUG_0);
+	rtsx_pci_write_register(pcr, LDO_VCC_CFG1, LDO_VCC_LMT_EN,
+		LDO_VCC_LMT_EN);
+	rtsx_pci_write_register(pcr, PCLK_CTL, PCLK_MODE_SEL, PCLK_MODE_SEL);
+	if (is_version(pcr, 0x524A, IC_VER_A)) {
+		rtsx_pci_write_register(pcr, LDO_DV18_CFG,
+			LDO_DV18_SR_MASK, LDO_DV18_SR_DF);
+		rtsx_pci_write_register(pcr, LDO_VCC_CFG1,
+			LDO_VCC_REF_TUNE_MASK, LDO_VCC_REF_1V2);
+		rtsx_pci_write_register(pcr, LDO_VIO_CFG,
+			LDO_VIO_REF_TUNE_MASK, LDO_VIO_REF_1V2);
+		rtsx_pci_write_register(pcr, LDO_VIO_CFG,
+			LDO_VIO_SR_MASK, LDO_VIO_SR_DF);
+		rtsx_pci_write_register(pcr, LDO_DV12S_CFG,
+			LDO_REF12_TUNE_MASK, LDO_REF12_TUNE_DF);
+		rtsx_pci_write_register(pcr, SD40_LDO_CTL1,
+			SD40_VIO_TUNE_MASK, SD40_VIO_TUNE_1V7);
+	}
+
+	return 0;
+}
+
+static const struct pcr_ops rts524a_pcr_ops = {
+	.write_phy = rts524a_write_phy,
+	.read_phy = rts524a_read_phy,
+	.fetch_vendor_settings = rtsx_base_fetch_vendor_settings,
+	.extra_init_hw = rts524a_extra_init_hw,
+	.optimize_phy = rts524a_optimize_phy,
+	.turn_on_led = rtsx_base_turn_on_led,
+	.turn_off_led = rtsx_base_turn_off_led,
+	.enable_auto_blink = rtsx_base_enable_auto_blink,
+	.disable_auto_blink = rtsx_base_disable_auto_blink,
+	.card_power_on = rtsx_base_card_power_on,
+	.card_power_off = rtsx_base_card_power_off,
+	.switch_output_voltage = rtsx_base_switch_output_voltage,
+	.force_power_down = rtsx_base_force_power_down,
+};
+
+void rts524a_init_params(struct rtsx_pcr *pcr)
+{
+	rts5249_init_params(pcr);
+
+	pcr->reg_pm_ctrl3 = RTS524A_PM_CTRL3;
+	pcr->ops = &rts524a_pcr_ops;
+}
+

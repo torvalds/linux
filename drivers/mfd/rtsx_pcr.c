@@ -58,6 +58,7 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 	{ PCI_DEVICE(0x10EC, 0x5249), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5287), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5286), PCI_CLASS_OTHERS << 16, 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x524A), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ 0, }
 };
 
@@ -142,7 +143,7 @@ int rtsx_pci_read_register(struct rtsx_pcr *pcr, u16 addr, u8 *data)
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_read_register);
 
-int rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val)
+int __rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val)
 {
 	int err, i, finished = 0;
 	u8 tmp;
@@ -174,9 +175,17 @@ int rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val)
 
 	return 0;
 }
+
+int rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val)
+{
+	if (pcr->ops->write_phy)
+		return pcr->ops->write_phy(pcr, addr, val);
+
+	return __rtsx_pci_write_phy_register(pcr, addr, val);
+}
 EXPORT_SYMBOL_GPL(rtsx_pci_write_phy_register);
 
-int rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val)
+int __rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val)
 {
 	int err, i, finished = 0;
 	u16 data;
@@ -221,6 +230,14 @@ int rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val)
 		*val = data;
 
 	return 0;
+}
+
+int rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val)
+{
+	if (pcr->ops->read_phy)
+		return pcr->ops->read_phy(pcr, addr, val);
+
+	return __rtsx_pci_read_phy_register(pcr, addr, val);
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_read_phy_register);
 
@@ -1091,6 +1108,10 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 
 	case 0x5249:
 		rts5249_init_params(pcr);
+		break;
+
+	case 0x524A:
+		rts524a_init_params(pcr);
 		break;
 
 	case 0x5287:
