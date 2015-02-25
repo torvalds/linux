@@ -50,29 +50,73 @@
 #include "plx9052.h"
 #include "8255.h"
 
-/* Registers for the PCIM-DAS1602/16 and PCIe-DAS1602/16 */
+/*
+ * PCI Bar 1 Register map
+ * see plx9052.h for register and bit defines
+ */
 
-/* DAC Offsets */
-#define ADC_TRIG 0
-#define DAC0_OFFSET 2
-#define DAC1_OFFSET 4
+/*
+ * PCI Bar 2 Register map (devpriv->daqio)
+ */
+#define PCIMDAS_AI_REG			0x00
+#define PCIMDAS_AI_SOFTTRIG_REG		0x00
+#define PCIMDAS_AO_REG(x)		(0x02 + ((x) * 2))
 
-/* AI and Counter Constants */
-#define MUX_LIMITS 0
-#define MAIN_CONN_DIO 1
-#define ADC_STAT 2
-#define ADC_CONV_STAT 3
-#define ADC_INT 4
-#define ADC_PACER 5
-#define BURST_MODE 6
-#define PROG_GAIN 7
-#define CLK8254_1_DATA 8
-#define CLK8254_2_DATA 9
-#define CLK8254_3_DATA 10
-#define CLK8254_CONTROL 11
-#define USER_COUNTER 12
-#define RESID_COUNT_H 13
-#define RESID_COUNT_L 14
+/*
+ * PCI Bar 3 Register map (devpriv->BADR3)
+ */
+#define PCIMDAS_MUX_REG			0x00
+#define PCIMDAS_MUX(_lo, _hi)		((_lo) | ((_hi) << 4))
+#define PCIMDAS_DI_DO_REG		0x01
+#define PCIMDAS_STATUS_REG		0x02
+#define PCIMDAS_STATUS_EOC		BIT(7)
+#define PCIMDAS_STATUS_UB		BIT(6)
+#define PCIMDAS_STATUS_MUX		BIT(5)
+#define PCIMDAS_STATUS_CLK		BIT(4)
+#define PCIMDAS_STATUS_TO_CURR_MUX(x)	((x) & 0xf)
+#define PCIMDAS_CONV_STATUS_REG		0x03
+#define PCIMDAS_CONV_STATUS_EOC		BIT(7)
+#define PCIMDAS_CONV_STATUS_EOB		BIT(6)
+#define PCIMDAS_CONV_STATUS_EOA		BIT(5)
+#define PCIMDAS_CONV_STATUS_FNE		BIT(4)
+#define PCIMDAS_CONV_STATUS_FHF		BIT(3)
+#define PCIMDAS_CONV_STATUS_OVERRUN	BIT(2)
+#define PCIMDAS_IRQ_REG			0x04
+#define PCIMDAS_IRQ_INTE		BIT(7)
+#define PCIMDAS_IRQ_INT			BIT(6)
+#define PCIMDAS_IRQ_OVERRUN		BIT(4)
+#define PCIMDAS_IRQ_EOA			BIT(3)
+#define PCIMDAS_IRQ_EOA_INT_SEL		BIT(2)
+#define PCIMDAS_IRQ_INTSEL(x)		((x) << 0)
+#define PCIMDAS_IRQ_INTSEL_EOC		PCIMDAS_IRQ_INTSEL(0)
+#define PCIMDAS_IRQ_INTSEL_FNE		PCIMDAS_IRQ_INTSEL(1)
+#define PCIMDAS_IRQ_INTSEL_EOB		PCIMDAS_IRQ_INTSEL(2)
+#define PCIMDAS_IRQ_INTSEL_FHF_EOA	PCIMDAS_IRQ_INTSEL(3)
+#define PCIMDAS_PACER_REG		0x05
+#define PCIMDAS_PACER_GATE_STATUS	BIT(6)
+#define PCIMDAS_PACER_GATE_POL		BIT(5)
+#define PCIMDAS_PACER_GATE_LATCH	BIT(4)
+#define PCIMDAS_PACER_GATE_EN		BIT(3)
+#define PCIMDAS_PACER_EXT_PACER_POL	BIT(2)
+#define PCIMDAS_PACER_SRC(x)		((x) << 0)
+#define PCIMDAS_PACER_SRC_POLLED	PCIMDAS_PACER_SRC(0)
+#define PCIMDAS_PACER_SRC_EXT		PCIMDAS_PACER_SRC(2)
+#define PCIMDAS_PACER_SRC_INT		PCIMDAS_PACER_SRC(3)
+#define PCIMDAS_PACER_SRC_MASK		(3 << 0)
+#define PCIMDAS_BURST_REG		0x06
+#define PCIMDAS_BURST_BME		BIT(1)
+#define PCIMDAS_BURST_CONV_EN		BIT(0)
+#define PCIMDAS_GAIN_REG		0x07
+#define PCIMDAS_8254_BASE		0x08
+#define PCIMDAS_USER_CNTR_REG		0x0c
+#define PCIMDAS_USER_CNTR_CTR1_CLK_SEL	BIT(0)
+#define PCIMDAS_RESIDUE_MSB_REG		0x0d
+#define PCIMDAS_RESIDUE_LSB_REG		0x0e
+
+/*
+ * PCI Bar 4 Register map (dev->iobase)
+ */
+#define PCIMDAS_8255_BASE		0x00
 
 static const struct comedi_lrange cb_pcimdas_ai_bip_range = {
 	4, {
@@ -112,8 +156,8 @@ static int cb_pcimdas_ai_eoc(struct comedi_device *dev,
 	struct cb_pcimdas_private *devpriv = dev->private;
 	unsigned int status;
 
-	status = inb(devpriv->BADR3 + 2);
-	if ((status & 0x80) == 0)
+	status = inb(devpriv->BADR3 + PCIMDAS_STATUS_REG);
+	if ((status & PCIMDAS_STATUS_EOC) == 0)
 		return 0;
 	return -EBUSY;
 }
@@ -127,35 +171,31 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 	unsigned int range = CR_RANGE(insn->chanspec);
 	int n;
 	unsigned int d;
-	unsigned short chanlims;
 	int ret;
 
 	/*  only support sw initiated reads from a single channel */
 
 	/* configure for sw initiated read */
-	d = inb(devpriv->BADR3 + 5);
-	if ((d & 0x03) > 0) {	/* only reset if needed. */
-		d = d & 0xfd;
-		outb(d, devpriv->BADR3 + 5);
+	d = inb(devpriv->BADR3 + PCIMDAS_PACER_REG);
+	if ((d & PCIMDAS_PACER_SRC_MASK) != PCIMDAS_PACER_SRC_POLLED) {
+		d &= ~PCIMDAS_PACER_SRC_MASK;
+		d |= PCIMDAS_PACER_SRC_POLLED;
+		outb(d, devpriv->BADR3 + PCIMDAS_PACER_REG);
 	}
 
 	/* set bursting off, conversions on */
-	outb(0x01, devpriv->BADR3 + 6);
+	outb(PCIMDAS_BURST_CONV_EN, devpriv->BADR3 + PCIMDAS_BURST_REG);
 
 	/* set range */
-	outb(range, devpriv->BADR3 + 7);
+	outb(range, devpriv->BADR3 + PCIMDAS_GAIN_REG);
 
-	/*
-	 * write channel limits to multiplexer, set Low (bits 0-3) and
-	 * High (bits 4-7) channels to chan.
-	 */
-	chanlims = chan | (chan << 4);
-	outb(chanlims, devpriv->BADR3 + 0);
+	/* set mux for single channel scan */
+	outb(PCIMDAS_MUX(chan, chan), devpriv->BADR3 + PCIMDAS_MUX_REG);
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(0, devpriv->daqio + 0);
+		outw(0, devpriv->daqio + PCIMDAS_AI_SOFTTRIG_REG);
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, cb_pcimdas_ai_eoc, 0);
@@ -163,7 +203,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			return ret;
 
 		/* read data */
-		data[n] = inw(devpriv->daqio + 0);
+		data[n] = inw(devpriv->daqio + PCIMDAS_AI_REG);
 	}
 
 	/* return the number of samples read/written */
@@ -178,12 +218,11 @@ static int cb_pcimdas_ao_insn_write(struct comedi_device *dev,
 	struct cb_pcimdas_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int val = s->readback[chan];
-	unsigned int reg = (chan) ? DAC1_OFFSET : DAC0_OFFSET;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		outw(val, devpriv->daqio + reg);
+		outw(val, devpriv->daqio + PCIMDAS_AO_REG(chan));
 	}
 	s->readback[chan] = val;
 
@@ -200,8 +239,8 @@ static bool cb_pcimdas_is_ai_se(struct comedi_device *dev)
 	 * Analog Input Mode Switch on the board. The board can
 	 * have 16 single-ended or 8 differential channels.
 	 */
-	status = inb(devpriv->BADR3 + 2);
-	return status & 0x20;
+	status = inb(devpriv->BADR3 + PCIMDAS_STATUS_REG);
+	return status & PCIMDAS_STATUS_MUX;
 }
 
 static bool cb_pcimdas_is_ai_uni(struct comedi_device *dev)
@@ -214,8 +253,8 @@ static bool cb_pcimdas_is_ai_uni(struct comedi_device *dev)
 	 * Analog Input Polarity Switch on the board. The
 	 * inputs can be set to Unipolar or Bipolar ranges.
 	 */
-	status = inb(devpriv->BADR3 + 2);
-	return status & 0x40;
+	status = inb(devpriv->BADR3 + PCIMDAS_STATUS_REG);
+	return status & PCIMDAS_STATUS_UB;
 }
 
 static int cb_pcimdas_auto_attach(struct comedi_device *dev,
@@ -277,7 +316,7 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	ret = subdev_8255_init(dev, s, NULL, 0x00);
+	ret = subdev_8255_init(dev, s, NULL, PCIMDAS_8255_BASE);
 	if (ret)
 		return ret;
 
