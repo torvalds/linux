@@ -1163,12 +1163,12 @@ int fib_sync_down_dev(struct net_device *dev, int force)
 void fib_select_default(struct fib_result *res)
 {
 	struct fib_info *fi = NULL, *last_resort = NULL;
-	struct list_head *fa_head = res->fa_head;
+	struct hlist_head *fa_head = res->fa_head;
 	struct fib_table *tb = res->table;
 	int order = -1, last_idx = -1;
 	struct fib_alias *fa;
 
-	list_for_each_entry_rcu(fa, fa_head, fa_list) {
+	hlist_for_each_entry_rcu(fa, fa_head, fa_list) {
 		struct fib_info *next_fi = fa->fa_info;
 
 		if (next_fi->fib_scope != res->scope ||

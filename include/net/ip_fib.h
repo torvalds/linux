@@ -136,7 +136,7 @@ struct fib_result {
 	u32		tclassid;
 	struct fib_info *fi;
 	struct fib_table *table;
-	struct list_head *fa_head;
+	struct hlist_head *fa_head;
 };
 
 struct fib_result_nl {

@@ -6,7 +6,7 @@
 #include <net/ip_fib.h>
 
 struct fib_alias {
-	struct list_head	fa_list;
+	struct hlist_node	fa_list;
 	struct fib_info		*fa_info;
 	u8			fa_tos;
 	u8			fa_type;
