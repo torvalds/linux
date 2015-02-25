@@ -243,6 +243,36 @@ static int cb_pcimdas_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int cb_pcimdas_di_insn_read(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	struct cb_pcimdas_private *devpriv = dev->private;
+	unsigned int val;
+
+	val = inb(devpriv->BADR3 + PCIMDAS_DI_DO_REG);
+
+	data[1] = val & 0x0f;
+
+	return insn->n;
+}
+
+static int cb_pcimdas_do_insn_write(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	struct cb_pcimdas_private *devpriv = dev->private;
+
+	if (comedi_dio_update_state(s, data))
+		outb(s->state, devpriv->BADR3 + PCIMDAS_DI_DO_REG);
+
+	data[1] = s->state;
+
+	return insn->n;
+}
+
 static bool cb_pcimdas_is_ai_se(struct comedi_device *dev)
 {
 	struct cb_pcimdas_private *devpriv = dev->private;
@@ -291,7 +321,7 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
 	dev->iobase = pci_resource_start(pcidev, 4);
 
-	ret = comedi_alloc_subdevices(dev, 3);
+	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
 		return ret;
 
@@ -329,6 +359,24 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	ret = subdev_8255_init(dev, s, NULL, PCIMDAS_8255_BASE);
 	if (ret)
 		return ret;
+
+	/* Digital Input subdevice (main connector) */
+	s = &dev->subdevices[3];
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_read	= cb_pcimdas_di_insn_read;
+
+	/* Digital Output subdevice (main connector) */
+	s = &dev->subdevices[4];
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_write	= cb_pcimdas_do_insn_write;
 
 	return 0;
 }
