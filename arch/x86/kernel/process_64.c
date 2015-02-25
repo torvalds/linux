@@ -207,7 +207,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	 */
 	if (clone_flags & CLONE_SETTLS) {
 #ifdef CONFIG_IA32_EMULATION
-		if (test_thread_flag(TIF_IA32))
+		if (is_ia32_task())
 			err = do_set_thread_area(p, -1,
 				(struct user_desc __user *)childregs->si, 0);
 		else
