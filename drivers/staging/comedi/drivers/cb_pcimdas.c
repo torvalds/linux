@@ -137,6 +137,19 @@ static const struct comedi_lrange cb_pcimdas_ai_uni_range = {
 };
 
 /*
+ * The Analog Output range is not programmable. The DAC ranges are
+ * jumper-settable on the board. The settings are not software-readable.
+ */
+static const struct comedi_lrange cb_pcimdas_ao_range = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		UNI_RANGE(10),
+		UNI_RANGE(5)
+	}
+};
+
+/*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
  * feel free to suggest moving the variable to the struct comedi_device
@@ -306,8 +319,7 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 2;
 	s->maxdata = 0xfff;
-	/* ranges are hardware settable, but not software readable. */
-	s->range_table = &range_unknown;
+	s->range_table = &cb_pcimdas_ao_range;
 	s->insn_write = cb_pcimdas_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
