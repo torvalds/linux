@@ -2,7 +2,7 @@
 
 """Find Kconfig identifiers that are referenced but not defined."""
 
-# (c) 2014 Valentin Rothberg <valentinrothberg@gmail.com>
+# (c) 2014-2015 Valentin Rothberg <Valentin.Rothberg@lip6.fr>
 # (c) 2014 Stefan Hengelein <stefan.hengelein@fau.de>
 #
 # Licensed under the terms of the GNU GPL License version 2
@@ -46,8 +46,9 @@ def main():
         stdout = stdout[:-1]
 
     for gitfile in stdout.rsplit("\n"):
-        if ".git" in gitfile or "ChangeLog" in gitfile or \
-                ".log" in gitfile or os.path.isdir(gitfile):
+        if ".git" in gitfile or "ChangeLog" in gitfile or      \
+                ".log" in gitfile or os.path.isdir(gitfile) or \
+                gitfile.startswith("tools/"):
             continue
         if REGEX_FILE_KCONFIG.match(gitfile):
             kconfig_files.append(gitfile)
