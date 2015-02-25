@@ -314,19 +314,15 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	 * Create network devices for physical switch ports.
 	 */
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		struct net_device *slave_dev;
-
 		if (!(ds->phys_port_mask & (1 << i)))
 			continue;
 
-		slave_dev = dsa_slave_create(ds, parent, i, pd->port_names[i]);
-		if (slave_dev == NULL) {
+		ret = dsa_slave_create(ds, parent, i, pd->port_names[i]);
+		if (ret < 0) {
 			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s)\n",
 				   index, i, pd->port_names[i]);
-			continue;
+			ret = 0;
 		}
-
-		ds->ports[i] = slave_dev;
 	}
 
 #ifdef CONFIG_NET_DSA_HWMON
@@ -830,6 +826,10 @@ static struct packet_type dsa_pack_type __read_mostly = {
 	.func	= dsa_switch_rcv,
 };
 
+static struct notifier_block dsa_netdevice_nb __read_mostly = {
+	.notifier_call	= dsa_slave_netdevice_event,
+};
+
 #ifdef CONFIG_PM_SLEEP
 static int dsa_suspend(struct device *d)
 {
@@ -888,6 +888,8 @@ static int __init dsa_init_module(void)
 {
 	int rc;
 
+	register_netdevice_notifier(&dsa_netdevice_nb);
+
 	rc = platform_driver_register(&dsa_driver);
 	if (rc)
 		return rc;
@@ -900,6 +902,7 @@ module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
+	unregister_netdevice_notifier(&dsa_netdevice_nb);
 	dev_remove_pack(&dsa_pack_type);
 	platform_driver_unregister(&dsa_driver);
 }
