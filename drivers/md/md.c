@@ -6118,7 +6118,8 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 			if (!IS_ERR(bitmap)) {
 				mddev->bitmap = bitmap;
 				err = bitmap_load(mddev);
-			}
+			} else
+				err = PTR_ERR(bitmap);
 		}
 		if (fd < 0 || err) {
 			bitmap_destroy(mddev);
@@ -6408,7 +6409,8 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 			if (!IS_ERR(bitmap)) {
 				mddev->bitmap = bitmap;
 				rv = bitmap_load(mddev);
-			}
+			} else
+				rv = PTR_ERR(bitmap);
 			if (rv)
 				bitmap_destroy(mddev);
 			mddev->pers->quiesce(mddev, 0);
