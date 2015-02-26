@@ -87,8 +87,8 @@ static unsigned int exynos_pmu_spare3;
 static u32 exynos_irqwake_intmask = 0xffffffff;
 
 static const struct exynos_wkup_irq exynos3250_wkup_irq[] = {
-	{ 73, BIT(1) }, /* RTC alarm */
-	{ 74, BIT(2) }, /* RTC tick */
+	{ 105, BIT(1) }, /* RTC alarm */
+	{ 106, BIT(2) }, /* RTC tick */
 	{ /* sentinel */ },
 };
 
