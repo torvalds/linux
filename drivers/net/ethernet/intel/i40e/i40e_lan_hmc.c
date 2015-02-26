@@ -856,7 +856,7 @@ static void i40e_write_dword(u8 *hmc_bits,
 	if (ce_info->width < 32)
 		mask = ((u32)1 << ce_info->width) - 1;
 	else
-		mask = 0xFFFFFFFF;
+		mask = ~(u32)0;
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
@@ -908,7 +908,7 @@ static void i40e_write_qword(u8 *hmc_bits,
 	if (ce_info->width < 64)
 		mask = ((u64)1 << ce_info->width) - 1;
 	else
-		mask = 0xFFFFFFFFFFFFFFFF;
+		mask = ~(u64)0;
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
