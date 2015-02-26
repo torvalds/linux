@@ -509,6 +509,7 @@ void musb_hnp_stop(struct musb *musb)
 
 static void musb_disable_interrupts(struct musb *musb);
 static void musb_generic_disable(struct musb *musb);
+static void musb_recover_from_babble(struct musb *musb);
 
 /*
  * Interrupt Service Routine to record USB "global" interrupts.
@@ -885,8 +886,7 @@ b_host:
 
 				if (is_host_active(musb)) {
 					musb_disable_interrupts(musb);
-					schedule_delayed_work(&musb->recover_work,
-							usecs_to_jiffies(10));
+					musb_recover_from_babble(musb);
 				}
 			}
 		} else {
@@ -1831,12 +1831,16 @@ static void musb_irq_work(struct work_struct *data)
 	}
 }
 
-/* Recover from babble interrupt conditions */
-static void musb_recover_work(struct work_struct *data)
+static void musb_recover_from_babble(struct musb *musb)
 {
-	struct musb *musb = container_of(data, struct musb, recover_work.work);
 	int ret;
 	u8 devctl;
+
+	/*
+	 * wait at least 320 cycles of 60MHz clock. That's 5.3us, we will give
+	 * it some slack and wait for 10us.
+	 */
+	udelay(10);
 
 	ret  = musb_platform_recover(musb);
 	if (ret) {
@@ -2098,7 +2102,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	/* Init IRQ workqueue before request_irq */
 	INIT_WORK(&musb->irq_work, musb_irq_work);
-	INIT_DELAYED_WORK(&musb->recover_work, musb_recover_work);
 	INIT_DELAYED_WORK(&musb->deassert_reset_work, musb_deassert_reset);
 	INIT_DELAYED_WORK(&musb->finish_resume_work, musb_host_finish_resume);
 
@@ -2194,7 +2197,6 @@ fail4:
 
 fail3:
 	cancel_work_sync(&musb->irq_work);
-	cancel_delayed_work_sync(&musb->recover_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	if (musb->dma_controller)
@@ -2260,7 +2262,6 @@ static int musb_remove(struct platform_device *pdev)
 		dma_controller_destroy(musb->dma_controller);
 
 	cancel_work_sync(&musb->irq_work);
-	cancel_delayed_work_sync(&musb->recover_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	musb_free(musb);

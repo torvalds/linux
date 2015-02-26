@@ -301,7 +301,6 @@ struct musb {
 
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
-	struct delayed_work	recover_work;
 	struct delayed_work	deassert_reset_work;
 	struct delayed_work	finish_resume_work;
 	u16			hwvers;
