@@ -815,12 +815,14 @@ restart:
 			inode = nfs_delegation_grab_inode(delegation);
 			if (inode == NULL)
 				continue;
-			delegation = nfs_detach_delegation(NFS_I(inode),
-					delegation, server);
+			delegation = nfs_start_delegation_return_locked(NFS_I(inode));
 			rcu_read_unlock();
-
-			if (delegation != NULL)
-				nfs_free_delegation(delegation);
+			if (delegation != NULL) {
+				delegation = nfs_detach_delegation(NFS_I(inode),
+					delegation, server);
+				if (delegation != NULL)
+					nfs_free_delegation(delegation);
+			}
 			iput(inode);
 			goto restart;
 		}
