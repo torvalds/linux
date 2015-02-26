@@ -2122,6 +2122,10 @@ replay:
 		if (IS_ERR(dest_net))
 			return PTR_ERR(dest_net);
 
+		err = -EPERM;
+		if (!netlink_ns_capable(skb, dest_net->user_ns, CAP_NET_ADMIN))
+			goto out;
+
 		if (tb[IFLA_LINK_NETNSID]) {
 			int id = nla_get_s32(tb[IFLA_LINK_NETNSID]);
 
