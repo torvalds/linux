@@ -14,9 +14,6 @@
  * NOTE: This code handles signal-recognition, which happens every time
  * after an interrupt and after each system call.
  *
- * Normal syscalls and interrupts don't save a full stack frame, this is
- * only done for syscall tracing, signals or fork/exec et.al.
- *
  * A note on terminology:
  * - top of stack: Architecture defined interrupt frame from SS to RIP
  * at the top of the kernel process stack.
@@ -151,7 +148,7 @@ ENDPROC(native_usergs_sysret64)
 	.endm
 
 /*
- * initial frame state for interrupts (and exceptions without error code)
+ * empty frame
  */
 	.macro EMPTY_FRAME start=1 offset=0
 	.if \start
@@ -379,7 +376,7 @@ tracesys_phase2:
 	call syscall_trace_enter_phase2
 
 	/*
-	 * Reload arg registers from stack in case ptrace changed them.
+	 * Reload registers from stack in case ptrace changed them.
 	 * We don't reload %rax because syscall_trace_entry_phase2() returned
 	 * the value it wants us to use in the table lookup.
 	 */
@@ -629,6 +626,13 @@ END(interrupt)
 /* 0(%rsp): ~(interrupt number) */
 	.macro interrupt func
 	cld
+	/*
+	 * Since nothing in interrupt handling code touches r12...r15 members
+	 * of "struct pt_regs", and since interrupts can nest, we can save
+	 * four stack slots and simultaneously provide
+	 * an unwind-friendly stack layout by saving "truncated" pt_regs
+	 * exactly up to rbp slot, without these members.
+	 */
 	ALLOC_PT_GPREGS_ON_STACK -RBP
 	SAVE_C_REGS -RBP
 	/* this goes to 0(%rsp) for unwinder, not for saving the value: */
@@ -641,6 +645,7 @@ END(interrupt)
 	SWAPGS
 1:
 	/*
+	 * Save previous stack pointer, optionally switch to interrupt stack.
 	 * irq_count is used to check if a CPU is already on an interrupt stack
 	 * or not. While this is essentially redundant with preempt_count it is
 	 * a little cheaper to use a separate counter in the PDA (short of
@@ -681,6 +686,7 @@ ret_from_intr:
 	/* Restore saved previous stack */
 	popq %rsi
 	CFI_DEF_CFA rsi,SS+8-RBP	/* reg/off reset after def_cfa_expr */
+	/* return code expects complete pt_regs - adjust rsp accordingly: */
 	leaq ARGOFFSET-RBP(%rsi), %rsp
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET	RBP-ARGOFFSET
@@ -692,7 +698,7 @@ exit_intr:
 
 	/* Interrupt came from user space */
 	/*
-	 * Has a correct top of stack, but a partial stack frame
+	 * Has a correct top of stack.
 	 * %rcx: thread info. Interrupts off.
 	 */
 retint_with_reschedule:

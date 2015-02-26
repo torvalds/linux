@@ -31,13 +31,17 @@ struct pt_regs {
 #else /* __i386__ */
 
 struct pt_regs {
+/*
+ * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
+ * unless syscall needs a complete, fully filled "struct pt_regs".
+ */
 	unsigned long r15;
 	unsigned long r14;
 	unsigned long r13;
 	unsigned long r12;
 	unsigned long bp;
 	unsigned long bx;
-/* arguments: non interrupts/non tracing syscalls only save up to here*/
+/* These regs are callee-clobbered. Always saved on kernel entry. */
 	unsigned long r11;
 	unsigned long r10;
 	unsigned long r9;
@@ -47,9 +51,12 @@ struct pt_regs {
 	unsigned long dx;
 	unsigned long si;
 	unsigned long di;
+/*
+ * On syscall entry, this is syscall#. On CPU exception, this is error code.
+ * On hw interrupt, it's IRQ number:
+ */
 	unsigned long orig_ax;
-/* end of arguments */
-/* cpu exception frame or undefined */
+/* Return frame for iretq */
 	unsigned long ip;
 	unsigned long cs;
 	unsigned long flags;
