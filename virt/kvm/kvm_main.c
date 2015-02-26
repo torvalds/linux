@@ -72,7 +72,7 @@ module_param(halt_poll_ns, uint, S_IRUGO | S_IWUSR);
 /*
  * Ordering of locks:
  *
- * 		kvm->lock --> kvm->slots_lock --> kvm->irq_lock
+ *	kvm->lock --> kvm->slots_lock --> kvm->irq_lock
  */
 
 DEFINE_SPINLOCK(kvm_lock);
@@ -880,8 +880,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		 * or moved, memslot will be created.
 		 *
 		 * validation of sp->gfn happens in:
-		 * 	- gfn_to_hva (kvm_read_guest, gfn_to_pfn)
-		 * 	- kvm_is_visible_gfn (mmu_check_roots)
+		 *	- gfn_to_hva (kvm_read_guest, gfn_to_pfn)
+		 *	- kvm_is_visible_gfn (mmu_check_roots)
 		 */
 		kvm_arch_flush_shadow_memslot(kvm, slot);
 
