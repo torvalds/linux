@@ -5473,10 +5473,29 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 {
 	struct ieee80211_sta_vht_cap vht_cap = {0};
 	u16 mcs_map;
+	u32 val;
 	int i;
 
 	vht_cap.vht_supported = 1;
 	vht_cap.cap = ar->vht_cap_info;
+
+	if (ar->vht_cap_info & (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+				IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE)) {
+		val = ar->num_rf_chains - 1;
+		val <<= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
+		val &= IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
+
+		vht_cap.cap |= val;
+	}
+
+	if (ar->vht_cap_info & (IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+				IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)) {
+		val = ar->num_rf_chains - 1;
+		val <<= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
+		val &= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
+
+		vht_cap.cap |= val;
+	}
 
 	mcs_map = 0;
 	for (i = 0; i < 8; i++) {
