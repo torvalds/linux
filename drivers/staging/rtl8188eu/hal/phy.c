@@ -442,15 +442,13 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 	u8 thermal_val = 0, delta, delta_lck, delta_iqk, offset;
 	u8 thermal_avg_count = 0;
 	u32 thermal_avg = 0;
-	s32 ele_a = 0, ele_d, temp_cck, x;
-	s32 y, ele_c = 0;
+	s32 ele_d, temp_cck;
 	s8 ofdm_index[2], cck_index = 0;
 	s8 ofdm_index_old[2] = {0, 0}, cck_index_old = 0;
 	u32 i = 0, j = 0;
 	bool is2t = false;
 
 	u8 ofdm_min_index = 6, rf; /* OFDM BB Swing should be less than +3.0dB */
-	u8 indexforchannel = 0;
 	s8 ofdm_index_mapping[2][index_mapping_NUM_88E] = {
 		/* 2.4G, decrease power */
 		{0, 0, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10, 11},
@@ -599,11 +597,6 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 			if (dm_odm->RFCalibrateInfo.TxPowerTrackControl) {
 				dm_odm->RFCalibrateInfo.bDoneTxpower = true;
 
-				/* Adujst OFDM Ant_A according to IQK result */
-				ele_d = (OFDMSwingTable[(u8)ofdm_index[0]] & 0xFFC00000)>>22;
-				x = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[indexforchannel].Value[0][0];
-				y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[indexforchannel].Value[0][1];
-
 				/*  Revse TX power table. */
 				dm_odm->BbSwingIdxOfdm = (u8)ofdm_index[0];
 				dm_odm->BbSwingIdxCck = (u8)cck_index;
@@ -616,18 +609,6 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 				if (dm_odm->BbSwingIdxCckCurrent != dm_odm->BbSwingIdxCck) {
 					dm_odm->BbSwingIdxCckCurrent = dm_odm->BbSwingIdxCck;
 					dm_odm->BbSwingFlagCck = true;
-				}
-
-				if (x != 0) {
-					if ((x & 0x00000200) != 0)
-						x = x | 0xFFFFFC00;
-					ele_a = ((x * ele_d)>>8)&0x000003FF;
-
-					/* new element C = element D x Y */
-					if ((y & 0x00000200) != 0)
-						y = y | 0xFFFFFC00;
-					ele_c = ((y * ele_d)>>8)&0x000003FF;
-
 				}
 			}
 		}
