@@ -557,9 +557,41 @@ static inline void snd_hda_override_wcaps(struct hda_codec *codec,
 u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
-u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid);
-int snd_hda_override_pin_caps(struct hda_codec *codec, hda_nid_t nid,
-			      unsigned int caps);
+/**
+ * snd_hda_query_pin_caps - Query PIN capabilities
+ * @codec: the HD-auio codec
+ * @nid: the NID to query
+ *
+ * Query PIN capabilities for the given widget.
+ * Returns the obtained capability bits.
+ *
+ * When cap bits have been already read, this doesn't read again but
+ * returns the cached value.
+ */
+static inline u32
+snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid)
+{
+	return snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+
+}
+
+/**
+ * snd_hda_override_pin_caps - Override the pin capabilities
+ * @codec: the CODEC
+ * @nid: the NID to override
+ * @caps: the capability bits to set
+ *
+ * Override the cached PIN capabilitiy bits value by the given one.
+ *
+ * Returns zero if successful or a negative error code.
+ */
+static inline int
+snd_hda_override_pin_caps(struct hda_codec *codec, hda_nid_t nid,
+			  unsigned int caps)
+{
+	return snd_hdac_override_parm(&codec->core, nid, AC_PAR_PIN_CAP, caps);
+}
+
 bool snd_hda_check_amp_caps(struct hda_codec *codec, hda_nid_t nid,
 			   int dir, unsigned int bits);
 

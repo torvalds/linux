@@ -58,7 +58,11 @@ static bool hda_volatile_reg(struct device *dev, unsigned int reg)
 
 static bool hda_writeable_reg(struct device *dev, unsigned int reg)
 {
+	struct hdac_device *codec = dev_to_hdac_dev(dev);
 	unsigned int verb = get_verb(reg);
+
+	if (codec->caps_overwriting)
+		return true;
 
 	switch (verb & 0xf00) {
 	case AC_VERB_GET_STREAM_FORMAT:
@@ -97,7 +101,11 @@ static bool hda_writeable_reg(struct device *dev, unsigned int reg)
 
 static bool hda_readable_reg(struct device *dev, unsigned int reg)
 {
+	struct hdac_device *codec = dev_to_hdac_dev(dev);
 	unsigned int verb = get_verb(reg);
+
+	if (codec->caps_overwriting)
+		return true;
 
 	switch (verb) {
 	case AC_VERB_PARAMETERS:

@@ -273,6 +273,29 @@ int snd_hdac_read_parm_uncached(struct hdac_device *codec, hda_nid_t nid,
 EXPORT_SYMBOL_GPL(snd_hdac_read_parm_uncached);
 
 /**
+ * snd_hdac_override_parm - override read-only parameters
+ * @codec: the codec object
+ * @nid: NID for the parameter
+ * @parm: the parameter to change
+ * @val: the parameter value to overwrite
+ */
+int snd_hdac_override_parm(struct hdac_device *codec, hda_nid_t nid,
+			   unsigned int parm, unsigned int val)
+{
+	unsigned int verb = (AC_VERB_PARAMETERS << 8) | (nid << 20) | parm;
+	int err;
+
+	if (!codec->regmap)
+		return -EINVAL;
+
+	codec->caps_overwriting = true;
+	err = snd_hdac_regmap_write_raw(codec, verb, val);
+	codec->caps_overwriting = false;
+	return err;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_override_parm);
+
+/**
  * snd_hdac_get_sub_nodes - get start NID and number of subtree nodes
  * @codec: the codec object
  * @nid: NID to inspect

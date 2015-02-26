@@ -929,9 +929,7 @@ void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
 	codec->proc_widget_hook = NULL;
 	codec->spec = NULL;
 
-	free_hda_cache(&codec->amp_cache);
 	free_hda_cache(&codec->cmd_cache);
-	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 
 	/* free only driver_pins so that init_pins + user_pins are restored */
@@ -996,7 +994,6 @@ static void snd_hda_codec_dev_release(struct device *dev)
 	free_init_pincfgs(codec);
 	snd_hdac_device_exit(&codec->core);
 	snd_hda_sysfs_clear(codec);
-	free_hda_cache(&codec->amp_cache);
 	free_hda_cache(&codec->cmd_cache);
 	kfree(codec->modelname);
 	kfree(codec->wcaps);
@@ -1051,7 +1048,6 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 	mutex_init(&codec->spdif_mutex);
 	mutex_init(&codec->control_mutex);
 	mutex_init(&codec->hash_mutex);
-	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 	snd_array_init(&codec->mixers, sizeof(struct hda_nid_item), 32);
 	snd_array_init(&codec->nids, sizeof(struct hda_nid_item), 32);
@@ -1380,67 +1376,6 @@ static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
 	return info;
 }
 
-/* query and allocate an amp hash entry */
-static inline struct hda_amp_info *
-get_alloc_amp_hash(struct hda_codec *codec, u32 key)
-{
-	return (struct hda_amp_info *)get_alloc_hash(&codec->amp_cache, key);
-}
-
-/* overwrite the value with the key in the caps hash */
-static int write_caps_hash(struct hda_codec *codec, u32 key, unsigned int val)
-{
-	struct hda_amp_info *info;
-
-	mutex_lock(&codec->hash_mutex);
-	info = get_alloc_amp_hash(codec, key);
-	if (!info) {
-		mutex_unlock(&codec->hash_mutex);
-		return -EINVAL;
-	}
-	info->amp_caps = val;
-	info->head.val |= INFO_AMP_CAPS;
-	mutex_unlock(&codec->hash_mutex);
-	return 0;
-}
-
-/* query the value from the caps hash; if not found, fetch the current
- * value from the given function and store in the hash
- */
-static unsigned int
-query_caps_hash(struct hda_codec *codec, hda_nid_t nid, int dir, u32 key,
-		unsigned int (*func)(struct hda_codec *, hda_nid_t, int))
-{
-	struct hda_amp_info *info;
-	unsigned int val;
-
-	mutex_lock(&codec->hash_mutex);
-	info = get_alloc_amp_hash(codec, key);
-	if (!info) {
-		mutex_unlock(&codec->hash_mutex);
-		return 0;
-	}
-	if (!(info->head.val & INFO_AMP_CAPS)) {
-		mutex_unlock(&codec->hash_mutex); /* for reentrance */
-		val = func(codec, nid, dir);
-		write_caps_hash(codec, key, val);
-	} else {
-		val = info->amp_caps;
-		mutex_unlock(&codec->hash_mutex);
-	}
-	return val;
-}
-
-static unsigned int read_amp_cap(struct hda_codec *codec, hda_nid_t nid,
-				 int direction)
-{
-	if (!(get_wcaps(codec, nid) & AC_WCAP_AMP_OVRD))
-		nid = codec->core.afg;
-	return snd_hda_param_read(codec, nid,
-				  direction == HDA_OUTPUT ?
-				  AC_PAR_AMP_OUT_CAP : AC_PAR_AMP_IN_CAP);
-}
-
 /**
  * query_amp_caps - query AMP capabilities
  * @codec: the HD-auio codec
@@ -1455,9 +1390,11 @@ static unsigned int read_amp_cap(struct hda_codec *codec, hda_nid_t nid,
  */
 u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction)
 {
-	return query_caps_hash(codec, nid, direction,
-			       HDA_HASH_KEY(nid, direction, 0),
-			       read_amp_cap);
+	if (!(get_wcaps(codec, nid) & AC_WCAP_AMP_OVRD))
+		nid = codec->core.afg;
+	return snd_hda_param_read(codec, nid,
+				  direction == HDA_OUTPUT ?
+				  AC_PAR_AMP_OUT_CAP : AC_PAR_AMP_IN_CAP);
 }
 EXPORT_SYMBOL_GPL(query_amp_caps);
 
@@ -1498,50 +1435,14 @@ EXPORT_SYMBOL_GPL(snd_hda_check_amp_caps);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps)
 {
-	return write_caps_hash(codec, HDA_HASH_KEY(nid, dir, 0), caps);
+	unsigned int parm;
+
+	snd_hda_override_wcaps(codec, nid,
+			       get_wcaps(codec, nid) | AC_WCAP_AMP_OVRD);
+	parm = dir == HDA_OUTPUT ? AC_PAR_AMP_OUT_CAP : AC_PAR_AMP_IN_CAP;
+	return snd_hdac_override_parm(&codec->core, nid, parm, caps);
 }
 EXPORT_SYMBOL_GPL(snd_hda_override_amp_caps);
-
-static unsigned int read_pin_cap(struct hda_codec *codec, hda_nid_t nid,
-				 int dir)
-{
-	return snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
-}
-
-/**
- * snd_hda_query_pin_caps - Query PIN capabilities
- * @codec: the HD-auio codec
- * @nid: the NID to query
- *
- * Query PIN capabilities for the given widget.
- * Returns the obtained capability bits.
- *
- * When cap bits have been already read, this doesn't read again but
- * returns the cached value.
- */
-u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid)
-{
-	return query_caps_hash(codec, nid, 0, HDA_HASH_PINCAP_KEY(nid),
-			       read_pin_cap);
-}
-EXPORT_SYMBOL_GPL(snd_hda_query_pin_caps);
-
-/**
- * snd_hda_override_pin_caps - Override the pin capabilities
- * @codec: the CODEC
- * @nid: the NID to override
- * @caps: the capability bits to set
- *
- * Override the cached PIN capabilitiy bits value by the given one.
- *
- * Returns zero if successful or a negative error code.
- */
-int snd_hda_override_pin_caps(struct hda_codec *codec, hda_nid_t nid,
-			      unsigned int caps)
-{
-	return write_caps_hash(codec, HDA_HASH_PINCAP_KEY(nid), caps);
-}
-EXPORT_SYMBOL_GPL(snd_hda_override_pin_caps);
 
 /**
  * snd_hda_codec_amp_stereo - update the AMP stereo values
@@ -3462,11 +3363,6 @@ static void hda_mark_cmd_cache_dirty(struct hda_codec *codec)
 		cmd = snd_array_elem(&codec->cmd_cache.buf, i);
 		cmd->dirty = 1;
 	}
-	for (i = 0; i < codec->amp_cache.buf.used; i++) {
-		struct hda_amp_info *amp;
-		amp = snd_array_elem(&codec->amp_cache.buf, i);
-		amp->head.dirty = 1;
-	}
 }
 
 /*
@@ -3714,8 +3610,7 @@ unsigned int snd_hda_calc_stream_format(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_calc_stream_format);
 
-static unsigned int get_pcm_param(struct hda_codec *codec, hda_nid_t nid,
-				  int dir)
+static unsigned int query_pcm_param(struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int val = 0;
 	if (nid != codec->core.afg &&
@@ -3728,14 +3623,7 @@ static unsigned int get_pcm_param(struct hda_codec *codec, hda_nid_t nid,
 	return val;
 }
 
-static unsigned int query_pcm_param(struct hda_codec *codec, hda_nid_t nid)
-{
-	return query_caps_hash(codec, nid, 0, HDA_HASH_PARPCM_KEY(nid),
-			       get_pcm_param);
-}
-
-static unsigned int get_stream_param(struct hda_codec *codec, hda_nid_t nid,
-				     int dir)
+static unsigned int query_stream_param(struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int streams = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
 	if (!streams || streams == -1)
@@ -3743,12 +3631,6 @@ static unsigned int get_stream_param(struct hda_codec *codec, hda_nid_t nid,
 	if (!streams || streams == -1)
 		return 0;
 	return streams;
-}
-
-static unsigned int query_stream_param(struct hda_codec *codec, hda_nid_t nid)
-{
-	return query_caps_hash(codec, nid, 0, HDA_HASH_PARSTR_KEY(nid),
-			       get_stream_param);
 }
 
 /**

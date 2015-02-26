@@ -76,6 +76,7 @@ struct hdac_device {
 	/* regmap */
 	struct regmap *regmap;
 	bool lazy_cache:1;	/* don't wake up for writes */
+	bool caps_overwriting:1; /* caps overwrite being in process */
 };
 
 /* device/driver type used for matching */
@@ -109,6 +110,8 @@ int _snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm,
 			unsigned int *res);
 int snd_hdac_read_parm_uncached(struct hdac_device *codec, hda_nid_t nid,
 				int parm);
+int snd_hdac_override_parm(struct hdac_device *codec, hda_nid_t nid,
+			   unsigned int parm, unsigned int val);
 int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 			     hda_nid_t *conn_list, int max_conns);
 int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,

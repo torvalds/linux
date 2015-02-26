@@ -163,12 +163,6 @@ struct hda_cache_head {
 	u16 next;
 };
 
-struct hda_amp_info {
-	struct hda_cache_head head;
-	u32 amp_caps;		/* amp capabilities */
-	u16 vol[2];		/* current volume & mute */
-};
-
 struct hda_cache_rec {
 	u16 hash[64];			/* hash table for index */
 	struct snd_array buf;		/* record entries */
@@ -257,7 +251,6 @@ struct hda_codec {
 	struct snd_array mixers;	/* list of assigned mixer elements */
 	struct snd_array nids;		/* list of mapped mixer elements */
 
-	struct hda_cache_rec amp_cache;	/* cache for amp access */
 	struct hda_cache_rec cmd_cache;	/* cache for other commands */
 
 	struct list_head conn_list;	/* linked-list of connection-list */
