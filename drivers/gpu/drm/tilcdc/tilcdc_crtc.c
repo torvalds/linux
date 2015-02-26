@@ -135,11 +135,12 @@ static void stop(struct drm_crtc *crtc)
 	tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
 }
 
+static void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode);
 static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 
-	WARN_ON(tilcdc_crtc->dpms == DRM_MODE_DPMS_ON);
+	tilcdc_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 
 	drm_crtc_cleanup(crtc);
 	drm_flip_work_cleanup(&tilcdc_crtc->unref_work);
