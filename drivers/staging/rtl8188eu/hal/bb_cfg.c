@@ -553,21 +553,29 @@ static void store_pwrindex_offset(struct adapter *Adapter, u32 regaddr, u32 bitm
 	}
 }
 
-static void rtl_addr_delay(struct adapter *adapt, u32 addr, u32 bit_mask, u32 data)
+static void rtl_addr_delay(struct adapter *adapt,
+			u32 addr, u32 bit_mask, u32 data)
 {
-	if (addr == 0xfe) {
+	switch (addr) {
+	case 0xfe:
 		msleep(50);
-	} else if (addr == 0xfd) {
+		break;
+	case 0xfd:
 		mdelay(5);
-	} else if (addr == 0xfc) {
+		break;
+	case 0xfc:
 		mdelay(1);
-	} else if (addr == 0xfb) {
+		break;
+	case 0xfb:
 		udelay(50);
-	} else if (addr == 0xfa) {
+		break;
+	case 0xfa:
 		udelay(5);
-	} else if (addr == 0xf9) {
+		break;
+	case 0xf9:
 		udelay(1);
-	} else{
+		break;
+	default:
 		store_pwrindex_offset(adapt, addr, bit_mask, data);
 	}
 }
