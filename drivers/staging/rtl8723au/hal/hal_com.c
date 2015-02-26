@@ -231,7 +231,7 @@ void HalSetBrateCfg23a(struct rtw_adapter *padapter, u8 *mBratesOS)
 	rate_index = 0;
 	/*  Set RTS initial rate */
 	while (brate_cfg > 0x1) {
-		brate_cfg = (brate_cfg >> 1);
+		brate_cfg >>= 1;
 		rate_index++;
 	}
 		/*  Ziv - Check */
