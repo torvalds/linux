@@ -1508,6 +1508,7 @@ void kvm_set_pfn_dirty(pfn_t pfn)
 {
 	if (!kvm_is_reserved_pfn(pfn)) {
 		struct page *page = pfn_to_page(pfn);
+
 		if (!PageReserved(page))
 			SetPageDirty(page);
 	}
@@ -1791,6 +1792,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	start = cur = ktime_get();
 	if (halt_poll_ns) {
 		ktime_t stop = ktime_add_ns(ktime_get(), halt_poll_ns);
+
 		do {
 			/*
 			 * This sets KVM_REQ_UNHALT if an interrupt
@@ -2126,6 +2128,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 			/* The thread running this VCPU changed. */
 			struct pid *oldpid = vcpu->pid;
 			struct pid *newpid = get_task_pid(current, PIDTYPE_PID);
+
 			rcu_assign_pointer(vcpu->pid, newpid);
 			if (oldpid)
 				synchronize_rcu();
@@ -2533,6 +2536,7 @@ static long kvm_vm_ioctl(struct file *filp,
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 	case KVM_REGISTER_COALESCED_MMIO: {
 		struct kvm_coalesced_mmio_zone zone;
+
 		r = -EFAULT;
 		if (copy_from_user(&zone, argp, sizeof(zone)))
 			goto out;
@@ -2541,6 +2545,7 @@ static long kvm_vm_ioctl(struct file *filp,
 	}
 	case KVM_UNREGISTER_COALESCED_MMIO: {
 		struct kvm_coalesced_mmio_zone zone;
+
 		r = -EFAULT;
 		if (copy_from_user(&zone, argp, sizeof(zone)))
 			goto out;
@@ -3259,6 +3264,7 @@ struct kvm_vcpu *preempt_notifier_to_vcpu(struct preempt_notifier *pn)
 static void kvm_sched_in(struct preempt_notifier *pn, int cpu)
 {
 	struct kvm_vcpu *vcpu = preempt_notifier_to_vcpu(pn);
+
 	if (vcpu->preempted)
 		vcpu->preempted = false;
 
