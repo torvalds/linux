@@ -1260,6 +1260,22 @@ void nfs_fattr_init(struct nfs_fattr *fattr)
 }
 EXPORT_SYMBOL_GPL(nfs_fattr_init);
 
+/**
+ * nfs_fattr_set_barrier
+ * @fattr: attributes
+ *
+ * Used to set a barrier after an attribute was updated. This
+ * barrier ensures that older attributes from RPC calls that may
+ * have raced with our update cannot clobber these new values.
+ * Note that you are still responsible for ensuring that other
+ * operations which change the attribute on the server do not
+ * collide.
+ */
+void nfs_fattr_set_barrier(struct nfs_fattr *fattr)
+{
+	fattr->gencount = nfs_inc_attr_generation_counter();
+}
+
 struct nfs_fattr *nfs_alloc_fattr(void)
 {
 	struct nfs_fattr *fattr;
