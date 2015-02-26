@@ -549,7 +549,7 @@ static int dsps_musb_set_mode(struct musb *musb, u8 mode)
 	return 0;
 }
 
-static bool  sw_babble_control(struct musb *musb)
+static bool dsps_sw_babble_control(struct musb *musb)
 {
 	u8 babble_ctl;
 	bool session_restart =  false;
@@ -608,7 +608,7 @@ static int dsps_musb_reset(struct musb *musb)
 	int session_restart = 0, error;
 
 	if (glue->sw_babble_enabled)
-		session_restart = sw_babble_control(musb);
+		session_restart = dsps_sw_babble_control(musb);
 	/*
 	 * In case of new silicon version babble condition can be recovered
 	 * without resetting the MUSB. But for older silicon versions, MUSB
