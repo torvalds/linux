@@ -346,7 +346,6 @@ void phy_sw_chnl(struct adapter *adapt, u8 channel)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 	u8 tmpchannel = hal_data->CurrentChannel;
-	bool  result = true;
 
 	if (hal_data->rf_chip == RF_PSEUDO_11N)
 		return;
@@ -356,15 +355,10 @@ void phy_sw_chnl(struct adapter *adapt, u8 channel)
 
 	hal_data->CurrentChannel = channel;
 
-	if ((!adapt->bDriverStopped) && (!adapt->bSurpriseRemoved)) {
+	if ((!adapt->bDriverStopped) && (!adapt->bSurpriseRemoved))
 		phy_sw_chnl_callback(adapt, channel);
-
-		if (!result)
-			hal_data->CurrentChannel = tmpchannel;
-
-	} else {
+	else
 		hal_data->CurrentChannel = tmpchannel;
-	}
 }
 
 #define ODM_TXPWRTRACK_MAX_IDX_88E  6
