@@ -4038,7 +4038,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 
 		if (!priv->bCckHighPower) {
 			report = pcck_buf->cck_agc_rpt & 0xc0;
-			report = report>>6;
+			report >>= 6;
 			switch (report) {
 				//Fixed by Jacken from Bryant 2008-03-20
 				//Original value is -38 , -26 , -14 , -2
@@ -4058,7 +4058,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 			}
 		} else {
 			report = pcck_buf->cck_agc_rpt & 0x60;
-			report = report>>5;
+			report >>= 5;
 			switch (report) {
 			case 0x3:
 				rx_pwr_all = -35 - ((pcck_buf->cck_agc_rpt & 0x1f)<<1);
