@@ -22,5 +22,7 @@ struct wmi_p2p_noa_info;
 
 void ath10k_p2p_noa_update(struct ath10k_vif *arvif,
 			   const struct wmi_p2p_noa_info *noa);
+void ath10k_p2p_noa_update_by_vdev_id(struct ath10k *ar, u32 vdev_id,
+				      const struct wmi_p2p_noa_info *noa);
 
 #endif

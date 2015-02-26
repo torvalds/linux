@@ -16,6 +16,7 @@
 
 #include "core.h"
 #include "wmi.h"
+#include "mac.h"
 #include "p2p.h"
 
 static void ath10k_p2p_noa_ie_fill(u8 *data, size_t len,
@@ -121,4 +122,35 @@ void ath10k_p2p_noa_update(struct ath10k_vif *arvif,
 	spin_lock_bh(&ar->data_lock);
 	__ath10k_p2p_noa_update(arvif, noa);
 	spin_unlock_bh(&ar->data_lock);
+}
+
+struct ath10k_p2p_noa_arg {
+	u32 vdev_id;
+	const struct wmi_p2p_noa_info *noa;
+};
+
+static void ath10k_p2p_noa_update_vdev_iter(void *data, u8 *mac,
+					    struct ieee80211_vif *vif)
+{
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ath10k_p2p_noa_arg *arg = data;
+
+	if (arvif->vdev_id != arg->vdev_id)
+		return;
+
+	ath10k_p2p_noa_update(arvif, arg->noa);
+}
+
+void ath10k_p2p_noa_update_by_vdev_id(struct ath10k *ar, u32 vdev_id,
+				      const struct wmi_p2p_noa_info *noa)
+{
+	struct ath10k_p2p_noa_arg arg = {
+		.vdev_id = vdev_id,
+		.noa = noa,
+	};
+
+	ieee80211_iterate_active_interfaces_atomic(ar->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   ath10k_p2p_noa_update_vdev_iter,
+						   &arg);
 }

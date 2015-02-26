@@ -1454,6 +1454,10 @@ struct wmi_tlv_stats_ev {
 	__le32 num_chan_stats;
 } __packed;
 
+struct wmi_tlv_p2p_noa_ev {
+	__le32 vdev_id;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif
