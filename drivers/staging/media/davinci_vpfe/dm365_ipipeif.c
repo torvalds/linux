@@ -212,7 +212,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 		pr_err("ipipeif: links setup required");
 		return -EINVAL;
 	}
-	val = val << ONESHOT_SHIFT;
+	val <<= ONESHOT_SHIFT;
 
 	ipipeif_source = ipipeif_get_source(ipipeif);
 	val |= ipipeif_source << INPSRC_SHIFT;
