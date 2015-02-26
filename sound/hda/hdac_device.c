@@ -9,6 +9,7 @@
 #include <linux/export.h>
 #include <linux/pm_runtime.h>
 #include <sound/hdaudio.h>
+#include <sound/hda_regmap.h>
 #include "local.h"
 
 static void setup_fg_nodes(struct hdac_device *codec);
@@ -234,23 +235,19 @@ int snd_hdac_read(struct hdac_device *codec, hda_nid_t nid,
 EXPORT_SYMBOL_GPL(snd_hdac_read);
 
 /**
- * snd_hdac_read_parm - read a codec parameter
- * @codec: the codec object
- * @nid: NID to read a parameter
- * @parm: parameter to read
+ * _snd_hdac_read_parm - read a parmeter
  *
- * Returns -1 for error.  If you need to distinguish the error more
- * strictly, use snd_hdac_read() directly.
+ * This function returns zero or an error unlike snd_hdac_read_parm().
  */
-int snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm)
+int _snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm,
+			unsigned int *res)
 {
-	int val;
+	unsigned int cmd;
 
-	if (snd_hdac_read(codec, nid, AC_VERB_PARAMETERS, parm, &val))
-		return -1;
-	return val;
+	cmd = snd_hdac_regmap_encode_verb(nid, AC_VERB_PARAMETERS) | parm;
+	return snd_hdac_regmap_read_raw(codec, cmd, res);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_read_parm);
+EXPORT_SYMBOL_GPL(_snd_hdac_read_parm);
 
 /**
  * snd_hdac_get_sub_nodes - get start NID and number of subtree nodes

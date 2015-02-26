@@ -105,11 +105,29 @@ int snd_hdac_exec_verb(struct hdac_device *codec, unsigned int cmd,
 		       unsigned int flags, unsigned int *res);
 int snd_hdac_read(struct hdac_device *codec, hda_nid_t nid,
 		  unsigned int verb, unsigned int parm, unsigned int *res);
-int snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm);
+int _snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm,
+			unsigned int *res);
 int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 			     hda_nid_t *conn_list, int max_conns);
 int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
 			   hda_nid_t *start_id);
+
+/**
+ * snd_hdac_read_parm - read a codec parameter
+ * @codec: the codec object
+ * @nid: NID to read a parameter
+ * @parm: parameter to read
+ *
+ * Returns -1 for error.  If you need to distinguish the error more
+ * strictly, use _snd_hdac_read_parm() directly.
+ */
+static inline int snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid,
+				     int parm)
+{
+	unsigned int val;
+
+	return _snd_hdac_read_parm(codec, nid, parm, &val) < 0 ? -1 : val;
+}
 
 #ifdef CONFIG_PM
 void snd_hdac_power_up(struct hdac_device *codec);
