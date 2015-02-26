@@ -177,8 +177,8 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred,
 				  &delegation->flags);
 			NFS_I(inode)->delegation_state = delegation->type;
 			spin_unlock(&delegation->lock);
-			put_rpccred(oldcred);
 			rcu_read_unlock();
+			put_rpccred(oldcred);
 			trace_nfs4_reclaim_delegation(inode, res->delegation_type);
 		} else {
 			/* We appear to have raced with a delegation return. */
