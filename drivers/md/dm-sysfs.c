@@ -92,11 +92,13 @@ static ssize_t dm_attr_suspended_show(struct mapped_device *md, char *buf)
 static DM_ATTR_RO(name);
 static DM_ATTR_RO(uuid);
 static DM_ATTR_RO(suspended);
+static DM_ATTR_RW(rq_based_seq_io_merge_deadline);
 
 static struct attribute *dm_attrs[] = {
 	&dm_attr_name.attr,
 	&dm_attr_uuid.attr,
 	&dm_attr_suspended.attr,
+	&dm_attr_rq_based_seq_io_merge_deadline.attr,
 	NULL,
 };
 

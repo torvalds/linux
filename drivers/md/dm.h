@@ -234,4 +234,8 @@ static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen
 	return !maxlen || strlen(result) + 1 >= maxlen;
 }
 
+ssize_t dm_attr_rq_based_seq_io_merge_deadline_show(struct mapped_device *md, char *buf);
+ssize_t dm_attr_rq_based_seq_io_merge_deadline_store(struct mapped_device *md,
+						     const char *buf, size_t count);
+
 #endif
