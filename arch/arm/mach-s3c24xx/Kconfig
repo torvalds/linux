@@ -362,6 +362,7 @@ if CPU_S3C2416
 config S3C2416_PM
 	bool
 	select S3C2412_PM_SLEEP
+	select SAMSUNG_WAKEMASK
 	help
 	  Internal config node to apply S3C2416 power management
 
