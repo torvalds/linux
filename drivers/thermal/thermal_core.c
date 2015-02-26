@@ -75,6 +75,58 @@ static struct thermal_governor *__find_governor(const char *name)
 	return NULL;
 }
 
+/**
+ * bind_previous_governor() - bind the previous governor of the thermal zone
+ * @tz:		a valid pointer to a struct thermal_zone_device
+ * @failed_gov_name:	the name of the governor that failed to register
+ *
+ * Register the previous governor of the thermal zone after a new
+ * governor has failed to be bound.
+ */
+static void bind_previous_governor(struct thermal_zone_device *tz,
+				   const char *failed_gov_name)
+{
+	if (tz->governor && tz->governor->bind_to_tz) {
+		if (tz->governor->bind_to_tz(tz)) {
+			dev_err(&tz->device,
+				"governor %s failed to bind and the previous one (%s) failed to bind again, thermal zone %s has no governor\n",
+				failed_gov_name, tz->governor->name, tz->type);
+			tz->governor = NULL;
+		}
+	}
+}
+
+/**
+ * thermal_set_governor() - Switch to another governor
+ * @tz:		a valid pointer to a struct thermal_zone_device
+ * @new_gov:	pointer to the new governor
+ *
+ * Change the governor of thermal zone @tz.
+ *
+ * Return: 0 on success, an error if the new governor's bind_to_tz() failed.
+ */
+static int thermal_set_governor(struct thermal_zone_device *tz,
+				struct thermal_governor *new_gov)
+{
+	int ret = 0;
+
+	if (tz->governor && tz->governor->unbind_from_tz)
+		tz->governor->unbind_from_tz(tz);
+
+	if (new_gov && new_gov->bind_to_tz) {
+		ret = new_gov->bind_to_tz(tz);
+		if (ret) {
+			bind_previous_governor(tz, new_gov->name);
+
+			return ret;
+		}
+	}
+
+	tz->governor = new_gov;
+
+	return ret;
+}
+
 int thermal_register_governor(struct thermal_governor *governor)
 {
 	int err;
@@ -107,8 +159,15 @@ int thermal_register_governor(struct thermal_governor *governor)
 
 		name = pos->tzp->governor_name;
 
-		if (!strncasecmp(name, governor->name, THERMAL_NAME_LENGTH))
-			pos->governor = governor;
+		if (!strncasecmp(name, governor->name, THERMAL_NAME_LENGTH)) {
+			int ret;
+
+			ret = thermal_set_governor(pos, governor);
+			if (ret)
+				dev_err(&pos->device,
+					"Failed to set governor %s for thermal zone %s: %d\n",
+					governor->name, pos->type, ret);
+		}
 	}
 
 	mutex_unlock(&thermal_list_lock);
@@ -134,7 +193,7 @@ void thermal_unregister_governor(struct thermal_governor *governor)
 	list_for_each_entry(pos, &thermal_tz_list, node) {
 		if (!strncasecmp(pos->governor->name, governor->name,
 						THERMAL_NAME_LENGTH))
-			pos->governor = NULL;
+			thermal_set_governor(pos, NULL);
 	}
 
 	mutex_unlock(&thermal_list_lock);
@@ -770,8 +829,9 @@ policy_store(struct device *dev, struct device_attribute *attr,
 	if (!gov)
 		goto exit;
 
-	tz->governor = gov;
-	ret = count;
+	ret = thermal_set_governor(tz, gov);
+	if (!ret)
+		ret = count;
 
 exit:
 	mutex_unlock(&tz->lock);
@@ -1512,6 +1572,7 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	int result;
 	int count;
 	int passive = 0;
+	struct thermal_governor *governor;
 
 	if (type && strlen(type) >= THERMAL_NAME_LENGTH)
 		return ERR_PTR(-EINVAL);
@@ -1602,9 +1663,15 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	mutex_lock(&thermal_governor_lock);
 
 	if (tz->tzp)
-		tz->governor = __find_governor(tz->tzp->governor_name);
+		governor = __find_governor(tz->tzp->governor_name);
 	else
-		tz->governor = def_governor;
+		governor = def_governor;
+
+	result = thermal_set_governor(tz, governor);
+	if (result) {
+		mutex_unlock(&thermal_governor_lock);
+		goto unregister;
+	}
 
 	mutex_unlock(&thermal_governor_lock);
 
@@ -1693,7 +1760,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 		device_remove_file(&tz->device, &dev_attr_mode);
 	device_remove_file(&tz->device, &dev_attr_policy);
 	remove_trip_attrs(tz);
-	tz->governor = NULL;
+	thermal_set_governor(tz, NULL);
 
 	thermal_remove_hwmon_sysfs(tz);
 	release_idr(&thermal_tz_idr, &thermal_idr_lock, tz->id);
