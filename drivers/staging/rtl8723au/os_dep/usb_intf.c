@@ -599,8 +599,6 @@ static void rtw_disconnect(struct usb_interface *pusb_intf)
 
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-dev_remove()\n"));
 	DBG_8723A("-r871xu_dev_remove, done\n");
-
-	return;
 }
 
 static int __init rtw_drv_entry(void)
