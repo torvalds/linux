@@ -509,9 +509,11 @@ struct r5conf {
 	struct llist_head	released_stripes;
 	wait_queue_head_t	wait_for_stripe;
 	wait_queue_head_t	wait_for_overlap;
-	int			inactive_blocked;	/* release of inactive stripes blocked,
-							 * waiting for 25% to be free
-							 */
+	unsigned long		cache_state;
+#define R5_INACTIVE_BLOCKED	1	/* release of inactive stripes blocked,
+					 * waiting for 25% to be free
+					 */
+
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;
@@ -525,6 +527,7 @@ struct r5conf {
 	int			group_cnt;
 	int			worker_cnt_per_group;
 };
+
 
 /*
  * Our supported algorithms

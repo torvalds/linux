@@ -672,20 +672,23 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 				    *(conf->hash_locks + hash));
 		sh = __find_stripe(conf, sector, conf->generation - previous);
 		if (!sh) {
-			if (!conf->inactive_blocked)
+			if (!test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state))
 				sh = get_free_stripe(conf, hash);
 			if (noblock && sh == NULL)
 				break;
 			if (!sh) {
-				conf->inactive_blocked = 1;
+				set_bit(R5_INACTIVE_BLOCKED,
+					&conf->cache_state);
 				wait_event_lock_irq(
 					conf->wait_for_stripe,
 					!list_empty(conf->inactive_list + hash) &&
 					(atomic_read(&conf->active_stripes)
 					 < (conf->max_nr_stripes * 3 / 4)
-					 || !conf->inactive_blocked),
+					 || !test_bit(R5_INACTIVE_BLOCKED,
+						      &conf->cache_state)),
 					*(conf->hash_locks + hash));
-				conf->inactive_blocked = 0;
+				clear_bit(R5_INACTIVE_BLOCKED,
+					  &conf->cache_state);
 			} else {
 				init_stripe(sh, sector, previous);
 				atomic_inc(&sh->count);
@@ -4602,7 +4605,7 @@ static int raid5_congested(struct mddev *mddev, int bits)
 	 * how busy the stripe_cache is
 	 */
 
-	if (conf->inactive_blocked)
+	if (test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state))
 		return 1;
 	if (conf->quiesce)
 		return 1;
