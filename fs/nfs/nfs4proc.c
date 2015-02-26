@@ -2416,8 +2416,8 @@ static int _nfs4_do_open(struct inode *dir,
 				opendata->o_res.f_attr, sattr,
 				state, label, olabel);
 		if (status == 0) {
-			nfs_setattr_update_inode(state->inode, sattr);
-			nfs_post_op_update_inode(state->inode, opendata->o_res.f_attr);
+			nfs_setattr_update_inode(state->inode, sattr,
+					opendata->o_res.f_attr);
 			nfs_setsecurity(state->inode, opendata->o_res.f_attr, olabel);
 		}
 	}
@@ -3291,7 +3291,7 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 
 	status = nfs4_do_setattr(inode, cred, fattr, sattr, state, NULL, label);
 	if (status == 0) {
-		nfs_setattr_update_inode(inode, sattr);
+		nfs_setattr_update_inode(inode, sattr, fattr);
 		nfs_setsecurity(inode, fattr, label);
 	}
 	nfs4_label_free(label);
