@@ -2940,7 +2940,7 @@ static void kvm_io_bus_destroy(struct kvm_io_bus *bus)
 }
 
 static inline int kvm_io_bus_cmp(const struct kvm_io_range *r1,
-                                 const struct kvm_io_range *r2)
+				 const struct kvm_io_range *r2)
 {
 	if (r1->addr < r2->addr)
 		return -1;
