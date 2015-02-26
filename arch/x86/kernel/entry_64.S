@@ -164,12 +164,12 @@ ENDPROC(native_usergs_sysret64)
  * initial frame state for interrupts (and exceptions without error code)
  */
 	.macro INTR_FRAME start=1 offset=0
-	EMPTY_FRAME \start, SS+8+\offset-RIP
-	/*CFI_REL_OFFSET ss, SS+\offset-RIP*/
-	CFI_REL_OFFSET rsp, RSP+\offset-RIP
-	/*CFI_REL_OFFSET rflags, EFLAGS+\offset-RIP*/
-	/*CFI_REL_OFFSET cs, CS+\offset-RIP*/
-	CFI_REL_OFFSET rip, RIP+\offset-RIP
+	EMPTY_FRAME \start, 5*8+\offset
+	/*CFI_REL_OFFSET ss, 4*8+\offset*/
+	CFI_REL_OFFSET rsp, 3*8+\offset
+	/*CFI_REL_OFFSET rflags, 2*8+\offset*/
+	/*CFI_REL_OFFSET cs, 1*8+\offset*/
+	CFI_REL_OFFSET rip, 0*8+\offset
 	.endm
 
 /*
@@ -177,7 +177,7 @@ ENDPROC(native_usergs_sysret64)
  * with vector already pushed)
  */
 	.macro XCPT_FRAME start=1 offset=0
-	INTR_FRAME \start, RIP+\offset-ORIG_RAX
+	INTR_FRAME \start, 1*8+\offset
 	.endm
 
 /*
@@ -645,10 +645,14 @@ END(interrupt)
 	cmovzq PER_CPU_VAR(irq_stack_ptr),%rsp
 	CFI_DEF_CFA_REGISTER	rsi
 	pushq %rsi
+	/*
+	 * For debugger:
+	 * "CFA (Current Frame Address) is the value on stack + offset"
+	 */
 	CFI_ESCAPE	0x0f /* DW_CFA_def_cfa_expression */, 6, \
-			0x77 /* DW_OP_breg7 */, 0, \
+			0x77 /* DW_OP_breg7 (rsp) */, 0, \
 			0x06 /* DW_OP_deref */, \
-			0x08 /* DW_OP_const1u */, SS+8-RBP, \
+			0x08 /* DW_OP_const1u */, SIZEOF_PTREGS-RBP, \
 			0x22 /* DW_OP_plus */
 	/* We entered an interrupt context - irqs are off: */
 	TRACE_IRQS_OFF
@@ -674,7 +678,7 @@ ret_from_intr:
 
 	/* Restore saved previous stack */
 	popq %rsi
-	CFI_DEF_CFA rsi,SS+8-RBP	/* reg/off reset after def_cfa_expr */
+	CFI_DEF_CFA rsi,SIZEOF_PTREGS-RBP /* reg/off reset after def_cfa_expr */
 	/* return code expects complete pt_regs - adjust rsp accordingly: */
 	leaq -RBP(%rsi),%rsp
 	CFI_DEF_CFA_REGISTER	rsp
@@ -1549,7 +1553,7 @@ first_nmi:
 	.rept 5
 	pushq_cfi 11*8(%rsp)
 	.endr
-	CFI_DEF_CFA_OFFSET SS+8-RIP
+	CFI_DEF_CFA_OFFSET 5*8
 
 	/* Everything up to here is safe from nested NMIs */
 
@@ -1577,7 +1581,7 @@ repeat_nmi:
 	pushq_cfi -6*8(%rsp)
 	.endr
 	subq $(5*8), %rsp
-	CFI_DEF_CFA_OFFSET SS+8-RIP
+	CFI_DEF_CFA_OFFSET 5*8
 end_repeat_nmi:
 
 	/*

@@ -88,6 +88,8 @@ For 32-bit we have the following conventions - kernel is built with
 #define RSP		19*8
 #define SS		20*8
 
+#define SIZEOF_PTREGS	21*8
+
 	.macro ALLOC_PT_GPREGS_ON_STACK addskip=0
 	subq	$15*8+\addskip, %rsp
 	CFI_ADJUST_CFA_OFFSET 15*8+\addskip
