@@ -507,7 +507,9 @@ void musb_hnp_stop(struct musb *musb)
 	musb->port1_status &= ~(USB_PORT_STAT_C_CONNECTION << 16);
 }
 
+static void musb_disable_interrupts(struct musb *musb);
 static void musb_generic_disable(struct musb *musb);
+
 /*
  * Interrupt Service Routine to record USB "global" interrupts.
  * Since these do not happen often and signify things of
@@ -977,7 +979,7 @@ b_host:
 
 /*-------------------------------------------------------------------------*/
 
-static void musb_generic_disable(struct musb *musb)
+static void musb_disable_interrupts(struct musb *musb)
 {
 	void __iomem	*mbase = musb->mregs;
 	u16	temp;
@@ -989,14 +991,33 @@ static void musb_generic_disable(struct musb *musb)
 	musb->intrrxe = 0;
 	musb_writew(mbase, MUSB_INTRRXE, 0);
 
-	/* off */
-	musb_writeb(mbase, MUSB_DEVCTL, 0);
-
 	/*  flush pending interrupts */
 	temp = musb_readb(mbase, MUSB_INTRUSB);
 	temp = musb_readw(mbase, MUSB_INTRTX);
 	temp = musb_readw(mbase, MUSB_INTRRX);
+}
 
+static void musb_enable_interrupts(struct musb *musb)
+{
+	void __iomem    *regs = musb->mregs;
+
+	/*  Set INT enable registers, enable interrupts */
+	musb->intrtxe = musb->epmask;
+	musb_writew(regs, MUSB_INTRTXE, musb->intrtxe);
+	musb->intrrxe = musb->epmask & 0xfffe;
+	musb_writew(regs, MUSB_INTRRXE, musb->intrrxe);
+	musb_writeb(regs, MUSB_INTRUSBE, 0xf7);
+
+}
+
+static void musb_generic_disable(struct musb *musb)
+{
+	void __iomem	*mbase = musb->mregs;
+
+	musb_disable_interrupts(musb);
+
+	/* off */
+	musb_writeb(mbase, MUSB_DEVCTL, 0);
 }
 
 /*
@@ -1009,13 +1030,7 @@ void musb_start(struct musb *musb)
 
 	dev_dbg(musb->controller, "<== devctl %02x\n", devctl);
 
-	/*  Set INT enable registers, enable interrupts */
-	musb->intrtxe = musb->epmask;
-	musb_writew(regs, MUSB_INTRTXE, musb->intrtxe);
-	musb->intrrxe = musb->epmask & 0xfffe;
-	musb_writew(regs, MUSB_INTRRXE, musb->intrrxe);
-	musb_writeb(regs, MUSB_INTRUSBE, 0xf7);
-
+	musb_enable_interrupts(musb);
 	musb_writeb(regs, MUSB_TESTMODE, 0);
 
 	/* put into basic highspeed mode and start session */
