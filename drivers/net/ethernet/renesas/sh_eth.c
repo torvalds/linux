@@ -1500,6 +1500,8 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			netif_receive_skb(skb);
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += pkt_len;
+			if (desc_status & RD_RFS8)
+				ndev->stats.multicast++;
 		}
 		entry = (++mdp->cur_rx) % mdp->num_rx_ring;
 		rxdesc = &mdp->rx_ring[entry];
