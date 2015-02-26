@@ -2822,7 +2822,7 @@ int ll_have_md_lock(struct inode *inode, __u64 *bits,  ldlm_mode_t l_req_mode)
 	int i;
 
 	if (!inode)
-	       return 0;
+		return 0;
 
 	fid = &ll_i2info(inode)->lli_fid;
 	CDEBUG(D_INFO, "trying to match res "DFID" mode %s\n", PFID(fid),
