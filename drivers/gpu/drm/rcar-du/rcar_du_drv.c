@@ -252,7 +252,8 @@ static const struct file_operations rcar_du_fops = {
 };
 
 static struct drm_driver rcar_du_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME,
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME
+				| DRIVER_ATOMIC,
 	.load			= rcar_du_load,
 	.unload			= rcar_du_unload,
 	.preclose		= rcar_du_preclose,
