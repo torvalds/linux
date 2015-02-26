@@ -14,6 +14,19 @@
 
 #include <linux/types.h>
 
+/* Return codes */
+enum {
+	ROCKER_OK = 0,
+	ROCKER_ENOENT = 2,
+	ROCKER_ENXIO = 6,
+	ROCKER_ENOMEM = 12,
+	ROCKER_EEXIST = 17,
+	ROCKER_EINVAL = 22,
+	ROCKER_EMSGSIZE = 90,
+	ROCKER_ENOTSUP = 95,
+	ROCKER_ENOBUFS = 105,
+};
+
 #define PCI_VENDOR_ID_REDHAT		0x1b36
 #define PCI_DEVICE_ID_REDHAT_ROCKER	0x0006
 
