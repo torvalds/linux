@@ -4237,7 +4237,7 @@ static int nfs4_write_done_cb(struct rpc_task *task,
 	}
 	if (task->tk_status >= 0) {
 		renew_lease(NFS_SERVER(inode), hdr->timestamp);
-		nfs_post_op_update_inode_force_wcc(inode, &hdr->fattr);
+		nfs_writeback_update_inode(hdr);
 	}
 	return 0;
 }

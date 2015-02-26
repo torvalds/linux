@@ -834,7 +834,7 @@ static int nfs3_write_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 	if (nfs3_async_handle_jukebox(task, inode))
 		return -EAGAIN;
 	if (task->tk_status >= 0)
-		nfs_post_op_update_inode_force_wcc(inode, hdr->res.fattr);
+		nfs_writeback_update_inode(hdr);
 	return 0;
 }
 
