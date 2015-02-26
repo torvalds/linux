@@ -37,10 +37,10 @@ static int mvebu_v7_enter_idle(struct cpuidle_device *dev,
 		deepidle = true;
 
 	ret = mvebu_v7_cpu_suspend(deepidle);
+	cpu_pm_exit();
+
 	if (ret)
 		return ret;
-
-	cpu_pm_exit();
 
 	return index;
 }
