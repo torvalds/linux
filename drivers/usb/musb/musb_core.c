@@ -1838,7 +1838,7 @@ static void musb_recover_work(struct work_struct *data)
 	int ret;
 	u8 devctl;
 
-	ret  = musb_platform_reset(musb);
+	ret  = musb_platform_recover(musb);
 	if (ret) {
 		musb_enable_interrupts(musb);
 		return;

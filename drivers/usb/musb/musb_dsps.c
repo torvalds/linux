@@ -600,7 +600,7 @@ static bool dsps_sw_babble_control(struct musb *musb)
 	return session_restart;
 }
 
-static int dsps_musb_reset(struct musb *musb)
+static int dsps_musb_recover(struct musb *musb)
 {
 	struct device *dev = musb->controller;
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
@@ -624,7 +624,7 @@ static struct musb_platform_ops dsps_ops = {
 
 	.try_idle	= dsps_musb_try_idle,
 	.set_mode	= dsps_musb_set_mode,
-	.reset		= dsps_musb_reset,
+	.recover	= dsps_musb_recover,
 };
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
