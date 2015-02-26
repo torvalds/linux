@@ -507,7 +507,6 @@ void musb_hnp_stop(struct musb *musb)
 	musb->port1_status &= ~(USB_PORT_STAT_C_CONNECTION << 16);
 }
 
-static void musb_disable_interrupts(struct musb *musb);
 static void musb_recover_from_babble(struct musb *musb);
 
 /*
@@ -883,10 +882,8 @@ b_host:
 			if (power & MUSB_POWER_HSMODE) {
 				dev_err(musb->controller, "Babble\n");
 
-				if (is_host_active(musb)) {
-					musb_disable_interrupts(musb);
+				if (is_host_active(musb))
 					musb_recover_from_babble(musb);
-				}
 			}
 		} else {
 			dev_dbg(musb->controller, "BUS RESET as %s\n",
@@ -1834,6 +1831,8 @@ static void musb_recover_from_babble(struct musb *musb)
 {
 	int ret;
 	u8 devctl;
+
+	musb_disable_interrupts(musb);
 
 	/*
 	 * wait at least 320 cycles of 60MHz clock. That's 5.3us, we will give
