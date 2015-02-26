@@ -982,10 +982,11 @@ ENTRY(\sym)
 	testl $3, CS(%rsp)		/* If coming from userspace, switch */
 	jnz 1f				/* stacks. */
 	.endif
-	call save_paranoid
+	call paranoid_entry
 	.else
 	call error_entry
 	.endif
+	/* returned flag: ebx=0: need swapgs on exit, ebx=1: don't need it */
 
 	DEFAULT_FRAME 0
 
@@ -1016,10 +1017,11 @@ ENTRY(\sym)
 	addq $EXCEPTION_STKSZ, INIT_TSS_IST(\shift_ist)
 	.endif
 
+	/* these procedures expect "no swapgs" flag in ebx */
 	.if \paranoid
-	jmp paranoid_exit		/* %ebx: no swapgs flag */
+	jmp paranoid_exit
 	.else
-	jmp error_exit			/* %ebx: no swapgs flag */
+	jmp error_exit
 	.endif
 
 	.if \paranoid == 1
@@ -1257,8 +1259,13 @@ idtentry async_page_fault do_async_page_fault has_error_code=1
 idtentry machine_check has_error_code=0 paranoid=1 do_sym=*machine_check_vector(%rip)
 #endif
 
-ENTRY(save_paranoid)
-	XCPT_FRAME 1 RDI+8
+/*
+ * Save all registers in pt_regs, and switch gs if needed.
+ * Use slow, but surefire "are we in kernel?" check.
+ * Return: ebx=0: need swapgs on exit, ebx=1: otherwise
+ */
+ENTRY(paranoid_entry)
+	XCPT_FRAME 1 15*8
 	cld
 	SAVE_C_REGS 8
 	SAVE_EXTRA_REGS 8
@@ -1271,20 +1278,19 @@ ENTRY(save_paranoid)
 	xorl %ebx,%ebx
 1:	ret
 	CFI_ENDPROC
-END(save_paranoid)
+END(paranoid_entry)
 
-	/*
-	 * "Paranoid" exit path from exception stack.  This is invoked
-	 * only on return from non-NMI IST interrupts that came
-	 * from kernel space.
-	 *
-	 * We may be returning to very strange contexts (e.g. very early
-	 * in syscall entry), so checking for preemption here would
-	 * be complicated.  Fortunately, we there's no good reason
-	 * to try to handle preemption here.
-	 */
-
-	/* ebx:	no swapgs flag */
+/*
+ * "Paranoid" exit path from exception stack.  This is invoked
+ * only on return from non-NMI IST interrupts that came
+ * from kernel space.
+ *
+ * We may be returning to very strange contexts (e.g. very early
+ * in syscall entry), so checking for preemption here would
+ * be complicated.  Fortunately, we there's no good reason
+ * to try to handle preemption here.
+ */
+/* On entry, ebx is "no swapgs" flag (1: don't need swapgs, 0: need it) */
 ENTRY(paranoid_exit)
 	DEFAULT_FRAME
 	DISABLE_INTERRUPTS(CLBR_NONE)
@@ -1305,13 +1311,11 @@ paranoid_exit_restore:
 END(paranoid_exit)
 
 /*
- * Exception entry point. This expects an error code/orig_rax on the stack.
- * returns in "no swapgs flag" in %ebx.
+ * Save all registers in pt_regs, and switch gs if needed.
+ * Return: ebx=0: need swapgs on exit, ebx=1: otherwise
  */
 ENTRY(error_entry)
-	XCPT_FRAME
-	CFI_ADJUST_CFA_OFFSET 15*8
-	/* oldrax contains error code */
+	XCPT_FRAME 1 15*8
 	cld
 	SAVE_C_REGS 8
 	SAVE_EXTRA_REGS 8
@@ -1324,12 +1328,12 @@ error_sti:
 	TRACE_IRQS_OFF
 	ret
 
-/*
- * There are two places in the kernel that can potentially fault with
- * usergs. Handle them here.  B stepping K8s sometimes report a
- * truncated RIP for IRET exceptions returning to compat mode. Check
- * for these here too.
- */
+	/*
+	 * There are two places in the kernel that can potentially fault with
+	 * usergs. Handle them here.  B stepping K8s sometimes report a
+	 * truncated RIP for IRET exceptions returning to compat mode. Check
+	 * for these here too.
+	 */
 error_kernelspace:
 	CFI_REL_OFFSET rcx, RCX+8
 	incl %ebx
@@ -1359,7 +1363,7 @@ error_bad_iret:
 END(error_entry)
 
 
-/* ebx:	no swapgs flag (1: don't need swapgs, 0: need it) */
+/* On entry, ebx is "no swapgs" flag (1: don't need swapgs, 0: need it) */
 ENTRY(error_exit)
 	DEFAULT_FRAME
 	movl %ebx,%eax
@@ -1585,13 +1589,13 @@ end_repeat_nmi:
 	ALLOC_PT_GPREGS_ON_STACK
 
 	/*
-	 * Use save_paranoid to handle SWAPGS, but no need to use paranoid_exit
+	 * Use paranoid_entry to handle SWAPGS, but no need to use paranoid_exit
 	 * as we should not be calling schedule in NMI context.
 	 * Even with normal interrupts enabled. An NMI should not be
 	 * setting NEED_RESCHED or anything that normal interrupts and
 	 * exceptions might do.
 	 */
-	call save_paranoid
+	call paranoid_entry
 	DEFAULT_FRAME 0
 
 	/*
