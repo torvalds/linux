@@ -1151,7 +1151,6 @@ static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 static irqreturn_t pmic_uv_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = (struct regulator_dev *)data;
-	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
 	mutex_lock(&rdev->mutex);
 	if (irq == WM8350_IRQ_CS1 || irq == WM8350_IRQ_CS2)
