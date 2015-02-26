@@ -161,7 +161,7 @@ static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 	u16 drvinfo_sz = 0;
 
 	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0)&0x000f0000)>>16;
-	drvinfo_sz = drvinfo_sz<<3;
+	drvinfo_sz <<= 3;
 	/*TODO:
 	 * Offset 0 */
 	pattrib->bdecrypted = ((le32_to_cpu(prxstat->rxdw0) & BIT(27)) >> 27)
@@ -436,7 +436,7 @@ void r8712_rxcmd_event_hdl(struct _adapter *padapter, void *prxcmdbuf)
 	voffset = *(uint *)poffset;
 	prxstat = (struct recv_stat *)prxcmdbuf;
 	drvinfo_sz = ((le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16);
-	drvinfo_sz = drvinfo_sz << 3;
+	drvinfo_sz <<= 3;
 	poffset += RXDESC_SIZE + drvinfo_sz;
 	do {
 		voffset  = *(uint *)poffset;
@@ -749,7 +749,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 		 */
 		if (!cck_highpwr) {
 			report = pcck_buf->cck_agc_rpt & 0xc0;
-			report = report >> 6;
+			report >>= 6;
 			switch (report) {
 			/* Modify the RF RNA gain value to -40, -20,
 			 * -2, 14 by Jenyu's suggestion
@@ -775,7 +775,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 		} else {
 			report = ((u8)(le32_to_cpu(pphy_stat->phydw1) >> 8)) &
 				 0x60;
-			report = report >> 5;
+			report >>= 5;
 			switch (report) {
 			case 0x3:
 				rx_pwr_all = -40 - ((pcck_buf->cck_agc_rpt &
@@ -1039,7 +1039,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		frag = (le32_to_cpu(prxstat->rxdw2) >> 12) & 0xf;
 		/* uint 2^3 = 8 bytes */
 		drvinfo_sz = (le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16;
-		drvinfo_sz = drvinfo_sz<<3;
+		drvinfo_sz <<= 3;
 		if (pkt_len <= 0)
 			goto  _exit_recvbuf2recvframe;
 		/* Qos data, wireless lan header length is 26 */
