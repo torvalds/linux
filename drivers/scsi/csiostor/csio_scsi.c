@@ -298,8 +298,8 @@ csio_scsi_init_ultptx_dsgl(struct csio_hw *hw, struct csio_ioreq *req,
 	struct csio_dma_buf *dma_buf;
 	struct scsi_cmnd *scmnd = csio_scsi_cmnd(req);
 
-	sgl->cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) | ULPTX_MORE |
-				     ULPTX_NSGE(req->nsge));
+	sgl->cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) | ULPTX_MORE_F |
+				     ULPTX_NSGE_V(req->nsge));
 	/* Now add the data SGLs */
 	if (likely(!req->dcopy)) {
 		scsi_for_each_sg(scmnd, sgel, req->nsge, i) {

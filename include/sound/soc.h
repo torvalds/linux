@@ -429,6 +429,9 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd);
 void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream);
 void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream);
 
+int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
+	unsigned int dai_fmt);
+
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
 int snd_soc_params_to_frame_size(struct snd_pcm_hw_params *params);
@@ -498,6 +501,7 @@ int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 
 #ifdef CONFIG_SND_SOC_AC97_BUS
+struct snd_ac97 *snd_soc_alloc_ac97_codec(struct snd_soc_codec *codec);
 struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec);
 void snd_soc_free_ac97_codec(struct snd_ac97 *ac97);
 

@@ -2062,7 +2062,6 @@ static struct video_device *cx231xx_vdev_init(struct cx231xx *dev,
 	*vfd = *template;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
-	vfd->debug = video_debug;
 	vfd->lock = &dev->lock;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);

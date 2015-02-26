@@ -325,6 +325,7 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 				   && (GET_RX_DESC_FAGGR(pdesc) == 1));
 	stats->timestamp_low = GET_RX_DESC_TSFL(pdesc);
 	stats->rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(pdesc);
+	stats->is_ht = (bool)GET_RX_DESC_RX_HT(pdesc);
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
 	if (GET_RX_DESC_CRC32(pdesc))
@@ -338,10 +339,8 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 	if (stats->decrypted)
 		rx_status->flag |= RX_FLAG_DECRYPTED;
-	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
-					(bool)GET_RX_DESC_RX_HT(pdesc),
-					(u8)GET_RX_DESC_RX_MCS(pdesc),
-					(bool)GET_RX_DESC_PAGGR(pdesc));
+	rx_status->rate_idx = rtlwifi_rate_mapping(hw, stats->is_ht,
+						   false, stats->rate);
 	rx_status->mactime = GET_RX_DESC_TSFL(pdesc);
 	if (phystatus) {
 		p_drvinfo = (struct rx_fwinfo_92c *)(skb->data +
@@ -393,6 +392,7 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 				   && (GET_RX_DESC_FAGGR(rxdesc) == 1));
 	stats.timestamp_low = GET_RX_DESC_TSFL(rxdesc);
 	stats.rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(rxdesc);
+	stats.is_ht = (bool)GET_RX_DESC_RX_HT(rxdesc);
 	/* TODO: is center_freq changed when doing scan? */
 	/* TODO: Shall we add protection or just skip those two step? */
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
@@ -406,10 +406,8 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (GET_RX_DESC_RX_HT(rxdesc))
 		rx_status->flag |= RX_FLAG_HT;
 	/* Data rate */
-	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
-					(bool)GET_RX_DESC_RX_HT(rxdesc),
-					(u8)GET_RX_DESC_RX_MCS(rxdesc),
-					(bool)GET_RX_DESC_PAGGR(rxdesc));
+	rx_status->rate_idx = rtlwifi_rate_mapping(hw, stats.is_ht,
+						   false, stats.rate);
 	/*  There is a phy status after this rx descriptor. */
 	if (GET_RX_DESC_PHY_STATUS(rxdesc)) {
 		p_drvinfo = (struct rx_fwinfo_92c *)(rxdesc + RTL_RX_DESC_SIZE);
@@ -545,7 +543,7 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	SET_TX_DESC_RTS_BW(txdesc, 0);
 	SET_TX_DESC_RTS_SC(txdesc, tcb_desc->rts_sc);
 	SET_TX_DESC_RTS_SHORT(txdesc,
-			      ((tcb_desc->rts_rate <= DESC92_RATE54M) ?
+			      ((tcb_desc->rts_rate <= DESC_RATE54M) ?
 			       (tcb_desc->rts_use_shortpreamble ? 1 : 0)
 			       : (tcb_desc->rts_use_shortgi ? 1 : 0)));
 	if (mac->bw_40) {
@@ -644,7 +642,7 @@ void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 * pDesc,
 	}
 	SET_TX_DESC_USE_RATE(pDesc, 1); /* use data rate which is set by Sw */
 	SET_TX_DESC_OWN(pDesc, 1);
-	SET_TX_DESC_TX_RATE(pDesc, DESC92_RATE1M);
+	SET_TX_DESC_TX_RATE(pDesc, DESC_RATE1M);
 	_rtl_tx_desc_checksum(pDesc);
 }
 
@@ -660,7 +658,7 @@ void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	memset((void *)pdesc, 0, RTL_TX_HEADER_SIZE);
 	if (firstseg)
 		SET_TX_DESC_OFFSET(pdesc, RTL_TX_HEADER_SIZE);
-	SET_TX_DESC_TX_RATE(pdesc, DESC92_RATE1M);
+	SET_TX_DESC_TX_RATE(pdesc, DESC_RATE1M);
 	SET_TX_DESC_SEQ(pdesc, 0);
 	SET_TX_DESC_LINIP(pdesc, 0);
 	SET_TX_DESC_QUEUE_SEL(pdesc, fw_queue);

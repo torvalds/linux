@@ -378,7 +378,7 @@ enum {
 	/* IPSR16 */
 	FN_HRX1, FN_SCIFB1_RXD, FN_VI1_R0_B, FN_GLO_SDATA_C, FN_VI1_DATA6_C,
 	FN_HTX1, FN_SCIFB1_TXD, FN_VI1_R1_B, FN_GLO_SS_C, FN_VI1_DATA7_C,
-	FN_HSCK1, FN_SCIFB1_SCK, FN_MLB_CK, FN_GLO_RFON_C,
+	FN_HSCK1, FN_SCIFB1_SCK, FN_MLB_CLK, FN_GLO_RFON_C,
 	FN_HCTS1_N, FN_SCIFB1_CTS_N, FN_MLB_SIG, FN_CAN1_TX_B,
 	FN_HRTS1_N, FN_SCIFB1_RTS_N, FN_MLB_DAT, FN_CAN1_RX_B,
 
@@ -764,7 +764,7 @@ enum {
 	GLO_SDATA_C_MARK, VI1_DATA6_C_MARK,
 	HTX1_MARK, SCIFB1_TXD_MARK, VI1_R1_B_MARK,
 	GLO_SS_C_MARK, VI1_DATA7_C_MARK,
-	HSCK1_MARK, SCIFB1_SCK_MARK, MLB_CK_MARK, GLO_RFON_C_MARK,
+	HSCK1_MARK, SCIFB1_SCK_MARK, MLB_CLK_MARK, GLO_RFON_C_MARK,
 	HCTS1_N_MARK, SCIFB1_CTS_N_MARK, MLB_SIG_MARK, CAN1_TX_B_MARK,
 	HRTS1_N_MARK, SCIFB1_RTS_N_MARK, MLB_DAT_MARK, CAN1_RX_B_MARK,
 	PINMUX_MARK_END,
@@ -1664,7 +1664,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MODSEL_DATA(IP16_5_3, VI1_DATA7_C, SEL_VI1_2),
 	PINMUX_IPSR_MODSEL_DATA(IP16_7_6, HSCK1, SEL_HSCIF1_0),
 	PINMUX_IPSR_MODSEL_DATA(IP16_7_6, SCIFB1_SCK, SEL_SCIFB1_0),
-	PINMUX_IPSR_DATA(IP16_7_6, MLB_CK),
+	PINMUX_IPSR_DATA(IP16_7_6, MLB_CLK),
 	PINMUX_IPSR_MODSEL_DATA(IP16_7_6, GLO_RFON_C, SEL_GPS_2),
 	PINMUX_IPSR_MODSEL_DATA(IP16_9_8, HCTS1_N, SEL_HSCIF1_0),
 	PINMUX_IPSR_DATA(IP16_9_8, SCIFB1_CTS_N),
@@ -2390,6 +2390,13 @@ static const unsigned int intc_irq3_pins[] = {
 };
 static const unsigned int intc_irq3_mux[] = {
 	IRQ3_MARK,
+};
+/* - MLB+ ------------------------------------------------------------------- */
+static const unsigned int mlb_3pin_pins[] = {
+	RCAR_GP_PIN(7, 7), RCAR_GP_PIN(7, 8), RCAR_GP_PIN(7, 9),
+};
+static const unsigned int mlb_3pin_mux[] = {
+	MLB_CLK_MARK, MLB_SIG_MARK, MLB_DAT_MARK,
 };
 /* - MMCIF ------------------------------------------------------------------ */
 static const unsigned int mmc_data1_pins[] = {
@@ -4267,6 +4274,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(intc_irq1),
 	SH_PFC_PIN_GROUP(intc_irq2),
 	SH_PFC_PIN_GROUP(intc_irq3),
+	SH_PFC_PIN_GROUP(mlb_3pin),
 	SH_PFC_PIN_GROUP(mmc_data1),
 	SH_PFC_PIN_GROUP(mmc_data4),
 	SH_PFC_PIN_GROUP(mmc_data8),
@@ -4648,6 +4656,10 @@ static const char * const intc_groups[] = {
 	"intc_irq3",
 };
 
+static const char * const mlb_groups[] = {
+	"mlb_3pin",
+};
+
 static const char * const mmc_groups[] = {
 	"mmc_data1",
 	"mmc_data4",
@@ -4972,6 +4984,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(i2c7),
 	SH_PFC_FUNCTION(i2c8),
 	SH_PFC_FUNCTION(intc),
+	SH_PFC_FUNCTION(mlb),
 	SH_PFC_FUNCTION(mmc),
 	SH_PFC_FUNCTION(msiof0),
 	SH_PFC_FUNCTION(msiof1),
@@ -5974,7 +5987,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* IP16_9_8 [2] */
 		FN_HCTS1_N, FN_SCIFB1_CTS_N, FN_MLB_SIG, FN_CAN1_TX_B,
 		/* IP16_7_6 [2] */
-		FN_HSCK1, FN_SCIFB1_SCK, FN_MLB_CK, FN_GLO_RFON_C,
+		FN_HSCK1, FN_SCIFB1_SCK, FN_MLB_CLK, FN_GLO_RFON_C,
 		/* IP16_5_3 [3] */
 		FN_HTX1, FN_SCIFB1_TXD, FN_VI1_R1_B,
 		FN_GLO_SS_C, FN_VI1_DATA7_C,

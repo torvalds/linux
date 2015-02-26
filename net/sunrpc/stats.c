@@ -140,22 +140,20 @@ void rpc_free_iostats(struct rpc_iostats *stats)
 EXPORT_SYMBOL_GPL(rpc_free_iostats);
 
 /**
- * rpc_count_iostats - tally up per-task stats
+ * rpc_count_iostats_metrics - tally up per-task stats
  * @task: completed rpc_task
- * @stats: array of stat structures
+ * @op_metrics: stat structure for OP that will accumulate stats from @task
  */
-void rpc_count_iostats(const struct rpc_task *task, struct rpc_iostats *stats)
+void rpc_count_iostats_metrics(const struct rpc_task *task,
+			       struct rpc_iostats *op_metrics)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_iostats *op_metrics;
 	ktime_t delta, now;
 
-	if (!stats || !req)
+	if (!op_metrics || !req)
 		return;
 
 	now = ktime_get();
-	op_metrics = &stats[task->tk_msg.rpc_proc->p_statidx];
-
 	spin_lock(&op_metrics->om_lock);
 
 	op_metrics->om_ops++;
@@ -174,6 +172,20 @@ void rpc_count_iostats(const struct rpc_task *task, struct rpc_iostats *stats)
 	op_metrics->om_execute = ktime_add(op_metrics->om_execute, delta);
 
 	spin_unlock(&op_metrics->om_lock);
+}
+EXPORT_SYMBOL_GPL(rpc_count_iostats_metrics);
+
+/**
+ * rpc_count_iostats - tally up per-task stats
+ * @task: completed rpc_task
+ * @stats: array of stat structures
+ *
+ * Uses the statidx from @task
+ */
+void rpc_count_iostats(const struct rpc_task *task, struct rpc_iostats *stats)
+{
+	rpc_count_iostats_metrics(task,
+				  &stats[task->tk_msg.rpc_proc->p_statidx]);
 }
 EXPORT_SYMBOL_GPL(rpc_count_iostats);
 

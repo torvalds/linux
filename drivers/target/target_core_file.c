@@ -494,6 +494,11 @@ fd_execute_write_same(struct se_cmd *cmd)
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
 		return 0;
 	}
+	if (cmd->prot_op) {
+		pr_err("WRITE_SAME: Protection information with FILEIO"
+		       " backends not supported\n");
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
 	sg = &cmd->t_data_sg[0];
 
 	if (cmd->t_data_nents > 1 ||

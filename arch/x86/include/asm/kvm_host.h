@@ -38,8 +38,6 @@
 #define KVM_PRIVATE_MEM_SLOTS 3
 #define KVM_MEM_SLOTS_NUM (KVM_USER_MEM_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 
-#define KVM_MMIO_SIZE 16
-
 #define KVM_PIO_PAGE_OFFSET 1
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 2
 
@@ -51,7 +49,7 @@
 			  | X86_CR0_NW | X86_CR0_CD | X86_CR0_PG))
 
 #define CR3_L_MODE_RESERVED_BITS 0xFFFFFF0000000000ULL
-#define CR3_PCID_INVD		 (1UL << 63)
+#define CR3_PCID_INVD		 BIT_64(63)
 #define CR4_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR4_VME | X86_CR4_PVI | X86_CR4_TSD | X86_CR4_DE\
 			  | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_MCE     \
@@ -159,6 +157,18 @@ enum {
 #define DR7_GD		(1 << 13)
 #define DR7_FIXED_1	0x00000400
 #define DR7_VOLATILE	0xffff2bff
+
+#define PFERR_PRESENT_BIT 0
+#define PFERR_WRITE_BIT 1
+#define PFERR_USER_BIT 2
+#define PFERR_RSVD_BIT 3
+#define PFERR_FETCH_BIT 4
+
+#define PFERR_PRESENT_MASK (1U << PFERR_PRESENT_BIT)
+#define PFERR_WRITE_MASK (1U << PFERR_WRITE_BIT)
+#define PFERR_USER_MASK (1U << PFERR_USER_BIT)
+#define PFERR_RSVD_MASK (1U << PFERR_RSVD_BIT)
+#define PFERR_FETCH_MASK (1U << PFERR_FETCH_BIT)
 
 /* apic attention bits */
 #define KVM_APIC_CHECK_VAPIC	0
@@ -615,6 +625,8 @@ struct kvm_arch {
 	#ifdef CONFIG_KVM_MMU_AUDIT
 	int audit_point;
 	#endif
+
+	bool boot_vcpu_runs_old_kvmclock;
 };
 
 struct kvm_vm_stat {
@@ -643,6 +655,7 @@ struct kvm_vcpu_stat {
 	u32 irq_window_exits;
 	u32 nmi_window_exits;
 	u32 halt_exits;
+	u32 halt_successful_poll;
 	u32 halt_wakeup;
 	u32 request_irq_exits;
 	u32 irq_exits;
@@ -787,6 +800,31 @@ struct kvm_x86_ops {
 	int (*check_nested_events)(struct kvm_vcpu *vcpu, bool external_intr);
 
 	void (*sched_in)(struct kvm_vcpu *kvm, int cpu);
+
+	/*
+	 * Arch-specific dirty logging hooks. These hooks are only supposed to
+	 * be valid if the specific arch has hardware-accelerated dirty logging
+	 * mechanism. Currently only for PML on VMX.
+	 *
+	 *  - slot_enable_log_dirty:
+	 *	called when enabling log dirty mode for the slot.
+	 *  - slot_disable_log_dirty:
+	 *	called when disabling log dirty mode for the slot.
+	 *	also called when slot is created with log dirty disabled.
+	 *  - flush_log_dirty:
+	 *	called before reporting dirty_bitmap to userspace.
+	 *  - enable_log_dirty_pt_masked:
+	 *	called when reenabling log dirty for the GFNs in the mask after
+	 *	corresponding bits are cleared in slot->dirty_bitmap.
+	 */
+	void (*slot_enable_log_dirty)(struct kvm *kvm,
+				      struct kvm_memory_slot *slot);
+	void (*slot_disable_log_dirty)(struct kvm *kvm,
+				       struct kvm_memory_slot *slot);
+	void (*flush_log_dirty)(struct kvm *kvm);
+	void (*enable_log_dirty_pt_masked)(struct kvm *kvm,
+					   struct kvm_memory_slot *slot,
+					   gfn_t offset, unsigned long mask);
 };
 
 struct kvm_arch_async_pf {
@@ -819,10 +857,17 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 		u64 dirty_mask, u64 nx_mask, u64 x_mask);
 
 void kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
-void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot);
-void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
-				     struct kvm_memory_slot *slot,
-				     gfn_t gfn_offset, unsigned long mask);
+void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
+				      struct kvm_memory_slot *memslot);
+void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
+				   struct kvm_memory_slot *memslot);
+void kvm_mmu_slot_largepage_remove_write_access(struct kvm *kvm,
+					struct kvm_memory_slot *memslot);
+void kvm_mmu_slot_set_dirty(struct kvm *kvm,
+			    struct kvm_memory_slot *memslot);
+void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
+				   struct kvm_memory_slot *slot,
+				   gfn_t gfn_offset, unsigned long mask);
 void kvm_mmu_zap_all(struct kvm *kvm);
 void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm);
 unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm);

@@ -21,8 +21,8 @@ running a Linux kernel.  Also, not all tools are necessary on all
 systems; obviously, if you don't have any ISDN hardware, for example,
 you probably needn't concern yourself with isdn4k-utils.
 
-o  Gnu C                  3.2                     # gcc --version
-o  Gnu make               3.80                    # make --version
+o  GNU C                  3.2                     # gcc --version
+o  GNU make               3.80                    # make --version
 o  binutils               2.12                    # ld -v
 o  util-linux             2.10o                   # fdformat --version
 o  module-init-tools      0.9.10                  # depmod -V
@@ -57,7 +57,7 @@ computer.
 Make
 ----
 
-You will need Gnu make 3.80 or later to build the kernel.
+You will need GNU make 3.80 or later to build the kernel.
 
 Binutils
 --------

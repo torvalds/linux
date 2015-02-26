@@ -2855,9 +2855,10 @@ static void update_processed_blocks(struct reloc_control *rc,
 	}
 }
 
-static int tree_block_processed(u64 bytenr, u32 blocksize,
-				struct reloc_control *rc)
+static int tree_block_processed(u64 bytenr, struct reloc_control *rc)
 {
+	u32 blocksize = rc->extent_root->nodesize;
+
 	if (test_range_bit(&rc->processed_blocks, bytenr,
 			   bytenr + blocksize - 1, EXTENT_DIRTY, 1, NULL))
 		return 1;
@@ -2965,8 +2966,7 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	while (rb_node) {
 		block = rb_entry(rb_node, struct tree_block, rb_node);
 		if (!block->key_ready)
-			readahead_tree_block(rc->extent_root, block->bytenr,
-					block->key.objectid);
+			readahead_tree_block(rc->extent_root, block->bytenr);
 		rb_node = rb_next(rb_node);
 	}
 
@@ -3353,7 +3353,7 @@ static int __add_tree_block(struct reloc_control *rc,
 	bool skinny = btrfs_fs_incompat(rc->extent_root->fs_info,
 					SKINNY_METADATA);
 
-	if (tree_block_processed(bytenr, blocksize, rc))
+	if (tree_block_processed(bytenr, rc))
 		return 0;
 
 	if (tree_search(blocks, bytenr))
@@ -3611,7 +3611,7 @@ static int find_data_references(struct reloc_control *rc,
 		if (added)
 			goto next;
 
-		if (!tree_block_processed(leaf->start, leaf->len, rc)) {
+		if (!tree_block_processed(leaf->start, rc)) {
 			block = kmalloc(sizeof(*block), GFP_NOFS);
 			if (!block) {
 				err = -ENOMEM;

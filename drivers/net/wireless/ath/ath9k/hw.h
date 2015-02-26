@@ -54,6 +54,7 @@
 #define AR9485_DEVID_AR1111	0x0037
 #define AR9300_DEVID_AR9565     0x0036
 #define AR9300_DEVID_AR953X     0x003d
+#define AR9300_DEVID_QCA956X    0x003f
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -198,12 +199,13 @@
 #define KAL_NUM_DESC_WORDS	12
 #define KAL_ANTENNA_MODE	1
 #define KAL_TO_DS		1
-#define KAL_DELAY		4	/*delay of 4ms between 2 KAL frames */
+#define KAL_DELAY		4	/* delay of 4ms between 2 KAL frames */
 #define KAL_TIMEOUT		900
 
 #define MAX_PATTERN_SIZE		256
 #define MAX_PATTERN_MASK_SIZE		32
-#define MAX_NUM_PATTERN			8
+#define MAX_NUM_PATTERN			16
+#define MAX_NUM_PATTERN_LEGACY		8
 #define MAX_NUM_USER_PATTERN		6 /*  deducting the disassociate and
 					      deauthenticate packets */
 
@@ -247,12 +249,10 @@ enum ath9k_hw_caps {
 #ifdef CONFIG_ATH9K_PCOEM
 	ATH9K_HW_CAP_RTT			= BIT(14),
 	ATH9K_HW_CAP_MCI			= BIT(15),
-	ATH9K_HW_WOW_DEVICE_CAPABLE		= BIT(16),
 	ATH9K_HW_CAP_BT_ANT_DIV			= BIT(17),
 #else
 	ATH9K_HW_CAP_RTT			= 0,
 	ATH9K_HW_CAP_MCI			= 0,
-	ATH9K_HW_WOW_DEVICE_CAPABLE		= 0,
 	ATH9K_HW_CAP_BT_ANT_DIV			= 0,
 #endif
 	ATH9K_HW_CAP_DFS			= BIT(18),
@@ -270,6 +270,12 @@ enum ath9k_hw_caps {
  * disassociation patterns for all types of possible frames recieved
  * of those types.
  */
+
+struct ath9k_hw_wow {
+	u32 wow_event_mask;
+	u32 wow_event_mask2;
+	u8 max_patterns;
+};
 
 struct ath9k_hw_capabilities {
 	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
@@ -929,7 +935,7 @@ struct ath_hw {
 	u32 ent_mode;
 
 #ifdef CONFIG_ATH9K_WOW
-	u32 wow_event_mask;
+	struct ath9k_hw_wow wow;
 #endif
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
@@ -1086,6 +1092,8 @@ bool ar9003_is_paprd_enabled(struct ath_hw *ah);
 void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
 void ar9003_hw_init_rate_txpower(struct ath_hw *ah, u8 *rate_array,
 				 struct ath9k_channel *chan);
+void ar5008_hw_init_rate_txpower(struct ath_hw *ah, int16_t *rate_array,
+				 struct ath9k_channel *chan, int ht40_delta);
 
 /* Hardware family op attach helpers */
 int ar5008_hw_attach_phy_ops(struct ath_hw *ah);
@@ -1145,23 +1153,19 @@ ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 
 
 #ifdef CONFIG_ATH9K_WOW
-const char *ath9k_hw_wow_event_to_string(u32 wow_event);
-void ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
-				u8 *user_mask, int pattern_count,
-				int pattern_len);
+int ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
+			       u8 *user_mask, int pattern_count,
+			       int pattern_len);
 u32 ath9k_hw_wow_wakeup(struct ath_hw *ah);
 void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable);
 #else
-static inline const char *ath9k_hw_wow_event_to_string(u32 wow_event)
+static inline int ath9k_hw_wow_apply_pattern(struct ath_hw *ah,
+					     u8 *user_pattern,
+					     u8 *user_mask,
+					     int pattern_count,
+					     int pattern_len)
 {
-	return NULL;
-}
-static inline void ath9k_hw_wow_apply_pattern(struct ath_hw *ah,
-					      u8 *user_pattern,
-					      u8 *user_mask,
-					      int pattern_count,
-					      int pattern_len)
-{
+	return 0;
 }
 static inline u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 {

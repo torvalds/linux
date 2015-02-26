@@ -91,8 +91,7 @@ xfs_qm_scall_quotaoff(
 		mutex_unlock(&q->qi_quotaofflock);
 
 		/* XXX what to do if error ? Revert back to old vals incore ? */
-		error = xfs_qm_write_sb_changes(mp, XFS_SB_QFLAGS);
-		return error;
+		return xfs_sync_sb(mp, false);
 	}
 
 	dqtype = 0;
@@ -313,7 +312,6 @@ xfs_qm_scall_quotaon(
 {
 	int		error;
 	uint		qf;
-	__int64_t	sbflags;
 
 	flags &= (XFS_ALL_QUOTA_ACCT | XFS_ALL_QUOTA_ENFD);
 	/*
@@ -321,30 +319,22 @@ xfs_qm_scall_quotaon(
 	 */
 	flags &= ~(XFS_ALL_QUOTA_ACCT);
 
-	sbflags = 0;
-
 	if (flags == 0) {
 		xfs_debug(mp, "%s: zero flags, m_qflags=%x",
 			__func__, mp->m_qflags);
 		return -EINVAL;
 	}
 
-	/* No fs can turn on quotas with a delayed effect */
-	ASSERT((flags & XFS_ALL_QUOTA_ACCT) == 0);
-
 	/*
 	 * Can't enforce without accounting. We check the superblock
 	 * qflags here instead of m_qflags because rootfs can have
 	 * quota acct on ondisk without m_qflags' knowing.
 	 */
-	if (((flags & XFS_UQUOTA_ACCT) == 0 &&
-	     (mp->m_sb.sb_qflags & XFS_UQUOTA_ACCT) == 0 &&
+	if (((mp->m_sb.sb_qflags & XFS_UQUOTA_ACCT) == 0 &&
 	     (flags & XFS_UQUOTA_ENFD)) ||
-	    ((flags & XFS_GQUOTA_ACCT) == 0 &&
-	     (mp->m_sb.sb_qflags & XFS_GQUOTA_ACCT) == 0 &&
+	    ((mp->m_sb.sb_qflags & XFS_GQUOTA_ACCT) == 0 &&
 	     (flags & XFS_GQUOTA_ENFD)) ||
-	    ((flags & XFS_PQUOTA_ACCT) == 0 &&
-	     (mp->m_sb.sb_qflags & XFS_PQUOTA_ACCT) == 0 &&
+	    ((mp->m_sb.sb_qflags & XFS_PQUOTA_ACCT) == 0 &&
 	     (flags & XFS_PQUOTA_ENFD))) {
 		xfs_debug(mp,
 			"%s: Can't enforce without acct, flags=%x sbflags=%x",
@@ -369,11 +359,11 @@ xfs_qm_scall_quotaon(
 	/*
 	 * There's nothing to change if it's the same.
 	 */
-	if ((qf & flags) == flags && sbflags == 0)
+	if ((qf & flags) == flags)
 		return -EEXIST;
-	sbflags |= XFS_SB_QFLAGS;
 
-	if ((error = xfs_qm_write_sb_changes(mp, sbflags)))
+	error = xfs_sync_sb(mp, false);
+	if (error)
 		return error;
 	/*
 	 * If we aren't trying to switch on quota enforcement, we are done.
@@ -383,8 +373,7 @@ xfs_qm_scall_quotaon(
 	     ((mp->m_sb.sb_qflags & XFS_PQUOTA_ACCT) !=
 	     (mp->m_qflags & XFS_PQUOTA_ACCT)) ||
 	     ((mp->m_sb.sb_qflags & XFS_GQUOTA_ACCT) !=
-	     (mp->m_qflags & XFS_GQUOTA_ACCT)) ||
-	    (flags & XFS_ALL_QUOTA_ENFD) == 0)
+	     (mp->m_qflags & XFS_GQUOTA_ACCT)))
 		return 0;
 
 	if (! XFS_IS_QUOTA_RUNNING(mp))
@@ -421,20 +410,12 @@ xfs_qm_scall_getqstat(
 	memset(out, 0, sizeof(fs_quota_stat_t));
 
 	out->qs_version = FS_QSTAT_VERSION;
-	if (!xfs_sb_version_hasquota(&mp->m_sb)) {
-		out->qs_uquota.qfs_ino = NULLFSINO;
-		out->qs_gquota.qfs_ino = NULLFSINO;
-		return 0;
-	}
-
 	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
 							(XFS_ALL_QUOTA_ACCT|
 							 XFS_ALL_QUOTA_ENFD));
-	if (q) {
-		uip = q->qi_uquotaip;
-		gip = q->qi_gquotaip;
-		pip = q->qi_pquotaip;
-	}
+	uip = q->qi_uquotaip;
+	gip = q->qi_gquotaip;
+	pip = q->qi_pquotaip;
 	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
 		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
 					0, 0, &uip) == 0)
@@ -480,14 +461,13 @@ xfs_qm_scall_getqstat(
 		if (temppqip)
 			IRELE(pip);
 	}
-	if (q) {
-		out->qs_incoredqs = q->qi_dquots;
-		out->qs_btimelimit = q->qi_btimelimit;
-		out->qs_itimelimit = q->qi_itimelimit;
-		out->qs_rtbtimelimit = q->qi_rtbtimelimit;
-		out->qs_bwarnlimit = q->qi_bwarnlimit;
-		out->qs_iwarnlimit = q->qi_iwarnlimit;
-	}
+	out->qs_incoredqs = q->qi_dquots;
+	out->qs_btimelimit = q->qi_btimelimit;
+	out->qs_itimelimit = q->qi_itimelimit;
+	out->qs_rtbtimelimit = q->qi_rtbtimelimit;
+	out->qs_bwarnlimit = q->qi_bwarnlimit;
+	out->qs_iwarnlimit = q->qi_iwarnlimit;
+
 	return 0;
 }
 
@@ -508,13 +488,6 @@ xfs_qm_scall_getqstatv(
 	bool                    tempgqip = false;
 	bool                    temppqip = false;
 
-	if (!xfs_sb_version_hasquota(&mp->m_sb)) {
-		out->qs_uquota.qfs_ino = NULLFSINO;
-		out->qs_gquota.qfs_ino = NULLFSINO;
-		out->qs_pquota.qfs_ino = NULLFSINO;
-		return 0;
-	}
-
 	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
 							(XFS_ALL_QUOTA_ACCT|
 							 XFS_ALL_QUOTA_ENFD));
@@ -522,11 +495,9 @@ xfs_qm_scall_getqstatv(
 	out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
 	out->qs_pquota.qfs_ino = mp->m_sb.sb_pquotino;
 
-	if (q) {
-		uip = q->qi_uquotaip;
-		gip = q->qi_gquotaip;
-		pip = q->qi_pquotaip;
-	}
+	uip = q->qi_uquotaip;
+	gip = q->qi_gquotaip;
+	pip = q->qi_pquotaip;
 	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
 		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
 					0, 0, &uip) == 0)
@@ -561,14 +532,13 @@ xfs_qm_scall_getqstatv(
 		if (temppqip)
 			IRELE(pip);
 	}
-	if (q) {
-		out->qs_incoredqs = q->qi_dquots;
-		out->qs_btimelimit = q->qi_btimelimit;
-		out->qs_itimelimit = q->qi_itimelimit;
-		out->qs_rtbtimelimit = q->qi_rtbtimelimit;
-		out->qs_bwarnlimit = q->qi_bwarnlimit;
-		out->qs_iwarnlimit = q->qi_iwarnlimit;
-	}
+	out->qs_incoredqs = q->qi_dquots;
+	out->qs_btimelimit = q->qi_btimelimit;
+	out->qs_itimelimit = q->qi_itimelimit;
+	out->qs_rtbtimelimit = q->qi_rtbtimelimit;
+	out->qs_bwarnlimit = q->qi_bwarnlimit;
+	out->qs_iwarnlimit = q->qi_iwarnlimit;
+
 	return 0;
 }
 
@@ -800,7 +770,7 @@ xfs_qm_log_quotaoff(
 	mp->m_sb.sb_qflags = (mp->m_qflags & ~(flags)) & XFS_MOUNT_QUOTA_ALL;
 	spin_unlock(&mp->m_sb_lock);
 
-	xfs_mod_sb(tp, XFS_SB_QFLAGS);
+	xfs_log_sb(tp);
 
 	/*
 	 * We have to make sure that the transaction is secure on disk before we

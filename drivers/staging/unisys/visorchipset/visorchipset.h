@@ -158,61 +158,6 @@ findbus(struct list_head *list, u32 bus_no)
 	return NULL;
 }
 
-/** Attributes for a particular Supervisor switch.
- */
-struct visorchipset_switch_info {
-	u32 switch_no;
-	struct visorchipset_state state;
-	uuid_le switch_type_uuid;
-	u8 *authservice1;
-	u8 *authservice2;
-	u8 *authservice3;
-	u8 *security_context;
-	u64 reserved;
-	u32 reserved2;		/* control_vm_id */
-	struct device dev;
-	BOOL dev_exists;
-	struct controlvm_message_header pending_msg_hdr;
-};
-
-/** Attributes for a particular Supervisor external port, which is connected
- *  to a specific switch.
- */
-struct visorchipset_externalport_info {
-	u32 switch_no;
-	u32 external_port_no;
-	struct visorchipset_state state;
-	uuid_le network_zone_uuid;
-	int pd_port;
-	u8 *ip;
-	u8 *ip_netmask;
-	u8 *ip_broadcast;
-	u8 *ip_network;
-	u8 *ip_gateway;
-	u8 *ip_dns;
-	u64 reserved1;
-	u32 reserved2;		/* control_vm_id */
-	struct device dev;
-	BOOL dev_exists;
-	struct controlvm_message_header pending_msg_hdr;
-};
-
-/** Attributes for a particular Supervisor internal port, which is how a
- *  device connects to a particular switch.
- */
-struct visorchipset_internalport_info {
-	u32 switch_no;
-	u32 internal_port_no;
-	struct visorchipset_state state;
-	u32 bus_no;		/* valid only when state.attached == 1 */
-	u32 dev_no;		/* valid only when state.attached == 1 */
-	u64 reserved1;
-	u32 reserved2;		/* CONTROLVM_ID */
-	struct controlvm_message_header pending_msg_hdr;
-	MYPROCOBJECT *proc_object;
-
-};
-
 /*  These functions will be called from within visorchipset when certain
  *  events happen.  (The implementation of these functions is outside of
  *  visorchipset.)

@@ -105,13 +105,11 @@ static int atmel_pcm_configure_dma(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		slave_config->dst_addr = ssc->phybase + SSC_THR;
-		slave_config->dst_maxburst = 1;
-	} else {
-		slave_config->src_addr = ssc->phybase + SSC_RHR;
-		slave_config->src_maxburst = 1;
-	}
+	slave_config->dst_addr = ssc->phybase + SSC_THR;
+	slave_config->dst_maxburst = 1;
+
+	slave_config->src_addr = ssc->phybase + SSC_RHR;
+	slave_config->src_maxburst = 1;
 
 	prtd->dma_intr_handler = atmel_pcm_dma_irq;
 

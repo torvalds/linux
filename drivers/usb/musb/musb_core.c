@@ -567,6 +567,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 
 				musb->xceiv->otg->state = OTG_STATE_A_HOST;
 				musb->is_active = 1;
+				musb_host_resume_root_hub(musb);
 				break;
 			case OTG_STATE_B_WAIT_ACON:
 				musb->xceiv->otg->state = OTG_STATE_B_PERIPHERAL;
@@ -2499,6 +2500,12 @@ static int musb_runtime_resume(struct device *dev)
 	if (!first)
 		musb_restore_context(musb);
 	first = 0;
+
+	if (musb->need_finish_resume) {
+		musb->need_finish_resume = 0;
+		schedule_delayed_work(&musb->finish_resume_work,
+				msecs_to_jiffies(20));
+	}
 
 	return 0;
 }

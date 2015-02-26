@@ -1722,7 +1722,7 @@ out:
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
  */
-bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
+int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 {
 	struct drm_device *dev = fb_helper->dev;
 	int count = 0;

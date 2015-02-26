@@ -67,7 +67,7 @@ struct gntdev_priv {
 	 * Only populated if populate_freeable_maps == 1 */
 	struct list_head freeable_maps;
 	/* lock protects maps and freeable_maps */
-	spinlock_t lock;
+	struct mutex lock;
 	struct mm_struct *mm;
 	struct mmu_notifier mn;
 };
@@ -91,7 +91,9 @@ struct grant_map {
 	struct gnttab_map_grant_ref   *map_ops;
 	struct gnttab_unmap_grant_ref *unmap_ops;
 	struct gnttab_map_grant_ref   *kmap_ops;
+	struct gnttab_unmap_grant_ref *kunmap_ops;
 	struct page **pages;
+	unsigned long pages_vm_start;
 };
 
 static int unmap_grant_pages(struct grant_map *map, int offset, int pages);
@@ -118,12 +120,13 @@ static void gntdev_free_map(struct grant_map *map)
 		return;
 
 	if (map->pages)
-		free_xenballooned_pages(map->count, map->pages);
+		gnttab_free_pages(map->count, map->pages);
 	kfree(map->pages);
 	kfree(map->grants);
 	kfree(map->map_ops);
 	kfree(map->unmap_ops);
 	kfree(map->kmap_ops);
+	kfree(map->kunmap_ops);
 	kfree(map);
 }
 
@@ -140,21 +143,24 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	add->map_ops   = kcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
 	add->unmap_ops = kcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
 	add->kmap_ops  = kcalloc(count, sizeof(add->kmap_ops[0]), GFP_KERNEL);
+	add->kunmap_ops = kcalloc(count, sizeof(add->kunmap_ops[0]), GFP_KERNEL);
 	add->pages     = kcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
 	if (NULL == add->grants    ||
 	    NULL == add->map_ops   ||
 	    NULL == add->unmap_ops ||
 	    NULL == add->kmap_ops  ||
+	    NULL == add->kunmap_ops ||
 	    NULL == add->pages)
 		goto err;
 
-	if (alloc_xenballooned_pages(count, add->pages, false /* lowmem */))
+	if (gnttab_alloc_pages(count, add->pages))
 		goto err;
 
 	for (i = 0; i < count; i++) {
 		add->map_ops[i].handle = -1;
 		add->unmap_ops[i].handle = -1;
 		add->kmap_ops[i].handle = -1;
+		add->kunmap_ops[i].handle = -1;
 	}
 
 	add->index = 0;
@@ -216,9 +222,9 @@ static void gntdev_put_map(struct gntdev_priv *priv, struct grant_map *map)
 	}
 
 	if (populate_freeable_maps && priv) {
-		spin_lock(&priv->lock);
+		mutex_lock(&priv->lock);
 		list_del(&map->next);
-		spin_unlock(&priv->lock);
+		mutex_unlock(&priv->lock);
 	}
 
 	if (map->pages && !use_ptemod)
@@ -239,6 +245,14 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
 	BUG_ON(pgnr >= map->count);
 	pte_maddr = arbitrary_virt_to_machine(pte).maddr;
 
+	/*
+	 * Set the PTE as special to force get_user_pages_fast() fall
+	 * back to the slow path.  If this is not supported as part of
+	 * the grant map, it will be done afterwards.
+	 */
+	if (xen_feature(XENFEAT_gnttab_map_avail_bits))
+		flags |= (1 << _GNTMAP_guest_avail0);
+
 	gnttab_set_map_op(&map->map_ops[pgnr], pte_maddr, flags,
 			  map->grants[pgnr].ref,
 			  map->grants[pgnr].domid);
@@ -246,6 +260,15 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
 			    -1 /* handle */);
 	return 0;
 }
+
+#ifdef CONFIG_X86
+static int set_grant_ptes_as_special(pte_t *pte, pgtable_t token,
+				     unsigned long addr, void *data)
+{
+	set_pte_at(current->mm, addr, pte, pte_mkspecial(*pte));
+	return 0;
+}
+#endif
 
 static int map_grant_pages(struct grant_map *map)
 {
@@ -280,6 +303,8 @@ static int map_grant_pages(struct grant_map *map)
 				map->flags | GNTMAP_host_map,
 				map->grants[i].ref,
 				map->grants[i].domid);
+			gnttab_set_unmap_op(&map->kunmap_ops[i], address,
+				map->flags | GNTMAP_host_map, -1);
 		}
 	}
 
@@ -290,20 +315,42 @@ static int map_grant_pages(struct grant_map *map)
 		return err;
 
 	for (i = 0; i < map->count; i++) {
-		if (map->map_ops[i].status)
+		if (map->map_ops[i].status) {
 			err = -EINVAL;
-		else {
-			BUG_ON(map->map_ops[i].handle == -1);
-			map->unmap_ops[i].handle = map->map_ops[i].handle;
-			pr_debug("map handle=%d\n", map->map_ops[i].handle);
+			continue;
 		}
+
+		map->unmap_ops[i].handle = map->map_ops[i].handle;
+		if (use_ptemod)
+			map->kunmap_ops[i].handle = map->kmap_ops[i].handle;
 	}
 	return err;
+}
+
+struct unmap_grant_pages_callback_data
+{
+	struct completion completion;
+	int result;
+};
+
+static void unmap_grant_callback(int result,
+				 struct gntab_unmap_queue_data *data)
+{
+	struct unmap_grant_pages_callback_data* d = data->data;
+
+	d->result = result;
+	complete(&d->completion);
 }
 
 static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 {
 	int i, err = 0;
+	struct gntab_unmap_queue_data unmap_data;
+	struct unmap_grant_pages_callback_data data;
+
+	init_completion(&data.completion);
+	unmap_data.data = &data;
+	unmap_data.done= &unmap_grant_callback;
 
 	if (map->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
 		int pgno = (map->notify.addr >> PAGE_SHIFT);
@@ -315,11 +362,16 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 		}
 	}
 
-	err = gnttab_unmap_refs(map->unmap_ops + offset,
-			use_ptemod ? map->kmap_ops + offset : NULL, map->pages + offset,
-			pages);
-	if (err)
-		return err;
+	unmap_data.unmap_ops = map->unmap_ops + offset;
+	unmap_data.kunmap_ops = use_ptemod ? map->kunmap_ops + offset : NULL;
+	unmap_data.pages = map->pages + offset;
+	unmap_data.count = pages;
+
+	gnttab_unmap_refs_async(&unmap_data);
+
+	wait_for_completion(&data.completion);
+	if (data.result)
+		return data.result;
 
 	for (i = 0; i < pages; i++) {
 		if (map->unmap_ops[offset+i].status)
@@ -387,17 +439,26 @@ static void gntdev_vma_close(struct vm_area_struct *vma)
 		 * not do any unmapping, since that has been done prior to
 		 * closing the vma, but it may still iterate the unmap_ops list.
 		 */
-		spin_lock(&priv->lock);
+		mutex_lock(&priv->lock);
 		map->vma = NULL;
-		spin_unlock(&priv->lock);
+		mutex_unlock(&priv->lock);
 	}
 	vma->vm_private_data = NULL;
 	gntdev_put_map(priv, map);
 }
 
+static struct page *gntdev_vma_find_special_page(struct vm_area_struct *vma,
+						 unsigned long addr)
+{
+	struct grant_map *map = vma->vm_private_data;
+
+	return map->pages[(addr - map->pages_vm_start) >> PAGE_SHIFT];
+}
+
 static struct vm_operations_struct gntdev_vmops = {
 	.open = gntdev_vma_open,
 	.close = gntdev_vma_close,
+	.find_special_page = gntdev_vma_find_special_page,
 };
 
 /* ------------------------------------------------------------------ */
@@ -433,14 +494,14 @@ static void mn_invl_range_start(struct mmu_notifier *mn,
 	struct gntdev_priv *priv = container_of(mn, struct gntdev_priv, mn);
 	struct grant_map *map;
 
-	spin_lock(&priv->lock);
+	mutex_lock(&priv->lock);
 	list_for_each_entry(map, &priv->maps, next) {
 		unmap_if_in_range(map, start, end);
 	}
 	list_for_each_entry(map, &priv->freeable_maps, next) {
 		unmap_if_in_range(map, start, end);
 	}
-	spin_unlock(&priv->lock);
+	mutex_unlock(&priv->lock);
 }
 
 static void mn_invl_page(struct mmu_notifier *mn,
@@ -457,7 +518,7 @@ static void mn_release(struct mmu_notifier *mn,
 	struct grant_map *map;
 	int err;
 
-	spin_lock(&priv->lock);
+	mutex_lock(&priv->lock);
 	list_for_each_entry(map, &priv->maps, next) {
 		if (!map->vma)
 			continue;
@@ -476,7 +537,7 @@ static void mn_release(struct mmu_notifier *mn,
 		err = unmap_grant_pages(map, /* offset */ 0, map->count);
 		WARN_ON(err);
 	}
-	spin_unlock(&priv->lock);
+	mutex_unlock(&priv->lock);
 }
 
 static struct mmu_notifier_ops gntdev_mmu_ops = {
@@ -498,7 +559,7 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 
 	INIT_LIST_HEAD(&priv->maps);
 	INIT_LIST_HEAD(&priv->freeable_maps);
-	spin_lock_init(&priv->lock);
+	mutex_init(&priv->lock);
 
 	if (use_ptemod) {
 		priv->mm = get_task_mm(current);
@@ -572,10 +633,10 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 		return -EFAULT;
 	}
 
-	spin_lock(&priv->lock);
+	mutex_lock(&priv->lock);
 	gntdev_add_map(priv, map);
 	op.index = map->index << PAGE_SHIFT;
-	spin_unlock(&priv->lock);
+	mutex_unlock(&priv->lock);
 
 	if (copy_to_user(u, &op, sizeof(op)) != 0)
 		return -EFAULT;
@@ -594,7 +655,7 @@ static long gntdev_ioctl_unmap_grant_ref(struct gntdev_priv *priv,
 		return -EFAULT;
 	pr_debug("priv %p, del %d+%d\n", priv, (int)op.index, (int)op.count);
 
-	spin_lock(&priv->lock);
+	mutex_lock(&priv->lock);
 	map = gntdev_find_map_index(priv, op.index >> PAGE_SHIFT, op.count);
 	if (map) {
 		list_del(&map->next);
@@ -602,7 +663,7 @@ static long gntdev_ioctl_unmap_grant_ref(struct gntdev_priv *priv,
 			list_add_tail(&map->next, &priv->freeable_maps);
 		err = 0;
 	}
-	spin_unlock(&priv->lock);
+	mutex_unlock(&priv->lock);
 	if (map)
 		gntdev_put_map(priv, map);
 	return err;
@@ -670,7 +731,7 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 	out_flags = op.action;
 	out_event = op.event_channel_port;
 
-	spin_lock(&priv->lock);
+	mutex_lock(&priv->lock);
 
 	list_for_each_entry(map, &priv->maps, next) {
 		uint64_t begin = map->index << PAGE_SHIFT;
@@ -698,7 +759,7 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 	rc = 0;
 
  unlock_out:
-	spin_unlock(&priv->lock);
+	mutex_unlock(&priv->lock);
 
 	/* Drop the reference to the event channel we did not save in the map */
 	if (out_flags & UNMAP_NOTIFY_SEND_EVENT)
@@ -748,7 +809,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	pr_debug("map %d+%d at %lx (pgoff %lx)\n",
 			index, count, vma->vm_start, vma->vm_pgoff);
 
-	spin_lock(&priv->lock);
+	mutex_lock(&priv->lock);
 	map = gntdev_find_map_index(priv, index, count);
 	if (!map)
 		goto unlock_out;
@@ -783,7 +844,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 			map->flags |= GNTMAP_readonly;
 	}
 
-	spin_unlock(&priv->lock);
+	mutex_unlock(&priv->lock);
 
 	if (use_ptemod) {
 		err = apply_to_page_range(vma->vm_mm, vma->vm_start,
@@ -806,16 +867,34 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 			if (err)
 				goto out_put_map;
 		}
+	} else {
+#ifdef CONFIG_X86
+		/*
+		 * If the PTEs were not made special by the grant map
+		 * hypercall, do so here.
+		 *
+		 * This is racy since the mapping is already visible
+		 * to userspace but userspace should be well-behaved
+		 * enough to not touch it until the mmap() call
+		 * returns.
+		 */
+		if (!xen_feature(XENFEAT_gnttab_map_avail_bits)) {
+			apply_to_page_range(vma->vm_mm, vma->vm_start,
+					    vma->vm_end - vma->vm_start,
+					    set_grant_ptes_as_special, NULL);
+		}
+#endif
+		map->pages_vm_start = vma->vm_start;
 	}
 
 	return 0;
 
 unlock_out:
-	spin_unlock(&priv->lock);
+	mutex_unlock(&priv->lock);
 	return err;
 
 out_unlock_put:
-	spin_unlock(&priv->lock);
+	mutex_unlock(&priv->lock);
 out_put_map:
 	if (use_ptemod)
 		map->vma = NULL;

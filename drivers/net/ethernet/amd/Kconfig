@@ -45,7 +45,7 @@ config AMD8111_ETH
 
 config LANCE
 	tristate "AMD LANCE and PCnet (AT1500 and NE2100) support"
-	depends on ISA && ISA_DMA_API
+	depends on ISA && ISA_DMA_API && !ARM
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
@@ -142,7 +142,7 @@ config PCMCIA_NMCLAN
 
 config NI65
 	tristate "NI6510 support"
-	depends on ISA && ISA_DMA_API
+	depends on ISA && ISA_DMA_API && !ARM
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
@@ -179,7 +179,7 @@ config SUNLANCE
 
 config AMD_XGBE
 	tristate "AMD 10GbE Ethernet driver"
-	depends on OF_NET && HAS_IOMEM
+	depends on (OF_NET || ACPI) && HAS_IOMEM
 	select PHYLIB
 	select AMD_XGBE_PHY
 	select BITREVERSE

@@ -749,13 +749,13 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 
 	if (intcsr & MASTER_ABORT_INT) {
 		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_ERROR;
 		goto interrupt_exit;
 	}
 
 	if (intcsr & TARGET_ABORT_INT) {
 		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_ERROR;
 		goto interrupt_exit;
 	}
 

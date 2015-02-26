@@ -72,6 +72,18 @@
 
 #define APM_CPU_PART_POTENZA	0x000
 
+#define ID_AA64MMFR0_BIGENDEL0_SHIFT	16
+#define ID_AA64MMFR0_BIGENDEL0_MASK	(0xf << ID_AA64MMFR0_BIGENDEL0_SHIFT)
+#define ID_AA64MMFR0_BIGENDEL0(mmfr0)	\
+	(((mmfr0) & ID_AA64MMFR0_BIGENDEL0_MASK) >> ID_AA64MMFR0_BIGENDEL0_SHIFT)
+#define ID_AA64MMFR0_BIGEND_SHIFT	8
+#define ID_AA64MMFR0_BIGEND_MASK	(0xf << ID_AA64MMFR0_BIGEND_SHIFT)
+#define ID_AA64MMFR0_BIGEND(mmfr0)	\
+	(((mmfr0) & ID_AA64MMFR0_BIGEND_MASK) >> ID_AA64MMFR0_BIGEND_SHIFT)
+
+#define SCTLR_EL1_CP15BEN	(0x1 << 5)
+#define SCTLR_EL1_SED		(0x1 << 8)
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -104,6 +116,11 @@ static inline u32 __attribute_const__ read_cpuid_cachetype(void)
 	return read_cpuid(CTR_EL0);
 }
 
+static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
+{
+	return (ID_AA64MMFR0_BIGEND(mmfr0) == 0x1) ||
+		(ID_AA64MMFR0_BIGENDEL0(mmfr0) == 0x1);
+}
 #endif /* __ASSEMBLY__ */
 
 #endif

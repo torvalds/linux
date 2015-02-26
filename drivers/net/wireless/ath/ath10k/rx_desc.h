@@ -850,7 +850,7 @@ struct rx_ppdu_start {
 
 #define RX_PPDU_END_INFO1_PPDU_DONE (1 << 15)
 
-struct rx_ppdu_end {
+struct rx_ppdu_end_common {
 	__le32 evm_p0;
 	__le32 evm_p1;
 	__le32 evm_p2;
@@ -873,8 +873,31 @@ struct rx_ppdu_end {
 	u8 phy_err_code;
 	__le16 flags; /* %RX_PPDU_END_FLAGS_ */
 	__le32 info0; /* %RX_PPDU_END_INFO0_ */
+} __packed;
+
+struct rx_ppdu_end_qca988x {
 	__le16 bb_length;
 	__le16 info1; /* %RX_PPDU_END_INFO1_ */
+} __packed;
+
+#define RX_PPDU_END_RTT_CORRELATION_VALUE_MASK 0x00ffffff
+#define RX_PPDU_END_RTT_CORRELATION_VALUE_LSB  0
+#define RX_PPDU_END_RTT_UNUSED_MASK            0x7f000000
+#define RX_PPDU_END_RTT_UNUSED_LSB             24
+#define RX_PPDU_END_RTT_NORMAL_MODE            BIT(31)
+
+struct rx_ppdu_end_qca6174 {
+	__le32 rtt; /* %RX_PPDU_END_RTT_ */
+	__le16 bb_length;
+	__le16 info1; /* %RX_PPDU_END_INFO1_ */
+} __packed;
+
+struct rx_ppdu_end {
+	struct rx_ppdu_end_common common;
+	union {
+		struct rx_ppdu_end_qca988x qca988x;
+		struct rx_ppdu_end_qca6174 qca6174;
+	} __packed;
 } __packed;
 
 /*

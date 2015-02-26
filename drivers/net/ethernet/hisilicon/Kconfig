@@ -24,4 +24,13 @@ config HIX5HD2_GMAC
 	help
 	  This selects the hix5hd2 mac family network device.
 
+config HIP04_ETH
+	tristate "HISILICON P04 Ethernet support"
+	select PHYLIB
+	select MARVELL_PHY
+	select MFD_SYSCON
+	---help---
+	  If you wish to compile a kernel for a hardware with hisilicon p04 SoC and
+	  want to use the internal ethernet then you should answer Y to this.
+
 endif # NET_VENDOR_HISILICON

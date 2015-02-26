@@ -181,7 +181,7 @@ static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 	return (arg->flags & IP_REPLY_ARG_NOSRCCHECK) ? FLOWI_FLAG_ANYSRC : 0;
 }
 
-void ip_send_unicast_reply(struct net *net, struct sk_buff *skb,
+void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 			   const struct ip_options *sopt,
 			   __be32 daddr, __be32 saddr,
 			   const struct ip_reply_arg *arg,
@@ -538,7 +538,7 @@ int ip_options_rcv_srr(struct sk_buff *skb);
  */
 
 void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb);
-void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb);
+void ip_cmsg_recv_offset(struct msghdr *msg, struct sk_buff *skb, int offset);
 int ip_cmsg_send(struct net *net, struct msghdr *msg,
 		 struct ipcm_cookie *ipc, bool allow_ipv6);
 int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
@@ -557,6 +557,11 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err, __be16 port,
 		   u32 info, u8 *payload);
 void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 dport,
 		    u32 info);
+
+static inline void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb)
+{
+	ip_cmsg_recv_offset(msg, skb, 0);
+}
 
 bool icmp_global_allow(void);
 extern int sysctl_icmp_msgs_per_sec;

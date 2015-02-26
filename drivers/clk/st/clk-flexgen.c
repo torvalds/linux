@@ -37,8 +37,8 @@ static int flexgen_enable(struct clk_hw *hw)
 	struct clk_hw *pgate_hw = &flexgen->pgate.hw;
 	struct clk_hw *fgate_hw = &flexgen->fgate.hw;
 
-	pgate_hw->clk = hw->clk;
-	fgate_hw->clk = hw->clk;
+	__clk_hw_set_clk(pgate_hw, hw);
+	__clk_hw_set_clk(fgate_hw, hw);
 
 	clk_gate_ops.enable(pgate_hw);
 
@@ -54,7 +54,7 @@ static void flexgen_disable(struct clk_hw *hw)
 	struct clk_hw *fgate_hw = &flexgen->fgate.hw;
 
 	/* disable only the final gate */
-	fgate_hw->clk = hw->clk;
+	__clk_hw_set_clk(fgate_hw, hw);
 
 	clk_gate_ops.disable(fgate_hw);
 
@@ -66,7 +66,7 @@ static int flexgen_is_enabled(struct clk_hw *hw)
 	struct flexgen *flexgen = to_flexgen(hw);
 	struct clk_hw *fgate_hw = &flexgen->fgate.hw;
 
-	fgate_hw->clk = hw->clk;
+	__clk_hw_set_clk(fgate_hw, hw);
 
 	if (!clk_gate_ops.is_enabled(fgate_hw))
 		return 0;
@@ -79,7 +79,7 @@ static u8 flexgen_get_parent(struct clk_hw *hw)
 	struct flexgen *flexgen = to_flexgen(hw);
 	struct clk_hw *mux_hw = &flexgen->mux.hw;
 
-	mux_hw->clk = hw->clk;
+	__clk_hw_set_clk(mux_hw, hw);
 
 	return clk_mux_ops.get_parent(mux_hw);
 }
@@ -89,7 +89,7 @@ static int flexgen_set_parent(struct clk_hw *hw, u8 index)
 	struct flexgen *flexgen = to_flexgen(hw);
 	struct clk_hw *mux_hw = &flexgen->mux.hw;
 
-	mux_hw->clk = hw->clk;
+	__clk_hw_set_clk(mux_hw, hw);
 
 	return clk_mux_ops.set_parent(mux_hw, index);
 }
@@ -124,8 +124,8 @@ unsigned long flexgen_recalc_rate(struct clk_hw *hw,
 	struct clk_hw *fdiv_hw = &flexgen->fdiv.hw;
 	unsigned long mid_rate;
 
-	pdiv_hw->clk = hw->clk;
-	fdiv_hw->clk = hw->clk;
+	__clk_hw_set_clk(pdiv_hw, hw);
+	__clk_hw_set_clk(fdiv_hw, hw);
 
 	mid_rate = clk_divider_ops.recalc_rate(pdiv_hw, parent_rate);
 
@@ -138,16 +138,27 @@ static int flexgen_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct flexgen *flexgen = to_flexgen(hw);
 	struct clk_hw *pdiv_hw = &flexgen->pdiv.hw;
 	struct clk_hw *fdiv_hw = &flexgen->fdiv.hw;
-	unsigned long primary_div = 0;
+	unsigned long div = 0;
 	int ret = 0;
 
-	pdiv_hw->clk = hw->clk;
-	fdiv_hw->clk = hw->clk;
+	__clk_hw_set_clk(pdiv_hw, hw);
+	__clk_hw_set_clk(fdiv_hw, hw);
 
-	primary_div = clk_best_div(parent_rate, rate);
+	div = clk_best_div(parent_rate, rate);
 
-	clk_divider_ops.set_rate(fdiv_hw, parent_rate, parent_rate);
-	ret = clk_divider_ops.set_rate(pdiv_hw, rate, rate * primary_div);
+	/*
+	* pdiv is mainly targeted for low freq results, while fdiv
+	* should be used for div <= 64. The other way round can
+	* lead to 'duty cycle' issues.
+	*/
+
+	if (div <= 64) {
+		clk_divider_ops.set_rate(pdiv_hw, parent_rate, parent_rate);
+		ret = clk_divider_ops.set_rate(fdiv_hw, rate, rate * div);
+	} else {
+		clk_divider_ops.set_rate(fdiv_hw, parent_rate, parent_rate);
+		ret = clk_divider_ops.set_rate(pdiv_hw, rate, rate * div);
+	}
 
 	return ret;
 }

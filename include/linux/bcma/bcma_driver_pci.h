@@ -223,6 +223,7 @@ struct bcma_drv_pci_host {
 
 struct bcma_drv_pci {
 	struct bcma_device *core;
+	u8 early_setup_done:1;
 	u8 setup_done:1;
 	u8 hostmode:1;
 
@@ -237,6 +238,7 @@ struct bcma_drv_pci {
 #define pcicore_write16(pc, offset, val)	bcma_write16((pc)->core, offset, val)
 #define pcicore_write32(pc, offset, val)	bcma_write32((pc)->core, offset, val)
 
+extern void bcma_core_pci_early_init(struct bcma_drv_pci *pc);
 extern void bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
 				 struct bcma_device *core, bool enable);

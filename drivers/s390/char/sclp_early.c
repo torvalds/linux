@@ -20,26 +20,31 @@ struct read_info_sccb {
 	struct	sccb_header header;	/* 0-7 */
 	u16	rnmax;			/* 8-9 */
 	u8	rnsize;			/* 10 */
-	u8	_reserved0[16 - 11];	/* 11-15 */
+	u8	_pad_11[16 - 11];	/* 11-15 */
 	u16	ncpurl;			/* 16-17 */
 	u16	cpuoff;			/* 18-19 */
-	u8	_reserved7[24 - 20];	/* 20-23 */
+	u8	_pad_20[24 - 20];	/* 20-23 */
 	u8	loadparm[8];		/* 24-31 */
-	u8	_reserved1[48 - 32];	/* 32-47 */
+	u8	_pad_32[42 - 32];	/* 32-41 */
+	u8	fac42;			/* 42 */
+	u8	fac43;			/* 43 */
+	u8	_pad_44[48 - 44];	/* 44-47 */
 	u64	facilities;		/* 48-55 */
-	u8	_reserved2a[76 - 56];	/* 56-75 */
+	u8	_pad_56[66 - 56];	/* 56-65 */
+	u8	fac66;			/* 66 */
+	u8	_pad_67[76 - 67];	/* 67-83 */
 	u32	ibc;			/* 76-79 */
-	u8	_reserved2b[84 - 80];	/* 80-83 */
+	u8	_pad80[84 - 80];	/* 80-83 */
 	u8	fac84;			/* 84 */
 	u8	fac85;			/* 85 */
-	u8	_reserved3[91 - 86];	/* 86-90 */
+	u8	_pad_86[91 - 86];	/* 86-90 */
 	u8	flags;			/* 91 */
-	u8	_reserved4[100 - 92];	/* 92-99 */
+	u8	_pad_92[100 - 92];	/* 92-99 */
 	u32	rnsize2;		/* 100-103 */
 	u64	rnmax2;			/* 104-111 */
-	u8	_reserved5[120 - 112];	/* 112-119 */
+	u8	_pad_112[120 - 112];	/* 112-119 */
 	u16	hcpua;			/* 120-121 */
-	u8	_reserved6[4096 - 122];	/* 122-4095 */
+	u8	_pad_122[4096 - 122];	/* 122-4095 */
 } __packed __aligned(PAGE_SIZE);
 
 static char sccb_early[PAGE_SIZE] __aligned(PAGE_SIZE) __initdata;
@@ -49,7 +54,12 @@ static unsigned long sclp_hsa_size;
 static unsigned int sclp_max_cpu;
 static struct sclp_ipl_info sclp_ipl_info;
 static unsigned char sclp_siif;
+static unsigned char sclp_sigpif;
 static u32 sclp_ibc;
+static unsigned int sclp_mtid;
+static unsigned int sclp_mtid_cp;
+static unsigned int sclp_mtid_max;
+static unsigned int sclp_mtid_prev;
 
 u64 sclp_facilities;
 u8 sclp_fac84;
@@ -128,9 +138,10 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 	boot_cpu_address = stap();
 	cpue = (void *)sccb + sccb->cpuoff;
 	for (cpu = 0; cpu < sccb->ncpurl; cpue++, cpu++) {
-		if (boot_cpu_address != cpue->address)
+		if (boot_cpu_address != cpue->core_id)
 			continue;
 		sclp_siif = cpue->siif;
+		sclp_sigpif = cpue->sigpif;
 		break;
 	}
 
@@ -139,6 +150,11 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 	if (sccb->flags & 0x2)
 		sclp_ipl_info.has_dump = 1;
 	memcpy(&sclp_ipl_info.loadparm, &sccb->loadparm, LOADPARM_LEN);
+
+	sclp_mtid = (sccb->fac42 & 0x80) ? (sccb->fac42 & 31) : 0;
+	sclp_mtid_cp = (sccb->fac42 & 0x80) ? (sccb->fac43 & 31) : 0;
+	sclp_mtid_max = max(sclp_mtid, sclp_mtid_cp);
+	sclp_mtid_prev = (sccb->fac42 & 0x80) ? (sccb->fac66 & 31) : 0;
 }
 
 bool __init sclp_has_linemode(void)
@@ -172,11 +188,32 @@ int sclp_has_siif(void)
 }
 EXPORT_SYMBOL(sclp_has_siif);
 
+int sclp_has_sigpif(void)
+{
+	return sclp_sigpif;
+}
+EXPORT_SYMBOL(sclp_has_sigpif);
+
 unsigned int sclp_get_ibc(void)
 {
 	return sclp_ibc;
 }
 EXPORT_SYMBOL(sclp_get_ibc);
+
+unsigned int sclp_get_mtid(u8 cpu_type)
+{
+	return cpu_type ? sclp_mtid : sclp_mtid_cp;
+}
+
+unsigned int sclp_get_mtid_max(void)
+{
+	return sclp_mtid_max;
+}
+
+unsigned int sclp_get_mtid_prev(void)
+{
+	return sclp_mtid_prev;
+}
 
 /*
  * This function will be called after sclp_facilities_detect(), which gets

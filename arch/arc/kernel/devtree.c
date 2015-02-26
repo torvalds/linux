@@ -17,6 +17,28 @@
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
 
+#ifdef CONFIG_SERIAL_EARLYCON
+
+static unsigned int __initdata arc_base_baud;
+
+unsigned int __init arc_early_base_baud(void)
+{
+	return arc_base_baud/16;
+}
+
+static void __init arc_set_early_base_baud(unsigned long dt_root)
+{
+	unsigned int core_clk = arc_get_core_freq();
+
+	if (of_flat_dt_is_compatible(dt_root, "abilis,arc-tb10x"))
+		arc_base_baud = core_clk/3;
+	else
+		arc_base_baud = core_clk;
+}
+#else
+#define arc_set_early_base_baud(dt_root)
+#endif
+
 static const void * __init arch_get_next_mach(const char *const **match)
 {
 	static const struct machine_desc *mdesc = __arch_info_begin;
@@ -55,6 +77,8 @@ const struct machine_desc * __init setup_machine_fdt(void *dt)
 	clk = of_get_flat_dt_prop(dt_root, "clock-frequency", &len);
 	if (clk)
 		arc_set_core_freq(of_read_ulong(clk, len/4));
+
+	arc_set_early_base_baud(dt_root);
 
 	return mdesc;
 }

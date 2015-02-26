@@ -1760,6 +1760,14 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+struct net *ip6_tnl_get_link_net(const struct net_device *dev)
+{
+	struct ip6_tnl *tunnel = netdev_priv(dev);
+
+	return tunnel->net;
+}
+EXPORT_SYMBOL(ip6_tnl_get_link_net);
+
 static const struct nla_policy ip6_tnl_policy[IFLA_IPTUN_MAX + 1] = {
 	[IFLA_IPTUN_LINK]		= { .type = NLA_U32 },
 	[IFLA_IPTUN_LOCAL]		= { .len = sizeof(struct in6_addr) },
@@ -1783,6 +1791,7 @@ static struct rtnl_link_ops ip6_link_ops __read_mostly = {
 	.dellink	= ip6_tnl_dellink,
 	.get_size	= ip6_tnl_get_size,
 	.fill_info	= ip6_tnl_fill_info,
+	.get_link_net	= ip6_tnl_get_link_net,
 };
 
 static struct xfrm6_tunnel ip4ip6_handler __read_mostly = {

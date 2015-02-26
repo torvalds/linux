@@ -29,6 +29,15 @@ config IPQ_GCC_806X
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, etc.
 
+config IPQ_LCC_806X
+	tristate "IPQ806x LPASS Clock Controller"
+	select IPQ_GCC_806X
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the LPASS clock controller on ipq806x devices.
+	  Say Y if you want to use audio devices such as i2s, pcm,
+	  S/PDIF, etc.
+
 config MSM_GCC_8660
 	tristate "MSM8660 Global Clock Controller"
 	depends on COMMON_CLK_QCOM
@@ -44,6 +53,15 @@ config MSM_GCC_8960
 	  Support for the global clock controller on apq8064/msm8960 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, SATA, PCIe, etc.
+
+config MSM_LCC_8960
+	tristate "APQ8064/MSM8960 LPASS Clock Controller"
+	select MSM_GCC_8960
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the LPASS clock controller on apq8064/msm8960 devices.
+	  Say Y if you want to use audio devices such as i2s, pcm,
+	  SLIMBus, etc.
 
 config MSM_MMCC_8960
 	tristate "MSM8960 Multimedia Clock Controller"

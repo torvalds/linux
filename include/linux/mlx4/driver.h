@@ -49,6 +49,10 @@ enum mlx4_dev_event {
 	MLX4_DEV_EVENT_SLAVE_SHUTDOWN,
 };
 
+enum {
+	MLX4_INTFF_BONDING	= 1 << 0
+};
+
 struct mlx4_interface {
 	void *			(*add)	 (struct mlx4_dev *dev);
 	void			(*remove)(struct mlx4_dev *dev, void *context);
@@ -57,10 +61,25 @@ struct mlx4_interface {
 	void *			(*get_dev)(struct mlx4_dev *dev, void *context, u8 port);
 	struct list_head	list;
 	enum mlx4_protocol	protocol;
+	int			flags;
 };
 
 int mlx4_register_interface(struct mlx4_interface *intf);
 void mlx4_unregister_interface(struct mlx4_interface *intf);
+
+int mlx4_bond(struct mlx4_dev *dev);
+int mlx4_unbond(struct mlx4_dev *dev);
+static inline int mlx4_is_bonded(struct mlx4_dev *dev)
+{
+	return !!(dev->flags & MLX4_FLAG_BONDED);
+}
+
+struct mlx4_port_map {
+	u8	port1;
+	u8	port2;
+};
+
+int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p);
 
 void *mlx4_get_protocol_dev(struct mlx4_dev *dev, enum mlx4_protocol proto, int port);
 

@@ -901,6 +901,16 @@
 /* 0x6e98, 0x7a98, 0x10698, 0x11298, 0x11e98, 0x12a98 */
 #define CRTC_STATUS_FRAME_COUNT                         0x6e98
 
+/* Audio clocks */
+#define DCCG_AUDIO_DTO_SOURCE                           0x05ac
+#       define DCCG_AUDIO_DTO0_SOURCE_SEL(x) ((x) << 0) /* crtc0 - crtc5 */
+#       define DCCG_AUDIO_DTO_SEL            (1 << 4)   /* 0=dto0 1=dto1 */
+
+#define DCCG_AUDIO_DTO0_PHASE                           0x05b0
+#define DCCG_AUDIO_DTO0_MODULE                          0x05b4
+#define DCCG_AUDIO_DTO1_PHASE                           0x05b8
+#define DCCG_AUDIO_DTO1_MODULE                          0x05bc
+
 #define AFMT_AUDIO_SRC_CONTROL                          0x713c
 #define		AFMT_AUDIO_SRC_SELECT(x)		(((x) & 7) << 0)
 /* AFMT_AUDIO_SRC_SELECT

@@ -91,9 +91,7 @@ int snd_ak4117_create(struct snd_card *card, ak4117_read_t *read, ak4117_write_t
 	chip->read = read;
 	chip->write = write;
 	chip->private_data = private_data;
-	init_timer(&chip->timer);
-	chip->timer.data = (unsigned long)chip;
-	chip->timer.function = snd_ak4117_timer;
+	setup_timer(&chip->timer, snd_ak4117_timer, (unsigned long)chip);
 
 	for (reg = 0; reg < 5; reg++)
 		chip->regmap[reg] = pgm[reg];
@@ -139,8 +137,7 @@ void snd_ak4117_reinit(struct ak4117 *chip)
 	/* release powerdown, everything is initialized now */
 	reg_write(chip, AK4117_REG_PWRDN, old | AK4117_RST | AK4117_PWN);
 	chip->init = 0;
-	chip->timer.expires = 1 + jiffies;
-	add_timer(&chip->timer);
+	mod_timer(&chip->timer, 1 + jiffies);
 }
 
 static unsigned int external_rate(unsigned char rcs1)
@@ -540,8 +537,7 @@ static void snd_ak4117_timer(unsigned long data)
 	if (chip->init)
 		return;
 	snd_ak4117_check_rate_and_errors(chip, 0);
-	chip->timer.expires = 1 + jiffies;
-	add_timer(&chip->timer);
+	mod_timer(&chip->timer, 1 + jiffies);
 }
 
 EXPORT_SYMBOL(snd_ak4117_create);

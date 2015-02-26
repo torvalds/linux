@@ -147,6 +147,8 @@ static const struct of_device_id omap_timer_match[] __initconst = {
 	{ .compatible = "ti,omap3430-timer", },
 	{ .compatible = "ti,omap4430-timer", },
 	{ .compatible = "ti,omap5430-timer", },
+	{ .compatible = "ti,dm814-timer", },
+	{ .compatible = "ti,dm816-timer", },
 	{ .compatible = "ti,am335x-timer", },
 	{ .compatible = "ti,am335x-timer-1ms", },
 	{ }

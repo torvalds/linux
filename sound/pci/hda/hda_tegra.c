@@ -329,8 +329,8 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hda->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(chip->remap_addr))
-		return PTR_ERR(chip->remap_addr);
+	if (IS_ERR(hda->regs))
+		return PTR_ERR(hda->regs);
 
 	chip->remap_addr = hda->regs + HDA_BAR0;
 	chip->addr = res->start + HDA_BAR0;

@@ -168,7 +168,7 @@ config COMEDI_PCL730
 
 config COMEDI_PCL812
 	tristate "Advantech PCL-812/813 and ADlink ACL-8112/8113/8113/8216"
-	depends on VIRT_TO_BUS && ISA_DMA_API
+	select COMEDI_ISADMA if ISA_DMA_API
 	---help---
 	  Enable support for Advantech PCL-812/PG, PCL-813/B, ADLink
 	  ACL-8112DG/HG/PG, ACL-8113, ACL-8216, ICP DAS A-821PGH/PGL/PGL-NDA,
@@ -179,7 +179,7 @@ config COMEDI_PCL812
 
 config COMEDI_PCL816
 	tristate "Advantech PCL-814 and PCL-816 ISA card support"
-	depends on VIRT_TO_BUS && ISA_DMA_API
+	select COMEDI_ISADMA if ISA_DMA_API
 	---help---
 	  Enable support for Advantech PCL-814 and PCL-816 ISA cards
 
@@ -188,7 +188,7 @@ config COMEDI_PCL816
 
 config COMEDI_PCL818
 	tristate "Advantech PCL-718 and PCL-818 ISA card support"
-	depends on VIRT_TO_BUS && ISA_DMA_API
+	select COMEDI_ISADMA if ISA_DMA_API
 	---help---
 	  Enable support for Advantech PCL-818 ISA cards
 	  PCL-818L, PCL-818H, PCL-818HD, PCL-818HG, PCL-818 and PCL-718
@@ -281,7 +281,7 @@ config COMEDI_DAS08_ISA
 
 config COMEDI_DAS16
 	tristate "DAS-16 compatible ISA and PC/104 card support"
-	depends on ISA_DMA_API
+	select COMEDI_ISADMA if ISA_DMA_API
 	select COMEDI_8255
 	---help---
 	  Enable support for Keithley Metrabyte/ComputerBoards DAS16
@@ -309,7 +309,7 @@ config COMEDI_DAS800
 
 config COMEDI_DAS1800
 	tristate "DAS1800 and compatible ISA card support"
-	depends on VIRT_TO_BUS && ISA_DMA_API
+	select COMEDI_ISADMA if ISA_DMA_API
 	---help---
 	  Enable support for DAS1800 and compatible ISA cards
 	  Keithley Metrabyte DAS-1701ST, DAS-1701ST-DA, DAS-1701/AO,
@@ -372,7 +372,7 @@ config COMEDI_DT2817
 
 config COMEDI_DT282X
 	tristate "Data Translation DT2821 series and DT-EZ ISA card support"
-	depends on VIRT_TO_BUS && ISA_DMA_API
+	select COMEDI_ISADMA if ISA_DMA_API
 	---help---
 	  Enable support for Data Translation DT2821 series including DT-EZ
 	  DT2821, DT2821-F-16SE, DT2821-F-8DI, DT2821-G-16SE, DT2821-G-8DI,
@@ -462,7 +462,7 @@ config COMEDI_ADQ12B
 
 config COMEDI_NI_AT_A2150
 	tristate "NI AT-A2150 ISA card support"
-	depends on VIRT_TO_BUS && ISA_DMA_API
+	select COMEDI_ISADMA if ISA_DMA_API
 	---help---
 	  Enable support for National Instruments AT-A2150 cards
 
@@ -502,7 +502,7 @@ config COMEDI_NI_ATMIO16D
 config COMEDI_NI_LABPC_ISA
 	tristate "NI Lab-PC and compatibles ISA support"
 	select COMEDI_NI_LABPC
-	select COMEDI_NI_LABPC_ISADMA if ISA_DMA_API && VIRT_TO_BUS
+	select COMEDI_NI_LABPC_ISADMA if ISA_DMA_API
 	---help---
 	  Enable support for National Instruments Lab-PC and compatibles
 	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+.
@@ -724,7 +724,6 @@ config COMEDI_ADL_PCI9111
 config COMEDI_ADL_PCI9118
 	tristate "ADLink PCI-9118DG, PCI-9118HG, PCI-9118HR support"
 	depends on HAS_DMA
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADlink PCI-9118DG, PCI-9118HG, PCI-9118HR cards
 
@@ -1263,12 +1262,16 @@ config COMEDI_DAS08
 	tristate
 	select COMEDI_8255
 
+config COMEDI_ISADMA
+	tristate
+
 config COMEDI_NI_LABPC
 	tristate
 	select COMEDI_8255
 
 config COMEDI_NI_LABPC_ISADMA
 	tristate
+	select COMEDI_ISADMA
 
 config COMEDI_NI_TIO
 	tristate

@@ -11,6 +11,7 @@
 #include <linux/device-mapper.h>
 #include <linux/dm-io.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <linux/vmalloc.h>
 #include <linux/shrinker.h>
 #include <linux/module.h>
@@ -1739,7 +1740,7 @@ static unsigned get_max_age_hz(void)
 
 static bool older_than(struct dm_buffer *b, unsigned long age_hz)
 {
-	return (jiffies - b->last_accessed) >= age_hz;
+	return time_after_eq(jiffies, b->last_accessed + age_hz);
 }
 
 static void __evict_old_buffers(struct dm_bufio_client *c, unsigned long age_hz)

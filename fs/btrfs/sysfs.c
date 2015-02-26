@@ -733,10 +733,18 @@ int btrfs_init_sysfs(void)
 
 	ret = btrfs_init_debugfs();
 	if (ret)
-		return ret;
+		goto out1;
 
 	init_feature_attrs();
 	ret = sysfs_create_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
+	if (ret)
+		goto out2;
+
+	return 0;
+out2:
+	debugfs_remove_recursive(btrfs_debugfs_root_dentry);
+out1:
+	kset_unregister(btrfs_kset);
 
 	return ret;
 }

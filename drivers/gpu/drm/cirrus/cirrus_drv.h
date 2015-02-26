@@ -262,4 +262,7 @@ static inline void cirrus_bo_unreserve(struct cirrus_bo *bo)
 
 int cirrus_bo_push_sysram(struct cirrus_bo *bo);
 int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr);
+
+extern int cirrus_bpp;
+
 #endif				/* __CIRRUS_DRV_H__ */

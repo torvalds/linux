@@ -67,3 +67,4 @@ EXPORT_SYMBOL(schedule_usleep);
 #endif
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_from_user);
+EXPORT_SYMBOL(csum_partial_copy_nocheck);

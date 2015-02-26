@@ -321,6 +321,18 @@ static int try_smi_init(struct smi_info *smi);
 static void cleanup_one_si(struct smi_info *to_clean);
 static void cleanup_ipmi_si(void);
 
+#ifdef DEBUG_TIMING
+void debug_timestamp(char *msg)
+{
+	struct timespec64 t;
+
+	getnstimeofday64(&t);
+	pr_debug("**%s: %lld.%9.9ld\n", msg, (long long) t.tv_sec, t.tv_nsec);
+}
+#else
+#define debug_timestamp(x)
+#endif
+
 static ATOMIC_NOTIFIER_HEAD(xaction_notifier_list);
 static int register_xaction_notifier(struct notifier_block *nb)
 {
@@ -358,9 +370,6 @@ static void return_hosed_msg(struct smi_info *smi_info, int cCode)
 static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 {
 	int              rv;
-#ifdef DEBUG_TIMING
-	struct timeval t;
-#endif
 
 	if (!smi_info->waiting_msg) {
 		smi_info->curr_msg = NULL;
@@ -370,10 +379,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 
 		smi_info->curr_msg = smi_info->waiting_msg;
 		smi_info->waiting_msg = NULL;
-#ifdef DEBUG_TIMING
-		do_gettimeofday(&t);
-		printk(KERN_DEBUG "**Start2: %d.%9.9d\n", t.tv_sec, t.tv_usec);
-#endif
+		debug_timestamp("Start2");
 		err = atomic_notifier_call_chain(&xaction_notifier_list,
 				0, smi_info);
 		if (err & NOTIFY_STOP_MASK) {
@@ -582,12 +588,8 @@ static void check_bt_irq(struct smi_info *smi_info, bool irq_on)
 static void handle_transaction_done(struct smi_info *smi_info)
 {
 	struct ipmi_smi_msg *msg;
-#ifdef DEBUG_TIMING
-	struct timeval t;
 
-	do_gettimeofday(&t);
-	printk(KERN_DEBUG "**Done: %d.%9.9d\n", t.tv_sec, t.tv_usec);
-#endif
+	debug_timestamp("Done");
 	switch (smi_info->si_state) {
 	case SI_NORMAL:
 		if (!smi_info->curr_msg)
@@ -929,24 +931,15 @@ static void sender(void                *send_info,
 	struct smi_info   *smi_info = send_info;
 	enum si_sm_result result;
 	unsigned long     flags;
-#ifdef DEBUG_TIMING
-	struct timeval    t;
-#endif
 
-	BUG_ON(smi_info->waiting_msg);
-	smi_info->waiting_msg = msg;
-
-#ifdef DEBUG_TIMING
-	do_gettimeofday(&t);
-	printk("**Enqueue: %d.%9.9d\n", t.tv_sec, t.tv_usec);
-#endif
+	debug_timestamp("Enqueue");
 
 	if (smi_info->run_to_completion) {
 		/*
 		 * If we are running to completion, start it and run
 		 * transactions until everything is clear.
 		 */
-		smi_info->curr_msg = smi_info->waiting_msg;
+		smi_info->curr_msg = msg;
 		smi_info->waiting_msg = NULL;
 
 		/*
@@ -964,6 +957,15 @@ static void sender(void                *send_info,
 	}
 
 	spin_lock_irqsave(&smi_info->si_lock, flags);
+	/*
+	 * The following two lines don't need to be under the lock for
+	 * the lock's sake, but they do need SMP memory barriers to
+	 * avoid getting things out of order.  We are already claiming
+	 * the lock, anyway, so just do it under the lock to avoid the
+	 * ordering problem.
+	 */
+	BUG_ON(smi_info->waiting_msg);
+	smi_info->waiting_msg = msg;
 	check_start_timer_thread(smi_info);
 	spin_unlock_irqrestore(&smi_info->si_lock, flags);
 }
@@ -989,18 +991,18 @@ static void set_run_to_completion(void *send_info, bool i_run_to_completion)
  * we are spinning in kipmid looking for something and not delaying
  * between checks
  */
-static inline void ipmi_si_set_not_busy(struct timespec *ts)
+static inline void ipmi_si_set_not_busy(struct timespec64 *ts)
 {
 	ts->tv_nsec = -1;
 }
-static inline int ipmi_si_is_busy(struct timespec *ts)
+static inline int ipmi_si_is_busy(struct timespec64 *ts)
 {
 	return ts->tv_nsec != -1;
 }
 
 static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
 					const struct smi_info *smi_info,
-					struct timespec *busy_until)
+					struct timespec64 *busy_until)
 {
 	unsigned int max_busy_us = 0;
 
@@ -1009,12 +1011,13 @@ static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
 	if (max_busy_us == 0 || smi_result != SI_SM_CALL_WITH_DELAY)
 		ipmi_si_set_not_busy(busy_until);
 	else if (!ipmi_si_is_busy(busy_until)) {
-		getnstimeofday(busy_until);
-		timespec_add_ns(busy_until, max_busy_us*NSEC_PER_USEC);
+		getnstimeofday64(busy_until);
+		timespec64_add_ns(busy_until, max_busy_us*NSEC_PER_USEC);
 	} else {
-		struct timespec now;
-		getnstimeofday(&now);
-		if (unlikely(timespec_compare(&now, busy_until) > 0)) {
+		struct timespec64 now;
+
+		getnstimeofday64(&now);
+		if (unlikely(timespec64_compare(&now, busy_until) > 0)) {
 			ipmi_si_set_not_busy(busy_until);
 			return 0;
 		}
@@ -1037,7 +1040,7 @@ static int ipmi_thread(void *data)
 	struct smi_info *smi_info = data;
 	unsigned long flags;
 	enum si_sm_result smi_result;
-	struct timespec busy_until;
+	struct timespec64 busy_until;
 
 	ipmi_si_set_not_busy(&busy_until);
 	set_user_nice(current, MAX_NICE);
@@ -1128,15 +1131,10 @@ static void smi_timeout(unsigned long data)
 	unsigned long     jiffies_now;
 	long              time_diff;
 	long		  timeout;
-#ifdef DEBUG_TIMING
-	struct timeval    t;
-#endif
 
 	spin_lock_irqsave(&(smi_info->si_lock), flags);
-#ifdef DEBUG_TIMING
-	do_gettimeofday(&t);
-	printk(KERN_DEBUG "**Timer: %d.%9.9d\n", t.tv_sec, t.tv_usec);
-#endif
+	debug_timestamp("Timer");
+
 	jiffies_now = jiffies;
 	time_diff = (((long)jiffies_now - (long)smi_info->last_timeout_jiffies)
 		     * SI_USEC_PER_JIFFY);
@@ -1173,18 +1171,13 @@ static irqreturn_t si_irq_handler(int irq, void *data)
 {
 	struct smi_info *smi_info = data;
 	unsigned long   flags;
-#ifdef DEBUG_TIMING
-	struct timeval  t;
-#endif
 
 	spin_lock_irqsave(&(smi_info->si_lock), flags);
 
 	smi_inc_stat(smi_info, interrupts);
 
-#ifdef DEBUG_TIMING
-	do_gettimeofday(&t);
-	printk(KERN_DEBUG "**Interrupt: %d.%9.9d\n", t.tv_sec, t.tv_usec);
-#endif
+	debug_timestamp("Interrupt");
+
 	smi_event_handler(smi_info, 0);
 	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 	return IRQ_HANDLED;
@@ -2038,18 +2031,13 @@ static u32 ipmi_acpi_gpe(acpi_handle gpe_device,
 {
 	struct smi_info *smi_info = context;
 	unsigned long   flags;
-#ifdef DEBUG_TIMING
-	struct timeval t;
-#endif
 
 	spin_lock_irqsave(&(smi_info->si_lock), flags);
 
 	smi_inc_stat(smi_info, interrupts);
 
-#ifdef DEBUG_TIMING
-	do_gettimeofday(&t);
-	printk("**ACPI_GPE: %d.%9.9d\n", t.tv_sec, t.tv_usec);
-#endif
+	debug_timestamp("ACPI_GPE");
+
 	smi_event_handler(smi_info, 0);
 	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 
@@ -2071,7 +2059,6 @@ static int acpi_gpe_irq_setup(struct smi_info *info)
 	if (!info->irq)
 		return 0;
 
-	/* FIXME - is level triggered right? */
 	status = acpi_install_gpe_handler(NULL,
 					  info->irq,
 					  ACPI_GPE_LEVEL_TRIGGERED,
@@ -2998,7 +2985,9 @@ static int smi_type_proc_show(struct seq_file *m, void *v)
 {
 	struct smi_info *smi = m->private;
 
-	return seq_printf(m, "%s\n", si_to_str[smi->si_type]);
+	seq_printf(m, "%s\n", si_to_str[smi->si_type]);
+
+	return seq_has_overflowed(m);
 }
 
 static int smi_type_proc_open(struct inode *inode, struct file *file)
@@ -3060,16 +3049,18 @@ static int smi_params_proc_show(struct seq_file *m, void *v)
 {
 	struct smi_info *smi = m->private;
 
-	return seq_printf(m,
-		       "%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
-		       si_to_str[smi->si_type],
-		       addr_space_to_str[smi->io.addr_type],
-		       smi->io.addr_data,
-		       smi->io.regspacing,
-		       smi->io.regsize,
-		       smi->io.regshift,
-		       smi->irq,
-		       smi->slave_addr);
+	seq_printf(m,
+		   "%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
+		   si_to_str[smi->si_type],
+		   addr_space_to_str[smi->io.addr_type],
+		   smi->io.addr_data,
+		   smi->io.regspacing,
+		   smi->io.regsize,
+		   smi->io.regshift,
+		   smi->irq,
+		   smi->slave_addr);
+
+	return seq_has_overflowed(m);
 }
 
 static int smi_params_proc_open(struct inode *inode, struct file *file)

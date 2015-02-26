@@ -68,6 +68,7 @@ struct kvm_arch {
 
 	/* Interrupt controller */
 	struct vgic_dist	vgic;
+	int max_vcpus;
 };
 
 #define KVM_NR_MEM_OBJS     40
@@ -144,6 +145,7 @@ struct kvm_vm_stat {
 };
 
 struct kvm_vcpu_stat {
+	u32 halt_successful_poll;
 	u32 halt_wakeup;
 };
 
@@ -230,6 +232,10 @@ static inline void vgic_arch_setup(const struct vgic_params *vgic)
 
 int kvm_perf_init(void);
 int kvm_perf_teardown(void);
+
+void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot);
+
+struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr);
 
 static inline void kvm_arch_hardware_disable(void) {}
 static inline void kvm_arch_hardware_unsetup(void) {}

@@ -20,7 +20,7 @@
  * Driver: adv_pci1723
  * Description: Advantech PCI-1723
  * Author: yonggang <rsmgnu@gmail.com>, Ian Abbott <abbotti@mev.co.uk>
- * Devices: (Advantech) PCI-1723 [adv_pci1723]
+ * Devices: [Advantech] PCI-1723 (adv_pci1723)
  * Updated: Mon, 14 Apr 2008 15:12:56 +0100
  * Status: works
  *

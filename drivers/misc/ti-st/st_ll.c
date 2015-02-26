@@ -26,6 +26,7 @@
 #include <linux/ti_wilink_st.h>
 
 /**********************************************************************/
+
 /* internal functions */
 static void send_ll_cmd(struct st_data_s *st_data,
 	unsigned char cmd)
@@ -53,7 +54,13 @@ static void ll_device_want_to_sleep(struct st_data_s *st_data)
 
 	/* communicate to platform about chip asleep */
 	kim_data = st_data->kim_data;
-	pdata = kim_data->kim_pdev->dev.platform_data;
+	if (kim_data->kim_pdev->dev.of_node) {
+		pr_debug("use device tree data");
+		pdata = dt_pdata;
+	} else {
+		pdata = kim_data->kim_pdev->dev.platform_data;
+	}
+
 	if (pdata->chip_asleep)
 		pdata->chip_asleep(NULL);
 }
@@ -86,7 +93,13 @@ static void ll_device_want_to_wakeup(struct st_data_s *st_data)
 
 	/* communicate to platform about chip wakeup */
 	kim_data = st_data->kim_data;
-	pdata = kim_data->kim_pdev->dev.platform_data;
+	if (kim_data->kim_pdev->dev.of_node) {
+		pr_debug("use device tree data");
+		pdata = dt_pdata;
+	} else {
+		pdata = kim_data->kim_pdev->dev.platform_data;
+	}
+
 	if (pdata->chip_awake)
 		pdata->chip_awake(NULL);
 }

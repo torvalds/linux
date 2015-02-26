@@ -3536,7 +3536,7 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 	int bias = ar9003_modal_header(ah, is2ghz)->xpaBiasLvl;
 
 	if (AR_SREV_9485(ah) || AR_SREV_9330(ah) || AR_SREV_9340(ah) ||
-	    AR_SREV_9531(ah))
+	    AR_SREV_9531(ah) || AR_SREV_9561(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP2, AR_CH0_TOP2_XPABIASLVL, bias);
 	else if (AR_SREV_9462(ah) || AR_SREV_9550(ah) || AR_SREV_9565(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
@@ -3599,7 +3599,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 				AR_SWITCH_TABLE_COM_AR9462_ALL, value);
-	} else if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
+	} else if (AR_SREV_9550(ah) || AR_SREV_9531(ah) || AR_SREV_9561(ah)) {
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 				AR_SWITCH_TABLE_COM_AR9550_ALL, value);
 	} else
@@ -3929,9 +3929,13 @@ void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 			REG_WRITE(ah, AR_PHY_PMU2, reg_pmu_set);
 			if (!is_pmu_set(ah, AR_PHY_PMU2, reg_pmu_set))
 				return;
-		} else if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
+		} else if (AR_SREV_9462(ah) || AR_SREV_9565(ah) ||
+			   AR_SREV_9561(ah)) {
 			reg_val = le32_to_cpu(pBase->swreg);
 			REG_WRITE(ah, AR_PHY_PMU1, reg_val);
+
+			if (AR_SREV_9561(ah))
+				REG_WRITE(ah, AR_PHY_PMU2, 0x10200000);
 		} else {
 			/* Internal regulator is ON. Write swreg register. */
 			reg_val = le32_to_cpu(pBase->swreg);
@@ -4034,7 +4038,8 @@ static void ar9003_hw_xpa_timing_control_apply(struct ath_hw *ah, bool is2ghz)
 	if (!AR_SREV_9300(ah) &&
 	    !AR_SREV_9340(ah) &&
 	    !AR_SREV_9580(ah) &&
-	    !AR_SREV_9531(ah))
+	    !AR_SREV_9531(ah) &&
+	    !AR_SREV_9561(ah))
 		return;
 
 	xpa_ctl = ar9003_modal_header(ah, is2ghz)->txFrameToXpaOn;
@@ -4812,7 +4817,7 @@ static void ar9003_hw_power_control_override(struct ath_hw *ah,
 	}
 
 tempslope:
-	if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
+	if (AR_SREV_9550(ah) || AR_SREV_9531(ah) || AR_SREV_9561(ah)) {
 		u8 txmask = (eep->baseEepHeader.txrxMask & 0xf0) >> 4;
 
 		/*

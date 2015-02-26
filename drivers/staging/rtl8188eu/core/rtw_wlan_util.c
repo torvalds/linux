@@ -405,11 +405,6 @@ int get_bsstype(unsigned short capability)
 		return 0;
 }
 
-__inline u8 *get_my_bssid(struct wlan_bssid_ex *pnetwork)
-{
-	return pnetwork->MacAddress;
-}
-
 u16 get_beacon_interval(struct wlan_bssid_ex *bss)
 {
 	__le16 val;
@@ -936,6 +931,8 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 	}
 
 	bssid = kzalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
+	if (!bssid)
+		return _FAIL;
 
 	subtype = GetFrameSubType(pframe) >> 4;
 

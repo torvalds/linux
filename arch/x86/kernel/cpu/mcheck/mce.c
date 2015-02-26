@@ -117,7 +117,7 @@ static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
  * CPU/chipset specific EDAC code can register a notifier call here to print
  * MCE errors in a human-readable form.
  */
-ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
+static ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
 
 /* Do initial initialization of a struct mce */
 void mce_setup(struct mce *m)
@@ -152,14 +152,11 @@ static struct mce_log mcelog = {
 void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
-	int ret = 0;
 
 	/* Emit the trace record: */
 	trace_mce_record(mce);
 
-	ret = atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
-	if (ret == NOTIFY_STOP)
-		return;
+	atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
 
 	mce->finished = 0;
 	wmb();
@@ -313,7 +310,7 @@ static void wait_for_panic(void)
 	panic("Panicing machine check CPU died");
 }
 
-static void mce_panic(char *msg, struct mce *final, char *exp)
+static void mce_panic(const char *msg, struct mce *final, char *exp)
 {
 	int i, apei_err = 0;
 
@@ -531,7 +528,7 @@ static void mce_schedule_work(void)
 		schedule_work(this_cpu_ptr(&mce_work));
 }
 
-DEFINE_PER_CPU(struct irq_work, mce_irq_work);
+static DEFINE_PER_CPU(struct irq_work, mce_irq_work);
 
 static void mce_irq_work_cb(struct irq_work *entry)
 {
@@ -737,7 +734,7 @@ static atomic_t mce_callin;
 /*
  * Check if a timeout waiting for other CPUs happened.
  */
-static int mce_timed_out(u64 *t)
+static int mce_timed_out(u64 *t, const char *msg)
 {
 	/*
 	 * The others already did panic for some reason.
@@ -752,8 +749,7 @@ static int mce_timed_out(u64 *t)
 		goto out;
 	if ((s64)*t < SPINUNIT) {
 		if (mca_cfg.tolerant <= 1)
-			mce_panic("Timeout synchronizing machine check over CPUs",
-				  NULL, NULL);
+			mce_panic(msg, NULL, NULL);
 		cpu_missing = 1;
 		return 1;
 	}
@@ -869,7 +865,8 @@ static int mce_start(int *no_way_out)
 	 * Wait for everyone.
 	 */
 	while (atomic_read(&mce_callin) != cpus) {
-		if (mce_timed_out(&timeout)) {
+		if (mce_timed_out(&timeout,
+				  "Timeout: Not all CPUs entered broadcast exception handler")) {
 			atomic_set(&global_nwo, 0);
 			return -1;
 		}
@@ -894,7 +891,8 @@ static int mce_start(int *no_way_out)
 		 * only seen by one CPU before cleared, avoiding duplicates.
 		 */
 		while (atomic_read(&mce_executing) < order) {
-			if (mce_timed_out(&timeout)) {
+			if (mce_timed_out(&timeout,
+					  "Timeout: Subject CPUs unable to finish machine check processing")) {
 				atomic_set(&global_nwo, 0);
 				return -1;
 			}
@@ -938,7 +936,8 @@ static int mce_end(int order)
 		 * loops.
 		 */
 		while (atomic_read(&mce_executing) <= cpus) {
-			if (mce_timed_out(&timeout))
+			if (mce_timed_out(&timeout,
+					  "Timeout: Monarch CPU unable to finish machine check processing"))
 				goto reset;
 			ndelay(SPINUNIT);
 		}
@@ -951,7 +950,8 @@ static int mce_end(int order)
 		 * Subject: Wait for Monarch to finish.
 		 */
 		while (atomic_read(&mce_executing) != 0) {
-			if (mce_timed_out(&timeout))
+			if (mce_timed_out(&timeout,
+					  "Timeout: Monarch CPU did not finish machine check processing"))
 				goto reset;
 			ndelay(SPINUNIT);
 		}

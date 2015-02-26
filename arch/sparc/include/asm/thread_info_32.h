@@ -47,8 +47,6 @@ struct thread_info {
 	struct reg_window32	reg_window[NSWINS];	/* align for ldd! */
 	unsigned long		rwbuf_stkptrs[NSWINS];
 	unsigned long		w_saved;
-
-	struct restart_block	restart_block;
 };
 
 /*
@@ -62,9 +60,6 @@ struct thread_info {
 	.flags		=	0,			\
 	.cpu		=	0,			\
 	.preempt_count	=	INIT_PREEMPT_COUNT,	\
-	.restart_block	= {				\
-		.fn	=	do_no_restart_syscall,	\
-	},						\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -103,7 +98,6 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TI_REG_WINDOW	0x30
 #define TI_RWIN_SPTRS	0x230
 #define TI_W_SAVED	0x250
-/* #define TI_RESTART_BLOCK 0x25n */ /* Nobody cares */
 
 /*
  * thread information flag bit numbers

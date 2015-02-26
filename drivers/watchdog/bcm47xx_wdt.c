@@ -169,6 +169,17 @@ static int bcm47xx_wdt_notify_sys(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
+static int bcm47xx_wdt_restart(struct notifier_block *this, unsigned long mode,
+			       void *cmd)
+{
+	struct bcm47xx_wdt *wdt;
+
+	wdt = container_of(this, struct bcm47xx_wdt, restart_handler);
+	wdt->timer_set(wdt, 1);
+
+	return NOTIFY_DONE;
+}
+
 static struct watchdog_ops bcm47xx_wdt_soft_ops = {
 	.owner		= THIS_MODULE,
 	.start		= bcm47xx_wdt_soft_start,
@@ -209,15 +220,23 @@ static int bcm47xx_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_timer;
 
-	ret = watchdog_register_device(&wdt->wdd);
+	wdt->restart_handler.notifier_call = &bcm47xx_wdt_restart;
+	wdt->restart_handler.priority = 64;
+	ret = register_restart_handler(&wdt->restart_handler);
 	if (ret)
 		goto err_notifier;
+
+	ret = watchdog_register_device(&wdt->wdd);
+	if (ret)
+		goto err_handler;
 
 	dev_info(&pdev->dev, "BCM47xx Watchdog Timer enabled (%d seconds%s%s)\n",
 		timeout, nowayout ? ", nowayout" : "",
 		soft ? ", Software Timer" : "");
 	return 0;
 
+err_handler:
+	unregister_restart_handler(&wdt->restart_handler);
 err_notifier:
 	unregister_reboot_notifier(&wdt->notifier);
 err_timer:

@@ -6597,9 +6597,9 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vlan_tag_flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 	}
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		vlan_tag_flags |=
-			(TX_BD_FLAGS_VLAN_TAG | (vlan_tx_tag_get(skb) << 16));
+			(TX_BD_FLAGS_VLAN_TAG | (skb_vlan_tag_get(skb) << 16));
 	}
 
 	if ((mss = skb_shinfo(skb)->gso_size)) {

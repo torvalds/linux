@@ -67,7 +67,7 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0 0 0 0x80000000>;
+		ranges = <0 0 0 0x20000000>;
 	};
 };
 

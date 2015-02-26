@@ -58,13 +58,12 @@ choice
 	depends on MACH_DAVINCI_DM365_EVM
 
 config SND_DM365_AIC3X_CODEC
-	bool "Audio Codec - AIC3101"
+	tristate "Audio Codec - AIC3101"
 	help
 	  Say Y if you want to add support for AIC3101 audio codec
 
 config SND_DM365_VOICE_CODEC
 	tristate "Voice Codec - CQ93VC"
-	depends on SND_DAVINCI_SOC
 	select MFD_DAVINCI_VOICECODEC
 	select SND_DAVINCI_SOC_VCIF
 	select SND_SOC_CQ0093VC

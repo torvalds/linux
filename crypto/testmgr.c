@@ -181,10 +181,9 @@ static void testmgr_free_buf(char *buf[XBUFSIZE])
 static int wait_async_op(struct tcrypt_result *tr, int ret)
 {
 	if (ret == -EINPROGRESS || ret == -EBUSY) {
-		ret = wait_for_completion_interruptible(&tr->completion);
-		if (!ret)
-			ret = tr->err;
+		wait_for_completion(&tr->completion);
 		reinit_completion(&tr->completion);
+		ret = tr->err;
 	}
 	return ret;
 }
@@ -353,12 +352,11 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
-			ret = wait_for_completion_interruptible(
-				&tresult.completion);
-			if (!ret && !(ret = tresult.err)) {
-				reinit_completion(&tresult.completion);
+			wait_for_completion(&tresult.completion);
+			reinit_completion(&tresult.completion);
+			ret = tresult.err;
+			if (!ret)
 				break;
-			}
 			/* fall through */
 		default:
 			printk(KERN_ERR "alg: hash: digest failed "
@@ -431,7 +429,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	struct scatterlist *sgout;
 	const char *e, *d;
 	struct tcrypt_result result;
-	unsigned int authsize;
+	unsigned int authsize, iv_len;
 	void *input;
 	void *output;
 	void *assoc;
@@ -502,10 +500,11 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 		memcpy(input, template[i].input, template[i].ilen);
 		memcpy(assoc, template[i].assoc, template[i].alen);
+		iv_len = crypto_aead_ivsize(tfm);
 		if (template[i].iv)
-			memcpy(iv, template[i].iv, MAX_IVLEN);
+			memcpy(iv, template[i].iv, iv_len);
 		else
-			memset(iv, 0, MAX_IVLEN);
+			memset(iv, 0, iv_len);
 
 		crypto_aead_clear_flags(tfm, ~0);
 		if (template[i].wk)
@@ -569,12 +568,11 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
-			ret = wait_for_completion_interruptible(
-				&result.completion);
-			if (!ret && !(ret = result.err)) {
-				reinit_completion(&result.completion);
+			wait_for_completion(&result.completion);
+			reinit_completion(&result.completion);
+			ret = result.err;
+			if (!ret)
 				break;
-			}
 		case -EBADMSG:
 			if (template[i].novrfy)
 				/* verification failure was expected */
@@ -720,12 +718,11 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
-			ret = wait_for_completion_interruptible(
-				&result.completion);
-			if (!ret && !(ret = result.err)) {
-				reinit_completion(&result.completion);
+			wait_for_completion(&result.completion);
+			reinit_completion(&result.completion);
+			ret = result.err;
+			if (!ret)
 				break;
-			}
 		case -EBADMSG:
 			if (template[i].novrfy)
 				/* verification failure was expected */
@@ -1002,12 +999,11 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
-			ret = wait_for_completion_interruptible(
-				&result.completion);
-			if (!ret && !((ret = result.err))) {
-				reinit_completion(&result.completion);
+			wait_for_completion(&result.completion);
+			reinit_completion(&result.completion);
+			ret = result.err;
+			if (!ret)
 				break;
-			}
 			/* fall through */
 		default:
 			pr_err("alg: skcipher%s: %s failed on test %d for %s: ret=%d\n",
@@ -1097,12 +1093,11 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
-			ret = wait_for_completion_interruptible(
-					&result.completion);
-			if (!ret && !((ret = result.err))) {
-				reinit_completion(&result.completion);
+			wait_for_completion(&result.completion);
+			reinit_completion(&result.completion);
+			ret = result.err;
+			if (!ret)
 				break;
-			}
 			/* fall through */
 		default:
 			pr_err("alg: skcipher%s: %s failed on chunk test %d for %s: ret=%d\n",
@@ -3299,6 +3294,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "rfc4106(gcm(aes))",
 		.test = alg_test_aead,
+		.fips_allowed = 1,
 		.suite = {
 			.aead = {
 				.enc = {

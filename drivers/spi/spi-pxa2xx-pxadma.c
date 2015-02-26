@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/delay.h>
@@ -25,6 +21,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 
+#include <mach/dma.h>
 #include "spi-pxa2xx.h"
 
 #define DMA_INT_MASK		(DCSR_ENDINTR | DCSR_STARTINTR | DCSR_BUSERR)
@@ -118,11 +115,11 @@ static void pxa2xx_spi_unmap_dma_buffers(struct driver_data *drv_data)
 	drv_data->dma_mapped = 0;
 }
 
-static int wait_ssp_rx_stall(void const __iomem *ioaddr)
+static int wait_ssp_rx_stall(struct driver_data *drv_data)
 {
 	unsigned long limit = loops_per_jiffy << 1;
 
-	while ((read_SSSR(ioaddr) & SSSR_BSY) && --limit)
+	while ((pxa2xx_spi_read(drv_data, SSSR) & SSSR_BSY) && --limit)
 		cpu_relax();
 
 	return limit;
@@ -141,17 +138,18 @@ static int wait_dma_channel_stop(int channel)
 static void pxa2xx_spi_dma_error_stop(struct driver_data *drv_data,
 				      const char *msg)
 {
-	void __iomem *reg = drv_data->ioaddr;
-
 	/* Stop and reset */
 	DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
 	DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
 	write_SSSR_CS(drv_data, drv_data->clear_sr);
-	write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
+	pxa2xx_spi_write(drv_data, SSCR1,
+			 pxa2xx_spi_read(drv_data, SSCR1)
+			 & ~drv_data->dma_cr1);
 	if (!pxa25x_ssp_comp(drv_data))
-		write_SSTO(0, reg);
+		pxa2xx_spi_write(drv_data, SSTO, 0);
 	pxa2xx_spi_flush(drv_data);
-	write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
+	pxa2xx_spi_write(drv_data, SSCR0,
+			 pxa2xx_spi_read(drv_data, SSCR0) & ~SSCR0_SSE);
 
 	pxa2xx_spi_unmap_dma_buffers(drv_data);
 
@@ -163,11 +161,12 @@ static void pxa2xx_spi_dma_error_stop(struct driver_data *drv_data,
 
 static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data)
 {
-	void __iomem *reg = drv_data->ioaddr;
 	struct spi_message *msg = drv_data->cur_msg;
 
 	/* Clear and disable interrupts on SSP and DMA channels*/
-	write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
+	pxa2xx_spi_write(drv_data, SSCR1,
+			 pxa2xx_spi_read(drv_data, SSCR1)
+			 & ~drv_data->dma_cr1);
 	write_SSSR_CS(drv_data, drv_data->clear_sr);
 	DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
 	DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
@@ -228,7 +227,7 @@ void pxa2xx_spi_dma_handler(int channel, void *data)
 		&& (drv_data->ssp_type == PXA25x_SSP)) {
 
 		/* Wait for rx to stall */
-		if (wait_ssp_rx_stall(drv_data->ioaddr) == 0)
+		if (wait_ssp_rx_stall(drv_data) == 0)
 			dev_err(&drv_data->pdev->dev,
 				"dma_handler: ssp rx stall failed\n");
 
@@ -240,9 +239,8 @@ void pxa2xx_spi_dma_handler(int channel, void *data)
 irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 {
 	u32 irq_status;
-	void __iomem *reg = drv_data->ioaddr;
 
-	irq_status = read_SSSR(reg) & drv_data->mask_sr;
+	irq_status = pxa2xx_spi_read(drv_data, SSSR) & drv_data->mask_sr;
 	if (irq_status & SSSR_ROR) {
 		pxa2xx_spi_dma_error_stop(drv_data,
 					  "dma_transfer: fifo overrun");
@@ -252,7 +250,7 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 	/* Check for false positive timeout */
 	if ((irq_status & SSSR_TINT)
 		&& (DCSR(drv_data->tx_channel) & DCSR_RUN)) {
-		write_SSSR(SSSR_TINT, reg);
+		pxa2xx_spi_write(drv_data, SSSR, SSSR_TINT);
 		return IRQ_HANDLED;
 	}
 
@@ -261,7 +259,7 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 		/* Clear and disable timeout interrupt, do the rest in
 		 * dma_transfer_complete */
 		if (!pxa25x_ssp_comp(drv_data))
-			write_SSTO(0, reg);
+			pxa2xx_spi_write(drv_data, SSTO, 0);
 
 		/* finish this transfer, start the next */
 		pxa2xx_spi_dma_transfer_complete(drv_data);

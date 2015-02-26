@@ -182,7 +182,7 @@ static int __pnp_bus_suspend(struct device *dev, pm_message_t state)
 			return error;
 	}
 
-	if (pnp_dev->protocol->suspend)
+	if (pnp_can_suspend(pnp_dev))
 		pnp_dev->protocol->suspend(pnp_dev, state);
 	return 0;
 }

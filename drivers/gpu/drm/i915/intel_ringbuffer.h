@@ -99,13 +99,6 @@ struct intel_ringbuffer {
 
 	struct intel_engine_cs *ring;
 
-	/*
-	 * FIXME: This backpointer is an artifact of the history of how the
-	 * execlist patches came into being. It will get removed once the basic
-	 * code has landed.
-	 */
-	struct intel_context *FIXME_lrc_ctx;
-
 	u32 head;
 	u32 tail;
 	int space;
@@ -122,6 +115,8 @@ struct intel_ringbuffer {
 	 */
 	u32 last_retired_head;
 };
+
+struct	intel_context;
 
 struct  intel_engine_cs {
 	const char	*name;
@@ -142,11 +137,11 @@ struct  intel_engine_cs {
 
 	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
-	u32		trace_irq_seqno;
+	struct drm_i915_gem_request *trace_irq_req;
 	bool __must_check (*irq_get)(struct intel_engine_cs *ring);
 	void		(*irq_put)(struct intel_engine_cs *ring);
 
-	int		(*init)(struct intel_engine_cs *ring);
+	int		(*init_hw)(struct intel_engine_cs *ring);
 
 	int		(*init_context)(struct intel_engine_cs *ring,
 					struct intel_context *ctx);
@@ -239,11 +234,14 @@ struct  intel_engine_cs {
 	struct list_head execlist_retired_req_list;
 	u8 next_context_status_buffer;
 	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
-	int		(*emit_request)(struct intel_ringbuffer *ringbuf);
+	int		(*emit_request)(struct intel_ringbuffer *ringbuf,
+					struct drm_i915_gem_request *request);
 	int		(*emit_flush)(struct intel_ringbuffer *ringbuf,
+				      struct intel_context *ctx,
 				      u32 invalidate_domains,
 				      u32 flush_domains);
 	int		(*emit_bb_start)(struct intel_ringbuffer *ringbuf,
+					 struct intel_context *ctx,
 					 u64 offset, unsigned flags);
 
 	/**
@@ -251,7 +249,7 @@ struct  intel_engine_cs {
 	 * ringbuffer.
 	 *
 	 * Includes buffers having the contents of their GPU caches
-	 * flushed, not necessarily primitives.  last_rendering_seqno
+	 * flushed, not necessarily primitives.  last_read_req
 	 * represents when the rendering involved will be completed.
 	 *
 	 * A reference is held on the buffer while on this list.
@@ -267,8 +265,7 @@ struct  intel_engine_cs {
 	/**
 	 * Do we have some not yet emitted requests outstanding?
 	 */
-	struct drm_i915_gem_request *preallocated_lazy_request;
-	u32 outstanding_lazy_seqno;
+	struct drm_i915_gem_request *outstanding_lazy_request;
 	bool gpu_caches_dirty;
 	bool fbc_dirty;
 
@@ -408,6 +405,7 @@ static inline void intel_ring_advance(struct intel_engine_cs *ring)
 	ringbuf->tail &= ringbuf->size - 1;
 }
 int __intel_ring_space(int head, int tail, int size);
+void intel_ring_update_space(struct intel_ringbuffer *ringbuf);
 int intel_ring_space(struct intel_ringbuffer *ringbuf);
 bool intel_ring_stopped(struct intel_engine_cs *ring);
 void __intel_ring_advance(struct intel_engine_cs *ring);
@@ -436,16 +434,11 @@ static inline u32 intel_ring_get_tail(struct intel_ringbuffer *ringbuf)
 	return ringbuf->tail;
 }
 
-static inline u32 intel_ring_get_seqno(struct intel_engine_cs *ring)
+static inline struct drm_i915_gem_request *
+intel_ring_get_request(struct intel_engine_cs *ring)
 {
-	BUG_ON(ring->outstanding_lazy_seqno == 0);
-	return ring->outstanding_lazy_seqno;
-}
-
-static inline void i915_trace_irq_get(struct intel_engine_cs *ring, u32 seqno)
-{
-	if (ring->trace_irq_seqno == 0 && ring->irq_get(ring))
-		ring->trace_irq_seqno = seqno;
+	BUG_ON(ring->outstanding_lazy_request == NULL);
+	return ring->outstanding_lazy_request;
 }
 
 #endif /* _INTEL_RINGBUFFER_H_ */

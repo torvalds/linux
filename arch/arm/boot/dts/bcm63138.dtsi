@@ -66,8 +66,9 @@
 			reg = <0x1d000 0x1000>;
 			cache-unified;
 			cache-level = <2>;
-			cache-sets = <16>;
-			cache-size = <0x80000>;
+			cache-size = <524288>;
+			cache-sets = <1024>;
+			cache-line-size = <32>;
 			interrupts = <GIC_PPI 0 IRQ_TYPE_LEVEL_HIGH>;
 		};
 

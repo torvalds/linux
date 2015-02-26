@@ -557,3 +557,9 @@ int tty_buffer_set_limit(struct tty_port *port, int limit)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tty_buffer_set_limit);
+
+/* slave ptys can claim nested buffer lock when handling BRK and INTR */
+void tty_buffer_set_lock_subclass(struct tty_port *port)
+{
+	lockdep_set_subclass(&port->buf.lock, TTY_LOCK_SLAVE);
+}

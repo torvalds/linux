@@ -1389,6 +1389,7 @@ config SENSORS_ADS1015
 config SENSORS_ADS7828
 	tristate "Texas Instruments ADS7828 and compatibles"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for Texas Instruments ADS7828 and
 	  ADS7830 8-channel A/D converters. ADS7828 resolution is 12-bit, while
@@ -1430,8 +1431,8 @@ config SENSORS_INA2XX
 	tristate "Texas Instruments INA219 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for INA219, INA220, INA226, and
-	  INA230 power monitor chips.
+	  If you say yes here you get support for INA219, INA220, INA226,
+	  INA230, and INA231 power monitor chips.
 
 	  The INA2xx driver is configured for the default configuration of
 	  the part as described in the datasheet.
@@ -1605,7 +1606,7 @@ config SENSORS_W83795
 	  will be called w83795.
 
 config SENSORS_W83795_FANCTRL
-	boolean "Include automatic fan control support (DANGEROUS)"
+	bool "Include automatic fan control support (DANGEROUS)"
 	depends on SENSORS_W83795
 	default n
 	help

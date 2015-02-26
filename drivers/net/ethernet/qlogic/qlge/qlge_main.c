@@ -2351,23 +2351,29 @@ static int qlge_update_hw_vlan_features(struct net_device *ndev,
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	int status = 0;
+	bool need_restart = netif_running(ndev);
 
-	status = ql_adapter_down(qdev);
-	if (status) {
-		netif_err(qdev, link, qdev->ndev,
-			  "Failed to bring down the adapter\n");
-		return status;
+	if (need_restart) {
+		status = ql_adapter_down(qdev);
+		if (status) {
+			netif_err(qdev, link, qdev->ndev,
+				  "Failed to bring down the adapter\n");
+			return status;
+		}
 	}
 
 	/* update the features with resent change */
 	ndev->features = features;
 
-	status = ql_adapter_up(qdev);
-	if (status) {
-		netif_err(qdev, link, qdev->ndev,
-			  "Failed to bring up the adapter\n");
-		return status;
+	if (need_restart) {
+		status = ql_adapter_up(qdev);
+		if (status) {
+			netif_err(qdev, link, qdev->ndev,
+				  "Failed to bring up the adapter\n");
+			return status;
+		}
 	}
+
 	return status;
 }
 
@@ -2660,11 +2666,11 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 
 	mac_iocb_ptr->frame_len = cpu_to_le16((u16) skb->len);
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		netif_printk(qdev, tx_queued, KERN_DEBUG, qdev->ndev,
-			     "Adding a vlan tag %d.\n", vlan_tx_tag_get(skb));
+			     "Adding a vlan tag %d.\n", skb_vlan_tag_get(skb));
 		mac_iocb_ptr->flags3 |= OB_MAC_IOCB_V;
-		mac_iocb_ptr->vlan_tci = cpu_to_le16(vlan_tx_tag_get(skb));
+		mac_iocb_ptr->vlan_tci = cpu_to_le16(skb_vlan_tag_get(skb));
 	}
 	tso = ql_tso(skb, (struct ob_mac_tso_iocb_req *)mac_iocb_ptr);
 	if (tso < 0) {

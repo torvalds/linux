@@ -48,6 +48,18 @@
 #define DRV_NAME        "sata-dwc"
 #define DRV_VERSION     "1.3"
 
+#ifndef out_le32
+#define out_le32(a, v)	__raw_writel(__cpu_to_le32(v), (void __iomem *)(a))
+#endif
+
+#ifndef in_le32
+#define in_le32(a)	__le32_to_cpu(__raw_readl((void __iomem *)(a)))
+#endif
+
+#ifndef NO_IRQ
+#define NO_IRQ		0
+#endif
+
 /* SATA DMA driver Globals */
 #define DMA_NUM_CHANS		1
 #define DMA_NUM_CHAN_REGS	8
@@ -273,7 +285,7 @@ struct sata_dwc_device {
 	struct device		*dev;		/* generic device struct */
 	struct ata_probe_ent	*pe;		/* ptr to probe-ent */
 	struct ata_host		*host;
-	u8			*reg_base;
+	u8 __iomem		*reg_base;
 	struct sata_dwc_regs	*sata_dwc_regs;	/* DW Synopsys SATA specific */
 	int			irq_dma;
 };
@@ -323,7 +335,9 @@ struct sata_dwc_host_priv {
 	struct	device	*dwc_dev;
 	int	dma_channel;
 };
-struct sata_dwc_host_priv host_pvt;
+
+static struct sata_dwc_host_priv host_pvt;
+
 /*
  * Prototypes
  */
@@ -580,9 +594,9 @@ static int map_sg_to_lli(struct scatterlist *sg, int num_elems,
 
 	sms_val = 0;
 	dms_val = 1 + host_pvt.dma_channel;
-	dev_dbg(host_pvt.dwc_dev, "%s: sg=%p nelem=%d lli=%p dma_lli=0x%08x"
-		" dmadr=0x%08x\n", __func__, sg, num_elems, lli, (u32)dma_lli,
-		(u32)dmadr_addr);
+	dev_dbg(host_pvt.dwc_dev,
+		"%s: sg=%p nelem=%d lli=%p dma_lli=0x%pad dmadr=0x%p\n",
+		__func__, sg, num_elems, lli, &dma_lli, dmadr_addr);
 
 	bl = get_burst_length_encode(AHB_DMA_BRST_DFLT);
 
@@ -773,7 +787,7 @@ static void dma_dwc_exit(struct sata_dwc_device *hsdev)
 {
 	dev_dbg(host_pvt.dwc_dev, "%s:\n", __func__);
 	if (host_pvt.sata_dma_regs) {
-		iounmap(host_pvt.sata_dma_regs);
+		iounmap((void __iomem *)host_pvt.sata_dma_regs);
 		host_pvt.sata_dma_regs = NULL;
 	}
 
@@ -818,7 +832,7 @@ static int sata_dwc_scr_read(struct ata_link *link, unsigned int scr, u32 *val)
 		return -EINVAL;
 	}
 
-	*val = in_le32((void *)link->ap->ioaddr.scr_addr + (scr * 4));
+	*val = in_le32(link->ap->ioaddr.scr_addr + (scr * 4));
 	dev_dbg(link->ap->dev, "%s: id=%d reg=%d val=val=0x%08x\n",
 		__func__, link->ap->print_id, scr, *val);
 
@@ -834,21 +848,19 @@ static int sata_dwc_scr_write(struct ata_link *link, unsigned int scr, u32 val)
 			 __func__, scr);
 		return -EINVAL;
 	}
-	out_le32((void *)link->ap->ioaddr.scr_addr + (scr * 4), val);
+	out_le32(link->ap->ioaddr.scr_addr + (scr * 4), val);
 
 	return 0;
 }
 
 static u32 core_scr_read(unsigned int scr)
 {
-	return in_le32((void __iomem *)(host_pvt.scr_addr_sstatus) +\
-			(scr * 4));
+	return in_le32(host_pvt.scr_addr_sstatus + (scr * 4));
 }
 
 static void core_scr_write(unsigned int scr, u32 val)
 {
-	out_le32((void __iomem *)(host_pvt.scr_addr_sstatus) + (scr * 4),
-		val);
+	out_le32(host_pvt.scr_addr_sstatus + (scr * 4), val);
 }
 
 static void clear_serror(void)
@@ -856,7 +868,6 @@ static void clear_serror(void)
 	u32 val;
 	val = core_scr_read(SCR_ERROR);
 	core_scr_write(SCR_ERROR, val);
-
 }
 
 static void clear_interrupt_bit(struct sata_dwc_device *hsdev, u32 bit)
@@ -1256,24 +1267,24 @@ static void sata_dwc_enable_interrupts(struct sata_dwc_device *hsdev)
 
 static void sata_dwc_setup_port(struct ata_ioports *port, unsigned long base)
 {
-	port->cmd_addr = (void *)base + 0x00;
-	port->data_addr = (void *)base + 0x00;
+	port->cmd_addr = (void __iomem *)base + 0x00;
+	port->data_addr = (void __iomem *)base + 0x00;
 
-	port->error_addr = (void *)base + 0x04;
-	port->feature_addr = (void *)base + 0x04;
+	port->error_addr = (void __iomem *)base + 0x04;
+	port->feature_addr = (void __iomem *)base + 0x04;
 
-	port->nsect_addr = (void *)base + 0x08;
+	port->nsect_addr = (void __iomem *)base + 0x08;
 
-	port->lbal_addr = (void *)base + 0x0c;
-	port->lbam_addr = (void *)base + 0x10;
-	port->lbah_addr = (void *)base + 0x14;
+	port->lbal_addr = (void __iomem *)base + 0x0c;
+	port->lbam_addr = (void __iomem *)base + 0x10;
+	port->lbah_addr = (void __iomem *)base + 0x14;
 
-	port->device_addr = (void *)base + 0x18;
-	port->command_addr = (void *)base + 0x1c;
-	port->status_addr = (void *)base + 0x1c;
+	port->device_addr = (void __iomem *)base + 0x18;
+	port->command_addr = (void __iomem *)base + 0x1c;
+	port->status_addr = (void __iomem *)base + 0x1c;
 
-	port->altstatus_addr = (void *)base + 0x20;
-	port->ctl_addr = (void *)base + 0x20;
+	port->altstatus_addr = (void __iomem *)base + 0x20;
+	port->ctl_addr = (void __iomem *)base + 0x20;
 }
 
 /*
@@ -1314,7 +1325,7 @@ static int sata_dwc_port_start(struct ata_port *ap)
 	for (i = 0; i < SATA_DWC_QCMD_MAX; i++)
 		hsdevp->cmd_issued[i] = SATA_DWC_CMD_ISSUED_NOT;
 
-	ap->bmdma_prd = 0;	/* set these so libata doesn't use them */
+	ap->bmdma_prd = NULL;	/* set these so libata doesn't use them */
 	ap->bmdma_prd_dma = 0;
 
 	/*
@@ -1511,8 +1522,8 @@ static void sata_dwc_qc_prep_by_tag(struct ata_queued_cmd *qc, u8 tag)
 
 	dma_chan = dma_dwc_xfer_setup(sg, qc->n_elem, hsdevp->llit[tag],
 				      hsdevp->llit_dma[tag],
-				      (void *__iomem)(&hsdev->sata_dwc_regs->\
-				      dmadr), qc->dma_dir);
+				      (void __iomem *)&hsdev->sata_dwc_regs->dmadr,
+				      qc->dma_dir);
 	if (dma_chan < 0) {
 		dev_err(ap->dev, "%s: dma_dwc_xfer_setup returns err %d\n",
 			__func__, dma_chan);
@@ -1585,8 +1596,8 @@ static void sata_dwc_error_handler(struct ata_port *ap)
 	ata_sff_error_handler(ap);
 }
 
-int sata_dwc_hardreset(struct ata_link *link, unsigned int *class,
-			unsigned long deadline)
+static int sata_dwc_hardreset(struct ata_link *link, unsigned int *class,
+			      unsigned long deadline)
 {
 	struct sata_dwc_device *hsdev = HSDEV_FROM_AP(link->ap);
 	int ret;
@@ -1618,7 +1629,7 @@ static struct scsi_host_template sata_dwc_sht = {
 	 * max of 1. This will get fixed in in a future release.
 	 */
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.can_queue		= ATA_DEF_QUEUE,	/* ATA_MAX_QUEUE */
+	/* .can_queue		= ATA_MAX_QUEUE, */
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 };
 
@@ -1655,7 +1666,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	struct sata_dwc_device *hsdev;
 	u32 idr, versionr;
 	char *ver = (char *)&versionr;
-	u8 *base = NULL;
+	u8 __iomem *base;
 	int err = 0;
 	int irq;
 	struct ata_host *host;
@@ -1665,12 +1676,12 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	u32 dma_chan;
 
 	/* Allocate DWC SATA device */
-	hsdev = kzalloc(sizeof(*hsdev), GFP_KERNEL);
-	if (hsdev == NULL) {
-		dev_err(&ofdev->dev, "kmalloc failed for hsdev\n");
-		err = -ENOMEM;
-		goto error;
-	}
+	host = ata_host_alloc_pinfo(&ofdev->dev, ppi, SATA_DWC_MAX_PORTS);
+	hsdev = devm_kzalloc(&ofdev->dev, sizeof(*hsdev), GFP_KERNEL);
+	if (!host || !hsdev)
+		return -ENOMEM;
+
+	host->private_data = hsdev;
 
 	if (of_property_read_u32(np, "dma-channel", &dma_chan)) {
 		dev_warn(&ofdev->dev, "no dma-channel property set."
@@ -1680,28 +1691,17 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	host_pvt.dma_channel = dma_chan;
 
 	/* Ioremap SATA registers */
-	base = of_iomap(ofdev->dev.of_node, 0);
+	base = of_iomap(np, 0);
 	if (!base) {
 		dev_err(&ofdev->dev, "ioremap failed for SATA register"
 			" address\n");
-		err = -ENODEV;
-		goto error_kmalloc;
+		return -ENODEV;
 	}
 	hsdev->reg_base = base;
 	dev_dbg(&ofdev->dev, "ioremap done for SATA register address\n");
 
 	/* Synopsys DWC SATA specific Registers */
 	hsdev->sata_dwc_regs = (void *__iomem)(base + SATA_DWC_REG_OFFSET);
-
-	/* Allocate and fill host */
-	host = ata_host_alloc_pinfo(&ofdev->dev, ppi, SATA_DWC_MAX_PORTS);
-	if (!host) {
-		dev_err(&ofdev->dev, "ata_host_alloc_pinfo failed\n");
-		err = -ENOMEM;
-		goto error_iomap;
-	}
-
-	host->private_data = hsdev;
 
 	/* Setup port */
 	host->ports[0]->ioaddr.cmd_addr = base;
@@ -1716,7 +1716,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 		   idr, ver[0], ver[1], ver[2]);
 
 	/* Get SATA DMA interrupt number */
-	irq = irq_of_parse_and_map(ofdev->dev.of_node, 1);
+	irq = irq_of_parse_and_map(np, 1);
 	if (irq == NO_IRQ) {
 		dev_err(&ofdev->dev, "no SATA DMA irq\n");
 		err = -ENODEV;
@@ -1724,7 +1724,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	}
 
 	/* Get physical SATA DMA register base address */
-	host_pvt.sata_dma_regs = of_iomap(ofdev->dev.of_node, 1);
+	host_pvt.sata_dma_regs = (void *)of_iomap(np, 1);
 	if (!(host_pvt.sata_dma_regs)) {
 		dev_err(&ofdev->dev, "ioremap failed for AHBDMA register"
 			" address\n");
@@ -1744,7 +1744,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	sata_dwc_enable_interrupts(hsdev);
 
 	/* Get SATA interrupt number */
-	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(np, 0);
 	if (irq == NO_IRQ) {
 		dev_err(&ofdev->dev, "no SATA DMA irq\n");
 		err = -ENODEV;
@@ -1770,9 +1770,6 @@ error_dma_iomap:
 	iounmap((void __iomem *)host_pvt.sata_dma_regs);
 error_iomap:
 	iounmap(base);
-error_kmalloc:
-	kfree(hsdev);
-error:
 	return err;
 }
 
@@ -1783,15 +1780,12 @@ static int sata_dwc_remove(struct platform_device *ofdev)
 	struct sata_dwc_device *hsdev = host->private_data;
 
 	ata_host_detach(host);
-	dev_set_drvdata(dev, NULL);
 
 	/* Free SATA DMA resources */
 	dma_dwc_exit(hsdev);
 
 	iounmap((void __iomem *)host_pvt.sata_dma_regs);
 	iounmap(hsdev->reg_base);
-	kfree(hsdev);
-	kfree(host);
 	dev_dbg(&ofdev->dev, "done\n");
 	return 0;
 }

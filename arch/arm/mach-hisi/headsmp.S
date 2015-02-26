@@ -11,6 +11,6 @@
 
 	__CPUINIT
 
-ENTRY(hix5hd2_secondary_startup)
+ENTRY(hisi_secondary_startup)
 	bl	v7_invalidate_l1
 	b	secondary_startup

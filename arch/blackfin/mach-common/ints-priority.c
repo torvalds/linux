@@ -429,14 +429,6 @@ static void init_software_driven_irq(void)
 	bfin_sec_enable_ssi(37);
 }
 
-void bfin_sec_resume(void)
-{
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_RESET);
-	udelay(100);
-	bfin_write_SEC_GCTL(SEC_GCTL_EN);
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_EN | SEC_CCTL_NMI_EN);
-}
-
 void handle_sec_sfi_fault(uint32_t gstat)
 {
 
