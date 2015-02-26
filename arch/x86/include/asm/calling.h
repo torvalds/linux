@@ -176,6 +176,9 @@ For 32-bit we have the following conventions - kernel is built with
 	.macro RESTORE_C_REGS_EXCEPT_RCX
 	RESTORE_C_REGS_HELPER 1,0,1,1,1
 	.endm
+	.macro RESTORE_C_REGS_EXCEPT_R11
+	RESTORE_C_REGS_HELPER 1,1,0,1,1
+	.endm
 	.macro RESTORE_RSI_RDI
 	RESTORE_C_REGS_HELPER 0,0,0,0,0
 	.endm

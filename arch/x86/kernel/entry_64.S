@@ -757,9 +757,9 @@ retint_swapgs:		/* return to user-space */
 	 */
 irq_return_via_sysret:
 	CFI_REMEMBER_STATE
-	RESTORE_C_REGS
-	REMOVE_PT_GPREGS_FROM_STACK 8
-	movq (RSP-RIP)(%rsp),%rsp
+	/* r11 is already restored (see code above) */
+	RESTORE_C_REGS_EXCEPT_R11
+	movq RSP(%rsp),%rsp
 	USERGS_SYSRET64
 	CFI_RESTORE_STATE
 
