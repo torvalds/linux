@@ -67,7 +67,7 @@ static void skl_init_clock_gating(struct drm_device *dev)
 
 	gen9_init_clock_gating(dev);
 
-	if (INTEL_REVID(dev) == SKL_REVID_A0) {
+	if (INTEL_REVID(dev) <= SKL_REVID_B0) {
 		/*
 		 * WaDisableSDEUnitClockGating:skl
 		 * WaSetGAPSunitClckGateDisable:skl
