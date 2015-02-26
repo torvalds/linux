@@ -237,6 +237,7 @@ void rtl8723a_usb_intf_stop(struct rtw_adapter *padapter)
 static void rtw_dev_unload(struct rtw_adapter *padapter)
 {
 	struct submit_ctx *pack_tx_ops = &padapter->xmitpriv.ack_tx_ops;
+
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_dev_unload\n"));
 
 	if (padapter->bup) {
