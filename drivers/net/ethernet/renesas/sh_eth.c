@@ -2417,6 +2417,22 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NETDEV_TX_OK;
 }
 
+/* The statistics registers have write-clear behaviour, which means we
+ * will lose any increment between the read and write.  We mitigate
+ * this by only clearing when we read a non-zero value, so we will
+ * never falsely report a total of zero.
+ */
+static void
+sh_eth_update_stat(struct net_device *ndev, unsigned long *stat, int reg)
+{
+	u32 delta = sh_eth_read(ndev, reg);
+
+	if (delta) {
+		*stat += delta;
+		sh_eth_write(ndev, 0, reg);
+	}
+}
+
 static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -2427,21 +2443,18 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 	if (!mdp->is_opened)
 		return &ndev->stats;
 
-	ndev->stats.tx_dropped += sh_eth_read(ndev, TROCR);
-	sh_eth_write(ndev, 0, TROCR);	/* (write clear) */
-	ndev->stats.collisions += sh_eth_read(ndev, CDCR);
-	sh_eth_write(ndev, 0, CDCR);	/* (write clear) */
-	ndev->stats.tx_carrier_errors += sh_eth_read(ndev, LCCR);
-	sh_eth_write(ndev, 0, LCCR);	/* (write clear) */
+	sh_eth_update_stat(ndev, &ndev->stats.tx_dropped, TROCR);
+	sh_eth_update_stat(ndev, &ndev->stats.collisions, CDCR);
+	sh_eth_update_stat(ndev, &ndev->stats.tx_carrier_errors, LCCR);
 
 	if (sh_eth_is_gether(mdp)) {
-		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CERCR);
-		sh_eth_write(ndev, 0, CERCR);	/* (write clear) */
-		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CEECR);
-		sh_eth_write(ndev, 0, CEECR);	/* (write clear) */
+		sh_eth_update_stat(ndev, &ndev->stats.tx_carrier_errors,
+				   CERCR);
+		sh_eth_update_stat(ndev, &ndev->stats.tx_carrier_errors,
+				   CEECR);
 	} else {
-		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CNDCR);
-		sh_eth_write(ndev, 0, CNDCR);	/* (write clear) */
+		sh_eth_update_stat(ndev, &ndev->stats.tx_carrier_errors,
+				   CNDCR);
 	}
 
 	return &ndev->stats;
