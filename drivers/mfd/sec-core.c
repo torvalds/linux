@@ -267,10 +267,8 @@ static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 	struct sec_platform_data *pd;
 
 	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
-	if (!pd) {
-		dev_err(dev, "could not allocate memory for pdata\n");
+	if (!pd)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/*
 	 * ToDo: the 'wakeup' member in the platform data is more of a linux
