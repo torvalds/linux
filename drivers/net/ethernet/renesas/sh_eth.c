@@ -1417,6 +1417,9 @@ static int sh_eth_txfree(struct net_device *ndev)
 			break;
 		/* TACT bit must be checked before all the following reads */
 		rmb();
+		netif_info(mdp, tx_done, ndev,
+			   "tx entry %d status 0x%08x\n",
+			   entry, edmac_to_cpu(mdp, txdesc->status));
 		/* Free the original skb. */
 		if (mdp->tx_skbuff[entry]) {
 			dma_unmap_single(&ndev->dev, txdesc->addr,
@@ -1461,6 +1464,10 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 
 		if (--boguscnt < 0)
 			break;
+
+		netif_info(mdp, rx_status, ndev,
+			   "rx entry %d status 0x%08x len %d\n",
+			   entry, desc_status, pkt_len);
 
 		if (!(desc_status & RDFEND))
 			ndev->stats.rx_length_errors++;
