@@ -160,6 +160,7 @@ static int snd_hda_do_attach(struct hda_beep *beep)
 	input_dev->name = "HDA Digital PCBeep";
 	input_dev->phys = beep->phys;
 	input_dev->id.bustype = BUS_PCI;
+	input_dev->dev.parent = &codec->bus->card->card_dev;
 
 	input_dev->id.vendor = codec->vendor_id >> 16;
 	input_dev->id.product = codec->vendor_id & 0xffff;
