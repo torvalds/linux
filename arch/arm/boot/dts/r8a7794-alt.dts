@@ -51,7 +51,7 @@
 	phy1: ethernet-phy@1 {
 		reg = <1>;
 		interrupt-parent = <&irqc0>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 	};
 };
