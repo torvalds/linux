@@ -3950,6 +3950,12 @@ commit_trans:
 				ret = btrfs_commit_transaction(trans, root);
 				if (ret)
 					return ret;
+				/*
+				 * make sure that all running delayed iput are
+				 * done
+				 */
+				down_write(&root->fs_info->delayed_iput_sem);
+				up_write(&root->fs_info->delayed_iput_sem);
 				goto again;
 			} else {
 				btrfs_end_transaction(trans, root);

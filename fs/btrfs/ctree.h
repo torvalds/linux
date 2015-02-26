@@ -1538,6 +1538,7 @@ struct btrfs_fs_info {
 
 	spinlock_t delayed_iput_lock;
 	struct list_head delayed_iputs;
+	struct rw_semaphore delayed_iput_sem;
 
 	/* this protects tree_mod_seq_list */
 	spinlock_t tree_mod_seq_lock;
