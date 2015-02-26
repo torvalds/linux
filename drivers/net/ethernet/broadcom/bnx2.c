@@ -7708,17 +7708,6 @@ bnx2_set_phys_id(struct net_device *dev, enum ethtool_phys_id_state state)
 	return 0;
 }
 
-static netdev_features_t
-bnx2_fix_features(struct net_device *dev, netdev_features_t features)
-{
-	struct bnx2 *bp = netdev_priv(dev);
-
-	if (!(bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
-		features |= NETIF_F_HW_VLAN_CTAG_RX;
-
-	return features;
-}
-
 static int
 bnx2_set_features(struct net_device *dev, netdev_features_t features)
 {
@@ -8525,7 +8514,6 @@ static const struct net_device_ops bnx2_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= bnx2_change_mac_addr,
 	.ndo_change_mtu		= bnx2_change_mtu,
-	.ndo_fix_features	= bnx2_fix_features,
 	.ndo_set_features	= bnx2_set_features,
 	.ndo_tx_timeout		= bnx2_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -8575,6 +8563,9 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	dev->features |= dev->hw_features;
 	dev->priv_flags |= IFF_UNICAST_FLT;
+
+	if (!(bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
+		dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
 
 	if ((rc = register_netdev(dev))) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
