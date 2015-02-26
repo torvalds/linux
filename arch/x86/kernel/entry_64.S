@@ -256,25 +256,25 @@ ENTRY(ret_from_fork)
 END(ret_from_fork)
 
 /*
- * System call entry. Up to 6 arguments in registers are supported.
+ * 64bit SYSCALL instruction entry. Up to 6 arguments in registers.
  *
- * SYSCALL does not save anything on the stack and does not change the
- * stack pointer.  However, it does mask the flags register for us, so
- * CLD and CLAC are not needed.
- */
-
-/*
- * Register setup:
+ * 64bit SYSCALL saves rip to rcx, clears rflags.RF, then saves rflags to r11,
+ * then loads new ss, cs, and rip from previously programmed MSRs.
+ * rflags gets masked by a value from another MSR (so CLD and CLAC
+ * are not needed). SYSCALL does not save anything on the stack
+ * and does not change rsp.
+ *
+ * Registers on entry:
  * rax  system call number
+ * rcx  return address
+ * r11  saved rflags (note: r11 is callee-clobbered register in C ABI)
  * rdi  arg0
- * rcx  return address for syscall/sysret, C arg3
  * rsi  arg1
  * rdx  arg2
- * r10  arg3 	(--> moved to rcx for C)
+ * r10  arg3 (needs to be moved to rcx to conform to C ABI)
  * r8   arg4
  * r9   arg5
- * r11  eflags for syscall/sysret, temporary for C
- * r12-r15,rbp,rbx saved by C code, not touched.
+ * (note: r12-r15,rbp,rbx are callee-preserved in C ABI)
  *
  * Interrupts are off on entry.
  * Only called from user space.
@@ -302,13 +302,14 @@ ENTRY(system_call)
 GLOBAL(system_call_after_swapgs)
 
 	movq	%rsp,PER_CPU_VAR(old_rsp)
+	/* kernel_stack is set so that 5 slots (iret frame) are preallocated */
 	movq	PER_CPU_VAR(kernel_stack),%rsp
 	/*
 	 * No need to follow this irqs off/on section - it's straight
 	 * and short:
 	 */
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	ALLOC_PT_GPREGS_ON_STACK 8
+	ALLOC_PT_GPREGS_ON_STACK 8		/* +8: space for orig_ax */
 	SAVE_C_REGS_EXCEPT_RAX_RCX
 	movq	$-ENOSYS,RAX(%rsp)
 	movq_cfi rax,ORIG_RAX
@@ -348,6 +349,11 @@ ret_from_sys_call:
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
 	movq	PER_CPU_VAR(old_rsp), %rsp
+	/*
+	 * 64bit SYSRET restores rip from rcx,
+	 * rflags from r11 (but RF and VM bits are forced to 0),
+	 * cs and ss are loaded from MSRs.
+	 */
 	USERGS_SYSRET64
 
 	CFI_RESTORE_STATE
