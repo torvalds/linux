@@ -155,19 +155,6 @@ struct hda_codec_ops {
 	void (*stream_pm)(struct hda_codec *codec, hda_nid_t nid, bool on);
 };
 
-/* record for amp information cache */
-struct hda_cache_head {
-	u32 key:31;		/* hash key */
-	u32 dirty:1;
-	u16 val;		/* assigned value */
-	u16 next;
-};
-
-struct hda_cache_rec {
-	u16 hash[64];			/* hash table for index */
-	struct snd_array buf;		/* record entries */
-};
-
 /* PCM callbacks */
 struct hda_pcm_ops {
 	int (*open)(struct hda_pcm_stream *info, struct hda_codec *codec,
@@ -251,13 +238,10 @@ struct hda_codec {
 	struct snd_array mixers;	/* list of assigned mixer elements */
 	struct snd_array nids;		/* list of mapped mixer elements */
 
-	struct hda_cache_rec cmd_cache;	/* cache for other commands */
-
 	struct list_head conn_list;	/* linked-list of connection-list */
 
 	struct mutex spdif_mutex;
 	struct mutex control_mutex;
-	struct mutex hash_mutex;
 	struct snd_array spdif_out;
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
 	const hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
@@ -406,15 +390,15 @@ snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 }
 
 /* cached write */
-int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
-			      int flags, unsigned int verb, unsigned int parm);
-void snd_hda_sequence_write_cache(struct hda_codec *codec,
-				  const struct hda_verb *seq);
-int snd_hda_codec_update_cache(struct hda_codec *codec, hda_nid_t nid,
-			      int flags, unsigned int verb, unsigned int parm);
-void snd_hda_codec_resume_cache(struct hda_codec *codec);
-/* both for cmd & amp caches */
-void snd_hda_codec_flush_cache(struct hda_codec *codec);
+static inline int
+snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
+			  int flags, unsigned int verb, unsigned int parm)
+{
+	return snd_hdac_regmap_write(&codec->core, nid, verb, parm);
+}
+
+#define snd_hda_codec_update_cache(codec, nid, flags, verb, parm) \
+	snd_hda_codec_write_cache(codec, nid, flags, verb, parm)
 
 /* the struct for codec->pin_configs */
 struct hda_pincfg {

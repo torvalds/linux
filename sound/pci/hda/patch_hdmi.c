@@ -2212,7 +2212,6 @@ static int generic_hdmi_resume(struct hda_codec *codec)
 
 	codec->patch_ops.init(codec);
 	regcache_sync(codec->core.regmap);
-	snd_hda_codec_resume_cache(codec);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
@@ -2299,6 +2298,7 @@ static void intel_haswell_fixup_enable_dp12(struct hda_codec *codec)
 
 	/* enable DP1.2 mode */
 	vendor_param |= INTEL_EN_DP12;
+	snd_hdac_regmap_add_vendor_verb(&codec->core, INTEL_SET_VENDOR_VERB);
 	snd_hda_codec_write_cache(codec, INTEL_VENDOR_NID, 0,
 				INTEL_SET_VENDOR_VERB, vendor_param);
 }

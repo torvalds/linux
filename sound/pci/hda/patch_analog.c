@@ -777,7 +777,6 @@ static int ad1988_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	mutex_lock(&codec->control_mutex);
-	codec->cached_write = 1;
 	path = snd_hda_get_path_from_idx(codec,
 					 spec->smux_paths[spec->cur_smux]);
 	if (path)
@@ -786,9 +785,7 @@ static int ad1988_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
 	if (path)
 		snd_hda_activate_path(codec, path, true, true);
 	spec->cur_smux = val;
-	codec->cached_write = 0;
 	mutex_unlock(&codec->control_mutex);
-	snd_hda_codec_flush_cache(codec); /* flush the updates */
 	return 1;
 }
 
@@ -1004,18 +1001,17 @@ static void ad1884_fixup_hp_eapd(struct hda_codec *codec,
 				 const struct hda_fixup *fix, int action)
 {
 	struct ad198x_spec *spec = codec->spec;
-	static const struct hda_verb gpio_init_verbs[] = {
-		{0x01, AC_VERB_SET_GPIO_MASK, 0x02},
-		{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x02},
-		{0x01, AC_VERB_SET_GPIO_DATA, 0x02},
-		{},
-	};
 
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		spec->gen.vmaster_mute.hook = ad1884_vmaster_hp_gpio_hook;
 		spec->gen.own_eapd_ctl = 1;
-		snd_hda_sequence_write_cache(codec, gpio_init_verbs);
+		snd_hda_codec_write_cache(codec, 0x01, 0,
+					  AC_VERB_SET_GPIO_MASK, 0x02);
+		snd_hda_codec_write_cache(codec, 0x01, 0,
+					  AC_VERB_SET_GPIO_DIRECTION, 0x02);
+		snd_hda_codec_write_cache(codec, 0x01, 0,
+					  AC_VERB_SET_GPIO_DATA, 0x02);
 		break;
 	case HDA_FIXUP_ACT_PROBE:
 		if (spec->gen.autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT)
