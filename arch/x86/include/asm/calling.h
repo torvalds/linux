@@ -55,143 +55,137 @@ For 32-bit we have the following conventions - kernel is built with
  * for assembly code:
  */
 
-#define R15		  0
-#define R14		  8
-#define R13		 16
-#define R12		 24
-#define RBP		 32
-#define RBX		 40
+/* The layout forms the "struct pt_regs" on the stack: */
+/*
+ * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
+ * unless syscall needs a complete, fully filled "struct pt_regs".
+ */
+#define R15		0*8
+#define R14		1*8
+#define R13		2*8
+#define R12		3*8
+#define RBP		4*8
+#define RBX		5*8
+/* These regs are callee-clobbered. Always saved on kernel entry. */
+#define R11		6*8
+#define R10		7*8
+#define R9		8*8
+#define R8		9*8
+#define RAX		10*8
+#define RCX		11*8
+#define RDX		12*8
+#define RSI		13*8
+#define RDI		14*8
+/*
+ * On syscall entry, this is syscall#. On CPU exception, this is error code.
+ * On hw interrupt, it's IRQ number:
+ */
+#define ORIG_RAX	15*8
+/* Return frame for iretq */
+#define RIP		16*8
+#define CS		17*8
+#define EFLAGS		18*8
+#define RSP		19*8
+#define SS		20*8
 
-/* arguments: interrupts/non tracing syscalls only save up to here: */
-#define R11		 48
-#define R10		 56
-#define R9		 64
-#define R8		 72
-#define RAX		 80
-#define RCX		 88
-#define RDX		 96
-#define RSI		104
-#define RDI		112
-#define ORIG_RAX	120       /* + error_code */
-/* end of arguments */
+#define ARGOFFSET	0
 
-/* cpu exception frame or undefined in case of fast syscall: */
-#define RIP		128
-#define CS		136
-#define EFLAGS		144
-#define RSP		152
-#define SS		160
-
-#define ARGOFFSET	R11
-
-	.macro SAVE_ARGS addskip=0, save_rcx=1, save_r891011=1, rax_enosys=0
-	subq  $9*8+\addskip, %rsp
-	CFI_ADJUST_CFA_OFFSET	9*8+\addskip
-	movq_cfi rdi, 8*8
-	movq_cfi rsi, 7*8
-	movq_cfi rdx, 6*8
-
-	.if \save_rcx
-	movq_cfi rcx, 5*8
-	.endif
-
-	.if \rax_enosys
-	movq $-ENOSYS, 4*8(%rsp)
-	.else
-	movq_cfi rax, 4*8
-	.endif
-
-	.if \save_r891011
-	movq_cfi r8,  3*8
-	movq_cfi r9,  2*8
-	movq_cfi r10, 1*8
-	movq_cfi r11, 0*8
-	.endif
-
+	.macro ALLOC_PT_GPREGS_ON_STACK addskip=0
+	subq	$15*8+\addskip, %rsp
+	CFI_ADJUST_CFA_OFFSET 15*8+\addskip
 	.endm
 
-#define ARG_SKIP	(9*8)
+	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8plus=1
+	.if \r8plus
+	movq_cfi r11, 6*8+\offset
+	movq_cfi r10, 7*8+\offset
+	movq_cfi r9,  8*8+\offset
+	movq_cfi r8,  9*8+\offset
+	.endif
+	.if \rax
+	movq_cfi rax, 10*8+\offset
+	.endif
+	.if \rcx
+	movq_cfi rcx, 11*8+\offset
+	.endif
+	movq_cfi rdx, 12*8+\offset
+	movq_cfi rsi, 13*8+\offset
+	movq_cfi rdi, 14*8+\offset
+	.endm
+	.macro SAVE_C_REGS offset=0
+	SAVE_C_REGS_HELPER \offset, 1, 1, 1
+	.endm
+	.macro SAVE_C_REGS_EXCEPT_RAX_RCX offset=0
+	SAVE_C_REGS_HELPER \offset, 0, 0, 1
+	.endm
+	.macro SAVE_C_REGS_EXCEPT_R891011
+	SAVE_C_REGS_HELPER 0, 1, 1, 0
+	.endm
+	.macro SAVE_C_REGS_EXCEPT_RCX_R891011
+	SAVE_C_REGS_HELPER 0, 1, 0, 0
+	.endm
 
-	.macro RESTORE_ARGS rstor_rax=1, addskip=0, rstor_rcx=1, rstor_r11=1, \
-			    rstor_r8910=1, rstor_rdx=1
+	.macro SAVE_EXTRA_REGS offset=0
+	movq_cfi r15, 0*8+\offset
+	movq_cfi r14, 1*8+\offset
+	movq_cfi r13, 2*8+\offset
+	movq_cfi r12, 3*8+\offset
+	movq_cfi rbp, 4*8+\offset
+	movq_cfi rbx, 5*8+\offset
+	.endm
+	.macro SAVE_EXTRA_REGS_RBP offset=0
+	movq_cfi rbp, 4*8+\offset
+	.endm
+
+	.macro RESTORE_EXTRA_REGS offset=0
+	movq_cfi_restore 0*8+\offset, r15
+	movq_cfi_restore 1*8+\offset, r14
+	movq_cfi_restore 2*8+\offset, r13
+	movq_cfi_restore 3*8+\offset, r12
+	movq_cfi_restore 4*8+\offset, rbp
+	movq_cfi_restore 5*8+\offset, rbx
+	.endm
+
+	.macro RESTORE_C_REGS_HELPER rstor_rax=1, rstor_rcx=1, rstor_r11=1, rstor_r8910=1, rstor_rdx=1
 	.if \rstor_r11
-	movq_cfi_restore 0*8, r11
+	movq_cfi_restore 6*8, r11
 	.endif
-
 	.if \rstor_r8910
-	movq_cfi_restore 1*8, r10
-	movq_cfi_restore 2*8, r9
-	movq_cfi_restore 3*8, r8
+	movq_cfi_restore 7*8, r10
+	movq_cfi_restore 8*8, r9
+	movq_cfi_restore 9*8, r8
 	.endif
-
 	.if \rstor_rax
-	movq_cfi_restore 4*8, rax
+	movq_cfi_restore 10*8, rax
 	.endif
-
 	.if \rstor_rcx
-	movq_cfi_restore 5*8, rcx
+	movq_cfi_restore 11*8, rcx
 	.endif
-
 	.if \rstor_rdx
-	movq_cfi_restore 6*8, rdx
+	movq_cfi_restore 12*8, rdx
 	.endif
-
-	movq_cfi_restore 7*8, rsi
-	movq_cfi_restore 8*8, rdi
-
-	.if ARG_SKIP+\addskip > 0
-	addq $ARG_SKIP+\addskip, %rsp
-	CFI_ADJUST_CFA_OFFSET	-(ARG_SKIP+\addskip)
-	.endif
+	movq_cfi_restore 13*8, rsi
+	movq_cfi_restore 14*8, rdi
+	.endm
+	.macro RESTORE_C_REGS
+	RESTORE_C_REGS_HELPER 1,1,1,1,1
+	.endm
+	.macro RESTORE_C_REGS_EXCEPT_RAX
+	RESTORE_C_REGS_HELPER 0,1,1,1,1
+	.endm
+	.macro RESTORE_C_REGS_EXCEPT_RCX
+	RESTORE_C_REGS_HELPER 1,0,1,1,1
+	.endm
+	.macro RESTORE_RSI_RDI
+	RESTORE_C_REGS_HELPER 0,0,0,0,0
+	.endm
+	.macro RESTORE_RSI_RDI_RDX
+	RESTORE_C_REGS_HELPER 0,0,0,0,1
 	.endm
 
-	.macro LOAD_ARGS offset, skiprax=0
-	movq \offset(%rsp),    %r11
-	movq \offset+8(%rsp),  %r10
-	movq \offset+16(%rsp), %r9
-	movq \offset+24(%rsp), %r8
-	movq \offset+40(%rsp), %rcx
-	movq \offset+48(%rsp), %rdx
-	movq \offset+56(%rsp), %rsi
-	movq \offset+64(%rsp), %rdi
-	.if \skiprax
-	.else
-	movq \offset+72(%rsp), %rax
-	.endif
-	.endm
-
-#define REST_SKIP	(6*8)
-
-	.macro SAVE_REST
-	subq $REST_SKIP, %rsp
-	CFI_ADJUST_CFA_OFFSET	REST_SKIP
-	movq_cfi rbx, 5*8
-	movq_cfi rbp, 4*8
-	movq_cfi r12, 3*8
-	movq_cfi r13, 2*8
-	movq_cfi r14, 1*8
-	movq_cfi r15, 0*8
-	.endm
-
-	.macro RESTORE_REST
-	movq_cfi_restore 0*8, r15
-	movq_cfi_restore 1*8, r14
-	movq_cfi_restore 2*8, r13
-	movq_cfi_restore 3*8, r12
-	movq_cfi_restore 4*8, rbp
-	movq_cfi_restore 5*8, rbx
-	addq $REST_SKIP, %rsp
-	CFI_ADJUST_CFA_OFFSET	-(REST_SKIP)
-	.endm
-
-	.macro SAVE_ALL
-	SAVE_ARGS
-	SAVE_REST
-	.endm
-
-	.macro RESTORE_ALL addskip=0
-	RESTORE_REST
-	RESTORE_ARGS 1, \addskip
+	.macro REMOVE_PT_GPREGS_FROM_STACK addskip=0
+	addq $15*8+\addskip, %rsp
+	CFI_ADJUST_CFA_OFFSET -(15*8+\addskip)
 	.endm
 
 	.macro icebp

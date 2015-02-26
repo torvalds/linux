@@ -49,7 +49,6 @@
 #define EFLAGS 144
 #define RSP 152
 #define SS 160
-#define ARGOFFSET R11
 #endif /* __ASSEMBLY__ */
 
 /* top of stack page */

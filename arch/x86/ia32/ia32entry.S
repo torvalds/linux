@@ -62,12 +62,12 @@
 	 */
 	.macro LOAD_ARGS32 offset, _r9=0
 	.if \_r9
-	movl \offset+16(%rsp),%r9d
+	movl \offset+R9(%rsp),%r9d
 	.endif
-	movl \offset+40(%rsp),%ecx
-	movl \offset+48(%rsp),%edx
-	movl \offset+56(%rsp),%esi
-	movl \offset+64(%rsp),%edi
+	movl \offset+RCX(%rsp),%ecx
+	movl \offset+RDX(%rsp),%edx
+	movl \offset+RSI(%rsp),%esi
+	movl \offset+RDI(%rsp),%edi
 	movl %eax,%eax			/* zero extension */
 	.endm
 	
@@ -144,7 +144,8 @@ ENTRY(ia32_sysenter_target)
 	CFI_REL_OFFSET rip,0
 	pushq_cfi %rax
 	cld
-	SAVE_ARGS 0,1,0
+	ALLOC_PT_GPREGS_ON_STACK
+	SAVE_C_REGS_EXCEPT_R891011
  	/* no need to do an access_ok check here because rbp has been
  	   32bit zero extended */ 
 	ASM_STAC
@@ -182,7 +183,8 @@ sysexit_from_sys_call:
 	andl	$~0x200,EFLAGS-ARGOFFSET(%rsp)
 	movl	RIP-ARGOFFSET(%rsp),%edx		/* User %eip */
 	CFI_REGISTER rip,rdx
-	RESTORE_ARGS 0,24,0,0,0,0
+	RESTORE_RSI_RDI
+	REMOVE_PT_GPREGS_FROM_STACK 3*8
 	xorq	%r8,%r8
 	xorq	%r9,%r9
 	xorq	%r10,%r10
@@ -256,13 +258,13 @@ sysenter_tracesys:
 	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
 	jz	sysenter_auditsys
 #endif
-	SAVE_REST
+	SAVE_EXTRA_REGS
 	CLEAR_RREGS
 	movq	$-ENOSYS,RAX(%rsp)/* ptrace can change this for a bad syscall */
 	movq	%rsp,%rdi        /* &pt_regs -> arg1 */
 	call	syscall_trace_enter
 	LOAD_ARGS32 ARGOFFSET  /* reload args from stack in case ptrace changed it */
-	RESTORE_REST
+	RESTORE_EXTRA_REGS
 	cmpq	$(IA32_NR_syscalls-1),%rax
 	ja	int_ret_from_sys_call /* sysenter_tracesys has set RAX(%rsp) */
 	jmp	sysenter_do_call
@@ -304,7 +306,8 @@ ENTRY(ia32_cstar_target)
 	 * disabled irqs and here we enable it straight after entry:
 	 */
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	SAVE_ARGS 8,0,0
+	ALLOC_PT_GPREGS_ON_STACK 8
+	SAVE_C_REGS_EXCEPT_RCX_R891011
 	movl 	%eax,%eax	/* zero extension */
 	movq	%rax,ORIG_RAX-ARGOFFSET(%rsp)
 	movq	%rcx,RIP-ARGOFFSET(%rsp)
@@ -341,7 +344,7 @@ cstar_dispatch:
 	jnz sysretl_audit
 sysretl_from_sys_call:
 	andl $~TS_COMPAT,TI_status+THREAD_INFO(%rsp,RIP-ARGOFFSET)
-	RESTORE_ARGS 0,-ARG_SKIP,0,0,0
+	RESTORE_RSI_RDI_RDX
 	movl RIP-ARGOFFSET(%rsp),%ecx
 	CFI_REGISTER rip,rcx
 	movl EFLAGS-ARGOFFSET(%rsp),%r11d	
@@ -372,13 +375,13 @@ cstar_tracesys:
 	jz cstar_auditsys
 #endif
 	xchgl %r9d,%ebp
-	SAVE_REST
+	SAVE_EXTRA_REGS
 	CLEAR_RREGS 0, r9
 	movq $-ENOSYS,RAX(%rsp)	/* ptrace can change this for a bad syscall */
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
 	LOAD_ARGS32 ARGOFFSET, 1  /* reload args from stack in case ptrace changed it */
-	RESTORE_REST
+	RESTORE_EXTRA_REGS
 	xchgl %ebp,%r9d
 	cmpq $(IA32_NR_syscalls-1),%rax
 	ja int_ret_from_sys_call /* cstar_tracesys has set RAX(%rsp) */
@@ -433,7 +436,8 @@ ENTRY(ia32_syscall)
 	cld
 	/* note the registers are not zero extended to the sf.
 	   this could be a problem. */
-	SAVE_ARGS 0,1,0
+	ALLOC_PT_GPREGS_ON_STACK
+	SAVE_C_REGS_EXCEPT_R891011
 	orl $TS_COMPAT,TI_status+THREAD_INFO(%rsp,RIP-ARGOFFSET)
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
 	jnz ia32_tracesys
@@ -446,16 +450,16 @@ ia32_sysret:
 	movq %rax,RAX-ARGOFFSET(%rsp)
 ia32_ret_from_sys_call:
 	CLEAR_RREGS -ARGOFFSET
-	jmp int_ret_from_sys_call 
+	jmp int_ret_from_sys_call
 
-ia32_tracesys:			 
-	SAVE_REST
+ia32_tracesys:
+	SAVE_EXTRA_REGS
 	CLEAR_RREGS
 	movq $-ENOSYS,RAX(%rsp)	/* ptrace can change this for a bad syscall */
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
 	LOAD_ARGS32 ARGOFFSET  /* reload args from stack in case ptrace changed it */
-	RESTORE_REST
+	RESTORE_EXTRA_REGS
 	cmpq $(IA32_NR_syscalls-1),%rax
 	ja  int_ret_from_sys_call	/* ia32_tracesys has set RAX(%rsp) */
 	jmp ia32_do_call
@@ -492,7 +496,6 @@ GLOBAL(stub32_clone)
 
 	ALIGN
 ia32_ptregs_common:
-	popq %r11
 	CFI_ENDPROC
 	CFI_STARTPROC32	simple
 	CFI_SIGNAL_FRAME
@@ -507,9 +510,9 @@ ia32_ptregs_common:
 /*	CFI_REL_OFFSET	rflags,EFLAGS-ARGOFFSET*/
 	CFI_REL_OFFSET	rsp,RSP-ARGOFFSET
 /*	CFI_REL_OFFSET	ss,SS-ARGOFFSET*/
-	SAVE_REST
+	SAVE_EXTRA_REGS 8
 	call *%rax
-	RESTORE_REST
-	jmp  ia32_sysret	/* misbalances the return cache */
+	RESTORE_EXTRA_REGS 8
+	ret
 	CFI_ENDPROC
 END(ia32_ptregs_common)

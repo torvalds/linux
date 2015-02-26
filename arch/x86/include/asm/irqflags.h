@@ -171,9 +171,9 @@ static inline int arch_irqs_disabled(void)
 #define ARCH_LOCKDEP_SYS_EXIT_IRQ	\
 	TRACE_IRQS_ON; \
 	sti; \
-	SAVE_REST; \
+	SAVE_EXTRA_REGS; \
 	LOCKDEP_SYS_EXIT; \
-	RESTORE_REST; \
+	RESTORE_EXTRA_REGS; \
 	cli; \
 	TRACE_IRQS_OFF;
 
