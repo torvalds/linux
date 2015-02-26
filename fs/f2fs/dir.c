@@ -682,6 +682,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	if (bit_pos == NR_DENTRY_IN_BLOCK) {
 		truncate_hole(dir, page->index, page->index + 1);
 		clear_page_dirty_for_io(page);
+		ClearPagePrivate(page);
 		ClearPageUptodate(page);
 		inode_dec_dirty_pages(dir);
 	}

@@ -1002,6 +1002,7 @@ static int read_node_page(struct page *page, int rw)
 	get_node_info(sbi, page->index, &ni);
 
 	if (unlikely(ni.blk_addr == NULL_ADDR)) {
+		ClearPageUptodate(page);
 		f2fs_put_page(page, 1);
 		return -ENOENT;
 	}
@@ -1313,6 +1314,7 @@ static int f2fs_write_node_page(struct page *page,
 
 	/* This page is already truncated */
 	if (unlikely(ni.blk_addr == NULL_ADDR)) {
+		ClearPageUptodate(page);
 		dec_page_count(sbi, F2FS_DIRTY_NODES);
 		unlock_page(page);
 		return 0;
