@@ -17,6 +17,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/atomic.h>
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -99,6 +100,7 @@ struct image_desc {
 	struct device *device;	/* Sysfs device */
 	struct vme_resource *resource;	/* VME resource */
 	int users;		/* Number of current users */
+	int mmap_count;		/* Number of current mmap's */
 };
 static struct image_desc image[VME_DEVS];
 
@@ -134,6 +136,10 @@ static ssize_t vme_user_write(struct file *, const char __user *, size_t,
 	loff_t *);
 static loff_t vme_user_llseek(struct file *, loff_t, int);
 static long vme_user_unlocked_ioctl(struct file *, unsigned int, unsigned long);
+static int vme_user_mmap(struct file *file, struct vm_area_struct *vma);
+
+static void vme_user_vm_open(struct vm_area_struct *vma);
+static void vme_user_vm_close(struct vm_area_struct *vma);
 
 static int vme_user_match(struct vme_dev *);
 static int vme_user_probe(struct vme_dev *);
@@ -147,6 +153,17 @@ static const struct file_operations vme_user_fops = {
 	.llseek = vme_user_llseek,
 	.unlocked_ioctl = vme_user_unlocked_ioctl,
 	.compat_ioctl = vme_user_unlocked_ioctl,
+	.mmap = vme_user_mmap,
+};
+
+struct vme_user_vma_priv {
+	unsigned int minor;
+	atomic_t refcnt;
+};
+
+static const struct vm_operations_struct vme_user_vm_ops = {
+	.open = vme_user_vm_open,
+	.close = vme_user_vm_close,
 };
 
 
@@ -488,6 +505,11 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 
 		case VME_SET_MASTER:
 
+			if (image[minor].mmap_count != 0) {
+				pr_warn("Can't adjust mapped window\n");
+				return -EPERM;
+			}
+
 			copied = copy_from_user(&master, argp, sizeof(master));
 			if (copied != 0) {
 				pr_warn("Partial copy from userspace\n");
@@ -562,6 +584,69 @@ vme_user_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	mutex_unlock(&image[minor].mutex);
 
 	return ret;
+}
+
+static void vme_user_vm_open(struct vm_area_struct *vma)
+{
+	struct vme_user_vma_priv *vma_priv = vma->vm_private_data;
+
+	atomic_inc(&vma_priv->refcnt);
+}
+
+static void vme_user_vm_close(struct vm_area_struct *vma)
+{
+	struct vme_user_vma_priv *vma_priv = vma->vm_private_data;
+	unsigned int minor = vma_priv->minor;
+
+	if (!atomic_dec_and_test(&vma_priv->refcnt))
+		return;
+
+	mutex_lock(&image[minor].mutex);
+	image[minor].mmap_count--;
+	mutex_unlock(&image[minor].mutex);
+
+	kfree(vma_priv);
+}
+
+static int vme_user_master_mmap(unsigned int minor, struct vm_area_struct *vma)
+{
+	int err;
+	struct vme_user_vma_priv *vma_priv;
+
+	mutex_lock(&image[minor].mutex);
+
+	err = vme_master_mmap(image[minor].resource, vma);
+	if (err) {
+		mutex_unlock(&image[minor].mutex);
+		return err;
+	}
+
+	vma_priv = kmalloc(sizeof(struct vme_user_vma_priv), GFP_KERNEL);
+	if (vma_priv == NULL) {
+		mutex_unlock(&image[minor].mutex);
+		return -ENOMEM;
+	}
+
+	vma_priv->minor = minor;
+	atomic_set(&vma_priv->refcnt, 1);
+	vma->vm_ops = &vme_user_vm_ops;
+	vma->vm_private_data = vma_priv;
+
+	image[minor].mmap_count++;
+
+	mutex_unlock(&image[minor].mutex);
+
+	return 0;
+}
+
+static int vme_user_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	unsigned int minor = MINOR(file_inode(file)->i_rdev);
+
+	if (type[minor] == MASTER_MINOR)
+		return vme_user_master_mmap(minor, vma);
+
+	return -ENODEV;
 }
 
 
