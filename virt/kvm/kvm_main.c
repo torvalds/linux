@@ -2197,7 +2197,7 @@ out_free1:
 		if (r)
 			goto out;
 		r = -EFAULT;
-		if (copy_to_user(argp, &mp_state, sizeof mp_state))
+		if (copy_to_user(argp, &mp_state, sizeof(mp_state)))
 			goto out;
 		r = 0;
 		break;
@@ -2206,7 +2206,7 @@ out_free1:
 		struct kvm_mp_state mp_state;
 
 		r = -EFAULT;
-		if (copy_from_user(&mp_state, argp, sizeof mp_state))
+		if (copy_from_user(&mp_state, argp, sizeof(mp_state)))
 			goto out;
 		r = kvm_arch_vcpu_ioctl_set_mpstate(vcpu, &mp_state);
 		break;
@@ -2215,13 +2215,13 @@ out_free1:
 		struct kvm_translation tr;
 
 		r = -EFAULT;
-		if (copy_from_user(&tr, argp, sizeof tr))
+		if (copy_from_user(&tr, argp, sizeof(tr)))
 			goto out;
 		r = kvm_arch_vcpu_ioctl_translate(vcpu, &tr);
 		if (r)
 			goto out;
 		r = -EFAULT;
-		if (copy_to_user(argp, &tr, sizeof tr))
+		if (copy_to_user(argp, &tr, sizeof(tr)))
 			goto out;
 		r = 0;
 		break;
@@ -2230,7 +2230,7 @@ out_free1:
 		struct kvm_guest_debug dbg;
 
 		r = -EFAULT;
-		if (copy_from_user(&dbg, argp, sizeof dbg))
+		if (copy_from_user(&dbg, argp, sizeof(dbg)))
 			goto out;
 		r = kvm_arch_vcpu_ioctl_set_guest_debug(vcpu, &dbg);
 		break;
@@ -2244,14 +2244,14 @@ out_free1:
 		if (argp) {
 			r = -EFAULT;
 			if (copy_from_user(&kvm_sigmask, argp,
-					   sizeof kvm_sigmask))
+					   sizeof(kvm_sigmask)))
 				goto out;
 			r = -EINVAL;
-			if (kvm_sigmask.len != sizeof sigset)
+			if (kvm_sigmask.len != sizeof(sigset))
 				goto out;
 			r = -EFAULT;
 			if (copy_from_user(&sigset, sigmask_arg->sigset,
-					   sizeof sigset))
+					   sizeof(sigset)))
 				goto out;
 			p = &sigset;
 		}
@@ -2313,14 +2313,14 @@ static long kvm_vcpu_compat_ioctl(struct file *filp,
 		if (argp) {
 			r = -EFAULT;
 			if (copy_from_user(&kvm_sigmask, argp,
-					   sizeof kvm_sigmask))
+					   sizeof(kvm_sigmask)))
 				goto out;
 			r = -EINVAL;
-			if (kvm_sigmask.len != sizeof csigset)
+			if (kvm_sigmask.len != sizeof(csigset))
 				goto out;
 			r = -EFAULT;
 			if (copy_from_user(&csigset, sigmask_arg->sigset,
-					   sizeof csigset))
+					   sizeof(csigset)))
 				goto out;
 			sigset_from_compat(&sigset, &csigset);
 			r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
@@ -2516,7 +2516,7 @@ static long kvm_vm_ioctl(struct file *filp,
 
 		r = -EFAULT;
 		if (copy_from_user(&kvm_userspace_mem, argp,
-						sizeof kvm_userspace_mem))
+						sizeof(kvm_userspace_mem)))
 			goto out;
 
 		r = kvm_vm_ioctl_set_memory_region(kvm, &kvm_userspace_mem);
@@ -2526,7 +2526,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		struct kvm_dirty_log log;
 
 		r = -EFAULT;
-		if (copy_from_user(&log, argp, sizeof log))
+		if (copy_from_user(&log, argp, sizeof(log)))
 			goto out;
 		r = kvm_vm_ioctl_get_dirty_log(kvm, &log);
 		break;
@@ -2535,7 +2535,7 @@ static long kvm_vm_ioctl(struct file *filp,
 	case KVM_REGISTER_COALESCED_MMIO: {
 		struct kvm_coalesced_mmio_zone zone;
 		r = -EFAULT;
-		if (copy_from_user(&zone, argp, sizeof zone))
+		if (copy_from_user(&zone, argp, sizeof(zone)))
 			goto out;
 		r = kvm_vm_ioctl_register_coalesced_mmio(kvm, &zone);
 		break;
@@ -2543,7 +2543,7 @@ static long kvm_vm_ioctl(struct file *filp,
 	case KVM_UNREGISTER_COALESCED_MMIO: {
 		struct kvm_coalesced_mmio_zone zone;
 		r = -EFAULT;
-		if (copy_from_user(&zone, argp, sizeof zone))
+		if (copy_from_user(&zone, argp, sizeof(zone)))
 			goto out;
 		r = kvm_vm_ioctl_unregister_coalesced_mmio(kvm, &zone);
 		break;
@@ -2553,7 +2553,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		struct kvm_irqfd data;
 
 		r = -EFAULT;
-		if (copy_from_user(&data, argp, sizeof data))
+		if (copy_from_user(&data, argp, sizeof(data)))
 			goto out;
 		r = kvm_irqfd(kvm, &data);
 		break;
@@ -2562,7 +2562,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		struct kvm_ioeventfd data;
 
 		r = -EFAULT;
-		if (copy_from_user(&data, argp, sizeof data))
+		if (copy_from_user(&data, argp, sizeof(data)))
 			goto out;
 		r = kvm_ioeventfd(kvm, &data);
 		break;
@@ -2583,7 +2583,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		struct kvm_msi msi;
 
 		r = -EFAULT;
-		if (copy_from_user(&msi, argp, sizeof msi))
+		if (copy_from_user(&msi, argp, sizeof(msi)))
 			goto out;
 		r = kvm_send_userspace_msi(kvm, &msi);
 		break;
@@ -2595,7 +2595,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		struct kvm_irq_level irq_event;
 
 		r = -EFAULT;
-		if (copy_from_user(&irq_event, argp, sizeof irq_event))
+		if (copy_from_user(&irq_event, argp, sizeof(irq_event)))
 			goto out;
 
 		r = kvm_vm_ioctl_irq_line(kvm, &irq_event,
@@ -2605,7 +2605,7 @@ static long kvm_vm_ioctl(struct file *filp,
 
 		r = -EFAULT;
 		if (ioctl == KVM_IRQ_LINE_STATUS) {
-			if (copy_to_user(argp, &irq_event, sizeof irq_event))
+			if (copy_to_user(argp, &irq_event, sizeof(irq_event)))
 				goto out;
 		}
 
