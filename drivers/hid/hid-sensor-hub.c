@@ -220,7 +220,7 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	if (buffer_size) {
 		for (i = 0; i < buffer_size; ++i) {
 			hid_set_field(report->field[field_index], i,
-				      cpu_to_le32(*buf32));
+				      (__force __s32)cpu_to_le32(*buf32));
 			++buf32;
 		}
 	}
@@ -228,7 +228,7 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 		value = 0;
 		memcpy(&value, (u8 *)buf32, remaining_bytes);
 		hid_set_field(report->field[field_index], i,
-			      cpu_to_le32(value));
+			      (__force __s32)cpu_to_le32(value));
 	}
 	hid_hw_request(hsdev->hdev, report, HID_REQ_SET_REPORT);
 	hid_hw_wait(hsdev->hdev);
