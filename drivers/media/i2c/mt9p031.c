@@ -1071,6 +1071,8 @@ static int mt9p031_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	mutex_init(&mt9p031->power_lock);
+
 	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 6);
 
 	v4l2_ctrl_new_std(&mt9p031->ctrls, &mt9p031_ctrl_ops,
@@ -1108,7 +1110,6 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->blc_offset = v4l2_ctrl_find(&mt9p031->ctrls,
 					     V4L2_CID_BLC_DIGITAL_OFFSET);
 
-	mutex_init(&mt9p031->power_lock);
 	v4l2_i2c_subdev_init(&mt9p031->subdev, client, &mt9p031_subdev_ops);
 	mt9p031->subdev.internal_ops = &mt9p031_subdev_internal_ops;
 
@@ -1149,6 +1150,7 @@ done:
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&mt9p031->ctrls);
 		media_entity_cleanup(&mt9p031->subdev.entity);
+		mutex_destroy(&mt9p031->power_lock);
 	}
 
 	return ret;
@@ -1162,6 +1164,7 @@ static int mt9p031_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&mt9p031->ctrls);
 	v4l2_device_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
+	mutex_destroy(&mt9p031->power_lock);
 
 	return 0;
 }
