@@ -100,6 +100,7 @@ static ssize_t protection_level_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(protection_level);
 
 static ssize_t reset_protection_store(struct device *dev,
 				      struct device_attribute *attr,
@@ -123,10 +124,7 @@ static ssize_t reset_protection_store(struct device *dev,
 
 	return count;
 }
-
-static DEVICE_ATTR(protection_level, S_IRUGO | S_IWUSR,
-		   protection_level_show, protection_level_store);
-static DEVICE_ATTR(reset_protection, S_IWUSR, NULL, reset_protection_store);
+static DEVICE_ATTR_WO(reset_protection);
 
 static struct attribute *haps_attributes[] = {
 	&dev_attr_protection_level.attr,
