@@ -271,6 +271,7 @@
 			interrupts = <0 102 4>;
 			num-chipselect = <4>;
 			bus-num = <0>;
+			32bit_access;
 			tx-dma-channel = <&pdma 16>;
 			rx-dma-channel = <&pdma 17>;
 			clocks = <&l4_main_clk>;

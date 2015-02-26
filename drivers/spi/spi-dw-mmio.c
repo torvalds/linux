@@ -100,6 +100,11 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 	dws->bus_num = prop;
+
+	if (of_property_read_bool(pdev->dev.of_node, "32bit_access")) {
+		dws->dwread = dw_readl;
+		dws->dwwrite = dw_writel;
+	}
 #else
 	dws->num_cs = 4;
 	dws->bus_num = 0;

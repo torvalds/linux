@@ -159,6 +159,8 @@ struct dw_spi {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
+	u32 (*dwread) (struct dw_spi *dws, u32 offset);
+	void (*dwwrite) (struct dw_spi *dws, u32 offset, u16 val);
 };
 
 static inline u32 dw_readl(struct dw_spi *dws, u32 offset)
@@ -166,14 +168,14 @@ static inline u32 dw_readl(struct dw_spi *dws, u32 offset)
 	return __raw_readl(dws->regs + offset);
 }
 
-static inline void dw_writel(struct dw_spi *dws, u32 offset, u32 val)
+static inline void dw_writel(struct dw_spi *dws, u32 offset, u16 val)
 {
-	__raw_writel(val, dws->regs + offset);
+	__raw_writel((u32)val, dws->regs + offset);
 }
 
-static inline u16 dw_readw(struct dw_spi *dws, u32 offset)
+static inline u32 dw_readw(struct dw_spi *dws, u32 offset)
 {
-	return __raw_readw(dws->regs + offset);
+	return (u32) __raw_readw(dws->regs + offset);
 }
 
 static inline void dw_writew(struct dw_spi *dws, u32 offset, u16 val)

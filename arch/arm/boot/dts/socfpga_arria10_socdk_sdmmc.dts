@@ -153,6 +153,8 @@
 };
 
 &spi1 {
+	status = "okay";
+
 	a10_sysctl: a10_sysctl@0 {
 		compatible = "altr,a10sycon";
 		reg = <0>;

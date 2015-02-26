@@ -14,6 +14,7 @@ Optional properties :
  - tx-dma-channel : tx dma channel to use for SPI TX
  - rx-dma-channel : rx dma channel to use for SPI RX
  - clocks : clock source
+ - 32bit_access : use 32 bit register accesses
 
 Example :
 	spi0: spi@fff00000 {
