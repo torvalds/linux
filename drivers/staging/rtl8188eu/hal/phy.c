@@ -442,7 +442,7 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 	u8 thermal_val = 0, delta, delta_lck, delta_iqk, offset;
 	u8 thermal_avg_count = 0;
 	u32 thermal_avg = 0;
-	s32 ele_a = 0, ele_d, temp_cck, x, value32;
+	s32 ele_a = 0, ele_d, temp_cck, x;
 	s32 y, ele_c = 0;
 	s8 ofdm_index[2], cck_index = 0;
 	s8 ofdm_index_old[2] = {0, 0}, cck_index_old = 0;
@@ -635,41 +635,6 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 					ele_c = ((y * ele_d)>>8)&0x000003FF;
 
 				}
-
-				if (is2t) {
-					ele_d = (OFDMSwingTable[(u8)ofdm_index[1]] & 0xFFC00000)>>22;
-
-					/* new element A = element D x X */
-					x = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[indexforchannel].Value[0][4];
-					y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[indexforchannel].Value[0][5];
-
-					if ((x != 0) && (*(dm_odm->pBandType) == ODM_BAND_2_4G)) {
-						if ((x & 0x00000200) != 0)	/* consider minus */
-							x = x | 0xFFFFFC00;
-						ele_a = ((x * ele_d)>>8)&0x000003FF;
-
-						/* new element C = element D x Y */
-						if ((y & 0x00000200) != 0)
-							y = y | 0xFFFFFC00;
-						ele_c = ((y * ele_d)>>8)&0x00003FF;
-
-						/* wtite new elements A, C, D to regC88 and regC9C, element B is always 0 */
-						value32 = (ele_d<<22) | ((ele_c&0x3F)<<16) | ele_a;
-						phy_set_bb_reg(adapt, rOFDM0_XBTxIQImbalance, bMaskDWord, value32);
-
-						value32 = (ele_c&0x000003C0)>>6;
-						phy_set_bb_reg(adapt, rOFDM0_XDTxAFE, bMaskH4Bits, value32);
-
-						value32 = ((x * ele_d)>>7)&0x01;
-						phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT28, value32);
-					} else {
-						phy_set_bb_reg(adapt, rOFDM0_XBTxIQImbalance, bMaskDWord, OFDMSwingTable[(u8)ofdm_index[1]]);
-						phy_set_bb_reg(adapt, rOFDM0_XDTxAFE, bMaskH4Bits, 0x00);
-						phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT28, 0x00);
-					}
-
-				}
-
 			}
 		}
 
