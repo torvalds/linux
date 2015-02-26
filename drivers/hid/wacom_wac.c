@@ -1826,6 +1826,91 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 	return 0;
 }
 
+static void wacom_bamboo_pad_pen_event(struct wacom_wac *wacom,
+		unsigned char *data)
+{
+	unsigned char prefix;
+
+	/*
+	 * We need to reroute the event from the debug interface to the
+	 * pen interface.
+	 * We need to add the report ID to the actual pen report, so we
+	 * temporary overwrite the first byte to prevent having to kzalloc/kfree
+	 * and memcpy the report.
+	 */
+	prefix = data[0];
+	data[0] = WACOM_REPORT_BPAD_PEN;
+
+	/*
+	 * actually reroute the event.
+	 * No need to check if wacom->shared->pen is valid, hid_input_report()
+	 * will check for us.
+	 */
+	hid_input_report(wacom->shared->pen, HID_INPUT_REPORT, data,
+			 WACOM_PKGLEN_PENABLED, 1);
+
+	data[0] = prefix;
+}
+
+static int wacom_bamboo_pad_touch_event(struct wacom_wac *wacom,
+		unsigned char *data)
+{
+	struct input_dev *input = wacom->input;
+	unsigned char *finger_data, prefix;
+	unsigned id;
+	int x, y;
+	bool valid;
+
+	prefix = data[0];
+
+	for (id = 0; id < wacom->features.touch_max; id++) {
+		valid = !!(prefix & BIT(id)) &&
+			!wacom->shared->stylus_in_proximity;
+
+		input_mt_slot(input, id);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, valid);
+
+		if (!valid)
+			continue;
+
+		finger_data = data + 1 + id * 3;
+		x = finger_data[0] | ((finger_data[1] & 0x0f) << 8);
+		y = (finger_data[2] << 4) | (finger_data[1] >> 4);
+
+		input_report_abs(input, ABS_MT_POSITION_X, x);
+		input_report_abs(input, ABS_MT_POSITION_Y, y);
+	}
+
+	input_mt_sync_frame(input);
+
+	input_report_key(input, BTN_LEFT, prefix & 0x40);
+	input_report_key(input, BTN_RIGHT, prefix & 0x80);
+
+	/* keep touch state for pen event */
+	wacom->shared->touch_down = !!prefix &&
+				    !wacom->shared->stylus_in_proximity;
+
+	return 1;
+}
+
+static int wacom_bamboo_pad_irq(struct wacom_wac *wacom, size_t len)
+{
+	unsigned char *data = wacom->data;
+
+	if (!((len == WACOM_PKGLEN_BPAD_TOUCH) ||
+	      (len == WACOM_PKGLEN_BPAD_TOUCH_USB)) ||
+	    (data[0] != WACOM_REPORT_BPAD_TOUCH))
+		return 0;
+
+	if (data[1] & 0x01)
+		wacom_bamboo_pad_pen_event(wacom, &data[1]);
+
+	if (data[1] & 0x02)
+		return wacom_bamboo_pad_touch_event(wacom, &data[9]);
+
+	return 0;
+}
+
 static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 {
 	unsigned char *data = wacom->data;
@@ -1960,6 +2045,10 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case BAMBOO_PT:
 	case INTUOSHT:
 		sync = wacom_bpt_irq(wacom_wac, len);
+		break;
+
+	case BAMBOO_PAD:
+		sync = wacom_bamboo_pad_irq(wacom_wac, len);
 		break;
 
 	case WIRELESS:
@@ -2299,6 +2388,13 @@ int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
 					      features->distance_max,
 					      0, 0);
 		}
+		break;
+	case BAMBOO_PAD:
+		__clear_bit(ABS_MISC, input_dev->absbit);
+		input_mt_init_slots(input_dev, features->touch_max,
+				    INPUT_MT_POINTER);
+		__set_bit(BTN_LEFT, input_dev->keybit);
+		__set_bit(BTN_RIGHT, input_dev->keybit);
 		break;
 	}
 	return 0;
@@ -2953,6 +3049,12 @@ static const struct wacom_features wacom_features_0x30C =
 	{ "Wacom ISDv5 30C", .type = WACOM_24HDT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x30A, .touch_max = 10,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
+static const struct wacom_features wacom_features_0x318 =
+	{ "Wacom USB Bamboo PAD", 4095, 4095, /* Touch */
+	  .type = BAMBOO_PAD, 35, 48, .touch_max = 4 };
+static const struct wacom_features wacom_features_0x319 =
+	{ "Wacom Wireless Bamboo PAD", 4095, 4095, /* Touch */
+	  .type = BAMBOO_PAD, 35, 48, .touch_max = 4 };
 static const struct wacom_features wacom_features_0x323 =
 	{ "Wacom Intuos P M", 21600, 13500, 1023, 31,
 	  INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
@@ -3105,6 +3207,8 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x314) },
 	{ USB_DEVICE_WACOM(0x315) },
 	{ USB_DEVICE_WACOM(0x317) },
+	{ USB_DEVICE_WACOM(0x318) },
+	{ USB_DEVICE_WACOM(0x319) },
 	{ USB_DEVICE_WACOM(0x323) },
 	{ USB_DEVICE_WACOM(0x32A) },
 	{ USB_DEVICE_WACOM(0x32B) },

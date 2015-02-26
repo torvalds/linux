@@ -33,6 +33,8 @@
 #define WACOM_PKGLEN_MTTPC	40
 #define WACOM_PKGLEN_DTUS	68
 #define WACOM_PKGLEN_PENABLED	 8
+#define WACOM_PKGLEN_BPAD_TOUCH	32
+#define WACOM_PKGLEN_BPAD_TOUCH_USB	64
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
@@ -67,6 +69,8 @@
 #define WACOM_REPORT_24HDT		1
 #define WACOM_REPORT_WL			128
 #define WACOM_REPORT_USB		192
+#define WACOM_REPORT_BPAD_PEN		3
+#define WACOM_REPORT_BPAD_TOUCH		16
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
@@ -122,6 +126,7 @@ enum {
 	BAMBOO_PT,
 	WACOM_24HDT,
 	WACOM_27QHDT,
+	BAMBOO_PAD,
 	TABLETPC,   /* add new TPC below */
 	TABLETPCE,
 	TABLETPC2FG,

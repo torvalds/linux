@@ -406,6 +406,9 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 		else if (features->type == WACOM_27QHDT) {
 			return wacom_set_device_mode(hdev, 131, 3, 2);
 		}
+		else if (features->type == BAMBOO_PAD) {
+			return wacom_set_device_mode(hdev, 2, 2, 2);
+		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
 		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
 			return wacom_set_device_mode(hdev, 2, 2, 2);
@@ -1425,6 +1428,21 @@ static int wacom_probe(struct hid_device *hdev,
 			goto fail_allocate_inputs;
 	}
 
+	/*
+	 * Bamboo Pad has a generic hid handling for the Pen, and we switch it
+	 * into debug mode for the touch part.
+	 * We ignore the other interfaces.
+	 */
+	if (features->type == BAMBOO_PAD) {
+		if (features->pktlen == WACOM_PKGLEN_PENABLED) {
+			features->type = HID_GENERIC;
+		} else if ((features->pktlen != WACOM_PKGLEN_BPAD_TOUCH) &&
+			   (features->pktlen != WACOM_PKGLEN_BPAD_TOUCH_USB)) {
+			error = -ENODEV;
+			goto fail_shared_data;
+		}
+	}
+
 	/* set the default size in case we do not get them from hid */
 	wacom_set_default_phy(features);
 
@@ -1458,6 +1476,12 @@ static int wacom_probe(struct hid_device *hdev,
 		features->x_max = 4096;
 		features->y_max = 4096;
 	}
+
+	/*
+	 * Same thing for Bamboo PAD
+	 */
+	if (features->type == BAMBOO_PAD)
+		features->device_type = BTN_TOOL_FINGER;
 
 	if (hdev->bus == BUS_BLUETOOTH)
 		features->quirks |= WACOM_QUIRK_BATTERY;
