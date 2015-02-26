@@ -778,15 +778,18 @@ long kvm_arch_vm_ioctl(struct file *filp,
 static int kvm_s390_query_ap_config(u8 *config)
 {
 	u32 fcn_code = 0x04000000UL;
-	u32 cc;
+	u32 cc = 0;
 
+	memset(config, 0, 128);
 	asm volatile(
 		"lgr 0,%1\n"
 		"lgr 2,%2\n"
 		".long 0xb2af0000\n"		/* PQAP(QCI) */
-		"ipm %0\n"
+		"0: ipm %0\n"
 		"srl %0,28\n"
-		: "=r" (cc)
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: "+r" (cc)
 		: "r" (fcn_code), "r" (config)
 		: "cc", "0", "2", "memory"
 	);
