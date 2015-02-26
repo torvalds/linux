@@ -60,6 +60,13 @@ static bool hda_writeable_reg(struct device *dev, unsigned int reg)
 {
 	struct hdac_device *codec = dev_to_hdac_dev(dev);
 	unsigned int verb = get_verb(reg);
+	int i;
+
+	for (i = 0; i < codec->vendor_verbs.used; i++) {
+		unsigned int *v = snd_array_elem(&codec->vendor_verbs, i);
+		if (verb == *v)
+			return true;
+	}
 
 	if (codec->caps_overwriting)
 		return true;
@@ -200,6 +207,7 @@ int snd_hdac_regmap_init(struct hdac_device *codec)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 	codec->regmap = regmap;
+	snd_array_init(&codec->vendor_verbs, sizeof(unsigned int), 8);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_init);
@@ -209,9 +217,29 @@ void snd_hdac_regmap_exit(struct hdac_device *codec)
 	if (codec->regmap) {
 		regmap_exit(codec->regmap);
 		codec->regmap = NULL;
+		snd_array_free(&codec->vendor_verbs);
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_exit);
+
+/**
+ * snd_hdac_regmap_add_vendor_verb - add a vendor-specific verb to regmap
+ * @codec: the codec object
+ * @verb: verb to allow accessing via regmap
+ *
+ * Returns zero for success or a negative error code.
+ */
+int snd_hdac_regmap_add_vendor_verb(struct hdac_device *codec,
+				    unsigned int verb)
+{
+	unsigned int *p = snd_array_new(&codec->vendor_verbs);
+
+	if (!p)
+		return -ENOMEM;
+	*p = verb;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_regmap_add_vendor_verb);
 
 /*
  * helper functions

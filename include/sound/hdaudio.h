@@ -75,6 +75,7 @@ struct hdac_device {
 
 	/* regmap */
 	struct regmap *regmap;
+	struct snd_array vendor_verbs;
 	bool lazy_cache:1;	/* don't wake up for writes */
 	bool caps_overwriting:1; /* caps overwrite being in process */
 };
