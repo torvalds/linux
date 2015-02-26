@@ -1103,7 +1103,7 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   port_mask, ALE_VLAN, slave->port_vlan, 0);
 	cpsw_ale_add_ucast(priv->ale, priv->mac_addr,
-		priv->host_port, ALE_VLAN, slave->port_vlan);
+		priv->host_port, ALE_VLAN | ALE_SECURE, slave->port_vlan);
 }
 
 static void soft_reset_slave(struct cpsw_slave *slave)
