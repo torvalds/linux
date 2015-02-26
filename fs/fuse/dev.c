@@ -890,8 +890,8 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 
 	newpage = buf->page;
 
-	if (WARN_ON(!PageUptodate(newpage)))
-		return -EIO;
+	if (!PageUptodate(newpage))
+		SetPageUptodate(newpage);
 
 	ClearPageMappedToDisk(newpage);
 
