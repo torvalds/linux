@@ -47,6 +47,7 @@
 
 #include "../comedidev.h"
 
+#include "comedi_8254.h"
 #include "plx9052.h"
 #include "8255.h"
 
@@ -273,6 +274,57 @@ static int cb_pcimdas_do_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int cb_pcimdas_counter_insn_config(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
+{
+	struct cb_pcimdas_private *devpriv = dev->private;
+	unsigned int ctrl;
+
+	switch (data[0]) {
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		switch (data[1]) {
+		case 0:	/* internal 100 kHz clock */
+			ctrl = PCIMDAS_USER_CNTR_CTR1_CLK_SEL;
+			break;
+		case 1:	/* external clk on pin 21 */
+			ctrl = 0;
+			break;
+		default:
+			return -EINVAL;
+		}
+		outb(ctrl, devpriv->BADR3 + PCIMDAS_USER_CNTR_REG);
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		ctrl = inb(devpriv->BADR3 + PCIMDAS_USER_CNTR_REG);
+		if (ctrl & PCIMDAS_USER_CNTR_CTR1_CLK_SEL) {
+			data[1] = 0;
+			data[2] = I8254_OSC_BASE_100KHZ;
+		} else {
+			data[1] = 1;
+			data[2] = 0;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return insn->n;
+}
+
+static unsigned int cb_pcimdas_pacer_clk(struct comedi_device *dev)
+{
+	struct cb_pcimdas_private *devpriv = dev->private;
+	unsigned int status;
+
+	/* The Pacer Clock jumper selects a 10 MHz or 1 MHz clock */
+	status = inb(devpriv->BADR3 + PCIMDAS_STATUS_REG);
+	if (status & PCIMDAS_STATUS_CLK)
+		return I8254_OSC_BASE_10MHZ;
+	return I8254_OSC_BASE_1MHZ;
+}
+
 static bool cb_pcimdas_is_ai_se(struct comedi_device *dev)
 {
 	struct cb_pcimdas_private *devpriv = dev->private;
@@ -321,7 +373,13 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
 	dev->iobase = pci_resource_start(pcidev, 4);
 
-	ret = comedi_alloc_subdevices(dev, 5);
+	dev->pacer = comedi_8254_init(devpriv->BADR3 + PCIMDAS_8254_BASE,
+				      cb_pcimdas_pacer_clk(dev),
+				      I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
+
+	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
 		return ret;
 
@@ -377,6 +435,16 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_write	= cb_pcimdas_do_insn_write;
+
+	/* Counter subdevice (8254) */
+	s = &dev->subdevices[5];
+	comedi_8254_subdevice_init(s, dev->pacer);
+
+	dev->pacer->insn_config = cb_pcimdas_counter_insn_config;
+
+	/* counters 1 and 2 are used internally for the pacer */
+	comedi_8254_set_busy(dev->pacer, 1, true);
+	comedi_8254_set_busy(dev->pacer, 2, true);
 
 	return 0;
 }

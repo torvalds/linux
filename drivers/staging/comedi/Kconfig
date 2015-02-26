@@ -953,6 +953,7 @@ config COMEDI_CB_PCIDDA
 
 config COMEDI_CB_PCIMDAS
 	tristate "MeasurementComputing PCIM-DAS1602/16, PCIe-DAS1602/16 support"
+	select COMEDI_8254
 	select COMEDI_8255
 	---help---
 	  Enable support for ComputerBoards/MeasurementComputing PCI Migration
