@@ -584,17 +584,17 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 			}
 			if (offset >= index_mapping_NUM_88E)
 				offset = index_mapping_NUM_88E-1;
-			for (i = 0; i < rf; i++)
-				ofdm_index[i] = dm_odm->RFCalibrateInfo.OFDM_index[i] + ofdm_index_mapping[j][offset];
-			cck_index = dm_odm->RFCalibrateInfo.CCK_index + ofdm_index_mapping[j][offset];
 
+			/* Updating ofdm_index values with new OFDM / CCK offset */
 			for (i = 0; i < rf; i++) {
+				ofdm_index[i] = dm_odm->RFCalibrateInfo.OFDM_index[i] + ofdm_index_mapping[j][offset];
 				if (ofdm_index[i] > OFDM_TABLE_SIZE_92D-1)
 					ofdm_index[i] = OFDM_TABLE_SIZE_92D-1;
 				else if (ofdm_index[i] < ofdm_min_index)
 					ofdm_index[i] = ofdm_min_index;
 			}
 
+			cck_index = dm_odm->RFCalibrateInfo.CCK_index + ofdm_index_mapping[j][offset];
 			if (cck_index > CCK_TABLE_SIZE-1)
 				cck_index = CCK_TABLE_SIZE-1;
 			else if (cck_index < 0)
