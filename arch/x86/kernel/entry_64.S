@@ -757,8 +757,8 @@ retint_swapgs:		/* return to user-space */
 	 * Try to use SYSRET instead of IRET if we're returning to
 	 * a completely clean 64-bit userspace context.
 	 */
-	movq (RCX-R11)(%rsp), %rcx
-	cmpq %rcx,(RIP-R11)(%rsp)		/* RCX == RIP */
+	movq (RCX-ARGOFFSET)(%rsp), %rcx
+	cmpq %rcx,(RIP-ARGOFFSET)(%rsp)		/* RCX == RIP */
 	jne opportunistic_sysret_failed
 
 	/*
@@ -779,7 +779,7 @@ retint_swapgs:		/* return to user-space */
 	shr $__VIRTUAL_MASK_SHIFT, %rcx
 	jnz opportunistic_sysret_failed
 
-	cmpq $__USER_CS,(CS-R11)(%rsp)		/* CS must match SYSRET */
+	cmpq $__USER_CS,(CS-ARGOFFSET)(%rsp)	/* CS must match SYSRET */
 	jne opportunistic_sysret_failed
 
 	movq (R11-ARGOFFSET)(%rsp), %r11
