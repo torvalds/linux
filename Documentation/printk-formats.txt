@@ -239,6 +239,15 @@ s64 SHOULD be printed with %lld/%llx:
 
 	printk("%lld", s64_var);
 
+bitmap and its derivatives such as cpumask and nodemask:
+
+	%*pb	0779
+	%*pbl	0,3-6,8-10
+
+	For printing bitmap and its derivatives such as cpumask and nodemask,
+	%*pb output the bitmap with field width as the number of bits and %*pbl
+	output the bitmap as range list with field width as the number of bits.
+
 If <type> is dependent on a config option for its size (e.g., sector_t,
 blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
 format specifier of its largest possible type and explicitly cast to it.
