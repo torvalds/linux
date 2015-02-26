@@ -1352,7 +1352,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			/*  Set RTS initial rate */
 			while (BrateCfg > 0x1) {
-				BrateCfg = (BrateCfg >> 1);
+				BrateCfg >>= 1;
 				RateIndex++;
 			}
 			/*  Ziv - Check */
