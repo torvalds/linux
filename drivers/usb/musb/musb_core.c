@@ -508,7 +508,6 @@ void musb_hnp_stop(struct musb *musb)
 }
 
 static void musb_disable_interrupts(struct musb *musb);
-static void musb_generic_disable(struct musb *musb);
 static void musb_recover_from_babble(struct musb *musb);
 
 /*
