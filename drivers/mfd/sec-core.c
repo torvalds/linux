@@ -333,7 +333,6 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	}
 	if (pdata) {
 		sec_pmic->device_type = pdata->device_type;
-		sec_pmic->ono = pdata->ono;
 		sec_pmic->irq_base = pdata->irq_base;
 		sec_pmic->wakeup = pdata->wakeup;
 		sec_pmic->pdata = pdata;
