@@ -897,7 +897,7 @@ out:
 	return retval;
 }
 
-static int fence_wait_timeout(unsigned int *fence_addr,
+static int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,
 				unsigned long timeout)
 {
@@ -953,7 +953,7 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 	pm_send_query_status(&dqm->packets, dqm->fence_gpu_addr,
 				KFD_FENCE_COMPLETED);
 	/* should be timed out */
-	fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
+	amdkfd_fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
 				QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS);
 	pm_release_ib(&dqm->packets);
 	dqm->active_runlist = false;
