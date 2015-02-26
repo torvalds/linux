@@ -88,6 +88,8 @@ libperf-$(CONFIG_DWARF) += dwarf-aux.o
 libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 libperf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
 
+libperf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
+
 libperf-y += scripting-engines/
 
 libperf-$(CONFIG_PERF_REGS) += perf_regs.o

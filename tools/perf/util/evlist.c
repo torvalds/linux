@@ -1085,6 +1085,38 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 	return err;
 }
 
+int perf_evlist__set_filter_pids(struct perf_evlist *evlist, size_t npids, pid_t *pids)
+{
+	char *filter;
+	int ret = -1;
+	size_t i;
+
+	for (i = 0; i < npids; ++i) {
+		if (i == 0) {
+			if (asprintf(&filter, "common_pid != %d", pids[i]) < 0)
+				return -1;
+		} else {
+			char *tmp;
+
+			if (asprintf(&tmp, "%s && common_pid != %d", filter, pids[i]) < 0)
+				goto out_free;
+
+			free(filter);
+			filter = tmp;
+		}
+	}
+
+	ret = perf_evlist__set_filter(evlist, filter);
+out_free:
+	free(filter);
+	return ret;
+}
+
+int perf_evlist__set_filter_pid(struct perf_evlist *evlist, pid_t pid)
+{
+	return perf_evlist__set_filter_pids(evlist, 1, &pid);
+}
+
 bool perf_evlist__valid_sample_type(struct perf_evlist *evlist)
 {
 	struct perf_evsel *pos;

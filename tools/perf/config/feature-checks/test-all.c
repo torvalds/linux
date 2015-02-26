@@ -101,6 +101,10 @@
 # include "test-pthread_attr_setaffinity_np.c"
 #undef main
 
+#define main main_test_libbabeltrace
+# include "test-libbabeltrace.c"
+#undef main
+
 int main(int argc, char *argv[])
 {
 	main_test_libpython();
@@ -126,6 +130,7 @@ int main(int argc, char *argv[])
 	main_test_sync_compare_and_swap(argc, argv);
 	main_test_zlib();
 	main_test_pthread_attr_setaffinity_np();
+	main_test_libbabeltrace();
 
 	return 0;
 }

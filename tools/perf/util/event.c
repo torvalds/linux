@@ -615,7 +615,7 @@ size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp)
 	else
 		s = "";
 
-	return fprintf(fp, "%s: %s:%d\n", s, event->comm.comm, event->comm.tid);
+	return fprintf(fp, "%s: %s:%d/%d\n", s, event->comm.comm, event->comm.pid, event->comm.tid);
 }
 
 int perf_event__process_comm(struct perf_tool *tool __maybe_unused,

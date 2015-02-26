@@ -1229,6 +1229,10 @@ struct trace {
 	const char 		*last_vfs_getname;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
+	struct {
+		size_t		nr;
+		pid_t		*entries;
+	}			filter_pids;
 	double			duration_filter;
 	double			runtime_ms;
 	struct {
@@ -1840,7 +1844,11 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 {
 	trace__printf_interrupted_entry(trace, sample);
 	trace__fprintf_tstamp(trace, sample->time, trace->output);
-	fprintf(trace->output, "(%9.9s): %s:", " ", evsel->name);
+
+	if (trace->trace_syscalls)
+		fprintf(trace->output, "(         ): ");
+
+	fprintf(trace->output, "%s:", evsel->name);
 
 	if (evsel->tp_format) {
 		event_format__fprintf(evsel->tp_format, sample->cpu,
@@ -2084,10 +2092,39 @@ static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
 	return 0;
 }
 
+static void trace__handle_event(struct trace *trace, union perf_event *event, struct perf_sample *sample)
+{
+	const u32 type = event->header.type;
+	struct perf_evsel *evsel;
+
+	if (!trace->full_time && trace->base_time == 0)
+		trace->base_time = sample->time;
+
+	if (type != PERF_RECORD_SAMPLE) {
+		trace__process_event(trace, trace->host, event, sample);
+		return;
+	}
+
+	evsel = perf_evlist__id2evsel(trace->evlist, sample->id);
+	if (evsel == NULL) {
+		fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample->id);
+		return;
+	}
+
+	if (evsel->attr.type == PERF_TYPE_TRACEPOINT &&
+	    sample->raw_data == NULL) {
+		fprintf(trace->output, "%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
+		       perf_evsel__name(evsel), sample->tid,
+		       sample->cpu, sample->raw_size);
+	} else {
+		tracepoint_handler handler = evsel->handler;
+		handler(trace, evsel, event, sample);
+	}
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
-	struct perf_evsel *evsel;
 	int err = -1, i;
 	unsigned long before;
 	const bool forks = argc > 0;
@@ -2147,6 +2184,22 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_open;
 
+	/*
+	 * Better not use !target__has_task() here because we need to cover the
+	 * case where no threads were specified in the command line, but a
+	 * workload was, and in that case we will fill in the thread_map when
+	 * we fork the workload in perf_evlist__prepare_workload.
+	 */
+	if (trace->filter_pids.nr > 0)
+		err = perf_evlist__set_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
+	else if (evlist->threads->map[0] == -1)
+		err = perf_evlist__set_filter_pid(evlist, getpid());
+
+	if (err < 0) {
+		printf("err=%d,%s\n", -err, strerror(-err));
+		exit(1);
+	}
+
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0)
 		goto out_error_mmap;
@@ -2166,8 +2219,6 @@ again:
 		union perf_event *event;
 
 		while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
-			const u32 type = event->header.type;
-			tracepoint_handler handler;
 			struct perf_sample sample;
 
 			++trace->nr_events;
@@ -2178,30 +2229,7 @@ again:
 				goto next_event;
 			}
 
-			if (!trace->full_time && trace->base_time == 0)
-				trace->base_time = sample.time;
-
-			if (type != PERF_RECORD_SAMPLE) {
-				trace__process_event(trace, trace->host, event, &sample);
-				continue;
-			}
-
-			evsel = perf_evlist__id2evsel(evlist, sample.id);
-			if (evsel == NULL) {
-				fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample.id);
-				goto next_event;
-			}
-
-			if (evsel->attr.type == PERF_TYPE_TRACEPOINT &&
-			    sample.raw_data == NULL) {
-				fprintf(trace->output, "%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
-				       perf_evsel__name(evsel), sample.tid,
-				       sample.cpu, sample.raw_size);
-				goto next_event;
-			}
-
-			handler = evsel->handler;
-			handler(trace, evsel, event, &sample);
+			trace__handle_event(trace, event, &sample);
 next_event:
 			perf_evlist__mmap_consume(evlist, i);
 
@@ -2478,6 +2506,38 @@ static int trace__set_duration(const struct option *opt, const char *str,
 	return 0;
 }
 
+static int trace__set_filter_pids(const struct option *opt, const char *str,
+				  int unset __maybe_unused)
+{
+	int ret = -1;
+	size_t i;
+	struct trace *trace = opt->value;
+	/*
+	 * FIXME: introduce a intarray class, plain parse csv and create a
+	 * { int nr, int entries[] } struct...
+	 */
+	struct intlist *list = intlist__new(str);
+
+	if (list == NULL)
+		return -1;
+
+	i = trace->filter_pids.nr = intlist__nr_entries(list) + 1;
+	trace->filter_pids.entries = calloc(i, sizeof(pid_t));
+
+	if (trace->filter_pids.entries == NULL)
+		goto out;
+
+	trace->filter_pids.entries[0] = getpid();
+
+	for (i = 1; i < trace->filter_pids.nr; ++i)
+		trace->filter_pids.entries[i] = intlist__entry(list, i - 1)->i;
+
+	intlist__delete(list);
+	ret = 0;
+out:
+	return ret;
+}
+
 static int trace__open_output(struct trace *trace, const char *filename)
 {
 	struct stat st;
@@ -2568,6 +2628,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "trace events on existing process id"),
 	OPT_STRING('t', "tid", &trace.opts.target.tid, "tid",
 		    "trace events on existing thread id"),
+	OPT_CALLBACK(0, "filter-pids", &trace, "float",
+		     "show only events with duration > N.M ms", trace__set_filter_pids),
 	OPT_BOOLEAN('a', "all-cpus", &trace.opts.target.system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &trace.opts.target.cpu_list, "cpu",
@@ -2597,6 +2659,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	};
 	int err;
 	char bf[BUFSIZ];
+
+	signal(SIGSEGV, sighandler_dump_stack);
+	signal(SIGFPE, sighandler_dump_stack);
 
 	trace.evlist = perf_evlist__new();
 	if (trace.evlist == NULL)

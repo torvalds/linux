@@ -96,6 +96,17 @@ ifndef NO_LIBELF
   FEATURE_CHECK_LDFLAGS-libdw-dwarf-unwind := $(LIBDW_LDFLAGS) -ldw
 endif
 
+ifndef NO_LIBBABELTRACE
+  # for linking with debug library, run like:
+  # make DEBUG=1 LIBBABELTRACE_DIR=/opt/libbabeltrace/
+  ifdef LIBBABELTRACE_DIR
+    LIBBABELTRACE_CFLAGS  := -I$(LIBBABELTRACE_DIR)/include
+    LIBBABELTRACE_LDFLAGS := -L$(LIBBABELTRACE_DIR)/lib
+  endif
+  FEATURE_CHECK_CFLAGS-libbabeltrace := $(LIBBABELTRACE_CFLAGS)
+  FEATURE_CHECK_LDFLAGS-libbabeltrace := $(LIBBABELTRACE_LDFLAGS) -lbabeltrace-ctf
+endif
+
 # include ARCH specific config
 -include $(src-perf)/arch/$(ARCH)/Makefile
 
@@ -216,6 +227,7 @@ CORE_FEATURE_TESTS =			\
 	stackprotector-all		\
 	timerfd				\
 	libdw-dwarf-unwind		\
+	libbabeltrace			\
 	zlib
 
 LIB_FEATURE_TESTS =			\
@@ -231,6 +243,7 @@ LIB_FEATURE_TESTS =			\
 	libslang			\
 	libunwind			\
 	libdw-dwarf-unwind		\
+	libbabeltrace			\
 	zlib
 
 VF_FEATURE_TESTS =			\
@@ -690,6 +703,18 @@ ifeq (${IS_64_BIT}, 1)
 else
   NO_PERF_READ_VDSO32 := 1
   NO_PERF_READ_VDSOX32 := 1
+endif
+
+ifndef NO_LIBBABELTRACE
+  ifeq ($(feature-libbabeltrace), 0)
+    msg := $(warning No libbabeltrace found, disables 'perf data' CTF format support, please install libbabeltrace-devel/libbabeltrace-ctf-dev);
+    NO_LIBBABELTRACE := 1
+  else
+    CFLAGS += -DHAVE_LIBBABELTRACE_SUPPORT $(LIBBABELTRACE_CFLAGS)
+    LDFLAGS += $(LIBBABELTRACE_LDFLAGS)
+    EXTLIBS += -lbabeltrace-ctf
+    $(call detected,CONFIG_LIBBABELTRACE)
+  endif
 endif
 
 # Among the variables below, these:
