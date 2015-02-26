@@ -8,7 +8,16 @@
  */
 /dts-v1/;
 
-#include "omap34xx-hs.dtsi"
+#include "omap34xx.dtsi"
+
+/* Secure omaps have some devices inaccessible depending on the firmware */
+&aes {
+	status = "disabled";
+};
+
+&sham {
+	status = "disabled";
+};
 
 / {
 	cpus {
