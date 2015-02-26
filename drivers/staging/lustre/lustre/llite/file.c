@@ -270,7 +270,7 @@ static int ll_md_close(struct obd_export *md_exp, struct inode *inode,
 	int lockmode;
 	__u64 flags = LDLM_FL_BLOCK_GRANTED | LDLM_FL_TEST_LOCK;
 	struct lustre_handle lockh;
-	ldlm_policy_data_t policy = {.l_inodebits={MDS_INODELOCK_OPEN}};
+	ldlm_policy_data_t policy = {.l_inodebits = {MDS_INODELOCK_OPEN}};
 	int rc = 0;
 
 	/* clear group lock, if present */
