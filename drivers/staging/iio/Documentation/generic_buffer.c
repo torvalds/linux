@@ -72,7 +72,7 @@ void print2byte(int input, struct iio_channel_info *info)
 	 * Shift before conversion to avoid sign extension
 	 * of left aligned data
 	 */
-	input = input >> info->shift;
+	input >>= info->shift;
 	if (info->is_signed) {
 		int16_t val = input;
 
