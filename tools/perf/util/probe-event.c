@@ -533,7 +533,7 @@ static int get_real_path(const char *raw_path, const char *comp_dir,
 		else {
 			if (access(raw_path, R_OK) == 0) {
 				*new_path = strdup(raw_path);
-				return 0;
+				return *new_path ? 0 : -ENOMEM;
 			} else
 				return -errno;
 		}
