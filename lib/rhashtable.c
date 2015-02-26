@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/log2.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
@@ -412,6 +413,7 @@ int rhashtable_expand(struct rhashtable *ht)
 			}
 		}
 		unlock_buckets(new_tbl, old_tbl, new_hash);
+		cond_resched();
 	}
 
 	/* Unzip interleaved hash chains */
@@ -435,6 +437,7 @@ int rhashtable_expand(struct rhashtable *ht)
 				complete = false;
 
 			unlock_buckets(new_tbl, old_tbl, old_hash);
+			cond_resched();
 		}
 	}
 
@@ -493,6 +496,7 @@ int rhashtable_shrink(struct rhashtable *ht)
 				   tbl->buckets[new_hash + new_tbl->size]);
 
 		unlock_buckets(new_tbl, tbl, new_hash);
+		cond_resched();
 	}
 
 	/* Publish the new, valid hash table */
