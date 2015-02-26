@@ -167,6 +167,13 @@ Optional property:
 			by means of sensor ID. Additional coefficients are
 			interpreted as constant offset.
 
+- sustainable-power:	An estimate of the sustainable power (in mW) that the
+  Type: unsigned	thermal zone can dissipate at the desired
+  Size: one cell	control temperature.  For reference, the
+			sustainable power of a 4'' phone is typically
+			2000mW, while on a 10'' tablet is around
+			4500mW.
+
 Note: The delay properties are bound to the maximum dT/dt (temperature
 derivative over time) in two situations for a thermal zone:
 (i)  - when passive cooling is activated (polling-delay-passive); and
@@ -545,6 +552,8 @@ thermal-zones {
 		 * z = c1*x1 + c2*x2 + c3*x3
 		 */
 		coefficients =		<1200	-345	890>;
+
+		sustainable-power = <2500>;
 
 		trips {
 			/* Trips are based on resulting linear equation */
