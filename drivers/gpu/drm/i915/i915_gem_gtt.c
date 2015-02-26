@@ -309,6 +309,7 @@ static struct i915_page_table_entry *alloc_pt_single(struct drm_device *dev)
  *		available to point to the allocated page tables.
  * @pde:	First page directory entry for which we are allocating.
  * @count:	Number of pages to allocate.
+ * @dev:	DRM device.
  *
  * Allocates multiple page table pages and sets the appropriate entries in the
  * page table structure within the page directory. Function cleans up after
@@ -318,7 +319,6 @@ static struct i915_page_table_entry *alloc_pt_single(struct drm_device *dev)
  */
 static int alloc_pt_range(struct i915_page_directory_entry *pd, uint16_t pde, size_t count,
 		  struct drm_device *dev)
-
 {
 	int i, ret;
 
