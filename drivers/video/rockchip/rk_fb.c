@@ -3810,6 +3810,12 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				freed_index = 0;
 			}
 			return 0;
+		} else {
+			if (dev_drv->iommu_enabled) {
+				if (dev_drv->ops->mmu_en)
+					dev_drv->ops->mmu_en(dev_drv);
+				freed_index = 0;
+			}
 		}
 #if defined(CONFIG_LOGO)
 		main_fbi->fbops->fb_set_par(main_fbi);
