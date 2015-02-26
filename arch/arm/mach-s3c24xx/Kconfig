@@ -228,11 +228,6 @@ config H1940BT
 	  This is a simple driver that is able to control
 	  the state of built in bluetooth chip on h1940.
 
-config PM_H1940
-	bool
-	help
-	  Internal node for H1940 and related PM
-
 config MACH_N30
 	bool "Acer N30 family"
 	select S3C_DEV_NAND
@@ -584,6 +579,11 @@ config MACH_SMDK2443
 	  Say Y here if you are using an SMDK2443
 
 endif	# CPU_S3C2443
+
+config PM_H1940
+	bool
+	help
+	  Internal node for H1940 and related PM
 
 endmenu	# SAMSUNG S3C24XX SoCs Support
 
