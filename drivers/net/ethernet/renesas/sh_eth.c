@@ -52,7 +52,12 @@
 		NETIF_MSG_RX_ERR| \
 		NETIF_MSG_TX_ERR)
 
+#define SH_ETH_OFFSET_DEFAULTS			\
+	[0 ... SH_ETH_MAX_REGISTER_OFFSET - 1] = SH_ETH_OFFSET_INVALID
+
 static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
+	SH_ETH_OFFSET_DEFAULTS,
+
 	[EDSR]		= 0x0000,
 	[EDMR]		= 0x0400,
 	[EDTRR]		= 0x0408,
@@ -151,6 +156,8 @@ static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
 };
 
 static const u16 sh_eth_offset_fast_rz[SH_ETH_MAX_REGISTER_OFFSET] = {
+	SH_ETH_OFFSET_DEFAULTS,
+
 	[EDSR]		= 0x0000,
 	[EDMR]		= 0x0400,
 	[EDTRR]		= 0x0408,
@@ -210,6 +217,8 @@ static const u16 sh_eth_offset_fast_rz[SH_ETH_MAX_REGISTER_OFFSET] = {
 };
 
 static const u16 sh_eth_offset_fast_rcar[SH_ETH_MAX_REGISTER_OFFSET] = {
+	SH_ETH_OFFSET_DEFAULTS,
+
 	[ECMR]		= 0x0300,
 	[RFLR]		= 0x0308,
 	[ECSR]		= 0x0310,
@@ -256,6 +265,8 @@ static const u16 sh_eth_offset_fast_rcar[SH_ETH_MAX_REGISTER_OFFSET] = {
 };
 
 static const u16 sh_eth_offset_fast_sh4[SH_ETH_MAX_REGISTER_OFFSET] = {
+	SH_ETH_OFFSET_DEFAULTS,
+
 	[ECMR]		= 0x0100,
 	[RFLR]		= 0x0108,
 	[ECSR]		= 0x0110,
@@ -308,6 +319,8 @@ static const u16 sh_eth_offset_fast_sh4[SH_ETH_MAX_REGISTER_OFFSET] = {
 };
 
 static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
+	SH_ETH_OFFSET_DEFAULTS,
+
 	[EDMR]		= 0x0000,
 	[EDTRR]		= 0x0004,
 	[EDRRR]		= 0x0008,
@@ -1544,7 +1557,8 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	/* If we don't need to check status, don't. -KDU */
 	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
 		/* fix the values for the next receiving if RDE is set */
-		if (intr_status & EESR_RDE && mdp->reg_offset[RDFAR] != 0) {
+		if (intr_status & EESR_RDE &&
+		    mdp->reg_offset[RDFAR] != SH_ETH_OFFSET_INVALID) {
 			u32 count = (sh_eth_read(ndev, RDFAR) -
 				     sh_eth_read(ndev, RDLAR)) >> 4;
 
