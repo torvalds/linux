@@ -2698,6 +2698,7 @@ static int __init _register(struct omap_hwmod *oh)
 	INIT_LIST_HEAD(&oh->master_ports);
 	INIT_LIST_HEAD(&oh->slave_ports);
 	spin_lock_init(&oh->_lock);
+	lockdep_set_class(&oh->_lock, &oh->hwmod_key);
 
 	oh->_state = _HWMOD_STATE_REGISTERED;
 
