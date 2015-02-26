@@ -633,7 +633,7 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 	if (IWL_MVM_BT_COEX_TTC)
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_TTC);
 
-	if (IWL_MVM_BT_COEX_RRC)
+	if (iwl_mvm_bt_is_rrc_supported(mvm))
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_RRC);
 
 	if (mvm->cfg->bt_shared_single_ant)

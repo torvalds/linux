@@ -948,6 +948,12 @@ static inline bool iwl_mvm_bt_is_plcr_supported(struct iwl_mvm *mvm)
 		IWL_MVM_BT_COEX_CORUNNING;
 }
 
+static inline bool iwl_mvm_bt_is_rrc_supported(struct iwl_mvm *mvm)
+{
+	return (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BT_COEX_RRC) &&
+		IWL_MVM_BT_COEX_RRC;
+}
+
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
 
 struct iwl_rate_info {
