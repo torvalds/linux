@@ -886,7 +886,7 @@ b_host:
 				if (is_host_active(musb)) {
 					musb_disable_interrupts(musb);
 					schedule_delayed_work(&musb->recover_work,
-							msecs_to_jiffies(100));
+							usecs_to_jiffies(10));
 				}
 			}
 		} else {
