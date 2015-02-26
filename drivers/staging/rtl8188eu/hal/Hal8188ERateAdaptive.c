@@ -487,7 +487,7 @@ static void odm_PTDecision_8188E(struct odm_ra_info *pRaInfo)
 			break;
 	}
 
-	j = j >> 1;
+	j >>= 1;
 	temp_stage = (pRaInfo->PTStage + 1) >> 1;
 	if (temp_stage > j)
 		stage_id = temp_stage-j;
