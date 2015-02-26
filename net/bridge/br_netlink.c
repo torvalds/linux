@@ -22,9 +22,64 @@
 #include "br_private.h"
 #include "br_private_stp.h"
 
-static size_t br_get_link_af_size(const struct net_device *dev)
+static int br_get_num_vlan_infos(const struct net_port_vlans *pv,
+				 u32 filter_mask)
+{
+	u16 vid_range_start = 0, vid_range_end = 0;
+	u16 vid_range_flags = 0;
+	u16 pvid, vid, flags;
+	int num_vlans = 0;
+
+	if (filter_mask & RTEXT_FILTER_BRVLAN)
+		return pv->num_vlans;
+
+	if (!(filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED))
+		return 0;
+
+	/* Count number of vlan info's
+	 */
+	pvid = br_get_pvid(pv);
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+		flags = 0;
+		if (vid == pvid)
+			flags |= BRIDGE_VLAN_INFO_PVID;
+
+		if (test_bit(vid, pv->untagged_bitmap))
+			flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+
+		if (vid_range_start == 0) {
+			goto initvars;
+		} else if ((vid - vid_range_end) == 1 &&
+			flags == vid_range_flags) {
+			vid_range_end = vid;
+			continue;
+		} else {
+			if ((vid_range_end - vid_range_start) > 0)
+				num_vlans += 2;
+			else
+				num_vlans += 1;
+		}
+initvars:
+		vid_range_start = vid;
+		vid_range_end = vid;
+		vid_range_flags = flags;
+	}
+
+	if (vid_range_start != 0) {
+		if ((vid_range_end - vid_range_start) > 0)
+			num_vlans += 2;
+		else
+			num_vlans += 1;
+	}
+
+	return num_vlans;
+}
+
+static size_t br_get_link_af_size_filtered(const struct net_device *dev,
+					   u32 filter_mask)
 {
 	struct net_port_vlans *pv;
+	int num_vlan_infos;
 
 	if (br_port_exists(dev))
 		pv = nbp_get_vlan_info(br_port_get_rtnl(dev));
@@ -36,8 +91,12 @@ static size_t br_get_link_af_size(const struct net_device *dev)
 	if (!pv)
 		return 0;
 
+	num_vlan_infos = br_get_num_vlan_infos(pv, filter_mask);
+	if (!num_vlan_infos)
+		return 0;
+
 	/* Each VLAN is returned in bridge_vlan_info along with flags */
-	return pv->num_vlans * nla_total_size(sizeof(struct bridge_vlan_info));
+	return num_vlan_infos * nla_total_size(sizeof(struct bridge_vlan_info));
 }
 
 static inline size_t br_port_info_size(void)
@@ -54,7 +113,7 @@ static inline size_t br_port_info_size(void)
 		+ 0;
 }
 
-static inline size_t br_nlmsg_size(struct net_device *dev)
+static inline size_t br_nlmsg_size(struct net_device *dev, u32 filter_mask)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
 		+ nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
@@ -64,7 +123,8 @@ static inline size_t br_nlmsg_size(struct net_device *dev)
 		+ nla_total_size(4) /* IFLA_LINK */
 		+ nla_total_size(1) /* IFLA_OPERSTATE */
 		+ nla_total_size(br_port_info_size()) /* IFLA_PROTINFO */
-		+ nla_total_size(br_get_link_af_size(dev)); /* IFLA_AF_SPEC */
+		+ nla_total_size(br_get_link_af_size_filtered(dev,
+				 filter_mask)); /* IFLA_AF_SPEC */
 }
 
 static int br_port_fill_attrs(struct sk_buff *skb,
@@ -299,6 +359,7 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 	struct net *net;
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
+	u32 filter = RTEXT_FILTER_BRVLAN_COMPRESSED;
 
 	if (!port)
 		return;
@@ -307,12 +368,11 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 	br_debug(port->br, "port %u(%s) event %d\n",
 		 (unsigned int)port->port_no, port->dev->name, event);
 
-	skb = nlmsg_new(br_nlmsg_size(port->dev), GFP_ATOMIC);
+	skb = nlmsg_new(br_nlmsg_size(port->dev, filter), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
-	err = br_fill_ifinfo(skb, port, 0, 0, event, 0,
-			     RTEXT_FILTER_BRVLAN_COMPRESSED, port->dev);
+	err = br_fill_ifinfo(skb, port, 0, 0, event, 0, filter, port->dev);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in br_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -721,6 +781,24 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 		return -EMSGSIZE;
 
 	return 0;
+}
+
+static size_t br_get_link_af_size(const struct net_device *dev)
+{
+	struct net_port_vlans *pv;
+
+	if (br_port_exists(dev))
+		pv = nbp_get_vlan_info(br_port_get_rtnl(dev));
+	else if (dev->priv_flags & IFF_EBRIDGE)
+		pv = br_get_vlan_info((struct net_bridge *)netdev_priv(dev));
+	else
+		return 0;
+
+	if (!pv)
+		return 0;
+
+	/* Each VLAN is returned in bridge_vlan_info along with flags */
+	return pv->num_vlans * nla_total_size(sizeof(struct bridge_vlan_info));
 }
 
 static struct rtnl_af_ops br_af_ops __read_mostly = {
