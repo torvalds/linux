@@ -29,7 +29,6 @@
 
 #include <linux/uaccess.h>
 
-
 struct i40evf_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int stat_offset;

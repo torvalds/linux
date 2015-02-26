@@ -9586,7 +9586,6 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_info(&pdev->dev,
 			 "The driver for the device detected an older version of the NVM image than expected. Please update the NVM image.\n");
 
-
 	i40e_verify_eeprom(pf);
 
 	/* Rev 0 hardware was never productized */

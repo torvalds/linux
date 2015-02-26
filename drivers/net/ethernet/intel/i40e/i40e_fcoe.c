@@ -24,7 +24,6 @@
  *
  ******************************************************************************/
 
-
 #include <linux/if_ether.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -1446,7 +1445,6 @@ static int i40e_fcoe_set_features(struct net_device *netdev,
 
 	return 0;
 }
-
 
 static const struct net_device_ops i40e_fcoe_netdev_ops = {
 	.ndo_open		= i40e_open,
