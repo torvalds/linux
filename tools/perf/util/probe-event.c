@@ -549,9 +549,11 @@ static int get_real_path(const char *raw_path, const char *comp_dir,
 		if (access(*new_path, R_OK) == 0)
 			return 0;
 
-		if (!symbol_conf.source_prefix)
+		if (!symbol_conf.source_prefix) {
 			/* In case of searching comp_dir, don't retry */
+			zfree(new_path);
 			return -errno;
+		}
 
 		switch (errno) {
 		case ENAMETOOLONG:
