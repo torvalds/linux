@@ -813,11 +813,19 @@ struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
 		.rw = sync ? READ_SYNC : READA,
 	};
 
+	/*
+	 * If sync is false, it needs to check its block allocation.
+	 * This is need and triggered by two flows:
+	 *   gc and truncate_partial_data_page.
+	 */
+	if (!sync)
+		goto search;
+
 	page = find_get_page(mapping, index);
 	if (page && PageUptodate(page))
 		return page;
 	f2fs_put_page(page, 0);
-
+search:
 	if (f2fs_lookup_extent_cache(inode, index, &ei)) {
 		dn.data_blkaddr = ei.blk + index - ei.fofs;
 		goto got_it;
