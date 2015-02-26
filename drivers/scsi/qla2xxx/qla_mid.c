@@ -788,7 +788,7 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 		rsp->msix = &ha->msix_entries[que_id + 1];
 	else
 		ql_log(ql_log_warn, base_vha, 0x00e3,
-		    "MSIX not enalbled.\n");
+		    "MSIX not enabled.\n");
 
 	ha->rsp_q_map[que_id] = rsp;
 	rsp->rid = rid;
