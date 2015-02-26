@@ -475,7 +475,7 @@ static int dsps_musb_init(struct musb *musb)
 	 * logic enabled.
 	 */
 	val = dsps_readb(musb->mregs, MUSB_BABBLE_CTL);
-	if (val == MUSB_BABBLE_RCV_DISABLE) {
+	if (val & MUSB_BABBLE_RCV_DISABLE) {
 		glue->sw_babble_enabled = true;
 		val |= MUSB_BABBLE_SW_SESSION_CTRL;
 		dsps_writeb(musb->mregs, MUSB_BABBLE_CTL, val);
