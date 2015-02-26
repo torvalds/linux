@@ -3324,6 +3324,26 @@ static int rocker_port_stp_update(struct rocker_port *rocker_port, u8 state)
 	return rocker_port_fwding(rocker_port);
 }
 
+static int rocker_port_fwd_enable(struct rocker_port *rocker_port)
+{
+	if (rocker_port_is_bridged(rocker_port))
+		/* bridge STP will enable port */
+		return 0;
+
+	/* port is not bridged, so simulate going to FORWARDING state */
+	return rocker_port_stp_update(rocker_port, BR_STATE_FORWARDING);
+}
+
+static int rocker_port_fwd_disable(struct rocker_port *rocker_port)
+{
+	if (rocker_port_is_bridged(rocker_port))
+		/* bridge STP will disable port */
+		return 0;
+
+	/* port is not bridged, so simulate going to DISABLED state */
+	return rocker_port_stp_update(rocker_port, BR_STATE_DISABLED);
+}
+
 static struct rocker_internal_vlan_tbl_entry *
 rocker_internal_vlan_tbl_find(struct rocker *rocker, int ifindex)
 {
@@ -3416,8 +3436,6 @@ not_found:
 static int rocker_port_open(struct net_device *dev)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
-	u8 stp_state = rocker_port_is_bridged(rocker_port) ?
-		BR_STATE_BLOCKING : BR_STATE_FORWARDING;
 	int err;
 
 	err = rocker_port_dma_rings_init(rocker_port);
@@ -3440,9 +3458,9 @@ static int rocker_port_open(struct net_device *dev)
 		goto err_request_rx_irq;
 	}
 
-	err = rocker_port_stp_update(rocker_port, stp_state);
+	err = rocker_port_fwd_enable(rocker_port);
 	if (err)
-		goto err_stp_update;
+		goto err_fwd_enable;
 
 	napi_enable(&rocker_port->napi_tx);
 	napi_enable(&rocker_port->napi_rx);
@@ -3450,7 +3468,7 @@ static int rocker_port_open(struct net_device *dev)
 	netif_start_queue(dev);
 	return 0;
 
-err_stp_update:
+err_fwd_enable:
 	free_irq(rocker_msix_rx_vector(rocker_port), rocker_port);
 err_request_rx_irq:
 	free_irq(rocker_msix_tx_vector(rocker_port), rocker_port);
@@ -3467,7 +3485,7 @@ static int rocker_port_stop(struct net_device *dev)
 	rocker_port_set_enable(rocker_port, false);
 	napi_disable(&rocker_port->napi_rx);
 	napi_disable(&rocker_port->napi_tx);
-	rocker_port_stp_update(rocker_port, BR_STATE_DISABLED);
+	rocker_port_fwd_disable(rocker_port);
 	free_irq(rocker_msix_rx_vector(rocker_port), rocker_port);
 	free_irq(rocker_msix_tx_vector(rocker_port), rocker_port);
 	rocker_port_dma_rings_fini(rocker_port);
@@ -4456,9 +4474,7 @@ static int rocker_port_bridge_join(struct rocker_port *rocker_port,
 	rocker_port->internal_vlan_id =
 		rocker_port_internal_vlan_id_get(rocker_port,
 						 bridge->ifindex);
-	err = rocker_port_vlan(rocker_port, 0, 0);
-
-	return err;
+	return rocker_port_vlan(rocker_port, 0, 0);
 }
 
 static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
@@ -4478,6 +4494,11 @@ static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
 		rocker_port_internal_vlan_id_get(rocker_port,
 						 rocker_port->dev->ifindex);
 	err = rocker_port_vlan(rocker_port, 0, 0);
+	if (err)
+		return err;
+
+	if (rocker_port->dev->flags & IFF_UP)
+		err = rocker_port_fwd_enable(rocker_port);
 
 	return err;
 }
