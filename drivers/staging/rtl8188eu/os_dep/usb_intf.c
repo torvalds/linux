@@ -179,7 +179,7 @@ static void usb_intf_stop(struct adapter *padapter)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_stop\n"));
 
-	/* disabel_hw_interrupt */
+	/* disable_hw_interrupt */
 	if (!padapter->bSurpriseRemoved) {
 		/* device still exists, so driver can do i/o operation */
 		/* TODO: */

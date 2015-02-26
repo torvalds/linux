@@ -888,7 +888,7 @@ enum ht_cap_ampdu_factor {
 #define	P2P_STATUS_FAIL_INCOMPATIBLE_PROVSION		0x0A
 #define	P2P_STATUS_FAIL_USER_REJECT			0x0B
 
-/*	Value of Inviation Flags Attribute */
+/*	Value of Invitation Flags Attribute */
 #define	P2P_INVITATION_FLAGS_PERSISTENT			BIT(0)
 
 #define	DMP_P2P_DEVCAP_SUPPORT	(P2P_DEVCAP_SERVICE_DISCOVERY | \
@@ -942,7 +942,7 @@ enum ht_cap_ampdu_factor {
 
 #define	P2P_WILDCARD_SSID_LEN			7
 
-/* default value, used when: (1)p2p disabed or (2)p2p enabled
+/* default value, used when: (1)p2p disabled or (2)p2p enabled
  * but only do 1 scan phase */
 #define	P2P_FINDPHASE_EX_NONE		0
 /*  used when p2p enabled and want to do 1 scan phase and
@@ -1007,13 +1007,13 @@ enum P2P_STATE {
 	P2P_STATE_TX_PROVISION_DIS_REQ = 6,
 	P2P_STATE_RX_PROVISION_DIS_RSP = 7,
 	P2P_STATE_RX_PROVISION_DIS_REQ = 8,
-	/* Doing the group owner negoitation handshake */
+	/* Doing the group owner negotiation handshake */
 	P2P_STATE_GONEGO_ING = 9,
-	/* finish the group negoitation handshake with success */
+	/* finish the group negotiation handshake with success */
 	P2P_STATE_GONEGO_OK = 10,
-	/* finish the group negoitation handshake with failure */
+	/* finish the group negotiation handshake with failure */
 	P2P_STATE_GONEGO_FAIL = 11,
-	/* receiving the P2P Inviation request and match with the profile. */
+	/* receiving the P2P Invitation request and match with the profile. */
 	P2P_STATE_RECV_INVITE_REQ_MATCH = 12,
 	/* Doing the P2P WPS */
 	P2P_STATE_PROVISIONING_ING = 13,
@@ -1023,17 +1023,17 @@ enum P2P_STATE {
 	P2P_STATE_TX_INVITE_REQ = 15,
 	/* Receiving the P2P Invitation response */
 	P2P_STATE_RX_INVITE_RESP_OK = 16,
-	/* receiving the P2P Inviation request and dismatch with the profile. */
+	/* receiving the P2P Invitation request and dismatch with the profile. */
 	P2P_STATE_RECV_INVITE_REQ_DISMATCH = 17,
-	/* receiving the P2P Inviation request and this wifi is GO. */
+	/* receiving the P2P Invitation request and this wifi is GO. */
 	P2P_STATE_RECV_INVITE_REQ_GO = 18,
-	/* receiving the P2P Inviation request to join an existing P2P Group. */
+	/* receiving the P2P Invitation request to join an existing P2P Group. */
 	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,
-	/* recveing the P2P Inviation response with failure */
+	/* receiving the P2P Invitation response with failure */
 	P2P_STATE_RX_INVITE_RESP_FAIL = 20,
-	/* receiving p2p negoitation response with information is not available */
+	/* receiving p2p negotiation response with information is not available */
 	P2P_STATE_RX_INFOR_NOREADY = 21,
-	/* sending p2p negoitation response with information is not available */
+	/* sending p2p negotiation response with information is not available */
 	P2P_STATE_TX_INFOR_NOREADY = 22,
 };
 
