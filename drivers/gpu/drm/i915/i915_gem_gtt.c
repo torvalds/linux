@@ -334,7 +334,7 @@ static int alloc_pt_range(struct i915_page_directory_entry *pd, uint16_t pde, si
 			goto err_out;
 		}
 		WARN(pd->page_table[i],
-		     "Leaking page directory entry %d (%pa)\n",
+		     "Leaking page directory entry %d (%p)\n",
 		     i, pd->page_table[i]);
 		pd->page_table[i] = pt;
 	}
