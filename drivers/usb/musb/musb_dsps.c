@@ -652,7 +652,7 @@ static int dsps_musb_reset(struct musb *musb)
 		session_restart = 1;
 	}
 
-	return !session_restart;
+	return session_restart ? 0 : -EPIPE;
 }
 
 static struct musb_platform_ops dsps_ops = {
