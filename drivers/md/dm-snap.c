@@ -1888,20 +1888,39 @@ static int snapshot_preresume(struct dm_target *ti)
 static void snapshot_resume(struct dm_target *ti)
 {
 	struct dm_snapshot *s = ti->private;
-	struct dm_snapshot *snap_src = NULL, *snap_dest = NULL;
+	struct dm_snapshot *snap_src = NULL, *snap_dest = NULL, *snap_merging = NULL;
 	struct dm_origin *o;
 	struct mapped_device *origin_md = NULL;
+	bool must_restart_merging = false;
 
 	down_read(&_origins_lock);
 
 	o = __lookup_dm_origin(s->origin->bdev);
 	if (o)
 		origin_md = dm_table_get_md(o->ti->table);
+	if (!origin_md) {
+		(void) __find_snapshots_sharing_cow(s, NULL, NULL, &snap_merging);
+		if (snap_merging)
+			origin_md = dm_table_get_md(snap_merging->ti->table);
+	}
 	if (origin_md == dm_table_get_md(ti->table))
 		origin_md = NULL;
+	if (origin_md) {
+		if (dm_hold(origin_md))
+			origin_md = NULL;
+	}
 
-	if (origin_md)
+	up_read(&_origins_lock);
+
+	if (origin_md) {
 		dm_internal_suspend_fast(origin_md);
+		if (snap_merging && test_bit(RUNNING_MERGE, &snap_merging->state_bits)) {
+			must_restart_merging = true;
+			stop_merge(snap_merging);
+		}
+	}
+
+	down_read(&_origins_lock);
 
 	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest, NULL);
 	if (snap_src && snap_dest) {
@@ -1912,10 +1931,14 @@ static void snapshot_resume(struct dm_target *ti)
 		up_write(&snap_src->lock);
 	}
 
-	if (origin_md)
-		dm_internal_resume_fast(origin_md);
-
 	up_read(&_origins_lock);
+
+	if (origin_md) {
+		if (must_restart_merging)
+			start_merge(snap_merging);
+		dm_internal_resume_fast(origin_md);
+		dm_put(origin_md);
+	}
 
 	/* Now we have correct chunk size, reregister */
 	reregister_snapshot(s);
@@ -2360,7 +2383,7 @@ static struct target_type snapshot_target = {
 
 static struct target_type merge_target = {
 	.name    = dm_snapshot_merge_target_name,
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
