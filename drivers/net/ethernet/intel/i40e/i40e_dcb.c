@@ -459,7 +459,7 @@ static void i40e_cee_to_dcb_v1_config(
 	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
 	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
 	/* Add APPs if Error is False and Oper/Sync is True */
-	if (!err && sync && oper) {
+	if (!err) {
 		/* CEE operating configuration supports FCoE/iSCSI/FIP only */
 		dcbcfg->numapps = I40E_CEE_OPER_MAX_APPS;
 
