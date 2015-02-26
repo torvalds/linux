@@ -216,16 +216,16 @@ static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
 #define	RxDefaultAnt2		0x569a
 
 bool odm_StaDefAntSel(struct dm_odm_t *pDM_Odm,
- u32 OFDM_Ant1_Cnt,
- u32 OFDM_Ant2_Cnt,
- u32 CCK_Ant1_Cnt,
- u32 CCK_Ant2_Cnt,
- u8 *pDefAnt
+	u32 OFDM_Ant1_Cnt,
+	u32 OFDM_Ant2_Cnt,
+	u32 CCK_Ant1_Cnt,
+	u32 CCK_Ant2_Cnt,
+	u8 *pDefAnt
 	);
 
 void odm_SetRxIdleAnt(struct dm_odm_t *pDM_Odm,
 	u8 Ant,
-   bool   bDualPath
+	bool   bDualPath
 );
 
 /* 3 Export Interface */
