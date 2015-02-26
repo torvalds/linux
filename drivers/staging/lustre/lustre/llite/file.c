@@ -693,7 +693,7 @@ restart:
 out_och_free:
 	if (rc) {
 		if (och_p && *och_p) {
-			OBD_FREE(*och_p, sizeof (struct obd_client_handle));
+			OBD_FREE(*och_p, sizeof(struct obd_client_handle));
 			*och_p = NULL; /* OBD_FREE writes some magic there */
 			(*och_usecount)--;
 		}
