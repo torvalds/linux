@@ -1421,6 +1421,14 @@
 		ti,dividers = <1>, <8>;
 	};
 
+	clkout2_clk: clkout2_clk {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&clkoutmux2_clk_mux>;
+		ti,bit-shift = <8>;
+		reg = <0x06b0>;
+	};
+
 	l3init_960m_gfclk: l3init_960m_gfclk {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
