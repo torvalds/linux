@@ -1555,6 +1555,7 @@ int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fa
 	int status;
 
 	spin_lock(&inode->i_lock);
+	nfs_fattr_set_barrier(fattr);
 	status = nfs_post_op_update_inode_force_wcc_locked(inode, fattr);
 	spin_unlock(&inode->i_lock);
 	return status;
