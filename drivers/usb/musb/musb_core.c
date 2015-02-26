@@ -1835,7 +1835,8 @@ static void musb_irq_work(struct work_struct *data)
 static void musb_recover_work(struct work_struct *data)
 {
 	struct musb *musb = container_of(data, struct musb, recover_work.work);
-	int status, ret;
+	int ret;
+	u8 devctl;
 
 	ret  = musb_platform_reset(musb);
 	if (ret) {
@@ -1843,23 +1844,25 @@ static void musb_recover_work(struct work_struct *data)
 		return;
 	}
 
-	usb_phy_vbus_off(musb->xceiv);
-	usleep_range(100, 200);
+	/* drop session bit */
+	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+	devctl &= ~MUSB_DEVCTL_SESSION;
+	musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
 
-	usb_phy_vbus_on(musb->xceiv);
-	usleep_range(100, 200);
+	/* tell usbcore about it */
+	musb_root_disconnect(musb);
 
 	/*
 	 * When a babble condition occurs, the musb controller
 	 * removes the session bit and the endpoint config is lost.
 	 */
 	if (musb->dyn_fifo)
-		status = ep_config_from_table(musb);
+		ret = ep_config_from_table(musb);
 	else
-		status = ep_config_from_hw(musb);
+		ret = ep_config_from_hw(musb);
 
-	/* start the session again */
-	if (status == 0)
+	/* restart session */
+	if (ret == 0)
 		musb_start(musb);
 }
 
