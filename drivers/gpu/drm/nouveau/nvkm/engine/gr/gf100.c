@@ -1103,6 +1103,15 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	engctx = nvkm_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
+	if (stat & 0x00000001) {
+		/*
+		 * notifier interrupt, only needed for cyclestats
+		 * can be safely ignored
+		 */
+		nv_wr32(priv, 0x400100, 0x00000001);
+		stat &= ~0x00000001;
+	}
+
 	if (stat & 0x00000010) {
 		handle = nvkm_handle_get_class(engctx, class);
 		if (!handle || nv_call(handle->object, mthd, data)) {
