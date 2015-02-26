@@ -9459,6 +9459,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct i40e_pf *pf;
 	struct i40e_hw *hw;
 	static u16 pfs_found;
+	u32 ioremap_len;
 	u16 link_status;
 	int err = 0;
 	u32 len;
@@ -9507,8 +9508,11 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hw = &pf->hw;
 	hw->back = pf;
-	hw->hw_addr = ioremap(pci_resource_start(pdev, 0),
-			      pci_resource_len(pdev, 0));
+
+	ioremap_len = min_t(int, pci_resource_len(pdev, 0),
+			    I40E_MAX_CSR_SPACE);
+
+	hw->hw_addr = ioremap(pci_resource_start(pdev, 0), ioremap_len);
 	if (!hw->hw_addr) {
 		err = -EIO;
 		dev_info(&pdev->dev, "ioremap(0x%04x, 0x%04x) failed: 0x%x\n",
