@@ -36,7 +36,7 @@ static const struct option options[] = {
 		    "Specify length of memory to copy. "
 		    "Available units: B, KB, MB, GB and TB (upper and lower)"),
 	OPT_STRING('r', "routine", &routine, "default",
-		    "Specify routine to copy"),
+		    "Specify routine to copy, \"all\" runs all available routines"),
 	OPT_INTEGER('i', "iterations", &iterations,
 		    "repeat memcpy() invocation this number of times"),
 	OPT_BOOLEAN('c', "cycle", &use_cycle,
@@ -144,6 +144,8 @@ static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t l
 	result_cycle[0] = result_cycle[1] = 0ULL;
 	result_bps[0] = result_bps[1] = 0.0;
 
+	printf("Routine %s (%s)\n", r->name, r->desc);
+
 	if (bench_format == BENCH_FORMAT_DEFAULT)
 		printf("# Copying %s Bytes ...\n\n", length_str);
 
@@ -245,6 +247,12 @@ static int bench_mem_common(int argc, const char **argv,
 	/* same to without specifying either of prefault and no-prefault */
 	if (only_prefault && no_prefault)
 		only_prefault = no_prefault = false;
+
+	if (!strncmp(routine, "all", 3)) {
+		for (i = 0; info->routines[i].name; i++)
+			__bench_mem_routine(info, i, len, totallen);
+		return 0;
+	}
 
 	for (i = 0; info->routines[i].name; i++) {
 		if (!strcmp(info->routines[i].name, routine))
