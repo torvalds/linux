@@ -41,7 +41,6 @@
 
 #include "vme_user.h"
 
-static DEFINE_MUTEX(vme_user_mutex);
 static const char driver_name[] = "vme_user";
 
 static int bus[VME_USER_BUS_MAX];
@@ -555,10 +554,12 @@ static long
 vme_user_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret;
+	struct inode *inode = file_inode(file);
+	unsigned int minor = MINOR(inode->i_rdev);
 
-	mutex_lock(&vme_user_mutex);
-	ret = vme_user_ioctl(file_inode(file), file, cmd, arg);
-	mutex_unlock(&vme_user_mutex);
+	mutex_lock(&image[minor].mutex);
+	ret = vme_user_ioctl(inode, file, cmd, arg);
+	mutex_unlock(&image[minor].mutex);
 
 	return ret;
 }
