@@ -22,6 +22,7 @@ bool perf_session__read_build_ids(struct perf_session *session, bool with_hits);
 int perf_session__write_buildid_table(struct perf_session *session, int fd);
 int perf_session__cache_build_ids(struct perf_session *session);
 
+bool build_id_cache__cached(const char *sbuild_id);
 int build_id_cache__add_s(const char *sbuild_id,
 			  const char *name, bool is_kallsyms, bool is_vdso);
 int build_id_cache__remove_s(const char *sbuild_id);

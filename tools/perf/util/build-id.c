@@ -352,6 +352,18 @@ static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
 	return build_id_cache__add_s(sbuild_id, name, is_kallsyms, is_vdso);
 }
 
+bool build_id_cache__cached(const char *sbuild_id)
+{
+	bool ret = false;
+	char *filename = build_id__filename(sbuild_id, NULL, 0);
+
+	if (filename && !access(filename, F_OK))
+		ret = true;
+	free(filename);
+
+	return ret;
+}
+
 int build_id_cache__remove_s(const char *sbuild_id)
 {
 	const size_t size = PATH_MAX;

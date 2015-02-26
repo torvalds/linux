@@ -255,7 +255,7 @@ static int build_id_cache__update_file(const char *filename)
 	u8 build_id[BUILD_ID_SIZE];
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
-	int err;
+	int err = 0;
 
 	if (filename__read_build_id(filename, &build_id, sizeof(build_id)) < 0) {
 		pr_debug("Couldn't read a build-id in %s\n", filename);
@@ -263,7 +263,9 @@ static int build_id_cache__update_file(const char *filename)
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
-	err = build_id_cache__remove_s(sbuild_id);
+	if (build_id_cache__cached(sbuild_id))
+		err = build_id_cache__remove_s(sbuild_id);
+
 	if (!err)
 		err = build_id_cache__add_s(sbuild_id, filename, false, false);
 
