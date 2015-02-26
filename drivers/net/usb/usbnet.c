@@ -1188,8 +1188,7 @@ static void tx_complete (struct urb *urb)
 	struct usbnet		*dev = entry->dev;
 
 	if (urb->status == 0) {
-		if (!(dev->driver_info->flags & FLAG_MULTI_PACKET))
-			dev->net->stats.tx_packets++;
+		dev->net->stats.tx_packets += entry->packets;
 		dev->net->stats.tx_bytes += entry->length;
 	} else {
 		dev->net->stats.tx_errors++;
@@ -1348,6 +1347,8 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 			urb->transfer_flags |= URB_ZERO_PACKET;
 	}
 	entry->length = urb->transfer_buffer_length = length;
+	if (!(info->flags & FLAG_MULTI_PACKET))
+		usbnet_set_skb_tx_stats(skb, 1);
 
 	spin_lock_irqsave(&dev->txq.lock, flags);
 	retval = usb_autopm_get_interface_async(dev->intf);
