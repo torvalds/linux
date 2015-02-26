@@ -3233,6 +3233,7 @@ void *ll_iocontrol_register(llioc_callback_t cb, int count, unsigned int *cmd)
 
 	return in_data;
 }
+EXPORT_SYMBOL(ll_iocontrol_register);
 
 void ll_iocontrol_unregister(void *magic)
 {
@@ -3257,8 +3258,6 @@ void ll_iocontrol_unregister(void *magic)
 
 	CWARN("didn't find iocontrol register block with magic: %p\n", magic);
 }
-
-EXPORT_SYMBOL(ll_iocontrol_register);
 EXPORT_SYMBOL(ll_iocontrol_unregister);
 
 static enum llioc_iter
