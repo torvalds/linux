@@ -1052,7 +1052,7 @@ EXPORT_SYMBOL(drm_vblank_get);
  * Acquire a reference count on vblank events to avoid having them disabled
  * while in use.
  *
- * This is the native kms version of drm_vblank_off().
+ * This is the native kms version of drm_vblank_get().
  *
  * Returns:
  * Zero on success, nonzero on failure.

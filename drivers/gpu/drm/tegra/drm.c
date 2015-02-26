@@ -55,9 +55,9 @@ static void tegra_atomic_complete(struct tegra_drm *tegra,
 	 * current layout.
 	 */
 
-	drm_atomic_helper_commit_pre_planes(drm, state);
+	drm_atomic_helper_commit_modeset_disables(drm, state);
 	drm_atomic_helper_commit_planes(drm, state);
-	drm_atomic_helper_commit_post_planes(drm, state);
+	drm_atomic_helper_commit_modeset_enables(drm, state);
 
 	drm_atomic_helper_wait_for_vblanks(drm, state);
 

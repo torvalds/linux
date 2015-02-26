@@ -134,9 +134,9 @@ int intel_atomic_commit(struct drm_device *dev,
 	 * FIXME:  The proper sequence here will eventually be:
 	 *
 	 * drm_atomic_helper_swap_state(dev, state)
-	 * drm_atomic_helper_commit_pre_planes(dev, state);
+	 * drm_atomic_helper_commit_modeset_disables(dev, state);
 	 * drm_atomic_helper_commit_planes(dev, state);
-	 * drm_atomic_helper_commit_post_planes(dev, state);
+	 * drm_atomic_helper_commit_modeset_enables(dev, state);
 	 * drm_atomic_helper_wait_for_vblanks(dev, state);
 	 * drm_atomic_helper_cleanup_planes(dev, state);
 	 * drm_atomic_state_free(state);

@@ -89,6 +89,7 @@ struct drm_crtc_helper_funcs {
 	int (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			struct drm_display_mode *adjusted_mode, int x, int y,
 			struct drm_framebuffer *old_fb);
+	/* Actually set the mode for atomic helpers, optional */
 	void (*mode_set_nofb)(struct drm_crtc *crtc);
 
 	/* Move the crtc on the current fb to the given position *optional* */
@@ -119,7 +120,7 @@ struct drm_crtc_helper_funcs {
  * @mode_fixup: try to fixup proposed mode for this connector
  * @prepare: part of the disable sequence, called before the CRTC modeset
  * @commit: called after the CRTC modeset
- * @mode_set: set this mode
+ * @mode_set: set this mode, optional for atomic helpers
  * @get_crtc: return CRTC that the encoder is currently attached to
  * @detect: connection status detection
  * @disable: disable encoder when not in use (overrides DPMS off)

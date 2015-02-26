@@ -92,6 +92,9 @@
 # define DP_MSA_TIMING_PAR_IGNORED	    (1 << 6) /* eDP */
 # define DP_OUI_SUPPORT			    (1 << 7)
 
+#define DP_SUPPORTED_LINK_RATES			0x010 /*eDP 1.4*/
+#define DP_MAX_SUPPORTED_RATES			0x8
+
 #define DP_I2C_SPEED_CAP		    0x00c    /* DPI */
 # define DP_I2C_SPEED_1K		    0x01
 # define DP_I2C_SPEED_5K		    0x02
@@ -101,6 +104,7 @@
 # define DP_I2C_SPEED_1M		    0x20
 
 #define DP_EDP_CONFIGURATION_CAP            0x00d   /* XXX 1.2? */
+# define DP_DPCD_DISPLAY_CONTROL_CAPABLE     (1 << 3) /* edp v1.2 or higher */
 #define DP_TRAINING_AUX_RD_INTERVAL         0x00e   /* XXX 1.2? */
 
 /* Multiple stream transport */
@@ -221,6 +225,8 @@
 # define DP_UP_REQ_EN			    (1 << 1)
 # define DP_UPSTREAM_IS_SRC		    (1 << 2)
 
+#define DP_LINK_RATE_SET			0x115
+
 #define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
 # define DP_PSR_ENABLE			    (1 << 0)
 # define DP_PSR_MAIN_LINK_ACTIVE	    (1 << 1)
@@ -331,6 +337,8 @@
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
 # define DP_SET_POWER_MASK                  0x3
+
+#define DP_EDP_DPCD_REV                          0x700
 
 #define DP_SIDEBAND_MSG_DOWN_REQ_BASE	    0x1000   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_UP_REP_BASE	    0x1200   /* 1.2 MST */
