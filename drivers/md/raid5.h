@@ -433,6 +433,7 @@ struct r5conf {
 	int			max_degraded;
 	int			raid_disks;
 	int			max_nr_stripes;
+	int			min_nr_stripes;
 
 	/* reshape_progress is the leading edge of a 'reshape'
 	 * It has value MaxSector when no reshape is happening
@@ -513,7 +514,15 @@ struct r5conf {
 #define R5_INACTIVE_BLOCKED	1	/* release of inactive stripes blocked,
 					 * waiting for 25% to be free
 					 */
-
+#define R5_ALLOC_MORE		2	/* It might help to allocate another
+					 * stripe.
+					 */
+#define R5_DID_ALLOC		4	/* A stripe was allocated, don't allocate
+					 * more until at least one has been
+					 * released.  This avoids flooding
+					 * the cache.
+					 */
+	struct shrinker		shrinker;
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;
