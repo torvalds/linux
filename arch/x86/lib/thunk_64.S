@@ -17,24 +17,15 @@
 	CFI_STARTPROC
 
 	/* this one pushes 9 elems, the next one would be %rIP */
-	pushq_cfi %rdi
-	CFI_REL_OFFSET rdi, 0
-	pushq_cfi %rsi
-	CFI_REL_OFFSET rsi, 0
-	pushq_cfi %rdx
-	CFI_REL_OFFSET rdx, 0
-	pushq_cfi %rcx
-	CFI_REL_OFFSET rcx, 0
-	pushq_cfi %rax
-	CFI_REL_OFFSET rax, 0
-	pushq_cfi %r8
-	CFI_REL_OFFSET r8, 0
-	pushq_cfi %r9
-	CFI_REL_OFFSET r9, 0
-	pushq_cfi %r10
-	CFI_REL_OFFSET r10, 0
-	pushq_cfi %r11
-	CFI_REL_OFFSET r11, 0
+	pushq_cfi_reg rdi
+	pushq_cfi_reg rsi
+	pushq_cfi_reg rdx
+	pushq_cfi_reg rcx
+	pushq_cfi_reg rax
+	pushq_cfi_reg r8
+	pushq_cfi_reg r9
+	pushq_cfi_reg r10
+	pushq_cfi_reg r11
 
 	.if \put_ret_addr_in_rdi
 	/* 9*8(%rsp) is return addr on stack */
@@ -69,24 +60,15 @@
 	CFI_STARTPROC
 	CFI_ADJUST_CFA_OFFSET 9*8
 restore:
-	popq_cfi %r11
-	CFI_RESTORE r11
-	popq_cfi %r10
-	CFI_RESTORE r10
-	popq_cfi %r9
-	CFI_RESTORE r9
-	popq_cfi %r8
-	CFI_RESTORE r8
-	popq_cfi %rax
-	CFI_RESTORE rax
-	popq_cfi %rcx
-	CFI_RESTORE rcx
-	popq_cfi %rdx
-	CFI_RESTORE rdx
-	popq_cfi %rsi
-	CFI_RESTORE rsi
-	popq_cfi %rdi
-	CFI_RESTORE rdi
+	popq_cfi_reg r11
+	popq_cfi_reg r10
+	popq_cfi_reg r9
+	popq_cfi_reg r8
+	popq_cfi_reg rax
+	popq_cfi_reg rcx
+	popq_cfi_reg rdx
+	popq_cfi_reg rsi
+	popq_cfi_reg rdi
 	ret
 	CFI_ENDPROC
 	_ASM_NOKPROBE(restore)

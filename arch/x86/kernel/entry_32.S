@@ -1234,20 +1234,13 @@ error_code:
 	/*CFI_REL_OFFSET es, 0*/
 	pushl_cfi %ds
 	/*CFI_REL_OFFSET ds, 0*/
-	pushl_cfi %eax
-	CFI_REL_OFFSET eax, 0
-	pushl_cfi %ebp
-	CFI_REL_OFFSET ebp, 0
-	pushl_cfi %edi
-	CFI_REL_OFFSET edi, 0
-	pushl_cfi %esi
-	CFI_REL_OFFSET esi, 0
-	pushl_cfi %edx
-	CFI_REL_OFFSET edx, 0
-	pushl_cfi %ecx
-	CFI_REL_OFFSET ecx, 0
-	pushl_cfi %ebx
-	CFI_REL_OFFSET ebx, 0
+	pushl_cfi_reg eax
+	pushl_cfi_reg ebp
+	pushl_cfi_reg edi
+	pushl_cfi_reg esi
+	pushl_cfi_reg edx
+	pushl_cfi_reg ecx
+	pushl_cfi_reg ebx
 	cld
 	movl $(__KERNEL_PERCPU), %ecx
 	movl %ecx, %fs

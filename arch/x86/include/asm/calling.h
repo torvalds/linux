@@ -210,37 +210,23 @@ For 32-bit we have the following conventions - kernel is built with
  */
 
 	.macro SAVE_ALL
-	pushl_cfi %eax
-	CFI_REL_OFFSET eax, 0
-	pushl_cfi %ebp
-	CFI_REL_OFFSET ebp, 0
-	pushl_cfi %edi
-	CFI_REL_OFFSET edi, 0
-	pushl_cfi %esi
-	CFI_REL_OFFSET esi, 0
-	pushl_cfi %edx
-	CFI_REL_OFFSET edx, 0
-	pushl_cfi %ecx
-	CFI_REL_OFFSET ecx, 0
-	pushl_cfi %ebx
-	CFI_REL_OFFSET ebx, 0
+	pushl_cfi_reg eax
+	pushl_cfi_reg ebp
+	pushl_cfi_reg edi
+	pushl_cfi_reg esi
+	pushl_cfi_reg edx
+	pushl_cfi_reg ecx
+	pushl_cfi_reg ebx
 	.endm
 
 	.macro RESTORE_ALL
-	popl_cfi %ebx
-	CFI_RESTORE ebx
-	popl_cfi %ecx
-	CFI_RESTORE ecx
-	popl_cfi %edx
-	CFI_RESTORE edx
-	popl_cfi %esi
-	CFI_RESTORE esi
-	popl_cfi %edi
-	CFI_RESTORE edi
-	popl_cfi %ebp
-	CFI_RESTORE ebp
-	popl_cfi %eax
-	CFI_RESTORE eax
+	popl_cfi_reg ebx
+	popl_cfi_reg ecx
+	popl_cfi_reg edx
+	popl_cfi_reg esi
+	popl_cfi_reg edi
+	popl_cfi_reg ebp
+	popl_cfi_reg eax
 	.endm
 
 #endif /* CONFIG_X86_64 */
