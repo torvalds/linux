@@ -32,6 +32,10 @@
 #define SH_ETH_TSU_CAM_ENTRIES	32
 
 enum {
+	/* IMPORTANT: To keep ethtool register dump working, add new
+	 * register names immediately before SH_ETH_MAX_REGISTER_OFFSET.
+	 */
+
 	/* E-DMAC registers */
 	EDSR = 0,
 	EDMR,
@@ -131,9 +135,7 @@ enum {
 	TSU_POST3,
 	TSU_POST4,
 	TSU_ADRH0,
-	TSU_ADRL0,
-	TSU_ADRH31,
-	TSU_ADRL31,
+	/* TSU_ADR{H,L}{0..31} are assumed to be contiguous */
 
 	TXNLCR0,
 	TXALCR0,
@@ -491,6 +493,7 @@ struct sh_eth_cpu_data {
 	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
 	unsigned shift_rd0:1;	/* shift Rx descriptor word 0 right by 16 */
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
+	unsigned rtrate:1;	/* EtherC has RTRATE register */
 };
 
 struct sh_eth_private {
