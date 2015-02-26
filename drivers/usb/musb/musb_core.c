@@ -880,16 +880,23 @@ b_host:
 	if (int_usb & MUSB_INTR_RESET) {
 		handled = IRQ_HANDLED;
 		if (devctl & MUSB_DEVCTL_HM) {
+			u8 power = musb_readl(musb->mregs, MUSB_POWER);
+
 			/*
 			 * Looks like non-HS BABBLE can be ignored, but
-			 * HS BABBLE is an error condition. For HS the solution
-			 * is to avoid babble in the first place and fix what
-			 * caused BABBLE. When HS BABBLE happens we can only
-			 * stop the session.
+			 * HS BABBLE is an error condition.
+			 *
+			 * For HS the solution is to avoid babble in the first
+			 * place and fix what caused BABBLE.
+			 *
+			 * When HS BABBLE happens what we can depends on which
+			 * platform MUSB is running, because some platforms
+			 * implemented proprietary means for 'recovering' from
+			 * Babble conditions. One such platform is AM335x. In
+			 * most cases, however, the only thing we can do is drop
+			 * the session.
 			 */
-			if (devctl & (MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV)) {
-				dev_dbg(musb->controller, "BABBLE devctl: %02x\n", devctl);
-			} else {
+			if (power & MUSB_POWER_HSMODE) {
 				ERR("Stopping host session -- babble\n");
 				musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 			}
