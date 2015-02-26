@@ -30,17 +30,6 @@
 
 	.section .entry.text, "ax"
 
-	.macro IA32_ARG_FIXUP noebp=0
-	movl	%edi,%r8d
-	.if \noebp
-	.else
-	movl	%ebp,%r9d
-	.endif
-	xchg	%ecx,%esi
-	movl	%ebx,%edi
-	movl	%edx,%edx	/* zero extension */
-	.endm 
-
 	/* clobbers %rax */
 	.macro  CLEAR_RREGS _r9=rax
 	xorl 	%eax,%eax
@@ -178,7 +167,12 @@ sysenter_flags_fixed:
 	cmpq	$(IA32_NR_syscalls-1),%rax
 	ja	ia32_badsys
 sysenter_do_call:
-	IA32_ARG_FIXUP
+	/* 32bit syscall -> 64bit C ABI argument conversion */
+	movl	%edi,%r8d	/* arg5 */
+	movl	%ebp,%r9d	/* arg6 */
+	xchg	%ecx,%esi	/* rsi:arg2, rcx:arg4 */
+	movl	%ebx,%edi	/* arg1 */
+	movl	%edx,%edx	/* arg3 (zero extension) */
 sysenter_dispatch:
 	call	*ia32_sys_call_table(,%rax,8)
 	movq	%rax,RAX(%rsp)
@@ -360,7 +354,12 @@ ENTRY(ia32_cstar_target)
 	cmpq $IA32_NR_syscalls-1,%rax
 	ja  ia32_badsys
 cstar_do_call:
-	IA32_ARG_FIXUP 1
+	/* 32bit syscall -> 64bit C ABI argument conversion */
+	movl	%edi,%r8d	/* arg5 */
+	/* r9 already loaded */	/* arg6 */
+	xchg	%ecx,%esi	/* rsi:arg2, rcx:arg4 */
+	movl	%ebx,%edi	/* arg1 */
+	movl	%edx,%edx	/* arg3 (zero extension) */
 cstar_dispatch:
 	call *ia32_sys_call_table(,%rax,8)
 	movq %rax,RAX(%rsp)
@@ -477,7 +476,12 @@ ENTRY(ia32_syscall)
 	cmpq $(IA32_NR_syscalls-1),%rax
 	ja ia32_badsys
 ia32_do_call:
-	IA32_ARG_FIXUP
+	/* 32bit syscall -> 64bit C ABI argument conversion */
+	movl %edi,%r8d	/* arg5 */
+	movl %ebp,%r9d	/* arg6 */
+	xchg %ecx,%esi	/* rsi:arg2, rcx:arg4 */
+	movl %ebx,%edi	/* arg1 */
+	movl %edx,%edx	/* arg3 (zero extension) */
 	call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
 ia32_sysret:
 	movq %rax,RAX(%rsp)
