@@ -21,11 +21,11 @@
 #include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/qcom_scm.h>
 
 #include <asm/outercache.h>
 #include <asm/cacheflush.h>
 
-#include "scm.h"
 
 #define QCOM_SCM_ENOMEM		-5
 #define QCOM_SCM_EOPNOTSUPP	-4
