@@ -506,18 +506,12 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 		temp_cck = dm_odm->RFCalibrateInfo.RegA24;
 
 		for (i = 0; i < CCK_TABLE_SIZE; i++) {
-			if (dm_odm->RFCalibrateInfo.bCCKinCH14) {
-				if (memcmp(&temp_cck, &CCKSwingTable_Ch14[i][2], 4)) {
+			if ((dm_odm->RFCalibrateInfo.bCCKinCH14 &&
+				memcmp(&temp_cck, &CCKSwingTable_Ch14[i][2], 4)) ||
+				memcmp(&temp_cck, &CCKSwingTable_Ch1_Ch13[i][2], 4)) {
 					cck_index_old = (u8)i;
 					dm_odm->BbSwingIdxCckBase = (u8)i;
 					break;
-				}
-			} else {
-				if (memcmp(&temp_cck, &CCKSwingTable_Ch1_Ch13[i][2], 4)) {
-					cck_index_old = (u8)i;
-					dm_odm->BbSwingIdxCckBase = (u8)i;
-					break;
-				}
 			}
 		}
 
