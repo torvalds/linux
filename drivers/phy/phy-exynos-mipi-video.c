@@ -59,7 +59,7 @@ static int __set_phy_state(struct exynos_mipi_video_phy *state,
 	else
 		reset = EXYNOS4_MIPI_PHY_SRESETN;
 
-	if (state->regmap) {
+	if (!IS_ERR(state->regmap)) {
 		mutex_lock(&state->mutex);
 		regmap_read(state->regmap, offset, &val);
 		if (on)
