@@ -7576,6 +7576,10 @@ static int i40e_sw_init(struct i40e_pf *pf)
 
 	mutex_init(&pf->switch_mutex);
 
+	/* If NPAR is enabled nudge the Tx scheduler */
+	if (pf->hw.func_caps.npar_enable && (!i40e_get_npar_bw_setting(pf)))
+		i40e_set_npar_bw_setting(pf);
+
 sw_init_done:
 	return err;
 }
