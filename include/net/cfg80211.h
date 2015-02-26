@@ -4295,6 +4295,7 @@ struct sk_buff *__cfg80211_alloc_reply_skb(struct wiphy *wiphy,
 					   int approxlen);
 
 struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
+					   struct wireless_dev *wdev,
 					   enum nl80211_commands cmd,
 					   enum nl80211_attrs attr,
 					   int vendor_event_idx,
@@ -4349,6 +4350,7 @@ int cfg80211_vendor_cmd_reply(struct sk_buff *skb);
 /**
  * cfg80211_vendor_event_alloc - allocate vendor-specific event skb
  * @wiphy: the wiphy
+ * @wdev: the wireless device
  * @event_idx: index of the vendor event in the wiphy's vendor_events
  * @approxlen: an upper bound of the length of the data that will
  *	be put into the skb
@@ -4357,16 +4359,20 @@ int cfg80211_vendor_cmd_reply(struct sk_buff *skb);
  * This function allocates and pre-fills an skb for an event on the
  * vendor-specific multicast group.
  *
+ * If wdev != NULL, both the ifindex and identifier of the specified
+ * wireless device are added to the event message before the vendor data
+ * attribute.
+ *
  * When done filling the skb, call cfg80211_vendor_event() with the
  * skb to send the event.
  *
  * Return: An allocated and pre-filled skb. %NULL if any errors happen.
  */
 static inline struct sk_buff *
-cfg80211_vendor_event_alloc(struct wiphy *wiphy, int approxlen,
-			    int event_idx, gfp_t gfp)
+cfg80211_vendor_event_alloc(struct wiphy *wiphy, struct wireless_dev *wdev,
+			     int approxlen, int event_idx, gfp_t gfp)
 {
-	return __cfg80211_alloc_event_skb(wiphy, NL80211_CMD_VENDOR,
+	return __cfg80211_alloc_event_skb(wiphy, wdev, NL80211_CMD_VENDOR,
 					  NL80211_ATTR_VENDOR_DATA,
 					  event_idx, approxlen, gfp);
 }
@@ -4467,7 +4473,7 @@ static inline int cfg80211_testmode_reply(struct sk_buff *skb)
 static inline struct sk_buff *
 cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy, int approxlen, gfp_t gfp)
 {
-	return __cfg80211_alloc_event_skb(wiphy, NL80211_CMD_TESTMODE,
+	return __cfg80211_alloc_event_skb(wiphy, NULL, NL80211_CMD_TESTMODE,
 					  NL80211_ATTR_TESTDATA, -1,
 					  approxlen, gfp);
 }

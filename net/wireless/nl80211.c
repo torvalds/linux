@@ -7389,8 +7389,8 @@ static int nl80211_set_mcast_rate(struct sk_buff *skb, struct genl_info *info)
 
 static struct sk_buff *
 __cfg80211_alloc_vendor_skb(struct cfg80211_registered_device *rdev,
-			    int approxlen, u32 portid, u32 seq,
-			    enum nl80211_commands cmd,
+			    struct wireless_dev *wdev, int approxlen,
+			    u32 portid, u32 seq, enum nl80211_commands cmd,
 			    enum nl80211_attrs attr,
 			    const struct nl80211_vendor_cmd_info *info,
 			    gfp_t gfp)
@@ -7421,6 +7421,16 @@ __cfg80211_alloc_vendor_skb(struct cfg80211_registered_device *rdev,
 			goto nla_put_failure;
 	}
 
+	if (wdev) {
+		if (nla_put_u64(skb, NL80211_ATTR_WDEV,
+				wdev_id(wdev)))
+			goto nla_put_failure;
+		if (wdev->netdev &&
+		    nla_put_u32(skb, NL80211_ATTR_IFINDEX,
+				wdev->netdev->ifindex))
+			goto nla_put_failure;
+	}
+
 	data = nla_nest_start(skb, attr);
 
 	((void **)skb->cb)[0] = rdev;
@@ -7435,6 +7445,7 @@ __cfg80211_alloc_vendor_skb(struct cfg80211_registered_device *rdev,
 }
 
 struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
+					   struct wireless_dev *wdev,
 					   enum nl80211_commands cmd,
 					   enum nl80211_attrs attr,
 					   int vendor_event_idx,
@@ -7460,7 +7471,7 @@ struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
 		return NULL;
 	}
 
-	return __cfg80211_alloc_vendor_skb(rdev, approxlen, 0, 0,
+	return __cfg80211_alloc_vendor_skb(rdev, wdev, approxlen, 0, 0,
 					   cmd, attr, info, gfp);
 }
 EXPORT_SYMBOL(__cfg80211_alloc_event_skb);
@@ -9906,7 +9917,7 @@ struct sk_buff *__cfg80211_alloc_reply_skb(struct wiphy *wiphy,
 	if (WARN_ON(!rdev->cur_cmd_info))
 		return NULL;
 
-	return __cfg80211_alloc_vendor_skb(rdev, approxlen,
+	return __cfg80211_alloc_vendor_skb(rdev, NULL, approxlen,
 					   rdev->cur_cmd_info->snd_portid,
 					   rdev->cur_cmd_info->snd_seq,
 					   cmd, attr, NULL, GFP_KERNEL);
