@@ -707,6 +707,7 @@ static int pdev_remove(struct platform_device *device)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int omap_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
@@ -724,20 +725,14 @@ static int omap_drm_resume(struct device *dev)
 
 	return omap_gem_resume(dev);
 }
-
-#ifdef CONFIG_PM
-static const struct dev_pm_ops omapdrm_pm_ops = {
-	.suspend = omap_drm_suspend,
-	.resume = omap_drm_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(omapdrm_pm_ops, omap_drm_suspend, omap_drm_resume);
 
 static struct platform_driver pdev = {
 	.driver = {
 		.name = DRIVER_NAME,
-#ifdef CONFIG_PM
 		.pm = &omapdrm_pm_ops,
-#endif
 	},
 	.probe = pdev_probe,
 	.remove = pdev_remove,
