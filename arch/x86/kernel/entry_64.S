@@ -202,59 +202,6 @@ ENDPROC(native_usergs_sysret64)
 	CFI_REL_OFFSET r15, R15+\offset
 	.endm
 
-ENTRY(save_paranoid)
-	XCPT_FRAME 1 RDI+8
-	cld
-	SAVE_C_REGS 8
-	SAVE_EXTRA_REGS 8
-	movl $1,%ebx
-	movl $MSR_GS_BASE,%ecx
-	rdmsr
-	testl %edx,%edx
-	js 1f	/* negative -> in kernel */
-	SWAPGS
-	xorl %ebx,%ebx
-1:	ret
-	CFI_ENDPROC
-END(save_paranoid)
-
-/*
- * A newly forked process directly context switches into this address.
- *
- * rdi: prev task we switched from
- */
-ENTRY(ret_from_fork)
-	DEFAULT_FRAME
-
-	LOCK ; btr $TIF_FORK,TI_flags(%r8)
-
-	pushq_cfi $0x0002
-	popfq_cfi				# reset kernel eflags
-
-	call schedule_tail			# rdi: 'prev' task parameter
-
-	GET_THREAD_INFO(%rcx)
-
-	RESTORE_EXTRA_REGS
-
-	testl $3,CS(%rsp)			# from kernel_thread?
-	jz   1f
-
-	testl $_TIF_IA32, TI_flags(%rcx)	# 32-bit compat task needs IRET
-	jnz  int_ret_from_sys_call
-
-	RESTORE_TOP_OF_STACK %rdi
-	jmp ret_from_sys_call			# go to the SYSRET fastpath
-
-1:
-	movq %rbp, %rdi
-	call *%rbx
-	movl $0, RAX(%rsp)
-	RESTORE_EXTRA_REGS
-	jmp int_ret_from_sys_call
-	CFI_ENDPROC
-END(ret_from_fork)
-
 /*
  * 64bit SYSCALL instruction entry. Up to 6 arguments in registers.
  *
@@ -580,6 +527,43 @@ ENTRY(stub_x32_execveat)
 END(stub_x32_execveat)
 
 #endif
+
+/*
+ * A newly forked process directly context switches into this address.
+ *
+ * rdi: prev task we switched from
+ */
+ENTRY(ret_from_fork)
+	DEFAULT_FRAME
+
+	LOCK ; btr $TIF_FORK,TI_flags(%r8)
+
+	pushq_cfi $0x0002
+	popfq_cfi				# reset kernel eflags
+
+	call schedule_tail			# rdi: 'prev' task parameter
+
+	GET_THREAD_INFO(%rcx)
+
+	RESTORE_EXTRA_REGS
+
+	testl $3,CS(%rsp)			# from kernel_thread?
+	jz   1f
+
+	testl $_TIF_IA32, TI_flags(%rcx)	# 32-bit compat task needs IRET
+	jnz  int_ret_from_sys_call
+
+	RESTORE_TOP_OF_STACK %rdi
+	jmp ret_from_sys_call			# go to the SYSRET fastpath
+
+1:
+	movq %rbp, %rdi
+	call *%rbx
+	movl $0, RAX(%rsp)
+	RESTORE_EXTRA_REGS
+	jmp int_ret_from_sys_call
+	CFI_ENDPROC
+END(ret_from_fork)
 
 /*
  * Build the entry stubs and pointer table with some assembler magic.
@@ -1272,6 +1256,22 @@ idtentry async_page_fault do_async_page_fault has_error_code=1
 #ifdef CONFIG_X86_MCE
 idtentry machine_check has_error_code=0 paranoid=1 do_sym=*machine_check_vector(%rip)
 #endif
+
+ENTRY(save_paranoid)
+	XCPT_FRAME 1 RDI+8
+	cld
+	SAVE_C_REGS 8
+	SAVE_EXTRA_REGS 8
+	movl $1,%ebx
+	movl $MSR_GS_BASE,%ecx
+	rdmsr
+	testl %edx,%edx
+	js 1f	/* negative -> in kernel */
+	SWAPGS
+	xorl %ebx,%ebx
+1:	ret
+	CFI_ENDPROC
+END(save_paranoid)
 
 	/*
 	 * "Paranoid" exit path from exception stack.  This is invoked
