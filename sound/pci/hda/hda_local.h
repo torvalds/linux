@@ -273,29 +273,6 @@ int snd_hda_add_imux_item(struct hda_codec *codec,
 			  int index, int *type_index_ret);
 
 /*
- * Channel mode helper
- */
-struct hda_channel_mode {
-	int channels;
-	const struct hda_verb *sequence;
-};
-
-int snd_hda_ch_mode_info(struct hda_codec *codec,
-			 struct snd_ctl_elem_info *uinfo,
-			 const struct hda_channel_mode *chmode,
-			 int num_chmodes);
-int snd_hda_ch_mode_get(struct hda_codec *codec,
-			struct snd_ctl_elem_value *ucontrol,
-			const struct hda_channel_mode *chmode,
-			int num_chmodes,
-			int max_channels);
-int snd_hda_ch_mode_put(struct hda_codec *codec,
-			struct snd_ctl_elem_value *ucontrol,
-			const struct hda_channel_mode *chmode,
-			int num_chmodes,
-			int *max_channelsp);
-
-/*
  * Multi-channel / digital-out PCM helper
  */
 
