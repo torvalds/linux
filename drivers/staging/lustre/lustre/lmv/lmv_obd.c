@@ -487,7 +487,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		__u32 oldsize = 0;
 
 		while (newsize < index + 1)
-			newsize = newsize << 1;
+			newsize <<= 1;
 		OBD_ALLOC(newtgts, sizeof(*newtgts) * newsize);
 		if (newtgts == NULL) {
 			lmv_init_unlock(lmv);
