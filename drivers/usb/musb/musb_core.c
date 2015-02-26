@@ -884,7 +884,7 @@ b_host:
 				dev_err(musb->controller, "Babble\n");
 
 				if (is_host_active(musb)) {
-					musb_generic_disable(musb);
+					musb_disable_interrupts(musb);
 					schedule_delayed_work(&musb->recover_work,
 							msecs_to_jiffies(100));
 				}
@@ -1838,8 +1838,10 @@ static void musb_recover_work(struct work_struct *data)
 	int status, ret;
 
 	ret  = musb_platform_reset(musb);
-	if (ret)
+	if (ret) {
+		musb_enable_interrupts(musb);
 		return;
+	}
 
 	usb_phy_vbus_off(musb->xceiv);
 	usleep_range(100, 200);
