@@ -1681,9 +1681,6 @@ void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,
 	};
 	int ret;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_DISABLE_STA_TX))
-		return;
-
 	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
