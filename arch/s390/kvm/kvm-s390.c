@@ -579,7 +579,7 @@ static int kvm_s390_get_machine(struct kvm *kvm, struct kvm_device_attr *attr)
 	memcpy(&mach->fac_mask, kvm_s390_fac_list_mask,
 	       kvm_s390_fac_list_mask_size() * sizeof(u64));
 	memcpy((unsigned long *)&mach->fac_list, S390_lowcore.stfle_fac_list,
-	       S390_ARCH_FAC_LIST_SIZE_U64);
+	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	if (copy_to_user((void __user *)attr->addr, mach, sizeof(*mach)))
 		ret = -EFAULT;
 	kfree(mach);
@@ -903,7 +903,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		goto out_nofac;
 
 	memcpy(kvm->arch.model.fac->kvm, S390_lowcore.stfle_fac_list,
-	       S390_ARCH_FAC_LIST_SIZE_U64);
+	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 
 	/*
 	 * If this KVM host runs *not* in a LPAR, relax the facility bits
