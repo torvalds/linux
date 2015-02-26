@@ -6102,6 +6102,7 @@ enum skl_disp_power_wells {
 # define GEN6_CSUNIT_CLOCK_GATE_DISABLE			(1 << 7)
 
 #define GEN6_UCGCTL2				0x9404
+# define GEN6_VFUNIT_CLOCK_GATE_DISABLE			(1 << 31)
 # define GEN7_VDSUNIT_CLOCK_GATE_DISABLE		(1 << 30)
 # define GEN7_TDLUNIT_CLOCK_GATE_DISABLE		(1 << 22)
 # define GEN6_RCZUNIT_CLOCK_GATE_DISABLE		(1 << 13)
