@@ -487,38 +487,17 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val, rp_state_cap;
-	ssize_t ret;
+	u32 val;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
-	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
-
-	if (attr == &dev_attr_gt_RP0_freq_mhz) {
-		if (IS_VALLEYVIEW(dev))
-			val = intel_gpu_freq(dev_priv, dev_priv->rps.rp0_freq);
-		else
-			val = intel_gpu_freq(dev_priv,
-					     ((rp_state_cap & 0x0000ff) >> 0));
-	} else if (attr == &dev_attr_gt_RP1_freq_mhz) {
-		if (IS_VALLEYVIEW(dev))
-			val = intel_gpu_freq(dev_priv, dev_priv->rps.rp1_freq);
-		else
-			val = intel_gpu_freq(dev_priv,
-					     ((rp_state_cap & 0x00ff00) >> 8));
-	} else if (attr == &dev_attr_gt_RPn_freq_mhz) {
-		if (IS_VALLEYVIEW(dev))
-			val = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq);
-		else
-			val = intel_gpu_freq(dev_priv,
-					     ((rp_state_cap & 0xff0000) >> 16));
-	} else {
+	if (attr == &dev_attr_gt_RP0_freq_mhz)
+		val = intel_gpu_freq(dev_priv, dev_priv->rps.rp0_freq);
+	else if (attr == &dev_attr_gt_RP1_freq_mhz)
+		val = intel_gpu_freq(dev_priv, dev_priv->rps.rp1_freq);
+	else if (attr == &dev_attr_gt_RPn_freq_mhz)
+		val = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq);
+	else
 		BUG();
-	}
+
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 

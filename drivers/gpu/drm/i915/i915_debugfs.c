@@ -4180,7 +4180,7 @@ i915_max_freq_set(void *data, u64 val)
 {
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rp_state_cap, hw_max, hw_min;
+	u32 hw_max, hw_min;
 	int ret;
 
 	if (INTEL_INFO(dev)->gen < 6)
@@ -4197,18 +4197,10 @@ i915_max_freq_set(void *data, u64 val)
 	/*
 	 * Turbo will still be enabled, but won't go above the set value.
 	 */
-	if (IS_VALLEYVIEW(dev)) {
-		val = intel_freq_opcode(dev_priv, val);
+	val = intel_freq_opcode(dev_priv, val);
 
-		hw_max = dev_priv->rps.max_freq;
-		hw_min = dev_priv->rps.min_freq;
-	} else {
-		val = intel_freq_opcode(dev_priv, val);
-
-		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		hw_max = dev_priv->rps.max_freq;
-		hw_min = (rp_state_cap >> 16) & 0xff;
-	}
+	hw_max = dev_priv->rps.max_freq;
+	hw_min = dev_priv->rps.min_freq;
 
 	if (val < hw_min || val > hw_max || val < dev_priv->rps.min_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
@@ -4255,7 +4247,7 @@ i915_min_freq_set(void *data, u64 val)
 {
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rp_state_cap, hw_max, hw_min;
+	u32 hw_max, hw_min;
 	int ret;
 
 	if (INTEL_INFO(dev)->gen < 6)
@@ -4272,18 +4264,10 @@ i915_min_freq_set(void *data, u64 val)
 	/*
 	 * Turbo will still be enabled, but won't go below the set value.
 	 */
-	if (IS_VALLEYVIEW(dev)) {
-		val = intel_freq_opcode(dev_priv, val);
+	val = intel_freq_opcode(dev_priv, val);
 
-		hw_max = dev_priv->rps.max_freq;
-		hw_min = dev_priv->rps.min_freq;
-	} else {
-		val = intel_freq_opcode(dev_priv, val);
-
-		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		hw_max = dev_priv->rps.max_freq;
-		hw_min = (rp_state_cap >> 16) & 0xff;
-	}
+	hw_max = dev_priv->rps.max_freq;
+	hw_min = dev_priv->rps.min_freq;
 
 	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
