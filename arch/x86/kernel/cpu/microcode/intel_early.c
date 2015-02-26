@@ -180,8 +180,7 @@ matching_model_microcode(struct microcode_header_intel *mc_header,
 	if (total_size <= data_size + MC_HEADER_SIZE)
 		return UCODE_NFOUND;
 
-	ext_header = (struct extended_sigtable *)
-		     mc_header + data_size + MC_HEADER_SIZE;
+	ext_header = (void *) mc_header + data_size + MC_HEADER_SIZE;
 	ext_sigcount = ext_header->count;
 	ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
 
@@ -457,8 +456,7 @@ static void __ref show_saved_mc(void)
 		if (total_size <= data_size + MC_HEADER_SIZE)
 			continue;
 
-		ext_header = (struct extended_sigtable *)
-			     mc_saved_header + data_size + MC_HEADER_SIZE;
+		ext_header = (void *) mc_saved_header + data_size + MC_HEADER_SIZE;
 		ext_sigcount = ext_header->count;
 		ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
 
