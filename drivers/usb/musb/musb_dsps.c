@@ -604,31 +604,12 @@ static int dsps_musb_reset(struct musb *musb)
 {
 	struct device *dev = musb->controller;
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
-	const struct dsps_musb_wrapper *wrp = glue->wrp;
-	int session_restart = 0, error;
+	int session_restart = 0;
 
 	if (glue->sw_babble_enabled)
 		session_restart = dsps_sw_babble_control(musb);
-	/*
-	 * In case of new silicon version babble condition can be recovered
-	 * without resetting the MUSB. But for older silicon versions, MUSB
-	 * reset is needed
-	 */
-	if (session_restart || !glue->sw_babble_enabled) {
-		dev_info(musb->controller, "Restarting MUSB to recover from Babble\n");
-		dsps_writel(musb->ctrl_base, wrp->control, (1 << wrp->reset));
-		usleep_range(100, 200);
-		usb_phy_shutdown(musb->xceiv);
-		error = phy_power_off(musb->phy);
-		if (error)
-			dev_err(dev, "phy shutdown failed: %i\n", error);
-		usleep_range(100, 200);
-		usb_phy_init(musb->xceiv);
-		error = phy_power_on(musb->phy);
-		if (error)
-			dev_err(dev, "phy powerup failed: %i\n", error);
+	else
 		session_restart = 1;
-	}
 
 	return session_restart ? 0 : -EPIPE;
 }
