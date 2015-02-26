@@ -2638,7 +2638,7 @@ static long kvm_vm_ioctl(struct file *filp,
 			goto out_free_irq_routing;
 		r = kvm_set_irq_routing(kvm, entries, routing.nr,
 					routing.flags);
-	out_free_irq_routing:
+out_free_irq_routing:
 		vfree(entries);
 		break;
 	}
