@@ -567,7 +567,7 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, priv->i2c->dev.parent);
 	if (ret) {
-		dev_err(&priv->i2c->dev, "%s: firmare file '%s' not found\n",
+		dev_err(&priv->i2c->dev, "%s: firmware file '%s' not found\n",
 				KBUILD_MODNAME, fw_file);
 		goto err;
 	}

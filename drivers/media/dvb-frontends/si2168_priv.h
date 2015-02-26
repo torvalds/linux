@@ -40,7 +40,7 @@ struct si2168 {
 	u8 ts_mode;
 };
 
-/* firmare command struct */
+/* firmware command struct */
 #define SI2168_ARGLEN      30
 struct si2168_cmd {
 	u8 args[SI2168_ARGLEN];
