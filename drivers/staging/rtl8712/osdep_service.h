@@ -69,11 +69,6 @@ static inline void _init_timer(struct timer_list *ptimer,
 	init_timer(ptimer);
 }
 
-static inline void _set_timer(struct timer_list *ptimer, u32 delay_time)
-{
-	mod_timer(ptimer, (jiffies+msecs_to_jiffies(delay_time)));
-}
-
 static inline void _cancel_timer(struct timer_list *ptimer, u8 *bcancelled)
 {
 	del_timer(ptimer);

@@ -255,9 +255,10 @@ void r8712_stop_drv_threads(struct _adapter *padapter)
 
 static void start_drv_timers(struct _adapter *padapter)
 {
-	_set_timer(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
-		   5000);
-	_set_timer(&padapter->mlmepriv.wdg_timer, 2000);
+	mod_timer(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
+		  jiffies + msecs_to_jiffies(5000));
+	mod_timer(&padapter->mlmepriv.wdg_timer,
+		  jiffies + msecs_to_jiffies(2000));
 }
 
 void r8712_stop_drv_timers(struct _adapter *padapter)

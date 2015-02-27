@@ -37,8 +37,8 @@ static void sitesurvey_ctrl_handler(void *FunctionContext)
 	struct _adapter *adapter = (struct _adapter *)FunctionContext;
 
 	_r8712_sitesurvey_ctrl_handler(adapter);
-	_set_timer(&adapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
-		   3000);
+	mod_timer(&adapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
+		  jiffies + msecs_to_jiffies(3000));
 }
 
 static void join_timeout_handler (void *FunctionContext)
@@ -68,7 +68,8 @@ static void wdg_timeout_handler (void *FunctionContext)
 
 	_r8712_wdg_timeout_handler(adapter);
 
-	_set_timer(&adapter->mlmepriv.wdg_timer, 2000);
+	mod_timer(&adapter->mlmepriv.wdg_timer,
+		  jiffies + msecs_to_jiffies(2000));
 }
 
 void r8712_init_mlme_timer(struct _adapter *padapter)

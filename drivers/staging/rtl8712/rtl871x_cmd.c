@@ -247,7 +247,8 @@ u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 	}
 	set_fwstate(pmlmepriv, _FW_UNDER_SURVEY);
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	_set_timer(&pmlmepriv->scan_to_timer, SCANNING_TIMEOUT);
+	mod_timer(&pmlmepriv->scan_to_timer,
+		  jiffies + msecs_to_jiffies(SCANNING_TIMEOUT));
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_SITE_SURVEY);
 	padapter->blnEnableRxFF0Filter = 0;
 	return _SUCCESS;
@@ -890,7 +891,8 @@ void r8712_joinbss_cmd_callback(struct _adapter *padapter, struct cmd_obj *pcmd)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	if (pcmd->res != H2C_SUCCESS)
-		_set_timer(&pmlmepriv->assoc_timer, 1);
+		mod_timer(&pmlmepriv->assoc_timer,
+			  jiffies + msecs_to_jiffies(1));
 	r8712_free_cmd_obj(pcmd);
 }
 
@@ -907,7 +909,8 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 	struct wlan_network *tgt_network = &(pmlmepriv->cur_network);
 
 	if (pcmd->res != H2C_SUCCESS)
-		_set_timer(&pmlmepriv->assoc_timer, 1);
+		mod_timer(&pmlmepriv->assoc_timer,
+			  jiffies + msecs_to_jiffies(1));
 	_cancel_timer(&pmlmepriv->assoc_timer, &timer_cancelled);
 #ifdef __BIG_ENDIAN
 	/* endian_convert */

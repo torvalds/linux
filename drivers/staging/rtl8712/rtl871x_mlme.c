@@ -596,8 +596,8 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 
 				if (r8712_select_and_join_from_scan(pmlmepriv)
 				    == _SUCCESS)
-					_set_timer(&pmlmepriv->assoc_timer,
-						   MAX_JOIN_TIMEOUT);
+					mod_timer(&pmlmepriv->assoc_timer, jiffies +
+						  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 				else {
 					struct wlan_bssid_ex *pdev_network =
 					  &(adapter->registrypriv.dev_network);
@@ -622,8 +622,8 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 			if (r8712_select_and_join_from_scan(pmlmepriv) ==
 			    _SUCCESS)
-				_set_timer(&pmlmepriv->assoc_timer,
-					   MAX_JOIN_TIMEOUT);
+				mod_timer(&pmlmepriv->assoc_timer, jiffies +
+					  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 			else
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 		}
@@ -679,7 +679,8 @@ void r8712_indicate_connect(struct _adapter *padapter)
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_LINK);
 	r8712_os_indicate_connect(padapter);
 	if (padapter->registrypriv.power_mgnt > PS_MODE_ACTIVE)
-		_set_timer(&pmlmepriv->dhcp_timer, 60000);
+		mod_timer(&pmlmepriv->dhcp_timer,
+			  jiffies + msecs_to_jiffies(60000));
 }
 
 
@@ -916,7 +917,8 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 			goto ignore_joinbss_callback;
 	} else {
 		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true) {
-			_set_timer(&pmlmepriv->assoc_timer, 1);
+			mod_timer(&pmlmepriv->assoc_timer,
+				  jiffies + msecs_to_jiffies(1));
 			_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 		}
 	}
