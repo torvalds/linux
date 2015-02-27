@@ -390,6 +390,11 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		 "    netdev_registered = %i, current_netdev_flags = 0x%04x, state = %li flags = 0x%08lx\n",
 		 vsi->netdev_registered,
 		 vsi->current_netdev_flags, vsi->state, vsi->flags);
+	if (vsi == pf->vsi[pf->lan_vsi])
+		dev_info(&pf->pdev->dev, "MAC address: %pM SAN MAC: %pM Port MAC: %pM\n",
+			 pf->hw.mac.addr,
+			 pf->hw.mac.san_addr,
+			 pf->hw.mac.port_addr);
 	list_for_each_entry(f, &vsi->mac_filter_list, list) {
 		dev_info(&pf->pdev->dev,
 			 "    mac_filter_list: %pM vid=%d, is_netdev=%d is_vf=%d counter=%d\n",
