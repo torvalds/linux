@@ -200,7 +200,6 @@ static i40e_status i40e_read_nvm_word_srctl(struct i40e_hw *hw, u16 offset,
 			*data = (u16)((sr_reg &
 				       I40E_GLNVM_SRDATA_RDDATA_MASK)
 				    >> I40E_GLNVM_SRDATA_RDDATA_SHIFT);
-			*data = le16_to_cpu(*data);
 		}
 	}
 	if (ret_code)
