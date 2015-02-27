@@ -115,11 +115,6 @@ err_of:
 
 static int sdhci_st_remove(struct platform_device *pdev)
 {
-	struct sdhci_host *host = platform_get_drvdata(pdev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-
-	clk_disable_unprepare(pltfm_host->clk);
-
 	return sdhci_pltfm_unregister(pdev);
 }
 

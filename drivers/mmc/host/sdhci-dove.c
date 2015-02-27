@@ -110,13 +110,7 @@ err_sdhci_add:
 
 static int sdhci_dove_remove(struct platform_device *pdev)
 {
-	struct sdhci_host *host = platform_get_drvdata(pdev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-
-	clk_disable_unprepare(pltfm_host->clk);
-	sdhci_pltfm_unregister(pdev);
-
-	return 0;
+	return sdhci_pltfm_unregister(pdev);
 }
 
 static const struct of_device_id sdhci_dove_of_match_table[] = {
