@@ -468,7 +468,6 @@ void ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq)
 		list_add_tail(&req->rq_list, &pool->prp_req_list);
 	}
 	spin_unlock(&pool->prp_lock);
-	return;
 }
 EXPORT_SYMBOL(ptlrpc_add_rqs_to_pool);
 
