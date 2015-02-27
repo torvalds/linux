@@ -94,44 +94,49 @@ u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *evt)
 }
 EXPORT_SYMBOL_GPL(clockevent_delta2ns);
 
-static int __clockevents_set_mode(struct clock_event_device *dev,
-				  enum clock_event_mode mode)
+static int __clockevents_set_state(struct clock_event_device *dev,
+				   enum clock_event_state state)
 {
 	/* Transition with legacy set_mode() callback */
 	if (dev->set_mode) {
 		/* Legacy callback doesn't support new modes */
-		if (mode > CLOCK_EVT_MODE_ONESHOT)
+		if (state > CLOCK_EVT_STATE_ONESHOT)
 			return -ENOSYS;
-		dev->set_mode(mode, dev);
+		/*
+		 * 'clock_event_state' and 'clock_event_mode' have 1-to-1
+		 * mapping until *_ONESHOT, and so a simple cast will work.
+		 */
+		dev->set_mode((enum clock_event_mode)state, dev);
+		dev->mode = (enum clock_event_mode)state;
 		return 0;
 	}
 
 	if (dev->features & CLOCK_EVT_FEAT_DUMMY)
 		return 0;
 
-	/* Transition with new mode-specific callbacks */
-	switch (mode) {
-	case CLOCK_EVT_MODE_UNUSED:
+	/* Transition with new state-specific callbacks */
+	switch (state) {
+	case CLOCK_EVT_STATE_DETACHED:
 		/*
 		 * This is an internal state, which is guaranteed to go from
-		 * SHUTDOWN to UNUSED. No driver interaction required.
+		 * SHUTDOWN to DETACHED. No driver interaction required.
 		 */
 		return 0;
 
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		return dev->set_mode_shutdown(dev);
+	case CLOCK_EVT_STATE_SHUTDOWN:
+		return dev->set_state_shutdown(dev);
 
-	case CLOCK_EVT_MODE_PERIODIC:
+	case CLOCK_EVT_STATE_PERIODIC:
 		/* Core internal bug */
 		if (!(dev->features & CLOCK_EVT_FEAT_PERIODIC))
 			return -ENOSYS;
-		return dev->set_mode_periodic(dev);
+		return dev->set_state_periodic(dev);
 
-	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_STATE_ONESHOT:
 		/* Core internal bug */
 		if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
 			return -ENOSYS;
-		return dev->set_mode_oneshot(dev);
+		return dev->set_state_oneshot(dev);
 
 	default:
 		return -ENOSYS;
@@ -139,26 +144,26 @@ static int __clockevents_set_mode(struct clock_event_device *dev,
 }
 
 /**
- * clockevents_set_mode - set the operating mode of a clock event device
+ * clockevents_set_state - set the operating state of a clock event device
  * @dev:	device to modify
- * @mode:	new mode
+ * @state:	new state
  *
  * Must be called with interrupts disabled !
  */
-void clockevents_set_mode(struct clock_event_device *dev,
-				 enum clock_event_mode mode)
+void clockevents_set_state(struct clock_event_device *dev,
+			   enum clock_event_state state)
 {
-	if (dev->mode != mode) {
-		if (__clockevents_set_mode(dev, mode))
+	if (dev->state != state) {
+		if (__clockevents_set_state(dev, state))
 			return;
 
-		dev->mode = mode;
+		dev->state = state;
 
 		/*
 		 * A nsec2cyc multiplicator of 0 is invalid and we'd crash
 		 * on it, so fix it up and emit a warning:
 		 */
-		if (mode == CLOCK_EVT_MODE_ONESHOT) {
+		if (state == CLOCK_EVT_STATE_ONESHOT) {
 			if (unlikely(!dev->mult)) {
 				dev->mult = 1;
 				WARN_ON(1);
@@ -173,7 +178,7 @@ void clockevents_set_mode(struct clock_event_device *dev,
  */
 void clockevents_shutdown(struct clock_event_device *dev)
 {
-	clockevents_set_mode(dev, CLOCK_EVT_MODE_SHUTDOWN);
+	clockevents_set_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
 	dev->next_event.tv64 = KTIME_MAX;
 }
 
@@ -185,13 +190,12 @@ int clockevents_tick_resume(struct clock_event_device *dev)
 {
 	int ret = 0;
 
-	if (dev->set_mode)
+	if (dev->set_mode) {
 		dev->set_mode(CLOCK_EVT_MODE_RESUME, dev);
-	else if (dev->tick_resume)
-		ret = dev->tick_resume(dev);
-
-	if (likely(!ret))
 		dev->mode = CLOCK_EVT_MODE_RESUME;
+	} else if (dev->tick_resume) {
+		ret = dev->tick_resume(dev);
+	}
 
 	return ret;
 }
@@ -248,7 +252,7 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 		delta = dev->min_delta_ns;
 		dev->next_event = ktime_add_ns(ktime_get(), delta);
 
-		if (dev->mode == CLOCK_EVT_MODE_SHUTDOWN)
+		if (dev->state == CLOCK_EVT_STATE_SHUTDOWN)
 			return 0;
 
 		dev->retries++;
@@ -285,7 +289,7 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 	delta = dev->min_delta_ns;
 	dev->next_event = ktime_add_ns(ktime_get(), delta);
 
-	if (dev->mode == CLOCK_EVT_MODE_SHUTDOWN)
+	if (dev->state == CLOCK_EVT_STATE_SHUTDOWN)
 		return 0;
 
 	dev->retries++;
@@ -317,7 +321,7 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 
 	dev->next_event = expires;
 
-	if (dev->mode == CLOCK_EVT_MODE_SHUTDOWN)
+	if (dev->state == CLOCK_EVT_STATE_SHUTDOWN)
 		return 0;
 
 	/* Shortcut for clockevent devices that can deal with ktime. */
@@ -362,7 +366,7 @@ static int clockevents_replace(struct clock_event_device *ced)
 	struct clock_event_device *dev, *newdev = NULL;
 
 	list_for_each_entry(dev, &clockevent_devices, list) {
-		if (dev == ced || dev->mode != CLOCK_EVT_MODE_UNUSED)
+		if (dev == ced || dev->state != CLOCK_EVT_STATE_DETACHED)
 			continue;
 
 		if (!tick_check_replacement(newdev, dev))
@@ -388,7 +392,7 @@ static int clockevents_replace(struct clock_event_device *ced)
 static int __clockevents_try_unbind(struct clock_event_device *ced, int cpu)
 {
 	/* Fast track. Device is unused */
-	if (ced->mode == CLOCK_EVT_MODE_UNUSED) {
+	if (ced->state == CLOCK_EVT_STATE_DETACHED) {
 		list_del_init(&ced->list);
 		return 0;
 	}
@@ -438,30 +442,30 @@ int clockevents_unbind_device(struct clock_event_device *ced, int cpu)
 }
 EXPORT_SYMBOL_GPL(clockevents_unbind);
 
-/* Sanity check of mode transition callbacks */
+/* Sanity check of state transition callbacks */
 static int clockevents_sanity_check(struct clock_event_device *dev)
 {
 	/* Legacy set_mode() callback */
 	if (dev->set_mode) {
 		/* We shouldn't be supporting new modes now */
-		WARN_ON(dev->set_mode_periodic || dev->set_mode_oneshot ||
-			dev->set_mode_shutdown || dev->tick_resume);
+		WARN_ON(dev->set_state_periodic || dev->set_state_oneshot ||
+			dev->set_state_shutdown || dev->tick_resume);
 		return 0;
 	}
 
 	if (dev->features & CLOCK_EVT_FEAT_DUMMY)
 		return 0;
 
-	/* New mode-specific callbacks */
-	if (!dev->set_mode_shutdown)
+	/* New state-specific callbacks */
+	if (!dev->set_state_shutdown)
 		return -EINVAL;
 
 	if ((dev->features & CLOCK_EVT_FEAT_PERIODIC) &&
-	    !dev->set_mode_periodic)
+	    !dev->set_state_periodic)
 		return -EINVAL;
 
 	if ((dev->features & CLOCK_EVT_FEAT_ONESHOT) &&
-	    !dev->set_mode_oneshot)
+	    !dev->set_state_oneshot)
 		return -EINVAL;
 
 	return 0;
@@ -477,6 +481,9 @@ void clockevents_register_device(struct clock_event_device *dev)
 
 	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
 	BUG_ON(clockevents_sanity_check(dev));
+
+	/* Initialize state to DETACHED */
+	dev->state = CLOCK_EVT_STATE_DETACHED;
 
 	if (!dev->cpumask) {
 		WARN_ON(num_possible_cpus() > 1);
@@ -541,11 +548,11 @@ int __clockevents_update_freq(struct clock_event_device *dev, u32 freq)
 {
 	clockevents_config(dev, freq);
 
-	if (dev->mode == CLOCK_EVT_MODE_ONESHOT)
+	if (dev->state == CLOCK_EVT_STATE_ONESHOT)
 		return clockevents_program_event(dev, dev->next_event, false);
 
-	if (dev->mode == CLOCK_EVT_MODE_PERIODIC)
-		return __clockevents_set_mode(dev, CLOCK_EVT_MODE_PERIODIC);
+	if (dev->state == CLOCK_EVT_STATE_PERIODIC)
+		return __clockevents_set_state(dev, CLOCK_EVT_STATE_PERIODIC);
 
 	return 0;
 }
@@ -601,13 +608,13 @@ void clockevents_exchange_device(struct clock_event_device *old,
 	 */
 	if (old) {
 		module_put(old->owner);
-		clockevents_set_mode(old, CLOCK_EVT_MODE_UNUSED);
+		clockevents_set_state(old, CLOCK_EVT_STATE_DETACHED);
 		list_del(&old->list);
 		list_add(&old->list, &clockevents_released);
 	}
 
 	if (new) {
-		BUG_ON(new->mode != CLOCK_EVT_MODE_UNUSED);
+		BUG_ON(new->state != CLOCK_EVT_STATE_DETACHED);
 		clockevents_shutdown(new);
 	}
 	local_irq_restore(flags);
@@ -693,7 +700,7 @@ int clockevents_notify(unsigned long reason, void *arg)
 			if (cpumask_test_cpu(cpu, dev->cpumask) &&
 			    cpumask_weight(dev->cpumask) == 1 &&
 			    !tick_is_broadcast_device(dev)) {
-				BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
+				BUG_ON(dev->state != CLOCK_EVT_STATE_DETACHED);
 				list_del(&dev->list);
 			}
 		}

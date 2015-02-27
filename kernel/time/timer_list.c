@@ -233,21 +233,21 @@ print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 		print_name_offset(m, dev->set_mode);
 		SEQ_printf(m, "\n");
 	} else {
-		if (dev->set_mode_shutdown) {
+		if (dev->set_state_shutdown) {
 			SEQ_printf(m, " shutdown: ");
-			print_name_offset(m, dev->set_mode_shutdown);
+			print_name_offset(m, dev->set_state_shutdown);
 			SEQ_printf(m, "\n");
 		}
 
-		if (dev->set_mode_periodic) {
+		if (dev->set_state_periodic) {
 			SEQ_printf(m, " periodic: ");
-			print_name_offset(m, dev->set_mode_periodic);
+			print_name_offset(m, dev->set_state_periodic);
 			SEQ_printf(m, "\n");
 		}
 
-		if (dev->set_mode_oneshot) {
+		if (dev->set_state_oneshot) {
 			SEQ_printf(m, " oneshot:  ");
-			print_name_offset(m, dev->set_mode_oneshot);
+			print_name_offset(m, dev->set_state_oneshot);
 			SEQ_printf(m, "\n");
 		}
 
