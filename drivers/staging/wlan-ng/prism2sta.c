@@ -243,7 +243,6 @@ static int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
 			     struct p80211_metawep *p80211_wep)
 {
 	hfa384x_t *hw = (hfa384x_t *) wlandev->priv;
-	int result;
 
 	/* If necessary, set the 802.11 WEP bit */
 	if ((wlandev->hostwep & (HOSTWEP_PRIVACYINVOKED | HOSTWEP_ENCRYPT)) ==
@@ -251,9 +250,7 @@ static int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
 		p80211_hdr->a3.fc |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
 	}
 
-	result = hfa384x_drvr_txframe(hw, skb, p80211_hdr, p80211_wep);
-
-	return result;
+	return hfa384x_drvr_txframe(hw, skb, p80211_hdr, p80211_wep);
 }
 
 /*----------------------------------------------------------------
