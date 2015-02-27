@@ -125,8 +125,7 @@ static int hda_codec_driver_remove(struct device *dev)
 
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
-	codec->preset = NULL;
-	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
+	snd_hda_codec_cleanup_for_unbind(codec);
 	module_put(dev->driver->owner);
 	return 0;
 }

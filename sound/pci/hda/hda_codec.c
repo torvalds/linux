@@ -1160,36 +1160,62 @@ struct hda_pcm *snd_hda_codec_pcm_new(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_pcm_new);
 
+/*
+ * codec destructor
+ */
 static void codec_release_pcms(struct hda_codec *codec)
 {
 	struct hda_pcm *pcm, *n;
 
 	list_for_each_entry_safe(pcm, n, &codec->pcm_list_head, list) {
 		list_del_init(&pcm->list);
+		if (pcm->pcm)
+			snd_device_disconnect(codec->card, pcm->pcm);
 		snd_hda_codec_pcm_put(pcm);
 	}
 }
 
-/*
- * codec destructor
- */
+void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
+{
+	cancel_delayed_work_sync(&codec->jackpoll_work);
+	flush_workqueue(codec->bus->workq);
+	if (!codec->in_freeing)
+		snd_hda_ctls_clear(codec);
+	codec_release_pcms(codec);
+	snd_hda_detach_beep_device(codec);
+	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
+	snd_hda_jack_tbl_clear(codec);
+	codec->proc_widget_hook = NULL;
+	codec->spec = NULL;
+
+	free_hda_cache(&codec->amp_cache);
+	free_hda_cache(&codec->cmd_cache);
+	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
+	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
+
+	/* free only driver_pins so that init_pins + user_pins are restored */
+	snd_array_free(&codec->driver_pins);
+	snd_array_free(&codec->cvt_setups);
+	snd_array_free(&codec->spdif_out);
+	snd_array_free(&codec->verbs);
+	codec->preset = NULL;
+	codec->slave_dig_outs = NULL;
+	codec->spdif_status_reset = 0;
+	snd_array_free(&codec->mixers);
+	snd_array_free(&codec->nids);
+	remove_conn_list(codec);
+}
+
 static void snd_hda_codec_free(struct hda_codec *codec)
 {
 	if (!codec)
 		return;
-	cancel_delayed_work_sync(&codec->jackpoll_work);
-	codec_release_pcms(codec);
+	codec->in_freeing = 1;
 	if (device_is_registered(hda_codec_dev(codec)))
 		device_del(hda_codec_dev(codec));
-	snd_hda_jack_tbl_clear(codec);
 	free_init_pincfgs(codec);
 	flush_workqueue(codec->bus->workq);
 	list_del(&codec->list);
-	snd_array_free(&codec->mixers);
-	snd_array_free(&codec->nids);
-	snd_array_free(&codec->cvt_setups);
-	snd_array_free(&codec->spdif_out);
-	remove_conn_list(codec);
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	clear_bit(codec->addr, &codec->bus->codec_powered);
 	snd_hda_sysfs_clear(codec);
@@ -2479,30 +2505,8 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 		return -EBUSY;
 
 	/* OK, let it free */
-	cancel_delayed_work_sync(&codec->jackpoll_work);
-	flush_workqueue(bus->workq);
-	snd_hda_ctls_clear(codec);
-	codec_release_pcms(codec);
-	snd_hda_detach_beep_device(codec);
 	if (device_is_registered(hda_codec_dev(codec)))
 		device_del(hda_codec_dev(codec));
-
-	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
-	snd_hda_jack_tbl_clear(codec);
-	codec->proc_widget_hook = NULL;
-	codec->spec = NULL;
-	free_hda_cache(&codec->amp_cache);
-	free_hda_cache(&codec->cmd_cache);
-	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
-	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
-	/* free only driver_pins so that init_pins + user_pins are restored */
-	snd_array_free(&codec->driver_pins);
-	snd_array_free(&codec->cvt_setups);
-	snd_array_free(&codec->spdif_out);
-	snd_array_free(&codec->verbs);
-	codec->preset = NULL;
-	codec->slave_dig_outs = NULL;
-	codec->spdif_status_reset = 0;
 
 	/* allow device access again */
 	snd_hda_unlock_devices(bus);
