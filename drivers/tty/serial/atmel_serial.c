@@ -1534,7 +1534,7 @@ static void atmel_tasklet_func(unsigned long data)
 	spin_unlock(&port->lock);
 }
 
-static int atmel_init_property(struct atmel_uart_port *atmel_port,
+static void atmel_init_property(struct atmel_uart_port *atmel_port,
 				struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1575,7 +1575,6 @@ static int atmel_init_property(struct atmel_uart_port *atmel_port,
 		atmel_port->use_dma_tx  = false;
 	}
 
-	return 0;
 }
 
 static void atmel_init_rs485(struct uart_port *port,
@@ -2235,8 +2234,8 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 	struct uart_port *port = &atmel_port->uart;
 	struct atmel_uart_data *pdata = dev_get_platdata(&pdev->dev);
 
-	if (!atmel_init_property(atmel_port, pdev))
-		atmel_set_ops(port);
+	atmel_init_property(atmel_port, pdev);
+	atmel_set_ops(port);
 
 	atmel_init_rs485(port, pdev);
 
