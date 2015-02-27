@@ -1315,7 +1315,7 @@ static struct at86rf2xx_chip_data at86rf212_data = {
 	.get_desense_steps = at86rf212_get_desens_steps
 };
 
-static int at86rf230_hw_init(struct at86rf230_local *lp)
+static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 {
 	int rc, irq_type, irq_pol = IRQ_ACTIVE_HIGH;
 	unsigned int dvdd;
@@ -1362,6 +1362,45 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	usleep_range(lp->data->t_sleep_cycle,
 		     lp->data->t_sleep_cycle + 100);
 
+	/* xtal_trim value is calculated by:
+	 * CL = 0.5 * (CX + CTRIM + CPAR)
+	 *
+	 * whereas:
+	 * CL = capacitor of used crystal
+	 * CX = connected capacitors at xtal pins
+	 * CPAR = in all at86rf2xx datasheets this is a constant value 3 pF,
+	 *	  but this is different on each board setup. You need to fine
+	 *	  tuning this value via CTRIM.
+	 * CTRIM = variable capacitor setting. Resolution is 0.3 pF range is
+	 *	   0 pF upto 4.5 pF.
+	 *
+	 * Examples:
+	 * atben transceiver:
+	 *
+	 * CL = 8 pF
+	 * CX = 12 pF
+	 * CPAR = 3 pF (We assume the magic constant from datasheet)
+	 * CTRIM = 0.9 pF
+	 *
+	 * (12+0.9+3)/2 = 7.95 which is nearly at 8 pF
+	 *
+	 * xtal_trim = 0x3
+	 *
+	 * openlabs transceiver:
+	 *
+	 * CL = 16 pF
+	 * CX = 22 pF
+	 * CPAR = 3 pF (We assume the magic constant from datasheet)
+	 * CTRIM = 4.5 pF
+	 *
+	 * (22+4.5+3)/2 = 14.75 which is the nearest value to 16 pF
+	 *
+	 * xtal_trim = 0xf
+	 */
+	rc = at86rf230_write_subreg(lp, SR_XTAL_TRIM, xtal_trim);
+	if (rc)
+		return rc;
+
 	rc = at86rf230_read_subreg(lp, SR_DVDD_OK, &dvdd);
 	if (rc)
 		return rc;
@@ -1378,9 +1417,11 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 }
 
 static int
-at86rf230_get_pdata(struct spi_device *spi, int *rstn, int *slp_tr)
+at86rf230_get_pdata(struct spi_device *spi, int *rstn, int *slp_tr,
+		    u8 *xtal_trim)
 {
 	struct at86rf230_platform_data *pdata = spi->dev.platform_data;
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF) || !spi->dev.of_node) {
 		if (!pdata)
@@ -1388,11 +1429,15 @@ at86rf230_get_pdata(struct spi_device *spi, int *rstn, int *slp_tr)
 
 		*rstn = pdata->rstn;
 		*slp_tr = pdata->slp_tr;
+		*xtal_trim = pdata->xtal_trim;
 		return 0;
 	}
 
 	*rstn = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
 	*slp_tr = of_get_named_gpio(spi->dev.of_node, "sleep-gpio", 0);
+	ret = of_property_read_u8(spi->dev.of_node, "xtal-trim", xtal_trim);
+	if (ret < 0 && ret != -EINVAL)
+		return ret;
 
 	return 0;
 }
@@ -1505,13 +1550,14 @@ static int at86rf230_probe(struct spi_device *spi)
 	struct at86rf230_local *lp;
 	unsigned int status;
 	int rc, irq_type, rstn, slp_tr;
+	u8 xtal_trim;
 
 	if (!spi->irq) {
 		dev_err(&spi->dev, "no IRQ specified\n");
 		return -EINVAL;
 	}
 
-	rc = at86rf230_get_pdata(spi, &rstn, &slp_tr);
+	rc = at86rf230_get_pdata(spi, &rstn, &slp_tr, &xtal_trim);
 	if (rc < 0) {
 		dev_err(&spi->dev, "failed to parse platform_data: %d\n", rc);
 		return rc;
@@ -1570,7 +1616,7 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, lp);
 
-	rc = at86rf230_hw_init(lp);
+	rc = at86rf230_hw_init(lp, xtal_trim);
 	if (rc)
 		goto free_dev;
 

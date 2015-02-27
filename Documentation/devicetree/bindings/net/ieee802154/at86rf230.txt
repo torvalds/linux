@@ -11,6 +11,8 @@ Required properties:
 Optional properties:
   - reset-gpio:		GPIO spec for the rstn pin
   - sleep-gpio:		GPIO spec for the slp_tr pin
+  - xtal-trim:		u8 value for fine tuning the internal capacitance
+			arrays of xtal pins: 0 = +0 pF, 0xf = +4.5 pF
 
 Example:
 
@@ -20,4 +22,5 @@ Example:
 		reg = <0>;
 		interrupts = <19 1>;
 		interrupt-parent = <&gpio3>;
+		xtal-trim = /bits/ 8 <0x06>;
 	};
