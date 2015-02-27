@@ -690,8 +690,6 @@ static int mgc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 
 static int mgc_cleanup(struct obd_device *obd)
 {
-	int rc;
-
 	/* COMPAT_146 - old config logs may have added profiles we don't
 	   know about */
 	if (obd->obd_type->typ_refcnt <= 1)
@@ -701,8 +699,7 @@ static int mgc_cleanup(struct obd_device *obd)
 	lprocfs_obd_cleanup(obd);
 	ptlrpcd_decref();
 
-	rc = client_obd_cleanup(obd);
-	return rc;
+	return client_obd_cleanup(obd);
 }
 
 static int mgc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
