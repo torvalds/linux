@@ -2126,7 +2126,7 @@ i40e_status i40e_aq_send_msg_to_vf(struct i40e_hw *hw, u16 vfid,
  * Read the register using the admin queue commands
  **/
 i40e_status i40e_aq_debug_read_register(struct i40e_hw *hw,
-				u32  reg_addr, u64 *reg_val,
+				u32 reg_addr, u64 *reg_val,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
@@ -2137,17 +2137,15 @@ i40e_status i40e_aq_debug_read_register(struct i40e_hw *hw,
 	if (reg_val == NULL)
 		return I40E_ERR_PARAM;
 
-	i40e_fill_default_direct_cmd_desc(&desc,
-					  i40e_aqc_opc_debug_read_reg);
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_debug_read_reg);
 
 	cmd_resp->address = cpu_to_le32(reg_addr);
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	if (!status) {
-		*reg_val = ((u64)cmd_resp->value_high << 32) |
-			    (u64)cmd_resp->value_low;
-		*reg_val = le64_to_cpu(*reg_val);
+		*reg_val = ((u64)le32_to_cpu(cmd_resp->value_high) << 32) |
+			   (u64)le32_to_cpu(cmd_resp->value_low);
 	}
 
 	return status;
