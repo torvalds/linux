@@ -634,6 +634,7 @@ struct netvsc_device {
 
 	struct vmbus_channel *chn_table[NR_CPUS];
 	u32 send_table[VRSS_SEND_TAB_SIZE];
+	u32 max_chn;
 	u32 num_chn;
 	atomic_t queue_sends[NR_CPUS];
 

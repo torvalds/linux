@@ -687,6 +687,19 @@ static void netvsc_get_drvinfo(struct net_device *net,
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
+static void netvsc_get_channels(struct net_device *net,
+				struct ethtool_channels *channel)
+{
+	struct net_device_context *net_device_ctx = netdev_priv(net);
+	struct hv_device *dev = net_device_ctx->device_ctx;
+	struct netvsc_device *nvdev = hv_get_drvdata(dev);
+
+	if (nvdev) {
+		channel->max_combined	= nvdev->max_chn;
+		channel->combined_count = nvdev->num_chn;
+	}
+}
+
 static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 {
 	struct net_device_context *ndevctx = netdev_priv(ndev);
@@ -760,6 +773,7 @@ static void netvsc_poll_controller(struct net_device *net)
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
+	.get_channels   = netvsc_get_channels,
 };
 
 static const struct net_device_ops device_ops = {
