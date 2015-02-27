@@ -123,6 +123,9 @@
 	keyboard {
 		compatible = "gpio-keys";
 
+		pinctrl-names = "default";
+		pinctrl-0 = <&keyboard_pins>;
+
 		zero-key {
 			gpios = <&pfc 324 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_0>;
@@ -207,6 +210,12 @@
 	sdhi1_pins: sd1 {
 		renesas,groups = "sdhi1_data4", "sdhi1_ctrl";
 		renesas,function = "sdhi1";
+	};
+
+	keyboard_pins: keyboard {
+		renesas,pins = "PORT324", "PORT325", "PORT326", "PORT327",
+			       "PORT328", "PORT329";
+		bias-pull-up;
 	};
 };
 
