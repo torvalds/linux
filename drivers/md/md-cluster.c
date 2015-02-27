@@ -217,7 +217,7 @@ out:
 	return s;
 }
 
-void recover_bitmaps(struct md_thread *thread)
+static void recover_bitmaps(struct md_thread *thread)
 {
 	struct mddev *mddev = thread->mddev;
 	struct md_cluster_info *cinfo = mddev->cluster_info;
