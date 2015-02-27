@@ -1336,6 +1336,11 @@ static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 	if (rc)
 		return rc;
 
+	/* reset values differs in at86rf231 and at86rf233 */
+	rc = at86rf230_write_subreg(lp, SR_IRQ_MASK_MODE, 0);
+	if (rc)
+		return rc;
+
 	get_random_bytes(csma_seed, ARRAY_SIZE(csma_seed));
 	rc = at86rf230_write_subreg(lp, SR_CSMA_SEED_0, csma_seed[0]);
 	if (rc)
