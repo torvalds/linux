@@ -2707,14 +2707,12 @@ static struct md_ops mdc_md_ops = {
 
 static int __init mdc_init(void)
 {
-	int rc;
 	struct lprocfs_static_vars lvars = { NULL };
 
 	lprocfs_mdc_init_vars(&lvars);
 
-	rc = class_register_type(&mdc_obd_ops, &mdc_md_ops, lvars.module_vars,
+	return class_register_type(&mdc_obd_ops, &mdc_md_ops, lvars.module_vars,
 				 LUSTRE_MDC_NAME, NULL);
-	return rc;
 }
 
 static void /*__exit*/ mdc_exit(void)
