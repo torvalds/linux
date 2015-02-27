@@ -1083,7 +1083,7 @@ void ptlrpc_lprocfs_register_service(struct proc_dir_entry *entry,
 		 .data	     = svc},
 		{NULL}
 	};
-	static struct file_operations req_history_fops = {
+	static const struct file_operations req_history_fops = {
 		.owner       = THIS_MODULE,
 		.open	= ptlrpc_lprocfs_svc_req_history_open,
 		.read	= seq_read,
