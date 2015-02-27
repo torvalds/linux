@@ -196,9 +196,8 @@ static int build_id_cache__add_file(const char *filename)
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
 	err = build_id_cache__add_s(sbuild_id, filename,
 				    false, false);
-	if (verbose)
-		pr_info("Adding %s %s: %s\n", sbuild_id, filename,
-			err ? "FAIL" : "Ok");
+	pr_debug("Adding %s %s: %s\n", sbuild_id, filename,
+		 err ? "FAIL" : "Ok");
 	return err;
 }
 
@@ -216,9 +215,8 @@ static int build_id_cache__remove_file(const char *filename)
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
 	err = build_id_cache__remove_s(sbuild_id);
-	if (verbose)
-		pr_info("Removing %s %s: %s\n", sbuild_id, filename,
-			err ? "FAIL" : "Ok");
+	pr_debug("Removing %s %s: %s\n", sbuild_id, filename,
+		 err ? "FAIL" : "Ok");
 
 	return err;
 }
@@ -235,17 +233,15 @@ static int build_id_cache__purge_path(const char *pathname)
 
 	strlist__for_each(pos, list) {
 		err = build_id_cache__remove_s(pos->s);
-		if (verbose)
-			pr_info("Removing %s %s: %s\n", pos->s, pathname,
-				err ? "FAIL" : "Ok");
+		pr_debug("Removing %s %s: %s\n", pos->s, pathname,
+			 err ? "FAIL" : "Ok");
 		if (err)
 			break;
 	}
 	strlist__delete(list);
 
 out:
-	if (verbose)
-		pr_info("Purging %s: %s\n", pathname, err ? "FAIL" : "Ok");
+	pr_debug("Purging %s: %s\n", pathname, err ? "FAIL" : "Ok");
 
 	return err;
 }
@@ -296,9 +292,8 @@ static int build_id_cache__update_file(const char *filename)
 	if (!err)
 		err = build_id_cache__add_s(sbuild_id, filename, false, false);
 
-	if (verbose)
-		pr_info("Updating %s %s: %s\n", sbuild_id, filename,
-			err ? "FAIL" : "Ok");
+	pr_debug("Updating %s %s: %s\n", sbuild_id, filename,
+		 err ? "FAIL" : "Ok");
 
 	return err;
 }
