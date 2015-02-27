@@ -177,6 +177,8 @@ static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
 	ec_dbg(EC_DBG_REQ, fmt, ##__VA_ARGS__)
 #define ec_dbg_evt(fmt, ...) \
 	ec_dbg(EC_DBG_EVT, fmt, ##__VA_ARGS__)
+#define ec_dbg_ref(ec, fmt, ...) \
+	ec_dbg_raw("%lu: " fmt, ec->reference_count, ## __VA_ARGS__)
 
 /* --------------------------------------------------------------------------
  *                           Device Flags
@@ -544,6 +546,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 		ret = -EINVAL;
 		goto unlock;
 	}
+	ec_dbg_ref(ec, "Increase command");
 	/* following two actions should be kept atomic */
 	ec->curr = t;
 	ec_dbg_req("Command(%s) started", acpi_ec_cmd_string(t->command));
@@ -557,6 +560,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 	ec->curr = NULL;
 	/* Disable GPE for command processing (IBF=0/OBF=1) */
 	acpi_ec_complete_request(ec);
+	ec_dbg_ref(ec, "Decrease command");
 unlock:
 	spin_unlock_irqrestore(&ec->lock, tmp);
 	return ret;
@@ -718,8 +722,10 @@ static void acpi_ec_start(struct acpi_ec *ec, bool resuming)
 	if (!test_and_set_bit(EC_FLAGS_STARTED, &ec->flags)) {
 		ec_dbg_drv("Starting EC");
 		/* Enable GPE for event processing (SCI_EVT=1) */
-		if (!resuming)
+		if (!resuming) {
 			acpi_ec_submit_request(ec);
+			ec_dbg_ref(ec, "Increase driver");
+		}
 		ec_log_drv("EC started");
 	}
 	spin_unlock_irqrestore(&ec->lock, flags);
@@ -748,8 +754,10 @@ static void acpi_ec_stop(struct acpi_ec *ec, bool suspending)
 		wait_event(ec->wait, acpi_ec_stopped(ec));
 		spin_lock_irqsave(&ec->lock, flags);
 		/* Disable GPE for event processing (SCI_EVT=1) */
-		if (!suspending)
+		if (!suspending) {
 			acpi_ec_complete_request(ec);
+			ec_dbg_ref(ec, "Decrease driver");
+		}
 		clear_bit(EC_FLAGS_STARTED, &ec->flags);
 		clear_bit(EC_FLAGS_STOPPED, &ec->flags);
 		ec_log_drv("EC stopped");
