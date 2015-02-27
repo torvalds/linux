@@ -1197,6 +1197,7 @@
 			interrupts = <92>;
 			clocks = <&clks 61>;
 			fsl,usbphy = <&usbphy1>;
+			dr_mode = "host";
 			status = "disabled";
 		};
 

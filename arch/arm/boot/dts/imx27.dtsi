@@ -488,6 +488,7 @@
 				interrupts = <54>;
 				clocks = <&clks IMX27_CLK_USB_IPG_GATE>;
 				fsl,usbmisc = <&usbmisc 1>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -497,6 +498,7 @@
 				interrupts = <55>;
 				clocks = <&clks IMX27_CLK_USB_IPG_GATE>;
 				fsl,usbmisc = <&usbmisc 2>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 

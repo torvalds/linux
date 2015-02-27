@@ -767,6 +767,7 @@
 				fsl,usbmisc = <&usbmisc 2>;
 				phy_type = "hsic";
 				fsl,anatop = <&anatop>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
