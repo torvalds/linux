@@ -47,9 +47,6 @@ struct thread_struct {
 /* Forward declaration, a strange C thing */
 struct task_struct;
 
-/* Return saved PC of a blocked thread  */
-unsigned long thread_saved_pc(struct task_struct *t);
-
 #define task_pt_regs(p) \
 	((struct pt_regs *)(THREAD_SIZE + (void *)task_stack_page(p)) - 1)
 
@@ -85,6 +82,8 @@ unsigned long thread_saved_pc(struct task_struct *t);
 
 #define TSK_K_BLINK(tsk)	TSK_K_REG(tsk, 4)
 #define TSK_K_FP(tsk)		TSK_K_REG(tsk, 0)
+
+#define thread_saved_pc(tsk)	TSK_K_BLINK(tsk)
 
 extern void start_thread(struct pt_regs * regs, unsigned long pc,
 			 unsigned long usp);
