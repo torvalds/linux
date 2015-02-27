@@ -450,6 +450,8 @@ static int clockevents_sanity_check(struct clock_event_device *dev)
 		/* We shouldn't be supporting new modes now */
 		WARN_ON(dev->set_state_periodic || dev->set_state_oneshot ||
 			dev->set_state_shutdown || dev->tick_resume);
+
+		BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
 		return 0;
 	}
 
@@ -479,7 +481,6 @@ void clockevents_register_device(struct clock_event_device *dev)
 {
 	unsigned long flags;
 
-	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
 	BUG_ON(clockevents_sanity_check(dev));
 
 	/* Initialize state to DETACHED */
