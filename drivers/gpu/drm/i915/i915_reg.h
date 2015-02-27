@@ -6226,6 +6226,17 @@ enum skl_disp_power_wells {
 #define   GEN6_RC6			3
 #define   GEN6_RC7			4
 
+#define CHV_POWER_SS0_SIG1		0xa720
+#define CHV_POWER_SS1_SIG1		0xa728
+#define   CHV_SS_PG_ENABLE		(1<<1)
+#define   CHV_EU08_PG_ENABLE		(1<<9)
+#define   CHV_EU19_PG_ENABLE		(1<<17)
+#define   CHV_EU210_PG_ENABLE		(1<<25)
+
+#define CHV_POWER_SS0_SIG2		0xa724
+#define CHV_POWER_SS1_SIG2		0xa72c
+#define   CHV_EU311_PG_ENABLE		(1<<1)
+
 #define GEN9_SLICE0_PGCTL_ACK		0x804c
 #define GEN9_SLICE1_PGCTL_ACK		0x8050
 #define GEN9_SLICE2_PGCTL_ACK		0x8054

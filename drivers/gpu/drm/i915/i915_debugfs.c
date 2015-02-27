@@ -4459,7 +4459,7 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned int s_tot = 0, ss_tot = 0, ss_per = 0, eu_tot = 0, eu_per = 0;
 
-	if (INTEL_INFO(dev)->gen < 9)
+	if ((INTEL_INFO(dev)->gen < 8) || IS_BROADWELL(dev))
 		return -ENODEV;
 
 	seq_puts(m, "SSEU Device Info\n");
@@ -4481,7 +4481,34 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		   yesno(INTEL_INFO(dev)->has_eu_pg));
 
 	seq_puts(m, "SSEU Device Status\n");
-	if (IS_SKYLAKE(dev)) {
+	if (IS_CHERRYVIEW(dev)) {
+		const int ss_max = 2;
+		int ss;
+		u32 sig1[ss_max], sig2[ss_max];
+
+		sig1[0] = I915_READ(CHV_POWER_SS0_SIG1);
+		sig1[1] = I915_READ(CHV_POWER_SS1_SIG1);
+		sig2[0] = I915_READ(CHV_POWER_SS0_SIG2);
+		sig2[1] = I915_READ(CHV_POWER_SS1_SIG2);
+
+		for (ss = 0; ss < ss_max; ss++) {
+			unsigned int eu_cnt;
+
+			if (sig1[ss] & CHV_SS_PG_ENABLE)
+				/* skip disabled subslice */
+				continue;
+
+			s_tot = 1;
+			ss_per++;
+			eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
+				 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
+				 ((sig1[ss] & CHV_EU210_PG_ENABLE) ? 0 : 2) +
+				 ((sig2[ss] & CHV_EU311_PG_ENABLE) ? 0 : 2);
+			eu_tot += eu_cnt;
+			eu_per = max(eu_per, eu_cnt);
+		}
+		ss_tot = ss_per;
+	} else if (IS_SKYLAKE(dev)) {
 		const int s_max = 3, ss_max = 4;
 		int s, ss;
 		u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
