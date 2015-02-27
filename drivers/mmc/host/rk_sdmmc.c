@@ -46,6 +46,8 @@
 #include <linux/clk-private.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rfkill-wlan.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include "rk_sdmmc.h"
 #include "rk_sdmmc_dbg.h"
 #include <linux/regulator/rockchip_io_vol_domain.h>
@@ -1804,12 +1806,17 @@ static void dw_mci_do_grf_io_domain_switch(struct dw_mci *host, u32 voltage)
                         break;
         }
 
-        if(cpu_is_rk3288()){
+        if (cpu_is_rk3288()) {
                 if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)	   
                         grf_writel((voltage << 7) | (1 << 23), RK3288_GRF_IO_VSEL);
                 else
                         return ;
-        }else{
+        } else if (host->cid == DW_MCI_TYPE_RK3368) {
+		if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)
+			 regmap_write(host->grf, 0x900, (voltage << 6) | (1 << 22));	
+		else
+			return;
+	} else {
                 MMC_DBG_ERR_FUNC(host->mmc,"%s : unknown chip [%s]\n",
                                         __FUNCTION__, mmc_hostname(host->mmc));
         }
@@ -4181,6 +4188,8 @@ int dw_mci_resume(struct dw_mci *host)
                 else if(cpu_is_rk312x())
                         /* RK3036_GRF_SOC_CON0 is compatible with rk312x, tmp setting */
                         grf_writel(((1 << 8) << 16) | (0 << 8), RK3036_GRF_SOC_CON0);
+		else if(host->cid == DW_MCI_TYPE_RK3368)
+			regmap_write(host->grf, 0x43c, ((1 << 13) << 16) | (0 << 13));
 	}
 	if(host->vmmc){
 		ret = regulator_enable(host->vmmc);

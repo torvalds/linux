@@ -334,20 +334,21 @@
 	};
 
 	emmc: rksdmmc@ff0f0000 {
-		compatible = "rockchip,rk_mmc", "rockchip,rk32xx-sdmmc";
+		compatible = "rockchip,rk_mmc", "rockchip,rk3368-sdmmc";
 		reg = <0x0 0xff0f0000 0x0 0x4000>;
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clk_emmc>, <&clk_gates21 2>;
 		clock-names = "clk_mmc", "hclk_mmc";
+		rockchip,grf = <&grf>;
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <8>;
 	};
 
 	sdmmc: rksdmmc@ff0c0000 {
-		compatible = "rockchip,rk_mmc", "rockchip,rk32xx-sdmmc";
+		compatible = "rockchip,rk_mmc", "rockchip,rk3368-sdmmc";
 		reg = <0x0 0xff0c0000 0x0 0x4000>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -358,13 +359,14 @@
 		cd-gpios = <&gpio2 GPIO_B3 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
 		clocks = <&clk_sdmmc0>, <&clk_gates21 0>;
 		clock-names = "clk_mmc", "hclk_mmc";
+		rockchip,grf = <&grf>;
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
 	};
 
 	sdio: rksdmmc@ff0d0000 {
-		compatible = "rockchip,rk_mmc", "rockchip,rk32xx-sdmmc";
+		compatible = "rockchip,rk_mmc", "rockchip,rk3368-sdmmc";
 		reg = <0x0 0xff0d0000 0x0 0x4000>;
 		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -374,6 +376,7 @@
 		pinctrl-1 = <&sdio0_gpio>;
 		clocks = <&clk_sdio0>, <&clk_gates21 1>;
 		clock-names = "clk_mmc", "hclk_mmc";
+		rockchip,grf = <&grf>;
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
