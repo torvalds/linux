@@ -413,6 +413,8 @@ static const struct hv_vmbus_device_id hp_devs[] = {
 	{ HV_SCSI_GUID, },
 	/* Network */
 	{ HV_NIC_GUID, },
+	/* NetworkDirect Guest RDMA */
+	{ HV_ND_GUID, },
 };
 
 
