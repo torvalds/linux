@@ -64,9 +64,9 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 
 		frame_info->task = tsk;
 
-		frame_info->regs.r27 = KSTK_FP(tsk);
-		frame_info->regs.r28 = KSTK_ESP(tsk);
-		frame_info->regs.r31 = KSTK_BLINK(tsk);
+		frame_info->regs.r27 = TSK_K_FP(tsk);
+		frame_info->regs.r28 = TSK_K_ESP(tsk);
+		frame_info->regs.r31 = TSK_K_BLINK(tsk);
 		frame_info->regs.r63 = (unsigned int)__switch_to;
 
 		/* In the prologue of __switch_to, first FP is saved on stack

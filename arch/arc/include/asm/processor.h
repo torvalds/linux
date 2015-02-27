@@ -75,18 +75,19 @@ unsigned long thread_saved_pc(struct task_struct *t);
 #define release_segments(mm)        do { } while (0)
 
 #define KSTK_EIP(tsk)   (task_pt_regs(tsk)->ret)
+#define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
 
 /*
  * Where abouts of Task's sp, fp, blink when it was last seen in kernel mode.
  * Look in process.c for details of kernel stack layout
  */
-#define KSTK_ESP(tsk)   (tsk->thread.ksp)
+#define TSK_K_ESP(tsk)		(tsk->thread.ksp)
 
-#define KSTK_REG(tsk, off)	(*((unsigned int *)(KSTK_ESP(tsk) + \
+#define TSK_K_REG(tsk, off)	(*((unsigned int *)(TSK_K_ESP(tsk) + \
 					sizeof(struct callee_regs) + off)))
 
-#define KSTK_BLINK(tsk) KSTK_REG(tsk, 4)
-#define KSTK_FP(tsk)    KSTK_REG(tsk, 0)
+#define TSK_K_BLINK(tsk)	TSK_K_REG(tsk, 4)
+#define TSK_K_FP(tsk)		TSK_K_REG(tsk, 0)
 
 extern void start_thread(struct pt_regs * regs, unsigned long pc,
 			 unsigned long usp);
