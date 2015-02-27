@@ -27,6 +27,7 @@
 #include <linux/of_address.h>
 #include <linux/of_mtd.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/omap-gpmc.h>
 #include <linux/mtd/nand.h>
 #include <linux/pm_runtime.h>
@@ -1812,8 +1813,21 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	gpmc_cs_enable_mem(cs);
 
 no_timings:
-	if (of_platform_device_create(child, NULL, &pdev->dev))
-		return 0;
+
+	/* create platform device, NULL on error or when disabled */
+	if (!of_platform_device_create(child, NULL, &pdev->dev))
+		goto err_child_fail;
+
+	/* is child a common bus? */
+	if (of_match_node(of_default_bus_match_table, child))
+		/* create children and other common bus children */
+		if (of_platform_populate(child, of_default_bus_match_table,
+					 NULL, &pdev->dev))
+			goto err_child_fail;
+
+	return 0;
+
+err_child_fail:
 
 	dev_err(&pdev->dev, "failed to create gpmc child %s\n", child->name);
 	ret = -ENODEV;
