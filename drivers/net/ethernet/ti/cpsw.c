@@ -2466,6 +2466,7 @@ static int cpsw_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int cpsw_suspend(struct device *dev)
 {
 	struct platform_device	*pdev = to_platform_device(dev);
@@ -2518,11 +2519,9 @@ static int cpsw_resume(struct device *dev)
 	}
 	return 0;
 }
+#endif
 
-static const struct dev_pm_ops cpsw_pm_ops = {
-	.suspend	= cpsw_suspend,
-	.resume		= cpsw_resume,
-};
+static SIMPLE_DEV_PM_OPS(cpsw_pm_ops, cpsw_suspend, cpsw_resume);
 
 static const struct of_device_id cpsw_of_mtable[] = {
 	{ .compatible = "ti,cpsw", },
