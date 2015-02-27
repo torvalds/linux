@@ -221,7 +221,6 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 	WARN_ON(req->sk == NULL);
 	return true;
 }
-EXPORT_SYMBOL(tcp_fastopen_create_child);
 
 static bool tcp_fastopen_queue_check(struct sock *sk)
 {
