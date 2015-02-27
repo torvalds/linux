@@ -1898,7 +1898,7 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			struct hda_codec *codec;
-			err = snd_hda_codec_new(bus, c, &codec);
+			err = snd_hda_codec_new(bus, bus->card, c, &codec);
 			if (err < 0)
 				continue;
 			codec->jackpoll_interval = get_jackpoll_interval(chip);

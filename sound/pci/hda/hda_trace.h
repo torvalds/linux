@@ -23,7 +23,7 @@ DECLARE_EVENT_CLASS(hda_cmd,
 	),
 
 	TP_fast_assign(
-		__entry->card = (codec)->bus->card->number;
+		__entry->card = (codec)->card->number;
 		__entry->addr = (codec)->addr;
 		__entry->val = (val);
 	),
@@ -71,7 +71,7 @@ DECLARE_EVENT_CLASS(hda_power,
 	),
 
 	TP_fast_assign(
-		__entry->card = (codec)->bus->card->number;
+		__entry->card = (codec)->card->number;
 		__entry->addr = (codec)->addr;
 	),
 

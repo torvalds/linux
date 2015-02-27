@@ -287,9 +287,9 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 	}
 
 	/* audio codec should override the mixer name */
-	if (codec->afg || !*codec->bus->card->mixername)
-		snprintf(codec->bus->card->mixername,
-			 sizeof(codec->bus->card->mixername),
+	if (codec->afg || !*codec->card->mixername)
+		snprintf(codec->card->mixername,
+			 sizeof(codec->card->mixername),
 			 "%s %s", codec->vendor_name, codec->chip_name);
 	return 0;
 

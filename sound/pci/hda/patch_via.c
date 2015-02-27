@@ -907,16 +907,16 @@ static int patch_vt1708S(struct hda_codec *codec)
 	if (get_codec_type(codec) == VT1708BCE)	{
 		kfree(codec->chip_name);
 		codec->chip_name = kstrdup("VT1708BCE", GFP_KERNEL);
-		snprintf(codec->bus->card->mixername,
-			 sizeof(codec->bus->card->mixername),
+		snprintf(codec->card->mixername,
+			 sizeof(codec->card->mixername),
 			 "%s %s", codec->vendor_name, codec->chip_name);
 	}
 	/* correct names for VT1705 */
 	if (codec->vendor_id == 0x11064397)	{
 		kfree(codec->chip_name);
 		codec->chip_name = kstrdup("VT1705", GFP_KERNEL);
-		snprintf(codec->bus->card->mixername,
-			 sizeof(codec->bus->card->mixername),
+		snprintf(codec->card->mixername,
+			 sizeof(codec->card->mixername),
 			 "%s %s", codec->vendor_name, codec->chip_name);
 	}
 

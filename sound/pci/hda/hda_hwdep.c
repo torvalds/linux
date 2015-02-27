@@ -101,7 +101,7 @@ int snd_hda_create_hwdep(struct hda_codec *codec)
 	int err;
 
 	sprintf(hwname, "HDA Codec %d", codec->addr);
-	err = snd_hwdep_new(codec->bus->card, hwname, codec->addr, &hwdep);
+	err = snd_hwdep_new(codec->card, hwname, codec->addr, &hwdep);
 	if (err < 0)
 		return err;
 	codec->hwdep = hwdep;

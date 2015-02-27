@@ -1196,9 +1196,8 @@ static void snd_hda_codec_dev_release(struct device *dev)
  *
  * Returns 0 if successful, or a negative error code.
  */
-int snd_hda_codec_new(struct hda_bus *bus,
-				unsigned int codec_addr,
-				struct hda_codec **codecp)
+int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
+		      unsigned int codec_addr, struct hda_codec **codecp)
 {
 	struct hda_codec *codec;
 	struct device *dev;
@@ -1217,7 +1216,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 		return -EINVAL;
 
 	if (bus->caddr_tbl[codec_addr]) {
-		dev_err(bus->card->dev,
+		dev_err(card->dev,
 			"address 0x%x is already occupied\n",
 			codec_addr);
 		return -EBUSY;
@@ -1225,21 +1224,22 @@ int snd_hda_codec_new(struct hda_bus *bus,
 
 	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
 	if (codec == NULL) {
-		dev_err(bus->card->dev, "can't allocate struct hda_codec\n");
+		dev_err(card->dev, "can't allocate struct hda_codec\n");
 		return -ENOMEM;
 	}
 
 	dev = hda_codec_dev(codec);
 	device_initialize(dev);
-	dev->parent = bus->card->dev;
+	dev->parent = card->dev;
 	dev->bus = &snd_hda_bus_type;
 	dev->release = snd_hda_codec_dev_release;
 	dev->groups = snd_hda_dev_attr_groups;
-	dev_set_name(dev, "hdaudioC%dD%d", bus->card->number, codec_addr);
+	dev_set_name(dev, "hdaudioC%dD%d", card->number, codec_addr);
 	dev_set_drvdata(dev, codec); /* for sysfs */
 	device_enable_async_suspend(dev);
 
 	codec->bus = bus;
+	codec->card = card;
 	codec->addr = codec_addr;
 	mutex_init(&codec->spdif_mutex);
 	mutex_init(&codec->control_mutex);
@@ -1300,7 +1300,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 
 	setup_fg_nodes(codec);
 	if (!codec->afg && !codec->mfg) {
-		dev_err(bus->card->dev, "no AFG or MFG node found\n");
+		dev_err(card->dev, "no AFG or MFG node found\n");
 		err = -ENODEV;
 		goto error;
 	}
@@ -1308,7 +1308,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	fg = codec->afg ? codec->afg : codec->mfg;
 	err = read_widget_caps(codec, fg);
 	if (err < 0) {
-		dev_err(bus->card->dev, "cannot malloc\n");
+		dev_err(card->dev, "cannot malloc\n");
 		goto error;
 	}
 	err = read_pin_defaults(codec);
@@ -1337,9 +1337,9 @@ int snd_hda_codec_new(struct hda_bus *bus,
 
 	sprintf(component, "HDA:%08x,%08x,%08x", codec->vendor_id,
 		codec->subsystem_id, codec->revision_id);
-	snd_component_add(codec->bus->card, component);
+	snd_component_add(card, component);
 
-	err = snd_device_new(bus->card, SNDRV_DEV_CODEC, codec, &dev_ops);
+	err = snd_device_new(card, SNDRV_DEV_CODEC, codec, &dev_ops);
 	if (err < 0)
 		goto error;
 
@@ -2237,7 +2237,7 @@ find_mixer_ctl(struct hda_codec *codec, const char *name, int dev, int idx)
 	if (snd_BUG_ON(strlen(name) >= sizeof(id.name)))
 		return NULL;
 	strcpy(id.name, name);
-	return snd_ctl_find_id(codec->bus->card, &id);
+	return snd_ctl_find_id(codec->card, &id);
 }
 
 /**
@@ -2301,7 +2301,7 @@ int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 		nid = kctl->id.subdevice & 0xffff;
 	if (kctl->id.subdevice & (HDA_SUBDEV_NID_FLAG|HDA_SUBDEV_AMP_FLAG))
 		kctl->id.subdevice = 0;
-	err = snd_ctl_add(codec->bus->card, kctl);
+	err = snd_ctl_add(codec->card, kctl);
 	if (err < 0)
 		return err;
 	item = snd_array_new(&codec->mixers);
@@ -2354,7 +2354,7 @@ void snd_hda_ctls_clear(struct hda_codec *codec)
 	int i;
 	struct hda_nid_item *items = codec->mixers.list;
 	for (i = 0; i < codec->mixers.used; i++)
-		snd_ctl_remove(codec->bus->card, items[i].kctl);
+		snd_ctl_remove(codec->card, items[i].kctl);
 	snd_array_free(&codec->mixers);
 	snd_array_free(&codec->nids);
 }
@@ -2427,7 +2427,7 @@ EXPORT_SYMBOL_GPL(snd_hda_unlock_devices);
 int snd_hda_codec_reset(struct hda_codec *codec)
 {
 	struct hda_bus *bus = codec->bus;
-	struct snd_card *card = bus->card;
+	struct snd_card *card = codec->card;
 	int i;
 
 	if (snd_hda_lock_devices(bus) < 0)

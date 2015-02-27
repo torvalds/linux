@@ -839,7 +839,7 @@ int snd_hda_codec_proc_new(struct hda_codec *codec)
 	int err;
 
 	snprintf(name, sizeof(name), "codec#%d", codec->addr);
-	err = snd_card_proc_new(codec->bus->card, name, &entry);
+	err = snd_card_proc_new(codec->card, name, &entry);
 	if (err < 0)
 		return err;
 

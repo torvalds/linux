@@ -579,7 +579,7 @@ static int eld_proc_new(struct hdmi_spec_per_pin *per_pin, int index)
 	int err;
 
 	snprintf(name, sizeof(name), "eld#%d.%d", codec->addr, index);
-	err = snd_card_proc_new(codec->bus->card, name, &entry);
+	err = snd_card_proc_new(codec->card, name, &entry);
 	if (err < 0)
 		return err;
 
@@ -594,7 +594,7 @@ static int eld_proc_new(struct hdmi_spec_per_pin *per_pin, int index)
 static void eld_proc_free(struct hdmi_spec_per_pin *per_pin)
 {
 	if (!per_pin->codec->bus->shutdown && per_pin->proc_entry) {
-		snd_device_free(per_pin->codec->bus->card, per_pin->proc_entry);
+		snd_device_free(per_pin->codec->card, per_pin->proc_entry);
 		per_pin->proc_entry = NULL;
 	}
 }
@@ -1624,7 +1624,7 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	}
 
 	if (eld_changed)
-		snd_ctl_notify(codec->bus->card,
+		snd_ctl_notify(codec->card,
 			       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 			       &per_pin->eld_ctl->id);
  unlock:

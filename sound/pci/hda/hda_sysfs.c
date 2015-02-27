@@ -149,7 +149,7 @@ static int reconfig_codec(struct hda_codec *codec)
 	err = snd_hda_codec_build_controls(codec);
 	if (err < 0)
 		goto error;
-	err = snd_card_register(codec->bus->card);
+	err = snd_card_register(codec->card);
  error:
 	snd_hda_power_down(codec);
 	return err;
