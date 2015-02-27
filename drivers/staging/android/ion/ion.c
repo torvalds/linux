@@ -811,12 +811,6 @@ int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
 
 	mutex_lock(&buffer->lock);
 
-	if (ion_buffer_cached(buffer)) {
-		pr_err("%s: Cannot map iommu as cached.\n", __func__);
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (!handle->buffer->heap->ops->map_iommu) {
 		pr_err("%s: map_iommu is not implemented by this heap.\n",
 		       __func__);
