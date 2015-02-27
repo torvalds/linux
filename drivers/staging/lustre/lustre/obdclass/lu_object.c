@@ -1769,8 +1769,6 @@ EXPORT_SYMBOL(lu_env_refill);
 int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 			  __u32 stags)
 {
-	int    result;
-
 	if ((env->le_ctx.lc_tags & ctags) != ctags) {
 		env->le_ctx.lc_version = 0;
 		env->le_ctx.lc_tags |= ctags;
@@ -1781,9 +1779,7 @@ int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 		env->le_ses->lc_tags |= stags;
 	}
 
-	result = lu_env_refill(env);
-
-	return result;
+	return lu_env_refill(env);
 }
 EXPORT_SYMBOL(lu_env_refill_by_tags);
 
