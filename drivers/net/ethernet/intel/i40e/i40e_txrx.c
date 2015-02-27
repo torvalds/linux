@@ -2216,8 +2216,16 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 	struct iphdr *this_ip_hdr;
 	u32 network_hdr_len;
 	u8 l4_hdr = 0;
+	u32 l4_tunnel = 0;
 
 	if (skb->encapsulation) {
+		switch (ip_hdr(skb)->protocol) {
+		case IPPROTO_UDP:
+			l4_tunnel = I40E_TXD_CTX_UDP_TUNNELING;
+			break;
+		default:
+			return;
+		}
 		network_hdr_len = skb_inner_network_header_len(skb);
 		this_ip_hdr = inner_ip_hdr(skb);
 		this_ipv6_hdr = inner_ipv6_hdr(skb);
@@ -2240,8 +2248,8 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 
 		/* Now set the ctx descriptor fields */
 		*cd_tunneling |= (skb_network_header_len(skb) >> 2) <<
-					I40E_TXD_CTX_QW0_EXT_IPLEN_SHIFT |
-				   I40E_TXD_CTX_UDP_TUNNELING            |
+				   I40E_TXD_CTX_QW0_EXT_IPLEN_SHIFT      |
+				   l4_tunnel                             |
 				   ((skb_inner_network_offset(skb) -
 					skb_transport_offset(skb)) >> 1) <<
 				   I40E_TXD_CTX_QW0_NATLEN_SHIFT;
