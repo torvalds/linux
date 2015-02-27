@@ -276,7 +276,7 @@ struct i40e_pf {
 	enum i40e_interrupt_policy int_policy;
 	u16 rx_itr_default;
 	u16 tx_itr_default;
-	u16 msg_enable;
+	u32 msg_enable;
 	char int_name[I40E_INT_NAME_STR_LEN];
 	u16 adminq_work_limit; /* num of admin receive queue desc to process */
 	unsigned long service_timer_period;
