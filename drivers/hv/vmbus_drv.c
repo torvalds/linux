@@ -1032,6 +1032,7 @@ static void __exit vmbus_exit(void)
 	int cpu;
 
 	vmbus_connection.conn_state = DISCONNECTED;
+	hv_synic_clockevents_cleanup();
 	hv_remove_vmbus_irq();
 	vmbus_free_channels();
 	bus_unregister(&hv_bus);

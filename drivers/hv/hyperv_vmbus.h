@@ -572,6 +572,8 @@ extern void hv_synic_init(void *irqarg);
 
 extern void hv_synic_cleanup(void *arg);
 
+extern void hv_synic_clockevents_cleanup(void);
+
 /*
  * Host version information.
  */
