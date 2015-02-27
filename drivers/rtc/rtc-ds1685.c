@@ -1610,7 +1610,7 @@ ds1685_rtc_sysfs_time_regs_show(struct device *dev,
 		ds1685_rtc_sysfs_time_regs_lookup(attr->attr.name, false);
 
 	/* Make sure we actually matched something. */
-	if (!bcd_reg_info && !bin_reg_info)
+	if (!bcd_reg_info || !bin_reg_info)
 		return -EINVAL;
 
 	/* bcd_reg_info->reg == bin_reg_info->reg. */
@@ -1648,7 +1648,7 @@ ds1685_rtc_sysfs_time_regs_store(struct device *dev,
 		return -EINVAL;
 
 	/* Make sure we actually matched something. */
-	if (!bcd_reg_info && !bin_reg_info)
+	if (!bcd_reg_info || !bin_reg_info)
 		return -EINVAL;
 
 	/* Check for a valid range. */
