@@ -2665,6 +2665,7 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 	struct ulist *tmp = NULL, *qgroups = NULL;
 	struct extent_buffer *scratch_leaf = NULL;
 	int err = -ENOMEM;
+	int ret = 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -2715,6 +2716,28 @@ out:
 	}
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
 
+	/*
+	 * only update status, since the previous part has alreay updated the
+	 * qgroup info.
+	 */
+	trans = btrfs_start_transaction(fs_info->quota_root, 1);
+	if (IS_ERR(trans)) {
+		err = PTR_ERR(trans);
+		btrfs_err(fs_info,
+			  "fail to start transaction for status update: %d\n",
+			  err);
+		goto done;
+	}
+	ret = update_qgroup_status_item(trans, fs_info, fs_info->quota_root);
+	if (ret < 0) {
+		err = ret;
+		btrfs_err(fs_info, "fail to update qgroup status: %d\n",
+			  err);
+		btrfs_abort_transaction(trans, fs_info->quota_root, err);
+		goto done;
+	}
+	btrfs_end_transaction(trans, fs_info->quota_root);
+
 	if (err >= 0) {
 		btrfs_info(fs_info, "qgroup scan completed%s",
 			err > 0 ? " (inconsistency flag cleared)" : "");
@@ -2722,6 +2745,7 @@ out:
 		btrfs_err(fs_info, "qgroup scan failed with %d", err);
 	}
 
+done:
 	complete_all(&fs_info->qgroup_rescan_completion);
 }
 
@@ -2756,7 +2780,6 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 			mutex_unlock(&fs_info->qgroup_rescan_lock);
 			goto err;
 		}
-
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 	}
 
