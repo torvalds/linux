@@ -1280,9 +1280,6 @@ static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 		if (readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_RFF)
 			dev_err(&pl022->adev->dev,
 				"RXFIFO is full\n");
-		if (readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_TNF)
-			dev_err(&pl022->adev->dev,
-				"TXFIFO is full\n");
 
 		/*
 		 * Disable and clear interrupts, disable SSP,
