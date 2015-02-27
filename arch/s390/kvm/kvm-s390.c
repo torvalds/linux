@@ -902,24 +902,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (!kvm->arch.model.fac)
 		goto out_nofac;
 
+	/* Populate the facility mask initially. */
 	memcpy(kvm->arch.model.fac->mask, S390_lowcore.stfle_fac_list,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
-
-	/*
-	 * If this KVM host runs *not* in a LPAR, relax the facility bits
-	 * of the kvm facility mask by all missing facilities. This will allow
-	 * to determine the right CPU model by means of the remaining facilities.
-	 * Live guest migration must prohibit the migration of KVMs running in
-	 * a LPAR to non LPAR hosts.
-	 */
-	if (!MACHINE_IS_LPAR)
-		for (i = 0; i < kvm_s390_fac_list_mask_size(); i++)
-			kvm_s390_fac_list_mask[i] &= kvm->arch.model.fac->mask[i];
-
-	/*
-	 * Apply the kvm facility mask to limit the kvm supported/tolerated
-	 * facility list.
-	 */
 	for (i = 0; i < S390_ARCH_FAC_LIST_SIZE_U64; i++) {
 		if (i < kvm_s390_fac_list_mask_size())
 			kvm->arch.model.fac->mask[i] &= kvm_s390_fac_list_mask[i];
