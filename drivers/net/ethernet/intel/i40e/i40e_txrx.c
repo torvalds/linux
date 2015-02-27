@@ -228,7 +228,7 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 			 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
 			 fd_data->pctype, fd_data->fd_id, ret);
 		err = true;
-	} else {
+	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
 		if (add)
 			dev_info(&pf->pdev->dev,
 				 "Filter OK for PCTYPE %d loc = %d\n",
@@ -303,7 +303,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 			 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
 			 fd_data->pctype, fd_data->fd_id, ret);
 		err = true;
-	} else {
+	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
 		if (add)
 			dev_info(&pf->pdev->dev, "Filter OK for PCTYPE %d loc = %d)\n",
 				 fd_data->pctype, fd_data->fd_id);
@@ -376,7 +376,7 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 				 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
 				 fd_data->pctype, fd_data->fd_id, ret);
 			err = true;
-		} else {
+		} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
 			if (add)
 				dev_info(&pf->pdev->dev,
 					 "Filter OK for PCTYPE %d loc = %d\n",
