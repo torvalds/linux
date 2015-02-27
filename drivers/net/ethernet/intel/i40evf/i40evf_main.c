@@ -1578,13 +1578,14 @@ continue_reset:
 	adapter->flags &= ~I40EVF_FLAG_RESET_PENDING;
 
 	i40evf_irq_disable(adapter);
-	i40evf_napi_disable_all(adapter);
 
-	netif_tx_disable(netdev);
+	if (netif_running(adapter->netdev)) {
+		i40evf_napi_disable_all(adapter);
+		netif_tx_disable(netdev);
+		netif_tx_stop_all_queues(netdev);
+		netif_carrier_off(netdev);
+	}
 
-	netif_tx_stop_all_queues(netdev);
-
-	netif_carrier_off(netdev);
 	adapter->state = __I40EVF_RESETTING;
 
 	/* kill and reinit the admin queue */
