@@ -477,6 +477,7 @@ void hv_synic_cleanup(void *arg)
 	union hv_synic_sint shared_sint;
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
+	union hv_synic_scontrol sctrl;
 	int cpu = smp_processor_id();
 
 	if (!hv_context.synic_initialized)
@@ -502,6 +503,10 @@ void hv_synic_cleanup(void *arg)
 
 	wrmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
 
-	free_page((unsigned long)hv_context.synic_message_page[cpu]);
-	free_page((unsigned long)hv_context.synic_event_page[cpu]);
+	/* Disable the global synic bit */
+	rdmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
+	sctrl.enable = 0;
+	wrmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
+
+	hv_synic_free_cpu(cpu);
 }
