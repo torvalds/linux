@@ -155,9 +155,8 @@ static void nrs_policy_stop_primary(struct ptlrpc_nrs *nrs)
 {
 	struct ptlrpc_nrs_policy *tmp = nrs->nrs_policy_primary;
 
-	if (tmp == NULL) {
+	if (tmp == NULL)
 		return;
-	}
 
 	nrs->nrs_policy_primary = NULL;
 
