@@ -111,7 +111,8 @@ srpc_free_bulk(srpc_bulk_t *bk)
 
 	for (i = 0; i < bk->bk_niov; i++) {
 		pg = bk->bk_iovs[i].kiov_page;
-		if (pg == NULL) break;
+		if (pg == NULL)
+			break;
 
 		__free_page(pg);
 	}
@@ -842,7 +843,8 @@ srpc_prepare_bulk(srpc_client_rpc_t *rpc)
 
 	LASSERT(bk->bk_niov <= LNET_MAX_IOV);
 
-	if (bk->bk_niov == 0) return 0; /* nothing to do */
+	if (bk->bk_niov == 0)
+		return 0; /* nothing to do */
 
 	opt = bk->bk_sink ? LNET_MD_OP_PUT : LNET_MD_OP_GET;
 	opt |= LNET_MD_KIOV;
@@ -1092,7 +1094,8 @@ srpc_add_client_rpc_timer(srpc_client_rpc_t *rpc)
 {
 	stt_timer_t *timer = &rpc->crpc_timer;
 
-	if (rpc->crpc_timeout == 0) return;
+	if (rpc->crpc_timeout == 0)
+		return;
 
 	INIT_LIST_HEAD(&timer->stt_list);
 	timer->stt_data    = rpc;
@@ -1207,7 +1210,8 @@ srpc_send_rpc(swi_workitem_t *wi)
 		}
 
 		rc = srpc_prepare_bulk(rpc);
-		if (rc != 0) break;
+		if (rc != 0)
+			break;
 
 		wi->swi_state = SWI_STATE_REQUEST_SUBMITTED;
 		rc = srpc_send_request(rpc);
@@ -1217,20 +1221,24 @@ srpc_send_rpc(swi_workitem_t *wi)
 		/* CAVEAT EMPTOR: rqtev, rpyev, and bulkev may come in any
 		 * order; however, they're processed in a strict order:
 		 * rqt, rpy, and bulk. */
-		if (!rpc->crpc_reqstev.ev_fired) break;
+		if (!rpc->crpc_reqstev.ev_fired)
+			break;
 
 		rc = rpc->crpc_reqstev.ev_status;
-		if (rc != 0) break;
+		if (rc != 0)
+			break;
 
 		wi->swi_state = SWI_STATE_REQUEST_SENT;
 		/* perhaps more events, fall thru */
 	case SWI_STATE_REQUEST_SENT: {
 		srpc_msg_type_t type = srpc_service2reply(rpc->crpc_service);
 
-		if (!rpc->crpc_replyev.ev_fired) break;
+		if (!rpc->crpc_replyev.ev_fired)
+			break;
 
 		rc = rpc->crpc_replyev.ev_status;
-		if (rc != 0) break;
+		if (rc != 0)
+			break;
 
 		srpc_unpack_msg_hdr(reply);
 		if (reply->msg_type != type ||
@@ -1254,7 +1262,8 @@ srpc_send_rpc(swi_workitem_t *wi)
 		wi->swi_state = SWI_STATE_REPLY_RECEIVED;
 	}
 	case SWI_STATE_REPLY_RECEIVED:
-		if (do_bulk && !rpc->crpc_bulkev.ev_fired) break;
+		if (do_bulk && !rpc->crpc_bulkev.ev_fired)
+			break;
 
 		rc = do_bulk ? rpc->crpc_bulkev.ev_status : 0;
 
