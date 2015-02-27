@@ -16,9 +16,6 @@
 #ifndef __INC_HAL8723PHYCFG_H__
 #define __INC_HAL8723PHYCFG_H__
 
-/*--------------------------Define Parameters-------------------------------*/
-#define MAX_AGGR_NUM	0x0909
-
 /*------------------------------Define structure----------------------------*/
 enum RF_RADIO_PATH {
 	RF_PATH_A = 0,			/* Radio Path A */
