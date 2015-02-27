@@ -287,7 +287,7 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 	addr = ZPCI_IOMAP_ADDR_BASE | ((u64) idx << 48);
 	return (void __iomem *) addr + offset;
 }
-EXPORT_SYMBOL_GPL(pci_iomap_range);
+EXPORT_SYMBOL(pci_iomap_range);
 
 void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 {
@@ -309,7 +309,7 @@ void pci_iounmap(struct pci_dev *pdev, void __iomem *addr)
 	}
 	spin_unlock(&zpci_iomap_lock);
 }
-EXPORT_SYMBOL_GPL(pci_iounmap);
+EXPORT_SYMBOL(pci_iounmap);
 
 static int pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 		    int size, u32 *val)
