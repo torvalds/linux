@@ -193,13 +193,6 @@ err_clk_prepare:
 	return ret;
 }
 
-static int sdhci_sirf_remove(struct platform_device *pdev)
-{
-	struct sdhci_host *host = platform_get_drvdata(pdev);
-
-	return sdhci_pltfm_unregister(pdev);
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int sdhci_sirf_suspend(struct device *dev)
 {
@@ -249,7 +242,7 @@ static struct platform_driver sdhci_sirf_driver = {
 #endif
 	},
 	.probe		= sdhci_sirf_probe,
-	.remove		= sdhci_sirf_remove,
+	.remove		= sdhci_pltfm_unregister,
 };
 
 module_platform_driver(sdhci_sirf_driver);

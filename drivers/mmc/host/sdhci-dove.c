@@ -108,11 +108,6 @@ err_sdhci_add:
 	return ret;
 }
 
-static int sdhci_dove_remove(struct platform_device *pdev)
-{
-	return sdhci_pltfm_unregister(pdev);
-}
-
 static const struct of_device_id sdhci_dove_of_match_table[] = {
 	{ .compatible = "marvell,dove-sdhci", },
 	{}
@@ -126,7 +121,7 @@ static struct platform_driver sdhci_dove_driver = {
 		.of_match_table = sdhci_dove_of_match_table,
 	},
 	.probe		= sdhci_dove_probe,
-	.remove		= sdhci_dove_remove,
+	.remove		= sdhci_pltfm_unregister,
 };
 
 module_platform_driver(sdhci_dove_driver);

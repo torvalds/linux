@@ -113,11 +113,6 @@ err_of:
 	return ret;
 }
 
-static int sdhci_st_remove(struct platform_device *pdev)
-{
-	return sdhci_pltfm_unregister(pdev);
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int sdhci_st_suspend(struct device *dev)
 {
@@ -155,7 +150,7 @@ MODULE_DEVICE_TABLE(of, st_sdhci_match);
 
 static struct platform_driver sdhci_st_driver = {
 	.probe = sdhci_st_probe,
-	.remove = sdhci_st_remove,
+	.remove = sdhci_pltfm_unregister,
 	.driver = {
 		   .name = "sdhci-st",
 		   .pm = &sdhci_st_pmops,
