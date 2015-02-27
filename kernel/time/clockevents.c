@@ -371,7 +371,7 @@ int clockevents_unbind_device(struct clock_event_device *ced, int cpu)
 	mutex_unlock(&clockevents_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clockevents_unbind);
+EXPORT_SYMBOL_GPL(clockevents_unbind_device);
 
 /**
  * clockevents_register_device - register a clock event device
