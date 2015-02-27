@@ -1061,6 +1061,12 @@ struct btrfs_block_group_item {
 	__le64 flags;
 } __attribute__ ((__packed__));
 
+#define BTRFS_QGROUP_LEVEL_SHIFT		48
+static inline u64 btrfs_qgroup_level(u64 qgroupid)
+{
+	return qgroupid >> BTRFS_QGROUP_LEVEL_SHIFT;
+}
+
 /*
  * is subvolume quota turned on?
  */

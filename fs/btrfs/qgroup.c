@@ -1009,6 +1009,10 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup_list *list;
 	int ret = 0;
 
+	/* Check the level of src and dst first */
+	if (btrfs_qgroup_level(src) >= btrfs_qgroup_level(dst))
+		return -EINVAL;
+
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	quota_root = fs_info->quota_root;
 	if (!quota_root) {
