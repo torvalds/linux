@@ -2609,7 +2609,7 @@ static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 	if (latency == 0)
 		return UINT_MAX;
 
-	wm_intermediate_val = latency * pixel_rate * bytes_per_pixel;
+	wm_intermediate_val = latency * pixel_rate * bytes_per_pixel / 512;
 	ret = DIV_ROUND_UP(wm_intermediate_val, 1000);
 
 	return ret;
@@ -2619,15 +2619,18 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
 			       uint32_t latency)
 {
-	uint32_t ret, plane_bytes_per_line, wm_intermediate_val;
+	uint32_t ret;
+	uint32_t plane_bytes_per_line, plane_blocks_per_line;
+	uint32_t wm_intermediate_val;
 
 	if (latency == 0)
 		return UINT_MAX;
 
 	plane_bytes_per_line = horiz_pixels * bytes_per_pixel;
+	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 	wm_intermediate_val = latency * pixel_rate;
 	ret = DIV_ROUND_UP(wm_intermediate_val, pipe_htotal * 1000) *
-				plane_bytes_per_line;
+				plane_blocks_per_line;
 
 	return ret;
 }
@@ -2707,41 +2710,49 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 	}
 }
 
-static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
+static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
+				 struct skl_pipe_wm_parameters *p,
 				 struct intel_plane_wm_parameters *p_params,
 				 uint16_t ddb_allocation,
-				 uint32_t mem_value,
+				 int level,
 				 uint16_t *out_blocks, /* out */
 				 uint8_t *out_lines /* out */)
 {
-	uint32_t method1, method2, plane_bytes_per_line, res_blocks, res_lines;
-	uint32_t result_bytes;
+	uint32_t latency = dev_priv->wm.skl_latency[level];
+	uint32_t method1, method2;
+	uint32_t plane_bytes_per_line, plane_blocks_per_line;
+	uint32_t res_blocks, res_lines;
+	uint32_t selected_result;
 
-	if (mem_value == 0 || !p->active || !p_params->enabled)
+	if (latency == 0 || !p->active || !p_params->enabled)
 		return false;
 
 	method1 = skl_wm_method1(p->pixel_rate,
 				 p_params->bytes_per_pixel,
-				 mem_value);
+				 latency);
 	method2 = skl_wm_method2(p->pixel_rate,
 				 p->pipe_htotal,
 				 p_params->horiz_pixels,
 				 p_params->bytes_per_pixel,
-				 mem_value);
+				 latency);
 
 	plane_bytes_per_line = p_params->horiz_pixels *
 					p_params->bytes_per_pixel;
+	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 
 	/* For now xtile and linear */
-	if (((ddb_allocation * 512) / plane_bytes_per_line) >= 1)
-		result_bytes = min(method1, method2);
+	if ((ddb_allocation / plane_blocks_per_line) >= 1)
+		selected_result = min(method1, method2);
 	else
-		result_bytes = method1;
+		selected_result = method1;
 
-	res_blocks = DIV_ROUND_UP(result_bytes, 512) + 1;
-	res_lines = DIV_ROUND_UP(result_bytes, plane_bytes_per_line);
+	res_blocks = selected_result + 1;
+	res_lines = DIV_ROUND_UP(selected_result, plane_blocks_per_line);
 
-	if (res_blocks > ddb_allocation || res_lines > 31)
+	if (level >= 1 && level <= 7)
+		res_blocks++;
+
+	if (res_blocks >= ddb_allocation || res_lines > 31)
 		return false;
 
 	*out_blocks = res_blocks;
@@ -2758,23 +2769,24 @@ static void skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 				 int num_planes,
 				 struct skl_wm_level *result)
 {
-	uint16_t latency = dev_priv->wm.skl_latency[level];
 	uint16_t ddb_blocks;
 	int i;
 
 	for (i = 0; i < num_planes; i++) {
 		ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][i]);
 
-		result->plane_en[i] = skl_compute_plane_wm(p, &p->plane[i],
+		result->plane_en[i] = skl_compute_plane_wm(dev_priv,
+						p, &p->plane[i],
 						ddb_blocks,
-						latency,
+						level,
 						&result->plane_res_b[i],
 						&result->plane_res_l[i]);
 	}
 
 	ddb_blocks = skl_ddb_entry_size(&ddb->cursor[pipe]);
-	result->cursor_en = skl_compute_plane_wm(p, &p->cursor, ddb_blocks,
-						 latency, &result->cursor_res_b,
+	result->cursor_en = skl_compute_plane_wm(dev_priv, p, &p->cursor,
+						 ddb_blocks, level,
+						 &result->cursor_res_b,
 						 &result->cursor_res_l);
 }
 
