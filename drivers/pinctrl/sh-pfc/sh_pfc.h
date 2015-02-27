@@ -302,20 +302,21 @@ struct sh_pfc_soc_info {
 /*
  * PORTnCR macro
  */
-#define _PCRH(in, in_pd, in_pu, out)	\
-	0, (out), (in), 0,		\
-	0, 0, 0, 0,			\
-	0, 0, (in_pd), 0,		\
-	0, 0, (in_pu), 0
-
 #define PORTCR(nr, reg)							\
 	{								\
-		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),	\
-				PORT##nr##_FN0, PORT##nr##_FN1,		\
-				PORT##nr##_FN2, PORT##nr##_FN3,		\
-				PORT##nr##_FN4, PORT##nr##_FN5,		\
-				PORT##nr##_FN6, PORT##nr##_FN7 }	\
+		PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8, 2, 2, 1, 3) {\
+			/* PULMD[1:0], handled by .set_bias() */	\
+			0, 0, 0, 0,					\
+			/* IE and OE */					\
+			0, PORT##nr##_OUT, PORT##nr##_IN, 0,		\
+			/* SEC, not supported */			\
+			0, 0,						\
+			/* PTMD[2:0] */					\
+			PORT##nr##_FN0, PORT##nr##_FN1,			\
+			PORT##nr##_FN2, PORT##nr##_FN3,			\
+			PORT##nr##_FN4, PORT##nr##_FN5,			\
+			PORT##nr##_FN6, PORT##nr##_FN7			\
+		}							\
 	}
 
 #endif /* __SH_PFC_H */
