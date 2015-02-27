@@ -1249,6 +1249,7 @@ unsigned long nfs_inc_attr_generation_counter(void)
 {
 	return atomic_long_inc_return(&nfs_attr_generation_counter);
 }
+EXPORT_SYMBOL_GPL(nfs_inc_attr_generation_counter);
 
 void nfs_fattr_init(struct nfs_fattr *fattr)
 {
