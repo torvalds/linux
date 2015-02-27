@@ -1438,12 +1438,11 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 		if (req->rq_err) {
 			req->rq_status = rc;
 			return 1;
-		} else {
-			spin_lock(&req->rq_lock);
-			req->rq_wait_ctx = 1;
-			spin_unlock(&req->rq_lock);
-			return 0;
 		}
+		spin_lock(&req->rq_lock);
+		req->rq_wait_ctx = 1;
+		spin_unlock(&req->rq_lock);
+		return 0;
 	}
 
 	CDEBUG(D_RPCTRACE, "Sending RPC pname:cluuid:pid:xid:nid:opc %s:%s:%d:%llu:%s:%d\n",
