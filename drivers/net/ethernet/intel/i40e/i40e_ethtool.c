@@ -917,7 +917,9 @@ static int i40e_get_eeprom(struct net_device *netdev,
 
 		cmd = (struct i40e_nvm_access *)eeprom;
 		ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
-		if (ret_val)
+		if (ret_val &&
+		    ((hw->aq.asq_last_status != I40E_AQ_RC_EACCES) ||
+		     (hw->debug_mask & I40E_DEBUG_NVM)))
 			dev_info(&pf->pdev->dev,
 				 "NVMUpdate read failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
 				 ret_val, hw->aq.asq_last_status, errno,
@@ -1021,7 +1023,10 @@ static int i40e_set_eeprom(struct net_device *netdev,
 
 	cmd = (struct i40e_nvm_access *)eeprom;
 	ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
-	if (ret_val && hw->aq.asq_last_status != I40E_AQ_RC_EBUSY)
+	if (ret_val &&
+	    ((hw->aq.asq_last_status != I40E_AQ_RC_EPERM &&
+	      hw->aq.asq_last_status != I40E_AQ_RC_EBUSY) ||
+	     (hw->debug_mask & I40E_DEBUG_NVM)))
 		dev_info(&pf->pdev->dev,
 			 "NVMUpdate write failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
 			 ret_val, hw->aq.asq_last_status, errno,
