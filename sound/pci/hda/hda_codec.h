@@ -516,13 +516,11 @@ void snd_hda_spdif_ctls_assign(struct hda_codec *codec, int idx, hda_nid_t nid);
 /*
  * Mixer
  */
-int snd_hda_build_controls(struct hda_bus *bus);
 int snd_hda_codec_build_controls(struct hda_codec *codec);
 
 /*
  * PCM
  */
-int snd_hda_build_pcms(struct hda_bus *bus);
 int snd_hda_codec_parse_pcms(struct hda_codec *codec);
 int snd_hda_codec_build_pcms(struct hda_codec *codec);
 

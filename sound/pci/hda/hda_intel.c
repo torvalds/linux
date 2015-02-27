@@ -1895,16 +1895,6 @@ static int azx_probe_continue(struct azx *chip)
 			goto out_free;
 	}
 
-	/* create PCM streams */
-	err = snd_hda_build_pcms(chip->bus);
-	if (err < 0)
-		goto out_free;
-
-	/* create mixer controls */
-	err = snd_hda_build_controls(chip->bus);
-	if (err < 0)
-		goto out_free;
-
 	err = snd_card_register(chip->card);
 	if (err < 0)
 		goto out_free;

@@ -106,16 +106,28 @@ static int hda_codec_driver_probe(struct device *dev)
 	}
 
 	err = codec->preset->patch(codec);
-	if (err < 0) {
-		module_put(owner);
-		goto error;
+	if (err < 0)
+		goto error_module;
+
+	err = snd_hda_codec_build_pcms(codec);
+	if (err < 0)
+		goto error_module;
+	err = snd_hda_codec_build_controls(codec);
+	if (err < 0)
+		goto error_module;
+	if (codec->card->registered) {
+		err = snd_card_register(codec->card);
+		if (err < 0)
+			goto error_module;
 	}
 
 	return 0;
 
+ error_module:
+	module_put(owner);
+
  error:
-	codec->preset = NULL;
-	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
+	snd_hda_codec_cleanup_for_unbind(codec);
 	return err;
 }
 

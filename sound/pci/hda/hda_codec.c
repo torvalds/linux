@@ -4031,36 +4031,6 @@ const struct dev_pm_ops hda_codec_driver_pm = {
 			   NULL)
 };
 
-/**
- * snd_hda_build_controls - build mixer controls
- * @bus: the BUS
- *
- * Creates mixer controls for each codec included in the bus.
- *
- * Returns 0 if successful, otherwise a negative error code.
- */
-int snd_hda_build_controls(struct hda_bus *bus)
-{
-	struct hda_codec *codec;
-
-	list_for_each_entry(codec, &bus->codec_list, list) {
-		int err = snd_hda_codec_build_controls(codec);
-		if (err < 0) {
-			codec_err(codec,
-				  "cannot build controls for #%d (error %d)\n",
-				  codec->addr, err);
-			err = snd_hda_codec_reset(codec);
-			if (err < 0) {
-				codec_err(codec,
-					  "cannot revert codec\n");
-				return err;
-			}
-		}
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hda_build_controls);
-
 /*
  * add standard channel maps if not specified
  */
@@ -4691,43 +4661,6 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 
 	return 0;
 }
-
-/**
- * snd_hda_build_pcms - build PCM information
- * @bus: the BUS
- *
- * Create PCM information for each codec included in the bus.
- *
- * The build_pcms codec patch is requested to create and assign new
- * hda_pcm objects.  The codec is responsible to call snd_hda_codec_pcm_new()
- * and fills the fields.  Later they are instantiated by this function.
- *
- * At least, substreams, channels_min and channels_max must be filled for
- * each stream.  substreams = 0 indicates that the stream doesn't exist.
- * When rates and/or formats are zero, the supported values are queried
- * from the given nid.  The nid is used also by the default ops.prepare
- * and ops.cleanup callbacks.
- *
- * The driver needs to call ops.open in its open callback.  Similarly,
- * ops.close is supposed to be called in the close callback.
- * ops.prepare should be called in the prepare or hw_params callback
- * with the proper parameters for set up.
- * ops.cleanup should be called in hw_free for clean up of streams.
- *
- * This function returns 0 if successful, or a negative error code.
- */
-int snd_hda_build_pcms(struct hda_bus *bus)
-{
-	struct hda_codec *codec;
-
-	list_for_each_entry(codec, &bus->codec_list, list) {
-		int err = snd_hda_codec_build_pcms(codec);
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hda_build_pcms);
 
 /**
  * snd_hda_add_new_ctls - create controls from the array
