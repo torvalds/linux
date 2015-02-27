@@ -4219,7 +4219,7 @@ i915_gem_object_pin_view(struct drm_i915_gem_object *obj,
 		fenceable = (vma->node.size == fence_size &&
 			     (vma->node.start & (fence_alignment - 1)) == 0);
 
-		mappable = (vma->node.start + obj->base.size <=
+		mappable = (vma->node.start + fence_size <=
 			    dev_priv->gtt.mappable_end);
 
 		obj->map_and_fenceable = mappable && fenceable;
