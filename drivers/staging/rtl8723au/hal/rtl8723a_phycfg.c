@@ -920,10 +920,6 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	u8 regBwOpMode;
 	u8 regRRSR_RSC;
 
-	/*  There is no 40MHz mode in RF_8225. */
-	if (pHalData->rf_chip == RF_8225)
-		return;
-
 	if (Adapter->bDriverStopped)
 		return;
 
@@ -997,35 +993,7 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	/* RT_TRACE(COMP_SCAN, DBG_LOUD, ("SetBWMode23aCallback8190Pci: time
 	   of SetBWMode23a = %I64d us!\n", (EndTime - BeginTime))); */
 
-	/* 3<3>Set RF related register */
-	switch (pHalData->rf_chip) {
-	case RF_8225:
-		/* PHY_SetRF8225Bandwidth(Adapter,
-		   pHalData->CurrentChannelBW); */
-		break;
-
-	case RF_8256:
-		/*  Please implement this function in Hal8190PciPhy8256.c */
-		/* PHY_SetRF8256Bandwidth(Adapter,
-		   pHalData->CurrentChannelBW); */
-		break;
-
-	case RF_8258:
-		/*  Please implement this function in Hal8190PciPhy8258.c */
-		/*  PHY_SetRF8258Bandwidth(); */
-		break;
-
-	case RF_6052:
-		rtl8723a_phy_rf6052set_bw(Adapter, pHalData->CurrentChannelBW);
-		break;
-
-	default:
-		/* RT_ASSERT(false, ("Unknown RFChipID: %d\n",
-		   pHalData->RFChipID)); */
-		break;
-	}
-
-	/* pHalData->SetBWMode23aInProgress = false; */
+	rtl8723a_phy_rf6052set_bw(Adapter, pHalData->CurrentChannelBW);
 
 	/* RT_TRACE(COMP_SCAN, DBG_LOUD,
 	   ("<== PHY_SetBWMode23aCallback8192C() \n")); */

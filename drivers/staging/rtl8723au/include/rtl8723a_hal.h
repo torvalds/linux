@@ -270,7 +270,6 @@ struct hal_data_8723a {
 	u16	BasicRateSet;
 
 	/* rf_ctrl */
-	u8	rf_chip;
 	u8	rf_type;
 	u8	NumTotalRFPath;
 

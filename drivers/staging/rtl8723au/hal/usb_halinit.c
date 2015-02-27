@@ -448,7 +448,6 @@ static void _InitRFType(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 
-	pHalData->rf_chip = RF_6052;
 	pHalData->rf_type = RF_1T1R;
 }
 
@@ -1088,13 +1087,6 @@ static void _ReadPROMContent(struct rtw_adapter *Adapter)
 	readAdapterInfo(Adapter);
 }
 
-static void _ReadRFType(struct rtw_adapter *Adapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-
-	pHalData->rf_chip = RF_6052;
-}
-
 /*  */
 /*	Description: */
 /*		We should set Efuse cell selection to WiFi cell in default. */
@@ -1124,11 +1116,7 @@ void rtl8723a_read_adapter_info(struct rtw_adapter *Adapter)
 
 	hal_EfuseCellSel(Adapter);
 
-	_ReadRFType(Adapter);/* rf_chip -> _InitRFType() */
 	_ReadPROMContent(Adapter);
-
-	/* MSG_8723A("%s()(done), rf_chip = 0x%x, rf_type = 0x%x\n",
-	   __func__, pHalData->rf_chip, pHalData->rf_type); */
 
 	MSG_8723A("<==== _ReadAdapterInfo8723AU in %d ms\n",
 		  jiffies_to_msecs(jiffies - start));
