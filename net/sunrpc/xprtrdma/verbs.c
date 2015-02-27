@@ -1005,7 +1005,7 @@ rpcrdma_init_fmrs(struct rpcrdma_ia *ia, struct rpcrdma_buffer *buf)
 	int i, rc;
 
 	i = (buf->rb_max_requests + 1) * RPCRDMA_MAX_SEGS;
-	dprintk("RPC:       %s: initalizing %d FMRs\n", __func__, i);
+	dprintk("RPC:       %s: initializing %d FMRs\n", __func__, i);
 
 	while (i--) {
 		r = kzalloc(sizeof(*r), GFP_KERNEL);
@@ -1038,7 +1038,7 @@ rpcrdma_init_frmrs(struct rpcrdma_ia *ia, struct rpcrdma_buffer *buf)
 	int i, rc;
 
 	i = (buf->rb_max_requests + 1) * RPCRDMA_MAX_SEGS;
-	dprintk("RPC:       %s: initalizing %d FRMRs\n", __func__, i);
+	dprintk("RPC:       %s: initializing %d FRMRs\n", __func__, i);
 
 	while (i--) {
 		r = kzalloc(sizeof(*r), GFP_KERNEL);

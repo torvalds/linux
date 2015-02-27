@@ -1274,7 +1274,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 
 		if (off == ADDR_ERROR) {
 			ql_log(ql_log_fatal, vha, 0x0116,
-			    "Unknow addr: 0x%08lx.\n", buf[i].addr);
+			    "Unknown addr: 0x%08lx.\n", buf[i].addr);
 			continue;
 		}
 

@@ -794,7 +794,7 @@ int qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter,
 
 	if (rv)
 		netdev_err(adapter->netdev,
-			   "Failed to set Rx coalescing parametrs\n");
+			   "Failed to set Rx coalescing parameters\n");
 
 	return rv;
 }

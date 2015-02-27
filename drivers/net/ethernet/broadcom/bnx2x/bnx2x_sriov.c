@@ -591,7 +591,7 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		mc = kzalloc(mc_num * sizeof(struct bnx2x_mcast_list_elem),
 			     GFP_KERNEL);
 		if (!mc) {
-			BNX2X_ERR("Cannot Configure mulicasts due to lack of memory\n");
+			BNX2X_ERR("Cannot Configure multicasts due to lack of memory\n");
 			return -ENOMEM;
 		}
 	}

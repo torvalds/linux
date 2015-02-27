@@ -899,7 +899,7 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
-			 "Abnornally false alarm case.\n");
+			 "Abnormally false alarm case.\n");
 
 		if (dm_digtable->large_fa_hit != 3)
 			dm_digtable->large_fa_hit++;

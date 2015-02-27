@@ -456,7 +456,7 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 			return -EINVAL;
 		}
 		if (field->name[0] == '[') {
-			pr_err("Semantic error: %s is not a pointor"
+			pr_err("Semantic error: %s is not a pointer"
 			       " nor array.\n", varname);
 			return -EINVAL;
 		}
