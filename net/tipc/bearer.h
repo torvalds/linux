@@ -52,6 +52,7 @@
  */
 #define TIPC_MEDIA_INFO_SIZE	32
 #define TIPC_MEDIA_TYPE_OFFSET	3
+#define TIPC_MEDIA_ADDR_OFFSET	4
 
 /*
  * Identifiers of supported TIPC media types
