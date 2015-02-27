@@ -49,6 +49,7 @@ struct netns_ipv4 {
 	struct sock		*fibnl;
 
 	struct sock  * __percpu	*icmp_sk;
+	struct sock		*mc_autojoin_sk;
 
 	struct inet_peer_base	*peers;
 	struct tcpm_hash_bucket	*tcp_metrics_hash;
