@@ -2728,6 +2728,40 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 	POSTING_READ(reg);
 }
 
+u32 intel_fb_stride_alignment(struct drm_device *dev, uint64_t fb_modifier,
+			      uint32_t pixel_format)
+{
+	u32 bits_per_pixel = drm_format_plane_cpp(pixel_format, 0) * 8;
+
+	/*
+	 * The stride is either expressed as a multiple of 64 bytes
+	 * chunks for linear buffers or in number of tiles for tiled
+	 * buffers.
+	 */
+	switch (fb_modifier) {
+	case DRM_FORMAT_MOD_NONE:
+		return 64;
+	case I915_FORMAT_MOD_X_TILED:
+		if (INTEL_INFO(dev)->gen == 2)
+			return 128;
+		return 512;
+	case I915_FORMAT_MOD_Y_TILED:
+		/* No need to check for old gens and Y tiling since this is
+		 * about the display engine and those will be blocked before
+		 * we get here.
+		 */
+		return 128;
+	case I915_FORMAT_MOD_Yf_TILED:
+		if (bits_per_pixel == 8)
+			return 64;
+		else
+			return 128;
+	default:
+		MISSING_CASE(fb_modifier);
+		return 64;
+	}
+}
+
 static void skylake_update_primary_plane(struct drm_crtc *crtc,
 					 struct drm_framebuffer *fb,
 					 int x, int y)
@@ -2735,10 +2769,9 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
 	int pipe = intel_crtc->pipe;
-	u32 plane_ctl, stride;
+	u32 plane_ctl, stride_div;
 
 	if (!intel_crtc->primary_enabled) {
 		I915_WRITE(PLANE_CTL(pipe, 0), 0);
@@ -2773,28 +2806,29 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 		BUG();
 	}
 
-	intel_fb = to_intel_framebuffer(fb);
-	obj = intel_fb->obj;
-
-	/*
-	 * The stride is either expressed as a multiple of 64 bytes chunks for
-	 * linear buffers or in number of tiles for tiled buffers.
-	 */
 	switch (fb->modifier[0]) {
 	case DRM_FORMAT_MOD_NONE:
-		stride = fb->pitches[0] >> 6;
 		break;
 	case I915_FORMAT_MOD_X_TILED:
 		plane_ctl |= PLANE_CTL_TILED_X;
-		stride = fb->pitches[0] >> 9;
+		break;
+	case I915_FORMAT_MOD_Y_TILED:
+		plane_ctl |= PLANE_CTL_TILED_Y;
+		break;
+	case I915_FORMAT_MOD_Yf_TILED:
+		plane_ctl |= PLANE_CTL_TILED_YF;
 		break;
 	default:
-		BUG();
+		MISSING_CASE(fb->modifier[0]);
 	}
 
 	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
 	if (crtc->primary->state->rotation == BIT(DRM_ROTATE_180))
 		plane_ctl |= PLANE_CTL_ROTATE_180;
+
+	obj = intel_fb_obj(fb);
+	stride_div = intel_fb_stride_alignment(dev, fb->modifier[0],
+					       fb->pixel_format);
 
 	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
 
@@ -2808,7 +2842,7 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	I915_WRITE(PLANE_SIZE(pipe, 0),
 		   (intel_crtc->config->pipe_src_h - 1) << 16 |
 		   (intel_crtc->config->pipe_src_w - 1));
-	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
+	I915_WRITE(PLANE_STRIDE(pipe, 0), fb->pitches[0] / stride_div);
 	I915_WRITE(PLANE_SURF(pipe, 0), i915_gem_obj_ggtt_offset(obj));
 
 	POSTING_READ(PLANE_SURF(pipe, 0));
@@ -12666,14 +12700,43 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 	.create_handle = intel_user_framebuffer_create_handle,
 };
 
+static
+u32 intel_fb_pitch_limit(struct drm_device *dev, uint64_t fb_modifier,
+			 uint32_t pixel_format)
+{
+	u32 gen = INTEL_INFO(dev)->gen;
+
+	if (gen >= 9) {
+		/* "The stride in bytes must not exceed the of the size of 8K
+		 *  pixels and 32K bytes."
+		 */
+		 return min(8192*drm_format_plane_cpp(pixel_format, 0), 32768);
+	} else if (gen >= 5 && !IS_VALLEYVIEW(dev)) {
+		return 32*1024;
+	} else if (gen >= 4) {
+		if (fb_modifier == I915_FORMAT_MOD_X_TILED)
+			return 16*1024;
+		else
+			return 32*1024;
+	} else if (gen >= 3) {
+		if (fb_modifier == I915_FORMAT_MOD_X_TILED)
+			return 8*1024;
+		else
+			return 16*1024;
+	} else {
+		/* XXX DSPC is limited to 4k tiled */
+		return 8*1024;
+	}
+}
+
 static int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *intel_fb,
 				  struct drm_mode_fb_cmd2 *mode_cmd,
 				  struct drm_i915_gem_object *obj)
 {
 	int aligned_height;
-	int pitch_limit;
 	int ret;
+	u32 pitch_limit, stride_alignment;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
@@ -12699,31 +12762,19 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	if (mode_cmd->pitches[0] & 63) {
-		DRM_DEBUG("pitch (%d) must be at least 64 byte aligned\n",
-			  mode_cmd->pitches[0]);
+	stride_alignment = intel_fb_stride_alignment(dev, mode_cmd->modifier[0],
+						     mode_cmd->pixel_format);
+	if (mode_cmd->pitches[0] & (stride_alignment - 1)) {
+		DRM_DEBUG("pitch (%d) must be at least %u byte aligned\n",
+			  mode_cmd->pitches[0], stride_alignment);
 		return -EINVAL;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev)) {
-		pitch_limit = 32*1024;
-	} else if (INTEL_INFO(dev)->gen >= 4) {
-		if (mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED)
-			pitch_limit = 16*1024;
-		else
-			pitch_limit = 32*1024;
-	} else if (INTEL_INFO(dev)->gen >= 3) {
-		if (mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED)
-			pitch_limit = 8*1024;
-		else
-			pitch_limit = 16*1024;
-	} else
-		/* XXX DSPC is limited to 4k tiled */
-		pitch_limit = 8*1024;
-
+	pitch_limit = intel_fb_pitch_limit(dev, mode_cmd->modifier[0],
+					   mode_cmd->pixel_format);
 	if (mode_cmd->pitches[0] > pitch_limit) {
-		DRM_DEBUG("%s pitch (%d) must be at less than %d\n",
-			  mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED ?
+		DRM_DEBUG("%s pitch (%u) must be at less than %d\n",
+			  mode_cmd->modifier[0] != DRM_FORMAT_MOD_NONE ?
 			  "tiled" : "linear",
 			  mode_cmd->pitches[0], pitch_limit);
 		return -EINVAL;

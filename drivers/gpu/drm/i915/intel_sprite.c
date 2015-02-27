@@ -189,7 +189,7 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
-	u32 plane_ctl, stride;
+	u32 plane_ctl, stride_div;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	plane_ctl = I915_READ(PLANE_CTL(pipe, plane));
@@ -247,15 +247,20 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 
 	switch (fb->modifier[0]) {
 	case DRM_FORMAT_MOD_NONE:
-		stride = fb->pitches[0] >> 6;
 		break;
 	case I915_FORMAT_MOD_X_TILED:
 		plane_ctl |= PLANE_CTL_TILED_X;
-		stride = fb->pitches[0] >> 9;
+		break;
+	case I915_FORMAT_MOD_Y_TILED:
+		plane_ctl |= PLANE_CTL_TILED_Y;
+		break;
+	case I915_FORMAT_MOD_Yf_TILED:
+		plane_ctl |= PLANE_CTL_TILED_YF;
 		break;
 	default:
-		BUG();
+		MISSING_CASE(fb->modifier[0]);
 	}
+
 	if (drm_plane->state->rotation == BIT(DRM_ROTATE_180))
 		plane_ctl |= PLANE_CTL_ROTATE_180;
 
@@ -266,6 +271,9 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 				       pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
 
+	stride_div = intel_fb_stride_alignment(dev, fb->modifier[0],
+					       fb->pixel_format);
+
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
@@ -273,7 +281,7 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	crtc_h--;
 
 	I915_WRITE(PLANE_OFFSET(pipe, plane), (y << 16) | x);
-	I915_WRITE(PLANE_STRIDE(pipe, plane), stride);
+	I915_WRITE(PLANE_STRIDE(pipe, plane), fb->pitches[0] / stride_div);
 	I915_WRITE(PLANE_POS(pipe, plane), (crtc_y << 16) | crtc_x);
 	I915_WRITE(PLANE_SIZE(pipe, plane), (crtc_h << 16) | crtc_w);
 	I915_WRITE(PLANE_CTL(pipe, plane), plane_ctl);
