@@ -98,7 +98,7 @@ void named_cluster_distribute(struct net *net, struct sk_buff *skb)
 			continue;
 		if (!tipc_node_active_links(node))
 			continue;
-		oskb = skb_copy(skb, GFP_ATOMIC);
+		oskb = pskb_copy(skb, GFP_ATOMIC);
 		if (!oskb)
 			break;
 		msg_set_destnode(buf_msg(oskb), dnode);
