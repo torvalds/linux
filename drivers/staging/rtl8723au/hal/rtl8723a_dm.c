@@ -121,13 +121,6 @@ void rtl8723a_init_dm_priv(struct rtw_adapter *Adapter)
 	}
 	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_PATCH_ID, pHalData->CustomerID);
 	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_BWIFI_TEST, Adapter->registrypriv.wifi_spec);
-
-	if (pHalData->rf_type == RF_1T1R)
-		ODM_CmnInfoUpdate23a(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_1T1R);
-	else if (pHalData->rf_type == RF_2T2R)
-		ODM_CmnInfoUpdate23a(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_2T2R);
-	else if (pHalData->rf_type == RF_1T2R)
-		ODM_CmnInfoUpdate23a(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_1T2R);
 }
 
 static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)

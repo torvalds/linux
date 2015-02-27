@@ -304,7 +304,6 @@ enum odm_cmninfo {
 	ODM_CMNINFO_IC_TYPE,					/*  enum odm_ic_type_def */
 	ODM_CMNINFO_CUT_VER,					/*  enum odm_cut_version */
 	ODM_CMNINFO_FAB_VER,					/*  enum odm_fab_version */
-	ODM_CMNINFO_RF_TYPE,					/*  enum rf_path_def or enum odm_rf_type? */
 	ODM_CMNINFO_BOARD_TYPE,				/*  enum odm_board_type */
 	ODM_CMNINFO_EXT_LNA,					/*  true */
 	ODM_CMNINFO_EXT_PA,
@@ -409,7 +408,6 @@ enum odm_fab_version {
 	ODM_UMC		=	1,
 };
 
-/*  ODM_CMNINFO_RF_TYPE */
 /*  For example 1T2R (A+AB = BIT0|BIT4|BIT5) */
 enum rf_path_def {
 	ODM_RF_TX_A	=	BIT(0),
@@ -420,18 +418,6 @@ enum rf_path_def {
 	ODM_RF_RX_B	=	BIT(5),
 	ODM_RF_RX_C	=	BIT(6),
 	ODM_RF_RX_D	=	BIT(7),
-};
-
-
-enum odm_rf_type {
-	ODM_1T1R	=	0,
-	ODM_1T2R	=	1,
-	ODM_2T2R	=	2,
-	ODM_2T3R	=	3,
-	ODM_2T4R	=	4,
-	ODM_3T3R	=	5,
-	ODM_3T4R	=	6,
-	ODM_4T4R	=	7,
 };
 
 /*  ODM Dynamic common info value definition */
@@ -653,8 +639,6 @@ struct dm_odm_t {
 	u8			CutVersion;
 	/*  Fab Version TSMC/UMC = 0/1 */
 	u8			FabVersion;
-	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
-	u8			RFType;
 	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/... = 0/1/2/3/4/... */
 	u8			BoardType;
 	/*  with external LNA  NO/Yes = 0/1 */

@@ -319,9 +319,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 	case	ODM_CMNINFO_FAB_VER:
 		pDM_Odm->FabVersion = (u8)Value;
 		break;
-	case	ODM_CMNINFO_RF_TYPE:
-		pDM_Odm->RFType = (u8)Value;
-		break;
 	case	ODM_CMNINFO_BOARD_TYPE:
 		pDM_Odm->BoardType = (u8)Value;
 		break;
@@ -383,9 +380,6 @@ void ODM_CmnInfoUpdate23a(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 {
 	/*  This init variable may be changed in run time. */
 	switch	(CmnInfo) {
-	case	ODM_CMNINFO_RF_TYPE:
-		pDM_Odm->RFType = (u8)Value;
-		break;
 	case	ODM_CMNINFO_WIFI_DIRECT:
 		pDM_Odm->bWIFI_Direct = (bool)Value;
 		break;
@@ -460,7 +454,6 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportICType = 0x%x\n", pDM_Odm->SupportICType));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("CutVersion =%d\n", pDM_Odm->CutVersion));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("FabVersion =%d\n", pDM_Odm->FabVersion));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("RFType =%d\n", pDM_Odm->RFType));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("BoardType =%d\n", pDM_Odm->BoardType));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("ExtLNA =%d\n", pDM_Odm->ExtLNA));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("ExtPA =%d\n", pDM_Odm->ExtPA));
@@ -1053,7 +1046,8 @@ u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
 		break;
 	case (ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
 	case (ODM_WM_A|ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
-		if (pDM_Odm->RFType == ODM_1T2R || pDM_Odm->RFType == ODM_1T1R) {
+		if (pHalData->rf_type == RF_1T2R ||
+		    pHalData->rf_type == RF_1T1R) {
 			if (rssi_level == DM_RATR_STA_HIGH) {
 				rate_bitmap = 0x000f0000;
 			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
@@ -1082,7 +1076,7 @@ u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
 	default:
 		/* case WIRELESS_11_24N: */
 		/* case WIRELESS_11_5N: */
-		if (pDM_Odm->RFType == RF_1T2R)
+		if (pHalData->rf_type == RF_1T2R)
 			rate_bitmap = 0x000fffff;
 		else
 			rate_bitmap = 0x0fffffff;
