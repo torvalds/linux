@@ -1755,6 +1755,8 @@ static int atmel_startup(struct uart_port *port)
 	if (retval)
 		goto free_irq;
 
+	tasklet_enable(&atmel_port->tasklet);
+
 	/*
 	 * Initialize DMA (if necessary)
 	 */
@@ -1858,6 +1860,7 @@ static void atmel_shutdown(struct uart_port *port)
 	 * Clear out any scheduled tasklets before
 	 * we destroy the buffers
 	 */
+	tasklet_disable(&atmel_port->tasklet);
 	tasklet_kill(&atmel_port->tasklet);
 
 	/*
@@ -2251,6 +2254,7 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 
 	tasklet_init(&atmel_port->tasklet, atmel_tasklet_func,
 			(unsigned long)port);
+	tasklet_disable(&atmel_port->tasklet);
 
 	memset(&atmel_port->rx_ring, 0, sizeof(atmel_port->rx_ring));
 
