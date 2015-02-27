@@ -941,11 +941,11 @@ static void path_adda_on(struct adapter *adapt, u32 *adda_reg,
 	u32 path_on;
 	u32 i;
 
-	path_on = is_path_a_on ? 0x04db25a4 : 0x0b1b25a4;
 	if (!is2t) {
 		path_on = 0x0bdb25a0;
 		phy_set_bb_reg(adapt, adda_reg[0], bMaskDWord, 0x0b1b25a0);
 	} else {
+		path_on = is_path_a_on ? 0x04db25a4 : 0x0b1b25a4;
 		phy_set_bb_reg(adapt, adda_reg[0], bMaskDWord, path_on);
 	}
 
