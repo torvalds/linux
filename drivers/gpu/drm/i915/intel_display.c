@@ -7740,7 +7740,7 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val, base, offset, stride_mult;
+	u32 val, base, offset, stride_mult, tiling;
 	int pipe = crtc->pipe;
 	int fourcc, pixel_format;
 	int aligned_height;
@@ -7759,17 +7759,32 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	if (!(val & PLANE_CTL_ENABLE))
 		goto error;
 
-	if (val & PLANE_CTL_TILED_MASK) {
-		plane_config->tiling = I915_TILING_X;
-		fb->modifier[0] = I915_FORMAT_MOD_X_TILED;
-	}
-
 	pixel_format = val & PLANE_CTL_FORMAT_MASK;
 	fourcc = skl_format_to_fourcc(pixel_format,
 				      val & PLANE_CTL_ORDER_RGBX,
 				      val & PLANE_CTL_ALPHA_MASK);
 	fb->pixel_format = fourcc;
 	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
+
+	tiling = val & PLANE_CTL_TILED_MASK;
+	switch (tiling) {
+	case PLANE_CTL_TILED_LINEAR:
+		fb->modifier[0] = DRM_FORMAT_MOD_NONE;
+		break;
+	case PLANE_CTL_TILED_X:
+		plane_config->tiling = I915_TILING_X;
+		fb->modifier[0] = I915_FORMAT_MOD_X_TILED;
+		break;
+	case PLANE_CTL_TILED_Y:
+		fb->modifier[0] = I915_FORMAT_MOD_Y_TILED;
+		break;
+	case PLANE_CTL_TILED_YF:
+		fb->modifier[0] = I915_FORMAT_MOD_Yf_TILED;
+		break;
+	default:
+		MISSING_CASE(tiling);
+		goto error;
+	}
 
 	base = I915_READ(PLANE_SURF(pipe, 0)) & 0xfffff000;
 	plane_config->base = base;
@@ -7781,17 +7796,8 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->width = ((val >> 0) & 0x1fff) + 1;
 
 	val = I915_READ(PLANE_STRIDE(pipe, 0));
-	switch (plane_config->tiling) {
-	case I915_TILING_NONE:
-		stride_mult = 64;
-		break;
-	case I915_TILING_X:
-		stride_mult = 512;
-		break;
-	default:
-		MISSING_CASE(plane_config->tiling);
-		goto error;
-	}
+	stride_mult = intel_fb_stride_alignment(dev, fb->modifier[0],
+						fb->pixel_format);
 	fb->pitches[0] = (val & 0x3ff) * stride_mult;
 
 	aligned_height = intel_fb_align_height(dev, fb->height,
