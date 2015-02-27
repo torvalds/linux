@@ -280,19 +280,15 @@ static void cppi41_dma_callback(void *private_data)
 
 		do {
 			empty = musb_is_tx_fifo_empty(hw_ep);
-			if (empty)
-				break;
+			if (empty) {
+				cppi41_trans_done(cppi41_channel);
+				goto out;
+			}
 			wait--;
 			if (!wait)
 				break;
 			udelay(1);
 		} while (1);
-
-		empty = musb_is_tx_fifo_empty(hw_ep);
-		if (empty) {
-			cppi41_trans_done(cppi41_channel);
-			goto out;
-		}
 	}
 	list_add_tail(&cppi41_channel->tx_check,
 			&controller->early_tx_list);
