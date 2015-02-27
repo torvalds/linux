@@ -139,19 +139,22 @@ EXPORT_SYMBOL_GPL(vmbus_prep_negotiate_resp);
  */
 static struct vmbus_channel *alloc_channel(void)
 {
+	static atomic_t chan_num = ATOMIC_INIT(0);
 	struct vmbus_channel *channel;
 
 	channel = kzalloc(sizeof(*channel), GFP_ATOMIC);
 	if (!channel)
 		return NULL;
 
+	channel->id = atomic_inc_return(&chan_num);
 	spin_lock_init(&channel->inbound_lock);
 	spin_lock_init(&channel->lock);
 
 	INIT_LIST_HEAD(&channel->sc_list);
 	INIT_LIST_HEAD(&channel->percpu_list);
 
-	channel->controlwq = create_workqueue("hv_vmbus_ctl");
+	channel->controlwq = alloc_workqueue("hv_vmbus_ctl/%d", WQ_MEM_RECLAIM,
+					     1, channel->id);
 	if (!channel->controlwq) {
 		kfree(channel);
 		return NULL;
