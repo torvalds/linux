@@ -100,7 +100,7 @@ static int __clockevents_set_mode(struct clock_event_device *dev,
 	/* Transition with legacy set_mode() callback */
 	if (dev->set_mode) {
 		/* Legacy callback doesn't support new modes */
-		if (mode > CLOCK_EVT_MODE_RESUME)
+		if (mode > CLOCK_EVT_MODE_ONESHOT)
 			return -ENOSYS;
 		dev->set_mode(mode, dev);
 		return 0;
@@ -132,13 +132,6 @@ static int __clockevents_set_mode(struct clock_event_device *dev,
 		if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
 			return -ENOSYS;
 		return dev->set_mode_oneshot(dev);
-
-	case CLOCK_EVT_MODE_RESUME:
-		/* Optional callback */
-		if (dev->set_mode_resume)
-			return dev->set_mode_resume(dev);
-		else
-			return 0;
 
 	default:
 		return -ENOSYS;
@@ -182,6 +175,25 @@ void clockevents_shutdown(struct clock_event_device *dev)
 {
 	clockevents_set_mode(dev, CLOCK_EVT_MODE_SHUTDOWN);
 	dev->next_event.tv64 = KTIME_MAX;
+}
+
+/**
+ * clockevents_tick_resume -	Resume the tick device before using it again
+ * @dev:			device to resume
+ */
+int clockevents_tick_resume(struct clock_event_device *dev)
+{
+	int ret = 0;
+
+	if (dev->set_mode)
+		dev->set_mode(CLOCK_EVT_MODE_RESUME, dev);
+	else if (dev->tick_resume)
+		ret = dev->tick_resume(dev);
+
+	if (likely(!ret))
+		dev->mode = CLOCK_EVT_MODE_RESUME;
+
+	return ret;
 }
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_MIN_ADJUST
@@ -433,7 +445,7 @@ static int clockevents_sanity_check(struct clock_event_device *dev)
 	if (dev->set_mode) {
 		/* We shouldn't be supporting new modes now */
 		WARN_ON(dev->set_mode_periodic || dev->set_mode_oneshot ||
-			dev->set_mode_shutdown || dev->set_mode_resume);
+			dev->set_mode_shutdown || dev->tick_resume);
 		return 0;
 	}
 

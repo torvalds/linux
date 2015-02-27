@@ -87,7 +87,7 @@ enum clock_event_mode {
  * @set_mode_periodic:	switch mode to periodic, if !set_mode
  * @set_mode_oneshot:	switch mode to oneshot, if !set_mode
  * @set_mode_shutdown:	switch mode to shutdown, if !set_mode
- * @set_mode_resume:	resume clkevt device, if !set_mode
+ * @tick_resume:	resume clkevt device, if !set_mode
  * @broadcast:		function to broadcast events
  * @min_delta_ticks:	minimum delta value in ticks stored for reconfiguration
  * @max_delta_ticks:	maximum delta value in ticks stored for reconfiguration
@@ -125,7 +125,7 @@ struct clock_event_device {
 	int			(*set_mode_periodic)(struct clock_event_device *);
 	int			(*set_mode_oneshot)(struct clock_event_device *);
 	int			(*set_mode_shutdown)(struct clock_event_device *);
-	int			(*set_mode_resume)(struct clock_event_device *);
+	int			(*tick_resume)(struct clock_event_device *);
 
 	void			(*broadcast)(const struct cpumask *mask);
 	void			(*suspend)(struct clock_event_device *);

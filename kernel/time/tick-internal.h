@@ -32,6 +32,7 @@ extern bool tick_check_replacement(struct clock_event_device *curdev,
 extern void tick_install_replacement(struct clock_event_device *dev);
 
 extern void clockevents_shutdown(struct clock_event_device *dev);
+extern int clockevents_tick_resume(struct clock_event_device *dev);
 
 extern ssize_t sysfs_get_uname(const char *buf, char *dst, size_t cnt);
 

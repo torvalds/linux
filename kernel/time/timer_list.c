@@ -251,9 +251,9 @@ print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 			SEQ_printf(m, "\n");
 		}
 
-		if (dev->set_mode_resume) {
+		if (dev->tick_resume) {
 			SEQ_printf(m, " resume:   ");
-			print_name_offset(m, dev->set_mode_resume);
+			print_name_offset(m, dev->tick_resume);
 			SEQ_printf(m, "\n");
 		}
 	}

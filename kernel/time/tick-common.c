@@ -384,7 +384,7 @@ void tick_resume(void)
 	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
 	int broadcast = tick_resume_broadcast();
 
-	clockevents_set_mode(td->evtdev, CLOCK_EVT_MODE_RESUME);
+	clockevents_tick_resume(td->evtdev);
 
 	if (!broadcast) {
 		if (td->mode == TICKDEV_MODE_PERIODIC)
