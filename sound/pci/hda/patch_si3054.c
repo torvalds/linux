@@ -83,7 +83,6 @@
 
 struct si3054_spec {
 	unsigned international;
-	struct hda_pcm pcm;
 };
 
 
@@ -199,11 +198,11 @@ static const struct hda_pcm_stream si3054_pcm = {
 
 static int si3054_build_pcms(struct hda_codec *codec)
 {
-	struct si3054_spec *spec = codec->spec;
-	struct hda_pcm *info = &spec->pcm;
-	codec->num_pcms = 1;
-	codec->pcm_info = info;
-	info->name = "Si3054 Modem";
+	struct hda_pcm *info;
+
+	info = snd_hda_codec_pcm_new(codec, "Si3054 Modem");
+	if (!info)
+		return -ENOMEM;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE]  = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = codec->mfg;

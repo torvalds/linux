@@ -719,7 +719,6 @@ struct ca0132_spec {
 	unsigned int num_inputs;
 	hda_nid_t shared_mic_nid;
 	hda_nid_t shared_out_nid;
-	struct hda_pcm pcm_rec[5]; /* PCM information */
 
 	/* chip access */
 	struct mutex chipio_mutex; /* chip access mutex */
@@ -4036,12 +4035,11 @@ static struct hda_pcm_stream ca0132_pcm_digital_capture = {
 static int ca0132_build_pcms(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
-	struct hda_pcm *info = spec->pcm_rec;
+	struct hda_pcm *info;
 
-	codec->pcm_info = info;
-	codec->num_pcms = 0;
-
-	info->name = "CA0132 Analog";
+	info = snd_hda_codec_pcm_new(codec, "CA0132 Analog");
+	if (!info)
+		return -ENOMEM;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = ca0132_pcm_analog_playback;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dacs[0];
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
@@ -4049,27 +4047,27 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
-	codec->num_pcms++;
 
-	info++;
-	info->name = "CA0132 Analog Mic-In2";
+	info = snd_hda_codec_pcm_new(codec, "CA0132 Analog Mic-In2");
+	if (!info)
+		return -ENOMEM;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[1];
-	codec->num_pcms++;
 
-	info++;
-	info->name = "CA0132 What U Hear";
+	info = snd_hda_codec_pcm_new(codec, "CA0132 What U Hear");
+	if (!info)
+		return -ENOMEM;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[2];
-	codec->num_pcms++;
 
 	if (!spec->dig_out && !spec->dig_in)
 		return 0;
 
-	info++;
-	info->name = "CA0132 Digital";
+	info = snd_hda_codec_pcm_new(codec, "CA0132 Digital");
+	if (!info)
+		return -ENOMEM;
 	info->pcm_type = HDA_PCM_TYPE_SPDIF;
 	if (spec->dig_out) {
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
@@ -4081,7 +4079,6 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 			ca0132_pcm_digital_capture;
 		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in;
 	}
-	codec->num_pcms++;
 
 	return 0;
 }

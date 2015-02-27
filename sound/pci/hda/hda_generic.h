@@ -144,7 +144,7 @@ struct hda_gen_spec {
 	int const_channel_count;	/* channel count for all */
 
 	/* PCM information */
-	struct hda_pcm pcm_rec[3];	/* used in build_pcms() */
+	struct hda_pcm *pcm_rec[3];	/* used in build_pcms() */
 
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;

@@ -99,10 +99,10 @@ static void print_nid_array(struct snd_info_buffer *buffer,
 static void print_nid_pcms(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
-	int pcm, type;
+	int type;
 	struct hda_pcm *cpcm;
-	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-		cpcm = &codec->pcm_info[pcm];
+
+	list_for_each_entry(cpcm, &codec->pcm_list_head, list) {
 		for (type = 0; type < 2; type++) {
 			if (cpcm->stream[type].nid != nid || cpcm->pcm == NULL)
 				continue;

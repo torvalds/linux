@@ -21,6 +21,7 @@
 #ifndef __SOUND_HDA_CODEC_H
 #define __SOUND_HDA_CODEC_H
 
+#include <linux/kref.h>
 #include <sound/info.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -268,6 +269,10 @@ struct hda_pcm {
 	int device;		/* device number to assign */
 	struct snd_pcm *pcm;	/* assigned PCM instance */
 	bool own_chmap;		/* codec driver provides own channel maps */
+	/* private: */
+	struct hda_codec *codec;
+	struct kref kref;
+	struct list_head list;
 };
 
 /* codec information */
@@ -301,8 +306,7 @@ struct hda_codec {
 	struct hda_codec_ops patch_ops;
 
 	/* PCM to create, set by patch_ops.build_pcms callback */
-	unsigned int num_pcms;
-	struct hda_pcm *pcm_info;
+	struct list_head pcm_list_head;
 
 	/* codec specific info */
 	void *spec;
@@ -520,6 +524,16 @@ int snd_hda_codec_build_controls(struct hda_codec *codec);
 int snd_hda_build_pcms(struct hda_bus *bus);
 int snd_hda_codec_parse_pcms(struct hda_codec *codec);
 int snd_hda_codec_build_pcms(struct hda_codec *codec);
+
+__printf(2, 3)
+struct hda_pcm *snd_hda_codec_pcm_new(struct hda_codec *codec,
+				      const char *fmt, ...);
+
+static inline void snd_hda_codec_pcm_get(struct hda_pcm *pcm)
+{
+	kref_get(&pcm->kref);
+}
+void snd_hda_codec_pcm_put(struct hda_pcm *pcm);
 
 int snd_hda_codec_prepare(struct hda_codec *codec,
 			  struct hda_pcm_stream *hinfo,

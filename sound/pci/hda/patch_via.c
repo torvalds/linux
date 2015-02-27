@@ -683,8 +683,10 @@ static int vt1708_build_pcms(struct hda_codec *codec)
 	 * 24bit samples are used.  Until any workaround is found,
 	 * disable the 24bit format, so far.
 	 */
-	for (i = 0; i < codec->num_pcms; i++) {
-		struct hda_pcm *info = &spec->gen.pcm_rec[i];
+	for (i = 0; i < ARRAY_SIZE(spec->gen.pcm_rec); i++) {
+		struct hda_pcm *info = spec->gen.pcm_rec[i];
+		if (!info)
+			continue;
 		if (!info->stream[SNDRV_PCM_STREAM_PLAYBACK].substreams ||
 		    info->pcm_type != HDA_PCM_TYPE_AUDIO)
 			continue;

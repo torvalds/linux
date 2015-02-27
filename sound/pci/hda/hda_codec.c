@@ -1117,6 +1117,60 @@ get_hda_cvt_setup(struct hda_codec *codec, hda_nid_t nid)
 }
 
 /*
+ * PCM device
+ */
+static void release_pcm(struct kref *kref)
+{
+	struct hda_pcm *pcm = container_of(kref, struct hda_pcm, kref);
+
+	if (pcm->pcm)
+		snd_device_free(pcm->codec->card, pcm->pcm);
+	clear_bit(pcm->device, pcm->codec->bus->pcm_dev_bits);
+	kfree(pcm->name);
+	kfree(pcm);
+}
+
+void snd_hda_codec_pcm_put(struct hda_pcm *pcm)
+{
+	kref_put(&pcm->kref, release_pcm);
+}
+EXPORT_SYMBOL_GPL(snd_hda_codec_pcm_put);
+
+struct hda_pcm *snd_hda_codec_pcm_new(struct hda_codec *codec,
+				      const char *fmt, ...)
+{
+	struct hda_pcm *pcm;
+	va_list args;
+
+	va_start(args, fmt);
+	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
+	if (!pcm)
+		return NULL;
+
+	pcm->codec = codec;
+	kref_init(&pcm->kref);
+	pcm->name = kvasprintf(GFP_KERNEL, fmt, args);
+	if (!pcm->name) {
+		kfree(pcm);
+		return NULL;
+	}
+
+	list_add_tail(&pcm->list, &codec->pcm_list_head);
+	return pcm;
+}
+EXPORT_SYMBOL_GPL(snd_hda_codec_pcm_new);
+
+static void codec_release_pcms(struct hda_codec *codec)
+{
+	struct hda_pcm *pcm, *n;
+
+	list_for_each_entry_safe(pcm, n, &codec->pcm_list_head, list) {
+		list_del_init(&pcm->list);
+		snd_hda_codec_pcm_put(pcm);
+	}
+}
+
+/*
  * codec destructor
  */
 static void snd_hda_codec_free(struct hda_codec *codec)
@@ -1124,6 +1178,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	if (!codec)
 		return;
 	cancel_delayed_work_sync(&codec->jackpoll_work);
+	codec_release_pcms(codec);
 	if (device_is_registered(hda_codec_dev(codec)))
 		device_del(hda_codec_dev(codec));
 	snd_hda_jack_tbl_clear(codec);
@@ -1251,6 +1306,7 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 	snd_array_init(&codec->jacktbl, sizeof(struct hda_jack_tbl), 16);
 	snd_array_init(&codec->verbs, sizeof(struct hda_verb *), 8);
 	INIT_LIST_HEAD(&codec->conn_list);
+	INIT_LIST_HEAD(&codec->pcm_list_head);
 
 	INIT_DELAYED_WORK(&codec->jackpoll_work, hda_jackpoll_work);
 	codec->depop_delay = -1;
@@ -2370,9 +2426,8 @@ int snd_hda_lock_devices(struct hda_bus *bus)
 		goto err_clear;
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
-		int pcm;
-		for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-			struct hda_pcm *cpcm = &codec->pcm_info[pcm];
+		struct hda_pcm *cpcm;
+		list_for_each_entry(cpcm, &codec->pcm_list_head, list) {
 			if (!cpcm->pcm)
 				continue;
 			if (cpcm->pcm->streams[0].substream_opened ||
@@ -2419,8 +2474,6 @@ EXPORT_SYMBOL_GPL(snd_hda_unlock_devices);
 int snd_hda_codec_reset(struct hda_codec *codec)
 {
 	struct hda_bus *bus = codec->bus;
-	struct snd_card *card = codec->card;
-	int i;
 
 	if (snd_hda_lock_devices(bus) < 0)
 		return -EBUSY;
@@ -2429,14 +2482,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	cancel_delayed_work_sync(&codec->jackpoll_work);
 	flush_workqueue(bus->workq);
 	snd_hda_ctls_clear(codec);
-	/* release PCMs */
-	for (i = 0; i < codec->num_pcms; i++) {
-		if (codec->pcm_info[i].pcm) {
-			snd_device_free(card, codec->pcm_info[i].pcm);
-			clear_bit(codec->pcm_info[i].device,
-				  bus->pcm_dev_bits);
-		}
-	}
+	codec_release_pcms(codec);
 	snd_hda_detach_beep_device(codec);
 	if (device_is_registered(hda_codec_dev(codec)))
 		device_del(hda_codec_dev(codec));
@@ -2454,8 +2500,6 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	snd_array_free(&codec->cvt_setups);
 	snd_array_free(&codec->spdif_out);
 	snd_array_free(&codec->verbs);
-	codec->num_pcms = 0;
-	codec->pcm_info = NULL;
 	codec->preset = NULL;
 	codec->slave_dig_outs = NULL;
 	codec->spdif_status_reset = 0;
@@ -3952,12 +3996,12 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 static int hda_codec_runtime_suspend(struct device *dev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(dev);
+	struct hda_pcm *pcm;
 	unsigned int state;
-	int i;
 
 	cancel_delayed_work_sync(&codec->jackpoll_work);
-	for (i = 0; i < codec->num_pcms; i++)
-		snd_pcm_suspend_all(codec->pcm_info[i].pcm);
+	list_for_each_entry(pcm, &codec->pcm_list_head, list)
+		snd_pcm_suspend_all(pcm->pcm);
 	state = hda_call_codec_suspend(codec);
 	if (codec->d3_stop_clk && codec->epss && (state & AC_PWRST_CLK_STOP_OK))
 		clear_bit(codec->addr, &codec->bus->codec_powered);
@@ -4018,22 +4062,21 @@ EXPORT_SYMBOL_GPL(snd_hda_build_controls);
  */
 static int add_std_chmaps(struct hda_codec *codec)
 {
-	int i, str, err;
+	struct hda_pcm *pcm;
+	int str, err;
 
-	for (i = 0; i < codec->num_pcms; i++) {
+	list_for_each_entry(pcm, &codec->pcm_list_head, list) {
 		for (str = 0; str < 2; str++) {
-			struct snd_pcm *pcm = codec->pcm_info[i].pcm;
-			struct hda_pcm_stream *hinfo =
-				&codec->pcm_info[i].stream[str];
+			struct hda_pcm_stream *hinfo = &pcm->stream[str];
 			struct snd_pcm_chmap *chmap;
 			const struct snd_pcm_chmap_elem *elem;
 
-			if (codec->pcm_info[i].own_chmap)
+			if (pcm->own_chmap)
 				continue;
 			if (!pcm || !hinfo->substreams)
 				continue;
 			elem = hinfo->chmap ? hinfo->chmap : snd_pcm_std_chmaps;
-			err = snd_pcm_add_chmap_ctls(pcm, str, elem,
+			err = snd_pcm_add_chmap_ctls(pcm->pcm, str, elem,
 						     hinfo->channels_max,
 						     0, &chmap);
 			if (err < 0)
@@ -4564,10 +4607,10 @@ static int get_empty_pcm_device(struct hda_bus *bus, unsigned int type)
 /* call build_pcms ops of the given codec and set up the default parameters */
 int snd_hda_codec_parse_pcms(struct hda_codec *codec)
 {
-	unsigned int pcm;
+	struct hda_pcm *cpcm;
 	int err;
 
-	if (codec->num_pcms)
+	if (!list_empty(&codec->pcm_list_head))
 		return 0; /* already parsed */
 
 	if (!codec->patch_ops.build_pcms)
@@ -4580,8 +4623,7 @@ int snd_hda_codec_parse_pcms(struct hda_codec *codec)
 		return err;
 	}
 
-	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-		struct hda_pcm *cpcm = &codec->pcm_info[pcm];
+	list_for_each_entry(cpcm, &codec->pcm_list_head, list) {
 		int stream;
 
 		for (stream = 0; stream < 2; stream++) {
@@ -4589,8 +4631,6 @@ int snd_hda_codec_parse_pcms(struct hda_codec *codec)
 
 			if (!info->substreams)
 				continue;
-			if (snd_BUG_ON(!cpcm->name))
-				return -EINVAL;
 			err = set_pcm_default_values(codec, info);
 			if (err < 0) {
 				codec_warn(codec,
@@ -4608,7 +4648,7 @@ int snd_hda_codec_parse_pcms(struct hda_codec *codec)
 int snd_hda_codec_build_pcms(struct hda_codec *codec)
 {
 	struct hda_bus *bus = codec->bus;
-	unsigned int pcm;
+	struct hda_pcm *cpcm;
 	int dev, err;
 
 	if (snd_BUG_ON(!bus->ops.attach_pcm))
@@ -4621,9 +4661,7 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 	}
 
 	/* attach a new PCM streams */
-	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-		struct hda_pcm *cpcm = &codec->pcm_info[pcm];
-
+	list_for_each_entry(cpcm, &codec->pcm_list_head, list) {
 		if (cpcm->pcm)
 			continue; /* already attached */
 		if (!cpcm->stream[0].substreams && !cpcm->stream[1].substreams)
@@ -4651,11 +4689,9 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
  *
  * Create PCM information for each codec included in the bus.
  *
- * The build_pcms codec patch is requested to set up codec->num_pcms and
- * codec->pcm_info properly.  The array is referred by the top-level driver
- * to create its PCM instances.
- * The allocated codec->pcm_info should be released in codec->patch_ops.free
- * callback.
+ * The build_pcms codec patch is requested to create and assign new
+ * hda_pcm objects.  The codec is responsible to call snd_hda_codec_pcm_new()
+ * and fills the fields.  Later they are instantiated by this function.
  *
  * At least, substreams, channels_min and channels_max must be filled for
  * each stream.  substreams = 0 indicates that the stream doesn't exist.
