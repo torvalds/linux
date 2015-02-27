@@ -1863,6 +1863,8 @@ static inline void  lcdc_msk_reg(struct lcdc_device *lcdc_dev,
 	(*_pv) &= (~msk);
 	(*_pv) |= v;
 	writel_relaxed(*_pv, lcdc_dev->regs + offset);
+        if (offset == INTR_CLEAR)
+                (*_pv) &= 0;
 }
 
 static inline void lcdc_cfg_done(struct lcdc_device *lcdc_dev)

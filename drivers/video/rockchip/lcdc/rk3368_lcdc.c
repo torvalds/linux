@@ -1568,9 +1568,10 @@ static int rk3368_config_timing(struct rk_lcdc_driver *dev_drv)
 		val = v_HWC_INTERLACE_READ(1);
 		lcdc_msk_reg(lcdc_dev, HWC_CTRL0, mask, val);
 
-		mask = m_DSP_LINE_FLAG0_NUM;
+		mask = m_DSP_LINE_FLAG0_NUM | m_DSP_LINE_FLAG1_NUM;
 		val =
-		    v_DSP_LINE_FLAG0_NUM(vsync_len + upper_margin + y_res / 2);
+		    v_DSP_LINE_FLAG0_NUM(vsync_len + upper_margin + y_res / 2) |
+		    v_DSP_LINE_FLAG1_NUM(vsync_len + upper_margin + y_res / 2);
 		lcdc_msk_reg(lcdc_dev, LINE_FLAG, mask, val);
 	} else {
 		mask = m_DSP_VS_PW | m_DSP_VTOTAL;
@@ -1614,8 +1615,9 @@ static int rk3368_config_timing(struct rk_lcdc_driver *dev_drv)
 		val = v_HWC_INTERLACE_READ(0);
 		lcdc_msk_reg(lcdc_dev, HWC_CTRL0, mask, val);
 
-		mask = m_DSP_LINE_FLAG0_NUM;
-		val = v_DSP_LINE_FLAG0_NUM(vsync_len + upper_margin + y_res);
+		mask = m_DSP_LINE_FLAG0_NUM | m_DSP_LINE_FLAG1_NUM;
+		val = v_DSP_LINE_FLAG0_NUM(vsync_len + upper_margin + y_res) |
+		        v_DSP_LINE_FLAG1_NUM(vsync_len + upper_margin + y_res);
 		lcdc_msk_reg(lcdc_dev, LINE_FLAG, mask, val);
 	}
 	rk3368_lcdc_post_cfg(dev_drv);
@@ -1977,9 +1979,10 @@ static int rk3368_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 	    v_LINE_FLAG0_INTR_CLR(1) | v_LINE_FLAG1_INTR_CLR(1);
 	lcdc_msk_reg(lcdc_dev, INTR_CLEAR, mask, val);
 
-	mask = m_FS_INTR_EN | m_LINE_FLAG0_INTR_EN | m_BUS_ERROR_INTR_EN;
+	mask = m_FS_INTR_EN | m_LINE_FLAG0_INTR_EN |
+	        m_BUS_ERROR_INTR_EN | m_LINE_FLAG1_INTR_EN;
 	val = v_FS_INTR_EN(1) | v_LINE_FLAG0_INTR_EN(1) |
-	    v_BUS_ERROR_INTR_EN(1);
+	    v_BUS_ERROR_INTR_EN(1) | v_LINE_FLAG1_INTR_EN(0);
 	lcdc_msk_reg(lcdc_dev, INTR_EN, mask, val);
 
 #ifdef LCDC_IRQ_EMPTY_DEBUG
