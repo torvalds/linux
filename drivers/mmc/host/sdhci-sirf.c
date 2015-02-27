@@ -20,16 +20,8 @@
 #define SIRF_TUNING_COUNT 128
 
 struct sdhci_sirf_priv {
-	struct clk *clk;
 	int gpio_cd;
 };
-
-static unsigned int sdhci_sirf_get_max_clk(struct sdhci_host *host)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_sirf_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	return clk_get_rate(priv->clk);
-}
 
 static void sdhci_sirf_set_bus_width(struct sdhci_host *host, int width)
 {
@@ -122,7 +114,7 @@ retry:
 static struct sdhci_ops sdhci_sirf_ops = {
 	.platform_execute_tuning = sdhci_sirf_execute_tuning,
 	.set_clock = sdhci_set_clock,
-	.get_max_clock	= sdhci_sirf_get_max_clk,
+	.get_max_clock	= sdhci_pltfm_clk_get_max_clock,
 	.set_bus_width = sdhci_sirf_set_bus_width,
 	.reset = sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
@@ -162,13 +154,13 @@ static int sdhci_sirf_probe(struct platform_device *pdev)
 		return PTR_ERR(host);
 
 	pltfm_host = sdhci_priv(host);
+	pltfm_host->clk = clk;
 	priv = sdhci_pltfm_priv(pltfm_host);
-	priv->clk = clk;
 	priv->gpio_cd = gpio_cd;
 
 	sdhci_get_of_property(pdev);
 
-	ret = clk_prepare_enable(priv->clk);
+	ret = clk_prepare_enable(pltfm_host->clk);
 	if (ret)
 		goto err_clk_prepare;
 
@@ -195,7 +187,7 @@ static int sdhci_sirf_probe(struct platform_device *pdev)
 err_request_cd:
 	sdhci_remove_host(host, 0);
 err_sdhci_add:
-	clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(pltfm_host->clk);
 err_clk_prepare:
 	sdhci_pltfm_free(pdev);
 	return ret;
@@ -205,11 +197,9 @@ static int sdhci_sirf_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_sirf_priv *priv = sdhci_pltfm_priv(pltfm_host);
 
+	clk_disable_unprepare(pltfm_host->clk);
 	sdhci_pltfm_unregister(pdev);
-
-	clk_disable_unprepare(priv->clk);
 	return 0;
 }
 
@@ -218,14 +208,13 @@ static int sdhci_sirf_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_sirf_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
 	ret = sdhci_suspend_host(host);
 	if (ret)
 		return ret;
 
-	clk_disable(priv->clk);
+	clk_disable(pltfm_host->clk);
 
 	return 0;
 }
@@ -234,10 +223,9 @@ static int sdhci_sirf_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_sirf_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
-	ret = clk_enable(priv->clk);
+	ret = clk_enable(pltfm_host->clk);
 	if (ret) {
 		dev_dbg(dev, "Resume: Error enabling clock\n");
 		return ret;
