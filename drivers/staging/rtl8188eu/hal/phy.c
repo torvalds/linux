@@ -985,26 +985,18 @@ static void pi_mode_switch(struct adapter *adapt, bool pi_mode)
 static bool simularity_compare(struct adapter *adapt, s32 resulta[][8],
 			       u8 c1, u8 c2)
 {
-	u32 i, j, diff, sim_bitmap, bound = 0;
+	u32 i, j, diff, sim_bitmap = 0, bound;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 	u8 final_candidate[2] = {0xFF, 0xFF};	/* for path A and path B */
 	bool result = true;
-	bool is2t;
 	s32 tmp1 = 0, tmp2 = 0;
 
 	if ((dm_odm->RFType == ODM_2T2R) || (dm_odm->RFType == ODM_2T3R) ||
 	    (dm_odm->RFType == ODM_2T4R))
-		is2t = true;
-	else
-		is2t = false;
-
-	if (is2t)
 		bound = 8;
 	else
 		bound = 4;
-
-	sim_bitmap = 0;
 
 	for (i = 0; i < bound; i++) {
 		if ((i == 1) || (i == 3) || (i == 5) || (i == 7)) {
