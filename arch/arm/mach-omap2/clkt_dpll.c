@@ -80,8 +80,8 @@ static int _dpll_test_fint(struct clk_hw_omap *clk, unsigned int n)
 		fint_min = OMAP3PLUS_DPLL_FINT_JTYPE_MIN;
 		fint_max = OMAP3PLUS_DPLL_FINT_JTYPE_MAX;
 	} else {
-		fint_min = ti_clk_features.fint_min;
-		fint_max = ti_clk_features.fint_max;
+		fint_min = ti_clk_get_features()->fint_min;
+		fint_max = ti_clk_get_features()->fint_max;
 	}
 
 	if (!fint_min || !fint_max) {
@@ -89,18 +89,18 @@ static int _dpll_test_fint(struct clk_hw_omap *clk, unsigned int n)
 		return DPLL_FINT_INVALID;
 	}
 
-	if (fint < ti_clk_features.fint_min) {
+	if (fint < ti_clk_get_features()->fint_min) {
 		pr_debug("rejecting n=%d due to Fint failure, lowering max_divider\n",
 			 n);
 		dd->max_divider = n;
 		ret = DPLL_FINT_UNDERFLOW;
-	} else if (fint > ti_clk_features.fint_max) {
+	} else if (fint > ti_clk_get_features()->fint_max) {
 		pr_debug("rejecting n=%d due to Fint failure, boosting min_divider\n",
 			 n);
 		dd->min_divider = n;
 		ret = DPLL_FINT_INVALID;
-	} else if (fint > ti_clk_features.fint_band1_max &&
-		   fint < ti_clk_features.fint_band2_min) {
+	} else if (fint > ti_clk_get_features()->fint_band1_max &&
+		   fint < ti_clk_get_features()->fint_band2_min) {
 		pr_debug("rejecting n=%d due to Fint failure\n", n);
 		ret = DPLL_FINT_INVALID;
 	}
@@ -183,7 +183,7 @@ static int _omap2_dpll_is_in_bypass(u32 v)
 {
 	u8 mask, val;
 
-	mask = ti_clk_features.dpll_bypass_vals;
+	mask = ti_clk_get_features()->dpll_bypass_vals;
 
 	/*
 	 * Each set bit in the mask corresponds to a bypass value equal

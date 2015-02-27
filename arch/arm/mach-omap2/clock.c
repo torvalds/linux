@@ -48,11 +48,6 @@
 
 u16 cpu_mask;
 
-/*
- * Clock features setup. Used instead of CPU type checks.
- */
-struct ti_clk_features ti_clk_features;
-
 /* DPLL valid Fint frequency band limits - from 34xx TRM Section 4.7.6.2 */
 #define OMAP3430_DPLL_FINT_BAND1_MIN	750000
 #define OMAP3430_DPLL_FINT_BAND1_MAX	2100000
@@ -367,7 +362,7 @@ void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
 	 * 34xx reverses this, just to keep us on our toes
 	 * AM35xx uses both, depending on the module.
 	 */
-	*idlest_val = ti_clk_features.cm_idlest_val;
+	*idlest_val = ti_clk_get_features()->cm_idlest_val;
 }
 
 /**
@@ -801,29 +796,30 @@ void __init omap2_clk_print_new_rates(const char *hfclkin_ck_name,
  */
 void __init ti_clk_init_features(void)
 {
+	struct ti_clk_features features = { 0 };
 	/* Fint setup for DPLLs */
 	if (cpu_is_omap3430()) {
-		ti_clk_features.fint_min = OMAP3430_DPLL_FINT_BAND1_MIN;
-		ti_clk_features.fint_max = OMAP3430_DPLL_FINT_BAND2_MAX;
-		ti_clk_features.fint_band1_max = OMAP3430_DPLL_FINT_BAND1_MAX;
-		ti_clk_features.fint_band2_min = OMAP3430_DPLL_FINT_BAND2_MIN;
+		features.fint_min = OMAP3430_DPLL_FINT_BAND1_MIN;
+		features.fint_max = OMAP3430_DPLL_FINT_BAND2_MAX;
+		features.fint_band1_max = OMAP3430_DPLL_FINT_BAND1_MAX;
+		features.fint_band2_min = OMAP3430_DPLL_FINT_BAND2_MIN;
 	} else {
-		ti_clk_features.fint_min = OMAP3PLUS_DPLL_FINT_MIN;
-		ti_clk_features.fint_max = OMAP3PLUS_DPLL_FINT_MAX;
+		features.fint_min = OMAP3PLUS_DPLL_FINT_MIN;
+		features.fint_max = OMAP3PLUS_DPLL_FINT_MAX;
 	}
 
 	/* Bypass value setup for DPLLs */
 	if (cpu_is_omap24xx()) {
-		ti_clk_features.dpll_bypass_vals |=
+		features.dpll_bypass_vals |=
 			(1 << OMAP2XXX_EN_DPLL_LPBYPASS) |
 			(1 << OMAP2XXX_EN_DPLL_FRBYPASS);
 	} else if (cpu_is_omap34xx()) {
-		ti_clk_features.dpll_bypass_vals |=
+		features.dpll_bypass_vals |=
 			(1 << OMAP3XXX_EN_DPLL_LPBYPASS) |
 			(1 << OMAP3XXX_EN_DPLL_FRBYPASS);
 	} else if (soc_is_am33xx() || cpu_is_omap44xx() || soc_is_am43xx() ||
 		   soc_is_omap54xx() || soc_is_dra7xx()) {
-		ti_clk_features.dpll_bypass_vals |=
+		features.dpll_bypass_vals |=
 			(1 << OMAP4XXX_EN_DPLL_LPBYPASS) |
 			(1 << OMAP4XXX_EN_DPLL_FRBYPASS) |
 			(1 << OMAP4XXX_EN_DPLL_MNBYPASS);
@@ -831,7 +827,7 @@ void __init ti_clk_init_features(void)
 
 	/* Jitter correction only available on OMAP343X */
 	if (cpu_is_omap343x())
-		ti_clk_features.flags |= TI_CLK_DPLL_HAS_FREQSEL;
+		features.flags |= TI_CLK_DPLL_HAS_FREQSEL;
 
 	/* Idlest value for interface clocks.
 	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.
@@ -839,11 +835,13 @@ void __init ti_clk_init_features(void)
 	 * AM35xx uses both, depending on the module.
 	 */
 	if (cpu_is_omap24xx())
-		ti_clk_features.cm_idlest_val = OMAP24XX_CM_IDLEST_VAL;
+		features.cm_idlest_val = OMAP24XX_CM_IDLEST_VAL;
 	else if (cpu_is_omap34xx())
-		ti_clk_features.cm_idlest_val = OMAP34XX_CM_IDLEST_VAL;
+		features.cm_idlest_val = OMAP34XX_CM_IDLEST_VAL;
 
 	/* On OMAP3430 ES1.0, DPLL4 can't be re-programmed */
 	if (omap_rev() == OMAP3430_REV_ES1_0)
-		ti_clk_features.flags |= TI_CLK_DPLL4_DENY_REPROGRAM;
+		features.flags |= TI_CLK_DPLL4_DENY_REPROGRAM;
+
+	ti_clk_setup_features(&features);
 }

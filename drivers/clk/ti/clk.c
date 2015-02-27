@@ -30,6 +30,8 @@
 struct ti_clk_ll_ops *ti_clk_ll_ops;
 static struct device_node *clocks_node_ptr[CLK_MAX_MEMMAPS];
 
+struct ti_clk_features ti_clk_features;
+
 /**
  * ti_dt_clocks_register - register DT alias clocks during boot
  * @oclks: list of clocks to register
@@ -311,3 +313,26 @@ int __init ti_clk_register_legacy_clks(struct ti_clk_alias *clks)
 	return 0;
 }
 #endif
+
+/**
+ * ti_clk_setup_features - setup clock features flags
+ * @features: features definition to use
+ *
+ * Initializes the clock driver features flags based on platform
+ * provided data. No return value.
+ */
+void __init ti_clk_setup_features(struct ti_clk_features *features)
+{
+	memcpy(&ti_clk_features, features, sizeof(*features));
+}
+
+/**
+ * ti_clk_get_features - get clock driver features flags
+ *
+ * Get TI clock driver features description. Returns a pointer
+ * to the current feature setup.
+ */
+const struct ti_clk_features *ti_clk_get_features(void)
+{
+	return &ti_clk_features;
+}

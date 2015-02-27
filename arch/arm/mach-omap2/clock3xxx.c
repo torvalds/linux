@@ -58,7 +58,7 @@ int omap3_dpll4_set_rate(struct clk_hw *hw, unsigned long rate,
 	 * on 3430ES1 prevents us from changing DPLL multipliers or dividers
 	 * on DPLL4.
 	 */
-	if (ti_clk_features.flags & TI_CLK_DPLL4_DENY_REPROGRAM) {
+	if (ti_clk_get_features()->flags & TI_CLK_DPLL4_DENY_REPROGRAM) {
 		pr_err("clock: DPLL4 cannot change rate due to silicon 'Limitation 2.5' on 3430ES1.\n");
 		return -EINVAL;
 	}
@@ -81,7 +81,7 @@ int omap3_dpll4_set_rate(struct clk_hw *hw, unsigned long rate,
 int omap3_dpll4_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
 				    unsigned long parent_rate, u8 index)
 {
-	if (ti_clk_features.flags & TI_CLK_DPLL4_DENY_REPROGRAM) {
+	if (ti_clk_get_features()->flags & TI_CLK_DPLL4_DENY_REPROGRAM) {
 		pr_err("clock: DPLL4 cannot change rate due to silicon 'Limitation 2.5' on 3430ES1.\n");
 		return -EINVAL;
 	}

@@ -338,6 +338,22 @@ int am43xx_dt_clk_init(void);
 int omap2420_dt_clk_init(void);
 int omap2430_dt_clk_init(void);
 
+struct ti_clk_features {
+	u32 flags;
+	long fint_min;
+	long fint_max;
+	long fint_band1_max;
+	long fint_band2_min;
+	u8 dpll_bypass_vals;
+	u8 cm_idlest_val;
+};
+
+#define TI_CLK_DPLL_HAS_FREQSEL			BIT(0)
+#define TI_CLK_DPLL4_DENY_REPROGRAM		BIT(1)
+
+void ti_clk_setup_features(struct ti_clk_features *features);
+const struct ti_clk_features *ti_clk_get_features(void);
+
 #ifdef CONFIG_OF
 void of_ti_clk_allow_autoidle_all(void);
 void of_ti_clk_deny_autoidle_all(void);

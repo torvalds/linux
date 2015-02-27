@@ -225,24 +225,6 @@ void omap2_clk_writel(u32 val, struct clk_hw_omap *clk, void __iomem *reg);
 
 extern u16 cpu_mask;
 
-/*
- * Clock features setup. Used instead of CPU type checks.
- */
-struct ti_clk_features {
-	u32 flags;
-	long fint_min;
-	long fint_max;
-	long fint_band1_max;
-	long fint_band2_min;
-	u8 dpll_bypass_vals;
-	u8 cm_idlest_val;
-};
-
-#define TI_CLK_DPLL_HAS_FREQSEL		(1 << 0)
-#define TI_CLK_DPLL4_DENY_REPROGRAM	(1 << 1)
-
-extern struct ti_clk_features ti_clk_features;
-
 extern const struct clkops clkops_omap2_dflt_wait;
 extern const struct clkops clkops_omap2_dflt;
 
