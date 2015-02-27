@@ -151,7 +151,7 @@ static u64 kernel_get_symbol_address_by_name(const char *name, bool reloc)
 		sym = __find_kernel_function_by_name(name, &map);
 		if (sym)
 			return map->unmap_ip(map, sym->start) -
-				(reloc) ? 0 : map->reloc;
+				((reloc) ? 0 : map->reloc);
 	}
 	return 0;
 }
