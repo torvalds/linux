@@ -926,16 +926,20 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 void __init early_trap_init(void)
 {
 	/*
-	 * Don't set ist to DEBUG_STACK as it doesn't work until TSS is
-	 * ready in cpu_init() <-- trap_init(). Before trap_init(), CPU
-	 * runs at ring 0 so it is impossible to hit an invalid stack.
-	 * Using the original stack works well enough at this early
-	 * stage. DEBUG_STACK will be equipped after cpu_init() in
+	 * Don't use IST to set DEBUG_STACK as it doesn't work until TSS
+	 * is ready in cpu_init() <-- trap_init(). Before trap_init(),
+	 * CPU runs at ring 0 so it is impossible to hit an invalid
+	 * stack.  Using the original stack works well enough at this
+	 * early stage. DEBUG_STACK will be equipped after cpu_init() in
 	 * trap_init().
+	 *
+	 * We don't need to set trace_idt_table like set_intr_gate(),
+	 * since we don't have trace_debug and it will be reset to
+	 * 'debug' in trap_init() by set_intr_gate_ist().
 	 */
-	set_intr_gate_ist(X86_TRAP_DB, &debug, 0);
+	set_intr_gate_notrace(X86_TRAP_DB, debug);
 	/* int3 can be called from all */
-	set_system_intr_gate_ist(X86_TRAP_BP, &int3, 0);
+	set_system_intr_gate(X86_TRAP_BP, &int3);
 #ifdef CONFIG_X86_32
 	set_intr_gate(X86_TRAP_PF, page_fault);
 #endif
@@ -1015,7 +1019,7 @@ void __init trap_init(void)
 
 	/*
 	 * X86_TRAP_DB and X86_TRAP_BP have been set
-	 * in early_trap_init(). However, DEBUG_STACK works only after
+	 * in early_trap_init(). However, ITS works only after
 	 * cpu_init() loads TSS. See comments in early_trap_init().
 	 */
 	set_intr_gate_ist(X86_TRAP_DB, &debug, DEBUG_STACK);
