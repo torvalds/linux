@@ -343,6 +343,11 @@ int cmd_buildid_cache(int argc, const char **argv,
 	argc = parse_options(argc, argv, buildid_cache_options,
 			     buildid_cache_usage, 0);
 
+	if (argc || (!add_name_list_str && !kcore_filename &&
+		     !remove_name_list_str && !purge_name_list_str &&
+		     !missing_filename && !update_name_list_str))
+		usage_with_options(buildid_cache_usage, buildid_cache_options);
+
 	if (missing_filename) {
 		file.path = missing_filename;
 		file.force = force;
