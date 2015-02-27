@@ -705,13 +705,13 @@ static void radeon_audio_hdmi_mode_set(struct drm_encoder *encoder,
 	if (!dig || !dig->afmt)
 		return;
 
+	radeon_audio_set_mute(encoder, true);
 	/* disable audio prior to setting up hw */
 	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
 	radeon_audio_set_dto(encoder, mode->clock);
 	radeon_audio_set_vbi_packet(encoder);
 	radeon_hdmi_set_color_depth(encoder);
-	radeon_audio_set_mute(encoder, false);
 	radeon_audio_update_acr(encoder, mode->clock);
 	radeon_audio_set_audio_packet(encoder);
 	radeon_audio_select_pin(encoder);
@@ -721,6 +721,7 @@ static void radeon_audio_hdmi_mode_set(struct drm_encoder *encoder,
 
 	/* enable audio after to setting up hw */
 	radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
+	radeon_audio_set_mute(encoder, false);
 }
 
 static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
