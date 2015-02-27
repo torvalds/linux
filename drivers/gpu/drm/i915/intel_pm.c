@@ -2617,7 +2617,7 @@ static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 
 static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
-			       uint32_t latency)
+			       uint64_t tiling, uint32_t latency)
 {
 	uint32_t ret;
 	uint32_t plane_bytes_per_line, plane_blocks_per_line;
@@ -2627,7 +2627,16 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 		return UINT_MAX;
 
 	plane_bytes_per_line = horiz_pixels * bytes_per_pixel;
-	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+
+	if (tiling == I915_FORMAT_MOD_Y_TILED ||
+	    tiling == I915_FORMAT_MOD_Yf_TILED) {
+		plane_bytes_per_line *= 4;
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+		plane_blocks_per_line /= 4;
+	} else {
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+	}
+
 	wm_intermediate_val = latency * pixel_rate;
 	ret = DIV_ROUND_UP(wm_intermediate_val, pipe_htotal * 1000) *
 				plane_blocks_per_line;
@@ -2679,6 +2688,7 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_plane *plane;
+	struct drm_framebuffer *fb;
 	int i = 1; /* Index for sprite planes start */
 
 	p->active = intel_crtc_active(crtc);
@@ -2694,6 +2704,14 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 			crtc->primary->fb->bits_per_pixel / 8;
 		p->plane[0].horiz_pixels = intel_crtc->config->pipe_src_w;
 		p->plane[0].vert_pixels = intel_crtc->config->pipe_src_h;
+		p->plane[0].tiling = DRM_FORMAT_MOD_NONE;
+		fb = crtc->primary->state->fb;
+		/*
+		 * Framebuffer can be NULL on plane disable, but it does not
+		 * matter for watermarks if we assume no tiling in that case.
+		 */
+		if (fb)
+			p->plane[0].tiling = fb->modifier[0];
 
 		p->cursor.enabled = true;
 		p->cursor.bytes_per_pixel = 4;
@@ -2734,23 +2752,34 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				 p->pipe_htotal,
 				 p_params->horiz_pixels,
 				 p_params->bytes_per_pixel,
+				 p_params->tiling,
 				 latency);
 
 	plane_bytes_per_line = p_params->horiz_pixels *
 					p_params->bytes_per_pixel;
 	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 
-	/* For now xtile and linear */
-	if ((ddb_allocation / plane_blocks_per_line) >= 1)
-		selected_result = min(method1, method2);
-	else
-		selected_result = method1;
+	if (p_params->tiling == I915_FORMAT_MOD_Y_TILED ||
+	    p_params->tiling == I915_FORMAT_MOD_Yf_TILED) {
+		uint32_t y_tile_minimum = plane_blocks_per_line * 4;
+		selected_result = max(method2, y_tile_minimum);
+	} else {
+		if ((ddb_allocation / plane_blocks_per_line) >= 1)
+			selected_result = min(method1, method2);
+		else
+			selected_result = method1;
+	}
 
 	res_blocks = selected_result + 1;
 	res_lines = DIV_ROUND_UP(selected_result, plane_blocks_per_line);
 
-	if (level >= 1 && level <= 7)
-		res_blocks++;
+	if (level >= 1 && level <= 7) {
+		if (p_params->tiling == I915_FORMAT_MOD_Y_TILED ||
+		    p_params->tiling == I915_FORMAT_MOD_Yf_TILED)
+			res_lines += 4;
+		else
+			res_blocks++;
+	}
 
 	if (res_blocks >= ddb_allocation || res_lines > 31)
 		return false;
@@ -3179,12 +3208,20 @@ skl_update_sprite_wm(struct drm_plane *plane, struct drm_crtc *crtc,
 		     int pixel_size, bool enabled, bool scaled)
 {
 	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct drm_framebuffer *fb = plane->state->fb;
 
 	intel_plane->wm.enabled = enabled;
 	intel_plane->wm.scaled = scaled;
 	intel_plane->wm.horiz_pixels = sprite_width;
 	intel_plane->wm.vert_pixels = sprite_height;
 	intel_plane->wm.bytes_per_pixel = pixel_size;
+	intel_plane->wm.tiling = DRM_FORMAT_MOD_NONE;
+	/*
+	 * Framebuffer can be NULL on plane disable, but it does not
+	 * matter for watermarks if we assume no tiling in that case.
+	 */
+	if (fb)
+		intel_plane->wm.tiling = fb->modifier[0];
 
 	skl_update_wm(crtc);
 }

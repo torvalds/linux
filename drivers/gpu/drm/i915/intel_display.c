@@ -12005,6 +12005,12 @@ intel_check_primary_plane(struct drm_plane *plane,
 			INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 
 		intel_crtc->atomic.update_fbc = true;
+
+		/* Update watermarks on tiling changes. */
+		if (!plane->state->fb || !state->base.fb ||
+		    plane->state->fb->modifier[0] !=
+		    state->base.fb->modifier[0])
+			intel_crtc->atomic.update_wm = true;
 	}
 
 	return 0;
