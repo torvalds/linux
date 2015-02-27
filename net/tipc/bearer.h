@@ -50,7 +50,7 @@
  * - the field's actual content and length is defined per media
  * - remaining unused bytes in the field are set to zero
  */
-#define TIPC_MEDIA_ADDR_SIZE	32
+#define TIPC_MEDIA_INFO_SIZE	32
 #define TIPC_MEDIA_TYPE_OFFSET	3
 
 /*
@@ -76,7 +76,7 @@ struct tipc_node_map {
  * @broadcast: non-zero if address is a broadcast address
  */
 struct tipc_media_addr {
-	u8 value[TIPC_MEDIA_ADDR_SIZE];
+	u8 value[TIPC_MEDIA_INFO_SIZE];
 	u8 media_id;
 	u8 broadcast;
 };

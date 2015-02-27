@@ -76,7 +76,7 @@ struct plist;
 
 #define MAX_MSG_SIZE (MAX_H_SIZE + TIPC_MAX_USER_MSG_SIZE)
 
-#define TIPC_MEDIA_ADDR_OFFSET	5
+#define TIPC_MEDIA_INFO_OFFSET	5
 
 /**
  * TIPC message buffer code
@@ -688,7 +688,7 @@ static inline void msg_set_redundant_link(struct tipc_msg *m, u32 r)
 
 static inline char *msg_media_addr(struct tipc_msg *m)
 {
-	return (char *)&m->hdr[TIPC_MEDIA_ADDR_OFFSET];
+	return (char *)&m->hdr[TIPC_MEDIA_INFO_OFFSET];
 }
 
 /*
