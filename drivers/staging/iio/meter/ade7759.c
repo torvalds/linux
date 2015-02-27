@@ -215,18 +215,15 @@ error_ret:
 
 static int ade7759_reset(struct device *dev)
 {
-	int ret;
 	u16 val;
 
 	ade7759_spi_read_reg_16(dev,
 			ADE7759_MODE,
 			&val);
 	val |= 1 << 6; /* Software Chip Reset */
-	ret = ade7759_spi_write_reg_16(dev,
+	return ade7759_spi_write_reg_16(dev,
 			ADE7759_MODE,
 			val);
-
-	return ret;
 }
 
 static IIO_DEV_ATTR_AENERGY(ade7759_read_40bit, ADE7759_AENERGY);
