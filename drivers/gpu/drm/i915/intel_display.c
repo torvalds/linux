@@ -2195,9 +2195,44 @@ intel_fb_align_height(struct drm_device *dev, int height,
 		      uint64_t fb_format_modifier)
 {
 	int tile_height;
+	uint32_t bits_per_pixel;
 
-	tile_height = fb_format_modifier == I915_FORMAT_MOD_X_TILED ?
-		(IS_GEN2(dev) ? 16 : 8) : 1;
+	switch (fb_format_modifier) {
+	case DRM_FORMAT_MOD_NONE:
+		tile_height = 1;
+		break;
+	case I915_FORMAT_MOD_X_TILED:
+		tile_height = IS_GEN2(dev) ? 16 : 8;
+		break;
+	case I915_FORMAT_MOD_Y_TILED:
+		tile_height = 32;
+		break;
+	case I915_FORMAT_MOD_Yf_TILED:
+		bits_per_pixel = drm_format_plane_cpp(pixel_format, 0) * 8;
+		switch (bits_per_pixel) {
+		default:
+		case 8:
+			tile_height = 64;
+			break;
+		case 16:
+		case 32:
+			tile_height = 32;
+			break;
+		case 64:
+			tile_height = 16;
+			break;
+		case 128:
+			WARN_ONCE(1,
+				  "128-bit pixels are not supported for display!");
+			tile_height = 16;
+			break;
+		}
+		break;
+	default:
+		MISSING_CASE(fb_format_modifier);
+		tile_height = 1;
+		break;
+	}
 
 	return ALIGN(height, tile_height);
 }
