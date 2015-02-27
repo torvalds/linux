@@ -795,6 +795,7 @@ retry:
 		 * wribacking dentry pages in the freeing inode.
 		 */
 		f2fs_submit_merged_bio(sbi, DATA, WRITE);
+		cond_resched();
 	}
 	goto retry;
 }
