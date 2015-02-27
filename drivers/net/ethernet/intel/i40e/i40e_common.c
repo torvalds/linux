@@ -2017,7 +2017,7 @@ i40e_status i40e_aq_add_macvlan(struct i40e_hw *hw, u16 seid,
 	if (count == 0 || !mv_list || !hw)
 		return I40E_ERR_PARAM;
 
-	buf_size = count * sizeof(struct i40e_aqc_add_macvlan_element_data);
+	buf_size = count * sizeof(*mv_list);
 
 	/* prep the rest of the request */
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_add_macvlan);
@@ -2059,7 +2059,7 @@ i40e_status i40e_aq_remove_macvlan(struct i40e_hw *hw, u16 seid,
 	if (count == 0 || !mv_list || !hw)
 		return I40E_ERR_PARAM;
 
-	buf_size = count * sizeof(struct i40e_aqc_remove_macvlan_element_data);
+	buf_size = count * sizeof(*mv_list);
 
 	/* prep the rest of the request */
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_remove_macvlan);
