@@ -370,7 +370,10 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 			delegation = NULL;
 			goto out;
 		}
-		freeme = nfs_detach_delegation_locked(nfsi, 
+		if (test_and_set_bit(NFS_DELEGATION_RETURNING,
+					&old_delegation->flags))
+			goto out;
+		freeme = nfs_detach_delegation_locked(nfsi,
 				old_delegation, clp);
 		if (freeme == NULL)
 			goto out;
