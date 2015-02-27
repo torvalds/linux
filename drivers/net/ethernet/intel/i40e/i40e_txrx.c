@@ -1044,7 +1044,7 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 			for (i = 0; i < rx_ring->count; i++) {
 				rx_bi = &rx_ring->rx_bi[i];
 				rx_bi->dma = 0;
-				rx_bi->hdr_buf = 0;
+				rx_bi->hdr_buf = NULL;
 			}
 		}
 	}

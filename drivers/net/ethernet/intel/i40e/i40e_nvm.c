@@ -171,8 +171,8 @@ static i40e_status i40e_poll_sr_srctl_done_bit(struct i40e_hw *hw)
  *
  * Reads one 16 bit word from the Shadow RAM using the GLNVM_SRCTL register.
  **/
-i40e_status i40e_read_nvm_word_srctl(struct i40e_hw *hw, u16 offset,
-				     u16 *data)
+static i40e_status i40e_read_nvm_word_srctl(struct i40e_hw *hw, u16 offset,
+					    u16 *data)
 {
 	i40e_status ret_code = I40E_ERR_TIMEOUT;
 	u32 sr_reg;
@@ -237,8 +237,8 @@ i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
  * method. The buffer read is preceded by the NVM ownership take
  * and followed by the release.
  **/
-i40e_status i40e_read_nvm_buffer_srctl(struct i40e_hw *hw, u16 offset,
-				       u16 *words, u16 *data)
+static i40e_status i40e_read_nvm_buffer_srctl(struct i40e_hw *hw, u16 offset,
+					      u16 *words, u16 *data)
 {
 	i40e_status ret_code = 0;
 	u16 index, word;
