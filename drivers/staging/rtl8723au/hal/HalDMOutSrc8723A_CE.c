@@ -23,9 +23,8 @@
 #define		DPK_DELTA_MAPPING_NUM	13
 #define		index_mapping_HP_NUM	15
 /* 091212 chiyokolin */
-static	void
-odm_TXPowerTrackingCallback_ThermalMeter_92C(
-	struct rtw_adapter *Adapter)
+static void
+odm_TXPowerTrackingCallback_ThermalMeter_92C(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
@@ -35,7 +34,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 	s8 OFDM_index[2], CCK_index = 0, OFDM_index_old[2] = {0};
 	s8 CCK_index_old = 0;
 	int i = 0;
-	bool is2T = IS_92C_SERIAL(pHalData->VersionID);
 	u8 OFDM_min_index = 6, rf; /* OFDM BB Swing should be less than +3.0dB*/
 	u8 ThermalValue_HP_count = 0;
 	u32 ThermalValue_HP = 0;
@@ -60,7 +58,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 	rtl8723a_phy_ap_calibrate(Adapter, (ThermalValue -
 				  pHalData->EEPROMThermalMeter));
 
-	if (is2T)
+	if (pHalData->rf_type == RF_2T2R)
 		rf = 2;
 	else
 		rf = 1;
@@ -78,7 +76,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 		}
 
 		/* Query OFDM path B default setting  */
-		if (is2T) {
+		if (pHalData->rf_type == RF_2T2R) {
 			ele_D = PHY_QueryBBReg(Adapter, rOFDM0_XBTxIQImbalance,
 					       bMaskDWord)&bMaskOFDM_D;
 			for (i = 0; i < OFDM_TABLE_SIZE_92C; i++) {	/* find the index  */
@@ -290,7 +288,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 				rtl8723au_write8(Adapter, 0xa29, CCKSwingTable_Ch1423A[CCK_index][7]);
 			}
 
-			if (is2T) {
+			if (pHalData->rf_type == RF_2T2R) {
 				ele_D = (OFDMSwingTable23A[(u8)OFDM_index[1]] & 0xFFC00000)>>22;
 
 				/* new element A = element D x X */
@@ -660,9 +658,9 @@ static bool _PHY_SimularityCompare(struct rtw_adapter *pAdapter, int result[][8]
 	u32 i, j, diff, SimularityBitMap, bound = 0;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(pAdapter);
 	u8 final_candidate[2] = {0xFF, 0xFF};	/* for path A and path B */
-	bool bResult = true, is2T = IS_92C_SERIAL(pHalData->VersionID);
+	bool bResult = true;
 
-	if (is2T)
+	if (pHalData->rf_type == RF_2T2R)
 		bound = 8;
 	else
 		bound = 4;
@@ -699,7 +697,7 @@ static bool _PHY_SimularityCompare(struct rtw_adapter *pAdapter, int result[][8]
 		for (i = 0; i < 4; i++)
 			result[3][i] = result[c1][i];
 		return false;
-	} else if (!(SimularityBitMap & 0xF0) && is2T) {
+	} else if (!(SimularityBitMap & 0xF0) && pHalData->rf_type == RF_2T2R) {
 		/* path B OK */
 		for (i = 4; i < 8; i++)
 			result[3][i] = result[c1][i];
