@@ -1538,6 +1538,18 @@ static void intel_pmu_reset(void)
 	if (ds)
 		ds->bts_index = ds->bts_buffer_base;
 
+	/* Ack all overflows and disable fixed counters */
+	if (x86_pmu.version >= 2) {
+		intel_pmu_ack_status(intel_pmu_get_status());
+		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
+	}
+
+	/* Reset LBRs and LBR freezing */
+	if (x86_pmu.lbr_nr) {
+		update_debugctlmsr(get_debugctlmsr() &
+			~(DEBUGCTLMSR_FREEZE_LBRS_ON_PMI|DEBUGCTLMSR_LBR));
+	}
+
 	local_irq_restore(flags);
 }
 
