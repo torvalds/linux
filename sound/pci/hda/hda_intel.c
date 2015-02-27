@@ -1383,7 +1383,6 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	hda = kzalloc(sizeof(*hda), GFP_KERNEL);
 	if (!hda) {
-		dev_err(card->dev, "Cannot allocate hda\n");
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
@@ -1564,10 +1563,8 @@ static int azx_first_init(struct azx *chip)
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
 	chip->azx_dev = kcalloc(chip->num_streams, sizeof(*chip->azx_dev),
 				GFP_KERNEL);
-	if (!chip->azx_dev) {
-		dev_err(card->dev, "cannot malloc azx_dev\n");
+	if (!chip->azx_dev)
 		return -ENOMEM;
-	}
 
 	err = azx_alloc_stream_pages(chip);
 	if (err < 0)

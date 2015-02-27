@@ -776,10 +776,8 @@ int snd_hda_bus_new(struct snd_card *card,
 		*busp = NULL;
 
 	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
-	if (bus == NULL) {
-		dev_err(card->dev, "can't allocate struct hda_bus\n");
+	if (!bus)
 		return -ENOMEM;
-	}
 
 	bus->card = card;
 	mutex_init(&bus->cmd_mutex);
@@ -1223,10 +1221,8 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 	}
 
 	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
-	if (codec == NULL) {
-		dev_err(card->dev, "can't allocate struct hda_codec\n");
+	if (!codec)
 		return -ENOMEM;
-	}
 
 	dev = hda_codec_dev(codec);
 	device_initialize(dev);
@@ -1307,10 +1303,8 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 
 	fg = codec->afg ? codec->afg : codec->mfg;
 	err = read_widget_caps(codec, fg);
-	if (err < 0) {
-		dev_err(card->dev, "cannot malloc\n");
+	if (err < 0)
 		goto error;
-	}
 	err = read_pin_defaults(codec);
 	if (err < 0)
 		goto error;
@@ -1371,10 +1365,8 @@ int snd_hda_codec_update_widgets(struct hda_codec *codec)
 	kfree(codec->wcaps);
 	fg = codec->afg ? codec->afg : codec->mfg;
 	err = read_widget_caps(codec, fg);
-	if (err < 0) {
-		codec_err(codec, "cannot malloc\n");
+	if (err < 0)
 		return err;
-	}
 
 	snd_array_free(&codec->init_pins);
 	err = read_pin_defaults(codec);

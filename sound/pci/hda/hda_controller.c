@@ -974,14 +974,9 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
  */
 static int azx_alloc_cmd_io(struct azx *chip)
 {
-	int err;
-
 	/* single page (at least 4096 bytes) must suffice for both ringbuffes */
-	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
-					 PAGE_SIZE, &chip->rb);
-	if (err < 0)
-		dev_err(chip->card->dev, "cannot allocate CORB/RIRB\n");
-	return err;
+	return chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
+					  PAGE_SIZE, &chip->rb);
 }
 EXPORT_SYMBOL_GPL(azx_alloc_cmd_io);
 
@@ -1472,7 +1467,6 @@ static void azx_load_dsp_cleanup(struct hda_bus *bus,
 int azx_alloc_stream_pages(struct azx *chip)
 {
 	int i, err;
-	struct snd_card *card = chip->card;
 
 	for (i = 0; i < chip->num_streams; i++) {
 		dsp_lock_init(&chip->azx_dev[i]);
@@ -1480,18 +1474,14 @@ int azx_alloc_stream_pages(struct azx *chip)
 		err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
 						 BDL_SIZE,
 						 &chip->azx_dev[i].bdl);
-		if (err < 0) {
-			dev_err(card->dev, "cannot allocate BDL\n");
+		if (err < 0)
 			return -ENOMEM;
-		}
 	}
 	/* allocate memory for the position buffer */
 	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
 					 chip->num_streams * 8, &chip->posbuf);
-	if (err < 0) {
-		dev_err(card->dev, "cannot allocate posbuf\n");
+	if (err < 0)
 		return -ENOMEM;
-	}
 
 	/* allocate CORB/RIRB */
 	err = azx_alloc_cmd_io(chip);
