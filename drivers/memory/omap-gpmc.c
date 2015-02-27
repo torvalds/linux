@@ -508,7 +508,7 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 
 	l = gpmc_cs_read_reg(cs, reg);
 #ifdef DEBUG
-	printk(KERN_INFO
+	pr_info(
 		"GPMC CS%d: %-17s: %3d ticks, %3lu ns (was %3i ticks) %3d ns\n",
 	       cs, name, ticks, gpmc_get_fclk_period() * ticks / 1000,
 			(l >> st_bit) & mask, time);
@@ -580,19 +580,14 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 	if (gpmc_capability & GPMC_HAS_WR_ACCESS)
 		GPMC_SET_ONE(GPMC_CS_CONFIG6, 24, 28, wr_access);
 
-	/* caller is expected to have initialized CONFIG1 to cover
-	 * at least sync vs async
-	 */
 	l = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-	if (l & (GPMC_CONFIG1_READTYPE_SYNC | GPMC_CONFIG1_WRITETYPE_SYNC)) {
 #ifdef DEBUG
-		printk(KERN_INFO "GPMC CS%d CLK period is %lu ns (div %d)\n",
-				cs, (div * gpmc_get_fclk_period()) / 1000, div);
+	pr_info("GPMC CS%d CLK period is %lu ns (div %d)\n",
+			cs, (div * gpmc_get_fclk_period()) / 1000, div);
 #endif
-		l &= ~0x03;
-		l |= (div - 1);
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, l);
-	}
+	l &= ~0x03;
+	l |= (div - 1);
+	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, l);
 
 	gpmc_cs_bool_timings(cs, &t->bool_timings);
 	gpmc_cs_show_timings(cs, "after gpmc_cs_set_timings");
