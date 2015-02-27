@@ -262,7 +262,6 @@ void vmbus_free_channels(void)
 
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		vmbus_device_unregister(channel->device_obj);
-		kfree(channel->device_obj);
 		free_channel(channel);
 	}
 }
