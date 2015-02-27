@@ -1001,6 +1001,110 @@ static void qgroup_dirty(struct btrfs_fs_info *fs_info,
 		list_add(&qgroup->dirty, &fs_info->dirty_qgroups);
 }
 
+/*
+ * The easy accounting, if we are adding/removing the only ref for an extent
+ * then this qgroup and all of the parent qgroups get their refrence and
+ * exclusive counts adjusted.
+ *
+ * Caller should hold fs_info->qgroup_lock.
+ */
+static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
+				    struct ulist *tmp, u64 ref_root,
+				    u64 num_bytes, int sign)
+{
+	struct btrfs_qgroup *qgroup;
+	struct btrfs_qgroup_list *glist;
+	struct ulist_node *unode;
+	struct ulist_iterator uiter;
+	int ret = 0;
+
+	qgroup = find_qgroup_rb(fs_info, ref_root);
+	if (!qgroup)
+		goto out;
+
+	qgroup->rfer += sign * num_bytes;
+	qgroup->rfer_cmpr += sign * num_bytes;
+
+	WARN_ON(sign < 0 && qgroup->excl < num_bytes);
+	qgroup->excl += sign * num_bytes;
+	qgroup->excl_cmpr += sign * num_bytes;
+	if (sign > 0)
+		qgroup->reserved -= num_bytes;
+
+	qgroup_dirty(fs_info, qgroup);
+
+	/* Get all of the parent groups that contain this qgroup */
+	list_for_each_entry(glist, &qgroup->groups, next_group) {
+		ret = ulist_add(tmp, glist->group->qgroupid,
+				ptr_to_u64(glist->group), GFP_ATOMIC);
+		if (ret < 0)
+			goto out;
+	}
+
+	/* Iterate all of the parents and adjust their reference counts */
+	ULIST_ITER_INIT(&uiter);
+	while ((unode = ulist_next(tmp, &uiter))) {
+		qgroup = u64_to_ptr(unode->aux);
+		qgroup->rfer += sign * num_bytes;
+		qgroup->rfer_cmpr += sign * num_bytes;
+		WARN_ON(sign < 0 && qgroup->excl < num_bytes);
+		qgroup->excl += sign * num_bytes;
+		if (sign > 0)
+			qgroup->reserved -= num_bytes;
+		qgroup->excl_cmpr += sign * num_bytes;
+		qgroup_dirty(fs_info, qgroup);
+
+		/* Add any parents of the parents */
+		list_for_each_entry(glist, &qgroup->groups, next_group) {
+			ret = ulist_add(tmp, glist->group->qgroupid,
+					ptr_to_u64(glist->group), GFP_ATOMIC);
+			if (ret < 0)
+				goto out;
+		}
+	}
+	ret = 0;
+out:
+	return ret;
+}
+
+
+/*
+ * Quick path for updating qgroup with only excl refs.
+ *
+ * In that case, just update all parent will be enough.
+ * Or we needs to do a full rescan.
+ * Caller should also hold fs_info->qgroup_lock.
+ *
+ * Return 0 for quick update, return >0 for need to full rescan
+ * and mark INCONSISTENT flag.
+ * Return < 0 for other error.
+ */
+static int quick_update_accounting(struct btrfs_fs_info *fs_info,
+				   struct ulist *tmp, u64 src, u64 dst,
+				   int sign)
+{
+	struct btrfs_qgroup *qgroup;
+	int ret = 1;
+	int err = 0;
+
+	qgroup = find_qgroup_rb(fs_info, src);
+	if (!qgroup)
+		goto out;
+	if (qgroup->excl == qgroup->rfer) {
+		ret = 0;
+		err = __qgroup_excl_accounting(fs_info, tmp, dst,
+					       qgroup->excl, sign);
+		if (err < 0) {
+			ret = err;
+			goto out;
+		}
+	}
+out:
+	if (ret)
+		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+	return ret;
+}
+
 int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst)
 {
@@ -1008,7 +1112,12 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup *parent;
 	struct btrfs_qgroup *member;
 	struct btrfs_qgroup_list *list;
+	struct ulist *tmp;
 	int ret = 0;
+
+	tmp = ulist_alloc(GFP_NOFS);
+	if (!tmp)
+		return -ENOMEM;
 
 	/* Check the level of src and dst first */
 	if (btrfs_qgroup_level(src) >= btrfs_qgroup_level(dst))
@@ -1047,9 +1156,15 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 
 	spin_lock(&fs_info->qgroup_lock);
 	ret = add_relation_rb(quota_root->fs_info, src, dst);
+	if (ret < 0) {
+		spin_unlock(&fs_info->qgroup_lock);
+		goto out;
+	}
+	ret = quick_update_accounting(fs_info, tmp, src, dst, 1);
 	spin_unlock(&fs_info->qgroup_lock);
 out:
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
+	ulist_free(tmp);
 	return ret;
 }
 
@@ -1060,8 +1175,13 @@ int __del_qgroup_relation(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup *parent;
 	struct btrfs_qgroup *member;
 	struct btrfs_qgroup_list *list;
+	struct ulist *tmp;
 	int ret = 0;
 	int err;
+
+	tmp = ulist_alloc(GFP_NOFS);
+	if (!tmp)
+		return -ENOMEM;
 
 	quota_root = fs_info->quota_root;
 	if (!quota_root) {
@@ -1091,8 +1211,10 @@ exist:
 
 	spin_lock(&fs_info->qgroup_lock);
 	del_relation_rb(fs_info, src, dst);
+	ret = quick_update_accounting(fs_info, tmp, src, dst, -1);
 	spin_unlock(&fs_info->qgroup_lock);
 out:
+	ulist_free(tmp);
 	return ret;
 }
 
@@ -1400,19 +1522,10 @@ int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-/*
- * The easy accounting, if we are adding/removing the only ref for an extent
- * then this qgroup and all of the parent qgroups get their refrence and
- * exclusive counts adjusted.
- */
 static int qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_qgroup_operation *oper)
 {
-	struct btrfs_qgroup *qgroup;
 	struct ulist *tmp;
-	struct btrfs_qgroup_list *glist;
-	struct ulist_node *unode;
-	struct ulist_iterator uiter;
 	int sign = 0;
 	int ret = 0;
 
@@ -1423,9 +1536,7 @@ static int qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 	spin_lock(&fs_info->qgroup_lock);
 	if (!fs_info->quota_root)
 		goto out;
-	qgroup = find_qgroup_rb(fs_info, oper->ref_root);
-	if (!qgroup)
-		goto out;
+
 	switch (oper->type) {
 	case BTRFS_QGROUP_OPER_ADD_EXCL:
 		sign = 1;
@@ -1436,47 +1547,8 @@ static int qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 	default:
 		ASSERT(0);
 	}
-	qgroup->rfer += sign * oper->num_bytes;
-	qgroup->rfer_cmpr += sign * oper->num_bytes;
-
-	WARN_ON(sign < 0 && qgroup->excl < oper->num_bytes);
-	qgroup->excl += sign * oper->num_bytes;
-	qgroup->excl_cmpr += sign * oper->num_bytes;
-	if (sign > 0)
-		qgroup->reserved -= oper->num_bytes;
-
-	qgroup_dirty(fs_info, qgroup);
-
-	/* Get all of the parent groups that contain this qgroup */
-	list_for_each_entry(glist, &qgroup->groups, next_group) {
-		ret = ulist_add(tmp, glist->group->qgroupid,
-				ptr_to_u64(glist->group), GFP_ATOMIC);
-		if (ret < 0)
-			goto out;
-	}
-
-	/* Iterate all of the parents and adjust their reference counts */
-	ULIST_ITER_INIT(&uiter);
-	while ((unode = ulist_next(tmp, &uiter))) {
-		qgroup = u64_to_ptr(unode->aux);
-		qgroup->rfer += sign * oper->num_bytes;
-		qgroup->rfer_cmpr += sign * oper->num_bytes;
-		WARN_ON(sign < 0 && qgroup->excl < oper->num_bytes);
-		qgroup->excl += sign * oper->num_bytes;
-		if (sign > 0)
-			qgroup->reserved -= oper->num_bytes;
-		qgroup->excl_cmpr += sign * oper->num_bytes;
-		qgroup_dirty(fs_info, qgroup);
-
-		/* Add any parents of the parents */
-		list_for_each_entry(glist, &qgroup->groups, next_group) {
-			ret = ulist_add(tmp, glist->group->qgroupid,
-					ptr_to_u64(glist->group), GFP_ATOMIC);
-			if (ret < 0)
-				goto out;
-		}
-	}
-	ret = 0;
+	ret = __qgroup_excl_accounting(fs_info, tmp, oper->ref_root,
+				       oper->num_bytes, sign);
 out:
 	spin_unlock(&fs_info->qgroup_lock);
 	ulist_free(tmp);
@@ -2732,10 +2804,7 @@ out:
 	ret = update_qgroup_status_item(trans, fs_info, fs_info->quota_root);
 	if (ret < 0) {
 		err = ret;
-		btrfs_err(fs_info, "fail to update qgroup status: %d\n",
-			  err);
-		btrfs_abort_transaction(trans, fs_info->quota_root, err);
-		goto done;
+		btrfs_err(fs_info, "fail to update qgroup status: %d\n", err);
 	}
 	btrfs_end_transaction(trans, fs_info->quota_root);
 
