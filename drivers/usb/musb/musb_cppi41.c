@@ -287,7 +287,7 @@ static void cppi41_dma_callback(void *private_data)
 			wait--;
 			if (!wait)
 				break;
-			udelay(1);
+			cpu_relax();
 		} while (1);
 	}
 	list_add_tail(&cppi41_channel->tx_check,
