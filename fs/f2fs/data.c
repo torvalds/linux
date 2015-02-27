@@ -1408,6 +1408,10 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 			available_free_memory(sbi, DIRTY_DENTS))
 		goto skip_write;
 
+	/* during POR, we don't need to trigger writepage at all. */
+	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
+		goto skip_write;
+
 	diff = nr_pages_to_write(sbi, DATA, wbc);
 
 	if (!S_ISDIR(inode->i_mode)) {
