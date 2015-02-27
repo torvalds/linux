@@ -289,6 +289,8 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 			tx_desc = I40E_TX_DESC(tx_ring, 0);
 		}
 
+		prefetch(tx_desc);
+
 		/* update budget accounting */
 		budget--;
 	} while (likely(budget));
