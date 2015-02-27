@@ -471,12 +471,27 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 			dev_warn(&pdev->dev, "ntuple filter loc = %d, could not be added\n",
 				 rx_desc->wb.qword0.hi_dword.fd_id);
 
+		/* Check if the programming error is for ATR.
+		 * If so, auto disable ATR and set a state for
+		 * flush in progress. Next time we come here if flush is in
+		 * progress do nothing, once flush is complete the state will
+		 * be cleared.
+		 */
+		if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
+			return;
+
 		pf->fd_add_err++;
 		/* store the current atr filter count */
 		pf->fd_atr_cnt = i40e_get_current_atr_cnt(pf);
 
+		if ((rx_desc->wb.qword0.hi_dword.fd_id == 0) &&
+		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {
+			pf->auto_disable_flags |= I40E_FLAG_FD_ATR_ENABLED;
+			set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
+		}
+
 		/* filter programming failed most likely due to table full */
-		fcnt_prog = i40e_get_cur_guaranteed_fd_count(pf);
+		fcnt_prog = i40e_get_global_fd_count(pf);
 		fcnt_avail = pf->fdir_pf_filter_count;
 		/* If ATR is running fcnt_prog can quickly change,
 		 * if we are very close to full, it makes sense to disable
@@ -1924,6 +1939,9 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	/* make sure ATR is enabled */
 	if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
+		return;
+
+	if ((pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
 		return;
 
 	/* if sampling is disabled do nothing */

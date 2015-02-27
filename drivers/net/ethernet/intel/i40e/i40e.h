@@ -175,6 +175,7 @@ struct i40e_lump_tracking {
 #define I40E_FDIR_MAX_RAW_PACKET_SIZE	512
 #define I40E_FDIR_BUFFER_FULL_MARGIN	10
 #define I40E_FDIR_BUFFER_HEAD_ROOM	32
+#define I40E_FDIR_BUFFER_HEAD_ROOM_FOR_ATR (I40E_FDIR_BUFFER_HEAD_ROOM * 4)
 
 enum i40e_fd_stat_idx {
 	I40E_FD_STAT_ATR,
@@ -636,9 +637,10 @@ int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
 int i40e_add_del_fdir(struct i40e_vsi *vsi,
 		      struct i40e_fdir_filter *input, bool add);
 void i40e_fdir_check_and_reenable(struct i40e_pf *pf);
-int i40e_get_current_fd_count(struct i40e_pf *pf);
-int i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf);
-int i40e_get_current_atr_cnt(struct i40e_pf *pf);
+u32 i40e_get_current_fd_count(struct i40e_pf *pf);
+u32 i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf);
+u32 i40e_get_current_atr_cnt(struct i40e_pf *pf);
+u32 i40e_get_global_fd_count(struct i40e_pf *pf);
 bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features);
 void i40e_set_ethtool_ops(struct net_device *netdev);
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,

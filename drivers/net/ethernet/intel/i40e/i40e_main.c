@@ -5345,9 +5345,9 @@ static void i40e_service_event_complete(struct i40e_pf *pf)
  * i40e_get_cur_guaranteed_fd_count - Get the consumed guaranteed FD filters
  * @pf: board private structure
  **/
-int i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf)
+u32 i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf)
 {
-	int val, fcnt_prog;
+	u32 val, fcnt_prog;
 
 	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
 	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK);
@@ -5355,16 +5355,32 @@ int i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf)
 }
 
 /**
- * i40e_get_current_fd_count - Get the count of total FD filters programmed
+ * i40e_get_current_fd_count - Get total FD filters programmed for this PF
  * @pf: board private structure
  **/
-int i40e_get_current_fd_count(struct i40e_pf *pf)
+u32 i40e_get_current_fd_count(struct i40e_pf *pf)
 {
-	int val, fcnt_prog;
+	u32 val, fcnt_prog;
+
 	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
 	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK) +
 		    ((val & I40E_PFQF_FDSTAT_BEST_CNT_MASK) >>
 		      I40E_PFQF_FDSTAT_BEST_CNT_SHIFT);
+	return fcnt_prog;
+}
+
+/**
+ * i40e_get_global_fd_count - Get total FD filters programmed on device
+ * @pf: board private structure
+ **/
+u32 i40e_get_global_fd_count(struct i40e_pf *pf)
+{
+	u32 val, fcnt_prog;
+
+	val = rd32(&pf->hw, I40E_GLQF_FDCNT_0);
+	fcnt_prog = (val & I40E_GLQF_FDCNT_0_GUARANT_CNT_MASK) +
+		    ((val & I40E_GLQF_FDCNT_0_BESTCNT_MASK) >>
+		     I40E_GLQF_FDCNT_0_BESTCNT_SHIFT);
 	return fcnt_prog;
 }
 
@@ -5382,7 +5398,7 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 	/* Check if, FD SB or ATR was auto disabled and if there is enough room
 	 * to re-enable
 	 */
-	fcnt_prog = i40e_get_cur_guaranteed_fd_count(pf);
+	fcnt_prog = i40e_get_global_fd_count(pf);
 	fcnt_avail = pf->fdir_pf_filter_count;
 	if ((fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) ||
 	    (pf->fd_add_err == 0) ||
@@ -5404,13 +5420,17 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 }
 
 #define I40E_MIN_FD_FLUSH_INTERVAL 10
+#define I40E_MIN_FD_FLUSH_SB_ATR_UNSTABLE 30
 /**
  * i40e_fdir_flush_and_replay - Function to flush all FD filters and replay SB
  * @pf: board private structure
  **/
 static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 {
+	unsigned long min_flush_time;
 	int flush_wait_retry = 50;
+	bool disable_atr = false;
+	int fd_room;
 	int reg;
 
 	if (!(pf->flags & (I40E_FLAG_FD_SB_ENABLED | I40E_FLAG_FD_ATR_ENABLED)))
@@ -5418,9 +5438,20 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 
 	if (time_after(jiffies, pf->fd_flush_timestamp +
 				(I40E_MIN_FD_FLUSH_INTERVAL * HZ))) {
-		set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
+		/* If the flush is happening too quick and we have mostly
+		 * SB rules we should not re-enable ATR for some time.
+		 */
+		min_flush_time = pf->fd_flush_timestamp
+				+ (I40E_MIN_FD_FLUSH_SB_ATR_UNSTABLE * HZ);
+		fd_room = pf->fdir_pf_filter_count - pf->fdir_pf_active_filters;
+
+		if (!(time_after(jiffies, min_flush_time)) &&
+		    (fd_room < I40E_FDIR_BUFFER_HEAD_ROOM_FOR_ATR)) {
+			dev_info(&pf->pdev->dev, "ATR disabled, not enough FD filter space.\n");
+			disable_atr = true;
+		}
+
 		pf->fd_flush_timestamp = jiffies;
-		pf->auto_disable_flags |= I40E_FLAG_FD_SB_ENABLED;
 		pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 		/* flush all filters */
 		wr32(&pf->hw, I40E_PFQF_CTL_1,
@@ -5440,10 +5471,8 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 		} else {
 			/* replay sideband filters */
 			i40e_fdir_filter_restore(pf->vsi[pf->lan_vsi]);
-
-			pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
-			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
-			pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+			if (!disable_atr)
+				pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
 			clear_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
 			dev_info(&pf->pdev->dev, "FD Filter table flushed and FD-SB replayed.\n");
 		}
@@ -5454,7 +5483,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
  * i40e_get_current_atr_count - Get the count of total FD ATR filters programmed
  * @pf: board private structure
  **/
-int i40e_get_current_atr_cnt(struct i40e_pf *pf)
+u32 i40e_get_current_atr_cnt(struct i40e_pf *pf)
 {
 	return i40e_get_current_fd_count(pf) - pf->fdir_pf_active_filters;
 }
@@ -5480,9 +5509,7 @@ static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
 	if (!(pf->flags & (I40E_FLAG_FD_SB_ENABLED | I40E_FLAG_FD_ATR_ENABLED)))
 		return;
 
-	if ((pf->fd_add_err >= I40E_MAX_FD_PROGRAM_ERROR) &&
-	    (i40e_get_current_atr_cnt(pf) >= pf->fd_atr_cnt) &&
-	    (i40e_get_current_atr_cnt(pf) > pf->fdir_pf_filter_count))
+	if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
 		i40e_fdir_flush_and_replay(pf);
 
 	i40e_fdir_check_and_reenable(pf);
