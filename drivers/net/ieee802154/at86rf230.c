@@ -1321,7 +1321,8 @@ static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 		return rc;
 
 	irq_type = irq_get_trigger_type(lp->spi->irq);
-	if (irq_type == IRQ_TYPE_EDGE_FALLING)
+	if (irq_type == IRQ_TYPE_EDGE_FALLING ||
+	    irq_type == IRQ_TYPE_LEVEL_LOW)
 		irq_pol = IRQ_ACTIVE_LOW;
 
 	rc = at86rf230_write_subreg(lp, SR_IRQ_POLARITY, irq_pol);
