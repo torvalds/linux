@@ -286,7 +286,8 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 		goto err_parse_dt;
 
 	if (gpio_is_valid(tegra_host->power_gpio)) {
-		rc = gpio_request(tegra_host->power_gpio, "sdhci_power");
+		rc = devm_gpio_request(&pdev->dev, tegra_host->power_gpio,
+				       "sdhci_power");
 		if (rc) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to allocate power gpio\n");
@@ -295,7 +296,7 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 		gpio_direction_output(tegra_host->power_gpio, 1);
 	}
 
-	clk = clk_get(mmc_dev(host->mmc), NULL);
+	clk = devm_clk_get(mmc_dev(host->mmc), NULL);
 	if (IS_ERR(clk)) {
 		dev_err(mmc_dev(host->mmc), "clk err\n");
 		rc = PTR_ERR(clk);
@@ -312,10 +313,7 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 
 err_add_host:
 	clk_disable_unprepare(pltfm_host->clk);
-	clk_put(pltfm_host->clk);
 err_clk_get:
-	if (gpio_is_valid(tegra_host->power_gpio))
-		gpio_free(tegra_host->power_gpio);
 err_power_req:
 err_parse_dt:
 err_alloc_tegra_host:
@@ -327,16 +325,11 @@ static int sdhci_tegra_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_tegra *tegra_host = pltfm_host->priv;
 	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
 
 	sdhci_remove_host(host, dead);
 
-	if (gpio_is_valid(tegra_host->power_gpio))
-		gpio_free(tegra_host->power_gpio);
-
 	clk_disable_unprepare(pltfm_host->clk);
-	clk_put(pltfm_host->clk);
 
 	sdhci_pltfm_free(pdev);
 
