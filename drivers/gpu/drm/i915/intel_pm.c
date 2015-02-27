@@ -553,7 +553,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 	crtc = single_enabled_crtc(dev);
 	if (crtc) {
 		const struct drm_display_mode *adjusted_mode;
-		int pixel_size = crtc->primary->fb->bits_per_pixel / 8;
+		int pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
 		int clock;
 
 		adjusted_mode = &to_intel_crtc(crtc)->config->base.adjusted_mode;
@@ -629,7 +629,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config->pipe_src_w;
-	pixel_size = crtc->primary->fb->bits_per_pixel / 8;
+	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
 
 	/* Use the small buffer method to calculate plane watermark */
 	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
@@ -716,7 +716,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config->pipe_src_w;
-	pixel_size = crtc->primary->fb->bits_per_pixel / 8;
+	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
 
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
@@ -799,7 +799,7 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 	}
 
 	/* Primary plane Drain Latency */
-	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
+	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;	/* BPP */
 	if (vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
 		plane_prec = (prec_mult == high_precision) ?
 					   DDL_PLANE_PRECISION_HIGH :
@@ -1080,7 +1080,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(crtc)->config->pipe_src_w;
-		int pixel_size = crtc->primary->fb->bits_per_pixel / 8;
+		int pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
 
@@ -1157,7 +1157,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	crtc = intel_get_crtc_for_plane(dev, 0);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode;
-		int cpp = crtc->primary->fb->bits_per_pixel / 8;
+		int cpp = crtc->primary->state->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
 
@@ -1179,7 +1179,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	crtc = intel_get_crtc_for_plane(dev, 1);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode;
-		int cpp = crtc->primary->fb->bits_per_pixel / 8;
+		int cpp = crtc->primary->state->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
 
@@ -1202,7 +1202,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	if (IS_I915GM(dev) && enabled) {
 		struct drm_i915_gem_object *obj;
 
-		obj = intel_fb_obj(enabled->primary->fb);
+		obj = intel_fb_obj(enabled->primary->state->fb);
 
 		/* self-refresh seems busted with untiled */
 		if (obj->tiling_mode == I915_TILING_NONE)
@@ -1226,7 +1226,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(enabled)->config->pipe_src_w;
-		int pixel_size = enabled->primary->fb->bits_per_pixel / 8;
+		int pixel_size = enabled->primary->state->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
 
@@ -1924,7 +1924,7 @@ static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
 	p->active = true;
 	p->pipe_htotal = intel_crtc->config->base.adjusted_mode.crtc_htotal;
 	p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
-	p->pri.bytes_per_pixel = crtc->primary->fb->bits_per_pixel / 8;
+	p->pri.bytes_per_pixel = crtc->primary->state->fb->bits_per_pixel / 8;
 	p->cur.bytes_per_pixel = 4;
 	p->pri.horiz_pixels = intel_crtc->config->pipe_src_w;
 	p->cur.horiz_pixels = intel_crtc->base.cursor->state->crtc_w;
@@ -2701,7 +2701,7 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 		 */
 		p->plane[0].enabled = true;
 		p->plane[0].bytes_per_pixel =
-			crtc->primary->fb->bits_per_pixel / 8;
+			crtc->primary->state->fb->bits_per_pixel / 8;
 		p->plane[0].horiz_pixels = intel_crtc->config->pipe_src_w;
 		p->plane[0].vert_pixels = intel_crtc->config->pipe_src_h;
 		p->plane[0].tiling = DRM_FORMAT_MOD_NONE;
