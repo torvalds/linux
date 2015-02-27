@@ -502,7 +502,7 @@ static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
 static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	bool						bHighpowerstate, viviflag = FALSE;
+	bool						bHighpowerstate, viviflag = false;
 	DCMD_TXCMD_T			tx_cmd;
 	u8						powerlevelOFDM24G;
 	int						i = 0, j = 0, k = 0;
@@ -558,13 +558,13 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			/* check if the report value is right */
 			for (k = 0; k < 5; k++) {
 				if (tmp_report[k] <= 20) {
-					viviflag = TRUE;
+					viviflag = true;
 					break;
 				}
 			}
-			if (viviflag == TRUE) {
+			if (viviflag == true) {
 				write_nic_byte(dev, 0x1ba, 0);
-				viviflag = FALSE;
+				viviflag = false;
 				RT_TRACE(COMP_POWER_TRACKING, "we filtered the data\n");
 				for (k = 0; k < 5; k++)
 					tmp_report[k] = 0;
@@ -587,7 +587,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 				delta = TSSI_13dBm - Avg_TSSI_Meas_from_driver;
 
 			if (delta <= E_FOR_TX_POWER_TRACK) {
-				priv->ieee80211->bdynamic_txpower_enable = TRUE;
+				priv->ieee80211->bdynamic_txpower_enable = true;
 				write_nic_byte(dev, 0x1ba, 0);
 				RT_TRACE(COMP_POWER_TRACKING, "tx power track is done\n");
 				RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex = %d\n", priv->rfa_txpowertrackingindex);
@@ -624,10 +624,10 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 
 			if (priv->cck_present_attentuation > -1 && priv->cck_present_attentuation < 23) {
 				if (priv->ieee80211->current_network.channel == 14 && !priv->bcck_in_ch14) {
-					priv->bcck_in_ch14 = TRUE;
+					priv->bcck_in_ch14 = true;
 					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 				} else if (priv->ieee80211->current_network.channel != 14 && priv->bcck_in_ch14) {
-					priv->bcck_in_ch14 = FALSE;
+					priv->bcck_in_ch14 = false;
 					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 				} else
 					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
@@ -638,7 +638,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation = %d\n", priv->cck_present_attentuation);
 
 			if (priv->cck_present_attentuation_difference <= -12 || priv->cck_present_attentuation_difference >= 24) {
-				priv->ieee80211->bdynamic_txpower_enable = TRUE;
+				priv->ieee80211->bdynamic_txpower_enable = true;
 				write_nic_byte(dev, 0x1ba, 0);
 				RT_TRACE(COMP_POWER_TRACKING, "tx power track--->limited\n");
 				return;
@@ -651,7 +651,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			break;
 		}
 	}
-	priv->ieee80211->bdynamic_txpower_enable = TRUE;
+	priv->ieee80211->bdynamic_txpower_enable = true;
 	write_nic_byte(dev, 0x1ba, 0);
 }
 
@@ -684,7 +684,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 				break;
 			}
 		}
-		priv->btxpower_trackingInit = TRUE;
+		priv->btxpower_trackingInit = true;
 		/*pHalData->TXPowercount = 0;*/
 		return;
 	}
@@ -734,10 +734,10 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 		tmpCCKindex = tmpCCK20Mindex;
 
 	if (priv->ieee80211->current_network.channel == 14 && !priv->bcck_in_ch14) {
-		priv->bcck_in_ch14 = TRUE;
+		priv->bcck_in_ch14 = true;
 		CCKSwingNeedUpdate = 1;
 	} else if (priv->ieee80211->current_network.channel != 14 && priv->bcck_in_ch14) {
-		priv->bcck_in_ch14 = FALSE;
+		priv->bcck_in_ch14 = false;
 		CCKSwingNeedUpdate = 1;
 	}
 
@@ -765,7 +765,7 @@ void dm_txpower_trackingcallback(struct work_struct *work)
 	struct r8192_priv *priv = container_of(dwork, struct r8192_priv, txpower_tracking_wq);
 	struct net_device *dev = priv->ieee80211->dev;
 
-	if (priv->bDcut == TRUE)
+	if (priv->bDcut == true)
 		dm_TXPowerTrackingCallback_TSSI(dev);
 	else
 		dm_TXPowerTrackingCallback_ThermalMeter(dev);
@@ -1273,9 +1273,9 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 	priv->cck_txbbgain_ch14_table[22].ccktxbb_valuearray[6] = 0x00;
 	priv->cck_txbbgain_ch14_table[22].ccktxbb_valuearray[7] = 0x00;
 
-	priv->btxpower_tracking = TRUE;
+	priv->btxpower_tracking = true;
 	priv->txpower_count       = 0;
-	priv->btxpower_trackingInit = FALSE;
+	priv->btxpower_trackingInit = false;
 
 }
 
@@ -1289,18 +1289,18 @@ static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 	 * 3-wire by driver causes RF to go into a wrong state.
 	 */
 	if (priv->ieee80211->FwRWRF)
-		priv->btxpower_tracking = TRUE;
+		priv->btxpower_tracking = true;
 	else
-		priv->btxpower_tracking = FALSE;
+		priv->btxpower_tracking = false;
 	priv->txpower_count       = 0;
-	priv->btxpower_trackingInit = FALSE;
+	priv->btxpower_trackingInit = false;
 }
 
 void dm_initialize_txpower_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (priv->bDcut == TRUE)
+	if (priv->bDcut == true)
 		dm_InitializeTXPowerTracking_TSSI(dev);
 	else
 		dm_InitializeTXPowerTracking_ThermalMeter(dev);
@@ -1356,7 +1356,7 @@ static void dm_check_txpower_tracking(struct net_device *dev)
 #ifdef RTL8190P
 	dm_CheckTXPowerTracking_TSSI(dev);
 #else
-	if (priv->bDcut == TRUE)
+	if (priv->bDcut == true)
 		dm_CheckTXPowerTracking_TSSI(dev);
 	else
 		dm_CheckTXPowerTracking_ThermalMeter(dev);
@@ -1466,7 +1466,7 @@ void dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 {	/*  dm_CCKTxPowerAdjust */
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (priv->bDcut == TRUE)
+	if (priv->bDcut == true)
 		dm_CCKTxPowerAdjust_TSSI(dev, binch14);
 	else
 		dm_CCKTxPowerAdjust_ThermalMeter(dev, binch14);
@@ -2314,7 +2314,7 @@ static void dm_init_ctstoself(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
 
-	priv->ieee80211->bCTSToSelfEnable = TRUE;
+	priv->ieee80211->bCTSToSelfEnable = true;
 	priv->ieee80211->CTSToSelfTH = CTSToSelfTHVal;
 }
 
@@ -2327,7 +2327,7 @@ static void dm_ctstoself(struct net_device *dev)
 	unsigned long						curTxOkCnt = 0;
 	unsigned long						curRxOkCnt = 0;
 
-	if (priv->ieee80211->bCTSToSelfEnable != TRUE) {
+	if (priv->ieee80211->bCTSToSelfEnable != true) {
 		pHTInfo->IOTAction &= ~HT_IOT_ACT_FORCED_CTS2SELF;
 		return;
 	}

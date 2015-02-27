@@ -1575,10 +1575,10 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			 priv->cck_present_attentuation);
 
 		if (priv->chan == 14 && !priv->bcck_in_ch14) {
-			priv->bcck_in_ch14 = TRUE;
+			priv->bcck_in_ch14 = true;
 			dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 		} else if (priv->chan != 14 && priv->bcck_in_ch14) {
-			priv->bcck_in_ch14 = FALSE;
+			priv->bcck_in_ch14 = false;
 			dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 		} else {
 			dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);

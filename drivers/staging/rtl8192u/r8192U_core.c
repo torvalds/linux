@@ -2767,7 +2767,7 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 	//
 #ifdef TO_DO_LIST
 	if (Adapter->ResetProgress == RESET_TYPE_NORESET) {
-		if (pMgntInfo->RegRfOff == TRUE) { /* User disable RF via registry. */
+		if (pMgntInfo->RegRfOff == true) { /* User disable RF via registry. */
 			RT_TRACE((COMP_INIT|COMP_RF), DBG_LOUD, ("InitializeAdapter819xUsb(): Turn off RF for RegRfOff ----------\n"));
 			MgntActSet_RF_State(Adapter, eRfOff, RF_CHANGE_BY_SW);
 			// Those actions will be discard in MgntActSet_RF_State because of the same state
@@ -2814,15 +2814,15 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 		u8 tmpvalue;
 		read_nic_byte(dev, 0x301, &tmpvalue);
 		if (tmpvalue == 0x03) {
-			priv->bDcut = TRUE;
+			priv->bDcut = true;
 			RT_TRACE(COMP_POWER_TRACKING, "D-cut\n");
 		} else {
-			priv->bDcut = FALSE;
+			priv->bDcut = false;
 			RT_TRACE(COMP_POWER_TRACKING, "C-cut\n");
 		}
 		dm_initialize_txpower_tracking(dev);
 
-		if (priv->bDcut == TRUE) {
+		if (priv->bDcut == true) {
 			u32 i, TempCCk;
 			u32 tmpRegA = rtl8192_QueryBBReg(dev, rOFDM0_XATxIQImbalance, bMaskDWord);
 			for (i = 0; i < TxBBGainTableLength; i++) {
@@ -2874,11 +2874,11 @@ static bool HalTxCheckStuck819xUsb(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16		RegTxCounter;
-	bool		bStuck = FALSE;
+	bool		bStuck = false;
 	read_nic_word(dev, 0x128, &RegTxCounter);
 	RT_TRACE(COMP_RESET, "%s():RegTxCounter is %d,TxCounter is %d\n", __func__, RegTxCounter, priv->TxCounter);
 	if (priv->TxCounter == RegTxCounter)
-		bStuck = TRUE;
+		bStuck = true;
 
 	priv->TxCounter = RegTxCounter;
 
@@ -2920,7 +2920,7 @@ static bool HalRxCheckStuck819xUsb(struct net_device *dev)
 {
 	u16	RegRxCounter;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	bool bStuck = FALSE;
+	bool bStuck = false;
 	static u8	rx_chk_cnt;
 	read_nic_word(dev, 0x130, &RegRxCounter);
 	RT_TRACE(COMP_RESET, "%s(): RegRxCounter is %d,RxCounter is %d\n", __func__, RegRxCounter, priv->RxCounter);
@@ -2951,7 +2951,7 @@ static bool HalRxCheckStuck819xUsb(struct net_device *dev)
 	}
 
 	if (priv->RxCounter == RegRxCounter)
-		bStuck = TRUE;
+		bStuck = true;
 
 	priv->RxCounter = RegRxCounter;
 
@@ -2961,10 +2961,10 @@ static bool HalRxCheckStuck819xUsb(struct net_device *dev)
 static RESET_TYPE RxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	bool        bRxCheck = FALSE;
+	bool        bRxCheck = false;
 
 	if (priv->IrpPendingCount > 1)
-		bRxCheck = TRUE;
+		bRxCheck = true;
 
 	if (bRxCheck) {
 		if (HalRxCheckStuck819xUsb(dev)) {
@@ -4208,7 +4208,7 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 	struct net_device *dev = info->dev;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	bool bpacket_match_bssid, bpacket_toself;
-	bool bPacketBeacon = FALSE, bToSelfBA = FALSE;
+	bool bPacketBeacon = false, bToSelfBA = false;
 	static struct ieee80211_rx_stats  previous_stats;
 	struct ieee80211_hdr_3addr *hdr;//by amy
 	u16 fc, type;

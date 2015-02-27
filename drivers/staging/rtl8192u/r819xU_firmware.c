@@ -164,7 +164,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 
 CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
-	rt_status = FALSE;
+	rt_status = false;
 	return rt_status;
 }
 
@@ -201,7 +201,7 @@ CPUCheckFirmwareReady_Fail:
 bool init_firmware(struct net_device *dev)
 {
 	struct r8192_priv	*priv = ieee80211_priv(dev);
-	bool			rt_status = TRUE;
+	bool			rt_status = true;
 
 	u32			file_length = 0;
 	u8			*mapped_file = NULL;
@@ -281,7 +281,7 @@ bool init_firmware(struct net_device *dev)
 		if (rst_opt == OPT_SYSTEM_RESET)
 			release_firmware(fw_entry);
 
-		if (rt_status != TRUE)
+		if (rt_status != true)
 			goto download_firmware_fail;
 
 		switch (init_step) {
@@ -304,7 +304,7 @@ bool init_firmware(struct net_device *dev)
 
 			/* Check Put Code OK and Turn On CPU */
 			rt_status = CPUcheck_maincodeok_turnonCPU(dev);
-			if (rt_status != TRUE) {
+			if (rt_status != true) {
 				RT_TRACE(COMP_ERR, "CPUcheck_maincodeok_turnonCPU fail!\n");
 				goto download_firmware_fail;
 			}
@@ -318,7 +318,7 @@ bool init_firmware(struct net_device *dev)
 			mdelay(1);
 
 			rt_status = CPUcheck_firmware_ready(dev);
-			if (rt_status != TRUE) {
+			if (rt_status != true) {
 				RT_TRACE(COMP_ERR, "CPUcheck_firmware_ready fail(%d)!\n",rt_status);
 				goto download_firmware_fail;
 			}
@@ -336,7 +336,7 @@ bool init_firmware(struct net_device *dev)
 
 download_firmware_fail:
 	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
-	rt_status = FALSE;
+	rt_status = false;
 	return rt_status;
 
 }
