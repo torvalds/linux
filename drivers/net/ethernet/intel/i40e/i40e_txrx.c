@@ -45,7 +45,7 @@ static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
  * i40e_program_fdir_filter - Program a Flow Director filter
  * @fdir_data: Packet data that will be filter parameters
  * @raw_packet: the pre-allocated packet buffer for FDir
- * @pf: The pf pointer
+ * @pf: The PF pointer
  * @add: True for add/update, False for remove
  **/
 int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
