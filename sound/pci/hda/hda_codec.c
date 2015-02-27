@@ -1191,28 +1191,6 @@ void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
 	remove_conn_list(codec);
 }
 
-static void snd_hda_codec_free(struct hda_codec *codec)
-{
-	if (!codec)
-		return;
-	codec->in_freeing = 1;
-	if (device_is_registered(hda_codec_dev(codec)))
-		device_del(hda_codec_dev(codec));
-	free_init_pincfgs(codec);
-	list_del(&codec->list);
-	codec->bus->caddr_tbl[codec->addr] = NULL;
-	clear_bit(codec->addr, &codec->bus->codec_powered);
-	snd_hda_sysfs_clear(codec);
-	free_hda_cache(&codec->amp_cache);
-	free_hda_cache(&codec->cmd_cache);
-	kfree(codec->vendor_name);
-	kfree(codec->chip_name);
-	kfree(codec->modelname);
-	kfree(codec->wcaps);
-	codec->bus->num_codecs--;
-	put_device(hda_codec_dev(codec));
-}
-
 static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
 				hda_nid_t fg, unsigned int power_state);
 
@@ -1241,14 +1219,32 @@ static int snd_hda_codec_dev_disconnect(struct snd_device *device)
 
 static int snd_hda_codec_dev_free(struct snd_device *device)
 {
-	snd_hda_codec_free(device->device_data);
+	struct hda_codec *codec = device->device_data;
+
+	codec->in_freeing = 1;
+	if (device_is_registered(hda_codec_dev(codec)))
+		device_del(hda_codec_dev(codec));
+	put_device(hda_codec_dev(codec));
 	return 0;
 }
 
-/* just free the container */
 static void snd_hda_codec_dev_release(struct device *dev)
 {
-	kfree(dev_to_hda_codec(dev));
+	struct hda_codec *codec = dev_to_hda_codec(dev);
+
+	free_init_pincfgs(codec);
+	list_del(&codec->list);
+	codec->bus->caddr_tbl[codec->addr] = NULL;
+	clear_bit(codec->addr, &codec->bus->codec_powered);
+	snd_hda_sysfs_clear(codec);
+	free_hda_cache(&codec->amp_cache);
+	free_hda_cache(&codec->cmd_cache);
+	kfree(codec->vendor_name);
+	kfree(codec->chip_name);
+	kfree(codec->modelname);
+	kfree(codec->wcaps);
+	codec->bus->num_codecs--;
+	kfree(codec);
 }
 
 /**
@@ -1362,7 +1358,7 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 
 	setup_fg_nodes(codec);
 	if (!codec->afg && !codec->mfg) {
-		dev_err(card->dev, "no AFG or MFG node found\n");
+		codec_err(codec, "no AFG or MFG node found\n");
 		err = -ENODEV;
 		goto error;
 	}
@@ -1408,7 +1404,7 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 	return 0;
 
  error:
-	snd_hda_codec_free(codec);
+	put_device(hda_codec_dev(codec));
 	return err;
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_new);
@@ -2464,7 +2460,6 @@ void snd_hda_unlock_devices(struct hda_bus *bus)
 {
 	struct snd_card *card = bus->card;
 
-	card = bus->card;
 	spin_lock(&card->files_lock);
 	card->shutdown = 0;
 	spin_unlock(&card->files_lock);
