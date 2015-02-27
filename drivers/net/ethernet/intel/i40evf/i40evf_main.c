@@ -244,6 +244,7 @@ void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask)
 		if (mask & (1 << (i - 1))) {
 			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1),
 			     I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+			     I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
 			     I40E_VFINT_DYN_CTLN_CLEARPBA_MASK);
 		}
 	}
@@ -263,6 +264,7 @@ static void i40evf_fire_sw_int(struct i40evf_adapter *adapter, u32 mask)
 	if (mask & 1) {
 		dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTL01);
 		dyn_ctl |= I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK |
+			   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
 			   I40E_VFINT_DYN_CTLN_CLEARPBA_MASK;
 		wr32(hw, I40E_VFINT_DYN_CTL01, dyn_ctl);
 	}
@@ -270,6 +272,7 @@ static void i40evf_fire_sw_int(struct i40evf_adapter *adapter, u32 mask)
 		if (mask & (1 << i)) {
 			dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTLN1(i - 1));
 			dyn_ctl |= I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK |
+				   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
 				   I40E_VFINT_DYN_CTLN_CLEARPBA_MASK;
 			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1), dyn_ctl);
 		}
