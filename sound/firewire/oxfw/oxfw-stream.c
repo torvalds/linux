@@ -171,9 +171,10 @@ static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream,
 	}
 
 	/* Wait first packet */
-	err = amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT);
-	if (err < 0)
+	if (!amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT)) {
 		stop_stream(oxfw, stream);
+		err = -ETIMEDOUT;
+	}
 end:
 	return err;
 }
