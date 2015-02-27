@@ -1853,7 +1853,7 @@ static int set_request_path_attr(struct inode *rinode, struct dentry *rdentry,
  */
 static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 					       struct ceph_mds_request *req,
-					       int mds)
+					       int mds, bool drop_cap_releases)
 {
 	struct ceph_msg *msg;
 	struct ceph_mds_request_head *head;
@@ -1937,6 +1937,12 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		releases += ceph_encode_inode_release(&p,
 		      req->r_old_dentry->d_inode,
 		      mds, req->r_old_inode_drop, req->r_old_inode_unless, 0);
+
+	if (drop_cap_releases) {
+		releases = 0;
+		p = msg->front.iov_base + req->r_request_release_offset;
+	}
+
 	head->num_releases = cpu_to_le16(releases);
 
 	/* time stamp */
@@ -1989,7 +1995,7 @@ static void complete_request(struct ceph_mds_client *mdsc,
  */
 static int __prepare_send_request(struct ceph_mds_client *mdsc,
 				  struct ceph_mds_request *req,
-				  int mds)
+				  int mds, bool drop_cap_releases)
 {
 	struct ceph_mds_request_head *rhead;
 	struct ceph_msg *msg;
@@ -2048,7 +2054,7 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 		ceph_msg_put(req->r_request);
 		req->r_request = NULL;
 	}
-	msg = create_request_message(mdsc, req, mds);
+	msg = create_request_message(mdsc, req, mds, drop_cap_releases);
 	if (IS_ERR(msg)) {
 		req->r_err = PTR_ERR(msg);
 		complete_request(mdsc, req);
@@ -2132,7 +2138,7 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	if (req->r_request_started == 0)   /* note request start time */
 		req->r_request_started = jiffies;
 
-	err = __prepare_send_request(mdsc, req, mds);
+	err = __prepare_send_request(mdsc, req, mds, false);
 	if (!err) {
 		ceph_msg_get(req->r_request);
 		ceph_con_send(&session->s_con, req->r_request);
@@ -2658,7 +2664,7 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 
 	mutex_lock(&mdsc->mutex);
 	list_for_each_entry_safe(req, nreq, &session->s_unsafe, r_unsafe_item) {
-		err = __prepare_send_request(mdsc, req, session->s_mds);
+		err = __prepare_send_request(mdsc, req, session->s_mds, true);
 		if (!err) {
 			ceph_msg_get(req->r_request);
 			ceph_con_send(&session->s_con, req->r_request);
@@ -2679,7 +2685,8 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 			continue; /* only old requests */
 		if (req->r_session &&
 		    req->r_session->s_mds == session->s_mds) {
-			err = __prepare_send_request(mdsc, req, session->s_mds);
+			err = __prepare_send_request(mdsc, req,
+						     session->s_mds, true);
 			if (!err) {
 				ceph_msg_get(req->r_request);
 				ceph_con_send(&session->s_con, req->r_request);
