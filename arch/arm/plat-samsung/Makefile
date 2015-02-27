@@ -21,6 +21,8 @@ obj-$(CONFIG_SAMSUNG_ATAGS)	+= platformdata.o
 obj-$(CONFIG_SAMSUNG_ATAGS)	+= devs.o
 obj-$(CONFIG_SAMSUNG_ATAGS)	+= dev-uart.o
 
+obj-$(CONFIG_GPIO_SAMSUNG)     += gpio-samsung.o
+
 # PM support
 
 obj-$(CONFIG_PM_SLEEP)		+= pm-common.o
