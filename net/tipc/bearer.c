@@ -742,7 +742,7 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
-	bearer_disable(net, bearer, false);
+	bearer_disable(net, bearer, true);
 	rtnl_unlock();
 
 	return 0;
