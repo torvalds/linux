@@ -329,6 +329,7 @@ retry:
 	/* somebody else had handled it first? */
 	if ((mode & HOSTFS_I(ino)->mode) == mode) {
 		mutex_unlock(&HOSTFS_I(ino)->open_mutex);
+		close_file(&fd);
 		return 0;
 	}
 	if ((mode | HOSTFS_I(ino)->mode) != mode) {
