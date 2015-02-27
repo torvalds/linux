@@ -2158,7 +2158,6 @@ void echo_client_exit(void)
 static int __init obdecho_init(void)
 {
 	struct lprocfs_static_vars lvars;
-	int rc;
 
 	LCONSOLE_INFO("Echo OBD driver; http://www.lustre.org/\n");
 
@@ -2167,9 +2166,7 @@ static int __init obdecho_init(void)
 	lprocfs_echo_init_vars(&lvars);
 
 
-	rc = echo_client_init();
-
-	return rc;
+	return echo_client_init();
 }
 
 static void /*__exit*/ obdecho_exit(void)
