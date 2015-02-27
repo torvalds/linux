@@ -528,7 +528,6 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 /* ----------------------------------------------------------------------- */
 /* /dev/rtcX Interface functions */
 
-#ifdef CONFIG_RTC_INTF_DEV
 /**
  * ds1685_rtc_alarm_irq_enable - replaces ioctl() RTC_AIE on/off.
  * @dev: pointer to device structure.
@@ -557,7 +556,6 @@ ds1685_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	return 0;
 }
-#endif
 /* ----------------------------------------------------------------------- */
 
 
