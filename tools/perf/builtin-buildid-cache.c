@@ -223,6 +223,33 @@ static int build_id_cache__remove_file(const char *filename)
 	return err;
 }
 
+static int build_id_cache__purge_path(const char *pathname)
+{
+	struct strlist *list;
+	struct str_node *pos;
+	int err;
+
+	err = build_id_cache__list_build_ids(pathname, &list);
+	if (err)
+		goto out;
+
+	strlist__for_each(pos, list) {
+		err = build_id_cache__remove_s(pos->s);
+		if (verbose)
+			pr_info("Removing %s %s: %s\n", pos->s, pathname,
+				err ? "FAIL" : "Ok");
+		if (err)
+			break;
+	}
+	strlist__delete(list);
+
+out:
+	if (verbose)
+		pr_info("Purging %s: %s\n", pathname, err ? "FAIL" : "Ok");
+
+	return err;
+}
+
 static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 {
 	char filename[PATH_MAX];
@@ -285,6 +312,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	bool force = false;
 	char const *add_name_list_str = NULL,
 		   *remove_name_list_str = NULL,
+		   *purge_name_list_str = NULL,
 		   *missing_filename = NULL,
 		   *update_name_list_str = NULL,
 		   *kcore_filename = NULL;
@@ -302,6 +330,8 @@ int cmd_buildid_cache(int argc, const char **argv,
 		   "file", "kcore file to add"),
 	OPT_STRING('r', "remove", &remove_name_list_str, "file list",
 		    "file(s) to remove"),
+	OPT_STRING('p', "purge", &purge_name_list_str, "path list",
+		    "path(s) to remove (remove old caches too)"),
 	OPT_STRING('M', "missing", &missing_filename, "file",
 		   "to find missing build ids in the cache"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
@@ -355,6 +385,24 @@ int cmd_buildid_cache(int argc, const char **argv,
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__remove_file(pos->s)) {
+					if (errno == ENOENT) {
+						pr_debug("%s wasn't in the cache\n",
+							 pos->s);
+						continue;
+					}
+					pr_warning("Couldn't remove %s: %s\n",
+						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+				}
+
+			strlist__delete(list);
+		}
+	}
+
+	if (purge_name_list_str) {
+		list = strlist__new(true, purge_name_list_str);
+		if (list) {
+			strlist__for_each(pos, list)
+				if (build_id_cache__purge_path(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
