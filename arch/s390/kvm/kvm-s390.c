@@ -1130,6 +1130,15 @@ int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static void kvm_s390_vcpu_setup_model(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_cpu_model *model = &vcpu->kvm->arch.model;
+
+	vcpu->arch.cpu_id = model->cpu_id;
+	vcpu->arch.sie_block->ibc = model->ibc;
+	vcpu->arch.sie_block->fac = (int) (long) model->fac->list;
+}
+
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	int rc = 0;
@@ -1138,6 +1147,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 						    CPUSTAT_SM |
 						    CPUSTAT_STOPPED |
 						    CPUSTAT_GED);
+	kvm_s390_vcpu_setup_model(vcpu);
+
 	vcpu->arch.sie_block->ecb   = 6;
 	if (test_kvm_facility(vcpu->kvm, 50) && test_kvm_facility(vcpu->kvm, 73))
 		vcpu->arch.sie_block->ecb |= 0x10;
@@ -1157,11 +1168,6 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	}
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	vcpu->arch.ckc_timer.function = kvm_s390_idle_wakeup;
-
-	mutex_lock(&vcpu->kvm->lock);
-	vcpu->arch.cpu_id = vcpu->kvm->arch.model.cpu_id;
-	vcpu->arch.sie_block->ibc = vcpu->kvm->arch.model.ibc;
-	mutex_unlock(&vcpu->kvm->lock);
 
 	kvm_s390_vcpu_crypto_setup(vcpu);
 
@@ -1205,7 +1211,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
 		set_bit(63 - id, (unsigned long *) &kvm->arch.sca->mcn);
 	}
-	vcpu->arch.sie_block->fac = (int) (long) kvm->arch.model.fac->list;
 
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
