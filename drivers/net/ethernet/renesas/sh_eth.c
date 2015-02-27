@@ -1392,6 +1392,9 @@ static void sh_eth_dev_exit(struct net_device *ndev)
 	msleep(2); /* max frame time at 10 Mbps < 1250 us */
 	sh_eth_get_stats(ndev);
 	sh_eth_reset(ndev);
+
+	/* Set MAC address again */
+	update_mac_address(ndev);
 }
 
 /* free Tx skb function */
