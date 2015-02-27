@@ -339,13 +339,10 @@ static int ll_revalidate_dentry(struct dentry *dentry,
  */
 static int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 {
-	int rc;
-
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, flags=%u\n",
 	       dentry, flags);
 
-	rc = ll_revalidate_dentry(dentry, flags);
-	return rc;
+	return ll_revalidate_dentry(dentry, flags);
 }
 
 
