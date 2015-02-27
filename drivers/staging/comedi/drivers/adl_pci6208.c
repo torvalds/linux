@@ -19,12 +19,16 @@
 /*
  * Driver: adl_pci6208
  * Description: ADLink PCI-6208/6216 Series Multi-channel Analog Output Cards
- * Devices: [ADLink] PCI-6208 (adl_pci6208), PCI-6216 (adl_pci6216)
+ * Devices: [ADLink] PCI-6208 (adl_pci6208), PCI-6216
  * Author: nsyeow <nsyeow@pd.jaring.my>
- * Updated: Fri, 30 Jan 2004 14:44:27 +0800
+ * Updated: Wed, 11 Feb 2015 11:37:18 +0000
  * Status: untested
  *
  * Configuration Options: not applicable, uses PCI auto config
+ *
+ * All supported devices share the same PCI device ID and are treated as a
+ * PCI-6216 with 16 analog output channels.  On a PCI-6208, the upper 8
+ * channels exist in registers, but don't go to DAC chips.
  */
 
 #include <linux/module.h>
@@ -47,7 +51,6 @@
 
 enum pci6208_boardid {
 	BOARD_PCI6208,
-	BOARD_PCI6216,
 };
 
 struct pci6208_board {
@@ -58,11 +61,7 @@ struct pci6208_board {
 static const struct pci6208_board pci6208_boards[] = {
 	[BOARD_PCI6208] = {
 		.name		= "adl_pci6208",
-		.ao_chans	= 8,
-	},
-	[BOARD_PCI6216] = {
-		.name		= "adl_pci6216",
-		.ao_chans	= 16,
+		.ao_chans	= 16,	/* Only 8 usable on PCI-6208 */
 	},
 };
 
@@ -218,7 +217,6 @@ static int adl_pci6208_pci_probe(struct pci_dev *dev,
 
 static const struct pci_device_id adl_pci6208_pci_table[] = {
 	{ PCI_VDEVICE(ADLINK, 0x6208), BOARD_PCI6208 },
-	{ PCI_VDEVICE(ADLINK, 0x6216), BOARD_PCI6216 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci6208_pci_table);
