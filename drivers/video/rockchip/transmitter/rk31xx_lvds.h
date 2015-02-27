@@ -173,11 +173,20 @@ static inline int lvds_grf_writel(struct rk_lvds_device *lvds,
 	return 0;
 }
 
+static inline int lvds_dsi_writel(struct rk_lvds_device *lvds,
+				  u32 offset, u32 val)
+{
+	writel_relaxed(val, lvds->ctrl_reg + offset);
+	dsb(sy);
+
+	return 0;
+}
+
 static inline u32 lvds_phy_lockon(struct rk_lvds_device *lvds)
 {
 	u32 val = 0;
 
-	val = readl_relaxed(lvds->ctrl_reg);
+	val = readl_relaxed(lvds->ctrl_reg + 0x10);
 	return (val & 0x01);
 }
 
