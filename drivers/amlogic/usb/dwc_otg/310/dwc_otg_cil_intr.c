@@ -77,14 +77,15 @@ static void charger_detect_work(void *_vp)
 	if(core_if->session_valid){
 		/* Save status, turn on pull up */
 		core_if->dev_if->vbus_on = 1;
-		if(core_if->dev_if->pull_up){
+//		if(core_if->dev_if->pull_up){
 			dwc_otg_device_soft_connect(core_if);
-		}
+//		}
 	}else{
 		core_if->dev_if->vbus_on = 0;
 		/* Disable Pull up, defaultly */
-		if(core_if->dev_if->pull_up)
+//		if(core_if->dev_if->pull_up){
 			dwc_otg_device_soft_disconnect(core_if);
+//		}
 	}
 	DWC_SPINUNLOCK_IRQRESTORE(core_if->lock,flags);
 
@@ -501,10 +502,7 @@ int32_t dwc_otg_handle_session_req_intr(dwc_otg_core_if_t * core_if)
 		DWC_PRINTF("SRP: Device mode\n");
 		gotgctl.d32 =
 			DWC_READ_REG32(&core_if->core_global_regs->gotgctl);
-		if (gotgctl.b.sesreqscs)
-			DWC_PRINTF("SRP Success\n");
-		else
-			DWC_PRINTF("SRP Fail\n");
+
 		if (core_if->otg_ver) {
 			gotgctl.d32 = 0 ;	
 			gotgctl.b.devhnpen = 1;

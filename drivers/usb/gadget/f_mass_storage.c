@@ -789,8 +789,6 @@ static int do_write(struct fsg_common *common)
 	}
 	spin_lock(&curlun->filp->f_lock);
 	curlun->filp->f_flags &= ~O_SYNC;	/* Default is not to wait */
-	if (curlun->force_sync)
-		curlun->filp->f_flags |= O_SYNC;
 	spin_unlock(&curlun->filp->f_lock);
 
 	/*
@@ -2583,7 +2581,7 @@ static int fsg_main_thread(void *common_)
 static DEVICE_ATTR(ro, 0644, fsg_show_ro, fsg_store_ro);
 static DEVICE_ATTR(nofua, 0644, fsg_show_nofua, fsg_store_nofua);
 static DEVICE_ATTR(file, 0644, fsg_show_file, fsg_store_file);
-static DEVICE_ATTR(force_sync, 0644, fsg_show_force_sync, fsg_store_force_sync);
+
 static struct device_attribute dev_attr_ro_cdrom =
 	__ATTR(ro, 0444, fsg_show_ro, NULL);
 static struct device_attribute dev_attr_file_nonremovable =
@@ -2714,9 +2712,6 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		rc = device_create_file(&curlun->dev, &dev_attr_nofua);
 		if (rc)
 			goto error_luns;
-		rc = device_create_file(&curlun->dev, &dev_attr_force_sync);
-		if (rc)
-			goto error_luns;
 
 		if (lcfg->filename) {
 			rc = fsg_lun_open(curlun, lcfg->filename);
@@ -2748,14 +2743,13 @@ buffhds_first_it:
 
 	/* Prepare inquiryString */
 	i = get_default_bcdDevice();
-	snprintf(common->inquiry_string, sizeof common->inquiry_string,"%s","ONDA");
-	//snprintf(common->inquiry_string, sizeof common->inquiry_string,
-	//	 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
+	snprintf(common->inquiry_string, sizeof common->inquiry_string,
+		 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
 		 /* Assume product name dependent on the first LUN */
-	//	 cfg->product_name ?: (common->luns->cdrom
-	//			     ? "File-Stor Gadget"
-	//			     : "File-CD Gadget"),
-	//	 i);
+		 cfg->product_name ?: (common->luns->cdrom
+				     ? "File-Stor Gadget"
+				     : "File-CD Gadget"),
+		 i);
 
 	/*
 	 * Some peripheral controllers are known not to be able to
@@ -2844,7 +2838,6 @@ static void fsg_common_release(struct kref *ref)
 					   lun->removable
 					 ? &dev_attr_file
 					 : &dev_attr_file_nonremovable);
-			device_remove_file(&lun->dev, &dev_attr_force_sync);
 			fsg_lun_close(lun);
 			device_unregister(&lun->dev);
 		}
@@ -2998,7 +2991,6 @@ struct fsg_module_parameters {
 	bool		removable[FSG_MAX_LUNS];
 	bool		cdrom[FSG_MAX_LUNS];
 	bool		nofua[FSG_MAX_LUNS];
-	int		force_sync[FSG_MAX_LUNS];
 
 	unsigned int	file_count, ro_count, removable_count, cdrom_count;
 	unsigned int	nofua_count;
@@ -3031,9 +3023,8 @@ struct fsg_module_parameters {
 	_FSG_MODULE_PARAM(prefix, params, luns, uint,			\
 			  "number of LUNs");				\
 	_FSG_MODULE_PARAM(prefix, params, stall, bool,			\
-			  "false to prevent bulk stalls")				\
-	_FSG_MODULE_PARAM_ARRAY(prefix, params, force_sync, bool,	\
-				"true to force sync when do write");
+			  "false to prevent bulk stalls")
+
 static void
 fsg_config_from_params(struct fsg_config *cfg,
 		       const struct fsg_module_parameters *params)
