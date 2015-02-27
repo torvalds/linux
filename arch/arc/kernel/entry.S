@@ -505,8 +505,8 @@ ENTRY(EV_Trap)
 	EXCEPTION_PROLOGUE
 
 	;------- (4) What caused the Trap --------------
-	lr     r12, [ecr]
-	bmsk.f 0, r12, 7
+	lr     r10, [ecr]
+	bmsk.f 0, r10, 7
 	bnz    trap_with_param
 
 	; ======= (5a) Trap is due to System Call ========
