@@ -269,7 +269,6 @@ MODULE_DEVICE_TABLE(dmi, cros_ec_lpc_dmi_table);
 static struct platform_driver cros_ec_lpc_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = cros_ec_lpc_probe,
 	.remove = cros_ec_lpc_remove,
