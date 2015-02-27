@@ -1414,7 +1414,8 @@ static void balloon_onchannelcallback(void *context)
 static int balloon_probe(struct hv_device *dev,
 			const struct hv_vmbus_device_id *dev_id)
 {
-	int ret, t;
+	int ret;
+	unsigned long t;
 	struct dm_version_request version_req;
 	struct dm_capabilities cap_msg;
 
