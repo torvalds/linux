@@ -46,8 +46,6 @@ struct at86rf2xx_chip_data {
 	u16 t_off_to_tx_on;
 	u16 t_frame;
 	u16 t_p_ack;
-	/* completion timeout for tx in msecs */
-	u16 t_tx_timeout;
 	int rssi_base_val;
 
 	int (*set_channel)(struct at86rf230_local *, u8, u8);
@@ -1281,7 +1279,6 @@ static struct at86rf2xx_chip_data at86rf233_data = {
 	.t_off_to_tx_on = 80,
 	.t_frame = 4096,
 	.t_p_ack = 545,
-	.t_tx_timeout = 2000,
 	.rssi_base_val = -91,
 	.set_channel = at86rf23x_set_channel,
 	.get_desense_steps = at86rf23x_get_desens_steps
@@ -1295,7 +1292,6 @@ static struct at86rf2xx_chip_data at86rf231_data = {
 	.t_off_to_tx_on = 110,
 	.t_frame = 4096,
 	.t_p_ack = 545,
-	.t_tx_timeout = 2000,
 	.rssi_base_val = -91,
 	.set_channel = at86rf23x_set_channel,
 	.get_desense_steps = at86rf23x_get_desens_steps
@@ -1309,7 +1305,6 @@ static struct at86rf2xx_chip_data at86rf212_data = {
 	.t_off_to_tx_on = 200,
 	.t_frame = 4096,
 	.t_p_ack = 545,
-	.t_tx_timeout = 2000,
 	.rssi_base_val = -100,
 	.set_channel = at86rf212_set_channel,
 	.get_desense_steps = at86rf212_get_desens_steps
