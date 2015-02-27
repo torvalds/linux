@@ -24,17 +24,17 @@ struct mm_struct;
 struct vm_area_struct;
 
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _CACHE_CACHABLE_NONCOHERENT)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_WRITE | (cpu_has_rixi ? 0 : _PAGE_READ) | \
+#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_WRITE | _PAGE_READ | \
 				 _page_cachable_default)
-#define PAGE_COPY	__pgprot(_PAGE_PRESENT | (cpu_has_rixi ? 0 : _PAGE_READ) | \
-				 (cpu_has_rixi ?  _PAGE_NO_EXEC : 0) | _page_cachable_default)
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | (cpu_has_rixi ? 0 : _PAGE_READ) | \
+#define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_NO_EXEC | \
+				 _page_cachable_default)
+#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_READ | \
 				 _page_cachable_default)
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _page_cachable_default)
 #define PAGE_KERNEL_NC	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _CACHE_CACHABLE_NONCOHERENT)
-#define PAGE_USERIO	__pgprot(_PAGE_PRESENT | (cpu_has_rixi ? 0 : _PAGE_READ) | _PAGE_WRITE | \
+#define PAGE_USERIO	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
 				 _page_cachable_default)
 #define PAGE_KERNEL_UNCACHED __pgprot(_PAGE_PRESENT | __READABLE | \
 			__WRITEABLE | _PAGE_GLOBAL | _CACHE_UNCACHED)
@@ -332,13 +332,13 @@ static inline pte_t pte_mkdirty(pte_t pte)
 static inline pte_t pte_mkyoung(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_ACCESSED;
-	if (cpu_has_rixi) {
-		if (!(pte_val(pte) & _PAGE_NO_READ))
-			pte_val(pte) |= _PAGE_SILENT_READ;
-	} else {
-		if (pte_val(pte) & _PAGE_READ)
-			pte_val(pte) |= _PAGE_SILENT_READ;
-	}
+#ifdef CONFIG_CPU_MIPSR2
+	if (!(pte_val(pte) & _PAGE_NO_READ))
+		pte_val(pte) |= _PAGE_SILENT_READ;
+	else
+#endif
+	if (pte_val(pte) & _PAGE_READ)
+		pte_val(pte) |= _PAGE_SILENT_READ;
 	return pte;
 }
 
@@ -534,13 +534,13 @@ static inline pmd_t pmd_mkyoung(pmd_t pmd)
 {
 	pmd_val(pmd) |= _PAGE_ACCESSED;
 
-	if (cpu_has_rixi) {
-		if (!(pmd_val(pmd) & _PAGE_NO_READ))
-			pmd_val(pmd) |= _PAGE_SILENT_READ;
-	} else {
-		if (pmd_val(pmd) & _PAGE_READ)
-			pmd_val(pmd) |= _PAGE_SILENT_READ;
-	}
+#ifdef CONFIG_CPU_MIPSR2
+	if (!(pmd_val(pmd) & _PAGE_NO_READ))
+		pmd_val(pmd) |= _PAGE_SILENT_READ;
+	else
+#endif
+	if (pmd_val(pmd) & _PAGE_READ)
+		pmd_val(pmd) |= _PAGE_SILENT_READ;
 
 	return pmd;
 }
