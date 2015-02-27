@@ -4525,7 +4525,11 @@ int snd_hda_codec_prepare(struct hda_codec *codec,
 {
 	int ret;
 	mutex_lock(&codec->bus->prepare_mutex);
-	ret = hinfo->ops.prepare(hinfo, codec, stream, format, substream);
+	if (hinfo->ops.prepare)
+		ret = hinfo->ops.prepare(hinfo, codec, stream, format,
+					 substream);
+	else
+		ret = -ENODEV;
 	if (ret >= 0)
 		purify_inactive_streams(codec);
 	mutex_unlock(&codec->bus->prepare_mutex);
@@ -4546,7 +4550,8 @@ void snd_hda_codec_cleanup(struct hda_codec *codec,
 			   struct snd_pcm_substream *substream)
 {
 	mutex_lock(&codec->bus->prepare_mutex);
-	hinfo->ops.cleanup(hinfo, codec, substream);
+	if (hinfo->ops.cleanup)
+		hinfo->ops.cleanup(hinfo, codec, substream);
 	mutex_unlock(&codec->bus->prepare_mutex);
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_cleanup);

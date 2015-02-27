@@ -416,7 +416,8 @@ static int azx_pcm_close(struct snd_pcm_substream *substream)
 	azx_dev->running = 0;
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	azx_release_device(azx_dev);
-	hinfo->ops.close(hinfo, apcm->codec, substream);
+	if (hinfo->ops.close)
+		hinfo->ops.close(hinfo, apcm->codec, substream);
 	snd_hda_power_down(apcm->codec);
 	mutex_unlock(&chip->open_mutex);
 	return 0;
@@ -808,8 +809,8 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	mutex_lock(&chip->open_mutex);
 	azx_dev = azx_assign_device(chip, substream);
 	if (azx_dev == NULL) {
-		mutex_unlock(&chip->open_mutex);
-		return -EBUSY;
+		err = -EBUSY;
+		goto unlock;
 	}
 	runtime->hw = azx_pcm_hw;
 	runtime->hw.channels_min = hinfo->channels_min;
@@ -844,12 +845,13 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 				   buff_step);
 	snd_hda_power_up(apcm->codec);
-	err = hinfo->ops.open(hinfo, apcm->codec, substream);
+	if (hinfo->ops.open)
+		err = hinfo->ops.open(hinfo, apcm->codec, substream);
+	else
+		err = -ENODEV;
 	if (err < 0) {
 		azx_release_device(azx_dev);
-		snd_hda_power_down(apcm->codec);
-		mutex_unlock(&chip->open_mutex);
-		return err;
+		goto powerdown;
 	}
 	snd_pcm_limit_hw_rates(runtime);
 	/* sanity check */
@@ -858,10 +860,10 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	    snd_BUG_ON(!runtime->hw.formats) ||
 	    snd_BUG_ON(!runtime->hw.rates)) {
 		azx_release_device(azx_dev);
-		hinfo->ops.close(hinfo, apcm->codec, substream);
-		snd_hda_power_down(apcm->codec);
-		mutex_unlock(&chip->open_mutex);
-		return -EINVAL;
+		if (hinfo->ops.close)
+			hinfo->ops.close(hinfo, apcm->codec, substream);
+		err = -EINVAL;
+		goto powerdown;
 	}
 
 	/* disable LINK_ATIME timestamps for capture streams
@@ -880,6 +882,12 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 	mutex_unlock(&chip->open_mutex);
 	return 0;
+
+ powerdown:
+	snd_hda_power_down(apcm->codec);
+ unlock:
+	mutex_unlock(&chip->open_mutex);
+	return err;
 }
 
 static int azx_pcm_mmap(struct snd_pcm_substream *substream,
