@@ -272,7 +272,7 @@ void dce4_hdmi_audio_set_dto(struct radeon_device *rdev,
 }
 
 void dce4_dp_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock)
+			   struct radeon_crtc *crtc, unsigned int clock)
 {
 	u32 value;
 
@@ -294,7 +294,7 @@ void dce4_dp_audio_set_dto(struct radeon_device *rdev,
 	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
 	 */
 	WREG32(DCCG_AUDIO_DTO1_PHASE, 24000);
-	WREG32(DCCG_AUDIO_DTO1_MODULE, rdev->clock.max_pixel_clock * 10);
+	WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
 }
 
 void dce4_set_vbi_packet(struct drm_encoder *encoder, u32 offset)
