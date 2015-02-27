@@ -144,8 +144,7 @@ static int sh_pfc_enum_in_range(u16 enum_id, const struct pinmux_range *r)
 	return 1;
 }
 
-unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
-				  unsigned long reg_width)
+u32 sh_pfc_read_raw_reg(void __iomem *mapped_reg, unsigned long reg_width)
 {
 	switch (reg_width) {
 	case 8:
@@ -161,7 +160,7 @@ unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
 }
 
 void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned long reg_width,
-			  unsigned long data)
+			  u32 data)
 {
 	switch (reg_width) {
 	case 8:
@@ -181,8 +180,7 @@ void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned long reg_width,
 static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
 				     const struct pinmux_cfg_reg *crp,
 				     unsigned long in_pos,
-				     void __iomem **mapped_regp,
-				     unsigned long *maskp,
+				     void __iomem **mapped_regp, u32 *maskp,
 				     unsigned long *posp)
 {
 	unsigned int k;
@@ -202,14 +200,15 @@ static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
 
 static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 				    const struct pinmux_cfg_reg *crp,
-				    unsigned long field, unsigned long value)
+				    unsigned long field, u32 value)
 {
 	void __iomem *mapped_reg;
-	unsigned long mask, pos, data;
+	unsigned long pos;
+	u32 mask, data;
 
 	sh_pfc_config_reg_helper(pfc, crp, field, &mapped_reg, &mask, &pos);
 
-	dev_dbg(pfc->dev, "write_reg addr = %lx, value = %ld, field = %ld, "
+	dev_dbg(pfc->dev, "write_reg addr = %lx, value = 0x%x, field = %ld, "
 		"r_width = %ld, f_width = %ld\n",
 		crp->reg, value, field, crp->reg_width, crp->field_width);
 
@@ -230,11 +229,12 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 
 static int sh_pfc_get_config_reg(struct sh_pfc *pfc, u16 enum_id,
 				 const struct pinmux_cfg_reg **crp, int *fieldp,
-				 int *valuep)
+				 u32 *valuep)
 {
 	const struct pinmux_cfg_reg *config_reg;
-	unsigned long r_width, f_width, curr_width, ncomb;
-	unsigned int k, m, n, pos, bit_pos;
+	unsigned long r_width, f_width, curr_width;
+	unsigned int k, m, pos, bit_pos;
+	u32 ncomb, n;
 
 	k = 0;
 	while (1) {
@@ -300,7 +300,8 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	const struct pinmux_cfg_reg *cr = NULL;
 	u16 enum_id;
 	const struct pinmux_range *range;
-	int in_range, pos, field, value;
+	int in_range, pos, field;
+	u32 value;
 	int ret;
 
 	switch (pinmux_type) {

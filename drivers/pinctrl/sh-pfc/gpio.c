@@ -21,7 +21,7 @@
 
 struct sh_pfc_gpio_data_reg {
 	const struct pinmux_data_reg *info;
-	unsigned long shadow;
+	u32 shadow;
 };
 
 struct sh_pfc_gpio_pin {
@@ -59,8 +59,8 @@ static void gpio_get_data_reg(struct sh_pfc_chip *chip, unsigned int offset,
 	*bit = gpio_pin->dbit;
 }
 
-static unsigned long gpio_read_data_reg(struct sh_pfc_chip *chip,
-					const struct pinmux_data_reg *dreg)
+static u32 gpio_read_data_reg(struct sh_pfc_chip *chip,
+			      const struct pinmux_data_reg *dreg)
 {
 	void __iomem *mem = dreg->reg - chip->mem->phys + chip->mem->virt;
 
@@ -68,8 +68,7 @@ static unsigned long gpio_read_data_reg(struct sh_pfc_chip *chip,
 }
 
 static void gpio_write_data_reg(struct sh_pfc_chip *chip,
-				const struct pinmux_data_reg *dreg,
-				unsigned long value)
+				const struct pinmux_data_reg *dreg, u32 value)
 {
 	void __iomem *mem = dreg->reg - chip->mem->phys + chip->mem->virt;
 
@@ -162,9 +161,9 @@ static void gpio_pin_set_value(struct sh_pfc_chip *chip, unsigned offset,
 	pos = reg->info->reg_width - (bit + 1);
 
 	if (value)
-		set_bit(pos, &reg->shadow);
+		reg->shadow |= BIT(pos);
 	else
-		clear_bit(pos, &reg->shadow);
+		reg->shadow &= ~BIT(pos);
 
 	gpio_write_data_reg(chip, reg->info, reg->shadow);
 }
